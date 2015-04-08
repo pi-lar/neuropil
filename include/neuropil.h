@@ -1,0 +1,114 @@
+/**
+ ** $Id: np.h,v 1.19 2006/06/07 09:21:28 krishnap Exp $
+ **
+ ** Matthew Allen
+ ** description:
+ **/
+#ifndef _NEUROPIL_H_
+#define _NEUROPIL_H_
+
+#include <pthread.h>
+#include "proton/message.h"
+
+#include "include.h"
+#include "key.h"
+
+
+struct np_state_t {
+
+	struct np_global_t* neuropil;
+
+    struct np_nodecache_t* nodes;
+    struct np_routeglobal_t* routes;
+    struct np_messageglobal_t* messages;
+    struct np_networkglobal_t* network;
+    struct np_joblist_t* jobq;
+
+    int joined_network;
+
+    pthread_attr_t attr;
+    pthread_t* thread_ids;
+
+    pthread_mutex_t bootstrapMutex;	/* for future security enhancement */
+    struct JRB* bootstrapMsgStore;	/* for future security enhancement */
+    pthread_mutex_t certificateMutex;	/* for future security enhancement */
+    void *certificateStore;	/* for future security enhancement */
+
+};
+
+struct np_global_t {
+
+	struct np_node_t *me;
+	struct np_node_t *bootstrap;
+
+	void *join;	/* semaphore */
+
+	pthread_mutex_t lock;
+	np_join_func_t join_func;
+
+};
+
+/**
+ ** np_init: port
+ **  Initialize Chimera on port port and returns the ChimeraState * which 
+ ** contains global state of different np modules.
+ **/
+np_state_t* np_init (int port);
+
+/** np_setkey:
+ ** Manually sets the key for the current node 
+ **/
+void np_setkey (const np_state_t* state, Key* key);
+void np_setjoinfunc(const np_state_t* state, np_join_func_t joinFunc);
+void np_waitforjoin(const np_state_t* state);
+
+
+/** np_add_listener:
+ ** register an integer message type to be routed by the np routing layer
+ ** ack is the argument that defines whether this message type should be acked or not
+ ** ack == 1 means message will be acknowledged, ack=2 means no acknowledge is necessary
+ ** for this type of message. 
+ **/
+void np_add_listener (const np_state_t* state, np_callback_t msg_handler, char* subject, int ack, int retry, int threshold);
+/** np_msg_*:
+ ** Send a message of a specific type to a key containing size bytes of data. This will
+ ** send data through the neuropil system and deliver it to the host closest to the
+ ** key, which will in turn try to find a message handler
+ **/
+// oneway pattern
+void np_send         (np_state_t* state, char* subject, char *data, unsigned long seqnum);
+int  np_receive      (np_state_t* state, char* subject, char **data, unsigned long seqnum, int ack);
+void np_send_amqp    (const np_state_t* state, char* subject, pn_message_t *data);
+void np_receive_amqp (const np_state_t* state, char* subject, pn_message_t *data);
+
+// push / pull for one of several nodes
+void np_push      (const np_state_t* state, char* subject, char *data, int seqnum);
+void np_pull      (const np_state_t* state, char* subject, char *data, int seqnum);
+void np_push_amqp (const np_state_t* state, char* subject, pn_message_t *data);
+void np_pull_amqp (const np_state_t* state, char* subject, pn_message_t *data);
+
+// pub / sub sending of messages
+void np_pub      (const np_state_t* state, char* subject, char *data, int seqnum);
+void np_sub      (const np_state_t* state, char* subject, char *data, int seqnum);
+void np_pub_amqp (const np_state_t* state, char* subject, pn_message_t *data);
+void np_sub_amqp (const np_state_t* state, char* subject, pn_message_t *data);
+
+// register a callback that is executed when a new message arrives
+void np_callback      (const np_state_t* state, char* subject, char *data, int seqnum);
+void np_callback_amqp (const np_state_t* state, char* subject, pn_message_t *data);
+
+void np_start_job_queue(np_state_t* state, int pool_size);
+void np_get_job_queue(np_state_t* state);
+
+/**
+ ** np_ping:
+ ** sends a ping message to the host. the message is acknowledged in network layer
+ **/
+void np_ping(np_state_t* state, Key* key);
+void np_send_ack(np_state_t* state, np_jobargs_t* args);
+
+/* register your own message handler */
+// void np_register_handler (np_state_t* state, np_callback_t handleFuncPtr, char* subject, int ack, int retry);
+
+
+#endif /* _CHIMERA_H_ */

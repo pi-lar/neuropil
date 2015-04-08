@@ -1,0 +1,92 @@
+initialized log system 0x7f8960403920: ./neuropil_node_6666.log (0x7fff778102a0) 255
+2015-03-25 07:37:01.948241 neuropil.c     :np_init                  :211  # 1        # found hostname brandonpi-larnet.local
+2015-03-25 07:37:01.949206 neuropil.c     :np_init                  :221  # 16       # brandonpi-larnet.local:6666
+2015-03-25 07:37:01.949302 key.c          :sha1_keygen              :124  # 32       # md value now: [µM•Œ”ç∞Îï⁄êö+üFƒ°]
+2015-03-25 07:37:01.949317 key.c          :key_create_from_hostport :165  # 32       # digest calculation returned HASH: b5164da5ced38db0eb95da909a2b079f0646c4a1
+2015-03-25 07:37:01.949325 key.c          :key_create_from_sha1     :229  # 32       # key_str now: b5164da5ced38db0eb95da909a2b079f0646c4a1 
+2015-03-25 07:37:01.949336 key.c          :key_create_from_hostport :168  # 32       # HASH(brandonpi-larnet.local:6666) = [4935221085694e34c1ad00070000000900000286]
+2015-03-25 07:37:01.949525 message.c      :message_init             :180  # 16       # register handler (0): _NEUROPIL.ROUTE.LOOKUP
+2015-03-25 07:37:01.949536 message.c      :np_message_register_handl:346  # 16       # transform message handler registered for _NEUROPIL.ROUTE.LOOKUP
+2015-03-25 07:37:01.949540 message.c      :message_init             :180  # 16       # register handler (1): _NEUROPIL.NODES.PIGGY
+2015-03-25 07:37:01.949546 message.c      :np_message_register_handl:346  # 16       # transform message handler registered for _NEUROPIL.NODES.PIGGY
+2015-03-25 07:37:01.949549 message.c      :message_init             :180  # 16       # register handler (4): _NEUROPIL.ACK
+2015-03-25 07:37:01.949553 message.c      :np_message_register_handl:316  # 16       # inbound message handler registered for _NEUROPIL.ACK
+2015-03-25 07:37:01.949556 message.c      :message_init             :180  # 16       # register handler (5): _NEUROPIL.ACK
+2015-03-25 07:37:01.949559 message.c      :np_message_register_handl:331  # 16       # outbound message handler registered for _NEUROPIL.ACK
+2015-03-25 07:37:01.949562 message.c      :message_init             :180  # 16       # register handler (6): _NEUROPIL.PING.REQUEST
+2015-03-25 07:37:01.949566 message.c      :np_message_register_handl:316  # 16       # inbound message handler registered for _NEUROPIL.PING.REQUEST
+2015-03-25 07:37:01.949569 message.c      :message_init             :180  # 16       # register handler (7): _NEUROPIL.PING.REPLY
+2015-03-25 07:37:01.949573 message.c      :np_message_register_handl:316  # 16       # inbound message handler registered for _NEUROPIL.PING.REPLY
+2015-03-25 07:37:01.949576 message.c      :message_init             :180  # 16       # register handler (8): _NEUROPIL.PING.REQUEST
+2015-03-25 07:37:01.949579 message.c      :np_message_register_handl:331  # 16       # outbound message handler registered for _NEUROPIL.PING.REQUEST
+2015-03-25 07:37:01.949582 message.c      :message_init             :180  # 16       # register handler (9): _NEUROPIL.PING.REPLY
+2015-03-25 07:37:01.949588 message.c      :np_message_register_handl:331  # 16       # outbound message handler registered for _NEUROPIL.PING.REPLY
+2015-03-25 07:37:01.949591 message.c      :message_init             :180  # 16       # register handler (10): _NEUROPIL.JOIN.REQUEST
+2015-03-25 07:37:01.949595 message.c      :np_message_register_handl:316  # 16       # inbound message handler registered for _NEUROPIL.JOIN.REQUEST
+2015-03-25 07:37:01.949598 message.c      :message_init             :180  # 16       # register handler (11): _NEUROPIL.JOIN.REQUEST
+2015-03-25 07:37:01.949601 message.c      :np_message_register_handl:331  # 16       # outbound message handler registered for _NEUROPIL.JOIN.REQUEST
+2015-03-25 07:37:01.949605 message.c      :message_init             :180  # 16       # register handler (12): _NEUROPIL.JOIN.ACK
+2015-03-25 07:37:01.949608 message.c      :np_message_register_handl:316  # 16       # inbound message handler registered for _NEUROPIL.JOIN.ACK
+2015-03-25 07:37:01.949612 message.c      :message_init             :180  # 16       # register handler (13): _NEUROPIL.JOIN.ACK
+2015-03-25 07:37:01.949615 message.c      :np_message_register_handl:331  # 16       # outbound message handler registered for _NEUROPIL.JOIN.ACK
+2015-03-25 07:37:01.949626 message.c      :message_init             :180  # 16       # register handler (14): _NEUROPIL.JOIN.NACK
+2015-03-25 07:37:01.949630 message.c      :np_message_register_handl:316  # 16       # inbound message handler registered for _NEUROPIL.JOIN.NACK
+2015-03-25 07:37:01.949633 message.c      :message_init             :180  # 16       # register handler (15): _NEUROPIL.JOIN.NACK
+2015-03-25 07:37:01.949637 message.c      :np_message_register_handl:331  # 16       # outbound message handler registered for _NEUROPIL.JOIN.NACK
+2015-03-25 07:37:01.949640 message.c      :message_init             :180  # 16       # register handler (16): _NEUROPIL.NODES.PIGGY
+2015-03-25 07:37:01.949643 message.c      :np_message_register_handl:316  # 16       # inbound message handler registered for _NEUROPIL.NODES.PIGGY
+2015-03-25 07:37:01.949646 message.c      :message_init             :180  # 16       # register handler (17): _NEUROPIL.NODES.PIGGY
+2015-03-25 07:37:01.949650 message.c      :np_message_register_handl:331  # 16       # outbound message handler registered for _NEUROPIL.NODES.PIGGY
+2015-03-25 07:37:01.949653 message.c      :message_init             :180  # 16       # register handler (18): _NEUROPIL.NODES.UPDATE
+2015-03-25 07:37:01.949656 message.c      :np_message_register_handl:316  # 16       # inbound message handler registered for _NEUROPIL.NODES.UPDATE
+2015-03-25 07:37:01.949660 message.c      :message_init             :180  # 16       # register handler (19): _NEUROPIL.NODES.UPDATE
+2015-03-25 07:37:01.949663 message.c      :np_message_register_handl:331  # 16       # outbound message handler registered for _NEUROPIL.NODES.UPDATE
+2015-03-25 07:37:01.949666 message.c      :message_init             :180  # 16       # register handler (20): _NEUROPIL.MESSAGE.INTEREST
+2015-03-25 07:37:01.949670 message.c      :np_message_register_handl:316  # 16       # inbound message handler registered for _NEUROPIL.MESSAGE.INTEREST
+2015-03-25 07:37:01.949673 message.c      :message_init             :180  # 16       # register handler (21): _NEUROPIL.MESSAGE.AVAILABILITY
+2015-03-25 07:37:01.949676 message.c      :np_message_register_handl:316  # 16       # inbound message handler registered for _NEUROPIL.MESSAGE.AVAILABILITY
+2015-03-25 07:37:01.949680 message.c      :message_init             :180  # 16       # register handler (22): _NEUROPIL.MESSAGE.INTEREST
+2015-03-25 07:37:01.949683 message.c      :np_message_register_handl:331  # 16       # outbound message handler registered for _NEUROPIL.MESSAGE.INTEREST
+2015-03-25 07:37:01.949686 message.c      :message_init             :180  # 16       # register handler (23): _NEUROPIL.MESSAGE.AVAILABILITY
+2015-03-25 07:37:01.949690 message.c      :np_message_register_handl:331  # 16       # outbound message handler registered for _NEUROPIL.MESSAGE.AVAILABILITY
+2015-03-25 07:37:01.949718 neuropil.c     :np_init                  :271  # 4        # neuropil successfully initialized: 4935221085694e34c1ad00070000000900000286
+2015-03-25 07:37:01.949722 neuropil_node.c:main                     :150  # 16       # starting job queue
+2015-03-25 07:37:01.949744 neuropil.c     :np_start_job_queue       :301  # 16       # neuropil thread started: 0x10b601000
+2015-03-25 07:37:01.949756 neuropil.c     :np_start_job_queue       :301  # 16       # neuropil thread started: 0x10b684000
+2015-03-25 07:37:01.949750 job_queue.c    :job_exec                 :167  # 16       # job queue thread starting
+2015-03-25 07:37:01.949767 neuropil.c     :np_start_job_queue       :301  # 16       # neuropil thread started: 0x10b707000
+2015-03-25 07:37:01.949764 job_queue.c    :job_exec                 :167  # 16       # job queue thread starting
+2015-03-25 07:37:01.949776 job_queue.c    :job_exec                 :167  # 16       # job queue thread starting
+2015-03-25 07:37:01.949805 neuropil.c     :np_start_job_queue       :301  # 16       # neuropil thread started: 0x10b78a000
+2015-03-25 07:37:01.949809 job_queue.c    :job_exec                 :167  # 16       # job queue thread starting
+2015-03-25 07:37:01.949817 np_glia.c      :np_check_leafset         :129  # 4        # leafset check for neighbours started
+2015-03-25 07:37:01.949858 neuropil.c     :np_start_job_queue       :301  # 16       # neuropil thread started: 0x10b80d000
+2015-03-25 07:37:01.949860 job_queue.c    :job_exec                 :167  # 16       # job queue thread starting
+2015-03-25 07:37:01.949864 np_glia.c      :np_check_leafset         :148  # 4        # leafset check for table started
+2015-03-25 07:37:01.949877 neuropil.c     :np_start_job_queue       :301  # 16       # neuropil thread started: 0x10b890000
+2015-03-25 07:37:01.949887 job_queue.c    :job_exec                 :167  # 16       # job queue thread starting
+2015-03-25 07:37:01.949900 neuropil.c     :np_start_job_queue       :301  # 16       # neuropil thread started: 0x10b913000
+2015-03-25 07:37:01.949920 neuropil.c     :np_start_job_queue       :301  # 16       # neuropil thread started: 0x10b996000
+2015-03-25 07:37:01.949906 job_queue.c    :job_exec                 :167  # 16       # job queue thread starting
+2015-03-25 07:37:01.949924 job_queue.c    :job_exec                 :167  # 16       # job queue thread starting
+2015-03-25 07:37:02.57280 message.c      :np_message_create_propert:360  # 4        # np_send message payload created
+2015-03-25 07:37:02.57320 message.c      :np_message_register_handl:331  # 16       # outbound message handler registered for this.is.a.test
+2015-03-25 07:37:02.57328 message.c      :np_message_create_propert:372  # 4        # np_send message payload created
+2015-03-25 07:37:02.57335 message.c      :np_message_available_upda:440  # 16       # lookup of message target failed
+2015-03-25 07:37:02.57341 message.c      :np_message_available_upda:454  # 16       # adding a new message source
+2015-03-25 07:37:02.57347 neuropil.c     :np_send                  :69   # 4        # no one interested in our messages yet !
+2015-03-25 07:37:02.57354 message.c      :np_message_create_propert:360  # 4        # np_send message payload created
+2015-03-25 07:37:02.57361 message.c      :np_message_register_handl:316  # 16       # inbound message handler registered for this.is.a.test
+2015-03-25 07:37:02.57366 message.c      :np_message_create_propert:372  # 4        # np_send message payload created
+2015-03-25 07:37:02.57372 message.c      :np_message_interest_updat:418  # 16       # adding a new message target
+2015-03-25 07:37:02.57378 neuropil.c     :np_receive               :88   # 4        # someone sending us messages !!!
+2015-03-25 07:37:02.158521 message.c      :np_message_available_upda:435  # 16       # lookup of message target successful
+2015-03-25 07:37:02.158559 message.c      :np_message_available_upda:446  # 16       # lookup of message source successful
+2015-03-25 07:37:02.160194 message.c      :np_message_interest_updat:410  # 16       # lookup of message target successful
+2015-03-25 07:37:02.160225 neuropil.c     :np_receive               :88   # 4        # someone sending us messages !!!
+2015-03-25 07:37:02.160220 np_glia.c      :np_route_lookup          :40   # 16       # target is 0x7f89604051a0 key 4935221085694e34c1ad00070000000900000286
+2015-03-25 07:37:02.160266 route.c        :route_lookup             :199  # 128      # 4935221085694e34c1ad00070000000900000286 is looking for key 4935221085694e34c1ad00070000000900000286 !
+2015-03-25 07:37:02.160281 route.c        :route_lookup             :210  # 128      # routing through leafset
+2015-03-25 07:37:02.160289 route.c        :route_lookup             :223  # 128      # ME: (brandonpi-larnet.local, 6666, 4935221085694e34c1ad00070000000900000286)
+2015-03-25 07:37:02.160296 route.c        :route_lookup             :254  # 128      # ++NEXT_HOP = 4935221085694e34c1ad00070000000900000286
+2015-03-25 07:37:02.160310 np_glia.c      :np_route_lookup          :72   # 16       # internal routing for this.is.a.test
