@@ -7,6 +7,8 @@
 void hnd_msg_out_ack (np_state_t* state, np_jobargs_t* args);
 void hnd_msg_out_send (np_state_t* state, np_jobargs_t* args);
 
+void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args);
+
 // default message handlers
 // NONE YET
 

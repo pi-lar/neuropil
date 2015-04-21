@@ -30,9 +30,11 @@ typedef struct np_joblist_t np_joblist_t;
 typedef struct np_jobargs_t np_jobargs_t;
 
 typedef struct np_jrb_t np_jrb_t;
-// typedef struct Key Key;
-// typedef union Jval Jval;
 
+typedef struct np_aaatoken_cache_t np_aaatoken_cache_t;
+typedef struct np_aaatoken_t np_aaatoken_t;
+
+typedef int (*np_aaa_func_t) (np_state_t* state, np_aaatoken_t* node );
 typedef int (*np_join_func_t) (np_state_t* state, np_node_t* node );
 typedef void (*np_callback_t) (np_state_t*, np_jobargs_t*);
 

@@ -207,12 +207,12 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 	}
 
 	now = dtime();
-	double sleep_diff = 0.0;
+	double min_sleep_time = 0.0;
 	pqnode = jrb_first(ng->retransmit);
 	do {
 		// TODO: calculate the min sleep time
-		// sleep_diff = pqnode->key.d - now;
-		// if (sleep_diff < sleeptime) sleeptime = sleep_diff;
+		min_sleep_time = pqnode->key.d - now;
+		if (min_sleep_time < sleeptime ) sleeptime = min_sleep_time;
 
 		if (pqnode->key.d <= now) break;
 		pqnode = jrb_next(pqnode);
@@ -230,7 +230,7 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 	// found element to retransmit
 	pqentry = (PQEntry *) pqnode->val.v;
 	// fprintf(stderr, "processing a packet with retransmit time %f; looking for seqnum %d\n", pqnode->key.d, pqentry->seqnum);
-	log_msg(LOG_INFO, "retransmission check for message %i (now: %f / rtt: %f)", pqentry->seqnum, now, pqnode->key.d);
+	// log_msg(LOG_INFO, "retransmission check for message %i (now: %f / rtt: %f)", pqentry->seqnum, now, pqnode->key.d);
 
 	jrb_node = jrb_find_ulong(ng->waiting, pqentry->seqnum);
 	assert(jrb_node!=NULL);
@@ -270,7 +270,7 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 		}
 
 	} else {
-		log_msg(LOG_DEBUG, "message acknowledged, no further retry: %d", pqentry->seqnum);
+		// log_msg(LOG_DEBUG, "message acknowledged, no further retry: %d", pqentry->seqnum);
 		// packet is acked;
 		// update the host latency and the success measurements
 		// and decrease reference counter again
@@ -352,8 +352,11 @@ void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
 		return;
 	}
 
-	// TODO: stop doing message handling following this line, ack handling may still be fine
+	// TODO initial handshake message contains encryption parameter
 	// TODO: find out how to get the real address
+
+
+	// TODO: stop doing message handling following this line, ack handling may still be fine
 	// TODO: hook in policy for accessing the system ?
 	// log_msg(LOG_DEBUG, "now decoding to pn_message_t (size %d)", ret);
 	pn_message_t* msg = pn_message();
@@ -417,7 +420,7 @@ void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
 		pn_data_exit(ack_inst);
 
 		// direct acknowledge
-		if (ack == 1 && state->joined_network) {
+		if (ack == 1 && state->joined_network && np_node_check_address_validity(ack_node)) {
 			job_submit_msg_event(state->jobq, ack_prop, ack_node->key, ack_msg);
 		}
 		// user space acknowledgement handled later, also for join messages
@@ -436,8 +439,7 @@ void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
 
 /**
  ** np_send_rowinfo:
- ** sends matching row of its table to the joining node while
- ** forwarding the message toward the root of the joining node
+ ** sends matching row of its table to the target node
  **/
 void np_send_rowinfo (np_state_t* state, np_jobargs_t* args)
 {
@@ -454,6 +456,7 @@ void np_send_rowinfo (np_state_t* state, np_jobargs_t* args)
 
     job_submit_msg_event(state->jobq, outprop, targetNode->key, msg);
     log_msg(LOG_INFO, "job submit route row info to %s:%d!", targetNode->dns_name, targetNode->port);
+
 
     free (rowinfo);
 }

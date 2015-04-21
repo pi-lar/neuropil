@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
 	type = atoi(argv[optind + 1]);
 
 	char log_file[256];
-	sprintf(log_file, "%s_%d.log", "./neuropil_contoller", port);
+	sprintf(log_file, "%s_%d.log", "./neuropil_controller", port);
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	log_init(&log_file, level);
 

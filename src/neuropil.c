@@ -19,6 +19,7 @@
 #include "neuropil.h"
 
 #include "sodium.h"
+#include "aaatoken.h"
 #include "node.h"
 #include "message.h"
 #include "log.h"
@@ -37,18 +38,45 @@ int np_default_joinfunc (np_state_t* state, np_node_t* node ) {
 	log_msg(LOG_WARN, "do you really want the default join handler (allow all) ???");
 	return TRUE;
 }
+int np_default_authorizefunc (np_state_t* state, np_aaatoken_t* token ) {
+	log_msg(LOG_WARN, "using default handler to authorize %s", key_get_as_string(token->token_id) );
+	log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
+	return TRUE;
+}
+int np_default_authenticatefunc (np_state_t* state, np_aaatoken_t* token ) {
+	log_msg(LOG_WARN, "using default handler to authenticate %s", key_get_as_string(token->token_id) );
+	log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
+	return TRUE;
+}
+int np_default_accountingfunc (np_state_t* state, np_aaatoken_t* token ) {
+	log_msg(LOG_WARN, "using default handler to account for %s", key_get_as_string(token->token_id) );
+	log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
+	return TRUE;
+}
 
 void np_setjoinfunc(const np_state_t* state, np_join_func_t joinFunc) {
 	log_msg(LOG_INFO, "setting user defined join handler, that's good ...");
 	state->neuropil->join_func = joinFunc;
 }
+void np_setauthorizing_cb(const np_state_t* state, np_aaa_func_t aaaFunc) {
+	log_msg(LOG_INFO, "setting user defined authorization handler, that's good ...");
+	state->neuropil->authorize_func = aaaFunc;
+}
+void np_setauthenticate_cb(const np_state_t* state, np_aaa_func_t aaaFunc) {
+	log_msg(LOG_INFO, "setting user defined authentication handler, that's good ...");
+	state->neuropil->authenticate_func = aaaFunc;
+}
+void np_setaccounting_cb(const np_state_t* state, np_aaa_func_t aaaFunc) {
+	log_msg(LOG_INFO, "setting user defined accounting handler, that's good ...");
+	state->neuropil->accounting_func = aaaFunc;
+}
 
 void np_waitforjoin(const np_state_t* state) {
-
 	while (!state->joined_network) {
 		dsleep(1.0);
 	}
 }
+
 
 void np_add_listener (const np_state_t* state, np_callback_t msg_handler, char* subject, int ack, int retry, int threshold)
 {
@@ -144,6 +172,7 @@ int np_receive (np_state_t* state, char* subject, char **data, unsigned long seq
 			// not there yet, wait for notification
 			pthread_mutex_lock(&interested->lock);
 			// TODO: use pthread_cond_timedwait ?
+			log_msg(LOG_INFO, "message is available, waiting for signal !!!");
 			pthread_cond_wait(&interested->msg_received, &interested->lock);
 			pthread_mutex_unlock(&interested->lock);
 			// now requested message should be there
@@ -260,8 +289,27 @@ np_state_t* np_init(int port)
 	    exit(1);
 	}
 
+    //
+    // TODO: read my own identity from file, if password is given
+    //
+    state->aaa_cache = np_init_aaa_cache();
+    if (state->aaa_cache == NULL)
+    {
+    	log_msg(LOG_ERROR, "neuropil_init: global structure not created: %s", strerror (errno));
+    	exit(1);
+    }
+    // create a new token for encryption each time neuropil starts
+    np_aaatoken_t* node_authentication = np_aaatoken_create();
+    crypto_box_keypair(node_authentication->public_key, node_authentication->private_key);
+
     // set a default join function
     state->neuropil->join_func = np_default_joinfunc;
+
+    // set default aaa functions
+    state->neuropil->authorize_func = np_default_authorizefunc;
+    state->neuropil->authenticate_func = np_default_authenticatefunc;
+    state->neuropil->accounting_func = np_default_accountingfunc;
+
     /* more message types can be defined here */
     pthread_mutex_init (&state->neuropil->lock, NULL);
 
@@ -293,10 +341,9 @@ np_state_t* np_init(int port)
 	state->neuropil->me = np_node_lookup(state->nodes, me, 1);
 	np_node_update(state->neuropil->me, name, port);
 
-	// np_node_get_by_hostname(state->nodes, name, port);
-    // key_makehash (&(state->neuropil->me->key), name);
-    // JRB key_node = jrb_insert_str(state->nodes->np_key_node_cache, state->neuropil->me->key.keystr, new_jval_v (state->neuropil->me));
-	// state->neuropil->me->jrb_key_node = key_node;
+	strncpy(node_authentication->issuer, (char*) key_get_as_string(me), 255);
+	// TODO: aaa subject should be user set-able, could also be another name
+	snprintf(node_authentication->subject, 255, "%s:%d", name, port);
 
     // initialize routing table
     state->routes = route_init (state->neuropil->me);
@@ -305,6 +352,10 @@ np_state_t* np_init(int port)
     	log_msg(LOG_ERROR, "neuropil_init: route_init failed: %s", strerror (errno));
 	    exit(1);
 	}
+
+    np_register_authentication_token(state->aaa_cache, node_authentication, me);
+    state->neuropil->me->aaatoken = node_authentication;
+	np_aaatoken_retain(node_authentication);
 
     // initialize job queue
     state->jobq = job_queue_create ();

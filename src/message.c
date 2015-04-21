@@ -82,8 +82,12 @@ np_msgproperty_t np_internal_messages[] =
 		{ ROUTE_LOOKUP, TRANSFORM, DEFAULT_TYPE, 5, 1, 0, "", np_route_lookup }, // default input handling func should be "route_get" ?
 		{ NP_MSG_PIGGY_REQUEST, TRANSFORM, DEFAULT_TYPE, 5, 1, 0, "", np_send_rowinfo }, // default input handling func should be "route_get" ?
 
-		{ "", INBOUND, DEFAULT_TYPE, 5, 1, 0, "", NULL }, // TODO: add garbage collection output
+		{ "", INBOUND, DEFAULT_TYPE, 5, 1, 0, "", hnd_msg_in_received },
+		// TODO: add garbage collection output
 		{ "", OUTBOUND, DEFAULT_TYPE, 5, 1, 0, "", hnd_msg_out_send },
+
+		{ NP_MSG_HANDSHAKE, INBOUND, ONEWAY, 5, 0, 0, "", hnd_msg_in_handshake },
+		{ NP_MSG_HANDSHAKE, OUTBOUND, ONEWAY, 5, 0, 0, "", hnd_msg_out_handshake },
 
 		{ NP_MSG_ACK, INBOUND, ONEWAY, 5, 0, 0, "", NULL }, // incoming ack handled in network layer, not required
 		{ NP_MSG_ACK, OUTBOUND, ONEWAY, 5, 0, 0, "", hnd_msg_out_ack },
@@ -384,9 +388,10 @@ np_msginterest_t* np_message_create_interest(const np_state_t* state, const char
 	tmp->send_ack = 1;
 
 	pthread_mutex_init (&tmp->lock, NULL);
-    pthread_cond_init (&tmp->msg_received, NULL);
+    pthread_cond_init (&tmp->msg_received, &tmp->cond_attr);
+    pthread_condattr_setpshared(&tmp->cond_attr, PTHREAD_PROCESS_PRIVATE);
 
-	return tmp;
+    return tmp;
 }
 
 // update internal structure and return a interest if a matching pair has been found

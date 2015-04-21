@@ -79,6 +79,7 @@ typedef struct np_msginterest_t {
 	// only send/receive after opposite partner has been found
     pthread_mutex_t lock;
     pthread_cond_t  msg_received;
+    pthread_condattr_t cond_attr;
 
 } *np_msginterest;
 
@@ -90,6 +91,8 @@ typedef struct np_msginterest_t {
 
 #define ROUTE_LOOKUP "_NEUROPIL.ROUTE.LOOKUP"
 #define NP_MSG_ACK "_NEUROPIL.ACK"
+
+#define NP_MSG_HANDSHAKE "_NEUROPIL.HANDSHAKE"
 
 #define NP_MSG_PING_REQUEST "_NEUROPIL.PING.REQUEST"
 #define NP_MSG_PING_REPLY "_NEUROPIL.PING.REPLY"

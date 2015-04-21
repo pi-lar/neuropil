@@ -322,7 +322,9 @@ np_node_t* np_node_lookup(np_nodecache_t* ng, Key* key, int increase_ref_count) 
     	entry->success_avg = 0.5;
     	entry->node_tree = ng;
     	entry->ref_count = increase_ref_count;
+    	entry->handshake_complete = 0;
 
+    	entry->aaatoken = NULL;
     	entry->key = key;
 
     	for (i = 0; i < SUCCESS_WINDOW / 2; i++)
@@ -382,49 +384,6 @@ void np_node_release(np_nodecache_t* ng, Key* key)
     pthread_mutex_unlock (&ng->lock);
 }
 
-//void np_node_release (np_node_t* node)
-//{
-//    np_jrb_t *jrb_node;
-//    np_node_t* entry;
-//
-//    pthread_mutex_lock (&node->node_tree->lock);
-//
-//    jrb_node = jrb_find_str (node->node_tree->np_node_cache, key_get_as_string(node->key));
-//    if (jrb_node == NULL)
-//	{
-//	    pthread_mutex_unlock (&node->node_tree->lock);
-//	    return;
-//	}
-//
-//    entry = (np_node_t *) jrb_node->val.v;
-//    entry->ref_count--;
-//
-//    /* if we reduce the node to 0 references, remove it from the cache */
-//    if (entry->ref_count == 0)
-//	{
-//    	jrb_delete_node (jrb_node);
-//	    if (entry->dns_name) free (entry->dns_name);
-//	    free (entry->key);
-//	    free (entry);
-//	    // dll_append (host->ng->dll_free_nodes, new_jval_v (entry));
-//	    // entry->dll_free_nodes = dll_last (host->ng->dll_free_nodes);
-//	    ng->size--;
-//	}
-//
-//    /* if the cache was overfull, empty it as much as possible */
-////    while (host->ng->size > host->ng->max && !jrb_empty (host->ng->dll_free_nodes))
-////	{
-////	    dllnode = dll_first (host->ng->dll_free_nodes);
-////	    tmp = (CacheEntry *) dllnode->val.v;
-////	    dll_delete_node (dllnode);
-////	    jrb_delete_node (tmp->jrb_node);
-////	    cacheentry_free (tmp);
-////	    host->ng->size--;
-////	}
-//    pthread_mutex_unlock (&node->node_tree->lock);
-//}
-
-
 /** np_node_update_stat:
  ** updates the success rate to the host based on the SUCCESS_WINDOW average
  **/
@@ -440,7 +399,7 @@ void np_node_update_stat (np_node_t* node, int success)
 	    total += node->success_win[i];
 	}
     node->success_avg = total / SUCCESS_WINDOW;
-	log_msg(LOG_DEBUG, "success rate for node %s now: %1.1f", key_get_as_string(node->key), node->success_avg);
+	// log_msg(LOG_DEBUG, "success rate for node %s now: %1.1f", key_get_as_string(node->key), node->success_avg);
 }
 
 Key* np_node_get_key (np_node_t* np_node)
@@ -471,6 +430,29 @@ float np_node_get_success_avg (np_node_t* np_node) {
 float np_node_get_latency (np_node_t* np_node) {
 	assert(np_node != NULL);
 	return np_node->latency;
+}
+
+int np_node_check_address_validity (np_node_t* np_node) {
+	assert(np_node != NULL);
+	return np_node->dns_name && np_node->address && np_node->port;
+}
+
+int np_node_exists(np_nodecache_t* ng, Key* key) {
+	int i = 0;
+
+	pthread_mutex_lock (&ng->lock);
+    np_jrb_t* jrb_node = jrb_find_str (ng->np_node_cache, (char*) key_get_as_string(key));
+    if (jrb_node != NULL)
+	{
+    	i = 1;
+	}
+    pthread_mutex_unlock (&ng->lock);
+
+    return i;
+}
+
+void np_encode_handshake( Key* from, Key* to) {
+
 }
 
 /** np_node_init:

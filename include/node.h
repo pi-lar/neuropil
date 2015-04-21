@@ -35,9 +35,13 @@ struct np_node_t
     char *dns_name;
     unsigned long address;
     int port;
-
     Key* key;
 
+    // crypto extension
+    np_aaatoken_t* aaatoken;
+    int handshake_complete;
+
+	// statistics
     int failed;
     double failuretime;
     double latency;
@@ -46,15 +50,12 @@ struct np_node_t
     int success_win[SUCCESS_WINDOW];
     int success_win_index;
     float success_avg;
-
     // reference counter
     int ref_count;
-
     // load
     float load;
     // back pointer to global node cache structures
     np_nodecache_t* node_tree;
-    // JRB jrb_key_node;
 };
 
 
@@ -68,19 +69,11 @@ np_nodecache_t* np_node_cache_create (int size);
  **/
 void np_node_update (np_node_t* node, char *hn, int port);
 
-/** np_node_get:
- ** gets a np_node entry for the given np_node, getting it from the cache if
- ** possible, or allocates memory for it
- **/
-// np_node_t* np_node_get_by_hostname (np_globalnodes_t *ng, char *hn, int port);
-// np_node_t* np_node_get_by_node (np_globalnodes_t *ng, np_node_t* node);
-
 /** np_node_release:
  ** releases a np_node from the cache, declaring that the memory could be
  ** freed any time.
  **/
 void np_node_release (np_nodecache_t* ng, Key* key);
-// void np_node_release (np_globalnodes_t * gn, np_node_t * np_node);
 
 /** np_node_decode:
  ** decodes a string into a chimera np_node structure. This acts as a
@@ -110,11 +103,12 @@ unsigned long np_node_get_address (np_node_t* np_node);
 int np_node_get_port (np_node_t* np_node);
 float np_node_get_success_avg (np_node_t* np_node);
 float np_node_get_latency (np_node_t* np_node);
+int np_node_check_address_validity (np_node_t* np_node);
 
 /** np_node_lookup _
  ** find node structure for a given key
  **/
 np_node_t* np_node_lookup(np_nodecache_t* ng, Key* key, int increase_ref_count);
-
+int np_node_exists(np_nodecache_t* ng, Key* key);
 
 #endif /* _NP_NODE_H_ */

@@ -56,7 +56,7 @@ np_routeglobal_t* route_init (np_node_t* me)
 		}
 	}
 
-    rg->keystr = (char *) malloc (sizeof (char) * (MAX_ROW + 1));
+    // rg->keystr = (char *) malloc (sizeof (char) * (MAX_ROW + 1));
     route_update_me(rg, me);
 
     key_assign (&(rg->Rrange), np_node_get_key(me) );
@@ -932,7 +932,6 @@ void leafset_print (const np_routeglobal_t* rg)
 
 void printTable (np_routeglobal_t* rg)
 {
-
     int i, j, k;
     // np_routeglobal_t* routeglob = (np_routeglobal_t* ) state->route;
 

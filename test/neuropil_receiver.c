@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
 	unsigned long k = 1;
 	while (1) {
 
-		dsleep(0.1);
+		dsleep(1.0);
 		char* testdata;
 
 		// np_send(state, "this.is.a.test", "testdata", k);

@@ -51,9 +51,9 @@ void hnd_msg_in_received(np_state_t* state, np_jobargs_t* args) {
 		np_message_free(msg);
 		return;
 	}
-
 	// finally submit job for later execution, now that we know the message properties
 	job_submit_msg_event(state->jobq, handler, NULL, args->msg);
+	// TODO: renew message interest and auth/acc info
 }
 /**
  ** chimera_piggy_message:
@@ -63,6 +63,13 @@ void hnd_msg_in_received(np_state_t* state, np_jobargs_t* args) {
  ** message type.
  **/
 void hnd_msg_in_piggy(np_state_t* state, np_jobargs_t* args) {
+
+	if (!state->joined_network) {
+		np_message_free(args->msg);
+		free (args);
+		return;
+	}
+
 	int i = 0;
 
 	pn_data_t* msg_body = pn_message_body(args->msg);
@@ -82,6 +89,12 @@ void hnd_msg_in_piggy(np_state_t* state, np_jobargs_t* args) {
 }
 
 void np_signal (np_state_t* state, np_jobargs_t* args) {
+
+	if (!state->joined_network) {
+		np_message_free(args->msg);
+		free (args);
+		return;
+	}
 
 	log_msg(LOG_DEBUG, "message received");
 
@@ -206,10 +219,14 @@ void hnd_msg_in_join_ack(np_state_t* state, np_jobargs_t* args) {
 
 		/* announce arrival of new node to the nodes in my routing table */
 		// TODO: check for protected node neighbours ?
+		np_node_t** nodes = route_get_table(state->routes);
+		// encode informations
 		pn_data_t* joining_node = pn_data(4);
 		np_node_encode_to_amqp(joining_node, bn);
+		// pn_data_t* existing_nodes = pn_data(4);
+		// np_encode_nodes_to_amqp(existing_nodes, nodes);
 
-		np_node_t** nodes = route_get_table(state->routes);
+		// send update of new node to all nodes in my routing table
 		for (i = 0; nodes[i] != NULL ; i++) {
 			msg = np_message_create(state->messages, nodes[i]->key,
 					state->neuropil->me->key, NP_MSG_UPDATE_REQUEST, joining_node);
@@ -219,6 +236,10 @@ void hnd_msg_in_join_ack(np_state_t* state, np_jobargs_t* args) {
 		route_update(state->routes, bn, 1);
 		log_msg(LOG_INFO, "join acknowledged and updates to other nodes send");
 		free(nodes);
+
+		// send a piggy message to the new node in our routing table
+		np_msgproperty_t* piggy_prop = np_message_get_handler(state->messages, TRANSFORM, NP_MSG_PIGGY_REQUEST);
+		job_submit_msg_event(state->jobq, piggy_prop, bn->key, NULL);
 
 	} else if (state->joined_network) {
 		// node already joined a network, ignore additional join request
@@ -263,6 +284,12 @@ void hnd_msg_in_join_nack(np_state_t* state, np_jobargs_t* args) {
 
 void hnd_msg_in_ping(np_state_t* state, np_jobargs_t* args) {
 
+	if (!state->joined_network) {
+		np_message_free(args->msg);
+		free (args);
+		return;
+	}
+
 	np_node_t *node = np_node_decode_from_str(state->nodes, pn_message_get_reply_to(args->msg));
 	log_msg(LOG_DEBUG, "received a PING message from %s:%d !\n", node->dns_name, node->port);
 	// node->failuretime = 0;
@@ -277,6 +304,13 @@ void hnd_msg_in_ping(np_state_t* state, np_jobargs_t* args) {
 }
 
 void hnd_msg_in_pingreply(np_state_t* state, np_jobargs_t * args) {
+
+	if (!state->joined_network) {
+		np_message_free(args->msg);
+		free (args);
+		return;
+	}
+
 	np_node_t *node = np_node_decode_from_str(state->nodes, pn_message_get_reply_to(args->msg));
 	log_msg(LOG_DEBUG, "ping reply received from host: %s:%d, last failure time: %f!", node->dns_name, node->port, node->failuretime);
 	node->failuretime = 0;
@@ -285,20 +319,43 @@ void hnd_msg_in_pingreply(np_state_t* state, np_jobargs_t * args) {
 	free (args);
 }
 
+// TODO: write a function that handles path discovery
+// TODO: if this is not the target node, add my own address to the update message
+// TODO: if this is the target node, change target to sending instance and send again
+
 void hnd_msg_in_update(np_state_t* state, np_jobargs_t* args) {
+
+	if (!state->joined_network) {
+		np_message_free(args->msg);
+		free (args);
+		return;
+	}
+
 	pn_data_t* msg_body = pn_message_body(args->msg);
 	pn_data_next(msg_body);
+	// np_node_t** nodes = np_decode_nodes_from_amqp(state->nodes, msg_body);
 	np_node_t* node = np_node_decode_from_amqp(state->nodes, msg_body);
 
-	// TODO: if this is not the target node, add my own address to the update message
-	// TODO: if this is the target node, change target to sending instance and send again
 	route_update(state->routes, node, 1);
-
+	// np_node_t* node = nodes[0];
+	// while (node) {
+	// 	node++;
+	// }
 	np_message_free(args->msg);
 	free (args);
+
+	// send piggy message to the updated node
+	np_msgproperty_t* piggy_prop = np_message_get_handler(state->messages, TRANSFORM, NP_MSG_PIGGY_REQUEST);
+	job_submit_msg_event(state->jobq, piggy_prop, node->key, NULL);
 }
 
 void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args) {
+
+	if (!state->joined_network) {
+		np_message_free(args->msg);
+		free (args);
+		return;
+	}
 
 	log_msg(LOG_TRACE, "now handling message interest");
 	np_messageglobal_t* mg = state->messages;
@@ -316,10 +373,11 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args) {
 	// check if we are (one of the) sending node(s) of this kind of message
 	if (np_message_check_handler(state->messages, OUTBOUND, interest->msg_subject) == 1) {
 		// match expected and real seq_num and send out real message
-		// get message form cache
+		// get message from cache
 		char* s = (char*) malloc(255);
 		snprintf (s, 255, "%s:%lu", interest->msg_subject, available->msg_seqnum);
 		available = np_message_available_match(state->messages, s);
+
 		if (available) {
 			// if message is found in cache, send it !
 			pn_message_t* msg = np_message_create(state->messages, interest->key, state->neuropil->me->key, interest->msg_subject, available->payload);
@@ -360,6 +418,12 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args) {
 
 void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args) {
 
+	if (!state->joined_network) {
+		np_message_free(args->msg);
+		free (args);
+		return;
+	}
+
 	log_msg(LOG_TRACE, "now handling message availability");
 	np_messageglobal_t* mg = state->messages;
 
@@ -384,7 +448,7 @@ void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args) {
 			pn_data_t* interest_data = pn_data(6);
 			np_message_encode_interest(interest_data, interest);
 
-			pn_message_t* msg = np_message_create(state->messages, interest->key, state->neuropil->me->key, NP_MSG_INTEREST, interest_data);
+			pn_message_t* msg = np_message_create(state->messages, available->key, state->neuropil->me->key, NP_MSG_INTEREST, interest_data);
 			np_msgproperty_t* msg_prop = np_message_get_handler(state->messages, TRANSFORM, ROUTE_LOOKUP);
 			job_submit_msg_event(state->jobq, msg_prop, interest->key, msg);
 		}
@@ -392,3 +456,8 @@ void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args) {
 		// TODO: really needed ?
 	}
 }
+
+void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
+
+}
+

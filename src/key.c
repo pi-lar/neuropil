@@ -53,7 +53,7 @@ void key_to_str (Key* k)
 	sprintf ((char*) k->keystr, "%016lx%016lx%016lx%016lx", k->t[0], k->t[1], k->t[2], k->t[3]);
 	k->keystr[64] = '\0';
 	k->valid = 1;
-    log_msg (LOG_DEBUG, "key string now: %s", k->keystr);
+    // log_msg (LOG_DEBUG, "key string now: %s", k->keystr);
 }
 
 void str_to_key (Key *k, const char* key_string)
@@ -85,16 +85,16 @@ unsigned char* key_generate_hash (const unsigned char* key_in, size_t digest_siz
     char digit[10];
     unsigned char *tmp;
 
-    crypto_hash_sha256(md_value, key_in, digest_size);
-    log_msg (LOG_KEYDEBUG, "md value (%s) now: [%s]", key_in, md_value);
-
     // TODO: move it to KECCAK because of possible length extension attack ???
     // TODO: move to SHA-2 at least ?
-//    crypto_hash_sha256_state state;
-//    crypto_hash_sha256_init(&state);
-//    crypto_hash_sha256_update(&state, key_in, sizeof(key_in));
-//    crypto_hash_sha256_final(&state, tmp);
-//    log_msg (LOG_KEYDEBUG, "md value (%s) now: [%s]", key_in, tmp);
+    crypto_hash_sha256(md_value, key_in, digest_size);
+    // log_msg (LOG_KEYDEBUG, "md value (%s) now: [%s]", key_in, md_value);
+    // long form - could be used to add addiitonal configuration parameter
+    //    crypto_hash_sha256_state state;
+    //    crypto_hash_sha256_init(&state);
+    //    crypto_hash_sha256_update(&state, key_in, sizeof(key_in));
+    //    crypto_hash_sha256_final(&state, tmp);
+    //    log_msg (LOG_KEYDEBUG, "md value (%s) now: [%s]", key_in, tmp);
 
     digest_out = (unsigned char *) malloc (65);
     // digest = strndup(md_value, 64);
@@ -121,7 +121,7 @@ Key* key_create_from_hostport(const char* strOrig, int port) {
 	unsigned char* digest = NULL;
 
 	digest = key_generate_hash (name, strlen ((char*) name) * sizeof (char), digest);
-	log_msg (LOG_KEYDEBUG, "digest calculation returned HASH: %s", digest);
+	// log_msg (LOG_KEYDEBUG, "digest calculation returned HASH: %s", digest);
 
 	Key* tmp = key_create_from_hash(digest);
 	log_msg (LOG_KEYDEBUG, "HASH(%s) = [%s]", name, key_get_as_string(tmp));
@@ -160,7 +160,7 @@ void key_assign (Key* k1, const Key* const k2)
     int i;
     for (i = 0; i < 4; i++)
     	k1->t[i] = k2->t[i];
-    key_to_str (k1);
+    k1->valid = 0;
 }
 
 void key_assign_ui (Key* k, unsigned long ul)
@@ -169,7 +169,8 @@ void key_assign_ui (Key* k, unsigned long ul)
     for (i = 1; i < 3; i++)
     	k->t[i] = 0;
     k->t[3] = ul;
-    key_to_str (k);
+
+    k->valid = 0;
 }
 
 int key_equal (Key* k1, Key* k2)
@@ -223,7 +224,6 @@ void key_add (Key* result, const Key* const op1, const Key* const op2)
 
 	    result->t[i] = (unsigned long) tmp;
 	}
-
     result->valid = 0;
 }
 
@@ -376,7 +376,7 @@ unsigned char* key_get_as_string (Key* key)
     if (!key->valid)
 	{
 	    key_to_str (key);
-	    key->valid = 1;
+	    // key->valid = 1;
 	}
     return key->keystr;
 }

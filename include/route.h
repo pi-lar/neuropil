@@ -13,7 +13,6 @@
 typedef struct np_routeglobal_t
 {
     np_node_t* me;
-    char *keystr;
 
     np_node_t**** table;
     np_node_t** leftleafset;

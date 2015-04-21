@@ -85,7 +85,7 @@ VERSION = 1.4
 lib_LIBRARIES = libneuropil.a
 libneuropil_a_SOURCES = neuropil.c network.c message.c log.c jrb.c jval.c key.c \
                        route.c node.c dllist.c job_queue.c dtime.c semaphore.c threads.c \
-                       np_dendrit.c np_axon.c np_glia.c tpl.c
+                       np_dendrit.c np_axon.c np_glia.c aaatoken.c
 
 
 # INCLUDES = -I$(top_srcdir)/include
@@ -104,7 +104,7 @@ libneuropil_a_OBJECTS =  neuropil.$(OBJEXT) network.$(OBJEXT) \
 message.$(OBJEXT) log.$(OBJEXT) jrb.$(OBJEXT) jval.$(OBJEXT) \
 key.$(OBJEXT) route.$(OBJEXT) node.$(OBJEXT) dllist.$(OBJEXT) \
 job_queue.$(OBJEXT) dtime.$(OBJEXT) semaphore.$(OBJEXT) threads.$(OBJEXT) \
-np_axon.$(OBJEXT) np_dendrit.$(OBJEXT) np_glia.$(OBJEXT) tpl.$(OBJEXT)
+np_axon.$(OBJEXT) np_dendrit.$(OBJEXT) np_glia.$(OBJEXT) aaatoken.$(OBJEXT)
 CFLAGS = -g -O2
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -120,7 +120,7 @@ GZIP_ENV = --best
 DEP_FILES =  .deps/neuropil.P .deps/dllist.P .deps/dtime.P .deps/node.P \
 .deps/job_queue.P .deps/jrb.P .deps/jval.P .deps/key.P .deps/log.P \
 .deps/message.P .deps/network.P .deps/route.P .deps/semaphore.P .deps/threads.P \
-.deps/np_glia.P .deps/np_axon.P .deps/np_dendrit.P .deps/tpl.P
+.deps/np_glia.P .deps/np_axon.P .deps/np_dendrit.P .deps/aaatoken.P
 SOURCES = $(libneuropil_a_SOURCES)
 OBJECTS = $(libneuropil_a_OBJECTS)
 

@@ -9,6 +9,8 @@ extern "C" {
 #endif
 
 // input message handlers
+void hnd_msg_in_handshake(np_state_t* state, np_jobargs_t* args);
+
 void hnd_msg_in_received (np_state_t* state, np_jobargs_t* args);
 
 void hnd_msg_in_ping(np_state_t* state, np_jobargs_t* args);

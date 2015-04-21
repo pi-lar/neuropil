@@ -97,7 +97,6 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 
 	pthread_mutex_lock(&(network->lock));
 
-
 	/* get sequence number and initialize acknowledgement indicator*/
 	if (prop->ack_mode > 0) {
 		np_ackentry_t *ackentry = get_new_ackentry();
@@ -139,7 +138,9 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 		log_msg(LOG_ERROR, "cannot send data over %lu bytes!", NETWORK_PACK_SIZE);
 		return;
 	}
-
+	//
+	// TODO: lookup sending node and shared key to decrypt level 1 of security
+	//
 	start = dtime();
 	if (prop->ack_mode > 0) {
 		// insert a record into the priority queue with the following information:
@@ -159,16 +160,33 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 		pthread_mutex_unlock(&network->lock);
 	}
 
-	/* send data */
-	log_msg(LOG_NETWORKDEBUG, "sending message seq=%lu ack=%i to %s:%i",
-			seq, prop->ack_mode, target_node->dns_name, target_node->port);
-	pthread_mutex_lock(&network->lock);
-	ret = sendto(network->sock, s, size, 0, (struct sockaddr *) &to, sizeof(to));
-	if (ret < 0) {
-		log_msg(LOG_ERROR, "sendto error: %s", strerror (errno));
-		// np_node_update_stat(targetNode, 0);
-		// TODO: add a statement to reroute the message on failure
+	// check for crypto handshake
+	int is_not_handshake_msg = strncmp (args->properties->msg_subject, NP_MSG_HANDSHAKE, 255);
+	if (!target_node->handshake_complete && is_not_handshake_msg) {
+		// schedule a handshake event, resending of messsage will automatically happen
+
+	} else {
+		/* send data */
+		log_msg(LOG_NETWORKDEBUG, "sending message seq=%lu ack=%i to %s:%i",
+				seq, prop->ack_mode, target_node->dns_name, target_node->port);
+		pthread_mutex_lock(&network->lock);
+		ret = sendto(network->sock, s, size, 0, (struct sockaddr *) &to, sizeof(to));
+		if (ret < 0) {
+			log_msg(LOG_ERROR, "sendto error: %s", strerror (errno));
+			// np_node_update_stat(targetNode, 0);
+			// TODO: add a statement to reroute the message on failure
+		}
 	}
 	pthread_mutex_unlock(&network->lock);
+}
+
+void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
+
+	pn_data_t* handshake_data = pn_data(4);
+	np_message_encode_handshake(handshake_data, state->neuropil->me->key, args->target);
+
+	pn_message_t* msg = np_message_create(state->messages, args->target, state->neuropil->me->key, NP_MSG_HANDSHAKE, handshake_data);
+	np_msgproperty_t* msg_prop = np_message_get_handler(state->messages, TRANSFORM, NP_MSG_HANDSHAKE);
+	job_submit_msg_event(state->jobq, msg_prop, args->target, msg);
 }
 

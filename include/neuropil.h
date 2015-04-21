@@ -23,16 +23,12 @@ struct np_state_t {
     struct np_messageglobal_t* messages;
     struct np_networkglobal_t* network;
     struct np_joblist_t* jobq;
+    struct np_aaatoken_cache_t* aaa_cache;
 
     int joined_network;
 
     pthread_attr_t attr;
     pthread_t* thread_ids;
-
-    pthread_mutex_t bootstrapMutex;	/* for future security enhancement */
-    struct JRB* bootstrapMsgStore;	/* for future security enhancement */
-    pthread_mutex_t certificateMutex;	/* for future security enhancement */
-    void *certificateStore;	/* for future security enhancement */
 
 };
 
@@ -44,7 +40,12 @@ struct np_global_t {
 	void *join;	/* semaphore */
 
 	pthread_mutex_t lock;
+
 	np_join_func_t join_func;
+
+	np_aaa_func_t authorize_func;
+	np_aaa_func_t authenticate_func;
+	np_aaa_func_t accounting_func; // needed ?
 
 };
 
@@ -61,6 +62,10 @@ np_state_t* np_init (int port);
 void np_setkey (const np_state_t* state, Key* key);
 void np_setjoinfunc(const np_state_t* state, np_join_func_t joinFunc);
 void np_waitforjoin(const np_state_t* state);
+
+void np_setauthorizing_cb(const np_state_t* state, np_aaa_func_t joinFunc);
+void np_setauthenticate_cb(const np_state_t* state, np_aaa_func_t joinFunc);
+void np_setaccounting_cb(const np_state_t* state, np_aaa_func_t joinFunc);
 
 
 /** np_add_listener:
