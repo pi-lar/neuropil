@@ -8,22 +8,21 @@
 #define _NEUROPIL_H_
 
 #include <pthread.h>
-#include "proton/message.h"
 
 #include "include.h"
 #include "key.h"
 
 
-struct np_state_t {
+struct np_state_s {
 
-	struct np_global_t* neuropil;
+	np_global_t* neuropil;
 
-    struct np_nodecache_t* nodes;
+    np_nodecache_t* nodes;
     struct np_routeglobal_t* routes;
-    struct np_messageglobal_t* messages;
-    struct np_networkglobal_t* network;
+    np_messageglobal_t* messages;
+    np_networkglobal_t* network;
     struct np_joblist_t* jobq;
-    struct np_aaatoken_cache_t* aaa_cache;
+    np_aaatoken_cache_t* aaa_cache;
 
     int joined_network;
 
@@ -32,10 +31,10 @@ struct np_state_t {
 
 };
 
-struct np_global_t {
+struct np_global_s {
 
-	struct np_node_t *me;
-	struct np_node_t *bootstrap;
+	np_node_t *me;
+	np_node_t *bootstrap;
 
 	void *join;	/* semaphore */
 
@@ -59,7 +58,7 @@ np_state_t* np_init (int port);
 /** np_setkey:
  ** Manually sets the key for the current node 
  **/
-void np_setkey (const np_state_t* state, Key* key);
+void np_setkey (const np_state_t* state, np_key_t* key);
 void np_setjoinfunc(const np_state_t* state, np_join_func_t joinFunc);
 void np_waitforjoin(const np_state_t* state);
 
@@ -83,24 +82,18 @@ void np_add_listener (const np_state_t* state, np_callback_t msg_handler, char* 
 // oneway pattern
 void np_send         (np_state_t* state, char* subject, char *data, unsigned long seqnum);
 int  np_receive      (np_state_t* state, char* subject, char **data, unsigned long seqnum, int ack);
-void np_send_amqp    (const np_state_t* state, char* subject, pn_message_t *data);
-void np_receive_amqp (const np_state_t* state, char* subject, pn_message_t *data);
 
 // push / pull for one of several nodes
 void np_push      (const np_state_t* state, char* subject, char *data, int seqnum);
 void np_pull      (const np_state_t* state, char* subject, char *data, int seqnum);
-void np_push_amqp (const np_state_t* state, char* subject, pn_message_t *data);
-void np_pull_amqp (const np_state_t* state, char* subject, pn_message_t *data);
 
 // pub / sub sending of messages
 void np_pub      (const np_state_t* state, char* subject, char *data, int seqnum);
 void np_sub      (const np_state_t* state, char* subject, char *data, int seqnum);
-void np_pub_amqp (const np_state_t* state, char* subject, pn_message_t *data);
-void np_sub_amqp (const np_state_t* state, char* subject, pn_message_t *data);
 
 // register a callback that is executed when a new message arrives
 void np_callback      (const np_state_t* state, char* subject, char *data, int seqnum);
-void np_callback_amqp (const np_state_t* state, char* subject, pn_message_t *data);
+
 
 void np_start_job_queue(np_state_t* state, int pool_size);
 void np_get_job_queue(np_state_t* state);
@@ -109,7 +102,7 @@ void np_get_job_queue(np_state_t* state);
  ** np_ping:
  ** sends a ping message to the host. the message is acknowledged in network layer
  **/
-void np_ping(np_state_t* state, Key* key);
+void np_ping(np_state_t* state, np_key_t* key);
 void np_send_ack(np_state_t* state, np_jobargs_t* args);
 
 /* register your own message handler */

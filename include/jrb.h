@@ -38,8 +38,8 @@ Fax: 865-974-4404
 #define	_NP_JRB_H_
 
 #include "include.h"
-
 #include "jval.h"
+#include "key.h"
 
 /* Main jrb_node.  You only ever use the fields
    flink
@@ -47,19 +47,37 @@ Fax: 865-974-4404
    k.key or k.ikey
    v.val
 */
-struct np_jrb_t
+typedef enum jrb_node_type {
+	JRB_INTERNAL = 0x01, // 0000 0001
+	JRB_EXTERNAL = 0x1E, // 0001 1110
+	JRB_LEFT = 0x02,     // 0000 0010
+	JRB_RIGHT = 0x1D,    // 0001 1101
+	JRB_RED = 0x04,      // 0000 0100
+	JRB_BLACK = 0x1B,    // 0001 1011
+	JRB_HEAD = 0x08,     // 0000 1000
+	JRB_NOTHEAD = 0x17,  // 0001 0111
+	JRB_ROOT = 0x10,     // 0001 0000
+	JRB_NOTROOT = 0x0F   // 0000 1111
+} node_type_enum;
+
+
+struct np_jrb_s
 {
-    unsigned char red;
-    unsigned char internal;
-    unsigned char left;
-    unsigned char roothead;	/* (bit 1 is root, bit 2 is head) */
+	node_type_enum jrb_type;
+//    unsigned char red;
+//    unsigned char internal;
+//    unsigned char left;
+//    unsigned char roothead;	/* (bit 1 is root, bit 2 is head) */
 
     np_jrb_t *flink;
     np_jrb_t *blink;
     np_jrb_t *parent;
 
-    Jval key;
-    Jval val;
+    np_jval_t key;
+    np_jval_t val;
+
+	int size;
+	long long byte_size;
 };
 
 np_jrb_t* make_jrb ();		/* Creates a new rb-tree */
@@ -67,28 +85,33 @@ np_jrb_t* make_jrb ();		/* Creates a new rb-tree */
 /* Creates a node with key key and val val and inserts it into the tree.
    jrb_insert uses strcmp() as comparison funcion.  jrb_inserti uses <>=,
    jrb_insertg uses func() */
-extern np_jrb_t* jrb_insert_str (np_jrb_t *tree, const char *key, Jval val);
-extern np_jrb_t* jrb_insert_int (np_jrb_t *tree, int ikey, Jval val);
-extern np_jrb_t* jrb_insert_ulong (np_jrb_t *tree, unsigned long ulkey, Jval val);
-extern np_jrb_t* jrb_insert_dbl (np_jrb_t *tree, double dkey, Jval val);
-extern np_jrb_t* jrb_insert_gen (np_jrb_t *tree, Jval key, Jval val, int (*func) (Jval, Jval));
+extern np_jrb_t* jrb_insert_key (np_jrb_t *tree, np_key_t* key, np_jval_t val);
+extern np_jrb_t* jrb_insert_str (np_jrb_t *tree, const char *key, np_jval_t val);
+extern np_jrb_t* jrb_insert_int (np_jrb_t *tree, int ikey, np_jval_t val);
+extern np_jrb_t* jrb_insert_ulong (np_jrb_t *tree, unsigned long ulkey, np_jval_t val);
+extern np_jrb_t* jrb_insert_dbl (np_jrb_t *tree, double dkey, np_jval_t val);
+extern np_jrb_t* jrb_insert_gen (np_jrb_t *tree, np_jval_t key, np_jval_t val, int (*func) (np_jval_t, np_jval_t));
 
 /* returns an external node in t whose value is equal k. Returns NULL if
    there is no such node in the tree */
+extern np_jrb_t* jrb_find_key (np_jrb_t* root, np_key_t* key);
 extern np_jrb_t* jrb_find_str (np_jrb_t* root, const char *key);
 extern np_jrb_t* jrb_find_int (np_jrb_t* root, int ikey);
 extern np_jrb_t* jrb_find_ulong (np_jrb_t* root, unsigned long ikey);
 extern np_jrb_t* jrb_find_dbl (np_jrb_t* root, double dkey);
-extern np_jrb_t* jrb_find_gen (np_jrb_t* root, Jval, int (*func) (Jval, Jval));
+extern np_jrb_t* jrb_find_gen (np_jrb_t* root, np_jval_t, int (*func) (np_jval_t, np_jval_t));
 
 /* returns an external node in t whose value is equal
   k or whose value is the smallest value greater than k. Sets found to
   1 if the key was found, and 0 otherwise.  */
+extern np_jrb_t* jrb_find_gte_key (np_jrb_t* root, np_key_t* key, int *found);
 extern np_jrb_t* jrb_find_gte_str (np_jrb_t* root, const char *key, int *found);
 extern np_jrb_t* jrb_find_gte_int (np_jrb_t* root, int ikey, int *found);
 extern np_jrb_t* jrb_find_gte_ulong (np_jrb_t* root, unsigned long ikey, int *found);
 extern np_jrb_t* jrb_find_gte_dbl (np_jrb_t* root, double dkey, int *found);
-extern np_jrb_t* jrb_find_gte_gen (np_jrb_t* root, Jval key, int (*func) (Jval, Jval), int *found);
+extern np_jrb_t* jrb_find_gte_gen (np_jrb_t* root, np_jval_t key, int (*func) (np_jval_t, np_jval_t), int *found);
+
+extern void jrb_replace_all_with_str(np_jrb_t* root, const char* key, np_jval_t val);
 
 /* Creates a node with key key and val val and inserts it into the 
    tree before/after node nd.  Does not check to ensure that you are 
@@ -96,7 +119,8 @@ extern np_jrb_t* jrb_find_gte_gen (np_jrb_t* root, Jval key, int (*func) (Jval, 
 extern void jrb_delete_node (np_jrb_t* node);	/* Deletes and frees a node (but not the key or val) */
 extern void jrb_free_tree (np_jrb_t* root);	/* Deletes and frees an entire tree */
 
-extern Jval jrb_val (np_jrb_t* node);	/* Returns node->v.val -- this is to shut lint up */
+long long jrb_get_byte_size(np_jrb_t* node);
+extern np_jval_t jrb_val (np_jrb_t* node);	/* Returns node->v.val -- this is to shut lint up */
 extern int jrb_nblack (np_jrb_t* n);	/* returns # of black nodes in path from n to the root */
 
 int jrb_plength (np_jrb_t* n);	/* returns the # of nodes in path from n to the root */
@@ -115,5 +139,7 @@ int jrb_plength (np_jrb_t* n);	/* returns the # of nodes in path from n to the r
 
 #define jrb_rtraverse(ptr, lst) \
   for(ptr = jrb_last(lst); ptr != jrb_nil(lst); ptr = jrb_prev(ptr))
+
+void jrb_iprint_tree (np_jrb_t* t, int level);
 
 #endif // _NP_JRB_H_

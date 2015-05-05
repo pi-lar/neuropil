@@ -11,7 +11,7 @@
 #include "log.h"
 
 
-void key_print (Key* k)
+void key_print (np_key_t* k)
 {
     int i;
     char hexstr[KEY_SIZE];	// this is big just to be safe
@@ -44,7 +44,7 @@ void key_print (Key* k)
     printf ("\n");
 }
 
-void key_to_str (Key* k)
+void key_to_str (np_key_t* k)
 {
     k->valid = 0;
     // log_msg(LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
@@ -56,7 +56,7 @@ void key_to_str (Key* k)
     // log_msg (LOG_DEBUG, "key string now: %s", k->keystr);
 }
 
-void str_to_key (Key *k, const char* key_string)
+void str_to_key (np_key_t* k, const char* key_string)
 {
 	// TODO: this is dangerous, encoding could be different between systems,
 	// encoding has to be send over teh wire to be sure ...
@@ -81,7 +81,7 @@ void str_to_key (Key *k, const char* key_string)
 unsigned char* key_generate_hash (const unsigned char* key_in, size_t digest_size, unsigned char* digest_out)
 {
     unsigned char md_value[32]; //  = (unsigned char *) malloc (32);
-    unsigned int md_len, i;
+    unsigned int i;
     char digit[10];
     unsigned char *tmp;
 
@@ -114,8 +114,8 @@ unsigned char* key_generate_hash (const unsigned char* key_in, size_t digest_siz
 }
 
 
-Key* key_create_from_hostport(const char* strOrig, int port) {
-
+np_key_t* key_create_from_hostport(const char* strOrig, int port)
+{
 	unsigned char name[256];
 	snprintf ((char*) name, 255, "%s:%d", strOrig, port);
 	unsigned char* digest = NULL;
@@ -123,17 +123,17 @@ Key* key_create_from_hostport(const char* strOrig, int port) {
 	digest = key_generate_hash (name, strlen ((char*) name) * sizeof (char), digest);
 	// log_msg (LOG_KEYDEBUG, "digest calculation returned HASH: %s", digest);
 
-	Key* tmp = key_create_from_hash(digest);
+    np_key_t* tmp = key_create_from_hash(digest);
 	log_msg (LOG_KEYDEBUG, "HASH(%s) = [%s]", name, key_get_as_string(tmp));
 
 	return tmp;
 }
 
-Key* key_create_from_hash(const unsigned char* strOrig)
-// void str_to_key (const char *strOrig, Key * k)
+np_key_t* key_create_from_hash(const unsigned char* strOrig)
+// void str_to_key (const char *strOrig, np_key_t*
 {
-	int i, len;
-	Key* kResult = (Key*) malloc(sizeof(Key));
+	int i;
+    np_key_t* kResult = (np_key_t*) malloc(sizeof(np_key_t));
 
 	kResult->valid = 0;
 
@@ -155,7 +155,7 @@ Key* key_create_from_hash(const unsigned char* strOrig)
 }
 
 
-void key_assign (Key* k1, const Key* const k2)
+void key_assign (np_key_t* k1, const np_key_t* const k2)
 {
     int i;
     for (i = 0; i < 4; i++)
@@ -163,7 +163,7 @@ void key_assign (Key* k1, const Key* const k2)
     k1->valid = 0;
 }
 
-void key_assign_ui (Key* k, unsigned long ul)
+void key_assign_ui (np_key_t* k, unsigned long ul)
 {
     int i;
     for (i = 1; i < 3; i++)
@@ -173,7 +173,7 @@ void key_assign_ui (Key* k, unsigned long ul)
     k->valid = 0;
 }
 
-int key_equal (Key* k1, Key* k2)
+int key_equal (np_key_t* k1, np_key_t* k2)
 {
     int i;
     for (i = 0; i < 4; i++)
@@ -182,7 +182,7 @@ int key_equal (Key* k1, Key* k2)
     return 1;
 }
 
-int key_equal_ui (Key* k, unsigned long ul)
+int key_equal_ui (np_key_t* k, unsigned long ul)
 {
 	log_msg (LOG_KEYDEBUG, "deprecated");
     int i;
@@ -193,9 +193,8 @@ int key_equal_ui (Key* k, unsigned long ul)
     return 1;
 }
 
-int key_comp (const Key* const k1, const Key* const k2)
+int key_comp (const np_key_t* k1, const np_key_t* k2)
 {
-
     int i;
 
     for (i = 0; i < 4; i++)
@@ -206,9 +205,8 @@ int key_comp (const Key* const k1, const Key* const k2)
     return (0);
 }
 
-void key_add (Key* result, const Key* const op1, const Key* const op2)
+void key_add (np_key_t* result, const np_key_t* const op1, const np_key_t* const op2)
 {
-
     double tmp, a, b;
     int i;
     a = b = tmp = 0;
@@ -227,11 +225,11 @@ void key_add (Key* result, const Key* const op1, const Key* const op2)
     result->valid = 0;
 }
 
-void key_sub (Key* result, const Key* const op1, const Key* const op2)
+void key_sub (np_key_t* result, const np_key_t* const op1, const np_key_t* const op2)
 {
     int i;
     double tmp, a, b, carry;
-    Key key_tmp, key_a, key_b;
+    np_key_t key_a, key_b, key_tmp;
     int swapped = 0;
 
     carry = 0;
@@ -277,71 +275,28 @@ void key_sub (Key* result, const Key* const op1, const Key* const op2)
 }
 
 
-// void key_makehash (Key* hashed, char *s)
-// {
-// key_make_hash (hashed, s, strlen (s) * sizeof (char));
-// log_msg (LOG_KEYDEBUG, "key_makehash: HASH( %s ) = [%s]", s, get_key_string (hashed));
-// }
-
-
-// void key_make_hash (Key* hashed, char *s, size_t size)
-// {
-//    char *digest;
-//    int i;
-//
-//    digest = sha1_keygen (s, size, NULL);
-//    // printf("key.c:key_make_hash:digest %s\n", digest);
-//    str_to_key (digest, hashed);
-//    log_msg(LOG_DEBUG, "hashed %s", hashed->keystr);
-//
-//    //for(i=0; i < 4; i++) sscanf(digest+(i*8*sizeof(char)),"%08x",&hashed->t[(4-i)]);
-//    //key_to_str(hashed->keystr,*hashed);
-//
-//    free (digest);
-// }
-
 void key_init ()
 {
     int i;
     for (i = 0; i < 4; i++)
 	{
-	    Key_Max.t[i] = ULONG_MAX;
-	    Key_Half.t[i] = ULONG_MAX;
+        Key_Max.t[i] = ULONG_MAX;
+        Key_Half.t[i] = ULONG_MAX;
 	}
-
     Key_Half.t[0] = Key_Half.t[0] / 2;
 
     key_to_str (&Key_Max);
     key_to_str (&Key_Half);
-
 }
 
-void key_distance (Key* diff, const Key* const k1, const Key* const k2)
+void key_distance (np_key_t* diff, const np_key_t* const k1, const np_key_t* const k2)
 {
-    int comp;
-
-    // comp = key_comp (k1, k2);
-    /* k1 > k2 */
-    // if (comp > 0) key_sub (diff, k1, k2);
-    // else
-    // Key key_tmp_1, key_tmp_2;
-    // key_sub (&key_tmp_1, k1, k2);
-    // key_sub (&key_tmp_2, k2, k1);
     key_sub (diff, k1, k2);
-
-    // if (key_comp(&key_tmp_1, &key_tmp_2) >= 0) key_assign(diff, &key_tmp_2);
-    // else key_assign(diff, &key_tmp_1);
-
-    // comp = key_comp (diff, &Key_Half);
-    /* diff > Key_Half */
-    // if (comp > 0) key_sub (diff, &Key_Max, diff);
-
     diff->valid = 0;
-    // log_msg(LOG_KEYDEBUG, "key_distance %s to %s = %s", key_get_as_string((Key*) k1), key_get_as_string((Key*)k2), key_get_as_string(diff));
 }
 
 
-int key_between (const Key* const test, const Key* const left, const Key* const right)
+int key_between (const np_key_t* const test, const np_key_t* const left, const np_key_t* const right)
 {
 
     int complr = key_comp (left, right);
@@ -371,7 +326,7 @@ int key_between (const Key* const test, const Key* const left, const Key* const 
 
 // Return the string representation of key
 // This function should be used instead of directly accessing the keystr field
-unsigned char* key_get_as_string (Key* key)
+unsigned char* key_get_as_string (np_key_t* key)
 {
     if (!key->valid)
 	{
@@ -381,17 +336,16 @@ unsigned char* key_get_as_string (Key* key)
     return key->keystr;
 }
 
-void key_midpoint (Key* mid, Key* key)
+void key_midpoint (np_key_t* mid, np_key_t* key)
 {
 
-    if (key_comp (key, &Key_Half) < 0) key_add (mid, key, &Key_Half);
-    else 							   key_sub (mid, key, &Key_Half);
-
+    if   (key_comp (key, &Key_Half) < 0) key_add (mid, key, &Key_Half);
+    else  	                             key_sub (mid, key, &Key_Half);
     mid->valid = 0;
 }
 
 
-int key_index (Key* mykey, Key* k)
+int key_index (np_key_t* mykey, np_key_t* k)
 {
     int max_len, i;
     unsigned char mystr[65];

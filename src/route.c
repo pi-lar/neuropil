@@ -19,20 +19,17 @@ void leafset_delete (np_routeglobal_t* rg, np_node_t* host, int right_or_left, n
 int leafset_size (np_node_t** arr);
 
 void leafset_print (const np_routeglobal_t* rg);
-void leafset_range_update (np_routeglobal_t*  rg, Key * rrange, Key * lrange);
+void leafset_range_update (np_routeglobal_t*  rg, np_key_t* rrange, np_key_t* lrange);
 
-np_node_t* find_closest_key (np_node_t** hosts, Key* key, int size);
-void sort_hosts (np_node_t** hosts, Key* key, int size);
-void sort_hosts_key (np_node_t** hosts, Key* key, int size);
+np_node_t* find_closest_key (np_node_t** hosts, np_key_t* key, int size);
+void sort_hosts (np_node_t** hosts, np_key_t* key, int size);
+void sort_hosts_key (np_node_t** hosts, np_key_t* key, int size);
 
 int hexalpha_to_int (int c);
 
-// void route_keyupdate (np_routeglobal_t* routeglob, np_node_t* me)
 void route_update_me (np_routeglobal_t* rg, np_node_t* me)
 {
-    // np_routeglobal_t* rg = (np_routeglobal_t* ) routeglob;
     rg->me = me;
-    // sprintf (rg->keystr, "%s", key_get_as_string (np_node_get_key(rg->me) ));
 }
 
 /* route_init:
@@ -41,10 +38,10 @@ void route_update_me (np_routeglobal_t* rg, np_node_t* me)
 np_routeglobal_t* route_init (np_node_t* me)
 {
     int i, j, k;
-    np_routeglobal_t *rg = (np_routeglobal_t *) malloc (sizeof (np_routeglobal_t));
+    np_routeglobal_t *rg = (np_routeglobal_t *) malloc (sizeof (struct np_routeglobal_t));
 
     /* allocate memory for routing table */
-    rg->table = (np_node_t ****) malloc (sizeof (struct np_node_t ***) * MAX_ROW);
+    rg->table = (np_node_t ****) malloc (sizeof (np_node_t ***) * MAX_ROW);
     for (i = 0; i < MAX_ROW; i++)
 	{
 	    rg->table[i] = (np_node_t ***) malloc (sizeof (np_node_t **) * MAX_COL);
@@ -144,7 +141,7 @@ np_node_t** route_get_table (np_routeglobal_t* rg)
 /** route_row_lookup:key 
  ** return the row in the routing table that matches the longest prefix with #key# 
  */
-np_node_t** route_row_lookup (np_routeglobal_t* rg, Key* key)
+np_node_t** route_row_lookup (np_routeglobal_t* rg, np_key_t* key)
 {
     // printf ("route.c (%d): route_row_lookup\n", getpid());
     np_node_t**ret;
@@ -182,15 +179,16 @@ np_node_t** route_row_lookup (np_routeglobal_t* rg, Key* key)
  ** returns an array of #count# nodes that are acceptable next hops for a
  ** message being routed to #key#. #is_save# is ignored for now.
  */
-np_node_t** route_lookup (np_routeglobal_t* rg, Key* key, int count, int is_safe)
+np_node_t** route_lookup (np_routeglobal_t* rg, np_key_t* key, int count, int is_safe)
 {
     int i, j, k, Lsize, Rsize;
-    int index = 0, match_col = 0, next_hop = 0, size = 0;
+    int index = 0, match_col = 0, next_hop = 0;
+
+    np_key_t dif1, dif2;
+
     np_node_t *leaf, *tmp, *min;
-    Key dif1, dif2;
     np_node_t **ret;
     np_node_t **hosts;
-    // np_routeglobal_t* routeglob = (np_routeglobal_t* ) state->route;
 
     pthread_mutex_lock (&rg->lock);
 
@@ -299,7 +297,6 @@ np_node_t** route_lookup (np_routeglobal_t* rg, Key* key, int count, int is_safe
 
     /* if there is no matching next hop we have to find the best next hop */
     /* brute force method to solve count requirements */
-
     hosts = (np_node_t**) malloc (sizeof (np_node_t*) * (LEAFSET_SIZE + 1 + (MAX_COL * MAX_ENTRY)));
     memset  ((void *) hosts, 0,     (sizeof (np_node_t*) * (LEAFSET_SIZE + 1 + (MAX_COL * MAX_ENTRY))));
 
@@ -382,7 +379,6 @@ np_node_t** route_lookup (np_routeglobal_t* rg, Key* key, int count, int is_safe
 	    key_distance (&dif2, key, np_node_get_key(rg->me));
 
 	    // printTable(rg);
-
 	    // log_msg(LOG_DEBUG, "route_lookup bounce detection ...");
 	    // log_msg(LOG_DEBUG, "my own key: %s", key_get_as_string(np_node_get_key(rg->me) ));
 	    // log_msg(LOG_DEBUG, "search key: %s", key_get_as_string(key));
@@ -410,14 +406,13 @@ np_node_t** route_lookup (np_routeglobal_t* rg, Key* key, int count, int is_safe
 }
 
 /** sort_hosts_key:
- ** Sorts #hosts# based on their key distance from #Key#, closest node first
+ ** Sorts #hosts# based on their key distance from #np_key_t* 
  */
-void sort_hosts_key (np_node_t** hosts, Key* key, int size)
+void sort_hosts_key (np_node_t** hosts, np_key_t* key, int size)
 {
     int i, j;
     np_node_t*tmp;
-    Key dif1;
-    Key dif2;
+    np_key_t dif1, dif2;
 
     for (i = 0; i < size; i++)
 	{
@@ -441,12 +436,11 @@ void sort_hosts_key (np_node_t** hosts, Key* key, int size)
 /** find_closest_key:
  ** finds the closest node in the array of #hosts# to #key# and put that in min.
  */
-np_node_t* find_closest_key (np_node_t** hosts, Key* key, int size)
+np_node_t* find_closest_key (np_node_t** hosts, np_key_t* key, int size)
 {
-    int i, j;
-    Key dif;
-    Key mindif;
-    np_node_t *min, *tmp;
+    int i;
+    np_key_t dif, mindif;
+    np_node_t *min;
 
     if (size == 0)
 	{
@@ -480,14 +474,14 @@ np_node_t* find_closest_key (np_node_t** hosts, Key* key, int size)
 }
 
 /** sort_hosts:
- ** Sorts #hosts# based on common prefix match and key distance from #Key#
+ ** Sorts #hosts# based on common prefix match and key distance from #np_key_t* 
  */
-void sort_hosts (np_node_t** hosts, Key* key, int size)
+void sort_hosts (np_node_t** hosts, np_key_t* key, int size)
 {
     int i, j;
     np_node_t* tmp;
-    Key dif1;
-    Key dif2;
+    np_key_t dif1, dif2;
+
     int pmatch1 = 0;
     int pmatch2 = 0;
 
@@ -517,7 +511,6 @@ void sort_hosts (np_node_t** hosts, Key* key, int size)
 					}
 				}
 			}
-
 		}
 	}
 }
@@ -535,9 +528,9 @@ int leafset_size (np_node_t** arr)
  ** updates the leafset range whenever a node leaves or joins to the leafset
  **
  */
-void leafset_range_update (np_routeglobal_t* rg, Key* rrange, Key* lrange)
+void leafset_range_update (np_routeglobal_t* rg, np_key_t* rrange, np_key_t* lrange)
 {
-    int i, j;
+    int i;
 
     /* right range */
     for (i = 0; rg->rightleafset[i] != NULL; i++)
@@ -563,7 +556,7 @@ void leafset_update (np_routeglobal_t* rg, np_node_t* node, int joined, np_node_
 {
     int Lsize = 0;
     int Rsize = 0;
-    Key midpoint;
+    np_key_t midpoint;
     // np_routeglobal_t* routeglob = (np_routeglobal_t* ) state->route;
 
     Lsize = leafset_size (rg->leftleafset);
@@ -593,7 +586,6 @@ void leafset_update (np_routeglobal_t* rg, np_node_t* node, int joined, np_node_
 			if (*deleted != NULL) np_node_release(rg->me->node_tree, (*deleted)->key);
 			return;
 		}
-
 	}
     else
 	{
@@ -626,7 +618,7 @@ void leafset_delete (np_routeglobal_t* rg, np_node_t* node, int right_or_left, n
 {
     int i = 0, size;
     int match = 0;
-    np_node_t**p;
+    np_node_t** p;
     // np_routeglobal_t* routeglob = (np_routeglobal_t* ) state->route;
 
     if (right_or_left == 1) /*insert in right leafset */
@@ -674,8 +666,6 @@ void leafset_insert (np_routeglobal_t* rg, np_node_t* host,
     np_node_t **p;
     np_node_t *tmp1, *tmp2;
     np_node_t *input = host;
-    Key dif1, dif2;
-    // np_routeglobal_t* routeglob = (np_routeglobal_t* ) state->route;
 
     if (right_or_left == 1) /* insert in right leafset */
 	{
@@ -704,16 +694,16 @@ void leafset_insert (np_routeglobal_t* rg, np_node_t* host,
 		int foundKeyPos = 0;
 		if (right_or_left == 1)
 		{
-			foundKeyPos = key_between(np_node_get_key(host), rg->me->key, p[i]->key);
+            foundKeyPos = key_between(np_node_get_key(host), rg->me->key, p[i]->key);
 		}
 		else
 		{
-			foundKeyPos = key_between(np_node_get_key(host), p[i]->key, rg->me->key);
+            foundKeyPos = key_between(np_node_get_key(host), p[i]->key, rg->me->key);
 		}
 		// check other indexes
-		while ((i < size) && !foundKeyPos)
+        while ((i < size) && !foundKeyPos)
 		{
-		    if (key_equal (p[i]->key, input->key ))
+            if (key_equal (p[i]->key, input->key ))
 			{
 			    return;
 			}
@@ -722,11 +712,11 @@ void leafset_insert (np_routeglobal_t* rg, np_node_t* host,
 			{
 				if (right_or_left == 1)
 				{
-					foundKeyPos = key_between(np_node_get_key(host), np_node_get_key(rg->me), np_node_get_key(p[i]));
+                    foundKeyPos = key_between(np_node_get_key(host), np_node_get_key(rg->me), np_node_get_key(p[i]));
 				}
 				else
 				{
-					foundKeyPos = key_between(np_node_get_key(host), np_node_get_key(p[i]), np_node_get_key(rg->me));
+                    foundKeyPos = key_between(np_node_get_key(host), np_node_get_key(p[i]), np_node_get_key(rg->me));
 				}
 			}
 		}
@@ -753,7 +743,7 @@ void leafset_insert (np_routeglobal_t* rg, np_node_t* host,
 */
 np_node_t** route_neighbors (np_routeglobal_t* rg, int count)
 {
-    int i = 0, j = 0, Rsize = 0, Lsize = 0, index = 0;
+    int i = 0, Rsize = 0, Lsize = 0, index = 0;
     int ret_size;
 
     np_node_t*  tmp;
@@ -813,7 +803,7 @@ void route_update (np_routeglobal_t* rg, np_node_t* node, int joined)
 
 	// printf ("route.c (%d): route_update\n", getpid());
     int i, j, k, found, pick;
-    np_node_t* tmp;
+    // np_node_t* tmp;
     np_node_t* deleted = NULL;
     np_node_t* added = NULL;
 

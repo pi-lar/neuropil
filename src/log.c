@@ -45,7 +45,7 @@ void log_message(int level, const char* srcFile, const char* funcName, int linen
 
 void log_init(const char* filename, int level) {
 
-	logger = (LOG *) malloc(sizeof(LOG));
+	logger = (LOG *) malloc(sizeof(struct np_log_t));
 
     snprintf (logger->filename, 255, "%s", filename);
 	logger->fp = fopen(logger->filename, "a");

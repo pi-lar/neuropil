@@ -43,21 +43,21 @@ typedef struct dllist
 {
     struct dllist *flink;
     struct dllist *blink;
-    Jval val;
+    np_jval_t val;
 } *Dllist;
 
 extern Dllist new_dllist ();
 extern void free_dllist (Dllist);
 
-extern void dll_append (Dllist, Jval);
-extern void dll_prepend (Dllist, Jval);
-extern void dll_insert_b (Dllist, Jval);
-extern void dll_insert_a (Dllist, Jval);
+extern void dll_append (Dllist, np_jval_t);
+extern void dll_prepend (Dllist, np_jval_t);
+extern void dll_insert_b (Dllist, np_jval_t);
+extern void dll_insert_a (Dllist, np_jval_t);
 
 extern void dll_delete_node (Dllist);
 extern int dll_empty (Dllist);
 
-extern Jval dll_val (Dllist);
+extern np_jval_t dll_val (Dllist);
 
 #define dll_first(d) ((d)->flink)
 #define dll_next(d) ((d)->flink)

@@ -18,8 +18,8 @@ typedef struct np_routeglobal_t
     np_node_t** leftleafset;
     np_node_t** rightleafset;
 
-    Key Rrange;
-    Key Lrange;
+    np_key_t Rrange;
+    np_key_t Lrange;
 
     pthread_mutex_t lock;
     pthread_attr_t attr;
@@ -37,7 +37,7 @@ np_routeglobal_t* route_init (np_node_t* me);
  ** returns an array of count nodes that are acceptable next hops for a
  ** message being routed to key. is_save is ignored for now.
  */
-np_node_t** route_lookup (np_routeglobal_t* rg, Key* key, int count, int is_safe);
+np_node_t** route_lookup (np_routeglobal_t* rg, np_key_t* key, int count, int is_safe);
 
 /** route_neighbors: 
  ** returns an array of count neighbor nodes with priority to closer nodes.
@@ -56,7 +56,7 @@ void route_update (np_routeglobal_t* rg, np_node_t* node, int joined);
 /** route_row_lookup:
  ** return the row in the routing table that matches the longest prefix with key.
  */
-np_node_t** route_row_lookup (np_routeglobal_t* rg, Key* key);
+np_node_t** route_row_lookup (np_routeglobal_t* rg, np_key_t* key);
 
 /** route_get_table:
  ** returns all the entries in the routing table in an array of ChimeraHost.

@@ -16,9 +16,10 @@
 #include <netdb.h>
 #include <netinet/in.h>
 
+#include "sodium.h"
+
 #include "neuropil.h"
 
-#include "sodium.h"
 #include "aaatoken.h"
 #include "node.h"
 #include "message.h"
@@ -31,6 +32,7 @@
 #include "np_axon.h"
 #include "job_queue.h"
 #include "threads.h"
+#include "jrb.h"
 
 
 int np_default_joinfunc (np_state_t* state, np_node_t* node ) {
@@ -81,7 +83,7 @@ void np_waitforjoin(const np_state_t* state) {
 void np_add_listener (const np_state_t* state, np_callback_t msg_handler, char* subject, int ack, int retry, int threshold)
 {
 	// check whether an handler already exists
-	bool handler_exists = np_message_check_handler(state->messages, INBOUND, subject);
+	np_bool handler_exists = np_message_check_handler(state->messages, INBOUND, subject);
 	if (handler_exists == FALSE) {
 		np_message_create_property(state->messages, subject, INBOUND, ONEWAY, ack, 1, retry, msg_handler);
 	}
@@ -97,10 +99,10 @@ void np_add_listener (const np_state_t* state, np_callback_t msg_handler, char* 
 
 void np_send (np_state_t* state, char* subject, char *data, unsigned long seqnum)
 {
-	pn_data_t* payload = pn_data(4);
-	pn_data_put_string(payload, pn_bytes(sizeof(data), data));
+	np_jrb_t* payload = make_jrb();
+	jrb_insert_str(payload, "text", new_jval_s(data));
 
-	bool handler_exists = np_message_check_handler(state->messages, OUTBOUND, subject);
+	np_bool handler_exists = np_message_check_handler(state->messages, OUTBOUND, subject);
 	if (handler_exists == FALSE) {
 		np_message_create_property(state->messages, subject, OUTBOUND, ONEWAY, 1, 5, 5, hnd_msg_out_send);
 	}
@@ -112,19 +114,20 @@ void np_send (np_state_t* state, char* subject, char *data, unsigned long seqnum
 	np_msginterest_t* interested = np_message_available_update(state->messages, available);
 
 	// lookup old messages and delete them from the cache / based on threshold size
-	char* s = (char*) malloc(255);
+	char s[255];
 	snprintf (s, 255, "%s:%lu", subject, seqnum-1);
 	available = np_message_available_match(state->messages, s);
 	if (available) {
 		log_msg(LOG_DEBUG, "deleting old messages from cache !");
-		pn_data_free (available->payload);
+		// pn_data_free (available->payload);
+		jrb_free_tree(available->payload);
 		free (available->msg_subject);
 		free (available);
 	}
 	free (s);
 
 	// put new message to the cache
-	s = (char*) malloc(255);
+	// s = (char*) malloc(255);
 	snprintf (s, 255, "%s:%lu", subject, seqnum);
 	available = np_message_create_interest(state, s, ONEWAY, seqnum, 1);
 	available->payload = payload;
@@ -135,11 +138,9 @@ void np_send (np_state_t* state, char* subject, char *data, unsigned long seqnum
 	if (interested) {
 		log_msg(LOG_DEBUG, "interest in message found, sending it directly");
 
-		pn_message_t* msg = np_message_create(state->messages, interested->key, state->neuropil->me->key, subject, payload);
-		pn_atom_t msg_id;
-		msg_id.type = PN_ULONG;
-		msg_id.u.as_ulong = seqnum;
-		pn_message_set_id(msg, msg_id);
+		np_message_t* msg = np_message_create(state->messages, interested->key, state->neuropil->me->key, subject, payload);
+		// jrb_insert_str(msg->header, "id", new_javl_s(uuid));
+		jrb_insert_str(msg->header, "sequence", new_jval_ul(seqnum));
 
 		np_msgproperty_t* prop = np_message_get_handler(state->messages, TRANSFORM, ROUTE_LOOKUP);
 		job_submit_msg_event(state->jobq, prop, interested->key, msg);
@@ -149,7 +150,7 @@ void np_send (np_state_t* state, char* subject, char *data, unsigned long seqnum
 int np_receive (np_state_t* state, char* subject, char **data, unsigned long seqnum, int ack)
 {
 	// check whether an inbound message handler is already registered
-	bool handler_exists = np_message_check_handler(state->messages, INBOUND, subject);
+	np_bool handler_exists = np_message_check_handler(state->messages, INBOUND, subject);
 	if (handler_exists == FALSE) {
 		np_message_create_property(state->messages, subject, INBOUND, ONEWAY, 1, 1, 5, np_signal);
 	}
@@ -164,7 +165,7 @@ int np_receive (np_state_t* state, char* subject, char **data, unsigned long seq
 	// if message source is available, try to receive my requested one from the message cache
 	if (available) {
 		// check for the real message from cache
-		char* s = (char*) malloc(255);
+		char s[255];
 		sprintf (s, "%s:%lu", available->msg_subject, available->msg_seqnum);
 		available = np_message_available_match(state->messages, s);
 
@@ -174,15 +175,17 @@ int np_receive (np_state_t* state, char* subject, char **data, unsigned long seq
 			// TODO: use pthread_cond_timedwait ?
 			log_msg(LOG_INFO, "message is available, waiting for signal !!!");
 			pthread_cond_wait(&interested->msg_received, &interested->lock);
-			pthread_mutex_unlock(&interested->lock);
+			// TODO distiguish between return states of condition wait (timeout or wakeup)
+
 			// now requested message should be there
 			available = np_message_available_match(state->messages, s);
+			// decode message payload
+			// pn_bytes_t payload_data = pn_data_get_string(available->payload);
+			np_jrb_t* reply_data = jrb_find_str(available->payload, "text");
+			*data = strndup(reply_data->val.value.s, strlen(reply_data->val.value.s));
+
+			pthread_mutex_unlock(&interested->lock);
 		}
-
-		// decode message payload
-		pn_bytes_t payload_data = pn_data_get_string(available->payload);
-		*data = strndup(payload_data.start, payload_data.size);
-
 		log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
 		free (s);
 		return available->msg_seqnum;
@@ -193,16 +196,6 @@ int np_receive (np_state_t* state, char* subject, char **data, unsigned long seq
 	}
 }
 
-void np_send_amqp (const np_state_t* state, char* subject, pn_message_t *data)
-{
-
-}
-
-void np_receive_amqp (const np_state_t* state, char* subject, pn_message_t *data)
-{
-
-}
-
 
 void np_send_ack(np_state_t* state, np_jobargs_t* args) {
 
@@ -210,33 +203,19 @@ void np_send_ack(np_state_t* state, np_jobargs_t* args) {
 	unsigned long seq;
 
 	log_msg(LOG_INFO, "np_send_ack START");
-	// extract data from incoming message
-	pn_data_t* instructions = pn_message_instructions(args->msg);
-	pn_data_next(instructions);
-	assert(pn_data_type(instructions) == PN_MAP);
-	pn_data_enter(instructions);
-	while (pn_data_next(instructions)) {
-		pn_bytes_t type = pn_data_get_symbol(instructions);
-		pn_data_next(instructions);
-		// log_msg(LOG_DEBUG, "message instructions, now reading: %s", type.start);
-		if (strncmp(type.start, "_np.seq", strlen("_np.seq")) == 0) seq = pn_data_get_ulong(instructions);
-		if (strncmp(type.start, "_np.ack", strlen("_np.ack")) == 0) ack = pn_data_get_int(instructions);
-		if (strncmp(type.start, "_np.part", strlen("_np.part")) == 0) part = pn_data_get_int(instructions);
-	}
-	pn_data_exit(instructions);
-	// create new ack message & handlers
-	np_node_t* ack_node = np_node_decode_from_str(state->nodes, pn_message_get_reply_to(args->msg));
-	np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_ACK);
 
-	pn_message_t* ack_msg = np_message_create(state->messages, ack_node->key, state->neuropil->me->key, NP_MSG_ACK, NULL);
-	pn_data_t* ack_inst = pn_message_instructions(ack_msg);
-	pn_data_put_map(ack_inst);
-	pn_data_enter(ack_inst);
-	pn_data_put_symbol(ack_inst, pn_bytes(8, "_np.ack"));
-	pn_data_put_int(ack_inst, prop->ack_mode);
-	pn_data_put_symbol(ack_inst, pn_bytes(8, "_np.seq"));
-	pn_data_put_ulong(ack_inst, seq);
-	pn_data_exit(ack_inst);
+	// extract data from incoming message
+	seq = jrb_find_str(args->msg->instructions, "_np.seq")->val.value.ul;
+	ack = jrb_find_str(args->msg->instructions, "_np.ack")->val.value.i;
+	part = jrb_find_str(args->msg->instructions, "_np.part")->val.value.i;
+
+	// create new ack message & handlers
+	np_node_t* ack_node = np_node_decode_from_str(state->nodes, jrb_find_str(args->msg->header, "reply_to")->val.value.s);
+
+	np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_ACK);
+	np_message_t* ack_msg = np_message_create(state->messages, ack_node->key, state->neuropil->me->key, NP_MSG_ACK, NULL);
+	jrb_insert_str(ack_msg->instructions, "_np.ack", new_jval_i(prop->ack_mode));
+	jrb_insert_str(ack_msg->instructions, "_np.seq", new_jval_i(seq));
 
 	// send the ack out
 	job_submit_msg_event(state->jobq, prop, ack_node->key, ack_msg);
@@ -248,12 +227,11 @@ void np_send_ack(np_state_t* state, np_jobargs_t* args) {
  ** chimera_ping: 
  ** sends a PING message to the node. The message is acknowledged in network layer.
  **/
-void np_ping (np_state_t* state, Key* key)
+void np_ping (np_state_t* state, np_key_t* key)
 {
     np_node_t* target = np_node_lookup(state->nodes, key, 0);
-    Key* me = np_node_get_key(state->neuropil->me);
 
-    pn_message_t* message = np_message_create (state->messages, key, me, NP_MSG_PING_REQUEST, NULL);
+    np_message_t* message = np_message_create (state->messages, key, state->neuropil->me->key, NP_MSG_PING_REQUEST, NULL);
     np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_PING_REQUEST);
 	log_msg(LOG_DEBUG, "ping request to: %s", key_get_as_string(key));
 
@@ -300,7 +278,9 @@ np_state_t* np_init(int port)
     }
     // create a new token for encryption each time neuropil starts
     np_aaatoken_t* node_authentication = np_aaatoken_create();
-    crypto_box_keypair(node_authentication->public_key, node_authentication->private_key);
+    // crypto_box_keypair(node_authentication->public_key, node_authentication->private_key); // curve25519xsalsa20poly1305
+    crypto_sign_keypair(node_authentication->public_key, node_authentication->private_key); // ed25519
+    // crypto_scalarmult_base(); // curve25519
 
     // set a default join function
     state->neuropil->join_func = np_default_joinfunc;
@@ -336,14 +316,18 @@ np_state_t* np_init(int port)
 	}
     // strcpy (name, he->h_name);
 
-    log_msg(LOG_DEBUG, "%s:%d", name, port);
-	Key* me = key_create_from_hostport(name, port);
+    // log_msg(LOG_DEBUG, "%s:%d", name, port);
+    np_key_t* me = key_create_from_hostport(name, port);
 	state->neuropil->me = np_node_lookup(state->nodes, me, 1);
 	np_node_update(state->neuropil->me, name, port);
 
 	strncpy(node_authentication->issuer, (char*) key_get_as_string(me), 255);
 	// TODO: aaa subject should be user set-able, could also be another name
 	snprintf(node_authentication->subject, 255, "%s:%d", name, port);
+
+    np_register_authentication_token(state->aaa_cache, node_authentication, me);
+    node_authentication->valid = 1;
+	np_aaatoken_retain(node_authentication);
 
     // initialize routing table
     state->routes = route_init (state->neuropil->me);
@@ -352,11 +336,6 @@ np_state_t* np_init(int port)
     	log_msg(LOG_ERROR, "neuropil_init: route_init failed: %s", strerror (errno));
 	    exit(1);
 	}
-
-    np_register_authentication_token(state->aaa_cache, node_authentication, me);
-    state->neuropil->me->aaatoken = node_authentication;
-	np_aaatoken_retain(node_authentication);
-
     // initialize job queue
     state->jobq = job_queue_create ();
     if (state->jobq == NULL)

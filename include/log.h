@@ -45,7 +45,7 @@ void log_message(int level, const char* srcFile, const char* funcName, int linen
 
 #define log_msg(level, msg, ...) log_message(level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
 
-void log_init ();
+void log_init (const char* filename, int level);
 void log_destroy ();
 LOG* log_get ();
 

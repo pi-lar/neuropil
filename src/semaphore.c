@@ -10,16 +10,16 @@
 #include <pthread.h>
 #include <time.h>
 #include <sys/time.h>
-#include "semaphore.h"
+
+#include "sema.h"
 #include "log.h"
 
 void *sema_create (int val)
 {
-
-    Sema *s;
+	Sema *s;
     int ret;
 
-    s = (Sema *) malloc (sizeof (Sema));
+    s = (Sema *) malloc (sizeof (struct Semaphore));
     s->val = val;
     if ((ret = pthread_mutex_init (&s->lock, NULL)) != 0)
 	{
@@ -41,7 +41,7 @@ void *sema_create (int val)
 void sema_destroy (void *v)
 {
 
-    Sema *s = (Sema *) v;
+	Sema *s = (Sema *) v;
 
     pthread_mutex_destroy (&s->lock);
     pthread_cond_destroy (&s->cond);
@@ -52,7 +52,7 @@ void sema_destroy (void *v)
 int sema_p (void *v, double time)
 {
 
-    Sema *s = (Sema *) v;
+	Sema *s = (Sema *) v;
     struct timespec timeout;
     struct timeval now;
     unsigned long sec, nsec;
@@ -91,7 +91,7 @@ int sema_p (void *v, double time)
 void sema_v (void *v)
 {
 
-    Sema *s = (Sema *) v;
+	Sema *s = (Sema *) v;
 
     pthread_mutex_lock (&s->lock);
     s->val++;

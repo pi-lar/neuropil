@@ -131,7 +131,7 @@ void heap_initialize(binary_heap *a,int nodes) {
 	 * heap is always numbered from 1, but array/pointer accesses are
 	 * always from 0. */
 	a->max_elems = nodes;
-	a->elements = (np_pqueue_node*) malloc(sizeof(np_pqueue_node)*((a->max_elems)+1));
+	a->elements = (np_pqueue_node*) malloc(sizeof(struct np_pqueue_node)*((a->max_elems)+1));
 	/* mark the zero'th element of the heap a to be empty, just in case
 	 * it is ever accessed */
 	a->elements[0].sentinel = 1;

@@ -1,0 +1,14 @@
+# use glob syntax.
+syntax: glob
+
+*.o
+*.log
+*.P
+*.p
+.deps/*.P
+.deps/*.p
+
+# switch to regexp syntax.
+# syntax: regexp
+# ^\.pc/
+

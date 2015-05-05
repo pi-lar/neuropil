@@ -66,7 +66,7 @@ int list_empty (np_joblist_t * l)
  **/
 np_joblist_t *list_init ()
 {
-    np_joblist_t* new = (np_joblist_t *) malloc (sizeof (np_joblist_t));
+    np_joblist_t* new = (np_joblist_t *) malloc (sizeof (struct np_joblist_t));
 
     new->head = NULL;
     new->size = 0;
@@ -98,18 +98,18 @@ int job_available (np_joblist_t * l) {
  ** add the new np_job_t to the queue, and
  ** signal the thread pool if the queue was empty.
  **/
-void job_submit_msg_event (np_joblist_t* job_q, np_msgproperty_t* prop, Key* key, pn_message_t* msg)
+void job_submit_msg_event (np_joblist_t* job_q, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
     int was_empty = 0;
 
     // create runtime arguments
-    np_jobargs_t* jargs = (np_jobargs_t*) malloc (sizeof(np_jobargs_t));
+    np_jobargs_t* jargs = (np_jobargs_t*) malloc (sizeof(struct np_jobargs_t));
     jargs->msg = msg;
     jargs->target = key;
     jargs->properties = prop;
 
     // create job itself
-    np_job_t* new_job = (np_job_t *) malloc (sizeof (np_job_t));
+    np_job_t* new_job = (np_job_t *) malloc (sizeof (struct np_job_t));
     new_job->processorFunc = prop->clb; // ->msg_handler;
     new_job->args = jargs;
     new_job->next = NULL;
@@ -126,12 +126,12 @@ void job_submit_msg_event (np_joblist_t* job_q, np_msgproperty_t* prop, Key* key
 }
 
 void job_submit_event (np_joblist_t* job_q, np_callback_t callback)
-// void job_submit (np_joblist_t* job_q, np_node_t* node, pn_message_t* msg, np_msgproperty_t* prop)
+// void job_submit (np_joblist_t* job_q, np_node_t* node, np_message_t* msg, np_msgproperty_t* prop)
 {
     int was_empty = 0;
     //  JobArgs * jargs = (jobArgs *)args;
 
-    np_job_t* new_job = (np_job_t *) malloc (sizeof (np_job_t));
+    np_job_t* new_job = (np_job_t *) malloc (sizeof (struct np_job_t));
     new_job->processorFunc = callback;
     new_job->args = NULL;
     new_job->next = NULL;
@@ -177,7 +177,7 @@ void* job_exec (void* np_state)
 	    pthread_mutex_unlock (&Q->access);
 
 	    if (tmp->type == 1) {
-	    	np_msgproperty_t* msg_prop = (np_msgproperty_t *) tmp->args->properties;
+	    	// np_msgproperty_t* msg_prop = (np_msgproperty_t *) tmp->args->properties;
 	    	tmp->processorFunc(state, tmp->args);
 	    }
 

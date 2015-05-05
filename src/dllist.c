@@ -19,7 +19,7 @@ Dllist new_dllist ()
     return d;
 }
 
-void dll_insert_b (Dllist node, Jval v)	/* Inserts before a given node */
+void dll_insert_b (Dllist node, np_jval_t v)	/* Inserts before a given node */
 {
     Dllist newnode;
 
@@ -32,17 +32,17 @@ void dll_insert_b (Dllist node, Jval v)	/* Inserts before a given node */
     newnode->blink->flink = newnode;
 }
 
-void dll_insert_a (Dllist n, Jval val)	/* Inserts after a given node */
+void dll_insert_a (Dllist n, np_jval_t val)	/* Inserts after a given node */
 {
     dll_insert_b (n->flink, val);
 }
 
-void dll_append (Dllist l, Jval val)	/* Inserts at the end of the list */
+void dll_append (Dllist l, np_jval_t val)	/* Inserts at the end of the list */
 {
     dll_insert_b (l, val);
 }
 
-void dll_prepend (Dllist l, Jval val)	/* Inserts at the beginning of the list */
+void dll_prepend (Dllist l, np_jval_t val)	/* Inserts at the beginning of the list */
 {
     dll_insert_b (l->flink, val);
 }
@@ -69,7 +69,7 @@ void free_dllist (Dllist l)
     free (l);
 }
 
-Jval dll_val (Dllist l)
+np_jval_t dll_val (Dllist l)
 {
     return l->val;
 }

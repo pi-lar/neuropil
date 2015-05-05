@@ -85,11 +85,11 @@ VERSION = 1.4
 lib_LIBRARIES = libneuropil.a
 libneuropil_a_SOURCES = neuropil.c network.c message.c log.c jrb.c jval.c key.c \
                        route.c node.c dllist.c job_queue.c dtime.c semaphore.c threads.c \
-                       np_dendrit.c np_axon.c np_glia.c aaatoken.c
+                       np_dendrit.c np_axon.c np_glia.c aaatoken.c cmp.c np_util.c
 
 
 # INCLUDES = -I$(top_srcdir)/include
-INCLUDES = -I$(top_srcdir)/include -I/Volumes/SAFE/Development/eclipseWS/qpid-proton-0.7/build/proton-c -I/Volumes/SAFE/Development/eclipseWS/qpid-proton-0.7/proton-c/include -I/Volumes/SAFE/Development/eclipseWS/axtls/libsodium-master/src/libsodium/include
+INCLUDES = -I$(top_srcdir)/include -I/Volumes/SAFE/Development/eclipseWS/axtls/libsodium-master/src/libsodium/include
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_CLEAN_FILES = 
 LIBRARIES =  $(lib_LIBRARIES)
@@ -104,8 +104,8 @@ libneuropil_a_OBJECTS =  neuropil.$(OBJEXT) network.$(OBJEXT) \
 message.$(OBJEXT) log.$(OBJEXT) jrb.$(OBJEXT) jval.$(OBJEXT) \
 key.$(OBJEXT) route.$(OBJEXT) node.$(OBJEXT) dllist.$(OBJEXT) \
 job_queue.$(OBJEXT) dtime.$(OBJEXT) semaphore.$(OBJEXT) threads.$(OBJEXT) \
-np_axon.$(OBJEXT) np_dendrit.$(OBJEXT) np_glia.$(OBJEXT) aaatoken.$(OBJEXT)
-CFLAGS = -g -O2
+np_axon.$(OBJEXT) np_dendrit.$(OBJEXT) np_glia.$(OBJEXT) aaatoken.$(OBJEXT) cmp.$(OBJEXT) np_util.$(OBJEXT)
+CFLAGS = -g -Wall -O2
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
@@ -120,7 +120,7 @@ GZIP_ENV = --best
 DEP_FILES =  .deps/neuropil.P .deps/dllist.P .deps/dtime.P .deps/node.P \
 .deps/job_queue.P .deps/jrb.P .deps/jval.P .deps/key.P .deps/log.P \
 .deps/message.P .deps/network.P .deps/route.P .deps/semaphore.P .deps/threads.P \
-.deps/np_glia.P .deps/np_axon.P .deps/np_dendrit.P .deps/aaatoken.P
+.deps/np_glia.P .deps/np_axon.P .deps/np_dendrit.P .deps/aaatoken.P .deps/cmp.P .deps/np_util.h
 SOURCES = $(libneuropil_a_SOURCES)
 OBJECTS = $(libneuropil_a_OBJECTS)
 

@@ -1,8 +1,6 @@
 #ifndef _NP_JOBQUEUE_H
 #define _NP_JOBQUEUE_H
 
-#include "proton/message.h"
-
 #include "include.h"
 
 #include "key.h"
@@ -31,8 +29,8 @@ struct np_joblist_t
 /* queue_queue structure */
 struct np_jobargs_t
 {
-	pn_message_t* msg;
-	Key* target;
+	np_message_t* msg;
+	np_key_t* target;
 	np_msgproperty_t* properties;
 	char* trace_string;
 };
@@ -54,7 +52,7 @@ void np_job_free(np_job_t* job);
  ** signal the thread pool if the queue was empty
  **/
 void job_submit_event (np_joblist_t* job_q, np_callback_t clb );
-void job_submit_msg_event (np_joblist_t* job_q, np_msgproperty_t* prop, Key* key, pn_message_t* msg);
+void job_submit_msg_event (np_joblist_t* job_q, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
 
 /** job_exec:
  ** if the queue,"job_q" is empty it would go to sleep and releas the mutex

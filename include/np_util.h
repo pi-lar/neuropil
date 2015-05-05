@@ -1,0 +1,14 @@
+#ifndef	_NP_UTIL_H_
+#define	_NP_UTIL_H_
+
+#include "cmp.h"
+
+#include "jrb.h"
+
+np_bool buffer_reader(cmp_ctx_t *ctx, void *data, size_t count);
+size_t buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count);
+
+void serialize_jrb_node_t(np_jrb_t* jrb, cmp_ctx_t* cmp);
+void deserialize_jrb_node_t(np_jrb_t* jrb, cmp_ctx_t* cmp, int size);
+
+#endif // _NP_UTIL_H_

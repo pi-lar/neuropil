@@ -2,201 +2,256 @@
 #include <string.h>
 
 #include "jval.h"
+#include "jrb.h"
+#include "log.h"
 
-Jval JNULL;
+np_jval_t JNULL;
 
-Jval new_jval_i (int i)
+np_jval_t new_jval_i (int i)
 {
-    Jval j;
-    j.i = i;
+    np_jval_t j;
+    j.value.i = i;
+    j.type = int_type;
+    // log_msg(LOG_DEBUG, "size of int: %d", sizeof(int));
     return j;
 }
 
-Jval new_jval_l (long l)
+np_jval_t new_jval_l (long l)
 {
-    Jval j;
-    j.l = l;
+    np_jval_t j;
+    j.value.l = l;
+    j.type = long_type;
     return j;
 }
 
-Jval new_jval_f (float f)
+np_jval_t new_jval_f (float f)
 {
-    Jval j;
-    j.f = f;
+    np_jval_t j;
+    j.value.f = f;
+    j.type = float_type;
     return j;
 }
 
-Jval new_jval_d (double d)
+np_jval_t new_jval_d (double d)
 {
-    Jval j;
-    j.d = d;
+    np_jval_t j;
+    j.value.d = d;
+    j.type = double_type;
+    // log_msg(LOG_DEBUG, "size of double: %d", sizeof(double));
     return j;
 }
 
-Jval new_jval_v (void *v)
+np_jval_t new_jval_v (void *v)
 {
-    Jval j;
-    j.v = v;
+    np_jval_t j;
+    j.value.v = v;
+    j.type = void_type;
     return j;
 }
 
-Jval new_jval_s (char *s)
+np_jval_t new_jval_s (char *s)
 {
-    Jval j;
-    j.s = s;
+    np_jval_t j;
+    j.value.s = s;
+    j.size = strlen(s);
+    // log_msg(LOG_DEBUG, "setting string value %s (size: %d)", s, strlen(s));
+    j.type = char_ptr_type;
     return j;
 }
 
-Jval new_jval_c (char c)
+np_jval_t new_jval_c (char c)
 {
-    Jval j;
-    j.c = c;
+    np_jval_t j;
+    j.value.c = c;
+    j.type = char_type;
     return j;
 }
 
-Jval new_jval_uc (unsigned char uc)
+np_jval_t new_jval_uc (unsigned char uc)
 {
-    Jval j;
-    j.uc = uc;
+    np_jval_t j;
+    j.value.uc = uc;
+    j.type = unsigned_char_type;
     return j;
 }
 
-Jval new_jval_sh (short sh)
+np_jval_t new_jval_sh (short sh)
 {
-    Jval j;
-    j.sh = sh;
+    np_jval_t j;
+    j.value.sh = sh;
+    j.type = short_type;
     return j;
 }
 
-Jval new_jval_ush (unsigned short ush)
+np_jval_t new_jval_ush (unsigned short ush)
 {
-    Jval j;
-    j.ush = ush;
+    np_jval_t j;
+    j.value.ush = ush;
+    j.type = unsigned_short_type;
     return j;
 }
 
-Jval new_jval_ui (unsigned int i)
+np_jval_t new_jval_ui (unsigned int i)
 {
-    Jval j;
-    j.i = i;
+    np_jval_t j;
+    j.value.ui = i;
+    j.type = unsigned_int_type;
     return j;
 }
 
-Jval new_jval_ul (unsigned long ul)
+np_jval_t new_jval_ul (unsigned long ul)
 {
-    Jval j;
-    j.ul = ul;
+    np_jval_t j;
+    j.value.ul = ul;
+    j.type = unsigned_long_type;
     return j;
 }
 
-Jval new_jval_iarray (int i0, int i1)
+np_jval_t new_jval_bin (void* data, unsigned long ul)
 {
-    Jval j;
-    j.iarray[0] = i0;
-    j.iarray[1] = i1;
+    np_jval_t j;
+
+    j.value.bin = data;
+    j.size = ul;
+    j.type = bin_type;
+
     return j;
 }
 
-Jval new_jval_farray (float f0, float f1)
+np_jval_t new_jval_key (np_key_t* key)
 {
-    Jval j;
-    j.farray[0] = f0;
-    j.farray[1] = f1;
+    np_jval_t j;
+
+    j.value.key = key;
+    j.size = sizeof(key);
+    j.type = key_type;
+
     return j;
 }
 
-Jval new_jval_carray_nt (char *carray)
+np_jval_t new_jval_iarray (int i0, int i1)
 {
-    Jval j;
+    np_jval_t j;
+    j.value.iarray[0] = i0;
+    j.value.iarray[1] = i1;
+    j.type = int_array_2_type;
+    return j;
+}
+
+np_jval_t new_jval_farray (float f0, float f1)
+{
+    np_jval_t j;
+    j.value.farray[0] = f0;
+    j.value.farray[1] = f1;
+    j.type = float_array_2_type;
+    return j;
+}
+
+np_jval_t new_jval_carray_nt (char *carray)
+{
+    np_jval_t j;
     int i;
 
     for (i = 0; i < 8 && carray[i] != '\0'; i++)
 	{
-	    j.carray[i] = carray[i];
+	    j.value.carray[i] = carray[i];
 	}
-    if (i < 8)
-	j.carray[i] = carray[i];
+
+    if (i < 8) j.value.carray[i] = carray[i];
+
+    j.type = char_array_8_type;
+
     return j;
 }
 
-Jval new_jval_carray_nnt (char *carray)
+np_jval_t new_jval_carray_nnt (char *carray)
 {
-    Jval j;
-    memcpy (j.carray, carray, 8);
-    return j;
+    np_jval_t j;
+    memcpy (j.value.carray, carray, 8);
+    j.type = unsigned_char_array_8_type;
+	return j;
 }
 
-int jval_i (Jval j)
-{
-    return j.i;
+np_jval_t new_jval_tree(np_jrb_t* tree) {
+
+	np_jval_t j;
+    j.value.tree = tree;
+    j.size = tree->size;
+    j.type = jrb_tree_type;
+	return j;
 }
 
-long jval_l (Jval j)
+int jval_i (np_jval_t j)
 {
-    return j.l;
+    return j.value.i;
 }
 
-float jval_f (Jval j)
+long jval_l (np_jval_t j)
 {
-    return j.f;
+    return j.value.l;
 }
 
-double jval_d (Jval j)
+float jval_f (np_jval_t j)
 {
-    return j.d;
+    return j.value.f;
 }
 
-void *jval_v (Jval j)
+double jval_d (np_jval_t j)
 {
-    return j.v;
+    return j.value.d;
 }
 
-char *jval_s (Jval j)
+void *jval_v (np_jval_t j)
 {
-    return j.s;
+    return j.value.v;
 }
 
-char jval_c (Jval j)
+char *jval_s (np_jval_t j)
 {
-    return j.c;
+    return j.value.s;
 }
 
-unsigned char jval_uc (Jval j)
+char jval_c (np_jval_t j)
 {
-    return j.uc;
+    return j.value.c;
 }
 
-short jval_sh (Jval j)
+unsigned char jval_uc (np_jval_t j)
 {
-    return j.sh;
+    return j.value.uc;
 }
 
-unsigned short jval_ush (Jval j)
+short jval_sh (np_jval_t j)
 {
-    return j.ush;
+    return j.value.sh;
 }
 
-unsigned int jval_ui (Jval j)
+unsigned short jval_ush (np_jval_t j)
 {
-    return j.ui;
+    return j.value.ush;
 }
 
-unsigned long jval_ul (Jval j)
+unsigned int jval_ui (np_jval_t j)
 {
-    return j.ul;
+    return j.value.ui;
 }
 
-int* jval_iarray (Jval j)
+unsigned long jval_ul (np_jval_t j)
 {
-    return j.iarray;
+    return j.value.ul;
 }
 
-float* jval_farray (Jval j)
+int* jval_iarray (np_jval_t j)
 {
-    return j.farray;
+    return j.value.iarray;
 }
 
-char* jval_carray (Jval j)
+float* jval_farray (np_jval_t j)
 {
-    return j.carray;
+    return j.value.farray;
+}
+
+char* jval_carray (np_jval_t j)
+{
+    return j.value.carray;
 }

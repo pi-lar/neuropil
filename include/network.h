@@ -6,8 +6,6 @@
 #ifndef _NP_NETWORK_H_
 #define _NP_NETWORK_H_
 
-#include "proton/message.h"
-
 #include "include.h"
 
 /** 
@@ -21,18 +19,20 @@
  */
 #define TIMEOUT 1.0
 
-struct np_networkglobal_t
+struct np_networkglobal_s
 {
     int sock;
 
-    np_jrb_t *waiting;
-    np_jrb_t *retransmit;
+    np_jrb_t* waiting;
+    np_jrb_t* retransmit;
 
-	unsigned long seqstart, seqend;
+    np_jrb_t* encrypted_msg;
+    np_jrb_t* handshake_data;
+
+    unsigned long seqstart, seqend;
 
 	pthread_attr_t attr;
     pthread_mutex_t lock;
-
 };
 
 typedef struct np_ackentry_t {
@@ -40,9 +40,10 @@ typedef struct np_ackentry_t {
 	double acktime; // the time when the packet is acked
 } np_ackentry_t;
 
+
 typedef struct PriQueueEntry {
 	np_node_t *desthost; // who should this message be sent to?
-	pn_message_t *data; // what to send?
+	np_message_t *data; // what to send?
 	int datasize; // how big is it?
 	int retry; // number of retries
 	unsigned long seqnum; // seqnum to identify the packet to be retransmitted
@@ -69,11 +70,11 @@ np_networkglobal_t* network_init (int port);
  ** type are 1 or 2, 1 indicates that the data should be acknowledged by the
  ** receiver, and 2 indicates that no ack is necessary.
  */
-int network_send (np_networkglobal_t* state, np_node_t* node, pn_message_t* message, unsigned long ack);
+int network_send (np_state_t* state, np_node_t* node, np_message_t* message, unsigned long ack);
 
 /**
  ** Resends a message to host
  */
-int network_resend (np_networkglobal_t* ng, np_node_t *host, pn_message_t* message, size_t size, int ack, unsigned long seqnum, double *transtime);
+int network_resend (np_state_t* state, np_node_t *host, np_message_t* message, size_t size, int ack, unsigned long seqnum, double *transtime);
 
 #endif /* _CHIMERA_NETWORK_H_ */

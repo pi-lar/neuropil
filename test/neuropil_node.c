@@ -7,14 +7,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "proton/message.h"
-
 #include "include.h"
 
 #include "neuropil.h"
 #include "log.h"
 #include "dtime.h"
 #include "job_queue.h"
+#include "jrb.h"
 #include "network.h"
 #include "message.h"
 #include "route.h"
@@ -33,34 +32,30 @@ extern int optind;
 np_node_t *driver;
 np_state_t *state;
 
-Key key;
-Key destinations[100];
+np_key_t* key;
+np_key_t* destinations[100];
 
 int seq = -1;
 int joinComplete = 0;
 
 
-void deliver(Key * k, pn_message_t * m) {
+void deliver(np_key_t* key, np_message_t* msg)
+{
+	// char s[256];
+	// np_message_t *message;
 
-	char s[256];
-	pn_message_t *message;
-	int seq;
-
-	const unsigned char* subject = (unsigned char*) pn_message_get_subject(m);
-	pn_data_t* inst = pn_message_instructions(m);
-	int msgtype = pn_data_get_int(inst);
+	char* subject = jrb_find_str(msg->header, "subject")->val.value.s;
 
 	//  unsigned long dest;
 	// TODO: lookup software hook
 	// TODO: only when no software hook is present, try to send directly to closest host
-
 	// np_node_t* host = np_node_lookup(state->nodes, subject);
 	// np_node_t* host = np_node_decode_from_str(state->nodes, subject);
 	// message_send(state->messages, host, m, TRUE, 1);
 
 	log_msg(LOG_DEBUG, "DELIVER: %s", subject);
+	// np_key_t* 
 
-	Key* dest = key_create_from_hash(subject);
 	// log_msg(LOG_DEBUG, "message %d to %s delivered to %s", seq, key_get_as_string(dest), key_get_as_string(key));
 }
 
@@ -70,17 +65,17 @@ int main(int argc, char **argv) {
 	int opt;
 	char *hn = NULL;
 	int port, joinport;
-	np_node_t *join = NULL;
-	char tmp[256];
-	int i, j;
-	pn_message_t *hello;
-	char dest[16];
-	char msg[200];
-	char m[200];
-	np_node_t ch;
-	double wtime;
+	// np_node_t *join = NULL;
+	// char tmp[256];
+	int i;
+	// np_message_t *hello;
+	// char dest[16];
+	// char msg[200];
+	// char m[200];
+	// np_node_t ch;
+	// double wtime;
 	int type;
-	int x;
+	// int x;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
 		switch ((char) opt) {
@@ -150,11 +145,11 @@ int main(int argc, char **argv) {
 	np_start_job_queue(state, 8);
 	np_waitforjoin(state);
 
-	unsigned long k = 1;
+	// unsigned long k = 1;
 	while (1) {
 
 		dsleep(0.1);
-		char* testdata;
+		// char* testdata;
 
 		// np_send(state, "this.is.a.test", "testdata", k);
 		// np_receive(state, "this.is.a.test", &testdata, k, 1);
