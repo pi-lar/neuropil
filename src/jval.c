@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <string.h>
+// #include <string.h>
 
 #include "jval.h"
 #include "jrb.h"
@@ -21,6 +21,14 @@ np_jval_t new_jval_l (long l)
     np_jval_t j;
     j.value.l = l;
     j.type = long_type;
+    return j;
+}
+
+np_jval_t new_jval_ll (long long ll)
+{
+    np_jval_t j;
+    j.value.ll = ll;
+    j.type = long_long_type;
     return j;
 }
 
@@ -75,21 +83,21 @@ np_jval_t new_jval_uc (unsigned char uc)
     return j;
 }
 
-np_jval_t new_jval_sh (short sh)
-{
-    np_jval_t j;
-    j.value.sh = sh;
-    j.type = short_type;
-    return j;
-}
+//np_jval_t new_jval_sh (short sh)
+//{
+//    np_jval_t j;
+//    j.value.sh = sh;
+//    j.type = short_type;
+//    return j;
+//}
 
-np_jval_t new_jval_ush (unsigned short ush)
-{
-    np_jval_t j;
-    j.value.ush = ush;
-    j.type = unsigned_short_type;
-    return j;
-}
+//np_jval_t new_jval_ush (unsigned short ush)
+//{
+//    np_jval_t j;
+//    j.value.ush = ush;
+//    j.type = unsigned_short_type;
+//    return j;
+//}
 
 np_jval_t new_jval_ui (unsigned int i)
 {
@@ -104,6 +112,14 @@ np_jval_t new_jval_ul (unsigned long ul)
     np_jval_t j;
     j.value.ul = ul;
     j.type = unsigned_long_type;
+    return j;
+}
+
+np_jval_t new_jval_ull (unsigned long long ull)
+{
+    np_jval_t j;
+    j.value.ull = ull;
+    j.type = unsigned_long_long_type;
     return j;
 }
 
@@ -176,7 +192,7 @@ np_jval_t new_jval_tree(np_jrb_t* tree) {
 
 	np_jval_t j;
     j.value.tree = tree;
-    j.size = tree->size;
+    j.size = tree->byte_size;
     j.type = jrb_tree_type;
 	return j;
 }
@@ -189,6 +205,11 @@ int jval_i (np_jval_t j)
 long jval_l (np_jval_t j)
 {
     return j.value.l;
+}
+
+long long jval_ll (np_jval_t j)
+{
+    return j.value.ll;
 }
 
 float jval_f (np_jval_t j)
@@ -221,15 +242,15 @@ unsigned char jval_uc (np_jval_t j)
     return j.value.uc;
 }
 
-short jval_sh (np_jval_t j)
-{
-    return j.value.sh;
-}
-
-unsigned short jval_ush (np_jval_t j)
-{
-    return j.value.ush;
-}
+//short jval_sh (np_jval_t j)
+//{
+//    return j.value.sh;
+//}
+//
+//unsigned short jval_ush (np_jval_t j)
+//{
+//    return j.value.ush;
+//}
 
 unsigned int jval_ui (np_jval_t j)
 {
@@ -239,6 +260,11 @@ unsigned int jval_ui (np_jval_t j)
 unsigned long jval_ul (np_jval_t j)
 {
     return j.value.ul;
+}
+
+unsigned long long jval_ull (np_jval_t j)
+{
+    return j.value.ull;
 }
 
 int* jval_iarray (np_jval_t j)

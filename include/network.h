@@ -7,7 +7,7 @@
 #define _NP_NETWORK_H_
 
 #include "include.h"
-
+#include "np_memory.h"
 /** 
  ** NETWORK_PACK_SIZE is the maximum packet size that will be handled by chimera network layer
  */
@@ -42,9 +42,10 @@ typedef struct np_ackentry_t {
 
 
 typedef struct PriQueueEntry {
-	np_node_t *desthost; // who should this message be sent to?
-	np_message_t *data; // what to send?
-	int datasize; // how big is it?
+	np_key_t* dest_key;
+	// np_node_t *desthost; // who should this message be sent to?
+	np_obj_t *msg; // what to send?
+	// int datasize; // how big is it?
 	int retry; // number of retries
 	unsigned long seqnum; // seqnum to identify the packet to be retransmitted
 	double transmittime; // this is the time the packet is transmitted (or retransmitted)
@@ -70,11 +71,11 @@ np_networkglobal_t* network_init (int port);
  ** type are 1 or 2, 1 indicates that the data should be acknowledged by the
  ** receiver, and 2 indicates that no ack is necessary.
  */
-int network_send (np_state_t* state, np_node_t* node, np_message_t* message, unsigned long ack);
+int network_send_udp (np_state_t* state, np_node_t* node, np_obj_t* message);
 
 /**
  ** Resends a message to host
  */
-int network_resend (np_state_t* state, np_node_t *host, np_message_t* message, size_t size, int ack, unsigned long seqnum, double *transtime);
+// int network_resend (np_state_t* state, np_node_t *host, np_message_t* message, size_t size, int ack, unsigned long seqnum, double *transtime);
 
 #endif /* _CHIMERA_NETWORK_H_ */

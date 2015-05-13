@@ -10,6 +10,8 @@
 
 #include "include.h"
 
+#include "np_memory.h"
+
 #include "key.h"
 #include "jrb.h"
 #include "jval.h"
@@ -25,13 +27,13 @@ struct np_message_s {
 	np_jrb_t* footer;
 };
 
-np_message_t* np_message_create_empty();
+// np_obj_t* np_message_create_empty();
 
 int np_message_decrypt_part(np_jrb_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
 int np_message_encrypt_part(np_jrb_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
 
 int np_message_serialize(np_message_t* msg, void* buffer, unsigned long* out_size);
-np_message_t* np_message_deserialize(void* buffer);
+int np_message_deserialize(np_obj_t* obj_msg, void* buffer);
 
 inline void np_message_setproperties(np_message_t* msg, np_jrb_t* properties);
 void np_message_addpropertyentry(np_message_t*, const char* key, np_jval_t value);
@@ -86,8 +88,8 @@ struct np_msgproperty_s {
 	int msg_mode;
 	int msg_type;
 	int priority;
-	int ack_mode;
-	int retry;
+	unsigned int ack_mode;
+	unsigned int retry;
 	const char* msg_format;
 	np_callback_t clb;
 };
@@ -98,11 +100,11 @@ struct np_msginterest_s {
 	np_key_t* key;
 
 	char*         msg_subject;
-	int           msg_type;
+	unsigned int  msg_type;
 	unsigned long msg_seqnum;
-	int           msg_threshold;
+	unsigned int  msg_threshold;
 
-	int send_ack;
+	unsigned int send_ack;
 	np_jrb_t* payload;
 
 	// only send/receive after opposite partner has been found
@@ -137,10 +139,11 @@ struct np_msginterest_s {
 #define NP_MSG_INTEREST_REJECT "_NP.MESSAGE.INTEREST.REJECTION"
 #define NP_MSG_AVAILABLE "_NP.MESSAGE.AVAILABILITY"
 
-static const char* NP_MSG_HEADER_TO = "address";
-static const char* NP_MSG_HEADER_FROM = "from";
-static const char* NP_MSG_HEADER_REPLY_TO = "reply_to";
-static const char* NP_MSG_HEADER_SUBJECT = "subject";
+static const char* NP_MSG_HEADER_SUBJECT   = "subject";
+static const char* NP_MSG_HEADER_TO        = "address";
+static const char* NP_MSG_HEADER_FROM      = "from";
+static const char* NP_MSG_HEADER_REPLY_TO  = "reply_to";
+static const char* NP_MSG_FOOTER_ALIAS_KEY = "_np.alias_key";
 
 /**
  ** message_init: chstate, port
@@ -159,21 +162,23 @@ void np_message_register_handler (np_messageglobal_t *mg, np_msgproperty_t* msgp
 /**
  ** return a handler for a given message subject
  **/
-np_msgproperty_t* np_message_get_handler (np_messageglobal_t *mg, int msg_mode, const char* subject);
-int np_message_check_handler(np_messageglobal_t *mg, int msg_mode, const char* subject);
+np_msgproperty_t* np_message_get_handler (np_messageglobal_t *mg, unsigned int msg_mode, const char* subject);
+int np_message_check_handler(np_messageglobal_t *mg, unsigned int msg_mode, const char* subject);
 
 /** 
  ** message_create / free:
  ** creates the message to the destination #dest# the message format would be like:
  ** deletes the message and corresponding structures
  **/
-np_message_t* np_message_create(np_messageglobal_t *mg, np_key_t* to, np_key_t* from, const char* subject, np_jrb_t* the_data);
-void np_message_free(np_message_t* msg);
+void np_message_create(np_obj_t *msg, np_key_t* to, np_key_t* from, const char* subject, np_jrb_t* the_data);
+// np_obj_t* np_message_create(np_messageglobal_t *mg, np_key_t* to, np_key_t* from, const char* subject, np_jrb_t* the_data);
+// void np_message_free(np_message_t* msg);
+void np_message_t_del(void* msg);
+void np_message_t_new(void* msg);
 
 // np_msgproperty_t*
-void np_message_create_property(np_messageglobal_t *mg, const char* subject, int msg_mode, int msg_type, int ack_mode, int priority, int retry, np_callback_t callback);
-np_msginterest_t* np_message_create_interest(const np_state_t* state, const char* subject, int msg_type, unsigned long seqnum, int threshold);
-
+void np_message_create_property(np_messageglobal_t *mg, const char* subject, unsigned int msg_mode, unsigned int msg_type, unsigned int ack_mode, unsigned int priority, unsigned int retry, np_callback_t callback);
+np_msginterest_t* np_message_create_interest(const np_state_t* state, const char* subject, unsigned int msg_type, unsigned long seqnum, unsigned int threshold);
 
 // update internal structure and return a interest if a matching pair has been found
 np_msginterest_t* np_message_interest_update(np_messageglobal_t *mg, np_msginterest_t *interest);
@@ -182,12 +187,8 @@ np_msginterest_t* np_message_available_update(np_messageglobal_t *mg, np_msginte
 np_msginterest_t* np_message_interest_match(np_messageglobal_t *mg, const char *subject);
 np_msginterest_t* np_message_available_match(np_messageglobal_t *mg, const char *subject);
 
-
 np_msginterest_t* np_decode_msg_interest(np_messageglobal_t *mg, np_jrb_t* data);
 void np_message_encode_interest(np_jrb_t *amqp_data, np_msginterest_t *interest);
-
-// np_message_t* message_create (np_key_t* 
-// np_message_t *message_create (np_key_t* 
 
 
 #endif /* _NP_MESSAGE_H_ */

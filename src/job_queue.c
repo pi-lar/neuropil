@@ -3,9 +3,12 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "job_queue.h"
 
+#include "include.h"
+#include "np_memory.h"
 #include "neuropil.h"
 #include "message.h"
 #include "log.h"
@@ -98,7 +101,7 @@ int job_available (np_joblist_t * l) {
  ** add the new np_job_t to the queue, and
  ** signal the thread pool if the queue was empty.
  **/
-void job_submit_msg_event (np_joblist_t* job_q, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
+void job_submit_msg_event (np_joblist_t* job_q, np_msgproperty_t* prop, np_key_t* key, np_obj_t* msg)
 {
     int was_empty = 0;
 
@@ -107,6 +110,7 @@ void job_submit_msg_event (np_joblist_t* job_q, np_msgproperty_t* prop, np_key_t
     jargs->msg = msg;
     jargs->target = key;
     jargs->properties = prop;
+    if (msg != NULL) np_ref(np_message_t, jargs->msg);
 
     // create job itself
     np_job_t* new_job = (np_job_t *) malloc (sizeof (struct np_job_t));
@@ -177,13 +181,15 @@ void* job_exec (void* np_state)
 	    pthread_mutex_unlock (&Q->access);
 
 	    if (tmp->type == 1) {
-	    	// np_msgproperty_t* msg_prop = (np_msgproperty_t *) tmp->args->properties;
 	    	tmp->processorFunc(state, tmp->args);
+	    	if (tmp->args->msg) {
+	    		np_unref(np_message_t, tmp->args->msg);
+	    	}
 	    }
-
 	    if (tmp->type == 2)
 		   	tmp->processorFunc(state, tmp->args);
 
+	    free(tmp->args);
 	    np_job_free(tmp);
 	}
     return NULL;

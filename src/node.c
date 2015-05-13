@@ -115,7 +115,9 @@ int np_encode_nodes_to_amqp (np_jrb_t* data, np_node_t** host)
     for (i = 0; host[i] != NULL; i++)
 	{
     	np_jrb_t* node = make_jrb();
+    	// log_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
     	np_node_encode_to_amqp(node, host[i]);
+    	// log_msg(LOG_DEBUG, "%p / c: %p -> adding nodejrb to jrb", data, node);
     	jrb_insert_int(data, i, new_jval_tree(node));
 	}
     return i;
@@ -139,7 +141,6 @@ np_node_t** np_decode_nodes_from_amqp (np_nodecache_t* ng, np_jrb_t* data)
 	}
 
 	node[i] = NULL;
-
     return (node);
 }
 

@@ -1,15 +1,29 @@
+#include "pthread.h"
 
-
+#include "np_memory.h"
 #include "node.h"
 #include "key.h"
 #include "jrb.h"
 #include "log.h"
+#include "cmp.h"
+#include "np_util.h"
+
+#include "include.h"
 
 int main(int argc, char **argv) {
 
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 
 	log_init("test_node_ser.log", log_level);
+
+	np_jrb_t* test_jrb = make_jrb();
+	jrb_insert_str(test_jrb, "test", new_jval_s("test"));
+
+	np_jval_t t1;
+	np_jval_t t2 = new_jval_tree(test_jrb);
+
+	t1 = t2;
+	log_msg(LOG_DEBUG, "%p np_val_t t1: %d %d %p", test_jrb, t1.type, t1.size, t1.value.tree);
 
 	np_nodecache_t* nc = np_node_cache_create(5);
     np_node_t** node_list = (np_node_t **) malloc (sizeof (np_node_t *)*5);
@@ -38,7 +52,19 @@ int main(int argc, char **argv) {
 	np_jrb_t* node_jrb = make_jrb();
 	np_encode_nodes_to_amqp(node_jrb, node_list);
 
-    log_msg(LOG_DEBUG, "deserializing");
-	np_decode_nodes_from_amqp(nc, node_jrb);
+	cmp_ctx_t cmp;
+    void* buffer = malloc(node_jrb->byte_size);
+    memset(buffer, 0, node_jrb->byte_size);
+    cmp_init(&cmp, buffer, buffer_reader, buffer_writer);
+    serialize_jrb_node_t(node_jrb, &cmp);
+
+	np_nodecache_t* out_nc = np_node_cache_create(5);
+	np_jrb_t* out_tree = make_jrb();
+	cmp_ctx_t out_cmp;
+
+	log_msg(LOG_DEBUG, "deserializing");
+	cmp_init(&out_cmp, buffer, buffer_reader, buffer_writer);
+	deserialize_jrb_node_t(out_tree, &out_cmp);
+	np_decode_nodes_from_amqp(out_nc, node_jrb);
 
 }

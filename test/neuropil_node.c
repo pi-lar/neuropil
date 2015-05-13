@@ -7,8 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "include.h"
-
+#include "np_memory.h"
 #include "neuropil.h"
 #include "log.h"
 #include "dtime.h"
@@ -18,6 +17,9 @@
 #include "message.h"
 #include "route.h"
 #include "node.h"
+
+#include "include.h"
+
 
 
 #define USAGE "neuropil [ -b bootstrap:port ] port"
@@ -103,7 +105,7 @@ int main(int argc, char **argv) {
 	char log_file[256];
 	sprintf(log_file, "%s_%d.log", "./neuropil_node", port);
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	log_init(&log_file, level);
+	log_init(log_file, level);
 
 	state = np_init(port);
 

@@ -34,6 +34,7 @@
 #include "np_axon.h"
 #include "np_glia.h"
 #include "np_util.h"
+#include "np_memory.h"
 #include "jrb.h"
 
 
@@ -109,136 +110,103 @@ np_msgproperty_t np_internal_messages[] =
 	{ NP_MSG_AVAILABLE, OUTBOUND, ONEWAY, 5, 1, 5, "C", hnd_msg_out_send }
 };
 
-np_message_t* np_message_create_empty() {
+void np_message_t_new(void* msg) {
 
-	np_message_t* tmp = (np_message_t*) malloc(sizeof(np_message_t));
+	np_message_t* msg_tmp = (np_message_t*) msg;
 
-	tmp->header = make_jrb();
+	msg_tmp->header = make_jrb();
 	// log_msg(LOG_DEBUG, "header now (%p: %p->%p)", tmp, tmp->header, tmp->header->flink);
-
-	tmp->properties = make_jrb();
+	msg_tmp->properties = make_jrb();
 	// log_msg(LOG_DEBUG, "properties now (%p: %p->%p)", tmp, tmp->properties, tmp->properties->flink);
-	tmp->instructions = make_jrb();
+	msg_tmp->instructions = make_jrb();
 	// log_msg(LOG_DEBUG, "instructions now (%p: %p->%p)", tmp, tmp->instructions, tmp->instructions->flink);
-	tmp->body = make_jrb();
+	msg_tmp->body = make_jrb();
 	// log_msg(LOG_DEBUG, "body now (%p: %p->%p)", tmp, tmp->body, tmp->body->flink);
-	tmp->footer = make_jrb();
-	// log_msg(LOG_DEBUG, "footer now (%p: %p->%p)", tmp, tmp->footer, tmp->footer->flink);
-
-	return tmp;
+	msg_tmp->footer = make_jrb();
 }
+
+//np_obj_t* np_message_create_empty() {
+//
+//	np_obj_t* obj_tmp;
+//	np_message_t* msg_tmp;
+//	// np_new(np_message_t, obj_tmp);
+//	// np_bind(np_message_t, obj_tmp, msg_tmp);
+//	// np_message_t* tmp = (np_message_t*) malloc(sizeof(np_message_t));
+//
+//	msg_tmp->header = make_jrb();
+//	// log_msg(LOG_DEBUG, "header now (%p: %p->%p)", tmp, tmp->header, tmp->header->flink);
+//	msg_tmp->properties = make_jrb();
+//	// log_msg(LOG_DEBUG, "properties now (%p: %p->%p)", tmp, tmp->properties, tmp->properties->flink);
+//	msg_tmp->instructions = make_jrb();
+//	// log_msg(LOG_DEBUG, "instructions now (%p: %p->%p)", tmp, tmp->instructions, tmp->instructions->flink);
+//	msg_tmp->body = make_jrb();
+//	// log_msg(LOG_DEBUG, "body now (%p: %p->%p)", tmp, tmp->body, tmp->body->flink);
+//	msg_tmp->footer = make_jrb();
+//	// log_msg(LOG_DEBUG, "footer now (%p: %p->%p)", tmp, tmp->footer, tmp->footer->flink);
+//	np_unbind(np_message_t, obj_tmp, msg_tmp);
+//
+//	return obj_tmp;
+//}
 
 int np_message_serialize(np_message_t* msg, void* target, unsigned long* out_size) {
 
     cmp_ctx_t cmp;
     cmp_init(&cmp, target, buffer_reader, buffer_writer);
 
-	np_jrb_t* node = NULL;
-
 	cmp_write_array(&cmp, 5);
 
 	// log_msg(LOG_DEBUG, "serializing the header (size %d)", msg->header->size);
-	if (!cmp_write_map(&cmp, msg->header->size*2 )) log_msg(LOG_WARN, cmp_strerror(&cmp));
-	if (msg->header->size) {
-		node = msg->header;
-		// log_msg(LOG_DEBUG, "for (%p; %p!=%p; %p=%p) ", msg->header->flink, node, msg->header, node, node->flink);
-		jrb_traverse(node, msg->header) {
-			serialize_jrb_node_t(node, &cmp);
-		}
-	}
+	serialize_jrb_node_t(msg->header, &cmp);
 
 	// log_msg(LOG_DEBUG, "serializing the instructions (size %d)", msg->header->size);
-	if (!cmp_write_map(&cmp, msg->instructions->size*2 ))  log_msg(LOG_WARN, cmp_strerror(&cmp));
-	if (msg->instructions->size) {
-		jrb_traverse(node, msg->instructions) {
-			serialize_jrb_node_t(node, &cmp);
-		}
-	}
+	serialize_jrb_node_t(msg->instructions, &cmp);
 
 	// log_msg(LOG_DEBUG, "serializing the properties (size %d)", msg->properties->size);
-	if (!cmp_write_map(&cmp, msg->properties->size*2 )) log_msg(LOG_WARN, cmp_strerror(&cmp));
-	if (msg->properties->size) {
-		jrb_traverse(node, msg->properties) {
-			serialize_jrb_node_t(node, &cmp);
-		}
-	}
+	serialize_jrb_node_t(msg->properties, &cmp);
 
 	// log_msg(LOG_DEBUG, "serializing the body (size %d)", msg->body->size);
-	if (!cmp_write_map(&cmp, msg->body->size*2 ))  log_msg(LOG_WARN, cmp_strerror(&cmp));
-	if (msg->body->size) {
-		jrb_traverse(node, msg->body) {
-			serialize_jrb_node_t(node, &cmp);
-		}
-	}
+	serialize_jrb_node_t(msg->body, &cmp);
 
 	// log_msg(LOG_DEBUG, "serializing the footer (size %d)", msg->footer->size);
-	if (!cmp_write_map(&cmp, msg->footer->size*2 )) log_msg(LOG_WARN, cmp_strerror(&cmp));
-	if (msg->footer->size) {
-		jrb_traverse(node, msg->footer) {
-			serialize_jrb_node_t(node, &cmp);
-		}
-	}
+	serialize_jrb_node_t(msg->footer, &cmp);
 
-	// target = buffer;
 	*out_size = cmp.buf-target;
 	return 1;
 }
 
-np_message_t* np_message_deserialize(void* buffer) {
+int np_message_deserialize(np_obj_t* obj_msg, void* buffer) {
 
-	np_message_t* tmp = np_message_create_empty();
+	np_message_t* msg_tmp;
+	np_bind(np_message_t, obj_msg, msg_tmp);
 
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, buffer_reader, buffer_writer);
 
 	unsigned int array_size;
-	if (!cmp_read_array(&cmp, &array_size)) return NULL;
+	if (!cmp_read_array(&cmp, &array_size)) return 0;
 	if (array_size != 5) {
 		log_msg(LOG_WARN, "wrong array size when deserializing message");
-		return NULL;
+		np_unbind(np_message_t, obj_msg, msg_tmp);
+		return 0;
 	}
 
-	unsigned int map_size = 0;
-	log_msg(LOG_DEBUG, "deserializing msg header");
-	if (!cmp_read_map(&cmp, &map_size)) return NULL;
-	if (map_size) {
-		deserialize_jrb_node_t(tmp->header, &cmp, map_size/2);
-		if ( (map_size/2) != tmp->header->size)
-			log_msg(LOG_WARN, "error deserializing header, continuing ... ");
-	}
+	// log_msg(LOG_DEBUG, "deserializing msg header");
+	deserialize_jrb_node_t(msg_tmp->header, &cmp);
 
-	log_msg(LOG_DEBUG, "deserializing msg instructions");
-	if (!cmp_read_map(&cmp, &map_size)) return NULL;
-	if (map_size) {
-		deserialize_jrb_node_t(tmp->instructions, &cmp, map_size/2);
-		if ( (map_size/2) != tmp->instructions->size)
-			log_msg(LOG_WARN, "error deserializing instructions, continuing ... ");
-	}
+	// log_msg(LOG_DEBUG, "deserializing msg instructions");
+	deserialize_jrb_node_t(msg_tmp->instructions, &cmp);
 
-	log_msg(LOG_DEBUG, "deserializing msg properties");
-	if (!cmp_read_map(&cmp, &map_size)) return NULL;
-	if (map_size) {
-		deserialize_jrb_node_t(tmp->properties, &cmp, map_size/2);
-		if ( (map_size/2) != tmp->properties->size)
-			log_msg(LOG_WARN, "error deserializing properties, continuing ... ");
-	}
+	// log_msg(LOG_DEBUG, "deserializing msg properties");
+	deserialize_jrb_node_t(msg_tmp->properties, &cmp);
 
-	log_msg(LOG_DEBUG, "deserializing msg body");
-	if (!cmp_read_map(&cmp, &map_size)) return NULL;
-	if (map_size) {
-		deserialize_jrb_node_t(tmp->body, &cmp, map_size/2);
-		if ( (map_size/2) != tmp->body->size)
-			log_msg(LOG_WARN, "error deserializing body, continuing ... ");
-	}
+	// log_msg(LOG_DEBUG, "deserializing msg body");
+	deserialize_jrb_node_t(msg_tmp->body, &cmp);
 
-	log_msg(LOG_DEBUG, "deserializing msg footer");
-	if (!cmp_read_map(&cmp, &map_size)) return NULL;
-	if (map_size) {
-		deserialize_jrb_node_t(tmp->footer, &cmp, map_size/2);
-		if ( (map_size/2) != tmp->footer->size)
-			log_msg(LOG_WARN, "error deserializing footer, continuing ... ");
-	}
-	return tmp;
+	// log_msg(LOG_DEBUG, "deserializing msg footer");
+	deserialize_jrb_node_t(msg_tmp->footer, &cmp);
+
+	np_unbind(np_message_t, obj_msg, msg_tmp);
+	return 1;
 }
 
 /** 
@@ -246,23 +214,20 @@ np_message_t* np_message_deserialize(void* buffer) {
  ** creates the message to the destination #dest# the message format would be like:
  **  [ type ] [ size ] [ key ] [ data ]. It return the created message structure.
  */
-np_message_t* np_message_create(np_messageglobal_t *mg, np_key_t* to, np_key_t* from, const char* subject, np_jrb_t* the_data)
+void np_message_create(np_obj_t *msg, np_key_t* to, np_key_t* from, const char* subject, np_jrb_t* the_data)
 {
-	np_message_t* new_msg = np_message_create_empty();
-	// pn_message_t* new_msg = pn_message();
+	np_message_t* new_msg;
+	np_bind(np_message_t, msg, new_msg);
+
 	jrb_insert_str(new_msg->header, NP_MSG_HEADER_TO,  new_jval_s((char*) key_get_as_string(to)));
 	jrb_insert_str(new_msg->header, NP_MSG_HEADER_FROM, new_jval_s((char*) key_get_as_string(from)));
 	jrb_insert_str(new_msg->header, NP_MSG_HEADER_REPLY_TO, new_jval_s((char*) key_get_as_string(from)));
 	jrb_insert_str(new_msg->header, NP_MSG_HEADER_SUBJECT,  new_jval_s((char*) subject));
 
-//	pn_message_set_address(new_msg, (char*) key_get_as_string(to));
-//	pn_message_set_reply_to(new_msg, (char*) key_get_as_string(from));
-//	pn_message_set_subject(new_msg, subject);
-
 	if (the_data != NULL) {
 		np_message_setbody(new_msg, the_data);
 	}
-	return new_msg;
+	np_unbind(np_message_t, msg, new_msg);
 }
 
 inline void np_message_setproperties(np_message_t* msg, np_jrb_t* properties) {
@@ -333,7 +298,7 @@ int np_message_decrypt_part(np_jrb_t* msg_part,
 	unsigned int map_size = 0;
 	if (!cmp_read_map(&cmp, &map_size))
 		return -1;
-	deserialize_jrb_node_t(msg_part, &cmp, map_size/2);
+	deserialize_jrb_node_t(msg_part, &cmp);
 
 	jrb_delete_node(enc_msg_part);
 
@@ -361,12 +326,7 @@ int np_message_encrypt_part(np_jrb_t* msg_part,
     void* msg_part_buf_ptr = msg_part_buffer;
 
     cmp_init(&cmp, msg_part_buf_ptr, buffer_reader, buffer_writer);
-	np_jrb_t* iter_node;
-
-	if (!cmp_write_map(&cmp, msg_part->size*2 )) log_msg(LOG_WARN, cmp_strerror(&cmp));
-	jrb_traverse(iter_node, msg_part) {
-		serialize_jrb_node_t(iter_node, &cmp);
-	}
+    serialize_jrb_node_t(msg_part, &cmp);
 	int msg_part_len = cmp.buf-msg_part_buf_ptr;
 
 	int enc_msg_part_len = msg_part_len + crypto_box_MACBYTES;
@@ -408,6 +368,17 @@ void np_message_free(np_message_t * msg) {
 	jrb_free_tree(msg->body);
 	jrb_free_tree(msg->footer);
 	free (msg);
+}
+
+void np_message_t_del(void* data) {
+	np_message_t* msg = (np_message_t*) data;
+
+	jrb_free_tree(msg->header);
+	jrb_free_tree(msg->instructions);
+	jrb_free_tree(msg->properties);
+	jrb_free_tree(msg->body);
+	jrb_free_tree(msg->footer);
+	// free (msg);
 }
 
 /**
@@ -469,7 +440,7 @@ np_callback_t np_message_get_callback (np_msgproperty_t *handler)
  ** registers the handler function #func# with the message type #type#,
  ** it also defines the acknowledgment requirement for this type 
  **/
-np_msgproperty_t* np_message_get_handler(np_messageglobal_t *mg, int msg_mode, const char* subject) {
+np_msgproperty_t* np_message_get_handler(np_messageglobal_t *mg, unsigned int msg_mode, const char* subject) {
 
 	if (mg == NULL) return NULL;
 	if (subject == NULL) return NULL;
@@ -527,7 +498,7 @@ np_msgproperty_t* np_message_get_handler(np_messageglobal_t *mg, int msg_mode, c
 }
 
 
-int np_message_check_handler(np_messageglobal_t *mg, int msg_mode, const char* subject) {
+int np_message_check_handler(np_messageglobal_t *mg, unsigned int msg_mode, const char* subject) {
 
 	int retVal = 0;
 
@@ -631,7 +602,7 @@ void np_message_register_handler(np_messageglobal_t *mg, np_msgproperty_t* msgpr
 }
 
 // np_msgproperty_t*
-void np_message_create_property(np_messageglobal_t *mg, const char* subject, int msg_mode, int msg_type, int ack_mode, int priority, int retry, np_callback_t callback) {
+void np_message_create_property(np_messageglobal_t *mg, const char* subject, unsigned int msg_mode, unsigned int msg_type, unsigned int ack_mode, unsigned int priority, unsigned int retry, np_callback_t callback) {
 
 	// log_msg(LOG_INFO, "message create property");
 	np_msgproperty_t* prop = (np_msgproperty_t*) malloc(sizeof(np_msgproperty_t));
@@ -648,7 +619,7 @@ void np_message_create_property(np_messageglobal_t *mg, const char* subject, int
 	return;
 }
 
-np_msginterest_t* np_message_create_interest(const np_state_t* state, const char* subject, int msg_type, unsigned long seqnum, int threshold) {
+np_msginterest_t* np_message_create_interest(const np_state_t* state, const char* subject, unsigned int msg_type, unsigned long seqnum, unsigned int threshold) {
 
 	np_msginterest_t* tmp = (np_msginterest_t*) malloc(sizeof(np_msginterest_t));
 	tmp->msg_subject = strndup(subject, 255);
@@ -772,56 +743,14 @@ np_msginterest_t* np_decode_msg_interest(np_messageglobal_t *mg, np_jrb_t* data 
 	np_msginterest_t* interest = (np_msginterest_t*) malloc(sizeof(np_msginterest_t));
 	interest->key = (np_key_t*) malloc(sizeof(np_key_t));
 
-	np_jrb_t* key = jrb_find_str(data, "mi.key");
+	np_jrb_t* key = jrb_find_str(data, "_np.mi.key");
 	str_to_key(interest->key, key->val.value.s);
+	np_jrb_t* msg_subject = jrb_find_str(data, "_np.mi.msg_subject");
 
-	np_jrb_t* msg_subject = jrb_find_str(data, "mi.msg_subject");
 	interest->msg_subject = strndup(msg_subject->val.value.s, 255);
-
-	interest->msg_type = jrb_find_str(data, "mi.msg_type")->val.value.i;
-
-	interest->msg_threshold = jrb_find_str(data, "mi.msg_threshold")->val.value.i;
-
-	interest->msg_seqnum = jrb_find_str(data, "mi.msg_seqnum")->val.value.ul;
-
-
-//	assert(pn_data_type(amqp_data) == PN_LIST);
-//	int count = pn_data_get_list(amqp_data);
-//	assert(count == 5);
-//	pn_data_enter(amqp_data);
-//
-//	pn_data_next(amqp_data);
-//    assert(pn_data_type(amqp_data) == PN_STRING);
-//	pn_bytes_t bnp_key_t* 
-//	char sHostkey[bnp_key_t* 
-//	strncpy(sHostkey, bnp_key_t* 
-//	// sHostkey[bnp_key_t* 
-//	str_to_key(interest->key, sHostkey);
-//
-//	pn_data_next(amqp_data);
-//    assert(pn_data_type(amqp_data) == PN_STRING);
-//	pn_bytes_t bSubject = pn_data_get_string(amqp_data);
-//	interest->msg_subject = (char*) malloc(bSubject.size);
-//	strncpy(interest->msg_subject, bSubject.start, bSubject.size);
-//	// interest->msg_subject[bSubject.size-1] = '\0';
-//
-//	pn_data_next(amqp_data);
-//    assert(pn_data_type(amqp_data) == PN_INT);
-//    interest->msg_type = pn_data_get_int(amqp_data);
-//
-//    pn_data_next(amqp_data);
-//    assert(pn_data_type(amqp_data) == PN_ULONG);
-//    interest->msg_seqnum = pn_data_get_ulong(amqp_data);
-//
-//    pn_data_next(amqp_data);
-//    assert(pn_data_type(amqp_data) == PN_INT);
-//    interest->msg_threshold = pn_data_get_int(amqp_data);
-//
-//	pn_data_exit(amqp_data);
-//
-//	if (pn_data_errno(amqp_data) < 0) {
-//		log_msg(LOG_ERROR, "error decoding msg_interest from amqp data structure");
-//	}
+	interest->msg_type = jrb_find_str(data, "_np.mi.msg_type")->val.value.i;
+	interest->msg_threshold = jrb_find_str(data, "_np.mi.msg_threshold")->val.value.i;
+	interest->msg_seqnum = jrb_find_str(data, "_np.mi.msg_seqnum")->val.value.ul;
 
 	return interest;
 }
@@ -830,21 +759,9 @@ void np_message_encode_interest(np_jrb_t* data, np_msginterest_t *interest) {
 
 	char* keystring = (char*) key_get_as_string (interest->key);
 
-	jrb_insert_str(data, "mi.key", new_jval_s(keystring));
-	jrb_insert_str(data, "mi.msg_subject", new_jval_s(interest->msg_subject));
-	jrb_insert_str(data, "mi.msg_type", new_jval_i(interest->msg_type));
-	jrb_insert_str(data, "mi.msg_seqnum", new_jval_ul(interest->msg_seqnum));
-	jrb_insert_str(data, "mi.msg_threshold", new_jval_i(interest->msg_threshold));
-
-//	pn_data_put_list(amqp_data);
-//	pn_data_enter(amqp_data);
-//	pn_data_put_string(amqp_data, pn_bytes(strlen(keystring), keystring));
-//	pn_data_put_string(amqp_data, pn_bytes(strlen(interest->msg_subject), interest->msg_subject));
-//	pn_data_put_int(amqp_data, interest->msg_type);
-//	pn_data_put_ulong(amqp_data, interest->msg_seqnum);
-//	pn_data_put_int(amqp_data, interest->msg_threshold);
-//	pn_data_exit(amqp_data);
-//	if (pn_data_errno(amqp_data) < 0) {
-//		log_msg(LOG_ERROR, "error encoding msg_interest as amqp data structure");
-//	}
+	jrb_insert_str(data, "_np.mi.key", new_jval_s(keystring));
+	jrb_insert_str(data, "_np.mi.msg_subject", new_jval_s(interest->msg_subject));
+	jrb_insert_str(data, "_np.mi.msg_type", new_jval_i(interest->msg_type));
+	jrb_insert_str(data, "_np.mi.msg_seqnum", new_jval_ul(interest->msg_seqnum));
+	jrb_insert_str(data, "_np.mi.msg_threshold", new_jval_i(interest->msg_threshold));
 }

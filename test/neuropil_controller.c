@@ -6,9 +6,9 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <assert.h>
 
-#include "include.h"
-
+#include "np_memory.h"
 #include "neuropil.h"
 #include "log.h"
 #include "jrb.h"
@@ -19,6 +19,7 @@
 #include "route.h"
 #include "node.h"
 
+#include "include.h"
 
 #define USAGE "neuropil [ -b bootstrap:port ] port"
 #define OPTSTR "b::"
@@ -107,7 +108,7 @@ int main(int argc, char **argv) {
 	char log_file[256];
 	sprintf(log_file, "%s_%d.log", "./neuropil_controller", port);
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	log_init(&log_file, level);
+	log_init(log_file, level);
 
 	state = np_init(port);
 
@@ -117,6 +118,8 @@ int main(int argc, char **argv) {
 	// dsleep(50);
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(state, 8);
+
+	np_obj_t* o_msg;
 
 	while (1) {
 		size_t nbytes = 255;
@@ -141,10 +144,12 @@ int main(int argc, char **argv) {
 		np_jrb_t* me = make_jrb();
 		np_node_encode_to_amqp(me, state->neuropil->me);
 		np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_JOIN_REQUEST);
-		np_message_t* msg = np_message_create(state->messages, node->key, state->neuropil->me->key , NP_MSG_JOIN_REQUEST, me);
-		log_msg(LOG_DEBUG, "submitting welcome message");
-		job_submit_msg_event(state->jobq, prop, key, msg);
 
+		np_new(np_message_t, o_msg);
+		np_message_create(o_msg, node->key, state->neuropil->me->key , NP_MSG_JOIN_REQUEST, me);
+		log_msg(LOG_DEBUG, "submitting welcome message");
+		job_submit_msg_event(state->jobq, prop, key, o_msg);
+		np_unref(np_message_t, o_msg);
 		dsleep(0.01);
 	}
 	// pthread_exit(NULL);

@@ -38,9 +38,9 @@ extern int errno;
 PQEntry* get_new_pqentry()
 {
 	PQEntry* entry = (PQEntry *) malloc(sizeof(struct PriQueueEntry));
-	entry->desthost = NULL;
-	entry->data = NULL;
-	entry->datasize = 0;
+	entry->dest_key = NULL;
+	entry->msg = NULL;
+	// entry->datasize = 0;
 	entry->retry = 0;
 	entry->seqnum = 0;
 	entry->transmittime = 0.0;
@@ -107,29 +107,33 @@ unsigned long get_network_address (char *hostname)
 /**
  ** Resends a message to host
  **/
-int network_resend (np_state_t* state, np_node_t *node, np_message_t* message, size_t size, int ack, unsigned long seqnum, double *transtime)
+int network_send_udp (np_state_t* state, np_node_t *node, np_obj_t* message)
 {
 	struct sockaddr_in to;
 	int ret;
 
-	// get encryption details
-	np_aaatoken_t* target_token = np_get_authentication_token(state->aaa_cache, node->key);
+	np_message_t* msg;
+	np_bind(np_message_t, message, msg);
 
-	if (!target_token || !target_token->valid)
+	// get encryption details
+	np_aaatoken_t* node_auth_token = np_get_authentication_token(state->aaa_cache, node->key);
+
+	if (!node_auth_token || !node_auth_token->valid)
 	{	// send out our own handshake data
 		log_msg(LOG_DEBUG, "requesting a new handshake with %s:%i", node->dns_name, node->port);
 		np_msgproperty_t* msg_prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_HANDSHAKE);
 		job_submit_msg_event(state->jobq, msg_prop, node->key, NULL);
+		np_unbind(np_message_t, message, msg);
 		return 0;
 	}
 
-	log_msg(LOG_DEBUG, "now serializing final message ...");
+	log_msg(LOG_DEBUG, "serializing and encrypting message ...");
 	int max_buffer_len = NETWORK_PACK_SIZE - crypto_secretbox_MACBYTES - crypto_secretbox_NONCEBYTES;
 	unsigned long send_buf_len;
 	unsigned char send_buffer[max_buffer_len];
 	void* send_buffer_ptr = send_buffer;
 
-	np_message_serialize(message, send_buffer_ptr, &send_buf_len);
+	np_message_serialize(msg, send_buffer_ptr, &send_buf_len);
 	assert(send_buf_len <= max_buffer_len);
 
 	// add protection from replay attacks ...
@@ -142,12 +146,13 @@ int network_resend (np_state_t* state, np_node_t *node, np_message_t* message, s
 									(const unsigned char*) send_buffer,
 									send_buf_len,
 									nonce,
-									target_token->session_key);
+									node_auth_token->session_key);
 	if (ret != 0)
 	{
 		log_msg(LOG_WARN,
 				"incorrect encryption of message (not sending to %s:%d)",
 				node->dns_name, node->port);
+		np_unbind(np_message_t, message, msg);
 		return 0;
 	}
 
@@ -164,23 +169,19 @@ int network_resend (np_state_t* state, np_node_t *node, np_message_t* message, s
 	to.sin_addr.s_addr = node->address;
 	to.sin_port = htons ((short) node->port);
 
-	log_msg(LOG_NETWORKDEBUG, "resending message seq=%d ack=%d to %s:%d",
-			 seqnum, ack, node->dns_name, node->port);
+	log_msg(LOG_NETWORKDEBUG, "sending message to %s:%d", node->dns_name, node->port);
 	ret = sendto (state->network->sock, enc_buffer, enc_buffer_len, 0, (struct sockaddr *) &to, sizeof (to));
 
 	pthread_mutex_unlock(&(state->network->lock));
 
-	if (ret < 0)
-	{
+	if (ret < 0) {
 		log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
-		// np_node_update_stat (node, 0);
+		np_unbind(np_message_t, message, msg);
 		return 0;
-
 	} else {
 		log_msg (LOG_NETWORKDEBUG, "sent message");
-		*transtime = dtime();
-		// np_node_update_stat (node, 1);
 	}
+	np_unbind(np_message_t, message, msg);
 	return 1;
 }
 

@@ -37,45 +37,52 @@ Fax: 865-974-4404
 #ifndef	_NP_JVAL_H_
 #define	_NP_JVAL_H_
 
+#include "stdint.h"
+
 #include "include.h"
+#include "cmp.h"
 
 enum {
 	np_special = 0,
-	short_type = 1,
+// 	   short_type,
 	int_type,
 	long_type,
-	float_type,
-	double_type, // 5
+	long_long_type,
+	float_type, // 5
+	double_type,
 	char_ptr_type,
     char_type,
-    unsigned_char_type,
-    unsigned_short_type,
-    unsigned_int_type, // 10
+	unsigned_char_type,
+//     unsigned_short_type, // 10
+    unsigned_int_type,
     unsigned_long_type,
+    unsigned_long_long_type,
     int_array_2_type,
-    float_array_2_type,
+    float_array_2_type, // 15
     char_array_8_type,
-    unsigned_char_array_8_type, // 15
+    unsigned_char_array_8_type,
     void_type,
     bin_type,
-	jrb_tree_type,
-	key_type // 19
+	jrb_tree_type,  // 20
+	key_type
 } np_jvaltype_t;
 
 /* The Jval -- a type that can hold any 8-byte type */
 typedef union jval
 {
-    short sh;
-    int i;
-    long l;
+    // uint8_t sh;
+    int16_t i;
+    int32_t l;
+    int64_t ll;
     float f;
     double d;
     char* s;
     char c;
     unsigned char uc;
-    unsigned short ush;
-    unsigned int ui;
-    unsigned long ul;
+    // unsigned short ush;
+    uint16_t ui;
+    uint32_t ul;
+    uint64_t ull;
     int iarray[2];
     float farray[2];
     char carray[8];
@@ -101,8 +108,8 @@ extern np_jval_t new_jval_bin ( void* data, unsigned long size );
 extern np_jval_t new_jval_s (char *);
 extern np_jval_t new_jval_c (char);
 extern np_jval_t new_jval_uc (unsigned char);
-extern np_jval_t new_jval_sh (short);
-extern np_jval_t new_jval_ush (unsigned short);
+// extern np_jval_t new_jval_sh (short);
+// extern np_jval_t new_jval_ush (unsigned short);
 extern np_jval_t new_jval_ul (unsigned long);
 extern np_jval_t new_jval_ui (unsigned int);
 extern np_jval_t new_jval_iarray (int, int);
@@ -123,8 +130,8 @@ extern void *jval_v (np_jval_t);
 extern char *jval_s (np_jval_t);
 extern char jval_c (np_jval_t);
 extern unsigned char jval_uc (np_jval_t);
-extern short jval_sh (np_jval_t);
-extern unsigned short jval_ush (np_jval_t);
+// extern short jval_sh (np_jval_t);
+// extern unsigned short jval_ush (np_jval_t);
 extern unsigned int jval_ui (np_jval_t);
 extern unsigned long jval_ul (np_jval_t);
 extern int *jval_iarray (np_jval_t);

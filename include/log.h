@@ -6,10 +6,9 @@
 */
 
 /* define this to be 0 for no logging, 1 for logging */
-#define LOGS 0
 
-#ifndef _CHIMERA_LOG_H_
-#define _CHIMERA_LOG_H_
+#ifndef _NP_LOG_H_
+#define _NP_LOG_H_
 
 typedef struct np_log_t {
 	char filename[256];

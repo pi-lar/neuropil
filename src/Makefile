@@ -96,7 +96,7 @@ LIBRARIES =  $(lib_LIBRARIES)
 
 
 DEFS = -DPACKAGE_NAME=\"libneuropil\" -DPACKAGE_TARNAME=\"libneuropil\" -DPACKAGE_VERSION=\"1.4\" -DPACKAGE_STRING=\"libneuropil\ 1.4\" -DPACKAGE_BUGREPORT=\"\" -DPACKAGE=\"libneuropil\" -DVERSION=\"1.4\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DHAVE_DLFCN_H=1  -I. -I$(srcdir) 
-CPPFLAGS = 
+CPPFLAGS =  
 LDFLAGS = 
 LIBS = 
 libneuropil_a_LIBADD = 
@@ -105,7 +105,7 @@ message.$(OBJEXT) log.$(OBJEXT) jrb.$(OBJEXT) jval.$(OBJEXT) \
 key.$(OBJEXT) route.$(OBJEXT) node.$(OBJEXT) dllist.$(OBJEXT) \
 job_queue.$(OBJEXT) dtime.$(OBJEXT) semaphore.$(OBJEXT) threads.$(OBJEXT) \
 np_axon.$(OBJEXT) np_dendrit.$(OBJEXT) np_glia.$(OBJEXT) aaatoken.$(OBJEXT) cmp.$(OBJEXT) np_util.$(OBJEXT)
-CFLAGS = -g -Wall -O2
+CFLAGS = -g -Wall -O2 -std=c99
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)

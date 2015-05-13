@@ -82,10 +82,11 @@ RC = @RC@
 STRIP = strip
 VERSION = 1.4
 
-bin_PROGRAMS = neuropil_node neuropil_controller neuropil_sender neuropil_receiver jrb_test_msg test_node_ser
+bin_PROGRAMS = neuropil_node neuropil_controller neuropil_sender neuropil_receiver jrb_test_msg test_node_ser test_memory_alloc
 LDADD = -L$(top_srcdir)/src -lneuropil -lpthread -L/Volumes/SAFE/Development/eclipseWS/axtls/libsodium-master/src/libsodium -lsodium
 INCLUDES = -I$(top_srcdir)/include -I/Volumes/SAFE/Development/eclipseWS/axtls/libsodium-master/src/libsodium/include
 
+test_memory_alloc_SOURCES = test_memory_alloc.c
 test_node_ser_SOURCES = test_node_ser.c
 jrb_test_msg_SOURCES = jrb_test_msg.c
 test_sodium_crypt_SOURCES = test_sodium_crypt.c
@@ -96,7 +97,7 @@ neuropil_receiver_SOURCES = neuropil_receiver.c
 
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_CLEAN_FILES = 
-bin_PROGRAMS =  neuropil_node$(EXEEXT) neuropil_controller$(EXEEXT) neuropil_sender$(EXEEXT) neuropil_receiver$(EXEEXT) jrb_test_msg$(EXEEXT) test_sodium_crypt$(EXEEXT) test_node_ser$(EXEEXT)
+bin_PROGRAMS =  neuropil_node$(EXEEXT) neuropil_controller$(EXEEXT) neuropil_sender$(EXEEXT) neuropil_receiver$(EXEEXT) jrb_test_msg$(EXEEXT) test_sodium_crypt$(EXEEXT) test_node_ser$(EXEEXT) test_memory_alloc$(EXEEXT)
 PROGRAMS =  $(bin_PROGRAMS)
 
 
@@ -104,6 +105,10 @@ DEFS = -DPACKAGE_NAME=\"libneuropil\" -DPACKAGE_TARNAME=\"libneuropil\" -DPACKAG
 CPPFLAGS = 
 LDFLAGS = 
 LIBS = 
+test_memory_alloc_OBJECTS =  test_memory_alloc.$(OBJEXT)
+test_memory_alloc_LDADD = $(LDADD)
+test_memory_alloc_DEPENDENCIES = 
+test_memory_alloc_LDFLAGS = 
 test_node_ser_OBJECTS =  test_node_ser.$(OBJEXT)
 test_node_ser_LDADD = $(LDADD)
 test_node_ser_DEPENDENCIES = 
@@ -145,9 +150,9 @@ DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
 TAR = gtar
 GZIP_ENV = --best
-DEP_FILES =  .deps/neuropil_node.P .deps/neuropil_controller.P .deps/neuropil_sender.P .deps/neuropil-receiver.P .deps/jrb_test_msg.P .deps/test_sodium_crypt.P .deps/test_node_ser.P
-SOURCES = $(neuropil_node_SOURCES) $(neuropil_controller_SOURCES) $(neuropil_sender_SOURCES) $(neuropil_receiver_SOURCES) $(jrb_test_msg_SOURCES) $(test_sodium_crypt_SOURCES) $(test_node_ser_SOURCES)
-OBJECTS = $(neuropil_node_OBJECTS) $(neuropil_controller_OBJECTS) $(neuropil_sender_OBJECTS) $(neuropil_receiver_OBJECTS) $(jrb_test_msg_OBJECTS) $(test_sodium_crypt_OBJECTS) $(test_node_ser_OBJECTS)
+DEP_FILES =  .deps/neuropil_node.P .deps/neuropil_controller.P .deps/neuropil_sender.P .deps/neuropil-receiver.P .deps/jrb_test_msg.P .deps/test_sodium_crypt.P .deps/test_node_ser.P .deps/test_memory_alloc.P
+SOURCES = $(neuropil_node_SOURCES) $(neuropil_controller_SOURCES) $(neuropil_sender_SOURCES) $(neuropil_receiver_SOURCES) $(jrb_test_msg_SOURCES) $(test_sodium_crypt_SOURCES) $(test_node_ser_SOURCES) $(test_memory_alloc_SOURCES)
+OBJECTS = $(neuropil_node_OBJECTS) $(neuropil_controller_OBJECTS) $(neuropil_sender_OBJECTS) $(neuropil_receiver_OBJECTS) $(jrb_test_msg_OBJECTS) $(test_sodium_crypt_OBJECTS) $(test_node_ser_OBJECTS) $(test_memory_alloc_OBJECTS)
 
 all: all-redirect
 .SUFFIXES:
@@ -222,6 +227,10 @@ clean-libtool:
 distclean-libtool:
 
 maintainer-clean-libtool:
+
+test_memory_alloc$(EXEEXT): $(test_memory_alloc_OBJECTS) $(test_memory_alloc_DEPENDENCIES)
+	@rm -f test_memory_alloc$(EXEEXT)
+	$(LINK) $(test_memory_alloc_LDFLAGS) $(test_memory_alloc_OBJECTS) $(test_memory_alloc_LDADD) $(LIBS)
 
 test_node_ser$(EXEEXT): $(test_node_ser_OBJECTS) $(test_node_ser_DEPENDENCIES)
 	@rm -f test_node_ser$(EXEEXT)

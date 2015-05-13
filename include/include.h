@@ -3,7 +3,7 @@
 
 /* just in case NULL is not defined */
 #ifndef NULL
-#define NULL    0
+#define NULL 0
 #endif
 
 typedef enum {
@@ -12,6 +12,9 @@ typedef enum {
 } np_bool;
 
 #define crypto_bytes crypto_box_PUBLICKEYBYTES
+
+typedef struct np_obj_pool_s np_obj_pool_t;
+typedef struct np_obj_s np_obj_t;
 
 typedef struct np_state_s np_state_t;
 typedef struct np_global_s np_global_t;
@@ -42,54 +45,10 @@ typedef int (*np_aaa_func_t) (np_state_t* state, np_aaatoken_t* node );
 typedef int (*np_join_func_t) (np_state_t* state, np_node_t* node );
 typedef void (*np_callback_t) (np_state_t*, np_jobargs_t*);
 
+#ifndef _NP_MEMORY_H
+extern np_obj_pool_t np_obj_pool;
+#else
+np_obj_pool_t np_obj_pool; //  = { 0,0,0,0,0,0 };
+#endif
 
 #endif /* _INCLUDE_H_ */
-
-
-//#ifndef _NEUROPIL_H_
-//#include "neuropil.h"
-//#endif
-//
-//#ifndef _NP_ROUTE_H
-//#include "route.h"
-//#endif
-//
-//#ifndef _NP_NETWORK_H_
-//#include "network.h"
-//#endif
-//
-//#ifndef _NP_JOBQUEUE_H
-//#include "job_queue.h"
-//#endif
-//
-//#ifndef _NP_MESSAGE_H_
-//#include "message.h"
-//#endif
-//
-//#ifndef _NP_NODE_H_
-//#include "host.h"
-//#endif
-//
-//#ifndef _NP_KEY_H_
-//#include "key.h"
-//#endif
-//
-//#ifndef _NP_THREADS_H_
-//#include "threads.h"
-//#endif
-//
-//#ifndef _NP_SEMAPHORE_H_
-//#include "semaphore.h"
-//#endif
-//
-//#ifndef _NP_JRB_H_
-//#include "jrb.h"
-//#endif
-//
-//#ifndef _NP_JVAL_H_
-//#include "jval.h"
-//#endif
-//
-//#ifndef _NP_DLLIST_H_
-//#include "dllist.h"
-//#endif

@@ -19,6 +19,8 @@
 #include "sodium.h"
 
 #include "neuropil.h"
+#include "include.h"
+#include "np_memory.h"
 
 #include "aaatoken.h"
 #include "node.h"
@@ -124,26 +126,29 @@ void np_send (np_state_t* state, char* subject, char *data, unsigned long seqnum
 		free (available->msg_subject);
 		free (available);
 	}
-	free (s);
 
 	// put new message to the cache
-	// s = (char*) malloc(255);
 	snprintf (s, 255, "%s:%lu", subject, seqnum);
 	available = np_message_create_interest(state, s, ONEWAY, seqnum, 1);
 	available->payload = payload;
 	np_message_available_update(state->messages, available);
-	free (s);
 
 	// if a different node is already interested, send message directly
 	if (interested) {
 		log_msg(LOG_DEBUG, "interest in message found, sending it directly");
 
-		np_message_t* msg = np_message_create(state->messages, interested->key, state->neuropil->me->key, subject, payload);
-		// jrb_insert_str(msg->header, "id", new_javl_s(uuid));
-		jrb_insert_str(msg->header, "sequence", new_jval_ul(seqnum));
+		np_message_t* msg;
+		np_obj_t* o_msg;
+		np_new(np_message_t, o_msg);
+		np_message_create(o_msg, interested->key, state->neuropil->me->key, subject, payload);
 
+		np_bind(np_message_t, o_msg, msg);
+		jrb_insert_str(msg->header, "_np.id", new_jval_ul(seqnum));
 		np_msgproperty_t* prop = np_message_get_handler(state->messages, TRANSFORM, ROUTE_LOOKUP);
-		job_submit_msg_event(state->jobq, prop, interested->key, msg);
+		job_submit_msg_event(state->jobq, prop, interested->key, o_msg);
+		np_unbind(np_message_t, o_msg, msg);
+
+		np_unref(np_message_t, o_msg);
 	}
 }
 
@@ -187,7 +192,6 @@ int np_receive (np_state_t* state, char* subject, char **data, unsigned long seq
 			pthread_mutex_unlock(&interested->lock);
 		}
 		log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
-		free (s);
 		return available->msg_seqnum;
 
 	} else {
@@ -199,27 +203,37 @@ int np_receive (np_state_t* state, char* subject, char **data, unsigned long seq
 
 void np_send_ack(np_state_t* state, np_jobargs_t* args) {
 
+	// log_msg(LOG_INFO, "np_send_ack START");
 	int ack, part;
 	unsigned long seq;
-
-	log_msg(LOG_INFO, "np_send_ack START");
+	np_message_t* msg;
+	np_bind(np_message_t, args->msg, msg);
 
 	// extract data from incoming message
-	seq = jrb_find_str(args->msg->instructions, "_np.seq")->val.value.ul;
-	ack = jrb_find_str(args->msg->instructions, "_np.ack")->val.value.i;
-	part = jrb_find_str(args->msg->instructions, "_np.part")->val.value.i;
+	seq = jrb_find_str(msg->instructions, "_np.seq")->val.value.ul;
+	ack = jrb_find_str(msg->instructions, "_np.ack")->val.value.i;
+	// part = jrb_find_str(args->msg->instructions, "_np.part")->val.value.i;
 
 	// create new ack message & handlers
-	np_node_t* ack_node = np_node_decode_from_str(state->nodes, jrb_find_str(args->msg->header, "reply_to")->val.value.s);
+	np_node_t* ack_node = np_node_decode_from_str(state->nodes, jrb_find_str(msg->header, NP_MSG_HEADER_REPLY_TO)->val.value.s);
 
+	np_message_t* ack_msg;
+	np_obj_t* o_ack_msg;
+	np_new(np_message_t, o_ack_msg);
 	np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_ACK);
-	np_message_t* ack_msg = np_message_create(state->messages, ack_node->key, state->neuropil->me->key, NP_MSG_ACK, NULL);
+	np_message_create(o_ack_msg, ack_node->key, state->neuropil->me->key, NP_MSG_ACK, NULL);
+	np_bind(np_message_t, o_ack_msg, ack_msg);
+
 	jrb_insert_str(ack_msg->instructions, "_np.ack", new_jval_i(prop->ack_mode));
-	jrb_insert_str(ack_msg->instructions, "_np.seq", new_jval_i(seq));
+	jrb_insert_str(ack_msg->instructions, "_np.seq", new_jval_ul(seq));
 
 	// send the ack out
-	job_submit_msg_event(state->jobq, prop, ack_node->key, ack_msg);
-	log_msg(LOG_INFO, "np_send_ack END");
+	job_submit_msg_event(state->jobq, prop, ack_node->key, o_ack_msg);
+	np_unbind(np_message_t, o_ack_msg, ack_msg);
+	// log_msg(LOG_INFO, "np_send_ack END");
+	np_unref(np_message_t, o_ack_msg);
+
+	np_unbind(np_message_t, args->msg, msg);
 }
 
 
@@ -231,11 +245,14 @@ void np_ping (np_state_t* state, np_key_t* key)
 {
     np_node_t* target = np_node_lookup(state->nodes, key, 0);
 
-    np_message_t* message = np_message_create (state->messages, key, state->neuropil->me->key, NP_MSG_PING_REQUEST, NULL);
     np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_PING_REQUEST);
-	log_msg(LOG_DEBUG, "ping request to: %s", key_get_as_string(key));
 
-    job_submit_msg_event(state->jobq, prop, target->key, message);
+    np_obj_t* o_msg;
+    np_new(np_message_t, o_msg);
+    np_message_create (o_msg, key, state->neuropil->me->key, NP_MSG_PING_REQUEST, NULL);
+    log_msg(LOG_DEBUG, "ping request to: %s", key_get_as_string(key));
+	job_submit_msg_event(state->jobq, prop, target->key, o_msg);
+    np_unref(np_message_t, o_msg);
 }
 
 /**
@@ -247,6 +264,10 @@ np_state_t* np_init(int port)
 {
     char name[256];
     struct hostent *he;
+
+    np_mem_init();
+
+    np_printpool;
 
     sodium_init();
     // initialize key min max ranges
