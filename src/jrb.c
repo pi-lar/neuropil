@@ -44,7 +44,7 @@ void jrb_print_tree (np_jrb_t* t, int level);
 #define isnotroot(n) (0 == (n->jrb_type & JRB_ROOT))
 #define sethead(n)   (n->jrb_type |= JRB_HEAD)
 #define setroot(n)   (n->jrb_type |= JRB_ROOT)
-#define setnormal(n) (n->jrb_type &= (JRB_NOTROOT & JRB_NOTHEAD))
+#define setnormal(n) (n->jrb_type &= JRB_NOTROOT) // &= JRB_NOTHEAD ???
 
 #define getlext(n) ((np_jrb_t *)(n->key.value.v))
 #define setlext(node, newval) node->key.value.v = (void *) (newval)
@@ -166,7 +166,7 @@ np_jrb_t* make_jrb ()
     np_jrb_t* head;
 
     head = (np_jrb_t*) malloc (sizeof (np_jrb_t));
-    head->jrb_type = 0x0;
+    head->jrb_type = 0x00;
 
     head->key.type = np_special;
     head->val.type = np_special;
@@ -936,6 +936,7 @@ void jrb_free_tree (np_jrb_t* n)
 	if (isnothead (n))
 	{
 	    log_msg (LOG_WARN, "ERROR: jrb_free_tree called on a non-head node %p %x", n, n->jrb_type);
+	    // while (isnothead (n)) n = n->parent;
 	    return;
 	}
 

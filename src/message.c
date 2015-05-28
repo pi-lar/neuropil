@@ -73,42 +73,43 @@ enum {
 
 np_msgproperty_t np_internal_messages[] =
 {
-	{ ROUTE_LOOKUP, TRANSFORM, DEFAULT_TYPE, 5, 1, 0, "", np_route_lookup }, // default input handling func should be "route_get" ?
-	{ NP_MSG_PIGGY_REQUEST, TRANSFORM, DEFAULT_TYPE, 5, 1, 0, "", np_send_rowinfo }, // default input handling func should be "route_get" ?
+	{ ROUTE_LOOKUP, TRANSFORM, DEFAULT_TYPE, 5, ACK_NONE, 0, "", np_route_lookup }, // default input handling func should be "route_get" ?
+	{ NP_MSG_PIGGY_REQUEST, TRANSFORM, DEFAULT_TYPE, 5, ACK_NONE, 0, "", np_send_rowinfo }, // default input handling func should be "route_get" ?
 
-	{ DEFAULT, INBOUND, DEFAULT_TYPE, 5, 1, 0, "", hnd_msg_in_received },
+	{ DEFAULT, INBOUND, DEFAULT_TYPE, 5, ACK_NONE, 0, "", hnd_msg_in_received },
 	// TODO: add garbage collection output
-	{ DEFAULT, OUTBOUND, DEFAULT_TYPE, 5, 1, 0, "", hnd_msg_out_send },
+	{ DEFAULT, OUTBOUND, DEFAULT_TYPE, 5, ACK_NONE, 0, "", hnd_msg_out_send },
 
-	{ NP_MSG_HANDSHAKE, INBOUND, ONEWAY, 5, 0, 0, "", hnd_msg_in_handshake },
-	{ NP_MSG_HANDSHAKE, OUTBOUND, ONEWAY, 5, 0, 0, "", hnd_msg_out_handshake },
+	{ NP_MSG_HANDSHAKE, INBOUND, ONE_WAY, 5, ACK_NONE, 0, "", hnd_msg_in_handshake },
+	{ NP_MSG_HANDSHAKE, OUTBOUND, ONE_WAY, 5, ACK_NONE, 0, "", hnd_msg_out_handshake },
 
-	{ NP_MSG_ACK, INBOUND, ONEWAY, 5, 0, 0, "", NULL }, // incoming ack handled in network layer, not required
-	{ NP_MSG_ACK, OUTBOUND, ONEWAY, 5, 0, 0, "", hnd_msg_out_ack },
+	{ NP_MSG_ACK, INBOUND, ONE_WAY, 5, ACK_NONE, 0, "", NULL }, // incoming ack handled in network layer, not required
+	{ NP_MSG_ACK, OUTBOUND, ONE_WAY, 5, ACK_NONE, 0, "", hnd_msg_out_ack },
 
-	{ NP_MSG_PING_REQUEST, INBOUND, ONEWAY, 5, 1, 5, "", hnd_msg_in_ping },
-	{ NP_MSG_PING_REPLY, INBOUND, ONEWAY, 5, 1, 5, "", hnd_msg_in_pingreply },
-	{ NP_MSG_PING_REQUEST, OUTBOUND, ONEWAY, 5, 1, 5, "", hnd_msg_out_send },
-	{ NP_MSG_PING_REPLY, OUTBOUND, ONEWAY, 5, 1, 5, "", hnd_msg_out_send },
+	{ NP_MSG_PING_REQUEST, INBOUND, REQ_REP, 5, ACK_EACHHOP, 5, "", hnd_msg_in_ping },
+	{ NP_MSG_PING_REPLY, INBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "", hnd_msg_in_pingreply },
+	{ NP_MSG_PING_REQUEST, OUTBOUND, REQ_REP, 5, ACK_EACHHOP, 5, "", hnd_msg_out_send },
+	{ NP_MSG_PING_REPLY, OUTBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "", hnd_msg_out_send },
 
 	// join request: node unknown yet, therefore send without ack, explicit ack handling via extra messages
-	{ NP_MSG_JOIN_REQUEST, INBOUND, ONEWAY, 5, 2, 5, "C", hnd_msg_in_join_req }, // just for controller ?
-	{ NP_MSG_JOIN_REQUEST, OUTBOUND, ONEWAY, 5, 2, 5, "C", hnd_msg_out_send },
-	{ NP_MSG_JOIN_ACK, INBOUND, ONEWAY, 5, 1, 5, "C", hnd_msg_in_join_ack },
-	{ NP_MSG_JOIN_ACK, OUTBOUND, ONEWAY, 5, 1, 5, "C", hnd_msg_out_send },
-	{ NP_MSG_JOIN_NACK, INBOUND, ONEWAY, 5, 1, 5, "", hnd_msg_in_join_nack },
-	{ NP_MSG_JOIN_NACK, OUTBOUND, ONEWAY, 5, 1, 5, "", hnd_msg_out_send },
+	{ NP_MSG_JOIN_REQUEST, INBOUND, REQ_REP, 5, ACK_DESTINATION, 5, "C", hnd_msg_in_join_req }, // just for controller ?
+	{ NP_MSG_JOIN_REQUEST, OUTBOUND, REQ_REP, 5, ACK_DESTINATION, 5, "C", hnd_msg_out_send },
+	{ NP_MSG_JOIN_ACK, INBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "C", hnd_msg_in_join_ack },
+	{ NP_MSG_JOIN_ACK, OUTBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "C", hnd_msg_out_send },
+	{ NP_MSG_JOIN_NACK, INBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "", hnd_msg_in_join_nack },
+	{ NP_MSG_JOIN_NACK, OUTBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "", hnd_msg_out_send },
 
-	{ NP_MSG_PIGGY_REQUEST, INBOUND, ONEWAY, 5, 1, 5, "C", hnd_msg_in_piggy },
-	{ NP_MSG_PIGGY_REQUEST, OUTBOUND, ONEWAY, 5, 1, 5, "C", hnd_msg_out_send },
-	{ NP_MSG_UPDATE_REQUEST, INBOUND, ONEWAY, 5, 1, 5, "C", hnd_msg_in_update },
-	{ NP_MSG_UPDATE_REQUEST, OUTBOUND, ONEWAY, 5, 1, 5, "C", hnd_msg_out_send },
+	{ NP_MSG_PIGGY_REQUEST, INBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "C", hnd_msg_in_piggy },
+	{ NP_MSG_PIGGY_REQUEST, OUTBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "C", hnd_msg_out_send },
+	{ NP_MSG_UPDATE_REQUEST, INBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "C", hnd_msg_in_update },
+	{ NP_MSG_UPDATE_REQUEST, OUTBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "C", hnd_msg_out_send },
 
-	{ NP_MSG_INTEREST, INBOUND, ONEWAY, 5, 1, 5, "C", hnd_msg_in_interest },
-	{ NP_MSG_AVAILABLE, INBOUND, ONEWAY, 5, 1, 5, "C", hnd_msg_in_available },
-	{ NP_MSG_INTEREST, OUTBOUND, ONEWAY, 5, 1, 5, "C", hnd_msg_out_send },
-	{ NP_MSG_AVAILABLE, OUTBOUND, ONEWAY, 5, 1, 5, "C", hnd_msg_out_send }
+	{ NP_MSG_INTEREST, INBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "C", hnd_msg_in_interest },
+	{ NP_MSG_AVAILABLE, INBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "C", hnd_msg_in_available },
+	{ NP_MSG_INTEREST, OUTBOUND, REQ_REP, 5, ACK_EACHHOP, 5, "C", hnd_msg_out_send },
+	{ NP_MSG_AVAILABLE, OUTBOUND, REQ_REP, 5, ACK_EACHHOP, 5, "C", hnd_msg_out_send }
 };
+
 
 void np_message_t_new(void* msg) {
 
@@ -125,28 +126,37 @@ void np_message_t_new(void* msg) {
 	msg_tmp->footer = make_jrb();
 }
 
-//np_obj_t* np_message_create_empty() {
-//
-//	np_obj_t* obj_tmp;
-//	np_message_t* msg_tmp;
-//	// np_new(np_message_t, obj_tmp);
-//	// np_bind(np_message_t, obj_tmp, msg_tmp);
-//	// np_message_t* tmp = (np_message_t*) malloc(sizeof(np_message_t));
-//
-//	msg_tmp->header = make_jrb();
-//	// log_msg(LOG_DEBUG, "header now (%p: %p->%p)", tmp, tmp->header, tmp->header->flink);
-//	msg_tmp->properties = make_jrb();
-//	// log_msg(LOG_DEBUG, "properties now (%p: %p->%p)", tmp, tmp->properties, tmp->properties->flink);
-//	msg_tmp->instructions = make_jrb();
-//	// log_msg(LOG_DEBUG, "instructions now (%p: %p->%p)", tmp, tmp->instructions, tmp->instructions->flink);
-//	msg_tmp->body = make_jrb();
-//	// log_msg(LOG_DEBUG, "body now (%p: %p->%p)", tmp, tmp->body, tmp->body->flink);
-//	msg_tmp->footer = make_jrb();
-//	// log_msg(LOG_DEBUG, "footer now (%p: %p->%p)", tmp, tmp->footer, tmp->footer->flink);
-//	np_unbind(np_message_t, obj_tmp, msg_tmp);
-//
-//	return obj_tmp;
-//}
+// destructor of np_message_t
+void np_message_t_del(void* data) {
+
+	np_message_t* msg = (np_message_t*) data;
+
+/*	np_jrb_t* subj = jrb_find_str(msg->header,       NP_MSG_HEADER_SUBJECT);
+	np_jrb_t* seq  = jrb_find_str(msg->instructions, "_np.seq");
+
+	if ( (subj != NULL) && (seq != NULL) ) {
+		unsigned long seqnum = 0;
+		seqnum = seq->val.value.ul;
+		log_msg(LOG_DEBUG, "now deleting %s (%lu)", subj->val.value.s, seqnum);
+
+	} else if ( (subj != NULL) && (seq == NULL) ) {
+		log_msg(LOG_DEBUG, "now deleting %s (0)", subj->val.value.s);
+
+	} else {
+		log_msg(LOG_DEBUG, "now deleting <unknown> (0)");
+	}
+*/
+	// log_msg(LOG_DEBUG, "now deleting header %p", msg->header);
+	jrb_free_tree(msg->header);
+	// log_msg(LOG_DEBUG, "now deleting instructions %p", msg->instructions);
+	jrb_free_tree(msg->instructions);
+	// log_msg(LOG_DEBUG, "now deleting properties %p", msg->properties);
+	jrb_free_tree(msg->properties);
+	// log_msg(LOG_DEBUG, "now deleting body %p", msg->body);
+	jrb_free_tree(msg->body);
+	// log_msg(LOG_DEBUG, "now deleting footer %p", msg->footer);
+	jrb_free_tree(msg->footer);
+}
 
 int np_message_serialize(np_message_t* msg, void* target, unsigned long* out_size) {
 
@@ -174,10 +184,10 @@ int np_message_serialize(np_message_t* msg, void* target, unsigned long* out_siz
 	return 1;
 }
 
-int np_message_deserialize(np_obj_t* obj_msg, void* buffer) {
+int np_message_deserialize(np_message_t* msg, void* buffer) {
 
-	np_message_t* msg_tmp;
-	np_bind(np_message_t, obj_msg, msg_tmp);
+	// np_message_t* msg_tmp;
+	// np_bind(np_message_t, obj_msg, msg_tmp);
 
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, buffer_reader, buffer_writer);
@@ -186,26 +196,26 @@ int np_message_deserialize(np_obj_t* obj_msg, void* buffer) {
 	if (!cmp_read_array(&cmp, &array_size)) return 0;
 	if (array_size != 5) {
 		log_msg(LOG_WARN, "wrong array size when deserializing message");
-		np_unbind(np_message_t, obj_msg, msg_tmp);
+		// np_unbind(np_message_t, obj_msg, msg_tmp);
 		return 0;
 	}
 
 	// log_msg(LOG_DEBUG, "deserializing msg header");
-	deserialize_jrb_node_t(msg_tmp->header, &cmp);
+	deserialize_jrb_node_t(msg->header, &cmp);
 
 	// log_msg(LOG_DEBUG, "deserializing msg instructions");
-	deserialize_jrb_node_t(msg_tmp->instructions, &cmp);
+	deserialize_jrb_node_t(msg->instructions, &cmp);
 
 	// log_msg(LOG_DEBUG, "deserializing msg properties");
-	deserialize_jrb_node_t(msg_tmp->properties, &cmp);
+	deserialize_jrb_node_t(msg->properties, &cmp);
 
 	// log_msg(LOG_DEBUG, "deserializing msg body");
-	deserialize_jrb_node_t(msg_tmp->body, &cmp);
+	deserialize_jrb_node_t(msg->body, &cmp);
 
 	// log_msg(LOG_DEBUG, "deserializing msg footer");
-	deserialize_jrb_node_t(msg_tmp->footer, &cmp);
+	deserialize_jrb_node_t(msg->footer, &cmp);
 
-	np_unbind(np_message_t, obj_msg, msg_tmp);
+	// np_unbind(np_message_t, obj_msg, msg_tmp);
 	return 1;
 }
 
@@ -214,20 +224,20 @@ int np_message_deserialize(np_obj_t* obj_msg, void* buffer) {
  ** creates the message to the destination #dest# the message format would be like:
  **  [ type ] [ size ] [ key ] [ data ]. It return the created message structure.
  */
-void np_message_create(np_obj_t *msg, np_key_t* to, np_key_t* from, const char* subject, np_jrb_t* the_data)
+void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_jrb_t* the_data)
 {
-	np_message_t* new_msg;
-	np_bind(np_message_t, msg, new_msg);
+	// np_message_t* new_msg;
+	// np_bind(np_message_t, msg, new_msg);
 
-	jrb_insert_str(new_msg->header, NP_MSG_HEADER_TO,  new_jval_s((char*) key_get_as_string(to)));
-	jrb_insert_str(new_msg->header, NP_MSG_HEADER_FROM, new_jval_s((char*) key_get_as_string(from)));
-	jrb_insert_str(new_msg->header, NP_MSG_HEADER_REPLY_TO, new_jval_s((char*) key_get_as_string(from)));
-	jrb_insert_str(new_msg->header, NP_MSG_HEADER_SUBJECT,  new_jval_s((char*) subject));
+	jrb_insert_str(msg->header, NP_MSG_HEADER_SUBJECT,  new_jval_s((char*) subject));
+	jrb_insert_str(msg->header, NP_MSG_HEADER_TO,  new_jval_s((char*) key_get_as_string(to)));
+	if (from != NULL) jrb_insert_str(msg->header, NP_MSG_HEADER_FROM, new_jval_s((char*) key_get_as_string(from)));
+	if (from != NULL) jrb_insert_str(msg->header, NP_MSG_HEADER_REPLY_TO, new_jval_s((char*) key_get_as_string(from)));
 
 	if (the_data != NULL) {
-		np_message_setbody(new_msg, the_data);
+		np_message_setbody(msg, the_data);
 	}
-	np_unbind(np_message_t, msg, new_msg);
+	// np_unbind(np_message_t, msg, new_msg);
 }
 
 inline void np_message_setproperties(np_message_t* msg, np_jrb_t* properties) {
@@ -239,11 +249,14 @@ inline void np_message_setinstruction(np_message_t* msg, np_jrb_t* instructions)
 	msg->instructions = instructions;
 };
 inline void np_message_setbody(np_message_t* msg, np_jrb_t* body) {
+	// log_msg(LOG_DEBUG, "now setting body before %p", msg->body);
 	jrb_free_tree(msg->body);
 	msg->body = body;
+	// log_msg(LOG_DEBUG, "now setting body after %p", msg->body);
 };
 inline void np_message_setfooter(np_message_t* msg, np_jrb_t* footer) {
-	jrb_free_tree(msg->footer); msg->footer = footer;
+	jrb_free_tree(msg->footer);
+	msg->footer = footer;
 };
 
 //		if (-1 == np_message_decrypt_part(newmsg->instructions,
@@ -289,7 +302,7 @@ int np_message_decrypt_part(np_jrb_t* msg_part,
 //			enc_nonce,
 //			public_key);
 	if (ret < 0) {
-		log_msg(LOG_ERROR, "couldn't decrypt header with session key %s", public_key);
+		log_msg(LOG_ERROR, "couldn't decrypt msg part with session key %s", public_key);
 		return -1;
 	}
 
@@ -351,34 +364,10 @@ int np_message_encrypt_part(np_jrb_t* msg_part,
 	if (ret < 0) {
 		return -1;
 	}
-	log_msg(LOG_ERROR, "encrypted header with session key %s", public_key);
+	log_msg(LOG_ERROR, "encrypted msg part with session key %s", public_key);
 
 	jrb_replace_all_with_str(msg_part, "encrypted", new_jval_bin(enc_msg_part, enc_msg_part_len));
 	return 0;
-}
-
-/** 
- ** message_free:
- ** free the message and the payload
- */
-void np_message_free(np_message_t * msg) {
-	jrb_free_tree(msg->header);
-	jrb_free_tree(msg->instructions);
-	jrb_free_tree(msg->properties);
-	jrb_free_tree(msg->body);
-	jrb_free_tree(msg->footer);
-	free (msg);
-}
-
-void np_message_t_del(void* data) {
-	np_message_t* msg = (np_message_t*) data;
-
-	jrb_free_tree(msg->header);
-	jrb_free_tree(msg->instructions);
-	jrb_free_tree(msg->properties);
-	jrb_free_tree(msg->body);
-	jrb_free_tree(msg->footer);
-	// free (msg);
 }
 
 /**
@@ -440,11 +429,10 @@ np_callback_t np_message_get_callback (np_msgproperty_t *handler)
  ** registers the handler function #func# with the message type #type#,
  ** it also defines the acknowledgment requirement for this type 
  **/
-np_msgproperty_t* np_message_get_handler(np_messageglobal_t *mg, unsigned int msg_mode, const char* subject) {
+np_msgproperty_t* np_message_get_handler(np_messageglobal_t *mg, np_msg_mode_type msg_mode, const char* subject) {
 
 	if (mg == NULL) return NULL;
 	if (subject == NULL) return NULL;
-
 
 	np_msgproperty_t* retVal = NULL;
 
@@ -498,13 +486,14 @@ np_msgproperty_t* np_message_get_handler(np_messageglobal_t *mg, unsigned int ms
 }
 
 
-int np_message_check_handler(np_messageglobal_t *mg, unsigned int msg_mode, const char* subject) {
+int np_message_check_handler(np_messageglobal_t *mg, np_msg_mode_type msg_mode, const char* subject) {
 
 	int retVal = 0;
 
 	switch (msg_mode) {
 
-	case INBOUND: // incoming message handler are required
+	case INBOUND:
+		// incoming message handler are required
 		/* add message handler function into the set of all handlers */
 		pthread_mutex_lock(&mg->input_lock);
 		np_jrb_t* jrb_in_node = jrb_find_str(mg->in_handlers, subject);
@@ -515,7 +504,8 @@ int np_message_check_handler(np_messageglobal_t *mg, unsigned int msg_mode, cons
 		pthread_mutex_unlock(&mg->input_lock);
 		break;
 
-	case OUTBOUND: // outgoing message handlers are required
+	case OUTBOUND:
+		// outgoing message handlers are required
 		/* add message handler function into the set of all handlers */
 		pthread_mutex_lock(&mg->output_lock);
 		np_jrb_t* jrb_out_node = jrb_find_str(mg->out_handlers, subject);
@@ -602,7 +592,7 @@ void np_message_register_handler(np_messageglobal_t *mg, np_msgproperty_t* msgpr
 }
 
 // np_msgproperty_t*
-void np_message_create_property(np_messageglobal_t *mg, const char* subject, unsigned int msg_mode, unsigned int msg_type, unsigned int ack_mode, unsigned int priority, unsigned int retry, np_callback_t callback) {
+void np_message_create_property(np_messageglobal_t *mg, const char* subject, np_msg_mode_type msg_mode, np_msg_mep_type msg_type, np_msg_ack_type ack_mode, unsigned int priority, unsigned int retry, np_callback_t callback) {
 
 	// log_msg(LOG_INFO, "message create property");
 	np_msgproperty_t* prop = (np_msgproperty_t*) malloc(sizeof(np_msgproperty_t));
@@ -619,7 +609,7 @@ void np_message_create_property(np_messageglobal_t *mg, const char* subject, uns
 	return;
 }
 
-np_msginterest_t* np_message_create_interest(const np_state_t* state, const char* subject, unsigned int msg_type, unsigned long seqnum, unsigned int threshold) {
+np_msginterest_t* np_message_create_interest(const np_state_t* state, const char* subject, np_msg_mep_type msg_type, unsigned long seqnum, unsigned int threshold) {
 
 	np_msginterest_t* tmp = (np_msginterest_t*) malloc(sizeof(np_msginterest_t));
 	tmp->msg_subject = strndup(subject, 255);
@@ -630,11 +620,54 @@ np_msginterest_t* np_message_create_interest(const np_state_t* state, const char
 
 	tmp->send_ack = 1;
 
+	tmp->msg_cache_first = NULL;
+	tmp->msg_cache_last = NULL;
+	tmp->msg_cache_size = 0;
+
 	pthread_mutex_init (&tmp->lock, NULL);
     pthread_cond_init (&tmp->msg_received, &tmp->cond_attr);
     pthread_condattr_setpshared(&tmp->cond_attr, PTHREAD_PROCESS_PRIVATE);
 
     return tmp;
+}
+
+unsigned int np_msgcache_size(np_msginterest_t* x) {
+	pthread_mutex_lock(&x->lock);
+	unsigned int ret = x->msg_cache_size;
+	pthread_mutex_unlock(&x->lock);
+	return ret;
+}
+
+np_obj_t* np_msgcache_pop(np_msginterest_t* x) {
+	np_obj_t* ret = NULL;
+	pthread_mutex_lock(&x->lock);
+	if ( (x->msg_cache_size > 0) && x->msg_cache_first) {
+		np_msgcache_t* tmp = x->msg_cache_first;
+
+		if (NULL != x->msg_cache_first) x->msg_cache_first = x->msg_cache_first->next;
+		if (NULL == x->msg_cache_first) x->msg_cache_last = NULL;
+		x->msg_cache_size--;
+
+		ret = tmp->payload;
+		free (tmp);
+	}
+	pthread_mutex_unlock(&x->lock);
+	return ret;
+}
+
+void np_msgcache_push(np_msginterest_t* x, np_obj_t* y) {
+
+	pthread_mutex_lock(&x->lock);
+	np_msgcache_t* new_msg = (np_msgcache_t*) malloc(sizeof(np_msgcache_t));
+	new_msg->payload = y;
+	new_msg->next = NULL;
+
+	if (NULL == x->msg_cache_first) x->msg_cache_first = new_msg;
+	if (NULL != x->msg_cache_last)  x->msg_cache_last->next = new_msg;
+
+	x->msg_cache_last = new_msg;
+	x->msg_cache_size++;
+	pthread_mutex_unlock(&x->lock);
 }
 
 // update internal structure and return a interest if a matching pair has been found
@@ -648,8 +681,9 @@ np_msginterest_t* np_message_interest_update(np_messageglobal_t *mg, np_msginter
 	np_jrb_t* tmp_source = jrb_find_str(mg->interest_sources, interest->msg_subject);
 	if (tmp_source != NULL) {
 		np_msginterest_t* tmp = tmp_source->val.value.v;
-		if (interest->msg_seqnum == 0) available = tmp;
-		if ((tmp->msg_seqnum - tmp->msg_threshold) <= interest->msg_seqnum) available = tmp;
+		/* if (0 == interest->msg_seqnum) */
+		available = tmp;
+		// if ((tmp->msg_seqnum - tmp->msg_threshold) <= interest->msg_seqnum) available = tmp;
 	} else {
 		log_msg(LOG_DEBUG, "lookup of message source failed");
 	}
@@ -685,8 +719,9 @@ np_msginterest_t* np_message_available_update(np_messageglobal_t *mg, np_msginte
 	if (tmp_source != NULL) {
 		log_msg(LOG_DEBUG, "lookup of message target successful");
 		np_msginterest_t* tmp = tmp_source->val.value.v;
-		if (tmp->msg_seqnum == 0) interest = tmp;
-		if ((tmp->msg_seqnum - tmp->msg_threshold) <= available->msg_seqnum) interest = tmp;
+		/* if (tmp->msg_seqnum == 0) */
+		interest = tmp;
+		// if ((tmp->msg_seqnum - tmp->msg_threshold) <= available->msg_seqnum) interest = tmp;
 	}
 	// else {
 	// 	log_msg(LOG_DEBUG, "lookup of message target failed");

@@ -21,10 +21,16 @@
 struct np_nodecache_s
 {
     np_jrb_t* np_node_cache;
-    // dllist dll_free_nodes;
     int size;
     int max;
+
     pthread_mutex_t lock;
+};
+
+enum handshake_status {
+	HANDSHAKE_UNKNOWN = 0,
+	HANDSHAKE_INITIALIZED,
+	HANDSHAKE_COMPLETE
 };
 
 struct np_node_s
@@ -36,7 +42,7 @@ struct np_node_s
     np_key_t* key;
 
     // crypto extension
-    int handshake_complete;
+    int handshake_status;
 
 	// statistics
     int failed;
@@ -76,17 +82,17 @@ void np_node_release (np_nodecache_t* ng, np_key_t* key);
  ** decodes a string into a chimera np_node structure. This acts as a
  ** np_node_get, and should be followed eventually by a np_node_release.
  **/
-np_node_t* np_node_decode_from_str (np_nodecache_t* ng, const char *s);
-np_node_t* np_node_decode_from_amqp (np_nodecache_t* gn, np_jrb_t* data);
-np_node_t** np_decode_nodes_from_amqp (np_nodecache_t* gn, np_jrb_t* data);
+np_node_t*  np_node_decode_from_str (np_nodecache_t* ng, const char *s);
+np_node_t*  np_node_decode_from_jrb (np_nodecache_t* gn, np_jrb_t* data);
+np_node_t** np_decode_nodes_from_jrb (np_nodecache_t* gn, np_jrb_t* data);
 
 /** np_node_encode:
  ** encodes the #np_node# into a string, putting it in #s#, which has
  ** #len# bytes in it.
  **/
-void np_node_encode_to_str (char *s, int len, np_node_t* np_node);
-void np_node_encode_to_amqp (np_jrb_t* data, np_node_t* np_node);
-int np_encode_nodes_to_amqp (np_jrb_t* data, np_node_t** host);
+void np_node_encode_to_str  (char *s, int len, np_node_t* np_node);
+void np_node_encode_to_jrb  (np_jrb_t* data, np_node_t* np_node);
+int  np_encode_nodes_to_jrb (np_jrb_t* data, np_node_t** host);
 
 /** np_node_update_stat:
  ** updates the success rate to the np_node based on the SUCCESS_WINDOW average

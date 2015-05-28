@@ -7,7 +7,8 @@
 
 #include "np_memory.h"
 #include "log.h"
-
+#include "neuropil.h"
+#include "message.h"
 #include "include.h"
 
 typedef struct test_struct
@@ -82,4 +83,23 @@ int main(int argc, char **argv) {
 	np_printpool;
 
 	np_unbind(test_struct_t, np_obj1, t_obj1);
+
+
+	np_state_t* state = np_init(3000);
+	np_msginterest_t* interested = np_message_create_interest(state, "test", ONE_WAY, 1, 1);
+
+	const char* test_msg = "test.message";
+	for (int i =0; i < 100; i++)
+		np_msgcache_push(interested, new_jval_v(test_msg));
+
+	printf("size of msgcache %d\n", np_msgcache_size(interested));
+	for (int i =0; i < 50; i++) {
+		np_jval_t message = np_msgcache_pop(interested);
+	}
+	printf("size of msgcache %d\n", np_msgcache_size(interested));
+
+	for (int i =0; i < 50; i++) {
+		np_jval_t message = np_msgcache_pop(interested);
+	}
+	printf("size of msgcache %d\n", np_msgcache_size(interested));
 }

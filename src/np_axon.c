@@ -32,14 +32,19 @@
  **/
 void hnd_msg_out_ack(np_state_t* state, np_jobargs_t* args) {
 
+	np_message_t* msg;
+
 	np_node_t* target_node = np_node_lookup(state->nodes, args->target, 0);
-	int ret = network_send_udp(state, target_node, args->msg);
+	np_bind(np_message_t, args->msg, msg);
+
+	int ret = network_send_udp(state, target_node, msg);
 	if (ret == 0) {
 		np_node_update_stat(target_node, 0);
 	} else {
 		np_node_update_stat(target_node, 1);
 	}
-	return;
+	np_unbind(np_message_t, args->msg, msg);
+	np_free(np_message_t, args->msg);
 }
 
 /**
@@ -48,7 +53,7 @@ void hnd_msg_out_ack(np_state_t* state, np_jobargs_t* args) {
  **/
 void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 
-	unsigned long seq;
+	uint32_t seq;
 	np_message_t* msg;
 	np_node_t* target_node;
 	np_jrb_t *jrb_node;
@@ -64,9 +69,10 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 
 	// TODO: check if the node is really useful.
 	// for now: assume a node really exists and is not only a "key"
-	if (prop->ack_mode != 1 && prop->ack_mode != 2) {
+	if (prop->ack_mode != ACK_EACHHOP && prop->ack_mode != ACK_DESTINATION) {
 		log_msg(LOG_ERROR, "FAILED, unexpected message ack property %i !", prop->ack_mode);
 		np_unbind(np_message_t, args->msg, msg);
+		np_free(np_message_t, args->msg);
 		return;
 	}
 
@@ -77,7 +83,12 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 	if (!jrb_find_str(msg->instructions, "_np.ack"))
 		jrb_insert_str(msg->instructions, "_np.ack", new_jval_ui(prop->ack_mode));
 
-	/* get sequence number to initialize acknowledgement indicator*/
+	if (prop->ack_mode != ACK_NONE) {
+		unsigned char* ack_to_str = key_get_as_string(state->neuropil->me->key);
+		jrb_insert_str(msg->instructions, "_np.ack_to", new_jval_s((char*) ack_to_str));
+	}
+
+	/* get sequence number to initialize acknowledgement indicator */
 	if (!jrb_find_str(msg->instructions, "_np.seq")) {
 		seq = network->seqend;
 		jrb_insert_str(msg->instructions, "_np.seq", new_jval_ul(seq));
@@ -101,7 +112,6 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 	// message part split-up informations
 	if (!jrb_find_str(msg->instructions, "_np.part"))
 		jrb_insert_str(msg->instructions, "_np.part", new_jval_ui(parts));
-	// jrb_insert_str(args->msg->instructions, "_np.pseq", new_jval_i(parts));
 
 	start = dtime();
 	if (prop->ack_mode > 0) {
@@ -113,14 +123,13 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 		PQEntry *pqrecord = get_new_pqentry();
 		pqrecord->dest_key = target_node->key;
 		pqrecord->msg = args->msg;
-		// pqrecord->datasize = sizebackup;
-		pqrecord->retry = jrb_resend->val.value.i;
+		pqrecord->retry = jrb_resend->val.value.ui;
 		pqrecord->seqnum = seq;
 		pqrecord->transmittime = start;
 
-		if (pqrecord->retry == 0) {
-			np_ref(np_message_t, args->msg);
-		}
+		// if (pqrecord->retry == 0) {
+		np_ref(np_message_t, args->msg);
+		// }
 
 		pthread_mutex_lock(&network->lock);
 		priqueue = jrb_insert_dbl(network->retransmit,
@@ -128,13 +137,17 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 		pthread_mutex_unlock(&network->lock);
 	}
 
-	int ret = network_send_udp(state, target_node, args->msg);
-	if (ret == 0) {
+	char* subj = jrb_find_str(msg->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
+	log_msg(LOG_DEBUG, "message %s (%d) to %s", subj, seq, key_get_as_string(target_node->key));
+
+	int ret = network_send_udp(state, target_node, msg);
+	/*if (ret == 0) {
 		np_node_update_stat(target_node, 0);
 	} else {
 		np_node_update_stat(target_node, 1);
-	}
+	}*/
 	np_unbind(np_message_t, args->msg, msg);
+	np_free(np_message_t, args->msg);
 }
 
 void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
@@ -182,7 +195,8 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 
 	// create real handshake message ...
 	np_obj_t* hs_msg_obj;
-	np_message_t*  hs_message;
+	np_message_t* hs_message;
+
 	np_new(np_message_t, hs_msg_obj);
 	np_bind(np_message_t, hs_msg_obj, hs_message);
 
@@ -219,9 +233,11 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	}
 	pthread_mutex_unlock(&state->network->lock);
 	// log_msg(LOG_DEBUG, "finished to send handshake message");
-	jrb_free_tree(hs_data);
+
 	np_unbind(np_message_t, hs_msg_obj, hs_message);
-	np_unref(np_message_t, hs_msg_obj);
+	np_free(np_message_t, hs_msg_obj);
+
+	jrb_free_tree(hs_data);
 }
 
 

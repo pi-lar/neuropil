@@ -258,7 +258,7 @@ np_node_t** route_lookup (np_routeglobal_t* rg, np_key_t* key, int count, int is
 	}
 
     /* check to see if there is a matching next hop (for fast routing) */
-    i = key_index (np_node_get_key(rg->me), key);
+    i = key_index (rg->me->key, key);
     match_col = hexalpha_to_int (key_get_as_string(key)[i]);
 
     for (k = 0; k < MAX_ENTRY; k++)
@@ -289,8 +289,8 @@ np_node_t** route_lookup (np_routeglobal_t* rg, np_key_t* key, int count, int is
 	    // ret[0] = np_node_get_by_hostname (rg->me->ng, tmp->dns_name, tmp->port);
 	    ret[1] = NULL;
 	    log_msg (LOG_ROUTING, "Routing through Table(%s), NEXT_HOP=%s",
-			   key_get_as_string (np_node_get_key(rg->me) ),
-			   key_get_as_string (np_node_get_key(ret[0]) ));
+			   key_get_as_string (rg->me->key ),
+			   key_get_as_string (ret[0]->key ));
 	    pthread_mutex_unlock (&rg->lock);
 	    return (ret);
 	}
@@ -307,27 +307,27 @@ np_node_t** route_lookup (np_routeglobal_t* rg, np_key_t* key, int count, int is
     hosts[index++] = rg->me;
 
     /* look left */
-    for (i = 0; i < Lsize; i++)
+    for (int l = 0; l < Lsize; l++)
 	{
-	    leaf = rg->leftleafset[i];
+	    leaf = rg->leftleafset[l];
 	    log_msg (LOG_ROUTING, "+Left_leafset[%d]: (%s, %d, %s)",
-	    		 i, leaf->dns_name, leaf->port, key_get_as_string (leaf->key));
+	    		 l, leaf->dns_name, leaf->port, key_get_as_string (leaf->key));
 	    hosts[index++] = leaf;
 	}
     /* look right */
-    for (i = 0; i < Rsize; i++)
+    for (int r = 0; r < Rsize; r++)
 	{
-	    leaf = rg->rightleafset[i];
+	    leaf = rg->rightleafset[r];
 	    log_msg (LOG_ROUTING, "+Right_leafset[%d]: (%s, %d, %s)",
-	    		 i, leaf->dns_name, leaf->port, key_get_as_string (leaf->key ));
+	    		 r, leaf->dns_name, leaf->port, key_get_as_string (leaf->key ));
 	    hosts[index++] = leaf;
 	}
 
     /* find the longest prefix match */
-    i = key_index (np_node_get_key(rg->me), key);
+    i = key_index (rg->me->key, key);
 
-    for (j = 0; j < MAX_COL; j++)
-    	for (k = 0; k < MAX_ENTRY; k++)
+    for (j = 0; j < MAX_COL; j++) {
+    	for (k = 0; k < MAX_ENTRY; k++) {
     		if (rg->table[i][j][k] != NULL &&
     			rg->table[i][j][k]->success_avg > BAD_LINK)
     		{
@@ -336,7 +336,8 @@ np_node_t** route_lookup (np_routeglobal_t* rg, np_key_t* key, int count, int is
     					 i, j, k, leaf->dns_name, leaf->port, key_get_as_string (leaf->key));
     			hosts[index++] = leaf;
     		}
-
+    	}
+    }
     hosts[index] = NULL;
 
     ret = (np_node_t**) malloc (sizeof (np_node_t*) * (count + 1));
@@ -453,7 +454,7 @@ np_node_t* find_closest_key (np_node_t** hosts, np_key_t* key, int size)
     else
 	{
 	    min = hosts[0];
-	    key_distance (&mindif, np_node_get_key(hosts[0]), key);
+	    key_distance (&mindif, hosts[0]->key, key);
 	}
 
     for (i = 0; i < size; i++)
@@ -834,13 +835,15 @@ void route_update (np_routeglobal_t* rg, np_node_t* node, int joined)
 			    found = 1;
 			    break;
 			}
-// 		    else if (rg->table[i][j][k] != NULL &&
-// 		    		 key_equal (np_node_get_key(rg->table[i][j][k]), node->key ))
-// 			{
+ 		    else if (rg->table[i][j][k] != NULL &&
+ 		    		 key_equal (np_node_get_key(rg->table[i][j][k]), node->key ))
+ 			{
+ 		    	found = 1;
+			    break;
 		        // printf ("route.c (%d): route_update found already existing\n", getpid());
 			    // pthread_mutex_unlock (&rg->lock);
 			    // return;
-// 			}
+ 			}
 		}
 	    /* the entry array is full we have to get rid of one */
 	    /* replace the new node with the node with the highest latency in the entry array */

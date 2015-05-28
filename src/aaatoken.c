@@ -17,15 +17,15 @@ np_aaatoken_cache_t* np_init_aaa_cache() {
 
 	if (pthread_mutex_init(&aaa_cache->aaa_account_mutex, NULL) != 0) {
 		log_msg(LOG_ERROR, "pthread_mutex_init: %s", strerror (errno));
-		return (NULL );
+		return (NULL);
 	}
 	if (pthread_mutex_init(&aaa_cache->aaa_authorize_mutex, NULL) != 0) {
 		log_msg(LOG_ERROR, "pthread_mutex_init: %s", strerror (errno));
-		return (NULL );
+		return (NULL);
 	}
 	if (pthread_mutex_init(&aaa_cache->aaa_authenticate_mutex, NULL) != 0) {
 		log_msg(LOG_ERROR, "pthread_mutex_init: %s", strerror (errno));
-		return (NULL );
+		return (NULL);
 	}
 
 	return aaa_cache;

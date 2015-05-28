@@ -71,7 +71,7 @@ np_networkglobal_t* network_init (int port);
  ** type are 1 or 2, 1 indicates that the data should be acknowledged by the
  ** receiver, and 2 indicates that no ack is necessary.
  */
-int network_send_udp (np_state_t* state, np_node_t* node, np_obj_t* message);
+int network_send_udp (np_state_t* state, np_node_t* node,  np_message_t* msg);
 
 /**
  ** Resends a message to host

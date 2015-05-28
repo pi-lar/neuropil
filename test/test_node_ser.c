@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 
     log_msg(LOG_DEBUG, "serializing");
 	np_jrb_t* node_jrb = make_jrb();
-	np_encode_nodes_to_amqp(node_jrb, node_list);
+	np_encode_nodes_to_jrb(node_jrb, node_list);
 
 	cmp_ctx_t cmp;
     void* buffer = malloc(node_jrb->byte_size);
@@ -65,6 +65,6 @@ int main(int argc, char **argv) {
 	log_msg(LOG_DEBUG, "deserializing");
 	cmp_init(&out_cmp, buffer, buffer_reader, buffer_writer);
 	deserialize_jrb_node_t(out_tree, &out_cmp);
-	np_decode_nodes_from_amqp(out_nc, node_jrb);
+	np_decode_nodes_from_jrb(out_nc, node_jrb);
 
 }

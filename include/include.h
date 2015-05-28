@@ -26,6 +26,7 @@ typedef struct np_routeglobal_t np_routeglobal_t;
 
 typedef struct np_message_s np_message_t;
 typedef struct np_messageglobal_s np_messageglobal_t;
+typedef struct np_msgcache_s np_msgcache_t;
 typedef struct np_msgproperty_s np_msgproperty_t;
 typedef struct np_msginterest_s np_msginterest_t;
 typedef struct np_networkglobal_s np_networkglobal_t;

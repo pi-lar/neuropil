@@ -87,11 +87,11 @@ void np_add_listener (const np_state_t* state, np_callback_t msg_handler, char* 
 	// check whether an handler already exists
 	np_bool handler_exists = np_message_check_handler(state->messages, INBOUND, subject);
 	if (handler_exists == FALSE) {
-		np_message_create_property(state->messages, subject, INBOUND, ONEWAY, ack, 1, retry, msg_handler);
+		np_message_create_property(state->messages, subject, INBOUND, ONE_WAY, ack, 1, retry, msg_handler);
 	}
 
 	// create message interest
-	np_msginterest_t* interested = np_message_create_interest(state, subject, ONEWAY, 0, threshold);
+	np_msginterest_t* interested = np_message_create_interest(state, subject, ONE_WAY, 0, threshold);
 	if (!ack) interested->send_ack = ack;
 	// update network structure
 	np_send_msg_interest(state, interested);
@@ -101,55 +101,64 @@ void np_add_listener (const np_state_t* state, np_callback_t msg_handler, char* 
 
 void np_send (np_state_t* state, char* subject, char *data, unsigned long seqnum)
 {
-	np_jrb_t* payload = make_jrb();
-	jrb_insert_str(payload, "text", new_jval_s(data));
-
 	np_bool handler_exists = np_message_check_handler(state->messages, OUTBOUND, subject);
 	if (handler_exists == FALSE) {
-		np_message_create_property(state->messages, subject, OUTBOUND, ONEWAY, 1, 5, 5, hnd_msg_out_send);
+		np_message_create_property(state->messages, subject, OUTBOUND, ONE_WAY, 1, 5, 5, hnd_msg_out_send);
 	}
 
 	// update general availability structures (local and in the net)
-	np_msginterest_t* available = np_message_create_interest(state, subject, ONEWAY, seqnum, 1);
+	np_msginterest_t* available = np_message_create_interest(state, subject, ONE_WAY, seqnum, 1);
 	np_send_msg_availability(state, available);
 
 	np_msginterest_t* interested = np_message_available_update(state->messages, available);
 
 	// lookup old messages and delete them from the cache / based on threshold size
-	char s[255];
-	snprintf (s, 255, "%s:%lu", subject, seqnum-1);
-	available = np_message_available_match(state->messages, s);
-	if (available) {
-		log_msg(LOG_DEBUG, "deleting old messages from cache !");
-		// pn_data_free (available->payload);
-		jrb_free_tree(available->payload);
-		free (available->msg_subject);
-		free (available);
-	}
-
+	// char s[255];
+	// snprintf (s, 255, "%s:%lu", subject, seqnum-1);
+	// available = np_message_available_match(state->messages, s);
+	// if (available) {
+	// 	log_msg(LOG_DEBUG, "deleting old messages from cache !");
+	// pn_data_free (available->payload);
+	// 	jrb_free_tree(available->payload);
+	// 	free (available->msg_subject);
+	// 	free (available);
+	// }
 	// put new message to the cache
-	snprintf (s, 255, "%s:%lu", subject, seqnum);
-	available = np_message_create_interest(state, s, ONEWAY, seqnum, 1);
-	available->payload = payload;
-	np_message_available_update(state->messages, available);
+	// snprintf (s, 255, "%s:%lu", subject, seqnum);
+	// available = np_message_create_interest(state, s, ONE_WAY, seqnum, 1);
+	// available->payload = payload;
+	// np_message_available_update(state->messages, available);
+	np_message_t* msg;
+	np_obj_t* o_msg;
 
-	// if a different node is already interested, send message directly
-	if (interested) {
-		log_msg(LOG_DEBUG, "interest in message found, sending it directly");
+	np_new(np_message_t, o_msg);
+	np_bind(np_message_t, o_msg, msg);
 
-		np_message_t* msg;
-		np_obj_t* o_msg;
-		np_new(np_message_t, o_msg);
-		np_message_create(o_msg, interested->key, state->neuropil->me->key, subject, payload);
+	jrb_insert_str(msg->header, NP_MSG_HEADER_SUBJECT,  new_jval_s((char*) subject));
+	jrb_insert_str(msg->header, "_np.msg.seq", new_jval_ul(seqnum));
+	jrb_insert_str(msg->body, "text", new_jval_s(data));
 
-		np_bind(np_message_t, o_msg, msg);
-		jrb_insert_str(msg->header, "_np.id", new_jval_ul(seqnum));
+	if (interested && interested->msg_threshold > 0) {
+
+		jrb_insert_str(msg->header, NP_MSG_HEADER_TO,  new_jval_s((char*) key_get_as_string(interested->key)));
+		// if a different node is already interested, send message directly
 		np_msgproperty_t* prop = np_message_get_handler(state->messages, TRANSFORM, ROUTE_LOOKUP);
 		job_submit_msg_event(state->jobq, prop, interested->key, o_msg);
-		np_unbind(np_message_t, o_msg, msg);
+		log_msg(LOG_DEBUG, "interest in message found, sending it directly");
 
-		np_unref(np_message_t, o_msg);
+		// decrease threshold counter
+		pthread_mutex_lock(&state->messages->interest_lock);
+		interested->msg_threshold--;
+		pthread_mutex_unlock(&state->messages->interest_lock);
+
+	} else {
+		// jrb_insert_str(payload, "_np.msg.seq", new_jval_ul(seqnum));
+		np_msgcache_push(available, o_msg);
+		np_ref(np_message_t, o_msg);
 	}
+
+	np_unbind(np_message_t, o_msg, msg);
+	// np_unref(np_message_t, o_msg);
 }
 
 int np_receive (np_state_t* state, char* subject, char **data, unsigned long seqnum, int ack)
@@ -157,42 +166,56 @@ int np_receive (np_state_t* state, char* subject, char **data, unsigned long seq
 	// check whether an inbound message handler is already registered
 	np_bool handler_exists = np_message_check_handler(state->messages, INBOUND, subject);
 	if (handler_exists == FALSE) {
-		np_message_create_property(state->messages, subject, INBOUND, ONEWAY, 1, 1, 5, np_signal);
+		np_message_create_property(state->messages, subject, INBOUND, ONE_WAY, 1, 1, 5, np_signal);
 	}
 
 	// create our interest for a message and check for available messages (local and in the net)
-	np_msginterest_t* interested = np_message_create_interest(state, subject, ONEWAY, seqnum, 1);
+	np_msginterest_t* interested = np_message_create_interest(state, subject, ONE_WAY, seqnum, 1);
 	if (!ack) interested->send_ack = 0;
 	np_send_msg_interest(state, interested);
 
 	// check if something is already available
 	np_msginterest_t* available = np_message_interest_update(state->messages, interested);
+
 	// if message source is available, try to receive my requested one from the message cache
 	if (available) {
-		// check for the real message from cache
-		char s[255];
-		sprintf (s, "%s:%lu", available->msg_subject, available->msg_seqnum);
-		available = np_message_available_match(state->messages, s);
+		unsigned int cache_size = np_msgcache_size(interested);
+		log_msg(LOG_DEBUG, "cache size of interest %p: %d", interested, cache_size);
+		cache_size = np_msgcache_size(available);
+		log_msg(LOG_DEBUG, "cache size of interest %p: %d", available, cache_size);
 
-		if (!available) {
-			// not there yet, wait for notification
-			pthread_mutex_lock(&interested->lock);
+		if (cache_size == 0) {
+			log_msg(LOG_DEBUG, "waiting for signal via interest %p", interested);
+			// nothing there yet, wait for notification
+			pthread_mutex_lock(&available->lock);
 			// TODO: use pthread_cond_timedwait ?
-			log_msg(LOG_INFO, "message is available, waiting for signal !!!");
-			pthread_cond_wait(&interested->msg_received, &interested->lock);
-			// TODO distiguish between return states of condition wait (timeout or wakeup)
+			log_msg(LOG_INFO, "messages are available, waiting for signal !!!");
+			pthread_cond_wait(&available->msg_received, &available->lock);
+			// TODO distinguish between return states of condition wait (timeout or wakeup)
+			pthread_mutex_unlock(&available->lock);
+		}
 
-			// now requested message should be there
-			available = np_message_available_match(state->messages, s);
-			// decode message payload
-			// pn_bytes_t payload_data = pn_data_get_string(available->payload);
-			np_jrb_t* reply_data = jrb_find_str(available->payload, "text");
+		np_message_t* payload;
+		unsigned long received_seq = -1;
+
+		log_msg(LOG_DEBUG, "getting message from interest %p", available);
+		np_obj_t* o_msg = np_msgcache_pop(available);
+
+		if (o_msg) {
+			np_bind(np_message_t, o_msg, payload);
+			received_seq = jrb_find_str(payload->header, "_np.msg.seq")->val.value.ul;
+
+			np_jrb_t* reply_data = jrb_find_str(payload->body, "text");
 			*data = strndup(reply_data->val.value.s, strlen(reply_data->val.value.s));
 
-			pthread_mutex_unlock(&interested->lock);
+			np_unbind(np_message_t, o_msg, payload);
+			np_free(np_message_t, o_msg);
+
+			log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
+		} else {
+			log_msg(LOG_WARN, "something is terribly wrong, message cache returned empty element !!!");
 		}
-		log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
-		return available->msg_seqnum;
+		return received_seq;
 
 	} else {
 		log_msg(LOG_INFO, "no sender of messages known: SUB:%s SEQ:%lu known !", subject, seqnum);
@@ -206,59 +229,72 @@ void np_send_ack(np_state_t* state, np_jobargs_t* args) {
 	// log_msg(LOG_INFO, "np_send_ack START");
 	int ack, part;
 	unsigned long seq;
-	np_message_t* msg;
-	np_bind(np_message_t, args->msg, msg);
+
+	np_message_t* in_msg;
+	np_bind(np_message_t, args->msg, in_msg);
 
 	// extract data from incoming message
-	seq = jrb_find_str(msg->instructions, "_np.seq")->val.value.ul;
-	ack = jrb_find_str(msg->instructions, "_np.ack")->val.value.i;
+	seq = jrb_find_str(in_msg->instructions, "_np.seq")->val.value.ul;
+	ack = jrb_find_str(in_msg->instructions, "_np.ack")->val.value.i;
 	// part = jrb_find_str(args->msg->instructions, "_np.part")->val.value.i;
 
 	// create new ack message & handlers
-	np_node_t* ack_node = np_node_decode_from_str(state->nodes, jrb_find_str(msg->header, NP_MSG_HEADER_REPLY_TO)->val.value.s);
+	// np_node_t* ack_node = np_node_decode_from_str(state->nodes, jrb_find_str(in_msg->header, NP_MSG_HEADER_REPLY_TO)->val.value.s);
+	np_key_t tmp_key;
+	str_to_key(&tmp_key, jrb_find_str(in_msg->header, NP_MSG_HEADER_REPLY_TO)->val.value.s);
+	np_node_t* ack_node = np_node_lookup(state->nodes, &tmp_key, 0);
+
+	np_unbind(np_message_t, args->msg, in_msg);
 
 	np_message_t* ack_msg;
 	np_obj_t* o_ack_msg;
-	np_new(np_message_t, o_ack_msg);
+
 	np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_ACK);
-	np_message_create(o_ack_msg, ack_node->key, state->neuropil->me->key, NP_MSG_ACK, NULL);
+
+	np_new(np_message_t, o_ack_msg);
 	np_bind(np_message_t, o_ack_msg, ack_msg);
 
+	np_message_create(ack_msg, ack_node->key, state->neuropil->me->key, NP_MSG_ACK, NULL);
 	jrb_insert_str(ack_msg->instructions, "_np.ack", new_jval_i(prop->ack_mode));
 	jrb_insert_str(ack_msg->instructions, "_np.seq", new_jval_ul(seq));
-
 	// send the ack out
 	job_submit_msg_event(state->jobq, prop, ack_node->key, o_ack_msg);
-	np_unbind(np_message_t, o_ack_msg, ack_msg);
-	// log_msg(LOG_INFO, "np_send_ack END");
-	np_unref(np_message_t, o_ack_msg);
 
-	np_unbind(np_message_t, args->msg, msg);
+	np_unbind(np_message_t, o_ack_msg, ack_msg);
+	// np_unref(np_message_t, o_ack_msg);
+
+	// log_msg(LOG_INFO, "np_send_ack END");
+	np_free(np_message_t, args->msg);
 }
 
 
 /**
- ** chimera_ping: 
- ** sends a PING message to the node. The message is acknowledged in network layer.
+ ** np_ping:
+ ** sends a PING message to another node. The message is acknowledged in network layer.
  **/
 void np_ping (np_state_t* state, np_key_t* key)
 {
-    np_node_t* target = np_node_lookup(state->nodes, key, 0);
+    np_obj_t* o_msg;
+    np_message_t* out_msg;
 
+    np_node_t* target = np_node_lookup(state->nodes, key, 0);
     np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_PING_REQUEST);
 
-    np_obj_t* o_msg;
     np_new(np_message_t, o_msg);
-    np_message_create (o_msg, key, state->neuropil->me->key, NP_MSG_PING_REQUEST, NULL);
+    np_bind(np_message_t, o_msg, out_msg);
+
+    np_message_create (out_msg, key, state->neuropil->me->key, NP_MSG_PING_REQUEST, NULL);
     log_msg(LOG_DEBUG, "ping request to: %s", key_get_as_string(key));
 	job_submit_msg_event(state->jobq, prop, target->key, o_msg);
-    np_unref(np_message_t, o_msg);
+
+	np_unbind(np_message_t, o_msg, out_msg);
+    // np_unref(np_message_t, o_msg);
 }
 
 /**
- ** chimera_init:
- ** Initializes Chimera on port port and returns the const np_state_t* which
- ** contains global state of different chimera modules.
+ ** np_init:
+ ** initializes neuropil on specified port and returns the const np_state_t* which
+ ** contains global state of different neuropil modules.
  **/
 np_state_t* np_init(int port)
 {

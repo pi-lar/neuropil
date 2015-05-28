@@ -33,13 +33,16 @@ void np_node_encode_to_str (char *s, int len, np_node_t * node)
     snprintf (s + strlen (s), len - strlen (s), "%d", node->port);
 }
 
-void np_node_encode_to_amqp (np_jrb_t* data, np_node_t* node)
+void np_node_encode_to_jrb (np_jrb_t* data, np_node_t* node)
 {
 	char* keystring = (char*) key_get_as_string (node->key);
 
 	jrb_insert_str(data, "_np.node.key", new_jval_s(keystring));
 	jrb_insert_str(data, "_np.node.dns_name", new_jval_s(node->dns_name));
 	jrb_insert_str(data, "_np.node.port", new_jval_i(node->port));
+
+	if (node->failuretime > 0.0)
+		jrb_insert_str(data, "_np.node.failuretime", new_jval_d(node->failuretime));
 }
 
 /** np_node_decode:
@@ -88,10 +91,11 @@ np_node_t* np_node_decode_from_str (np_nodecache_t* ng, const char *key)
 }
 
 
-np_node_t* np_node_decode_from_amqp (np_nodecache_t* ng, np_jrb_t* data) {
+np_node_t* np_node_decode_from_jrb (np_nodecache_t* ng, np_jrb_t* data) {
 
 	np_node_t *node;
 
+	// MANDATAORY paramter
 	char* sHostkey =  jrb_find_str(data, "_np.node.key")->val.value.s;
 	char* sHostname = jrb_find_str(data, "_np.node.dns_name")->val.value.s;
 	int iHostport =   jrb_find_str(data, "_np.node.port")->val.value.i;
@@ -104,11 +108,17 @@ np_node_t* np_node_decode_from_amqp (np_nodecache_t* ng, np_jrb_t* data) {
 		np_node_update( node, sHostname, iHostport);
 	}
 
+	// OPTIONAL parameter
+	np_jrb_t* failure = jrb_find_str(data, "_np.node.failuretime");
+	if (failure) node->failuretime = failure->val.value.d;
+	// np_jrb_t* address = jrb_find_str(data, "_np.node.address");
+	// if (address) node->address = address->val.value.ul;
+
     return (node);
 }
 
 
-int np_encode_nodes_to_amqp (np_jrb_t* data, np_node_t** host)
+int np_encode_nodes_to_jrb (np_jrb_t* data, np_node_t** host)
 {
     int i;
 
@@ -116,14 +126,14 @@ int np_encode_nodes_to_amqp (np_jrb_t* data, np_node_t** host)
 	{
     	np_jrb_t* node = make_jrb();
     	// log_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
-    	np_node_encode_to_amqp(node, host[i]);
+    	np_node_encode_to_jrb(node, host[i]);
     	// log_msg(LOG_DEBUG, "%p / c: %p -> adding nodejrb to jrb", data, node);
     	jrb_insert_int(data, i, new_jval_tree(node));
 	}
     return i;
 }
 
-np_node_t** np_decode_nodes_from_amqp (np_nodecache_t* ng, np_jrb_t* data)
+np_node_t** np_decode_nodes_from_jrb (np_nodecache_t* ng, np_jrb_t* data)
 {
     np_node_t **node;
     int i;
@@ -137,7 +147,7 @@ np_node_t** np_decode_nodes_from_amqp (np_nodecache_t* ng, np_jrb_t* data)
     for (i = 0; i < nodenum; i++)
 	{
     	np_jrb_t* node_data = jrb_find_int(data, i);
-	    node[i] = np_node_decode_from_amqp(ng, node_data->val.value.tree);
+	    node[i] = np_node_decode_from_jrb(ng, node_data->val.value.tree);
 	}
 
 	node[i] = NULL;
@@ -193,33 +203,14 @@ np_node_t* np_node_get_by_hostname (np_nodecache_t* ng, char *hostname, int port
 	    	entry->success_win[i] = 1;
 
 	    jrb_insert_key (ng->np_node_cache, nodeKey, new_jval_v (entry));
-	    // jrb_insert_str (ng->np_key_node_cache, strdup (id), new_jval_v (entry));
-	    // new_node->jrb_node = jrb_find_str (ng->jrb_nodes, id);
 	    ng->size++;
 	}
     /* otherwise, increase the reference count */
     else
 	{
 	    entry = (np_node_t *) jrb_node->val.value.v;
-	    /* if it was in the free list, remove it from the free list */
-	    // if (entry->reference_count == 0)
-		// {
-		//     dll_delete_node (entry->dll_free_nodes);
-		// }
 	    entry->ref_count++;
 	}
-
-    /* if the cache was overfull, empty it as much as possible */
-// TODO: empty cache based on reference count if it is too full
-//    while (ng->size > ng->max && !jrb_empty (ng->dll_free_nodes))
-//	{
-//	    dllnode = dll_first (ng->dll_free_nodes);
-//	    tmp = (np_node_t *) dllnode->val.v;
-//	    dll_delete_node (dllnode);
-//	    jrb_delete_node (tmp->jrb_node);
-//	    cacheentry_free (tmp);
-//	    ng->size--;
-//	}
     pthread_mutex_unlock (&ng->lock);
 
     return entry;
@@ -230,7 +221,6 @@ void np_node_update (np_node_t* node, char *hn, int port) {
 	unsigned long address = get_network_address (hn);
 	if (address == 0)
 		log_msg(LOG_WARN, "couldn't resolve hostname to ip address: %s", hn);
-    // unsigned char* ip = (unsigned char *) &address;
 
     node->dns_name = strndup (hn, strlen(hn));
 	node->port = port;
@@ -262,7 +252,7 @@ np_node_t* np_node_lookup(np_nodecache_t* ng, np_key_t* key, int increase_ref_co
     	entry->success_avg = 0.5;
     	entry->node_tree = ng;
     	entry->ref_count = increase_ref_count;
-    	entry->handshake_complete = 0;
+    	entry->handshake_status = HANDSHAKE_UNKNOWN;
 
     	entry->key = key;
 
@@ -273,7 +263,6 @@ np_node_t* np_node_lookup(np_nodecache_t* ng, np_key_t* key, int increase_ref_co
 
     	jrb_insert_key (ng->np_node_cache, key, new_jval_v (entry));
 	    ng->size++;
-
 	    // log_msg(LOG_TRACE, "NODE REF COUNT (%p) %d #%s#", entry, entry->ref_count, key_get_as_string(entry->key));
 
     } else {
@@ -338,7 +327,7 @@ void np_node_update_stat (np_node_t* node, int success)
 	    total += node->success_win[i];
 	}
     node->success_avg = total / SUCCESS_WINDOW;
-	// log_msg(LOG_DEBUG, "success rate for node %s now: %1.1f", key_get_as_string(node->key), node->success_avg);
+	log_msg(LOG_DEBUG, "success rate for node %s now: %1.1f", key_get_as_string(node->key), node->success_avg);
 }
 
 np_key_t* np_node_get_key(np_node_t* np_node)

@@ -120,7 +120,7 @@ GZIP_ENV = --best
 DEP_FILES =  .deps/neuropil.P .deps/dllist.P .deps/dtime.P .deps/node.P \
 .deps/job_queue.P .deps/jrb.P .deps/jval.P .deps/key.P .deps/log.P \
 .deps/message.P .deps/network.P .deps/route.P .deps/semaphore.P .deps/threads.P \
-.deps/np_glia.P .deps/np_axon.P .deps/np_dendrit.P .deps/aaatoken.P .deps/cmp.P .deps/np_util.h
+.deps/np_glia.P .deps/np_axon.P .deps/np_dendrit.P .deps/aaatoken.P .deps/cmp.P .deps/np_util.P
 SOURCES = $(libneuropil_a_SOURCES)
 OBJECTS = $(libneuropil_a_OBJECTS)
 

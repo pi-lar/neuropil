@@ -121,7 +121,7 @@ int write_type(np_jval_t val, cmp_ctx_t* cmp) {
 		}
 		break;
 	default:
-		log_msg(LOG_WARN, "unknown serialization to binary form for type %d -- ignoring for now", val.type);
+		log_msg(LOG_WARN, "unknown serialization to binary form for type -- ignoring for now");
 		break;
 	}
 	// void* count_buf_end = cmp->buf;
@@ -245,10 +245,12 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 		}
 		break;
 	case CMP_TYPE_FLOAT:
+		value->value.f = 0.0;
 		value->value.f = obj->as.flt;
 		value->type = float_type;
 		break;
 	case CMP_TYPE_DOUBLE:
+		value->value.d = 0.0;
 		value->value.d = obj->as.dbl;
 		value->type = double_type;
 		break;
@@ -259,14 +261,17 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 //		value->type = unsigned_short_type;
 		break;
 	case CMP_TYPE_UINT16:
+		value->value.ui = 0;
 		value->value.ui = obj->as.u16;
 		value->type = unsigned_int_type;
 		break;
 	case CMP_TYPE_UINT32:
+		value->value.ul = 0;
 		value->value.ul = obj->as.u32;
 		value->type = unsigned_long_type;
 		break;
 	case CMP_TYPE_UINT64:
+		value->value.ull = 0;
 		value->value.ull = obj->as.u64;
 		value->type = unsigned_long_long_type;
 		break;
@@ -276,14 +281,17 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 //		value->type = short_type;
 		break;
 	case CMP_TYPE_SINT16:
+		value->value.i = 0;
 		value->value.i = obj->as.s16;
 		value->type = int_type;
 		break;
 	case CMP_TYPE_SINT32:
+		value->value.l = 0;
 		value->value.l = obj->as.s32;
 		value->type = long_type;
 		break;
 	case CMP_TYPE_SINT64:
+		value->value.ll = 0;
 		value->value.ll = obj->as.s64;
 		value->type = long_long_type;
 		break;

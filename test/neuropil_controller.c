@@ -119,7 +119,8 @@ int main(int argc, char **argv) {
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(state, 8);
 
-	np_obj_t* o_msg;
+	np_obj_t* o_msg_out;
+	np_message_t* msg_out;
 
 	while (1) {
 		size_t nbytes = 255;
@@ -142,15 +143,20 @@ int main(int argc, char **argv) {
 
 		log_msg(LOG_DEBUG, "creating welcome message");
 		np_jrb_t* me = make_jrb();
-		np_node_encode_to_amqp(me, state->neuropil->me);
+		np_node_encode_to_jrb(me, state->neuropil->me);
 		np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_JOIN_REQUEST);
 
-		np_new(np_message_t, o_msg);
-		np_message_create(o_msg, node->key, state->neuropil->me->key , NP_MSG_JOIN_REQUEST, me);
+		np_new(np_message_t, o_msg_out);
+		np_bind(np_message_t, o_msg_out, msg_out);
+
+		np_message_create(msg_out, node->key, state->neuropil->me->key , NP_MSG_JOIN_REQUEST, me);
 		log_msg(LOG_DEBUG, "submitting welcome message");
-		job_submit_msg_event(state->jobq, prop, key, o_msg);
-		np_unref(np_message_t, o_msg);
-		dsleep(0.01);
+		job_submit_msg_event(state->jobq, prop, key, o_msg_out);
+
+		np_unbind(np_message_t, o_msg_out, msg_out);
+		// np_unref(np_message_t, o_msg_out);
+
+		dsleep(1.0);
 	}
 	// pthread_exit(NULL);
 }

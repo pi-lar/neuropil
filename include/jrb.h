@@ -130,6 +130,7 @@ int jrb_plength (np_jrb_t* n);	/* returns the # of nodes in path from n to the r
 #define jrb_next(n) (n->flink)
 #define jrb_prev(n) (n->blink)
 #define jrb_empty(t) (t->flink == t)
+
 #ifndef jrb_nil
 #define jrb_nil(t) (t)
 #endif

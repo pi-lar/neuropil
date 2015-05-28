@@ -74,6 +74,10 @@ void np_setaccounting_cb(const np_state_t* state, np_aaa_func_t joinFunc);
  ** for this type of message. 
  **/
 void np_add_listener (const np_state_t* state, np_callback_t msg_handler, char* subject, int ack, int retry, int threshold);
+// register a callback that is executed when a new message arrives
+// void np_callback      (const np_state_t* state, char* subject, char *data, int seqnum);
+
+
 /** np_msg_*:
  ** Send a message of a specific type to a key containing size bytes of data. This will
  ** send data through the neuropil system and deliver it to the host closest to the
@@ -91,12 +95,9 @@ void np_pull      (const np_state_t* state, char* subject, char *data, int seqnu
 void np_pub      (const np_state_t* state, char* subject, char *data, int seqnum);
 void np_sub      (const np_state_t* state, char* subject, char *data, int seqnum);
 
-// register a callback that is executed when a new message arrives
-void np_callback      (const np_state_t* state, char* subject, char *data, int seqnum);
-
 
 void np_start_job_queue(np_state_t* state, int pool_size);
-void np_get_job_queue(np_state_t* state);
+// void np_get_job_queue(np_state_t* state);
 
 /**
  ** np_ping:
@@ -105,8 +106,5 @@ void np_get_job_queue(np_state_t* state);
 void np_ping(np_state_t* state, np_key_t* key);
 void np_send_ack(np_state_t* state, np_jobargs_t* args);
 
-/* register your own message handler */
-// void np_register_handler (np_state_t* state, np_callback_t handleFuncPtr, char* subject, int ack, int retry);
 
-
-#endif /* _CHIMERA_H_ */
+#endif /* _NEUROPIL_H_ */

@@ -22,9 +22,11 @@
 							<tool id="cdt.managedbuild.tool.macosx.c.linker.macosx.base.1059228973" name="MacOS X C Linker" superClass="cdt.managedbuild.tool.macosx.c.linker.macosx.base">
 								<option id="macosx.c.link.option.libs.1944451834" name="Libraries (-l)" superClass="macosx.c.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="&quot;${workspace_loc:/qpid-proton-0.7/build/proton-c/libqpid-proton.dylib}&quot;"/>
+									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="&quot;${workspace_loc:/axtls/libsodium-master/src/libsodium/libsodium.la}&quot;"/>
 								</option>
 								<option id="macosx.c.link.option.paths.1177957676" name="Library search path (-L)" superClass="macosx.c.link.option.paths" valueType="libPaths">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/qpid-proton-0.7/build/proton-c}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/axtls/libsodium-master/src/libsodium}&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.macosx.c.linker.input.2007085075" superClass="cdt.managedbuild.tool.macosx.c.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
@@ -42,6 +44,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/neuropil/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/qpid-proton-0.7/build/proton-c}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/qpid-proton-0.7/proton-c/include}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/axtls/libsodium-master/src/libsodium/include}&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1241002964" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
