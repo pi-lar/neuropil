@@ -121,16 +121,7 @@ int main(int argc, char **argv) {
 
 		// np_send(state, "this.is.a.test", "testdata", k);
 		int real_seq = np_receive(state, "this.is.a.test", &testdata, k, 1);
-
-		if (real_seq == k) {
-			log_msg(LOG_DEBUG, "received message %lu: %s", k, testdata);
-		} else {
-			real_seq = np_receive(state, "this.is.a.test", &testdata, 0, 1);
-			if (real_seq >= k) {
-				log_msg(LOG_DEBUG, "received message %lu: %s", k, testdata);
-				k = real_seq;
-			}
-		}
+		log_msg(LOG_DEBUG, "received message %lu: %s", k, testdata);
 
 		k++;
 	}

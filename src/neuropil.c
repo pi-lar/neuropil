@@ -33,7 +33,7 @@
 #include "np_dendrit.h"
 #include "np_axon.h"
 #include "job_queue.h"
-#include "threads.h"
+#include "np_threads.h"
 #include "jrb.h"
 
 
@@ -158,7 +158,6 @@ void np_send (np_state_t* state, char* subject, char *data, unsigned long seqnum
 	}
 
 	np_unbind(np_message_t, o_msg, msg);
-	// np_unref(np_message_t, o_msg);
 }
 
 int np_receive (np_state_t* state, char* subject, char **data, unsigned long seqnum, int ack)
@@ -231,6 +230,10 @@ void np_send_ack(np_state_t* state, np_jobargs_t* args) {
 	unsigned long seq;
 
 	np_message_t* in_msg;
+
+	np_obj_t* o_ack_node;
+	np_node_t* ack_node;
+
 	np_bind(np_message_t, args->msg, in_msg);
 
 	// extract data from incoming message
@@ -242,9 +245,12 @@ void np_send_ack(np_state_t* state, np_jobargs_t* args) {
 	// np_node_t* ack_node = np_node_decode_from_str(state->nodes, jrb_find_str(in_msg->header, NP_MSG_HEADER_REPLY_TO)->val.value.s);
 	np_key_t tmp_key;
 	str_to_key(&tmp_key, jrb_find_str(in_msg->header, NP_MSG_HEADER_REPLY_TO)->val.value.s);
-	np_node_t* ack_node = np_node_lookup(state->nodes, &tmp_key, 0);
-
 	np_unbind(np_message_t, args->msg, in_msg);
+
+	LOCK_CACHE(state->nodes) {
+		o_ack_node = np_node_lookup(state->nodes, &tmp_key, 0);
+		np_bind(np_node_t, o_ack_node, ack_node);
+	}
 
 	np_message_t* ack_msg;
 	np_obj_t* o_ack_msg;
@@ -254,16 +260,15 @@ void np_send_ack(np_state_t* state, np_jobargs_t* args) {
 	np_new(np_message_t, o_ack_msg);
 	np_bind(np_message_t, o_ack_msg, ack_msg);
 
-	np_message_create(ack_msg, ack_node->key, state->neuropil->me->key, NP_MSG_ACK, NULL);
+	np_message_create(ack_msg, ack_node->key, state->neuropil->my_key, NP_MSG_ACK, NULL);
 	jrb_insert_str(ack_msg->instructions, "_np.ack", new_jval_i(prop->ack_mode));
 	jrb_insert_str(ack_msg->instructions, "_np.seq", new_jval_ul(seq));
 	// send the ack out
 	job_submit_msg_event(state->jobq, prop, ack_node->key, o_ack_msg);
 
 	np_unbind(np_message_t, o_ack_msg, ack_msg);
-	// np_unref(np_message_t, o_ack_msg);
+	np_unbind(np_node_t, o_ack_node, ack_node);
 
-	// log_msg(LOG_INFO, "np_send_ack END");
 	np_free(np_message_t, args->msg);
 }
 
@@ -277,18 +282,17 @@ void np_ping (np_state_t* state, np_key_t* key)
     np_obj_t* o_msg;
     np_message_t* out_msg;
 
-    np_node_t* target = np_node_lookup(state->nodes, key, 0);
+    // np_obj_t* target = np_node_lookup(state->nodes, key, 0);
     np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_PING_REQUEST);
 
     np_new(np_message_t, o_msg);
     np_bind(np_message_t, o_msg, out_msg);
 
-    np_message_create (out_msg, key, state->neuropil->me->key, NP_MSG_PING_REQUEST, NULL);
+    np_message_create (out_msg, key, state->neuropil->my_key, NP_MSG_PING_REQUEST, NULL);
     log_msg(LOG_DEBUG, "ping request to: %s", key_get_as_string(key));
-	job_submit_msg_event(state->jobq, prop, target->key, o_msg);
+	job_submit_msg_event(state->jobq, prop, key, o_msg);
 
 	np_unbind(np_message_t, o_msg, out_msg);
-    // np_unref(np_message_t, o_msg);
 }
 
 /**
@@ -302,8 +306,7 @@ np_state_t* np_init(int port)
     struct hostent *he;
 
     np_mem_init();
-
-    np_printpool;
+    // np_printpool;
 
     sodium_init();
     // initialize key min max ranges
@@ -334,10 +337,14 @@ np_state_t* np_init(int port)
     	exit(1);
     }
     // create a new token for encryption each time neuropil starts
-    np_aaatoken_t* node_authentication = np_aaatoken_create();
+    np_obj_t* o_auth_token;
+    np_aaatoken_t* auth_token;
+    np_new(np_aaatoken_t, o_auth_token);
+    np_bind(np_aaatoken_t, o_auth_token, auth_token);
     // crypto_box_keypair(node_authentication->public_key, node_authentication->private_key); // curve25519xsalsa20poly1305
-    crypto_sign_keypair(node_authentication->public_key, node_authentication->private_key); // ed25519
+    crypto_sign_keypair(auth_token->public_key, auth_token->private_key); // ed25519
     // crypto_scalarmult_base(); // curve25519
+    np_unbind(np_aaatoken_t, o_auth_token, auth_token);
 
     // set a default join function
     state->neuropil->join_func = np_default_joinfunc;
@@ -374,20 +381,24 @@ np_state_t* np_init(int port)
     // strcpy (name, he->h_name);
 
     // log_msg(LOG_DEBUG, "%s:%d", name, port);
-    np_key_t* me = key_create_from_hostport(name, port);
-	state->neuropil->me = np_node_lookup(state->nodes, me, 1);
-	np_node_update(state->neuropil->me, name, port);
+    np_key_t* my_key = key_create_from_hostport(name, port);
+    np_node_t* me;
+    state->neuropil->me = np_node_lookup(state->nodes, my_key, 1);
+	np_bind(np_node_t, state->neuropil->me, me);
+	np_node_update(me, name, port);
 
-	strncpy(node_authentication->issuer, (char*) key_get_as_string(me), 255);
+    np_bind(np_aaatoken_t, o_auth_token, auth_token);
+	strncpy(auth_token->issuer, (char*) key_get_as_string(my_key), 255);
 	// TODO: aaa subject should be user set-able, could also be another name
-	snprintf(node_authentication->subject, 255, "%s:%d", name, port);
-
-    np_register_authentication_token(state->aaa_cache, node_authentication, me);
-    node_authentication->valid = 1;
-	np_aaatoken_retain(node_authentication);
-
+	snprintf(auth_token->subject, 255, "%s:%d", name, port);
+    auth_token->valid = 1;
+	np_ref(np_aaatoken_t, o_auth_token);
+    np_unbind(np_aaatoken_t, o_auth_token, auth_token);
+	LOCK_CACHE(state->aaa_cache) {
+		np_register_authentication_token(state->aaa_cache, o_auth_token, my_key);
+	}
     // initialize routing table
-    state->routes = route_init (state->neuropil->me);
+    state->routes = route_init (my_key);
     if (state->routes == NULL)
 	{
     	log_msg(LOG_ERROR, "neuropil_init: route_init failed: %s", strerror (errno));
@@ -424,8 +435,10 @@ np_state_t* np_init(int port)
 	}
 
     // glob->join = sema_create (0);
-    me = np_node_get_key(state->neuropil->me);
-	log_msg(LOG_INFO, "neuropil successfully initialized: %s", key_get_as_string(me));
+    state->neuropil->my_key = me->key;
+	log_msg(LOG_INFO, "neuropil successfully initialized: %s", key_get_as_string(my_key));
+
+	np_unbind(np_node_t, state->neuropil->me, me);
 
 	return state;
 }

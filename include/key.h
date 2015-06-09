@@ -106,6 +106,13 @@ void key_assign (np_key_t* k1, const np_key_t* const k2);
  **/
 void key_assign_ui (np_key_t * k, unsigned long ul);
 
+int key_index (np_key_t* mykey, np_key_t* k);
+
+np_key_t* find_closest_key (np_key_t** list_of_keys, np_key_t* target_key, int size);
+
+void sort_keys_cpm (np_key_t** list_of_keys, np_key_t* key, int size);
+void sort_keys_kd (np_key_t** list_of_keys, np_key_t* key, int size);
+
 int power (int base, int n);
 
 

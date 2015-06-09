@@ -12,19 +12,20 @@
 
 #include "np_glia.h"
 
-#include "np_util.h"
 #include "aaatoken.h"
-#include "route.h"
+#include "dtime.h"
 #include "job_queue.h"
+#include "jrb.h"
+#include "jval.h"
+#include "key.h"
+#include "log.h"
 #include "message.h"
 #include "network.h"
 #include "neuropil.h"
 #include "node.h"
-#include "dtime.h"
-#include "log.h"
-#include "jrb.h"
-#include "jval.h"
-#include "key.h"
+#include "np_threads.h"
+#include "np_util.h"
+#include "route.h"
 
 static int check_leafset_count = 0;
 
@@ -38,44 +39,44 @@ static int check_leafset_count = 0;
  **/
 void np_route_lookup (np_state_t* state, np_jobargs_t* args)
 {
-    np_node_t** tmp;
-    np_node_t* targetNode = NULL;
+    np_key_t** tmp;
+    np_key_t* target_key = NULL;
     np_message_t* msg_in;
 
     np_bind(np_message_t, args->msg, msg_in);
 
 	char* msg_subject =
 			jrb_find_str(msg_in->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
-
 	char* msg_address =
 			jrb_find_str(msg_in->header, NP_MSG_HEADER_TO)->val.value.s;
+
 	np_key_t k_msg_address;
 	str_to_key(&k_msg_address, msg_address);
 
     // first lookup call for target key
 	log_msg(LOG_DEBUG, "target is key %s", key_get_as_string(args->target));
-    tmp = route_lookup (state->routes, &k_msg_address, 1, 0);
-    log_msg(LOG_DEBUG, "route_lookup result 1 = %s", key_get_as_string(tmp[0]->key));
+	LOCK_CACHE(state->nodes) {
+		tmp = route_lookup (state, &k_msg_address, 1, 0);
+	}
+    log_msg(LOG_DEBUG, "route_lookup result 1 = %s", key_get_as_string(tmp[0]));
 
-    /* this is to avoid sending JOIN request to the node that *
-     * its information is already in the routing table        */
-	int is_join_msg = (strcmp(msg_subject, NP_MSG_JOIN_REQUEST) == 0) ? 1 : 0;
-
-    if ((tmp[0] != NULL) && is_join_msg && (key_equal (tmp[0]->key, &k_msg_address)))
-	{
+    if ((tmp[0] != NULL) && (key_equal (tmp[0], state->neuropil->my_key)))
+    {
+    	// the result returned the sending node, try again with a higher count parameter
 	    free (tmp);
-	    tmp = route_lookup (state->routes, &k_msg_address, 2, 0);
-	    log_msg(LOG_DEBUG, "route_lookup result 2 = %s", key_get_as_string(tmp[0]->key));
-	    if (tmp[1] != NULL && key_equal (tmp[0]->key, &k_msg_address))
+		LOCK_CACHE(state->nodes) {
+			tmp = route_lookup (state, &k_msg_address, 2, 0);
+		}
+		log_msg(LOG_DEBUG, "route_lookup result 2 = %s", key_get_as_string(tmp[0]));
+	    if (tmp[1] != NULL && key_equal (tmp[0], &k_msg_address))
 	    	tmp[0] = tmp[1];
 	}
 
-    if (tmp[0] != state->neuropil->me)
+    if (tmp[0] != state->neuropil->my_key)
 	{
-    	targetNode = tmp[0];
-	    log_msg(LOG_DEBUG, "route_lookup result   = %s", key_get_as_string(targetNode->key));
+    	target_key = tmp[0];
+	    log_msg(LOG_DEBUG, "route_lookup result   = %s", key_get_as_string(target_key));
 	}
-
     /*if (tmp[0] == state->neuropil->me)
 	{
     	targetNode = NULL;
@@ -85,51 +86,18 @@ void np_route_lookup (np_state_t* state, np_jobargs_t* args)
     tmp = NULL;
 
 	/* if I am the only host or the closest host is me, deliver the message */
-    if (targetNode == NULL)
+    if (target_key == NULL)
 	{
-    	/* deliver the message to the correct handler function (if one exists) */
-    	int nodes_equal = key_equal(&k_msg_address, state->neuropil->me->key);
-        // int i_am_the_msg_sender = np_message_check_handler(state->messages, OUTBOUND, msg_subject);
-
-    	if ( (is_join_msg && !(nodes_equal)) ) {
-            /* send the JOIN message to a node, which is not yet available in the network */
-    		/* therefore create an outbound message and send it directly via the network layer */
-            log_msg(LOG_DEBUG, "external forward routing for %s: %s", msg_subject, key_get_as_string(targetNode->key) );
-            np_msgproperty_t* out_prop = np_message_get_handler(state->messages, OUTBOUND, msg_subject);
-    		// targetNode = np_node_decode_from_str(state->nodes, msg_address);
-        	job_submit_msg_event(state->jobq, out_prop, &k_msg_address, args->msg);
-
-    	} /* else if (nodes_equal && i_am_the_msg_sender) {
-    		// the message is not for me, but the routing info seems to be insufficent by now
-    		// push back the message and wait for a later redelivery
-    		//
-    		np_msginterest_t* available = np_message_available_match(state->messages, msg_subject);
-    		if (available) {
-    			// increase threshold again, because msg was not really send
-    			char* msg_subject = jrb_find_str(msg->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
-    			np_msginterest_t* interested = np_message_interest_match(state->messages, msg_subject);
-    			pthread_mutex_lock(&state->messages->interest_lock);
-    			interested->msg_threshold++;
-    			pthread_mutex_unlock(&state->messages->interest_lock);
-    			// push message back to the available message cache
-    			np_msgcache_push(available, new_jval_v(args->msg));
-    			np_ref(np_message_t, args->msg);
-    		} else {
-                log_msg(LOG_DEBUG, "routing was unable to find target, lost message for subject: %s", msg_subject);
-    		}
-    	} */
-    	else {
-    		// the message has to be handled by this node (e.g. msg interest messages)
-            log_msg(LOG_DEBUG, "internal routing for %s", msg_subject);
-        	np_msgproperty_t* prop = np_message_get_handler(state->messages, INBOUND, msg_subject);
-        	job_submit_msg_event(state->jobq, prop, state->neuropil->me->key, args->msg);
-    	}
+    	// the message has to be handled by this node (e.g. msg interest messages)
+    	log_msg(LOG_DEBUG, "internal routing for %s", msg_subject);
+    	np_msgproperty_t* prop = np_message_get_handler(state->messages, INBOUND, msg_subject);
+    	job_submit_msg_event(state->jobq, prop, state->neuropil->my_key, args->msg);
 	}
-    else /* otherwise, route it */
+    else /* otherwise, hand it over to the np_axon sending unit */
 	{
-        log_msg(LOG_DEBUG, "external forward routing for %s: %s", msg_subject, key_get_as_string(targetNode->key) );
+        log_msg(LOG_DEBUG, "external forward routing for %s: %s", msg_subject, key_get_as_string(target_key) );
     	np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, msg_subject);
-    	job_submit_msg_event(state->jobq, prop, targetNode->key, args->msg);
+    	job_submit_msg_event(state->jobq, prop, target_key, args->msg);
 
     	/* set next hop to the next node */
 // 		// TODO: already routed by forward message call ?
@@ -154,7 +122,6 @@ void np_route_lookup (np_state_t* state, np_jobargs_t* args)
     np_unbind(np_message_t, args->msg, msg_in);
 }
 
-
 /**
  ** np_check_leafset: runs as a separate thread.
  ** it should send a PING message to each member of the leafset frequently and
@@ -163,47 +130,113 @@ void np_route_lookup (np_state_t* state, np_jobargs_t* args)
  **/
 void np_check_leafset(np_state_t* state, np_jobargs_t* args) {
 
-	np_node_t **leafset;
-	np_node_t **table;
+	np_key_t **leafset;
+	np_key_t **table;
+	np_key_t *tmp_node_key;
+	np_node_t* tmp_node;
+	np_obj_t* o_tmp_node;
 	int i;
 
 	log_msg(LOG_INFO, "leafset check for neighbours started");
-	leafset = route_neighbors(state->routes, LEAFSET_SIZE);
-	for (i = 0; leafset[i] != NULL ; i++) {
-		if (leafset[i]->success_avg < BAD_LINK) {
-			// check for bad link nodes
-			log_msg(LOG_DEBUG, "Deleting from neighbours: %s", key_get_as_string(leafset[i]->key));
-			route_update(state->routes, leafset[i], 0);
 
-			job_submit_event(state->jobq, np_check_leafset);
-			return;
+	LOCK_CACHE(state->nodes) {
+		leafset = route_neighbors(state->routes, LEAFSET_SIZE);
+	}
+
+	for (i = 0; leafset[i] != NULL ; i++) {
+
+		LOCK_CACHE(state->nodes) {
+			o_tmp_node = np_node_lookup(state->nodes, leafset[i], 0);
+			np_bind(np_node_t, o_tmp_node, tmp_node);
+			tmp_node_key = tmp_node->key;
+		}
+		// check for bad link nodes
+		if (tmp_node->success_avg < BAD_LINK &&
+			tmp_node->handshake_status > HANDSHAKE_UNKNOWN)
+		{
+			log_msg(LOG_DEBUG, "Deleting from neighbours: %s", key_get_as_string(tmp_node->key));
+	    	// request a new handshake with the node
+			np_obj_t* o_my_id_token;
+			np_aaatoken_t* my_id_token;
+			LOCK_CACHE(state->aaa_cache) {
+				o_my_id_token = np_get_authentication_token(state->aaa_cache, tmp_node->key);
+				np_bind(np_aaatoken_t, o_my_id_token, my_id_token);
+			}
+			my_id_token->valid = 0;
+			tmp_node->handshake_status = HANDSHAKE_UNKNOWN;
+			np_unbind(np_aaatoken_t, o_my_id_token, my_id_token);
+
+			np_unbind(np_node_t, o_tmp_node, tmp_node);
+
+			np_key_t *added, *deleted;
+			LOCK_CACHE(state->nodes) {
+				leafset_update(state, tmp_node_key, 0, &deleted, &added);
+				if (deleted) np_node_release(state->nodes, deleted);
+			}
+
 		} else {
 			/* otherwise request reevaluation of peer */
-			/* weired: assume failure of the node now, will be reset with ping reply */
-			leafset[i]->failuretime = dtime();
-		    np_ping(state, leafset[i]->key);
+			/* assume failure of the node now, will be reset with ping reply */
+			tmp_node->failuretime = dtime();
+			np_node_update_stat(tmp_node, 0);
+			np_unbind(np_node_t, o_tmp_node, tmp_node);
+
+			np_ping(state, leafset[i]);
 		}
 	}
 	free(leafset);
 
-	log_msg(LOG_INFO, "leafset check for table started");
-	table = route_get_table(state->routes);
-	for (i = 0; table[i] != NULL ; i++) {
-		if (table[i]->success_avg < BAD_LINK) {
-			/* first check for bad link nodes */
-			log_msg(LOG_DEBUG, "Deleting from table: %s", key_get_as_string(table[i]->key));
-			route_update(state->routes, table[i], 0);
+	if (check_leafset_count == 1) {
 
-			job_submit_event(state->jobq, np_check_leafset);
-			return;
-		} else {
-			/* otherwise request re-evaluation of node stats */
-			/* weired: assume failure of the node now, will be reset with ping reply */
-			table[i]->failuretime = dtime();
-			np_ping(state, table[i]->key);
+		log_msg(LOG_INFO, "leafset check for table started");
+		table = route_get_table(state->routes);
+
+		for (i = 0; table[i] != NULL ; i++) {
+
+			LOCK_CACHE(state->nodes) {
+				o_tmp_node = np_node_lookup(state->nodes, table[i], 0);
+				np_bind(np_node_t, o_tmp_node, tmp_node);
+				tmp_node_key = tmp_node->key;
+			}
+
+			/* first check for bad link nodes */
+			if (tmp_node->success_avg < BAD_LINK &&
+				tmp_node->handshake_status > HANDSHAKE_UNKNOWN)
+			{
+				log_msg(LOG_DEBUG, "Deleting from table: %s", key_get_as_string(tmp_node->key));
+				// request a new handshake with the node
+				np_obj_t* o_my_id_token;
+				np_aaatoken_t* my_id_token;
+				LOCK_CACHE(state->aaa_cache) {
+					o_my_id_token = np_get_authentication_token(state->aaa_cache, tmp_node->key);
+					np_bind(np_aaatoken_t, o_my_id_token, my_id_token);
+				}
+				my_id_token->valid = 0;
+				tmp_node->handshake_status = HANDSHAKE_UNKNOWN;
+				np_unbind(np_aaatoken_t, o_my_id_token, my_id_token);
+
+				np_unbind(np_node_t, o_tmp_node, tmp_node);
+
+				np_key_t *added, *deleted;
+				LOCK_CACHE(state->nodes) {
+					route_update(state, tmp_node_key, 0, &deleted, &added);
+
+					if (added)   np_node_lookup(state->nodes, added, 1);
+					if (deleted) np_node_release(state->nodes, deleted);
+				}
+
+			} else {
+				/* otherwise request re-evaluation of node stats */
+				/* weired: assume failure of the node now, will be reset with ping reply */
+				tmp_node->failuretime = dtime();
+				np_node_update_stat(tmp_node, 0);
+				np_unbind(np_node_t, o_tmp_node, tmp_node);
+
+				np_ping(state, table[i]);
+			}
 		}
+		free(table);
 	}
-	free(table);
 
 	/* send leafset exchange data every 3 times that pings the leafset */
 	if (check_leafset_count == 2) {
@@ -215,7 +248,7 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args) {
 		for (i = 0; leafset[i] != NULL ; i++) {
 			// send a piggy message to the the nodes in our routing table
 			np_msgproperty_t* piggy_prop = np_message_get_handler(state->messages, TRANSFORM, NP_MSG_PIGGY_REQUEST);
-			job_submit_msg_event(state->jobq, piggy_prop, leafset[i]->key, NULL);
+			job_submit_msg_event(state->jobq, piggy_prop, leafset[i], NULL);
 		}
 		free(leafset);
 	} else {
@@ -223,6 +256,7 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args) {
 	}
 
 	dsleep(LEAFSET_CHECK_PERIOD);
+	np_printpool;
 	job_submit_event(state->jobq, np_check_leafset);
 }
 
@@ -231,9 +265,12 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 	double now = 0.0;
 	double sleeptime = RETRANSMIT_THREAD_SLEEP;
 
-	np_jrb_t *pqnode, *jrb_node;
+	np_jrb_t *pqnode, *jrb_ack_node;
 	PQEntry* pqentry;
 	np_networkglobal_t* ng = state->network;
+
+	np_node_t* dest_node;
+	np_obj_t* o_dest_node;
 
 	pthread_mutex_lock(&ng->lock);
 
@@ -269,14 +306,20 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 	// found element to retransmit
 	pqentry = (PQEntry *) pqnode->val.value.v;
 	// log_msg(LOG_INFO, "retransmission check for message %i (now: %f / rtt: %f)", pqentry->seqnum, now, pqnode->key.d);
-	jrb_node = jrb_find_ulong(ng->waiting, pqentry->seqnum);
-	assert(jrb_node != NULL);
+	jrb_ack_node = jrb_find_ulong(ng->waiting, pqentry->seqnum);
+	assert(jrb_ack_node != NULL);
 
-	np_ackentry_t *ackentry = (np_ackentry_t *) jrb_node->val.value.v;
-	np_node_t* dest_node = np_node_lookup(state->nodes, pqentry->dest_key, 0);
+	np_ackentry_t *ackentry = (np_ackentry_t *) jrb_ack_node->val.value.v;
 
 	np_message_t* re_msg;
 	np_bind(np_message_t, pqentry->msg, re_msg);
+
+	pthread_mutex_unlock(&ng->lock);
+
+	LOCK_CACHE(state->nodes) {
+		o_dest_node = np_node_lookup(state->nodes, pqentry->dest_key, 0);
+		np_bind(np_node_t, o_dest_node, dest_node);
+	}
 
 	if (ackentry->acked == 0) // means, if the packet is not yet acknowledged
 	{
@@ -285,15 +328,16 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 		if (pqentry->retry <= MAX_RETRY)
 		{
 			if (dest_node->success_avg < BAD_LINK) {
-				// reroute for bad link nodes
+		    	// reroute for bad link nodes
 				np_node_update_stat(dest_node, 0);
 				np_jrb_t* jrb_retry_count = jrb_find_str(re_msg->instructions, "_np.resend_count");
 				jrb_retry_count->val.value.ui = pqentry->retry;
 
 				np_msgproperty_t* prop = np_message_get_handler(state->messages, TRANSFORM, ROUTE_LOOKUP);
 				job_submit_msg_event(state->jobq, prop, dest_node->key, pqentry->msg);
+
 				np_unref(np_message_t, pqentry->msg);
-				// pthread_mutex_unlock(&ng->lock);
+				np_unref(np_node_t, o_dest_node);
 
 			} else {
 				double transmittime = dtime();
@@ -306,22 +350,31 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 				newentry->seqnum = pqentry->seqnum;
 				newentry->transmittime = transmittime;
 
+				pthread_mutex_lock(&ng->lock);
 				jrb_insert_dbl(ng->retransmit, (transmittime + RETRANSMIT_INTERVAL), new_jval_v(newentry));
 				// pthread_mutex_unlock(&ng->lock);
-
 				pthread_mutex_unlock(&ng->lock);
+
 				network_send_udp(state, dest_node, re_msg);
-				pthread_mutex_lock(&ng->lock);
 			}
+			np_unbind(np_node_t, o_dest_node, dest_node);
+
 		} else {
 			// max retransmission has expired -- update the host stats, free up the resources
 			// pthread_mutex_lock(&ng->lock);
 			log_msg(LOG_WARN, "max retries exceeded, dropping message: %d", pqentry->seqnum);
-			np_node_update_stat(dest_node, 0);
-			np_node_release(state->nodes, pqentry->dest_key);
-			np_unref(np_message_t, pqentry->msg);
-			// pthread_mutex_unlock(&ng->lock);
+	    	np_node_update_stat(dest_node, 0);
+
+	    	np_unref(np_message_t, pqentry->msg);
 			// TODO: implement dead letter queue handling ?
+			np_unbind(np_node_t, o_dest_node, dest_node);
+			np_unref(np_node_t, o_dest_node);
+			np_free(np_node_t, o_dest_node);
+
+			pthread_mutex_lock(&ng->lock);
+			free(ackentry);
+			jrb_delete_node(jrb_ack_node);
+			pthread_mutex_unlock(&ng->lock);
 		}
 
 	} else {
@@ -331,9 +384,10 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 		// and decrease reference counter again
 		// pthread_mutex_lock(&ng->lock);
 
-		// increase threshold counter
+		// increase threshold counter again
 		char* msg_subject = jrb_find_str(re_msg->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
 		np_msginterest_t* interested = np_message_interest_match(state->messages, msg_subject);
+
 		if (interested) {
 			pthread_mutex_lock(&state->messages->interest_lock);
 			interested->msg_threshold++;
@@ -349,32 +403,38 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 			}
 		}
 		np_node_update_stat(dest_node, 1);
-		np_node_release(state->nodes, pqentry->dest_key);
+
+		np_unbind(np_node_t, o_dest_node, dest_node);
+		np_unref(np_node_t, o_dest_node);
+		np_free(np_node_t, o_dest_node);
 
 		np_unref(np_message_t, pqentry->msg);
 
+		pthread_mutex_lock(&ng->lock);
+
 		free(ackentry);
-		jrb_delete_node(jrb_node);
-		// pthread_mutex_unlock(&ng->lock);
+		jrb_delete_node(jrb_ack_node);
+		pthread_mutex_unlock(&ng->lock);
 	}
 
 	np_unbind(np_message_t, pqentry->msg, re_msg);
 	np_free(np_message_t, pqentry->msg);
 
+	pthread_mutex_lock(&ng->lock);
 	jrb_delete_node(pqnode);
-
 	pthread_mutex_unlock(&ng->lock);
+
 	// submit the function itself for additional execution
 	job_submit_event(state->jobq, np_retransmit_messages);
 }
 
 /**
- ** network_activate:
+ ** np_network_read:
  ** Puts the network layer into listen mode. This thread
  ** manages acknowledgements, delivers incomming messages to the message
  ** handler, and drives the network layer.
  */
-void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
+void np_network_read(np_state_t* state, np_jobargs_t* args) {
 
 	fd_set fds;
 	int ret;
@@ -385,7 +445,6 @@ void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
 	uint32_t seq = 0;
 	np_jrb_t *jrb_node;
 
-	np_state_t *state = (np_state_t *) np_state;
 	np_networkglobal_t* ng = state->network;
 
 	FD_ZERO(&fds);
@@ -422,12 +481,16 @@ void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
 
 	// we registered this token info before in the first handshake message
 	np_key_t* alias_key = key_create_from_hostport(ipstr, port);
-	np_aaatoken_t* session_token = np_get_authentication_token(state->aaa_cache, alias_key);
-
+	np_obj_t* o_session_token;
+	np_aaatoken_t* session_token;
 	void* data_ptr = data;
 
-	if (session_token && session_token->valid) {
+	LOCK_CACHE(state->aaa_cache) {
+		o_session_token = np_get_authentication_token(state->aaa_cache, alias_key);
+		np_bind(np_aaatoken_t, o_session_token, session_token);
+	}
 
+	if (session_token->valid) {
 		// log_msg(LOG_DEBUG, "now decrypting to np_message_t (size %d)", ret);
 		unsigned char  nonce[crypto_secretbox_NONCEBYTES];
 		unsigned char* dec_msg = (unsigned char*) malloc(in_msg_len - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
@@ -436,11 +499,11 @@ void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
 
 		// log_msg(LOG_DEBUG, "now nonce (%s)", nonce);
 		ret = crypto_secretbox_open_easy(
-				dec_msg,
-				(const unsigned char *) data_ptr + crypto_secretbox_NONCEBYTES,
-				in_msg_len - crypto_secretbox_NONCEBYTES,
-				nonce,
-				session_token->session_key);
+					dec_msg,
+					(const unsigned char *) data_ptr + crypto_secretbox_NONCEBYTES,
+					in_msg_len - crypto_secretbox_NONCEBYTES,
+					nonce,
+					session_token->session_key);
 
 		if (ret != 0) {
 			log_msg(LOG_ERROR,
@@ -448,11 +511,13 @@ void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
 					ipstr, port);
 			job_submit_event(state->jobq, np_network_read);
 			free (dec_msg);
+			np_unbind(np_aaatoken_t, o_session_token, session_token);
 			return;
 		} else {
 			data_ptr = dec_msg;
 		}
 	}
+	np_unbind(np_aaatoken_t, o_session_token, session_token);
 
 	np_obj_t* o_msg_in;
 	np_message_t* msg_in;
@@ -477,16 +542,18 @@ void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
 		0 == msg_in->footer->size)
 	{
 		log_msg(LOG_DEBUG, "identified handshake message ...");
-		if (!session_token || !session_token->valid) {
-			// handle it in our own handshake callback function
+		// np_bind(np_aaatoken_t, o_session_token, session_token);
+		np_bind(np_aaatoken_t, o_session_token, session_token);
+		if (!session_token->valid) {
 			jrb_insert_str(msg_in->footer, NP_MSG_FOOTER_ALIAS_KEY, new_jval_s((char*) key_get_as_string(alias_key)));
 			np_msgproperty_t* msg_prop = np_message_get_handler(state->messages, INBOUND, NP_MSG_HANDSHAKE);
-			job_submit_msg_event(state->jobq, msg_prop, state->neuropil->me->key, o_msg_in);
+			job_submit_msg_event(state->jobq, msg_prop, state->neuropil->my_key, o_msg_in);
 		} else {
 			log_msg(LOG_DEBUG, "... but handshake is already complete");
 		}
-	} else {
+		np_unbind(np_aaatoken_t, o_session_token, session_token);
 
+	} else {
 		// TODO: stop doing message handling following this line, ack handling may still be fine
 		// TODO: hook in policy for accessing the system ? evaluate 'from' field ?
 
@@ -512,6 +579,7 @@ void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
 				log_msg(LOG_DEBUG, "received acknowledgment of seq=%lu", seq);
 			}
 			pthread_mutex_unlock(&(ng->lock));
+
 			np_unbind(np_message_t, o_msg_in, msg_in);
 			np_free(np_message_t, o_msg_in);
 
@@ -525,17 +593,20 @@ void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
 			/* acknowledge part, each hop has to acknowledge the message */
 			// TODO: move this ack after a) a message handler has been found or b) the message has been forwarded
 			np_obj_t* o_ack_msg_out;
+			np_node_t* ack_node;
 			np_message_t* ack_msg_out;
 
 			char* ack_to = jrb_find_str(msg_in->instructions, "_np.ack_to")->val.value.s;
 
 			np_msgproperty_t* ack_prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_ACK);
-			np_node_t* ack_node = np_node_decode_from_str(state->nodes, ack_to);
+			np_obj_t* o_ack_node = np_node_decode_from_str(state->nodes, ack_to);
+
+			np_bind(np_node_t, o_ack_node, ack_node);
 
 			np_new(np_message_t, o_ack_msg_out)
 			np_bind(np_message_t, o_ack_msg_out, ack_msg_out);
 
-			np_message_create(ack_msg_out, ack_node->key, state->neuropil->me->key, NP_MSG_ACK, NULL);
+			np_message_create(ack_msg_out, ack_node->key, state->neuropil->my_key, NP_MSG_ACK, NULL);
 			/* create network header */
 			jrb_insert_str(ack_msg_out->instructions, "_np.ack", new_jval_ui(ack_prop->ack_mode));
 			jrb_insert_str(ack_msg_out->instructions, "_np.seq", new_jval_ul(seq));
@@ -543,9 +614,10 @@ void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
 			if (ack == 1 && state->joined_network && np_node_check_address_validity(ack_node)) {
 				job_submit_msg_event(state->jobq, ack_prop, ack_node->key, o_ack_msg_out);
 			}
-
 			np_unbind(np_message_t, o_ack_msg_out, ack_msg_out);
 			np_free(np_message_t, o_ack_msg_out);
+
+			np_unbind(np_node_t, o_ack_node, ack_node);
 			// user space acknowledgement handled later, also for join messages
 		}
 
@@ -560,6 +632,7 @@ void np_network_read(np_state_t* np_state, np_jobargs_t* args) {
 
 	np_unbind(np_message_t, o_msg_in, msg_in);
 	np_free(np_message_t, o_msg_in);
+
 	// schedule new network read event
 	job_submit_event(state->jobq, np_network_read);
 }
@@ -574,32 +647,44 @@ void np_send_rowinfo (np_state_t* state, np_jobargs_t* args)
     np_obj_t* o_msg_out;
 	np_message_t* msg_out;
 
-    // check for correct target
-	np_node_t* targetNode = np_node_lookup(state->nodes, args->target, 0);
+	np_obj_t* o_target_node;
+	np_node_t* target_node;
+	np_jrb_t* msg_body;
+	np_key_t** rowinfo;
+
+	// check for correct target
+	LOCK_CACHE(state->nodes) {
+		o_target_node = np_node_lookup(state->nodes, args->target, 0);
+		np_bind(np_node_t, o_target_node, target_node);
+	}
+
+	log_msg(LOG_INFO, "job submit route row info to %s:%d!", target_node->dns_name, target_node->port);
+    np_key_t* target_key = target_node->key;
+    np_unbind(np_node_t, o_target_node, target_node);
 
     /* send one row of our routing table back to joiner #host# */
-    np_node_t** rowinfo = route_row_lookup (state->routes, targetNode->key);
+    rowinfo = route_row_lookup (state, target_key);
 
-    np_jrb_t* msg_body = make_jrb();
-    np_encode_nodes_to_jrb(msg_body, rowinfo);
-    np_msgproperty_t* outprop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_PIGGY_REQUEST);
+    msg_body = make_jrb();
+    LOCK_CACHE(state->nodes) {
+		// TODO: maybe locking the cache is not enough and we have to do it more fine grained
+		np_encode_nodes_to_jrb(state->nodes, msg_body, rowinfo);
+	}
+	np_msgproperty_t* outprop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_PIGGY_REQUEST);
 
     np_new(np_message_t, o_msg_out);
 	np_bind(np_message_t, o_msg_out, msg_out);
 
-	np_message_create (msg_out, targetNode->key, state->neuropil->me->key, NP_MSG_PIGGY_REQUEST, msg_body);
-    job_submit_msg_event(state->jobq, outprop, targetNode->key, o_msg_out);
+	np_message_create (msg_out, target_key, state->neuropil->my_key, NP_MSG_PIGGY_REQUEST, msg_body);
+    job_submit_msg_event(state->jobq, outprop, target_key, o_msg_out);
 
     np_unbind(np_message_t, o_msg_out, msg_out);
     // np_unref(np_message_t, o_msg_out);
-
-    log_msg(LOG_INFO, "job submit route row info to %s:%d!", targetNode->dns_name, targetNode->port);
-
-	//			np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_PIGGY_REQUEST);
-	//			np_new(np_message_t, o_msg_out);
-	//			np_message_create(o_msg_out, leafset[i]->key, chglob->me->key, NP_MSG_PIGGY_REQUEST, leaf_data);
-	//			job_submit_msg_event(state->jobq, prop, leafset[i]->key, o_msg_out);
-	//			np_unref(np_message_t, o_msg_out);
+	// np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_PIGGY_REQUEST);
+	// np_new(np_message_t, o_msg_out);
+	// np_message_create(o_msg_out, leafset[i]->key, chglob->me->key, NP_MSG_PIGGY_REQUEST, leaf_data);
+	// job_submit_msg_event(state->jobq, prop, leafset[i]->key, o_msg_out);
+	// np_unref(np_message_t, o_msg_out);
 
     free (rowinfo);
 }
@@ -617,7 +702,7 @@ void np_send_msg_interest(const np_state_t* state, np_msginterest_t* interest) {
 	np_new(np_message_t, o_msg_out);
 	np_bind(np_message_t, o_msg_out, msg_out);
 
-	np_message_create(msg_out, target, state->neuropil->me->key, NP_MSG_INTEREST, interest_data);
+	np_message_create(msg_out, target, state->neuropil->my_key, NP_MSG_INTEREST, interest_data);
 	// send interest
 	np_msgproperty_t* prop_route = np_message_get_handler(state->messages, TRANSFORM, ROUTE_LOOKUP);
 	job_submit_msg_event(state->jobq, prop_route, target, o_msg_out);
@@ -638,7 +723,7 @@ void np_send_msg_availability(const np_state_t* state, np_msginterest_t* availab
 	np_new(np_message_t, o_msg_out);
 	np_bind(np_message_t, o_msg_out, msg_out);
 
-	np_message_create(msg_out, target, state->neuropil->me->key, NP_MSG_AVAILABLE, available_data);
+	np_message_create(msg_out, target, state->neuropil->my_key, NP_MSG_AVAILABLE, available_data);
 	// send message availability
 	np_msgproperty_t* prop_route = np_message_get_handler(state->messages, TRANSFORM, ROUTE_LOOKUP);
 	job_submit_msg_event(state->jobq, prop_route, target, o_msg_out);

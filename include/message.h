@@ -27,16 +27,17 @@ struct np_message_s {
 	np_jrb_t* footer;
 };
 
-/** message_create / free:
- ** creates the message to the destination #dest# the message format would be like:
- ** deletes the message and corresponding structures
- **/
-void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_jrb_t* the_data);
 /*
  * creation cleanup methods for messages / called internally by np_memory_h
  */
 void np_message_t_new(void* msg);
 void np_message_t_del(void* msg);
+
+/** message_create / free:
+ ** creates the message to the destination #dest# the message format would be like:
+ ** deletes the message and corresponding structures
+ **/
+void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_jrb_t* the_data);
 
 // encrypt / decrypt parts of a message
 int np_message_decrypt_part(np_jrb_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);

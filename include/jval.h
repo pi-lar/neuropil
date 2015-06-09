@@ -64,7 +64,8 @@ enum {
     void_type,
     bin_type,
 	jrb_tree_type,  // 20
-	key_type
+	key_type,
+	npobj_type
 } np_jvaltype_t;
 
 /* The Jval -- a type that can hold any 8-byte type */
@@ -91,6 +92,7 @@ typedef union jval
     void* bin;
     np_jrb_t* tree;
     np_key_t* key;
+    np_obj_t* obj;
 } jval;
 
 typedef struct np_jval_s {
@@ -119,6 +121,7 @@ extern np_jval_t new_jval_carray_nnt (char *);	/* Carray is not null terminated 
        /* For ucarray -- use carray, because it uses memcpy */
 extern np_jval_t new_jval_tree(np_jrb_t* tree);
 extern np_jval_t new_jval_key(np_key_t* key);
+extern np_jval_t new_jval_obj(np_obj_t* key);
 
 extern np_jval_t JNULL;
 

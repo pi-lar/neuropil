@@ -27,7 +27,6 @@
 #include "node.h"
 #include "network.h"
 #include "jval.h"
-#include "threads.h"
 #include "route.h"
 #include "job_queue.h"
 #include "np_dendrit.h"
@@ -83,13 +82,15 @@ np_msgproperty_t np_internal_messages[] =
 	{ NP_MSG_HANDSHAKE, INBOUND, ONE_WAY, 5, ACK_NONE, 0, "", hnd_msg_in_handshake },
 	{ NP_MSG_HANDSHAKE, OUTBOUND, ONE_WAY, 5, ACK_NONE, 0, "", hnd_msg_out_handshake },
 
+	// we don't need to ack the ack the ack the ack ...
 	{ NP_MSG_ACK, INBOUND, ONE_WAY, 5, ACK_NONE, 0, "", NULL }, // incoming ack handled in network layer, not required
 	{ NP_MSG_ACK, OUTBOUND, ONE_WAY, 5, ACK_NONE, 0, "", hnd_msg_out_ack },
 
-	{ NP_MSG_PING_REQUEST, INBOUND, REQ_REP, 5, ACK_EACHHOP, 5, "", hnd_msg_in_ping },
-	{ NP_MSG_PING_REPLY, INBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "", hnd_msg_in_pingreply },
-	{ NP_MSG_PING_REQUEST, OUTBOUND, REQ_REP, 5, ACK_EACHHOP, 5, "", hnd_msg_out_send },
-	{ NP_MSG_PING_REPLY, OUTBOUND, ONE_WAY, 5, ACK_EACHHOP, 5, "", hnd_msg_out_send },
+	// ping is send directly to the destination host, no ack required
+	{ NP_MSG_PING_REQUEST, INBOUND, REQ_REP, 5, ACK_NONE, 5, "", hnd_msg_in_ping },
+	{ NP_MSG_PING_REPLY, INBOUND, ONE_WAY, 5, ACK_NONE, 5, "", hnd_msg_in_pingreply },
+	{ NP_MSG_PING_REQUEST, OUTBOUND, REQ_REP, 5, ACK_NONE, 5, "", hnd_msg_out_send },
+	{ NP_MSG_PING_REPLY, OUTBOUND, ONE_WAY, 5, ACK_NONE, 5, "", hnd_msg_out_send },
 
 	// join request: node unknown yet, therefore send without ack, explicit ack handling via extra messages
 	{ NP_MSG_JOIN_REQUEST, INBOUND, REQ_REP, 5, ACK_DESTINATION, 5, "C", hnd_msg_in_join_req }, // just for controller ?
@@ -228,6 +229,7 @@ void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const ch
 {
 	// np_message_t* new_msg;
 	// np_bind(np_message_t, msg, new_msg);
+	// log_msg(LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
 	jrb_insert_str(msg->header, NP_MSG_HEADER_SUBJECT,  new_jval_s((char*) subject));
 	jrb_insert_str(msg->header, NP_MSG_HEADER_TO,  new_jval_s((char*) key_get_as_string(to)));
@@ -613,10 +615,10 @@ np_msginterest_t* np_message_create_interest(const np_state_t* state, const char
 
 	np_msginterest_t* tmp = (np_msginterest_t*) malloc(sizeof(np_msginterest_t));
 	tmp->msg_subject = strndup(subject, 255);
-	tmp->key = state->neuropil->me->key;
 	tmp->msg_type = msg_type;
 	tmp->msg_seqnum = seqnum;
 	tmp->msg_threshold = threshold;
+	tmp->key = state->neuropil->my_key;
 
 	tmp->send_ack = 1;
 
@@ -642,13 +644,15 @@ np_obj_t* np_msgcache_pop(np_msginterest_t* x) {
 	np_obj_t* ret = NULL;
 	pthread_mutex_lock(&x->lock);
 	if ( (x->msg_cache_size > 0) && x->msg_cache_first) {
-		np_msgcache_t* tmp = x->msg_cache_first;
 
-		if (NULL != x->msg_cache_first) x->msg_cache_first = x->msg_cache_first->next;
-		if (NULL == x->msg_cache_first) x->msg_cache_last = NULL;
+		np_msgcache_t* tmp = x->msg_cache_first;
+		ret = tmp->payload;
+
+		x->msg_cache_first = x->msg_cache_first->next;
+		if (x->msg_cache_last && (x->msg_cache_last == x->msg_cache_first))
+			x->msg_cache_last = NULL;
 		x->msg_cache_size--;
 
-		ret = tmp->payload;
 		free (tmp);
 	}
 	pthread_mutex_unlock(&x->lock);
@@ -662,10 +666,10 @@ void np_msgcache_push(np_msginterest_t* x, np_obj_t* y) {
 	new_msg->payload = y;
 	new_msg->next = NULL;
 
-	if (NULL == x->msg_cache_first) x->msg_cache_first = new_msg;
-	if (NULL != x->msg_cache_last)  x->msg_cache_last->next = new_msg;
-
+	if (!x->msg_cache_first) x->msg_cache_first = new_msg;
+	if (x->msg_cache_last)  x->msg_cache_last->next = new_msg;
 	x->msg_cache_last = new_msg;
+
 	x->msg_cache_size++;
 	pthread_mutex_unlock(&x->lock);
 }
@@ -681,7 +685,6 @@ np_msginterest_t* np_message_interest_update(np_messageglobal_t *mg, np_msginter
 	np_jrb_t* tmp_source = jrb_find_str(mg->interest_sources, interest->msg_subject);
 	if (tmp_source != NULL) {
 		np_msginterest_t* tmp = tmp_source->val.value.v;
-		/* if (0 == interest->msg_seqnum) */
 		available = tmp;
 		// if ((tmp->msg_seqnum - tmp->msg_threshold) <= interest->msg_seqnum) available = tmp;
 	} else {

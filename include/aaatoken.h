@@ -12,6 +12,7 @@
 
 #include "sodium.h"
 
+#include "np_memory.h"
 #include "include.h"
 #include "key.h"
 
@@ -26,9 +27,7 @@ struct np_aaatoken_cache_s {
 	np_jrb_t* authorization_token;
 	np_jrb_t* accounting_token;
 
-	pthread_mutex_t aaa_account_mutex;	/* for future security enhancement */
-	pthread_mutex_t aaa_authorize_mutex;	/* for future security enhancement */
-	pthread_mutex_t aaa_authenticate_mutex;	/* for future security enhancement */
+	pthread_mutex_t lock;	/* for future security enhancement */
 };
 
 // we use np_aaatoken_t for authorization, authentication and accounting purposes
@@ -46,11 +45,10 @@ struct np_aaatoken_s {
 	double issued_at;
 	double not_before;
 	double expiration;
+	int valid;
 
 	np_key_t* token_id;
 	uuid_t uuid;
-
-	int valid;
 
 	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
@@ -58,24 +56,20 @@ struct np_aaatoken_s {
 
 	np_jrb_t* extensions;
 
-	// reference counter
-    int ref_count;
     np_aaatoken_cache_t* cache;
 };
 
 np_aaatoken_cache_t* np_init_aaa_cache();
 
-np_aaatoken_t* np_aaatoken_create();
-void np_aaatoken_retain (np_aaatoken_t* cache);
-void np_aaatoken_release (np_aaatoken_t* cache);
+_NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
 
-void np_free_aaatoken(np_aaatoken_cache_t* cache, const np_aaatoken_t* token);
-void np_register_authorization_token(np_aaatoken_cache_t* cache, const np_aaatoken_t* token, np_key_t* key);
-void np_register_authentication_token(np_aaatoken_cache_t* cache, const np_aaatoken_t* token, np_key_t* key);
-void np_register_accounting_token(np_aaatoken_cache_t* cache, const np_aaatoken_t* token, np_key_t* key);
+void np_free_aaatoken(np_aaatoken_cache_t* cache, np_obj_t* token);
+void np_register_authorization_token(np_aaatoken_cache_t* cache, np_obj_t* token, np_key_t* key);
+void np_register_authentication_token(np_aaatoken_cache_t* cache, np_obj_t* token, np_key_t* key);
+void np_register_accounting_token(np_aaatoken_cache_t* cache, np_obj_t* token, np_key_t* key);
 
-np_aaatoken_t* np_get_authorization_token(np_aaatoken_cache_t* cache, np_key_t* key);
-np_aaatoken_t* np_get_authentication_token(np_aaatoken_cache_t* cache, np_key_t* key);
-np_aaatoken_t* np_get_accounting_token(np_aaatoken_cache_t* cache, np_key_t* key);
+np_obj_t* np_get_authorization_token(np_aaatoken_cache_t* cache, np_key_t* key);
+np_obj_t* np_get_authentication_token(np_aaatoken_cache_t* cache, np_key_t* key);
+np_obj_t* np_get_accounting_token(np_aaatoken_cache_t* cache, np_key_t* key);
 
 #endif // _NP_AAATOKEN_H_

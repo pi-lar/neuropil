@@ -21,15 +21,16 @@
 
 #include "network.h"
 
-#include "neuropil.h"
 #include "aaatoken.h"
+#include "dtime.h"
 #include "job_queue.h"
-#include "node.h"
 #include "jrb.h"
+#include "key.h"
 #include "log.h"
 #include "message.h"
-#include "dtime.h"
-#include "key.h"
+#include "neuropil.h"
+#include "node.h"
+#include "np_threads.h"
 
 extern int errno;
 #define SEND_SIZE NETWORK_PACK_SIZE
@@ -112,26 +113,25 @@ int network_send_udp (np_state_t* state, np_node_t *node, np_message_t* msg)
 	struct sockaddr_in to;
 	int ret;
 
-	// np_message_t* msg;
-	// np_bind(np_message_t, message, msg);
-
 	// get encryption details
-	np_aaatoken_t* node_auth_token = np_get_authentication_token(state->aaa_cache, node->key);
+	np_obj_t* o_auth_token;
+	np_aaatoken_t* auth_token;
 
-	if (!node_auth_token || !node_auth_token->valid)
-	{	// send out our own handshake data
-		log_msg(LOG_INFO, "requesting a new handshake with %s:%i (%s)",
-						  node->dns_name, node->port, key_get_as_string(node->key));
+	LOCK_CACHE(state->aaa_cache) {
+		o_auth_token = np_get_authentication_token(state->aaa_cache, node->key);
+		np_bind(np_aaatoken_t, o_auth_token, auth_token);
+	}
+
+	if (!auth_token->valid) {
 		np_msgproperty_t* msg_prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_HANDSHAKE);
 
-		pthread_mutex_lock(&(node->node_tree->lock));
 		if (node->handshake_status < HANDSHAKE_INITIALIZED) {
 			node->handshake_status = HANDSHAKE_INITIALIZED;
+			log_msg(LOG_INFO, "requesting a new handshake with %s:%i (%s)",
+							  node->dns_name, node->port, key_get_as_string(node->key));
 			job_submit_msg_event(state->jobq, msg_prop, node->key, NULL);
 		}
-		pthread_mutex_unlock(&(node->node_tree->lock));
-
-		// np_unbind(np_message_t, message, msg);
+		np_unbind(np_aaatoken_t, o_auth_token, auth_token);
 		return 0;
 	}
 
@@ -154,13 +154,14 @@ int network_send_udp (np_state_t* state, np_node_t *node, np_message_t* msg)
 								(const unsigned char*) send_buffer,
 								send_buf_len,
 								nonce,
-								node_auth_token->session_key);
+								auth_token->session_key);
+	np_unbind(np_aaatoken_t, o_auth_token, auth_token);
+
 	if (ret != 0)
 	{
 		log_msg(LOG_WARN,
 				"incorrect encryption of message (not sending to %s:%d)",
 				node->dns_name, node->port);
-		// np_unbind(np_message_t, message, msg);
 		return 0;
 	}
 
@@ -184,12 +185,10 @@ int network_send_udp (np_state_t* state, np_node_t *node, np_message_t* msg)
 
 	if (ret < 0) {
 		log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
-		// np_unbind(np_message_t, message, msg);
 		return 0;
 	} else {
 		// log_msg (LOG_NETWORKDEBUG, "sent message");
 	}
-	// np_unbind(np_message_t, message, msg);
 	return 1;
 }
 
@@ -242,10 +241,8 @@ np_networkglobal_t* network_init (int port)
 
     ng->sock = sd;
     ng->waiting = make_jrb();
-    ng->seqstart = 0LU;
     ng->seqend = 0LU;
 	ng->retransmit = make_jrb();
-	ng->handshake_data = make_jrb();
 
 	return ng;
 }

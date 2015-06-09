@@ -15,13 +15,12 @@
 
 struct np_state_s {
 
-	np_global_t* neuropil;
-
-    np_nodecache_t* nodes;
-    struct np_routeglobal_t* routes;
-    np_messageglobal_t* messages;
-    np_networkglobal_t* network;
-    struct np_joblist_t* jobq;
+	np_global_t*         neuropil;
+    np_nodecache_t*      nodes;
+    np_routeglobal_t*    routes;
+    np_messageglobal_t*  messages;
+    np_networkglobal_t*  network;
+    np_joblist_t*        jobq;
     np_aaatoken_cache_t* aaa_cache;
 
     int joined_network;
@@ -33,8 +32,9 @@ struct np_state_s {
 
 struct np_global_s {
 
-	np_node_t *me;
-	np_node_t *bootstrap;
+	np_obj_t  *me;
+	np_key_t  *my_key;
+	// np_obj_t *bootstrap;
 
 	void *join;	/* semaphore */
 

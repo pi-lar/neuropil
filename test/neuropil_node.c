@@ -67,17 +67,8 @@ int main(int argc, char **argv) {
 	int opt;
 	char *hn = NULL;
 	int port, joinport;
-	// np_node_t *join = NULL;
-	// char tmp[256];
 	int i;
-	// np_message_t *hello;
-	// char dest[16];
-	// char msg[200];
-	// char m[200];
-	// np_node_t ch;
-	// double wtime;
 	int type;
-	// int x;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
 		switch ((char) opt) {
@@ -109,55 +100,13 @@ int main(int argc, char **argv) {
 
 	state = np_init(port);
 
-	// chimera_forward(state, forward);
-	// chimera_deliver(state, deliver);
-	// chimera_register(state, 20, 1);
-	// chimera_register(state, 21, 1);
-	// chimera_register(state, 22, 1);
-	// chimera_register(state, 23, 1);
-
-	// np_msgproperty_t* prop = (np_msgproperty_t*) malloc(sizeof(np_msgproperty_t));
-	// {"_NEUROPIL.BOOTSTRAP.REQUEST.TO.JOIN.NETWORK", "in", 1, 4, 0, "%s %s", init };
-//	prop->msg_subject = "SOME.SILLY.MESSAGE";
-//	prop->msg_mode = 1;
-//	prop->priority = 4;
-//	prop->ack_mode = 1;
-//	prop->retry = 0;
-//	prop->msg_format = "%s %s";
-//	prop->msg_handler = init;
-
-	// log_msg(LOG_DEBUG, "registering additional user msg handlers %s", prop->msg_subject);
-	// np_message_register_handler(state->messages, prop);
-
-	// load_destinations();
-	// driver = host_get(state, "marrow", 11110);
-
-	// if (join != NULL ) {
-	// 	chimera_join(state, join);
-	// 	sprintf(tmp, "%d %s joining with %s:%d", port, key.keystr, hn, joinport);
-	// } else {
-	// 	sprintf(tmp, "%d %s starting system", port, key.keystr, hn, joinport);
-	// }
-	// hello = message_create(driver->key, PYMERA_CONTACT_BOOTSTRAP, strlen(tmp) + 1, tmp);
-	// message_send(state, driver, hello, TRUE);
-	// free(hello);
-
-	// dsleep(50);
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(state, 8);
+
 	np_waitforjoin(state);
 
-	// unsigned long k = 1;
 	while (1) {
-
 		dsleep(0.1);
-		// char* testdata;
-
-		// np_send(state, "this.is.a.test", "testdata", k);
-		// np_receive(state, "this.is.a.test", &testdata, k, 1);
-		// log_msg(LOG_DEBUG, "send message %lu: %s", k, testdata);
-
-		// k++;
 	}
 	// pthread_exit(NULL);
 }

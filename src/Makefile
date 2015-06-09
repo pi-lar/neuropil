@@ -84,7 +84,7 @@ VERSION = 1.4
 
 lib_LIBRARIES = libneuropil.a
 libneuropil_a_SOURCES = neuropil.c network.c message.c log.c jrb.c jval.c key.c \
-                       route.c node.c dllist.c job_queue.c dtime.c semaphore.c threads.c \
+                       route.c node.c dllist.c job_queue.c dtime.c semaphore.c \
                        np_dendrit.c np_axon.c np_glia.c aaatoken.c cmp.c np_util.c
 
 
@@ -103,7 +103,7 @@ libneuropil_a_LIBADD =
 libneuropil_a_OBJECTS =  neuropil.$(OBJEXT) network.$(OBJEXT) \
 message.$(OBJEXT) log.$(OBJEXT) jrb.$(OBJEXT) jval.$(OBJEXT) \
 key.$(OBJEXT) route.$(OBJEXT) node.$(OBJEXT) dllist.$(OBJEXT) \
-job_queue.$(OBJEXT) dtime.$(OBJEXT) semaphore.$(OBJEXT) threads.$(OBJEXT) \
+job_queue.$(OBJEXT) dtime.$(OBJEXT) semaphore.$(OBJEXT) \
 np_axon.$(OBJEXT) np_dendrit.$(OBJEXT) np_glia.$(OBJEXT) aaatoken.$(OBJEXT) cmp.$(OBJEXT) np_util.$(OBJEXT)
 CFLAGS = -g -Wall -O2 -std=c99
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -119,7 +119,7 @@ TAR = gtar
 GZIP_ENV = --best
 DEP_FILES =  .deps/neuropil.P .deps/dllist.P .deps/dtime.P .deps/node.P \
 .deps/job_queue.P .deps/jrb.P .deps/jval.P .deps/key.P .deps/log.P \
-.deps/message.P .deps/network.P .deps/route.P .deps/semaphore.P .deps/threads.P \
+.deps/message.P .deps/network.P .deps/route.P .deps/semaphore.P \
 .deps/np_glia.P .deps/np_axon.P .deps/np_dendrit.P .deps/aaatoken.P .deps/cmp.P .deps/np_util.P
 SOURCES = $(libneuropil_a_SOURCES)
 OBJECTS = $(libneuropil_a_OBJECTS)

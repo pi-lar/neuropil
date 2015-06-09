@@ -344,13 +344,12 @@ void key_midpoint (np_key_t* mid, np_key_t* key)
     mid->valid = 0;
 }
 
-
 int key_index (np_key_t* mykey, np_key_t* k)
 {
     int max_len, i;
     unsigned char mystr[65];
     unsigned char kstr[65];
-    max_len = KEY_SIZE / BASE_B;
+    max_len = 64;
     memcpy (mystr, key_get_as_string (mykey), 64);
     memcpy (kstr, key_get_as_string (k), 64);
 
@@ -361,6 +360,117 @@ int key_index (np_key_t* mykey, np_key_t* k)
     // log_msg (LOG_KEYDEBUG, "key_index:%d me:%s lookup_key:%s", i, mykey->keystr, k->keystr);
     return (i);
 }
+
+/** find_closest_key:
+ ** finds the closest node in the array of #hosts# to #key# and put that in min.
+ */
+np_key_t* find_closest_key (np_key_t** list_of_keys, np_key_t* key, int size)
+{
+    int i;
+    np_key_t dif, mindif;
+    np_key_t *min;
+
+    if (size == 0)
+	{
+	    min = NULL;
+	    // return;
+	    // modified StSw 18.05.2014
+	    log_msg(LOG_ERROR, "minimum size for closest key calculation not met !");
+	    // return min;
+	}
+    else
+	{
+	    min = list_of_keys[0];
+	    key_distance (&mindif, list_of_keys[0], key);
+	}
+
+    for (i = 0; i < size; i++)
+	{
+	    if (list_of_keys[i] != NULL)
+		{
+		    key_distance (&dif, list_of_keys[i], key);
+
+		    if (key_comp (&dif, &mindif) < 0)
+			{
+			    min = list_of_keys[i];
+			    key_assign (&mindif, &dif);
+			}
+		}
+	}
+
+    return (min);
+}
+
+/** sort_hosts:
+ ** Sorts #hosts# based on common prefix match and key distance from #np_key_t*
+ */
+void sort_keys_cpm (np_key_t** node_keys, np_key_t* key, int size)
+{
+    int i, j;
+    np_key_t* tmp;
+    np_key_t dif1, dif2;
+
+    int pmatch1 = 0;
+    int pmatch2 = 0;
+
+    for (i = 0; i < size; i++)
+	{
+	    for (j = i + 1; j < size; j++)
+		{
+		    if (node_keys[i] != NULL && node_keys[j] != NULL)
+			{
+			    pmatch1 = key_index (key, node_keys[i]);
+			    pmatch2 = key_index (key, node_keys[j]);
+			    if (pmatch2 > pmatch1)
+				{
+				    tmp = node_keys[i];
+				    node_keys[i] = node_keys[j];
+				    node_keys[j] = tmp;
+				}
+			    else if (pmatch1 == pmatch2)
+				{
+				    key_distance (&dif1, node_keys[i], key);
+				    key_distance (&dif2, node_keys[j], key);
+				    if (key_comp (&dif2, &dif1) < 0)
+					{
+					    tmp = node_keys[i];
+					    node_keys[i] = node_keys[j];
+					    node_keys[j] = tmp;
+					}
+				}
+			}
+		}
+	}
+}
+
+/** sort_hosts_key:
+ ** Sorts #hosts# based on their key distance from #np_key_t*
+ */
+void sort_keys_kd (np_key_t** hosts, np_key_t* key, int size)
+{
+    int i, j;
+    np_key_t*tmp;
+    np_key_t dif1, dif2;
+
+    for (i = 0; i < size; i++)
+	{
+	    for (j = i + 1; j < size; j++)
+		{
+		    if (hosts[i] != NULL && hosts[j] != NULL)
+			{
+			    key_distance (&dif1, hosts[i], key);
+			    key_distance (&dif2, hosts[j], key);
+			    if (key_comp (&dif2, &dif1) < 0)
+				{
+				    tmp = hosts[i];
+				    hosts[i] = hosts[j];
+				    hosts[j] = tmp;
+				}
+			}
+		}
+	}
+}
+
 
 int power (int base, int n)
 {

@@ -7,22 +7,23 @@
 #include <arpa/inet.h>
 #include <sys/select.h>
 
+#include "sodium.h"
+
 #include "np_axon.h"
 
-#include "np_util.h"
-#include "np_util.h"
 #include "aaatoken.h"
+#include "dtime.h"
 #include "include.h"
-#include "sodium.h"
-#include "route.h"
 #include "job_queue.h"
-#include "message.h"
+#include "jrb.h"
+#include "log.h"
 #include "network.h"
 #include "neuropil.h"
 #include "node.h"
-#include "jrb.h"
-#include "dtime.h"
-#include "log.h"
+#include "np_util.h"
+#include "np_threads.h"
+#include "message.h"
+#include "route.h"
 
 // #define SEND_SIZE NETWORK_PACK_SIZE
 
@@ -33,18 +34,23 @@
 void hnd_msg_out_ack(np_state_t* state, np_jobargs_t* args) {
 
 	np_message_t* msg;
+	np_obj_t* o_target_node;
+	np_node_t* target_node;
 
-	np_node_t* target_node = np_node_lookup(state->nodes, args->target, 0);
+	LOCK_CACHE(state->nodes) {
+		o_target_node = np_node_lookup(state->nodes, args->target, 0);
+		np_bind(np_node_t, o_target_node, target_node);
+	}
 	np_bind(np_message_t, args->msg, msg);
 
 	int ret = network_send_udp(state, target_node, msg);
-	if (ret == 0) {
-		np_node_update_stat(target_node, 0);
-	} else {
-		np_node_update_stat(target_node, 1);
-	}
+	// ret is 1 or 0
+	// np_node_update_stat(target_node, ret);
+
 	np_unbind(np_message_t, args->msg, msg);
 	np_free(np_message_t, args->msg);
+
+	np_unbind(np_node_t, o_target_node, target_node);
 }
 
 /**
@@ -54,12 +60,15 @@ void hnd_msg_out_ack(np_state_t* state, np_jobargs_t* args) {
 void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 
 	uint32_t seq;
-	np_message_t* msg;
+	np_message_t* msg_out;
+
+	np_obj_t*  o_target_node;
 	np_node_t* target_node;
+
 	np_jrb_t *jrb_node;
 	np_jrb_t *priqueue;
 
-	np_bind(np_message_t, args->msg, msg);
+	np_bind(np_message_t, args->msg, msg_out);
 
 	double start;
 	int parts = 1;
@@ -69,56 +78,56 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 
 	// TODO: check if the node is really useful.
 	// for now: assume a node really exists and is not only a "key"
-	if (prop->ack_mode != ACK_EACHHOP && prop->ack_mode != ACK_DESTINATION) {
-		log_msg(LOG_ERROR, "FAILED, unexpected message ack property %i !", prop->ack_mode);
-		np_unbind(np_message_t, args->msg, msg);
-		np_free(np_message_t, args->msg);
-		return;
-	}
+//	if (prop->ack_mode != ACK_EACHHOP && prop->ack_mode != ACK_DESTINATION) {
+//		log_msg(LOG_ERROR, "FAILED, unexpected message ack property %i !", prop->ack_mode);
+//		np_unbind(np_message_t, args->msg, msg_out);
+//		np_free(np_message_t, args->msg);
+//		return;
+//	}
 
 	pthread_mutex_lock(&(network->lock));
 
-	/* TODO needs to be fixed to modplus */
 	/* create network header */
-	if (!jrb_find_str(msg->instructions, "_np.ack"))
-		jrb_insert_str(msg->instructions, "_np.ack", new_jval_ui(prop->ack_mode));
+	if (!jrb_find_str(msg_out->instructions, "_np.ack"))
+		jrb_insert_str(msg_out->instructions, "_np.ack", new_jval_ui(prop->ack_mode));
 
 	if (prop->ack_mode != ACK_NONE) {
-		unsigned char* ack_to_str = key_get_as_string(state->neuropil->me->key);
-		jrb_insert_str(msg->instructions, "_np.ack_to", new_jval_s((char*) ack_to_str));
+		unsigned char* ack_to_str = key_get_as_string(state->routes->me);
+		jrb_insert_str(msg_out->instructions, "_np.ack_to", new_jval_s((char*) ack_to_str));
 	}
 
 	/* get sequence number to initialize acknowledgement indicator */
-	if (!jrb_find_str(msg->instructions, "_np.seq")) {
+	if (!jrb_find_str(msg_out->instructions, "_np.seq")) {
 		seq = network->seqend;
-		jrb_insert_str(msg->instructions, "_np.seq", new_jval_ul(seq));
+		jrb_insert_str(msg_out->instructions, "_np.seq", new_jval_ul(seq));
 		network->seqend++;
 	} else {
-		seq = jrb_find_str(msg->instructions, "_np.seq")->val.value.ul;
+		seq = jrb_find_str(msg_out->instructions, "_np.seq")->val.value.ul;
 	}
 
-	if (!jrb_find_str(msg->instructions, "_np.resend_count"))
-		jrb_insert_str(msg->instructions, "_np.resend_count", new_jval_ui(0));
+	if (!jrb_find_str(msg_out->instructions, "_np.resend_count"))
+		jrb_insert_str(msg_out->instructions, "_np.resend_count", new_jval_ui(0));
 
 	if (prop->ack_mode > 0) {
 		np_ackentry_t *ackentry = get_new_ackentry();
 		jrb_node = jrb_insert_ulong(network->waiting, seq, new_jval_v(ackentry));
-		target_node = np_node_lookup(state->nodes, args->target, 1);
-	} else {
-		target_node = np_node_lookup(state->nodes, args->target, 0);
 	}
 	pthread_mutex_unlock(&(network->lock));
 
+	LOCK_CACHE(state->nodes) {
+		o_target_node = np_node_lookup(state->nodes, args->target, 0);
+		np_bind(np_node_t, o_target_node, target_node);
+	}
 	// message part split-up informations
-	if (!jrb_find_str(msg->instructions, "_np.part"))
-		jrb_insert_str(msg->instructions, "_np.part", new_jval_ui(parts));
+	if (!jrb_find_str(msg_out->instructions, "_np.part"))
+		jrb_insert_str(msg_out->instructions, "_np.part", new_jval_ui(parts));
 
 	start = dtime();
-	if (prop->ack_mode > 0) {
+	if (prop->ack_mode > ACK_NONE) {
 		// insert a record into the priority queue with the following information:
 		// key: starttime + next retransmit time
 		// other info: destination host, seq num, data, data size
-		np_jrb_t* jrb_resend = jrb_find_str(msg->instructions, "_np.resend_count");
+		np_jrb_t* jrb_resend = jrb_find_str(msg_out->instructions, "_np.resend_count");
 
 		PQEntry *pqrecord = get_new_pqentry();
 		pqrecord->dest_key = target_node->key;
@@ -127,35 +136,41 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 		pqrecord->seqnum = seq;
 		pqrecord->transmittime = start;
 
-		// if (pqrecord->retry == 0) {
-		np_ref(np_message_t, args->msg);
-		// }
-
 		pthread_mutex_lock(&network->lock);
+		np_ref(np_message_t, args->msg);
+		np_ref(np_node_t, o_target_node);
 		priqueue = jrb_insert_dbl(network->retransmit,
-				(start + RETRANSMIT_INTERVAL), new_jval_v(pqrecord));
+								 (start + RETRANSMIT_INTERVAL), new_jval_v(pqrecord));
 		pthread_mutex_unlock(&network->lock);
 	}
 
-	char* subj = jrb_find_str(msg->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
+	char* subj = jrb_find_str(msg_out->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
 	log_msg(LOG_DEBUG, "message %s (%d) to %s", subj, seq, key_get_as_string(target_node->key));
 
-	int ret = network_send_udp(state, target_node, msg);
-	/*if (ret == 0) {
-		np_node_update_stat(target_node, 0);
-	} else {
-		np_node_update_stat(target_node, 1);
-	}*/
-	np_unbind(np_message_t, args->msg, msg);
+	int ret = network_send_udp(state, target_node, msg_out);
+	// ret is 1 or 0
+	// np_node_update_stat(target_node, ret);
+
+	np_unbind(np_node_t, o_target_node, target_node);
+
+	np_unbind(np_message_t, args->msg, msg_out);
 	np_free(np_message_t, args->msg);
 }
 
 void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
+
 	// log_msg(LOG_DEBUG, "starting to send handshake message");
+	np_node_t* me;
 
+	np_bind(np_node_t, state->neuropil->me, me);
 	// get our identity from the cache
-	np_aaatoken_t* my_id_token = np_get_authentication_token(state->aaa_cache, state->neuropil->me->key);
+	np_obj_t* o_my_id_token;
+	np_aaatoken_t* my_id_token;
 
+	LOCK_CACHE(state->aaa_cache) {
+		o_my_id_token = np_get_authentication_token(state->aaa_cache, me->key);
+		np_bind(np_aaatoken_t, o_my_id_token, my_id_token);
+	}
 	// convert to curve key
 	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
 	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk, my_id_token->private_key);
@@ -166,8 +181,8 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	// create handshake data
 	np_jrb_t* hs_data = make_jrb();
 
-	jrb_insert_str(hs_data, "_np.dns_name", new_jval_s(state->neuropil->me->dns_name));
-	jrb_insert_str(hs_data, "_np.port", new_jval_ui(state->neuropil->me->port));
+	jrb_insert_str(hs_data, "_np.dns_name", new_jval_s(me->dns_name));
+	jrb_insert_str(hs_data, "_np.port", new_jval_ui(me->port));
 	jrb_insert_str(hs_data, "_np.signature_key", new_jval_bin(my_id_token->public_key, crypto_sign_PUBLICKEYBYTES));
 	jrb_insert_str(hs_data, "_np.public_key", new_jval_bin(my_dh_pubkey, crypto_scalarmult_BYTES));
 	jrb_insert_str(hs_data, "_np.expiration", new_jval_d(my_id_token->expiration));
@@ -190,8 +205,13 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 								   my_id_token->private_key);
 	if (ret < 0) {
 		log_msg(LOG_WARN, "checksum creation failed, not continuing with handshake");
+		np_unbind(np_aaatoken_t, o_my_id_token, my_id_token);
+		np_unbind(np_node_t, state->neuropil->me, me);
 		return;
 	}
+
+	np_unbind(np_aaatoken_t, o_my_id_token, my_id_token);
+	np_unbind(np_node_t, state->neuropil->me, me);
 
 	// create real handshake message ...
 	np_obj_t* hs_msg_obj;
@@ -213,7 +233,12 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	// log_msg(LOG_DEBUG, "serialized handshake message (%p) msg_size %d", hs_msg_ptr, msg_size);
 
 	// construct target address and send it out
-	np_node_t* hs_node = np_node_lookup(state->nodes, args->target, 0);
+	np_node_t* hs_node;
+	np_obj_t* o_hs_node;
+	LOCK_CACHE(state->nodes) {
+		o_hs_node = np_node_lookup(state->nodes, args->target, 0);
+		np_bind(np_node_t, o_hs_node, hs_node);
+	}
 	struct sockaddr_in to;
 	memset(&to, 0, sizeof(to));
 
@@ -233,6 +258,7 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	}
 	pthread_mutex_unlock(&state->network->lock);
 	// log_msg(LOG_DEBUG, "finished to send handshake message");
+	np_unbind(np_node_t, o_hs_node, hs_node);
 
 	np_unbind(np_message_t, hs_msg_obj, hs_message);
 	np_free(np_message_t, hs_msg_obj);

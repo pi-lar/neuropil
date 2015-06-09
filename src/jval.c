@@ -197,6 +197,14 @@ np_jval_t new_jval_tree(np_jrb_t* tree) {
 	return j;
 }
 
+extern np_jval_t new_jval_obj(np_obj_t* obj) {
+	np_jval_t j;
+	j.value.obj = obj;
+	j.size = 0;
+	j.type = npobj_type;
+	return j;
+}
+
 int jval_i (np_jval_t j)
 {
     return j.value.i;

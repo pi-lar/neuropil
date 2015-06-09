@@ -70,17 +70,8 @@ int main(int argc, char **argv) {
 	int opt;
 	char *hn = NULL;
 	int port, joinport;
-	// np_node_t *join = NULL;
-	// char tmp[256];
 	int i;
-	// np_message_t *hello;
-	// char dest[16];
-	// char msg[200];
-	// char m[200];
-	// np_node_t ch;
-	// double wtime;
 	int type;
-	// int x;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
 		switch ((char) opt) {
@@ -113,13 +104,13 @@ int main(int argc, char **argv) {
 	state = np_init(port);
 
 	state->joined_network = 1;
-	state->neuropil->bootstrap = state->neuropil->me;
 
 	// dsleep(50);
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(state, 8);
 
 	np_obj_t* o_msg_out;
+	np_node_t* node, *me;
 	np_message_t* msg_out;
 
 	while (1) {
@@ -138,20 +129,25 @@ int main(int argc, char **argv) {
 		log_msg(LOG_DEBUG, "creating internal structure");
 		np_key_t* key = (np_key_t*) malloc(sizeof(np_key_t));
 		str_to_key(key, skey);
-		np_node_t* node = np_node_lookup(state->nodes, key, 0);
+		np_obj_t* o_node = np_node_lookup(state->nodes, key, 0);
+		np_bind(np_node_t, o_node, node);
 		np_node_update(node, host, atoi(port));
 
 		log_msg(LOG_DEBUG, "creating welcome message");
-		np_jrb_t* me = make_jrb();
-		np_node_encode_to_jrb(me, state->neuropil->me);
-		np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_JOIN_REQUEST);
-
 		np_new(np_message_t, o_msg_out);
 		np_bind(np_message_t, o_msg_out, msg_out);
 
-		np_message_create(msg_out, node->key, state->neuropil->me->key , NP_MSG_JOIN_REQUEST, me);
+		np_bind(np_node_t, state->neuropil->me, me);
+		np_jrb_t* jrb_me = make_jrb();
+		np_node_encode_to_jrb(jrb_me, me);
+		np_message_create(msg_out, node->key, state->neuropil->my_key , NP_MSG_JOIN_REQUEST, jrb_me);
+		np_unbind(np_node_t, state->neuropil->me, me);
+
 		log_msg(LOG_DEBUG, "submitting welcome message");
+		np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_JOIN_REQUEST);
 		job_submit_msg_event(state->jobq, prop, key, o_msg_out);
+
+		np_unbind(np_node_t, o_node, node);
 
 		np_unbind(np_message_t, o_msg_out, msg_out);
 		// np_unref(np_message_t, o_msg_out);

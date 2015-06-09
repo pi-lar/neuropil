@@ -184,6 +184,8 @@ void* job_exec (void* np_state)
 	    	tmp->processorFunc(state, tmp->args);
 	    	if (tmp->args->msg) {
 	    		np_unref(np_message_t, tmp->args->msg);
+	    		// just do a sanity check, it won't hurt :-)
+	    		np_free (np_message_t, tmp->args->msg);
 	    	}
 	    }
 	    if (tmp->type == 2)

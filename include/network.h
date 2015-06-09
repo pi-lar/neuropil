@@ -26,10 +26,7 @@ struct np_networkglobal_s
     np_jrb_t* waiting;
     np_jrb_t* retransmit;
 
-    np_jrb_t* encrypted_msg;
-    np_jrb_t* handshake_data;
-
-    unsigned long seqstart, seqend;
+    unsigned long seqend;
 
 	pthread_attr_t attr;
     pthread_mutex_t lock;
