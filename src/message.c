@@ -18,23 +18,22 @@
 
 #include "sodium.h"
 
-#include "cmp.h"
-
 #include "message.h"
 
-#include "neuropil.h"
-#include "log.h"
-#include "node.h"
-#include "network.h"
-#include "jval.h"
-#include "route.h"
+#include "cmp.h"
 #include "job_queue.h"
-#include "np_dendrit.h"
-#include "np_axon.h"
-#include "np_glia.h"
-#include "np_util.h"
-#include "np_memory.h"
 #include "jrb.h"
+#include "jval.h"
+#include "log.h"
+#include "network.h"
+#include "neuropil.h"
+#include "node.h"
+#include "np_axon.h"
+#include "np_dendrit.h"
+#include "np_glia.h"
+#include "np_memory.h"
+#include "np_util.h"
+#include "np_threads.h"
 
 
 // default message type enumeration
@@ -116,15 +115,15 @@ void np_message_t_new(void* msg) {
 
 	np_message_t* msg_tmp = (np_message_t*) msg;
 
-	msg_tmp->header = make_jrb();
+	msg_tmp->header       = make_jrb();
 	// log_msg(LOG_DEBUG, "header now (%p: %p->%p)", tmp, tmp->header, tmp->header->flink);
-	msg_tmp->properties = make_jrb();
+	msg_tmp->properties   = make_jrb();
 	// log_msg(LOG_DEBUG, "properties now (%p: %p->%p)", tmp, tmp->properties, tmp->properties->flink);
 	msg_tmp->instructions = make_jrb();
 	// log_msg(LOG_DEBUG, "instructions now (%p: %p->%p)", tmp, tmp->instructions, tmp->instructions->flink);
-	msg_tmp->body = make_jrb();
+	msg_tmp->body         = make_jrb();
 	// log_msg(LOG_DEBUG, "body now (%p: %p->%p)", tmp, tmp->body, tmp->body->flink);
-	msg_tmp->footer = make_jrb();
+	msg_tmp->footer       = make_jrb();
 }
 
 // destructor of np_message_t
@@ -196,7 +195,7 @@ int np_message_deserialize(np_message_t* msg, void* buffer) {
 	unsigned int array_size;
 	if (!cmp_read_array(&cmp, &array_size)) return 0;
 	if (array_size != 5) {
-		log_msg(LOG_WARN, "wrong array size when deserializing message");
+		log_msg(LOG_WARN, "unrecognized message length while deserializing message");
 		// np_unbind(np_message_t, obj_msg, msg_tmp);
 		return 0;
 	}
@@ -278,7 +277,7 @@ int np_message_decrypt_part(np_jrb_t* msg_part,
 							unsigned char* secret_key)
 {
 	np_jrb_t* enc_msg_part = jrb_find_str(msg_part, "encrypted");
-	if (!enc_msg_part) {
+	if (NULL == enc_msg_part) {
 		log_msg(LOG_ERROR, "couldn't find encrypted header");
 		return -1;
 	}
@@ -619,59 +618,16 @@ np_msginterest_t* np_message_create_interest(const np_state_t* state, const char
 	tmp->msg_seqnum = seqnum;
 	tmp->msg_threshold = threshold;
 	tmp->key = state->neuropil->my_key;
-
+	// tmp->aaa_token = np_get_authentication_token(state, state->neuropil->my_key);
 	tmp->send_ack = 1;
 
-	tmp->msg_cache_first = NULL;
-	tmp->msg_cache_last = NULL;
-	tmp->msg_cache_size = 0;
+	sll_init(np_obj_t, tmp->msg_cache);
 
 	pthread_mutex_init (&tmp->lock, NULL);
     pthread_cond_init (&tmp->msg_received, &tmp->cond_attr);
     pthread_condattr_setpshared(&tmp->cond_attr, PTHREAD_PROCESS_PRIVATE);
 
     return tmp;
-}
-
-unsigned int np_msgcache_size(np_msginterest_t* x) {
-	pthread_mutex_lock(&x->lock);
-	unsigned int ret = x->msg_cache_size;
-	pthread_mutex_unlock(&x->lock);
-	return ret;
-}
-
-np_obj_t* np_msgcache_pop(np_msginterest_t* x) {
-	np_obj_t* ret = NULL;
-	pthread_mutex_lock(&x->lock);
-	if ( (x->msg_cache_size > 0) && x->msg_cache_first) {
-
-		np_msgcache_t* tmp = x->msg_cache_first;
-		ret = tmp->payload;
-
-		x->msg_cache_first = x->msg_cache_first->next;
-		if (x->msg_cache_last && (x->msg_cache_last == x->msg_cache_first))
-			x->msg_cache_last = NULL;
-		x->msg_cache_size--;
-
-		free (tmp);
-	}
-	pthread_mutex_unlock(&x->lock);
-	return ret;
-}
-
-void np_msgcache_push(np_msginterest_t* x, np_obj_t* y) {
-
-	pthread_mutex_lock(&x->lock);
-	np_msgcache_t* new_msg = (np_msgcache_t*) malloc(sizeof(np_msgcache_t));
-	new_msg->payload = y;
-	new_msg->next = NULL;
-
-	if (!x->msg_cache_first) x->msg_cache_first = new_msg;
-	if (x->msg_cache_last)  x->msg_cache_last->next = new_msg;
-	x->msg_cache_last = new_msg;
-
-	x->msg_cache_size++;
-	pthread_mutex_unlock(&x->lock);
 }
 
 // update internal structure and return a interest if a matching pair has been found
@@ -700,6 +656,7 @@ np_msginterest_t* np_message_interest_update(np_messageglobal_t *mg, np_msginter
 		tmp->msg_type = interest->msg_type;
 		tmp->msg_seqnum = interest->msg_seqnum;
 		tmp->msg_threshold = interest->msg_threshold;
+		tmp->key = interest->key;
 
 	} else {
 		// create
@@ -739,6 +696,7 @@ np_msginterest_t* np_message_available_update(np_messageglobal_t *mg, np_msginte
 		tmp->msg_type = available->msg_type;
 		tmp->msg_seqnum = available->msg_seqnum;
 		tmp->msg_threshold = available->msg_threshold;
+		tmp->key = available->key;
 	} else {
 		log_msg(LOG_DEBUG, "adding a new message source");
 		// create
@@ -783,6 +741,7 @@ np_msginterest_t* np_decode_msg_interest(np_messageglobal_t *mg, np_jrb_t* data 
 
 	np_jrb_t* key = jrb_find_str(data, "_np.mi.key");
 	str_to_key(interest->key, key->val.value.s);
+	// free(key->val.value.s);
 	np_jrb_t* msg_subject = jrb_find_str(data, "_np.mi.msg_subject");
 
 	interest->msg_subject = strndup(msg_subject->val.value.s, 255);
@@ -803,3 +762,4 @@ void np_message_encode_interest(np_jrb_t* data, np_msginterest_t *interest) {
 	jrb_insert_str(data, "_np.mi.msg_seqnum", new_jval_ul(interest->msg_seqnum));
 	jrb_insert_str(data, "_np.mi.msg_threshold", new_jval_i(interest->msg_threshold));
 }
+

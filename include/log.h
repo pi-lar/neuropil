@@ -10,10 +10,14 @@
 #ifndef _NP_LOG_H_
 #define _NP_LOG_H_
 
+#include "np_container.h"
+
 typedef struct np_log_t {
 	char filename[256];
 	FILE *fp;
 	int level;
+	np_sll_t(char, logentries_l);
+    pthread_mutex_t lock;
 } LOG;
 
 LOG* logger;
@@ -28,7 +32,7 @@ enum
     LOG_DEBUG=16,			/* debugging messages (none) */
     LOG_KEYDEBUG=32,		/* debugging messages for key subsystem (none) */
     LOG_NETWORKDEBUG=64,	/* debugging messages for network layer (none) */
-    LOG_ROUTING=128,			/* debugging the routing table (none) */
+    LOG_ROUTING=128,		/* debugging the routing table (none) */
     LOG_SECUREDEBUG=256,	/* for security module (none) */
     LOG_DATA=512,			/* for measurement and analysis (none) */
     LOG_COUNT=1024			/* count of log message types */
@@ -47,6 +51,7 @@ void log_message(int level, const char* srcFile, const char* funcName, int linen
 void log_init (const char* filename, int level);
 void log_destroy ();
 LOG* log_get ();
+void log_fflush();
 
 // void log_msg(int level, char* msg, ...);
 // void log_msg(int type, char *format, ...);

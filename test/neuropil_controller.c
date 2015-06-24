@@ -71,7 +71,6 @@ int main(int argc, char **argv) {
 	char *hn = NULL;
 	int port, joinport;
 	int i;
-	int type;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
 		switch ((char) opt) {
@@ -94,11 +93,11 @@ int main(int argc, char **argv) {
 	}
 
 	port = atoi(argv[optind]);
-	type = atoi(argv[optind + 1]);
 
 	char log_file[256];
 	sprintf(log_file, "%s_%d.log", "./neuropil_controller", port);
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	log_init(log_file, level);
 
 	state = np_init(port);
@@ -127,8 +126,10 @@ int main(int argc, char **argv) {
 		char* port = strtok(NULL, ":");
 
 		log_msg(LOG_DEBUG, "creating internal structure");
-		np_key_t* key = (np_key_t*) malloc(sizeof(np_key_t));
+		np_key_t* key;
+		np_new_obj(np_key_t, key);
 		str_to_key(key, skey);
+
 		np_obj_t* o_node = np_node_lookup(state->nodes, key, 0);
 		np_bind(np_node_t, o_node, node);
 		np_node_update(node, host, atoi(port));

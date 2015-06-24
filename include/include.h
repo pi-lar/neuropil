@@ -3,7 +3,7 @@
 
 /* just in case NULL is not defined */
 #ifndef NULL
-#define NULL 0
+#define NULL (void*)0
 #endif
 
 typedef enum {
@@ -36,6 +36,7 @@ typedef struct np_joblist_t np_joblist_t;
 typedef struct np_jobargs_t np_jobargs_t;
 
 typedef struct np_jrb_s np_jrb_t;
+typedef struct np_jval_s np_jval_t;
 
 typedef struct np_key_s np_key_t;
 

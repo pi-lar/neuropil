@@ -39,26 +39,11 @@ int seq = -1;
 int joinComplete = 0;
 
 
-void deliver(np_key_t* key, np_message_t* msg)
+void receive(np_key_t* key, np_message_t* msg)
 {
-	// char s[256];
-	// np_message_t *message;
-	// int seq;
-
 	char* subject = jrb_find_str(msg->header, "subject")->val.value.s;
 
-	//  unsigned long dest;
-	// TODO: lookup software hook
-	// TODO: only when no software hook is present, try to send directly to closest host
-
-	// np_node_t* host = np_node_lookup(state->nodes, subject);
-	// np_node_t* host = np_node_decode_from_str(state->nodes, subject);
-	// message_send(state->messages, host, m, TRUE, 1);
-
-	log_msg(LOG_DEBUG, "DELIVER: %s", subject);
-
-	// np_key_t* 
-	// log_msg(LOG_DEBUG, "message %d to %s delivered to %s", seq, key_get_as_string(dest), key_get_as_string(key));
+	log_msg(LOG_DEBUG, "RECEIVED: %s", subject);
 }
 
 
@@ -76,7 +61,6 @@ int main(int argc, char **argv) {
 	// char m[200];
 	// np_node_t ch;
 	// double wtime;
-	int type;
 	// int x;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
@@ -100,11 +84,11 @@ int main(int argc, char **argv) {
 	}
 
 	port = atoi(argv[optind]);
-	type = atoi(argv[optind + 1]);
 
 	char log_file[256];
 	sprintf(log_file, "%s_%d.log", "./neuropil_node", port);
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	log_init(log_file, level);
 
 	state = np_init(port);
@@ -113,13 +97,17 @@ int main(int argc, char **argv) {
 	np_start_job_queue(state, 8);
 	np_waitforjoin(state);
 
+	// TODO: implement these
+	// np_set_identity();
+	// np_set_x_properties();
+	// np_set_listener();
+
 	unsigned long k = 1;
 	while (1) {
 
-		dsleep(1.0);
+		dsleep(0.9);
 		char* testdata;
 
-		// np_send(state, "this.is.a.test", "testdata", k);
 		int real_seq = np_receive(state, "this.is.a.test", &testdata, k, 1);
 		log_msg(LOG_DEBUG, "received message %lu: %s", k, testdata);
 

@@ -11,9 +11,9 @@
 #include <pthread.h>
 
 #include "include.h"
-
-#include "np_memory.h"
 #include "key.h"
+#include "np_container.h"
+#include "np_memory.h"
 
 #define SUCCESS_WINDOW 20
 #define GOOD_LINK 0.8
@@ -68,52 +68,50 @@ struct np_node_s
  **/
 np_nodecache_t* np_node_cache_create (int size);
 
-
 // generate new and del method for np_node_t
 _NP_GENERATE_MEMORY_PROTOTYPES(np_node_t);
 
-// PUBLIC //
-/** np_node_release:
- ** releases a np_node from the cache, declaring that the memory could be
- ** freed any time.
+/** np_node_release
+ ** releases a np_node from the cache, first decreses the ref counter
+ ** then the corresponding free method is called
  **/
 void np_node_release (np_nodecache_t* ng, np_key_t* key);
 
-/** np_node_lookup _
+/** np_node_lookup
  ** find node structure for a given key
  **/
 np_obj_t* np_node_lookup(np_nodecache_t* ng, np_key_t* key, int increase_ref_count);
 int np_node_exists(np_nodecache_t* ng, np_key_t* key);
 
-
 // PROTECTED // DO A NP_BIND BEFORE USING THEM
 
-/** np_node_update:
+/** np_node_update
  ** updates node hostname and port for a given node, without changing the hash
  **/
 void np_node_update (np_node_t* node, char *hn, int port);
-/** np_node_update_stat:
+
+/** np_node_update_stat
  ** updates the success rate to the np_node based on the SUCCESS_WINDOW average
  **/
 void np_node_update_stat (np_node_t* np_node, int success);
 
-/** np_node_decode:
- ** decodes a string into a chimera np_node structure. This acts as a
+/** np_node_decode
+ ** decodes a string into a neuropil np_node structure. This acts as a
  ** np_node_get, and should be followed eventually by a np_node_release.
  **/
+sll_return(np_obj_t) np_decode_nodes_from_jrb (np_nodecache_t* nc, np_jrb_t* data);
 np_obj_t*  np_node_decode_from_str (np_nodecache_t* nc, const char *s);
 np_obj_t*  np_node_decode_from_jrb (np_nodecache_t* nc, np_jrb_t* data);
-np_obj_t** np_decode_nodes_from_jrb (np_nodecache_t* nc, np_jrb_t* data);
 
-/** np_node_encode:
+/** np_node_encode
  ** encodes the #np_node# into a string, putting it in #s#, which has
  ** #len# bytes in it.
  **/
+int  np_encode_nodes_to_jrb (np_nodecache_t* nc, np_jrb_t* data, np_sll_t(np_key_t, node_keys));
 void np_node_encode_to_str  (char *s, int len, np_node_t* np_node);
 void np_node_encode_to_jrb  (np_jrb_t* data, np_node_t* np_node);
-int  np_encode_nodes_to_jrb (np_nodecache_t* nc, np_jrb_t* data, np_key_t** node_keys);
 
-/** various getter method */
+/** various getter method, mostly unused **/
 np_key_t* np_node_get_key(np_node_t* node);
 char* np_node_get_dns_name (np_node_t* np_node);
 unsigned long np_node_get_address (np_node_t* np_node);

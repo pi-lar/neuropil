@@ -72,6 +72,7 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 
 	double start;
 	int parts = 1;
+	int ack_to_is_me = 0;
 
 	np_msgproperty_t* prop = args->properties;
 	np_networkglobal_t* network = state->network;
@@ -84,31 +85,46 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 //		np_free(np_message_t, args->msg);
 //		return;
 //	}
-
 	pthread_mutex_lock(&(network->lock));
 
 	/* create network header */
-	if (!jrb_find_str(msg_out->instructions, "_np.ack"))
+	unsigned char* ack_to_str = key_get_as_string(state->routes->me);
+	if (prop->ack_mode == ACK_EACHHOP) {
+		// we have to reset the existing ack_to field in case of forwarding
+		np_jrb_t* jrb_node = jrb_find_str(msg_out->instructions, "_np.ack_to");
+		if (jrb_node) jrb_delete_node(jrb_node);
+		jrb_insert_str(msg_out->instructions, "_np.ack_to", new_jval_s((char*) ack_to_str));
+		ack_to_is_me = 1;
+	}
+	if (prop->ack_mode == ACK_DESTINATION || prop->ack_mode == ACK_CLIENT) {
+		// only set these two ack values if not yet set !
+		if (NULL == jrb_find_str(msg_out->instructions, "_np.ack_to")) {
+			jrb_insert_str(msg_out->instructions, "_np.ack_to", new_jval_s((char*) ack_to_str));
+			ack_to_is_me = 1;
+		} else {
+			ack_to_is_me = 0;
+		}
+	}
+	// if not yet present set the ack mode
+	if (NULL == jrb_find_str(msg_out->instructions, "_np.ack"))
 		jrb_insert_str(msg_out->instructions, "_np.ack", new_jval_ui(prop->ack_mode));
 
-	if (prop->ack_mode != ACK_NONE) {
-		unsigned char* ack_to_str = key_get_as_string(state->routes->me);
-		jrb_insert_str(msg_out->instructions, "_np.ack_to", new_jval_s((char*) ack_to_str));
-	}
-
-	/* get sequence number to initialize acknowledgement indicator */
-	if (!jrb_find_str(msg_out->instructions, "_np.seq")) {
+	/* get/set sequence number to initialize acknowledgement indicator correctly */
+	np_jrb_t* jrb_seq = jrb_find_str(msg_out->instructions, "_np.seq");
+	if (ack_to_is_me) {
+		if (jrb_seq) jrb_delete_node(jrb_seq);
 		seq = network->seqend;
 		jrb_insert_str(msg_out->instructions, "_np.seq", new_jval_ul(seq));
 		network->seqend++;
 	} else {
-		seq = jrb_find_str(msg_out->instructions, "_np.seq")->val.value.ul;
+		jrb_insert_str(msg_out->instructions, "_np.seq", new_jval_ul(0));
+		// seq = jrb_find_str(msg_out->instructions, "_np.seq")->val.value.ul;
 	}
 
-	if (!jrb_find_str(msg_out->instructions, "_np.resend_count"))
+	if (NULL == jrb_find_str(msg_out->instructions, "_np.resend_count"))
 		jrb_insert_str(msg_out->instructions, "_np.resend_count", new_jval_ui(0));
 
-	if (prop->ack_mode > 0) {
+	if (ack_to_is_me) {
 		np_ackentry_t *ackentry = get_new_ackentry();
 		jrb_node = jrb_insert_ulong(network->waiting, seq, new_jval_v(ackentry));
 	}
@@ -118,21 +134,22 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 		o_target_node = np_node_lookup(state->nodes, args->target, 0);
 		np_bind(np_node_t, o_target_node, target_node);
 	}
+
 	// message part split-up informations
-	if (!jrb_find_str(msg_out->instructions, "_np.part"))
+	if (NULL == jrb_find_str(msg_out->instructions, "_np.part"))
 		jrb_insert_str(msg_out->instructions, "_np.part", new_jval_ui(parts));
 
 	start = dtime();
-	if (prop->ack_mode > ACK_NONE) {
+	if (ack_to_is_me) {
 		// insert a record into the priority queue with the following information:
 		// key: starttime + next retransmit time
 		// other info: destination host, seq num, data, data size
-		np_jrb_t* jrb_resend = jrb_find_str(msg_out->instructions, "_np.resend_count");
+		// np_jrb_t* jrb_resend = jrb_find_str(msg_out->instructions, "_np.resend_count");
 
 		PQEntry *pqrecord = get_new_pqentry();
 		pqrecord->dest_key = target_node->key;
 		pqrecord->msg = args->msg;
-		pqrecord->retry = jrb_resend->val.value.ui;
+		pqrecord->retry = 0; // jrb_resend->val.value.ui;
 		pqrecord->seqnum = seq;
 		pqrecord->transmittime = start;
 
@@ -161,8 +178,8 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 
 	// log_msg(LOG_DEBUG, "starting to send handshake message");
 	np_node_t* me;
-
 	np_bind(np_node_t, state->neuropil->me, me);
+
 	// get our identity from the cache
 	np_obj_t* o_my_id_token;
 	np_aaatoken_t* my_id_token;
@@ -239,6 +256,7 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 		o_hs_node = np_node_lookup(state->nodes, args->target, 0);
 		np_bind(np_node_t, o_hs_node, hs_node);
 	}
+
 	struct sockaddr_in to;
 	memset(&to, 0, sizeof(to));
 
@@ -247,15 +265,22 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	to.sin_addr.s_addr = hs_node->address;
 	to.sin_port = htons ((short) hs_node->port);
 
-	/* send data */
-	log_msg(LOG_NETWORKDEBUG,
-			"sending handshake message (length: %d) to (%s:%d)",
-			msg_size, hs_node->dns_name, hs_node->port);
-	ret = sendto(state->network->sock, hs_msg_ptr, msg_size, 0, (struct sockaddr *) &to, sizeof(to));
-	if (ret < 0) {
-		log_msg(LOG_ERROR, "handshake error: %s", strerror (errno));
-		// nothing more to be done
-	}
+	/* send data if handshake status is still just initialized or less */
+// 	if (hs_node->handshake_status <= HANDSHAKE_INITIALIZED) {
+		log_msg(LOG_NETWORKDEBUG,
+				"sending handshake message (length: %d) to (%s:%d)",
+				msg_size, hs_node->dns_name, hs_node->port);
+		ret = sendto(state->network->sock, hs_msg_ptr, msg_size, 0, (struct sockaddr *) &to, sizeof(to));
+		if (ret < 0) {
+			log_msg(LOG_ERROR, "handshake error: %s", strerror (errno));
+			// nothing more to be done
+		}
+// 	} else {
+// 		log_msg(LOG_NETWORKDEBUG,
+// 				"sending handshake message stopped, already completed (%s:%d)",
+// 				hs_node->dns_name, hs_node->port);
+// 	}
+
 	pthread_mutex_unlock(&state->network->lock);
 	// log_msg(LOG_DEBUG, "finished to send handshake message");
 	np_unbind(np_node_t, o_hs_node, hs_node);

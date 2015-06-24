@@ -1,10 +1,11 @@
 /*
  *
  */
+#include <ctype.h>
+#include <pthread.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 
 #include "np_util.h"
 
@@ -51,28 +52,29 @@ int write_type(np_jval_t val, cmp_ctx_t* cmp) {
 		break;
 		// characters
 	case char_ptr_type:
-		cmp_write_str32(cmp, val.value.s,
-				strlen(val.value.s));
+		cmp_write_str32(cmp, val.value.s, strlen(val.value.s));
 		break;
 	case char_type:
-		cmp_write_fixstr(cmp, (const char*) &val.value.c,
-				sizeof(char));
+		cmp_write_fixstr(cmp, (const char*) &val.value.c, sizeof(char));
 		break;
 	// case unsigned_char_type:
 	// 	cmp_write_str(cmp, (const char*) &val.value.uc,
 	// 			sizeof(unsigned char));
 	// 	break;
-// float and double precision
+
+	// float and double precision
 	case float_type:
 		cmp_write_float(cmp, val.value.f);
 		break;
 	case double_type:
 		cmp_write_double(cmp, val.value.d);
 		break;
+
 // unsigned numbers
 //	case unsigned_short_type:
 //		cmp_write_u8(cmp, val.value.ush);
 //		break;
+
 	case unsigned_int_type:
 		cmp_write_u16(cmp, val.value.ui);
 		break;
@@ -82,16 +84,16 @@ int write_type(np_jval_t val, cmp_ctx_t* cmp) {
 	case unsigned_long_long_type:
 		cmp_write_u64(cmp, val.value.ull);
 		break;
+
 	case int_array_2_type:
 	case float_array_2_type:
 	case char_array_8_type:
 	case unsigned_char_array_8_type:
-		log_msg(LOG_WARN, "please implement serialization for type %d",
-				val.type);
+		log_msg(LOG_WARN, "please implement serialization for type %d", val.type);
 		break;
 
 	case void_type:
-		// cmp_write_bin(cmp, val.value.v, sizeof(val.value.v));
+		log_msg(LOG_WARN, "please implement serialization for type %d", val.type);
 		break;
 
 	case bin_type:
@@ -121,7 +123,7 @@ int write_type(np_jval_t val, cmp_ctx_t* cmp) {
 		}
 		break;
 	default:
-		log_msg(LOG_WARN, "unknown serialization to binary form for type -- ignoring for now");
+		log_msg(LOG_WARN, "please implement serialization for type %d", val.type);
 		break;
 	}
 	// void* count_buf_end = cmp->buf;
@@ -131,18 +133,39 @@ int write_type(np_jval_t val, cmp_ctx_t* cmp) {
 
 void serialize_jrb_node_t(np_jrb_t* jrb, cmp_ctx_t* cmp)
 {
-	if (!cmp_write_map(cmp, jrb->size*2 )) return;
-	// log_msg(LOG_WARN, cmp_strerror(cmp));
+	unsigned int i = 0;
+	// first assume a size based on jrb size
+	// void* buf_ptr_map = cmp->buf;
+
+	// if (!cmp_write_map(cmp, jrb->size*2 )) return;
+	cmp_write_map(cmp, jrb->size*2);
+
+	// log_msg(LOG_DEBUG, "wrote jrb tree size %d", jrb->size*2);
+	// write jrb tree
 	if (jrb->size) {
 		np_jrb_t* tmp = NULL;
 		jrb_traverse(tmp, jrb)
 		{
-			// log_msg(LOG_DEBUG, "%p: key: %d, value: %d (%d/%d)", tmp, tmp->key.type, tmp->val.type, tmp->size, tmp->byte_size );
-			// log_msg(LOG_DEBUG, "for (%p; %p!=%p; %p=%p) ", tmp->flink, tmp, msg->header, node, node->flink);
-			write_type(tmp->key, cmp);
-			write_type(tmp->val, cmp);
+			if (int_type           == tmp->key.type ||
+		 		unsigned_long_type == tmp->key.type ||
+		 		double_type        == tmp->key.type ||
+		 		char_ptr_type      == tmp->key.type)
+		 	{
+				// log_msg(LOG_DEBUG, "%p: key: %d, value: %d (%d/%d)", tmp, tmp->key.type, tmp->val.type, tmp->size, tmp->byte_size );
+				// log_msg(LOG_DEBUG, "for (%p; %p!=%p; %p=%p) ", tmp->flink, tmp, msg->header, node, node->flink);
+				write_type(tmp->key, cmp); i++;
+				write_type(tmp->val, cmp); i++;
+		 	}
 		}
 	}
+	// void* buf_ptr = cmp->buf;
+	// cmp->buf = buf_ptr_map;
+	// cmp_write_map32(cmp, i );
+
+	if (i != jrb->size*2)
+		log_msg(LOG_WARN, "serialized jrb size map size is %d, but should be %d", jrb->size*2, i);
+
+	// cmp->buf = buf_ptr;
 
 //	switch (jrb->key.type) {
 //	case int_type:
@@ -286,7 +309,6 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 		value->type = int_type;
 		break;
 	case CMP_TYPE_SINT32:
-		value->value.l = 0;
 		value->value.l = obj->as.s32;
 		value->type = long_type;
 		break;
@@ -306,18 +328,24 @@ void deserialize_jrb_node_t(np_jrb_t* jrb, cmp_ctx_t* cmp) {
 	cmp_object_t obj;
 	unsigned int size = 0;
 
-	if (!cmp_read_map(cmp, &size)) return;
+	// if ( !cmp_read_map(cmp, &size)     ) return;
+	cmp_read_map(cmp, &size);
+
+	// log_msg(LOG_DEBUG, "read jrb tree size %d", size);
+	// if ( ((size%2) != 0) || (size <= 0) ) return;
 
 	for (int i = 0; i < (size/2); i++) {
 		// log_msg(LOG_DEBUG, "reading key (%d) from message part %p", i, jrb);
 		// read key
 		np_jval_t tmp_key;
+		// if (!cmp_read_object(cmp, &obj)) return;
 		cmp_read_object(cmp, &obj);
 		read_type(&obj, cmp, &tmp_key);
 
 		// log_msg(LOG_DEBUG, "reading value (%d) from message part %p", i, jrb);
 		// read value
 		np_jval_t tmp_val;
+		// if (!cmp_read_object(cmp, &obj)) return;
 		cmp_read_object(cmp, &obj);
 		read_type(&obj, cmp, &tmp_val);
 
@@ -337,6 +365,8 @@ void deserialize_jrb_node_t(np_jrb_t* jrb, cmp_ctx_t* cmp) {
 		case char_ptr_type:
 			// log_msg(LOG_DEBUG, "read str key (%s)", tmp_key.value.s);
 			jrb_insert_str(jrb, tmp_key.value.s, tmp_val);
+			break;
+		default:
 			break;
 		}
 	}

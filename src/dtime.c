@@ -2,8 +2,8 @@
 #include <string.h>		/* memset */
 #include <sys/time.h>		/* struct timeval, gettimeofday */
 #include <signal.h>		/* siginterrupt, SIGALRM */
+
 #include "dtime.h"		/* function headers */
-#include "log.h"
 
 /**
  ** dtime:

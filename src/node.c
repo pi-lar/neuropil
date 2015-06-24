@@ -5,22 +5,22 @@
 ** description: 
 */
 
-#include <stdio.h>
 #include <assert.h>
+#include <errno.h>
+#include <pthread.h>
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <pthread.h>
-#include <errno.h>
 
 #include "node.h"
 
 #include "aaatoken.h"
-#include "network.h"
-#include "message.h"
-#include "log.h"
-#include "dllist.h"
 #include "jval.h"
 #include "jrb.h"
+#include "log.h"
+#include "message.h"
+#include "network.h"
+#include "np_container.h"
 #include "np_threads.h"
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
@@ -37,7 +37,6 @@ void np_node_t_new(void* node) {
 	entry->success_win_index = 0;
 	entry->success_avg = 0.5;
 	// entry->node_tree = ng;
-	// entry->ref_count = increase_ref_count;
 	entry->handshake_status = HANDSHAKE_UNKNOWN;
 	// entry->key = key;
 
@@ -45,9 +44,6 @@ void np_node_t_new(void* node) {
     	entry->success_win[i] = 0;
     for (int i = SUCCESS_WINDOW / 2; i < SUCCESS_WINDOW; i++)
     	entry->success_win[i] = 1;
-
-	// jrb_insert_key (ng->np_node_cache, key, new_jval_v (entry));
-    // ng->size++;
 }
 
 void np_node_t_del(void* node) {
@@ -72,8 +68,11 @@ void np_node_t_del(void* node) {
 void np_node_encode_to_str (char *s, int len, np_node_t * node)
 {
     snprintf (s, len, "%s:", key_get_as_string(node->key));
-    snprintf (s + strlen (s), len - strlen (s), "%s:", node->dns_name);
-    snprintf (s + strlen (s), len - strlen (s), "%d", node->port);
+
+    if (NULL != node->dns_name) {
+    	snprintf (s + strlen (s), len - strlen (s), "%s:", node->dns_name);
+    	snprintf (s + strlen (s), len - strlen (s), "%d", node->port);
+    }
 }
 
 void np_node_encode_to_jrb (np_jrb_t* data, np_node_t* node)
@@ -104,35 +103,43 @@ np_obj_t* np_node_decode_from_str (np_nodecache_t* ng, const char *key)
 	int iLen = strlen(key);
 	assert (iLen > 0);
 
-	char *sHostkey = NULL; // (char*) malloc(255);
-	char *sHostname = NULL; // (char*) malloc(255);
-	int iHostport = 0;
+	char *s_hostkey = NULL;
+	char *s_hostname = NULL;
+	char *s_hostport = NULL;
 
-	// log_msg(LOG_DEBUG, "now decoding: %s", key);
+	int i_hostport = 0;
+
 	// key is mandatory element in string
-	sHostkey = strtok(key_dup, ":");
+	s_hostkey = strtok(key_dup, ":");
 	// log_msg(LOG_DEBUG, "node decoded, extracted hostkey %s", sHostkey);
 
-	if (iLen > strlen(sHostkey)) {
-		sHostname = strtok(NULL, ":");
+	if (iLen > strlen(s_hostkey)) {
+		s_hostname = strtok(NULL, ":");
 		// log_msg(LOG_DEBUG, "node decoded, extracted hostname %s", sHostname);
-		iHostport = atoi(strtok(NULL, ":"));
-		// log_msg(LOG_DEBUG, "node decoded, extracted hostport %d", iHostport);
+		s_hostport = strtok(NULL, ":");
+		i_hostport = atoi(s_hostport); // log_msg(LOG_DEBUG, "node decoded, extracted hostport %d", iHostport);
 	}
 
 	// string encoded data contains key, eventually plus hostname and hostport
 	// key string is mandatory !
-	np_key_t* nodeKey = (np_key_t*) malloc(sizeof(np_key_t));
-	str_to_key(nodeKey, sHostkey);
+	np_key_t* node_key;
+	np_new_obj(np_key_t, node_key);
+	str_to_key(node_key, s_hostkey);
 
-	o_node = np_node_lookup(ng, nodeKey, 0);
+	o_node = np_node_lookup(ng, node_key, 0);
 	np_bind(np_node_t, o_node, node);
-	if (sHostname != NULL) {
-		np_node_update(node, sHostname, iHostport);
+	if (NULL != s_hostname &&
+		NULL == node->dns_name) {
+		// overwrite hostname only if it is not set yet
+		np_node_update(node, s_hostname, i_hostport);
 	}
 	np_unbind(np_node_t, o_node, node);
 
-	free (key_dup);
+	if (s_hostkey) free (s_hostkey);
+	if (s_hostname) free (s_hostname);
+	if (s_hostport) free (s_hostport);
+
+	np_free_obj(np_key_t, node_key);
 	return o_node;
 }
 
@@ -142,17 +149,20 @@ np_obj_t* np_node_decode_from_jrb (np_nodecache_t* ng, np_jrb_t* data) {
 	np_node_t *node;
 
 	// MANDATORY paramter
-	char* sHostkey =  jrb_find_str(data, "_np.node.key")->val.value.s;
-	char* sHostname = jrb_find_str(data, "_np.node.dns_name")->val.value.s;
-	int iHostport =   jrb_find_str(data, "_np.node.port")->val.value.i;
+	char* s_host_key  = jrb_find_str(data, "_np.node.key")->val.value.s;
+	char* s_host_name = jrb_find_str(data, "_np.node.dns_name")->val.value.s;
+	int   i_host_port = jrb_find_str(data, "_np.node.port")->val.value.i;
 
-	np_key_t* nodeKey = (np_key_t*) malloc(sizeof(np_key_t));
-	str_to_key(nodeKey, sHostkey);
+	np_key_t* node_key;
+	np_new_obj(np_key_t, node_key);
+	str_to_key(node_key, s_host_key);
 
-	o_node = np_node_lookup(ng, nodeKey, 0);
+	o_node = np_node_lookup(ng, node_key, 0);
 	np_bind(np_node_t, o_node, node);
-	if (sHostname != NULL) {
-		np_node_update( node, sHostname, iHostport);
+	if (NULL != s_host_name &&
+		NULL == node->dns_name)
+	{
+		np_node_update( node, s_host_name, i_host_port);
 	}
 	// OPTIONAL parameter
 	np_jrb_t* failure = jrb_find_str(data, "_np.node.failuretime");
@@ -161,20 +171,22 @@ np_obj_t* np_node_decode_from_jrb (np_nodecache_t* ng, np_jrb_t* data) {
 	// if (latency) node->latency = latency->val.value.d;
 	np_unbind(np_node_t, o_node, node);
 
+	np_free_obj(np_key_t, node_key);
     return (o_node);
 }
 
 
-int np_encode_nodes_to_jrb (np_nodecache_t* nc, np_jrb_t* data, np_key_t** node_keys)
+int np_encode_nodes_to_jrb (np_nodecache_t* nc, np_jrb_t* data, np_sll_t(np_key_t, node_keys))
 {
-    int i, j=0;
+    int j=0;
     np_node_t* tmp;
-    for (i = 0; node_keys[i] != NULL; i++)
+    while(sll_first(node_keys) != NULL)
 	{
-    	if (np_node_exists(nc, node_keys[i])) {
+    	np_key_t* current = sll_head(np_key_t, node_keys);
+    	if (np_node_exists(nc, current)) {
     		np_jrb_t* node_jrb = make_jrb();
     		// log_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
-    		np_obj_t* node = np_node_lookup(nc, node_keys[i], 0);
+    		np_obj_t* node = np_node_lookup(nc, current, 0);
     		np_bind(np_node_t, node, tmp);
     		np_node_encode_to_jrb(node_jrb, tmp);
     		jrb_insert_int(data, j, new_jval_tree(node_jrb));
@@ -185,24 +197,25 @@ int np_encode_nodes_to_jrb (np_nodecache_t* nc, np_jrb_t* data, np_key_t** node_
     return j;
 }
 
-np_obj_t** np_decode_nodes_from_jrb (np_nodecache_t* nc, np_jrb_t* data)
+sll_return(np_obj_t) np_decode_nodes_from_jrb (np_nodecache_t* nc, np_jrb_t* data)
 {
-    np_obj_t** node_list;
     int i;
-
     int nodenum = data->size;
 
-    node_list = (np_obj_t **) malloc (sizeof (np_obj_t *) * (nodenum + 1));
-    memset(node_list, 0, (sizeof(np_obj_t *) * (nodenum + 1)));
+    np_sll_t(np_obj_t, node_list);
+	sll_init(np_obj_t, node_list);
+
+    // node_list = (np_obj_t **) malloc (sizeof (np_obj_t *) * (nodenum + 1));
+    // memset(node_list, 0, (sizeof(np_obj_t *) * (nodenum + 1)));
 
     /* gets the number of hosts in the lists and goes through them 1 by 1 */
     for (i = 0; i < nodenum; i++)
 	{
     	np_jrb_t* node_data = jrb_find_int(data, i);
-    	node_list[i] = np_node_decode_from_jrb(nc, node_data->val.value.tree);
+    	sll_append(np_obj_t, node_list, np_node_decode_from_jrb(nc, node_data->val.value.tree));
 	}
 
-    node_list[i] = NULL;
+    // node_list[i] = NULL;
     return (node_list);
 }
 
@@ -217,27 +230,20 @@ np_obj_t* np_node_get_by_hostname (np_nodecache_t* ng, char *hostname, int port)
     unsigned long address;
     np_obj_t* o_entry;
     np_node_t* entry;
-    // unsigned char *ip;
-    // char id[256];
-    // int i;
 
     /* create an id of the form ip:port */
-    address = get_network_address (hostname);
-    // memset (id, 0, 256);
-    // ip = (unsigned char *) &address;
-    // for (i = 0; i < 4; i++)
-    // sprintf (id + strlen (id), "%s%d", (i == 0) ? ("") : ("."), (int) ip[i]);
-    // sprintf (id + strlen (id), ":%d", port);
-    np_key_t* nodeKey = key_create_from_hostport(hostname, port);
+    np_key_t* node_key = key_create_from_hostport(hostname, port);
 
     // pthread_mutex_lock (&ng->lock);
-    o_entry = np_node_lookup(ng, nodeKey, 0);
+    o_entry = np_node_lookup(ng, node_key, 0);
     np_bind(np_node_t, o_entry, entry);
-    entry->dns_name = strdup (hostname);
+    address = get_network_address (hostname);
+    entry->dns_name = strndup (hostname, 255);
 	entry->port = port;
 	entry->address = address;
     np_unbind(np_node_t, o_entry, entry);
 
+    np_free_obj(np_key_t, node_key);
     return o_entry;
 }
 
@@ -247,7 +253,7 @@ void np_node_update (np_node_t* node, char *hn, int port) {
 	if (address == 0)
 		log_msg(LOG_WARN, "couldn't resolve hostname to ip address: %s", hn);
 
-    node->dns_name = strndup (hn, strlen(hn));
+	node->dns_name = strndup (hn, strlen(hn));
 	node->port = port;
 	node->address = address;
 	// log_msg(LOG_DEBUG, "resolved hostname to ip address: %s -> %lu", hn, address);
@@ -285,6 +291,7 @@ np_obj_t* np_node_lookup(np_nodecache_t* ng, np_key_t* key, int increase_ref_cou
 
     	// TODO: np_ref(np_key_t, node->key);
     	node->key = key;
+    	np_ref_obj(np_key_t, key);
 
     	jrb_insert_key (ng->np_node_cache, key, new_jval_obj (o_node));
 
@@ -322,6 +329,8 @@ void np_node_release(np_nodecache_t* ng, np_key_t* key)
     /* if we reduce the node to 0 references, remove it from the cache */
     np_bind(np_node_t, o_entry, entry);
     if (o_entry->ref_count <= 0) {
+    	np_unref_obj(np_key_t, entry->key);
+    	np_free_obj(np_key_t, entry->key);
     	jrb_delete_node (jrb_node);
     	ng->size--;
     }

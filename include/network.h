@@ -9,7 +9,7 @@
 #include "include.h"
 #include "np_memory.h"
 /** 
- ** NETWORK_PACK_SIZE is the maximum packet size that will be handled by chimera network layer
+ ** NETWORK_PACK_SIZE is the maximum packet size that will be handled by neuropil network layer
  */
 #define NETWORK_PACK_SIZE 65536
 

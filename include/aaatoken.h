@@ -20,7 +20,6 @@
 // crypto_scalarmult_BYTES, crypto_scalarmult_curve25519_BYTES, crypto_sign_ed25519_PUBLICKEYBYTES
 // crypto_box_PUBLICKEYBYTES, crypto_box_SECRETKEYBYTES
 
-
 struct np_aaatoken_cache_s {
 
 	np_jrb_t* authentication_token;
@@ -30,8 +29,19 @@ struct np_aaatoken_cache_s {
 	pthread_mutex_t lock;	/* for future security enhancement */
 };
 
-// we use np_aaatoken_t for authorization, authentication and accounting purposes
-// the data structure is the same, any addon information is stored in a jrb structure
+/** np_aaatoken_t
+ **
+ ** we use np_aaatoken_t for authorization, authentication and accounting purposes
+ ** the data structure is the same, any addon information is stored in a jrb structure
+ ** several analogies have been used as a baseline for this structure: json web token, kerberos and diameter
+ ** in principal any user/system/node can be identified by it hash key (subject)
+ ** a subject belongs to a realm, and a token has been issued by somebody, and there is an intended audience
+ ** all being just hash keys
+ **
+ ** neuropil nodes can use the realm and issuer hash key informations to request authentication and authorization
+ ** of a subject
+ ** accounting information will/can/should be send to the accounting audience
+ **/
 struct np_aaatoken_s {
 
 	double version;
@@ -71,5 +81,8 @@ void np_register_accounting_token(np_aaatoken_cache_t* cache, np_obj_t* token, n
 np_obj_t* np_get_authorization_token(np_aaatoken_cache_t* cache, np_key_t* key);
 np_obj_t* np_get_authentication_token(np_aaatoken_cache_t* cache, np_key_t* key);
 np_obj_t* np_get_accounting_token(np_aaatoken_cache_t* cache, np_key_t* key);
+
+void np_encode_aaatoken(np_jrb_t* data, np_aaatoken_t* token);
+void np_decode_aaatoken(np_jrb_t* data, np_aaatoken_t* token);
 
 #endif // _NP_AAATOKEN_H_

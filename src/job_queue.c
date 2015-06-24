@@ -132,7 +132,7 @@ void job_submit_msg_event (np_joblist_t* job_q, np_msgproperty_t* prop, np_key_t
 void job_submit_event (np_joblist_t* job_q, np_callback_t callback)
 // void job_submit (np_joblist_t* job_q, np_node_t* node, np_message_t* msg, np_msgproperty_t* prop)
 {
-    int was_empty = 0;
+	int was_empty = 0;
     //  JobArgs * jargs = (jobArgs *)args;
 
     np_job_t* new_job = (np_job_t *) malloc (sizeof (struct np_job_t));
@@ -146,6 +146,8 @@ void job_submit_event (np_joblist_t* job_q, np_callback_t callback)
     list_insert (job_q, new_job);
     if (was_empty) pthread_cond_signal (&job_q->empty);
     pthread_mutex_unlock (&job_q->access);
+
+    // dsleep(0.1);
 }
 
 /** initiate the queue and thread pool,
@@ -186,11 +188,13 @@ void* job_exec (void* np_state)
 	    		np_unref(np_message_t, tmp->args->msg);
 	    		// just do a sanity check, it won't hurt :-)
 	    		np_free (np_message_t, tmp->args->msg);
+	    		// np_free_obj(np_key_t, tmp->args->target);
 	    	}
 	    }
-	    if (tmp->type == 2)
+	    if (tmp->type == 2) {
 		   	tmp->processorFunc(state, tmp->args);
-
+		   	// np_free_obj(np_key_t, tmp->args->target);
+	    }
 	    free(tmp->args);
 	    np_job_free(tmp);
 	}

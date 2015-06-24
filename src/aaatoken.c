@@ -153,3 +153,27 @@ np_obj_t* np_get_accounting_token(np_aaatoken_cache_t* cache, np_key_t* key)
 	return o_ret_token;
 }
 
+void np_encode_aaatoken(np_jrb_t* data, np_aaatoken_t* token) {
+	// add e2e encryption details for sender
+	jrb_insert_str(data, "_np.aaa.realm", new_jval_s(token->realm));
+	jrb_insert_str(data, "_np.aaa.subject", new_jval_s(token->subject));
+	jrb_insert_str(data, "_np.aaa.issuer", new_jval_s(token->issuer));
+	jrb_insert_str(data, "_np.aaa.not_before", new_jval_d(token->not_before));
+	jrb_insert_str(data, "_np.aaa.expiration", new_jval_d(token->expiration));
+
+	unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES];
+	crypto_sign_ed25519_pk_to_curve25519(curve25519_pk, token->public_key);
+	jrb_insert_str(data, "_np.aaa.public_key", new_jval_bin(curve25519_pk, crypto_scalarmult_curve25519_BYTES));
+}
+
+void np_decode_aaatoken(np_jrb_t* data, np_aaatoken_t* token) {
+
+	// get e2e encryption details of sending entity
+	strncpy(token->realm, jrb_find_str(data, "_np.aaa.realm")->val.value.s, 255);
+	strncpy(token->subject, jrb_find_str(data, "_np.aaa.subject")->val.value.s, 255);
+	strncpy(token->issuer, jrb_find_str(data, "_np.aaa.issuer")->val.value.s, 255);
+	token->not_before = jrb_find_str(data, "_np.aaa.not_before")->val.value.d;
+	token->expiration = jrb_find_str(data, "_np.aaa.expiration")->val.value.d;
+
+	memcpy(token->public_key, jrb_find_str(data, "_np.aaa.public_key")->val.value.bin, crypto_scalarmult_curve25519_BYTES);
+}

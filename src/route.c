@@ -10,6 +10,7 @@
 #include "jrb.h"
 #include "jval.h"
 #include "log.h"
+#include "np_container.h"
 #include "np_memory.h"
 #include "np_threads.h"
 #include "node.h"
@@ -51,7 +52,6 @@ np_routeglobal_t* route_init (np_key_t* me)
 		}
 	}
 
-    // rg->keystr = (char *) malloc (sizeof (char) * (MAX_ROW + 1));
     route_update_me(rg, me);
 
     key_assign (&(rg->Rrange), me );
@@ -75,76 +75,56 @@ np_routeglobal_t* route_init (np_key_t* me)
 /** route_get_table: 
  ** return the entire routing table
  */
-np_key_t** route_get_table (np_routeglobal_t* rg)
+sll_return(np_key_t) route_get_table (np_routeglobal_t* rg)
 {
-	np_key_t **ret;
-    int i, j, l, k, count;
+    int i, j, l;
 
-    pthread_mutex_lock (&rg->lock);
+	np_sll_t(np_key_t, sll_of_keys);
+	sll_init(np_key_t, sll_of_keys);
 
-    count = 0;
-
-    for (i = 0; i < MAX_ROW; i++)
-    	for (j = 0; j < MAX_COL; j++)
-    		for (l = 0; l < MAX_ENTRY; l++)
-    			if (rg->table[i][j][l] != NULL)
-    				count++;
-
-    ret = (np_key_t**) malloc (sizeof (np_key_t*) * (count + 1));
-
-    k = 0;
+	pthread_mutex_lock (&rg->lock);
     for (i = 0; i < MAX_ROW; i++)
     	for (j = 0; j < MAX_COL; j++)
     		for (l = 0; l < MAX_ENTRY; l++)
     			if (rg->table[i][j][l] != NULL)
     			{
-    				ret[k++] = rg->table[i][j][l];
+    				sll_append(np_key_t, sll_of_keys, rg->table[i][j][l]);
     				// np_node_lookup(rg->me->node_tree, np_node_get_key(rg->table[i][j][l]), 0);
     				// ret[k++] = np_node_get_by_hostname(rg->me->ng, rg->table[i][j][l]->dns_name, rg->table[i][j][l]->port);
     			}
-    ret[k] = NULL;
     pthread_mutex_unlock (&rg->lock);
-    return ret;
+
+    return sll_of_keys;
 }
 
 /** route_row_lookup:key 
  ** return the row in the routing table that matches the longest prefix with #key# 
  */
-np_key_t** route_row_lookup (np_state_t* state, np_key_t* key)
+sll_return(np_key_t) route_row_lookup (np_state_t* state, np_key_t* key)
 {
-    np_key_t**ret;
-    int i, j, k, l, count;
+    int i, j, l;
+	np_sll_t(np_key_t, sll_of_keys);
+	sll_init(np_key_t, sll_of_keys);
 
     pthread_mutex_lock (&state->routes->lock);
-
     i = key_index (state->routes->me, key);
-
-    /* find out the number of hosts that exists in the matching row */
-    count = 0;
-    for (j = 0; j < MAX_COL; j++)
-    	for (l = 0; l < MAX_ENTRY; l++)
-    		if (state->routes->table[i][j][l] != NULL)
-    			count++;
-
-    ret = (np_key_t**) malloc (sizeof (np_key_t*) * (count + 2));
-    k = 0;
 
 	for (j = 0; j < MAX_COL; j++)
 		for (l = 0; l < MAX_ENTRY; l++)
 			if (state->routes->table[i][j][l] != NULL &&
 				!key_equal(state->routes->table[i][j][l], key) ) {
-				ret[k++] = state->routes->table[i][j][l];
+				sll_append(np_key_t, sll_of_keys, state->routes->table[i][j][l]);
 			}
 	// np_node_lookup(state->nodes, state->routes->table[i][j][l], 0); // np_node_lookup(rg->me->node_tree, np_node_get_key(rg->table[i][j][l]), 0);
 	// ret[k++] = np_node_get_by_hostname (rg->me->ng, rg->table[i][j][l]->dns_name, rg->table[i][j][l]->port);
 	// ret[k++] = np_node_get_by_hostname (rg->me->ng, rg->me->dns_name, rg->me->port);
-	ret[k++] = state->neuropil->my_key;
+	sll_append(np_key_t, sll_of_keys, state->neuropil->my_key);
 	// np_node_lookup(state->nodes, state->neuropil->my_key, 0);
-	ret[k] = NULL;
+	// ret[k] = NULL;
 
     pthread_mutex_unlock (&state->routes->lock);
 
-    return ret;
+    return sll_of_keys;
 }
 
 /** route_lookup:
@@ -397,14 +377,14 @@ np_key_t** route_lookup (np_state_t* state, np_key_t* key, int count, int is_saf
 	    // changed on 03.06.2014 STSW choose the closest neighbour
 	    if (key_comp (&dif1, &dif2) >= 0) ret[0] = state->routes->me;
 
-	    log_msg(LOG_DEBUG, "route  key: %s", key_get_as_string(ret[0]));
+	    log_msg(LOG_ROUTING, "route  key: %s", key_get_as_string(ret[0]));
 
 	    // if (!key_comp(&dif1, &dif2) == 0) ret[0] = rg->me;
 	    // if (key_comp(&dif1, &dif2)  < 0) ret[0] = NULL;
 	    // if (key_comp(&dif1, &dif2)  > 0) ret[0] = rg->me;
 
 	} else {
-	    log_msg (LOG_WARN, "route_lookup bounce detection not wanted ...");
+	    log_msg (LOG_ROUTING, "route_lookup bounce detection not wanted ...");
 	}
 
     free (hosts);
@@ -641,37 +621,34 @@ void leafset_insert (np_routeglobal_t* rg, np_key_t* host_key,
 /** route_neighbors: 
  ** returns an array of #count# neighbor nodes with priority to closer nodes
  **/
-np_key_t** route_neighbors (np_routeglobal_t* rg, int count)
+sll_return(np_key_t) route_neighbors (np_routeglobal_t* rg, int count)
 {
     int i = 0, Rsize = 0, Lsize = 0, index = 0;
-    int ret_size;
+    // int ret_size;
 
-    np_key_t*  tmp;
-    np_key_t** node_keys = (np_key_t**) malloc (sizeof (np_key_t*) * (LEAFSET_SIZE + 1));
-    // np_key_t** ret   = (np_key_t**) malloc (sizeof (np_key_t*) * (count + 1));
+    np_sll_t(np_key_t, node_keys);
+    sll_init(np_key_t, node_keys);
 
     pthread_mutex_lock (&rg->lock);
 
     Lsize = leafset_size (rg->leftleafset);
     Rsize = leafset_size (rg->rightleafset);
 
-    if (count > Rsize + Lsize) ret_size = Rsize + Lsize;
-	else ret_size = count;
+    // if (count > Rsize + Lsize) ret_size = Rsize + Lsize;
+	// else ret_size = count;
 
-    /* creat a jrb of leafset pointers sorted on distance */
+    /* create a jrb of leafset pointers sorted on distance */
     for (i = 0; i < Lsize; i++)
 	{
-	    tmp = rg->leftleafset[i];
-	    node_keys[index++] = tmp;
+    	sll_append(np_key_t, node_keys, rg->leftleafset[i]);
 	}
 
     for (i = 0; i < Rsize; i++)
 	{
-	    tmp = rg->rightleafset[i];
-	    node_keys[index++] = tmp;
+    	sll_append(np_key_t, node_keys, rg->rightleafset[i]);
 	}
 
-    node_keys[index] = NULL;
+    // node_keys[index] = NULL;
     /* sort aux */
     sort_keys_kd(node_keys, rg->me, index);
     // sort_keys_cpm (node_keys, rg->me, index);

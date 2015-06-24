@@ -12,10 +12,11 @@
 
 #include "np_memory.h"
 
+// #include "cmp.h"
 #include "key.h"
 #include "jrb.h"
 #include "jval.h"
-#include "cmp.h"
+#include "np_container.h"
 
 #define NP_MESSAGE_SIZE 65536
 
@@ -47,15 +48,15 @@ int np_message_encrypt_part(np_jrb_t* msg_part, unsigned char* enc_nonce, unsign
 int np_message_serialize(np_message_t* msg, void* buffer, unsigned long* out_size);
 int np_message_deserialize(np_message_t* msg, void* buffer);
 
-inline void np_message_setproperties(np_message_t* msg, np_jrb_t* properties);
+void np_message_setproperties(np_message_t* msg, np_jrb_t* properties);
 void np_message_addpropertyentry(np_message_t*, const char* key, np_jval_t value);
 void np_message_delpropertyentry(np_message_t*, const char* key);
 
-inline void np_message_setinstruction(np_message_t* msg, np_jrb_t* instructions);
+void np_message_setinstruction(np_message_t* msg, np_jrb_t* instructions);
 void np_message_addinstructionentry(np_message_t*, const char* key, np_jval_t value);
 void np_message_delinstructionentry(np_message_t*, const char* key);
 
-inline void np_message_setbody(np_message_t* msg, np_jrb_t* body);
+void np_message_setbody(np_message_t* msg, np_jrb_t* body);
 void np_message_addbodyentry(np_message_t*, const char* key, np_jval_t value);
 void np_message_delbodyentry(np_message_t*, const char* key);
 
@@ -175,11 +176,6 @@ struct np_msgproperty_s {
 	np_callback_t clb;
 };
 
-struct np_msgcache_s {
-	np_obj_t* payload;
-	np_msgcache_t* next;
-};
-
 struct np_msginterest_s {
 	// TODO: transport the real node data in the interest as well
 	np_key_t* key;
@@ -190,19 +186,21 @@ struct np_msginterest_s {
 	unsigned long   msg_seqnum;
 	unsigned int    msg_threshold;
 
-	np_msgcache_t* msg_cache_first;
-	np_msgcache_t* msg_cache_last;
-	unsigned int msg_cache_size;
+	np_aaatoken_t*  aaa_token;
+
+	// timestamp for cleanup thread
+	double          last_update;
+
+	np_sll_t(np_obj_t, msg_cache);
 	// only send/receive after opposite partner has been found
     pthread_mutex_t    lock;
     pthread_cond_t     msg_received;
     pthread_condattr_t cond_attr;
 };
 
-unsigned int np_msgcache_size(np_msginterest_t* x);
-np_obj_t* np_msgcache_pop(np_msginterest_t* x);
-void np_msgcache_push(np_msginterest_t* x, np_obj_t* y);
-
+// unsigned int np_msgcache_size(np_msginterest_t* x);
+// np_obj_t* np_msgcache_pop(np_msginterest_t* x);
+// void np_msgcache_push(np_msginterest_t* x, np_obj_t* y);
 
 #define DEFAULT_SEQNUM 0
 #define RETRANSMIT_THREAD_SLEEP 1.0

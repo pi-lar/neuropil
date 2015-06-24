@@ -8,11 +8,11 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <assert.h>
+#include <pthread.h>
 
 #include "jrb.h"
 #include "jval.h"
 #include "log.h"
-
 
 void mk_new_int (np_jrb_t* l, np_jrb_t* r, np_jrb_t* p, int il);
 np_jrb_t* lprev (np_jrb_t* n);
@@ -20,7 +20,6 @@ np_jrb_t* rprev (np_jrb_t* n);
 void recolor (np_jrb_t* n);
 void single_rotate (np_jrb_t* y, int l);
 void jrb_print_tree (np_jrb_t* t, int level);
-
 
 #define isred(n)     (n->jrb_type & JRB_RED)
 #define isblack(n)   (0 == (n->jrb_type & JRB_RED))
@@ -62,7 +61,7 @@ void jrb_print_tree (np_jrb_t* t, int level);
   setnormal(new);\
 }
 
-void insert (np_jrb_t* item, np_jrb_t* list)	/* Inserts to the end of a list */
+void insert (np_jrb_t* item, np_jrb_t* list)	/* inserts to the end of a list */
 {
 	assert(item != NULL);
 	assert(list != NULL);
@@ -77,7 +76,7 @@ void insert (np_jrb_t* item, np_jrb_t* list)	/* Inserts to the end of a list */
     item->flink = list;
 }
 
-void delete_item (np_jrb_t* item)	/* Deletes an arbitrary iterm */
+void delete_item (np_jrb_t* item)	/* deletes an arbitrary iterm */
 {
 	assert(item != NULL);
 
@@ -97,8 +96,8 @@ void mk_new_int (np_jrb_t* l, np_jrb_t* r, np_jrb_t* p, int il)
     newnode = (np_jrb_t*) malloc (sizeof (np_jrb_t));
 
     // log_msg(LOG_DEBUG, "creating internal jrb node %p", newnode);
-    newnode->key.type = np_special;
-    newnode->val.type = np_special;
+    newnode->key.type = np_special_type;
+    newnode->val.type = np_special_type;
 
     setint (newnode);
     setred (newnode);
@@ -168,8 +167,8 @@ np_jrb_t* make_jrb ()
     head = (np_jrb_t*) malloc (sizeof (np_jrb_t));
     head->jrb_type = 0x00;
 
-    head->key.type = np_special;
-    head->val.type = np_special;
+    head->key.type = np_special_type;
+    head->val.type = np_special_type;
 
     head->flink = head;
     head->blink = head;
@@ -195,6 +194,7 @@ extern np_jrb_t* jrb_find_gte_key (np_jrb_t* n, np_key_t* key, int* fnd)
 	    log_msg (LOG_WARN, "jrb_find_gte_int called on non-head %p %x", n, n->jrb_type);
     	return NULL;
 	}
+    // tree is empty
     if (n->parent == n) return n;
 
     if (key_equal(key, n->blink->key.value.key))
@@ -242,6 +242,11 @@ np_jrb_t* jrb_find_gte_str (np_jrb_t* n, const char *key, int *fnd)
     // log_msg(LOG_DEBUG, "search   %p: key type: %d, value type: %d", n, n->key.type, n->val.type);
     if (n->parent == n) return n;
 
+//	log_msg(LOG_WARN, "%d#%p    p:%d#%p    bl:%d#%p    fl:%d#%p ",
+//			n->key.type, n,
+//			n->parent->key.type, n->parent,
+//			n->blink->key.type, n->blink,
+//			n->flink->key.type, n->flink);
 
     cmp = strncmp (key, n->blink->key.value.s, 255);
     if (cmp == 0)
@@ -258,7 +263,14 @@ np_jrb_t* jrb_find_gte_str (np_jrb_t* n, const char *key, int *fnd)
 	{
 	    if (isext (n)) return n;
 
-	    cmp = strncmp (key, getlext(n)->key.value.s, 255);
+	    np_jrb_t* lext = getlext(n);
+
+	    // TODO: this algo doesn't seem to be correct, check for better implementation
+	    // log_msg(LOG_DEBUG, "%p", lext->key.value.s);
+	    // log_msg(LOG_DEBUG, "%s", lext->key.value.s);
+
+	    cmp = strncmp (key, lext->key.value.s, 255);
+
 	    if (cmp == 0)
 		{
 		    *fnd = 1;
@@ -470,6 +482,7 @@ np_jrb_t* jrb_find_gte_gen (np_jrb_t* n, np_jval_t key, int (*fxn) (np_jval_t, n
     	return NULL;
 	}
     if (n->parent == n) return n;
+
     cmp = (*fxn) (key, n->blink->key);
     if (cmp == 0)
 	{
@@ -657,8 +670,6 @@ void single_rotate (np_jrb_t* y, int l)
 
 void jrb_delete_node (np_jrb_t* n)
 {
-	assert(n   != NULL);
-
 	if (n == NULL)
 		return;
 
@@ -670,11 +681,10 @@ void jrb_delete_node (np_jrb_t* n)
 	    log_msg(LOG_WARN, "Cannot delete an internal node: %p %x", n, n->jrb_type);
     	return;
 	}
-
     if (ishead (n))
 	{
-	    log_msg(LOG_WARN, "Cannot delete the head of an jrb_tree: %p %x", n, n->jrb_type);
-    	return;
+	    log_msg(LOG_WARN, "Trying to delete the head of an jrb_tree: %p %d", n, n->size);
+    	// return;
 	}
 
     // TODO: check if this is working
@@ -688,6 +698,9 @@ void jrb_delete_node (np_jrb_t* n)
     // free (n->key.value.s);
 
     delete_item (n);	/* Delete it from the list */
+    if (char_ptr_type == n->key.type) free (n->key.value.s); // has been allocated with strndup
+    if (char_ptr_type == n->val.type) free(n->val.value.s);
+
     p = n->parent;		/* The only node */
     if (isroot (n))
 	{
@@ -705,6 +718,7 @@ void jrb_delete_node (np_jrb_t* n)
 	    free (n);
 	    return;
 	}
+
     gp = p->parent;		/* Set parent to sibling */
     s->parent = gp;
     if (isleft (p))
@@ -878,7 +892,7 @@ void jrb_iprint_tree (np_jrb_t* t, int level)
 		{
 		    log_msg(LOG_DEBUG,
 		    		"%0d ext  node: %p: %c,%c: p=%p, <=%p, >=%p k=%d",
-		    		level, t, isred (t) ? 'R' : 'B', isleft (t) ? 'l' : 'r', t->parent,
+		    		level, t, isred (t) ? 'R' : 'B', isleft (t) ? 'L' : 'R', t->parent,
 		    		t->blink, t->flink, t->key.value.i);
 		}
 	    else
@@ -887,8 +901,8 @@ void jrb_iprint_tree (np_jrb_t* t, int level)
 		    jrb_iprint_tree (t->blink, level + 2);
 		    log_msg(LOG_DEBUG,
 		    		"%0d int  node: %p: %c,%c: l=%p, r=%p, p=%p, lr=(%d,%d)",
-		    		level, t, isred (t) ? 'R' : 'B', isleft (t) ? 'l' : 'r', t->flink,
-		    		t->blink, t->parent, getlext (t)->key.value.i, getrext (t)->key.value.i);
+		    		level, t, isred (t) ? 'R' : 'B', isleft (t) ? 'L' : 'R',
+		    		t->flink, t->blink, t->parent, getlext (t)->key.value.i, getrext (t)->key.value.i);
 		}
 	}
 }
@@ -936,15 +950,12 @@ void jrb_free_tree (np_jrb_t* n)
 	if (isnothead (n))
 	{
 	    log_msg (LOG_WARN, "ERROR: jrb_free_tree called on a non-head node %p %x", n, n->jrb_type);
-	    // while (isnothead (n)) n = n->parent;
 	    return;
 	}
 
-    if (n->size > 0) {
-    	while (jrb_first (n) != jrb_nil (n))
-    	{
+	while ( (n->size > 0) && (jrb_first (n) != jrb_nil (n)) )
+	{
     		jrb_delete_node (jrb_first (n));
-    	}
     }
     free (n);
 }
@@ -960,12 +971,10 @@ void jrb_replace_all_with_str(np_jrb_t* n, const char* key, np_jval_t val)
 	    return;
 	}
 
-    if (n->size > 0) {
-    	while (jrb_first (n) != jrb_nil (n))
-    	{
-    		jrb_delete_node (jrb_first (n));
-    	}
-    }
+	while ( (n->size > 0) && (jrb_first (n) != jrb_nil (n)) )
+	{
+    	jrb_delete_node (jrb_first (n));
+	}
     jrb_insert_str(n, key, val);
 }
 
@@ -1007,9 +1016,9 @@ long long jrb_get_byte_size(np_jrb_t* node)
 // 		case bin_type: 			  byte_size += 1 + node->key.size; break;
 // 		case jrb_tree_type:       byte_size += jrb_get_byte_size(node->key.value.tree); break;
 		case key_type:            byte_size += 1 + (4 * sizeof(unsigned long)); break;
-		default:                  log_msg(LOG_WARN, "unsupported length calculation for key type %d", node->key.type); break;
+		default:                  log_msg(LOG_WARN, "unsupported length calculation for key / type %d", node->key.type); break;
 	}
-	assert(byte_size  >= 2);
+	// assert(byte_size  >= 2);
 	// log_msg(LOG_DEBUG, "key size (%d) calculated to %d", node->key.type, byte_size);
 
 	switch(node->val.type) {
@@ -1034,11 +1043,11 @@ long long jrb_get_byte_size(np_jrb_t* node)
  		case bin_type: 			  byte_size += 1 + sizeof(uint32_t) + node->val.size; break;
 		case jrb_tree_type:       byte_size += 1 + node->val.size; break;
 		case key_type:            byte_size += 1 + (4 * sizeof(unsigned long)); break;
-		default:                  log_msg(LOG_WARN, "unsupported length calculation for value type %d", node->val.type ); break;
+		default:                  log_msg(LOG_WARN, "unsupported length calculation for value / type %d", node->val.type ); break;
 	}
 	// log_msg(LOG_DEBUG, "value size (%d) calculated to %d", node->val.type, byte_size);
 	// log_msg(LOG_DEBUG, "c: %p -> key/value size calculated to %d", node, byte_size);
-	assert(byte_size  >= 4);
+	// assert(byte_size  >= 4);
 
 	return byte_size;
 }

@@ -178,7 +178,7 @@ int network_send_udp (np_state_t* state, np_node_t *node, np_message_t* msg)
 	to.sin_addr.s_addr = node->address;
 	to.sin_port = htons ((short) node->port);
 
-	// log_msg(LOG_NETWORKDEBUG, "sending message to %s:%d", node->dns_name, node->port);
+	log_msg(LOG_NETWORKDEBUG, "sending message (%d bytes) to %s:%d", enc_buffer_len, node->dns_name, node->port);
 	ret = sendto (state->network->sock, enc_buffer, enc_buffer_len, 0, (struct sockaddr *) &to, sizeof (to));
 
 	pthread_mutex_unlock(&(state->network->lock));

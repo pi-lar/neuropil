@@ -1,14 +1,24 @@
+#include <pthread.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-// #include <openssl/evp.h>
+#include <unistd.h>
 
 #include "sodium.h"
 #include "key.h"
 
 #include "base.h"
 #include "log.h"
+
+_NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
+
+void np_key_t_new(void* key) {
+
+}
+
+void np_key_t_del(void* key) {
+
+}
 
 
 void key_print (np_key_t* k)
@@ -110,6 +120,7 @@ unsigned char* key_generate_hash (const unsigned char* key_in, size_t digest_siz
 	    tmp = tmp + strlen (digit);
 	}
     digest_out[64] = '\0';
+
     return digest_out;
 }
 
@@ -126,14 +137,16 @@ np_key_t* key_create_from_hostport(const char* strOrig, int port)
     np_key_t* tmp = key_create_from_hash(digest);
 	log_msg (LOG_KEYDEBUG, "HASH(%s) = [%s]", name, key_get_as_string(tmp));
 
+	free (digest);
 	return tmp;
 }
 
 np_key_t* key_create_from_hash(const unsigned char* strOrig)
-// void str_to_key (const char *strOrig, np_key_t*
 {
 	int i;
-    np_key_t* kResult = (np_key_t*) malloc(sizeof(np_key_t));
+    np_key_t* kResult;
+    np_new_obj(np_key_t, kResult);
+    // (np_key_t*) malloc(sizeof(np_key_t));
 
 	kResult->valid = 0;
 
@@ -446,29 +459,58 @@ void sort_keys_cpm (np_key_t** node_keys, np_key_t* key, int size)
 /** sort_hosts_key:
  ** Sorts #hosts# based on their key distance from #np_key_t*
  */
-void sort_keys_kd (np_key_t** hosts, np_key_t* key, int size)
+void sort_keys_kd (np_sll_t(np_key_t, list_of_keys), np_key_t* key, int size)
 {
-    int i, j;
-    np_key_t*tmp;
+    // int i, j;
     np_key_t dif1, dif2;
+    int swapped;
 
-    for (i = 0; i < size; i++)
-	{
-	    for (j = i + 1; j < size; j++)
-		{
-		    if (hosts[i] != NULL && hosts[j] != NULL)
+    // entry check for empty list
+    if (NULL == sll_first(list_of_keys)) return;
+
+    do {
+        // Only continue loop if a swap is made.
+        swapped = FALSE;
+        // Maintain pointers.
+        sll_iterator(np_key_t) curr = sll_first(list_of_keys);
+        sll_iterator(np_key_t) next = sll_next(curr);
+
+        // Cannot swap last element with its next.
+        while (NULL != next) {
+        	// Swap if items in wrong order.
+		    key_distance (&dif1, curr->val, key);
+		    key_distance (&dif2, next->val, key);
+		    if (key_comp (&dif2, &dif1) < 0)
 			{
-			    key_distance (&dif1, hosts[i], key);
-			    key_distance (&dif2, hosts[j], key);
-			    if (key_comp (&dif2, &dif1) < 0)
-				{
-				    tmp = hosts[i];
-				    hosts[i] = hosts[j];
-				    hosts[j] = tmp;
-				}
+		    	np_key_t* tmp = curr->val;
+		    	curr->val = next->val;
+		    	next->val = tmp;
+		    	// Notify loop to do one more pass.
+                swapped = TRUE;
 			}
-		}
-	}
+		    // continue with the loop
+		    curr = next;
+		    next = sll_next(next);
+        }
+    } while (TRUE == swapped);
+
+//    for (i = 0; i < size; i++)
+//	{
+//	    for (j = i + 1; j < size; j++)
+//		{
+//		    if (hosts[i] != NULL && hosts[j] != NULL)
+//			{
+//			    key_distance (&dif1, hosts[i], key);
+//			    key_distance (&dif2, hosts[j], key);
+//			    if (key_comp (&dif2, &dif1) < 0)
+//				{
+//				    tmp = hosts[i];
+//				    hosts[i] = hosts[j];
+//				    hosts[j] = tmp;
+//				}
+//			}
+//		}
+//	}
 }
 
 

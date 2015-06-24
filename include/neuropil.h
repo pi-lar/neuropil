@@ -73,10 +73,9 @@ void np_setaccounting_cb(const np_state_t* state, np_aaa_func_t joinFunc);
  ** ack == 1 means message will be acknowledged, ack=2 means no acknowledge is necessary
  ** for this type of message. 
  **/
-void np_add_listener (const np_state_t* state, np_callback_t msg_handler, char* subject, int ack, int retry, int threshold);
+void np_set_listener (const np_state_t* state, np_callback_t msg_handler, char* subject, int ack, int retry, int threshold);
 // register a callback that is executed when a new message arrives
 // void np_callback      (const np_state_t* state, char* subject, char *data, int seqnum);
-
 
 /** np_msg_*:
  ** Send a message of a specific type to a key containing size bytes of data. This will

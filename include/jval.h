@@ -39,33 +39,34 @@ Fax: 865-974-4404
 
 #include "stdint.h"
 
-#include "include.h"
 #include "cmp.h"
+#include "include.h"
+
 
 enum {
-	np_special = 0,
+	np_special_type = 0,
 // 	   short_type,
 	int_type,
 	long_type,
 	long_long_type,
-	float_type, // 5
-	double_type,
+	float_type, //
+	double_type, // 5
 	char_ptr_type,
     char_type,
 	unsigned_char_type,
-//     unsigned_short_type, // 10
+//     unsigned_short_type, //
     unsigned_int_type,
-    unsigned_long_type,
+    unsigned_long_type, // 10
     unsigned_long_long_type,
     int_array_2_type,
-    float_array_2_type, // 15
+    float_array_2_type, //
     char_array_8_type,
-    unsigned_char_array_8_type,
+    unsigned_char_array_8_type, // 15
     void_type,
     bin_type,
-	jrb_tree_type,  // 20
+	jrb_tree_type,  //
 	key_type,
-	npobj_type
+	npobj_type // 20
 } np_jvaltype_t;
 
 /* The Jval -- a type that can hold any 8-byte type */
@@ -95,11 +96,11 @@ typedef union jval
     np_obj_t* obj;
 } jval;
 
-typedef struct np_jval_s {
+struct np_jval_s {
 	int type;
 	unsigned long size;
 	jval value;
-} np_jval_t;
+};
 
 extern np_jval_t new_jval_i (int);
 extern np_jval_t new_jval_l (long);

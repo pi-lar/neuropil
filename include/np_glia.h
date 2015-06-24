@@ -7,6 +7,7 @@
 void np_check_leafset(np_state_t* state, np_jobargs_t* args);
 void np_retransmit_messages(np_state_t* state, np_jobargs_t* args);
 void np_network_read(np_state_t* np_state, np_jobargs_t* args);
+void np_write_log(np_state_t* state, np_jobargs_t* args);
 
 // other helper functions
 void np_send_rowinfo (np_state_t* state, np_jobargs_t* args);

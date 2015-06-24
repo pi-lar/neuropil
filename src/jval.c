@@ -1,5 +1,5 @@
 #include <stdio.h>
-// #include <string.h>
+#include <pthread.h>
 
 #include "jval.h"
 #include "jrb.h"
@@ -60,8 +60,8 @@ np_jval_t new_jval_v (void *v)
 np_jval_t new_jval_s (char *s)
 {
     np_jval_t j;
-    j.value.s = s;
     j.size = strlen(s);
+    j.value.s = strndup(s, j.size);
     // log_msg(LOG_DEBUG, "setting string value %s (size: %d)", s, strlen(s));
     j.type = char_ptr_type;
     return j;
@@ -128,6 +128,8 @@ np_jval_t new_jval_bin (void* data, unsigned long ul)
     np_jval_t j;
 
     j.value.bin = data;
+    // malloc(ul);
+    // memcpy(j.value.bin, data, ul);
     j.size = ul;
     j.type = bin_type;
 

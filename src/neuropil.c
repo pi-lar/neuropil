@@ -1,40 +1,41 @@
-/*
-**
-** $Id: chimera.c,v 1.49 2006/09/07 04:12:07 krishnap Exp $
-**
-** Matthew Allen
-** description: 
-*/
+/**
+ **
+ ** neuropil.c
+ **
+ ** Stephan Schwichtenberg
+ ** description:
+ **/
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <errno.h>
 #include <assert.h>
-#include <string.h>
-#include <pthread.h>
+#include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "sodium.h"
 
 #include "neuropil.h"
-#include "include.h"
-#include "np_memory.h"
 
 #include "aaatoken.h"
-#include "node.h"
-#include "message.h"
-#include "log.h"
 #include "dtime.h"
-#include "route.h"
-#include "network.h"
-#include "np_glia.h"
-#include "np_dendrit.h"
-#include "np_axon.h"
+#include "log.h"
+#include "include.h"
 #include "job_queue.h"
-#include "np_threads.h"
 #include "jrb.h"
+#include "message.h"
+#include "network.h"
+#include "node.h"
+#include "np_axon.h"
+#include "np_container.h"
+#include "np_dendrit.h"
+#include "np_glia.h"
+#include "np_memory.h"
+#include "np_threads.h"
+#include "route.h"
 
 
 int np_default_joinfunc (np_state_t* state, np_node_t* node ) {
@@ -134,7 +135,7 @@ void np_send (np_state_t* state, char* subject, char *data, unsigned long seqnum
 	np_new(np_message_t, o_msg);
 	np_bind(np_message_t, o_msg, msg);
 
-	jrb_insert_str(msg->header, NP_MSG_HEADER_SUBJECT,  new_jval_s((char*) subject));
+	jrb_insert_str(msg->header, NP_MSG_HEADER_SUBJECT, new_jval_s((char*) subject));
 	jrb_insert_str(msg->header, "_np.msg.seq", new_jval_ul(seqnum));
 	jrb_insert_str(msg->body, "text", new_jval_s(data));
 
@@ -152,16 +153,17 @@ void np_send (np_state_t* state, char* subject, char *data, unsigned long seqnum
 		pthread_mutex_unlock(&state->messages->interest_lock);
 
 	} else {
-		// jrb_insert_str(payload, "_np.msg.seq", new_jval_ul(seqnum));
-		np_msgcache_push(available, o_msg);
-		np_ref(np_message_t, o_msg);
+		LOCK_CACHE(available) {
+			sll_append(np_obj_t, available->msg_cache, o_msg);
+			np_ref(np_message_t, o_msg);
+		}
 	}
-
 	np_unbind(np_message_t, o_msg, msg);
 }
 
 int np_receive (np_state_t* state, char* subject, char **data, unsigned long seqnum, int ack)
 {
+	int received = 0;
 	// check whether an inbound message handler is already registered
 	np_bool handler_exists = np_message_check_handler(state->messages, INBOUND, subject);
 	if (handler_exists == FALSE) {
@@ -175,58 +177,61 @@ int np_receive (np_state_t* state, char* subject, char **data, unsigned long seq
 
 	// check if something is already available
 	np_msginterest_t* available = np_message_interest_update(state->messages, interested);
+	log_msg(LOG_DEBUG, "msg source is now %p", available);
 
 	// if message source is available, try to receive my requested one from the message cache
 	if (available) {
-		unsigned int cache_size = np_msgcache_size(interested);
-		log_msg(LOG_DEBUG, "cache size of interest %p: %d", interested, cache_size);
-		cache_size = np_msgcache_size(available);
-		log_msg(LOG_DEBUG, "cache size of interest %p: %d", available, cache_size);
+		// unsigned int cache_size = sll_size(interested->msg_cache);
+		// log_msg(LOG_DEBUG, "cache size of interest %p: %d", interested, cache_size);
+		np_obj_t* o_msg = NULL;
 
-		if (cache_size == 0) {
-			log_msg(LOG_DEBUG, "waiting for signal via interest %p", interested);
-			// nothing there yet, wait for notification
-			pthread_mutex_lock(&available->lock);
-			// TODO: use pthread_cond_timedwait ?
-			log_msg(LOG_INFO, "messages are available, waiting for signal !!!");
-			pthread_cond_wait(&available->msg_received, &available->lock);
-			// TODO distinguish between return states of condition wait (timeout or wakeup)
-			pthread_mutex_unlock(&available->lock);
+		LOCK_CACHE(available) {
+			unsigned int cache_size = sll_size(available->msg_cache);
+			log_msg(LOG_DEBUG, "cache size of interest %p: %d", available, cache_size);
+			if (cache_size == 0) {
+				log_msg(LOG_DEBUG, "waiting for signal via interest %p", available);
+				// nothing there yet, wait for notification
+				// TODO: use pthread_cond_timedwait ?
+				pthread_cond_wait(&available->msg_received, &available->lock);
+				// TODO: distinguish between return states of condition wait (timeout or wakeup)
+			}
+			log_msg(LOG_DEBUG, "getting message from interest %p", available);
+			o_msg = sll_head(np_obj_t, available->msg_cache);
 		}
-
-		np_message_t* payload;
-		unsigned long received_seq = -1;
-
-		log_msg(LOG_DEBUG, "getting message from interest %p", available);
-		np_obj_t* o_msg = np_msgcache_pop(available);
-
+		// extract message payload
 		if (o_msg) {
+			np_message_t* payload;
 			np_bind(np_message_t, o_msg, payload);
-			received_seq = jrb_find_str(payload->header, "_np.msg.seq")->val.value.ul;
+			received = jrb_find_str(payload->header, "_np.msg.seq")->val.value.ul;
 
 			np_jrb_t* reply_data = jrb_find_str(payload->body, "text");
 			*data = strndup(reply_data->val.value.s, strlen(reply_data->val.value.s));
 
 			np_unbind(np_message_t, o_msg, payload);
+			np_unref(np_message_t, o_msg);
 			np_free(np_message_t, o_msg);
+			// TODO: send message ack
+
+			// increase threshold counter
+			pthread_mutex_lock(&state->messages->interest_lock);
+			interested->msg_threshold++;
+			pthread_mutex_unlock(&state->messages->interest_lock);
 
 			log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
 		} else {
 			log_msg(LOG_WARN, "something is terribly wrong, message cache returned empty element !!!");
 		}
-		return received_seq;
-
 	} else {
 		log_msg(LOG_INFO, "no sender of messages known: SUB:%s SEQ:%lu known !", subject, seqnum);
-		return 0;
 	}
+	return received;
 }
 
 
 void np_send_ack(np_state_t* state, np_jobargs_t* args) {
 
 	// log_msg(LOG_INFO, "np_send_ack START");
-	int ack, part;
+	int ack;
 	unsigned long seq;
 
 	np_message_t* in_msg;
@@ -236,38 +241,40 @@ void np_send_ack(np_state_t* state, np_jobargs_t* args) {
 
 	np_bind(np_message_t, args->msg, in_msg);
 
-	// extract data from incoming message
-	seq = jrb_find_str(in_msg->instructions, "_np.seq")->val.value.ul;
-	ack = jrb_find_str(in_msg->instructions, "_np.ack")->val.value.i;
-	// part = jrb_find_str(args->msg->instructions, "_np.part")->val.value.i;
+	if (NULL != jrb_find_str(in_msg->header, "_np.ack_to")) {
+		// extract data from incoming message
+		seq = jrb_find_str(in_msg->instructions, "_np.seq")->val.value.ul;
+		ack = jrb_find_str(in_msg->instructions, "_np.ack")->val.value.i;
 
-	// create new ack message & handlers
-	// np_node_t* ack_node = np_node_decode_from_str(state->nodes, jrb_find_str(in_msg->header, NP_MSG_HEADER_REPLY_TO)->val.value.s);
-	np_key_t tmp_key;
-	str_to_key(&tmp_key, jrb_find_str(in_msg->header, NP_MSG_HEADER_REPLY_TO)->val.value.s);
-	np_unbind(np_message_t, args->msg, in_msg);
+		// create new ack message & handlers
+		// np_node_t* ack_node = np_node_decode_from_str(state->nodes, jrb_find_str(in_msg->header, NP_MSG_HEADER_REPLY_TO)->val.value.s);
+		np_key_t* tmp_key;
+		np_new_obj(np_key_t, tmp_key);
+		str_to_key(tmp_key, jrb_find_str(in_msg->header, "_np.ack_to")->val.value.s);
+		np_unbind(np_message_t, args->msg, in_msg);
 
-	LOCK_CACHE(state->nodes) {
-		o_ack_node = np_node_lookup(state->nodes, &tmp_key, 0);
-		np_bind(np_node_t, o_ack_node, ack_node);
+		LOCK_CACHE(state->nodes) {
+			o_ack_node = np_node_lookup(state->nodes, tmp_key, 0);
+			np_bind(np_node_t, o_ack_node, ack_node);
+		}
+
+		np_message_t* ack_msg;
+		np_obj_t* o_ack_msg;
+
+		np_msgproperty_t* prop = np_message_get_handler(state->messages, TRANSFORM, ROUTE_LOOKUP);
+
+		np_new(np_message_t, o_ack_msg);
+		np_bind(np_message_t, o_ack_msg, ack_msg);
+
+		np_message_create(ack_msg, ack_node->key, state->neuropil->my_key, NP_MSG_ACK, NULL);
+		jrb_insert_str(ack_msg->instructions, "_np.ack", new_jval_i(prop->ack_mode));
+		jrb_insert_str(ack_msg->instructions, "_np.seq", new_jval_ul(seq));
+		// send the ack out
+		job_submit_msg_event(state->jobq, prop, ack_node->key, o_ack_msg);
+		np_unbind(np_node_t, o_ack_node, ack_node);
+		np_unbind(np_message_t, o_ack_msg, ack_msg);
+		np_free_obj(np_key_t, tmp_key);
 	}
-
-	np_message_t* ack_msg;
-	np_obj_t* o_ack_msg;
-
-	np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_ACK);
-
-	np_new(np_message_t, o_ack_msg);
-	np_bind(np_message_t, o_ack_msg, ack_msg);
-
-	np_message_create(ack_msg, ack_node->key, state->neuropil->my_key, NP_MSG_ACK, NULL);
-	jrb_insert_str(ack_msg->instructions, "_np.ack", new_jval_i(prop->ack_mode));
-	jrb_insert_str(ack_msg->instructions, "_np.seq", new_jval_ul(seq));
-	// send the ack out
-	job_submit_msg_event(state->jobq, prop, ack_node->key, o_ack_msg);
-
-	np_unbind(np_message_t, o_ack_msg, ack_msg);
-	np_unbind(np_node_t, o_ack_node, ack_node);
 
 	np_free(np_message_t, args->msg);
 }
@@ -336,12 +343,13 @@ np_state_t* np_init(int port)
     	log_msg(LOG_ERROR, "neuropil_init: global structure not created: %s", strerror (errno));
     	exit(1);
     }
+
     // create a new token for encryption each time neuropil starts
     np_obj_t* o_auth_token;
     np_aaatoken_t* auth_token;
     np_new(np_aaatoken_t, o_auth_token);
     np_bind(np_aaatoken_t, o_auth_token, auth_token);
-    // crypto_box_keypair(node_authentication->public_key, node_authentication->private_key); // curve25519xsalsa20poly1305
+    // crypto_box_keypair(auth_token->public_key, auth_token->private_key); // curve25519xsalsa20poly1305
     crypto_sign_keypair(auth_token->public_key, auth_token->private_key); // ed25519
     // crypto_scalarmult_base(); // curve25519
     np_unbind(np_aaatoken_t, o_auth_token, auth_token);
@@ -382,6 +390,8 @@ np_state_t* np_init(int port)
 
     // log_msg(LOG_DEBUG, "%s:%d", name, port);
     np_key_t* my_key = key_create_from_hostport(name, port);
+    np_ref_obj(np_key_t, my_key);
+
     np_node_t* me;
     state->neuropil->me = np_node_lookup(state->nodes, my_key, 1);
 	np_bind(np_node_t, state->neuropil->me, me);
@@ -394,9 +404,11 @@ np_state_t* np_init(int port)
     auth_token->valid = 1;
 	np_ref(np_aaatoken_t, o_auth_token);
     np_unbind(np_aaatoken_t, o_auth_token, auth_token);
-	LOCK_CACHE(state->aaa_cache) {
+
+    LOCK_CACHE(state->aaa_cache) {
 		np_register_authentication_token(state->aaa_cache, o_auth_token, my_key);
 	}
+
     // initialize routing table
     state->routes = route_init (my_key);
     if (state->routes == NULL)
@@ -429,6 +441,7 @@ np_state_t* np_init(int port)
     	job_submit_event(state->jobq, np_retransmit_messages);
 		// start leafset checking jobs
 		job_submit_event(state->jobq, np_check_leafset);
+		job_submit_event(state->jobq, np_write_log);
 
 	} else {
 		return NULL;

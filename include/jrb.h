@@ -76,7 +76,7 @@ struct np_jrb_s
     np_jval_t key;
     np_jval_t val;
 
-	int size;
+	unsigned int size;
 	long long byte_size;
 };
 

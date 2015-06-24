@@ -1,0 +1,13 @@
+crypto_verify/32/ref/libsodium_la-verify_32.lo: \
+  crypto_verify/32/ref/verify_32.c crypto_verify/32/ref/api.h \
+  include/sodium/crypto_verify_32.h \
+  /Library/Developer/CommandLineTools/usr/bin/../lib/clang/6.0/include/stddef.h \
+  include/sodium/export.h
+
+crypto_verify/32/ref/api.h:
+
+include/sodium/crypto_verify_32.h:
+
+/Library/Developer/CommandLineTools/usr/bin/../lib/clang/6.0/include/stddef.h:
+
+include/sodium/export.h:

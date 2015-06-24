@@ -1,19 +1,24 @@
-/*
-** $Id: key.h,v 1.16 2006/06/07 09:21:28 krishnap Exp $
-**
-** Matthew Allen
-** description: 
-*/
+/**
+ ** $Id: key.h,v 1.16 2006/06/07 09:21:28 krishnap Exp $
+ **
+ ** Matthew Allen
+ ** description:
+ **/
 
 #ifndef _NP_KEY_H_
 #define _NP_KEY_H_
 
 #include <limits.h>
 #include <stdio.h>
+#include <pthread.h>
 #include <openssl/evp.h>
 #include <string.h>
 
 #include "include.h"
+
+#include "np_container.h"
+#include "np_memory.h"
+
 
 #define KEY_SIZE 160
 
@@ -33,10 +38,13 @@
 struct np_key_s
 {
     unsigned long t[4];
-    unsigned char keystr[65];	/* string representation of key in hex */
-    short int valid;		// indicates if the keystr is most up to date with value in key
+    unsigned char keystr[65]; // string representation of key in hex
+    short int valid;		  // indicates if the keystr is most up to date with value in t
+
+    np_obj_t* obj;            // link to memory management and ref counter
 };
 
+_NP_GENERATE_MEMORY_PROTOTYPES(np_key_t);
 
 /* global variables!! that are set in key_init function */
 np_key_t Key_Half;
@@ -86,14 +94,7 @@ int key_index (np_key_t* mykey, np_key_t* k);
 // scan a key string to its struct representation
 void str_to_key (np_key_t *k, const char *key_string);
 
-/* key_makehash: hashed, s
-** assign sha1 hash of the string #s# to #hashed# */
-// void key_makehash (np_key_t * hashed, char *s);
-/* key_make_hash */
-// void key_make_hash (np_key_t * hashed, char *s, size_t size);
-
 void  key_print (np_key_t* k);
-// void  key_to_str (np_key_t* 
 // always use this function to get the string representation of a key
 unsigned char* key_get_as_string (np_key_t * k);
 
@@ -111,7 +112,7 @@ int key_index (np_key_t* mykey, np_key_t* k);
 np_key_t* find_closest_key (np_key_t** list_of_keys, np_key_t* target_key, int size);
 
 void sort_keys_cpm (np_key_t** list_of_keys, np_key_t* key, int size);
-void sort_keys_kd (np_key_t** list_of_keys, np_key_t* key, int size);
+void sort_keys_kd (np_sll_t(np_key_t, list_of_keys), np_key_t* key, int size);
 
 int power (int base, int n);
 

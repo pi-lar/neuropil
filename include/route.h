@@ -3,15 +3,16 @@
 
 #include "include.h"
 
-#include "neuropil.h"
 #include "key.h"
+#include "neuropil.h"
+#include "np_container.h"
+
 
 #define MAX_ROW 64 // length of key
 #define MAX_COL 16 // 16 different characters
 #define MAX_ENTRY 3 // three alternatives for each key
 
 #define LEAFSET_SIZE 8		/* (must be even) excluding node itself */
-
 
 typedef struct np_routeglobal_t
 {
@@ -55,17 +56,17 @@ np_key_t** route_lookup (np_state_t* state, np_key_t* key, int count, int is_saf
 /** route_neighbors: 
  ** returns an array of count neighbor nodes with priority to closer nodes.
  **/
-np_key_t** route_neighbors (np_routeglobal_t* rg, int count);
+sll_return(np_key_t) route_neighbors (np_routeglobal_t* rg, int count);
 
 /** route_row_lookup:
  ** return the row in the routing table that matches the longest prefix with key.
  **/
-np_key_t** route_row_lookup (np_state_t* state, np_key_t* key);
+sll_return(np_key_t) route_row_lookup (np_state_t* state, np_key_t* key);
 
 /** route_get_table:
  ** returns all the entries in the routing table in an array of ChimeraHost.
  **/
-np_key_t** route_get_table (np_routeglobal_t* rg);
+sll_return(np_key_t) route_get_table (np_routeglobal_t* rg);
 
 /**
  ** prints routing table,
