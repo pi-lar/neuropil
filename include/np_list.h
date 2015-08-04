@@ -1,6 +1,8 @@
 /**
- ** header only implementation to easily store datatypes in double or single linked lists
- ** taking the generating approach using the c preprocessor
+ *  copyright 2015 pi-lar GmbH
+ *  header only implementation to easily store datatypes in double or single linked lists
+ *  taking the generating approach using the c preprocessor
+ *  Stephan Schwichtenberg
  **/
 #ifndef _NP_LIST_H_
 #define _NP_LIST_H_
@@ -17,6 +19,7 @@
 #define	dll_head(TYPE, dll_list) TYPE##_dll_head(dll_list);
 #define dll_tail(TYPE, dll_list) TYPE##_dll_tail(dll_list);
 #define dll_free(TYPE, dll_list) TYPE##_dll_free(dll_list);
+#define dll_clear(TYPE, dll_list) TYPE##_dll_free(dll_list);
 
 // return type definition
 #define dll_return(TYPE) TYPE##_dll_t*
@@ -25,7 +28,7 @@
 // general purpose definitions
 #define dll_traverse(dll_list, iter_item, elem)  for (iter_item = dll_list->first, elem = iter_item->val; iter_item != NULL; iter_item = iter_item->flink, elem = iter_item->val)
 #define dll_rtraverse(dll_list, iter_item, elem) for (iter_item = dll_list->last,  elem = iter_item->val; iter_item != NULL; iter_item = iter_item->blink, elem = iter_item->val)
-#define dll_empty(dll_list)    (dll_list->first == NULL)
+#define dll_empty(dll_list)    (NULL == dll_list->first)
 #define dll_size(dll_list)     (dll_list->size)
 #define dll_first(dll_list)    (dll_list->first)
 #define dll_last(dll_list)     (dll_list->last)
@@ -39,7 +42,7 @@
     typedef struct TYPE##_dll_node_s TYPE##_dll_node_t;\
     struct TYPE##_dll_s\
     {\
-	    unsigned int size;\
+	    uint32_t size;\
 	    TYPE##_dll_node_t *first;\
 	    TYPE##_dll_node_t *last;\
     };\
@@ -54,7 +57,8 @@
     void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE* value);\
 	TYPE* TYPE##_dll_head(TYPE##_dll_t* list);\
     TYPE* TYPE##_dll_tail(TYPE##_dll_t* list);\
-    void TYPE##_dll_free(TYPE##_dll_t* list);
+    void TYPE##_dll_free(TYPE##_dll_t* list);\
+    void TYPE##_dll_clear(TYPE##_dll_t* list);
 
 /** DLL (double linked list) implementation generator
  **/
@@ -128,8 +132,15 @@ void TYPE##_dll_free(TYPE##_dll_t* dll_list) {\
 		free(tmp);\
 	}\
 	free(dll_list);\
+}\
+void TYPE##_dll_clear(TYPE##_dll_t* dll_list) {\
+	TYPE##_dll_node_t *tmp;\
+	while (dll_list->first != NULL) {\
+		tmp = dll_list->first;\
+		dll_list->first = dll_list->first->flink;\
+		free(tmp);\
+	}\
 }
-
 
 /** single linked list header only implementation for neuropil
  **/
@@ -143,6 +154,8 @@ void TYPE##_dll_free(TYPE##_dll_t* dll_list) {\
 #define	sll_head(TYPE, sll_list) TYPE##_sll_head(sll_list)
 #define sll_tail(TYPE, sll_list) TYPE##_sll_tail(sll_list)
 #define sll_free(TYPE, sll_list) TYPE##_sll_free(sll_list)
+#define sll_clear(TYPE, sll_list) TYPE##_sll_clear(sll_list)
+#define sll_delete(TYPE, sll_list, iter) TYPE##_sll_delete(sll_list, iter)
 
 // return type definition
 #define sll_return(TYPE) TYPE##_sll_t*
@@ -151,7 +164,7 @@ void TYPE##_dll_free(TYPE##_dll_t* dll_list) {\
 // general purpose definitions
 #define sll_traverse(sll_list, iter_item, elem) for (iter_item = sll_list->first, elem = iter_item->val; iter_item != NULL; iter_item = iter_item->flink, elem = iter_item->val)
 // #define sll_rtraverse(sll_list, iter_item, elem) for (iter_item = sll_list->last,  elem = iter_item->val; iter_item != NULL; iter_item = iter_item->blink, elem = iter_item->val)
-#define sll_empty(sll_list) sll_list->first == NULL
+#define sll_empty(sll_list) (NULL == sll_list->first)
 #define sll_size(sll_list) sll_list->size
 #define sll_first(sll_list) (sll_list->first)
 #define sll_last(sll_list) (sll_list->last)
@@ -165,7 +178,7 @@ void TYPE##_dll_free(TYPE##_dll_t* dll_list) {\
 	typedef struct TYPE##_sll_node_s TYPE##_sll_node_t;\
 	struct TYPE##_sll_s\
 	{\
-		unsigned int size;\
+		uint32_t size;\
 		TYPE##_sll_node_t *first;\
 		TYPE##_sll_node_t *last;\
 	};\
@@ -179,7 +192,9 @@ void TYPE##_dll_free(TYPE##_dll_t* dll_list) {\
     void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value);\
 	TYPE* TYPE##_sll_head(TYPE##_sll_t* list);\
     TYPE* TYPE##_sll_tail(TYPE##_sll_t* list);\
-    void TYPE##_sll_free(TYPE##_sll_t* list);
+    void TYPE##_sll_free(TYPE##_sll_t* list);\
+    void TYPE##_sll_clear(TYPE##_sll_t* list);\
+    void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);
 
 /** SLL (single linked list) implementation generator
  **/
@@ -248,6 +263,34 @@ void TYPE##_sll_free(TYPE##_sll_t* sll_list) {\
 		free(tmp);\
 	}\
 	free(sll_list);\
+}\
+void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {\
+	TYPE##_sll_node_t *tmp;\
+	while (sll_list->first != NULL) {\
+		tmp = sll_list->first;\
+		sll_list->first = sll_list->first->flink;\
+		free(tmp);\
+		sll_list->size--;\
+	}\
+}\
+void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) {\
+	if (sll_list->first == tbr) {\
+		sll_list->first = tbr->flink;\
+	} else {\
+		TYPE##_sll_node_t *tmp = sll_list->first;\
+		TYPE##_sll_node_t *mem = sll_list->first;\
+		while (tmp->flink != NULL) {\
+			tmp = tmp->flink;\
+			if (tmp == tbr) {\
+				mem->flink = tbr->flink;\
+				free(tmp);\
+				sll_list->size--;\
+				break;\
+			} else {\
+				mem = mem->flink;\
+			}\
+		}\
+	}\
 }
 
 #endif // _NP_LIST_H_

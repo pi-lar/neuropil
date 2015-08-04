@@ -14,10 +14,10 @@
 #include "sema.h"
 #include "log.h"
 
-void *sema_create (int val)
+void *sema_create (int16_t val)
 {
 	Sema *s;
-    int ret;
+	int16_t ret;
 
     s = (Sema *) malloc (sizeof (struct Semaphore));
     s->val = val;
@@ -35,7 +35,6 @@ void *sema_create (int val)
 	}
 
     return ((void *) s);
-
 }
 
 void sema_destroy (void *v)
@@ -49,14 +48,14 @@ void sema_destroy (void *v)
 
 }
 
-int sema_p (void *v, double time)
+int16_t sema_p (void *v, double time)
 {
 
 	Sema *s = (Sema *) v;
     struct timespec timeout;
     struct timeval now;
-    unsigned long sec, nsec;
-    int ret = 0;
+    uint32_t sec, nsec;
+    int16_t ret = 0;
 
     pthread_mutex_lock (&s->lock);
     s->val--;
@@ -73,8 +72,8 @@ int sema_p (void *v, double time)
 
 		    gettimeofday (&now, NULL);
 
-		    sec  = (unsigned long) time;
-		    nsec = (unsigned long) ((time - (double) sec) * 1000000000.0);
+		    sec  = (uint32_t) time;
+		    nsec = (uint32_t) ((time - (double) sec) * 1000000000.0);
 
 		    timeout.tv_sec = now.tv_sec + sec;
 		    timeout.tv_nsec = (now.tv_usec * 1000) + nsec;

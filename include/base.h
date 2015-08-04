@@ -1,3 +1,8 @@
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  original version was taken from chimera project (MIT licensed), but heavily modified
+ *  Stephan Schwichtenberg
+ **/
 #ifndef _CHIMERA_BASE_H_
 #define _CHIMERA_BASE_H_
 

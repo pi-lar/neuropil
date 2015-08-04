@@ -1,6 +1,8 @@
 /**
- ** dtime.h
- */
+ *  copyright 2015 pi-lar GmbH
+ *  original version was taken from chimera project (MIT licensed), but heavily modified
+ *  Stephan Schwichtenberg
+ **/
 
 #ifndef NP_DTIME_H_
 #define NP_DTIME_H_

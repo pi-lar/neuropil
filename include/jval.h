@@ -45,34 +45,34 @@ Fax: 865-974-4404
 
 enum {
 	np_special_type = 0,
-// 	   short_type,
+    short_type,
 	int_type,
 	long_type,
 	long_long_type,
-	float_type, //
-	double_type, // 5
+	float_type, // 5
+	double_type, //
 	char_ptr_type,
     char_type,
 	unsigned_char_type,
-//     unsigned_short_type, //
+    unsigned_short_type, // 10
     unsigned_int_type,
-    unsigned_long_type, // 10
+    unsigned_long_type, //
     unsigned_long_long_type,
     int_array_2_type,
-    float_array_2_type, //
+    float_array_2_type, // 15
     char_array_8_type,
-    unsigned_char_array_8_type, // 15
+    unsigned_char_array_8_type, //
     void_type,
     bin_type,
-	jrb_tree_type,  //
+	jrb_tree_type,  // 20
 	key_type,
-	npobj_type // 20
+	npobj_type
 } np_jvaltype_t;
 
 /* The Jval -- a type that can hold any 8-byte type */
 typedef union jval
 {
-    // uint8_t sh;
+    int8_t sh;
     int16_t i;
     int32_t l;
     int64_t ll;
@@ -81,65 +81,69 @@ typedef union jval
     char* s;
     char c;
     unsigned char uc;
-    // unsigned short ush;
+    uint8_t ush;
     uint16_t ui;
     uint32_t ul;
     uint64_t ull;
-    int iarray[2];
+    int16_t iarray[2];
     float farray[2];
     char carray[8];
     unsigned char ucarray[8];
     void* v;
     void* bin;
-    np_jrb_t* tree;
+    np_jtree_t* tree;
     np_key_t* key;
     np_obj_t* obj;
 } jval;
 
 struct np_jval_s {
-	int type;
-	unsigned long size;
+	uint8_t type;
+	uint32_t size;
 	jval value;
 };
 
-extern np_jval_t new_jval_i (int);
-extern np_jval_t new_jval_l (long);
-extern np_jval_t new_jval_f (float);
-extern np_jval_t new_jval_d (double);
-extern np_jval_t new_jval_v ( /* void */ );
-extern np_jval_t new_jval_bin ( void* data, unsigned long size );
-extern np_jval_t new_jval_s (char *);
-extern np_jval_t new_jval_c (char);
-extern np_jval_t new_jval_uc (unsigned char);
-// extern np_jval_t new_jval_sh (short);
-// extern np_jval_t new_jval_ush (unsigned short);
-extern np_jval_t new_jval_ul (unsigned long);
-extern np_jval_t new_jval_ui (unsigned int);
-extern np_jval_t new_jval_iarray (int, int);
-extern np_jval_t new_jval_farray (float, float);
-extern np_jval_t new_jval_carray_nt (char *);	/* Carray is null terminated */
-extern np_jval_t new_jval_carray_nnt (char *);	/* Carray is not null terminated */
+void copy_jval(np_jval_t* from, np_jval_t* to);
+
+np_jval_t new_jval_sh (int8_t);
+np_jval_t new_jval_i (int16_t);
+np_jval_t new_jval_l (int32_t);
+np_jval_t new_jval_ll (int64_t);
+np_jval_t new_jval_f (float);
+np_jval_t new_jval_d (double);
+np_jval_t new_jval_v (void* v);
+np_jval_t new_jval_bin (void* data, uint32_t size);
+np_jval_t new_jval_s (char *);
+np_jval_t new_jval_c (char);
+np_jval_t new_jval_uc (unsigned char);
+np_jval_t new_jval_ush (uint8_t);
+np_jval_t new_jval_ui (uint16_t);
+np_jval_t new_jval_ul (uint32_t);
+np_jval_t new_jval_ull (uint64_t);
+np_jval_t new_jval_iarray (int16_t, int16_t);
+np_jval_t new_jval_farray (float, float);
+np_jval_t new_jval_carray_nt (char *);	/* Carray is null terminated */
+np_jval_t new_jval_carray_nnt (char *);	/* Carray is not null terminated */
        /* For ucarray -- use carray, because it uses memcpy */
-extern np_jval_t new_jval_tree(np_jrb_t* tree);
-extern np_jval_t new_jval_key(np_key_t* key);
-extern np_jval_t new_jval_obj(np_obj_t* key);
+np_jval_t new_jval_tree(np_jtree_t* tree);
+np_jval_t new_jval_key(np_key_t* key);
+np_jval_t new_jval_obj(np_obj_t* key);
 
-extern np_jval_t JNULL;
+np_jval_t JNULL;
 
-extern int jval_i (np_jval_t);
-extern long jval_l (np_jval_t);
-extern float jval_f (np_jval_t);
-extern double jval_d (np_jval_t);
-extern void *jval_v (np_jval_t);
-extern char *jval_s (np_jval_t);
-extern char jval_c (np_jval_t);
-extern unsigned char jval_uc (np_jval_t);
-// extern short jval_sh (np_jval_t);
-// extern unsigned short jval_ush (np_jval_t);
-extern unsigned int jval_ui (np_jval_t);
-extern unsigned long jval_ul (np_jval_t);
-extern int *jval_iarray (np_jval_t);
-extern float *jval_farray (np_jval_t);
-extern char *jval_carray (np_jval_t);
+int16_t jval_i (np_jval_t);
+int32_t jval_l (np_jval_t);
+float jval_f (np_jval_t);
+double jval_d (np_jval_t);
+void *jval_v (np_jval_t);
+char *jval_s (np_jval_t);
+char jval_c (np_jval_t);
+unsigned char jval_uc (np_jval_t);
+// short jval_sh (np_jval_t);
+// unsigned short jval_ush (np_jval_t);
+uint16_t jval_ui (np_jval_t);
+uint32_t jval_ul (np_jval_t);
+int16_t *jval_iarray (np_jval_t);
+float *jval_farray (np_jval_t);
+char *jval_carray (np_jval_t);
 
 #endif // _NP_JVAL_H_

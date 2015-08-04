@@ -1,3 +1,7 @@
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  Stephan Schwichtenberg
+ **/
 #ifndef _NP_AXON_H_
 #define _NP_AXON_H_
 

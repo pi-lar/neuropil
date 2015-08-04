@@ -1,9 +1,8 @@
-/*
-** $Id: semaphore.h,v 1.8 2006/06/07 09:21:28 krishnap Exp $
-**
-** Matthew Allen
-** description: 
-*/
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  original version was taken from chimera project (MIT licensed), but heavily modified
+ *  Stephan Schwichtenberg
+ **/
 
 #ifndef _NP_SEMAPHORE_H_
 #define _NP_SEMAPHORE_H_

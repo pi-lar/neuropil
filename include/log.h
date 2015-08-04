@@ -15,7 +15,7 @@
 typedef struct np_log_t {
 	char filename[256];
 	FILE *fp;
-	int level;
+	uint8_t level;
 	np_sll_t(char, logentries_l);
     pthread_mutex_t lock;
 } LOG;
@@ -44,19 +44,20 @@ enum
 //  		fprintf(logger.fp, "%s:%s:%d ## %d ## %d # " msg "\n", __FILE__, __func__, __LINE__, level, getpid(), ##__VA_ARGS__)
 
 
-void log_message(int level, const char* srcFile, const char* funcName, int lineno, const char* msg, ...);
+void log_message(uint8_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...);
 
 #define log_msg(level, msg, ...) log_message(level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
 
-void log_init (const char* filename, int level);
+// #define log_msg(level, msg, ...) \
+// { \
+// if ( (level & logger->level) > LOG_NONE) { \
+// log_message(level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__) \
+// }
+
+void log_init (const char* filename, uint8_t level);
 void log_destroy ();
 LOG* log_get ();
 void log_fflush();
 
-// void log_msg(int level, char* msg, ...);
-// void log_msg(int type, char *format, ...);
-// void *log_init ();
-// void log_message (void *logs, int type, char *format, ...);
-void log_direct (void *logs, int type, FILE * fp);
 
-#endif /* _CHIMERA_LOG_H_ */
+#endif /* _NP_LOG_H_ */

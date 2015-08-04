@@ -1,8 +1,12 @@
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  Stephan Schwichtenberg
+ **/
 #ifndef _NP_DENDRIT_H_
 #define _NP_DENDRIT_H_
 
 #include "neuropil.h"
-#include "job_queue.h"
+#include "np_jobqueue.h"
 
 #ifdef __cplusplus
 extern "C" {

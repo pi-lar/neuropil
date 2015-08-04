@@ -11,12 +11,7 @@
 #include "neuropil.h"
 #include "log.h"
 #include "dtime.h"
-#include "job_queue.h"
-#include "jrb.h"
-#include "network.h"
-#include "message.h"
-#include "route.h"
-#include "node.h"
+#include "np_message.h"
 
 #include "include.h"
 
@@ -90,7 +85,8 @@ int main(int argc, char **argv) {
 	char log_file[256];
 	sprintf(log_file, "%s_%d.log", "./neuropil_node", port);
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	log_init(log_file, level);
 
 	state = np_init(port);

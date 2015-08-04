@@ -1,3 +1,7 @@
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  Stephan Schwichtenberg
+ **/
 #ifndef _NP_THREADS_H_
 #define _NP_THREADS_H_
 
@@ -8,6 +12,6 @@ LOCK_CACHE(lk_var) {
     var++;
 }
 */
-#define LOCK_CACHE(cache) for(int i=0; (i < 1) && !pthread_mutex_lock(&cache->lock); pthread_mutex_unlock(&cache->lock), i++)
+#define LOCK_CACHE(cache) for(uint8_t i=0; (i < 1) && !pthread_mutex_lock(&cache->lock); pthread_mutex_unlock(&cache->lock), i++)
 
 #endif // _NP_THREADS_H_

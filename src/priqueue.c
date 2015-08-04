@@ -8,9 +8,9 @@
 /* Function which takes a heap rooted at the given index and make sure
  * that is confroms to the heap critera. Adapted from Introduction to
  * Algorithms (Cormen, Leiserson, Rivest 1990) page 143 */
-void heapify(binary_heap *a, int i) {
+void heapify(binary_heap *a, int16_t i) {
 
-	int l,r,largest;
+	int16_t l,r,largest;
   
 	l = LEFT(i);
 	r = RIGHT(i);
@@ -59,7 +59,7 @@ np_pqueue_node heap_extract_max(binary_heap *a) {
  * Algorithms (Cormen, Leiserson, Rivest 1990) page 150
  */
 void heap_insert(binary_heap *a, np_pqueue_node key) {
-	int i;
+	int16_t i;
 	/*
 	 * if the heap already has the max number of elements we do not
 	 * allow more elements to be added
@@ -89,12 +89,12 @@ void heap_insert(binary_heap *a, np_pqueue_node key) {
  * to Algorithms (Cormen, Leiserson, Rivest 1990) page 151 Exercise
  * 7.5-5 */
 
-void heap_delete(binary_heap *a, int i) {
+void heap_delete(binary_heap *a, int16_t i) {
 	np_pqueue_node deleted;
 	/* return with an error if the input is invalid, ie trying to delete
 	 * elements that are outside of the heap bounds, 1 to heap_size */
 	if (i > a->heap_size || i < 1) {
-		log_msg(LOG_DEBUG, "heap_delete(): %d, no such element", i);
+		log_msg(LOG_DEBUG, "heap_delete(): %hd, no such element", i);
 		return;
 	}
 	/* switch the item to be deleted with the last item, and then
@@ -109,21 +109,21 @@ void heap_delete(binary_heap *a, int i) {
 /* Function to increase the key value of a node from in the
  * heap. Adapted from Introduction to Algorithms (Cormen, Leiserson,
  * Rivest 1990) page 151 Exercise 7.5-4 */
-void heap_increase_key(binary_heap *a, int i, priority p) {
+void heap_increase_key(binary_heap *a, int16_t i, priority p) {
 	/* return with an error if the input is invalid, ie trying to
 	 * increase elements that are outside of the heap bounds, 1 to
 	 * heap_size */
 	if (i > a->heap_size || i < 1) {
-		log_msg(LOG_DEBUG, "heap_increase_key(): %d, no such element", i);
+		log_msg(LOG_DEBUG, "heap_increase_key(): %hd, no such element", i);
 		return;
 	}
 	/* change and propagate */
-	a->elements[i].p = p;
+	a->elements[i].prio = p;
 	heapify(a,i);
 }
 
 /* function to initalize a given binary heap */
-void heap_initialize(binary_heap *a,int nodes) { 
+void heap_initialize(binary_heap *a, int16_t nodes) {
 	/* We initalize heap_size to zero, since a newly created heap
 	 * contains no elements. */
 	a->heap_size = 0;
@@ -144,14 +144,14 @@ void heap_finalize(binary_heap *a) {
 }
 
 /* function to create a node */
-np_pqueue_node node_create(unsigned int id,
+np_pqueue_node node_create(uint16_t id,
 		 priority p,
-		 int duration, 
-		 int niceness,
-		 int cpu_usage) {
+		 int16_t duration,
+		 int16_t niceness,
+		 int16_t cpu_usage) {
 	np_pqueue_node n;
 	n.id = id;
-	n.p = p;
+	n.prio = p;
 	n.duration = duration;
 	n.niceness = niceness;
 	n.cpu_usage = cpu_usage;
@@ -163,15 +163,15 @@ np_pqueue_node node_create(unsigned int id,
  * wrapper for the given compare routine, since in all heap
  * comparisions, we are only interested in greater than or less than
  * operations */
-int compare_priority(np_pqueue_node i,np_pqueue_node j) {
+int16_t compare_priority(np_pqueue_node i,np_pqueue_node j) {
 	if (i.id > j.id) return 1;
 	else             return 0;
 }
 
 /* function to find if a node is in the heap, O(n) worst case, since
  * we will have to consider every element in a failed search */
-int node_find(binary_heap a,unsigned int id) {
-	int i;
+int16_t np_pqueue_node_find(binary_heap a, uint16_t id) {
+	int16_t i;
 	for (i = 1; i<=a.heap_size; i++)
 		if (id == a.elements[i].id) return i;
 	return FAILED;

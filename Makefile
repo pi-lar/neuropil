@@ -3,7 +3,7 @@ CFLAGS=-c -Wall -g -std=c99
 INCLUDES=-I ./include -I ./lib/libsodium-master/src/libsodium/include
 SODIUM_LIBRARIES=-L ./lib/libsodium-master/src/libsodium/.libs -l sodium
 
-SOURCES=src/neuropil.c src/np_glia.c src/aaatoken.c src/cmp.c src/dtime.c src/job_queue.c src/jrb.c src/jval.c src/key.c src/log.c src/message.c src/network.c src/node.c src/np_axon.c src/np_container.c src/np_dendrit.c src/np_util.c src/priqueue.c src/route.c src/semaphore.c 
+SOURCES= src/cmp.c src/dtime.c src/np_jtree.c src/jval.c src/np_aaatoken.c src/np_message.c src/np_memory.c src/np_glia.c src/neuropil.c src/np_jobqueue.c src/np_key.c src/log.c src/np_network.c src/np_node.c src/np_axon.c src/np_container.c src/np_dendrit.c src/np_util.c src/priqueue.c src/np_route.c 
 TEST_SOURCES=test/neuropil_controller.c test/jrb_test_msg.c
 
 # TARGET_PLATFORM=-target x86-apple

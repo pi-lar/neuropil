@@ -1,8 +1,15 @@
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  header only implementation to manage heap objects
+ *  taking the generating approach using the c preprocessor
+ *  Stephan Schwichtenberg
+ **/
 
 #ifndef _NP_MEMORY_H
 #define _NP_MEMORY_H
 
 #include "include.h"
+#include "stdint.h"
 
 // enum to identify the correct type of objects
 typedef enum np_obj_type {
@@ -11,6 +18,7 @@ typedef enum np_obj_type {
 	np_node_t_e,
 	np_key_t_e, // not yet used
 	np_aaatoken_t_e,
+	np_msgproperty_t_e,
 	test_struct_t_e = 99
 } np_obj_enum;
 
@@ -31,7 +39,7 @@ void new_callback(void* data);
  **/
 struct np_obj_s {
 
-	int ref_count;
+	int16_t ref_count;
 	np_obj_enum type;
 	void* ptr;
 
@@ -56,8 +64,8 @@ struct np_obj_pool_s {
 
 	np_obj_t* free_obj;
 	// we need these two extensions
-	unsigned int size;
-	unsigned int available;
+	uint32_t size;
+	uint32_t available;
 
 	pthread_mutex_t lock;
 };
@@ -82,13 +90,16 @@ struct np_obj_pool_s {
 #define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE) \
 void TYPE##_new(void*); \
 void TYPE##_del(void*); \
-void TYPE##_ref(np_obj_t* obj); \
-void TYPE##_unref(np_obj_t* obj);
+
+
+//void TYPE##_ref_obj(TYPE* obj); \
+//void TYPE##_unref_obj(TYPE* obj);
 
 // macro definitions to generate implementation of prototypes
-#define _NP_GENERATE_MEMORY_IMPLEMENTATION(TYPE) \
-void TYPE##_unref(np_obj_t* obj) { assert (obj != NULL); obj->ref_count--; } \
-void TYPE##_ref(np_obj_t* obj)   { assert (obj != NULL); obj->ref_count++; }
+#define _NP_GENERATE_MEMORY_IMPLEMENTATION(TYPE)
+
+//void TYPE##_unref_obj(TYPE* obj) { assert (obj != NULL); obj->obj->ref_count--; } \
+//void TYPE##_ref_obj(TYPE* obj)   { assert (obj != NULL); obj->obj->ref_count++; }
 
 /**
  ** following this line: np_obj bind, unbind, free definitions
@@ -97,35 +108,35 @@ void TYPE##_ref(np_obj_t* obj)   { assert (obj != NULL); obj->ref_count++; }
 //	if (n->ref_count <= 0) {
 //		np_free(TYPE, n);
 //	};
-#define np_ref(TYPE, n) \
-{ \
-    assert (n != NULL); \
-    assert (n->type == TYPE##_e); \
-    assert (n->ptr != NULL); \
-	n->ref_count++; \
-}
+//#define np_ref(TYPE, n) \
+//{ \
+//    assert (n != NULL); \
+//    assert (n->type == TYPE##_e); \
+//    assert (n->ptr != NULL); \
+//	n->ref_count++; \
+//}
 
-#define np_unref(TYPE,n)\
-{ \
-	assert (n != NULL); \
-	assert (n->type == TYPE##_e); \
-	n->ref_count--; \
-}
+//#define np_unref(TYPE,n)\
+//{ \
+//	assert (n != NULL); \
+//	assert (n->type == TYPE##_e); \
+//	n->ref_count--; \
+//}
 
 // pthread_mutex_lock(&(n->lock));
-#define np_bind(TYPE, n, obj)\
-{ \
-	assert (n      != NULL); \
-	np_ref(TYPE, n); \
-	assert (n->ptr != NULL); \
-	obj = (TYPE*) n->ptr; \
-}
+//#define np_bind(TYPE, n, obj)\
+//{ \
+//	assert (n      != NULL); \
+//	np_ref(TYPE, n); \
+//	assert (n->ptr != NULL); \
+//	obj = (TYPE*) n->ptr; \
+//}
 // pthread_mutex_unlock(&(n->lock));
-#define np_unbind(TYPE,n,obj) { \
-	assert (NULL != n); \
-	np_unref(TYPE, n); \
-	obj = NULL; \
-}
+//#define np_unbind(TYPE,n,obj) { \
+//	assert (NULL != n); \
+//	np_unref(TYPE, n); \
+//	obj = NULL; \
+//}
 
 // np_new - allocate wrapper memory plus structure memory, returns wrapper struct pointer
 // if (0 != pthread_mutex_init (&(np_obj_pool.current->lock), NULL))
@@ -201,32 +212,32 @@ void TYPE##_ref(np_obj_t* obj)   { assert (obj != NULL); obj->ref_count++; }
 
 
 
-#define np_new(TYPE, n) \
-{ \
-    assert(NULL != &np_obj_pool); \
-    pthread_mutex_lock(&(np_obj_pool.lock)); \
-	if (NULL != np_obj_pool.free_obj) { \
-    	np_obj_pool.current = np_obj_pool.free_obj; \
-    	np_obj_pool.free_obj = np_obj_pool.free_obj->next; \
-    	np_obj_pool.available--; \
-	} else { \
-    	np_obj_pool.current = (np_obj_t*) malloc (sizeof(np_obj_t) ); \
-    	np_obj_pool.size++; \
-    } \
-	np_obj_pool.current->ptr = (TYPE*) malloc(sizeof(TYPE)); \
-	np_obj_pool.current->new_callback = TYPE##_new; \
-	np_obj_pool.current->del_callback = TYPE##_del; \
-	np_obj_pool.current->type = TYPE##_e; \
-	np_obj_pool.current->ref_count = 0; \
-	np_obj_pool.current->new_callback(np_obj_pool.current->ptr); \
-	np_obj_pool.current->prev = np_obj_pool.last; \
-	np_obj_pool.current->next = NULL; \
-	if (NULL == np_obj_pool.first) np_obj_pool.first = np_obj_pool.current; \
-	if (NULL != np_obj_pool.last) np_obj_pool.last->next = np_obj_pool.current; \
-	np_obj_pool.last = np_obj_pool.current; \
-	n = np_obj_pool.current; \
-	pthread_mutex_unlock(&(np_obj_pool.lock)); \
-}
+//#define np_new(TYPE, n) \
+//{ \
+//    assert(NULL != &np_obj_pool); \
+//    pthread_mutex_lock(&(np_obj_pool.lock)); \
+//	if (NULL != np_obj_pool.free_obj) { \
+//    	np_obj_pool.current = np_obj_pool.free_obj; \
+//    	np_obj_pool.free_obj = np_obj_pool.free_obj->next; \
+//    	np_obj_pool.available--; \
+//	} else { \
+//    	np_obj_pool.current = (np_obj_t*) malloc (sizeof(np_obj_t) ); \
+//    	np_obj_pool.size++; \
+//    } \
+//	np_obj_pool.current->ptr = (TYPE*) malloc(sizeof(TYPE)); \
+//	np_obj_pool.current->new_callback = TYPE##_new; \
+//	np_obj_pool.current->del_callback = TYPE##_del; \
+//	np_obj_pool.current->type = TYPE##_e; \
+//	np_obj_pool.current->ref_count = 0; \
+//	np_obj_pool.current->new_callback(np_obj_pool.current->ptr); \
+//	np_obj_pool.current->prev = np_obj_pool.last; \
+//	np_obj_pool.current->next = NULL; \
+//	if (NULL == np_obj_pool.first) np_obj_pool.first = np_obj_pool.current; \
+//	if (NULL != np_obj_pool.last) np_obj_pool.last->next = np_obj_pool.current; \
+//	np_obj_pool.last = np_obj_pool.current; \
+//	n = np_obj_pool.current; \
+//	pthread_mutex_unlock(&(np_obj_pool.lock)); \
+//}
 
 // np_free - free resources (but not object wrapper) if ref_count is <= 0
 // in case of doubt, call np_free. it will not harm ;-)
@@ -234,25 +245,25 @@ void TYPE##_ref(np_obj_t* obj)   { assert (obj != NULL); obj->ref_count++; }
 // pthread_mutex_unlock(&(n->lock));
 // assert (n->ptr != NULL);
 
-#define np_free(TYPE, n) \
-{ \
-	pthread_mutex_lock(&(np_obj_pool.lock)); \
-	if (n->ref_count <= 0 && n->ptr) { \
-		assert (n->type == TYPE##_e); \
-		if (n == np_obj_pool.last)  np_obj_pool.last  = n->prev; \
-		if (n == np_obj_pool.first) np_obj_pool.first = n->next; \
-		if (NULL != n->prev) n->prev->next = n->next; \
-		if (NULL != n->next) n->next->prev = n->prev; \
-		n->del_callback(n->ptr); \
-		free(n->ptr); \
-		n->ptr = NULL; \
-		n->type = np_none_t_e; \
-		n->prev = NULL; n->next = np_obj_pool.free_obj; np_obj_pool.free_obj = n; \
-		np_obj_pool.available++; \
-		np_obj_pool.current = NULL; \
-	} \
-	pthread_mutex_unlock(&(np_obj_pool.lock)); \
-}
+//#define np_free(TYPE, n) \
+//{ \
+//	pthread_mutex_lock(&(np_obj_pool.lock)); \
+//	if (n->ref_count <= 0 && n->ptr) { \
+//		assert (n->type == TYPE##_e); \
+//		if (n == np_obj_pool.last)  np_obj_pool.last  = n->prev; \
+//		if (n == np_obj_pool.first) np_obj_pool.first = n->next; \
+//		if (NULL != n->prev) n->prev->next = n->next; \
+//		if (NULL != n->next) n->next->prev = n->prev; \
+//		n->del_callback(n->ptr); \
+//		free(n->ptr); \
+//		n->ptr = NULL; \
+//		n->type = np_none_t_e; \
+//		n->prev = NULL; n->next = np_obj_pool.free_obj; np_obj_pool.free_obj = n; \
+//		np_obj_pool.available++; \
+//		np_obj_pool.current = NULL; \
+//	} \
+//	pthread_mutex_unlock(&(np_obj_pool.lock)); \
+//}
 
 // print the complete object list and statistics
 #define np_printpool { \

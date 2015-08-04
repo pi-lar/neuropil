@@ -11,13 +11,12 @@
 #include "np_memory.h"
 #include "neuropil.h"
 #include "log.h"
-#include "jrb.h"
 #include "dtime.h"
-#include "job_queue.h"
-#include "network.h"
-#include "message.h"
-#include "route.h"
-#include "node.h"
+#include "np_jobqueue.h"
+#include "np_jtree.h"
+#include "np_message.h"
+#include "np_node.h"
+#include "np_threads.h"
 
 #include "include.h"
 
@@ -97,19 +96,17 @@ int main(int argc, char **argv) {
 	char log_file[256];
 	sprintf(log_file, "%s_%d.log", "./neuropil_controller", port);
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	log_init(log_file, level);
 
 	state = np_init(port);
-
-	state->joined_network = 1;
+	state->my_key->node->joined_network = 1;
 
 	// dsleep(50);
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(state, 8);
 
-	np_obj_t* o_msg_out;
-	np_node_t* node, *me;
 	np_message_t* msg_out;
 
 	while (1) {
@@ -117,41 +114,27 @@ int main(int argc, char **argv) {
 		char* my_string = (char *) malloc (nbytes);
 		printf("enter a node to start (key:host:port)\n");
 		int bytes_read = getline (&my_string, &nbytes, stdin);
-		if (bytes_read > 255) {
-			printf("given identifier too long, skipping invitation ...\n");
+		if (bytes_read > 255 || bytes_read < 64) {
+			printf("given identifier too long or to small, skipping invitation ...\n");
 			continue;
 		}
-		char* skey = strtok(my_string, ":");
-		char* host = strtok(NULL, ":");
-		char* port = strtok(NULL, ":");
-
 		log_msg(LOG_DEBUG, "creating internal structure");
-		np_key_t* key;
-		np_new_obj(np_key_t, key);
-		str_to_key(key, skey);
 
-		np_obj_t* o_node = np_node_lookup(state->nodes, key, 0);
-		np_bind(np_node_t, o_node, node);
-		np_node_update(node, host, atoi(port));
+		np_key_t* node_key = NULL;
 
+		LOCK_CACHE(state) {
+			node_key = np_node_decode_from_str(state, my_string);
+		}
 		log_msg(LOG_DEBUG, "creating welcome message");
-		np_new(np_message_t, o_msg_out);
-		np_bind(np_message_t, o_msg_out, msg_out);
+		np_new_obj(np_message_t, msg_out);
 
-		np_bind(np_node_t, state->neuropil->me, me);
-		np_jrb_t* jrb_me = make_jrb();
-		np_node_encode_to_jrb(jrb_me, me);
-		np_message_create(msg_out, node->key, state->neuropil->my_key , NP_MSG_JOIN_REQUEST, jrb_me);
-		np_unbind(np_node_t, state->neuropil->me, me);
+		np_jtree_t* jrb_me = make_jtree();
+		np_node_encode_to_jrb(jrb_me, state->my_key);
+		np_message_create(msg_out, node_key, state->my_key , NP_MSG_JOIN_REQUEST, jrb_me);
 
 		log_msg(LOG_DEBUG, "submitting welcome message");
-		np_msgproperty_t* prop = np_message_get_handler(state->messages, OUTBOUND, NP_MSG_JOIN_REQUEST);
-		job_submit_msg_event(state->jobq, prop, key, o_msg_out);
-
-		np_unbind(np_node_t, o_node, node);
-
-		np_unbind(np_message_t, o_msg_out, msg_out);
-		// np_unref(np_message_t, o_msg_out);
+		np_msgproperty_t* prop = np_message_get_handler(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
+		job_submit_msg_event(state->jobq, prop, node_key, msg_out);
 
 		dsleep(1.0);
 	}

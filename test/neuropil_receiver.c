@@ -11,12 +11,7 @@
 #include "neuropil.h"
 #include "log.h"
 #include "dtime.h"
-#include "job_queue.h"
-#include "network.h"
-#include "message.h"
-#include "route.h"
-#include "node.h"
-#include "jrb.h"
+#include "np_message.h"
 
 #include "include.h"
 
@@ -29,7 +24,6 @@
 extern char *optarg;
 extern int optind;
 
-np_node_t *driver;
 np_state_t *state;
 
 np_key_t* key;
@@ -88,7 +82,8 @@ int main(int argc, char **argv) {
 	char log_file[256];
 	sprintf(log_file, "%s_%d.log", "./neuropil_node", port);
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	log_init(log_file, level);
 
 	state = np_init(port);
@@ -108,9 +103,7 @@ int main(int argc, char **argv) {
 		dsleep(0.9);
 		char* testdata;
 
-		int real_seq = np_receive(state, "this.is.a.test", &testdata, k, 1);
-		log_msg(LOG_DEBUG, "received message %lu: %s", k, testdata);
-
-		k++;
+		int real_seq = np_receive(state, "this.is.a.test", &testdata);
+		log_msg(LOG_DEBUG, "received message %lu: %s", real_seq, testdata);
 	}
 }
