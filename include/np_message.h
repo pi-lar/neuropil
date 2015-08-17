@@ -36,6 +36,9 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
  **/
 void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_jtree_t* the_data);
 
+void np_message_encrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoken_t* tmp_token);
+void np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoken_t* tmp_token);
+
 // encrypt / decrypt parts of a message
 np_bool np_message_decrypt_part(np_jtree_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
 np_bool np_message_encrypt_part(np_jtree_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
@@ -229,11 +232,12 @@ static const char* NP_HS_SIGNATURE = "_np.signature";
 static const char* NP_MSG_BODY_TEXT = "_np.text";
 static const char* NP_MSG_BODY_XML = "_np.xml";
 
+// encrypted message part
+static const char* NP_ENCRYPTED = "_np.encrypted";
+
 // msg footer constants
 static const char* NP_MSG_FOOTER_ALIAS_KEY = "_np.alias_key";
 
-// encrypted message part
-static const char* NP_ENCRYPTED = "encrypted";
 
 /**
  ** message_init: chstate, port

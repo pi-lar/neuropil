@@ -131,12 +131,13 @@ void hnd_msg_in_piggy(np_state_t* state, np_jobargs_t* args) {
 
 void np_signal (np_state_t* state, np_jobargs_t* args)
 {
+	log_msg(LOG_TRACE, ".start.np_signal");
+
 	if (!state->my_key->node->joined_network) {
 		np_free_obj(np_message_t, args->msg);
 		return;
 	}
 
-	log_msg(LOG_DEBUG, "message received");
 	// np_key_t* search_key = NULL;
 	np_message_t* msg_in = args->msg;
 
@@ -157,9 +158,7 @@ void np_signal (np_state_t* state, np_jobargs_t* args)
 //	}
 
 	np_msgproperty_t* real_prop = np_message_get_handler(state, INBOUND, subject);
-	//
-	// TODO: decrypt payload part of the message
-	//
+
 	log_msg(LOG_DEBUG, "pushing message into cache %p", real_prop);
 	LOCK_CACHE(real_prop) {
 		sll_append(np_message_t, real_prop->msg_cache, args->msg);
@@ -176,6 +175,8 @@ void np_signal (np_state_t* state, np_jobargs_t* args)
 	}
 
 	np_free_obj(np_message_t, args->msg);
+
+	log_msg(LOG_TRACE, ".end  .np_signal");
 }
 
 /** hnd_msg_in_join_req:
@@ -532,7 +533,7 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args) {
 	if ( real_prop ) { //
 
 		log_msg(LOG_DEBUG,
-				"this node is one sender of messages, cheking msgcache (%p / %u) ...",
+				"this node is one sender of messages, checking msgcache (%p / %u) ...",
 				real_prop->msg_cache, sll_size(real_prop->msg_cache));
 
 		// get message from cache (maybe only for one way mep ?!)
@@ -559,9 +560,8 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args) {
 				msg_available = sll_size(real_prop->msg_cache);
 			}
 
-			//
-			// TODO: encrypt message
-			//
+			np_message_encrypt_payload(state, msg_out, tmp_token);
+
 			np_key_t* interest_key;
 			np_new_obj(np_key_t, interest_key);
 			str_to_key(interest_key, (const unsigned char*) tmp_token->issuer);

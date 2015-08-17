@@ -96,6 +96,7 @@ int main(int argc, char **argv) {
 	np_waitforjoin(state);
 
 	unsigned long k = 1;
+
 	while (1) {
 
 		dsleep(1.0);

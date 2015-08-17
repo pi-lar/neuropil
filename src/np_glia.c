@@ -525,8 +525,7 @@ void np_network_read(np_state_t* state, np_jobargs_t* args) {
 	}
 
 	/* receive the new data */
-	int16_t in_msg_len = recvfrom(ng->socket, data, NETWORK_PACK_SIZE, 0, &from,
-			&fromlen);
+	int16_t in_msg_len = recvfrom(ng->socket, data, NETWORK_PACK_SIZE, 0, &from, &fromlen);
 	if (!in_msg_len) {
 		log_msg(LOG_ERROR, "recvfrom failed: %s", strerror(errno));
 		job_submit_event(state->jobq, np_network_read);
@@ -655,7 +654,7 @@ void np_network_read(np_state_t* state, np_jobargs_t* args) {
 		log_msg(LOG_DEBUG, "received message for subject: %s (seq=%u, ack=%hhd)",
 				subject, seq, ack);
 
-		if (ack == ACK_EACHHOP) {
+		if (0 < (ack & ACK_EACHHOP)) {
 			/* acknowledge part, each hop has to acknowledge the message */
 			// TODO: move this ack after a) a message handler has been found or b) the message has been forwarded
 			np_key_t* ack_key;
@@ -765,12 +764,14 @@ np_aaatoken_t* create_msg_token(np_state_t* state, const char* subject, np_msgpr
 	strncpy(msg_token->issuer, (char*) key_get_as_string(state->my_key), 255);
 	msg_token->not_before = dtime();
 	msg_token->expiration = dtime() + 10.0; // 10 second valid token
+
 	// add e2e encryption details for sender
 	unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES];
 	crypto_sign_ed25519_pk_to_curve25519(curve25519_pk,
-			state->my_key->authentication->public_key);
+										 state->my_key->authentication->public_key);
 	strncpy((char*) msg_token->public_key, (const char*) curve25519_pk,
 			crypto_scalarmult_curve25519_BYTES);
+
 	jrb_insert_str(msg_token->extensions, "mep_type",
 			new_jval_ush(msg_request->mep_type));
 	jrb_insert_str(msg_token->extensions, "ack_mode",
@@ -832,6 +833,7 @@ void np_send_msg_interest(np_state_t* state, const char* subject) {
 
 void np_send_msg_availability(np_state_t* state, const char* subject)
 {
+	log_msg(LOG_TRACE, ".start.np_send_msg_availability");
 	np_message_t* msg_out;
 	np_aaatoken_t* msg_token;
 
@@ -874,4 +876,5 @@ void np_send_msg_availability(np_state_t* state, const char* subject)
 		np_msgproperty_t* prop_route = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
 		job_submit_msg_event(state->jobq, prop_route, target, msg_out);
 	// }
+	log_msg(LOG_TRACE, ".end  .np_send_msg_availability");
 }

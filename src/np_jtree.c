@@ -239,7 +239,8 @@ void jrb_replace_all_with_str(np_jtree_t* n, const char* key, np_jval_t val)
 			if (tmp->key.type == double_type)        del_dbl_node(n, tmp->key.value.d);
 			if (tmp->key.type == unsigned_long_type) del_ulong_node(n, tmp->key.value.ul);
 
-			free(tmp);
+			// free(tmp);
+
 		} while (iter != NULL);
 	}
     jrb_insert_str(n, key, val);

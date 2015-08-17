@@ -147,11 +147,13 @@ void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 
 		sll_iterator(np_aaatoken_t) iter = sll_first(subject_key->send_tokens);
 		while (NULL != iter) {
+
 			np_aaatoken_t* tmp_token = iter->val;
-			if (0 == token_is_valid(tmp_token) ||
+
+			if (FALSE == token_is_valid(tmp_token) ||
 				0 == strncmp(token->issuer, tmp_token->issuer, strlen(token->issuer)) )
 			{
-				msg_threshold = jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ul;
+				msg_threshold = jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
 				subject_key->send_property->msg_threshold -= msg_threshold;
 
 				log_msg(LOG_DEBUG, "deleting old / invalid sender msg tokens" );
@@ -161,6 +163,7 @@ void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 				sll_iterator(np_aaatoken_t) tbr = iter;
 				iter = sll_next(iter);
 				sll_delete(np_aaatoken_t, subject_key->send_tokens, tbr);
+
 			} else {
 				iter = sll_next(iter);
 			}
@@ -224,11 +227,13 @@ sll_return(np_aaatoken_t) np_get_sender_token(np_state_t *state, char* subject) 
 
 	LOCK_CACHE(subject_key->send_property)
 	{
-		while (subject_key->recv_property->msg_threshold > 0 &&
-			   subject_key->send_property->msg_threshold > 0 &&
+		while (subject_key->send_property->msg_threshold > 0 &&
 			   NULL != (tmp = sll_head(np_aaatoken_t, subject_key->send_tokens))) {
 
-			if (!token_is_valid(tmp)) continue;
+			if (!token_is_valid(tmp)) {
+				log_msg(LOG_DEBUG, "ignoring invalid sender token for issuer %s", tmp->issuer);
+				continue;
+			}
 
 			uint16_t token_threshold = jrb_find_str(tmp->extensions, "msg_threshold")->val.value.ui;
 			log_msg(LOG_DEBUG,
@@ -243,7 +248,7 @@ sll_return(np_aaatoken_t) np_get_sender_token(np_state_t *state, char* subject) 
 
 			if (token_threshold > subject_key->send_property->msg_threshold) {
 				subject_key->send_property->msg_threshold = 0;
-				// not fully used token, re add it to our token queue
+				// not fully used token, re-add it to our token queue
 				add_again = TRUE;
 
 			} else {
@@ -284,10 +289,11 @@ void np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *toke
 		sll_iterator(np_aaatoken_t) iter = sll_first(subject_key->recv_tokens);
 		while (NULL != iter) {
 			np_aaatoken_t* tmp_token = iter->val;
+
 			if (0 == token_is_valid(tmp_token) ||
 				0 == strncmp(token->issuer, tmp_token->issuer, strlen(token->issuer)) )
 			{
-				msg_threshold = jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ul;
+				msg_threshold = jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
 				subject_key->recv_property->msg_threshold -= msg_threshold;
 
 				log_msg(LOG_DEBUG, "deleting old / invalid receiver msg tokens" );
@@ -297,6 +303,7 @@ void np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *toke
 				sll_iterator(np_aaatoken_t) tbr = iter;
 				iter = sll_next(iter);
 				sll_delete(np_aaatoken_t, subject_key->recv_tokens, tbr);
+
 			} else {
 				iter = sll_next(iter);
 			}
@@ -359,42 +366,41 @@ sll_return(np_aaatoken_t) np_get_receiver_token(np_state_t *state, char* subject
 	np_aaatoken_t* tmp = NULL;
 
 	LOCK_CACHE(subject_key->recv_property) {
-	while (subject_key->recv_property->msg_threshold > 0 &&
-		   subject_key->send_property->msg_threshold > 0 &&
-	       NULL != (tmp = sll_head(np_aaatoken_t, subject_key->recv_tokens))) {
+		while (subject_key->recv_property->msg_threshold > 0 &&
+			   NULL != (tmp = sll_head(np_aaatoken_t, subject_key->recv_tokens))) {
 
-		if (!token_is_valid(tmp)) {
-			log_msg(LOG_DEBUG, "deleting invalid receiver msg tokens" );
-			np_unref_obj(np_aaatoken_t, tmp);
-			np_free_obj(np_aaatoken_t, tmp);
-			continue;
+			if (!token_is_valid(tmp)) {
+				log_msg(LOG_DEBUG, "deleting invalid receiver msg tokens" );
+				np_unref_obj(np_aaatoken_t, tmp);
+				np_free_obj(np_aaatoken_t, tmp);
+				continue;
+			}
+
+			uint16_t token_threshold = jrb_find_str(tmp->extensions, "msg_threshold")->val.value.ui;
+			log_msg(LOG_DEBUG,
+					"found valid receiver token (%hd slots / %s)",
+					token_threshold, tmp->issuer );
+
+			// only pick key from a list if the subject msg_treshold is bigger than zero
+			// and the sending threshold is bigger than zero as well
+			// and we actually have a receiver node in the list
+			sll_append(np_aaatoken_t, return_list, tmp);
+			np_bool add_again = FALSE;
+
+			if (token_threshold > subject_key->recv_property->msg_threshold) {
+				// token_threshold -= subject_key->recv_property->msg_threshold;
+				subject_key->recv_property->msg_threshold = 0;
+				// done later
+				// jrb_find_str(tmp->extensions, "_np.msg_threshold")->val.value.ul -= token_threshold;
+				add_again = TRUE;
+
+			} else {
+				subject_key->recv_property->msg_threshold -= token_threshold;
+				np_unref_obj(np_aaatoken_t, tmp);
+			}
+
+			if (add_again == TRUE) sll_append(np_aaatoken_t, subject_key->recv_tokens, tmp);
 		}
-
-		uint16_t token_threshold = jrb_find_str(tmp->extensions, "msg_threshold")->val.value.ui;
-		log_msg(LOG_DEBUG,
-				"found valid sender token (%hd slots / %s)",
-				token_threshold, tmp->issuer );
-
-		// only pick key from a list if the subject msg_treshold is bigger than zero
-		// and the sending threshold is bigger than zero as well
-		// and we actually have a receiver node in the list
-		sll_append(np_aaatoken_t, return_list, tmp);
-		np_bool add_again = FALSE;
-
-		if (token_threshold > subject_key->recv_property->msg_threshold) {
-			// token_threshold -= subject_key->recv_property->msg_threshold;
-			subject_key->recv_property->msg_threshold = 0;
-			// done later
-			// jrb_find_str(tmp->extensions, "_np.msg_threshold")->val.value.ul -= token_threshold;
-			add_again = TRUE;
-
-		} else {
-			subject_key->recv_property->msg_threshold -= token_threshold;
-			np_unref_obj(np_aaatoken_t, tmp);
-		}
-
-		if (add_again == TRUE) sll_append(np_aaatoken_t, subject_key->recv_tokens, tmp);
-	}
 	}
 	return return_list;
 }

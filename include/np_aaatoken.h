@@ -56,6 +56,7 @@ struct np_aaatoken_s {
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
 	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
 
+	// key/value extension list
 	np_jtree_t* extensions;
 };
 

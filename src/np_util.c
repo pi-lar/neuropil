@@ -114,6 +114,9 @@ void write_type(np_jval_t val, cmp_ctx_t* cmp) {
 			if (!cmp_write_ext(cmp, jrb_tree_type, buf_size, buf_ptr)) {
 				log_msg(LOG_WARN, "couldn't write tree data -- ignoring for now");
 			}
+//			else {
+//				log_msg(LOG_DEBUG, "wrote tree structure %u size %hu %lu", buf_size, val.value.tree->size, val.value.tree->byte_size);
+//			}
 		}
 		break;
 	default:
@@ -218,9 +221,9 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 	case CMP_TYPE_BIN16:
 	case CMP_TYPE_BIN32:
 		{
-			value->value.bin = malloc(obj->as.bin_size);
 			value->type = bin_type;
 			value->size = obj->as.bin_size;
+			value->value.bin = malloc(value->size);
 			memset(value->value.bin, 0, value->size);
 			cmp->read(cmp, value->value.bin, obj->as.bin_size);
 			break;
@@ -247,7 +250,8 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 			// log_msg(LOG_DEBUG, "now reading cmp-extension type %hhd size %u", obj->as.ext.type, obj->as.ext.size);
 			char buffer[obj->as.ext.size];
 			void* buf_ptr = buffer;
-			buffer_reader(cmp, buf_ptr, obj->as.ext.size);
+			cmp->read(cmp, buf_ptr, obj->as.ext.size);
+			// log_msg(LOG_DEBUG, "read %u bytes ", (cmp->buf - buf_ptr));
 
 			if (obj->as.ext.type == jrb_tree_type) {
 				// tree type
@@ -259,7 +263,8 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 				value->value.tree = subtree;
 				value->type = jrb_tree_type;
 				value->size = subtree->size;
-				// log_msg(LOG_DEBUG, "read tree structure %p size %hu %u", subtree, subtree->size, subtree->byte_size);
+				// log_msg(LOG_DEBUG, "read tree structure %u size %hu %lu", (tree_cmp.buf-buf_ptr), subtree->size, subtree->byte_size);
+
 			} else {
 				log_msg(LOG_WARN,
 						"unknown de-serialization for given extension type %hd", obj->as.ext.type);

@@ -138,6 +138,7 @@ void np_rem_mx_property(np_state_t* state, char* subject, const char* key)
 
 }
 
+
 void np_send (np_state_t* state, char* subject, char *data, uint32_t seqnum)
 {
 	np_msgproperty_t* msg_prop = np_message_get_handler(state, OUTBOUND, subject);
@@ -167,9 +168,9 @@ void np_send (np_state_t* state, char* subject, char *data, uint32_t seqnum)
 
 	if (NULL != (tmp_token = sll_head(np_aaatoken_t, interested_list)))
 	{
-		//
-		// TODO: encrypt message
-		//
+		// first encrypt the relevant message part itself
+		np_message_encrypt_payload(state, msg, tmp_token);
+
 		np_key_t* receiver_key;
 		np_new_obj(np_key_t, receiver_key);
 		str_to_key(receiver_key, (const unsigned char*) tmp_token->issuer);
@@ -245,55 +246,60 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 
 	np_send_msg_interest(state, subject);
 
-	np_sll_t(np_aaatoken_t, sender_token_list) = np_get_sender_token(state, subject);
-	np_aaatoken_t* tmp_token = NULL;
-
-	if (NULL == (tmp_token = sll_head(np_aaatoken_t, sender_token_list))) {
+	if (0 == sll_size(msg_prop->msg_cache)) {
 
 		LOCK_CACHE(msg_prop) {
 			pthread_cond_wait(&msg_prop->msg_received, &msg_prop->lock);
 		}
-
-		sender_token_list = np_get_sender_token(state, subject);
-		// tmp_token = sll_head(np_aaatoken_t, sender_token_list);
+		log_msg(LOG_DEBUG, "received signal that a new message arrived", msg_prop);
 	}
 
+	np_sll_t(np_aaatoken_t, sender_token_list) = np_get_sender_token(state, subject);
+	np_aaatoken_t* tmp_token = NULL;
+
 	uint32_t received = 0;
+	uint16_t sender_threshold = 0;
 	uint16_t counter = sll_size(msg_prop->msg_cache);
 	np_message_t* msg = NULL;
 
+	tmp_token = sll_head(np_aaatoken_t, sender_token_list);
+	if (NULL != tmp_token) {
+		sender_threshold = jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
+	}
+
+	log_msg(LOG_DEBUG, "getting message from cache %p (st: %d / cache-size: %d)", msg_prop, sender_threshold, counter);
 	while ( NULL != (msg = sll_head(np_message_t, msg_prop->msg_cache)) &&
-			counter > 0)
+			counter > 0 && sender_threshold > 0)
 	{
-		log_msg(LOG_DEBUG, "getting message from cache %p", msg_prop);
+		log_msg(LOG_DEBUG, "decrypting message ...");
+		np_message_decrypt_payload(state, msg, tmp_token);
 
-		// np_key_t* from_key = key_create_from_hash(
-		// 		(unsigned char*) jrb_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s);
-		// np_key_t* token_key = key_create_from_hash((unsigned char*) tmp_token->issuer);
-
-		// if (key_comp(from_key, token_key)) {
-
-		//
-		// TODO: decrypt message payload
-		//
 		received = jrb_find_str(msg->properties, NP_MSG_INST_SEQ)->val.value.ul;
 		np_jtree_elem_t* reply_data = jrb_find_str(msg->body, NP_MSG_BODY_TEXT);
 		*data = strndup(reply_data->val.value.s, strlen(reply_data->val.value.s));
 
 		np_unref_obj(np_message_t, msg);
 		np_free_obj(np_message_t, msg);
+
 		log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
-		msg_prop->msg_threshold--;
 
 		// } else {
 
 		// 	sll_append(np_message_t, msg_prop->msg_cache, msg)
 		// }
 		counter--;
-	}
+		sender_threshold--;
 
-	// create our interest for a message and check for available messages (local and in the net)
-	// np_send_msg_interest(state, subject);
+		// switch to next token if the previous one is empty
+		if (0 == sender_threshold) {
+			tmp_token = sll_head(np_aaatoken_t, sender_token_list);
+			if (NULL != tmp_token) {
+				sender_threshold = jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
+			}
+		}
+	}
+	// when reaching this point, no interest / listener for a message is present
+	msg_prop->msg_threshold--;
 
 	return received;
 }

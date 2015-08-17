@@ -22,6 +22,7 @@
 #include "dtime.h"
 #include "log.h"
 #include "neuropil.h"
+#include "np_aaatoken.h"
 #include "np_axon.h"
 #include "np_dendrit.h"
 #include "np_glia.h"
@@ -97,9 +98,9 @@ np_msgproperty_t np_internal_messages[] =
 	{ .msg_subject=NP_MSG_JOIN_NACK, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send },
 
 	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .msg_mode=TRANSFORM, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=np_send_rowinfo }, // default input handling func should be "route_get" ?
-
 	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_piggy },
 	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send },
+
 	{ .msg_subject=NP_MSG_UPDATE_REQUEST, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_update },
 	{ .msg_subject=NP_MSG_UPDATE_REQUEST, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send },
 
@@ -275,9 +276,11 @@ np_bool np_message_decrypt_part(np_jtree_t* msg_part,
 							unsigned char* public_key,
 							unsigned char* secret_key)
 {
+	log_msg(LOG_TRACE, ".start.np_message_decrypt_part");
 	np_jtree_elem_t* enc_msg_part = jrb_find_str(msg_part, NP_ENCRYPTED);
 	if (NULL == enc_msg_part) {
-		log_msg(LOG_ERROR, "couldn't find encrypted header");
+		log_msg(LOG_ERROR, "couldn't find encrypted msg part");
+		log_msg(LOG_TRACE, ".end  .np_message_decrypt_part");
 		return FALSE;
 	}
 	unsigned char dec_part[enc_msg_part->val.size - crypto_box_MACBYTES];
@@ -303,18 +306,24 @@ np_bool np_message_decrypt_part(np_jtree_t* msg_part,
 //			public_key);
 	if (ret < 0) {
 		log_msg(LOG_ERROR, "couldn't decrypt msg part with session key %s", public_key);
+		log_msg(LOG_TRACE, ".end  .np_message_decrypt_part");
 		return FALSE;
 	}
 
 	cmp_ctx_t cmp;
-	cmp_init(&cmp, enc_msg_part->val.value.bin, buffer_reader, buffer_writer);
+	cmp_init(&cmp, dec_part, buffer_reader, buffer_writer);
 
-	uint32_t map_size = 0;
-	if (!cmp_read_map(&cmp, &map_size)) return FALSE;
+//	uint32_t map_size = 0;
+//	if (!cmp_read_map(&cmp, &map_size)) {
+//		log_msg(LOG_ERROR, "couldn't read map size %s", public_key);
+//		log_msg(LOG_TRACE, ".end  .np_message_decrypt_part");
+//		return FALSE;
+//	}
 
 	deserialize_jrb_node_t(msg_part, &cmp);
 	del_str_node(msg_part, NP_ENCRYPTED);
 
+	log_msg(LOG_TRACE, ".end  .np_message_decrypt_part");
 	return TRUE;
 }
 
@@ -334,22 +343,24 @@ np_bool np_message_encrypt_part(np_jtree_t* msg_part,
 							unsigned char* public_key,
 							unsigned char* secret_key)
 {
+	log_msg(LOG_TRACE, ".start.np_message_encrypt_part");
 	cmp_ctx_t cmp;
     unsigned char msg_part_buffer[NP_MESSAGE_SIZE];
     void* msg_part_buf_ptr = msg_part_buffer;
 
     cmp_init(&cmp, msg_part_buf_ptr, buffer_reader, buffer_writer);
     serialize_jrb_node_t(msg_part, &cmp);
-	uint64_t msg_part_len = cmp.buf-msg_part_buf_ptr;
+
+    uint64_t msg_part_len = cmp.buf-msg_part_buf_ptr;
 
 	uint64_t enc_msg_part_len = msg_part_len + crypto_box_MACBYTES;
 
 	unsigned char* enc_msg_part = (unsigned char*) malloc(enc_msg_part_len);
 	int16_t ret = crypto_secretbox_easy(enc_msg_part,
-									msg_part_buf_ptr,
-									msg_part_len,
-									nonce,
-									public_key);
+										msg_part_buf_ptr,
+										msg_part_len,
+										nonce,
+										public_key);
 //	int16_t ret = crypto_box_easy(enc_msg_part,
 //							  msg_part_buf_ptr,
 //							  msg_part_len,
@@ -362,14 +373,105 @@ np_bool np_message_encrypt_part(np_jtree_t* msg_part,
 //								nonce,
 //								public_key);
 	if (ret < 0) {
+		log_msg(LOG_TRACE, ".end  .np_message_encrypt_part");
 		return FALSE;
 	}
-	log_msg(LOG_ERROR, "encrypted msg part with session key %s", public_key);
+	// log_msg(LOG_ERROR, "encrypted msg part with session key %s", public_key);
 
 	jrb_replace_all_with_str(msg_part, NP_ENCRYPTED,
 			new_jval_bin(enc_msg_part, enc_msg_part_len));
+
+	log_msg(LOG_TRACE, ".end  .np_message_encrypt_part");
 	return TRUE;
 }
+
+void np_message_encrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoken_t* tmp_token)
+{
+	log_msg(LOG_TRACE, ".start.np_message_encrypt_payload");
+	// first encrypt the relevant message part itself
+	unsigned char nonce[crypto_box_NONCEBYTES];
+	unsigned char sym_key[crypto_secretbox_KEYBYTES];
+
+	randombytes_buf((void*) nonce, crypto_box_NONCEBYTES);
+	randombytes_buf((void*) sym_key, crypto_secretbox_KEYBYTES);
+
+	np_message_encrypt_part(msg->body, nonce, sym_key, NULL);
+	np_message_encrypt_part(msg->properties, nonce, sym_key, NULL);
+
+	// now encrypt the encryption key using public key crypto stuff
+	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
+	unsigned char ciphertext[crypto_box_MACBYTES + crypto_secretbox_KEYBYTES];
+
+	// convert our own sign key to an encryption key
+	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
+										 state->my_key->authentication->private_key);
+	// finally encrypt
+	int ret = crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
+					          tmp_token->public_key, curve25519_sk);
+	if (0 > ret) {
+		log_msg(LOG_ERROR, "encryption of message payload failed");
+		return;
+	}
+/*
+	log_msg(LOG_DEBUG, "ciphertext: %s", ciphertext);
+	log_msg(LOG_DEBUG, "nonce:      %s", nonce);
+	log_msg(LOG_DEBUG, "sym_key:    %s", sym_key);
+*/
+
+	// TODO: use sealed boxes instead ???
+	// int crypto_box_seal(unsigned char *c, const unsigned char *m,
+	// unsigned long long mlen, const unsigned char *pk);
+
+	np_jtree_t* encryption_details = make_jtree();
+	// insert the public-key encrypted encryption key for each receiver of the message
+	jrb_insert_str(encryption_details, "_np.nonce",
+				   new_jval_bin(nonce, crypto_box_NONCEBYTES));
+	jrb_insert_str(encryption_details, tmp_token->issuer,
+				   new_jval_bin(ciphertext,
+						   	    crypto_box_MACBYTES + crypto_secretbox_KEYBYTES));
+
+	// add encryption details to the message
+	jrb_insert_str(msg->instructions, NP_ENCRYPTED,
+			new_jval_tree(encryption_details));
+
+	log_msg(LOG_TRACE, ".end  .np_message_encrypt_payload");
+}
+
+void np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoken_t* tmp_token) {
+
+	log_msg(LOG_TRACE, ".start.np_message_decrypt_payload");
+
+	np_jtree_t* encryption_details =
+			jrb_find_str(msg->instructions, NP_ENCRYPTED)->val.value.tree;
+
+	// insert the public-key encrypted encryption key for each receiver of the message
+	unsigned char nonce[crypto_box_NONCEBYTES];
+	memcpy(nonce, jrb_find_str(encryption_details, "_np.nonce")->val.value.bin, crypto_box_NONCEBYTES);
+	unsigned char enc_sym_key[crypto_secretbox_KEYBYTES + crypto_box_MACBYTES];
+	memcpy(enc_sym_key, jrb_find_str(encryption_details, (char*) key_get_as_string(state->my_key))->val.value.bin, crypto_secretbox_KEYBYTES + crypto_box_MACBYTES);
+
+	unsigned char sym_key[crypto_secretbox_KEYBYTES];
+	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
+	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
+										 state->my_key->authentication->private_key);
+
+//	log_msg(LOG_DEBUG, "ciphertext: %s", enc_sym_key);
+//	log_msg(LOG_DEBUG, "nonce:      %s", nonce);
+
+	int ret = crypto_box_open_easy(sym_key, enc_sym_key, crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
+								   nonce, tmp_token->public_key, curve25519_sk);
+	if (0 > ret) {
+		log_msg(LOG_ERROR, "decryption of message payload failed");
+		return;
+	}
+// 	log_msg(LOG_DEBUG, "sym_key:    %s", sym_key);
+
+	np_message_decrypt_part(msg->properties, nonce, sym_key, NULL);
+	np_message_decrypt_part(msg->body, nonce, sym_key, NULL);
+
+	log_msg(LOG_TRACE, ".end  .np_message_decrypt_payload");
+}
+
 
 /**
  ** message_init: chstate, port

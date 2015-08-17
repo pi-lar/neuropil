@@ -236,9 +236,10 @@ np_jval_t new_jval_bin (void* data, uint32_t ul)
 {
     np_jval_t j;
 
-    j.value.bin = data;
-    // malloc(ul);
-    // memcpy(j.value.bin, data, ul);
+    j.value.bin = malloc(ul);
+    memset(j.value.bin, 0, ul);
+    memcpy(j.value.bin, data, ul);
+
     j.size = ul;
     j.type = bin_type;
 

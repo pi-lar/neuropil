@@ -31,27 +31,27 @@ void log_message(uint8_t level, const char* srcFile, const char* funcName, uint1
 
 		struct timeval tval;
 		gettimeofday(&tval, (struct timezone*)0);
-		uint8_t millis = tval.tv_usec;
+		int32_t millis = tval.tv_usec;
 		char timebuf[80];
 		strftime(timebuf, 80, "%Y-%m-%d %H:%M:%S", localtime(&tval.tv_sec));
 
- 	    char* new_log_entry = malloc(sizeof(char)*1124);
-	    // snprintf(new_log_entry, 255, "initialized log system %p: %s (%p) %d\n", logger, logger->filename, logger->fp, logger->level);
-	    snprintf(new_log_entry, 1124, "%s.%03hhd %-15lu %-15.15s:%-25.25s:%-4hd # %-8hhd # %s\n",
-	    							 timebuf, millis,
-									 (unsigned long) pthread_self(),
-									 srcFile, funcName, lineno,
-									 level, buffer);
-		pthread_mutex_lock(&logger->lock);
-	    sll_append(char, logger->logentries_l, new_log_entry);
-		pthread_mutex_unlock(&logger->lock);
+// 	    char* new_log_entry = malloc(sizeof(char)*1124);
+//	    // snprintf(new_log_entry, 255, "initialized log system %p: %s (%p) %d\n", logger, logger->filename, logger->fp, logger->level);
+//	    snprintf(new_log_entry, 1124, "%s.%06d %-15lu %-15.15s:%-25.25s:%-4hd # %-8hhd # %s\n",
+//	    							 timebuf, millis,
+//									 (unsigned long) pthread_self(),
+//									 srcFile, funcName, lineno,
+//									 level, buffer);
+//		pthread_mutex_lock(&logger->lock);
+//	    sll_append(char, logger->logentries_l, new_log_entry);
+//		pthread_mutex_unlock(&logger->lock);
 
-//		fprintf(logger->fp, "%s.%03i %-15lu %-15.15s:%-25.25s:%-4d # %-8d # %s\n",
-//				timebuf, millis,
-//				(unsigned long) pthread_self(),
-//				srcFile, funcName, lineno,
-//				level, buffer);
-//		fflush(logger->fp);
+		fprintf(logger->fp, "%s.%06d %-15lu %-15.15s:%-25.25s:%-4d # %-8d # %s\n",
+				timebuf, millis,
+				(unsigned long) pthread_self(),
+				srcFile, funcName, lineno,
+				level, buffer);
+		fflush(logger->fp);
 
 	} else {
 		// printf("not logging to file(%p): %d & %d = %d\n", logger, level, logger->level, level & logger->level);

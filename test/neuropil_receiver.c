@@ -103,7 +103,11 @@ int main(int argc, char **argv) {
 		dsleep(0.9);
 		char* testdata;
 
-		int real_seq = np_receive(state, "this.is.a.test", &testdata);
-		log_msg(LOG_DEBUG, "received message %lu: %s", real_seq, testdata);
+		uint32_t real_seq = np_receive(state, "this.is.a.test", &testdata);
+		if (0 < real_seq)
+			log_msg(LOG_DEBUG, "received message %lu: %s", real_seq, testdata);
+		else
+			log_msg(LOG_DEBUG, "message receive failed ...");
+
 	}
 }
