@@ -129,6 +129,11 @@ void hnd_msg_in_piggy(np_state_t* state, np_jobargs_t* args) {
 	log_msg(LOG_TRACE, ".end  .hnd_msg_in_piggy");
 }
 
+/** np_signal
+ ** np_signal registered when np_receive function is used to receive message.
+ ** it is invoked after a message has been send from the sender of messages and sends a signal to the
+ ** np_receive function
+ **/
 void np_signal (np_state_t* state, np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_signal");
@@ -170,13 +175,103 @@ void np_signal (np_state_t* state, np_jobargs_t* args)
 	}
 
 	// TODO: more detailed msg ack handling
-	if (ack_mode == ACK_DESTINATION) {
+	if (0 < (ack_mode & ACK_DESTINATION)) {
 		np_send_ack(state, args);
 	}
 
 	np_free_obj(np_message_t, args->msg);
 
 	log_msg(LOG_TRACE, ".end  .np_signal");
+}
+
+
+/** np_callback_wrapper
+ ** np_callback_wrapper is used when a callback function is used to receive messages
+ ** The purpose is automated acknowledge handling in case of ACK_CLIENT message subjects
+ ** the user defined callback has to return TRUE in case the ack can be send, or FALSE
+ ** if e.g. validation of the message has failed.
+ **/
+void np_callback_wrapper(np_state_t* state, np_jobargs_t* args) {
+
+	np_message_t* msg_in = args->msg;
+	char* subject = args->properties->msg_subject;
+	char* sender = jrb_find_str(msg_in->header, NP_MSG_HEADER_FROM)->val.value.s;
+	np_msgproperty_t* msg_prop = np_message_get_handler(state, INBOUND, subject);
+
+	np_aaatoken_t* sender_token = np_get_sender_token(state, (char*) subject, sender);
+	uint32_t received = 0;
+
+	if (NULL != sender_token) {
+
+		msg_prop->msg_threshold++;
+
+		log_msg(LOG_DEBUG, "decrypting message ...");
+		np_message_decrypt_payload(state, msg_in, sender_token);
+
+		received = jrb_find_str(msg_in->properties, NP_MSG_INST_SEQ)->val.value.ul;
+		uint8_t ack_mode  = jrb_find_str(msg_in->instructions, NP_MSG_INST_ACK)->val.value.ush;
+
+		if (0 < (ack_mode & ACK_DESTINATION)) {
+			np_send_ack(state, args);
+		}
+
+		np_bool result = msg_prop->user_clb(msg_in->properties, msg_in->body);
+		log_msg(LOG_INFO, "handled message %u with result %d ", received, result);
+
+		if (0 < (ack_mode & ACK_CLIENT) && (TRUE == result))
+		{
+			np_send_ack(state, args);
+		}
+
+		np_unref_obj(np_aaatoken_t, sender_token);
+		np_free_obj(np_aaatoken_t, sender_token);
+
+		msg_prop->msg_threshold--;
+
+	} else {
+
+		LOCK_CACHE(msg_prop) {
+
+			// cache already full ?
+			if (msg_prop->max_threshold <= msg_prop->msg_threshold) {
+				log_msg(LOG_DEBUG, "msg cache full, checking overflow policy ...");
+
+				if ( 0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
+				{
+					log_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding first message");
+					np_message_t* old_msg = NULL;
+
+					if ((msg_prop->cache_policy & FIFO) > 0)
+						old_msg = sll_head(np_message_t, msg_prop->msg_cache);
+					if ((msg_prop->cache_policy & FILO) > 0)
+						old_msg = sll_tail(np_message_t, msg_prop->msg_cache);
+
+					msg_prop->msg_threshold--;
+					np_unref_obj(np_message_t, old_msg);
+					np_free_obj(np_message_t, old_msg);
+				}
+
+				if ( 0 < (msg_prop->cache_policy & OVERFLOW_REJECT))
+				{
+					log_msg(LOG_DEBUG, "rejecting new message because cache is full");
+					np_free_obj(np_message_t, msg_in);
+					continue;
+				}
+			}
+
+			if ( (msg_prop->cache_policy & FIFO) )
+				sll_prepend(np_message_t, msg_prop->msg_cache, msg_in);
+			if ( (msg_prop->cache_policy & FILO) )
+				sll_append(np_message_t, msg_prop->msg_cache, msg_in);
+
+			log_msg(LOG_DEBUG, "added message to the msgcache (%p / %d) ...",
+								msg_prop->msg_cache, sll_size(msg_prop->msg_cache));
+			np_ref_obj(np_message_t, msg_in);
+		}
+	}
+
+	np_unref_obj(np_message_t, msg_in);
+	np_free_obj(np_message_t, msg_in);
 }
 
 /** hnd_msg_in_join_req:
@@ -506,10 +601,10 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args) {
 
 //	if (reply_to_key &&
 //		!key_equal(reply_to_key, state->my_key)) {
-	if (reply_to_key)
+	if (NULL != reply_to_key)
 	{
 		// this node is the man in the middle - inform receiver of sender token
-		np_sll_t(np_aaatoken_t, available_list) = np_get_sender_token(state, msg_token->subject);
+		np_sll_t(np_aaatoken_t, available_list) = np_get_sender_token_all(state, msg_token->subject);
 		np_aaatoken_t* tmp_token = NULL;
 
 		while (NULL != (tmp_token = sll_head(np_aaatoken_t, available_list))) {
@@ -530,7 +625,7 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args) {
 
 	np_msgproperty_t* real_prop = np_message_get_handler(state, OUTBOUND, msg_token->subject);
 	// check if we are (one of the) sending node(s) of this kind of message
-	if ( real_prop ) { //
+	if ( NULL != real_prop ) { //
 
 		log_msg(LOG_DEBUG,
 				"this node is one sender of messages, checking msgcache (%p / %u) ...",
@@ -538,18 +633,15 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args) {
 
 		// get message from cache (maybe only for one way mep ?!)
 		uint16_t msg_available = 0;
+
 		LOCK_CACHE(real_prop) {
 			msg_available = sll_size(real_prop->msg_cache);
 		}
 
-		np_sll_t(np_aaatoken_t, interest_list) = np_get_receiver_token(state, msg_token->subject);
-		np_aaatoken_t* tmp_token = NULL;
-
-		while (NULL != (tmp_token = sll_head(np_aaatoken_t, interest_list)) &&
-			   0 < msg_available)
+		while (0 < msg_available)
 		{
 			LOCK_CACHE(real_prop) {
-				// if messages are available in cache, send it !
+				// if messages are available in cache, send them !
 				if (real_prop->cache_policy & FIFO)
 					msg_out = sll_head(np_message_t, real_prop->msg_cache);
 				if (real_prop->cache_policy & FILO)
@@ -560,25 +652,48 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args) {
 				msg_available = sll_size(real_prop->msg_cache);
 			}
 
-			np_message_encrypt_payload(state, msg_out, tmp_token);
+			np_send_msg(state, real_prop->msg_subject, msg_out, real_prop);
+			log_msg(LOG_DEBUG, "message in cache found and re-send initialized");
 
-			np_key_t* interest_key;
-			np_new_obj(np_key_t, interest_key);
-			str_to_key(interest_key, (const unsigned char*) tmp_token->issuer);
-
-			jrb_insert_str(msg_out->header, NP_MSG_HEADER_TO, new_jval_s(tmp_token->issuer));
-			np_msgproperty_t* out_prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
-			job_submit_msg_event(state->jobq, out_prop, interest_key, msg_out);
-
-			log_msg(LOG_DEBUG, "message in cache found and directly send to target node %s",
-					key_get_as_string(interest_key));
-
-			// decrease threshold counter
-			jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui--;
-			real_prop->msg_threshold--;
-
-			np_free_obj(np_aaatoken_t, tmp_token);
+//			np_message_encrypt_payload(state, msg_out, tmp_token);
+//
+//			np_key_t* interest_key;
+//			np_new_obj(np_key_t, interest_key);
+//			str_to_key(interest_key, (const unsigned char*) tmp_token->issuer);
+//
+//			jrb_insert_str(msg_out->header, NP_MSG_HEADER_TO, new_jval_s(tmp_token->issuer));
+//			np_msgproperty_t* out_prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+//			job_submit_msg_event(state->jobq, out_prop, interest_key, msg_out);
+//
+//			log_msg(LOG_DEBUG, "message in cache found and directly send to target node %s",
+//					key_get_as_string(interest_key));
+//
+//			// decrease threshold counter
+//			// msg_interest_size--;
+//
+//			real_prop->msg_threshold--;
+//			tmp_token = np_get_receiver_token(state, msg_token->subject);
 		}
+
+//			if (0 == msg_interest_size)
+//			{
+//				np_free_obj(np_aaatoken_t, tmp_token);
+//				tmp_token = sll_head(np_aaatoken_t, interest_list);
+//				if (NULL != tmp_token) {
+//					msg_interest_size = jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
+//				}
+//			}
+
+		// token(s) not fully used, add it to the list of tokens again
+//		if (0 < msg_interest_size) {
+//			jrb_replace_str(tmp_token->extensions, "msg_threshold", new_jval_ui(msg_interest_size));
+//			np_add_receiver_token(state, tmp_token->subject, tmp_token);
+//
+//			sll_iterator(np_aaatoken_t) iter = sll_first(interest_list);
+//			while (NULL != iter) {
+//				np_add_receiver_token(state, msg_token->subject, tmp_token);
+//			}
+//		}
 
 		// TODO send out the non availability of data to the sender node i.e. threshold doesn't match ???
 		// 2) then send out the interest to the sender of messages
@@ -598,7 +713,7 @@ void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args) {
 		return;
 	}
 
-	np_message_t *msg_out;
+	np_message_t *msg_in = args->msg;
 
 	np_key_t *reply_to_key = NULL;
 	np_jtree_elem_t* reply = jrb_find_str(args->msg->header, NP_MSG_HEADER_REPLY_TO);
@@ -625,7 +740,8 @@ void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args) {
 //		!key_equal(reply_to_key, state->my_key)) {
 	if (reply_to_key)
 	{
-		np_sll_t(np_aaatoken_t, receiver_list) = np_get_receiver_token(state, msg_token->subject);
+		np_message_t *msg_out = NULL;
+		np_sll_t(np_aaatoken_t, receiver_list) = np_get_receiver_token_all(state, msg_token->subject);
 		np_aaatoken_t* tmp_token = NULL;
 
 		while (NULL != (tmp_token = sll_head(np_aaatoken_t, receiver_list))) {
@@ -650,8 +766,39 @@ void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args) {
 		// match expected and real seq_num, update interest, eventually pull messages
 		// TODO: do this per mep (for simple oneway nothing special required)
 	}
-		// send out the availability to the target of messages
-		// TODO: really needed ?
+
+	// check if some messages are left in the cache
+	np_msgproperty_t* real_prop = np_message_get_handler(state, INBOUND, msg_token->subject);
+	// check if we are (one of the) receiving node(s) of this kind of message
+	if ( NULL != real_prop ) {
+
+		log_msg(LOG_DEBUG,
+				"this node is the receiver of messages, checking msgcache (%p / %u) ...",
+				real_prop->msg_cache, sll_size(real_prop->msg_cache));
+
+		// get message from cache (maybe only for one way mep ?!)
+		uint16_t msg_available = 0;
+		LOCK_CACHE(real_prop) {
+			msg_available = sll_size(real_prop->msg_cache);
+		}
+
+		while (0 < msg_available)
+		{
+			msg_in = NULL;
+			LOCK_CACHE(real_prop) {
+				// if messages are available in cache, try to decode them !
+				if (real_prop->cache_policy & FIFO)
+					msg_in = sll_tail(np_message_t, real_prop->msg_cache);
+				if (real_prop->cache_policy & FILO)
+					msg_in = sll_head(np_message_t, real_prop->msg_cache);
+
+				// np_unref_obj(np_message_t, msg_in);
+				msg_available = sll_size(real_prop->msg_cache);
+			}
+			job_submit_msg_event(state->jobq, real_prop, state->my_key, msg_in);
+		}
+	}
+
 	np_free_obj(np_message_t, args->msg);
 }
 

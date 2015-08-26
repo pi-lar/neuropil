@@ -134,7 +134,7 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
     np_bool next_hop = FALSE;
 
     np_key_t dif1, dif2;
-    np_key_t *leaf, *tmp_1, *tmp_2, *min;
+    np_key_t *leaf, *tmp_1 = NULL, *tmp_2 = NULL, *min = NULL;
 
     np_sll_t(np_key_t, return_list);
     sll_init(np_key_t, return_list);

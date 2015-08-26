@@ -178,9 +178,10 @@ struct np_msgproperty_s {
     pthread_mutex_t    lock;
     pthread_cond_t     msg_received;
     pthread_condattr_t cond_attr;
-    // callback function to call when a message is received
-    np_callback_t clb;
 
+    // callback function(s) to invoke when a message is received
+    np_callback_t clb;
+    np_usercallback_t user_clb;
 };
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);

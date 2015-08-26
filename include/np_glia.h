@@ -22,4 +22,6 @@ void np_route_lookup (np_state_t* state, np_jobargs_t* args);
 void np_send_msg_interest(np_state_t* state, const char* subject);
 void np_send_msg_availability(np_state_t* state, const char* subject);
 
+void np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msgproperty_t* msg_prop);
+
 #endif // _NP_GLIA_H_

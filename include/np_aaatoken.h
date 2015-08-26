@@ -68,8 +68,11 @@ void np_decode_aaatoken(np_jtree_t* data, np_aaatoken_t* token);
 np_bool token_is_valid(np_aaatoken_t* token);
 
 void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token);
-sll_return(np_aaatoken_t) np_get_sender_token(np_state_t *state, char* subject);
+sll_return(np_aaatoken_t) np_get_sender_token_all(np_state_t *state, char* subject);
+np_aaatoken_t* np_get_sender_token(np_state_t *state, char* subject, char* sender);
+
 void np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *token);
-sll_return(np_aaatoken_t) np_get_receiver_token(np_state_t *state, char* subject);
+sll_return(np_aaatoken_t) np_get_receiver_token_all(np_state_t *state, char* subject);
+np_aaatoken_t* np_get_receiver_token(np_state_t *state, char* subject);
 
 #endif // _NP_AAATOKEN_H_

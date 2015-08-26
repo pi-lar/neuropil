@@ -90,22 +90,25 @@ void np_waitforjoin(const np_state_t* state) {
 	}
 }
 
-void np_set_listener (np_state_t* state, np_callback_t msg_handler, char* subject)
+void np_set_listener (np_state_t* state, np_usercallback_t msg_handler, char* subject)
 {
 	// check whether an handler already exists
 	np_msgproperty_t* msg_prop = np_message_get_handler(state, INBOUND, subject);
 
 	if (NULL == msg_prop) {
-		// create a default set of properties for listening to oneway messages
+		// create a default set of properties for listening to messages
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->clb = msg_handler;
-
+		msg_prop->msg_mode = INBOUND;
+		msg_prop->clb = np_callback_wrapper;
+		msg_prop->user_clb = msg_handler;
 		np_message_register_handler(state, msg_prop);
 	}
+
 	// update informations somewhere in the network
 	np_send_msg_interest(state, subject);
 }
+
 
 void np_set_mx_property(np_state_t* state, char* subject, const char* key, np_jval_t value)
 {
@@ -157,81 +160,19 @@ void np_send (np_state_t* state, char* subject, char *data, uint32_t seqnum)
 
 	jrb_insert_str(msg->header, NP_MSG_HEADER_SUBJECT, new_jval_s((char*) subject));
 	jrb_insert_str(msg->header, NP_MSG_HEADER_FROM, new_jval_s((char*) key_get_as_string(state->my_key)));
-	jrb_insert_str(msg->properties, NP_MSG_INST_SEQ, new_jval_ul(seqnum));
 	jrb_insert_str(msg->body,   NP_MSG_BODY_TEXT, new_jval_s(data));
 
-	np_sll_t(np_aaatoken_t, interested_list) = np_get_receiver_token(state, subject);
-	np_aaatoken_t* tmp_token = NULL;
+	jrb_insert_str(msg->properties, NP_MSG_INST_SEQ, new_jval_ul(seqnum));
 
 	msg_prop->msg_threshold++;
 	np_send_msg_availability(state, subject);
 
-	if (NULL != (tmp_token = sll_head(np_aaatoken_t, interested_list)))
-	{
-		// first encrypt the relevant message part itself
-		np_message_encrypt_payload(state, msg, tmp_token);
-
-		np_key_t* receiver_key;
-		np_new_obj(np_key_t, receiver_key);
-		str_to_key(receiver_key, (const unsigned char*) tmp_token->issuer);
-
-		jrb_insert_str(msg->header, NP_MSG_HEADER_TO, new_jval_s((char*) tmp_token->issuer));
-		np_msgproperty_t* out_prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
-		job_submit_msg_event(state->jobq, out_prop, receiver_key, msg);
-
-		// try to free it, ref count my deny it
-		np_unref_obj(np_message_t, msg);
-		np_free_obj(np_aaatoken_t, tmp_token);
-
-		// decrease threshold counters
-		jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui--;
-		msg_prop->msg_threshold--;
-
-	} else {
-
-		LOCK_CACHE(msg_prop) {
-
-			// cache already full ?
-			if (msg_prop->max_threshold <= msg_prop->msg_threshold) {
-				log_msg(LOG_DEBUG, "msg cache full, checking overflow policy ...");
-
-				if ( (msg_prop->cache_policy & OVERFLOW_PURGE) > 0)
-				{
-					log_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding first message");
-					np_message_t* old_msg;
-
-					if ((msg_prop->cache_policy & FIFO) > 0)
-						old_msg = sll_head(np_message_t, msg_prop->msg_cache);
-					if ((msg_prop->cache_policy & FILO) > 0)
-						old_msg = sll_tail(np_message_t, msg_prop->msg_cache);
-
-					msg_prop->msg_threshold--;
-					np_unref_obj(np_message_t, old_msg);
-					np_free_obj(np_message_t, old_msg);
-				}
-
-				if ( (msg_prop->cache_policy & OVERFLOW_REJECT) > 0)
-				{
-					log_msg(LOG_DEBUG, "rejecting new message because cache is full");
-					np_free_obj(np_message_t, msg);
-					continue;
-				}
-			}
-
-			if ( (msg_prop->cache_policy & FIFO) )
-				sll_prepend(np_message_t, msg_prop->msg_cache, msg);
-			if ( (msg_prop->cache_policy & FILO) )
-				sll_append(np_message_t, msg_prop->msg_cache, msg);
-
-//			log_msg(LOG_DEBUG, "added message to the msgcache (%p / %d) ...",
-//					msg_prop->msg_cache, sll_size(msg_prop->msg_cache));
-			np_ref_obj(np_message_t, msg);
-		}
-	}
+	np_send_msg(state, subject, msg, msg_prop);
 }
 
 uint32_t np_receive (np_state_t* state, char* subject, char **data)
 {
+	// send out that we want to receive messages
 	np_msgproperty_t* msg_prop = np_message_get_handler(state, INBOUND, subject);
 	if (NULL == msg_prop) {
 		np_new_obj(np_msgproperty_t, msg_prop);
@@ -239,67 +180,63 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 		msg_prop->mep_type = ONE_WAY;
 		msg_prop->msg_mode = INBOUND;
 		msg_prop->clb = np_signal;
+		// when creating, set to one because callback is not used is called
+		msg_prop->max_threshold = 0;
+
 		// register the handler so that message can be received
 		np_message_register_handler(state, msg_prop);
 	}
-	msg_prop->msg_threshold++;
+	msg_prop->max_threshold++;
 
 	np_send_msg_interest(state, subject);
 
-	if (0 == sll_size(msg_prop->msg_cache)) {
-
-		LOCK_CACHE(msg_prop) {
-			pthread_cond_wait(&msg_prop->msg_received, &msg_prop->lock);
-		}
-		log_msg(LOG_DEBUG, "received signal that a new message arrived", msg_prop);
-	}
-
-	np_sll_t(np_aaatoken_t, sender_token_list) = np_get_sender_token(state, subject);
-	np_aaatoken_t* tmp_token = NULL;
-
-	uint32_t received = 0;
-	uint16_t sender_threshold = 0;
-	uint16_t counter = sll_size(msg_prop->msg_cache);
+	np_aaatoken_t* sender_token = NULL;
 	np_message_t* msg = NULL;
+	char* sender_id = NULL;
+	np_bool msg_received = FALSE;
 
-	tmp_token = sll_head(np_aaatoken_t, sender_token_list);
-	if (NULL != tmp_token) {
-		sender_threshold = jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
-	}
-
-	log_msg(LOG_DEBUG, "getting message from cache %p (st: %d / cache-size: %d)", msg_prop, sender_threshold, counter);
-	while ( NULL != (msg = sll_head(np_message_t, msg_prop->msg_cache)) &&
-			counter > 0 && sender_threshold > 0)
-	{
-		log_msg(LOG_DEBUG, "decrypting message ...");
-		np_message_decrypt_payload(state, msg, tmp_token);
-
-		received = jrb_find_str(msg->properties, NP_MSG_INST_SEQ)->val.value.ul;
-		np_jtree_elem_t* reply_data = jrb_find_str(msg->body, NP_MSG_BODY_TEXT);
-		*data = strndup(reply_data->val.value.s, strlen(reply_data->val.value.s));
-
-		np_unref_obj(np_message_t, msg);
-		np_free_obj(np_message_t, msg);
-
-		log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
-
-		// } else {
-
-		// 	sll_append(np_message_t, msg_prop->msg_cache, msg)
-		// }
-		counter--;
-		sender_threshold--;
-
-		// switch to next token if the previous one is empty
-		if (0 == sender_threshold) {
-			tmp_token = sll_head(np_aaatoken_t, sender_token_list);
-			if (NULL != tmp_token) {
-				sender_threshold = jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
+	do
+	{	// first check or wait for available messages
+		if (0 == sll_size(msg_prop->msg_cache)) {
+			LOCK_CACHE(msg_prop) {
+				pthread_cond_wait(&msg_prop->msg_received, &msg_prop->lock);
+				log_msg(LOG_DEBUG, "received signal that a new message arrived", msg_prop);
 			}
 		}
-	}
-	// when reaching this point, no interest / listener for a message is present
-	msg_prop->msg_threshold--;
+		msg = sll_first(msg_prop->msg_cache)->val;
+
+		// next check or wait for valid sender tokens
+		sender_id = jrb_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
+		sender_token = np_get_sender_token(state, subject, sender_id);
+		if (NULL == sender_token) {
+			log_msg(LOG_ERROR, "!!! SNH !!! message received but no valid sender token, retrying ...");
+			continue;
+		}
+
+		msg_received = TRUE;
+
+	} while (FALSE == msg_received);
+
+	// in receive function, we can only receive one message per call, different for callback function
+	log_msg(LOG_DEBUG, "getting message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache));
+	msg = sll_head(np_message_t, msg_prop->msg_cache);
+
+	log_msg(LOG_DEBUG, "decrypting message ...");
+	np_message_decrypt_payload(state, msg, sender_token);
+
+	uint32_t received = jrb_find_str(msg->properties, NP_MSG_INST_SEQ)->val.value.ul;
+	np_jtree_elem_t* reply_data = jrb_find_str(msg->body, NP_MSG_BODY_TEXT);
+	*data = strndup(reply_data->val.value.s, strlen(reply_data->val.value.s));
+
+	np_unref_obj(np_message_t, msg);
+	np_free_obj(np_message_t, msg);
+
+	log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
+
+	np_unref_obj(np_aaatoken_t, sender_token);
+	np_free_obj(np_aaatoken_t, sender_token);
+
+	msg_prop->max_threshold--;
 
 	return received;
 }

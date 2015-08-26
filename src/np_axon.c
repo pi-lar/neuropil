@@ -72,13 +72,12 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 	/* create network header */
 	pthread_mutex_lock(&(network->lock));
 
-	// find correct ack_mode, insepct message first because of forwarding
+	// find correct ack_mode, inspect message first because of forwarding
 	if (NULL == jrb_find_str(msg_out->instructions, NP_MSG_INST_ACK)) {
 		ack_mode = prop->ack_mode;
 	} else {
 		ack_mode = jrb_find_str(msg_out->instructions, NP_MSG_INST_ACK)->val.value.ush;
 	}
-
 	// if not yet present set the ack mode
 	if (NULL != prop)
 		jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK, new_jval_ush(prop->ack_mode));
@@ -202,9 +201,9 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 
 	// ... add signature and payload to this message
 	jrb_insert_str(hs_message->body, NP_HS_SIGNATURE,
-			new_jval_bin(signature, signature_len));
+			new_jval_bin(signature, (uint32_t) signature_len));
 	jrb_insert_str(hs_message->body, NP_HS_PAYLOAD,
-			new_jval_bin(hs_payload, hs_payload_len));
+			new_jval_bin(hs_payload, (uint32_t) hs_payload_len));
 	// log_msg(LOG_DEBUG, "payload has length %llu, signature length %llu", hs_payload_len, signature_len);
 
 	// serialize complete encrypted message

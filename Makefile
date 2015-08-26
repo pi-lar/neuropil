@@ -10,7 +10,7 @@ TEST_SOURCES=test/neuropil_controller.c test/jrb_test_msg.c
 OBJECTS=$(SOURCES:.c=.o)
 TEST_OBJECTS=$(TEST_SOURCES:.c=.o)
 
-all: src/libneuropil.a neuropil_controller neuropil_node neuropil_sender neuropil_receiver jrb_test_msg
+all: src/libneuropil.a neuropil_controller neuropil_node neuropil_sender neuropil_receiver neuropil_receiver_cb jrb_test_msg
 
 neuropil_controller: test/neuropil_controller.o
 	$(CC) $(SODIUM_LIBRARIES) -L./src -lneuropil $< -o $@
@@ -20,6 +20,8 @@ neuropil_node: test/neuropil_node.o
 neuropil_sender: test/neuropil_sender.o
 	$(CC) $(SODIUM_LIBRARIES) -L./src -lneuropil $< -o $@
 neuropil_receiver: test/neuropil_receiver.o
+	$(CC) $(SODIUM_LIBRARIES) -L./src -lneuropil $< -o $@
+neuropil_receiver_cb: test/neuropil_receiver_cb.o
 	$(CC) $(SODIUM_LIBRARIES) -L./src -lneuropil $< -o $@
 
 jrb_test_msg: test/jrb_test_msg.o

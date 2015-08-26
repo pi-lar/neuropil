@@ -66,7 +66,7 @@ void np_setaccounting_cb(np_state_t* state, np_aaa_func_t join_func);
  ** ack == 1 means message will be acknowledged, ack=2 means no acknowledge is necessary
  ** for this type of message. 
  **/
-void np_set_listener (np_state_t* state, np_callback_t msg_handler, char* subject);
+void np_set_listener (np_state_t* state, np_usercallback_t msg_handler, char* subject);
 
 /** np_send|receive:
  *  Send/Receive a message of a specific type to a key containing size bytes of data. This will

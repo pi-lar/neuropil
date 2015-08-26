@@ -274,11 +274,12 @@ void np_retransmit_tokens(np_state_t* state, np_jobargs_t* args) {
 
 	np_jtree_elem_t *iter = NULL;
 	np_jtree_elem_t *deleted = NULL;
+
 	RB_FOREACH(iter, np_jtree, state->msg_tokens)
 	{
 		np_aaatoken_t* current = iter->val.value.v;
 
-		if (token_is_valid(current)) {
+		if (TRUE == token_is_valid(current)) {
 			// log_msg(LOG_DEBUG, "token still valid, skipping ...");
 			continue;
 
@@ -348,7 +349,6 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 		min_sleep_time = pqnode->key.value.d - now;
 		if (min_sleep_time < sleeptime)
 			sleeptime = min_sleep_time;
-
 	};
 
 	// queue was not empty, but time comparison said: no element ready for retransmit
@@ -790,45 +790,28 @@ void np_send_msg_interest(np_state_t* state, const char* subject) {
 
 	np_message_t* msg_out;
 	np_aaatoken_t* msg_token;
+
 	np_msgproperty_t* msg_request = np_message_get_handler(state, INBOUND, subject);
+	np_key_t* target = key_create_from_hostport(subject, 0);
 
-	// if (msg_request->msg_threshold > 0) {
-		np_key_t* target = key_create_from_hostport(subject, 0);
+	log_msg(LOG_DEBUG, "encoding and storing interest token");
+	// insert into msg token token renewal queue
+	msg_token = create_msg_token(state, subject, msg_request);
+	jrb_insert_str(state->msg_tokens, subject, new_jval_v(msg_token));
+	np_ref_obj(np_aaatoken_t, msg_token);
 
-//		np_key_t* search_key = key_create_from_hostport(subject, 0);
-//
-//		LOCK_CACHE(state)
-//		{
-//			if (NULL == (target = SPLAY_FIND(spt_key, &state->key_cache, search_key))) {
-//				SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-//				target = search_key;
-//				np_ref_obj(np_key_t, target);
-//			} else {
-//				np_free_obj(np_key_t, search_key);
-//			}
-//		}
+	log_msg(LOG_DEBUG, "encoding and sending interest token");
+	// and create a token to send it over the wire
+	np_jtree_t* interest_data = make_jtree();
+	msg_token = create_msg_token(state, subject, msg_request);
+	np_encode_aaatoken(interest_data, msg_token);
+	// directly send interest
+	np_new_obj(np_message_t, msg_out);
+	np_message_create(msg_out, target, state->my_key, NP_MSG_INTEREST, interest_data);
+	np_msgproperty_t* prop_route = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+	job_submit_msg_event(state->jobq, prop_route, target, msg_out);
 
-		// insert into msg token token renewal queue
-		msg_token = create_msg_token(state, subject, msg_request);
-		jrb_insert_str(state->msg_tokens, subject, new_jval_v(msg_token));
-		np_ref_obj(np_aaatoken_t, msg_token);
-
-		// and create a token to send it over the wire
-		msg_token = create_msg_token(state, subject, msg_request);
-		// directly send it
-		np_jtree_t* interest_data = make_jtree();
-		np_encode_aaatoken(interest_data, msg_token);
-
-		log_msg(LOG_DEBUG, "encoded interest token");
-
-		np_new_obj(np_message_t, msg_out);
-		np_message_create(msg_out, target, state->my_key, NP_MSG_INTEREST, interest_data);
-
-		// send interest
-		np_msgproperty_t* prop_route = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
-		job_submit_msg_event(state->jobq, prop_route, target, msg_out);
-	// }
-		log_msg(LOG_TRACE, ".end  .np_send_msg_interest");
+	log_msg(LOG_TRACE, ".end  .np_send_msg_interest");
 }
 
 void np_send_msg_availability(np_state_t* state, const char* subject)
@@ -838,43 +821,90 @@ void np_send_msg_availability(np_state_t* state, const char* subject)
 	np_aaatoken_t* msg_token;
 
 	np_msgproperty_t* msg_interest = np_message_get_handler(state, OUTBOUND, subject);
+	np_key_t* target = key_create_from_hostport(subject, 0);
 
-	// if (msg_interest->msg_threshold > 0) {
+	log_msg(LOG_DEBUG, "encoding and storing available token");
+	msg_token = create_msg_token(state, subject, msg_interest);
+	jrb_insert_str(state->msg_tokens, subject, new_jval_v(msg_token));
+	np_ref_obj(np_aaatoken_t, msg_token);
 
-		np_key_t* target = key_create_from_hostport(subject, 0);
+	log_msg(LOG_DEBUG, "encoding and sending available token");
+	np_jtree_t* available_data = make_jtree();
+	msg_token = create_msg_token(state, subject, msg_interest);
+	np_encode_aaatoken(available_data, msg_token);
+	// create message interest message
+	np_new_obj(np_message_t, msg_out);
+	np_message_create(msg_out, target, state->my_key, NP_MSG_AVAILABLE, available_data);
+	// send message availability
+	np_msgproperty_t* prop_route = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+	job_submit_msg_event(state->jobq, prop_route, target, msg_out);
 
-//		np_key_t* search_key = key_create_from_hostport(subject, 0);
-//		LOCK_CACHE(state)
-//		{
-//			if (NULL == (target = SPLAY_FIND(spt_key, &state->key_cache, search_key))) {
-//				SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-//				target = search_key;
-//				np_ref_obj(np_key_t, target);
-//
-//			} else {
-//				np_free_obj(np_key_t, search_key);
-//			}
-//		}
-
-		msg_token = create_msg_token(state, subject, msg_interest);
-		jrb_insert_str(state->msg_tokens, subject, new_jval_v(msg_token));
-		np_ref_obj(np_aaatoken_t, msg_token);
-
-		np_jtree_t* available_data = make_jtree();
-		msg_token = create_msg_token(state, subject, msg_interest);
-		// np_encode_key(available_data, state->my_key);
-		np_encode_aaatoken(available_data, msg_token);
-
-		log_msg(LOG_TRACE, "encoded available key is %s",
-				key_get_as_string(state->my_key));
-
-		// create message interest message
-		np_new_obj(np_message_t, msg_out);
-		np_message_create(msg_out, target, state->my_key, NP_MSG_AVAILABLE, available_data);
-
-		// send message availability
-		np_msgproperty_t* prop_route = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
-		job_submit_msg_event(state->jobq, prop_route, target, msg_out);
-	// }
 	log_msg(LOG_TRACE, ".end  .np_send_msg_availability");
+}
+
+// TODO: move this to a function which can be scheduled via jobargs
+void np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msgproperty_t* msg_prop)
+{
+	np_aaatoken_t* tmp_token = np_get_receiver_token(state, subject);
+
+	if (NULL != tmp_token) {
+		// first encrypt the relevant message part itself
+		np_message_encrypt_payload(state, msg, tmp_token);
+
+		np_key_t* receiver_key;
+		np_new_obj(np_key_t, receiver_key);
+		str_to_key(receiver_key, (const unsigned char*) tmp_token->issuer);
+
+		jrb_insert_str(msg->header, NP_MSG_HEADER_TO, new_jval_s(tmp_token->issuer));
+		np_msgproperty_t* out_prop = np_message_get_handler(state, TRANSFORM,ROUTE_LOOKUP);
+		job_submit_msg_event(state->jobq, out_prop, receiver_key, msg);
+
+		// decrease threshold counters
+		msg_prop->msg_threshold--;
+
+		np_unref_obj(np_aaatoken_t, tmp_token);
+		np_free_obj(np_aaatoken_t, tmp_token);
+
+	} else {
+
+		LOCK_CACHE(msg_prop)
+		{
+			// cache already full ?
+			if (msg_prop->max_threshold <= msg_prop->msg_threshold) {
+				log_msg(LOG_DEBUG,
+						"msg cache full, checking overflow policy ...");
+
+				if ((msg_prop->cache_policy & OVERFLOW_PURGE) > 0) {
+					log_msg(LOG_DEBUG,
+							"OVERFLOW_PURGE: discarding first message");
+					np_message_t* old_msg = NULL;
+
+					if (0 < (msg_prop->cache_policy & FIFO))
+						old_msg = sll_tail(np_message_t, msg_prop->msg_cache);
+					if (0 < (msg_prop->cache_policy & FILO))
+						old_msg = sll_head(np_message_t, msg_prop->msg_cache);
+
+					msg_prop->msg_threshold--;
+					np_unref_obj(np_message_t, old_msg);
+					np_free_obj(np_message_t, old_msg);
+				}
+
+				if ((msg_prop->cache_policy & OVERFLOW_REJECT) > 0) {
+					log_msg(LOG_DEBUG,
+							"rejecting new message because cache is full");
+					np_free_obj(np_message_t, msg);
+					continue;
+				}
+			}
+
+			if ((msg_prop->cache_policy & FIFO))
+				sll_prepend(np_message_t, msg_prop->msg_cache, msg);
+			if ((msg_prop->cache_policy & FILO))
+				sll_append(np_message_t, msg_prop->msg_cache, msg);
+
+			log_msg(LOG_DEBUG, "added message to the msgcache (%p / %d) ...",
+					msg_prop->msg_cache, sll_size(msg_prop->msg_cache));
+			np_ref_obj(np_message_t, msg);
+		}
+	}
 }

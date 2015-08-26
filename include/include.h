@@ -59,7 +59,9 @@ typedef struct np_aaatoken_s np_aaatoken_t;
 // callback functions
 typedef np_bool (*np_aaa_func_t) (np_state_t* state, np_aaatoken_t* node );
 typedef np_bool (*np_join_func_t) (np_state_t* state, np_node_t* node );
+
 typedef void (*np_callback_t) (np_state_t*, np_jobargs_t*);
+typedef np_bool (*np_usercallback_t) (np_jtree_t* msg_properties, np_jtree_t* msg_body);
 
 #ifndef _NP_MEMORY_H
 extern np_obj_pool_t np_obj_pool;

@@ -75,7 +75,7 @@ void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE* value) {\
 	dll_node->val = value;\
 	dll_node->flink = NULL;\
 	dll_node->blink = NULL;\
-	if (dll_list->last) {\
+	if (NULL != dll_list->last) {\
 		dll_node->blink = dll_list->last;\
 		dll_list->last->flink = dll_node;\
 		dll_list->last = dll_node;\
@@ -89,7 +89,7 @@ void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE* value) {\
 	dll_node->val = value;\
 	dll_node->flink = NULL;\
 	dll_node->blink = NULL;\
-	if (dll_list->first) {\
+	if (NULL != dll_list->first) {\
 		dll_node->flink = dll_list->first;\
 		dll_list->first->blink = dll_node;\
 		dll_list->first = dll_node;\
@@ -100,7 +100,7 @@ void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE* value) {\
 }\
 TYPE* TYPE##_dll_head(TYPE##_dll_t* dll_list) {\
 	TYPE* ret_val = NULL;\
-	if (dll_list->first) {\
+	if (NULL != dll_list->first) {\
 		TYPE##_dll_node_t* tmp = dll_list->first;\
 		ret_val = tmp->val;\
 		dll_list->first = dll_list->first->flink;\
@@ -113,7 +113,7 @@ TYPE* TYPE##_dll_head(TYPE##_dll_t* dll_list) {\
 }\
 TYPE* TYPE##_dll_tail(TYPE##_dll_t* dll_list) {\
 	TYPE* ret_val = NULL;\
-	if (dll_list->last) {\
+	if (NULL != dll_list->last) {\
 		TYPE##_dll_node_t* tmp = dll_list->last;\
 		ret_val = tmp->val;\
 		dll_list->last = dll_list->last->blink;\
@@ -230,7 +230,7 @@ void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value) {\
 }\
 TYPE* TYPE##_sll_head(TYPE##_sll_t* sll_list) {\
 	TYPE* ret_val = NULL;\
-	if (sll_list->first) {\
+	if (NULL != sll_list->first) {\
 		TYPE##_sll_node_t* tmp = sll_list->first;\
 		ret_val = tmp->val;\
 		sll_list->first = sll_list->first->flink;\
@@ -242,14 +242,17 @@ TYPE* TYPE##_sll_head(TYPE##_sll_t* sll_list) {\
 }\
 TYPE* TYPE##_sll_tail(TYPE##_sll_t* sll_list) {\
 	TYPE* ret_val = NULL;\
-	if (sll_list->last) {\
+	if (NULL != sll_list->last) {\
 		TYPE##_sll_node_t* tmp = sll_list->last;\
 		ret_val = tmp->val;\
 		TYPE##_sll_node_t* tmp_list_elem = sll_list->first;\
-		while (tmp_list_elem->flink != sll_list->last) { tmp_list_elem = tmp_list_elem->flink; }\
-		sll_list->last = tmp_list_elem;\
-		sll_list->last->flink = NULL;\
-		if (sll_list->last == NULL) sll_list->first = NULL; \
+		if(sll_list->first != sll_list->last) {\
+		    while (tmp_list_elem->flink != sll_list->last) { tmp_list_elem = tmp_list_elem->flink; }\
+		    sll_list->last = tmp_list_elem;\
+		    sll_list->last->flink = NULL;\
+		} else {\
+			sll_list->last = NULL; sll_list->first = NULL; \
+		}\
 		free(tmp);\
 		sll_list->size--;\
 	}\
