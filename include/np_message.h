@@ -37,7 +37,7 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
 void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_jtree_t* the_data);
 
 void np_message_encrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoken_t* tmp_token);
-void np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoken_t* tmp_token);
+np_bool np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoken_t* tmp_token);
 
 // encrypt / decrypt parts of a message
 np_bool np_message_decrypt_part(np_jtree_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
@@ -89,47 +89,49 @@ typedef enum np_msg_mep_enum {
 	SINGLE_RECEIVER = 0x001,      // - oneway many to one  communictaion // sender has same identity
 	GROUP_RECEIVER = 0x002,      // - oneway many to one  communictaion // sender has same identity
 	ANY_RECEIVER = 0x004,
+	// addon message processing instructions
 	FILTER_MSG = 0x100,
 	HAS_REPLY = 0x200,
 	STICKY_REPLY = 0x300,
 
 	// simple combinations
 	// ONE to ONE
-	ONE_WAY = SINGLE_SENDER & SINGLE_RECEIVER,
-	ONE_WAY_WITH_REPLY = ONE_WAY & HAS_REPLY,
+	ONE_WAY = SINGLE_SENDER | SINGLE_RECEIVER,
+	ONE_WAY_WITH_REPLY = ONE_WAY | HAS_REPLY,
+	ONE_WAY_WITH_STICKY_REPLY = ONE_WAY | STICKY_REPLY,
 	// ONE to GROUP
-	ONE_TO_GROUP = SINGLE_SENDER & GROUP_RECEIVER,
-	O2G_WITH_REPLY = ONE_TO_GROUP & HAS_REPLY,
+	ONE_TO_GROUP = SINGLE_SENDER | GROUP_RECEIVER,
+	O2G_WITH_REPLY = ONE_TO_GROUP | HAS_REPLY,
 	// ONE to ANY
-	ONE_TO_ANY = SINGLE_SENDER & ANY_RECEIVER,
-	O2A_WITH_REPLY = ONE_TO_ANY & HAS_REPLY,
+	ONE_TO_ANY = SINGLE_SENDER | ANY_RECEIVER,
+	O2A_WITH_REPLY = ONE_TO_ANY | HAS_REPLY,
 	// GROUP to GROUP
-	GROUP_TO_GROUP = GROUP_SENDER & GROUP_RECEIVER,
-	G2G_WITH_REPLY = GROUP_TO_GROUP & HAS_REPLY,
-	G2G_STICKY_REPLY = G2G_WITH_REPLY & STICKY_REPLY,
+	GROUP_TO_GROUP = GROUP_SENDER | GROUP_RECEIVER,
+	G2G_WITH_REPLY = GROUP_TO_GROUP | HAS_REPLY,
+	G2G_STICKY_REPLY = G2G_WITH_REPLY | STICKY_REPLY,
 	// ANY to ANY
-	ANY_TO_ANY = ANY_SENDER & ANY_RECEIVER,
-	A2A_WITH_REPLY = ANY_TO_ANY & HAS_REPLY,
-	A2A_STICKY_REPLY = A2A_WITH_REPLY & STICKY_REPLY,
+	ANY_TO_ANY = ANY_SENDER | ANY_RECEIVER,
+	A2A_WITH_REPLY = ANY_TO_ANY | HAS_REPLY,
+	A2A_STICKY_REPLY = A2A_WITH_REPLY | STICKY_REPLY,
 	// GROUP to ANY
-	GROUP_TO_ANY = GROUP_SENDER & ANY_RECEIVER,
-	G2A_WITH_REPLY = GROUP_TO_ANY & HAS_REPLY,
-	G2A_STICKY_REPLY = G2A_WITH_REPLY & STICKY_REPLY,
+	GROUP_TO_ANY = GROUP_SENDER | ANY_RECEIVER,
+	G2A_WITH_REPLY = GROUP_TO_ANY | HAS_REPLY,
+	G2A_STICKY_REPLY = G2A_WITH_REPLY | STICKY_REPLY,
 	// ANY to GROUP
-	ANY_TO_GROUP = ANY_SENDER & GROUP_RECEIVER,
-	A2G_WITH_REPLY = ANY_TO_GROUP & HAS_REPLY,
-	A2G_STICKY_REPLY = A2G_WITH_REPLY & STICKY_REPLY,
+	ANY_TO_GROUP = ANY_SENDER | GROUP_RECEIVER,
+	A2G_WITH_REPLY = ANY_TO_GROUP | HAS_REPLY,
+	A2G_STICKY_REPLY = A2G_WITH_REPLY | STICKY_REPLY,
 
 	// human readable and more "speaking" combinations
 	REQ_REP   = ONE_WAY_WITH_REPLY, // - allows to build clusters of stateless services to process user requests
 	PIPELINE  = ONE_TO_GROUP,       // - splits up messages to a set of nodes / load balancing among many destinations
 	AGGREGATE = O2A_WITH_REPLY,     // - aggregates messages from multiple sources and them among many destinations
-	MULTICAST = GROUP_TO_GROUP & FILTER_MSG,
-	BROADCAST = ONE_TO_ANY & GROUP_TO_ANY,
+	MULTICAST = GROUP_TO_GROUP | FILTER_MSG,
+	BROADCAST = ONE_TO_ANY | GROUP_TO_ANY,
 	INTERVIEW = A2G_WITH_REPLY,
 	BUS       = ANY_TO_ANY,
 	SURVEY    = A2A_STICKY_REPLY,
-	PUBSUB    = BUS & FILTER_MSG,
+	PUBSUB    = BUS | FILTER_MSG,
 
 } np_msg_mep_type;
 

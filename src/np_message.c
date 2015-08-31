@@ -437,7 +437,7 @@ void np_message_encrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoke
 	log_msg(LOG_TRACE, ".end  .np_message_encrypt_payload");
 }
 
-void np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoken_t* tmp_token) {
+np_bool np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoken_t* tmp_token) {
 
 	log_msg(LOG_TRACE, ".start.np_message_decrypt_payload");
 
@@ -462,7 +462,7 @@ void np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoke
 								   nonce, tmp_token->public_key, curve25519_sk);
 	if (0 > ret) {
 		log_msg(LOG_ERROR, "decryption of message payload failed");
-		return;
+		return FALSE;
 	}
 // 	log_msg(LOG_DEBUG, "sym_key:    %s", sym_key);
 
@@ -470,6 +470,7 @@ void np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoke
 	np_message_decrypt_part(msg->body, nonce, sym_key, NULL);
 
 	log_msg(LOG_TRACE, ".end  .np_message_decrypt_payload");
+	return TRUE;
 }
 
 

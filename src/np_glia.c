@@ -316,7 +316,6 @@ void np_retransmit_tokens(np_state_t* state, np_jobargs_t* args) {
  **/
 void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 	log_msg(LOG_TRACE, ".start.np_retransmit_messages");
-	// log_msg(LOG_TRACE, "start np_retransmit_messages");
 
 	double now = 0.0;
 	double sleeptime = RETRANSMIT_THREAD_SLEEP;
@@ -329,21 +328,12 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 	pthread_mutex_lock(&ng->lock);
 
 	// wake up, get all the packets to be transmitted by now, send them again or delete them from the priqueue
-	if (ng->retransmit->size == 0) {
-		pthread_mutex_unlock(&ng->lock);
-		dsleep(sleeptime);
-		job_submit_event(state->jobq, np_retransmit_messages);
-		log_msg(LOG_TRACE, ".end  .np_retransmit_messages");
-		return;
-	}
-
 	now = dtime();
 	double min_sleep_time = 0.0;
-	// pqnode = RB_MIN(np_jtree, ng->retransmit);
 
 	RB_FOREACH(pqnode, np_jtree, ng->retransmit)
 	{
-		if (pqnode->key.value.d <= now)
+		if (now >= pqnode->key.value.d)
 			break;
 
 		min_sleep_time = pqnode->key.value.d - now;
@@ -352,10 +342,9 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 	};
 
 	// queue was not empty, but time comparison said: no element ready for retransmit
-	if (pqnode == NULL) {
+	if (NULL == pqnode) {
 		pthread_mutex_unlock(&ng->lock);
-		dsleep(1.0);
-		// dsleep(sleeptime);
+		dsleep(sleeptime);
 		job_submit_event(state->jobq, np_retransmit_messages);
 		log_msg(LOG_TRACE, ".end  .np_retransmit_messages");
 		return;
@@ -379,6 +368,7 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 
 		if (MAX_ENTRY >= pqentry->retry) {
 			if (BAD_LINK > pqentry->dest_key->node->success_avg) {
+				log_msg(LOG_DEBUG, "re-routing: failed delivery attempt %u", pqentry->seqnum);
 				// re-route for nodes which had some failures in the past
 				np_node_update_stat(pqentry->dest_key->node, 0);
 
@@ -405,6 +395,7 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 				pthread_mutex_unlock(&ng->lock);
 
 			} else {
+				log_msg(LOG_DEBUG, "re-sending failed delivery attempt %u", pqentry->seqnum);
 				double transmittime = dtime();
 
 				// prepare a resend later
@@ -453,17 +444,7 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 		// update the host latency and the success measurements
 		// and decrease reference counter again
 		// pthread_mutex_lock(&ng->lock);
-
-		// TODO: increase threshold counter again
-//		char* msg_subject = jrb_find_str(re_msg->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
-//		np_msgproperty_t* requested = np_message_available_match(state, msg_subject);
-//
-//		if (requested) {
-//			pthread_mutex_lock(&requested->lock);
-//			requested->msg_threshold++;
-//			pthread_mutex_unlock(&requested->lock);
-//		}
-
+		log_msg(LOG_DEBUG, "ack found, updating node stats ..., %u", pqentry->seqnum);
 		double latency = ackentry->acktime - pqentry->transmittime;
 		if (latency > 0) {
 			if (pqentry->dest_key->node->latency == 0.0) {
@@ -477,7 +458,6 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 		np_node_update_stat(pqentry->dest_key->node, 1);
 
 		np_unref_obj(np_key_t, pqentry->dest_key);
-
 		np_unref_obj(np_message_t, pqentry->msg);
 		np_free_obj(np_message_t, pqentry->msg);
 

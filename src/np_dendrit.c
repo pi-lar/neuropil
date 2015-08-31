@@ -98,8 +98,8 @@ void hnd_msg_in_piggy(np_state_t* state, np_jobargs_t* args) {
 	}
 
 	while (NULL != (node_entry = sll_head(np_key_t, o_piggy_list))){
-		// add entries in teh message to our routing table
-		// routing tabel is responsible to handel possible double entries
+		// add entries in the message to our routing table
+		// routing table is responsible to handle possible double entries
 		tmp_ft = node_entry->node->failuretime;
 		np_key_t *added, *deleted;
 
@@ -143,24 +143,10 @@ void np_signal (np_state_t* state, np_jobargs_t* args)
 		return;
 	}
 
-	// np_key_t* search_key = NULL;
 	np_message_t* msg_in = args->msg;
 
 	const char* subject = jrb_find_str(msg_in->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
 	uint8_t ack_mode = jrb_find_str(msg_in->instructions, NP_MSG_INST_ACK)->val.value.ush;
-
-//	np_key_t* from_key = NULL;
-//	const unsigned char* from = (unsigned char*) jrb_find_str(msg_in->header, NP_MSG_HEADER_FROM)->val.value.s;
-//	search_key = key_create_from_hash(from);
-//	LOCK_CACHE(state) {
-//		from_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
-//	}
-//
-//	if (NULL == from_key || NULL == from_key->authentication) {
-//		np_free_obj(np_message_t, args->msg);
-//		log_msg(LOG_DEBUG, "cannot decode message, no authentication information found");
-//		return;
-//	}
 
 	np_msgproperty_t* real_prop = np_message_get_handler(state, INBOUND, subject);
 
@@ -168,7 +154,6 @@ void np_signal (np_state_t* state, np_jobargs_t* args)
 	LOCK_CACHE(real_prop) {
 		sll_append(np_message_t, real_prop->msg_cache, args->msg);
 		np_ref_obj(np_message_t, args->msg);
-		// real_prop->msg_threshold--;
 		// signal the np_receive function that the message has arrived
 		log_msg(LOG_DEBUG, "signaling via available %p", real_prop);
 		pthread_cond_signal(&real_prop->msg_received);
@@ -206,7 +191,16 @@ void np_callback_wrapper(np_state_t* state, np_jobargs_t* args) {
 		msg_prop->msg_threshold++;
 
 		log_msg(LOG_DEBUG, "decrypting message ...");
-		np_message_decrypt_payload(state, msg_in, sender_token);
+		np_bool decrypt_ok = np_message_decrypt_payload(state, msg_in, sender_token);
+
+		if (FALSE == decrypt_ok) {
+			np_unref_obj(np_aaatoken_t, sender_token);
+			np_free_obj(np_aaatoken_t, sender_token);
+			np_unref_obj(np_message_t, msg_in);
+			np_free_obj(np_message_t, msg_in);
+			msg_prop->msg_threshold--;
+			return;
+		}
 
 		received = jrb_find_str(msg_in->properties, NP_MSG_INST_SEQ)->val.value.ul;
 		uint8_t ack_mode  = jrb_find_str(msg_in->instructions, NP_MSG_INST_ACK)->val.value.ush;
@@ -288,7 +282,6 @@ void hnd_msg_in_join_req(np_state_t* state, np_jobargs_t* args) {
 	LOCK_CACHE(state) {
 		join_req_key = np_node_decode_from_jrb(state, args->msg->body);
 	}
-
 	/* check to see if the node has just left the network or not */
 	// double timeval = dtime();
 
@@ -324,6 +317,8 @@ void hnd_msg_in_join_req(np_state_t* state, np_jobargs_t* args) {
 			np_jtree_t* jrb_me = make_jtree();
 
 			np_node_encode_to_jrb(jrb_me, state->my_key);
+			uint32_t in_seq = jrb_find_str(args->msg->instructions, NP_MSG_INST_SEQ)->val.value.ul;
+			jrb_insert_str(jrb_me, NP_MSG_INST_SEQ, new_jval_ul(in_seq));
 
 			np_message_create(msg_out, join_req_key, state->my_key, NP_MSG_JOIN_ACK, jrb_me);
 			msg_prop = np_message_get_handler(state, OUTBOUND, NP_MSG_JOIN_ACK);
@@ -340,7 +335,6 @@ void hnd_msg_in_join_req(np_state_t* state, np_jobargs_t* args) {
 			// TODO: chicken egg problem
 			// without handshake we cannot send join.nack messages
 			// but we have to delete the auth token after really sending the nack
-
 			// np_aaatoken_t* aaa_token = np_get_authentication_token(state->aaa_cache, sourceNode->key);
 			// aaa_token->valid = 0;
 			// sourceNode->handshake_status = HANDSHAKE_UNKNOWN;
@@ -385,6 +379,19 @@ void hnd_msg_in_join_ack(np_state_t* state, np_jobargs_t* args) {
 	LOCK_CACHE(state) {
 		join_key = np_node_decode_from_jrb(state, args->msg->body);
 	}
+
+	/* acknowledgement of join message send out earlier */
+	uint32_t in_seq = jrb_find_str(args->msg->body, NP_MSG_INST_SEQ)->val.value.ul;
+	np_network_t* ng = state->my_key->node->network;
+	pthread_mutex_lock(&(ng->lock));
+	np_jtree_elem_t *jrb_node = jrb_find_ulong(ng->waiting, in_seq);
+	if (jrb_node != NULL) {
+		np_ackentry_t *entry = (np_ackentry_t *) jrb_node->val.value.v;
+		entry->acked = TRUE;
+		entry->acktime = dtime();
+		log_msg(LOG_DEBUG, "received acknowledgment of seq=%u", in_seq);
+	}
+	pthread_mutex_unlock(&(ng->lock));
 
 	log_msg(LOG_INFO, "received join ack from key: %s host: %s port %hd",
 					  key_get_as_string(join_key), join_key->node->dns_name, join_key->node->port);
@@ -455,7 +462,7 @@ void hnd_msg_in_join_nack(np_state_t* state, np_jobargs_t* args) {
 
 	np_key_t* nack_key;
 	np_key_t search_key;
-	str_to_key(&search_key, (unsigned char*) jrb_find_str(args->msg->header, NP_MSG_HEADER_REPLY_TO)->val.value.s);
+	str_to_key(&search_key, (unsigned char*) jrb_find_str(args->msg->header, NP_MSG_HEADER_FROM)->val.value.s);
 
 	LOCK_CACHE(state) {
 		nack_key = SPLAY_FIND(spt_key, &state->key_cache, &search_key);
@@ -792,7 +799,6 @@ void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args) {
 				if (real_prop->cache_policy & FILO)
 					msg_in = sll_head(np_message_t, real_prop->msg_cache);
 
-				// np_unref_obj(np_message_t, msg_in);
 				msg_available = sll_size(real_prop->msg_cache);
 			}
 			job_submit_msg_event(state->jobq, real_prop, state->my_key, msg_in);

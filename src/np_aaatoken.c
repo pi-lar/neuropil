@@ -96,11 +96,10 @@ np_bool token_is_valid(np_aaatoken_t* token) {
 	// TODO: move this to boolean math and just add(&) TRUE/FALSE values
 	// if (now < token->not_before) return 0;
 	if (now > token->expiration) return FALSE;
+	if (0                   >  token_msg_threshold &&
+		token_max_threshold <= token_msg_threshold) return FALSE;
 
-	if (token_max_threshold <= token_msg_threshold) return FALSE;
-
-	if (token_msg_threshold >= 0) return TRUE;
-	else                          return FALSE;
+	return TRUE;
 }
 
 void create_token_ledger(np_state_t* state, np_key_t* subject_key, char* subject) {

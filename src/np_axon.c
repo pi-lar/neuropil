@@ -49,25 +49,17 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 	uint32_t seq = 0;
 	np_message_t* msg_out = args->msg;
 
-	// np_jtree_elem_t *jrb_node;
-	// np_jtree_t *priqueue;
-
-	double start;
+	double start = dtime();
 	uint16_t parts = 1;
 	np_bool ack_to_is_me = FALSE;
 	uint8_t ack_mode = ACK_NONE;
+	np_bool ack_mode_from_msg = FALSE;
 
 	np_msgproperty_t* prop = args->properties;
 	np_network_t* network = state->my_key->node->network;
 
 	// TODO: check if the node is really useful.
 	// for now: assume a node really exists and is not only a "key"
-//	if (prop->ack_mode != ACK_EACHHOP && prop->ack_mode != ACK_DESTINATION) {
-//		log_msg(LOG_ERROR, "FAILED, unexpected message ack property %i !", prop->ack_mode);
-//		np_unbind(np_message_t, args->msg, msg_out);
-//		np_free(np_message_t, args->msg);
-//		return;
-//	}
 
 	/* create network header */
 	pthread_mutex_lock(&(network->lock));
@@ -77,28 +69,26 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 		ack_mode = prop->ack_mode;
 	} else {
 		ack_mode = jrb_find_str(msg_out->instructions, NP_MSG_INST_ACK)->val.value.ush;
+		ack_mode_from_msg = TRUE;
 	}
-	// if not yet present set the ack mode
-	if (NULL != prop)
-		jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK, new_jval_ush(prop->ack_mode));
+	jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK, new_jval_ush(prop->ack_mode));
 
 	unsigned char* ack_to_str = key_get_as_string(state->my_key);
 	if ( 0 < (ack_mode & ACK_EACHHOP) ) {
-		// we have to reset the existing ack_to field in case of forwarding
-		// np_jtree_elem_t* jrb_node = jrb_find_str(msg_out->instructions, NP_MSG_INST_ACK_TO);
+		// we have to reset the existing ack_to field in case of forwarding and each-hop acknowledge
 		jrb_replace_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s((char*) ack_to_str));
 		ack_to_is_me = TRUE;
 	} else if ( 0 < (ack_mode & ACK_DESTINATION) || 0 < (ack_mode & ACK_CLIENT) ) {
-		// only set these two ack values if not yet set !
+		// only set ack_to for these two ack mode values if not yet set !
 		jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s((char*) ack_to_str));
-		ack_to_is_me = TRUE;
+		if (FALSE == ack_mode_from_msg)
+			ack_to_is_me = TRUE;
 	} else {
 		ack_to_is_me = FALSE;
 	}
 
 	/* get/set sequence number to initialize acknowledgement indicator correctly */
-	// np_jtree_elem_t* jrb_seq = jrb_find_str(msg_out->instructions, NP_MSG_INST_SEQ);
-	if (ack_to_is_me) {
+	if (TRUE == ack_to_is_me) {
 		seq = network->seqend;
 		jrb_replace_str(msg_out->instructions, NP_MSG_INST_SEQ, new_jval_ul(seq));
 		network->seqend++;
@@ -109,22 +99,22 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 	} else {
 		jrb_insert_str(msg_out->instructions, NP_MSG_INST_SEQ, new_jval_ul(0));
 	}
+	// TODO: insert a uuid for each message that we send
+	// jrb_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_jval_uuid());
 
 	// set resend count to zero if not yet present
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_RESEND_COUNT, new_jval_ush(0));
 
 	pthread_mutex_unlock(&(network->lock));
 
-	// message part split-up informations
+	// TODO: message part split-up informations
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_PART, new_jval_ui(parts));
 
-	start = dtime();
-	if (ack_to_is_me) {
+	if (TRUE == ack_to_is_me)
+	{
 		// insert a record into the priority queue with the following information:
 		// key: starttime + next retransmit time
 		// other info: destination host, seq num, data, data size
-		// np_jrb_t* jrb_resend = jrb_find_str(msg_out->instructions, "_np.resend_count");
-
 		np_prioq_t *pqrecord = get_new_pqentry();
 		pqrecord->dest_key = args->target;
 		pqrecord->msg = args->msg;
@@ -139,6 +129,9 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 		jrb_insert_dbl(network->retransmit,
 					   (start + RETRANSMIT_INTERVAL), new_jval_v(pqrecord));
 		pthread_mutex_unlock(&network->lock);
+		// log_msg(LOG_DEBUG, "ack handling requested for seq %u", seq);
+	} else {
+		// log_msg(LOG_DEBUG, "no ack handling required for seq %u", seq);
 	}
 
 	char* subj = jrb_find_str(msg_out->header, NP_MSG_HEADER_SUBJECT)->val.value.s;

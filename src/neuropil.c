@@ -209,7 +209,8 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 		sender_id = jrb_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
 		sender_token = np_get_sender_token(state, subject, sender_id);
 		if (NULL == sender_token) {
-			log_msg(LOG_ERROR, "!!! SNH !!! message received but no valid sender token, retrying ...");
+			// sleep for a while, token may need some time to arrive
+			dsleep(0.31415);
 			continue;
 		}
 

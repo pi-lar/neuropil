@@ -41,9 +41,14 @@ int16_t jval_cmp(const np_jtree_elem_t* j1, const np_jtree_elem_t* j2) {
 		if (jv1.type == char_ptr_type)
 			return strncmp(jv1.value.s, jv2.value.s, 64);
 
-		if (jv1.type == double_type)
-			return (int16_t) (jv1.value.d - jv2.value.d);
-
+		if (jv1.type == double_type) {
+			// log_msg(LOG_DEBUG, "comparing %f - %f = %d",
+			// 		jv1.value.d, jv2.value.d, (int16_t) (jv1.value.d-jv2.value.d) );
+			double res = jv1.value.d - jv2.value.d;
+			if (res < 0) return -1;
+			if (res > 0) return  1;
+			return 0;
+		}
 		if (jv1.type == unsigned_long_type)
 			return (int16_t) (jv1.value.ul - jv2.value.ul);
 
@@ -403,8 +408,9 @@ void jrb_insert_dbl (np_jtree_t* tree, double dkey, np_jval_t val)
 		RB_INSERT(np_jtree, tree, found);
 	    tree->size++;
 		tree->byte_size += jrb_get_byte_size(found);
+	} else {
+		// log_msg(LOG_WARN, "not inserting double key (%f) into jtree", dkey );
 	}
-
 }
 
 
