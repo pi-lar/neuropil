@@ -180,7 +180,7 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 		msg_prop->mep_type = ONE_WAY;
 		msg_prop->msg_mode = INBOUND;
 		msg_prop->clb = np_signal;
-		// when creating, set to one because callback is not used is called
+		// when creating, set to zero because callback function is not used
 		msg_prop->max_threshold = 0;
 
 		// register the handler so that message can be received
@@ -219,15 +219,30 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 	} while (FALSE == msg_received);
 
 	// in receive function, we can only receive one message per call, different for callback function
-	log_msg(LOG_DEBUG, "getting message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache));
+	log_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache));
 	msg = sll_head(np_message_t, msg_prop->msg_cache);
 
 	log_msg(LOG_DEBUG, "decrypting message ...");
-	np_message_decrypt_payload(state, msg, sender_token);
+	np_bool decrypt_ok = np_message_decrypt_payload(state, msg, sender_token);
+
+	if (FALSE == decrypt_ok) {
+		log_msg(LOG_DEBUG, "decryption of message failed, deleting message");
+		np_unref_obj(np_aaatoken_t, sender_token);
+		np_free_obj(np_aaatoken_t, sender_token);
+		np_unref_obj(np_message_t, msg);
+		np_free_obj(np_message_t, msg);
+		msg_prop->max_threshold--;
+		return 0;
+	}
 
 	uint32_t received = jrb_find_str(msg->properties, NP_MSG_INST_SEQ)->val.value.ul;
 	np_jtree_elem_t* reply_data = jrb_find_str(msg->body, NP_MSG_BODY_TEXT);
 	*data = strndup(reply_data->val.value.s, strlen(reply_data->val.value.s));
+
+	uint8_t ack_mode = jrb_find_str(msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
+	if (0 < (ack_mode & ACK_DESTINATION)) {
+		np_send_ack(state, msg);
+	}
 
 	np_unref_obj(np_message_t, msg);
 	np_free_obj(np_message_t, msg);
@@ -243,12 +258,12 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 }
 
 
-void np_send_ack(np_state_t* state, np_jobargs_t* args) {
+void np_send_ack(np_state_t* state, np_message_t* in_msg) {
 
 	uint8_t ack = ACK_NONE;
 	uint32_t seq = 0;
 
-	np_message_t* in_msg = args->msg;
+	// np_message_t* in_msg = args->msg;
 
 	if (NULL != jrb_find_str(in_msg->header, NP_MSG_INST_ACK_TO)) {
 		// extract data from incoming message
@@ -272,7 +287,7 @@ void np_send_ack(np_state_t* state, np_jobargs_t* args) {
 		np_free_obj(np_key_t, ack_key);
 	}
 
-	np_free_obj(np_message_t, args->msg);
+	np_free_obj(np_message_t, in_msg);
 }
 
 

@@ -12,10 +12,12 @@
 #define START_LOCK(x) { pthread_mutex_lock(&x->lock);
 #define END_LOCK(x)     pthread_mutex_unlock(&x->lock); }
 
+// create a sha156 uuid string, take the current date into account
+char* np_create_uuid(const char* str, const uint16_t num);
 
+// the following four are helper functions for c-message-pack to work on jtree structures
 np_bool buffer_reader(cmp_ctx_t *ctx, void *data, size_t count);
 size_t buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count);
-
 void serialize_jrb_node_t(np_jtree_t* jrb, cmp_ctx_t* cmp);
 void deserialize_jrb_node_t(np_jtree_t* jrb, cmp_ctx_t* cmp);
 

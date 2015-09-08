@@ -90,16 +90,18 @@ np_bool token_is_valid(np_aaatoken_t* token) {
 	uint16_t token_msg_threshold = jrb_find_str(token->extensions, "msg_threshold")->val.value.ui;
 	double now = dtime();
 
+	// np_bool is_valid = TRUE;
 	log_msg(LOG_DEBUG, "token values (max %hd / cur %hd / %f) now %f",
-			token_max_threshold, token_msg_threshold, token->expiration, now);
+	 		token_max_threshold, token_msg_threshold, token->expiration, now);
 
 	// TODO: move this to boolean math and just add(&) TRUE/FALSE values
 	// if (now < token->not_before) return 0;
 	if (now > token->expiration) return FALSE;
-	if (0                   >  token_msg_threshold &&
-		token_max_threshold <= token_msg_threshold) return FALSE;
+	if (0                   <=  token_msg_threshold &&
+		token_msg_threshold <   token_max_threshold)
+		return TRUE;
 
-	return TRUE;
+	return FALSE;
 }
 
 void create_token_ledger(np_state_t* state, np_key_t* subject_key, char* subject) {
@@ -132,6 +134,8 @@ void create_token_ledger(np_state_t* state, np_key_t* subject_key, char* subject
 // update internal structure and return a interest if a matching pair has been found
 void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 {
+	log_msg(LOG_TRACE, ".start.np_add_sender_token");
+
 	np_key_t* subject_key;
 	np_key_t* search_key = key_create_from_hostport(subject, 0);
 
@@ -156,15 +160,11 @@ void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 
 			np_aaatoken_t* tmp_token = iter->val;
 
-			if (FALSE == token_is_valid(tmp_token) ||
+			if (FALSE == token_is_valid(tmp_token) &&
 				0 == strncmp(token->issuer, tmp_token->issuer, strlen(token->issuer)) )
 			{
-//				uint16_t max_threshold = jrb_find_str(tmp_token->extensions, "max_threshold")->val.value.ui;
-//				uint16_t msg_threshold = jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
-//				subject_key->send_property->max_threshold -= max_threshold;
-//				subject_key->send_property->msg_threshold -= msg_threshold;
-
 				log_msg(LOG_DEBUG, "deleting old / invalid sender msg tokens");
+
 				np_unref_obj(np_aaatoken_t, tmp_token);
 				np_free_obj(np_aaatoken_t, tmp_token);
 
@@ -188,20 +188,32 @@ void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 		uint16_t max_threshold = jrb_find_str(token->extensions, "max_threshold")->val.value.ui;
 
 		if (max_threshold > 0) {
-			// only add if there are messages to send
-			switch(subject_key->send_property->mep_type) {
-			case ONE_WAY:
+			np_msg_mep_type sender_mep_type = subject_key->send_property->mep_type & SENDER_MASK;
+			switch(sender_mep_type) {
+			case SINGLE_SENDER:
 				// update #1 key specific data
+				// TODO check if sender identity is equal to the one used before
+				sll_head(np_aaatoken_t, subject_key->send_tokens);
 				sll_append(np_aaatoken_t, subject_key->send_tokens, token);
 				np_ref_obj(np_aaatoken_t, token);
+				log_msg(LOG_DEBUG, "added new single sender token for message hash %s", key_get_as_string(subject_key) );
+				break;
+			case GROUP_SENDER:
+				// TODO store and compare the realm that is send together with the token
+				// TODO check if sender identity is already in the list and used before
+				sll_append(np_aaatoken_t, subject_key->send_tokens, token);
+				np_ref_obj(np_aaatoken_t, token);
+				log_msg(LOG_DEBUG, "added new group sender token for message hash %s", key_get_as_string(subject_key) );
+				break;
+			case ANY_SENDER:
+				// TODO
 				break;
 			default:
 				break;
 			}
-			// subject_key->send_property->msg_threshold += msg_threshold;
 		}
 	}
-	log_msg(LOG_DEBUG, "handled new sender token for message hash %s", key_get_as_string(subject_key) );
+	log_msg(LOG_TRACE, ".end  .np_add_sender_token");
 }
 
 /** np_get_sender_token
@@ -281,43 +293,36 @@ np_aaatoken_t* np_get_sender_token(np_state_t *state, char* subject, char* sende
 
 	LOCK_CACHE(subject_key->send_property)
 	{
-		// if (0 < subject_key->send_property->msg_threshold) {
-
-			sll_iterator(np_aaatoken_t) iter = sll_first(subject_key->send_tokens);
-			while (NULL != iter &&
-				   FALSE == found_return_token)
-			{
-				return_token = iter->val;
-				if (FALSE == token_is_valid(return_token)) {
-					// TODO delete invalid tokens, this is a different behaviour from node to node
-					log_msg(LOG_DEBUG, "ignoring invalid sender token for issuer %s", return_token->issuer);
-					iter = sll_next(iter);
-					return_token = NULL;
-					continue;
-				}
-
-				// unsigned int token_threshold = 0;
-				// token_threshold = jrb_find_str(return_token->extensions, "msg_threshold")->val.value.ui;
-
-				// only pick key from a list if the subject msg_treshold is bigger than zero
-				// and we actually have the correct sender node in the list
-				if (0 != strncmp(return_token->issuer, sender, 64))
-				{
-					log_msg(LOG_DEBUG, "ignoring sender token for issuer %s / send_hk: %s",
-							return_token->issuer, sender);
-					iter = sll_next(iter);
-					return_token = NULL;
-					continue;
-				}
-
-				jrb_find_str(return_token->extensions, "msg_threshold")->val.value.ui--;
-				// subject_key->send_property->msg_threshold++;
-
-				found_return_token = TRUE;
-				log_msg(LOG_DEBUG, "found valid sender token (%s)", return_token->issuer );
-				np_ref_obj(np_aaatoken_t, return_token);
+		sll_iterator(np_aaatoken_t) iter = sll_first(subject_key->send_tokens);
+		while (NULL != iter &&
+			   FALSE == found_return_token)
+		{
+			return_token = iter->val;
+			if (FALSE == token_is_valid(return_token)) {
+				// TODO delete invalid tokens, this is a different behaviour from node to node
+				log_msg(LOG_DEBUG, "ignoring invalid sender token for issuer %s", return_token->issuer);
+				iter = sll_next(iter);
+				return_token = NULL;
+				continue;
 			}
-		// }
+
+			// only pick key from a list if the subject msg_treshold is bigger than zero
+			// and we actually have the correct sender node in the list
+			if (0 != strncmp(return_token->issuer, sender, 64))
+			{
+				log_msg(LOG_DEBUG, "ignoring sender token for issuer %s / send_hk: %s",
+						return_token->issuer, sender);
+				iter = sll_next(iter);
+				return_token = NULL;
+				continue;
+			}
+
+			jrb_find_str(return_token->extensions, "msg_threshold")->val.value.ui--;
+
+			found_return_token = TRUE;
+			log_msg(LOG_DEBUG, "found valid sender token (%s)", return_token->issuer );
+			np_ref_obj(np_aaatoken_t, return_token);
+		}
 	}
 	return return_token;
 }
@@ -325,6 +330,8 @@ np_aaatoken_t* np_get_sender_token(np_state_t *state, char* subject, char* sende
 // update internal structure and clean invalid tokens
 void np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 {
+	log_msg(LOG_TRACE, ".start.np_add_receiver_token");
+
 	np_key_t* subject_key;
 	np_key_t* search_key = key_create_from_hostport(subject, 0);
 
@@ -349,14 +356,9 @@ void np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *toke
 		while (NULL != iter) {
 			np_aaatoken_t* tmp_token = iter->val;
 
-			if (FALSE == token_is_valid(tmp_token) ||
+			if (FALSE == token_is_valid(tmp_token) &&
 				0 == strncmp(token->issuer, tmp_token->issuer, strlen(token->issuer)) )
 			{
-//				uint16_t max_threshold = jrb_find_str(tmp_token->extensions, "max_threshold")->val.value.ui;
-//				uint16_t msg_threshold = jrb_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
-//				subject_key->recv_property->max_threshold -= max_threshold;
-//				subject_key->recv_property->msg_threshold -= msg_threshold;
-
 				log_msg(LOG_DEBUG, "deleting old / invalid receiver msg tokens");
 				np_unref_obj(np_aaatoken_t, tmp_token);
 				np_free_obj(np_aaatoken_t, tmp_token);
@@ -378,24 +380,36 @@ void np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *toke
 		subject_key->recv_property->last_update = dtime();
 
 		uint16_t max_threshold = jrb_find_str(token->extensions, "max_threshold")->val.value.ui;
-		// subject_key->recv_property->max_threshold += max_threshold;
 
 		if (max_threshold > 0) {
+			np_msg_mep_type receiver_mep_type = subject_key->send_property->mep_type & RECEIVER_MASK;
 			// only add if there are messages to send
-			switch(subject_key->recv_property->mep_type) {
-			case ONE_WAY:
+			switch(receiver_mep_type) {
+			case SINGLE_RECEIVER:
 				// update #1 key specific data
+				// TODO: check if sender identity is the same as in the token before
+				sll_head(np_aaatoken_t, subject_key->recv_tokens);
 				sll_append(np_aaatoken_t, subject_key->recv_tokens, token);
 				np_ref_obj(np_aaatoken_t, token);
+				log_msg(LOG_DEBUG, "added new single receiver token for message hash %s", key_get_as_string(subject_key) );
+				break;
+			case GROUP_RECEIVER:
+				// store and compare the realm that is send together with the token
+				// TODO check group id before adding an additional receiver
+				// TODO check whether this receiver is already in the list
+				sll_append(np_aaatoken_t, subject_key->recv_tokens, token);
+				np_ref_obj(np_aaatoken_t, token);
+				log_msg(LOG_DEBUG, "added new group receiver token for message hash %s", key_get_as_string(subject_key) );
+				break;
+			case ANY_RECEIVER:
+				// TODO
 				break;
 			default:
 				break;
 			}
-			// subject_key->recv_property->msg_threshold += msg_threshold;
 		}
 	}
-	log_msg(LOG_DEBUG, "handled new receiver token for message hash %s",
-			key_get_as_string(subject_key) );
+	log_msg(LOG_TRACE, ".end  .np_add_receiver_token");
 }
 
 np_aaatoken_t* np_get_receiver_token(np_state_t *state, char* subject)
@@ -493,20 +507,6 @@ sll_return(np_aaatoken_t) np_get_receiver_token_all(np_state_t *state, char* sub
 			// and the sending threshold is bigger than zero as well
 			// and we actually have a receiver node in the list
 			sll_append(np_aaatoken_t, return_list, tmp);
-			// np_bool add_again = FALSE;
-
-//			if (token_threshold > subject_key->recv_property->msg_threshold) {
-//				// token_threshold -= subject_key->recv_property->msg_threshold;
-//				subject_key->recv_property->msg_threshold = 0;
-//				// done later
-//				// jrb_find_str(tmp->extensions, "_np.msg_threshold")->val.value.ul -= token_threshold;
-//				add_again = TRUE;
-//			} else {
-			// subject_key->recv_property->msg_threshold -= token_threshold;
-			// np_unref_obj(np_aaatoken_t, tmp);
-//			}
-
-// 			if (add_again == TRUE) sll_append(np_aaatoken_t, subject_key->recv_tokens, tmp);
 		}
 	}
 	return return_list;

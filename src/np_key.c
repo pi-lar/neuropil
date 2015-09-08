@@ -43,7 +43,7 @@ void key_to_str (np_key_t* k)
 
     // log_msg(LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
 	// log_msg(LOG_WARN, "key %16lx%16lx%16lx%16lx", k->t[0], k->t[1], k->t[2], k->t[3]);
-
+    // TODO: use sodium bin2hex function
 	memset  (k->keystr, 0, 64);
 	sprintf ((char*) k->keystr, "%016llx%016llx%016llx%016llx", k->t[0], k->t[1], k->t[2], k->t[3]);
 	k->keystr[64] = '\0';

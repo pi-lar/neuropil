@@ -18,7 +18,7 @@
 
 
 
-#define USAGE "neuropil [ -b bootstrap:port ] port"
+#define USAGE "neuropil_node [ -b bootstrap:port ] port"
 #define OPTSTR "b::"
 
 #define DEBUG 0
@@ -27,36 +27,7 @@
 extern char *optarg;
 extern int optind;
 
-np_node_t *driver;
 np_state_t *state;
-
-np_key_t* key;
-np_key_t* destinations[100];
-
-int seq = -1;
-int joinComplete = 0;
-
-
-void deliver(np_key_t* key, np_message_t* msg)
-{
-	// char s[256];
-	// np_message_t *message;
-
-	char* subject = jrb_find_str(msg->header, "subject")->val.value.s;
-
-	//  unsigned long dest;
-	// TODO: lookup software hook
-	// TODO: only when no software hook is present, try to send directly to closest host
-	// np_node_t* host = np_node_lookup(state->nodes, subject);
-	// np_node_t* host = np_node_decode_from_str(state->nodes, subject);
-	// message_send(state->messages, host, m, TRUE, 1);
-
-	log_msg(LOG_DEBUG, "DELIVER: %s", subject);
-	// np_key_t* 
-
-	// log_msg(LOG_DEBUG, "message %d to %s delivered to %s", seq, key_get_as_string(dest), key_get_as_string(key));
-}
-
 
 int main(int argc, char **argv) {
 
@@ -99,10 +70,7 @@ int main(int argc, char **argv) {
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(state, 8);
 
-	// np_waitforjoin(state);
-
 	while (1) {
 		dsleep(0.1);
 	}
-	// pthread_exit(NULL);
 }

@@ -42,9 +42,9 @@ void hnd_msg_out_ack(np_state_t* state, np_jobargs_t* args) {
  ** network_send: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
-void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
-
-	log_msg(LOG_TRACE, "hnd_msg_out_send starting ...");
+void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
+{
+	log_msg(LOG_TRACE, ".start.hnd_msg_out_send");
 
 	uint32_t seq = 0;
 	np_message_t* msg_out = args->msg;
@@ -99,13 +99,16 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 	} else {
 		jrb_insert_str(msg_out->instructions, NP_MSG_INST_SEQ, new_jval_ul(0));
 	}
-	// TODO: insert a uuid for each message that we send
-	// jrb_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_jval_uuid());
+
+	pthread_mutex_unlock(&(network->lock));
+
+	// insert a uuid if not yet present
+	// char* new_uuid = np_create_uuid(args->properties->msg_subject, seq);
+	// jrb_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_jval_s(new_uuid));
+	// free(new_uuid);
 
 	// set resend count to zero if not yet present
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_RESEND_COUNT, new_jval_ush(0));
-
-	pthread_mutex_unlock(&(network->lock));
 
 	// TODO: message part split-up informations
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_PART, new_jval_ui(parts));
@@ -136,13 +139,18 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args) {
 
 	char* subj = jrb_find_str(msg_out->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
 	log_msg(LOG_DEBUG, "message %s (%u) to %s", subj, seq, key_get_as_string(args->target));
+	log_msg(LOG_DEBUG, "message part byte sizes: %u %u %u %u %u",
+				msg_out->header->byte_size, msg_out->instructions->byte_size,
+				msg_out->properties->byte_size, msg_out->body->byte_size,
+				msg_out->footer->byte_size);
 
 	network_send_udp(state, args->target, msg_out);
 	// ret is 1 or 0
 	// np_node_update_stat(target_node, ret);
 
 	np_free_obj(np_message_t, args->msg);
-	log_msg(LOG_TRACE, "... hnd_msg_out_send finished");
+
+	log_msg(LOG_TRACE, ".end  .hnd_msg_out_send");
 }
 
 void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {

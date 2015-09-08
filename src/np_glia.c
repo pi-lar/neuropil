@@ -395,7 +395,7 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 				pthread_mutex_unlock(&ng->lock);
 
 			} else {
-				log_msg(LOG_DEBUG, "re-sending failed delivery attempt %u", pqentry->seqnum);
+				log_msg(LOG_DEBUG, "re-sending: failed delivery attempt %u", pqentry->seqnum);
 				double transmittime = dtime();
 
 				// prepare a resend later
@@ -422,7 +422,7 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 		} else {
 			// max retransmission has expired -- update the host stats, free up the resources
 			// pthread_mutex_lock(&ng->lock);
-			log_msg(LOG_WARN, "max retries exceeded, dropping message: %u", pqentry->seqnum);
+			// log_msg(LOG_WARN, "max retries exceeded, dropping message: %u", pqentry->seqnum);
 			np_node_update_stat(pqentry->dest_key->node, 0);
 
 			np_unref_obj(np_key_t, pqentry->dest_key);
@@ -444,7 +444,7 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 		// update the host latency and the success measurements
 		// and decrease reference counter again
 		// pthread_mutex_lock(&ng->lock);
-		log_msg(LOG_DEBUG, "ack found, updating node stats ..., %u", pqentry->seqnum);
+		// log_msg(LOG_DEBUG, "ack found, updating node stats ..., %u", pqentry->seqnum);
 		double latency = ackentry->acktime - pqentry->transmittime;
 		if (latency > 0) {
 			if (pqentry->dest_key->node->latency == 0.0) {
@@ -780,17 +780,18 @@ void np_send_msg_interest(np_state_t* state, const char* subject) {
 	jrb_insert_str(state->msg_tokens, subject, new_jval_v(msg_token));
 	np_ref_obj(np_aaatoken_t, msg_token);
 
-	log_msg(LOG_DEBUG, "encoding and sending interest token");
-	// and create a token to send it over the wire
-	np_jtree_t* interest_data = make_jtree();
-	msg_token = create_msg_token(state, subject, msg_request);
-	np_encode_aaatoken(interest_data, msg_token);
-	// directly send interest
-	np_new_obj(np_message_t, msg_out);
-	np_message_create(msg_out, target, state->my_key, NP_MSG_INTEREST, interest_data);
-	np_msgproperty_t* prop_route = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
-	job_submit_msg_event(state->jobq, prop_route, target, msg_out);
-
+	// if (msg_request->msg_threshold < msg_request->max_threshold) {
+		log_msg(LOG_DEBUG, "encoding and sending interest token");
+		// and create a token to send it over the wire
+		np_jtree_t* interest_data = make_jtree();
+		msg_token = create_msg_token(state, subject, msg_request);
+		np_encode_aaatoken(interest_data, msg_token);
+		// directly send interest
+		np_new_obj(np_message_t, msg_out);
+		np_message_create(msg_out, target, state->my_key, NP_MSG_INTEREST, interest_data);
+		np_msgproperty_t* prop_route = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+		job_submit_msg_event(state->jobq, prop_route, target, msg_out);
+	// }
 	log_msg(LOG_TRACE, ".end  .np_send_msg_interest");
 }
 
@@ -823,7 +824,7 @@ void np_send_msg_availability(np_state_t* state, const char* subject)
 }
 
 // TODO: move this to a function which can be scheduled via jobargs
-void np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msgproperty_t* msg_prop)
+np_bool np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msgproperty_t* msg_prop)
 {
 	np_aaatoken_t* tmp_token = np_get_receiver_token(state, subject);
 
@@ -836,7 +837,7 @@ void np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msgpro
 		str_to_key(receiver_key, (const unsigned char*) tmp_token->issuer);
 
 		jrb_insert_str(msg->header, NP_MSG_HEADER_TO, new_jval_s(tmp_token->issuer));
-		np_msgproperty_t* out_prop = np_message_get_handler(state, TRANSFORM,ROUTE_LOOKUP);
+		np_msgproperty_t* out_prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
 		job_submit_msg_event(state->jobq, out_prop, receiver_key, msg);
 
 		// decrease threshold counters
@@ -845,6 +846,7 @@ void np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msgpro
 		np_unref_obj(np_aaatoken_t, tmp_token);
 		np_free_obj(np_aaatoken_t, tmp_token);
 
+		return TRUE;
 	} else {
 
 		LOCK_CACHE(msg_prop)
@@ -887,4 +889,5 @@ void np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msgpro
 			np_ref_obj(np_message_t, msg);
 		}
 	}
+	return FALSE;
 }

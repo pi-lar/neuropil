@@ -32,12 +32,12 @@ TARGET=x86_64-apple-darwin-macho
 # TARGET=x86_64-pc-gnu-elf
 
 SOURCES=src/cmp.c src/dtime.c src/np_jtree.c src/jval.c src/np_aaatoken.c src/np_message.c src/np_memory.c src/np_glia.c src/neuropil.c src/np_jobqueue.c src/np_key.c src/log.c src/np_network.c src/np_node.c src/np_axon.c src/np_container.c src/np_dendrit.c src/np_util.c src/priqueue.c src/np_route.c 
-TEST_SOURCES=test/neuropil_controller.c test/jrb_test_msg.c
+TEST_SOURCES=test/neuropil_controller.c test/jrb_test_msg.c test/test_dh.c
 
 OBJECTS=$(SOURCES:.c=.o)
 TEST_OBJECTS=$(TEST_SOURCES:.c=.o)
 
-all: src/libneuropil.a neuropil_controller neuropil_node neuropil_sender neuropil_receiver neuropil_receiver_cb jrb_test_msg
+all: src/libneuropil.a neuropil_controller neuropil_node neuropil_sender neuropil_receiver neuropil_receiver_cb jrb_test_msg test_dh
 
 neuropil_controller: test/neuropil_controller.o
 	$(CC) -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
@@ -53,6 +53,8 @@ neuropil_receiver_cb: test/neuropil_receiver_cb.o
 
 jrb_test_msg: test/jrb_test_msg.o
 	$(CC) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
+test_dh: test/test_dh.o
+	$(CC) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
 
 src/libneuropil.a: $(OBJECTS)
 	$(CC) -target $(TARGET) $(LDFLAGS) -dynamiclib -std=c99 $(SODIUM_LIBRARIES) $(OBJECTS) -o libneuropil.$(TARGET).a
@@ -62,5 +64,5 @@ src/libneuropil.a: $(OBJECTS)
 
 clean:
 	-rm ./libneuropil.$(TARGET).a ./src/*.o ./test/*.o ./neuropil_controller ./neuropil_node ./neuropil_sender
-	-rm ./neuropil_receiver ./jrb_test_msg
-	rm ./neuropil_*.log
+	-rm ./neuropil_receiver ./jrb_test_msg ./test_dh
+	-rm ./neuropil_*.log ./test_*.log

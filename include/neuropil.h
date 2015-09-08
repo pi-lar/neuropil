@@ -90,6 +90,6 @@ void np_start_job_queue(np_state_t* state, uint8_t pool_size);
  *  sends a ping message to the host. the message is acknowledged in network layer
  **/
 void np_ping(np_state_t* state, np_key_t* key);
-void np_send_ack(np_state_t* state, np_jobargs_t* args);
+void np_send_ack(np_state_t* state, np_message_t* in_msg);
 
 #endif /* _NEUROPIL_H_ */

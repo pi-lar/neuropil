@@ -7,10 +7,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "sodium.h"
+
 #include "np_util.h"
 
 #include "jval.h"
 #include "log.h"
+#include "dtime.h"
+
+char* np_create_uuid(const char* str, const uint16_t num)
+{
+	char input[256];
+	unsigned char out[18];
+	char* uuid_out = malloc(sizeof(unsigned char)*37);
+
+	double now = dtime();
+	// TODO: move it to oid and
+	snprintf (input, 255, "urn:np:msg:%s:%u:%16.16f", str, num, now);
+	// log_msg(LOG_DEBUG, "created input uuid: %s", input);
+	crypto_generichash(out, 18, (unsigned char*) input, 256, NULL, 0);
+	sodium_bin2hex(uuid_out, 37, out, 18);
+	// log_msg(LOG_DEBUG, "created raw uuid: %s", uuid_out);
+	uuid_out[8] = uuid_out[13] = uuid_out[18] = uuid_out[23] = '-';
+	uuid_out[14] = '5';
+	uuid_out[19] = '9';
+	log_msg(LOG_DEBUG, "created new uuid: %s", uuid_out);
+	return uuid_out;
+}
 
 void del_callback(void* data) {
 	log_msg(LOG_ERROR, "del_callback should never be called !!!");

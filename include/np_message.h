@@ -82,19 +82,23 @@ typedef enum np_msg_mode_enum {
  */
 typedef enum np_msg_mep_enum {
 	DEFAULT_TYPE = 0x000,
+	// filter mep by type
+	RECEIVER_MASK = 0x00F,
+	SENDER_MASK   = 0x0F0,
+	FILTER_MASK   = 0xF00,
 	// base pattern for communication exchange
-	SINGLE_SENDER = 0x010,       // - simple one  to one  communication
-	GROUP_SENDER = 0x020,      // - oneway one  to many communication // receiver has not the same identity
-	ANY_SENDER = 0x040,
-	SINGLE_RECEIVER = 0x001,      // - oneway many to one  communictaion // sender has same identity
-	GROUP_RECEIVER = 0x002,      // - oneway many to one  communictaion // sender has same identity
-	ANY_RECEIVER = 0x004,
+	SINGLE_RECEIVER = 0x001,      // - to one  communictaion // sender has single identity
+	GROUP_RECEIVER = 0x002,       // - to many communictaion // receiver has same identity
+	ANY_RECEIVER = 0x004,         // - to many communication // receiver is a set of identities
+	SINGLE_SENDER = 0x010,        // - on to communication   // sender has a single identity
+	GROUP_SENDER = 0x020,         // - many to communication // sender share the same identity
+	ANY_SENDER = 0x040,           // - many to communication // sender is a set of identites
 	// addon message processing instructions
-	FILTER_MSG = 0x100,
-	HAS_REPLY = 0x200,
-	STICKY_REPLY = 0x300,
+	FILTER_MSG = 0x100,           // filter a message with a given callback function (?)
+	HAS_REPLY = 0x200,            // check reply_to field of the incoming message for a subject based reply
+	STICKY_REPLY = 0x300,         // check reply_to filed of the incoming message for a hash based reply
 
-	// simple combinations
+	// possible combinations
 	// ONE to ONE
 	ONE_WAY = SINGLE_SENDER | SINGLE_RECEIVER,
 	ONE_WAY_WITH_REPLY = ONE_WAY | HAS_REPLY,
@@ -164,10 +168,10 @@ struct np_msgproperty_s {
 	np_msg_mode_type msg_mode;
 	np_msg_mep_type  mep_type;
 	np_msg_ack_type  ack_mode;
-	uint8_t     priority;
-	uint8_t     retry;
-	uint16_t    msg_threshold;
-	uint16_t     max_threshold;
+	uint8_t          priority;
+	uint8_t          retry;
+	uint16_t         msg_threshold;
+	uint16_t         max_threshold;
 
 	// timestamp for cleanup thread
 	double          last_update;
@@ -182,8 +186,8 @@ struct np_msgproperty_s {
     pthread_condattr_t cond_attr;
 
     // callback function(s) to invoke when a message is received
-    np_callback_t clb;
-    np_usercallback_t user_clb;
+    np_callback_t clb; // internal neuropil supplied
+    np_usercallback_t user_clb; // external user supplied
 };
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
@@ -226,6 +230,7 @@ static const char* NP_MSG_INST_PART = "_np.part";
 static const char* NP_MSG_INST_ACK = "_np.ack";
 static const char* NP_MSG_INST_ACK_TO = "_np.ack_to";
 static const char* NP_MSG_INST_SEQ = "_np.seq";
+static const char* NP_MSG_INST_UUID = "_np.uuid";
 
 // msg handshake constants
 static const char* NP_HS_PAYLOAD = "_np.payload";

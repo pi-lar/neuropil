@@ -1,9 +1,9 @@
 #include "pthread.h"
 
 #include "np_memory.h"
-#include "node.h"
-#include "key.h"
-#include "jrb.h"
+#include "np_node.h"
+#include "np_key.h"
+#include "np_jtree.h"
 #include "log.h"
 #include "cmp.h"
 #include "np_util.h"
@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
 
 	log_init("test_node_ser.log", log_level);
 
-	np_jrb_t* test_jrb = make_jrb();
+	np_jtree_t* test_jrb = make_jtree();
 	jrb_insert_str(test_jrb, "test", new_jval_s("test"));
 
 	np_jval_t t1;
