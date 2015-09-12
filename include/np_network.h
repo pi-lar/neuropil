@@ -6,6 +6,8 @@
 #ifndef _NP_NETWORK_H_
 #define _NP_NETWORK_H_
 
+#include "sys/socket.h"
+
 #include "include.h"
 #include "np_memory.h"
 
@@ -20,9 +22,20 @@
  */
 #define TIMEOUT 1.0
 
+enum socket_type {
+	IPv4    = 0x00,
+	IPv6    = 0x01,
+	UDP     = 0x10, // UDP protocol - default
+	TCP     = 0x20, // TCP protocol
+	RAW     = 0x40, // pure IP protocol - no ports
+	PASSIVE = 0x80  // TCP passive (like FTP passive) for nodes behind firewalls
+};
+
 struct np_network_s
 {
     int socket;
+	// uint8_t socket_type;
+    // sockaddr_storage socket;
 
     np_jtree_t* waiting;
     np_jtree_t* retransmit;

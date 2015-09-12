@@ -36,12 +36,12 @@ struct np_node_s
     uint32_t address;
     uint16_t port;
 
-    // crypto and state extension
+    // state extension
     uint8_t handshake_status; // enum
     np_bool joined_network;   // TRUE / FALSE
 
 	// statistics
-//     int failed;
+    // int failed;
     double failuretime;
     double latency;
     double loss;

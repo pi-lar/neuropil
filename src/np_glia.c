@@ -879,10 +879,11 @@ np_bool np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msg
 				}
 			}
 
-			if ((msg_prop->cache_policy & FIFO))
-				sll_prepend(np_message_t, msg_prop->msg_cache, msg);
-			if ((msg_prop->cache_policy & FILO))
-				sll_append(np_message_t, msg_prop->msg_cache, msg);
+			// always prepend, FIFO / FILO handling done when fetching messages
+			// if ((msg_prop->cache_policy & FIFO))
+			sll_prepend(np_message_t, msg_prop->msg_cache, msg);
+			// if ((msg_prop->cache_policy & FILO))
+			// sll_append(np_message_t, msg_prop->msg_cache, msg);
 
 			log_msg(LOG_DEBUG, "added message to the msgcache (%p / %d) ...",
 					msg_prop->msg_cache, sll_size(msg_prop->msg_cache));

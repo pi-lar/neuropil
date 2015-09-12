@@ -253,10 +253,10 @@ void np_callback_wrapper(np_state_t* state, np_jobargs_t* args) {
 				}
 			}
 
-			if ( (msg_prop->cache_policy & FIFO) )
-				sll_prepend(np_message_t, msg_prop->msg_cache, msg_in);
-			if ( (msg_prop->cache_policy & FILO) )
-				sll_append(np_message_t, msg_prop->msg_cache, msg_in);
+			// if ( (msg_prop->cache_policy & FIFO) )
+			sll_prepend(np_message_t, msg_prop->msg_cache, msg_in);
+			// if ( (msg_prop->cache_policy & FILO) )
+			// sll_append(np_message_t, msg_prop->msg_cache, msg_in);
 
 			log_msg(LOG_DEBUG, "added message to the msgcache (%p / %d) ...",
 								msg_prop->msg_cache, sll_size(msg_prop->msg_cache));

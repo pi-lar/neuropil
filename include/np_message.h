@@ -81,19 +81,20 @@ typedef enum np_msg_mode_enum {
  * ANY refers to a group of np_node_t instances which do not share the same sending/receiving identity
  */
 typedef enum np_msg_mep_enum {
+
 	DEFAULT_TYPE = 0x000,
 	// filter mep by type
 	RECEIVER_MASK = 0x00F,
 	SENDER_MASK   = 0x0F0,
 	FILTER_MASK   = 0xF00,
 	// base pattern for communication exchange
-	SINGLE_RECEIVER = 0x001,      // - to one  communictaion // sender has single identity
-	GROUP_RECEIVER = 0x002,       // - to many communictaion // receiver has same identity
-	ANY_RECEIVER = 0x004,         // - to many communication // receiver is a set of identities
-	SINGLE_SENDER = 0x010,        // - on to communication   // sender has a single identity
-	GROUP_SENDER = 0x020,         // - many to communication // sender share the same identity
-	ANY_SENDER = 0x040,           // - many to communication // sender is a set of identites
-	// addon message processing instructions
+	SINGLE_RECEIVER = 0x001,      // - to   one  communication // sender has single identity
+	GROUP_RECEIVER = 0x002,       // - to   many communication // receiver has same identity
+	ANY_RECEIVER = 0x004,         // - to   many communication // receiver is a set of identities
+	SINGLE_SENDER = 0x010,        // - one  to   communication   // sender has a single identity
+	GROUP_SENDER = 0x020,         // - many to   communication // sender share the same identity
+	ANY_SENDER = 0x040,           // - many to   communication // sender is a set of identities
+	// add-on message processing instructions
 	FILTER_MSG = 0x100,           // filter a message with a given callback function (?)
 	HAS_REPLY = 0x200,            // check reply_to field of the incoming message for a subject based reply
 	STICKY_REPLY = 0x300,         // check reply_to filed of the incoming message for a hash based reply
@@ -163,8 +164,10 @@ struct np_msgproperty_s {
 
     // link to node(s) which is/are interested in message exchange
     np_key_t* partner_key;
+    // group sender
+    char*            group_id;
 
-	char*            msg_subject;
+    char*            msg_subject;
 	np_msg_mode_type msg_mode;
 	np_msg_mep_type  mep_type;
 	np_msg_ack_type  ack_mode;

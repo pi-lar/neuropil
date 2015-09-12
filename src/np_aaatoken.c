@@ -91,8 +91,8 @@ np_bool token_is_valid(np_aaatoken_t* token) {
 	double now = dtime();
 
 	// np_bool is_valid = TRUE;
-	log_msg(LOG_DEBUG, "token values (max %hd / cur %hd / %f) now %f",
-	 		token_max_threshold, token_msg_threshold, token->expiration, now);
+	// log_msg(LOG_DEBUG, "token values (max %hd / cur %hd / %f) now %f",
+	//  		token_max_threshold, token_msg_threshold, token->expiration, now);
 
 	// TODO: move this to boolean math and just add(&) TRUE/FALSE values
 	// if (now < token->not_before) return 0;
@@ -186,18 +186,25 @@ void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 		subject_key->send_property->last_update = dtime();
 
 		uint16_t max_threshold = jrb_find_str(token->extensions, "max_threshold")->val.value.ui;
+		np_aaatoken_t *tmp_token = NULL;
 
 		if (max_threshold > 0) {
 			np_msg_mep_type sender_mep_type = subject_key->send_property->mep_type & SENDER_MASK;
 			switch(sender_mep_type) {
+
 			case SINGLE_SENDER:
 				// update #1 key specific data
 				// TODO check if sender identity is equal to the one used before
-				sll_head(np_aaatoken_t, subject_key->send_tokens);
+				tmp_token = sll_head(np_aaatoken_t, subject_key->send_tokens);
+				if (NULL != tmp_token) {
+					np_unref_obj(np_aaatoken_t, tmp_token);
+					np_free_obj(np_aaatoken_t, tmp_token);
+				}
 				sll_append(np_aaatoken_t, subject_key->send_tokens, token);
 				np_ref_obj(np_aaatoken_t, token);
 				log_msg(LOG_DEBUG, "added new single sender token for message hash %s", key_get_as_string(subject_key) );
 				break;
+
 			case GROUP_SENDER:
 				// TODO store and compare the realm that is send together with the token
 				// TODO check if sender identity is already in the list and used before
@@ -205,9 +212,11 @@ void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 				np_ref_obj(np_aaatoken_t, token);
 				log_msg(LOG_DEBUG, "added new group sender token for message hash %s", key_get_as_string(subject_key) );
 				break;
+
 			case ANY_SENDER:
 				// TODO
 				break;
+
 			default:
 				break;
 			}
@@ -379,28 +388,42 @@ void np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *toke
 		subject_key->recv_property->ack_mode = jrb_find_str(token->extensions, "ack_mode")->val.value.ush;
 		subject_key->recv_property->last_update = dtime();
 
+		subject_key->recv_property->group_id = 0;
+
 		uint16_t max_threshold = jrb_find_str(token->extensions, "max_threshold")->val.value.ui;
 
 		if (max_threshold > 0) {
 			np_msg_mep_type receiver_mep_type = subject_key->send_property->mep_type & RECEIVER_MASK;
+			np_aaatoken_t* tmp_token = NULL;
 			// only add if there are messages to send
 			switch(receiver_mep_type) {
+
 			case SINGLE_RECEIVER:
 				// update #1 key specific data
 				// TODO: check if sender identity is the same as in the token before
-				sll_head(np_aaatoken_t, subject_key->recv_tokens);
+				tmp_token = sll_head(np_aaatoken_t, subject_key->recv_tokens);
+				if (NULL != tmp_token) {
+					np_unref_obj(np_aaatoken_t, tmp_token);
+					np_free_obj(np_aaatoken_t, tmp_token);
+				}
 				sll_append(np_aaatoken_t, subject_key->recv_tokens, token);
 				np_ref_obj(np_aaatoken_t, token);
 				log_msg(LOG_DEBUG, "added new single receiver token for message hash %s", key_get_as_string(subject_key) );
 				break;
+
 			case GROUP_RECEIVER:
 				// store and compare the realm that is send together with the token
 				// TODO check group id before adding an additional receiver
 				// TODO check whether this receiver is already in the list
+				// sll_iterator(np_aaatoken_t) iter = sll_first(subject_key->send_tokens);
+				// while (NULL != iter)
+				// {
+				// }
 				sll_append(np_aaatoken_t, subject_key->recv_tokens, token);
 				np_ref_obj(np_aaatoken_t, token);
 				log_msg(LOG_DEBUG, "added new group receiver token for message hash %s", key_get_as_string(subject_key) );
 				break;
+
 			case ANY_RECEIVER:
 				// TODO
 				break;
