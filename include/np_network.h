@@ -7,6 +7,7 @@
 #define _NP_NETWORK_H_
 
 #include "sys/socket.h"
+#include "netdb.h"
 
 #include "include.h"
 #include "np_memory.h"
@@ -23,8 +24,9 @@
 #define TIMEOUT 1.0
 
 enum socket_type {
-	IPv4    = 0x00,
-	IPv6    = 0x01,
+	UNKNOWN_PROTO = 0x00,
+	IPv4    = 0x01,
+	IPv6    = 0x02,
 	UDP     = 0x10, // UDP protocol - default
 	TCP     = 0x20, // TCP protocol
 	RAW     = 0x40, // pure IP protocol - no ports
@@ -34,8 +36,10 @@ enum socket_type {
 struct np_network_s
 {
     int socket;
-	// uint8_t socket_type;
-    // sockaddr_storage socket;
+
+	uint8_t socket_type;
+    struct addrinfo* addr_in; // where a node receives messages
+    struct addrinfo* addr_out; // where a node sends messages
 
     np_jtree_t* waiting;
     np_jtree_t* retransmit;
@@ -63,11 +67,15 @@ struct np_prioq_s {
 	double transmittime; // this is the time the packet is transmitted (or retransmitted)
 };
 
+// parse protocol string of the form "tcp4://..." and return the correct @see socket_type
+uint8_t np_parse_protocol_string (const char* protocol_str);
+char* np_get_protocol_string (uint8_t protocol);
 
 /** network_address:
  ** returns the ip address of the #hostname#
  **/
-unsigned long get_network_address (char *hostname);
+void get_network_address (np_bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
+// struct addrinfo get_network_address (char *hostname);
 
 np_ackentry_t* get_new_ackentry();
 np_prioq_t* get_new_pqentry();
@@ -75,7 +83,7 @@ np_prioq_t* get_new_pqentry();
 /** network_init:
  ** initiates the networking layer by creating socket and bind it to #port# 
  **/
-np_network_t* network_init (uint16_t port);
+np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname, char* service);
 
 /**
  ** network_send: host, data, size

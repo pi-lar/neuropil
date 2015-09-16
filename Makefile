@@ -37,7 +37,7 @@ TEST_SOURCES=test/neuropil_controller.c test/jrb_test_msg.c test/test_dh.c
 OBJECTS=$(SOURCES:.c=.o)
 TEST_OBJECTS=$(TEST_SOURCES:.c=.o)
 
-all: src/libneuropil.a neuropil_controller neuropil_node neuropil_sender neuropil_receiver neuropil_receiver_cb jrb_test_msg test_dh
+all: src/libneuropil.a ipv6_addrinfo neuropil_controller neuropil_node neuropil_sender neuropil_receiver neuropil_receiver_cb jrb_test_msg test_dh
 
 neuropil_controller: test/neuropil_controller.o
 	$(CC) -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
@@ -51,6 +51,8 @@ neuropil_receiver: test/neuropil_receiver.o
 neuropil_receiver_cb: test/neuropil_receiver_cb.o
 	$(CC) -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
 
+ipv6_addrinfo: test/ipv6_addrinfo.o
+	$(CC) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
 jrb_test_msg: test/jrb_test_msg.o
 	$(CC) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
 test_dh: test/test_dh.o

@@ -137,7 +137,7 @@ void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 	log_msg(LOG_TRACE, ".start.np_add_sender_token");
 
 	np_key_t* subject_key;
-	np_key_t* search_key = key_create_from_hostport(subject, 0);
+	np_key_t* search_key = key_create_from_hostport(subject, "0");
 
 	LOCK_CACHE(state) {
 		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
@@ -234,7 +234,7 @@ sll_return(np_aaatoken_t) np_get_sender_token_all(np_state_t *state, char* subje
 
 	np_key_t* subject_key;
 
-	np_key_t* search_key = key_create_from_hostport(subject, 0);
+	np_key_t* search_key = key_create_from_hostport(subject, "0");
 	LOCK_CACHE(state) {
 		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
 			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
@@ -278,7 +278,7 @@ sll_return(np_aaatoken_t) np_get_sender_token_all(np_state_t *state, char* subje
 np_aaatoken_t* np_get_sender_token(np_state_t *state, char* subject, char* sender) {
 
 	np_key_t* subject_key;
-	np_key_t* search_key = key_create_from_hostport(subject, 0);
+	np_key_t* search_key = key_create_from_hostport(subject, "0");
 
 	LOCK_CACHE(state) {
 		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
@@ -342,7 +342,7 @@ void np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *toke
 	log_msg(LOG_TRACE, ".start.np_add_receiver_token");
 
 	np_key_t* subject_key;
-	np_key_t* search_key = key_create_from_hostport(subject, 0);
+	np_key_t* search_key = key_create_from_hostport(subject, "0");
 
 	LOCK_CACHE(state) {
 		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
@@ -438,7 +438,7 @@ void np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *toke
 np_aaatoken_t* np_get_receiver_token(np_state_t *state, char* subject)
 {
 	np_key_t* subject_key;
-	np_key_t* search_key = key_create_from_hostport(subject, 0);
+	np_key_t* search_key = key_create_from_hostport(subject, "0");
 
 	LOCK_CACHE(state) {
 		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
@@ -492,7 +492,7 @@ np_aaatoken_t* np_get_receiver_token(np_state_t *state, char* subject)
 sll_return(np_aaatoken_t) np_get_receiver_token_all(np_state_t *state, char* subject) {
 
 	np_key_t* subject_key;
-	np_key_t* search_key = key_create_from_hostport(subject, 0);
+	np_key_t* search_key = key_create_from_hostport(subject, "0");
 
 	LOCK_CACHE(state) {
 		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {

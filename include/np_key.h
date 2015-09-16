@@ -59,7 +59,7 @@ np_key_t Key_Max;
 void key_init ();
 
 np_key_t* key_create_from_hash(const unsigned char* strOrig);
-np_key_t* key_create_from_hostport(const char* strOrig, uint16_t port);
+np_key_t* key_create_from_hostport(const char* strOrig, char* port);
 
 /** key_equal:k1, k2
  ** return 1 if #k1#==#k2# 0 otherwise

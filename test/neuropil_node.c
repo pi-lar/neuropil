@@ -16,10 +16,8 @@
 
 #include "include.h"
 
-
-
-#define USAGE "neuropil_node [ -b bootstrap:port ] port"
-#define OPTSTR "b::"
+#define USAGE "neuropil_node [ -j bootstrap:port ] [ -p protocol] [-b port]"
+#define OPTSTR "j:p:b:"
 
 #define DEBUG 0
 #define NUM_HOST 120
@@ -32,17 +30,25 @@ np_state_t *state;
 int main(int argc, char **argv) {
 
 	int opt;
-	char *hn = NULL;
-	int port, joinport;
+	char* b_hn = NULL;
+	char* b_port = NULL;
+	char* proto = NULL;
+	char* port = NULL;
 	int i;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
 		switch ((char) opt) {
-		case 'b':
+		case 'j':
 			for (i = 0; optarg[i] != ':' && i < strlen(optarg); i++);
 			optarg[i] = 0;
-			hn = optarg;
-			sscanf(optarg + (i + 1), "%d", &joinport);
+			b_hn = optarg;
+			b_port = optarg + (i+1);
+			break;
+		case 'p':
+			proto = optarg;
+			break;
+		case 'b':
+			port = optarg;
 			break;
 		default:
 			fprintf(stderr, "invalid option %c\n", (char) opt);
@@ -51,21 +57,14 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if ((argc - optind) != 1) {
-		fprintf(stderr, "usage: %s\n", USAGE);
-		exit(1);
-	}
-
-	port = atoi(argv[optind]);
-
 	char log_file[256];
-	sprintf(log_file, "%s_%d.log", "./neuropil_node", port);
+	sprintf(log_file, "%s_%s.log", "./neuropil_node", port);
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 	log_init(log_file, level);
 
-	state = np_init(port);
+	state = np_init(proto, port);
 
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(state, 8);

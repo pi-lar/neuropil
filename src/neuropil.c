@@ -113,7 +113,7 @@ void np_set_listener (np_state_t* state, np_usercallback_t msg_handler, char* su
 void np_set_mx_property(np_state_t* state, char* subject, const char* key, np_jval_t value)
 {
 	np_key_t* subject_key;
-	np_key_t* search_key = key_create_from_hostport(subject, 0);
+	np_key_t* search_key = key_create_from_hostport(subject, "0");
 	LOCK_CACHE(state) {
 		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
 			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
@@ -128,7 +128,7 @@ void np_set_mx_property(np_state_t* state, char* subject, const char* key, np_jv
 void np_rem_mx_property(np_state_t* state, char* subject, const char* key)
 {
 	np_key_t* subject_key;
-	np_key_t* search_key = key_create_from_hostport(subject, 0);
+	np_key_t* search_key = key_create_from_hostport(subject, "0");
 	LOCK_CACHE(state) {
 		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
 			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
@@ -312,26 +312,27 @@ void np_ping (np_state_t* state, np_key_t* key)
  ** initializes neuropil on specified port and returns the const np_state_t* which
  ** contains global state of different neuropil modules.
  **/
-np_state_t* np_init(uint16_t port)
+np_state_t* np_init(char* proto, char* port)
 {
     char name[256];
-    struct hostent *he;
 
+    // encryption and memory protection
+    sodium_init();
+    // memory pool
 	np_mem_init();
     // np_printpool;
-
-	// encryption
-    sodium_init();
 
 	// initialize key min max ranges
     key_init();
 
+    // global neuropil structure
     np_state_t *state = (np_state_t *) malloc (sizeof (np_state_t));
     if (state == NULL)
 	{
     	log_msg(LOG_ERROR, "neuropil_init: state module not created: %s", strerror (errno));
 	    exit(1);
 	}
+    // splay tree initializing
     SPLAY_INIT(&state->key_cache);
 
     //
@@ -347,19 +348,23 @@ np_state_t* np_init(uint16_t port)
     if (gethostname (name, 256) != 0)
 	{
     	log_msg(LOG_ERROR, "neuropil_init: gethostname: %s", strerror (errno));
-	    exit(1);
-	}
-	log_msg(LOG_ERROR, "found hostname %s", &name);
-
-	if ((he = gethostbyname (name)) == NULL)
-	{
-    	log_msg(LOG_WARN, "neuropil_init: gethostbyname: %s", strerror (errno));
-    	// TODO: structure really needed (contains list of all interfaces !)
-    	// exit(1);
+    	exit(1);
 	}
 
-    // log_msg(LOG_DEBUG, "%s:%hd", name, port);
-    state->my_key = key_create_from_hostport(name, port);
+	char* np_service = "3141";
+	uint8_t np_proto = UDP | IPv6;
+
+	if (NULL != port)
+		np_service = port;
+
+	if (NULL != proto) {
+		np_proto = np_parse_protocol_string(proto);
+		log_msg(LOG_DEBUG, "now initializing networking for %s:%s:%s", proto, name, np_service);
+	} else {
+		log_msg(LOG_DEBUG, "now initializing networking for udp6://%s:%s", name, np_service);
+	}
+
+    state->my_key = key_create_from_hostport(name, np_service);
     np_ref_obj(np_key_t, state->my_key);
 
 	log_msg(LOG_WARN, "node_key %p", state->my_key);
@@ -369,8 +374,13 @@ np_state_t* np_init(uint16_t port)
     np_new_obj(np_node_t, me);
 
     state->my_key->node = me;
-	np_node_update(me, name, port);
-	state->my_key->node->network = network_init(port);
+    // listen on all network interfaces
+	state->my_key->node->network = network_init(TRUE, np_proto, "", np_service);
+	if (NULL == state->my_key->node->network) {
+    	log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
+	    exit(1);
+	}
+	np_node_update(me, np_proto, name, np_service);
 
     // create a new token for encryption each time neuropil starts
     np_aaatoken_t* auth_token;
@@ -381,7 +391,7 @@ np_state_t* np_init(uint16_t port)
 
 	strncpy(auth_token->issuer, (char*) key_get_as_string(state->my_key), 255);
 	// TODO: aaa subject should be user set-able, could also be another name
-	snprintf(auth_token->subject, 255, "%s:%hd", name, port);
+	snprintf(auth_token->subject, 255, "%s:%s", name, port);
     auth_token->valid = 1;
 
     state->my_key->authentication = auth_token;

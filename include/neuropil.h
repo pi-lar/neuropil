@@ -46,7 +46,7 @@ struct np_state_s {
  ** Initializes neuropil subsystem to listen on the given port
  ** and returns the np_state_t* which contains global state of different np sub modules.
  **/
-np_state_t* np_init (uint16_t port);
+np_state_t* np_init (char* proto, char* port);
 
 /** np_setkey
  ** Manually sets the key for the current node 

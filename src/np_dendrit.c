@@ -818,8 +818,9 @@ void hnd_msg_in_handshake(np_state_t* state, np_jobargs_t* args) {
 	cmp_init(&cmp, payload->val.value.bin, buffer_reader, buffer_writer);
 	deserialize_jrb_node_t(hs_payload, &cmp);
 
+	char* node_proto = jrb_find_str(hs_payload, "_np.protocol")->val.value.s;
 	char* node_hn = jrb_find_str(hs_payload, "_np.dns_name")->val.value.s;
-	uint16_t node_port = jrb_find_str(hs_payload, "_np.port")->val.value.ui;
+	char* node_port = jrb_find_str(hs_payload, "_np.port")->val.value.s;
 	np_jtree_elem_t* sign_key = jrb_find_str(hs_payload, "_np.signature_key");
 	np_jtree_elem_t* pub_key = jrb_find_str(hs_payload, "_np.public_key");
 	double issued_at = jrb_find_str(hs_payload, "_np.issued_at")->val.value.d;
@@ -836,7 +837,7 @@ void hnd_msg_in_handshake(np_state_t* state, np_jobargs_t* args) {
 		np_free_obj(np_message_t, args->msg);
 		return;
 	}
-	log_msg(LOG_DEBUG, "decoding of handshake message from %s:%hd (i:%f/e:%f) complete",
+	log_msg(LOG_DEBUG, "decoding of handshake message from %s:%s (i:%f/e:%f) complete",
 			node_hn, node_port, issued_at, expiration);
 
 	// store the handshake data in the node cache, use hostname/port for key generation
@@ -856,7 +857,8 @@ void hnd_msg_in_handshake(np_state_t* state, np_jobargs_t* args) {
 
 	if (NULL == hs_key->node) {
 		np_new_obj(np_node_t, hs_key->node);
-		np_node_update(hs_key->node, node_hn, node_port);
+		uint8_t proto = np_parse_protocol_string(node_proto);
+		np_node_update(hs_key->node, proto, node_hn, node_port);
 	}
 
 	if (NULL == hs_key->authentication) {

@@ -482,54 +482,62 @@ void np_retransmit_messages(np_state_t* state, np_jobargs_t* args) {
 void np_network_read(np_state_t* state, np_jobargs_t* args) {
 	log_msg(LOG_TRACE, ".start.np_network_read");
 
-	fd_set fds;
+	// fd_set fds;
 	int8_t ret;
 	char data[NETWORK_PACK_SIZE];
-	struct sockaddr from;
+	struct sockaddr_storage from;
 	socklen_t fromlen = sizeof(from);
 	int8_t ack = 0;
 	uint32_t seq = 0;
 
 	np_network_t* ng = state->my_key->node->network;
 
-	FD_ZERO(&fds);
-	FD_SET(ng->socket, &fds);
+	// FD_ZERO(&fds);
+	// FD_SET(ng->socket, &fds);
 
 	// timeout.tv_usec = 5000;
-	ret = select(FD_SETSIZE, &fds, NULL, NULL, NULL);
-	if (ret < 0) {
-		log_msg(LOG_ERROR, "select: %s", strerror(errno));
-		job_submit_event(state->jobq, np_network_read);
-		log_msg(LOG_TRACE, ".end  .np_network_read");
-		return;
-	}
+//	ret = select(FD_SETSIZE, &fds, NULL, NULL, NULL);
+//	if (ret < 0) {
+//		log_msg(LOG_ERROR, "select: %s", strerror(errno));
+//		job_submit_event(state->jobq, np_network_read);
+//		log_msg(LOG_TRACE, ".end  .np_network_read");
+//		return;
+//	}
 
 	/* receive the new data */
-	int16_t in_msg_len = recvfrom(ng->socket, data, NETWORK_PACK_SIZE, 0, &from, &fromlen);
-	if (!in_msg_len) {
+	int16_t in_msg_len = recvfrom(ng->socket, data, NETWORK_PACK_SIZE, 0, (struct sockaddr*)&from, &fromlen);
+	if (0 > in_msg_len) {
 		log_msg(LOG_ERROR, "recvfrom failed: %s", strerror(errno));
 		job_submit_event(state->jobq, np_network_read);
 		log_msg(LOG_TRACE, ".end  .np_network_read");
 		return;
 	}
 	// get calling address and port
-	char ipstr[INET6_ADDRSTRLEN];
-	int16_t port;
+	char ipstr[255];
+	char port [6];
+	// int16_t port;
 
-	if (from.sa_family == PF_INET) {
-		inet_ntop(from.sa_family, &(((struct sockaddr_in *) &from)->sin_addr),
-				ipstr, sizeof ipstr);
-		port = ((struct sockaddr_in *) &from)->sin_port;
+	if (from.ss_family == AF_INET) {
+		struct sockaddr_in *s = (struct sockaddr_in *) &from;
+		getnameinfo((struct sockaddr*)s, sizeof s, ipstr, 255, port, 6, 0);
+		// inet_ntop(from.ss_family, &(((struct sockaddr_in *) &from)->sin_addr),
+		// ipstr, sizeof ipstr);
+		// port = ntohs(((struct sockaddr_in *) &from)->sin_port);
 	} else {
-		inet_ntop(from.sa_family, &(((struct sockaddr_in6 *) &from)->sin6_addr),
-				ipstr, sizeof ipstr);
-		port = ((struct sockaddr_in6 *) &from)->sin6_port;
+		struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+		getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
+//		inet_ntop(from.ss_family, &(((struct sockaddr_in6 *) &from)->sin6_addr),
+//				ipstr, sizeof ipstr);
+//		port = ntohs(((struct sockaddr_in6 *) &from)->sin6_port);
 	}
+
 	void* data_ptr = data;
 	log_msg(LOG_DEBUG, "received message from %s:%hd (size: %hd)", ipstr, port, in_msg_len);
 
 	// we registered this token info before in the first handshake message
 	np_key_t* alias_key = NULL;
+//	char s_port[7];
+//	snprintf (s_port, 7, "%hd", port);
 	np_key_t* search_key = key_create_from_hostport(ipstr, port);
 
 	LOCK_CACHE(state)
@@ -772,7 +780,7 @@ void np_send_msg_interest(np_state_t* state, const char* subject) {
 	np_aaatoken_t* msg_token;
 
 	np_msgproperty_t* msg_request = np_message_get_handler(state, INBOUND, subject);
-	np_key_t* target = key_create_from_hostport(subject, 0);
+	np_key_t* target = key_create_from_hostport(subject, "0");
 
 	log_msg(LOG_DEBUG, "encoding and storing interest token");
 	// insert into msg token token renewal queue
@@ -802,7 +810,7 @@ void np_send_msg_availability(np_state_t* state, const char* subject)
 	np_aaatoken_t* msg_token;
 
 	np_msgproperty_t* msg_interest = np_message_get_handler(state, OUTBOUND, subject);
-	np_key_t* target = key_create_from_hostport(subject, 0);
+	np_key_t* target = key_create_from_hostport(subject, "0");
 
 	log_msg(LOG_DEBUG, "encoding and storing available token");
 	msg_token = create_msg_token(state, subject, msg_interest);

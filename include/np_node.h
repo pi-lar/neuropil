@@ -32,9 +32,10 @@ struct np_node_s
 
 	np_network_t* network;
 
+	uint8_t protocol;
 	char *dns_name;
-    uint32_t address;
-    uint16_t port;
+    char* port;
+    // uint32_t address;
 
     // state extension
     uint8_t handshake_status; // enum
@@ -60,7 +61,7 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_node_t);
 /** np_node_update
  ** updates node hostname and port for a given node, without changing the hash
  **/
-void np_node_update (np_node_t* node, char *hn, uint16_t port);
+void np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port);
 
 /** np_node_update_stat
  ** updates the success rate to the np_node based on the SUCCESS_WINDOW average
@@ -82,8 +83,8 @@ void np_node_encode_to_jrb  (np_jtree_t* data, np_key_t* np_node);
 
 /** various getter method, mostly unused **/
 char* np_node_get_dns_name (np_node_t* np_node);
-uint32_t np_node_get_address (np_node_t* np_node);
-uint16_t np_node_get_port (np_node_t* np_node);
+// uint32_t np_node_get_address (np_node_t* np_node);
+char* np_node_get_port (np_node_t* np_node);
 float np_node_get_success_avg (np_node_t* np_node);
 float np_node_get_latency (np_node_t* np_node);
 uint8_t np_node_check_address_validity (np_node_t* np_node);

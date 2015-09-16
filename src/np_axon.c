@@ -155,6 +155,10 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 
 void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 
+	log_msg(LOG_TRACE, ".start.hnd_msg_out_handshake");
+
+	if (!np_node_check_address_validity(args->target->node)) return;
+
 	// get our identity from the cache
 	np_aaatoken_t* my_id_token = state->my_key->authentication;
 	np_node_t* my_node = state->my_key->node;
@@ -169,8 +173,9 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	// create handshake data
 	np_jtree_t* hs_data = make_jtree();
 
+	jrb_insert_str(hs_data, "_np.protocol", new_jval_s(np_get_protocol_string(my_node->protocol)));
 	jrb_insert_str(hs_data, "_np.dns_name", new_jval_s(my_node->dns_name));
-	jrb_insert_str(hs_data, "_np.port", new_jval_ui(my_node->port));
+	jrb_insert_str(hs_data, "_np.port", new_jval_s(my_node->port));
 	jrb_insert_str(hs_data, "_np.signature_key", new_jval_bin(my_id_token->public_key, crypto_sign_PUBLICKEYBYTES));
 	jrb_insert_str(hs_data, "_np.public_key", new_jval_bin(my_dh_pubkey, crypto_scalarmult_BYTES));
 	jrb_insert_str(hs_data, "_np.expiration", new_jval_d(my_id_token->expiration));
@@ -216,34 +221,31 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 
 	// construct target address and send it out
 	np_node_t* hs_node = args->target->node;
-
-	struct sockaddr_in to;
-	memset(&to, 0, sizeof(to));
-
 	pthread_mutex_lock(&(my_node->network->lock));
-	to.sin_family = AF_INET;
-	to.sin_addr.s_addr = hs_node->address;
-	to.sin_port = htons ((short) hs_node->port);
+
+//	struct sockaddr_in6 to;
+//	socklen_t to_size = sizeof to;
+//	inet_pton(AF_INET6, hs_node->dns_name, &to.sin6_addr);
+//	to.sin6_family = AF_INET6;
+//	to.sin6_port = htons(atoi(hs_node->port));
+
+	// struct sockaddr* to = hs_node->network->addr_in->ai_addr;
+	// socklen_t to_size = hs_node->network->addr_in->ai_addrlen;
 
 	/* send data if handshake status is still just initialized or less */
-// 	if (hs_node->handshake_status <= HANDSHAKE_INITIALIZED) {
 	log_msg(LOG_NETWORKDEBUG,
-			"sending handshake message (length: %llu) to (%s:%hd)",
+			"sending handshake message (length: %llu) to (%s:%s)",
 			msg_size, hs_node->dns_name, hs_node->port);
-	ret = sendto(my_node->network->socket, hs_msg_ptr, msg_size, 0, (struct sockaddr *) &to, sizeof(to));
+
+	ret = send(hs_node->network->socket, hs_msg_ptr, msg_size, 0);
+	// ret = sendto(my_node->network->socket, hs_msg_ptr, msg_size, 0, to, to_size);
 	if (ret < 0) {
-		log_msg(LOG_ERROR, "handshake error: %s", strerror (errno));
-		// nothing more to be done
+		log_msg(LOG_ERROR, "send handshake error: %s", strerror (errno));
 	}
-// 	} else {
-// 		log_msg(LOG_NETWORKDEBUG,
-// 				"sending handshake message stopped, already completed (%s:%hd)",
-// 				hs_node->dns_name, hs_node->port);
-// 	}
 
 	pthread_mutex_unlock(&my_node->network->lock);
-	// log_msg(LOG_DEBUG, "finished to send handshake message");
 
 	np_free_obj(np_message_t, hs_message);
 	np_free_tree(hs_data);
+	log_msg(LOG_TRACE, ".end  .hnd_msg_out_handshake");
 }

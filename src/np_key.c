@@ -111,10 +111,10 @@ unsigned char* key_generate_hash (const unsigned char* key_in, size_t digest_siz
     return digest_out;
 }
 
-np_key_t* key_create_from_hostport(const char* strOrig, uint16_t port)
+np_key_t* key_create_from_hostport(const char* strOrig, char* port)
 {
 	char name[256];
-	snprintf (name, 255, "%s:%hd", strOrig, port);
+	snprintf (name, 255, "%s:%s", strOrig, port);
 	unsigned char* digest = NULL;
 
 	digest = key_generate_hash ((unsigned char*) name, strlen(name), digest);
