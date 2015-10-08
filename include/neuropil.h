@@ -21,12 +21,15 @@ RB_PROTOTYPE(rbt_msgproperty, np_msgproperty_s, link, property_comp);
 
 struct np_state_s {
 
-	np_key_t* my_key;
+	// reference to a private key
+	np_key_t* my_node_key;
+	// reference to the runtime node
+	np_key_t* my_identity;
 
 	// red-black-structure to maintain objects adressable with an hash key
 	struct spt_key key_cache; //  = SPLAY_INITIALIZER(&key_cache);
-
 	struct rbt_msgproperty msg_properties;
+
 	np_jtree_t *msg_tokens;
 
 	np_routeglobal_t   *routes;
@@ -52,6 +55,12 @@ np_state_t* np_init (char* proto, char* port);
  ** Manually sets the key for the current node 
  **/
 void np_setkey (const np_state_t* state, np_key_t* key);
+
+/** np_set_identity
+ ** manually set the identity which is used to send and receive messages
+ ** this identity is independant of the core node key used to form the infrastructure
+ **/
+void np_set_identity(np_state_t* state, np_aaatoken_t* identity);
 
 // void np_setjoinfunc(const np_state_t* state, np_aaa_func_t join_func);
 void np_waitforjoin(const np_state_t* state);

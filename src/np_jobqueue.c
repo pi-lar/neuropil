@@ -8,12 +8,18 @@
 #include "np_jobqueue.h"
 
 #include "include.h"
+#include "dtime.h"
 #include "neuropil.h"
 #include "np_memory.h"
 #include "np_message.h"
 #include "log.h"
 
-
+int8_t compare_job_tstamp(np_job_ptr job1, np_job_ptr job2)
+{
+	if (job1->tstamp > job2->tstamp) return -1;
+	if (job1->tstamp < job2->tstamp) return  1;
+	return 0;
+}
 
 void np_job_free (np_job_t * n)
 {
@@ -25,7 +31,7 @@ void np_job_free (np_job_t * n)
  ** add the new np_job_t to the queue, and
  ** signal the thread pool if the queue was empty.
  **/
-void job_submit_msg_event (np_joblist_t* job_q, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
+void job_submit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
 	// log_msg(LOG_TRACE, "job_submit_msg_event starting ...");
 
@@ -39,16 +45,16 @@ void job_submit_msg_event (np_joblist_t* job_q, np_msgproperty_t* prop, np_key_t
     // create job itself
     np_job_t* new_job = (np_job_t *) malloc (sizeof(np_job_t));
     new_job->processorFunc = prop->clb; // ->msg_handler;
+    new_job->tstamp = dtime() + delay;
     new_job->args = jargs;
     new_job->type = 1;
 
-
     pthread_mutex_lock (&job_q->access);
     // log_msg(LOG_DEBUG, "1: new_job-->%p func-->%p args-->%p", new_job, new_job->processorFunc, new_job->args);
-
+    // log_msg(LOG_DEBUG, "requsting msg execution at: %f", new_job->tstamp);
     // if (NULL == sll_first (job_q->job_list)) was_empty = 1;
-    sll_append(np_job_t, job_q->job_list, new_job);
-    if (sll_size(job_q->job_list) == 1)
+    pll_insert(np_job_ptr, job_q->job_list, new_job);
+    if (pll_size(job_q->job_list) == 1  || delay == 0.0)
     	pthread_cond_signal (&job_q->empty);
     // if (was_empty) pthread_cond_signal (&job_q->empty);
 
@@ -56,19 +62,21 @@ void job_submit_msg_event (np_joblist_t* job_q, np_msgproperty_t* prop, np_key_t
 	// log_msg(LOG_TRACE, "... job_submit_msg_event finished");
 }
 
-void job_submit_event (np_joblist_t* job_q, np_callback_t callback)
+void job_submit_event (np_joblist_t* job_q, double delay, np_callback_t callback)
 {
     np_job_t* new_job = (np_job_t *) malloc (sizeof (np_job_t));
+    new_job->tstamp = dtime() + delay;
     new_job->processorFunc = callback;
     new_job->args = NULL;
     new_job->type = 2;
 
     pthread_mutex_lock (&job_q->access);
 
+    // log_msg(LOG_DEBUG, "requsting event execution at: %f", new_job->tstamp);
     // log_msg(LOG_DEBUG, "2: new_job-->%p func-->%p args-->%p", new_job, new_job->processorFunc, new_job->args);
     // if (NULL == sll_first (job_q->job_list)) was_empty = 1;
-    sll_append(np_job_t, job_q->job_list, new_job);
-    if (sll_size(job_q->job_list) == 1)
+    pll_insert(np_job_ptr, job_q->job_list, new_job);
+    if (pll_size(job_q->job_list) == 1 || delay == 0.0)
     	pthread_cond_signal (&job_q->empty);
     // if (was_empty) pthread_cond_signal (&job_q->empty);
 
@@ -82,7 +90,7 @@ np_joblist_t *job_queue_create ()
 {
 	np_joblist_t* job_list = (np_joblist_t *) malloc (sizeof(np_joblist_t));
 
-	sll_init(np_job_t, job_list->job_list);
+	pll_init(np_job_ptr, job_list->job_list, compare_job_tstamp);
     pthread_mutex_init (&job_list->access, NULL);
     pthread_cond_init (&job_list->empty, NULL);
 
@@ -103,15 +111,37 @@ void* job_exec (void* np_state)
 
 	log_msg(LOG_DEBUG, "job queue thread starting");
 
+	double default_sleep_time = 3.141592;
+    double now = dtime();
+
 	while (1)
 	{
 	    pthread_mutex_lock (&Q->access);
-	    while (sll_empty(Q->job_list))
-	    // if (sll_empty(Q->job_list))
+	    now = dtime();
+	    while (pll_empty(Q->job_list))
 		{
+    		// log_msg(LOG_DEBUG, "now %f: list empty, start sleeping", now);
 	    	pthread_cond_wait (&Q->empty, &Q->access);
+	    	// wake up, check first job in the queue to be executed by now
 		}
-	    tmp = sll_head(np_job_t, Q->job_list);
+
+    	np_job_ptr next_job = pll_first(Q->job_list)->val;
+    	if (now <= next_job->tstamp) {
+    		double sleep_time = next_job->tstamp - now;
+    		if (sleep_time > default_sleep_time) sleep_time = default_sleep_time;
+    		// log_msg(LOG_DEBUG, "now %f: next execution %f", now, next_job->tstamp);
+    		// log_msg(LOG_DEBUG, "currently %d jobs, now sleeping for %f seconds", pll_size(Q->job_list), sleep_time);
+    		struct timeval tv_sleep = dtotv(now + sleep_time);
+    		struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec=tv_sleep.tv_usec*1000 };
+	    	pthread_cond_timedwait (&Q->empty, &Q->access, &waittime);
+	    	// now = dtime();
+    		// log_msg(LOG_DEBUG, "now %f: woke up or interupted", now);
+	    	pthread_mutex_unlock (&Q->access);
+    		continue;
+    	}
+		// log_msg(LOG_DEBUG, "now %f --> executing %f", now, next_job->tstamp);
+
+    	tmp = pll_head(np_job_ptr, Q->job_list);
 	    pthread_mutex_unlock (&Q->access);
 
 	    // sanity check if the job list really returned an element
@@ -122,12 +152,13 @@ void* job_exec (void* np_state)
 	    if (tmp->type == 1)
 	    {
 	    	tmp->processorFunc(state, tmp->args);
-	    	if (tmp->args->msg) {
-	    		np_unref_obj(np_message_t, tmp->args->msg);
+	    	if (NULL != tmp->args->msg) {
 	    		// just do a sanity check, it won't hurt :-)
+	    		np_unref_obj(np_message_t, tmp->args->msg);
 	    		np_free_obj(np_message_t, tmp->args->msg);
 	    	}
 	    }
+
 	    if (tmp->type == 2) {
 	    	tmp->processorFunc(state, tmp->args);
 	    }

@@ -104,7 +104,7 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
     struct addrinfo hints;
 
     if (TRUE == create_socket)
-		hints.ai_flags = AI_PASSIVE & AI_CANONNAME;
+    	hints.ai_flags = AI_PASSIVE | AI_CANONNAME;
     else
     	hints.ai_flags = AI_CANONNAME;
 
@@ -165,8 +165,8 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
          {
             case PF_INET:   /* IPv4 address record. */
             {
-               struct sockaddr_in *p = (struct sockaddr_in*) ai->ai_addr;
-               log_msg(LOG_DEBUG,
+                struct sockaddr_in *p = (struct sockaddr_in*) ai->ai_addr;
+                log_msg(LOG_DEBUG,
                         "found nameinfo sin_family: %d"
             		    " (AF_INET = %d, AF_INET6 = %d)"
                         " sin_addr:     %s"
@@ -176,7 +176,7 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
                         AF_INET6,
 						hostname,
 						sericename );
-               break;
+                break;
             }  /* End CASE of IPv4. */
             case PF_INET6:   /* IPv6 address record. */
             {
@@ -262,7 +262,7 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 			log_msg(LOG_INFO, "requesting a new handshake with %s:%s (%s)",
 					node_key->node->dns_name, node_key->node->port, key_get_as_string(node_key));
 			np_msgproperty_t* msg_prop = np_message_get_handler(state, OUTBOUND, NP_MSG_HANDSHAKE);
-			job_submit_msg_event(state->jobq, msg_prop, node_key, NULL);
+			job_submit_msg_event(state->jobq, 0.0, msg_prop, node_key, NULL);
 		}
 		return FALSE;
 	}
@@ -275,6 +275,8 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 
 	np_message_serialize(msg, send_buffer_ptr, &send_buf_len);
 	assert(send_buf_len <= max_buffer_len);
+
+	log_msg(LOG_NETWORKDEBUG, "serialized message to %llu bytes", send_buf_len);
 
 	// add protection from replay attacks ...
 	unsigned char nonce[crypto_secretbox_NONCEBYTES];
@@ -301,15 +303,15 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 	memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_msg_len);
 
 	/* send data */
-	pthread_mutex_lock(&(state->my_key->node->network->lock));
+	pthread_mutex_lock(&(state->my_node_key->node->network->lock));
 	// struct sockaddr* to = node_key->node->network->addr_in->ai_addr;
 	// socklen_t to_size = node_key->node->network->addr_in->ai_addrlen;
 
 	log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", enc_buffer_len, node_key->node->dns_name, node_key->node->port);
-	// ret = sendto (state->my_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
+	// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
 	ret = send (node_key->node->network->socket, enc_buffer, enc_buffer_len, 0);
 
-	pthread_mutex_unlock(&(state->my_key->node->network->lock));
+	pthread_mutex_unlock(&(state->my_node_key->node->network->lock));
 
 	if (ret < 0) {
 		log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
@@ -343,56 +345,59 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
 	}
 
     get_network_address (create_socket, &ng->addr_in, type, hostname, service);
-	log_msg(LOG_DEBUG, "canonical name: %s", ng->addr_in->ai_canonname);
 
-	// create socket
-	// not using a socket for sending messages to a different node leads to unreliable
-	// delivery. The sending socket changes too often to be useful for finding the correct
-	// decryption shared secret. Especially true for ipv6 ...
-	ng->socket = socket (ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
-	if (0 > ng->socket)
-	{
-		log_msg(LOG_ERROR, "socket: %s", strerror (errno));
-		return NULL;
-	}
-
-    // check if we have to bind the local a socket
-    if (TRUE == create_socket && NULL != ng->addr_in)
-    {
-    	// create own retransmit structures
-    	ng->waiting = make_jtree();
-        ng->retransmit = make_jtree();
-        ng->seqend = 0LU;
-
-        if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
+    if (NULL != ng->addr_in) {
+    	log_msg(LOG_DEBUG, "canonical name: %s", ng->addr_in->ai_canonname);
+    	// create socket
+    	// not using a socket for sending messages to a different node leads to unreliable
+    	// delivery. The sending socket changes too often to be useful for finding the correct
+    	// decryption shared secret. Especially true for ipv6 ...
+    	ng->socket = socket (ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
+    	if (0 > ng->socket)
     	{
-    		log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
-    		close (ng->socket);
+    		log_msg(LOG_ERROR, "socket: %s", strerror (errno));
     		return NULL;
     	}
-        if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
+
+		// check if we have to bind the local a socket
+		if (TRUE == create_socket && NULL != ng->addr_in)
 		{
-            // enable ipv4 mapping
-       		log_msg(LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
-     	}
-    	/* attach socket to #port#. */
-    	if (0 > bind (ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
-    	{
-    		log_msg(LOG_ERROR, "bind: %s:", strerror (errno));
-    		close (ng->socket);
-    		return NULL;
-    	}
-		log_msg(LOG_DEBUG, "created local listening socket");
+			// create own retransmit structures
+			ng->waiting = make_jtree();
+			ng->retransmit = make_jtree();
+			ng->seqend = 0LU;
 
-    } else {
-    	if (0 > connect(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
-    	{
-    		log_msg(LOG_ERROR, "connect: %s:", strerror (errno));
-    		close (ng->socket);
-    		return NULL;
-    	}
+			if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
+			{
+				log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
+				close (ng->socket);
+				return NULL;
+			}
+			if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
+			{
+				// enable ipv4 mapping
+				log_msg(LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
+			}
+
+			/* attach socket to #port#. */
+			if (0 > bind (ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
+			{
+				log_msg(LOG_ERROR, "bind: %s:", strerror (errno));
+				close (ng->socket);
+				return NULL;
+			}
+
+			log_msg(LOG_DEBUG, "created local listening socket");
+
+		} else {
+			if (0 > connect(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
+			{
+				log_msg(LOG_ERROR, "connect: %s:", strerror (errno));
+				close (ng->socket);
+				return NULL;
+			}
+		}
     }
-
 	return ng;
 }
 

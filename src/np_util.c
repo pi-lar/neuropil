@@ -22,7 +22,6 @@ char* np_create_uuid(const char* str, const uint16_t num)
 	char* uuid_out = malloc(sizeof(unsigned char)*37);
 
 	double now = dtime();
-	// TODO: move it to oid and
 	snprintf (input, 255, "urn:np:msg:%s:%u:%16.16f", str, num, now);
 	// log_msg(LOG_DEBUG, "created input uuid: %s", input);
 	crypto_generichash(out, 18, (unsigned char*) input, 256, NULL, 0);
@@ -31,7 +30,7 @@ char* np_create_uuid(const char* str, const uint16_t num)
 	uuid_out[8] = uuid_out[13] = uuid_out[18] = uuid_out[23] = '-';
 	uuid_out[14] = '5';
 	uuid_out[19] = '9';
-	log_msg(LOG_DEBUG, "created new uuid: %s", uuid_out);
+	// log_msg(LOG_DEBUG, "created new uuid: %s", uuid_out);
 	return uuid_out;
 }
 
@@ -119,7 +118,7 @@ void write_type(np_jval_t val, cmp_ctx_t* cmp) {
 		break;
 
 	case bin_type:
-		cmp_write_bin(cmp, val.value.bin, val.size);
+		cmp_write_bin32(cmp, val.value.bin, val.size);
 		break;
 
 	case jrb_tree_type:
@@ -133,12 +132,15 @@ void write_type(np_jval_t val, cmp_ctx_t* cmp) {
 			serialize_jrb_node_t(val.value.tree, &tree_cmp);
 			uint32_t buf_size = tree_cmp.buf - buf_ptr;
 
+			void* top_buf_ptr = cmp->buf;
 			// write the serialized tree to the upper level buffer
-			if (!cmp_write_ext(cmp, jrb_tree_type, buf_size, buf_ptr)) {
+			if (!cmp_write_ext32(cmp, jrb_tree_type, buf_size, buf_ptr)) {
 				log_msg(LOG_WARN, "couldn't write tree data -- ignoring for now");
 			}
+			uint32_t top_buf_size = cmp->buf-top_buf_ptr;
+
 //			else {
-//				log_msg(LOG_DEBUG, "wrote tree structure %u size %hu %lu", buf_size, val.value.tree->size, val.value.tree->byte_size);
+			log_msg(LOG_DEBUG, "wrote tree structure size pre: %hu/%hu post: %hu %hu", val.size, val.value.tree->byte_size, buf_size, top_buf_size);
 //			}
 		}
 		break;
@@ -155,7 +157,7 @@ void serialize_jrb_node_t(np_jtree_t* jtree, cmp_ctx_t* cmp)
 	// void* buf_ptr_map = cmp->buf;
 
 	// if (!cmp_write_map(cmp, jrb->size*2 )) return;
-	cmp_write_map(cmp, jtree->size*2);
+	cmp_write_map32(cmp, jtree->size*2);
 
 	// log_msg(LOG_DEBUG, "wrote jrb tree size %hd", jtree->size*2);
 	// write jrb tree

@@ -14,6 +14,7 @@
 
 #include "jval.h"
 #include "log.h"
+#include "dtime.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"
 #include "np_container.h"
@@ -37,9 +38,10 @@ void np_node_t_new(void* node) {
 
 	entry->dns_name = NULL;
 	entry->port = 0;
-	// entry->address = 0;
-	// 	entry->failed = 0;
+	entry->network = NULL;
+
 	entry->failuretime = 0.0;
+	entry->last_success = 0.0;
 	entry->success_win_index = 0;
 	entry->success_avg = 0.5;
 	entry->handshake_status = HANDSHAKE_UNKNOWN;
@@ -253,7 +255,22 @@ void np_node_update_stat (np_node_t* node, uint8_t success)
 	    total += node->success_win[i];
 	}
     node->success_avg = total / SUCCESS_WINDOW;
+
+    if (success) node->last_success = dtime();
+
 	// log_msg(LOG_DEBUG, "success rate for node now: %1.1f", node->success_avg);
+}
+
+void np_node_update_latency (np_node_t* node, double new_latency)
+{
+	if (new_latency > 0) {
+		if (node->latency == 0.0) {
+			node->latency = new_latency;
+		} else {
+			// TODO: this is wrong to calculate the moving average latency
+			node->latency = (0.9 * node->latency) + (0.1 * new_latency);
+		}
+	}
 }
 
 char* np_node_get_dns_name (np_node_t* np_node) {
@@ -283,5 +300,6 @@ float np_node_get_latency (np_node_t* np_node) {
 uint8_t np_node_check_address_validity (np_node_t* np_node) {
 	assert(np_node != NULL);
 	assert(np_node->network != NULL);
+
 	return np_node->dns_name && np_node->port && np_node->network->addr_in;
 }

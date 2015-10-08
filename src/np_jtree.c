@@ -26,7 +26,7 @@ np_jtree_t* make_jtree () {
 	np_jtree_t* new_tree = (np_jtree_t*) malloc(sizeof(np_jtree_t));
 	new_tree->rbh_root = NULL;
 	new_tree->size = 0;
-	new_tree->byte_size = 0;
+	new_tree->byte_size = 5;
 
 	return new_tree;
 }
@@ -162,8 +162,12 @@ void del_str_node (np_jtree_t* tree, const char *key) {
 		RB_REMOVE(np_jtree, tree, to_delete);
 		tree->byte_size -= jrb_get_byte_size(to_delete);
 		tree->size--;
-//		if (deleted->key.type == char_ptr_type) free(deleted->key.value.s);
-//		if (deleted->val.type == char_ptr_type) free(deleted->key.value.s);
+		free(to_delete->key.value.s);
+
+		if (to_delete->val.type == char_ptr_type) free(to_delete->val.value.s);
+		if (to_delete->val.type == bin_type) free(to_delete->val.value.bin);
+		if (to_delete->val.type == jrb_tree_type) np_free_tree(to_delete->val.value.tree);
+
 		free (to_delete);
 	}
 }
@@ -177,6 +181,10 @@ void del_int_node (np_jtree_t* tree, const int16_t key) {
 		RB_REMOVE(np_jtree, tree, to_delete);
 		tree->byte_size -= jrb_get_byte_size(to_delete);
 		tree->size--;
+		if (to_delete->val.type == char_ptr_type) free(to_delete->val.value.s);
+		if (to_delete->val.type == bin_type) free(to_delete->val.value.bin);
+		if (to_delete->val.type == jrb_tree_type) np_free_tree(to_delete->val.value.tree);
+
 		free (to_delete);
 	}
 }
@@ -191,6 +199,9 @@ void del_dbl_node (np_jtree_t* tree, const double dkey) {
 		RB_REMOVE(np_jtree, tree, to_delete);
 		tree->byte_size -= jrb_get_byte_size(to_delete);
 		tree->size--;
+		if (to_delete->val.type == char_ptr_type) free(to_delete->val.value.s);
+		if (to_delete->val.type == bin_type) free(to_delete->val.value.bin);
+		if (to_delete->val.type == jrb_tree_type) np_free_tree(to_delete->val.value.tree);
 		free (to_delete);
 	}
 }
@@ -204,6 +215,10 @@ void del_ulong_node (np_jtree_t* tree, const uint32_t key) {
 		RB_REMOVE(np_jtree, tree, to_delete);
 		tree->byte_size -= jrb_get_byte_size(to_delete);
 		tree->size--;
+		if (to_delete->val.type == char_ptr_type) free(to_delete->val.value.s);
+		if (to_delete->val.type == bin_type) free(to_delete->val.value.bin);
+		if (to_delete->val.type == jrb_tree_type) np_free_tree(to_delete->val.value.tree);
+
 		free (to_delete);
 	}
 }
@@ -226,6 +241,25 @@ void np_free_tree (np_jtree_t* n)
 		} while (iter != NULL);
 	}
 	free (n);
+}
+
+void np_print_tree (np_jtree_t* n, uint8_t indent)
+{
+	np_jtree_elem_t* tmp = NULL;
+
+	RB_FOREACH(tmp, np_jtree, n)
+	{
+		char s_indent[indent+1];
+		memset(s_indent, ' ', indent);
+		s_indent[indent] = '\0';
+
+		if (tmp->key.type == char_ptr_type)      log_msg(LOG_DEBUG, "%s%s: %s", s_indent, jval_to_str(tmp->key), jval_to_str(tmp->val));
+		if (tmp->key.type == int_type)           log_msg(LOG_DEBUG, "%s%s: %s", s_indent, jval_to_str(tmp->key), jval_to_str(tmp->val));
+		if (tmp->key.type == double_type)        log_msg(LOG_DEBUG, "%s%s: %s", s_indent, jval_to_str(tmp->key), jval_to_str(tmp->val));
+		if (tmp->key.type == unsigned_long_type) log_msg(LOG_DEBUG, "%s%s: %s", s_indent, jval_to_str(tmp->key), jval_to_str(tmp->val));
+
+		if (tmp->val.type == jrb_tree_type) np_print_tree(tmp->val.value.v, indent+1);
+	}
 }
 
 void jrb_replace_all_with_str(np_jtree_t* n, const char* key, np_jval_t val)
@@ -264,8 +298,8 @@ uint64_t jrb_get_byte_size(np_jtree_elem_t* node)
 	// if (isint(node)) return 0;
 
 	// log_msg(LOG_DEBUG, "c: %p -> key/value size calculation", node);
-
 	uint64_t byte_size = 0;
+
 	switch(node->key.type) {
 		// length is always 1 (to identify the type) + the length of the type
   		case short_type: 		  byte_size += 1 + sizeof(int8_t); break;
@@ -314,7 +348,10 @@ uint64_t jrb_get_byte_size(np_jtree_elem_t* node)
  		case unsigned_char_array_8_type: byte_size += 1+8*sizeof(unsigned char); break;
  		case void_type: 		  byte_size += 1 + sizeof(void*); break;
  		case bin_type: 			  byte_size += 1 + sizeof(uint32_t) + node->val.size; break;
-		case jrb_tree_type:       byte_size += 1 + node->val.size; break;
+		case jrb_tree_type:
+			// use the real tree byte_size since data could have been altered
+			byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + node->val.value.tree->byte_size;
+			break;
 		case key_type:            byte_size += 1 + (4 * sizeof(uint64_t)); break;
 		default:                  log_msg(LOG_WARN, "unsupported length calculation for value / type %hhd", node->val.type ); break;
 	}
@@ -359,7 +396,6 @@ void jrb_insert_int (np_jtree_t* tree, int16_t ikey, np_jval_t val)
 	    found->key.value.i = ikey;
 	    found->key.type = int_type;
 	    found->key.size = sizeof(int16_t);
-
 		copy_jval(&val, &found->val);
 
 		RB_INSERT(np_jtree, tree, found);
@@ -381,7 +417,6 @@ void jrb_insert_ulong (np_jtree_t* tree, uint32_t ulkey, np_jval_t val)
 	    found->key.value.ul = ulkey;
 	    found->key.type = unsigned_long_type;
 	    found->key.size = sizeof(uint32_t);
-
 		copy_jval(&val, &found->val);
 
 		RB_INSERT(np_jtree, tree, found);
@@ -399,7 +434,6 @@ void jrb_insert_dbl (np_jtree_t* tree, double dkey, np_jval_t val)
 	if (found == NULL) {
 		// insert new value
 		found = (np_jtree_elem_t*) malloc(sizeof(np_jtree_elem_t));
-
 		found->key.value.d = dkey;
 	    found->key.type = double_type;
 	    found->key.size = sizeof(double);
@@ -426,9 +460,15 @@ void jrb_replace_str (np_jtree_t* tree, const char *key, np_jval_t val)
 		jrb_insert_str(tree, key, val);
 
 	} else {
+		// free up memory before replacing
+		tree->byte_size -= jrb_get_byte_size(found);
+
+		if (found->val.type == char_ptr_type) free(found->val.value.s);
+		if (found->val.type == bin_type) free(found->val.value.bin);
+		if (found->val.type == jrb_tree_type) np_free_tree(found->val.value.tree);
+
 		copy_jval(&val, &found->val);
-		tree->byte_size -= 1 + found->val.size;
-		tree->byte_size += 1 + val.size;
+		tree->byte_size += jrb_get_byte_size(found);
 	}
 }
 
@@ -443,9 +483,14 @@ void jrb_replace_int (np_jtree_t* tree, int16_t ikey, np_jval_t val)
 		jrb_insert_int(tree, ikey, val);
 
 	} else {
+		tree->byte_size -= jrb_get_byte_size(found);
+		// free up memory before replacing
+		if (found->val.type == char_ptr_type) free(found->val.value.s);
+		if (found->val.type == bin_type) free(found->val.value.bin);
+		if (found->val.type == jrb_tree_type) np_free_tree(found->val.value.tree);
+
 		copy_jval(&val, &found->val);
-		tree->byte_size -= 1 + found->val.size;
-		tree->byte_size += 1 + val.size;
+		tree->byte_size += jrb_get_byte_size(found);
 	}
 }
 
@@ -460,9 +505,14 @@ void jrb_replace_ulong (np_jtree_t* tree, uint32_t ulkey, np_jval_t val)
 		jrb_insert_ulong(tree, ulkey, val);
 
 	} else {
+		tree->byte_size -= jrb_get_byte_size(found);
+		// free up memory before replacing
+		if (found->val.type == char_ptr_type) free(found->val.value.s);
+		if (found->val.type == bin_type) free(found->val.value.bin);
+		if (found->val.type == jrb_tree_type) np_free_tree(found->val.value.tree);
+
 		copy_jval(&val, &found->val);
-		tree->byte_size -= 1 + found->val.size;
-		tree->byte_size += 1 + val.size;
+		tree->byte_size += jrb_get_byte_size(found);
 	}
 }
 
@@ -476,9 +526,14 @@ void jrb_replace_dbl (np_jtree_t* tree, double dkey, np_jval_t val)
 		// insert new value
 		jrb_insert_dbl(tree, dkey, val);
 	} else {
+		tree->byte_size -= jrb_get_byte_size(found);
+		// free up memory before replacing
+		if (found->val.type == char_ptr_type) free(found->val.value.s);
+		if (found->val.type == bin_type) free(found->val.value.bin);
+		if (found->val.type == jrb_tree_type) np_free_tree(found->val.value.tree);
+
 		copy_jval(&val, &found->val);
-		tree->byte_size -= 1 + found->val.size;
-		tree->byte_size += 1 + val.size;
+		tree->byte_size += jrb_get_byte_size(found);
 	}
 }
 

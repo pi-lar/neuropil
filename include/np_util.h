@@ -9,8 +9,15 @@
 
 #include "np_jtree.h"
 
-#define START_LOCK(x) { pthread_mutex_lock(&x->lock);
-#define END_LOCK(x)     pthread_mutex_unlock(&x->lock); }
+#define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE) \
+inline void OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value) { \
+	obj->PROP_NAME = value; \
+}
+
+#define _NP_GENERATE_PROPERTY_SETSTR(OBJ,PROP_NAME) \
+inline void OBJ##_set_##PROP_NAME(OBJ* obj, const char* value) { \
+	obj->PROP_NAME = strndup(value, strlen(value)); \
+}
 
 // create a sha156 uuid string, take the current date into account
 char* np_create_uuid(const char* str, const uint16_t num);

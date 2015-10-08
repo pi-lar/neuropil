@@ -40,6 +40,7 @@ typedef struct np_msginterest_s np_msginterest_t;
 
 // threading and job execution structures
 typedef struct np_job_s np_job_t;
+typedef np_job_t* np_job_ptr;
 typedef struct np_joblist_s np_joblist_t;
 typedef struct np_jobargs_s np_jobargs_t;
 

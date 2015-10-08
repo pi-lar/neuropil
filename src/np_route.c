@@ -101,7 +101,7 @@ sll_return(np_key_t) route_row_lookup (np_state_t* state, np_key_t* key)
 	np_sll_t(np_key_t, sll_of_keys);
 	sll_init(np_key_t, sll_of_keys);
 
-    i = key_index (state->my_key, key);
+    i = key_index (state->my_node_key, key);
 
     // pthread_mutex_lock (&state->routes->lock);
 
@@ -116,7 +116,7 @@ sll_return(np_key_t) route_row_lookup (np_state_t* state, np_key_t* key)
 		}
 	}
     // pthread_mutex_unlock (&state->routes->lock);
-	sll_append(np_key_t, sll_of_keys, state->my_key);
+	sll_append(np_key_t, sll_of_keys, state->my_node_key);
 
 	log_msg(LOG_TRACE, ".end  .route_row_lookup");
     return sll_of_keys;
@@ -144,7 +144,7 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
 
 	log_msg(
       LOG_ROUTING, "%s is looking for key %s !",
-	  key_get_as_string(state->my_key), key_get_as_string(key));
+	  key_get_as_string(state->my_node_key), key_get_as_string(key));
 
 	// pthread_mutex_lock (&state->routes->lock);
 
@@ -158,9 +158,9 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
     	key_between (key, &state->routes->Lrange, &state->routes->Rrange))
 	{
     	log_msg (LOG_ROUTING, "routing through leafset");
-	    sll_append(np_key_t, key_list, state->my_key);
+	    sll_append(np_key_t, key_list, state->my_node_key);
 
-	    log_msg (LOG_ROUTING, "ME: (%s)", key_get_as_string (state->my_key));
+	    log_msg (LOG_ROUTING, "ME: (%s)", key_get_as_string (state->my_node_key));
 
 	    /* look left */
 	    for (i = 0; i < Lsize; i++)
@@ -191,7 +191,7 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
 	}
 
     /* check to see if there is a matching next hop (for fast routing) */
-    i = key_index (state->my_key, key);
+    i = key_index (state->my_node_key, key);
     match_col = hexalpha_to_int (key_get_as_string(key)[i]);
 
     for (k = 0; k < MAX_ENTRY; k++) {
@@ -227,7 +227,7 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
     	sll_append(np_key_t, return_list, tmp_1);
 
     	log_msg (LOG_ROUTING, "Routing through Table(%s), NEXT_HOP=%s",
-			   key_get_as_string (state->my_key ),
+			   key_get_as_string (state->my_node_key ),
 			   key_get_as_string (tmp_1));
 
     	log_msg(LOG_TRACE, ".end  .route_lookup");
@@ -238,10 +238,10 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
     /* brute force method to solve count requirements */
 
     // log_msg (LOG_ROUTING, "Routing to next closest key I know of:");
-    leaf = state->my_key;
+    leaf = state->my_node_key;
     log_msg (LOG_ROUTING, "+me: (%s)",
     		 /* leaf->dns_name, leaf->port,*/ key_get_as_string (leaf) );
-    sll_append(np_key_t, key_list, state->my_key);
+    sll_append(np_key_t, key_list, state->my_node_key);
 
     /* look left */
     for (uint16_t l = 0; l < Lsize; l++)
@@ -261,7 +261,7 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
 	}
 
     /* find the longest prefix match */
-    i = key_index (state->my_key, key);
+    i = key_index (state->my_node_key, key);
 
     for (j = 0; j < MAX_COL; j++) {
     	for (k = 0; k < MAX_ENTRY; k++) {
@@ -299,7 +299,7 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
 
 			while (NULL != iter2 && key_equal (iter2->val, iter1->val ))
 			{
-				iter2 = sll_next(iter2);
+				sll_next(iter2);
 				continue;
 			}
 
@@ -314,17 +314,17 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
 	{
 	    log_msg(LOG_DEBUG, "route_lookup bounce detection ...");
 	    log_msg(LOG_DEBUG, "search key: %s", key_get_as_string(key) );
-	    log_msg(LOG_DEBUG, "my own key: %s", key_get_as_string(state->my_key) );
+	    log_msg(LOG_DEBUG, "my own key: %s", key_get_as_string(state->my_node_key) );
 	    log_msg(LOG_DEBUG, "lookup key: %s", key_get_as_string(sll_first(return_list)->val) );
 
 	    key_distance (&dif1, key, sll_first(return_list)->val);
-	    key_distance (&dif2, key, state->my_key);
+	    key_distance (&dif2, key, state->my_node_key);
 
 	    // printTable(rg);
 
 	    // if (key_equal (dif1, dif2)) ret[0] = rg->me;
 	    // changed on 03.06.2014 STSW choose the closest neighbour
-	    if (key_comp (&dif1, &dif2) >= 0) sll_first(return_list)->val = state->my_key;
+	    if (key_comp (&dif1, &dif2) >= 0) sll_first(return_list)->val = state->my_node_key;
 
 	    log_msg(LOG_ROUTING, "route  key: %s", key_get_as_string(sll_first(return_list)->val));
 
@@ -365,14 +365,14 @@ void leafset_range_update (np_state_t* state, np_key_t* rrange, np_key_t* lrange
     	key_assign (rrange, state->routes->rightleafset[i]);
 
     if (i == 0)
-    	key_assign (rrange, state->my_key);
+    	key_assign (rrange, state->my_node_key);
 
     /* left range */
     for (i = 0; state->routes->leftleafset[i] != NULL; i++)
     	key_assign (lrange, state->routes->leftleafset[i]);
 
     if (i == 0)
-    	key_assign (lrange, state->my_key);
+    	key_assign (lrange, state->my_node_key);
 
 	log_msg(LOG_TRACE, ".end  .leafset_range_update");
 }
@@ -382,8 +382,7 @@ void leafset_range_update (np_state_t* state, np_key_t* rrange, np_key_t* lrange
  ** leafset_update:
  ** this function is called whenever a route_update is called the joined
  ** is 1 if the node has joined and 0 if a node is leaving. 
- ** 
- */
+ **/
 void leafset_update (np_state_t* state, np_key_t* node_key, np_bool joined, np_key_t** deleted, np_key_t** added)
 {
 	log_msg(LOG_TRACE, ".start.leafset_update");
@@ -397,19 +396,19 @@ void leafset_update (np_state_t* state, np_key_t* node_key, np_bool joined, np_k
     Lsize = leafset_size (state->routes->leftleafset);
     Rsize = leafset_size (state->routes->rightleafset);
 
-    key_midpoint (&midpoint, state->my_key);
+    key_midpoint (&midpoint, state->my_node_key);
 
     if (TRUE == joined)
 	{
 		/* key falls in the right side of node */
 		if (Rsize < LEAFSET_SIZE / 2 ||
-			key_between (node_key, state->my_key, state->routes->rightleafset[Rsize-1] ))
+			key_between (node_key, state->my_node_key, state->routes->rightleafset[Rsize-1] ))
 		{	/* insert in Right leafset */
 			leafset_insert (state, node_key, 1, deleted, added);
 		}
 		/* key falls in the left side of the node */
 		if (Lsize < LEAFSET_SIZE / 2 ||
-			key_between (node_key, state->routes->leftleafset[Lsize-1], state->my_key))
+			key_between (node_key, state->routes->leftleafset[Lsize-1], state->my_node_key))
 		{	/* insert in Left leafset */
 			leafset_insert (state, node_key, 0, deleted, added);
 		}
@@ -418,12 +417,12 @@ void leafset_update (np_state_t* state, np_key_t* node_key, np_bool joined, np_k
 	{
 		/* key falls in the right side of node */
 		if (Rsize < LEAFSET_SIZE / 2 ||
-			key_between (node_key, state->my_key, state->routes->rightleafset[Rsize-1] ))
+			key_between (node_key, state->my_node_key, state->routes->rightleafset[Rsize-1] ))
 		{
 			leafset_delete (state->routes, node_key, 1, deleted);
 		}
 		if (Lsize < LEAFSET_SIZE / 2 ||
-			key_between (node_key, state->routes->leftleafset[Lsize-1], state->my_key))
+			key_between (node_key, state->routes->leftleafset[Lsize-1], state->my_node_key))
 		{
 			leafset_delete (state->routes, node_key, 0, deleted);
 		}
@@ -534,11 +533,11 @@ void leafset_insert (np_state_t* state, np_key_t* host_key,
 			{
 				if (right_or_left == 1)
 				{
-                    foundKeyPos = key_between(input, state->my_key, p[i]);
+                    foundKeyPos = key_between(input, state->my_node_key, p[i]);
 				}
 				else
 				{
-                    foundKeyPos = key_between(input, p[i], state->my_key);
+                    foundKeyPos = key_between(input, p[i], state->my_node_key);
 				}
 			}
 		}
@@ -589,7 +588,7 @@ sll_return(np_key_t) route_neighbors (np_state_t* state, uint8_t count)
 	}
 
     /* sort aux */
-    sort_keys_kd(node_keys, state->my_key);
+    sort_keys_kd(node_keys, state->my_node_key);
     // sort_keys_cpm (node_keys, rg->me);
 
 	log_msg(LOG_TRACE, ".end  .route_neighbors");
@@ -609,7 +608,7 @@ void route_update (np_state_t* state, np_key_t* key, np_bool joined, np_key_t** 
 
     uint16_t i, j, k, found, pick;
 
-    if (key_equal (state->my_key, key))
+    if (key_equal (state->my_node_key, key))
 	{
     	log_msg(LOG_TRACE, ".end  .route_update");
 	    return;
@@ -617,7 +616,7 @@ void route_update (np_state_t* state, np_key_t* key, np_bool joined, np_key_t** 
     *added = NULL;
     *deleted = NULL;
 
-    i = key_index (state->my_key, key);
+    i = key_index (state->my_node_key, key);
     j = hexalpha_to_int (key_get_as_string(key)[i]);
 
     /* a node joins the routing table */

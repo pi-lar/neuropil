@@ -80,9 +80,6 @@ int main(int argc, char **argv) {
 	np_start_job_queue(state, 8);
 	np_waitforjoin(state);
 
-	// TODO: implement these
-	// np_set_identity();
-	// np_set_mx_properties();
 	np_set_listener(state, receive_this_is_a_test, "this.is.a.test");
 
 	unsigned long k = 1;

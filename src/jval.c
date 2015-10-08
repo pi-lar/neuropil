@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <pthread.h>
 
@@ -7,7 +8,113 @@
 
 np_jval_t JNULL;
 
+char* jval_to_str(np_jval_t val) {
+
+	int len = 0;
+	char* result = NULL;
+	switch(val.type) {
+		// length is always 1 (to identify the type) + the length of the type
+  		case short_type:
+  			len = snprintf(NULL, 0, "%d", val.value.sh);
+  			if (0 < len) {
+  				result = malloc(len+1);
+  				snprintf(result, len+1, "%d", val.value.sh);
+  			}
+  			break;
+		case int_type:
+  			len = snprintf(NULL, 0, "%d", val.value.i);
+  			if (0 < len) {
+  				result = malloc(len+1);
+  				snprintf(result, len+1, "%d", val.value.i);
+  			}
+			break;
+		case long_type:
+  			len = snprintf(NULL, 0, "%d", val.value.l);
+  			if (0 < len) {
+  				result = malloc(len+1);
+  				snprintf(result, len+1, "%d", val.value.l);
+  			}
+			break;
+		case long_long_type:
+  			len = snprintf(NULL, 0, "%llu", val.value.ll);
+  			if (0 < len) {
+  				result = malloc(len+1);
+  				snprintf(result, len+1, "%llu", val.value.ll);
+  			}
+			break;
+ 		case float_type:
+  			len = snprintf(NULL, 0, "%f", val.value.f);
+  			if (0 < len) {
+  				result = malloc(len+1);
+  				snprintf(result, len+1, "%f", val.value.f);
+  			}
+			break;
+		case double_type:
+  			len = snprintf(NULL, 0, "%f", val.value.d);
+  			if (0 < len) {
+  				result = malloc(len+1);
+  				snprintf(result, len+1, "%f", val.value.d);
+  			}
+			break;
+		case char_ptr_type:
+  			return val.value.s;
+			break;
+		case char_type:
+		case unsigned_char_type:
+  			return &val.value.c;
+			break;
+ 		case unsigned_short_type:
+  			len = snprintf(NULL, 0, "%u", val.value.ush);
+  			if (0 < len) {
+  				result = malloc(len+1);
+  				snprintf(result, len+1, "%u", val.value.ush);
+  			}
+ 			break;
+ 		case unsigned_int_type:
+  			len = snprintf(NULL, 0, "%u", val.value.ui);
+  			if (0 < len) {
+  				result = malloc(len+1);
+  				snprintf(result, len+1, "%u", val.value.ui);
+  			}
+			break;
+		case unsigned_long_type:
+  			len = snprintf(NULL, 0, "%u", val.value.ul);
+  			if (0 < len) {
+  				result = malloc(len+1);
+  				snprintf(result, len+1, "%u", val.value.ul);
+  			}
+			break;
+		case unsigned_long_long_type:
+  			len = snprintf(NULL, 0, "%llu", val.value.ull);
+  			if (0 < len) {
+  				result = malloc(len+1);
+  				snprintf(result, len+1, "%llu", val.value.ull);
+  			}
+			break;
+// 		case int_array_2_type:    byte_size += 1 + 2*sizeof(int); break;
+// 		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
+// 		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
+// 		case unsigned_char_array_8_type: byte_size += 1 +8*sizeof(unsigned char); break;
+ 		case void_type:
+ 			return "--> pointer";
+			break;
+ 		case bin_type:
+ 			return "--> binary content";
+			break;
+ 		case jrb_tree_type:
+ 			return "--> subtree";
+			break;
+		case key_type:
+			return (char*) key_get_as_string((np_key_t*) val.value.v);
+			break;
+		default:
+			return "--> unknown";
+			break;
+	}
+	return result;
+}
 void copy_jval(np_jval_t* from, np_jval_t* to) {
+	// assert(from->type == to->type);
 
 	switch(from->type) {
 		// length is always 1 (to identify the type) + the length of the type
@@ -42,6 +149,7 @@ void copy_jval(np_jval_t* from, np_jval_t* to) {
 			to->size = sizeof(double);
 			break;
 		case char_ptr_type:
+			// if (0 < to->size && char_ptr_type == to->type) free(to->value.s);
 			to->type = char_ptr_type;
 			to->value.s = strndup(from->value.s, from->size);
 			to->size = from->size;
@@ -86,19 +194,25 @@ void copy_jval(np_jval_t* from, np_jval_t* to) {
 			to->size = from->size;
 			break;
  		case bin_type:
+ 			// if (0 < to->size && bin_type == to->type) free (to->value.bin);
 			to->type = bin_type;
-			to->value.bin = from->value.bin;
+			to->value.bin = malloc(from->size);
+ 		    memset(to->value.bin, 0, from->size);
+ 		    memcpy(to->value.bin, from->value.bin, from->size);
 			to->size = from->size;
 			break;
  		case jrb_tree_type:
+ 			// np_free_tree(from->value.tree);
 			to->type = jrb_tree_type;
-			to->value.v = from->value.v;
+			to->value.tree = from->value.tree;
 			to->size = from->size;
 			break;
 		case key_type:
+			np_unref_obj(np_key_t, to->value.key);
 			to->type = key_type;
 			to->value.key = from->value.key;
 			to->size = sizeof(np_key_t);
+			np_ref_obj(np_key_t, to->value.key);
 			break;
 		default:
 			log_msg(LOG_WARN, "unsupported copy operation for jval type %hhd", from->type);
@@ -253,7 +367,7 @@ np_jval_t new_jval_key (np_key_t* key)
     j.value.key = key;
     j.size = sizeof(key);
     j.type = key_type;
-
+    np_ref_obj(np_key_t, key);
     return j;
 }
 

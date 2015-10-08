@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
 	log_init(log_file, level);
 
 	state = np_init(proto, port);
-	state->my_key->node->joined_network = 1;
+	state->my_node_key->node->joined_network = 1;
 
 	// dsleep(50);
 	log_msg(LOG_DEBUG, "starting job queue");
@@ -107,12 +107,12 @@ int main(int argc, char **argv) {
 		np_new_obj(np_message_t, msg_out);
 
 		np_jtree_t* jrb_me = make_jtree();
-		np_node_encode_to_jrb(jrb_me, state->my_key);
-		np_message_create(msg_out, node_key, state->my_key , NP_MSG_JOIN_REQUEST, jrb_me);
+		np_node_encode_to_jrb(jrb_me, state->my_node_key);
+		np_message_create(msg_out, node_key, state->my_node_key , NP_MSG_JOIN_REQUEST, jrb_me);
 
 		log_msg(LOG_DEBUG, "submitting welcome message");
 		np_msgproperty_t* prop = np_message_get_handler(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
-		job_submit_msg_event(state->jobq, prop, node_key, msg_out);
+		job_submit_msg_event(state->jobq, 0.0, prop, node_key, msg_out);
 
 		dsleep(1.0);
 	}

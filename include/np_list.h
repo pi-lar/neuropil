@@ -7,8 +7,149 @@
 #ifndef _NP_LIST_H_
 #define _NP_LIST_H_
 
-/** double linked list header only implementation for neuropil
- **/
+// definition
+#define np_pll_t(TYPE, NAME) TYPE##_pll_t* NAME;
+
+#define pll_init(TYPE, priolist, cmp_func) priolist = TYPE##_pll_init(cmp_func);
+#define pll_insert(TYPE, priolist, value) TYPE##_pll_insert(priolist, value);
+#define pll_remove(TYPE, priolist, value) TYPE##_pll_remove(priolist, value);
+#define pll_head(TYPE, priolist) TYPE##_pll_head(priolist);
+#define pll_free(TYPE, priolist) TYPE##_pll_free(priolist);
+#define pll_clear(TYPE, priolist) TYPE##_pll_clear(priolist);
+
+// return type definition
+#define pll_return(TYPE) TYPE##_pll_t*
+#define pll_iterator(TYPE) TYPE##_pll_node_t*
+
+// general purpose definitions
+// #define pll_traverse(priolist, iter_item, elem)  for (iter_item = priolist->first, elem = iter_item->val; iter_item != NULL; iter_item = iter_item->flink, elem = iter_item->val)
+// #define pll_rtraverse(priolist, iter_item, elem) for (iter_item = priolist->last,  elem = iter_item->val; iter_item != NULL; iter_item = iter_item->blink, elem = iter_item->val)
+#define pll_empty(priolist)    (NULL == priolist->first)
+#define pll_size(priolist)     (priolist->size)
+#define pll_first(priolist)    (priolist->first)
+#define pll_last(priolist)     (priolist->last)
+#define pll_next(pll_elem)     (pll_elem = pll_elem->flink)
+#define pll_get_next(pll_elem) (pll_elem->flink)
+#define pll_previous(pll_elem) (pll_elem = pll_elem->blink)
+#define pll_get_next(pll_elem) (pll_elem->flink)
+
+/** PLL (priority double linked list) prototype generator **/
+#define NP_PLL_GENERATE_PROTOTYPES(TYPE)\
+	typedef int8_t (*TYPE##_cmp_func_t) (TYPE value_1, TYPE value_2 );\
+	typedef struct TYPE##_pll_s TYPE##_pll_t;\
+    typedef struct TYPE##_pll_node_s TYPE##_pll_node_t;\
+    struct TYPE##_pll_s\
+    {\
+	    uint32_t size;\
+	    TYPE##_pll_node_t *first;\
+	    TYPE##_pll_node_t *last;\
+	    TYPE##_cmp_func_t cmp_func;\
+    };\
+    struct TYPE##_pll_node_s\
+    {\
+	    TYPE##_pll_node_t *flink;\
+	    TYPE##_pll_node_t *blink;\
+        TYPE val;\
+    };\
+    TYPE##_pll_t* TYPE##_pll_init(TYPE##_cmp_func_t cmp_func);\
+    void TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value);\
+    void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value);\
+	TYPE TYPE##_pll_head(TYPE##_pll_t* list);\
+    void TYPE##_pll_free(TYPE##_pll_t* list);\
+    void TYPE##_pll_clear(TYPE##_pll_t* list);
+
+/** PLL (priority linked list) implementation generator **/
+#define NP_PLL_GENERATE_IMPLEMENTATION(TYPE)\
+TYPE##_pll_t* TYPE##_pll_init(TYPE##_cmp_func_t cmp_func) {\
+	TYPE##_pll_t* pll_list = (TYPE##_pll_t*) malloc(sizeof(TYPE##_pll_t));\
+	pll_list->size = 0;\
+	pll_list->cmp_func = cmp_func;\
+	pll_list->first = NULL;\
+	pll_list->last = NULL;\
+	return pll_list;\
+}\
+void TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value) {\
+	TYPE##_pll_node_t* new_pll_node = (TYPE##_pll_node_t*) malloc(sizeof(TYPE##_pll_node_t));\
+	new_pll_node->val = value;\
+	new_pll_node->flink = NULL;\
+	new_pll_node->blink = NULL;\
+	if (pll_list->first == NULL) {\
+		pll_list->first = new_pll_node;\
+		pll_list->last = new_pll_node;\
+		pll_list->size++;\
+		return;\
+	}\
+	TYPE##_pll_node_t* pll_current = pll_list->first;\
+	while (NULL != pll_current) {\
+		int8_t cmp_res = pll_list->cmp_func(pll_current->val, new_pll_node->val);\
+		if (cmp_res < 0) {\
+			new_pll_node->flink = pll_current;\
+			if (NULL != pll_current->blink) pll_current->blink->flink = new_pll_node;\
+			new_pll_node->blink = pll_current->blink;\
+			pll_current->blink = new_pll_node;\
+			if (pll_current == pll_list->first) pll_list->first = new_pll_node;\
+			break;\
+		}\
+		if (pll_current == pll_list->last) {\
+			pll_current->flink = new_pll_node;\
+			new_pll_node->blink = pll_current;\
+			pll_list->last = new_pll_node;\
+			break;\
+		}\
+		pll_current = pll_current->flink;\
+	}\
+	pll_list->size++;\
+}\
+void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value) {\
+	TYPE##_pll_node_t* pll_current = pll_list->first;\
+	while (NULL != pll_current) {\
+		int8_t cmp_res = pll_list->cmp_func(pll_current->val, value);\
+		if (0 == cmp_res) {\
+			if (NULL != pll_current->flink) pll_current->flink->blink = pll_current->blink;\
+			if (NULL != pll_current->blink) pll_current->blink->flink = pll_current->flink;\
+			if (pll_list->first == pll_current) pll_list->first = pll_current->flink;\
+			if (pll_list->last == pll_current) pll_list->last = pll_current->blink;\
+			free(pll_current);\
+			pll_list->size--;\
+			break;\
+		} else {\
+			pll_current = pll_current->flink;\
+		}\
+	}\
+}\
+TYPE TYPE##_pll_head(TYPE##_pll_t* pll_list) {\
+	TYPE ret_val = 0;\
+	if (NULL != pll_list->first) {\
+		TYPE##_pll_node_t* tmp = pll_list->first;\
+		ret_val = tmp->val;\
+		pll_list->first = pll_list->first->flink;\
+		if (pll_list->first != NULL) pll_list->first->blink = NULL;\
+		if (pll_list->first == NULL) pll_list->last = NULL;\
+		free(tmp);\
+		pll_list->size--;\
+	}\
+	return ret_val;\
+}\
+void TYPE##_pll_free(TYPE##_pll_t* pll_list) {\
+	TYPE##_pll_node_t *tmp;\
+	while (pll_list->first != NULL) {\
+		tmp = pll_list->first;\
+		pll_list->first = pll_list->first->flink;\
+		free(tmp);\
+	}\
+	free(pll_list);\
+}\
+void TYPE##_pll_clear(TYPE##_pll_t* pll_list) {\
+	TYPE##_pll_node_t *tmp;\
+	while (pll_list->first != NULL) {\
+		tmp = pll_list->first;\
+		pll_list->first = pll_list->first->flink;\
+		free(tmp);\
+	}\
+}
+
+
+/** double linked list header only implementation for neuropil **/
 // definition
 #define np_dll_t(TYPE, NAME) TYPE##_dll_t* NAME
 
@@ -26,14 +167,17 @@
 #define dll_iterator(TYPE) TYPE##_dll_node_t*
 
 // general purpose definitions
-#define dll_traverse(dll_list, iter_item, elem)  for (iter_item = dll_list->first, elem = iter_item->val; iter_item != NULL; iter_item = iter_item->flink, elem = iter_item->val)
-#define dll_rtraverse(dll_list, iter_item, elem) for (iter_item = dll_list->last,  elem = iter_item->val; iter_item != NULL; iter_item = iter_item->blink, elem = iter_item->val)
+// #define dll_traverse(dll_list, iter_item, elem)  for (iter_item = dll_list->first, elem = iter_item->val; iter_item != NULL; iter_item = iter_item->flink, elem = iter_item->val)
+// #define dll_rtraverse(dll_list, iter_item, elem) for (iter_item = dll_list->last,  elem = iter_item->val; iter_item != NULL; iter_item = iter_item->blink, elem = iter_item->val)
 #define dll_empty(dll_list)    (NULL == dll_list->first)
 #define dll_size(dll_list)     (dll_list->size)
 #define dll_first(dll_list)    (dll_list->first)
 #define dll_last(dll_list)     (dll_list->last)
-#define dll_next(dll_elem)     (dll_elem->flink)
-#define dll_previous(dll_elem) (dll_elem->blink)
+#define dll_next(dll_elem)     (dll_elem = dll_elem->flink)
+#define dll_get_next(sll_elem) (dll_elem->flink)
+#define dll_previous(dll_elem) (dll_elem = dll_elem->blink)
+#define dll_get_previous(sll_elem) (dll_elem->blink)
+
 
 /** DLL (double linked list) prototype generator
  **/
@@ -162,13 +306,14 @@ void TYPE##_dll_clear(TYPE##_dll_t* dll_list) {\
 #define sll_iterator(TYPE) TYPE##_sll_node_t*
 
 // general purpose definitions
-#define sll_traverse(sll_list, iter_item, elem) for (iter_item = sll_list->first, elem = iter_item->val; iter_item != NULL; iter_item = iter_item->flink, elem = iter_item->val)
+// #define sll_traverse(sll_list, iter_item, elem) for (iter_item = sll_list->first, elem = iter_item->val; iter_item != NULL; iter_item = iter_item->flink, elem = iter_item->val)
 // #define sll_rtraverse(sll_list, iter_item, elem) for (iter_item = sll_list->last,  elem = iter_item->val; iter_item != NULL; iter_item = iter_item->blink, elem = iter_item->val)
 #define sll_empty(sll_list) (NULL == sll_list->first)
 #define sll_size(sll_list) sll_list->size
 #define sll_first(sll_list) (sll_list->first)
 #define sll_last(sll_list) (sll_list->last)
-#define sll_next(sll_elem) (sll_elem->flink)
+#define sll_next(sll_elem) (sll_elem = sll_elem->flink)
+#define sll_get_next(sll_elem) (sll_elem->flink)
 // #define sll_previous(sll_elem) (sll_elem->blink)
 
 /** SLL (single linked list) prototype generator
@@ -279,6 +424,7 @@ void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {\
 void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) {\
 	if (sll_list->first == tbr) {\
 		sll_list->first = tbr->flink;\
+		sll_list->size--;\
 	} else {\
 		TYPE##_sll_node_t *tmp = sll_list->first;\
 		TYPE##_sll_node_t *mem = sll_list->first;\

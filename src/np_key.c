@@ -23,14 +23,15 @@ void np_key_t_new(void* key) {
 
     new_key->node = NULL;		    // link to a neuropil node if this key represents a node
 
+    new_key->authentication = NULL; // link to node if this key has an authentication token
+    new_key->authorisation = NULL;  // link to node if this key has an authorisation token
+    new_key->accounting = NULL;     // link to node if this key has an accounting token
+
+    // used internally only
     new_key->recv_property = NULL;
     new_key->send_property = NULL;
     new_key->send_tokens = NULL; // link to runtime interest data on which this node is interested in
     new_key->recv_tokens = NULL; // link to runtime interest data on which this node is interested in
-
-    new_key->authentication = NULL; // link to node if this key has an authentication token
-    new_key->authorisation = NULL;  // link to node if this key has an authorisation token
-    new_key->accounting = NULL;     // link to node if this key has an accounting token
 }
 
 void np_key_t_del(void* key) {
@@ -388,7 +389,7 @@ np_key_t* find_closest_key ( np_sll_t(np_key_t, list_of_keys), np_key_t* key)
 	}
 
 	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
-    while (NULL != (iter = sll_next(iter)))
+    while (NULL != (sll_next(iter)))
 	{
     	key_distance (&dif, iter->val, key);
 
@@ -418,7 +419,7 @@ void sort_keys_cpm (np_sll_t(np_key_t, node_keys), np_key_t* key)
 
     do
     {
-        sll_iterator(np_key_t) iter2 = sll_next(iter1);
+        sll_iterator(np_key_t) iter2 = sll_get_next(iter1);
 
         if (NULL == iter2) break;
 
@@ -443,8 +444,8 @@ void sort_keys_cpm (np_sll_t(np_key_t, node_keys), np_key_t* key)
 					iter2->val = tmp;
 				}
 			}
-		} while (NULL != (iter2 = sll_next(iter2)) );
-	} while (NULL != (iter1 = sll_next(iter1)) );
+		} while (NULL != (sll_next(iter2)) );
+	} while (NULL != (sll_next(iter1)) );
 }
 
 
@@ -461,7 +462,7 @@ void sort_keys_kd (np_sll_t(np_key_t, list_of_keys), np_key_t* key)
     sll_iterator(np_key_t) curr = sll_first(list_of_keys);
     do {
         // Maintain pointers.
-        sll_iterator(np_key_t) next = sll_next(curr);
+        sll_iterator(np_key_t) next = sll_get_next(curr);
 
         // Cannot swap last element with its next.
         while (NULL != next) {
@@ -477,9 +478,9 @@ void sort_keys_kd (np_sll_t(np_key_t, list_of_keys), np_key_t* key)
                 break;
 			}
 		    // continue with the loop
-		    next = sll_next(next);
+		    sll_next(next);
         }
-	    curr = sll_next(curr);
+	    sll_next(curr);
 
     } while (curr != sll_last(list_of_keys));
 

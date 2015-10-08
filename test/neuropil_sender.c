@@ -34,15 +34,6 @@ int seq = -1;
 int joinComplete = 0;
 
 
-void deliver(np_key_t* key, np_message_t* msg)
-{
-	char* subject = jrb_find_str(msg->header, "subject")->val.value.s;
-
-	log_msg(LOG_DEBUG, "DELIVER: %s", subject);
-
-}
-
-
 int main(int argc, char **argv) {
 
 	int opt;

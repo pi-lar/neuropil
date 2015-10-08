@@ -35,7 +35,7 @@ int joinComplete = 0;
 
 void receive(np_key_t* key, np_message_t* msg)
 {
-	char* subject = jrb_find_str(msg->header, "subject")->val.value.s;
+	char* subject = jrb_find_str(msg->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
 
 	log_msg(LOG_DEBUG, "RECEIVED: %s", subject);
 }
@@ -83,11 +83,6 @@ int main(int argc, char **argv) {
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(state, 8);
 	np_waitforjoin(state);
-
-	// TODO: implement these
-	// np_set_identity();
-	// np_set_x_properties();
-	// np_set_listener();
 
 	unsigned long k = 1;
 	while (1) {

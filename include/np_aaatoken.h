@@ -23,9 +23,10 @@
  *  we use np_aaatoken_t for authorization, authentication and accounting purposes
  *  the data structure is the same, any addon information is stored in a jrb structure
  *  several analogies have been used as a baseline for this structure: json web token, kerberos and diameter
- *  in principal any user/system/node can be identified by it hash key (subject)
- *  a subject belongs to a realm, and a token has been issued by somebody, and there is an intended audience
- *  all being just hash keys
+ *  in principal any user/system/node can be identified by it's hash key (subject)
+ *  a subject/issuer belongs to a realm
+ *  a token for a subject has been issued by somebody, and there is an intended audience
+ *  all data fields are just hash keys
  *
  *  neuropil nodes can use the realm and issuer hash key informations to request authentication and authorization
  *  of a subject

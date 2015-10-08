@@ -32,16 +32,18 @@ TARGET=x86_64-apple-darwin-macho
 # TARGET=x86_64-pc-gnu-elf
 
 SOURCES=src/cmp.c src/dtime.c src/np_jtree.c src/jval.c src/np_aaatoken.c src/np_message.c src/np_memory.c src/np_glia.c src/neuropil.c src/np_jobqueue.c src/np_key.c src/log.c src/np_network.c src/np_node.c src/np_axon.c src/np_container.c src/np_dendrit.c src/np_util.c src/priqueue.c src/np_route.c 
-TEST_SOURCES=test/neuropil_controller.c test/jrb_test_msg.c test/test_dh.c
+TEST_SOURCES=test/neuropil_controller.c test/jrb_test_msg.c test/test_dh.c test/neuropil_hydra.c test/test_list_impl.c
 
 OBJECTS=$(SOURCES:.c=.o)
 TEST_OBJECTS=$(TEST_SOURCES:.c=.o)
 
-all: src/libneuropil.a ipv6_addrinfo neuropil_controller neuropil_node neuropil_sender neuropil_receiver neuropil_receiver_cb jrb_test_msg test_dh
+all: src/libneuropil.a ipv6_addrinfo neuropil_hydra neuropil_controller neuropil_node neuropil_sender neuropil_receiver neuropil_receiver_cb jrb_test_msg test_dh test_list_impl
 
 neuropil_controller: test/neuropil_controller.o
 	$(CC) -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
 
+neuropil_hydra: test/neuropil_hydra.o
+	$(CC) -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
 neuropil_node: test/neuropil_node.o
 	$(CC) -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
 neuropil_sender: test/neuropil_sender.o
@@ -51,6 +53,8 @@ neuropil_receiver: test/neuropil_receiver.o
 neuropil_receiver_cb: test/neuropil_receiver_cb.o
 	$(CC) -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
 
+test_list_impl: test/test_list_impl.o
+	$(CC) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
 ipv6_addrinfo: test/ipv6_addrinfo.o
 	$(CC) $(LDFLAGS) $(SODIUM_LIBRARIES) -L. -lneuropil.$(TARGET) $< -o $@
 jrb_test_msg: test/jrb_test_msg.o

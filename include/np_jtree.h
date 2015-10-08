@@ -65,6 +65,7 @@ void del_ulong_node (np_jtree_t* tree, const uint32_t key);
 
 /* Deletes and frees an entire tree */
 void np_free_tree (np_jtree_t* root);
+void np_print_tree (np_jtree_t* n, uint8_t indent);
 
 //void free_str_tree (np_str_jtree_t* root);
 //void free_int_tree (np_int_jtree_t* root);

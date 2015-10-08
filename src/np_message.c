@@ -34,7 +34,6 @@
 #include "np_util.h"
 #include "np_threads.h"
 
-
 // default message type enumeration
 enum {
 	NEUROPIL_PING_REQUEST = 1,
@@ -45,15 +44,16 @@ enum {
 	NEUROPIL_JOIN_NACK,
 
 	NEUROPIL_AVOID = 20,
-	NEUROPIL_DIVORCE,
+	NEUROPIL_DIVORCE, // TODO: implement me
 
 	NEUROPIL_UPDATE = 30,
 	NEUROPIL_PIGGY,
+	NEUROPIL_DISCOVER = 30, // TODO: implement me
 
 	NEUROPIL_MSG_INTEREST = 50,
 	NEUROPIL_MSG_AVAILABLE,
 
-	NEUROPIL_REST_OPERATIONS = 100,
+	NEUROPIL_REST_OPERATIONS = 100, // TODO: implement me
 	NEUROPIL_POST,   /*create*/
 	NEUROPIL_GET,    /*read*/
 	NEUROPIL_PUT,    /*update*/
@@ -72,42 +72,45 @@ np_msgproperty_t np_internal_messages[] =
 {
 	{ .msg_subject=ROUTE_LOOKUP, .msg_mode=TRANSFORM, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=np_route_lookup }, // default input handling func should be "route_get" ?
 
-	{ .msg_subject=DEFAULT, .msg_mode=INBOUND, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_in_received },
+	{ .msg_subject=DEFAULT, .msg_mode=INBOUND, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_in_received, .ttl=20.0 },
 	// TODO: add garbage collection output
-	{ .msg_subject=DEFAULT, .msg_mode=OUTBOUND, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_out_send },
+	{ .msg_subject=DEFAULT, .msg_mode=OUTBOUND, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_out_send, .ttl=20.0 },
 
-	{ .msg_subject=NP_MSG_HANDSHAKE, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_in_handshake },
-	{ .msg_subject=NP_MSG_HANDSHAKE, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_out_handshake },
+	{ .msg_subject=NP_MSG_HANDSHAKE, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_in_handshake, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_HANDSHAKE, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_out_handshake , .ttl=20.0 },
 
 	// we don't need to ack the ack the ack the ack ...
-	{ .msg_subject=NP_MSG_ACK, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=NULL }, // incoming ack handled in network layer, not required
-	{ .msg_subject=NP_MSG_ACK, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_out_ack },
+	{ .msg_subject=NP_MSG_ACK, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=NULL, .ttl=20.0 }, // incoming ack handled in network layer, not required
+	{ .msg_subject=NP_MSG_ACK, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_out_ack, .ttl=20.0 },
 
 	// ping is send directly to the destination host, no ack required
-	{ .msg_subject=NP_MSG_PING_REQUEST, .msg_mode=INBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_in_ping },
-	{ .msg_subject=NP_MSG_PING_REPLY, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_in_pingreply },
-	{ .msg_subject=NP_MSG_PING_REQUEST, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_out_send },
-	{ .msg_subject=NP_MSG_PING_REPLY, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_out_send },
+	{ .msg_subject=NP_MSG_PING_REQUEST, .msg_mode=INBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_in_ping, .ttl=2.0 },
+	{ .msg_subject=NP_MSG_PING_REPLY, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_in_pingreply, .ttl=2.0 },
+	{ .msg_subject=NP_MSG_PING_REQUEST, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_out_send, .ttl=2.0 },
+	{ .msg_subject=NP_MSG_PING_REPLY, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_out_send, .ttl=2.0 },
 
 	// join request: node unknown yet, therefore send without ack, explicit ack handling via extra messages
-	{ .msg_subject=NP_MSG_JOIN_REQUEST, .msg_mode=INBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_DESTINATION, .retry=5, .clb=hnd_msg_in_join_req }, // just for controller ?
-	{ .msg_subject=NP_MSG_JOIN_REQUEST, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_DESTINATION, .retry=5, .clb=hnd_msg_out_send },
-	{ .msg_subject=NP_MSG_JOIN_ACK, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_join_ack },
-	{ .msg_subject=NP_MSG_JOIN_ACK, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send },
-	{ .msg_subject=NP_MSG_JOIN_NACK, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_join_nack },
-	{ .msg_subject=NP_MSG_JOIN_NACK, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send },
+	{ .msg_subject=NP_MSG_JOIN_REQUEST, .msg_mode=INBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_DESTINATION, .retry=5, .clb=hnd_msg_in_join_req, .ttl=20.0 }, // just for controller ?
+	{ .msg_subject=NP_MSG_JOIN_REQUEST, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_DESTINATION, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_JOIN_ACK, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_join_ack, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_JOIN_ACK, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_JOIN_NACK, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_join_nack, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_JOIN_NACK, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
 
-	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .msg_mode=TRANSFORM, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=np_send_rowinfo }, // default input handling func should be "route_get" ?
-	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_piggy },
-	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send },
+	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .msg_mode=TRANSFORM, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=np_send_rowinfo, .ttl=20.0 }, // default input handling func should be "route_get" ?
+	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_piggy, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
 
-	{ .msg_subject=NP_MSG_UPDATE_REQUEST, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_update },
-	{ .msg_subject=NP_MSG_UPDATE_REQUEST, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send },
+	{ .msg_subject=NP_MSG_UPDATE_REQUEST, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_update, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_UPDATE_REQUEST, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
 
-	{ .msg_subject=NP_MSG_INTEREST, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_interest },
-	{ .msg_subject=NP_MSG_AVAILABLE, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_available },
-	{ .msg_subject=NP_MSG_INTEREST, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send },
-	{ .msg_subject=NP_MSG_AVAILABLE, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send }
+	{ .msg_subject=NP_MSG_INTEREST, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_interest, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_AVAILABLE, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_available, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_INTEREST, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_AVAILABLE, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
+
+	{ .msg_subject=NP_MSG_AUTHENTICATION_REQUEST, .msg_mode=INBOUND,  .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_authenticate, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_AUTHENTICATION_REQUEST, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 }
 };
 
 
@@ -165,20 +168,31 @@ np_bool np_message_serialize(np_message_t* msg, void* target, uint64_t* out_size
 
 	cmp_write_array(&cmp, 5);
 
+	int i = cmp.buf-target;
 	// log_msg(LOG_DEBUG, "serializing the header (size %hd)", msg->header->size);
 	serialize_jrb_node_t(msg->header, &cmp);
+	log_msg(LOG_DEBUG, "serializing the header (size %hd / %hd)", msg->header->byte_size, (cmp.buf-target-i));
+	i = cmp.buf-target;
 
 	// log_msg(LOG_DEBUG, "serializing the instructions (size %hd)", msg->header->size);
 	serialize_jrb_node_t(msg->instructions, &cmp);
+	log_msg(LOG_DEBUG, "serializing the instructions (size %hd / %hd)", msg->instructions->byte_size, (cmp.buf-target-i));
+	i = cmp.buf-target;
 
 	// log_msg(LOG_DEBUG, "serializing the properties (size %hd)", msg->properties->size);
 	serialize_jrb_node_t(msg->properties, &cmp);
+	log_msg(LOG_DEBUG, "serializing the properties (size %hd / %hd)", msg->properties->byte_size, (cmp.buf-target-i));
+	i = cmp.buf-target;
 
 	// log_msg(LOG_DEBUG, "serializing the body (size %hd)", msg->body->size);
 	serialize_jrb_node_t(msg->body, &cmp);
+	log_msg(LOG_DEBUG, "serializing the body (size %hd / %hd)", msg->body->byte_size, (cmp.buf-target-i));
+	i = cmp.buf-target;
 
 	// log_msg(LOG_DEBUG, "serializing the footer (size %hd)", msg->footer->size);
 	serialize_jrb_node_t(msg->footer, &cmp);
+	log_msg(LOG_DEBUG, "serializing the footer (size %hd / %hd)", msg->footer->byte_size, (cmp.buf-target-i));
+	i = cmp.buf-target;
 
 	*out_size = cmp.buf-target;
 	return TRUE;
@@ -187,7 +201,6 @@ np_bool np_message_serialize(np_message_t* msg, void* target, uint64_t* out_size
 np_bool np_message_deserialize(np_message_t* msg, void* buffer) {
 
 	// np_message_t* msg_tmp;
-	// np_bind(np_message_t, obj_msg, msg_tmp);
 
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, buffer_reader, buffer_writer);
@@ -196,7 +209,6 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer) {
 	if (!cmp_read_array(&cmp, &array_size)) return 0;
 	if (array_size != 5) {
 		log_msg(LOG_WARN, "unrecognized message length while deserializing message");
-		// np_unbind(np_message_t, obj_msg, msg_tmp);
 		return FALSE;
 	}
 
@@ -215,7 +227,6 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer) {
 	// log_msg(LOG_DEBUG, "deserializing msg footer");
 	deserialize_jrb_node_t(msg->footer, &cmp);
 
-	// np_unbind(np_message_t, obj_msg, msg_tmp);
 	return TRUE;
 }
 
@@ -227,7 +238,6 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer) {
 void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_jtree_t* the_data)
 {
 	// np_message_t* new_msg;
-	// np_bind(np_message_t, msg, new_msg);
 	// log_msg(LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
 	jrb_insert_str(msg->header, NP_MSG_HEADER_SUBJECT,  new_jval_s((char*) subject));
@@ -238,7 +248,6 @@ void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const ch
 	if (the_data != NULL) {
 		np_message_setbody(msg, the_data);
 	}
-	// np_unbind(np_message_t, msg, new_msg);
 }
 
 inline void np_message_setproperties(np_message_t* msg, np_jtree_t* properties) {
@@ -395,8 +404,8 @@ void np_message_encrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoke
 	randombytes_buf((void*) nonce, crypto_box_NONCEBYTES);
 	randombytes_buf((void*) sym_key, crypto_secretbox_KEYBYTES);
 
-	np_message_encrypt_part(msg->body, nonce, sym_key, NULL);
 	np_message_encrypt_part(msg->properties, nonce, sym_key, NULL);
+	np_message_encrypt_part(msg->body, nonce, sym_key, NULL);
 
 	// now encrypt the encryption key using public key crypto stuff
 	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
@@ -404,10 +413,14 @@ void np_message_encrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoke
 
 	// convert our own sign key to an encryption key
 	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-										 state->my_key->authentication->private_key);
+										 state->my_identity->authentication->private_key);
+	// convert our partner key to an encryption key
+	unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
+	crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
+
 	// finally encrypt
 	int ret = crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
-					          tmp_token->public_key, curve25519_sk);
+							  partner_key, curve25519_sk);
 	if (0 > ret) {
 		log_msg(LOG_ERROR, "encryption of message payload failed");
 		return;
@@ -424,15 +437,14 @@ void np_message_encrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoke
 
 	np_jtree_t* encryption_details = make_jtree();
 	// insert the public-key encrypted encryption key for each receiver of the message
-	jrb_insert_str(encryption_details, "_np.nonce",
+	jrb_insert_str(encryption_details, NP_NONCE,
 				   new_jval_bin(nonce, crypto_box_NONCEBYTES));
 	jrb_insert_str(encryption_details, tmp_token->issuer,
 				   new_jval_bin(ciphertext,
 						   	    crypto_box_MACBYTES + crypto_secretbox_KEYBYTES));
 
 	// add encryption details to the message
-	jrb_insert_str(msg->instructions, NP_ENCRYPTED,
-			new_jval_tree(encryption_details));
+	jrb_insert_str(msg->properties, NP_SYMKEY, new_jval_tree(encryption_details));
 
 	log_msg(LOG_TRACE, ".end  .np_message_encrypt_payload");
 }
@@ -442,24 +454,30 @@ np_bool np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaat
 	log_msg(LOG_TRACE, ".start.np_message_decrypt_payload");
 
 	np_jtree_t* encryption_details =
-			jrb_find_str(msg->instructions, NP_ENCRYPTED)->val.value.tree;
+			jrb_find_str(msg->properties, NP_SYMKEY)->val.value.tree;
 
 	// insert the public-key encrypted encryption key for each receiver of the message
 	unsigned char nonce[crypto_box_NONCEBYTES];
-	memcpy(nonce, jrb_find_str(encryption_details, "_np.nonce")->val.value.bin, crypto_box_NONCEBYTES);
+	memcpy(nonce, jrb_find_str(encryption_details, NP_NONCE)->val.value.bin, crypto_box_NONCEBYTES);
 	unsigned char enc_sym_key[crypto_secretbox_KEYBYTES + crypto_box_MACBYTES];
-	memcpy(enc_sym_key, jrb_find_str(encryption_details, (char*) key_get_as_string(state->my_key))->val.value.bin, crypto_secretbox_KEYBYTES + crypto_box_MACBYTES);
+	memcpy(enc_sym_key, jrb_find_str(encryption_details, (char*) key_get_as_string(state->my_identity))->val.value.bin, crypto_secretbox_KEYBYTES + crypto_box_MACBYTES);
 
 	unsigned char sym_key[crypto_secretbox_KEYBYTES];
+
+	// convert own secret to encryption key
 	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
 	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-										 state->my_key->authentication->private_key);
+										 state->my_identity->authentication->private_key);
 
-//	log_msg(LOG_DEBUG, "ciphertext: %s", enc_sym_key);
-//	log_msg(LOG_DEBUG, "nonce:      %s", nonce);
+	//	log_msg(LOG_DEBUG, "ciphertext: %s", enc_sym_key);
+	//	log_msg(LOG_DEBUG, "nonce:      %s", nonce);
+
+	// convert partner secret to encryption key
+	unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
+	crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
 
 	int ret = crypto_box_open_easy(sym_key, enc_sym_key, crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
-								   nonce, tmp_token->public_key, curve25519_sk);
+								   nonce, partner_key, curve25519_sk);
 	if (0 > ret) {
 		log_msg(LOG_ERROR, "decryption of message payload failed");
 		return FALSE;
@@ -480,7 +498,7 @@ np_bool np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaat
  ** contains global state of message subsystem.
  ** message_init also initiate the network subsystem
  **/
-void message_init (np_state_t* state) {
+void _np_message_init (np_state_t* state) {
 
     RB_INIT(&state->msg_properties);
     state->msg_tokens = make_jtree();
@@ -514,7 +532,7 @@ np_msgproperty_t* np_message_get_handler(np_state_t *state, np_msg_mode_type msg
 	return RB_FIND(rbt_msgproperty, &state->msg_properties, &prop);
 }
 
-int16_t property_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2)
+int16_t _np_property_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2)
 {
 	// TODO: check how to use bitmasks with red-black-tree efficiently
 	int16_t i = strncmp(prop1->msg_subject, prop2->msg_subject, 64);
@@ -543,6 +561,7 @@ void np_msgproperty_t_new(void* property) {
 	prop->ack_mode = ACK_EACHHOP;
 	prop->priority = 5;
 	prop->retry    = 5;
+	prop->ttl      = 20.0;
 	// prop->clb = callback;
 
 	prop->max_threshold = 10;
@@ -564,6 +583,7 @@ void np_msgproperty_t_del(void* property) {
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
 	if (prop->msg_subject) free(prop->msg_subject);
+	if (prop->group_id) free(prop->group_id);
 
 	pthread_condattr_destroy(&prop->cond_attr);
     pthread_cond_destroy (&prop->msg_received);

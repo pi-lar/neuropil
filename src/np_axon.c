@@ -26,6 +26,21 @@
 #include "np_threads.h"
 #include "np_route.h"
 
+/** message split up maths
+ ** message size = 1b (common header) + 40b (encryption) +
+ **                msg (header + instructions) + msg (properties + body) + msg (footer)
+ ** if (size > 1024)
+ **     fixed_size = 1b + 40b + msg (header + instructions)
+ **     payload_size = msg (properties) + msg(body) + msg(footer)
+ **     #_of_chunks = int(payload_size / (1024 - fixed_size)) + 1
+ **     chunk_size = payload_size / #_of_chunks
+ **     garbage_size = #_of_chunks * (fixed_size + chunk_size) % 1024 // spezial behandlung garbage_size < 3
+ **     add garbage
+ ** else
+ ** 	add garbage
+ **/
+
+
 /**
  ** network_send: host, data, size
  ** Sends a message to host, updating the measurement info.
@@ -56,10 +71,15 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	np_bool ack_mode_from_msg = FALSE;
 
 	np_msgproperty_t* prop = args->properties;
-	np_network_t* network = state->my_key->node->network;
+	np_network_t* network = state->my_node_key->node->network;
 
-	// TODO: check if the node is really useful.
-	// for now: assume a node really exists and is not only a "key"
+	if (!np_node_check_address_validity(args->target->node)) {
+		log_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
+							key_get_as_string(args->target));
+		np_free_obj(np_message_t, args->msg);
+		log_msg(LOG_TRACE, ".end  .hnd_msg_out_send");
+		return;
+	}
 
 	/* create network header */
 	pthread_mutex_lock(&(network->lock));
@@ -73,7 +93,7 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	}
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK, new_jval_ush(prop->ack_mode));
 
-	unsigned char* ack_to_str = key_get_as_string(state->my_key);
+	unsigned char* ack_to_str = key_get_as_string(state->my_node_key);
 	if ( 0 < (ack_mode & ACK_EACHHOP) ) {
 		// we have to reset the existing ack_to field in case of forwarding and each-hop acknowledge
 		jrb_replace_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s((char*) ack_to_str));
@@ -103,14 +123,24 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	pthread_mutex_unlock(&(network->lock));
 
 	// insert a uuid if not yet present
-	// char* new_uuid = np_create_uuid(args->properties->msg_subject, seq);
-	// jrb_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_jval_s(new_uuid));
-	// free(new_uuid);
+	char* new_uuid = np_create_uuid(args->properties->msg_subject, seq);
+	jrb_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_jval_s(new_uuid));
+
+	// insert timestamp and time-to-live
+	double now = dtime();
+	jrb_insert_str(msg_out->instructions, NP_MSG_INST_TSTAMP, new_jval_d(now));
+	now += args->properties->ttl;
+	jrb_insert_str(msg_out->instructions, NP_MSG_INST_TTL, new_jval_d(now));
+
+	// log_msg(LOG_DEBUG, "message ttl %s (tstamp: %f / ttl: %f) %s", new_uuid, now, args->properties->ttl, args->properties->msg_subject);
+
+	free(new_uuid);
 
 	// set resend count to zero if not yet present
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_RESEND_COUNT, new_jval_ush(0));
 
 	// TODO: message part split-up informations
+	jrb_insert_str(msg_out->instructions, NP_MSG_INST_PARTS, new_jval_ui(parts));
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_PART, new_jval_ui(parts));
 
 	if (TRUE == ack_to_is_me)
@@ -121,6 +151,7 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 		np_prioq_t *pqrecord = get_new_pqentry();
 		pqrecord->dest_key = args->target;
 		pqrecord->msg = args->msg;
+		pqrecord->max_retries = args->properties->retry;
 		pqrecord->retry = 0; // jrb_resend->val.value.ui;
 		pqrecord->seqnum = seq;
 		pqrecord->transmittime = start;
@@ -129,6 +160,7 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 		np_ref_obj(np_message_t, args->msg);
 		np_ref_obj(np_key_t, args->target);
 
+		// double retransmit_interval = args->properties->ttl / args->properties->retry;
 		jrb_insert_dbl(network->retransmit,
 					   (start + RETRANSMIT_INTERVAL), new_jval_v(pqrecord));
 		pthread_mutex_unlock(&network->lock);
@@ -139,17 +171,23 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 
 	char* subj = jrb_find_str(msg_out->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
 	log_msg(LOG_DEBUG, "message %s (%u) to %s", subj, seq, key_get_as_string(args->target));
-	log_msg(LOG_DEBUG, "message part byte sizes: %u %u %u %u %u",
+	log_msg(LOG_DEBUG, "message part byte sizes: %u %u %u %u %u, total: %u",
 				msg_out->header->byte_size, msg_out->instructions->byte_size,
 				msg_out->properties->byte_size, msg_out->body->byte_size,
-				msg_out->footer->byte_size);
+				msg_out->footer->byte_size,
+				msg_out->header->byte_size + msg_out->instructions->byte_size + msg_out->properties->byte_size + msg_out->body->byte_size + msg_out->footer->byte_size);
+
+	// np_print_tree(msg_out->header, 0);
+	// np_print_tree(msg_out->instructions, 0);
+	// np_print_tree(msg_out->properties, 0);
+	// np_print_tree(msg_out->body, 0);
+	// np_print_tree(msg_out->footer, 0);
 
 	network_send_udp(state, args->target, msg_out);
 	// ret is 1 or 0
 	// np_node_update_stat(target_node, ret);
 
 	np_free_obj(np_message_t, args->msg);
-
 	log_msg(LOG_TRACE, ".end  .hnd_msg_out_send");
 }
 
@@ -160,8 +198,8 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	if (!np_node_check_address_validity(args->target->node)) return;
 
 	// get our identity from the cache
-	np_aaatoken_t* my_id_token = state->my_key->authentication;
-	np_node_t* my_node = state->my_key->node;
+	np_aaatoken_t* my_id_token = state->my_node_key->authentication;
+	np_node_t* my_node = state->my_node_key->node;
 
 	// convert to curve key
 	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
@@ -193,9 +231,9 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	// sign the handshake payload with our private key
 	char signature[crypto_sign_BYTES];
 	uint64_t signature_len;
-	int16_t ret = crypto_sign_detached((unsigned char*)       signature, &signature_len,
-							       (const unsigned char*) hs_payload, hs_payload_len,
-								   my_id_token->private_key);
+	int16_t ret = crypto_sign_detached((unsigned char*)       signature,  &signature_len,
+							           (const unsigned char*) hs_payload,  hs_payload_len,
+								       my_id_token->private_key);
 	if (ret < 0) {
 		log_msg(LOG_WARN, "checksum creation failed, not continuing with handshake");
 		return;

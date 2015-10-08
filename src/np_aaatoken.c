@@ -52,7 +52,7 @@ void np_encode_aaatoken(np_jtree_t* data, np_aaatoken_t* token) {
 	jrb_insert_str(data, "_np.aaa.not_before", new_jval_d(token->not_before));
 	jrb_insert_str(data, "_np.aaa.expiration", new_jval_d(token->expiration));
 
-	jrb_insert_str(data, "_np.aaa.public_key", new_jval_bin(token->public_key, crypto_scalarmult_curve25519_BYTES));
+	jrb_insert_str(data, "_np.aaa.public_key", new_jval_bin(token->public_key, crypto_sign_BYTES));
 
 	np_jtree_t* subtree = make_jtree();
 	// encode extensions by copying all of them
@@ -77,22 +77,43 @@ void np_decode_aaatoken(np_jtree_t* data, np_aaatoken_t* token) {
 	token->not_before = jrb_find_str(data, "_np.aaa.not_before")->val.value.d;
 	token->expiration = jrb_find_str(data, "_np.aaa.expiration")->val.value.d;
 
-	memcpy(token->public_key, jrb_find_str(data, "_np.aaa.public_key")->val.value.bin, crypto_scalarmult_curve25519_BYTES);
+	memcpy(token->public_key, jrb_find_str(data, "_np.aaa.public_key")->val.value.bin, crypto_sign_BYTES);
 
 	// decode extensions
 	np_free_tree(token->extensions);
 	token->extensions = jrb_find_str(data, "_np.aaa.extensions")->val.value.tree;
 }
 
-np_bool token_is_valid(np_aaatoken_t* token) {
+np_bool token_is_valid(np_aaatoken_t* token)
+{
+	log_msg(LOG_TRACE, ".start.token_is_valid");
 
 	uint16_t token_max_threshold = jrb_find_str(token->extensions, "max_threshold")->val.value.ui;
 	uint16_t token_msg_threshold = jrb_find_str(token->extensions, "msg_threshold")->val.value.ui;
 	double now = dtime();
 
-	// np_bool is_valid = TRUE;
-	// log_msg(LOG_DEBUG, "token values (max %hd / cur %hd / %f) now %f",
-	//  		token_max_threshold, token_msg_threshold, token->expiration, now);
+	// verify inserted signature first
+	char* signature = jrb_find_str(token->extensions, NP_HS_SIGNATURE)->val.value.bin;
+	// TODO: useful extension ?
+	// unsigned char key[crypto_generichash_KEYBYTES];
+	// randombytes_buf(key, sizeof key);
+	unsigned char hash[crypto_generichash_BYTES];
+	crypto_generichash_state gh_state;
+	// crypto_generichash_init(&gh_state, key, sizeof key, sizeof hash);
+	crypto_generichash_init(&gh_state, NULL, 0, sizeof hash);
+	crypto_generichash_update(&gh_state, (unsigned char*) token->realm, strlen(token->realm));
+	crypto_generichash_update(&gh_state, (unsigned char*) token->issuer, strlen(token->issuer));
+	crypto_generichash_update(&gh_state, (unsigned char*) token->subject, strlen(token->subject));
+	crypto_generichash_update(&gh_state, (unsigned char*) token->public_key, strlen((char*) token->public_key));
+	// TODO: hash 'not_before' and 'expiration' values as well ?
+	crypto_generichash_final(&gh_state, hash, sizeof hash);
+
+	int16_t ret = crypto_sign_verify_detached((unsigned char*)signature, hash, crypto_generichash_BYTES, token->public_key);
+	if (ret < 0) {
+		log_msg(LOG_WARN, "checksum verification for msgtoken failed");
+		log_msg(LOG_TRACE, ".end  .token_is_valid");
+		return FALSE;
+	}
 
 	// TODO: move this to boolean math and just add(&) TRUE/FALSE values
 	// if (now < token->not_before) return 0;
@@ -169,11 +190,11 @@ void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 				np_free_obj(np_aaatoken_t, tmp_token);
 
 				sll_iterator(np_aaatoken_t) tbr = iter;
-				iter = sll_next(iter);
+				sll_next(iter);
 				sll_delete(np_aaatoken_t, subject_key->send_tokens, tbr);
 
 			} else {
-				iter = sll_next(iter);
+				sll_next(iter);
 			}
 		}
 	}
@@ -310,7 +331,7 @@ np_aaatoken_t* np_get_sender_token(np_state_t *state, char* subject, char* sende
 			if (FALSE == token_is_valid(return_token)) {
 				// TODO delete invalid tokens, this is a different behaviour from node to node
 				log_msg(LOG_DEBUG, "ignoring invalid sender token for issuer %s", return_token->issuer);
-				iter = sll_next(iter);
+				sll_next(iter);
 				return_token = NULL;
 				continue;
 			}
@@ -321,7 +342,7 @@ np_aaatoken_t* np_get_sender_token(np_state_t *state, char* subject, char* sende
 			{
 				log_msg(LOG_DEBUG, "ignoring sender token for issuer %s / send_hk: %s",
 						return_token->issuer, sender);
-				iter = sll_next(iter);
+				sll_next(iter);
 				return_token = NULL;
 				continue;
 			}
@@ -373,11 +394,11 @@ void np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *toke
 				np_free_obj(np_aaatoken_t, tmp_token);
 
 				sll_iterator(np_aaatoken_t) tbr = iter;
-				iter = sll_next(iter);
+				sll_next(iter);
 				sll_delete(np_aaatoken_t, subject_key->recv_tokens, tbr);
 
 			} else {
-				iter = sll_next(iter);
+				sll_next(iter);
 			}
 		}
 	}
@@ -467,7 +488,7 @@ np_aaatoken_t* np_get_receiver_token(np_state_t *state, char* subject)
 			if (FALSE == token_is_valid(return_token))
 			{
 				log_msg(LOG_DEBUG, "ignoring invalid receiver msg tokens" );
-				iter = sll_next(iter);
+				sll_next(iter);
 				return_token = NULL;
 				continue;
 			}

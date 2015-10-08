@@ -71,7 +71,12 @@ enum {
 
 /* The Jval -- a type that can hold any 8-byte type */
 typedef union jval
-{
+{	// put void pointer first to enforce zero initialization of union
+    void* v;
+    void* bin;
+    np_jtree_t* tree;
+    np_key_t* key;
+    np_obj_t* obj;
     int8_t sh;
     int16_t i;
     int32_t l;
@@ -89,11 +94,6 @@ typedef union jval
     float farray[2];
     char carray[8];
     unsigned char ucarray[8];
-    void* v;
-    void* bin;
-    np_jtree_t* tree;
-    np_key_t* key;
-    np_obj_t* obj;
 } jval;
 
 struct np_jval_s {
@@ -145,5 +145,7 @@ uint32_t jval_ul (np_jval_t);
 int16_t *jval_iarray (np_jval_t);
 float *jval_farray (np_jval_t);
 char *jval_carray (np_jval_t);
+
+char* jval_to_str(np_jval_t val);
 
 #endif // _NP_JVAL_H_

@@ -40,7 +40,7 @@
 
 
 SPLAY_GENERATE(spt_key, np_key_s, link, key_comp);
-RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, property_comp);
+RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_property_comp);
 
 
 //np_bool np_default_joinfunc (np_state_t* state, np_node_t* node ) {
@@ -85,7 +85,7 @@ void np_setaccounting_cb(np_state_t* state, np_aaa_func_t aaaFunc) {
 }
 
 void np_waitforjoin(const np_state_t* state) {
-	while (!state->my_key->node->joined_network) {
+	while (FALSE == state->my_node_key->node->joined_network) {
 		dsleep(0.1);
 	}
 }
@@ -109,6 +109,41 @@ void np_set_listener (np_state_t* state, np_usercallback_t msg_handler, char* su
 	np_send_msg_interest(state, subject);
 }
 
+void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
+{
+    np_key_t* my_identity_key;
+
+    unsigned char hash_key[crypto_hash_sha256_BYTES];
+    crypto_hash_sha256_state* hash_state = NULL;
+    crypto_hash_sha256_init(hash_state);
+	crypto_hash_sha256_update(hash_state, (const unsigned char*) identity->realm, strlen(identity->realm));
+	crypto_hash_sha256_update(hash_state, (const unsigned char*) identity->issuer, strlen(identity->issuer));
+	crypto_hash_sha256_update(hash_state, (const unsigned char*) identity->subject, strlen(identity->subject));
+	crypto_hash_sha256_final(hash_state, hash_key);
+	char key[65];
+	sodium_bin2hex(key, 65, hash_key, 32);
+
+	np_key_t* search_key = key_create_from_hash((const unsigned char*) key);
+	LOCK_CACHE(state) {
+		if (NULL == (my_identity_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
+			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
+			my_identity_key = search_key;
+			np_ref_obj(np_key_t, my_identity_key);
+	    } else {
+	    	np_free_obj(np_key_t, search_key);
+	    }
+	}
+	if (NULL != state->my_identity) {
+		np_unref_obj(np_key_t, state->my_identity);
+		np_free_obj(np_key_t, state->my_identity);
+	}
+
+	state->my_identity = my_identity_key;
+	np_ref_obj(np_key_t, my_identity_key);
+
+    // create encryption parameter
+	crypto_sign_keypair(identity->public_key, identity->private_key);
+}
 
 void np_set_mx_property(np_state_t* state, char* subject, const char* key, np_jval_t value)
 {
@@ -159,7 +194,7 @@ void np_send (np_state_t* state, char* subject, char *data, uint32_t seqnum)
 	np_new_obj(np_message_t, msg);
 
 	jrb_insert_str(msg->header, NP_MSG_HEADER_SUBJECT, new_jval_s((char*) subject));
-	jrb_insert_str(msg->header, NP_MSG_HEADER_FROM, new_jval_s((char*) key_get_as_string(state->my_key)));
+	jrb_insert_str(msg->header, NP_MSG_HEADER_FROM, new_jval_s((char*) key_get_as_string(state->my_node_key)));
 	jrb_insert_str(msg->body,   NP_MSG_BODY_TEXT, new_jval_s(data));
 
 	jrb_insert_str(msg->properties, NP_MSG_INST_SEQ, new_jval_ul(seqnum));
@@ -199,8 +234,9 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 	{	// first check or wait for available messages
 		if (0 == sll_size(msg_prop->msg_cache)) {
 			LOCK_CACHE(msg_prop) {
+				log_msg(LOG_DEBUG, "waiting for signal that a new message arrived %p", msg_prop);
 				pthread_cond_wait(&msg_prop->msg_received, &msg_prop->lock);
-				log_msg(LOG_DEBUG, "received signal that a new message arrived", msg_prop);
+				log_msg(LOG_DEBUG, "received signal that a new message arrived %p", msg_prop);
 			}
 		}
 		msg = sll_first(msg_prop->msg_cache)->val;
@@ -217,6 +253,8 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 		msg_received = TRUE;
 
 	} while (FALSE == msg_received);
+
+	msg_prop->msg_threshold--;
 
 	// in receive function, we can only receive one message per call, different for callback function
 	log_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache));
@@ -279,11 +317,11 @@ void np_send_ack(np_state_t* state, np_message_t* in_msg) {
 		np_msgproperty_t* prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
 
 		np_new_obj(np_message_t, ack_msg);
-		np_message_create(ack_msg, ack_key, state->my_key, NP_MSG_ACK, NULL);
+		np_message_create(ack_msg, ack_key, state->my_node_key, NP_MSG_ACK, NULL);
 		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_ACK, new_jval_ush(prop->ack_mode));
 		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_SEQ, new_jval_ul(seq));
 		// send the ack out
-		job_submit_msg_event(state->jobq, prop, ack_key, ack_msg);
+		job_submit_msg_event(state->jobq, 0.0, prop, ack_key, ack_msg);
 		np_free_obj(np_key_t, ack_key);
 	}
 
@@ -300,11 +338,11 @@ void np_ping (np_state_t* state, np_key_t* key)
     np_message_t* out_msg;
 
     np_new_obj(np_message_t, out_msg);
-    np_message_create (out_msg, key, state->my_key, NP_MSG_PING_REQUEST, NULL);
+    np_message_create (out_msg, key, state->my_node_key, NP_MSG_PING_REQUEST, NULL);
     log_msg(LOG_DEBUG, "ping request to: %s", key_get_as_string(key));
 
     np_msgproperty_t* prop = np_message_get_handler(state, OUTBOUND, NP_MSG_PING_REQUEST);
-	job_submit_msg_event(state->jobq, prop, key, out_msg);
+	job_submit_msg_event(state->jobq, 0.0, prop, key, out_msg);
 }
 
 /**
@@ -345,42 +383,38 @@ np_state_t* np_init(char* proto, char* port)
 
     pthread_mutex_init (&state->lock, NULL);
 
-    if (gethostname (name, 256) != 0)
-	{
-    	log_msg(LOG_ERROR, "neuropil_init: gethostname: %s", strerror (errno));
-    	exit(1);
-	}
-
 	char* np_service = "3141";
 	uint8_t np_proto = UDP | IPv6;
 
 	if (NULL != port)
 		np_service = port;
-
 	if (NULL != proto) {
 		np_proto = np_parse_protocol_string(proto);
-		log_msg(LOG_DEBUG, "now initializing networking for %s:%s:%s", proto, name, np_service);
+		log_msg(LOG_DEBUG, "now initializing networking for %s:%s", proto, np_service);
 	} else {
-		log_msg(LOG_DEBUG, "now initializing networking for udp6://%s:%s", name, np_service);
+		log_msg(LOG_DEBUG, "now initializing networking for udp6://%s", np_service);
 	}
 
-    state->my_key = key_create_from_hostport(name, np_service);
-    np_ref_obj(np_key_t, state->my_key);
-
-	log_msg(LOG_WARN, "node_key %p", state->my_key);
-	SPLAY_INSERT(spt_key, &state->key_cache, state->my_key);
-
-    np_node_t* me;
+	np_node_t* me;
     np_new_obj(np_node_t, me);
 
-    state->my_key->node = me;
     // listen on all network interfaces
-	state->my_key->node->network = network_init(TRUE, np_proto, "", np_service);
-	if (NULL == state->my_key->node->network) {
+	me->network = network_init(TRUE, np_proto, NULL, np_service);
+	if (NULL == me->network->addr_in) {
     	log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
 	    exit(1);
 	}
-	np_node_update(me, np_proto, name, np_service);
+	np_node_update(me, np_proto, me->network->addr_in->ai_canonname, np_service);
+	log_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
+			           np_get_protocol_string(me->protocol), me->dns_name, me->port);
+
+	state->my_node_key = key_create_from_hostport(me->dns_name, me->port);
+    np_ref_obj(np_key_t, state->my_node_key);
+
+	log_msg(LOG_WARN, "node_key %p", state->my_node_key);
+	SPLAY_INSERT(spt_key, &state->key_cache, state->my_node_key);
+
+    state->my_node_key->node = me;
 
     // create a new token for encryption each time neuropil starts
     np_aaatoken_t* auth_token;
@@ -389,15 +423,19 @@ np_state_t* np_init(char* proto, char* port)
     crypto_sign_keypair(auth_token->public_key, auth_token->private_key);   // ed25519
     // crypto_scalarmult_base(); // curve25519
 
-	strncpy(auth_token->issuer, (char*) key_get_as_string(state->my_key), 255);
+	strncpy(auth_token->issuer, (char*) key_get_as_string(state->my_node_key), 255);
 	// TODO: aaa subject should be user set-able, could also be another name
 	snprintf(auth_token->subject, 255, "%s:%s", name, port);
     auth_token->valid = 1;
 
-    state->my_key->authentication = auth_token;
+    state->my_node_key->authentication = auth_token;
+
+    // set and ref additional identity
+    state->my_identity = state->my_node_key;
+    np_ref_obj(np_key_t, state->my_identity);
 
     // initialize routing table
-    state->routes = route_init (state->my_key);
+    state->routes = route_init (state->my_node_key);
     if (state->routes == NULL)
 	{
     	log_msg(LOG_ERROR, "neuropil_init: route_init failed: %s", strerror (errno));
@@ -413,7 +451,7 @@ np_state_t* np_init(char* proto, char* port)
 	}
 
     // initialize message handling system
-    message_init (state);
+    _np_message_init (state);
     if (state->msg_tokens == NULL)
 	{
     	log_msg(LOG_ERROR, "neuropil_init: message_init failed: %s", strerror (errno));
@@ -422,15 +460,15 @@ np_state_t* np_init(char* proto, char* port)
 
     // initialize real network layer last
     // initialize network reading
-    job_submit_event(state->jobq, np_network_read);
+    job_submit_event(state->jobq, 0.0, np_network_read);
     // initialize retransmission of packets
-    job_submit_event(state->jobq, np_retransmit_messages);
+    job_submit_event(state->jobq, 0.0, np_retransmit_messages);
     // start leafset checking jobs
-    job_submit_event(state->jobq, np_check_leafset);
-    job_submit_event(state->jobq, np_write_log);
-    job_submit_event(state->jobq, np_retransmit_tokens);
+    job_submit_event(state->jobq, 0.0, np_check_leafset);
+    job_submit_event(state->jobq, 0.0, np_write_log);
+    job_submit_event(state->jobq, 0.0, np_retransmit_tokens);
 
-	log_msg(LOG_INFO, "neuropil successfully initialized: %s", key_get_as_string(state->my_key));
+	log_msg(LOG_INFO, "neuropil successfully initialized: %s", key_get_as_string(state->my_node_key));
 	log_fflush();
 
 	return state;

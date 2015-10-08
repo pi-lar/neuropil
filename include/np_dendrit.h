@@ -30,6 +30,9 @@ void hnd_msg_in_update (np_state_t* state, np_jobargs_t* args);
 void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args);
 void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args);
 
+void hnd_msg_in_authenticate(np_state_t* state, np_jobargs_t* args);
+void hnd_msg_in_authenticate_reply(np_state_t* state, np_jobargs_t* args);
+
 void np_signal (np_state_t* state, np_jobargs_t* args);
 void np_callback_wrapper(np_state_t* state, np_jobargs_t* args);
 

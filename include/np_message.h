@@ -9,12 +9,12 @@
 
 #include "include.h"
 
-#include "np_memory.h"
-
-#include "np_key.h"
-#include "np_jtree.h"
 #include "jval.h"
 #include "np_container.h"
+#include "np_jtree.h"
+#include "np_key.h"
+#include "np_memory.h"
+#include "np_util.h"
 
 #define NP_MESSAGE_SIZE 65536
 
@@ -47,13 +47,13 @@ np_bool np_message_encrypt_part(np_jtree_t* msg_part, unsigned char* enc_nonce, 
 np_bool np_message_serialize(np_message_t* msg, void* buffer, uint64_t* out_size);
 np_bool np_message_deserialize(np_message_t* msg, void* buffer);
 
-void np_message_setproperties(np_message_t* msg, np_jtree_t* properties);
-void np_message_addpropertyentry(np_message_t*, const char* key, np_jval_t value);
-void np_message_delpropertyentry(np_message_t*, const char* key);
-
 void np_message_setinstruction(np_message_t* msg, np_jtree_t* instructions);
 void np_message_addinstructionentry(np_message_t*, const char* key, np_jval_t value);
 void np_message_delinstructionentry(np_message_t*, const char* key);
+
+void np_message_setproperties(np_message_t* msg, np_jtree_t* properties);
+void np_message_addpropertyentry(np_message_t*, const char* key, np_jval_t value);
+void np_message_delpropertyentry(np_message_t*, const char* key);
 
 void np_message_setbody(np_message_t* msg, np_jtree_t* body);
 void np_message_addbodyentry(np_message_t*, const char* key, np_jval_t value);
@@ -96,20 +96,20 @@ typedef enum np_msg_mep_enum {
 	ANY_SENDER = 0x040,           // - many to   communication // sender is a set of identities
 	// add-on message processing instructions
 	FILTER_MSG = 0x100,           // filter a message with a given callback function (?)
-	HAS_REPLY = 0x200,            // check reply_to field of the incoming message for a subject based reply
-	STICKY_REPLY = 0x300,         // check reply_to filed of the incoming message for a hash based reply
+	HAS_REPLY = 0x200,            // check reply_to field of the incoming message for a subject hash based reply
+	STICKY_REPLY = 0x300,         // check reply_to filed of the incoming message for a node hash based reply
 
 	// possible combinations
 	// ONE to ONE
 	ONE_WAY = SINGLE_SENDER | SINGLE_RECEIVER,
-	ONE_WAY_WITH_REPLY = ONE_WAY | HAS_REPLY,
-	ONE_WAY_WITH_STICKY_REPLY = ONE_WAY | STICKY_REPLY,
+	// ONE_WAY_WITH_REPLY = ONE_WAY | HAS_REPLY, // not possible, only one single sender
+	ONE_WAY_WITH_REPLY = ONE_WAY | STICKY_REPLY,
 	// ONE to GROUP
 	ONE_TO_GROUP = SINGLE_SENDER | GROUP_RECEIVER,
-	O2G_WITH_REPLY = ONE_TO_GROUP | HAS_REPLY,
+	O2G_WITH_REPLY = ONE_TO_GROUP | STICKY_REPLY,
 	// ONE to ANY
 	ONE_TO_ANY = SINGLE_SENDER | ANY_RECEIVER,
-	O2A_WITH_REPLY = ONE_TO_ANY | HAS_REPLY,
+	O2A_WITH_REPLY = ONE_TO_ANY | STICKY_REPLY,
 	// GROUP to GROUP
 	GROUP_TO_GROUP = GROUP_SENDER | GROUP_RECEIVER,
 	G2G_WITH_REPLY = GROUP_TO_GROUP | HAS_REPLY,
@@ -128,7 +128,7 @@ typedef enum np_msg_mep_enum {
 	A2G_STICKY_REPLY = A2G_WITH_REPLY | STICKY_REPLY,
 
 	// human readable and more "speaking" combinations
-	REQ_REP   = ONE_WAY_WITH_REPLY, // - allows to build clusters of stateless services to process user requests
+	REQ_REP   = ONE_WAY_WITH_REPLY, // - allows to build clusters of stateless services to process requests
 	PIPELINE  = ONE_TO_GROUP,       // - splits up messages to a set of nodes / load balancing among many destinations
 	AGGREGATE = O2A_WITH_REPLY,     // - aggregates messages from multiple sources and them among many destinations
 	MULTICAST = GROUP_TO_GROUP | FILTER_MSG,
@@ -152,7 +152,7 @@ typedef enum np_msg_ack_enum {
 	ACK_NONE = 0x00, // 0000 0000  - don't ack at all
 	ACK_EACHHOP = 0x01, // 0000 0001 - each hop has to send a ack to the previous hop
 	ACK_DESTINATION = 0x02, // 0000 0010 - message destination ack to message sender across multiple nodes
-	ACK_CLIENT = 0x04,     // 0000 1000 - message to sender ack after/during processing the message on receiver side
+	ACK_CLIENT = 0x04,     // 0000 0100 - message to sender ack after/during processing the message on receiver side
 } np_msg_ack_type;
 
 
@@ -171,10 +171,11 @@ struct np_msgproperty_s {
 	np_msg_mode_type msg_mode;
 	np_msg_mep_type  mep_type;
 	np_msg_ack_type  ack_mode;
+	double           ttl;
 	uint8_t          priority;
-	uint8_t          retry;
-	uint16_t         msg_threshold;
-	uint16_t         max_threshold;
+	uint8_t          retry; // the # of retries when sending a message
+	uint16_t         msg_threshold; // current cache size
+	uint16_t         max_threshold; // local cache size
 
 	// timestamp for cleanup thread
 	double          last_update;
@@ -195,75 +196,88 @@ struct np_msgproperty_s {
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
 
+_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, max_threshold, uint16_t);
+_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, retry, uint8_t);
+_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, priority, uint8_t);
+_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, ttl, double);
+_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, msg_mode, np_msg_mode_type);
+_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mep_type, np_msg_mep_type);
+_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, ack_mode, np_msg_ack_type);
+_NP_GENERATE_PROPERTY_SETSTR(np_msgproperty_t, group_id);
+_NP_GENERATE_PROPERTY_SETSTR(np_msgproperty_t, msg_subject);
 
-#define DEFAULT_SEQNUM 0
+
 #define RETRANSMIT_THREAD_SLEEP 1.0
 #define RETRANSMIT_INTERVAL 5
-#define MAX_RETRY 3
 
+// TODO: how can this be moved to a list of constants
 #define DEFAULT "_NP.DEFAULT"
 #define ROUTE_LOOKUP "_NP.ROUTE.LOOKUP"
-
 #define NP_MSG_ACK "_NP.ACK"
 #define NP_MSG_HANDSHAKE "_NP.HANDSHAKE"
-
 #define NP_MSG_PING_REQUEST "_NP.PING.REQUEST"
 #define NP_MSG_PING_REPLY "_NP.PING.REPLY"
-
 #define NP_MSG_JOIN_REQUEST "_NP.JOIN.REQUEST"
 #define NP_MSG_JOIN_ACK "_NP.JOIN.ACK"
 #define NP_MSG_JOIN_NACK "_NP.JOIN.NACK"
-
 #define NP_MSG_PIGGY_REQUEST "_NP.NODES.PIGGY"
 #define NP_MSG_UPDATE_REQUEST "_NP.NODES.UPDATE"
-
 #define NP_MSG_INTEREST "_NP.MESSAGE.INTEREST"
 #define NP_MSG_INTEREST_REJECT "_NP.MESSAGE.INTEREST.REJECTION"
 #define NP_MSG_AVAILABLE "_NP.MESSAGE.AVAILABILITY"
+#define NP_MSG_AUTHENTICATION_REQUEST "_NP.MESSAGE.AUTHENTICATE"
 
 // msg header constants
-static const char* NP_MSG_HEADER_SUBJECT   = "subject";
-static const char* NP_MSG_HEADER_TO        = "address";
-static const char* NP_MSG_HEADER_FROM      = "from";
-static const char* NP_MSG_HEADER_REPLY_TO  = "reply_to";
+static const char* NP_MSG_HEADER_SUBJECT   = "_np.subj";
+static const char* NP_MSG_HEADER_TO        = "_np.to";
+static const char* NP_MSG_HEADER_FROM      = "_np.from";
+static const char* NP_MSG_HEADER_REPLY_TO  = "_np.r_to";
 
 // msg instructions constants
-static const char* NP_MSG_INST_RESEND_COUNT = "_np.resend_count";
-static const char* NP_MSG_INST_PART = "_np.part";
-static const char* NP_MSG_INST_ACK = "_np.ack";
-static const char* NP_MSG_INST_ACK_TO = "_np.ack_to";
-static const char* NP_MSG_INST_SEQ = "_np.seq";
-static const char* NP_MSG_INST_UUID = "_np.uuid";
+static const char* NP_MSG_INST_RESEND_COUNT = "_np.resend";
+static const char* NP_MSG_INST_PART         = "_np.part";
+static const char* NP_MSG_INST_PARTS        = "_np.parts";
+static const char* NP_MSG_INST_ACK          = "_np.ack";
+static const char* NP_MSG_INST_ACK_TO       = "_np.ack_to";
+static const char* NP_MSG_INST_SEQ          = "_np.seq";
+static const char* NP_MSG_INST_UUID         = "_np.uuid";
+static const char* NP_MSG_INST_TTL          = "_np.ttl";
+static const char* NP_MSG_INST_TSTAMP       = "_np.tstamp";
 
 // msg handshake constants
 static const char* NP_HS_PAYLOAD = "_np.payload";
 static const char* NP_HS_SIGNATURE = "_np.signature";
 
 // body constants
+static const char* NP_MSG_BODY_JTREE = "_np.jtree";
 static const char* NP_MSG_BODY_TEXT = "_np.text";
 static const char* NP_MSG_BODY_XML = "_np.xml";
 
 // encrypted message part
+static const char* NP_NONCE = "_np.nonce";
 static const char* NP_ENCRYPTED = "_np.encrypted";
+static const char* NP_SYMKEY = "_np.symkey";
 
 // msg footer constants
 static const char* NP_MSG_FOOTER_ALIAS_KEY = "_np.alias_key";
+static const char* NP_MSG_FOOTER_GARBAGE = "_np.garbage";
 
 
 /**
- ** message_init: chstate, port
+ ** message_init
  ** Initialize messaging subsystem on port and returns the MessageGlobal * which 
  ** contains global state of message subsystem.
- ** message_init also initiate the network subsystem
  **/
-void message_init (np_state_t* state);
+void _np_message_init (np_state_t* state);
 
-// compare two msg properties for rb cache management
-int16_t property_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2);
+/**
+ ** compare two msg properties for rb cache management
+ **/
+int16_t _np_property_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2);
 
 /** np_message_register_handler
- *  registers the handler function #func# with the message type #type#,
- *  it also defines the acknowledgment requirement for this type
+ ** registers the handler function #func# with the message type #type#,
+ ** it also defines the acknowledgment requirement for this type
  **/
 void np_message_register_handler (np_state_t *state, np_msgproperty_t* msgprops);
 
@@ -271,9 +285,6 @@ void np_message_register_handler (np_state_t *state, np_msgproperty_t* msgprops)
  *  return a handler for a given message subject
  **/
 np_msgproperty_t* np_message_get_handler (np_state_t *state, np_msg_mode_type msg_mode, const char* subject);
-
-np_msgproperty_t* np_decode_msg_property(np_jtree_t* data);
-void np_encode_msg_property(np_jtree_t *data, np_msgproperty_t *interest);
 
 
 #endif /* _NP_MESSAGE_H_ */

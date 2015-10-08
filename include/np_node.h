@@ -44,9 +44,11 @@ struct np_node_s
 	// statistics
     // int failed;
     double failuretime;
+    // double last_loss;
+    double last_success;
     double latency;
-    double loss;
-    double success;
+    double latency_win[SUCCESS_WINDOW];
+    uint8_t latency_win_index;
     uint8_t success_win[SUCCESS_WINDOW];
     uint8_t success_win_index;
     float success_avg;
@@ -67,6 +69,7 @@ void np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port);
  ** updates the success rate to the np_node based on the SUCCESS_WINDOW average
  **/
 void np_node_update_stat (np_node_t* np_node, uint8_t success);
+void np_node_update_latency (np_node_t* node, double new_latency);
 
 /** np_node_decode routines
  ** decodes a string into a neuropil np_node structure, including lookup to the global key tree
