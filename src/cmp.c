@@ -1569,7 +1569,8 @@ np_bool cmp_read_str(cmp_ctx_t *ctx, char *data, uint32_t *size) {
   return true;
 }
 
-np_bool cmp_read_bin_size(cmp_ctx_t *ctx, uint32_t *size) {
+np_bool cmp_read_bin_size(cmp_ctx_t *ctx, uint32_t *size)
+{
   cmp_object_t obj;
 
   if (!cmp_read_object(ctx, &obj))

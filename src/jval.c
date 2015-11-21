@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
 
@@ -91,7 +92,13 @@ char* jval_to_str(np_jval_t val) {
   				snprintf(result, len+1, "%llu", val.value.ull);
   			}
 			break;
-// 		case int_array_2_type:    byte_size += 1 + 2*sizeof(int); break;
+ 		case uint_array_2_type:
+  			len = snprintf(NULL, 0, "%u%u", val.value.a2_ui[0], val.value.a2_ui[1]);
+  			if (0 < len) {
+  				result = malloc(len+1);
+  				snprintf(result, len+1, "%u%u", val.value.a2_ui[0], val.value.a2_ui[1]);
+  			}
+ 			break;
 // 		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
 // 		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
 // 		case unsigned_char_array_8_type: byte_size += 1 +8*sizeof(unsigned char); break;
@@ -113,112 +120,124 @@ char* jval_to_str(np_jval_t val) {
 	}
 	return result;
 }
-void copy_jval(np_jval_t* from, np_jval_t* to) {
-	// assert(from->type == to->type);
 
-	switch(from->type) {
+np_jval_t copy_of_jval(np_jval_t from)
+{
+	np_jval_t to;
+
+	switch(from.type) {
 		// length is always 1 (to identify the type) + the length of the type
   		case short_type:
-			to->type = short_type;
-			to->value.sh = from->value.sh;
-			to->size = sizeof(int8_t);
+			to.type = short_type;
+			to.value.sh = from.value.sh;
+			to.size = sizeof(int8_t);
 			break;
 		case int_type:
-			to->type = int_type;
-			to->value.i = from->value.i;
-			to->size = sizeof(int16_t);
+			to.type = int_type;
+			to.value.i = from.value.i;
+			to.size = sizeof(int16_t);
 			break;
 		case long_type:
-			to->type = long_type;
-			to->value.l = from->value.l;
-			to->size = sizeof(int32_t);
+			to.type = long_type;
+			to.value.l = from.value.l;
+			to.size = sizeof(int32_t);
 			break;
 		case long_long_type:
-			to->type = long_long_type;
-			to->value.ll = from->value.ll;
-			to->size = sizeof(int64_t);
+			to.type = long_long_type;
+			to.value.ll = from.value.ll;
+			to.size = sizeof(int64_t);
 			break;
  		case float_type:
-			to->type = float_type;
-			to->value.f = from->value.f;
-			to->size = sizeof(float);
+			to.type = float_type;
+			to.value.f = from.value.f;
+			to.size = sizeof(float);
 			break;
 		case double_type:
-			to->type = double_type;
-			to->value.d = from->value.d;
-			to->size = sizeof(double);
+			to.type = double_type;
+			to.value.d = from.value.d;
+			to.size = sizeof(double);
 			break;
 		case char_ptr_type:
-			// if (0 < to->size && char_ptr_type == to->type) free(to->value.s);
-			to->type = char_ptr_type;
-			to->value.s = strndup(from->value.s, from->size);
-			to->size = from->size;
+			to.type = char_ptr_type;
+			to.value.s = strndup(from.value.s, strlen(from.value.s));
+			to.size = strlen(from.value.s);
 			break;
 		case char_type:
-			to->type = char_type;
-			to->value.c = from->value.c;
-			to->size = sizeof(char);
+			to.type = char_type;
+			to.value.c = from.value.c;
+			to.size = sizeof(char);
 			break;
 		case unsigned_char_type:
-			to->type = unsigned_char_type;
-			to->value.uc = from->value.uc;
-			to->size = sizeof(unsigned char);
+			to.type = unsigned_char_type;
+			to.value.uc = from.value.uc;
+			to.size = sizeof(unsigned char);
 			break;
  		case unsigned_short_type:
- 			to->type = unsigned_short_type;
- 			to->value.ush = from->value.ush;
- 			to->size = sizeof(uint8_t);
+ 			to.type = unsigned_short_type;
+ 			to.value.ush = from.value.ush;
+ 			to.size = sizeof(uint8_t);
  			break;
  		case unsigned_int_type:
-			to->type = unsigned_int_type;
-			to->value.ui = from->value.ui;
-			to->size = sizeof(uint16_t);
+			to.type = unsigned_int_type;
+			to.value.ui = from.value.ui;
+			to.size = sizeof(uint16_t);
 			break;
 		case unsigned_long_type:
-			to->type = unsigned_long_type;
-			to->value.ul = from->value.ul;
-			to->size = sizeof(uint32_t);
+			to.type = unsigned_long_type;
+			to.value.ul = from.value.ul;
+			to.size = sizeof(uint32_t);
 			break;
 		case unsigned_long_long_type:
-			to->type = unsigned_long_long_type;
-			to->value.ull = from->value.ull;
-			to->size = sizeof(uint64_t);
+			to.type = unsigned_long_long_type;
+			to.value.ull = from.value.ull;
+			to.size = sizeof(uint64_t);
 			break;
-// 		case int_array_2_type:    byte_size += 1 + 2*sizeof(int); break;
+ 		case uint_array_2_type:
+			to.type = uint_array_2_type;
+			to.value.a2_ui[0] = from.value.a2_ui[0];
+			to.value.a2_ui[1] = from.value.a2_ui[1];
+			to.size = 2*sizeof(uint16_t);
+ 			break;
 // 		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
 // 		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
 // 		case unsigned_char_array_8_type: byte_size += 1 +8*sizeof(unsigned char); break;
- 		case void_type:
-			to->type = void_type;
-			to->value.v = from->value.v;
-			to->size = from->size;
-			break;
  		case bin_type:
- 			// if (0 < to->size && bin_type == to->type) free (to->value.bin);
-			to->type = bin_type;
-			to->value.bin = malloc(from->size);
- 		    memset(to->value.bin, 0, from->size);
- 		    memcpy(to->value.bin, from->value.bin, from->size);
-			to->size = from->size;
+ 			// if (0 < to.size && bin_type == to.type) free (to.value.bin);
+			to.type = bin_type;
+			to.value.bin = malloc(from.size);
+ 		    memset(to.value.bin, 0, from.size);
+ 		    memcpy(to.value.bin, from.value.bin, from.size);
+			to.size = from.size;
 			break;
  		case jrb_tree_type:
- 			// np_free_tree(from->value.tree);
-			to->type = jrb_tree_type;
-			to->value.tree = from->value.tree;
-			to->size = from->size;
+ 			to.type = jrb_tree_type;
+			to.size = from.size;
+ 			to.value.tree = make_jtree();
+ 			np_jtree_elem_t* tmp = NULL;
+ 			RB_FOREACH(tmp, np_jtree, from.value.tree)
+ 			{
+ 				if (tmp->key.type == char_ptr_type)      jrb_insert_str(to.value.tree, tmp->key.value.s, tmp->val);
+ 				if (tmp->key.type == int_type)           jrb_insert_int(to.value.tree, tmp->key.value.i, tmp->val);
+ 				if (tmp->key.type == double_type)        jrb_insert_dbl(to.value.tree, tmp->key.value.d, tmp->val);
+ 				if (tmp->key.type == unsigned_long_type) jrb_insert_ulong(to.value.tree, tmp->key.value.ul, tmp->val);
+ 			}
 			break;
 		case key_type:
-			np_unref_obj(np_key_t, to->value.key);
-			to->type = key_type;
-			to->value.key = from->value.key;
-			to->size = sizeof(np_key_t);
-			np_ref_obj(np_key_t, to->value.key);
+			to.type = key_type;
+			to.value.key = from.value.key;
+			to.size = sizeof(np_key_t);
+			// np_ref_obj(np_key_t, to.value.key);
+			break;
+ 		case void_type:
+			to.type = void_type;
+			to.value.v = from.value.v;
+			to.size = from.size;
 			break;
 		default:
-			log_msg(LOG_WARN, "unsupported copy operation for jval type %hhd", from->type);
+			log_msg(LOG_WARN, "unsupported copy operation for jval type %hhd", from.type);
 			break;
 	}
-
+	return to;
 }
 
 np_jval_t new_jval_i (int16_t i)
@@ -278,7 +297,7 @@ np_jval_t new_jval_s (char *s)
 {
     np_jval_t j;
     j.size = strlen(s);
-    j.value.s = strndup(s, j.size);
+    j.value.s = s; // strndup(s, j.size);
     j.type = char_ptr_type;
     return j;
 }
@@ -350,9 +369,9 @@ np_jval_t new_jval_bin (void* data, uint32_t ul)
 {
     np_jval_t j;
 
-    j.value.bin = malloc(ul);
-    memset(j.value.bin, 0, ul);
-    memcpy(j.value.bin, data, ul);
+    j.value.bin = data; // malloc(ul);
+    // memset(j.value.bin, 0, ul);
+    // memcpy(j.value.bin, data, ul);
 
     j.size = ul;
     j.type = bin_type;
@@ -367,17 +386,17 @@ np_jval_t new_jval_key (np_key_t* key)
     j.value.key = key;
     j.size = sizeof(key);
     j.type = key_type;
-    np_ref_obj(np_key_t, key);
+    // np_ref_obj(np_key_t, key);
     return j;
 }
 
-np_jval_t new_jval_iarray (int16_t i0, int16_t i1)
+np_jval_t new_jval_iarray (uint16_t i0, uint16_t i1)
 {
     np_jval_t j;
-    j.value.iarray[0] = i0;
-    j.value.iarray[1] = i1;
-    j.type = int_array_2_type;
-    j.size = 2*sizeof(int16_t);
+    j.value.a2_ui[0] = i0;
+    j.value.a2_ui[1] = i1;
+    j.type = uint_array_2_type;
+    j.size = 2*sizeof(uint16_t);
     return j;
 }
 
@@ -503,10 +522,10 @@ uint64_t jval_ull (np_jval_t j)
     return j.value.ull;
 }
 
-int16_t* jval_iarray (np_jval_t j)
-{
-    return j.value.iarray;
-}
+//int16_t* jval_iarray (np_jval_t j)
+//{
+//    return j.value.a2_ui;
+//}
 
 float* jval_farray (np_jval_t j)
 {

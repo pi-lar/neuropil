@@ -1,9 +1,9 @@
-/*
- ** $Id: message.c,v 1.37 2007/04/04 00:04:49 krishnap Exp $
- **
- ** Matthew Allen
- ** description:
- */
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  header only implementation to manage heap objects
+ *  taking the generating approach using the c preprocessor
+ *  Stephan Schwichtenberg
+ **/
 #include <pthread.h>
 
 #include "np_memory.h"

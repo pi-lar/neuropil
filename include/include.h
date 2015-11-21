@@ -17,6 +17,12 @@ typedef enum {
 
 #define crypto_bytes crypto_box_PUBLICKEYBYTES
 
+static const int MSG_ARRAY_SIZE = 1;
+static const int MSG_PAYLOADBIN_SIZE = 15;
+static const int MSG_FOOTERBIN_SIZE = 10;
+static const int MSG_CHUNK_SIZE_1024 = 1024;
+static const int MSG_ENCRYPTION_BYTES_40 = 40;
+
 // memory management
 typedef struct np_obj_pool_s np_obj_pool_t;
 typedef struct np_obj_s np_obj_t;
@@ -34,6 +40,7 @@ typedef struct np_routeglobal_t np_routeglobal_t;
 // message
 typedef struct np_messageglobal_s np_messageglobal_t;
 typedef struct np_message_s np_message_t;
+typedef struct np_messagepart_s np_messagepart_t;
 typedef struct np_msgcache_s np_msgcache_t;
 typedef struct np_msgproperty_s np_msgproperty_t;
 typedef struct np_msginterest_s np_msginterest_t;

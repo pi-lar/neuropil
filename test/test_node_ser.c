@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "pthread.h"
 
 #include "np_memory.h"

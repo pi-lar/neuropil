@@ -1,3 +1,7 @@
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  Stephan Schwichtenberg
+ **/
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
@@ -47,6 +51,20 @@
  **/
 void hnd_msg_out_ack(np_state_t* state, np_jobargs_t* args) {
 
+	char* uuid = np_create_uuid(args->properties->msg_subject, 0);
+	jrb_insert_str(args->msg->instructions, NP_MSG_INST_UUID, new_jval_s(uuid));
+	free(uuid);
+
+	jrb_insert_str(args->msg->instructions, NP_MSG_INST_PARTS, new_jval_iarray(1, 1));
+
+	// chunking for 1024 bit message size
+	np_message_calculate_chunking(args->msg);
+
+	np_jobargs_t* chunk_args = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
+	chunk_args->msg = args->msg;
+	np_message_serialize_chunked(state, chunk_args);
+	free(chunk_args);
+
 	network_send_udp(state, args->target, args->msg);
 	// ret is 1 or 0
 	// np_node_update_stat(target_node, ret);
@@ -64,11 +82,13 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	uint32_t seq = 0;
 	np_message_t* msg_out = args->msg;
 
-	double start = dtime();
-	uint16_t parts = 1;
+	np_bool is_resend = args->is_resend;
+	np_bool is_forward = args->msg->is_single_part;
 	np_bool ack_to_is_me = FALSE;
-	uint8_t ack_mode = ACK_NONE;
 	np_bool ack_mode_from_msg = FALSE;
+
+	uint8_t ack_mode = ACK_NONE;
+	char* uuid = NULL;
 
 	np_msgproperty_t* prop = args->properties;
 	np_network_t* network = state->my_node_key->node->network;
@@ -81,8 +101,26 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 		return;
 	}
 
-	/* create network header */
-	pthread_mutex_lock(&(network->lock));
+	// check ack indicator if this is a resend of a message
+	if (TRUE == is_resend) {
+		uuid = jrb_find_str(msg_out->instructions, NP_MSG_INST_UUID)->val.value.s;
+
+		pthread_mutex_lock(&network->lock);
+		// log_msg(LOG_DEBUG, "checking %p for acknowledgment", network->waiting);
+
+		// first find the uuid if not yet present
+		if (NULL == jrb_find_str(network->waiting, uuid)) {
+			log_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
+			// np_unref_obj(np_message_t, args->msg);
+			np_free_obj(np_message_t, args->msg);
+			log_msg(LOG_TRACE, ".end  .hnd_msg_out_send");
+			pthread_mutex_unlock(&network->lock);
+			return;
+		} else {
+			log_msg(LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
+		}
+		pthread_mutex_unlock(&network->lock);
+	}
 
 	// find correct ack_mode, inspect message first because of forwarding
 	if (NULL == jrb_find_str(msg_out->instructions, NP_MSG_INST_ACK)) {
@@ -101,30 +139,36 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	} else if ( 0 < (ack_mode & ACK_DESTINATION) || 0 < (ack_mode & ACK_CLIENT) ) {
 		// only set ack_to for these two ack mode values if not yet set !
 		jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s((char*) ack_to_str));
-		if (FALSE == ack_mode_from_msg)
-			ack_to_is_me = TRUE;
+		if (FALSE == ack_mode_from_msg) ack_to_is_me = TRUE;
 	} else {
 		ack_to_is_me = FALSE;
 	}
 
-	/* get/set sequence number to initialize acknowledgement indicator correctly */
-	if (TRUE == ack_to_is_me) {
+	jrb_insert_str(msg_out->instructions, NP_MSG_INST_SEQ, new_jval_ul(0));
+	if (TRUE == ack_to_is_me && FALSE == is_resend)
+	{
+		pthread_mutex_lock(&network->lock);
+		/* get/set sequence number to initialize acknowledgement indicator correctly */
 		seq = network->seqend;
 		jrb_replace_str(msg_out->instructions, NP_MSG_INST_SEQ, new_jval_ul(seq));
 		network->seqend++;
-
-		np_ackentry_t *ackentry = get_new_ackentry();
-		jrb_insert_ulong(network->waiting, seq, new_jval_v(ackentry));
-
-	} else {
-		jrb_insert_str(msg_out->instructions, NP_MSG_INST_SEQ, new_jval_ul(0));
+		pthread_mutex_unlock(&network->lock);
 	}
 
-	pthread_mutex_unlock(&(network->lock));
-
 	// insert a uuid if not yet present
-	char* new_uuid = np_create_uuid(args->properties->msg_subject, seq);
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_jval_s(new_uuid));
+	uuid = np_create_uuid(args->properties->msg_subject, seq);
+
+	jrb_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_jval_s(uuid));
+	free(uuid);
+
+	// log_msg(LOG_DEBUG, "message ttl %s (tstamp: %f / ttl: %f) %s", uuid, now, args->properties->ttl, args->properties->msg_subject);
+
+	// set resend count to zero if not yet present
+	jrb_insert_str(msg_out->instructions, NP_MSG_INST_SEND_COUNTER, new_jval_ush(0));
+	// increase resend count by one
+	// TODO: forwarding of message will also increase resend counter, ok ?
+	np_jtree_elem_t* jrb_send_counter = jrb_find_str(msg_out->instructions, NP_MSG_INST_SEND_COUNTER);
+	jrb_send_counter->val.value.ush++;
 
 	// insert timestamp and time-to-live
 	double now = dtime();
@@ -132,50 +176,57 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	now += args->properties->ttl;
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_TTL, new_jval_d(now));
 
-	// log_msg(LOG_DEBUG, "message ttl %s (tstamp: %f / ttl: %f) %s", new_uuid, now, args->properties->ttl, args->properties->msg_subject);
-
-	free(new_uuid);
-
-	// set resend count to zero if not yet present
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_RESEND_COUNT, new_jval_ush(0));
-
-	// TODO: message part split-up informations
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_PARTS, new_jval_ui(parts));
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_PART, new_jval_ui(parts));
+	jrb_insert_str(msg_out->instructions, NP_MSG_INST_PARTS, new_jval_iarray(0, 0));
+	if (FALSE == msg_out->is_single_part) {
+		// dummy message part split-up informations
+		np_message_calculate_chunking(msg_out);
+	}
 
 	if (TRUE == ack_to_is_me)
 	{
+		if (FALSE == is_resend) {
+			uuid = jrb_find_str(msg_out->instructions, NP_MSG_INST_UUID)->val.value.s;
+
+			pthread_mutex_lock(&network->lock);
+			/* get/set sequence number to initialize acknowledgement indicator correctly */
+			np_ackentry_t *ackentry = NULL;
+
+			if (NULL != jrb_find_str(network->waiting, uuid)) {
+				ackentry = (np_ackentry_t*) jrb_find_str(network->waiting, uuid)->val.value.v;
+			} else {
+				ackentry = get_new_ackentry();
+			}
+			ackentry->acked = FALSE;
+			ackentry->transmittime = dtime();
+			ackentry->dest_key = args->target;
+			np_ref_obj(np_key_t, args->target);
+
+			if (TRUE == is_forward) {
+				// single part message can only occur in intermediate hops
+				ackentry->expected_ack++;
+			} else {
+				// full message can only occur when sending the original message
+				ackentry->expected_ack = msg_out->no_of_chunks;
+			}
+
+			jrb_insert_str(network->waiting, uuid, new_jval_v(ackentry));
+			log_msg(LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", network->waiting, uuid);
+			pthread_mutex_unlock(&network->lock);
+		}
+
 		// insert a record into the priority queue with the following information:
-		// key: starttime + next retransmit time
-		// other info: destination host, seq num, data, data size
-		np_prioq_t *pqrecord = get_new_pqentry();
-		pqrecord->dest_key = args->target;
-		pqrecord->msg = args->msg;
-		pqrecord->max_retries = args->properties->retry;
-		pqrecord->retry = 0; // jrb_resend->val.value.ui;
-		pqrecord->seqnum = seq;
-		pqrecord->transmittime = start;
-
-		pthread_mutex_lock(&network->lock);
-		np_ref_obj(np_message_t, args->msg);
-		np_ref_obj(np_key_t, args->target);
-
-		// double retransmit_interval = args->properties->ttl / args->properties->retry;
-		jrb_insert_dbl(network->retransmit,
-					   (start + RETRANSMIT_INTERVAL), new_jval_v(pqrecord));
-		pthread_mutex_unlock(&network->lock);
-		// log_msg(LOG_DEBUG, "ack handling requested for seq %u", seq);
-	} else {
-		// log_msg(LOG_DEBUG, "no ack handling required for seq %u", seq);
+		double retransmit_interval = args->properties->ttl / args->properties->retry;
+		np_msgproperty_t* out_prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+		job_resubmit_msg_event(state->jobq, retransmit_interval, out_prop, args->target, args->msg);
 	}
 
-	char* subj = jrb_find_str(msg_out->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
-	log_msg(LOG_DEBUG, "message %s (%u) to %s", subj, seq, key_get_as_string(args->target));
-	log_msg(LOG_DEBUG, "message part byte sizes: %u %u %u %u %u, total: %u",
-				msg_out->header->byte_size, msg_out->instructions->byte_size,
-				msg_out->properties->byte_size, msg_out->body->byte_size,
-				msg_out->footer->byte_size,
-				msg_out->header->byte_size + msg_out->instructions->byte_size + msg_out->properties->byte_size + msg_out->body->byte_size + msg_out->footer->byte_size);
+	// char* subj = jrb_find_str(msg_out->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
+	// log_msg(LOG_DEBUG, "message %s (%u) to %s", subj, seq, key_get_as_string(args->target));
+	// log_msg(LOG_DEBUG, "message part byte sizes: %lu %lu %lu %lu %lu, total: %lu",
+	// 			msg_out->header->byte_size, msg_out->instructions->byte_size,
+	// 			msg_out->properties->byte_size, msg_out->body->byte_size,
+	// 			msg_out->footer->byte_size,
+	// 			msg_out->header->byte_size + msg_out->instructions->byte_size + msg_out->properties->byte_size + msg_out->body->byte_size + msg_out->footer->byte_size);
 
 	// np_print_tree(msg_out->header, 0);
 	// np_print_tree(msg_out->instructions, 0);
@@ -183,11 +234,21 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	// np_print_tree(msg_out->body, 0);
 	// np_print_tree(msg_out->footer, 0);
 
+	// TODO: do this serialization in parallel in background
+	np_jobargs_t* chunk_args = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
+	chunk_args->msg = msg_out;
+
+	// np_print_tree (msg_out->body, 0);
+	np_message_serialize_chunked(state, chunk_args);
+	free(chunk_args);
+
 	network_send_udp(state, args->target, msg_out);
 	// ret is 1 or 0
 	// np_node_update_stat(target_node, ret);
 
 	np_free_obj(np_message_t, args->msg);
+	np_free_obj(np_key_t, args->target);
+
 	log_msg(LOG_TRACE, ".end  .hnd_msg_out_send");
 }
 
@@ -228,6 +289,8 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	serialize_jrb_node_t(hs_data, &cmp);
 	uint64_t hs_payload_len = cmp.buf-hs_buf_ptr;
 
+	np_free_tree(hs_data);
+
 	// sign the handshake payload with our private key
 	char signature[crypto_sign_BYTES];
 	uint64_t signature_len;
@@ -243,6 +306,9 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	np_message_t* hs_message;
 	np_new_obj(np_message_t, hs_message);
 
+	jrb_insert_str(hs_message->header, NP_MSG_HEADER_SUBJECT, new_jval_s(NP_MSG_HANDSHAKE));
+	jrb_insert_str(hs_message->instructions, NP_MSG_INST_PARTS, new_jval_iarray(1, 1));
+
 	// ... add signature and payload to this message
 	jrb_insert_str(hs_message->body, NP_HS_SIGNATURE,
 			new_jval_bin(signature, (uint32_t) signature_len));
@@ -251,31 +317,28 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	// log_msg(LOG_DEBUG, "payload has length %llu, signature length %llu", hs_payload_len, signature_len);
 
 	// serialize complete encrypted message
-	uint64_t msg_size = 0;
-    char hs_msg[NP_MESSAGE_SIZE];
-    void* hs_msg_ptr = hs_msg;
-	ret = np_message_serialize(hs_message, hs_msg_ptr, &msg_size);
+	// uint64_t msg_size = 0;
+
+    // TODO: do this serialization in parallel in background
+	np_message_calculate_chunking(hs_message);
+
+	np_jobargs_t* chunk_args = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
+	chunk_args->msg = hs_message;
+	ret = np_message_serialize_chunked(state, chunk_args);
 	// log_msg(LOG_DEBUG, "serialized handshake message (%p) msg_size %llu", hs_msg_ptr, msg_size);
+	free(chunk_args);
 
 	// construct target address and send it out
 	np_node_t* hs_node = args->target->node;
+
 	pthread_mutex_lock(&(my_node->network->lock));
 
-//	struct sockaddr_in6 to;
-//	socklen_t to_size = sizeof to;
-//	inet_pton(AF_INET6, hs_node->dns_name, &to.sin6_addr);
-//	to.sin6_family = AF_INET6;
-//	to.sin6_port = htons(atoi(hs_node->port));
-
-	// struct sockaddr* to = hs_node->network->addr_in->ai_addr;
-	// socklen_t to_size = hs_node->network->addr_in->ai_addrlen;
-
 	/* send data if handshake status is still just initialized or less */
-	log_msg(LOG_NETWORKDEBUG,
-			"sending handshake message (length: %llu) to (%s:%s)",
-			msg_size, hs_node->dns_name, hs_node->port);
+	log_msg(LOG_DEBUG,
+			"sending handshake message to (%s:%s)",
+			hs_node->dns_name, hs_node->port);
 
-	ret = send(hs_node->network->socket, hs_msg_ptr, msg_size, 0);
+	ret = send(hs_node->network->socket, pll_first(hs_message->msg_chunks)->val->msg_part, 983, 0);
 	// ret = sendto(my_node->network->socket, hs_msg_ptr, msg_size, 0, to, to_size);
 	if (ret < 0) {
 		log_msg(LOG_ERROR, "send handshake error: %s", strerror (errno));
@@ -284,6 +347,6 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	pthread_mutex_unlock(&my_node->network->lock);
 
 	np_free_obj(np_message_t, hs_message);
-	np_free_tree(hs_data);
+
 	log_msg(LOG_TRACE, ".end  .hnd_msg_out_handshake");
 }

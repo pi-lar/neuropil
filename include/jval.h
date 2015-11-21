@@ -58,7 +58,7 @@ enum {
     unsigned_int_type,
     unsigned_long_type, //
     unsigned_long_long_type,
-    int_array_2_type,
+    uint_array_2_type,
     float_array_2_type, // 15
     char_array_8_type,
     unsigned_char_array_8_type, //
@@ -90,7 +90,7 @@ typedef union jval
     uint16_t ui;
     uint32_t ul;
     uint64_t ull;
-    int16_t iarray[2];
+    uint16_t a2_ui[2];
     float farray[2];
     char carray[8];
     unsigned char ucarray[8];
@@ -102,7 +102,7 @@ struct np_jval_s {
 	jval value;
 };
 
-void copy_jval(np_jval_t* from, np_jval_t* to);
+np_jval_t copy_of_jval(np_jval_t from);
 
 np_jval_t new_jval_sh (int8_t);
 np_jval_t new_jval_i (int16_t);
@@ -119,7 +119,7 @@ np_jval_t new_jval_ush (uint8_t);
 np_jval_t new_jval_ui (uint16_t);
 np_jval_t new_jval_ul (uint32_t);
 np_jval_t new_jval_ull (uint64_t);
-np_jval_t new_jval_iarray (int16_t, int16_t);
+np_jval_t new_jval_iarray (uint16_t, uint16_t);
 np_jval_t new_jval_farray (float, float);
 np_jval_t new_jval_carray_nt (char *);	/* Carray is null terminated */
 np_jval_t new_jval_carray_nnt (char *);	/* Carray is not null terminated */

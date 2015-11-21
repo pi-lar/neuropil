@@ -1,3 +1,8 @@
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  Stephan Schwichtenberg
+ **/
+#include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
@@ -6,7 +11,6 @@
 
 #include "sodium.h"
 
-#include "base.h"
 #include "log.h"
 #include "np_key.h"
 #include "np_jtree.h"
@@ -52,7 +56,7 @@ void key_to_str (np_key_t* k)
     // log_msg (LOG_DEBUG, "key string now: %s", k->keystr);
 }
 
-void str_to_key (np_key_t* k, const unsigned char* key_string)
+void str_to_key (np_key_t* k, const char* key_string)
 {
 	// TODO: this is dangerous, encoding could be different between systems,
 	// encoding has to be send over teh wire to be sure ...
@@ -64,10 +68,10 @@ void str_to_key (np_key_t* k, const unsigned char* key_string)
     k->keystr[64] = '\0';
 
     for (uint8_t i = 0; i < 4; i++) {
-    	unsigned char substring[17];
+    	char substring[17];
     	memcpy(substring, k->keystr + i*16, 16);
     	substring[16] = '\0';
-    	k->t[i] = strtoull((const char*)substring, NULL, 16);
+    	k->t[i] = strtoull((const char*) substring, NULL, 16);
         // log_msg(LOG_KEYDEBUG, "keystr substring to ul: %s -> %ul ", substring, k->t[i]);
     }
     // log_msg(LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
@@ -75,12 +79,12 @@ void str_to_key (np_key_t* k, const unsigned char* key_string)
     k->valid = TRUE;
 }
 
-unsigned char* key_generate_hash (const unsigned char* key_in, size_t digest_size, unsigned char* digest_out)
+char* _key_generate_hash (const unsigned char* key_in, size_t digest_size, char* digest_out)
 {
     unsigned char md_value[32]; //  = (unsigned char *) malloc (32);
-    uint8_t i;
-    char digit[10];
-    unsigned char *tmp;
+    // uint8_t i;
+    // char digit[10];
+    // char *tmp;
 
     // TODO: move it to KECCAK because of possible length extension attack ???
     // TODO: move to SHA-2 at least ?
@@ -93,21 +97,22 @@ unsigned char* key_generate_hash (const unsigned char* key_in, size_t digest_siz
     //    crypto_hash_sha256_update(&state, key_in, sizeof(key_in));
     //    crypto_hash_sha256_final(&state, tmp);
     //    log_msg (LOG_KEYDEBUG, "md value (%s) now: [%s]", key_in, tmp);
+    digest_out = (char *) malloc (65);
+	sodium_bin2hex(digest_out, 65, md_value, 32);
 
-    digest_out = (unsigned char *) malloc (65);
-    // digest = strndup(md_value, 64);
+	// digest = strndup(md_value, 64);
     // printf("key.c:sha1_keygen digest %s\n", digest);
 
-    tmp = digest_out;
-    *tmp = '\0';
-    for (i = 0; i < 32; i++)
-	{
-    	convert_base16 (md_value[i], digit);
-    	// memcpy(tmp, digit, sizeof(digit));
-	    strcat ((char*)tmp, digit);
-	    tmp = tmp + strlen (digit);
-	}
-    digest_out[64] = '\0';
+//    tmp = digest_out;
+//    *tmp = '\0';
+//    for (i = 0; i < 32; i++)
+//	{
+//    	convert_base16 (md_value[i], digit);
+//    	// memcpy(tmp, digit, sizeof(digit));
+//	    strncat ((char*)tmp, digit);
+//	    tmp = tmp + strlen (digit);
+//	}
+//    digest_out[64] = '\0';
 
     return digest_out;
 }
@@ -116,9 +121,9 @@ np_key_t* key_create_from_hostport(const char* strOrig, char* port)
 {
 	char name[256];
 	snprintf (name, 255, "%s:%s", strOrig, port);
-	unsigned char* digest = NULL;
+	char* digest = NULL;
 
-	digest = key_generate_hash ((unsigned char*) name, strlen(name), digest);
+	digest = _key_generate_hash ((unsigned char*) name, strlen(name), digest);
 	// log_msg (LOG_KEYDEBUG, "digest calculation returned HASH: %s", digest);
 
     np_key_t* tmp = key_create_from_hash(digest);
@@ -150,7 +155,7 @@ void np_decode_key(np_jtree_t* jrb, np_key_t* key)
 	key->valid = FALSE;
 }
 
-np_key_t* key_create_from_hash(const unsigned char* strOrig)
+np_key_t* key_create_from_hash(const char* strOrig)
 {
     np_key_t* kResult;
 

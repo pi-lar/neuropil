@@ -1,8 +1,8 @@
 #include <errno.h>
-#include <openssl/evp.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
 	sprintf(log_file, "%s_%s.log", "./neuropil_node", port);
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG | LOG_ROUTING;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	log_init(log_file, level);
 
@@ -77,14 +77,15 @@ int main(int argc, char **argv) {
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(state, 8);
 	np_waitforjoin(state);
-
+	char* msg_subject = "this.is.a.test";
+	char* msg_data = "testdata";
 	unsigned long k = 1;
 
 	while (1) {
 
 		dsleep(1.0);
 
-		np_send(state, "this.is.a.test", "testdata", k);
+		np_send(state, msg_subject, msg_data, k);
 		log_msg(LOG_DEBUG, "send message %lu", k);
 
 		k++;

@@ -1,3 +1,4 @@
+#include <stdlib.h>
 
 #include "np_key.h"
 #include "np_list.h"

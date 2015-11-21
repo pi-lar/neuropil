@@ -33,7 +33,7 @@ void dalarm (double time)
 }
 
 /**
- ** dalarm:
+ ** dsleep:
  **  sleeps for #time# seconds
  **/
 void dsleep (double time)

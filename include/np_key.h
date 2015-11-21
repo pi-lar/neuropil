@@ -10,7 +10,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <pthread.h>
-#include <openssl/evp.h>
+// #include <openssl/evp.h>
 #include <string.h>
 
 #include "include.h"
@@ -58,7 +58,7 @@ np_key_t Key_Max;
  **/
 void key_init ();
 
-np_key_t* key_create_from_hash(const unsigned char* strOrig);
+np_key_t* key_create_from_hash(const char* strOrig);
 np_key_t* key_create_from_hostport(const char* strOrig, char* port);
 
 /** key_equal:k1, k2
@@ -92,7 +92,7 @@ void key_midpoint (np_key_t* mid, np_key_t* key);
 uint16_t key_index (np_key_t* mykey, np_key_t* k);
 
 // scan a key string to its struct representation
-void str_to_key (np_key_t *k, const unsigned char *key_string);
+void str_to_key (np_key_t *k, const char *key_string);
 
 void  key_print (np_key_t* k);
 // always use this function to get the string representation of a key

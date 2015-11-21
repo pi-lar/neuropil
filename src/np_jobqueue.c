@@ -26,11 +26,42 @@ void np_job_free (np_job_t * n)
     free (n);
 }
 
-/** get the queue mutex "access",
+/** (re-)submit message event
+ **
+ ** get the queue mutex "access",
  ** create a new np_job_t and pass func,args,args_size,
  ** add the new np_job_t to the queue, and
  ** signal the thread pool if the queue was empty.
  **/
+void job_resubmit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg) {
+    // create runtime arguments
+    np_jobargs_t* jargs = (np_jobargs_t*) malloc (sizeof(np_jobargs_t));
+    jargs->msg = msg;
+    jargs->is_resend = TRUE;
+    jargs->target = key;
+    jargs->properties = prop;
+    if (msg != NULL) np_ref_obj(np_message_t, jargs->msg);
+
+    // create job itself
+    np_job_t* new_job = (np_job_t *) malloc (sizeof(np_job_t));
+    new_job->processorFunc = prop->clb; // ->msg_handler;
+    new_job->tstamp = dtime() + delay;
+    new_job->args = jargs;
+    new_job->type = 1;
+
+    pthread_mutex_lock (&job_q->access);
+    // log_msg(LOG_DEBUG, "1: new_job-->%p func-->%p args-->%p", new_job, new_job->processorFunc, new_job->args);
+    // log_msg(LOG_DEBUG, "requsting msg execution at: %f", new_job->tstamp);
+    // if (NULL == sll_first (job_q->job_list)) was_empty = 1;
+    pll_insert(np_job_ptr, job_q->job_list, new_job);
+    if (pll_size(job_q->job_list) == 1  || delay == 0.0)
+    	pthread_cond_signal (&job_q->empty);
+    // if (was_empty) pthread_cond_signal (&job_q->empty);
+
+    pthread_mutex_unlock (&job_q->access);
+	// log_msg(LOG_TRACE, "... job_submit_msg_event finished");
+}
+
 void job_submit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
 	// log_msg(LOG_TRACE, "job_submit_msg_event starting ...");
@@ -39,6 +70,7 @@ void job_submit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t* 
     np_jobargs_t* jargs = (np_jobargs_t*) malloc (sizeof(np_jobargs_t));
     jargs->msg = msg;
     jargs->target = key;
+    jargs->is_resend = FALSE;
     jargs->properties = prop;
     if (msg != NULL) np_ref_obj(np_message_t, jargs->msg);
 

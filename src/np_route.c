@@ -1,3 +1,7 @@
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  Stephan Schwichtenberg
+ **/
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
@@ -230,24 +234,20 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
 			   key_get_as_string (state->my_node_key ),
 			   key_get_as_string (tmp_1));
 
+	    sll_free (np_key_t, key_list);
     	log_msg(LOG_TRACE, ".end  .route_lookup");
-		return (return_list);
+	    return (return_list);
 	}
 
     /* if there is no matching next hop we have to find the best next hop */
     /* brute force method to solve count requirements */
 
     // log_msg (LOG_ROUTING, "Routing to next closest key I know of:");
-    leaf = state->my_node_key;
-    log_msg (LOG_ROUTING, "+me: (%s)",
-    		 /* leaf->dns_name, leaf->port,*/ key_get_as_string (leaf) );
-    sll_append(np_key_t, key_list, state->my_node_key);
-
     /* look left */
     for (uint16_t l = 0; l < Lsize; l++)
 	{
 	    leaf = state->routes->leftleafset[l];
-	    log_msg (LOG_ROUTING, "+Left_leafset[%hd]: (%s)",
+	    log_msg (LOG_ROUTING, "+left_leafset[%hd]: (%s)",
 	    		 l, /* leaf->dns_name, leaf->port,*/ key_get_as_string (key));
 	    sll_append(np_key_t, key_list, leaf);
 	}
@@ -255,10 +255,15 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
     for (uint16_t r = 0; r < Rsize; r++)
 	{
 	    leaf = state->routes->rightleafset[r];
-	    log_msg (LOG_ROUTING, "+Right_leafset[%hd]: (%s)",
+	    log_msg (LOG_ROUTING, "+right_leafset[%hd]: (%s)",
 	    		 r, /* leaf->dns_name, leaf->port,*/ key_get_as_string (leaf));
 	    sll_append(np_key_t, key_list, leaf);
 	}
+
+    // leaf = state->my_node_key;
+    log_msg (LOG_ROUTING, "+me: (%s)",
+    		/* leaf->dns_name, leaf->port,*/ key_get_as_string (state->my_node_key) );
+    sll_append(np_key_t, key_list, state->my_node_key);
 
     /* find the longest prefix match */
     i = key_index (state->my_node_key, key);
@@ -312,10 +317,10 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
     /*  to prevent bouncing */
     if (count == 1 && sll_size(return_list) > 0)
 	{
-	    log_msg(LOG_DEBUG, "route_lookup bounce detection ...");
-	    log_msg(LOG_DEBUG, "search key: %s", key_get_as_string(key) );
-	    log_msg(LOG_DEBUG, "my own key: %s", key_get_as_string(state->my_node_key) );
-	    log_msg(LOG_DEBUG, "lookup key: %s", key_get_as_string(sll_first(return_list)->val) );
+//	    log_msg(LOG_DEBUG, "route_lookup bounce detection ...");
+//	    log_msg(LOG_DEBUG, "search key: %s", key_get_as_string(key) );
+//	    log_msg(LOG_DEBUG, "my own key: %s", key_get_as_string(state->my_node_key) );
+//	    log_msg(LOG_DEBUG, "lookup key: %s", key_get_as_string(sll_first(return_list)->val) );
 
 	    key_distance (&dif1, key, sll_first(return_list)->val);
 	    key_distance (&dif2, key, state->my_node_key);
@@ -324,7 +329,7 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
 
 	    // if (key_equal (dif1, dif2)) ret[0] = rg->me;
 	    // changed on 03.06.2014 STSW choose the closest neighbour
-	    if (key_comp (&dif1, &dif2) >= 0) sll_first(return_list)->val = state->my_node_key;
+	    if (key_comp (&dif1, &dif2) <= 0) sll_first(return_list)->val = state->my_node_key;
 
 	    log_msg(LOG_ROUTING, "route  key: %s", key_get_as_string(sll_first(return_list)->val));
 

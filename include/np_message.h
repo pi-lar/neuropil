@@ -18,6 +18,15 @@
 
 #define NP_MESSAGE_SIZE 65536
 
+struct np_messagepart_s {
+	np_jtree_t* header;
+	np_jtree_t* instructions;
+	void* msg_part;
+};
+
+typedef np_messagepart_t* np_messagepart_ptr;
+NP_PLL_GENERATE_PROTOTYPES(np_messagepart_ptr);
+
 struct np_message_s {
 	np_obj_t* obj; // link to memory pool
 
@@ -26,9 +35,15 @@ struct np_message_s {
 	np_jtree_t* properties;
 	np_jtree_t* body;
 	np_jtree_t* footer;
+
+	// only used if the message has to be split up into chunks
+	np_bool is_single_part;
+	uint16_t no_of_chunks;
+	np_pll_t(np_messagepart_ptr, msg_chunks);
 };
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
+
 
 /** message_create / free:
  ** creates the message to the destination #dest# the message format would be like:
@@ -44,8 +59,12 @@ np_bool np_message_decrypt_part(np_jtree_t* msg_part, unsigned char* enc_nonce, 
 np_bool np_message_encrypt_part(np_jtree_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
 
 // (de-) serialize a message to a binary stream using message pack (cmp.h)
+void np_message_calculate_chunking(np_message_t* msg);
+np_message_t* np_message_check_chunks_complete(np_state_t* state, np_jobargs_t* args);
 np_bool np_message_serialize(np_message_t* msg, void* buffer, uint64_t* out_size);
+np_bool np_message_serialize_chunked(np_state_t* state, np_jobargs_t* args);
 np_bool np_message_deserialize(np_message_t* msg, void* buffer);
+np_bool np_message_deserialize_chunked(np_message_t* msg);
 
 void np_message_setinstruction(np_message_t* msg, np_jtree_t* instructions);
 void np_message_addinstructionentry(np_message_t*, const char* key, np_jval_t value);
@@ -234,13 +253,14 @@ static const char* NP_MSG_HEADER_FROM      = "_np.from";
 static const char* NP_MSG_HEADER_REPLY_TO  = "_np.r_to";
 
 // msg instructions constants
-static const char* NP_MSG_INST_RESEND_COUNT = "_np.resend";
+static const char* NP_MSG_INST_SEND_COUNTER = "_np.sendnr";
 static const char* NP_MSG_INST_PART         = "_np.part";
 static const char* NP_MSG_INST_PARTS        = "_np.parts";
 static const char* NP_MSG_INST_ACK          = "_np.ack";
 static const char* NP_MSG_INST_ACK_TO       = "_np.ack_to";
 static const char* NP_MSG_INST_SEQ          = "_np.seq";
 static const char* NP_MSG_INST_UUID         = "_np.uuid";
+static const char* NP_MSG_INST_ACKUUID      = "_np.ackuuid";
 static const char* NP_MSG_INST_TTL          = "_np.ttl";
 static const char* NP_MSG_INST_TSTAMP       = "_np.tstamp";
 

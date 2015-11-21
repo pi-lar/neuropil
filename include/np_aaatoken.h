@@ -53,7 +53,7 @@ struct np_aaatoken_s {
 
 	uuid_t uuid;
 
-	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
+	unsigned char public_key[crypto_sign_BYTES];
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
 	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
 

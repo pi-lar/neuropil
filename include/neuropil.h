@@ -31,6 +31,7 @@ struct np_state_s {
 	struct rbt_msgproperty msg_properties;
 
 	np_jtree_t *msg_tokens;
+    np_jtree_t* msg_part_cache;
 
 	np_routeglobal_t   *routes;
     np_joblist_t       *jobq;

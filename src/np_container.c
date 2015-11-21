@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 #include "np_container.h"
 

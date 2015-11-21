@@ -53,6 +53,10 @@ np_ackentry_t* get_new_ackentry()
 	np_ackentry_t *entry = (np_ackentry_t *) malloc(sizeof(np_ackentry_t));
 	entry->acked = FALSE;
 	entry->acktime = 0.0;
+	entry->transmittime = 0.0;
+
+	entry->expected_ack = 0;
+	entry->received_ack = 0;
 
 	return entry;
 }
@@ -257,10 +261,13 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 	np_aaatoken_t* auth_token = node_key->authentication;
 
 	if (NULL == auth_token || !auth_token->valid) {
-		if (node_key->node->handshake_status < HANDSHAKE_INITIALIZED) {
+		if (node_key->node->handshake_status < HANDSHAKE_INITIALIZED)
+		{
 			node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
+
 			log_msg(LOG_INFO, "requesting a new handshake with %s:%s (%s)",
 					node_key->node->dns_name, node_key->node->port, key_get_as_string(node_key));
+
 			np_msgproperty_t* msg_prop = np_message_get_handler(state, OUTBOUND, NP_MSG_HANDSHAKE);
 			job_submit_msg_event(state->jobq, 0.0, msg_prop, node_key, NULL);
 		}
@@ -268,57 +275,74 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 	}
 
 	// log_msg(LOG_DEBUG, "serializing and encrypting message ...");
-	uint64_t max_buffer_len = NETWORK_PACK_SIZE - crypto_secretbox_MACBYTES - crypto_secretbox_NONCEBYTES;
-	uint64_t send_buf_len;
-	unsigned char send_buffer[max_buffer_len];
-	void* send_buffer_ptr = send_buffer;
+	// uint64_t max_buffer_len = NETWORK_PACK_SIZE - crypto_secretbox_MACBYTES - crypto_secretbox_NONCEBYTES;
+	// uint64_t send_buf_len;
+	// unsigned char send_buffer[max_buffer_len];
+	// void* send_buffer_ptr = send_buffer;
 
-	np_message_serialize(msg, send_buffer_ptr, &send_buf_len);
-	assert(send_buf_len <= max_buffer_len);
+	// np_message_serialize(msg, send_buffer_ptr, &send_buf_len);
+	// assert(send_buf_len <= max_buffer_len);
 
-	log_msg(LOG_NETWORKDEBUG, "serialized message to %llu bytes", send_buf_len);
+	// log_msg(LOG_NETWORKDEBUG, "serialized message to %llu bytes", send_buf_len);
+	char enc_buffer[MSG_CHUNK_SIZE_1024];
+	uint16_t i = 0, chunks = msg->no_of_chunks;
 
-	// add protection from replay attacks ...
-	unsigned char nonce[crypto_secretbox_NONCEBYTES];
-	randombytes_buf(nonce, sizeof(nonce));
+	pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
+	do {
+		// add protection from replay attacks ...
+		unsigned char nonce[crypto_secretbox_NONCEBYTES];
+		randombytes_buf(nonce, sizeof(nonce));
 
-	uint64_t enc_msg_len = send_buf_len + crypto_secretbox_MACBYTES;
-	unsigned char enc_msg[enc_msg_len];
-	ret = crypto_secretbox_easy(enc_msg,
-								(const unsigned char*) send_buffer,
-								send_buf_len,
-								nonce,
-								auth_token->session_key);
-	if (ret != 0)
-	{
-		log_msg(LOG_WARN,
-				"incorrect encryption of message (not sending to %s:%hd)",
-				node_key->node->dns_name, node_key->node->port);
-		return FALSE;
-	}
+		char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
+		sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
+		// log_msg(LOG_DEBUG, "encryption nonce %s", nonce_hex);
 
-	uint64_t enc_buffer_len = enc_msg_len + crypto_secretbox_NONCEBYTES;
-	char enc_buffer[enc_buffer_len];
-	memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
-	memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_msg_len);
+		char session_hex[crypto_scalarmult_SCALARBYTES*2+1];
+		sodium_bin2hex(session_hex, crypto_scalarmult_SCALARBYTES*2+1, auth_token->session_key, crypto_scalarmult_SCALARBYTES);
+		// log_msg(LOG_DEBUG, "session    key   %s", session_hex);
 
-	/* send data */
-	pthread_mutex_lock(&(state->my_node_key->node->network->lock));
-	// struct sockaddr* to = node_key->node->network->addr_in->ai_addr;
-	// socklen_t to_size = node_key->node->network->addr_in->ai_addrlen;
+		// uint64_t enc_msg_len = send_buf_len + crypto_secretbox_MACBYTES;
+		unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
+		ret = crypto_secretbox_easy(enc_msg,
+				(const unsigned char*) iter->val->msg_part,
+				MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
+				nonce,
+				auth_token->session_key);
 
-	log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", enc_buffer_len, node_key->node->dns_name, node_key->node->port);
-	// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
-	ret = send (node_key->node->network->socket, enc_buffer, enc_buffer_len, 0);
+		if (ret != 0)
+		{
+			log_msg(LOG_WARN,
+					"incorrect encryption of message (not sending to %s:%hd)",
+					node_key->node->dns_name, node_key->node->port);
+			return FALSE;
+		}
 
-	pthread_mutex_unlock(&(state->my_node_key->node->network->lock));
+		uint64_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
+		memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
+		memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
-	if (ret < 0) {
-		log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
-		return FALSE;
-	} else {
-		// log_msg (LOG_NETWORKDEBUG, "sent message");
-	}
+		/* send data */
+		pthread_mutex_lock(&(state->my_node_key->node->network->lock));
+
+		log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
+		// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
+		ret = send (node_key->node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
+
+		pthread_mutex_unlock(&(state->my_node_key->node->network->lock));
+
+		if (ret < 0) {
+			log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
+			// TODO: connection refused error shows up here -> hanlde it
+			return FALSE;
+		} else {
+			// log_msg (LOG_NETWORKDEBUG, "sent smessage");
+		}
+
+		pll_next(iter);
+		i++;
+
+	} while (i < chunks && (FALSE == msg->is_single_part));
+
 	return TRUE;
 }
 
@@ -398,6 +422,9 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
 			}
 		}
     }
-	return ng;
+
+    // freeaddrinfo( ng->addr_in );
+
+    return ng;
 }
 

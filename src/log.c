@@ -1,9 +1,5 @@
 /*
-** $Id: log.c,v 1.15 2006/09/05 06:09:35 krishnap Exp $
-**
-** Matthew Allen
-** description: 
-*/
+ */
 #include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>
@@ -17,7 +13,6 @@
 #include <sys/time.h>
 #include <time.h>
 
-// extern FILE *stdin;
 extern LOG *logger;
 
 void log_message(uint8_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
@@ -30,10 +25,14 @@ void log_message(uint8_t level, const char* srcFile, const char* funcName, uint1
 		va_end(ap);
 
 		struct timeval tval;
+		struct tm local_time;
+		char timebuf[80];
+
 		gettimeofday(&tval, (struct timezone*)0);
 		int32_t millis = tval.tv_usec;
-		char timebuf[80];
-		strftime(timebuf, 80, "%Y-%m-%d %H:%M:%S", localtime(&tval.tv_sec));
+
+		localtime_r(&tval.tv_sec, &local_time);
+		strftime(timebuf, 80, "%Y-%m-%d %H:%M:%S", &local_time);
 
 // 	    char* new_log_entry = malloc(sizeof(char)*1124);
 //	    // snprintf(new_log_entry, 255, "initialized log system %p: %s (%p) %d\n", logger, logger->filename, logger->fp, logger->level);

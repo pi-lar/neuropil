@@ -1,9 +1,6 @@
 /**
- **
- ** neuropil.c
- **
- ** Stephan Schwichtenberg
- ** description:
+ *  copyright 2015 pi-lar GmbH
+ *  Stephan Schwichtenberg
  **/
 
 #include <assert.h>
@@ -86,7 +83,7 @@ void np_setaccounting_cb(np_state_t* state, np_aaa_func_t aaaFunc) {
 
 void np_waitforjoin(const np_state_t* state) {
 	while (FALSE == state->my_node_key->node->joined_network) {
-		dsleep(0.1);
+		dsleep(0.31415);
 	}
 }
 
@@ -111,7 +108,7 @@ void np_set_listener (np_state_t* state, np_usercallback_t msg_handler, char* su
 
 void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
 {
-    np_key_t* my_identity_key;
+    np_key_t* my_identity_key = NULL;
 
     unsigned char hash_key[crypto_hash_sha256_BYTES];
     crypto_hash_sha256_state* hash_state = NULL;
@@ -123,9 +120,10 @@ void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
 	char key[65];
 	sodium_bin2hex(key, 65, hash_key, 32);
 
-	np_key_t* search_key = key_create_from_hash((const unsigned char*) key);
+	np_key_t* search_key = key_create_from_hash(key);
 	LOCK_CACHE(state) {
-		if (NULL == (my_identity_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
+		my_identity_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
+		if (NULL == my_identity_key ) {
 			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
 			my_identity_key = search_key;
 			np_ref_obj(np_key_t, my_identity_key);
@@ -133,12 +131,16 @@ void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
 	    	np_free_obj(np_key_t, search_key);
 	    }
 	}
+
 	if (NULL != state->my_identity) {
+		// delete old identity
 		np_unref_obj(np_key_t, state->my_identity);
 		np_free_obj(np_key_t, state->my_identity);
 	}
 
 	state->my_identity = my_identity_key;
+	state->my_identity->authentication = identity;
+
 	np_ref_obj(np_key_t, my_identity_key);
 
     // create encryption parameter
@@ -173,7 +175,6 @@ void np_rem_mx_property(np_state_t* state, char* subject, const char* key)
 	    	np_free_obj(np_key_t, search_key);
 	    }
 	}
-
 }
 
 
@@ -190,7 +191,7 @@ void np_send (np_state_t* state, char* subject, char *data, uint32_t seqnum)
 		np_message_register_handler(state, msg_prop);
 	}
 
-	np_message_t* msg;
+	np_message_t* msg = NULL;
 	np_new_obj(np_message_t, msg);
 
 	jrb_insert_str(msg->header, NP_MSG_HEADER_SUBJECT, new_jval_s((char*) subject));
@@ -265,11 +266,14 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 
 	if (FALSE == decrypt_ok) {
 		log_msg(LOG_DEBUG, "decryption of message failed, deleting message");
-		np_unref_obj(np_aaatoken_t, sender_token);
+
 		np_free_obj(np_aaatoken_t, sender_token);
+
 		np_unref_obj(np_message_t, msg);
 		np_free_obj(np_message_t, msg);
+
 		msg_prop->max_threshold--;
+
 		return 0;
 	}
 
@@ -287,7 +291,6 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 
 	log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
 
-	np_unref_obj(np_aaatoken_t, sender_token);
 	np_free_obj(np_aaatoken_t, sender_token);
 
 	msg_prop->max_threshold--;
@@ -300,6 +303,7 @@ void np_send_ack(np_state_t* state, np_message_t* in_msg) {
 
 	uint8_t ack = ACK_NONE;
 	uint32_t seq = 0;
+	char* uuid = NULL;
 
 	// np_message_t* in_msg = args->msg;
 
@@ -307,11 +311,12 @@ void np_send_ack(np_state_t* state, np_message_t* in_msg) {
 		// extract data from incoming message
 		seq = jrb_find_str(in_msg->instructions, NP_MSG_INST_SEQ)->val.value.ul;
 		ack = jrb_find_str(in_msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
+		uuid = jrb_find_str(in_msg->instructions, NP_MSG_INST_UUID)->val.value.s;
 
 		// create new ack message & handlers
 		// np_node_t* ack_node = np_node_decode_from_str(state->nodes, jrb_find_str(in_msg->header, NP_MSG_HEADER_REPLY_TO)->val.value.s);
 		np_key_t* ack_key = key_create_from_hash(
-				(unsigned char*) jrb_find_str(in_msg->header, NP_MSG_INST_ACK_TO)->val.value.s);
+				jrb_find_str(in_msg->header, NP_MSG_INST_ACK_TO)->val.value.s);
 
 		np_message_t* ack_msg;
 		np_msgproperty_t* prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
@@ -319,6 +324,7 @@ void np_send_ack(np_state_t* state, np_message_t* in_msg) {
 		np_new_obj(np_message_t, ack_msg);
 		np_message_create(ack_msg, ack_key, state->my_node_key, NP_MSG_ACK, NULL);
 		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_ACK, new_jval_ush(prop->ack_mode));
+		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_ACKUUID, new_jval_s(uuid));
 		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_SEQ, new_jval_ul(seq));
 		// send the ack out
 		job_submit_msg_event(state->jobq, 0.0, prop, ack_key, ack_msg);
@@ -458,11 +464,13 @@ np_state_t* np_init(char* proto, char* port)
 	    exit(1);
 	}
 
+    state->msg_part_cache = make_jtree();
+
     // initialize real network layer last
     // initialize network reading
     job_submit_event(state->jobq, 0.0, np_network_read);
     // initialize retransmission of packets
-    job_submit_event(state->jobq, 0.0, np_retransmit_messages);
+    job_submit_event(state->jobq, 0.0, np_cleanup);
     // start leafset checking jobs
     job_submit_event(state->jobq, 0.0, np_check_leafset);
     job_submit_event(state->jobq, 0.0, np_write_log);

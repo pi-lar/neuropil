@@ -1,4 +1,7 @@
-
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  Stephan Schwichtenberg
+ **/
 #include <assert.h>
 #include <errno.h>
 
@@ -29,7 +32,7 @@ void np_aaatoken_t_new(void* token)
     struct timeval e_exp = dtotv(aaa_token->issued_at);
     e_exp.tv_sec += 86400;
     aaa_token->expiration = tvtod(e_exp);
-    uuid_generate(aaa_token->uuid);
+    // uuid_generate(aaa_token->uuid);
     aaa_token->extensions = make_jtree();
 	aaa_token->valid = 0;
 }
@@ -42,6 +45,7 @@ void np_aaatoken_t_del (void* token)
 		np_free_tree(aaa_token->extensions);
 	    aaa_token->extensions = NULL;
 	}
+	// free(aaa_token->uuid);
 }
 
 void np_encode_aaatoken(np_jtree_t* data, np_aaatoken_t* token) {
@@ -54,18 +58,18 @@ void np_encode_aaatoken(np_jtree_t* data, np_aaatoken_t* token) {
 
 	jrb_insert_str(data, "_np.aaa.public_key", new_jval_bin(token->public_key, crypto_sign_BYTES));
 
-	np_jtree_t* subtree = make_jtree();
+	// np_jtree_t* subtree = make_jtree();
 	// encode extensions by copying all of them
-	np_jtree_elem_t* tmp = NULL;
-	RB_FOREACH(tmp, np_jtree, token->extensions)
-	{
-		if (tmp->key.type == char_ptr_type)      jrb_insert_str(subtree, tmp->key.value.s, tmp->val);
-		if (tmp->key.type == int_type)           jrb_insert_int(subtree, tmp->key.value.i, tmp->val);
-		if (tmp->key.type == double_type)        jrb_insert_dbl(subtree, tmp->key.value.d, tmp->val);
-		if (tmp->key.type == unsigned_long_type) jrb_insert_ulong(subtree, tmp->key.value.ul, tmp->val);
-
-	}
-	jrb_insert_str(data, "_np.aaa.extensions", new_jval_tree(subtree));
+//	np_jtree_elem_t* tmp = NULL;
+//	RB_FOREACH(tmp, np_jtree, token->extensions)
+//	{
+//		if (tmp->key.type == char_ptr_type)      jrb_insert_str(subtree, tmp->key.value.s, tmp->val);
+//		if (tmp->key.type == int_type)           jrb_insert_int(subtree, tmp->key.value.i, tmp->val);
+//		if (tmp->key.type == double_type)        jrb_insert_dbl(subtree, tmp->key.value.d, tmp->val);
+//		if (tmp->key.type == unsigned_long_type) jrb_insert_ulong(subtree, tmp->key.value.ul, tmp->val);
+//
+//	}
+	jrb_insert_str(data, "_np.aaa.extensions", new_jval_tree(token->extensions));
 }
 
 void np_decode_aaatoken(np_jtree_t* data, np_aaatoken_t* token) {
@@ -104,7 +108,7 @@ np_bool token_is_valid(np_aaatoken_t* token)
 	crypto_generichash_update(&gh_state, (unsigned char*) token->realm, strlen(token->realm));
 	crypto_generichash_update(&gh_state, (unsigned char*) token->issuer, strlen(token->issuer));
 	crypto_generichash_update(&gh_state, (unsigned char*) token->subject, strlen(token->subject));
-	crypto_generichash_update(&gh_state, (unsigned char*) token->public_key, strlen((char*) token->public_key));
+	crypto_generichash_update(&gh_state, (unsigned char*) token->public_key, crypto_sign_BYTES);
 	// TODO: hash 'not_before' and 'expiration' values as well ?
 	crypto_generichash_final(&gh_state, hash, sizeof hash);
 
@@ -157,18 +161,18 @@ void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 {
 	log_msg(LOG_TRACE, ".start.np_add_sender_token");
 
-	np_key_t* subject_key;
+	np_key_t* subject_key = NULL;
 	np_key_t* search_key = key_create_from_hostport(subject, "0");
 
 	LOCK_CACHE(state) {
-		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
+		subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
+		if (NULL == subject_key) {
 			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
 			subject_key = search_key;
 			np_ref_obj(np_key_t, subject_key);
 	    } else {
 	    	np_free_obj(np_key_t, search_key);
 	    }
-
 		create_token_ledger(state, subject_key, subject);
 	}
 
@@ -279,6 +283,7 @@ sll_return(np_aaatoken_t) np_get_sender_token_all(np_state_t *state, char* subje
 		while (NULL != (tmp = sll_head(np_aaatoken_t, subject_key->send_tokens))) {
 
 			if (FALSE == token_is_valid(tmp)) {
+				// will be deleted later by add_sender_token
 				log_msg(LOG_DEBUG, "ignoring invalid sender token for issuer %s", tmp->issuer);
 				continue;
 			}
@@ -298,11 +303,12 @@ sll_return(np_aaatoken_t) np_get_sender_token_all(np_state_t *state, char* subje
 
 np_aaatoken_t* np_get_sender_token(np_state_t *state, char* subject, char* sender) {
 
-	np_key_t* subject_key;
+	np_key_t* subject_key = NULL;
 	np_key_t* search_key = key_create_from_hostport(subject, "0");
 
 	LOCK_CACHE(state) {
-		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
+		subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
+		if (NULL == subject_key) {
 			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
 			subject_key = search_key;
 			np_ref_obj(np_key_t, subject_key);
@@ -329,7 +335,7 @@ np_aaatoken_t* np_get_sender_token(np_state_t *state, char* subject, char* sende
 		{
 			return_token = iter->val;
 			if (FALSE == token_is_valid(return_token)) {
-				// TODO delete invalid tokens, this is a different behaviour from node to node
+				// TODO: ? delete invalid tokens, this is a different behaviour from node to node
 				log_msg(LOG_DEBUG, "ignoring invalid sender token for issuer %s", return_token->issuer);
 				sll_next(iter);
 				return_token = NULL;
@@ -351,7 +357,7 @@ np_aaatoken_t* np_get_sender_token(np_state_t *state, char* subject, char* sende
 
 			found_return_token = TRUE;
 			log_msg(LOG_DEBUG, "found valid sender token (%s)", return_token->issuer );
-			np_ref_obj(np_aaatoken_t, return_token);
+			// np_unref_obj(np_aaatoken_t, return_token);
 		}
 	}
 	return return_token;
@@ -362,11 +368,12 @@ void np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *toke
 {
 	log_msg(LOG_TRACE, ".start.np_add_receiver_token");
 
-	np_key_t* subject_key;
+	np_key_t* subject_key = NULL;
 	np_key_t* search_key = key_create_from_hostport(subject, "0");
 
 	LOCK_CACHE(state) {
-		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
+		subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
+		if (NULL == subject_key) {
 			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
 			subject_key = search_key;
 			np_ref_obj(np_key_t, subject_key);
@@ -492,7 +499,6 @@ np_aaatoken_t* np_get_receiver_token(np_state_t *state, char* subject)
 				return_token = NULL;
 				continue;
 			}
-
 			log_msg(LOG_DEBUG,
 					"found valid receiver token (%s)", return_token->issuer );
 
@@ -503,7 +509,6 @@ np_aaatoken_t* np_get_receiver_token(np_state_t *state, char* subject)
 			jrb_find_str(return_token->extensions, "msg_threshold")->val.value.ui++;
 			subject_key->recv_property->msg_threshold++;
 
-			np_ref_obj(np_aaatoken_t, return_token);
 			break;
 		}
 	}

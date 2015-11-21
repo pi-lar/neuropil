@@ -98,6 +98,7 @@ np_key_t* np_node_decode_from_str (np_state_t* state, const char *key)
 
 	char *key_dup = strndup(key, 255);
 	assert (key_dup != NULL);
+
 	uint16_t iLen = strlen(key);
 	assert (iLen > 0);
 
@@ -120,10 +121,9 @@ np_key_t* np_node_decode_from_str (np_state_t* state, const char *key)
 	// key string is mandatory !
 	log_msg(LOG_WARN, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
 
-	np_key_t* node_key = NULL;
-	np_key_t* search_key = key_create_from_hash((unsigned char*) s_hostkey);
-
-	if (NULL == (node_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
+	np_key_t* search_key = key_create_from_hash(s_hostkey);
+	np_key_t* node_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
+	if (NULL == node_key) {
 		SPLAY_INSERT(spt_key, &state->key_cache, search_key);
 		node_key = search_key;
 		np_ref_obj(np_key_t, node_key);
@@ -131,20 +131,19 @@ np_key_t* np_node_decode_from_str (np_state_t* state, const char *key)
     	np_free_obj(np_key_t, search_key);
     }
 
-	if (NULL == node_key->node) {
+	if (NULL == node_key->node)
+	{
 		np_new_obj(np_node_t, node_key->node);
 	}
 
 	if (NULL != s_hostname &&
-		NULL == node_key->node->dns_name) {
-		// overwrite hostname only if it is not set yet
+		NULL == node_key->node->dns_name)
+	{	// overwrite hostname only if it is not set yet
 		uint8_t proto = np_parse_protocol_string(s_hostproto);
 		np_node_update(node_key->node, proto, s_hostname, s_hostport);
 	}
 
-	if (s_hostkey) free (s_hostkey);
-	// if (s_hostname) free (s_hostname);
-	// if (s_hostport) free (s_hostport);
+	free (key_dup);
 
 	return node_key;
 }
@@ -152,20 +151,18 @@ np_key_t* np_node_decode_from_str (np_state_t* state, const char *key)
 np_key_t* np_node_decode_from_jrb (np_state_t* state, np_jtree_t* data) {
 
 	// MANDATORY paramter
-	unsigned char* s_host_key =
-			(unsigned char*) jrb_find_str(data, NP_NODE_KEY)->val.value.s;
+	char* s_host_key   = jrb_find_str(data, NP_NODE_KEY)->val.value.s;
 	char* s_host_proto = jrb_find_str(data, NP_NODE_PROTOCOL)->val.value.s;
-	char* s_host_name = jrb_find_str(data, NP_NODE_DNS_NAME)->val.value.s;
-	char* s_host_port = jrb_find_str(data, NP_NODE_PORT)->val.value.s;
+	char* s_host_name  = jrb_find_str(data, NP_NODE_DNS_NAME)->val.value.s;
+	char* s_host_port  = jrb_find_str(data, NP_NODE_PORT)->val.value.s;
 
-	np_key_t* node_key;
 	np_key_t* search_key = key_create_from_hash(s_host_key);
-
-	if (NULL == (node_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
+	np_key_t* node_key= SPLAY_FIND(spt_key, &state->key_cache, search_key);
+	if (NULL == node_key) {
 		SPLAY_INSERT(spt_key, &state->key_cache, search_key);
 		node_key = search_key;
 		np_ref_obj(np_key_t, node_key);
-    } else {
+	} else {
     	np_free_obj(np_key_t, search_key);
     }
 
@@ -178,12 +175,13 @@ np_key_t* np_node_decode_from_jrb (np_state_t* state, np_jtree_t* data) {
 		NULL == node->dns_name)
 	{
 		uint8_t proto = np_parse_protocol_string(s_host_proto);
-		np_node_update( node, proto, s_host_name, s_host_port);
+		np_node_update(node, proto, s_host_name, s_host_port);
 	}
 
 	// OPTIONAL parameter
 	np_jtree_elem_t* failure = jrb_find_str(data, NP_NODE_FAILURETIME);
 	if (failure) node->failuretime = failure->val.value.d;
+
 	// np_jrb_t* latency = jrb_find_str(data, "_np.node.latency");
 	// if (latency) node->latency = latency->val.value.d;
 
@@ -204,6 +202,7 @@ uint16_t np_encode_nodes_to_jrb (np_jtree_t* data, np_sll_t(np_key_t, node_keys)
     		np_node_encode_to_jrb(node_jrb, current);
     		jrb_insert_int(data, j, new_jval_tree(node_jrb));
     		j++;
+    		np_free_tree(node_jrb);
     	}
     }
     return j;
@@ -277,11 +276,6 @@ char* np_node_get_dns_name (np_node_t* np_node) {
 	assert(np_node != NULL);
 	return np_node->dns_name;
 }
-
-//uint32_t np_node_get_address (np_node_t* np_node){
-//	assert(np_node != NULL);
-//	return np_node->address;
-//}
 
 char* np_node_get_port (np_node_t* np_node) {
 	assert(np_node != NULL);

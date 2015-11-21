@@ -30,8 +30,10 @@
 #define pll_last(priolist)     (priolist->last)
 #define pll_next(pll_elem)     (pll_elem = pll_elem->flink)
 #define pll_get_next(pll_elem) (pll_elem->flink)
+#define pll_has_next(pll_elem) (NULL != pll_elem->flink)
 #define pll_previous(pll_elem) (pll_elem = pll_elem->blink)
-#define pll_get_next(pll_elem) (pll_elem->flink)
+#define pll_get_previous(pll_elem) (pll_elem->blink)
+#define pll_has_previous(pll_elem) (NULL != pll_elem->blink)
 
 /** PLL (priority double linked list) prototype generator **/
 #define NP_PLL_GENERATE_PROTOTYPES(TYPE)\
@@ -132,7 +134,7 @@ TYPE TYPE##_pll_head(TYPE##_pll_t* pll_list) {\
 }\
 void TYPE##_pll_free(TYPE##_pll_t* pll_list) {\
 	TYPE##_pll_node_t *tmp;\
-	while (pll_list->first != NULL) {\
+	while (NULL != pll_list->first) {\
 		tmp = pll_list->first;\
 		pll_list->first = pll_list->first->flink;\
 		free(tmp);\
@@ -141,7 +143,7 @@ void TYPE##_pll_free(TYPE##_pll_t* pll_list) {\
 }\
 void TYPE##_pll_clear(TYPE##_pll_t* pll_list) {\
 	TYPE##_pll_node_t *tmp;\
-	while (pll_list->first != NULL) {\
+	while (NULL != pll_list->first) {\
 		tmp = pll_list->first;\
 		pll_list->first = pll_list->first->flink;\
 		free(tmp);\
@@ -424,6 +426,7 @@ void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {\
 void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) {\
 	if (sll_list->first == tbr) {\
 		sll_list->first = tbr->flink;\
+		free(tbr);\
 		sll_list->size--;\
 	} else {\
 		TYPE##_sll_node_t *tmp = sll_list->first;\

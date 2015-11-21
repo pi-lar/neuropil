@@ -24,6 +24,7 @@ NP_SLL_GENERATE_PROTOTYPES(char);
 // priority list for jobs
 NP_PLL_GENERATE_PROTOTYPES(np_job_ptr);
 
+
 /**
  ** create a key/value rbtree using strings as the key
  **/

@@ -24,11 +24,12 @@ struct np_job_s {
 	np_job_t* next;
 };
 
-/* jobargs structure used to pass type safe structs into the message context */
+/* jobargs structure used to pass type safe structs into the thread context */
 struct np_jobargs_s
 {
 	np_message_t* msg;
 	np_msgproperty_t* properties;
+	uint8_t is_resend;
 	np_key_t* target;
 };
 
@@ -56,8 +57,9 @@ void np_job_free(np_job_t* job);
  *  add the new node to the queue
  *  signal the thread pool if the queue was empty
  **/
-void job_submit_event (np_joblist_t* job_q, double time_delta, np_callback_t clb );
-void job_submit_msg_event (np_joblist_t* job_q, double time_delta, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+void job_submit_event (np_joblist_t* job_q, double delay, np_callback_t clb );
+void job_resubmit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+void job_submit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
 
 /** job_exec
  * if the queue,"job_q" is empty it would go to sleep and releas the mutex

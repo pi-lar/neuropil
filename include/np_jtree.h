@@ -1,3 +1,7 @@
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  Stephan Schwichtenberg
+ **/
 #ifndef	_NP_JTREE_H_
 #define	_NP_JTREE_H_
 
@@ -29,6 +33,11 @@ RB_PROTOTYPE(np_jtree,   np_jtree_elem_s, link, jval_cmp);
 
 /* Creates a new jtree */
 np_jtree_t*   make_jtree ();
+
+/* Delete and free an entire tree */
+void np_free_tree (np_jtree_t* root);
+/* delete an tree, but keep the root node for re-use */
+void np_clear_tree (np_jtree_t* root);
 
 void jrb_insert_str (np_jtree_t *tree, const char *key, np_jval_t val);
 void jrb_insert_int (np_jtree_t *tree, int16_t ikey, np_jval_t val);
@@ -63,8 +72,6 @@ void del_int_node (np_jtree_t* tree, const int16_t key);
 void del_dbl_node (np_jtree_t* tree, const double key);
 void del_ulong_node (np_jtree_t* tree, const uint32_t key);
 
-/* Deletes and frees an entire tree */
-void np_free_tree (np_jtree_t* root);
 void np_print_tree (np_jtree_t* n, uint8_t indent);
 
 //void free_str_tree (np_str_jtree_t* root);

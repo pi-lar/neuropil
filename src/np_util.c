@@ -1,6 +1,7 @@
-/*
- *
- */
+/**
+ *  copyright 2015 pi-lar GmbH
+ *  Stephan Schwichtenberg
+ **/
 #include <ctype.h>
 #include <pthread.h>
 #include <string.h>
@@ -19,7 +20,7 @@ char* np_create_uuid(const char* str, const uint16_t num)
 {
 	char input[256];
 	unsigned char out[18];
-	char* uuid_out = malloc(sizeof(unsigned char)*37);
+	char* uuid_out = malloc(sizeof(char)*37);
 
 	double now = dtime();
 	snprintf (input, 255, "urn:np:msg:%s:%u:%16.16f", str, num, now);
@@ -106,7 +107,12 @@ void write_type(np_jval_t val, cmp_ctx_t* cmp) {
 		cmp_write_u64(cmp, val.value.ull);
 		break;
 
-	case int_array_2_type:
+	case uint_array_2_type:
+		cmp_write_fixarray(cmp, 2);
+		cmp->write(cmp, &val.value.a2_ui[0], sizeof(uint16_t));
+		cmp->write(cmp, &val.value.a2_ui[1], sizeof(uint16_t));
+		break;
+
 	case float_array_2_type:
 	case char_array_8_type:
 	case unsigned_char_array_8_type:
@@ -217,9 +223,18 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 		log_msg(LOG_WARN,
 				"error de-serializing message to normal form, found map type");
 		break;
+
 	case CMP_TYPE_FIXARRAY:
+		if (2 == obj->as.array_size) {
+			cmp->read(cmp, &value->value.a2_ui[0], sizeof(uint16_t));
+			cmp->read(cmp, &value->value.a2_ui[1], sizeof(uint16_t));
+			value->type = uint_array_2_type;
+		}
+		break;
+
 	case CMP_TYPE_ARRAY16:
 	case CMP_TYPE_ARRAY32:
+
 		log_msg(LOG_WARN,
 				"error de-serializing message to normal form, found array type");
 		break;
@@ -234,10 +249,10 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 	case CMP_TYPE_STR16:
 	case CMP_TYPE_STR32:
 		{
-			value->value.s = (char*) malloc(obj->as.str_size+1);
-			cmp->read(cmp, value->value.s, obj->as.str_size * sizeof(char));
 			value->type = char_ptr_type;
 			value->size = obj->as.str_size;
+			value->value.s = (char*) malloc(obj->as.str_size+1);
+			cmp->read(cmp, value->value.s, obj->as.str_size * sizeof(char));
 			value->value.s[obj->as.str_size] = '\0';
 			// log_msg(LOG_WARN, "string size %u/%u -> %s", value->size, strlen(value->value.s), value->value.s);
 			break;
@@ -396,10 +411,15 @@ void deserialize_jrb_node_t(np_jtree_t* jtree, cmp_ctx_t* cmp) {
 		case char_ptr_type:
 			// log_msg(LOG_DEBUG, "read str key (%s)", tmp_key.value.s);
 			jrb_insert_str(jtree, tmp_key.value.s, tmp_val);
+			free (tmp_key.value.s);
 			break;
 		default:
 			break;
 		}
+
+		if (tmp_val.type == char_ptr_type) free(tmp_val.value.s);
+		if (tmp_val.type == bin_type)      free(tmp_val.value.bin);
+		if (tmp_val.type == jrb_tree_type) np_free_tree(tmp_val.value.tree);
 	}
 	// log_msg(LOG_DEBUG, "read all key/value pairs from message part %p", jrb);
 }

@@ -11,7 +11,7 @@
 // critical self incarnation functions
 void np_check_leafset(np_state_t* state, np_jobargs_t* args);
 void np_retransmit_tokens(np_state_t* state, np_jobargs_t* args);
-void np_retransmit_messages(np_state_t* state, np_jobargs_t* args);
+void np_cleanup(np_state_t* state, np_jobargs_t* args);
 void np_network_read(np_state_t* np_state, np_jobargs_t* args);
 void np_write_log(np_state_t* state, np_jobargs_t* args);
 

@@ -1,8 +1,8 @@
 #include <errno.h>
-#include <openssl/evp.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
 
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG | LOG_ROUTING;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	log_init(log_file, level);
 
@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(state, 8);
 
-	np_message_t* msg_out;
+	np_message_t* msg_out = NULL;
 
 	while (1) {
 		size_t nbytes = 255;
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
 
 		np_jtree_t* jrb_me = make_jtree();
 		np_node_encode_to_jrb(jrb_me, state->my_node_key);
-		np_message_create(msg_out, node_key, state->my_node_key , NP_MSG_JOIN_REQUEST, jrb_me);
+		np_message_create(msg_out, node_key, state->my_node_key, NP_MSG_JOIN_REQUEST, jrb_me);
 
 		log_msg(LOG_DEBUG, "submitting welcome message");
 		np_msgproperty_t* prop = np_message_get_handler(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
