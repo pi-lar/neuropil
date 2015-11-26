@@ -188,8 +188,8 @@ void TYPE##_del(void*); \
 		obj->prev = NULL; obj->next = np_obj_pool.free_obj; np_obj_pool.free_obj = obj; \
 		np_obj_pool.available++; \
 		np_obj_pool.current = NULL; \
+		np_obj = NULL;\
 	} \
-	np_obj = NULL;\
 	pthread_mutex_unlock(&(np_obj_pool.lock)); \
 }
 

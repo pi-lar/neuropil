@@ -189,40 +189,43 @@ void np_message_t_del(void* data) {
 	pll_free(np_messagepart_ptr, msg->msg_chunks);
 }
 
-np_bool np_message_serialize(np_message_t* msg, void* target, uint64_t* out_size) {
+np_bool np_message_serialize(np_state_t* state, np_jobargs_t* args) {
 
-    cmp_ctx_t cmp;
-    cmp_init(&cmp, target, buffer_reader, buffer_writer);
+	cmp_ctx_t cmp;
+	np_messagepart_ptr part = pll_first(args->msg->msg_chunks)->val;
+	// we simply override the header and instructions part for a single part message here
+	// the byte size should be the same as before
+    cmp_init(&cmp, part->msg_part, buffer_reader, buffer_writer);
 
 	cmp_write_array(&cmp, 5);
 
-	int i = cmp.buf-target;
+	int i = cmp.buf-part->msg_part;
 	// log_msg(LOG_DEBUG, "serializing the header (size %hd)", msg->header->size);
-	serialize_jrb_node_t(msg->header, &cmp);
-	log_msg(LOG_DEBUG, "serialized the header (size %hd / %hd)", msg->header->byte_size, (cmp.buf-target-i));
-	i = cmp.buf-target;
+	serialize_jrb_node_t(args->msg->header, &cmp);
+	log_msg(LOG_DEBUG, "serialized the header (size %hd / %hd)", args->msg->header->byte_size, (cmp.buf-part->msg_part-i));
+	i = cmp.buf-part->msg_part;
 
 	// log_msg(LOG_DEBUG, "serializing the instructions (size %hd)", msg->header->size);
-	serialize_jrb_node_t(msg->instructions, &cmp);
-	log_msg(LOG_DEBUG, "serialized the instructions (size %hd / %hd)", msg->instructions->byte_size, (cmp.buf-target-i));
-	i = cmp.buf-target;
+	serialize_jrb_node_t(args->msg->instructions, &cmp);
+	log_msg(LOG_DEBUG, "serialized the instructions (size %hd / %hd)", args->msg->instructions->byte_size, (cmp.buf-part->msg_part-i));
+	i = cmp.buf-part->msg_part;
 
 	// log_msg(LOG_DEBUG, "serializing the properties (size %hd)", msg->properties->size);
-	serialize_jrb_node_t(msg->properties, &cmp);
-	log_msg(LOG_DEBUG, "serialized the properties (size %hd / %hd)", msg->properties->byte_size, (cmp.buf-target-i));
-	i = cmp.buf-target;
+	// serialize_jrb_node_t(msg->properties, &cmp);
+	// log_msg(LOG_DEBUG, "serialized the properties (size %hd / %hd)", msg->properties->byte_size, (cmp.buf-target-i));
+	// i = cmp.buf-target;
 
 	// log_msg(LOG_DEBUG, "serializing the body (size %hd)", msg->body->size);
-	serialize_jrb_node_t(msg->body, &cmp);
-	log_msg(LOG_DEBUG, "serialized the body (size %hd / %hd)", msg->body->byte_size, (cmp.buf-target-i));
-	i = cmp.buf-target;
+	// serialize_jrb_node_t(msg->body, &cmp);
+	// log_msg(LOG_DEBUG, "serialized the body (size %hd / %hd)", msg->body->byte_size, (cmp.buf-target-i));
+	// i = cmp.buf-target;
 
 	// log_msg(LOG_DEBUG, "serializing the footer (size %hd)", msg->footer->size);
-	serialize_jrb_node_t(msg->footer, &cmp);
-	log_msg(LOG_DEBUG, "serialized the footer (size %hd / %hd)", msg->footer->byte_size, (cmp.buf-target-i));
-	i = cmp.buf-target;
+	// serialize_jrb_node_t(msg->footer, &cmp);
+	// log_msg(LOG_DEBUG, "serialized the footer (size %hd / %hd)", msg->footer->byte_size, (cmp.buf-target-i));
+	// i = cmp.buf-target;
 
-	*out_size = cmp.buf-target;
+	// *out_size = cmp.buf-target;
 	return TRUE;
 }
 
@@ -288,6 +291,7 @@ np_message_t* np_message_check_chunks_complete(np_state_t* state, np_jobargs_t* 
 
 	} else {
 		jrb_insert_str(state->msg_part_cache, msg_uuid, new_jval_v(args->msg));
+		np_ref_obj(np_message_t, args->msg);
 		msg_to_submit = args->msg;
 	}
 
@@ -300,6 +304,7 @@ np_message_t* np_message_check_chunks_complete(np_state_t* state, np_jobargs_t* 
 	log_msg(LOG_DEBUG,
 			"message %s (%s) is complete now ", subject, msg_uuid);
 
+	np_unref_obj(np_message_t, msg_to_submit);
 	return msg_to_submit;
 }
 
@@ -375,7 +380,7 @@ np_bool np_message_serialize_chunked(np_state_t* state, np_jobargs_t* args)
 			memset(bin_header, 0, msg->header->byte_size);
 			// log_msg(LOG_DEBUG, "serializing the properties (size %hd)", msg->properties->size);
 		    cmp_init(&cmp_header, bin_header, buffer_reader, buffer_writer);
-			// log_msg(LOG_DEBUG, "serializing the header (size %hd)", msg->header->byte_size);
+			log_msg(LOG_DEBUG, "serializing the header (size %hd)", msg->header->byte_size);
 			serialize_jrb_node_t(msg->header, &cmp_header);
 		}
 
@@ -392,7 +397,7 @@ np_bool np_message_serialize_chunked(np_state_t* state, np_jobargs_t* args)
 			memset(bin_instructions, 0, msg->instructions->byte_size);
 			// log_msg(LOG_DEBUG, "serializing the properties (size %hd)", msg->properties->size);
 		    cmp_init(&cmp_instructions, bin_instructions, buffer_reader, buffer_writer);
-			// log_msg(LOG_DEBUG, "serializing the instructions (size %hd)", msg->instructions->byte_size);
+			log_msg(LOG_DEBUG, "serializing the instructions (size %hd)", msg->instructions->byte_size);
 			serialize_jrb_node_t(msg->instructions, &cmp_instructions);
 		}
 		// log_msg(LOG_DEBUG, "copying the instructions (size %hd)", msg->instructions->byte_size);
@@ -558,7 +563,7 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer) {
 
 	msg->no_of_chunks = jrb_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[0];
 	// uint16_t chunk_id = jrb_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
-	if (msg->no_of_chunks > 1) msg->is_single_part = TRUE;
+	msg->is_single_part = TRUE;
 
 	np_messagepart_ptr part = (np_messagepart_ptr) malloc(sizeof(np_messagepart_t));
 	part->header = msg->header;

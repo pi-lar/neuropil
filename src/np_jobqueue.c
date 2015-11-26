@@ -40,7 +40,9 @@ void job_resubmit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t
     jargs->is_resend = TRUE;
     jargs->target = key;
     jargs->properties = prop;
-    if (msg != NULL) np_ref_obj(np_message_t, jargs->msg);
+    if (msg != NULL) {
+    	np_ref_obj(np_message_t, jargs->msg);
+    }
 
     // create job itself
     np_job_t* new_job = (np_job_t *) malloc (sizeof(np_job_t));
@@ -69,10 +71,12 @@ void job_submit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t* 
     // create runtime arguments
     np_jobargs_t* jargs = (np_jobargs_t*) malloc (sizeof(np_jobargs_t));
     jargs->msg = msg;
-    jargs->target = key;
     jargs->is_resend = FALSE;
+    jargs->target = key;
     jargs->properties = prop;
-    if (msg != NULL) np_ref_obj(np_message_t, jargs->msg);
+    if (msg != NULL) {
+    	np_ref_obj(np_message_t, jargs->msg);
+    }
 
     // create job itself
     np_job_t* new_job = (np_job_t *) malloc (sizeof(np_job_t));
@@ -181,19 +185,17 @@ void* job_exec (void* np_state)
 	    if (NULL == tmp) continue;
 	    // log_msg(LOG_DEBUG, "%hhd:     job-->%p func-->%p args-->%p", tmp->type, tmp, tmp->processorFunc, tmp->args);
 
-	    if (tmp->type == 1)
+    	tmp->processorFunc(state, tmp->args);
+
+    	if (tmp->type == 1)
 	    {
-	    	tmp->processorFunc(state, tmp->args);
 	    	if (NULL != tmp->args->msg) {
 	    		// just do a sanity check, it won't hurt :-)
-	    		np_unref_obj(np_message_t, tmp->args->msg);
+	        	np_unref_obj(np_message_t, tmp->args->msg);
 	    		np_free_obj(np_message_t, tmp->args->msg);
 	    	}
 	    }
 
-	    if (tmp->type == 2) {
-	    	tmp->processorFunc(state, tmp->args);
-	    }
 	    // cleanup
 	    free(tmp->args);
 	    np_job_free(tmp);

@@ -85,7 +85,8 @@ void np_decode_aaatoken(np_jtree_t* data, np_aaatoken_t* token) {
 
 	// decode extensions
 	np_free_tree(token->extensions);
-	token->extensions = jrb_find_str(data, "_np.aaa.extensions")->val.value.tree;
+	np_jval_t new_extensions = copy_of_jval(jrb_find_str(data, "_np.aaa.extensions")->val);
+	token->extensions = new_extensions.value.tree;
 }
 
 np_bool token_is_valid(np_aaatoken_t* token)
@@ -215,6 +216,7 @@ void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 
 		if (max_threshold > 0) {
 			np_msg_mep_type sender_mep_type = subject_key->send_property->mep_type & SENDER_MASK;
+
 			switch(sender_mep_type) {
 
 			case SINGLE_SENDER:

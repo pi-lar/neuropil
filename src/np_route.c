@@ -119,7 +119,6 @@ sll_return(np_key_t) route_row_lookup (np_state_t* state, np_key_t* key)
 			}
 		}
 	}
-    // pthread_mutex_unlock (&state->routes->lock);
 	sll_append(np_key_t, sll_of_keys, state->my_node_key);
 
 	log_msg(LOG_TRACE, ".end  .route_row_lookup");
@@ -149,8 +148,6 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
 	log_msg(
       LOG_ROUTING, "%s is looking for key %s !",
 	  key_get_as_string(state->my_node_key), key_get_as_string(key));
-
-	// pthread_mutex_lock (&state->routes->lock);
 
     /*calculate the leafset and table size */
     Lsize = leafset_size (state->routes->leftleafset);
@@ -260,14 +257,15 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
 	    sll_append(np_key_t, key_list, leaf);
 	}
 
-    // leaf = state->my_node_key;
-    log_msg (LOG_ROUTING, "+me: (%s)",
-    		/* leaf->dns_name, leaf->port,*/ key_get_as_string (state->my_node_key) );
-    sll_append(np_key_t, key_list, state->my_node_key);
+    if (count == 0) {
+    	// consider that this node could be the target as well
+    	log_msg (LOG_ROUTING, "+me: (%s)",
+    			/* leaf->dns_name, leaf->port,*/ key_get_as_string (state->my_node_key) );
+    	sll_append(np_key_t, key_list, state->my_node_key);
+    }
 
     /* find the longest prefix match */
     i = key_index (state->my_node_key, key);
-
     for (j = 0; j < MAX_COL; j++) {
     	for (k = 0; k < MAX_ENTRY; k++) {
     		if (state->routes->table[i][j][k] != NULL) {
@@ -287,7 +285,7 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
 	    // printf ("route.c (%d): route_lookup bounce count==1 ...\n", getpid());
 	    // printTable(state);
 		min = find_closest_key (key_list, key);
-	    sll_append(np_key_t, return_list, min);
+	    if (NULL != min) sll_append(np_key_t, return_list, min);
 	}
 	else
 	{
@@ -342,7 +340,6 @@ sll_return(np_key_t) route_lookup (np_state_t* state, np_key_t* key, uint8_t cou
 	}
 
     sll_free (np_key_t, key_list);
-    // pthread_mutex_unlock (&state->routes->lock);
 
     log_msg(LOG_TRACE, ".end  .route_lookup");
     return (return_list);

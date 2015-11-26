@@ -65,9 +65,10 @@ void hnd_msg_out_ack(np_state_t* state, np_jobargs_t* args) {
 	np_message_serialize_chunked(state, chunk_args);
 	free(chunk_args);
 
-	network_send_udp(state, args->target, args->msg);
-	// ret is 1 or 0
-	// np_node_update_stat(target_node, ret);
+	np_bool send_ok = network_send_udp(state, args->target, args->msg);
+	// send_ok is 1 or 0
+	np_node_update_stat(args->target->node, send_ok);
+
 	np_free_obj(np_message_t, args->msg);
 }
 
@@ -239,12 +240,19 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	chunk_args->msg = msg_out;
 
 	// np_print_tree (msg_out->body, 0);
-	np_message_serialize_chunked(state, chunk_args);
+	if (TRUE == is_forward)
+	{
+		np_message_serialize(state, chunk_args);
+	}
+	else
+	{
+		np_message_serialize_chunked(state, chunk_args);
+	}
 	free(chunk_args);
 
-	network_send_udp(state, args->target, msg_out);
+	np_bool send_ok = network_send_udp(state, args->target, msg_out);
 	// ret is 1 or 0
-	// np_node_update_stat(target_node, ret);
+	np_node_update_stat(args->target->node, send_ok);
 
 	np_free_obj(np_message_t, args->msg);
 	np_free_obj(np_key_t, args->target);

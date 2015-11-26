@@ -28,7 +28,6 @@ struct np_jtree_elem_s
 
 int16_t jval_cmp(const np_jtree_elem_t* j1, const np_jtree_elem_t* j2);
 
-
 RB_PROTOTYPE(np_jtree,   np_jtree_elem_s, link, jval_cmp);
 
 /* Creates a new jtree */

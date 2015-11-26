@@ -55,7 +55,8 @@ void np_route_lookup(np_state_t* state, np_jobargs_t* args) {
 	char* msg_address = jrb_find_str(msg_in->header, NP_MSG_HEADER_TO)->val.value.s;
 
 	np_bool is_a_join_request = FALSE;
-	if (0 == strncmp(msg_subject, NP_MSG_JOIN_REQUEST, strlen(NP_MSG_JOIN_REQUEST)) ) {
+	if (0 == strncmp(msg_subject, NP_MSG_JOIN_REQUEST, strlen(NP_MSG_JOIN_REQUEST)) )
+	{
 		is_a_join_request = TRUE;
 	}
 
@@ -65,14 +66,15 @@ void np_route_lookup(np_state_t* state, np_jobargs_t* args) {
 	// first lookup call for target key
 	log_msg(LOG_DEBUG, "message target is key %s", key_get_as_string(&k_msg_address));
 
-
 	LOCK_CACHE(state->routes)
 	{
+		// 1 means: always send out message to another node first, even if it returns
 		tmp = route_lookup(state, &k_msg_address, 1);
-		log_msg(LOG_DEBUG, "route_lookup result 1 = %s", key_get_as_string(sll_first(tmp)->val));
+		if ( 0 < sll_size(tmp) )
+			log_msg(LOG_DEBUG, "route_lookup result 1 = %s", key_get_as_string(sll_first(tmp)->val));
 	}
 
-	if (sll_size(tmp) > 0 &&
+	if ( 0 < sll_size(tmp) &&
 		(key_equal(sll_first(tmp)->val, state->my_node_key)) &&
 		FALSE == is_a_join_request)
 	{
@@ -84,22 +86,28 @@ void np_route_lookup(np_state_t* state, np_jobargs_t* args) {
 			tmp = route_lookup(state, &k_msg_address, 2);
 			log_msg(LOG_DEBUG, "route_lookup result 2 = %s", key_get_as_string(sll_first(tmp)->val));
 		}
-		// TODO: ???
+		// TODO: increase count parameter ?
 		// if (tmp[1] != NULL && key_equal(tmp[0], &k_msg_address))
 		// tmp[0] = tmp[1];
 	}
 
-	if (!key_equal(sll_first(tmp)->val, state->my_node_key)) {
+	if (0 < sll_size(tmp) &&
+		!key_equal(sll_first(tmp)->val, state->my_node_key))
+	{
 		target_key = sll_first(tmp)->val;
 		log_msg(LOG_DEBUG, "route_lookup result   = %s", key_get_as_string(target_key));
 	}
 
 	/* if I am the only host or the closest host is me, deliver the message */
-	if (NULL == target_key && FALSE == is_a_join_request) {
-		// sum up message parts if the message is for this node
+	if (NULL == target_key && FALSE == is_a_join_request)
+	{
+		// the message has to be handled by this node (e.g. msg interest messages)
+		log_msg(LOG_DEBUG, "internal routing for subject '%s'", msg_subject);
 
+		// sum up message parts if the message is for this node
 		np_message_t* msg_to_submit = np_message_check_chunks_complete(state, args);
-		if (NULL == msg_to_submit) {
+		if (NULL == msg_to_submit)
+		{
 			np_free_obj(np_message_t, args->msg);
 			np_free_obj(np_key_t, args->target);
 			sll_free(np_key_t, tmp);
@@ -110,21 +118,25 @@ void np_route_lookup(np_state_t* state, np_jobargs_t* args) {
 		np_message_deserialize_chunked(msg_to_submit);
 		// np_print_tree (msg_to_submit->body, 0);
 
-		// the message has to be handled by this node (e.g. msg interest messages)
-		log_msg(LOG_DEBUG, "internal routing for subject '%s'", msg_subject);
 		np_msgproperty_t* prop = np_message_get_handler(state, INBOUND, msg_subject);
 		// job_submit_msg_event(state->jobq, prop, target_key, args->msg);
 		if (prop != NULL)
 			job_submit_msg_event(state->jobq, 0.0, prop, state->my_node_key, msg_to_submit);
 
+		char* msg_uuid = jrb_find_str(msg_to_submit->instructions, NP_MSG_INST_UUID)->val.value.s;
+		del_str_node(state->msg_part_cache, msg_uuid);
+
+		np_free_obj(np_key_t, msg_to_submit);
 		np_free_obj(np_key_t, args->target);
+
+		np_free_obj(np_message_t, args->msg);
 	}
 	else /* otherwise, hand it over to the np_axon sending unit */
 	{
+		log_msg(LOG_DEBUG, "forward routing for subject '%s'", msg_subject);
+
 		if (NULL == target_key || TRUE == is_a_join_request) target_key = args->target;
 		else                                                 np_free_obj(np_key_t, args->target);
-
-		log_msg(LOG_DEBUG, "forward routing for subject '%s'", msg_subject);
 
 		np_msgproperty_t* prop = np_message_get_handler(state, OUTBOUND, msg_subject);
 		if (NULL == prop)
@@ -161,7 +173,8 @@ void np_route_lookup(np_state_t* state, np_jobargs_t* args) {
 /**
  ** flushes the data of the log buffer to the filesystem in a async callback way
  **/
-void np_write_log(np_state_t* state, np_jobargs_t* args) {
+void np_write_log(np_state_t* state, np_jobargs_t* args)
+{
 	// log_msg(LOG_TRACE, "start np_write_log");
 	log_fflush();
 	job_submit_event(state->jobq, 0.31415, np_write_log);
@@ -173,7 +186,8 @@ void np_write_log(np_state_t* state, np_jobargs_t* args) {
  ** sends the leafset to other members of its leafset periodically.
  ** pinging frequency is LEAFSET_CHECK_PERIOD.
  **/
-void np_check_leafset(np_state_t* state, np_jobargs_t* args) {
+void np_check_leafset(np_state_t* state, np_jobargs_t* args)
+{
 	log_msg(LOG_TRACE, ".start.np_check_leafset");
 
 	np_sll_t(np_key_t, leafset);
@@ -186,11 +200,12 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args) {
 		leafset = route_neighbors(state, LEAFSET_SIZE);
 	}
 
-	while (NULL != (tmp_node_key = sll_head(np_key_t, leafset))) {
-
+	while (NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
+	{
 		// check for bad link nodes
 		if (tmp_node_key->node->success_avg < BAD_LINK
-				&& tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN) {
+				&& tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
+		{
 			log_msg(LOG_DEBUG, "deleting from neighbours: %s",
 					key_get_as_string(tmp_node_key));
 			// request a new handshake with the node
@@ -201,13 +216,16 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args) {
 			LOCK_CACHE(state->routes)
 			{
 				leafset_update(state, tmp_node_key, 0, &deleted, &added);
-				if (deleted) {
+				if (deleted)
+				{
 					np_unref_obj(np_key_t, tmp_node_key);
 					np_free_obj(np_key_t, deleted);
 				}
 			}
 
-		} else {
+		}
+		else
+		{
 			/* otherwise request reevaluation of peer */
 			/* assume failure of the node now, will be reset with ping reply */
 			tmp_node_key->node->failuretime = dtime();
@@ -218,8 +236,8 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args) {
 	}
 	sll_free(np_key_t, leafset);
 
-	if (check_leafset_count == 1) {
-
+	if (check_leafset_count == 1)
+	{
 		log_msg(LOG_INFO, "leafset check for table started");
 		np_sll_t(np_key_t, table);
 		LOCK_CACHE(state->routes)
@@ -227,13 +245,14 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args) {
 			table = route_get_table(state->routes);
 		}
 
-		while ( NULL != (tmp_node_key = sll_head(np_key_t, table))) {
+		while ( NULL != (tmp_node_key = sll_head(np_key_t, table)))
+		{
 			// send update of new node to all nodes in my routing table
-
 			/* first check for bad link nodes */
 			if (tmp_node_key->node->success_avg < BAD_LINK
 					&& tmp_node_key->node->handshake_status
-							> HANDSHAKE_UNKNOWN) {
+							> HANDSHAKE_UNKNOWN)
+			{
 				log_msg(LOG_DEBUG, "Deleting from table: %s",
 						key_get_as_string(tmp_node_key));
 				// request a new handshake with the node
@@ -244,12 +263,15 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args) {
 				LOCK_CACHE(state->routes)
 				{
 					route_update(state, tmp_node_key, FALSE, &deleted, &added);
-					if (deleted) {
+					if (deleted)
+					{
 						np_unref_obj(np_key_t, deleted);
 						np_free_obj(np_key_t, deleted);
 					}
 				}
-			} else {
+			}
+			else
+			{
 				/* otherwise request re-evaluation of node stats */
 				/* weired: assume failure of the node now, will be reset with ping reply later */
 				tmp_node_key->node->failuretime = dtime();
@@ -262,17 +284,18 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args) {
 	}
 
 	/* send leafset exchange data every 3 times that pings the leafset */
-	if (check_leafset_count == 2) {
-		check_leafset_count = 0;
-
+	if (check_leafset_count == 2)
+	{
 		log_msg(LOG_INFO, "leafset exchange for neighbours started");
+		check_leafset_count = 0;
 
 		LOCK_CACHE(state->routes)
 		{
 			leafset = route_neighbors(state, LEAFSET_SIZE);
 		}
 
-		while ( NULL != (tmp_node_key = sll_head(np_key_t, leafset))) {
+		while ( NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
+		{
 			// send a piggy message to the the nodes in our routing table
 			np_msgproperty_t* piggy_prop = np_message_get_handler(state,
 					TRANSFORM, NP_MSG_PIGGY_REQUEST);
@@ -280,11 +303,13 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args) {
 		}
 		sll_free(np_key_t, leafset);
 
-	} else {
+	}
+	else
+	{
 		check_leafset_count++;
 	}
 
-	// np_printpool;
+	np_printpool;
 	job_submit_event(state->jobq, LEAFSET_CHECK_PERIOD, np_check_leafset);
 	log_msg(LOG_TRACE, ".end  .np_check_leafset");
 }
@@ -295,7 +320,8 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args) {
  ** default ttl value for message exchange tokens is ten seconds, afterwards they will be invalid
  ** and a new token is required. this also ensures that the correct encryption key will be transmitted
  **/
-void np_retransmit_tokens(np_state_t* state, np_jobargs_t* args) {
+void np_retransmit_tokens(np_state_t* state, np_jobargs_t* args)
+{
 	// log_msg(LOG_TRACE, "start np_retransmit_tokens");
 
 	np_jtree_elem_t *iter = NULL;
@@ -838,7 +864,7 @@ np_bool np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msg
 					log_msg(LOG_DEBUG,
 							"rejecting new message because cache is full");
 					np_free_obj(np_message_t, msg);
-					// jump out of the LOCK_CACHE
+					// jump out of LOCK_CACHE
 					continue;
 				}
 			}

@@ -61,7 +61,7 @@ np_bool np_message_encrypt_part(np_jtree_t* msg_part, unsigned char* enc_nonce, 
 // (de-) serialize a message to a binary stream using message pack (cmp.h)
 void np_message_calculate_chunking(np_message_t* msg);
 np_message_t* np_message_check_chunks_complete(np_state_t* state, np_jobargs_t* args);
-np_bool np_message_serialize(np_message_t* msg, void* buffer, uint64_t* out_size);
+np_bool np_message_serialize(np_state_t* state, np_jobargs_t* args);
 np_bool np_message_serialize_chunked(np_state_t* state, np_jobargs_t* args);
 np_bool np_message_deserialize(np_message_t* msg, void* buffer);
 np_bool np_message_deserialize_chunked(np_message_t* msg);

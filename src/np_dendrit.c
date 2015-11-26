@@ -38,8 +38,8 @@
 void hnd_msg_in_received(np_state_t* state, np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.hnd_msg_in_received");
-	char* subject = jrb_find_str(args->msg->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
-	np_msgproperty_t* handler = np_message_get_handler(state, INBOUND, subject );
+	char* msg_subject = jrb_find_str(args->msg->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
+	np_msgproperty_t* handler = np_message_get_handler(state, INBOUND, msg_subject );
 
 	// check time-to-live for message
 	// double msg_tstamp = jrb_find_str(args->msg->instructions, NP_MSG_INST_TSTAMP)->val.value.d;
@@ -47,29 +47,50 @@ void hnd_msg_in_received(np_state_t* state, np_jobargs_t* args)
 	double msg_ttl = jrb_find_str(args->msg->instructions, NP_MSG_INST_TTL)->val.value.d;
 	double now = dtime();
 
-	if (now > msg_ttl) {
-		log_msg(LOG_INFO, "message ttl expired, dropping message %s  / %s", msg_uuid, subject);
+	// check for expired messages
+	if (now > msg_ttl)
+	{
+		log_msg(LOG_INFO, "message ttl expired, dropping message (part) %s / %s", msg_uuid, msg_subject);
 		log_msg(LOG_DEBUG, "now: %f, msg_ttl: %f", now, msg_ttl);
 		np_free_obj(np_message_t, args->msg);
 		log_msg(LOG_TRACE, ".end  .hnd_msg_in_received");
 		return;
 	}
 
-	if (!key_equal(args->target, state->my_node_key) || handler == NULL) {
+	if (!key_equal(args->target, state->my_node_key) || handler == NULL)
+	{
 		// perform a route lookup
-		log_msg(LOG_INFO, "received unrecognized message type %s, perform route lookup ...", subject);
-		np_msgproperty_t* prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
-		job_submit_msg_event(state->jobq, 0.0, prop, args->target, args->msg);
+		// zero as "consider this node as final target"
+		char* msg_address = jrb_find_str(args->msg->header, NP_MSG_HEADER_TO)->val.value.s;
+		np_key_t k_msg_address;
+		str_to_key(&k_msg_address, msg_address);
+		np_sll_t(np_key_t, tmp);
+		LOCK_CACHE(state->routes)
+		{
+			tmp = route_lookup(state, &k_msg_address, 0);
+			log_msg(LOG_DEBUG, "route_lookup result 1 = %s", key_get_as_string(sll_first(tmp)->val));
+		}
 
-		np_free_obj(np_message_t, args->msg);
-		log_msg(LOG_TRACE, ".end  .hnd_msg_in_received");
-		return;
+		if (sll_size(tmp) > 0 &&
+			(!key_equal(sll_first(tmp)->val, state->my_node_key)) )
+		{
+			log_msg(LOG_INFO, "received unrecognized message type %s, requesting forward of message ...", msg_subject);
+			np_msgproperty_t* prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+			job_submit_msg_event(state->jobq, 0.0, prop, args->target, args->msg);
+
+			np_free_obj(np_message_t, args->msg);
+			log_msg(LOG_TRACE, ".end  .hnd_msg_in_received");
+			return;
+		}
+		sll_free(np_key_t, tmp);
+		log_msg(LOG_DEBUG, "internal routing for subject '%s'", msg_subject);
 	}
 
+	// if this message really has to be handled by this node, does a handler exists ?
 	if (handler->clb == NULL ) {
 		log_msg(LOG_WARN,
-				"no incoming callback function was found for type %s, dropping message",
-				handler->msg_subject);
+				"no incoming callback function was found for type %s, dropping message %s",
+				handler->msg_subject, msg_uuid);
 
 		np_free_obj(np_message_t, args->msg);
 		np_free_obj(np_key_t, args->target);
@@ -104,8 +125,8 @@ void hnd_msg_in_received(np_state_t* state, np_jobargs_t* args)
  ** other ctrl messages or separately to the routing table. the PIGGY message type is a separate
  ** message type.
  **/
-void hnd_msg_in_piggy(np_state_t* state, np_jobargs_t* args) {
-	log_msg(LOG_TRACE, ".start.hnd_msg_in_piggy");
+void hnd_msg_in_piggy(np_state_t* state, np_jobargs_t* args)
+{	log_msg(LOG_TRACE, ".start.hnd_msg_in_piggy");
 
 	if (!state->my_node_key->node->joined_network) {
 		np_free_obj(np_message_t, args->msg);
@@ -230,7 +251,7 @@ void np_callback_wrapper(np_state_t* state, np_jobargs_t* args) {
 			// np_unref_obj(np_aaatoken_t, sender_token);
 			np_free_obj(np_aaatoken_t, sender_token);
 
-			np_unref_obj(np_message_t, msg_in);
+			// np_unref_obj(np_message_t, msg_in);
 			np_free_obj(np_message_t, msg_in);
 
 			msg_prop->msg_threshold--;
@@ -296,7 +317,7 @@ void np_callback_wrapper(np_state_t* state, np_jobargs_t* args) {
 		}
 	}
 
-	np_unref_obj(np_message_t, msg_in);
+	// np_unref_obj(np_message_t, msg_in);
 	np_free_obj(np_message_t, msg_in);
 }
 
@@ -304,8 +325,8 @@ void np_callback_wrapper(np_state_t* state, np_jobargs_t* args) {
  ** internal function that is called at the destination of a JOIN message. This
  ** call encodes the leaf set of the current host and sends it to the joiner.
  **/
-void hnd_msg_in_join_req(np_state_t* state, np_jobargs_t* args) {
-	log_msg(LOG_TRACE, ".start.hnd_msg_in_join_req");
+void hnd_msg_in_join_req(np_state_t* state, np_jobargs_t* args)
+{	log_msg(LOG_TRACE, ".start.hnd_msg_in_join_req");
 
 	np_msgproperty_t *msg_prop = NULL;
 	np_key_t* join_req_key = NULL;
@@ -718,8 +739,8 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args) {
 
 	np_msgproperty_t* real_prop = np_message_get_handler(state, OUTBOUND, msg_token->subject);
 	// check if we are (one of the) sending node(s) of this kind of message
-	if ( NULL != real_prop ) { //
-
+	if ( NULL != real_prop )
+	{
 		log_msg(LOG_DEBUG,
 				"this node is one sender of messages, checking msgcache (%p / %u) ...",
 				real_prop->msg_cache, sll_size(real_prop->msg_cache));
@@ -855,6 +876,8 @@ void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args)
 					msg_in = sll_tail(np_message_t, real_prop->msg_cache);
 				if (real_prop->cache_policy & FILO)
 					msg_in = sll_head(np_message_t, real_prop->msg_cache);
+
+				np_unref_obj(np_message_t, msg_in);
 
 				msg_available = sll_size(real_prop->msg_cache);
 				real_prop->msg_threshold--;

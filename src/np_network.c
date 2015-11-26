@@ -274,15 +274,6 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 		return FALSE;
 	}
 
-	// log_msg(LOG_DEBUG, "serializing and encrypting message ...");
-	// uint64_t max_buffer_len = NETWORK_PACK_SIZE - crypto_secretbox_MACBYTES - crypto_secretbox_NONCEBYTES;
-	// uint64_t send_buf_len;
-	// unsigned char send_buffer[max_buffer_len];
-	// void* send_buffer_ptr = send_buffer;
-
-	// np_message_serialize(msg, send_buffer_ptr, &send_buf_len);
-	// assert(send_buf_len <= max_buffer_len);
-
 	// log_msg(LOG_NETWORKDEBUG, "serialized message to %llu bytes", send_buf_len);
 	char enc_buffer[MSG_CHUNK_SIZE_1024];
 	uint16_t i = 0, chunks = msg->no_of_chunks;

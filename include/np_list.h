@@ -407,7 +407,7 @@ TYPE* TYPE##_sll_tail(TYPE##_sll_t* sll_list) {\
 }\
 void TYPE##_sll_free(TYPE##_sll_t* sll_list) {\
 	TYPE##_sll_node_t *tmp;\
-	while (sll_list->first != NULL) {\
+	while (NULL != sll_list->first) {\
 		tmp = sll_list->first;\
 		sll_list->first = sll_list->first->flink;\
 		free(tmp);\
