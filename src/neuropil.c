@@ -40,49 +40,49 @@ SPLAY_GENERATE(spt_key, np_key_s, link, key_comp);
 RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_property_comp);
 
 
-//np_bool np_default_joinfunc (np_state_t* state, np_node_t* node ) {
-//	log_msg(LOG_WARN, "using default handler for joining node %s", key_get_as_string(node->key) );
-//	log_msg(LOG_WARN, "do you really want the default join handler (allow all) ???");
-//	return TRUE;
-//}
-np_bool np_default_authorizefunc (np_state_t* state, np_aaatoken_t* token ) {
+np_bool np_default_authorizefunc (np_state_t* state, np_aaatoken_t* token )
+{
 	log_msg(LOG_WARN, "using default handler to authorize %s", token->subject );
 	log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
 	return TRUE;
 }
-np_bool np_default_authenticatefunc (np_state_t* state, np_aaatoken_t* token ) {
+
+np_bool np_default_authenticatefunc (np_state_t* state, np_aaatoken_t* token )
+{
 	log_msg(LOG_WARN, "using default handler to authenticate %s", token->subject);
 	log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
 	return TRUE;
 }
-np_bool np_default_accountingfunc (np_state_t* state, np_aaatoken_t* token ) {
+
+np_bool np_default_accountingfunc (np_state_t* state, np_aaatoken_t* token )
+{
 	log_msg(LOG_WARN, "using default handler to account for %s", token->subject );
 	log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
 	return TRUE;
 }
 
-//void np_setjoinfunc(const np_state_t* state, np_join_func_t joinFunc) {
-//	log_msg(LOG_INFO, "setting user defined join handler, that's good ...");
-//	state->join_func = joinFunc;
-//}
-
-void np_setauthorizing_cb(np_state_t* state, np_aaa_func_t aaaFunc) {
+void np_setauthorizing_cb(np_state_t* state, np_aaa_func_t aaaFunc)
+{
 	log_msg(LOG_INFO, "setting user defined authorization handler, that's good ...");
 	state->authorize_func = aaaFunc;
 }
 
-void np_setauthenticate_cb(np_state_t* state, np_aaa_func_t aaaFunc) {
+void np_setauthenticate_cb(np_state_t* state, np_aaa_func_t aaaFunc)
+{
 	log_msg(LOG_INFO, "setting user defined authentication handler, that's good ...");
 	state->authenticate_func = aaaFunc;
 }
 
-void np_setaccounting_cb(np_state_t* state, np_aaa_func_t aaaFunc) {
+void np_setaccounting_cb(np_state_t* state, np_aaa_func_t aaaFunc)
+{
 	log_msg(LOG_INFO, "setting user defined accounting handler, that's good ...");
 	state->accounting_func = aaaFunc;
 }
 
-void np_waitforjoin(const np_state_t* state) {
-	while (FALSE == state->my_node_key->node->joined_network) {
+void np_waitforjoin(const np_state_t* state)
+{
+	while (FALSE == state->my_node_key->node->joined_network)
+	{
 		dsleep(0.31415);
 	}
 }
@@ -92,11 +92,12 @@ void np_set_listener (np_state_t* state, np_usercallback_t msg_handler, char* su
 	// check whether an handler already exists
 	np_msgproperty_t* msg_prop = np_message_get_handler(state, INBOUND, subject);
 
-	if (NULL == msg_prop) {
+	if (NULL == msg_prop)
+	{
 		// create a default set of properties for listening to messages
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->msg_mode = INBOUND;
+		msg_prop->mode_type = INBOUND;
 		msg_prop->clb = np_callback_wrapper;
 		msg_prop->user_clb = msg_handler;
 		np_message_register_handler(state, msg_prop);
@@ -121,27 +122,33 @@ void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
 	sodium_bin2hex(key, 65, hash_key, 32);
 
 	np_key_t* search_key = key_create_from_hash(key);
-	LOCK_CACHE(state) {
+	LOCK_CACHE(state)
+	{
 		my_identity_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
-		if (NULL == my_identity_key ) {
+		if (NULL == my_identity_key )
+		{
 			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
 			my_identity_key = search_key;
 			np_ref_obj(np_key_t, my_identity_key);
-	    } else {
+	    }
+		else
+		{
 	    	np_free_obj(np_key_t, search_key);
 	    }
 	}
 
-	if (NULL != state->my_identity) {
+	if (NULL != state->my_identity)
+	{
 		// delete old identity
 		np_unref_obj(np_key_t, state->my_identity);
-		np_free_obj(np_key_t, state->my_identity);
 	}
 
-	state->my_identity = my_identity_key;
-	state->my_identity->authentication = identity;
-
-	np_ref_obj(np_key_t, my_identity_key);
+	if (NULL != my_identity_key)
+	{
+		// cannot be null, but checker complains
+		state->my_identity = my_identity_key;
+		state->my_identity->authentication = identity;
+	}
 
     // create encryption parameter
 	crypto_sign_keypair(identity->public_key, identity->private_key);
@@ -149,31 +156,23 @@ void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
 
 void np_set_mx_property(np_state_t* state, char* subject, const char* key, np_jval_t value)
 {
-	np_key_t* subject_key;
-	np_key_t* search_key = key_create_from_hostport(subject, "0");
-	LOCK_CACHE(state) {
-		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
-			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-			subject_key = search_key;
-			np_ref_obj(np_key_t, subject_key);
-	    } else {
-	    	np_free_obj(np_key_t, search_key);
-	    }
+	np_msgproperty_t* msg_prop = np_message_get_handler(state, OUTBOUND, subject);
+	if (NULL == msg_prop)
+	{
+		np_new_obj(np_msgproperty_t, msg_prop);
+		msg_prop->msg_subject = strndup(subject, 255);
+		msg_prop->clb = hnd_msg_out_send;
+
+		np_message_register_handler(state, msg_prop);
 	}
 }
 
 void np_rem_mx_property(np_state_t* state, char* subject, const char* key)
 {
-	np_key_t* subject_key;
-	np_key_t* search_key = key_create_from_hostport(subject, "0");
-	LOCK_CACHE(state) {
-		if (NULL == (subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key)) ) {
-			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-			subject_key = search_key;
-			np_ref_obj(np_key_t, subject_key);
-	    } else {
-	    	np_free_obj(np_key_t, search_key);
-	    }
+	np_msgproperty_t* msg_prop = np_message_get_handler(state, OUTBOUND, subject);
+	if (NULL == msg_prop)
+	{
+		return;
 	}
 }
 
@@ -181,11 +180,12 @@ void np_rem_mx_property(np_state_t* state, char* subject, const char* key)
 void np_send (np_state_t* state, char* subject, char *data, uint32_t seqnum)
 {
 	np_msgproperty_t* msg_prop = np_message_get_handler(state, OUTBOUND, subject);
-	if (NULL == msg_prop) {
+	if (NULL == msg_prop)
+	{
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ONE_WAY;
-		msg_prop->msg_mode = OUTBOUND;
+		msg_prop->mode_type = OUTBOUND;
 		msg_prop->clb = hnd_msg_out_send;
 
 		np_message_register_handler(state, msg_prop);
@@ -204,17 +204,20 @@ void np_send (np_state_t* state, char* subject, char *data, uint32_t seqnum)
 	np_send_msg_availability(state, subject);
 
 	np_send_msg(state, subject, msg, msg_prop);
+
+	np_free_obj(np_message_t, msg);
 }
 
 uint32_t np_receive (np_state_t* state, char* subject, char **data)
 {
 	// send out that we want to receive messages
 	np_msgproperty_t* msg_prop = np_message_get_handler(state, INBOUND, subject);
-	if (NULL == msg_prop) {
+	if (NULL == msg_prop)
+	{
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ONE_WAY;
-		msg_prop->msg_mode = INBOUND;
+		msg_prop->mode_type = INBOUND;
 		msg_prop->clb = np_signal;
 		// when creating, set to zero because callback function is not used
 		msg_prop->max_threshold = 0;
@@ -233,8 +236,10 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 
 	do
 	{	// first check or wait for available messages
-		if (0 == sll_size(msg_prop->msg_cache)) {
-			LOCK_CACHE(msg_prop) {
+		if (0 == sll_size(msg_prop->msg_cache))
+		{
+			LOCK_CACHE(msg_prop)
+			{
 				log_msg(LOG_DEBUG, "waiting for signal that a new message arrived %p", msg_prop);
 				pthread_cond_wait(&msg_prop->msg_received, &msg_prop->lock);
 				log_msg(LOG_DEBUG, "received signal that a new message arrived %p", msg_prop);
@@ -245,7 +250,8 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 		// next check or wait for valid sender tokens
 		sender_id = jrb_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
 		sender_token = np_get_sender_token(state, subject, sender_id);
-		if (NULL == sender_token) {
+		if (NULL == sender_token)
+		{
 			// sleep for a while, token may need some time to arrive
 			dsleep(0.31415);
 			continue;
@@ -264,14 +270,11 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 	log_msg(LOG_DEBUG, "decrypting message ...");
 	np_bool decrypt_ok = np_message_decrypt_payload(state, msg, sender_token);
 
-	if (FALSE == decrypt_ok) {
+	if (FALSE == decrypt_ok)
+	{
 		log_msg(LOG_DEBUG, "decryption of message failed, deleting message");
 
-		np_free_obj(np_aaatoken_t, sender_token);
-
 		np_unref_obj(np_message_t, msg);
-		np_free_obj(np_message_t, msg);
-
 		msg_prop->max_threshold--;
 
 		return 0;
@@ -282,35 +285,33 @@ uint32_t np_receive (np_state_t* state, char* subject, char **data)
 	*data = strndup(reply_data->val.value.s, strlen(reply_data->val.value.s));
 
 	uint8_t ack_mode = jrb_find_str(msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
-	if (0 < (ack_mode & ACK_DESTINATION)) {
+	if (0 < (ack_mode & ACK_DESTINATION))
+	{
 		np_send_ack(state, msg);
 	}
 
 	np_unref_obj(np_message_t, msg);
-	np_free_obj(np_message_t, msg);
+	msg_prop->max_threshold--;
 
 	log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
-
-	np_free_obj(np_aaatoken_t, sender_token);
-
-	msg_prop->max_threshold--;
 
 	return received;
 }
 
 
-void np_send_ack(np_state_t* state, np_message_t* in_msg) {
-
-	uint8_t ack = ACK_NONE;
+void np_send_ack(np_state_t* state, np_message_t* in_msg)
+{
+	// uint8_t ack = ACK_NONE;
 	uint32_t seq = 0;
 	char* uuid = NULL;
 
 	// np_message_t* in_msg = args->msg;
 
-	if (NULL != jrb_find_str(in_msg->header, NP_MSG_INST_ACK_TO)) {
+	if (NULL != jrb_find_str(in_msg->header, NP_MSG_INST_ACK_TO))
+	{
 		// extract data from incoming message
 		seq = jrb_find_str(in_msg->instructions, NP_MSG_INST_SEQ)->val.value.ul;
-		ack = jrb_find_str(in_msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
+		// ack = jrb_find_str(in_msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
 		uuid = jrb_find_str(in_msg->instructions, NP_MSG_INST_UUID)->val.value.s;
 
 		// create new ack message & handlers
@@ -318,20 +319,21 @@ void np_send_ack(np_state_t* state, np_message_t* in_msg) {
 		np_key_t* ack_key = key_create_from_hash(
 				jrb_find_str(in_msg->header, NP_MSG_INST_ACK_TO)->val.value.s);
 
-		np_message_t* ack_msg;
+		np_message_t* ack_msg = NULL;
+		np_new_obj(np_message_t, ack_msg);
+
 		np_msgproperty_t* prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
 
-		np_new_obj(np_message_t, ack_msg);
 		np_message_create(ack_msg, ack_key, state->my_node_key, NP_MSG_ACK, NULL);
 		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_ACK, new_jval_ush(prop->ack_mode));
 		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_ACKUUID, new_jval_s(uuid));
 		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_SEQ, new_jval_ul(seq));
 		// send the ack out
 		job_submit_msg_event(state->jobq, 0.0, prop, ack_key, ack_msg);
+
+		np_free_obj(np_message_t, ack_msg);
 		np_free_obj(np_key_t, ack_key);
 	}
-
-	np_free_obj(np_message_t, in_msg);
 }
 
 
@@ -341,14 +343,23 @@ void np_send_ack(np_state_t* state, np_message_t* in_msg) {
  **/
 void np_ping (np_state_t* state, np_key_t* key)
 {
-    np_message_t* out_msg;
+	/* weired: assume failure of the node now, will be reset with ping reply later */
+	if (NULL != key->node)
+	{
+		key->node->failuretime = dtime();
+		np_node_update_stat(key->node, 0);
+	}
 
+    np_message_t* out_msg = NULL;
     np_new_obj(np_message_t, out_msg);
+
     np_message_create (out_msg, key, state->my_node_key, NP_MSG_PING_REQUEST, NULL);
     log_msg(LOG_DEBUG, "ping request to: %s", key_get_as_string(key));
 
     np_msgproperty_t* prop = np_message_get_handler(state, OUTBOUND, NP_MSG_PING_REQUEST);
 	job_submit_msg_event(state->jobq, 0.0, prop, key, out_msg);
+
+	np_free_obj(np_message_t, out_msg);
 }
 
 /**
@@ -394,19 +405,24 @@ np_state_t* np_init(char* proto, char* port)
 
 	if (NULL != port)
 		np_service = port;
-	if (NULL != proto) {
+
+	if (NULL != proto)
+	{
 		np_proto = np_parse_protocol_string(proto);
 		log_msg(LOG_DEBUG, "now initializing networking for %s:%s", proto, np_service);
-	} else {
+	}
+	else
+	{
 		log_msg(LOG_DEBUG, "now initializing networking for udp6://%s", np_service);
 	}
 
-	np_node_t* me;
+	np_node_t* me = NULL;
     np_new_obj(np_node_t, me);
 
     // listen on all network interfaces
 	me->network = network_init(TRUE, np_proto, NULL, np_service);
-	if (NULL == me->network->addr_in) {
+	if (NULL == me->network->addr_in)
+	{
     	log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
 	    exit(1);
 	}
@@ -423,7 +439,7 @@ np_state_t* np_init(char* proto, char* port)
     state->my_node_key->node = me;
 
     // create a new token for encryption each time neuropil starts
-    np_aaatoken_t* auth_token;
+    np_aaatoken_t* auth_token = NULL;
     np_new_obj(np_aaatoken_t, auth_token);
     // crypto_box_keypair(auth_token->public_key, auth_token->private_key); // curve25519xsalsa20poly1305
     crypto_sign_keypair(auth_token->public_key, auth_token->private_key);   // ed25519
@@ -432,7 +448,7 @@ np_state_t* np_init(char* proto, char* port)
 	strncpy(auth_token->issuer, (char*) key_get_as_string(state->my_node_key), 255);
 	// TODO: aaa subject should be user set-able, could also be another name
 	snprintf(auth_token->subject, 255, "%s:%s", name, port);
-    auth_token->valid = 1;
+    auth_token->valid = TRUE;
 
     state->my_node_key->authentication = auth_token;
 
@@ -482,18 +498,20 @@ np_state_t* np_init(char* proto, char* port)
 	return state;
 }
 
-void np_start_job_queue(np_state_t* state, uint8_t pool_size) {
-
+void np_start_job_queue(np_state_t* state, uint8_t pool_size)
+{
 	if (pthread_attr_init (&state->attr) != 0)
 	{
 	    log_msg (LOG_ERROR, "pthread_attr_init: %s", strerror (errno));
 	    return;
 	}
+
     if (pthread_attr_setscope (&state->attr, PTHREAD_SCOPE_SYSTEM) != 0)
 	{
 	    log_msg (LOG_ERROR, "pthread_attr_setscope: %s", strerror (errno));
 	    return;
 	}
+
     if (pthread_attr_setdetachstate (&state->attr, PTHREAD_CREATE_DETACHED) != 0)
 	{
     	log_msg (LOG_ERROR, "pthread_attr_setdetachstate: %s", strerror (errno));

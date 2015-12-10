@@ -594,29 +594,29 @@ attr struct type *							\
 name##_RB_INSERT(struct name *head, struct type *elm)			\
 {									\
 	struct type *tmp;						\
-	struct type *parent = NULL;					\
+	struct type *parent = NULL;				\
 	int comp = 0;							\
-	tmp = RB_ROOT(head);						\
+	tmp = RB_ROOT(head);					\
 	while (tmp) {							\
 		parent = tmp;						\
-		comp = (cmp)(elm, parent);				\
+		comp = (cmp)(elm, parent);			\
 		if (comp < 0)						\
-			tmp = RB_LEFT(tmp, field);			\
+			tmp = RB_LEFT(tmp, field);		\
 		else if (comp > 0)					\
-			tmp = RB_RIGHT(tmp, field);			\
+			tmp = RB_RIGHT(tmp, field);		\
 		else							\
 			return (tmp);					\
 	}								\
-	RB_SET(elm, parent, field);					\
-	if (parent != NULL) {						\
+	RB_SET(elm, parent, field);				\
+	if (parent != NULL) {					\
 		if (comp < 0)						\
-			RB_LEFT(parent, field) = elm;			\
+			RB_LEFT(parent, field) = elm;	\
 		else							\
-			RB_RIGHT(parent, field) = elm;			\
+			RB_RIGHT(parent, field) = elm;	\
 		RB_AUGMENT(parent);					\
 	} else								\
-		RB_ROOT(head) = elm;					\
-	name##_RB_INSERT_COLOR(head, elm);				\
+		RB_ROOT(head) = elm;				\
+	name##_RB_INSERT_COLOR(head, elm);		\
 	return (NULL);							\
 }									\
 									\
@@ -627,17 +627,17 @@ name##_RB_FIND(struct name *head, struct type *elm)			\
 	struct type *tmp = RB_ROOT(head);				\
 	int comp;							\
 	while (tmp) {							\
-		comp = cmp(elm, tmp);					\
+		comp = cmp(elm, tmp);				\
 		if (comp < 0)						\
-			tmp = RB_LEFT(tmp, field);			\
+			tmp = RB_LEFT(tmp, field);		\
 		else if (comp > 0)					\
-			tmp = RB_RIGHT(tmp, field);			\
-		else							\
+			tmp = RB_RIGHT(tmp, field);		\
+		else								\
 			return (tmp);					\
-	}								\
+	}										\
 	return (NULL);							\
-}									\
-									\
+}											\
+											\
 /* Finds the first node greater than or equal to the search key */	\
 attr struct type *							\
 name##_RB_NFIND(struct name *head, struct type *elm)			\

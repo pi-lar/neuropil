@@ -260,7 +260,9 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 	// get encryption details
 	np_aaatoken_t* auth_token = node_key->authentication;
 
-	if (NULL == auth_token || !auth_token->valid) {
+	if (NULL == auth_token ||
+		FALSE == auth_token->valid)
+	{
 		if (node_key->node->handshake_status < HANDSHAKE_INITIALIZED)
 		{
 			node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
@@ -279,7 +281,8 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 	uint16_t i = 0, chunks = msg->no_of_chunks;
 
 	pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
-	do {
+	do
+	{
 		// add protection from replay attacks ...
 		unsigned char nonce[crypto_secretbox_NONCEBYTES];
 		randombytes_buf(nonce, sizeof(nonce));
@@ -321,11 +324,14 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 
 		pthread_mutex_unlock(&(state->my_node_key->node->network->lock));
 
-		if (ret < 0) {
+		if (ret < 0)
+		{
 			log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
 			// TODO: connection refused error shows up here -> hanlde it
 			return FALSE;
-		} else {
+		}
+		else
+		{
 			// log_msg (LOG_NETWORKDEBUG, "sent smessage");
 		}
 
@@ -361,7 +367,8 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
 
     get_network_address (create_socket, &ng->addr_in, type, hostname, service);
 
-    if (NULL != ng->addr_in) {
+    if (NULL != ng->addr_in)
+    {
     	log_msg(LOG_DEBUG, "canonical name: %s", ng->addr_in->ai_canonname);
     	// create socket
     	// not using a socket for sending messages to a different node leads to unreliable
@@ -388,6 +395,7 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
 				close (ng->socket);
 				return NULL;
 			}
+
 			if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
 			{
 				// enable ipv4 mapping

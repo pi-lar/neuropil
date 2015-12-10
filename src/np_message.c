@@ -70,48 +70,53 @@ enum {
 
 np_msgproperty_t np_internal_messages[] =
 {
-	{ .msg_subject=ROUTE_LOOKUP, .msg_mode=TRANSFORM, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=np_route_lookup }, // default input handling func should be "route_get" ?
+	{ .msg_subject=ROUTE_LOOKUP, .mode_type=TRANSFORM, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=np_route_lookup }, // default input handling func should be "route_get" ?
 
-	{ .msg_subject=DEFAULT, .msg_mode=INBOUND, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_in_received, .ttl=20.0 },
+	{ .msg_subject=DEFAULT, .mode_type=INBOUND, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_in_received, .ttl=20.0 },
 	// TODO: add garbage collection output
-	{ .msg_subject=DEFAULT, .msg_mode=OUTBOUND, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_out_send, .ttl=20.0 },
+	{ .msg_subject=DEFAULT, .mode_type=OUTBOUND, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_out_send, .ttl=20.0 },
 
-	{ .msg_subject=NP_MSG_HANDSHAKE, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_in_handshake, .ttl=20.0 },
-	{ .msg_subject=NP_MSG_HANDSHAKE, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_out_handshake , .ttl=20.0 },
+	{ .msg_subject=NP_MSG_HANDSHAKE, .mode_type=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_in_handshake, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_HANDSHAKE, .mode_type=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_out_handshake , .ttl=20.0 },
 
 	// we don't need to ack the ack the ack the ack ...
-	{ .msg_subject=NP_MSG_ACK, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=NULL, .ttl=20.0 }, // incoming ack handled in network layer, not required
-	{ .msg_subject=NP_MSG_ACK, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_out_ack, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_ACK, .mode_type=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=NULL, .ttl=20.0 }, // incoming ack handled in network layer, not required
+	{ .msg_subject=NP_MSG_ACK, .mode_type=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=hnd_msg_out_ack, .ttl=20.0 },
 
 	// ping is send directly to the destination host, no ack required
-	{ .msg_subject=NP_MSG_PING_REQUEST, .msg_mode=INBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_in_ping, .ttl=2.0 },
-	{ .msg_subject=NP_MSG_PING_REPLY, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_in_pingreply, .ttl=2.0 },
-	{ .msg_subject=NP_MSG_PING_REQUEST, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_out_send, .ttl=2.0 },
-	{ .msg_subject=NP_MSG_PING_REPLY, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_out_send, .ttl=2.0 },
+	{ .msg_subject=NP_MSG_PING_REQUEST, .mode_type=INBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_in_ping, .ttl=2.0 },
+	{ .msg_subject=NP_MSG_PING_REPLY, .mode_type=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_in_pingreply, .ttl=2.0 },
+	{ .msg_subject=NP_MSG_PING_REQUEST, .mode_type=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_out_send, .ttl=2.0 },
+	{ .msg_subject=NP_MSG_PING_REPLY, .mode_type=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_NONE, .retry=5, .clb=hnd_msg_out_send, .ttl=2.0 },
 
 	// join request: node unknown yet, therefore send without ack, explicit ack handling via extra messages
-	{ .msg_subject=NP_MSG_JOIN_REQUEST, .msg_mode=INBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_DESTINATION, .retry=6, .clb=hnd_msg_in_join_req, .ttl=6.0 }, // just for controller ?
-	{ .msg_subject=NP_MSG_JOIN_REQUEST, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_DESTINATION, .retry=6, .clb=hnd_msg_out_send, .ttl=6.0 },
-	{ .msg_subject=NP_MSG_JOIN_ACK, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_join_ack, .ttl=20.0 },
-	{ .msg_subject=NP_MSG_JOIN_ACK, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
-	{ .msg_subject=NP_MSG_JOIN_NACK, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_join_nack, .ttl=20.0 },
-	{ .msg_subject=NP_MSG_JOIN_NACK, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_JOIN_REQUEST, .mode_type=INBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_DESTINATION, .retry=6, .clb=hnd_msg_in_join_req, .ttl=6.0 }, // just for controller ?
+	{ .msg_subject=NP_MSG_JOIN_REQUEST, .mode_type=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_DESTINATION, .retry=6, .clb=hnd_msg_out_send, .ttl=6.0 },
+	{ .msg_subject=NP_MSG_JOIN_ACK, .mode_type=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_join_ack, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_JOIN_ACK, .mode_type=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_JOIN_NACK, .mode_type=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_join_nack, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_JOIN_NACK, .mode_type=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
 
-	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .msg_mode=TRANSFORM, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=np_send_rowinfo, .ttl=20.0 }, // default input handling func should be "route_get" ?
-	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_piggy, .ttl=20.0 },
-	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .mode_type=TRANSFORM, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=np_send_rowinfo, .ttl=20.0 }, // default input handling func should be "route_get" ?
+	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .mode_type=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_piggy, .ttl=10.0 },
+	{ .msg_subject=NP_MSG_PIGGY_REQUEST, .mode_type=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=10.0 },
 
-	{ .msg_subject=NP_MSG_UPDATE_REQUEST, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_update, .ttl=20.0 },
-	{ .msg_subject=NP_MSG_UPDATE_REQUEST, .msg_mode=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_UPDATE_REQUEST, .mode_type=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_update, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_UPDATE_REQUEST, .mode_type=OUTBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
 
-	{ .msg_subject=NP_MSG_INTEREST, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_interest, .ttl=20.0 },
-	{ .msg_subject=NP_MSG_AVAILABLE, .msg_mode=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_available, .ttl=20.0 },
-	{ .msg_subject=NP_MSG_INTEREST, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
-	{ .msg_subject=NP_MSG_AVAILABLE, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_INTEREST, .mode_type=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=2, .clb=hnd_msg_in_interest, .ttl=5.0 },
+	{ .msg_subject=NP_MSG_AVAILABLE, .mode_type=INBOUND, .mep_type=ONE_WAY, .priority=5, .ack_mode=ACK_EACHHOP, .retry=2, .clb=hnd_msg_in_available, .ttl=5.0 },
+	{ .msg_subject=NP_MSG_INTEREST, .mode_type=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=2, .clb=hnd_msg_out_send, .ttl=5.0 },
+	{ .msg_subject=NP_MSG_AVAILABLE, .mode_type=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=2, .clb=hnd_msg_out_send, .ttl=5.0 },
 
-	{ .msg_subject=NP_MSG_AUTHENTICATION_REQUEST, .msg_mode=INBOUND,  .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_authenticate, .ttl=20.0 },
-	{ .msg_subject=NP_MSG_AUTHENTICATION_REQUEST, .msg_mode=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 }
+	{ .msg_subject=NP_MSG_AUTHENTICATION_REQUEST, .mode_type=INBOUND,  .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_authenticate, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_AUTHENTICATION_REQUEST, .mode_type=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_AUTHORIZATION_REQUEST, .mode_type=INBOUND,  .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_authorize, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_AUTHORIZATION_REQUEST, .mode_type=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_ACCOUNTING_REQUEST, .mode_type=INBOUND,  .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_in_account, .ttl=20.0 },
+	{ .msg_subject=NP_MSG_ACCOUNTING_REQUEST, .mode_type=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 }
 };
+
 
 int8_t cmp_messagepart_ptr (const np_messagepart_ptr value1, const np_messagepart_ptr value2)
 {
@@ -151,21 +156,6 @@ void np_message_t_del(void* data) {
 
 	np_message_t* msg = (np_message_t*) data;
 
-/*	np_jrb_t* subj = jrb_find_str(msg->header,       NP_MSG_HEADER_SUBJECT);
-	np_jrb_t* seq  = jrb_find_str(msg->instructions, "_np.seq");
-
-	if ( (subj != NULL) && (seq != NULL) ) {
-		uint32_t seqnum = 0;
-		seqnum = seq->val.value.ul;
-		log_msg(LOG_DEBUG, "now deleting %s (%u)", subj->val.value.s, seqnum);
-
-	} else if ( (subj != NULL) && (seq == NULL) ) {
-		log_msg(LOG_DEBUG, "now deleting %s (0)", subj->val.value.s);
-
-	} else {
-		log_msg(LOG_DEBUG, "now deleting <unknown> (0)");
-	}
-*/
 	// log_msg(LOG_DEBUG, "now deleting header %p", msg->header);
 	np_free_tree(msg->header);
 	// log_msg(LOG_DEBUG, "now deleting instructions %p", msg->instructions);
@@ -177,9 +167,11 @@ void np_message_t_del(void* data) {
 	// log_msg(LOG_DEBUG, "now deleting footer %p", msg->footer);
 	np_free_tree(msg->footer);
 
-	if (0 < pll_size(msg->msg_chunks)) {
+	if (0 < pll_size(msg->msg_chunks))
+	{
 		pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
-		while (NULL != iter) {
+		while (NULL != iter)
+		{
 			np_messagepart_ptr current_part = iter->val;
 			free(current_part->msg_part);
 			free(current_part);
@@ -189,8 +181,8 @@ void np_message_t_del(void* data) {
 	pll_free(np_messagepart_ptr, msg->msg_chunks);
 }
 
-np_bool np_message_serialize(np_state_t* state, np_jobargs_t* args) {
-
+np_bool np_message_serialize(np_state_t* state, np_jobargs_t* args)
+{
 	cmp_ctx_t cmp;
 	np_messagepart_ptr part = pll_first(args->msg->msg_chunks)->val;
 	// we simply override the header and instructions part for a single part message here
@@ -208,33 +200,14 @@ np_bool np_message_serialize(np_state_t* state, np_jobargs_t* args) {
 	// log_msg(LOG_DEBUG, "serializing the instructions (size %hd)", msg->header->size);
 	serialize_jrb_node_t(args->msg->instructions, &cmp);
 	log_msg(LOG_DEBUG, "serialized the instructions (size %hd / %hd)", args->msg->instructions->byte_size, (cmp.buf-part->msg_part-i));
-	i = cmp.buf-part->msg_part;
+	// i = cmp.buf-part->msg_part;
 
-	// log_msg(LOG_DEBUG, "serializing the properties (size %hd)", msg->properties->size);
-	// serialize_jrb_node_t(msg->properties, &cmp);
-	// log_msg(LOG_DEBUG, "serialized the properties (size %hd / %hd)", msg->properties->byte_size, (cmp.buf-target-i));
-	// i = cmp.buf-target;
-
-	// log_msg(LOG_DEBUG, "serializing the body (size %hd)", msg->body->size);
-	// serialize_jrb_node_t(msg->body, &cmp);
-	// log_msg(LOG_DEBUG, "serialized the body (size %hd / %hd)", msg->body->byte_size, (cmp.buf-target-i));
-	// i = cmp.buf-target;
-
-	// log_msg(LOG_DEBUG, "serializing the footer (size %hd)", msg->footer->size);
-	// serialize_jrb_node_t(msg->footer, &cmp);
-	// log_msg(LOG_DEBUG, "serialized the footer (size %hd / %hd)", msg->footer->byte_size, (cmp.buf-target-i));
-	// i = cmp.buf-target;
-
-	// *out_size = cmp.buf-target;
 	return TRUE;
 }
 
 void np_message_calculate_chunking(np_message_t* msg)
 {
 	del_str_node(msg->footer, NP_MSG_FOOTER_GARBAGE);
-
-//	log_msg(LOG_DEBUG, "h: %hd, i: %hd, p: %hd, b: %hd, f: %hd",
-//			msg->header->byte_size, msg->instructions->byte_size, msg->properties->byte_size, msg->body->byte_size, msg->footer->byte_size);
 
 	// TODO: message part split-up informations
 	uint16_t fixed_size =
@@ -247,29 +220,19 @@ void np_message_calculate_chunking(np_message_t* msg)
 					+ MSG_ARRAY_SIZE;
 	uint16_t garbage_size = (chunks*MSG_CHUNK_SIZE_1024 - chunks*fixed_size) - payload_size;
 
-//	log_msg(LOG_DEBUG, "m: %hd, c: %hd, c*1024=%hd, f=%hd, p=%hd",
-//			msg->header->byte_size + msg->instructions->byte_size + msg->properties->byte_size + msg->body->byte_size + msg->footer->byte_size,
-//			chunks, chunks*1024, fixed_size, payload_size);
-
-	// log_msg(LOG_DEBUG, "g: %hd", garbage_size);
-
-	if (garbage_size < (strlen(NP_MSG_FOOTER_GARBAGE) + MSG_FOOTERBIN_SIZE)) {
+	if (garbage_size < (strlen(NP_MSG_FOOTER_GARBAGE) + MSG_FOOTERBIN_SIZE))
+	{
 		log_msg(LOG_DEBUG, "recalculating garbage size");
 		chunks++;
 		// TODO: check if this recalculation is working
 		garbage_size = (chunks*MSG_CHUNK_SIZE_1024 - chunks*fixed_size) - payload_size;
-		// log_msg(LOG_DEBUG, "g: %hd", garbage_size);
 	}
 
 	uint16_t real_garbage_size = garbage_size - strlen(NP_MSG_FOOTER_GARBAGE) - MSG_FOOTERBIN_SIZE - chunks*MSG_ARRAY_SIZE;
-	// log_msg(LOG_DEBUG, "rg: %hd", real_garbage_size);
 
 	unsigned char garbage[real_garbage_size];
 	randombytes_buf(garbage, real_garbage_size);
 	jrb_insert_str(msg->footer, NP_MSG_FOOTER_GARBAGE, new_jval_bin(garbage, real_garbage_size));
-
-// 	log_msg(LOG_DEBUG, "h: %hd, i: %hd, p: %hd, b: %hd, f: %hd",
-// 			msg->header->byte_size, msg->instructions->byte_size, msg->properties->byte_size, msg->body->byte_size, msg->footer->byte_size);
 
 	msg->no_of_chunks = chunks;
 }
@@ -284,38 +247,48 @@ np_message_t* np_message_check_chunks_complete(np_state_t* state, np_jobargs_t* 
 
 	np_message_t* msg_to_submit = NULL;
 
-	if (NULL != jrb_find_str(state->msg_part_cache, msg_uuid)) {
+	if (NULL != jrb_find_str(state->msg_part_cache, msg_uuid))
+	{
 		msg_to_submit = jrb_find_str(state->msg_part_cache, msg_uuid)->val.value.v;
 		np_messagepart_ptr to_add = pll_head(np_messagepart_ptr, args->msg->msg_chunks);
 		pll_insert(np_messagepart_ptr, msg_to_submit->msg_chunks, to_add);
-
-	} else {
+	}
+	else
+	{
 		jrb_insert_str(state->msg_part_cache, msg_uuid, new_jval_v(args->msg));
-		np_ref_obj(np_message_t, args->msg);
 		msg_to_submit = args->msg;
+		np_ref_obj(np_message_t, args->msg);
 	}
 
-	if (pll_size(msg_to_submit->msg_chunks) != msg_chunks) {
+	if (pll_size(msg_to_submit->msg_chunks) != msg_chunks)
+	{
 		log_msg(LOG_DEBUG,
 				"message %s (%s) not complete yet, waiting for missing parts",
 				subject, msg_uuid);
 		return NULL;
 	}
+	else
+	{
+		del_str_node(state->msg_part_cache, msg_uuid);
+	}
+
 	log_msg(LOG_DEBUG,
 			"message %s (%s) is complete now ", subject, msg_uuid);
 
-	np_unref_obj(np_message_t, msg_to_submit);
 	return msg_to_submit;
 }
 
 np_bool np_message_serialize_chunked(np_state_t* state, np_jobargs_t* args)
 {
+	np_bool ret_val = FALSE;
 	np_message_t* msg = args->msg;
 
 	// clean up any old chunking
-	if (0 < pll_size(msg->msg_chunks)) {
+	if (0 < pll_size(msg->msg_chunks))
+	{
 		pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
-		while (NULL != iter) {
+		while (NULL != iter)
+		{
 			np_messagepart_ptr current_part = iter->val;
 			free(current_part->msg_part);
 			free(current_part);
@@ -357,47 +330,69 @@ np_bool np_message_serialize_chunked(np_state_t* state, np_jobargs_t* args)
 
 	uint16_t current_chunk_size = 0;
 
-    while (i < msg->no_of_chunks) {
-
+    while (i < msg->no_of_chunks)
+    {
 		jrb_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i;
 
 		np_messagepart_ptr part = (np_messagepart_ptr) malloc(sizeof(np_messagepart_t));
+		if (NULL == part)
+		{
+			ret_val = FALSE;
+			goto cleanup;
+		}
 		part->header = msg->header;
 		part->instructions = msg->instructions;
 		part->msg_part = malloc(max_chunk_size * sizeof(char));
-		if (NULL == part->msg_part) return FALSE;
+		if (NULL == part->msg_part)
+		{
+			ret_val = FALSE;
+			free(part);
+			goto cleanup;
+		}
 
 		cmp_init(&cmp, part->msg_part, buffer_reader, buffer_writer);
 		cmp_write_array(&cmp, 5);
 
-		current_chunk_size = cmp.buf - part->msg_part;
+		// current_chunk_size = cmp.buf - part->msg_part;
 
-		if (NULL == bin_header) {
+		if (NULL == bin_header)
+		{
 			// TODO: optimize memory handling and allocate memory during serialization
 			bin_header = malloc(msg->header->byte_size);
-			if (NULL == bin_header) return FALSE;
+			if (NULL == bin_header)
+			{
+				ret_val = FALSE;
+				free(part);
+				goto cleanup;
+			}
 
 			memset(bin_header, 0, msg->header->byte_size);
-			// log_msg(LOG_DEBUG, "serializing the properties (size %hd)", msg->properties->size);
+			// log_msg(LOG_DEBUG, "serializing the header (size %hd)", msg->properties->size);
 		    cmp_init(&cmp_header, bin_header, buffer_reader, buffer_writer);
-			log_msg(LOG_DEBUG, "serializing the header (size %hd)", msg->header->byte_size);
+			// log_msg(LOG_DEBUG, "serializing the header (size %hd)", msg->header->byte_size);
 			serialize_jrb_node_t(msg->header, &cmp_header);
 		}
 
 		// log_msg(LOG_DEBUG, "copying the header (size %hd)", msg->header->byte_size);
 		memcpy(cmp.buf, bin_header, msg->header->byte_size);
 		cmp.buf += msg->header->byte_size;
-		current_chunk_size = cmp.buf-part->msg_part;
+		// current_chunk_size = cmp.buf-part->msg_part;
 
-		if (NULL == bin_instructions) {
+		if (NULL == bin_instructions)
+		{
 			// TODO: optimize memory handling and allocate memory during serialization
 			bin_instructions = malloc(msg->instructions->byte_size);
-			if (NULL == bin_instructions) return FALSE;
+			if (NULL == bin_instructions)
+			{
+				ret_val = FALSE;
+				free(part);
+				goto cleanup;
+			}
 
 			memset(bin_instructions, 0, msg->instructions->byte_size);
-			// log_msg(LOG_DEBUG, "serializing the properties (size %hd)", msg->properties->size);
+			// log_msg(LOG_DEBUG, "serializing the instructions (size %hd)", msg->properties->size);
 		    cmp_init(&cmp_instructions, bin_instructions, buffer_reader, buffer_writer);
-			log_msg(LOG_DEBUG, "serializing the instructions (size %hd)", msg->instructions->byte_size);
+			// log_msg(LOG_DEBUG, "serializing the instructions (size %hd)", msg->instructions->byte_size);
 			serialize_jrb_node_t(msg->instructions, &cmp_instructions);
 		}
 		// log_msg(LOG_DEBUG, "copying the instructions (size %hd)", msg->instructions->byte_size);
@@ -406,10 +401,16 @@ np_bool np_message_serialize_chunked(np_state_t* state, np_jobargs_t* args)
 
 		current_chunk_size = cmp.buf-part->msg_part;
 
-		if (NULL == bin_properties) {
+		if (NULL == bin_properties)
+		{
 			// TODO: optimize memory handling and allocate memory during serialization
 			bin_properties = malloc(msg->properties->byte_size);
-			if (NULL == bin_properties) return FALSE;
+			if (NULL == bin_properties)
+			{
+				ret_val = FALSE;
+				free(part);
+				goto cleanup;
+			}
 
 			bin_properties_ptr = bin_properties;
 			memset(bin_properties, 0, msg->properties->byte_size);
@@ -419,24 +420,30 @@ np_bool np_message_serialize_chunked(np_state_t* state, np_jobargs_t* args)
 			// log_msg(LOG_DEBUG, "serializing the properties (size %hd)", msg->properties->byte_size);
 		}
 
-		log_msg(LOG_DEBUG, "before properties: space left in chunk: %hd / %hd",
-				(max_chunk_size - current_chunk_size), current_chunk_size );
+		// log_msg(LOG_DEBUG, "before properties: space left in chunk: %hd / %hd",
+		// 		(max_chunk_size - current_chunk_size), current_chunk_size );
 
-		if (15 < (max_chunk_size - current_chunk_size) && FALSE == properties_done) {
+		if (15 < (max_chunk_size - current_chunk_size) && FALSE == properties_done)
+		{
 			uint16_t left_properties_size = msg->properties->byte_size - (bin_properties_ptr - bin_properties);
 			uint16_t possible_size = max_chunk_size - 15 - current_chunk_size;
-			if (possible_size >= left_properties_size) {
-				log_msg(LOG_DEBUG, "writing last properties part (size %hd)", left_properties_size);
+			if (possible_size >= left_properties_size)
+			{
+				// log_msg(LOG_DEBUG, "writing last properties part (size %hd)", left_properties_size);
 				cmp_write_bin32(&cmp, bin_properties_ptr, left_properties_size);
 				bin_properties_ptr += left_properties_size;
 				properties_done = TRUE;
 				// log_msg(LOG_DEBUG, "wrote all properties (size %hd)", msg->properties->byte_size);
-			} else {
+			}
+			else
+			{
 				cmp_write_bin32(&cmp, bin_properties_ptr, possible_size);
 				bin_properties_ptr += possible_size;
-				log_msg(LOG_DEBUG, "writing properties part (size %hd)", possible_size);
+				// log_msg(LOG_DEBUG, "writing properties part (size %hd)", possible_size);
 			}
-		} else {
+		}
+		else
+		{
 			// log_msg(LOG_DEBUG, "copying empty tree (size %hd)", empty_tree->byte_size);
 			cmp_write_bin32(&cmp, bin_properties_ptr, 0);
 			// memcpy(cmp.buf, bin_empty, empty_tree->byte_size);
@@ -444,37 +451,49 @@ np_bool np_message_serialize_chunked(np_state_t* state, np_jobargs_t* args)
 		}
 		current_chunk_size = cmp.buf - part->msg_part;
 
-		if (NULL == bin_body) {
+		if (NULL == bin_body)
+		{
 			// TODO: optimize memory handling and allocate memory during serialization
 			bin_body = malloc(msg->body->byte_size);
-			if (NULL == bin_body) return FALSE;
+			if (NULL == bin_body)
+			{
+				ret_val = FALSE;
+				free(part);
+				goto cleanup;
+			}
 
 			bin_body_ptr = bin_body;
 			memset(bin_body, 0, msg->body->byte_size);
-			// log_msg(LOG_DEBUG, "serializing the properties (size %hd)", msg->properties->size);
+			// log_msg(LOG_DEBUG, "serializing the body (size %hd)", msg->properties->size);
 		    cmp_init(&cmp_body, bin_body, buffer_reader, buffer_writer);
 			serialize_jrb_node_t(msg->body, &cmp_body);
-			log_msg(LOG_DEBUG, "serializing the body (size %hd)", msg->body->byte_size);
+			// log_msg(LOG_DEBUG, "serializing the body (size %hd)", msg->body->byte_size);
 		}
 
-		log_msg(LOG_DEBUG, "before body: space left in chunk: %hd / %hd",
-				(max_chunk_size - current_chunk_size), current_chunk_size );
+		// log_msg(LOG_DEBUG, "before body: space left in chunk: %hd / %hd",
+		// 		(max_chunk_size - current_chunk_size), current_chunk_size );
 
-		if (10 < (max_chunk_size - current_chunk_size) && FALSE == body_done) {
+		if (10 < (max_chunk_size - current_chunk_size) && FALSE == body_done)
+		{
 			uint16_t left_body_size = msg->body->byte_size - (bin_body_ptr - bin_body);
 			uint16_t possible_size = max_chunk_size - 10 - current_chunk_size;
-			if (possible_size >= left_body_size) {
-				log_msg(LOG_DEBUG, "writing last body part (size %hd)", left_body_size);
+			if (possible_size >= left_body_size)
+			{
+				// log_msg(LOG_DEBUG, "writing last body part (size %hd)", left_body_size);
 				cmp_write_bin32(&cmp, bin_body_ptr, left_body_size);
 				bin_body_ptr += left_body_size;
 				body_done = TRUE;
 				// log_msg(LOG_DEBUG, "wrote all body (size %hd)", msg->body->byte_size);
-			} else {
+			}
+			else
+			{
 				cmp_write_bin32(&cmp, bin_body_ptr, possible_size);
 				bin_body_ptr += possible_size;
-				log_msg(LOG_DEBUG, "writing body part (size %hd)", possible_size);
+				// log_msg(LOG_DEBUG, "writing body part (size %hd)", possible_size);
 			}
-		} else {
+		}
+		else
+		{
 			cmp_write_bin32(&cmp, bin_body_ptr, 0);
 			// log_msg(LOG_DEBUG, "copying empty tree (size %hd)", empty_tree->byte_size);
 			// memcpy(cmp.buf, bin_empty, empty_tree->byte_size);
@@ -482,13 +501,19 @@ np_bool np_message_serialize_chunked(np_state_t* state, np_jobargs_t* args)
 		}
 		current_chunk_size = cmp.buf - part->msg_part;
 
-		log_msg(LOG_DEBUG, "before footer: space left in chunk: %hd / %hd",
-				(max_chunk_size - current_chunk_size), current_chunk_size );
+		// log_msg(LOG_DEBUG, "before footer: space left in chunk: %hd / %hd",
+		// 		(max_chunk_size - current_chunk_size), current_chunk_size );
 
-		if (NULL == bin_footer) {
+		if (NULL == bin_footer)
+		{
 			// TODO: optimize memory handling and allocate memory during serialization
 			bin_footer = malloc(msg->footer->byte_size);
-			if (NULL == bin_footer) return FALSE;
+			if (NULL == bin_footer)
+			{
+				ret_val = FALSE;
+				free(part);
+				goto cleanup;
+			}
 
 			bin_footer_ptr = bin_footer;
 			memset(bin_footer, 0, msg->footer->byte_size);
@@ -497,67 +522,76 @@ np_bool np_message_serialize_chunked(np_state_t* state, np_jobargs_t* args)
 			// log_msg(LOG_DEBUG, "serializing the footer (size %hd)", msg->footer->byte_size);
 		}
 
-		if (5 < (max_chunk_size - current_chunk_size) && FALSE == footer_done) {
+		if (5 < (max_chunk_size - current_chunk_size) && FALSE == footer_done)
+		{
 			uint16_t left_footer_size = msg->footer->byte_size - (bin_footer_ptr - bin_footer);
 			uint16_t possible_size = max_chunk_size - 5 - current_chunk_size;
-			if (possible_size >= left_footer_size) {
-				log_msg(LOG_DEBUG, "writing last footer part (size %hd)", left_footer_size);
+			if (possible_size >= left_footer_size)
+			{
+				// log_msg(LOG_DEBUG, "writing last footer part (size %hd)", left_footer_size);
 				cmp_write_bin32(&cmp, bin_footer_ptr, left_footer_size);
 				bin_footer_ptr += left_footer_size;
 				footer_done = TRUE;
 				// log_msg(LOG_DEBUG, "wrote all footer (size %hd)", msg->footer->byte_size);
-			} else {
+			}
+			else
+			{
 				cmp_write_bin32(&cmp, bin_footer_ptr, possible_size);
 				bin_footer_ptr += possible_size;
-				log_msg(LOG_DEBUG, "writing footer part (size %hd)", possible_size);
+				// log_msg(LOG_DEBUG, "writing footer part (size %hd)", possible_size);
 			}
-		} else {
+		}
+		else
+		{
 			// log_msg(LOG_DEBUG, "copying empty tree (size %hd)", empty_tree->byte_size);
 			cmp_write_bin32(&cmp, bin_footer_ptr, 0);
 			// memcpy(cmp.buf, bin_empty, empty_tree->byte_size);
 			// cmp.buf += empty_tree->byte_size;
 		}
-		current_chunk_size = cmp.buf - part->msg_part;
+		// current_chunk_size = cmp.buf - part->msg_part;
 
-		log_msg(LOG_DEBUG, "after footer: space left in chunk: %hd / %hd",
-				(max_chunk_size - current_chunk_size), current_chunk_size );
+		// log_msg(LOG_DEBUG, "after footer: space left in chunk: %hd / %hd",
+		//  		(max_chunk_size - current_chunk_size), current_chunk_size );
 		i++;
 
 		pll_insert(np_messagepart_ptr, msg->msg_chunks, part);
 
 		// log_msg(LOG_DEBUG, "-------------------------" );
 	}
+	ret_val = TRUE;
 	// log_msg(LOG_DEBUG, "-----------------------------------------------------" );
 
-	free(bin_footer);
-	free(bin_body);
-	free(bin_properties);
-	free(bin_instructions);
-	free(bin_header);
+    cleanup:
+		if (NULL != bin_footer) free(bin_footer);
+		if (NULL != bin_body) free(bin_body);
+		if (NULL != bin_properties) free(bin_properties);
+		if (NULL != bin_instructions) free(bin_instructions);
+		if (NULL != bin_header) free(bin_header);
 
-	return TRUE;
+	return ret_val;
 }
 
-np_bool np_message_deserialize(np_message_t* msg, void* buffer) {
-
-	// np_message_t* msg_tmp;
-
+np_bool np_message_deserialize(np_message_t* msg, void* buffer)
+{
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, buffer_reader, buffer_writer);
 
 	uint32_t array_size;
 
 	if (!cmp_read_array(&cmp, &array_size))
+	{
+		log_msg(LOG_WARN, "unrecognized first array element while deserializing message");
 		return FALSE;
+	}
 
-	if (array_size != 5) {
-		log_msg(LOG_WARN, "unrecognized message length while deserializing message");
+	if (array_size != 5)
+	{
+		log_msg(LOG_WARN, "unrecognized array length while deserializing message");
 		return FALSE;
 	}
 
 	// log_msg(LOG_DEBUG, "deserializing msg header");
 	deserialize_jrb_node_t(msg->header, &cmp);
-
 	// log_msg(LOG_DEBUG, "deserializing msg instructions");
 	deserialize_jrb_node_t(msg->instructions, &cmp);
 
@@ -572,24 +606,11 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer) {
 
 	pll_insert(np_messagepart_ptr, msg->msg_chunks, part);
 
-	// if (msg->no_of_chunks == pll_size(msg->msg_chunks)) {
-	// np_message_deserialize_chunked(msg);
-	// }
-
-	// log_msg(LOG_DEBUG, "deserializing msg properties");
-	// deserialize_jrb_node_t(msg->properties, &cmp);
-
-	// log_msg(LOG_DEBUG, "deserializing msg body");
-	// deserialize_jrb_node_t(msg->body, &cmp);
-
-	// log_msg(LOG_DEBUG, "deserializing msg footer");
-	// deserialize_jrb_node_t(msg->footer, &cmp);
-
 	return TRUE;
 }
 
-np_bool np_message_deserialize_chunked(np_message_t* msg) {
-
+np_bool np_message_deserialize_chunked(np_message_t* msg)
+{
 	void* bin_properties = NULL;
 	void* bin_properties_ptr = NULL;
 	cmp_ctx_t cmp_properties;
@@ -610,8 +631,8 @@ np_bool np_message_deserialize_chunked(np_message_t* msg) {
 	pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
 	np_messagepart_ptr current_chunk = NULL;
 
-	while (NULL != iter) {
-
+	while (NULL != iter)
+	{
 		current_chunk = iter->val;
 		uint32_t size_properties_add = 0;
 		uint32_t size_body_add = 0;
@@ -622,55 +643,71 @@ np_bool np_message_deserialize_chunked(np_message_t* msg) {
 
 		uint32_t array_size;
 		if (!cmp_read_array(&cmp, &array_size)) return 0;
-		if (array_size != 5) {
+		if (array_size != 5)
+		{
 			log_msg(LOG_WARN, "unrecognized message length while deserializing message");
 			return FALSE;
 		}
 
-		if (0 == msg->header->size) {
+		if (0 == msg->header->size)
+		{
 			log_msg(LOG_DEBUG, "deserializing msg header");
 			deserialize_jrb_node_t(msg->header, &cmp);
-		} else {
+		}
+		else
+		{
 			cmp.buf += msg->header->byte_size;
 		}
 
-		if (0 == msg->instructions->size) {
+		if (0 == msg->instructions->size)
+		{
 			log_msg(LOG_DEBUG, "deserializing msg instructions");
 			deserialize_jrb_node_t(msg->instructions, &cmp);
-		} else {
+		}
+		else
+		{
 			cmp.buf += msg->instructions->byte_size;
 		}
 
 		cmp_read_bin_size(&cmp, &size_properties_add);
-		if (0 < size_properties_add) {
+		if (0 < size_properties_add)
+		{
 			log_msg(LOG_DEBUG, "adding properties part size %hd", size_properties_add);
 			size_properties += size_properties_add;
 			bin_properties = realloc(bin_properties, size_properties);
 			bin_properties_ptr = bin_properties + (size_properties - size_properties_add);
 			cmp.read(&cmp, bin_properties_ptr, size_properties_add);
-		} else {
+		}
+		else
+		{
 			// cmp.buf += size_properties_add;
 		}
 
 		cmp_read_bin_size(&cmp, &size_body_add);
-		if (0 < size_body_add) {
+		if (0 < size_body_add)
+		{
 			log_msg(LOG_DEBUG, "adding body part size %hd", size_body_add);
 			size_body += size_body_add;
 			bin_body = realloc(bin_body, size_body);
 			bin_body_ptr = bin_body + (size_body - size_body_add);
 			cmp.read(&cmp, bin_body_ptr, size_body_add);
-		} else {
+		}
+		else
+		{
 			// cmp.buf += size_body_add;
 		}
 
 		cmp_read_bin_size(&cmp, &size_footer_add);
-		if (0 < size_footer_add) {
+		if (0 < size_footer_add)
+		{
 			log_msg(LOG_DEBUG, "adding footer part size %hd", size_footer_add);
 			size_footer += size_footer_add;
 			bin_footer = realloc(bin_footer, size_footer);
 			bin_footer_ptr = bin_footer + (size_footer - size_footer_add);
 			cmp.read(&cmp, bin_footer_ptr, size_footer_add);
-		} else {
+		}
+		else
+		{
 			// cmp.buf += size_footer_add;
 		}
 
@@ -678,27 +715,32 @@ np_bool np_message_deserialize_chunked(np_message_t* msg) {
 		pll_next(iter);
 	}
 
-	if (NULL != bin_properties) {
+	if (NULL != bin_properties)
+	{
 		log_msg(LOG_DEBUG, "deserializing msg properties %hd", sizeof(bin_properties));
 		cmp_init(&cmp_properties, bin_properties, buffer_reader, buffer_writer);
 		deserialize_jrb_node_t(msg->properties, &cmp_properties);
 	}
 
-	if (NULL != bin_body) {
+	if (NULL != bin_body)
+	{
 		log_msg(LOG_DEBUG, "deserializing msg body %hd", sizeof(bin_body));
 		cmp_init(&cmp_body, bin_body, buffer_reader, buffer_writer);
 		deserialize_jrb_node_t(msg->body, &cmp_body);
 	}
 
-	if (NULL != bin_footer) {
+	if (NULL != bin_footer)
+	{
 		log_msg(LOG_DEBUG, "deserializing msg footer %hd", sizeof(bin_footer));
 		cmp_init(&cmp_footer, bin_footer, buffer_reader, buffer_writer);
 		deserialize_jrb_node_t(msg->footer, &cmp_footer);
 	}
 
-	if (0 < pll_size(msg->msg_chunks)) {
+	if (0 < pll_size(msg->msg_chunks))
+	{
 		pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
-		while (NULL != iter) {
+		while (NULL != iter)
+		{
 			np_messagepart_ptr current_part = iter->val;
 			free(current_part->msg_part);
 			free(current_part);
@@ -734,26 +776,34 @@ void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const ch
 	if (from != NULL) jrb_insert_str(msg->header, NP_MSG_HEADER_FROM, new_jval_s((char*) key_get_as_string(from)));
 	if (from != NULL) jrb_insert_str(msg->header, NP_MSG_HEADER_REPLY_TO, new_jval_s((char*) key_get_as_string(from)));
 
-	if (the_data != NULL) {
+	if (the_data != NULL)
+	{
 		np_message_setbody(msg, the_data);
 	}
 }
 
-inline void np_message_setproperties(np_message_t* msg, np_jtree_t* properties) {
+inline void np_message_setproperties(np_message_t* msg, np_jtree_t* properties)
+{
 	np_free_tree(msg->properties);
 	msg->properties = properties;
 };
-inline void np_message_setinstruction(np_message_t* msg, np_jtree_t* instructions) {
+
+inline void np_message_setinstruction(np_message_t* msg, np_jtree_t* instructions)
+{
 	np_free_tree(msg->instructions);
 	msg->instructions = instructions;
 };
-inline void np_message_setbody(np_message_t* msg, np_jtree_t* body) {
+
+inline void np_message_setbody(np_message_t* msg, np_jtree_t* body)
+{
 	// log_msg(LOG_DEBUG, "now setting body before %p", msg->body);
 	np_free_tree(msg->body);
 	msg->body = body;
 	// log_msg(LOG_DEBUG, "now setting body after %p", msg->body);
 };
-inline void np_message_setfooter(np_message_t* msg, np_jtree_t* footer) {
+
+inline void np_message_setfooter(np_message_t* msg, np_jtree_t* footer)
+{
 	np_free_tree(msg->footer);
 	msg->footer = footer;
 };
@@ -776,7 +826,8 @@ np_bool np_message_decrypt_part(np_jtree_t* msg_part,
 {
 	log_msg(LOG_TRACE, ".start.np_message_decrypt_part");
 	np_jtree_elem_t* enc_msg_part = jrb_find_str(msg_part, NP_ENCRYPTED);
-	if (NULL == enc_msg_part) {
+	if (NULL == enc_msg_part)
+	{
 		log_msg(LOG_ERROR, "couldn't find encrypted msg part");
 		log_msg(LOG_TRACE, ".end  .np_message_decrypt_part");
 		return FALSE;
@@ -802,7 +853,8 @@ np_bool np_message_decrypt_part(np_jtree_t* msg_part,
 //			enc_msg_part->val.size,
 //			enc_nonce,
 //			public_key);
-	if (ret < 0) {
+	if (ret < 0)
+	{
 		log_msg(LOG_ERROR, "couldn't decrypt msg part with session key %s", public_key);
 		log_msg(LOG_TRACE, ".end  .np_message_decrypt_part");
 		return FALSE;
@@ -810,14 +862,6 @@ np_bool np_message_decrypt_part(np_jtree_t* msg_part,
 
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, dec_part, buffer_reader, buffer_writer);
-
-//	uint32_t map_size = 0;
-//	if (!cmp_read_map(&cmp, &map_size)) {
-//		log_msg(LOG_ERROR, "couldn't read map size %s", public_key);
-//		log_msg(LOG_TRACE, ".end  .np_message_decrypt_part");
-//		return FALSE;
-//	}
-
 	deserialize_jrb_node_t(msg_part, &cmp);
 	del_str_node(msg_part, NP_ENCRYPTED);
 
@@ -870,11 +914,11 @@ np_bool np_message_encrypt_part(np_jtree_t* msg_part,
 //								msg_part_len,
 //								nonce,
 //								public_key);
-	if (ret < 0) {
+	if (ret < 0)
+	{
 		log_msg(LOG_TRACE, ".end  .np_message_encrypt_part");
 		return FALSE;
 	}
-	// log_msg(LOG_ERROR, "encrypted msg part with session key %s", public_key);
 
 	jrb_replace_all_with_str(msg_part, NP_ENCRYPTED,
 			new_jval_bin(enc_msg_part, enc_msg_part_len));
@@ -910,7 +954,8 @@ void np_message_encrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoke
 	// finally encrypt
 	int ret = crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
 							  partner_key, curve25519_sk);
-	if (0 > ret) {
+	if (0 > ret)
+	{
 		log_msg(LOG_ERROR, "encryption of message payload failed");
 		return;
 	}
@@ -938,8 +983,8 @@ void np_message_encrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoke
 	log_msg(LOG_TRACE, ".end  .np_message_encrypt_payload");
 }
 
-np_bool np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoken_t* tmp_token) {
-
+np_bool np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoken_t* tmp_token)
+{
 	log_msg(LOG_TRACE, ".start.np_message_decrypt_payload");
 
 	np_jtree_t* encryption_details =
@@ -967,7 +1012,8 @@ np_bool np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaat
 
 	int ret = crypto_box_open_easy(sym_key, enc_sym_key, crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
 								   nonce, partner_key, curve25519_sk);
-	if (0 > ret) {
+	if (0 > ret)
+	{
 		log_msg(LOG_ERROR, "decryption of message payload failed");
 		return FALSE;
 	}
@@ -987,14 +1033,16 @@ np_bool np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaat
  ** contains global state of message subsystem.
  ** message_init also initiate the network subsystem
  **/
-void _np_message_init (np_state_t* state) {
-
+void _np_message_init (np_state_t* state)
+{
     RB_INIT(&state->msg_properties);
     state->msg_tokens = make_jtree();
 
 	/* NEUROPIL_INTERN_MESSAGES */
-	for (uint8_t i = 0; i < NR_OF_ELEMS(np_internal_messages); i++) {
-		if (strlen(np_internal_messages[i].msg_subject) > 0) {
+	for (uint8_t i = 0; i < NR_OF_ELEMS(np_internal_messages); i++)
+	{
+		if (strlen(np_internal_messages[i].msg_subject) > 0)
+		{
 			log_msg(LOG_DEBUG, "register handler (%hhd): %s", i, np_internal_messages[i].msg_subject);
 			RB_INSERT(rbt_msgproperty, &state->msg_properties, &np_internal_messages[i]);
 		}
@@ -1013,13 +1061,14 @@ np_callback_t np_message_get_callback (np_msgproperty_t *handler)
  ** registers the handler function #func# with the message type #type#,
  ** it also defines the acknowledgment requirement for this type 
  **/
-np_msgproperty_t* np_message_get_handler(np_state_t *state, np_msg_mode_type msg_mode, const char* subject) {
-
+np_msgproperty_t* np_message_get_handler(np_state_t *state, np_msg_mode_type mode_type, const char* subject)
+{
 	assert(subject != NULL);;
 
-	np_msgproperty_t prop = { .msg_subject=(char*) subject, .msg_mode=msg_mode };
+	np_msgproperty_t prop = { .msg_subject=(char*) subject, .mode_type=mode_type };
 	return RB_FIND(rbt_msgproperty, &state->msg_properties, &prop);
 }
+
 
 int16_t _np_property_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2)
 {
@@ -1027,25 +1076,26 @@ int16_t _np_property_comp(const np_msgproperty_t* const prop1, const np_msgprope
 	int16_t i = strncmp(prop1->msg_subject, prop2->msg_subject, 64);
 
 	if (0 == i)
-		if (prop1->msg_mode == prop2->msg_mode) return  0;
-		if (prop1->msg_mode > prop2->msg_mode)  return  1;
-		if (prop1->msg_mode < prop2->msg_mode)  return -1;
+		if (prop1->mode_type == prop2->mode_type) return  0;
+		if (prop1->mode_type > prop2->mode_type)  return  1;
+		if (prop1->mode_type < prop2->mode_type)  return -1;
 	else
 		return i;
 }
 
-void np_message_register_handler(np_state_t *state, np_msgproperty_t* msgprops) {
+void np_message_register_handler(np_state_t *state, np_msgproperty_t* msgprops)
+{
 	RB_INSERT(rbt_msgproperty, &state->msg_properties, msgprops);
 }
 
-void np_msgproperty_t_new(void* property) {
-
+void np_msgproperty_t_new(void* property)
+{
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
 	prop->partner_key = NULL;
 
 	// prop->msg_subject = strndup(subject, 255);
-	prop->msg_mode = INBOUND | OUTBOUND;
+	prop->mode_type = INBOUND | OUTBOUND;
 	prop->mep_type = ONE_WAY;
 	prop->ack_mode = ACK_EACHHOP;
 	prop->priority = 5;
@@ -1067,18 +1117,16 @@ void np_msgproperty_t_new(void* property) {
     pthread_condattr_setpshared(&prop->cond_attr, PTHREAD_PROCESS_PRIVATE);
 }
 
-void np_msgproperty_t_del(void* property) {
-
+void np_msgproperty_t_del(void* property)
+{
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
 	if (prop->msg_subject) free(prop->msg_subject);
-	if (prop->group_id) free(prop->group_id);
 
 	sll_free(np_message_t, prop->msg_cache);
 
 	pthread_condattr_destroy(&prop->cond_attr);
     pthread_cond_destroy (&prop->msg_received);
 	pthread_mutex_destroy (&prop->lock);
-
 }
 

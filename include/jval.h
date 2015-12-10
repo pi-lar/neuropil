@@ -44,7 +44,7 @@ Fax: 865-974-4404
 
 
 enum {
-	np_special_type = 0,
+	none_type = 0,
     short_type,
 	int_type,
 	long_type,

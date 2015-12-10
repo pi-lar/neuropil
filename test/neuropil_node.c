@@ -7,14 +7,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "include.h"
+
 #include "np_memory.h"
 #include "neuropil.h"
 #include "log.h"
 #include "dtime.h"
 #include "np_jobqueue.h"
 #include "np_message.h"
-
-#include "include.h"
 
 #define USAGE "neuropil_node [ -j bootstrap:port ] [ -p protocol] [-b port]"
 #define OPTSTR "j:p:b:"

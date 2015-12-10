@@ -10,13 +10,26 @@
 #include "np_jtree.h"
 
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE) \
-inline void OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value) { \
-	obj->PROP_NAME = value; \
+inline void OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value) {  \
+	obj->PROP_NAME = value;                                \
 }
 
-#define _NP_GENERATE_PROPERTY_SETSTR(OBJ,PROP_NAME) \
+#define _NP_GENERATE_PROPERTY_SETSTR(OBJ,PROP_NAME)              \
 inline void OBJ##_set_##PROP_NAME(OBJ* obj, const char* value) { \
-	obj->PROP_NAME = strndup(value, strlen(value)); \
+	obj->PROP_NAME = strndup(value, strlen(value));              \
+}
+
+#define _NP_GENERATE_MSGPROPERTY_SETVALUE(PROP_NAME,TYPE) \
+inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, TYPE value) { \
+	np_msgproperty_t* msg_prop = np_message_get_handler(state, mode_type, subject); \
+	if (NULL == msg_prop)                              \
+	{                                                  \
+		np_new_obj(np_msgproperty_t, msg_prop);        \
+		msg_prop->mode_type = mode_type;               \
+		msg_prop->msg_subject = strndup(subject, 255); \
+		np_message_register_handler(state, msg_prop);  \
+	}                                                  \
+	msg_prop->PROP_NAME = value;                       \
 }
 
 // create a sha156 uuid string, take the current date into account

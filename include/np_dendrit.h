@@ -33,6 +33,12 @@ void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args);
 void hnd_msg_in_authenticate(np_state_t* state, np_jobargs_t* args);
 void hnd_msg_in_authenticate_reply(np_state_t* state, np_jobargs_t* args);
 
+void hnd_msg_in_authorize(np_state_t* state, np_jobargs_t* args);
+void hnd_msg_in_authorize_reply(np_state_t* state, np_jobargs_t* args);
+
+void hnd_msg_in_account(np_state_t* state, np_jobargs_t* args);
+void hnd_msg_in_account_reply(np_state_t* state, np_jobargs_t* args);
+
 void np_signal (np_state_t* state, np_jobargs_t* args);
 void np_callback_wrapper(np_state_t* state, np_jobargs_t* args);
 

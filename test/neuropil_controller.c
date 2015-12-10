@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <assert.h>
 
+#include "include.h"
+
 #include "np_memory.h"
 #include "neuropil.h"
 #include "log.h"
@@ -17,8 +19,6 @@
 #include "np_message.h"
 #include "np_node.h"
 #include "np_threads.h"
-
-#include "include.h"
 
 #define USAGE "neuropil [ -j bootstrap:port ] [ -p protocol] [-b port]"
 #define OPTSTR "j:p:b:"
@@ -88,6 +88,7 @@ int main(int argc, char **argv) {
 
 	while (1) {
 		size_t nbytes = 255;
+		msg_out = NULL;
 		char* my_string = (char *) malloc (nbytes);
 		printf("enter a node to start (key:host:port)\n");
 		fgets(my_string, nbytes, stdin);

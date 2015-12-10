@@ -53,9 +53,10 @@ struct np_network_s
 typedef struct np_ackentry_s np_ackentry_t;
 
 struct np_ackentry_s {
-	np_bool acked;  // signal when all pakets have been acked
-	double acktime; // the time when the last packet is acked
+	np_bool acked;       // signal when all pakets have been acked
+	double acktime;      // the time when the last packet is acked
 	double transmittime; // this is the time the packet is transmitted (or retransmitted)
+	double expiration;   // the time when the ackentry will expire and will be deleted
 	np_key_t* dest_key; // the destination key / next/final hop of the message
 	uint16_t expected_ack;
 	uint16_t received_ack;

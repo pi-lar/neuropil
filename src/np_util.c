@@ -35,31 +35,37 @@ char* np_create_uuid(const char* str, const uint16_t num)
 	return uuid_out;
 }
 
-void del_callback(void* data) {
+void del_callback(void* data)
+{
 	log_msg(LOG_ERROR, "del_callback should never be called !!!");
 }
-void new_callback(void* data) {
+
+void new_callback(void* data)
+{
 	log_msg(LOG_ERROR, "new_callback should never be called !!!");
 }
 
-np_bool buffer_reader(cmp_ctx_t *ctx, void *data, size_t count) {
+np_bool buffer_reader(cmp_ctx_t *ctx, void *data, size_t count)
+{
 	memcpy(data, ctx->buf, count);
 	ctx->buf += count;
 	return 1;
 }
 
-size_t buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count) {
+size_t buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count)
+{
 	// log_msg(LOG_DEBUG, "-- writing cmp->buf: %p size: %hd", ctx->buf, count);
 	memcpy(ctx->buf, data, count);
 	ctx->buf += count;
 	return count;
 }
 
-void write_type(np_jval_t val, cmp_ctx_t* cmp) {
-
+void write_type(np_jval_t val, cmp_ctx_t* cmp)
+{
 	// void* count_buf_start = cmp->buf;
 	// log_msg(LOG_DEBUG, "writing jrb (%p) value: %s", jrb, jrb->key.value.s);
-	switch (val.type) {
+	switch (val.type)
+	{
 	// signed numbers
 	case short_type:
 		cmp_write_s8(cmp, val.value.sh);
@@ -138,15 +144,16 @@ void write_type(np_jval_t val, cmp_ctx_t* cmp) {
 			serialize_jrb_node_t(val.value.tree, &tree_cmp);
 			uint32_t buf_size = tree_cmp.buf - buf_ptr;
 
-			void* top_buf_ptr = cmp->buf;
+			// void* top_buf_ptr = cmp->buf;
 			// write the serialized tree to the upper level buffer
-			if (!cmp_write_ext32(cmp, jrb_tree_type, buf_size, buf_ptr)) {
+			if (!cmp_write_ext32(cmp, jrb_tree_type, buf_size, buf_ptr))
+			{
 				log_msg(LOG_WARN, "couldn't write tree data -- ignoring for now");
 			}
-			uint32_t top_buf_size = cmp->buf-top_buf_ptr;
+			// uint32_t top_buf_size = cmp->buf-top_buf_ptr;
 
 //			else {
-			log_msg(LOG_DEBUG, "wrote tree structure size pre: %hu/%hu post: %hu %hu", val.size, val.value.tree->byte_size, buf_size, top_buf_size);
+			// log_msg(LOG_DEBUG, "wrote tree structure size pre: %hu/%hu post: %hu %hu", val.size, val.value.tree->byte_size, buf_size, top_buf_size);
 //			}
 		}
 		break;
@@ -167,7 +174,8 @@ void serialize_jrb_node_t(np_jtree_t* jtree, cmp_ctx_t* cmp)
 
 	// log_msg(LOG_DEBUG, "wrote jrb tree size %hd", jtree->size*2);
 	// write jrb tree
-	if (0 < jtree->size) {
+	if (0 < jtree->size)
+	{
 		np_jtree_elem_t* tmp = NULL;
 
 		RB_FOREACH(tmp, np_jtree, jtree)
@@ -183,7 +191,9 @@ void serialize_jrb_node_t(np_jtree_t* jtree, cmp_ctx_t* cmp)
 				// log_msg(LOG_DEBUG, "for (%p; %p!=%p; %p=%p) ", tmp->flink, tmp, msg->header, node, node->flink);
 				write_type(tmp->key, cmp); i++;
 				write_type(tmp->val, cmp); i++;
-		 	} else {
+		 	}
+			else
+			{
 				log_msg(LOG_DEBUG, "unknown key type for serialization" );
 		 	}
 		}
@@ -213,10 +223,10 @@ void serialize_jrb_node_t(np_jtree_t* jtree, cmp_ctx_t* cmp)
 //	}
 }
 
-void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
-
-	switch (obj->type) {
-
+void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value)
+{
+	switch (obj->type)
+	{
 	case CMP_TYPE_FIXMAP:
 	case CMP_TYPE_MAP16:
 	case CMP_TYPE_MAP32:
@@ -225,7 +235,8 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 		break;
 
 	case CMP_TYPE_FIXARRAY:
-		if (2 == obj->as.array_size) {
+		if (2 == obj->as.array_size)
+		{
 			cmp->read(cmp, &value->value.a2_ui[0], sizeof(uint16_t));
 			cmp->read(cmp, &value->value.a2_ui[1], sizeof(uint16_t));
 			value->type = uint_array_2_type;
@@ -293,7 +304,8 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 			cmp->read(cmp, buf_ptr, obj->as.ext.size);
 			// log_msg(LOG_DEBUG, "read %u bytes ", (cmp->buf - buf_ptr));
 
-			if (obj->as.ext.type == jrb_tree_type) {
+			if (obj->as.ext.type == jrb_tree_type)
+			{
 				// tree type
 				np_jtree_t* subtree = make_jtree();
 				cmp_ctx_t tree_cmp;
@@ -304,8 +316,9 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 				value->type = jrb_tree_type;
 				value->size = subtree->size;
 				// log_msg(LOG_DEBUG, "read tree structure %u size %hu %lu", (tree_cmp.buf-buf_ptr), subtree->size, subtree->byte_size);
-
-			} else {
+			}
+			else
+			{
 				log_msg(LOG_WARN,
 						"unknown de-serialization for given extension type %hd", obj->as.ext.type);
 			}
@@ -364,12 +377,14 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
 		value->type = long_long_type;
 		break;
 	default:
+		value->type = none_type;
 		log_msg(LOG_WARN, "unknown deserialization for given type");
 		break;
 	}
 }
 
-void deserialize_jrb_node_t(np_jtree_t* jtree, cmp_ctx_t* cmp) {
+void deserialize_jrb_node_t(np_jtree_t* jtree, cmp_ctx_t* cmp)
+{
 
 	cmp_object_t obj;
 	uint32_t size = 0;
@@ -379,23 +394,24 @@ void deserialize_jrb_node_t(np_jtree_t* jtree, cmp_ctx_t* cmp) {
 
 	// if ( ((size%2) != 0) || (size <= 0) ) return;
 
-	for (uint32_t i = 0; i < (size/2); i++) {
-
+	for (uint32_t i = 0; i < (size/2); i++)
+	{
 		// log_msg(LOG_DEBUG, "reading key (%d) from message part %p", i, jtree);
 		// read key
-		np_jval_t tmp_key;
+		np_jval_t tmp_key = { .type = none_type, .size = 0 };
 		// if (!cmp_read_object(cmp, &obj)) return;
 		cmp_read_object(cmp, &obj);
 		read_type(&obj, cmp, &tmp_key);
 
 		// log_msg(LOG_DEBUG, "reading value (%d) from message part %p", i, jtree);
 		// read value
-		np_jval_t tmp_val;
+		np_jval_t tmp_val = { .type = none_type, .size = 0 };
 		// if (!cmp_read_object(cmp, &obj)) return;
 		cmp_read_object(cmp, &obj);
 		read_type(&obj, cmp, &tmp_val);
 
-		switch (tmp_key.type) {
+		switch (tmp_key.type)
+		{
 		case int_type:
 			// log_msg(LOG_DEBUG, "read int key (%d)", tmp_key.value.i);
 			jrb_insert_int(jtree, tmp_key.value.i, tmp_val);
@@ -414,6 +430,7 @@ void deserialize_jrb_node_t(np_jtree_t* jtree, cmp_ctx_t* cmp) {
 			free (tmp_key.value.s);
 			break;
 		default:
+			tmp_val.type = none_type;
 			break;
 		}
 

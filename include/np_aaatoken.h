@@ -49,7 +49,7 @@ struct np_aaatoken_s {
 	double not_before;
 	double expiration;
 
-	uint8_t valid;
+	np_bool valid;
 
 	uuid_t uuid;
 

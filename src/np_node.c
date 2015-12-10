@@ -157,7 +157,8 @@ np_key_t* np_node_decode_from_jrb (np_state_t* state, np_jtree_t* data) {
 	char* s_host_port  = jrb_find_str(data, NP_NODE_PORT)->val.value.s;
 
 	np_key_t* search_key = key_create_from_hash(s_host_key);
-	np_key_t* node_key= SPLAY_FIND(spt_key, &state->key_cache, search_key);
+
+	np_key_t* node_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
 	if (NULL == node_key) {
 		SPLAY_INSERT(spt_key, &state->key_cache, search_key);
 		node_key = search_key;

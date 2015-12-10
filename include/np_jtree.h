@@ -10,7 +10,6 @@
 #include "np_key.h"
 
 
-// RB_HEAD(np_str_jtree,   np_jtree_elem_s);
 struct np_jtree {
 	struct np_jtree_elem_s *rbh_root;
 
@@ -28,7 +27,7 @@ struct np_jtree_elem_s
 
 int16_t jval_cmp(const np_jtree_elem_t* j1, const np_jtree_elem_t* j2);
 
-RB_PROTOTYPE(np_jtree,   np_jtree_elem_s, link, jval_cmp);
+RB_PROTOTYPE(np_jtree, np_jtree_elem_s, link, jval_cmp);
 
 /* Creates a new jtree */
 np_jtree_t*   make_jtree ();
@@ -38,11 +37,13 @@ void np_free_tree (np_jtree_t* root);
 /* delete an tree, but keep the root node for re-use */
 void np_clear_tree (np_jtree_t* root);
 
+// insert a jval into the tree using different keys
 void jrb_insert_str (np_jtree_t *tree, const char *key, np_jval_t val);
 void jrb_insert_int (np_jtree_t *tree, int16_t ikey, np_jval_t val);
 void jrb_insert_ulong (np_jtree_t *tree, uint32_t ulkey, np_jval_t val);
 void jrb_insert_dbl (np_jtree_t *tree, double dkey, np_jval_t val);
 
+// replace a jval in the tree, inserts the jval if the key is not present
 void jrb_replace_str (np_jtree_t *tree, const char *key, np_jval_t val);
 void jrb_replace_int (np_jtree_t *tree, int16_t ikey, np_jval_t val);
 void jrb_replace_ulong (np_jtree_t *tree, uint32_t ulkey, np_jval_t val);
@@ -63,6 +64,7 @@ np_jtree_elem_t* jrb_find_gte_int (np_jtree_t* root, int16_t ikey, uint8_t *foun
 np_jtree_elem_t* jrb_find_gte_ulong (np_jtree_t* root, uint32_t ikey, uint8_t *found);
 np_jtree_elem_t* jrb_find_gte_dbl (np_jtree_t* root, double dkey, uint8_t *found);
 
+// replacce the entire tree with the new jval
 void jrb_replace_all_with_str(np_jtree_t* root, const char* key, np_jval_t val);
 
 /* Deletes and frees a node */
@@ -71,14 +73,10 @@ void del_int_node (np_jtree_t* tree, const int16_t key);
 void del_dbl_node (np_jtree_t* tree, const double key);
 void del_ulong_node (np_jtree_t* tree, const uint32_t key);
 
+// print the contents of the tree to the log file,
+// TODO will leak memory right now
 void np_print_tree (np_jtree_t* n, uint8_t indent);
 
-//void free_str_tree (np_str_jtree_t* root);
-//void free_int_tree (np_int_jtree_t* root);
-//void free_ulong_tree (np_ulong_jtree_t* root);
-//void free_dbl_tree (np_dbl_jtree_t* root);
-
 uint64_t jrb_get_byte_size(np_jtree_elem_t* node);
-np_jval_t jtree_val (np_jtree_elem_t* node);	/* Returns node->v.val -- this is to shut lint up */
 
 #endif // _NP_JTREE_H_

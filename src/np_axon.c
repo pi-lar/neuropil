@@ -44,7 +44,6 @@
  ** 	add garbage
  **/
 
-
 /**
  ** network_send: host, data, size
  ** Sends a message to host, updating the measurement info.
@@ -68,8 +67,6 @@ void hnd_msg_out_ack(np_state_t* state, np_jobargs_t* args) {
 	np_bool send_ok = network_send_udp(state, args->target, args->msg);
 	// send_ok is 1 or 0
 	np_node_update_stat(args->target->node, send_ok);
-
-	np_free_obj(np_message_t, args->msg);
 }
 
 /**
@@ -97,7 +94,7 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	if (!np_node_check_address_validity(args->target->node)) {
 		log_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
 							key_get_as_string(args->target));
-		np_free_obj(np_message_t, args->msg);
+		// np_free_obj(np_message_t, args->msg);
 		log_msg(LOG_TRACE, ".end  .hnd_msg_out_send");
 		return;
 	}
@@ -107,41 +104,51 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 		uuid = jrb_find_str(msg_out->instructions, NP_MSG_INST_UUID)->val.value.s;
 
 		pthread_mutex_lock(&network->lock);
-		// log_msg(LOG_DEBUG, "checking %p for acknowledgment", network->waiting);
-
-		// first find the uuid if not yet present
-		if (NULL == jrb_find_str(network->waiting, uuid)) {
+		// first find the uuid
+		if (NULL == jrb_find_str(network->waiting, uuid))
+		{
+			// has been deleted already
 			log_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
-			// np_unref_obj(np_message_t, args->msg);
-			np_free_obj(np_message_t, args->msg);
 			log_msg(LOG_TRACE, ".end  .hnd_msg_out_send");
 			pthread_mutex_unlock(&network->lock);
 			return;
-		} else {
+		}
+		else
+		{
+			// still there ? initiate resend ...
 			log_msg(LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
 		}
 		pthread_mutex_unlock(&network->lock);
 	}
 
 	// find correct ack_mode, inspect message first because of forwarding
-	if (NULL == jrb_find_str(msg_out->instructions, NP_MSG_INST_ACK)) {
+	if (NULL == jrb_find_str(msg_out->instructions, NP_MSG_INST_ACK))
+	{
 		ack_mode = prop->ack_mode;
-	} else {
+	}
+	else
+	{
 		ack_mode = jrb_find_str(msg_out->instructions, NP_MSG_INST_ACK)->val.value.ush;
 		ack_mode_from_msg = TRUE;
 	}
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK, new_jval_ush(prop->ack_mode));
 
 	unsigned char* ack_to_str = key_get_as_string(state->my_node_key);
-	if ( 0 < (ack_mode & ACK_EACHHOP) ) {
+
+	if ( 0 < (ack_mode & ACK_EACHHOP) )
+	{
 		// we have to reset the existing ack_to field in case of forwarding and each-hop acknowledge
 		jrb_replace_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s((char*) ack_to_str));
 		ack_to_is_me = TRUE;
-	} else if ( 0 < (ack_mode & ACK_DESTINATION) || 0 < (ack_mode & ACK_CLIENT) ) {
+	}
+	else if ( 0 < (ack_mode & ACK_DESTINATION) || 0 < (ack_mode & ACK_CLIENT) )
+	{
 		// only set ack_to for these two ack mode values if not yet set !
 		jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s((char*) ack_to_str));
 		if (FALSE == ack_mode_from_msg) ack_to_is_me = TRUE;
-	} else {
+	}
+	else
+	{
 		ack_to_is_me = FALSE;
 	}
 
@@ -170,6 +177,7 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	// TODO: forwarding of message will also increase resend counter, ok ?
 	np_jtree_elem_t* jrb_send_counter = jrb_find_str(msg_out->instructions, NP_MSG_INST_SEND_COUNTER);
 	jrb_send_counter->val.value.ush++;
+	// TODO: insert resend count check
 
 	// insert timestamp and time-to-live
 	double now = dtime();
@@ -192,20 +200,28 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 			/* get/set sequence number to initialize acknowledgement indicator correctly */
 			np_ackentry_t *ackentry = NULL;
 
-			if (NULL != jrb_find_str(network->waiting, uuid)) {
+			if (NULL != jrb_find_str(network->waiting, uuid))
+			{
 				ackentry = (np_ackentry_t*) jrb_find_str(network->waiting, uuid)->val.value.v;
-			} else {
+			}
+			else
+			{
 				ackentry = get_new_ackentry();
 			}
+
 			ackentry->acked = FALSE;
 			ackentry->transmittime = dtime();
+			ackentry->expiration = ackentry->transmittime + (args->properties->ttl * args->properties->retry);
 			ackentry->dest_key = args->target;
 			np_ref_obj(np_key_t, args->target);
 
-			if (TRUE == is_forward) {
+			if (TRUE == is_forward)
+			{
 				// single part message can only occur in intermediate hops
 				ackentry->expected_ack++;
-			} else {
+			}
+			else
+			{
 				// full message can only occur when sending the original message
 				ackentry->expected_ack = msg_out->no_of_chunks;
 			}
@@ -229,12 +245,6 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	// 			msg_out->footer->byte_size,
 	// 			msg_out->header->byte_size + msg_out->instructions->byte_size + msg_out->properties->byte_size + msg_out->body->byte_size + msg_out->footer->byte_size);
 
-	// np_print_tree(msg_out->header, 0);
-	// np_print_tree(msg_out->instructions, 0);
-	// np_print_tree(msg_out->properties, 0);
-	// np_print_tree(msg_out->body, 0);
-	// np_print_tree(msg_out->footer, 0);
-
 	// TODO: do this serialization in parallel in background
 	np_jobargs_t* chunk_args = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
 	chunk_args->msg = msg_out;
@@ -253,9 +263,6 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	np_bool send_ok = network_send_udp(state, args->target, msg_out);
 	// ret is 1 or 0
 	np_node_update_stat(args->target->node, send_ok);
-
-	np_free_obj(np_message_t, args->msg);
-	np_free_obj(np_key_t, args->target);
 
 	log_msg(LOG_TRACE, ".end  .hnd_msg_out_send");
 }
@@ -311,7 +318,7 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 	}
 
 	// create real handshake message ...
-	np_message_t* hs_message;
+	np_message_t* hs_message = NULL;
 	np_new_obj(np_message_t, hs_message);
 
 	jrb_insert_str(hs_message->header, NP_MSG_HEADER_SUBJECT, new_jval_s(NP_MSG_HANDSHAKE));
@@ -324,36 +331,35 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 			new_jval_bin(hs_payload, (uint32_t) hs_payload_len));
 	// log_msg(LOG_DEBUG, "payload has length %llu, signature length %llu", hs_payload_len, signature_len);
 
-	// serialize complete encrypted message
-	// uint64_t msg_size = 0;
-
     // TODO: do this serialization in parallel in background
 	np_message_calculate_chunking(hs_message);
 
 	np_jobargs_t* chunk_args = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
 	chunk_args->msg = hs_message;
-	ret = np_message_serialize_chunked(state, chunk_args);
-	// log_msg(LOG_DEBUG, "serialized handshake message (%p) msg_size %llu", hs_msg_ptr, msg_size);
+	np_bool serialize_ok = np_message_serialize_chunked(state, chunk_args);
+
+	// log_msg(LOG_DEBUG, "serialized handshake message msg_size %llu", hs_msg_ptr, msg_size);
 	free(chunk_args);
 
-	// construct target address and send it out
-	np_node_t* hs_node = args->target->node;
+	if (TRUE == serialize_ok) {
+		// construct target address and send it out
+		np_node_t* hs_node = args->target->node;
+		pthread_mutex_lock(&(my_node->network->lock));
 
-	pthread_mutex_lock(&(my_node->network->lock));
+		/* send data if handshake status is still just initialized or less */
+		log_msg(LOG_DEBUG,
+				"sending handshake message to (%s:%s)",
+				hs_node->dns_name, hs_node->port);
 
-	/* send data if handshake status is still just initialized or less */
-	log_msg(LOG_DEBUG,
-			"sending handshake message to (%s:%s)",
-			hs_node->dns_name, hs_node->port);
+		ret = send(hs_node->network->socket, pll_first(hs_message->msg_chunks)->val->msg_part, 984, 0);
+		// ret = sendto(my_node->network->socket, hs_msg_ptr, msg_size, 0, to, to_size);
+		np_node_update_stat(hs_node, ret);
+		if (ret < 0) {
+			log_msg(LOG_ERROR, "send handshake error: %s", strerror (errno));
+		}
 
-	ret = send(hs_node->network->socket, pll_first(hs_message->msg_chunks)->val->msg_part, 983, 0);
-	// ret = sendto(my_node->network->socket, hs_msg_ptr, msg_size, 0, to, to_size);
-	if (ret < 0) {
-		log_msg(LOG_ERROR, "send handshake error: %s", strerror (errno));
+		pthread_mutex_unlock(&my_node->network->lock);
 	}
-
-	pthread_mutex_unlock(&my_node->network->lock);
-
 	np_free_obj(np_message_t, hs_message);
 
 	log_msg(LOG_TRACE, ".end  .hnd_msg_out_handshake");

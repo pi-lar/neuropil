@@ -3,11 +3,11 @@ PLATFORM ?= $(shell uname -s)
 CC=clang 
 # CC=/Users/schwicht/Downloads/checker-277/libexec/ccc-analyzer
 
-CFLAGS=-c -Wall -O2 -std=c99 
+# CFLAGS=-c -Wall -O3 -g -std=c99 
 # CFLAGS=-c -Wall -g -gdwarf-2 -std=c99 
 # --analyze -Xanalyzer -analyzer-config -analyzer-checker=alpha.secure -anaylyzer-checker=alpha.core -analyzer-output=html -o clang_out
 # CFLAGS=-c -Wall -Wextra -pedantic -g -std=c99
-# CFLAGS=-c -O3 -std=c99
+CFLAGS=-c -O3 -std=c99
 LDFLAGS=
 
 # CLANG_SANITIZER=-fsanitize=address -fno-omit-frame-pointer

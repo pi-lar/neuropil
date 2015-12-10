@@ -72,9 +72,10 @@ typedef void (*np_callback_t) (np_state_t*, np_jobargs_t*);
 typedef np_bool (*np_usercallback_t) (np_jtree_t* msg_properties, np_jtree_t* msg_body);
 
 #ifndef _NP_MEMORY_H
-extern np_obj_pool_t np_obj_pool;
+extern np_obj_pool_t* np_obj_pool;
 #else
-np_obj_pool_t np_obj_pool; //  = { 0,0,0,0,0,0 };
+// np_obj_pool_t* np_obj_pool;
+// np_obj_pool_t* np_obj_pool = malloc(sizeof(np_obj_pool_t)); //  = { 0,0,0,0,0,0 };
 #endif
 
 #endif /* _INCLUDE_H_ */

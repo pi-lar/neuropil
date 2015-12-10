@@ -18,7 +18,8 @@
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
 
-void np_key_t_new(void* key) {
+void np_key_t_new(void* key)
+{
 	np_key_t* new_key = (np_key_t*) key;
 
 	new_key->t[0] = new_key->t[1] = new_key->t[2] = new_key->t[3] = 0;
@@ -38,7 +39,8 @@ void np_key_t_new(void* key) {
     new_key->recv_tokens = NULL; // link to runtime interest data on which this node is interested in
 }
 
-void np_key_t_del(void* key) {
+void np_key_t_del(void* key)
+{
 	// empty
 }
 
@@ -67,7 +69,8 @@ void str_to_key (np_key_t* k, const char* key_string)
     memcpy (k->keystr, key_string, 64);
     k->keystr[64] = '\0';
 
-    for (uint8_t i = 0; i < 4; i++) {
+    for (uint8_t i = 0; i < 4; i++)
+    {
     	char substring[17];
     	memcpy(substring, k->keystr + i*16, 16);
     	substring[16] = '\0';
@@ -157,9 +160,9 @@ void np_decode_key(np_jtree_t* jrb, np_key_t* key)
 
 np_key_t* key_create_from_hash(const char* strOrig)
 {
-    np_key_t* kResult;
-
+    np_key_t* kResult = NULL;
     np_new_obj(np_key_t, kResult);
+
     str_to_key(kResult, strOrig);
 
     kResult->valid = TRUE;
@@ -207,7 +210,11 @@ np_bool key_equal_ui (np_key_t* k, uint64_t ul)
 
 int8_t key_comp (const np_key_t* k1, const np_key_t* k2)
 {
-	// log_msg(LOG_KEYDEBUG, "k1 %p / k2 %p", k1, k2);
+	if (k1 == k2) return 0;
+	if (k1 == NULL) return -1;
+	if (k2 == NULL) return 1;
+
+	// log_msg(LOG_DEBUG, "k1 %p / k2 %p", k1, k2);
     for (uint8_t i = 0; i < 4; i++)
 	{
 	    if 		(k1->t[i] > k2->t[i]) return (1);
@@ -219,7 +226,8 @@ int8_t key_comp (const np_key_t* k1, const np_key_t* k2)
 void key_add (np_key_t* result, const np_key_t* const op1, const np_key_t* const op2)
 {
     double tmp, a, b;
-    a = b = tmp = 0;
+    // a = b =
+    tmp = 0;
 
     for (uint8_t i = 3; i-- != 0; )
 	{
@@ -309,7 +317,6 @@ void key_distance (np_key_t* diff, const np_key_t* const k1, const np_key_t* con
 
 np_bool key_between (const np_key_t* const test, const np_key_t* const left, const np_key_t* const right)
 {
-
     int8_t complr = key_comp (left, right);
     int8_t complt = key_comp (left, test);
     int8_t comptr = key_comp (test, right);
@@ -487,7 +494,7 @@ void sort_keys_kd (np_sll_t(np_key_t, list_of_keys), np_key_t* key)
         }
 	    sll_next(curr);
 
-    } while (curr != sll_last(list_of_keys));
+    } while (curr != sll_last(list_of_keys) && NULL != curr);
 
 //    for (i = 0; i < size; i++)
 //	{

@@ -40,8 +40,13 @@ void job_resubmit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t
     jargs->is_resend = TRUE;
     jargs->target = key;
     jargs->properties = prop;
-    if (msg != NULL) {
+    if (msg != NULL)
+    {
     	np_ref_obj(np_message_t, jargs->msg);
+    }
+    if (NULL != jargs->target)
+    {
+    	np_ref_obj(np_key_t, jargs->target);
     }
 
     // create job itself
@@ -56,8 +61,10 @@ void job_resubmit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t
     // log_msg(LOG_DEBUG, "requsting msg execution at: %f", new_job->tstamp);
     // if (NULL == sll_first (job_q->job_list)) was_empty = 1;
     pll_insert(np_job_ptr, job_q->job_list, new_job);
-    if (pll_size(job_q->job_list) == 1  || delay == 0.0)
+    if (pll_size(job_q->job_list) >= 1  || delay == 0.0)
+    {
     	pthread_cond_signal (&job_q->empty);
+    }
     // if (was_empty) pthread_cond_signal (&job_q->empty);
 
     pthread_mutex_unlock (&job_q->access);
@@ -74,8 +81,13 @@ void job_submit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t* 
     jargs->is_resend = FALSE;
     jargs->target = key;
     jargs->properties = prop;
-    if (msg != NULL) {
+    if (NULL != jargs->msg)
+    {
     	np_ref_obj(np_message_t, jargs->msg);
+    }
+    if (NULL != jargs->target)
+    {
+    	np_ref_obj(np_key_t, jargs->target);
     }
 
     // create job itself
@@ -90,8 +102,10 @@ void job_submit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t* 
     // log_msg(LOG_DEBUG, "requsting msg execution at: %f", new_job->tstamp);
     // if (NULL == sll_first (job_q->job_list)) was_empty = 1;
     pll_insert(np_job_ptr, job_q->job_list, new_job);
-    if (pll_size(job_q->job_list) == 1  || delay == 0.0)
+    if (pll_size(job_q->job_list) >= 1  || delay == 0.0)
+    {
     	pthread_cond_signal (&job_q->empty);
+    }
     // if (was_empty) pthread_cond_signal (&job_q->empty);
 
     pthread_mutex_unlock (&job_q->access);
@@ -112,8 +126,10 @@ void job_submit_event (np_joblist_t* job_q, double delay, np_callback_t callback
     // log_msg(LOG_DEBUG, "2: new_job-->%p func-->%p args-->%p", new_job, new_job->processorFunc, new_job->args);
     // if (NULL == sll_first (job_q->job_list)) was_empty = 1;
     pll_insert(np_job_ptr, job_q->job_list, new_job);
-    if (pll_size(job_q->job_list) == 1 || delay == 0.0)
+    if (pll_size(job_q->job_list) >= 1 || delay == 0.0)
+    {
     	pthread_cond_signal (&job_q->empty);
+    }
     // if (was_empty) pthread_cond_signal (&job_q->empty);
 
     pthread_mutex_unlock (&job_q->access);
@@ -148,13 +164,13 @@ void* job_exec (void* np_state)
 	log_msg(LOG_DEBUG, "job queue thread starting");
 
 	double default_sleep_time = 3.141592;
-    double now = dtime();
+    double now;
 
 	while (1)
 	{
 	    pthread_mutex_lock (&Q->access);
 	    now = dtime();
-	    while (pll_empty(Q->job_list))
+	    while (0 == pll_size(Q->job_list))
 		{
     		// log_msg(LOG_DEBUG, "now %f: list empty, start sleeping", now);
 	    	pthread_cond_wait (&Q->empty, &Q->access);
@@ -175,12 +191,14 @@ void* job_exec (void* np_state)
 	    	pthread_mutex_unlock (&Q->access);
     		continue;
     	}
+    	else
+    	{
 		// log_msg(LOG_DEBUG, "now %f --> executing %f", now, next_job->tstamp);
+    		tmp = pll_head(np_job_ptr, Q->job_list);
+    		pthread_mutex_unlock (&Q->access);
+    	}
 
-    	tmp = pll_head(np_job_ptr, Q->job_list);
-	    pthread_mutex_unlock (&Q->access);
-
-	    // sanity check if the job list really returned an element
+    	// sanity check if the job list really returned an element
 	    // if (NULL == tmp || NULL == tmp->processorFunc) continue;
 	    if (NULL == tmp) continue;
 	    // log_msg(LOG_DEBUG, "%hhd:     job-->%p func-->%p args-->%p", tmp->type, tmp, tmp->processorFunc, tmp->args);
@@ -189,16 +207,20 @@ void* job_exec (void* np_state)
 
     	if (tmp->type == 1)
 	    {
-	    	if (NULL != tmp->args->msg) {
-	    		// just do a sanity check, it won't hurt :-)
+	    	if (NULL != tmp->args->msg)
+	    	{
 	        	np_unref_obj(np_message_t, tmp->args->msg);
-	    		np_free_obj(np_message_t, tmp->args->msg);
 	    	}
+	        if (NULL != tmp->args->target)
+	        {
+	        	np_unref_obj(np_key_t, tmp->args->target);
+	        }
 	    }
 
 	    // cleanup
 	    free(tmp->args);
 	    np_job_free(tmp);
+	    tmp = NULL;
 	}
     return NULL;
 }
