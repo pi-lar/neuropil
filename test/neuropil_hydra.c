@@ -11,14 +11,15 @@
 
 #include "include.h"
 
-#include "np_memory.h"
-#include "neuropil.h"
 #include "log.h"
 #include "dtime.h"
+#include "neuropil.h"
 #include "np_jobqueue.h"
-#include "np_threads.h"
-#include "np_node.h"
+#include "np_memory.h"
 #include "np_message.h"
+#include "np_msgproperty.h"
+#include "np_node.h"
+#include "np_threads.h"
 
 
 #define USAGE "neuropil_hydra -j key:proto:host:port [ -p protocol] [-n nr_of_nodes]"
@@ -110,7 +111,7 @@ int main(int argc, char **argv) {
 				np_message_create(msg_out, node_key, state->my_node_key , NP_MSG_JOIN_REQUEST, jrb_me);
 
 				log_msg(LOG_DEBUG, "submitting welcome message");
-				np_msgproperty_t* prop = np_message_get_handler(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
+				np_msgproperty_t* prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
 				job_submit_msg_event(state->jobq, 0.0, prop, node_key, msg_out);
 
 				while (1) {

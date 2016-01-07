@@ -63,6 +63,7 @@ typedef struct np_key_s np_key_t;
 
 // aaa token data - (inspired by json.web.token, kerberos, diameter)
 typedef struct np_aaatoken_s np_aaatoken_t;
+typedef np_aaatoken_t* np_aaatoken_ptr;
 
 // callback functions
 typedef np_bool (*np_aaa_func_t) (np_state_t* state, np_aaatoken_t* node );

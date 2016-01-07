@@ -2,18 +2,18 @@
 #include <uuid/uuid.h>
 #include <assert.h>
 #include <stdlib.h>
-
 #include "pthread.h"
 
-#include "np_memory.h"
-#include "np_message.h"
-#include "np_jtree.h"
-#include "jval.h"
+#include "include.h"
+
 #include "cmp.h"
 #include "log.h"
+#include "jval.h"
+#include "np_jobqueue.h"
+#include "np_jtree.h"
+#include "np_memory.h"
+#include "np_message.h"
 #include "np_util.h"
-
-#include "include.h"
 
 
 int main(int argc, char **argv) {
@@ -27,9 +27,9 @@ int main(int argc, char **argv) {
 
 	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_1->size, test_jrb_1->byte_size);
     cmp_ctx_t cmp_empty;
-    char empty_buffer[NP_MESSAGE_SIZE];
+    char empty_buffer[65536];
     void* empty_buf_ptr = empty_buffer;
-    memset(empty_buf_ptr, 0, NP_MESSAGE_SIZE);
+    memset(empty_buf_ptr, 0, 65536);
 
     cmp_init(&cmp_empty, empty_buf_ptr, buffer_reader, buffer_writer);
 	serialize_jrb_node_t(test_jrb_1, &cmp_empty);
@@ -82,8 +82,8 @@ int main(int argc, char **argv) {
 	log_msg(LOG_INFO, "serializing message:  ");
 
     cmp_ctx_t cmp;
-    void* buffer = malloc(NP_MESSAGE_SIZE);
-    memset(buffer, 0, NP_MESSAGE_SIZE);
+    void* buffer = malloc(65536);
+    memset(buffer, 0, 65536);
 
     cmp_init(&cmp, buffer, buffer_reader, buffer_writer);
 	serialize_jrb_node_t(test_jrb_2, &cmp);
@@ -126,12 +126,9 @@ int main(int argc, char **argv) {
 	log_msg(LOG_INFO, "out jrb has size: %d %d", out_jrb->size, out_jrb->byte_size);
 
 
-
-
 	log_msg(LOG_INFO, "----------------------");
 	np_message_t* msg;
 	np_new_obj(np_message_t, msg);
-
 	// TODO:
 	// strange behaviour: msg->header->flink points to somewhere else, although it was never modified
 	// np_message_create_empty simply call make_jrb() (see test case #1 in this file)
@@ -143,7 +140,8 @@ int main(int argc, char **argv) {
 	uint64_t send_buf_len;
 
 	// log_msg(LOG_DEBUG, "now serializing message #1 (%p->%p)", msg->header, msg->header->flink);
-	np_message_serialize(msg, send_buf_ptr, &send_buf_len);
+	np_jobargs_t job_args = { .msg=msg };
+	np_message_serialize(NULL, &job_args);
 
 	jrb_insert_str(msg->instructions, "_np.ack", new_jval_i(1));
 	jrb_insert_str(msg->instructions, "_np.seq", new_jval_ul(2));
@@ -154,6 +152,7 @@ int main(int argc, char **argv) {
 	// unsigned long send_buf_len;
 
 	log_msg(LOG_DEBUG, "now serializing message #2");
-	np_message_serialize(msg, send_buf_ptr, &send_buf_len);
+	np_jobargs_t job_args_2 = { .msg=msg };
+	np_message_serialize(NULL, &job_args_2);
 
 }

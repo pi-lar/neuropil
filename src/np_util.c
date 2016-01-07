@@ -133,6 +133,25 @@ void write_type(np_jval_t val, cmp_ctx_t* cmp)
 		cmp_write_bin32(cmp, val.value.bin, val.size);
 		break;
 
+	case key_type:
+		{
+			cmp_ctx_t key_cmp;
+			char buffer[val.size];
+			void* buf_ptr = buffer;
+			cmp_init(&key_cmp, buf_ptr, buffer_reader, buffer_writer);
+			cmp_write_fixarray(cmp, 4);
+			cmp->write(&key_cmp, &val.value.key->t[0], sizeof(uint64_t));
+			cmp->write(&key_cmp, &val.value.key->t[1], sizeof(uint64_t));
+			cmp->write(&key_cmp, &val.value.key->t[2], sizeof(uint64_t));
+			cmp->write(&key_cmp, &val.value.key->t[3], sizeof(uint64_t));
+			uint32_t buf_size = key_cmp.buf - buf_ptr;
+
+			if (!cmp_write_ext32(cmp, key_type, buf_size, buf_ptr))
+			{
+				log_msg(LOG_WARN, "couldn't write key data -- ignoring for now");
+			}
+			break;
+		}
 	case jrb_tree_type:
 		{
 			cmp_ctx_t tree_cmp;
@@ -316,6 +335,30 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value)
 				value->type = jrb_tree_type;
 				value->size = subtree->size;
 				// log_msg(LOG_DEBUG, "read tree structure %u size %hu %lu", (tree_cmp.buf-buf_ptr), subtree->size, subtree->byte_size);
+			}
+			else if (obj->as.ext.type == key_type)
+			{
+				uint32_t fix_array_size;
+				cmp_ctx_t key_cmp;
+				cmp_init(&key_cmp, buf_ptr, buffer_reader, buffer_writer);
+				cmp_read_array(&key_cmp, &fix_array_size);
+				if (4 != fix_array_size)
+				{
+					log_msg(LOG_WARN,
+							"key_type has wrong array size %hd", fix_array_size);
+					break;
+				}
+
+				np_key_t* new_key = NULL;
+				np_new_obj(np_key_t, new_key);
+				cmp->read(&key_cmp, &new_key->t[0], sizeof(uint64_t));
+				cmp->read(&key_cmp, &new_key->t[1], sizeof(uint64_t));
+				cmp->read(&key_cmp, &new_key->t[2], sizeof(uint64_t));
+				cmp->read(&key_cmp, &new_key->t[3], sizeof(uint64_t));
+
+				value->value.key = new_key;
+				value->type = key_type;
+				value->size = 1 + ( 4*sizeof(uint64_t) );
 			}
 			else
 			{

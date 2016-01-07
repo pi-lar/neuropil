@@ -49,7 +49,6 @@ typedef struct binary_heap {
 } binary_heap;
 
 /* function prototypes for functions which operate on a binary heap */ 
-
 void        	   heapify(binary_heap *a, int16_t i);
 np_pqueue_node_ptr heap_max(binary_heap *a);
 np_pqueue_node     heap_extract_max(binary_heap *a);
@@ -60,7 +59,7 @@ void               heap_initialize(binary_heap *a, int16_t nodes);
 void               heap_finalize(binary_heap *a);
 
 /* function prototypes for functions which operate on a node */
-int16_t            np_pqueue_node_find(binary_heap a, uint16_t id);
+int16_t        np_pqueue_node_find(binary_heap a, uint16_t id);
 np_pqueue_node np_pqueue_node_create(uint16_t id, priority p, int16_t duration, int16_t niceness, int16_t cpu_usage);
 
 /* function prototypes for helper functions */

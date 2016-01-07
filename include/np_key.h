@@ -19,6 +19,10 @@
 #include "np_memory.h"
 #include "np_jtree.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 struct np_key_s
 {
@@ -34,8 +38,8 @@ struct np_key_s
 
     np_msgproperty_t* recv_property;
     np_msgproperty_t* send_property;
-    np_sll_t(np_aaatoken_t, recv_tokens); // link to runtime interest data on which this node is interested in
-    np_sll_t(np_aaatoken_t, send_tokens); // link to runtime interest data on which this node is interested in
+    np_pll_t(np_aaatoken_ptr, recv_tokens); // link to runtime interest data on which this node is interested in
+    np_pll_t(np_aaatoken_ptr, send_tokens); // link to runtime interest data on which this node is interested in
 
     np_aaatoken_t* authentication; // link to node if this key has an authentication token
     np_aaatoken_t* authorisation;  // link to node if this key has an authorisation token
@@ -112,6 +116,10 @@ void key_assign_ui (np_key_t * k, uint64_t ul);
 np_key_t* find_closest_key (np_sll_t(np_key_t, list_of_keys), np_key_t* key);
 void sort_keys_cpm (np_sll_t(np_key_t, node_keys), np_key_t* key);
 void sort_keys_kd (np_sll_t(np_key_t, list_of_keys), np_key_t* key);
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* _NP_KEY_H_ */

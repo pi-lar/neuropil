@@ -9,11 +9,12 @@
 
 #include "include.h"
 
-#include "np_memory.h"
-#include "neuropil.h"
 #include "log.h"
 #include "dtime.h"
+#include "neuropil.h"
+#include "np_memory.h"
 #include "np_message.h"
+#include "np_msgproperty.h"
 
 
 #define USAGE "neuropil_receiver [ -j bootstrap:port ] [ -p protocol] [-b port]"
@@ -91,7 +92,7 @@ int main(int argc, char **argv) {
 		dsleep(0.9);
 		char* testdata;
 
-		uint32_t real_seq = np_receive(state, "this.is.a.test", &testdata);
+		uint32_t real_seq = np_receive_text(state, "this.is.a.test", &testdata);
 		if (0 < real_seq)
 			log_msg(LOG_DEBUG, "received message %lu: %s", real_seq, testdata);
 		else

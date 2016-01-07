@@ -28,6 +28,7 @@
 #include "np_key.h"
 #include "np_list.h"
 #include "np_message.h"
+#include "np_msgproperty.h"
 #include "np_network.h"
 #include "np_node.h"
 #include "np_threads.h"
@@ -120,7 +121,7 @@ void np_route_lookup(np_state_t* state, np_jobargs_t* args)
 		np_message_deserialize_chunked(msg_to_submit);
 		// np_print_tree (msg_to_submit->body, 0);
 
-		np_msgproperty_t* prop = np_message_get_handler(state, INBOUND, msg_subject);
+		np_msgproperty_t* prop = np_msgproperty_get(state, INBOUND, msg_subject);
 		// job_submit_msg_event(state->jobq, prop, target_key, args->msg);
 		if (prop != NULL)
 			job_submit_msg_event(state->jobq, 0.0, prop, state->my_node_key, msg_to_submit);
@@ -133,9 +134,9 @@ void np_route_lookup(np_state_t* state, np_jobargs_t* args)
 
 		if (NULL == target_key || TRUE == is_a_join_request) target_key = args->target;
 
-		np_msgproperty_t* prop = np_message_get_handler(state, OUTBOUND, msg_subject);
+		np_msgproperty_t* prop = np_msgproperty_get(state, OUTBOUND, msg_subject);
 		if (NULL == prop)
-			prop = np_message_get_handler(state, OUTBOUND, DEFAULT);
+			prop = np_msgproperty_get(state, OUTBOUND, DEFAULT);
 
 		if (TRUE == args->is_resend)
 			job_resubmit_msg_event(state->jobq, 0.0, prop, target_key, args->msg);
@@ -168,11 +169,11 @@ void np_route_lookup(np_state_t* state, np_jobargs_t* args)
 /**
  ** flushes the data of the log buffer to the filesystem in a async callback way
  **/
-void np_write_log(np_state_t* state, np_jobargs_t* args)
+void _np_write_log(np_state_t* state, np_jobargs_t* args)
 {
 	// log_msg(LOG_TRACE, "start np_write_log");
 	log_fflush();
-	job_submit_event(state->jobq, __logfile_flush_period, np_write_log);
+	job_submit_event(state->jobq, __logfile_flush_period, _np_write_log);
 	// log_msg(LOG_TRACE, "end   np_write_log");
 }
 
@@ -181,7 +182,7 @@ void np_write_log(np_state_t* state, np_jobargs_t* args)
  ** sends the leafset to other members of its leafset periodically.
  ** pinging frequency is LEAFSET_CHECK_PERIOD.
  **/
-void np_check_leafset(np_state_t* state, np_jobargs_t* args)
+void _np_check_leafset(np_state_t* state, np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_check_leafset");
 
@@ -223,7 +224,7 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args)
 			/* otherwise request reevaluation of peer */
 			double delta = dtime() - tmp_node_key->node->last_success;
 			if (delta > (3 * __leafset_check_period))
-				np_ping(state, tmp_node_key);
+				_np_ping(state, tmp_node_key);
 		}
 	}
 	sll_free(np_key_t, leafset);
@@ -266,7 +267,7 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args)
 				/* otherwise request re-evaluation of node stats */
 				double delta = dtime() - tmp_node_key->node->last_success;
 				if (delta > (3 * __leafset_check_period))
-					np_ping(state, tmp_node_key);
+					_np_ping(state, tmp_node_key);
 			}
 		}
 		sll_free(np_key_t, table);
@@ -286,7 +287,7 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args)
 		while ( NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
 		{
 			// send a piggy message to the the nodes in our routing table
-			np_msgproperty_t* piggy_prop = np_message_get_handler(state,
+			np_msgproperty_t* piggy_prop = np_msgproperty_get(state,
 					TRANSFORM, NP_MSG_PIGGY_REQUEST);
 			job_submit_msg_event(state->jobq, 0.0, piggy_prop, tmp_node_key, NULL);
 		}
@@ -299,7 +300,7 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args)
 	}
 
 	// np_mem_printpool();
-	job_submit_event(state->jobq, __leafset_check_period, np_check_leafset);
+	job_submit_event(state->jobq, __leafset_check_period, _np_check_leafset);
 	log_msg(LOG_TRACE, ".end  .np_check_leafset");
 }
 
@@ -309,7 +310,7 @@ void np_check_leafset(np_state_t* state, np_jobargs_t* args)
  ** default ttl value for message exchange tokens is ten seconds, afterwards they will be invalid
  ** and a new token is required. this also ensures that the correct encryption key will be transmitted
  **/
-void np_retransmit_tokens(np_state_t* state, np_jobargs_t* args)
+void _np_retransmit_tokens(np_state_t* state, np_jobargs_t* args)
 {
 	// log_msg(LOG_TRACE, "start np_retransmit_tokens");
 
@@ -320,13 +321,13 @@ void np_retransmit_tokens(np_state_t* state, np_jobargs_t* args)
 	{
 		// double now = dtime();
 		// double last_update = iter->val.value.d;
-		if (NULL != np_message_get_handler(state, INBOUND, iter->key.value.s))
+		if (NULL != np_msgproperty_get(state, INBOUND, iter->key.value.s))
 		{
-			np_send_msg_interest(state, iter->key.value.s);
+			_np_send_msg_interest(state, iter->key.value.s);
 		}
-		else if (NULL != np_message_get_handler(state, OUTBOUND, iter->key.value.s))
+		else if (NULL != np_msgproperty_get(state, OUTBOUND, iter->key.value.s))
 		{
-			np_send_msg_availability(state, iter->key.value.s);
+			_np_send_msg_availability(state, iter->key.value.s);
 		}
 		else
 		{
@@ -337,7 +338,7 @@ void np_retransmit_tokens(np_state_t* state, np_jobargs_t* args)
 		}
 	}
 
-	job_submit_event(state->jobq, __token_retransmit_period, np_retransmit_tokens);
+	job_submit_event(state->jobq, __token_retransmit_period, _np_retransmit_tokens);
 }
 
 /**
@@ -347,7 +348,7 @@ void np_retransmit_tokens(np_state_t* state, np_jobargs_t* args)
  ** the message gets deleted or dropped (if max redelivery has been reached)
  ** redelivery has two aspects -> simple resend or reroute because of bad link nodes in the routing table
  **/
-void np_cleanup(np_state_t* state, np_jobargs_t* args)
+void _np_cleanup(np_state_t* state, np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_cleanup");
 
@@ -400,7 +401,7 @@ void np_cleanup(np_state_t* state, np_jobargs_t* args)
 	pthread_mutex_unlock(&ng->lock);
 
 	// submit the function itself for additional execution
-	job_submit_event(state->jobq, __cleanup_interval, np_cleanup);
+	job_submit_event(state->jobq, __cleanup_interval, _np_cleanup);
 	log_msg(LOG_TRACE, ".end  .np_cleanup");
 
 	np_mem_printpool();
@@ -411,7 +412,7 @@ void np_cleanup(np_state_t* state, np_jobargs_t* args)
  ** puts the network layer into listen mode. This thread manages acknowledgements,
  ** delivers incoming messages to the message handlers, and drives the network layer.
  **/
-void np_network_read(np_state_t* state, np_jobargs_t* args)
+void _np_network_read(np_state_t* state, np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_network_read");
 
@@ -433,7 +434,7 @@ void np_network_read(np_state_t* state, np_jobargs_t* args)
 	if (ret < 0)
 	{
 		log_msg(LOG_ERROR, "select: %s", strerror(errno));
-		job_submit_event(state->jobq, 0.0, np_network_read);
+		job_submit_event(state->jobq, 0.0, _np_network_read);
 		log_msg(LOG_TRACE, ".end  .np_network_read");
 		return;
 	}
@@ -443,7 +444,7 @@ void np_network_read(np_state_t* state, np_jobargs_t* args)
 	if (0 > in_msg_len)
 	{
 		log_msg(LOG_ERROR, "recvfrom failed: %s", strerror(errno));
-		job_submit_event(state->jobq, 0.0, np_network_read);
+		job_submit_event(state->jobq, 0.0, _np_network_read);
 		log_msg(LOG_TRACE, ".end  .np_network_read");
 		return;
 	}
@@ -452,7 +453,7 @@ void np_network_read(np_state_t* state, np_jobargs_t* args)
 	       (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40) == in_msg_len) )
 	{
 		log_msg(LOG_DEBUG, "received wrong message size (%hd)", in_msg_len);
-		job_submit_event(state->jobq, 0.0, np_network_read);
+		job_submit_event(state->jobq, 0.0, _np_network_read);
 		log_msg(LOG_TRACE, ".end  .np_network_read");
 		return;
 	}
@@ -548,7 +549,7 @@ void np_network_read(np_state_t* state, np_jobargs_t* args)
 		// np_free_obj(np_key_t, alias_key);
 		free(data_ptr);
 
-		job_submit_event(state->jobq, 0.0, np_network_read);
+		job_submit_event(state->jobq, 0.0, _np_network_read);
 		log_msg(LOG_TRACE, ".end  .np_network_read");
 		return;
 	}
@@ -566,7 +567,7 @@ void np_network_read(np_state_t* state, np_jobargs_t* args)
 		{
 			jrb_insert_str(msg_in->footer, NP_MSG_FOOTER_ALIAS_KEY,
 					new_jval_s((char*) key_get_as_string(alias_key)));
-			np_msgproperty_t* msg_prop = np_message_get_handler(state, INBOUND, NP_MSG_HANDSHAKE);
+			np_msgproperty_t* msg_prop = np_msgproperty_get(state, INBOUND, NP_MSG_HANDSHAKE);
 			job_submit_msg_event(state->jobq, 0.0, msg_prop, state->my_node_key, msg_in);
 		}
 		else
@@ -576,7 +577,7 @@ void np_network_read(np_state_t* state, np_jobargs_t* args)
 
 		np_free_obj(np_message_t, msg_in);
 		// schedule new network read event
-		job_submit_event(state->jobq, 0.0, np_network_read);
+		job_submit_event(state->jobq, 0.0, _np_network_read);
 		log_msg(LOG_TRACE, ".end  .np_network_read");
 		return;
 	}
@@ -611,7 +612,7 @@ void np_network_read(np_state_t* state, np_jobargs_t* args)
 		pthread_mutex_unlock(&(ng->lock));
 
 		np_free_obj(np_message_t, msg_in);
-		job_submit_event(state->jobq, 0.0, np_network_read);
+		job_submit_event(state->jobq, 0.0, _np_network_read);
 
 		log_msg(LOG_TRACE, ".end  .np_network_read");
 		return;
@@ -651,7 +652,7 @@ void np_network_read(np_state_t* state, np_jobargs_t* args)
 		{
 			np_message_t* ack_msg_out = NULL;
 			np_new_obj(np_message_t, ack_msg_out);
-			np_msgproperty_t* ack_prop = np_message_get_handler(state, OUTBOUND, NP_MSG_ACK);
+			np_msgproperty_t* ack_prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_ACK);
 			np_message_create(ack_msg_out, ack_key, state->my_node_key, NP_MSG_ACK, NULL);
 
 			/* create network header */
@@ -674,14 +675,14 @@ void np_network_read(np_state_t* state, np_jobargs_t* args)
 	np_new_obj(np_key_t, target_key);
 	str_to_key(target_key, to);
 
-	np_msgproperty_t* prop = np_message_get_handler(state, INBOUND, DEFAULT);
+	np_msgproperty_t* prop = np_msgproperty_get(state, INBOUND, DEFAULT);
 	job_submit_msg_event(state->jobq, 0.0, prop, target_key, msg_in);
 
 	np_free_obj(np_message_t, msg_in);
 	np_free_obj(np_key_t, target_key);
 
 	// schedule new network read event
-	job_submit_event(state->jobq, 0.0, np_network_read);
+	job_submit_event(state->jobq, 0.0, _np_network_read);
 
 	log_msg(LOG_TRACE, ".end  .np_network_read");
 }
@@ -690,7 +691,8 @@ void np_network_read(np_state_t* state, np_jobargs_t* args)
  ** np_send_rowinfo:
  ** sends matching row of its table to the target node
  **/
-void np_send_rowinfo(np_state_t* state, np_jobargs_t* args) {
+void _np_send_rowinfo(np_state_t* state, np_jobargs_t* args)
+{
 	log_msg(LOG_TRACE, "start np_send_rowinfo");
 
 	np_key_t* target_key = args->target;
@@ -713,7 +715,7 @@ void np_send_rowinfo(np_state_t* state, np_jobargs_t* args) {
 			// TODO: maybe locking the cache is not enough and we have to do it more fine grained
 			np_encode_nodes_to_jrb(msg_body, sll_of_keys);
 		}
-		np_msgproperty_t* outprop = np_message_get_handler(state, OUTBOUND, NP_MSG_PIGGY_REQUEST);
+		np_msgproperty_t* outprop = np_msgproperty_get(state, OUTBOUND, NP_MSG_PIGGY_REQUEST);
 
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
@@ -724,7 +726,7 @@ void np_send_rowinfo(np_state_t* state, np_jobargs_t* args) {
 	sll_free(np_key_t, sll_of_keys);
 }
 
-np_aaatoken_t* np_create_node_token(np_state_t* state, np_node_t* node, np_key_t* node_key)
+np_aaatoken_t* _np_create_node_token(np_state_t* state, np_node_t* node, np_key_t* node_key)
 {	log_msg(LOG_TRACE, ".start.np_create_node_token");
 
 	np_aaatoken_t* node_token = NULL;
@@ -767,7 +769,7 @@ np_aaatoken_t* np_create_node_token(np_state_t* state, np_node_t* node, np_key_t
 	crypto_generichash_update(&gh_state, (unsigned char*) node_token->realm, strlen(node_token->realm));
 	crypto_generichash_update(&gh_state, (unsigned char*) node_token->issuer, strlen(node_token->issuer));
 	crypto_generichash_update(&gh_state, (unsigned char*) node_token->subject, strlen(node_token->subject));
-	crypto_generichash_update(&gh_state, (unsigned char*) node_token->audience, strlen(node_token->audience));
+	// crypto_generichash_update(&gh_state, (unsigned char*) node_token->audience, strlen(node_token->audience));
 	crypto_generichash_update(&gh_state, (unsigned char*) node_token->public_key, crypto_sign_BYTES);
 	// TODO: hash 'not_before' and 'expiration' values as well ?
 	crypto_generichash_final(&gh_state, hash, sizeof hash);
@@ -790,7 +792,7 @@ np_aaatoken_t* np_create_node_token(np_state_t* state, np_node_t* node, np_key_t
 }
 
 
-np_aaatoken_t* np_create_msg_token(np_state_t* state, const char* subject, np_msgproperty_t* msg_request)
+np_aaatoken_t* _np_create_msg_token(np_state_t* state, const char* subject, np_msgproperty_t* msg_request)
 {	log_msg(LOG_TRACE, ".start.np_create_msg_token");
 
 	np_aaatoken_t* msg_token = NULL;
@@ -801,7 +803,6 @@ np_aaatoken_t* np_create_msg_token(np_state_t* state, const char* subject, np_ms
 
 	strncpy(msg_token->issuer, (char*) key_get_as_string(state->my_identity), 255);
 	strncpy(msg_token->subject, subject, 255);
-
 	// TODO:
 	// strncpy(msg_token->audience, (char*) key_get_as_string(state->my_identity), 255);
 
@@ -822,6 +823,9 @@ np_aaatoken_t* np_create_msg_token(np_state_t* state, const char* subject, np_ms
 	jrb_insert_str(msg_token->extensions, "msg_threshold",
 			new_jval_ui(msg_request->msg_threshold));
 
+	jrb_insert_str(msg_token->extensions, "target_node",
+			new_jval_s((char*) key_get_as_string(state->my_node_key)));
+
 	// TODO: useful extension ?
 	// unsigned char key[crypto_generichash_KEYBYTES];
 	// randombytes_buf(key, sizeof key);
@@ -832,7 +836,7 @@ np_aaatoken_t* np_create_msg_token(np_state_t* state, const char* subject, np_ms
 	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->realm, strlen(msg_token->realm));
 	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->issuer, strlen(msg_token->issuer));
 	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->subject, strlen(msg_token->subject));
-	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->audience, strlen(msg_token->audience));
+	// crypto_generichash_update(&gh_state, (unsigned char*) msg_token->audience, strlen(msg_token->audience));
 	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->public_key, crypto_sign_BYTES);
 	// TODO: hash 'not_before' and 'expiration' values as well ?
 	crypto_generichash_final(&gh_state, hash, sizeof hash);
@@ -854,19 +858,19 @@ np_aaatoken_t* np_create_msg_token(np_state_t* state, const char* subject, np_ms
 	return msg_token;
 }
 
-void np_send_msg_interest(np_state_t* state, const char* subject) {
+void _np_send_msg_interest(np_state_t* state, const char* subject) {
 	log_msg(LOG_TRACE, ".start.np_send_msg_interest");
 
 	np_message_t* msg_out = NULL;
 	np_aaatoken_t* msg_token = NULL;
 
-	np_msgproperty_t* msg_request = np_message_get_handler(state, INBOUND, subject);
+	np_msgproperty_t* msg_request = np_msgproperty_get(state, INBOUND, subject);
 	np_key_t* target = key_create_from_hostport(subject, "0");
 
 	log_msg(LOG_DEBUG, "encoding and storing interest token");
 
 	// insert into msg token token renewal queue
-	msg_token = np_create_msg_token(state, subject, msg_request);
+	msg_token = _np_create_msg_token(state, subject, msg_request);
 	jrb_insert_str(state->msg_tokens, subject, new_jval_v(NULL));
 
 	log_msg(LOG_DEBUG, "encoding and sending interest token");
@@ -877,7 +881,7 @@ void np_send_msg_interest(np_state_t* state, const char* subject) {
 	// directly send interest
 	np_new_obj(np_message_t, msg_out);
 	np_message_create(msg_out, target, state->my_node_key, NP_MSG_INTEREST, interest_data);
-	np_msgproperty_t* prop_route = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+	np_msgproperty_t* prop_route = np_msgproperty_get(state, TRANSFORM, ROUTE_LOOKUP);
 	job_submit_msg_event(state->jobq, 0.0, prop_route, target, msg_out);
 
 	np_free_obj(np_aaatoken_t, msg_token);
@@ -887,16 +891,16 @@ void np_send_msg_interest(np_state_t* state, const char* subject) {
 	log_msg(LOG_TRACE, ".end  .np_send_msg_interest");
 }
 
-void np_send_msg_availability(np_state_t* state, const char* subject)
+void _np_send_msg_availability(np_state_t* state, const char* subject)
 {
 	log_msg(LOG_TRACE, ".start.np_send_msg_availability");
 	np_message_t* msg_out = NULL;
 	np_aaatoken_t* msg_token = NULL;
 
-	np_msgproperty_t* msg_interest = np_message_get_handler(state, OUTBOUND, subject);
+	np_msgproperty_t* msg_interest = np_msgproperty_get(state, OUTBOUND, subject);
 	np_key_t* target = key_create_from_hostport(subject, "0");
 
-	msg_token = np_create_msg_token(state, subject, msg_interest);
+	msg_token = _np_create_msg_token(state, subject, msg_interest);
 
 	log_msg(LOG_DEBUG, "encoding and storing available token");
 	jrb_insert_str(state->msg_tokens, subject, new_jval_v(NULL));
@@ -909,7 +913,7 @@ void np_send_msg_availability(np_state_t* state, const char* subject)
 	np_new_obj(np_message_t, msg_out);
 	np_message_create(msg_out, target, state->my_node_key, NP_MSG_AVAILABLE, available_data);
 	// send message availability
-	np_msgproperty_t* prop_route = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+	np_msgproperty_t* prop_route = np_msgproperty_get(state, TRANSFORM, ROUTE_LOOKUP);
 	job_submit_msg_event(state->jobq, 0.0, prop_route, target, msg_out);
 
 	np_free_obj(np_aaatoken_t, msg_token);
@@ -919,20 +923,33 @@ void np_send_msg_availability(np_state_t* state, const char* subject)
 }
 
 // TODO: move this to a function which can be scheduled via jobargs
-np_bool np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msgproperty_t* msg_prop)
+np_bool _np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msgproperty_t* msg_prop)
 {
-	np_aaatoken_t* tmp_token = np_get_receiver_token(state, subject);
+	np_aaatoken_t* tmp_token = _np_get_receiver_token(state, subject);
 
-	if (NULL != tmp_token) {
+	if (NULL != tmp_token)
+	{
 		// first encrypt the relevant message part itself
 		np_message_encrypt_payload(state, msg, tmp_token);
 
+		char* target_node_str = NULL;
+
+		np_jtree_elem_t* tn_node = jrb_find_str(tmp_token->extensions, "target_node");
+		if (NULL != tn_node)
+		{
+			target_node_str = tn_node->val.value.s;
+		}
+		else
+		{
+			target_node_str = tmp_token->issuer;
+		}
+
 		np_key_t* receiver_key = NULL;
 		np_new_obj(np_key_t, receiver_key);
-		str_to_key(receiver_key, tmp_token->issuer);
+		str_to_key(receiver_key, target_node_str);
 
 		jrb_insert_str(msg->header, NP_MSG_HEADER_TO, new_jval_s(tmp_token->issuer));
-		np_msgproperty_t* out_prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+		np_msgproperty_t* out_prop = np_msgproperty_get(state, TRANSFORM, ROUTE_LOOKUP);
 		job_submit_msg_event(state->jobq, 0.0, out_prop, receiver_key, msg);
 
 		// decrease threshold counters
@@ -940,17 +957,19 @@ np_bool np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msg
 		np_free_obj(np_key_t, receiver_key);
 
 		return TRUE;
-
-	} else {
-
+	}
+	else
+	{
 		LOCK_CACHE(msg_prop)
 		{
 			// cache already full ?
-			if (msg_prop->max_threshold <= msg_prop->msg_threshold) {
+			if (msg_prop->max_threshold <= msg_prop->msg_threshold)
+			{
 				log_msg(LOG_DEBUG,
 						"msg cache full, checking overflow policy ...");
 
-				if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE)) {
+				if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
+				{
 					log_msg(LOG_DEBUG,
 							"OVERFLOW_PURGE: discarding first message");
 					np_message_t* old_msg = NULL;
@@ -964,7 +983,8 @@ np_bool np_send_msg (np_state_t* state, char* subject, np_message_t* msg, np_msg
 					np_unref_obj(np_message_t, old_msg);
 				}
 
-				if (0 < (msg_prop->cache_policy & OVERFLOW_REJECT)) {
+				if (0 < (msg_prop->cache_policy & OVERFLOW_REJECT))
+				{
 					log_msg(LOG_DEBUG,
 							"rejecting new message because cache is full");
 					// np_free_obj(np_message_t, msg);

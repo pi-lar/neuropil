@@ -23,6 +23,7 @@
 #include "np_jobqueue.h"
 #include "np_jtree.h"
 #include "np_message.h"
+#include "np_msgproperty.h"
 #include "np_memory.h"
 #include "np_network.h"
 #include "np_node.h"
@@ -48,8 +49,8 @@
  ** network_send: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
-void hnd_msg_out_ack(np_state_t* state, np_jobargs_t* args) {
-
+void hnd_msg_out_ack(np_state_t* state, np_jobargs_t* args)
+{
 	char* uuid = np_create_uuid(args->properties->msg_subject, 0);
 	jrb_insert_str(args->msg->instructions, NP_MSG_INST_UUID, new_jval_s(uuid));
 	free(uuid);
@@ -91,7 +92,8 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	np_msgproperty_t* prop = args->properties;
 	np_network_t* network = state->my_node_key->node->network;
 
-	if (!np_node_check_address_validity(args->target->node)) {
+	if (!np_node_check_address_validity(args->target->node))
+	{
 		log_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
 							key_get_as_string(args->target));
 		// np_free_obj(np_message_t, args->msg);
@@ -100,7 +102,8 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	}
 
 	// check ack indicator if this is a resend of a message
-	if (TRUE == is_resend) {
+	if (TRUE == is_resend)
+	{
 		uuid = jrb_find_str(msg_out->instructions, NP_MSG_INST_UUID)->val.value.s;
 
 		pthread_mutex_lock(&network->lock);
@@ -186,7 +189,8 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_TTL, new_jval_d(now));
 
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_PARTS, new_jval_iarray(0, 0));
-	if (FALSE == msg_out->is_single_part) {
+	if (FALSE == msg_out->is_single_part)
+	{
 		// dummy message part split-up informations
 		np_message_calculate_chunking(msg_out);
 	}
@@ -233,7 +237,7 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 
 		// insert a record into the priority queue with the following information:
 		double retransmit_interval = args->properties->ttl / args->properties->retry;
-		np_msgproperty_t* out_prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+		np_msgproperty_t* out_prop = np_msgproperty_get(state, TRANSFORM, ROUTE_LOOKUP);
 		job_resubmit_msg_event(state->jobq, retransmit_interval, out_prop, args->target, args->msg);
 	}
 
@@ -297,7 +301,8 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args) {
 
 	// pre-serialize handshake data
 	cmp_ctx_t cmp;
-    unsigned char hs_payload[NP_MESSAGE_SIZE];
+	// TODO:
+    unsigned char hs_payload[65536];
     void* hs_buf_ptr = hs_payload;
 
     cmp_init(&cmp, hs_buf_ptr, buffer_reader, buffer_writer);

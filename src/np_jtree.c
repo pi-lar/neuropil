@@ -16,12 +16,12 @@
 #include "log.h"
 
 
-RB_GENERATE(np_jtree, np_jtree_elem_s, link, jval_cmp);
+RB_GENERATE(np_jtree, np_jtree_elem_s, link, _jval_cmp);
 
-//RB_GENERATE_STATIC(np_str_jtree, np_jtree_elem_s, link, jval_cmp);
-//RB_GENERATE_STATIC(np_int_jtree, np_jtree_elem_s, link, jval_cmp);
-//RB_GENERATE_STATIC(np_dbl_jtree, np_jtree_elem_s, link, jval_cmp);
-//RB_GENERATE_STATIC(np_ulong_jtree, np_jtree_elem_s, link, jval_cmp);
+//RB_GENERATE_STATIC(np_str_jtree, np_jtree_elem_s, link, _jval_cmp);
+//RB_GENERATE_STATIC(np_int_jtree, np_jtree_elem_s, link, _jval_cmp);
+//RB_GENERATE_STATIC(np_dbl_jtree, np_jtree_elem_s, link, _jval_cmp);
+//RB_GENERATE_STATIC(np_ulong_jtree, np_jtree_elem_s, link, _jval_cmp);
 
 np_jtree_t* make_jtree () {
 	np_jtree_t* new_tree = (np_jtree_t*) malloc(sizeof(np_jtree_t));
@@ -32,17 +32,18 @@ np_jtree_t* make_jtree () {
 	return new_tree;
 }
 
-int16_t jval_cmp(const np_jtree_elem_t* j1, const np_jtree_elem_t* j2) {
-
+int16_t _jval_cmp(const np_jtree_elem_t* j1, const np_jtree_elem_t* j2)
+{
 	np_jval_t jv1 = j1->key;
 	np_jval_t jv2 = j2->key;
 
-	if (jv1.type == jv2.type) {
-
+	if (jv1.type == jv2.type)
+	{
 		if (jv1.type == char_ptr_type)
 			return strncmp(jv1.value.s, jv2.value.s, 64);
 
-		if (jv1.type == double_type) {
+		if (jv1.type == double_type)
+		{
 			// log_msg(LOG_DEBUG, "comparing %f - %f = %d",
 			// 		jv1.value.d, jv2.value.d, (int16_t) (jv1.value.d-jv2.value.d) );
 			double res = jv1.value.d - jv2.value.d;
@@ -50,6 +51,7 @@ int16_t jval_cmp(const np_jtree_elem_t* j1, const np_jtree_elem_t* j2) {
 			if (res > 0) return  1;
 			return 0;
 		}
+
 		if (jv1.type == unsigned_long_type)
 			return (int16_t) (jv1.value.ul - jv2.value.ul);
 
@@ -153,19 +155,18 @@ np_jtree_elem_t* jrb_find_dbl (np_jtree_t* n, double dkey)
 	return RB_FIND(np_jtree, n, &search_elem);
 }
 
-void del_str_node (np_jtree_t* tree, const char *key) {
-
+void del_str_node (np_jtree_t* tree, const char *key)
+{
 	np_jval_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
 	np_jtree_elem_t search_elem = { .key = search_key };
 
 	np_jtree_elem_t* to_delete = RB_FIND(np_jtree, tree, &search_elem);
-	if (to_delete != NULL) {
-
+	if (to_delete != NULL)
+	{
 		RB_REMOVE(np_jtree, tree, to_delete);
 
 		tree->byte_size -= jrb_get_byte_size(to_delete);
 		tree->size--;
-
 		free(to_delete->key.value.s);
 
 		if (to_delete->val.type == char_ptr_type) free(to_delete->val.value.s);
@@ -176,12 +177,14 @@ void del_str_node (np_jtree_t* tree, const char *key) {
 	}
 }
 
-void del_int_node (np_jtree_t* tree, const int16_t key) {
+void del_int_node (np_jtree_t* tree, const int16_t key)
+{
 	np_jval_t search_key = { .type = int_type, .value.i = key };
 	np_jtree_elem_t search_elem = { .key = search_key };
 
 	np_jtree_elem_t* to_delete = RB_FIND(np_jtree, tree, &search_elem);
-	if (to_delete != NULL) {
+	if (to_delete != NULL)
+	{
 		RB_REMOVE(np_jtree, tree, to_delete);
 		tree->byte_size -= jrb_get_byte_size(to_delete);
 		tree->size--;
@@ -193,13 +196,14 @@ void del_int_node (np_jtree_t* tree, const int16_t key) {
 	}
 }
 
-void del_dbl_node (np_jtree_t* tree, const double dkey) {
-
+void del_dbl_node (np_jtree_t* tree, const double dkey)
+{
 	np_jval_t search_key = { .type = double_type, .value.d = dkey };
 	np_jtree_elem_t search_elem = { .key = search_key };
 
 	np_jtree_elem_t* to_delete = RB_FIND(np_jtree, tree, &search_elem);
-	if (to_delete != NULL) {
+	if (to_delete != NULL)
+	{
 		RB_REMOVE(np_jtree, tree, to_delete);
 		tree->byte_size -= jrb_get_byte_size(to_delete);
 		tree->size--;
@@ -290,7 +294,7 @@ void np_print_tree (np_jtree_t* n, uint8_t indent)
 	}
 }
 
-void jrb_replace_all_with_str(np_jtree_t* n, const char* key, np_jval_t val)
+void _jrb_replace_all_with_str(np_jtree_t* n, const char* key, np_jval_t val)
 {
 	np_clear_tree(n);
     jrb_insert_str(n, key, val);

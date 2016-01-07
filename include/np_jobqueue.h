@@ -13,6 +13,10 @@
 
 #include "np_container.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* job_queue np_job_t structure */
 struct np_job_s {
 
@@ -66,5 +70,9 @@ void job_submit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t* 
  *  else get the first job out of queue and execute it.
  **/
 void* job_exec (void* state);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _NP_JOBQUEUE_H

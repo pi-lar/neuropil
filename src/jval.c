@@ -386,6 +386,7 @@ np_jval_t new_jval_key (np_key_t* key)
     j.value.key = key;
     j.size = sizeof(key);
     j.type = key_type;
+    j.size = 1 + ( 4*sizeof(uint64_t) );
     // np_ref_obj(np_key_t, key);
     return j;
 }

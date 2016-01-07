@@ -31,19 +31,19 @@ int main(int argc, char **argv) {
 
 	printf("p: %p <-> %p\n", pll_first(my_pll_list), pll_last(my_pll_list));
 
-	pll_insert(double, my_pll_list, d_a);
+	pll_insert(double, my_pll_list, d_a, TRUE);
 	printf("p: %p <-> %p\n", pll_first(my_pll_list), pll_last(my_pll_list));
 
-	pll_insert(double, my_pll_list, d_b);
+	pll_insert(double, my_pll_list, d_b, TRUE);
 	printf("p: %p <-> %p\n", pll_first(my_pll_list), pll_last(my_pll_list));
 
-	pll_insert(double, my_pll_list, d_c);
+	pll_insert(double, my_pll_list, d_c, TRUE);
 	printf("p: %p <-> %p\n", pll_first(my_pll_list), pll_last(my_pll_list));
 
-	pll_insert(double, my_pll_list, d_d);
+	pll_insert(double, my_pll_list, d_d, TRUE);
 	printf("p: %p <-> %p\n", pll_first(my_pll_list), pll_last(my_pll_list));
 
-	pll_insert(double, my_pll_list, d_e);
+	pll_insert(double, my_pll_list, d_e, TRUE);
 	printf("p: %p <-> %p\n", pll_first(my_pll_list), pll_last(my_pll_list));
 
 	double d_tmp_1 = 0.0f;

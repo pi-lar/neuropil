@@ -33,7 +33,7 @@ Knoxville, TN 37996-3450
 
      865-974-4397
 Fax: 865-974-4404
- */
+*/
 #ifndef	_NP_JVAL_H_
 #define	_NP_JVAL_H_
 

@@ -7,11 +7,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "np_memory.h"
-#include "neuropil.h"
 #include "log.h"
 #include "dtime.h"
+#include "neuropil.h"
+#include "np_memory.h"
 #include "np_message.h"
+#include "np_msgproperty.h"
 
 #include "include.h"
 
@@ -85,7 +86,7 @@ int main(int argc, char **argv) {
 
 		dsleep(1.0);
 
-		np_send(state, msg_subject, msg_data, k);
+		np_send_text(state, msg_subject, msg_data, k);
 		log_msg(LOG_DEBUG, "send message %lu", k);
 
 		k++;

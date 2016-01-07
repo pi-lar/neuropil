@@ -12,6 +12,10 @@
 #include "include.h"
 #include "np_memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** 
  ** NETWORK_PACK_SIZE is the maximum packet size that will be handled by neuropil network layer
  */
@@ -104,5 +108,9 @@ np_bool network_send_udp (np_state_t* state, np_key_t* node,  np_message_t* msg)
  ** Resends a message to host
  **/
 // int network_resend (np_state_t* state, np_node_t *host, np_message_t* message, size_t size, int ack, unsigned long seqnum, double *transtime);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _CHIMERA_NETWORK_H_ */

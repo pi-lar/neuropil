@@ -11,6 +11,10 @@
 #include "include.h"
 #include "stdint.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // enum to identify the correct type of objects
 typedef enum np_obj_type {
 	np_none_t_e = 0,
@@ -70,10 +74,11 @@ struct np_obj_pool_s {
 
 // macro definitions to generate header prototype definitions
 #define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE) \
-void TYPE##_new(void*); \
-void TYPE##_del(void*); \
+void _##TYPE##_new(void*); \
+void _##TYPE##_del(void*); \
 
 // macro definitions to generate implementation of prototypes
+// empty by design, forces developers to write new and delete callback functions for np_obj_* types
 #define _NP_GENERATE_MEMORY_IMPLEMENTATION(TYPE)
 
 // convenience wrappers
@@ -128,8 +133,8 @@ void TYPE##_del(void*); \
   pthread_mutex_lock(&(np_obj_pool->lock));   \
   np_obj = (TYPE*) malloc(sizeof(TYPE));      \
   np_mem_newobj(TYPE##_e, &np_obj->obj);      \
-  np_obj->obj->new_callback = TYPE##_new;     \
-  np_obj->obj->del_callback = TYPE##_del;     \
+  np_obj->obj->new_callback = _##TYPE##_new;  \
+  np_obj->obj->del_callback = _##TYPE##_del;  \
   np_obj->obj->new_callback(np_obj);          \
   np_obj->obj->ptr = np_obj;                  \
   np_mem_refobj(TYPE##_e, np_obj->obj);       \
@@ -183,5 +188,8 @@ void np_mem_unrefobj(np_obj_enum obj_type, np_obj_t* obj);
 // print the complete object list and statistics
 void np_mem_printpool();
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _NP_MEMORY_H

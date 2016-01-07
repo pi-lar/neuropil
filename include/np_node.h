@@ -15,6 +15,10 @@
 #include "np_memory.h"
 #include "np_network.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SUCCESS_WINDOW 20
 #define GOOD_LINK 0.7
 #define BAD_LINK 0.3
@@ -91,5 +95,9 @@ char* np_node_get_port (np_node_t* np_node);
 float np_node_get_success_avg (np_node_t* np_node);
 float np_node_get_latency (np_node_t* np_node);
 uint8_t np_node_check_address_validity (np_node_t* np_node);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _NP_NODE_H_ */

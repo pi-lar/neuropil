@@ -18,7 +18,7 @@
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
 
-void np_key_t_new(void* key)
+void _np_key_t_new(void* key)
 {
 	np_key_t* new_key = (np_key_t*) key;
 
@@ -39,7 +39,7 @@ void np_key_t_new(void* key)
     new_key->recv_tokens = NULL; // link to runtime interest data on which this node is interested in
 }
 
-void np_key_t_del(void* key)
+void _np_key_t_del(void* key)
 {
 	// empty
 }

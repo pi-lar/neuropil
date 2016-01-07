@@ -32,7 +32,7 @@ static const char* NP_NODE_DNS_NAME    = "_np.node.dns_name";
 static const char* NP_NODE_PORT        = "_np.node.port";
 static const char* NP_NODE_FAILURETIME = "_np.node.failuretime";
 
-void np_node_t_new(void* node) {
+void _np_node_t_new(void* node) {
 
 	np_node_t* entry = (np_node_t *) node;
 
@@ -53,7 +53,7 @@ void np_node_t_new(void* node) {
     	entry->success_win[i] = 1;
 }
 
-void np_node_t_del(void* node) {
+void _np_node_t_del(void* node) {
 	np_node_t* entry = (np_node_t *) node;
 	if (entry->dns_name) free (entry->dns_name);
 	if (entry->port) free (entry->port);

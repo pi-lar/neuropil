@@ -14,6 +14,10 @@
 #include "np_container.h"
 #include "np_memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // sodium defines several length of its internal key size, but they always are 32U long
 // crypto_scalarmult_BYTES, crypto_scalarmult_curve25519_BYTES, crypto_sign_ed25519_PUBLICKEYBYTES
 // crypto_box_PUBLICKEYBYTES, crypto_box_SECRETKEYBYTES
@@ -63,17 +67,24 @@ struct np_aaatoken_s {
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
 
+// serialization of the np_aaatoken_t structure
 void np_encode_aaatoken(np_jtree_t* data, np_aaatoken_t* token);
 void np_decode_aaatoken(np_jtree_t* data, np_aaatoken_t* token);
 
+// checks if a token is valid (checksum verification and more)
 np_bool token_is_valid(np_aaatoken_t* token);
 
-void np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token);
-sll_return(np_aaatoken_t) np_get_sender_token_all(np_state_t *state, char* subject);
-np_aaatoken_t* np_get_sender_token(np_state_t *state, char* subject, char* sender);
+// neuropil internal aaatoken storage and exchange functions
+void _np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token);
+sll_return(np_aaatoken_t) _np_get_sender_token_all(np_state_t *state, char* subject);
+np_aaatoken_t* _np_get_sender_token(np_state_t *state, char* subject, char* sender);
 
-void np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *token);
-sll_return(np_aaatoken_t) np_get_receiver_token_all(np_state_t *state, char* subject);
-np_aaatoken_t* np_get_receiver_token(np_state_t *state, char* subject);
+void _np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *token);
+sll_return(np_aaatoken_t) _np_get_receiver_token_all(np_state_t *state, char* subject);
+np_aaatoken_t* _np_get_receiver_token(np_state_t *state, char* subject);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _NP_AAATOKEN_H_

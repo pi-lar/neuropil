@@ -28,6 +28,7 @@
 #include "np_jtree.h"
 #include "np_key.h"
 #include "np_message.h"
+#include "np_msgproperty.h"
 #include "np_network.h"
 #include "np_node.h"
 #include "np_threads.h"
@@ -270,7 +271,7 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 			log_msg(LOG_INFO, "requesting a new handshake with %s:%s (%s)",
 					node_key->node->dns_name, node_key->node->port, key_get_as_string(node_key));
 
-			np_msgproperty_t* msg_prop = np_message_get_handler(state, OUTBOUND, NP_MSG_HANDSHAKE);
+			np_msgproperty_t* msg_prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_HANDSHAKE);
 			job_submit_msg_event(state->jobq, 0.0, msg_prop, node_key, NULL);
 		}
 		return FALSE;
@@ -327,18 +328,18 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 		if (ret < 0)
 		{
 			log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
-			// TODO: connection refused error shows up here -> hanlde it
 			return FALSE;
 		}
 		else
 		{
-			// log_msg (LOG_NETWORKDEBUG, "sent smessage");
+			// log_msg (LOG_NETWORKDEBUG, "sent message");
 		}
 
 		pll_next(iter);
 		i++;
 
-	} while (i < chunks && (FALSE == msg->is_single_part));
+	} while (NULL != iter);
+	// } while (i < chunks && (FALSE == msg->is_single_part));
 
 	return TRUE;
 }

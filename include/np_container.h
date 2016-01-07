@@ -11,14 +11,19 @@
 #include "np_list.h"
 #include "tree.h"
 
-// NP_DLL_GENERATE_PROTOTYPES(np_key_t);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 NP_SLL_GENERATE_PROTOTYPES(np_job_t);
 NP_SLL_GENERATE_PROTOTYPES(np_key_t);
 NP_SLL_GENERATE_PROTOTYPES(np_message_t);
 NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_t);
 NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_t);
 
-// used for logging
+NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
+
+// the floowing list type is used for logging
 NP_SLL_GENERATE_PROTOTYPES(char);
 
 // priority list for jobs
@@ -41,5 +46,9 @@ int16_t strjval_cmp(struct strjval_s *e1, struct strjval_s *e2);
 
 RB_HEAD(strjval_s_tree, strjval_s); // head = RB_INITIALIZER(&head);
 RB_PROTOTYPE(strjval_s_tree, strjval_s, link, strjval_cmp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _NP_CONTAINER_H

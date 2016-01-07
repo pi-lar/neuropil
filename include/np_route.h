@@ -10,8 +10,10 @@
 
 #include "neuropil.h"
 #include "np_container.h"
-// #include "np_key.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define MAX_ROW 64 // length of key
 #define MAX_COL 16 // 16 different characters
@@ -75,6 +77,10 @@ sll_return(np_key_t) route_get_table (np_routeglobal_t* rg);
  ** prints routing table,
  **/
 void printTable (np_routeglobal_t* rg);
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* _NP_ROUTE_H_ */

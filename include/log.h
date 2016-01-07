@@ -1,14 +1,9 @@
-/*
-** $Id: log.h,v 1.14 2006/06/16 07:55:37 ravenben Exp $
-**
-** Matthew Allen
-** description: 
-*/
-
-/* define this to be 0 for no logging, 1 for logging */
-
+/** copyright 2015 pi-lar GmbH
+ **/
 #ifndef _NP_LOG_H_
 #define _NP_LOG_H_
+
+#include "stdio.h"
 
 #include "np_container.h"
 

@@ -39,7 +39,7 @@ SODIUM_LIBRARIES=-L ./lib/libsodium-master/src/libsodium/.libs -l sodium
 TARGET=x86_64-apple-darwin-macho
 # TARGET=x86_64-pc-gnu-elf
 
-SOURCES=src/cmp.c src/dtime.c src/np_jtree.c src/jval.c src/np_aaatoken.c src/np_message.c src/np_memory.c src/np_glia.c src/neuropil.c src/np_jobqueue.c src/np_key.c src/log.c src/np_network.c src/np_node.c src/np_axon.c src/np_container.c src/np_dendrit.c src/np_util.c src/priqueue.c src/np_route.c 
+SOURCES=src/cmp.c src/dtime.c src/np_jtree.c src/jval.c src/np_aaatoken.c src/np_message.c src/np_memory.c src/np_glia.c src/neuropil.c src/np_jobqueue.c src/np_key.c src/log.c src/np_network.c src/np_node.c src/np_axon.c src/np_container.c src/np_dendrit.c src/np_util.c src/priqueue.c src/np_route.c src/np_msgproperty.c
 TEST_SOURCES=test/neuropil_controller.c test/jrb_test_msg.c test/test_dh.c test/neuropil_hydra.c test/test_list_impl.c test/test_chunk_message.c
 
 OBJECTS=$(SOURCES:.c=.o)

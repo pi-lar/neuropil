@@ -11,6 +11,7 @@
 #include "dtime.h"
 #include "neuropil.h"
 #include "np_memory.h"
+#include "np_msgproperty.h"
 #include "np_message.h"
 #include "log.h"
 
@@ -60,7 +61,7 @@ void job_resubmit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t
     // log_msg(LOG_DEBUG, "1: new_job-->%p func-->%p args-->%p", new_job, new_job->processorFunc, new_job->args);
     // log_msg(LOG_DEBUG, "requsting msg execution at: %f", new_job->tstamp);
     // if (NULL == sll_first (job_q->job_list)) was_empty = 1;
-    pll_insert(np_job_ptr, job_q->job_list, new_job);
+    pll_insert(np_job_ptr, job_q->job_list, new_job, TRUE);
     if (pll_size(job_q->job_list) >= 1  || delay == 0.0)
     {
     	pthread_cond_signal (&job_q->empty);
@@ -101,7 +102,7 @@ void job_submit_msg_event (np_joblist_t* job_q, double delay, np_msgproperty_t* 
     // log_msg(LOG_DEBUG, "1: new_job-->%p func-->%p args-->%p", new_job, new_job->processorFunc, new_job->args);
     // log_msg(LOG_DEBUG, "requsting msg execution at: %f", new_job->tstamp);
     // if (NULL == sll_first (job_q->job_list)) was_empty = 1;
-    pll_insert(np_job_ptr, job_q->job_list, new_job);
+    pll_insert(np_job_ptr, job_q->job_list, new_job, TRUE);
     if (pll_size(job_q->job_list) >= 1  || delay == 0.0)
     {
     	pthread_cond_signal (&job_q->empty);
@@ -125,7 +126,7 @@ void job_submit_event (np_joblist_t* job_q, double delay, np_callback_t callback
     // log_msg(LOG_DEBUG, "requsting event execution at: %f", new_job->tstamp);
     // log_msg(LOG_DEBUG, "2: new_job-->%p func-->%p args-->%p", new_job, new_job->processorFunc, new_job->args);
     // if (NULL == sll_first (job_q->job_list)) was_empty = 1;
-    pll_insert(np_job_ptr, job_q->job_list, new_job);
+    pll_insert(np_job_ptr, job_q->job_list, new_job, TRUE);
     if (pll_size(job_q->job_list) >= 1 || delay == 0.0)
     {
     	pthread_cond_signal (&job_q->empty);

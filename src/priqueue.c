@@ -6,7 +6,7 @@
 #include "log.h"
 
 /* Function which takes a heap rooted at the given index and make sure
- * that is confroms to the heap critera. Adapted from Introduction to
+ * that is conforms to the heap critera. Adapted from Introduction to
  * Algorithms (Cormen, Leiserson, Rivest 1990) page 143 */
 void heapify(binary_heap *a, int16_t i) {
 
@@ -74,7 +74,7 @@ void heap_insert(binary_heap *a, np_pqueue_node key) {
 	 */
 	i = ++(a->heap_size);
 	/*
-	 * traverse the parth from the leaf to the root to find the a proper
+	 * traverse the path from the leaf to the root to find the a proper
 	 * place for the new element
 	 */
 	while (i > 1 && compare_priority(key,a->elements[PARENT(i)])) {

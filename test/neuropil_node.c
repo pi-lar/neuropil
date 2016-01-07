@@ -9,12 +9,13 @@
 
 #include "include.h"
 
-#include "np_memory.h"
-#include "neuropil.h"
 #include "log.h"
 #include "dtime.h"
 #include "np_jobqueue.h"
+#include "neuropil.h"
+#include "np_memory.h"
 #include "np_message.h"
+#include "np_msgproperty.h"
 
 #define USAGE "neuropil_node [ -j bootstrap:port ] [ -p protocol] [-b port]"
 #define OPTSTR "j:p:b:"

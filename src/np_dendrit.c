@@ -19,6 +19,7 @@
 #include "np_jobqueue.h"
 #include "np_jtree.h"
 #include "np_message.h"
+#include "np_msgproperty.h"
 #include "np_network.h"
 #include "np_node.h"
 #include "np_memory.h"
@@ -39,7 +40,7 @@ void hnd_msg_in_received(np_state_t* state, np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.hnd_msg_in_received");
 	char* msg_subject = jrb_find_str(args->msg->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
-	np_msgproperty_t* handler = np_message_get_handler(state, INBOUND, msg_subject );
+	np_msgproperty_t* handler = np_msgproperty_get(state, INBOUND, msg_subject );
 
 	// check time-to-live for message
 	// double msg_tstamp = jrb_find_str(args->msg->instructions, NP_MSG_INST_TSTAMP)->val.value.d;
@@ -77,7 +78,7 @@ void hnd_msg_in_received(np_state_t* state, np_jobargs_t* args)
 			(!key_equal(sll_first(tmp)->val, state->my_node_key)) )
 		{
 			log_msg(LOG_INFO, "received unrecognized message type %s, requesting forward of message ...", msg_subject);
-			np_msgproperty_t* prop = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+			np_msgproperty_t* prop = np_msgproperty_get(state, TRANSFORM, ROUTE_LOOKUP);
 			job_submit_msg_event(state->jobq, 0.0, prop, args->target, args->msg);
 
 			// np_free_obj(np_message_t, args->msg);
@@ -210,7 +211,7 @@ void np_signal (np_state_t* state, np_jobargs_t* args)
 	const char* subject = jrb_find_str(msg_in->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
 	uint8_t ack_mode = jrb_find_str(msg_in->instructions, NP_MSG_INST_ACK)->val.value.ush;
 
-	np_msgproperty_t* real_prop = np_message_get_handler(state, INBOUND, subject);
+	np_msgproperty_t* real_prop = np_msgproperty_get(state, INBOUND, subject);
 
 	log_msg(LOG_DEBUG, "pushing message into cache %p", real_prop);
 	LOCK_CACHE(real_prop)
@@ -226,7 +227,7 @@ void np_signal (np_state_t* state, np_jobargs_t* args)
 	// TODO: more detailed msg ack handling
 	if (0 < (ack_mode & ACK_DESTINATION))
 	{
-		np_send_ack(state, args->msg);
+		_np_send_ack(state, args->msg);
 	}
 
 	// np_free_obj(np_message_t, args->msg);
@@ -246,9 +247,9 @@ void np_callback_wrapper(np_state_t* state, np_jobargs_t* args)
 	np_message_t* msg_in = args->msg;
 	char* subject = args->properties->msg_subject;
 	char* sender = jrb_find_str(msg_in->header, NP_MSG_HEADER_FROM)->val.value.s;
-	np_msgproperty_t* msg_prop = np_message_get_handler(state, INBOUND, subject);
+	np_msgproperty_t* msg_prop = np_msgproperty_get(state, INBOUND, subject);
 
-	np_aaatoken_t* sender_token = np_get_sender_token(state, (char*) subject, sender);
+	np_aaatoken_t* sender_token = _np_get_sender_token(state, (char*) subject, sender);
 	uint32_t received = 0;
 
 	msg_prop->msg_threshold++;
@@ -273,7 +274,7 @@ void np_callback_wrapper(np_state_t* state, np_jobargs_t* args)
 
 		if (0 < (ack_mode & ACK_DESTINATION))
 		{
-			np_send_ack(state, args->msg);
+			_np_send_ack(state, args->msg);
 		}
 
 		np_bool result = msg_prop->user_clb(msg_in->properties, msg_in->body);
@@ -281,7 +282,7 @@ void np_callback_wrapper(np_state_t* state, np_jobargs_t* args)
 
 		if (0 < (ack_mode & ACK_CLIENT) && (TRUE == result))
 		{
-			np_send_ack(state, args->msg);
+			_np_send_ack(state, args->msg);
 		}
 
 		// np_unref_obj(np_aaatoken_t, sender_token);
@@ -358,7 +359,7 @@ void hnd_msg_in_join_req(np_state_t* state, np_jobargs_t* args)
 
 		np_new(np_message_t, o_msg_out);
 		np_message_create(o_msg_out, sourceNode->key, state->neuropil->me->key, NP_MSG_JOIN_NACK, NULL );
-		msg_prop = np_message_get_handler(state, OUTBOUND, NP_MSG_JOIN_NACK);
+		msg_prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_NACK);
 		job_submit_msg_event(state->jobq, msg_prop, sourceNode->key, o_msg_out);
 		np_unref(np_message_t, o_msg_out);
 
@@ -391,7 +392,7 @@ void hnd_msg_in_join_req(np_state_t* state, np_jobargs_t* args)
 			np_message_create(msg_out, join_req_key, state->my_node_key, NP_MSG_JOIN_ACK, jrb_me);
 			jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACKUUID, new_jval_s(in_uuid));
 
-			msg_prop = np_message_get_handler(state, OUTBOUND, NP_MSG_JOIN_ACK);
+			msg_prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_ACK);
 			state->my_node_key->node->joined_network = TRUE;
 			join_req_key->node->joined_network = TRUE;
 
@@ -403,7 +404,7 @@ void hnd_msg_in_join_req(np_state_t* state, np_jobargs_t* args)
 
 			np_message_create(msg_out, join_req_key, state->my_node_key, NP_MSG_JOIN_NACK, NULL );
 			jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACKUUID, new_jval_s(in_uuid));
-			msg_prop = np_message_get_handler(state, OUTBOUND, NP_MSG_JOIN_NACK);
+			msg_prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_NACK);
 
 			// TODO: chicken egg problem, schedule a future event
 			// without handshake we cannot send join.nack messages
@@ -445,7 +446,7 @@ void hnd_msg_in_join_req(np_state_t* state, np_jobargs_t* args)
 		exit(1);
 	}
 
-	np_send_ack(state, args->msg);
+	_np_send_ack(state, args->msg);
 
 	log_msg(LOG_TRACE, ".end  .hnd_msg_in_join_req");
 }
@@ -530,7 +531,7 @@ void hnd_msg_in_join_ack(np_state_t* state, np_jobargs_t* args)
 
 		np_message_create(msg_out, elem, state->my_node_key,
 				NP_MSG_UPDATE_REQUEST, jrb_join_node);
-		out_props = np_message_get_handler(state, OUTBOUND, NP_MSG_UPDATE_REQUEST);
+		out_props = np_msgproperty_get(state, OUTBOUND, NP_MSG_UPDATE_REQUEST);
 		job_submit_msg_event(state->jobq, 0.0, out_props, elem, msg_out);
 	}
 	sll_free(np_key_t, nodes);
@@ -568,7 +569,7 @@ void hnd_msg_in_join_ack(np_state_t* state, np_jobargs_t* args)
 	}
 
 	// send a piggy message to the new node in our routing table
-	np_msgproperty_t* piggy_prop = np_message_get_handler(state, TRANSFORM, NP_MSG_PIGGY_REQUEST);
+	np_msgproperty_t* piggy_prop = np_msgproperty_get(state, TRANSFORM, NP_MSG_PIGGY_REQUEST);
 	job_submit_msg_event(state->jobq, 0.0, piggy_prop, join_key, NULL);
 
 	join_key->node->joined_network = TRUE;
@@ -658,7 +659,7 @@ void hnd_msg_in_ping(np_state_t* state, np_jobargs_t* args)
 
 		np_new_obj(np_message_t, msg_out);
 		np_message_create(msg_out, ping_key, state->my_node_key, NP_MSG_PING_REPLY, NULL );
-		np_msgproperty_t* msg_pingreply_prop = np_message_get_handler(state, OUTBOUND, NP_MSG_PING_REPLY);
+		np_msgproperty_t* msg_pingreply_prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_PING_REPLY);
 		job_submit_msg_event(state->jobq, 0.0, msg_pingreply_prop, ping_key, msg_out);
 		np_free_obj(np_message_t, msg_out);
 	}
@@ -736,7 +737,7 @@ void hnd_msg_in_update(np_state_t* state, np_jobargs_t* args)
 		np_new_obj(np_message_t, msg_out);
 		np_message_create(msg_out, update_key, state->my_node_key , NP_MSG_JOIN_REQUEST, jrb_me);
 		log_msg(LOG_DEBUG, "submitting welcome message to new node");
-		np_msgproperty_t* prop = np_message_get_handler(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
+		np_msgproperty_t* prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
 		job_submit_msg_event(state->jobq, 0.0, prop, update_key, msg_out);
 		np_free_obj(np_message_t, msg_out);
 	}
@@ -790,7 +791,7 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args)
 	if (TRUE == token_is_valid(msg_token))
 	{
 		log_msg(LOG_DEBUG, "now handling message interest");
-		np_add_receiver_token(state, msg_token->subject, msg_token);
+		_np_add_receiver_token(state, msg_token->subject, msg_token);
 	}
 
 //	if (reply_to_key &&
@@ -798,7 +799,7 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args)
 	if (NULL != reply_to_key)
 	{
 		// this node is the man in the middle - inform receiver of sender token
-		np_sll_t(np_aaatoken_t, available_list) = np_get_sender_token_all(state, msg_token->subject);
+		np_sll_t(np_aaatoken_t, available_list) = _np_get_sender_token_all(state, msg_token->subject);
 		np_aaatoken_t* tmp_token = NULL;
 
 		while (NULL != (tmp_token = sll_head(np_aaatoken_t, available_list)))
@@ -810,7 +811,7 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args)
 
 			np_new_obj(np_message_t, msg_out);
 			np_message_create(msg_out, reply_to_key, NULL, NP_MSG_AVAILABLE, available_data);
-			np_msgproperty_t* prop_route = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+			np_msgproperty_t* prop_route = np_msgproperty_get(state, TRANSFORM, ROUTE_LOOKUP);
 			job_submit_msg_event(state->jobq, 0.0, prop_route, reply_to_key, msg_out);
 			np_free_obj(np_message_t, msg_out);
 
@@ -819,7 +820,7 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args)
 		sll_free(np_aaatoken_t, available_list);
 	}
 
-	np_msgproperty_t* real_prop = np_message_get_handler(state, OUTBOUND, msg_token->subject);
+	np_msgproperty_t* real_prop = np_msgproperty_get(state, OUTBOUND, msg_token->subject);
 	// check if we are (one of the) sending node(s) of this kind of message
 	if ( NULL != real_prop )
 	{
@@ -850,7 +851,7 @@ void hnd_msg_in_interest(np_state_t* state, np_jobargs_t* args)
 				msg_available = sll_size(real_prop->msg_cache);
 			}
 
-			sending_ok = np_send_msg(state, real_prop->msg_subject, msg_out, real_prop);
+			sending_ok = _np_send_msg(state, real_prop->msg_subject, msg_out, real_prop);
 
 			np_unref_obj(np_message_t, msg_out);
 			log_msg(LOG_DEBUG, "message in cache found and re-send initialized");
@@ -912,13 +913,13 @@ void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args)
 	if (TRUE == token_is_valid(msg_token))
 	{
 		log_msg(LOG_DEBUG, "now handling message availability");
-		np_add_sender_token(state, msg_token->subject, msg_token);
+		_np_add_sender_token(state, msg_token->subject, msg_token);
 	}
 
 	if (NULL != reply_to_key)
 	{
 		np_message_t *msg_out = NULL;
-		np_sll_t(np_aaatoken_t, receiver_list) = np_get_receiver_token_all(state, msg_token->subject);
+		np_sll_t(np_aaatoken_t, receiver_list) = _np_get_receiver_token_all(state, msg_token->subject);
 		np_aaatoken_t* tmp_token = NULL;
 
 		while (NULL != (tmp_token = sll_head(np_aaatoken_t, receiver_list)))
@@ -929,7 +930,7 @@ void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args)
 
 			np_new_obj(np_message_t, msg_out);
 			np_message_create(msg_out, reply_to_key, NULL, NP_MSG_INTEREST, interest_data);
-			np_msgproperty_t* prop_route = np_message_get_handler(state, TRANSFORM, ROUTE_LOOKUP);
+			np_msgproperty_t* prop_route = np_msgproperty_get(state, TRANSFORM, ROUTE_LOOKUP);
 
 			log_msg(LOG_DEBUG, "sending back msg interest to %s", key_get_as_string(reply_to_key));
 			job_submit_msg_event(state->jobq, 0.0, prop_route, reply_to_key, msg_out);
@@ -941,7 +942,7 @@ void hnd_msg_in_available(np_state_t* state, np_jobargs_t* args)
 	}
 
 	// check if some messages are left in the cache
-	np_msgproperty_t* real_prop = np_message_get_handler(state, INBOUND, msg_token->subject);
+	np_msgproperty_t* real_prop = np_msgproperty_get(state, INBOUND, msg_token->subject);
 	// check if we are (one of the) receiving node(s) of this kind of message
 	if ( NULL != real_prop )
 	{
@@ -1033,13 +1034,13 @@ void hnd_msg_in_handshake(np_state_t* state, np_jobargs_t* args)
 	cmp_init(&cmp, payload->val.value.bin, buffer_reader, buffer_writer);
 	deserialize_jrb_node_t(hs_payload, &cmp);
 
-	char* node_proto = jrb_find_str(hs_payload, "_np.protocol")->val.value.s;
-	char* node_hn = jrb_find_str(hs_payload, "_np.dns_name")->val.value.s;
-	char* node_port = jrb_find_str(hs_payload, "_np.port")->val.value.s;
+	char* node_proto          = jrb_find_str(hs_payload, "_np.protocol")->val.value.s;
+	char* node_hn             = jrb_find_str(hs_payload, "_np.dns_name")->val.value.s;
+	char* node_port           = jrb_find_str(hs_payload, "_np.port")->val.value.s;
 	np_jtree_elem_t* sign_key = jrb_find_str(hs_payload, "_np.signature_key");
-	np_jtree_elem_t* pub_key = jrb_find_str(hs_payload, "_np.public_key");
-	double issued_at = jrb_find_str(hs_payload, "_np.issued_at")->val.value.d;
-	double expiration = jrb_find_str(hs_payload, "_np.expiration")->val.value.d;
+	np_jtree_elem_t* pub_key  = jrb_find_str(hs_payload, "_np.public_key");
+	double issued_at          = jrb_find_str(hs_payload, "_np.issued_at")->val.value.d;
+	double expiration         = jrb_find_str(hs_payload, "_np.expiration")->val.value.d;
 
 	if (0 != crypto_sign_verify_detached( (const unsigned char*) signature->val.value.bin,
 			                              (const unsigned char*) payload->val.value.bin,
@@ -1154,7 +1155,7 @@ void hnd_msg_in_handshake(np_state_t* state, np_jobargs_t* args)
 				key_get_as_string(hs_key), key_get_as_string(alias_key));
 
 		// send out our own handshake data
-		np_msgproperty_t* hs_prop = np_message_get_handler(state, OUTBOUND, NP_MSG_HANDSHAKE);
+		np_msgproperty_t* hs_prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_HANDSHAKE);
 		job_submit_msg_event(state->jobq, 0.0, hs_prop, hs_key, NULL);
 	}
 
