@@ -1,7 +1,15 @@
 /**
- *  copyright 2015 pi-lar GmbH
- *  Stephan Schwichtenberg
- **/
+The structure np_aaatoken_t is used for authorization, authentication and accounting purposes
+the data structure is the same for all purposes. Add-on information can be stored in a nested jtree structure.
+Several analogies have been used as a baseline for this structure: json web token, kerberos and diameter.
+Tokens do get integrity protected by adding an additional signature based on the issuers public key
+
+The structure is described here to allow user the proper use of the :c:func:`np_set_identity` function.
+
+*/
+
+// copyright 2016 pi-lar GmbH
+
 #ifndef _NP_AAATOKEN_H_
 #define _NP_AAATOKEN_H_
 
@@ -22,22 +30,70 @@ extern "C" {
 // crypto_scalarmult_BYTES, crypto_scalarmult_curve25519_BYTES, crypto_sign_ed25519_PUBLICKEYBYTES
 // crypto_box_PUBLICKEYBYTES, crypto_box_SECRETKEYBYTES
 
-/** np_aaatoken_t
- *
- *  we use np_aaatoken_t for authorization, authentication and accounting purposes
- *  the data structure is the same, any addon information is stored in a jrb structure
- *  several analogies have been used as a baseline for this structure: json web token, kerberos and diameter
- *  in principal any user/system/node can be identified by it's hash key (subject)
- *  a subject/issuer belongs to a realm
- *  a token for a subject has been issued by somebody, and there is an intended audience
- *  all data fields are just hash keys
- *
- *  neuropil nodes can use the realm and issuer hash key informations to request authentication and authorization
- *  of a subject
- *  accounting information will/can/should be send to the accounting audience
- **/
-struct np_aaatoken_s {
+/**
+.. c:type:: np_aaatoken_t
 
+   The np_aaatoken_t structure consists of the following data types:
+
+.. c:member:: char[255] realm
+
+   each token belongs to a realm which can be used to group several different tokens.
+   (type should change to np_key_t in the future)
+
+.. c:member:: char[255] issuer
+
+   the sender or issuer of a token (type should change to np_key_t in the future)
+
+.. c:member:: char[255] subject
+
+   the subject which describes the contents of this token. can be a message subject (topic) or could be
+   a node identity or ... (type should change to np_key_t in the future)
+
+.. c:member:: char[255] audience
+
+   the intended audience of a token. (type should change to np_key_t in the future)
+
+.. c:member:: double issued_at
+
+   date when the token was created
+
+.. c:member:: double not_before
+
+   date when the token will start to be valid
+
+.. c:member:: double expiration
+
+   expiration date of the token
+
+.. c:member:: np_bool valid
+
+   internal flag to indicate whether this token is valid (remove ?)
+
+.. c:member:: uuid_t uuid
+
+   a uuid to identify this token (not sure if this is really required)
+
+.. c:member:: unsigned char public_key[crypto_sign_BYTES]
+
+   the public key of a identity
+
+.. c:member:: unsigned char session_key[crypto_scalarmult_SCALARBYTES]
+
+   the shared session key (used to store the node-2-node encryption)
+
+.. c:member:: unsigned char private_key[crypto_sign_SECRETKEYBYTES]
+
+   the private key of an identity
+
+.. c:member:: np_jtree_t* extensions
+
+   a key-value jtree structure to add arbitrary informations to the token
+
+   neuropil nodes can use the realm and issuer hash key informations to request authentication and authorization of a subject
+   token can then be send to gather accounting information about message exchange
+*/
+struct np_aaatoken_s
+{
 	// link to memory management
 	np_obj_t* obj;
 
@@ -71,7 +127,15 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
 void np_encode_aaatoken(np_jtree_t* data, np_aaatoken_t* token);
 void np_decode_aaatoken(np_jtree_t* data, np_aaatoken_t* token);
 
-// checks if a token is valid (checksum verification and more)
+/**
+.. c:function::np_bool token_is_valid(np_aaatoken_t* token)
+
+   checks if a token is valid.
+   performs a cryptographic integrity check with a checksum verification on the main data elements
+
+   :param token: the token to check
+   :return: a boolean indicating whether the token is valid
+*/
 np_bool token_is_valid(np_aaatoken_t* token);
 
 // neuropil internal aaatoken storage and exchange functions

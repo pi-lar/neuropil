@@ -26,7 +26,8 @@ void _np_key_t_new(void* key)
 	memset(new_key->keystr, 0, 64);
     new_key->valid = FALSE;		  // indicates if the keystr is most up to date with value in t
 
-    new_key->node = NULL;		    // link to a neuropil node if this key represents a node
+    new_key->node = NULL;		  // link to a neuropil node if this key represents a node
+    new_key->network = NULL;      // link to a neuropil node if this key represents a node
 
     new_key->authentication = NULL; // link to node if this key has an authentication token
     new_key->authorisation = NULL;  // link to node if this key has an authorisation token
@@ -48,14 +49,14 @@ void key_to_str (np_key_t* k)
 {
     k->valid = FALSE;
 
-    // log_msg(LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
-	// log_msg(LOG_WARN, "key %16lx%16lx%16lx%16lx", k->t[0], k->t[1], k->t[2], k->t[3]);
+    // log_msg(LOG_KEY | LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
+	// log_msg(LOG_KEY | LOG_WARN, "key %16lx%16lx%16lx%16lx", k->t[0], k->t[1], k->t[2], k->t[3]);
     // TODO: use sodium bin2hex function
 	memset  (k->keystr, 0, 64);
 	sprintf ((char*) k->keystr, "%016llx%016llx%016llx%016llx", k->t[0], k->t[1], k->t[2], k->t[3]);
 	k->keystr[64] = '\0';
 	k->valid = TRUE;
-    // log_msg (LOG_DEBUG, "key string now: %s", k->keystr);
+    // log_msg (LOG_KEY | LOG_DEBUG, "key string now: %s", k->keystr);
 }
 
 void str_to_key (np_key_t* k, const char* key_string)
@@ -75,9 +76,9 @@ void str_to_key (np_key_t* k, const char* key_string)
     	memcpy(substring, k->keystr + i*16, 16);
     	substring[16] = '\0';
     	k->t[i] = strtoull((const char*) substring, NULL, 16);
-        // log_msg(LOG_KEYDEBUG, "keystr substring to ul: %s -> %ul ", substring, k->t[i]);
+        // log_msg(LOG_KEY | LOG_DEBUG, "keystr substring to ul: %s -> %ul ", substring, k->t[i]);
     }
-    // log_msg(LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
+    // log_msg(LOG_KEY | LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
 
     k->valid = TRUE;
 }
@@ -127,10 +128,10 @@ np_key_t* key_create_from_hostport(const char* strOrig, char* port)
 	char* digest = NULL;
 
 	digest = _key_generate_hash ((unsigned char*) name, strlen(name), digest);
-	// log_msg (LOG_KEYDEBUG, "digest calculation returned HASH: %s", digest);
+	// log_msg (LOG_KEY | LOG_DEBUG, "digest calculation returned HASH: %s", digest);
 
     np_key_t* tmp = key_create_from_hash(digest);
-	// log_msg (LOG_KEYDEBUG, "HASH(%s) = [%s]", name, key_get_as_string(tmp));
+	// log_msg (LOG_KEY | LOG_DEBUG, "HASH(%s) = [%s]", name, key_get_as_string(tmp));
 
 	free (digest);
 	return tmp;
@@ -138,7 +139,7 @@ np_key_t* key_create_from_hostport(const char* strOrig, char* port)
 
 void np_encode_key(np_jtree_t* jrb, np_key_t* key)
 {
-    // log_msg(LOG_WARN, "encoding key %0lu %0lu %0lu %0lu", key->t[0], key->t[1], key->t[2], key->t[3]);
+    // log_msg(LOG_KEY | LOG_WARN, "encoding key %0lu %0lu %0lu %0lu", key->t[0], key->t[1], key->t[2], key->t[3]);
 
 	jrb_insert_str(jrb, "_np.key.0", new_jval_ull(key->t[0]));
 	jrb_insert_str(jrb, "_np.key.1", new_jval_ull(key->t[1]));
@@ -153,7 +154,7 @@ void np_decode_key(np_jtree_t* jrb, np_key_t* key)
 	key->t[2] = jrb_find_str(jrb, "_np.key.2")->val.value.ull;
 	key->t[3] = jrb_find_str(jrb, "_np.key.3")->val.value.ull;
 
-    // log_msg(LOG_WARN, "decoded key %0lu %0lu %0lu %0lu", key->t[0], key->t[1], key->t[2], key->t[3]);
+    // log_msg(LOG_KEY | LOG_WARN, "decoded key %0lu %0lu %0lu %0lu", key->t[0], key->t[1], key->t[2], key->t[3]);
 
 	key->valid = FALSE;
 }
@@ -180,7 +181,7 @@ void key_assign (np_key_t* k1, const np_key_t* const k2)
 
 void key_assign_ui (np_key_t* k, uint64_t ul)
 {
-	log_msg (LOG_KEYDEBUG, "!!! deprecated");
+	log_msg (LOG_KEY | LOG_WARN, "!!! deprecated function called key_assign_ui");
     for (uint8_t i = 1; i < 3; i++)
     	k->t[i] = 0;
     k->t[3] = ul;
@@ -198,7 +199,7 @@ np_bool key_equal (np_key_t* k1, np_key_t* k2)
 
 np_bool key_equal_ui (np_key_t* k, uint64_t ul)
 {
-	log_msg (LOG_KEYDEBUG, "!!! deprecated");
+	log_msg (LOG_KEY | LOG_WARN, "!!! deprecated function called key_equal_ui");
 
 	if (k->t[3] != ul) return (0);
 
@@ -210,11 +211,11 @@ np_bool key_equal_ui (np_key_t* k, uint64_t ul)
 
 int8_t key_comp (const np_key_t* k1, const np_key_t* k2)
 {
-	if (k1 == k2) return 0;
 	if (k1 == NULL) return -1;
 	if (k2 == NULL) return 1;
+	if (k1 == k2) return 0;
 
-	// log_msg(LOG_DEBUG, "k1 %p / k2 %p", k1, k2);
+	// log_msg(LOG_KEY | LOG_DEBUG, "k1 %p / k2 %p", k1, k2);
     for (uint8_t i = 0; i < 4; i++)
 	{
 	    if 		(k1->t[i] > k2->t[i]) return (1);
@@ -246,7 +247,7 @@ void key_add (np_key_t* result, const np_key_t* const op1, const np_key_t* const
 
 void key_sub (np_key_t* result, const np_key_t* const op1, const np_key_t* const op2)
 {
-	log_msg (LOG_TRACE, ".start.key_sub");
+	log_msg (LOG_KEY | LOG_TRACE, ".start.key_sub");
     double tmp, a, b, carry;
     np_key_t key_a, key_b, key_tmp;
     np_bool swapped = 0;
@@ -262,7 +263,7 @@ void key_sub (np_key_t* result, const np_key_t* const op1, const np_key_t* const
     	key_assign(&key_tmp, &key_a);
     	key_assign(&key_a, &key_b);
     	key_assign(&key_b, &key_tmp);
-    	// log_msg (LOG_KEYDEBUG, "swapped input data (key_a < key_b");
+    	// log_msg (LOG_KEY | LOG_DEBUG, "swapped input data (key_a < key_b");
     	swapped = TRUE;
 	}
 
@@ -291,7 +292,8 @@ void key_sub (np_key_t* result, const np_key_t* const op1, const np_key_t* const
     }
 
     result->valid = FALSE;
-	log_msg (LOG_TRACE, ".end  .key_sub");
+
+    log_msg (LOG_KEY | LOG_TRACE, ".end  .key_sub");
 }
 
 
@@ -348,7 +350,6 @@ unsigned char* key_get_as_string (np_key_t* key)
     if (FALSE == key->valid)
 	{
 	    key_to_str (key);
-	    // key->valid = 1;
 	}
     return key->keystr;
 }
@@ -373,7 +374,7 @@ uint16_t key_index (np_key_t* mykey, np_key_t* k)
 
     if (i == max_len) i = max_len - 1;
 
-    // log_msg (LOG_KEYDEBUG, "key_index:%d me:%s lookup_key:%s", i, mykey->keystr, k->keystr);
+    // log_msg (LOG_KEY | LOG_DEBUG, "key_index:%d me:%s lookup_key:%s", i, mykey->keystr, k->keystr);
     return (i);
 }
 
@@ -391,7 +392,7 @@ np_key_t* find_closest_key ( np_sll_t(np_key_t, list_of_keys), np_key_t* key)
 	    min = NULL;
 	    // return;
 	    // modified StSw 18.05.2014
-	    log_msg(LOG_ERROR, "minimum size for closest key calculation not met !");
+	    log_msg(LOG_KEY | LOG_ERROR, "minimum size for closest key calculation not met !");
 	    return min;
 	}
     else

@@ -35,7 +35,7 @@ typedef struct np_node_s np_node_t;
 typedef struct np_network_s np_network_t;
 
 // routing table
-typedef struct np_routeglobal_t np_routeglobal_t;
+typedef struct np_routeglobal_s np_routeglobal_t;
 
 // message
 typedef struct np_messageglobal_s np_messageglobal_t;
@@ -48,7 +48,7 @@ typedef struct np_msginterest_s np_msginterest_t;
 // threading and job execution structures
 typedef struct np_job_s np_job_t;
 typedef np_job_t* np_job_ptr;
-typedef struct np_joblist_s np_joblist_t;
+typedef struct np_jobqueue_s np_jobqueue_t;
 typedef struct np_jobargs_s np_jobargs_t;
 
 // red black tree structures
@@ -60,6 +60,9 @@ typedef struct np_jval_s np_jval_t;
 
 // dh-key structure
 typedef struct np_key_s np_key_t;
+
+// localhost http interface
+typedef struct np_http_s np_http_t;
 
 // aaa token data - (inspired by json.web.token, kerberos, diameter)
 typedef struct np_aaatoken_s np_aaatoken_t;

@@ -7,39 +7,51 @@
 
 #include "np_container.h"
 
-typedef struct np_log_t {
-	char filename[256];
-	FILE *fp;
-	uint8_t level;
-	np_sll_t(char, logentries_l);
-    pthread_mutex_t lock;
-} LOG;
-
-LOG* logger;
+/*
+	0000 0
+	000i 1
+	00i0 2
+	00ii 3
+	0i00 4
+	0i0i 5
+	0ii0 6
+	0iii 7
+	i000 8
+	i00i 9
+	i0i0 A
+	i0ii B
+	ii00 C
+	ii0i D
+	iii0 E
+	iiii F
+*/
 
 enum
 {
-	LOG_NONE=0,				/* log nothing */
-    LOG_ERROR=1,			/* error messages (stderr) */
-    LOG_WARN=2,				/* warning messages (none) */
-    LOG_INFO=4,			/* error messages (stderr) */
-    LOG_TRACE=8,			/* tracing messages (none) */
-    LOG_DEBUG=16,			/* debugging messages (none) */
-    LOG_KEYDEBUG=32,		/* debugging messages for key subsystem (none) */
-    LOG_NETWORKDEBUG=64,	/* debugging messages for network layer (none) */
-    LOG_ROUTING=128,		/* debugging the routing table (none) */
-    LOG_SECUREDEBUG=256,	/* for security module (none) */
-    LOG_DATA=512,			/* for measurement and analysis (none) */
-    LOG_COUNT=1024			/* count of log message types */
+	LOG_NONE  = 0x0000,			/* log nothing        */
+
+	LOG_ERROR = 0x0001,			/* error messages     */
+    LOG_WARN  = 0x0002,			/* warning messages   */
+    LOG_INFO  = 0x0004,			/* info messages      */
+    LOG_DEBUG = 0x0008,			/* debugging messages */
+    LOG_TRACE = 0x0010,			/* tracing messages   */
+
+	LOG_LEVEL_MASK = 0x00FF,			/*  */
+
+	LOG_NOMOD   = 0x0000,	/*           */
+	LOG_KEY     = 0x0100,	/* debugging messages for key subsystem */
+    LOG_NETWORK = 0x0200,	/* debugging messages for network layer */
+    LOG_ROUTING = 0x0400,	/* debugging the routing table          */
+    LOG_MESSAGE = 0x0800,	/* debugging the message subsystem      */
+    LOG_SECURE  = 0x1000,	/* debugging the security module        */
+    LOG_HTTP    = 0x2000,	/* debugging the message subsystem      */
+    LOG_GLOBAL  = 0x8000,	/* debugging the global system          */
+
+	LOG_MODUL_MASK = 0xFF00,	/* debugging the global system          */
+	LOG_NOMOD_MASK = 0x7F00,	/* debugging the global system          */
 };
 
-// #define log_msg(level, msg)      fprintf(stdout, "%s:%s:%d ## %d ## %d # %s\n",      __FILE__, __func__, __LINE__, level, getpid(), msg)
-// size_t fwrite(const void *ptr, size_t size_of_elements, size_t number_of_elements, FILE *a_file);
-// #define log_msg(level, msg, ...)
-//  		fprintf(logger.fp, "%s:%s:%d ## %d ## %d # " msg "\n", __FILE__, __func__, __LINE__, level, getpid(), ##__VA_ARGS__)
-
-
-void log_message(uint8_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...);
+void log_message(uint16_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...);
 
 #define log_msg(level, msg, ...) log_message(level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
 
@@ -49,9 +61,9 @@ void log_message(uint8_t level, const char* srcFile, const char* funcName, uint1
 // log_message(level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__) \
 // }
 
-void log_init (const char* filename, uint8_t level);
+void log_init (const char* filename, uint16_t level);
 void log_destroy ();
-LOG* log_get ();
+// LOG* log_get ();
 void log_fflush();
 
 

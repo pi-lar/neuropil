@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -24,6 +25,7 @@
 #include "log.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"
+#include "np_glia.h"
 #include "np_jobqueue.h"
 #include "np_jtree.h"
 #include "np_key.h"
@@ -33,7 +35,7 @@
 #include "np_node.h"
 #include "np_threads.h"
 
-#define SEND_SIZE NETWORK_PACK_SIZE
+NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
 // allocate a new pointer and return it
 np_prioq_t* get_new_pqentry()
@@ -128,16 +130,16 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
 		hints.ai_protocol = IPPROTO_TCP;
 	}
 
-	log_msg(LOG_DEBUG, "using getaddrinfo: %d:%s:%s", type, hostname, service);
+	log_msg(LOG_NETWORK | LOG_DEBUG, "using getaddrinfo: %d:%s:%s", type, hostname, service);
 	if ( 0 != ( err = getaddrinfo( hostname, service, &hints, ai_head ) ))
 	{
-		log_msg(LOG_ERROR, "error getaddrinfo: %s", gai_strerror( err ) );
+		log_msg(LOG_NETWORK | LOG_ERROR, "error getaddrinfo: %s", gai_strerror( err ) );
 	}
 
 	struct addrinfo* ai;
 	for ( ai = *ai_head; ai != NULL; ai = ai->ai_next )
 	{
-		log_msg( LOG_DEBUG,
+		log_msg( LOG_NETWORK | LOG_DEBUG,
 				"found addrinfo ai_flags = 0x%02X"
 				" ai_family = %d (PF_INET = %d, PF_INET6 = %d)"
 				" ai_socktype  = %d (SOCK_STREAM = %d, SOCK_DGRAM = %d)"
@@ -171,7 +173,7 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
             case PF_INET:   /* IPv4 address record. */
             {
                 struct sockaddr_in *p = (struct sockaddr_in*) ai->ai_addr;
-                log_msg(LOG_DEBUG,
+                log_msg(LOG_NETWORK | LOG_DEBUG,
                         "found nameinfo sin_family: %d"
             		    " (AF_INET = %d, AF_INET6 = %d)"
                         " sin_addr:     %s"
@@ -186,7 +188,7 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
             case PF_INET6:   /* IPv6 address record. */
             {
                struct sockaddr_in6 *p = (struct sockaddr_in6*) ai->ai_addr;
-               log_msg(LOG_DEBUG,
+               log_msg(LOG_NETWORK | LOG_DEBUG,
                         "found nameinfo sin6_family: %d"
             		    " (AF_INET = %d, AF_INET6 = %d)"
                         " sin6_addr:     %s"
@@ -250,11 +252,10 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
 //    return (addr);
 }
 
-
 /**
  ** Resends a message to host
  **/
-np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* msg)
+void network_send (np_state_t* state, np_key_t *node_key, np_message_t* msg)
 {
 	int ret;
 
@@ -268,22 +269,23 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 		{
 			node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
 
-			log_msg(LOG_INFO, "requesting a new handshake with %s:%s (%s)",
+			log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
 					node_key->node->dns_name, node_key->node->port, key_get_as_string(node_key));
 
 			np_msgproperty_t* msg_prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_HANDSHAKE);
-			job_submit_msg_event(state->jobq, 0.0, msg_prop, node_key, NULL);
+			np_job_submit_msg_event(0.0, msg_prop, node_key, NULL);
 		}
-		return FALSE;
+		return; // FALSE;
 	}
 
 	// log_msg(LOG_NETWORKDEBUG, "serialized message to %llu bytes", send_buf_len);
-	char enc_buffer[MSG_CHUNK_SIZE_1024];
-	uint16_t i = 0, chunks = msg->no_of_chunks;
+	uint16_t i = 0;
 
 	pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
 	do
 	{
+		char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
+
 		// add protection from replay attacks ...
 		unsigned char nonce[crypto_secretbox_NONCEBYTES];
 		randombytes_buf(nonce, sizeof(nonce));
@@ -306,10 +308,10 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 
 		if (ret != 0)
 		{
-			log_msg(LOG_WARN,
+			log_msg(LOG_NETWORK | LOG_WARN,
 					"incorrect encryption of message (not sending to %s:%hd)",
 					node_key->node->dns_name, node_key->node->port);
-			return FALSE;
+			return; //  FALSE;
 		}
 
 		uint64_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
@@ -317,23 +319,24 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 		memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
 		/* send data */
-		pthread_mutex_lock(&(state->my_node_key->node->network->lock));
+		pthread_mutex_lock(&(state->my_node_key->network->lock));
 
-		log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
+		// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
 		// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
-		ret = send (node_key->node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
+		// ret = send (node_key->node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
+		sll_append(void_ptr, node_key->network->out_events, (void*) enc_buffer);
 
-		pthread_mutex_unlock(&(state->my_node_key->node->network->lock));
+		pthread_mutex_unlock(&(state->my_node_key->network->lock));
 
-		if (ret < 0)
-		{
-			log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
-			return FALSE;
-		}
-		else
-		{
-			// log_msg (LOG_NETWORKDEBUG, "sent message");
-		}
+		// if (ret < 0)
+		// {
+		// log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
+		// return FALSE;
+		// }
+		// else
+		// {
+		// log_msg (LOG_NETWORKDEBUG, "sent message");
+		// }
 
 		pll_next(iter);
 		i++;
@@ -341,7 +344,235 @@ np_bool network_send_udp (np_state_t* state, np_key_t *node_key, np_message_t* m
 	} while (NULL != iter);
 	// } while (i < chunks && (FALSE == msg->is_single_part));
 
-	return TRUE;
+	return; // TRUE;
+}
+
+void _np_network_send (struct ev_loop *loop, ev_io *event, int revents)
+{
+	if (EV_ERROR == (revents & EV_ERROR))
+	{
+		log_msg(LOG_NETWORK | LOG_DEBUG, "error event received");
+	}
+	else if (EV_WRITE == (revents & EV_WRITE))
+	{
+		np_key_t* key = (np_key_t*) event->data;
+
+		if (NULL != key &&
+			NULL != key->node &&
+			NULL != key->network &&
+			0 < sll_size(key->network->out_events))
+		{
+			pthread_mutex_lock(&key->network->lock);
+			void* data_to_send = sll_head(void_ptr, key->network->out_events);
+			// pthread_mutex_unlock(&key->network->lock);
+
+			log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
+			// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
+			// int ret = send(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024, 0);
+			int ret = write(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
+			free(data_to_send);
+
+			// ret is -1 or > 0 (bytes send)
+			// pthread_mutex_lock(&key->network->lock);
+			if (0 > ret)
+			{
+				np_node_update_stat(key->node, 0);
+				// log_msg(LOG_DEBUG, "node update reduce %d", ret);
+			}
+			// do not update the success, because UDP sending could result in false positives
+			// else
+			// {
+			// np_node_update_stat(key->node, 1);
+			// log_msg(LOG_DEBUG, "node update increase %d", ret);
+			// }
+			pthread_mutex_unlock(&key->network->lock);
+		}
+		else
+		{
+			// log_msg(LOG_DEBUG, "no data to write to %s:%s ...", key->node->dns_name, key->node->port);
+			// log_msg(LOG_DEBUG, "no data to write ...");
+		}
+	}
+	else if (EV_READ == (revents & EV_READ))
+	{
+		log_msg(LOG_NETWORK | LOG_DEBUG, "unexpected event type");
+	}
+	else
+	{
+		log_msg(LOG_NETWORK | LOG_DEBUG, "should never happen");
+	}
+}
+
+void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
+{
+	log_msg(LOG_NETWORK | LOG_TRACE, ".start.np_network_accept");
+
+	struct sockaddr_storage from;
+	socklen_t fromlen = sizeof(from);
+
+	np_state_t* state = _np_state();
+	np_network_t* ng = state->my_node_key->network;
+
+	int client_fd = accept(ng->socket, (struct sockaddr*)&from, &fromlen);
+
+	// get calling address and port
+	char ipstr[255];
+	char port [6];
+	// int16_t port;
+
+	if (from.ss_family == AF_INET)
+	{
+		struct sockaddr_in *s = (struct sockaddr_in *) &from;
+		getnameinfo((struct sockaddr*)s, sizeof s, ipstr, 255, port, 6, 0);
+	}
+	else
+	{
+		struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+		getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
+	}
+
+	log_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (client fd: %hd)", ipstr, port, client_fd);
+
+	np_key_t* alias_key = NULL;
+	np_key_t* search_key = key_create_from_hostport(ipstr, port);
+
+	LOCK_CACHE(state)
+	{
+		alias_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
+		if (NULL == alias_key)
+		{
+			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
+			alias_key = search_key;
+			np_ref_obj(np_key_t, alias_key);
+		}
+		else
+		{
+			np_free_obj(np_key_t, search_key);
+		}
+	}
+
+	// set non blocking
+	int current_flags = fcntl(client_fd, F_GETFL);
+	current_flags |= O_NONBLOCK;
+	fcntl(client_fd, F_SETFL, current_flags);
+
+	alias_key->network = (np_network_t *) malloc (sizeof (np_network_t));
+	alias_key->network->addr_in = NULL;
+	alias_key->network->socket = client_fd;
+	// it could be a passive socket
+	sll_init(void_ptr, alias_key->network->out_events);
+
+    alias_key->network->watcher.data = alias_key;
+
+	_np_suspend_event_loop();
+	ev_io_init(&alias_key->network->watcher, _np_network_read, alias_key->network->socket, EV_READ);
+	ev_io_start(EV_A_ &ng->watcher);
+	_np_resume_event_loop();
+}
+
+void _np_network_read(struct ev_loop *loop, ev_io *event, int revents)
+{
+	log_msg(LOG_NETWORK | LOG_TRACE, ".start.np_network_read");
+	// cast event data structure to np_state_t pointer
+
+	np_state_t* state = _np_state();
+
+	char data[MSG_CHUNK_SIZE_1024];
+	struct sockaddr_storage from;
+	socklen_t fromlen = sizeof(from);
+	// calling address and port
+	char ipstr[255];
+	char port [6];
+
+	np_key_t* key = (np_key_t*) event->data; // state->my_node_key->network;
+	np_network_t* ng = key->network;
+
+	/* receive the new data */
+	int16_t in_msg_len = recvfrom(ng->socket, data, MSG_CHUNK_SIZE_1024, 0, (struct sockaddr*)&from, &fromlen);
+
+	if (from.ss_family == AF_INET)
+	{
+		struct sockaddr_in *s = (struct sockaddr_in *) &from;
+		getnameinfo((struct sockaddr*)s, sizeof s, ipstr, 255, port, 6, 0);
+	}
+	else
+	{
+		struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+		getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
+	}
+
+	if (0 == in_msg_len)
+	{
+		// tcp disconnect
+		log_msg(LOG_NETWORK | LOG_ERROR, "received disconnect from: %s", ipstr, port);
+		// TODO handle cleanup of node structures ?
+		// maybe / probably the node received already a disjoin message before
+		ev_io_stop(EV_A_ &ng->watcher);
+		np_node_update_stat(key->node, 0);
+		close(ng->socket);
+	}
+
+	if (0 > in_msg_len)
+	{
+		log_msg(LOG_NETWORK | LOG_ERROR, "recvfrom failed: %s", strerror(errno));
+		// job_submit_event(state->jobq, 0.0, _np_network_read);
+		log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
+		return;
+	}
+
+	if ( ! (MSG_CHUNK_SIZE_1024                            == in_msg_len ||
+	       (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40) == in_msg_len) )
+	{
+		log_msg(LOG_NETWORK | LOG_DEBUG, "received wrong message size (%hd)", in_msg_len);
+		// job_submit_event(state->jobq, 0.0, _np_network_read);
+		log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
+		return;
+	}
+
+	log_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (size: %hd)", ipstr, port, in_msg_len);
+
+	// we registered this token info before in the first handshake message
+	np_key_t* alias_key = NULL;
+	np_key_t* search_key = key_create_from_hostport(ipstr, port);
+
+	LOCK_CACHE(state)
+	{
+		alias_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
+		if (NULL == alias_key)
+		{
+			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
+			alias_key = search_key;
+			np_ref_obj(np_key_t, alias_key);
+		}
+		else
+		{
+			np_free_obj(np_key_t, search_key);
+		}
+	}
+
+	void* data_ptr = malloc(in_msg_len * sizeof(char));
+	memset(data_ptr, 0,    in_msg_len);
+	memcpy(data_ptr, data, in_msg_len);
+
+	sll_append(void_ptr, ng->in_events, data_ptr);
+
+	np_msgproperty_t* msg_prop = np_msgproperty_get(state, INBOUND, DEFAULT);
+	np_job_submit_msg_event(0.0, msg_prop, alias_key, NULL);
+
+	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
+}
+
+void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
+{
+	if (revents & EV_WRITE)
+	{
+		_np_network_send(loop, event, revents);
+	}
+
+	if (revents & EV_READ)
+	{
+		_np_network_read(loop, event, revents);
+	}
 }
 
 /** network_init:
@@ -357,72 +588,151 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
 
     np_network_t* ng = (np_network_t *) malloc (sizeof (np_network_t));
     ng->addr_in = NULL;
-    ng->addr_out = NULL;
 
     if ((ret = pthread_mutex_init (&(ng->lock), NULL)) != 0)
 	{
-		log_msg(LOG_ERROR, "pthread_mutex_init: %s:", strerror (ret));
+		log_msg(LOG_NETWORK | LOG_ERROR, "pthread_mutex_init: %s:", strerror (ret));
 		close (ng->socket);
 		return (NULL);
 	}
 
     get_network_address (create_socket, &ng->addr_in, type, hostname, service);
 
-    if (NULL != ng->addr_in)
+    // create an inbound socket - happens only once per node
+    if (TRUE == create_socket )
     {
-    	log_msg(LOG_DEBUG, "canonical name: %s", ng->addr_in->ai_canonname);
+    	// nothing to do for passive nodes
+    	if (type & PASSIVE) return ng;
+
+    	// server setup
+        log_msg(LOG_NETWORK | LOG_DEBUG, "canonical name: %s", ng->addr_in->ai_canonname);
     	// create socket
-    	// not using a socket for sending messages to a different node leads to unreliable
-    	// delivery. The sending socket changes too often to be useful for finding the correct
-    	// decryption shared secret. Especially true for ipv6 ...
+        // UDP note: not using a connected socket for sending messages to a different node
+        // leads to unreliable delivery. The sending socket changes too often to be useful
+        // for finding the correct decryption shared secret. Especially true for ipv6 ...
+
     	ng->socket = socket (ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
     	if (0 > ng->socket)
     	{
-    		log_msg(LOG_ERROR, "socket: %s", strerror (errno));
-    		return NULL;
+    		log_msg(LOG_NETWORK | LOG_ERROR, "could not create socket: %s", strerror (errno));
+    		exit(1) ;
+    	}
+    	if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
+    	{
+    		log_msg(LOG_NETWORK | LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
+    		close (ng->socket);
+    		exit(1);
+		}
+    	if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
+    	{
+    		// enable ipv4 mapping
+    		log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
+		}
+
+    	// set non blocking
+    	int current_flags = fcntl(ng->socket, F_GETFL);
+    	current_flags |= O_NONBLOCK;
+    	fcntl(ng->socket, F_SETFL, current_flags);
+
+    	/* attach socket to #port#. */
+    	if (0 > bind (ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
+    	{
+    		log_msg(LOG_NETWORK | LOG_ERROR, "bind failed: %s:", strerror (errno));
+    		close (ng->socket);
+    		// exit, because listening port could not be opened
+    		exit(1);
+		}
+
+    	if (type & TCP) {
+    		if (0 > listen(ng->socket, 10)) {
+    			log_msg(LOG_ERROR, "listen on tcp port failed: %s:", strerror (errno));
+    			exit(1);
+			}
     	}
 
-		// check if we have to bind the local a socket
-		if (TRUE == create_socket && NULL != ng->addr_in)
-		{
-			// create own retransmit structures
-			ng->waiting = make_jtree();
-			ng->retransmit = make_jtree();
-			ng->seqend = 0LU;
+    	// create own retransmit structures
+    	ng->waiting = make_jtree();
+    	sll_init(void_ptr, ng->in_events);
 
-			if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
-			{
-				log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
-				close (ng->socket);
-				return NULL;
-			}
+    	// own sequence number counter
+    	ng->seqend = 0LU;
 
-			if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
-			{
-				// enable ipv4 mapping
-				log_msg(LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
-			}
+    	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
-			/* attach socket to #port#. */
-			if (0 > bind (ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
-			{
-				log_msg(LOG_ERROR, "bind: %s:", strerror (errno));
-				close (ng->socket);
-				return NULL;
-			}
+    	_np_suspend_event_loop();
+    	if (type & TCP)
+    	{
+    		// TODO implement accept and create client socket for each connection
+    		ev_io_init(&ng->watcher, _np_network_accept, ng->socket, EV_READ);
+    	}
+    	else if (type & UDP)
+    	{
+    		ev_io_init(&ng->watcher, _np_network_read, ng->socket, EV_READ);
+    	}
+    	ev_io_start(EV_A_ &ng->watcher);
+    	_np_resume_event_loop();
 
-			log_msg(LOG_DEBUG, "created local listening socket");
+    	log_msg(LOG_NETWORK | LOG_DEBUG, "created local listening socket");
 
-		} else {
-			if (0 > connect(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
-			{
-				log_msg(LOG_ERROR, "connect: %s:", strerror (errno));
-				close (ng->socket);
-				return NULL;
-			}
+	} else {
+
+		// client setup
+        log_msg(LOG_NETWORK | LOG_DEBUG, "canonical name: %s", ng->addr_in->ai_canonname);
+
+		sll_init(void_ptr, ng->out_events);
+
+		// client socket - wait for writeable socket
+    	ng->socket = socket (ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
+    	if (0 > ng->socket)
+    	{
+    		log_msg(LOG_NETWORK | LOG_ERROR, "could not create socket: %s", strerror (errno));
+    		return NULL;
+    	}
+    	if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
+    	{
+    		log_msg(LOG_NETWORK | LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
+    		close (ng->socket);
+    		return NULL;
 		}
-    }
+    	if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
+    	{
+    		// enable ipv4 mapping
+    		log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
+		}
 
+    	// set non blocking
+    	int current_flags = fcntl(ng->socket, F_GETFL);
+    	current_flags |= O_NONBLOCK;
+    	fcntl(ng->socket, F_SETFL, current_flags);
+
+		// initialize to be on the safe side
+		ng->watcher.data = NULL;
+		EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+
+    	_np_suspend_event_loop();
+    	if (type & PASSIVE)
+    	{
+    		// not here and now, but after the handshake
+    	}
+    	else
+    	{
+    		ev_io_init(&ng->watcher, _np_network_send, ng->socket, EV_WRITE);
+    	}
+		ev_io_start(EV_A_ &ng->watcher);
+
+		log_msg(LOG_NETWORK | LOG_DEBUG, ": %d %p %p :", &ng->socket, &ng->watcher,  &ng->watcher.data);
+		_np_resume_event_loop();
+
+    	// UDP note: not using a connected socket for sending messages to a different node
+        // leads to unreliable delivery. The sending socket changes too often to be useful
+        // for finding the correct decryption shared secret. Especially true for ipv6 ...
+		if (0 > connect(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
+		{
+			log_msg(LOG_NETWORK | LOG_ERROR, "connect: %s:", strerror (errno));
+			close (ng->socket);
+			return NULL;
+    	}
+    }
     // freeaddrinfo( ng->addr_in );
 
     return ng;

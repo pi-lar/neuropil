@@ -1,7 +1,11 @@
 /**
- *  copyright 2015 pi-lar GmbH
- *  Stephan Schwichtenberg
- **/
+The structure np_msgproperty_t is used to describe properties of the message exchange itself.
+It is setup by sender and receiver independent of each other.
+It defines attributes like a re-send counter and the type of message exchange.
+A developer should be familiar with the main settings
+
+*/
+//  copyright 2015 pi-lar GmbH
 #ifndef _NP_MSGPROPERTY_H_
 #define _NP_MSGPROPERTY_H_
 
@@ -20,6 +24,15 @@
 extern "C" {
 #endif
 
+/**
+.. c:type:: np_msg_mode_type
+
+   is a enum which is used to identify your role in the message exchange.
+   Use INBOUND when you are a receiver, OUTBOUND when you're the sender.
+   Do not worry about sending replies, this is/will be handled internally.
+
+   use the string "mode_type" to alter this value using :c:func:`np_set_mx_properties`
+*/
 typedef enum np_msg_mode_enum {
 	DEFAULT_MODE = 0,
 	INBOUND = 0x1,
@@ -28,14 +41,51 @@ typedef enum np_msg_mode_enum {
 	TRANSFORM = 0x8
 } np_msg_mode_type;
 
-/*
- * definition of message exchange pattern (MEP)
- * starting with the definition of sender / receiver / extra flags
- * continuing to define "higher" level MEP
- * SINGLE / ONE refers to a single identity send from a specific np_node_t
- * GROUP refers to a group of np_node_t instances which share the same sending/receiving identity
- * ANY refers to a group of np_node_t instances which do not share the same sending/receiving identity
- */
+/**
+.. c:type:: np_msg_mep_type
+
+   Definition of message exchange pattern (MEP) for a exchange.
+   We separate the the definition of sender and receiver, plus that we use some extra flags
+   Based on the lower level definitions we then define "higher" level of MEP
+
+   use the string "mep_type" to alter this value using :c:func:`np_set_mx_properties`
+
+   SINGLE_[SENDER|RECEIVER]
+   refers to a single identity send from a specific np_node_t
+
+   GROUP_[SENDER|RECEIVER]
+   refers to a group of np_node_t instances which share the same sending/receiving identity
+
+   ANY_[SENDER|RECEIVER]
+   refers to a group of np_node_t instances which do not share the same sending/receiving identity
+
+   The resulting MEP is created by using a | (or) and has to match per subject of a message exchange.
+   Note that if one sender uses SINGLE_SENDER and another sender uses GROUP_SENDER, the behaviour is
+   as of now undefined. If you plan to use or offer a public message subject, senders should use ANY in case of doubt.
+   Only rarely you will want to use SINGLE (e.g. if you plan to have a dedicated channel for a sender), because
+   it is reaping you of the benefits of using a message exchange layer in your IT landscape.
+
+   Extra Flags can be:
+
+   FILTER_MSG
+   to be implemented: apply a filter before sending/receiving a message. filter will be a callback function returning TRUE or FALSE
+
+   HAS_REPLY
+   check reply_to field of the incoming message to send a subject based reply (with more than one receiver)
+
+   STICKY_REPLY
+   check reply_to field of the incoming message to send a reply to one specific node
+
+   some more human readable and more "speaking" combinations are:
+
+   ONE_WAY   = SINGLE_SENDER | SINGLE_RECEIVER
+
+   REQ_REP   = ONE_WAY_WITH_REPLY
+
+   PIPELINE  = SINGLE_SENDER | GROUP_RECEVER
+
+   AGGREGATE = SINGLE_SENDER | ANY_RECEIVER | STICKY_REPLY
+*/
 typedef enum np_msg_mep_enum {
 
 	DEFAULT_TYPE = 0x000,
@@ -96,6 +146,24 @@ typedef enum np_msg_mep_enum {
 
 } np_msg_mep_type;
 
+/**
+.. c:type:: np_msgcache_policy_type
+
+   defines the local handling of undeliverable messages. Since neuro:pil ha implemented end-to-end encryption,
+   the layer has to wait for tokens to arrive before sending (=encrypting) or receiving (=decrypting) messages.
+   Until this token is delivered, messages are stored in-memory in a message cache. The size of this in-memory
+   cache is determined by setting the msg_threshold value of the np_msgproperty_t structure.
+
+   use the string "policy_type" to alter this value using :c:func:`np_set_mx_properties`
+
+   FIFO - first in first out
+
+   FILO - first in last out (stack)
+
+   OVERFLOW_REJECT - reject new messages when the limit is reached
+
+   OVERFLOW_PURGE  - purge old messages when the limit is reached
+*/
 typedef enum np_msgcache_policy_enum {
 	FIFO = 0x01,
 	FILO = 0x02,
@@ -103,7 +171,26 @@ typedef enum np_msgcache_policy_enum {
 	OVERFLOW_PURGE = 0x20
 } np_msgcache_policy_type;
 
-// definition of message acknowlege
+/**
+.. c:type:: np_msg_ack_type
+
+   definition of message acknowledge handling.
+
+   use the string "ack_type" to alter this value using :c:func:`np_set_mx_properties`
+
+   ACK_NONE        - never require a acknowledge
+
+   ACK_EACHHOP     - request the acknowledge between each hop a message is send
+
+   ACK_DESTINATION - request the sending of a acknowledge when the message has reached the
+   final destination
+
+   ACK_CLIENT      - request the sending of a acknowledge when the message has reached the
+   final destination and has been processed correctly (e.g. callback function returning TRUE, see :c:func:`np_set_listener`)
+
+   Please note: acknowledge types can be ORed (|), so you can request the acknowledge between each hop and the acknowledge
+   when the message receives the final destination. We recommend against it because it will flood your network with acknowledges
+*/
 typedef enum np_msg_ack_enum {
 	ACK_NONE = 0x00, // 0000 0000  - don't ack at all
 	ACK_EACHHOP = 0x01, // 0000 0001 - each hop has to send a ack to the previous hop
@@ -111,8 +198,23 @@ typedef enum np_msg_ack_enum {
 	ACK_CLIENT = 0x04,     // 0000 0100 - message to sender ack after/during processing the message on receiver side
 } np_msg_ack_type;
 
+/**
+.. c:type:: np_msgproperty_t
 
-struct np_msgproperty_s {
+   the structure np_msgproperty is used to define and store message exchange properties.
+   When sending a message for a subject this structure is automatically created in the background
+   with default reasonable values. You can change your exchange properties on the fly to implement
+   a different behaviour.
+
+   use the string "ttl" to alter the time to live of a message using :c:func:`np_set_mx_properties`
+
+   use the string "retry" to alter the resend retries of a message using :c:func:`np_set_mx_properties`
+
+   use the string "max_threshold" to alter the amount of messages that a nodes is willing to receive and
+   the cache size of a message using :c:func:`np_set_mx_properties`
+*/
+struct np_msgproperty_s
+{
 	// link to memory management
 	np_obj_t* obj;
 
@@ -150,6 +252,7 @@ struct np_msgproperty_s {
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
 
+// create setter methods
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mode_type, np_msg_mode_type);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mep_type, np_msg_mep_type);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, ack_mode, np_msg_ack_type);
@@ -160,15 +263,32 @@ _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, max_threshold, uint16_t);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, partner_key, np_key_t*);
 
 
-/** np_msgproperty_register
- ** registers the handler function #func# with the message type #type#,
- ** it also defines the acknowledgment requirement for this type
- **/
+/**
+.. c:function:: void np_msgproperty_register(np_state_t *state, np_msgproperty_t* msgprops)
+
+   users of neuropil should simply use the :c:func:`np_set_mx_property` functions which will
+   automatically create and set the values specified.
+
+   registers the msg_property_t structure for neuropil to lookup message exchange properties
+   an existing np_msgproperty_t structure will not be replaced
+
+   :param state: the global neuropil :c:type:`np_state_t` structure
+   :param msgprops: the np_msgproperty_t structure which should be registered
+*/
 void np_msgproperty_register(np_state_t *state, np_msgproperty_t* msgprops);
 
-/** np_msgproperty_get
- ** return a handler for a given message subject
- **/
+/**
+.. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
+
+   users of neuropil should simply use the :c:func:`np_set_mx_property` functions which will
+   automatically create and set the values specified.
+
+   return the np_msgproperty structure for a subject and :c:type:`np_msg_mode_type`
+
+   :param mode_type: either INBOUND or OUTBOUND (see :c:type:`np_msg_mode_type`)
+   :param subject: the subject of the messages that are send
+   :returns: np_msgproperty_t structure of NULL if none found
+*/
 np_msgproperty_t* np_msgproperty_get(np_state_t *state, np_msg_mode_type msg_mode, const char* subject);
 
 // TODO: how can this be moved to a list of constants

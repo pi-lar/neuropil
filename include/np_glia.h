@@ -7,6 +7,7 @@
 #define _NP_GLIA_H_
 
 #include "include.h"
+#include "event/ev.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,8 +19,11 @@ void np_route_lookup (np_state_t* state, np_jobargs_t* args);
 void _np_check_leafset(np_state_t* state, np_jobargs_t* args);
 void _np_retransmit_tokens(np_state_t* state, np_jobargs_t* args);
 void _np_cleanup(np_state_t* state, np_jobargs_t* args);
-void _np_network_read(np_state_t* np_state, np_jobargs_t* args);
+// void _np_network_read(np_state_t* np_state, np_jobargs_t* args);
 void _np_write_log(np_state_t* state, np_jobargs_t* args);
+void _np_events_read(np_state_t* state, np_jobargs_t* args);
+void _np_suspend_event_loop();
+void _np_resume_event_loop();
 
 // other helper functions
 void _np_send_rowinfo (np_state_t* state, np_jobargs_t* args);

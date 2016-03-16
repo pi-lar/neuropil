@@ -3,11 +3,11 @@ PLATFORM ?= $(shell uname -s)
 CC=clang 
 # CC=/Users/schwicht/Downloads/checker-277/libexec/ccc-analyzer
 
-# CFLAGS=-c -Wall -O3 -g -std=c99 
-# CFLAGS=-c -Wall -g -gdwarf-2 -std=c99 
+# CFLAGS=-c -Wall -O3 -g -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
+CFLAGS=-c -Wall -g -gdwarf-2 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
 # --analyze -Xanalyzer -analyzer-config -analyzer-checker=alpha.secure -anaylyzer-checker=alpha.core -analyzer-output=html -o clang_out
 # CFLAGS=-c -Wall -Wextra -pedantic -g -std=c99
-CFLAGS=-c -O3 -std=c99
+# CFLAGS=-c -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
 LDFLAGS=
 
 # CLANG_SANITIZER=-fsanitize=address -fno-omit-frame-pointer
@@ -18,7 +18,7 @@ ifneq (,$(findstring FreeBSD, $(PLATFORM)))
 else ifneq (,$(findstring Darwin, $(PLATFORM)))
   override CFLAGS+=-Wno-deprecated
   override LDFLAGS+=-framework CoreServices -Wno-deprecated
-#   override CLANG_SANITIZER+=-mmacosx-version-min=10.5
+  override CLANG_SANITIZER+=-mmacosx-version-min=10.11
 else ifneq (,$(findstring CYGWIN, $(PLATFORM)))
   # -std=gnu++0x doesn't work, so work around...
   override CXXFLAGS+=-U__STRICT_ANSI__
@@ -39,7 +39,9 @@ SODIUM_LIBRARIES=-L ./lib/libsodium-master/src/libsodium/.libs -l sodium
 TARGET=x86_64-apple-darwin-macho
 # TARGET=x86_64-pc-gnu-elf
 
-SOURCES=src/cmp.c src/dtime.c src/np_jtree.c src/jval.c src/np_aaatoken.c src/np_message.c src/np_memory.c src/np_glia.c src/neuropil.c src/np_jobqueue.c src/np_key.c src/log.c src/np_network.c src/np_node.c src/np_axon.c src/np_container.c src/np_dendrit.c src/np_util.c src/priqueue.c src/np_route.c src/np_msgproperty.c
+SOURCES  = src/dtime.c src/np_jtree.c src/jval.c src/np_aaatoken.c src/np_message.c src/np_memory.c src/np_glia.c src/neuropil.c src/np_jobqueue.c src/np_key.c src/log.c src/np_network.c src/np_node.c src/np_axon.c src/np_container.c src/np_dendrit.c src/np_util.c src/np_route.c src/np_msgproperty.c 
+SOURCES += src/event/ev.c src/np_http.c src/http/htparse.c src/json/parson.c src/msgpack/cmp.c 
+# SOURCES += src/event/ev.c src/event/ev_epoll.c src/event/ev_kqueue.c src/event/ev_poll.c src/event/ev_port.c src/event/ev_select.c src/event/ev_win32.c
 TEST_SOURCES=test/neuropil_controller.c test/jrb_test_msg.c test/test_dh.c test/neuropil_hydra.c test/test_list_impl.c test/test_chunk_message.c
 
 OBJECTS=$(SOURCES:.c=.o)

@@ -4,10 +4,10 @@ neuropil.h is the entry point for using the neuropil library.
 It defines all user centric functions whcih hide the complexity of the double encryption layer.
 It should contain all required functions to send or receive messages.
 Original version is based on the chimera project (MIT licensed), but mostly renamed and heavily modified
-
-copyright 2015 pi-lar GmbH
-
 */
+
+// copyright 2015 pi-lar GmbH
+
 #ifndef _NEUROPIL_H_
 #define _NEUROPIL_H_
 
@@ -31,7 +31,8 @@ RB_PROTOTYPE(rbt_msgproperty, np_msgproperty_s, link, property_comp);
 .. c:type:: np_state_t
 
    The only global structure which contains links to the various subsystems.
-   Users should only need to call np_init() to initialize neuropil layer.
+   Users should only need to call :c:func:`np_init` to initialize neuropil layer.
+
 */
 struct np_state_s {
 
@@ -48,7 +49,9 @@ struct np_state_s {
     np_jtree_t* msg_part_cache;
 
 	np_routeglobal_t   *routes;
-    np_joblist_t       *jobq;
+    np_jobqueue_t      *jobq;
+
+    np_http_t *http;
 
     pthread_mutex_t lock;
     pthread_attr_t attr;
@@ -64,13 +67,17 @@ struct np_state_s {
 .. c:function:: np_state_t* np_init(char* protocol, char* port)
 
    Initializes neuropil subsystem to listen on the given port. Protocol is a string defining
-   the IP protocol to use (tcp/udp/ipv4/ipv6/...)
+   the IP protocol to use (tcp/udp/ipv4/ipv6/...), right now only udp is implemented
 
    :param port: the port to listen on, default is 3141
    :param proto: the default value for the protocol "udp6", which is UDP | IPv6
    :return: the np_state_t* which contains global state of different np sub modules or NULL on failure
+
 */
-np_state_t* np_init (char* proto, char* port);
+np_state_t* np_init (char* proto, char* port, np_bool start_http);
+
+// function to get the global state variable
+np_state_t* _np_state();
 
 /**
 .. c:function:: void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
@@ -78,8 +85,9 @@ np_state_t* np_init (char* proto, char* port);
    Manually set the identity which is used to send and receive messages.
    This identity is independent of the core node key used to form the infrastructure
 
-   :param state: the previously initialized np_state_t structure
-   :param identity: a valid :c:type:np_aaatoken_t structure
+   :param state: the previously initialized :c:type:`np_state_t` structure
+   :param identity: a valid :c:type:`np_aaatoken_t` structure
+
 */
 void np_set_identity(np_state_t* state, np_aaatoken_t* identity);
 
@@ -89,6 +97,7 @@ void np_set_identity(np_state_t* state, np_aaatoken_t* identity);
    wait until the node has successfully joined a network.
    Sending messages if the node has not joined a network is futile
    see also :ref:`to_join_or_to_be_joined`
+
 */
 void np_waitforjoin(const np_state_t* state);
 
@@ -101,13 +110,13 @@ void np_waitforjoin(const np_state_t* state);
    set callback function which will be called whenever authorization, authentication or account is required
    it is up to the user to define storage policies/rules for passed tokens
 
-   :param state: the previously initialized np_state_t structure
+   :param state: the previously initialized :c:type:`np_state_t` structure
    :param aaa_func: a function pointer to a np_aaa_func_t function
+
 */
 void np_setauthorizing_cb(np_state_t* state, np_aaa_func_t join_func);
 void np_setauthenticate_cb(np_state_t* state, np_aaa_func_t join_func);
 void np_setaccounting_cb(np_state_t* state, np_aaa_func_t join_func);
-
 
 /**
 .. c:function:: void np_set_listener(np_state_t* state, np_usercallback_t msg_handler, char* subject)
@@ -119,6 +128,7 @@ void np_setaccounting_cb(np_state_t* state, np_aaa_func_t join_func);
    :param state: the previously initialized np_state_t structure
    :param msg_handler: a function pointer to a np_usercallback_t function
    :param subject: the message subject the handler should be called for
+
 */
 void np_set_listener (np_state_t* state, np_usercallback_t msg_handler, char* subject);
 
@@ -130,7 +140,8 @@ void np_set_listener (np_state_t* state, np_usercallback_t msg_handler, char* su
    :param state: the previously initialized np_state_t structure
    :param subject: the subject the data should be send to
    :param data: the message text that should be send
-   :param seqnum: a sequence number shich will be stored in the message properties
+   :param seqnum: a sequence number which will be stored in the message properties
+
 */
 void np_send_text    (np_state_t* state, char* subject, char *data, uint32_t seqnum);
 
@@ -144,6 +155,7 @@ void np_send_text    (np_state_t* state, char* subject, char *data, uint32_t seq
    :param subject: the subject the data should be send to
    :param properties: a tree (np_jtree_t) structure containing the properties of a message
    :param body: a tree (np_jtree_t) structure containing the body of a message
+
 */
 void np_send_msg    (np_state_t* state, char* subject, np_jtree_t *properties, np_jtree_t *body);
 
@@ -156,6 +168,7 @@ void np_send_msg    (np_state_t* state, char* subject, np_jtree_t *properties, n
    :param subject: the subject the data should be send to
    :param data: the message text that should be send
    :return: the sequence number that has been used to send the message or 0 on error
+
 */
 uint32_t np_receive_text (np_state_t* state, char* subject, char **data);
 
@@ -169,6 +182,7 @@ uint32_t np_receive_text (np_state_t* state, char* subject, char **data);
    :param properties: a tree (np_jtree_t) structure containing the properties of the message
    :param body: a tree (np_jtree_t) structure containing the body of the message
    :return: the sequence number that has been used to send the message or 0 on error
+
 */
 uint32_t np_receive_msg (np_state_t* state, char* subject, np_jtree_t* properties, np_jtree_t* body);
 
@@ -176,13 +190,15 @@ uint32_t np_receive_msg (np_state_t* state, char* subject, np_jtree_t* propertie
 .. c:function:: void np_set_mx_properties(np_state_t* state, char* subject, const char* key, np_jval_t value)
 
    Set properties of a message exchange for a given by subject.
-   Using this function the message exchange for a subject can be altered on the fly without interuption.
-   For a complete list of mx properties can be found in message.h
+   Using this function the message exchange for a subject can be altered on the fly without interruption.
+   For a complete list of mx properties can be found in :c:type:`np_msgproperty_t`
+   Usage of this function will create a default np_msgproperty_t structure for you.
 
    :param state: the previously initialized np_state_t structure
    :param subject: the subject the data should be send to
    :param key: the identifier for which a value should be set
    :param value: the value which should be set
+
 */
 void np_set_mx_property(np_state_t* state, char* subject, const char* key, np_jval_t value);
 
@@ -190,24 +206,26 @@ void np_set_mx_property(np_state_t* state, char* subject, const char* key, np_jv
 .. c:function:: void np_rem_mx_properties(np_state_t* state, char* subject, const char* key)
 
    Removes a property of a message exchange for a given by subject.
-   Using this function the message exchange for a subject can be altered on the fly without interuption.
+   Using this function the message exchange for a subject can be altered on the fly without interruption.
    For a complete list of mx properties can be found in message.h.
-   Please note that only a limited subset of proerties can be removed, most MX properties
+   Please note that only a limited subset of properties can be removed, most MX properties
    should be modified by np_set_mx_properties.
 
    :param state: the previously initialized np_state_t structure
    :param subject: the subject the data should be send to
    :param key: the identifier for which a value should be removed
+
 */
 void np_rem_mx_property(np_state_t* state, char* subject, const char* key);
 
 /**
 .. c:function:: void np_start_job_queue(np_state_t* state, uint8_t pool_size)
 
-   Start processing of messages withing the neuropil subsystem
+   Start processing of messages within the neuropil subsystem
 
    :param state: the previously initialized np_state_t structure
    :param pool_size: the number of threads that should compete for tasks
+
 */
 void np_start_job_queue(np_state_t* state, uint8_t pool_size);
 
@@ -221,6 +239,7 @@ void np_start_job_queue(np_state_t* state, uint8_t pool_size);
 
    :param state: the previously initialized np_state_t structure
    :param key: the np_key_t where the ping should be send to
+
 */
 void _np_ping(np_state_t* state, np_key_t* key);
 

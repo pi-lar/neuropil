@@ -1,3 +1,9 @@
+#lldb args
+
+process launch --environment DYLD_LIBRARY_PATH=/Volumes/SAFE/Development/eclipseWS/neuropil/lib/libsodium-master/src/libsodium/.libs -- -b 3333
+process launch --environment DYLD_LIBRARY_PATH=/Volumes/SAFE/Development/eclipseWS/neuropil/lib/libsodium-master/src/libsodium/.libs
+breakpoint set -name
+
 # work list
 fa664605176040d4441311bd9292f674831472f4f42b926a8972baee43d3ba7d:udp6:brandon.pi-lar.net.in.coledosa.net:1111
 4ef0a23d34ada0414152a59e64c2f16cbf7b1dd4b7c4d021f7e3c3a317b18d54:udp6:brandon.pi-lar.net.in.coledosa.net:2222

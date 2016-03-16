@@ -39,9 +39,9 @@ Fax: 865-974-4404
 
 #include "stdint.h"
 
-#include "cmp.h"
-#include "include.h"
+#include "msgpack/cmp.h"
 
+#include "include.h"
 
 enum {
 	none_type = 0,

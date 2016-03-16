@@ -5,6 +5,8 @@
 #include <assert.h>
 #include <errno.h>
 
+#include "event/ev.h"
+
 #include "np_aaatoken.h"
 
 #include "dtime.h"
@@ -30,15 +32,14 @@ void _np_aaatoken_t_new(void* token)
 
 	aaa_token->public_key[0] = '\0';
 
-	aaa_token->issued_at = dtime();
+	aaa_token->issued_at = ev_time();
     // set expiration to one day and recreate each day by default
     // TODO: make it configurable or use random timeframe
-    struct timeval e_exp = dtotv(aaa_token->issued_at);
-    e_exp.tv_sec += 86400;
-    aaa_token->expiration = tvtod(e_exp);
-    // uuid_generate(aaa_token->uuid);
+    aaa_token->expiration = aaa_token->issued_at + 86400;
     aaa_token->extensions = make_jtree();
 	aaa_token->valid = FALSE;
+
+    // uuid_generate(aaa_token->uuid);
 }
 
 void _np_aaatoken_t_del (void* token)
@@ -95,7 +96,7 @@ np_bool token_is_valid(np_aaatoken_t* token)
 
 	uint16_t token_max_threshold = jrb_find_str(token->extensions, "max_threshold")->val.value.ui;
 	uint16_t token_msg_threshold = jrb_find_str(token->extensions, "msg_threshold")->val.value.ui;
-	double now = dtime();
+	double now = ev_time();
 
 	// verify inserted signature first
 	char* signature = jrb_find_str(token->extensions, NP_HS_SIGNATURE)->val.value.bin;
@@ -234,7 +235,7 @@ void _np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token
 		subject_key->send_property->mep_type = jrb_find_str(token->extensions, "mep_type")->val.value.ush;
 		subject_key->send_property->ack_mode = jrb_find_str(token->extensions, "ack_mode")->val.value.ush;
 
-		subject_key->send_property->last_update = dtime();
+		subject_key->send_property->last_update = ev_time();
 
 		uint16_t max_threshold = jrb_find_str(token->extensions, "max_threshold")->val.value.ui;
 		np_aaatoken_t *tmp_token = NULL;
@@ -467,7 +468,7 @@ void _np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *tok
 		// update #2 subject specific data
 		subject_key->recv_property->mep_type = jrb_find_str(token->extensions, "mep_type")->val.value.ush;
 		subject_key->recv_property->ack_mode = jrb_find_str(token->extensions, "ack_mode")->val.value.ush;
-		subject_key->recv_property->last_update = dtime();
+		subject_key->recv_property->last_update = ev_time();
 
 		uint16_t max_threshold = jrb_find_str(token->extensions, "max_threshold")->val.value.ui;
 

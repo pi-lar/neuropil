@@ -34,7 +34,7 @@ struct np_node_s
 	// link to memory management
 	np_obj_t* obj;
 
-	np_network_t* network;
+	// np_network_t* network;
 
 	uint8_t protocol;
 	char *dns_name;
@@ -85,8 +85,8 @@ np_key_t*  np_node_decode_from_jrb (np_state_t* state, np_jtree_t* data);
 /** np_node_encode routines
  **/
 void np_node_encode_to_str  (char *s, uint16_t len, np_key_t* key);
-uint16_t np_encode_nodes_to_jrb (np_jtree_t* data, np_sll_t(np_key_t, node_keys));
-void np_node_encode_to_jrb  (np_jtree_t* data, np_key_t* np_node);
+uint16_t np_encode_nodes_to_jrb (np_jtree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats);
+void np_node_encode_to_jrb  (np_jtree_t* data, np_key_t* np_node, np_bool include_stats);
 
 /** various getter method, mostly unused **/
 char* np_node_get_dns_name (np_node_t* np_node);

@@ -14,10 +14,10 @@
 #include <string.h>
 
 #include "sodium.h"
+#include "msgpack/cmp.h"
 
 #include "np_msgproperty.h"
 
-#include "cmp.h"
 #include "jval.h"
 #include "dtime.h"
 #include "log.h"
@@ -118,6 +118,17 @@ np_msgproperty_t np_internal_messages[] =
 	{ .msg_subject=NP_MSG_ACCOUNTING_REQUEST, .mode_type=OUTBOUND, .mep_type=REQ_REP, .priority=5, .ack_mode=ACK_EACHHOP, .retry=5, .clb=hnd_msg_out_send, .ttl=20.0 }
 };
 
+// required to properly link inline in debug mode
+_NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mode_type, np_msg_mode_type);
+_NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mep_type, np_msg_mep_type);
+_NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, ack_mode, np_msg_ack_type);
+_NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, ttl, double);
+_NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, retry, uint8_t);
+_NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, max_threshold, uint16_t);
+
+_NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, partner_key, np_key_t*);
+
+
 /**
  ** message_init: chstate, port
  ** Initialize messaging subsystem on port and returns the MessageGlobal * which 
@@ -154,7 +165,7 @@ np_callback_t np_msgproperty_callback (np_msgproperty_t *handler)
  **/
 np_msgproperty_t* np_msgproperty_get(np_state_t *state, np_msg_mode_type mode_type, const char* subject)
 {
-	assert(subject != NULL);;
+	assert(subject != NULL);
 
 	np_msgproperty_t prop = { .msg_subject=(char*) subject, .mode_type=mode_type };
 	return RB_FIND(rbt_msgproperty, &state->msg_properties, &prop);
@@ -197,7 +208,7 @@ void _np_msgproperty_t_new(void* property)
 	prop->max_threshold = 10;
 	prop->msg_threshold =  0;
 
-	prop->last_update = dtime();
+	prop->last_update = ev_time();
 
 	// cache which will hold up to max_threshold messages
 	prop->cache_policy = FIFO | OVERFLOW_PURGE;

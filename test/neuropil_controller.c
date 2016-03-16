@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 	sprintf(log_file, "%s_%d.log", "./neuropil_controller", getpid());
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG | LOG_ROUTING;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_MESSAGE;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	log_init(log_file, level);
 
@@ -102,7 +102,7 @@ int main(int argc, char **argv)
 
 	   state = np_init(proto, port);
 	*/
-	state = np_init(proto, port);
+	state = np_init(proto, port, TRUE);
 	state->my_node_key->node->joined_network = 1;
 
 	/**
@@ -173,18 +173,21 @@ int main(int argc, char **argv)
 		LOCK_CACHE(state)
 		{
 			node_key = np_node_decode_from_str(state, my_string);
+			// node_key->network = network_init(FALSE, node_key->node->protocol, node_key->node->dns_name, node_key->node->port);
+			// node_key->network->watcher.data = node_key;
 		}
 		log_msg(LOG_DEBUG, "creating welcome message");
 		np_new_obj(np_message_t, msg_out);
 
 		np_jtree_t* jrb_me = make_jtree();
-		np_node_encode_to_jrb(jrb_me, state->my_node_key);
+		np_node_encode_to_jrb(jrb_me, state->my_node_key, FALSE);
 		np_message_create(msg_out, node_key, state->my_node_key, NP_MSG_JOIN_REQUEST, jrb_me);
 
 		log_msg(LOG_DEBUG, "submitting welcome message");
 		np_msgproperty_t* prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
-		job_submit_msg_event(state->jobq, 0.0, prop, node_key, msg_out);
+		np_job_submit_msg_event(0.0, prop, node_key, msg_out);
 
-		dsleep(1.0);
+		ev_sleep(1.0);
+		// dsleep(1.0);
 	}
 }

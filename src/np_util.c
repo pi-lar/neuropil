@@ -9,6 +9,8 @@
 #include <stdlib.h>
 
 #include "sodium.h"
+#include "event/ev.h"
+#include "json/parson.h"
 
 #include "np_util.h"
 
@@ -22,7 +24,7 @@ char* np_create_uuid(const char* str, const uint16_t num)
 	unsigned char out[18];
 	char* uuid_out = malloc(sizeof(char)*37);
 
-	double now = dtime();
+	double now = ev_time();
 	snprintf (input, 255, "urn:np:msg:%s:%u:%16.16f", str, num, now);
 	// log_msg(LOG_DEBUG, "created input uuid: %s", input);
 	crypto_generichash(out, 18, (unsigned char*) input, 256, NULL, 0);
@@ -58,6 +60,103 @@ size_t buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count)
 	memcpy(ctx->buf, data, count);
 	ctx->buf += count;
 	return count;
+}
+
+void write_json_type(np_jval_t val, JSON_Object* json_obj, const char* name)
+{
+	// log_msg(LOG_DEBUG, "writing jrb (%p) value: %s", jrb, jrb->key.value.s);
+	switch (val.type)
+	{
+	// signed numbers
+	case short_type:
+		json_object_set_number(json_obj, name, val.value.sh);
+		break;
+	case int_type:
+		json_object_set_number(json_obj, name, val.value.i);
+		break;
+	case long_type:
+		json_object_set_number(json_obj, name, val.value.l);
+		break;
+	case long_long_type:
+		json_object_set_number(json_obj, name, val.value.ll);
+		break;
+	case char_ptr_type:
+		json_object_set_string(json_obj, name, val.value.s);
+		break;
+
+	case char_type:
+		json_object_set_string(json_obj, name, &val.value.c);
+		break;
+//	case unsigned_char_type:
+//	 	cmp_write_str(cmp, (const char*) &val.value.uc, sizeof(unsigned char));
+//	 	break;
+
+	// float and double precision
+	case float_type:
+		json_object_set_number(json_obj, name, val.value.f);
+		break;
+	case double_type:
+		json_object_set_number(json_obj, name, val.value.d);
+		break;
+
+	// unsigned numbers
+	case unsigned_short_type:
+		json_object_set_number(json_obj, name, val.value.ush);
+		break;
+	case unsigned_int_type:
+		json_object_set_number(json_obj, name, val.value.ui);
+		break;
+	case unsigned_long_type:
+		json_object_set_number(json_obj, name, val.value.ul);
+		break;
+	case unsigned_long_long_type:
+		json_object_set_number(json_obj, name, val.value.ull);
+		break;
+
+	case uint_array_2_type:
+		{
+			JSON_Value* arr = json_value_init_array();
+			json_array_append_number(json_array(arr), val.value.a2_ui[0]);
+			json_array_append_number(json_array(arr), val.value.a2_ui[1]);
+			json_object_set_value(json_obj, name, arr);
+			break;
+		}
+
+	case float_array_2_type:
+	case char_array_8_type:
+	case unsigned_char_array_8_type:
+		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		break;
+
+	case void_type:
+		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		break;
+
+	case bin_type:
+		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		break;
+
+	case key_type:
+		{
+			JSON_Value* arr = json_value_init_array();
+			json_array_append_number(json_array(arr), val.value.key->t[0]);
+			json_array_append_number(json_array(arr), val.value.key->t[1]);
+			json_array_append_number(json_array(arr), val.value.key->t[2]);
+			json_array_append_number(json_array(arr), val.value.key->t[3]);
+			json_object_set_value(json_obj, name, arr);
+			break;
+		}
+	case jrb_tree_type:
+		{
+			JSON_Value* obj = json_value_init_object();
+			serialize_jrb_to_json(val.value.tree, json_value_get_object(obj));
+			json_object_set_value(json_obj, name, obj);
+		}
+		break;
+	default:
+		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		break;
+	}
 }
 
 void write_type(np_jval_t val, cmp_ctx_t* cmp)
@@ -181,6 +280,62 @@ void write_type(np_jval_t val, cmp_ctx_t* cmp)
 		break;
 	}
 }
+
+void serialize_jrb_to_json(np_jtree_t* jtree, JSON_Object* json_obj)
+{
+	uint16_t i = 0;
+
+	// write jrb tree
+	if (0 < jtree->size)
+	{
+		np_jtree_elem_t* tmp = NULL;
+
+		RB_FOREACH(tmp, np_jtree, jtree)
+		{
+			char* name = NULL;
+			if (int_type == tmp->key.type)
+			{
+				int size = snprintf(NULL, 0, "%d", tmp->key.value.i);
+				name = malloc(size + 1);
+				snprintf(name, size + 1, "%d", tmp->key.value.i);
+			}
+			else if (double_type == tmp->key.type)
+			{
+				int size = snprintf(NULL, 0, "%f", tmp->key.value.d);
+				name = malloc(size + 1);
+				snprintf(name, size + 1, "%f", tmp->key.value.d);
+			}
+			else if (unsigned_long_type == tmp->key.type)
+			{
+				int size = snprintf(NULL, 0, "%u", tmp->key.value.ul);
+				name = malloc(size + 1);
+				snprintf(name, size + 1, "%u", tmp->key.value.ul);
+			}
+			else if (char_ptr_type == tmp->key.type)
+		 	{
+				name = strndup(tmp->key.value.s, strlen(tmp->key.value.s));
+		 	}
+			else
+			{
+				log_msg(LOG_DEBUG, "unknown key type for serialization" );
+		 	}
+
+			if (NULL != name)
+			{
+				write_json_type(tmp->val, json_obj, name);
+				i++;
+			}
+			free(name);
+		}
+	}
+
+	// sanity check and warning message
+	if (i != jtree->size)
+	{
+		log_msg(LOG_WARN, "serialized jrb size map size is %hd, but should be %hd", jtree->size, i);
+	}
+}
+
 
 void serialize_jrb_node_t(np_jtree_t* jtree, cmp_ctx_t* cmp)
 {

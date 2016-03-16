@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
 
 	char log_file[256];
 	sprintf(log_file, "%s.log", "./ipv6_addrinfo");
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK | LOG_KEY;
 	log_init(log_file, level);
 
 	uint8_t type = UDP | IPv4;

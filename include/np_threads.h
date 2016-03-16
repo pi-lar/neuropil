@@ -9,6 +9,16 @@
 extern "C" {
 #endif
 
+#define _NP_ENABLE_MODULE_LOCK(TYPE) \
+	int _##TYPE##_lock(); \
+	void _##TYPE##_unlock();
+
+#define _NP_MODULE_LOCK_IMPL(TYPE) \
+	int  _##TYPE##_lock()   { return pthread_mutex_lock(&__lock_mutex);   } \
+	void _##TYPE##_unlock() { pthread_mutex_unlock(&__lock_mutex); }
+
+#define _LOCK_MODULE(TYPE) for(uint8_t i=0; (i < 1) && !_##TYPE##_lock(); _##TYPE##_unlock(), i++)
+
 // LOCK_CACHE
 #define LOCK_CACHE(cache) for(uint8_t i=0; (i < 1) && !pthread_mutex_lock(&cache->lock); pthread_mutex_unlock(&cache->lock), i++)
 // used like this

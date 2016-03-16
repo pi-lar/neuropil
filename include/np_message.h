@@ -20,16 +20,19 @@
 extern "C" {
 #endif
 
-struct np_messagepart_s {
+struct np_messagepart_s
+{
 	np_jtree_t* header;
 	np_jtree_t* instructions;
+	int part;
 	void* msg_part;
 };
 
 typedef np_messagepart_t* np_messagepart_ptr;
 NP_PLL_GENERATE_PROTOTYPES(np_messagepart_ptr);
 
-struct np_message_s {
+struct np_message_s
+{
 	np_obj_t* obj; // link to memory pool
 
 	np_jtree_t* header;

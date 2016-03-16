@@ -7,6 +7,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "event/ev.h"
+
 #include "log.h"
 #include "dtime.h"
 #include "neuropil.h"
@@ -69,11 +71,11 @@ int main(int argc, char **argv) {
 	sprintf(log_file, "%s_%s.log", "./neuropil_node", port);
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG | LOG_ROUTING;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_MESSAGE;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	log_init(log_file, level);
 
-	state = np_init(proto, port);
+	state = np_init(proto, port, FALSE);
 
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(state, 8);
@@ -84,7 +86,7 @@ int main(int argc, char **argv) {
 
 	while (1) {
 
-		dsleep(1.0);
+		ev_sleep(1.0);
 
 		np_send_text(state, msg_subject, msg_data, k);
 		log_msg(LOG_DEBUG, "send message %lu", k);

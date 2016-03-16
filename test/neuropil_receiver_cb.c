@@ -11,6 +11,7 @@
 .. highlight:: c
 */
 
+#include "event/ev.h"
 #include "include.h"
 
 #include "log.h"
@@ -119,7 +120,7 @@ int main(int argc, char **argv)
 	sprintf(log_file, "%s_%s.log", "./neuropil_node", port);
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_MESSAGE;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	log_init(log_file, level);
 
@@ -130,7 +131,7 @@ int main(int argc, char **argv)
 
 	   state = np_init(proto, port);
 	*/
-	state = np_init(proto, port);
+	state = np_init(proto, port, FALSE);
 
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
@@ -184,6 +185,7 @@ int main(int argc, char **argv)
  	*/
 	while (1)
 	{
-		dsleep(0.9);
+		ev_sleep(0.9);
+		// dsleep(0.9);
 	}
 }

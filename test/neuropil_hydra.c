@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
 				// child process
 				log_init(log_file, level);
 				// used the pid as the port
-				state = np_init(proto, port);
+				state = np_init(proto, port, FALSE);
 
 				log_msg(LOG_DEBUG, "starting job queue");
 				np_start_job_queue(state, 3);
@@ -107,15 +107,16 @@ int main(int argc, char **argv) {
 				np_new_obj(np_message_t, msg_out);
 
 				np_jtree_t* jrb_me = make_jtree();
-				np_node_encode_to_jrb(jrb_me, state->my_node_key);
+				np_node_encode_to_jrb(jrb_me, state->my_node_key, FALSE);
 				np_message_create(msg_out, node_key, state->my_node_key , NP_MSG_JOIN_REQUEST, jrb_me);
 
 				log_msg(LOG_DEBUG, "submitting welcome message");
 				np_msgproperty_t* prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
-				job_submit_msg_event(state->jobq, 0.0, prop, node_key, msg_out);
+				np_job_submit_msg_event(0.0, prop, node_key, msg_out);
 
 				while (1) {
-					dsleep(0.1);
+					ev_sleep(0.1);
+					// dsleep(0.1);
 				}
 				// escape from the parent loop
 				break;
@@ -126,7 +127,8 @@ int main(int argc, char **argv) {
 				array_of_pids[sll_size(list_of_childs)] = current_pid;
 				sll_append(int, list_of_childs, &array_of_pids[sll_size(list_of_childs)]);
 			}
-			dsleep(3.1415);
+			ev_sleep(3.1415);
+			// dsleep(3.1415);
 		} else {
 
 			current_pid = waitpid(-1, &status, WNOHANG);
@@ -153,7 +155,8 @@ int main(int argc, char **argv) {
 			} else {
 				// fprintf(stdout, "all (%d) child processes running\n", sll_size(list_of_childs));
 			}
-			dsleep(0.31415);
+			ev_sleep(3.1415);
+			// dsleep(0.31415);
 		}
 	}
 	fprintf(stdout, "stopped creating child processes\n");

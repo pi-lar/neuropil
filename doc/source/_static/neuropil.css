@@ -15,6 +15,9 @@ div.bodywrapper {
 
 div.sphinxsidebar {
     background-color: #ffffff;
+	position: fixed;
+	top: 20px;
+    left: 111%;
 }
 
 div.footer {

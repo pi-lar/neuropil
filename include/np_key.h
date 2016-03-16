@@ -35,6 +35,7 @@ struct np_key_s
     np_bool valid;		  // indicates if the keystr is most up to date with value in t
 
     np_node_t* node;		    // link to a neuropil node if this key represents a node
+    np_network_t* network;	    // link to a neuropil network if this key represents a node
 
     np_msgproperty_t* recv_property;
     np_msgproperty_t* send_property;

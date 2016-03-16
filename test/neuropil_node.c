@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "event/ev.h"
 #include "include.h"
 
 #include "log.h"
@@ -65,12 +66,13 @@ int main(int argc, char **argv) {
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 	log_init(log_file, level);
 
-	state = np_init(proto, port);
+	state = np_init(proto, port, FALSE);
 
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(state, 8);
 
 	while (1) {
-		dsleep(0.1);
+		ev_sleep(1.0);
+		// dsleep(0.1);
 	}
 }

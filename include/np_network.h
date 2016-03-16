@@ -9,7 +9,9 @@
 #include "sys/socket.h"
 #include "netdb.h"
 
+#include "event/ev.h"
 #include "include.h"
+#include "np_list.h"
 #include "np_memory.h"
 
 #ifdef __cplusplus
@@ -37,16 +39,21 @@ enum socket_type {
 	PASSIVE = 0x80  // TCP passive (like FTP passive) for nodes behind firewalls
 };
 
+typedef void* void_ptr;
+NP_SLL_GENERATE_PROTOTYPES(void_ptr)
+
 struct np_network_s
 {
     int socket;
+    ev_io watcher;
 
 	uint8_t socket_type;
-    struct addrinfo* addr_in; // where a node receives messages
-    struct addrinfo* addr_out; // where a node sends messages
+	struct addrinfo* addr_in; // where a node receives messages
 
     np_jtree_t* waiting;
-    np_jtree_t* retransmit;
+
+    np_sll_t(void_ptr, in_events);
+    np_sll_t(void_ptr, out_events);
 
     uint32_t seqend;
 
@@ -102,7 +109,12 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
  ** type are 1 or 2, 1 indicates that the data should be acknowledged by the
  ** receiver, and 2 indicates that no ack is necessary.
  **/
-np_bool network_send_udp (np_state_t* state, np_key_t* node,  np_message_t* msg);
+void network_send (np_state_t* state, np_key_t* node,  np_message_t* msg);
+
+void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents);
+void _np_network_send(struct ev_loop *loop, ev_io *event, int revents);
+void _np_network_read(struct ev_loop *loop, ev_io *event, int revents);
+void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents);
 
 /**
  ** Resends a message to host

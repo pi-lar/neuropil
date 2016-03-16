@@ -50,8 +50,8 @@ int main(int argc, char **argv) {
 	np_node_update(node_list[3], "test4.pi-lar.net", 0);
 
     log_msg(LOG_DEBUG, "serializing");
-	np_jrb_t* node_jrb = make_jrb();
-	np_encode_nodes_to_jrb(node_jrb, node_list);
+	np_jtree_t* node_jrb = make_jree();
+	np_encode_nodes_to_jrb(node_jrb, node_list, TRUE);
 
 	cmp_ctx_t cmp;
     void* buffer = malloc(node_jrb->byte_size);

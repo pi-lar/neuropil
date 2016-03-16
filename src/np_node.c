@@ -26,11 +26,14 @@
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
-static const char* NP_NODE_KEY         = "_np.node.key";
-static const char* NP_NODE_PROTOCOL    = "_np.node.protocol";
-static const char* NP_NODE_DNS_NAME    = "_np.node.dns_name";
-static const char* NP_NODE_PORT        = "_np.node.port";
-static const char* NP_NODE_FAILURETIME = "_np.node.failuretime";
+static const char* NP_NODE_KEY          = "_np.node.key";
+static const char* NP_NODE_PROTOCOL     = "_np.node.protocol";
+static const char* NP_NODE_DNS_NAME     = "_np.node.dns_name";
+static const char* NP_NODE_PORT         = "_np.node.port";
+static const char* NP_NODE_FAILURETIME  = "_np.node.failuretime";
+static const char* NP_NODE_SUCCESS_AVG  = "_np.node.success_avg";
+static const char* NP_NODE_LATENCY      = "_np.node.latency";
+static const char* NP_NODE_LAST_SUCCESS = "_np.node.last_success";
 
 void _np_node_t_new(void* node) {
 
@@ -38,7 +41,7 @@ void _np_node_t_new(void* node) {
 
 	entry->dns_name = NULL;
 	entry->port = 0;
-	entry->network = NULL;
+	// entry->network = NULL;
 
 	entry->failuretime = 0.0;
 	entry->last_success = 0.0;
@@ -53,7 +56,8 @@ void _np_node_t_new(void* node) {
     	entry->success_win[i] = 1;
 }
 
-void _np_node_t_del(void* node) {
+void _np_node_t_del(void* node)
+{
 	np_node_t* entry = (np_node_t *) node;
 	if (entry->dns_name) free (entry->dns_name);
 	if (entry->port) free (entry->port);
@@ -74,7 +78,7 @@ void np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
     }
 }
 
-void np_node_encode_to_jrb (np_jtree_t* data, np_key_t* key)
+void np_node_encode_to_jrb (np_jtree_t* data, np_key_t* key, np_bool include_stats)
 {
 	char* keystring = (char*) key_get_as_string (key);
 
@@ -86,6 +90,16 @@ void np_node_encode_to_jrb (np_jtree_t* data, np_key_t* key)
 	if (key->node->failuretime > 0.0)
 		jrb_insert_str(data, NP_NODE_FAILURETIME,
 				new_jval_d(key->node->failuretime));
+
+	if (TRUE == include_stats)
+	{
+		jrb_insert_str(data, NP_NODE_SUCCESS_AVG,
+				new_jval_f(key->node->success_avg));
+		jrb_insert_str(data, NP_NODE_LATENCY,
+				new_jval_d(key->node->latency));
+		jrb_insert_str(data, NP_NODE_LAST_SUCCESS,
+				new_jval_d(key->node->last_success));
+	}
 }
 
 /** np_node_decode
@@ -148,8 +162,8 @@ np_key_t* np_node_decode_from_str (np_state_t* state, const char *key)
 	return node_key;
 }
 
-np_key_t* np_node_decode_from_jrb (np_state_t* state, np_jtree_t* data) {
-
+np_key_t* np_node_decode_from_jrb (np_state_t* state, np_jtree_t* data)
+{
 	// MANDATORY paramter
 	char* s_host_key   = jrb_find_str(data, NP_NODE_KEY)->val.value.s;
 	char* s_host_proto = jrb_find_str(data, NP_NODE_PROTOCOL)->val.value.s;
@@ -190,17 +204,18 @@ np_key_t* np_node_decode_from_jrb (np_state_t* state, np_jtree_t* data) {
 }
 
 
-uint16_t np_encode_nodes_to_jrb (np_jtree_t* data, np_sll_t(np_key_t, node_keys))
+uint16_t np_encode_nodes_to_jrb (np_jtree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats)
 {
 	uint16_t j=0;
     np_key_t* current;
-    while(sll_first(node_keys) != NULL)
+    while(NULL != sll_first(node_keys))
 	{
     	current = sll_head(np_key_t, node_keys);
-    	if (current->node) {
+    	if (current->node)
+    	{
     		np_jtree_t* node_jrb = make_jtree();
     		// log_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
-    		np_node_encode_to_jrb(node_jrb, current);
+    		np_node_encode_to_jrb(node_jrb, current, include_stats);
     		jrb_insert_int(data, j, new_jval_tree(node_jrb));
     		j++;
     		np_free_tree(node_jrb);
@@ -226,10 +241,12 @@ sll_return(np_key_t) np_decode_nodes_from_jrb (np_state_t* state, np_jtree_t* da
     return (node_list);
 }
 
-void np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port) {
-
-	if (NULL == node->network)
-		node->network = network_init(FALSE, proto, hn, port);
+void np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
+{
+//	if (NULL == node->network) {
+//		node->network = network_init(FALSE, proto, hn, port);
+//		node->network->watcher.data = node;
+//	}
 	// log_msg(LOG_WARN, "couldn't resolve hostname to ip address: %s", hn);
 
 	node->protocol = proto;
@@ -256,45 +273,63 @@ void np_node_update_stat (np_node_t* node, uint8_t success)
 	}
     node->success_avg = total / SUCCESS_WINDOW;
 
-    if (success) node->last_success = dtime();
+    if (0 < success) node->last_success = ev_time();
 
 	// log_msg(LOG_DEBUG, "success rate for node now: %1.1f", node->success_avg);
 }
 
 void np_node_update_latency (np_node_t* node, double new_latency)
 {
-	if (new_latency > 0) {
-		if (node->latency == 0.0) {
+	if (new_latency > 0.0)
+	{
+	    node->latency_win[node->latency_win_index++ % SUCCESS_WINDOW] = new_latency;
+
+	    if (node->latency <= 0.0)
+	    {
 			node->latency = new_latency;
-		} else {
-			// TODO: this is wrong to calculate the moving average latency
-			node->latency = (0.9 * node->latency) + (0.1 * new_latency);
+		}
+	    else
+	    {
+	    	double total = 0.0;
+		    for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
+		    {
+		    	// log_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency_win[i]);
+		    	total += node->latency_win[i];
+		    }
+			node->latency = total / SUCCESS_WINDOW;
+	    	log_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency);
 		}
 	}
 }
 
-char* np_node_get_dns_name (np_node_t* np_node) {
+char* np_node_get_dns_name (np_node_t* np_node)
+{
 	assert(np_node != NULL);
 	return np_node->dns_name;
 }
 
-char* np_node_get_port (np_node_t* np_node) {
+char* np_node_get_port (np_node_t* np_node)
+{
 	assert(np_node != NULL);
 	return np_node->port;
 }
 
-float np_node_get_success_avg (np_node_t* np_node) {
+float np_node_get_success_avg (np_node_t* np_node)
+{
 	assert(np_node != NULL);
 	return np_node->success_avg;
 }
-float np_node_get_latency (np_node_t* np_node) {
+
+float np_node_get_latency (np_node_t* np_node)
+{
 	assert(np_node != NULL);
 	return np_node->latency;
 }
 
-uint8_t np_node_check_address_validity (np_node_t* np_node) {
+uint8_t np_node_check_address_validity (np_node_t* np_node)
+{
 	assert(np_node != NULL);
-	assert(np_node->network != NULL);
+	// assert(np_node->network != NULL);
 
-	return np_node->dns_name && np_node->port && np_node->network->addr_in;
+	return np_node->dns_name && np_node->port;
 }

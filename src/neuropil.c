@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include "sodium.h"
+#include "event/ev.h"
 
 #include "neuropil.h"
 
@@ -25,6 +26,7 @@
 #include "np_container.h"
 #include "np_dendrit.h"
 #include "np_glia.h"
+#include "np_http.h"
 #include "np_jobqueue.h"
 #include "np_jtree.h"
 #include "np_key.h"
@@ -36,10 +38,20 @@
 #include "np_threads.h"
 #include "np_route.h"
 
+const char* np_major  = "0";
+const char* np_minor  = "1";
+const char* np_bugfix = "0";
+const char* NP_VERSION = "0.1.0";
 
 SPLAY_GENERATE(spt_key, np_key_s, link, key_comp);
 RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
 
+static np_state_t* __global_state = NULL;
+
+np_state_t* _np_state ()
+{
+	return __global_state;
+}
 
 np_bool np_default_authorizefunc (np_state_t* state, np_aaatoken_t* token )
 {
@@ -84,7 +96,8 @@ void np_waitforjoin(const np_state_t* state)
 {
 	while (FALSE == state->my_node_key->node->joined_network)
 	{
-		dsleep(0.31415);
+		ev_sleep(0.31415);
+		// dsleep(0.31415);
 	}
 }
 
@@ -323,7 +336,8 @@ uint32_t np_receive_msg (np_state_t* state, char* subject, np_jtree_t* propertie
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
-			dsleep(0.31415);
+			ev_sleep(0.31415);
+			// dsleep(0.31415);
 			continue;
 		}
 
@@ -427,7 +441,8 @@ uint32_t np_receive_text (np_state_t* state, char* subject, char **data)
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
-			dsleep(0.31415);
+			ev_sleep(0.31415);
+			// dsleep(0.31415);
 			continue;
 		}
 
@@ -503,7 +518,7 @@ void _np_send_ack(np_state_t* state, np_message_t* in_msg)
 		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_ACKUUID, new_jval_s(uuid));
 		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_SEQ, new_jval_ul(seq));
 		// send the ack out
-		job_submit_msg_event(state->jobq, 0.0, prop, ack_key, ack_msg);
+		np_job_submit_msg_event(0.0, prop, ack_key, ack_msg);
 
 		np_free_obj(np_message_t, ack_msg);
 		np_free_obj(np_key_t, ack_key);
@@ -520,7 +535,7 @@ void _np_ping (np_state_t* state, np_key_t* key)
 	/* weired: assume failure of the node now, will be reset with ping reply later */
 	if (NULL != key->node)
 	{
-		key->node->failuretime = dtime();
+		key->node->failuretime = ev_time();
 		np_node_update_stat(key->node, 0);
 	}
 
@@ -531,7 +546,7 @@ void _np_ping (np_state_t* state, np_key_t* key)
     log_msg(LOG_DEBUG, "ping request to: %s", key_get_as_string(key));
 
     np_msgproperty_t* prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_PING_REQUEST);
-	job_submit_msg_event(state->jobq, 0.0, prop, key, out_msg);
+	np_job_submit_msg_event(0.0, prop, key, out_msg);
 
 	np_free_obj(np_message_t, out_msg);
 }
@@ -541,7 +556,7 @@ void _np_ping (np_state_t* state, np_key_t* key)
  ** initializes neuropil on specified port and returns the const np_state_t* which
  ** contains global state of different neuropil modules.
  **/
-np_state_t* np_init(char* proto, char* port)
+np_state_t* np_init(char* proto, char* port, np_bool start_http)
 {
     char name[256];
 
@@ -561,6 +576,8 @@ np_state_t* np_init(char* proto, char* port)
     	log_msg(LOG_ERROR, "neuropil_init: state module not created: %s", strerror (errno));
 	    exit(1);
 	}
+    __global_state = state;
+
     // splay tree initializing
     SPLAY_INIT(&state->key_cache);
 
@@ -593,24 +610,30 @@ np_state_t* np_init(char* proto, char* port)
 	np_node_t* my_node = NULL;
     np_new_obj(np_node_t, my_node);
 
+    np_network_t* my_network = NULL;
     // listen on all network interfaces
-	my_node->network = network_init(TRUE, np_proto, NULL, np_service);
-	if (NULL == my_node->network->addr_in)
+	my_network = network_init(TRUE, np_proto, NULL, np_service);
+	if (NULL == my_network->addr_in)
 	{
     	log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
 	    exit(1);
 	}
-	np_node_update(my_node, np_proto, my_node->network->addr_in->ai_canonname, np_service);
+
+	np_node_update(my_node, np_proto, my_network->addr_in->ai_canonname, np_service);
+
 	log_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
 			           np_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);
 
 	state->my_node_key = key_create_from_hostport(my_node->dns_name, my_node->port);
     np_ref_obj(np_key_t, state->my_node_key);
 
-	log_msg(LOG_WARN, "node_key %p", state->my_node_key);
+    my_network->watcher.data = state->my_node_key;
+
+    // log_msg(LOG_WARN, "node_key %p", state->my_node_key);
 	SPLAY_INSERT(spt_key, &state->key_cache, state->my_node_key);
 
     state->my_node_key->node = my_node;
+    state->my_node_key->network = my_network;
 
     // create a new token for encryption each time neuropil starts
     np_aaatoken_t* auth_token = NULL;
@@ -638,7 +661,7 @@ np_state_t* np_init(char* proto, char* port)
 	}
 
     // initialize job queue
-    state->jobq = job_queue_create ();
+    state->jobq = _np_job_queue_create();
     if (state->jobq == NULL)
 	{
     	log_msg(LOG_ERROR, "neuropil_init: job_queue_create failed: %s", strerror (errno));
@@ -655,18 +678,34 @@ np_state_t* np_init(char* proto, char* port)
 
     state->msg_part_cache = make_jtree();
 
+    // state->http;
+    if (TRUE == start_http)
+    	state->http = _np_http_init();
+    // np_new_obj(np_http_t, state->http);
+
     // initialize real network layer last
-    // initialize network reading
-    job_submit_event(state->jobq, 0.0, _np_network_read);
-    // initialize retransmission of packets
-    job_submit_event(state->jobq, 0.0, _np_cleanup);
+    np_job_submit_event(0.0, _np_cleanup);
     // start leafset checking jobs
-    job_submit_event(state->jobq, 0.0, _np_check_leafset);
-    job_submit_event(state->jobq, 0.0, _np_write_log);
-    job_submit_event(state->jobq, 0.0, _np_retransmit_tokens);
+    np_job_submit_event(0.0, _np_check_leafset);
+    np_job_submit_event(0.0, _np_write_log);
+    // initialize retransmission of packets
+    np_job_submit_event(0.0, _np_retransmit_tokens);
+    // initialize network reading
+    np_job_submit_event(0.0, _np_events_read);
 
 	log_msg(LOG_INFO, "neuropil successfully initialized: %s", key_get_as_string(state->my_node_key));
 	log_fflush();
+
+	fprintf(stdout, "\n");
+	fprintf(stdout, "neuropil (version %s) initializiation successful\n", NP_VERSION);
+	fprintf(stdout, "your neuropil node will be addressable as:\n");
+	fprintf(stdout, "\n");
+	fprintf(stdout, "\t%s:%s:%s:%s\n",
+					key_get_as_string(state->my_node_key),
+					np_get_protocol_string(np_proto),
+					my_node->dns_name,
+					my_node->port);
+	fprintf(stdout, "\n");
 
 	return state;
 }
@@ -696,8 +735,13 @@ void np_start_job_queue(np_state_t* state, uint8_t pool_size)
     /* create the thread pool */
     for (uint8_t i = 0; i < pool_size; i++)
     {
-        pthread_create (&state->thread_ids[i], &state->attr, job_exec, (void *) state);
-    	log_msg(LOG_DEBUG, "neuropil thread started: %p", state->thread_ids[i]);
+        pthread_create (&state->thread_ids[i], &state->attr, _job_exec, (void *) state);
+    	log_msg(LOG_DEBUG, "neuropil worker thread started: %p", state->thread_ids[i]);
    	}
+
+	log_msg(LOG_DEBUG, "neuropil evloop started");
+
+	fprintf(stdout, "neuropil (version %s) event loop with %d worker threads started\n", NP_VERSION, pool_size);
+	fprintf(stdout, "\n");
 }
 

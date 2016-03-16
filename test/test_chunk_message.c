@@ -4,10 +4,11 @@
 #include <stdlib.h>
 
 #include "pthread.h"
+#include "event/ev.h"
+#include "msgpack/cmp.h"
 
 #include "include.h"
 
-#include "cmp.h"
 #include "dtime.h"
 #include "jval.h"
 #include "log.h"
@@ -47,7 +48,7 @@ int main(int argc, char **argv) {
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_jval_s(new_uuid));
 	free(new_uuid);
 
-	double now = dtime();
+	double now = ev_time();
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_TSTAMP, new_jval_d(now));
 	now += 20;
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_TTL, new_jval_d(now));

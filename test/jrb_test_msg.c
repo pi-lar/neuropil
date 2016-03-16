@@ -4,9 +4,10 @@
 #include <stdlib.h>
 #include "pthread.h"
 
+#include "msgpack/cmp.h"
+
 #include "include.h"
 
-#include "cmp.h"
 #include "log.h"
 #include "jval.h"
 #include "np_jobqueue.h"
@@ -20,7 +21,7 @@ int main(int argc, char **argv) {
 
 	char log_file[256];
 	sprintf(log_file, "%s.log", "./jrb_test_msg");
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORK | LOG_KEY;
 	log_init(log_file, level);
 
 	np_jtree_t* test_jrb_1 = make_jtree();

@@ -5,7 +5,8 @@
 #ifndef	_NP_UTIL_H_
 #define	_NP_UTIL_H_
 
-#include "cmp.h"
+#include "msgpack/cmp.h"
+#include "json/parson.h"
 
 #include "np_jtree.h"
 
@@ -14,10 +15,15 @@ extern "C" {
 #endif
 
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)    \
-static const char* PROP_NAME##_str = # PROP_NAME;                     \
-inline void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value) {  \
+static const char* PROP_NAME##_str = # PROP_NAME;             \
+inline void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value) {   \
 	obj->PROP_NAME = value;                                   \
 }
+
+#define _NP_GENERATE_PROPERTY_SETVALUE_IMPL(OBJ,PROP_NAME,TYPE)    \
+void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value);
+
+
 
 #define _NP_GENERATE_PROPERTY_SETSTR(OBJ,PROP_NAME)              \
 inline void OBJ##_set_##PROP_NAME(OBJ* obj, const char* value) { \
@@ -44,6 +50,7 @@ char* np_create_uuid(const char* str, const uint16_t num);
 np_bool buffer_reader(cmp_ctx_t *ctx, void *data, size_t count);
 size_t buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count);
 void serialize_jrb_node_t(np_jtree_t* jrb, cmp_ctx_t* cmp);
+void serialize_jrb_to_json(np_jtree_t* jtree, JSON_Object* json_obj);
 void deserialize_jrb_node_t(np_jtree_t* jrb, cmp_ctx_t* cmp);
 
 #ifdef __cplusplus

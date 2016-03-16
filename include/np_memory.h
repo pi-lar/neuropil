@@ -11,9 +11,21 @@
 #include "include.h"
 #include "stdint.h"
 
+#include "np_threads.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// macro definitions to generate header prototype definitions
+#define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE) \
+void _##TYPE##_new(void*); \
+void _##TYPE##_del(void*); \
+
+// macro definitions to generate implementation of prototypes
+// empty by design, forces developers to write new and delete callback functions for np_obj_* types
+#define _NP_GENERATE_MEMORY_IMPLEMENTATION(TYPE)
+
 
 // enum to identify the correct type of objects
 typedef enum np_obj_type {
@@ -23,14 +35,12 @@ typedef enum np_obj_type {
 	np_key_t_e, // not yet used
 	np_aaatoken_t_e,
 	np_msgproperty_t_e,
+	np_http_t_e,
 	test_struct_t_e = 99
 } np_obj_enum;
 
 typedef void (*np_dealloc_t) (void* data);
 typedef void (*np_alloc_t) (void* data);
-
-void del_callback(void* data);
-void new_callback(void* data);
 
 /** np_obj_t
  **
@@ -48,126 +58,74 @@ struct np_obj_s {
 	np_dealloc_t del_callback;
 	np_alloc_t   new_callback;
 
-	// np_obj_t* prev;
+	// additional field for memory management
 	np_obj_t* next;
-
-	pthread_mutex_t lock;
 };
 
+// enable locking of memory table
+_NP_ENABLE_MODULE_LOCK(np_memory_t);
 
-/** np_obj_pool_t
- **
- ** global object pool to store and handle all heap objects
- **/
-struct np_obj_pool_s {
-	np_obj_t* current;
-	np_obj_t* first;
-	// np_obj_t* last;
-
-	np_obj_t* free_obj;
-	// we need these two extensions
-	uint32_t size;
-	uint32_t available;
-
-	pthread_mutex_t lock;
-};
-
-// macro definitions to generate header prototype definitions
-#define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE) \
-void _##TYPE##_new(void*); \
-void _##TYPE##_del(void*); \
-
-// macro definitions to generate implementation of prototypes
-// empty by design, forces developers to write new and delete callback functions for np_obj_* types
-#define _NP_GENERATE_MEMORY_IMPLEMENTATION(TYPE)
-
-// convenience wrappers
+// convenience function like wrappers
 #define np_ref_obj(TYPE, np_obj)              \
 {                                             \
-  pthread_mutex_lock(&(np_obj_pool->lock));   \
-  assert (np_obj->obj != NULL);               \
-  assert (np_obj->obj->type == TYPE##_e);     \
-  np_mem_refobj(TYPE##_e, np_obj->obj);       \
-  pthread_mutex_unlock(&(np_obj_pool->lock)); \
-}
-
-//printf("np_unref_obj: %20s:%d", __func__, __LINE__); \
-//fflush(stdout); \
-//printf(" %p", np_obj); \
-//fflush(stdout); \
-//printf(" obj:%p %d %d", np_obj->obj, np_obj->obj->ref_count, np_obj->obj->type); \
-//fflush(stdout); \
-//printf(" %p \n", np_obj->obj->ptr); \
-//fflush(stdout);
-
-
-#define np_unref_obj(TYPE, np_obj)            \
-{                                             \
-  pthread_mutex_lock(&(np_obj_pool->lock));   \
-  assert (np_obj->obj != NULL);               \
-  assert (np_obj->obj->type == TYPE##_e);     \
-  assert (np_obj->obj->ptr != NULL);          \
-  np_mem_unrefobj(TYPE##_e, np_obj->obj);     \
-  if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->ptr == np_obj) { \
-    if (np_obj->obj->type != np_none_t_e)     \
-    {                                         \
-      np_obj->obj->del_callback(np_obj);      \
-	  np_mem_freeobj(TYPE##_e, &np_obj->obj); \
-	  np_obj->obj->ptr = NULL;                \
-	  np_obj->obj = NULL;                     \
-	  free(np_obj);                           \
-	  np_obj = NULL;                          \
-    }                                         \
+  _LOCK_MODULE(np_memory_t) {                 \
+    assert (np_obj->obj != NULL);             \
+    assert (np_obj->obj->type == TYPE##_e);   \
+    np_mem_refobj(TYPE##_e, np_obj->obj);     \
   }                                           \
-  pthread_mutex_unlock(&(np_obj_pool->lock)); \
 }
 
-//printf("np_new_obj  : %20s:%d", __func__, __LINE__); \
-//fflush(stdout); \
-//printf(" %p obj:%p %d %d %p \n", np_obj, np_obj->obj, np_obj->obj->ref_count, np_obj->obj->type, np_obj->obj->ptr); \
-//fflush(stdout);
+#define np_unref_obj(TYPE, np_obj)              \
+{                                               \
+  _LOCK_MODULE(np_memory_t) {                   \
+    assert (np_obj->obj != NULL);               \
+    assert (np_obj->obj->type == TYPE##_e);     \
+    assert (np_obj->obj->ptr != NULL);          \
+    np_mem_unrefobj(TYPE##_e, np_obj->obj);     \
+    if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->ptr == np_obj) { \
+      if (np_obj->obj->type != np_none_t_e)     \
+      {                                         \
+        np_obj->obj->del_callback(np_obj);      \
+	    np_mem_freeobj(TYPE##_e, &np_obj->obj); \
+	    np_obj->obj->ptr = NULL;                \
+	    np_obj->obj = NULL;                     \
+	    free(np_obj);                           \
+	    np_obj = NULL;                          \
+      }                                         \
+    }                                           \
+  }                                             \
+}
 
-
-#define np_new_obj(TYPE, np_obj)              \
-{                                             \
-  pthread_mutex_lock(&(np_obj_pool->lock));   \
-  np_obj = (TYPE*) malloc(sizeof(TYPE));      \
-  np_mem_newobj(TYPE##_e, &np_obj->obj);      \
-  np_obj->obj->new_callback = _##TYPE##_new;  \
-  np_obj->obj->del_callback = _##TYPE##_del;  \
-  np_obj->obj->new_callback(np_obj);          \
-  np_obj->obj->ptr = np_obj;                  \
-  np_mem_refobj(TYPE##_e, np_obj->obj);       \
-  pthread_mutex_unlock(&(np_obj_pool->lock)); \
+#define np_new_obj(TYPE, np_obj)               \
+{                                              \
+  _LOCK_MODULE(np_memory_t) {                  \
+    np_obj = (TYPE*) malloc(sizeof(TYPE));     \
+    np_mem_newobj(TYPE##_e, &np_obj->obj);     \
+    np_obj->obj->new_callback = _##TYPE##_new; \
+    np_obj->obj->del_callback = _##TYPE##_del; \
+    np_obj->obj->new_callback(np_obj);         \
+    np_obj->obj->ptr = np_obj;                 \
+    np_mem_refobj(TYPE##_e, np_obj->obj);      \
+  }                                            \
 }
 
 
-//printf("np_free_obj : %20s:%d", __func__, __LINE__); \
-//fflush(stdout); \
-//printf(" %p", np_obj); \
-//fflush(stdout); \
-//printf(" obj:%p %d %d", np_obj->obj, np_obj->obj->ref_count, np_obj->obj->type); \
-//fflush(stdout); \
-//printf(" %p \n", np_obj->obj->ptr); \
-//fflush(stdout);
-
-
-#define np_free_obj(TYPE, np_obj)             \
-{                                             \
-  pthread_mutex_lock(&(np_obj_pool->lock));   \
-  np_mem_unrefobj(TYPE##_e, np_obj->obj);     \
-  if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->ptr == np_obj) { \
-    if (np_obj->obj->type != np_none_t_e)     \
-    {                                         \
-      np_obj->obj->del_callback(np_obj);      \
-	  np_mem_freeobj(TYPE##_e, &np_obj->obj); \
-	  np_obj->obj->ptr = NULL;                \
-	  np_obj->obj = NULL;                     \
-	  free(np_obj);                           \
-	  np_obj = NULL;                          \
-    }                                         \
-  }                                           \
-  pthread_mutex_unlock(&(np_obj_pool->lock)); \
+#define np_free_obj(TYPE, np_obj)               \
+{                                               \
+  _LOCK_MODULE(np_memory_t) {                   \
+    np_mem_unrefobj(TYPE##_e, np_obj->obj);     \
+    if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->ptr == np_obj) { \
+      if (np_obj->obj->type != np_none_t_e)     \
+      {                                         \
+        np_obj->obj->del_callback(np_obj);      \
+	    np_mem_freeobj(TYPE##_e, &np_obj->obj); \
+	    np_obj->obj->ptr = NULL;                \
+	    np_obj->obj = NULL;                     \
+	    free(np_obj);                           \
+	    np_obj = NULL;                          \
+      }                                         \
+    }                                           \
+  }                                             \
 }
 
 
