@@ -18,7 +18,7 @@ ifneq (,$(findstring FreeBSD, $(PLATFORM)))
 else ifneq (,$(findstring Darwin, $(PLATFORM)))
   override CFLAGS+=-Wno-deprecated
   override LDFLAGS+=-framework CoreServices -Wno-deprecated
-  override CLANG_SANITIZER+=-mmacosx-version-min=10.5
+#   override CLANG_SANITIZER+=-mmacosx-version-min=10.5
 else ifneq (,$(findstring CYGWIN, $(PLATFORM)))
   # -std=gnu++0x doesn't work, so work around...
   override CXXFLAGS+=-U__STRICT_ANSI__
