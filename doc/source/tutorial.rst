@@ -9,15 +9,34 @@ Setting up a controller
 ***********************
 .. include-comment:: ../../test/neuropil_controller.c
 
+topics you may be interested to look at now:
+
+* realms and identities
+* add more nodes to our neuropil network layer
+
 *********************
 Setting up a listener
 *********************
 .. include-comment:: ../../test/neuropil_receiver_cb.c
 
+topics you may be interested to look at now:
+
+* receive more than pure text data
+* change your interface from public to private
+* change your interface from single to group receiver (load-balancing or fault-tolerant)
+
 *******************
 Setting up a sender
 *******************
 .. include-comment:: ../../test/neuropil_sender.c
+
+topics you may be interested to look at now:
+
+* send more than pure text data
+* change your interface from public to private
+* add more callback hooks for timed out messages
+* use more than one sender
+
 
 ***************
 Setting details

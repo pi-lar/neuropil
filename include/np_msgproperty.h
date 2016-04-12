@@ -221,9 +221,10 @@ struct np_msgproperty_s
     RB_ENTRY(np_msgproperty_s) link; // link for cache management
 
     // link to node(s) which is/are interested in message exchange
-    np_key_t* partner_key;
+    np_dhkey_t partner_key;
 
     char*            msg_subject;
+    char*            msg_audience;
 	np_msg_mode_type mode_type;
 	np_msg_mep_type  mep_type;
 	np_msg_ack_type  ack_mode;
@@ -260,8 +261,9 @@ _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, ttl, double);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, retry, uint8_t);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, max_threshold, uint16_t);
 
-_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, partner_key, np_key_t*);
+_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, partner_key, np_dhkey_t);
 
+_NP_ENABLE_MODULE_LOCK(np_msgproperty_t);
 
 /**
 .. c:function:: void np_msgproperty_register(np_state_t *state, np_msgproperty_t* msgprops)
@@ -275,7 +277,7 @@ _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, partner_key, np_key_t*);
    :param state: the global neuropil :c:type:`np_state_t` structure
    :param msgprops: the np_msgproperty_t structure which should be registered
 */
-void np_msgproperty_register(np_state_t *state, np_msgproperty_t* msgprops);
+void np_msgproperty_register(np_msgproperty_t* msgprops);
 
 /**
 .. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
@@ -289,9 +291,10 @@ void np_msgproperty_register(np_state_t *state, np_msgproperty_t* msgprops);
    :param subject: the subject of the messages that are send
    :returns: np_msgproperty_t structure of NULL if none found
 */
-np_msgproperty_t* np_msgproperty_get(np_state_t *state, np_msg_mode_type msg_mode, const char* subject);
+np_msgproperty_t* np_msgproperty_get(np_msg_mode_type msg_mode, const char* subject);
 
 // TODO: how can this be moved to a list of constants
+// static char* DEFAULT = "_NP.DEFAULT";
 #define DEFAULT "_NP.DEFAULT"
 #define ROUTE_LOOKUP "_NP.ROUTE.LOOKUP"
 #define NP_MSG_ACK "_NP.ACK"
@@ -314,7 +317,7 @@ np_msgproperty_t* np_msgproperty_get(np_state_t *state, np_msg_mode_type msg_mod
  ** Initialize messaging subsystem on port and returns the MessageGlobal * which 
  ** contains global state of message subsystem.
  **/
-void _np_msgproperty_init (np_state_t* state);
+np_bool _np_msgproperty_init ();
 
 /**
  ** compare two msg properties for rb cache management

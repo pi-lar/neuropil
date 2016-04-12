@@ -12,8 +12,10 @@ modified for neuropil specific extensions, copyright 2015 pi-lar GmbH
 #define	_NP_JTREE_H_
 
 #include "include.h"
+
+#include "jval.h"
 #include "tree.h"
-#include "np_key.h"
+
 
 #ifdef __cplusplus
 extern "C" {

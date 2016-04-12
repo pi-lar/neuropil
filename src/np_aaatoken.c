@@ -13,7 +13,7 @@
 #include "log.h"
 #include "neuropil.h"
 #include "np_jtree.h"
-#include "np_key.h"
+#include "np_keycache.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_threads.h"
@@ -37,7 +37,7 @@ void _np_aaatoken_t_new(void* token)
     // TODO: make it configurable or use random timeframe
     aaa_token->expiration = aaa_token->issued_at + 86400;
     aaa_token->extensions = make_jtree();
-	aaa_token->valid = FALSE;
+    aaa_token->state |= AAA_INVALID;
 
     // uuid_generate(aaa_token->uuid);
 }
@@ -92,11 +92,7 @@ void np_decode_aaatoken(np_jtree_t* data, np_aaatoken_t* token)
 
 np_bool token_is_valid(np_aaatoken_t* token)
 {
-	log_msg(LOG_TRACE, ".start.token_is_valid");
-
-	uint16_t token_max_threshold = jrb_find_str(token->extensions, "max_threshold")->val.value.ui;
-	uint16_t token_msg_threshold = jrb_find_str(token->extensions, "msg_threshold")->val.value.ui;
-	double now = ev_time();
+	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start.token_is_valid");
 
 	// verify inserted signature first
 	char* signature = jrb_find_str(token->extensions, NP_HS_SIGNATURE)->val.value.bin;
@@ -121,25 +117,61 @@ np_bool token_is_valid(np_aaatoken_t* token)
 	int16_t ret = crypto_sign_verify_detached((unsigned char*) signature, hash, crypto_generichash_BYTES, token->public_key);
 	if (ret < 0)
 	{
-		log_msg(LOG_WARN, "checksum verification for msgtoken failed");
-		log_msg(LOG_TRACE, ".end  .token_is_valid");
+		log_msg(LOG_WARN, "checksum verification for token failed");
+		log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 		return FALSE;
 	}
 
-	// TODO: move this to boolean math and just add(&) TRUE/FALSE values
-	// if (now < token->not_before) return 0;
+	// check timestamp
+	double now = ev_time();
 	if (now > token->expiration) return FALSE;
 
-	if (0                   <=  token_msg_threshold &&
-		token_msg_threshold <   token_max_threshold)
-		return TRUE;
+	// TODO: only if this is a message token
+	if (jrb_find_str(token->extensions, "max_threshold") &&
+		jrb_find_str(token->extensions, "msg_threshold"))
+	{
+		uint16_t token_max_threshold = jrb_find_str(token->extensions, "max_threshold")->val.value.ui;
+		uint16_t token_msg_threshold = jrb_find_str(token->extensions, "msg_threshold")->val.value.ui;
 
-	return FALSE;
+		if (0                   <=  token_msg_threshold &&
+			token_msg_threshold <   token_max_threshold)
+		{
+			return TRUE;
+		}
+		else
+		{
+			return FALSE;
+		}
+	}
+
+	return TRUE;
 }
 
 static int8_t _token_cmp (np_aaatoken_ptr first, np_aaatoken_ptr second)
 {
-	return 0;
+	int8_t ret_check = 0;
+
+	if (first == second) return 0;
+
+	ret_check = strncmp(first->issuer, second->issuer, strlen(first->issuer));
+	if (0 != ret_check )
+	{
+		return ret_check;
+	}
+
+	ret_check = strncmp(first->subject, second->subject, (strlen(first->subject)));
+	if (0 != ret_check )
+	{
+		return ret_check;
+	}
+
+	ret_check = strncmp(first->realm, second->realm, strlen(first->issuer));
+	if (0 != ret_check )
+	{
+		return ret_check;
+	}
+
+	return 1;
 }
 
 static void _create_token_ledger(np_state_t* state, np_key_t* subject_key, char* subject)
@@ -152,18 +184,17 @@ static void _create_token_ledger(np_state_t* state, np_key_t* subject_key, char*
 	if (NULL == subject_key->send_tokens)
 		pll_init(np_aaatoken_ptr, subject_key->send_tokens, _token_cmp);
 
-	prop = np_msgproperty_get(state, OUTBOUND, subject);
+	prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == subject_key->send_property && NULL != prop)
 	{
 		subject_key->send_property = prop;
 		np_ref_obj(np_msgproperty_t, subject_key->send_property);
 	}
-
 	if (NULL == subject_key->send_property)
 		np_new_obj(np_msgproperty_t, subject_key->send_property);
 
-	prop = np_msgproperty_get(state, INBOUND, subject);
-	if (NULL == subject_key->send_property && NULL != prop)
+	prop = np_msgproperty_get(INBOUND, subject);
+	if (NULL == subject_key->recv_property && NULL != prop)
 	{
 		subject_key->recv_property = prop;
 		np_ref_obj(np_msgproperty_t, subject_key->recv_property);
@@ -176,55 +207,37 @@ static void _create_token_ledger(np_state_t* state, np_key_t* subject_key, char*
 // update internal structure and return a interest if a matching pair has been found
 void _np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 {
-	log_msg(LOG_TRACE, ".start.np_add_sender_token");
+	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start.np_add_sender_token");
 
 	np_key_t* subject_key = NULL;
-	np_key_t* search_key = key_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
 
-	LOCK_CACHE(state)
+	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
-		if (NULL == subject_key)
-		{
-			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-			subject_key = search_key;
-			np_ref_obj(np_key_t, subject_key);
-	    }
-		else
-		{
-	    	np_free_obj(np_key_t, search_key);
-	    }
+		subject_key = _np_key_find_create(search_key);
 		_create_token_ledger(state, subject_key, subject);
 	}
 
 	// should never happen
 	if (NULL == subject_key) return;
 
-	log_msg(LOG_DEBUG, "update in global sender msg token structures ..." );
+	log_msg(LOG_AAATOKEN | LOG_DEBUG, "update in global sender msg token structures ..." );
 
 	LOCK_CACHE(subject_key->send_property)
 	{
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->send_tokens);
 		while (NULL != iter)
 		{
+			log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking sender msg tokens %p/%p", iter, iter->val);
 			np_aaatoken_t* tmp_token = iter->val;
+			pll_next(iter);
 
 			if (FALSE == token_is_valid(tmp_token) &&
 				0 == strncmp(token->issuer, tmp_token->issuer, strlen(token->issuer)) )
 			{
-				log_msg(LOG_DEBUG, "deleting old / invalid sender msg tokens");
-
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid sender msg tokens %p", tmp_token);
+				pll_remove(np_aaatoken_ptr, subject_key->send_tokens, tmp_token);
 				np_unref_obj(np_aaatoken_t, tmp_token);
-				// np_free_obj(np_aaatoken_t, tmp_token);
-
-				pll_iterator(np_aaatoken_ptr) tbr = iter;
-				pll_next(iter);
-				pll_remove(np_aaatoken_ptr, subject_key->send_tokens, tbr->val);
-
-			}
-			else
-			{
-				pll_next(iter);
 			}
 		}
 	}
@@ -255,20 +268,20 @@ void _np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token
 				}
 				pll_insert(np_aaatoken_ptr, subject_key->send_tokens, token, FALSE);
 				np_ref_obj(np_aaatoken_t, token);
-				log_msg(LOG_DEBUG, "added new single sender token for message hash %s", key_get_as_string(subject_key) );
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s", _key_as_str(subject_key) );
 				break;
 
 			case GROUP_SENDER:
 				pll_insert(np_aaatoken_ptr, subject_key->send_tokens, token, TRUE);
 				np_ref_obj(np_aaatoken_t, token);
-				log_msg(LOG_DEBUG, "added new group sender token for message hash %s", key_get_as_string(subject_key) );
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "added new group sender token for message hash %s", _key_as_str(subject_key) );
 				break;
 
 			case ANY_SENDER:
 				// TODO check whether token has been really added
 				pll_insert(np_aaatoken_ptr, subject_key->send_tokens, token, TRUE);
 				np_ref_obj(np_aaatoken_t, token);
-				log_msg(LOG_DEBUG, "added new any sender token for message hash %s", key_get_as_string(subject_key) );
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "added new any sender token for message hash %s", _key_as_str(subject_key) );
 				break;
 
 			default:
@@ -276,7 +289,7 @@ void _np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token
 			}
 		}
 	}
-	log_msg(LOG_TRACE, ".end  .np_add_sender_token");
+	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_sender_token");
 }
 
 /** np_get_sender_token
@@ -287,22 +300,12 @@ void _np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token
 sll_return(np_aaatoken_t) _np_get_sender_token_all(np_state_t *state, char* subject)
 {
 	np_key_t* subject_key = NULL;
-	np_key_t* search_key = key_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
 
-	LOCK_CACHE(state)
+	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
-		if (NULL == subject_key)
-		{
-			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-			subject_key = search_key;
-			np_ref_obj(np_key_t, subject_key);
-	    }
-		else
-		{
-	    	np_free_obj(np_key_t, search_key);
-	    }
-		// look up target structures or create them
+		subject_key = _np_key_find_create(search_key);
+	    // look up target structures or create them
 		_create_token_ledger(state, subject_key, subject);
 	}
 
@@ -324,11 +327,11 @@ sll_return(np_aaatoken_t) _np_get_sender_token_all(np_state_t *state, char* subj
 			if (FALSE == token_is_valid(tmp))
 			{
 				np_unref_obj(np_aaatoken_t, tmp);
-				log_msg(LOG_DEBUG, "ignoring invalid sender token for issuer %s", tmp->issuer);
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid sender token for issuer %s", tmp->issuer);
 				continue;
 			}
 
-			log_msg(LOG_DEBUG, "found valid sender token (%s)", tmp->issuer );
+			log_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", tmp->issuer );
 
 			// only pick key from a list if the subject msg_treshold is bigger than zero
 			// and the sending threshold is bigger than zero as well
@@ -344,22 +347,12 @@ sll_return(np_aaatoken_t) _np_get_sender_token_all(np_state_t *state, char* subj
 np_aaatoken_t* _np_get_sender_token(np_state_t *state, char* subject, char* sender)
 {
 	np_key_t* subject_key = NULL;
-	np_key_t* search_key = key_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
 
-	LOCK_CACHE(state)
+	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
-		if (NULL == subject_key)
-		{
-			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-			subject_key = search_key;
-			np_ref_obj(np_key_t, subject_key);
-	    }
-		else
-	    {
-	    	np_free_obj(np_key_t, search_key);
-	    }
-		// look up target structures or create them
+		subject_key = _np_key_find_create(search_key);
+	    // look up target structures or create them
 		_create_token_ledger(state, subject_key, subject);
 	}
 
@@ -383,7 +376,7 @@ np_aaatoken_t* _np_get_sender_token(np_state_t *state, char* subject, char* send
 			if (FALSE == token_is_valid(return_token))
 			{
 				// TODO: ? delete invalid tokens, this is a different behaviour from node to node
-				log_msg(LOG_DEBUG, "ignoring invalid sender token for issuer %s", return_token->issuer);
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid sender token for issuer %s", return_token->issuer);
 				pll_next(iter);
 				return_token = NULL;
 				continue;
@@ -393,7 +386,7 @@ np_aaatoken_t* _np_get_sender_token(np_state_t *state, char* subject, char* send
 			// and we actually have the correct sender node in the list
 			if (0 != strncmp(return_token->issuer, sender, 64))
 			{
-				log_msg(LOG_DEBUG, "ignoring sender token for issuer %s / send_hk: %s",
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring sender token for issuer %s / send_hk: %s",
 						return_token->issuer, sender);
 				pll_next(iter);
 				return_token = NULL;
@@ -403,7 +396,7 @@ np_aaatoken_t* _np_get_sender_token(np_state_t *state, char* subject, char* send
 			jrb_find_str(return_token->extensions, "msg_threshold")->val.value.ui--;
 
 			found_return_token = TRUE;
-			log_msg(LOG_DEBUG, "found valid sender token (%s)", return_token->issuer);
+			log_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", return_token->issuer);
 		}
 	}
 	return return_token;
@@ -412,31 +405,21 @@ np_aaatoken_t* _np_get_sender_token(np_state_t *state, char* subject, char* send
 // update internal structure and clean invalid tokens
 void _np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *token)
 {
-	log_msg(LOG_TRACE, ".start.np_add_receiver_token");
+	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start.np_add_receiver_token");
 
 	np_key_t* subject_key = NULL;
-	np_key_t* search_key = key_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
 
-	LOCK_CACHE(state)
+	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
-		if (NULL == subject_key)
-		{
-			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-			subject_key = search_key;
-			np_ref_obj(np_key_t, subject_key);
-	    }
-		else
-		{
-	    	np_free_obj(np_key_t, search_key);
-	    }
-		_create_token_ledger(state, subject_key, subject);
+		subject_key = _np_key_find_create(search_key);
+	    _create_token_ledger(state, subject_key, subject);
 	}
 
 	// should never happen
 	if (NULL == subject_key) return;
 
-	log_msg(LOG_DEBUG, "update on global receiving msg token structures ... %p", subject_key->recv_property);
+	log_msg(LOG_AAATOKEN | LOG_DEBUG, "update on global receiving msg token structures ... %p", subject_key->recv_property);
 
 	LOCK_CACHE(subject_key->recv_property)
 	{
@@ -445,26 +428,22 @@ void _np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *tok
 		while (NULL != iter)
 		{
 			np_aaatoken_t* tmp_token = iter->val;
+			log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
+
+			pll_next(iter);
 
 			if (FALSE == token_is_valid(tmp_token) &&
 				0 == strncmp(token->issuer, tmp_token->issuer, strlen(token->issuer)) )
 			{
-				log_msg(LOG_DEBUG, "deleting old / invalid receiver msg tokens");
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid receiver msg tokens %p", tmp_token);
+				pll_remove(np_aaatoken_ptr, subject_key->recv_tokens, tmp_token);
 				np_unref_obj(np_aaatoken_t, tmp_token);
-				// np_free_obj(np_aaatoken_t, tmp_token);
-
-				pll_iterator(np_aaatoken_ptr) tbr = iter;
-				pll_next(iter);
-				pll_remove(np_aaatoken_ptr, subject_key->recv_tokens, tbr->val);
-			}
-			else
-			{
-				pll_next(iter);
 			}
 		}
 	}
 
-	LOCK_CACHE(subject_key->recv_property) {
+	LOCK_CACHE(subject_key->recv_property)
+	{
 		// update #2 subject specific data
 		subject_key->recv_property->mep_type = jrb_find_str(token->extensions, "mep_type")->val.value.ush;
 		subject_key->recv_property->ack_mode = jrb_find_str(token->extensions, "ack_mode")->val.value.ush;
@@ -488,44 +467,34 @@ void _np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *tok
 				}
 				pll_insert(np_aaatoken_ptr, subject_key->recv_tokens, token, FALSE);
 				np_ref_obj(np_aaatoken_t, token);
-				log_msg(LOG_DEBUG, "added new single receiver token for message hash %s", key_get_as_string(subject_key) );
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single receiver token %p for message hash %s", token, _key_as_str(subject_key) );
 				break;
 			case GROUP_RECEIVER:
 				pll_insert(np_aaatoken_ptr, subject_key->recv_tokens, token, TRUE);
 				np_ref_obj(np_aaatoken_t, token);
-				log_msg(LOG_DEBUG, "added new group receiver token for message hash %s", key_get_as_string(subject_key) );
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "added new group receiver token %p for message hash %s", token, _key_as_str(subject_key) );
 				break;
 			case ANY_RECEIVER:
 				pll_insert(np_aaatoken_ptr, subject_key->recv_tokens, token, TRUE);
 				np_ref_obj(np_aaatoken_t, token);
-				log_msg(LOG_DEBUG, "added new any receiver token for message hash %s", key_get_as_string(subject_key) );
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "added new any receiver token %p for message hash %s", token, _key_as_str(subject_key) );
 				break;
 			default:
 				break;
 			}
 		}
 	}
-	log_msg(LOG_TRACE, ".end  .np_add_receiver_token");
+	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_receiver_token");
 }
 
 np_aaatoken_t* _np_get_receiver_token(np_state_t *state, char* subject)
 {
 	np_key_t* subject_key = NULL;
-	np_key_t* search_key = key_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
 
-	LOCK_CACHE(state)
+	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
-		if (NULL == subject_key)
-		{
-			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-			subject_key = search_key;
-			np_ref_obj(np_key_t, subject_key);
-	    }
-		else
-		{
-	    	np_free_obj(np_key_t, search_key);
-	    }
+		subject_key = _np_key_find_create(search_key);
 		_create_token_ledger(state, subject_key, subject);
 	}
 
@@ -542,15 +511,16 @@ np_aaatoken_t* _np_get_receiver_token(np_state_t *state, char* subject)
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
 		while (NULL != iter)
 		{
+			log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
 			return_token = iter->val;
 			if (FALSE == token_is_valid(return_token))
 			{
-				log_msg(LOG_DEBUG, "ignoring invalid receiver msg tokens" );
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid receiver msg tokens %p", return_token );
 				pll_next(iter);
 				return_token = NULL;
 				continue;
 			}
-			log_msg(LOG_DEBUG,
+			log_msg(LOG_AAATOKEN | LOG_DEBUG,
 					"found valid receiver token (%s)", return_token->issuer );
 
 			// only pick key from a list if the subject msg_treshold is bigger than zero
@@ -569,21 +539,11 @@ np_aaatoken_t* _np_get_receiver_token(np_state_t *state, char* subject)
 sll_return(np_aaatoken_t) _np_get_receiver_token_all(np_state_t *state, char* subject) {
 
 	np_key_t* subject_key = NULL;
-	np_key_t* search_key = key_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
 
-	LOCK_CACHE(state)
+	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
-		if (NULL == subject_key)
-		{
-			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-			subject_key = search_key;
-			np_ref_obj(np_key_t, subject_key);
-	    }
-		else
-		{
-	    	np_free_obj(np_key_t, search_key);
-	    }
+		subject_key = _np_key_find_create(search_key);
 		_create_token_ledger(state, subject_key, subject);
 	}
 
@@ -605,12 +565,12 @@ sll_return(np_aaatoken_t) _np_get_receiver_token_all(np_state_t *state, char* su
 		{
 			if (FALSE == token_is_valid(tmp))
 			{
-				log_msg(LOG_DEBUG, "deleting invalid receiver msg tokens" );
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting invalid receiver msg tokens" );
 				np_unref_obj(np_aaatoken_t, tmp);
 				continue;
 			}
 
-			log_msg(LOG_DEBUG,
+			log_msg(LOG_AAATOKEN | LOG_DEBUG,
 					"found valid receiver token (%s)", tmp->issuer );
 
 			// only pick key from a list if the subject msg_treshold is bigger than zero

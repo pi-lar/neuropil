@@ -38,9 +38,10 @@ Roadmap
 *******
 
 * more documentation
-* implement TCP message exchange
-* implement TCP passive layer for nodes running behind a firewall
+* test TCP message exchange
+* test TCP passive layer for nodes running behind a firewall
 * finalize message exchange pattern definitions (currently one-to-one only)
+* more test cases
 * define message callbacks in case of undelivered messages
 * hook in a javascript / lua engine for message callback handling
 * ... and many many many more ideas ...

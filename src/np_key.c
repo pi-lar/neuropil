@@ -11,88 +11,60 @@
 
 #include "sodium.h"
 
-#include "log.h"
 #include "np_key.h"
+
+#include "log.h"
 #include "np_jtree.h"
 
+static np_dhkey_t __dhkey_min;
+static np_dhkey_t __dhkey_half;
+static np_dhkey_t __dhkey_max;
 
-_NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
-
-void _np_key_t_new(void* key)
+void _dhkey_to_str (const np_dhkey_t* k, char* key_string)
 {
-	np_key_t* new_key = (np_key_t*) key;
-
-	new_key->t[0] = new_key->t[1] = new_key->t[2] = new_key->t[3] = 0;
-	memset(new_key->keystr, 0, 64);
-    new_key->valid = FALSE;		  // indicates if the keystr is most up to date with value in t
-
-    new_key->node = NULL;		  // link to a neuropil node if this key represents a node
-    new_key->network = NULL;      // link to a neuropil node if this key represents a node
-
-    new_key->authentication = NULL; // link to node if this key has an authentication token
-    new_key->authorisation = NULL;  // link to node if this key has an authorisation token
-    new_key->accounting = NULL;     // link to node if this key has an accounting token
-
-    // used internally only
-    new_key->recv_property = NULL;
-    new_key->send_property = NULL;
-    new_key->send_tokens = NULL; // link to runtime interest data on which this node is interested in
-    new_key->recv_tokens = NULL; // link to runtime interest data on which this node is interested in
-}
-
-void _np_key_t_del(void* key)
-{
-	// empty
-}
-
-void key_to_str (np_key_t* k)
-{
-    k->valid = FALSE;
+    // k->valid = FALSE;
 
     // log_msg(LOG_KEY | LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
 	// log_msg(LOG_KEY | LOG_WARN, "key %16lx%16lx%16lx%16lx", k->t[0], k->t[1], k->t[2], k->t[3]);
+
     // TODO: use sodium bin2hex function
-	memset  (k->keystr, 0, 64);
-	sprintf ((char*) k->keystr, "%016llx%016llx%016llx%016llx", k->t[0], k->t[1], k->t[2], k->t[3]);
-	k->keystr[64] = '\0';
-	k->valid = TRUE;
+	memset  (key_string, 0, 64);
+	sprintf ((char*) key_string, "%016llx%016llx%016llx%016llx", k->t[0], k->t[1], k->t[2], k->t[3]);
+	key_string[64] = '\0';
+	// k->valid = TRUE;
     // log_msg (LOG_KEY | LOG_DEBUG, "key string now: %s", k->keystr);
 }
 
-void str_to_key (np_key_t* k, const char* key_string)
+void _str_to_dhkey (const char* key_string, np_dhkey_t* k)
 {
 	// TODO: this is dangerous, encoding could be different between systems,
-	// encoding has to be send over teh wire to be sure ...
+	// encoding has to be send over the wire to be sure ...
 	// for now: all tests on the same system
-    k->valid = FALSE;
+    // assert (64 == strlen((char*) key_string));
 
-    memset (k->keystr, 0, 64);
-    memcpy (k->keystr, key_string, 64);
-    k->keystr[64] = '\0';
+    // memset (k->keystr, 0, 64);
+    // memcpy (k->keystr, key_string, 64);
+    // k->keystr[64] = '\0';
 
     for (uint8_t i = 0; i < 4; i++)
     {
     	char substring[17];
-    	memcpy(substring, k->keystr + i*16, 16);
+    	memcpy(substring, key_string + i*16, 16);
     	substring[16] = '\0';
     	k->t[i] = strtoull((const char*) substring, NULL, 16);
         // log_msg(LOG_KEY | LOG_DEBUG, "keystr substring to ul: %s -> %ul ", substring, k->t[i]);
     }
-    // log_msg(LOG_KEY | LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
+    log_msg(LOG_KEY | LOG_DEBUG, "key %016llx %016llx %016llx %016llx", k->t[0], k->t[1], k->t[2], k->t[3]);
 
-    k->valid = TRUE;
+    // k->valid = TRUE;
 }
 
-char* _key_generate_hash (const unsigned char* key_in, size_t digest_size, char* digest_out)
+char* _dhkey_generate_hash (const char* key_in)
 {
     unsigned char md_value[32]; //  = (unsigned char *) malloc (32);
-    // uint8_t i;
-    // char digit[10];
-    // char *tmp;
 
     // TODO: move it to KECCAK because of possible length extension attack ???
-    // TODO: move to SHA-2 at least ?
-    crypto_hash_sha256(md_value, key_in, digest_size);
+    crypto_hash_sha256(md_value, (unsigned char*) key_in, strlen(key_in));
 
     // log_msg (LOG_KEYDEBUG, "md value (%s) now: [%s]", key_in, md_value);
     // long form - could be used to add addiitonal configuration parameter
@@ -101,43 +73,35 @@ char* _key_generate_hash (const unsigned char* key_in, size_t digest_size, char*
     //    crypto_hash_sha256_update(&state, key_in, sizeof(key_in));
     //    crypto_hash_sha256_final(&state, tmp);
     //    log_msg (LOG_KEYDEBUG, "md value (%s) now: [%s]", key_in, tmp);
-    digest_out = (char *) malloc (65);
+    char* digest_out = (char *) malloc (65);
 	sodium_bin2hex(digest_out, 65, md_value, 32);
-
-	// digest = strndup(md_value, 64);
-    // printf("key.c:sha1_keygen digest %s\n", digest);
-
-//    tmp = digest_out;
-//    *tmp = '\0';
-//    for (i = 0; i < 32; i++)
-//	{
-//    	convert_base16 (md_value[i], digit);
-//    	// memcpy(tmp, digit, sizeof(digit));
-//	    strncat ((char*)tmp, digit);
-//	    tmp = tmp + strlen (digit);
-//	}
-//    digest_out[64] = '\0';
 
     return digest_out;
 }
 
-np_key_t* key_create_from_hostport(const char* strOrig, char* port)
+np_dhkey_t dhkey_create_from_hostport(const char* strOrig, char* port)
 {
 	char name[256];
 	snprintf (name, 255, "%s:%s", strOrig, port);
-	char* digest = NULL;
 
-	digest = _key_generate_hash ((unsigned char*) name, strlen(name), digest);
-	// log_msg (LOG_KEY | LOG_DEBUG, "digest calculation returned HASH: %s", digest);
+	char* digest = _dhkey_generate_hash (name);
+	log_msg (LOG_KEY | LOG_DEBUG, "digest calculation returned HASH: %s", digest);
 
-    np_key_t* tmp = key_create_from_hash(digest);
-	// log_msg (LOG_KEY | LOG_DEBUG, "HASH(%s) = [%s]", name, key_get_as_string(tmp));
+    np_dhkey_t tmp = dhkey_create_from_hash(digest);
+	log_msg (LOG_KEY | LOG_DEBUG, "HASH(%s) = [key %016llx %016llx %016llx %016llx]", name, tmp.t[0], tmp.t[1], tmp.t[2], tmp.t[3]);
 
 	free (digest);
 	return tmp;
 }
 
-void np_encode_key(np_jtree_t* jrb, np_key_t* key)
+np_dhkey_t dhkey_create_from_hash(const char* strOrig)
+{
+    np_dhkey_t kResult;
+    _str_to_dhkey(strOrig, &kResult);
+    return kResult;
+}
+
+void _np_encode_dhkey(np_jtree_t* jrb, np_dhkey_t* key)
 {
     // log_msg(LOG_KEY | LOG_WARN, "encoding key %0lu %0lu %0lu %0lu", key->t[0], key->t[1], key->t[2], key->t[3]);
 
@@ -147,49 +111,31 @@ void np_encode_key(np_jtree_t* jrb, np_key_t* key)
 	jrb_insert_str(jrb, "_np.key.3", new_jval_ull(key->t[3]));
 }
 
-void np_decode_key(np_jtree_t* jrb, np_key_t* key)
+void _np_decode_dhkey(np_jtree_t* jrb, np_dhkey_t* key)
 {
 	key->t[0] = jrb_find_str(jrb, "_np.key.0")->val.value.ull;
 	key->t[1] = jrb_find_str(jrb, "_np.key.1")->val.value.ull;
 	key->t[2] = jrb_find_str(jrb, "_np.key.2")->val.value.ull;
 	key->t[3] = jrb_find_str(jrb, "_np.key.3")->val.value.ull;
-
-    // log_msg(LOG_KEY | LOG_WARN, "decoded key %0lu %0lu %0lu %0lu", key->t[0], key->t[1], key->t[2], key->t[3]);
-
-	key->valid = FALSE;
 }
 
-np_key_t* key_create_from_hash(const char* strOrig)
-{
-    np_key_t* kResult = NULL;
-    np_new_obj(np_key_t, kResult);
-
-    str_to_key(kResult, strOrig);
-
-    kResult->valid = TRUE;
-
-    return kResult;
-}
-
-void key_assign (np_key_t* k1, const np_key_t* const k2)
+void _dhkey_assign (np_dhkey_t* k1, const np_dhkey_t* const k2)
 {
     for (uint8_t i = 0; i < 4; i++)
     	k1->t[i] = k2->t[i];
-
-    k1->valid = FALSE;
 }
 
-void key_assign_ui (np_key_t* k, uint64_t ul)
+void _dhkey_assign_ui (np_dhkey_t* k, uint64_t ul)
 {
 	log_msg (LOG_KEY | LOG_WARN, "!!! deprecated function called key_assign_ui");
     for (uint8_t i = 1; i < 3; i++)
     	k->t[i] = 0;
     k->t[3] = ul;
 
-    k->valid = FALSE;
+    // k->valid = FALSE;
 }
 
-np_bool key_equal (np_key_t* k1, np_key_t* k2)
+np_bool _dhkey_equal (np_dhkey_t* k1, np_dhkey_t* k2)
 {
     for (uint8_t i = 0; i < 4; i++)
     	if (k1->t[i] != k2->t[i])
@@ -197,7 +143,7 @@ np_bool key_equal (np_key_t* k1, np_key_t* k2)
     return TRUE;
 }
 
-np_bool key_equal_ui (np_key_t* k, uint64_t ul)
+np_bool _dhkey_equal_ui (np_dhkey_t* k, uint64_t ul)
 {
 	log_msg (LOG_KEY | LOG_WARN, "!!! deprecated function called key_equal_ui");
 
@@ -209,119 +155,129 @@ np_bool key_equal_ui (np_key_t* k, uint64_t ul)
     return TRUE;
 }
 
-int8_t key_comp (const np_key_t* k1, const np_key_t* k2)
+int8_t _dhkey_comp (const np_dhkey_t* k1, const np_dhkey_t* k2)
 {
 	if (k1 == NULL) return -1;
-	if (k2 == NULL) return 1;
-	if (k1 == k2) return 0;
+	if (k2 == NULL) return  1;
 
-	// log_msg(LOG_KEY | LOG_DEBUG, "k1 %p / k2 %p", k1, k2);
     for (uint8_t i = 0; i < 4; i++)
 	{
+    	log_msg(LOG_KEY | LOG_DEBUG, "k1 %llu / k2 %llu", k1->t[i], k2->t[i]);
 	    if 		(k1->t[i] > k2->t[i]) return (1);
 	    else if (k1->t[i] < k2->t[i]) return (-1);
 	}
     return (0);
 }
 
-void key_add (np_key_t* result, const np_key_t* const op1, const np_key_t* const op2)
+void _dhkey_add (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2)
 {
-    double tmp, a, b;
-    // a = b =
-    tmp = 0;
-
-    for (uint8_t i = 3; i-- != 0; )
+	log_msg (LOG_KEY | LOG_TRACE, ".start.key_add");
+	// we dont care about buffer overflow, since we are adding hashes
+	// since we are using uint64_t we always stay in valid data
+    for (uint8_t i = 4; 0 != i--; )
 	{
-	    a = op1->t[i];
-	    b = op2->t[i];
-
-	    tmp += a + b;
-
-	    if (tmp > ULONG_MAX) tmp = 1; // tmp - ULONG_MAX;
-	    else                 tmp = 0;
-
-	    result->t[i] = (uint64_t) tmp;
+	    result->t[i] = op1->t[i] + op2->t[i];
+    	log_msg(LOG_KEY | LOG_DEBUG, "op1[%llu] + op2[%llu] = r[%llu]", op1->t[i], op2->t[i], result->t[i]);
+	    // log_msg(LOG_KEY | LOG_DEBUG, "[%llu] + op2[%llu] = r[%llu] / %f", 9223372036854775807, 9223372036854775807, 9223372036854775807+9223372036854775807, tmp);
+	    // if (tmp > ULONG_MAX) tmp = 1; // tmp - ULONG_MAX;
+	    // else                 tmp = 0;
 	}
-    result->valid = FALSE;
+	log_msg (LOG_KEY | LOG_TRACE, ".end  .key_add");
 }
 
-void key_sub (np_key_t* result, const np_key_t* const op1, const np_key_t* const op2)
+void _dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2)
 {
 	log_msg (LOG_KEY | LOG_TRACE, ".start.key_sub");
-    double tmp, a, b, carry;
-    np_key_t key_a, key_b, key_tmp;
-    np_bool swapped = 0;
+    // double tmp, a, b, carry;
+    // np_dhkey_t key_a, key_b, key_tmp;
+    // np_bool swapped = 0;
 
-    carry = 0;
+    // carry = 0;
 
-    key_assign(&key_a, op1);
-	key_assign(&key_b, op2);
+    // _dhkey_assign(&key_a, op1);
+    // _dhkey_assign(&key_b, op2);
 
-    if (key_comp (&key_a, &key_b) < 0)
+//    if (_dhkey_comp (&key_a, &key_b) < 0)
+//	{
+//    	// swap keys and do the calculation
+//    	_dhkey_assign(&key_tmp, &key_a);
+//    	_dhkey_assign(&key_a, &key_b);
+//    	_dhkey_assign(&key_b, &key_tmp);
+//    	// log_msg (LOG_KEY | LOG_DEBUG, "swapped input data (key_a < key_b");
+//    	swapped = TRUE;
+//	}
+
+    for (uint8_t i = 4; 0 != i--; )
 	{
-    	// swap keys and do the calculation
-    	key_assign(&key_tmp, &key_a);
-    	key_assign(&key_a, &key_b);
-    	key_assign(&key_b, &key_tmp);
-    	// log_msg (LOG_KEY | LOG_DEBUG, "swapped input data (key_a < key_b");
-    	swapped = TRUE;
+	    result->t[i] = op1->t[i] - op2->t[i];
+    	log_msg(LOG_KEY | LOG_DEBUG, "op1[%llu] - op2[%llu] = r[%llu]", op1->t[i], op2->t[i], result->t[i]);
+    	// if (key_a.t[i] > key_b.t[i])
+
+	    // a = key_a.t[i] - carry;
+	    // b = key_b.t[i];
+
+	    // if (b <= a)
+		// {
+		//     tmp = a - b;
+		//     carry = 0;
+		// }
+	    // else
+		// {
+		//    a = a + ULONG_MAX + 1;
+		//    tmp = a - b;
+		//     carry = 1;
+		// }
+	    // result->t[i] = (uint64_t) tmp;
 	}
 
-    for (uint8_t i = 3; i-- != 0; )
-	{
-	    a = key_a.t[i] - carry;
-	    b = key_b.t[i];
+//    if (TRUE == swapped) {
+//    	_dhkey_assign(&key_tmp, result);
+//    	_dhkey_sub(result, &__dhkey_max, &key_tmp);
+//    }
 
-	    if (b <= a)
-		{
-		    tmp = a - b;
-		    carry = 0;
-		}
-	    else
-		{
-		    a = a + ULONG_MAX + 1;
-		    tmp = a - b;
-		    carry = 1;
-		}
-	    result->t[i] = (uint64_t) tmp;
-	}
-
-    if (TRUE == swapped) {
-    	key_assign(&key_tmp, result);
-    	key_sub(result, &Key_Max, &key_tmp);
-    }
-
-    result->valid = FALSE;
+    // result->valid = FALSE;
 
     log_msg (LOG_KEY | LOG_TRACE, ".end  .key_sub");
 }
 
-
-void key_init ()
+void _dhkey_init ()
 {
     for (uint8_t i = 0; i < 4; i++)
 	{
-        Key_Max.t[i] = ULONG_MAX;
-        Key_Half.t[i] = ULONG_MAX;
+    	__dhkey_max.t[i]  = ULONG_MAX;
+    	__dhkey_half.t[i] = (__dhkey_max.t[i] >> 1) + 1;
+    	__dhkey_min.t[1]  = 0;
+    	log_msg(LOG_KEY | LOG_DEBUG,
+    			"dhkey_max[%d] %llu / dhkey_half[%d] %llu / dhkey_half[%d] %llu",
+				i, __dhkey_max.t[i],
+				i, __dhkey_half.t[i],
+				i, __dhkey_min.t[i]
+		);
 	}
-    Key_Half.t[0] = Key_Half.t[0] / 2;
 
-    key_to_str (&Key_Max);
-    key_to_str (&Key_Half);
+    // __dhkey_half.t[0] = __dhkey_half.t[0] >> 1; //  __dhkey_max.t[0] / 2;
+	// log_msg(LOG_KEY | LOG_DEBUG, "dhkey_half[0] %llu", __dhkey_half.t[0]);
 }
 
-void key_distance (np_key_t* diff, const np_key_t* const k1, const np_key_t* const k2)
+np_dhkey_t dhkey_min()  { return __dhkey_min;  };
+np_dhkey_t dhkey_half() { return __dhkey_half; };
+np_dhkey_t dhkey_max()  { return __dhkey_max;  };
+
+void _dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 {
-    key_sub (diff, k1, k2);
-    diff->valid = FALSE;
+    log_msg (LOG_KEY | LOG_TRACE, ".start._dhkey_distance");
+    _dhkey_sub (diff, k1, k2);
+    log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_distance");
 }
 
 
-np_bool key_between (const np_key_t* const test, const np_key_t* const left, const np_key_t* const right)
+np_bool _dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right)
 {
-    int8_t complr = key_comp (left, right);
-    int8_t complt = key_comp (left, test);
-    int8_t comptr = key_comp (test, right);
+    log_msg (LOG_KEY | LOG_TRACE, ".start._dhkey_between");
+
+    int8_t complr = _dhkey_comp (left, right);
+    int8_t complt = _dhkey_comp (left, test);
+    int8_t comptr = _dhkey_comp (test, right);
 
     /* it's on one of the edges */
     if (complt == 0 || comptr == 0) return (TRUE);
@@ -339,182 +295,80 @@ np_bool key_between (const np_key_t* const test, const np_key_t* const left, con
 	{
 	    if (complt < 0 || comptr < 0) return (TRUE);
 	    return (FALSE);
-
 	}
+    log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_between");
 }
 
-// Return the string representation of key
-// This function should be used instead of directly accessing the keystr field
-unsigned char* key_get_as_string (np_key_t* key)
+void _dhkey_midpoint (np_dhkey_t* mid, const np_dhkey_t* key)
 {
-    if (FALSE == key->valid)
-	{
-	    key_to_str (key);
-	}
-    return key->keystr;
+    log_msg (LOG_KEY | LOG_TRACE, ".start._dhkey_midpoint");
+    if   (_dhkey_comp (key, &__dhkey_half) < 0) _dhkey_add (mid, key, &__dhkey_half);
+    else  	                                    _dhkey_sub (mid, key, &__dhkey_half);
+    // mid->valid = FALSE;
+    log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_midpoint");
 }
 
-void key_midpoint (np_key_t* mid, np_key_t* key)
+
+uint16_t _dhkey_index (const np_dhkey_t* mykey, const np_dhkey_t* otherkey)
 {
+    log_msg (LOG_KEY | LOG_TRACE, ".start._dhkey_index");
+	uint16_t i = 0, max_len = 64;
 
-    if   (key_comp (key, &Key_Half) < 0) key_add (mid, key, &Key_Half);
-    else  	                             key_sub (mid, key, &Key_Half);
-    mid->valid = FALSE;
-}
-
-uint16_t key_index (np_key_t* mykey, np_key_t* k)
-{
-	uint16_t i, max_len = 64;
-    unsigned char mystr[65];
-    unsigned char kstr[65];
-    memcpy (mystr, key_get_as_string (mykey), 64);
-    memcpy (kstr, key_get_as_string (k), 64);
-
-    for (i = 0; (mystr[i] == kstr[i]) && (i < max_len); i++);
+    for (uint8_t k = 0; k < 4; ++k)
+    {
+    	uint64_t bit_mask = 0xf000000000000000;
+    	for (uint8_t j = 0; j < 16; ++j)
+    	{
+    		uint64_t t1 = mykey->t[k]    & bit_mask;
+    		uint64_t t2 = otherkey->t[k] & bit_mask;
+    	    log_msg (LOG_KEY | LOG_DEBUG, "key_index: %d me: %016llx other: %016llx mask: %016llx", i, t1, t2, bit_mask);
+    		if (t1 != t2)
+    		{
+    		    log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_index");
+    		    return i;
+    		}
+    		else
+    		{
+    			bit_mask = bit_mask >> 4;
+    		}
+    		i++;
+    	}
+    }
 
     if (i == max_len) i = max_len - 1;
-
-    // log_msg (LOG_KEY | LOG_DEBUG, "key_index:%d me:%s lookup_key:%s", i, mykey->keystr, k->keystr);
-    return (i);
+    log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_index");
+    return i;
 }
 
-/** find_closest_key:
- ** finds the closest node in the array of #hosts# to #key# and put that in min.
- */
-np_key_t* find_closest_key ( np_sll_t(np_key_t, list_of_keys), np_key_t* key)
+uint8_t _dhkey_hexalpha_at (const np_dhkey_t* key, const int8_t c)
 {
-    // int i;
-    np_key_t dif, mindif;
-    np_key_t *min;
+    log_msg (LOG_KEY | LOG_TRACE, ".start._dhkey_hexalpha_at");
+    uint8_t j = 1;
+    uint64_t answer = 0;
 
-    if (sll_size(list_of_keys) == 0)
-	{
-	    min = NULL;
-	    // return;
-	    // modified StSw 18.05.2014
-	    log_msg(LOG_KEY | LOG_ERROR, "minimum size for closest key calculation not met !");
-	    return min;
-	}
-    else
-	{
-	    min = sll_first(list_of_keys)->val;
-	    key_distance (&mindif, min, key);
-	}
+    uint8_t tuple      = (uint8_t) c / 16 ; // array index
+    uint8_t tuple_rest = c % 16;            // position in found array
 
-	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
-    while (NULL != (sll_next(iter)))
-	{
-    	key_distance (&dif, iter->val, key);
+    log_msg (LOG_KEY | LOG_DEBUG, "lookup_pos: %d -> key[%d]: %016llx mod %u", c, tuple, key->t[tuple], tuple_rest);
 
-    	if (key_comp (&dif, &mindif) < 0)
-    	{
-    		min = iter->val;
-    		key_assign (&mindif, &dif);
-		}
-	}
-    return (min);
-}
-
-/** sort_hosts:
- ** Sorts #hosts# based on common prefix match and key distance from #np_key_t*
- */
-void sort_keys_cpm (np_sll_t(np_key_t, node_keys), np_key_t* key)
-{
-    np_key_t dif1, dif2;
-
-    uint16_t pmatch1 = 0;
-    uint16_t pmatch2 = 0;
-
-    if (sll_size(node_keys) < 2) return;
-
-    np_key_t* tmp;
-    sll_iterator(np_key_t) iter1 = sll_first(node_keys);
-
-    do
+    uint64_t bit_mask = 0xf000000000000000;
+    for (; j < tuple_rest; ++j)
     {
-        sll_iterator(np_key_t) iter2 = sll_get_next(iter1);
+    	// shift bitmask to correct position
+    	bit_mask = bit_mask >> 4;
+    }
+    log_msg (LOG_KEY | LOG_DEBUG, "bitmask: %016llx", bit_mask);
+    // filter with bitmask
+    answer = key->t[tuple] & bit_mask;
+    log_msg (LOG_KEY | LOG_DEBUG, "bitmask & key->[%d]: %016llx", tuple, answer);
 
-        if (NULL == iter2) break;
+    for (; j < 16; ++j)
+    {
+    	// shift result to the end of the number
+    	answer = answer >> 4;
+    }
+    log_msg (LOG_KEY | LOG_DEBUG, "final answer: %d (%0x)", answer, answer);
 
-        do
-        {
-        	pmatch1 = key_index (key, iter1->val);
-			pmatch2 = key_index (key, iter2->val);
-			if (pmatch2 > pmatch1)
-			{
-				tmp = iter1->val;
-				iter1->val = iter2->val;
-				iter2->val = tmp;
-			}
-			else if (pmatch1 == pmatch2)
-			{
-			    key_distance (&dif1, iter1->val, key);
-			    key_distance (&dif2, iter2->val, key);
-			    if (key_comp (&dif2, &dif1) < 0)
-				{
-					tmp = iter1->val;
-					iter1->val = iter2->val;
-					iter2->val = tmp;
-				}
-			}
-		} while (NULL != (sll_next(iter2)) );
-	} while (NULL != (sll_next(iter1)) );
+    log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_hexalpha_at");
+    return (uint8_t) answer;
 }
-
-
-/** sort_hosts_key:
- ** Sorts #hosts# based on their key distance from #np_key_t*
- */
-void sort_keys_kd (np_sll_t(np_key_t, list_of_keys), np_key_t* key)
-{
-    np_key_t dif1, dif2;
-
-    // entry check for empty list
-    if (NULL == sll_first(list_of_keys)) return;
-
-    sll_iterator(np_key_t) curr = sll_first(list_of_keys);
-    do {
-        // Maintain pointers.
-        sll_iterator(np_key_t) next = sll_get_next(curr);
-
-        // Cannot swap last element with its next.
-        while (NULL != next) {
-        	// Swap if items in wrong order.
-		    key_distance (&dif1, curr->val, key);
-		    key_distance (&dif2, next->val, key);
-		    if (key_comp (&dif2, &dif1) < 0)
-			{
-		    	np_key_t* tmp = curr->val;
-		    	curr->val = next->val;
-		    	next->val = tmp;
-		    	// Notify loop to do one more pass.
-                break;
-			}
-		    // continue with the loop
-		    sll_next(next);
-        }
-	    sll_next(curr);
-
-    } while (curr != sll_last(list_of_keys) && NULL != curr);
-
-//    for (i = 0; i < size; i++)
-//	{
-//	    for (j = i + 1; j < size; j++)
-//		{
-//		    if (hosts[i] != NULL && hosts[j] != NULL)
-//			{
-//			    key_distance (&dif1, hosts[i], key);
-//			    key_distance (&dif2, hosts[j], key);
-//			    if (key_comp (&dif2, &dif1) < 0)
-//				{
-//				    tmp = hosts[i];
-//				    hosts[i] = hosts[j];
-//				    hosts[j] = tmp;
-//				}
-//			}
-//		}
-//	}
-}
-
-
-

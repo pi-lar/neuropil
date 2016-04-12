@@ -95,7 +95,7 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	if (!np_node_check_address_validity(args->target->node))
 	{
 		log_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
-							key_get_as_string(args->target));
+							_key_as_str(args->target));
 		// np_free_obj(np_message_t, args->msg);
 		log_msg(LOG_TRACE, ".end  .hnd_msg_out_send");
 		return;
@@ -143,18 +143,18 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 	}
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK, new_jval_ush(prop->ack_mode));
 
-	unsigned char* ack_to_str = key_get_as_string(state->my_node_key);
+	char* ack_to_str = _key_as_str(state->my_node_key);
 
 	if ( 0 < (ack_mode & ACK_EACHHOP) )
 	{
 		// we have to reset the existing ack_to field in case of forwarding and each-hop acknowledge
-		jrb_replace_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s((char*) ack_to_str));
+		jrb_replace_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s(ack_to_str));
 		ack_to_is_me = TRUE;
 	}
 	else if ( 0 < (ack_mode & ACK_DESTINATION) || 0 < (ack_mode & ACK_CLIENT) )
 	{
 		// only set ack_to for these two ack mode values if not yet set !
-		jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s((char*) ack_to_str));
+		jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s(ack_to_str));
 		if (FALSE == ack_mode_from_msg) ack_to_is_me = TRUE;
 	}
 	else
@@ -244,7 +244,7 @@ void hnd_msg_out_send(np_state_t* state, np_jobargs_t* args)
 
 		// insert a record into the priority queue with the following information:
 		double retransmit_interval = args->properties->ttl / args->properties->retry;
-		np_msgproperty_t* out_prop = np_msgproperty_get(state, TRANSFORM, ROUTE_LOOKUP);
+		np_msgproperty_t* out_prop = np_msgproperty_get(TRANSFORM, ROUTE_LOOKUP);
 		_np_job_resubmit_msg_event(retransmit_interval, out_prop, args->target, args->msg);
 	}
 
@@ -283,7 +283,7 @@ void hnd_msg_out_handshake(np_state_t* state, np_jobargs_t* args)
 	if (!np_node_check_address_validity(args->target->node)) return;
 
 	// get our identity from the cache
-	np_aaatoken_t* my_id_token = state->my_node_key->authentication;
+	np_aaatoken_t* my_id_token = state->my_node_key->aaa_token;
 	np_node_t* my_node = state->my_node_key->node;
 
 	// convert to curve key

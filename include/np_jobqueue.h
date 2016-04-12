@@ -8,7 +8,7 @@
 
 #include "include.h"
 
-#include "np_key.h"
+#include "np_keycache.h"
 #include "np_memory.h"
 
 #include "np_container.h"
@@ -32,7 +32,7 @@ struct np_jobargs_s
  *  initiate the queue and thread pool of size "pool_size" returns a pointer
  *  to the initiated queue
  **/
-np_jobqueue_t* _np_job_queue_create();
+np_bool _np_job_queue_create();
 
 /** job_submit
  ** create a new node and pass "func","args","args_size"

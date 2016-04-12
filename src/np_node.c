@@ -12,6 +12,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "sodium.h"
+
 #include "jval.h"
 #include "log.h"
 #include "dtime.h"
@@ -19,6 +21,7 @@
 #include "np_aaatoken.h"
 #include "np_container.h"
 #include "np_jtree.h"
+#include "np_key.h"
 #include "np_message.h"
 #include "np_network.h"
 #include "np_node.h"
@@ -69,7 +72,7 @@ void _np_node_t_del(void* node)
  **/
 void np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 {
-    snprintf (s, len, "%s:", key_get_as_string(key));
+    snprintf (s, len, "%s:", _key_as_str(key));
 
     if (NULL != key->node->dns_name) {
     	snprintf (s + strlen (s), len - strlen (s), "%s:", np_get_protocol_string(key->node->protocol));
@@ -80,7 +83,7 @@ void np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 
 void np_node_encode_to_jrb (np_jtree_t* data, np_key_t* key, np_bool include_stats)
 {
-	char* keystring = (char*) key_get_as_string (key);
+	char* keystring = (char*) _key_as_str (key);
 
 	jrb_insert_str(data, NP_NODE_KEY, new_jval_s(keystring));
 	jrb_insert_str(data, NP_NODE_PROTOCOL, new_jval_s(np_get_protocol_string(key->node->protocol)));
@@ -125,7 +128,8 @@ np_key_t* np_node_decode_from_str (np_state_t* state, const char *key)
 	s_hostkey = strtok(key_dup, ":");
 	// log_msg(LOG_DEBUG, "node decoded, extracted hostkey %s", sHostkey);
 
-	if (iLen > strlen(s_hostkey)) {
+	if (iLen > strlen(s_hostkey))
+	{
 		s_hostproto = strtok(NULL, ":");
 		s_hostname = strtok(NULL, ":");
 		s_hostport = strtok(NULL, ":");
@@ -135,15 +139,8 @@ np_key_t* np_node_decode_from_str (np_state_t* state, const char *key)
 	// key string is mandatory !
 	log_msg(LOG_WARN, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
 
-	np_key_t* search_key = key_create_from_hash(s_hostkey);
-	np_key_t* node_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
-	if (NULL == node_key) {
-		SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-		node_key = search_key;
-		np_ref_obj(np_key_t, node_key);
-    } else {
-    	np_free_obj(np_key_t, search_key);
-    }
+	np_dhkey_t search_key = dhkey_create_from_hash(s_hostkey);
+	np_key_t* node_key    = _np_key_find_create(search_key);
 
 	if (NULL == node_key->node)
 	{
@@ -170,16 +167,8 @@ np_key_t* np_node_decode_from_jrb (np_state_t* state, np_jtree_t* data)
 	char* s_host_name  = jrb_find_str(data, NP_NODE_DNS_NAME)->val.value.s;
 	char* s_host_port  = jrb_find_str(data, NP_NODE_PORT)->val.value.s;
 
-	np_key_t* search_key = key_create_from_hash(s_host_key);
-
-	np_key_t* node_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
-	if (NULL == node_key) {
-		SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-		node_key = search_key;
-		np_ref_obj(np_key_t, node_key);
-	} else {
-    	np_free_obj(np_key_t, search_key);
-    }
+	np_dhkey_t search_key = dhkey_create_from_hash(s_host_key);
+	np_key_t* node_key    = _np_key_find_create(search_key);
 
     if (NULL == node_key->node) {
 		np_new_obj(np_node_t, node_key->node);
@@ -239,6 +228,79 @@ sll_return(np_key_t) np_decode_nodes_from_jrb (np_state_t* state, np_jtree_t* da
 	}
 
     return (node_list);
+}
+
+np_key_t* _np_create_node_from_token(np_state_t* state, np_aaatoken_t* token)
+{
+	jrb_insert_str(token->extensions, NP_NODE_KEY, new_jval_s(token->issuer));
+	return np_node_decode_from_jrb(state, token->extensions);
+	del_str_node(token->extensions, NP_NODE_KEY);
+}
+
+np_aaatoken_t* _np_create_node_token(const np_state_t* state, np_node_t* node, np_key_t* node_key)
+{
+	log_msg(LOG_TRACE, ".start.np_create_node_token");
+
+	np_aaatoken_t* node_token = NULL;
+	np_new_obj(np_aaatoken_t, node_token);
+
+	// create token
+	strncpy(node_token->realm, state->my_identity->aaa_token->realm, 255);
+
+	char node_subject[255];
+	snprintf(node_subject, 255, "urn:np:node:%s:%s:%s",
+			 np_get_protocol_string(node->protocol), node->dns_name, node->port);
+
+	strncpy(node_token->issuer, (char*) _key_as_str(node_key), 255);
+	strncpy(node_token->subject, node_subject, 255);
+	// TODO:
+	// strncpy(msg_token->audience, (char*) dhkey_as_str(state->my_identity), 255);
+
+	node_token->not_before = ev_time();
+	node_token->expiration = ev_time() + 10.0; // 10 second valid token
+
+	// add e2e encryption details for sender
+	strncpy((char*) node_token->public_key,
+			(char*) node_key->aaa_token->public_key,
+			crypto_sign_BYTES);
+
+	jrb_insert_str(node_token->extensions, NP_NODE_DNS_NAME,
+			new_jval_s(node->dns_name));
+	jrb_insert_str(node_token->extensions, NP_NODE_PORT,
+			new_jval_s(node->port));
+	jrb_insert_str(node_token->extensions, NP_NODE_PROTOCOL,
+			new_jval_ush(node->protocol));
+
+	// TODO: useful extension ?
+	// unsigned char key[crypto_generichash_KEYBYTES];
+	// randombytes_buf(key, sizeof key);
+
+	unsigned char hash[crypto_generichash_BYTES];
+	crypto_generichash_state gh_state;
+	crypto_generichash_init(&gh_state, NULL, 0, sizeof hash);
+	crypto_generichash_update(&gh_state, (unsigned char*) node_token->realm, strlen(node_token->realm));
+	crypto_generichash_update(&gh_state, (unsigned char*) node_token->issuer, strlen(node_token->issuer));
+	crypto_generichash_update(&gh_state, (unsigned char*) node_token->subject, strlen(node_token->subject));
+	// crypto_generichash_update(&gh_state, (unsigned char*) node_token->audience, strlen(node_token->audience));
+	crypto_generichash_update(&gh_state, (unsigned char*) node_token->public_key, crypto_sign_BYTES);
+	// TODO: hash 'not_before' and 'expiration' values as well ?
+	crypto_generichash_final(&gh_state, hash, sizeof hash);
+
+	char signature[crypto_sign_BYTES];
+	uint64_t signature_len;
+	int16_t ret = crypto_sign_detached((unsigned char*)       signature,  &signature_len,
+							           (const unsigned char*) hash,  crypto_generichash_BYTES,
+									   state->my_identity->aaa_token->private_key);
+	if (ret < 0) {
+		log_msg(LOG_WARN, "checksum creation for node token failed, using unsigned node token");
+		log_msg(LOG_TRACE, ".end  .np_create_node_token");
+		return node_token;
+	}
+	// TODO: refactor name NP_HS_SIGNATURE to a common name NP_SIGNATURE
+	jrb_insert_str(node_token->extensions, NP_HS_SIGNATURE, new_jval_bin(signature, signature_len));
+
+	log_msg(LOG_TRACE, ".end  .np_create_node_token");
+	return node_token;
 }
 
 void np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)

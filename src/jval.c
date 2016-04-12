@@ -1,13 +1,15 @@
 #include <assert.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "jval.h"
-#include "np_jtree.h"
 #include "log.h"
+#include "np_key.h"
+#include "np_jtree.h"
 
-np_jval_t JNULL;
+np_jval_t JNULL = { .type = none_type, .size=0 };
 
 char* jval_to_str(np_jval_t val) {
 
@@ -112,7 +114,8 @@ char* jval_to_str(np_jval_t val) {
  			return "--> subtree";
 			break;
 		case key_type:
-			return (char*) key_get_as_string((np_key_t*) val.value.v);
+			result = malloc(64);
+			_dhkey_to_str((np_dhkey_t*) val.value.v, result);
 			break;
 		default:
 			return "--> unknown";
@@ -161,6 +164,7 @@ np_jval_t copy_of_jval(np_jval_t from)
 			to.type = char_ptr_type;
 			to.value.s = strndup(from.value.s, strlen(from.value.s));
 			to.size = strlen(from.value.s);
+			// log_msg(LOG_DEBUG, "copy str %s %hd", to.value.s, to.size);
 			break;
 		case char_type:
 			to.type = char_type;
@@ -225,8 +229,7 @@ np_jval_t copy_of_jval(np_jval_t from)
 		case key_type:
 			to.type = key_type;
 			to.value.key = from.value.key;
-			to.size = sizeof(np_key_t);
-			// np_ref_obj(np_key_t, to.value.key);
+			to.size = sizeof(np_dhkey_t);
 			break;
  		case void_type:
 			to.type = void_type;
@@ -234,6 +237,7 @@ np_jval_t copy_of_jval(np_jval_t from)
 			to.size = from.size;
 			break;
 		default:
+			to.type = none_type;
 			log_msg(LOG_WARN, "unsupported copy operation for jval type %hhd", from.type);
 			break;
 	}
@@ -379,7 +383,7 @@ np_jval_t new_jval_bin (void* data, uint32_t ul)
     return j;
 }
 
-np_jval_t new_jval_key (np_key_t* key)
+np_jval_t new_jval_key (np_dhkey_t key)
 {
     np_jval_t j;
 
@@ -387,7 +391,6 @@ np_jval_t new_jval_key (np_key_t* key)
     j.size = sizeof(key);
     j.type = key_type;
     j.size = 1 + ( 4*sizeof(uint64_t) );
-    // np_ref_obj(np_key_t, key);
     return j;
 }
 

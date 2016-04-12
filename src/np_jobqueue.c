@@ -161,13 +161,14 @@ void np_job_submit_event (double delay, np_callback_t callback)
 /** job_queue_create
  *  initiate the queue and thread pool, returns a pointer to the initiated queue.
  **/
-np_jobqueue_t* _np_job_queue_create()
+np_bool _np_job_queue_create()
 {
 	__np_job_queue = (np_jobqueue_t *) malloc (sizeof(np_jobqueue_t));
+	if (NULL == __np_job_queue) return FALSE;
 
 	pll_init(np_job_ptr, __np_job_queue->job_list, compare_job_tstamp);
 
-    return (__np_job_queue);
+    return TRUE;
 }
 
 

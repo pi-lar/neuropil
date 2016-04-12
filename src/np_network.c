@@ -29,6 +29,7 @@
 #include "np_jobqueue.h"
 #include "np_jtree.h"
 #include "np_key.h"
+#include "np_keycache.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_network.h"
@@ -73,8 +74,8 @@ static char* URN_UDP_V6 = "udp6";
 static char* URN_IP_V4  = "ip4";
 static char* URN_IP_V6  = "ip6";
 
-uint8_t np_parse_protocol_string (const char* protocol_str) {
-
+uint8_t np_parse_protocol_string (const char* protocol_str)
+{
 	if (0 == strncmp(protocol_str, URN_TCP_V4, 4)) return (TCP     | IPv4);
 	if (0 == strncmp(protocol_str, URN_TCP_V6, 4)) return (TCP     | IPv6);
 	if (0 == strncmp(protocol_str, URN_PAS_V4, 4)) return (PASSIVE | IPv4);
@@ -134,9 +135,10 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
 	if ( 0 != ( err = getaddrinfo( hostname, service, &hints, ai_head ) ))
 	{
 		log_msg(LOG_NETWORK | LOG_ERROR, "error getaddrinfo: %s", gai_strerror( err ) );
+		return;
 	}
 
-	struct addrinfo* ai;
+/*	struct addrinfo* ai;
 	for ( ai = *ai_head; ai != NULL; ai = ai->ai_next )
 	{
 		log_msg( LOG_NETWORK | LOG_DEBUG,
@@ -158,19 +160,19 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
 				ai->ai_addrlen,
 				sizeof( struct sockaddr_in ),
 				sizeof( struct sockaddr_in6 ) );
-		char hostname[255];
+		char hostname[NI_MAXHOST];
 		char sericename[255];
 
 		getnameinfo( ai->ai_addr,
-                      ai->ai_addrlen,
-					  hostname,
-                      sizeof( hostname ),
-					  sericename,
-                      sizeof( sericename ),
-                      NI_NUMERICHOST | NI_NUMERICSERV );
+                     ai->ai_addrlen,
+					 hostname,
+                     sizeof( hostname ),
+					 sericename,
+                     sizeof( sericename ),
+                     NI_NUMERICHOST | NI_NUMERICSERV );
          switch ( ai->ai_family )
          {
-            case PF_INET:   /* IPv4 address record. */
+            case PF_INET:   // IPv4 address record.
             {
                 struct sockaddr_in *p = (struct sockaddr_in*) ai->ai_addr;
                 log_msg(LOG_NETWORK | LOG_DEBUG,
@@ -184,8 +186,8 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
 						hostname,
 						sericename );
                 break;
-            }  /* End CASE of IPv4. */
-            case PF_INET6:   /* IPv6 address record. */
+            }  // End CASE of IPv4.
+            case PF_INET6:   // IPv6 address record.
             {
                struct sockaddr_in6 *p = (struct sockaddr_in6*) ai->ai_addr;
                log_msg(LOG_NETWORK | LOG_DEBUG,
@@ -203,14 +205,15 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
                         p->sin6_flowinfo,
                         p->sin6_scope_id );
                break;
-            }  /* End CASE of IPv6. */
-            default:   /* Can never get here, but just for completeness. */
+            }  // End CASE of IPv6.
+            default:   // Can never get here, but just for completeness.
             {
                // freeaddrinfo( aiHead );
                // return -1;
-            }  /* End DEFAULT case (unknown protocol family). */
-         }  /* End SWITCH on protocol family. */
+            }  // End DEFAULT case (unknown protocol family).
+         }  // End SWITCH on protocol family.
 	}
+*/
 //	int is_addr;
 //    struct hostent *he;
 //    unsigned long addr;
@@ -260,19 +263,19 @@ void network_send (np_state_t* state, np_key_t *node_key, np_message_t* msg)
 	int ret;
 
 	// get encryption details
-	np_aaatoken_t* auth_token = node_key->authentication;
+	np_aaatoken_t* auth_token = node_key->aaa_token;
 
 	if (NULL == auth_token ||
-		FALSE == auth_token->valid)
+		IS_INVALID(auth_token->state))
 	{
 		if (node_key->node->handshake_status < HANDSHAKE_INITIALIZED)
 		{
 			node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
 
 			log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
-					node_key->node->dns_name, node_key->node->port, key_get_as_string(node_key));
+					node_key->node->dns_name, node_key->node->port, _key_as_str(node_key));
 
-			np_msgproperty_t* msg_prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_HANDSHAKE);
+			np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, NP_MSG_HANDSHAKE);
 			np_job_submit_msg_event(0.0, msg_prop, node_key, NULL);
 		}
 		return; // FALSE;
@@ -434,21 +437,11 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
 	log_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (client fd: %hd)", ipstr, port, client_fd);
 
 	np_key_t* alias_key = NULL;
-	np_key_t* search_key = key_create_from_hostport(ipstr, port);
+	np_dhkey_t search_key = dhkey_create_from_hostport(ipstr, port);
 
 	LOCK_CACHE(state)
 	{
-		alias_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
-		if (NULL == alias_key)
-		{
-			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-			alias_key = search_key;
-			np_ref_obj(np_key_t, alias_key);
-		}
-		else
-		{
-			np_free_obj(np_key_t, search_key);
-		}
+		alias_key = _np_key_find_create(search_key);
 	}
 
 	// set non blocking
@@ -533,21 +526,11 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents)
 
 	// we registered this token info before in the first handshake message
 	np_key_t* alias_key = NULL;
-	np_key_t* search_key = key_create_from_hostport(ipstr, port);
+	np_dhkey_t search_key = dhkey_create_from_hostport(ipstr, port);
 
 	LOCK_CACHE(state)
 	{
-		alias_key = SPLAY_FIND(spt_key, &state->key_cache, search_key);
-		if (NULL == alias_key)
-		{
-			SPLAY_INSERT(spt_key, &state->key_cache, search_key);
-			alias_key = search_key;
-			np_ref_obj(np_key_t, alias_key);
-		}
-		else
-		{
-			np_free_obj(np_key_t, search_key);
-		}
+		alias_key = _np_key_find_create(search_key);
 	}
 
 	void* data_ptr = malloc(in_msg_len * sizeof(char));
@@ -556,7 +539,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents)
 
 	sll_append(void_ptr, ng->in_events, data_ptr);
 
-	np_msgproperty_t* msg_prop = np_msgproperty_get(state, INBOUND, DEFAULT);
+	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, DEFAULT);
 	np_job_submit_msg_event(0.0, msg_prop, alias_key, NULL);
 
 	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
@@ -593,10 +576,14 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
 	{
 		log_msg(LOG_NETWORK | LOG_ERROR, "pthread_mutex_init: %s:", strerror (ret));
 		close (ng->socket);
-		return (NULL);
+		return NULL;
 	}
 
     get_network_address (create_socket, &ng->addr_in, type, hostname, service);
+    if (NULL == ng->addr_in)
+    {
+    	return NULL;
+    }
 
     // create an inbound socket - happens only once per node
     if (TRUE == create_socket )
@@ -705,6 +692,9 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
     	current_flags |= O_NONBLOCK;
     	fcntl(ng->socket, F_SETFL, current_flags);
 
+#ifdef SKIP_EVLOOP
+    	// TODO: write normal threading receiver
+#endif
 		// initialize to be on the safe side
 		ng->watcher.data = NULL;
 		EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
@@ -733,7 +723,8 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
 			return NULL;
     	}
     }
-    // freeaddrinfo( ng->addr_in );
+
+    freeaddrinfo( ng->addr_in );
 
     return ng;
 }

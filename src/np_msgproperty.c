@@ -69,7 +69,7 @@ enum {
 
 #define NR_OF_ELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
-np_msgproperty_t np_internal_messages[] =
+np_msgproperty_t __np_internal_messages[] =
 {
 	{ .msg_subject=ROUTE_LOOKUP, .mode_type=TRANSFORM, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=np_route_lookup }, // default input handling func should be "route_get" ?
 
@@ -126,8 +126,17 @@ _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, ttl, double);
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, retry, uint8_t);
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, max_threshold, uint16_t);
 
-_NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, partner_key, np_key_t*);
+_NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, partner_key, np_dhkey_t);
 
+RB_HEAD(rbt_msgproperty, np_msgproperty_s);
+// RB_PROTOTYPE(rbt_msgproperty, np_msgproperty_s, link, property_comp);
+RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
+
+typedef struct rbt_msgproperty rbt_msgproperty_t;
+static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
+static rbt_msgproperty_t* __msgproperty_table;
+
+_NP_MODULE_LOCK_IMPL(np_msgproperty_t);
 
 /**
  ** message_init: chstate, port
@@ -135,20 +144,23 @@ _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, partner_key, np_key_t*);
  ** contains global state of message subsystem.
  ** message_init also initiate the network subsystem
  **/
-void _np_msgproperty_init (np_state_t* state)
+np_bool _np_msgproperty_init ()
 {
-    RB_INIT(&state->msg_properties);
-    state->msg_tokens = make_jtree();
+	__msgproperty_table = (rbt_msgproperty_t*) malloc(sizeof(rbt_msgproperty_t));
+	if (NULL == __msgproperty_table) return FALSE;
+
+	RB_INIT(__msgproperty_table);
 
 	/* NEUROPIL_INTERN_MESSAGES */
-	for (uint8_t i = 0; i < NR_OF_ELEMS(np_internal_messages); i++)
+	for (uint8_t i = 0; i < NR_OF_ELEMS(__np_internal_messages); i++)
 	{
-		if (strlen(np_internal_messages[i].msg_subject) > 0)
+		if (strlen(__np_internal_messages[i].msg_subject) > 0)
 		{
-			log_msg(LOG_DEBUG, "register handler (%hhd): %s", i, np_internal_messages[i].msg_subject);
-			RB_INSERT(rbt_msgproperty, &state->msg_properties, &np_internal_messages[i]);
+			log_msg(LOG_DEBUG, "register handler (%hhd): %s", i, __np_internal_messages[i].msg_subject);
+			RB_INSERT(rbt_msgproperty, __msgproperty_table, &__np_internal_messages[i]);
 		}
 	}
+	return TRUE;
 }
 
 np_callback_t np_msgproperty_callback (np_msgproperty_t *handler)
@@ -163,12 +175,12 @@ np_callback_t np_msgproperty_callback (np_msgproperty_t *handler)
  ** registers the handler function #func# with the message type #type#,
  ** it also defines the acknowledgment requirement for this type 
  **/
-np_msgproperty_t* np_msgproperty_get(np_state_t *state, np_msg_mode_type mode_type, const char* subject)
+np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* subject)
 {
 	assert(subject != NULL);
 
 	np_msgproperty_t prop = { .msg_subject=(char*) subject, .mode_type=mode_type };
-	return RB_FIND(rbt_msgproperty, &state->msg_properties, &prop);
+	return RB_FIND(rbt_msgproperty, __msgproperty_table, &prop);
 }
 
 
@@ -185,16 +197,16 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 		return i;
 }
 
-void np_msgproperty_register(np_state_t *state, np_msgproperty_t* msgprops)
+void np_msgproperty_register(np_msgproperty_t* msgprops)
 {
-	RB_INSERT(rbt_msgproperty, &state->msg_properties, msgprops);
+	RB_INSERT(rbt_msgproperty, __msgproperty_table, msgprops);
 }
 
 void _np_msgproperty_t_new(void* property)
 {
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
-	prop->partner_key = NULL;
+	prop->msg_audience = NULL;
 
 	// prop->msg_subject = strndup(subject, 255);
 	prop->mode_type = INBOUND | OUTBOUND;

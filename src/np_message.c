@@ -28,6 +28,7 @@
 #include "np_glia.h"
 #include "np_jobqueue.h"
 #include "np_jtree.h"
+#include "np_keycache.h"
 #include "np_memory.h"
 #include "np_msgproperty.h"
 #include "np_network.h"
@@ -66,6 +67,7 @@ enum {
 
 } message_enumeration;
 
+
 int8_t cmp_messagepart_ptr (const np_messagepart_ptr value1, const np_messagepart_ptr value2)
 {
 	uint16_t part_1 = value1->part; // jrb_find_str(value1->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
@@ -73,8 +75,8 @@ int8_t cmp_messagepart_ptr (const np_messagepart_ptr value1, const np_messagepar
 
 	log_msg(LOG_MESSAGE | LOG_DEBUG, "message part compare %d / %d / %d", part_1, part_2, part_1 - part_2);
 
-	if (part_2 > part_1) return -1;
-	if (part_1 > part_2) return 1;
+	if (part_2 > part_1) return 1;
+	if (part_1 > part_2) return -1;
 	return 0;
 }
 
@@ -289,7 +291,7 @@ np_bool np_message_serialize_chunked(np_state_t* state, np_jobargs_t* args)
 
     while (i < msg->no_of_chunks)
     {
-		jrb_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i;
+		jrb_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i+1;
 
 		np_messagepart_ptr part = (np_messagepart_ptr) malloc(sizeof(np_messagepart_t));
 		if (NULL == part)
@@ -566,6 +568,8 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer)
 
 	pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE);
 
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "received message part (%d / %d)", chunk_id, msg->no_of_chunks);
+
 	return TRUE;
 }
 
@@ -593,7 +597,9 @@ np_bool np_message_deserialize_chunked(np_message_t* msg)
 
 	while (NULL != iter)
 	{
+
 		current_chunk = iter->val;
+		log_msg(LOG_MESSAGE | LOG_DEBUG, "now working on msg part %d", current_chunk->part );
 		uint32_t size_properties_add = 0;
 		uint32_t size_body_add = 0;
 		uint32_t size_footer_add = 0;
@@ -732,9 +738,9 @@ void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const ch
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
 	jrb_insert_str(msg->header, NP_MSG_HEADER_SUBJECT,  new_jval_s((char*) subject));
-	jrb_insert_str(msg->header, NP_MSG_HEADER_TO,  new_jval_s((char*) key_get_as_string(to)));
-	if (from != NULL) jrb_insert_str(msg->header, NP_MSG_HEADER_FROM, new_jval_s((char*) key_get_as_string(from)));
-	if (from != NULL) jrb_insert_str(msg->header, NP_MSG_HEADER_REPLY_TO, new_jval_s((char*) key_get_as_string(from)));
+	jrb_insert_str(msg->header, NP_MSG_HEADER_TO,  new_jval_s((char*) _key_as_str(to)));
+	if (from != NULL) jrb_insert_str(msg->header, NP_MSG_HEADER_FROM, new_jval_s((char*) _key_as_str(from)));
+	if (from != NULL) jrb_insert_str(msg->header, NP_MSG_HEADER_REPLY_TO, new_jval_s((char*) _key_as_str(from)));
 
 	if (the_data != NULL)
 	{
@@ -907,7 +913,7 @@ void np_message_encrypt_payload(np_state_t* state, np_message_t* msg, np_aaatoke
 
 	// convert our own sign key to an encryption key
 	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-										 state->my_identity->authentication->private_key);
+										 state->my_identity->aaa_token->private_key);
 	// convert our partner key to an encryption key
 	unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
 	crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
@@ -955,14 +961,16 @@ np_bool np_message_decrypt_payload(np_state_t* state, np_message_t* msg, np_aaat
 	unsigned char nonce[crypto_box_NONCEBYTES];
 	memcpy(nonce, jrb_find_str(encryption_details, NP_NONCE)->val.value.bin, crypto_box_NONCEBYTES);
 	unsigned char enc_sym_key[crypto_secretbox_KEYBYTES + crypto_box_MACBYTES];
-	memcpy(enc_sym_key, jrb_find_str(encryption_details, (char*) key_get_as_string(state->my_identity))->val.value.bin, crypto_secretbox_KEYBYTES + crypto_box_MACBYTES);
+	memcpy(enc_sym_key,
+			jrb_find_str(encryption_details, (char*) _key_as_str(state->my_identity))->val.value.bin,
+			crypto_secretbox_KEYBYTES + crypto_box_MACBYTES);
 
 	unsigned char sym_key[crypto_secretbox_KEYBYTES];
 
 	// convert own secret to encryption key
 	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
 	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-										 state->my_identity->authentication->private_key);
+										 state->my_identity->aaa_token->private_key);
 
 	//	log_msg(LOG_MESSAGE | LOG_DEBUG, "ciphertext: %s", enc_sym_key);
 	//	log_msg(LOG_MESSAGE | LOG_DEBUG, "nonce:      %s", nonce);

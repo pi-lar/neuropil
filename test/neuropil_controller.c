@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 	state->my_node_key->node->joined_network = 1;
 
 	/**
-	check the log file because it will contain this nodes hashvalue / connect string, e.g.
+	check stdout and the log file because it will contain this nodes hashvalue / connect string, e.g.
 
 	.. code-block:: c
 
@@ -157,35 +157,50 @@ int main(int argc, char **argv)
 	{
 		size_t nbytes = 255;
 		msg_out = NULL;
-		char* my_string = (char *) malloc (nbytes);
+		char* node_string = (char *) malloc (nbytes);
 		printf("enter a node to start (key:host:port)\n");
-		fgets(my_string, nbytes, stdin);
-		if (strlen(my_string) > 255 || strlen(my_string) < 64)
+		fgets(node_string, nbytes, stdin);
+		if (strlen(node_string) > 255 || strlen(node_string) < 64)
 		{
 			printf("given identifier too long or to small, skipping invitation ...\n");
 			continue;
 		}
-		my_string[strcspn(my_string, "\r\n")] = '\0';
+		node_string[strcspn(node_string, "\r\n")] = '\0';
 		log_msg(LOG_DEBUG, "creating internal structure");
 
 		np_key_t* node_key = NULL;
 
+		/**
+		do you remember the connect string that is printed to stdout and to the log file ?
+		you can use it to send join request to other nodes.
+		In the example below the 'node_string' must contain exactly this string:
+
+	    .. code-block:: c
+
+		   LOCK_CACHE(state)
+		   {
+		       node_key = np_node_decode_from_str(state, node_string);
+		   }
+
+		   log_msg(LOG_DEBUG, "sending join message");
+           np_sendjoin(state, node_key);
+		*/
 		LOCK_CACHE(state)
 		{
-			node_key = np_node_decode_from_str(state, my_string);
-			// node_key->network = network_init(FALSE, node_key->node->protocol, node_key->node->dns_name, node_key->node->port);
-			// node_key->network->watcher.data = node_key;
+			node_key = np_node_decode_from_str(state, node_string);
 		}
 		log_msg(LOG_DEBUG, "creating welcome message");
-		np_new_obj(np_message_t, msg_out);
 
-		np_jtree_t* jrb_me = make_jtree();
-		np_node_encode_to_jrb(jrb_me, state->my_node_key, FALSE);
-		np_message_create(msg_out, node_key, state->my_node_key, NP_MSG_JOIN_REQUEST, jrb_me);
+		np_sendjoin(state, node_key);
 
-		log_msg(LOG_DEBUG, "submitting welcome message");
-		np_msgproperty_t* prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
-		np_job_submit_msg_event(0.0, prop, node_key, msg_out);
+//		np_new_obj(np_message_t, msg_out);
+//		np_jtree_t* jrb_me = make_jtree();
+//		np_node_encode_to_jrb(jrb_me, state->my_node_key, FALSE);
+//		np_message_create(msg_out, node_key, state->my_node_key, NP_MSG_JOIN_REQUEST, jrb_me);
+//
+//		log_msg(LOG_DEBUG, "submitting welcome message");
+//		np_msgproperty_t* prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
+//		np_job_submit_msg_event(0.0, prop, node_key, msg_out);
 
 		ev_sleep(1.0);
 		// dsleep(1.0);

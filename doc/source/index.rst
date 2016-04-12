@@ -16,6 +16,7 @@ Contents:
    tutorial
    api
    license
+   knowhow
    trademark
    
 

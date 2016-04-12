@@ -32,7 +32,7 @@ typedef enum np_obj_type {
 	np_none_t_e = 0,
 	np_message_t_e,
 	np_node_t_e,
-	np_key_t_e, // not yet used
+	np_key_t_e,
 	np_aaatoken_t_e,
 	np_msgproperty_t_e,
 	np_http_t_e,

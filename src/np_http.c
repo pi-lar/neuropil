@@ -289,7 +289,7 @@ void _np_http_dispatch(np_state_t* state, np_jobargs_t* args)
 				np_sll_t(np_key_t, table) = NULL;
 				_LOCK_MODULE(np_routeglobal_t)
 				{
-					table = route_get_table (state->routes);
+					table = _np_route_get_table();
 				}
 
 				np_encode_nodes_to_jrb(tree, table, TRUE);
@@ -516,13 +516,19 @@ void _np_http_accept(struct ev_loop* loop, ev_io* ev, int event_type)
 	}
 }
 
-np_http_t* _np_http_init()
+np_bool _np_http_init()
 {
 	__local_http = (np_http_t*) malloc(sizeof(np_http_t));
+	if (NULL == __local_http) return FALSE;
 
 	__local_http->network = network_init(TRUE, TCP, "localhost", "31415" );
+	if (NULL == __local_http->network) return FALSE;
+
 	__local_http->parser = htparser_new();
+	if (NULL == __local_http->parser) return FALSE;
+
 	__local_http->hooks = (htparse_hooks*) malloc(sizeof(htparse_hooks));
+	if (NULL == __local_http->hooks) return FALSE;
 
 	// define callbacks
 	__local_http->hooks->on_msg_begin = _np_http_on_msg_begin;
@@ -552,7 +558,7 @@ np_http_t* _np_http_init()
 	ev_io_start(EV_A_ &__local_http->network->watcher);
 	_np_resume_event_loop();
 
-	return __local_http;
+	return TRUE;
 }
 
 void _np_http_destroy()

@@ -11,7 +11,7 @@
 
 #include "include.h"
 #include "np_container.h"
-#include "np_key.h"
+#include "np_keycache.h"
 #include "np_memory.h"
 #include "np_network.h"
 
@@ -87,6 +87,11 @@ np_key_t*  np_node_decode_from_jrb (np_state_t* state, np_jtree_t* data);
 void np_node_encode_to_str  (char *s, uint16_t len, np_key_t* key);
 uint16_t np_encode_nodes_to_jrb (np_jtree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats);
 void np_node_encode_to_jrb  (np_jtree_t* data, np_key_t* np_node, np_bool include_stats);
+
+/** np_node aaa_token routines
+ **/
+np_aaatoken_t* _np_create_node_token(const np_state_t* state, np_node_t* node, np_key_t* node_key);
+np_key_t* _np_create_node_from_token(np_state_t* state, np_aaatoken_t* token);
 
 /** various getter method, mostly unused **/
 char* np_node_get_dns_name (np_node_t* np_node);

@@ -17,6 +17,7 @@
 #include "jval.h"
 #include "log.h"
 #include "dtime.h"
+#include "np_key.h"
 
 char* np_create_uuid(const char* str, const uint16_t num)
 {
@@ -139,10 +140,10 @@ void write_json_type(np_jval_t val, JSON_Object* json_obj, const char* name)
 	case key_type:
 		{
 			JSON_Value* arr = json_value_init_array();
-			json_array_append_number(json_array(arr), val.value.key->t[0]);
-			json_array_append_number(json_array(arr), val.value.key->t[1]);
-			json_array_append_number(json_array(arr), val.value.key->t[2]);
-			json_array_append_number(json_array(arr), val.value.key->t[3]);
+			json_array_append_number(json_array(arr), val.value.key.t[0]);
+			json_array_append_number(json_array(arr), val.value.key.t[1]);
+			json_array_append_number(json_array(arr), val.value.key.t[2]);
+			json_array_append_number(json_array(arr), val.value.key.t[3]);
 			json_object_set_value(json_obj, name, arr);
 			break;
 		}
@@ -158,6 +159,12 @@ void write_json_type(np_jval_t val, JSON_Object* json_obj, const char* name)
 		break;
 	}
 }
+
+// TODO: replace with function pointer, same for read_type
+// typedef void (*write_type_function)(const np_jval_t* val, cmp_ctx_t* ctx);
+// write_type_function write_type_arr[npval_count] = {NULL};
+// write_type_arr[npval_count] = &write_short_type;
+// write_type_arr[npval_count] = NULL;
 
 void write_type(np_jval_t val, cmp_ctx_t* cmp)
 {
@@ -239,10 +246,10 @@ void write_type(np_jval_t val, cmp_ctx_t* cmp)
 			void* buf_ptr = buffer;
 			cmp_init(&key_cmp, buf_ptr, buffer_reader, buffer_writer);
 			cmp_write_fixarray(cmp, 4);
-			cmp->write(&key_cmp, &val.value.key->t[0], sizeof(uint64_t));
-			cmp->write(&key_cmp, &val.value.key->t[1], sizeof(uint64_t));
-			cmp->write(&key_cmp, &val.value.key->t[2], sizeof(uint64_t));
-			cmp->write(&key_cmp, &val.value.key->t[3], sizeof(uint64_t));
+			cmp->write(&key_cmp, &val.value.key.t[0], sizeof(uint64_t));
+			cmp->write(&key_cmp, &val.value.key.t[1], sizeof(uint64_t));
+			cmp->write(&key_cmp, &val.value.key.t[2], sizeof(uint64_t));
+			cmp->write(&key_cmp, &val.value.key.t[3], sizeof(uint64_t));
 			uint32_t buf_size = key_cmp.buf - buf_ptr;
 
 			if (!cmp_write_ext32(cmp, key_type, buf_size, buf_ptr))
@@ -397,7 +404,7 @@ void serialize_jrb_node_t(np_jtree_t* jtree, cmp_ctx_t* cmp)
 //	}
 }
 
-void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value)
+void read_type(cmp_object_t* obj, const cmp_ctx_t* cmp, np_jval_t* value)
 {
 	switch (obj->type)
 	{
@@ -504,12 +511,11 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value)
 					break;
 				}
 
-				np_key_t* new_key = NULL;
-				np_new_obj(np_key_t, new_key);
-				cmp->read(&key_cmp, &new_key->t[0], sizeof(uint64_t));
-				cmp->read(&key_cmp, &new_key->t[1], sizeof(uint64_t));
-				cmp->read(&key_cmp, &new_key->t[2], sizeof(uint64_t));
-				cmp->read(&key_cmp, &new_key->t[3], sizeof(uint64_t));
+				np_dhkey_t new_key;
+				cmp->read(&key_cmp, &new_key.t[0], sizeof(uint64_t));
+				cmp->read(&key_cmp, &new_key.t[1], sizeof(uint64_t));
+				cmp->read(&key_cmp, &new_key.t[2], sizeof(uint64_t));
+				cmp->read(&key_cmp, &new_key.t[3], sizeof(uint64_t));
 
 				value->value.key = new_key;
 				value->type = key_type;

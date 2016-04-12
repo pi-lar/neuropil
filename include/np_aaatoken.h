@@ -30,6 +30,29 @@ extern "C" {
 // crypto_scalarmult_BYTES, crypto_scalarmult_curve25519_BYTES, crypto_sign_ed25519_PUBLICKEYBYTES
 // crypto_box_PUBLICKEYBYTES, crypto_box_SECRETKEYBYTES
 
+typedef enum np_aaastate_e
+{
+	AAA_UNKNOWN       = 0x00,
+	AAA_VALID         = 0x01,
+	AAA_AUTHENTICATED = 0x02,
+	AAA_AUTHORIZED    = 0x04,
+	AAA_ACCOUNTING    = 0x08
+} aaastate_type;
+
+#define AAA_INVALID (~AAA_VALID)
+
+#define IS_VALID(x) (0 < (x & AAA_VALID))
+#define IS_INVALID(x) (!IS_VALID(x))
+
+#define IS_AUTHENTICATED(x) (0 < (AAA_AUTHENTICATED & x))
+#define IS_NOT_AUTHENTICATED(x) (!AAA_AUTHENTICATED(x))
+
+#define IS_AUTHORIZED(x) (0 < (AAA_AUTHORIZED & x))
+#define IS_NOT_AUTHORIZED(x) (!IS_AUTHORIZED(x))
+
+#define IS_ACCOUNTING(x) (0 < (AAA_ACCOUNTING & x))
+#define IS_NOT_ACCOUNTING(x) (!IS_ACCOUNTING(x))
+
 /**
 .. c:type:: np_aaatoken_t
 
@@ -65,9 +88,9 @@ extern "C" {
 
    expiration date of the token
 
-.. c:member:: np_bool valid
+.. c:member:: aaastate_type state
 
-   internal flag to indicate whether this token is valid (remove ?)
+   internal state indicator whether this token is valid (remove ?)
 
 .. c:member:: uuid_t uuid
 
@@ -109,7 +132,7 @@ struct np_aaatoken_s
 	double not_before;
 	double expiration;
 
-	np_bool valid;
+	aaastate_type state;
 
 	uuid_t uuid;
 

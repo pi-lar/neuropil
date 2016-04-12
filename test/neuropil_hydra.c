@@ -103,16 +103,7 @@ int main(int argc, char **argv) {
 				}
 				log_msg(LOG_DEBUG, "creating welcome message");
 
-				np_message_t* msg_out = NULL;
-				np_new_obj(np_message_t, msg_out);
-
-				np_jtree_t* jrb_me = make_jtree();
-				np_node_encode_to_jrb(jrb_me, state->my_node_key, FALSE);
-				np_message_create(msg_out, node_key, state->my_node_key , NP_MSG_JOIN_REQUEST, jrb_me);
-
-				log_msg(LOG_DEBUG, "submitting welcome message");
-				np_msgproperty_t* prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
-				np_job_submit_msg_event(0.0, prop, node_key, msg_out);
+				np_sendjoin(state, node_key);
 
 				while (1) {
 					ev_sleep(0.1);

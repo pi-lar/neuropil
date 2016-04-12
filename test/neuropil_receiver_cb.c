@@ -56,10 +56,10 @@ np_bool receive_this_is_a_test(np_jtree_t* properties, np_jtree_t* body)
 
     .. code-block:: c
 
-	      char* subject = jrb_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	      char* text = jrb_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	*/
 	char* text = jrb_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
-	log_msg(LOG_DEBUG, "RECEIVED: %s", text);
+	log_msg(LOG_INFO, "RECEIVED: %s", text);
 
 	/**
 	return TRUE to indicate successfull handling of the message. if you return FALSE
@@ -120,7 +120,8 @@ int main(int argc, char **argv)
 	sprintf(log_file, "%s_%s.log", "./neuropil_node", port);
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_MESSAGE;
+	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_MESSAGE;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	log_init(log_file, level);
 
@@ -186,6 +187,5 @@ int main(int argc, char **argv)
 	while (1)
 	{
 		ev_sleep(0.9);
-		// dsleep(0.9);
 	}
 }

@@ -22,7 +22,7 @@ _NP_ENABLE_MODULE_LOCK(np_routeglobal_t);
 /** route_init:
  ** Ininitiates routing table and leafsets.
  **/
-np_routeglobal_t* route_init (np_key_t* me);
+np_bool _np_route_init (np_key_t* me);
 
 /** route_update:
  ** updates the routing table in regard to host. If the host is joining
@@ -53,7 +53,7 @@ sll_return(np_key_t) route_row_lookup (np_key_t* key);
 /** route_get_table:
  ** returns all the entries in the routing table in an array of ChimeraHost.
  **/
-sll_return(np_key_t) route_get_table ();
+sll_return(np_key_t) _np_route_get_table ();
 
 /**
  ** prints routing table,

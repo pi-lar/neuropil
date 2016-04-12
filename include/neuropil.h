@@ -21,40 +21,26 @@ Original version is based on the chimera project (MIT licensed), but mostly rena
 extern "C" {
 #endif
 
-SPLAY_HEAD(spt_key, np_key_s);
-SPLAY_PROTOTYPE(spt_key, np_key_s, link, key_comp);
-
-RB_HEAD(rbt_msgproperty, np_msgproperty_s);
-RB_PROTOTYPE(rbt_msgproperty, np_msgproperty_s, link, property_comp);
-
 /**
 .. c:type:: np_state_t
 
    The only global structure which contains links to the various subsystems.
-   Users should only need to call :c:func:`np_init` to initialize neuropil layer.
+   Users should only need to call :c:func:`np_init` to initialize the neuropil messaging layer.
 
 */
-struct np_state_s {
-
+struct np_state_s
+{
 	// reference to a private key
 	np_key_t* my_node_key;
 	// reference to the runtime node
 	np_key_t* my_identity;
 
-	// red-black-structure to maintain objects adressable with an hash key
-	struct spt_key key_cache; //  = SPLAY_INITIALIZER(&key_cache);
-	struct rbt_msgproperty msg_properties;
-
 	np_jtree_t *msg_tokens;
     np_jtree_t* msg_part_cache;
 
-	np_routeglobal_t   *routes;
-    np_jobqueue_t      *jobq;
-
-    np_http_t *http;
-
     pthread_mutex_t lock;
     pthread_attr_t attr;
+
     pthread_t* thread_ids;
 
 	np_aaa_func_t  authenticate_func; // authentication callback
@@ -77,7 +63,7 @@ struct np_state_s {
 np_state_t* np_init (char* proto, char* port, np_bool start_http);
 
 // function to get the global state variable
-np_state_t* _np_state();
+np_state_t* const _np_state();
 
 /**
 .. c:function:: void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
@@ -90,6 +76,19 @@ np_state_t* _np_state();
 
 */
 void np_set_identity(np_state_t* state, np_aaatoken_t* identity);
+
+/**
+.. c:function:: np_sendjoin(const np_state_t* state, np_key_t* node_key);
+
+   send a join message to another nodeand request to enter his network.
+
+   :param state: the previously initialized :c:type:`np_state_t` structure
+   :param node_key: the node to which the join request is send
+
+   see also :ref:`to_join_or_to_be_joined`
+
+*/
+void np_sendjoin(const np_state_t* state, np_key_t* node_key);
 
 /**
 .. c:function:: np_waitforjoin(const np_state_t* state)

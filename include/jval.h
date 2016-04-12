@@ -42,6 +42,7 @@ Fax: 865-974-4404
 #include "msgpack/cmp.h"
 
 #include "include.h"
+#include "np_key.h"
 
 enum {
 	none_type = 0,
@@ -66,7 +67,8 @@ enum {
     bin_type,
 	jrb_tree_type,  // 20
 	key_type,
-	npobj_type
+	npobj_type,
+	npval_count
 } np_jvaltype_t;
 
 /* The Jval -- a type that can hold any 8-byte type */
@@ -75,7 +77,7 @@ typedef union jval
     void* v;
     void* bin;
     np_jtree_t* tree;
-    np_key_t* key;
+    np_dhkey_t key;
     np_obj_t* obj;
     int8_t sh;
     int16_t i;
@@ -125,27 +127,30 @@ np_jval_t new_jval_carray_nt (char *);	/* Carray is null terminated */
 np_jval_t new_jval_carray_nnt (char *);	/* Carray is not null terminated */
        /* For ucarray -- use carray, because it uses memcpy */
 np_jval_t new_jval_tree(np_jtree_t* tree);
-np_jval_t new_jval_key(np_key_t* key);
+np_jval_t new_jval_key(np_dhkey_t key);
 np_jval_t new_jval_obj(np_obj_t* key);
 
 np_jval_t JNULL;
 
 int16_t jval_i (np_jval_t);
 int32_t jval_l (np_jval_t);
+uint16_t jval_ui (np_jval_t);
+uint32_t jval_ul (np_jval_t);
+int16_t *jval_iarray (np_jval_t);
+
 float jval_f (np_jval_t);
 double jval_d (np_jval_t);
+
 void *jval_v (np_jval_t);
 char *jval_s (np_jval_t);
 char jval_c (np_jval_t);
 unsigned char jval_uc (np_jval_t);
+
 // short jval_sh (np_jval_t);
 // unsigned short jval_ush (np_jval_t);
-uint16_t jval_ui (np_jval_t);
-uint32_t jval_ul (np_jval_t);
-int16_t *jval_iarray (np_jval_t);
+
 float *jval_farray (np_jval_t);
 char *jval_carray (np_jval_t);
-
 char* jval_to_str(np_jval_t val);
 
 #endif // _NP_JVAL_H_

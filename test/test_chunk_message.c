@@ -23,25 +23,32 @@
 int main(int argc, char **argv) {
 
 	char log_file[256];
-	sprintf(log_file, "%s_%s.log", "./test_chunk_message", "1000");
+	sprintf(log_file, "%s.log", "./test_chunk_message");
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_MESSAGE;
 	log_init(log_file, level);
+
+	np_mem_init();
 
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 	char* msg_subject = "this.is.a.test";
-	np_key_t* my_key = key_create_from_hostport("me", "two");
+
+	np_dhkey_t my_dhkey = dhkey_create_from_hostport("me", "two");
+
+	np_key_t* my_key = NULL;
+	np_new_obj(np_key_t, my_key);
+	my_key->dhkey = my_dhkey;
 
 	uint16_t parts = 0;
 	jrb_insert_str(msg_out->header, NP_MSG_HEADER_SUBJECT,  new_jval_s((char*) msg_subject));
-	jrb_insert_str(msg_out->header, NP_MSG_HEADER_TO,  new_jval_s((char*) key_get_as_string(my_key)) );
-	jrb_insert_str(msg_out->header, NP_MSG_HEADER_FROM, new_jval_s((char*) key_get_as_string(my_key)) );
-	jrb_insert_str(msg_out->header, NP_MSG_HEADER_REPLY_TO, new_jval_s((char*) key_get_as_string(my_key)) );
+	jrb_insert_str(msg_out->header, NP_MSG_HEADER_TO,  new_jval_s((char*) _key_as_str(my_key)) );
+	jrb_insert_str(msg_out->header, NP_MSG_HEADER_FROM, new_jval_s((char*) _key_as_str(my_key)) );
+	jrb_insert_str(msg_out->header, NP_MSG_HEADER_REPLY_TO, new_jval_s((char*) _key_as_str(my_key)) );
 
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK, new_jval_ush(0));
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s((char*) key_get_as_string(my_key)) );
+	jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s((char*) _key_as_str(my_key)) );
 	jrb_insert_str(msg_out->instructions, NP_MSG_INST_SEQ, new_jval_ul(0));
 
 	char* new_uuid = np_create_uuid(msg_subject, 1);
@@ -78,11 +85,8 @@ int main(int argc, char **argv) {
 
 	np_jtree_elem_t* properties_node = jrb_find_int(msg_out->properties, 1);
 	np_jtree_elem_t* body_node = jrb_find_int(msg_out->body, 20);
-	np_jtree_elem_t* footer_node = jrb_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
-	log_msg(LOG_DEBUG, "properties %s, body %s, garbage size %hd",
-			properties_node->val.value.s,
-			body_node->val.value.s,
-			jrb_get_byte_size(footer_node));
+
+	np_jobargs_t args = { .msg=msg_out };
 
 	/** message split up maths
 	 ** message size = 1b (common header) + 40b (encryption) +
@@ -97,19 +101,24 @@ int main(int argc, char **argv) {
 	 ** else
 	 ** 	add garbage
 	 **/
-
-	np_jobargs_t args = { .msg=msg_out };
-
 	np_message_calculate_chunking(msg_out);
 	np_message_serialize_chunked(NULL, &args);
+	np_jtree_elem_t* footer_node = jrb_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
+	log_msg(LOG_DEBUG, "properties %s, body %s, garbage size %hd",
+			properties_node->val.value.s,
+			body_node->val.value.s,
+			jrb_get_byte_size(footer_node));
+
 
 	np_message_deserialize_chunked(msg_out);
 
 	np_jtree_elem_t* properties_node_2 = jrb_find_int(msg_out->properties, 1);
 	np_jtree_elem_t* body_node_2 = jrb_find_int(msg_out->body, 20);
-	np_jtree_elem_t* footer_node_2 = jrb_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
-	log_msg(LOG_DEBUG, "properties %s, body %s, garbage size %hd",
+	// np_jtree_elem_t* footer_node_2 = jrb_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
+	log_msg(LOG_DEBUG, "properties %s, body %s",
 			properties_node_2->val.value.s,
-			body_node_2->val.value.s,
-			jrb_get_byte_size(footer_node_2));
+			body_node_2->val.value.s);
+
+	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+	ev_run(EV_A_ EVRUN_NOWAIT);
 }

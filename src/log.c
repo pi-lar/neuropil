@@ -1,22 +1,28 @@
 /*
  */
-#include <stdio.h>
-#include <unistd.h>
+#include <fcntl.h>
+#include <pthread.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
+#include <unistd.h>
+
+#include "event/ev.h"
 
 #include "log.h"
 
 #include <sys/time.h>
 #include <time.h>
 
-typedef struct np_log_s {
+typedef struct np_log_s
+{
 	char filename[256];
-	FILE *fp;
+	int fp;
+	// FILE *fp;
 	uint16_t level;
 	np_sll_t(char, logentries_l);
+	ev_io watcher;
 } np_log_t;
 
 static np_log_t* logger;
@@ -46,28 +52,36 @@ void log_message(uint16_t level, const char* srcFile, const char* funcName, uint
 		localtime_r(&tval.tv_sec, &local_time);
 		strftime(timebuf, 80, "%Y-%m-%d %H:%M:%S", &local_time);
 
-//  	    char* new_log_entry = malloc(sizeof(char)*1124);
-	    // snprintf(new_log_entry, 255, "initialized log system %p: %s (%p) %d\n", logger, logger->filename, logger->fp, logger->level);
-//	    snprintf(new_log_entry, 1124, "%s.%06d %-15lu %-15.15s:%-25.25s:%-4hd # %-8hu # %s\n",
-//	    							 timebuf, millis,
-//									 (unsigned long) pthread_self(),
-//									 srcFile, funcName, lineno,
-//									 level, buffer);
-//		pthread_mutex_lock(&__log_mutex);
-//	    sll_append(char, logger->logentries_l, new_log_entry);
-//		pthread_mutex_unlock(&__log_mutex);
+  	    char* new_log_entry = malloc(sizeof(char)*1124);
+//	    // snprintf(new_log_entry, 255, "initialized log system %p: %s (%p) %d\n", logger, logger->filename, logger->fp, logger->level);
+	    snprintf(new_log_entry, 1124, "%s.%06d %-15lu %-15.15s:%-25.25s:%-4hd # %-8hu # %s\n",
+	    							 timebuf, millis,
+									 (unsigned long) pthread_self(),
+									 srcFile, funcName, lineno,
+									 level, buffer);
+		pthread_mutex_lock(&__log_mutex);
+	    sll_append(char, logger->logentries_l, new_log_entry);
+		pthread_mutex_unlock(&__log_mutex);
 
-		fprintf(logger->fp, "%s.%06d %-15lu %-15.15s:%-25.25s:%-4d # %-8d # %s\n",
-				timebuf, millis,
-				(unsigned long) pthread_self(),
-				srcFile, funcName, lineno,
-				level, buffer);
-		fflush(logger->fp);
+//		fprintf(logger->fp, "%s.%06d %-15lu %-15.15s:%-25.25s:%-4d # %-8d # %s\n",
+//				timebuf, millis,
+//				(unsigned long) pthread_self(),
+//				srcFile, funcName, lineno,
+//				level, buffer);
+//		fflush(logger->fp);
 
 	}
 	else
 	{
 		// printf("not logging to file(%p): %d & %d = %d\n", logger, level, logger->level, level & logger->level);
+	}
+}
+
+void _log_evflush(struct ev_loop *loop, ev_io *event, int revents)
+{
+	if (revents & EV_WRITE)
+	{
+		log_fflush();
 	}
 }
 
@@ -82,13 +96,14 @@ void log_fflush()
 
 		if (NULL != entry)
 		{
-			fwrite(entry, strlen(entry), 1, logger->fp);
+			// fwrite();
+			write(logger->fp, entry, strlen(entry));
 			free(entry);
 		}
 
 	} while(NULL != entry);
 
-	fflush(logger->fp);
+	// flush(logger->fp);
 }
 
 void log_init(const char* filename, uint16_t level)
@@ -96,21 +111,28 @@ void log_init(const char* filename, uint16_t level)
 	logger = (np_log_t *) malloc(sizeof(np_log_t));
 
     snprintf (logger->filename, 255, "%s", filename);
-	logger->fp = fopen(logger->filename, "a");
+	// logger->fp = fopen(logger->filename, "a"); // "a"
+	logger->fp = open(logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP); // "a"
     logger->level = level;
 
     sll_init(char, logger->logentries_l);
     char* new_log_entry = malloc(sizeof(char)*256);
-    snprintf(new_log_entry, 255, "initialized log system %p: %s (%p) %hu\n", logger, logger->filename, logger->fp, logger->level);
+    snprintf(new_log_entry, 255, "initialized log system %p: %s (%d) %hu\n", logger, logger->filename, logger->fp, logger->level);
     // fprintf(logger->fp, "initialized log system %p: %s (%p) %d\n", logger, logger->filename, logger->fp, logger->level);
     sll_append(char, logger->logentries_l, new_log_entry);
     // fflush(logger->fp);
+
+    // _np_suspend_event_loop();
+    EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+	ev_io_init(&logger->watcher, _log_evflush, logger->fp, EV_WRITE);
+	ev_io_start(EV_A_ &logger->watcher);
+	// _np_resume_event_loop();
 }
 
 void log_destroy()
 {
 	logger->level=LOG_NONE;
-	fclose(logger->fp);
+	close(logger->fp);
 	free(logger);
 }
 
