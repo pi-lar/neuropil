@@ -9,13 +9,13 @@
 
 #include "np_jobqueue.h"
 
-#include "include.h"
 #include "dtime.h"
 #include "neuropil.h"
+#include "np_keycache.h"
 #include "np_memory.h"
 #include "np_msgproperty.h"
 #include "np_message.h"
-#include "log.h"
+#include "np_log.h"
 
 /* job_queue np_job_t structure */
 struct np_job_s {
@@ -28,8 +28,8 @@ struct np_job_s {
 	np_job_t* next;
 };
 
-
 /* job_queue structure */
+typedef struct np_jobqueue_s np_jobqueue_t;
 struct np_jobqueue_s
 {
 	np_pll_t(np_job_ptr, job_list);
@@ -47,9 +47,45 @@ int8_t compare_job_tstamp(np_job_ptr job1, np_job_ptr job2)
 	return 0;
 }
 
+NP_PLL_GENERATE_IMPLEMENTATION(np_job_ptr);
+
+
 void _np_job_free (np_job_t * n)
 {
     free (n);
+}
+
+np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop)
+{
+	// create runtime arguments
+	np_jobargs_t* jargs = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
+	jargs->msg = msg;
+	jargs->is_resend = FALSE;
+	jargs->target = key;
+	jargs->properties = prop;
+
+	return jargs;
+}
+
+np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs)
+{
+	// create job itself
+	np_job_t* new_job = (np_job_t*) malloc(sizeof(np_job_t));
+	new_job->tstamp = ev_time() + delay;
+	new_job->args = jargs;
+	new_job->type = 1;
+	return new_job;
+}
+
+void _np_jobqueue_insert(double delay, np_job_t* new_job)
+{
+	pthread_mutex_lock(&__lock_mutex);
+
+	pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE);
+	if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0) {
+		pthread_cond_signal(&__cond_empty);
+	}
+	pthread_mutex_unlock(&__lock_mutex);
 }
 
 /** (re-)submit message event
@@ -59,14 +95,12 @@ void _np_job_free (np_job_t * n)
  ** add the new np_job_t to the queue, and
  ** signal the thread pool if the queue was empty.
  **/
-void _np_job_resubmit_msg_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
+void _np_job_resubmit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
     // create runtime arguments
-    np_jobargs_t* jargs = (np_jobargs_t*) malloc (sizeof(np_jobargs_t));
-    jargs->msg = msg;
+	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
     jargs->is_resend = TRUE;
-    jargs->target = key;
-    jargs->properties = prop;
+
     if (msg != NULL)
     {
     	np_ref_obj(np_message_t, jargs->msg);
@@ -77,34 +111,42 @@ void _np_job_resubmit_msg_event (double delay, np_msgproperty_t* prop, np_key_t*
     }
 
     // create job itself
-    np_job_t* new_job = (np_job_t *) malloc (sizeof(np_job_t));
-    new_job->processorFunc = prop->clb; // ->msg_handler;
-    new_job->tstamp = ev_time() + delay;
-    new_job->args = jargs;
-    new_job->type = 1;
+	np_job_t* new_job = _np_job_create_job(delay, jargs);
+    new_job->processorFunc = prop->clb_outbound;
 
-    pthread_mutex_lock (&__lock_mutex);
-
-    pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE);
-    if (pll_size(__np_job_queue->job_list) >= 1  || delay == 0.0)
-    {
-    	pthread_cond_signal (&__cond_empty);
-    }
-
-    pthread_mutex_unlock (&__lock_mutex);
+	_np_jobqueue_insert(delay, new_job);
 }
 
-void np_job_submit_msg_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
-{
-	// log_msg(LOG_TRACE, "job_submit_msg_event starting ...");
 
+void _np_job_resubmit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
+{
     // create runtime arguments
-    np_jobargs_t* jargs = (np_jobargs_t*) malloc (sizeof(np_jobargs_t));
-    jargs->msg = msg;
-    jargs->is_resend = FALSE;
-    jargs->target = key;
-    jargs->properties = prop;
-    if (NULL != jargs->msg)
+	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
+    jargs->is_resend = TRUE;
+
+	if (msg != NULL)
+	{
+		np_ref_obj(np_message_t, jargs->msg);
+	}
+	if (NULL != jargs->target)
+	{
+		np_ref_obj(np_key_t, jargs->target);
+	}
+
+    // create job itself
+	np_job_t* new_job = _np_job_create_job(delay, jargs);
+    new_job->processorFunc = prop->clb_route;
+
+	_np_jobqueue_insert(delay, new_job);
+}
+
+
+void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
+{
+    // create runtime arguments
+	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
+
+	if (msg != NULL)
     {
     	np_ref_obj(np_message_t, jargs->msg);
     }
@@ -114,48 +156,86 @@ void np_job_submit_msg_event (double delay, np_msgproperty_t* prop, np_key_t* ke
     }
 
     // create job itself
-    np_job_t* new_job = (np_job_t *) malloc (sizeof(np_job_t));
-    new_job->processorFunc = prop->clb; // ->msg_handler;
-    new_job->tstamp = ev_time() + delay;
-    new_job->args = jargs;
-    new_job->type = 1;
+	np_job_t* new_job = _np_job_create_job(delay, jargs);
+    new_job->processorFunc = prop->clb_route; // ->msg_handler;
 
-    pthread_mutex_lock (&__lock_mutex);
-    // log_msg(LOG_DEBUG, "1: new_job-->%p func-->%p args-->%p", new_job, new_job->processorFunc, new_job->args);
-    // log_msg(LOG_DEBUG, "requsting msg execution at: %f", new_job->tstamp);
-    // if (NULL == sll_first (job_q->job_list)) was_empty = 1;
-    pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE);
-    if (pll_size(__np_job_queue->job_list) >= 1  || delay == 0.0)
+	_np_jobqueue_insert(delay, new_job);
+}
+
+void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
+{
+    // create runtime arguments
+	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
+
+	if (msg != NULL)
     {
-    	pthread_cond_signal (&__cond_empty);
+    	np_ref_obj(np_message_t, jargs->msg);
     }
-    // if (was_empty) pthread_cond_signal (&__cond_empty);
+    if (NULL != jargs->target)
+    {
+    	np_ref_obj(np_key_t, jargs->target);
+    }
 
-    pthread_mutex_unlock (&__lock_mutex);
+    // create job itself
+	np_job_t* new_job = _np_job_create_job(delay, jargs);
+    new_job->processorFunc = prop->clb_inbound; // ->msg_handler;
+
+	_np_jobqueue_insert(delay, new_job);
+}
+
+
+void _np_job_submit_transform_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
+{
+    // create runtime arguments
+	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
+
+	if (NULL != jargs->msg)
+    {
+    	np_ref_obj(np_message_t, jargs->msg);
+    }
+    if (NULL != jargs->target)
+    {
+    	np_ref_obj(np_key_t, jargs->target);
+    }
+
+    // create job itself
+	np_job_t* new_job = _np_job_create_job(delay, jargs);
+    new_job->processorFunc = prop->clb_transform; // ->msg_handler;
+
+	_np_jobqueue_insert(delay, new_job);
+}
+
+void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
+{
+	// log_msg(LOG_TRACE, "job_submit_msg_event starting ...");
+
+    // create runtime arguments
+	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
+
+	if (NULL != jargs->msg)
+    {
+    	np_ref_obj(np_message_t, jargs->msg);
+    }
+    if (NULL != jargs->target)
+    {
+    	np_ref_obj(np_key_t, jargs->target);
+    }
+
+    // create job itself
+	np_job_t* new_job = _np_job_create_job(delay, jargs);
+    new_job->processorFunc = prop->clb_outbound;
+
+	_np_jobqueue_insert(delay, new_job);
 	// log_msg(LOG_TRACE, "... job_submit_msg_event finished");
 }
 
 void np_job_submit_event (double delay, np_callback_t callback)
 {
-    np_job_t* new_job = (np_job_t *) malloc (sizeof (np_job_t));
-    new_job->tstamp = ev_time() + delay;
+	np_job_t* new_job = _np_job_create_job(delay, NULL);
     new_job->processorFunc = callback;
-    new_job->args = NULL;
     new_job->type = 2;
 
-    pthread_mutex_lock (&__lock_mutex);
-
-    // log_msg(LOG_DEBUG, "requsting event execution at: %f", new_job->tstamp);
-    // log_msg(LOG_DEBUG, "2: new_job-->%p func-->%p args-->%p", new_job, new_job->processorFunc, new_job->args);
-    // if (NULL == sll_first (job_q->job_list)) was_empty = 1;
-    pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE);
-    if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
-    {
-    	pthread_cond_signal (&__cond_empty);
-    }
-    // if (was_empty) pthread_cond_signal (&__cond_empty);
-
-    pthread_mutex_unlock (&__lock_mutex);
+	_np_jobqueue_insert(delay, new_job);
 }
 
 /** job_queue_create
@@ -177,9 +257,9 @@ np_bool _np_job_queue_create()
  * after getting the first job out of queue it will execute the corresponding callback with
  * defined job arguments
  */
-void* _job_exec (void* np_state)
+void* _job_exec ()
 {
-	np_state_t* state = (np_state_t*) np_state;
+	// np_state_t* state = _np_state();
 	np_job_t* tmp = NULL;
 
 	log_msg(LOG_DEBUG, "job queue thread starting");
@@ -221,11 +301,13 @@ void* _job_exec (void* np_state)
     	}
 
     	// sanity check if the job list really returned an element
-	    // if (NULL == tmp || NULL == tmp->processorFunc) continue;
 	    if (NULL == tmp) continue;
+	    if (NULL == tmp->processorFunc) continue;
+
+	    // if (NULL == tmp) continue;
 	    // log_msg(LOG_DEBUG, "%hhd:     job-->%p func-->%p args-->%p", tmp->type, tmp, tmp->processorFunc, tmp->args);
 
-    	tmp->processorFunc(state, tmp->args);
+    	tmp->processorFunc(tmp->args);
 
     	if (tmp->type == 1)
 	    {

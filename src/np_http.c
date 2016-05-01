@@ -14,12 +14,13 @@
 
 #include "json/parson.h"
 
-#include "log.h"
+#include "np_log.h"
 #include "neuropil.h"
 #include "np_glia.h"
 #include "np_http.h"
-#include "np_jtree.h"
+#include "np_tree.h"
 #include "np_jobqueue.h"
+#include "np_network.h"
 #include "np_node.h"
 #include "np_route.h"
 #include "np_threads.h"
@@ -28,7 +29,6 @@
 
 static double __np_http_timeout = 20.0f;
 // static pthread_mutex_t __http_mutex = PTHREAD_MUTEX_INITIALIZER;
-static np_http_t* __local_http;
 
 // static char* HTML_DEFAULT_PAGE    = "<html><head><title>neuropil</title></head><body></body></html>";
 static char* HTML_NOT_IMPLEMENTED = "<html><head><title>neuropil</title></head><body>not implemented</body></html>";
@@ -45,6 +45,7 @@ typedef enum np_http_status_e {
 	SHUTDOWN
 } np_http_status_e;
 
+typedef struct np_http_s np_http_t;
 struct np_http_s
 {
 	// memory management
@@ -64,13 +65,15 @@ struct np_http_s
 	htparser* parser;
 	htparse_hooks* hooks;
 
-	np_jtree_t* user_hooks;
+	np_tree_t* user_hooks;
 
 	// http request structure
 	ht_request_t ht_request;
 	// http response structure
 	ht_response_t ht_response;
 };
+
+static np_http_t* __local_http;
 
 typedef struct http_return_t { const char* text; int http_code; } http_return_t;
 http_return_t http_return_codes[] = {
@@ -112,7 +115,7 @@ void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 	_np_http_callback_t* callback_data = malloc(sizeof (_np_http_callback_t));
 	callback_data->user_arg = user_args;
 	callback_data->callback = func;
-	jrb_insert_str(__local_http->user_hooks, key, new_jval_v(callback_data));
+	tree_insert_str(__local_http->user_hooks, key, new_val_v(callback_data));
 }
 
 
@@ -122,11 +125,11 @@ void _np_rem_http_callback(const char* path, htp_method method)
 
 	char key[32];
 	snprintf(key, 31, "%d:%s", method, path);
-	np_jtree_elem_t* callback_val = jrb_find_str(__local_http->user_hooks, key);
+	np_tree_elem_t* callback_val = tree_find_str(__local_http->user_hooks, key);
 	if (NULL != callback_val)
 	{
 		_np_http_callback_t* callback_data = (_np_http_callback_t*) callback_val->val.value.v;
-		del_str_node(__local_http->user_hooks, key);
+		tree_del_str(__local_http->user_hooks, key);
 		free(callback_data);
 	}
 }
@@ -160,7 +163,7 @@ int _np_http_query_args(htparser * parser, const char * data, size_t in_len)
 		else
 		{
 			val = strndup(kv_pair, strlen(kv_pair));
-			jrb_insert_str(__local_http->ht_request.ht_query_args, key, new_jval_s(val) );
+			tree_insert_str(__local_http->ht_request.ht_query_args, key, new_val_s(val) );
 			free(key);
 			free(val);
 			key = NULL;
@@ -188,10 +191,10 @@ int _np_http_hdr_key(htparser * parser, const char * data, size_t in_len)
 
 int _np_http_hdr_value(htparser * parser, const char * data, size_t in_len)
 {
-	jrb_insert_str(
+	tree_insert_str(
 			__local_http->ht_request.ht_header,
 			__local_http->ht_request.current_key,
-			new_jval_s( (char*) data ) );
+			new_val_s( (char*) data ) );
 
 	free(__local_http->ht_request.current_key);
 	__local_http->ht_request.current_key = NULL;
@@ -227,7 +230,7 @@ int _np_http_on_msg_complete(htparser* parser)
 	return 0;
 }
 
-void _np_http_dispatch(np_state_t* state, np_jobargs_t* args)
+void _np_http_dispatch(np_jobargs_t* args)
 {
 	assert(PROCESSING == __local_http->status);
 
@@ -236,7 +239,7 @@ void _np_http_dispatch(np_state_t* state, np_jobargs_t* args)
 	char key[32];
 	snprintf(key, 31, "%d:%s", __local_http->ht_request.ht_method, __local_http->ht_request.ht_path);
 
-	np_jtree_elem_t* user_callback = jrb_find_str(__local_http->user_hooks, key);
+	np_tree_elem_t* user_callback = tree_find_str(__local_http->user_hooks, key);
 
 	if (NULL != user_callback)
 	{
@@ -252,14 +255,14 @@ void _np_http_dispatch(np_state_t* state, np_jobargs_t* args)
 		{
 			case(htp_method_GET):
 				{
-				np_jtree_t* tree = make_jtree();
+				np_tree_t* tree = make_jtree();
 
 				JSON_Value* arr = json_value_init_array();
 
 				// local node json reply
 				JSON_Value* my_node_obj = json_value_init_object();
 				JSON_Value* obj = json_value_init_object();
-				np_node_encode_to_jrb(tree, state->my_node_key, FALSE);
+				np_node_encode_to_jrb(tree, _np_state()->my_node_key, FALSE);
 				serialize_jrb_to_json(tree, json_object(obj));
 				json_object_set_value(json_object(my_node_obj), "local_node", obj);
 				json_array_append_value(json_array(arr), my_node_obj);
@@ -272,7 +275,7 @@ void _np_http_dispatch(np_state_t* state, np_jobargs_t* args)
 				np_sll_t(np_key_t, neighbours) = NULL;
 				_LOCK_MODULE(np_routeglobal_t)
 				{
-					neighbours = route_neighbors(state);
+					neighbours = route_neighbors();
 				}
 				np_encode_nodes_to_jrb(tree, neighbours, TRUE);
 				serialize_jrb_to_json(tree, json_object(neighbour_arr));
@@ -307,8 +310,8 @@ void _np_http_dispatch(np_state_t* state, np_jobargs_t* args)
 				json_serialize_to_buffer_pretty(arr, __local_http->ht_response.ht_body, json_size);
 
 				__local_http->ht_response.ht_header = make_jtree();
-				jrb_insert_str(
-						__local_http->ht_response.ht_header, "Content-Type", new_jval_s("application/json"));
+				tree_insert_str(
+						__local_http->ht_response.ht_header, "Content-Type", new_val_s("application/json"));
 				__local_http->ht_response.ht_status = HTTP_CODE_OK;
 				__local_http->ht_response.cleanup_body = TRUE;
 				__local_http->status = RESPONSE;
@@ -348,24 +351,24 @@ void _np_http_write_callback(struct ev_loop* loop, ev_io* ev, int event_type)
 		size_t s_cl = strlen(__local_http->ht_response.ht_body);
 		char body_length[snprintf(NULL, 0, "%lu", s_cl) + 1];
 		snprintf(body_length, s_cl ,"%lu", s_cl);
-		jrb_insert_str(
-				__local_http->ht_response.ht_header, "Content-Length", new_jval_s(body_length));
-		jrb_insert_str(
-				__local_http->ht_response.ht_header, "Content-Type", new_jval_s("text/html"));
+		tree_insert_str(
+				__local_http->ht_response.ht_header, "Content-Length", new_val_s(body_length));
+		tree_insert_str(
+				__local_http->ht_response.ht_header, "Content-Type", new_val_s("text/html"));
 		// add keep alive header
-		jrb_insert_str(
+		tree_insert_str(
 				__local_http->ht_response.ht_header, "Connection",
-				new_jval_s(htparser_should_keep_alive(__local_http->parser) ? "Keep-Alive" : "close"));
+				new_val_s(htparser_should_keep_alive(__local_http->parser) ? "Keep-Alive" : "close"));
 
 		// HTTP header
-		np_jtree_elem_t* iter = RB_MIN(np_jtree, __local_http->ht_response.ht_header);
+		np_tree_elem_t* iter = RB_MIN(np_tree_s, __local_http->ht_response.ht_header);
 		while (NULL != iter)
 		{
 			pos += snprintf(
 					data+pos,
 					snprintf(NULL, 0, "%s: %s" HTTP_CRLF, iter->key.value.s, iter->val.value.s) + 1,
 					"%s: %s" HTTP_CRLF, iter->key.value.s, iter->val.value.s);
-			iter = RB_NEXT(np_jtree, __local_http->ht_response.ht_header, iter);
+			iter = RB_NEXT(np_tree_s, __local_http->ht_response.ht_header, iter);
 		}
 		pos += snprintf(data+pos,
 						snprintf(NULL, 0, "" HTTP_CRLF) + 1,
@@ -388,7 +391,7 @@ void _np_http_write_callback(struct ev_loop* loop, ev_io* ev, int event_type)
 			if (i+1 == parts)
 			{
 				send(__local_http->client_fd, __local_http->ht_response.ht_body + pos, last_part_size, 0);
-				log_msg(LOG_HTTP | LOG_DEBUG, "send http body end (%d) success", strlen(__local_http->ht_response.ht_body) - pos);
+				log_msg(LOG_HTTP | LOG_DEBUG, "send http body end (%lu) success", strlen(__local_http->ht_response.ht_body) - pos);
 			}
 			else
 			{
@@ -494,7 +497,7 @@ void _np_http_accept(struct ev_loop* loop, ev_io* ev, int event_type)
 			getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
 		}
 
-		log_msg(LOG_HTTP | LOG_DEBUG, "received http request from %s:%s (client fd: %hd)", ipstr, port, __local_http->client_fd);
+		log_msg(LOG_HTTP | LOG_DEBUG, "received http request from %s:%s (client fd: %d)", ipstr, port, __local_http->client_fd);
 
 		__local_http->status = CONNECTED;
 
@@ -521,7 +524,7 @@ np_bool _np_http_init()
 	__local_http = (np_http_t*) malloc(sizeof(np_http_t));
 	if (NULL == __local_http) return FALSE;
 
-	__local_http->network = network_init(TRUE, TCP, "localhost", "31415" );
+	__local_http->network = network_init(TRUE, TCP | IPv4, "127.0.0.1", "31415" );
 	if (NULL == __local_http->network) return FALSE;
 
 	__local_http->parser = htparser_new();

@@ -11,22 +11,12 @@
 .. highlight:: c
 */
 
-#include "event/ev.h"
-
-#include "log.h"
-#include "dtime.h"
+#include "np_log.h"
 #include "neuropil.h"
-#include "np_memory.h"
-#include "np_message.h"
-#include "np_msgproperty.h"
+#include "np_types.h"
 
-#include "include.h"
-
-#define USAGE "neuropil_sender [ -j bootstrap:port ] [ -p protocol] [-b port]"
-#define OPTSTR "j:p:b:"
-
-#define DEBUG 0
-#define NUM_HOST 120
+#define USAGE "neuropil_sender [ -j bootstrap:port ] [ -p protocol] [-b port] [-t worker_thread_count]"
+#define OPTSTR "j:p:b:t:"
 
 extern char *optarg;
 extern int optind;
@@ -44,19 +34,19 @@ np_state_t *state;
 int main(int argc, char **argv)
 {
 	int opt;
-	char *b_hn = NULL;
-	char *b_port = NULL;
+	int no_threads = 2;
+	char *j_key = NULL;
 	char* proto = NULL;
 	char* port = NULL;
-	int i;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
 		switch ((char) opt) {
 		case 'j':
-			for (i = 0; optarg[i] != ':' && i < strlen(optarg); i++);
-			optarg[i] = 0;
-			b_hn = optarg;
-			b_port = optarg + (i+1);
+			j_key = optarg;
+			break;
+		case 't':
+			no_threads = atoi(optarg);
+			if (no_threads <= 0) no_threads = 8;
 			break;
 		case 'p':
 			proto = optarg;
@@ -84,7 +74,7 @@ int main(int argc, char **argv)
 	char log_file[256];
 	sprintf(log_file, "%s_%s.log", "./neuropil_node", port);
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
-	log_init(log_file, level);
+	np_log_init(log_file, level);
 
 	/**
 	initialize the global variable with the np_init function. the last argument
@@ -102,18 +92,23 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-	   np_start_job_queue(state, 8);
+	   np_start_job_queue(8);
 	*/
-	np_start_job_queue(state, 8);
+	np_start_job_queue(no_threads);
+
+	if (NULL != j_key)
+	{
+		np_sendjoin(j_key);
+	}
 
 	/**
 	wait until the node has received a join message before actually proceeding
 
 	.. code-block:: c
 
-	   np_waitforjoin(state);
+	   np_waitforjoin();
 	*/
-	np_waitforjoin(state);
+	np_waitforjoin();
 
 	/**
 	.. note::
@@ -151,7 +146,7 @@ int main(int argc, char **argv)
 
 		ev_sleep(1.0);
 
-		np_send_text(state, msg_subject, msg_data, k);
+		np_send_text(msg_subject, msg_data, k);
 		log_msg(LOG_DEBUG, "send message %lu", k);
 
 		k++;

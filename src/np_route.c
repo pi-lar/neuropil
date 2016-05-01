@@ -11,23 +11,23 @@
 
 #include "np_route.h"
 
-#include "jval.h"
-#include "log.h"
-#include "np_container.h"
-#include "np_list.h"
+#include "np_log.h"
 #include "np_keycache.h"
+#include "np_list.h"
 #include "np_memory.h"
-#include "np_threads.h"
 #include "np_node.h"
+#include "np_threads.h"
 
 static const uint16_t __MAX_ROW   = 64; // length of key
 static const uint16_t __MAX_COL   = 16; // 16 different characters
 static const uint16_t __MAX_ENTRY =  3; // three alternatives for each key
 
+// TODO: change size to match the possible log10(hash key max value)
 static const uint16_t __LEAFSET_SIZE = 8; /* (must be even) excluding node itself */
 
 static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+typedef struct np_routeglobal_s np_routeglobal_t;
 struct np_routeglobal_s
 {
 	np_key_t* my_key;
@@ -38,7 +38,6 @@ struct np_routeglobal_s
 
     np_dhkey_t Rrange;
     np_dhkey_t Lrange;
-
 };
 
 static np_routeglobal_t* __routing_table;
@@ -210,7 +209,7 @@ sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count)
 		    sll_append(np_key_t, key_list, leaf);
 		}
 
-	    min = find_closest_key (key_list, &key->dhkey);
+	    min = _np_find_closest_key (key_list, &key->dhkey);
 
 	    sll_append(np_key_t, return_list, min);
 	    sll_free (np_key_t, key_list);
@@ -321,12 +320,12 @@ sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count)
 	{
 	    // printf ("route.c (%d): route_lookup bounce count==1 ...\n", getpid());
 	    // printTable(state);
-		min = find_closest_key (key_list, &key->dhkey);
+		min = _np_find_closest_key (key_list, &key->dhkey);
 	    if (NULL != min) sll_append(np_key_t, return_list, min);
 	}
 	else
 	{
-		sort_keys_cpm (key_list, &key->dhkey);
+		_np_sort_keys_cpm (key_list, &key->dhkey);
 
 		/* find the best #count# entries that we looked at ... could be much better */
 		/* removing duplicates from the list */
@@ -643,7 +642,7 @@ sll_return(np_key_t) route_neighbors ()
 	}
 
     /* sort aux */
-    sort_keys_kd(node_keys, &__routing_table->my_key->dhkey);
+    _np_sort_keys_kd(node_keys, &__routing_table->my_key->dhkey);
 
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_neighbors");
     return node_keys;
@@ -658,7 +657,7 @@ sll_return(np_key_t) route_neighbors ()
 void route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added)
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_update");
-	log_msg(LOG_ROUTING | LOG_INFO, "update in routing: %hhd %s", joined, _key_as_str(key));
+	log_msg(LOG_ROUTING | LOG_INFO, "update in routing: %u %s", joined, _key_as_str(key));
 
     uint16_t i, j, k, found, pick;
 

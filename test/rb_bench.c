@@ -5,7 +5,7 @@
 
 #define NDEBUG
 #include <assert.h>
-#include "tree.h"
+#include "tree/tree.h"
 
 #define NNODES 1500
 #define NSETS 25

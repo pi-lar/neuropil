@@ -7,60 +7,32 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "event/ev.h"
-
-#include "include.h"
-
-#include "log.h"
-#include "dtime.h"
+#include "np_log.h"
 #include "neuropil.h"
-#include "np_memory.h"
-#include "np_message.h"
-#include "np_msgproperty.h"
+#include "np_types.h"
 
-
-#define USAGE "neuropil_receiver [ -j bootstrap:port ] [ -p protocol] [-b port]"
-#define OPTSTR "j:p:b:"
-
-#define DEBUG 0
-#define NUM_HOST 120
+#define USAGE "neuropil_receiver [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count]"
+#define OPTSTR "j:p:b:t:"
 
 extern char *optarg;
 extern int optind;
 
-np_state_t *state;
-
-np_key_t* key;
-np_key_t* destinations[100];
-
-int seq = -1;
-int joinComplete = 0;
-
-
-void receive(np_key_t* key, np_message_t* msg)
+int main(int argc, char **argv)
 {
-	char* subject = jrb_find_str(msg->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
-
-	log_msg(LOG_DEBUG, "RECEIVED: %s", subject);
-}
-
-
-int main(int argc, char **argv) {
-
 	int opt;
-	char *b_hn = NULL;
-	char *b_port = NULL;
+	int no_threads = 2;
+	char *j_key = NULL;
 	char* proto = NULL;
 	char* port = NULL;
-	int i;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
 		switch ((char) opt) {
 		case 'j':
-			for (i = 0; optarg[i] != ':' && i < strlen(optarg); i++);
-			optarg[i] = 0;
-			b_hn = optarg;
-			b_port = optarg + (i+1);
+			j_key = optarg;
+			break;
+		case 't':
+			no_threads = atoi(optarg);
+			if (no_threads <= 0) no_threads = 8;
 			break;
 		case 'p':
 			proto = optarg;
@@ -80,23 +52,29 @@ int main(int argc, char **argv) {
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
-	log_init(log_file, level);
+	np_log_init(log_file, level);
 
-	state = np_init(proto, port, FALSE);
+	np_init(proto, port, FALSE);
 
 	log_msg(LOG_DEBUG, "starting job queue");
-	np_start_job_queue(state, 8);
-	np_waitforjoin(state);
+	np_start_job_queue(no_threads);
 
-	while (1) {
+	if (NULL != j_key)
+	{
+		np_sendjoin(j_key);
+	}
+	np_waitforjoin();
 
+
+	while (1)
+	{
 		ev_sleep(0.9);
 		// dsleep(0.9);
 		char* testdata;
 
-		uint32_t real_seq = np_receive_text(state, "this.is.a.test", &testdata);
+		uint32_t real_seq = np_receive_text("this.is.a.test", &testdata);
 		if (0 < real_seq)
-			log_msg(LOG_DEBUG, "received message %lu: %s", real_seq, testdata);
+			log_msg(LOG_DEBUG, "received message %u: %s", real_seq, testdata);
 		else
 			log_msg(LOG_DEBUG, "message receive failed ...");
 

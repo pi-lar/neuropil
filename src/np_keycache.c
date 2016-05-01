@@ -13,12 +13,15 @@
 
 #include "np_keycache.h"
 
-#include "log.h"
+#include "np_log.h"
 #include "np_key.h"
+#include "np_network.h"
 
 
 SPLAY_GENERATE(st_keycache_s, np_key_s, link, __key_comp);
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
+
+NP_SLL_GENERATE_IMPLEMENTATION(np_key_t);
 
 static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 _NP_MODULE_LOCK_IMPL(np_keycache_t);
@@ -58,7 +61,12 @@ void _np_key_t_del(void* key)
 		free (old_key->dhkey_str);
 		old_key->dhkey_str = NULL;
 	}
-	// empty
+
+	if (NULL != old_key->network)
+	{
+		_network_destroy(old_key->network);
+		old_key->network = NULL;
+	}
 }
 
 int8_t __key_comp (const np_key_t* k1, const np_key_t* k2)
@@ -113,17 +121,17 @@ char* _key_as_str(np_key_t* key)
 	{
 		key->dhkey_str = (char*) malloc(65);
 		_dhkey_to_str(&key->dhkey, key->dhkey_str);
-		log_msg (LOG_DEBUG, "dhkey_str = %d (%s)", strlen(key->dhkey_str), key->dhkey_str);
+		log_msg (LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
 	}
 
 	return key->dhkey_str;
 }
 
 
-/** find_closest_key:
+/** _np_find_closest_key:
  ** finds the closest node in the array of #hosts# to #key# and put that in min.
  */
-np_key_t* find_closest_key ( np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key)
+np_key_t* _np_find_closest_key ( np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key)
 {
     // int i;
     np_dhkey_t dif, mindif;
@@ -160,7 +168,7 @@ np_key_t* find_closest_key ( np_sll_t(np_key_t, list_of_keys), const np_dhkey_t*
 /** sort_hosts:
  ** Sorts #hosts# based on common prefix match and key distance from #np_key_t*
  */
-void sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t* key)
+void _np_sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t* key)
 {
     np_dhkey_t dif1, dif2;
 
@@ -207,7 +215,7 @@ void sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t* key)
 /** sort_hosts_key:
  ** Sorts #hosts# based on their key distance from #np_key_t*
  */
-void sort_keys_kd (np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key)
+void _np_sort_keys_kd (np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key)
 {
     np_dhkey_t dif1, dif2;
 

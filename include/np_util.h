@@ -8,7 +8,7 @@
 #include "msgpack/cmp.h"
 #include "json/parson.h"
 
-#include "np_jtree.h"
+#include "np_tree.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,7 +16,7 @@ extern "C" {
 
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)    \
 static const char* PROP_NAME##_str = # PROP_NAME;             \
-inline void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value) {   \
+inline void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value) {  \
 	obj->PROP_NAME = value;                                   \
 }
 
@@ -44,14 +44,24 @@ inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, 
 }
 
 // create a sha156 uuid string, take the current date into account
+NP_API_EXPORT
 char* np_create_uuid(const char* str, const uint16_t num);
 
 // the following four are helper functions for c-message-pack to work on jtree structures
+NP_API_INTERN
 np_bool buffer_reader(cmp_ctx_t *ctx, void *data, size_t count);
+
+NP_API_INTERN
 size_t buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count);
-void serialize_jrb_node_t(np_jtree_t* jrb, cmp_ctx_t* cmp);
-void serialize_jrb_to_json(np_jtree_t* jtree, JSON_Object* json_obj);
-void deserialize_jrb_node_t(np_jtree_t* jrb, cmp_ctx_t* cmp);
+
+NP_API_INTERN
+void serialize_jrb_node_t(np_tree_t* jrb, cmp_ctx_t* cmp);
+
+NP_API_INTERN
+void serialize_jrb_to_json(np_tree_t* jtree, JSON_Object* json_obj);
+
+NP_API_INTERN
+void deserialize_jrb_node_t(np_tree_t* jrb, cmp_ctx_t* cmp);
 
 #ifdef __cplusplus
 }

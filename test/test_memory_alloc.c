@@ -6,7 +6,7 @@
 #include "pthread.h"
 
 #include "np_memory.h"
-#include "log.h"
+#include "np_log.h"
 #include "neuropil.h"
 #include "message.h"
 #include "include.h"
@@ -90,16 +90,16 @@ int main(int argc, char **argv) {
 
 	const char* test_msg = "test.message";
 	for (int i =0; i < 100; i++)
-		np_msgcache_push(interested, new_jval_v(test_msg));
+		np_msgcache_push(interested, new_val_v(test_msg));
 
 	printf("size of msgcache %d\n", np_msgcache_size(interested));
 	for (int i =0; i < 50; i++) {
-		np_jval_t message = np_msgcache_pop(interested);
+		np_val_t message = np_msgcache_pop(interested);
 	}
 	printf("size of msgcache %d\n", np_msgcache_size(interested));
 
 	for (int i =0; i < 50; i++) {
-		np_jval_t message = np_msgcache_pop(interested);
+		np_val_t message = np_msgcache_pop(interested);
 	}
 	printf("size of msgcache %d\n", np_msgcache_size(interested));
 }

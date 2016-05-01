@@ -3,7 +3,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "log.h"
+#include "np_log.h"
 #include "np_network.h"
 
 int main(int argc, char **argv) {
@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
 	char log_file[256];
 	sprintf(log_file, "%s.log", "./ipv6_addrinfo");
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK | LOG_KEY;
-	log_init(log_file, level);
+	np_log_init(log_file, level);
 
 	uint8_t type = UDP | IPv4;
 	char hostname[256];
@@ -51,8 +51,8 @@ int main(int argc, char **argv) {
 				"   ai_family    = %d (PF_INET = %d, PF_INET6 = %d)\n"
 				"   ai_socktype  = %d (SOCK_STREAM = %d, SOCK_DGRAM = %d)\n"
 				"   ai_protocol  = %d (IPPROTO_TCP = %d, IPPROTO_UDP = %d)\n"
-				"   ai_addrlen   = %d (sockaddr_in = %d, "
-				"sockaddr_in6 = %d)\n",
+				"   ai_addrlen   = %d (sockaddr_in = %lu, "
+				"sockaddr_in6 = %lu)\n",
 				ai->ai_canonname,
 				ai->ai_flags,
 				ai->ai_family,

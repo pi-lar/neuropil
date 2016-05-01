@@ -19,16 +19,14 @@
 #include "neuropil.h"
 
 #include "dtime.h"
-#include "log.h"
-#include "include.h"
+#include "np_log.h"
 #include "np_aaatoken.h"
 #include "np_axon.h"
-#include "np_container.h"
 #include "np_dendrit.h"
 #include "np_glia.h"
 #include "np_http.h"
 #include "np_jobqueue.h"
-#include "np_jtree.h"
+#include "np_tree.h"
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_memory.h"
@@ -47,80 +45,162 @@ const char* NP_VERSION = "0.1.0";
 
 static np_state_t* __global_state = NULL;
 
-np_state_t* const _np_state ()
+np_state_t* _np_state ()
 {
 	return __global_state;
 }
 
-np_bool np_default_authorizefunc (np_state_t* state, np_aaatoken_t* token )
+np_bool _np_default_authorizefunc (np_aaatoken_t* token )
 {
 	log_msg(LOG_WARN, "using default handler to authorize %s", token->subject );
 	log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
+
 	return TRUE;
 }
 
-np_bool np_default_authenticatefunc (np_state_t* state, np_aaatoken_t* token )
+np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
+{
+	np_key_t* aaa_target;
+	np_new_obj(np_key_t, aaa_target);
+	aaa_target->aaa_token = token;
+
+	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
+	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
+
+	np_free_obj(np_key_t, aaa_target);
+
+	return FALSE;
+}
+
+np_bool _np_default_authenticatefunc (np_aaatoken_t* token )
 {
 	log_msg(LOG_WARN, "using default handler to authenticate %s", token->subject);
 	log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
+
 	return TRUE;
 }
 
-np_bool np_default_accountingfunc (np_state_t* state, np_aaatoken_t* token )
+np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token )
+{
+	np_key_t* aaa_target;
+	np_new_obj(np_key_t, aaa_target);
+	aaa_target->aaa_token = token;
+
+	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
+	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
+
+	np_free_obj(np_key_t, aaa_target);
+
+	return FALSE;
+}
+
+np_bool _np_default_accountingfunc (np_aaatoken_t* token )
 {
 	log_msg(LOG_WARN, "using default handler to account for %s", token->subject );
 	log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
+
 	return TRUE;
 }
 
-void np_setauthorizing_cb(np_state_t* state, np_aaa_func_t aaaFunc)
+np_bool _np_aaa_accountingfunc (np_aaatoken_t* token )
+{
+	np_key_t* aaa_target;
+	np_new_obj(np_key_t, aaa_target);
+	aaa_target->aaa_token = token;
+
+	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
+	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
+
+	np_free_obj(np_key_t, aaa_target);
+	return FALSE;
+}
+
+void np_setauthorizing_cb(np_aaa_func_t aaaFunc)
 {
 	log_msg(LOG_INFO, "setting user defined authorization handler, that's good ...");
-	state->authorize_func = aaaFunc;
+	__global_state->authorize_func = aaaFunc;
 }
 
-void np_setauthenticate_cb(np_state_t* state, np_aaa_func_t aaaFunc)
+void np_setauthenticate_cb(np_aaa_func_t aaaFunc)
 {
 	log_msg(LOG_INFO, "setting user defined authentication handler, that's good ...");
-	state->authenticate_func = aaaFunc;
+	__global_state->authenticate_func = aaaFunc;
 }
 
-void np_setaccounting_cb(np_state_t* state, np_aaa_func_t aaaFunc)
+void np_setaccounting_cb(np_aaa_func_t aaaFunc)
 {
 	log_msg(LOG_INFO, "setting user defined accounting handler, that's good ...");
-	state->accounting_func = aaaFunc;
+	__global_state->accounting_func = aaaFunc;
 }
 
-void np_sendjoin(const np_state_t* state, np_key_t* node_key)
+void np_sendjoin(const char* node_string)
 {
+	np_state_t* state = _np_state();
+	np_key_t* node_key = NULL;
+
+	_LOCK_MODULE(np_keycache_t)
+	{
+		node_key = np_node_decode_from_str(node_string);
+	}
+
 	np_message_t* msg_out;
 
-	np_jtree_t* jrb_me = make_jtree();
-	np_aaatoken_t* node_token = _np_create_node_token(state, state->my_node_key->node, state->my_node_key);
+	np_tree_t* jrb_me = make_jtree();
+	np_aaatoken_t* node_token = _np_create_node_token(state->my_node_key->node, state->my_node_key);
 	np_encode_aaatoken(jrb_me, node_token);
 
 	np_new_obj(np_message_t, msg_out);
-	np_message_create(msg_out, node_key, state->my_node_key, NP_MSG_JOIN_REQUEST, jrb_me);
+	np_message_create(msg_out, node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
 
 	log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(node_key));
-	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, NP_MSG_JOIN_REQUEST);
-	np_job_submit_msg_event(0.0, prop, node_key, msg_out);
+	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
+	_np_job_submit_msgout_event(0.0, prop, node_key, msg_out);
 
 	np_free_obj(np_message_t, msg_out);
 	np_free_obj(np_aaatoken_t, node_token);
 }
 
-
-void np_waitforjoin(const np_state_t* state)
+void np_enable_realm_slave(const char* realm_name)
 {
+	strncpy(__global_state->my_identity->aaa_token->realm, realm_name, 255);
+	if (__global_state->my_identity != __global_state->my_node_key)
+		strncpy(__global_state->my_node_key->aaa_token->realm, realm_name, 255);
+
+    __global_state->authorize_func    = _np_aaa_authorizefunc;
+    __global_state->authenticate_func = _np_aaa_authenticatefunc;
+    __global_state->accounting_func   = _np_aaa_accountingfunc;
+}
+
+void np_enable_realm_master(const char* realm_name)
+{
+	strncpy(__global_state->my_identity->aaa_token->realm, realm_name, 255);
+	if (__global_state->my_identity != __global_state->my_node_key)
+		strncpy(__global_state->my_node_key->aaa_token->realm, realm_name, 255);
+
+	np_msgproperty_t* prop = NULL;
+
+	prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
+	prop->mode_type = INBOUND | TRANSFORM | ROUTE;
+
+	prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
+	prop->mode_type = INBOUND | TRANSFORM | ROUTE;
+
+	prop = np_msgproperty_get(INBOUND, _NP_MSG_ACCOUNTING_REQUEST);
+	prop->mode_type = INBOUND | TRANSFORM | ROUTE;
+
+	__global_state->enable_realm_master = TRUE;
+}
+
+void np_waitforjoin()
+{
+	np_state_t* state = _np_state();
 	while (FALSE == state->my_node_key->node->joined_network)
 	{
 		ev_sleep(0.31415);
-		// dsleep(0.31415);
 	}
 }
 
-void np_set_listener (np_state_t* state, np_usercallback_t msg_handler, char* subject)
+void np_set_listener (np_usercallback_t msg_handler, char* subject)
 {
 	// check whether an handler already exists
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
@@ -131,32 +211,34 @@ void np_set_listener (np_state_t* state, np_usercallback_t msg_handler, char* su
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mode_type = INBOUND;
-		msg_prop->clb = np_callback_wrapper;
+		msg_prop->clb_inbound = _np_callback_wrapper;
 		msg_prop->user_clb = msg_handler;
 		np_msgproperty_register(msg_prop);
 	}
 
 	// update informations somewhere in the network
-	_np_send_msg_interest(state, subject);
+	_np_send_msg_interest(subject);
 }
 
-void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
+void np_set_identity(np_aaatoken_t* identity)
 {
+	np_state_t* state = _np_state();
     np_key_t* my_identity_key = NULL;
 
-    unsigned char hash_key[crypto_hash_sha256_BYTES];
-    crypto_hash_sha256_state* hash_state = NULL;
-    crypto_hash_sha256_init(hash_state);
-	crypto_hash_sha256_update(hash_state, (const unsigned char*) identity->realm, strlen(identity->realm));
-	crypto_hash_sha256_update(hash_state, (const unsigned char*) identity->issuer, strlen(identity->issuer));
-	crypto_hash_sha256_update(hash_state, (const unsigned char*) identity->subject, strlen(identity->subject));
-	// crypto_hash_sha256_update(hash_state, (const unsigned char*) identity->audience, strlen(identity->audience));
-	crypto_hash_sha256_final(hash_state, hash_key);
+	unsigned char hash[crypto_generichash_BYTES];
+
+	crypto_generichash_state gh_state;
+	crypto_generichash_init(&gh_state, NULL, 0, sizeof hash);
+	crypto_generichash_update(&gh_state, (const unsigned char*) identity->realm, strlen(identity->realm));
+	crypto_generichash_update(&gh_state, (const unsigned char*) identity->issuer, strlen(identity->issuer));
+	crypto_generichash_update(&gh_state, (const unsigned char*) identity->subject, strlen(identity->subject));
+	crypto_generichash_update(&gh_state, (const unsigned char*) identity->audience, strlen(identity->audience));
+	crypto_generichash_final(&gh_state, hash, sizeof hash);
 	char key[65];
-	sodium_bin2hex(key, 65, hash_key, 32);
+	sodium_bin2hex(key, 65, hash, 32);
 
 	np_dhkey_t search_key = dhkey_create_from_hash(key);
-	LOCK_CACHE(state)
+	_LOCK_MODULE(np_keycache_t)
 	{
 		my_identity_key = _np_key_find_create(search_key);
 	}
@@ -175,18 +257,21 @@ void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
 		np_ref_obj(np_aaatoken_t, identity);
 	}
 
+	// set target node string for correct routing
+	tree_insert_str(identity->extensions, "target_node", new_val_s(_key_as_str(state->my_node_key)) );
+
     // create encryption parameter
 	crypto_sign_keypair(identity->public_key, identity->private_key);
 }
 
-void np_set_mx_property(np_state_t* state, char* subject, const char* key, np_jval_t value)
+void np_set_mx_property(char* subject, const char* key, np_val_t value)
 {
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
 	{
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->clb = hnd_msg_out_send;
+		msg_prop->clb_outbound = _np_out_send;
 
 		np_msgproperty_register(msg_prop);
 	}
@@ -221,7 +306,7 @@ void np_set_mx_property(np_state_t* state, char* subject, const char* key, np_jv
 	}
 }
 
-void np_rem_mx_property(np_state_t* state, char* subject, const char* key)
+void np_rem_mx_property(char* subject, const char* key)
 {
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
@@ -239,7 +324,7 @@ void np_rem_mx_property(np_state_t* state, char* subject, const char* key)
 	}
 }
 
-void np_send_msg (np_state_t* state, char* subject, np_jtree_t *properties, np_jtree_t *body)
+void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body)
 {
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
@@ -248,7 +333,7 @@ void np_send_msg (np_state_t* state, char* subject, np_jtree_t *properties, np_j
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
 		msg_prop->mode_type = OUTBOUND;
-		msg_prop->clb = hnd_msg_out_send;
+		msg_prop->clb_outbound = _np_out_send;
 
 		np_msgproperty_register(msg_prop);
 	}
@@ -256,22 +341,24 @@ void np_send_msg (np_state_t* state, char* subject, np_jtree_t *properties, np_j
 	np_message_t* msg = NULL;
 	np_new_obj(np_message_t, msg);
 
-	jrb_insert_str(msg->header, NP_MSG_HEADER_SUBJECT, new_jval_s((char*) subject));
-	jrb_insert_str(msg->header, NP_MSG_HEADER_FROM, new_jval_s((char*) _key_as_str(state->my_node_key)));
+	tree_insert_str(msg->header, NP_MSG_HEADER_SUBJECT, new_val_s((char*) subject));
+	tree_insert_str(msg->header, NP_MSG_HEADER_FROM, new_val_s((char*) _key_as_str(_np_state()->my_node_key)));
 
 	np_message_setbody(msg, body);
 	np_message_setproperties(msg, properties);
 
-	msg_prop->msg_threshold++;
-	_np_send_msg_availability(state, subject);
+	// msg_prop->msg_threshold++;
+	_np_send_msg_availability(subject);
 
-	_np_send_msg(state, subject, msg, msg_prop);
+	_np_send_msg(subject, msg, msg_prop);
 
 	np_free_obj(np_message_t, msg);
 }
 
-void np_send_text (np_state_t* state, char* subject, char *data, uint32_t seqnum)
+void np_send_text (char* subject, char *data, uint32_t seqnum)
 {
+	np_state_t* state = _np_state();
+
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
 	{
@@ -279,7 +366,7 @@ void np_send_text (np_state_t* state, char* subject, char *data, uint32_t seqnum
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
 		msg_prop->mode_type = OUTBOUND;
-		msg_prop->clb = hnd_msg_out_send;
+		msg_prop->clb_outbound = _np_out_send;
 
 		np_msgproperty_register(msg_prop);
 	}
@@ -287,21 +374,21 @@ void np_send_text (np_state_t* state, char* subject, char *data, uint32_t seqnum
 	np_message_t* msg = NULL;
 	np_new_obj(np_message_t, msg);
 
-	jrb_insert_str(msg->header, NP_MSG_HEADER_SUBJECT, new_jval_s(subject));
-	jrb_insert_str(msg->header, NP_MSG_HEADER_FROM, new_jval_s(_key_as_str(state->my_node_key)));
-	jrb_insert_str(msg->body,   NP_MSG_BODY_TEXT, new_jval_s(data));
+	tree_insert_str(msg->header, NP_MSG_HEADER_SUBJECT, new_val_s(subject));
+	tree_insert_str(msg->header, NP_MSG_HEADER_FROM, new_val_s(_key_as_str(state->my_node_key)));
+	tree_insert_str(msg->body,   NP_MSG_BODY_TEXT, new_val_s(data));
 
-	jrb_insert_str(msg->properties, NP_MSG_INST_SEQ, new_jval_ul(seqnum));
+	tree_insert_str(msg->properties, NP_MSG_INST_SEQ, new_val_ul(seqnum));
 
-	msg_prop->msg_threshold++;
-	_np_send_msg_availability(state, subject);
+	// msg_prop->msg_threshold++;
+	_np_send_msg_availability(subject);
 
-	_np_send_msg(state, subject, msg, msg_prop);
+	_np_send_msg(subject, msg, msg_prop);
 
 	np_free_obj(np_message_t, msg);
 }
 
-uint32_t np_receive_msg (np_state_t* state, char* subject, np_jtree_t* properties, np_jtree_t* body)
+uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 {
 	// send out that we want to receive messages
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
@@ -311,7 +398,7 @@ uint32_t np_receive_msg (np_state_t* state, char* subject, np_jtree_t* propertie
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
 		msg_prop->mode_type = INBOUND;
-		msg_prop->clb = np_signal;
+		msg_prop->clb_inbound = _np_signal;
 		// when creating, set to zero because callback function is not used
 		msg_prop->max_threshold = 0;
 
@@ -320,7 +407,7 @@ uint32_t np_receive_msg (np_state_t* state, char* subject, np_jtree_t* propertie
 	}
 	msg_prop->max_threshold++;
 
-	_np_send_msg_interest(state, subject);
+	_np_send_msg_interest(subject);
 
 	np_aaatoken_t* sender_token = NULL;
 	np_message_t* msg = NULL;
@@ -341,8 +428,8 @@ uint32_t np_receive_msg (np_state_t* state, char* subject, np_jtree_t* propertie
 		msg = sll_first(msg_prop->msg_cache)->val;
 
 		// next check or wait for valid sender tokens
-		sender_id = jrb_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
-		sender_token = _np_get_sender_token(state, subject, sender_id);
+		sender_id = tree_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
+		sender_token = _np_get_sender_token(subject, sender_id);
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
@@ -355,6 +442,7 @@ uint32_t np_receive_msg (np_state_t* state, char* subject, np_jtree_t* propertie
 
 	} while (FALSE == msg_received);
 
+	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 	msg_prop->msg_threshold--;
 
 	// in receive function, we can only receive one message per call, different for callback function
@@ -362,51 +450,54 @@ uint32_t np_receive_msg (np_state_t* state, char* subject, np_jtree_t* propertie
 	msg = sll_head(np_message_t, msg_prop->msg_cache);
 
 	log_msg(LOG_DEBUG, "decrypting message ...");
-	np_bool decrypt_ok = np_message_decrypt_payload(state, msg, sender_token);
+	np_bool decrypt_ok = np_message_decrypt_payload(msg, sender_token);
 
 	if (FALSE == decrypt_ok)
 	{
 		log_msg(LOG_DEBUG, "decryption of message failed, deleting message");
 
 		np_unref_obj(np_message_t, msg);
+		np_unref_obj(np_aaatoken_t, sender_token);
 		msg_prop->max_threshold--;
 
 		return FALSE;
 	}
 
 	// copy properties
-	np_jtree_elem_t* tmp = NULL;
-	RB_FOREACH(tmp, np_jtree, msg->properties)
+	np_tree_elem_t* tmp = NULL;
+	RB_FOREACH(tmp, np_tree_s, msg->properties)
 	{
-		if (tmp->key.type == char_ptr_type)      jrb_insert_str(properties, tmp->key.value.s, tmp->val);
-		if (tmp->key.type == int_type)           jrb_insert_int(properties, tmp->key.value.i, tmp->val);
-		if (tmp->key.type == double_type)        jrb_insert_dbl(properties, tmp->key.value.d, tmp->val);
-		if (tmp->key.type == unsigned_long_type) jrb_insert_ulong(properties, tmp->key.value.ul, tmp->val);
+		if (tmp->key.type == char_ptr_type)      tree_insert_str(properties, tmp->key.value.s, tmp->val);
+		if (tmp->key.type == int_type)           tree_insert_int(properties, tmp->key.value.i, tmp->val);
+		if (tmp->key.type == double_type)        tree_insert_dbl(properties, tmp->key.value.d, tmp->val);
+		if (tmp->key.type == unsigned_long_type) tree_insert_ulong(properties, tmp->key.value.ul, tmp->val);
 	}
 
 	// copy body
 	tmp = NULL;
-	RB_FOREACH(tmp, np_jtree, msg->body)
+	RB_FOREACH(tmp, np_tree_s, msg->body)
 	{
-		if (tmp->key.type == char_ptr_type)      jrb_insert_str(body, tmp->key.value.s, tmp->val);
-		if (tmp->key.type == int_type)           jrb_insert_int(body, tmp->key.value.i, tmp->val);
-		if (tmp->key.type == double_type)        jrb_insert_dbl(body, tmp->key.value.d, tmp->val);
-		if (tmp->key.type == unsigned_long_type) jrb_insert_ulong(body, tmp->key.value.ul, tmp->val);
+		if (tmp->key.type == char_ptr_type)      tree_insert_str(body, tmp->key.value.s, tmp->val);
+		if (tmp->key.type == int_type)           tree_insert_int(body, tmp->key.value.i, tmp->val);
+		if (tmp->key.type == double_type)        tree_insert_dbl(body, tmp->key.value.d, tmp->val);
+		if (tmp->key.type == unsigned_long_type) tree_insert_ulong(body, tmp->key.value.ul, tmp->val);
 	}
 
-	uint8_t ack_mode = jrb_find_str(msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
+	uint8_t ack_mode = tree_find_str(msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
 	if (0 < (ack_mode & ACK_DESTINATION))
 	{
-		_np_send_ack(state, msg);
+		_np_send_ack(msg);
 	}
 
 	np_unref_obj(np_message_t, msg);
+	np_unref_obj(np_aaatoken_t, sender_token);
+
 	msg_prop->max_threshold--;
 
 	return TRUE;
 }
 
-uint32_t np_receive_text (np_state_t* state, char* subject, char **data)
+uint32_t np_receive_text (char* subject, char **data)
 {
 	// send out that we want to receive messages
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
@@ -416,7 +507,7 @@ uint32_t np_receive_text (np_state_t* state, char* subject, char **data)
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
 		msg_prop->mode_type = INBOUND;
-		msg_prop->clb = np_signal;
+		msg_prop->clb_inbound = _np_signal;
 		// when creating, set to zero because callback function is not used
 		msg_prop->max_threshold = 0;
 
@@ -425,7 +516,7 @@ uint32_t np_receive_text (np_state_t* state, char* subject, char **data)
 	}
 	msg_prop->max_threshold++;
 
-	_np_send_msg_interest(state, subject);
+	_np_send_msg_interest(subject);
 
 	np_aaatoken_t* sender_token = NULL;
 	np_message_t* msg = NULL;
@@ -446,8 +537,8 @@ uint32_t np_receive_text (np_state_t* state, char* subject, char **data)
 		msg = sll_first(msg_prop->msg_cache)->val;
 
 		// next check or wait for valid sender tokens
-		sender_id = jrb_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
-		sender_token = _np_get_sender_token(state, subject, sender_id);
+		sender_id = tree_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
+		sender_token = _np_get_sender_token(subject, sender_id);
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
@@ -460,6 +551,7 @@ uint32_t np_receive_text (np_state_t* state, char* subject, char **data)
 
 	} while (FALSE == msg_received);
 
+	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 	msg_prop->msg_threshold--;
 
 	// in receive function, we can only receive one message per call, different for callback function
@@ -467,29 +559,31 @@ uint32_t np_receive_text (np_state_t* state, char* subject, char **data)
 	msg = sll_head(np_message_t, msg_prop->msg_cache);
 
 	log_msg(LOG_DEBUG, "decrypting message ...");
-	np_bool decrypt_ok = np_message_decrypt_payload(state, msg, sender_token);
+	np_bool decrypt_ok = np_message_decrypt_payload(msg, sender_token);
 
 	if (FALSE == decrypt_ok)
 	{
 		log_msg(LOG_DEBUG, "decryption of message failed, deleting message");
 
 		np_unref_obj(np_message_t, msg);
+		np_unref_obj(np_aaatoken_t, sender_token);
 		msg_prop->max_threshold--;
 
 		return 0;
 	}
 
-	uint32_t received = jrb_find_str(msg->properties, NP_MSG_INST_SEQ)->val.value.ul;
-	np_jtree_elem_t* reply_data = jrb_find_str(msg->body, NP_MSG_BODY_TEXT);
+	uint32_t received = tree_find_str(msg->properties, NP_MSG_INST_SEQ)->val.value.ul;
+	np_tree_elem_t* reply_data = tree_find_str(msg->body, NP_MSG_BODY_TEXT);
 	*data = strndup(reply_data->val.value.s, strlen(reply_data->val.value.s));
 
-	uint8_t ack_mode = jrb_find_str(msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
+	uint8_t ack_mode = tree_find_str(msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
 	if (0 < (ack_mode & ACK_DESTINATION))
 	{
-		_np_send_ack(state, msg);
+		_np_send_ack(msg);
 	}
 
 	np_unref_obj(np_message_t, msg);
+	np_unref_obj(np_aaatoken_t, sender_token);
 	msg_prop->max_threshold--;
 
 	log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
@@ -497,25 +591,26 @@ uint32_t np_receive_text (np_state_t* state, char* subject, char **data)
 	return received;
 }
 
-
-void _np_send_ack(np_state_t* state, np_message_t* in_msg)
+void _np_send_ack(np_message_t* in_msg)
 {
+	np_state_t* state = _np_state();
+
 	// uint8_t ack = ACK_NONE;
 	uint32_t seq = 0;
 	char* uuid = NULL;
 
 	// np_message_t* in_msg = args->msg;
 
-	if (NULL != jrb_find_str(in_msg->header, NP_MSG_INST_ACK_TO))
+	if (NULL != tree_find_str(in_msg->header, NP_MSG_INST_ACK_TO))
 	{
 		// extract data from incoming message
-		seq = jrb_find_str(in_msg->instructions, NP_MSG_INST_SEQ)->val.value.ul;
-		// ack = jrb_find_str(in_msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
-		uuid = jrb_find_str(in_msg->instructions, NP_MSG_INST_UUID)->val.value.s;
+		seq = tree_find_str(in_msg->instructions, NP_MSG_INST_SEQ)->val.value.ul;
+		// ack = tree_find_str(in_msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
+		uuid = tree_find_str(in_msg->instructions, NP_MSG_INST_UUID)->val.value.s;
 
 		// create new ack message & handlers
 		np_dhkey_t ack_key = dhkey_create_from_hash(
-				jrb_find_str(in_msg->header, NP_MSG_INST_ACK_TO)->val.value.s);
+				tree_find_str(in_msg->header, NP_MSG_INST_ACK_TO)->val.value.s);
 
 		// TODO: find in keycache, must be present
 		np_key_t* ack_target;
@@ -525,26 +620,26 @@ void _np_send_ack(np_state_t* state, np_message_t* in_msg)
 		np_message_t* ack_msg = NULL;
 		np_new_obj(np_message_t, ack_msg);
 
-		np_msgproperty_t* prop = np_msgproperty_get(TRANSFORM, ROUTE_LOOKUP);
+		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
 
-		np_message_create(ack_msg, ack_target, state->my_node_key, NP_MSG_ACK, NULL);
-		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_ACK, new_jval_ush(prop->ack_mode));
-		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_ACKUUID, new_jval_s(uuid));
-		jrb_insert_str(ack_msg->instructions, NP_MSG_INST_SEQ, new_jval_ul(seq));
+		np_message_create(ack_msg, ack_target, state->my_node_key, _NP_MSG_ACK, NULL);
+		tree_insert_str(ack_msg->instructions, NP_MSG_INST_ACK, new_val_ush(prop->ack_mode));
+		tree_insert_str(ack_msg->instructions, NP_MSG_INST_ACKUUID, new_val_s(uuid));
+		tree_insert_str(ack_msg->instructions, NP_MSG_INST_SEQ, new_val_ul(seq));
 		// send the ack out
-		np_job_submit_msg_event(0.0, prop, ack_target, ack_msg);
+		_np_job_submit_route_event(0.0, prop, ack_target, ack_msg);
 
 		np_free_obj(np_message_t, ack_msg);
 	}
 }
 
-
 /**
  ** np_ping:
  ** sends a PING message to another node. The message is acknowledged in network layer.
  **/
-void _np_ping (np_state_t* state, np_key_t* key)
+void _np_ping (np_key_t* key)
 {
+	np_state_t* state = _np_state();
 	/* weired: assume failure of the node now, will be reset with ping reply later */
 	if (NULL != key->node)
 	{
@@ -555,11 +650,11 @@ void _np_ping (np_state_t* state, np_key_t* key)
     np_message_t* out_msg = NULL;
     np_new_obj(np_message_t, out_msg);
 
-    np_message_create (out_msg, key, state->my_node_key, NP_MSG_PING_REQUEST, NULL);
+    np_message_create (out_msg, key, state->my_node_key, _NP_MSG_PING_REQUEST, NULL);
     log_msg(LOG_DEBUG, "ping request to: %s", _key_as_str(key));
 
-    np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, NP_MSG_PING_REQUEST);
-	np_job_submit_msg_event(0.0, prop, key, out_msg);
+    np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REQUEST);
+	_np_job_submit_msgout_event(0.0, prop, key, out_msg);
 
 	np_free_obj(np_message_t, out_msg);
 }
@@ -577,7 +672,6 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
     sodium_init();
     // memory pool
 	np_mem_init();
-    // np_printpool;
 
 	// initialize key min max ranges
     _dhkey_init();
@@ -595,14 +689,12 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
 	_np_keycache_init();
 
     //
-    // TODO: read my own identity from file, if a password is given
+    // TODO: read my own identity from file, if a e.g. a password is given
     //
     // set default aaa functions
-    state->authorize_func = np_default_authorizefunc;
-    state->authenticate_func = np_default_authenticatefunc;
-    state->accounting_func = np_default_accountingfunc;
-
-    pthread_mutex_init (&state->lock, NULL);
+    state->authorize_func    = _np_default_authorizefunc;
+    state->authenticate_func = _np_default_authenticatefunc;
+    state->accounting_func   = _np_default_accountingfunc;
 
 	char* np_service = "3141";
 	uint8_t np_proto = UDP | IPv6;
@@ -701,8 +793,6 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
     	}
     }
 
-    // np_new_obj(np_http_t, state->http);
-
     // initialize real network layer last
     np_job_submit_event(0.0, _np_cleanup);
     // start leafset checking jobs
@@ -714,13 +804,13 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
     np_job_submit_event(0.0, _np_events_read);
 #endif
 
-    // initialize retransmission of packets
+    // initialize retransmission of tokens
     np_job_submit_event(0.0, _np_retransmit_tokens);
-    // initialize network reading
+    // initialize network/io reading and writing
     np_job_submit_event(0.0, _np_events_read);
 
 	log_msg(LOG_INFO, "neuropil successfully initialized: %s", _key_as_str(state->my_node_key));
-	log_fflush();
+	_np_log_fflush();
 
 	fprintf(stdout, "\n");
 	fprintf(stdout, "neuropil (version %s) initializiation successful\n", NP_VERSION);
@@ -732,41 +822,43 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
 					my_node->dns_name,
 					my_node->port);
 	fprintf(stdout, "\n");
+	fflush(stdout);
 
 	return state;
 }
 
-void np_start_job_queue(np_state_t* state, uint8_t pool_size)
+void np_start_job_queue(uint8_t pool_size)
 {
-	if (pthread_attr_init (&state->attr) != 0)
+	if (pthread_attr_init (&__global_state->attr) != 0)
 	{
 	    log_msg (LOG_ERROR, "pthread_attr_init: %s", strerror (errno));
 	    return;
 	}
 
-    if (pthread_attr_setscope (&state->attr, PTHREAD_SCOPE_SYSTEM) != 0)
+    if (pthread_attr_setscope (&__global_state->attr, PTHREAD_SCOPE_SYSTEM) != 0)
 	{
 	    log_msg (LOG_ERROR, "pthread_attr_setscope: %s", strerror (errno));
 	    return;
 	}
 
-    if (pthread_attr_setdetachstate (&state->attr, PTHREAD_CREATE_DETACHED) != 0)
+    if (pthread_attr_setdetachstate (&__global_state->attr, PTHREAD_CREATE_DETACHED) != 0)
 	{
     	log_msg (LOG_ERROR, "pthread_attr_setdetachstate: %s", strerror (errno));
 	    return;
 	}
 
-    state->thread_ids = (pthread_t *) malloc (sizeof (pthread_t) * pool_size);
+    __global_state->thread_ids = (pthread_t *) malloc (sizeof (pthread_t) * pool_size);
 
     /* create the thread pool */
     for (uint8_t i = 0; i < pool_size; i++)
     {
-        pthread_create (&state->thread_ids[i], &state->attr, _job_exec, (void *) state);
-    	log_msg(LOG_DEBUG, "neuropil worker thread started: %p", state->thread_ids[i]);
+        pthread_create (&__global_state->thread_ids[i], &__global_state->attr, _job_exec, (void *) __global_state);
+    	log_msg(LOG_DEBUG, "neuropil worker thread started: %p", __global_state->thread_ids[i]);
    	}
 	log_msg(LOG_DEBUG, "neuropil event loop started");
 
 	fprintf(stdout, "neuropil (version %s) event loop with %d worker threads started\n", NP_VERSION, pool_size);
 	fprintf(stdout, "\n");
+	fflush(stdout);
 }
 

@@ -13,8 +13,8 @@
 
 #include "np_key.h"
 
-#include "log.h"
-#include "np_jtree.h"
+#include "np_log.h"
+#include "np_tree.h"
 
 static np_dhkey_t __dhkey_min;
 static np_dhkey_t __dhkey_half;
@@ -42,21 +42,16 @@ void _str_to_dhkey (const char* key_string, np_dhkey_t* k)
 	// for now: all tests on the same system
     // assert (64 == strlen((char*) key_string));
 
-    // memset (k->keystr, 0, 64);
-    // memcpy (k->keystr, key_string, 64);
-    // k->keystr[64] = '\0';
-
+	char substring[17];
+	substring[16] = '\0';
     for (uint8_t i = 0; i < 4; i++)
     {
-    	char substring[17];
     	memcpy(substring, key_string + i*16, 16);
-    	substring[16] = '\0';
     	k->t[i] = strtoull((const char*) substring, NULL, 16);
         // log_msg(LOG_KEY | LOG_DEBUG, "keystr substring to ul: %s -> %ul ", substring, k->t[i]);
     }
-    log_msg(LOG_KEY | LOG_DEBUG, "key %016llx %016llx %016llx %016llx", k->t[0], k->t[1], k->t[2], k->t[3]);
 
-    // k->valid = TRUE;
+    log_msg(LOG_KEY | LOG_DEBUG, "key %016llx %016llx %016llx %016llx", k->t[0], k->t[1], k->t[2], k->t[3]);
 }
 
 char* _dhkey_generate_hash (const char* key_in)
@@ -101,22 +96,22 @@ np_dhkey_t dhkey_create_from_hash(const char* strOrig)
     return kResult;
 }
 
-void _np_encode_dhkey(np_jtree_t* jrb, np_dhkey_t* key)
+void _np_encode_dhkey(np_tree_t* jrb, np_dhkey_t* key)
 {
     // log_msg(LOG_KEY | LOG_WARN, "encoding key %0lu %0lu %0lu %0lu", key->t[0], key->t[1], key->t[2], key->t[3]);
 
-	jrb_insert_str(jrb, "_np.key.0", new_jval_ull(key->t[0]));
-	jrb_insert_str(jrb, "_np.key.1", new_jval_ull(key->t[1]));
-	jrb_insert_str(jrb, "_np.key.2", new_jval_ull(key->t[2]));
-	jrb_insert_str(jrb, "_np.key.3", new_jval_ull(key->t[3]));
+	tree_insert_str(jrb, "_np.key.0", new_val_ull(key->t[0]));
+	tree_insert_str(jrb, "_np.key.1", new_val_ull(key->t[1]));
+	tree_insert_str(jrb, "_np.key.2", new_val_ull(key->t[2]));
+	tree_insert_str(jrb, "_np.key.3", new_val_ull(key->t[3]));
 }
 
-void _np_decode_dhkey(np_jtree_t* jrb, np_dhkey_t* key)
+void _np_decode_dhkey(np_tree_t* jrb, np_dhkey_t* key)
 {
-	key->t[0] = jrb_find_str(jrb, "_np.key.0")->val.value.ull;
-	key->t[1] = jrb_find_str(jrb, "_np.key.1")->val.value.ull;
-	key->t[2] = jrb_find_str(jrb, "_np.key.2")->val.value.ull;
-	key->t[3] = jrb_find_str(jrb, "_np.key.3")->val.value.ull;
+	key->t[0] = tree_find_str(jrb, "_np.key.0")->val.value.ull;
+	key->t[1] = tree_find_str(jrb, "_np.key.1")->val.value.ull;
+	key->t[2] = tree_find_str(jrb, "_np.key.2")->val.value.ull;
+	key->t[3] = tree_find_str(jrb, "_np.key.3")->val.value.ull;
 }
 
 void _dhkey_assign (np_dhkey_t* k1, const np_dhkey_t* const k2)
@@ -263,6 +258,7 @@ np_dhkey_t dhkey_min()  { return __dhkey_min;  };
 np_dhkey_t dhkey_half() { return __dhkey_half; };
 np_dhkey_t dhkey_max()  { return __dhkey_max;  };
 
+// TODO: the distance of two hash keys could be implemented much better
 void _dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 {
     log_msg (LOG_KEY | LOG_TRACE, ".start._dhkey_distance");
@@ -367,7 +363,7 @@ uint8_t _dhkey_hexalpha_at (const np_dhkey_t* key, const int8_t c)
     	// shift result to the end of the number
     	answer = answer >> 4;
     }
-    log_msg (LOG_KEY | LOG_DEBUG, "final answer: %d (%0x)", answer, answer);
+    log_msg (LOG_KEY | LOG_DEBUG, "final answer: %llu (%0llx)", answer, answer);
 
     log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_hexalpha_at");
     return (uint8_t) answer;

@@ -1,7 +1,7 @@
 #ifndef CMP_H__
 #define CMP_H__
 
-#include "include.h"
+#include "np_types.h"
 
 struct cmp_ctx_s;
 

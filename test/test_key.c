@@ -5,13 +5,13 @@
 
 #include "np_key.h"
 #include "np_memory.h"
-#include "log.h"
+#include "np_log.h"
 
 void setup_key(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_KEY;
 	np_mem_init();
-	log_init("test_key.log", log_level);
+	np_log_init("test_key.log", log_level);
 
 	_dhkey_init ();
 }

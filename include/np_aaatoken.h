@@ -18,9 +18,9 @@ The structure is described here to allow user the proper use of the :c:func:`np_
 
 #include "sodium.h"
 
-#include "include.h"
-#include "np_container.h"
+#include "np_list.h"
 #include "np_memory.h"
+#include "np_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,14 +30,16 @@ extern "C" {
 // crypto_scalarmult_BYTES, crypto_scalarmult_curve25519_BYTES, crypto_sign_ed25519_PUBLICKEYBYTES
 // crypto_box_PUBLICKEYBYTES, crypto_box_SECRETKEYBYTES
 
-typedef enum np_aaastate_e
+typedef enum np_aaastate_e aaastate_type;
+
+enum np_aaastate_e
 {
 	AAA_UNKNOWN       = 0x00,
 	AAA_VALID         = 0x01,
 	AAA_AUTHENTICATED = 0x02,
 	AAA_AUTHORIZED    = 0x04,
 	AAA_ACCOUNTING    = 0x08
-} aaastate_type;
+} NP_ENUM NP_API_EXPORT;
 
 #define AAA_INVALID (~AAA_VALID)
 
@@ -45,7 +47,7 @@ typedef enum np_aaastate_e
 #define IS_INVALID(x) (!IS_VALID(x))
 
 #define IS_AUTHENTICATED(x) (0 < (AAA_AUTHENTICATED & x))
-#define IS_NOT_AUTHENTICATED(x) (!AAA_AUTHENTICATED(x))
+#define IS_NOT_AUTHENTICATED(x) (!IS_AUTHENTICATED(x))
 
 #define IS_AUTHORIZED(x) (0 < (AAA_AUTHORIZED & x))
 #define IS_NOT_AUTHORIZED(x) (!IS_AUTHORIZED(x))
@@ -108,7 +110,7 @@ typedef enum np_aaastate_e
 
    the private key of an identity
 
-.. c:member:: np_jtree_t* extensions
+.. c:member:: np_tree_t* extensions
 
    a key-value jtree structure to add arbitrary informations to the token
 
@@ -134,21 +136,24 @@ struct np_aaatoken_s
 
 	aaastate_type state;
 
-	uuid_t uuid;
+	char* uuid;
 
 	unsigned char public_key[crypto_sign_BYTES];
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
 	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
 
 	// key/value extension list
-	np_jtree_t* extensions;
-};
+	np_tree_t* extensions;
+} NP_API_EXPORT;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
 
+
 // serialization of the np_aaatoken_t structure
-void np_encode_aaatoken(np_jtree_t* data, np_aaatoken_t* token);
-void np_decode_aaatoken(np_jtree_t* data, np_aaatoken_t* token);
+NP_API_INTERN
+void np_encode_aaatoken(np_tree_t* data, np_aaatoken_t* token);
+NP_API_INTERN
+void np_decode_aaatoken(np_tree_t* data, np_aaatoken_t* token);
 
 /**
 .. c:function::np_bool token_is_valid(np_aaatoken_t* token)
@@ -159,16 +164,24 @@ void np_decode_aaatoken(np_jtree_t* data, np_aaatoken_t* token);
    :param token: the token to check
    :return: a boolean indicating whether the token is valid
 */
+NP_API_EXPORT
 np_bool token_is_valid(np_aaatoken_t* token);
 
 // neuropil internal aaatoken storage and exchange functions
-void _np_add_sender_token(np_state_t *state, char* subject, np_aaatoken_t *token);
-sll_return(np_aaatoken_t) _np_get_sender_token_all(np_state_t *state, char* subject);
-np_aaatoken_t* _np_get_sender_token(np_state_t *state, char* subject, char* sender);
 
-void _np_add_receiver_token(np_state_t *state, char* subject, np_aaatoken_t *token);
-sll_return(np_aaatoken_t) _np_get_receiver_token_all(np_state_t *state, char* subject);
-np_aaatoken_t* _np_get_receiver_token(np_state_t *state, char* subject);
+NP_API_INTERN
+void _np_add_sender_token(char* subject, np_aaatoken_t *token);
+NP_API_INTERN
+sll_return(np_aaatoken_t) _np_get_sender_token_all(char* subject);
+NP_API_INTERN
+np_aaatoken_t* _np_get_sender_token(char* subject, char* sender);
+
+NP_API_INTERN
+void _np_add_receiver_token(char* subject, np_aaatoken_t *token);
+NP_API_INTERN
+sll_return(np_aaatoken_t) _np_get_receiver_token_all(char* subject);
+NP_API_INTERN
+np_aaatoken_t* _np_get_receiver_token(char* subject);
 
 #ifdef __cplusplus
 }

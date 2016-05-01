@@ -7,7 +7,7 @@
 #include "np_list.h"
 #include "np_key.h"
 // #include "np_container.h"
-#include "log.h"
+#include "np_log.h"
 
 
 NP_PLL_GENERATE_PROTOTYPES(double);
@@ -19,7 +19,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_dhkey_t);
 void setup_list(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE;
-	log_init("test_list.log", log_level);
+	log_init("test_list_impl.log", log_level);
 }
 
 void teardown_list(void)
@@ -150,140 +150,203 @@ Test(np_sll_t, _test_sll, .description="test the implementation of a single link
 	key_d.t[0] = 0; key_d.t[1] = 0; key_d.t[2] = 1; key_d.t[3] = 1;
 	key_e.t[0] = 1; key_e.t[1] = 1; key_e.t[2] = 1; key_e.t[3] = 1;
 
-	printf("v: %llu.%llu.%llu.%llu\n", key_a.t[0],key_a.t[1],key_a.t[2],key_a.t[3]);
-	printf("v: %llu.%llu.%llu.%llu\n", key_b.t[0],key_b.t[1],key_b.t[2],key_b.t[3]);
-	printf("v: %llu.%llu.%llu.%llu\n", key_c.t[0],key_c.t[1],key_c.t[2],key_c.t[3]);
-	printf("v: %llu.%llu.%llu.%llu\n", key_d.t[0],key_d.t[1],key_d.t[2],key_d.t[3]);
-	printf("v: %llu.%llu.%llu.%llu\n", key_e.t[0],key_e.t[1],key_e.t[2],key_e.t[3]);
-
 	np_sll_t(np_dhkey_t, my_sll_list);
 	sll_init(np_dhkey_t, my_sll_list);
 
-	printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
+	cr_expect(NULL == sll_first(my_sll_list), "expect the first element to be NULL");
+	cr_expect(NULL == sll_last(my_sll_list),  "expect the last element to be NULL");
+	cr_expect(0 == sll_size(my_sll_list), "expect the size of the list to be 0");
 
 	sll_append(np_dhkey_t, my_sll_list, &key_a);
-	printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
+	cr_expect(1 == sll_size(my_sll_list), "expect the size of the list to be 1");
+	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
+	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
+	cr_expect(0 == _dhkey_comp(&key_a, sll_first(my_sll_list)->val),  "expect the first element to have the inserted value");
+	cr_expect(0 == _dhkey_comp(&key_a, sll_last(my_sll_list)->val),  "expect the first element to have the inserted value");
+	cr_expect(sll_first(my_sll_list) == sll_last(my_sll_list),  "expect the first and last element to be the same");
 
 	sll_prepend(np_dhkey_t, my_sll_list, &key_b);
-	printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
+	cr_expect(2 == sll_size(my_sll_list), "expect the size of the list to be 2");
+	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
+	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
+	cr_expect(0 == _dhkey_comp(&key_b, sll_first(my_sll_list)->val),  "expect the first element to have the inserted value");
+	cr_expect(0 == _dhkey_comp(&key_a, sll_last(my_sll_list)->val),  "expect the last element to have the old value");
+	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
 
 	sll_append(np_dhkey_t, my_sll_list, &key_c);
-	printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
+	cr_expect(3 == sll_size(my_sll_list), "expect the size of the list to be 3");
+	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
+	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
+	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
+	cr_expect(0 == _dhkey_comp(&key_b, sll_first(my_sll_list)->val),  "expect the first element to have the old value");
+	cr_expect(0 == _dhkey_comp(&key_c, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
 
 	sll_prepend(np_dhkey_t, my_sll_list, &key_d);
-	printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
+	cr_expect(4 == sll_size(my_sll_list), "expect the size of the list to be 4");
+	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
+	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
+	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
+	cr_expect(0 == _dhkey_comp(&key_d, sll_first(my_sll_list)->val),  "expect the first element to have the inserted value");
+	cr_expect(0 == _dhkey_comp(&key_c, sll_last(my_sll_list)->val),  "expect the last element to have the old value");
 
 	sll_append(np_dhkey_t, my_sll_list, &key_e);
-	printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
+	cr_expect(5 == sll_size(my_sll_list), "expect the size of the list to be 5");
+	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
+	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
+	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
+	cr_expect(0 == _dhkey_comp(&key_d, sll_first(my_sll_list)->val),  "expect the first element to have the old value");
+	cr_expect(0 == _dhkey_comp(&key_e, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
+
 
 	np_dhkey_t* tmp_1;
+
 	// TODO: not working yet
-//	sll_iterator(np_dhkey_t) iterator_1;
-//	sll_traverse(my_sll_list, iterator_1, tmp_1) {
-//		printf("v: %llu.%llu.%llu.%llu\n", tmp_1->t[0],tmp_1->t[1],tmp_1->t[2],tmp_1->t[3]);
-//	}
+	// sll_iterator(np_dhkey_t) iterator_1;
+	// sll_traverse(my_sll_list, iterator_1, tmp_1)
+	// {
+	// }
+	//	sll_rtraverse(my_sll_list, iterator_1, tmp_1) {
+	//		printf("v: %llu.%llu.%llu.%llu\n", tmp_1->t[0],tmp_1->t[1],tmp_1->t[2],tmp_1->t[3]);
+	//	}
 
-//	sll_rtraverse(my_sll_list, iterator_1, tmp_1) {
-//		printf("v: %llu.%llu.%llu.%llu\n", tmp_1->t[0],tmp_1->t[1],tmp_1->t[2],tmp_1->t[3]);
-//	}
-
-	// sll_free(np_dhkey_t, my_sll_list);
-
-	printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
 	tmp_1 = sll_head(np_dhkey_t, my_sll_list);
-	printf("v: %llu.%llu.%llu.%llu\n", tmp_1->t[0],tmp_1->t[1],tmp_1->t[2],tmp_1->t[3]);
+	cr_expect(4 == sll_size(my_sll_list), "expect the size of the list to be 4");
+	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
+	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
+	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
+	cr_expect(0 == _dhkey_comp(&key_b, sll_first(my_sll_list)->val),  "expect the first element to have the next value");
+	cr_expect(0 == _dhkey_comp(&key_e, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
+	cr_expect(0 == _dhkey_comp(&key_d, tmp_1),  "expect returned element to the old first one");
 
-	printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
 	tmp_1 = sll_head(np_dhkey_t, my_sll_list);
-	printf("v: %llu.%llu.%llu.%llu\n", tmp_1->t[0],tmp_1->t[1],tmp_1->t[2],tmp_1->t[3]);
+	cr_expect(3 == sll_size(my_sll_list), "expect the size of the list to be 3");
+	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
+	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
+	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
+	cr_expect(0 == _dhkey_comp(&key_a, sll_first(my_sll_list)->val),  "expect the first element to have the next value");
+	cr_expect(0 == _dhkey_comp(&key_e, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
+	cr_expect(0 == _dhkey_comp(&key_b, tmp_1),  "expect returned element to the old first one");
 
-	printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
 	tmp_1 = sll_tail(np_dhkey_t, my_sll_list);
-	printf("v: %llu.%llu.%llu.%llu\n", tmp_1->t[0],tmp_1->t[1],tmp_1->t[2],tmp_1->t[3]);
+	cr_expect(2 == sll_size(my_sll_list), "expect the size of the list to be 2");
+	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
+	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
+	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
+	cr_expect(0 == _dhkey_comp(&key_a, sll_first(my_sll_list)->val),  "expect the first element to have the next value");
+	cr_expect(0 == _dhkey_comp(&key_c, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
+	cr_expect(0 == _dhkey_comp(&key_e, tmp_1),  "expect returned element to the old last one");
 
-	printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
 	tmp_1 = sll_tail(np_dhkey_t, my_sll_list);
-	printf("v: %llu.%llu.%llu.%llu\n", tmp_1->t[0],tmp_1->t[1],tmp_1->t[2],tmp_1->t[3]);
+	cr_expect(1 == sll_size(my_sll_list), "expect the size of the list to be 1");
+	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
+	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
+	cr_expect(sll_first(my_sll_list) == sll_last(my_sll_list),  "expect the first and last element to be the same");
+	cr_expect(0 == _dhkey_comp(&key_a, sll_first(my_sll_list)->val),  "expect the first element to have the next value");
+	cr_expect(0 == _dhkey_comp(&key_a, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
+	cr_expect(0 == _dhkey_comp(&key_c, tmp_1),  "expect returned element to the old last one");
 
-	printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
 	tmp_1 = sll_head(np_dhkey_t, my_sll_list);
-	printf("v: %llu.%llu.%llu.%llu\n", tmp_1->t[0],tmp_1->t[1],tmp_1->t[2],tmp_1->t[3]);
+	cr_expect(0 == sll_size(my_sll_list), "expect the size of the list to be 0");
+	cr_expect(NULL == sll_first(my_sll_list), "expect the first element to be NULL");
+	cr_expect(NULL == sll_last(my_sll_list),  "expect the last element to be NULL");
+	cr_expect(sll_first(my_sll_list) == sll_last(my_sll_list),  "expect the first and last element to be the same");
+	cr_expect( 0 == _dhkey_comp(&key_a, tmp_1),  "expect returned element to the old last one");
 
-	printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
 	tmp_1 = sll_head(np_dhkey_t, my_sll_list);
-	if (tmp_1) {
-		printf("v: %llu.%llu.%llu.%llu\n", tmp_1->t[0],tmp_1->t[1],tmp_1->t[2],tmp_1->t[3]);
-		printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
-	} else {
-		printf("p: %p <-> %p\n", sll_first(my_sll_list), sll_last(my_sll_list));
-		printf("sll_list returned NULL element\n");
-	}
+	cr_expect(0 == sll_size(my_sll_list), "expect the size of the list to be 0");
+	cr_expect(NULL == sll_first(my_sll_list), "expect the first element to be NULL");
+	cr_expect(NULL == sll_last(my_sll_list),  "expect the last element to be NULL");
+	cr_expect(sll_first(my_sll_list) == sll_last(my_sll_list),  "expect the first and last element to be the same");
+	cr_expect(-1 == _dhkey_comp(NULL, tmp_1),  "expect returned element to the old last one");
+	cr_expect(-1 == _dhkey_comp(tmp_1, NULL),  "expect returned element to the old last one");
 
+	sll_append(np_dhkey_t, my_sll_list, &key_a);
+	sll_append(np_dhkey_t, my_sll_list, &key_b);
+	sll_append(np_dhkey_t, my_sll_list, &key_c);
+	sll_append(np_dhkey_t, my_sll_list, &key_d);
+	sll_append(np_dhkey_t, my_sll_list, &key_e);
+	cr_expect(5 == sll_size(my_sll_list), "expect the size of the list to be 5");
+
+	sll_clear(np_dhkey_t, my_sll_list);
+	cr_expect(0 == sll_size(my_sll_list), "expect the size of the list to be 0");
+	cr_expect(NULL != my_sll_list, "expect the size sll_list to be not NULL");
+
+	sll_free(np_dhkey_t, my_sll_list);
+	cr_expect(NULL == my_sll_list, "expect the sll_list to be NULL");
+}
+
+TestSuite(np_dll_t, .init=setup_list, .fini=teardown_list);
+
+Test(np_dll_t, _test_dll, .description="test the implementation of a double linked list")
+{
 	// if you want to run this test:
 	// go to np_container.h and np_container.c and
 	// uncomment the generator lines for dll_list and np_dhkey_t
-/*
-	np_dll_t(np_dhkey_t, my_dll_list);
-	dll_init(np_dhkey_t, my_dll_list);
 
-	printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	/*
+		np_dll_t(np_dhkey_t, my_dll_list);
+		dll_init(np_dhkey_t, my_dll_list);
 
-	dll_prepend(np_dhkey_t, my_dll_list, &key_a);
-	printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+		printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
-	dll_append(np_dhkey_t, my_dll_list, &key_b);
-	printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+		dll_prepend(np_dhkey_t, my_dll_list, &key_a);
+		printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
-	dll_prepend(np_dhkey_t, my_dll_list, &key_c);
-	printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+		dll_append(np_dhkey_t, my_dll_list, &key_b);
+		printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
-	dll_append(np_dhkey_t, my_dll_list, &key_d);
-	printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+		dll_prepend(np_dhkey_t, my_dll_list, &key_c);
+		printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
-	dll_prepend(np_dhkey_t, my_dll_list, &key_e);
-	printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+		dll_append(np_dhkey_t, my_dll_list, &key_d);
+		printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
-	np_dhkey_t* tmp_2;
-	dll_iterator(np_dhkey_t) iterator_2;
-	dll_traverse(my_dll_list, iterator_2, tmp_2) {
-		printf("p: %p (%p) -> v: %lu.%lu.%lu.%lu\n", iterator_2, iterator_2->flink, tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
-	}
+		dll_prepend(np_dhkey_t, my_dll_list, &key_e);
+		printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
-	dll_rtraverse(my_dll_list, iterator_2, tmp_2) {
-		printf("p: %p (%p) -> v: %lu.%lu.%lu.%lu\n", iterator_2, iterator_2->blink, tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
-	}
+		np_dhkey_t* tmp_2;
+		dll_iterator(np_dhkey_t) iterator_2;
+		dll_traverse(my_dll_list, iterator_2, tmp_2) {
+			printf("p: %p (%p) -> v: %lu.%lu.%lu.%lu\n", iterator_2, iterator_2->flink, tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+		}
 
-	// dll_free(np_dhkey_t, my_dll_list);
+		dll_rtraverse(my_dll_list, iterator_2, tmp_2) {
+			printf("p: %p (%p) -> v: %lu.%lu.%lu.%lu\n", iterator_2, iterator_2->blink, tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+		}
 
-	printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
-	tmp_2 = dll_head(np_dhkey_t, my_dll_list);
-	printf("v: %lu.%lu.%lu.%lu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+		// dll_free(np_dhkey_t, my_dll_list);
 
-	printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
-	tmp_2 = dll_head(np_dhkey_t, my_dll_list);
-	printf("v: %lu.%lu.%lu.%lu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
-
-	printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
-	tmp_2 = dll_tail(np_dhkey_t, my_dll_list);
-	printf("v: %lu.%lu.%lu.%lu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
-
-	printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
-	tmp_2 = dll_tail(np_dhkey_t, my_dll_list);
-	printf("v: %lu.%lu.%lu.%lu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
-
-	printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
-	tmp_2 = dll_head(np_dhkey_t, my_dll_list);
-	printf("v: %lu.%lu.%lu.%lu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
-
-	printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
-	tmp_2 = dll_head(np_dhkey_t, my_dll_list);
-
-	if (tmp_2) {
+		printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+		tmp_2 = dll_head(np_dhkey_t, my_dll_list);
 		printf("v: %lu.%lu.%lu.%lu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
-		printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
-	} else {
-		printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
-		printf("dll_list returned NULL element\n");
-	}
-*/
+
+		printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+		tmp_2 = dll_head(np_dhkey_t, my_dll_list);
+		printf("v: %lu.%lu.%lu.%lu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+
+		printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+		tmp_2 = dll_tail(np_dhkey_t, my_dll_list);
+		printf("v: %lu.%lu.%lu.%lu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+
+		printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+		tmp_2 = dll_tail(np_dhkey_t, my_dll_list);
+		printf("v: %lu.%lu.%lu.%lu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+
+		printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+		tmp_2 = dll_head(np_dhkey_t, my_dll_list);
+		printf("v: %lu.%lu.%lu.%lu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+
+		printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+		tmp_2 = dll_head(np_dhkey_t, my_dll_list);
+
+		if (tmp_2) {
+			printf("v: %lu.%lu.%lu.%lu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+			printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+		} else {
+			printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+			printf("dll_list returned NULL element\n");
+		}
+	*/
+
 }
+

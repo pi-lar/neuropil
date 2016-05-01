@@ -11,33 +11,16 @@
 .. highlight:: c
 */
 
-#include "event/ev.h"
-#include "include.h"
-
-#include "log.h"
-#include "dtime.h"
+#include "np_log.h"
 #include "neuropil.h"
-#include "np_memory.h"
-#include "np_message.h"
-#include "np_msgproperty.h"
+#include "np_tree.h"
+#include "np_types.h"
 
-#define USAGE "neuropil_receiver_cb [ -j bootstrap:port ] [ -p protocol] [-b port]"
-#define OPTSTR "j:p:b:"
-
-#define DEBUG 0
-#define NUM_HOST 120
+#define USAGE "neuropil_receiver_cb [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count]"
+#define OPTSTR "j:p:b:t:"
 
 extern char *optarg;
 extern int optind;
-
-/**
-first we have to define a global np_state_t variable
-
-.. code-block:: c
-
-   np_state_t *state;
-*/
-np_state_t *state;
 
 /**
 first, let's define a callback function that will be called each time
@@ -45,20 +28,22 @@ a message is received by the node that you are currently starting
 
 .. code-block:: c
 
-   np_bool receive_this_is_a_test(np_jtree_t* properties, np_jtree_t* body)
+   np_bool receive_this_is_a_test(np_tree_t* properties, np_tree_t* body)
    {
 */
-np_bool receive_this_is_a_test(np_jtree_t* properties, np_jtree_t* body)
+static const char* NP_MSG_BODY_TEXT = "_np.text";
+
+np_bool receive_this_is_a_test(np_tree_t* properties, np_tree_t* body)
 {
 	/**
 	for this message exchange the message is send as a text element (if you used np_send_text)
-	otherwise inspect the properties and payload np_jtree_t structures ...
+	otherwise inspect the properties and payload np_tree_t structures ...
 
     .. code-block:: c
 
-	      char* text = jrb_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	      char* text = tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	*/
-	char* text = jrb_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	char* text = tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	log_msg(LOG_INFO, "RECEIVED: %s", text);
 
 	/**
@@ -77,21 +62,26 @@ np_bool receive_this_is_a_test(np_jtree_t* properties, np_jtree_t* body)
 int main(int argc, char **argv)
 {
 	int opt;
-	char *b_hn = NULL;
-	char* b_port = NULL;
+	int no_threads = 2;
+	char *j_key = NULL;
 	char* proto = NULL;
 	char* port = NULL;
-	int i;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF)
 	{
 		switch ((char) opt)
 		{
 		case 'j':
-			for (i = 0; optarg[i] != ':' && i < strlen(optarg); i++);
-			optarg[i] = 0;
-			b_hn = optarg;
-			b_port = optarg + (i+1);
+			// for (i = 0; optarg[i] != ':' && i < strlen(optarg); i++);
+			// optarg[i] = 0;
+			j_key = optarg;
+			// j_proto = optarg + (i+1);
+			// j_hn = optarg + (i+2);
+			// j_port = optarg + (i+3);
+			break;
+		case 't':
+			no_threads = atoi(optarg);
+			if (no_threads <= 0) no_threads = 2;
 			break;
 		case 'p':
 			proto = optarg;
@@ -121,38 +111,44 @@ int main(int argc, char **argv)
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_MESSAGE;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO;
-	log_init(log_file, level);
+	np_log_init(log_file, level);
 
 	/**
-	initialize the global variable with the np_init function
+	initialize the neuropil subsystem with the np_init function
 
 	.. code-block:: c
 
-	   state = np_init(proto, port);
+	   np_init(proto, port, FALSE);
 	*/
-	state = np_init(proto, port, FALSE);
+	np_init(proto, port, FALSE);
 
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
-	you should start at least 2 threads, because network reading currently is blocking.
+	you should start at least 2 threads (network io is non-blocking).
 
 	.. code-block:: c
 
-	   np_start_job_queue(state, 8);
+	   np_start_job_queue(8);
 	*/
 	log_msg(LOG_DEBUG, "starting job queue");
-	np_start_job_queue(state, 8);
+	np_start_job_queue(no_threads);
 
 	/**
 	wait until the node has received a join message before actually proceeding
 
 	.. code-block:: c
 
-	   np_waitforjoin(state);
+	   np_waitforjoin();
 	*/
-	np_waitforjoin(state);
+
+	if (NULL != j_key)
+	{
+		np_sendjoin(j_key);
+	}
+
+	np_waitforjoin();
 
 	/**
 	.. note::
@@ -166,9 +162,9 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-	   np_set_listener(state, receive_this_is_a_test, "this.is.a.test");
+	   np_set_listener(receive_this_is_a_test, "this.is.a.test");
 	*/
-	np_set_listener(state, receive_this_is_a_test, "this.is.a.test");
+	np_set_listener(receive_this_is_a_test, "this.is.a.test");
 
 	/**
 	loop (almost) forever, you're done :-)
@@ -181,7 +177,7 @@ int main(int argc, char **argv)
 
 	   while (1)
 	   {
-		   dsleep(0.9);
+		   ev_sleep(0.9);
 	   }
  	*/
 	while (1)

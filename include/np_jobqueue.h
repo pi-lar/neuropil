@@ -6,12 +6,8 @@
 #ifndef _NP_JOBQUEUE_H
 #define _NP_JOBQUEUE_H
 
-#include "include.h"
-
-#include "np_keycache.h"
 #include "np_memory.h"
-
-#include "np_container.h"
+#include "np_types.h"
 
 
 #ifdef __cplusplus
@@ -20,6 +16,8 @@ extern "C" {
 
 
 /* jobargs structure used to pass type safe structs into the thread context */
+typedef np_job_t* np_job_ptr;
+
 struct np_jobargs_s
 {
 	np_message_t* msg;
@@ -28,10 +26,12 @@ struct np_jobargs_s
 	np_key_t* target;
 };
 
+
 /** job_queue_create
  *  initiate the queue and thread pool of size "pool_size" returns a pointer
  *  to the initiated queue
  **/
+NP_API_INTERN
 np_bool _np_job_queue_create();
 
 /** job_submit
@@ -39,16 +39,35 @@ np_bool _np_job_queue_create();
  ** add the new node to the queue
  ** signal the thread pool if the queue was empty
  **/
+NP_API_EXPORT
 void np_job_submit_event (double delay, np_callback_t clb );
-void np_job_submit_msg_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
 
-void _np_job_resubmit_msg_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+NP_API_INTERN
+void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+
+NP_API_INTERN
+void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+
+NP_API_INTERN
+void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+
+NP_API_INTERN
+void _np_job_submit_transform_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+
+NP_API_INTERN
+void _np_job_resubmit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+
+NP_API_INTERN
+void _np_job_resubmit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
 
 /** job_exec
  ** if the queue,"job_q" is empty it would go to sleep and release the mutex
  ** else get the first job out of queue and execute it.
  **/
-void* _job_exec (void* state);
+NP_API_INTERN
+void* _job_exec ();
+
+NP_PLL_GENERATE_PROTOTYPES(np_job_ptr);
 
 #ifdef __cplusplus
 }

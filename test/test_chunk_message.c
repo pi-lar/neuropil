@@ -11,9 +11,9 @@
 
 #include "dtime.h"
 #include "jval.h"
-#include "log.h"
+#include "np_log.h"
 #include "np_jobqueue.h"
-#include "np_jtree.h"
+#include "np_tree.h"
 #include "np_key.h"
 #include "np_memory.h"
 #include "np_message.h"
@@ -42,28 +42,28 @@ int main(int argc, char **argv) {
 	my_key->dhkey = my_dhkey;
 
 	uint16_t parts = 0;
-	jrb_insert_str(msg_out->header, NP_MSG_HEADER_SUBJECT,  new_jval_s((char*) msg_subject));
-	jrb_insert_str(msg_out->header, NP_MSG_HEADER_TO,  new_jval_s((char*) _key_as_str(my_key)) );
-	jrb_insert_str(msg_out->header, NP_MSG_HEADER_FROM, new_jval_s((char*) _key_as_str(my_key)) );
-	jrb_insert_str(msg_out->header, NP_MSG_HEADER_REPLY_TO, new_jval_s((char*) _key_as_str(my_key)) );
+	tree_insert_str(msg_out->header, NP_MSG_HEADER_SUBJECT,  new_val_s((char*) msg_subject));
+	tree_insert_str(msg_out->header, NP_MSG_HEADER_TO,  new_val_s((char*) _key_as_str(my_key)) );
+	tree_insert_str(msg_out->header, NP_MSG_HEADER_FROM, new_val_s((char*) _key_as_str(my_key)) );
+	tree_insert_str(msg_out->header, NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _key_as_str(my_key)) );
 
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK, new_jval_ush(0));
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_jval_s((char*) _key_as_str(my_key)) );
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_SEQ, new_jval_ul(0));
+	tree_insert_str(msg_out->instructions, NP_MSG_INST_ACK, new_val_ush(0));
+	tree_insert_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_val_s((char*) _key_as_str(my_key)) );
+	tree_insert_str(msg_out->instructions, NP_MSG_INST_SEQ, new_val_ul(0));
 
 	char* new_uuid = np_create_uuid(msg_subject, 1);
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_jval_s(new_uuid));
+	tree_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_val_s(new_uuid));
 	free(new_uuid);
 
 	double now = ev_time();
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_TSTAMP, new_jval_d(now));
+	tree_insert_str(msg_out->instructions, NP_MSG_INST_TSTAMP, new_val_d(now));
 	now += 20;
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_TTL, new_jval_d(now));
+	tree_insert_str(msg_out->instructions, NP_MSG_INST_TTL, new_val_d(now));
 
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_SEND_COUNTER, new_jval_ush(0));
+	tree_insert_str(msg_out->instructions, NP_MSG_INST_SEND_COUNTER, new_val_ush(0));
 
 	// TODO: message part split-up informations
-	jrb_insert_str(msg_out->instructions, NP_MSG_INST_PARTS, new_jval_iarray(parts, parts));
+	tree_insert_str(msg_out->instructions, NP_MSG_INST_PARTS, new_val_iarray(parts, parts));
 
 	char prop_payload[30]; //  = (char*) malloc(25 * sizeof(char));
 	memset (prop_payload, 'a', 29);
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
 
 	for (int16_t i = 0; i < 9; i++)
 	{
-		jrb_insert_int(msg_out->properties, i, new_jval_s(prop_payload));
+		tree_insert_int(msg_out->properties, i, new_val_s(prop_payload));
 	}
 
 	char body_payload[51]; //  = (char*) malloc(50 * sizeof(char));
@@ -80,11 +80,11 @@ int main(int argc, char **argv) {
 
 	for (int16_t i = 0; i < 60; i++)
 	{
-		jrb_insert_int(msg_out->body, i, new_jval_s(body_payload));
+		tree_insert_int(msg_out->body, i, new_val_s(body_payload));
 	}
 
-	np_jtree_elem_t* properties_node = jrb_find_int(msg_out->properties, 1);
-	np_jtree_elem_t* body_node = jrb_find_int(msg_out->body, 20);
+	np_tree_elem_t* properties_node = tree_find_int(msg_out->properties, 1);
+	np_tree_elem_t* body_node = tree_find_int(msg_out->body, 20);
 
 	np_jobargs_t args = { .msg=msg_out };
 
@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
 	 **/
 	np_message_calculate_chunking(msg_out);
 	np_message_serialize_chunked(NULL, &args);
-	np_jtree_elem_t* footer_node = jrb_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
+	np_tree_elem_t* footer_node = tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
 	log_msg(LOG_DEBUG, "properties %s, body %s, garbage size %hd",
 			properties_node->val.value.s,
 			body_node->val.value.s,
@@ -112,9 +112,9 @@ int main(int argc, char **argv) {
 
 	np_message_deserialize_chunked(msg_out);
 
-	np_jtree_elem_t* properties_node_2 = jrb_find_int(msg_out->properties, 1);
-	np_jtree_elem_t* body_node_2 = jrb_find_int(msg_out->body, 20);
-	// np_jtree_elem_t* footer_node_2 = jrb_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
+	np_tree_elem_t* properties_node_2 = tree_find_int(msg_out->properties, 1);
+	np_tree_elem_t* body_node_2 = tree_find_int(msg_out->body, 20);
+	// np_tree_elem_t* footer_node_2 = tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
 	log_msg(LOG_DEBUG, "properties %s, body %s",
 			properties_node_2->val.value.s,
 			body_node_2->val.value.s);

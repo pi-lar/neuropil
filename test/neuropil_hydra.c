@@ -9,21 +9,13 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "include.h"
-
-#include "log.h"
-#include "dtime.h"
 #include "neuropil.h"
-#include "np_jobqueue.h"
-#include "np_memory.h"
-#include "np_message.h"
-#include "np_msgproperty.h"
-#include "np_node.h"
-#include "np_threads.h"
+#include "np_log.h"
+#include "np_types.h"
 
 
-#define USAGE "neuropil_hydra -j key:proto:host:port [ -p protocol] [-n nr_of_nodes]"
-#define OPTSTR "j:p:n:"
+#define USAGE "neuropil_hydra -j key:proto:host:port [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count]"
+#define OPTSTR "j:p:n:t:"
 
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
@@ -34,19 +26,23 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 extern char *optarg;
 extern int optind;
 
-np_state_t *state;
-
 int main(int argc, char **argv) {
 
 	int opt;
+	int no_threads = 2;
 	char* b_hn = NULL;
 	char* proto = NULL;
-	int required_nodes = 1;
+	uint32_t required_nodes = 1;
 
-	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
+	while ((opt = getopt(argc, argv, OPTSTR)) != EOF)
+	{
 		switch ((char) opt) {
 		case 'j':
 			b_hn = optarg;
+			break;
+		case 't':
+			no_threads = atoi(optarg);
+			if (no_threads <= 0) no_threads = 2;
 			break;
 		case 'p':
 			proto = optarg;
@@ -61,7 +57,8 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (NULL == b_hn) {
+	if (NULL == b_hn)
+	{
 		fprintf(stderr, "no bootstrap host specified\n");
 		fprintf(stderr, "usage: %s\n", USAGE);
 		exit(1);
@@ -76,10 +73,12 @@ int main(int argc, char **argv) {
 	while(TRUE)
 	{
 		// (re-) start child processes
-		if (list_of_childs->size < required_nodes) {
+		if (list_of_childs->size < required_nodes)
+		{
 			current_pid = fork();
 
-			if (0 == current_pid) {
+			if (0 == current_pid)
+			{
 				fprintf(stdout, "started child process %d\n", current_pid);
 				current_pid = getpid();
 				char port[7];
@@ -89,21 +88,15 @@ int main(int argc, char **argv) {
 				sprintf(log_file, "%s_%s.log", "./neuropil_hydra", port);
 				int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 				// child process
-				log_init(log_file, level);
+				np_log_init(log_file, level);
 				// used the pid as the port
-				state = np_init(proto, port, FALSE);
+				np_init(proto, port, FALSE);
 
 				log_msg(LOG_DEBUG, "starting job queue");
-				np_start_job_queue(state, 3);
+				np_start_job_queue(no_threads);
 				// send join message
-				np_key_t* node_key = NULL;
-
-				LOCK_CACHE(state) {
-					node_key = np_node_decode_from_str(state, b_hn);
-				}
 				log_msg(LOG_DEBUG, "creating welcome message");
-
-				np_sendjoin(state, node_key);
+				np_sendjoin(b_hn);
 
 				while (1) {
 					ev_sleep(0.1);
@@ -128,17 +121,21 @@ int main(int argc, char **argv) {
 			{
 				fprintf(stderr, "trying to find stopped child process %d\n", current_pid);
 				sll_iterator(int) iter = NULL;
-				int i = 0;
+				uint32_t i = 0;
 				for (iter = sll_first(list_of_childs); iter != NULL; sll_next(iter))
 				{
-					if (current_pid == *iter->val) {
+					if (current_pid == *iter->val)
+					{
 						fprintf(stderr, "removing stopped child process\n");
 						sll_delete(int, list_of_childs, iter);
 						for (; i < required_nodes; i++)
+						{
 							array_of_pids[i] = array_of_pids[i+1];
-
+						}
 						break;;
-					} else {
+					}
+					else
+					{
 						fprintf(stderr, "not found\n");
 					}
 					i++;

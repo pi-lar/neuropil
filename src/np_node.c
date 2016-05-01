@@ -14,18 +14,17 @@
 
 #include "sodium.h"
 
-#include "jval.h"
-#include "log.h"
-#include "dtime.h"
+#include "np_node.h"
+
+#include "np_log.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"
-#include "np_container.h"
-#include "np_jtree.h"
+#include "np_tree.h"
 #include "np_key.h"
-#include "np_message.h"
+#include "np_keycache.h"
 #include "np_network.h"
-#include "np_node.h"
 #include "np_threads.h"
+#include "np_util.h"
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
@@ -38,13 +37,12 @@ static const char* NP_NODE_SUCCESS_AVG  = "_np.node.success_avg";
 static const char* NP_NODE_LATENCY      = "_np.node.latency";
 static const char* NP_NODE_LAST_SUCCESS = "_np.node.last_success";
 
-void _np_node_t_new(void* node) {
-
+void _np_node_t_new(void* node)
+{
 	np_node_t* entry = (np_node_t *) node;
 
 	entry->dns_name = NULL;
 	entry->port = 0;
-	// entry->network = NULL;
 
 	entry->failuretime = 0.0;
 	entry->last_success = 0.0;
@@ -81,27 +79,27 @@ void np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
     }
 }
 
-void np_node_encode_to_jrb (np_jtree_t* data, np_key_t* key, np_bool include_stats)
+void np_node_encode_to_jrb (np_tree_t* data, np_key_t* key, np_bool include_stats)
 {
 	char* keystring = (char*) _key_as_str (key);
 
-	jrb_insert_str(data, NP_NODE_KEY, new_jval_s(keystring));
-	jrb_insert_str(data, NP_NODE_PROTOCOL, new_jval_s(np_get_protocol_string(key->node->protocol)));
-	jrb_insert_str(data, NP_NODE_DNS_NAME, new_jval_s(key->node->dns_name));
-	jrb_insert_str(data, NP_NODE_PORT, new_jval_s(key->node->port));
+	tree_insert_str(data, NP_NODE_KEY, new_val_s(keystring));
+	tree_insert_str(data, NP_NODE_PROTOCOL, new_val_s(np_get_protocol_string(key->node->protocol)));
+	tree_insert_str(data, NP_NODE_DNS_NAME, new_val_s(key->node->dns_name));
+	tree_insert_str(data, NP_NODE_PORT, new_val_s(key->node->port));
 
 	if (key->node->failuretime > 0.0)
-		jrb_insert_str(data, NP_NODE_FAILURETIME,
-				new_jval_d(key->node->failuretime));
+		tree_insert_str(data, NP_NODE_FAILURETIME,
+				new_val_d(key->node->failuretime));
 
 	if (TRUE == include_stats)
 	{
-		jrb_insert_str(data, NP_NODE_SUCCESS_AVG,
-				new_jval_f(key->node->success_avg));
-		jrb_insert_str(data, NP_NODE_LATENCY,
-				new_jval_d(key->node->latency));
-		jrb_insert_str(data, NP_NODE_LAST_SUCCESS,
-				new_jval_d(key->node->last_success));
+		tree_insert_str(data, NP_NODE_SUCCESS_AVG,
+				new_val_f(key->node->success_avg));
+		tree_insert_str(data, NP_NODE_LATENCY,
+				new_val_d(key->node->latency));
+		tree_insert_str(data, NP_NODE_LAST_SUCCESS,
+				new_val_d(key->node->last_success));
 	}
 }
 
@@ -109,7 +107,7 @@ void np_node_encode_to_jrb (np_jtree_t* data, np_key_t* key, np_bool include_sta
  * decodes a string into a node structure. This acts as a
  * np_node_get, and should be followed eventually by a np_node_release.
  **/
-np_key_t* np_node_decode_from_str (np_state_t* state, const char *key)
+np_key_t* np_node_decode_from_str (const char *key)
 {
 	assert (key != 0);
 
@@ -159,13 +157,13 @@ np_key_t* np_node_decode_from_str (np_state_t* state, const char *key)
 	return node_key;
 }
 
-np_key_t* np_node_decode_from_jrb (np_state_t* state, np_jtree_t* data)
+np_key_t* np_node_decode_from_jrb (np_tree_t* data)
 {
 	// MANDATORY paramter
-	char* s_host_key   = jrb_find_str(data, NP_NODE_KEY)->val.value.s;
-	char* s_host_proto = jrb_find_str(data, NP_NODE_PROTOCOL)->val.value.s;
-	char* s_host_name  = jrb_find_str(data, NP_NODE_DNS_NAME)->val.value.s;
-	char* s_host_port  = jrb_find_str(data, NP_NODE_PORT)->val.value.s;
+	char* s_host_key   = tree_find_str(data, NP_NODE_KEY)->val.value.s;
+	char* s_host_proto = tree_find_str(data, NP_NODE_PROTOCOL)->val.value.s;
+	char* s_host_name  = tree_find_str(data, NP_NODE_DNS_NAME)->val.value.s;
+	char* s_host_port  = tree_find_str(data, NP_NODE_PORT)->val.value.s;
 
 	np_dhkey_t search_key = dhkey_create_from_hash(s_host_key);
 	np_key_t* node_key    = _np_key_find_create(search_key);
@@ -183,17 +181,17 @@ np_key_t* np_node_decode_from_jrb (np_state_t* state, np_jtree_t* data)
 	}
 
 	// OPTIONAL parameter
-	np_jtree_elem_t* failure = jrb_find_str(data, NP_NODE_FAILURETIME);
+	np_tree_elem_t* failure = tree_find_str(data, NP_NODE_FAILURETIME);
 	if (failure) node->failuretime = failure->val.value.d;
 
-	// np_jrb_t* latency = jrb_find_str(data, "_np.node.latency");
+	// np_jrb_t* latency = tree_find_str(data, "_np.node.latency");
 	// if (latency) node->latency = latency->val.value.d;
 
 	return (node_key);
 }
 
 
-uint16_t np_encode_nodes_to_jrb (np_jtree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats)
+uint16_t np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats)
 {
 	uint16_t j=0;
     np_key_t* current;
@@ -202,10 +200,10 @@ uint16_t np_encode_nodes_to_jrb (np_jtree_t* data, np_sll_t(np_key_t, node_keys)
     	current = sll_head(np_key_t, node_keys);
     	if (current->node)
     	{
-    		np_jtree_t* node_jrb = make_jtree();
+    		np_tree_t* node_jrb = make_jtree();
     		// log_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
     		np_node_encode_to_jrb(node_jrb, current, include_stats);
-    		jrb_insert_int(data, j, new_jval_tree(node_jrb));
+    		tree_insert_int(data, j, new_val_tree(node_jrb));
     		j++;
     		np_free_tree(node_jrb);
     	}
@@ -213,7 +211,7 @@ uint16_t np_encode_nodes_to_jrb (np_jtree_t* data, np_sll_t(np_key_t, node_keys)
     return j;
 }
 
-sll_return(np_key_t) np_decode_nodes_from_jrb (np_state_t* state, np_jtree_t* data)
+sll_return(np_key_t) np_decode_nodes_from_jrb (np_tree_t* data)
 {
     uint16_t nodenum = data->size;
 
@@ -223,38 +221,40 @@ sll_return(np_key_t) np_decode_nodes_from_jrb (np_state_t* state, np_jtree_t* da
     /* gets the number of hosts in the lists and goes through them 1 by 1 */
     for (uint16_t i = 0; i < nodenum; i++)
 	{
-    	np_jtree_elem_t* node_data = jrb_find_int(data, i);
-    	sll_append(np_key_t, node_list, np_node_decode_from_jrb(state, node_data->val.value.tree));
+    	np_tree_elem_t* node_data = tree_find_int(data, i);
+    	sll_append(np_key_t, node_list, np_node_decode_from_jrb(node_data->val.value.tree));
 	}
 
     return (node_list);
 }
 
-np_key_t* _np_create_node_from_token(np_state_t* state, np_aaatoken_t* token)
+np_key_t* _np_create_node_from_token(np_aaatoken_t* token)
 {
-	jrb_insert_str(token->extensions, NP_NODE_KEY, new_jval_s(token->issuer));
-	return np_node_decode_from_jrb(state, token->extensions);
-	del_str_node(token->extensions, NP_NODE_KEY);
+	tree_insert_str(token->extensions, NP_NODE_KEY, new_val_s(token->issuer));
+	return np_node_decode_from_jrb(token->extensions);
+	tree_del_str(token->extensions, NP_NODE_KEY);
 }
 
-np_aaatoken_t* _np_create_node_token(const np_state_t* state, np_node_t* node, np_key_t* node_key)
+np_aaatoken_t* _np_create_node_token(np_node_t* node, np_key_t* node_key)
 {
 	log_msg(LOG_TRACE, ".start.np_create_node_token");
+	np_state_t* state = _np_state();
 
 	np_aaatoken_t* node_token = NULL;
 	np_new_obj(np_aaatoken_t, node_token);
 
+	char node_subject[255];
+	snprintf(node_subject, 255, "urn:np:node:%s:%s:%s:%s",
+			_key_as_str(node_key),
+			np_get_protocol_string(node->protocol), node->dns_name, node->port);
+
 	// create token
 	strncpy(node_token->realm, state->my_identity->aaa_token->realm, 255);
-
-	char node_subject[255];
-	snprintf(node_subject, 255, "urn:np:node:%s:%s:%s",
-			 np_get_protocol_string(node->protocol), node->dns_name, node->port);
-
 	strncpy(node_token->issuer, (char*) _key_as_str(node_key), 255);
 	strncpy(node_token->subject, node_subject, 255);
-	// TODO:
-	// strncpy(msg_token->audience, (char*) dhkey_as_str(state->my_identity), 255);
+	// strncpy(node_token->audience, (char*) _key_as_str(state->my_identity->aaa_token->realm), 255);
+
+	node_token->uuid = np_create_uuid(node_subject, 0);
 
 	node_token->not_before = ev_time();
 	node_token->expiration = ev_time() + 10.0; // 10 second valid token
@@ -264,12 +264,12 @@ np_aaatoken_t* _np_create_node_token(const np_state_t* state, np_node_t* node, n
 			(char*) node_key->aaa_token->public_key,
 			crypto_sign_BYTES);
 
-	jrb_insert_str(node_token->extensions, NP_NODE_DNS_NAME,
-			new_jval_s(node->dns_name));
-	jrb_insert_str(node_token->extensions, NP_NODE_PORT,
-			new_jval_s(node->port));
-	jrb_insert_str(node_token->extensions, NP_NODE_PROTOCOL,
-			new_jval_ush(node->protocol));
+	tree_insert_str(node_token->extensions, NP_NODE_DNS_NAME,
+			new_val_s(node->dns_name));
+	tree_insert_str(node_token->extensions, NP_NODE_PORT,
+			new_val_s(node->port));
+	tree_insert_str(node_token->extensions, NP_NODE_PROTOCOL,
+			new_val_ush(node->protocol));
 
 	// TODO: useful extension ?
 	// unsigned char key[crypto_generichash_KEYBYTES];
@@ -281,7 +281,8 @@ np_aaatoken_t* _np_create_node_token(const np_state_t* state, np_node_t* node, n
 	crypto_generichash_update(&gh_state, (unsigned char*) node_token->realm, strlen(node_token->realm));
 	crypto_generichash_update(&gh_state, (unsigned char*) node_token->issuer, strlen(node_token->issuer));
 	crypto_generichash_update(&gh_state, (unsigned char*) node_token->subject, strlen(node_token->subject));
-	// crypto_generichash_update(&gh_state, (unsigned char*) node_token->audience, strlen(node_token->audience));
+	crypto_generichash_update(&gh_state, (unsigned char*) node_token->audience, strlen(node_token->audience));
+	crypto_generichash_update(&gh_state, (unsigned char*) node_token->uuid, strlen(node_token->uuid));
 	crypto_generichash_update(&gh_state, (unsigned char*) node_token->public_key, crypto_sign_BYTES);
 	// TODO: hash 'not_before' and 'expiration' values as well ?
 	crypto_generichash_final(&gh_state, hash, sizeof hash);
@@ -297,7 +298,7 @@ np_aaatoken_t* _np_create_node_token(const np_state_t* state, np_node_t* node, n
 		return node_token;
 	}
 	// TODO: refactor name NP_HS_SIGNATURE to a common name NP_SIGNATURE
-	jrb_insert_str(node_token->extensions, NP_HS_SIGNATURE, new_jval_bin(signature, signature_len));
+	tree_insert_str(node_token->extensions, NP_HS_SIGNATURE, new_val_bin(signature, signature_len));
 
 	log_msg(LOG_TRACE, ".end  .np_create_node_token");
 	return node_token;
@@ -337,7 +338,8 @@ void np_node_update_stat (np_node_t* node, uint8_t success)
 
     if (0 < success) node->last_success = ev_time();
 
-	// log_msg(LOG_DEBUG, "success rate for node now: %1.1f", node->success_avg);
+	log_msg(LOG_INFO, "node %s:%s success rate now: %1.1f",
+			node->dns_name, node->port, node->success_avg);
 }
 
 void np_node_update_latency (np_node_t* node, double new_latency)
@@ -359,7 +361,9 @@ void np_node_update_latency (np_node_t* node, double new_latency)
 		    	total += node->latency_win[i];
 		    }
 			node->latency = total / SUCCESS_WINDOW;
-	    	log_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency);
+			log_msg(LOG_INFO, "node %s:%s latency now: %1.1f",
+					node->dns_name, node->port, node->latency);
+	    	// log_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency);
 		}
 	}
 }

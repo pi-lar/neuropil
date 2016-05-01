@@ -8,10 +8,10 @@
 #ifndef _NP_MEMORY_H
 #define _NP_MEMORY_H
 
-#include "include.h"
 #include "stdint.h"
 
 #include "np_threads.h"
+#include "np_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,9 +26,9 @@ void _##TYPE##_del(void*); \
 // empty by design, forces developers to write new and delete callback functions for np_obj_* types
 #define _NP_GENERATE_MEMORY_IMPLEMENTATION(TYPE)
 
-
 // enum to identify the correct type of objects
-typedef enum np_obj_type {
+typedef enum np_obj_type
+{
 	np_none_t_e = 0,
 	np_message_t_e,
 	np_node_t_e,
@@ -49,8 +49,10 @@ typedef void (*np_alloc_t) (void* data);
  ** if other methods would like to claim ownership, they should call np_ref_obj, np_unref_obj
  ** will release the object again (and possible delete it)
  **/
-struct np_obj_s {
+typedef struct np_obj_s np_obj_t;
 
+struct np_obj_s
+{
 	np_obj_enum type;
 	int16_t ref_count;
 	void* ptr;
@@ -71,7 +73,7 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
   _LOCK_MODULE(np_memory_t) {                 \
     assert (np_obj->obj != NULL);             \
     assert (np_obj->obj->type == TYPE##_e);   \
-    np_mem_refobj(TYPE##_e, np_obj->obj);     \
+    np_mem_refobj(np_obj->obj);               \
   }                                           \
 }
 
@@ -81,7 +83,7 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
     assert (np_obj->obj != NULL);               \
     assert (np_obj->obj->type == TYPE##_e);     \
     assert (np_obj->obj->ptr != NULL);          \
-    np_mem_unrefobj(TYPE##_e, np_obj->obj);     \
+    np_mem_unrefobj(np_obj->obj);     \
     if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->ptr == np_obj) { \
       if (np_obj->obj->type != np_none_t_e)     \
       {                                         \
@@ -96,24 +98,24 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
   }                                             \
 }
 
-#define np_new_obj(TYPE, np_obj)               \
-{                                              \
-  _LOCK_MODULE(np_memory_t) {                  \
-    np_obj = (TYPE*) malloc(sizeof(TYPE));     \
-    np_mem_newobj(TYPE##_e, &np_obj->obj);     \
-    np_obj->obj->new_callback = _##TYPE##_new; \
-    np_obj->obj->del_callback = _##TYPE##_del; \
-    np_obj->obj->new_callback(np_obj);         \
-    np_obj->obj->ptr = np_obj;                 \
-    np_mem_refobj(TYPE##_e, np_obj->obj);      \
-  }                                            \
+#define np_new_obj(TYPE, np_obj)                \
+{                                               \
+  _LOCK_MODULE(np_memory_t) {                   \
+    np_obj = (TYPE*) malloc(sizeof(TYPE));      \
+    np_mem_newobj(TYPE##_e, &np_obj->obj);      \
+    np_obj->obj->new_callback = _##TYPE##_new;  \
+    np_obj->obj->del_callback = _##TYPE##_del;  \
+    np_obj->obj->new_callback(np_obj);          \
+    np_obj->obj->ptr = np_obj;                  \
+    np_mem_refobj(np_obj->obj);                 \
+  }                                             \
 }
 
 
 #define np_free_obj(TYPE, np_obj)               \
 {                                               \
   _LOCK_MODULE(np_memory_t) {                   \
-    np_mem_unrefobj(TYPE##_e, np_obj->obj);     \
+    np_mem_unrefobj(np_obj->obj);               \
     if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->ptr == np_obj) { \
       if (np_obj->obj->type != np_none_t_e)     \
       {                                         \
@@ -132,18 +134,27 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
 /**
  ** following this line: np_memory cache and object prototype definitions
  **/
+NP_API_INTERN
 void np_mem_init();
 
+NP_API_EXPORT
 void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj);
+
 // np_free - free resources (but not object wrapper) if ref_count is <= 0
 // in case of doubt, call np_free. it will not harm ;-)
+NP_API_EXPORT
 void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj);
+
 // increase ref count
-void np_mem_refobj(np_obj_enum obj_type, np_obj_t* obj);
+NP_API_EXPORT
+void np_mem_refobj(np_obj_t* obj);
+
 // decrease ref count
-void np_mem_unrefobj(np_obj_enum obj_type, np_obj_t* obj);
+NP_API_EXPORT
+void np_mem_unrefobj(np_obj_t* obj);
 
 // print the complete object list and statistics
+NP_API_INTERN
 void np_mem_printpool();
 
 #ifdef __cplusplus

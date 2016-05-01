@@ -4,8 +4,8 @@
 #include "np_memory.h"
 #include "np_node.h"
 #include "np_key.h"
-#include "np_jtree.h"
-#include "log.h"
+#include "np_tree.h"
+#include "np_log.h"
 #include "cmp.h"
 #include "np_util.h"
 
@@ -17,11 +17,11 @@ int main(int argc, char **argv) {
 
 	log_init("test_node_ser.log", log_level);
 
-	np_jtree_t* test_jrb = make_jtree();
-	jrb_insert_str(test_jrb, "test", new_jval_s("test"));
+	np_tree_t* test_jrb = make_jtree();
+	tree_insert_str(test_jrb, "test", new_val_s("test"));
 
-	np_jval_t t1;
-	np_jval_t t2 = new_jval_tree(test_jrb);
+	np_val_t t1;
+	np_val_t t2 = new_val_tree(test_jrb);
 
 	t1 = t2;
 	log_msg(LOG_DEBUG, "%p np_val_t t1: %d %d %p", test_jrb, t1.type, t1.size, t1.value.tree);
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 	np_node_update(node_list[3], "test4.pi-lar.net", 0);
 
     log_msg(LOG_DEBUG, "serializing");
-	np_jtree_t* node_jrb = make_jree();
+	np_tree_t* node_jrb = make_jree();
 	np_encode_nodes_to_jrb(node_jrb, node_list, TRUE);
 
 	cmp_ctx_t cmp;

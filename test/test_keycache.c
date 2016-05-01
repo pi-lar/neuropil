@@ -6,7 +6,7 @@
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_memory.h"
-#include "log.h"
+#include "np_log.h"
 
 void setup_keycache(void)
 {
@@ -159,15 +159,15 @@ Test(np_keycache_t, _key_as_str, .description="test the creation of a string dhk
 
 }
 
-// np_key_t* find_closest_key (np_sll_t(np_key_t, list_of_keys), np_dhkey_t* key);
-Test(np_keycache_t, find_closest_key, .description="test the finding of the closest key")
+// np_key_t* _np_find_closest_key (np_sll_t(np_key_t, list_of_keys), np_dhkey_t* key);
+Test(np_keycache_t, _np_find_closest_key, .description="test the finding of the closest key")
 {
 	np_key_t* new_keys[10];
 	np_sll_t(np_key_t, key_list);
 	sll_init(np_key_t, key_list);
 
 	np_dhkey_t dummy_key = { .t[0] = 99, .t[1] = 99, .t[2] = 99, .t[3] = 99};
-	np_key_t* found = find_closest_key(key_list, &dummy_key);
+	np_key_t* found = _np_find_closest_key(key_list, &dummy_key);
 	cr_expect(NULL == found, "expecting a NULL result for searching an empty list");
 
 	for (int i=0; i < 9; i++)
@@ -178,15 +178,63 @@ Test(np_keycache_t, find_closest_key, .description="test the finding of the clos
 		sll_append(np_key_t, key_list, new_keys[i]);
 	}
 
- 	found = find_closest_key(key_list, &new_keys[1]->dhkey);
+ 	found = _np_find_closest_key(key_list, &new_keys[1]->dhkey);
 	cr_expect(found = new_keys[1], "expecting the closest key to be the first in an array");
- 	found = find_closest_key(key_list, &dummy_key);
+ 	found = _np_find_closest_key(key_list, &dummy_key);
 	cr_expect(found = new_keys[9], "expecting the closest key to be the last in an array");
 }
 
-// void sort_keys_cpm (np_sll_t(np_key_t, node_keys), np_dhkey_t* key);
-Test(np_keycache_t, sort_keys_cpm, .description="test the finding of the closest key")
+// void _np_sort_keys_cpm (np_sll_t(np_key_t, node_keys), np_dhkey_t* key);
+Test(np_keycache_t, _np_sort_keys_cpm, .description="sort a list of key based on common prefix and key distance")
 {
+	np_key_t* new_keys[200];
+	np_sll_t(np_key_t, key_list);
+	sll_init(np_key_t, key_list);
+
+	np_dhkey_t dummy_key = { .t[0] = 99, .t[1] = 99, .t[2] = 99, .t[3] = 99};
+
+	for (int i=0; i < 199; i++)
+	{
+		np_dhkey_t key = { .t[0] = i, .t[1] = i, .t[2] = i, .t[3] = i};
+
+		new_keys[i] = _np_key_find_create(key);
+		sll_append(np_key_t, key_list, new_keys[i]);
+	}
+
+	_np_sort_keys_cpm(key_list, &dummy_key);
+	cr_expect(0 == _dhkey_comp(&dummy_key, &sll_first(key_list)->val->dhkey), "expect the first key to be the dummy key");
+
+	for (int i=0; i < 199; i++)
+	{
+		np_dhkey_t key = { .t[0] = i, .t[1] = i, .t[2] = i, .t[3] = i};
+		cr_expect(0 == _dhkey_comp(&new_keys[i]->dhkey, &key), "expect the original key to have the same value");
+	}
 }
 
-// void sort_keys_kd (np_sll_t(np_key_t, list_of_keys), np_dhkey_t* key);
+// void _np_sort_keys_kd (np_sll_t(np_key_t, list_of_keys), np_dhkey_t* key);
+Test(np_keycache_t, _np_sort_keys_kd, .description="sort a list of key based on key distance")
+{
+	np_key_t* new_keys[200];
+	np_sll_t(np_key_t, key_list);
+	sll_init(np_key_t, key_list);
+
+	np_dhkey_t dummy_key = { .t[0] = 99, .t[1] = 99, .t[2] = 99, .t[3] = 99};
+
+	for (int i=0; i < 199; i++)
+	{
+		np_dhkey_t key = { .t[0] = i, .t[1] = i, .t[2] = i, .t[3] = i};
+
+		new_keys[i] = _np_key_find_create(key);
+		sll_append(np_key_t, key_list, new_keys[i]);
+	}
+
+	_np_sort_keys_kd(key_list, &dummy_key);
+	cr_expect(0 == _dhkey_comp(&dummy_key, &sll_first(key_list)->val->dhkey), "expect the first key to be the dummy key");
+
+	for (int i=0; i < 199; i++)
+	{
+		np_dhkey_t key = { .t[0] = i, .t[1] = i, .t[2] = i, .t[3] = i};
+		cr_expect(0 == _dhkey_comp(&new_keys[i]->dhkey, &key), "expect the original key to have the same value");
+	}
+}
+

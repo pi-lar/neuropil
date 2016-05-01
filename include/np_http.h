@@ -5,11 +5,10 @@
 #ifndef _NP_HTTP_H_
 #define _NP_HTTP_H_
 
-#include "event/ev.h"
 #include "http/htparse.h"
 
 #include "np_memory.h"
-#include "np_network.h"
+#include "np_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,8 +52,8 @@ struct ht_request_s {
 	char* ht_path;
 	char* current_key;
 	htp_method ht_method;
-	np_jtree_t* ht_query_args;
-	np_jtree_t* ht_header;
+	np_tree_t* ht_query_args;
+	np_tree_t* ht_header;
 	uint16_t ht_length;
 	char* ht_body;
 };
@@ -63,20 +62,20 @@ struct ht_request_s {
 struct ht_response_s {
 	int ht_status;
 	char* ht_reason;
-	np_jtree_t* ht_header;
+	np_tree_t* ht_header;
 	uint16_t ht_length;
 	char* ht_body;
 	np_bool cleanup_body;
 };
 
-// void _np_http_accept(struct ev_loop* loop, ev_io* ev, int event_type);
-// void _np_http_callback(struct ev_loop* loop, ev_io* ev, int event_type);
-
 typedef int (*_np_http_callback_func_t)(ht_request_t* request, ht_response_t* response, void* user_arg);
 
 np_bool _np_http_init();
 
+NP_API_EXPORT
 void _np_add_http_callback(const char* path, htp_method method, void* user_args, _np_http_callback_func_t func);
+
+NP_API_EXPORT
 void _np_rem_http_callback(const char* path, htp_method method);
 
 #ifdef __cplusplus
