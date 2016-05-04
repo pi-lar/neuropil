@@ -524,7 +524,7 @@ np_bool _np_http_init()
 	__local_http = (np_http_t*) malloc(sizeof(np_http_t));
 	if (NULL == __local_http) return FALSE;
 
-	__local_http->network = network_init(TRUE, TCP | IPv4, "127.0.0.1", "31415" );
+	__local_http->network = network_init(TRUE, TCP | IPv4, "localhost", "31415" );
 	if (NULL == __local_http->network) return FALSE;
 
 	__local_http->parser = htparser_new();
@@ -560,6 +560,14 @@ np_bool _np_http_init()
 	__local_http->network->watcher.data = __local_http;
 	ev_io_start(EV_A_ &__local_http->network->watcher);
 	_np_resume_event_loop();
+
+	__local_http->ht_request.ht_header = NULL;
+	__local_http->ht_request.ht_query_args = NULL;
+	__local_http->ht_request.ht_path = NULL;
+	__local_http->ht_request.current_key = NULL;
+
+	__local_http->last_update = ev_time();
+	__local_http->status = UNUSED;
 
 	return TRUE;
 }

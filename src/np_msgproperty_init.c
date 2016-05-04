@@ -2,49 +2,6 @@
  **
  **/
 
-/*
-typedef enum np_msg_mode_enum {
-	DEFAULT_MODE = 0,
-	INBOUND = 0x1,
-	OUTBOUND = 0x2,
-	ROUTE = 0x4,
-	TRANSFORM = 0x8
-} np_msg_mode_type;
-
-struct np_msgproperty_s {
-	char* msg_subject;
-	char* msg_audience;
-	np_msg_mode_type mode_type;
-	np_msg_mep_type mep_type;
-	np_msg_ack_type ack_mode;
-	double ttl;
-	uint8_t priority;
-	uint8_t retry; // the # of retries when sending a message
-	uint16_t msg_threshold; // current cache size
-	uint16_t max_threshold; // local cache size
-
-	// timestamp for cleanup thread
-	double last_update;
-
-	// cache which will hold up to max_threshold messages
-	np_msgcache_policy_type cache_policy;
-
-	// callback function(s) to invoke when a message is received
-	np_callback_t clb_default; // internal neuropil supplied
-	np_callback_t clb_inbound; // internal neuropil supplied
-	np_callback_t clb_outbound; // internal neuropil supplied
-	np_callback_t clb_route; // internal neuropil supplied
-	np_callback_t clb_transform; // internal neuropil supplied
-
-	np_usercallback_t user_clb; // external user supplied for inbound
-
-} np_msgproperty_t;
-*/
-
-// { .msg_subject=_ROUTE_LOOKUP, .mode_type=TRANSFORM, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=np_route_lookup }, // default input handling func should be "route_get" ?
-// { .msg_subject=_DEFAULT, .mode_type=INBOUND, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=_np_in_received, .ttl=20.0 },
-// { .msg_subject=_DEFAULT, .mode_type=OUTBOUND, .mep_type=DEFAULT_TYPE, .priority=5, .ack_mode=ACK_NONE, .retry=0, .clb=_np_out_send, .ttl=20.0 },
-
 static np_msgproperty_t __default_properties = {
 		.msg_subject = _DEFAULT,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,

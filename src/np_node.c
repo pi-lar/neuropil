@@ -55,6 +55,9 @@ void _np_node_t_new(void* node)
     	entry->success_win[i] = 0;
     for (uint8_t i = SUCCESS_WINDOW / 2; i < SUCCESS_WINDOW; i++)
     	entry->success_win[i] = 1;
+    for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
+    	entry->latency_win[i] = 0.031415;
+    entry->latency = 0.031415;
 }
 
 void _np_node_t_del(void* node)
@@ -306,18 +309,9 @@ np_aaatoken_t* _np_create_node_token(np_node_t* node, np_key_t* node_key)
 
 void np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 {
-//	if (NULL == node->network) {
-//		node->network = network_init(FALSE, proto, hn, port);
-//		node->network->watcher.data = node;
-//	}
-	// log_msg(LOG_WARN, "couldn't resolve hostname to ip address: %s", hn);
-
 	node->protocol = proto;
 	node->dns_name = strndup (hn, strlen(hn));
 	node->port = strndup(port, strlen(port));
-
-	// log_msg(LOG_DEBUG, "resolved hostname to ip address: %s -> %u", hn, address);
-	// log_msg(LOG_TRACE, "ENDED, %s, %u, %hd", node->dns_name, node->address, node->port);
 }
 
 
@@ -361,7 +355,7 @@ void np_node_update_latency (np_node_t* node, double new_latency)
 		    	total += node->latency_win[i];
 		    }
 			node->latency = total / SUCCESS_WINDOW;
-			log_msg(LOG_INFO, "node %s:%s latency now: %1.1f",
+			log_msg(LOG_INFO, "node %s:%s latency now: %1.3f",
 					node->dns_name, node->port, node->latency);
 	    	// log_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency);
 		}

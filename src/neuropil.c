@@ -718,14 +718,16 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
 
     np_network_t* my_network = NULL;
     // listen on all network interfaces
-	my_network = network_init(TRUE, np_proto, NULL, np_service);
-	if (NULL == my_network->addr_in)
+    char hostname[255];
+    gethostname(hostname, 255);
+	my_network = network_init(TRUE, np_proto, hostname, np_service);
+	if (NULL == my_network)
 	{
     	log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
 	    exit(1);
 	}
 
-	np_node_update(my_node, np_proto, my_network->addr_in->ai_canonname, np_service);
+	np_node_update(my_node, np_proto, hostname, np_service);
 
 	log_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
 			           np_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);
@@ -775,15 +777,8 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
 	    exit(1);
 	}
 
-    if (state->msg_tokens == NULL)
-	{
-    	state->msg_tokens = make_jtree();
-	}
-
-    if (state->msg_part_cache == NULL)
-	{
-    	state->msg_part_cache = make_jtree();
-	}
+    state->msg_tokens = make_jtree();
+    state->msg_part_cache = make_jtree();
 
     if (TRUE == start_http)
     {

@@ -41,6 +41,8 @@ static np_bool __exit_libev_loop = FALSE;
 
 static pthread_mutex_t __libev_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+// the optimal libev run interval remains to be seen
+// if set too low, base cpu usage increases on no load
 static uint8_t __suspended_libev_loop = 0;
 static double  __libev_interval = 0.0031415;
 
@@ -105,9 +107,7 @@ void _np_route_lookup(np_jobargs_t* args)
 			tmp = route_lookup(&k_msg_address, 2);
 			log_msg(LOG_DEBUG, "route_lookup result 2 = %s", _key_as_str(sll_first(tmp)->val));
 		}
-		// TODO: increase count parameter ?
-		// if (tmp[1] != NULL && key_equal(tmp[0], &k_msg_address))
-		// tmp[0] = tmp[1];
+		// TODO: increase count parameter again ?
 	}
 
 	_np_key_t_del(&k_msg_address);
@@ -121,6 +121,7 @@ void _np_route_lookup(np_jobargs_t* args)
 	}
 
 	/* if I am the only host or the closest host is me, deliver the message */
+	// TODO: not working ?
 	if (NULL  == target_key &&
 		FALSE == is_a_join_request)
 	{
@@ -150,7 +151,6 @@ void _np_route_lookup(np_jobargs_t* args)
 		{
 			_np_job_submit_msgin_event(0.0, prop, state->my_node_key, msg_to_submit);
 		}
-		np_unref_obj(np_message_t, msg_to_submit);
 	}
 	else /* otherwise, hand it over to the np_axon sending unit */
 	{
@@ -255,9 +255,9 @@ void _np_check_leafset(np_jobargs_t* args)
 				// TODO: crashes at this point when another node has left the building :-(
 				// tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
 
-				np_key_t *added, *deleted;
+				np_key_t *added = NULL, *deleted = NULL;
 				leafset_update(tmp_node_key, 0, &deleted, &added);
-				if (deleted)
+				if (deleted == tmp_node_key)
 				{
 					np_unref_obj(np_key_t, deleted);
 				}
@@ -287,9 +287,8 @@ void _np_check_leafset(np_jobargs_t* args)
 		{
 			// send update of new node to all nodes in my routing table
 			/* first check for bad link nodes */
-			if (tmp_node_key->node->success_avg < BAD_LINK
-					&& tmp_node_key->node->handshake_status
-							> HANDSHAKE_UNKNOWN)
+			if (tmp_node_key->node->success_avg < BAD_LINK &&
+				tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
 			{
 				log_msg(LOG_DEBUG, "deleting from table: %s", _key_as_str(tmp_node_key));
 				// request a new handshake with the node
@@ -301,7 +300,7 @@ void _np_check_leafset(np_jobargs_t* args)
 
 					np_key_t *added = NULL, *deleted = NULL;
 					route_update(tmp_node_key, FALSE, &deleted, &added);
-					if (deleted)
+					if (deleted == tmp_node_key)
 					{
 						np_unref_obj(np_key_t, deleted);
 					}
@@ -317,11 +316,11 @@ void _np_check_leafset(np_jobargs_t* args)
 		}
 		sll_free(np_key_t, table);
 	}
-	else if (__leafset_check_type == 2)
+
+	if (__leafset_check_type == 2)
 	{
 		/* send leafset exchange data every 3 times that pings the leafset */
 		log_msg(LOG_DEBUG, "leafset exchange for neighbours started");
-		__leafset_check_type = 0;
 
 		_LOCK_MODULE(np_routeglobal_t)
 		{
@@ -336,12 +335,12 @@ void _np_check_leafset(np_jobargs_t* args)
 		}
 		sll_free(np_key_t, leafset);
 
+		__leafset_check_type = 0;
 	}
 	else
 	{
 		__leafset_check_type++;
 	}
-
 	// np_mem_printpool();
 	np_job_submit_event(__leafset_check_period, _np_check_leafset);
 	log_msg(LOG_TRACE, ".end  .np_check_leafset");
@@ -362,6 +361,7 @@ void _np_retransmit_tokens(np_jobargs_t* args)
 	np_tree_elem_t *deleted = NULL;
 	np_msgproperty_t* msg_prop = NULL;
 
+	// TODO: crahses sometimes ...
 	RB_FOREACH(iter, np_tree_s, state->msg_tokens)
 	{
 		// double now = dtime();

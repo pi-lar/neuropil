@@ -356,12 +356,17 @@ void _np_out_handshake(np_jobargs_t* args)
 		if (NULL == args->target->network)
 		{
 			// initialize network
-			args->target->network =
-					network_init(
-							FALSE,
-							args->target->node->protocol,
-							args->target->node->dns_name,
-							args->target->node->port);
+			args->target->network = network_init(
+										FALSE,
+										args->target->node->protocol,
+										args->target->node->dns_name,
+										args->target->node->port);
+			if (NULL == args->target->network)
+			{
+				np_free_obj(np_message_t, hs_message);
+				args->target->node->handshake_status = HANDSHAKE_UNKNOWN;
+				return;
+			}
 			args->target->network->watcher.data = args->target;
 		}
 

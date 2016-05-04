@@ -116,9 +116,9 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
     struct addrinfo hints;
 
     if (TRUE == create_socket)
-    	hints.ai_flags = AI_PASSIVE | AI_CANONNAME;
+    	hints.ai_flags = AI_PASSIVE | AI_CANONNAME | AI_NUMERICSERV;
     else
-    	hints.ai_flags = AI_CANONNAME;
+    	hints.ai_flags = AI_CANONNAME | AI_NUMERICSERV;
 
 	if (0 < (type & IPv4) ) {
 		hints.ai_family = PF_INET;
@@ -138,11 +138,11 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
 	log_msg(LOG_NETWORK | LOG_DEBUG, "using getaddrinfo: %d:%s:%s", type, hostname, service);
 	if ( 0 != ( err = getaddrinfo( hostname, service, &hints, ai_head ) ))
 	{
-		log_msg(LOG_NETWORK | LOG_ERROR, "error getaddrinfo: %s", gai_strerror( err ) );
+		log_msg(LOG_ERROR, "error getaddrinfo: %s", gai_strerror( err ) );
 		return;
 	}
-
-/*	struct addrinfo* ai;
+/*
+	struct addrinfo* ai;
 	for ( ai = *ai_head; ai != NULL; ai = ai->ai_next )
 	{
 		log_msg( LOG_NETWORK | LOG_DEBUG,
@@ -274,15 +274,14 @@ void network_send (np_key_t *node_key, np_message_t* msg)
 	{
 		if (node_key->node->handshake_status < HANDSHAKE_INITIALIZED)
 		{
-			node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
-
 			log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
 					node_key->node->dns_name, node_key->node->port, _key_as_str(node_key));
 
+			node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
 			np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
 			_np_job_submit_transform_event(0.0, msg_prop, node_key, NULL);
 		}
-		return; // FALSE;
+		return;
 	}
 
 	// log_msg(LOG_NETWORKDEBUG, "serialized message to %llu bytes", send_buf_len);
@@ -378,21 +377,21 @@ void _np_network_send (struct ev_loop *loop, ev_io *event, int revents)
 					MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
 			// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
 			// int ret = send(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024, 0);
-			int ret = write(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
+			write(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
 			free(data_to_send);
 
 			// ret is -1 or > 0 (bytes send)
 			// pthread_mutex_lock(&key->network->lock);
-			if (0 > ret)
-			{
-				np_node_update_stat(key->node, 0);
-				// log_msg(LOG_DEBUG, "node update reduce %d", ret);
-			}
 			// do not update the success, because UDP sending could result in false positives
+			// if (0 > ret)
+			// {
+			//     // np_node_update_stat(key->node, 0);
+			//     // log_msg(LOG_DEBUG, "node update reduce %d", ret);
+			// }
 			// else
 			// {
-			// np_node_update_stat(key->node, 1);
-			// log_msg(LOG_DEBUG, "node update increase %d", ret);
+			//     np_node_update_stat(key->node, 1);
+			//     log_msg(LOG_DEBUG, "node update increase %d", ret);
 			// }
 			pthread_mutex_unlock(&key->network->lock);
 		}
@@ -487,16 +486,31 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents)
 	/* receive the new data */
 	int16_t in_msg_len = recvfrom(ng->socket, data, MSG_CHUNK_SIZE_1024, 0, (struct sockaddr*)&from, &fromlen);
 
+	// deal with both IPv4 and IPv6:
 	if (from.ss_family == AF_INET)
-	{
-		struct sockaddr_in *s = (struct sockaddr_in *) &from;
-		getnameinfo((struct sockaddr*)s, sizeof s, ipstr, 255, port, 6, 0);
+	{   // AF_INET
+	    struct sockaddr_in *s = (struct sockaddr_in *) &from;
+	    snprintf(port, 6, "%d", ntohs(s->sin_port));
+	    inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
 	}
 	else
-	{
-		struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-		getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
+	{   // AF_INET6
+	    struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+	    snprintf(port, 6, "%d", ntohs(s->sin6_port));
+	    inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 	}
+
+	// TODO: getnameinfo is slow ? replace it with a more native approach
+	//	if (from.ss_family == AF_INET)
+	//	{
+	//		struct sockaddr_in *s = (struct sockaddr_in *) &from;
+	//		getnameinfo((struct sockaddr*)s, sizeof s, ipstr, 255, port, 6, 0);
+	//	}
+	//	else
+	//	{
+	//		struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+	//		getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
+	//	}
 
 	if (0 == in_msg_len)
 	{
@@ -545,6 +559,8 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents)
 
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
 	_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL);
+
+	// np_node_update_stat(key->node, 1);
 
 	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 }
@@ -630,15 +646,21 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
     	return NULL;
     }
 
+//	  char host_name[255];
+//    char service_name[6];
+//    getnameinfo( ng->addr_in->ai_addr, ng->addr_in->ai_addrlen,
+//				 host_name, sizeof( host_name ),
+//				 service_name, sizeof( service_name ),
+//                 AI_NUMERICHOST | NI_NUMERICSERV );
+//    fprintf(stdout, "%s:%s\n", host_name, service_name);
+
     // create an inbound socket - happens only once per node
     if (TRUE == create_socket )
     {
     	// nothing to do for passive nodes
     	if (type & PASSIVE) return ng;
 
-    	// server setup
-        log_msg(LOG_NETWORK | LOG_DEBUG, "canonical name: %s", ng->addr_in->ai_canonname);
-    	// create socket
+    	// server setup - create socket
         // UDP note: not using a connected socket for sending messages to a different node
         // leads to unreliable delivery. The sending socket changes too often to be useful
         // for finding the correct decryption shared secret. Especially true for ipv6 ...
@@ -709,7 +731,6 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
 	} else {
 
 		// client setup
-        log_msg(LOG_NETWORK | LOG_DEBUG, "canonical name: %s", ng->addr_in->ai_canonname);
 
 		sll_init(void_ptr, ng->out_events);
 
@@ -737,6 +758,16 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
     	current_flags |= O_NONBLOCK;
     	fcntl(ng->socket, F_SETFL, current_flags);
 
+    	// UDP note: not using a connected socket for sending messages to a different node
+        // leads to unreliable delivery. The sending socket changes too often to be useful
+        // for finding the correct decryption shared secret. Especially true for ipv6 ...
+		if (0 > connect(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
+		{
+			log_msg(LOG_NETWORK | LOG_ERROR, "connect: %s:", strerror (errno));
+			close (ng->socket);
+			return NULL;
+    	}
+
 #ifdef SKIP_EVLOOP
     	// TODO: write normal threading receiver
 #endif
@@ -745,7 +776,7 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
 		EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
     	_np_suspend_event_loop();
-    	if (type & PASSIVE)
+    	if (0 != (type & PASSIVE))
     	{
     		// not here and now, but after the handshake
     	}
@@ -757,16 +788,6 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
 
 		log_msg(LOG_NETWORK | LOG_DEBUG, ": %d %p %p :", ng->socket, &ng->watcher,  &ng->watcher.data);
 		_np_resume_event_loop();
-
-    	// UDP note: not using a connected socket for sending messages to a different node
-        // leads to unreliable delivery. The sending socket changes too often to be useful
-        // for finding the correct decryption shared secret. Especially true for ipv6 ...
-		if (0 > connect(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
-		{
-			log_msg(LOG_NETWORK | LOG_ERROR, "connect: %s:", strerror (errno));
-			close (ng->socket);
-			return NULL;
-    	}
     }
 
     freeaddrinfo( ng->addr_in );

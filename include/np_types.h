@@ -21,12 +21,14 @@ typedef enum
 } np_bool;
 
 //
-// TODO: think about using these attributes:
 // int __attribute__((overloadable)) square(int);
 
 #define NP_ENUM  __attribute__ ((flag_enum))
 #define NP_CONST __attribute__ ((const))
-#define NP_PURE  __attribute__ ((pure));
+#define NP_PURE  __attribute__ ((pure))
+
+#define NP_PACKED(x)  __attribute__ ((packed(x)))
+#define NP_DEPRECATED __attribute__ ((deprecated("!!! DEPRECATED !!!")))
 
 #define NP_API_EXPORT __attribute__ ((visibility ("default")))
 

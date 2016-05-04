@@ -26,8 +26,8 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 extern char *optarg;
 extern int optind;
 
-int main(int argc, char **argv) {
-
+int main(int argc, char **argv)
+{
 	int opt;
 	int no_threads = 2;
 	char* b_hn = NULL;
@@ -98,14 +98,17 @@ int main(int argc, char **argv) {
 				log_msg(LOG_DEBUG, "creating welcome message");
 				np_sendjoin(b_hn);
 
-				while (1) {
+				while (1)
+				{
 					ev_sleep(0.1);
 					// dsleep(0.1);
 				}
 				// escape from the parent loop
 				break;
 
-			} else {
+			}
+			else
+			{
 				// parent process keeps iterating
 				fprintf(stdout, "adding (%d) : child process %d \n", sll_size(list_of_childs), current_pid);
 				array_of_pids[sll_size(list_of_childs)] = current_pid;
@@ -132,7 +135,7 @@ int main(int argc, char **argv) {
 						{
 							array_of_pids[i] = array_of_pids[i+1];
 						}
-						break;;
+						break;
 					}
 					else
 					{
@@ -140,7 +143,9 @@ int main(int argc, char **argv) {
 					}
 					i++;
 				}
-			} else {
+			}
+			else
+			{
 				// fprintf(stdout, "all (%d) child processes running\n", sll_size(list_of_childs));
 			}
 			ev_sleep(3.1415);

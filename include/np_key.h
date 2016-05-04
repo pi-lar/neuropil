@@ -58,7 +58,7 @@ np_bool _dhkey_equal (np_dhkey_t* k1, np_dhkey_t* k2) NP_CONST;
  ** return 1 if the least significant 32 bits of #k1#==#ul# 0 otherwise
  **/
 NP_API_INTERN
-np_bool _dhkey_equal_ui (np_dhkey_t* k, uint64_t ul) NP_CONST __attribute__ ((deprecated("DEPRECATED") ));
+np_bool _dhkey_equal_ui (np_dhkey_t* k, uint64_t ul) NP_CONST NP_DEPRECATED;
 
 NP_API_INTERN
 void _dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2);

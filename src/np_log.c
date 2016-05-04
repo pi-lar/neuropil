@@ -83,16 +83,15 @@ void np_log_message(uint16_t level, const char* srcFile, const char* funcName, u
 		va_end(ap);
 		snprintf(new_log_entry+wb, 1124-wb, "\n");
 
-		pthread_mutex_lock(&__log_mutex);
-	    sll_append(char, logger->logentries_l, new_log_entry);
-		pthread_mutex_unlock(&__log_mutex);
+//		pthread_mutex_lock(&__log_mutex);
+//	    sll_append(char, logger->logentries_l, new_log_entry);
+//		pthread_mutex_unlock(&__log_mutex);
 
-//		fprintf(logger->fp, "%s.%06d %-15lu %-15.15s:%-25.25s:%-4d # %-8d # %s\n",
-//				timebuf, millis,
-//				(unsigned long) pthread_self(),
-//				srcFile, funcName, lineno,
-//				level, buffer);
-//		fflush(logger->fp);
+		pthread_mutex_lock(&__log_mutex);
+		write(logger->fp, new_log_entry, strlen(new_log_entry));
+		// fprintf(logger->fp, "%s\n", new_log_entry);
+		// fflush(logger->fp);
+		pthread_mutex_unlock(&__log_mutex);
 
 	}
 	else

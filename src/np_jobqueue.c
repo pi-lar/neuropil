@@ -17,6 +17,8 @@
 #include "np_message.h"
 #include "np_log.h"
 
+static double __jobqueue_sleep_time = 0.3141592;
+
 /* job_queue np_job_t structure */
 struct np_job_s {
 
@@ -82,7 +84,9 @@ void _np_jobqueue_insert(double delay, np_job_t* new_job)
 	pthread_mutex_lock(&__lock_mutex);
 
 	pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE);
-	if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0) {
+	// if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
+	if (0.0 == delay)
+	{
 		pthread_cond_signal(&__cond_empty);
 	}
 	pthread_mutex_unlock(&__lock_mutex);
@@ -264,7 +268,6 @@ void* _job_exec ()
 
 	log_msg(LOG_DEBUG, "job queue thread starting");
 
-	double default_sleep_time = 3.141592;
     double now;
 
 	while (1)
@@ -282,7 +285,7 @@ void* _job_exec ()
     	if (now <= next_job->tstamp)
     	{
     		double sleep_time = next_job->tstamp - now;
-    		if (sleep_time > default_sleep_time) sleep_time = default_sleep_time;
+    		if (sleep_time > __jobqueue_sleep_time) sleep_time = __jobqueue_sleep_time;
     		// log_msg(LOG_DEBUG, "now %f: next execution %f", now, next_job->tstamp);
     		// log_msg(LOG_DEBUG, "currently %d jobs, now sleeping for %f seconds", pll_size(Q->job_list), sleep_time);
     		struct timeval tv_sleep = dtotv(now + sleep_time);

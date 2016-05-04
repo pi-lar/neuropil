@@ -238,7 +238,7 @@ void _np_in_received(np_jobargs_t* args)
 			sll_size(tmp) > 0   &&
 			(!_dhkey_equal(&sll_first(tmp)->val->dhkey, &state->my_node_key->dhkey)) )
 		{
-			log_msg(LOG_DEBUG, "received unrecognized message type %s, requesting forwarding  of message ...", msg_subject);
+			log_msg(LOG_DEBUG, "received unrecognized message type %s, requesting forwarding of message ...", msg_subject);
 			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
 			_np_job_submit_route_event(0.0, prop, args->target, msg_in);
 
@@ -348,15 +348,12 @@ void _np_in_piggy(np_jobargs_t* args)
 					if (deleted)
 					{
 						np_unref_obj(np_key_t, deleted);
-						// np_free_obj(np_key_t, deleted);
 					}
 				}
 			}
 		}
-		// np_free_obj(np_key_t, node_entry);
 	}
 	sll_free(np_key_t, o_piggy_list);
-	// np_free_obj(np_message_t, args->msg);
 	//
 	// TODO: start cleanup job that removes unused element in state->key_cache
 	//
@@ -643,8 +640,11 @@ void _np_in_join_req(np_jobargs_t* args)
 		_LOCK_MODULE(np_routeglobal_t)
 		{
 			leafset_update(join_req_key, join_allowed, &deleted, &added);
-			if (NULL != added)   np_ref_obj(np_key_t, added);
-			if (NULL != deleted)
+			if (join_req_key == added)
+			{
+				np_ref_obj(np_key_t, added);
+			}
+			if (NULL != deleted && join_req_key != deleted)
 			{
 				np_unref_obj(np_key_t, deleted);
 			}
@@ -654,8 +654,11 @@ void _np_in_join_req(np_jobargs_t* args)
 		_LOCK_MODULE(np_routeglobal_t)
 		{
 			route_update(join_req_key, join_allowed, &deleted, &added);
-			if (NULL != added)   np_ref_obj(np_key_t, added);
-			if (NULL != deleted)
+			if (join_req_key == added)
+			{
+				np_ref_obj(np_key_t, added);
+			}
+			if (NULL != deleted && join_req_key != deleted)
 			{
 				np_unref_obj(np_key_t, deleted);
 			}
@@ -769,10 +772,11 @@ void _np_in_join_ack(np_jobargs_t* args)
 	_LOCK_MODULE(np_routeglobal_t)
 	{
 		route_update(join_key, TRUE, &deleted, &added);
-
-		if (added)   np_ref_obj(np_key_t, added);
-
-		if (NULL != deleted)
+		if (added == join_key)
+		{
+			np_ref_obj(np_key_t, added);
+		}
+		if (deleted != NULL && deleted != join_key)
 		{
 			np_unref_obj(np_key_t, deleted);
 		}
@@ -783,10 +787,11 @@ void _np_in_join_ack(np_jobargs_t* args)
 	_LOCK_MODULE(np_routeglobal_t)
 	{
 		leafset_update(join_key, TRUE, &deleted, &added);
-
-		if (added)   np_ref_obj(np_key_t, added);
-
-		if (NULL != deleted)
+		if (added == join_key)
+		{
+			np_ref_obj(np_key_t, added);
+		}
+		if (deleted != NULL && deleted != join_key)
 		{
 			np_unref_obj(np_key_t, deleted);
 		}
@@ -874,10 +879,12 @@ void _np_in_ping(np_jobargs_t* args)
 	{
 		log_msg(LOG_DEBUG, "received a PING message from %s:%s !", ping_key->node->dns_name, ping_key->node->port);
 
+		np_node_update_stat(ping_key->node, 1);
+
 		np_new_obj(np_message_t, msg_out);
 		np_message_create(msg_out, ping_key, state->my_node_key, _NP_MSG_PING_REPLY, NULL );
 		np_msgproperty_t* msg_pingreply_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REPLY);
-		_np_job_submit_route_event(0.0, msg_pingreply_prop, ping_key, msg_out);
+		_np_job_submit_msgout_event(0.0, msg_pingreply_prop, ping_key, msg_out);
 		np_free_obj(np_message_t, msg_out);
 	}
 }
@@ -892,7 +899,11 @@ void _np_in_pingreply(np_jobargs_t * args)
 
 	np_key_t* pingreply_key = NULL;
 
-	// TODO: FROM not always set ? crashes at this point sometimes
+	// NP_MSG_HEADER_FROM not always set ? crashes at this point sometimes
+	if (NULL == tree_find_str(args->msg->header, NP_MSG_HEADER_FROM))
+	{
+		return;
+	}
 	np_dhkey_t search_key = dhkey_create_from_hash(tree_find_str(args->msg->header, NP_MSG_HEADER_FROM)->val.value.s);
 
 	_LOCK_MODULE(np_keycache_t)
@@ -904,13 +915,17 @@ void _np_in_pingreply(np_jobargs_t * args)
 		NULL != pingreply_key->node &&
 		0 < pingreply_key->node->failuretime)
 	{
-		double latency = ev_time() - pingreply_key->node->failuretime;
-		np_node_update_latency(pingreply_key->node, latency);
-		np_node_update_stat(pingreply_key->node, TRUE);
+		double now = ev_time();
 
-		// reset for next ping attempt
-		pingreply_key->node->failuretime = 0;
+		if (now > pingreply_key->node->failuretime)
+		{
+			double latency = now - pingreply_key->node->failuretime;
+			np_node_update_latency(pingreply_key->node, latency);
+			// reset for next ping attempt
+			pingreply_key->node->failuretime = 0;
+		}
 		np_node_update_stat(pingreply_key->node, 1);
+
 		log_msg(LOG_DEBUG, "ping reply received from: %s:%s, latency now: %f!",
 				pingreply_key->node->dns_name, pingreply_key->node->port,
 			    pingreply_key->node->latency);
@@ -1457,8 +1472,8 @@ void _np_in_handshake(np_jobargs_t* args)
 	char* node_proto          = tree_find_str(hs_payload, "_np.protocol")->val.value.s;
 	char* node_hn             = tree_find_str(hs_payload, "_np.dns_name")->val.value.s;
 	char* node_port           = tree_find_str(hs_payload, "_np.port")->val.value.s;
-	np_tree_elem_t* sign_key = tree_find_str(hs_payload, "_np.signature_key");
-	np_tree_elem_t* pub_key  = tree_find_str(hs_payload, "_np.public_key");
+	np_tree_elem_t* sign_key  = tree_find_str(hs_payload, "_np.signature_key");
+	np_tree_elem_t* pub_key   = tree_find_str(hs_payload, "_np.public_key");
 	double issued_at          = tree_find_str(hs_payload, "_np.issued_at")->val.value.d;
 	double expiration         = tree_find_str(hs_payload, "_np.expiration")->val.value.d;
 
@@ -1495,10 +1510,14 @@ void _np_in_handshake(np_jobargs_t* args)
 	{
 		np_new_obj(np_node_t, hs_key->node);
 		np_node_update(hs_key->node, proto, node_hn, node_port);
+
 		if (!(proto & PASSIVE))
 		{
 			hs_key->network = network_init(FALSE, proto, node_hn, node_port);
-			hs_key->network->watcher.data = hs_key;
+			if (NULL != hs_key->network)
+			{
+				hs_key->network->watcher.data = hs_key;
+			}
 		}
 	}
 
@@ -1532,7 +1551,7 @@ void _np_in_handshake(np_jobargs_t* args)
 		}
 
 		hs_key->aaa_token->expiration = expiration;
-		hs_key->aaa_token->issued_at = issued_at;
+		hs_key->aaa_token->issued_at  = issued_at;
 		strncpy((char*) hs_key->aaa_token->public_key, pub_key->val.value.bin, pub_key->val.size);
 		strncpy((char*) hs_key->aaa_token->session_key, (char*) shared_secret, crypto_scalarmult_BYTES);
 
