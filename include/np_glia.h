@@ -18,6 +18,7 @@ void _np_route_lookup (np_jobargs_t* args);
 void _np_check_leafset(np_jobargs_t* args);
 void _np_retransmit_tokens(np_jobargs_t* args);
 void _np_cleanup(np_jobargs_t* args);
+void _np_cleanup_keycache(np_jobargs_t* args);
 void _np_write_log(np_jobargs_t* args);
 void _np_events_read(np_jobargs_t* args);
 

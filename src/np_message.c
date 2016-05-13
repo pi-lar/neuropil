@@ -774,7 +774,7 @@ inline void np_message_setfooter(np_message_t* msg, np_tree_t* footer)
 np_bool np_message_decrypt_part(np_tree_t* msg_part,
 							unsigned char* enc_nonce,
 							unsigned char* public_key,
-							unsigned char* secret_key)
+							NP_UNUSED unsigned char* secret_key)
 {
 	log_msg(LOG_TRACE, ".start.np_message_decrypt_part");
 	np_tree_elem_t* enc_msg_part = tree_find_str(msg_part, NP_ENCRYPTED);
@@ -835,7 +835,7 @@ np_bool np_message_decrypt_part(np_tree_t* msg_part,
 np_bool np_message_encrypt_part(np_tree_t* msg_part,
 							unsigned char* nonce,
 							unsigned char* public_key,
-							unsigned char* secret_key)
+							NP_UNUSED unsigned char* secret_key)
 {
 	log_msg(LOG_TRACE, ".start.np_message_encrypt_part");
 	cmp_ctx_t cmp;

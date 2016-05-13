@@ -6,7 +6,7 @@
 int main(int argc, char **argv) {
 
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE;
-	log_init("test_dh.log", log_level);
+	np_log_init("test_dh.log", log_level);
 
 	char subject[] = "this.is.a.test";
 

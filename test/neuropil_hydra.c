@@ -81,8 +81,16 @@ int main(int argc, char **argv)
 			{
 				fprintf(stdout, "started child process %d\n", current_pid);
 				current_pid = getpid();
+
 				char port[7];
-				sprintf(port, "%d", current_pid);
+				if (current_pid > 65535)
+				{
+					sprintf(port, "%d", (current_pid >> 1));
+				}
+				else
+				{
+					sprintf(port, "%d", current_pid);
+				}
 
 				char log_file[256];
 				sprintf(log_file, "%s_%s.log", "./neuropil_hydra", port);

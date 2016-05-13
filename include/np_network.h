@@ -47,7 +47,10 @@ NP_SLL_GENERATE_PROTOTYPES(void_ptr)
 
 struct np_network_s
 {
-    int socket;
+	np_obj_t* obj;
+
+	np_bool initialized;
+	int socket;
     ev_io watcher;
 
 	uint8_t socket_type;
@@ -63,6 +66,8 @@ struct np_network_s
 	pthread_attr_t attr;
     pthread_mutex_t lock;
 } NP_API_INTERN;
+
+_NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
 
 typedef struct np_ackentry_s np_ackentry_t;
 
@@ -112,7 +117,7 @@ np_prioq_t* get_new_pqentry();
  ** initiates the networking layer by creating socket and bind it to #port# 
  **/
 NP_API_INTERN
-np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname, char* service);
+void network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);
 
 NP_API_INTERN
 void _network_destroy (np_network_t* network);

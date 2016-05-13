@@ -147,6 +147,7 @@ void np_sendjoin(const char* node_string)
 
 	np_tree_t* jrb_me = make_jtree();
 	np_aaatoken_t* node_token = _np_create_node_token(state->my_node_key->node, state->my_node_key);
+	// strncpy(node_token->audience);
 	np_encode_aaatoken(jrb_me, node_token);
 
 	np_new_obj(np_message_t, msg_out);
@@ -159,6 +160,7 @@ void np_sendjoin(const char* node_string)
 	np_free_obj(np_message_t, msg_out);
 	np_free_obj(np_aaatoken_t, node_token);
 }
+
 
 void np_enable_realm_slave(const char* realm_name)
 {
@@ -717,11 +719,13 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
     np_new_obj(np_node_t, my_node);
 
     np_network_t* my_network = NULL;
+    np_new_obj(np_network_t, my_network);
+
     // listen on all network interfaces
     char hostname[255];
     gethostname(hostname, 255);
-	my_network = network_init(TRUE, np_proto, hostname, np_service);
-	if (NULL == my_network)
+	network_init(my_network, TRUE, np_proto, hostname, np_service);
+	if (FALSE == my_network->initialized)
 	{
     	log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
 	    exit(1);
@@ -790,13 +794,14 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
 
     // initialize real network layer last
     np_job_submit_event(0.0, _np_cleanup);
+	np_job_submit_event(0.0, _np_cleanup_keycache);
     // start leafset checking jobs
     np_job_submit_event(0.0, _np_check_leafset);
 
 #ifdef SKIP_EVLOOP
     // intialize log file writing
     np_job_submit_event(0.0, _np_write_log);
-    np_job_submit_event(0.0, _np_events_read);
+    // np_job_submit_event(0.0, _np_events_read);
 #endif
 
     // initialize retransmission of tokens

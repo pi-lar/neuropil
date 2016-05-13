@@ -19,7 +19,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_dhkey_t);
 void setup_list(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE;
-	log_init("test_list_impl.log", log_level);
+	np_log_init("test_list_impl.log", log_level);
 }
 
 void teardown_list(void)

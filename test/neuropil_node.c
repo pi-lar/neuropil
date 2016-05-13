@@ -59,6 +59,12 @@ int main(int argc, char **argv)
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
 
+	if (NULL != j_key)
+	{
+		np_sendjoin(j_key);
+	}
+	np_waitforjoin();
+
 	while (1) {
 		ev_sleep(1.0);
 		// dsleep(0.1);

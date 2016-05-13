@@ -134,7 +134,7 @@ void _np_rem_http_callback(const char* path, htp_method method)
 	}
 }
 
-int _np_http_on_msg_begin(htparser* parser)
+int _np_http_on_msg_begin(NP_UNUSED htparser* parser)
 {
 	// pthread_mutex_lock(__http_mutex);
 	__local_http->status = REQUEST;
@@ -143,7 +143,7 @@ int _np_http_on_msg_begin(htparser* parser)
 	return 0;
 }
 
-int _np_http_query_args(htparser * parser, const char * data, size_t in_len)
+int _np_http_query_args(NP_UNUSED htparser * parser, const char * data, size_t in_len)
 {
 	char* key = NULL;
 	char* val = NULL;
@@ -175,21 +175,21 @@ int _np_http_query_args(htparser * parser, const char * data, size_t in_len)
 	return 0;
 }
 
-int _np_http_on_hdrs_begin(htparser* parser)
+int _np_http_on_hdrs_begin(NP_UNUSED htparser* parser)
 {
 	if (NULL != __local_http->ht_request.ht_header) np_clear_tree(__local_http->ht_request.ht_header);
 	if (NULL == __local_http->ht_request.ht_header) __local_http->ht_request.ht_header = make_jtree();
 	return 0;
 }
 
-int _np_http_hdr_key(htparser * parser, const char * data, size_t in_len)
+int _np_http_hdr_key(NP_UNUSED htparser * parser, const char * data, size_t in_len)
 {
 	if (NULL != __local_http->ht_request.current_key) free (__local_http->ht_request.current_key);
 	__local_http->ht_request.current_key = strndup(data, in_len);
 	return 0;
 }
 
-int _np_http_hdr_value(htparser * parser, const char * data, size_t in_len)
+int _np_http_hdr_value(NP_UNUSED htparser * parser, const char * data, NP_UNUSED size_t in_len)
 {
 	tree_insert_str(
 			__local_http->ht_request.ht_header,
@@ -202,7 +202,7 @@ int _np_http_hdr_value(htparser * parser, const char * data, size_t in_len)
 	return 0;
 }
 
-int _np_http_path(htparser * parser, const char * data, size_t in_len)
+int _np_http_path(NP_UNUSED htparser * parser, const char * data, size_t in_len)
 {
 	if(NULL != __local_http->ht_request.ht_path) free(__local_http->ht_request.ht_path);
 
@@ -211,7 +211,7 @@ int _np_http_path(htparser * parser, const char * data, size_t in_len)
 	return 0;
 }
 
-int _np_http_body(htparser * parser, const char * data, size_t in_len)
+int _np_http_body(NP_UNUSED htparser * parser, const char * data, size_t in_len)
 {
 	if(NULL != __local_http->ht_request.ht_body) free(__local_http->ht_request.ht_body);
 	__local_http->ht_request.ht_body = strndup(data, in_len);
@@ -219,7 +219,7 @@ int _np_http_body(htparser * parser, const char * data, size_t in_len)
 	return 0;
 }
 
-int _np_http_on_msg_complete(htparser* parser)
+int _np_http_on_msg_complete(NP_UNUSED htparser* parser)
 {
 	__local_http->ht_request.ht_method = htparser_get_method(parser);
 	__local_http->ht_request.ht_length = htparser_get_content_length(parser);
@@ -230,7 +230,7 @@ int _np_http_on_msg_complete(htparser* parser)
 	return 0;
 }
 
-void _np_http_dispatch(np_jobargs_t* args)
+void _np_http_dispatch(NP_UNUSED np_jobargs_t* args)
 {
 	assert(PROCESSING == __local_http->status);
 
@@ -331,7 +331,7 @@ void _np_http_dispatch(np_jobargs_t* args)
 	}
 }
 
-void _np_http_write_callback(struct ev_loop* loop, ev_io* ev, int event_type)
+void _np_http_write_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev, int event_type)
 {
 	if ( (event_type & EV_WRITE) &&
 		 RESPONSE == __local_http->status)
@@ -409,7 +409,7 @@ void _np_http_write_callback(struct ev_loop* loop, ev_io* ev, int event_type)
 	}
 }
 
-void _np_http_read_callback(struct ev_loop* loop, ev_io* ev, int event_type)
+void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev, int event_type)
 {
 	if ((event_type & EV_READ) &&
 		CONNECTED <= __local_http->status &&
@@ -456,7 +456,7 @@ void _np_http_read_callback(struct ev_loop* loop, ev_io* ev, int event_type)
 	}
 }
 
-void _np_http_accept(struct ev_loop* loop, ev_io* ev, int event_type)
+void _np_http_accept(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int event_type)
 {
 	log_msg(LOG_HTTP | LOG_TRACE, ".start.np_network_accept");
 
@@ -524,7 +524,8 @@ np_bool _np_http_init()
 	__local_http = (np_http_t*) malloc(sizeof(np_http_t));
 	if (NULL == __local_http) return FALSE;
 
-	__local_http->network = network_init(TRUE, TCP | IPv4, "localhost", "31415" );
+	np_new_obj(np_network_t, __local_http->network);
+	network_init(__local_http->network, TRUE, TCP | IPv4, "localhost", "31415" );
 	if (NULL == __local_http->network) return FALSE;
 
 	__local_http->parser = htparser_new();
@@ -565,6 +566,7 @@ np_bool _np_http_init()
 	__local_http->ht_request.ht_query_args = NULL;
 	__local_http->ht_request.ht_path = NULL;
 	__local_http->ht_request.current_key = NULL;
+	__local_http->user_hooks = NULL;
 
 	__local_http->last_update = ev_time();
 	__local_http->status = UNUSED;
@@ -574,6 +576,8 @@ np_bool _np_http_init()
 
 void _np_http_destroy()
 {
+	__local_http->status = SHUTDOWN;
+
 	close(__local_http->client_fd);
 
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
@@ -581,7 +585,6 @@ void _np_http_destroy()
 	ev_io_stop(EV_A_ &__local_http->client_watcher_out);
 	ev_io_stop(EV_A_ &__local_http->network->watcher);
 
-	__local_http->status = SHUTDOWN;
 	if (__local_http->ht_request.ht_body) free (__local_http->ht_request.ht_body);
 	if (__local_http->ht_request.ht_path) free (__local_http->ht_request.ht_path);
 	if (__local_http->ht_request.current_key) free (__local_http->ht_request.current_key);
@@ -594,5 +597,7 @@ void _np_http_destroy()
 
 	free(__local_http->parser);
 	free(__local_http->hooks);
+
+	np_free_obj(np_network_t, __local_http->network);
 }
 

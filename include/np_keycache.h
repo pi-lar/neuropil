@@ -28,6 +28,7 @@ struct np_key_s
     SPLAY_ENTRY(np_key_s) link; // link for cache management
 
     np_dhkey_t dhkey;
+    double last_update;
     char*      dhkey_str;
 
     np_node_t*    node;		    // link to a neuropil node if this key represents a node
@@ -62,6 +63,9 @@ NP_API_INTERN
 np_key_t* _np_key_find(np_dhkey_t key);
 NP_API_INTERN
 np_key_t* _np_key_remove(np_dhkey_t key);
+
+NP_API_INTERN
+np_key_t* _np_key_find_deprecated();
 
 NP_API_INTERN
 char* _key_as_str(np_key_t * key);

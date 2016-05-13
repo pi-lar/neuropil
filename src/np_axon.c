@@ -356,12 +356,13 @@ void _np_out_handshake(np_jobargs_t* args)
 		if (NULL == args->target->network)
 		{
 			// initialize network
-			args->target->network = network_init(
-										FALSE,
-										args->target->node->protocol,
-										args->target->node->dns_name,
-										args->target->node->port);
-			if (NULL == args->target->network)
+			np_new_obj(np_network_t, args->target->network);
+			network_init(args->target->network,
+						 FALSE,
+						 args->target->node->protocol,
+						 args->target->node->dns_name,
+						 args->target->node->port);
+			if (FALSE == args->target->network->initialized)
 			{
 				np_free_obj(np_message_t, hs_message);
 				args->target->node->handshake_status = HANDSHAKE_UNKNOWN;
@@ -372,8 +373,8 @@ void _np_out_handshake(np_jobargs_t* args)
 
 		// construct target address and send it out
 		np_node_t* hs_node = args->target->node;
-		pthread_mutex_lock(&(args->target->network->lock));
 
+		pthread_mutex_lock(&(args->target->network->lock));
 		/* send data if handshake status is still just initialized or less */
 		log_msg(LOG_DEBUG,
 				"sending handshake message to (%s:%s)",

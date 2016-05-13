@@ -13,10 +13,15 @@
 
 #include "np_keycache.h"
 
+#include "neuropil.h"
+#include "np_aaatoken.h"
 #include "np_log.h"
 #include "np_key.h"
 #include "np_network.h"
+#include "np_node.h"
 
+// TODO: make this a better constant value
+static double __keycache_deprecation_interval = 31.415;
 
 SPLAY_GENERATE(st_keycache_s, np_key_s, link, __key_comp);
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
@@ -39,6 +44,8 @@ void _np_key_t_new(void* key)
 {
 	np_key_t* new_key = (np_key_t*) key;
 
+	new_key->last_update = ev_time();
+
 	new_key->dhkey_str = NULL;
     new_key->node = NULL;		  // link to a neuropil node if this key represents a node
     new_key->network = NULL;      // link to a neuropil node if this key represents a node
@@ -56,18 +63,18 @@ void _np_key_t_del(void* key)
 {
 	np_key_t* old_key = (np_key_t*) key;
 
+    log_msg(LOG_DEBUG, "destructor of key %p -> %s called ", old_key, _key_as_str(old_key));
+
+	// delete string presentation of key
 	if (NULL != old_key->dhkey_str)
 	{
 		free (old_key->dhkey_str);
 		old_key->dhkey_str = NULL;
 	}
-
-	if (NULL != old_key->network)
-	{
-		_network_destroy(old_key->network);
-		old_key->network = NULL;
-	}
+	// unref and delete of other object pointers has to be done outside of this function
+	// otherwise double locking the memory pool will lead to a deadlock
 }
+
 
 int8_t __key_comp (const np_key_t* k1, const np_key_t* k2)
 {
@@ -78,6 +85,7 @@ int8_t __key_comp (const np_key_t* k1, const np_key_t* k2)
 	// log_msg(LOG_KEY | LOG_DEBUG, "k1 %p / k2 %p", k1, k2);
 	return _dhkey_comp(&k1->dhkey, &k2->dhkey);
 }
+
 
 np_key_t* _np_key_find_create(np_dhkey_t search_dhkey)
 {
@@ -91,8 +99,9 @@ np_key_t* _np_key_find_create(np_dhkey_t search_dhkey)
 
 		SPLAY_INSERT(st_keycache_s, __key_cache, subject_key);
 
-		np_ref_obj(np_key_t, subject_key);
+		// np_ref_obj(np_key_t, subject_key);
     }
+	subject_key->last_update = ev_time();
 	return subject_key;
 }
 
@@ -100,16 +109,42 @@ np_key_t* _np_key_find_create(np_dhkey_t search_dhkey)
 np_key_t* _np_key_find(np_dhkey_t search_dhkey)
 {
 	np_key_t search_key = { .dhkey = search_dhkey };
+	np_key_t* return_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
 
-	return SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
+	if (NULL != return_key)
+	{
+		return_key->last_update = ev_time();
+	}
+	return return_key;
 }
 
+np_key_t* _np_key_find_deprecated()
+{
+	np_key_t *iter = NULL;
+	SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
+	{
+		// our own key / identity never deprecates
+		if (TRUE == _dhkey_equal(&iter->dhkey, &_np_state()->my_node_key->dhkey) ||
+			TRUE == _dhkey_equal(&iter->dhkey, &_np_state()->my_identity->dhkey) )
+		{
+			continue;
+		}
+
+		double now = ev_time();
+		if ((now - __keycache_deprecation_interval) > iter->last_update)
+		{
+			break;
+		}
+	}
+	return iter;
+}
 
 np_key_t* _np_key_remove(np_dhkey_t search_dhkey)
 {
 	np_key_t search_key = { .dhkey = search_dhkey };
 
 	np_key_t* rem_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
+	// np_key_t* rem_key = SPLAY_REMOVE(st_keycache_s, __key_cache, &search_key);
 	SPLAY_REMOVE(st_keycache_s, __key_cache, rem_key);
 	return rem_key;
 }

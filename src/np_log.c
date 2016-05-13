@@ -92,7 +92,7 @@ void np_log_message(uint16_t level, const char* srcFile, const char* funcName, u
 		// fprintf(logger->fp, "%s\n", new_log_entry);
 		// fflush(logger->fp);
 		pthread_mutex_unlock(&__log_mutex);
-
+		free (new_log_entry);
 	}
 	else
 	{
@@ -100,7 +100,7 @@ void np_log_message(uint16_t level, const char* srcFile, const char* funcName, u
 	}
 }
 
-void _log_evflush(struct ev_loop *loop, ev_io *event, int revents)
+void _log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
 {
 	if (revents & EV_WRITE)
 	{
@@ -119,14 +119,11 @@ void _np_log_fflush()
 
 		if (NULL != entry)
 		{
-			// fwrite();
 			write(logger->fp, entry, strlen(entry));
 			free(entry);
 		}
 
 	} while(NULL != entry);
-
-	// flush(logger->fp);
 }
 
 void np_log_init(const char* filename, uint16_t level)

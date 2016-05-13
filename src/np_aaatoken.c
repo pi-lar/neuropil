@@ -39,7 +39,7 @@ void _np_aaatoken_t_new(void* token)
 	aaa_token->issued_at = ev_time();
     // set expiration to one day and recreate each day by default
     // TODO: make it configurable or use random timeframe
-    aaa_token->expiration = aaa_token->issued_at + 86400;
+    aaa_token->expiration = aaa_token->issued_at + 120;
     aaa_token->extensions = make_jtree();
     aaa_token->state |= AAA_INVALID;
 }
@@ -51,9 +51,11 @@ void _np_aaatoken_t_del (void* token)
 	if (NULL != aaa_token->extensions)
 	{
 		np_free_tree(aaa_token->extensions);
-	    aaa_token->extensions = NULL;
 	}
-	free(aaa_token->uuid);
+	if (NULL != aaa_token->uuid)
+	{
+		free(aaa_token->uuid);
+	}
 }
 
 void np_encode_aaatoken(np_tree_t* data, np_aaatoken_t* token)
@@ -112,7 +114,10 @@ np_bool token_is_valid(np_aaatoken_t* token)
 	crypto_generichash_update(&gh_state, (unsigned char*) token->issuer, strlen(token->issuer));
 	crypto_generichash_update(&gh_state, (unsigned char*) token->subject, strlen(token->subject));
 	crypto_generichash_update(&gh_state, (unsigned char*) token->audience, strlen(token->audience));
-	crypto_generichash_update(&gh_state, (unsigned char*) token->uuid, strlen(token->uuid));
+	if (NULL != token->uuid)
+	{
+		crypto_generichash_update(&gh_state, (unsigned char*) token->uuid, strlen(token->uuid));
+	}
 	crypto_generichash_update(&gh_state, (unsigned char*) token->public_key, crypto_sign_BYTES);
 	// TODO: hash 'not_before' and 'expiration' values as well ?
 	crypto_generichash_final(&gh_state, hash, sizeof hash);
@@ -194,7 +199,7 @@ static int8_t _token_cmp (np_aaatoken_ptr first, np_aaatoken_ptr second)
 		return ret_check;
 	}
 
-	ret_check = strncmp(first->realm, second->realm, strlen(first->issuer));
+	ret_check = strncmp(first->realm, second->realm, strlen(first->realm));
 	if (0 != ret_check )
 	{
 		return ret_check;

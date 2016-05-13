@@ -66,8 +66,8 @@ void _np_in_received(np_jobargs_t* args)
 		sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
 		// log_msg(LOG_DEBUG, "decryption nonce %s", nonce_hex);
 
-		char session_hex[crypto_scalarmult_SCALARBYTES*2+1];
-		sodium_bin2hex(session_hex, crypto_scalarmult_SCALARBYTES*2+1, alias_key->aaa_token->session_key, crypto_scalarmult_SCALARBYTES);
+		// char session_hex[crypto_scalarmult_SCALARBYTES*2+1];
+		// sodium_bin2hex(session_hex, crypto_scalarmult_SCALARBYTES*2+1, alias_key->aaa_token->session_key, crypto_scalarmult_SCALARBYTES);
 		// log_msg(LOG_DEBUG, "session    key   %s", session_hex);
 
 		// log_msg(LOG_DEBUG, "now nonce (%s)", nonce);
@@ -110,7 +110,7 @@ void _np_in_received(np_jobargs_t* args)
 	{
 		// log_msg(LOG_DEBUG, "identified handshake message ...");
 		if ( (NULL == alias_key->aaa_token) ||
-			 IS_INVALID(alias_key->aaa_token->state) )
+			  IS_INVALID(alias_key->aaa_token->state) )
 		{
 			tree_insert_str(msg_in->footer, NP_MSG_FOOTER_ALIAS_KEY,
 					new_val_s(_key_as_str(alias_key)));
@@ -797,7 +797,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 		}
 	}
 
-	// send a piggy message to the new node in our routing table
+	// send an initial piggy message to the new node in our routing table
 	np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
 	_np_job_submit_transform_event(0.0, piggy_prop, join_key, NULL);
 
@@ -1511,12 +1511,16 @@ void _np_in_handshake(np_jobargs_t* args)
 		np_new_obj(np_node_t, hs_key->node);
 		np_node_update(hs_key->node, proto, node_hn, node_port);
 
-		if (!(proto & PASSIVE))
+		if (NULL == hs_key->network)
 		{
-			hs_key->network = network_init(FALSE, proto, node_hn, node_port);
-			if (NULL != hs_key->network)
+			np_new_obj(np_network_t, hs_key->network);
+			if (!(proto & PASSIVE))
 			{
-				hs_key->network->watcher.data = hs_key;
+				network_init(hs_key->network, FALSE, proto, node_hn, node_port);
+				if (TRUE == hs_key->network->initialized)
+				{
+					hs_key->network->watcher.data = hs_key;
+				}
 			}
 		}
 	}
@@ -1561,8 +1565,6 @@ void _np_in_handshake(np_jobargs_t* args)
 
 		hs_key->aaa_token->state |= AAA_VALID;
 
-		np_ref_obj(np_key_t, hs_key);
-
 		_LOCK_MODULE(np_keycache_t)
 		{
 			alias_key = _np_key_find_create(search_alias_key);
@@ -1571,11 +1573,17 @@ void _np_in_handshake(np_jobargs_t* args)
 		if (NULL != alias_key)
 		{
 			alias_key->aaa_token = hs_key->aaa_token;
+			np_ref_obj(np_aaatoken_t, alias_key->aaa_token);
+
 			alias_key->node = hs_key->node;
+			np_ref_obj(np_node_t, alias_key->node);
 
 			if (proto & PASSIVE)
 			{
+				np_free_obj(np_network_t, hs_key->network);
+
 				hs_key->network = alias_key->network;
+				np_ref_obj(np_network_t, hs_key->network);
 
 				_np_suspend_event_loop();
 				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
@@ -1587,12 +1595,12 @@ void _np_in_handshake(np_jobargs_t* args)
 			else if (proto & TCP)
 			{
 				// with tcp we accepted the connection already and have incoming channel defined
-				// alias key and hs_key have different network_t structures
-				// TODO clean up both network structures
+				// alias key and hs_key have different network_t structures, so there is nothing to do
 			}
 			else
 			{
 				alias_key->network = hs_key->network;
+				np_ref_obj(np_network_t, alias_key->network);
 			}
 		}
 		// sodium_bin2hex(session_hex, crypto_scalarmult_SCALARBYTES*2+1, alias_key->authentication->session_key, crypto_scalarmult_SCALARBYTES);
@@ -1608,10 +1616,5 @@ void _np_in_handshake(np_jobargs_t* args)
 	}
 
 	np_free_tree(hs_payload);
-
-	np_unref_obj(np_key_t, hs_key);
-	// np_free_obj(np_message_t, args->msg);
-
-	// log_msg(LOG_DEBUG, "finished to handle handshake message");
 }
 

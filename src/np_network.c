@@ -20,6 +20,7 @@
 #include <pthread.h>
 #include <assert.h>
 
+#include "np_network.h"
 
 #include "dtime.h"
 #include "np_log.h"
@@ -32,7 +33,6 @@
 #include "np_keycache.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
-#include "np_network.h"
 #include "np_node.h"
 #include "np_threads.h"
 
@@ -138,6 +138,7 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
 	log_msg(LOG_NETWORK | LOG_DEBUG, "using getaddrinfo: %d:%s:%s", type, hostname, service);
 	if ( 0 != ( err = getaddrinfo( hostname, service, &hints, ai_head ) ))
 	{
+		log_msg(LOG_ERROR, "hostname: %s, servicename %s", hostname, service);
 		log_msg(LOG_ERROR, "error getaddrinfo: %s", gai_strerror( err ) );
 		return;
 	}
@@ -353,7 +354,7 @@ void network_send (np_key_t *node_key, np_message_t* msg)
 	return; // TRUE;
 }
 
-void _np_network_send (struct ev_loop *loop, ev_io *event, int revents)
+void _np_network_send (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents)
 {
 	if (EV_ERROR == (revents & EV_ERROR))
 	{
@@ -411,7 +412,7 @@ void _np_network_send (struct ev_loop *loop, ev_io *event, int revents)
 	}
 }
 
-void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
+void _np_network_accept(struct ev_loop *loop, NP_UNUSED ev_io *event, NP_UNUSED int revents)
 {
 	log_msg(LOG_NETWORK | LOG_TRACE, ".start.np_network_accept");
 
@@ -425,18 +426,21 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
 
 	// get calling address and port
 	char ipstr[255];
-	char port [6];
+	char port [7];
 	// int16_t port;
 
+	// deal with both IPv4 and IPv6:
 	if (from.ss_family == AF_INET)
-	{
-		struct sockaddr_in *s = (struct sockaddr_in *) &from;
-		getnameinfo((struct sockaddr*)s, sizeof s, ipstr, 255, port, 6, 0);
+	{   // AF_INET
+	    struct sockaddr_in *s = (struct sockaddr_in *) &from;
+	    snprintf(port, 6, "%d", ntohs(s->sin_port));
+	    inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
 	}
 	else
-	{
-		struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-		getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
+	{   // AF_INET6
+	    struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+	    snprintf(port, 6, "%d", ntohs(s->sin6_port));
+	    inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 	}
 
 	log_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (client fd: %d)", ipstr, port, client_fd);
@@ -454,7 +458,7 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
 	current_flags |= O_NONBLOCK;
 	fcntl(client_fd, F_SETFL, current_flags);
 
-	alias_key->network = (np_network_t *) malloc (sizeof (np_network_t));
+	np_new_obj(np_network_t, alias_key->network);
 	alias_key->network->addr_in = NULL;
 	alias_key->network->socket = client_fd;
 	// it could be a passive socket
@@ -468,7 +472,11 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
 	_np_resume_event_loop();
 }
 
-void _np_network_read(struct ev_loop *loop, ev_io *event, int revents)
+/**
+ ** _np_network_read:
+ ** reads the network layer in listen mode. This function delivers incoming messages to the default message handler
+ **/
+void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 {
 	log_msg(LOG_NETWORK | LOG_TRACE, ".start.np_network_read");
 	// cast event data structure to np_state_t pointer
@@ -478,7 +486,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents)
 	socklen_t fromlen = sizeof(from);
 	// calling address and port
 	char ipstr[255];
-	char port [6];
+	char port [7];
 
 	np_key_t* key = (np_key_t*) event->data; // state->my_node_key->network;
 	np_network_t* ng = key->network;
@@ -500,7 +508,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents)
 	    inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 	}
 
-	// TODO: getnameinfo is slow ? replace it with a more native approach
+	// getnameinfo is slow because it is doing a ns lookup ! replaced it with a more native approach
 	//	if (from.ss_family == AF_INET)
 	//	{
 	//		struct sockaddr_in *s = (struct sockaddr_in *) &from;
@@ -581,39 +589,56 @@ void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 /**
  * network_destroy
  */
-void _network_destroy (np_network_t* network)
+void _np_network_t_del(void* nw)
 {
-	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-
+	np_network_t* network = (np_network_t*) nw;
 	_np_suspend_event_loop();
+
+	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 	ev_io_stop(EV_A_ &network->watcher);
 	_np_resume_event_loop();
 
 	if (NULL != network->waiting)
 		np_free_tree(network->waiting);
 
-	if (NULL != network->in_events &&
-		0 < sll_size(network->in_events))
+	if (NULL != network->in_events)
 	{
-		do {
-			void* tmp = sll_head(void_ptr, network->in_events);
-			free(tmp);
-		} while (0 < sll_size(network->in_events));
+		if (0 < sll_size(network->in_events))
+		{
+			do {
+				void* tmp = sll_head(void_ptr, network->in_events);
+				free(tmp);
+			} while (0 < sll_size(network->in_events));
+		}
 		sll_free(void_ptr, network->in_events);
 	}
 
-	if (NULL != network->out_events &&
-		0 < sll_size(network->out_events))
+	if (NULL != network->out_events)
 	{
-		do {
-			void* tmp = sll_head(void_ptr, network->out_events);
-			free(tmp);
-		} while (0 < sll_size(network->out_events));
+		if (0 < sll_size(network->out_events))
+		{
+			do {
+				void* tmp = sll_head(void_ptr, network->out_events);
+				free(tmp);
+			} while (0 < sll_size(network->out_events));
+		}
 		sll_free(void_ptr, network->out_events);
 	}
 
 	if (0 < network->socket)
 		close (network->socket);
+
+	pthread_mutex_destroy (&network->lock);
+}
+
+void _np_network_t_new(void* nw)
+{
+    np_network_t* ng = (np_network_t *) nw;
+    ng->addr_in = NULL;
+    ng->waiting = NULL;
+    ng->in_events = NULL;
+    ng->out_events = NULL;
+    ng->initialized = FALSE;
 }
 
 /** network_init:
@@ -621,29 +646,23 @@ void _network_destroy (np_network_t* network)
  ** if the port number is bigger than zero, it will create a socket and bind it to #port#
  ** the type defines the protocol which is used by the node (@see socket_type)
  **/
-np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname, char* service)
+void network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* hostname, char* service)
 {
     int ret;
     int one = 1;
     int v6_only = 0;
 
-    np_network_t* ng = (np_network_t *) malloc (sizeof (np_network_t));
-    ng->addr_in = NULL;
-    ng->waiting = NULL;
-    ng->in_events = NULL;
-    ng->out_events = NULL;
-
     if ((ret = pthread_mutex_init (&(ng->lock), NULL)) != 0)
 	{
 		log_msg(LOG_NETWORK | LOG_ERROR, "pthread_mutex_init: %s:", strerror (ret));
 		close (ng->socket);
-		return NULL;
+		return;
 	}
 
     get_network_address (create_socket, &ng->addr_in, type, hostname, service);
     if (NULL == ng->addr_in)
     {
-    	return NULL;
+    	return;
     }
 
 //	  char host_name[255];
@@ -658,7 +677,7 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
     if (TRUE == create_socket )
     {
     	// nothing to do for passive nodes
-    	if (type & PASSIVE) return ng;
+    	if (type & PASSIVE) return;
 
     	// server setup - create socket
         // UDP note: not using a connected socket for sending messages to a different node
@@ -726,6 +745,7 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
     	ev_io_start(EV_A_ &ng->watcher);
     	_np_resume_event_loop();
 
+    	ng->initialized = TRUE;
     	log_msg(LOG_NETWORK | LOG_DEBUG, "created local listening socket");
 
 	} else {
@@ -739,13 +759,13 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
     	if (0 > ng->socket)
     	{
     		log_msg(LOG_NETWORK | LOG_ERROR, "could not create socket: %s", strerror (errno));
-    		return NULL;
+    		return;
     	}
     	if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
     	{
     		log_msg(LOG_NETWORK | LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
     		close (ng->socket);
-    		return NULL;
+    		return;
 		}
     	if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
     	{
@@ -765,7 +785,7 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
 		{
 			log_msg(LOG_NETWORK | LOG_ERROR, "connect: %s:", strerror (errno));
 			close (ng->socket);
-			return NULL;
+			return;
     	}
 
 #ifdef SKIP_EVLOOP
@@ -788,10 +808,10 @@ np_network_t* network_init (np_bool create_socket, uint8_t type, char* hostname,
 
 		log_msg(LOG_NETWORK | LOG_DEBUG, ": %d %p %p :", ng->socket, &ng->watcher,  &ng->watcher.data);
 		_np_resume_event_loop();
+
+		ng->initialized = TRUE;
     }
 
     freeaddrinfo( ng->addr_in );
-
-    return ng;
 }
 

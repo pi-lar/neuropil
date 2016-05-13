@@ -30,17 +30,19 @@ typedef enum
 #define NP_PACKED(x)  __attribute__ ((packed(x)))
 #define NP_DEPRECATED __attribute__ ((deprecated("!!! DEPRECATED !!!")))
 
+#define NP_UNUSED     __attribute__ ((unused))
+
 #define NP_API_EXPORT __attribute__ ((visibility ("default")))
 
-#ifndef TEST_COMPILE
-  #define NP_API_HIDDEN __attribute__ ((visibility ("hidden")))
-  #define NP_API_PROTEC __attribute__ ((visibility ("protected")))
-  #define NP_API_INTERN __attribute__ ((visibility ("internal")))
-#else
+//#ifndef TEST_COMPILE
+//  #define NP_API_HIDDEN __attribute__ ((visibility ("hidden")))
+//  #define NP_API_PROTEC __attribute__ ((visibility ("protected")))
+//  #define NP_API_INTERN __attribute__ ((visibility ("internal")))
+//#else
   #define NP_API_HIDDEN __attribute__ ((visibility ("default")))
   #define NP_API_PROTEC __attribute__ ((visibility ("default")))
   #define NP_API_INTERN __attribute__ ((visibility ("default")))
-#endif
+// #endif
 
 
 /*

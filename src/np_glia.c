@@ -212,7 +212,7 @@ void _np_never_called(np_jobargs_t* args)
 /**
  ** flushes the data of the log buffer to the filesystem in a async callback way
  **/
-void _np_write_log(np_jobargs_t* args)
+void _np_write_log(NP_UNUSED np_jobargs_t* args)
 {
 	// log_msg(LOG_TRACE, "start np_write_log");
 	_np_log_fflush();
@@ -225,7 +225,7 @@ void _np_write_log(np_jobargs_t* args)
  ** sends the leafset to other members of its leafset periodically.
  ** pinging frequency is LEAFSET_CHECK_PERIOD.
  **/
-void _np_check_leafset(np_jobargs_t* args)
+void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_check_leafset");
 
@@ -352,7 +352,7 @@ void _np_check_leafset(np_jobargs_t* args)
  ** default ttl value for message exchange tokens is ten seconds, afterwards they will be invalid
  ** and a new token is required. this also ensures that the correct encryption key will be transmitted
  **/
-void _np_retransmit_tokens(np_jobargs_t* args)
+void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 {
 	// log_msg(LOG_TRACE, "start np_retransmit_tokens");
 	np_state_t* state = _np_state();
@@ -426,7 +426,7 @@ void _np_retransmit_tokens(np_jobargs_t* args)
  ** _np_events_read
  ** schedule the libev event loop one time and reschedule again
  **/
-void _np_events_read(np_jobargs_t* args)
+void _np_events_read(NP_UNUSED np_jobargs_t* args)
 {
 	if (TRUE == __exit_libev_loop) return;
 
@@ -463,7 +463,7 @@ void _np_resume_event_loop()
  ** the message gets deleted or dropped (if max redelivery has been reached)
  ** redelivery has two aspects -> simple resend or reroute because of bad link nodes in the routing table
  **/
-void _np_cleanup(np_jobargs_t* args)
+void _np_cleanup(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_cleanup");
 
@@ -521,11 +521,127 @@ void _np_cleanup(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  .np_cleanup");
 }
 
-/**
- ** np_network_read:
- ** puts the network layer into listen mode. This thread manages acknowledgements,
- ** delivers incoming messages to the message handlers, and drives the network layer.
- **/
+
+void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
+{
+	log_msg(LOG_TRACE, ".start._np_cleanup_keycache");
+
+	np_key_t* old = NULL;
+	double now = ev_time();
+
+	_LOCK_MODULE(np_keycache_t)
+	{
+		old = _np_key_find_deprecated();
+	}
+
+	if (NULL != old)
+	{
+		log_msg(LOG_DEBUG, "cleanup check started for key : %p -> %s", old, _key_as_str(old));
+		np_bool delete_key = TRUE;
+
+		if (NULL != old->node)
+		{
+			// found a node key, check last_success value
+			double delta = ev_time() - old->node->last_success;
+			if (delta < (31.415 * __leafset_check_period))
+			{
+				log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid node last_success value: %s", _key_as_str(old));
+				delete_key &= FALSE;
+			}
+		}
+
+		if (NULL != old->aaa_token                  &&
+			TRUE == token_is_valid(old->aaa_token) )
+		{
+			log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _key_as_str(old));
+			delete_key &= FALSE;
+		}
+
+		if (NULL != old->recv_tokens)
+		{
+			// check old receiver token structure
+			pll_iterator(np_aaatoken_ptr) iter = pll_first(old->recv_tokens);
+			while (NULL != iter)
+			{
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
+				np_aaatoken_t* tmp_token = iter->val;
+				if (TRUE == token_is_valid(tmp_token))
+				{
+					log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _key_as_str(old));
+					delete_key &= FALSE;
+				}
+			}
+		}
+
+		if (NULL != old->send_tokens)
+		{
+			// check old sender token structure
+			pll_iterator(np_aaatoken_ptr) iter = pll_first(old->send_tokens);
+			while (NULL != iter)
+			{
+				log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking sender msg tokens %p/%p", iter, iter->val);
+				np_aaatoken_t* tmp_token = iter->val;
+				if (TRUE == token_is_valid(tmp_token))
+				{
+					log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _key_as_str(old));
+					delete_key &= FALSE;
+				}
+			}
+		}
+
+		// last sanity check if we should delete
+		if (TRUE == delete_key &&
+			now > old->last_update)
+		{
+			log_msg(LOG_DEBUG, "cleanup of key and associated data structures: %s", _key_as_str(old));
+
+			// delete old network structure
+			if (NULL != old->network)   np_unref_obj(np_network_t,  old->network);
+			if (NULL != old->node)      np_unref_obj(np_node_t,     old->node);
+			if (NULL != old->aaa_token) np_unref_obj(np_aaatoken_t, old->aaa_token);
+
+			// delete old receive tokens
+			if (NULL != old->recv_tokens)
+			{
+				pll_iterator(np_aaatoken_ptr) iter = pll_first(old->recv_tokens);
+				while (NULL != iter)
+				{
+					np_free_obj(np_aaatoken_t, iter->val);
+					pll_next(iter);
+				}
+				pll_free(np_aaatoken_ptr, old->recv_tokens);
+			}
+
+			// delete send tokens
+			if (NULL != old->send_tokens)
+			{
+				pll_iterator(np_aaatoken_ptr) iter = pll_first(old->send_tokens);
+				while (NULL != iter)
+				{
+					np_free_obj(np_aaatoken_t, iter->val);
+					pll_next(iter);
+				}
+				pll_free(np_aaatoken_ptr, old->send_tokens);
+			}
+
+			_LOCK_MODULE(np_keycache_t)
+			{
+				_np_key_remove(old->dhkey);
+			}
+			np_unref_obj(np_key_t, old);
+			log_msg(LOG_DEBUG, "cleanup of key and associated data structures: ... done");
+		}
+		else
+		{
+			// update timestamp so that the same key cannot be evaluated twice
+			old->last_update = ev_time();
+		}
+	}
+
+	// submit the function itself for additional execution
+	np_job_submit_event(__cleanup_interval, _np_cleanup_keycache);
+	log_msg(LOG_TRACE, ".end  ._np_cleanup_keycache");
+}
 
 /**
  ** np_send_rowinfo:

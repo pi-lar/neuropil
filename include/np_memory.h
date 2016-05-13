@@ -36,6 +36,7 @@ typedef enum np_obj_type
 	np_aaatoken_t_e,
 	np_msgproperty_t_e,
 	np_http_t_e,
+	np_network_t_e,
 	test_struct_t_e = 99
 } np_obj_enum;
 

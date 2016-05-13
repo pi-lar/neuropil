@@ -38,12 +38,12 @@ char* np_create_uuid(const char* str, const uint16_t num)
 	return uuid_out;
 }
 
-void del_callback(void* data)
+void del_callback(NP_UNUSED void* data)
 {
 	log_msg(LOG_ERROR, "del_callback should never be called !!!");
 }
 
-void new_callback(void* data)
+void new_callback(NP_UNUSED void* data)
 {
 	log_msg(LOG_ERROR, "new_callback should never be called !!!");
 }

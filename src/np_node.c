@@ -234,8 +234,9 @@ sll_return(np_key_t) np_decode_nodes_from_jrb (np_tree_t* data)
 np_key_t* _np_create_node_from_token(np_aaatoken_t* token)
 {
 	tree_insert_str(token->extensions, NP_NODE_KEY, new_val_s(token->issuer));
-	return np_node_decode_from_jrb(token->extensions);
+	np_key_t* return_key = np_node_decode_from_jrb(token->extensions);
 	tree_del_str(token->extensions, NP_NODE_KEY);
+	return return_key;
 }
 
 np_aaatoken_t* _np_create_node_token(np_node_t* node, np_key_t* node_key)

@@ -16,7 +16,7 @@ void setup_jrb_serialization(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE;
 	np_mem_init();
-	log_init("test_jrb_serialization.log", log_level);
+	np_log_init("test_jrb_serialization.log", log_level);
 }
 
 void teardown_jrb_serialization(void)

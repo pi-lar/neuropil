@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
 
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 
-	log_init("test_node_ser.log", log_level);
+	np_log_init("test_node_ser.log", log_level);
 
 	np_tree_t* test_jrb = make_jtree();
 	tree_insert_str(test_jrb, "test", new_val_s("test"));
