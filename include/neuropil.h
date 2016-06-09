@@ -30,10 +30,12 @@ extern "C" {
 */
 struct np_state_s
 {
-	// reference to a private key
+	// reference to the physical node / key
 	np_key_t* my_node_key;
-	// reference to the runtime node
+
+	// reference to main identity on this node
 	np_key_t* my_identity;
+	char* realm_name;
 
 	np_tree_t *msg_tokens;
     np_tree_t* msg_part_cache;
@@ -68,30 +70,39 @@ NP_API_INTERN
 np_state_t* _np_state();
 
 /**
-.. c:function:: void np_enable_realm_master(const char* realm_name)
+.. c:function:: void np_enable_realm_master()
 
    Manually set the realm and enable this node to act as a master for it.
    This will add the appropiate message callback required to handle AAA request
    send by other nodes.
 
-   :param realm_name: the name of the realm to act as a master for
-
 */
 NP_API_EXPORT
-void np_enable_realm_master(const char* realm_name);
+void np_enable_realm_master();
 
 /**
-.. c:function:: void np_enable_realm_salve(const char* realm_name)
+.. c:function:: void np_enable_realm_salve()
 
    Manually set the realm and enable this node to act as a slave in it.
    This will exchange the default callbacks (accept all) with callbacks that
    forwards tokens to the realm master.
 
-   :param realm_name: the name of the realm to act as a slave
+*/
+NP_API_EXPORT
+void np_enable_realm_slave();
+
+/**
+.. c:function:: void np_set_realm_name(const char* realm_name)
+
+   Manually set the realm name this node belongs to.
+   This will create new dh-key and re-setup some internal structures and must be called
+   after initializing with np_init and before starting the job queue
+
+   :param realm_name: the name of the realm to act as a master for
 
 */
 NP_API_EXPORT
-void np_enable_realm_slave(const char* realm_name);
+void np_set_realm_name(const char* realm_name);
 
 
 /**
@@ -118,7 +129,7 @@ void np_set_identity(np_aaatoken_t* identity);
 
 */
 NP_API_EXPORT
-void np_sendjoin(const char* node_string);
+void np_send_join(const char* node_string);
 
 /**
 .. c:function:: np_waitforjoin()

@@ -200,35 +200,35 @@ TYPE TYPE##_pll_replace(TYPE##_pll_t* pll_list, TYPE value) {         \
 	}                                                                 \
     return NULL;                                                      \
 }                                                                     \
-TYPE TYPE##_pll_head(TYPE##_pll_t* pll_list) { \
-	TYPE ret_val = 0; \
-	if (NULL != pll_list->first) { \
-		TYPE##_pll_node_t* tmp = pll_list->first; \
-		ret_val = tmp->val; \
-		pll_list->first = pll_list->first->flink; \
-		if (pll_list->first != NULL) pll_list->first->blink = NULL; \
-		if (pll_list->first == NULL) pll_list->last = NULL; \
-		free(tmp); \
-		pll_list->size--; \
-	} \
-	return ret_val; \
-} \
-void TYPE##_pll_free(TYPE##_pll_t* pll_list) {\
-	TYPE##_pll_node_t *tmp;\
-	while (NULL != pll_list->first) {\
-		tmp = pll_list->first;\
-		pll_list->first = pll_list->first->flink;\
-		free(tmp);\
-	}\
-	free(pll_list);\
-}\
-void TYPE##_pll_clear(TYPE##_pll_t* pll_list) {\
-	TYPE##_pll_node_t *tmp;\
-	while (NULL != pll_list->first) {\
-		tmp = pll_list->first;\
-		pll_list->first = pll_list->first->flink;\
-		free(tmp);\
-	}\
+TYPE TYPE##_pll_head(TYPE##_pll_t* pll_list) {                        \
+	TYPE ret_val = 0;                                                 \
+	if (NULL != pll_list->first) {                                    \
+		TYPE##_pll_node_t* tmp = pll_list->first;                     \
+		ret_val = tmp->val;                                           \
+		pll_list->first = pll_list->first->flink;                     \
+		if (pll_list->first != NULL) pll_list->first->blink = NULL;   \
+		if (pll_list->first == NULL) pll_list->last = NULL;           \
+		free(tmp);                                                    \
+		pll_list->size--;                                             \
+	}                                                                 \
+	return ret_val;                                                   \
+}                                                                     \
+void TYPE##_pll_free(TYPE##_pll_t* pll_list) {                        \
+	TYPE##_pll_node_t *tmp;                                           \
+	while (NULL != pll_list->first) {                                 \
+		tmp = pll_list->first;                                        \
+		pll_list->first = pll_list->first->flink;                     \
+		free(tmp);                                                    \
+	}                                                                 \
+	free(pll_list);                                                   \
+}                                                                     \
+void TYPE##_pll_clear(TYPE##_pll_t* pll_list) {                       \
+	TYPE##_pll_node_t *tmp;                                           \
+	while (NULL != pll_list->first) {                                 \
+		tmp = pll_list->first;                                        \
+		pll_list->first = pll_list->first->flink;                     \
+		free(tmp);                                                    \
+	}                                                                 \
 }
 
 
@@ -488,23 +488,23 @@ TYPE* TYPE##_sll_tail(TYPE##_sll_t* sll_list) {\
 		}\
 		free(tmp);\
 		sll_list->size--;\
-	}\
-	return ret_val;\
-}\
-void TYPE##_sll_free(TYPE##_sll_t* sll_list) {\
-	TYPE##_sll_node_t *tmp;\
-	while (NULL != sll_list->first) {\
-		tmp = sll_list->first;\
-		sll_list->first = sll_list->first->flink;\
-		free(tmp);\
-	}\
-	free(sll_list);\
-}\
-void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {\
-	TYPE##_sll_node_t *tmp;\
-	while (sll_list->first != NULL) {\
-		tmp = sll_list->first;\
-		sll_list->first = sll_list->first->flink;\
+	}                                             \
+	return ret_val;                               \
+}                                                 \
+void TYPE##_sll_free(TYPE##_sll_t* sll_list) {    \
+	TYPE##_sll_node_t *tmp;                       \
+	while (NULL != sll_list->first) {             \
+		tmp = sll_list->first;                    \
+		sll_list->first = sll_list->first->flink; \
+		free(tmp);                                \
+	}                                             \
+	free(sll_list);                               \
+}                                                 \
+void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {   \
+	TYPE##_sll_node_t *tmp;                       \
+	while (sll_list->first != NULL) {             \
+		tmp = sll_list->first;                    \
+		sll_list->first = sll_list->first->flink; \
 		free(tmp);\
 		sll_list->size--;\
 	}\

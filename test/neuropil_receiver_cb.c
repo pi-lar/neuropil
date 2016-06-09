@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 
 	if (NULL != j_key)
 	{
-		np_sendjoin(j_key);
+		np_send_join(j_key);
 	}
 
 	np_waitforjoin();

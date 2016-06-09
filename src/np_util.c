@@ -17,6 +17,7 @@
 #include "np_log.h"
 #include "dtime.h"
 #include "np_key.h"
+#include "np_keycache.h"
 #include "np_val.h"
 
 char* np_create_uuid(const char* str, const uint16_t num)
@@ -147,6 +148,12 @@ void write_json_type(np_val_t val, JSON_Object* json_obj, const char* name)
 			json_object_set_value(json_obj, name, arr);
 			break;
 		}
+
+	case hash_type:
+		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		// json_object_set_string(json_obj, name, val.value.s);
+		break;
+
 	case jrb_tree_type:
 		{
 			JSON_Value* obj = json_value_init_object();
@@ -187,7 +194,8 @@ void write_type(np_val_t val, cmp_ctx_t* cmp)
 		break;
 		// characters
 	case char_ptr_type:
-		cmp_write_str32(cmp, val.value.s, strlen(val.value.s));
+		// log_msg(LOG_DEBUG, "string size %u/%lu -> %s", val.size, strlen(val.value.s), val.value.s);
+		cmp_write_str32(cmp, val.value.s, val.size);
 		break;
 
 	case char_type:
@@ -258,6 +266,12 @@ void write_type(np_val_t val, cmp_ctx_t* cmp)
 			}
 			break;
 		}
+
+	case hash_type:
+		// log_msg(LOG_DEBUG, "adding hash value %s to serialization", val.value.s);
+		cmp_write_ext32(cmp, hash_type, val.size, val.value.bin);
+		break;
+
 	case jrb_tree_type:
 		{
 			cmp_ctx_t tree_cmp;
@@ -447,7 +461,7 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 			value->value.s = (char*) malloc(obj->as.str_size+1);
 			cmp->read(cmp, value->value.s, obj->as.str_size * sizeof(char));
 			value->value.s[obj->as.str_size] = '\0';
-			// log_msg(LOG_WARN, "string size %u/%u -> %s", value->size, strlen(value->value.s), value->value.s);
+			// log_msg(LOG_DEBUG, "string size %u/%lu -> %s", value->size, strlen(value->value.s), value->value.s);
 			break;
 		}
 	case CMP_TYPE_BIN8:
@@ -521,6 +535,16 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 				value->value.key = new_key;
 				value->type = key_type;
 				value->size = 1 + ( 4*sizeof(uint64_t) );
+			}
+			else if (obj->as.ext.type == hash_type)
+			{
+				value->type = hash_type;
+				value->size = obj->as.ext.size;
+				value->value.s = (char*) malloc(obj->as.ext.size);
+				memset(value->value.bin, 0, value->size);
+				memcpy(value->value.bin, buffer, obj->as.ext.size);
+				// value->value.s[obj->as.ext.size] = '\0';
+				// log_msg(LOG_DEBUG, "reading hash value %s from serialization", value->value.s);
 			}
 			else
 			{
@@ -648,4 +672,37 @@ void deserialize_jrb_node_t(np_tree_t* jtree, cmp_ctx_t* cmp)
 		if (tmp_val.type == jrb_tree_type) np_free_tree(tmp_val.value.tree);
 	}
 	// log_msg(LOG_DEBUG, "read all key/value pairs from message part %p", jrb);
+}
+
+void _np_remove_doublettes(np_sll_t(np_key_t, list_of_keys))
+{
+    sll_iterator(np_key_t) iter1 = sll_first(list_of_keys);
+    sll_iterator(np_key_t) tmp = NULL;
+
+    do
+    {
+        sll_iterator(np_key_t) iter2 = sll_get_next(iter1);
+
+        if (NULL == iter2) break;
+
+        do
+        {
+        	if (0 == _dhkey_comp(&iter1->val->dhkey,
+								 &iter2->val->dhkey))
+        	{
+        		tmp = iter2;
+        	}
+
+        	sll_next(iter2);
+
+        	if (NULL != tmp)
+        	{
+        		sll_delete(np_key_t, list_of_keys, tmp);
+        		tmp = NULL;
+        	}
+        } while(NULL != iter2);
+
+        sll_next(iter1);
+
+    } while (NULL != iter1);
 }

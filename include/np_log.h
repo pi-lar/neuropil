@@ -56,8 +56,11 @@ enum
 NP_API_EXPORT
 void np_log_init (const char* filename, uint16_t level);
 
-NP_API_INTERN
-void _np_log_destroy ();
+NP_API_EXPORT
+void np_log_setlevel(uint16_t level);
+
+NP_API_EXPORT
+void np_log_destroy ();
 
 NP_API_INTERN
 void _np_log_fflush();

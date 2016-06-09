@@ -75,6 +75,7 @@ typedef struct np_val_s np_val_t;
  */
 NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_t);
 NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_node_t);
 NP_SLL_GENERATE_PROTOTYPES(np_key_t);
 NP_SLL_GENERATE_PROTOTYPES(np_message_t);
 

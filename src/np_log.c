@@ -126,6 +126,11 @@ void _np_log_fflush()
 	} while(NULL != entry);
 }
 
+void np_log_setlevel(uint16_t level)
+{
+    logger->level = level;
+}
+
 void np_log_init(const char* filename, uint16_t level)
 {
 	logger = (np_log_t *) malloc(sizeof(np_log_t));
@@ -149,9 +154,15 @@ void np_log_init(const char* filename, uint16_t level)
 	// _np_resume_event_loop();
 }
 
-void _np_log_destroy()
+void np_log_destroy()
 {
 	logger->level=LOG_NONE;
+
+    EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+	ev_io_stop(EV_A_ &logger->watcher);
+
+	_np_log_fflush();
+
 	close(logger->fp);
 	free(logger);
 }

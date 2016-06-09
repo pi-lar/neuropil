@@ -133,22 +133,20 @@ void np_setaccounting_cb(np_aaa_func_t aaaFunc)
 	__global_state->accounting_func = aaaFunc;
 }
 
-void np_sendjoin(const char* node_string)
+void np_send_join(const char* node_string)
 {
 	np_state_t* state = _np_state();
 	np_key_t* node_key = NULL;
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		node_key = np_node_decode_from_str(node_string);
+		node_key = _np_node_decode_from_str(node_string);
 	}
 
 	np_message_t* msg_out;
 
 	np_tree_t* jrb_me = make_jtree();
-	np_aaatoken_t* node_token = _np_create_node_token(state->my_node_key->node, state->my_node_key);
-	// strncpy(node_token->audience);
-	np_encode_aaatoken(jrb_me, node_token);
+	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
 
 	np_new_obj(np_message_t, msg_out);
 	np_message_create(msg_out, node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
@@ -158,37 +156,70 @@ void np_sendjoin(const char* node_string)
 	_np_job_submit_msgout_event(0.0, prop, node_key, msg_out);
 
 	np_free_obj(np_message_t, msg_out);
-	np_free_obj(np_aaatoken_t, node_token);
 }
 
-
-void np_enable_realm_slave(const char* realm_name)
+void np_set_realm_name(const char* realm_name)
 {
-	strncpy(__global_state->my_identity->aaa_token->realm, realm_name, 255);
-	if (__global_state->my_identity != __global_state->my_node_key)
-		strncpy(__global_state->my_node_key->aaa_token->realm, realm_name, 255);
+	__global_state->realm_name = strndup(realm_name, 255);
 
+	// create a new token
+    np_aaatoken_t* auth_token = _np_create_node_token(__global_state->my_node_key->node);
+    auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
+
+	np_dhkey_t my_dhkey = _np_create_dhkey_for_token(auth_token); // dhkey_create_from_hostport(my_node->dns_name, my_node->port);
+	np_key_t* new_node_key = _np_key_find_create(my_dhkey);
+
+	// TODO: use ref/unref
+	new_node_key->network = __global_state->my_node_key->network;
+	__global_state->my_node_key->network = NULL;
+	new_node_key->network->watcher.data = new_node_key;
+
+	new_node_key->node = __global_state->my_node_key->node;
+	__global_state->my_node_key->node = NULL;
+
+	new_node_key->aaa_token = auth_token;
+
+	// re-initialize routing table
+    _np_route_set_key (new_node_key);
+
+	// set and ref additional identity
+    if (__global_state->my_identity == __global_state->my_node_key)
+    {
+        np_unref_obj(np_key_t, __global_state->my_identity);
+        __global_state->my_identity = new_node_key;
+        np_ref_obj(np_key_t, __global_state->my_identity);
+    }
+    __global_state->my_node_key = new_node_key;
+}
+
+void np_enable_realm_slave()
+{
     __global_state->authorize_func    = _np_aaa_authorizefunc;
     __global_state->authenticate_func = _np_aaa_authenticatefunc;
     __global_state->accounting_func   = _np_aaa_accountingfunc;
 }
 
-void np_enable_realm_master(const char* realm_name)
+void np_enable_realm_master()
 {
-	strncpy(__global_state->my_identity->aaa_token->realm, realm_name, 255);
-	if (__global_state->my_identity != __global_state->my_node_key)
-		strncpy(__global_state->my_node_key->aaa_token->realm, realm_name, 255);
-
 	np_msgproperty_t* prop = NULL;
 
-	prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
-	prop->mode_type = INBOUND | TRANSFORM | ROUTE;
+	// turn msg handlers for aaa to inbound msg as well
+	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
+	prop->mode_type |= INBOUND;
 
-	prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
-	prop->mode_type = INBOUND | TRANSFORM | ROUTE;
+	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
+	prop->mode_type |= INBOUND;
+	if (NULL == prop->msg_audience)
+	{
+		prop->msg_audience = strndup(__global_state->realm_name, 255);
+	}
 
-	prop = np_msgproperty_get(INBOUND, _NP_MSG_ACCOUNTING_REQUEST);
-	prop->mode_type = INBOUND | TRANSFORM | ROUTE;
+	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
+	prop->mode_type |= INBOUND;
+	if (NULL == prop->msg_audience)
+	{
+		prop->msg_audience = strndup(__global_state->realm_name, 255);
+	}
 
 	__global_state->enable_realm_master = TRUE;
 }
@@ -227,19 +258,8 @@ void np_set_identity(np_aaatoken_t* identity)
 	np_state_t* state = _np_state();
     np_key_t* my_identity_key = NULL;
 
-	unsigned char hash[crypto_generichash_BYTES];
-
-	crypto_generichash_state gh_state;
-	crypto_generichash_init(&gh_state, NULL, 0, sizeof hash);
-	crypto_generichash_update(&gh_state, (const unsigned char*) identity->realm, strlen(identity->realm));
-	crypto_generichash_update(&gh_state, (const unsigned char*) identity->issuer, strlen(identity->issuer));
-	crypto_generichash_update(&gh_state, (const unsigned char*) identity->subject, strlen(identity->subject));
-	crypto_generichash_update(&gh_state, (const unsigned char*) identity->audience, strlen(identity->audience));
-	crypto_generichash_final(&gh_state, hash, sizeof hash);
-	char key[65];
-	sodium_bin2hex(key, 65, hash, 32);
-
-	np_dhkey_t search_key = dhkey_create_from_hash(key);
+    // build a hash to find a place in the dhkey table, not for signing !
+	np_dhkey_t search_key = _np_create_dhkey_for_token(identity);
 	_LOCK_MODULE(np_keycache_t)
 	{
 		my_identity_key = _np_key_find_create(search_key);
@@ -253,7 +273,7 @@ void np_set_identity(np_aaatoken_t* identity)
 
 	if (NULL != my_identity_key)
 	{
-		// cannot be null, but checker complains
+		// cannot be null, but otherwise checker complains
 		state->my_identity = my_identity_key;
 		state->my_identity->aaa_token = identity;
 		np_ref_obj(np_aaatoken_t, identity);
@@ -668,8 +688,6 @@ void _np_ping (np_key_t* key)
  **/
 np_state_t* np_init(char* proto, char* port, np_bool start_http)
 {
-    char name[256];
-
     // encryption and memory protection
     sodium_init();
     // memory pool
@@ -736,7 +754,11 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
 	log_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
 			           np_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);
 
-	np_dhkey_t my_dhkey = dhkey_create_from_hostport(my_node->dns_name, my_node->port);
+    // create a new token for encryption each time neuropil starts
+    np_aaatoken_t* auth_token = _np_create_node_token(my_node);
+    auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
+
+	np_dhkey_t my_dhkey = _np_create_dhkey_for_token(auth_token); // dhkey_create_from_hostport(my_node->dns_name, my_node->port);
     state->my_node_key = _np_key_find_create(my_dhkey);
 
     my_network->watcher.data = state->my_node_key;
@@ -744,18 +766,6 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
 
     state->my_node_key->node = my_node;
     state->my_node_key->network = my_network;
-
-    // create a new token for encryption each time neuropil starts
-    np_aaatoken_t* auth_token = NULL;
-    np_new_obj(np_aaatoken_t, auth_token);
-    // crypto_box_keypair(auth_token->public_key, auth_token->private_key); // curve25519xsalsa20poly1305
-    crypto_sign_keypair(auth_token->public_key, auth_token->private_key);   // ed25519
-
-	strncpy(auth_token->issuer, (char*) _key_as_str(state->my_node_key), 255);
-	// TODO: aaa subject should be user set-able, could also be another name
-	snprintf(auth_token->subject, 255, "%s:%s", name, port);
-    auth_token->state |= AAA_VALID;
-
     state->my_node_key->aaa_token = auth_token;
 
     // set and ref additional identity

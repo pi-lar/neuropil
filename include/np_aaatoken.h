@@ -18,6 +18,7 @@ The structure is described here to allow user the proper use of the :c:func:`np_
 
 #include "sodium.h"
 
+#include "np_key.h"
 #include "np_list.h"
 #include "np_memory.h"
 #include "np_types.h"
@@ -138,7 +139,7 @@ struct np_aaatoken_s
 
 	char* uuid;
 
-	unsigned char public_key[crypto_sign_BYTES];
+	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
 	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
 
@@ -166,6 +167,9 @@ void np_decode_aaatoken(np_tree_t* data, np_aaatoken_t* token);
 */
 NP_API_EXPORT
 np_bool token_is_valid(np_aaatoken_t* token);
+
+NP_API_INTERN
+np_dhkey_t _np_create_dhkey_for_token(np_aaatoken_t* identity);
 
 // neuropil internal aaatoken storage and exchange functions
 

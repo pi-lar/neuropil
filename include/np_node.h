@@ -77,26 +77,29 @@ void np_node_update_latency (np_node_t* node, double new_latency);
  ** decodes a string into a neuropil np_node structure, including lookup to the global key tree
  **/
 NP_API_INTERN
-np_key_t* np_node_decode_from_str (const char *key);
+np_key_t* _np_node_decode_from_str (const char *key);
 
 NP_API_INTERN
-sll_return(np_key_t) np_decode_nodes_from_jrb (np_tree_t* data);
+sll_return(np_key_t) _np_decode_nodes_from_jrb (np_tree_t* data);
+
 NP_API_INTERN
-np_key_t*  np_node_decode_from_jrb (np_tree_t* data);
+np_node_t*  _np_node_decode_from_jrb (np_tree_t* data);
 
 /** np_node_encode routines
  **/
 NP_API_INTERN
-void np_node_encode_to_str  (char *s, uint16_t len, np_key_t* key);
+void _np_node_encode_to_str  (char *s, uint16_t len, np_key_t* key);
+
 NP_API_INTERN
-uint16_t np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats);
+uint16_t _np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats);
+
 NP_API_INTERN
-void np_node_encode_to_jrb  (np_tree_t* data, np_key_t* np_node, np_bool include_stats);
+void _np_node_encode_to_jrb  (np_tree_t* data, np_node_t* np_node, np_bool include_stats);
 
 /** np_node aaa_token routines
  **/
 NP_API_INTERN
-np_aaatoken_t* _np_create_node_token(np_node_t* node, np_key_t* node_key);
+np_aaatoken_t* _np_create_node_token(np_node_t* node);
 
 NP_API_INTERN
 np_key_t* _np_create_node_from_token(np_aaatoken_t* token);

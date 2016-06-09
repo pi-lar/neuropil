@@ -2,7 +2,7 @@
 
 #include "event/ev.h"
 #include "np_log.h"
-#include "jval.h"
+#include "np_val.h"
 #include "np_tree.h"
 #include "np_key.h"
 #include "np_memory.h"
@@ -78,32 +78,32 @@ Test(np_jrb_serialize_t, serialize_jrb_node_t, .description="test the serializat
 	char* you = "you";
 	char* mail_t = "signed.by.me@test.de";
 
-	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
 	tree_insert_str(test_jrb_2, from, new_val_s(me));
 	cr_expect(   1 == test_jrb_2->size, "expect size of tree to be 1");
-	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
 	tree_insert_str(test_jrb_2, to,   new_val_s(you));
 	cr_expect(   2 == test_jrb_2->size, "expect size of tree to be 2");
-	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
 	tree_insert_str(test_jrb_2, id,   new_val_i(18000));
 	cr_expect(   3 == test_jrb_2->size, "expect size of tree to be 3");
-	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
 	tree_insert_str(test_jrb_2, exp,  new_val_d(5.0));
 	cr_expect(   4 == test_jrb_2->size, "expect size of tree to be 4");
-	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
 	tree_insert_str(test_jrb_2, mail, new_val_s(mail_t));
 	cr_expect(   5 == test_jrb_2->size, "expect size of tree to be 5");
-	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
 
 	tree_insert_str(test_jrb_2, "ul", new_val_ull(4905283925042198132));
 	cr_expect(   6 == test_jrb_2->size, "expect size of tree to be 6");
-	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
 
 	tree_insert_str(test_jrb_2, "tree_1", new_val_tree(test_jrb_1));
 	cr_expect(   7 == test_jrb_2->size, "expect size of tree to be 7");
-	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
 
-	// log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb->size, test_jrb->byte_size);
+	// log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb->size, test_jrb->byte_size);
 	log_msg(LOG_INFO, "----------------------");
 	log_msg(LOG_INFO, "serializing message:  ");
 

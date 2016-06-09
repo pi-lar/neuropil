@@ -9,10 +9,13 @@
 
 #include "np_log.h"
 #include "neuropil.h"
+#include "np_aaatoken.h"
+#include "np_keycache.h"
+#include "np_tree.h"
 #include "np_types.h"
 
-#define USAGE "neuropil_node [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count]"
-#define OPTSTR "j:p:b:t:"
+#define USAGE "neuropil_node [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count] [-r realmname] [-c code]"
+#define OPTSTR "j:p:b:t:r:c:"
 
 extern char *optarg;
 extern int optind;
@@ -24,9 +27,13 @@ int main(int argc, char **argv)
 	char* j_key = NULL;
 	char* proto = NULL;
 	char* port = NULL;
+	char* realm = NULL;
+	char* code = NULL;
 
-	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
-		switch ((char) opt) {
+	while ((opt = getopt(argc, argv, OPTSTR)) != EOF)
+	{
+		switch ((char) opt)
+		{
 		case 'j':
 			j_key = optarg;
 			break;
@@ -39,6 +46,12 @@ int main(int argc, char **argv)
 			break;
 		case 'b':
 			port = optarg;
+			break;
+		case 'r':
+			realm = optarg;
+			break;
+		case 'c':
+			code = optarg;
 			break;
 		default:
 			fprintf(stderr, "invalid option %c\n", (char) opt);
@@ -54,14 +67,26 @@ int main(int argc, char **argv)
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 	np_log_init(log_file, level);
 
-	np_init(proto, port, FALSE);
+	np_state_t* state = np_init(proto, port, FALSE);
+
+	if (NULL != realm)
+	{
+		np_set_realm_name(realm);
+		np_enable_realm_slave();
+		if (NULL != code)
+		{
+			tree_insert_str(state->my_node_key->aaa_token->extensions,
+							"passcode",
+							new_val_hash(code));
+		}
+	}
 
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
 
 	if (NULL != j_key)
 	{
-		np_sendjoin(j_key);
+		np_send_join(j_key);
 	}
 	np_waitforjoin();
 

@@ -96,7 +96,6 @@ void _np_out_send(np_jobargs_t* args)
 	{
 		log_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
 							_key_as_str(args->target));
-		// np_free_obj(np_message_t, args->msg);
 		log_msg(LOG_TRACE, ".end  ._np_out_send");
 		return;
 	}
@@ -116,19 +115,29 @@ void _np_out_send(np_jobargs_t* args)
 			pthread_mutex_unlock(&network->lock);
 			return;
 		}
+		else if (TRUE == ((np_ackentry_t*) tree_find_str(network->waiting, uuid)->val.value.v)->acked)
+		{
+			log_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
+			log_msg(LOG_TRACE, ".end  ._np_out_send");
+			pthread_mutex_unlock(&network->lock);
+			return;
+		}
 		else
 		{
-			// still there ? initiate resend ...
+			// ack indicator still there ? initiate resend ...
 			log_msg(LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
 		}
 		pthread_mutex_unlock(&network->lock);
 
 		double initial_tstamp = tree_find_str(msg_out->instructions, NP_MSG_INST_TSTAMP)->val.value.d;
 		double now = ev_time();
-		if (now > (initial_tstamp + args->properties->ttl)) {
+		if (now > (initial_tstamp + args->properties->ttl) )
+		{
 			log_msg(LOG_DEBUG, "resend message %s (%s) expired, not resending ...", prop->msg_subject, uuid);
 			return;
 		}
+		// only redeliver if ack_to has been initialized correctly, so this must be TRUEfor resend
+		ack_to_is_me = TRUE;
 	}
 
 	// find correct ack_mode, inspect message first because of forwarding
@@ -204,7 +213,8 @@ void _np_out_send(np_jobargs_t* args)
 
 	if (TRUE == ack_to_is_me)
 	{
-		if (FALSE == is_resend) {
+		if (FALSE == is_resend)
+		{
 			uuid = tree_find_str(msg_out->instructions, NP_MSG_INST_UUID)->val.value.s;
 
 			pthread_mutex_lock(&network->lock);
@@ -222,7 +232,8 @@ void _np_out_send(np_jobargs_t* args)
 
 			ackentry->acked = FALSE;
 			ackentry->transmittime = ev_time();
-			ackentry->expiration = ackentry->transmittime + (args->properties->ttl * args->properties->retry);
+			// + 1.0 because of time delays for processing
+			ackentry->expiration = ackentry->transmittime + args->properties->ttl + 1.0;
 			ackentry->dest_key = args->target;
 			np_ref_obj(np_key_t,  args->target);
 
@@ -282,27 +293,34 @@ void _np_out_handshake(np_jobargs_t* args)
 
 	if (!np_node_check_address_validity(args->target->node)) return;
 
-	// get our identity from the cache
+	// get our node identity from the cache
 	np_aaatoken_t* my_id_token = _np_state()->my_node_key->aaa_token;
-	np_node_t* my_node = _np_state()->my_node_key->node;
+	// np_node_t* my_node = _np_state()->my_node_key->node;
 
 	// convert to curve key
 	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
 	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk, my_id_token->private_key);
-	// calculate public key for dh key exchange
-	unsigned char my_dh_pubkey[crypto_scalarmult_BYTES];
-	crypto_scalarmult_base(my_dh_pubkey, curve25519_sk);
+	// calculate session key for dh key exchange
+	unsigned char my_dh_sessionkey[crypto_scalarmult_BYTES];
+	crypto_scalarmult_base(my_dh_sessionkey, curve25519_sk);
 
 	// create handshake data
 	np_tree_t* hs_data = make_jtree();
 
-	tree_insert_str(hs_data, "_np.protocol", new_val_s(np_get_protocol_string(my_node->protocol)));
-	tree_insert_str(hs_data, "_np.dns_name", new_val_s(my_node->dns_name));
-	tree_insert_str(hs_data, "_np.port", new_val_s(my_node->port));
-	tree_insert_str(hs_data, "_np.signature_key", new_val_bin(my_id_token->public_key, crypto_sign_PUBLICKEYBYTES));
-	tree_insert_str(hs_data, "_np.public_key", new_val_bin(my_dh_pubkey, crypto_scalarmult_BYTES));
-	tree_insert_str(hs_data, "_np.expiration", new_val_d(my_id_token->expiration));
-	tree_insert_str(hs_data, "_np.issued_at", new_val_d(my_id_token->issued_at));
+	tree_insert_str(hs_data, "_np.session", new_val_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
+	// tree_insert_str(hs_data, "_np.public_key", new_val_bin(my_id_token->public_key, crypto_sign_PUBLICKEYBYTES));
+
+	np_encode_aaatoken(hs_data, my_id_token);
+
+//	char pk_hex[crypto_sign_PUBLICKEYBYTES*2+1];
+//	sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES*2+1, my_id_token->public_key, crypto_sign_PUBLICKEYBYTES);
+//	log_msg(LOG_DEBUG, "public key fingerprint: %s", pk_hex);
+
+//	tree_insert_str(hs_data, "_np.protocol", new_val_s(np_get_protocol_string(my_node->protocol)));
+//	tree_insert_str(hs_data, "_np.dns_name", new_val_s(my_node->dns_name));
+//	tree_insert_str(hs_data, "_np.port", new_val_s(my_node->port));
+//	tree_insert_str(hs_data, "_np.expiration", new_val_d(my_id_token->expiration));
+//	tree_insert_str(hs_data, "_np.issued_at", new_val_d(my_id_token->issued_at));
 
 	// pre-serialize handshake data
 	cmp_ctx_t cmp;
@@ -318,14 +336,20 @@ void _np_out_handshake(np_jobargs_t* args)
 
 	// sign the handshake payload with our private key
 	char signature[crypto_sign_BYTES];
-	uint64_t signature_len;
-	int16_t ret = crypto_sign_detached((unsigned char*)       signature,  &signature_len,
+	memset(signature, '0', crypto_sign_BYTES);
+	// uint64_t signature_len;
+	int16_t ret = crypto_sign_detached((unsigned char*)       signature,  NULL,
 							           (const unsigned char*) hs_payload,  hs_payload_len,
 								       my_id_token->private_key);
-	if (ret < 0) {
-		log_msg(LOG_WARN, "checksum creation failed, not continuing with handshake");
+	if (ret < 0)
+	{
+		log_msg(LOG_WARN, "signature creation failed, not continuing with handshake");
 		return;
 	}
+
+//	char sign_hex[crypto_sign_BYTES*2+1];
+//	sodium_bin2hex(sign_hex, crypto_sign_BYTES*2+1, (unsigned char*) signature, crypto_sign_BYTES);
+//	log_msg(LOG_DEBUG, "signature key fingerprint: %s", sign_hex);
 
 	// create real handshake message ...
 	np_message_t* hs_message = NULL;
@@ -336,13 +360,17 @@ void _np_out_handshake(np_jobargs_t* args)
 
 	// ... add signature and payload to this message
 	tree_insert_str(hs_message->body, NP_HS_SIGNATURE,
-			new_val_bin(signature, (uint32_t) signature_len));
+			new_val_bin(signature, crypto_sign_BYTES));
 	tree_insert_str(hs_message->body, NP_HS_PAYLOAD,
 			new_val_bin(hs_payload, (uint32_t) hs_payload_len));
-	// log_msg(LOG_DEBUG, "payload has length %llu, signature length %llu", hs_payload_len, signature_len);
+//	log_msg(LOG_DEBUG, "payload has length %llu, signature length %u", hs_payload_len, crypto_sign_BYTES);
+//	log_msg(LOG_DEBUG, "header has length %llu, instructions length %llu",
+//						hs_message->header->byte_size, hs_message->instructions->byte_size);
 
     // TODO: do this serialization in parallel in background
 	np_message_calculate_chunking(hs_message);
+
+	// log_msg(LOG_DEBUG, "msg chunks %u", hs_message->no_of_chunks);
 
 	np_jobargs_t* chunk_args = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
 	chunk_args->msg = hs_message;
@@ -393,7 +421,7 @@ void _np_out_handshake(np_jobargs_t* args)
 				void_ptr,
 				args->target->network->out_events,
 				(void*) packet);
-		// notify main ev loop
+		// notify main ev loop ? should be running already
 		// ret = send(args->target->network->socket, pll_first(hs_message->msg_chunks)->val->msg_part, 984, 0);
 		// ret = sendto(my_node->network->socket, hs_msg_ptr, msg_size, 0, to, to_size);
 
@@ -470,9 +498,9 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 
 	// replace threshold data -> recalc signature ? not now but maybe
 	// TODO: in the future ... check/recalc signature again
-//	tree_replace_str(msg_token->extensions, "msg_threshold",
-//			new_val_ui(args->properties->msg_threshold));
-
+	// tree_replace_str(msg_token->extensions, "msg_threshold",
+	//			        new_val_ui(args->properties->msg_threshold));
+	log_msg(LOG_DEBUG, "encoding new receiver token for subject %p", msg_token);
 	np_encode_aaatoken(_data, msg_token);
 
 	np_message_t* msg_out = NULL;

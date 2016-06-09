@@ -72,6 +72,7 @@ enum {
     bin_type,
 	jrb_tree_type,  // 20
 	key_type,
+	hash_type,
 	npobj_type,
 	npval_count
 } np_valtype_t;
@@ -133,8 +134,10 @@ np_val_t new_val_carray_nt (char *);	/* Carray is null terminated */
 np_val_t new_val_carray_nnt (char *);	/* Carray is not null terminated */
        /* For ucarray -- use carray, because it uses memcpy */
 np_val_t new_val_tree(np_tree_t* tree);
+np_val_t new_val_hash(char* h_val);
+np_val_t new_val_pwhash (char *pw_key);
 np_val_t new_val_key(np_dhkey_t key);
-np_val_t new_val_obj(np_obj_t* key);
+np_val_t new_val_obj(np_obj_t* obj);
 
 np_val_t JNULL;
 
@@ -150,6 +153,7 @@ void *val_v (np_val_t);
 
 char *val_s (np_val_t);
 char  val_c (np_val_t);
+char *val_h (np_val_t);
 unsigned char val_uc (np_val_t);
 
 int16_t *val_iarray (np_val_t);

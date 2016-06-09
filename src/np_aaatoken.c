@@ -36,6 +36,8 @@ void _np_aaatoken_t_new(void* token)
 
 	aaa_token->public_key[0] = '\0';
 
+	aaa_token->uuid = NULL;
+
 	aaa_token->issued_at = ev_time();
     // set expiration to one day and recreate each day by default
     // TODO: make it configurable or use random timeframe
@@ -61,43 +63,115 @@ void _np_aaatoken_t_del (void* token)
 void np_encode_aaatoken(np_tree_t* data, np_aaatoken_t* token)
 {
 	// add e2e encryption details for sender
-	tree_insert_str(data, "_np.aaa.realm", new_val_s(token->realm));
+	tree_insert_str(data, "_np.realm", new_val_s(token->realm));
 
-	tree_insert_str(data, "_np.aaa.subject", new_val_s(token->subject));
-	tree_insert_str(data, "_np.aaa.issuer", new_val_s(token->issuer));
-	tree_insert_str(data, "_np.aaa.audience", new_val_s(token->audience));
+	tree_insert_str(data, "_np.subject", new_val_s(token->subject));
+	tree_insert_str(data, "_np.issuer", new_val_s(token->issuer));
+	tree_insert_str(data, "_np.audience", new_val_s(token->audience));
 
-	tree_insert_str(data, "_np.aaa.uuid", new_val_s(token->uuid));
+	tree_insert_str(data, "_np.uuid", new_val_s(token->uuid));
 
-	tree_insert_str(data, "_np.aaa.not_before", new_val_d(token->not_before));
-	tree_insert_str(data, "_np.aaa.expiration", new_val_d(token->expiration));
+	tree_insert_str(data, "_np.not_before", new_val_d(token->not_before));
+	tree_insert_str(data, "_np.expiration", new_val_d(token->expiration));
 
-	tree_insert_str(data, "_np.aaa.public_key", new_val_bin(token->public_key, crypto_sign_BYTES));
-	tree_insert_str(data, "_np.aaa.extensions", new_val_tree(token->extensions));
+	tree_insert_str(data, "_np.public_key", new_val_bin(token->public_key, crypto_sign_PUBLICKEYBYTES));
+	tree_insert_str(data, "_np.ext", new_val_tree(token->extensions));
+
+	// fingerprinting and signing the token
+	unsigned char hash[crypto_generichash_BYTES];
+	crypto_generichash_state gh_state;
+	crypto_generichash_init(&gh_state, NULL, 0, sizeof hash);
+	crypto_generichash_update(&gh_state, (unsigned char*) token->realm, strlen(token->realm));
+	crypto_generichash_update(&gh_state, (unsigned char*) token->issuer, strlen(token->issuer));
+	crypto_generichash_update(&gh_state, (unsigned char*) token->subject, strlen(token->subject));
+	crypto_generichash_update(&gh_state, (unsigned char*) token->audience, strlen(token->audience));
+	crypto_generichash_update(&gh_state, (unsigned char*) token->uuid, strlen(token->uuid));
+	crypto_generichash_update(&gh_state, (unsigned char*) token->public_key, crypto_sign_PUBLICKEYBYTES);
+	// TODO: hash 'not_before' and 'expiration' values as well ?
+	crypto_generichash_final(&gh_state, hash, sizeof hash);
+
+	char hash_hex[crypto_generichash_BYTES*2+1];
+	sodium_bin2hex(hash_hex, crypto_generichash_BYTES*2+1, hash, crypto_generichash_BYTES);
+	log_msg(LOG_DEBUG | LOG_AAATOKEN, "token hash key fingerprint: %s", hash_hex);
+//	log_msg(LOG_DEBUG, "##%s##", token->realm);
+//	log_msg(LOG_DEBUG, "##%s##", token->issuer);
+//	log_msg(LOG_DEBUG, "##%s##", token->subject);
+//	log_msg(LOG_DEBUG, "##%s##", token->audience);
+//	log_msg(LOG_DEBUG, "##%s## %lu", token->uuid, strlen(token->uuid));
+//	log_msg(LOG_DEBUG, "##%s##", token->public_key);
+
+	char signature[crypto_sign_BYTES];
+	// TODO: signature is filled with padding zero's, remove them for efficiency
+	// uint64_t signature_len;
+	int16_t ret = crypto_sign_detached((unsigned char*)       signature,  NULL,
+							           (const unsigned char*) hash,  crypto_generichash_BYTES,
+									   token->private_key);
+	if (ret < 0)
+	{
+		log_msg(LOG_WARN, "checksum creation for node token failed, using unsigned node token");
+		log_msg(LOG_TRACE | LOG_AAATOKEN, ".end  .np_create_node_token");
+		return;
+	}
+	// TODO: refactor name NP_HS_SIGNATURE to a common name NP_SIGNATURE
+	tree_insert_str(data, NP_HS_SIGNATURE, new_val_bin(signature, crypto_sign_BYTES));
 }
 
 void np_decode_aaatoken(np_tree_t* data, np_aaatoken_t* token)
 {
 	// get e2e encryption details of sending entity
-	strncpy(token->realm, tree_find_str(data, "_np.aaa.realm")->val.value.s, 255);
+	strncpy(token->realm, tree_find_str(data, "_np.realm")->val.value.s, 255);
 
-	strncpy(token->subject, tree_find_str(data, "_np.aaa.subject")->val.value.s, 255);
-	strncpy(token->issuer, tree_find_str(data, "_np.aaa.issuer")->val.value.s, 255);
-	strncpy(token->audience, tree_find_str(data, "_np.aaa.audience")->val.value.s, 255);
+	strncpy(token->subject, tree_find_str(data, "_np.subject")->val.value.s, 255);
+	strncpy(token->issuer, tree_find_str(data, "_np.issuer")->val.value.s, 255);
+	strncpy(token->audience, tree_find_str(data, "_np.audience")->val.value.s, 255);
 
-	token->uuid = strndup(tree_find_str(data, "_np.aaa.uuid")->val.value.s, 255);
+	token->uuid = strndup(tree_find_str(data, "_np.uuid")->val.value.s, 255);
 
-	token->not_before = tree_find_str(data, "_np.aaa.not_before")->val.value.d;
-	token->expiration = tree_find_str(data, "_np.aaa.expiration")->val.value.d;
+	token->not_before = tree_find_str(data, "_np.not_before")->val.value.d;
+	token->expiration = tree_find_str(data, "_np.expiration")->val.value.d;
 
-	memcpy(token->public_key, tree_find_str(data, "_np.aaa.public_key")->val.value.bin, crypto_sign_BYTES);
+	memcpy(token->public_key, tree_find_str(data, "_np.public_key")->val.value.bin, crypto_sign_PUBLICKEYBYTES);
 
 	// decode extensions
 	np_tree_t* old_extensions = token->extensions;
-	np_val_t new_extensions = copy_of_val(tree_find_str(data, "_np.aaa.extensions")->val);
+	np_val_t new_extensions = copy_of_val(tree_find_str(data, "_np.ext")->val);
 	token->extensions = new_extensions.value.tree;
 	np_free_tree(old_extensions);
+
+	if (NULL != tree_find_str(data, NP_HS_SIGNATURE))
+	{
+		tree_insert_str(token->extensions,
+					    NP_HS_SIGNATURE,
+						copy_of_val(tree_find_str(data, NP_HS_SIGNATURE)->val));
+	}
+	else
+	{
+		log_msg(LOG_WARN, "no signature found when decoding token");
+	}
 }
+
+np_dhkey_t _np_create_dhkey_for_token(np_aaatoken_t* identity)
+{
+	// build a hash to find a place in the dhkey table, not for signing !
+	unsigned char hash[crypto_generichash_BYTES];
+	crypto_generichash_state gh_state;
+	crypto_generichash_init(&gh_state, NULL, 0, sizeof hash);
+
+	crypto_generichash_update(&gh_state, (const unsigned char*) identity->realm, strlen(identity->realm));
+	crypto_generichash_update(&gh_state, (const unsigned char*) identity->issuer, strlen(identity->issuer));
+	crypto_generichash_update(&gh_state, (const unsigned char*) identity->subject, strlen(identity->subject));
+	// TODO: useful extension for building the dhkey ?
+	// crypto_generichash_update(&gh_state, (const unsigned char*) identity->audience, strlen(identity->audience));
+	crypto_generichash_update(&gh_state, (const unsigned char*) identity->uuid, strlen(identity->uuid));
+
+	crypto_generichash_final(&gh_state, hash, sizeof hash);
+
+	char key[65];
+	sodium_bin2hex(key, 65, hash, 32);
+	np_dhkey_t search_key = dhkey_create_from_hash(key);
+	return search_key;
+}
+
 
 np_bool token_is_valid(np_aaatoken_t* token)
 {
@@ -118,10 +192,19 @@ np_bool token_is_valid(np_aaatoken_t* token)
 	{
 		crypto_generichash_update(&gh_state, (unsigned char*) token->uuid, strlen(token->uuid));
 	}
-	crypto_generichash_update(&gh_state, (unsigned char*) token->public_key, crypto_sign_BYTES);
+	crypto_generichash_update(&gh_state, (unsigned char*) token->public_key, crypto_sign_PUBLICKEYBYTES);
 	// TODO: hash 'not_before' and 'expiration' values as well ?
 	crypto_generichash_final(&gh_state, hash, sizeof hash);
 
+	char hash_hex[crypto_generichash_BYTES*2+1];
+	sodium_bin2hex(hash_hex, crypto_generichash_BYTES*2+1, hash, crypto_generichash_BYTES);
+	log_msg(LOG_DEBUG | LOG_AAATOKEN, "token hash key fingerprint: %s", hash_hex);
+//	log_msg(LOG_DEBUG, "##%s##", token->realm);
+//	log_msg(LOG_DEBUG, "##%s##", token->issuer);
+//	log_msg(LOG_DEBUG, "##%s##", token->subject);
+//	log_msg(LOG_DEBUG, "##%s##", token->audience);
+//	log_msg(LOG_DEBUG, "##%s##", token->uuid);
+//	log_msg(LOG_DEBUG, "##%s##", token->public_key);
 
 	// verify inserted signature first
 	char* signature = NULL;
@@ -129,7 +212,7 @@ np_bool token_is_valid(np_aaatoken_t* token)
 	if (NULL != tree_find_str(token->extensions, NP_HS_SIGNATURE))
 	{
 		signature = tree_find_str(token->extensions, NP_HS_SIGNATURE)->val.value.bin;
-		signature_len = tree_find_str(token->extensions, NP_HS_SIGNATURE)->val.size;
+		signature_len = crypto_sign_BYTES; // tree_find_str(token->extensions, NP_HS_SIGNATURE)->val.size;
 		log_msg(LOG_AAATOKEN | LOG_DEBUG, "found signature with length %llu for checksum verification", signature_len);
 	}
 
@@ -140,6 +223,7 @@ np_bool token_is_valid(np_aaatoken_t* token)
 		{
 			log_msg(LOG_WARN, "token checksum verification failed");
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
+			token->state &= AAA_INVALID;
 			return FALSE;
 		}
 	}
@@ -154,6 +238,7 @@ np_bool token_is_valid(np_aaatoken_t* token)
 	{
 		log_msg(LOG_DEBUG, "token has expired: %f>%f", now, token->expiration);
 		log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
+		token->state &= AAA_INVALID;
 		return FALSE;
 	}
 
@@ -168,16 +253,19 @@ np_bool token_is_valid(np_aaatoken_t* token)
 			token_msg_threshold <   token_max_threshold)
 		{
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
+			token->state |= AAA_VALID;
 			return TRUE;
 		}
 		else
 		{
 			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token was already used: 0<=%d<%d", token_msg_threshold, token_max_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
+			token->state &= AAA_INVALID;
 			return FALSE;
 		}
 	}
 
+	token->state |= AAA_VALID;
 	return TRUE;
 }
 
@@ -333,6 +421,7 @@ void _np_add_sender_token(char* subject, np_aaatoken_t *token)
 				break;
 
 			default:
+				log_msg(LOG_AAATOKEN | LOG_WARN, "error adding sender token %p for message hash %s", token, _key_as_str(subject_key) );
 				break;
 			}
 		}
@@ -505,11 +594,12 @@ void _np_add_receiver_token(char* subject, np_aaatoken_t *token)
 
 		uint16_t max_threshold = tree_find_str(token->extensions, "max_threshold")->val.value.ui;
 
+		log_msg(LOG_AAATOKEN | LOG_DEBUG, "adding receiver token %p threshold %d", token, max_threshold );
+
 		if (max_threshold > 0)
-		{
-			np_msg_mep_type receiver_mep_type = subject_key->recv_property->mep_type & RECEIVER_MASK;
+		{	// only add if there are messages to receive
+			np_msg_mep_type receiver_mep_type = (subject_key->recv_property->mep_type & RECEIVER_MASK);
 			np_aaatoken_t* tmp_token = NULL;
-			// only add if there are messages to send
 			switch(receiver_mep_type)
 			{
 			case SINGLE_RECEIVER:
@@ -538,7 +628,9 @@ void _np_add_receiver_token(char* subject, np_aaatoken_t *token)
 				np_ref_obj(np_aaatoken_t, token);
 				log_msg(LOG_AAATOKEN | LOG_DEBUG, "added new any receiver token %p for message hash %s", token, _key_as_str(subject_key) );
 				break;
+
 			default:
+				log_msg(LOG_AAATOKEN | LOG_WARN, "error adding receiver token %p for message hash %s", token, _key_as_str(subject_key) );
 				break;
 			}
 		}

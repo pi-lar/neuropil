@@ -15,12 +15,14 @@ extern "C" {
 
 _NP_ENABLE_MODULE_LOCK(np_routeglobal_t);
 
-
 /** route_init:
  ** Ininitiates routing table and leafsets.
  **/
 NP_API_INTERN
 np_bool _np_route_init (np_key_t* me);
+
+NP_API_INTERN
+void _np_route_set_key (np_key_t* new_node_key);
 
 /** route_update:
  ** updates the routing table in regard to host. If the host is joining
@@ -34,14 +36,14 @@ NP_API_INTERN
 void route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added);
 
 /** route_lookup:
- ** returns an array of count nodes that are acceptable next hops for a message being routed to key
+ ** returns an list of 'count' nodes that are acceptable next hops for a message being routed to key
  **/
 NP_API_INTERN
 sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count);
 // np_key_t** route_lookup (np_state_t* state, np_key_t* key, int count, int is_safe);
 
 /** route_neighbors: 
- ** returns an array of count neighbor nodes with priority to closer nodes.
+ ** returns an list of neighbor nodes with priority to closer nodes.
  **/
 NP_API_INTERN
 sll_return(np_key_t) route_neighbors ();

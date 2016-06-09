@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 				np_start_job_queue(no_threads);
 				// send join message
 				log_msg(LOG_DEBUG, "creating welcome message");
-				np_sendjoin(b_hn);
+				np_send_join(b_hn);
 
 				while (1)
 				{

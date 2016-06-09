@@ -263,7 +263,8 @@ void _np_sort_keys_kd (np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key)
         sll_iterator(np_key_t) next = sll_get_next(curr);
 
         // Cannot swap last element with its next.
-        while (NULL != next) {
+        while (NULL != next)
+        {
         	// Swap if items in wrong order.
 		    _dhkey_distance (&dif1, &curr->val->dhkey, key);
 		    _dhkey_distance (&dif2, &next->val->dhkey, key);

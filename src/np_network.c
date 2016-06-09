@@ -138,7 +138,7 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
 	log_msg(LOG_NETWORK | LOG_DEBUG, "using getaddrinfo: %d:%s:%s", type, hostname, service);
 	if ( 0 != ( err = getaddrinfo( hostname, service, &hints, ai_head ) ))
 	{
-		log_msg(LOG_ERROR, "hostname: %s, servicename %s", hostname, service);
+		log_msg(LOG_ERROR, "hostname: %s, servicename %s, protocol %x", hostname, service, type);
 		log_msg(LOG_ERROR, "error getaddrinfo: %s", gai_strerror( err ) );
 		return;
 	}

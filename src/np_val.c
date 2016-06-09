@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "sodium.h"
+
 #include "np_val.h"
 
 #include "np_log.h"
@@ -108,6 +110,7 @@ char* val_to_str(np_val_t val) {
  		case void_type:
  			return "--> pointer";
 			break;
+ 		case hash_type:
  		case bin_type:
  			return "--> binary content";
 			break;
@@ -231,6 +234,13 @@ np_val_t copy_of_val(np_val_t from)
 			to.type = key_type;
 			to.value.key = from.value.key;
 			to.size = sizeof(np_dhkey_t);
+			break;
+ 		case hash_type:
+			to.type = bin_type;
+			to.value.bin = malloc(from.size);
+ 		    memset(to.value.bin, 0, from.size);
+ 		    memcpy(to.value.bin, from.value.bin, from.size);
+			to.size = from.size;
 			break;
  		case void_type:
 			to.type = void_type;
@@ -440,8 +450,8 @@ np_val_t new_val_carray_nnt (char *carray)
 	return j;
 }
 
-np_val_t new_val_tree(np_tree_t* tree) {
-
+np_val_t new_val_tree(np_tree_t* tree)
+{
 	np_val_t j;
     j.value.tree = tree;
     j.size = tree->byte_size;
@@ -449,7 +459,43 @@ np_val_t new_val_tree(np_tree_t* tree) {
 	return j;
 }
 
-np_val_t new_val_obj(np_obj_t* obj) {
+np_val_t new_val_hash (char *s)
+{
+    np_val_t j;
+
+    char* hash = malloc(crypto_generichash_BYTES);
+    crypto_generichash((unsigned char*) hash, sizeof hash, (unsigned char*)s, sizeof(s), NULL, 0);
+
+    // char hex_hash[2*crypto_generichash_BYTES+1];
+    // sodium_bin2hex(hex_hash, 2*crypto_generichash_BYTES+1, (unsigned char*)hash, crypto_generichash_BYTES);
+
+    j.size = crypto_generichash_BYTES; // strlen(hex_hash);
+    j.value.bin = hash; // strndup(hex_hash, j.size);
+    j.type = hash_type;
+
+    return j;
+}
+
+np_val_t new_val_pwhash (NP_UNUSED char *s)
+{
+	// TODO: implement password hashing function / update of libsodium required ?
+    np_val_t j = JNULL;
+
+//    char pw_hash[crypto_pwhash_STRBYTES];
+//    if (crypto_pwhash_str
+//        (hashed_password, s, strlen(s),
+//         crypto_pwhash_OPSLIMIT_SENSITIVE, crypto_pwhash_MEMLIMIT_SENSITIVE) != 0)
+//    {}
+//
+//    j.size = strlen(pw_hash);
+//    j.value.s = strndup(pw_hash, j.size);
+//    j.type = pwhash_type;
+
+    return j;
+}
+
+np_val_t new_val_obj(np_obj_t* obj)
+{
 	np_val_t j;
 	j.value.obj = obj;
 	j.size = 0;

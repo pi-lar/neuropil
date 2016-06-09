@@ -41,6 +41,7 @@ static np_bool __exit_libev_loop = FALSE;
 
 static pthread_mutex_t __libev_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+// TODO: make these configurable (via struct np_config)
 // the optimal libev run interval remains to be seen
 // if set too low, base cpu usage increases on no load
 static uint8_t __suspended_libev_loop = 0;
@@ -252,9 +253,8 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 			{
 				// if (NULL != tmp_node_key->aaa_token)
 				// tmp_node_key->aaa_token->state &= AAA_INVALID;
-				// TODO: crashes at this point when another node has left the building :-(
+				// TODO: check crashes at this point when another node has left the building :-(
 				// tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
-
 				np_key_t *added = NULL, *deleted = NULL;
 				leafset_update(tmp_node_key, 0, &deleted, &added);
 				if (deleted == tmp_node_key)
@@ -262,14 +262,15 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 					np_unref_obj(np_key_t, deleted);
 				}
 			}
-
 		}
 		else
 		{
 			/* otherwise request reevaluation of peer */
 			double delta = ev_time() - tmp_node_key->node->last_success;
-			if (delta > (3 * __leafset_check_period))
+			if (delta > __leafset_check_period)
+			{
 				_np_ping(tmp_node_key);
+			}
 		}
 	}
 	sll_free(np_key_t, leafset);
@@ -333,9 +334,8 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 			np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
 			_np_job_submit_transform_event(0.0, piggy_prop, tmp_node_key, NULL);
 		}
-		sll_free(np_key_t, leafset);
-
 		__leafset_check_type = 0;
+		sll_free(np_key_t, leafset);
 	}
 	else
 	{
@@ -403,22 +403,71 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 
 		msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
 		msg_prop->clb_transform = _np_send_sender_discovery;
-		if (NULL == msg_prop->msg_audience)
-		{
-			strncpy(msg_prop->msg_audience, state->my_identity->aaa_token->realm, 255);
-		}
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 
 		msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_ACCOUNTING_REQUEST);
 		msg_prop->clb_transform = _np_send_sender_discovery;
-		if (NULL == msg_prop->msg_audience)
-		{
-			strncpy(msg_prop->msg_audience, state->my_identity->aaa_token->realm, 255);
-		}
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 
 		np_free_obj(np_key_t, target);
 	}
+
+	// TODO: test node token renewal
+	// check an refresh my own identity + node tokens if required
+	double exp_ts = ev_time() + 10.0; // now plus 10s for handshake etc.
+	if (state->my_node_key->aaa_token->expiration < exp_ts)
+	{
+		np_aaatoken_t* new_token = _np_create_node_token(state->my_node_key->node);
+		np_key_t* new_key = NULL;
+		np_dhkey_t my_dhkey = _np_create_dhkey_for_token(new_token);
+		_LOCK_MODULE(np_keycache_t)
+		{
+			new_key = _np_key_find_create(my_dhkey);
+			if (state->my_identity == state->my_node_key)
+			{
+				state->my_identity = new_key;
+			}
+			state->my_node_key = new_key;
+		}
+
+		np_sll_t(np_key_t, leafset) = NULL;
+		np_key_t *tmp_node_key = NULL;
+		_LOCK_MODULE(np_routeglobal_t)
+		{
+			_np_route_set_key(state->my_node_key);
+			leafset = route_neighbors();
+		}
+
+		while (NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
+		{
+			// send join messages to all surviving neighbours
+			_LOCK_MODULE(np_keycache_t)
+			{
+				tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
+				/* otherwise request reevaluation of peer */
+				np_message_t* msg_out;
+
+				np_tree_t* jrb_me = make_jtree();
+				np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
+
+				np_new_obj(np_message_t, msg_out);
+				np_message_create(msg_out, tmp_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
+				log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(tmp_node_key));
+				np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
+				_np_job_submit_msgout_event(0.0, prop, tmp_node_key, msg_out);
+
+				np_free_obj(np_message_t, msg_out);
+			}
+		}
+	}
+
+	if (state->my_identity->aaa_token->expiration < exp_ts)
+	{
+		// if the user has set a aaatoken manually, he is responsible to refresh it in time
+		log_msg(LOG_ERROR, "your identity aaatoken has expired, please refresh !!!");
+	}
+
+	// retrigger execution
 	np_job_submit_event(__token_retransmit_period, _np_retransmit_tokens);
 }
 
@@ -435,7 +484,6 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 	{
 		EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 		ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
-		// ev_run(EV_A_ 0);
 	}
 	pthread_mutex_unlock(&__libev_mutex);
 
@@ -491,27 +539,23 @@ void _np_cleanup(NP_UNUSED np_jobargs_t* args)
 			np_node_update_latency(ackentry->dest_key->node, latency);
 			np_node_update_stat(ackentry->dest_key->node, 1);
 
+			RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
 			np_unref_obj(np_key_t, ackentry->dest_key);
 
-			RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
 			free(ackentry);
 			free(jrb_ack_node->key.value.s);
 			free(jrb_ack_node);
-
-			continue;
 		}
-
-		if (ev_time() > ackentry->expiration)
+		else if (ev_time() > ackentry->expiration)
 		{
 			np_node_update_stat(ackentry->dest_key->node, 0);
-			np_unref_obj(np_key_t, ackentry->dest_key);
 
 			RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
+			np_unref_obj(np_key_t, ackentry->dest_key);
+
 			free(ackentry);
 			free(jrb_ack_node->key.value.s);
 			free(jrb_ack_node);
-
-			continue;
 		}
 	}
 	pthread_mutex_unlock(&ng->lock);
@@ -671,7 +715,7 @@ void _np_send_rowinfo(np_jobargs_t* args)
 		_LOCK_MODULE(np_keycache_t)
 		{
 			// TODO: maybe locking the cache is not enough and we have to do it more fine grained
-			np_encode_nodes_to_jrb(msg_body, sll_of_keys, FALSE);
+			_np_encode_nodes_to_jrb(msg_body, sll_of_keys, FALSE);
 		}
 		np_msgproperty_t* outprop = np_msgproperty_get(OUTBOUND, _NP_MSG_PIGGY_REQUEST);
 
@@ -715,7 +759,11 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	// add e2e encryption details for sender
 	strncpy((char*) msg_token->public_key,
 			(char*) state->my_identity->aaa_token->public_key,
-			crypto_sign_BYTES);
+			crypto_sign_PUBLICKEYBYTES);
+	// private key is only required for signing later, will not be send over the wire
+	strncpy((char*) msg_token->private_key,
+			(char*) state->my_identity->aaa_token->private_key,
+			crypto_sign_SECRETKEYBYTES);
 
 	tree_insert_str(msg_token->extensions, "mep_type",
 			new_val_ush(msg_request->mep_type));
@@ -726,42 +774,13 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	tree_insert_str(msg_token->extensions, "msg_threshold",
 			new_val_ui(msg_request->msg_threshold));
 
+	// TODO: insert value based on msg properties / respect (sticky) reply
 	tree_insert_str(msg_token->extensions, "target_node",
 			new_val_s((char*) _key_as_str(state->my_node_key)));
 
 	// TODO: useful extension ?
 	// unsigned char key[crypto_generichash_KEYBYTES];
 	// randombytes_buf(key, sizeof key);
-
-	unsigned char hash[crypto_generichash_BYTES];
-
-	crypto_generichash_state gh_state;
-	crypto_generichash_init(&gh_state, NULL, 0, sizeof hash);
-	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->realm, strlen(msg_token->realm));
-	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->issuer, strlen(msg_token->issuer));
-	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->subject, strlen(msg_token->subject));
-	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->audience, strlen(msg_token->audience));
-	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->uuid, strlen(msg_token->uuid));
-	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->public_key, crypto_sign_BYTES);
-	// TODO: hash 'not_before' and 'expiration' values as well ?
-	crypto_generichash_final(&gh_state, hash, sizeof hash);
-
-	char signature[crypto_sign_BYTES];
-	unsigned long long real_size = 0;
-	int16_t ret = crypto_sign_detached((unsigned char*)       signature,  &real_size,
-							           (const unsigned char*) hash,  crypto_generichash_BYTES,
-									   state->my_identity->aaa_token->private_key);
-	if (ret < 0)
-	{
-		log_msg(LOG_WARN, "checksum creation for msgtoken failed, using unsigned msgtoken");
-		log_msg(LOG_TRACE, ".end  .np_create_msg_token");
-		return msg_token;
-	}
-	else
-	{
-		log_msg(LOG_DEBUG, "checksum creation for successful, adding %llu bytes signature", real_size);
-		tree_insert_str(msg_token->extensions, NP_HS_SIGNATURE, new_val_bin(signature, real_size));
-	}
 
 	log_msg(LOG_TRACE, ".end  .np_create_msg_token");
 	return msg_token;

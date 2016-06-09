@@ -63,6 +63,9 @@ void serialize_jrb_to_json(np_tree_t* jtree, JSON_Object* json_obj);
 NP_API_INTERN
 void deserialize_jrb_node_t(np_tree_t* jrb, cmp_ctx_t* cmp);
 
+NP_API_INTERN
+void _np_remove_doublettes(np_sll_t(np_key_t, list_of_keys));
+
 #ifdef __cplusplus
 }
 #endif

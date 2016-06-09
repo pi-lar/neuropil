@@ -271,25 +271,25 @@ np_bool _dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const le
 {
     log_msg (LOG_KEY | LOG_TRACE, ".start._dhkey_between");
 
-    int8_t complr = _dhkey_comp (left, right);
-    int8_t complt = _dhkey_comp (left, test);
-    int8_t comptr = _dhkey_comp (test, right);
+    int8_t comp_lr = _dhkey_comp (left, right);
+    int8_t comp_lt = _dhkey_comp (left, test);
+    int8_t comp_tr = _dhkey_comp (test, right);
 
     /* it's on one of the edges */
-    if (complt == 0 || comptr == 0) return (TRUE);
+    if (comp_lt == 0 || comp_tr == 0) return (TRUE);
 
-    if (complr < 0)
+    if (comp_lr < 0)
 	{
-	    if (complt < 0 && comptr < 0) return (TRUE);
+	    if (comp_lt < 0 && comp_tr < 0) return (TRUE);
 	    return (FALSE);
 	}
-    else if (complr == 0)
+    else if (comp_lr == 0)
 	{
 	    return (FALSE);
 	}
     else
 	{
-	    if (complt < 0 || comptr < 0) return (TRUE);
+	    if (comp_lt < 0 || comp_tr < 0) return (TRUE);
 	    return (FALSE);
 	}
     log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_between");

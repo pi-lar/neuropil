@@ -1,19 +1,20 @@
 #include <stdlib.h>
 #include "pthread.h"
 
+#include <criterion/criterion.h>
+#include "msgpack/cmp.h"
+
 #include "np_memory.h"
 #include "np_node.h"
 #include "np_key.h"
 #include "np_tree.h"
 #include "np_log.h"
-#include "cmp.h"
 #include "np_util.h"
-
-#include "include.h"
+#include "np_types.h"
 
 int main(int argc, char **argv) {
 
-	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORK | LOG_KEY;
 
 	np_log_init("test_node_ser.log", log_level);
 

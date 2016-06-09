@@ -13,7 +13,8 @@ static np_msgproperty_t __default_properties = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_route_lookup,
-		.ttl = 20.0
+		.ttl = 20.0,
+		.max_threshold = 5
 };
 
 static np_msgproperty_t __handshake_properties = {
@@ -27,7 +28,8 @@ static np_msgproperty_t __handshake_properties = {
 		.clb_inbound = _np_in_handshake,
 		.clb_transform = _np_out_handshake,
 		.clb_route = _np_never_called,
-		.ttl = 20.0
+		.ttl = 20.0,
+		.max_threshold = 5
 };
 
 // we don't need to ack the ack the ack the ack ...
@@ -42,7 +44,8 @@ np_msgproperty_t __ack_properties = {
 		.clb_outbound = _np_out_ack,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_route_lookup,
-		.ttl = 20.0
+		.ttl = 20.0,
+		.max_threshold = 5
 };
 
 // join request: node unknown yet, therefore send without ack, explicit ack handling via extra messages
@@ -57,7 +60,8 @@ np_msgproperty_t join_req = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_out_send,
-		.ttl = 6.0
+		.ttl = 6.0,
+		.max_threshold = 5
 };
 
 np_msgproperty_t join_ack = {
@@ -71,7 +75,8 @@ np_msgproperty_t join_ack = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_never_called,
-		.ttl = 5.0
+		.ttl = 5.0,
+		.max_threshold = 5
 };
 
 np_msgproperty_t join_nack = {
@@ -79,13 +84,14 @@ np_msgproperty_t join_nack = {
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
 		.mep_type = ONE_WAY,
 		.priority = 5,
-		.ack_mode = ACK_EACHHOP,
+		.ack_mode = ACK_NONE,
 		.retry = 5,
 		.clb_inbound = _np_in_join_nack,
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_never_called,
-		.ttl = 5.0
+		.ttl = 5.0,
+		.max_threshold = 5
 };
 
 // leave the network and clean up the mess
@@ -100,7 +106,8 @@ np_msgproperty_t leave = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_route_lookup,
-		.ttl = 6.0
+		.ttl = 6.0,
+		.max_threshold = 5
 };
 
 np_msgproperty_t ping = {
@@ -114,7 +121,8 @@ np_msgproperty_t ping = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_route_lookup,
-		.ttl = 2.0
+		.ttl = 2.0,
+		.max_threshold = 5
 };
 
 np_msgproperty_t ping_reply = {
@@ -128,7 +136,8 @@ np_msgproperty_t ping_reply = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_route_lookup,
-		.ttl = 2.0
+		.ttl = 2.0,
+		.max_threshold = 5
 };
 
 np_msgproperty_t piggy = {
@@ -142,7 +151,8 @@ np_msgproperty_t piggy = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_send_rowinfo,
 		.clb_route = _np_route_lookup,
-		.ttl = 20.0
+		.ttl = 20.0,
+		.max_threshold = 5
 };
 
 np_msgproperty_t update = {
@@ -156,7 +166,8 @@ np_msgproperty_t update = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_route_lookup,
-		.ttl =20.0
+		.ttl =20.0,
+		.max_threshold = 5
 };
 
 np_msgproperty_t discover_receiver = {
@@ -170,7 +181,8 @@ np_msgproperty_t discover_receiver = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_route_lookup,
-		.ttl = 20.0
+		.ttl = 20.0,
+		.max_threshold = 5
 };
 
 np_msgproperty_t discover_sender = {
@@ -184,7 +196,8 @@ np_msgproperty_t discover_sender = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_route_lookup,
-		.ttl = 20.0
+		.ttl = 20.0,
+		.max_threshold = 5
 };
 
 np_msgproperty_t available_receiver = {
@@ -198,7 +211,8 @@ np_msgproperty_t available_receiver = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_route_lookup,
-		.ttl = 20.0
+		.ttl = 20.0,
+		.max_threshold = 5
 };
 
 np_msgproperty_t available_sender = {
@@ -212,7 +226,8 @@ np_msgproperty_t available_sender = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_route_lookup,
-		.ttl = 20.0
+		.ttl = 20.0,
+		.max_threshold = 5
 };
 
 np_msgproperty_t authenticate = {
@@ -226,7 +241,9 @@ np_msgproperty_t authenticate = {
 		.clb_outbound = _np_out_send,
 		.clb_route = _np_route_lookup,
 		.clb_transform = np_send_authentication_request,
-		.ttl = 20.0
+		.ttl = 20.0,
+		.max_threshold = 10,
+		.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
 np_msgproperty_t authenticate_reply = {
@@ -240,7 +257,8 @@ np_msgproperty_t authenticate_reply = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_route_lookup,
-		.ttl = 20.0
+		.ttl = 20.0,
+		.max_threshold = 10
 };
 
 np_msgproperty_t authorize = {
@@ -254,7 +272,9 @@ np_msgproperty_t authorize = {
 		.clb_outbound = _np_out_send,
 		.clb_route = _np_route_lookup,
 		.clb_transform = np_send_authorization_request,
-		.ttl = 20.0
+		.ttl = 20.0,
+		.max_threshold = 10,
+		.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
 np_msgproperty_t authorize_reply = {
@@ -268,7 +288,8 @@ np_msgproperty_t authorize_reply = {
 		.clb_outbound = _np_out_send,
 		.clb_transform = _np_never_called,
 		.clb_route = _np_route_lookup,
-		.ttl = 20.0
+		.ttl = 20.0,
+		.max_threshold = 10
 };
 
 np_msgproperty_t account = {
@@ -282,7 +303,9 @@ np_msgproperty_t account = {
 		.clb_outbound = _np_out_send,
 		.clb_route = _np_route_lookup,
 		.clb_transform = np_send_accounting_request,
-		.ttl =20.0
+		.ttl = 20.0,
+		.max_threshold = 10,
+		.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
 np_msgproperty_t* __np_internal_messages[] = {

@@ -262,7 +262,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args)
 				// local node json reply
 				JSON_Value* my_node_obj = json_value_init_object();
 				JSON_Value* obj = json_value_init_object();
-				np_node_encode_to_jrb(tree, _np_state()->my_node_key, FALSE);
+				_np_node_encode_to_jrb(tree, _np_state()->my_node_key->node, FALSE);
 				serialize_jrb_to_json(tree, json_object(obj));
 				json_object_set_value(json_object(my_node_obj), "local_node", obj);
 				json_array_append_value(json_array(arr), my_node_obj);
@@ -277,7 +277,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args)
 				{
 					neighbours = route_neighbors();
 				}
-				np_encode_nodes_to_jrb(tree, neighbours, TRUE);
+				_np_encode_nodes_to_jrb(tree, neighbours, TRUE);
 				serialize_jrb_to_json(tree, json_object(neighbour_arr));
 
 				json_object_set_value(json_object(neighbour_obj), "neighbour_nodes", neighbour_arr);
@@ -295,7 +295,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args)
 					table = _np_route_get_table();
 				}
 
-				np_encode_nodes_to_jrb(tree, table, TRUE);
+				_np_encode_nodes_to_jrb(tree, table, TRUE);
 				serialize_jrb_to_json(tree, json_object(route_tbl));
 
 				json_object_set_value(json_object(route_obj), "routing_table", route_tbl);

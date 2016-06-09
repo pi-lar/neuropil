@@ -123,9 +123,9 @@ void np_mem_printpool()
 	{
 		printf("obj %p (type %d ptr %p ref_count %d):(next -> %p)\n", iter, iter->type, iter->ptr, iter->ref_count, iter->next );
 	}
-	printf("---memory summary---\n");
-	printf("first %p, free %p,        current %p\n", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current);
+	printf("--- memory summary---\n");
+	printf("first %p, free %p, current %p\n", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current);
 	printf("size %d            available %d\n", __np_obj_pool_ptr->size, __np_obj_pool_ptr->available);
-	printf("---memory end---\n");
+	printf("--- memory end---\n");
 	pthread_mutex_unlock(&__lock_mutex);
 }

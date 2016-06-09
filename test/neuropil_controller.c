@@ -177,7 +177,7 @@ int main(int argc, char **argv)
            np_sendjoin(state, node_key);
 		*/
 		log_msg(LOG_DEBUG, "creating welcome message");
-		np_sendjoin(node_string);
+		np_send_join(node_string);
 
 //		np_new_obj(np_message_t, msg_out);
 //		np_tree_t* jrb_me = make_jtree();
