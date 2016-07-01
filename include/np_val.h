@@ -139,7 +139,7 @@ np_val_t new_val_pwhash (char *pw_key);
 np_val_t new_val_key(np_dhkey_t key);
 np_val_t new_val_obj(np_obj_t* obj);
 
-np_val_t JNULL;
+np_val_t NP_VAL_NULL;
 
 int16_t  val_i (np_val_t);
 int32_t  val_l (np_val_t);

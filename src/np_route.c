@@ -400,27 +400,29 @@ sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count)
 	}
 	else
 	{
-		_np_sort_keys_cpm (key_list, &key->dhkey);
+		if (2 <= key_list->size)
+		{
+			_np_sort_keys_cpm (key_list, &key->dhkey);
+			/* find the best #count# entries that we looked at ... could be much better */
+			/* removing duplicates from the list */
+			uint16_t i = j = 0;
+			sll_iterator(np_key_t) iter1 = sll_first(key_list);
+			sll_iterator(np_key_t) iter2 = sll_first(key_list);
+			do {
+				log_msg (LOG_ROUTING | LOG_DEBUG, "++Result[%hd]: (%s)", i, _key_as_str (iter1->val) );
+				sll_append(np_key_t, return_list, iter1->val);
 
-		/* find the best #count# entries that we looked at ... could be much better */
-		/* removing duplicates from the list */
-		uint16_t i = j = 0;
-		sll_iterator(np_key_t) iter1 = sll_first(key_list);
-		sll_iterator(np_key_t) iter2 = sll_first(key_list);
-		do {
-			log_msg (LOG_ROUTING | LOG_DEBUG, "++Result[%hd]: (%s)", i, _key_as_str (iter1->val) );
-			sll_append(np_key_t, return_list, iter1->val);
+				while (NULL != iter2 && _dhkey_equal (&iter2->val->dhkey, &iter1->val->dhkey ))
+				{
+					sll_next(iter2);
+					continue;
+				}
 
-			while (NULL != iter2 && _dhkey_equal (&iter2->val->dhkey, &iter1->val->dhkey ))
-			{
-				sll_next(iter2);
-				continue;
-			}
+				iter1 = iter2;
+				i++;
 
-			iter1 = iter2;
-			i++;
-
-		} while (i < count && NULL != iter1);
+			} while (i < count && NULL != iter1);
+		}
 	}
 
     /*  to prevent bouncing */

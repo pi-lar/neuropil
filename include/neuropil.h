@@ -44,6 +44,7 @@ struct np_state_s
     pthread_t* thread_ids;
 
     np_bool enable_realm_master; // act as a realm master for other nodes or not
+    np_bool enable_realm_slave; // act as a realm salve and ask master for aaatokens
 
 	np_aaa_func_t  authenticate_func; // authentication callback
 	np_aaa_func_t  authorize_func;    // authorization callback

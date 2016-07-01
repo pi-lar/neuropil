@@ -53,7 +53,7 @@ np_prioq_t* get_new_pqentry()
 	entry->seqnum = 0;
 	entry->transmittime = 0.0;
 
-	return entry;
+	return (entry);
 }
 
 np_ackentry_t* get_new_ackentry()
@@ -66,7 +66,7 @@ np_ackentry_t* get_new_ackentry()
 	entry->expected_ack = 0;
 	entry->received_ack = 0;
 
-	return entry;
+	return (entry);
 }
 
 static char* URN_TCP_V4 = "tcp4";
@@ -89,21 +89,21 @@ uint8_t np_parse_protocol_string (const char* protocol_str)
 	if (0 == strncmp(protocol_str, URN_IP_V4, 3))  return (RAW     | IPv4);
 	if (0 == strncmp(protocol_str, URN_IP_V6, 3))  return (RAW     | IPv6);
 
-	return UNKNOWN_PROTO;
+	return (UNKNOWN_PROTO);
 }
 
 char* np_get_protocol_string (uint8_t protocol)
 {
-	if (protocol == (TCP     | IPv4)) return URN_TCP_V4;
-	if (protocol == (TCP     | IPv6)) return URN_TCP_V6;
-	if (protocol == (PASSIVE | IPv4)) return URN_PAS_V4;
-	if (protocol == (PASSIVE | IPv6)) return URN_PAS_V6;
-	if (protocol == (UDP     | IPv4)) return URN_UDP_V4;
-	if (protocol == (UDP     | IPv6)) return URN_UDP_V6;
-	if (protocol == (RAW     | IPv4)) return URN_IP_V4;
-	if (protocol == (RAW     | IPv6)) return URN_IP_V6;
+	if (protocol == (TCP     | IPv4)) return (URN_TCP_V4);
+	if (protocol == (TCP     | IPv6)) return (URN_TCP_V6);
+	if (protocol == (PASSIVE | IPv4)) return (URN_PAS_V4);
+	if (protocol == (PASSIVE | IPv6)) return (URN_PAS_V6);
+	if (protocol == (UDP     | IPv4)) return (URN_UDP_V4);
+	if (protocol == (UDP     | IPv6)) return (URN_UDP_V6);
+	if (protocol == (RAW     | IPv4)) return (URN_IP_V4);
+	if (protocol == (RAW     | IPv6)) return (URN_IP_V6);
 
-	return "UNKNOWN";
+	return ("UNKNOWN");
 }
 
 /** network_address:
@@ -374,7 +374,8 @@ void _np_network_send (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents
 			pthread_mutex_lock(&key->network->lock);
 			void* data_to_send = sll_head(void_ptr, key->network->out_events);
 
-			log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%d bytes) to %s:%s",
+			// log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%d bytes) to %s:%s",
+			log_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
 					MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
 			// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
 			// int ret = send(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024, 0);

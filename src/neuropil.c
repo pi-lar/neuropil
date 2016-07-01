@@ -42,12 +42,11 @@ const char* np_minor  = "1";
 const char* np_bugfix = "0";
 const char* NP_VERSION = "0.1.0";
 
-
 static np_state_t* __global_state = NULL;
 
 np_state_t* _np_state ()
 {
-	return __global_state;
+	return (__global_state);
 }
 
 np_bool _np_default_authorizefunc (np_aaatoken_t* token )
@@ -55,7 +54,7 @@ np_bool _np_default_authorizefunc (np_aaatoken_t* token )
 	log_msg(LOG_WARN, "using default handler to authorize %s", token->subject );
 	log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
 
-	return TRUE;
+	return (TRUE);
 }
 
 np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
@@ -64,12 +63,19 @@ np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->aaa_token = token;
 
+//	log_msg(LOG_DEBUG, "realm             : %s", token->realm);
+//	log_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
+//	log_msg(LOG_DEBUG, "subject           : %s", token->subject);
+//	log_msg(LOG_DEBUG, "audience          : %s", token->audience);
+//	log_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
+	log_msg(LOG_DEBUG, "realm authorization request for subject: %s", token->subject);
+
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
 	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
 
 	np_free_obj(np_key_t, aaa_target);
 
-	return FALSE;
+	return (FALSE);
 }
 
 np_bool _np_default_authenticatefunc (np_aaatoken_t* token )
@@ -77,21 +83,28 @@ np_bool _np_default_authenticatefunc (np_aaatoken_t* token )
 	log_msg(LOG_WARN, "using default handler to authenticate %s", token->subject);
 	log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
 
-	return TRUE;
+	return (TRUE);
 }
 
-np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token )
+np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token)
 {
 	np_key_t* aaa_target;
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->aaa_token = token;
+
+//	log_msg(LOG_DEBUG, "realm             : %s", token->realm);
+//	log_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
+//	log_msg(LOG_DEBUG, "subject           : %s", token->subject);
+//	log_msg(LOG_DEBUG, "audience          : %s", token->audience);
+//	log_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
+	log_msg(LOG_DEBUG, "realm authentication request for subject: %s", token->subject);
 
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
 	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
 
 	np_free_obj(np_key_t, aaa_target);
 
-	return FALSE;
+	return (FALSE);
 }
 
 np_bool _np_default_accountingfunc (np_aaatoken_t* token )
@@ -99,20 +112,28 @@ np_bool _np_default_accountingfunc (np_aaatoken_t* token )
 	log_msg(LOG_WARN, "using default handler to account for %s", token->subject );
 	log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
 
-	return TRUE;
+	return (TRUE);
 }
 
-np_bool _np_aaa_accountingfunc (np_aaatoken_t* token )
+np_bool _np_aaa_accountingfunc (np_aaatoken_t* token)
 {
 	np_key_t* aaa_target;
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->aaa_token = token;
 
+//	log_msg(LOG_DEBUG, "realm             : %s", token->realm);
+//	log_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
+//	log_msg(LOG_DEBUG, "subject           : %s", token->subject);
+//	log_msg(LOG_DEBUG, "audience          : %s", token->audience);
+//	log_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
+
+	log_msg(LOG_DEBUG, "realm accounting request for subject: %s", token->subject);
+
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
 	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
 
 	np_free_obj(np_key_t, aaa_target);
-	return FALSE;
+	return (FALSE);
 }
 
 void np_setauthorizing_cb(np_aaa_func_t aaaFunc)
@@ -189,7 +210,14 @@ void np_set_realm_name(const char* realm_name)
         __global_state->my_identity = new_node_key;
         np_ref_obj(np_key_t, __global_state->my_identity);
     }
+    else
+    {
+        // set target node string for correct routing
+    	tree_replace_str(__global_state->my_identity->aaa_token->extensions, "target_node", new_val_s(_key_as_str(new_node_key)) );
+    }
     __global_state->my_node_key = new_node_key;
+
+	log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _key_as_str(__global_state->my_node_key));
 }
 
 void np_enable_realm_slave()
@@ -197,24 +225,35 @@ void np_enable_realm_slave()
     __global_state->authorize_func    = _np_aaa_authorizefunc;
     __global_state->authenticate_func = _np_aaa_authenticatefunc;
     __global_state->accounting_func   = _np_aaa_accountingfunc;
+
+    __global_state->enable_realm_master = FALSE;
+	__global_state->enable_realm_slave = TRUE;
 }
 
 void np_enable_realm_master()
 {
+	if (NULL == __global_state->realm_name)
+	{
+		return;
+	}
+
 	np_msgproperty_t* prop = NULL;
 
 	// turn msg handlers for aaa to inbound msg as well
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
 	prop->mode_type |= INBOUND;
+	sll_init(np_message_t, prop->msg_cache);
 
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
 	prop->mode_type |= INBOUND;
+	sll_init(np_message_t, prop->msg_cache);
 	if (NULL == prop->msg_audience)
 	{
 		prop->msg_audience = strndup(__global_state->realm_name, 255);
 	}
 
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
+	sll_init(np_message_t, prop->msg_cache);
 	prop->mode_type |= INBOUND;
 	if (NULL == prop->msg_audience)
 	{
@@ -222,6 +261,7 @@ void np_enable_realm_master()
 	}
 
 	__global_state->enable_realm_master = TRUE;
+	__global_state->enable_realm_slave = FALSE;
 }
 
 void np_waitforjoin()
@@ -284,6 +324,8 @@ void np_set_identity(np_aaatoken_t* identity)
 
     // create encryption parameter
 	crypto_sign_keypair(identity->public_key, identity->private_key);
+	_np_aaatoken_add_signature(identity);
+
 }
 
 void np_set_mx_property(char* subject, const char* key, np_val_t value)
@@ -482,7 +524,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		np_unref_obj(np_aaatoken_t, sender_token);
 		msg_prop->max_threshold--;
 
-		return FALSE;
+		return (FALSE);
 	}
 
 	// copy properties
@@ -516,7 +558,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 
 	msg_prop->max_threshold--;
 
-	return TRUE;
+	return (TRUE);
 }
 
 uint32_t np_receive_text (char* subject, char **data)
@@ -591,7 +633,7 @@ uint32_t np_receive_text (char* subject, char **data)
 		np_unref_obj(np_aaatoken_t, sender_token);
 		msg_prop->max_threshold--;
 
-		return 0;
+		return (0);
 	}
 
 	uint32_t received = tree_find_str(msg->properties, NP_MSG_INST_SEQ)->val.value.ul;
@@ -610,7 +652,7 @@ uint32_t np_receive_text (char* subject, char **data)
 
 	log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
 
-	return received;
+	return (received);
 }
 
 void _np_send_ack(np_message_t* in_msg)
@@ -682,6 +724,15 @@ void _np_ping (np_key_t* key)
 }
 
 /**
+ ** np_destroy:
+ ** destroys the neuropil data structures and cleans memory that has been used
+ **/
+void np_destroy()
+{
+
+}
+
+/**
  ** np_init:
  ** initializes neuropil on specified port and returns the const np_state_t* which
  ** contains global state of different neuropil modules.
@@ -703,6 +754,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
     	log_msg(LOG_ERROR, "neuropil_init: state module not created: %s", strerror (errno));
 	    exit(1);
 	}
+    memset(state, 0, sizeof(np_state_t));
     __global_state = state;
 
     // splay tree initializing
@@ -715,6 +767,9 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
     state->authorize_func    = _np_default_authorizefunc;
     state->authenticate_func = _np_default_authenticatefunc;
     state->accounting_func   = _np_default_accountingfunc;
+
+    state->enable_realm_slave = FALSE;
+    state->enable_realm_master = FALSE;
 
 	char* np_service = "3141";
 	uint8_t np_proto = UDP | IPv6;
@@ -803,7 +858,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
     }
 
     // initialize real network layer last
-    np_job_submit_event(0.0, _np_cleanup);
+    np_job_submit_event(0.0, _np_cleanup_ack);
 	np_job_submit_event(0.0, _np_cleanup_keycache);
     // start leafset checking jobs
     np_job_submit_event(0.0, _np_check_leafset);
@@ -822,19 +877,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
 	log_msg(LOG_INFO, "neuropil successfully initialized: %s", _key_as_str(state->my_node_key));
 	_np_log_fflush();
 
-	fprintf(stdout, "\n");
-	fprintf(stdout, "neuropil (version %s) initializiation successful\n", NP_VERSION);
-	fprintf(stdout, "your neuropil node will be addressable as:\n");
-	fprintf(stdout, "\n");
-	fprintf(stdout, "\t%s:%s:%s:%s\n",
-					_key_as_str(state->my_node_key),
-					np_get_protocol_string(np_proto),
-					my_node->dns_name,
-					my_node->port);
-	fprintf(stdout, "\n");
-	fflush(stdout);
-
-	return state;
+	return (state);
 }
 
 void np_start_job_queue(uint8_t pool_size)
@@ -865,9 +908,17 @@ void np_start_job_queue(uint8_t pool_size)
         pthread_create (&__global_state->thread_ids[i], &__global_state->attr, _job_exec, (void *) __global_state);
     	log_msg(LOG_DEBUG, "neuropil worker thread started: %p", __global_state->thread_ids[i]);
    	}
-	log_msg(LOG_DEBUG, "neuropil event loop started");
+	log_msg(LOG_DEBUG, "neuropil (version %s) event loop with %d threads started", NP_VERSION, pool_size);
 
+	fprintf(stdout, "\n");
+	fprintf(stdout, "neuropil (version %s) initializiation successful\n", NP_VERSION);
 	fprintf(stdout, "neuropil (version %s) event loop with %d worker threads started\n", NP_VERSION, pool_size);
+	fprintf(stdout, "your neuropil node will be addressable as:\n");
+	fprintf(stdout, "\t%s:%s:%s:%s\n",
+					_key_as_str(__global_state->my_node_key),
+					np_get_protocol_string(__global_state->my_node_key->node->protocol),
+					__global_state->my_node_key->node->dns_name,
+					__global_state->my_node_key->node->port);
 	fprintf(stdout, "\n");
 	fflush(stdout);
 }

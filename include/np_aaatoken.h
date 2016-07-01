@@ -187,6 +187,9 @@ sll_return(np_aaatoken_t) _np_get_receiver_token_all(char* subject);
 NP_API_INTERN
 np_aaatoken_t* _np_get_receiver_token(char* subject);
 
+NP_API_INTERN
+void _np_aaatoken_add_signature(np_aaatoken_t* msg_token);
+
 #ifdef __cplusplus
 }
 #endif

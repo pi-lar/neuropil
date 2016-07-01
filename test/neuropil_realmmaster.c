@@ -53,7 +53,7 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	if (NULL != tree_find_str(authorized_tokens, token->issuer))
 	{
 		pthread_mutex_unlock(&_aaa_mutex);
-		return TRUE;
+		return (TRUE);
 	}
 
 	fprintf(stdout, "----------------------------------------------\n");
@@ -82,23 +82,27 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	fprintf(stdout, "\texpiration        : %s\n", time_entry);
 
 	fprintf(stdout, "\tpublic_key        : %s\n", pub_key);
-	if (tree_find_str(token->extensions, "passcode"))
-	{
-		fprintf(stdout, "----------------------------------------------\n");
-		fprintf(stdout, "\tpasscode          : %s\n",
-				tree_find_str(token->extensions, "passcode")->val.value.s);
-	}
+//	if (tree_find_str(token->extensions, "passcode"))
+//	{
+//		fprintf(stdout, "----------------------------------------------\n");
+//		fprintf(stdout, "\tpasscode          : %s\n",
+//				tree_find_str(token->extensions, "passcode")->val.value.s);
+//	}
 	fprintf(stdout, "----------------------------------------------\n");
-	fprintf(stdout, "authorize ? [ (a)lways / (o)nce / (n)ever ]: ");
+	fflush(stdout);
+	// fprintf(stdout, "authorize ? [ (a)lways / (o)nce / (n)ever ]: ");
 
-	char result = fgetc(stdin);
+/*
+ * char result = fgetc(stdin);
 	switch (result)
 	{
 	case 'a':
 		ret_val = TRUE;
-		np_ref_obj(np_aaatoken_t, token);
-		tree_insert_str(authorized_tokens, token->issuer, new_val_v(token));
-		break;
+		*/
+	np_ref_obj(np_aaatoken_t, token);
+	tree_insert_str(authorized_tokens, token->issuer, new_val_v(token));
+/*
+	  	break;
 	case 'o':
 		ret_val = TRUE;
 		break;
@@ -106,24 +110,29 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	default:
 		break;
 	}
-	fprintf(stdout, "----------------------------------------------\n");
+*/
+//	fprintf(stdout, "----------------------------------------------\n");
+//	fflush(stdout);
+
 	pthread_mutex_unlock(&_aaa_mutex);
-	return ret_val;
+	return (TRUE); // ret_val;
 }
 
 np_bool check_authenticate_token(np_aaatoken_t* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
+
 	if (NULL == authenticated_tokens) authenticated_tokens = make_jtree();
 	// if a token reaches this point, is has already been check for technical validity
 	np_bool ret_val = FALSE;
 
 	char pub_key[2*crypto_sign_PUBLICKEYBYTES+1];
 	sodium_bin2hex(pub_key, 2*crypto_sign_PUBLICKEYBYTES+1, token->public_key, crypto_sign_PUBLICKEYBYTES);
+
 	if (NULL != tree_find_str(authenticated_tokens, token->issuer))
 	{
 		pthread_mutex_unlock(&_aaa_mutex);
-		return TRUE;
+		return (TRUE);
 	}
 
 	fprintf(stdout, "----------------------------------------------\n");
@@ -138,8 +147,8 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 	token_time.tv_sec = (long) token->issued_at;
 	token_time.tv_usec = (long) ((token->issued_at - (double) token_time.tv_sec) * 1000000.0);
 	localtime_r(&token_time.tv_sec, &token_ts);
-	strftime(time_entry, 19, "%Y-%m-%d %H:%M:%S", &token_ts);
-	snprintf(time_entry+19, 6, ".%6d", token_time.tv_usec);
+	strftime(time_entry,    19, "%Y-%m-%d %H:%M:%S", &token_ts);
+	snprintf(time_entry+19,  6, ".%6d", token_time.tv_usec);
 	fprintf(stdout, "\tissued date       : %s\n", time_entry);
 
 	token_time.tv_sec = (long) token->expiration;
@@ -150,35 +159,39 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 	fprintf(stdout, "\texpiration        : %s\n", time_entry);
 
 	fprintf(stdout, "\tpublic_key        : %s\n", pub_key);
+//	fprintf(stdout, "----------------------------------------------\n");
+//	if (tree_find_str(token->extensions, "passcode"))
+//	{
+//		fprintf(stdout, "\tpasscode          : %s\n",
+//				tree_find_str(token->extensions, "passcode")->val.value.s);
+//	}
 	fprintf(stdout, "----------------------------------------------\n");
-	if (tree_find_str(token->extensions, "passcode"))
-	{
-		fprintf(stdout, "\tpasscode          : %s\n",
-				tree_find_str(token->extensions, "passcode")->val.value.s);
-	}
-	fprintf(stdout, "----------------------------------------------\n");
-	fprintf(stdout, "authenticate ? (a)lways / (o)nce / (n)ever: ");
+	fflush(stdout);
+/*	fprintf(stdout, "authenticate ? (a)lways / (o)nce / (n)ever: ");
 
 	char result = fgetc(stdin);
 	switch (result)
 	{
 	case 'y':
 		ret_val = TRUE;
-		np_ref_obj(np_aaatoken_t, token);
-		tree_insert_str(authenticated_tokens, token->issuer, new_val_v(token));
-		break;
+		*/
+	np_ref_obj(np_aaatoken_t, token);
+	tree_insert_str(authenticated_tokens, token->issuer, new_val_v(token));
+/*		break;
 	case 'N':
 	default:
 		break;
 	}
 	fprintf(stdout, "----------------------------------------------\n");
+	fflush(stdout);
+	*/
 	pthread_mutex_unlock(&_aaa_mutex);
-	return ret_val;
+	return (TRUE); // ret_val;
 }
 
 np_bool check_account_token(NP_UNUSED np_aaatoken_t* token)
 {
-	return FALSE;
+	return (TRUE);
 }
 
 np_aaatoken_t* create_realm_identity()
@@ -190,7 +203,8 @@ np_aaatoken_t* create_realm_identity()
 	strncpy(realm_identity->subject, "pi-lar realmmaster", 255);
 	strncpy(realm_identity->issuer,  "pi-lar realmmaster", 255);
 
-	realm_identity->expiration = 7200;
+	realm_identity->not_before = ev_time();
+	realm_identity->expiration = realm_identity->not_before + 7200.0;
 	realm_identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
 	realm_identity->uuid = np_create_uuid("pi-lar realmmaster", 0);
@@ -200,7 +214,7 @@ np_aaatoken_t* create_realm_identity()
 	// also check libsodium password hahsing functionality
 	tree_insert_str(realm_identity->extensions, "passcode", new_val_hash("test"));
 
-	return realm_identity;
+	return (realm_identity);
 }
 
 int main(int argc, char **argv)
@@ -249,7 +263,7 @@ int main(int argc, char **argv)
 	sprintf(log_file, "%s_%s.log", "./neuropil_realmmaster", "0");
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK | LOG_AAATOKEN;
 	// int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	np_log_init(log_file, level);
 
@@ -267,14 +281,14 @@ int main(int argc, char **argv)
 	np_set_realm_name("pi-lar test realm");
 	np_enable_realm_master();
 
-	np_setauthorizing_cb(check_authorize_token);
 	np_setauthenticate_cb(check_authenticate_token);
+	np_setauthorizing_cb(check_authorize_token);
 	np_setaccounting_cb(check_account_token);
 
-	state->my_node_key->node->joined_network = 1;
+	// state->my_node_key->node->joined_network = 1;
 
 	/**
-	check stdout and the log file because it will contain this nodes hashvalue / connect string, e.g.
+	check stdout and the log file because it will contain the hashvalue / connect string for your node, e.g.
 
 	.. code-block:: c
 

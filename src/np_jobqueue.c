@@ -20,8 +20,8 @@
 static double __jobqueue_sleep_time = 0.3141592;
 
 /* job_queue np_job_t structure */
-struct np_job_s {
-
+struct np_job_s
+{
 	uint8_t type; // 1=msg handler, 2=internal handler, 4=unknown yet
 	char* job_name;
 	double tstamp;
@@ -35,18 +35,17 @@ typedef struct np_jobqueue_s np_jobqueue_t;
 struct np_jobqueue_s
 {
 	np_pll_t(np_job_ptr, job_list);
-
 };
 
 static np_jobqueue_t*  __np_job_queue;
 static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  __cond_empty = PTHREAD_COND_INITIALIZER;
 
-int8_t compare_job_tstamp(np_job_ptr job1, np_job_ptr job2)
+int8_t _compare_job_tstamp(np_job_ptr job1, np_job_ptr job2)
 {
-	if (job1->tstamp > job2->tstamp) return -1;
-	if (job1->tstamp < job2->tstamp) return  1;
-	return 0;
+	if (job1->tstamp > job2->tstamp) return (-1);
+	if (job1->tstamp < job2->tstamp) return ( 1);
+	return (0);
 }
 
 NP_PLL_GENERATE_IMPLEMENTATION(np_job_ptr);
@@ -66,7 +65,7 @@ np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproper
 	jargs->target = key;
 	jargs->properties = prop;
 
-	return jargs;
+	return (jargs);
 }
 
 np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs)
@@ -76,14 +75,14 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs)
 	new_job->tstamp = ev_time() + delay;
 	new_job->args = jargs;
 	new_job->type = 1;
-	return new_job;
+	return (new_job);
 }
 
 void _np_jobqueue_insert(double delay, np_job_t* new_job)
 {
 	pthread_mutex_lock(&__lock_mutex);
 
-	pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE);
+	pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _compare_job_tstamp);
 	// if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
 	if (0.0 == delay)
 	{
@@ -101,7 +100,9 @@ void _np_jobqueue_insert(double delay, np_job_t* new_job)
  **/
 void _np_job_resubmit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
-    // create runtime arguments
+	assert(NULL != prop);
+
+	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
     jargs->is_resend = TRUE;
 
@@ -121,10 +122,11 @@ void _np_job_resubmit_msgout_event (double delay, np_msgproperty_t* prop, np_key
 	_np_jobqueue_insert(delay, new_job);
 }
 
-
 void _np_job_resubmit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
-    // create runtime arguments
+	assert(NULL != prop);
+
+	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
     jargs->is_resend = TRUE;
 
@@ -144,10 +146,11 @@ void _np_job_resubmit_route_event (double delay, np_msgproperty_t* prop, np_key_
 	_np_jobqueue_insert(delay, new_job);
 }
 
-
 void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
-    // create runtime arguments
+	assert(NULL != prop);
+
+	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
 
 	if (msg != NULL)
@@ -168,7 +171,10 @@ void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t*
 
 void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
-    // create runtime arguments
+	// could be NULL if msg is not defined in this node
+	// assert(NULL != prop);
+
+	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
 
 	if (msg != NULL)
@@ -187,10 +193,11 @@ void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t*
 	_np_jobqueue_insert(delay, new_job);
 }
 
-
 void _np_job_submit_transform_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
-    // create runtime arguments
+	assert(NULL != prop);
+
+	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
 
 	if (NULL != jargs->msg)
@@ -248,11 +255,11 @@ void np_job_submit_event (double delay, np_callback_t callback)
 np_bool _np_job_queue_create()
 {
 	__np_job_queue = (np_jobqueue_t *) malloc (sizeof(np_jobqueue_t));
-	if (NULL == __np_job_queue) return FALSE;
+	if (NULL == __np_job_queue) return (FALSE);
 
-	pll_init(np_job_ptr, __np_job_queue->job_list, compare_job_tstamp);
+	pll_init(np_job_ptr, __np_job_queue->job_list);
 
-    return TRUE;
+    return (TRUE);
 }
 
 
@@ -329,5 +336,5 @@ void* _job_exec ()
 	    _np_job_free(tmp);
 	    tmp = NULL;
 	}
-    return NULL;
+    return (NULL);
 }

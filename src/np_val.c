@@ -12,7 +12,7 @@
 #include "np_key.h"
 #include "np_tree.h"
 
-np_val_t JNULL = { .type = none_type, .size=0 };
+np_val_t NP_VAL_NULL = { .type = none_type, .size=0 };
 
 char* val_to_str(np_val_t val) {
 
@@ -479,7 +479,7 @@ np_val_t new_val_hash (char *s)
 np_val_t new_val_pwhash (NP_UNUSED char *s)
 {
 	// TODO: implement password hashing function / update of libsodium required ?
-    np_val_t j = JNULL;
+    np_val_t j = NP_VAL_NULL;
 
 //    char pw_hash[crypto_pwhash_STRBYTES];
 //    if (crypto_pwhash_str

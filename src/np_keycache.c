@@ -136,7 +136,7 @@ np_key_t* _np_key_find_deprecated()
 			break;
 		}
 	}
-	return iter;
+	return (iter);
 }
 
 np_key_t* _np_key_remove(np_dhkey_t search_dhkey)

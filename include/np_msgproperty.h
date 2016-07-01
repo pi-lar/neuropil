@@ -219,7 +219,8 @@ struct np_msgproperty_s
     np_dhkey_t partner_key;
 
     char*            msg_subject;
-    char*            msg_audience;
+    char*            rep_subject;
+	char*            msg_audience;
 	np_msg_mode_type mode_type;
 	np_msg_mep_type  mep_type;
 	np_msg_ack_type  ack_mode;
@@ -304,8 +305,9 @@ static char _NP_MSG_ACK[]                    = "_NP.ACK";
 static char _NP_MSG_HANDSHAKE[]              = "_NP.HANDSHAKE";
 static char _NP_MSG_PING_REQUEST[]           = "_NP.PING.REQUEST";
 static char _NP_MSG_PING_REPLY[]             = "_NP.PING.REPLY";
-static char _NP_MSG_JOIN_REQUEST[]           = "_NP.JOIN.REQUEST";
 static char _NP_MSG_LEAVE_REQUEST[]          = "_NP.LEAVE.REQUEST";
+static char _NP_MSG_JOIN[]                   = "_NP.JOIN.";
+static char _NP_MSG_JOIN_REQUEST[]           = "_NP.JOIN.REQUEST";
 static char _NP_MSG_JOIN_ACK[]               = "_NP.JOIN.ACK";
 static char _NP_MSG_JOIN_NACK[]              = "_NP.JOIN.NACK";
 static char _NP_MSG_PIGGY_REQUEST[]          = "_NP.NODES.PIGGY";
@@ -338,6 +340,9 @@ NP_API_INTERN
 void _np_check_sender_msgcache(np_msgproperty_t* send_prop);
 NP_API_INTERN
 void _np_check_receiver_msgcache(np_msgproperty_t* recv_prop);
+
+NP_API_INTERN
+void _np_add_msg_to_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
 
 #ifdef __cplusplus
 }

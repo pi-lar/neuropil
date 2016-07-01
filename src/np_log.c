@@ -142,9 +142,11 @@ void np_log_init(const char* filename, uint16_t level)
 
     sll_init(char, logger->logentries_l);
     char* new_log_entry = malloc(sizeof(char)*256);
-    snprintf(new_log_entry, 255, "initialized log system %p: %s (%d) %hu\n", logger, logger->filename, logger->fp, logger->level);
+    snprintf(new_log_entry, 255, "initialized log system %p: %s / %x", logger, logger->filename, logger->level);
+    np_log_message(LOG_DEBUG, __FILE__, __func__, __LINE__, "%s", new_log_entry);
+
     // fprintf(logger->fp, "initialized log system %p: %s (%p) %d\n", logger, logger->filename, logger->fp, logger->level);
-    sll_append(char, logger->logentries_l, new_log_entry);
+    // sll_append(char, logger->logentries_l, new_log_entry);
     // fflush(logger->fp);
 
     // _np_suspend_event_loop();

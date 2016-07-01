@@ -33,9 +33,15 @@ void _np_send_receiver_discovery(np_jobargs_t* args);
 // send an authentication request to the target
 NP_API_INTERN
 void np_send_authentication_request(np_jobargs_t* args);
+NP_API_INTERN
+void np_send_authentication_reply(np_jobargs_t* args);
+
 // send an authorization request to the target
 NP_API_INTERN
 void np_send_authorization_request(np_jobargs_t* args);
+NP_API_INTERN
+void np_send_authorization_reply(np_jobargs_t* args);
+
 // send an accounting request to the target
 NP_API_INTERN
 void np_send_accounting_request(np_jobargs_t* args);

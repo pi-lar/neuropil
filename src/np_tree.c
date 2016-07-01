@@ -36,6 +36,9 @@ np_tree_t* make_jtree ()
 
 int16_t _val_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2)
 {
+	assert(NULL != j1);
+	assert(NULL != j2);
+
 	np_val_t jv1 = j1->key;
 	np_val_t jv2 = j2->key;
 
@@ -82,6 +85,9 @@ np_tree_elem_t* tree_find_gte_str (np_tree_t* n, const char *key, uint8_t *fnd)
 
 np_tree_elem_t* tree_find_str (np_tree_t* n, const char *key)
 {
+	assert(NULL != n);
+	assert(NULL != key);
+
 	np_val_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
 	np_tree_elem_t search_elem = { .key = search_key };
 	return RB_FIND(np_tree_s, n, &search_elem);

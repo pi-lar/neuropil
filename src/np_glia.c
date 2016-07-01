@@ -106,7 +106,8 @@ void _np_route_lookup(np_jobargs_t* args)
 		_LOCK_MODULE(np_routeglobal_t)
 		{
 			tmp = route_lookup(&k_msg_address, 2);
-			log_msg(LOG_DEBUG, "route_lookup result 2 = %s", _key_as_str(sll_first(tmp)->val));
+			if (0 < sll_size(tmp))
+				log_msg(LOG_DEBUG, "route_lookup result 2 = %s", _key_as_str(sll_first(tmp)->val));
 		}
 		// TODO: increase count parameter again ?
 	}
@@ -361,7 +362,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 	np_tree_elem_t *deleted = NULL;
 	np_msgproperty_t* msg_prop = NULL;
 
-	// TODO: crahses sometimes ...
+	// TODO: crashes sometimes ??
 	RB_FOREACH(iter, np_tree_s, state->msg_tokens)
 	{
 		// double now = dtime();
@@ -374,8 +375,6 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 		msg_prop = np_msgproperty_get(TRANSFORM, iter->key.value.s);
 		if (NULL != msg_prop)
 		{
-			// _np_send_msg_interest(iter->key.value.s);
-			// _np_send_msg_availability(iter->key.value.s);
 			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 		}
 		else
@@ -511,7 +510,7 @@ void _np_resume_event_loop()
  ** the message gets deleted or dropped (if max redelivery has been reached)
  ** redelivery has two aspects -> simple resend or reroute because of bad link nodes in the routing table
  **/
-void _np_cleanup(NP_UNUSED np_jobargs_t* args)
+void _np_cleanup_ack(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_cleanup");
 
@@ -561,10 +560,9 @@ void _np_cleanup(NP_UNUSED np_jobargs_t* args)
 	pthread_mutex_unlock(&ng->lock);
 
 	// submit the function itself for additional execution
-	np_job_submit_event(__cleanup_interval, _np_cleanup);
+	np_job_submit_event(__cleanup_interval, _np_cleanup_ack);
 	log_msg(LOG_TRACE, ".end  .np_cleanup");
 }
-
 
 void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 {
@@ -603,32 +601,42 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 
 		if (NULL != old->recv_tokens)
 		{
-			// check old receiver token structure
-			pll_iterator(np_aaatoken_ptr) iter = pll_first(old->recv_tokens);
-			while (NULL != iter)
+			LOCK_CACHE(old->recv_property)
 			{
-				log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
-				np_aaatoken_t* tmp_token = iter->val;
-				if (TRUE == token_is_valid(tmp_token))
+				// check old receiver token structure
+				pll_iterator(np_aaatoken_ptr) iter = pll_first(old->recv_tokens);
+				while (NULL != iter)
 				{
-					log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _key_as_str(old));
-					delete_key &= FALSE;
+					log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
+					np_aaatoken_t* tmp_token = iter->val;
+					if (TRUE == token_is_valid(tmp_token))
+					{
+						log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _key_as_str(old));
+						delete_key &= FALSE;
+						break;
+					}
+					pll_next(iter);
 				}
 			}
 		}
 
 		if (NULL != old->send_tokens)
 		{
-			// check old sender token structure
-			pll_iterator(np_aaatoken_ptr) iter = pll_first(old->send_tokens);
-			while (NULL != iter)
+			LOCK_CACHE(old->send_property)
 			{
-				log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking sender msg tokens %p/%p", iter, iter->val);
-				np_aaatoken_t* tmp_token = iter->val;
-				if (TRUE == token_is_valid(tmp_token))
+				// check old sender token structure
+				pll_iterator(np_aaatoken_ptr) iter = pll_first(old->send_tokens);
+				while (NULL != iter)
 				{
-					log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _key_as_str(old));
-					delete_key &= FALSE;
+					log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking sender msg tokens %p/%p", iter, iter->val);
+					np_aaatoken_t* tmp_token = iter->val;
+					if (TRUE == token_is_valid(tmp_token))
+					{
+						log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _key_as_str(old));
+						delete_key &= FALSE;
+						break;
+					}
+					pll_next(iter);
 				}
 			}
 		}
@@ -647,25 +655,30 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 			// delete old receive tokens
 			if (NULL != old->recv_tokens)
 			{
-				pll_iterator(np_aaatoken_ptr) iter = pll_first(old->recv_tokens);
-				while (NULL != iter)
+				LOCK_CACHE(old->recv_property)
 				{
-					np_free_obj(np_aaatoken_t, iter->val);
-					pll_next(iter);
+					pll_iterator(np_aaatoken_ptr) iter = pll_first(old->recv_tokens);
+					while (NULL != iter)
+					{
+						np_free_obj(np_aaatoken_t, iter->val);
+						pll_next(iter);
+					}
+					pll_free(np_aaatoken_ptr, old->recv_tokens);
 				}
-				pll_free(np_aaatoken_ptr, old->recv_tokens);
 			}
-
 			// delete send tokens
 			if (NULL != old->send_tokens)
 			{
-				pll_iterator(np_aaatoken_ptr) iter = pll_first(old->send_tokens);
-				while (NULL != iter)
+				LOCK_CACHE(old->send_property)
 				{
-					np_free_obj(np_aaatoken_t, iter->val);
-					pll_next(iter);
+					pll_iterator(np_aaatoken_ptr) iter = pll_first(old->send_tokens);
+					while (NULL != iter)
+					{
+						np_free_obj(np_aaatoken_t, iter->val);
+						pll_next(iter);
+					}
+					pll_free(np_aaatoken_ptr, old->send_tokens);
 				}
-				pll_free(np_aaatoken_ptr, old->send_tokens);
 			}
 
 			_LOCK_MODULE(np_keycache_t)
@@ -707,6 +720,13 @@ void _np_send_rowinfo(np_jobargs_t* args)
 	_LOCK_MODULE(np_routeglobal_t)
 	{
 		sll_of_keys = route_row_lookup(target_key);
+		if (0 == sll_size(sll_of_keys))
+		{
+			// nothing found, send leafset to exchange some data at least
+			// prevents small clusters ffrom not exchanging all data
+			sll_free(np_key_t, sll_of_keys);
+			sll_of_keys = route_neighbors();
+		}
 	}
 
 	if (0 < sll_size(sll_of_keys))
@@ -728,7 +748,6 @@ void _np_send_rowinfo(np_jobargs_t* args)
 	sll_free(np_key_t, sll_of_keys);
 }
 
-
 np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 {	log_msg(LOG_TRACE, ".start.np_create_msg_token");
 
@@ -738,8 +757,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	np_new_obj(np_aaatoken_t, msg_token);
 
 	char msg_uuid_subject[255];
-	snprintf(msg_uuid_subject, 255, "urn:np:msg:%s:%d:%f",
-			msg_request->msg_subject, msg_request->mode_type, msg_request->ttl);
+	snprintf(msg_uuid_subject, 255, "urn:np:msg:%s", msg_request->msg_subject);
 
 	// create token
 	strncpy(msg_token->realm, state->my_identity->aaa_token->realm, 255);
@@ -754,19 +772,20 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 
 	msg_token->not_before = ev_time();
 	// TODO: make it configurable for the user
-	msg_token->expiration = ev_time() + 10.0; // 10 second valid token
+	// 60 second valid token plus ttl for possible transmit jitter
+	msg_token->expiration = ev_time() + 60.0; /*+ msg_request->ttl */;
 
 	// add e2e encryption details for sender
-	strncpy((char*) msg_token->public_key,
-			(char*) state->my_identity->aaa_token->public_key,
-			crypto_sign_PUBLICKEYBYTES);
+	memcpy((char*) msg_token->public_key,
+		   (char*) state->my_identity->aaa_token->public_key,
+		   crypto_sign_PUBLICKEYBYTES);
 	// private key is only required for signing later, will not be send over the wire
-	strncpy((char*) msg_token->private_key,
-			(char*) state->my_identity->aaa_token->private_key,
-			crypto_sign_SECRETKEYBYTES);
+	memcpy((char*) msg_token->private_key,
+		   (char*) state->my_identity->aaa_token->private_key,
+		   crypto_sign_SECRETKEYBYTES);
 
 	tree_insert_str(msg_token->extensions, "mep_type",
-			new_val_ush(msg_request->mep_type));
+			new_val_ul(msg_request->mep_type));
 	tree_insert_str(msg_token->extensions, "ack_mode",
 			new_val_ush(msg_request->ack_mode));
 	tree_insert_str(msg_token->extensions, "max_threshold",
@@ -778,12 +797,13 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	tree_insert_str(msg_token->extensions, "target_node",
 			new_val_s((char*) _key_as_str(state->my_node_key)));
 
-	// TODO: useful extension ?
-	// unsigned char key[crypto_generichash_KEYBYTES];
-	// randombytes_buf(key, sizeof key);
+	// fingerprinting and signing the token
+	_np_aaatoken_add_signature(msg_token);
+
+	msg_token->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
 
 	log_msg(LOG_TRACE, ".end  .np_create_msg_token");
-	return msg_token;
+	return (msg_token);
 }
 
 void _np_send_msg_interest(const char* subject)
@@ -870,65 +890,27 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		_str_to_dhkey(target_node_str, &receiver_dhkey);
 		receiver_key->dhkey = receiver_dhkey;
 
-		tree_replace_str(msg->header, NP_MSG_HEADER_TO, new_val_s(tmp_token->issuer));
+		tree_replace_str(msg->header, NP_MSG_HEADER_TO, new_val_s(target_node_str));
+		// tree_replace_str(msg->header, NP_MSG_HEADER_TO, new_val_s(tmp_token->issuer));
 		np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);
 		_np_job_submit_route_event(0.0, out_prop, receiver_key, msg);
 
 		// decrease threshold counters
 		msg_prop->msg_threshold--;
 
+		if (NULL != msg_prop->rep_subject &&
+			STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))
+		{
+			_np_add_sender_token(msg_prop->rep_subject, tmp_token);
+		}
 		np_unref_obj(np_aaatoken_t, tmp_token);
 		np_free_obj(np_key_t, receiver_key);
 
-		return TRUE;
+		return (TRUE);
 	}
 	else
 	{
-		LOCK_CACHE(msg_prop)
-		{
-			// cache already full ?
-			if ( msg_prop->max_threshold <= msg_prop->msg_threshold )
-			{
-				log_msg(LOG_DEBUG,
-						"msg cache full, checking overflow policy ...");
-
-				if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
-				{
-					log_msg(LOG_DEBUG,
-							"OVERFLOW_PURGE: discarding first message");
-					np_message_t* old_msg = NULL;
-
-					if (0 < (msg_prop->cache_policy & FIFO))
-						old_msg = sll_tail(np_message_t, msg_prop->msg_cache);
-					if (0 < (msg_prop->cache_policy & FILO))
-						old_msg = sll_head(np_message_t, msg_prop->msg_cache);
-
-					// initial check could lead to false positive messages
-					// so better check again
-					if (NULL != old_msg)
-					{
-						msg_prop->msg_threshold--;
-						np_unref_obj(np_message_t, old_msg);
-					}
-				}
-
-				if (0 < (msg_prop->cache_policy & OVERFLOW_REJECT))
-				{
-					log_msg(LOG_DEBUG,
-							"rejecting new message because cache is full");
-					// np_free_obj(np_message_t, msg);
-					// jump out of LOCK_CACHE
-					continue;
-				}
-			}
-
-			// always prepend, FIFO / FILO handling done when fetching messages
-			sll_prepend(np_message_t, msg_prop->msg_cache, msg);
-
-			log_msg(LOG_DEBUG, "added message to the msgcache (%p / %d) ...",
-					msg_prop->msg_cache, sll_size(msg_prop->msg_cache));
-			np_ref_obj(np_message_t, msg);
-		}
+		_np_add_msg_to_cache(msg_prop, msg);
 	}
-	return FALSE;
+	return (FALSE);
 }

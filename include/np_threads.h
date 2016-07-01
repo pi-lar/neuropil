@@ -16,7 +16,7 @@ extern "C" {
 
 // and add the implementation into the source file
 #define _NP_MODULE_LOCK_IMPL(TYPE) \
-	int  _##TYPE##_lock()   { return pthread_mutex_lock(&__lock_mutex);   } \
+	int  _##TYPE##_lock()   { return (pthread_mutex_lock(&__lock_mutex));   } \
 	void _##TYPE##_unlock() { pthread_mutex_unlock(&__lock_mutex); }
 
 #define _LOCK_MODULE(TYPE) for(uint8_t i=0; (i < 1) && !_##TYPE##_lock(); _##TYPE##_unlock(), i++)

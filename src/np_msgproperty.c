@@ -96,10 +96,8 @@ static rbt_msgproperty_t* __msgproperty_table;
 _NP_MODULE_LOCK_IMPL(np_msgproperty_t);
 
 /**
- ** message_init: chstate, port
- ** Initialize messaging subsystem on port and returns the MessageGlobal * which 
- ** contains global state of message subsystem.
- ** message_init also initiate the network subsystem
+ ** _np_msgproperty_init
+ ** Initialize message property subsystem.
  **/
 np_bool _np_msgproperty_init ()
 {
@@ -132,7 +130,6 @@ np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* sub
 	return RB_FIND(rbt_msgproperty, __msgproperty_table, &prop);
 }
 
-
 int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2)
 {
 //	log_msg(LOG_DEBUG, "%s %d (&) %s %d",
@@ -149,16 +146,19 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 //				prop2->mode_type,
 //				(prop1->mode_type & prop2->mode_type) );
 
-		if ((prop1->mode_type & prop2->mode_type)) return 0;
+		// Is it the same bitmask ?
+		if (prop1->mode_type == prop2->mode_type) return  (0);
+		// for searching: Are some test bits set ?
+		if (0 < (prop1->mode_type & prop2->mode_type)) return (0);
 
-		if (prop1->mode_type == prop2->mode_type) return  0;
-		if (prop1->mode_type > prop2->mode_type)  return  1;
-		if (prop1->mode_type < prop2->mode_type)  return -1;
-		return -1;
+		// for sorting / inserting different entries
+		if (prop1->mode_type > prop2->mode_type)  return ( 1);
+		if (prop1->mode_type < prop2->mode_type)  return (-1);
+		return (-1);
 	}
 	else
 	{
-		return i;
+		return (i);
 	}
 }
 
@@ -172,10 +172,11 @@ void _np_msgproperty_t_new(void* property)
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
 	prop->msg_audience = NULL;
+	prop->msg_subject = NULL;
+	prop->rep_subject = NULL;
 
-	// prop->msg_subject = strndup(subject, 255);
 	prop->mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE;
-	prop->mep_type = ANY_TO_ANY;
+	prop->mep_type = DEFAULT_TYPE;
 	prop->ack_mode = ACK_EACHHOP;
 	prop->priority = 5;
 	prop->retry    = 5;
@@ -286,3 +287,44 @@ void _np_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 	}
 }
 
+void _np_add_msg_to_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
+{
+	LOCK_CACHE(msg_prop)
+	{
+		// cache already full ?
+		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache))
+		{
+			log_msg(LOG_DEBUG, "msg cache full, checking overflow policy ...");
+
+			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
+			{
+				log_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding first message");
+				np_message_t* old_msg = NULL;
+
+				if ((msg_prop->cache_policy & FIFO) > 0)
+					old_msg = sll_head(np_message_t, msg_prop->msg_cache);
+				if ((msg_prop->cache_policy & FILO) > 0)
+					old_msg = sll_tail(np_message_t, msg_prop->msg_cache);
+
+				if (old_msg != NULL)
+				{
+					msg_prop->msg_threshold--;
+					np_unref_obj(np_message_t, old_msg);
+				}
+			}
+
+			if (0 < (msg_prop->cache_policy & OVERFLOW_REJECT))
+			{
+				log_msg(LOG_DEBUG,
+						"rejecting new message because cache is full");
+				continue;
+			}
+		}
+
+		sll_prepend(np_message_t, msg_prop->msg_cache, msg_in);
+
+		log_msg(LOG_DEBUG, "added message to the msgcache (%p / %d) ...",
+				msg_prop->msg_cache, sll_size(msg_prop->msg_cache));
+		np_ref_obj(np_message_t, msg_in);
+	}
+}

@@ -293,6 +293,7 @@ np_bool _dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const le
 	    return (FALSE);
 	}
     log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_between");
+    return (FALSE);
 }
 
 void _dhkey_midpoint (np_dhkey_t* mid, const np_dhkey_t* key)

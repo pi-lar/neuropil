@@ -136,7 +136,7 @@ void _np_out_send(np_jobargs_t* args)
 			log_msg(LOG_DEBUG, "resend message %s (%s) expired, not resending ...", prop->msg_subject, uuid);
 			return;
 		}
-		// only redeliver if ack_to has been initialized correctly, so this must be TRUEfor resend
+		// only redeliver if ack_to has been initialized correctly, so this must be TRUE for a resend
 		ack_to_is_me = TRUE;
 	}
 
@@ -175,7 +175,7 @@ void _np_out_send(np_jobargs_t* args)
 	if (TRUE == ack_to_is_me && FALSE == is_resend)
 	{
 		pthread_mutex_lock(&network->lock);
-		/* get/set sequence number to initialize acknowledgement indicator correctly */
+		/* get/set sequence number to keep increasing sequence numbers per node */
 		seq = network->seqend;
 		tree_replace_str(msg_out->instructions, NP_MSG_INST_SEQ, new_val_ul(seq));
 		network->seqend++;
@@ -184,16 +184,15 @@ void _np_out_send(np_jobargs_t* args)
 
 	// insert a uuid if not yet present
 	uuid = np_create_uuid(args->properties->msg_subject, seq);
-
 	tree_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_val_s(uuid));
 	free(uuid);
 
 	// log_msg(LOG_DEBUG, "message ttl %s (tstamp: %f / ttl: %f) %s", uuid, now, args->properties->ttl, args->properties->msg_subject);
 
-	// set resend count to zero if not yet present
+	// set re-send count to zero if not yet present
 	tree_insert_str(msg_out->instructions, NP_MSG_INST_SEND_COUNTER, new_val_ush(0));
-	// increase resend count by one
-	// TODO: forwarding of message will also increase resend counter, ok ?
+	// and increase resend count by one
+	// TODO: forwarding of message will also increase re-send counter, ok ?
 	np_tree_elem_t* jrb_send_counter = tree_find_str(msg_out->instructions, NP_MSG_INST_SEND_COUNTER);
 	jrb_send_counter->val.value.ush++;
 	// TODO: insert resend count check
@@ -201,8 +200,8 @@ void _np_out_send(np_jobargs_t* args)
 	// insert timestamp and time-to-live
 	double now = ev_time();
 	tree_insert_str(msg_out->instructions, NP_MSG_INST_TSTAMP, new_val_d(now));
-	now += args->properties->ttl;
-	tree_insert_str(msg_out->instructions, NP_MSG_INST_TTL, new_val_d(now));
+	// now += args->properties->ttl;
+	tree_insert_str(msg_out->instructions, NP_MSG_INST_TTL, new_val_d(args->properties->ttl));
 
 	tree_insert_str(msg_out->instructions, NP_MSG_INST_PARTS, new_val_iarray(1, 1));
 	if (FALSE == msg_out->is_single_part)
@@ -442,7 +441,6 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".start._np_send_receiver_discovery");
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
-	np_tree_t* _data = make_jtree();
 
 	msg_token = _np_get_sender_token(args->properties->msg_subject,
 			 	 	 	 	 	 	 _key_as_str(_np_state()->my_identity));
@@ -451,28 +449,24 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 		log_msg(LOG_DEBUG, "creating new sender token for subject %s", args->properties->msg_subject);
 		msg_token = _np_create_msg_token(args->properties);
 		_np_add_sender_token(msg_token->subject, msg_token);
-		np_free_obj(np_aaatoken_t, msg_token);
+		// np_free_obj(np_aaatoken_t, msg_token);
 	}
-	else
+
+	if (NULL != msg_token)
 	{
-		np_unref_obj(np_aaatoken_t, msg_token);
+		np_tree_t* _data = make_jtree();
+		np_encode_aaatoken(_data, msg_token);
+
+		np_message_t* msg_out = NULL;
+		np_new_obj(np_message_t, msg_out);
+		np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_RECEIVER, _data);
+		// send message availability
+		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
+		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+		np_free_obj(np_message_t, msg_out);
 	}
+	np_unref_obj(np_aaatoken_t, msg_token);
 
-	// replace threshold data -> recalc signature ? not now but maybe
-	// TODO: in the future ... check/recalc signature again
-//	tree_replace_str(msg_token->extensions, "msg_threshold",
-//			new_val_ui(args->properties->msg_threshold));
-
-	np_encode_aaatoken(_data, msg_token);
-
-	np_message_t* msg_out = NULL;
-	np_new_obj(np_message_t, msg_out);
-	np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_RECEIVER, _data);
-
-	// send message availability
-	np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
-	_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
-	np_free_obj(np_message_t, msg_out);
 	log_msg(LOG_TRACE, ".end  ._np_send_receiver_discovery");
 }
 
@@ -481,7 +475,6 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".start._np_send_sender_discovery");
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
-	np_tree_t* _data = make_jtree();
 
 	msg_token = _np_get_receiver_token(args->properties->msg_subject);
 	if (NULL == msg_token)
@@ -489,28 +482,29 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 		log_msg(LOG_DEBUG, "creating new receiver token for subject %s", args->properties->msg_subject);
 		msg_token = _np_create_msg_token(args->properties);
 		_np_add_receiver_token(msg_token->subject, msg_token);
-		np_free_obj(np_aaatoken_t, msg_token);
+		// np_free_obj(np_aaatoken_t, msg_token);
 	}
-	else
+//	else
+//	{
+//	}
+
+	if (NULL != msg_token)
 	{
+		log_msg(LOG_DEBUG, "encoding receiver token for subject %p / %s", msg_token, msg_token->uuid);
+		np_tree_t* _data = make_jtree();
+		np_encode_aaatoken(_data, msg_token);
+
+		np_message_t* msg_out = NULL;
+		np_new_obj(np_message_t, msg_out);
+		np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_SENDER, _data);
+
+		// send message availability
+		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
+		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+
+		np_free_obj(np_message_t, msg_out);
 		np_unref_obj(np_aaatoken_t, msg_token);
 	}
-
-	// replace threshold data -> recalc signature ? not now but maybe
-	// TODO: in the future ... check/recalc signature again
-	// tree_replace_str(msg_token->extensions, "msg_threshold",
-	//			        new_val_ui(args->properties->msg_threshold));
-	log_msg(LOG_DEBUG, "encoding new receiver token for subject %p", msg_token);
-	np_encode_aaatoken(_data, msg_token);
-
-	np_message_t* msg_out = NULL;
-	np_new_obj(np_message_t, msg_out);
-	np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_SENDER, _data);
-
-	// send message availability
-	np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
-	_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
-	np_free_obj(np_message_t, msg_out);
 
 	log_msg(LOG_TRACE, ".end  ._np_send_sender_discovery");
 }
@@ -543,16 +537,28 @@ void np_send_authentication_request(np_jobargs_t* args)
 	aaa_target->dhkey = target_dhkey;
 
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
+	if (NULL == aaa_props->msg_cache)
+	{
+		sll_init(np_message_t, aaa_props->msg_cache);
+	}
 
-	// create and and send authentication request
+	// create and send authentication request
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
+
 	np_tree_t* auth_data = make_jtree();
 	np_encode_aaatoken(auth_data, args->target->aaa_token);
+
+//	log_msg(LOG_DEBUG, "realm             : %s", args->target->aaa_token->realm);
+//	log_msg(LOG_DEBUG, "issuer            : %s", args->target->aaa_token->issuer);
+//	log_msg(LOG_DEBUG, "subject           : %s", args->target->aaa_token->subject);
+//	log_msg(LOG_DEBUG, "audience          : %s", args->target->aaa_token->audience);
+//	log_msg(LOG_DEBUG, "uuid              : %s", args->target->aaa_token->uuid);
 
 	np_message_create(msg_out, aaa_target, state->my_node_key, _NP_MSG_AUTHENTICATION_REQUEST, auth_data);
 	if (FALSE == _np_send_msg(_NP_MSG_AUTHENTICATION_REQUEST, msg_out, aaa_props))
 	{
+		log_msg(LOG_DEBUG, "sending authentication discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_send_receiver_discovery(&jargs);
 	}
@@ -561,6 +567,48 @@ void np_send_authentication_request(np_jobargs_t* args)
 	np_free_obj(np_key_t, aaa_target);
 
 	log_msg(LOG_TRACE, ".end  .np_send_authentication_request");
+}
+
+void np_send_authentication_reply(np_jobargs_t* args)
+{
+	log_msg(LOG_TRACE, ".start.np_send_authentication_reply");
+
+	np_dhkey_t target_dhkey;
+
+	np_msg_mep_type mep_reply_sticky = tree_find_str(args->target->aaa_token->extensions, "mep_type")->val.value.ul & STICKY_REPLY;
+
+	if (STICKY_REPLY != mep_reply_sticky &&
+		0 < strlen(args->target->aaa_token->realm) )
+	{
+		target_dhkey = dhkey_create_from_hostport(args->target->aaa_token->realm, "0");
+	}
+	else
+	{
+		target_dhkey = dhkey_create_from_hash(args->target->aaa_token->issuer);
+	}
+
+	log_msg(LOG_DEBUG, "encoding and sending authentication reply");
+
+	np_key_t* aaa_target;
+	np_new_obj(np_key_t, aaa_target);
+	aaa_target->dhkey = target_dhkey;
+
+	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REPLY);
+	if (NULL == aaa_props->msg_cache)
+	{
+		sll_init(np_message_t, aaa_props->msg_cache);
+	}
+
+	// create and send authentication reply
+	if (FALSE == _np_send_msg(_NP_MSG_AUTHENTICATION_REPLY, args->msg, aaa_props))
+	{
+		log_msg(LOG_DEBUG, "sending authentication reply discovery");
+		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
+		_np_send_receiver_discovery(&jargs);
+	}
+	np_free_obj(np_key_t, aaa_target);
+
+	log_msg(LOG_TRACE, ".end  .np_send_authentication_reply");
 }
 
 void np_send_authorization_request(np_jobargs_t* args)
@@ -586,12 +634,23 @@ void np_send_authorization_request(np_jobargs_t* args)
 	aaa_target->dhkey = target_dhkey;
 
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
+	if (NULL == aaa_props->msg_cache)
+	{
+		sll_init(np_message_t, aaa_props->msg_cache);
+	}
 
 	// create and and send authorization request
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 	np_tree_t* auth_data = make_jtree();
 	np_encode_aaatoken(auth_data, args->target->aaa_token);
+
+//	log_msg(LOG_DEBUG, "realm             : %s", args->target->aaa_token->realm);
+//	log_msg(LOG_DEBUG, "issuer            : %s", args->target->aaa_token->issuer);
+//	log_msg(LOG_DEBUG, "subject           : %s", args->target->aaa_token->subject);
+//	log_msg(LOG_DEBUG, "audience          : %s", args->target->aaa_token->audience);
+//	log_msg(LOG_DEBUG, "uuid              : %s", args->target->aaa_token->uuid);
+
 	np_message_create(msg_out, aaa_target, state->my_node_key, _NP_MSG_AUTHORIZATION_REQUEST, auth_data);
 	if (FALSE == _np_send_msg(_NP_MSG_AUTHORIZATION_REQUEST, msg_out, aaa_props))
 	{
@@ -602,6 +661,48 @@ void np_send_authorization_request(np_jobargs_t* args)
 	np_free_obj(np_key_t, aaa_target);
 
 	log_msg(LOG_TRACE, ".end  .np_send_authorization_request");
+}
+
+void np_send_authorization_reply(np_jobargs_t* args)
+{
+	log_msg(LOG_TRACE, ".start.np_send_authorization_reply");
+
+	np_dhkey_t target_dhkey;
+
+	np_msg_mep_type mep_reply_sticky = tree_find_str(args->target->aaa_token->extensions, "mep_type")->val.value.ul & STICKY_REPLY;
+
+	if (STICKY_REPLY != mep_reply_sticky &&
+		0 < strlen(args->target->aaa_token->realm) )
+	{
+		target_dhkey = dhkey_create_from_hostport(args->target->aaa_token->realm, "0");
+	}
+	else
+	{
+		target_dhkey = dhkey_create_from_hash(args->target->aaa_token->issuer);
+	}
+
+	log_msg(LOG_DEBUG, "encoding and sending authorization reply");
+
+	np_key_t* aaa_target;
+	np_new_obj(np_key_t, aaa_target);
+	aaa_target->dhkey = target_dhkey;
+
+	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REPLY);
+	if (NULL == aaa_props->msg_cache)
+	{
+		sll_init(np_message_t, aaa_props->msg_cache);
+	}
+
+	// create and send authentication reply
+	if (FALSE == _np_send_msg(_NP_MSG_AUTHORIZATION_REPLY, args->msg, aaa_props))
+	{
+		log_msg(LOG_DEBUG, "sending authorization reply discovery");
+		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
+		_np_send_receiver_discovery(&jargs);
+	}
+	np_free_obj(np_key_t, aaa_target);
+
+	log_msg(LOG_TRACE, ".end  .np_send_authorization_reply");
 }
 
 void np_send_accounting_request(np_jobargs_t* args)
@@ -623,6 +724,10 @@ void np_send_accounting_request(np_jobargs_t* args)
 
 	log_msg(LOG_DEBUG, "encoding and sending accounting token");
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
+	if (NULL == aaa_props->msg_cache)
+	{
+		sll_init(np_message_t, aaa_props->msg_cache);
+	}
 
 	np_key_t* aaa_target;
 	np_new_obj(np_key_t, aaa_target);

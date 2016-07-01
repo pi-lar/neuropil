@@ -157,7 +157,7 @@ np_key_t* _np_node_decode_from_str (const char *key)
 
 	free (key_dup);
 
-	return node_key;
+	return (node_key);
 }
 
 np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
@@ -181,7 +181,10 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 
 	// OPTIONAL parameter
 	np_tree_elem_t* failure = tree_find_str(data, NP_NODE_FAILURETIME);
-	if (failure) new_node->failuretime = failure->val.value.d;
+	if (NULL != failure)
+	{
+		new_node->failuretime = failure->val.value.d;
+	}
 
 	// np_jrb_t* latency = tree_find_str(data, "_np.node.latency");
 	// if (latency) node->latency = latency->val.value.d;
@@ -209,7 +212,7 @@ uint16_t _np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys)
     		np_free_tree(node_jrb);
     	}
     }
-    return j;
+    return (j);
 }
 
 sll_return(np_key_t) _np_decode_nodes_from_jrb (np_tree_t* data)
@@ -246,7 +249,7 @@ np_key_t* _np_create_node_from_token(np_aaatoken_t* token)
 	{
 		node_key->node = _np_node_decode_from_jrb(token->extensions);
 	}
-	return node_key;
+	return (node_key);
 }
 
 np_aaatoken_t* _np_create_node_token(np_node_t* node)
@@ -284,12 +287,10 @@ np_aaatoken_t* _np_create_node_token(np_node_t* node)
 	tree_insert_str(node_token->extensions, NP_NODE_PROTOCOL,
 			new_val_ush(node->protocol));
 
-	// TODO: useful extension ?
-	// unsigned char key[crypto_generichash_KEYBYTES];
-	// randombytes_buf(key, sizeof key);
+	_np_aaatoken_add_signature(node_token);
 
 	log_msg(LOG_TRACE, ".end  .np_create_node_token");
-	return node_token;
+	return (node_token);
 }
 
 void np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
@@ -354,25 +355,25 @@ void np_node_update_latency (np_node_t* node, double new_latency)
 char* np_node_get_dns_name (np_node_t* np_node)
 {
 	assert(np_node != NULL);
-	return np_node->dns_name;
+	return (np_node->dns_name);
 }
 
 char* np_node_get_port (np_node_t* np_node)
 {
 	assert(np_node != NULL);
-	return np_node->port;
+	return (np_node->port);
 }
 
 float np_node_get_success_avg (np_node_t* np_node)
 {
 	assert(np_node != NULL);
-	return np_node->success_avg;
+	return (np_node->success_avg);
 }
 
 float np_node_get_latency (np_node_t* np_node)
 {
 	assert(np_node != NULL);
-	return np_node->latency;
+	return (np_node->latency);
 }
 
 uint8_t np_node_check_address_validity (np_node_t* np_node)
@@ -380,5 +381,5 @@ uint8_t np_node_check_address_validity (np_node_t* np_node)
 	assert(np_node != NULL);
 	// assert(np_node->network != NULL);
 
-	return np_node->dns_name && np_node->port;
+	return (np_node->dns_name && np_node->port);
 }

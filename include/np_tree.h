@@ -209,6 +209,7 @@ void np_print_tree (np_tree_t* n, uint8_t indent);
 NP_API_INTERN
 uint64_t jrb_get_byte_size(np_tree_elem_t* node);
 
+
 #ifdef __cplusplus
 }
 #endif
