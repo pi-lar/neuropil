@@ -432,11 +432,12 @@ void _np_callback_wrapper(np_jobargs_t* args)
 	}
 
 	log_msg(LOG_DEBUG, "decrypting message ...");
-	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
+	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 
 	np_bool decrypt_ok = np_message_decrypt_payload(msg_in, sender_token);
 	if (FALSE == decrypt_ok)
 	{
+		tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 		goto __np_cleanup__;
 	}
 
@@ -446,6 +447,8 @@ void _np_callback_wrapper(np_jobargs_t* args)
 	}
 
 	np_bool result = msg_prop->user_clb(msg_in->properties, msg_in->body);
+	msg_prop->msg_threshold--;
+
 	// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
 	// log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
 
@@ -458,7 +461,6 @@ void _np_callback_wrapper(np_jobargs_t* args)
 	if (NULL != sender_token) np_unref_obj(np_aaatoken_t, sender_token);
 
 	__np_return__:
-	msg_prop->msg_threshold--;
 	log_msg(LOG_TRACE, ".end  .np_signal");
 	return;
 }
@@ -1276,12 +1278,12 @@ void _np_in_authenticate(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 	np_bool decrypt_ok = np_message_decrypt_payload(msg_in, sender_token);
 	if (FALSE == decrypt_ok)
 	{
 		goto __np_cleanup__;
 	}
+	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authentication_token);
@@ -1343,7 +1345,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 	np_aaatoken_t* sender_token = NULL;
 	np_key_t* subject_key = NULL;
 
-	args->properties->msg_threshold++;
+	// args->properties->msg_threshold++;
 
 	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_FROM, msg_from);
 
@@ -1355,13 +1357,13 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 	}
 
 	// TODO: the following should not be required/possible, because it invalidates the token
-	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 	np_bool decrypt_ok = np_message_decrypt_payload(args->msg, sender_token);
 	if (FALSE == decrypt_ok)
 	{
 		log_msg(LOG_DEBUG, "decryption of authentication reply failed");
 		goto __np_cleanup__;
 	}
+	// tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authentication_token);
@@ -1431,7 +1433,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 	if (NULL != sender_token)         np_unref_obj(np_aaatoken_t, sender_token);
 
 	// __np_return__:
-	args->properties->msg_threshold--;
+	// args->properties->msg_threshold--;
 	log_msg(LOG_TRACE, ".end  ._np_in_authenticate_reply");
 	return;
 }
@@ -1459,13 +1461,13 @@ void _np_in_authorize(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 	np_bool decrypt_ok = np_message_decrypt_payload(msg_in, sender_token);
 	if (FALSE == decrypt_ok)
 	{
 		goto __np_cleanup__;
 	}
 
+	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authorization_token);
 	np_decode_aaatoken(msg_in->body, authorization_token);
@@ -1524,7 +1526,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 	np_aaatoken_t* authorization_token = NULL;
 	np_aaatoken_t* sender_token = NULL;
 
-	args->properties->msg_threshold++;
+	// args->properties->msg_threshold++;
 
 	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_FROM, msg_from);
 
@@ -1534,12 +1536,13 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 	np_bool decrypt_ok = np_message_decrypt_payload(args->msg, sender_token);
 	if (FALSE == decrypt_ok)
 	{
 		goto __np_cleanup__;
 	}
+
+	// tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authorization_token);
@@ -1609,7 +1612,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 	if (NULL != sender_token)        np_unref_obj(np_aaatoken_t, sender_token);
 
 	// __np_return__:
-	args->properties->msg_threshold--;
+	// args->properties->msg_threshold--;
 	return;
 }
 
@@ -1628,7 +1631,7 @@ void _np_in_account(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
+	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 	np_bool decrypt_ok = np_message_decrypt_payload(args->msg, sender_token);
 	if (FALSE == decrypt_ok)
 	{

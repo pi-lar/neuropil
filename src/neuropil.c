@@ -503,11 +503,9 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		}
 
 		msg_received = TRUE;
+		tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 
 	} while (FALSE == msg_received);
-
-	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
-	msg_prop->msg_threshold--;
 
 	// in receive function, we can only receive one message per call, different for callback function
 	log_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache));
@@ -519,11 +517,11 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	if (FALSE == decrypt_ok)
 	{
 		log_msg(LOG_DEBUG, "decryption of message failed, deleting message");
+		tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
+		msg_prop->max_threshold--;
 
 		np_unref_obj(np_message_t, msg);
 		np_unref_obj(np_aaatoken_t, sender_token);
-		msg_prop->max_threshold--;
-
 		return (FALSE);
 	}
 
@@ -553,10 +551,12 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		_np_send_ack(msg);
 	}
 
+	// decrease threshold counter
+	msg_prop->msg_threshold--;
+	msg_prop->max_threshold--;
+
 	np_unref_obj(np_message_t, msg);
 	np_unref_obj(np_aaatoken_t, sender_token);
-
-	msg_prop->max_threshold--;
 
 	return (TRUE);
 }
@@ -611,12 +611,10 @@ uint32_t np_receive_text (char* subject, char **data)
 			continue;
 		}
 
+		tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 		msg_received = TRUE;
 
 	} while (FALSE == msg_received);
-
-	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
-	msg_prop->msg_threshold--;
 
 	// in receive function, we can only receive one message per call, different for callback function
 	log_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache));
@@ -628,11 +626,11 @@ uint32_t np_receive_text (char* subject, char **data)
 	if (FALSE == decrypt_ok)
 	{
 		log_msg(LOG_DEBUG, "decryption of message failed, deleting message");
+		tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
+		msg_prop->max_threshold--;
 
 		np_unref_obj(np_message_t, msg);
 		np_unref_obj(np_aaatoken_t, sender_token);
-		msg_prop->max_threshold--;
-
 		return (0);
 	}
 
@@ -646,9 +644,12 @@ uint32_t np_receive_text (char* subject, char **data)
 		_np_send_ack(msg);
 	}
 
+	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	msg_prop->msg_threshold--;
+	msg_prop->max_threshold--;
+
 	np_unref_obj(np_message_t, msg);
 	np_unref_obj(np_aaatoken_t, sender_token);
-	msg_prop->max_threshold--;
 
 	log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
 

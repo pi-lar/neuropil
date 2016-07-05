@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 	*/
 	char log_file[256];
 	sprintf(log_file, "%s_%s.log", "./neuropil_node", port);
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG  | LOG_AAATOKEN;
 	np_log_init(log_file, level);
 
 	/**

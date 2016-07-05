@@ -411,7 +411,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 		np_free_obj(np_key_t, target);
 	}
 
-	// TODO: test node token renewal
+	// TODO: test the node token renewal
 	// check an refresh my own identity + node tokens if required
 	double exp_ts = ev_time() + 10.0; // now plus 10s for handshake etc.
 	if (state->my_node_key->aaa_token->expiration < exp_ts)
@@ -772,8 +772,8 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 
 	msg_token->not_before = ev_time();
 	// TODO: make it configurable for the user
-	// 60 second valid token plus ttl for possible transmit jitter
-	msg_token->expiration = ev_time() + 60.0; /*+ msg_request->ttl */;
+	// how to allow the possible transmit jitter ?
+	msg_token->expiration = ev_time() + (3.1415*msg_request->ttl);
 
 	// add e2e encryption details for sender
 	memcpy((char*) msg_token->public_key,

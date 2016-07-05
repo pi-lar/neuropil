@@ -522,6 +522,7 @@ void np_send_authentication_request(np_jobargs_t* args)
 	}
 	else if (0 < strlen(state->my_identity->aaa_token->realm) )
 	{
+		// TODO: this is wrong, it should be the token issuer which we ask for authentication
 		target_dhkey = dhkey_create_from_hostport(state->my_identity->aaa_token->realm, "0");
 	}
 	else

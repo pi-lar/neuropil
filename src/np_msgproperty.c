@@ -241,13 +241,14 @@ void _np_check_sender_msgcache(np_msgproperty_t* send_prop)
 				msg_out = sll_head(np_message_t, send_prop->msg_cache);
 			if (send_prop->cache_policy & FILO)
 				msg_out = sll_tail(np_message_t, send_prop->msg_cache);
+
 			// check for more messages in cache after head/tail command
 			msg_available = sll_size(send_prop->msg_cache);
+			send_prop->msg_threshold--;
 		}
 
 		sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop);
 		np_unref_obj(np_message_t, msg_out);
-		send_prop->msg_threshold--;
 		log_msg(LOG_DEBUG,
 				"message in cache found and re-send initialized");
 	}
@@ -308,6 +309,7 @@ void _np_add_msg_to_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 
 				if (old_msg != NULL)
 				{
+					// TODO: add callback hook to allow user space handling of discarded message
 					msg_prop->msg_threshold--;
 					np_unref_obj(np_message_t, old_msg);
 				}

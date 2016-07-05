@@ -55,7 +55,7 @@ np_msgproperty_t __ack_properties =
 };
 
 // join request: node unknown yet, therefore send without ack, explicit ack handling via extra messages
-np_msgproperty_t join_req =
+np_msgproperty_t __join_req =
 {
 		.msg_subject = _NP_MSG_JOIN_REQUEST,
 		.rep_subject = NULL,
@@ -72,7 +72,7 @@ np_msgproperty_t join_req =
 		.max_threshold = 5
 };
 
-np_msgproperty_t join_ack =
+np_msgproperty_t __join_ack =
 {
 		.msg_subject = _NP_MSG_JOIN_ACK,
 		.rep_subject = NULL,
@@ -89,7 +89,7 @@ np_msgproperty_t join_ack =
 		.max_threshold = 5
 };
 
-np_msgproperty_t join_nack =
+np_msgproperty_t __join_nack =
 {
 		.msg_subject = _NP_MSG_JOIN_NACK,
 		.rep_subject = NULL,
@@ -107,7 +107,7 @@ np_msgproperty_t join_nack =
 };
 
 // leave the network and clean up the mess
-np_msgproperty_t leave =
+np_msgproperty_t __leave =
 {
 		.msg_subject = _NP_MSG_LEAVE_REQUEST,
 		.rep_subject = NULL,
@@ -124,7 +124,7 @@ np_msgproperty_t leave =
 		.max_threshold = 5
 };
 
-np_msgproperty_t ping =
+np_msgproperty_t __ping =
 {
 		.msg_subject = _NP_MSG_PING_REQUEST,
 		.rep_subject = _NP_MSG_PING_REPLY,
@@ -141,7 +141,7 @@ np_msgproperty_t ping =
 		.max_threshold = 5
 };
 
-np_msgproperty_t ping_reply =
+np_msgproperty_t __ping_reply =
 {
 		.msg_subject = _NP_MSG_PING_REPLY,
 		.rep_subject = NULL,
@@ -158,7 +158,7 @@ np_msgproperty_t ping_reply =
 		.max_threshold = 5
 };
 
-np_msgproperty_t piggy =
+np_msgproperty_t __piggy =
 {
 		.msg_subject = _NP_MSG_PIGGY_REQUEST,
 		.rep_subject = NULL,
@@ -175,7 +175,7 @@ np_msgproperty_t piggy =
 		.max_threshold = 5
 };
 
-np_msgproperty_t update =
+np_msgproperty_t __update =
 {
 		.msg_subject = _NP_MSG_UPDATE_REQUEST,
 		.rep_subject = NULL,
@@ -192,7 +192,7 @@ np_msgproperty_t update =
 		.max_threshold = 5
 };
 
-np_msgproperty_t discover_receiver =
+np_msgproperty_t __discover_receiver =
 {
 		.msg_subject = _NP_MSG_DISCOVER_RECEIVER,
 		.rep_subject = _NP_MSG_AVAILABLE_RECEIVER,
@@ -209,7 +209,7 @@ np_msgproperty_t discover_receiver =
 		.max_threshold = 5
 };
 
-np_msgproperty_t discover_sender =
+np_msgproperty_t __discover_sender =
 {
 		.msg_subject = _NP_MSG_DISCOVER_SENDER,
 		.rep_subject = _NP_MSG_AVAILABLE_SENDER,
@@ -226,7 +226,7 @@ np_msgproperty_t discover_sender =
 		.max_threshold = 5
 };
 
-np_msgproperty_t available_receiver =
+np_msgproperty_t __available_receiver =
 {
 		.msg_subject = _NP_MSG_AVAILABLE_RECEIVER,
 		.rep_subject = NULL,
@@ -243,7 +243,7 @@ np_msgproperty_t available_receiver =
 		.max_threshold = 5
 };
 
-np_msgproperty_t available_sender =
+np_msgproperty_t __available_sender =
 {
 		.msg_subject = _NP_MSG_AVAILABLE_SENDER,
 		.rep_subject = NULL,
@@ -260,7 +260,7 @@ np_msgproperty_t available_sender =
 		.max_threshold = 5
 };
 
-np_msgproperty_t authenticate =
+np_msgproperty_t __authenticate =
 {
 		.msg_subject = _NP_MSG_AUTHENTICATION_REQUEST,
 		.rep_subject = _NP_MSG_AUTHENTICATION_REPLY,
@@ -279,7 +279,7 @@ np_msgproperty_t authenticate =
 		.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
-np_msgproperty_t authenticate_reply =
+np_msgproperty_t __authenticate_reply =
 {
 		.msg_subject = _NP_MSG_AUTHENTICATION_REPLY,
 		.rep_subject = NULL,
@@ -297,7 +297,7 @@ np_msgproperty_t authenticate_reply =
 		.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
-np_msgproperty_t authorize =
+np_msgproperty_t __authorize =
 {
 		.msg_subject = _NP_MSG_AUTHORIZATION_REQUEST,
 		.rep_subject = _NP_MSG_AUTHORIZATION_REPLY,
@@ -316,7 +316,7 @@ np_msgproperty_t authorize =
 		.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
-np_msgproperty_t authorize_reply =
+np_msgproperty_t __authorize_reply =
 {
 		.msg_subject = _NP_MSG_AUTHORIZATION_REPLY,
 		.rep_subject = NULL,
@@ -334,7 +334,7 @@ np_msgproperty_t authorize_reply =
 		.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
-np_msgproperty_t account =
+np_msgproperty_t __account =
 {
 		.msg_subject = _NP_MSG_ACCOUNTING_REQUEST,
 		.rep_subject = NULL,
@@ -358,21 +358,21 @@ np_msgproperty_t* __np_internal_messages[] =
 		&__default_properties,
 		&__handshake_properties,
 		&__ack_properties,
-		&join_req,
-		&join_ack,
-		&join_nack,
-		&leave,
-		&ping,
-		&ping_reply,
-		&piggy,
-		&update,
-		&discover_receiver,
-		&discover_sender,
-		&available_receiver,
-		&available_sender,
-		&authenticate,
-		&authenticate_reply,
-		&authorize,
-		&authorize_reply,
-		&account
+		&__join_req,
+		&__join_ack,
+		&__join_nack,
+		&__leave,
+		&__ping,
+		&__ping_reply,
+		&__piggy,
+		&__update,
+		&__discover_receiver,
+		&__discover_sender,
+		&__available_receiver,
+		&__available_sender,
+		&__authenticate,
+		&__authenticate_reply,
+		&__authorize,
+		&__authorize_reply,
+		&__account
 };
