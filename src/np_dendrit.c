@@ -1,3 +1,6 @@
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
 #include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>

@@ -1,3 +1,6 @@
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ **/
 #include <criterion/criterion.h>
 
 #include "sodium.h"

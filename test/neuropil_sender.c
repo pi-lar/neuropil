@@ -1,3 +1,6 @@
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ **/
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -95,7 +98,7 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-	   state = np_init(proto, port, FALSE);
+	   np_init(proto, port, FALSE);
 	*/
 	state = np_init(proto, port, FALSE);
 

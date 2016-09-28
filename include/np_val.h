@@ -1,7 +1,7 @@
 /**
- ** orginal file taken from chimera project (see below), modified for neuropil usage
- ** copyright 2016 pi-lar GmbH
- **/
+ * neuropil is copyright 2015 by pi-lar GmbH
+ * orginal file taken from chimera project (see below), modified for neuropil usage
+ */
 /*
 Libraries for fields, doubly-linked lists and red-black trees.
 Copyright (C) 2001 James S. Plank

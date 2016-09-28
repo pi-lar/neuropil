@@ -1,3 +1,6 @@
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ **/
 #include <criterion/criterion.h>
 
 #include <stdlib.h>
@@ -6,10 +9,10 @@
 
 #include "np_list.h"
 #include "np_key.h"
-// #include "np_container.h"
 #include "np_log.h"
+#include "np_types.h"
 
-
+// typedef double* double_ptr;
 NP_PLL_GENERATE_PROTOTYPES(double);
 NP_PLL_GENERATE_IMPLEMENTATION(double);
 
@@ -40,7 +43,7 @@ TestSuite(np_pll_t, .init=setup_list, .fini=teardown_list);
 Test(np_pll_t, _test_pll, .description="test the implementation of a priority list")
 {
 	np_pll_t(double, my_pll_list);
-	pll_init(double, my_pll_list, compare_double);
+	pll_init(double, my_pll_list);
 
 	double d_a = 3.1415;
 	double d_b = 1.0;
@@ -52,7 +55,7 @@ Test(np_pll_t, _test_pll, .description="test the implementation of a priority li
 	cr_expect(NULL == pll_last(my_pll_list),  "expect the last element to be NULL");
 	cr_expect(0 == pll_size(my_pll_list), "expect the size of the list to be 0");
 
-	pll_insert(double, my_pll_list, d_a, TRUE);
+	pll_insert(double, my_pll_list, d_a, TRUE, compare_double);
 
 	cr_expect(1 == pll_size(my_pll_list), "expect the size of the list to be 1");
 	cr_expect(NULL != pll_first(my_pll_list), "expect the first element to exists");
@@ -61,7 +64,7 @@ Test(np_pll_t, _test_pll, .description="test the implementation of a priority li
 	cr_expect(d_a == pll_last(my_pll_list)->val,  "expect the first element to have the inserted value");
 	cr_expect(pll_first(my_pll_list) == pll_last(my_pll_list),  "expect the first and last element to be the same");
 
-	pll_insert(double, my_pll_list, d_b, TRUE);
+	pll_insert(double, my_pll_list, d_b, TRUE, compare_double);
 
 	cr_expect(2 == pll_size(my_pll_list), "expect the size of the list to be 2");
 	cr_expect(NULL != pll_first(my_pll_list), "expect the first element to exists");
@@ -70,7 +73,7 @@ Test(np_pll_t, _test_pll, .description="test the implementation of a priority li
 	cr_expect(d_a == pll_last(my_pll_list)->val,  "expect the last element to have the old value");
 	cr_expect(pll_first(my_pll_list) != pll_last(my_pll_list),  "expect the first and last element to be different");
 
-	pll_insert(double, my_pll_list, d_c, TRUE);
+	pll_insert(double, my_pll_list, d_c, TRUE, compare_double);
 
 	cr_expect(3 == pll_size(my_pll_list), "expect the size of the list to be 3");
 	cr_expect(NULL != pll_first(my_pll_list), "expect the first element to exists");
@@ -79,7 +82,7 @@ Test(np_pll_t, _test_pll, .description="test the implementation of a priority li
 	cr_expect(d_c == pll_last(my_pll_list)->val,  "expect the last element to have the old value");
 	cr_expect(pll_first(my_pll_list) != pll_last(my_pll_list),  "expect the first and last element to be different");
 
-	pll_insert(double, my_pll_list, d_d, TRUE);
+	pll_insert(double, my_pll_list, d_d, TRUE, compare_double);
 
 	cr_expect(4 == pll_size(my_pll_list), "expect the size of the list to be 4");
 	cr_expect(NULL != pll_first(my_pll_list), "expect the first element to exists");
@@ -88,7 +91,7 @@ Test(np_pll_t, _test_pll, .description="test the implementation of a priority li
 	cr_expect(d_d == pll_last(my_pll_list)->val,  "expect the first element to have the inserted value");
 	cr_expect(pll_first(my_pll_list) != pll_last(my_pll_list),  "expect the first and last element to be different");
 
-	pll_insert(double, my_pll_list, d_e, TRUE);
+	pll_insert(double, my_pll_list, d_e, TRUE, compare_double);
 
 	cr_expect(5 == pll_size(my_pll_list), "expect the size of the list to be 5");
 	cr_expect(NULL != pll_first(my_pll_list), "expect the first element to exists");
@@ -97,7 +100,7 @@ Test(np_pll_t, _test_pll, .description="test the implementation of a priority li
 	cr_expect(d_d == pll_last(my_pll_list)->val,  "expect the first element to have the old value");
 	cr_expect(pll_first(my_pll_list) != pll_last(my_pll_list),  "expect the first and last element to be different");
 
-	pll_insert(double, my_pll_list, d_e, FALSE);
+	pll_insert(double, my_pll_list, d_e, FALSE, compare_double);
 	cr_expect(5 == pll_size(my_pll_list), "expect the size of the list to be 5 still");
 
 	double d_tmp_1 = 0.0f;
@@ -108,11 +111,11 @@ Test(np_pll_t, _test_pll, .description="test the implementation of a priority li
 	}
 
 	// pll_free(double, my_pll_list);
-	pll_remove(double, my_pll_list, 1.0);
+	pll_remove(double, my_pll_list, 1.0, compare_double);
 	cr_expect(4 == pll_size(my_pll_list), "expect the size of the list to be 4");
-	pll_remove(double, my_pll_list, 2.0);
+	pll_remove(double, my_pll_list, 2.0, compare_double);
 	cr_expect(4 == pll_size(my_pll_list), "expect the size of the list to be 4");
-	pll_remove(double, my_pll_list, 3.0);
+	pll_remove(double, my_pll_list, 3.0, compare_double);
 	cr_expect(4 == pll_size(my_pll_list), "expect the size of the list to be 4");
 
 	d_tmp_1 = pll_head(double, my_pll_list);

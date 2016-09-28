@@ -1,7 +1,6 @@
 /**
- *  copyright 2015 pi-lar GmbH
- *  Stephan Schwichtenberg
- **/
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
 #include <assert.h>
 #include <pthread.h>
 #include <stdio.h>

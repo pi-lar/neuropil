@@ -3,9 +3,9 @@ PLATFORM ?= $(shell uname -s)
 CC=clang 
 # CC=/Users/schwicht/Downloads/checker-277/libexec/ccc-analyzer
 
-# CFLAGS=-c -Wall -O3 -g -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
+# CFLAGS=-c -Wall -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
 CFLAGS=-c -Wall -Wextra -g -gdwarf-2 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
-# --analyze -Xanalyzer -analyzer-config -analyzer-checker=alpha.secure -anaylyzer-checker=alpha.core -analyzer-output=html -o clang_out
+# CFLAGS+=--analyze -Xanalyzer -analyzer-config -analyzer-checker=alpha.secure -anaylyzer-checker=alpha.core -analyzer-output=html -o build/html
 # CFLAGS=-c -Wall -Wextra -pedantic -g -std=c99
 # CFLAGS=-c -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
 LDFLAGS=

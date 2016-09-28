@@ -1,3 +1,6 @@
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
 /* Revision 1.2.  Jim Plank */
 
 /* Original code by Jim Plank (plank@cs.utk.edu) */
@@ -77,10 +80,16 @@ np_tree_elem_t* tree_find_gte_str (np_tree_t* n, const char *key, uint8_t *fnd)
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	result = RB_NFIND(np_tree_s, n, &search_elem);
-	if (result) *fnd = 1;
-	else        *fnd = 0;
-
-	return result;
+	if (NULL != result &&
+		0    == strncmp(result->key.value.s, key, strlen(key)) )
+	{
+		*fnd = 1;
+	}
+	else
+	{
+		*fnd = 0;
+	}
+	return (result);
 }
 
 np_tree_elem_t* tree_find_str (np_tree_t* n, const char *key)
@@ -93,7 +102,6 @@ np_tree_elem_t* tree_find_str (np_tree_t* n, const char *key)
 	return RB_FIND(np_tree_s, n, &search_elem);
 }
 
-
 np_tree_elem_t* tree_find_gte_int (np_tree_t* n, int16_t ikey, uint8_t *fnd)
 {
 	assert(n   != NULL);
@@ -104,17 +112,24 @@ np_tree_elem_t* tree_find_gte_int (np_tree_t* n, int16_t ikey, uint8_t *fnd)
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	result = RB_NFIND(np_tree_s, n, &search_elem);
-	if (result) *fnd = 1;
-	else        *fnd = 0;
+	if (NULL != result &&
+		result->key.value.i == ikey )
+	{
+		*fnd = 1;
+	}
+	else
+	{
+		*fnd = 0;
+	}
 
-	return result;
+	return (result);
 }
 
 np_tree_elem_t* tree_find_int (np_tree_t* n, int16_t key)
 {
 	np_val_t search_key = { .type = int_type, .value.i = key };
 	np_tree_elem_t search_elem = { .key = search_key };
-	return RB_FIND(np_tree_s, n, &search_elem);
+	return (RB_FIND(np_tree_s, n, &search_elem));
 }
 
 np_tree_elem_t* tree_find_gte_ulong (np_tree_t* n, uint32_t ulkey, uint8_t *fnd)
@@ -127,17 +142,24 @@ np_tree_elem_t* tree_find_gte_ulong (np_tree_t* n, uint32_t ulkey, uint8_t *fnd)
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	result = RB_NFIND(np_tree_s, n, &search_elem);
-	if (result) *fnd = 1;
-	else        *fnd = 0;
+	if (NULL != result &&
+		result->key.value.ul == ulkey )
+	{
+		*fnd = 1;
+	}
+	else
+	{
+		*fnd = 0;
+	}
 
-	return result;
+	return (result);
 }
 
 np_tree_elem_t* tree_find_ulong (np_tree_t* n, uint32_t ulkey)
 {
 	np_val_t search_key = { .type = unsigned_long_type, .value.ul = ulkey };
 	np_tree_elem_t search_elem = { .key = search_key };
-	return RB_FIND(np_tree_s, n, &search_elem);
+	return (RB_FIND(np_tree_s, n, &search_elem));
 }
 
 np_tree_elem_t* tree_find_gte_dbl (np_tree_t* n, double dkey, uint8_t *fnd)
@@ -150,17 +172,24 @@ np_tree_elem_t* tree_find_gte_dbl (np_tree_t* n, double dkey, uint8_t *fnd)
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	result = RB_NFIND(np_tree_s, n, &search_elem);
-	if (result) *fnd = 1;
-	else        *fnd = 0;
+	if (NULL != result &&
+		result->key.value.d == dkey )
+	{
+		*fnd = 1;
+	}
+	else
+	{
+		*fnd = 0;
+	}
 
-	return result;
+	return (result);
 }
 
 np_tree_elem_t* tree_find_dbl (np_tree_t* n, double dkey)
 {
 	np_val_t search_key = { .type = double_type, .value.d = dkey };
 	np_tree_elem_t search_elem = { .key = search_key };
-	return RB_FIND(np_tree_s, n, &search_elem);
+	return (RB_FIND(np_tree_s, n, &search_elem));
 }
 
 void tree_del_str (np_tree_t* tree, const char *key)
@@ -438,7 +467,6 @@ void tree_insert_int (np_tree_t* tree, int16_t ikey, np_val_t val)
 	}
 }
 
-
 void tree_insert_ulong (np_tree_t* tree, uint32_t ulkey, np_val_t val)
 {
 	assert(tree    != NULL);
@@ -486,7 +514,6 @@ void tree_insert_dbl (np_tree_t* tree, double dkey, np_val_t val)
 		// log_msg(LOG_WARN, "not inserting double key (%f) into jtree", dkey );
 	}
 }
-
 
 void tree_replace_str (np_tree_t* tree, const char *key, np_val_t val)
 {

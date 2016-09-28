@@ -1,11 +1,8 @@
 /**
- *  copyright 2015 pi-lar GmbH
- *  Stephan Schwichtenberg
- **/
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
 #ifndef _NP_AXON_H_
 #define _NP_AXON_H_
-
-// #include "include.h"
 
 #include "np_types.h"
 

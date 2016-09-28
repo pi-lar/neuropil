@@ -1,5 +1,6 @@
-/** copyright 2015 pi-lar GmbH
- **/
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
 #ifndef _NP_LOG_H_
 #define _NP_LOG_H_
 

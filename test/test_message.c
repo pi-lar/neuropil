@@ -1,4 +1,6 @@
-
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ **/
 #include <uuid/uuid.h>
 #include <assert.h>
 #include <stdlib.h>

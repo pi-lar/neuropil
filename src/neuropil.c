@@ -1,6 +1,5 @@
 /**
- *  copyright 2015 pi-lar GmbH
- *  Stephan Schwichtenberg
+ *  neuropil is copyright 2015 by pi-lar GmbH
  **/
 
 #include <assert.h>
@@ -730,7 +729,7 @@ void _np_ping (np_key_t* key)
  **/
 void np_destroy()
 {
-
+	// TODO: implement me ...
 }
 
 /**
@@ -901,6 +900,7 @@ void np_start_job_queue(uint8_t pool_size)
 	    return;
 	}
 
+    __global_state->thread_count = pool_size;
     __global_state->thread_ids = (pthread_t *) malloc (sizeof (pthread_t) * pool_size);
 
     /* create the thread pool */

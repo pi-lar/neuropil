@@ -1,7 +1,6 @@
 /**
- *  copyright 2015 pi-lar GmbH
- *  Stephan Schwichtenberg
- **/
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -117,7 +116,6 @@ void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 	callback_data->callback = func;
 	tree_insert_str(__local_http->user_hooks, key, new_val_v(callback_data));
 }
-
 
 void _np_rem_http_callback(const char* path, htp_method method)
 {

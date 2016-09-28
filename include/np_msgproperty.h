@@ -1,4 +1,7 @@
 /**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
+/**
 The structure np_msgproperty_t is used to describe properties of the message exchange itself.
 It is setup by sender and receiver independent of each other.
 It defines attributes like a re-send counter and the type of message exchange.

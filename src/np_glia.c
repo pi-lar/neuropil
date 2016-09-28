@@ -42,13 +42,25 @@ static np_bool __exit_libev_loop = FALSE;
 static pthread_mutex_t __libev_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // TODO: make these configurable (via struct np_config)
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
 // the optimal libev run interval remains to be seen
 // if set too low, base cpu usage increases on no load
-static uint8_t __suspended_libev_loop = 0;
-static double  __libev_interval = 0.0031415;
+// static uint8_t __suspended_libev_loop = 0;
+static int         __suspended_libev_loop = 0;
+static double      __libev_interval = 0.0031415;
+static ev_async    __libev_async_watcher;
+
+// static ev_periodic __libev_periodic_watcher;
+// static ev_idle __libev_idle_watcher;
+// static ev_check __libev_check_watcher;
 
 static uint8_t __leafset_check_type = 0;
 static double  __leafset_check_period = 3.1415;
+static double  __leafset_yield_period = 0.0031415;
+
+static double  __rowinfo_send_delay = 0.03141;
 
 static double  __token_retransmit_period = 3.1415;
 
@@ -222,10 +234,11 @@ void _np_write_log(NP_UNUSED np_jobargs_t* args)
 	// log_msg(LOG_TRACE, "end   np_write_log");
 }
 
-/** np_check_leafset: runs as a separate thread.
- ** it should send a PING message to each member of the leafset frequently and
+/** _np_check_leafset:
+ ** sends a PING message to each member of the leafset and routing table frequently and
  ** sends the leafset to other members of its leafset periodically.
- ** pinging frequency is LEAFSET_CHECK_PERIOD.
+ ** uses _np_job_yield between pings to different nodes
+ ** _np_check_leafset frequency is LEAFSET_CHECK_PERIOD.
  **/
 void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 {
@@ -271,6 +284,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 			if (delta > __leafset_check_period)
 			{
 				_np_ping(tmp_node_key);
+				_np_job_yield(__leafset_yield_period);
 			}
 		}
 	}
@@ -313,7 +327,10 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 				/* otherwise request re-evaluation of node stats */
 				double delta = ev_time() - tmp_node_key->node->last_success;
 				if (delta > (3 * __leafset_check_period))
+				{
 					_np_ping(tmp_node_key);
+					_np_job_yield(__leafset_yield_period);
+				}
 			}
 		}
 		sll_free(np_key_t, table);
@@ -334,6 +351,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 			// send a piggy message to the the nodes in our routing table
 			np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
 			_np_job_submit_transform_event(0.0, piggy_prop, tmp_node_key, NULL);
+			_np_job_yield(__leafset_yield_period);
 		}
 		__leafset_check_type = 0;
 		sll_free(np_key_t, leafset);
@@ -470,21 +488,51 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 	np_job_submit_event(__token_retransmit_period, _np_retransmit_tokens);
 }
 
+
+void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents)
+{
+	log_msg(LOG_DEBUG, ".start._np_events_async");
+
+	static int suspend_loop = 0;
+
+	pthread_mutex_lock(&__libev_mutex);
+	suspend_loop = __suspended_libev_loop;
+	pthread_mutex_unlock(&__libev_mutex);
+
+	while (0 < suspend_loop)
+	{
+		_np_job_yield(__libev_interval);
+
+		pthread_mutex_lock(&__libev_mutex);
+		suspend_loop = __suspended_libev_loop;
+		pthread_mutex_unlock(&__libev_mutex);
+	}
+
+	log_msg(LOG_TRACE, ".end  ._np_events_async");
+}
+
 /**
  ** _np_events_read
  ** schedule the libev event loop one time and reschedule again
  **/
 void _np_events_read(NP_UNUSED np_jobargs_t* args)
 {
-	if (TRUE == __exit_libev_loop) return;
+	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
-	pthread_mutex_lock(&__libev_mutex);
-	if (__suspended_libev_loop == 0)
+	static np_bool async_setup_done = FALSE;
+	if (FALSE == async_setup_done)
 	{
-		EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-		ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
+		// TODO: move it outside of this function
+		ev_async_init(&__libev_async_watcher, _np_events_async);
+		async_setup_done = TRUE;
 	}
-	pthread_mutex_unlock(&__libev_mutex);
+
+	// ev_set_io_collect_interval (EV_A_ __libev_interval);
+	// ev_set_timeout_collect_interval (EV_A_ __libev_interval);
+	ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
+	// ev_run(EV_A_ (0));
+
+	if (TRUE == __exit_libev_loop) return;
 
 	np_job_submit_event(__libev_interval, _np_events_read);
 }
@@ -493,7 +541,8 @@ void _np_suspend_event_loop()
 {
 	pthread_mutex_lock(&__libev_mutex);
 	__suspended_libev_loop++;
-	pthread_mutex_unlock(&__libev_mutex);
+    pthread_mutex_unlock(&__libev_mutex);
+    ev_async_send (EV_DEFAULT_ &__libev_async_watcher);
 }
 
 void _np_resume_event_loop()
@@ -744,6 +793,8 @@ void _np_send_rowinfo(np_jobargs_t* args)
 		np_message_create(msg_out, target_key, state->my_node_key, _NP_MSG_PIGGY_REQUEST, msg_body);
 		_np_job_submit_route_event(0.0, outprop, target_key, msg_out);
 		np_free_obj(np_message_t, msg_out);
+
+		_np_job_yield(__rowinfo_send_delay);
 	}
 	sll_free(np_key_t, sll_of_keys);
 }

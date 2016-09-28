@@ -1,6 +1,6 @@
 /**
- *  copyright 2015 pi-lar GmbH
- *  original version was taken from chimera project (MIT licensed), but heavily modified
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ *  original version was taken from chimera project, but modified
  *  Stephan Schwichtenberg
  **/
 #ifndef _NP_NETWORK_H_

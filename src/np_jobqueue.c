@@ -1,3 +1,6 @@
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -50,7 +53,6 @@ int8_t _compare_job_tstamp(np_job_ptr job1, np_job_ptr job2)
 
 NP_PLL_GENERATE_IMPLEMENTATION(np_job_ptr);
 
-
 void _np_job_free (np_job_t * n)
 {
     free (n);
@@ -86,7 +88,10 @@ void _np_jobqueue_insert(double delay, np_job_t* new_job)
 	// if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
 	if (0.0 == delay)
 	{
-		pthread_cond_signal(&__cond_empty);
+		// restart all waiting jobs & yields
+		pthread_cond_broadcast(&__cond_empty);
+		// restart single job or yield
+		// pthread_cond_signal(&__cond_empty);
 	}
 	pthread_mutex_unlock(&__lock_mutex);
 }
@@ -262,6 +267,37 @@ np_bool _np_job_queue_create()
     return (TRUE);
 }
 
+void _np_job_yield(const double delay)
+{
+	if (1 == _np_state()->thread_count)
+	{
+		ev_sleep(delay);
+	}
+	else
+	{
+		// unlock another thread
+		pthread_mutex_lock (&__lock_mutex);
+		pthread_cond_signal(&__cond_empty);
+		pthread_mutex_unlock (&__lock_mutex);
+
+		if (0.0 != delay)
+		{
+			struct timeval tv_sleep = dtotv(ev_time() + delay);
+			struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec=tv_sleep.tv_usec*1000 };
+			// wait for time x to be unlocked again
+			pthread_mutex_lock (&__lock_mutex);
+			pthread_cond_timedwait (&__cond_empty, &__lock_mutex, &waittime);
+			pthread_mutex_unlock (&__lock_mutex);
+		}
+		else
+		{
+			// wait for next wakeup signal
+			pthread_mutex_lock (&__lock_mutex);
+			pthread_cond_wait (&__cond_empty, &__lock_mutex);
+			pthread_mutex_unlock (&__lock_mutex);
+		}
+	}
+}
 
 /** job_exec
  * runs a thread which is competing for jobs in the job queue
@@ -305,16 +341,14 @@ void* _job_exec ()
     	}
     	else
     	{
-		// log_msg(LOG_DEBUG, "now %f --> executing %f", now, next_job->tstamp);
+    		// log_msg(LOG_DEBUG, "now %f --> executing %f", now, next_job->tstamp);
     		tmp = pll_head(np_job_ptr, __np_job_queue->job_list);
     		pthread_mutex_unlock (&__lock_mutex);
     	}
 
-    	// sanity check if the job list really returned an element
+    	// sanity checks if the job list really returned an element
 	    if (NULL == tmp) continue;
 	    if (NULL == tmp->processorFunc) continue;
-
-	    // if (NULL == tmp) continue;
 	    // log_msg(LOG_DEBUG, "%hhd:     job-->%p func-->%p args-->%p", tmp->type, tmp, tmp->processorFunc, tmp->args);
 
     	tmp->processorFunc(tmp->args);

@@ -1,3 +1,6 @@
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ **/
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -78,7 +81,7 @@ int main(int argc, char **argv)
 	   char log_file[256];
 	   sprintf(log_file, "%s_%d.log", "./neuropil_controller", getpid());
 	   int level = LOG_ERROR | LOG_WARN | LOG_INFO;
-	   log_init(log_file, level);
+	   np_log_init(log_file, level);
 	*/
 	char log_file[256];
 	sprintf(log_file, "%s_%d.log", "./neuropil_controller", getpid());
@@ -93,9 +96,9 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-	   state = np_init(proto, port);
+	   np_init(proto, port, TRUE);
 	*/
-	state = np_init(proto, port, TRUE);
+	np_init(proto, port, TRUE);
 	// state->my_node_key->node->joined_network = 1;
 
 	/**

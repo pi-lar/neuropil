@@ -1,6 +1,6 @@
-/** neuropil copyright pi-lar GmbH 2016
- **
- **/
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
 
 static np_msgproperty_t __default_properties =
 {

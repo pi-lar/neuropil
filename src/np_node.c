@@ -1,3 +1,6 @@
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
 /*
 ** $Id: host.c,v 1.14 2006/06/16 07:55:37 ravenben Exp $
 **

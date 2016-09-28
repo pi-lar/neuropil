@@ -1,12 +1,13 @@
 /**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
+/**
 Original version taken from chimera project, copyright (C) 2001 James S. Plank
 Published under the GNU Lesser General Public License as published by the Free Software Foundation; either
 version 2.1 of the License, or (at your option) any later version
 
 modified and refactored to use the BSD tree algorithms (:ref tree.h:):
 Copyright 2002 Niels Provos <provos@citi.umich.edu>
-
-modified for neuropil specific extensions, copyright 2015 pi-lar GmbH
 */
 #ifndef	_NP_JTREE_H_
 #define	_NP_JTREE_H_

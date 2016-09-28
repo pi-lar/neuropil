@@ -1,7 +1,6 @@
 /**
- *  np_message.c
- *  description:
- **/
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>

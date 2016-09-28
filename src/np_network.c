@@ -1,3 +1,6 @@
+/**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
 /*
 ** $Id: network.c,v 1.30 2007/04/04 00:04:49 krishnap Exp $
 **
@@ -283,6 +286,20 @@ void network_send (np_key_t *node_key, np_message_t* msg)
 			_np_job_submit_transform_event(0.0, msg_prop, node_key, NULL);
 		}
 		return;
+/*
+		for  (int count = 0; 3 > count; count++)
+		{
+			_np_job_yield(0.031415);
+			if (node_key->node->handshake_status > HANDSHAKE_INITIALIZED)
+			{
+				break;
+			}
+		}
+		if (node_key->node->handshake_status <= HANDSHAKE_INITIALIZED)
+		{
+			return;
+		}
+*/
 	}
 
 	// log_msg(LOG_NETWORKDEBUG, "serialized message to %llu bytes", send_buf_len);

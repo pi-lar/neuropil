@@ -1,4 +1,7 @@
 /**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
+/**
 np_list.h contains header only list implementations for the c language.
 
 The three supported list type are double linked, single linked and priority list.

@@ -1,12 +1,10 @@
 /**
-neuropil.h is the entry point for using the neuropil library.
-
-It defines all user centric functions whcih hide the complexity of the double encryption layer.
-It should contain all required functions to send or receive messages.
-Original version is based on the chimera project (MIT licensed), but mostly renamed and heavily modified
-*/
-
-// copyright 2015 pi-lar GmbH
+ * neuropil is copyright 2015 by pi-lar GmbH
+ * neuropil.h is the entry point for using the neuropil library.
+ * It defines all user centric functions whcih hide the complexity of the double encryption layer.
+ * It should contain all required functions to send or receive messages.
+ * Original version is based on the chimera project (MIT licensed), but mostly renamed and heavily modified
+ */
 
 #ifndef _NEUROPIL_H_
 #define _NEUROPIL_H_
@@ -42,6 +40,7 @@ struct np_state_s
 
     pthread_attr_t attr;
     pthread_t* thread_ids;
+    int thread_count;
 
     np_bool enable_realm_master; // act as a realm master for other nodes or not
     np_bool enable_realm_slave; // act as a realm salve and ask master for aaatokens
@@ -65,6 +64,15 @@ struct np_state_s
 */
 NP_API_EXPORT
 np_state_t* np_init (char* proto, char* port, np_bool start_http);
+
+/**
+.. c:function:: np_state_t* np_destroy()
+
+   stops the internal neuropil event loop and shuts down the thread pool.
+
+*/
+NP_API_EXPORT
+void np_destroy();
 
 // function to get the global state variable
 NP_API_INTERN

@@ -1,8 +1,7 @@
 /**
- *  copyright 2015 pi-lar GmbH
+ *  neuropil is copyright 2015 by pi-lar GmbH
  *  header only implementation to manage heap objects
  *  taking the generating approach using the c preprocessor
- *  Stephan Schwichtenberg
  **/
 #include <assert.h>
 #include <stdlib.h>

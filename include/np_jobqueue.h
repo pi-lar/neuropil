@@ -1,7 +1,6 @@
 /**
- *  copyright 2015 pi-lar GmbH
+ *  neuropil is copyright 2015 by pi-lar GmbH
  *  original version was taken from chimera project (MIT licensed), but heavily modified
- *  Stephan Schwichtenberg
  **/
 #ifndef _NP_JOBQUEUE_H
 #define _NP_JOBQUEUE_H
@@ -17,6 +16,7 @@ extern "C" {
 
 /* jobargs structure used to pass type safe structs into the thread context */
 typedef np_job_t* np_job_ptr;
+typedef int np_error_t;
 
 struct np_jobargs_s
 {
@@ -24,7 +24,10 @@ struct np_jobargs_s
 	np_msgproperty_t* properties;
 	uint8_t is_resend;
 	np_key_t* target;
+
+	np_error_t error_code;
 };
+
 
 
 /** job_queue_create
@@ -59,6 +62,9 @@ void _np_job_resubmit_msgout_event (double delay, np_msgproperty_t* prop, np_key
 
 NP_API_INTERN
 void _np_job_resubmit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+
+NP_API_INTERN
+void _np_job_yield(const double delay);
 
 /** job_exec
  ** if the queue,"job_q" is empty it would go to sleep and release the mutex

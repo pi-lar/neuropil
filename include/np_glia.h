@@ -1,7 +1,6 @@
 /**
- *  copyright 2015 pi-lar GmbH
+ *  neuropil is copyright 2015 by pi-lar GmbH
  *  original version was taken from chimera project (MIT licensed), but heavily modified
- *  Stephan Schwichtenberg
  **/
 #ifndef _NP_GLIA_H_
 #define _NP_GLIA_H_

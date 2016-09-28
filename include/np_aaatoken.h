@@ -1,4 +1,7 @@
 /**
+ *  neuropil is copyright 2015 by pi-lar GmbH
+ */
+/**
 The structure np_aaatoken_t is used for authorization, authentication and accounting purposes
 the data structure is the same for all purposes. Add-on information can be stored in a nested jtree structure.
 Several analogies have been used as a baseline for this structure: json web token, kerberos and diameter.
@@ -7,8 +10,6 @@ Tokens do get integrity protected by adding an additional signature based on the
 The structure is described here to allow user the proper use of the :c:func:`np_set_identity` function.
 
 */
-
-// copyright 2016 pi-lar GmbH
 
 #ifndef _NP_AAATOKEN_H_
 #define _NP_AAATOKEN_H_
