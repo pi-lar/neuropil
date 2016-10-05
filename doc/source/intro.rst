@@ -1,11 +1,11 @@
 Introduction
 ************
-neuro:pil is a small messaging library which by default adds two layers of encryption.
+neuropil is a small messaging library which by default adds two layers of encryption.
 It allows you to address devices, applications, persons worldwide without compromise for 
 privacy or security requirements.
 
-All neuro:pil enabled applications or devices from an ad-hoc cluster of connected nodes which
-constantly exchange messages to detect failures and to exchange messages. Nodes can connect and
+All neuropil enabled applications or devices form an ad-hoc cluster of connected nodes which
+constantly exchange messages to detect failures and to exchange informations. Nodes can connect and
 disconnect at any time, messages will still be transported to their destinations.
 
 *********
@@ -44,4 +44,4 @@ Roadmap
 * more test cases
 * define message callbacks in case of undelivered messages
 * hook in a javascript / lua engine for message callback handling
-* ... and many many many more ideas ...
+* ... and many many more ideas ...

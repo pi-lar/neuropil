@@ -1,6 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- */
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -223,7 +224,7 @@ np_val_t copy_of_val(np_val_t from)
  		case jrb_tree_type:
  			to.type = jrb_tree_type;
 			to.size = from.size;
- 			to.value.tree = make_jtree();
+ 			to.value.tree = make_nptree();
  			np_tree_elem_t* tmp = NULL;
  			RB_FOREACH(tmp, np_tree_s, from.value.tree)
  			{

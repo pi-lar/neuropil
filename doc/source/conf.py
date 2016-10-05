@@ -132,7 +132,7 @@ html_sidebars = {
 # documentation.
 html_theme_options = {
     'logo': 'neuropil_Lo_RGB.png',
-    'logo_name': 'neuro:pil',
+    'logo_name': 'neuropil',
     'github_button': 'false',
 }
 

@@ -1,6 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- */
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>
@@ -348,7 +349,7 @@ void _np_in_piggy(np_jobargs_t* args)
 			// {
 				np_message_t* msg_out;
 
-				np_tree_t* jrb_me = make_jtree();
+				np_tree_t* jrb_me = make_nptree();
 				np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
 
 				np_new_obj(np_message_t, msg_out);
@@ -610,7 +611,7 @@ void _np_in_join_req(np_jobargs_t* args)
 				"JOIN request approved, sending back join acknowledge for key %s",
 				_key_as_str(join_req_key));
 
-		np_tree_t* jrb_me = make_jtree();
+		np_tree_t* jrb_me = make_nptree();
 		np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
 
 		np_message_create(msg_out, routing_key, state->my_node_key, _NP_MSG_JOIN_ACK, jrb_me);
@@ -785,7 +786,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 		// encode informations -> has to be done for each update message new
 		// otherwise there is a crash when deleting the message
-		np_tree_t* jrb_join_node = make_jtree();
+		np_tree_t* jrb_join_node = make_nptree();
 		np_encode_aaatoken(jrb_join_node, join_token);
 
 		np_message_create(msg_out, elem, state->my_node_key, _NP_MSG_UPDATE_REQUEST, jrb_join_node);
@@ -1023,7 +1024,7 @@ void _np_in_update(np_jobargs_t* args)
 		HANDSHAKE_INITIALIZED > update_key->node->handshake_status &&
 		FALSE == update_key->node->joined_network)
 	{
-		np_tree_t* jrb_me = make_jtree();
+		np_tree_t* jrb_me = make_nptree();
 		np_encode_aaatoken(jrb_me, _np_state()->my_identity->aaa_token);
 
 		np_message_t* msg_out = NULL;
@@ -1077,7 +1078,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 	while (NULL != (tmp_token = sll_head(np_aaatoken_t, available_list)))
 	{
 		log_msg(LOG_DEBUG, "found a sender of messages, sending back message availabilities ...");
-		np_tree_t* available_data = make_jtree();
+		np_tree_t* available_data = make_nptree();
 
 		np_encode_aaatoken(available_data, tmp_token);
 
@@ -1187,7 +1188,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 	while (NULL != (tmp_token = sll_head(np_aaatoken_t, receiver_list)))
 	{
-		np_tree_t* interest_data = make_jtree();
+		np_tree_t* interest_data = make_nptree();
 
 		np_encode_aaatoken(interest_data, tmp_token);
 
@@ -1308,7 +1309,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	{
 		_np_add_receiver_token(_NP_MSG_AUTHENTICATION_REPLY, sender_token);
 
-		np_tree_t* token_data = make_jtree();
+		np_tree_t* token_data = make_nptree();
 
 		np_encode_aaatoken(token_data, authentication_token);
 		np_message_t* msg_out = NULL;
@@ -1491,7 +1492,7 @@ void _np_in_authorize(np_jobargs_t* args)
 	{
 		_np_add_receiver_token(_NP_MSG_AUTHORIZATION_REPLY, sender_token);
 
-		np_tree_t* token_data = make_jtree();
+		np_tree_t* token_data = make_nptree();
 		np_encode_aaatoken(token_data, authorization_token);
 
 		np_message_t* msg_out = NULL;
@@ -1662,7 +1663,7 @@ void _np_in_handshake(np_jobargs_t* args)
 
 	np_key_t* alias_key = NULL;
 	np_aaatoken_t* tmp_token = NULL;
-	np_tree_t* hs_payload = make_jtree();
+	np_tree_t* hs_payload = make_nptree();
 
 	np_message_deserialize_chunked(args->msg);
 

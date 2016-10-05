@@ -1,6 +1,8 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- */
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
+// original version is based on the chimera project
 /*
 ** $Id: network.c,v 1.30 2007/04/04 00:04:49 krishnap Exp $
 **
@@ -742,7 +744,7 @@ void network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* 
     	}
 
     	// create own retransmit structures
-    	ng->waiting = make_jtree();
+    	ng->waiting = make_nptree();
     	sll_init(void_ptr, ng->in_events);
 
     	// own sequence number counter

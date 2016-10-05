@@ -1,8 +1,9 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- */
-/**
-Original version taken from chimera project, copyright (C) 2001 James S. Plank
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
+// Original version taken from chimera project, copyright (C) 2001 James S. Plank
+/*
 Published under the GNU Lesser General Public License as published by the Free Software Foundation; either
 version 2.1 of the License, or (at your option) any later version
 
@@ -11,8 +12,6 @@ Copyright 2002 Niels Provos <provos@citi.umich.edu>
 */
 #ifndef	_NP_JTREE_H_
 #define	_NP_JTREE_H_
-
-// #include "include.h"
 
 #include "tree/tree.h"
 
@@ -61,14 +60,14 @@ int16_t _val_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2);
 RB_PROTOTYPE(np_tree_s, np_tree_elem_s, link, _val_cmp);
 
 /**
-.. c:function:: make_jtree
+.. c:function:: make_nptree
 
    create a new instance of a np_tree_t structure
 
    :return: the newly constructed np_tree_t
 */
 NP_API_EXPORT
-np_tree_t*   make_jtree ();
+np_tree_t*   make_nptree ();
 
 /**
 .. c:function:: void np_free_tree(np_tree_t* root)

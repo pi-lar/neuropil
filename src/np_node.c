@@ -1,6 +1,8 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- */
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
+// original version is based on the chimera project
 /*
 ** $Id: host.c,v 1.14 2006/06/16 07:55:37 ravenben Exp $
 **
@@ -205,7 +207,7 @@ uint16_t _np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys)
     	current = sll_head(np_key_t, node_keys);
     	if (current->node)
     	{
-    		np_tree_t* node_jrb = make_jtree();
+    		np_tree_t* node_jrb = make_nptree();
     		// log_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
     		_np_node_encode_to_jrb(node_jrb, current->node, include_stats);
     		tree_insert_str(node_jrb, NP_NODE_KEY, new_val_s(_key_as_str(current)));

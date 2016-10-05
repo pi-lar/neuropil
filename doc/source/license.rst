@@ -7,7 +7,7 @@ Please be patient ... unless finally decided: copyright 2016 pi-lar GmbH - all r
 Contributions
 *************
 This library would not be possible without the work of other packages / libraries / snippets
-which are used 'as is' in neuro:pil
+which are used 'as is' in neuropil
 
 ================================== ========== ======= 
 name                               author     license 

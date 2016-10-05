@@ -1,7 +1,7 @@
-/**
- * neuropil is copyright 2015 by pi-lar GmbH
- * orginal file taken from chimera project (see below), modified for neuropil usage
- */
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 /*
 Libraries for fields, doubly-linked lists and red-black trees.
 Copyright (C) 2001 James S. Plank

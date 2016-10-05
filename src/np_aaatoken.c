@@ -1,6 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- **/
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <assert.h>
 #include <errno.h>
 
@@ -41,7 +42,7 @@ void _np_aaatoken_t_new(void* token)
     // set expiration to one day and recreate each day by default
     // TODO: make it configurable or use random timeframe
     aaa_token->expiration = aaa_token->issued_at + 120;
-    aaa_token->extensions = make_jtree();
+    aaa_token->extensions = make_nptree();
     aaa_token->state |= AAA_INVALID;
 }
 

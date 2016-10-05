@@ -1,6 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- */
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <ctype.h>
 #include <pthread.h>
 #include <string.h>
@@ -502,7 +503,7 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 			if (obj->as.ext.type == jrb_tree_type)
 			{
 				// tree type
-				np_tree_t* subtree = make_jtree();
+				np_tree_t* subtree = make_nptree();
 				cmp_ctx_t tree_cmp;
 				cmp_init(&tree_cmp, buf_ptr, buffer_reader, buffer_writer);
 				deserialize_jrb_node_t(subtree, &tree_cmp);

@@ -22,11 +22,11 @@ np_list.h
 .. include-comment:: ../../include/np_list.h
 
 **********
-np_jtree.h
+np_tree.h
 **********
-.. include-comment:: ../../include/np_jtree.h
+.. include-comment:: ../../include/np_tree.h
 
 ******
 tree.h
 ******
-.. include-comment:: ../../include/tree.h
+.. include-comment:: ../../include/tree/tree.h

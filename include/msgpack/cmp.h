@@ -5,8 +5,6 @@
 
 struct cmp_ctx_s;
 
-// #define np_bool int
-
 typedef np_bool (*cmp_reader)(struct cmp_ctx_s *ctx, void *data, size_t limit);
 typedef size_t (*cmp_writer)(struct cmp_ctx_s *ctx, const void *data, size_t count);
 

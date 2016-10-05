@@ -1,7 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- **/
-
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <assert.h>
 #include <errno.h>
 #include <netdb.h>
@@ -165,7 +165,7 @@ void np_send_join(const char* node_string)
 
 	np_message_t* msg_out;
 
-	np_tree_t* jrb_me = make_jtree();
+	np_tree_t* jrb_me = make_nptree();
 	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
 
 	np_new_obj(np_message_t, msg_out);
@@ -846,8 +846,8 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
 	    exit(1);
 	}
 
-    state->msg_tokens = make_jtree();
-    state->msg_part_cache = make_jtree();
+    state->msg_tokens = make_nptree();
+    state->msg_part_cache = make_nptree();
 
     if (TRUE == start_http)
     {

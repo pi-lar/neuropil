@@ -1,6 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- */
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -106,7 +107,7 @@ typedef struct _np_http_callback_s {
 
 void _np_add_http_callback(const char* path, htp_method method, void* user_args, _np_http_callback_func_t func)
 {
-	if (NULL == __local_http->user_hooks) __local_http->user_hooks = make_jtree();
+	if (NULL == __local_http->user_hooks) __local_http->user_hooks = make_nptree();
 
 	char key[32];
 	snprintf(key, 31, "%d:%s", method, path);
@@ -119,7 +120,7 @@ void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 
 void _np_rem_http_callback(const char* path, htp_method method)
 {
-	if (NULL == __local_http->user_hooks) __local_http->user_hooks = make_jtree();
+	if (NULL == __local_http->user_hooks) __local_http->user_hooks = make_nptree();
 
 	char key[32];
 	snprintf(key, 31, "%d:%s", method, path);
@@ -147,7 +148,7 @@ int _np_http_query_args(NP_UNUSED htparser * parser, const char * data, size_t i
 	char* val = NULL;
 
 	if (NULL != __local_http->ht_request.ht_query_args) np_clear_tree(__local_http->ht_request.ht_query_args);
-	if (NULL == __local_http->ht_request.ht_query_args) __local_http->ht_request.ht_query_args = make_jtree();
+	if (NULL == __local_http->ht_request.ht_query_args) __local_http->ht_request.ht_query_args = make_nptree();
 
 	char* query_string = strndup(data, in_len);
 	char* kv_pair = strtok(query_string, "&=");
@@ -176,7 +177,7 @@ int _np_http_query_args(NP_UNUSED htparser * parser, const char * data, size_t i
 int _np_http_on_hdrs_begin(NP_UNUSED htparser* parser)
 {
 	if (NULL != __local_http->ht_request.ht_header) np_clear_tree(__local_http->ht_request.ht_header);
-	if (NULL == __local_http->ht_request.ht_header) __local_http->ht_request.ht_header = make_jtree();
+	if (NULL == __local_http->ht_request.ht_header) __local_http->ht_request.ht_header = make_nptree();
 	return 0;
 }
 
@@ -232,7 +233,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args)
 {
 	assert(PROCESSING == __local_http->status);
 
-	if (NULL == __local_http->user_hooks) __local_http->user_hooks = make_jtree();
+	if (NULL == __local_http->user_hooks) __local_http->user_hooks = make_nptree();
 
 	char key[32];
 	snprintf(key, 31, "%d:%s", __local_http->ht_request.ht_method, __local_http->ht_request.ht_path);
@@ -253,7 +254,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args)
 		{
 			case(htp_method_GET):
 				{
-				np_tree_t* tree = make_jtree();
+				np_tree_t* tree = make_nptree();
 
 				JSON_Value* arr = json_value_init_array();
 
@@ -307,7 +308,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args)
 				__local_http->ht_response.ht_body   = (char*) malloc(json_size * sizeof(char));
 				json_serialize_to_buffer_pretty(arr, __local_http->ht_response.ht_body, json_size);
 
-				__local_http->ht_response.ht_header = make_jtree();
+				__local_http->ht_response.ht_header = make_nptree();
 				tree_insert_str(
 						__local_http->ht_response.ht_header, "Content-Type", new_val_s("application/json"));
 				__local_http->ht_response.ht_status = HTTP_CODE_OK;
@@ -321,7 +322,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args)
 
 			default:
 				__local_http->ht_response.ht_body      = HTML_NOT_IMPLEMENTED;
-				__local_http->ht_response.ht_header    = make_jtree();
+				__local_http->ht_response.ht_header    = make_nptree();
 				__local_http->ht_response.ht_status    = HTTP_CODE_NOT_IMPLEMENTED;
 				__local_http->ht_response.cleanup_body = FALSE;
 				__local_http->status = RESPONSE;

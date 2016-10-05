@@ -1,7 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- *  Stephan Schwichtenberg
- **/
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
@@ -304,7 +304,7 @@ void _np_out_handshake(np_jobargs_t* args)
 	crypto_scalarmult_base(my_dh_sessionkey, curve25519_sk);
 
 	// create handshake data
-	np_tree_t* hs_data = make_jtree();
+	np_tree_t* hs_data = make_nptree();
 
 	tree_insert_str(hs_data, "_np.session", new_val_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
 	// tree_insert_str(hs_data, "_np.public_key", new_val_bin(my_id_token->public_key, crypto_sign_PUBLICKEYBYTES));
@@ -454,7 +454,7 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 
 	if (NULL != msg_token)
 	{
-		np_tree_t* _data = make_jtree();
+		np_tree_t* _data = make_nptree();
 		np_encode_aaatoken(_data, msg_token);
 
 		np_message_t* msg_out = NULL;
@@ -491,7 +491,7 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 	if (NULL != msg_token)
 	{
 		log_msg(LOG_DEBUG, "encoding receiver token for subject %p / %s", msg_token, msg_token->uuid);
-		np_tree_t* _data = make_jtree();
+		np_tree_t* _data = make_nptree();
 		np_encode_aaatoken(_data, msg_token);
 
 		np_message_t* msg_out = NULL;
@@ -547,7 +547,7 @@ void np_send_authentication_request(np_jobargs_t* args)
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 
-	np_tree_t* auth_data = make_jtree();
+	np_tree_t* auth_data = make_nptree();
 	np_encode_aaatoken(auth_data, args->target->aaa_token);
 
 //	log_msg(LOG_DEBUG, "realm             : %s", args->target->aaa_token->realm);
@@ -643,7 +643,7 @@ void np_send_authorization_request(np_jobargs_t* args)
 	// create and and send authorization request
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
-	np_tree_t* auth_data = make_jtree();
+	np_tree_t* auth_data = make_nptree();
 	np_encode_aaatoken(auth_data, args->target->aaa_token);
 
 //	log_msg(LOG_DEBUG, "realm             : %s", args->target->aaa_token->realm);
@@ -738,7 +738,7 @@ void np_send_accounting_request(np_jobargs_t* args)
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 
-	np_tree_t* auth_data = make_jtree();
+	np_tree_t* auth_data = make_nptree();
 	np_encode_aaatoken(auth_data, args->target->aaa_token);
 	np_message_create(msg_out, aaa_target, state->my_node_key, _NP_MSG_ACCOUNTING_REQUEST, auth_data);
 

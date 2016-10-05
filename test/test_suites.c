@@ -1,7 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- **/
-
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include "test_key.c"
 #include "test_keycache.c"
 // #include "test_list_impl.c"
@@ -12,3 +12,5 @@
 #include "test_route.c"
 #include "test_message.c"
 #include "test_memory.c"
+#include "test_node.c"
+

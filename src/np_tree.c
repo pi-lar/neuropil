@@ -1,6 +1,8 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- */
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
+// original version is based on the chimera project
 /* Revision 1.2.  Jim Plank */
 
 /* Original code by Jim Plank (plank@cs.utk.edu) */
@@ -18,7 +20,6 @@
 
 #include "np_log.h"
 
-
 RB_GENERATE(np_tree_s, np_tree_elem_s, link, _val_cmp);
 
 //RB_GENERATE_STATIC(np_str_jtree, np_tree_elem_s, link, _val_cmp);
@@ -26,7 +27,7 @@ RB_GENERATE(np_tree_s, np_tree_elem_s, link, _val_cmp);
 //RB_GENERATE_STATIC(np_dbl_jtree, np_tree_elem_s, link, _val_cmp);
 //RB_GENERATE_STATIC(np_ulong_jtree, np_tree_elem_s, link, _val_cmp);
 
-np_tree_t* make_jtree ()
+np_tree_t* make_nptree ()
 {
 	np_tree_t* new_tree = (np_tree_t*) malloc(sizeof(np_tree_t));
 

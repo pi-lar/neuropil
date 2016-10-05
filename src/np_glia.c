@@ -1,7 +1,7 @@
-/**
- *  copyright 2015 pi-lar GmbH
- *  Stephan Schwichtenberg
- **/
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <errno.h>
 #include <assert.h>
 #include <pthread.h>
@@ -464,7 +464,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 				/* otherwise request reevaluation of peer */
 				np_message_t* msg_out;
 
-				np_tree_t* jrb_me = make_jtree();
+				np_tree_t* jrb_me = make_nptree();
 				np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
 
 				np_new_obj(np_message_t, msg_out);
@@ -780,7 +780,7 @@ void _np_send_rowinfo(np_jobargs_t* args)
 
 	if (0 < sll_size(sll_of_keys))
 	{
-		np_tree_t* msg_body = make_jtree();
+		np_tree_t* msg_body = make_nptree();
 		_LOCK_MODULE(np_keycache_t)
 		{
 			// TODO: maybe locking the cache is not enough and we have to do it more fine grained

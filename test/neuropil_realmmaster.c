@@ -1,6 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- **/
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -45,7 +46,7 @@ int joinComplete = 0;
 np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
-	if (NULL == authorized_tokens) authorized_tokens = make_jtree();
+	if (NULL == authorized_tokens) authorized_tokens = make_nptree();
 
 	// if a token reaches this point, is has already been check for technical validity
 	np_bool ret_val = FALSE;
@@ -125,7 +126,7 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
 
-	if (NULL == authenticated_tokens) authenticated_tokens = make_jtree();
+	if (NULL == authenticated_tokens) authenticated_tokens = make_nptree();
 	// if a token reaches this point, is has already been check for technical validity
 	np_bool ret_val = FALSE;
 

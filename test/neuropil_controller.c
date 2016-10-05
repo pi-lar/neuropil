@@ -1,6 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- **/
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -183,7 +184,7 @@ int main(int argc, char **argv)
 		np_send_join(node_string);
 
 //		np_new_obj(np_message_t, msg_out);
-//		np_tree_t* jrb_me = make_jtree();
+//		np_tree_t* jrb_me = make_nptree();
 //		np_node_encode_to_jrb(jrb_me, state->my_node_key, FALSE);
 //		np_message_create(msg_out, node_key, state->my_node_key, NP_MSG_JOIN_REQUEST, jrb_me);
 //

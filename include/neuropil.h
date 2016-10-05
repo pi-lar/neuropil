@@ -1,9 +1,12 @@
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
+// original version was taken from chimera project, but heavily modified
 /**
- * neuropil is copyright 2015 by pi-lar GmbH
  * neuropil.h is the entry point for using the neuropil library.
- * It defines all user centric functions whcih hide the complexity of the double encryption layer.
+ * It defines all user centric functions which hide the complexity of the double encryption layer.
  * It should contain all required functions to send or receive messages.
- * Original version is based on the chimera project (MIT licensed), but mostly renamed and heavily modified
  */
 
 #ifndef _NEUROPIL_H_

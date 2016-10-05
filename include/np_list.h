@@ -1,6 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- */
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 /**
 np_list.h contains header only list implementations for the c language.
 
@@ -44,7 +45,9 @@ function like macros are:
              void pll_init(TYPE, priolist, compare_func)
              void pll_insert(TYPE, priolist, value, dups_ok)
              void pll_remove(TYPE, priolist, value)
-             TYPE pll_head(TYPE, priolist)
+			 TYPE pll_replace(TYPE, priolist, value, cmp_func)
+			 TYPE pll_find(TYPE, priolist, value, cmp_func)
+			 TYPE pll_head(TYPE, priolist)
              void pll_free(TYPE, priolist)
              void pll_clear(TYPE, priolist)
 
@@ -61,7 +64,7 @@ function like macros are:
 #define pll_clear(TYPE, priolist) TYPE##_pll_clear(priolist);
 
 /**
-return type macros are
+return type definition macros are
 
 .. c:macro:: pll_return(TYPE) TYPE##_pll_t*
              pll_iterator(TYPE) TYPE##_pll_node_t*
@@ -248,8 +251,22 @@ void TYPE##_pll_clear(TYPE##_pll_t* pll_list) {                       \
 
 
 /**
-.. double linked list header only implementation for neuropil
+
+double linked list macros (DLL)
+
+function like macros are:
+
+.. c:macro:: np_dll_t(TYPE, NAME)
+             void dll_init(TYPE, list)
+             void dll_append(TYPE, list, value)
+             void dll_prepend(TYPE, list, value)
+			 TYPE dll_head(TYPE, list)
+			 TYPE dll_tail(TYPE, list)
+             void dll_free(TYPE, list)
+             void dll_clear(TYPE, list)
+
 */
+
 #define np_dll_t(TYPE, NAME) TYPE##_dll_t* NAME
 
 // convenience wrapper definitions
@@ -261,11 +278,33 @@ void TYPE##_pll_clear(TYPE##_pll_t* pll_list) {                       \
 #define dll_free(TYPE, dll_list) { TYPE##_dll_free(dll_list); dll_list = NULL; }
 #define dll_clear(TYPE, dll_list) TYPE##_dll_free(dll_list);
 
+/**
+return type definition macros are
+
+.. c:macro:: dll_return(TYPE) TYPE##_dll_t*
+             dll_iterator(TYPE) TYPE##_dll_node_t*
+
+
+*/
 // return type definition
 #define dll_return(TYPE) TYPE##_dll_t*
 #define dll_iterator(TYPE) TYPE##_dll_node_t*
 
 // general purpose definitions
+/**
+real macros for convenience usage
+
+.. c:macro::  dll_empty(list)             (NULL == list->first)
+              dll_size(list)              (list->size)
+              dll_first(list)             (list->first)
+              dll_last(list)              (list->last)
+              dll_next(list_elem)         (pll_elem = list_elem->flink)
+              dll_get_next(list_elem)     (list_elem->flink)
+              dll_previous(list_elem)     (list_elem = list_elem->blink)
+              dll_get_previous(list_elem) (list_elem->blink)
+
+
+*/
 // #define dll_traverse(dll_list, iter_item, elem)  for (iter_item = dll_list->first, elem = iter_item->val; iter_item != NULL; iter_item = iter_item->flink, elem = iter_item->val)
 // #define dll_rtraverse(dll_list, iter_item, elem) for (iter_item = dll_list->last,  elem = iter_item->val; iter_item != NULL; iter_item = iter_item->blink, elem = iter_item->val)
 #define dll_empty(dll_list)    (NULL == dll_list->first)
@@ -277,9 +316,9 @@ void TYPE##_pll_clear(TYPE##_pll_t* pll_list) {                       \
 #define dll_previous(dll_elem) (dll_elem = dll_elem->blink)
 #define dll_get_previous(sll_elem) (dll_elem->blink)
 
-/**
-  .. DLL (double linked list) prototype generator
- */
+//
+// DLL (double linked list) prototype generator
+//
 #define NP_DLL_GENERATE_PROTOTYPES(TYPE)\
 	typedef struct TYPE##_dll_s TYPE##_dll_t;\
     typedef struct TYPE##_dll_node_s TYPE##_dll_node_t;\
@@ -303,9 +342,9 @@ void TYPE##_pll_clear(TYPE##_pll_t* pll_list) {                       \
     void TYPE##_dll_free(TYPE##_dll_t* list);\
     void TYPE##_dll_clear(TYPE##_dll_t* list);
 
-/**
-.. DLL (double linked list) implementation generator
- **/
+//
+// DLL (double linked list) implementation generator
+//
 #define NP_DLL_GENERATE_IMPLEMENTATION(TYPE)\
 TYPE##_dll_t* TYPE##_dll_init() {\
 	TYPE##_dll_t* dll_list = (TYPE##_dll_t*) malloc(sizeof(TYPE##_dll_t));\
@@ -387,8 +426,22 @@ void TYPE##_dll_clear(TYPE##_dll_t* dll_list) {\
 }
 
 /**
-.. single linked list header only implementation for neuropil
- **/
+
+single linked list macros (DLL)
+
+function like macros are:
+
+.. c:macro:: np_sll_t(TYPE, NAME)
+             void sll_init(TYPE, list)
+             void sll_append(TYPE, list, value)
+             void sll_prepend(TYPE, list, value)
+			 TYPE sll_head(TYPE, list)
+			 TYPE sll_tail(TYPE, list)
+             void sll_free(TYPE, list)
+             void sll_clear(TYPE, list)
+             TYPE sll_delete(TYPE, list, iter)
+
+*/
 // definition
 #define np_sll_t(TYPE, NAME) TYPE##_sll_t* NAME
 
@@ -402,10 +455,29 @@ void TYPE##_dll_clear(TYPE##_dll_t* dll_list) {\
 #define sll_clear(TYPE, sll_list) TYPE##_sll_clear(sll_list)
 #define sll_delete(TYPE, sll_list, iter) TYPE##_sll_delete(sll_list, iter)
 
+/**
+return type definition macros are
+
+.. c:macro:: sll_return(TYPE) TYPE##_sll_t*
+             sll_iterator(TYPE) TYPE##_sll_node_t*
+
+
+*/
 // return type definition
 #define sll_return(TYPE) TYPE##_sll_t*
 #define sll_iterator(TYPE) TYPE##_sll_node_t*
 
+/**
+real macros for convenience usage
+
+.. c:macro::  sll_empty(list)             (NULL == list->first)
+              sll_size(list)              (list->size)
+              sll_first(list)             (list->first)
+              sll_last(list)              (list->last)
+              sll_next(list_elem)         (sll_elem = list_elem->flink)
+              sll_get_next(list_elem)     (list_elem->flink)
+
+*/
 // general purpose definitions
 // #define sll_traverse(sll_list, iter_item, elem) for (iter_item = sll_list->first, elem = iter_item->val; iter_item != NULL; iter_item = iter_item->flink, elem = iter_item->val)
 // #define sll_rtraverse(sll_list, iter_item, elem) for (iter_item = sll_list->last,  elem = iter_item->val; iter_item != NULL; iter_item = iter_item->blink, elem = iter_item->val)
@@ -417,35 +489,35 @@ void TYPE##_dll_clear(TYPE##_dll_t* dll_list) {\
 #define sll_get_next(sll_elem) (sll_elem->flink)
 // #define sll_previous(sll_elem) (sll_elem->blink)
 
-/**
-.. SLL (single linked list) prototype generator
- **/
-#define NP_SLL_GENERATE_PROTOTYPES(TYPE)\
-	typedef struct TYPE##_sll_s TYPE##_sll_t;\
-	typedef struct TYPE##_sll_node_s TYPE##_sll_node_t;\
-	struct TYPE##_sll_s\
-	{\
-		uint32_t size;\
-		TYPE##_sll_node_t *first;\
-		TYPE##_sll_node_t *last;\
-	};\
-	struct TYPE##_sll_node_s\
-	{\
-		TYPE##_sll_node_t *flink;\
-    	TYPE* val;\
-	};\
-	TYPE##_sll_t* TYPE##_sll_init();\
-    void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value);\
-    void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value);\
-	TYPE* TYPE##_sll_head(TYPE##_sll_t* list);\
-    TYPE* TYPE##_sll_tail(TYPE##_sll_t* list);\
-    void TYPE##_sll_free(TYPE##_sll_t* list);\
-    void TYPE##_sll_clear(TYPE##_sll_t* list);\
+//
+// SLL (single linked list) prototype generator
+//
+#define NP_SLL_GENERATE_PROTOTYPES(TYPE)                          \
+	typedef struct TYPE##_sll_s TYPE##_sll_t;                     \
+	typedef struct TYPE##_sll_node_s TYPE##_sll_node_t;           \
+	struct TYPE##_sll_s                                           \
+	{                                                             \
+		uint32_t size;                                            \
+		TYPE##_sll_node_t *first;                                 \
+		TYPE##_sll_node_t *last;                                  \
+	};                                                            \
+	struct TYPE##_sll_node_s                                      \
+	{                                                             \
+		TYPE##_sll_node_t *flink;                                 \
+    	TYPE* val;                                                \
+	};                                                            \
+	TYPE##_sll_t* TYPE##_sll_init();                              \
+    void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value);  \
+    void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value); \
+	TYPE* TYPE##_sll_head(TYPE##_sll_t* list);                    \
+    TYPE* TYPE##_sll_tail(TYPE##_sll_t* list);                    \
+    void TYPE##_sll_free(TYPE##_sll_t* list);                     \
+    void TYPE##_sll_clear(TYPE##_sll_t* list);                    \
     void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);
 
-/**
-.. SLL (single linked list) implementation generator
- **/
+//
+// SLL (single linked list) implementation generator
+//
 #define NP_SLL_GENERATE_IMPLEMENTATION(TYPE)\
 TYPE##_sll_t* TYPE##_sll_init() {\
 	TYPE##_sll_t* sll_list = (TYPE##_sll_t*) malloc(sizeof(TYPE##_sll_t));\
@@ -504,7 +576,7 @@ TYPE* TYPE##_sll_tail(TYPE##_sll_t* sll_list) {\
 		free(tmp);\
 		sll_list->size--;\
 	}                                             \
-	return (ret_val);                               \
+	return (ret_val);                             \
 }                                                 \
 void TYPE##_sll_free(TYPE##_sll_t* sll_list) {    \
 	TYPE##_sll_node_t *tmp;                       \
@@ -520,11 +592,11 @@ void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {   \
 	while (sll_list->first != NULL) {             \
 		tmp = sll_list->first;                    \
 		sll_list->first = sll_list->first->flink; \
-		free(tmp);\
-		sll_list->size--;\
-	}\
-}\
-void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) {\
+		free(tmp);                                \
+		sll_list->size--;                         \
+	}                                             \
+}                                                 \
+void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) { \
 	if (sll_list->first == tbr) {\
 		sll_list->first = tbr->flink;\
 		free(tbr);\

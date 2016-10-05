@@ -1,6 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- **/
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <criterion/criterion.h>
 
 #include "sodium.h"
@@ -57,7 +58,7 @@ TestSuite(np_aaatoken_t, .init=setup_aaatoken, .fini=teardown_aaatoken);
 //	cr_expect (NULL != test_token_1);
 //	cr_expect (TRUE == token_is_valid(test_token_1));
 //
-//	np_tree_t* aaa_tree = make_jtree();
+//	np_tree_t* aaa_tree = make_nptree();
 //	np_encode_aaatoken(aaa_tree, test_token_1);
 //
 //	np_aaatoken_t* test_token_2 = NULL;
@@ -75,7 +76,7 @@ TestSuite(np_aaatoken_t, .init=setup_aaatoken, .fini=teardown_aaatoken);
 //    cmp_init(&cmp_empty, buf_ptr, buffer_reader, buffer_writer);
 //	serialize_jrb_node_t(aaa_tree, &cmp_empty);
 //
-//	np_tree_t* out_jrb = make_jtree();
+//	np_tree_t* out_jrb = make_nptree();
 //	cmp_ctx_t cmp_out;
 //	cmp_init(&cmp_out, buffer, buffer_reader, buffer_writer);
 //
@@ -116,7 +117,7 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	cr_expect (NULL != test_token_1, "expect the token to be not NULL");
 	cr_expect (TRUE == token_is_valid(test_token_1), "expect that the token is not valid");
 
-	np_tree_t* aaa_tree = make_jtree();
+	np_tree_t* aaa_tree = make_nptree();
 	np_encode_aaatoken(aaa_tree, test_token_1);
 
 	np_aaatoken_t* test_token_2 = NULL;
@@ -134,7 +135,7 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
     cmp_init(&cmp_empty, buf_ptr, buffer_reader, buffer_writer);
 	serialize_jrb_node_t(aaa_tree, &cmp_empty);
 
-	np_tree_t* out_jrb = make_jtree();
+	np_tree_t* out_jrb = make_nptree();
 	cmp_ctx_t cmp_out;
 	cmp_init(&cmp_out, buffer, buffer_reader, buffer_writer);
 
@@ -175,7 +176,7 @@ Test(np_aaatoken_t, encode_decode_loop, .description="test the encoding and deco
 	test_token_1 = ref;
 	for (int i=0; i< 10; ++i)
 	{
-		np_tree_t* tmp = make_jtree();
+		np_tree_t* tmp = make_nptree();
 		np_encode_aaatoken(tmp, test_token_1);
 
 		np_new_obj(np_aaatoken_t, test_token_2);

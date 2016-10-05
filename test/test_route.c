@@ -1,6 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- **/
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <assert.h>
 
 #include <criterion/criterion.h>
@@ -82,12 +83,12 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 	sll_init(np_key_t, my_keys);
 	unsigned long i = 0;
 
-
-	// TODO: seems to run forever :-/ better reduce the loglevel to save my laptop
+	// TODO: seems to run forever with no check for i :-/ better reduce the loglevel to save my laptop
 	np_log_setlevel(LOG_ERROR | LOG_WARN | LOG_ROUTING);
 	// TODO: check whether routing table implementation is correct
 	// even with 4M generated dhkeys there are only 55 entries in the table ...
-	while (current_size < routing_table_size)
+	while (current_size < routing_table_size &&
+			i < 1000000)
 	{
 		char tmp_1[33];
 		randombytes_buf(tmp_1, 16);

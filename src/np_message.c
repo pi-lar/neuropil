@@ -1,6 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- */
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -63,15 +64,15 @@ void _np_message_t_new(void* msg)
 {
 	np_message_t* msg_tmp = (np_message_t*) msg;
 
-	msg_tmp->header       = make_jtree();
+	msg_tmp->header       = make_nptree();
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "header now (%p: %p->%p)", tmp, tmp->header, tmp->header->flink);
-	msg_tmp->properties   = make_jtree();
+	msg_tmp->properties   = make_nptree();
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "properties now (%p: %p->%p)", tmp, tmp->properties, tmp->properties->flink);
-	msg_tmp->instructions = make_jtree();
+	msg_tmp->instructions = make_nptree();
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "instructions now (%p: %p->%p)", tmp, tmp->instructions, tmp->instructions->flink);
-	msg_tmp->body         = make_jtree();
+	msg_tmp->body         = make_nptree();
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "body now (%p: %p->%p)", tmp, tmp->body, tmp->body->flink);
-	msg_tmp->footer       = make_jtree();
+	msg_tmp->footer       = make_nptree();
 
 	msg_tmp->no_of_chunks = 1;
 	msg_tmp->is_single_part = FALSE;
@@ -923,7 +924,7 @@ void np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	// int crypto_box_seal(unsigned char *c, const unsigned char *m,
 	// unsigned long long mlen, const unsigned char *pk);
 
-	np_tree_t* encryption_details = make_jtree();
+	np_tree_t* encryption_details = make_nptree();
 	// insert the public-key encrypted encryption key for each receiver of the message
 	tree_insert_str(encryption_details, NP_NONCE,
 				   new_val_bin(nonce, crypto_box_NONCEBYTES));

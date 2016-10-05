@@ -1,8 +1,8 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- *  original version was taken from chimera project, but modified
- *  Stephan Schwichtenberg
- **/
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
+// original version is based on the chimera project
 #ifndef _NP_NETWORK_H_
 #define _NP_NETWORK_H_
 

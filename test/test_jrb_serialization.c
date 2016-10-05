@@ -1,6 +1,7 @@
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- **/
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <criterion/criterion.h>
 
 #include "event/ev.h"
@@ -32,7 +33,7 @@ TestSuite(np_jrb_serialize_t, .init=setup_jrb_serialization, .fini=teardown_jrb_
 
 Test(np_jrb_serialize_t, serialize_jrb_node_t, .description="test the serialization of a  jtree")
 {
-	np_tree_t* test_jrb_1 = make_jtree();
+	np_tree_t* test_jrb_1 = make_nptree();
 
 	cr_expect(NULL != test_jrb_1, "expect test_jrb_1 pointer to exists");
 	cr_expect(NULL == test_jrb_1->rbh_root, "expect rbh_root to be NULL");
@@ -68,7 +69,7 @@ Test(np_jrb_serialize_t, serialize_jrb_node_t, .description="test the serializat
 	cr_expect( 20 == jrb_get_byte_size(test_jrb_1->rbh_root), "expect byte size to be 20");
 	cr_expect( 45 == test_jrb_1->byte_size, "expect byte size to be 45");
 
-	np_tree_t* test_jrb_2 = make_jtree();
+	np_tree_t* test_jrb_2 = make_nptree();
 	cr_expect(   0 == test_jrb_2->size, "expect size of tree to be 0");
 
 	char* from = "from";
@@ -122,7 +123,7 @@ Test(np_jrb_serialize_t, serialize_jrb_node_t, .description="test the serializat
 	log_msg(LOG_INFO, "----------------------");
 	log_msg(LOG_INFO, "deserializing message:");
 
-	np_tree_t* out_jrb = make_jtree();
+	np_tree_t* out_jrb = make_nptree();
 	cmp_ctx_t cmp_out;
 	// int cmp_err_out;
 	cmp_init(&cmp_out, buffer, buffer_reader, buffer_writer);
