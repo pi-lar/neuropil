@@ -7,6 +7,10 @@ syntax: glob
 *.p
 .deps/*.P
 .deps/*.p
+.DS_Store*
+.scon*
+.settings*
+.pydevproject
 
 # switch to regexp syntax.
 # syntax: regexp
