@@ -386,7 +386,7 @@ sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count)
 				{
 				    sll_append(np_key_t, key_list, tmp_1);
 					log_msg (LOG_ROUTING | LOG_DEBUG, "+Table[%hd][%hd][%hd]: (%s)",
-										  i, j, k, /* leaf->dns_name, leaf->port, */ _key_as_str (leaf));
+										  i, j, k, /* leaf->dns_name, leaf->port, */ _key_as_str (tmp_1));
 				}
 			}
     	}

@@ -409,7 +409,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 		np_msgproperty_t* msg_prop = NULL;
 
 		np_dhkey_t target_dhkey = dhkey_create_from_hostport(state->my_identity->aaa_token->realm, "0");
-		np_key_t* target;
+		np_key_t* target = NULL;
 		np_new_obj(np_key_t, target);
 		target->dhkey = target_dhkey;
 
@@ -462,12 +462,13 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 			{
 				tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
 				/* otherwise request reevaluation of peer */
-				np_message_t* msg_out;
 
 				np_tree_t* jrb_me = make_nptree();
 				np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
 
+				np_message_t* msg_out = NULL;
 				np_new_obj(np_message_t, msg_out);
+
 				np_message_create(msg_out, tmp_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
 				log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(tmp_node_key));
 				np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);

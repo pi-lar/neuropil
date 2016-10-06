@@ -347,11 +347,10 @@ void _np_in_piggy(np_jobargs_t* args)
 			// answer: only send join request !
 			// if (GRACEPERIOD > (ev_time() - tmp_ft))
 			// {
-				np_message_t* msg_out;
-
 				np_tree_t* jrb_me = make_nptree();
 				np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
 
+				np_message_t* msg_out = NULL;
 				np_new_obj(np_message_t, msg_out);
 				np_message_create(msg_out, node_entry, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
 

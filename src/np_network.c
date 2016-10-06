@@ -337,6 +337,7 @@ void network_send (np_key_t *node_key, np_message_t* msg)
 			log_msg(LOG_NETWORK | LOG_WARN,
 					"incorrect encryption of message (not sending to %s:%s)",
 					node_key->node->dns_name, node_key->node->port);
+			free(enc_buffer);
 			return; //  FALSE;
 		}
 

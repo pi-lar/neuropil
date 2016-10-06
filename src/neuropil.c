@@ -58,7 +58,7 @@ np_bool _np_default_authorizefunc (np_aaatoken_t* token )
 
 np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
 {
-	np_key_t* aaa_target;
+	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->aaa_token = token;
 
@@ -87,7 +87,7 @@ np_bool _np_default_authenticatefunc (np_aaatoken_t* token )
 
 np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token)
 {
-	np_key_t* aaa_target;
+	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->aaa_token = token;
 
@@ -116,7 +116,7 @@ np_bool _np_default_accountingfunc (np_aaatoken_t* token )
 
 np_bool _np_aaa_accountingfunc (np_aaatoken_t* token)
 {
-	np_key_t* aaa_target;
+	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->aaa_token = token;
 
@@ -163,11 +163,10 @@ void np_send_join(const char* node_string)
 		node_key = _np_node_decode_from_str(node_string);
 	}
 
-	np_message_t* msg_out;
-
 	np_tree_t* jrb_me = make_nptree();
 	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
 
+	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 	np_message_create(msg_out, node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
 
@@ -677,7 +676,7 @@ void _np_send_ack(np_message_t* in_msg)
 				tree_find_str(in_msg->header, NP_MSG_INST_ACK_TO)->val.value.s);
 
 		// TODO: find in keycache, must be present
-		np_key_t* ack_target;
+		np_key_t* ack_target = NULL;
 		np_new_obj(np_key_t, ack_target);
 		ack_target->dhkey = ack_key;
 

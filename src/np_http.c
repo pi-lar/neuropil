@@ -166,8 +166,8 @@ int _np_http_query_args(NP_UNUSED htparser * parser, const char * data, size_t i
 			free(key);
 			free(val);
 			key = NULL;
+			val = NULL;
 		}
-
 		kv_pair = strtok(NULL, "&=");
 	}
 	free(query_string);

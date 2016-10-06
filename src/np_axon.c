@@ -533,7 +533,7 @@ void np_send_authentication_request(np_jobargs_t* args)
 
 	log_msg(LOG_DEBUG, "encoding and sending authentication token");
 
-	np_key_t* aaa_target;
+	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->dhkey = target_dhkey;
 
@@ -590,7 +590,7 @@ void np_send_authentication_reply(np_jobargs_t* args)
 
 	log_msg(LOG_DEBUG, "encoding and sending authentication reply");
 
-	np_key_t* aaa_target;
+	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->dhkey = target_dhkey;
 
@@ -630,7 +630,7 @@ void np_send_authorization_request(np_jobargs_t* args)
 	}
 
 	log_msg(LOG_DEBUG, "encoding and sending authorization token");
-	np_key_t* aaa_target;
+	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->dhkey = target_dhkey;
 
@@ -684,7 +684,7 @@ void np_send_authorization_reply(np_jobargs_t* args)
 
 	log_msg(LOG_DEBUG, "encoding and sending authorization reply");
 
-	np_key_t* aaa_target;
+	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->dhkey = target_dhkey;
 
@@ -730,7 +730,7 @@ void np_send_accounting_request(np_jobargs_t* args)
 		sll_init(np_message_t, aaa_props->msg_cache);
 	}
 
-	np_key_t* aaa_target;
+	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->dhkey = target_dhkey;
 

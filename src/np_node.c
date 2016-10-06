@@ -172,7 +172,7 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 	char* s_host_name  = tree_find_str(data, NP_NODE_DNS_NAME)->val.value.s;
 	char* s_host_port  = tree_find_str(data, NP_NODE_PORT)->val.value.s;
 
-	np_node_t* new_node;
+	np_node_t* new_node = NULL;
 	np_new_obj(np_node_t, new_node);
 
 	if (NULL != s_host_name &&
