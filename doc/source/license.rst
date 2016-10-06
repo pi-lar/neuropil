@@ -1,8 +1,13 @@
 License
 *******
 
-We’re still not sure under which license the neuropil messaging library is going to be distributed.
-Please be patient ... unless finally decided: copyright 2016 pi-lar GmbH - all rights reserved
+copyright 2016 pi-lar GmbH - all rights reserved
+
+Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+
+.. raw:: html
+
+   <hr width=200>
 
 Contributions
 *************
@@ -30,8 +35,10 @@ name                               author     license
 ================================== ========== =======
 
 If we have stated one of these libraries incorrectly please drop us a note.
-In the case of the chimera library we received the information that the project has been dormant since 2006 
-and that we can feel free to use any of the code as we wish.
+
+For the `chimera`_ library we received the information that the project has been dormant since 2006 
+and that we can feel free to use any of the code as we wish. Please have a look at the KnowHow section and Tapestry. 
+
 
 .. _c msgpack: https://github.com/camgunz/cmp
 .. _chimera: http://current.cs.ucsb.edu/projects/chimera/
@@ -43,3 +50,4 @@ and that we can feel free to use any of the code as we wish.
 .. _ISC: https://en.wikipedia.org/wiki/ISC_license
 .. _BSD: https://en.wikipedia.org/wiki/BSD_licenses
 .. _MIT: https://en.wikipedia.org/wiki/MIT_License
+.. _GPL2: https://en.wikipedia.org/wiki/GNU_General_Public_License#Version_2

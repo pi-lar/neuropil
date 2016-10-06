@@ -30,7 +30,7 @@ first we have to define a global np_state_t variable
 
 .. code-block:: c
 
-   np_state_t *state;
+   np_state_t *state = NULL;
 */
 np_state_t *state;
 
@@ -75,7 +75,7 @@ int main(int argc, char **argv)
 	}
 
 	/**
-	in your main program, initialize the logging of neuopil
+	in your main program, initialize the logging of neuropil
 
 	.. code-block:: c
 
@@ -97,18 +97,10 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-	   np_init(proto, port, TRUE);
+	   state = np_init(proto, port, TRUE);
 	*/
-	np_init(proto, port, TRUE);
+	state = np_init(proto, port, TRUE);
 	// state->my_node_key->node->joined_network = 1;
-
-	/**
-	check stdout and the log file because it will contain this nodes hashvalue / connect string, e.g.
-
-	.. code-block:: c
-
-       2f96848a8c490e0f0f71c74caa900423bcf2d32882a9a0b3510c50085f7ec0e5:udp6:localhost:3333
-	*/
 
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
@@ -119,10 +111,18 @@ int main(int argc, char **argv)
 	   np_start_job_queue(8);
 	*/
 
-
 	// dsleep(50);
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
+
+	/**
+	check stdout and the log file because it will contain this nodes hashvalue / connect string, e.g.
+
+	.. code-block:: c
+
+       2f96848a8c490e0f0f71c74caa900423bcf2d32882a9a0b3510c50085f7ec0e5:udp6:localhost:3333
+
+    */
 
 	/**
 	and finally loop (almost) forever
@@ -135,9 +135,8 @@ int main(int argc, char **argv)
 	*/
 
 	/**
-	your're done ...
+	your're done ... if you plan to connect your nodes to this controller as a bootstrap node.
 
-	if you plan to connect your nodes to this controller as a bootstrap node.
 	The created process can be contacted by other nodes and will forward messages as required.
 	By default the authentication / authorization / accounting handler accept nodes/message request
 	from everybody.

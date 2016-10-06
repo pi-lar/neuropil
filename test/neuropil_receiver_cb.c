@@ -140,7 +140,8 @@ int main(int argc, char **argv)
 	np_start_job_queue(no_threads);
 
 	/**
-	wait until the node has received a join message before actually proceeding
+	use the connect string that is printed to stdout and pass it to the np_controller to send a join message.
+	wait until the node has received a join message before proceeding
 
 	.. code-block:: c
 
@@ -156,13 +157,13 @@ int main(int argc, char **argv)
 
 	/**
 	.. note::
-	   Make sure that you implement and register the appropiate aaa callback functions
+	   Make sure that you have implemented and registered the appropiate aaa callback functions
 	   to control with which nodes you exchange messages. By default everybody is allowed to interact
 	   with your node
 	 */
 
 	/**
-	register the listener function to receive data from the other side
+	register the listener function to receive data from the sender
 
 	.. code-block:: c
 
@@ -173,16 +174,19 @@ int main(int argc, char **argv)
 	/**
 	loop (almost) forever, you're done :-)
 
-	the loopback function will be triggered each time a message is received
-	make sure that you've understood how to alter the message exchange to change
-	receiving of message from the default values
-
 	.. code-block:: c
 
 	   while (1)
 	   {
 		   ev_sleep(0.9);
 	   }
+	*/
+
+	/**
+	the loopback function will be triggered each time a message is received
+	make sure that you've understood how to alter the message exchange to change
+	receiving of message from the default values
+
  	*/
 	while (1)
 	{

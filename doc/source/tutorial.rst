@@ -7,6 +7,9 @@ It mainly consists of three different parts, the fourth part will explore some m
 ***********************
 Setting up a controller
 ***********************
+.. NOTE::
+   source code of this example is available at test/np_controller.c
+
 .. include-comment:: ../../test/neuropil_controller.c
 
 topics you may be interested to look at now:
@@ -14,9 +17,16 @@ topics you may be interested to look at now:
 * realms and identities
 * add more nodes to our neuropil network layer
 
+.. raw:: html
+
+   <hr width=200>
+
 *********************
 Setting up a listener
 *********************
+.. NOTE::
+   source code of this example is available at test/np_receiver_cb.c
+
 .. include-comment:: ../../test/neuropil_receiver_cb.c
 
 topics you may be interested to look at now:
@@ -25,9 +35,16 @@ topics you may be interested to look at now:
 * change your interface from public to private
 * change your interface from single to group receiver (load-balancing or fault-tolerant)
 
+.. raw:: html
+
+   <hr width=200>
+
 *******************
 Setting up a sender
 *******************
+.. NOTE::
+   source code of this example is available at test/np_sender.c
+
 .. include-comment:: ../../test/neuropil_sender.c
 
 topics you may be interested to look at now:
@@ -37,10 +54,13 @@ topics you may be interested to look at now:
 * add more callback hooks for timed out messages
 * use more than one sender
 
+.. raw:: html
 
-***************
-Setting details
-***************
+   <hr width=200>
+
+******************
+Setting up details
+******************
 
 .. _to_join_or_to_be_joined:
 
@@ -64,7 +84,7 @@ Based on this decision you will have implement:
 * your join callback function accordingly: check for correct realm(s), 
   implement other authentication measures when receiving join requests
 * your firewall rules to allow the traffic to central/distributed node(s) 
-  (they will still be a lot simpler than before if you stick to the standard port)
+  (the rules will still be a lot simpler than before if you stick to the standard port)
 * implement you authentication and authorization callback functions accordingly
 
 Even if you do not want to implement a central bootstrap node, you will still be able to authenticate

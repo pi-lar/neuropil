@@ -8,6 +8,10 @@ All neuropil enabled applications or devices form an ad-hoc cluster of connected
 constantly exchange messages to detect failures and to exchange informations. Nodes can connect and
 disconnect at any time, messages will still be transported to their destinations.
 
+.. raw:: html
+
+   <hr width=200>
+
 *********
 Use Cases
 *********
@@ -17,6 +21,10 @@ Use Cases
 * establish data ownership with ACL
 * enable exclusive access to devices / resources for partners
 * establish secure software defined networks (S-SDN)
+
+.. raw:: html
+
+   <hr width=200>
 
 ********
 Features
@@ -32,6 +40,10 @@ Features
 * pull based message exchange to prevent overload and to enable lean management for it services
 * event / task driven architecture (coroutine inspired) which executes small pieces of code asynchronously
 * three levels of message acknowledgement: hop-by-hop, destination, client_ack
+
+.. raw:: html
+
+   <hr width=200>
 
 *******
 Roadmap

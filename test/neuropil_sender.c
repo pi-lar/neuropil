@@ -33,7 +33,7 @@ first we have to define a global np_state_t variable
 
 .. code-block:: c
 
-   np_state_t *state;
+   np_state_t *state = NULL;
 */
 np_state_t *state;
 
@@ -99,7 +99,7 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-	   np_init(proto, port, FALSE);
+	   state = np_init(proto, port, FALSE);
 	*/
 	state = np_init(proto, port, FALSE);
 
@@ -131,6 +131,7 @@ int main(int argc, char **argv)
 	}
 
 	/**
+	use the connect string that is printed to stdout and pass it to the np_controller to send a join message.
 	wait until the node has received a join message before actually proceeding
 
 	.. code-block:: c
@@ -160,7 +161,7 @@ int main(int argc, char **argv)
 	unsigned long k = 1;
 
 	/**
-	loop (almost) forever and send your messages to your receiver :-)
+	loop (almost) forever and send your messages to the receiver :-)
 
 	.. code-block:: c
 

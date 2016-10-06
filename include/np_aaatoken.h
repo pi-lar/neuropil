@@ -3,12 +3,13 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
-The structure np_aaatoken_t is used for authorization, authentication and accounting purposes
-the data structure is the same for all purposes. Add-on information can be stored in a nested jtree structure.
-Several analogies have been used as a baseline for this structure: json web token, kerberos and diameter.
-Tokens do get integrity protected by adding an additional signature based on the issuers public/private key pair
+The structure np_aaatoken_t is used for authorization, authentication and accounting purposes.
+Add-on information can be stored in a nested jtree structure. Several analogies have been used as a baseline for this structure:
+json web token, kerberos and diameter. Tokens do get integrity protected by adding an additional signature based on
+the issuers public/private key pair
 
-The structure is described here to allow user the proper use of the :c:func:`np_set_identity` function.
+The structure is described here to allow users the proper use of the :c:func:`np_set_identity` function and to implement the
+AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizing_cb` and :c:func:`np_setaccounting_cb`.
 
 */
 

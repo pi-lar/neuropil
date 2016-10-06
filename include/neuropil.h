@@ -121,7 +121,7 @@ void np_set_realm_name(const char* realm_name);
 .. c:function:: void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
 
    Manually set the identity which is used to send and receive messages.
-   This identity is independent of the core node key used to form the infrastructure
+   This identity is independent of the core node key (which is used to build the infrastructure)
 
    :param state: the previously initialized :c:type:`np_state_t` structure
    :param identity: a valid :c:type:`np_aaatoken_t` structure
@@ -192,7 +192,7 @@ void np_set_listener (np_usercallback_t msg_handler, char* subject);
 /**
 .. c:function:: void np_send_text(char* subject, char *data, uint32_t seqnum)
 
-   Send a message of a specific subject to the receiver containing size bytes of data
+   Send a message of a specific subject to the receiver containing the string data
 
    :param subject: the subject the data should be send to
    :param data: the message text that should be send
@@ -205,8 +205,8 @@ void np_send_text    (char* subject, char *data, uint32_t seqnum);
 /**
 .. c:function:: void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body)
 
-   Send a message of a specific subject to the receiver containing size bytes of data.
-   passed in properties and body data structures will be freed when the message has been send.
+   Send a message of a specific subject to the receiver containing properties and body structure.
+   Passed in properties and body data structures will be freed when the message has been send.
 
    :param subject: the subject the data should be send to
    :param properties: a tree (np_tree_t) structure containing the properties of a message
@@ -234,10 +234,10 @@ uint32_t np_receive_text (char* subject, char **data);
 
    Receive a message of a specific subject.
 
-   :param subject: the subject the data should be send to
+   :param subject: the subject the data should be received from
    :param properties: a tree (np_tree_t) structure containing the properties of the message
    :param body: a tree (np_tree_t) structure containing the body of the message
-   :return: the sequence number that has been used to send the message or 0 on error
+   :return: FALSE on error, TRUE on success
 
 */
 NP_API_EXPORT
