@@ -4,10 +4,10 @@
 //
 // original version was taken from chimera project, but heavily modified
 /**
- * neuropil.h is the entry point for using the neuropil library.
- * It defines all user centric functions which hide the complexity of the double encryption layer.
- * It should contain all required functions to send or receive messages.
- */
+neuropil.h is the entry point to use the neuropil messaging library.
+It defines all user centric functions and hides the complexity of the double encryption layer.
+It should contain all required functions to send or receive messages.
+*/
 
 #ifndef _NEUROPIL_H_
 #define _NEUROPIL_H_
@@ -24,7 +24,7 @@ extern "C" {
 /**
 .. c:type:: np_state_t
 
-   There is one global structure which contains links to the various subsystems.
+   np_state_t is a structure which contains links to the various subsystems of the library
    Users should only need to call :c:func:`np_init` to initialize the neuropil messaging layer.
    No direct access to this structure is required.
 
@@ -57,7 +57,7 @@ struct np_state_s
 /**
 .. c:function:: np_state_t* np_init(char* protocol, char* port)
 
-   Initializes neuropil subsystem to listen on the given port. Protocol is a string defining
+   Initializes the neuropil library and instructs to listen on the given port. Protocol is a string defining
    the IP protocol to use (tcp/udp/ipv4/ipv6/...), right now only udp is implemented
 
    :param port: the port to listen on, default is 3141
@@ -155,7 +155,7 @@ NP_API_EXPORT
 void np_waitforjoin();
 
 /**
-.. c:function:: void np_set[aaa]_cb(np_state_t* state, np_aaa_func_t join_func)
+.. c:function:: void np_set[aaa]_cb(np_aaa_func_t join_func)
 .. c:function:: void np_setauthorizing_cb
 .. c:function:: void np_setauthenticate_cb
 .. c:function:: void np_setaccounting_cb
@@ -178,7 +178,7 @@ void np_setaccounting_cb(np_aaa_func_t join_func);
 /**
 .. c:function:: void np_set_listener(np_usercallback_t msg_handler, char* subject)
 
-   register an message handler for a subject which is called by the np routing layer when a message arrives.
+   register an message callback handler for a subject. The callback is called when a message arrives.
    The callback function should return TRUE if the message was processed successfully, FALSE otherwise.
    Returning FALSE will inhibit the sending of the ack and may lead to another re-delivery of the message
 

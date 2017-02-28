@@ -27,25 +27,27 @@ build the documentation (sphinx installation required):
 	
 	scons doc=1
 
+clean the project:
+
+	scons -c
+	
 there is also a Makefile available, but some path infos are hard coded, sorry.
 the Makefile is mainly used to run the llvm scan-build tooling for a static code analysis
 
 no autoconf or cmake available until now, to be done
 
-
 3) directory structure
 
 input directories:
-src - c source code
-test - c test source code
-include - c header files
-lib - used as a third party library directory
-doc - sphinx documentation source files
+ - src - c source code
+ - test - c test source code
+ - include - c header files
+ - lib - used as a third party library directory
+ - doc - sphinx documentation source files
 
 output directories:
-build - library, object files and documentation
-bin - example executables and test suite
-
+ - build - library, object files and documentation
+ - bin - example executables and test suite
 
 4) running the programs
 

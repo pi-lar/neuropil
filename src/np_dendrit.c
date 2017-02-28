@@ -797,36 +797,33 @@ void _np_in_join_ack(np_jobargs_t* args)
 	// remember key for routing table update
 	log_msg(LOG_DEBUG, "join acknowledged and updates to other nodes send");
 
-	if (routing_key != join_key)
+	// update table
+	np_key_t *added = NULL, *deleted = NULL;
+	_LOCK_MODULE(np_routeglobal_t)
 	{
-		// update leafset
-		np_key_t *added = NULL, *deleted = NULL;
-		_LOCK_MODULE(np_routeglobal_t)
+		route_update(routing_key, TRUE, &deleted, &added);
+		if (added == routing_key)
 		{
-			route_update(routing_key, TRUE, &deleted, &added);
-			if (added == routing_key)
-			{
-				np_ref_obj(np_key_t, added);
-			}
-			if (deleted != NULL && deleted != routing_key)
-			{
-				np_unref_obj(np_key_t, deleted);
-			}
+			np_ref_obj(np_key_t, added);
 		}
-
-		// update table
-		added = NULL, deleted = NULL;
-		_LOCK_MODULE(np_routeglobal_t)
+		if (deleted != NULL && deleted != routing_key)
 		{
-			leafset_update(routing_key, TRUE, &deleted, &added);
-			if (added == routing_key)
-			{
-				np_ref_obj(np_key_t, added);
-			}
-			if (deleted != NULL && deleted != routing_key)
-			{
-				np_unref_obj(np_key_t, deleted);
-			}
+			np_unref_obj(np_key_t, deleted);
+		}
+	}
+
+	// update leafset
+	added = NULL, deleted = NULL;
+	_LOCK_MODULE(np_routeglobal_t)
+	{
+		leafset_update(routing_key, TRUE, &deleted, &added);
+		if (added == routing_key)
+		{
+			np_ref_obj(np_key_t, added);
+		}
+		if (deleted != NULL && deleted != routing_key)
+		{
+			np_unref_obj(np_key_t, deleted);
 		}
 	}
 
@@ -1604,7 +1601,6 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 					_np_check_sender_msgcache(subject_key->send_property);
 					break;
 				}
-				// TODO: move to msgcache.h and change parameter
 				pll_next(iter);
 			}
 		}

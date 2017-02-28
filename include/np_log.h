@@ -28,7 +28,9 @@
 	iiii F
 */
 
-enum
+typedef enum np_log_e log_type;
+
+enum np_log_e
 {
 	LOG_NONE       = 0x0000, /* log nothing        */
 	LOG_NOMOD      = 0x0000, /*           */

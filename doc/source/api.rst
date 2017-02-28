@@ -6,6 +6,7 @@ neuropil.h
 **********
 .. include-comment:: ../../include/neuropil.h
 
+
 .. raw:: html
 
    <hr width=200>
@@ -14,6 +15,7 @@ neuropil.h
 np_aaatoken.h
 *************
 .. include-comment:: ../../include/np_aaatoken.h
+
 
 .. raw:: html
 

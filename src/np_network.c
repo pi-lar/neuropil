@@ -275,19 +275,19 @@ void network_send (np_key_t *node_key, np_message_t* msg)
 	// get encryption details
 	np_aaatoken_t* auth_token = node_key->aaa_token;
 
-	if (NULL == auth_token ||
-		IS_INVALID(auth_token->state))
+	// if (NULL == auth_token ||
+	//  	IS_INVALID(auth_token->state))
+	// {
+	if (node_key->node->handshake_status < HANDSHAKE_COMPLETE)
 	{
-		if (node_key->node->handshake_status < HANDSHAKE_INITIALIZED)
-		{
-			log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
-					node_key->node->dns_name, node_key->node->port, _key_as_str(node_key));
+		log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
+				node_key->node->dns_name, node_key->node->port, _key_as_str(node_key));
 
-			node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
-			np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
-			_np_job_submit_transform_event(0.0, msg_prop, node_key, NULL);
-		}
+		node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
+		np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
+		_np_job_submit_transform_event(0.0, msg_prop, node_key, NULL);
 		return;
+	}
 /*
 		for  (int count = 0; 3 > count; count++)
 		{
@@ -302,7 +302,7 @@ void network_send (np_key_t *node_key, np_message_t* msg)
 			return;
 		}
 */
-	}
+	// }
 
 	// log_msg(LOG_NETWORKDEBUG, "serialized message to %llu bytes", send_buf_len);
 	uint16_t i = 0;

@@ -17,7 +17,13 @@ AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizi
 #define _NP_AAATOKEN_H_
 
 #include <pthread.h>
+
+#if defined(__APPLE__) && defined(__MACH__)
 #include <uuid/uuid.h>
+#endif
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#include <uuid.h>
+#endif
 
 #include "sodium.h"
 

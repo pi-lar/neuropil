@@ -5,6 +5,8 @@
 #ifndef _NP_TYPES_H_
 #define _NP_TYPES_H_
 
+#include <stdint.h>
+
 #include "event/ev.h"
 
 #include "np_list.h"
@@ -16,14 +18,20 @@
 
 typedef enum
 {
-	FALSE=0,
-	TRUE=1
+    FALSE=0,
+    TRUE=1
 } np_bool;
 
 //
 // int __attribute__((overloadable)) square(int);
 
-#define NP_ENUM  __attribute__ ((flag_enum))
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__linux__)
+#define NP_ENUM
+#endif
+#if defined(__APPLE__) && defined(__MACH__)
+#define NP_ENUM __attribute__ ((flag_enum))
+#endif
+
 #define NP_CONST __attribute__ ((const))
 #define NP_PURE  __attribute__ ((pure))
 

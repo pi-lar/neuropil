@@ -1,7 +1,7 @@
 PLATFORM ?= $(shell uname -s)
 
 CC=clang 
-# CC=/Users/schwicht/Downloads/checker-277/libexec/ccc-analyzer
+# CC=./checker-277/libexec/ccc-analyzer
 
 # CFLAGS=-c -Wall -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
 CFLAGS=-c -Wall -Wextra -g -gdwarf-2 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
@@ -104,8 +104,7 @@ test_suites: test/test_suites.o
 
 src/libneuropil.a: $(OBJECTS)
 	$(CC) -g -target $(TARGET) $(LDFLAGS) $(CLANG_SANITIZER) -dynamiclib -fprofile-instr-generate -std=c99 $(SODIUM_LIBRARIES) $(OBJECTS) -o libneuropil.$(TARGET).a
-	cp libneuropil.$(TARGET).a /Users/schwicht/Development/
-	dsymutil libneuropil.$(TARGET).a -o /Users/schwicht/Development/libneuropil.$(TARGET).a.dSYM
+	dsymutil libneuropil.$(TARGET).a -o libneuropil.$(TARGET).a.dSYM
 
 .c.o: $(SOURCES) $(TEST_SOURCES)
 	$(CC) -target $(TARGET) $(CFLAGS) -fprofile-instr-generate $(INCLUDES) $< -o $@
