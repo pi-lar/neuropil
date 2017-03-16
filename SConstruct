@@ -74,8 +74,8 @@ print '####'
 
 # add 3rd party library path info here
 tpl_library_list = ['sodium', 'criterion']
-tpl_include_path = ['/usr/local/include', './lib/sodium/include', './lib/criterion/include']
-tpl_library_path = ['/usr/local/lib', './lib/sodium/lib', './lib/criterion/lib']
+tpl_include_path = ['/usr/local/include', './lib/libsodium-master/src/libsodium/include', './lib/criterion-v2.2.1/include']
+tpl_library_path = ['/usr/local/lib', './lib/libsodium-master/src/libsodium/.libs', './lib/criterion-v2.2.1/lib']
 
 env.Append(CPPPATH = tpl_include_path)
 env.Append(LIBPATH = tpl_library_path)
