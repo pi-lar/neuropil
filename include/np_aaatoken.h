@@ -199,6 +199,11 @@ np_aaatoken_t* _np_get_receiver_token(char* subject);
 NP_API_INTERN
 void _np_aaatoken_add_signature(np_aaatoken_t* msg_token);
 
+NP_API_INTERN
+np_aaatoken_t* _np_get_local_mx_token(char* subject);
+NP_API_INTERN
+void _np_add_local_mx_token(char* subject, np_aaatoken_t *token);
+
 #ifdef __cplusplus
 }
 #endif

@@ -389,7 +389,7 @@ void _np_signal (np_jobargs_t* args)
 	_LOCK_MODULE(np_msgproperty_t)
 	{
 		real_prop->msg_threshold++;
-		sll_append(np_message_t, real_prop->msg_cache, args->msg);
+		sll_append(np_message_t, real_prop->msg_cache_in, args->msg);
 		np_ref_obj(np_message_t, args->msg);
 		// signal the np_receive function that the message has arrived
 		log_msg(LOG_DEBUG, "signaling via available %p", real_prop);
@@ -430,7 +430,7 @@ void _np_callback_wrapper(np_jobargs_t* args)
 	sender_token = _np_get_sender_token((char*) subject, msg_from.value.s);
 	if (NULL == sender_token)
 	{
-		_np_add_msg_to_cache(msg_prop, msg_in);
+		_np_add_msg_to_recv_cache(msg_prop, msg_in);
 		goto __np_return__;
 	}
 
@@ -1118,11 +1118,18 @@ void _np_in_available_sender(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	log_msg(LOG_DEBUG, "now handling message availability");
+	np_state_t* state = _np_state();
 
+	np_dhkey_t sendtoken_issuer_key = dhkey_create_from_hash(msg_token->issuer);
+	if (_dhkey_equal(&sendtoken_issuer_key, &state->my_identity->dhkey) )
+	{
+		// only add the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
+		goto __np_cleanup__;
+	}
+
+	log_msg(LOG_DEBUG, "now handling message availability");
 	_np_add_sender_token(msg_token->subject, msg_token);
 
-	np_state_t* state = _np_state();
 	np_dhkey_t to_key = dhkey_create_from_hash(msg_to.value.s);
 
 	if ( _dhkey_equal(&to_key, &state->my_node_key->dhkey) )
@@ -1226,10 +1233,17 @@ void _np_in_available_receiver(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
+	np_state_t* state = _np_state();
+
+	np_dhkey_t recvtoken_issuer_key = dhkey_create_from_hash(msg_token->issuer);
+	if (_dhkey_equal(&recvtoken_issuer_key, &state->my_identity->dhkey) )
+	{
+		// only add the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
+		goto __np_cleanup__;
+	}
+
 	log_msg(LOG_DEBUG, "now handling message interest");
 	_np_add_receiver_token(msg_token->subject, msg_token);
-
-	np_state_t* state = _np_state();
 	// check if we are (one of the) sending node(s) of this kind of message
 	if ( _dhkey_equal(&to_key, &state->my_node_key->dhkey) )
 	{
@@ -1832,4 +1846,3 @@ void _np_in_handshake(np_jobargs_t* args)
 	if (NULL != hs_payload) np_free_tree(hs_payload);
 	return;
 }
-

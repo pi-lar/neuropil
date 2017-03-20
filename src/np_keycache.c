@@ -56,6 +56,9 @@ void _np_key_t_new(void* key)
     // used internally only
     new_key->recv_property = NULL;
     new_key->send_property = NULL;
+
+    new_key->local_mx_tokens = NULL; // link to runtime interest data on which this node is interested in
+
     new_key->send_tokens = NULL; // link to runtime interest data on which this node is interested in
     new_key->recv_tokens = NULL; // link to runtime interest data on which this node is interested in
 }

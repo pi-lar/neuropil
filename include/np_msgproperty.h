@@ -239,7 +239,8 @@ struct np_msgproperty_s
 
 	// cache which will hold up to max_threshold messages
 	np_msgcache_policy_type cache_policy;
-	np_sll_t(np_message_t, msg_cache);
+	np_sll_t(np_message_t, msg_cache_in);
+	np_sll_t(np_message_t, msg_cache_out);
 
 	// only send/receive after opposite partner has been found
     pthread_mutex_t    lock;
@@ -346,7 +347,9 @@ NP_API_INTERN
 void _np_check_receiver_msgcache(np_msgproperty_t* recv_prop);
 
 NP_API_INTERN
-void _np_add_msg_to_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
+void _np_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
+NP_API_INTERN
+void _np_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
 
 #ifdef __cplusplus
 }

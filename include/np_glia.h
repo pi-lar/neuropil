@@ -7,6 +7,8 @@
 
 #include "np_types.h"
 
+#include "np_msgproperty.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,6 +35,7 @@ void _np_send_rowinfo (np_jobargs_t* args);
 
 np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request);
 
+void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject);
 void _np_send_msg_interest(const char* subject);
 void _np_send_msg_availability(const char* subject);
 

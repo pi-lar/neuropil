@@ -33,6 +33,8 @@ struct np_key_s
     np_node_t*    node;		    // link to a neuropil node if this key represents a node
     np_network_t* network;	    // link to a neuropil network if this key represents a node
 
+    np_pll_t(np_aaatoken_ptr, local_mx_tokens); // link to runtime interest data on which this node is interested in
+
     // required structure if this node becomes a mitm for message exchange
     np_msgproperty_t* recv_property;
     np_msgproperty_t* send_property;

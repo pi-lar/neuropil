@@ -164,6 +164,7 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 
 void np_msgproperty_register(np_msgproperty_t* msgprops)
 {
+	log_msg(LOG_DEBUG, "registering user property: %s", msgprops->msg_subject);
 	RB_INSERT(rbt_msgproperty, __msgproperty_table, msgprops);
 }
 
@@ -194,7 +195,8 @@ void _np_msgproperty_t_new(void* property)
 
 	// cache which will hold up to max_threshold messages
 	prop->cache_policy = FIFO | OVERFLOW_PURGE;
-	sll_init(np_message_t, prop->msg_cache);
+	sll_init(np_message_t, prop->msg_cache_in);
+	sll_init(np_message_t, prop->msg_cache_out);
 
 	pthread_mutex_init (&prop->lock, NULL);
     pthread_cond_init (&prop->msg_received, &prop->cond_attr);
@@ -207,7 +209,8 @@ void _np_msgproperty_t_del(void* property)
 
 	if (prop->msg_subject) free(prop->msg_subject);
 
-	sll_free(np_message_t, prop->msg_cache);
+	sll_free(np_message_t, prop->msg_cache_in);
+	sll_free(np_message_t, prop->msg_cache_out);
 
 	pthread_condattr_destroy(&prop->cond_attr);
     pthread_cond_destroy (&prop->msg_received);
@@ -220,14 +223,14 @@ void _np_check_sender_msgcache(np_msgproperty_t* send_prop)
 	// should not return NULL
 	log_msg(LOG_DEBUG,
 			"this node is one sender of messages, checking msgcache (%p / %u) ...",
-			send_prop->msg_cache, sll_size(send_prop->msg_cache));
+			send_prop->msg_cache_out, sll_size(send_prop->msg_cache_out));
 
 	// get message from cache (maybe only for one way mep ?!)
 	uint16_t msg_available = 0;
 
 	LOCK_CACHE(send_prop)
 	{
-		msg_available = sll_size(send_prop->msg_cache);
+		msg_available = sll_size(send_prop->msg_cache_out);
 	}
 	np_bool sending_ok = TRUE;
 
@@ -238,12 +241,12 @@ void _np_check_sender_msgcache(np_msgproperty_t* send_prop)
 		{
 			// if messages are available in cache, send them !
 			if (send_prop->cache_policy & FIFO)
-				msg_out = sll_head(np_message_t, send_prop->msg_cache);
+				msg_out = sll_head(np_message_t, send_prop->msg_cache_out);
 			if (send_prop->cache_policy & FILO)
-				msg_out = sll_tail(np_message_t, send_prop->msg_cache);
+				msg_out = sll_tail(np_message_t, send_prop->msg_cache_out);
 
 			// check for more messages in cache after head/tail command
-			msg_available = sll_size(send_prop->msg_cache);
+			msg_available = sll_size(send_prop->msg_cache_out);
 			send_prop->msg_threshold--;
 		}
 
@@ -258,13 +261,13 @@ void _np_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 {
 	log_msg(LOG_DEBUG,
 			"this node is the receiver of messages, checking msgcache (%p / %u) ...",
-			recv_prop->msg_cache, sll_size(recv_prop->msg_cache));
+			recv_prop->msg_cache_in, sll_size(recv_prop->msg_cache_in));
 
 	// get message from cache (maybe only for one way mep ?!)
 	uint16_t msg_available = 0;
 	LOCK_CACHE(recv_prop)
 	{
-		msg_available = sll_size(recv_prop->msg_cache);
+		msg_available = sll_size(recv_prop->msg_cache_in);
 	}
 
 	np_state_t* state = _np_state();
@@ -276,11 +279,11 @@ void _np_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 		{
 			// if messages are available in cache, try to decode them !
 			if (recv_prop->cache_policy & FIFO)
-				msg_in = sll_tail(np_message_t, recv_prop->msg_cache);
+				msg_in = sll_tail(np_message_t, recv_prop->msg_cache_in);
 			if (recv_prop->cache_policy & FILO)
-				msg_in = sll_head(np_message_t, recv_prop->msg_cache);
+				msg_in = sll_head(np_message_t, recv_prop->msg_cache_in);
 
-			msg_available = sll_size(recv_prop->msg_cache);
+			msg_available = sll_size(recv_prop->msg_cache_in);
 			recv_prop->msg_threshold--;
 		}
 		_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in);
@@ -288,14 +291,14 @@ void _np_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 	}
 }
 
-void _np_add_msg_to_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
+void _np_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
 	LOCK_CACHE(msg_prop)
 	{
 		// cache already full ?
-		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache))
+		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_out))
 		{
-			log_msg(LOG_DEBUG, "msg cache full, checking overflow policy ...");
+			log_msg(LOG_DEBUG, "send msg cache full, checking overflow policy ...");
 
 			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
 			{
@@ -303,9 +306,9 @@ void _np_add_msg_to_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 				np_message_t* old_msg = NULL;
 
 				if ((msg_prop->cache_policy & FIFO) > 0)
-					old_msg = sll_head(np_message_t, msg_prop->msg_cache);
+					old_msg = sll_head(np_message_t, msg_prop->msg_cache_out);
 				if ((msg_prop->cache_policy & FILO) > 0)
-					old_msg = sll_tail(np_message_t, msg_prop->msg_cache);
+					old_msg = sll_tail(np_message_t, msg_prop->msg_cache_out);
 
 				if (old_msg != NULL)
 				{
@@ -323,10 +326,53 @@ void _np_add_msg_to_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 			}
 		}
 
-		sll_prepend(np_message_t, msg_prop->msg_cache, msg_in);
+		sll_prepend(np_message_t, msg_prop->msg_cache_out, msg_in);
 
-		log_msg(LOG_DEBUG, "added message to the msgcache (%p / %d) ...",
-				msg_prop->msg_cache, sll_size(msg_prop->msg_cache));
+		log_msg(LOG_DEBUG, "added message to the sender msgcache (%p / %d) ...",
+				msg_prop->msg_cache_out, sll_size(msg_prop->msg_cache_out));
+		np_ref_obj(np_message_t, msg_in);
+	}
+}
+
+void _np_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
+{
+	LOCK_CACHE(msg_prop)
+	{
+		// cache already full ?
+		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
+		{
+			log_msg(LOG_DEBUG, "recv msg cache full, checking overflow policy ...");
+
+			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
+			{
+				log_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding first message");
+				np_message_t* old_msg = NULL;
+
+				if ((msg_prop->cache_policy & FIFO) > 0)
+					old_msg = sll_head(np_message_t, msg_prop->msg_cache_in);
+				if ((msg_prop->cache_policy & FILO) > 0)
+					old_msg = sll_tail(np_message_t, msg_prop->msg_cache_in);
+
+				if (old_msg != NULL)
+				{
+					// TODO: add callback hook to allow user space handling of discarded message
+					msg_prop->msg_threshold--;
+					np_unref_obj(np_message_t, old_msg);
+				}
+			}
+
+			if (0 < (msg_prop->cache_policy & OVERFLOW_REJECT))
+			{
+				log_msg(LOG_DEBUG,
+						"rejecting new message because cache is full");
+				continue;
+			}
+		}
+
+		sll_prepend(np_message_t, msg_prop->msg_cache_in, msg_in);
+
+		log_msg(LOG_DEBUG, "added message to the recv msgcache (%p / %d) ...",
+				msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
 		np_ref_obj(np_message_t, msg_in);
 	}
 }

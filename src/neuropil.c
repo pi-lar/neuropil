@@ -239,20 +239,18 @@ void np_enable_realm_master()
 
 	// turn msg handlers for aaa to inbound msg as well
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
-	prop->mode_type |= INBOUND;
-	sll_init(np_message_t, prop->msg_cache);
+	if (NULL == prop->msg_audience)
+	{
+		prop->msg_audience = strndup(__global_state->realm_name, 255);
+	}
 
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
-	prop->mode_type |= INBOUND;
-	sll_init(np_message_t, prop->msg_cache);
 	if (NULL == prop->msg_audience)
 	{
 		prop->msg_audience = strndup(__global_state->realm_name, 255);
 	}
 
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
-	sll_init(np_message_t, prop->msg_cache);
-	prop->mode_type |= INBOUND;
 	if (NULL == prop->msg_audience)
 	{
 		prop->msg_audience = strndup(__global_state->realm_name, 255);
@@ -282,13 +280,14 @@ void np_set_listener (np_usercallback_t msg_handler, char* subject)
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mode_type = INBOUND;
-		msg_prop->clb_inbound = _np_callback_wrapper;
-		msg_prop->user_clb = msg_handler;
 		np_msgproperty_register(msg_prop);
 	}
 
+	msg_prop->clb_inbound = _np_callback_wrapper;
+	msg_prop->user_clb = msg_handler;
+
 	// update informations somewhere in the network
-	_np_send_msg_interest(subject);
+	_np_send_subject_discovery_messages(INBOUND, subject);
 }
 
 void np_set_identity(np_aaatoken_t* identity)
@@ -395,10 +394,10 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body)
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
 		msg_prop->mode_type = OUTBOUND;
-		msg_prop->clb_outbound = _np_out_send;
 
 		np_msgproperty_register(msg_prop);
 	}
+	msg_prop->clb_outbound = _np_out_send;
 
 	np_message_t* msg = NULL;
 	np_new_obj(np_message_t, msg);
@@ -410,7 +409,8 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body)
 	np_message_setproperties(msg, properties);
 
 	// msg_prop->msg_threshold++;
-	_np_send_msg_availability(subject);
+	// _np_send_msg_availability(subject);
+	_np_send_subject_discovery_messages(OUTBOUND, subject);
 
 	_np_send_msg(subject, msg, msg_prop);
 
@@ -428,10 +428,10 @@ void np_send_text (char* subject, char *data, uint32_t seqnum)
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
 		msg_prop->mode_type = OUTBOUND;
-		msg_prop->clb_outbound = _np_out_send;
 
 		np_msgproperty_register(msg_prop);
 	}
+	msg_prop->clb_outbound = _np_out_send;
 
 	np_message_t* msg = NULL;
 	np_new_obj(np_message_t, msg);
@@ -442,8 +442,7 @@ void np_send_text (char* subject, char *data, uint32_t seqnum)
 
 	tree_insert_str(msg->properties, NP_MSG_INST_SEQ, new_val_ul(seqnum));
 
-	// msg_prop->msg_threshold++;
-	_np_send_msg_availability(subject);
+	_np_send_subject_discovery_messages(OUTBOUND, subject);
 
 	_np_send_msg(subject, msg, msg_prop);
 
@@ -469,7 +468,8 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	}
 	msg_prop->max_threshold++;
 
-	_np_send_msg_interest(subject);
+	// _np_send_msg_interest(subject);
+	_np_send_subject_discovery_messages(INBOUND, subject);
 
 	np_aaatoken_t* sender_token = NULL;
 	np_message_t* msg = NULL;
@@ -478,7 +478,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 
 	do
 	{	// first check or wait for available messages
-		if (0 == sll_size(msg_prop->msg_cache))
+		if (0 == sll_size(msg_prop->msg_cache_in))
 		{
 			LOCK_CACHE(msg_prop)
 			{
@@ -487,7 +487,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 				log_msg(LOG_DEBUG, "received signal that a new message arrived %p", msg_prop);
 			}
 		}
-		msg = sll_first(msg_prop->msg_cache)->val;
+		msg = sll_first(msg_prop->msg_cache_in)->val;
 
 		// next check or wait for valid sender tokens
 		sender_id = tree_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
@@ -506,8 +506,8 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	} while (FALSE == msg_received);
 
 	// in receive function, we can only receive one message per call, different for callback function
-	log_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache));
-	msg = sll_head(np_message_t, msg_prop->msg_cache);
+	log_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache_in));
+	msg = sll_head(np_message_t, msg_prop->msg_cache_in);
 
 	log_msg(LOG_DEBUG, "decrypting message ...");
 	np_bool decrypt_ok = np_message_decrypt_payload(msg, sender_token);
@@ -578,7 +578,7 @@ uint32_t np_receive_text (char* subject, char **data)
 	}
 	msg_prop->max_threshold++;
 
-	_np_send_msg_interest(subject);
+	_np_send_subject_discovery_messages(INBOUND, subject);
 
 	np_aaatoken_t* sender_token = NULL;
 	np_message_t* msg = NULL;
@@ -587,7 +587,7 @@ uint32_t np_receive_text (char* subject, char **data)
 
 	do
 	{	// first check or wait for available messages
-		if (0 == sll_size(msg_prop->msg_cache))
+		if (0 == sll_size(msg_prop->msg_cache_in))
 		{
 			LOCK_CACHE(msg_prop)
 			{
@@ -596,7 +596,7 @@ uint32_t np_receive_text (char* subject, char **data)
 				log_msg(LOG_DEBUG, "received signal that a new message arrived %p", msg_prop);
 			}
 		}
-		msg = sll_first(msg_prop->msg_cache)->val;
+		msg = sll_first(msg_prop->msg_cache_in)->val;
 
 		// next check or wait for valid sender tokens
 		sender_id = tree_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
@@ -615,8 +615,8 @@ uint32_t np_receive_text (char* subject, char **data)
 	} while (FALSE == msg_received);
 
 	// in receive function, we can only receive one message per call, different for callback function
-	log_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache));
-	msg = sll_head(np_message_t, msg_prop->msg_cache);
+	log_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache_in));
+	msg = sll_head(np_message_t, msg_prop->msg_cache_in);
 
 	log_msg(LOG_DEBUG, "decrypting message ...");
 	np_bool decrypt_ok = np_message_decrypt_payload(msg, sender_token);

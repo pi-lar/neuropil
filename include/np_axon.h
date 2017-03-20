@@ -28,6 +28,9 @@ void _np_send_sender_discovery(np_jobargs_t* args);
 NP_API_INTERN
 void _np_send_receiver_discovery(np_jobargs_t* args);
 
+NP_API_INTERN
+void _np_send_discovery_messages(np_jobargs_t* args);
+
 // send an authentication request to the target
 NP_API_INTERN
 void np_send_authentication_request(np_jobargs_t* args);

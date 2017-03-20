@@ -858,6 +858,33 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	return (msg_token);
 }
 
+void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject)
+{
+	log_msg(LOG_TRACE, ".start._np_send_subject_discovery_messages");
+
+	// insert into msg token token renewal queue
+	if (NULL == tree_find_str(_np_state()->msg_tokens, subject))
+	{
+		tree_insert_str(_np_state()->msg_tokens, subject, new_val_v(NULL));
+
+		np_msgproperty_t* msg_prop = np_msgproperty_get(mode_type, subject);
+		msg_prop->mode_type |= TRANSFORM;
+		msg_prop->clb_transform = _np_send_discovery_messages;
+
+		np_dhkey_t target_dhkey = dhkey_create_from_hostport(subject, "0");
+		np_key_t* target = NULL;
+		np_new_obj(np_key_t, target);
+		target->dhkey = target_dhkey;
+
+		log_msg(LOG_DEBUG, "registering for message discovery token handling (%s)", subject);
+		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
+		np_free_obj(np_key_t, target);
+	}
+
+	log_msg(LOG_TRACE, ".end  ._np_send_subject_discovery_messages");
+}
+
+// deprecated
 void _np_send_msg_interest(const char* subject)
 {
 	log_msg(LOG_TRACE, ".start.np_send_msg_interest");
@@ -869,7 +896,7 @@ void _np_send_msg_interest(const char* subject)
 
 		np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
 		msg_prop->mode_type |= TRANSFORM;
-		msg_prop->clb_transform = _np_send_sender_discovery;
+		msg_prop->clb_transform = _np_send_discovery_messages;
 
 		np_dhkey_t target_dhkey = dhkey_create_from_hostport(subject, "0");
 		np_key_t* target = NULL;
@@ -884,6 +911,7 @@ void _np_send_msg_interest(const char* subject)
 	log_msg(LOG_TRACE, ".end  .np_send_msg_interest");
 }
 
+// deprecated
 void _np_send_msg_availability(const char* subject)
 {
 	log_msg(LOG_TRACE, ".start.np_send_msg_availability");
@@ -894,7 +922,7 @@ void _np_send_msg_availability(const char* subject)
 		tree_insert_str(_np_state()->msg_tokens, subject, new_val_v(NULL));
 
 		np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
-		msg_prop->clb_transform = _np_send_receiver_discovery;
+		msg_prop->clb_transform = _np_send_discovery_messages;
 
 		np_dhkey_t target_dhkey = dhkey_create_from_hostport(subject, "0");
 		np_key_t* target = NULL;
@@ -962,7 +990,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 	}
 	else
 	{
-		_np_add_msg_to_cache(msg_prop, msg);
+		_np_add_msg_to_send_cache(msg_prop, msg);
 	}
 	return (FALSE);
 }

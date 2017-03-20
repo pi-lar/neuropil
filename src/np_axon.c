@@ -436,6 +436,64 @@ void _np_out_handshake(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  ._np_out_handshake");
 }
 
+void _np_send_discovery_messages(np_jobargs_t* args)
+{
+	log_msg(LOG_TRACE, ".start._np_send_discovery_messages");
+	np_aaatoken_t* msg_token = NULL;
+
+	msg_token = _np_get_local_mx_token(args->properties->msg_subject);
+	if (NULL == msg_token)
+	{
+		log_msg(LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
+		msg_token = _np_create_msg_token(args->properties);
+		_np_add_local_mx_token(msg_token->subject, msg_token);
+	}
+
+	if (0 < (args->properties->mode_type & INBOUND))
+	{
+		log_msg(LOG_TRACE, ".step ._np_send_discovery_messages");
+
+		if (NULL != msg_token)
+		{
+			log_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
+			np_tree_t* _data = make_nptree();
+			np_encode_aaatoken(_data, msg_token);
+
+			np_message_t* msg_out = NULL;
+			np_new_obj(np_message_t, msg_out);
+			np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_SENDER, _data);
+
+			// send message availability
+			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
+			_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+
+			np_free_obj(np_message_t, msg_out);
+		}
+	}
+
+	if (0 < (args->properties->mode_type & OUTBOUND))
+	{
+		log_msg(LOG_TRACE, ".step ._np_send_discovery_messages");
+		if (NULL != msg_token)
+		{
+			log_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
+			np_tree_t* _data = make_nptree();
+			np_encode_aaatoken(_data, msg_token);
+
+			np_message_t* msg_out = NULL;
+			np_new_obj(np_message_t, msg_out);
+			np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_RECEIVER, _data);
+			// send message availability
+			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
+			_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+			np_free_obj(np_message_t, msg_out);
+		}
+	}
+
+	log_msg(LOG_TRACE, ".end  ._np_send_discovery_messages");
+}
+
+// deprecated
 void _np_send_receiver_discovery(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start._np_send_receiver_discovery");
@@ -470,6 +528,7 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  ._np_send_receiver_discovery");
 }
 
+// deprecated
 void _np_send_sender_discovery(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start._np_send_sender_discovery");
@@ -538,10 +597,6 @@ void np_send_authentication_request(np_jobargs_t* args)
 	aaa_target->dhkey = target_dhkey;
 
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
-	if (NULL == aaa_props->msg_cache)
-	{
-		sll_init(np_message_t, aaa_props->msg_cache);
-	}
 
 	// create and send authentication request
 	np_message_t* msg_out = NULL;
@@ -595,10 +650,6 @@ void np_send_authentication_reply(np_jobargs_t* args)
 	aaa_target->dhkey = target_dhkey;
 
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REPLY);
-	if (NULL == aaa_props->msg_cache)
-	{
-		sll_init(np_message_t, aaa_props->msg_cache);
-	}
 
 	// create and send authentication reply
 	if (FALSE == _np_send_msg(_NP_MSG_AUTHENTICATION_REPLY, args->msg, aaa_props))
@@ -635,10 +686,6 @@ void np_send_authorization_request(np_jobargs_t* args)
 	aaa_target->dhkey = target_dhkey;
 
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
-	if (NULL == aaa_props->msg_cache)
-	{
-		sll_init(np_message_t, aaa_props->msg_cache);
-	}
 
 	// create and and send authorization request
 	np_message_t* msg_out = NULL;
@@ -689,10 +736,6 @@ void np_send_authorization_reply(np_jobargs_t* args)
 	aaa_target->dhkey = target_dhkey;
 
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REPLY);
-	if (NULL == aaa_props->msg_cache)
-	{
-		sll_init(np_message_t, aaa_props->msg_cache);
-	}
 
 	// create and send authentication reply
 	if (FALSE == _np_send_msg(_NP_MSG_AUTHORIZATION_REPLY, args->msg, aaa_props))
@@ -725,10 +768,6 @@ void np_send_accounting_request(np_jobargs_t* args)
 
 	log_msg(LOG_DEBUG, "encoding and sending accounting token");
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
-	if (NULL == aaa_props->msg_cache)
-	{
-		sll_init(np_message_t, aaa_props->msg_cache);
-	}
 
 	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);

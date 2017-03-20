@@ -265,7 +265,7 @@ np_msgproperty_t __authenticate =
 {
 		.msg_subject = _NP_MSG_AUTHENTICATION_REQUEST,
 		.rep_subject = _NP_MSG_AUTHENTICATION_REPLY,
-		.mode_type = OUTBOUND | TRANSFORM | ROUTE,
+		.mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE,
 		.mep_type = A2G_STICKY_REPLY,
 		.priority = 5,
 		.ack_mode = ACK_EACHHOP,
@@ -302,7 +302,7 @@ np_msgproperty_t __authorize =
 {
 		.msg_subject = _NP_MSG_AUTHORIZATION_REQUEST,
 		.rep_subject = _NP_MSG_AUTHORIZATION_REPLY,
-		.mode_type = OUTBOUND | TRANSFORM | ROUTE,
+		.mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE,
 		.mep_type = G2G_STICKY_REPLY,
 		.priority = 5,
 		.ack_mode = ACK_EACHHOP,
@@ -339,7 +339,7 @@ np_msgproperty_t __account =
 {
 		.msg_subject = _NP_MSG_ACCOUNTING_REQUEST,
 		.rep_subject = NULL,
-		.mode_type = OUTBOUND | TRANSFORM | ROUTE,
+		.mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE,
 		.mep_type = GROUP_TO_GROUP,
 		.priority = 5,
 		.ack_mode = ACK_EACHHOP,
