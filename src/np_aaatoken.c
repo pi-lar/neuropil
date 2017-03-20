@@ -743,6 +743,15 @@ np_aaatoken_t* _np_get_receiver_token(char* subject)
 				continue;
 			}
 
+			np_dhkey_t recvtoken_issuer_key = dhkey_create_from_hash(return_token->issuer);
+			if (_dhkey_equal(&recvtoken_issuer_key, &_np_state()->my_identity->dhkey) )
+			{
+				// only use the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
+				pll_next(iter);
+				return_token = NULL;
+				continue;
+			}
+
 			log_msg(LOG_AAATOKEN | LOG_DEBUG,
 					"found valid receiver token (%s)", return_token->issuer );
 

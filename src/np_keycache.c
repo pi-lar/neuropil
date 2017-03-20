@@ -67,7 +67,7 @@ void _np_key_t_del(void* key)
 {
 	np_key_t* old_key = (np_key_t*) key;
 
-    log_msg(LOG_DEBUG, "destructor of key %p -> %s called ", old_key, _key_as_str(old_key));
+    // log_msg(LOG_DEBUG, "destructor of key %p -> %s called ", old_key, _key_as_str(old_key));
 
 	// delete string presentation of key
 	if (NULL != old_key->dhkey_str)
