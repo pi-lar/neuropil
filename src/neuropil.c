@@ -36,11 +36,6 @@
 #include "np_threads.h"
 #include "np_route.h"
 
-const char* np_major  = "0";
-const char* np_minor  = "1";
-const char* np_bugfix = "0";
-const char* NP_VERSION = "0.1.0";
-
 static np_state_t* __global_state = NULL;
 
 np_state_t* _np_state ()
@@ -908,17 +903,23 @@ void np_start_job_queue(uint8_t pool_size)
         pthread_create (&__global_state->thread_ids[i], &__global_state->attr, _job_exec, (void *) __global_state);
     	log_msg(LOG_DEBUG, "neuropil worker thread started: %p", __global_state->thread_ids[i]);
    	}
-	log_msg(LOG_DEBUG, "neuropil (version %s) event loop with %d threads started", NP_VERSION, pool_size);
+	log_msg(LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
+	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
+	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 
 	fprintf(stdout, "\n");
-	fprintf(stdout, "neuropil (version %s) initializiation successful\n", NP_VERSION);
-	fprintf(stdout, "neuropil (version %s) event loop with %d worker threads started\n", NP_VERSION, pool_size);
+	fprintf(stdout, "%s initializiation successful\n", NEUROPIL_RELEASE);
+	fprintf(stdout, "%s event loop with %d worker threads started\n", NEUROPIL_RELEASE, pool_size);
 	fprintf(stdout, "your neuropil node will be addressable as:\n");
+	fprintf(stdout, "\n");
 	fprintf(stdout, "\t%s:%s:%s:%s\n",
 					_key_as_str(__global_state->my_node_key),
 					np_get_protocol_string(__global_state->my_node_key->node->protocol),
 					__global_state->my_node_key->node->dns_name,
 					__global_state->my_node_key->node->port);
+	fprintf(stdout, "\n");
+	fprintf(stdout, "%s\n", NEUROPIL_COPYRIGHT);
+	fprintf(stdout, "%s\n", NEUROPIL_TRADEMARK);
 	fprintf(stdout, "\n");
 	fflush(stdout);
 }

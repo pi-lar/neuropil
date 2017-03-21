@@ -35,13 +35,9 @@
 #include "np_tree.h"
 #include "np_val.h"
 
-#define SEND_SIZE NETWORK_PACK_SIZE
-
-#define GRACEPERIOD  30		/* seconds */
-
 /**
  * convenience helper macros when messages are received
- * check the existence of a field and extracts it, otherwise continues with cleanup
+ * check the existence of a field and extracts it, otherwise continues with a goto __cleanup__
  */
 #define CHECK_STR_FIELD(TREE, FIELD_NAME, VAR_NAME) \
 np_val_t VAR_NAME = NP_VAL_NULL; \

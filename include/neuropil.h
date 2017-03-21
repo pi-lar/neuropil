@@ -16,6 +16,14 @@ It should contain all required functions to send or receive messages.
 
 #include "np_types.h"
 
+#define NP_VERSION_MAJOR	"0"
+#define NP_VERSION_MINOR	"1"
+#define NP_VERSION_RELEASE	"0"
+
+#define NEUROPIL_VERSION	"neuropil " NP_VERSION_MAJOR "." NP_VERSION_MINOR
+#define NEUROPIL_RELEASE	NEUROPIL_VERSION "." NP_VERSION_RELEASE
+#define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2017 neuropil.org, Cologne, Germany"
+#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2017 pi-lar GmbH, Cologne, Germany"
 
 #ifdef __cplusplus
 extern "C" {
