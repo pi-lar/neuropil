@@ -18,8 +18,10 @@
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_msgproperty.h"
+#include "np_keycache.h"
 #include "np_tree.h"
 #include "np_types.h"
+#include "np_node.h"
 
 
 #define USAGE "neuropil_receiver_cb [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count]"
@@ -130,7 +132,9 @@ int main(int argc, char **argv)
 
 	   np_init(proto, port, FALSE);
 	*/
-	np_init(proto, port, FALSE);
+	np_state_t* state = np_init(proto, port, FALSE);
+	// The port may change due to default setting for NULL
+	port =  state->my_node_key->node->port;
 
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
@@ -158,7 +162,7 @@ int main(int argc, char **argv)
 	}else{
 		fprintf(stdout, "Node waits for connections.\n");
 		fprintf(stdout, "Please start another node with the following arguments:\n");
-		fprintf(stdout, "-b %d -j %s\n", atoi(state->my_node_key->node->port) + 1, get_connection_string());
+		fprintf(stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string());
 	}
 
 	np_waitforjoin();

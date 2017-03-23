@@ -287,7 +287,8 @@ void np_rem_mx_property(char* subject, const char* key);
    Convenience function to build the current connection string for the node.
 
 */
-char* get_connection_string();
+NP_API_EXPORT
+char* np_get_connection_string();
 
 /**
 .. c:function:: void np_start_job_queue(np_state_t* state, uint8_t pool_size)

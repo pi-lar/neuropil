@@ -913,7 +913,9 @@ void np_start_job_queue(uint8_t pool_size)
 	fprintf(stdout, "your neuropil node will be addressable as:\n");
 	fprintf(stdout, "\n");
 
- 	fprintf(stdout, "\t%s\n",get_connection_string());
+	char* connectionstr = np_get_connection_string();
+ 	fprintf(stdout, "\t%s\n",connectionstr);
+ 	free(connectionstr);
 
 	fprintf(stdout, "\n");
 	fprintf(stdout, "%s\n", NEUROPIL_COPYRIGHT);
@@ -922,7 +924,7 @@ void np_start_job_queue(uint8_t pool_size)
 	fflush(stdout);
 }
 
-char* get_connection_string(){
+char* np_get_connection_string(){
 	char* connection_str;
  	asprintf(&connection_str, "%s:%s:%s:%s",
 			_key_as_str(__global_state->my_node_key),
