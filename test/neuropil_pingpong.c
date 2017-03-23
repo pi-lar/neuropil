@@ -48,9 +48,10 @@ np_bool receive_ping(np_tree_t* properties, np_tree_t* body)
 	char* text = tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	uint32_t seq = tree_find_str(properties, NP_MSG_INST_SEQ)->val.value.ul;
 
+	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
-
-	np_send_text("pong", "pong", _pong_count++);
+	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
+	np_send_text("pong", "pong", _pong_count);
 
 	return TRUE;
 }
@@ -60,9 +61,11 @@ np_bool receive_pong(np_tree_t* properties, np_tree_t* body)
 	char* text = tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	uint32_t seq = tree_find_str(properties, NP_MSG_INST_SEQ)->val.value.ul;
 
+	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
+	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_count++, "ping");
 
-	np_send_text("ping", "ping", _ping_count++);
+	np_send_text("ping", "ping", _ping_count);
 
 	return TRUE;
 }
@@ -152,9 +155,15 @@ int main(int argc, char **argv)
 	if (NULL != j_key)
 	{
 		np_send_join(j_key);
+	}else{
+		fprintf(stdout, "Node waits for connections.\n");
+		fprintf(stdout, "Please start another node with the following arguments:\n");
+		fprintf(stdout, "-b %d -j %s\n", atoi(state->my_node_key->node->port) + 1, get_connection_string());
 	}
 
 	np_waitforjoin();
+	fprintf(stdout, "Connection established.\n");
+
 
 	/**
 	.. note::
@@ -199,7 +208,7 @@ int main(int argc, char **argv)
 		   ev_sleep(0.9);
 	   }
 	*/
-
+	log_msg(LOG_INFO, "Sending initial ping");
 	// send an initial ping
 	np_send_text("ping", "ping", _ping_count++);
 
