@@ -16,3 +16,6 @@ syntax: glob
 # syntax: regexp
 # ^\.pc/
 
+*.log
+build/*
+bin/*
