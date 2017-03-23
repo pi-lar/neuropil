@@ -282,6 +282,14 @@ void np_set_mx_property(char* subject, const char* key, np_val_t value);
 void np_rem_mx_property(char* subject, const char* key);
 
 /**
+.. c:function:: char*  get_connection_string()
+
+   Convenience function to build the current connection string for the node.
+
+*/
+char* get_connection_string();
+
+/**
 .. c:function:: void np_start_job_queue(np_state_t* state, uint8_t pool_size)
 
    Start processing of messages within the neuropil subsystem
