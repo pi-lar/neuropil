@@ -5,7 +5,7 @@ import platform
 print '####'
 print '#### starting neuropil build'
 print '####'
-print 'building on : ' + str(platform.machine()) + '/' + str(platform.processor()) + '/' + str(platform.system()) 
+print 'building on : ' + str(platform.machine()) + '/' + str(platform.processor()) + '/' + str(platform.system())
 
 # building on : x86_64/i386/Darwin
 # TARGET=x86_64-apple-darwin-macho
@@ -27,10 +27,10 @@ print '#### adding compiler options and flags'
 print '####'
 
 # add libev flags to the compilation
-env.Append(CCFLAGS = ['-DEV_STANDALONE']) 
-env.Append(CCFLAGS = ['-DHAVE_SELECT']) 
-env.Append(CCFLAGS = ['-DHAVE_KQUEUE']) 
-env.Append(CCFLAGS = ['-DHAVE_POLL']) 
+env.Append(CCFLAGS = ['-DEV_STANDALONE'])
+env.Append(CCFLAGS = ['-DHAVE_SELECT'])
+env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
+env.Append(CCFLAGS = ['-DHAVE_POLL'])
 
 env.Append(CCFLAGS = ['-std=c99'])
 env.Append(LDFLAGS = ['-std=c99'])
@@ -45,15 +45,19 @@ debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2']
 if int(debug):
     env.Append(CCFLAGS = debug_flags)
 
+tpl_library_target = ''
 # platform specific compiler options
 if 'FreeBSD' in platform.system():
   env.Append(LIBS = ['util','m'] )
+  tpl_library_target = 'linux'
 if 'Darwin' in platform.system():
   env.Append(CCFLAGS = ['-Wno-deprecated'] )
   env.Append(CCFLAGS = ['-mmacosx-version-min=10.11'] )
   env.Append(CCFLAGS = ['-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include'] )
+  tpl_library_target = 'ios'
 if 'Linux' in platform.system():
   env.Append(CCFLAGS = ['-D_GNU_SOURCE'])
+  tpl_library_target = 'linux'
 if 'CYGWIN' in platform.system():
   # -std=gnu++0x doesn't work, so work around...
   env.Append(CCFLAGS = ['-U__STRICT_ANSI__'] )
@@ -74,8 +78,8 @@ print '####'
 
 # add 3rd party library path info here
 tpl_library_list = ['sodium', 'criterion']
-tpl_include_path = ['/usr/local/include', './lib/sodium/include', './lib/criterion/include','./lib/criterion-v2.2.1/include','./lib/libsodium-master/src/libsodium/include']
-tpl_library_path = ['/usr/local/lib', './lib/sodium/lib', './lib/criterion/lib','./lib/criterion-v2.2.1/lib', './lib/libsodium-master/src/libsodium/.libs']
+tpl_include_path = ['./lib/criterion-v2.2.1/'+tpl_library_target+'/include','./lib/libsodium-master/src/libsodium/include','/usr/local/include', './lib/sodium/include', './lib/criterion/include']
+tpl_library_path = ['./lib/criterion-v2.2.1/'+tpl_library_target+'/lib', './lib/libsodium-master/src/libsodium/.libs','/usr/local/lib', './lib/sodium/lib', './lib/criterion/lib']
 
 env.Append(CPPPATH = tpl_include_path)
 env.Append(LIBPATH = tpl_library_path)
@@ -170,34 +174,34 @@ TESTS = ['test/test_suites.c']
 print '####'
 print '#### building neuropil libraries/testsuite/example programs:'
 print '####'
-# build the neuropil library as static and shared library 
+# build the neuropil library as static and shared library
 
 np_stlib = env.Library('build/lib/neuropil', SOURCES, LIBS=tpl_library_list)
 np_dylib = env.SharedLibrary('build/lib/neuropil', SOURCES, LIBS=tpl_library_list)
 
 # build test executable
 if int(build_tests):
-    test_suite = env.Program('bin/neuropil_test_suite', TESTS) 
+    test_suite = env.Program('bin/neuropil_test_suite', TESTS)
     Depends(test_suite, np_dylib)
     AlwaysBuild(test_suite)
 
 # build example programs
-prg_np_ctrl = env.Program('bin/neuropil_controller', 'test/neuropil_controller.c') 
+prg_np_ctrl = env.Program('bin/neuropil_controller', 'test/neuropil_controller.c')
 Depends(prg_np_ctrl, np_dylib)
 
-prg_np_node = env.Program('bin/neuropil_node', 'test/neuropil_node.c') 
+prg_np_node = env.Program('bin/neuropil_node', 'test/neuropil_node.c')
 Depends(prg_np_node, np_dylib)
 
-prg_np_recv = env.Program('bin/neuropil_receiver', 'test/neuropil_receiver.c') 
+prg_np_recv = env.Program('bin/neuropil_receiver', 'test/neuropil_receiver.c')
 Depends(prg_np_recv, np_dylib)
 
-prg_np_send = env.Program('bin/neuropil_sender', 'test/neuropil_sender.c') 
+prg_np_send = env.Program('bin/neuropil_sender', 'test/neuropil_sender.c')
 Depends(prg_np_send, np_dylib)
 
-prg_np_rccb = env.Program('bin/neuropil_receiver_cb', 'test/neuropil_receiver_cb.c') 
+prg_np_rccb = env.Program('bin/neuropil_receiver_cb', 'test/neuropil_receiver_cb.c')
 Depends(prg_np_rccb, np_dylib)
 
-prg_np_rccb = env.Program('bin/neuropil_pingpong', 'test/neuropil_pingpong.c') 
+prg_np_rccb = env.Program('bin/neuropil_pingpong', 'test/neuropil_pingpong.c')
 Depends(prg_np_rccb, np_dylib)
 
 # clean up
