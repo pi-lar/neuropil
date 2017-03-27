@@ -16,7 +16,7 @@ env.VariantDir('build/obj', 'src', duplicate=0)
 
 # read in additional compile flags
 analyze = ARGUMENTS.get('analyze', 0)
-build_tests = ARGUMENTS.get('test', 0)
+build_tests = ARGUMENTS.get('test', 1)
 build_doc = ARGUMENTS.get('doc', 0)
 debug = ARGUMENTS.get('debug', 0)
 release = ARGUMENTS.get('release', 0)
@@ -87,14 +87,13 @@ if not conf.CheckLibWithHeader('sodium', 'sodium.h', 'c'):
     print 'Did not find libsodium.a or sodium.lib ...'
     Exit(0)
 
-if conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c'):
+if int(release) < 1 and int(build_tests) > 0 and conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c'):
     print 'Did find libcriterion.a or criterion.lib !'
     print '... Test cases included'
     tpl_library_list = ['criterion']
     env.Append(LIBS = tpl_library_list)
-    build_tests = 1
-
-
+else
+    build_tests = 0
 print '####'
 print '#### adding neuropil specific build path informations'
 print '####'
