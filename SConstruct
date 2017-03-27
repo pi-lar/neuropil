@@ -77,12 +77,7 @@ print '#### detecting 3rd party libraries'
 print '####'
 
 # add 3rd party library path info here
-tpl_library_list = ['sodium', 'criterion']
-tpl_include_path = ['./lib/criterion-v2.2.1/'+tpl_library_target+'/include','./lib/libsodium-master/src/libsodium/include','/usr/local/include', './lib/sodium/include', './lib/criterion/include']
-tpl_library_path = ['./lib/criterion-v2.2.1/'+tpl_library_target+'/lib', './lib/libsodium-master/src/libsodium/.libs','/usr/local/lib', './lib/sodium/lib', './lib/criterion/lib']
-
-env.Append(CPPPATH = tpl_include_path)
-env.Append(LIBPATH = tpl_library_path)
+tpl_library_list = ['sodium']
 env.Append(LIBS = tpl_library_list)
 
 conf = Configure(env)
@@ -90,18 +85,13 @@ conf = Configure(env)
 # Checks for libraries, header files, etc.
 if not conf.CheckLibWithHeader('sodium', 'sodium.h', 'c'):
     print 'Did not find libsodium.a or sodium.lib ...'
+    Exit(0)
 
-if not conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c'):
-    print 'Did not find libcriterion.a or criterion.lib !'
-    print '... Test cases cannot be compiled'
-    tpl_library_list = ['sodium']
-    tpl_include_path = ['/usr/local/include','./lib/sodium/include']
-    tpl_library_path = ['/usr/local/lib','./lib/sodium/lib']
-    env.Replace(CPPPATH = tpl_include_path)
-    env.Replace(LIBPATH = tpl_library_path)
-    env.Replace(LIBS = tpl_library_list)
-    build_tests = 0
-else:
+if conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c'):
+    print 'Did find libcriterion.a or criterion.lib !'
+    print '... Test cases included'
+    tpl_library_list = ['criterion']
+    env.Append(LIBS = tpl_library_list)
     build_tests = 1
 
 
