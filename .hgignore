@@ -19,3 +19,9 @@ syntax: glob
 *.log
 build/*
 bin/*
+
+*.orig
+.DS_STORE
+.project
+.cproject
+*.prefs
