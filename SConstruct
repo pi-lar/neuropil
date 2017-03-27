@@ -45,11 +45,9 @@ debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2']
 if int(debug):
     env.Append(CCFLAGS = debug_flags)
 
-tpl_library_target = ''
 # platform specific compiler options
 if 'FreeBSD' in platform.system():
   env.Append(LIBS = ['util','m'] )
-  tpl_library_target = 'linux'
 if 'Darwin' in platform.system():
   env.Append(CCFLAGS = ['-Wno-deprecated'] )
   env.Append(CCFLAGS = ['-mmacosx-version-min=10.11'] )
@@ -57,7 +55,7 @@ if 'Darwin' in platform.system():
   tpl_library_target = 'ios'
 if 'Linux' in platform.system():
   env.Append(CCFLAGS = ['-D_GNU_SOURCE'])
-  tpl_library_target = 'linux'
+  env.Append(LIBS = ['rt', 'pthread'] )
 if 'CYGWIN' in platform.system():
   # -std=gnu++0x doesn't work, so work around...
   env.Append(CCFLAGS = ['-U__STRICT_ANSI__'] )
@@ -88,11 +86,11 @@ if not conf.CheckLibWithHeader('sodium', 'sodium.h', 'c'):
     Exit(0)
 
 if int(release) < 1 and int(build_tests) > 0 and conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c'):
-    print 'Did find libcriterion.a or criterion.lib !'
-    print '... Test cases included'
-    tpl_library_list = ['criterion']
+    print 'Test cases included'
+    tpl_library_list += ['criterion']
     env.Append(LIBS = tpl_library_list)
 else:
+    print 'Test cases not included'
     build_tests = 0
 
 print '####'
