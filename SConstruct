@@ -92,8 +92,9 @@ if int(release) < 1 and int(build_tests) > 0 and conf.CheckLibWithHeader('criter
     print '... Test cases included'
     tpl_library_list = ['criterion']
     env.Append(LIBS = tpl_library_list)
-else
+else:
     build_tests = 0
+
 print '####'
 print '#### adding neuropil specific build path informations'
 print '####'
