@@ -76,7 +76,7 @@ np_bool receive_pong(np_tree_t* properties, np_tree_t* body)
 int main(int argc, char **argv)
 {
 	int opt;
-	int no_threads = 2;
+	int no_threads = 8;
 	char *j_key = NULL;
 	char* proto = NULL;
 	char* port = NULL;
