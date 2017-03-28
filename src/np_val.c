@@ -18,8 +18,8 @@
 
 np_val_t NP_VAL_NULL = { .type = none_type, .size=0 };
 
-char* val_to_str(np_val_t val) {
-
+char* val_to_str(np_val_t val)
+{
 	int len = 0;
 	char* result = NULL;
 	switch(val.type) {
@@ -67,11 +67,11 @@ char* val_to_str(np_val_t val) {
   			}
 			break;
 		case char_ptr_type:
-  			return val.value.s;
+  			return (val.value.s);
 			break;
 		case char_type:
 		case unsigned_char_type:
-  			return &val.value.c;
+  			return (&val.value.c);
 			break;
  		case unsigned_short_type:
   			len = snprintf(NULL, 0, "%u", val.value.ush);
@@ -112,29 +112,29 @@ char* val_to_str(np_val_t val) {
 // 		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
 // 		case unsigned_char_array_8_type: byte_size += 1 +8*sizeof(unsigned char); break;
  		case void_type:
- 			return "--> pointer";
+ 			return ("--> pointer");
 			break;
  		case hash_type:
  		case bin_type:
- 			return "--> binary content";
+ 			return ("--> binary content");
 			break;
  		case jrb_tree_type:
- 			return "--> subtree";
+ 			return ("--> subtree");
 			break;
 		case key_type:
 			result = malloc(64);
 			_dhkey_to_str((np_dhkey_t*) val.value.v, result);
 			break;
 		default:
-			return "--> unknown";
+			return ("--> unknown");
 			break;
 	}
-	return result;
+	return (result);
 }
 
 np_val_t copy_of_val(np_val_t from)
 {
-	np_val_t to;
+	np_val_t to = NP_VAL_NULL;
 
 	switch(from.type) {
 		// length is always 1 (to identify the type) + the length of the type
@@ -256,137 +256,137 @@ np_val_t copy_of_val(np_val_t from)
 			log_msg(LOG_WARN, "unsupported copy operation for jval type %hhd", from.type);
 			break;
 	}
-	return to;
+	return (to);
 }
 
 np_val_t new_val_i (int16_t i)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.i = i;
     j.type = int_type;
     j.size = sizeof(int16_t);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_l (int32_t l)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.l = l;
     j.type = long_type;
     j.size = sizeof(int32_t);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_ll (int64_t ll)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.ll = ll;
     j.type = long_long_type;
     j.size = sizeof(int64_t);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_f (float f)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.f = f;
     j.type = float_type;
     j.size = sizeof(float);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_d (double d)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.d = d;
     j.type = double_type;
     j.size = sizeof(double);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_v (void *v)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.v = v;
     j.type = void_type;
-    return j;
+    return (j);
 }
 
 np_val_t new_val_s (char *s)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.size = strlen(s);
     j.value.s = s; // strndup(s, j.size);
     j.type = char_ptr_type;
-    return j;
+    return (j);
 }
 
 np_val_t new_val_c (char c)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.c = c;
     j.type = char_type;
     j.size = sizeof(char);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_uc (unsigned char uc)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.uc = uc;
     j.type = unsigned_char_type;
     j.size = sizeof(unsigned char);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_sh (int8_t sh)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.sh = sh;
     j.type = short_type;
     j.size = sizeof(int8_t);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_ush (uint8_t ush)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.ush = ush;
     j.type = unsigned_short_type;
     j.size = sizeof(uint8_t);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_ui (uint16_t i)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.ui = i;
     j.type = unsigned_int_type;
     j.size = sizeof(uint16_t);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_ul (uint32_t ul)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.ul = ul;
     j.type = unsigned_long_type;
     j.size = sizeof(uint32_t);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_ull (uint64_t ull)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.ull = ull;
     j.type = unsigned_long_long_type;
     j.size = sizeof(uint64_t);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_bin (void* data, uint32_t ul)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
 
     j.value.bin = data; // malloc(ul);
     // memset(j.value.bin, 0, ul);
@@ -395,44 +395,44 @@ np_val_t new_val_bin (void* data, uint32_t ul)
     j.size = ul;
     j.type = bin_type;
 
-    return j;
+    return (j);
 }
 
 np_val_t new_val_key (np_dhkey_t key)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
 
     j.value.key = key;
     j.size = sizeof(key);
     j.type = key_type;
     j.size = 1 + ( 4*sizeof(uint64_t) );
-    return j;
+    return (j);
 }
 
 np_val_t new_val_iarray (uint16_t i0, uint16_t i1)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.a2_ui[0] = i0;
     j.value.a2_ui[1] = i1;
     j.type = uint_array_2_type;
     j.size = 2*sizeof(uint16_t);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_farray (float f0, float f1)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     j.value.farray[0] = f0;
     j.value.farray[1] = f1;
     j.type = float_array_2_type;
     j.size = 2*sizeof(float);
-    return j;
+    return (j);
 }
 
 np_val_t new_val_carray_nt (char *carray)
 {
-    np_val_t j;
-    uint8_t i;
+    np_val_t j = NP_VAL_NULL;
+    uint8_t i = 0;
 
     for (i = 0; i < 8 && carray[i] != '\0'; i++)
 	{
@@ -443,29 +443,29 @@ np_val_t new_val_carray_nt (char *carray)
 
     j.type = char_array_8_type;
 
-    return j;
+    return (j);
 }
 
 np_val_t new_val_carray_nnt (char *carray)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
     memcpy (j.value.carray, carray, 8);
     j.type = unsigned_char_array_8_type;
-	return j;
+    return (j);
 }
 
 np_val_t new_val_tree(np_tree_t* tree)
 {
-	np_val_t j;
+	np_val_t j = NP_VAL_NULL;
     j.value.tree = tree;
     j.size = tree->byte_size;
     j.type = jrb_tree_type;
-	return j;
+    return (j);
 }
 
 np_val_t new_val_hash (char *s)
 {
-    np_val_t j;
+    np_val_t j = NP_VAL_NULL;
 
     char* hash = malloc(crypto_generichash_BYTES);
     crypto_generichash((unsigned char*) hash, sizeof hash, (unsigned char*)s, sizeof(s), NULL, 0);
@@ -477,7 +477,7 @@ np_val_t new_val_hash (char *s)
     j.value.bin = hash; // strndup(hex_hash, j.size);
     j.type = hash_type;
 
-    return j;
+    return (j);
 }
 
 np_val_t new_val_pwhash (NP_UNUSED char *s)
@@ -495,99 +495,14 @@ np_val_t new_val_pwhash (NP_UNUSED char *s)
 //    j.value.s = strndup(pw_hash, j.size);
 //    j.type = pwhash_type;
 
-    return j;
+    return (j);
 }
 
 np_val_t new_val_obj(np_obj_t* obj)
 {
-	np_val_t j;
+	np_val_t j = NP_VAL_NULL;
 	j.value.obj = obj;
 	j.size = 0;
 	j.type = npobj_type;
-	return j;
-}
-
-int16_t jval_i (np_val_t j)
-{
-    return j.value.i;
-}
-
-int32_t jval_l (np_val_t j)
-{
-    return j.value.l;
-}
-
-int64_t jval_ll (np_val_t j)
-{
-    return j.value.ll;
-}
-
-float jval_f (np_val_t j)
-{
-    return j.value.f;
-}
-
-double jval_d (np_val_t j)
-{
-    return j.value.d;
-}
-
-void *jval_v (np_val_t j)
-{
-    return j.value.v;
-}
-
-char *jval_s (np_val_t j)
-{
-    return j.value.s;
-}
-
-char jval_c (np_val_t j)
-{
-    return j.value.c;
-}
-
-unsigned char jval_uc (np_val_t j)
-{
-    return j.value.uc;
-}
-
-int8_t jval_sh (np_val_t j)
-{
-    return j.value.sh;
-}
-
-uint8_t jval_ush (np_val_t j)
-{
-    return j.value.ush;
-}
-
-uint16_t jval_ui (np_val_t j)
-{
-    return j.value.ui;
-}
-
-uint32_t jval_ul (np_val_t j)
-{
-    return j.value.ul;
-}
-
-uint64_t jval_ull (np_val_t j)
-{
-    return j.value.ull;
-}
-
-//int16_t* jval_iarray (np_val_t j)
-//{
-//    return j.value.a2_ui;
-//}
-
-float* jval_farray (np_val_t j)
-{
-    return j.value.farray;
-}
-
-char* jval_carray (np_val_t j)
-{
-    return j.value.carray;
+    return (j);
 }

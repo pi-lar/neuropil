@@ -820,7 +820,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 		strncpy(msg_token->audience, (char*) msg_request->msg_audience, 255);
 	}
 
-	msg_token->uuid =  np_create_uuid(msg_uuid_subject, 0);
+	msg_token->uuid = np_create_uuid(msg_uuid_subject, 0);
 
 	msg_token->not_before = ev_time();
 	// TODO: make it configurable for the user

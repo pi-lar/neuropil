@@ -60,13 +60,12 @@ if 'CYGWIN' in platform.system():
 if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
   env.Append(LIBS = ['rt'] )
 
-# env.Append(CCFLAGS = '-march='+platform.processor())
-# env.Append(CCFLAGS = '-arch='+platform.machine())
-env.Append(CCFLAGS = '-target ' + platform.machine() + '-' + platform.system().lower() )
-# env.Append(CCFLAGS = '-target ' + platform.machine())
+# env.Append(CCFLAGS = '-arch i386 -arch x86_64')
+env.Append(CCFLAGS = '-arch x86_64')
 
 print 'continuing with CCFLAGS set to: ' + env.Dump(key='CCFLAGS')
 print 'continuing with LDFLAGS set to: ' + env.Dump(key='LDFLAGS')
+
 
 print '####'
 print '#### detecting 3rd party libraries'

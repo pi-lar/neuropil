@@ -47,17 +47,21 @@ struct np_tree_s
 typedef struct np_tree_elem_s np_tree_elem_t;
 struct np_tree_elem_s
 {
+#ifndef SWIG
 	RB_ENTRY(np_tree_elem_s) link;
+#endif
 
 	np_val_t key;
     np_val_t val;
 } NP_API_INTERN;
 
-
 NP_API_INTERN
 int16_t _val_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2);
 
+#ifndef SWIG
 RB_PROTOTYPE(np_tree_s, np_tree_elem_s, link, _val_cmp);
+#endif
+
 
 /**
 .. c:function:: make_nptree

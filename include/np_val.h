@@ -141,24 +141,4 @@ np_val_t new_val_obj(np_obj_t* obj);
 
 np_val_t NP_VAL_NULL;
 
-int16_t  val_i (np_val_t);
-int32_t  val_l (np_val_t);
-uint16_t val_ui (np_val_t);
-uint32_t val_ul (np_val_t);
-
-float  val_f (np_val_t);
-double val_d (np_val_t);
-
-void *val_v (np_val_t);
-
-char *val_s (np_val_t);
-char  val_c (np_val_t);
-char *val_h (np_val_t);
-unsigned char val_uc (np_val_t);
-
-int16_t *val_iarray (np_val_t);
-float   *val_farray (np_val_t);
-char    *val_carray (np_val_t);
-char    *val_to_str(np_val_t val);
-
 #endif // _NP_JVAL_H_

@@ -36,7 +36,7 @@ void _np_aaatoken_t_new(void* token)
 
 	aaa_token->public_key[0] = '\0';
 
-	aaa_token->uuid = NULL;
+	aaa_token->uuid = NULL; //  np_create_uuid(msg_uuid_subject, 0); TODO: why not ???
 
 	aaa_token->issued_at = ev_time();
     // set expiration to one day and recreate each day by default

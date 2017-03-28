@@ -40,17 +40,17 @@ typedef enum
 
 #define NP_UNUSED     __attribute__ ((unused))
 
-#define NP_API_EXPORT __attribute__ ((visibility ("default")))
-
-//#ifndef TEST_COMPILE
-//  #define NP_API_HIDDEN __attribute__ ((visibility ("hidden")))
-//  #define NP_API_PROTEC __attribute__ ((visibility ("protected")))
-//  #define NP_API_INTERN __attribute__ ((visibility ("internal")))
-//#else
+#if defined (TEST_COMPILE)
+  #define NP_API_EXPORT __attribute__ ((visibility ("default")))
   #define NP_API_HIDDEN __attribute__ ((visibility ("default")))
   #define NP_API_PROTEC __attribute__ ((visibility ("default")))
   #define NP_API_INTERN __attribute__ ((visibility ("default")))
-// #endif
+#else
+  #define NP_API_EXPORT __attribute__ ((visibility ("default")))
+  #define NP_API_HIDDEN __attribute__ ((visibility ("hidden")))
+  #define NP_API_PROTEC __attribute__ ((visibility ("protected")))
+  #define NP_API_INTERN __attribute__ ((visibility ("internal")))
+#endif
 
 
 /*
@@ -81,11 +81,13 @@ typedef struct np_val_s np_val_t;
 /*
  * list types and typedefs
  */
+#ifndef SWIG
 NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_t);
 NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_node_t);
 NP_SLL_GENERATE_PROTOTYPES(np_key_t);
 NP_SLL_GENERATE_PROTOTYPES(np_message_t);
+#endif
 
 /*
  *  user callback functions
@@ -98,5 +100,4 @@ typedef void (*np_callback_t) (np_jobargs_t*);
 
 // void f() __attribute__ ((weak, alias ("__f")));
 
-
-#endif /* _INCLUDE_H_ */
+#endif /* _NP_TYPES_H_ */

@@ -154,14 +154,17 @@ struct np_aaatoken_s
 
 	// key/value extension list
 	np_tree_t* extensions;
+
 } NP_API_EXPORT;
 
+#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
-
+#endif
 
 // serialization of the np_aaatoken_t structure
 NP_API_INTERN
 void np_encode_aaatoken(np_tree_t* data, np_aaatoken_t* token);
+
 NP_API_INTERN
 void np_decode_aaatoken(np_tree_t* data, np_aaatoken_t* token);
 
@@ -181,18 +184,21 @@ NP_API_INTERN
 np_dhkey_t _np_create_dhkey_for_token(np_aaatoken_t* identity);
 
 // neuropil internal aaatoken storage and exchange functions
-
 NP_API_INTERN
 void _np_add_sender_token(char* subject, np_aaatoken_t *token);
+
 NP_API_INTERN
 sll_return(np_aaatoken_t) _np_get_sender_token_all(char* subject);
+
 NP_API_INTERN
 np_aaatoken_t* _np_get_sender_token(char* subject, char* sender);
 
 NP_API_INTERN
 void _np_add_receiver_token(char* subject, np_aaatoken_t *token);
+
 NP_API_INTERN
 sll_return(np_aaatoken_t) _np_get_receiver_token_all(char* subject);
+
 NP_API_INTERN
 np_aaatoken_t* _np_get_receiver_token(char* subject);
 
