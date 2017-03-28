@@ -17,6 +17,9 @@
 #include "np_log.h"
 #include "np_types.h"
 
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
 #define USAGE "neuropil_hydra -j key:proto:host:port [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count]"
 #define OPTSTR "j:p:n:t:"
@@ -34,15 +37,16 @@ int main(int argc, char **argv)
 {
 	int opt;
 	int no_threads = 2;
-	char* b_hn = NULL;
+	char* bootstrap_hostnode = NULL;
 	char* proto = NULL;
 	uint32_t required_nodes = 1;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF)
 	{
 		switch ((char) opt) {
 		case 'j':
-			b_hn = optarg;
+			bootstrap_hostnode = optarg;
 			break;
 		case 't':
 			no_threads = atoi(optarg);
@@ -60,18 +64,66 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 	}
+	int current_pid = 0;
 
-	if (NULL == b_hn)
+	if (NULL == bootstrap_hostnode)
 	{
-		fprintf(stderr, "no bootstrap host specified\n");
-		fprintf(stderr, "usage: %s\n", USAGE);
-		exit(1);
+		fprintf(stdout, "no bootstrap host specified.\n");
+
+		current_pid = fork();
+		int shmid;
+		int *shm;
+		shmid = shmget(2009, 255, 0666 | IPC_CREAT);
+		shm = shmat(shmid, 0, 0);
+		bootstrap_hostnode = shm;
+
+		if (0 == current_pid) {
+			// Inside of our new thread
+			fprintf(stdout, "Creating new bootstrap node...\n");
+			current_pid = getpid();
+
+			char port[7];
+			if (current_pid > 65535) {
+				sprintf(port, "%d", (current_pid >> 1));
+			} else {
+				sprintf(port, "%d", current_pid);
+			}
+			char log_file_host[256];
+			sprintf(log_file_host, "%s_host.log", "./neuropil_hydra");
+			np_log_init(log_file_host, level);
+			np_init(proto, port, TRUE);
+			np_start_job_queue(4);
+			bootstrap_hostnode = np_get_connection_string();
+
+			shmdt(shm);
+
+
+			np_waitforjoin();
+			while (TRUE) {
+				ev_sleep(3.1415 / 2);
+			}
+			// Outside of our thread
+			_exit(1);
+		}
+		// wait for fork to fill 'bootstrap_hostnode' with value
+		ev_sleep(3.1415 * 2);
+
+
+		if (NULL == bootstrap_hostnode) {
+			fprintf(stderr, "Bootstrap host node could not be started.\n");
+			exit(1);
+		} else {
+			fprintf(stdout, "Bootstrap host node: %s\n", bootstrap_hostnode);
+		}
+		shmdt(shm);
+		shmctl(shmid, IPC_RMID, NULL);
+
 	}
 
 	np_sll_t(int, list_of_childs) = sll_init(int, list_of_childs);
-	int array_of_pids[required_nodes+1];
+	int array_of_pids[required_nodes + 1];
 
-	int current_pid = 0;
+	current_pid = 0;
 	int status;
 
 	while(TRUE)
@@ -98,7 +150,6 @@ int main(int argc, char **argv)
 
 				char log_file[256];
 				sprintf(log_file, "%s_%s.log", "./neuropil_hydra", port);
-				int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 				// child process
 				np_log_init(log_file, level);
 				// used the pid as the port
@@ -108,12 +159,11 @@ int main(int argc, char **argv)
 				np_start_job_queue(no_threads);
 				// send join message
 				log_msg(LOG_DEBUG, "creating welcome message");
-				np_send_join(b_hn);
+				np_send_join(bootstrap_hostnode);
 
 				while (1)
 				{
 					ev_sleep(0.1);
-					// dsleep(0.1);
 				}
 				// escape from the parent loop
 				break;
@@ -127,7 +177,6 @@ int main(int argc, char **argv)
 				sll_append(int, list_of_childs, &array_of_pids[sll_size(list_of_childs)]);
 			}
 			ev_sleep(3.1415);
-			// dsleep(3.1415);
 		} else {
 
 			current_pid = waitpid(-1, &status, WNOHANG);
@@ -161,7 +210,6 @@ int main(int argc, char **argv)
 				// fprintf(stdout, "all (%d) child processes running\n", sll_size(list_of_childs));
 			}
 			ev_sleep(3.1415);
-			// dsleep(0.31415);
 		}
 	}
 	fprintf(stdout, "stopped creating child processes\n");
