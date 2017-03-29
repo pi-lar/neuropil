@@ -17,9 +17,12 @@
 #include "np_log.h"
 #include "np_types.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
 #include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #define USAGE "neuropil_hydra -j key:proto:host:port [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count]"
 #define OPTSTR "j:p:n:t:"
@@ -36,10 +39,10 @@ extern int optind;
 int main(int argc, char **argv)
 {
 	int opt;
-	int no_threads = 2;
+	int no_threads = 3;
 	char* bootstrap_hostnode = NULL;
 	char* proto = NULL;
-	uint32_t required_nodes = 1;
+	uint32_t required_nodes = 5;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF)
@@ -64,60 +67,51 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 	}
-	int current_pid = 0;
+	int current_pid = getpid();
 
-	if (NULL == bootstrap_hostnode)
+	int create_bootstrap = NULL == bootstrap_hostnode;
+	if (TRUE == create_bootstrap)
 	{
-		fprintf(stdout, "no bootstrap host specified.\n");
+		fprintf(stdout, "No bootstrap host specified.\n");
+		fprintf(stdout, "Creating new bootstrap node...\n");
+
+		char port[7];
+		if (current_pid > 65535) {
+			sprintf(port, "%d", (current_pid >> 1));
+		} else {
+			sprintf(port, "%d", current_pid);
+		}
+		char log_file_host[256];
+		sprintf(log_file_host, "%s_host.log", "./neuropil_hydra");
+		np_log_init(log_file_host, level);
+		np_init(proto, port, TRUE);
+
+
+		fprintf(stdout, "getting connection string\n");
+
+		bootstrap_hostnode = np_get_connection_string();
 
 		current_pid = fork();
-		int shmid;
-		int *shm;
-		shmid = shmget(2009, 255, 0666 | IPC_CREAT);
-		shm = shmat(shmid, 0, 0);
-		bootstrap_hostnode = shm;
 
 		if (0 == current_pid) {
-			// Inside of our new thread
-			fprintf(stdout, "Creating new bootstrap node...\n");
-			current_pid = getpid();
-
-			char port[7];
-			if (current_pid > 65535) {
-				sprintf(port, "%d", (current_pid >> 1));
-			} else {
-				sprintf(port, "%d", current_pid);
-			}
-			char log_file_host[256];
-			sprintf(log_file_host, "%s_host.log", "./neuropil_hydra");
-			np_log_init(log_file_host, level);
-			np_init(proto, port, TRUE);
 			np_start_job_queue(4);
-			bootstrap_hostnode = np_get_connection_string();
-
-			shmdt(shm);
-
-
 			np_waitforjoin();
+
 			while (TRUE) {
 				ev_sleep(3.1415 / 2);
 			}
 			// Outside of our thread
 			_exit(1);
 		}
-		// wait for fork to fill 'bootstrap_hostnode' with value
-		ev_sleep(3.1415 * 2);
 
-
-		if (NULL == bootstrap_hostnode) {
-			fprintf(stderr, "Bootstrap host node could not be started.\n");
-			exit(1);
-		} else {
+		if (TRUE == create_bootstrap) {
 			fprintf(stdout, "Bootstrap host node: %s\n", bootstrap_hostnode);
+			if (NULL == bootstrap_hostnode) {
+				fprintf(stderr,
+						"Bootstrap host node could not start ... exit\n");
+				exit(1);
+			}
 		}
-		shmdt(shm);
-		shmctl(shmid, IPC_RMID, NULL);
-
 	}
 
 	np_sll_t(int, list_of_childs) = sll_init(int, list_of_childs);
