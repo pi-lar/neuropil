@@ -250,82 +250,75 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args)
 	}
 	else
 	{
-		switch(__local_http->ht_request.ht_method)
-		{
-			case(htp_method_GET):
-				{
-				np_tree_t* tree = make_nptree();
+		switch (__local_http->ht_request.ht_method) {
+		case (htp_method_GET): {
+			np_tree_t* tree = make_nptree();
 
-				JSON_Value* arr = json_value_init_array();
+			JSON_Value* container = json_value_init_object();
 
-				// local node json reply
-				JSON_Value* my_node_obj = json_value_init_object();
-				JSON_Value* obj = json_value_init_object();
-				_np_node_encode_to_jrb(tree, _np_state()->my_node_key->node, FALSE);
-				serialize_jrb_to_json(tree, json_object(obj));
-				json_object_set_value(json_object(my_node_obj), "local_node", obj);
-				json_array_append_value(json_array(arr), my_node_obj);
+			// local node json reply
+			JSON_Value* obj = json_value_init_object();
+			_np_node_encode_to_jrb(tree, _np_state()->my_node_key->node, FALSE);
+			serialize_jrb_to_json(tree, json_object(obj));
+			json_object_set_value(json_object(container), "local_node", obj);
+			np_clear_tree(tree);
 
-				np_clear_tree(tree);
+			// leafset
+			JSON_Value* neighbour_arr = json_value_init_object();
+			np_sll_t(np_key_t, neighbours) = NULL;
+			_LOCK_MODULE(np_routeglobal_t)
+			{
+				neighbours = route_neighbors();
+			}
+			_np_encode_nodes_to_jrb(tree, neighbours, TRUE);
+			serialize_jrb_to_json(tree, json_object(neighbour_arr));
 
-				// leafset
-				JSON_Value* neighbour_obj = json_value_init_object();
-				JSON_Value* neighbour_arr = json_value_init_object();
-				np_sll_t(np_key_t, neighbours) = NULL;
-				_LOCK_MODULE(np_routeglobal_t)
-				{
-					neighbours = route_neighbors();
-				}
-				_np_encode_nodes_to_jrb(tree, neighbours, TRUE);
-				serialize_jrb_to_json(tree, json_object(neighbour_arr));
+			json_object_set_value(json_object(container), "neighbour_nodes",
+					neighbour_arr);
+			sll_free(np_key_t, neighbours);
+			np_clear_tree(tree);
 
-				json_object_set_value(json_object(neighbour_obj), "neighbour_nodes", neighbour_arr);
-				json_array_append_value(json_array(arr), neighbour_obj);
-
-				sll_free(np_key_t, neighbours);
-				np_clear_tree(tree);
-
-				// routing table
-				JSON_Value* route_obj = json_value_init_object();
-				JSON_Value* route_tbl = json_value_init_object();
-				np_sll_t(np_key_t, table) = NULL;
-				_LOCK_MODULE(np_routeglobal_t)
-				{
-					table = _np_route_get_table();
-				}
-
-				_np_encode_nodes_to_jrb(tree, table, TRUE);
-				serialize_jrb_to_json(tree, json_object(route_tbl));
-
-				json_object_set_value(json_object(route_obj), "routing_table", route_tbl);
-				json_array_append_value(json_array(arr), route_obj);
-
-				sll_free(np_key_t, table);
-				np_free_tree(tree);
-
-				// serialize
-				size_t json_size = json_serialization_size_pretty(arr);
-				__local_http->ht_response.ht_body   = (char*) malloc(json_size * sizeof(char));
-				json_serialize_to_buffer_pretty(arr, __local_http->ht_response.ht_body, json_size);
-
-				__local_http->ht_response.ht_header = make_nptree();
-				tree_insert_str(
-						__local_http->ht_response.ht_header, "Content-Type", new_val_s("application/json"));
-				__local_http->ht_response.ht_status = HTTP_CODE_OK;
-				__local_http->ht_response.cleanup_body = TRUE;
-				__local_http->status = RESPONSE;
-
-				json_value_free(arr);
-				// do some more disatching
-				break;
+			// routing table
+			JSON_Value* route_tbl = json_value_init_object();
+			np_sll_t(np_key_t, table) = NULL;
+			_LOCK_MODULE(np_routeglobal_t)
+			{
+				table = _np_route_get_table();
 			}
 
-			default:
-				__local_http->ht_response.ht_body      = HTML_NOT_IMPLEMENTED;
-				__local_http->ht_response.ht_header    = make_nptree();
-				__local_http->ht_response.ht_status    = HTTP_CODE_NOT_IMPLEMENTED;
-				__local_http->ht_response.cleanup_body = FALSE;
-				__local_http->status = RESPONSE;
+			_np_encode_nodes_to_jrb(tree, table, TRUE);
+			serialize_jrb_to_json(tree, json_object(route_tbl));
+
+			json_object_set_value(json_object(container), "routing_table",
+					route_tbl);
+			sll_free(np_key_t, table);
+			np_free_tree(tree);
+
+			// serialize
+			size_t json_size = json_serialization_size_pretty(container);
+			__local_http->ht_response.ht_body = (char*) malloc(
+					json_size * sizeof(char));
+			json_serialize_to_buffer_pretty(container,
+					__local_http->ht_response.ht_body, json_size);
+
+			__local_http->ht_response.ht_header = make_nptree();
+			tree_insert_str(__local_http->ht_response.ht_header, "Content-Type",
+					new_val_s("application/json"));
+			__local_http->ht_response.ht_status = HTTP_CODE_OK;
+			__local_http->ht_response.cleanup_body = TRUE;
+			__local_http->status = RESPONSE;
+
+			json_value_free(container);
+			// do some more disatching
+			break;
+		}
+
+		default:
+			__local_http->ht_response.ht_body = HTML_NOT_IMPLEMENTED;
+			__local_http->ht_response.ht_header = make_nptree();
+			__local_http->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
+			__local_http->ht_response.cleanup_body = FALSE;
+			__local_http->status = RESPONSE;
 		}
 	}
 }
