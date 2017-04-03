@@ -259,7 +259,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 
 			// local node json reply
 			JSON_Value* obj = json_value_init_object();
-			_np_node_encode_to_jrb(tree, _np_state()->my_node_key->node, FALSE);
+			_np_node_encode_to_jrb(tree, _np_state()->my_node_key, FALSE);
 			serialize_jrb_to_json(tree, json_object(obj));
 			json_object_set_value(json_object(container), "local_node", obj);
 			np_clear_tree(tree);
@@ -306,6 +306,12 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 			__local_http->ht_response.ht_header = make_nptree();
 			tree_insert_str(__local_http->ht_response.ht_header, "Content-Type",
 					new_val_s("application/json"));
+
+			tree_insert_str(__local_http->ht_response.ht_header, "Access-Control-Allow-Origin",
+					new_val_s("*"));
+			tree_insert_str(__local_http->ht_response.ht_header, "Access-Control-Allow-Methods",
+					new_val_s("GET"));
+
 			__local_http->ht_response.ht_status = HTTP_CODE_OK;
 			__local_http->ht_response.cleanup_body = TRUE;
 			__local_http->status = RESPONSE;
