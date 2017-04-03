@@ -302,6 +302,7 @@ void write_type(np_val_t val, cmp_ctx_t* cmp)
 	}
 }
 
+
 void serialize_jrb_to_json(np_tree_t* jtree, JSON_Object* json_obj)
 {
 	uint16_t i = 0;
@@ -705,4 +706,25 @@ void _np_remove_doublettes(np_sll_t(np_key_t, list_of_keys))
         sll_next(iter1);
 
     } while (NULL != iter1);
+}
+
+void _np_encode_nodes_to_json_array (JSON_Array* array, np_sll_t(np_key_t, node_keys), np_bool include_stats)
+{
+	np_tree_t* tree = make_nptree();
+    np_key_t* current;
+	while(NULL != sll_first(node_keys))
+	{
+		current = sll_head(np_key_t, node_keys);
+		if (current->node)
+		{
+			JSON_Value* node = json_value_init_object();
+			_np_node_encode_to_jrb(tree, current->node, include_stats);
+			serialize_jrb_to_json(tree , json_object(node));
+			json_array_append_value(array, node);
+			np_clear_tree(tree);
+		}
+	}
+	sll_free(np_key_t, node_keys);
+	np_clear_tree(tree);
+	np_free_tree(tree);
 }

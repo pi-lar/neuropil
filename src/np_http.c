@@ -229,27 +229,28 @@ int _np_http_on_msg_complete(NP_UNUSED htparser* parser)
 	return 0;
 }
 
-void _np_http_dispatch(NP_UNUSED np_jobargs_t* args)
-{
+void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 	assert(PROCESSING == __local_http->status);
 
-	if (NULL == __local_http->user_hooks) __local_http->user_hooks = make_nptree();
+	if (NULL == __local_http->user_hooks)
+		__local_http->user_hooks = make_nptree();
 
 	char key[32];
-	snprintf(key, 31, "%d:%s", __local_http->ht_request.ht_method, __local_http->ht_request.ht_path);
+	snprintf(key, 31, "%d:%s", __local_http->ht_request.ht_method,
+			__local_http->ht_request.ht_path);
 
-	np_tree_elem_t* user_callback = tree_find_str(__local_http->user_hooks, key);
+	np_tree_elem_t* user_callback = tree_find_str(__local_http->user_hooks,
+			key);
 
-	if (NULL != user_callback)
-	{
-		_np_http_callback_t* callback_data = (_np_http_callback_t*) user_callback->val.value.v;
-		__local_http->ht_response.ht_status =
-				callback_data->callback(&__local_http->ht_request, &__local_http->ht_response, callback_data->user_arg);
+	if (NULL != user_callback) {
+		_np_http_callback_t* callback_data =
+				(_np_http_callback_t*) user_callback->val.value.v;
+		__local_http->ht_response.ht_status = callback_data->callback(
+				&__local_http->ht_request, &__local_http->ht_response,
+				callback_data->user_arg);
 		__local_http->ht_response.cleanup_body = TRUE;
 		__local_http->status = RESPONSE;
-	}
-	else
-	{
+	} else {
 		switch (__local_http->ht_request.ht_method) {
 		case (htp_method_GET): {
 			np_tree_t* tree = make_nptree();
@@ -264,34 +265,35 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args)
 			np_clear_tree(tree);
 
 			// leafset
-			JSON_Value* neighbour_arr = json_value_init_object();
+			JSON_Value* neighbour_arr = json_value_init_array();
 			np_sll_t(np_key_t, neighbours) = NULL;
 			_LOCK_MODULE(np_routeglobal_t)
 			{
 				neighbours = route_neighbors();
 			}
-			_np_encode_nodes_to_jrb(tree, neighbours, TRUE);
-			serialize_jrb_to_json(tree, json_object(neighbour_arr));
+			_np_encode_nodes_to_json_array(json_array(neighbour_arr),
+					neighbours, TRUE);
 
 			json_object_set_value(json_object(container), "neighbour_nodes",
 					neighbour_arr);
-			sll_free(np_key_t, neighbours);
-			np_clear_tree(tree);
+			//sll_free(np_key_t, neighbours);
+
 
 			// routing table
-			JSON_Value* route_tbl = json_value_init_object();
+			JSON_Value* route_arr = json_value_init_array();
 			np_sll_t(np_key_t, table) = NULL;
 			_LOCK_MODULE(np_routeglobal_t)
 			{
 				table = _np_route_get_table();
 			}
-
-			_np_encode_nodes_to_jrb(tree, table, TRUE);
-			serialize_jrb_to_json(tree, json_object(route_tbl));
+			_np_encode_nodes_to_json_array(json_array(route_arr), table, TRUE);
 
 			json_object_set_value(json_object(container), "routing_table",
-					route_tbl);
-			sll_free(np_key_t, table);
+					route_arr);
+//			sll_free(np_key_t, table);
+
+
+			// cleanup
 			np_free_tree(tree);
 
 			// serialize
