@@ -122,6 +122,31 @@ np_key_t* _np_key_find(np_dhkey_t search_dhkey)
 	return return_key;
 }
 
+np_key_t* _np_key_find_by_connection_string(char* connection_str){
+	np_key_t* ret = NULL;
+	np_key_t *iter = NULL;
+	SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
+	{
+		// our own key / identity never deprecates
+		if (TRUE == _dhkey_equal(&iter->dhkey, &_np_state()->my_node_key->dhkey) ||
+			TRUE == _dhkey_equal(&iter->dhkey, &_np_state()->my_identity->dhkey) )
+		{
+			continue;
+		}
+
+		// Ignore wildcard and compare to dns and port provided
+		if (	strcmp("000000000000000000000000000000ca00000000000000000000000000000000", iter->dhkey_str) != 0 &&
+				strstr(connection_str, iter->node->dns_name) != NULL &&
+				strstr(connection_str, iter->node->port) != NULL
+			)
+		{
+			ret = iter;
+			break;
+		}
+	}
+	return (ret);
+}
+
 np_key_t* _np_key_find_deprecated()
 {
 	np_key_t *iter = NULL;
