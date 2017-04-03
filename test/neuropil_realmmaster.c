@@ -278,7 +278,7 @@ int main(int argc, char **argv)
 
 	   state = np_init(proto, port);
 	*/
-	state = np_init(proto, port, TRUE);
+	state = np_init(proto, port, TRUE, NULL);
 
 	np_aaatoken_t* realm_identity = create_realm_identity();
 	np_set_identity(realm_identity);

@@ -7,7 +7,7 @@
 ** $Id: network.c,v 1.30 2007/04/04 00:04:49 krishnap Exp $
 **
 ** Matthew Allen
-** description: 
+** description:
 */
 
 #include <stdio.h>
@@ -143,7 +143,7 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
 	log_msg(LOG_NETWORK | LOG_DEBUG, "using getaddrinfo: %d:%s:%s", type, hostname, service);
 	if ( 0 != ( err = getaddrinfo( hostname, service, &hints, ai_head ) ))
 	{
-		log_msg(LOG_ERROR, "hostname: %s, servicename %s, protocol %x", hostname, service, type);
+		log_msg(LOG_ERROR, "hostname: %s, servicename %s, protocol %d", hostname, service, type);
 		log_msg(LOG_ERROR, "error getaddrinfo: %s", gai_strerror( err ) );
 		return;
 	}
@@ -386,35 +386,45 @@ void _np_network_send (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents
 		// seems to be called although the key is deleted already
 		np_key_t* key = (np_key_t*) event->data;
 
+		log_msg(LOG_DEBUG, "key->network: %p\n",
+						key->network
+			 	);
+
 		if (NULL != key &&
 			NULL != key->node &&
 			NULL != key->network &&
+			NULL != key->network->out_events &&
 			0 < sll_size(key->network->out_events))
 		{
+			log_msg(LOG_DEBUG, "key->network: %p\n",
+					key->network
+		 	);
+
 			pthread_mutex_lock(&key->network->lock);
 			void* data_to_send = sll_head(void_ptr, key->network->out_events);
+			if(NULL != data_to_send){
+				// log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%d bytes) to %s:%s",
+				log_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
+						MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
+				// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
+				// int ret = send(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024, 0);
+				write(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
+				free(data_to_send);
 
-			// log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%d bytes) to %s:%s",
-			log_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
-					MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
-			// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
-			// int ret = send(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024, 0);
-			write(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
-			free(data_to_send);
-
-			// ret is -1 or > 0 (bytes send)
-			// pthread_mutex_lock(&key->network->lock);
-			// do not update the success, because UDP sending could result in false positives
-			// if (0 > ret)
-			// {
-			//     // np_node_update_stat(key->node, 0);
-			//     // log_msg(LOG_DEBUG, "node update reduce %d", ret);
-			// }
-			// else
-			// {
-			//     np_node_update_stat(key->node, 1);
-			//     log_msg(LOG_DEBUG, "node update increase %d", ret);
-			// }
+				// ret is -1 or > 0 (bytes send)
+				// pthread_mutex_lock(&key->network->lock);
+				// do not update the success, because UDP sending could result in false positives
+				// if (0 > ret)
+				// {
+				//     // np_node_update_stat(key->node, 0);
+				//     // log_msg(LOG_DEBUG, "node update reduce %d", ret);
+				// }
+				// else
+				// {
+				//     np_node_update_stat(key->node, 1);
+				//     log_msg(LOG_DEBUG, "node update increase %d", ret);
+				// }
+			}
 			pthread_mutex_unlock(&key->network->lock);
 		}
 		else

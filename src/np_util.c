@@ -718,7 +718,8 @@ void _np_encode_nodes_to_json_array (JSON_Array* array, np_sll_t(np_key_t, node_
 		if (current->node)
 		{
 			JSON_Value* node = json_value_init_object();
-			_np_node_encode_to_jrb(tree, current->node, include_stats);
+			_np_node_encode_to_jrb(tree, current, include_stats);
+
 			serialize_jrb_to_json(tree , json_object(node));
 			json_array_append_value(array, node);
 			np_clear_tree(tree);

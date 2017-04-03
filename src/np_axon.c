@@ -401,7 +401,7 @@ void _np_out_handshake(np_jobargs_t* args)
 		// construct target address and send it out
 		np_node_t* hs_node = args->target->node;
 
-		pthread_mutex_lock(&(args->target->network->lock));
+		pthread_mutex_lock(&args->target->network->lock);
 		/* send data if handshake status is still just initialized or less */
 		log_msg(LOG_DEBUG,
 				"sending handshake message to (%s:%s)",

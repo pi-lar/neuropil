@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 
 	   state = np_init(proto, port, FALSE);
 	*/
-	state = np_init(proto, port, FALSE);
+	state = np_init(proto, port, FALSE, NULL);
 
 	if (NULL != realm)
 	{

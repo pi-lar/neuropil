@@ -172,6 +172,74 @@ void np_send_join(const char* node_string)
 	np_free_obj(np_message_t, msg_out);
 }
 
+void np_send_wildcard_join(const char* node_string) {
+	np_state_t* state = _np_state();
+	np_key_t* wildcard_node_key = NULL;
+
+	log_msg(LOG_DEBUG, "appending wildcard %s", node_string);
+	char* wildcard_node;
+	asprintf(&wildcard_node, "*:%s",node_string);
+
+	log_msg(LOG_DEBUG, "result: %s", wildcard_node);
+
+	_LOCK_MODULE(np_keycache_t)
+	{
+		wildcard_node_key = _np_node_decode_from_str(wildcard_node);
+	}
+
+	np_tree_t* jrb_me = make_nptree();
+	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
+
+	np_message_t* msg_out = NULL;
+	np_new_obj(np_message_t, msg_out);
+	np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST_WILDCARD, jrb_me);
+
+	log_msg(LOG_DEBUG, "submitting wildcard join request to target key %s", _key_as_str(wildcard_node_key));
+	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST_WILDCARD);
+	_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
+
+
+	np_key_t* node_key = NULL;
+
+	log_msg(LOG_DEBUG, "Searching for wildcard handshake response");
+	while(TRUE)
+	{
+		log_msg(LOG_DEBUG, "sleeping ");
+		ev_sleep(0.1);
+		log_msg(LOG_DEBUG, "resuming ");
+
+		_LOCK_MODULE(np_keycache_t)
+		{
+ 			node_key = _np_key_find_by_connection_string(node_string);
+		}
+
+		if(node_key != NULL){
+			break;
+		}
+		log_msg(LOG_DEBUG, "and searching...");
+	}
+	log_msg(LOG_DEBUG, "found a node");
+
+	log_msg(LOG_DEBUG, "Rewires network object");
+
+	log_msg(LOG_DEBUG, "my_node: %p wild_node: %p found_node: %p\n",
+		state->my_node_key->network,
+		wildcard_node_key->network,
+		node_key->network
+ 	);
+
+	//node_key->network = wildcard_node_key->network;
+	//np_ref_obj(np_network_t, node_key->network);
+
+	log_msg(LOG_DEBUG, "after RW=> my_node: %p wild_node: %p found_node: %p\n",
+		state->my_node_key->network,
+		wildcard_node_key->network,
+		node_key->network
+ 	);
+	log_msg(LOG_DEBUG, "Send actual join request");
+	np_send_join(np_get_connection_string_from(node_key));
+}
+
 void np_set_realm_name(const char* realm_name)
 {
 	__global_state->realm_name = strndup(realm_name, 255);
@@ -731,9 +799,10 @@ void np_destroy()
  ** initializes neuropil on specified port and returns the const np_state_t* which
  ** contains global state of different neuropil modules.
  **/
-np_state_t* np_init(char* proto, char* port, np_bool start_http)
+np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 {
-    // encryption and memory protection
+	log_msg(LOG_DEBUG, "neuropil_init");
+ // encryption and memory protection
     sodium_init();
     // memory pool
 	np_mem_init();
@@ -746,7 +815,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
     if (state == NULL)
 	{
     	log_msg(LOG_ERROR, "neuropil_init: state module not created: %s", strerror (errno));
-	    exit(1);
+	    exit(EXIT_FAILURE);
 	}
     memset(state, 0, sizeof(np_state_t));
     __global_state = state;
@@ -789,27 +858,26 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
     np_new_obj(np_network_t, my_network);
 
     // listen on all network interfaces
-    char hostname[255];
-    gethostname(hostname, 255);
+  //  char hostname[255];
+    if(NULL == hostname){
+    	hostname = malloc(sizeof(char) * 255);
+    	gethostname(hostname, 255);
+    }
 	network_init(my_network, TRUE, np_proto, hostname, np_service);
 	if (FALSE == my_network->initialized)
 	{
-    	log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
-	    exit(1);
+		log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
+	    exit(EXIT_FAILURE);
 	}
-
 	np_node_update(my_node, np_proto, hostname, np_service);
-
 	log_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
 			           np_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);
-
     // create a new token for encryption each time neuropil starts
     np_aaatoken_t* auth_token = _np_create_node_token(my_node);
     auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
 	np_dhkey_t my_dhkey = _np_create_dhkey_for_token(auth_token); // dhkey_create_from_hostport(my_node->dns_name, my_node->port);
     state->my_node_key = _np_key_find_create(my_dhkey);
-
     my_network->watcher.data = state->my_node_key;
     // log_msg(LOG_WARN, "node_key %p", state->my_node_key);
 
@@ -820,7 +888,6 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
     // set and ref additional identity
     state->my_identity = state->my_node_key;
     np_ref_obj(np_key_t, state->my_identity);
-
     // initialize routing table
     if (FALSE == _np_route_init (state->my_node_key) )
     {
@@ -842,7 +909,6 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
 
     state->msg_tokens = make_nptree();
     state->msg_part_cache = make_nptree();
-
     if (TRUE == start_http)
     {
     	if (FALSE == _np_http_init())
@@ -850,7 +916,6 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http)
         	log_msg(LOG_WARN, "neuropil_init: initialization of http interface failed");
     	}
     }
-
     // initialize real network layer last
     np_job_submit_event(0.0, _np_cleanup_ack);
 	np_job_submit_event(0.0, _np_cleanup_keycache);
@@ -925,11 +990,15 @@ void np_start_job_queue(uint8_t pool_size)
 }
 
 char* np_get_connection_string(){
+	char* connection_str = np_get_connection_string_from(__global_state->my_node_key);
+	return connection_str;
+}
+char* np_get_connection_string_from(np_key_t* node_key){
 	char* connection_str;
  	asprintf(&connection_str, "%s:%s:%s:%s",
-			_key_as_str(__global_state->my_node_key),
-			np_get_protocol_string(__global_state->my_node_key->node->protocol),
-			__global_state->my_node_key->node->dns_name,
-			__global_state->my_node_key->node->port);
+			_key_as_str(node_key),
+			np_get_protocol_string(node_key->node->protocol),
+			node_key->node->dns_name,
+			node_key->node->port);
  	return connection_str;
 }

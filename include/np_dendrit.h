@@ -34,6 +34,8 @@ NP_API_INTERN
 void _np_in_join_ack (np_jobargs_t* args);
 NP_API_INTERN
 void _np_in_join_nack (np_jobargs_t* args);
+NP_API_INTERN
+void _np_in_join_wildcard_req(np_jobargs_t* args);
 
 NP_API_INTERN
 void _np_in_leave_req(np_jobargs_t* args);

@@ -135,7 +135,8 @@ np_key_t* _np_key_find_by_connection_string(char* connection_str){
 		}
 
 		// Ignore wildcard and compare to dns and port provided
-		if (	strcmp("000000000000000000000000000000ca00000000000000000000000000000000", iter->dhkey_str) != 0 &&
+		if (
+				iter->node->handshake_status == HANDSHAKE_COMPLETE &&
 				strstr(connection_str, iter->node->dns_name) != NULL &&
 				strstr(connection_str, iter->node->port) != NULL
 			)

@@ -132,7 +132,7 @@ int main(int argc, char **argv)
 
 	   np_init(proto, port, FALSE);
 	*/
-	np_state_t* state = np_init(proto, port, FALSE);
+	np_state_t* state = np_init(proto, port, FALSE, NULL);
 	// The port may change due to default setting for NULL
 	port =  state->my_node_key->node->port;
 

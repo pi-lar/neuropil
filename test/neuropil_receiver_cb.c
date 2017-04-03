@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 
 	   np_init(proto, port, FALSE);
 	*/
-	np_init(proto, port, FALSE);
+	np_init(proto, port, FALSE, NULL);
 
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.

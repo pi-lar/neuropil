@@ -7,7 +7,7 @@
 ** $Id: host.c,v 1.14 2006/06/16 07:55:37 ravenben Exp $
 **
 ** Matthew Allen
-** description: 
+** description:
 */
 
 #include <assert.h>
@@ -87,27 +87,27 @@ void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
     }
 }
 
-void _np_node_encode_to_jrb (np_tree_t* data, np_node_t* node, np_bool include_stats)
+void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, np_bool include_stats)
 {
-	// char* keystring = (char*) _key_as_str (key);
+	char* keystring = (char*) _key_as_str (node_key);
 
-	// tree_insert_str(data, NP_NODE_KEY, new_val_s(keystring));
-	tree_insert_str(data, NP_NODE_PROTOCOL, new_val_ush(node->protocol));
-	tree_insert_str(data, NP_NODE_DNS_NAME, new_val_s(node->dns_name));
-	tree_insert_str(data, NP_NODE_PORT, new_val_s(node->port));
+	tree_insert_str(data, NP_NODE_KEY, new_val_s(keystring));
+	tree_insert_str(data, NP_NODE_PROTOCOL, new_val_ush(node_key->node->protocol));
+	tree_insert_str(data, NP_NODE_DNS_NAME, new_val_s(node_key->node->dns_name));
+	tree_insert_str(data, NP_NODE_PORT, new_val_s(node_key->node->port));
 
-	if (node->failuretime > 0.0)
+	if (node_key->node->failuretime > 0.0)
 		tree_insert_str(data, NP_NODE_FAILURETIME,
-				new_val_d(node->failuretime));
+				new_val_d(node_key->node->failuretime));
 
 	if (TRUE == include_stats)
 	{
 		tree_insert_str(data, NP_NODE_SUCCESS_AVG,
-				new_val_f(node->success_avg));
+				new_val_f(node_key->node->success_avg));
 		tree_insert_str(data, NP_NODE_LATENCY,
-				new_val_d(node->latency));
+				new_val_d(node_key->node->latency));
 		tree_insert_str(data, NP_NODE_LAST_SUCCESS,
-				new_val_d(node->last_success));
+				new_val_d(node_key->node->last_success));
 	}
 }
 
@@ -198,6 +198,9 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 }
 
 
+
+
+
 uint16_t _np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats)
 {
 	uint16_t j=0;
@@ -209,7 +212,7 @@ uint16_t _np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys)
     	{
     		np_tree_t* node_jrb = make_nptree();
     		// log_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
-    		_np_node_encode_to_jrb(node_jrb, current->node, include_stats);
+    		_np_node_encode_to_jrb(node_jrb, current, include_stats);
     		tree_insert_str(node_jrb, NP_NODE_KEY, new_val_s(_key_as_str(current)));
 
     		tree_insert_int(data, j, new_val_tree(node_jrb));
@@ -318,7 +321,7 @@ void np_node_update_stat (np_node_t* node, uint8_t success)
     float total = 0;
     node->success_win[node->success_win_index++ % SUCCESS_WINDOW] = success;
     node->success_avg = 0.0;
-    // printf("SUCCESS_WIN["); 
+    // printf("SUCCESS_WIN[");
     for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
 	{
 	    total += node->success_win[i];

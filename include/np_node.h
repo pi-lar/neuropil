@@ -93,7 +93,7 @@ NP_API_INTERN
 uint16_t _np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats);
 
 NP_API_INTERN
-void _np_node_encode_to_jrb  (np_tree_t* data, np_node_t* np_node, np_bool include_stats);
+void _np_node_encode_to_jrb  (np_tree_t* data, np_key_t* node_key, np_bool include_stats);
 
 /** np_node aaa_token routines
  **/

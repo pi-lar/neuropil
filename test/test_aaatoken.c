@@ -22,7 +22,7 @@ void setup_aaatoken(void)
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_AAATOKEN;
 
 	np_log_init("test_aaatoken.log", log_level);
-	np_init(NULL, NULL, FALSE);
+	np_init(NULL, NULL, FALSE, NULL);
 }
 
 void teardown_aaatoken(void)

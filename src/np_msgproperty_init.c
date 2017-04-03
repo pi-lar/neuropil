@@ -107,6 +107,23 @@ np_msgproperty_t __join_nack =
 		.max_threshold = 5
 };
 
+np_msgproperty_t __join_wildcard_req =
+{
+		.msg_subject = _NP_MSG_JOIN_REQUEST_WILDCARD,
+		.rep_subject = NULL,
+		.mode_type = INBOUND | OUTBOUND,
+		.mep_type = REQ_REP,
+		.priority = 5,
+		.ack_mode = ACK_NONE,
+		.retry = 0,
+		.clb_inbound = _np_never_called,
+		.clb_outbound = _np_out_send,
+		.clb_transform = _np_never_called,
+		.clb_route = _np_out_send,
+		.ttl = 20.0,
+		.max_threshold = 5
+};
+
 // leave the network and clean up the mess
 np_msgproperty_t __leave =
 {
@@ -362,6 +379,7 @@ np_msgproperty_t* __np_internal_messages[] =
 		&__join_req,
 		&__join_ack,
 		&__join_nack,
+		&__join_wildcard_req,
 		&__leave,
 		&__ping,
 		&__ping_reply,

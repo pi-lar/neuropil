@@ -73,12 +73,13 @@ void _np_in_received(np_jobargs_t* args)
 	{
 			goto __np_cleanup__;
 	}
+	 log_msg(LOG_DEBUG, "alias_key %s", _key_as_str(alias_key));
 
 	if (NULL != alias_key &&
 		NULL != alias_key->aaa_token &&
 		IS_VALID (alias_key->aaa_token->state) )
 	{
-		// log_msg(LOG_DEBUG, "/start decrypting message with alias %s", _key_as_str(alias_key));
+		 log_msg(LOG_DEBUG, "/start decrypting message with alias %s", _key_as_str(alias_key));
 		unsigned char nonce[crypto_secretbox_NONCEBYTES];
 
 		unsigned char dec_msg[1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES];
@@ -240,10 +241,26 @@ void _np_in_received(np_jobargs_t* args)
 	np_new_obj(np_key_t, target_key);
 	target_key->dhkey = target_dhkey;
 
+	np_dhkey_t wildcard_key = dhkey_create_from_hostport("*","0");
+	//	if () {
+//		log_msg(LOG_DEBUG, "received wildcart msg");
+//		char tmp[128];
+//		_np_node_encode_to_str(tmp, 128, alias_key->node);
+//		np_send_join(tmp);
+//		goto __np_cleanup__;
+//	}
+
 	// check if inbound subject handler exists
 	np_msgproperty_t* handler = np_msgproperty_get(INBOUND, msg_subject.value.s);
-	if (!_dhkey_equal(&args->target->dhkey, &state->my_node_key->dhkey) || handler == NULL)
+
+	// redirect message if
+	// a: msg is not for my dhkey
+	// b: is not for a wildcard key
+	// no handler is present
+	if (! (_dhkey_equal(&args->target->dhkey, &wildcard_key) || _dhkey_equal(&args->target->dhkey, &state->my_node_key->dhkey)) || handler == NULL)
 	{
+		log_msg(LOG_DEBUG, "perform route_lookup");
+
 		// perform a route lookup
 		np_sll_t(np_key_t, tmp) = NULL;
 
@@ -270,6 +287,7 @@ void _np_in_received(np_jobargs_t* args)
 		sll_free(np_key_t, tmp);
 		log_msg(LOG_DEBUG, "internal routing for subject '%s'", msg_subject.value.s);
 	}
+
 
 	// if this message really has to be handled by this node, does a handler exists ?
 	if ( NULL == handler )
@@ -508,6 +526,44 @@ void _np_in_leave_req(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  ._np_in_leave_req");
 	return;
 }
+//
+//void _np_in_join_wildcard_req(np_jobargs_t* args){
+//	log_msg(LOG_TRACE, ".start._np_in_join_wildcard_req");
+//
+//	np_msgproperty_t *msg_prop = NULL;
+//	np_key_t* join_req_key = NULL;
+//	np_message_t* msg_out = NULL;
+//	np_aaatoken_t* join_token = NULL;
+//
+//	np_new_obj(np_aaatoken_t, join_token);
+//	np_decode_aaatoken(args->msg->body, join_token);
+//
+//	if (FALSE == token_is_valid(join_token))
+//	{
+//		// silently exit join protocol for invalid tokens
+//		goto __np_cleanup__;
+//	}
+//
+//    // build a hash to find a place in the dhkey table, not for signing !
+//	np_dhkey_t search_key = _np_create_dhkey_for_token(join_token);
+//	_LOCK_MODULE(np_keycache_t)
+//	{
+//		join_req_key = _np_key_find_create(search_key);
+//		if (NULL == join_req_key->aaa_token)
+//		{
+//			join_req_key->aaa_token = join_token;
+//			np_ref_obj(np_aaatoken_t, join_token);
+//		}
+//	}
+//	np_send_join(_key_as_str( join_req_key));
+//
+//	__np_cleanup__:
+//		if (NULL != join_token) np_free_obj(np_aaatoken_t, join_token);
+//		if (NULL != msg_out)    np_free_obj(np_message_t, msg_out);
+//
+//		// __np_return__:
+//		log_msg(LOG_TRACE, ".end  ._np_in_join_wildcard_req");
+//}
 
 /** _np_in_join_req:
  ** internal function that is called at the destination of a JOIN message. This
@@ -525,11 +581,13 @@ void _np_in_join_req(np_jobargs_t* args)
 	np_new_obj(np_aaatoken_t, join_token);
 	np_decode_aaatoken(args->msg->body, join_token);
 
+	log_msg(LOG_DEBUG, "check token is valid");
 	if (FALSE == token_is_valid(join_token))
 	{
 		// silently exit join protocol for invalid tokens
 		goto __np_cleanup__;
 	}
+	log_msg(LOG_DEBUG, "token is valid");
 
     // build a hash to find a place in the dhkey table, not for signing !
 	np_dhkey_t search_key = _np_create_dhkey_for_token(join_token);
@@ -543,6 +601,7 @@ void _np_in_join_req(np_jobargs_t* args)
 		}
 	}
 
+	log_msg(LOG_DEBUG, "find target node");
 	np_key_t* routing_key = NULL;
 	if (NULL != tree_find_str(join_token->extensions, "target_node"))
 	{
@@ -581,6 +640,7 @@ void _np_in_join_req(np_jobargs_t* args)
 	// check for allowance of token by user defined function
 	np_state_t* state = _np_state();
 	np_bool send_reply = FALSE;
+	log_msg(LOG_DEBUG, "JOIN request key %s", _key_as_str(join_req_key));
 
 	if (NULL != join_req_key &&
 		NULL != state->authenticate_func)

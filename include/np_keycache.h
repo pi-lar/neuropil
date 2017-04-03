@@ -82,6 +82,10 @@ void _np_sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t* key);
 NP_API_INTERN
 void _np_sort_keys_kd (np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key);
 
+NP_API_INTERN
+np_key_t* _np_key_find_by_connection_string(char* connection_str);
+
+
 #ifdef __cplusplus
 }
 #endif

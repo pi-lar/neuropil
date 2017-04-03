@@ -63,18 +63,20 @@ struct np_state_s
 
 
 /**
-.. c:function:: np_state_t* np_init(char* protocol, char* port)
+.. c:function:: np_state_t* np_init(char* protocol, char* port, np_bool start_http, char* hostname)
 
    Initializes the neuropil library and instructs to listen on the given port. Protocol is a string defining
    the IP protocol to use (tcp/udp/ipv4/ipv6/...), right now only udp is implemented
 
    :param port: the port to listen on, default is 3141
    :param proto: the default value for the protocol "udp6", which is UDP | IPv6
+   :param start_http: if the http server on port 31415 should start (default: FALSE)
+   :param hostname: (optional) The hostname to bind on. If not provided will be received via gethostname()
    :return: the np_state_t* which contains global state of different np sub modules or NULL on failure
 
 */
 NP_API_EXPORT
-np_state_t* np_init (char* proto, char* port, np_bool start_http);
+np_state_t* np_init (char* proto, char* port, np_bool start_http, char* hostname);
 
 /**
 .. c:function:: np_state_t* np_destroy()
@@ -282,13 +284,22 @@ void np_set_mx_property(char* subject, const char* key, np_val_t value);
 void np_rem_mx_property(char* subject, const char* key);
 
 /**
-.. c:function:: char*  get_connection_string()
+.. c:function:: char*  np_get_connection_string()
 
    Convenience function to build the current connection string for the node.
 
 */
 NP_API_EXPORT
 char* np_get_connection_string();
+
+/**
+.. c:function:: char*  np_get_connection_string_from(np_key_t* node_key)
+
+   Convenience function to build the connection string for any node key.
+
+*/
+NP_API_EXPORT
+char* np_get_connection_string_from(np_key_t* node_key);
 
 /**
 .. c:function:: void np_start_job_queue(np_state_t* state, uint8_t pool_size)
