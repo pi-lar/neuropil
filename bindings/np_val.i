@@ -3,13 +3,14 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
+%module(package="neuropil") np_val
+
 #define NP_ENUM
 #define NP_API_EXPORT
 #define NP_API_HIDDEN
 #define NP_API_PROTEC
 #define NP_API_INTERN
 
-%module(package="neuropil") np_val
 %{
 #include "../include/np_val.h"
 %}

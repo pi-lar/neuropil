@@ -40,6 +40,7 @@ typedef enum
 
 #define NP_UNUSED     __attribute__ ((unused))
 
+#ifndef SWIG
 #if defined (TEST_COMPILE)
   #define NP_API_EXPORT __attribute__ ((visibility ("default")))
   #define NP_API_HIDDEN __attribute__ ((visibility ("default")))
@@ -51,7 +52,7 @@ typedef enum
   #define NP_API_PROTEC __attribute__ ((visibility ("protected")))
   #define NP_API_INTERN __attribute__ ((visibility ("internal")))
 #endif
-
+#endif
 
 /*
  *  simple types / typedefs

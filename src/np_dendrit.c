@@ -1758,6 +1758,7 @@ void _np_in_handshake(np_jobargs_t* args)
 		{
 			hs_key->aaa_token = tmp_token;
 		}
+
 		np_aaatoken_t* hs_token = hs_key->aaa_token;
 		if (IS_VALID(hs_token->state))
 		{

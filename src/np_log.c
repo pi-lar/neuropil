@@ -54,11 +54,13 @@ log_str_t __level_str[] = {
 		{"TRACE", 0x0010 }			/* tracing messages   */
 };
 
-static np_log_t* logger;
+static np_log_t* logger = NULL;
 static pthread_mutex_t __log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void np_log_message(uint16_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
 {
+	if (logger == NULL) return;
+
 	if ( (level & LOG_NOMOD_MASK ) > 0)
 		if ( (level & logger->level & LOG_MODUL_MASK) == 0 )
 			return;

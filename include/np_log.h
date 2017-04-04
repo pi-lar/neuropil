@@ -41,17 +41,17 @@ enum np_log_e
     LOG_DEBUG      = 0x0008, /* debugging messages */
     LOG_TRACE      = 0x0010, /* tracing messages   */
 
-	LOG_KEY        = 0x0100, /* debugging messages for key subsystem */
-    LOG_NETWORK    = 0x0200, /* debugging messages for network layer */
+	LOG_KEY        = 0x0100, /* debugging the key subsystem */
+    LOG_NETWORK    = 0x0200, /* debugging the network layer */
     LOG_ROUTING    = 0x0400, /* debugging the routing table          */
     LOG_MESSAGE    = 0x0800, /* debugging the message subsystem      */
     LOG_SECURE     = 0x1000, /* debugging the security module        */
-    LOG_HTTP       = 0x2000, /* debugging the message subsystem      */
-    LOG_AAATOKEN   = 0x4000, /* debugging the message subsystem      */
+    LOG_HTTP       = 0x2000, /* debugging the http subsystem      */
+    LOG_AAATOKEN   = 0x4000, /* debugging the token subsystem      */
     LOG_GLOBAL     = 0x8000, /* debugging the global system          */
 
-	LOG_MODUL_MASK = 0xFF00, /* debugging the global system          */
-	LOG_NOMOD_MASK = 0x7F00, /* debugging the global system          */
+	LOG_MODUL_MASK = 0xFF00, /* masking the module system          */
+	LOG_NOMOD_MASK = 0x7F00, /* unmasking the module system          */
 
 } NP_ENUM NP_API_EXPORT;
 
@@ -69,11 +69,13 @@ void np_log_destroy ();
 NP_API_INTERN
 void _np_log_fflush();
 
+#ifndef SWIG
 NP_API_EXPORT
 void np_log_message(uint16_t level,
 					 const char* srcFile, const char* funcName,
 					 uint16_t lineno, const char* msg, ...)
 	 __attribute__((__format__ (__printf__, 5,6) ));
+#endif
 
 #define log_msg(level, msg, ...) \
 	 np_log_message(level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)

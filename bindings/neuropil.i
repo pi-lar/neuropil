@@ -5,6 +5,8 @@
 
 %module(package="neuropil") neuropil
 
+%include "stdint.i" 
+
 #define NP_ENUM
 #define NP_API_EXPORT
 #define NP_API_HIDDEN
@@ -16,10 +18,75 @@
 #include "../include/neuropil.h"
 %}
 
+%include "np_types.i"
+%include "np_aaatoken.i"
+
 %rename(np_state_s) np_state;
 %rename(np_state_t) np_state;
 
+%{
+static PyObject *py_authenticate_func = NULL;
+static PyObject *py_authorize_func = NULL;
+static PyObject *py_accounting_func = NULL;
+
+static np_bool python_authenticate_callback(struct np_aaatoken_s* aaa_token)
+{
+   PyObject *arglist;
+   PyObject *result;
+
+   // arglist = Py_BuildValue("()"); 
+   // arglist = Py_BuildValue("(isO)", the_int, the_str, the_pyobject);
+
+   PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
+   arglist = Py_BuildValue("(O)", obj);
+
+   result = PyEval_CallObject(py_authenticate_func, arglist);
+   np_bool ret_val = PyObject_IsTrue(result);
+
+   Py_DECREF(arglist);
+   Py_XDECREF(result);
+
+   return ret_val;
+}
+
+static np_bool python_authorize_callback(struct np_aaatoken_s* aaa_token)
+{
+   PyObject *arglist;
+   PyObject *result;
+
+   PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
+   arglist = Py_BuildValue("(O)", obj);
+
+   result = PyEval_CallObject(py_authorize_func, arglist);
+   np_bool ret_val = PyObject_IsTrue(result);
+
+   Py_DECREF(arglist);
+   Py_XDECREF(result);
+
+   return ret_val;
+}
+
+static np_bool python_accounting_callback(struct np_aaatoken_s* aaa_token)
+{
+   PyObject *arglist;
+   PyObject *result;
+
+   PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
+   arglist = Py_BuildValue("(O)", obj);
+
+   result = PyEval_CallObject(py_accounting_func, arglist);
+   np_bool ret_val = PyObject_IsTrue(result);
+
+   Py_DECREF(arglist);
+   Py_XDECREF(result);
+
+   return ret_val;
+}
+%}
+
+
 %extend np_state_s {
+
     %immutable my_node_key;
 
     // reference to main identity on this node
@@ -39,14 +106,54 @@
     %ignore authenticate_func; // authentication callback
     %ignore authorize_func;    // authorization callback
     %ignore accounting_func;   // really needed ?    
+
+    void py_set_subject_callback(PyObject *PyFunc)
+    {
+
+    }
+    
+    void py_set_authenticate_func(PyObject *PyFunc)
+    {
+        Py_XDECREF(py_authenticate_func); /* Dispose of previous callback */
+        Py_XINCREF(PyFunc);               /* Add a reference to new callback */
+        py_authenticate_func = PyFunc;    /* Remember new callback */
+        np_setauthenticate_cb(python_authenticate_callback);
+    }
+
+    void py_set_authorize_func(PyObject *PyFunc)
+    {
+        Py_XDECREF(py_authorize_func); /* Dispose of previous callback */
+        Py_XINCREF(PyFunc);            /* Add a reference to new callback */
+        py_authorize_func = PyFunc;    /* Remember new callback */
+        np_setauthenticate_cb(python_authorize_callback);
+    }
+
+    void py_set_accounting_func(PyObject *PyFunc)
+    {
+        Py_XDECREF(py_accouting_func); /* Dispose of previous callback */
+        Py_XINCREF(PyFunc);            /* Add a reference to new callback */
+        py_accounting_func = PyFunc;   /* Remember new callback */
+        np_setauthenticate_cb(python_accounting_callback);
+    }
+    
 };
+
+#ifdef SWIG<python>
+%typemap(in) PyObject *PyFunc {
+  if (!PyCallable_Check($input)) {
+      PyErr_SetString(PyExc_TypeError, "Need a callable object!");
+      return NULL;
+  }
+  $1 = $input;
+}
+#endif 
+
 
 %ignore _np_state;
 %ignore _np_ping;
 %ignore _np_send_ack;
 
-
-%include "np_aaatoken.i"
+%include "np_log.i"
 %include "np_tree.i"
 %include "np_val.i"
 
