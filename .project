@@ -31,6 +31,16 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>local_include</name>
+			<type>2</type>
+			<location>/usr/local/include</location>
+		</link>
+		<link>
+			<name>local_lib</name>
+			<type>2</type>
+			<location>/usr/local/lib</location>
+		</link>
+		<link>
 			<name>sys_include</name>
 			<type>2</type>
 			<location>/usr/include</location>
