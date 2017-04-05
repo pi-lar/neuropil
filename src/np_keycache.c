@@ -98,13 +98,23 @@ np_key_t* _np_key_find_create(np_dhkey_t search_dhkey)
 	np_key_t* subject_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
 	if (NULL == subject_key)
 	{
-		np_new_obj(np_key_t, subject_key);
-		subject_key->dhkey = search_dhkey;
-
-		SPLAY_INSERT(st_keycache_s, __key_cache, subject_key);
-
-		// np_ref_obj(np_key_t, subject_key);
+		subject_key = _np_key_create(search_dhkey);
     }
+	subject_key->last_update = ev_time();
+	return subject_key;
+}
+
+np_key_t* _np_key_create(np_dhkey_t search_dhkey)
+{
+
+	np_key_t* subject_key ;
+	np_new_obj(np_key_t, subject_key);
+	subject_key->dhkey = search_dhkey;
+
+	SPLAY_INSERT(st_keycache_s, __key_cache, subject_key);
+
+	// np_ref_obj(np_key_t, subject_key);
+
 	subject_key->last_update = ev_time();
 	return subject_key;
 }
@@ -122,7 +132,15 @@ np_key_t* _np_key_find(np_dhkey_t search_dhkey)
 	return return_key;
 }
 
-np_key_t* _np_key_find_by_details(char* details_container, np_bool search_myself, handshake_status_e handshake_status, np_bool require_handshake_status, np_bool require_dns,np_bool require_port,np_bool require_hash ){
+np_key_t* _np_key_find_by_details(
+		char* details_container,
+		np_bool search_myself,
+		handshake_status_e handshake_status,
+		np_bool require_handshake_status,
+		np_bool require_dns,
+		np_bool require_port,
+		np_bool require_hash
+	){
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
 	SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
@@ -137,10 +155,10 @@ np_key_t* _np_key_find_by_details(char* details_container, np_bool search_myself
 		}
 
 		if (
-				(!require_handshake_status || iter->node->handshake_status == handshake_status) &&
-				(!require_hash || strstr(details_container, iter->dhkey_str) != NULL) &&
-				(!require_dns || strstr(details_container, iter->node->dns_name) != NULL) &&
-				(!require_port || strstr(details_container, iter->node->port) != NULL)
+				(!require_handshake_status || (NULL != iter->node && iter->node->handshake_status == handshake_status)) &&
+				(!require_hash || (NULL != iter->dhkey_str && strstr(details_container, iter->dhkey_str) != NULL)) &&
+				(!require_dns || (NULL != iter->node &&NULL != iter->node->dns_name && strstr(details_container, iter->node->dns_name) != NULL)) &&
+				(!require_port || (NULL != iter->node && NULL != iter->node->port &&strstr(details_container, iter->node->port) != NULL))
 		)
 		{
 			ret = iter;

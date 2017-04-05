@@ -61,6 +61,10 @@ void _np_keycache_init();
 
 NP_API_INTERN
 np_key_t* _np_key_find_create(np_dhkey_t key);
+
+NP_API_INTERN
+np_key_t* _np_key_create(np_dhkey_t search_dhkey);
+
 NP_API_INTERN
 np_key_t* _np_key_find(np_dhkey_t key);
 NP_API_INTERN
