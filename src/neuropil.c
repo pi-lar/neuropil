@@ -172,6 +172,7 @@ void np_send_join(const char* node_string)
 	np_free_obj(np_message_t, msg_out);
 }
 
+
 void np_send_wildcard_join(const char* node_string) {
 	np_state_t* state = _np_state();
 	np_key_t* wildcard_node_key = NULL;
@@ -220,24 +221,32 @@ void np_send_wildcard_join(const char* node_string) {
 	}
 	log_msg(LOG_DEBUG, "found a node");
 
-	log_msg(LOG_DEBUG, "Rewires network object");
+//	node_key->network = wildcard_node_key->network;
+//	np_ref_obj(np_network_t, node_key->network);
 
-	log_msg(LOG_DEBUG, "my_node: %p wild_node: %p found_node: %p\n",
-		state->my_node_key->network,
-		wildcard_node_key->network,
-		node_key->network
- 	);
+//	log_msg(LOG_DEBUG, "Send actual join request");
+//
+//	jrb_me = make_nptree();
+//	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
+//
+//	msg_out = NULL;
+//	np_new_obj(np_message_t, msg_out);
+//	np_message_create(msg_out, node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
+//
+//	log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(node_key));
+//	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
+//	_np_job_submit_msgout_event(0.0, prop, node_key, msg_out);
+//
+//	np_free_obj(np_message_t, msg_out);
 
-	//node_key->network = wildcard_node_key->network;
-	//np_ref_obj(np_network_t, node_key->network);
-
-	log_msg(LOG_DEBUG, "after RW=> my_node: %p wild_node: %p found_node: %p\n",
-		state->my_node_key->network,
-		wildcard_node_key->network,
-		node_key->network
- 	);
-	log_msg(LOG_DEBUG, "Send actual join request");
-	np_send_join(np_get_connection_string_from(node_key));
+	log_msg(LOG_DEBUG, "get connection string");
+	char* resolved_node_connection = np_get_connection_string_from(node_key);
+	log_msg(LOG_DEBUG, "remove wildcard node");
+	_np_key_destroy(wildcard_node_key);
+	log_msg(LOG_DEBUG, "remove resolving node");
+	_np_key_destroy(node_key);
+	log_msg(LOG_DEBUG, "send join to node via: %s",resolved_node_connection);
+	np_send_join(resolved_node_connection);
 }
 
 void np_set_realm_name(const char* realm_name)
