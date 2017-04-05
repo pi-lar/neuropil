@@ -695,48 +695,7 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 		if (TRUE == delete_key &&
 			now > old->last_update)
 		{
-			log_msg(LOG_DEBUG, "cleanup of key and associated data structures: %s", _key_as_str(old));
-
-			// delete old network structure
-			if (NULL != old->network)   np_unref_obj(np_network_t,  old->network);
-			if (NULL != old->node)      np_unref_obj(np_node_t,     old->node);
-			if (NULL != old->aaa_token) np_unref_obj(np_aaatoken_t, old->aaa_token);
-
-			// delete old receive tokens
-			if (NULL != old->recv_tokens)
-			{
-				LOCK_CACHE(old->recv_property)
-				{
-					pll_iterator(np_aaatoken_ptr) iter = pll_first(old->recv_tokens);
-					while (NULL != iter)
-					{
-						np_free_obj(np_aaatoken_t, iter->val);
-						pll_next(iter);
-					}
-					pll_free(np_aaatoken_ptr, old->recv_tokens);
-				}
-			}
-			// delete send tokens
-			if (NULL != old->send_tokens)
-			{
-				LOCK_CACHE(old->send_property)
-				{
-					pll_iterator(np_aaatoken_ptr) iter = pll_first(old->send_tokens);
-					while (NULL != iter)
-					{
-						np_free_obj(np_aaatoken_t, iter->val);
-						pll_next(iter);
-					}
-					pll_free(np_aaatoken_ptr, old->send_tokens);
-				}
-			}
-
-			_LOCK_MODULE(np_keycache_t)
-			{
-				_np_key_remove(old->dhkey);
-			}
-			np_unref_obj(np_key_t, old);
-			log_msg(LOG_DEBUG, "cleanup of key and associated data structures: ... done");
+			_np_key_destroy(old);
 		}
 		else
 		{

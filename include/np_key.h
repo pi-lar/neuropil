@@ -113,6 +113,8 @@ void _dhkey_assign (np_dhkey_t* k1, const np_dhkey_t* const k2);
 NP_API_INTERN
 void _dhkey_assign_ui (np_dhkey_t * k, uint64_t ul);
 
+NP_API_INTERN
+void _np_key_destroy(np_key_t* to_destroy);
 
 #ifdef __cplusplus
 }

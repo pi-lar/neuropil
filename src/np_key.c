@@ -16,6 +16,11 @@
 
 #include "np_log.h"
 #include "np_tree.h"
+#include "np_network.h"
+#include "np_node.h"
+#include "np_aaatoken.h"
+#include "np_msgproperty.h"
+
 
 static np_dhkey_t __dhkey_min;
 static np_dhkey_t __dhkey_half;
@@ -370,3 +375,59 @@ uint8_t _dhkey_hexalpha_at (const np_dhkey_t* key, const int8_t c)
     log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_hexalpha_at");
     return (uint8_t) answer;
 }
+
+/**
+ * Destroys a key with all resources
+ */
+void _np_key_destroy(np_key_t* to_destroy) {
+
+	if(NULL != to_destroy){
+		char* keyident = _key_as_str(to_destroy);
+		log_msg(LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
+
+		// delete old network structure
+		if (NULL != to_destroy->network)   np_unref_obj(np_network_t,  to_destroy->network);
+		if (NULL != to_destroy->node)      np_unref_obj(np_node_t,     to_destroy->node);
+		if (NULL != to_destroy->aaa_token) np_unref_obj(np_aaatoken_t, to_destroy->aaa_token);
+
+		// delete old receive tokens
+		if (NULL != to_destroy->recv_tokens)
+		{
+			LOCK_CACHE(to_destroy->recv_property)
+			{
+				pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->recv_tokens);
+				while (NULL != iter)
+				{
+					np_free_obj(np_aaatoken_t, iter->val);
+					pll_next(iter);
+				}
+				pll_free(np_aaatoken_ptr, to_destroy->recv_tokens);
+			}
+		}
+		// delete send tokens
+		if (NULL != to_destroy->send_tokens)
+		{
+			LOCK_CACHE(to_destroy->send_property)
+			{
+				pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->send_tokens);
+				while (NULL != iter)
+				{
+					np_free_obj(np_aaatoken_t, iter->val);
+					pll_next(iter);
+				}
+				pll_free(np_aaatoken_ptr, to_destroy->send_tokens);
+			}
+		}
+
+		_LOCK_MODULE(np_keycache_t)
+		{
+			_np_key_remove(to_destroy->dhkey);
+		}
+		np_unref_obj(np_key_t, to_destroy);
+
+		log_msg(LOG_DEBUG, "cleanup of key and associated data structures done");
+	}else{
+		log_msg(LOG_DEBUG, "no key provided for cleanup");
+	}
+}
+
