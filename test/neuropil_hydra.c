@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
 			fprintf(stdout, "Creating new bootstrap node...\n");
 
 			char log_file_host[256];
-			sprintf(log_file_host, "%s_host.log", "./neuropil_hydra");
+			sprintf(log_file_host, "%s_host_%s.log", "./neuropil_hydra", bootstrap_port);
 			np_log_init(log_file_host, level);
 			np_init(proto, bootstrap_port, TRUE, NULL);
 			np_start_job_queue(4);
