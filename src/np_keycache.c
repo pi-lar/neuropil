@@ -122,24 +122,26 @@ np_key_t* _np_key_find(np_dhkey_t search_dhkey)
 	return return_key;
 }
 
-np_key_t* _np_key_find_by_connection_string(char* connection_str){
+np_key_t* _np_key_find_by_details(char* details_container, np_bool search_myself, handshake_status_e handshake_status, np_bool require_handshake_status, np_bool require_dns,np_bool require_port,np_bool require_hash ){
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
 	SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
 	{
-		// our own key / identity never deprecates
-		if (TRUE == _dhkey_equal(&iter->dhkey, &_np_state()->my_node_key->dhkey) ||
-			TRUE == _dhkey_equal(&iter->dhkey, &_np_state()->my_identity->dhkey) )
-		{
-			continue;
+		if(TRUE == search_myself){
+			if (
+				TRUE == _dhkey_equal(&iter->dhkey, &_np_state()->my_node_key->dhkey) ||
+				TRUE == _dhkey_equal(&iter->dhkey, &_np_state()->my_identity->dhkey) )
+			{
+				continue;
+			}
 		}
 
-		// Ignore wildcard and compare to dns and port provided
 		if (
-				iter->node->handshake_status == HANDSHAKE_COMPLETE &&
-				strstr(connection_str, iter->node->dns_name) != NULL &&
-				strstr(connection_str, iter->node->port) != NULL
-			)
+				(!require_handshake_status || iter->node->handshake_status == handshake_status) &&
+				(!require_hash || strstr(details_container, iter->dhkey_str) != NULL) &&
+				(!require_dns || strstr(details_container, iter->node->dns_name) != NULL) &&
+				(!require_port || strstr(details_container, iter->node->port) != NULL)
+		)
 		{
 			ret = iter;
 			break;

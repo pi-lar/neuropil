@@ -16,6 +16,7 @@
 #include "np_key.h"
 #include "np_memory.h"
 #include "np_types.h"
+#include "np_node.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -83,7 +84,7 @@ NP_API_INTERN
 void _np_sort_keys_kd (np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key);
 
 NP_API_INTERN
-np_key_t* _np_key_find_by_connection_string(char* connection_str);
+np_key_t* _np_key_find_by_details(char* details_container, np_bool search_myself, handshake_status_e handshake_status, np_bool require_handshake_status, np_bool require_dns,np_bool require_port,np_bool require_hash );
 
 
 #ifdef __cplusplus
