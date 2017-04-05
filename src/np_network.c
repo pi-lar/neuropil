@@ -386,15 +386,12 @@ void _np_network_send (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents
 		// seems to be called although the key is deleted already
 		np_key_t* key = (np_key_t*) event->data;
 
-		log_msg(LOG_DEBUG, "key->network: %p\n",
-						key->network
-			 	);
-
 		if (NULL != key &&
 			NULL != key->node &&
 			NULL != key->network &&
 			NULL != key->network->out_events &&
-			0 < sll_size(key->network->out_events))
+			0 < sll_size(key->network->out_events)
+			)
 		{
 			log_msg(LOG_DEBUG, "key->network: %p\n",
 					key->network
