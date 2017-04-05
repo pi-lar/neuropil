@@ -210,7 +210,7 @@ void np_send_wildcard_join(const char* node_string) {
 
 		_LOCK_MODULE(np_keycache_t)
 		{
- 			node_key = _np_key_find_by_connection_string(node_string);
+ 			node_key = _np_key_find_by_details(node_string, FALSE, HANDSHAKE_COMPLETE, TRUE, TRUE, TRUE, FALSE);
 		}
 
 		if(node_key != NULL){
