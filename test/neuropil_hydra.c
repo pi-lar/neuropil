@@ -48,6 +48,8 @@ int main(int argc, char **argv) {
 	uint32_t required_nodes = 3;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK;
 
+	np_bool startHTTP = TRUE;
+
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
 		switch ((char) opt) {
 		case 'j':
@@ -83,6 +85,7 @@ int main(int argc, char **argv) {
 
 	int create_bootstrap = NULL == bootstrap_hostnode;
 	if (TRUE == create_bootstrap) {
+		startHTTP = FALSE;
 		bootstrap_hostnode = bootstrap_hostnode_default;
 
 		fprintf(stdout, "No bootstrap host specified.\n");
@@ -118,6 +121,8 @@ int main(int argc, char **argv) {
 	while (TRUE) {
 		// (re-) start child processes
 		if (list_of_childs->size < required_nodes) {
+			np_bool startHTTPnow = startHTTP == TRUE;
+			startHTTP = FALSE;
 			current_pid = fork();
 
 			if (0 == current_pid) {
@@ -136,7 +141,7 @@ int main(int argc, char **argv) {
 				// child process
 				np_log_init(log_file, level);
 				// used the pid as the port
-				np_state_t* child_status = np_init(proto, port, FALSE, NULL);
+				np_state_t* child_status = np_init(proto, port, startHTTPnow, NULL);
 
 				log_msg(LOG_DEBUG, "starting job queue");
 				np_start_job_queue(no_threads);
