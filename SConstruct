@@ -195,6 +195,9 @@ Depends(prg_np_rccb, np_dylib)
 prg_np_hydra = env.Program('bin/neuropil_hydra', 'test/neuropil_hydra.c')
 Depends(prg_np_hydra, np_dylib)
 
+prg_np_shared_hydra = env.Program('bin/neuropil_shared_hydra', 'test/neuropil_shared_hydra.c')
+Depends(prg_np_shared_hydra, np_dylib)
+
 # clean up
 Clean('.', 'build')
 Clean('.', 'bin')
