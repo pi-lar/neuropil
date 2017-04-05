@@ -11,14 +11,13 @@
 			</arguments>
 		</buildCommand>
 		<buildCommand>
-			<name>org.eclipse.cdt.managedbuilder.core.genmakebuilder</name>
-			<triggers>clean,full,incremental,</triggers>
+			<name>org.eclipse.cdt.managedbuilder.core.ScannerConfigBuilder</name>
+			<triggers>full,incremental,</triggers>
 			<arguments>
 			</arguments>
 		</buildCommand>
 		<buildCommand>
-			<name>org.eclipse.cdt.managedbuilder.core.ScannerConfigBuilder</name>
-			<triggers>full,incremental,</triggers>
+			<name>ch.hsr.ifs.sconsolidator.Builder</name>
 			<arguments>
 			</arguments>
 		</buildCommand>
@@ -28,5 +27,13 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 		<nature>org.python.pydev.pythonNature</nature>
+		<nature>ch.hsr.ifs.sconsolidator.ExistingCodeNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>sys_include</name>
+			<type>2</type>
+			<location>/usr/include</location>
+		</link>
+	</linkedResources>
 </projectDescription>
