@@ -241,7 +241,6 @@ void _np_in_received(np_jobargs_t* args)
 	np_new_obj(np_key_t, target_key);
 	target_key->dhkey = target_dhkey;
 
-	np_dhkey_t wildcard_key = dhkey_create_from_hostport("*","0");
 	//	if () {
 //		log_msg(LOG_DEBUG, "received wildcart msg");
 //		char tmp[128];
@@ -254,10 +253,9 @@ void _np_in_received(np_jobargs_t* args)
 	np_msgproperty_t* handler = np_msgproperty_get(INBOUND, msg_subject.value.s);
 
 	// redirect message if
-	// a: msg is not for my dhkey
-	// b: is not for a wildcard key
+	// msg is not for my dhkey
 	// no handler is present
-	if (! (_dhkey_equal(&args->target->dhkey, &wildcard_key) || _dhkey_equal(&args->target->dhkey, &state->my_node_key->dhkey)) || handler == NULL)
+ 	if ( _dhkey_equal(&args->target->dhkey, &state->my_node_key->dhkey) || handler == NULL)
 	{
 		log_msg(LOG_DEBUG, "perform route_lookup");
 
@@ -1777,14 +1775,24 @@ void _np_in_handshake(np_jobargs_t* args)
 	// store the handshake data in the node cache, use hostname/port for key generation
 	// key could be changed later, but we need a way to lookup the handshake data later
 	np_key_t* hs_key = NULL;
+	np_key_t* hs_wildcard_key = NULL;
+	np_dhkey_t wildcard_key = dhkey_create_from_hostport("*","0");
+
 	_LOCK_MODULE(np_keycache_t)
 	{
 		hs_key = _np_create_node_from_token(tmp_token);
+		hs_wildcard_key = _np_key_find(wildcard_key);
+	}
+	if(NULL != hs_wildcard_key){
+		hs_wildcard_key->dhkey = hs_key->dhkey;
+		_key_as_str(hs_key);
+		hs_key =  hs_wildcard_key;
 	}
 
 	// should never happen
 	if (NULL == hs_key)
 	{
+		log_msg(LOG_WARN, "HAPPEND NEVERLESS");
 		goto __np_cleanup__;
 	}
 

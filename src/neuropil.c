@@ -188,6 +188,11 @@ void np_send_wildcard_join(const char* node_string) {
 		wildcard_node_key = _np_node_decode_from_str(wildcard_node);
 	}
 
+	log_msg(LOG_DEBUG, "replacing dhkey with wildcard");
+	np_dhkey_t wildcard_key = dhkey_create_from_hostport("*","0");
+	wildcard_node_key->dhkey = wildcard_key;
+	_key_as_str(wildcard_node_key);
+
 	np_tree_t* jrb_me = make_nptree();
 	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
 
@@ -199,54 +204,26 @@ void np_send_wildcard_join(const char* node_string) {
 	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST_WILDCARD);
 	_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
 
-
-	np_key_t* node_key = NULL;
-
-	log_msg(LOG_DEBUG, "Searching for wildcard handshake response");
-	while(TRUE)
-	{
-		log_msg(LOG_DEBUG, "sleeping ");
+	while(wildcard_node_key->node->handshake_status != HANDSHAKE_COMPLETE){
 		ev_sleep(0.1);
-		log_msg(LOG_DEBUG, "resuming ");
-
-		_LOCK_MODULE(np_keycache_t)
-		{
- 			node_key = _np_key_find_by_details(node_string, FALSE, HANDSHAKE_COMPLETE, TRUE, TRUE, TRUE, FALSE);
-		}
-
-		if(node_key != NULL){
-			break;
-		}
-		log_msg(LOG_DEBUG, "and searching...");
 	}
-	log_msg(LOG_DEBUG, "found a node");
+	log_msg(LOG_DEBUG, "wildcard handshake complete");
 
-//	node_key->network = wildcard_node_key->network;
-//	np_ref_obj(np_network_t, node_key->network);
+	log_msg(LOG_DEBUG, "Send actual join request");
 
-//	log_msg(LOG_DEBUG, "Send actual join request");
-//
-//	jrb_me = make_nptree();
-//	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
-//
-//	msg_out = NULL;
-//	np_new_obj(np_message_t, msg_out);
-//	np_message_create(msg_out, node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
-//
-//	log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(node_key));
-//	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
-//	_np_job_submit_msgout_event(0.0, prop, node_key, msg_out);
-//
-//	np_free_obj(np_message_t, msg_out);
+	jrb_me = make_nptree();
+	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
 
-	log_msg(LOG_DEBUG, "get connection string");
-	char* resolved_node_connection = np_get_connection_string_from(node_key);
-	log_msg(LOG_DEBUG, "remove wildcard node");
-	_np_key_destroy(wildcard_node_key);
-	log_msg(LOG_DEBUG, "remove resolving node");
-	_np_key_destroy(node_key);
-	log_msg(LOG_DEBUG, "send join to node via: %s",resolved_node_connection);
-	np_send_join(resolved_node_connection);
+	msg_out = NULL;
+	np_new_obj(np_message_t, msg_out);
+	np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
+
+	log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(wildcard_node_key));
+	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
+	_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
+
+	np_free_obj(np_message_t, msg_out);
+
 }
 
 void np_set_realm_name(const char* realm_name)
