@@ -45,8 +45,8 @@ int main(int argc, char **argv) {
 	char* bootstrap_hostnode_default;
 	char bootstrap_port[7];
 	char* proto = "udp4";
-	uint32_t required_nodes = 3;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK;
+	uint32_t required_nodes = 5;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK ;
 
 	np_bool startHTTP = TRUE;
 
@@ -151,10 +151,10 @@ int main(int argc, char **argv) {
 				np_send_wildcard_join(bootstrap_hostnode);
 
 				while (!child_status->my_node_key->node->joined_network) {
-					// log_msg(LOG_DEBUG, "wait for join acceptance");
+					// wait for join acceptance
 					ev_sleep(0.1);
 				}
-
+				fprintf(stdout, "joined! \n");
 				log_msg(LOG_DEBUG, "join complete");
 
 				while (1) {

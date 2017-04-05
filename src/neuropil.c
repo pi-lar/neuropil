@@ -197,33 +197,46 @@ void np_send_wildcard_join(const char* node_string) {
 	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
 
 	np_message_t* msg_out = NULL;
-	np_new_obj(np_message_t, msg_out);
-	np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST_WILDCARD, jrb_me);
+	np_msgproperty_t* prop = NULL;
 
-	log_msg(LOG_DEBUG, "submitting wildcard join request to target key %s", _key_as_str(wildcard_node_key));
-	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST_WILDCARD);
-	_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
+	// retry up to 3 times
+	for(int i=0;i<999;i++){
+		np_new_obj(np_message_t, msg_out);
+		np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST_WILDCARD, jrb_me);
 
-	while(wildcard_node_key->node->handshake_status != HANDSHAKE_COMPLETE){
-		ev_sleep(0.1);
+		log_msg(LOG_DEBUG, "submitting wildcard join request to target key %s", _key_as_str(wildcard_node_key));
+		prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST_WILDCARD);
+		_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
+
+		log_msg(LOG_DEBUG, "waiting for wildcard handshake to complete");
+		int timeout = 100;
+		while(timeout > 0 && wildcard_node_key->node->handshake_status != HANDSHAKE_COMPLETE){
+			ev_sleep(0.1);
+			timeout--;
+		}
+		log_msg(LOG_DEBUG, "wildcard handshake status: %d (info: %d<=>OK)", wildcard_node_key->node->handshake_status, HANDSHAKE_COMPLETE);
+		if(wildcard_node_key->node->handshake_status == HANDSHAKE_COMPLETE){
+			break;
+		}
 	}
-	log_msg(LOG_DEBUG, "wildcard handshake complete");
+	if(wildcard_node_key->node->handshake_status == HANDSHAKE_COMPLETE){
+		log_msg(LOG_DEBUG, "Send actual join request");
 
-	log_msg(LOG_DEBUG, "Send actual join request");
+		jrb_me = make_nptree();
+		np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
 
-	jrb_me = make_nptree();
-	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
+		msg_out = NULL;
+		np_new_obj(np_message_t, msg_out);
+		np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
 
-	msg_out = NULL;
-	np_new_obj(np_message_t, msg_out);
-	np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
+		log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(wildcard_node_key));
+		prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
+		_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
 
-	log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(wildcard_node_key));
-	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
-	_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
-
-	np_free_obj(np_message_t, msg_out);
-
+		np_free_obj(np_message_t, msg_out);
+	}else{
+		log_msg(LOG_WARN, "Join to %s not completed", node_string);
+	}
 }
 
 void np_set_realm_name(const char* realm_name)

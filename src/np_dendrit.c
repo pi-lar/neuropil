@@ -1785,6 +1785,7 @@ void _np_in_handshake(np_jobargs_t* args)
 	}
 	if(NULL != hs_wildcard_key){
 		hs_wildcard_key->dhkey = hs_key->dhkey;
+		//TODO: ALLE stellen aktualisieren auf den neuen dhkey
 		_key_as_str(hs_key);
 		hs_key =  hs_wildcard_key;
 	}
