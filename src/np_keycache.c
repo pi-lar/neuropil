@@ -119,7 +119,6 @@ np_key_t* _np_key_create(np_dhkey_t search_dhkey)
 	return subject_key;
 }
 
-
 np_key_t* _np_key_find(np_dhkey_t search_dhkey)
 {
 	np_key_t search_key = { .dhkey = search_dhkey };
@@ -199,6 +198,17 @@ np_key_t* _np_key_remove(np_dhkey_t search_dhkey)
 	return rem_key;
 }
 
+np_key_t* _np_key_add(np_key_t* subject_key)
+{
+	np_new_obj(np_key_t, subject_key);
+
+	SPLAY_INSERT(st_keycache_s, __key_cache, subject_key);
+
+	// np_ref_obj(np_key_t, subject_key);
+
+	subject_key->last_update = ev_time();
+	return subject_key;
+}
 
 char* _key_as_str(np_key_t* key)
 {
