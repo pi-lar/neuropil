@@ -40,12 +40,12 @@ extern int optind;
 
 int main(int argc, char **argv) {
 	int opt;
-	int no_threads = 5;
+	int no_threads = 3;
 	char* bootstrap_hostnode = NULL;
 	char* bootstrap_hostnode_default;
 	char bootstrap_port[7];
 	char* proto = "udp4";
-	uint32_t required_nodes = 5;
+	uint32_t required_nodes = 3;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK ;
 
 	np_bool startHTTP = TRUE;
@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
 			sprintf(log_file_host, "%s_host_%s.log", "./neuropil_hydra", bootstrap_port);
 			np_log_init(log_file_host, level);
 			np_init(proto, bootstrap_port, TRUE, NULL);
-			np_start_job_queue(4);
+			np_start_job_queue(5);
 			while (TRUE) {
 				ev_sleep(0.1);
 			}
@@ -150,19 +150,24 @@ int main(int argc, char **argv) {
 
 				np_send_wildcard_join(bootstrap_hostnode);
 
-				while (!child_status->my_node_key->node->joined_network) {
+				int timeout = 20;
+				while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {
 					// wait for join acceptance
 					ev_sleep(0.1);
+					timeout--;
 				}
-				fprintf(stdout, "joined! \n");
-				log_msg(LOG_DEBUG, "join complete");
 
-				while (1) {
+				if(TRUE == child_status->my_node_key->node->joined_network ){
+					fprintf(stdout, "%s joined network!\n",port);
+				}else{
+					fprintf(stderr, "%s could not join network!\n",port);
+				}
+
+				while (TRUE) {
 					// log_msg(LOG_DEBUG, "Running application");
 					ev_sleep(0.1);
 				}
-				// escape from the parent loop
-				break;
+				exit(EXIT_SUCCESS);
 
 			} else {
 				// parent process keeps iterating
@@ -174,7 +179,6 @@ int main(int argc, char **argv) {
 			}
 			ev_sleep(3.1415);
 		} else {
-
 			current_pid = waitpid(-1, &status, WNOHANG);
 			// check for stopped child processes
 			if (current_pid != 0) {
@@ -202,5 +206,4 @@ int main(int argc, char **argv) {
 			ev_sleep(3.1415);
 		}
 	}
-	fprintf(stdout, "stopped creating child processes\n");
 }

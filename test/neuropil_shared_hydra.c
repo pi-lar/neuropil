@@ -19,6 +19,8 @@
 #include "neuropil.h"
 #include "np_log.h"
 #include "np_types.h"
+#include "np_node.h"
+#include "np_keycache.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,7 +46,7 @@ int main(int argc, char **argv)
 	int opt;
 	int no_threads = 3;
 	char* bootstrap_hostnode = NULL;
-	char* proto = NULL;
+	char* proto = "udp4";
 	uint32_t required_nodes = 5;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 
@@ -130,7 +132,9 @@ int main(int argc, char **argv)
 					fprintf(stdout, "Bootstrap host node: %s\n", bootstrap_hostnode);
 
 					np_start_job_queue(4);
+					fprintf(stdout, "Bootstrap host node is running\n");
 					fflush(stdout);
+					fflush(stderr);
 				}
 				else
 				{
@@ -156,7 +160,7 @@ int main(int argc, char **argv)
 					// child process
 					np_log_init(log_file, level);
 					// used the pid as the port
-					np_init(proto, port, FALSE, NULL);
+					np_state_t* child_status = np_init(proto, port, FALSE, NULL);
 
 					log_msg(LOG_DEBUG, "starting job queue");
 					np_start_job_queue(no_threads);
@@ -164,6 +168,20 @@ int main(int argc, char **argv)
 					log_msg(LOG_DEBUG, "creating welcome message");
 
 					np_send_join(data);
+
+					int timeout = 200;
+					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {
+						// wait for join acceptance
+						ev_sleep(0.1);
+						timeout--;
+					}
+					if(TRUE == child_status->my_node_key->node->joined_network ){
+						fprintf(stdout, "%s joined network!\n",port);
+					}else{
+						fprintf(stderr, "%s could not join network!\n",port);
+					}
+					fflush(stdout);
+					fflush(stderr);
 				}
 
 				while (1)
