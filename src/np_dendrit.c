@@ -1782,12 +1782,16 @@ void _np_in_handshake(np_jobargs_t* args)
 	{
 		hs_key = _np_create_node_from_token(tmp_token);
 		hs_wildcard_key = _np_key_find(wildcard_key);
-	}
-	if(NULL != hs_wildcard_key){
-		hs_wildcard_key->dhkey = hs_key->dhkey;
-		//TODO: ALLE stellen aktualisieren auf den neuen dhkey
-		_key_as_str(hs_key);
-		hs_key =  hs_wildcard_key;
+
+		if(NULL != hs_wildcard_key){
+			_np_key_remove(hs_wildcard_key->dhkey);
+
+			hs_wildcard_key->dhkey = hs_key->dhkey;
+			_key_as_str(hs_key);
+			hs_key =  hs_wildcard_key;
+
+			_np_key_add(hs_key);
+		}
 	}
 
 	// should never happen

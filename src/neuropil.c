@@ -171,31 +171,38 @@ void np_send_join(const char* node_string)
 
 	np_free_obj(np_message_t, msg_out);
 }
-
+/**
+ * Takes a node connection string and tries to connect to any node available on the other end.
+ * node_string should not contain a hash value (nor the trailing: character).
+ * Example: np_send_wildcard_join("udp4:example.com:1234");
+ */
 void np_send_wildcard_join(const char* node_string)
 {
+	/**
+	 * Wir erzeugen einen festen hash key der als wildcard fungiert.
+	 * Anschließend wird diesem der node_string mit allen anderen informationen (dns/port/etc) hinzugefügt.
+	 * Beim handshake wird festgestellt das es für diese Zusatzinformationen (dns/port) einen wildcard key bereits gibt.
+	 * Der wildcard key wird dann mit den tatsächlichen dhkey informationen angereichert.
+	 * So wird aus dem wildcard key ein vollwertiger key eintrag in der routing Tabelle.
+	 */
+
 	np_state_t* state = _np_state();
+	char* wildcard_node;
 	np_key_t* wildcard_node_key = NULL;
 
-	np_key_t wildcard_node_tmp;
+	//START Build our wildcard connection string
+	np_dhkey_t wildcard_dhkey = dhkey_create_from_hostport("*","0");
+	char* wildcard_dhkey_str = malloc(sizeof(char)*65);
+	_dhkey_to_str(&wildcard_dhkey, wildcard_dhkey_str);
+	asprintf(&wildcard_node, "%s:%s", wildcard_dhkey_str, node_string);
+	//END Build our wildcard connection string
 
-	log_msg(LOG_DEBUG, "appending wildcard %s", node_string);
-	char* wildcard_node;
-
-	np_dhkey_t wildcard_key = dhkey_create_from_hostport("*","0");
-	// wahrscheinlich noch besser, dann kannst Du besser danach suchen
-	// np_dhkey_t wildcard_key = dhkey_create_from_hostport("*", node_string);
-	wildcard_node_tmp.dhkey = wildcard_key;
-	asprintf(&wildcard_node, "%s:%s", _key_as_str(&wildcard_node_tmp), node_string);
-	log_msg(LOG_DEBUG, "result: %s", wildcard_node);
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		// _np_node_decode_... braucht einen 64-byte hash key, daher zuerst den
-		// hash key erstellen und in den connect string packen
-		// sonst: chaos ;-)
 		wildcard_node_key = _np_node_decode_from_str(wildcard_node);
 	}
+	 free(wildcard_node);
 
 	np_tree_t* jrb_me = make_nptree();
 	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
@@ -203,8 +210,8 @@ void np_send_wildcard_join(const char* node_string)
 	np_message_t* msg_out = NULL;
 	np_msgproperty_t* prop = NULL;
 
-	// retry up to 3 times
-	for(int i=0;i<999;i++){
+ //	for(int i=0;i<999;i++)
+	{
 		np_new_obj(np_message_t, msg_out);
 		np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST_WILDCARD, jrb_me);
 
@@ -220,7 +227,7 @@ void np_send_wildcard_join(const char* node_string)
 		}
 		log_msg(LOG_DEBUG, "wildcard handshake status: %d (info: %d<=>OK)", wildcard_node_key->node->handshake_status, HANDSHAKE_COMPLETE);
 		if(wildcard_node_key->node->handshake_status == HANDSHAKE_COMPLETE){
-			break;
+			// break;
 		}
 	}
 

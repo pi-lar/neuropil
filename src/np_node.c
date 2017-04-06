@@ -114,6 +114,9 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, np_bool includ
 /** np_node_decode
  * decodes a string into a node structure. This acts as a
  * np_node_get, and should be followed eventually by a np_node_release.
+ *
+ * Example: _np_node_decode_from_str("04436571312f73109f697851cfd0529a06ae66080dc9f07581f45526691d4290:udp4:example.com:1234");
+ * The key always requires a 64 char hash value as first parameter
  **/
 np_key_t* _np_node_decode_from_str (const char *key)
 {
