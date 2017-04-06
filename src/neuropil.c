@@ -172,26 +172,30 @@ void np_send_join(const char* node_string)
 	np_free_obj(np_message_t, msg_out);
 }
 
-
-void np_send_wildcard_join(const char* node_string) {
+void np_send_wildcard_join(const char* node_string)
+{
 	np_state_t* state = _np_state();
 	np_key_t* wildcard_node_key = NULL;
 
+	np_key_t wildcard_node_tmp;
+
 	log_msg(LOG_DEBUG, "appending wildcard %s", node_string);
 	char* wildcard_node;
-	asprintf(&wildcard_node, "*:%s",node_string);
 
+	np_dhkey_t wildcard_key = dhkey_create_from_hostport("*","0");
+	// wahrscheinlich noch besser, dann kannst Du besser danach suchen
+	// np_dhkey_t wildcard_key = dhkey_create_from_hostport("*", node_string);
+	wildcard_node_tmp.dhkey = wildcard_key;
+	asprintf(&wildcard_node, "%s:%s", _key_as_str(&wildcard_node_tmp), node_string);
 	log_msg(LOG_DEBUG, "result: %s", wildcard_node);
 
 	_LOCK_MODULE(np_keycache_t)
 	{
+		// _np_node_decode_... braucht einen 64-byte hash key, daher zuerst den
+		// hash key erstellen und in den connect string packen
+		// sonst: chaos ;-)
 		wildcard_node_key = _np_node_decode_from_str(wildcard_node);
 	}
-
-	log_msg(LOG_DEBUG, "replacing dhkey with wildcard");
-	np_dhkey_t wildcard_key = dhkey_create_from_hostport("*","0");
-	wildcard_node_key->dhkey = wildcard_key;
-	_key_as_str(wildcard_node_key);
 
 	np_tree_t* jrb_me = make_nptree();
 	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
@@ -219,6 +223,7 @@ void np_send_wildcard_join(const char* node_string) {
 			break;
 		}
 	}
+
 	if(wildcard_node_key->node->handshake_status == HANDSHAKE_COMPLETE){
 		log_msg(LOG_DEBUG, "Send actual join request");
 
@@ -234,7 +239,8 @@ void np_send_wildcard_join(const char* node_string) {
 		_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
 
 		np_free_obj(np_message_t, msg_out);
-	}else{
+
+	} else {
 		log_msg(LOG_WARN, "Join to %s not completed", node_string);
 	}
 }
