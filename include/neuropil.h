@@ -293,13 +293,15 @@ NP_API_EXPORT
 char* np_get_connection_string();
 
 /**
-.. c:function:: char*  np_get_connection_string_from(np_key_t* node_key)
+.. c:function:: char*  np_get_connection_string_from(np_key_t* node_key, char* hash)
 
    Convenience function to build the connection string for any node key.
+   :param node_key: the np_key_t to build the connection string for
+   :param includeHash: Include the hash into the connection string
 
 */
 NP_API_EXPORT
-char* np_get_connection_string_from(np_key_t* node_key);
+char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash);
 
 /**
 .. c:function:: void np_start_job_queue(np_state_t* state, uint8_t pool_size)

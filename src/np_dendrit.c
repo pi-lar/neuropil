@@ -1776,21 +1776,29 @@ void _np_in_handshake(np_jobargs_t* args)
 	// key could be changed later, but we need a way to lookup the handshake data later
 	np_key_t* hs_key = NULL;
 	np_key_t* hs_wildcard_key = NULL;
-	np_dhkey_t wildcard_key = dhkey_create_from_hostport("*","0");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
 		hs_key = _np_create_node_from_token(tmp_token);
+		np_dhkey_t wildcard_key = dhkey_create_from_hostport("*", np_get_connection_string_from(hs_key, FALSE));
 		hs_wildcard_key = _np_key_find(wildcard_key);
 
 		if(NULL != hs_wildcard_key){
-			_np_key_remove(hs_wildcard_key->dhkey);
+			// Updating wildcard key with actual info about the external node
 
-			hs_wildcard_key->dhkey = hs_key->dhkey;
-			_key_as_str(hs_key);
-			hs_key =  hs_wildcard_key;
+			log_msg(LOG_DEBUG, "Updating wildcard key %s to %s",
+					_key_as_str(hs_wildcard_key),
+					_key_as_str(hs_key));
 
-			_np_key_add(hs_key);
+			hs_key->network = hs_wildcard_key->network;
+			hs_key->network->watcher.data = hs_key;
+			np_ref_obj(np_network_t, hs_key->network);
+			hs_key->node->handshake_status= hs_wildcard_key->node->handshake_status;
+
+			hs_wildcard_key->network = NULL;
+			//_np_key_destroy(hs_wildcard_key);
+
+			_np_send_join_request(hs_key);
 		}
 	}
 

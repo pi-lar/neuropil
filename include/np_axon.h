@@ -47,6 +47,9 @@ void np_send_authorization_reply(np_jobargs_t* args);
 NP_API_INTERN
 void np_send_accounting_request(np_jobargs_t* args);
 
+// send join request
+NP_API_INTERN
+void _np_send_join_request(np_key_t* target);
 
 #ifdef __cplusplus
 }

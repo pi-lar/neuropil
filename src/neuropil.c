@@ -150,26 +150,13 @@ void np_setaccounting_cb(np_aaa_func_t aaaFunc)
 
 void np_send_join(const char* node_string)
 {
-	np_state_t* state = _np_state();
 	np_key_t* node_key = NULL;
 
 	_LOCK_MODULE(np_keycache_t)
 	{
 		node_key = _np_node_decode_from_str(node_string);
 	}
-
-	np_tree_t* jrb_me = make_nptree();
-	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
-
-	np_message_t* msg_out = NULL;
-	np_new_obj(np_message_t, msg_out);
-	np_message_create(msg_out, node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
-
-	log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(node_key));
-	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
-	_np_job_submit_msgout_event(0.0, prop, node_key, msg_out);
-
-	np_free_obj(np_message_t, msg_out);
+	_np_send_join_request(node_key);
 }
 /**
  * Takes a node connection string and tries to connect to any node available on the other end.
@@ -191,18 +178,17 @@ void np_send_wildcard_join(const char* node_string)
 	np_key_t* wildcard_node_key = NULL;
 
 	//START Build our wildcard connection string
-	np_dhkey_t wildcard_dhkey = dhkey_create_from_hostport("*","0");
+	np_dhkey_t wildcard_dhkey = dhkey_create_from_hostport("*", node_string);
 	char* wildcard_dhkey_str = malloc(sizeof(char)*65);
 	_dhkey_to_str(&wildcard_dhkey, wildcard_dhkey_str);
 	asprintf(&wildcard_node, "%s:%s", wildcard_dhkey_str, node_string);
 	//END Build our wildcard connection string
 
-
 	_LOCK_MODULE(np_keycache_t)
 	{
 		wildcard_node_key = _np_node_decode_from_str(wildcard_node);
 	}
-	 free(wildcard_node);
+	free(wildcard_node);
 
 	np_tree_t* jrb_me = make_nptree();
 	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
@@ -210,46 +196,12 @@ void np_send_wildcard_join(const char* node_string)
 	np_message_t* msg_out = NULL;
 	np_msgproperty_t* prop = NULL;
 
- //	for(int i=0;i<999;i++)
-	{
-		np_new_obj(np_message_t, msg_out);
-		np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST_WILDCARD, jrb_me);
+	np_new_obj(np_message_t, msg_out);
+	np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST_WILDCARD, jrb_me);
 
-		log_msg(LOG_DEBUG, "submitting wildcard join request to target key %s", _key_as_str(wildcard_node_key));
-		prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST_WILDCARD);
-		_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
-
-		log_msg(LOG_DEBUG, "waiting for wildcard handshake to complete");
-		int timeout = 100;
-		while(timeout > 0 && wildcard_node_key->node->handshake_status != HANDSHAKE_COMPLETE){
-			ev_sleep(0.1);
-			timeout--;
-		}
-		log_msg(LOG_DEBUG, "wildcard handshake status: %d (info: %d<=>OK)", wildcard_node_key->node->handshake_status, HANDSHAKE_COMPLETE);
-		if(wildcard_node_key->node->handshake_status == HANDSHAKE_COMPLETE){
-			// break;
-		}
-	}
-
-	if(wildcard_node_key->node->handshake_status == HANDSHAKE_COMPLETE){
-		log_msg(LOG_DEBUG, "Send actual join request");
-
-		jrb_me = make_nptree();
-		np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
-
-		msg_out = NULL;
-		np_new_obj(np_message_t, msg_out);
-		np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
-
-		log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(wildcard_node_key));
-		prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
-		_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
-
-		np_free_obj(np_message_t, msg_out);
-
-	} else {
-		log_msg(LOG_WARN, "Join to %s not completed", node_string);
-	}
+	log_msg(LOG_DEBUG, "submitting wildcard join request to target key %s", _key_as_str(wildcard_node_key));
+	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST_WILDCARD);
+	_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
 }
 
 void np_set_realm_name(const char* realm_name)
@@ -1002,15 +954,22 @@ void np_start_job_queue(uint8_t pool_size)
 }
 
 char* np_get_connection_string(){
-	char* connection_str = np_get_connection_string_from(__global_state->my_node_key);
+	char* connection_str = np_get_connection_string_from(__global_state->my_node_key, TRUE);
 	return connection_str;
 }
-char* np_get_connection_string_from(np_key_t* node_key){
+char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){
 	char* connection_str;
- 	asprintf(&connection_str, "%s:%s:%s:%s",
-			_key_as_str(node_key),
-			np_get_protocol_string(node_key->node->protocol),
-			node_key->node->dns_name,
-			node_key->node->port);
+	 if(TRUE == includeHash){
+		 asprintf(&connection_str, "%s:%s:%s:%s",
+		  			_key_as_str(node_key),
+		 			np_get_protocol_string(node_key->node->protocol),
+		 			node_key->node->dns_name,
+		 			node_key->node->port);
+		 	 }else {
+		 		 asprintf(&connection_str, "%s:%s:%s",
+		 			np_get_protocol_string(node_key->node->protocol),
+		 			node_key->node->dns_name,
+		 			node_key->node->port);
+		 	 }
  	return connection_str;
 }
