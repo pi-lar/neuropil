@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
 	char* bootstrap_hostnode_default;
 	char bootstrap_port[7];
 	char* proto = "udp4";
-	uint32_t required_nodes = 5;
+	uint32_t required_nodes = 1;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK ;
 
 	np_bool startHTTP = TRUE;

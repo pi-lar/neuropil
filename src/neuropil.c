@@ -36,6 +36,8 @@
 #include "np_threads.h"
 #include "np_route.h"
 
+#include "np_sysinfo.h"
+
 static np_state_t* __global_state = NULL;
 
 np_state_t* _np_state ()
@@ -156,8 +158,10 @@ void np_send_join(const char* node_string)
 	{
 		node_key = _np_node_decode_from_str(node_string);
 	}
-	_np_send_join_request(node_key);
+	_np_send_simple_invoke_request(node_key,_NP_MSG_JOIN_REQUEST);
 }
+
+
 /**
  * Takes a node connection string and tries to connect to any node available on the other end.
  * node_string should not contain a hash value (nor the trailing: character).
@@ -899,6 +903,8 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 
 	log_msg(LOG_INFO, "neuropil successfully initialized: %s", _key_as_str(state->my_node_key));
 	_np_log_fflush();
+
+	_np_sysinfo_init();
 
 	return (state);
 }

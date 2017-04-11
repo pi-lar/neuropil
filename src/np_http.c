@@ -15,6 +15,7 @@
 #include "json/parson.h"
 
 #include "np_log.h"
+#include "np_log.h"
 #include "neuropil.h"
 #include "np_glia.h"
 #include "np_http.h"
@@ -25,7 +26,11 @@
 #include "np_route.h"
 #include "np_threads.h"
 #include "np_util.h"
-#include "np_threads.h"
+#include "np_key.h"
+#include "np_keycache.h"
+#include "np_val.h"
+#include "np_sysinfo.h"
+
 
 static double __np_http_timeout = 20.0f;
 // static pthread_mutex_t __http_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -253,71 +258,84 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 	} else {
 		switch (__local_http->ht_request.ht_method) {
 		case (htp_method_GET): {
-			np_tree_t* tree = make_nptree();
 
-			JSON_Value* container = json_value_init_object();
+			log_msg(LOG_DEBUG,"Requesting sysinfo");
 
-			// local node json reply
-			JSON_Value* obj = json_value_init_object();
-			_np_node_encode_to_jrb(tree, _np_state()->my_node_key, FALSE);
-			serialize_jrb_to_json(tree, json_object(obj));
-			json_object_set_value(json_object(container), "local_node", obj);
-			np_clear_tree(tree);
+			char* target_hash = (char*) malloc(65*sizeof(char));
+			np_bool usedefault = TRUE;
+			int http_status = HTTP_CODE_OK;
+			char* response;
+			JSON_Value* json_obj;
+			size_t json_size;
 
-			// leafset
-			JSON_Value* neighbour_arr = json_value_init_array();
-			np_sll_t(np_key_t, neighbours) = NULL;
-			_LOCK_MODULE(np_routeglobal_t)
-			{
-				neighbours = route_neighbors();
+			/**
+			 * Default behavior if no argument is given: display own node informations
+			 */
+			log_msg(LOG_DEBUG,"parse arguments of %s",__local_http->ht_request.ht_path);
+
+			if( NULL != __local_http->ht_request.ht_path) {
+				log_msg(LOG_DEBUG,"request has arguments");
+
+				char* tmp_target_hash = strtok(__local_http->ht_request.ht_path,"/");
+				if(NULL != tmp_target_hash) {
+					if(strlen(tmp_target_hash) == 64) {
+						target_hash = tmp_target_hash;
+						usedefault = FALSE;
+					}else{
+						http_status = HTTP_CODE_BAD_REQUEST;
+						json_obj = _np_generate_error_json("provided key invalid.","length is not 64 characters");
+						goto __json_return__;
+					}
+				}
+			}else {
+				log_msg(LOG_DEBUG,"no arguments provided");
 			}
-			_np_encode_nodes_to_json_array(json_array(neighbour_arr),
-					neighbours, TRUE);
 
-			json_object_set_value(json_object(container), "neighbour_nodes",
-					neighbour_arr);
-			//sll_free(np_key_t, neighbours);
-
-
-			// routing table
-			JSON_Value* route_arr = json_value_init_array();
-			np_sll_t(np_key_t, table) = NULL;
-			_LOCK_MODULE(np_routeglobal_t)
-			{
-				table = _np_route_get_table();
+			char* my_key = _key_as_str(_np_state()->my_node_key);
+			if(usedefault){
+				log_msg(LOG_DEBUG,"using own node as info system");
+				target_hash = my_key ;
 			}
-			_np_encode_nodes_to_json_array(json_array(route_arr), table, TRUE);
 
-			json_object_set_value(json_object(container), "routing_table",
-					route_arr);
-//			sll_free(np_key_t, table);
+			if(strcmp(target_hash, my_key )==0){
+				// If i request myself i can answer directly
+				// TODO: after msgproperty implementation remove this and go over the msgproperty always
+				json_obj =  np_generate_my_sysinfo_json();
+				goto __json_return__;
+			}else{
+ 				response = target_hash;
+				log_msg(LOG_DEBUG,"Requesting sysinfo for node %s", target_hash);
+				char* errormsg;
+				np_tree_t* sysinfo = np_get_sysinfo(target_hash, 50000);
+			}
 
 
-			// cleanup
-			np_free_tree(tree);
+			goto __cleanup__;
 
-			// serialize
-			size_t json_size = json_serialization_size_pretty(container);
-			__local_http->ht_response.ht_body = (char*) malloc(
-					json_size * sizeof(char));
-			json_serialize_to_buffer_pretty(container,
-					__local_http->ht_response.ht_body, json_size);
+			__json_return__:
+			log_msg(LOG_DEBUG,"serialise json response");
+			json_size = json_serialization_size_pretty(json_obj);
+ 			// write to http request body
+			response = (char*) malloc(	json_size * sizeof(char));
+			json_serialize_to_buffer_pretty(json_obj, response, json_size);
+			log_msg(LOG_DEBUG,"body should be: %s (%d)", response, json_size);
+
+			json_value_free(json_obj);
+
+			__cleanup__:
+			log_msg(LOG_DEBUG,"write to body");
+			__local_http->ht_response.ht_status = http_status;
+			__local_http->ht_response.ht_body = strdup(response);;
 
 			__local_http->ht_response.ht_header = make_nptree();
 			tree_insert_str(__local_http->ht_response.ht_header, "Content-Type",
 					new_val_s("application/json"));
-
 			tree_insert_str(__local_http->ht_response.ht_header, "Access-Control-Allow-Origin",
 					new_val_s("*"));
 			tree_insert_str(__local_http->ht_response.ht_header, "Access-Control-Allow-Methods",
 					new_val_s("GET"));
-
-			__local_http->ht_response.ht_status = HTTP_CODE_OK;
 			__local_http->ht_response.cleanup_body = TRUE;
 			__local_http->status = RESPONSE;
-
-			json_value_free(container);
-			// do some more disatching
 			break;
 		}
 

@@ -792,7 +792,7 @@ void np_send_accounting_request(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  .np_send_accounting_request");
 }
 
-void _np_send_join_request(np_key_t* target){
+void _np_send_simple_invoke_request(np_key_t* target, const char* type){
 
 	np_state_t* state = _np_state();
 
@@ -801,10 +801,10 @@ void _np_send_join_request(np_key_t* target){
 
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
-	np_message_create(msg_out, target, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
+	np_message_create(msg_out, target, state->my_node_key, type , jrb_me);
 
 	log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(target));
-	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
+	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, type);
 	_np_job_submit_msgout_event(0.0, prop, target, msg_out);
 
 	np_free_obj(np_message_t, msg_out);

@@ -15,10 +15,15 @@
 #include "np_util.h"
 
 #include "np_log.h"
+#include "neuropil.h"
+
 #include "dtime.h"
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_val.h"
+#include "np_tree.h"
+#include "np_node.h"
+#include "np_route.h"
 
 char* np_create_uuid(const char* str, const uint16_t num)
 {
@@ -729,3 +734,57 @@ void _np_encode_nodes_to_json_array (JSON_Array* array, np_sll_t(np_key_t, node_
 	np_clear_tree(tree);
 	np_free_tree(tree);
 }
+JSON_Value* _np_generate_error_json(const char* error,const char* details) {
+	JSON_Value* ret = json_value_init_object();
+
+	json_object_set_string(json_object(ret), "error", error);
+	json_object_set_string(json_object(ret), "details", details);
+
+	return ret;
+}
+
+JSON_Value* np_generate_my_sysinfo_json() {
+	np_tree_t* tree = make_nptree();
+
+	JSON_Value* ret = json_value_init_object();
+
+	// local node json reply
+	JSON_Value* obj = json_value_init_object();
+	_np_node_encode_to_jrb(tree, _np_state()->my_node_key, FALSE);
+	serialize_jrb_to_json(tree, json_object(obj));
+	json_object_set_value(json_object(ret), "local_node", obj);
+	np_clear_tree(tree);
+
+	// leafset
+	JSON_Value* neighbour_arr = json_value_init_array();
+	np_sll_t(np_key_t, neighbours) = NULL;
+	_LOCK_MODULE(np_routeglobal_t)
+	{
+		neighbours = route_neighbors();
+	}
+	if(NULL != neighbours && 0 < neighbours->size) {
+		_np_encode_nodes_to_json_array(json_array(neighbour_arr), neighbours, TRUE);
+	}
+	json_object_set_value(json_object(ret), "neighbour_nodes", neighbour_arr);
+	//sll_free(np_key_t, neighbours);
+
+	// routing table
+	JSON_Value* route_arr = json_value_init_array();
+	np_sll_t(np_key_t, table) = NULL;
+	_LOCK_MODULE(np_routeglobal_t)
+	{
+		table = _np_route_get_table();
+	}
+	if(NULL != table && 0 < table->size) {
+		_np_encode_nodes_to_json_array(json_array(route_arr), table, TRUE);
+	}
+	json_object_set_value(json_object(ret), "routing_table", route_arr);
+	//			sll_free(np_key_t, table);
+
+	// cleanup
+	np_free_tree(tree);
+
+	return ret;
+}
+
+

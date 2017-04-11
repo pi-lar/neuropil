@@ -23,6 +23,7 @@
 #include "np_glia.h"
 #include "np_jobqueue.h"
 #include "np_tree.h"
+#include "np_key.h"
 #include "np_keycache.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
@@ -1798,7 +1799,7 @@ void _np_in_handshake(np_jobargs_t* args)
 			hs_wildcard_key->network = NULL;
 			//_np_key_destroy(hs_wildcard_key);
 
-			_np_send_join_request(hs_key);
+			_np_send_simple_invoke_request(hs_key,_NP_MSG_JOIN_REQUEST);
 		}
 	}
 

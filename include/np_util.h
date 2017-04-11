@@ -64,6 +64,15 @@ void deserialize_jrb_node_t(np_tree_t* jrb, cmp_ctx_t* cmp);
 NP_API_INTERN
 void _np_remove_doublettes(np_sll_t(np_key_t, list_of_keys));
 
+/**
+ * Create a json representation of this nodes system information
+ */
+NP_API_EXPORT
+JSON_Value* np_generate_my_sysinfo_json();
+
+NP_API_INTERN
+JSON_Value* _np_generate_error_json(const char* error,const char* details);
+
 #ifdef __cplusplus
 }
 #endif
