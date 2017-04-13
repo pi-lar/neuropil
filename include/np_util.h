@@ -73,6 +73,21 @@ JSON_Value* np_generate_my_sysinfo_json();
 NP_API_INTERN
 JSON_Value* _np_generate_error_json(const char* error,const char* details);
 
+/**
+ * Create a json object from a given tree
+ */
+NP_API_EXPORT
+JSON_Value* np_tree_to_json(np_tree_t* tree) ;
+/**
+ * Create a string from a given JSON Object
+ */
+NP_API_EXPORT
+char* np_json_to_char(JSON_Value* data,np_bool prettyPrint) ;
+/**
+ * convert np_val_t to JSON_Value
+ */
+NP_API_EXPORT
+JSON_Value* np_val_to_json(np_val_t val);
 #ifdef __cplusplus
 }
 #endif

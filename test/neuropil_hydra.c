@@ -145,24 +145,25 @@ int main(int argc, char **argv) {
 
 				log_msg(LOG_DEBUG, "starting job queue");
 				np_start_job_queue(no_threads);
-				// send join message
-				log_msg(LOG_DEBUG, "creating welcome message");
 
-				np_send_wildcard_join(bootstrap_hostnode);
+				while(TRUE){
+ 					fprintf(stdout, "try to join bootstrap node\n");
+					np_send_wildcard_join(bootstrap_hostnode);
 
-				int timeout = 20;
-				while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {
-					// wait for join acceptance
-					ev_sleep(0.1);
-					timeout--;
+					int timeout = 20;
+					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {
+						// wait for join acceptance
+						ev_sleep(0.1);
+						timeout--;
+					}
+
+					if(TRUE == child_status->my_node_key->node->joined_network ){
+						fprintf(stdout, "%s joined network!\n",port);
+						break;
+					}else{
+						fprintf(stderr, "%s could not join network!\n",port);
+					}
 				}
-
-				if(TRUE == child_status->my_node_key->node->joined_network ){
-					fprintf(stdout, "%s joined network!\n",port);
-				}else{
-					fprintf(stderr, "%s could not join network!\n",port);
-				}
-
 				while (TRUE) {
 					// log_msg(LOG_DEBUG, "Running application");
 					ev_sleep(0.1);

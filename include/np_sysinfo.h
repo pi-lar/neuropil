@@ -8,17 +8,23 @@
 #ifndef NP_SYSINFO_H_
 #define NP_SYSINFO_H_
 
+#include "np_tree.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
+NP_API_INTERN
 void _np_sysinfo_init();
-void _np_in_sysinfo(np_jobargs_t* args);
-void _np_in_sysinforeply(np_jobargs_t * args);
-np_tree_t* np_get_sysinfo( const char* hash_of_target, int timeout_ms);
-
+NP_API_INTERN
+np_bool _np_in_sysinfo(np_tree_t* properties, np_tree_t* body) ;
+NP_API_INTERN
+np_bool _np_in_sysinforeply(np_tree_t* properties, np_tree_t* body) ;
+NP_API_EXPORT
+np_tree_t* np_get_sysinfo(const char* dhkey_of_node_target, int timeout_ms);
+NP_API_EXPORT
+np_tree_t* np_get_my_sysinfo() ;
 
 #ifdef __cplusplus
 }

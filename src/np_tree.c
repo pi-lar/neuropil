@@ -31,6 +31,10 @@ np_tree_t* make_nptree ()
 {
 	np_tree_t* new_tree = (np_tree_t*) malloc(sizeof(np_tree_t));
 
+	if(NULL == new_tree){
+		log_msg(LOG_ERROR, "Could not allocate memory for new tree");
+	}
+
 	new_tree->rbh_root = NULL;
 	new_tree->size = 0;
 	new_tree->byte_size = 5;
@@ -309,8 +313,11 @@ void np_clear_tree (np_tree_t* n)
 
 void np_free_tree (np_tree_t* n)
 {
-	np_clear_tree(n);
-	free (n);
+	if(NULL != n) {
+		np_clear_tree(n);
+		free (n);
+		n = NULL;
+	}
 }
 
 void np_print_tree (np_tree_t* n, uint8_t indent)
@@ -612,5 +619,19 @@ void tree_replace_dbl (np_tree_t* tree, double dkey, np_val_t val)
 	    found->val = copy_of_val(val);
 		tree->byte_size += jrb_get_byte_size(found);
 	}
+}
+
+np_tree_t* np_tree_copy(np_tree_t* source) {
+
+	np_tree_t* ret =	make_nptree();
+	np_tree_elem_t* tmp = NULL;
+	RB_FOREACH(tmp, np_tree_s, source)
+	{
+		if (tmp->key.type == char_ptr_type)      tree_insert_str(ret, tmp->key.value.s, tmp->val);
+		if (tmp->key.type == int_type)           tree_insert_int(ret, tmp->key.value.i, tmp->val);
+		if (tmp->key.type == double_type)        tree_insert_dbl(ret, tmp->key.value.d, tmp->val);
+		if (tmp->key.type == unsigned_long_type) tree_insert_ulong(ret, tmp->key.value.ul, tmp->val);
+	}
+	return ret;
 }
 

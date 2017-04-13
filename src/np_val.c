@@ -224,15 +224,7 @@ np_val_t copy_of_val(np_val_t from)
  		case jrb_tree_type:
  			to.type = jrb_tree_type;
 			to.size = from.size;
- 			to.value.tree = make_nptree();
- 			np_tree_elem_t* tmp = NULL;
- 			RB_FOREACH(tmp, np_tree_s, from.value.tree)
- 			{
- 				if (tmp->key.type == char_ptr_type)      tree_insert_str(to.value.tree, tmp->key.value.s, tmp->val);
- 				if (tmp->key.type == int_type)           tree_insert_int(to.value.tree, tmp->key.value.i, tmp->val);
- 				if (tmp->key.type == double_type)        tree_insert_dbl(to.value.tree, tmp->key.value.d, tmp->val);
- 				if (tmp->key.type == unsigned_long_type) tree_insert_ulong(to.value.tree, tmp->key.value.ul, tmp->val);
- 			}
+ 			to.value.tree = np_tree_copy(from.value.tree);
 			break;
 		case key_type:
 			to.type = key_type;

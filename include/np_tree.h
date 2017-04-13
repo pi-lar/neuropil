@@ -209,6 +209,15 @@ void np_print_tree (np_tree_t* n, uint8_t indent);
 NP_API_INTERN
 uint64_t jrb_get_byte_size(np_tree_elem_t* node);
 
+/**
+.. c:function:: np_tree_t* np_tree_copy(np_tree_t* source)
+
+   Convinience function to create a full copy of a given tree
+
+   :param tree: the np_tree_t structure to copy
+  */
+NP_API_EXPORT
+np_tree_t* np_tree_copy(np_tree_t* source);
 
 #ifdef __cplusplus
 }

@@ -11,7 +11,7 @@
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactName="${ProjName}" buildProperties="" description="" id="cdt.managedbuild.toolchain.gnu.macosx.base.727082218" name="Default" parent="org.eclipse.cdt.build.core.emptycfg" prebuildStep="scons --clean">
+				<configuration artifactName="${ProjName}" buildProperties="" description="" id="cdt.managedbuild.toolchain.gnu.macosx.base.727082218" name="Default" parent="org.eclipse.cdt.build.core.emptycfg" prebuildStep="/usr/local/bin/scons --clean">
 					<folderInfo id="cdt.managedbuild.toolchain.gnu.macosx.base.727082218.1630778850" name="/" resourcePath="">
 						<toolChain id="cdt.managedbuild.toolchain.llvm.clang.macosx.base.515697077" name="LLVM with Clang (MacOSX)" nonInternalBuilderId="cdt.managedbuild.target.gnu.builder.base">
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.MachO64" id="cdt.managedbuild.target.llvm.macosx.platform.base.596990971" isAbstract="true" name="Debug Platform" osList="macosx"/>

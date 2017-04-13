@@ -13,4 +13,5 @@
 #include "test_message.c"
 #include "test_memory.c"
 #include "test_node.c"
+#include "hashtable_tester.c"
 
