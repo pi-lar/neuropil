@@ -16,6 +16,7 @@
 %{
 #include "../include/np_types.h"
 #include "../include/neuropil.h"
+#include "../include/np_threads.h"
 %}
 
 %include "np_types.i"
@@ -25,6 +26,7 @@
 %rename(np_state_t) np_state;
 
 %{
+
 static PyObject *py_authenticate_func = NULL;
 static PyObject *py_authorize_func = NULL;
 static PyObject *py_accounting_func = NULL;
@@ -82,6 +84,18 @@ static np_bool python_accounting_callback(struct np_aaatoken_s* aaa_token)
 
    return ret_val;
 }
+
+static np_tree_t* callback_tree = NULL;
+
+// _NP_ENABLE_MODULE_LOCK(py_callback_wrap);
+// _NP_MODULE_LOCK_IMPL(py_callback_wrap);
+
+// static bool _py_subject_callback(np_jobargs_t* args)
+static np_bool _py_subject_callback(np_tree_t* msg_properties, np_tree_t* msg_body)
+{
+
+}
+
 %}
 
 
@@ -107,9 +121,13 @@ static np_bool python_accounting_callback(struct np_aaatoken_s* aaa_token)
     %ignore authorize_func;    // authorization callback
     %ignore accounting_func;   // really needed ?    
 
-    void py_set_subject_callback(PyObject *PyFunc)
-    {
-
+    void py_set_listener(PyObject* PyString, PyObject *PyFunc)
+    {        
+//         _MODULE_LOCK(py_callback_wrapper) {           
+            if (!callback_tree) {
+                callback_tree = make_nptree();
+            }
+//         }
     }
     
     void py_set_authenticate_func(PyObject *PyFunc)
@@ -130,7 +148,7 @@ static np_bool python_accounting_callback(struct np_aaatoken_s* aaa_token)
 
     void py_set_accounting_func(PyObject *PyFunc)
     {
-        Py_XDECREF(py_accouting_func); /* Dispose of previous callback */
+        Py_XDECREF(py_accounting_func); /* Dispose of previous callback */
         Py_XINCREF(PyFunc);            /* Add a reference to new callback */
         py_accounting_func = PyFunc;   /* Remember new callback */
         np_setauthenticate_cb(python_accounting_callback);

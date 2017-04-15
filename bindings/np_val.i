@@ -49,6 +49,4 @@
     %immutable value;
 };
 
-%ignore val;
-
 %include "../include/np_val.h"
