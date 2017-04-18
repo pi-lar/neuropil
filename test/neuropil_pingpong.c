@@ -53,7 +53,7 @@ np_bool receive_ping(np_tree_t* properties, np_tree_t* body)
 	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
-	np_send_text("pong", "pong", _pong_count);
+	np_send_text("pong", "pong", _pong_count,NULL);
 
 	return TRUE;
 }
@@ -67,7 +67,7 @@ np_bool receive_pong(np_tree_t* properties, np_tree_t* body)
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_count++, "ping");
 
-	np_send_text("ping", "ping", _ping_count);
+	np_send_text("ping", "ping", _ping_count,NULL);
 
 	return TRUE;
 }
@@ -214,7 +214,7 @@ int main(int argc, char **argv)
 	*/
 	log_msg(LOG_INFO, "Sending initial ping");
 	// send an initial ping
-	np_send_text("ping", "ping", _ping_count++);
+	np_send_text("ping", "ping", _ping_count++, NULL);
 
 	/**
 	the loopback function will be triggered each time a message is received

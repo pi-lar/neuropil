@@ -535,7 +535,7 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
 
-	msg_token = _np_get_receiver_token(args->properties->msg_subject);
+	msg_token = _np_get_receiver_token(args->properties->msg_subject, NULL);
 	if (NULL == msg_token)
 	{
 		log_msg(LOG_DEBUG, "creating new receiver token for subject %s", args->properties->msg_subject);
@@ -612,7 +612,7 @@ void np_send_authentication_request(np_jobargs_t* args)
 //	log_msg(LOG_DEBUG, "uuid              : %s", args->target->aaa_token->uuid);
 
 	np_message_create(msg_out, aaa_target, state->my_node_key, _NP_MSG_AUTHENTICATION_REQUEST, auth_data);
-	if (FALSE == _np_send_msg(_NP_MSG_AUTHENTICATION_REQUEST, msg_out, aaa_props))
+	if (FALSE == _np_send_msg(_NP_MSG_AUTHENTICATION_REQUEST, msg_out, aaa_props, NULL))
 	{
 		log_msg(LOG_DEBUG, "sending authentication discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
@@ -652,7 +652,7 @@ void np_send_authentication_reply(np_jobargs_t* args)
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REPLY);
 
 	// create and send authentication reply
-	if (FALSE == _np_send_msg(_NP_MSG_AUTHENTICATION_REPLY, args->msg, aaa_props))
+	if (FALSE == _np_send_msg(_NP_MSG_AUTHENTICATION_REPLY, args->msg, aaa_props, NULL))
 	{
 		log_msg(LOG_DEBUG, "sending authentication reply discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
@@ -700,7 +700,7 @@ void np_send_authorization_request(np_jobargs_t* args)
 //	log_msg(LOG_DEBUG, "uuid              : %s", args->target->aaa_token->uuid);
 
 	np_message_create(msg_out, aaa_target, state->my_node_key, _NP_MSG_AUTHORIZATION_REQUEST, auth_data);
-	if (FALSE == _np_send_msg(_NP_MSG_AUTHORIZATION_REQUEST, msg_out, aaa_props))
+	if (FALSE == _np_send_msg(_NP_MSG_AUTHORIZATION_REQUEST, msg_out, aaa_props, NULL))
 	{
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_send_receiver_discovery(&jargs);
@@ -738,7 +738,7 @@ void np_send_authorization_reply(np_jobargs_t* args)
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REPLY);
 
 	// create and send authentication reply
-	if (FALSE == _np_send_msg(_NP_MSG_AUTHORIZATION_REPLY, args->msg, aaa_props))
+	if (FALSE == _np_send_msg(_NP_MSG_AUTHORIZATION_REPLY, args->msg, aaa_props, NULL))
 	{
 		log_msg(LOG_DEBUG, "sending authorization reply discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
@@ -781,7 +781,7 @@ void np_send_accounting_request(np_jobargs_t* args)
 	np_encode_aaatoken(auth_data, args->target->aaa_token);
 	np_message_create(msg_out, aaa_target, state->my_node_key, _NP_MSG_ACCOUNTING_REQUEST, auth_data);
 
-	if (FALSE == _np_send_msg(_NP_MSG_ACCOUNTING_REQUEST, msg_out, aaa_props))
+	if (FALSE == _np_send_msg(_NP_MSG_ACCOUNTING_REQUEST, msg_out, aaa_props, NULL))
 	{
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_send_receiver_discovery(&jargs);

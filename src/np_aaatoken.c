@@ -706,7 +706,7 @@ void _np_add_receiver_token(char* subject, np_aaatoken_t *token)
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_receiver_token");
 }
 
-np_aaatoken_t* _np_get_receiver_token(char* subject)
+np_aaatoken_t* _np_get_receiver_token(char* subject, np_dhkey_t* target)
 {
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
@@ -744,14 +744,21 @@ np_aaatoken_t* _np_get_receiver_token(char* subject)
 			}
 
 			np_dhkey_t recvtoken_issuer_key = dhkey_create_from_hash(return_token->issuer);
-			if (_dhkey_equal(&recvtoken_issuer_key, &_np_state()->my_identity->dhkey) )
+			if (_dhkey_equal(&recvtoken_issuer_key, &_np_state()->my_identity->dhkey))
 			{
 				// only use the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
 				pll_next(iter);
 				return_token = NULL;
 				continue;
 			}
-
+			if(NULL != target) {
+				if (!_dhkey_equal(&recvtoken_issuer_key, target)) {
+					// use the specific target if provided
+					pll_next(iter);
+					return_token = NULL;
+					continue;
+				}
+			}
 			log_msg(LOG_AAATOKEN | LOG_DEBUG,
 					"found valid receiver token (%s)", return_token->issuer );
 

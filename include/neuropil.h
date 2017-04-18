@@ -207,10 +207,11 @@ void np_set_listener (np_usercallback_t msg_handler, char* subject);
    :param subject: the subject the data should be send to
    :param data: the message text that should be send
    :param seqnum: a sequence number which will be stored in the message properties
+   :param targetDhkey: (optional/nullable) a dhkey hash to define a specific receiver node
 
 */
 NP_API_EXPORT
-void np_send_text    (char* subject, char *data, uint32_t seqnum);
+void np_send_text    (char* subject, char *data, uint32_t seqnum, char* targetDhkey);
 
 /**
 .. c:function:: void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body)
@@ -221,10 +222,11 @@ void np_send_text    (char* subject, char *data, uint32_t seqnum);
    :param subject: the subject the data should be send to
    :param properties: a tree (np_tree_t) structure containing the properties of a message
    :param body: a tree (np_tree_t) structure containing the body of a message
+   :param targetDhkey: (optional/nullable) a dhkey hash to define a specific receiver node
 
 */
 NP_API_EXPORT
-void np_send_msg    (char* subject, np_tree_t *properties, np_tree_t *body);
+void np_send_msg    (char* subject, np_tree_t *properties, np_tree_t *body, char* targetDhkey);
 
 /**
 .. c:function:: uint32_t np_receive_text(char* subject, char **data)

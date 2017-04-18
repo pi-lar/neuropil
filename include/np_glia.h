@@ -39,7 +39,7 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 void _np_send_msg_interest(const char* subject);
 void _np_send_msg_availability(const char* subject);
 
-np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop);
+np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target);
 
 #ifdef __cplusplus
 }

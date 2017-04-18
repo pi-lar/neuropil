@@ -103,6 +103,9 @@ void np_message_addfooterentry(np_message_t*, const char* key, np_val_t value);
 NP_API_INTERN
 void np_message_delfooterentry(np_message_t*, const char* key);
 
+NP_API_INTERN
+ void np_message_setto(np_message_t* msg, np_key_t* target);
+
 // msg header constants
 static const char* NP_MSG_HEADER_SUBJECT   = "_np.subj";
 static const char* NP_MSG_HEADER_TO        = "_np.to";

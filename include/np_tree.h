@@ -53,7 +53,6 @@ struct np_tree_elem_s
     np_val_t val;
 } NP_API_INTERN;
 
-
 NP_API_INTERN
 int16_t _val_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2);
 

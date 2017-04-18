@@ -897,11 +897,11 @@ void _np_send_msg_availability(const char* subject)
 }
 
 // TODO: move this to a function which can be scheduled via jobargs
-np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop)
+np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
 {
 	msg_prop->msg_threshold++;
 
-	np_aaatoken_t* tmp_token = _np_get_receiver_token(subject);
+	np_aaatoken_t* tmp_token = _np_get_receiver_token(subject, target);
 
 	if (NULL != tmp_token)
 	{

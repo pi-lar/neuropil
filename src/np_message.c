@@ -713,8 +713,8 @@ np_bool np_message_deserialize_chunked(np_message_t* msg)
 	return (TRUE);
 }
 
-/** 
- ** message_create: 
+/**
+ ** message_create:
  ** creates the message to the destination #dest# the message format would be like:
  **  [ type ] [ size ] [ key ] [ data ]. It return the created message structure.
  */
@@ -751,6 +751,13 @@ inline void np_message_setbody(np_message_t* msg, np_tree_t* body)
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
 	np_free_tree(msg->body);
 	msg->body = body;
+	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
+};
+
+inline void np_message_setto(np_message_t* msg, np_key_t* target)
+{
+	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
+	tree_replace_str(msg->header, NP_MSG_HEADER_TO,  new_val_s((char*) _key_as_str(target)));
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
 };
 

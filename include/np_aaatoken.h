@@ -194,7 +194,7 @@ void _np_add_receiver_token(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
 sll_return(np_aaatoken_t) _np_get_receiver_token_all(char* subject);
 NP_API_INTERN
-np_aaatoken_t* _np_get_receiver_token(char* subject);
+np_aaatoken_t* _np_get_receiver_token(char* subject, np_dhkey_t* target);
 
 NP_API_INTERN
 void _np_aaatoken_add_signature(np_aaatoken_t* msg_token);

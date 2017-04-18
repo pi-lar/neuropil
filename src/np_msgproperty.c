@@ -120,7 +120,7 @@ np_bool _np_msgproperty_init ()
 
 /**
  ** registers the handler function #func# with the message type #type#,
- ** it also defines the acknowledgment requirement for this type 
+ ** it also defines the acknowledgment requirement for this type
  **/
 np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* subject)
 {
@@ -250,7 +250,7 @@ void _np_check_sender_msgcache(np_msgproperty_t* send_prop)
 			send_prop->msg_threshold--;
 		}
 
-		sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop);
+		sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop, NULL);
 		np_unref_obj(np_message_t, msg_out);
 		log_msg(LOG_DEBUG,
 				"message in cache found and re-send initialized");
