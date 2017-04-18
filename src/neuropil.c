@@ -281,7 +281,7 @@ void np_set_listener (np_usercallback_t msg_handler, char* subject)
 		// create a default set of properties for listening to messages
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->mode_type = INBOUND;
+		msg_prop->mode_type |= INBOUND;
 		msg_prop->clb_inbound = _np_callback_wrapper;
 		msg_prop->user_clb = msg_handler;
 		np_msgproperty_register(msg_prop);

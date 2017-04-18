@@ -113,30 +113,53 @@ struct np_val_s
 
 np_val_t copy_of_val(np_val_t from);
 
+NP_API_EXPORT
 np_val_t new_val_sh (int8_t);
+NP_API_EXPORT
 np_val_t new_val_i (int16_t);
+NP_API_EXPORT
 np_val_t new_val_l (int32_t);
+NP_API_EXPORT
 np_val_t new_val_ll (int64_t);
+NP_API_EXPORT
 np_val_t new_val_f (float);
+NP_API_EXPORT
 np_val_t new_val_d (double);
+NP_API_EXPORT
 np_val_t new_val_v (void* v);
+NP_API_EXPORT
 np_val_t new_val_bin (void* data, uint32_t size);
+NP_API_EXPORT
 np_val_t new_val_s (char *);
+NP_API_EXPORT
 np_val_t new_val_c (char);
+NP_API_EXPORT
 np_val_t new_val_uc (unsigned char);
+NP_API_EXPORT
 np_val_t new_val_ush (uint8_t);
+NP_API_EXPORT
 np_val_t new_val_ui (uint16_t);
+NP_API_EXPORT
 np_val_t new_val_ul (uint32_t);
+NP_API_EXPORT
 np_val_t new_val_ull (uint64_t);
+
 np_val_t new_val_iarray (uint16_t, uint16_t);
 np_val_t new_val_farray (float, float);
 np_val_t new_val_carray_nt (char *);	/* Carray is null terminated */
 np_val_t new_val_carray_nnt (char *);	/* Carray is not null terminated */
        /* For ucarray -- use carray, because it uses memcpy */
+
+NP_API_EXPORT
 np_val_t new_val_tree(np_tree_t* tree);
+NP_API_EXPORT
 np_val_t new_val_hash(char* h_val);
+
 np_val_t new_val_pwhash (char *pw_key);
+
+NP_API_EXPORT
 np_val_t new_val_key(np_dhkey_t key);
+NP_API_EXPORT
 np_val_t new_val_obj(np_obj_t* obj);
 
 np_val_t NP_VAL_NULL;
