@@ -23,12 +23,12 @@ void* np_simple_cache_get(struct np_simple_cache_table_t *table,
 	}
 	unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
-	struct np_cache_item *node;
-	node = table->buckets[bucket];
-	while (node) {
-		if (NULL != node->key && strcmp(key, node->key) == 0)
-			return node->value;
-		node = node->next;
+	struct np_cache_item *item;
+	item = table->buckets[bucket];
+	while (item) {
+		if (NULL != item->key && strcmp(key, item->key) == 0)
+			return item->value;
+		item = item->next;
 	}
 
 	return NULL;
@@ -43,7 +43,7 @@ int np_simple_cache_insert(struct np_simple_cache_table_t *table, char *key, voi
 	unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
 	struct np_cache_item **tmp;
-	struct np_cache_item *node;
+	struct np_cache_item *item;
 
 	tmp = &table->buckets[bucket];
 	while (*tmp) {
@@ -56,17 +56,17 @@ int np_simple_cache_insert(struct np_simple_cache_table_t *table, char *key, voi
 			table->free_key((*tmp)->key);
 		if (table->free_value != NULL)
 			table->free_value((*tmp)->value);
-		node = *tmp;
+		item = *tmp;
 	} else {
-		node = malloc(sizeof *node);
-		if (node == NULL){
+		item = malloc(sizeof *item);
+		if (item == NULL){
 			return -1;
 		}
-		node->next = NULL;
-		*tmp = node;
+		item->next = NULL;
+		*tmp = item;
 	}
-	node->key = key;
-	node->value = value;
+	item->key = key;
+	item->value = value;
 
 	return 0;
 }
