@@ -94,6 +94,11 @@ void _np_sort_keys_kd (np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key);
 NP_API_INTERN
 np_key_t* _np_key_find_by_details(char* details_container, np_bool search_myself, handshake_status_e handshake_status, np_bool require_handshake_status, np_bool require_dns,np_bool require_port,np_bool require_hash );
 
+NP_API_INTERN
+void _np_ref_keys (np_sll_t(np_key_t, list_of_keys));
+NP_API_INTERN
+void _np_unref_keys (np_sll_t(np_key_t, list_of_keys));
+
 
 #ifdef __cplusplus
 }

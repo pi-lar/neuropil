@@ -306,6 +306,25 @@ void _np_sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t* key)
 	} while (NULL != (sll_next(iter1)) );
 }
 
+void _np_ref_keys (np_sll_t(np_key_t, list_of_keys)){
+ 	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
+ 	if(NULL != iter){
+		do
+		{
+			np_ref_obj(np_key_t,iter->val);
+		} while (NULL != (sll_next(iter)));
+ 	}
+}
+void _np_unref_keys (np_sll_t(np_key_t, list_of_keys)){
+	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
+	if(NULL != iter){
+		do
+		{
+			np_unref_obj(np_key_t,iter->val);
+		} while (NULL != (sll_next(iter)));
+	}
+}
+
 
 /** sort_hosts_key:
  ** Sorts #hosts# based on their key distance from #np_key_t*
