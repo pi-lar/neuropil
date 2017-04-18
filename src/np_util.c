@@ -668,7 +668,7 @@ JSON_Value* _np_generate_error_json(const char* error,const char* details) {
 }
 JSON_Value* np_val_to_json(np_val_t val) {
 	JSON_Value* ret = NULL;
-	log_msg(LOG_DEBUG, "np_val_to_json type: %"PRIu8,val.type);
+	//log_msg(LOG_DEBUG, "np_val_to_json type: %"PRIu8,val.type);
 
 	switch (val.type) {
 	case short_type:
@@ -735,7 +735,7 @@ JSON_Value* np_tree_to_json(np_tree_t* tree) {
 	JSON_Array* arr = NULL;
 
 	if(NULL != tree) {
-		log_msg(LOG_DEBUG, "np_tree_to_json (size: %"PRIu16", byte_size: %"PRIu64"):", tree->size, tree->byte_size);
+		// log_msg(LOG_DEBUG, "np_tree_to_json (size: %"PRIu16", byte_size: %"PRIu64"):", tree->size, tree->byte_size);
 
 		uint16_t i = 0;
 		// write jrb tree
@@ -775,17 +775,18 @@ JSON_Value* np_tree_to_json(np_tree_t* tree) {
 					continue;
 				}
 
-				log_msg(LOG_DEBUG, "np_tree_to_json set key %s:", name);
+				//log_msg(LOG_DEBUG, "np_tree_to_json set key %s:", name);
 				JSON_Value* value = np_val_to_json(tmp->val);
 
 				if(useArray == TRUE) {
 					if(NULL == arr) {
 						arr = json_value_init_array();
 					}
-					log_msg(LOG_DEBUG, "np_tree_to_json add to array");
+					//log_msg(LOG_DEBUG, "np_tree_to_json add to array");
 
 					if(NULL != value) {
 						json_array_append_value(json_array(arr), value);
+						i++;
 					}
 				} else {
 
@@ -794,8 +795,8 @@ JSON_Value* np_tree_to_json(np_tree_t* tree) {
 						json_object_set_value(json_object(ret), name, value);
 						i++;
 					}
-					free(name);
 				}
+				free(name);
 			}
 		}
 

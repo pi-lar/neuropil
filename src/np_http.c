@@ -290,15 +290,16 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 				log_msg(LOG_DEBUG, "Requesting sysinfo for myself");
 				// If i request myself i can answer instantly
 				sysinfo = np_get_my_sysinfo();
+				_np_request_others();
 			} else {
 				response = target_hash;
 				log_msg(LOG_DEBUG, "Requesting sysinfo for node %s",
 						target_hash);
-				sysinfo = np_get_sysinfo(target_hash, 2500);
+				sysinfo = np_get_sysinfo(target_hash);
 			}
 
 			if (NULL == sysinfo) {
-				log_msg(LOG_DEBUG, "Could not find key");
+				log_msg(LOG_DEBUG, "Could not find system informations");
 				http_status = HTTP_CODE_NOT_FOUND;
 				json_obj = _np_generate_error_json("key not found", "");
 			} else {

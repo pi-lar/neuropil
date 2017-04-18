@@ -22,9 +22,14 @@ np_bool _np_in_sysinfo(np_tree_t* properties, np_tree_t* body) ;
 NP_API_INTERN
 np_bool _np_in_sysinforeply(np_tree_t* properties, np_tree_t* body) ;
 NP_API_EXPORT
-np_tree_t* np_get_sysinfo(const char* dhkey_of_node_target, int timeout_ms);
+np_tree_t* np_get_sysinfo(const char* dhkey_of_node_target);
 NP_API_EXPORT
 np_tree_t* np_get_my_sysinfo() ;
+
+NP_API_INTERN
+void _np_request_others() ;
+NP_API_INTERN
+void _np_request_sysinfo(const char* dhkey_of_target) ;
 
 #ifdef __cplusplus
 }
