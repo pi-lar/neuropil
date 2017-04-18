@@ -668,6 +668,8 @@ JSON_Value* _np_generate_error_json(const char* error,const char* details) {
 }
 JSON_Value* np_val_to_json(np_val_t val) {
 	JSON_Value* ret = NULL;
+	log_msg(LOG_DEBUG, "np_val_to_json type: %"PRIu8,val.type);
+
 	switch (val.type) {
 	case short_type:
 		ret = json_value_init_number(val.value.sh);
@@ -706,22 +708,20 @@ JSON_Value* np_val_to_json(np_val_t val) {
 		ret = json_value_init_number(val.value.ull);
 		break;
 	case uint_array_2_type:
-		JSON_Value* arr = json_value_init_array();
-		json_array_append_number(json_array(arr), val.value.a2_ui[0]);
-		json_array_append_number(json_array(arr), val.value.a2_ui[1]);
-		ret = arr;
-		break;
+		ret = json_value_init_array();
+		json_array_append_number(json_array(ret), val.value.a2_ui[0]);
+		json_array_append_number(json_array(ret), val.value.a2_ui[1]);
+ 		break;
 	case jrb_tree_type:
 		ret = np_tree_to_json(val.value.tree);
 		break;
 	case key_type:
-		JSON_Value* arr = json_value_init_array();
-		json_array_append_number(json_array(arr), val.value.key.t[0]);
-		json_array_append_number(json_array(arr), val.value.key.t[1]);
-		json_array_append_number(json_array(arr), val.value.key.t[2]);
-		json_array_append_number(json_array(arr), val.value.key.t[3]);
-		ret = arr;
-		break;
+		ret = json_value_init_array();
+		json_array_append_number(json_array(ret), val.value.key.t[0]);
+		json_array_append_number(json_array(ret), val.value.key.t[1]);
+		json_array_append_number(json_array(ret), val.value.key.t[2]);
+		json_array_append_number(json_array(ret), val.value.key.t[3]);
+ 		break;
 	default:
 		log_msg(LOG_WARN, "please implement serialization for type %hhd",
 				val.type);
@@ -731,7 +731,7 @@ JSON_Value* np_val_to_json(np_val_t val) {
 	return ret;
 }
 JSON_Value* np_tree_to_json(np_tree_t* tree) {
-	JSON_Object* obj = json_value_init_object();
+	JSON_Value* ret = json_value_init_object();
 	JSON_Array* arr = NULL;
 
 	if(NULL != tree) {
@@ -742,22 +742,16 @@ JSON_Value* np_tree_to_json(np_tree_t* tree) {
 		if (0 < tree->size)
 		{
 			np_tree_elem_t* tmp = NULL;
-
+			np_bool useArray = FALSE;
 			RB_FOREACH(tmp, np_tree_s, tree)
 			{
 				char* name = NULL;
 				if (int_type == tmp->key.type)
 				{
-				//	int size = snprintf(NULL, 0, "%d", tmp->key.value.i);
-				//	name = malloc(size + 1);
-				//	snprintf(name, size + 1, "%d", tmp->key.value.i);
-
-					if(NULL == arr) {
-						arr = json_array(json_value_init_array());
-						json_value_free(obj);
-					}
-					json_array_append_value(arr, np_val_to_json(tmp->val));
-
+					useArray = TRUE;
+					int size = snprintf(NULL, 0, "%d", tmp->key.value.i);
+					name = malloc(size + 1);
+					snprintf(name, size + 1, "%d", tmp->key.value.i);
 				}
 				else if (double_type == tmp->key.type)
 				{
@@ -781,12 +775,27 @@ JSON_Value* np_tree_to_json(np_tree_t* tree) {
 					continue;
 				}
 
-				if (NULL != name)
-				{
-					write_json_type(tmp->val,json_object(obj), name);
-					i++;
+				log_msg(LOG_DEBUG, "np_tree_to_json set key %s:", name);
+				JSON_Value* value = np_val_to_json(tmp->val);
+
+				if(useArray == TRUE) {
+					if(NULL == arr) {
+						arr = json_value_init_array();
+					}
+					log_msg(LOG_DEBUG, "np_tree_to_json add to array");
+
+					if(NULL != value) {
+						json_array_append_value(json_array(arr), value);
+					}
+				} else {
+
+					if (NULL != name && NULL != value)
+					{
+						json_object_set_value(json_object(ret), name, value);
+						i++;
+					}
+					free(name);
 				}
-				free(name);
 			}
 		}
 
@@ -796,10 +805,9 @@ JSON_Value* np_tree_to_json(np_tree_t* tree) {
 			log_msg(LOG_WARN, "serialized jrb size map size is %hd, but should be %hd", tree->size, i);
 		}
 	}
-	JSON_Value* ret = NULL;
-	if(NULL == arr) {
-		ret = obj;
-	} else {
+
+	if(NULL != arr) {
+			json_value_free(ret);
 		ret = arr;
 	}
 

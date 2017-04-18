@@ -16,12 +16,17 @@
 
 void* np_simple_cache_get(struct np_simple_cache_table_t *table,
 		const char *key) {
+
+	if(NULL == key){
+		log_msg(LOG_ERROR, "cache key cannot be NULL!");
+		exit(EXIT_FAILURE);
+	}
 	unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
 	struct np_cache_item *node;
 	node = table->buckets[bucket];
 	while (node) {
-		if (strcmp(key, node->key) == 0)
+		if (NULL != node->key && strcmp(key, node->key) == 0)
 			return node->value;
 		node = node->next;
 	}
@@ -29,6 +34,11 @@ void* np_simple_cache_get(struct np_simple_cache_table_t *table,
 	return NULL;
 }
 int np_simple_cache_insert(struct np_simple_cache_table_t *table, char *key, void *value) {
+
+	if(NULL == key){
+		log_msg(LOG_ERROR, "cache key cannot be NULL!");
+		exit(EXIT_FAILURE);
+	}
 
 	unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 

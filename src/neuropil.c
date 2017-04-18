@@ -877,13 +877,8 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 
     state->msg_tokens = make_nptree();
     state->msg_part_cache = make_nptree();
-    if (TRUE == start_http)
-    {
-    	if (FALSE == _np_http_init())
-    	{
-        	log_msg(LOG_WARN, "neuropil_init: initialization of http interface failed");
-    	}
-    }
+
+
     // initialize real network layer last
     np_job_submit_event(0.0, _np_cleanup_ack);
 	np_job_submit_event(0.0, _np_cleanup_keycache);
@@ -901,10 +896,18 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     // initialize network/io reading and writing
     np_job_submit_event(0.0, _np_events_read);
 
+    _np_sysinfo_init();
+
+	if (TRUE == start_http)
+	{
+		if (FALSE == _np_http_init())
+		{
+			log_msg(LOG_WARN, "neuropil_init: initialization of http interface failed");
+		}
+	}
+
 	log_msg(LOG_INFO, "neuropil successfully initialized: %s", _key_as_str(state->my_node_key));
 	_np_log_fflush();
-
-	_np_sysinfo_init();
 
 	return (state);
 }
