@@ -108,7 +108,7 @@ void _np_route_set_key (np_key_t* new_node_key)
     _dhkey_assign (&__routing_table->Lrange, &__routing_table->my_key->dhkey );
 
     // TODO: re-order table entries and leafset table
-	np_sll_t(np_key_t, tmp_key_list) = NULL;
+    np_sll_t(np_key_t, tmp_key_list) = NULL;
 	np_key_t *tmp_key = NULL;
 	np_key_t *added = NULL, *deleted = NULL;
 
@@ -169,7 +169,7 @@ void _np_route_set_key (np_key_t* new_node_key)
     sll_free(np_key_t, tmp_key_list);
 }
 
-/** route_get_table: 
+/** route_get_table:
  ** return the entire routing table
  */
 sll_return(np_key_t) _np_route_get_table ()
@@ -198,7 +198,7 @@ sll_return(np_key_t) _np_route_get_table ()
     return sll_of_keys;
 }
 
-/** route_row_lookup:key 
+/** route_row_lookup:key
  ** return the row in the routing table that matches the longest prefix with #key#
  **/
 sll_return(np_key_t) route_row_lookup (np_key_t* key)
@@ -498,7 +498,7 @@ void leafset_range_update (np_dhkey_t* rrange, np_dhkey_t* lrange)
 /**
  ** leafset_update:
  ** this function is called whenever a route_update is called the joined
- ** is 1 if the node has joined and 0 if a node is leaving. 
+ ** is 1 if the node has joined and 0 if a node is leaving.
  **/
 void leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_key_t** added)
 {
@@ -573,7 +573,7 @@ void leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_update");
 }
 
-/** 
+/**
  ** leafset_delete:
  ** removes the #deleted# node from leafset
  **
@@ -708,7 +708,7 @@ void leafset_insert (np_key_t* host_key, uint8_t right_or_left,
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_insert");
 }
 
-/** route_neighbors: 
+/** route_neighbors:
  ** returns an array of #count# neighbor nodes with priority to closer nodes
  **/
 sll_return(np_key_t) route_neighbors ()

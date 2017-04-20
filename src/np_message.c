@@ -965,6 +965,9 @@ np_bool np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	np_tree_elem_t* encryption_details_elem = tree_find_str(encryption_details, (char*) _key_as_str(state->my_identity));
 	if(NULL == encryption_details_elem  ) {
 		log_msg(LOG_ERROR, "decryption of message payload failed. no identity information in encryption_details for %s",_key_as_str(state->my_identity));
+		log_msg(LOG_DEBUG, "msg->properties:");
+		np_tree_dump2log(msg->properties);
+		log_msg(LOG_DEBUG, "encryption_details:");
 		np_tree_dump2log(encryption_details);
 		return (FALSE);
 	}

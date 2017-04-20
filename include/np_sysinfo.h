@@ -16,7 +16,7 @@ extern "C" {
 
 
 NP_API_INTERN
-void _np_sysinfo_init();
+void _np_sysinfo_init(np_bool requestOrReply);
 NP_API_INTERN
 np_bool _np_in_sysinfo(np_tree_t* properties, np_tree_t* body) ;
 NP_API_INTERN
@@ -30,7 +30,8 @@ NP_API_INTERN
 void _np_request_others() ;
 NP_API_INTERN
 void _np_request_sysinfo(const char* dhkey_of_target) ;
-
+NP_API_INTERN
+np_tree_t* _np_get_sysinfo_from_cache(const char* hash_of_target) ;
 #ifdef __cplusplus
 }
 #endif

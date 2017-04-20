@@ -930,7 +930,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     // initialize network/io reading and writing
     np_job_submit_event(0.0, _np_events_read);
 
-    _np_sysinfo_init();
+    _np_sysinfo_init(start_http);
 
 	if (TRUE == start_http)
 	{

@@ -10,11 +10,15 @@
 #include <string.h>
 #include <stdlib.h>
 #include "np_scache.h"
+#include "np_list.h"
+
 #include "np_threads.h"
 #include "np_log.h"
 #include "inttypes.h"
 
-void* np_simple_cache_get(struct np_simple_cache_table_t *table,
+NP_SLL_GENERATE_IMPLEMENTATION(np_cache_item_t);
+
+np_cache_item_t* np_simple_cache_get(struct np_simple_cache_table_t *table,
 		const char *key) {
 
 	if(NULL == key){
@@ -23,16 +27,18 @@ void* np_simple_cache_get(struct np_simple_cache_table_t *table,
 	}
 	unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
-	struct np_cache_item_t *item;
-	item = table->buckets[bucket];
-	while (item) {
-		if (NULL != item->key && strcmp(key, item->key) == 0)
-			return item->value;
-		item = item->next;
-	}
+	struct np_cache_item_t_sll_s* bucket_list = table->buckets[bucket];
+    sll_iterator(np_cache_item_t) iter = sll_first(bucket_list);
+	do
+	{
+		if(NULL != iter && NULL != iter->val && strcmp(iter->val->key, key) == 0){
+			return iter->val;
+		}
+	} while (NULL != ( sll_next(iter)) );
 
 	return NULL;
 }
+
 int np_simple_cache_insert(struct np_simple_cache_table_t *table, char *key, void *value) {
 
 	if(NULL == key){
@@ -42,31 +48,30 @@ int np_simple_cache_insert(struct np_simple_cache_table_t *table, char *key, voi
 
 	unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
-	struct np_cache_item_t **tmp;
-	struct np_cache_item_t *item;
+	struct np_cache_item_t_sll_s* bucket_list = table->buckets[bucket];
 
-	tmp = &table->buckets[bucket];
-	while (*tmp) {
-		if (strcmp(key, (*tmp)->key) == 0)
+    sll_iterator(np_cache_item_t) iter = sll_first(bucket_list);
+	do
+	{
+		if(NULL != iter && NULL != iter->val && strcmp(iter->val->key, key) == 0){
 			break;
-		tmp = &(*tmp)->next;
-	}
-	if (*tmp) {
-		if (table->free_key != NULL)
-			table->free_key((*tmp)->key);
-		if (table->free_value != NULL)
-			table->free_value((*tmp)->value);
-		item = *tmp;
-	} else {
-		item = malloc(sizeof (np_cache_item_t));
-		if (item == NULL){
-			return -1;
 		}
-		item->next = NULL;
-		*tmp = item;
-	}
+	} while (NULL != (sll_next(iter)) );
+
+    np_cache_item_t* item;
+
+    if(NULL == iter) {
+    	item = (np_cache_item_t*) malloc(sizeof (np_cache_item_t));
+    	if(item < 0){
+    		log_msg(LOG_ERROR, "cannot allocate memory for np_cache_item");
+    	}
+    	sll_append(np_cache_item_t, bucket_list, item);
+    }else{
+    	item = iter->val;
+    }
 	item->key = key;
 	item->value = value;
+	item->insert_time = ev_time();
 
 	return 0;
 }

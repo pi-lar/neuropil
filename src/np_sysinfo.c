@@ -5,6 +5,8 @@
  *      Author: sklampt
  */
 
+#include <stdlib.h>
+
 #include "neuropil.h"
 #include "np_types.h"
 #include "np_log.h"
@@ -36,32 +38,48 @@ static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 _NP_MODULE_LOCK_IMPL(np_sysinfo);
 static struct np_simple_cache_table_t* _cache;
 
-void _np_sysinfo_init() {
-
-	_cache = (np_simple_cache_table_t*) malloc(sizeof(np_simple_cache_table_t));
-	_cache->free_key = NULL;
-	_cache->free_value = NULL;
+void _np_sysinfo_init(np_bool isRequestor) {
 
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
-	//.mode_type = INBOUND | OUTBOUND | ROUTE, // do we need this?
-	//sysinfo_request_props->mep_type = ONE_WAY_WITH_REPLY
+	sysinfo_request_props->mep_type = ONE_WAY_WITH_REPLY;
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
 	sysinfo_request_props->ack_mode = ACK_DESTINATION;
 	sysinfo_request_props->ttl = 20.0;
 	sysinfo_request_props->max_threshold = 4;
-	np_msgproperty_register(sysinfo_request_props);
-	np_set_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
 
 	np_msgproperty_t* sysinfo_response_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_response_props);
-	//.mode_type = INBOUND | OUTBOUND | ROUTE, // do we need this?
+	sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->msg_subject = _NP_SYSINFO_REPLY;
 	sysinfo_response_props->ack_mode = ACK_DESTINATION;
 	sysinfo_response_props->ttl = 20.0;
-	sysinfo_request_props->max_threshold = 8;
-	np_msgproperty_register(sysinfo_response_props);
-	np_set_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
+	sysinfo_response_props->max_threshold = 8;
+
+	if(isRequestor) {
+		_cache = (np_simple_cache_table_t*) malloc(sizeof(np_simple_cache_table_t));
+		for(int i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
+			sll_init(np_cache_item_t, _cache->buckets[i]);
+		}
+
+		sysinfo_response_props->mode_type = INBOUND   | ROUTE;
+		sysinfo_request_props->mode_type =  OUTBOUND | ROUTE;
+
+		np_msgproperty_register(sysinfo_response_props);
+		np_msgproperty_register(sysinfo_request_props);
+
+		np_set_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
+
+	} else {
+		sysinfo_response_props->mode_type = OUTBOUND  | ROUTE;
+		sysinfo_request_props->mode_type =  INBOUND  | ROUTE;
+
+		np_msgproperty_register(sysinfo_response_props);
+		np_msgproperty_register(sysinfo_request_props);
+
+		np_set_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
+	}
+
 }
 
 np_bool _np_in_sysinfo(np_tree_t* properties, np_tree_t* body) {
@@ -121,8 +139,6 @@ np_bool _np_in_sysinfo(np_tree_t* properties, np_tree_t* body) {
 np_bool _np_in_sysinforeply(np_tree_t* properties, np_tree_t* body) {
 	log_msg(LOG_TRACE, ".start._in_sysinforeply");
 
-	np_key_t* sysinfo_key = NULL;
-
 	np_tree_elem_t* source = tree_find_str(properties, _NP_SYSINFO_SOURCE);
 
 	if (NULL == source) {
@@ -137,7 +153,7 @@ np_bool _np_in_sysinforeply(np_tree_t* properties, np_tree_t* body) {
 
 	_LOCK_MODULE(np_sysinfo)
 	{
-		np_simple_cache_insert(&_cache, strdup(source->val.value.s),
+		np_simple_cache_insert(_cache, strdup(source->val.value.s),
 				np_tree_copy(body));
 	}
 	log_msg(LOG_TRACE, ".end  ._in_sysinforeply");
@@ -223,13 +239,21 @@ void _np_request_sysinfo(const char* hash_of_target) {
 }
 
 np_tree_t* np_get_sysinfo(const char* hash_of_target) {
-	np_tree_t* ret = NULL;
 	_np_request_sysinfo(hash_of_target);
+	np_tree_t* ret = _np_get_sysinfo_from_cache(hash_of_target);
 
+	//TODO: maybe drop informations if they are too old
+
+	return ret;
+}
+
+np_tree_t* _np_get_sysinfo_from_cache(const char* hash_of_target) {
+	np_tree_t* ret = NULL;
 	_LOCK_MODULE(np_sysinfo)
 	{
-		np_tree_t* tmp = np_simple_cache_get(&_cache, hash_of_target);
-		if (NULL != tmp) {
+		np_cache_item_t* item =	np_simple_cache_get(_cache, hash_of_target);
+		if (NULL != item && item->value != NULL) {
+			np_tree_t* tmp =  item->value;
 			ret = np_tree_copy(tmp);
 		}
 	}
@@ -258,7 +282,9 @@ void _np_request_others() {
 				current = sll_head(np_key_t, routing_table);
 				if (NULL != current) {
 					if(strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0) {
-						_np_request_sysinfo(_key_as_str(current));
+						if( NULL == _np_get_sysinfo_from_cache(_key_as_str(current))){
+							_np_request_sysinfo(_key_as_str(current));
+						}
 					}
 				}
 			}
@@ -271,7 +297,9 @@ void _np_request_others() {
 				current = sll_head(np_key_t, neighbours_table);
 				if (NULL != current) {
 					if(strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0){
-						_np_request_sysinfo(_key_as_str(current));
+						if( NULL == _np_get_sysinfo_from_cache(_key_as_str(current))){
+							_np_request_sysinfo(_key_as_str(current));
+						}
 					}
 				}
 			}
