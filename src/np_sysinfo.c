@@ -39,9 +39,8 @@ static struct np_simple_cache_table_t* _cache;
 void _np_sysinfo_init() {
 
 	_cache = (np_simple_cache_table_t*) malloc(sizeof(np_simple_cache_table_t));
-
-	struct np_simple_cache_table_t cache = { { 0 }, NULL, NULL };
-	_cache = &cache;
+	_cache->free_key = NULL;
+	_cache->free_value = NULL;
 
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
@@ -50,6 +49,7 @@ void _np_sysinfo_init() {
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
 	sysinfo_request_props->ack_mode = ACK_DESTINATION;
 	sysinfo_request_props->ttl = 20.0;
+	sysinfo_request_props->max_threshold = 4;
 	np_msgproperty_register(sysinfo_request_props);
 	np_set_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
 
@@ -59,6 +59,7 @@ void _np_sysinfo_init() {
 	sysinfo_response_props->msg_subject = _NP_SYSINFO_REPLY;
 	sysinfo_response_props->ack_mode = ACK_DESTINATION;
 	sysinfo_response_props->ttl = 20.0;
+	sysinfo_request_props->max_threshold = 8;
 	np_msgproperty_register(sysinfo_response_props);
 	np_set_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
 }
@@ -132,7 +133,7 @@ np_bool _np_in_sysinforeply(np_tree_t* properties, np_tree_t* body) {
 	log_msg(LOG_DEBUG,
 			"received sysinfo reply. caching content for key %s (size: %"PRIu16", byte_size: %"PRIu64")",
 			source->val.value.s, body->size, body->byte_size);
-	log_msg(LOG_DEBUG, "%s", np_json_to_char(np_tree_to_json(body), TRUE));
+	//log_msg(LOG_DEBUG, "%s", np_json_to_char(np_tree_to_json(body), TRUE));
 
 	_LOCK_MODULE(np_sysinfo)
 	{
@@ -245,6 +246,7 @@ np_tree_t* np_get_sysinfo(const char* hash_of_target) {
 }
 
 void _np_request_others() {
+
 	np_sll_t(np_key_t, routing_table) = NULL;
 	np_sll_t(np_key_t, neighbours_table) = NULL;
 	_LOCK_MODULE(np_routeglobal_t)
@@ -255,7 +257,9 @@ void _np_request_others() {
 			while (NULL != sll_first(routing_table)) {
 				current = sll_head(np_key_t, routing_table);
 				if (NULL != current) {
-					_np_request_sysinfo(_key_as_str(current));
+					if(strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0) {
+						_np_request_sysinfo(_key_as_str(current));
+					}
 				}
 			}
 		}
@@ -266,7 +270,9 @@ void _np_request_others() {
 			while (NULL != sll_first(neighbours_table)) {
 				current = sll_head(np_key_t, neighbours_table);
 				if (NULL != current) {
-					_np_request_sysinfo(_key_as_str(current));
+					if(strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0){
+						_np_request_sysinfo(_key_as_str(current));
+					}
 				}
 			}
 		}

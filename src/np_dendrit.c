@@ -430,8 +430,13 @@ void _np_signal (np_jobargs_t* args)
  **/
 void _np_callback_wrapper(np_jobargs_t* args)
 {
-	np_message_t* msg_in = args->msg;
 	np_aaatoken_t* sender_token = NULL;
+	np_message_t* msg_in = args->msg;
+	if(NULL == msg_in){
+		// Eine msg wurde gelöscht obwohl sie in benutzung ist!
+		log_msg(LOG_ERROR, "message object null but in use!");
+		goto __np_cleanup__;
+	}
 
 	char* subject = args->properties->msg_subject;
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);

@@ -120,7 +120,6 @@ void write_json_type(np_val_t val, JSON_Object* json_obj, const char* name)
 	case unsigned_long_long_type:
 		json_object_set_number(json_obj, name, val.value.ull);
 		break;
-
 	case uint_array_2_type:
 		{
 			JSON_Value* arr = json_value_init_array();
@@ -669,7 +668,7 @@ JSON_Value* _np_generate_error_json(const char* error,const char* details) {
 JSON_Value* np_val_to_json(np_val_t val) {
 	JSON_Value* ret = NULL;
 	//log_msg(LOG_DEBUG, "np_val_to_json type: %"PRIu8,val.type);
-
+	void* tmp;
 	switch (val.type) {
 	case short_type:
 		ret = json_value_init_number(val.value.sh);
@@ -712,6 +711,12 @@ JSON_Value* np_val_to_json(np_val_t val) {
 		json_array_append_number(json_array(ret), val.value.a2_ui[0]);
 		json_array_append_number(json_array(ret), val.value.a2_ui[1]);
  		break;
+	case bin_type:
+		tmp =  malloc(sizeof(char)*64);
+		sprintf(tmp, "<binaray data (size: %"PRIu32")>", val.size);
+		ret = json_value_init_string((char*)tmp);
+		free(tmp);
+		break;
 	case jrb_tree_type:
 		ret = np_tree_to_json(val.value.tree);
 		break;
@@ -828,4 +833,12 @@ char* np_json_to_char(JSON_Value* data, np_bool prettyPrint) {
 		json_serialize_to_buffer(data, ret, json_size);
 	}
 		return ret;
+}
+
+void np_tree_dump2log(np_tree_t* tree){
+	if(NULL == tree){
+		log_msg(LOG_DEBUG, "NULL");
+	}else{
+		log_msg(LOG_DEBUG, "%", np_json_to_char(np_tree_to_json(tree), TRUE));
+	}
 }

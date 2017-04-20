@@ -24,7 +24,6 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <unistd.h>
 
 #define USAGE "neuropil_hydra -j key:proto:host:port [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count]"
 #define OPTSTR "j:p:n:t:"
@@ -45,7 +44,7 @@ int main(int argc, char **argv) {
 	char* bootstrap_hostnode_default;
 	char bootstrap_port[7];
 	char* proto = "udp4";
-	uint32_t required_nodes = 3;
+	uint32_t required_nodes = 4;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG  ;
 
 	np_bool startHTTP = TRUE;

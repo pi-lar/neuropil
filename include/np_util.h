@@ -88,6 +88,10 @@ char* np_json_to_char(JSON_Value* data,np_bool prettyPrint) ;
  */
 NP_API_EXPORT
 JSON_Value* np_val_to_json(np_val_t val);
+
+NP_API_EXPORT
+void np_tree_dump2log(np_tree_t* tree);
+
 #ifdef __cplusplus
 }
 #endif

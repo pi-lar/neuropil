@@ -543,9 +543,6 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 		_np_add_receiver_token(msg_token->subject, msg_token);
 		// np_free_obj(np_aaatoken_t, msg_token);
 	}
-//	else
-//	{
-//	}
 
 	if (NULL != msg_token)
 	{

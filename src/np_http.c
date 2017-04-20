@@ -324,9 +324,8 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 						"no response defined");
 			}
 			response = np_json_to_char(json_obj, TRUE);
-			log_msg(LOG_DEBUG, "sysinfo response should be (size: %d):",
+			log_msg(LOG_DEBUG, "sysinfo response should be (strlen: %d):",
 					strlen(response));
-			log_msg(LOG_DEBUG, "%s", response);
 			json_value_free(json_obj);
 
 			__cleanup__:

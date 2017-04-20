@@ -17,6 +17,9 @@
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_threads.h"
+#include "np_threads.h"
+#include "inttypes.h"
+
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_aaatoken_t);
 
@@ -233,6 +236,7 @@ np_bool token_is_valid(np_aaatoken_t* token)
 
 	if (NULL != signature)
 	{
+		log_msg(LOG_AAATOKEN | LOG_DEBUG, "try to check signature checksum");
 		int16_t ret = crypto_sign_verify_detached((unsigned char*) signature, hash, crypto_generichash_BYTES, token->public_key);
 		if (ret < 0)
 		{
@@ -241,6 +245,7 @@ np_bool token_is_valid(np_aaatoken_t* token)
 			token->state &= AAA_INVALID;
 			return (FALSE);
 		}
+		log_msg(LOG_AAATOKEN | LOG_DEBUG, "token checksum verification completed");
 	}
 	else
 	{
@@ -256,31 +261,37 @@ np_bool token_is_valid(np_aaatoken_t* token)
 		log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 		token->state &= AAA_INVALID;
 		return (FALSE);
+	}else{
+		log_msg(LOG_AAATOKEN | LOG_DEBUG, "token has not expired");
 	}
 
 	// TODO: only if this is a message token
-	if (tree_find_str(token->extensions, "max_threshold") &&
-		tree_find_str(token->extensions, "msg_threshold"))
+	log_msg(LOG_AAATOKEN | LOG_DEBUG, "try to find max/msg threshold ");
+	np_tree_elem_t* max_threshold = tree_find_str(token->extensions, "max_threshold");
+	np_tree_elem_t* msg_threshold = tree_find_str(token->extensions, "msg_threshold");
+	if ( max_threshold && msg_threshold)
 	{
-		uint16_t token_max_threshold = tree_find_str(token->extensions, "max_threshold")->val.value.ui;
-		uint16_t token_msg_threshold = tree_find_str(token->extensions, "msg_threshold")->val.value.ui;
+		log_msg(LOG_AAATOKEN | LOG_DEBUG, "found max/msg threshold");
+		uint16_t token_max_threshold = max_threshold->val.value.ui;
+		uint16_t token_msg_threshold = msg_threshold->val.value.ui;
 
 		if (0                   <=  token_msg_threshold &&
 			token_msg_threshold <   token_max_threshold)
 		{
+			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token can be used for %"PRIu16" msgs",token_max_threshold-token_msg_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state |= AAA_VALID;
 			return (TRUE);
 		}
 		else
 		{
-			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token was already used: 0<=%d<%d", token_msg_threshold, token_max_threshold);
+			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token was already used: 0<=%"PRIu16"<%"PRIu16, token_msg_threshold, token_max_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state &= AAA_INVALID;
 			return (FALSE);
 		}
 	}
-
+	log_msg(LOG_AAATOKEN | LOG_DEBUG, "token is valid");
 	token->state |= AAA_VALID;
 	return (TRUE);
 }

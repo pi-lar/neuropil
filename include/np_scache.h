@@ -17,11 +17,12 @@ extern "C" {
 #define SIMPLE_CACHE_NR_BUCKETS 32
 
 NP_API_EXPORT
-struct np_cache_item {
+struct np_cache_item_t {
     char *key;
     void *value;
-    struct np_cache_item *next;
+    struct np_cache_item_t *next;
 };
+typedef struct np_cache_item_t np_cache_item_t;
 
 NP_API_EXPORT
 struct np_simple_cache_table_t {
