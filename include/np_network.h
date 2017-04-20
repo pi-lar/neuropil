@@ -21,14 +21,14 @@
 extern "C" {
 #endif
 
-/** 
+/**
  ** NETWORK_PACK_SIZE is the maximum packet size that will be handled by neuropil network layer
  */
 #define NETWORK_PACK_SIZE 65536
 
-/** 
- ** TIMEOUT is the number of seconds to wait for receiving ack from the destination, if you want 
- ** the sender to wait forever put 0 for TIMEOUT. 
+/**
+ ** TIMEOUT is the number of seconds to wait for receiving ack from the destination, if you want
+ ** the sender to wait forever put 0 for TIMEOUT.
  */
 #define TIMEOUT 1.0
 
@@ -68,6 +68,8 @@ struct np_network_s
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
+
+_NP_ENABLE_MODULE_LOCK(np_network_t);
 
 typedef struct np_ackentry_s np_ackentry_t;
 
@@ -114,7 +116,7 @@ NP_API_INTERN
 np_prioq_t* get_new_pqentry();
 
 /** network_init:
- ** initiates the networking layer by creating socket and bind it to #port# 
+ ** initiates the networking layer by creating socket and bind it to #port#
  **/
 NP_API_INTERN
 void network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);

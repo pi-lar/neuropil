@@ -380,24 +380,26 @@ void _np_out_handshake(np_jobargs_t* args)
 
 	if (TRUE == serialize_ok)
 	{
-		if (NULL == args->target->network)
+		_LOCK_MODULE(np_network_t)
 		{
-			// initialize network
-			np_new_obj(np_network_t, args->target->network);
-			network_init(args->target->network,
-						 FALSE,
-						 args->target->node->protocol,
-						 args->target->node->dns_name,
-						 args->target->node->port);
-			if (FALSE == args->target->network->initialized)
+			if (NULL == args->target->network)
 			{
-				np_free_obj(np_message_t, hs_message);
-				args->target->node->handshake_status = HANDSHAKE_UNKNOWN;
-				return;
+				// initialize network
+				np_new_obj(np_network_t, args->target->network);
+				network_init(args->target->network,
+							 FALSE,
+							 args->target->node->protocol,
+							 args->target->node->dns_name,
+							 args->target->node->port);
+				if (FALSE == args->target->network->initialized)
+				{
+					np_free_obj(np_message_t, hs_message);
+					args->target->node->handshake_status = HANDSHAKE_UNKNOWN;
+					return;
+				}
+				args->target->network->watcher.data = args->target;
 			}
-			args->target->network->watcher.data = args->target;
 		}
-
 		// construct target address and send it out
 		np_node_t* hs_node = args->target->node;
 

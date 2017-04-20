@@ -865,7 +865,10 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     	hostname = malloc(sizeof(char) * 255);
     	gethostname(hostname, 255);
     }
-	network_init(my_network, TRUE, np_proto, hostname, np_service);
+	_LOCK_MODULE(np_network_t)
+	{
+		network_init(my_network, TRUE, np_proto, hostname, np_service);
+	}
 	if (FALSE == my_network->initialized)
 	{
 		log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");

@@ -1815,19 +1815,22 @@ void _np_in_handshake(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	if (NULL == hs_key->network)
+	_LOCK_MODULE(np_network_t)
 	{
-		np_new_obj(np_network_t, hs_key->network);
-		if (!(hs_key->node->protocol & PASSIVE))
+		if (NULL == hs_key->network)
 		{
-			network_init(hs_key->network, FALSE, hs_key->node->protocol, hs_key->node->dns_name, hs_key->node->port);
-			if (TRUE == hs_key->network->initialized)
+			np_new_obj(np_network_t, hs_key->network);
+			if (!(hs_key->node->protocol & PASSIVE))
 			{
-				hs_key->network->watcher.data = hs_key;
-			}
-			else
-			{
-				goto __np_cleanup__;
+				network_init(hs_key->network, FALSE, hs_key->node->protocol, hs_key->node->dns_name, hs_key->node->port);
+				if (TRUE == hs_key->network->initialized)
+				{
+					hs_key->network->watcher.data = hs_key;
+				}
+				else
+				{
+					goto __np_cleanup__;
+				}
 			}
 		}
 	}

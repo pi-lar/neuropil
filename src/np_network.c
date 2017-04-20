@@ -47,6 +47,10 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
+static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
+_NP_MODULE_LOCK_IMPL(np_network_t);
+
+
 // allocate a new pointer and return it
 np_prioq_t* get_new_pqentry()
 {
