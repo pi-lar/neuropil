@@ -11,6 +11,8 @@
 #include <arpa/inet.h>
 #include <sys/select.h>
 
+#include "msgpack/cmp.h"
+
 #include "sodium.h"
 
 #include "np_axon.h"
@@ -51,10 +53,7 @@
  **/
 void _np_out_ack(np_jobargs_t* args)
 {
-	char* uuid = np_create_uuid(args->properties->msg_subject, 0);
-	tree_insert_str(args->msg->instructions, NP_MSG_INST_UUID, new_val_s(uuid));
-	free(uuid);
-
+	tree_insert_str(args->msg->instructions, NP_MSG_INST_UUID, new_val_s(args->msg->uuid));
 	tree_insert_str(args->msg->instructions, NP_MSG_INST_PARTS, new_val_iarray(1, 1));
 
 	// chunking for 1024 bit message size
@@ -183,9 +182,7 @@ void _np_out_send(np_jobargs_t* args)
 	}
 
 	// insert a uuid if not yet present
-	uuid = np_create_uuid(args->properties->msg_subject, seq);
-	tree_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_val_s(uuid));
-	free(uuid);
+ 	tree_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_val_s(msg_out->uuid));
 
 	// log_msg(LOG_DEBUG, "message ttl %s (tstamp: %f / ttl: %f) %s", uuid, now, args->properties->ttl, args->properties->msg_subject);
 

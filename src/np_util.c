@@ -11,9 +11,11 @@
 #include "sodium.h"
 #include "event/ev.h"
 #include "json/parson.h"
+#include "msgpack/cmp.h"
 #include "inttypes.h"
 
 #include "np_util.h"
+
 
 #include "np_log.h"
 #include "neuropil.h"
@@ -25,6 +27,7 @@
 #include "np_tree.h"
 #include "np_node.h"
 #include "np_route.h"
+#include "np_types.h"
 
 char* np_create_uuid(const char* str, const uint16_t num)
 {
@@ -42,6 +45,7 @@ char* np_create_uuid(const char* str, const uint16_t num)
 	uuid_out[14] = '5';
 	uuid_out[19] = '9';
 	// log_msg(LOG_DEBUG, "created new uuid: %s", uuid_out);
+
 	return uuid_out;
 }
 
@@ -57,6 +61,10 @@ void new_callback(NP_UNUSED void* data)
 
 np_bool buffer_reader(cmp_ctx_t *ctx, void *data, size_t count)
 {
+	if(ctx == NULL ){
+		log_msg(LOG_DEBUG, "ctx is null");
+	}
+
 	memcpy(data, ctx->buf, count);
 	ctx->buf += count;
 	return 1;
@@ -68,106 +76,6 @@ size_t buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count)
 	memcpy(ctx->buf, data, count);
 	ctx->buf += count;
 	return count;
-}
-
-void write_json_type(np_val_t val, JSON_Object* json_obj, const char* name)
-{
-	// log_msg(LOG_DEBUG, "writing jrb (%p) value: %s", jrb, jrb->key.value.s);
-	switch (val.type)
-	{
-	// signed numbers
-	case short_type:
-		json_object_set_number(json_obj, name, val.value.sh);
-		break;
-	case int_type:
-		json_object_set_number(json_obj, name, val.value.i);
-		break;
-	case long_type:
-		json_object_set_number(json_obj, name, val.value.l);
-		break;
-	case long_long_type:
-		json_object_set_number(json_obj, name, val.value.ll);
-		break;
-	case char_ptr_type:
-		json_object_set_string(json_obj, name, val.value.s);
-		break;
-
-	case char_type:
-		json_object_set_string(json_obj, name, &val.value.c);
-		break;
-//	case unsigned_char_type:
-//	 	cmp_write_str(cmp, (const char*) &val.value.uc, sizeof(unsigned char));
-//	 	break;
-
-	// float and double precision
-	case float_type:
-		json_object_set_number(json_obj, name, val.value.f);
-		break;
-	case double_type:
-		json_object_set_number(json_obj, name, val.value.d);
-		break;
-
-	// unsigned numbers
-	case unsigned_short_type:
-		json_object_set_number(json_obj, name, val.value.ush);
-		break;
-	case unsigned_int_type:
-		json_object_set_number(json_obj, name, val.value.ui);
-		break;
-	case unsigned_long_type:
-		json_object_set_number(json_obj, name, val.value.ul);
-		break;
-	case unsigned_long_long_type:
-		json_object_set_number(json_obj, name, val.value.ull);
-		break;
-	case uint_array_2_type:
-		{
-			JSON_Value* arr = json_value_init_array();
-			json_array_append_number(json_array(arr), val.value.a2_ui[0]);
-			json_array_append_number(json_array(arr), val.value.a2_ui[1]);
-			json_object_set_value(json_obj, name, arr);
-			break;
-		}
-
-	case float_array_2_type:
-	case char_array_8_type:
-	case unsigned_char_array_8_type:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
-		break;
-
-	case void_type:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
-		break;
-
-	case bin_type:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
-		break;
-
-	case key_type:
-		{
-			JSON_Value* arr = json_value_init_array();
-			json_array_append_number(json_array(arr), val.value.key.t[0]);
-			json_array_append_number(json_array(arr), val.value.key.t[1]);
-			json_array_append_number(json_array(arr), val.value.key.t[2]);
-			json_array_append_number(json_array(arr), val.value.key.t[3]);
-			json_object_set_value(json_obj, name, arr);
-			break;
-		}
-
-	case hash_type:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
-		// json_object_set_string(json_obj, name, val.value.s);
-		break;
-
-	case jrb_tree_type:
-		{
-			json_object_set_value(json_obj, name, np_tree_to_json(val.value.tree));
-		}
-		break;
-	default:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
-		break;
-	}
 }
 
 // TODO: replace with function pointer, same for read_type
@@ -197,7 +105,7 @@ void write_type(np_val_t val, cmp_ctx_t* cmp)
 		break;
 		// characters
 	case char_ptr_type:
-		// log_msg(LOG_DEBUG, "string size %u/%lu -> %s", val.size, strlen(val.value.s), val.value.s);
+		log_msg(LOG_DEBUG, "string size %u/%lu -> %s", val.size, strlen(val.value.s), val.value.s);
 		cmp_write_str32(cmp, val.value.s, val.size);
 		break;
 
@@ -248,6 +156,7 @@ void write_type(np_val_t val, cmp_ctx_t* cmp)
 
 	case bin_type:
 		cmp_write_bin32(cmp, val.value.bin, val.size);
+		log_msg(LOG_DEBUG, "BIN size %"PRIu32, val.size);
 		break;
 
 	case key_type:
@@ -411,7 +320,7 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 			value->value.s = (char*) malloc(obj->as.str_size+1);
 			cmp->read(cmp, value->value.s, obj->as.str_size * sizeof(char));
 			value->value.s[obj->as.str_size] = '\0';
-			// log_msg(LOG_DEBUG, "string size %u/%lu -> %s", value->size, strlen(value->value.s), value->value.s);
+			log_msg(LOG_DEBUG, "string size %u/%lu -> %s", value->size, strlen(value->value.s), value->value.s);
 			break;
 		}
 	case CMP_TYPE_BIN8:
@@ -421,6 +330,8 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 			value->type = bin_type;
 			value->size = obj->as.bin_size;
 			value->value.bin = malloc(value->size);
+			log_msg(LOG_DEBUG, "BIN size %"PRIu32, value->size);
+
 			memset(value->value.bin, 0, value->size);
 			cmp->read(cmp, value->value.bin, obj->as.bin_size);
 			break;
@@ -839,6 +750,6 @@ void np_tree_dump2log(np_tree_t* tree){
 	if(NULL == tree){
 		log_msg(LOG_DEBUG, "NULL");
 	}else{
-		log_msg(LOG_DEBUG, "%", np_json_to_char(np_tree_to_json(tree), TRUE));
+		log_msg(LOG_DEBUG, "%s", np_json_to_char(np_tree_to_json(tree), TRUE));
 	}
 }

@@ -13,6 +13,7 @@
 
 #include "sodium.h"
 #include "event/ev.h"
+#include "msgpack/cmp.h"
 
 #include "np_dendrit.h"
 
@@ -150,6 +151,8 @@ void _np_in_received(np_jobargs_t* args)
 	/* real receive part */
 	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_TO, msg_to);
 	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_UUID, msg_uuid);
+	free(msg_in->uuid);
+	msg_in->uuid = strdup(msg_uuid.value.s);
 	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_TSTAMP, msg_tstamp);
 	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_TTL, msg_ttl);
 	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_ACK, msg_ack);
@@ -183,7 +186,7 @@ void _np_in_received(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	log_msg(LOG_DEBUG, "received message for subject: %s (uuid=%s, ack=%hhd)",
+	log_msg(LOG_INFO, "received message for subject: %s (uuid=%s, ack=%hhd)",
 			msg_subject.value.s, msg_uuid.value.s, msg_ack.value.ush);
 
 	// check time-to-live for message and expiry if neccessary
@@ -661,6 +664,8 @@ void _np_in_join_req(np_jobargs_t* args)
 	}
 
 	CHECK_STR_FIELD(args->msg->instructions, NP_MSG_INST_UUID, in_uuid);
+	free(args->msg->uuid );
+	args->msg->uuid = strdup(in_uuid.value.s);
 
 	np_new_obj(np_message_t, msg_out);
 

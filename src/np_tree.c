@@ -314,7 +314,9 @@ void np_clear_tree (np_tree_t* n)
 void np_free_tree (np_tree_t* n)
 {
 	if(NULL != n) {
-		np_clear_tree(n);
+		if(n->size > 0) {
+			np_clear_tree(n);
+		}
 		free (n);
 		n = NULL;
 	}

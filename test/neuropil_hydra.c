@@ -16,6 +16,8 @@
 #include "neuropil.h"
 #include "np_log.h"
 #include "np_types.h"
+#include "np_tree.h"
+#include "np_sysinfo.h"
 #include "np_node.h"
 #include "np_keycache.h"
 
@@ -38,14 +40,15 @@ extern char *optarg;
 extern int optind;
 
 int main(int argc, char **argv) {
+
 	int opt;
 	int no_threads = 3;
 	char* bootstrap_hostnode = NULL;
 	char* bootstrap_hostnode_default;
 	char bootstrap_port[7];
 	char* proto = "udp4";
-	uint32_t required_nodes = 10;
-	int level = LOG_ERROR | LOG_WARN   ;
+	uint32_t required_nodes = 18;
+	int level = LOG_ERROR | LOG_WARN| LOG_INFO | LOG_MESSAGE | LOG_DEBUG;
 
 	np_bool startHTTP = TRUE;
 
@@ -68,7 +71,7 @@ int main(int argc, char **argv) {
 		default:
 			fprintf(stderr, "invalid option %c\n", (char) opt);
 			fprintf(stderr, "usage: %s\n", USAGE);
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 	}
 	// Get the current pid and shift it to be a viable port.

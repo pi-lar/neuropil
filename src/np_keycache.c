@@ -167,6 +167,20 @@ np_key_t* _np_key_find_by_details(
 	return (ret);
 }
 
+np_key_t* _np_key_find_by_dhkey(const np_dhkey_t dhkey){
+	np_key_t* ret = NULL;
+	np_key_t *iter = NULL;
+	SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
+	{
+		if (_dhkey_comp(&dhkey,&iter->dhkey) == 0)
+		{
+			ret = iter;
+			break;
+		}
+	}
+	return (ret);
+}
+
 np_key_t* _np_key_find_deprecated()
 {
 	np_key_t *iter = NULL;

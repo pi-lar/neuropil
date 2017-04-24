@@ -29,6 +29,8 @@ NP_PLL_GENERATE_PROTOTYPES(np_messagepart_ptr);
 
 struct np_message_s
 {
+	char* uuid;
+
 	np_obj_t* obj; // link to memory pool
 
 	np_tree_t* header;

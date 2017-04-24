@@ -416,7 +416,7 @@ void np_rem_mx_property(char* subject, const char* key)
 	}
 }
 
-void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, char* targetDhkey)
+void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key )
 {
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
@@ -444,18 +444,22 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, char* t
 	_np_send_subject_discovery_messages(OUTBOUND, subject);
 
 	np_key_t* target = NULL;
-	if(NULL != targetDhkey){
+ 	if(NULL != target_key){
 		_LOCK_MODULE(np_keycache_t)
 		{
-			target = _np_key_find_by_details(targetDhkey,FALSE,HANDSHAKE_COMPLETE,TRUE,FALSE,FALSE,TRUE);
+			target = _np_key_find_by_dhkey(*target_key);
 		}
+		char* target_string = malloc(sizeof(char)*65);
+
+		_dhkey_to_str(target_key, target_string);
+
 		if(NULL == target ){
-			log_msg(LOG_WARN, "could not find the specific target %s for message. broadcasting msg", targetDhkey);
+			log_msg(LOG_WARN, "could not find the specific target %s for message. broadcasting msg",  target_string);
  		}else{
- 			log_msg(LOG_DEBUG, "could find the specific target %s for message.", targetDhkey);
+ 			log_msg(LOG_DEBUG, "could find the specific target %s for message.", target_string);
  		}
- 		if(NULL != target && strcmp(_key_as_str(target) ,targetDhkey) != 0) {
-			log_msg(LOG_ERROR, "Found target key (%s) does not match requested target key (%s)! Aborting", _key_as_str(target), targetDhkey);
+ 		if(NULL != target && _dhkey_comp(&target->dhkey, target_key) != 0) {
+			log_msg(LOG_ERROR, "Found target key (%s) does not match requested target key (%s)! Aborting", _key_as_str(target), target_string);
 			exit(EXIT_FAILURE);
 		}
 	}

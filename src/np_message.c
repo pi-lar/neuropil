@@ -12,6 +12,8 @@
 #include <pthread.h>
 #include <errno.h>
 #include <string.h>
+#include <string.h>
+#include "inttypes.h"
 
 #include "sodium.h"
 #include "msgpack/cmp.h"
@@ -64,6 +66,8 @@ void _np_message_t_new(void* msg)
 {
 	np_message_t* msg_tmp = (np_message_t*) msg;
 
+	msg_tmp->uuid = np_create_uuid("msg",0);
+
 	msg_tmp->header       = make_nptree();
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "header now (%p: %p->%p)", tmp, tmp->header, tmp->header->flink);
 	msg_tmp->properties   = make_nptree();
@@ -112,6 +116,8 @@ void _np_message_t_del(void* data)
 		}
 	}
 	pll_free(np_messagepart_ptr, msg->msg_chunks);
+
+	free(msg->uuid);
 }
 
 void np_message_calculate_chunking(np_message_t* msg)
@@ -124,9 +130,11 @@ void np_message_calculate_chunking(np_message_t* msg)
 			msg->header->byte_size + msg->instructions->byte_size;
 	uint16_t payload_size = msg->properties->byte_size
 			+ msg->body->byte_size + msg->footer->byte_size;
+
 	uint16_t chunks =
 			((int) (payload_size) / (MSG_CHUNK_SIZE_1024 - fixed_size))
 					+ MSG_ARRAY_SIZE;
+
 	uint16_t garbage_size = (chunks*MSG_CHUNK_SIZE_1024 - chunks*fixed_size) - payload_size;
 
 	if (garbage_size < (strlen(NP_MSG_FOOTER_GARBAGE) + MSG_FOOTERBIN_SIZE))
@@ -144,6 +152,8 @@ void np_message_calculate_chunking(np_message_t* msg)
 	tree_insert_str(msg->footer, NP_MSG_FOOTER_GARBAGE, new_val_bin(garbage, real_garbage_size));
 
 	msg->no_of_chunks = chunks;
+
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "Size of msg (%s) %"PRIu16" bytes. Size of garbage %"PRIu16" Size of fixed_size %"PRIu16" bytes. Chunking into %"PRIu16" parts", msg->uuid, payload_size, real_garbage_size, fixed_size, msg->no_of_chunks);
 }
 
 np_message_t* np_message_check_chunks_complete(np_jobargs_t* args)
@@ -700,6 +710,14 @@ np_bool np_message_deserialize_chunked(np_message_t* msg)
 		}
 		pll_clear(np_messagepart_ptr, msg->msg_chunks);
 	}
+
+	uint16_t fixed_size =
+			MSG_ARRAY_SIZE + MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
+			msg->header->byte_size + msg->instructions->byte_size;
+	uint16_t payload_size = msg->properties->byte_size
+			+ msg->body->byte_size + msg->footer->byte_size;
+
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "Size of msg (%s) %"PRIu16" bytes. Size of fixed_size %"PRIu16" bytes. Nr of chunks  %"PRIu16" parts", msg->uuid, payload_size, fixed_size, msg->no_of_chunks);
 
 	free(bin_footer);
 	free(bin_body);

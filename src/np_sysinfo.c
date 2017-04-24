@@ -6,6 +6,9 @@
  */
 
 #include <stdlib.h>
+#include "inttypes.h"
+
+#include "np_sysinfo.h"
 
 #include "neuropil.h"
 #include "np_types.h"
@@ -20,9 +23,7 @@
 #include "np_tree.h"
 
 #include "np_scache.h"
-#include "inttypes.h"
 
-#include "np_sysinfo.h"
 
 static char _NP_SYSINFO_REQUEST[] = "_NP.SYSINFO.REQUEST";
 static char _NP_SYSINFO_REPLY[] = "_NP.SYSINFO.REPLY";
@@ -36,10 +37,12 @@ static const char* _NP_SYSINFO_TARGET = "target_hash";
 
 static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 _NP_MODULE_LOCK_IMPL(np_sysinfo);
+
 static struct np_simple_cache_table_t* _cache;
 
 void _np_sysinfo_init(np_bool isRequestor) {
 
+	//TODO: currently the system cannot handle in/out of the same node A->A as is decryptes wrong
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	sysinfo_request_props->mep_type = ONE_WAY_WITH_REPLY;
@@ -56,14 +59,15 @@ void _np_sysinfo_init(np_bool isRequestor) {
 	sysinfo_response_props->ttl = 20.0;
 	sysinfo_response_props->max_threshold = 8;
 
-	if(isRequestor) {
-		_cache = (np_simple_cache_table_t*) malloc(sizeof(np_simple_cache_table_t));
-		for(int i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
+	if (isRequestor) {
+		_cache = (np_simple_cache_table_t*) malloc(
+				sizeof(np_simple_cache_table_t));
+		for (int i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
 			sll_init(np_cache_item_t, _cache->buckets[i]);
 		}
 
-		sysinfo_response_props->mode_type = INBOUND   | ROUTE;
-		sysinfo_request_props->mode_type =  OUTBOUND | ROUTE;
+		sysinfo_response_props->mode_type = INBOUND | ROUTE;
+		sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 
 		np_msgproperty_register(sysinfo_response_props);
 		np_msgproperty_register(sysinfo_request_props);
@@ -71,8 +75,8 @@ void _np_sysinfo_init(np_bool isRequestor) {
 		np_set_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
 
 	} else {
-		sysinfo_response_props->mode_type = OUTBOUND  | ROUTE;
-		sysinfo_request_props->mode_type =  INBOUND  | ROUTE;
+		sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
+		sysinfo_request_props->mode_type = INBOUND | ROUTE;
 
 		np_msgproperty_register(sysinfo_response_props);
 		np_msgproperty_register(sysinfo_request_props);
@@ -129,8 +133,15 @@ np_bool _np_in_sysinfo(np_tree_t* properties, np_tree_t* body) {
 	// send msg
 	log_msg(LOG_INFO, "sending sysinfo reply (size: %"PRIu16")",
 			reply_body->size);
+
+	np_dhkey_t* target_dhkey = malloc(sizeof(np_dhkey_t));
+	if(NULL == target_dhkey) {
+		log_msg(LOG_ERROR, "Could not allocate memory");
+	}
+
+	_str_to_dhkey(source->val.value.s, target_dhkey);
 	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body,
-			source->val.value.s);
+			target_dhkey			);
 
 	log_msg(LOG_TRACE, ".end  ._in_sysinfo");
 	return TRUE;
@@ -192,8 +203,10 @@ np_tree_t* np_get_my_sysinfo() {
 	}
 	log_msg(LOG_DEBUG, "my sysinfo object has %d neighbours",
 			neighbour_counter);
-	sll_free(np_key_t, neighbours_table);
+
 	tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, new_val_tree(neighbours));
+	sll_free(np_key_t, neighbours_table);
+	np_free_tree(neighbours);
 
 	// build routing list
 	np_sll_t(np_key_t, routing_table) = NULL;
@@ -216,10 +229,12 @@ np_tree_t* np_get_my_sysinfo() {
 	}
 	log_msg(LOG_DEBUG, "my sysinfo object has %d routing table entries",
 			routes_counter);
-	sll_free(np_key_t, routing_table);
-	tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, new_val_tree(routes));
 
- 	return ret;
+	tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, new_val_tree(routes));
+	sll_free(np_key_t, routing_table);
+	np_free_tree(routing_table);
+
+	return ret;
 }
 
 void _np_request_sysinfo(const char* hash_of_target) {
@@ -227,11 +242,22 @@ void _np_request_sysinfo(const char* hash_of_target) {
 		log_msg(LOG_INFO, "sending sysinfo request to %s", hash_of_target);
 		np_tree_t* properties = make_nptree();
 		np_tree_t* body = make_nptree();
+
 		tree_insert_str(properties, _NP_SYSINFO_SOURCE,
 				new_val_s(_key_as_str(_np_state()->my_node_key)));
+
 		tree_insert_str(properties, _NP_SYSINFO_TARGET,
 				new_val_s(hash_of_target));
-		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, hash_of_target);
+
+		log_msg(LOG_DEBUG, "Converting %s to dhkey", hash_of_target);
+		np_dhkey_t* target_dhkey = malloc(sizeof(np_dhkey_t));
+
+		if(NULL == target_dhkey) {
+			log_msg(LOG_ERROR, "Could not allocate memory");
+		}
+
+		_str_to_dhkey(hash_of_target, target_dhkey);
+		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, target_dhkey);
 	} else {
 		log_msg(LOG_WARN,
 				"could not sending sysinfo request. (unknown target)");
@@ -239,10 +265,22 @@ void _np_request_sysinfo(const char* hash_of_target) {
 }
 
 np_tree_t* np_get_sysinfo(const char* hash_of_target) {
-	_np_request_sysinfo(hash_of_target);
-	np_tree_t* ret = _np_get_sysinfo_from_cache(hash_of_target);
 
-	//TODO: maybe drop informations if they are too old
+	char* my_key = _key_as_str(_np_state()->my_node_key);
+
+	np_tree_t* ret = NULL;
+	if (strcmp(hash_of_target, my_key) == 0) {
+		log_msg(LOG_DEBUG, "Requesting sysinfo for myself");
+		// If i request myself i can answer instantly
+		ret = np_get_my_sysinfo();
+		// I may anticipate the one requesting my information wants to request others as well
+		_np_request_others();
+	} else {
+		log_msg(LOG_DEBUG, "Requesting sysinfo for node %s", hash_of_target);
+		_np_request_sysinfo(hash_of_target);
+		ret = _np_get_sysinfo_from_cache(hash_of_target);
+		//TODO: maybe drop informations if they are too old
+	}
 
 	return ret;
 }
@@ -251,10 +289,13 @@ np_tree_t* _np_get_sysinfo_from_cache(const char* hash_of_target) {
 	np_tree_t* ret = NULL;
 	_LOCK_MODULE(np_sysinfo)
 	{
-		np_cache_item_t* item =	np_simple_cache_get(_cache, hash_of_target);
+		np_cache_item_t* item = np_simple_cache_get(_cache, hash_of_target);
 		if (NULL != item && item->value != NULL) {
-			np_tree_t* tmp =  item->value;
-			ret = np_tree_copy(tmp);
+			if ((ev_time() - item->insert_time) < 30.0) {
+				np_tree_t* tmp = item->value;
+				ret = np_tree_copy(tmp);
+			}
+
 		}
 	}
 
@@ -282,7 +323,7 @@ void _np_request_others() {
 				current = sll_head(np_key_t, routing_table);
 				if (NULL != current) {
 					if(strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0) {
-						if( NULL == _np_get_sysinfo_from_cache(_key_as_str(current))){
+						if( NULL == _np_get_sysinfo_from_cache(_key_as_str(current))) {
 							_np_request_sysinfo(_key_as_str(current));
 						}
 					}
@@ -296,8 +337,8 @@ void _np_request_others() {
 			while (NULL != sll_first(neighbours_table)) {
 				current = sll_head(np_key_t, neighbours_table);
 				if (NULL != current) {
-					if(strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0){
-						if( NULL == _np_get_sysinfo_from_cache(_key_as_str(current))){
+					if(strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0) {
+						if( NULL == _np_get_sysinfo_from_cache(_key_as_str(current))) {
 							_np_request_sysinfo(_key_as_str(current));
 						}
 					}

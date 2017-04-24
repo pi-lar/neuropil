@@ -92,7 +92,7 @@ void np_log_message(uint16_t level, const char* srcFile, const char* funcName, u
 		 pthread_mutex_lock(&__log_mutex);
 		 write(logger->fp, new_log_entry, strlen(new_log_entry));
 		 //fprintf(logger->fp, "%s\n", new_log_entry);
-		 //fflush(logger->fp);
+		 fflush(NULL);
 		 pthread_mutex_unlock(&__log_mutex);
 		 free (new_log_entry);
 	}

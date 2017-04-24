@@ -3,6 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <criterion/criterion.h>
+#include "msgpack/cmp.h"
 
 #include "event/ev.h"
 #include "np_log.h"
@@ -14,7 +15,6 @@
 #include "np_util.h"
 #include "np_jobqueue.h"
 
-#include "msgpack/cmp.h"
 
 void setup_jrb_serialization(void)
 {

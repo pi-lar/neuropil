@@ -222,11 +222,11 @@ void np_send_text    (char* subject, char *data, uint32_t seqnum, char* targetDh
    :param subject: the subject the data should be send to
    :param properties: a tree (np_tree_t) structure containing the properties of a message
    :param body: a tree (np_tree_t) structure containing the body of a message
-   :param targetDhkey: (optional/nullable) a dhkey hash to define a specific receiver node
+   :param target_key: (optional/nullable) a dhkey to define a specific receiver node
 
 */
 NP_API_EXPORT
-void np_send_msg    (char* subject, np_tree_t *properties, np_tree_t *body, char* targetDhkey);
+void np_send_msg    (char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
 
 /**
 .. c:function:: uint32_t np_receive_text(char* subject, char **data)

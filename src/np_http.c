@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "inttypes.h"
 
 #include "sys/socket.h"
 
@@ -30,7 +31,7 @@
 #include "np_keycache.h"
 #include "np_val.h"
 #include "np_sysinfo.h"
-#include "inttypes.h"
+
 
 static double __np_http_timeout = 20.0f;
 // static pthread_mutex_t __http_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -182,7 +183,7 @@ int _np_http_hdr_key(NP_UNUSED htparser * parser, const char * data,
 }
 
 int _np_http_hdr_value(NP_UNUSED htparser * parser, const char * data,
-		NP_UNUSED size_t in_len) {
+NP_UNUSED size_t in_len) {
 	tree_insert_str(__local_http->ht_request.ht_header,
 			__local_http->ht_request.current_key, new_val_s((char*) data));
 
@@ -262,21 +263,24 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 			if ( NULL != __local_http->ht_request.ht_path) {
 				log_msg(LOG_DEBUG, "request has arguments");
 
-				char* tmp_target_hash = strtok(__local_http->ht_request.ht_path,
-						"/");
+				char* path = strdup(__local_http->ht_request.ht_path);
+				char* tmp_target_hash = strtok(path, "/");
+
 				if (NULL != tmp_target_hash) {
 					if (strlen(tmp_target_hash) == 64) {
 						target_hash = tmp_target_hash;
 						usedefault = FALSE;
-					}
-					else {
+					} else {
 						http_status = HTTP_CODE_BAD_REQUEST;
-						json_obj = _np_generate_error_json("provided key invalid.","length is not 64 characters");
+						json_obj = _np_generate_error_json(
+								"provided key invalid.",
+								"length is not 64 characters");
 						goto __json_return__;
 					}
 				}
+
 			} else {
-				log_msg(LOG_DEBUG,"no arguments provided");
+				log_msg(LOG_DEBUG, "no arguments provided");
 			}
 
 			char* my_key = _key_as_str(_np_state()->my_node_key);
@@ -286,17 +290,8 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 			}
 
 			np_tree_t* sysinfo = NULL;
-			if (strcmp(target_hash, my_key) == 0) {
-				log_msg(LOG_DEBUG, "Requesting sysinfo for myself");
-				// If i request myself i can answer instantly
-				sysinfo = np_get_my_sysinfo();
-				_np_request_others();
-			} else {
-				response = target_hash;
-				log_msg(LOG_DEBUG, "Requesting sysinfo for node %s",
-						target_hash);
 				sysinfo = np_get_sysinfo(target_hash);
-			}
+
 
 			if (NULL == sysinfo) {
 				log_msg(LOG_DEBUG, "Could not find system informations");
@@ -356,7 +351,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 }
 
 void _np_http_write_callback(NP_UNUSED struct ev_loop* loop,
-		NP_UNUSED ev_io* ev, int event_type) {
+NP_UNUSED ev_io* ev, int event_type) {
 	if ((event_type & EV_WRITE) && RESPONSE == __local_http->status) {
 		log_msg(LOG_HTTP | LOG_DEBUG, "start writing response");
 		// create http reply
@@ -476,7 +471,7 @@ void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 }
 
 void _np_http_accept(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
-		NP_UNUSED int event_type) {
+NP_UNUSED int event_type) {
 	log_msg(LOG_HTTP | LOG_TRACE, ".start.np_network_accept");
 
 	struct sockaddr_storage from;
