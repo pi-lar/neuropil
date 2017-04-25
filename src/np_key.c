@@ -80,7 +80,7 @@ char* _dhkey_generate_hash (const char* key_in)
     return digest_out;
 }
 
-np_dhkey_t dhkey_create_from_hostport(const char* strOrig, char* port)
+np_dhkey_t dhkey_create_from_hostport(const char* strOrig, const char* port)
 {
 	char name[256];
 	snprintf (name, 255, "%s:%s", strOrig, port);

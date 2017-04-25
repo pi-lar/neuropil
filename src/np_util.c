@@ -329,7 +329,10 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 		{
 			value->type = bin_type;
 			value->size = obj->as.bin_size;
-			value->value.bin = malloc(value->size);
+			value->value.bin = calloc(1, value->size);
+			if(NULL == value->value.bin){
+				log_msg(LOG_ERROR, "could not allocate memory");
+			}
 			log_msg(LOG_DEBUG, "BIN size %"PRIu32, value->size);
 
 			memset(value->value.bin, 0, value->size);
@@ -648,7 +651,7 @@ JSON_Value* np_val_to_json(np_val_t val) {
 }
 JSON_Value* np_tree_to_json(np_tree_t* tree) {
 	JSON_Value* ret = json_value_init_object();
-	JSON_Array* arr = NULL;
+	JSON_Value* arr = NULL;
 
 	if(NULL != tree) {
 		// log_msg(LOG_DEBUG, "np_tree_to_json (size: %"PRIu16", byte_size: %"PRIu64"):", tree->size, tree->byte_size);
@@ -724,7 +727,7 @@ JSON_Value* np_tree_to_json(np_tree_t* tree) {
 	}
 
 	if(NULL != arr) {
-			json_value_free(ret);
+		json_value_free(ret);
 		ret = arr;
 	}
 

@@ -45,7 +45,7 @@ void _dhkey_init ();
 NP_API_INTERN
 np_dhkey_t dhkey_create_from_hash(const char* strOrig);
 NP_API_INTERN
-np_dhkey_t dhkey_create_from_hostport(const char* strOrig, char* port);
+np_dhkey_t dhkey_create_from_hostport(const char* strOrig, const char* port);
 
 /** key_equal:k1, k2
  ** return 1 if #k1#==#k2# 0 otherwise

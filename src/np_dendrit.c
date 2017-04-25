@@ -17,6 +17,7 @@
 
 #include "np_dendrit.h"
 
+#include "np_axon.h"
 #include "dtime.h"
 #include "np_log.h"
 #include "neuropil.h"
@@ -120,7 +121,7 @@ void _np_in_received(np_jobargs_t* args)
 	ret = np_message_deserialize(msg_in, raw_msg);
 	if (FALSE == ret)
 	{
-		log_msg(LOG_ERROR, "error de-serializing message");
+		log_msg(LOG_ERROR, "error de-serializing message %s", msg_in->uuid);
 		goto __np_cleanup__;
 	}
 
@@ -151,8 +152,11 @@ void _np_in_received(np_jobargs_t* args)
 	/* real receive part */
 	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_TO, msg_to);
 	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_UUID, msg_uuid);
+
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", msg_in->uuid, msg_uuid.value.s);
 	free(msg_in->uuid);
 	msg_in->uuid = strdup(msg_uuid.value.s);
+
 	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_TSTAMP, msg_tstamp);
 	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_TTL, msg_ttl);
 	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_ACK, msg_ack);
@@ -664,6 +668,8 @@ void _np_in_join_req(np_jobargs_t* args)
 	}
 
 	CHECK_STR_FIELD(args->msg->instructions, NP_MSG_INST_UUID, in_uuid);
+
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", args->msg->uuid, in_uuid.value.s);
 	free(args->msg->uuid );
 	args->msg->uuid = strdup(in_uuid.value.s);
 

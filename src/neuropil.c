@@ -161,12 +161,6 @@ void np_send_join(const char* node_string)
 	_np_send_simple_invoke_request(node_key,_NP_MSG_JOIN_REQUEST);
 }
 
-
-/**
- * Takes a node connection string and tries to connect to any node available on the other end.
- * node_string should not contain a hash value (nor the trailing: character).
- * Example: np_send_wildcard_join("udp4:example.com:1234");
- */
 void np_send_wildcard_join(const char* node_string)
 {
 	/**
@@ -809,7 +803,10 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 {
 	log_msg(LOG_DEBUG, "neuropil_init");
  // encryption and memory protection
-    sodium_init();
+    if(sodium_init() == -1){
+    	log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
+    	exit(EXIT_FAILURE);
+    }
     // memory pool
 	np_mem_init();
 
