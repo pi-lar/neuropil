@@ -47,8 +47,8 @@ int main(int argc, char **argv) {
 	char* bootstrap_hostnode_default;
 	char bootstrap_port[7];
 	char* proto = "udp4";
-	uint32_t required_nodes = 90;
-	int level = LOG_ERROR | LOG_WARN |  LOG_INFO | LOG_MESSAGE | LOG_DEBUG;
+	uint32_t required_nodes = 20;
+	int level = LOG_ERROR | LOG_WARN |  LOG_INFO ;//| LOG_MESSAGE | LOG_DEBUG;
 
 	np_bool startHTTP = TRUE;
 
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
 	} else {
 		sprintf(bootstrap_port, "%d", current_pid);
 	}
-	asprintf(&bootstrap_hostnode_default, "%s:tremor.in.pi-lar.net:%s", proto, bootstrap_port);
+	asprintf(&bootstrap_hostnode_default, "%s:localhost:%s", proto, bootstrap_port);
 
 	int create_bootstrap = NULL == bootstrap_hostnode;
 	if (TRUE == create_bootstrap) {
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
 			char log_file_host[256];
 			sprintf(log_file_host, "%s_host_%s.log", "./neuropil_hydra", bootstrap_port);
 			np_log_init(log_file_host, level);
-			np_init(proto, bootstrap_port, TRUE, NULL);
+			np_init(proto, bootstrap_port, TRUE, "localhost");
 			np_start_job_queue(required_nodes*2+2);
 			while (TRUE) {
 				ev_sleep(0.1);
@@ -143,7 +143,7 @@ int main(int argc, char **argv) {
 				// child process
 				np_log_init(log_file, level);
 				// used the pid as the port
-				np_state_t* child_status = np_init(proto, port, startHTTPnow, NULL);
+				np_state_t* child_status = np_init(proto, port, startHTTPnow, "localhost");
 
 				log_msg(LOG_DEBUG, "starting job queue");
 				np_start_job_queue(no_threads);
