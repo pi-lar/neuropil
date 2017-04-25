@@ -175,28 +175,28 @@ if int(build_tests):
     AlwaysBuild(test_suite)
 
 # build example programs
-prg_np_ctrl = env.Program('bin/neuropil_controller', 'test/neuropil_controller.c')
+prg_np_ctrl = env.Program('bin/neuropil_controller', 'examples/neuropil_controller.c')
 Depends(prg_np_ctrl, np_dylib)
 
-prg_np_node = env.Program('bin/neuropil_node', 'test/neuropil_node.c')
+prg_np_node = env.Program('bin/neuropil_node', 'examples/neuropil_node.c')
 Depends(prg_np_node, np_dylib)
 
-prg_np_recv = env.Program('bin/neuropil_receiver', 'test/neuropil_receiver.c')
+prg_np_recv = env.Program('bin/neuropil_receiver', 'examples/neuropil_receiver.c')
 Depends(prg_np_recv, np_dylib)
 
-prg_np_send = env.Program('bin/neuropil_sender', 'test/neuropil_sender.c')
+prg_np_send = env.Program('bin/neuropil_sender', 'examples/neuropil_sender.c')
 Depends(prg_np_send, np_dylib)
 
-prg_np_rccb = env.Program('bin/neuropil_receiver_cb', 'test/neuropil_receiver_cb.c')
+prg_np_rccb = env.Program('bin/neuropil_receiver_cb', 'examples/neuropil_receiver_cb.c')
 Depends(prg_np_rccb, np_dylib)
 
-prg_np_rccb = env.Program('bin/neuropil_pingpong', 'test/neuropil_pingpong.c')
+prg_np_rccb = env.Program('bin/neuropil_pingpong', 'examples/neuropil_pingpong.c')
 Depends(prg_np_rccb, np_dylib)
 
-prg_np_hydra = env.Program('bin/neuropil_hydra', 'test/neuropil_hydra.c')
+prg_np_hydra = env.Program('bin/neuropil_hydra', 'examples/neuropil_hydra.c')
 Depends(prg_np_hydra, np_dylib)
 
-prg_np_shared_hydra = env.Program('bin/neuropil_shared_hydra', 'test/neuropil_shared_hydra.c')
+prg_np_shared_hydra = env.Program('bin/neuropil_shared_hydra', 'examples/neuropil_shared_hydra.c')
 Depends(prg_np_shared_hydra, np_dylib)
 
 # clean up
