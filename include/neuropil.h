@@ -141,7 +141,7 @@ NP_API_EXPORT
 void np_set_identity(np_aaatoken_t* identity);
 
 /**
-.. c:function:: np_sendjoin(np_key_t* node_key);
+.. c:function:: np_send_join(np_key_t* node_key);
 
    send a join message to another node and request to enter his network.
 
@@ -152,6 +152,22 @@ void np_set_identity(np_aaatoken_t* identity);
 */
 NP_API_EXPORT
 void np_send_join(const char* node_string);
+
+/**
+  .. c:function:: np_send_wildcard_join(np_key_t* node_key);
+
+  Takes a node connection string and tries to connect to any node available on the other end.
+  node_string should not contain a hash value (nor the trailing: character).
+  Example: np_send_wildcard_join("udp4:example.com:1234");
+
+  :param node_key_string: the node string to which the join request is send
+
+  see also :ref:`to_join_or_to_be_joined`
+
+ */
+NP_API_EXPORT
+void np_send_wildcard_join(const char* node_string);
+
 
 /**
 .. c:function:: np_waitforjoin()

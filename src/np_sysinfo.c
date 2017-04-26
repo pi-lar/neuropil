@@ -232,7 +232,7 @@ np_tree_t* np_get_my_sysinfo() {
 
 	tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, new_val_tree(routes));
 	sll_free(np_key_t, routing_table);
-	np_free_tree(routing_table);
+	np_free_tree(routes);
 
 	return ret;
 }

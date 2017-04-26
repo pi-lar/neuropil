@@ -278,7 +278,7 @@ np_bool token_is_valid(np_aaatoken_t* token)
 		if (0                   <=  token_msg_threshold &&
 			token_msg_threshold <   token_max_threshold)
 		{
-			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token can be used for %"PRIu16" msgs",token_max_threshold-token_msg_threshold);
+			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token can be used for %"PRIu32" msgs", token_max_threshold-token_msg_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state |= AAA_VALID;
 			return (TRUE);

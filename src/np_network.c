@@ -397,10 +397,6 @@ void _np_network_send (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents
 			0 < sll_size(key->network->out_events)
 			)
 		{
-			log_msg(LOG_DEBUG, "key->network: %p\n",
-					key->network
-		 	);
-
 			pthread_mutex_lock(&key->network->lock);
 			void* data_to_send = sll_head(void_ptr, key->network->out_events);
 			if(NULL != data_to_send){

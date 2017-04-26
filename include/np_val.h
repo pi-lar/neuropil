@@ -113,25 +113,25 @@ struct np_val_s
 
 np_val_t copy_of_val(np_val_t from);
 
-np_val_t new_val_sh (int8_t);
-np_val_t new_val_i (int16_t);
-np_val_t new_val_l (int32_t);
-np_val_t new_val_ll (int64_t);
-np_val_t new_val_f (float);
-np_val_t new_val_d (double);
+np_val_t new_val_sh (int8_t sh);
+np_val_t new_val_i (int16_t i);
+np_val_t new_val_l (int32_t l);
+np_val_t new_val_ll (int64_t ll);
+np_val_t new_val_f (float f);
+np_val_t new_val_d (double d);
 np_val_t new_val_v (void* v);
 np_val_t new_val_bin (void* data, uint32_t size);
-np_val_t new_val_s (char *);
-np_val_t new_val_c (char);
-np_val_t new_val_uc (unsigned char);
-np_val_t new_val_ush (uint8_t);
-np_val_t new_val_ui (uint16_t);
-np_val_t new_val_ul (uint32_t);
-np_val_t new_val_ull (uint64_t);
-np_val_t new_val_iarray (uint16_t, uint16_t);
-np_val_t new_val_farray (float, float);
-np_val_t new_val_carray_nt (char *);	/* Carray is null terminated */
-np_val_t new_val_carray_nnt (char *);	/* Carray is not null terminated */
+np_val_t new_val_s (char * s);
+np_val_t new_val_c (char c);
+np_val_t new_val_uc (unsigned char uc);
+np_val_t new_val_ush (uint8_t ush);
+np_val_t new_val_ui (uint16_t ui);
+np_val_t new_val_ul (uint32_t ul);
+np_val_t new_val_ull (uint64_t ull);
+np_val_t new_val_iarray (uint16_t i0, uint16_t i1);
+np_val_t new_val_farray (float f0, float f1);
+np_val_t new_val_carray_nt (char * carray);	/* Carray is null terminated */
+np_val_t new_val_carray_nnt (char * carray);	/* Carray is not null terminated */
        /* For ucarray -- use carray, because it uses memcpy */
 np_val_t new_val_tree(np_tree_t* tree);
 np_val_t new_val_hash(char* h_val);

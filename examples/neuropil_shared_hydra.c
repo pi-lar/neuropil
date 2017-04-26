@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 					sprintf(log_file_host, "%s_host.log", "./neuropil_shared_hydra");
 
 					np_log_init(log_file_host, level);
-					np_init(proto, port, TRUE, NULL);
+					np_init(proto, port, TRUE, "localhost");
 
 					fprintf(stdout, "getting connection string\n");
 					bootstrap_hostnode = np_get_connection_string();

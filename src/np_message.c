@@ -531,7 +531,7 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer)
 
 	if (!cmp_read_array(&cmp, &array_size))
 	{
-		log_msg(LOG_WARN, "unrecognized first array element while deserializing message");
+		log_msg(LOG_WARN, "unrecognized first array element while deserializing message. error: %"PRIu8, cmp.error);
 		return (FALSE);
 	}
 
@@ -553,8 +553,10 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer)
 		chunk_id = tree_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
 	msg->is_single_part = TRUE;
 
-	if (0 == msg->no_of_chunks || 0 == chunk_id)
+	if (0 == msg->no_of_chunks || 0 == chunk_id){
+		log_msg(LOG_WARN, "no_of_chunks (%"PRIu16") or chunk_id (%"PRIu16") zero while deserializing message.",msg->no_of_chunks,chunk_id);
 		return (FALSE);
+	}
 
 	np_messagepart_ptr part = (np_messagepart_ptr) malloc(sizeof(np_messagepart_t));
 	part->header = msg->header;
@@ -595,7 +597,7 @@ np_bool np_message_deserialize_chunked(np_message_t* msg)
 	{
 
 		current_chunk = iter->val;
-		log_msg(LOG_MESSAGE | LOG_DEBUG, "now working on msg part %d", current_chunk->part );
+		log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) now working on msg part %d",msg->uuid, current_chunk->part );
 		uint32_t size_properties_add = 0;
 		uint32_t size_body_add = 0;
 		uint32_t size_footer_add = 0;
@@ -607,13 +609,13 @@ np_bool np_message_deserialize_chunked(np_message_t* msg)
 		if (!cmp_read_array(&cmp, &array_size)) return (0);
 		if (array_size != 5)
 		{
-			log_msg(LOG_WARN, "unrecognized message length while deserializing message");
+			log_msg(LOG_WARN, "(msg:%s) unrecognized message length while deserializing message", msg->uuid);
 			return (FALSE);
 		}
 
 		if (0 == msg->header->size)
 		{
-			log_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg header");
+			log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) deserializing msg header", msg->uuid);
 			deserialize_jrb_node_t(msg->header, &cmp);
 		}
 		else
@@ -623,7 +625,7 @@ np_bool np_message_deserialize_chunked(np_message_t* msg)
 
 		if (0 == msg->instructions->size)
 		{
-			log_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg instructions");
+			log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) deserializing msg instructions", msg->uuid);
 			deserialize_jrb_node_t(msg->instructions, &cmp);
 		}
 		else
@@ -634,7 +636,7 @@ np_bool np_message_deserialize_chunked(np_message_t* msg)
 		cmp_read_bin_size(&cmp, &size_properties_add);
 		if (0 < size_properties_add)
 		{
-			log_msg(LOG_MESSAGE | LOG_DEBUG, "adding properties part size %u", size_properties_add);
+			log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) adding properties part size %u", msg->uuid, size_properties_add);
 			size_properties += size_properties_add;
 			bin_properties = realloc(bin_properties, size_properties);
 			bin_properties_ptr = bin_properties + (size_properties - size_properties_add);
@@ -648,7 +650,7 @@ np_bool np_message_deserialize_chunked(np_message_t* msg)
 		cmp_read_bin_size(&cmp, &size_body_add);
 		if (0 < size_body_add)
 		{
-			log_msg(LOG_MESSAGE | LOG_DEBUG, "adding body part size %u", size_body_add);
+			log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) adding body part size %u", msg->uuid, size_body_add);
 			size_body += size_body_add;
 			bin_body = realloc(bin_body, size_body);
 			bin_body_ptr = bin_body + (size_body - size_body_add);
@@ -662,7 +664,7 @@ np_bool np_message_deserialize_chunked(np_message_t* msg)
 		cmp_read_bin_size(&cmp, &size_footer_add);
 		if (0 < size_footer_add)
 		{
-			log_msg(LOG_MESSAGE | LOG_DEBUG, "adding footer part size %u", size_footer_add);
+			log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) adding footer part size %u", msg->uuid, size_footer_add);
 			size_footer += size_footer_add;
 			bin_footer = realloc(bin_footer, size_footer);
 			bin_footer_ptr = bin_footer + (size_footer - size_footer_add);
@@ -679,21 +681,21 @@ np_bool np_message_deserialize_chunked(np_message_t* msg)
 
 	if (NULL != bin_properties)
 	{
-		log_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg properties %lu", sizeof(bin_properties));
+		log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) deserializing msg properties %lu", msg->uuid, sizeof(bin_properties));
 		cmp_init(&cmp_properties, bin_properties, buffer_reader, buffer_writer);
 		deserialize_jrb_node_t(msg->properties, &cmp_properties);
 	}
 
 	if (NULL != bin_body)
 	{
-		log_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg body %lu", sizeof(bin_body));
+		log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) deserializing msg body %lu", msg->uuid, sizeof(bin_body));
 		cmp_init(&cmp_body, bin_body, buffer_reader, buffer_writer);
 		deserialize_jrb_node_t(msg->body, &cmp_body);
 	}
 
 	if (NULL != bin_footer)
 	{
-		log_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg footer %lu", sizeof(bin_footer));
+		log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) deserializing msg footer %lu", msg->uuid, sizeof(bin_footer));
 		cmp_init(&cmp_footer, bin_footer, buffer_reader, buffer_writer);
 		deserialize_jrb_node_t(msg->footer, &cmp_footer);
 	}
@@ -717,7 +719,7 @@ np_bool np_message_deserialize_chunked(np_message_t* msg)
 	uint16_t payload_size = msg->properties->byte_size
 			+ msg->body->byte_size + msg->footer->byte_size;
 
-	log_msg(LOG_MESSAGE | LOG_DEBUG, "Size of msg (%s) %"PRIu16" bytes. Size of fixed_size %"PRIu16" bytes. Nr of chunks  %"PRIu16" parts", msg->uuid, payload_size, fixed_size, msg->no_of_chunks);
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) Size of msg  %"PRIu16" bytes. Size of fixed_size %"PRIu16" bytes. Nr of chunks  %"PRIu16" parts", msg->uuid, payload_size, fixed_size, msg->no_of_chunks);
 
 	free(bin_footer);
 	free(bin_body);

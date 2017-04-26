@@ -17,20 +17,20 @@ extern "C" {
 
 #define SIMPLE_CACHE_NR_BUCKETS 32
 
-NP_API_EXPORT
+
 struct np_cache_item_t {
     char *key;
     void *value;
     double insert_time;
-};
+} NP_API_EXPORT;
 typedef struct np_cache_item_t np_cache_item_t;
 
 NP_SLL_GENERATE_PROTOTYPES(np_cache_item_t);
 
-NP_API_EXPORT
+
 struct np_simple_cache_table_t {
     struct np_cache_item_t_sll_s *buckets[SIMPLE_CACHE_NR_BUCKETS];
-};
+} NP_API_EXPORT;
 typedef struct np_simple_cache_table_t np_simple_cache_table_t;
 
 

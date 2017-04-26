@@ -21,6 +21,7 @@ enum http_return_e {
 	HTTP_NO_RESPONSE = 0,
 	HTTP_CODE_CONTINUE              ,
 	HTTP_CODE_OK                    ,
+	HTTP_CODE_ACCEPTED              ,
 	HTTP_CODE_CREATED               ,
 	HTTP_CODE_NO_CONTENT            ,
 	HTTP_CODE_PARTIAL_CONTENT       ,

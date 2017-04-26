@@ -81,15 +81,15 @@ typedef struct http_return_t {
 } http_return_t;
 http_return_t http_return_codes[] = { { "HTTP_NO_RESPONSE", 0 }, {
 		"HTTP_CODE_CONTINUE", 100 }, { "HTTP_CODE_OK", 200 }, {
-		"HTTP_CODE_CREATED", 201 }, { "HTTP_CODE_NO_CONTENT", 204 }, {
-		"HTTP_CODE_PARTIAL_CONTENT", 206 }, { "HTTP_CODE_MULTI_STATUS", 207 }, {
-		"HTTP_CODE_MOVED_TEMPORARILY", 302 }, { "HTTP_CODE_NOT_MODIFIED", 304 },
-		{ "HTTP_CODE_BAD_REQUEST", 400 }, { "HTTP_CODE_UNAUTHORIZED", 401 }, {
-				"HTTP_CODE_FORBIDDEN", 403 }, { "HTTP_CODE_NOT_FOUND", 404 }, {
-				"HTTP_CODE_METHOD_NOT_ALLOWED", 405 }, {
-				"HTTP_CODE_REQUEST_TIME_OUT", 408 }, { "HTTP_CODE_GONE", 410 },
-		{ "HTTP_CODE_REQUEST_URI_TOO_LONG", 414 }, { "HTTP_CODE_LOCKED", 423 },
-		{ "HTTP_CODE_INTERNAL_SERVER_ERROR", 500 }, {
+		"HTTP_CODE_CREATED", 201 }, { "HTTP_CODE_NO_Accepted", 202 }, {
+		"HTTP_CODE_NO_CONTENT", 204 }, { "HTTP_CODE_PARTIAL_CONTENT", 206 }, {
+		"HTTP_CODE_MULTI_STATUS", 207 }, { "HTTP_CODE_MOVED_TEMPORARILY", 302 },
+		{ "HTTP_CODE_NOT_MODIFIED", 304 }, { "HTTP_CODE_BAD_REQUEST", 400 }, {
+				"HTTP_CODE_UNAUTHORIZED", 401 }, { "HTTP_CODE_FORBIDDEN", 403 },
+		{ "HTTP_CODE_NOT_FOUND", 404 }, { "HTTP_CODE_METHOD_NOT_ALLOWED", 405 },
+		{ "HTTP_CODE_REQUEST_TIME_OUT", 408 }, { "HTTP_CODE_GONE", 410 }, {
+				"HTTP_CODE_REQUEST_URI_TOO_LONG", 414 }, { "HTTP_CODE_LOCKED",
+				423 }, { "HTTP_CODE_INTERNAL_SERVER_ERROR", 500 }, {
 				"HTTP_CODE_NOT_IMPLEMENTED", 501 }, {
 				"HTTP_CODE_SERVICE_UNAVAILABLE", 503 } };
 
@@ -289,13 +289,13 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 			}
 
 			np_tree_t* sysinfo = NULL;
-				sysinfo = np_get_sysinfo(target_hash);
-
+			sysinfo = np_get_sysinfo(target_hash);
 
 			if (NULL == sysinfo) {
 				log_msg(LOG_DEBUG, "Could not find system informations");
-				http_status = HTTP_CODE_NOT_FOUND;
-				json_obj = _np_generate_error_json("key not found", "");
+				http_status = HTTP_CODE_ACCEPTED;
+				json_obj = _np_generate_error_json("key not found.",
+						"update request is send. please wait.");
 			} else {
 				log_msg(LOG_DEBUG, "sysinfo response tree (byte_size: %"PRIu64,
 						sysinfo->byte_size);
@@ -322,7 +322,6 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 					strlen(response));
 			json_value_free(json_obj);
 
-			__cleanup__:
 			log_msg(LOG_DEBUG, "write to body");
 			__local_http->ht_response.ht_status = http_status;
 			__local_http->ht_response.ht_body = response; //strdup(response);;

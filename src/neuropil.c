@@ -161,7 +161,6 @@ void np_send_join(const char* node_string)
 	_np_send_simple_invoke_request(node_key,_NP_MSG_JOIN_REQUEST);
 }
 
-
 /**
  * Takes a node connection string and tries to connect to any node available on the other end.
  * node_string should not contain a hash value (nor the trailing: character).
@@ -809,7 +808,10 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 {
 	log_msg(LOG_DEBUG, "neuropil_init");
  // encryption and memory protection
-    sodium_init();
+    if(sodium_init() == -1){
+    	log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
+    	exit(EXIT_FAILURE);
+    }
     // memory pool
 	np_mem_init();
 
@@ -1007,6 +1009,7 @@ char* np_get_connection_string(){
 	char* connection_str = np_get_connection_string_from(__global_state->my_node_key, TRUE);
 	return connection_str;
 }
+
 char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){
 	char* connection_str;
 	 if(TRUE == includeHash){
