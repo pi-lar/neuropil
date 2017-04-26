@@ -253,6 +253,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 	_LOCK_MODULE(np_routeglobal_t)
 	{
 		leafset = route_neighbors();
+		_np_ref_keys(leafset);
 	}
 
 	while (NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
@@ -292,6 +293,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 				_np_job_yield(__leafset_yield_period);
 			}
 		}
+		np_unref_obj(np_key_t, tmp_node_key);
 	}
 	sll_free(np_key_t, leafset);
 
@@ -302,6 +304,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 		_LOCK_MODULE(np_routeglobal_t)
 		{
 			table = _np_route_get_table();
+			_np_ref_keys(table);
 		}
 
 		while ( NULL != (tmp_node_key = sll_head(np_key_t, table)))
@@ -342,6 +345,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 					_np_job_yield(__leafset_yield_period);
 				}
 			}
+			np_unref_obj(np_key_t, tmp_node_key);
 		}
 		sll_free(np_key_t, table);
 	}
@@ -354,6 +358,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 		_LOCK_MODULE(np_routeglobal_t)
 		{
 			leafset = route_neighbors();
+			_np_ref_keys(leafset);
 		}
 
 		while ( NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
@@ -362,6 +367,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 			np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
 			_np_job_submit_transform_event(0.0, piggy_prop, tmp_node_key, NULL);
 			_np_job_yield(__leafset_yield_period);
+			np_unref_obj(np_key_t, tmp_node_key);
 		}
 		__leafset_check_type = 0;
 		sll_free(np_key_t, leafset);
@@ -444,6 +450,8 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 	double exp_ts = ev_time() + 10.0; // now plus 10s for handshake etc.
 	if (state->my_node_key->aaa_token->expiration < exp_ts)
 	{
+		log_msg(LOG_WARN, "---------- expiration of own node token reached ----------");
+
 		np_aaatoken_t* new_token = _np_create_node_token(state->my_node_key->node);
 		np_key_t* new_key = NULL;
 		np_dhkey_t my_dhkey = _np_create_dhkey_for_token(new_token);

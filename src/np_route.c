@@ -481,7 +481,7 @@ void leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.leafset_update");
 
-	np_key_ptr update_key =(np_key_ptr) node_key;
+	np_key_ptr update_key = (np_key_ptr) node_key;
 	*added = NULL;
 	*deleted = NULL;
 

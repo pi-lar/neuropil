@@ -67,7 +67,7 @@ void _np_key_t_del(void* key)
 {
 	np_key_t* old_key = (np_key_t*) key;
 
-    // log_msg(LOG_DEBUG, "destructor of key %p -> %s called ", old_key, _key_as_str(old_key));
+    // log_msg(LOG_WARN, "destructor of key %p -> %s called ", old_key, _key_as_str(old_key));
 
 	// delete string presentation of key
 	if (NULL != old_key->dhkey_str)
@@ -133,14 +133,10 @@ np_key_t* _np_key_find(np_dhkey_t search_dhkey)
 
 int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 {
-	int8_t ret = -1;
-
 	if (k1 == NULL) return -1;
 	if (k2 == NULL) return  1;
 
-	ret = _dhkey_comp(&k1->dhkey,&k2->dhkey);
-
-	return ret;
+	return _dhkey_comp(&k1->dhkey,&k2->dhkey);
 }
 
 int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
@@ -338,22 +334,23 @@ void _np_sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t* key)
 	} while (NULL != (sll_next(iter1)) );
 }
 
-void _np_ref_keys (np_sll_t(np_key_t, list_of_keys)){
+void _np_ref_keys (np_sll_t(np_key_t, list_of_keys))
+{
  	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
- 	if(NULL != iter){
-		do
-		{
-			np_ref_obj(np_key_t,iter->val);
-		} while (NULL != (sll_next(iter)));
- 	}
+	while (NULL != iter)
+	{
+		np_ref_obj(np_key_t,iter->val);
+		sll_next(iter);
+	}
 }
-void _np_unref_keys (np_sll_t(np_key_t, list_of_keys)){
+
+void _np_unref_keys (np_sll_t(np_key_t, list_of_keys))
+{
 	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
-	if(NULL != iter){
-		do
-		{
-			np_unref_obj(np_key_t,iter->val);
-		} while (NULL != (sll_next(iter)));
+	while (NULL != iter)
+	{
+		np_unref_obj(np_key_t,iter->val);
+		sll_next(iter);
 	}
 }
 
