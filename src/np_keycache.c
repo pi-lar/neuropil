@@ -131,7 +131,7 @@ np_key_t* _np_key_find(np_dhkey_t search_dhkey)
 	return return_key;
 }
 
-int8_t _np_key_cmp(const np_key_t* const k1, const np_key_t* const k2)
+int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 {
 	int8_t ret = -1;
 
@@ -143,9 +143,9 @@ int8_t _np_key_cmp(const np_key_t* const k1, const np_key_t* const k2)
 	return ret;
 }
 
-int8_t _np_key_cmp_inv(const np_key_t* const k1, const np_key_t* const k2)
+int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
 {
-	return -1 * _np_key_cmp(k1,k2);
+	return -1 * _np_key_cmp(k1, k2);
 }
 
 

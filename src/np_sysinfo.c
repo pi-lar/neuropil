@@ -62,6 +62,7 @@ void _np_sysinfo_init(np_bool isRequestor) {
 	if (isRequestor) {
 		_cache = (np_simple_cache_table_t*) malloc(
 				sizeof(np_simple_cache_table_t));
+
 		for (int i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
 			sll_init(np_cache_item_t, _cache->buckets[i]);
 		}
@@ -86,7 +87,7 @@ void _np_sysinfo_init(np_bool isRequestor) {
 
 }
 
-np_bool _np_in_sysinfo(np_tree_t* properties, np_tree_t* body) {
+np_bool _np_in_sysinfo(np_tree_t* properties, NP_UNUSED np_tree_t* body) {
 	log_msg(LOG_TRACE, ".start._in_sysinfo");
 
 	np_tree_elem_t* source = tree_find_str(properties, _NP_SYSINFO_SOURCE);
@@ -140,8 +141,7 @@ np_bool _np_in_sysinfo(np_tree_t* properties, np_tree_t* body) {
 	}
 
 	_str_to_dhkey(source->val.value.s, target_dhkey);
-	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body,
-			target_dhkey			);
+	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, target_dhkey);
 
 	log_msg(LOG_TRACE, ".end  ._in_sysinfo");
 	return TRUE;
@@ -247,7 +247,7 @@ void _np_request_sysinfo(const char* hash_of_target) {
 				new_val_s(_key_as_str(_np_state()->my_node_key)));
 
 		tree_insert_str(properties, _NP_SYSINFO_TARGET,
-				new_val_s(hash_of_target));
+				new_val_s((char*) hash_of_target));
 
 		log_msg(LOG_DEBUG, "Converting %s to dhkey", hash_of_target);
 		np_dhkey_t* target_dhkey = malloc(sizeof(np_dhkey_t));

@@ -258,22 +258,27 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 	while (NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
 	{
 		// check for bad link nodes
-		if (tmp_node_key->node->success_avg < BAD_LINK
-				&& tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
+		if (NULL != tmp_node_key->node &&
+			tmp_node_key->node->success_avg < BAD_LINK &&
+			tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
 		{
 			log_msg(LOG_DEBUG, "deleting from neighbours: %s", _key_as_str(tmp_node_key));
 			// request a new handshake with the node
 			_LOCK_MODULE(np_routeglobal_t)
 			{
-				// if (NULL != tmp_node_key->aaa_token)
-				// tmp_node_key->aaa_token->state &= AAA_INVALID;
-				// TODO: check crashes at this point when another node has left the building :-(
-				// tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
+				if (NULL != tmp_node_key->aaa_token)
+					tmp_node_key->aaa_token->state &= AAA_INVALID;
+				tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
+
 				np_key_t *added = NULL, *deleted = NULL;
-				leafset_update(tmp_node_key, 0, &deleted, &added);
+				leafset_update(tmp_node_key, FALSE, &deleted, &added);
 				if (deleted == tmp_node_key)
 				{
 					np_unref_obj(np_key_t, deleted);
+				}
+				else
+				{
+					log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _key_as_str(deleted));
 				}
 			}
 		}
@@ -303,7 +308,8 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 		{
 			// send update of new node to all nodes in my routing table
 			/* first check for bad link nodes */
-			if (tmp_node_key->node->success_avg < BAD_LINK &&
+			if (NULL != tmp_node_key->node &&
+				tmp_node_key->node->success_avg < BAD_LINK &&
 				tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
 			{
 				log_msg(LOG_DEBUG, "deleting from table: %s", _key_as_str(tmp_node_key));
@@ -319,6 +325,10 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 					if (deleted == tmp_node_key)
 					{
 						np_unref_obj(np_key_t, deleted);
+					}
+					else
+					{
+						log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _key_as_str(deleted));
 					}
 				}
 			}

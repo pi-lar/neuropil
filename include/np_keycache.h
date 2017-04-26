@@ -103,9 +103,9 @@ NP_API_INTERN
 void _np_unref_keys (np_sll_t(np_key_t, list_of_keys));
 
 NP_API_INTERN
-int8_t _np_key_cmp(const np_key_t* const k1, const np_key_t* const k2);
+int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2);
 NP_API_INTERN
-int8_t _np_key_cmp_inv(const np_key_t* const k1, const np_key_t* const k2);
+int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2);
 
 
 #ifdef __cplusplus

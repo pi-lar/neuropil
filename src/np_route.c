@@ -110,6 +110,7 @@ void _np_route_set_key (np_key_t* new_node_key)
 
 	// get list of keys
 	tmp_key_list = _np_route_get_table();
+
 	// wipe out old table
     for (int i = 0; i < __MAX_ROW; i++)
 	{
@@ -145,7 +146,6 @@ void _np_route_set_key (np_key_t* new_node_key)
 	// wipe out all entries
 	pll_clear(np_key_ptr,__routing_table->left_leafset);
 	pll_clear(np_key_ptr,__routing_table->right_leafset);
-
 
     // add all entries, unref replaced or not added keys
 	deleted = NULL;
@@ -449,24 +449,23 @@ sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count)
  **
  ** fills rrange and lrange with the outer bounds of our leafset
  */
-void leafset_range_update (np_dhkey_t* rrange, np_dhkey_t* lrange)
+void _np_leafset_range_update ()
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.leafset_range_update");
 
     pll_iterator(np_key_ptr) item = pll_last(__routing_table->right_leafset);
 
     if(item != NULL) {
-    	_dhkey_assign (rrange, &item->val->dhkey);
+    	_dhkey_assign (&__routing_table->Rrange, &item->val->dhkey);
     } else {
-    	_dhkey_assign (rrange, &__routing_table->my_key->dhkey);
+    	_dhkey_assign (&__routing_table->Rrange, &__routing_table->my_key->dhkey);
     }
 
     item = pll_last(__routing_table->left_leafset);
-
     if(item != NULL) {
-    	_dhkey_assign (lrange, &item->val->dhkey);
+    	_dhkey_assign (&__routing_table->Lrange, &item->val->dhkey);
     } else {
-    	_dhkey_assign (lrange, &__routing_table->my_key->dhkey);
+    	_dhkey_assign (&__routing_table->Lrange, &__routing_table->my_key->dhkey);
     }
 
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_range_update");
@@ -486,22 +485,27 @@ void leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_
 	*added = NULL;
 	*deleted = NULL;
 
-	pll_iterator(np_key_ptr) find_right = pll_find(np_key_ptr, __routing_table->right_leafset, update_key,_np_key_cmp);
-	pll_iterator(np_key_ptr) find_left = pll_find(np_key_ptr, __routing_table->left_leafset, update_key,_np_key_cmp_inv);
+	np_key_ptr find_right = pll_find(np_key_ptr, __routing_table->right_leafset, node_key, _np_key_cmp);
+	np_key_ptr find_left  = pll_find(np_key_ptr, __routing_table->left_leafset, update_key, _np_key_cmp_inv);
 
 	if(FALSE == joined) {
-		if(NULL != find_right ){
+
+		if(NULL != find_right ) {
 			*deleted = (np_key_t*)update_key;
 			pll_remove(np_key_ptr, __routing_table->right_leafset, update_key, _np_key_cmp);
 
-		}else if(NULL != find_left ){
+		} else if (NULL != find_left ) {
 			*deleted = (np_key_t*)update_key;
 			pll_remove(np_key_ptr, __routing_table->left_leafset, update_key, _np_key_cmp_inv);
+		} else {
+			log_msg (LOG_ROUTING | LOG_DEBUG, "leafset did not change as key was not found");
 		}
+
 	}else{
 
 		if(NULL != find_right || NULL != find_left ){
 			log_msg (LOG_ROUTING | LOG_DEBUG, "leafset did not change as key was already in leafset");
+
 		} else {
 			/**
 			 * The key is not in our current leafset. So we need to check if we want to add it to our leafset
@@ -532,15 +536,20 @@ void leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_
 				)
 			  ) {
 					pll_insert(np_key_ptr, __routing_table->right_leafset, update_key, FALSE, _np_key_cmp);
-			}else if(
+
+			}
+			else
+			if(
 					_dhkey_between (&node_key->dhkey, &my_inverse_dhkey, &__routing_table->my_key->dhkey) &&
 					(
 							__LEAFSET_SIZE > pll_size(__routing_table->left_leafset) ||
 							 _dhkey_between (&node_key->dhkey, &left_outer->val->dhkey, &__routing_table->my_key->dhkey)
 					)
-				) {
+			  ) {
 				pll_insert(np_key_ptr, __routing_table->left_leafset, update_key, FALSE, _np_key_cmp_inv);
-			} else {	// Neither the lefsets are empty nor is the new key between our known outer bounds
+			}
+			else
+			{	// Neither the lefsets are empty nor is the new key between our known outer bounds
 				*added = NULL; // assumption was faulty
 				log_msg(LOG_ROUTING | LOG_DEBUG, "not adding key to leafset ...");
 			}
@@ -558,7 +567,7 @@ void leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_
 	// TODO: handle it via add a new async update job instead ?
 	if (*deleted != NULL || *added != NULL)
 	{
-		leafset_range_update (&(__routing_table->Rrange), &(__routing_table->Lrange));
+		_np_leafset_range_update();
 	}
 
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_update");

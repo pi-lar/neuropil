@@ -66,7 +66,7 @@ void _np_message_t_new(void* msg)
 {
 	np_message_t* msg_tmp = (np_message_t*) msg;
 
-	msg_tmp->uuid = np_create_uuid("msg",0);
+	msg_tmp->uuid = np_create_uuid("msg", 0);
 
 	msg_tmp->header       = make_nptree();
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "header now (%p: %p->%p)", tmp, tmp->header, tmp->header->flink);
