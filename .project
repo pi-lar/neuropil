@@ -21,6 +21,11 @@
 			<arguments>
 			</arguments>
 		</buildCommand>
+		<buildCommand>
+			<name>org.eclipse.cdt.codan.core.codanBuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
 	</buildSpec>
 	<natures>
 		<nature>org.eclipse.cdt.core.cnature</nature>
@@ -28,6 +33,7 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 		<nature>org.python.pydev.pythonNature</nature>
 		<nature>ch.hsr.ifs.sconsolidator.ExistingCodeNature</nature>
+		<nature>org.eclipse.cdt.codan.core.codanNature</nature>
 	</natures>
 	<linkedResources>
 		<link>
@@ -39,6 +45,11 @@
 			<name>local_lib</name>
 			<type>2</type>
 			<location>/usr/local/lib</location>
+		</link>
+		<link>
+			<name>local_share</name>
+			<type>2</type>
+			<location>/usr/local/share</location>
 		</link>
 		<link>
 			<name>sys_include</name>
