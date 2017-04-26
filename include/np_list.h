@@ -240,8 +240,7 @@ TYPE TYPE##_pll_tail(TYPE##_pll_t* pll_list) {                        \
 		TYPE##_pll_node_t* tmp = pll_list->last;                      \
 		ret_val = tmp->val;                                           \
 		pll_list->last = pll_list->last->blink;                       \
-		if (pll_list->last != NULL) pll_list->last->flink = NULL;     \
-		if (pll_list->last == NULL) pll_list->last = NULL;            \
+		pll_list->last->flink = NULL;                                 \
 		free(tmp);                                                    \
 		pll_list->size--;                                             \
 	}                                                                 \

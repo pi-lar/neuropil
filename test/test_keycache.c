@@ -14,7 +14,8 @@
 
 void setup_keycache(void)
 {
-	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_KEY;
+	// int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_KEY;
+	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_KEY;
 	np_mem_init();
 	np_log_init("test_keycache.log", log_level);
 

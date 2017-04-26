@@ -164,7 +164,7 @@ int8_t _dhkey_comp (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
     for (uint8_t i = 0; i < 4; i++)
 	{
     	log_msg(LOG_KEY | LOG_DEBUG, "k1 %llu / k2 %llu", k1->t[i], k2->t[i]);
-	    if 		(k1->t[i] > k2->t[i]) return (1);
+	    if 		(k1->t[i] > k2->t[i]) return ( 1);
 	    else if (k1->t[i] < k2->t[i]) return (-1);
 	}
     return (0);

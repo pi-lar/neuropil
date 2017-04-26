@@ -35,10 +35,12 @@ void teardown_route(void)
 
 TestSuite(np_route_t, .init=setup_route, .fini=teardown_route);
 
-Test(np_route_t, _leafset_create, .description="test the insert of keys into the leafset")
+Test(np_route_t, _leafset_update, .description="test the addition/removal of keys into the leafset")
 {
-	np_key_t* my_keys[32];
-	for (int i = 0; i < 32; i++)
+	int16_t keys_in_leafset = 0;
+	np_key_t* my_keys[128];
+
+	for (int i = 0; i < 128; i++)
 	{
 		char str[15];
 		sprintf(str, "%0d", i);
@@ -51,23 +53,39 @@ Test(np_route_t, _leafset_create, .description="test the insert of keys into the
 		my_keys[i] = insert_key;
 		np_key_t *added = NULL, *deleted=NULL;
 		leafset_update(my_keys[i], TRUE, &deleted, &added);
-
 		if (NULL != added)
 		{
 			cr_expect(0 == _dhkey_comp(&insert_key->dhkey, &added->dhkey), "test whether the new key was added");
+			keys_in_leafset++;
 		}
 		else
 		{
+			cr_expect(NULL == added, "test whether no new key was added");
+			// cr_expect(NULL == deleted, "test whether no new key was deleted");
 			log_msg(LOG_DEBUG, "key %s not added to the leafset", _key_as_str(insert_key));
 		}
 
 		if (NULL != deleted)
 		{
 			cr_expect(0 != _dhkey_comp(&insert_key->dhkey, &deleted->dhkey), "test whether a different key was deleted");
+			keys_in_leafset--;
 		}
 	}
-}
 
+	// removing keys from leafset
+	for (int i = 0; i < 128; i++)
+	{
+		np_key_t *added = NULL, *deleted=NULL;
+		leafset_update(my_keys[i], FALSE, &deleted, &added);
+		if (NULL != deleted)
+		{
+			cr_expect(0 == _dhkey_comp(&my_keys[i]->dhkey, &deleted->dhkey), "test whether the same key was removed");
+			keys_in_leafset--;
+		}
+
+	}
+	cr_expect(0 == keys_in_leafset, "test whether the leafset is empty");
+}
 // TODO: write more tests for the routing table and leafset arrays
 //Test(np_route_t, _leafset_lookup, .description="test the lookup of keys from the leafset")
 //{

@@ -531,22 +531,31 @@ void leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_
 			if(
 				_dhkey_between (&node_key->dhkey, &__routing_table->my_key->dhkey, &my_inverse_dhkey) &&
 				(
-						__LEAFSET_SIZE > pll_size(__routing_table->right_leafset) ||
-						 _dhkey_between (&node_key->dhkey, &__routing_table->my_key->dhkey, &right_outer->val->dhkey)
+					__LEAFSET_SIZE > pll_size(__routing_table->right_leafset) ||
+					_dhkey_between (&node_key->dhkey, &__routing_table->my_key->dhkey, &right_outer->val->dhkey)
 				)
-			  ) {
-					pll_insert(np_key_ptr, __routing_table->right_leafset, update_key, FALSE, _np_key_cmp);
-
+			  )
+			{
+				pll_insert(np_key_ptr, __routing_table->right_leafset, update_key, FALSE, _np_key_cmp);
+				// Cleanup of leafset / resize leafsets to max size if necessary
+				if(__LEAFSET_SIZE < pll_size(__routing_table->right_leafset)) {
+					*deleted = pll_tail(np_key_ptr,__routing_table->left_leafset);
+				}
 			}
 			else
 			if(
-					_dhkey_between (&node_key->dhkey, &my_inverse_dhkey, &__routing_table->my_key->dhkey) &&
-					(
-							__LEAFSET_SIZE > pll_size(__routing_table->left_leafset) ||
-							 _dhkey_between (&node_key->dhkey, &left_outer->val->dhkey, &__routing_table->my_key->dhkey)
-					)
-			  ) {
+				_dhkey_between (&node_key->dhkey, &my_inverse_dhkey, &__routing_table->my_key->dhkey) &&
+				(
+					__LEAFSET_SIZE > pll_size(__routing_table->left_leafset) ||
+					_dhkey_between (&node_key->dhkey, &left_outer->val->dhkey, &__routing_table->my_key->dhkey)
+				)
+			  )
+			{
 				pll_insert(np_key_ptr, __routing_table->left_leafset, update_key, FALSE, _np_key_cmp_inv);
+				// Cleanup of leafset / resize leafsets to max size if necessary
+				if(__LEAFSET_SIZE < pll_size(__routing_table->left_leafset)) {
+					*deleted = pll_tail(np_key_ptr,__routing_table->left_leafset);
+				}
 			}
 			else
 			{	// Neither the lefsets are empty nor is the new key between our known outer bounds
@@ -554,13 +563,6 @@ void leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_
 				log_msg(LOG_ROUTING | LOG_DEBUG, "not adding key to leafset ...");
 			}
 
-			// Cleanup of leafset / resize leafsets to max size if necessary
-			if(__LEAFSET_SIZE < pll_size(__routing_table->left_leafset)) {
-				*deleted = pll_tail(np_key_ptr,__routing_table->left_leafset);
-			}
-			else if(__LEAFSET_SIZE < pll_size(__routing_table->right_leafset)) {
-				*deleted = pll_tail(np_key_ptr,__routing_table->left_leafset);
-			}
 		}
 	}
 
