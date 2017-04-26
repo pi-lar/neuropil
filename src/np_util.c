@@ -105,7 +105,7 @@ void write_type(np_val_t val, cmp_ctx_t* cmp)
 		break;
 		// characters
 	case char_ptr_type:
-		log_msg(LOG_DEBUG, "string size %u/%lu -> %s", val.size, strlen(val.value.s), val.value.s);
+		//log_msg(LOG_DEBUG, "string size %u/%lu -> %s", val.size, strlen(val.value.s), val.value.s);
 		cmp_write_str32(cmp, val.value.s, val.size);
 		break;
 
@@ -156,7 +156,7 @@ void write_type(np_val_t val, cmp_ctx_t* cmp)
 
 	case bin_type:
 		cmp_write_bin32(cmp, val.value.bin, val.size);
-		log_msg(LOG_DEBUG, "BIN size %"PRIu32, val.size);
+		//log_msg(LOG_DEBUG, "BIN size %"PRIu32, val.size);
 		break;
 
 	case key_type:
@@ -320,7 +320,7 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 			value->value.s = (char*) malloc(obj->as.str_size+1);
 			cmp->read(cmp, value->value.s, obj->as.str_size * sizeof(char));
 			value->value.s[obj->as.str_size] = '\0';
-			log_msg(LOG_DEBUG, "string size %u/%lu -> %s", value->size, strlen(value->value.s), value->value.s);
+			//log_msg(LOG_DEBUG, "string size %u/%lu -> %s", value->size, strlen(value->value.s), value->value.s);
 			break;
 		}
 	case CMP_TYPE_BIN8:

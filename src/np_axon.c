@@ -788,7 +788,7 @@ void np_send_accounting_request(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  .np_send_accounting_request");
 }
 
-void _np_send_simple_invoke_request(np_key_t* target, const char* type){
+void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 
 	np_state_t* state = _np_state();
 

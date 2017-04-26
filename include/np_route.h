@@ -42,7 +42,7 @@ NP_API_INTERN
 sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count);
 // np_key_t** route_lookup (np_state_t* state, np_key_t* key, int count, int is_safe);
 
-/** route_neighbors: 
+/** route_neighbors:
  ** returns an list of neighbor nodes with priority to closer nodes.
  **/
 NP_API_INTERN
@@ -60,11 +60,12 @@ sll_return(np_key_t) route_row_lookup (np_key_t* key);
 NP_API_INTERN
 sll_return(np_key_t) _np_route_get_table ();
 
-/**
- ** prints routing table,
- **/
 NP_API_INTERN
-void printTable ();
+void leafset_insert (np_key_t* host, uint8_t right_or_left, np_key_t** deleted, np_key_t** added);
+NP_API_INTERN
+void leafset_delete (np_key_t* host, uint8_t right_or_left, np_key_t** deleted);
+NP_API_INTERN
+void leafset_range_update (np_dhkey_t* rrange, np_dhkey_t* lrange);
 
 #ifdef __cplusplus
 }

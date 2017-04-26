@@ -36,6 +36,7 @@
 #include "np_threads.h"
 #include "np_tree.h"
 #include "np_val.h"
+#include "np_axon.h"
 
 /**
  * convenience helper macros when messages are received

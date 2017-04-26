@@ -131,6 +131,24 @@ np_key_t* _np_key_find(np_dhkey_t search_dhkey)
 	return return_key;
 }
 
+int8_t _np_key_cmp(const np_key_t* const k1, const np_key_t* const k2)
+{
+	int8_t ret = -1;
+
+	if (k1 == NULL) return -1;
+	if (k2 == NULL) return  1;
+
+	ret = _dhkey_comp(&k1->dhkey,&k2->dhkey);
+
+	return ret;
+}
+
+int8_t _np_key_cmp_inv(const np_key_t* const k1, const np_key_t* const k2)
+{
+	return -1 * _np_key_cmp(k1,k2);
+}
+
+
 np_key_t* _np_key_find_by_details(
 		char* details_container,
 		np_bool search_myself,

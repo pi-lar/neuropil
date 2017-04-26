@@ -156,7 +156,7 @@ np_bool _dhkey_equal_ui (np_dhkey_t* k, uint64_t ul)
     return TRUE;
 }
 
-int8_t _dhkey_comp (const np_dhkey_t* k1, const np_dhkey_t* k2)
+int8_t _dhkey_comp (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 {
 	if (k1 == NULL) return -1;
 	if (k2 == NULL) return  1;

@@ -252,7 +252,6 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 			int http_status = HTTP_CODE_OK;
 			char* response;
 			JSON_Value* json_obj;
-			size_t json_size;
 
 			/**
 			 * Default behavior if no argument is given: display own node informations
@@ -319,7 +318,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 						"no response defined");
 			}
 			response = np_json_to_char(json_obj, TRUE);
-			log_msg(LOG_DEBUG, "sysinfo response should be (strlen: %d):",
+			log_msg(LOG_DEBUG, "sysinfo response should be (strlen: %ul):",
 					strlen(response));
 			json_value_free(json_obj);
 

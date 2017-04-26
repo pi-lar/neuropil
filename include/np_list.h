@@ -61,7 +61,7 @@ function like macros are:
 #define pll_replace(TYPE, priolist, value, cmp_func) TYPE##_pll_replace(priolist, value, cmp_func);
 #define pll_find(TYPE, priolist, value, cmp_func) TYPE##_pll_find(priolist, value, cmp_func);
 #define pll_head(TYPE, priolist) TYPE##_pll_head(priolist);
-#define pll_tail(TYPE, priolist) TYPE##_pll_head(priolist);
+#define pll_tail(TYPE, priolist) TYPE##_pll_tail(priolist);
 #define pll_free(TYPE, priolist) TYPE##_pll_free(priolist);
 #define pll_clear(TYPE, priolist) TYPE##_pll_clear(priolist);
 
@@ -108,7 +108,7 @@ real macros for convenience usage
 // PLL (priority single linked list) prototype generator
 //
 #define NP_PLL_GENERATE_PROTOTYPES(TYPE)\
-	typedef int8_t (*TYPE##_cmp_func_t) (TYPE value_1, TYPE value_2 );\
+	typedef int8_t (*TYPE##_cmp_func_t) (TYPE const value_1, TYPE const value_2 );\
 	typedef struct TYPE##_pll_s TYPE##_pll_t;\
     typedef struct TYPE##_pll_node_s TYPE##_pll_node_t;\
     struct TYPE##_pll_s\

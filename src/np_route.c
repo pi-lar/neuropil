@@ -12,6 +12,7 @@
 
 #include "np_route.h"
 
+#include "np_list.h"
 #include "np_log.h"
 #include "np_keycache.h"
 #include "np_list.h"
@@ -28,14 +29,19 @@ static const uint16_t __LEAFSET_SIZE = 8; /* (must be even) excluding node itsel
 
 static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+typedef np_key_t* np_key_ptr;
+NP_PLL_GENERATE_PROTOTYPES(np_key_ptr);
+NP_PLL_GENERATE_IMPLEMENTATION(np_key_ptr);
+
 typedef struct np_routeglobal_s np_routeglobal_t;
 struct np_routeglobal_s
 {
 	np_key_t* my_key;
 
-    np_key_t* table[__MAX_ROW * __MAX_COL * __MAX_ENTRY];
-    np_key_t* left_leafset[__LEAFSET_SIZE];
-    np_key_t* right_leafset[__LEAFSET_SIZE];
+	np_key_t* table[__MAX_ROW * __MAX_COL * __MAX_ENTRY];
+
+    np_pll_t(np_key_ptr, left_leafset);
+	np_pll_t(np_key_ptr, right_leafset);
 
     np_dhkey_t Rrange;
     np_dhkey_t Lrange;
@@ -45,16 +51,9 @@ static np_routeglobal_t* __routing_table;
 
 _NP_MODULE_LOCK_IMPL(np_routeglobal_t);
 
-uint16_t leafset_size (np_key_t* arr[__LEAFSET_SIZE]);
+void _np_append_leafset_to_sll(np_key_ptr_pll_t* left_leafset, np_sll_t(np_key_t, result));
 
-// void leafset_update (np_routeglobal_t* rg, np_node_t* host, np_bool joined, np_node_t* deleted, np_node_t** added);
-void leafset_insert (np_key_t* host, uint8_t right_or_left, np_key_t** deleted, np_key_t** added);
-void leafset_delete (np_key_t* host, uint8_t right_or_left, np_key_t** deleted);
-
-void leafset_print ();
 void leafset_range_update (np_dhkey_t* rrange, np_dhkey_t* lrange);
-
-int8_t hexalpha_to_int (int8_t c);
 
 
 /* route_init:
@@ -62,7 +61,7 @@ int8_t hexalpha_to_int (int8_t c);
  */
 np_bool _np_route_init (np_key_t* me)
 {
-    __routing_table = (np_routeglobal_t *) malloc (sizeof (np_routeglobal_t));
+	__routing_table = (np_routeglobal_t *) malloc (sizeof (np_routeglobal_t));
     if (NULL == __routing_table) return FALSE;
 
     __routing_table->my_key = me;
@@ -89,11 +88,8 @@ np_bool _np_route_init (np_key_t* me)
     _dhkey_add(&__routing_table->Rrange, &me->dhkey, &half);
     _dhkey_sub(&__routing_table->Lrange, &me->dhkey, &half);
 
-    for (i = 0; i < __LEAFSET_SIZE; i++)
-	{
-    	__routing_table->left_leafset[i]  = NULL;
-    	__routing_table->right_leafset[i] = NULL;
-	}
+    pll_init(np_key_ptr,__routing_table->left_leafset);
+    pll_init(np_key_ptr,__routing_table->right_leafset);
 
     return TRUE;
 }
@@ -145,12 +141,12 @@ void _np_route_set_key (np_key_t* new_node_key)
 
     // get list of neighbours
 	tmp_key_list = route_neighbors();
+
 	// wipe out all entries
-	for (int i = 0; i < __LEAFSET_SIZE; i++)
-	{
-    	__routing_table->left_leafset[i]  = NULL;
-    	__routing_table->right_leafset[i] = NULL;
-	}
+	pll_clear(np_key_ptr,__routing_table->left_leafset);
+	pll_clear(np_key_ptr,__routing_table->right_leafset);
+
+
     // add all entries, unref replaced or not added keys
 	deleted = NULL;
     while (NULL != (tmp_key = sll_head(np_key_t, tmp_key_list)))
@@ -230,19 +226,31 @@ sll_return(np_key_t) route_row_lookup (np_key_t* key)
     return sll_of_keys;
 }
 
+void _np_append_leafset_to_sll(np_key_ptr_pll_t* leafset, np_sll_t(np_key_t, result)  ) {
+
+    pll_iterator(np_key_ptr) iter = pll_first(leafset);
+
+	while(iter != NULL) {
+		if(iter->val != NULL) {
+			log_msg (LOG_ROUTING | LOG_DEBUG, "Leafset: (%s)", _key_as_str (iter->val));
+			sll_append(np_key_t, result, iter->val);
+		}
+		pll_next(iter);
+	}
+}
 /** route_lookup:
  ** returns an array of #count# keys that are acceptable next hops for a
- ** message being routed to #key#. #is_save# is ignored for now.
+ ** message being routed to #key#.
  */
 sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count)
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_lookup");
-    uint16_t i, j, k, Lsize, Rsize;
+    uint32_t i, j, k, Lsize, Rsize;
     uint8_t match_col = 0;
     np_bool next_hop = FALSE;
 
     np_dhkey_t dif1, dif2;
-    np_key_t *leaf, *tmp_1 = NULL, *tmp_2 = NULL, *min = NULL;
+    np_key_t *tmp_1 = NULL, *tmp_2 = NULL, *min = NULL;
 
     np_sll_t(np_key_t, return_list);
     sll_init(np_key_t, return_list);
@@ -255,8 +263,9 @@ sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count)
 	  _key_as_str(__routing_table->my_key), _key_as_str(key));
 
     /*calculate the leafset and table size */
-    Lsize = leafset_size (__routing_table->left_leafset);
-    Rsize = leafset_size (__routing_table->right_leafset);
+
+    Lsize = pll_size(__routing_table->left_leafset);
+    Rsize = pll_size(__routing_table->right_leafset);
 
     /* if the key is in the leafset range route through leafset */
     /* the additional 2 neuropil nodes pointed by the #hosts# are to consider the node itself and NULL at the end */
@@ -268,22 +277,8 @@ sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count)
 
 	    log_msg (LOG_ROUTING | LOG_DEBUG, "ME: (%s)", _key_as_str (__routing_table->my_key));
 
-	    /* look left */
-	    for (i = 0; i < Lsize; i++)
-		{
-		    leaf = __routing_table->left_leafset[i];
-		    log_msg (LOG_ROUTING | LOG_DEBUG, "Left_leafset[%hd]: (%s)",
-		    		i, _key_as_str (leaf));
-		    sll_append(np_key_t, key_list, leaf);
-		}
-	    /* look right */
-	    for (i = 0; i < Rsize; i++)
-		{
-		    leaf = __routing_table->right_leafset[i];
-		    log_msg (LOG_ROUTING | LOG_DEBUG, "Right_leafset[%hd]: (%s)",
-		    		 i, _key_as_str (leaf));
-		    sll_append(np_key_t, key_list, leaf);
-		}
+	    _np_append_leafset_to_sll(__routing_table->left_leafset, key_list);
+	    _np_append_leafset_to_sll(__routing_table->right_leafset, key_list);
 
 	    min = _np_find_closest_key (key_list, &key->dhkey);
 
@@ -349,21 +344,9 @@ sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count)
 
     // log_msg (LOG_ROUTING, "Routing to next closest key I know of:");
     /* look left */
-    for (uint16_t l = 0; l < Lsize; l++)
-	{
-	    leaf = __routing_table->left_leafset[l];
-	    log_msg (LOG_ROUTING | LOG_DEBUG, "+left_leafset[%hd]: (%s)",
-	    		 l, /* leaf->dns_name, leaf->port,*/ _key_as_str (key));
-	    sll_append(np_key_t, key_list, leaf);
-	}
-    /* look right */
-    for (uint16_t r = 0; r < Rsize; r++)
-	{
-	    leaf = __routing_table->right_leafset[r];
-	    log_msg (LOG_ROUTING | LOG_DEBUG, "+right_leafset[%hd]: (%s)",
-	    		 r, /* leaf->dns_name, leaf->port,*/ _key_as_str (leaf));
-	    sll_append(np_key_t, key_list, leaf);
-	}
+
+    _np_append_leafset_to_sll(__routing_table->left_leafset, key_list);
+    _np_append_leafset_to_sll(__routing_table->right_leafset, key_list);
 
     if (count == 0) {
     	// consider that this node could be the target as well
@@ -385,7 +368,7 @@ sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count)
 				if (tmp_1->node->success_avg > BAD_LINK)
 				{
 				    sll_append(np_key_t, key_list, tmp_1);
-					log_msg (LOG_ROUTING | LOG_DEBUG, "+Table[%hd][%hd][%hd]: (%s)",
+					log_msg (LOG_ROUTING | LOG_DEBUG, "+Table[%ul][%ul][%ul]: (%s)",
 										  i, j, k, /* leaf->dns_name, leaf->port, */ _key_as_str (tmp_1));
 				}
 			}
@@ -459,37 +442,32 @@ sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count)
     return (return_list);
 }
 
-uint16_t leafset_size (np_key_t* arr[__LEAFSET_SIZE])
-{
-    uint16_t i = 0;
-    for (i = 0; arr[i] != NULL && i < __LEAFSET_SIZE; i++);
-    return i;
-}
 
 /**
  ** leafset_range_update:
  ** updates the leafset range whenever a node leaves or joins to the leafset
  **
+ ** fills rrange and lrange with the outer bounds of our leafset
  */
 void leafset_range_update (np_dhkey_t* rrange, np_dhkey_t* lrange)
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.leafset_range_update");
-    uint16_t i = 0;
 
-    /* right range */
-    for (i = 0; __routing_table->right_leafset[i] != NULL && i < __LEAFSET_SIZE; i++)
-    	_dhkey_assign (rrange, &__routing_table->right_leafset[i]->dhkey);
+    pll_iterator(np_key_ptr) item = pll_last(__routing_table->right_leafset);
 
-    if (i == 0)
+    if(item != NULL) {
+    	_dhkey_assign (rrange, &item->val->dhkey);
+    } else {
     	_dhkey_assign (rrange, &__routing_table->my_key->dhkey);
+    }
 
-    /* left range */
-    i = 0;
-    for (i = 0; __routing_table->left_leafset[i] != NULL && i < __LEAFSET_SIZE; i++)
-    	_dhkey_assign (lrange, &__routing_table->left_leafset[i]->dhkey);
+    item = pll_last(__routing_table->left_leafset);
 
-    if (i == 0)
+    if(item != NULL) {
+    	_dhkey_assign (lrange, &item->val->dhkey);
+    } else {
     	_dhkey_assign (lrange, &__routing_table->my_key->dhkey);
+    }
 
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_range_update");
 }
@@ -503,209 +481,87 @@ void leafset_range_update (np_dhkey_t* rrange, np_dhkey_t* lrange)
 void leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_key_t** added)
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.leafset_update");
-    uint16_t Lsize = 0;
-    uint16_t Rsize = 0;
-    np_dhkey_t midpoint;
 
-    *added = NULL;
-    *deleted = NULL;
+	np_key_ptr update_key =(np_key_ptr) node_key;
+	*added = NULL;
+	*deleted = NULL;
 
-    Lsize = leafset_size (__routing_table->left_leafset);
-    Rsize = leafset_size (__routing_table->right_leafset);
+	pll_iterator(np_key_ptr) find_right = pll_find(np_key_ptr, __routing_table->right_leafset, update_key,_np_key_cmp);
+	pll_iterator(np_key_ptr) find_left = pll_find(np_key_ptr, __routing_table->left_leafset, update_key,_np_key_cmp_inv);
 
-    _dhkey_midpoint (&midpoint, &__routing_table->my_key->dhkey);
+	if(FALSE == joined) {
+		if(NULL != find_right ){
+			*deleted = (np_key_t*)update_key;
+			pll_remove(np_key_ptr, __routing_table->right_leafset, update_key, _np_key_cmp);
 
-    if (TRUE == joined)
-	{
-		/* test whether key falls in the right or left side of node */
-		if (Rsize < __LEAFSET_SIZE ||
-			_dhkey_between (
-					&node_key->dhkey,
-					&__routing_table->my_key->dhkey,
-					&__routing_table->Rrange) )
-		{	/* insert in right leafset */
-			leafset_insert (node_key, 1, deleted, added);
+		}else if(NULL != find_left ){
+			*deleted = (np_key_t*)update_key;
+			pll_remove(np_key_ptr, __routing_table->left_leafset, update_key, _np_key_cmp_inv);
 		}
-		else if (Lsize < __LEAFSET_SIZE ||
-			_dhkey_between (
-					&node_key->dhkey,
-					&__routing_table->left_leafset[Lsize-1]->dhkey,
-					&__routing_table->Lrange) )
-		{	/* insert in left leafset */
-			leafset_insert (node_key, 0, deleted, added);
-		}
-		else
-		{
-			log_msg(LOG_ROUTING | LOG_DEBUG, "not adding key to leafset ...");
+	}else{
+
+		if(NULL != find_right || NULL != find_left ){
+			log_msg (LOG_ROUTING | LOG_DEBUG, "leafset did not change as key was already in leafset");
+		} else {
+			/**
+			 * The key is not in our current leafset. So we need to check if we want to add it to our leafset
+			 * Cases:
+			 * 1. Leafset right or left is not fully filled
+			 *    => Add to leafset
+			 * 2. Leafsets are fully filled and our new key is between our outer bounds
+			 *    => We need to insert the key at the appropiate point in the list (another key is removed from our leafset)
+			 * 3. Leafsets are fully filled and our new key is further away then our outer bounds
+			 *    => No action required
+			 */
+
+			pll_iterator(np_key_ptr) right_outer = pll_last(__routing_table->right_leafset);
+			pll_iterator(np_key_ptr) left_outer = pll_last(__routing_table->left_leafset);
+
+			// positive assumption that we will add this entry
+			*added = update_key;
+
+			np_dhkey_t my_inverse_dhkey;
+			np_dhkey_t dhkey_half_o = dhkey_half();
+			_dhkey_add(&my_inverse_dhkey,&__routing_table->my_key->dhkey,&dhkey_half_o);
+
+			if(
+				_dhkey_between (&node_key->dhkey, &__routing_table->my_key->dhkey, &my_inverse_dhkey) &&
+				(
+						__LEAFSET_SIZE > pll_size(__routing_table->right_leafset) ||
+						 _dhkey_between (&node_key->dhkey, &__routing_table->my_key->dhkey, &right_outer->val->dhkey)
+				)
+			  ) {
+					pll_insert(np_key_ptr, __routing_table->right_leafset, update_key, FALSE, _np_key_cmp);
+			}else if(
+					_dhkey_between (&node_key->dhkey, &my_inverse_dhkey, &__routing_table->my_key->dhkey) &&
+					(
+							__LEAFSET_SIZE > pll_size(__routing_table->left_leafset) ||
+							 _dhkey_between (&node_key->dhkey, &left_outer->val->dhkey, &__routing_table->my_key->dhkey)
+					)
+				) {
+				pll_insert(np_key_ptr, __routing_table->left_leafset, update_key, FALSE, _np_key_cmp_inv);
+			} else {	// Neither the lefsets are empty nor is the new key between our known outer bounds
+				*added = NULL; // assumption was faulty
+				log_msg(LOG_ROUTING | LOG_DEBUG, "not adding key to leafset ...");
+			}
+
+			// Cleanup of leafset / resize leafsets to max size if necessary
+			if(__LEAFSET_SIZE < pll_size(__routing_table->left_leafset)) {
+				*deleted = pll_tail(np_key_ptr,__routing_table->left_leafset);
+			}
+			else if(__LEAFSET_SIZE < pll_size(__routing_table->right_leafset)) {
+				*deleted = pll_tail(np_key_ptr,__routing_table->left_leafset);
+			}
 		}
 	}
-    else
-	{
-		/* test whether key falls to the right or left side of node */
-		if (Rsize < __LEAFSET_SIZE ||
-			_dhkey_between (
-					&node_key->dhkey,
-					&__routing_table->my_key->dhkey,
-					&__routing_table->Rrange ))
-		{
-			leafset_delete (node_key, 1, deleted);
-		}
 
-		if (Lsize < __LEAFSET_SIZE ||
-			_dhkey_between (
-					&node_key->dhkey,
-					&__routing_table->left_leafset[Lsize-1]->dhkey,
-					&__routing_table->Lrange) )
-		{
-			leafset_delete (node_key, 0, deleted);
-		}
+	// TODO: handle it via add a new async update job instead ?
+	if (*deleted != NULL || *added != NULL)
+	{
+		leafset_range_update (&(__routing_table->Rrange), &(__routing_table->Lrange));
 	}
 
-    // TODO: handle it via add a new async update job instead ?
-    if (*deleted != NULL)
-	{
-	    leafset_range_update (&(__routing_table->Rrange), &(__routing_table->Lrange));
-	}
-    if (*added != NULL)
-	{
-	    leafset_range_update (&(__routing_table->Rrange), &(__routing_table->Lrange));
-	}
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_update");
-}
-
-/**
- ** leafset_delete:
- ** removes the #deleted# node from leafset
- **
- */
-void leafset_delete (np_key_t* node_key, uint8_t right_or_left, np_key_t** deleted)
-{
-    uint16_t i = 0, size;
-    uint16_t match = 0;
-    // np_key_t* node_key;
-    np_key_t** p;
-
-    if (right_or_left == 1) /* insert in right leafset */
-	{
-	    size = leafset_size (__routing_table->right_leafset);
-	    p = __routing_table->right_leafset;
-	}
-    else /*insert in left leafset */
-	{
-	    size = leafset_size (__routing_table->left_leafset);
-	    p = __routing_table->left_leafset;
-	}
-
-    for (i = 0; i < size && !(_dhkey_equal (&p[i]->dhkey, &node_key->dhkey )); i++);
-
-    if (i < size)
-	{
-	    *deleted = p[i];
-	    match = 1;
-	}
-
-    /* shift leafset members to not have a hole in the leafset */
-    if (match)
-	{
-	    do {
-		    p[i] = p[i + 1];
-		    i++;
-		} while (i < size - 1);
-	    p[i] = NULL;
-	}
-}
-
-/**
- ** leafset_insert:
- ** inserts the added node to the leafset and removes the deleted from the leafset
- ** the deleted node is NULL if the new added node will not cause a node to leave the leafset.
- */
-void leafset_insert (np_key_t* host_key, uint8_t right_or_left,
-					 np_key_t** deleted, np_key_t** added)
-{
-	log_msg(LOG_ROUTING | LOG_TRACE, ".start.leafset_insert");
-
-    uint16_t i = 0, size = 0;
-    np_key_t **p;
-    np_key_t *tmp1, *tmp2;
-    np_key_t *input = host_key;
-
-    if (right_or_left == 1) // insert in right leafset
-	{
-	    size = leafset_size (__routing_table->right_leafset);
-	    p = __routing_table->right_leafset;
-		log_msg(LOG_ROUTING | LOG_DEBUG, "adding to left leafset");
-	}
-    else // insert in left leafset
-	{
-	    size = leafset_size (__routing_table->left_leafset);
-	    p = __routing_table->left_leafset;
-		log_msg(LOG_ROUTING | LOG_DEBUG, "adding to right leafset");
-	}
-
-    if (size == 0)
-	{
-	    p[0] = input;
-	    *added = input;
-		log_msg(LOG_ROUTING | LOG_DEBUG, "added first leafset dhkey %s", _key_as_str(input));
-	}
-    else
-	{
-    	// TODO: change this to use logarithmic scaling for the leafset !
-		log_msg(LOG_ROUTING | LOG_DEBUG, "leafset size %d, first dhkey is: %s", size, _key_as_str(p[0]));
-    	uint16_t foundKeyPos = 0;
-		// check other indexes
-        while (i < size)
-		{
-        	// check current index
-            if (TRUE == _dhkey_equal (&p[i]->dhkey, &input->dhkey))
-			{
-        		log_msg(LOG_ROUTING | LOG_DEBUG, "leafset already contains dhkey %s", _key_as_str(input));
-			    return;
-			}
-
-            if (foundKeyPos) break;
-            else i++;
-
-            if (i < size)
-			{
-				if (right_or_left == 1)
-				{
-                    foundKeyPos = _dhkey_between(
-                    		&input->dhkey,
-                    		&__routing_table->my_key->dhkey,
-                    		&p[i]->dhkey);
-				}
-				else
-				{
-                    foundKeyPos = _dhkey_between(
-                    		&input->dhkey,
-							&p[i]->dhkey,
-							&__routing_table->my_key->dhkey);
-				}
-			}
-		}
-
-        tmp1 = input;
-        *added = input;
-		log_msg(LOG_ROUTING | LOG_DEBUG, "added dhkey %s", _key_as_str(input));
-
-        while (i < __LEAFSET_SIZE)
-        {
-        	tmp2 = p[i];
-        	p[i] = tmp1;
-        	tmp1 = tmp2;
-        	i++;
-	    }
-
-        /* there is a leftover */
-        if (tmp2 != NULL && size == __LEAFSET_SIZE)
-        {
-        	*deleted = tmp2;
-    		log_msg(LOG_ROUTING | LOG_DEBUG, "found leftover dhkey %s", _key_as_str(tmp2));
-	    }
-	}
-	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_insert");
 }
 
 /** route_neighbors:
@@ -715,24 +571,11 @@ sll_return(np_key_t) route_neighbors ()
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_neighbors");
 
-    uint8_t i = 0, Rsize = 0, Lsize = 0;
-
     np_sll_t(np_key_t, node_keys);
     sll_init(np_key_t, node_keys);
 
-    Lsize = leafset_size (__routing_table->left_leafset);
-    Rsize = leafset_size (__routing_table->right_leafset);
-
-    /* create a jrb of leafset pointers sorted on distance */
-    for (i = 0; i < Lsize; i++)
-	{
-    	sll_append(np_key_t, node_keys, __routing_table->left_leafset[i]);
-	}
-
-    for (i = 0; i < Rsize; i++)
-	{
-    	sll_append(np_key_t, node_keys, __routing_table->right_leafset[i]);
-	}
+    _np_append_leafset_to_sll(__routing_table->left_leafset, node_keys);
+    _np_append_leafset_to_sll(__routing_table->right_leafset, node_keys);
 
     /* sort aux */
     _np_sort_keys_kd(node_keys, &__routing_table->my_key->dhkey);
@@ -837,61 +680,4 @@ void route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t**
 	    }
 	}
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
-}
-
-int8_t hexalpha_to_int (int8_t c)
-{
-    static char hexalpha[] = "0123456789abcdef";
-    int8_t i;
-    int8_t answer = 0;
-
-    for (i = 0; answer == 0 && hexalpha[i] != '\0'; i++)
-	{
-	    if (hexalpha[i] == c)
-		{
-		    answer = i;
-		}
-	}
-    return answer;
-}
-
-void leafset_print ()
-{
-	uint16_t i;
-    uint16_t Lsize, Rsize;
-
-    log_msg(LOG_ROUTING | LOG_DEBUG, "LEAFSET LEFT:");
-    Lsize = leafset_size (__routing_table->left_leafset);
-    for (i = 0; i < Lsize; i++)
-    	log_msg(LOG_ROUTING | LOG_DEBUG, "%s", _key_as_str (__routing_table->left_leafset[i] ));
-
-    log_msg(LOG_ROUTING | LOG_DEBUG, "LEAFSET RIGHT:");
-    Rsize = leafset_size (__routing_table->right_leafset);
-    for (i = 0; i < Rsize; i++)
-    	log_msg(LOG_ROUTING | LOG_DEBUG, "%s", _key_as_str (__routing_table->right_leafset[i] ));
-}
-
-void printTable ()
-{
-    uint16_t i, j, k;
-
-    /* print the table */
-    log_msg (LOG_ROUTING | LOG_DEBUG, "------------------------------- TABLE-------------------------------");
-    for (i = 0; i < __MAX_ROW; i++)
-	{
-	    for (j = 0; j < __MAX_COL; j++)
-		{
-	    	int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
-		    for (k = 0; k < __MAX_ENTRY; k++)
-		    {
-				if (__routing_table->table[index + k] != NULL)
-				{
-		    		log_msg(LOG_ROUTING | LOG_DEBUG,
-		    				"[%hd][%hd][%hd] %s",
-							i, j, k, _key_as_str (__routing_table->table[index + k]));
-				}
-		    }
-		}
-	}
-    log_msg (LOG_ROUTING | LOG_DEBUG, "----------------------------------------------------------------------");
 }
