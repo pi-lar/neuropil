@@ -56,5 +56,20 @@
 			<type>2</type>
 			<location>/usr/include</location>
 		</link>
+		<link>
+			<name>usr_include</name>
+			<type>2</type>
+			<location>/usr/include</location>
+		</link>
+		<link>
+			<name>usr_lib</name>
+			<type>2</type>
+			<location>/usr/lib</location>
+		</link>
+		<link>
+			<name>usr_share</name>
+			<type>2</type>
+			<location>/usr/share</location>
+		</link>
 	</linkedResources>
 </projectDescription>
