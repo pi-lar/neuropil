@@ -48,6 +48,7 @@ function like macros are:
 			 TYPE pll_replace(TYPE, priolist, value, cmp_func)
 			 TYPE pll_find(TYPE, priolist, value, cmp_func)
 			 TYPE pll_head(TYPE, priolist)
+			 TYPE pll_tail(TYPE, priolist)
              void pll_free(TYPE, priolist)
              void pll_clear(TYPE, priolist)
 
@@ -60,6 +61,7 @@ function like macros are:
 #define pll_replace(TYPE, priolist, value, cmp_func) TYPE##_pll_replace(priolist, value, cmp_func);
 #define pll_find(TYPE, priolist, value, cmp_func) TYPE##_pll_find(priolist, value, cmp_func);
 #define pll_head(TYPE, priolist) TYPE##_pll_head(priolist);
+#define pll_tail(TYPE, priolist) TYPE##_pll_head(priolist);
 #define pll_free(TYPE, priolist) TYPE##_pll_free(priolist);
 #define pll_clear(TYPE, priolist) TYPE##_pll_clear(priolist);
 
@@ -127,6 +129,7 @@ real macros for convenience usage
 	TYPE TYPE##_pll_replace(TYPE##_pll_t* list, TYPE value, TYPE##_cmp_func_t cmp_func);   \
 	TYPE TYPE##_pll_find(TYPE##_pll_t* list, TYPE value, TYPE##_cmp_func_t cmp_func);   \
 	TYPE TYPE##_pll_head(TYPE##_pll_t* list);                  \
+	TYPE TYPE##_pll_tail(TYPE##_pll_t* list);                  \
     void TYPE##_pll_free(TYPE##_pll_t* list);                  \
     void TYPE##_pll_clear(TYPE##_pll_t* list);                 \
 
@@ -226,6 +229,19 @@ TYPE TYPE##_pll_head(TYPE##_pll_t* pll_list) {                        \
 		pll_list->first = pll_list->first->flink;                     \
 		if (pll_list->first != NULL) pll_list->first->blink = NULL;   \
 		if (pll_list->first == NULL) pll_list->last = NULL;           \
+		free(tmp);                                                    \
+		pll_list->size--;                                             \
+	}                                                                 \
+	return (ret_val);                                                 \
+}                                                                     \
+TYPE TYPE##_pll_tail(TYPE##_pll_t* pll_list) {                        \
+	TYPE ret_val = 0;                                                 \
+	if (NULL != pll_list->last) {                                     \
+		TYPE##_pll_node_t* tmp = pll_list->last;                      \
+		ret_val = tmp->val;                                           \
+		pll_list->last = pll_list->last->blink;                       \
+		if (pll_list->last != NULL) pll_list->last->flink = NULL;     \
+		if (pll_list->last == NULL) pll_list->last = NULL;            \
 		free(tmp);                                                    \
 		pll_list->size--;                                             \
 	}                                                                 \
