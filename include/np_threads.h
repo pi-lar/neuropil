@@ -19,9 +19,8 @@ extern "C" {
 	int __thread_has_##TYPE##_mutex = 0;				\
 	int  _##TYPE##_lock()   {							\
 		int ret = 0;									\
-		if(__thread_has_##TYPE##_mutex < 1) {			\
+		if(__thread_has_##TYPE##_mutex == 0) {			\
 			ret = pthread_mutex_lock(&__lock_mutex);	\
-			__thread_has_##TYPE##_mutex = TRUE;			\
 		}												\
 		__thread_has_##TYPE##_mutex++; 					\
 		return ret;   									\
