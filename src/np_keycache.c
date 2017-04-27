@@ -24,7 +24,7 @@
 // TODO: make this a better constant value
 static double __keycache_deprecation_interval = 31.415;
 
-SPLAY_GENERATE(st_keycache_s, np_key_s, link, __key_comp);
+SPLAY_GENERATE(st_keycache_s, np_key_s, link, _np_key_cmp);
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_key_t);
@@ -82,15 +82,7 @@ void _np_key_t_del(void* key)
 }
 
 
-int8_t __key_comp (const np_key_t* k1, const np_key_t* k2)
-{
-	if (NULL == k1) return -1;
-	if (NULL == k2) return  1;
-	if (k1   == k2) return  0;
 
-	// log_msg(LOG_KEY | LOG_DEBUG, "k1 %p / k2 %p", k1, k2);
-	return _dhkey_comp(&k1->dhkey, &k2->dhkey);
-}
 
 
 np_key_t* _np_key_find_create(np_dhkey_t search_dhkey)
@@ -132,6 +124,8 @@ np_key_t* _np_key_find(np_dhkey_t search_dhkey)
 	}
 	return return_key;
 }
+
+
 
 int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 {

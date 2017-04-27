@@ -49,12 +49,15 @@ struct np_key_s
 _NP_ENABLE_MODULE_LOCK(np_keycache_t);
 _NP_GENERATE_MEMORY_PROTOTYPES(np_key_t);
 
-// organize keys in a splay tree
 NP_API_INTERN
-int8_t __key_comp (const np_key_t* k1, const np_key_t* k2);
+int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2);
+NP_API_INTERN
+int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2);
 
+
+// organize keys in a splay tree
 SPLAY_HEAD(st_keycache_s, np_key_s);
-SPLAY_PROTOTYPE(st_keycache_s, np_key_s, link, __key_comp);
+SPLAY_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp);
 
 NP_API_INTERN
 void _np_keycache_init();
@@ -101,11 +104,6 @@ NP_API_INTERN
 void _np_ref_keys (np_sll_t(np_key_t, list_of_keys));
 NP_API_INTERN
 void _np_unref_keys (np_sll_t(np_key_t, list_of_keys));
-
-NP_API_INTERN
-int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2);
-NP_API_INTERN
-int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2);
 
 
 #ifdef __cplusplus
