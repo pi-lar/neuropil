@@ -2,9 +2,16 @@
 // neuropil is copyright 2016 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
+#include "np_types.h";
+#include "np_memory.h";
+
 
 static np_msgproperty_t __default_properties =
 {
+		.obj =  &((np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _DEFAULT,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -22,6 +29,10 @@ static np_msgproperty_t __default_properties =
 
 static np_msgproperty_t __handshake_properties =
 {
+		.obj =  &((np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_HANDSHAKE,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | TRANSFORM,
@@ -40,6 +51,10 @@ static np_msgproperty_t __handshake_properties =
 // we don't need to ack the ack the ack the ack ...
 np_msgproperty_t __ack_properties =
 {
+		.obj =   &((np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_ACK,
 		.rep_subject = NULL,
 		.mode_type = OUTBOUND | ROUTE,
@@ -58,6 +73,10 @@ np_msgproperty_t __ack_properties =
 // join request: node unknown yet, therefore send without ack, explicit ack handling via extra messages
 np_msgproperty_t __join_req =
 {
+		.obj =   &((np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_JOIN_REQUEST,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND,
@@ -75,6 +94,10 @@ np_msgproperty_t __join_req =
 
 np_msgproperty_t __join_ack =
 {
+		.obj =  &(( np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_JOIN_ACK,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -92,6 +115,10 @@ np_msgproperty_t __join_ack =
 
 np_msgproperty_t __join_nack =
 {
+		.obj =  &((np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_JOIN_NACK,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -109,6 +136,10 @@ np_msgproperty_t __join_nack =
 
 np_msgproperty_t __join_wildcard_req =
 {
+		.obj = &((np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_JOIN_REQUEST_WILDCARD,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND,
@@ -127,6 +158,10 @@ np_msgproperty_t __join_wildcard_req =
 // leave the network and clean up the mess
 np_msgproperty_t __leave =
 {
+		.obj =   &((np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_LEAVE_REQUEST,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -144,6 +179,10 @@ np_msgproperty_t __leave =
 
 np_msgproperty_t __ping =
 {
+		.obj =  &((np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_PING_REQUEST,
 		.rep_subject = _NP_MSG_PING_REPLY,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -161,6 +200,10 @@ np_msgproperty_t __ping =
 
 np_msgproperty_t __ping_reply =
 {
+		.obj =  &((np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_PING_REPLY,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -178,6 +221,10 @@ np_msgproperty_t __ping_reply =
 
 np_msgproperty_t __piggy =
 {
+		.obj =   &((np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_PIGGY_REQUEST,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE,
@@ -195,6 +242,10 @@ np_msgproperty_t __piggy =
 
 np_msgproperty_t __update =
 {
+		.obj = &((np_obj_t) {
+				.type = np_msgproperty_t_e,
+				.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_UPDATE_REQUEST,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -212,6 +263,10 @@ np_msgproperty_t __update =
 
 np_msgproperty_t __discover_receiver =
 {
+		.obj =  &((np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_DISCOVER_RECEIVER,
 		.rep_subject = _NP_MSG_AVAILABLE_RECEIVER,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -229,6 +284,10 @@ np_msgproperty_t __discover_receiver =
 
 np_msgproperty_t __discover_sender =
 {
+		.obj =  &(( np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_DISCOVER_SENDER,
 		.rep_subject = _NP_MSG_AVAILABLE_SENDER,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -246,6 +305,10 @@ np_msgproperty_t __discover_sender =
 
 np_msgproperty_t __available_receiver =
 {
+		.obj =  &(( np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_AVAILABLE_RECEIVER,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -263,6 +326,10 @@ np_msgproperty_t __available_receiver =
 
 np_msgproperty_t __available_sender =
 {
+		.obj =   &(( np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_AVAILABLE_SENDER,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -280,6 +347,10 @@ np_msgproperty_t __available_sender =
 
 np_msgproperty_t __authenticate =
 {
+		.obj =   &(( np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_AUTHENTICATION_REQUEST,
 		.rep_subject = _NP_MSG_AUTHENTICATION_REPLY,
 		.mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE,
@@ -299,6 +370,10 @@ np_msgproperty_t __authenticate =
 
 np_msgproperty_t __authenticate_reply =
 {
+		.obj =  &(( np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_AUTHENTICATION_REPLY,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -317,6 +392,10 @@ np_msgproperty_t __authenticate_reply =
 
 np_msgproperty_t __authorize =
 {
+		.obj = &(( np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_AUTHORIZATION_REQUEST,
 		.rep_subject = _NP_MSG_AUTHORIZATION_REPLY,
 		.mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE,
@@ -336,6 +415,10 @@ np_msgproperty_t __authorize =
 
 np_msgproperty_t __authorize_reply =
 {
+		.obj = &(( np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_AUTHORIZATION_REPLY,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | ROUTE,
@@ -354,6 +437,10 @@ np_msgproperty_t __authorize_reply =
 
 np_msgproperty_t __account =
 {
+		.obj =   &(( np_obj_t) {
+			.type = np_msgproperty_t_e,
+			.persistent = TRUE
+		}),
 		.msg_subject = _NP_MSG_ACCOUNTING_REQUEST,
 		.rep_subject = NULL,
 		.mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE,

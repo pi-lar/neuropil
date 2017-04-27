@@ -61,6 +61,8 @@ struct np_obj_s
 
 	// additional field for memory management
 	np_obj_t* next;
+
+	np_bool persistent;
 };
 
 // enable locking of memory table
@@ -89,14 +91,15 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
 {                                               	\
   _LOCK_MODULE(np_memory_t) {                   	\
     if(NULL != np_obj) {                   	    	\
-		assert (np_obj->obj != NULL);               \
-		assert (np_obj->obj->type == TYPE##_e);     \
-		assert (np_obj->obj->ptr != NULL);          \
-		np_mem_unrefobj(np_obj->obj);     \
-		if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->ptr == np_obj) { \
+        assert (np_obj->obj != NULL);               \
+        assert (np_obj->obj->type == TYPE##_e);     \
+        assert (np_obj->obj->ptr != NULL);          \
+        np_mem_unrefobj(np_obj->obj);     \
+        if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) { \
 		  if (np_obj->obj->type != np_none_t_e)     \
-		  {                                         \
-			np_obj->obj->del_callback(np_obj);      \
+		  { 										\
+			if(np_obj->obj->del_callback != NULL) 	\
+				np_obj->obj->del_callback(np_obj);  \
 			np_mem_freeobj(TYPE##_e, &np_obj->obj); \
 			np_obj->obj->ptr = NULL;                \
 			np_obj->obj = NULL;                     \
@@ -118,6 +121,7 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
     np_obj->obj->del_callback = _##TYPE##_del;  \
     np_obj->obj->new_callback(np_obj);          \
     np_obj->obj->ptr = np_obj;                  \
+    np_obj->obj->persistent = FALSE;            \
     np_mem_refobj(np_obj->obj);                 \
   }                                             \
 }
@@ -127,7 +131,7 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
 {                                               \
   _LOCK_MODULE(np_memory_t) {                   \
     np_mem_unrefobj(np_obj->obj);               \
-    if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->ptr == np_obj) { \
+    if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) { \
       if (np_obj->obj->type != np_none_t_e)     \
       {                                         \
         np_obj->obj->del_callback(np_obj);      \
