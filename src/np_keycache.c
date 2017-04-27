@@ -254,38 +254,35 @@ char* _key_as_str(np_key_t* key)
 /** _np_find_closest_key:
  ** finds the closest node in the array of #hosts# to #key# and put that in min.
  */
-np_key_t* _np_find_closest_key ( np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key)
+np_key_t* _np_find_closest_key ( np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* const key)
 {
-    // int i;
-    np_dhkey_t dif, mindif;
-    np_key_t *min;
-
-    if (sll_size(list_of_keys) == 0)
-	{
-	    min = NULL;
-	    // return;
-	    // modified StSw 18.05.2014
-	    log_msg(LOG_KEY | LOG_ERROR, "minimum size for closest key calculation not met !");
-	    return min;
-	}
-    else
-	{
-	    min = sll_first(list_of_keys)->val;
-	    _dhkey_distance (&mindif, &min->dhkey, key);
-	}
+    np_dhkey_t  dif, minDif;
+    np_key_t *min = NULL;
 
 	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
-    while (NULL != (sll_next(iter)))
+	np_bool first_run = TRUE;
+	while (NULL != iter)
 	{
-    	_dhkey_distance (&dif, &iter->val->dhkey, key);
+		// clculate distance to the left and right
+		_dhkey_distance (&dif, key, &iter->val->dhkey);
 
-    	if (_dhkey_comp (&dif, &mindif) < 0)
-    	{
-    		min = iter->val;
-    		_dhkey_assign (&mindif, &dif);
+		// Set reference point at first iteration, then compare current iterations distance with shortest known distance
+		if (TRUE == first_run || _dhkey_comp (&dif, &minDif) < 0)
+		{
+			min = iter->val;
+			_dhkey_assign (&minDif, &dif);
 		}
+
+		sll_next(iter);
+		first_run = FALSE;
 	}
-    return (min);
+
+	if (sll_size(list_of_keys) == 0)
+	{
+		log_msg(LOG_KEY | LOG_ERROR, "minimum size for closest key calculation not met !");
+	}
+
+	return (min);
 }
 
 /** sort_hosts:
