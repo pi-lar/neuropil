@@ -9,6 +9,7 @@
 #include "np_keycache.h"
 #include "np_log.h"
 #include "np_memory.h"
+
 #include "np_route.h"
 
 void setup_route(void)
@@ -21,7 +22,7 @@ void setup_route(void)
 	_dhkey_init();
 	np_mem_init();
 
-	np_dhkey_t my_dhkey = dhkey_create_from_hostport("pi-lar", 0);
+	np_dhkey_t my_dhkey = dhkey_create_from_hostport("pi-lar", "0");
 	np_new_obj(np_key_t, me);
 	me->dhkey = my_dhkey;
 
@@ -43,7 +44,7 @@ Test(np_route_t, _leafset_update, .description="test the addition/removal of key
 	for (int i = 0; i < 128; i++)
 	{
 		char str[15];
-		sprintf(str, "%0d", i);
+		sprintf(str, "%0d", i+1);
 		np_dhkey_t my_dhkey = dhkey_create_from_hostport("pi-lar", str);
 		np_key_t *insert_key = NULL;
 		np_new_obj(np_key_t, insert_key);
@@ -51,8 +52,9 @@ Test(np_route_t, _leafset_update, .description="test the addition/removal of key
 		log_msg(LOG_DEBUG, "created key %s", _key_as_str(insert_key));
 
 		my_keys[i] = insert_key;
-		np_key_t *added = NULL, *deleted=NULL;
+		np_key_t *added = NULL, *deleted = NULL;
 		leafset_update(my_keys[i], TRUE, &deleted, &added);
+
 		if (NULL != added)
 		{
 			cr_expect(0 == _dhkey_comp(&insert_key->dhkey, &added->dhkey), "test whether the new key was added");
@@ -82,9 +84,9 @@ Test(np_route_t, _leafset_update, .description="test the addition/removal of key
 			cr_expect(0 == _dhkey_comp(&my_keys[i]->dhkey, &deleted->dhkey), "test whether the same key was removed");
 			keys_in_leafset--;
 		}
-
 	}
-	cr_expect(0 == keys_in_leafset, "test whether the leafset is empty");
+
+	cr_expect(0 == keys_in_leafset , "test whether the leafset is empty");
 }
 // TODO: write more tests for the routing table and leafset arrays
 //Test(np_route_t, _leafset_lookup, .description="test the lookup of keys from the leafset")

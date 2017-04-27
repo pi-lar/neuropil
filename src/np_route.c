@@ -485,18 +485,18 @@ void leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_
 	*added = NULL;
 	*deleted = NULL;
 
-	np_key_ptr find_right = pll_find(np_key_ptr, __routing_table->right_leafset, node_key, _np_key_cmp);
-	np_key_ptr find_left  = pll_find(np_key_ptr, __routing_table->left_leafset, update_key, _np_key_cmp_inv);
+	np_key_ptr find_right = pll_find(np_key_ptr, __routing_table->right_leafset, node_key, _np_key_cmp_inv );
+	np_key_ptr find_left  = pll_find(np_key_ptr, __routing_table->left_leafset, update_key, _np_key_cmp);
 
 	if(FALSE == joined) {
 
 		if(NULL != find_right ) {
 			*deleted = (np_key_t*)update_key;
-			pll_remove(np_key_ptr, __routing_table->right_leafset, update_key, _np_key_cmp);
+			pll_remove(np_key_ptr, __routing_table->right_leafset, update_key,_np_key_cmp_inv );
 
 		} else if (NULL != find_left ) {
 			*deleted = (np_key_t*)update_key;
-			pll_remove(np_key_ptr, __routing_table->left_leafset, update_key, _np_key_cmp_inv);
+			pll_remove(np_key_ptr, __routing_table->left_leafset, update_key, _np_key_cmp);
 		} else {
 			log_msg (LOG_ROUTING | LOG_DEBUG, "leafset did not change as key was not found");
 		}
@@ -536,7 +536,8 @@ void leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_
 				)
 			  )
 			{
-				pll_insert(np_key_ptr, __routing_table->right_leafset, update_key, FALSE, _np_key_cmp);
+				pll_insert(np_key_ptr, __routing_table->right_leafset, update_key, FALSE, _np_key_cmp_inv);
+
 				// Cleanup of leafset / resize leafsets to max size if necessary
 				if(__LEAFSET_SIZE < pll_size(__routing_table->right_leafset)) {
 					*deleted = pll_tail(np_key_ptr,__routing_table->left_leafset);
@@ -551,7 +552,8 @@ void leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_
 				)
 			  )
 			{
-				pll_insert(np_key_ptr, __routing_table->left_leafset, update_key, FALSE, _np_key_cmp_inv);
+				pll_insert(np_key_ptr, __routing_table->left_leafset, update_key, FALSE, _np_key_cmp);
+
 				// Cleanup of leafset / resize leafsets to max size if necessary
 				if(__LEAFSET_SIZE < pll_size(__routing_table->left_leafset)) {
 					*deleted = pll_tail(np_key_ptr,__routing_table->left_leafset);
