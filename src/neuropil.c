@@ -183,6 +183,7 @@ void np_send_wildcard_join(const char* node_string)
 	//START Build our wildcard connection string
 	np_dhkey_t wildcard_dhkey = dhkey_create_from_hostport("*", node_string);
 	char* wildcard_dhkey_str = malloc(sizeof(char)*65);
+	CHECK_MALLOC(wildcard_dhkey_str);
 	_dhkey_to_str(&wildcard_dhkey, wildcard_dhkey_str);
 	asprintf(&wildcard_node, "%s:%s", wildcard_dhkey_str, node_string);
 	//END Build our wildcard connection string
@@ -449,6 +450,7 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 			target = _np_key_find_by_dhkey(*target_key);
 		}
 		char* target_string = malloc(sizeof(char)*65);
+		CHECK_MALLOC(target_string);
 
 		_dhkey_to_str(target_key, target_string);
 
@@ -820,6 +822,8 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 
     // global neuropil structure
     np_state_t *state = (np_state_t *) malloc (sizeof (np_state_t));
+	CHECK_MALLOC(state);
+
     if (state == NULL)
 	{
     	log_msg(LOG_ERROR, "neuropil_init: state module not created: %s", strerror (errno));
@@ -869,6 +873,8 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
   //  char hostname[255];
     if(NULL == hostname){
     	hostname = malloc(sizeof(char) * 255);
+		CHECK_MALLOC(hostname);
+
     	gethostname(hostname, 255);
     }
 	_LOCK_MODULE(np_network_t)
@@ -977,6 +983,8 @@ void np_start_job_queue(uint8_t pool_size)
 
     __global_state->thread_count = pool_size;
     __global_state->thread_ids = (pthread_t *) malloc (sizeof (pthread_t) * pool_size);
+	CHECK_MALLOC(__global_state->thread_ids);
+
 
     /* create the thread pool */
     for (uint8_t i = 0; i < pool_size; i++)

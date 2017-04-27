@@ -15,6 +15,7 @@
 #include "np_log.h"
 
 #include "np_list.h"
+#include "np_memory.h"
 
 #include <sys/time.h>
 #include <time.h>
@@ -66,6 +67,8 @@ void np_log_message(uint16_t level, const char* srcFile, const char* funcName, u
 	if ( (level & logger->level & LOG_LEVEL_MASK) > LOG_NONE)
 	{
   	    char* new_log_entry = malloc(sizeof(char)*1124);
+		CHECK_MALLOC(new_log_entry);
+
   	    int wb = 0;
 		struct timeval tval;
 		struct tm local_time;
@@ -136,6 +139,8 @@ void np_log_setlevel(uint16_t level)
 void np_log_init(const char* filename, uint16_t level)
 {
 	logger = (np_log_t *) malloc(sizeof(np_log_t));
+	CHECK_MALLOC(logger);
+
 
     snprintf (logger->filename, 255, "%s", filename);
 	// logger->fp = fopen(logger->filename, "a"); // "a"
@@ -144,6 +149,8 @@ void np_log_init(const char* filename, uint16_t level)
 
     sll_init(char, logger->logentries_l);
     char* new_log_entry = malloc(sizeof(char)*256);
+	CHECK_MALLOC(new_log_entry);
+
     snprintf(new_log_entry, 255, "initialized log system %p: %s / %x", logger, logger->filename, logger->level);
     np_log_message(LOG_DEBUG, __FILE__, __func__, __LINE__, "%s", new_log_entry);
 

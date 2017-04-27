@@ -28,6 +28,8 @@ char* val_to_str(np_val_t val) {
   			len = snprintf(NULL, 0, "%d", val.value.sh);
   			if (0 < len) {
   				result = malloc(len+1);
+  				CHECK_MALLOC(result);
+
   				snprintf(result, len+1, "%d", val.value.sh);
   			}
   			break;
@@ -35,6 +37,7 @@ char* val_to_str(np_val_t val) {
   			len = snprintf(NULL, 0, "%d", val.value.i);
   			if (0 < len) {
   				result = malloc(len+1);
+  				CHECK_MALLOC(result);
   				snprintf(result, len+1, "%d", val.value.i);
   			}
 			break;
@@ -42,6 +45,7 @@ char* val_to_str(np_val_t val) {
   			len = snprintf(NULL, 0, "%d", val.value.l);
   			if (0 < len) {
   				result = malloc(len+1);
+  				CHECK_MALLOC(result);
   				snprintf(result, len+1, "%d", val.value.l);
   			}
 			break;
@@ -49,6 +53,7 @@ char* val_to_str(np_val_t val) {
   			len = snprintf(NULL, 0, "%llu", val.value.ll);
   			if (0 < len) {
   				result = malloc(len+1);
+  				CHECK_MALLOC(result);
   				snprintf(result, len+1, "%llu", val.value.ll);
   			}
 			break;
@@ -56,6 +61,7 @@ char* val_to_str(np_val_t val) {
   			len = snprintf(NULL, 0, "%f", val.value.f);
   			if (0 < len) {
   				result = malloc(len+1);
+  				CHECK_MALLOC(result);
   				snprintf(result, len+1, "%f", val.value.f);
   			}
 			break;
@@ -63,6 +69,7 @@ char* val_to_str(np_val_t val) {
   			len = snprintf(NULL, 0, "%f", val.value.d);
   			if (0 < len) {
   				result = malloc(len+1);
+  				CHECK_MALLOC(result);
   				snprintf(result, len+1, "%f", val.value.d);
   			}
 			break;
@@ -77,6 +84,7 @@ char* val_to_str(np_val_t val) {
   			len = snprintf(NULL, 0, "%u", val.value.ush);
   			if (0 < len) {
   				result = malloc(len+1);
+  				CHECK_MALLOC(result);
   				snprintf(result, len+1, "%u", val.value.ush);
   			}
  			break;
@@ -84,6 +92,7 @@ char* val_to_str(np_val_t val) {
   			len = snprintf(NULL, 0, "%u", val.value.ui);
   			if (0 < len) {
   				result = malloc(len+1);
+  				CHECK_MALLOC(result);
   				snprintf(result, len+1, "%u", val.value.ui);
   			}
 			break;
@@ -91,6 +100,7 @@ char* val_to_str(np_val_t val) {
   			len = snprintf(NULL, 0, "%u", val.value.ul);
   			if (0 < len) {
   				result = malloc(len+1);
+  				CHECK_MALLOC(result);
   				snprintf(result, len+1, "%u", val.value.ul);
   			}
 			break;
@@ -98,6 +108,7 @@ char* val_to_str(np_val_t val) {
   			len = snprintf(NULL, 0, "%llu", val.value.ull);
   			if (0 < len) {
   				result = malloc(len+1);
+  				CHECK_MALLOC(result);
   				snprintf(result, len+1, "%llu", val.value.ull);
   			}
 			break;
@@ -105,6 +116,7 @@ char* val_to_str(np_val_t val) {
   			len = snprintf(NULL, 0, "%u%u", val.value.a2_ui[0], val.value.a2_ui[1]);
   			if (0 < len) {
   				result = malloc(len+1);
+  				CHECK_MALLOC(result);
   				snprintf(result, len+1, "%u%u", val.value.a2_ui[0], val.value.a2_ui[1]);
   			}
  			break;
@@ -123,6 +135,7 @@ char* val_to_str(np_val_t val) {
 			break;
 		case key_type:
 			result = malloc(64);
+			CHECK_MALLOC(result);
 			_dhkey_to_str((np_dhkey_t*) val.value.v, result);
 			break;
 		default:
@@ -217,6 +230,7 @@ np_val_t copy_of_val(np_val_t from)
  			// if (0 < to.size && bin_type == to.type) free (to.value.bin);
 			to.type = bin_type;
 			to.value.bin = malloc(from.size);
+			CHECK_MALLOC(to.value.bin);
  		    memset(to.value.bin, 0, from.size);
  		    memcpy(to.value.bin, from.value.bin, from.size);
 			to.size = from.size;
@@ -234,6 +248,8 @@ np_val_t copy_of_val(np_val_t from)
  		case hash_type:
 			to.type = bin_type;
 			to.value.bin = malloc(from.size);
+			CHECK_MALLOC(to.value.bin);
+
  		    memset(to.value.bin, 0, from.size);
  		    memcpy(to.value.bin, from.value.bin, from.size);
 			to.size = from.size;
@@ -381,6 +397,8 @@ np_val_t new_val_bin (void* data, uint32_t ul)
     np_val_t j;
 
     j.value.bin = data; // malloc(ul);
+	CHECK_MALLOC(j.value.bin);
+
     // memset(j.value.bin, 0, ul);
     // memcpy(j.value.bin, data, ul);
 
@@ -460,6 +478,8 @@ np_val_t new_val_hash (char *s)
     np_val_t j;
 
     char* hash = malloc(crypto_generichash_BYTES);
+	CHECK_MALLOC(hash);
+
     crypto_generichash((unsigned char*) hash, sizeof hash, (unsigned char*)s, sizeof(s), NULL, 0);
 
     // char hex_hash[2*crypto_generichash_BYTES+1];

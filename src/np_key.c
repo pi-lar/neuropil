@@ -75,6 +75,8 @@ char* _dhkey_generate_hash (const char* key_in)
     //    crypto_hash_sha256_final(&state, tmp);
     //    log_msg (LOG_KEYDEBUG, "md value (%s) now: [%s]", key_in, tmp);
     char* digest_out = (char *) malloc (65);
+	CHECK_MALLOC(digest_out);
+
 	sodium_bin2hex(digest_out, 65, md_value, 32);
 
     return digest_out;
@@ -385,10 +387,10 @@ void _np_key_destroy(np_key_t* to_destroy) {
 		char* keyident = _key_as_str(to_destroy);
 		log_msg(LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
 
-		// delete old network structure
-		if (NULL != to_destroy->network)   np_unref_obj(np_network_t,  to_destroy->network);
-		if (NULL != to_destroy->node)      np_unref_obj(np_node_t,     to_destroy->node);
-		if (NULL != to_destroy->aaa_token) np_unref_obj(np_aaatoken_t, to_destroy->aaa_token);
+		_LOCK_MODULE(np_keycache_t)
+		{
+			_np_key_remove(to_destroy->dhkey);
+		}
 
 		// delete old receive tokens
 		if (NULL != to_destroy->recv_tokens)
@@ -419,10 +421,11 @@ void _np_key_destroy(np_key_t* to_destroy) {
 			}
 		}
 
-		_LOCK_MODULE(np_keycache_t)
-		{
-			_np_key_remove(to_destroy->dhkey);
-		}
+		// delete old network structure
+		if (NULL != to_destroy->network)   np_unref_obj(np_network_t,  to_destroy->network);
+		if (NULL != to_destroy->node)      np_unref_obj(np_node_t,     to_destroy->node);
+		if (NULL != to_destroy->aaa_token) np_unref_obj(np_aaatoken_t, to_destroy->aaa_token);
+
 		np_unref_obj(np_key_t, to_destroy);
 
 		log_msg(LOG_DEBUG, "cleanup of key and associated data structures done");

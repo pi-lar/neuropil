@@ -1813,7 +1813,7 @@ void _np_in_handshake(np_jobargs_t* args)
 			np_ref_obj(np_network_t, hs_key->network);
 			hs_key->node->handshake_status= hs_wildcard_key->node->handshake_status;
 
-			hs_wildcard_key->network = NULL;
+			//hs_wildcard_key->network = NULL;
 			//_np_key_destroy(hs_wildcard_key);
 
 			_np_send_simple_invoke_request(hs_key,_NP_MSG_JOIN_REQUEST);

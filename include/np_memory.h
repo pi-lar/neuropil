@@ -9,6 +9,7 @@
 
 #include "np_threads.h"
 #include "np_types.h"
+#include "assert.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -71,10 +72,18 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
   _LOCK_MODULE(np_memory_t) {                 \
     assert (np_obj != NULL);      		      \
     assert (np_obj->obj != NULL);             \
+    if (np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",np_obj->obj->type, TYPE##_e);   \
     assert (np_obj->obj->type == TYPE##_e);   \
     np_mem_refobj(np_obj->obj);               \
   }                                           \
 }
+#define CHECK_MALLOC(obj)		              			\
+{                                             			\
+	if(NULL == obj ) {									\
+		log_msg(LOG_ERROR,"could not allocate memory");	\
+	}													\
+	assert(NULL != obj);                               	\
+}														\
 
 #define np_unref_obj(TYPE, np_obj)              	\
 {                                               	\
@@ -103,6 +112,7 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
 {                                               \
   _LOCK_MODULE(np_memory_t) {                   \
     np_obj = (TYPE*) malloc(sizeof(TYPE));      \
+    CHECK_MALLOC(np_obj);						\
     np_mem_newobj(TYPE##_e, &np_obj->obj);      \
     np_obj->obj->new_callback = _##TYPE##_new;  \
     np_obj->obj->del_callback = _##TYPE##_del;  \

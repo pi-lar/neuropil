@@ -38,6 +38,8 @@ static st_keycache_t* __key_cache;
 void _np_keycache_init()
 {
 	__key_cache = (st_keycache_t*) malloc(sizeof(st_keycache_t));
+	CHECK_MALLOC(__key_cache);
+
 	SPLAY_INIT(__key_cache);
 }
 
@@ -243,6 +245,8 @@ char* _key_as_str(np_key_t* key)
 	if (NULL == key->dhkey_str)
 	{
 		key->dhkey_str = (char*) malloc(65);
+		CHECK_MALLOC(key->dhkey_str);
+
 		_dhkey_to_str(&key->dhkey, key->dhkey_str);
 		log_msg (LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
 	}

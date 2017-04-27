@@ -102,6 +102,8 @@ _NP_MODULE_LOCK_IMPL(np_msgproperty_t);
 np_bool _np_msgproperty_init ()
 {
 	__msgproperty_table = (rbt_msgproperty_t*) malloc(sizeof(rbt_msgproperty_t));
+	CHECK_MALLOC(__msgproperty_table);
+
 	if (NULL == __msgproperty_table) return FALSE;
 
 	RB_INIT(__msgproperty_table);

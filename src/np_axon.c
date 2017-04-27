@@ -60,6 +60,8 @@ void _np_out_ack(np_jobargs_t* args)
 	np_message_calculate_chunking(args->msg);
 
 	np_jobargs_t* chunk_args = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
+	CHECK_MALLOC(chunk_args);
+
 	chunk_args->msg = args->msg;
 	np_message_serialize_chunked(chunk_args);
 	free(chunk_args);
@@ -369,6 +371,8 @@ void _np_out_handshake(np_jobargs_t* args)
 	// log_msg(LOG_DEBUG, "msg chunks %u", hs_message->no_of_chunks);
 
 	np_jobargs_t* chunk_args = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
+	CHECK_MALLOC(chunk_args);
+
 	chunk_args->msg = hs_message;
 	np_bool serialize_ok = np_message_serialize_chunked(chunk_args);
 
@@ -412,6 +416,8 @@ void _np_out_handshake(np_jobargs_t* args)
 //				&args->target->network->watcher.data);
 
 		char* packet = (char*) malloc(1024);
+		CHECK_MALLOC(packet);
+
 		memset(packet, 0, 1024);
 		memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 

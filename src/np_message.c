@@ -284,6 +284,8 @@ np_bool np_message_serialize_chunked(np_jobargs_t* args)
 		tree_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i+1;
 
 		np_messagepart_ptr part = (np_messagepart_ptr) malloc(sizeof(np_messagepart_t));
+		CHECK_MALLOC(part);
+
 		if (NULL == part)
 		{
 			ret_val = FALSE;
@@ -295,6 +297,8 @@ np_bool np_message_serialize_chunked(np_jobargs_t* args)
 		part->instructions = msg->instructions;
 		part->part = i;
 		part->msg_part = malloc(max_chunk_size * sizeof(char));
+		CHECK_MALLOC(part->msg_part);
+
 		if (NULL == part->msg_part)
 		{
 			ret_val = FALSE;
@@ -310,6 +314,8 @@ np_bool np_message_serialize_chunked(np_jobargs_t* args)
 		{
 			// TODO: optimize memory handling and allocate memory during serialization
 			bin_header = malloc(msg->header->byte_size);
+			CHECK_MALLOC(bin_header);
+
 			if (NULL == bin_header)
 			{
 				ret_val = FALSE;
@@ -330,6 +336,8 @@ np_bool np_message_serialize_chunked(np_jobargs_t* args)
 		// current_chunk_size = cmp.buf-part->msg_part;
 
 		bin_instructions = malloc(msg->instructions->byte_size);
+		CHECK_MALLOC(bin_instructions);
+
 		if (NULL == bin_instructions)
 		{
 			ret_val = FALSE;
@@ -356,6 +364,8 @@ np_bool np_message_serialize_chunked(np_jobargs_t* args)
 		{
 			// TODO: optimize memory handling and allocate memory during serialization
 			bin_properties = malloc(msg->properties->byte_size);
+			CHECK_MALLOC(bin_properties);
+
 			if (NULL == bin_properties)
 			{
 				ret_val = FALSE;
@@ -406,6 +416,8 @@ np_bool np_message_serialize_chunked(np_jobargs_t* args)
 		{
 			// TODO: optimize memory handling and allocate memory during serialization
 			bin_body = malloc(msg->body->byte_size);
+			CHECK_MALLOC(bin_body);
+
 			if (NULL == bin_body)
 			{
 				ret_val = FALSE;
@@ -459,6 +471,8 @@ np_bool np_message_serialize_chunked(np_jobargs_t* args)
 		{
 			// TODO: optimize memory handling and allocate memory during serialization
 			bin_footer = malloc(msg->footer->byte_size);
+			CHECK_MALLOC(bin_footer);
+
 			if (NULL == bin_footer)
 			{
 				ret_val = FALSE;
@@ -559,6 +573,8 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer)
 	}
 
 	np_messagepart_ptr part = (np_messagepart_ptr) malloc(sizeof(np_messagepart_t));
+	CHECK_MALLOC(part);
+
 	part->header = msg->header;
 	part->instructions = msg->instructions;
 	part->part = chunk_id;

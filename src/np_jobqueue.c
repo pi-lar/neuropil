@@ -63,6 +63,8 @@ np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproper
 {
 	// create runtime arguments
 	np_jobargs_t* jargs = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
+	CHECK_MALLOC(jargs);
+
 	jargs->msg = msg;
 	jargs->is_resend = FALSE;
 	jargs->target = key;
@@ -75,6 +77,8 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs)
 {
 	// create job itself
 	np_job_t* new_job = (np_job_t*) malloc(sizeof(np_job_t));
+	CHECK_MALLOC(new_job);
+
 	new_job->tstamp = ev_time() + delay;
 	new_job->args = jargs;
 	new_job->type = 1;
@@ -136,7 +140,7 @@ void _np_job_resubmit_route_event (double delay, np_msgproperty_t* prop, np_key_
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
     jargs->is_resend = TRUE;
 
-	if (msg != NULL)
+	if (jargs->msg != NULL)
 	{
 		np_ref_obj(np_message_t, jargs->msg);
 	}
@@ -183,7 +187,7 @@ void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t*
 	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
 
-	if (msg != NULL)
+	if (NULL != jargs->msg )
     {
     	np_ref_obj(np_message_t, jargs->msg);
     }
@@ -261,6 +265,8 @@ void np_job_submit_event (double delay, np_callback_t callback)
 np_bool _np_job_queue_create()
 {
 	__np_job_queue = (np_jobqueue_t *) malloc (sizeof(np_jobqueue_t));
+	CHECK_MALLOC(__np_job_queue);
+
 	if (NULL == __np_job_queue) return (FALSE);
 
 	pll_init(np_job_ptr, __np_job_queue->job_list);

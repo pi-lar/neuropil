@@ -107,6 +107,8 @@ void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 	snprintf(key, 31, "%d:%s", method, path);
 
 	_np_http_callback_t* callback_data = malloc(sizeof(_np_http_callback_t));
+	CHECK_MALLOC(callback_data);
+
 	callback_data->user_arg = user_args;
 	callback_data->callback = func;
 	tree_insert_str(__local_http->user_hooks, key, new_val_v(callback_data));
@@ -248,6 +250,8 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 			log_msg(LOG_DEBUG, "Requesting sysinfo");
 
 			char* target_hash = (char*) malloc(65 * sizeof(char));
+			CHECK_MALLOC(target_hash);
+
 			np_bool usedefault = TRUE;
 			int http_status = HTTP_CODE_OK;
 			char* response;
@@ -532,6 +536,8 @@ NP_UNUSED int event_type) {
 
 np_bool _np_http_init() {
 	__local_http = (np_http_t*) malloc(sizeof(np_http_t));
+	CHECK_MALLOC(__local_http);
+
 	if (NULL == __local_http)
 		return FALSE;
 
@@ -545,6 +551,8 @@ np_bool _np_http_init() {
 		return FALSE;
 
 	__local_http->hooks = (htparse_hooks*) malloc(sizeof(htparse_hooks));
+	CHECK_MALLOC(__local_http->hooks);
+
 	if (NULL == __local_http->hooks)
 		return FALSE;
 

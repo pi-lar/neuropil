@@ -55,6 +55,7 @@ _NP_MODULE_LOCK_IMPL(np_network_t);
 np_prioq_t* get_new_pqentry()
 {
 	np_prioq_t* entry = (np_prioq_t *) malloc(sizeof(np_prioq_t));
+	CHECK_MALLOC(entry);
 
 	entry->dest_key = NULL;
 	entry->msg = NULL;
@@ -68,6 +69,8 @@ np_prioq_t* get_new_pqentry()
 np_ackentry_t* get_new_ackentry()
 {
 	np_ackentry_t *entry = (np_ackentry_t *) malloc(sizeof(np_ackentry_t));
+	CHECK_MALLOC(entry);
+
 	entry->acked = FALSE;
 	entry->acktime = 0.0;
 	entry->transmittime = 0.0;
@@ -315,6 +318,8 @@ void network_send (np_key_t *node_key, np_message_t* msg)
 	do
 	{
 		char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
+		CHECK_MALLOC(enc_buffer);
+
 
 		// add protection from replay attacks ...
 		unsigned char nonce[crypto_secretbox_NONCEBYTES];
@@ -588,12 +593,15 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 	}
 
 	void* data_ptr = malloc(in_msg_len * sizeof(char));
+	CHECK_MALLOC(data_ptr);
+
 	memset(data_ptr, 0,    in_msg_len);
 	memcpy(data_ptr, data, in_msg_len);
 
 	sll_append(void_ptr, ng->in_events, data_ptr);
 
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
+
 	_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL);
 
 	// np_node_update_stat(key->node, 1);

@@ -62,6 +62,7 @@ void _np_sysinfo_init(np_bool isRequestor) {
 	if (isRequestor) {
 		_cache = (np_simple_cache_table_t*) malloc(
 				sizeof(np_simple_cache_table_t));
+    	CHECK_MALLOC(_cache);
 
 		for (int i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
 			sll_init(np_cache_item_t, _cache->buckets[i]);
@@ -136,9 +137,7 @@ np_bool _np_in_sysinfo(np_tree_t* properties, NP_UNUSED np_tree_t* body) {
 			reply_body->size);
 
 	np_dhkey_t* target_dhkey = malloc(sizeof(np_dhkey_t));
-	if(NULL == target_dhkey) {
-		log_msg(LOG_ERROR, "Could not allocate memory");
-	}
+	CHECK_MALLOC(target_dhkey);
 
 	_str_to_dhkey(source->val.value.s, target_dhkey);
 	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, target_dhkey);
@@ -251,10 +250,7 @@ void _np_request_sysinfo(const char* hash_of_target) {
 
 		log_msg(LOG_DEBUG, "Converting %s to dhkey", hash_of_target);
 		np_dhkey_t* target_dhkey = malloc(sizeof(np_dhkey_t));
-
-		if(NULL == target_dhkey) {
-			log_msg(LOG_ERROR, "Could not allocate memory");
-		}
+		CHECK_MALLOC(target_dhkey);
 
 		_str_to_dhkey(hash_of_target, target_dhkey);
 		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, target_dhkey);

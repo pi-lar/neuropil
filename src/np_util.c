@@ -28,12 +28,15 @@
 #include "np_node.h"
 #include "np_route.h"
 #include "np_types.h"
+#include "np_memory.h"
+#include "assert.h"
 
 char* np_create_uuid(const char* str, const uint16_t num)
 {
 	char input[256];
 	unsigned char out[18];
 	char* uuid_out = malloc(sizeof(char)*37);
+	CHECK_MALLOC(uuid_out);
 
 	double now = ev_time();
 	snprintf (input, 255, "%s:%u:%16.16f", str, num, now);
@@ -318,6 +321,8 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 			value->type = char_ptr_type;
 			value->size = obj->as.str_size;
 			value->value.s = (char*) malloc(obj->as.str_size+1);
+			CHECK_MALLOC(value->value.s);
+
 			cmp->read(cmp, value->value.s, obj->as.str_size * sizeof(char));
 			value->value.s[obj->as.str_size] = '\0';
 			//log_msg(LOG_DEBUG, "string size %u/%lu -> %s", value->size, strlen(value->value.s), value->value.s);
@@ -405,6 +410,8 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 				value->type = hash_type;
 				value->size = obj->as.ext.size;
 				value->value.s = (char*) malloc(obj->as.ext.size);
+				CHECK_MALLOC(value->value.s);
+
 				memset(value->value.bin, 0, value->size);
 				memcpy(value->value.bin, buffer, obj->as.ext.size);
 				// value->value.s[obj->as.ext.size] = '\0';
@@ -627,6 +634,8 @@ JSON_Value* np_val_to_json(np_val_t val) {
  		break;
 	case bin_type:
 		tmp =  malloc(sizeof(char)*64);
+		CHECK_MALLOC(tmp);
+
 		sprintf(tmp, "<binaray data (size: %"PRIu32")>", val.size);
 		ret = json_value_init_string((char*)tmp);
 		free(tmp);
@@ -670,18 +679,24 @@ JSON_Value* np_tree_to_json(np_tree_t* tree) {
 					useArray = TRUE;
 					int size = snprintf(NULL, 0, "%d", tmp->key.value.i);
 					name = malloc(size + 1);
+					CHECK_MALLOC(name);
+
 					snprintf(name, size + 1, "%d", tmp->key.value.i);
 				}
 				else if (double_type == tmp->key.type)
 				{
 					int size = snprintf(NULL, 0, "%f", tmp->key.value.d);
 					name = malloc(size + 1);
+					CHECK_MALLOC(name);
+
 					snprintf(name, size + 1, "%f", tmp->key.value.d);
 				}
 				else if (unsigned_long_type == tmp->key.type)
 				{
 					int size = snprintf(NULL, 0, "%u", tmp->key.value.ul);
 					name = malloc(size + 1);
+					CHECK_MALLOC(name);
+
 					snprintf(name, size + 1, "%u", tmp->key.value.ul);
 				}
 				else if (char_ptr_type == tmp->key.type)
@@ -740,10 +755,14 @@ char* np_json_to_char(JSON_Value* data, np_bool prettyPrint) {
 	if(prettyPrint){
 		json_size = json_serialization_size_pretty(data);
 		ret = (char*) malloc(json_size * sizeof(char));
+		CHECK_MALLOC(ret);
+
 		json_serialize_to_buffer_pretty(data, ret, json_size);
 	}else{
 		json_size = json_serialization_size(data);
 		ret = (char*) malloc(json_size * sizeof(char));
+		CHECK_MALLOC(ret);
+
 		json_serialize_to_buffer(data, ret, json_size);
 	}
 		return ret;

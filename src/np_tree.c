@@ -30,10 +30,7 @@ RB_GENERATE(np_tree_s, np_tree_elem_s, link, _val_cmp);
 np_tree_t* make_nptree ()
 {
 	np_tree_t* new_tree = (np_tree_t*) malloc(sizeof(np_tree_t));
-
-	if(NULL == new_tree){
-		log_msg(LOG_ERROR, "Could not allocate memory for new tree");
-	}
+	CHECK_MALLOC(new_tree);
 
 	new_tree->rbh_root = NULL;
 	new_tree->size = 0;
@@ -439,6 +436,7 @@ void tree_insert_str (np_tree_t* tree, const char *key, np_val_t val)
 	{
 		// insert new value
 		found = (np_tree_elem_t*) malloc(sizeof(np_tree_elem_t));
+		CHECK_MALLOC(found);
 
 		found->key.value.s = strndup(key, 255);
 	    found->key.type = char_ptr_type;
@@ -464,6 +462,8 @@ void tree_insert_int (np_tree_t* tree, int16_t ikey, np_val_t val)
 	{
 		// insert new value
 		found = (np_tree_elem_t*) malloc(sizeof(np_tree_elem_t));
+		CHECK_MALLOC(found);
+
 		// if (NULL == found) return;
 
 	    found->key.value.i = ikey;
@@ -487,6 +487,8 @@ void tree_insert_ulong (np_tree_t* tree, uint32_t ulkey, np_val_t val)
 	{
 		// insert new value
 		found = (np_tree_elem_t*) malloc(sizeof(np_tree_elem_t));
+		CHECK_MALLOC(found);
+
 	    found->key.value.ul = ulkey;
 	    found->key.type = unsigned_long_type;
 	    found->key.size = sizeof(uint32_t);
@@ -509,6 +511,8 @@ void tree_insert_dbl (np_tree_t* tree, double dkey, np_val_t val)
 	{
 		// insert new value
 		found = (np_tree_elem_t*) malloc(sizeof(np_tree_elem_t));
+		CHECK_MALLOC(found);
+
 		found->key.value.d = dkey;
 	    found->key.type = double_type;
 	    found->key.size = sizeof(double);

@@ -16,6 +16,7 @@
 #include "np_key.h"
 #include "np_message.h"
 #include "np_node.h"
+#include "np_log.h"
 
 
 /** np_obj_pool_t
@@ -40,6 +41,8 @@ _NP_MODULE_LOCK_IMPL(np_memory_t);
 void np_mem_init()
 {
 	__np_obj_pool_ptr = (np_obj_pool_t*) malloc(sizeof(np_obj_pool_t));
+	CHECK_MALLOC(__np_obj_pool_ptr);
+
 	__np_obj_pool_ptr->current = NULL;
 	__np_obj_pool_ptr->first = NULL;
 	__np_obj_pool_ptr->free_obj = NULL;
@@ -58,6 +61,8 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 	else
 	{
 		__np_obj_pool_ptr->current = (np_obj_t*) malloc (sizeof(np_obj_t) );
+		CHECK_MALLOC(__np_obj_pool_ptr->current);
+
 		__np_obj_pool_ptr->size++;
     }
 

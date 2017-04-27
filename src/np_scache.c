@@ -62,6 +62,8 @@ int np_simple_cache_insert(struct np_simple_cache_table_t *table, char *key, voi
 
     if(NULL == iter) {
     	item = (np_cache_item_t*) malloc(sizeof (np_cache_item_t));
+    	CHECK_MALLOC(item);
+
     	if(item < 0){
     		log_msg(LOG_ERROR, "cannot allocate memory for np_cache_item");
     	}
