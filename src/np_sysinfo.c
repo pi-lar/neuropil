@@ -321,12 +321,11 @@ void _np_request_others() {
 			np_key_t* current;
 			while (NULL != sll_first(routing_table)) {
 				current = sll_head(np_key_t, routing_table);
-				if (NULL != current) {
-					if(strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0) {
-						if( NULL == _np_get_sysinfo_from_cache(_key_as_str(current))) {
-							_np_request_sysinfo(_key_as_str(current));
-						}
-					}
+				if (	NULL != current &&
+						strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0 &&
+						NULL == _np_get_sysinfo_from_cache(_key_as_str(current)))
+				{
+					_np_request_sysinfo(_key_as_str(current));
 				}
 			}
 		}
@@ -336,12 +335,11 @@ void _np_request_others() {
 			np_key_t* current;
 			while (NULL != sll_first(neighbours_table)) {
 				current = sll_head(np_key_t, neighbours_table);
-				if (NULL != current) {
-					if(strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0) {
-						if( NULL == _np_get_sysinfo_from_cache(_key_as_str(current))) {
+				if (	NULL != current &&
+						strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0 &&
+						NULL == _np_get_sysinfo_from_cache(_key_as_str(current)))
+				{
 							_np_request_sysinfo(_key_as_str(current));
-						}
-					}
 				}
 			}
 		}

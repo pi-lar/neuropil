@@ -34,7 +34,7 @@ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 #define DEBUG 0
-#define NUM_HOST 120
+#define NUM_HOST 40
 
 extern char *optarg;
 extern int optind;
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
 	char* bootstrap_hostnode_default;
 	char bootstrap_port[7];
 	char* proto = "udp4";
-	uint32_t required_nodes = 60;
+	uint32_t required_nodes = NUM_HOST;
 	int level = LOG_ERROR | LOG_WARN ;//| LOG_MESSAGE | LOG_DEBUG;
 
 	np_bool startHTTP = TRUE;
