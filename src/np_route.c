@@ -174,13 +174,12 @@ void _np_route_set_key (np_key_t* new_node_key)
  */
 sll_return(np_key_t) _np_route_get_table ()
 {
-    uint16_t i, j, k;
-
 	np_sll_t(np_key_t, sll_of_keys);
 	sll_init(np_key_t, sll_of_keys);
 
 	_LOCK_MODULE(np_routeglobal_t)
 	{
+	    uint16_t i, j, k;
 		for (i = 0; i < __MAX_ROW; i++)
 		{
 			for (j = 0; j < __MAX_COL; j++)

@@ -94,16 +94,22 @@ void _np_message_t_del(void* data)
 //		log_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting msg (%s) %p / %p", msg_uuid, msg, msg->msg_chunks);
 //	}
 
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free header",msg->uuid);
 	np_free_tree(msg->header);
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting instructions %p", msg->instructions);
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free instructions",msg->uuid);
 	np_free_tree(msg->instructions);
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting properties %p", msg->properties);
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free properties",msg->uuid);
 	np_free_tree(msg->properties);
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting body %p", msg->body);
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free body",msg->uuid);
 	np_free_tree(msg->body);
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting footer %p", msg->footer);
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free footer",msg->uuid);
 	np_free_tree(msg->footer);
 
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free msg_chunks",msg->uuid);
 	if (0 < pll_size(msg->msg_chunks))
 	{
 		pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
