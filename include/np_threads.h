@@ -16,16 +16,17 @@ extern "C" {
 
 // and add the implementation into the source file
 #define _NP_MODULE_LOCK_IMPL(TYPE) 						\
-	np_bool __thread_has_##TYPE##_mutex = FALSE;					\
+	int __thread_has_##TYPE##_mutex = 0;				\
 	int  _##TYPE##_lock()   {							\
 		int ret = 0;									\
-		if(__thread_has_##TYPE##_mutex == FALSE) {				\
+		if(__thread_has_##TYPE##_mutex < 1) {			\
 			ret = pthread_mutex_lock(&__lock_mutex);	\
-			__thread_has_##TYPE##_mutex = TRUE;					\
+			__thread_has_##TYPE##_mutex = TRUE;			\
 		}												\
+		__thread_has_##TYPE##_mutex++; 					\
 		return ret;   									\
 	} 													\
-	void _##TYPE##_unlock() { __thread_has_##TYPE##_mutex = FALSE;  pthread_mutex_unlock(&__lock_mutex); }
+	void _##TYPE##_unlock() { __thread_has_##TYPE##_mutex--; if(__thread_has_##TYPE##_mutex == 0) pthread_mutex_unlock(&__lock_mutex); }
 
 #define _LOCK_MODULE(TYPE) for(uint8_t i=0; (i < 1) && !_##TYPE##_lock(); _##TYPE##_unlock(), i++)
 // protect access to a module in the rest of your code like this
