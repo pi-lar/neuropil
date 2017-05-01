@@ -79,6 +79,7 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
     np_mem_refobj(np_obj->obj);               \
   }                                           \
 }
+
 #define CHECK_MALLOC(obj)		              			\
 {                                             			\
 	if(NULL == obj ) {									\

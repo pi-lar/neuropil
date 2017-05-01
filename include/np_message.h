@@ -21,7 +21,7 @@ struct np_messagepart_s
 {
 	np_tree_t* header;
 	np_tree_t* instructions;
-	int part;
+	uint16_t part;
 	void* msg_part;
 } NP_API_INTERN;
 
@@ -66,7 +66,7 @@ NP_API_INTERN
 void np_message_calculate_chunking(np_message_t* msg);
 
 NP_API_INTERN
-np_message_t* np_message_check_chunks_complete(np_jobargs_t* args);
+np_message_t* np_message_check_chunks_complete(np_message_t* msg_to_check);
 NP_API_INTERN
 np_bool np_message_serialize(np_jobargs_t* args);
 NP_API_INTERN
