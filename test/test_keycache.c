@@ -190,12 +190,12 @@ Test(np_keycache_t, _np_find_closest_key, .description="test the finding of the 
 	cr_expect(NULL != found, "expecting to find the new key in list");
 
  	for(i=1;(i-1) < count_of_keys && _np_key_cmp(found, new_keys[i-1]) != 0 ; i++);
-	cr_expect(0 == _np_key_cmp(found, new_keys[1]), "expecting the closest key to be the first in the array, But was at idx:  %lu",(i == sll_size(key_list) ? 666 : (i-1)));
+	cr_expect(0 == _np_key_cmp(found, new_keys[1]), "expecting the closest key to be the first in the array, But was at idx:  %d",(i == sll_size(key_list) ? 666 : (i-1)));
 
  	found = _np_find_closest_key(key_list, &dummy_key);
 	cr_expect(NULL != found, "expecting to find the dummy_key in list");
  	for(i=1; (i-1) < count_of_keys && _np_key_cmp(found, new_keys[i-1]) != 0; i++);
-	cr_expect(0 == _np_key_cmp(found, new_keys[count_of_keys-1]), "expecting the closest key to be the last in the array, But was at idx: %lu ", (i == sll_size(key_list) ? 666 : (i-1)));
+	cr_expect(0 == _np_key_cmp(found, new_keys[count_of_keys-1]), "expecting the closest key to be the last in the array, But was at idx: %d ", (i == sll_size(key_list) ? 666 : (i-1)));
 }
 
 // void _np_sort_keys_cpm (np_sll_t(np_key_t, node_keys), np_dhkey_t* key);
