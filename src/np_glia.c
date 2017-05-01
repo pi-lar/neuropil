@@ -145,15 +145,21 @@ void _np_route_lookup(np_jobargs_t* args)
 
 		if (TRUE == args->msg->is_single_part)
 		{
-			// sum up message parts if the message is for this node
-			msg_to_submit = np_message_check_chunks_complete(args);
+			_LOCK_MODULE(msgpart_cache)
+			{
+				// sum up message parts if the message is for this node
+				msg_to_submit = np_message_check_chunks_complete(args->msg);
+			}
 			if (NULL == msg_to_submit)
 			{
 				sll_free(np_key_t, tmp);
 				log_msg(LOG_TRACE, ".end  .np_route_lookup");
 				return;
 			}
+			if (msg_in == msg_to_submit) np_ref_obj(np_message_t, msg_to_submit);
+
 			np_message_deserialize_chunked(msg_to_submit);
+			np_unref_obj(np_message_t, msg_to_submit);
 		}
 		else
 		{
@@ -265,22 +271,19 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 		{
 			log_msg(LOG_DEBUG, "deleting from neighbours: %s", _key_as_str(tmp_node_key));
 			// request a new handshake with the node
-			_LOCK_MODULE(np_routeglobal_t)
-			{
-				if (NULL != tmp_node_key->aaa_token)
-					tmp_node_key->aaa_token->state &= AAA_INVALID;
-				tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
+			if (NULL != tmp_node_key->aaa_token)
+				tmp_node_key->aaa_token->state &= AAA_INVALID;
+			tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
 
-				np_key_t *added = NULL, *deleted = NULL;
-				leafset_update(tmp_node_key, FALSE, &deleted, &added);
-				if (deleted == tmp_node_key)
-				{
-					np_unref_obj(np_key_t, deleted);
-				}
-				else
-				{
-					log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _key_as_str(deleted));
-				}
+			np_key_t *added = NULL, *deleted = NULL;
+			leafset_update(tmp_node_key, FALSE, &deleted, &added);
+			if (deleted == tmp_node_key)
+			{
+				np_unref_obj(np_key_t, deleted);
+			}
+			else
+			{
+				log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _key_as_str(deleted));
 			}
 		}
 		else
@@ -317,22 +320,19 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 			{
 				log_msg(LOG_DEBUG, "deleting from table: %s", _key_as_str(tmp_node_key));
 				// request a new handshake with the node
-				_LOCK_MODULE(np_routeglobal_t)
-				{
-					if (NULL != tmp_node_key->aaa_token)
-						tmp_node_key->aaa_token->state &= AAA_INVALID;
-					tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
+				if (NULL != tmp_node_key->aaa_token)
+					tmp_node_key->aaa_token->state &= AAA_INVALID;
+				tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
 
-					np_key_t *added = NULL, *deleted = NULL;
-					route_update(tmp_node_key, FALSE, &deleted, &added);
-					if (deleted == tmp_node_key)
-					{
-						np_unref_obj(np_key_t, deleted);
-					}
-					else
-					{
-						log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _key_as_str(deleted));
-					}
+				np_key_t *added = NULL, *deleted = NULL;
+				route_update(tmp_node_key, FALSE, &deleted, &added);
+				if (deleted == tmp_node_key)
+				{
+					np_unref_obj(np_key_t, deleted);
+				}
+				else
+				{
+					log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _key_as_str(deleted));
 				}
 			}
 			else
@@ -750,7 +750,7 @@ void _np_send_rowinfo(np_jobargs_t* args)
 		if (0 == sll_size(sll_of_keys))
 		{
 			// nothing found, send leafset to exchange some data at least
-			// prevents small clusters ffrom not exchanging all data
+			// prevents small clusters from not exchanging all data
 			sll_free(np_key_t, sll_of_keys);
 			sll_of_keys = route_neighbors();
 		}
@@ -759,11 +759,7 @@ void _np_send_rowinfo(np_jobargs_t* args)
 	if (0 < sll_size(sll_of_keys))
 	{
 		np_tree_t* msg_body = make_nptree();
-		_LOCK_MODULE(np_keycache_t)
-		{
-			// TODO: maybe locking the cache is not enough and we have to do it more fine grained
-			_np_encode_nodes_to_jrb(msg_body, sll_of_keys, FALSE);
-		}
+		_np_encode_nodes_to_jrb(msg_body, sll_of_keys, FALSE);
 		np_msgproperty_t* outprop = np_msgproperty_get(OUTBOUND, _NP_MSG_PIGGY_REQUEST);
 
 		np_message_t* msg_out = NULL;
@@ -774,6 +770,7 @@ void _np_send_rowinfo(np_jobargs_t* args)
 
 		_np_job_yield(__rowinfo_send_delay);
 	}
+
 	sll_free(np_key_t, sll_of_keys);
 }
 

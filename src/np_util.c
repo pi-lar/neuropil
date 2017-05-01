@@ -218,8 +218,6 @@ void write_type(np_val_t val, cmp_ctx_t* cmp)
 }
 
 
-
-
 void serialize_jrb_node_t(np_tree_t* jtree, cmp_ctx_t* cmp)
 {
 	uint16_t i = 0;
@@ -303,7 +301,6 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 
 	case CMP_TYPE_ARRAY16:
 	case CMP_TYPE_ARRAY32:
-
 		log_msg(LOG_WARN,
 				"error de-serializing message to normal form, found array type");
 		break;
@@ -334,11 +331,10 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 		{
 			value->type = bin_type;
 			value->size = obj->as.bin_size;
-			value->value.bin = calloc(1, value->size);
-			if(NULL == value->value.bin){
-				log_msg(LOG_ERROR, "could not allocate memory");
-			}
-			log_msg(LOG_DEBUG, "BIN size %"PRIu32, value->size);
+			value->value.bin = malloc(obj->as.bin_size);
+			// value->value.bin = calloc(1, value->size);
+			CHECK_MALLOC(value->value.bin);
+			// log_msg(LOG_DEBUG, "BIN size %"PRIu32, value->size);
 
 			memset(value->value.bin, 0, value->size);
 			cmp->read(cmp, value->value.bin, obj->as.bin_size);
@@ -368,7 +364,6 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 			void* buf_ptr = buffer;
 			cmp->read(cmp, buf_ptr, obj->as.ext.size);
 			// log_msg(LOG_DEBUG, "read %u bytes ", (cmp->buf - buf_ptr));
-
 			if (obj->as.ext.type == jrb_tree_type)
 			{
 				// tree type
@@ -376,6 +371,7 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 				cmp_ctx_t tree_cmp;
 				cmp_init(&tree_cmp, buf_ptr, buffer_reader, buffer_writer);
 				deserialize_jrb_node_t(subtree, &tree_cmp);
+				// TODO: check if the complete buffer was read (byte count match)
 
 				value->value.tree = subtree;
 				value->type = jrb_tree_type;
@@ -403,14 +399,15 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 
 				value->value.key = new_key;
 				value->type = key_type;
-				value->size = 1 + ( 4*sizeof(uint64_t) );
+				value->size = sizeof(np_dhkey_t);
 			}
 			else if (obj->as.ext.type == hash_type)
 			{
 				value->type = hash_type;
 				value->size = obj->as.ext.size;
-				value->value.s = (char*) malloc(obj->as.ext.size);
-				CHECK_MALLOC(value->value.s);
+
+				value->value.bin = (char*) malloc(obj->as.ext.size);
+				CHECK_MALLOC(value->value.bin);
 
 				memset(value->value.bin, 0, value->size);
 				memcpy(value->value.bin, buffer, obj->as.ext.size);
@@ -489,30 +486,31 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 
 void deserialize_jrb_node_t(np_tree_t* jtree, cmp_ctx_t* cmp)
 {
-
 	cmp_object_t obj;
+
 	uint32_t size = 0;
 
-	// if ( !cmp_read_map(cmp, &size)     ) return;
 	cmp_read_map(cmp, &size);
 
 	// if ( ((size%2) != 0) || (size <= 0) ) return;
 
 	for (uint32_t i = 0; i < (size/2); i++)
 	{
-		// log_msg(LOG_DEBUG, "reading key (%d) from message part %p", i, jtree);
 		// read key
 		np_val_t tmp_key = { .type = none_type, .size = 0 };
-		// if (!cmp_read_object(cmp, &obj)) return;
 		cmp_read_object(cmp, &obj);
 		read_type(&obj, cmp, &tmp_key);
+		if (none_type == tmp_key.type) {
+			return;
+		}
 
-		// log_msg(LOG_DEBUG, "reading value (%d) from message part %p", i, jtree);
 		// read value
 		np_val_t tmp_val = { .type = none_type, .size = 0 };
-		// if (!cmp_read_object(cmp, &obj)) return;
 		cmp_read_object(cmp, &obj);
 		read_type(&obj, cmp, &tmp_val);
+		if (none_type == tmp_val.type) {
+			return;
+		}
 
 		switch (tmp_key.type)
 		{

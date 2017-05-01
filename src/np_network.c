@@ -48,6 +48,7 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
 static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 _NP_MODULE_LOCK_IMPL(np_network_t);
 
 
@@ -317,20 +318,20 @@ void network_send (np_key_t *node_key, np_message_t* msg)
 	pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
 	do
 	{
-		char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
+		unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
 		CHECK_MALLOC(enc_buffer);
-
 
 		// add protection from replay attacks ...
 		unsigned char nonce[crypto_secretbox_NONCEBYTES];
+		// TODO: move nonce to np_node_t and re-use it with increments
 		randombytes_buf(nonce, sizeof(nonce));
 
-		char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
-		sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
+		// char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
+		// sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
 		// log_msg(LOG_DEBUG, "encryption nonce %s", nonce_hex);
 
-		char session_hex[crypto_scalarmult_SCALARBYTES*2+1];
-		sodium_bin2hex(session_hex, crypto_scalarmult_SCALARBYTES*2+1, auth_token->session_key, crypto_scalarmult_SCALARBYTES);
+		// char session_hex[crypto_scalarmult_SCALARBYTES*2+1];
+		// sodium_bin2hex(session_hex, crypto_scalarmult_SCALARBYTES*2+1, auth_token->session_key, crypto_scalarmult_SCALARBYTES);
 		// log_msg(LOG_DEBUG, "session    key   %s", session_hex);
 
 		// uint64_t enc_msg_len = send_buf_len + crypto_secretbox_MACBYTES;
@@ -378,7 +379,6 @@ void network_send (np_key_t *node_key, np_message_t* msg)
 		i++;
 
 	} while (NULL != iter);
-	// } while (i < chunks && (FALSE == msg->is_single_part));
 
 	return; // TRUE;
 }
@@ -628,11 +628,14 @@ void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 void _np_network_t_del(void* nw)
 {
 	np_network_t* network = (np_network_t*) nw;
+
 	_np_suspend_event_loop();
 
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 	ev_io_stop(EV_A_ &network->watcher);
 	_np_resume_event_loop();
+
+	pthread_mutex_lock(&network->lock);
 
 	if (NULL != network->waiting)
 		np_free_tree(network->waiting);
@@ -664,6 +667,7 @@ void _np_network_t_del(void* nw)
 	if (0 < network->socket)
 		close (network->socket);
 
+	pthread_mutex_unlock  (&network->lock);
 	pthread_mutex_destroy (&network->lock);
 }
 
@@ -675,6 +679,7 @@ void _np_network_t_new(void* nw)
     ng->in_events = NULL;
     ng->out_events = NULL;
     ng->initialized = FALSE;
+
 }
 
 /** network_init:
@@ -684,7 +689,7 @@ void _np_network_t_new(void* nw)
  **/
 void network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* hostname, char* service)
 {
-    int ret;
+	int ret = 0;
     int one = 1;
     int v6_only = 0;
 

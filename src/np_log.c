@@ -97,8 +97,8 @@ void np_log_message(uint16_t level, const char* srcFile, const char* funcName, u
 		 //fprintf(logger->fp, "%s\n", new_log_entry);
 
 // /*DEBUG ONLY*/	fprintf(stdout, "%s", new_log_entry);
-
-		 fflush(NULL);
+		 fsync(logger->fp);
+		 // fflush(NULL);
 		 pthread_mutex_unlock(&__log_mutex);
 		 free (new_log_entry);
 	}

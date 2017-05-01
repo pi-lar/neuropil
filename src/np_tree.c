@@ -403,18 +403,15 @@ uint64_t jrb_get_byte_size(np_tree_elem_t* node)
 		case unsigned_int_type:   byte_size += 1 + sizeof(uint16_t); break;
 		case unsigned_long_type:  byte_size += 1 + sizeof(uint32_t); break;
 		case unsigned_long_long_type:  byte_size += 1 + sizeof(uint64_t); break;
- 		case uint_array_2_type:    byte_size += 1 + 2 * sizeof(uint16_t); break;
+ 		case uint_array_2_type:   byte_size += 1 + 2*sizeof(uint16_t); break;
  		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
  		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
  		case unsigned_char_array_8_type: byte_size += 1+8*sizeof(unsigned char); break;
  		case void_type: 		  byte_size += 1 + sizeof(void*); break;
- 		case hash_type: 		  byte_size += 2 + sizeof(uint32_t) + node->val.size; break;
  		case bin_type: 			  byte_size += 1 + sizeof(uint32_t) + node->val.size; break;
-		case jrb_tree_type:
-			// use the real tree byte_size since data could have been altered
-			byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + node->val.value.tree->byte_size;
-			break;
-		case key_type:            byte_size += 1 + (4 * sizeof(uint64_t)); break;
+ 		case hash_type: 		  byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + node->val.size; break;
+		case jrb_tree_type:       byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + node->val.value.tree->byte_size; break;
+		case key_type:            byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + (4 * sizeof(uint64_t)); break;
 		default:                  log_msg(LOG_WARN, "unsupported length calculation for value / type %hhd", node->val.type ); break;
 	}
 	// log_msg(LOG_DEBUG, "value size (%hd) calculated to %llu", node->val.type, byte_size);

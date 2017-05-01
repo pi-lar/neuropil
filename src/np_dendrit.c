@@ -77,13 +77,13 @@ void _np_in_received(np_jobargs_t* args)
 	{
 			goto __np_cleanup__;
 	}
-	 log_msg(LOG_DEBUG, "alias_key %s", _key_as_str(alias_key));
+	log_msg(LOG_DEBUG, "alias_key %s", _key_as_str(alias_key));
 
 	if (NULL != alias_key &&
 		NULL != alias_key->aaa_token &&
 		IS_VALID (alias_key->aaa_token->state) )
 	{
-		 log_msg(LOG_DEBUG, "/start decrypting message with alias %s", _key_as_str(alias_key));
+		log_msg(LOG_DEBUG, "/start decrypting message with alias %s", _key_as_str(alias_key));
 		unsigned char nonce[crypto_secretbox_NONCEBYTES];
 
 		unsigned char dec_msg[1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES];
@@ -306,20 +306,25 @@ void _np_in_received(np_jobargs_t* args)
 	}
 
 	// sum up message parts if the message is for this node
-	args->msg = msg_in;
-	np_message_t* msg_to_submit = np_message_check_chunks_complete(args);
-	args->msg = NULL;
-	if (NULL == msg_to_submit)
+	np_message_t* msg_to_submit = NULL;
+
+	_LOCK_MODULE(msgpart_cache)
 	{
-		goto __np_cleanup__;
+		msg_to_submit = np_message_check_chunks_complete(msg_in);
 	}
+
+	if (NULL == msg_to_submit)   goto __np_cleanup__;
+	if (msg_in == msg_to_submit) np_ref_obj(np_message_t, msg_to_submit);
 
 	if (TRUE == state->my_node_key->node->joined_network ||
 		0 == strncmp(msg_subject.value.s, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) )
 	{
+		log_msg(LOG_DEBUG,
+				"deserializing message for subject: %s (uuid=%s)", msg_subject.value.s, msg_to_submit->uuid);
 		// finally submit msg job for later execution
 		np_message_deserialize_chunked(msg_to_submit);
 		_np_job_submit_msgin_event(0.0, handler, state->my_node_key, msg_to_submit);
+
 		np_unref_obj(np_message_t, msg_to_submit);
 	}
 
@@ -840,15 +845,16 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 	/* announce arrival of new node to the nodes in my routing table */
 	// TODO: check for protected node neighbours ?
-	np_sll_t(np_key_t, nodes) = NULL;
+	np_sll_t(np_key_t, node_keys) = NULL;
 
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		nodes = _np_route_get_table();
+		node_keys = _np_route_get_table();
+		_np_ref_keys(node_keys);
 	}
 
 	np_key_t* elem = NULL;
-	while ( NULL != (elem = sll_head(np_key_t, nodes)))
+	while ( NULL != (elem = sll_head(np_key_t, node_keys)))
 	{
 		// send update of new node to all nodes in my routing table
 		if (_dhkey_equal(&elem->dhkey, &routing_key->dhkey)) continue;
@@ -863,8 +869,10 @@ void _np_in_join_ack(np_jobargs_t* args)
 		np_message_create(msg_out, elem, state->my_node_key, _NP_MSG_UPDATE_REQUEST, jrb_join_node);
 		out_props = np_msgproperty_get(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
 		_np_job_submit_route_event(0.0, out_props, elem, msg_out);
+
+		np_unref_obj(np_key_t, elem);
 	}
-	sll_free(np_key_t, nodes);
+	sll_free(np_key_t, node_keys);
 
 	// remember key for routing table update
 	log_msg(LOG_DEBUG, "join acknowledged and updates to other nodes send");
@@ -1046,8 +1054,8 @@ void _np_in_pingreply(np_jobargs_t * args)
 	}
 	else
 	{
-		log_msg(LOG_DEBUG, "ignoring ping reply received from: %s:%s",
-				pingreply_key->node->dns_name, pingreply_key->node->port);
+		log_msg(LOG_DEBUG, "ignoring unknown ping reply from %s", msg_from.value.s);
+		 		// pingreply_key->node->dns_name, pingreply_key->node->port);
 	}
 
 	__np_cleanup__:
@@ -1110,6 +1118,7 @@ void _np_in_update(np_jobargs_t* args)
 	// TODO: forward update token to other neighbours
 	__np_cleanup__:
 	if (NULL != update_token) np_free_obj(np_aaatoken_t, update_token);
+
 	// nothing to do
 	__np_return__:
 	log_msg(LOG_TRACE, ".end  ._np_in_update");
@@ -1758,6 +1767,7 @@ void _np_in_handshake(np_jobargs_t* args)
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, payload.value.bin, buffer_reader, buffer_writer);
 	deserialize_jrb_node_t(hs_payload, &cmp);
+	// TODO: check if the complete buffer was read (byte count match)
 
 	np_new_obj(np_aaatoken_t, tmp_token);
 	np_decode_aaatoken(hs_payload, tmp_token);

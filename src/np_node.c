@@ -47,6 +47,7 @@ void _np_node_t_new(void* node)
 	np_node_t* entry = (np_node_t *) node;
 
 	entry->dns_name = NULL;
+	entry->protocol = 0;
 	entry->port = 0;
 
 	entry->failuretime = 0.0;

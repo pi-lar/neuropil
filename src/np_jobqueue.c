@@ -61,9 +61,9 @@ void _np_job_free (np_job_t * n)
 
 np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop)
 {
-	assert(msg == NULL || msg->obj->type == np_message_t_e );
-	assert(key == NULL || key->obj->type == np_key_t_e );
- 	assert((prop == NULL ) || ( prop->obj->type == np_msgproperty_t_e ));
+	assert( (msg == NULL)  || ( msg->obj->type == np_message_t_e)       );
+	assert( (key == NULL)  || ( key->obj->type == np_key_t_e)           );
+ 	assert( (prop == NULL) || ( prop->obj->type == np_msgproperty_t_e ) );
 
 	// create runtime arguments
 	np_jobargs_t* jargs = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));

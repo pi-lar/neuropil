@@ -422,9 +422,9 @@ void _np_key_destroy(np_key_t* to_destroy) {
 		}
 
 		// delete old network structure
-		if (NULL != to_destroy->network)   np_unref_obj(np_network_t,  to_destroy->network);
-		if (NULL != to_destroy->node)      np_unref_obj(np_node_t,     to_destroy->node);
 		if (NULL != to_destroy->aaa_token) np_unref_obj(np_aaatoken_t, to_destroy->aaa_token);
+		if (NULL != to_destroy->node)      np_unref_obj(np_node_t,     to_destroy->node);
+		if (NULL != to_destroy->network)   np_unref_obj(np_network_t,  to_destroy->network);
 
 		np_unref_obj(np_key_t, to_destroy);
 
