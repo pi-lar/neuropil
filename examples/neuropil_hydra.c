@@ -27,14 +27,14 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define USAGE "neuropil_hydra -j key:proto:host:port [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count]"
-#define OPTSTR "j:p:n:t:"
+#define USAGE "neuropil_hydra -j key:proto:host:port [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count] [-l path_to_log_folder]"
+#define OPTSTR "j:p:n:t:l:"
 
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 #define DEBUG 0
-#define NUM_HOST 40
+#define NUM_HOST 30
 
 extern char *optarg;
 extern int optind;
@@ -47,8 +47,10 @@ int main(int argc, char **argv) {
 	char* bootstrap_hostnode_default;
 	char bootstrap_port[7];
 	char* proto = "udp4";
+	char* logpath = ".";
+
 	uint32_t required_nodes = NUM_HOST;
-	int level = LOG_ERROR | LOG_WARN ;//| LOG_MESSAGE | LOG_DEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_MESSAGE | LOG_DEBUG;
 
 	np_bool startHTTP = TRUE;
 
@@ -67,6 +69,15 @@ int main(int argc, char **argv) {
 			break;
 		case 'n':
 			required_nodes = atoi(optarg);
+			break;
+		case 'l':
+			if(optarg != NULL){
+				logpath = optarg;
+			}else{
+				fprintf(stderr, "invalid option value\n");
+				fprintf(stderr, "usage: %s\n", USAGE);
+				exit(EXIT_FAILURE);
+			}
 			break;
 		default:
 			fprintf(stderr, "invalid option %c\n", (char) opt);
@@ -99,7 +110,9 @@ int main(int argc, char **argv) {
 			fprintf(stdout, "Creating new bootstrap node...\n");
 
 			char log_file_host[256];
-			sprintf(log_file_host, "%s_host_%s.log", "./neuropil_hydra", bootstrap_port);
+			sprintf(log_file_host, "%s%s_host_%s.log", logpath, "/neuropil_hydra", bootstrap_port);
+			fprintf(stdout, "logpath: %s\n", log_file_host);
+
 			np_log_init(log_file_host, level);
 			np_init(proto, bootstrap_port, TRUE, "localhost");
 			np_start_job_queue(required_nodes*2+2);
@@ -139,7 +152,7 @@ int main(int argc, char **argv) {
 				}
 
 				char log_file[256];
-				sprintf(log_file, "%s_%s.log", "./neuropil_hydra", port);
+				sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_hydra", port);
 				// child process
 				np_log_init(log_file, level);
 				// used the pid as the port
