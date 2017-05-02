@@ -809,7 +809,11 @@ void np_destroy()
 np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 {
 	log_msg(LOG_DEBUG, "neuropil_init");
- // encryption and memory protection
+	 if(_np_threads_init() == FALSE){
+		log_msg(LOG_ERROR, "neuropil_init: could not init threding mutexes");
+		exit(EXIT_FAILURE);
+	}
+	// encryption and memory protection
     if(sodium_init() == -1){
     	log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
     	exit(EXIT_FAILURE);
@@ -863,9 +867,13 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 		log_msg(LOG_DEBUG, "now initializing networking for udp6://%s", np_service);
 	}
 
+
+
+	log_msg(LOG_DEBUG, "building node base structure");
 	np_node_t* my_node = NULL;
     np_new_obj(np_node_t, my_node);
 
+    log_msg(LOG_DEBUG, "building network base structure");
     np_network_t* my_network = NULL;
     np_new_obj(np_network_t, my_network);
 
@@ -874,18 +882,22 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     if(NULL == hostname){
     	hostname = malloc(sizeof(char) * 255);
 		CHECK_MALLOC(hostname);
+		log_msg(LOG_INFO, "neuropil_init: resolve hostname");
 
     	gethostname(hostname, 255);
     }
+    log_msg(LOG_DEBUG, "initialise network");
 	_LOCK_MODULE(np_network_t)
 	{
 		network_init(my_network, TRUE, np_proto, hostname, np_service);
 	}
+    log_msg(LOG_DEBUG, "check for initialised network");
 	if (FALSE == my_network->initialized)
 	{
 		log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
 	    exit(EXIT_FAILURE);
 	}
+    log_msg(LOG_DEBUG, "update my node data");
 	np_node_update(my_node, np_proto, hostname, np_service);
 	log_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
 			           np_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);

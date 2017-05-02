@@ -693,18 +693,23 @@ void network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* 
     int one = 1;
     int v6_only = 0;
 
+    log_msg(LOG_DEBUG, "try to pthread_mutex_init");
     if ((ret = pthread_mutex_init (&(ng->lock), NULL)) != 0)
 	{
-		log_msg(LOG_NETWORK | LOG_ERROR, "pthread_mutex_init: %s:", strerror (ret));
+		log_msg(LOG_ERROR, "pthread_mutex_init: %s:", strerror (ret));
 		close (ng->socket);
 		return;
 	}
+    log_msg(LOG_DEBUG, "done pthread_mutex_init");
 
+    log_msg(LOG_DEBUG, "try to get_network_address");
     get_network_address (create_socket, &ng->addr_in, type, hostname, service);
     if (NULL == ng->addr_in)
     {
     	return;
     }
+    log_msg(LOG_DEBUG, "done get_network_address");
+
 
 //	  char host_name[255];
 //    char service_name[6];
@@ -728,14 +733,14 @@ void network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* 
     	ng->socket = socket (ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
     	if (0 > ng->socket)
     	{
-    		log_msg(LOG_NETWORK | LOG_ERROR, "could not create socket: %s", strerror (errno));
-    		exit(1) ;
+    		log_msg(LOG_ERROR, "could not create socket: %s", strerror (errno));
+    		exit(EXIT_FAILURE) ;
     	}
     	if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
     	{
-    		log_msg(LOG_NETWORK | LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
+    		log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
     		close (ng->socket);
-    		exit(1);
+    		exit(EXIT_FAILURE);
 		}
     	if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
     	{
@@ -751,16 +756,16 @@ void network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* 
     	/* attach socket to #port#. */
     	if (0 > bind (ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
     	{
-    		log_msg(LOG_NETWORK | LOG_ERROR, "bind failed: %s:", strerror (errno));
+    		log_msg(LOG_ERROR, "bind failed: %s:", strerror (errno));
     		close (ng->socket);
     		// exit, because listening port could not be opened
-    		exit(1);
+    		exit(EXIT_FAILURE);
 		}
 
     	if (type & TCP) {
     		if (0 > listen(ng->socket, 10)) {
     			log_msg(LOG_ERROR, "listen on tcp port failed: %s:", strerror (errno));
-    			exit(1);
+    			exit(EXIT_FAILURE);
 			}
     	}
 
