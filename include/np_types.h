@@ -78,7 +78,7 @@ typedef struct np_tree_s np_tree_t;
 
 typedef struct np_val_s np_val_t;
 
-/*
+ /*
  * list types and typedefs
  */
 NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_t);

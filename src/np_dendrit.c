@@ -112,6 +112,8 @@ void _np_in_received(np_jobargs_t* args)
 		}
 		else
 		{
+			log_msg(LOG_DEBUG,
+					"correct decryption of message (send from %s)", _key_as_str(alias_key));
 			memset(raw_msg, 0, 1024);
 			memcpy(raw_msg, dec_msg, 1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
 		}
@@ -199,9 +201,11 @@ void _np_in_received(np_jobargs_t* args)
 	if (now > (msg_tstamp.value.d + msg_ttl.value.d))
 	{
 		log_msg(LOG_INFO, "message ttl expired, dropping message (part) %s / %s",
-						  msg_uuid.value.s, msg_subject.value.s);
-		log_msg(LOG_DEBUG, "now: %f, msg_ttl: %f", now, msg_ttl.value.d);
+				msg_uuid.value.s, msg_subject.value.s);
+		log_msg(LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f",msg_in->uuid, now, msg_ttl.value.d, msg_tstamp.value.d);
 		goto __np_cleanup__;
+	} else {
+		log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) message ttl not expired",msg_in->uuid);
 	}
 
 	// check if an acknowledge has to be send
@@ -301,7 +305,7 @@ void _np_in_received(np_jobargs_t* args)
 	{
 		log_msg(LOG_WARN,
 				"no incoming callback function was found for type %s, dropping message %s",
-				handler->msg_subject, msg_uuid.value.s);
+				msg_subject.value.s, msg_in->uuid);
 		goto __np_cleanup__;
 	}
 

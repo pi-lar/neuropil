@@ -546,6 +546,9 @@ np_bool np_message_serialize_chunked(np_jobargs_t* args)
 	ret_val = TRUE;
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "-----------------------------------------------------" );
 
+	log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) chunked into %"PRIu32" parts (calculated no of chunks: %"PRIu16")"
+			,msg->uuid, pll_size(msg->msg_chunks),msg->no_of_chunks);
+
     __np_cleanup__:
 		if (NULL != bin_footer) free(bin_footer);
 		if (NULL != bin_body) free(bin_body);
