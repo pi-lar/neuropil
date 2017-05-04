@@ -113,7 +113,63 @@ Test(np_jrb_serialize_t, serialize_np_dhkey_t, .description="test the serializat
 	cr_expect(read_tst.value.key.t[1] == 2, "Expected read val value 1 to be the same as predefined, But is: %"PRIu64, read_tst.value.key.t[1]);
 	cr_expect(read_tst.value.key.t[2] == 3, "Expected read val value 2 to be the same as predefined, But is: %"PRIu64, read_tst.value.key.t[2]);
 	cr_expect(read_tst.value.key.t[3] == 4, "Expected read val value 3 to be the same as predefined, But is: %"PRIu64, read_tst.value.key.t[3]);
+}
 
+Test(np_jrb_serialize_t, serialize_np_dhkey_t_in_np_tree_t_, .description="test the serialization of a  jtree")
+{
+	cmp_ctx_t cmp_read;
+	cmp_ctx_t cmp_write;
+
+    char buffer[1024];
+    void* buffer_ptr = buffer;
+
+    cr_log_info("buffer_ptr\t\t %p\n", buffer_ptr);
+    memset(buffer_ptr, 0, 1024);
+    reset_buffer_counter();
+    cmp_init(&cmp_write, buffer_ptr, buffer_reader_counter, buffer_writer_counter);
+
+    np_dhkey_t tst;
+    tst.t[0] = 1;
+    tst.t[1] = 2;
+    tst.t[2] = 3;
+    tst.t[3] = 4;
+
+    np_tree_t* write_tree = make_nptree();
+    tree_insert_str(write_tree,"TESTKEY", new_val_key(tst));
+
+	cr_expect(total_write_count == 0, "Expected empty buffer. But size is %"PRIu32, total_write_count);
+
+	serialize_jrb_node_t(write_tree,&cmp_write);
+
+	cr_assert(cmp_write.error == ERROR_NONE, "expect no error on write. But is: %"PRIu8, cmp_write.error);
+
+	uint32_t expected_write_size =  59;
+
+	cr_expect(total_write_count == expected_write_size, "Expected write size is %"PRIu32" but is %"PRIu32, expected_write_size, total_write_count);
+	uint32_t expected_read_count = total_write_count;
+
+
+	// Beginn reading section
+    cmp_init(&cmp_read, buffer_ptr, buffer_reader_counter, buffer_writer_counter);
+    reset_buffer_counter();
+    np_tree_t* read_tree = make_nptree();
+
+    deserialize_jrb_node_t(read_tree, &cmp_read);
+
+	cr_assert(cmp_read.error == ERROR_NONE, "Expected no error on val read. But is: %"PRIu8,cmp_read.error);
+	cr_expect(total_read_count == expected_read_count, "Expected read size is %"PRIu32" but is %"PRIu32, expected_read_count, total_read_count);
+
+	np_tree_elem_t* testkey_read =  tree_find_str(read_tree,"TESTKEY");
+
+	cr_assert(NULL != testkey_read, "Expected to find TESTKEY key value");
+
+	cr_expect(testkey_read->val.type == key_type, "Expected read val to be of type key_type. But is: %"PRIu8, testkey_read->val.type);
+	cr_expect(testkey_read->val.size == sizeof(np_dhkey_t), "Expected val to be of dhkey size. But is: %"PRIu32, testkey_read->val.size);
+
+	cr_expect(testkey_read->val.value.key.t[0] == 1, "Expected read val value 0 to be the same as predefined, But is: %"PRIu64, testkey_read->val.value.key.t[0]);
+	cr_expect(testkey_read->val.value.key.t[1] == 2, "Expected read val value 1 to be the same as predefined, But is: %"PRIu64, testkey_read->val.value.key.t[1]);
+	cr_expect(testkey_read->val.value.key.t[2] == 3, "Expected read val value 2 to be the same as predefined, But is: %"PRIu64, testkey_read->val.value.key.t[2]);
+	cr_expect(testkey_read->val.value.key.t[3] == 4, "Expected read val value 3 to be the same as predefined, But is: %"PRIu64, testkey_read->val.value.key.t[3]);
 }
 
 
