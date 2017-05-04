@@ -1649,7 +1649,7 @@ np_bool cmp_read_fixext1_marker(cmp_ctx_t *ctx, int8_t *type) {
 
   if (!cmp_read_object(ctx, &obj))
     return false;
-  
+
   if (obj.type != CMP_TYPE_FIXEXT1) {
     ctx->error = INVALID_TYPE_ERROR;
     return false;
@@ -1675,7 +1675,7 @@ np_bool cmp_read_fixext2_marker(cmp_ctx_t *ctx, int8_t *type) {
 
   if (!cmp_read_object(ctx, &obj))
     return false;
-  
+
   if (obj.type != CMP_TYPE_FIXEXT2) {
     ctx->error = INVALID_TYPE_ERROR;
     return false;
@@ -1701,7 +1701,7 @@ np_bool cmp_read_fixext4_marker(cmp_ctx_t *ctx, int8_t *type) {
 
   if (!cmp_read_object(ctx, &obj))
     return false;
-  
+
   if (obj.type != CMP_TYPE_FIXEXT4) {
     ctx->error = INVALID_TYPE_ERROR;
     return false;
@@ -1727,7 +1727,7 @@ np_bool cmp_read_fixext8_marker(cmp_ctx_t *ctx, int8_t *type) {
 
   if (!cmp_read_object(ctx, &obj))
     return false;
-  
+
   if (obj.type != CMP_TYPE_FIXEXT8) {
     ctx->error = INVALID_TYPE_ERROR;
     return false;
@@ -1753,7 +1753,7 @@ np_bool cmp_read_fixext16_marker(cmp_ctx_t *ctx, int8_t *type) {
 
   if (!cmp_read_object(ctx, &obj))
     return false;
-  
+
   if (obj.type != CMP_TYPE_FIXEXT16) {
     ctx->error = INVALID_TYPE_ERROR;
     return false;

@@ -31,6 +31,9 @@
 #include "np_memory.h"
 #include "assert.h"
 
+uint8_t read_type_key(void* buffer_ptr, np_val_t* target);
+void write_type_key(np_dhkey_t source, cmp_ctx_t* target);
+
 char* np_create_uuid(const char* str, const uint16_t num)
 {
 	char input[256];
@@ -62,24 +65,27 @@ void new_callback(NP_UNUSED void* data)
 	log_msg(LOG_ERROR, "new_callback should never be called !!!");
 }
 
-np_bool buffer_reader(cmp_ctx_t *ctx, void *data, size_t count)
+np_bool buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit)
 {
 	if(ctx == NULL ){
 		log_msg(LOG_DEBUG, "ctx is null");
 	}
 
-	memcpy(data, ctx->buf, count);
-	ctx->buf += count;
-	return 1;
+	memcpy(data, ctx->buf, limit);
+	ctx->buf += limit;
+	return TRUE;
 }
 
-size_t buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count)
+size_t buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
 {
 	// log_msg(LOG_DEBUG, "-- writing cmp->buf: %p size: %hd", ctx->buf, count);
+	// printf( "-- writing cmp->buf: %p size: %hd\n", ctx->buf, count);
+
 	memcpy(ctx->buf, data, count);
 	ctx->buf += count;
 	return count;
 }
+
 
 // TODO: replace with function pointer, same for read_type
 // typedef void (*write_type_function)(const np_val_t* val, cmp_ctx_t* ctx);
@@ -164,19 +170,7 @@ void write_type(np_val_t val, cmp_ctx_t* cmp)
 
 	case key_type:
 		{
-			//cmp_ctx_t key_cmp;
-			//char buffer[val.size];
-			//void* buf_ptr = buffer;
-		//	cmp_init(&key_cmp, buf_ptr, buffer_reader, buffer_writer);
-
-			cmp_write_ext32_marker(cmp, key_type, val.size);
-
-			cmp_write_u64(cmp, &val.value.key.t[0]);
-			cmp_write_u64(cmp, &val.value.key.t[1]);
-			cmp_write_u64(cmp, &val.value.key.t[2]);
-			cmp_write_u64(cmp, &val.value.key.t[3]);
-
-
+			write_type_key(val.value.key, cmp);
 			break;
 		}
 
@@ -277,6 +271,44 @@ void serialize_jrb_node_t(np_tree_t* jtree, cmp_ctx_t* cmp)
 //	}
 }
 
+
+uint8_t read_type_key(void* buffer_ptr, np_val_t* target) {
+	cmp_ctx_t cmp_key;
+	cmp_init(&cmp_key, buffer_ptr, buffer_reader, buffer_writer);
+	np_dhkey_t new_key;
+
+	if (cmp_read_u64(&cmp_key, &(new_key.t[0])))
+		if(cmp_read_u64(&cmp_key, &(new_key.t[1])))
+			if(cmp_read_u64(&cmp_key, &(new_key.t[2])))
+				cmp_read_u64(&cmp_key, &(new_key.t[3]));
+
+	target->value.key = new_key;
+	target->type = key_type;
+	target->size = sizeof(np_dhkey_t);
+
+	return cmp_key.error;
+}
+void write_type_key(np_dhkey_t source, cmp_ctx_t* target) {
+	// source->size is not relevant here as the transport size includes marker sizes etc..
+    //                        4 * size of uint64 marker + size of key element
+	uint32_t transport_size = 4 * (sizeof(uint8_t) 		+ sizeof(uint64_t)); // 36 on x64
+
+	cmp_ctx_t key_ctx;
+	char buffer[transport_size];
+	void* buf_ptr = buffer;
+	cmp_init(&key_ctx, buf_ptr, buffer_reader, buffer_writer);
+
+	cmp_write_u64(&key_ctx, source.t[0]);
+	cmp_write_u64(&key_ctx, source.t[1]);
+	cmp_write_u64(&key_ctx, source.t[2]);
+	cmp_write_u64(&key_ctx, source.t[3]);
+
+	cmp_write_ext32(target, key_type, transport_size, buf_ptr);
+}
+
+
+
+
 void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 {
 	switch (obj->type)
@@ -361,6 +393,7 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 			char buffer[obj->as.ext.size];
 			void* buf_ptr = buffer;
 			cmp->read(cmp, buf_ptr, obj->as.ext.size);
+
 			// log_msg(LOG_DEBUG, "read %u bytes ", (cmp->buf - buf_ptr));
 			if (obj->as.ext.type == jrb_tree_type)
 			{
@@ -378,19 +411,7 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 			}
 			else if (obj->as.ext.type == key_type)
 			{
-				uint32_t fix_array_size;
-				//cmp_ctx_t key_cmp;
-				//cmp_init(&key_cmp, buf_ptr, buffer_reader, buffer_writer);
-
-				np_dhkey_t new_key;
-				cmp_read_u64(cmp,&new_key.t[0]);
-				cmp_read_u64(cmp,&new_key.t[1]);
-				cmp_read_u64(cmp,&new_key.t[2]);
-				cmp_read_u64(cmp,&new_key.t[3]);
-
-				value->value.key = new_key;
-				value->type = key_type;
-				value->size = sizeof(np_dhkey_t);
+				read_type_key(buf_ptr, value);
 			}
 			else if (obj->as.ext.type == hash_type)
 			{

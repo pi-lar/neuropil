@@ -149,16 +149,16 @@ if int(analyze) and scan_build_exe:
 #     env.Append(CCFLAGS='-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include')
 
 # sources for neuropil
-SOURCES =  ['build/obj/dtime.c','build/obj/neuropil.c','build/obj/np_aaatoken.c','build/obj/np_axon.c','build/obj/np_dendrit.c']
-SOURCES += ['build/obj/np_glia.c','build/obj/np_http.c','build/obj/np_jobqueue.c','build/obj/np_key.c','build/obj/np_keycache.c']
-SOURCES += ['build/obj/np_log.c','build/obj/np_memory.c','build/obj/np_message.c','build/obj/np_msgproperty.c','build/obj/np_network.c','build/obj/np_node.c']
-SOURCES += ['build/obj/np_route.c','build/obj/np_tree.c','build/obj/np_util.c','build/obj/np_val.c','build/obj/np_threads.c']
-SOURCES += ['build/obj/np_sysinfo.c','build/obj/np_scache.c']
+SOURCES =  ['src/dtime.c','src/neuropil.c','src/np_aaatoken.c','src/np_axon.c','src/np_dendrit.c']
+SOURCES += ['src/np_glia.c','src/np_http.c','src/np_jobqueue.c','src/np_key.c','src/np_keycache.c']
+SOURCES += ['src/np_log.c','src/np_memory.c','src/np_message.c','src/np_msgproperty.c','src/np_network.c','src/np_node.c']
+SOURCES += ['src/np_route.c','src/np_tree.c','src/np_util.c','src/np_val.c','src/np_threads.c']
+SOURCES += ['src/np_sysinfo.c','src/np_scache.c']
 # source code 3rd party libraries
-SOURCES += ['build/obj/event/ev.c','build/obj/http/htparse.c','build/obj/json/parson.c','build/obj/msgpack/cmp.c']
+SOURCES += ['src/event/ev.c','src/http/htparse.c','src/json/parson.c','src/msgpack/cmp.c']
 
 # test cases for neuropil
-TESTS = ['test/test_suites.c']
+TESTS =  ['test/test_suites.c']
 
 print '####'
 print '#### building neuropil libraries/testsuite/example programs:'
@@ -167,6 +167,8 @@ print '####'
 
 np_stlib = env.Library('build/lib/neuropil', SOURCES, LIBS=tpl_library_list)
 np_dylib = env.SharedLibrary('build/lib/neuropil', SOURCES, LIBS=tpl_library_list)
+AlwaysBuild(np_dylib)
+AlwaysBuild(np_stlib)
 
 # build test executable
 if int(build_tests):
@@ -198,6 +200,12 @@ Depends(prg_np_hydra, np_dylib)
 
 prg_np_shared_hydra = env.Program('bin/neuropil_shared_hydra', 'examples/neuropil_shared_hydra.c')
 Depends(prg_np_shared_hydra, np_dylib)
+
+prg_np_hydra = env.Program('bin/neuropil_echo_server', 'examples/neuropil_echo_server.c')
+Depends(prg_np_hydra, np_dylib)
+
+prg_np_hydra = env.Program('bin/neuropil_echo_client', 'examples/neuropil_echo_client.c')
+Depends(prg_np_hydra, np_dylib)
 
 # clean up
 Clean('.', 'build')

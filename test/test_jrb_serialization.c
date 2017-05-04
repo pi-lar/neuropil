@@ -4,7 +4,7 @@
 //
 
 #include <criterion/criterion.h>
-#include "msgpack/cmp.h"
+#include <criterion/logging.h>
 #include "event/ev.h"
 
 #include "np_log.h"
@@ -15,8 +15,29 @@
 #include "np_message.h"
 #include "np_util.h"
 #include "np_jobqueue.h"
-#include "np_util.h"
-#include "np_util.c"
+
+#include "../src/msgpack/cmp.c"
+#include "../src/np_util.c"
+
+uint32_t total_write_count = 0;
+size_t buffer_writer_counter(struct cmp_ctx_s *ctx, const void *data, size_t count);
+size_t buffer_writer_counter(struct cmp_ctx_s *ctx, const void *data, size_t count)
+{
+	total_write_count += count;
+	return buffer_writer(ctx, data, count);
+}
+uint32_t total_read_count = 0;
+np_bool buffer_reader_counter(struct cmp_ctx_s *ctx, void *data, size_t limit);
+np_bool buffer_reader_counter(struct cmp_ctx_s *ctx, void *data, size_t limit)
+{
+	total_read_count += limit;
+	return buffer_reader(ctx, data, limit);
+}
+void reset_buffer_counter();
+void reset_buffer_counter(){
+	total_write_count = 0;
+	total_read_count = 0;
+}
 
 
 void setup_jrb_serialization(void)
@@ -36,12 +57,16 @@ TestSuite(np_jrb_serialize_t, .init=setup_jrb_serialization, .fini=teardown_jrb_
 
 Test(np_jrb_serialize_t, serialize_np_dhkey_t, .description="test the serialization of a  jtree")
 {
+	cmp_ctx_t cmp_read;
+	cmp_ctx_t cmp_write;
 
-	cmp_ctx_t cmp;
-    char empty_buffer[65536];
-    void* empty_buf_ptr = empty_buffer;
-    memset(empty_buf_ptr, 0, 65536);
-    cmp_init(&cmp, empty_buf_ptr, buffer_reader, buffer_writer);
+    char buffer[512];
+    void* buffer_ptr = buffer;
+
+    cr_log_info("buffer_ptr\t\t %p\n", buffer_ptr);
+    memset(buffer_ptr, 0, 512);
+    reset_buffer_counter();
+    cmp_init(&cmp_write, buffer_ptr, buffer_reader_counter, buffer_writer_counter);
 
     np_dhkey_t tst;
     tst.t[0] = 1;
@@ -49,23 +74,45 @@ Test(np_jrb_serialize_t, serialize_np_dhkey_t, .description="test the serializat
     tst.t[2] = 3;
     tst.t[3] = 4;
 
-    write_type(new_val_key(tst),cmp);
+    np_val_t val = new_val_key(tst);
+	cr_expect(val.type == key_type, "Expected source val to be of type key_type. But is: %"PRIu8, val.type);
+	cr_expect(total_write_count == 0, "Expected empty buffer. But size is %"PRIu32, total_write_count);
+    write_type(val, &cmp_write);
+	cr_assert(cmp_write.error == ERROR_NONE, "expect no error on write. But is: %"PRIu8, cmp_write.error);
+
+	                             //4 * (marker of uint64 + content of uint64)
+	uint32_t expected_obj_size =  (4 * (sizeof(uint8_t)  + sizeof(uint64_t)));
+								  // marker EXT32    + size of EXT32    + type of EXT32
+	uint32_t expected_write_size =  (sizeof(uint8_t) + sizeof(uint32_t) + sizeof(uint8_t) + expected_obj_size);
+
+	cr_expect(total_write_count == expected_write_size, "Expected write size is %"PRIu32" but is %"PRIu32, expected_write_size, total_write_count);
+	uint32_t expected_read_count = total_write_count;
+
+
+	// Beginn reading section
+    cmp_init(&cmp_read, buffer_ptr, buffer_reader_counter, buffer_writer_counter);
+    reset_buffer_counter();
 
 	cmp_object_t obj;
 	np_val_t read_tst = { .type = none_type, .size = 0 };
-	cmp_read_object(&cmp, &obj);
-	read_type(&obj, &cmp, &read_tst);
+	cmp_read_object(&cmp_read, &obj);
 
-	cr_expect(obj.type == key_type, "expect obj to be of type key");
+	cr_assert(cmp_read.error == ERROR_NONE, "Expected no error on object read. But is: %"PRIu8,cmp_read.error);
+	cr_assert(obj.type == CMP_TYPE_EXT32, "Expected obj to be of type CMP_TYPE_EXT32. But is: %"PRIu8, obj.type);
+	cr_expect(obj.as.ext.type == key_type, "Expected obj to be of type EXT type key_type. But is: %"PRIu8, read_tst.type);
+	cr_expect(obj.as.ext.size == expected_obj_size, "Expected obj to be of size %"PRIu32". But is: %"PRIu32, expected_obj_size, obj.as.ext.size);
 
-	cr_expect(read_tst.type == key_type, "expect val to be of type key");
-	cr_expect(read_tst.size == sizeof(np_dhkey_t), "expect val to be of dhkey size");
+	read_type(&obj, &cmp_read, &read_tst);
 
-	//cr_assert(read_tst.value.key != NULL, "expect val value to be not null");
-	cr_expect(read_tst.value.key.t[0] == 1, "expect val value to be the same as predefined");
-	cr_expect(read_tst.value.key.t[1] == 2, "expect val value to be the same as predefined");
-	cr_expect(read_tst.value.key.t[2] == 3, "expect val value to be the same as predefined");
-	cr_expect(read_tst.value.key.t[3] == 4, "expect val value to be the same as predefined");
+	cr_assert(cmp_read.error == ERROR_NONE, "Expected no error on val read. But is: %"PRIu8,cmp_read.error);
+	cr_expect(total_read_count == expected_read_count, "Expected read size is %"PRIu32" but is %"PRIu32, expected_read_count, total_read_count);
+
+	cr_expect(read_tst.type == key_type, "Expected read val to be of type key_type. But is: %"PRIu8, read_tst.type);
+	cr_expect(read_tst.size == sizeof(np_dhkey_t), "Expected val to be of dhkey size. But is: %"PRIu32, read_tst.size);
+	cr_expect(read_tst.value.key.t[0] == 1, "Expected read val value 0 to be the same as predefined, But is: %"PRIu64, read_tst.value.key.t[0]);
+	cr_expect(read_tst.value.key.t[1] == 2, "Expected read val value 1 to be the same as predefined, But is: %"PRIu64, read_tst.value.key.t[1]);
+	cr_expect(read_tst.value.key.t[2] == 3, "Expected read val value 2 to be the same as predefined, But is: %"PRIu64, read_tst.value.key.t[2]);
+	cr_expect(read_tst.value.key.t[3] == 4, "Expected read val value 3 to be the same as predefined, But is: %"PRIu64, read_tst.value.key.t[3]);
 
 }
 

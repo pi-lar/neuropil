@@ -916,23 +916,21 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 {
 	msg_prop->msg_threshold++;
 
-	if(NULL != target){
-		log_msg(LOG_DEBUG, "try NP_MSG_HEADER_TARGET");
+	if(NULL != target) {
 		tree_replace_str(msg->header, NP_MSG_HEADER_TARGET, new_val_key(*target));
-		log_msg(LOG_DEBUG, "done NP_MSG_HEADER_TARGET");
 	}else{
-		//np_tree_elem_t* target_container = 	tree_find_str(msg->header, NP_MSG_HEADER_TARGET);
-		/*
+		np_tree_elem_t* target_container = 	tree_find_str(msg->header, NP_MSG_HEADER_TARGET);
 		if(NULL != target_container) {
 			target = &(target_container->val.value.key);
 		}
-		 */
 	}
 
 	np_aaatoken_t* tmp_token = _np_get_receiver_token(subject, target);
 
 	if (NULL != tmp_token)
 	{
+		tree_del_str(msg->header, NP_MSG_HEADER_TARGET);
+
 		tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
 
 		// first encrypt the relevant message part itself

@@ -334,63 +334,64 @@ Test(np_linked_lists, _test_dll, .description="test the implementation of a doub
 	np_dll_t(np_dhkey_t, my_dll_list);
 	dll_init(np_dhkey_t, my_dll_list);
 
-	printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	np_bool printPointer = FALSE;
+	if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
 	dll_prepend(np_dhkey_t, my_dll_list, &key_a);
-	printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
 	dll_append(np_dhkey_t, my_dll_list, &key_b);
-	printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
 	dll_prepend(np_dhkey_t, my_dll_list, &key_c);
-	printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
 	dll_append(np_dhkey_t, my_dll_list, &key_d);
-	printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
 	dll_prepend(np_dhkey_t, my_dll_list, &key_e);
-	printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
 	np_dhkey_t* tmp_2;
 //		dll_iterator(np_dhkey_t) iterator_2;
 //		dll_traverse(my_dll_list, iterator_2, tmp_2) {
-//			printf("p: %p (%p) -> v: %llu.%llu.%llu.%llu\n", iterator_2, iterator_2->flink, tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+//			if(printPointer == TRUE) printf("p: %p (%p) -> v: %llu.%llu.%llu.%llu\n", iterator_2, iterator_2->flink, tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 //		}
 //
 //		dll_rtraverse(my_dll_list, iterator_2, tmp_2) {
-//			printf("p: %p (%p) -> v: %llu.%llu.%llu.%llu\n", iterator_2, iterator_2->blink, tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+//			if(printPointer == TRUE) printf("p: %p (%p) -> v: %llu.%llu.%llu.%llu\n", iterator_2, iterator_2->blink, tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 //		}
 	// dll_free(np_dhkey_t, my_dll_list);
 
-	printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == TRUE) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
 	tmp_2 = dll_head(np_dhkey_t, my_dll_list);
-	printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+	if(printPointer == TRUE) printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 
-	printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == TRUE) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
 	tmp_2 = dll_head(np_dhkey_t, my_dll_list);
-	printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+	if(printPointer == TRUE) printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 
-	printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == TRUE) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
 	tmp_2 = dll_tail(np_dhkey_t, my_dll_list);
-	printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+	if(printPointer == TRUE) printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 
-	printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == TRUE) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
 	tmp_2 = dll_tail(np_dhkey_t, my_dll_list);
-	printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+	if(printPointer == TRUE) printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 
-	printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == TRUE) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
 	tmp_2 = dll_head(np_dhkey_t, my_dll_list);
-	printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+	if(printPointer == TRUE) printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 
-	printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == TRUE) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
 	tmp_2 = dll_head(np_dhkey_t, my_dll_list);
 
 	if (tmp_2) {
-		printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
-		printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+		if(printPointer == TRUE) printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+		if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 	} else {
-		printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
-		printf("dll_list returned NULL element\n");
+		if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+		if(printPointer == TRUE) printf("dll_list returned NULL element\n");
 	}
 
 }

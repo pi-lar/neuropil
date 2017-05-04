@@ -764,7 +764,7 @@ np_aaatoken_t* _np_get_receiver_token(char* subject, np_dhkey_t* target)
 			}
 			if(NULL != target) {
 				if (!_dhkey_equal(&recvtoken_issuer_key, target)) {
-					// use the specific target if provided
+					log_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring %s receiver token for others nodes", return_token->issuer);
 					pll_next(iter);
 					return_token = NULL;
 					continue;
@@ -785,7 +785,7 @@ np_aaatoken_t* _np_get_receiver_token(char* subject, np_dhkey_t* target)
 			}
 		}
 	}
-	if(NULL == return_token ){
+	if(NULL == return_token ) {
 		log_msg(LOG_AAATOKEN | LOG_DEBUG,
 				"found no valid receiver token" );
 
