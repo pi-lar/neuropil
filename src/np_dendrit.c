@@ -299,7 +299,6 @@ void _np_in_received(np_jobargs_t* args)
 		log_msg(LOG_DEBUG, "internal routing for subject '%s'", msg_subject.value.s);
 	}
 
-
 	// if this message really has to be handled by this node, does a handler exists ?
 	if ( NULL == handler )
 	{
@@ -484,7 +483,7 @@ void _np_callback_wrapper(np_jobargs_t* args)
 		_np_send_ack(args->msg);
 	}
 
-	np_bool result = msg_prop->user_clb(msg_in->properties, msg_in->body);
+	np_bool result = msg_prop->user_clb(msg_in,msg_in->properties,msg_in->body);
 	msg_prop->msg_threshold--;
 
 	// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);

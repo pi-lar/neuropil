@@ -47,8 +47,6 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
-static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 _NP_MODULE_LOCK_IMPL(np_network_t);
 
 
@@ -356,15 +354,15 @@ void network_send (np_key_t *node_key, np_message_t* msg)
 		memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
 		/* send data */
-		pthread_mutex_lock(&(_np_state()->my_node_key->network->lock));
-
-		// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
-		// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
-		// ret = send (node_key->node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
-		sll_append(void_ptr, node_key->network->out_events, (void*) enc_buffer);
-
-		pthread_mutex_unlock(&(_np_state()->my_node_key->network->lock));
-
+		if( 0==pthread_mutex_lock(&(_np_state()->my_node_key->network->lock))){
+			if(NULL != node_key->network->out_events) {
+				// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
+				// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
+				// ret = send (node_key->node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
+				sll_append(void_ptr, node_key->network->out_events, (void*) enc_buffer);
+			}
+			pthread_mutex_unlock(&(_np_state()->my_node_key->network->lock));
+		}
 		// if (ret < 0)
 		// {
 		// log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
@@ -598,8 +596,12 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 	memset(data_ptr, 0,    in_msg_len);
 	memcpy(data_ptr, data, in_msg_len);
 
-	sll_append(void_ptr, ng->in_events, data_ptr);
-
+	if( 0==pthread_mutex_lock(&(ng->lock))) {
+		if(NULL != ng->in_events) {
+			sll_append(void_ptr, ng->in_events, data_ptr);
+		}
+		pthread_mutex_unlock(&(ng->lock));
+	}
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
 
 	_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL);

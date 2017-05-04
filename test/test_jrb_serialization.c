@@ -2,10 +2,11 @@
 // neuropil is copyright 2016 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
+
 #include <criterion/criterion.h>
 #include "msgpack/cmp.h"
-
 #include "event/ev.h"
+
 #include "np_log.h"
 #include "np_val.h"
 #include "np_tree.h"
@@ -14,6 +15,8 @@
 #include "np_message.h"
 #include "np_util.h"
 #include "np_jobqueue.h"
+#include "np_util.h"
+#include "np_util.c"
 
 
 void setup_jrb_serialization(void)
@@ -30,6 +33,42 @@ void teardown_jrb_serialization(void)
 }
 
 TestSuite(np_jrb_serialize_t, .init=setup_jrb_serialization, .fini=teardown_jrb_serialization);
+
+Test(np_jrb_serialize_t, serialize_np_dhkey_t, .description="test the serialization of a  jtree")
+{
+
+	cmp_ctx_t cmp;
+    char empty_buffer[65536];
+    void* empty_buf_ptr = empty_buffer;
+    memset(empty_buf_ptr, 0, 65536);
+    cmp_init(&cmp, empty_buf_ptr, buffer_reader, buffer_writer);
+
+    np_dhkey_t tst;
+    tst.t[0] = 1;
+    tst.t[1] = 2;
+    tst.t[2] = 3;
+    tst.t[3] = 4;
+
+    write_type(new_val_key(tst),cmp);
+
+	cmp_object_t obj;
+	np_val_t read_tst = { .type = none_type, .size = 0 };
+	cmp_read_object(&cmp, &obj);
+	read_type(&obj, &cmp, &read_tst);
+
+	cr_expect(obj.type == key_type, "expect obj to be of type key");
+
+	cr_expect(read_tst.type == key_type, "expect val to be of type key");
+	cr_expect(read_tst.size == sizeof(np_dhkey_t), "expect val to be of dhkey size");
+
+	//cr_assert(read_tst.value.key != NULL, "expect val value to be not null");
+	cr_expect(read_tst.value.key.t[0] == 1, "expect val value to be the same as predefined");
+	cr_expect(read_tst.value.key.t[1] == 2, "expect val value to be the same as predefined");
+	cr_expect(read_tst.value.key.t[2] == 3, "expect val value to be the same as predefined");
+	cr_expect(read_tst.value.key.t[3] == 4, "expect val value to be the same as predefined");
+
+}
+
 
 Test(np_jrb_serialize_t, serialize_jrb_node_t, .description="test the serialization of a  jtree")
 {

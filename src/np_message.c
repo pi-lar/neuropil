@@ -46,7 +46,6 @@ static const int MSG_FOOTERBIN_SIZE = 10;
 static const int MSG_CHUNK_SIZE_1024 = 1024;
 static const int MSG_ENCRYPTION_BYTES_40 = 40;
 
-static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 _NP_MODULE_LOCK_IMPL(msgpart_cache);
 
 
@@ -586,11 +585,14 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer)
 	deserialize_jrb_node_t(msg->instructions, &cmp );
 	// TODO: check if the complete buffer was read (byte count match)
 
-	uint16_t chunk_id = 0;
-	if (NULL != tree_find_str(msg->instructions, NP_MSG_INST_PARTS))
+	if (NULL != tree_find_str(msg->instructions, NP_MSG_INST_PARTS)) {
 		msg->no_of_chunks = tree_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[0];
-	if (NULL != tree_find_str(msg->instructions, NP_MSG_INST_PARTS))
+	}
+
+	uint16_t chunk_id = 0;
+	if (NULL != tree_find_str(msg->instructions, NP_MSG_INST_PARTS)) {
 		chunk_id = tree_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
+	}
 	msg->is_single_part = TRUE;
 
 	if (0 == msg->no_of_chunks || 0 == chunk_id){

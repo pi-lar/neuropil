@@ -19,14 +19,10 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="criterion_usr_local_include"/>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="include"/>
-						<entry excluding="*criterion*" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="local_include"/>
-						<entry excluding="*criterion*" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="local_lib"/>
-						<entry excluding="*criterion*" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="local_share"/>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="src"/>
-						<entry excluding="*criterion*" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="usr_include"/>
-						<entry excluding="*criterion*" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="usr_lib"/>
-						<entry excluding="*criterion*" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="usr_share"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="usr_include"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

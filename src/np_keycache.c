@@ -29,7 +29,6 @@ _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_key_t);
 
-static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 _NP_MODULE_LOCK_IMPL(np_keycache_t);
 
 typedef struct st_keycache_s st_keycache_t;

@@ -28,8 +28,6 @@ static const uint16_t __MAX_ENTRY =  3; // three alternatives for each key
 // TODO: change the size according to the number of entries in the routing table (min: 2/ max: 8)
 static const uint16_t __LEAFSET_SIZE = 8; /* (must be even) excluding node itself */
 
-static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 typedef np_key_t* np_key_ptr;
 NP_PLL_GENERATE_PROTOTYPES(np_key_ptr);
 NP_PLL_GENERATE_IMPLEMENTATION(np_key_ptr);

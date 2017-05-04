@@ -14,7 +14,7 @@ extern "C" {
 // put this into the header file of a module
 #define _NP_ENABLE_MODULE_LOCK(TYPE) \
 	int _##TYPE##_lock(); \
-	void _##TYPE##_unlock();
+	int _##TYPE##_unlock();
 
 // and add the implementation into the source file
 #define _NP_MODULE_LOCK_IMPL(TYPE) 									\
@@ -24,10 +24,11 @@ extern "C" {
 /*		log_msg(LOG_DEBUG,"res %d lock for "#TYPE,ret);			*/	\
 		return ret;	    											\
 	} 																\
-	void _##TYPE##_unlock() {               		            	\
+	int _##TYPE##_unlock() {               		            	\
 /*		log_msg(LOG_DEBUG,"unlock for "#TYPE);   				*/	\
 		int ret = pthread_mutex_unlock(get_mutex(mutex_##TYPE));   	\
 /*		log_msg(LOG_DEBUG,"res %d unlock for "#TYPE,ret);   	*/	\
+		return ret;	    											\
 	}
 
 

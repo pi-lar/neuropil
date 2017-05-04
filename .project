@@ -37,39 +37,14 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>local_include</name>
+			<name>criterion_usr_local_include</name>
 			<type>2</type>
-			<location>/usr/local/include</location>
-		</link>
-		<link>
-			<name>local_lib</name>
-			<type>2</type>
-			<location>/usr/local/lib</location>
-		</link>
-		<link>
-			<name>local_share</name>
-			<type>2</type>
-			<location>/usr/local/share</location>
-		</link>
-		<link>
-			<name>sys_include</name>
-			<type>2</type>
-			<location>/usr/include</location>
+			<location>/usr/local/include/criterion</location>
 		</link>
 		<link>
 			<name>usr_include</name>
 			<type>2</type>
 			<location>/usr/include</location>
-		</link>
-		<link>
-			<name>usr_lib</name>
-			<type>2</type>
-			<location>/usr/lib</location>
-		</link>
-		<link>
-			<name>usr_share</name>
-			<type>2</type>
-			<location>/usr/share</location>
 		</link>
 	</linkedResources>
 </projectDescription>

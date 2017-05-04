@@ -109,6 +109,7 @@ NP_API_INTERN
  void np_message_setto(np_message_t* msg, np_key_t* target);
 
 // msg header constants
+static const char* NP_MSG_HEADER_TARGET    = "_np.target";
 static const char* NP_MSG_HEADER_SUBJECT   = "_np.subj";
 static const char* NP_MSG_HEADER_TO        = "_np.to";
 static const char* NP_MSG_HEADER_FROM      = "_np.from";

@@ -19,6 +19,7 @@
 #include "neuropil.h"
 #include "np_tree.h"
 #include "np_types.h"
+#include "np_message.h"
 
 #define USAGE "neuropil_receiver_cb [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count]"
 #define OPTSTR "j:p:b:t:"
@@ -35,10 +36,10 @@ a message is received by the node that you are currently starting
    np_bool receive_this_is_a_test(np_tree_t* properties, np_tree_t* body)
    {
 */
-static const char* NP_MSG_BODY_TEXT = "_np.text";
 
-np_bool receive_this_is_a_test(np_tree_t* properties, np_tree_t* body)
+np_bool receive_this_is_a_test(np_message_t* msg, np_tree_t* properties, np_tree_t* body)
 {
+
 	/**
 	for this message exchange the message is send as a text element (if you used np_send_text)
 	otherwise inspect the properties and payload np_tree_t structures ...

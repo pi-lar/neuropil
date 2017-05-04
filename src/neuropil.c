@@ -501,7 +501,7 @@ void np_send_text (char* subject, char *data, uint32_t seqnum, char* targetDhkey
 	if(NULL != targetDhkey){
 		_LOCK_MODULE(np_keycache_t)
 		{
-			target = _np_key_find_by_details(targetDhkey,FALSE,HANDSHAKE_COMPLETE,TRUE,FALSE,FALSE,TRUE);
+			target = _np_key_find_by_details(targetDhkey,FALSE, HANDSHAKE_COMPLETE, TRUE,FALSE,FALSE,TRUE);
 		}
 		if(NULL == target ){
 			log_msg(LOG_WARN, "could not find the specific target %s for message. broadcasting msg", targetDhkey);

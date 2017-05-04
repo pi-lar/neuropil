@@ -41,8 +41,9 @@ enum np_log_e
     LOG_DEBUG      = 0x0008, /* debugging messages */
     LOG_TRACE      = 0x0010, /* tracing messages   */
 
+	LOG_MUTEX      = 0x0101, /* debugging messages for mutex subsystem */
 	LOG_KEY        = 0x0100, /* debugging messages for key subsystem */
-    LOG_NETWORK    = 0x0200, /* debugging messages for network layer */
+	LOG_NETWORK    = 0x0200, /* debugging messages for network layer */
     LOG_ROUTING    = 0x0400, /* debugging the routing table          */
     LOG_MESSAGE    = 0x0800, /* debugging the message subsystem      */
     LOG_SECURE     = 0x1000, /* debugging the security module        */

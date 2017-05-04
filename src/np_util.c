@@ -164,21 +164,19 @@ void write_type(np_val_t val, cmp_ctx_t* cmp)
 
 	case key_type:
 		{
-			cmp_ctx_t key_cmp;
-			char buffer[val.size];
-			void* buf_ptr = buffer;
-			cmp_init(&key_cmp, buf_ptr, buffer_reader, buffer_writer);
-			cmp_write_fixarray(cmp, 4);
-			cmp->write(&key_cmp, &val.value.key.t[0], sizeof(uint64_t));
-			cmp->write(&key_cmp, &val.value.key.t[1], sizeof(uint64_t));
-			cmp->write(&key_cmp, &val.value.key.t[2], sizeof(uint64_t));
-			cmp->write(&key_cmp, &val.value.key.t[3], sizeof(uint64_t));
-			uint32_t buf_size = key_cmp.buf - buf_ptr;
+			//cmp_ctx_t key_cmp;
+			//char buffer[val.size];
+			//void* buf_ptr = buffer;
+		//	cmp_init(&key_cmp, buf_ptr, buffer_reader, buffer_writer);
 
-			if (!cmp_write_ext32(cmp, key_type, buf_size, buf_ptr))
-			{
-				log_msg(LOG_WARN, "couldn't write key data -- ignoring for now");
-			}
+			cmp_write_ext32_marker(cmp, key_type, val.size);
+
+			cmp_write_u64(cmp, &val.value.key.t[0]);
+			cmp_write_u64(cmp, &val.value.key.t[1]);
+			cmp_write_u64(cmp, &val.value.key.t[2]);
+			cmp_write_u64(cmp, &val.value.key.t[3]);
+
+
 			break;
 		}
 
@@ -259,7 +257,7 @@ void serialize_jrb_node_t(np_tree_t* jtree, cmp_ctx_t* cmp)
 	// cmp_write_map32(cmp, i );
 
 	if (i != jtree->size*2)
-		log_msg(LOG_WARN, "serialized jrb size map size is %d, but should be %hd", jtree->size*2, i);
+		log_msg(LOG_ERROR, "serialized jrb size map size is %d, but should be %hd", jtree->size*2, i);
 
 	// cmp->buf = buf_ptr;
 
@@ -381,21 +379,14 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 			else if (obj->as.ext.type == key_type)
 			{
 				uint32_t fix_array_size;
-				cmp_ctx_t key_cmp;
-				cmp_init(&key_cmp, buf_ptr, buffer_reader, buffer_writer);
-				cmp_read_array(&key_cmp, &fix_array_size);
-				if (4 != fix_array_size)
-				{
-					log_msg(LOG_WARN,
-							"key_type has wrong array size %u", fix_array_size);
-					break;
-				}
+				//cmp_ctx_t key_cmp;
+				//cmp_init(&key_cmp, buf_ptr, buffer_reader, buffer_writer);
 
 				np_dhkey_t new_key;
-				cmp->read(&key_cmp, &new_key.t[0], sizeof(uint64_t));
-				cmp->read(&key_cmp, &new_key.t[1], sizeof(uint64_t));
-				cmp->read(&key_cmp, &new_key.t[2], sizeof(uint64_t));
-				cmp->read(&key_cmp, &new_key.t[3], sizeof(uint64_t));
+				cmp_read_u64(cmp,&new_key.t[0]);
+				cmp_read_u64(cmp,&new_key.t[1]);
+				cmp_read_u64(cmp,&new_key.t[2]);
+				cmp_read_u64(cmp,&new_key.t[3]);
 
 				value->value.key = new_key;
 				value->type = key_type;

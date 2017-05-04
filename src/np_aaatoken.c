@@ -785,6 +785,11 @@ np_aaatoken_t* _np_get_receiver_token(char* subject, np_dhkey_t* target)
 			}
 		}
 	}
+	if(NULL == return_token ){
+		log_msg(LOG_AAATOKEN | LOG_DEBUG,
+				"found no valid receiver token" );
+
+	}
 	return (return_token);
 }
 

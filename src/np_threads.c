@@ -37,10 +37,10 @@ pthread_mutex_t* get_mutex(int mutex_id)
 {
 	mutex_t* mutex = mutexes[mutex_id];
 	if(NULL == mutex ){
-		log_msg(LOG_WARN, "Mutex %d was not initialised. Do so now.", mutex_id);
+		log_msg(LOG_MUTEX | LOG_WARN, "Mutex %d was not initialised. Do so now.", mutex_id);
 		create_mutex(mutex_id);
 	}else{
-		log_msg(LOG_DEBUG,"Got mutex %d.", mutex_id);
+		log_msg(LOG_MUTEX | LOG_DEBUG,"Got mutex %d.", mutex_id);
 	}
 	return &(mutexes[mutex_id]->lock);
 }
@@ -53,7 +53,7 @@ np_bool create_mutex(int mutex_id){
 		pthread_mutex_init(&(new_mutex->lock), NULL);
 
 		mutexes[mutex_id] = new_mutex;
-		log_msg(LOG_DEBUG, "Created mutex %d.", mutex_id);
+		log_msg(LOG_MUTEX | LOG_DEBUG, "Created mutex %d.", mutex_id);
 	} else {
 		log_msg(LOG_ERROR, "Cannot allocate mutex %d.", mutex_id);
 	}

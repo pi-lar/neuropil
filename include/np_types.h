@@ -91,7 +91,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_message_t);
  *  user callback functions
  */
 typedef np_bool (*np_aaa_func_t) (np_aaatoken_t* aaa_token );
-typedef np_bool (*np_usercallback_t) (np_tree_t* msg_properties, np_tree_t* msg_body);
+typedef np_bool (*np_usercallback_t) (np_message_t* msg, np_tree_t* properties, np_tree_t* body);
 
 // internal callback functions
 typedef void (*np_callback_t) (np_jobargs_t*);

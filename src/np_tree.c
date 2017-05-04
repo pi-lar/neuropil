@@ -187,6 +187,7 @@ np_tree_elem_t* tree_find_gte_dbl (np_tree_t* n, double dkey, uint8_t *fnd)
 	return (result);
 }
 
+
 np_tree_elem_t* tree_find_dbl (np_tree_t* n, double dkey)
 {
 	np_val_t search_key = { .type = double_type, .value.d = dkey };

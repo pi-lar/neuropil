@@ -15,12 +15,13 @@
 .. highlight:: c
 */
 
+#include "np_types.h"
 #include "np_log.h"
 #include "neuropil.h"
-#include "np_msgproperty.h"
-#include "np_keycache.h"
 #include "np_tree.h"
-#include "np_types.h"
+#include "np_keycache.h"
+#include "np_message.h"
+#include "np_msgproperty.h"
 #include "np_node.h"
 
 
@@ -39,14 +40,13 @@ a ping or pong message is received by the nodes that you are going to start
    np_bool receive_ping(np_tree_t* properties, np_tree_t* body)
    {
 */
-static const char* NP_MSG_BODY_TEXT = "_np.text";
-static const char* NP_MSG_INST_SEQ  = "_np.seq";
 
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
 
-np_bool receive_ping(np_tree_t* properties, np_tree_t* body)
+np_bool receive_ping(np_message_t* msg, np_tree_t* properties, np_tree_t* body)
 {
+
 	char* text = tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	uint32_t seq = tree_find_str(properties, NP_MSG_INST_SEQ)->val.value.ul;
 
@@ -58,8 +58,9 @@ np_bool receive_ping(np_tree_t* properties, np_tree_t* body)
 	return TRUE;
 }
 
-np_bool receive_pong(np_tree_t* properties, np_tree_t* body)
+np_bool receive_pong(np_message_t* msg, np_tree_t* properties, np_tree_t* body)
 {
+
 	char* text = tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	uint32_t seq = tree_find_str(properties, NP_MSG_INST_SEQ)->val.value.ul;
 

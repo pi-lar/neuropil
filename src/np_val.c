@@ -397,7 +397,7 @@ np_val_t new_val_bin (void* data, uint32_t ul)
     np_val_t j;
 
     j.value.bin = data; // malloc(ul);
-	CHECK_MALLOC(j.value.bin);
+	// CHECK_MALLOC(j.value.bin);
 
     // memset(j.value.bin, 0, ul);
     // memcpy(j.value.bin, data, ul);
@@ -413,9 +413,11 @@ np_val_t new_val_key (np_dhkey_t key)
     np_val_t j;
 
     j.value.key = key;
-    j.size = sizeof(key);
     j.type = key_type;
-    j.size = 1 + ( 4*sizeof(uint64_t) );
+    j.size = sizeof(np_dhkey_t);
+
+    // j.size = sizeof(key);
+    // j.size = 1 + ( 4*sizeof(uint64_t) );
     return j;
 }
 

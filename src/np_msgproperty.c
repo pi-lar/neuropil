@@ -90,7 +90,6 @@ RB_HEAD(rbt_msgproperty, np_msgproperty_s);
 RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
 
 typedef struct rbt_msgproperty rbt_msgproperty_t;
-static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 static rbt_msgproperty_t* __msgproperty_table;
 
 _NP_MODULE_LOCK_IMPL(np_msgproperty_t);
@@ -326,7 +325,7 @@ void _np_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 
 			if (0 < (msg_prop->cache_policy & OVERFLOW_REJECT))
 			{
-				log_msg(LOG_DEBUG,
+				log_msg(LOG_WARN,
 						"rejecting new message because cache is full");
 				continue;
 			}

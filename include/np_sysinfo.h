@@ -18,9 +18,9 @@ extern "C" {
 NP_API_INTERN
 void _np_sysinfo_init(np_bool requestOrReply);
 NP_API_INTERN
-np_bool _np_in_sysinfo(np_tree_t* properties, np_tree_t* body) ;
+np_bool _np_in_sysinfo(np_message_t* msg, np_tree_t* properties, np_tree_t* body) ;
 NP_API_INTERN
-np_bool _np_in_sysinforeply(np_tree_t* properties, np_tree_t* body) ;
+np_bool _np_in_sysinforeply(np_message_t* msg, np_tree_t* properties, np_tree_t* body) ;
 NP_API_EXPORT
 np_tree_t* np_get_sysinfo(const char* dhkey_of_node_target);
 NP_API_EXPORT

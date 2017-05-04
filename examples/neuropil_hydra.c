@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define USAGE "neuropil_hydra -j key:proto:host:port [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count] [-l path_to_log_folder]"
+#define USAGE "neuropil_hydra [-j key:proto:host:port] [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count] [-l path_to_log_folder]"
 #define OPTSTR "j:p:n:t:l:"
 
 NP_SLL_GENERATE_PROTOTYPES(int);

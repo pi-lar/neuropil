@@ -35,7 +35,7 @@ static const char* _NP_SYSINFO_MY_ROUTES = "routing_nodes";
 static const char* _NP_SYSINFO_SOURCE = "source_hash";
 static const char* _NP_SYSINFO_TARGET = "target_hash";
 
-static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 _NP_MODULE_LOCK_IMPL(np_sysinfo);
 
 static struct np_simple_cache_table_t* _cache;
@@ -88,7 +88,7 @@ void _np_sysinfo_init(np_bool isRequestor) {
 
 }
 
-np_bool _np_in_sysinfo(np_tree_t* properties, NP_UNUSED np_tree_t* body) {
+np_bool _np_in_sysinfo(np_message_t* msg, np_tree_t* properties, np_tree_t* body) {
 	log_msg(LOG_TRACE, ".start._in_sysinfo");
 
 	np_tree_elem_t* source = tree_find_str(properties, _NP_SYSINFO_SOURCE);
@@ -146,7 +146,7 @@ np_bool _np_in_sysinfo(np_tree_t* properties, NP_UNUSED np_tree_t* body) {
 	return TRUE;
 }
 
-np_bool _np_in_sysinforeply(np_tree_t* properties, np_tree_t* body) {
+np_bool _np_in_sysinforeply(np_message_t* msg, np_tree_t* properties, np_tree_t* body) {
 	log_msg(LOG_TRACE, ".start._in_sysinforeply");
 
 	np_tree_elem_t* source = tree_find_str(properties, _NP_SYSINFO_SOURCE);

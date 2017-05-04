@@ -911,10 +911,23 @@ void _np_send_msg_availability(const char* subject)
 	log_msg(LOG_TRACE, ".end  .np_send_msg_availability");
 }
 
-// TODO: move this to a function which can be scheduled via jobargs
+// TODO: add a wrapper function which can be scheduled via jobargs
 np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
 {
 	msg_prop->msg_threshold++;
+
+	if(NULL != target){
+		log_msg(LOG_DEBUG, "try NP_MSG_HEADER_TARGET");
+		tree_replace_str(msg->header, NP_MSG_HEADER_TARGET, new_val_key(*target));
+		log_msg(LOG_DEBUG, "done NP_MSG_HEADER_TARGET");
+	}else{
+		//np_tree_elem_t* target_container = 	tree_find_str(msg->header, NP_MSG_HEADER_TARGET);
+		/*
+		if(NULL != target_container) {
+			target = &(target_container->val.value.key);
+		}
+		 */
+	}
 
 	np_aaatoken_t* tmp_token = _np_get_receiver_token(subject, target);
 
