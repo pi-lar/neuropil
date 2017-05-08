@@ -15,6 +15,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include <pthread.h>
+#include <inttypes.h>
 
 #include "np_tree.h"
 
