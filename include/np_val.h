@@ -138,6 +138,7 @@ np_val_t new_val_hash(char* h_val);
 np_val_t new_val_pwhash (char *pw_key);
 np_val_t new_val_key(np_dhkey_t key);
 np_val_t new_val_obj(np_obj_t* obj);
+uint64_t val_get_byte_size(np_val_t ele);
 
 np_val_t NP_VAL_NULL;
 

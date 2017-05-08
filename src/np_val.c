@@ -605,3 +605,36 @@ char* jval_carray (np_val_t j)
 {
     return j.value.carray;
 }
+uint64_t val_get_byte_size(np_val_t ele)
+{
+	uint64_t byte_size = 0;
+
+	switch(ele.type)
+	{
+		case short_type: 		  byte_size += 1 + sizeof(int8_t); break;
+		case int_type: 			  byte_size += 1 + sizeof(int16_t); break;
+		case long_type: 		  byte_size += 1 + sizeof(int32_t); break;
+		case long_long_type:	  byte_size += 1 + sizeof(int64_t); break;
+		case float_type: 		  byte_size += 1 + sizeof(float); break;
+		case double_type: 		  byte_size += 1 + sizeof(double); break;
+		case char_ptr_type: 	  byte_size += 1 + sizeof(uint32_t) + ele.size; break;
+		case char_type: 		  byte_size += 1 + sizeof(char); break;
+		case unsigned_char_type:  byte_size += 1 + sizeof(unsigned char); break;
+		case unsigned_short_type: byte_size += 1 + sizeof(uint8_t); break;
+		case unsigned_int_type:   byte_size += 1 + sizeof(uint16_t); break;
+		case unsigned_long_type:  byte_size += 1 + sizeof(uint32_t); break;
+		case unsigned_long_long_type:  byte_size += 1 + sizeof(uint64_t); break;
+		case uint_array_2_type:   byte_size += 1 + 2*sizeof(uint16_t); break;
+		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
+		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
+		case unsigned_char_array_8_type: byte_size += 1+8*sizeof(unsigned char); break;
+		case void_type: 		  byte_size += 1 + sizeof(void*); break;
+		case bin_type: 			  byte_size += 1 + sizeof(uint32_t) + ele.size; break;
+		case hash_type: 		  byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.size; break;
+		case jrb_tree_type:       byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.value.tree->byte_size; break;
+		case key_type:            byte_size += 1 + sizeof(int8_t) +  sizeof(uint32_t) + (4 * (sizeof(int8_t) +sizeof(uint64_t))); break; // marker ext32:key_type + size of ext32 + 4* (marker int 64 + wert int 64)
+		default:                  log_msg(LOG_ERROR, "unsupported length calculation for value / type %"PRIu8"", ele.type ); break;
+	}
+
+	return byte_size;
+}
