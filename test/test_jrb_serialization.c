@@ -40,22 +40,22 @@ void reset_buffer_counter(){
 }
 
 
-void setup_jrb_serialization(void)
+void setup_serialization(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE;
 	np_mem_init();
 	np_log_init("test_jrb_serialization.log", log_level);
 }
 
-void teardown_jrb_serialization(void)
+void teardown_serialization(void)
 {
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 	ev_run(EV_A_ EVRUN_NOWAIT);
 }
 
-TestSuite(np_jrb_serialize_t, .init=setup_jrb_serialization, .fini=teardown_jrb_serialization);
+TestSuite(test_serialization, .init=setup_serialization, .fini=teardown_serialization);
 
-Test(np_jrb_serialize_t, serialize_np_dhkey_t, .description="test the serialization of a  jtree")
+Test(test_serialization, serialize_np_dhkey_t, .description="test the serialization of a dhkey")
 {
 	cmp_ctx_t cmp_read;
 	cmp_ctx_t cmp_write;
@@ -115,7 +115,7 @@ Test(np_jrb_serialize_t, serialize_np_dhkey_t, .description="test the serializat
 	cr_expect(read_tst.value.key.t[3] == 4, "Expected read val value 3 to be the same as predefined, But is: %"PRIu64, read_tst.value.key.t[3]);
 }
 
-Test(np_jrb_serialize_t, serialize_np_dhkey_t_in_np_tree_t_, .description="test the serialization of a  jtree")
+Test(test_serialization, serialize_np_dhkey_t_in_np_tree_t_, .description="test the serialization of a dhkey in a tree")
 {
 	cmp_ctx_t cmp_read;
 	cmp_ctx_t cmp_write;
@@ -133,6 +133,11 @@ Test(np_jrb_serialize_t, serialize_np_dhkey_t_in_np_tree_t_, .description="test 
     tst.t[1] = 2;
     tst.t[2] = 3;
     tst.t[3] = 4;
+    np_dhkey_t tst2;
+    tst2.t[0] = 5;
+    tst2.t[1] = 6;
+    tst2.t[2] = 7;
+    tst2.t[3] = 8;
 
     np_tree_t* write_tree = make_nptree();
     tree_insert_str(write_tree,"TESTKEY", new_val_key(tst));
@@ -173,7 +178,8 @@ Test(np_jrb_serialize_t, serialize_np_dhkey_t_in_np_tree_t_, .description="test 
 }
 
 
-Test(np_jrb_serialize_t, serialize_jrb_node_t, .description="test the serialization of a  jtree")
+
+Test(test_serialization, serialize_jrb_node_t, .description="test the serialization of a  jtree")
 {
 	np_tree_t* test_jrb_1 = make_nptree();
 

@@ -445,8 +445,9 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 	// _np_send_msg_availability(subject);
 	_np_send_subject_discovery_messages(OUTBOUND, subject);
 
-
-	np_key_t* target = _np_get_key_by_key_hash(target_key);
+	char tmp_dhkey_hash[65];
+	_dhkey_to_str(target_key,tmp_dhkey_hash);
+	np_key_t* target = _np_get_key_by_key_hash(tmp_dhkey_hash);
 
 	_np_send_msg(subject, msg, msg_prop, NULL == target ? NULL: &target->dhkey);
 
@@ -454,7 +455,7 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 }
 
 np_key_t* _np_get_key_by_key_hash(char* targetDhkey) {
-	np_key_t* target;
+	np_key_t* target = NULL;
 
 	if (NULL != targetDhkey) {
 		_LOCK_MODULE(np_keycache_t)
