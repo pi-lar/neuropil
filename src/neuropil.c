@@ -384,7 +384,7 @@ void np_set_listener (np_usercallback_t msg_handler, char* subject)
 		np_msgproperty_register(msg_prop);
 	}
 
-	msg_prop->clb_inbound = _np_callback_wrapper;
+	msg_prop->clb_inbound = _np_in_callback_wrapper;
 	msg_prop->user_clb = msg_handler;
 
 	// update informations somewhere in the network
@@ -604,7 +604,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
 		msg_prop->mode_type = INBOUND;
-		msg_prop->clb_inbound = _np_signal;
+		msg_prop->clb_inbound = _np_in_signal_np_receive;
 		// when creating, set to zero because callback function is not used
 		msg_prop->max_threshold = 0;
 
@@ -714,7 +714,7 @@ uint32_t np_receive_text (char* subject, char **data)
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
 		msg_prop->mode_type = INBOUND;
-		msg_prop->clb_inbound = _np_signal;
+		msg_prop->clb_inbound = _np_in_signal_np_receive;
 		// when creating, set to zero because callback function is not used
 		msg_prop->max_threshold = 0;
 

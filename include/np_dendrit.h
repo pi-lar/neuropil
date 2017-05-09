@@ -63,9 +63,9 @@ NP_API_INTERN
 void _np_in_account(np_jobargs_t* args);
 
 NP_API_INTERN
-void _np_signal (np_jobargs_t* args);
+void _np_in_signal_np_receive (np_jobargs_t* args);
 NP_API_INTERN
-void _np_callback_wrapper(np_jobargs_t* args);
+void _np_in_callback_wrapper(np_jobargs_t* args);
 
 #ifdef __cplusplus
 }

@@ -399,14 +399,14 @@ void _np_in_piggy(np_jobargs_t* args)
 	return;
 }
 
-/** _np_signal
- ** np_signal registered when np_receive function is used to receive message.
+/** _np_in_signal_np_receive
+ ** _np_in_signal_np_receive registered when np_receive function is used to receive message.
  ** it is invoked after a message has been send from the sender of messages and sends a signal to the
  ** np_receive function
  **/
-void _np_signal (np_jobargs_t* args)
+void _np_in_signal_np_receive (np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, ".start.np_signal");
+	log_msg(LOG_TRACE, ".start._np_signal");
 	np_message_t* msg_in = args->msg;
 
 	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_SUBJECT, msg_subject);
@@ -434,17 +434,17 @@ void _np_signal (np_jobargs_t* args)
 	__np_cleanup__:
 	// nothing to do
 	// __np_return__:
-	log_msg(LOG_TRACE, ".end  .np_signal");
+	log_msg(LOG_TRACE, ".end  ._np_signal");
 	return;
 }
 
-/** _np_callback_wrapper
- ** _np_callback_wrapper is used when a callback function is used to receive messages
+/** _np_in_callback_wrapper
+ ** _np_in_callback_wrapper is used when a callback function is used to receive messages
  ** The purpose is automated acknowledge handling in case of ACK_CLIENT message subjects
  ** the user defined callback has to return TRUE in case the ack can be send, or FALSE
  ** if e.g. validation of the message has failed.
  **/
-void _np_callback_wrapper(np_jobargs_t* args)
+void _np_in_callback_wrapper(np_jobargs_t* args)
 {
 	np_aaatoken_t* sender_token = NULL;
 	np_message_t* msg_in = args->msg;
