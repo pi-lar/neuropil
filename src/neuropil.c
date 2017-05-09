@@ -37,16 +37,28 @@
 #include "np_route.h"
 
 #include "np_sysinfo.h"
-
+/**
+ * Gets a np_key_t or a NULL pointer for the given hash value.
+ * Generates warnings and aborts the process if a misschief configuration is found.
+ * @param targetDhkey hash value of a node
+ * @return
+ */
 np_key_t* _np_get_key_by_key_hash(char* targetDhkey) ;
 
 static np_state_t* __global_state = NULL;
-
+/**
+ * The current state/context variable for the whole neuropil process
+ * @return
+ */
 np_state_t* _np_state ()
 {
 	return (__global_state);
 }
-
+/**
+ * The default authorize function, allows all authorizations and generates warnings
+ * @param token
+ * @return
+ */
 np_bool _np_default_authorizefunc (np_aaatoken_t* token )
 {
 	log_msg(LOG_WARN, "using default handler to authorize %s", token->subject );
@@ -54,7 +66,11 @@ np_bool _np_default_authorizefunc (np_aaatoken_t* token )
 
 	return (TRUE);
 }
-
+/**
+ * The default realm slave authorize function. Forwards the authorization request to the realm master
+ * @param token
+ * @return
+ */
 np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
 {
 	np_key_t* aaa_target = NULL;
@@ -76,6 +92,11 @@ np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
 	return (FALSE);
 }
 
+/**
+ * The default authenticate function, allows all authorizations and generates warnings
+ * @param token
+ * @return
+ */
 np_bool _np_default_authenticatefunc (np_aaatoken_t* token )
 {
 	log_msg(LOG_WARN, "using default handler to authenticate %s", token->subject);
@@ -84,6 +105,11 @@ np_bool _np_default_authenticatefunc (np_aaatoken_t* token )
 	return (TRUE);
 }
 
+/**
+ * The default realm slave authenticate function. Forwards the authenticate request to the realm master
+ * @param token
+ * @return
+ */
 np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token)
 {
 	np_key_t* aaa_target = NULL;
@@ -104,7 +130,11 @@ np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token)
 
 	return (FALSE);
 }
-
+/**
+ * The default accounting function, allows all authorizations and generates warnings
+ * @param token
+ * @return
+ */
 np_bool _np_default_accountingfunc (np_aaatoken_t* token )
 {
 	log_msg(LOG_WARN, "using default handler to account for %s", token->subject );
@@ -113,6 +143,11 @@ np_bool _np_default_accountingfunc (np_aaatoken_t* token )
 	return (TRUE);
 }
 
+/**
+ * The default realm slave accounting function. Forwards the accounting request to the realm master
+ * @param token
+ * @return
+ */
 np_bool _np_aaa_accountingfunc (np_aaatoken_t* token)
 {
 	np_key_t* aaa_target = NULL;
@@ -133,25 +168,38 @@ np_bool _np_aaa_accountingfunc (np_aaatoken_t* token)
 	np_free_obj(np_key_t, aaa_target);
 	return (FALSE);
 }
-
+/**
+ * Sets the callback for authorization requests against this node
+ * @param aaaFunc
+ */
 void np_setauthorizing_cb(np_aaa_func_t aaaFunc)
 {
 	log_msg(LOG_INFO, "setting user defined authorization handler, that's good ...");
-	__global_state->authorize_func = aaaFunc;
+	_np_state()->authorize_func = aaaFunc;
 }
-
+/**
+ * Sets the callback for authentication requests against this node
+ * @param aaaFunc
+ */
 void np_setauthenticate_cb(np_aaa_func_t aaaFunc)
 {
 	log_msg(LOG_INFO, "setting user defined authentication handler, that's good ...");
-	__global_state->authenticate_func = aaaFunc;
+	_np_state()->authenticate_func = aaaFunc;
 }
-
+/**
+ * Sets the callback for accounting requests against this node
+ * @param aaaFunc
+ */
 void np_setaccounting_cb(np_aaa_func_t aaaFunc)
 {
 	log_msg(LOG_INFO, "setting user defined accounting handler, that's good ...");
-	__global_state->accounting_func = aaaFunc;
+	_np_state()->accounting_func = aaaFunc;
 }
-
+/**
+ * Sends a JOIN request to the given node string.
+ * Please see @np_get_connection_string() for the node_string definition
+ * @param node_string
+ */
 void np_send_join(const char* node_string)
 {
 	np_key_t* node_key = NULL;
@@ -210,24 +258,29 @@ void np_send_wildcard_join(const char* node_string)
 	_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
 }
 
+/**
+ * Sets the realm name of the node.
+ * RECONFIGURES THE NODE HASH! The old node hash will be forgotten.
+ * @param realm_name
+ */
 void np_set_realm_name(const char* realm_name)
 {
-	__global_state->realm_name = strndup(realm_name, 255);
+	_np_state()->realm_name = strndup(realm_name, 255);
 
 	// create a new token
-    np_aaatoken_t* auth_token = _np_create_node_token(__global_state->my_node_key->node);
+    np_aaatoken_t* auth_token = _np_create_node_token(_np_state()->my_node_key->node);
     auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
-	np_dhkey_t my_dhkey = _np_create_dhkey_for_token(auth_token); // dhkey_create_from_hostport(my_node->dns_name, my_node->port);
+	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // dhkey_create_from_hostport(my_node->dns_name, my_node->port);
 	np_key_t* new_node_key = _np_key_find_create(my_dhkey);
 
 	// TODO: use ref/unref
-	new_node_key->network = __global_state->my_node_key->network;
-	__global_state->my_node_key->network = NULL;
+	new_node_key->network = _np_state()->my_node_key->network;
+	_np_state()->my_node_key->network = NULL;
 	new_node_key->network->watcher.data = new_node_key;
 
-	new_node_key->node = __global_state->my_node_key->node;
-	__global_state->my_node_key->node = NULL;
+	new_node_key->node = _np_state()->my_node_key->node;
+	_np_state()->my_node_key->node = NULL;
 
 	new_node_key->aaa_token = auth_token;
 
@@ -235,35 +288,40 @@ void np_set_realm_name(const char* realm_name)
     _np_route_set_key (new_node_key);
 
 	// set and ref additional identity
-    if (__global_state->my_identity == __global_state->my_node_key)
+    if (_np_state()->my_identity == _np_state()->my_node_key)
     {
-        np_unref_obj(np_key_t, __global_state->my_identity);
-        __global_state->my_identity = new_node_key;
-        np_ref_obj(np_key_t, __global_state->my_identity);
+        np_unref_obj(np_key_t, _np_state()->my_identity);
+        _np_state()->my_identity = new_node_key;
+        np_ref_obj(np_key_t, _np_state()->my_identity);
     }
     else
     {
         // set target node string for correct routing
-    	tree_replace_str(__global_state->my_identity->aaa_token->extensions, "target_node", new_val_s(_key_as_str(new_node_key)) );
+    	tree_replace_str(_np_state()->my_identity->aaa_token->extensions, "target_node", new_val_s(_key_as_str(new_node_key)) );
     }
-    __global_state->my_node_key = new_node_key;
+    _np_state()->my_node_key = new_node_key;
 
-	log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _key_as_str(__global_state->my_node_key));
+	log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _key_as_str(_np_state()->my_node_key));
 }
-
+/**
+ * Enables this node as realm slave.
+ * The node will forward all aaa requests to the realm master
+ */
 void np_enable_realm_slave()
 {
-    __global_state->authorize_func    = _np_aaa_authorizefunc;
-    __global_state->authenticate_func = _np_aaa_authenticatefunc;
-    __global_state->accounting_func   = _np_aaa_accountingfunc;
+	_np_state()->authorize_func    = _np_aaa_authorizefunc;
+	_np_state()->authenticate_func = _np_aaa_authenticatefunc;
+	_np_state()->accounting_func   = _np_aaa_accountingfunc;
 
-    __global_state->enable_realm_master = FALSE;
-	__global_state->enable_realm_slave = TRUE;
+	_np_state()->enable_realm_master = FALSE;
+    _np_state()->enable_realm_slave = TRUE;
 }
-
+/**
+ * Enables this node as realm master.
+ */
 void np_enable_realm_master()
 {
-	if (NULL == __global_state->realm_name)
+	if (NULL == _np_state()->realm_name)
 	{
 		return;
 	}
@@ -274,34 +332,44 @@ void np_enable_realm_master()
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
 	if (NULL == prop->msg_audience)
 	{
-		prop->msg_audience = strndup(__global_state->realm_name, 255);
+		prop->msg_audience = strndup(_np_state()->realm_name, 255);
 	}
 
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
 	if (NULL == prop->msg_audience)
 	{
-		prop->msg_audience = strndup(__global_state->realm_name, 255);
+		prop->msg_audience = strndup(_np_state()->realm_name, 255);
 	}
 
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
 	if (NULL == prop->msg_audience)
 	{
-		prop->msg_audience = strndup(__global_state->realm_name, 255);
+		prop->msg_audience = strndup(_np_state()->realm_name, 255);
 	}
 
-	__global_state->enable_realm_master = TRUE;
-	__global_state->enable_realm_slave = FALSE;
+	_np_state()->enable_realm_master = TRUE;
+	_np_state()->enable_realm_slave = FALSE;
 }
 
+/**
+ * Waits till this node is connected to a network.
+ * WARNING! Blocks the current thread and does not have a timeout!
+ */
 void np_waitforjoin()
 {
 	np_state_t* state = _np_state();
 	while (FALSE == state->my_node_key->node->joined_network)
 	{
-		ev_sleep(0.31415);
+		ev_sleep(0.31415/2);
 	}
 }
 
+/**
+ * Sets a callback for a given msg subject.
+ * Each msg for the given subject may invoke this handler.
+ * @param msg_handler
+ * @param subject
+ */
 void np_set_listener (np_usercallback_t msg_handler, char* subject)
 {
 	// check whether an handler already exists
@@ -322,14 +390,17 @@ void np_set_listener (np_usercallback_t msg_handler, char* subject)
 	// update informations somewhere in the network
 	_np_send_subject_discovery_messages(INBOUND, subject);
 }
-
+/**
+ * Sets the identity of the node.
+ * @param identity
+ */
 void np_set_identity(np_aaatoken_t* identity)
 {
 	np_state_t* state = _np_state();
     np_key_t* my_identity_key = NULL;
 
     // build a hash to find a place in the dhkey table, not for signing !
-	np_dhkey_t search_key = _np_create_dhkey_for_token(identity);
+	np_dhkey_t search_key = _np_aaatoken_create_dhkey(identity);
 	_LOCK_MODULE(np_keycache_t)
 	{
 		my_identity_key = _np_key_find_create(search_key);
@@ -357,9 +428,17 @@ void np_set_identity(np_aaatoken_t* identity)
 	_np_aaatoken_add_signature(identity);
 
 }
-
+/**
+ * Sets the property key for the subject np_msgproperty_t to a given value.
+ * If the subject does not have a np_msgproperty_t a new one will be created and registered.
+ * All primitive types properties can be edited.
+ * @param subject
+ * @param key
+ * @param value
+ */
 void np_set_mx_property(char* subject, const char* key, np_val_t value)
 {
+	// TODO: rework key from char to enum
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
 	{
@@ -557,7 +636,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 
 		// next check or wait for valid sender tokens
 		sender_id = tree_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
-		sender_token = _np_get_sender_token(subject, sender_id);
+		sender_token = _np_aaatoken_get_sender(subject, sender_id);
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
@@ -666,7 +745,7 @@ uint32_t np_receive_text (char* subject, char **data)
 
 		// next check or wait for valid sender tokens
 		sender_id = tree_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
-		sender_token = _np_get_sender_token(subject, sender_id);
+		sender_token = _np_aaatoken_get_sender(subject, sender_id);
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
@@ -719,7 +798,10 @@ uint32_t np_receive_text (char* subject, char **data)
 
 	return (received);
 }
-
+/**
+ * Sends a ACK msg for the given message.
+ * @param in_msg
+ */
 void _np_send_ack(np_message_t* in_msg)
 {
 	np_state_t* state = _np_state();
@@ -763,7 +845,7 @@ void _np_send_ack(np_message_t* in_msg)
 }
 
 /**
- ** np_ping:
+ ** _np_ping:
  ** sends a PING message to another node. The message is acknowledged in network layer.
  **/
 void _np_ping (np_key_t* key)
@@ -863,8 +945,6 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 		log_msg(LOG_DEBUG, "now initializing networking for udp6://%s", np_service);
 	}
 
-
-
 	log_msg(LOG_DEBUG, "building node base structure");
 	np_node_t* my_node = NULL;
     np_new_obj(np_node_t, my_node);
@@ -874,7 +954,6 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     np_new_obj(np_network_t, my_network);
 
     // listen on all network interfaces
-  //  char hostname[255];
     if(NULL == hostname){
     	hostname = malloc(sizeof(char) * 255);
 		CHECK_MALLOC(hostname);
@@ -901,7 +980,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     np_aaatoken_t* auth_token = _np_create_node_token(my_node);
     auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
-	np_dhkey_t my_dhkey = _np_create_dhkey_for_token(auth_token); // dhkey_create_from_hostport(my_node->dns_name, my_node->port);
+	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // dhkey_create_from_hostport(my_node->dns_name, my_node->port);
     state->my_node_key = _np_key_find_create(my_dhkey);
     my_network->watcher.data = state->my_node_key;
     // log_msg(LOG_WARN, "node_key %p", state->my_node_key);
@@ -971,34 +1050,34 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 
 void np_start_job_queue(uint8_t pool_size)
 {
-	if (pthread_attr_init (&__global_state->attr) != 0)
+	if (pthread_attr_init (&_np_state()->attr) != 0)
 	{
 	    log_msg (LOG_ERROR, "pthread_attr_init: %s", strerror (errno));
 	    return;
 	}
 
-    if (pthread_attr_setscope (&__global_state->attr, PTHREAD_SCOPE_SYSTEM) != 0)
+    if (pthread_attr_setscope (&_np_state()->attr, PTHREAD_SCOPE_SYSTEM) != 0)
 	{
 	    log_msg (LOG_ERROR, "pthread_attr_setscope: %s", strerror (errno));
 	    return;
 	}
 
-    if (pthread_attr_setdetachstate (&__global_state->attr, PTHREAD_CREATE_DETACHED) != 0)
+    if (pthread_attr_setdetachstate (&_np_state()->attr, PTHREAD_CREATE_DETACHED) != 0)
 	{
     	log_msg (LOG_ERROR, "pthread_attr_setdetachstate: %s", strerror (errno));
 	    return;
 	}
 
-    __global_state->thread_count = pool_size;
-    __global_state->thread_ids = (pthread_t *) malloc (sizeof (pthread_t) * pool_size);
-	CHECK_MALLOC(__global_state->thread_ids);
+    _np_state()->thread_count = pool_size;
+    _np_state()->thread_ids = (pthread_t *) malloc (sizeof (pthread_t) * pool_size);
+	CHECK_MALLOC(_np_state()->thread_ids);
 
 
     /* create the thread pool */
     for (uint8_t i = 0; i < pool_size; i++)
     {
-        pthread_create (&__global_state->thread_ids[i], &__global_state->attr, _job_exec, (void *) __global_state);
-    	log_msg(LOG_DEBUG, "neuropil worker thread started: %p", __global_state->thread_ids[i]);
+        pthread_create (&_np_state()->thread_ids[i], &_np_state()->attr, _job_exec, (void *) _np_state());
+    	log_msg(LOG_DEBUG, "neuropil worker thread started: %p", _np_state()->thread_ids[i]);
    	}
 	log_msg(LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
@@ -1022,7 +1101,7 @@ void np_start_job_queue(uint8_t pool_size)
 }
 
 char* np_get_connection_string(){
-	char* connection_str = np_get_connection_string_from(__global_state->my_node_key, TRUE);
+	char* connection_str = np_get_connection_string_from(_np_state()->my_node_key, TRUE);
 	return connection_str;
 }
 
