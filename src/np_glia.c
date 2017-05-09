@@ -217,17 +217,6 @@ void _np_never_called(np_jobargs_t* args)
 	log_msg(LOG_WARN, "!!!                               !!!");
 }
 
-/**
- ** flushes the data of the log buffer to the filesystem in a async callback way
- **/
-void _np_write_log(NP_UNUSED np_jobargs_t* args)
-{
-	// log_msg(LOG_TRACE, "start np_write_log");
-	_np_log_fflush();
-	np_job_submit_event(__logfile_flush_period, _np_write_log);
-	// log_msg(LOG_TRACE, "end   np_write_log");
-}
-
 /** _np_check_leafset:
  ** sends a PING message to each member of the leafset and routing table frequently and
  ** sends the leafset to other members of its leafset periodically.
@@ -807,32 +796,6 @@ void _np_send_msg_interest(const char* subject)
 	}
 
 	log_msg(LOG_TRACE, ".end  .np_send_msg_interest");
-}
-
-// deprecated
-void _np_send_msg_availability(const char* subject)
-{
-	log_msg(LOG_TRACE, ".start.np_send_msg_availability");
-
-	// set correct transform handler
-	if (NULL == tree_find_str(_np_state()->msg_tokens, subject))
-	{
-		tree_insert_str(_np_state()->msg_tokens, subject, new_val_v(NULL));
-
-		np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
-		msg_prop->clb_transform = _np_send_discovery_messages;
-
-		np_dhkey_t target_dhkey = dhkey_create_from_hostport(subject, "0");
-		np_key_t* target = NULL;
-		np_new_obj(np_key_t, target);
-		target->dhkey = target_dhkey;
-
-		log_msg(LOG_DEBUG, "registering for message available token handling");
-		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-		np_free_obj(np_key_t, target);
-	}
-
-	log_msg(LOG_TRACE, ".end  .np_send_msg_availability");
 }
 
 // TODO: add a wrapper function which can be scheduled via jobargs
