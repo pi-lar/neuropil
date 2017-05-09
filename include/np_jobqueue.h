@@ -38,6 +38,9 @@ struct np_jobargs_s
 NP_API_INTERN
 np_bool _np_job_queue_create();
 
+NP_API_INTERN
+void _np_job_queue_insert(double delay, np_job_t* new_job);
+
 /** job_submit
  ** create a new node and pass "func","args","args_size"
  ** add the new node to the queue

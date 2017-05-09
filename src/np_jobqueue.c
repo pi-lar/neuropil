@@ -45,7 +45,7 @@ static np_jobqueue_t*  __np_job_queue;
 static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  __cond_empty = PTHREAD_COND_INITIALIZER;
 
-int8_t _compare_job_tstamp(np_job_ptr job1, np_job_ptr job2)
+int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2)
 {
 	if (job1->tstamp > job2->tstamp) return (-1);
 	if (job1->tstamp < job2->tstamp) return ( 1);
@@ -89,11 +89,11 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs)
 	return (new_job);
 }
 
-void _np_jobqueue_insert(double delay, np_job_t* new_job)
+void _np_job_queue_insert(double delay, np_job_t* new_job)
 {
 	pthread_mutex_lock(&__lock_mutex);
 
-	pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _compare_job_tstamp);
+	pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_tstamp);
 	// if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
 	if (0.0 == delay)
 	{
@@ -133,7 +133,7 @@ void _np_job_resubmit_msgout_event (double delay, np_msgproperty_t* prop, np_key
 	np_job_t* new_job = _np_job_create_job(delay, jargs);
     new_job->processorFunc = prop->clb_outbound;
 
-	_np_jobqueue_insert(delay, new_job);
+	_np_job_queue_insert(delay, new_job);
 }
 
 void _np_job_resubmit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
@@ -157,7 +157,7 @@ void _np_job_resubmit_route_event (double delay, np_msgproperty_t* prop, np_key_
 	np_job_t* new_job = _np_job_create_job(delay, jargs);
     new_job->processorFunc = prop->clb_route;
 
-	_np_jobqueue_insert(delay, new_job);
+	_np_job_queue_insert(delay, new_job);
 }
 
 void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
@@ -180,7 +180,7 @@ void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t*
 	np_job_t* new_job = _np_job_create_job(delay, jargs);
     new_job->processorFunc = prop->clb_route; // ->msg_handler;
 
-	_np_jobqueue_insert(delay, new_job);
+	_np_job_queue_insert(delay, new_job);
 }
 
 void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
@@ -204,7 +204,7 @@ void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t*
 	np_job_t* new_job = _np_job_create_job(delay, jargs);
     new_job->processorFunc = prop->clb_inbound; // ->msg_handler;
 
-	_np_jobqueue_insert(delay, new_job);
+	_np_job_queue_insert(delay, new_job);
 }
 
 void _np_job_submit_transform_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
@@ -227,7 +227,7 @@ void _np_job_submit_transform_event (double delay, np_msgproperty_t* prop, np_ke
 	np_job_t* new_job = _np_job_create_job(delay, jargs);
     new_job->processorFunc = prop->clb_transform; // ->msg_handler;
 
-	_np_jobqueue_insert(delay, new_job);
+	_np_job_queue_insert(delay, new_job);
 }
 
 void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
@@ -250,7 +250,7 @@ void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t
 	np_job_t* new_job = _np_job_create_job(delay, jargs);
     new_job->processorFunc = prop->clb_outbound;
 
-	_np_jobqueue_insert(delay, new_job);
+	_np_job_queue_insert(delay, new_job);
 	// log_msg(LOG_TRACE, "... job_submit_msg_event finished");
 }
 
@@ -260,7 +260,7 @@ void np_job_submit_event (double delay, np_callback_t callback)
     new_job->processorFunc = callback;
     new_job->type = 2;
 
-	_np_jobqueue_insert(delay, new_job);
+	_np_job_queue_insert(delay, new_job);
 }
 
 /** job_queue_create
