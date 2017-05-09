@@ -245,7 +245,7 @@ void np_send_wildcard_join(const char* node_string)
 	free(wildcard_node);
 
 	np_tree_t* jrb_me = make_nptree();
-	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
+	np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
 
 	np_message_t* msg_out = NULL;
 	np_msgproperty_t* prop = NULL;

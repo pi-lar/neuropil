@@ -63,7 +63,7 @@ void _np_aaatoken_t_del (void* token)
 	}
 }
 
-void np_encode_aaatoken(np_tree_t* data, np_aaatoken_t* token)
+void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 {
 	// add e2e encryption details for sender
 	tree_insert_str(data, "_np.realm", new_val_s(token->realm));
@@ -81,7 +81,7 @@ void np_encode_aaatoken(np_tree_t* data, np_aaatoken_t* token)
 	tree_insert_str(data, "_np.ext", new_val_tree(token->extensions));
 }
 
-void np_decode_aaatoken(np_tree_t* data, np_aaatoken_t* token)
+void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 {
 	assert (NULL != data);
 	assert (NULL != token);
@@ -169,7 +169,7 @@ void np_decode_aaatoken(np_tree_t* data, np_aaatoken_t* token)
 	// log_msg(LOG_DEBUG, "extensions        : %s");
 }
 
-np_dhkey_t _np_create_dhkey_for_token(np_aaatoken_t* identity)
+np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* identity)
 {
 	// build a hash to find a place in the dhkey table, not for signing !
 	unsigned char hash[crypto_generichash_BYTES];
@@ -191,7 +191,7 @@ np_dhkey_t _np_create_dhkey_for_token(np_aaatoken_t* identity)
 	return (search_key);
 }
 
-np_bool token_is_valid(np_aaatoken_t* token)
+np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 {
 	assert (NULL != token);
 
@@ -296,7 +296,7 @@ np_bool token_is_valid(np_aaatoken_t* token)
 	return (TRUE);
 }
 
-static int8_t _token_cmp (np_aaatoken_ptr first, np_aaatoken_ptr second)
+static int8_t _np_aaatoken_cmp (np_aaatoken_ptr first, np_aaatoken_ptr second)
 {
 	int8_t ret_check = 0;
 
@@ -323,7 +323,7 @@ static int8_t _token_cmp (np_aaatoken_ptr first, np_aaatoken_ptr second)
 	return (0);
 }
 
-static int8_t _token_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr second)
+static int8_t _np_aaatoken_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr second)
 {
 	int8_t ret_check = 0;
 
@@ -362,7 +362,7 @@ static int8_t _token_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr second)
 	return (0);
 }
 
-void _create_token_ledger(np_key_t* subject_key, char* subject)
+void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 {
 	np_msgproperty_t* prop = NULL;
 	np_bool create_new_prop = FALSE;
@@ -404,7 +404,7 @@ void _create_token_ledger(np_key_t* subject_key, char* subject)
 }
 
 // update internal structure and return a interest if a matching pair has been found
-void _np_add_sender_token(char* subject, np_aaatoken_t *token)
+void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 {
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start.np_add_sender_token");
 
@@ -414,7 +414,7 @@ void _np_add_sender_token(char* subject, np_aaatoken_t *token)
 	_LOCK_MODULE(np_keycache_t)
 	{
 		subject_key = _np_key_find_create(search_key);
-		_create_token_ledger(subject_key, subject);
+		_np_aaatoken_create_ledger(subject_key, subject);
 	}
 
 	// should never happen
@@ -439,13 +439,13 @@ void _np_add_sender_token(char* subject, np_aaatoken_t *token)
 		{
 			np_msg_mep_type sender_mep_type = subject_key->send_property->mep_type & SENDER_MASK;
 
-			np_aaatoken_ptr_cmp_func_t cmp_aaatoken_add     = _token_cmp;
-			np_aaatoken_ptr_cmp_func_t cmp_aaatoken_replace = _token_cmp_exact;
+			np_aaatoken_ptr_cmp_func_t cmp_aaatoken_add     = _np_aaatoken_cmp;
+			np_aaatoken_ptr_cmp_func_t cmp_aaatoken_replace = _np_aaatoken_cmp_exact;
 			np_bool allow_dups = TRUE;
 
 			if (SINGLE_SENDER == (SINGLE_SENDER & sender_mep_type))
 			{
-				cmp_aaatoken_replace   = _token_cmp;
+				cmp_aaatoken_replace   = _np_aaatoken_cmp;
 				allow_dups = FALSE;
 			}
 
@@ -481,10 +481,10 @@ void _np_add_sender_token(char* subject, np_aaatoken_t *token)
 			pll_next(iter);
 
 			if (NULL  != tmp_token &&
-				FALSE == token_is_valid(tmp_token) )
+				FALSE == _np_aaatoken_is_valid(tmp_token) )
 			{
 				log_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid sender msg tokens %p", tmp_token);
-				pll_remove(np_aaatoken_ptr, subject_key->send_tokens, tmp_token, _token_cmp_exact);
+				pll_remove(np_aaatoken_ptr, subject_key->send_tokens, tmp_token, _np_aaatoken_cmp_exact);
 				np_unref_obj(np_aaatoken_t, tmp_token);
 				break;
 			}
@@ -499,7 +499,7 @@ void _np_add_sender_token(char* subject, np_aaatoken_t *token)
  ** TODO extend this function with a key and an amount of messages
  ** TODO use a different function for mitm and leaf nodes ?
  **/
-sll_return(np_aaatoken_t) _np_get_sender_token_all(char* subject)
+sll_return(np_aaatoken_t) _np_aaatoken_get_sender_all(char* subject)
 {
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
@@ -508,7 +508,7 @@ sll_return(np_aaatoken_t) _np_get_sender_token_all(char* subject)
 	{
 		subject_key = _np_key_find_create(search_key);
 	    // look up target structures or create them
-		_create_token_ledger(subject_key, subject);
+		_np_aaatoken_create_ledger(subject_key, subject);
 	}
 
 	// log_msg(LOG_DEBUG, "available %hd interests %hd", subject_key->send_property->max_threshold, subject_key->recv_property->max_threshold );
@@ -533,7 +533,7 @@ sll_return(np_aaatoken_t) _np_get_sender_token_all(char* subject)
 		tmp = pll_first(subject_key->send_tokens);
 		while (NULL != tmp)
 		{
-			if (FALSE == token_is_valid(tmp->val))
+			if (FALSE == _np_aaatoken_is_valid(tmp->val))
 			{
 				log_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid sender token for issuer %s", tmp->val->issuer);
 			}
@@ -552,7 +552,7 @@ sll_return(np_aaatoken_t) _np_get_sender_token_all(char* subject)
 	return (return_list);
 }
 
-np_aaatoken_t* _np_get_sender_token(char* subject, char* sender)
+np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender)
 {
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
@@ -561,7 +561,7 @@ np_aaatoken_t* _np_get_sender_token(char* subject, char* sender)
 	{
 		subject_key = _np_key_find_create(search_key);
 	    // look up target structures or create them
-		_create_token_ledger(subject_key, subject);
+		_np_aaatoken_create_ledger(subject_key, subject);
 	}
 
 	// should never happen
@@ -588,7 +588,7 @@ np_aaatoken_t* _np_get_sender_token(char* subject, char* sender)
 			   FALSE == found_return_token)
 		{
 			return_token = iter->val;
-			if (FALSE == token_is_valid(return_token))
+			if (FALSE == _np_aaatoken_is_valid(return_token))
 			{
 				log_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid sender token for issuer %s", return_token->issuer);
 				pll_next(iter);
@@ -619,7 +619,7 @@ np_aaatoken_t* _np_get_sender_token(char* subject, char* sender)
 }
 
 // update internal structure and clean invalid tokens
-void _np_add_receiver_token(char* subject, np_aaatoken_t *token)
+void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 {
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start.np_add_receiver_token");
 
@@ -629,7 +629,7 @@ void _np_add_receiver_token(char* subject, np_aaatoken_t *token)
 	_LOCK_MODULE(np_keycache_t)
 	{
 		subject_key = _np_key_find_create(search_key);
-	    _create_token_ledger(subject_key, subject);
+	    _np_aaatoken_create_ledger(subject_key, subject);
 	}
 
 	// should never happen
@@ -661,13 +661,13 @@ void _np_add_receiver_token(char* subject, np_aaatoken_t *token)
 			np_msg_mep_type receiver_mep_type = (subject_key->recv_property->mep_type & RECEIVER_MASK);
 			np_aaatoken_t* tmp_token = NULL;
 
-			np_aaatoken_ptr_cmp_func_t cmp_aaatoken_replace = _token_cmp_exact;
-			np_aaatoken_ptr_cmp_func_t cmp_aaatoken_add     = _token_cmp;
+			np_aaatoken_ptr_cmp_func_t cmp_aaatoken_replace = _np_aaatoken_cmp_exact;
+			np_aaatoken_ptr_cmp_func_t cmp_aaatoken_add     = _np_aaatoken_cmp;
 			np_bool allow_dups = TRUE;
 
 			if (SINGLE_RECEIVER == (SINGLE_RECEIVER & receiver_mep_type))
 			{
-				cmp_aaatoken_replace   = _token_cmp;
+				cmp_aaatoken_replace   = _np_aaatoken_cmp;
 				allow_dups = FALSE;
 			}
 
@@ -705,10 +705,10 @@ void _np_add_receiver_token(char* subject, np_aaatoken_t *token)
 			pll_next(iter);
 
 			if (NULL  != tmp_token &&
-				FALSE == token_is_valid(tmp_token) )
+				FALSE == _np_aaatoken_is_valid(tmp_token) )
 			{
 				log_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid receiver msg tokens %p", tmp_token);
-				pll_remove(np_aaatoken_ptr, subject_key->recv_tokens, tmp_token, _token_cmp_exact);
+				pll_remove(np_aaatoken_ptr, subject_key->recv_tokens, tmp_token, _np_aaatoken_cmp_exact);
 				np_unref_obj(np_aaatoken_t, tmp_token);
 				break;
 			}
@@ -717,7 +717,7 @@ void _np_add_receiver_token(char* subject, np_aaatoken_t *token)
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_receiver_token");
 }
 
-np_aaatoken_t* _np_get_receiver_token(char* subject, np_dhkey_t* target)
+np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 {
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
@@ -725,7 +725,7 @@ np_aaatoken_t* _np_get_receiver_token(char* subject, np_dhkey_t* target)
 	_LOCK_MODULE(np_keycache_t)
 	{
 		subject_key = _np_key_find_create(search_key);
-		_create_token_ledger(subject_key, subject);
+		_np_aaatoken_create_ledger(subject_key, subject);
 	}
 
 	// should never happen
@@ -746,7 +746,7 @@ np_aaatoken_t* _np_get_receiver_token(char* subject, np_dhkey_t* target)
 			log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
 			return_token = iter->val;
 
-			if (FALSE == token_is_valid(return_token))
+			if (FALSE == _np_aaatoken_is_valid(return_token))
 			{
 				log_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid receiver msg tokens %p", return_token );
 				pll_next(iter);
@@ -793,7 +793,7 @@ np_aaatoken_t* _np_get_receiver_token(char* subject, np_dhkey_t* target)
 	return (return_token);
 }
 
-sll_return(np_aaatoken_t) _np_get_receiver_token_all(char* subject)
+sll_return(np_aaatoken_t) _np_aaatoken_get_receiver_all(char* subject)
 {
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
@@ -801,7 +801,7 @@ sll_return(np_aaatoken_t) _np_get_receiver_token_all(char* subject)
 	_LOCK_MODULE(np_keycache_t)
 	{
 		subject_key = _np_key_find_create(search_key);
-		_create_token_ledger(subject_key, subject);
+		_np_aaatoken_create_ledger(subject_key, subject);
 	}
 
 //	log_msg(LOG_DEBUG, "available %hd interests %hd",
@@ -820,7 +820,7 @@ sll_return(np_aaatoken_t) _np_get_receiver_token_all(char* subject)
 		tmp = pll_first(subject_key->recv_tokens);
 		while (NULL != tmp)
 		{
-			if (FALSE == token_is_valid(tmp->val))
+			if (FALSE == _np_aaatoken_is_valid(tmp->val))
 			{
 				log_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid receiver msg token" );
 			}
@@ -886,7 +886,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 	log_msg(LOG_TRACE | LOG_AAATOKEN, ".end  ._np_aaatoken_add_signature");
 }
 
-np_aaatoken_t* _np_get_local_mx_token(char* subject)
+np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject)
 {
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start._np_get_local_mx_token");
 	np_key_t* subject_key = NULL;
@@ -896,7 +896,7 @@ np_aaatoken_t* _np_get_local_mx_token(char* subject)
 	{
 		subject_key = _np_key_find_create(search_key);
 	    // look up target structures or create them
-		_create_token_ledger(subject_key, subject);
+		_np_aaatoken_create_ledger(subject_key, subject);
 	}
 
 	// should never happen
@@ -920,7 +920,7 @@ np_aaatoken_t* _np_get_local_mx_token(char* subject)
 			   FALSE == found_return_token)
 		{
 			return_token = iter->val;
-			if (FALSE == token_is_valid(return_token))
+			if (FALSE == _np_aaatoken_is_valid(return_token))
 			{
 				log_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid local mx token for subject %s", return_token->subject);
 				pll_next(iter);
@@ -938,7 +938,7 @@ np_aaatoken_t* _np_get_local_mx_token(char* subject)
 }
 
 // update internal structure and return a interest if a matching pair has been found
-void _np_add_local_mx_token(char* subject, np_aaatoken_t *token)
+void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 {
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start._np_add_local_mx_token");
 
@@ -948,7 +948,7 @@ void _np_add_local_mx_token(char* subject, np_aaatoken_t *token)
 	_LOCK_MODULE(np_keycache_t)
 	{
 		subject_key = _np_key_find_create(search_key);
-		_create_token_ledger(subject_key, subject);
+		_np_aaatoken_create_ledger(subject_key, subject);
 	}
 
 	// should never happen
@@ -966,8 +966,8 @@ void _np_add_local_mx_token(char* subject, np_aaatoken_t *token)
 	{
 		np_aaatoken_t *tmp_token = NULL;
 
-		np_aaatoken_ptr_cmp_func_t cmp_aaatoken_add     = _token_cmp;
-		np_aaatoken_ptr_cmp_func_t cmp_aaatoken_replace = _token_cmp_exact;
+		np_aaatoken_ptr_cmp_func_t cmp_aaatoken_add     = _np_aaatoken_cmp;
+		np_aaatoken_ptr_cmp_func_t cmp_aaatoken_replace = _np_aaatoken_cmp_exact;
 		np_bool allow_dups = FALSE;
 
 		// update #1 key specific data
@@ -996,10 +996,10 @@ void _np_add_local_mx_token(char* subject, np_aaatoken_t *token)
 			pll_next(iter);
 
 			if (NULL  != tmp_token &&
-				FALSE == token_is_valid(tmp_token) )
+				FALSE == _np_aaatoken_is_valid(tmp_token) )
 			{
 				log_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid mx msg token %p", tmp_token);
-				pll_remove(np_aaatoken_ptr, subject_key->local_mx_tokens, tmp_token, _token_cmp_exact);
+				pll_remove(np_aaatoken_ptr, subject_key->local_mx_tokens, tmp_token, _np_aaatoken_cmp_exact);
 				np_unref_obj(np_aaatoken_t, tmp_token);
 				break;
 			}

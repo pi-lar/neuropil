@@ -308,7 +308,7 @@ void _np_out_handshake(np_jobargs_t* args)
 	tree_insert_str(hs_data, "_np.session", new_val_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
 	// tree_insert_str(hs_data, "_np.public_key", new_val_bin(my_id_token->public_key, crypto_sign_PUBLICKEYBYTES));
 
-	np_encode_aaatoken(hs_data, my_id_token);
+	np_aaatoken_encode(hs_data, my_id_token);
 
 //	char pk_hex[crypto_sign_PUBLICKEYBYTES*2+1];
 //	sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES*2+1, my_id_token->public_key, crypto_sign_PUBLICKEYBYTES);
@@ -446,12 +446,12 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".start._np_send_discovery_messages");
 	np_aaatoken_t* msg_token = NULL;
 
-	msg_token = _np_get_local_mx_token(args->properties->msg_subject);
+	msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 	if (NULL == msg_token)
 	{
 		log_msg(LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 		msg_token = _np_create_msg_token(args->properties);
-		_np_add_local_mx_token(msg_token->subject, msg_token);
+		_np_aaatoken_add_local_mx(msg_token->subject, msg_token);
 	}
 
 	if (0 < (args->properties->mode_type & INBOUND))
@@ -462,7 +462,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 		{
 			log_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
 			np_tree_t* _data = make_nptree();
-			np_encode_aaatoken(_data, msg_token);
+			np_aaatoken_encode(_data, msg_token);
 
 			np_message_t* msg_out = NULL;
 			np_new_obj(np_message_t, msg_out);
@@ -483,7 +483,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 		{
 			log_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
 			np_tree_t* _data = make_nptree();
-			np_encode_aaatoken(_data, msg_token);
+			np_aaatoken_encode(_data, msg_token);
 
 			np_message_t* msg_out = NULL;
 			np_new_obj(np_message_t, msg_out);
@@ -505,20 +505,20 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
 
-	msg_token = _np_get_sender_token(args->properties->msg_subject,
+	msg_token = _np_aaatoken_get_sender(args->properties->msg_subject,
 			 	 	 	 	 	 	 _key_as_str(_np_state()->my_identity));
 	if (NULL == msg_token)
 	{
 		log_msg(LOG_DEBUG, "creating new sender token for subject %s", args->properties->msg_subject);
 		msg_token = _np_create_msg_token(args->properties);
-		_np_add_sender_token(msg_token->subject, msg_token);
+		_np_aaatoken_add_sender(msg_token->subject, msg_token);
 		// np_free_obj(np_aaatoken_t, msg_token);
 	}
 
 	if (NULL != msg_token)
 	{
 		np_tree_t* _data = make_nptree();
-		np_encode_aaatoken(_data, msg_token);
+		np_aaatoken_encode(_data, msg_token);
 
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
@@ -540,12 +540,12 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
 
-	msg_token = _np_get_receiver_token(args->properties->msg_subject, NULL);
+	msg_token = _np_aaatoken_get_receiver(args->properties->msg_subject, NULL);
 	if (NULL == msg_token)
 	{
 		log_msg(LOG_DEBUG, "creating new receiver token for subject %s", args->properties->msg_subject);
 		msg_token = _np_create_msg_token(args->properties);
-		_np_add_receiver_token(msg_token->subject, msg_token);
+		_np_aaatoken_add_receiver(msg_token->subject, msg_token);
 		// np_free_obj(np_aaatoken_t, msg_token);
 	}
 
@@ -553,7 +553,7 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 	{
 		log_msg(LOG_DEBUG, "encoding receiver token for subject %p / %s", msg_token, msg_token->uuid);
 		np_tree_t* _data = make_nptree();
-		np_encode_aaatoken(_data, msg_token);
+		np_aaatoken_encode(_data, msg_token);
 
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
@@ -605,7 +605,7 @@ void np_send_authentication_request(np_jobargs_t* args)
 	np_new_obj(np_message_t, msg_out);
 
 	np_tree_t* auth_data = make_nptree();
-	np_encode_aaatoken(auth_data, args->target->aaa_token);
+	np_aaatoken_encode(auth_data, args->target->aaa_token);
 
 //	log_msg(LOG_DEBUG, "realm             : %s", args->target->aaa_token->realm);
 //	log_msg(LOG_DEBUG, "issuer            : %s", args->target->aaa_token->issuer);
@@ -693,7 +693,7 @@ void np_send_authorization_request(np_jobargs_t* args)
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 	np_tree_t* auth_data = make_nptree();
-	np_encode_aaatoken(auth_data, args->target->aaa_token);
+	np_aaatoken_encode(auth_data, args->target->aaa_token);
 
 //	log_msg(LOG_DEBUG, "realm             : %s", args->target->aaa_token->realm);
 //	log_msg(LOG_DEBUG, "issuer            : %s", args->target->aaa_token->issuer);
@@ -780,7 +780,7 @@ void np_send_accounting_request(np_jobargs_t* args)
 	np_new_obj(np_message_t, msg_out);
 
 	np_tree_t* auth_data = make_nptree();
-	np_encode_aaatoken(auth_data, args->target->aaa_token);
+	np_aaatoken_encode(auth_data, args->target->aaa_token);
 	np_message_create(msg_out, aaa_target, state->my_node_key, _NP_MSG_ACCOUNTING_REQUEST, auth_data);
 
 	if (FALSE == _np_send_msg(_NP_MSG_ACCOUNTING_REQUEST, msg_out, aaa_props, NULL))
@@ -799,7 +799,7 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 	np_state_t* state = _np_state();
 
 	np_tree_t* jrb_me = make_nptree();
-	np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
+	np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
 
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);

@@ -454,7 +454,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 
 		np_aaatoken_t* new_token = _np_create_node_token(state->my_node_key->node);
 		np_key_t* new_key = NULL;
-		np_dhkey_t my_dhkey = _np_create_dhkey_for_token(new_token);
+		np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(new_token);
 		_LOCK_MODULE(np_keycache_t)
 		{
 			new_key = _np_key_find_create(my_dhkey);
@@ -482,7 +482,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 				/* otherwise request reevaluation of peer */
 
 				np_tree_t* jrb_me = make_nptree();
-				np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
+				np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
 
 				np_message_t* msg_out = NULL;
 				np_new_obj(np_message_t, msg_out);
@@ -661,7 +661,7 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 		}
 
 		if (NULL != old->aaa_token                  &&
-			TRUE == token_is_valid(old->aaa_token) )
+			TRUE == _np_aaatoken_is_valid(old->aaa_token) )
 		{
 			log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _key_as_str(old));
 			delete_key &= FALSE;
@@ -677,7 +677,7 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 				{
 					log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
 					np_aaatoken_t* tmp_token = iter->val;
-					if (TRUE == token_is_valid(tmp_token))
+					if (TRUE == _np_aaatoken_is_valid(tmp_token))
 					{
 						log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _key_as_str(old));
 						delete_key &= FALSE;
@@ -698,7 +698,7 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 				{
 					log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking sender msg tokens %p/%p", iter, iter->val);
 					np_aaatoken_t* tmp_token = iter->val;
-					if (TRUE == token_is_valid(tmp_token))
+					if (TRUE == _np_aaatoken_is_valid(tmp_token))
 					{
 						log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _key_as_str(old));
 						delete_key &= FALSE;
@@ -925,7 +925,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		}
 	}
 
-	np_aaatoken_t* tmp_token = _np_get_receiver_token(subject, target);
+	np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, target);
 
 	if (NULL != tmp_token)
 	{
@@ -966,7 +966,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		if (NULL != msg_prop->rep_subject &&
 			STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))
 		{
-			_np_add_sender_token(msg_prop->rep_subject, tmp_token);
+			_np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
 		}
 		np_unref_obj(np_aaatoken_t, tmp_token);
 		np_free_obj(np_key_t, receiver_key);

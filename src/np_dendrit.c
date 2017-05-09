@@ -377,7 +377,7 @@ void _np_in_piggy(np_jobargs_t* args)
 			// if (GRACEPERIOD > (ev_time() - tmp_ft))
 			// {
 				np_tree_t* jrb_me = make_nptree();
-				np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
+				np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
 
 				np_message_t* msg_out = NULL;
 				np_new_obj(np_message_t, msg_out);
@@ -461,7 +461,7 @@ void _np_callback_wrapper(np_jobargs_t* args)
 	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_FROM, msg_from);
 	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_ACK, msg_ack_mode);
 
-	sender_token = _np_get_sender_token((char*) subject, msg_from.value.s);
+	sender_token = _np_aaatoken_get_sender((char*) subject, msg_from.value.s);
 	if (NULL == sender_token)
 	{
 		_np_add_msg_to_recv_cache(msg_prop, msg_in);
@@ -513,7 +513,7 @@ void _np_in_leave_req(np_jobargs_t* args)
 	np_aaatoken_t* node_token = NULL;
 
 	np_new_obj(np_aaatoken_t, node_token);
-	np_decode_aaatoken(args->msg->body, node_token);
+	np_aaatoken_decode(args->msg->body, node_token);
 
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -556,7 +556,7 @@ void _np_in_leave_req(np_jobargs_t* args)
 //	np_aaatoken_t* join_token = NULL;
 //
 //	np_new_obj(np_aaatoken_t, join_token);
-//	np_decode_aaatoken(args->msg->body, join_token);
+//	np_aaatoken_decode(args->msg->body, join_token);
 //
 //	if (FALSE == token_is_valid(join_token))
 //	{
@@ -565,7 +565,7 @@ void _np_in_leave_req(np_jobargs_t* args)
 //	}
 //
 //    // build a hash to find a place in the dhkey table, not for signing !
-//	np_dhkey_t search_key = _np_create_dhkey_for_token(join_token);
+//	np_dhkey_t search_key = _np_aaatoken_create_dhkey(join_token);
 //	_LOCK_MODULE(np_keycache_t)
 //	{
 //		join_req_key = _np_key_find_create(search_key);
@@ -599,10 +599,10 @@ void _np_in_join_req(np_jobargs_t* args)
 	np_aaatoken_t* join_token = NULL;
 
 	np_new_obj(np_aaatoken_t, join_token);
-	np_decode_aaatoken(args->msg->body, join_token);
+	np_aaatoken_decode(args->msg->body, join_token);
 
 	log_msg(LOG_DEBUG, "check token is valid");
-	if (FALSE == token_is_valid(join_token))
+	if (FALSE == _np_aaatoken_is_valid(join_token))
 	{
 		// silently exit join protocol for invalid tokens
 		goto __np_cleanup__;
@@ -610,7 +610,7 @@ void _np_in_join_req(np_jobargs_t* args)
 	log_msg(LOG_DEBUG, "token is valid");
 
     // build a hash to find a place in the dhkey table, not for signing !
-	np_dhkey_t search_key = _np_create_dhkey_for_token(join_token);
+	np_dhkey_t search_key = _np_aaatoken_create_dhkey(join_token);
 	_LOCK_MODULE(np_keycache_t)
 	{
 		join_req_key = _np_key_find_create(search_key);
@@ -691,7 +691,7 @@ void _np_in_join_req(np_jobargs_t* args)
 				_key_as_str(join_req_key));
 
 		np_tree_t* jrb_me = make_nptree();
-		np_encode_aaatoken(jrb_me, state->my_identity->aaa_token);
+		np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
 
 		np_message_create(msg_out, routing_key, state->my_node_key, _NP_MSG_JOIN_ACK, jrb_me);
 		tree_insert_str(msg_out->instructions, NP_MSG_INST_ACKUUID, in_uuid);
@@ -775,15 +775,15 @@ void _np_in_join_ack(np_jobargs_t* args)
 	np_aaatoken_t* join_token = NULL;
 
 	np_new_obj(np_aaatoken_t, join_token);
-	np_decode_aaatoken(args->msg->body, join_token);
+	np_aaatoken_decode(args->msg->body, join_token);
 
-	if (FALSE == token_is_valid(join_token))
+	if (FALSE == _np_aaatoken_is_valid(join_token))
 	{
 		// silently exit join protocol for invalid tokens
 		goto __np_cleanup__;
 	}
 
-	np_dhkey_t search_key = _np_create_dhkey_for_token(join_token);
+	np_dhkey_t search_key = _np_aaatoken_create_dhkey(join_token);
 	_LOCK_MODULE(np_keycache_t)
 	{
 		join_key = _np_key_find_create(search_key);
@@ -867,7 +867,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 		// encode informations -> has to be done for each update message new
 		// otherwise there is a crash when deleting the message
 		np_tree_t* jrb_join_node = make_nptree();
-		np_encode_aaatoken(jrb_join_node, join_token);
+		np_aaatoken_encode(jrb_join_node, join_token);
 
 		np_message_create(msg_out, elem, state->my_node_key, _NP_MSG_UPDATE_REQUEST, jrb_join_node);
 		out_props = np_msgproperty_get(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
@@ -1081,8 +1081,8 @@ void _np_in_update(np_jobargs_t* args)
 	np_aaatoken_t* update_token = NULL;
 
 	np_new_obj(np_aaatoken_t, update_token);
-	np_decode_aaatoken(args->msg->body, update_token);
-	if (FALSE == token_is_valid(update_token))
+	np_aaatoken_decode(args->msg->body, update_token);
+	if (FALSE == _np_aaatoken_is_valid(update_token))
 	{
 		goto __np_cleanup__;
 	}
@@ -1104,7 +1104,7 @@ void _np_in_update(np_jobargs_t* args)
 		FALSE == update_key->node->joined_network)
 	{
 		np_tree_t* jrb_me = make_nptree();
-		np_encode_aaatoken(jrb_me, _np_state()->my_identity->aaa_token);
+		np_aaatoken_encode(jrb_me, _np_state()->my_identity->aaa_token);
 
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
@@ -1141,18 +1141,18 @@ void _np_in_discover_sender(np_jobargs_t* args)
 	// extract e2e encryption details for sender
 	np_aaatoken_t* msg_token = NULL;
 	np_new_obj(np_aaatoken_t, msg_token);
-	np_decode_aaatoken(args->msg->body, msg_token);
+	np_aaatoken_decode(args->msg->body, msg_token);
 
-	if (FALSE == token_is_valid(msg_token))
+	if (FALSE == _np_aaatoken_is_valid(msg_token))
 	{
 		goto __np_cleanup__;
 	}
 
 	// just store the available tokens in memory and update them if new data arrives
-	_np_add_receiver_token(msg_token->subject, msg_token);
+	_np_aaatoken_add_receiver(msg_token->subject, msg_token);
 
 	// this node is the man in the middle - inform receiver of sender token
-	np_sll_t(np_aaatoken_t, available_list) = _np_get_sender_token_all(msg_token->subject);
+	np_sll_t(np_aaatoken_t, available_list) = _np_aaatoken_get_sender_all(msg_token->subject);
 	np_aaatoken_t* tmp_token = NULL;
 
 	while (NULL != (tmp_token = sll_head(np_aaatoken_t, available_list)))
@@ -1160,7 +1160,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 		log_msg(LOG_DEBUG, "found a sender of messages, sending back message availabilities ...");
 		np_tree_t* available_data = make_nptree();
 
-		np_encode_aaatoken(available_data, tmp_token);
+		np_aaatoken_encode(available_data, tmp_token);
 
 		np_message_t *msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
@@ -1194,10 +1194,10 @@ void _np_in_available_sender(np_jobargs_t* args)
 	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_TO, msg_to);
 
 	np_new_obj(np_aaatoken_t, msg_token);
-	np_decode_aaatoken(msg_in->body, msg_token);
+	np_aaatoken_decode(msg_in->body, msg_token);
 
 	// always?: just store the available tokens in memory and update them if new data arrives
-	if (FALSE == token_is_valid(msg_token))
+	if (FALSE == _np_aaatoken_is_valid(msg_token))
 	{
 		goto __np_cleanup__;
 	}
@@ -1212,7 +1212,7 @@ void _np_in_available_sender(np_jobargs_t* args)
 	}
 
 	log_msg(LOG_DEBUG, "now handling message availability");
-	_np_add_sender_token(msg_token->subject, msg_token);
+	_np_aaatoken_add_sender(msg_token->subject, msg_token);
 
 	np_dhkey_t to_key = dhkey_create_from_hash(msg_to.value.s);
 
@@ -1258,26 +1258,26 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, msg_token);
-	np_decode_aaatoken(msg_in->body, msg_token);
+	np_aaatoken_decode(msg_in->body, msg_token);
 
 	// always?: just store the available messages in memory and update if new data arrives
-	if (FALSE == token_is_valid(msg_token))
+	if (FALSE == _np_aaatoken_is_valid(msg_token))
 	{
 		goto __np_cleanup__;
 	}
 
 	log_msg(LOG_DEBUG, "now handling message availability");
 
-	_np_add_sender_token(msg_token->subject, msg_token);
+	_np_aaatoken_add_sender(msg_token->subject, msg_token);
 
 	np_aaatoken_t* tmp_token = NULL;
-	np_sll_t(np_aaatoken_t, receiver_list) = _np_get_receiver_token_all(msg_token->subject);
+	np_sll_t(np_aaatoken_t, receiver_list) = _np_aaatoken_get_receiver_all(msg_token->subject);
 
 	while (NULL != (tmp_token = sll_head(np_aaatoken_t, receiver_list)))
 	{
 		np_tree_t* interest_data = make_nptree();
 
-		np_encode_aaatoken(interest_data, tmp_token);
+		np_aaatoken_encode(interest_data, tmp_token);
 
 		np_message_t *msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
@@ -1310,9 +1310,9 @@ void _np_in_available_receiver(np_jobargs_t* args)
 	np_dhkey_t to_key = dhkey_create_from_hash(msg_to.value.s);
 
 	np_new_obj(np_aaatoken_t, msg_token);
-	np_decode_aaatoken(args->msg->body, msg_token);
+	np_aaatoken_decode(args->msg->body, msg_token);
 
-	if (FALSE == token_is_valid(msg_token))
+	if (FALSE == _np_aaatoken_is_valid(msg_token))
 	{
 		goto __np_cleanup__;
 	}
@@ -1327,7 +1327,7 @@ void _np_in_available_receiver(np_jobargs_t* args)
 	}
 
 	log_msg(LOG_DEBUG, "now handling message interest");
-	_np_add_receiver_token(msg_token->subject, msg_token);
+	_np_aaatoken_add_receiver(msg_token->subject, msg_token);
 	// check if we are (one of the) sending node(s) of this kind of message
 	if ( _dhkey_equal(&to_key, &state->my_node_key->dhkey) )
 	{
@@ -1370,7 +1370,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	reply_to_key->dhkey = dhkey_create_from_hash(msg_reply_to.value.s);
 	log_msg(LOG_DEBUG, "reply key: %s", _key_as_str(reply_to_key) );
 
-	sender_token = _np_get_sender_token((char*) _NP_MSG_AUTHENTICATION_REQUEST, msg_from.value.s);
+	sender_token = _np_aaatoken_get_sender((char*) _NP_MSG_AUTHENTICATION_REQUEST, msg_from.value.s);
 	if (NULL == sender_token)
 	{
 		goto __np_cleanup__;
@@ -1385,10 +1385,10 @@ void _np_in_authenticate(np_jobargs_t* args)
 
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authentication_token);
-	np_decode_aaatoken(msg_in->body, authentication_token);
+	np_aaatoken_decode(msg_in->body, authentication_token);
 
 	// always?: just store the available messages in memory and update if new data arrives
-	if (FALSE == token_is_valid(authentication_token))
+	if (FALSE == _np_aaatoken_is_valid(authentication_token))
 	{
 		goto __np_cleanup__;
 	}
@@ -1401,11 +1401,11 @@ void _np_in_authenticate(np_jobargs_t* args)
 
 	if (IS_AUTHENTICATED(authentication_token->state) )
 	{
-		_np_add_receiver_token(_NP_MSG_AUTHENTICATION_REPLY, sender_token);
+		_np_aaatoken_add_receiver(_NP_MSG_AUTHENTICATION_REPLY, sender_token);
 
 		np_tree_t* token_data = make_nptree();
 
-		np_encode_aaatoken(token_data, authentication_token);
+		np_aaatoken_encode(token_data, authentication_token);
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
 		np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AUTHENTICATION_REPLY, token_data);
@@ -1447,7 +1447,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 
 	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_FROM, msg_from);
 
-	sender_token = _np_get_sender_token((char*) _NP_MSG_AUTHENTICATION_REPLY, msg_from.value.s);
+	sender_token = _np_aaatoken_get_sender((char*) _NP_MSG_AUTHENTICATION_REPLY, msg_from.value.s);
 	if (NULL == sender_token)
 	{
 		log_msg(LOG_DEBUG, "no sender token for authentication reply found");
@@ -1465,7 +1465,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authentication_token);
-	np_decode_aaatoken(args->msg->body, authentication_token);
+	np_aaatoken_decode(args->msg->body, authentication_token);
 
 	np_dhkey_t search_key;
 	// TODO: validate token technically again
@@ -1553,7 +1553,7 @@ void _np_in_authorize(np_jobargs_t* args)
 	reply_to_key->dhkey = dhkey_create_from_hash(msg_reply_to.value.s);
 	log_msg(LOG_DEBUG, "reply key: %s", _key_as_str(reply_to_key) );
 
-	sender_token = _np_get_sender_token((char*) _NP_MSG_AUTHORIZATION_REQUEST, msg_from.value.s);
+	sender_token = _np_aaatoken_get_sender((char*) _NP_MSG_AUTHORIZATION_REQUEST, msg_from.value.s);
 	if (NULL == sender_token)
 	{
 		goto __np_cleanup__;
@@ -1568,10 +1568,10 @@ void _np_in_authorize(np_jobargs_t* args)
 	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authorization_token);
-	np_decode_aaatoken(msg_in->body, authorization_token);
+	np_aaatoken_decode(msg_in->body, authorization_token);
 
 	// always?: just store the available messages in memory and update if new data arrives
-	if (FALSE == token_is_valid(authorization_token))
+	if (FALSE == _np_aaatoken_is_valid(authorization_token))
 	{
 		goto __np_cleanup__;
 	}
@@ -1584,10 +1584,10 @@ void _np_in_authorize(np_jobargs_t* args)
 
 	if (IS_AUTHORIZED(authorization_token->state) )
 	{
-		_np_add_receiver_token(_NP_MSG_AUTHORIZATION_REPLY, sender_token);
+		_np_aaatoken_add_receiver(_NP_MSG_AUTHORIZATION_REPLY, sender_token);
 
 		np_tree_t* token_data = make_nptree();
-		np_encode_aaatoken(token_data, authorization_token);
+		np_aaatoken_encode(token_data, authorization_token);
 
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
@@ -1628,7 +1628,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 
 	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_FROM, msg_from);
 
-	sender_token = _np_get_sender_token((char*) _NP_MSG_AUTHORIZATION_REPLY, msg_from.value.s);
+	sender_token = _np_aaatoken_get_sender((char*) _NP_MSG_AUTHORIZATION_REPLY, msg_from.value.s);
 	if (NULL == sender_token)
 	{
 		goto __np_cleanup__;
@@ -1644,7 +1644,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authorization_token);
-	np_decode_aaatoken(args->msg->body, authorization_token);
+	np_aaatoken_decode(args->msg->body, authorization_token);
 
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key;
@@ -1722,7 +1722,7 @@ void _np_in_account(np_jobargs_t* args)
 
 	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_FROM, msg_from);
 
-	sender_token = _np_get_sender_token((char*) _NP_MSG_ACCOUNTING_REQUEST, msg_from.value.s);
+	sender_token = _np_aaatoken_get_sender((char*) _NP_MSG_ACCOUNTING_REQUEST, msg_from.value.s);
 	if (NULL == sender_token)
 	{
 		goto __np_cleanup__;
@@ -1736,7 +1736,7 @@ void _np_in_account(np_jobargs_t* args)
 	}
 
 	np_new_obj(np_aaatoken_t, accounting_token);
-	np_decode_aaatoken(args->msg->body, accounting_token);
+	np_aaatoken_decode(args->msg->body, accounting_token);
 
 	log_msg(LOG_DEBUG, "now handling accounting for token");
 	_np_state()->accounting_func(accounting_token);
@@ -1773,7 +1773,7 @@ void _np_in_handshake(np_jobargs_t* args)
 	// TODO: check if the complete buffer was read (byte count match)
 
 	np_new_obj(np_aaatoken_t, tmp_token);
-	np_decode_aaatoken(hs_payload, tmp_token);
+	np_aaatoken_decode(hs_payload, tmp_token);
 
 	char pk_hex[crypto_sign_PUBLICKEYBYTES*2+1];
 	sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES*2+1, tmp_token->public_key, crypto_sign_PUBLICKEYBYTES);

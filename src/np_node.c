@@ -255,7 +255,7 @@ sll_return(np_key_t) _np_decode_nodes_from_jrb (np_tree_t* data)
 np_key_t* _np_create_node_from_token(np_aaatoken_t* token)
 {
 	// TODO: check whether metadata is used as a hash key in general
-	np_dhkey_t search_key = _np_create_dhkey_for_token(token);
+	np_dhkey_t search_key = _np_aaatoken_create_dhkey(token);
 	np_key_t* node_key    = _np_key_find_create(search_key);
 	if (NULL == node_key->node)
 	{
