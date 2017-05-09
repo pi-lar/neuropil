@@ -21,7 +21,7 @@
 #include "neuropil.h"
 
 #include "dtime.h"
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_val.h"
 #include "np_tree.h"
@@ -568,7 +568,7 @@ void _np_remove_doublettes(np_sll_t(np_key_t, list_of_keys))
 
         do
         {
-        	if (0 == _dhkey_comp(&iter1->val->dhkey,
+        	if (0 == _np_dhkey_comp(&iter1->val->dhkey,
 								 &iter2->val->dhkey))
         	{
         		tmp = iter2;

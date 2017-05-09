@@ -15,7 +15,7 @@
 
 #include "np_log.h"
 #include "np_tree.h"
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_memory.h"
 #include "np_message.h"
 #include "np_util.h"
@@ -118,7 +118,7 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 	np_new_obj(np_message_t, msg_out);
 	char* msg_subject = "this.is.a.test";
 
-	np_dhkey_t my_dhkey = dhkey_create_from_hostport("me", "two");
+	np_dhkey_t my_dhkey = np_dhkey_create_from_hostport("me", "two");
 
 	np_key_t* my_key = NULL;
 	np_new_obj(np_key_t, my_key);
@@ -126,12 +126,12 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 
 	uint16_t parts = 0;
 	tree_insert_str(msg_out->header, NP_MSG_HEADER_SUBJECT,  new_val_s((char*) msg_subject));
-	tree_insert_str(msg_out->header, NP_MSG_HEADER_TO,  new_val_s((char*) _key_as_str(my_key)) );
-	tree_insert_str(msg_out->header, NP_MSG_HEADER_FROM, new_val_s((char*) _key_as_str(my_key)) );
-	tree_insert_str(msg_out->header, NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _key_as_str(my_key)) );
+	tree_insert_str(msg_out->header, NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(my_key)) );
+	tree_insert_str(msg_out->header, NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(my_key)) );
+	tree_insert_str(msg_out->header, NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _np_key_as_str(my_key)) );
 
 	tree_insert_str(msg_out->instructions, NP_MSG_INST_ACK, new_val_ush(0));
-	tree_insert_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_val_s((char*) _key_as_str(my_key)) );
+	tree_insert_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_val_s((char*) _np_key_as_str(my_key)) );
 	tree_insert_str(msg_out->instructions, NP_MSG_INST_SEQ, new_val_ul(0));
 
 	char* new_uuid = np_create_uuid(msg_subject, 1);

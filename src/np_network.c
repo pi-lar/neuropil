@@ -34,7 +34,7 @@
 #include "np_glia.h"
 #include "np_jobqueue.h"
 #include "np_tree.h"
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
@@ -288,7 +288,7 @@ void network_send (np_key_t *node_key, np_message_t* msg)
 	if (node_key->node->handshake_status < HANDSHAKE_COMPLETE)
 	{
 		log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
-				node_key->node->dns_name, node_key->node->port, _key_as_str(node_key));
+				node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
 
 		node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
 		np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
@@ -478,11 +478,11 @@ void _np_network_accept(struct ev_loop *loop, NP_UNUSED ev_io *event, NP_UNUSED 
 	log_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (client fd: %d)", ipstr, port, client_fd);
 
 	np_key_t* alias_key = NULL;
-	np_dhkey_t search_key = dhkey_create_from_hostport(ipstr, port);
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		alias_key = _np_key_find_create(search_key);
+		alias_key = _np_keycache_find_or_create(search_key);
 	}
 
 	// set non blocking
@@ -584,11 +584,11 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 
 	// we registered this token info before in the first handshake message
 	np_key_t* alias_key = NULL;
-	np_dhkey_t search_key = dhkey_create_from_hostport(ipstr, port);
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		alias_key = _np_key_find_create(search_key);
+		alias_key = _np_keycache_find_or_create(search_key);
 	}
 
 	void* data_ptr = malloc(in_msg_len * sizeof(char));

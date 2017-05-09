@@ -14,7 +14,7 @@
 #include "np_val.h"
 
 #include "np_log.h"
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_tree.h"
 
 np_val_t NP_VAL_NULL = { .type = none_type, .size=0 };
@@ -137,7 +137,7 @@ char* val_to_str(np_val_t val) {
 		case key_type:
 			result = malloc(64);
 			CHECK_MALLOC(result);
-			_dhkey_to_str((np_dhkey_t*) val.value.v, result);
+			_np_dhkey_to_str((np_dhkey_t*) val.value.v, result);
 			break;
 		default:
 			return "--> unknown";

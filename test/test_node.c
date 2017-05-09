@@ -9,7 +9,7 @@
 
 #include "msgpack/cmp.h"
 
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_log.h"
 #include "np_node.h"
 #include "np_memory.h"

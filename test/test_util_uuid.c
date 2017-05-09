@@ -12,7 +12,7 @@ void setup_uuid(void)
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE;
 	np_log_init("test_uuid.log", log_level);
 
-	_dhkey_init ();
+	_np_dhkey_init ();
 }
 
 void teardown_uuid(void)

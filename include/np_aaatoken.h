@@ -27,7 +27,7 @@ AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizi
 
 #include "sodium.h"
 
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_list.h"
 #include "np_memory.h"
 #include "np_types.h"

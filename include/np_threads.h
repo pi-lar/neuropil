@@ -5,7 +5,14 @@
 #ifndef _NP_THREADS_H_
 #define _NP_THREADS_H_
 
+#include <stdlib.h>
+#include <pthread.h>
+
+#include "np_threads.h"
+
 #include "np_types.h"
+#include "np_list.h"
+#include "np_log.h"
 
 #ifdef __cplusplus
 extern "C" {

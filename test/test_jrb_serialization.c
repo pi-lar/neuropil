@@ -10,7 +10,7 @@
 #include "np_log.h"
 #include "np_val.h"
 #include "np_tree.h"
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_memory.h"
 #include "np_message.h"
 #include "np_util.h"

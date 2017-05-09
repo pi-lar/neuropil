@@ -187,7 +187,7 @@ np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* identity)
 
 	char key[65];
 	sodium_bin2hex(key, 65, hash, 32);
-	np_dhkey_t search_key = dhkey_create_from_hash(key);
+	np_dhkey_t search_key = np_dhkey_create_from_hash(key);
 	return (search_key);
 }
 
@@ -409,11 +409,11 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start.np_add_sender_token");
 
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = _np_key_find_create(search_key);
+		subject_key = _np_keycache_find_or_create(search_key);
 		_np_aaatoken_create_ledger(subject_key, subject);
 	}
 
@@ -466,7 +466,7 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 				np_unref_obj(np_aaatoken_t, tmp_token);
 			}
 			log_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
-					_key_as_str(subject_key) );
+					_np_key_as_str(subject_key) );
 		}
 	}
 
@@ -502,11 +502,11 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 sll_return(np_aaatoken_t) _np_aaatoken_get_sender_all(char* subject)
 {
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = _np_key_find_create(search_key);
+		subject_key = _np_keycache_find_or_create(search_key);
 	    // look up target structures or create them
 		_np_aaatoken_create_ledger(subject_key, subject);
 	}
@@ -555,11 +555,11 @@ sll_return(np_aaatoken_t) _np_aaatoken_get_sender_all(char* subject)
 np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender)
 {
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = _np_key_find_create(search_key);
+		subject_key = _np_keycache_find_or_create(search_key);
 	    // look up target structures or create them
 		_np_aaatoken_create_ledger(subject_key, subject);
 	}
@@ -624,11 +624,11 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start.np_add_receiver_token");
 
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = _np_key_find_create(search_key);
+		subject_key = _np_keycache_find_or_create(search_key);
 	    _np_aaatoken_create_ledger(subject_key, subject);
 	}
 
@@ -688,7 +688,7 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 				np_unref_obj(np_aaatoken_t, tmp_token);
 			}
 			log_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
-					_key_as_str(subject_key) );
+					_np_key_as_str(subject_key) );
 		}
 	}
 
@@ -720,11 +720,11 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 {
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = _np_key_find_create(search_key);
+		subject_key = _np_keycache_find_or_create(search_key);
 		_np_aaatoken_create_ledger(subject_key, subject);
 	}
 
@@ -754,8 +754,8 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 				continue;
 			}
 
-			np_dhkey_t recvtoken_issuer_key = dhkey_create_from_hash(return_token->issuer);
-			if (_dhkey_equal(&recvtoken_issuer_key, &_np_state()->my_identity->dhkey))
+			np_dhkey_t recvtoken_issuer_key = np_dhkey_create_from_hash(return_token->issuer);
+			if (_np_dhkey_equal(&recvtoken_issuer_key, &_np_state()->my_identity->dhkey))
 			{
 				// only use the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
 				pll_next(iter);
@@ -763,7 +763,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 				continue;
 			}
 			if(NULL != target) {
-				if (!_dhkey_equal(&recvtoken_issuer_key, target)) {
+				if (!_np_dhkey_equal(&recvtoken_issuer_key, target)) {
 					log_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring %s receiver token for others nodes", return_token->issuer);
 					pll_next(iter);
 					return_token = NULL;
@@ -796,11 +796,11 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 sll_return(np_aaatoken_t) _np_aaatoken_get_receiver_all(char* subject)
 {
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = _np_key_find_create(search_key);
+		subject_key = _np_keycache_find_or_create(search_key);
 		_np_aaatoken_create_ledger(subject_key, subject);
 	}
 
@@ -890,11 +890,11 @@ np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject)
 {
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start._np_get_local_mx_token");
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = _np_key_find_create(search_key);
+		subject_key = _np_keycache_find_or_create(search_key);
 	    // look up target structures or create them
 		_np_aaatoken_create_ledger(subject_key, subject);
 	}
@@ -943,11 +943,11 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start._np_add_local_mx_token");
 
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = _np_key_find_create(search_key);
+		subject_key = _np_keycache_find_or_create(search_key);
 		_np_aaatoken_create_ledger(subject_key, subject);
 	}
 
@@ -982,7 +982,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 			np_unref_obj(np_aaatoken_t, tmp_token);
 		}
 		log_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single mx token for message hash %s",
-				_key_as_str(subject_key) );
+				_np_key_as_str(subject_key) );
 	}
 
 	// check for outdated token

@@ -25,7 +25,7 @@
 #include "np_aaatoken.h"
 #include "np_jobqueue.h"
 #include "np_tree.h"
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_list.h"
 #include "np_message.h"
@@ -36,6 +36,7 @@
 #include "np_threads.h"
 #include "np_util.h"
 #include "np_val.h"
+#include "np_key.h"
 
 
 // TODO: make these configurable (via struct np_config)
@@ -81,24 +82,24 @@ void _np_route_lookup(np_jobargs_t* args)
 	}
 
 	np_dhkey_t search_key;
-	_str_to_dhkey(msg_address, &search_key);
+	_np_dhkey_from_str(msg_address, &search_key);
 	np_key_t k_msg_address = { .dhkey = search_key };
 
 	// first lookup call for target key
-	log_msg(LOG_DEBUG, "message target is key %s", _key_as_str(&k_msg_address));
+	log_msg(LOG_DEBUG, "message target is key %s", _np_key_as_str(&k_msg_address));
 
 	_LOCK_MODULE(np_routeglobal_t)
 	{
 		// 1 means: always send out message to another node first, even if it returns
 		tmp = route_lookup(&k_msg_address, 1);
 		if ( 0 < sll_size(tmp) )
-			log_msg(LOG_DEBUG, "route_lookup result 1 = %s", _key_as_str(sll_first(tmp)->val));
+			log_msg(LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
 	}
 
 	if ( NULL != tmp                &&
 		 0    < sll_size(tmp)       &&
 		 FALSE == is_a_join_request &&
-		 (_dhkey_equal(&sll_first(tmp)->val->dhkey, &state->my_node_key->dhkey)) )
+		 (_np_dhkey_equal(&sll_first(tmp)->val->dhkey, &state->my_node_key->dhkey)) )
 	{
 		// the result returned the sending node, try again with a higher count parameter
 		sll_free(np_key_t, tmp);
@@ -107,7 +108,7 @@ void _np_route_lookup(np_jobargs_t* args)
 		{
 			tmp = route_lookup(&k_msg_address, 2);
 			if (0 < sll_size(tmp))
-				log_msg(LOG_DEBUG, "route_lookup result 2 = %s", _key_as_str(sll_first(tmp)->val));
+				log_msg(LOG_DEBUG, "route_lookup result 2 = %s", _np_key_as_str(sll_first(tmp)->val));
 		}
 		// TODO: increase count parameter again ?
 	}
@@ -116,10 +117,10 @@ void _np_route_lookup(np_jobargs_t* args)
 
 	if (NULL  != tmp           &&
 		0     <  sll_size(tmp) &&
-		FALSE == _dhkey_equal(&sll_first(tmp)->val->dhkey, &state->my_node_key->dhkey))
+		FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &state->my_node_key->dhkey))
 	{
 		target_key = sll_first(tmp)->val;
-		log_msg(LOG_DEBUG, "route_lookup result   = %s", _key_as_str(target_key));
+		log_msg(LOG_DEBUG, "route_lookup result   = %s", _np_key_as_str(target_key));
 	}
 
 	/* if I am the only host or the closest host is me, deliver the message */
@@ -211,7 +212,7 @@ void _np_never_called(np_jobargs_t* args)
 		if (args->properties)
 			log_msg(LOG_WARN, "!!! properties: %s ", args->properties->msg_subject);
 		if (args->target)
-			log_msg(LOG_WARN, "!!! target: %s ", _key_as_str(args->target));
+			log_msg(LOG_WARN, "!!! target: %s ", _np_key_as_str(args->target));
 	}
 	log_msg(LOG_WARN, "!!!                               !!!");
 	log_msg(LOG_WARN, "!!!                               !!!");
@@ -236,7 +237,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 	_LOCK_MODULE(np_routeglobal_t)
 	{
 		leafset = route_neighbors();
-		_np_ref_keys(leafset);
+		_np_keycache_ref_keys(leafset);
 	}
 
 	while (NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
@@ -246,7 +247,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 			tmp_node_key->node->success_avg < BAD_LINK &&
 			tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
 		{
-			log_msg(LOG_DEBUG, "deleting from neighbours: %s", _key_as_str(tmp_node_key));
+			log_msg(LOG_DEBUG, "deleting from neighbours: %s", _np_key_as_str(tmp_node_key));
 			// request a new handshake with the node
 			if (NULL != tmp_node_key->aaa_token)
 				tmp_node_key->aaa_token->state &= AAA_INVALID;
@@ -260,7 +261,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 			}
 			else
 			{
-				log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _key_as_str(deleted));
+				log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _np_key_as_str(deleted));
 			}
 		}
 		else
@@ -284,7 +285,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 		_LOCK_MODULE(np_routeglobal_t)
 		{
 			table = _np_route_get_table();
-			_np_ref_keys(table);
+			_np_keycache_ref_keys(table);
 		}
 
 		while ( NULL != (tmp_node_key = sll_head(np_key_t, table)))
@@ -295,7 +296,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 				tmp_node_key->node->success_avg < BAD_LINK &&
 				tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
 			{
-				log_msg(LOG_DEBUG, "deleting from table: %s", _key_as_str(tmp_node_key));
+				log_msg(LOG_DEBUG, "deleting from table: %s", _np_key_as_str(tmp_node_key));
 				// request a new handshake with the node
 				if (NULL != tmp_node_key->aaa_token)
 					tmp_node_key->aaa_token->state &= AAA_INVALID;
@@ -309,7 +310,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 				}
 				else
 				{
-					log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _key_as_str(deleted));
+					log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _np_key_as_str(deleted));
 				}
 			}
 			else
@@ -335,7 +336,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 		_LOCK_MODULE(np_routeglobal_t)
 		{
 			leafset = route_neighbors();
-			_np_ref_keys(leafset);
+			_np_keycache_ref_keys(leafset);
 		}
 
 		while ( NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
@@ -378,7 +379,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 	{
 		// double now = dtime();
 		// double last_update = iter->val.value.d;
-		np_dhkey_t target_dhkey = dhkey_create_from_hostport(iter->key.value.s, "0");
+		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(iter->key.value.s, "0");
 		np_key_t* target = NULL;
 		np_new_obj(np_key_t, target);
 		target->dhkey = target_dhkey;
@@ -401,7 +402,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 	{
 		np_msgproperty_t* msg_prop = NULL;
 
-		np_dhkey_t target_dhkey = dhkey_create_from_hostport(state->my_identity->aaa_token->realm, "0");
+		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(state->my_identity->aaa_token->realm, "0");
 		np_key_t* target = NULL;
 		np_new_obj(np_key_t, target);
 		target->dhkey = target_dhkey;
@@ -434,7 +435,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 		np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(new_token);
 		_LOCK_MODULE(np_keycache_t)
 		{
-			new_key = _np_key_find_create(my_dhkey);
+			new_key = _np_keycache_find_or_create(my_dhkey);
 			if (state->my_identity == state->my_node_key)
 			{
 				state->my_identity = new_key;
@@ -465,7 +466,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 				np_new_obj(np_message_t, msg_out);
 
 				np_message_create(msg_out, tmp_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
-				log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(tmp_node_key));
+				log_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(tmp_node_key));
 				np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
 				_np_job_submit_msgout_event(0.0, prop, tmp_node_key, msg_out);
 
@@ -554,12 +555,12 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		old = _np_key_find_deprecated();
+		old = _np_keycache_find_deprecated();
 	}
 
 	if (NULL != old)
 	{
-		log_msg(LOG_DEBUG, "cleanup check started for key : %p -> %s", old, _key_as_str(old));
+		log_msg(LOG_DEBUG, "cleanup check started for key : %p -> %s", old, _np_key_as_str(old));
 		np_bool delete_key = TRUE;
 
 		if (NULL != old->node)
@@ -568,7 +569,7 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 			double delta = ev_time() - old->node->last_success;
 			if (delta < (31.415 * __leafset_check_period))
 			{
-				log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid node last_success value: %s", _key_as_str(old));
+				log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid node last_success value: %s", _np_key_as_str(old));
 				delete_key &= FALSE;
 			}
 		}
@@ -576,7 +577,7 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 		if (NULL != old->aaa_token                  &&
 			TRUE == _np_aaatoken_is_valid(old->aaa_token) )
 		{
-			log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _key_as_str(old));
+			log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _np_key_as_str(old));
 			delete_key &= FALSE;
 		}
 
@@ -592,7 +593,7 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 					np_aaatoken_t* tmp_token = iter->val;
 					if (TRUE == _np_aaatoken_is_valid(tmp_token))
 					{
-						log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _key_as_str(old));
+						log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _np_key_as_str(old));
 						delete_key &= FALSE;
 						break;
 					}
@@ -613,7 +614,7 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 					np_aaatoken_t* tmp_token = iter->val;
 					if (TRUE == _np_aaatoken_is_valid(tmp_token))
 					{
-						log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _key_as_str(old));
+						log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _np_key_as_str(old));
 						delete_key &= FALSE;
 						break;
 					}
@@ -700,7 +701,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 
 	// create token
 	strncpy(msg_token->realm, state->my_identity->aaa_token->realm, 255);
-	strncpy(msg_token->issuer, (char*) _key_as_str(state->my_identity), 255);
+	strncpy(msg_token->issuer, (char*) _np_key_as_str(state->my_identity), 255);
 	strncpy(msg_token->subject, msg_request->msg_subject, 255);
 	if (NULL != msg_request->msg_audience)
 	{
@@ -734,7 +735,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 
 	// TODO: insert value based on msg properties / respect (sticky) reply
 	tree_insert_str(msg_token->extensions, "target_node",
-			new_val_s((char*) _key_as_str(state->my_node_key)));
+			new_val_s((char*) _np_key_as_str(state->my_node_key)));
 
 	// fingerprinting and signing the token
 	_np_aaatoken_add_signature(msg_token);
@@ -758,7 +759,7 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 		msg_prop->mode_type |= TRANSFORM;
 		msg_prop->clb_transform = _np_send_discovery_messages;
 
-		np_dhkey_t target_dhkey = dhkey_create_from_hostport(subject, "0");
+		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
 		np_key_t* target = NULL;
 		np_new_obj(np_key_t, target);
 		target->dhkey = target_dhkey;
@@ -785,7 +786,7 @@ void _np_send_msg_interest(const char* subject)
 		msg_prop->mode_type |= TRANSFORM;
 		msg_prop->clb_transform = _np_send_discovery_messages;
 
-		np_dhkey_t target_dhkey = dhkey_create_from_hostport(subject, "0");
+		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
 		np_key_t* target = NULL;
 		np_new_obj(np_key_t, target);
 		target->dhkey = target_dhkey;
@@ -839,7 +840,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		np_new_obj(np_key_t, receiver_key);
 
 		np_dhkey_t receiver_dhkey;
-		_str_to_dhkey(target_node_str, &receiver_dhkey);
+		_np_dhkey_from_str(target_node_str, &receiver_dhkey);
 		receiver_key->dhkey = receiver_dhkey;
 
 		tree_replace_str(msg->header, NP_MSG_HEADER_TO, new_val_s(target_node_str));

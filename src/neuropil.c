@@ -26,7 +26,7 @@
 #include "np_http.h"
 #include "np_jobqueue.h"
 #include "np_tree.h"
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_memory.h"
 #include "np_message.h"
@@ -232,10 +232,10 @@ void np_send_wildcard_join(const char* node_string)
 	np_key_t* wildcard_node_key = NULL;
 
 	//START Build our wildcard connection string
-	np_dhkey_t wildcard_dhkey = dhkey_create_from_hostport("*", node_string);
+	np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", node_string);
 	char* wildcard_dhkey_str = malloc(sizeof(char)*65);
 	CHECK_MALLOC(wildcard_dhkey_str);
-	_dhkey_to_str(&wildcard_dhkey, wildcard_dhkey_str);
+	_np_dhkey_to_str(&wildcard_dhkey, wildcard_dhkey_str);
 	asprintf(&wildcard_node, "%s:%s", wildcard_dhkey_str, node_string);
 	//END Build our wildcard connection string
 
@@ -254,7 +254,7 @@ void np_send_wildcard_join(const char* node_string)
 	np_new_obj(np_message_t, msg_out);
 	np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST_WILDCARD, jrb_me);
 
-	log_msg(LOG_DEBUG, "submitting wildcard join request to target key %s", _key_as_str(wildcard_node_key));
+	log_msg(LOG_DEBUG, "submitting wildcard join request to target key %s", _np_key_as_str(wildcard_node_key));
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST_WILDCARD);
 	_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
 }
@@ -272,8 +272,8 @@ void np_set_realm_name(const char* realm_name)
     np_aaatoken_t* auth_token = _np_create_node_token(_np_state()->my_node_key->node);
     auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
-	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // dhkey_create_from_hostport(my_node->dns_name, my_node->port);
-	np_key_t* new_node_key = _np_key_find_create(my_dhkey);
+	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // np_dhkey_create_from_hostport(my_node->dns_name, my_node->port);
+	np_key_t* new_node_key = _np_keycache_find_or_create(my_dhkey);
 
 	// TODO: use ref/unref
 	new_node_key->network = _np_state()->my_node_key->network;
@@ -298,11 +298,11 @@ void np_set_realm_name(const char* realm_name)
     else
     {
         // set target node string for correct routing
-    	tree_replace_str(_np_state()->my_identity->aaa_token->extensions, "target_node", new_val_s(_key_as_str(new_node_key)) );
+    	tree_replace_str(_np_state()->my_identity->aaa_token->extensions, "target_node", new_val_s(_np_key_as_str(new_node_key)) );
     }
     _np_state()->my_node_key = new_node_key;
 
-	log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _key_as_str(_np_state()->my_node_key));
+	log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _np_key_as_str(_np_state()->my_node_key));
 }
 /**
  * Enables this node as realm slave.
@@ -404,7 +404,7 @@ void np_set_identity(np_aaatoken_t* identity)
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(identity);
 	_LOCK_MODULE(np_keycache_t)
 	{
-		my_identity_key = _np_key_find_create(search_key);
+		my_identity_key = _np_keycache_find_or_create(search_key);
 	}
 
 	if (NULL != state->my_identity)
@@ -422,7 +422,7 @@ void np_set_identity(np_aaatoken_t* identity)
 	}
 
 	// set target node string for correct routing
-	tree_insert_str(identity->extensions, "target_node", new_val_s(_key_as_str(state->my_node_key)) );
+	tree_insert_str(identity->extensions, "target_node", new_val_s(_np_key_as_str(state->my_node_key)) );
 
     // create encryption parameter
 	crypto_sign_keypair(identity->public_key, identity->private_key);
@@ -516,7 +516,7 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 	np_new_obj(np_message_t, msg);
 
 	tree_insert_str(msg->header, NP_MSG_HEADER_SUBJECT, new_val_s((char*) subject));
-	tree_insert_str(msg->header, NP_MSG_HEADER_FROM, new_val_s((char*) _key_as_str(_np_state()->my_node_key)));
+	tree_insert_str(msg->header, NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(_np_state()->my_node_key)));
 
 	np_message_setbody(msg, body);
 	np_message_setproperties(msg, properties);
@@ -526,7 +526,7 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 	_np_send_subject_discovery_messages(OUTBOUND, subject);
 
 	char tmp_dhkey_hash[65];
-	_dhkey_to_str(target_key,tmp_dhkey_hash);
+	_np_dhkey_to_str(target_key,tmp_dhkey_hash);
 	np_key_t* target = _np_get_key_by_key_hash(tmp_dhkey_hash);
 
 	_np_send_msg(subject, msg, msg_prop, NULL == target ? NULL: &target->dhkey);
@@ -540,7 +540,7 @@ np_key_t* _np_get_key_by_key_hash(char* targetDhkey) {
 	if (NULL != targetDhkey) {
 		_LOCK_MODULE(np_keycache_t)
 		{
-			target = _np_key_find_by_details(targetDhkey, FALSE,
+			target = _np_keycache_find_by_details(targetDhkey, FALSE,
 					HANDSHAKE_COMPLETE, TRUE, FALSE, FALSE, TRUE);
 		}
 		if (NULL == target) {
@@ -551,10 +551,10 @@ np_key_t* _np_get_key_by_key_hash(char* targetDhkey) {
 			log_msg(LOG_DEBUG, "could find the specific target %s for message.",
 					targetDhkey);
 		}
-		if (NULL != target && strcmp(_key_as_str(target), targetDhkey) != 0) {
+		if (NULL != target && strcmp(_np_key_as_str(target), targetDhkey) != 0) {
 			log_msg(LOG_ERROR,
 					"Found target key (%s) does not match requested target key (%s)! Aborting",
-					_key_as_str(target), targetDhkey);
+					_np_key_as_str(target), targetDhkey);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -581,7 +581,7 @@ void np_send_text (char* subject, char *data, uint32_t seqnum, char* targetDhkey
 	np_new_obj(np_message_t, msg);
 
 	tree_insert_str(msg->header, NP_MSG_HEADER_SUBJECT, new_val_s(subject));
-	tree_insert_str(msg->header, NP_MSG_HEADER_FROM, new_val_s(_key_as_str(state->my_node_key)));
+	tree_insert_str(msg->header, NP_MSG_HEADER_FROM, new_val_s(_np_key_as_str(state->my_node_key)));
 	tree_insert_str(msg->body,   NP_MSG_BODY_TEXT, new_val_s(data));
 
 	tree_insert_str(msg->properties, NP_MSG_INST_SEQ, new_val_ul(seqnum));
@@ -821,7 +821,7 @@ void _np_send_ack(np_message_t* in_msg)
 		uuid = tree_find_str(in_msg->instructions, NP_MSG_INST_UUID)->val.value.s;
 
 		// create new ack message & handlers
-		np_dhkey_t ack_key = dhkey_create_from_hash(
+		np_dhkey_t ack_key = np_dhkey_create_from_hash(
 				tree_find_str(in_msg->header, NP_MSG_INST_ACK_TO)->val.value.s);
 
 		// TODO: find in keycache, must be present
@@ -863,7 +863,7 @@ void _np_ping (np_key_t* key)
     np_new_obj(np_message_t, out_msg);
 
     np_message_create (out_msg, key, state->my_node_key, _NP_MSG_PING_REQUEST, NULL);
-    log_msg(LOG_DEBUG, "ping request to: %s", _key_as_str(key));
+    log_msg(LOG_DEBUG, "ping request to: %s", _np_key_as_str(key));
 
     np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REQUEST);
 	_np_job_submit_msgout_event(0.0, prop, key, out_msg);
@@ -901,7 +901,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 	np_mem_init();
 
 	// initialize key min max ranges
-    _dhkey_init();
+    _np_dhkey_init();
 
     // global neuropil structure
     np_state_t *state = (np_state_t *) malloc (sizeof (np_state_t));
@@ -981,8 +981,8 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     np_aaatoken_t* auth_token = _np_create_node_token(my_node);
     auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
-	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // dhkey_create_from_hostport(my_node->dns_name, my_node->port);
-    state->my_node_key = _np_key_find_create(my_dhkey);
+	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // np_dhkey_create_from_hostport(my_node->dns_name, my_node->port);
+    state->my_node_key = _np_keycache_find_or_create(my_dhkey);
     my_network->watcher.data = state->my_node_key;
     // log_msg(LOG_WARN, "node_key %p", state->my_node_key);
 
@@ -1043,7 +1043,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 		}
 	}
 
-	log_msg(LOG_INFO, "neuropil successfully initialized: %s", _key_as_str(state->my_node_key));
+	log_msg(LOG_INFO, "neuropil successfully initialized: %s", _np_key_as_str(state->my_node_key));
 	_np_log_fflush();
 
 	return (state);
@@ -1110,7 +1110,7 @@ char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){
 	char* connection_str;
 	 if(TRUE == includeHash){
 		 asprintf(&connection_str, "%s:%s:%s:%s",
-		  			_key_as_str(node_key),
+		  			_np_key_as_str(node_key),
 		 			np_get_protocol_string(node_key->node->protocol),
 		 			node_key->node->dns_name,
 		 			node_key->node->port);

@@ -13,7 +13,7 @@
 #include "np_memory.h"
 
 #include "np_aaatoken.h"
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_message.h"
 #include "np_node.h"
 #include "np_log.h"

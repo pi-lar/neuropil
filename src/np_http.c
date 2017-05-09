@@ -27,7 +27,7 @@
 #include "np_route.h"
 #include "np_threads.h"
 #include "np_util.h"
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_val.h"
 #include "np_sysinfo.h"
@@ -287,7 +287,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 				log_msg(LOG_DEBUG, "no arguments provided");
 			}
 
-			char* my_key = _key_as_str(_np_state()->my_node_key);
+			char* my_key = _np_key_as_str(_np_state()->my_node_key);
 			if (usedefault) {
 				log_msg(LOG_DEBUG, "using own node as info system");
 				target_hash = my_key;

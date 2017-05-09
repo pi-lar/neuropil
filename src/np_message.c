@@ -794,9 +794,9 @@ void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const ch
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
 	tree_insert_str(msg->header, NP_MSG_HEADER_SUBJECT,  new_val_s((char*) subject));
-	tree_insert_str(msg->header, NP_MSG_HEADER_TO,  new_val_s((char*) _key_as_str(to)));
-	if (from != NULL) tree_insert_str(msg->header, NP_MSG_HEADER_FROM, new_val_s((char*) _key_as_str(from)));
-	if (from != NULL) tree_insert_str(msg->header, NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _key_as_str(from)));
+	tree_insert_str(msg->header, NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(to)));
+	if (from != NULL) tree_insert_str(msg->header, NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(from)));
+	if (from != NULL) tree_insert_str(msg->header, NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _np_key_as_str(from)));
 
 	if (the_data != NULL)
 	{
@@ -827,7 +827,7 @@ inline void np_message_setbody(np_message_t* msg, np_tree_t* body)
 inline void np_message_setto(np_message_t* msg, np_key_t* target)
 {
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
-	tree_replace_str(msg->header, NP_MSG_HEADER_TO,  new_val_s((char*) _key_as_str(target)));
+	tree_replace_str(msg->header, NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(target)));
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
 };
 
@@ -1034,9 +1034,9 @@ np_bool np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	unsigned char enc_sym_key[crypto_secretbox_KEYBYTES + crypto_box_MACBYTES];
 
 
-	np_tree_elem_t* encryption_details_elem = tree_find_str(encryption_details, (char*) _key_as_str(state->my_identity));
+	np_tree_elem_t* encryption_details_elem = tree_find_str(encryption_details, (char*) _np_key_as_str(state->my_identity));
 	if(NULL == encryption_details_elem  ) {
-		log_msg(LOG_ERROR, "decryption of message payload failed. no identity information in encryption_details for %s",_key_as_str(state->my_identity));
+		log_msg(LOG_ERROR, "decryption of message payload failed. no identity information in encryption_details for %s",_np_key_as_str(state->my_identity));
 		log_msg(LOG_DEBUG, "msg->properties:");
 		np_tree_dump2log(msg->properties);
 		log_msg(LOG_DEBUG, "encryption_details:");

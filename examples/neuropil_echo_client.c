@@ -148,7 +148,7 @@ int main(int argc, char **argv) {
 		}
 
 		if (TRUE == status->my_node_key->node->joined_network) {
-			bootstrap_node = _np_key_find_by_details(j_key,FALSE,HANDSHAKE_COMPLETE,TRUE,TRUE,TRUE,FALSE);
+			bootstrap_node = _np_keycache_find_by_details(j_key,FALSE,HANDSHAKE_COMPLETE,TRUE,TRUE,TRUE,FALSE);
 			fprintf(stdout, "%s joined network!\n", port);
 			break;
 		} else {
@@ -171,10 +171,10 @@ int main(int argc, char **argv) {
 	int i = 0;
 	while (TRUE == status->my_node_key->node->joined_network) {
 		if (i++ % 100 == 0) {
-			fprintf(stdout, "SENDING: %s to %s\n", message_to_send,_key_as_str(bootstrap_node));
-			log_msg(LOG_INFO, "SENDING: %s to %s", message_to_send,_key_as_str(bootstrap_node));
+			fprintf(stdout, "SENDING: %s to %s\n", message_to_send,_np_key_as_str(bootstrap_node));
+			log_msg(LOG_INFO, "SENDING: %s to %s", message_to_send,_np_key_as_str(bootstrap_node));
 
-			np_send_text("echo", message_to_send, 0, _key_as_str(bootstrap_node));
+			np_send_text("echo", message_to_send, 0, _np_key_as_str(bootstrap_node));
 		}
 		ev_sleep(0.1);
 	}

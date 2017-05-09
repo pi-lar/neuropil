@@ -17,7 +17,7 @@
 #include "np_message.h"
 #include "np_node.h"
 #include "np_route.h"
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_val.h"
 #include "np_tree.h"
@@ -111,7 +111,7 @@ np_bool _np_in_sysinfo(np_message_t* msg, np_tree_t* properties, np_tree_t* body
 	log_msg(LOG_DEBUG, "sysinfo request message is from %s for %s !",
 			source->val.value.s, target->val.value.s);
 
-	char* mynode_hash = _key_as_str(_np_state()->my_node_key);
+	char* mynode_hash = _np_key_as_str(_np_state()->my_node_key);
 
 	if (strcmp(mynode_hash, target->val.value.s) != 0) {
 		// should not happen as it does mean a wrong routing
@@ -139,7 +139,7 @@ np_bool _np_in_sysinfo(np_message_t* msg, np_tree_t* properties, np_tree_t* body
 	np_dhkey_t* target_dhkey = malloc(sizeof(np_dhkey_t));
 	CHECK_MALLOC(target_dhkey);
 
-	_str_to_dhkey(source->val.value.s, target_dhkey);
+	_np_dhkey_from_str(source->val.value.s, target_dhkey);
 	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, target_dhkey);
 
 	log_msg(LOG_TRACE, ".end  ._in_sysinfo");
@@ -243,7 +243,7 @@ void _np_request_sysinfo(const char* hash_of_target) {
 		np_tree_t* body = make_nptree();
 
 		tree_insert_str(properties, _NP_SYSINFO_SOURCE,
-				new_val_s(_key_as_str(_np_state()->my_node_key)));
+				new_val_s(_np_key_as_str(_np_state()->my_node_key)));
 
 		tree_insert_str(properties, _NP_SYSINFO_TARGET,
 				new_val_s((char*) hash_of_target));
@@ -252,7 +252,7 @@ void _np_request_sysinfo(const char* hash_of_target) {
 		np_dhkey_t* target_dhkey = malloc(sizeof(np_dhkey_t));
 		CHECK_MALLOC(target_dhkey);
 
-		_str_to_dhkey(hash_of_target, target_dhkey);
+		_np_dhkey_from_str(hash_of_target, target_dhkey);
 		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, target_dhkey);
 	} else {
 		log_msg(LOG_WARN,
@@ -262,7 +262,7 @@ void _np_request_sysinfo(const char* hash_of_target) {
 
 np_tree_t* np_get_sysinfo(const char* hash_of_target) {
 
-	char* my_key = _key_as_str(_np_state()->my_node_key);
+	char* my_key = _np_key_as_str(_np_state()->my_node_key);
 
 	np_tree_t* ret = NULL;
 	if (strcmp(hash_of_target, my_key) == 0) {
@@ -318,10 +318,10 @@ void _np_request_others() {
 			while (NULL != sll_first(routing_table)) {
 				current = sll_head(np_key_t, routing_table);
 				if (	NULL != current &&
-						strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0 &&
-						NULL == _np_get_sysinfo_from_cache(_key_as_str(current)))
+						strcmp(_np_key_as_str(current),_np_key_as_str(_np_state()->my_node_key) ) != 0 &&
+						NULL == _np_get_sysinfo_from_cache(_np_key_as_str(current)))
 				{
-					_np_request_sysinfo(_key_as_str(current));
+					_np_request_sysinfo(_np_key_as_str(current));
 				}
 			}
 		}
@@ -332,10 +332,10 @@ void _np_request_others() {
 			while (NULL != sll_first(neighbours_table)) {
 				current = sll_head(np_key_t, neighbours_table);
 				if (	NULL != current &&
-						strcmp(_key_as_str(current),_key_as_str(_np_state()->my_node_key) ) != 0 &&
-						NULL == _np_get_sysinfo_from_cache(_key_as_str(current)))
+						strcmp(_np_key_as_str(current),_np_key_as_str(_np_state()->my_node_key) ) != 0 &&
+						NULL == _np_get_sysinfo_from_cache(_np_key_as_str(current)))
 				{
-							_np_request_sysinfo(_key_as_str(current));
+							_np_request_sysinfo(_np_key_as_str(current));
 				}
 			}
 		}

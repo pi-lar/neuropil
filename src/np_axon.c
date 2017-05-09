@@ -98,7 +98,7 @@ void _np_send(np_jobargs_t* args)
 	if (!np_node_check_address_validity(args->target->node))
 	{
 		log_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
-							_key_as_str(args->target));
+							_np_key_as_str(args->target));
 		log_msg(LOG_TRACE, ".end  ._np_out_send");
 		return;
 	}
@@ -155,7 +155,7 @@ void _np_send(np_jobargs_t* args)
 	}
 	tree_insert_str(msg_out->instructions, NP_MSG_INST_ACK, new_val_ush(prop->ack_mode));
 
-	char* ack_to_str = _key_as_str(_np_state()->my_node_key);
+	char* ack_to_str = _np_key_as_str(_np_state()->my_node_key);
 
 	if ( 0 < (ack_mode & ACK_EACHHOP) )
 	{
@@ -508,7 +508,7 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 	np_aaatoken_t* msg_token = NULL;
 
 	msg_token = _np_aaatoken_get_sender(args->properties->msg_subject,
-			 	 	 	 	 	 	 _key_as_str(_np_state()->my_identity));
+			 	 	 	 	 	 	 _np_key_as_str(_np_state()->my_identity));
 	if (NULL == msg_token)
 	{
 		log_msg(LOG_DEBUG, "creating new sender token for subject %s", args->properties->msg_subject);
@@ -581,12 +581,12 @@ void _np_send_authentication_request(np_jobargs_t* args)
 
 	if (0 < strlen(args->target->aaa_token->realm))
 	{
-		target_dhkey = dhkey_create_from_hostport(args->target->aaa_token->realm, "0");
+		target_dhkey = np_dhkey_create_from_hostport(args->target->aaa_token->realm, "0");
 	}
 	else if (0 < strlen(state->my_identity->aaa_token->realm) )
 	{
 		// TODO: this is wrong, it should be the token issuer which we ask for authentication
-		target_dhkey = dhkey_create_from_hostport(state->my_identity->aaa_token->realm, "0");
+		target_dhkey = np_dhkey_create_from_hostport(state->my_identity->aaa_token->realm, "0");
 	}
 	else
 	{
@@ -640,11 +640,11 @@ void _np_send_authentication_reply(np_jobargs_t* args)
 	if (STICKY_REPLY != mep_reply_sticky &&
 		0 < strlen(args->target->aaa_token->realm) )
 	{
-		target_dhkey = dhkey_create_from_hostport(args->target->aaa_token->realm, "0");
+		target_dhkey = np_dhkey_create_from_hostport(args->target->aaa_token->realm, "0");
 	}
 	else
 	{
-		target_dhkey = dhkey_create_from_hash(args->target->aaa_token->issuer);
+		target_dhkey = np_dhkey_create_from_hash(args->target->aaa_token->issuer);
 	}
 
 	log_msg(LOG_DEBUG, "encoding and sending authentication reply");
@@ -676,7 +676,7 @@ void _np_send_authorization_request(np_jobargs_t* args)
 
 	if (0 < strlen(state->my_identity->aaa_token->realm) )
 	{
-		target_dhkey = dhkey_create_from_hostport(state->my_identity->aaa_token->realm, "0");
+		target_dhkey = np_dhkey_create_from_hostport(state->my_identity->aaa_token->realm, "0");
 	}
 	else
 	{
@@ -726,11 +726,11 @@ void _np_send_authorization_reply(np_jobargs_t* args)
 	if (STICKY_REPLY != mep_reply_sticky &&
 		0 < strlen(args->target->aaa_token->realm) )
 	{
-		target_dhkey = dhkey_create_from_hostport(args->target->aaa_token->realm, "0");
+		target_dhkey = np_dhkey_create_from_hostport(args->target->aaa_token->realm, "0");
 	}
 	else
 	{
-		target_dhkey = dhkey_create_from_hash(args->target->aaa_token->issuer);
+		target_dhkey = np_dhkey_create_from_hash(args->target->aaa_token->issuer);
 	}
 
 	log_msg(LOG_DEBUG, "encoding and sending authorization reply");
@@ -762,7 +762,7 @@ void _np_send_accounting_request(np_jobargs_t* args)
 
 	if (0 < strlen(state->my_identity->aaa_token->realm) )
 	{
-		target_dhkey = dhkey_create_from_hostport(state->my_identity->aaa_token->realm, "0");
+		target_dhkey = np_dhkey_create_from_hostport(state->my_identity->aaa_token->realm, "0");
 	}
 	else
 	{
@@ -807,7 +807,7 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 	np_new_obj(np_message_t, msg_out);
 	np_message_create(msg_out, target, state->my_node_key, type , jrb_me);
 
-	log_msg(LOG_DEBUG, "submitting join request to target key %s", _key_as_str(target));
+	log_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(target));
 	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, type);
 	_np_job_submit_msgout_event(0.0, prop, target, msg_out);
 

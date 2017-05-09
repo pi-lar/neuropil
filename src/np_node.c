@@ -25,7 +25,7 @@
 #include "neuropil.h"
 #include "np_aaatoken.h"
 #include "np_tree.h"
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_network.h"
 #include "np_threads.h"
@@ -79,7 +79,7 @@ void _np_node_t_del(void* node)
  **/
 void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 {
-    snprintf (s, len, "%s:", _key_as_str(key));
+    snprintf (s, len, "%s:", _np_key_as_str(key));
 
     if (NULL != key->node->dns_name) {
     	snprintf (s + strlen (s), len - strlen (s), "%s:", np_get_protocol_string(key->node->protocol));
@@ -90,7 +90,7 @@ void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 
 void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, np_bool include_stats)
 {
-	char* keystring = (char*) _key_as_str (node_key);
+	char* keystring = (char*) _np_key_as_str (node_key);
 
 	tree_insert_str(data, NP_NODE_KEY, new_val_s(keystring));
 	tree_insert_str(data, NP_NODE_PROTOCOL, new_val_ush(node_key->node->protocol));
@@ -149,8 +149,8 @@ np_key_t* _np_node_decode_from_str (const char *key)
 	// key string is mandatory !
 	log_msg(LOG_WARN, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
 
-	np_dhkey_t search_key = dhkey_create_from_hash(s_hostkey);
-	np_key_t* node_key    = _np_key_find_create(search_key);
+	np_dhkey_t search_key = np_dhkey_create_from_hash(s_hostkey);
+	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
 
 	if (NULL == node_key->node)
 	{
@@ -217,7 +217,7 @@ uint16_t _np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys)
     		np_tree_t* node_jrb = make_nptree();
     		// log_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
     		_np_node_encode_to_jrb(node_jrb, current, include_stats);
-    		tree_insert_str(node_jrb, NP_NODE_KEY, new_val_s(_key_as_str(current)));
+    		tree_insert_str(node_jrb, NP_NODE_KEY, new_val_s(_np_key_as_str(current)));
 
     		tree_insert_int(data, j, new_val_tree(node_jrb));
     		j++;
@@ -240,8 +240,8 @@ sll_return(np_key_t) _np_decode_nodes_from_jrb (np_tree_t* data)
     	np_tree_elem_t* node_data = tree_find_int(data, i);
 
     	char* s_key = tree_find_str(node_data->val.value.tree, NP_NODE_KEY)->val.value.s;
-    	np_dhkey_t search_key = dhkey_create_from_hash(s_key);
-    	np_key_t* node_key    = _np_key_find_create(search_key);
+    	np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
+    	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
     	if (NULL == node_key->node)
     	{
     		node_key->node = _np_node_decode_from_jrb(node_data->val.value.tree);
@@ -256,7 +256,7 @@ np_key_t* _np_create_node_from_token(np_aaatoken_t* token)
 {
 	// TODO: check whether metadata is used as a hash key in general
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(token);
-	np_key_t* node_key    = _np_key_find_create(search_key);
+	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
 	if (NULL == node_key->node)
 	{
 		node_key->node = _np_node_decode_from_jrb(token->extensions);
@@ -283,7 +283,7 @@ np_aaatoken_t* _np_create_node_token(np_node_t* node)
 	}
 	strncpy(node_token->issuer, node_subject, 255);
 	strncpy(node_token->subject, node_subject, 255);
-	// strncpy(node_token->audience, (char*) _key_as_str(state->my_identity->aaa_token->realm), 255);
+	// strncpy(node_token->audience, (char*) _np_key_as_str(state->my_identity->aaa_token->realm), 255);
 
 	node_token->uuid = np_create_uuid(node_subject, 0);
 
