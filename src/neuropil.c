@@ -444,7 +444,7 @@ void np_set_mx_property(char* subject, const char* key, np_val_t value)
 	{
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->clb_outbound = _np_out_send;
+		msg_prop->clb_outbound = _np_send;
 
 		np_msgproperty_register(msg_prop);
 	}
@@ -509,7 +509,7 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 
 		np_msgproperty_register(msg_prop);
 	}
-	msg_prop->clb_outbound = _np_out_send;
+	msg_prop->clb_outbound = _np_send;
 
 	np_message_t* msg = NULL;
 	np_new_obj(np_message_t, msg);
@@ -574,7 +574,7 @@ void np_send_text (char* subject, char *data, uint32_t seqnum, char* targetDhkey
 
 		np_msgproperty_register(msg_prop);
 	}
-	msg_prop->clb_outbound = _np_out_send;
+	msg_prop->clb_outbound = _np_send;
 
 	np_message_t* msg = NULL;
 	np_new_obj(np_message_t, msg);

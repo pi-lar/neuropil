@@ -13,10 +13,10 @@ extern "C" {
 
 // sends a handshake message to the target node, assumes physical neighbourhood
 NP_API_INTERN
-void _np_out_handshake(np_jobargs_t* args);
+void _np_send_handshake(np_jobargs_t* args);
 // splits up message into parts and sends all parts to the next node
 NP_API_INTERN
-void _np_out_send (np_jobargs_t* args);
+void _np_send (np_jobargs_t* args);
 // send an acknowledgement to the target node
 NP_API_INTERN
 void _np_out_ack (np_jobargs_t* args);
@@ -33,19 +33,19 @@ void _np_send_discovery_messages(np_jobargs_t* args);
 
 // send an authentication request to the target
 NP_API_INTERN
-void np_send_authentication_request(np_jobargs_t* args);
+void _np_send_authentication_request(np_jobargs_t* args);
 NP_API_INTERN
-void np_send_authentication_reply(np_jobargs_t* args);
+void _np_send_authentication_reply(np_jobargs_t* args);
 
 // send an authorization request to the target
 NP_API_INTERN
-void np_send_authorization_request(np_jobargs_t* args);
+void _np_send_authorization_request(np_jobargs_t* args);
 NP_API_INTERN
-void np_send_authorization_reply(np_jobargs_t* args);
+void _np_send_authorization_reply(np_jobargs_t* args);
 
 // send an accounting request to the target
 NP_API_INTERN
-void np_send_accounting_request(np_jobargs_t* args);
+void _np_send_accounting_request(np_jobargs_t* args);
 
 // send join request
 NP_API_INTERN

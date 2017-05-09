@@ -53,6 +53,8 @@
  **/
 void _np_out_ack(np_jobargs_t* args)
 {
+	//TODO: Was soll diese Methode machen?
+
 	tree_insert_str(args->msg->instructions, NP_MSG_INST_UUID, new_val_s(args->msg->uuid));
 	tree_insert_str(args->msg->instructions, NP_MSG_INST_PARTS, new_val_iarray(1, 1));
 
@@ -75,7 +77,7 @@ void _np_out_ack(np_jobargs_t* args)
  ** network_send: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
-void _np_out_send(np_jobargs_t* args)
+void _np_send(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start._np_out_send");
 
@@ -285,7 +287,7 @@ void _np_out_send(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  ._np_out_send");
 }
 
-void _np_out_handshake(np_jobargs_t* args)
+void _np_send_handshake(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start._np_out_handshake");
 
@@ -570,7 +572,7 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  ._np_send_sender_discovery");
 }
 
-void np_send_authentication_request(np_jobargs_t* args)
+void _np_send_authentication_request(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_send_authentication_request");
 
@@ -627,7 +629,7 @@ void np_send_authentication_request(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  .np_send_authentication_request");
 }
 
-void np_send_authentication_reply(np_jobargs_t* args)
+void _np_send_authentication_reply(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_send_authentication_reply");
 
@@ -665,7 +667,7 @@ void np_send_authentication_reply(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  .np_send_authentication_reply");
 }
 
-void np_send_authorization_request(np_jobargs_t* args)
+void _np_send_authorization_request(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_send_authorization_request");
 
@@ -713,7 +715,7 @@ void np_send_authorization_request(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  .np_send_authorization_request");
 }
 
-void np_send_authorization_reply(np_jobargs_t* args)
+void _np_send_authorization_reply(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_send_authorization_reply");
 
@@ -751,7 +753,7 @@ void np_send_authorization_reply(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  .np_send_authorization_reply");
 }
 
-void np_send_accounting_request(np_jobargs_t* args)
+void _np_send_accounting_request(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_send_accounting_request");
 
