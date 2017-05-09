@@ -31,6 +31,7 @@
 #include "np_keycache.h"
 #include "np_val.h"
 #include "np_sysinfo.h"
+#include "np_event.h"
 
 
 static double __np_http_timeout = 20.0f;

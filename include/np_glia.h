@@ -23,12 +23,8 @@ void _np_cleanup_ack(np_jobargs_t* args);
 void _np_cleanup_keycache(np_jobargs_t* args);
 
 void _np_write_log(np_jobargs_t* args);
-void _np_events_read(np_jobargs_t* args);
 
 void _np_never_called(np_jobargs_t* args);
-
-void _np_suspend_event_loop();
-void _np_resume_event_loop();
 
 // other helper functions
 void _np_send_rowinfo (np_jobargs_t* args);

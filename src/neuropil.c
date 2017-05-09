@@ -35,6 +35,7 @@
 #include "np_node.h"
 #include "np_threads.h"
 #include "np_route.h"
+#include "np_event.h"
 
 #include "np_sysinfo.h"
 /**

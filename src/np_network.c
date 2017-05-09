@@ -40,6 +40,7 @@
 #include "np_msgproperty.h"
 #include "np_node.h"
 #include "np_threads.h"
+#include "np_event.h"
 
 // double definition in np_message.c !
 static const int MSG_CHUNK_SIZE_1024 = 1024;

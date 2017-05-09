@@ -153,7 +153,7 @@ SOURCES =  ['src/dtime.c','src/neuropil.c','src/np_aaatoken.c','src/np_axon.c','
 SOURCES += ['src/np_glia.c','src/np_http.c','src/np_jobqueue.c','src/np_key.c','src/np_keycache.c']
 SOURCES += ['src/np_log.c','src/np_memory.c','src/np_message.c','src/np_msgproperty.c','src/np_network.c','src/np_node.c']
 SOURCES += ['src/np_route.c','src/np_tree.c','src/np_util.c','src/np_val.c','src/np_threads.c']
-SOURCES += ['src/np_sysinfo.c','src/np_scache.c']
+SOURCES += ['src/np_sysinfo.c','src/np_scache.c','src/np_event.c']
 # source code 3rd party libraries
 SOURCES += ['src/event/ev.c','src/http/htparse.c','src/json/parson.c','src/msgpack/cmp.c']
 

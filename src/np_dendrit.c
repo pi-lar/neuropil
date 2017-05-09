@@ -38,6 +38,7 @@
 #include "np_tree.h"
 #include "np_val.h"
 #include "np_axon.h"
+#include "np_event.h"
 
 /**
  * convenience helper macros when messages are received
