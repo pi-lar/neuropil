@@ -53,7 +53,7 @@ Test(np_route_t, _leafset_update, .description="test the addition/removal of key
 
 		my_keys[i] = insert_key;
 		np_key_t *added = NULL, *deleted = NULL;
-		leafset_update(my_keys[i], TRUE, &deleted, &added);
+		_np_route_leafset_update(my_keys[i], TRUE, &deleted, &added);
 
 		if (NULL != added)
 		{
@@ -78,7 +78,7 @@ Test(np_route_t, _leafset_update, .description="test the addition/removal of key
 	for (int i = 0; i < 128; i++)
 	{
 		np_key_t *added = NULL, *deleted=NULL;
-		leafset_update(my_keys[i], FALSE, &deleted, &added);
+		_np_route_leafset_update(my_keys[i], FALSE, &deleted, &added);
 		if (NULL != deleted)
 		{
 			cr_expect(0 == _np_dhkey_comp(&my_keys[i]->dhkey, &deleted->dhkey), "test whether the same key was removed");
@@ -130,7 +130,7 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 		log_msg(LOG_DEBUG, "created key %s", _np_key_as_str(insert_key));
 
 		np_key_t *added=NULL, *deleted=NULL;
-		route_update(insert_key, TRUE, &deleted, &added);
+		_np_route_update(insert_key, TRUE, &deleted, &added);
 
 		if (NULL != added)
 		{

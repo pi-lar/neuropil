@@ -24,35 +24,36 @@ np_bool _np_route_init (np_key_t* me);
 NP_API_INTERN
 void _np_route_set_key (np_key_t* new_node_key);
 
-/** route_update:
+/** _np_route_update:
  ** updates the routing table in regard to host. If the host is joining
  ** the network (and joined == 1), then it is added to the routing table
  ** if it is appropriate. If it is leaving the network (and joined == 0),
  ** then it is removed from the routing tables.
  **/
 NP_API_INTERN
-void leafset_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added);
-NP_API_INTERN
-void route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added);
+void _np_route_leafset_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added);
 
-/** route_lookup:
+NP_API_INTERN
+void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added);
+
+/** _np_route_lookup:
  ** returns an list of 'count' nodes that are acceptable next hops for a message being routed to key
  **/
 NP_API_INTERN
-sll_return(np_key_t) route_lookup (np_key_t* key, uint8_t count);
-// np_key_t** route_lookup (np_state_t* state, np_key_t* key, int count, int is_safe);
+sll_return(np_key_t) _np_route_lookup (np_key_t* key, uint8_t count);
+// np_key_t** _np_route_lookup (np_state_t* state, np_key_t* key, int count, int is_safe);
 
-/** route_neighbors:
+/** _np_route_neighbors:
  ** returns an list of neighbor nodes with priority to closer nodes.
  **/
 NP_API_INTERN
-sll_return(np_key_t) route_neighbors ();
+sll_return(np_key_t) _np_route_neighbors ();
 
-/** route_row_lookup:
+/** _np_route_row_lookup:
  ** return the row in the routing table that matches the longest prefix with key.
  **/
 NP_API_INTERN
-sll_return(np_key_t) route_row_lookup (np_key_t* key);
+sll_return(np_key_t) _np_route_row_lookup (np_key_t* key);
 
 /** route_get_table:
  ** returns all the entries in the routing table in an array of ChimeraHost.
@@ -61,11 +62,11 @@ NP_API_INTERN
 sll_return(np_key_t) _np_route_get_table ();
 
 NP_API_INTERN
-void leafset_insert (np_key_t* host, uint8_t right_or_left, np_key_t** deleted, np_key_t** added);
+void _np_route_leafset_insert (np_key_t* host, uint8_t right_or_left, np_key_t** deleted, np_key_t** added);
 NP_API_INTERN
-void leafset_delete (np_key_t* host, uint8_t right_or_left, np_key_t** deleted);
+void _np_route_leafset_delete (np_key_t* host, uint8_t right_or_left, np_key_t** deleted);
 NP_API_INTERN
-void leafset_range_update (np_dhkey_t* rrange, np_dhkey_t* lrange);
+void _np_route_leafset_range_update ();
 
 #ifdef __cplusplus
 }

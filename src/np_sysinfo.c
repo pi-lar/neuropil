@@ -184,7 +184,7 @@ np_tree_t* np_get_my_sysinfo() {
 	np_sll_t(np_key_t, neighbours_table) = NULL;
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		neighbours_table = route_neighbors();
+		neighbours_table = _np_route_neighbors();
 	}
 	np_tree_t* neighbours = make_nptree();
 	int neighbour_counter = 0;
@@ -326,7 +326,7 @@ void _np_request_others() {
 			}
 		}
 
-		neighbours_table = route_neighbors();
+		neighbours_table = _np_route_neighbors();
 		if (NULL != neighbours_table && 0 < neighbours_table->size) {
 			np_key_t* current;
 			while (NULL != sll_first(neighbours_table)) {

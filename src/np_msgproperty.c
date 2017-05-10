@@ -152,10 +152,10 @@ void _np_msgproperty_t_new(void* property)
 
 	prop->last_update = ev_time();
 
-	prop->clb_inbound = _np_never_called;
-	prop->clb_outbound = _np_never_called;
-	prop->clb_route = _np_route_lookup;
-	prop->clb_transform = _np_never_called;
+	prop->clb_inbound = _np_never_called_jobexec;
+	prop->clb_outbound = _np_never_called_jobexec;
+	prop->clb_route = _np_route_lookup_jobexec;
+	prop->clb_transform = _np_never_called_jobexec;
 
 	// cache which will hold up to max_threshold messages
 	prop->cache_policy = FIFO | OVERFLOW_PURGE;

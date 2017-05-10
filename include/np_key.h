@@ -48,6 +48,10 @@ struct np_key_s
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_key_t);
 
+typedef np_key_t* np_key_ptr;
+NP_PLL_GENERATE_PROTOTYPES(np_key_ptr);
+
+
 NP_API_INTERN
 int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2);
 NP_API_INTERN

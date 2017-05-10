@@ -63,7 +63,7 @@ static double  __cleanup_interval = 0.31415;
  ** the message to its destination if it is the current host through the
  ** deliver upcall, otherwise it makes the route upcall
  **/
-void _np_route_lookup(np_jobargs_t* args)
+void _np_route_lookup_jobexec(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_route_lookup");
 	np_state_t* state = _np_state();
@@ -91,7 +91,7 @@ void _np_route_lookup(np_jobargs_t* args)
 	_LOCK_MODULE(np_routeglobal_t)
 	{
 		// 1 means: always send out message to another node first, even if it returns
-		tmp = route_lookup(&k_msg_address, 1);
+		tmp = _np_route_lookup(&k_msg_address, 1);
 		if ( 0 < sll_size(tmp) )
 			log_msg(LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
 	}
@@ -106,7 +106,7 @@ void _np_route_lookup(np_jobargs_t* args)
 
 		_LOCK_MODULE(np_routeglobal_t)
 		{
-			tmp = route_lookup(&k_msg_address, 2);
+			tmp = _np_route_lookup(&k_msg_address, 2);
 			if (0 < sll_size(tmp))
 				log_msg(LOG_DEBUG, "route_lookup result 2 = %s", _np_key_as_str(sll_first(tmp)->val));
 		}
@@ -190,9 +190,9 @@ void _np_route_lookup(np_jobargs_t* args)
 //				    host->dns_name, host->port, host->failuretime);
 //
 //		    /* remove the faulty node from the routing table */
-//		    if (host->success_avg < BAD_LINK) route_update (state->routes, host, 0);
+//		    if (host->success_avg < BAD_LINK) _np_route_update (state->routes, host, 0);
 //		    if (tmp != NULL) free (tmp);
-//		    tmp = route_lookup (state->routes, *key, 1, 0);
+//		    tmp = _np_route_lookup (state->routes, *key, 1, 0);
 //		    host = tmp[0];
 //		    log_msg(LOG_WARN, "re-route through %s:%hd!", host->dns_name, host->port);
 //		}
@@ -202,7 +202,7 @@ void _np_route_lookup(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  .np_route_lookup");
 }
 
-void _np_never_called(np_jobargs_t* args)
+void _np_never_called_jobexec(np_jobargs_t* args)
 {
 	log_msg(LOG_WARN, "!!!                               !!!");
 	log_msg(LOG_WARN, "!!! wrong job execution requested !!!");
@@ -218,13 +218,13 @@ void _np_never_called(np_jobargs_t* args)
 	log_msg(LOG_WARN, "!!!                               !!!");
 }
 
-/** _np_check_leafset:
+/** _np_route_check_leafset_jobexec:
  ** sends a PING message to each member of the leafset and routing table frequently and
  ** sends the leafset to other members of its leafset periodically.
  ** uses _np_job_yield between pings to different nodes
- ** _np_check_leafset frequency is LEAFSET_CHECK_PERIOD.
+ ** _np_route_check_leafset_jobexec frequency is LEAFSET_CHECK_PERIOD.
  **/
-void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
+void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_check_leafset");
 
@@ -236,7 +236,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 	// each time to try to ping our leafset hosts
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		leafset = route_neighbors();
+		leafset = _np_route_neighbors();
 		_np_keycache_ref_keys(leafset);
 	}
 
@@ -254,7 +254,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 			tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
 
 			np_key_t *added = NULL, *deleted = NULL;
-			leafset_update(tmp_node_key, FALSE, &deleted, &added);
+			_np_route_leafset_update(tmp_node_key, FALSE, &deleted, &added);
 			if (deleted == tmp_node_key)
 			{
 				np_unref_obj(np_key_t, deleted);
@@ -303,7 +303,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 				tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
 
 				np_key_t *added = NULL, *deleted = NULL;
-				route_update(tmp_node_key, FALSE, &deleted, &added);
+				_np_route_update(tmp_node_key, FALSE, &deleted, &added);
 				if (deleted == tmp_node_key)
 				{
 					np_unref_obj(np_key_t, deleted);
@@ -335,7 +335,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 
 		_LOCK_MODULE(np_routeglobal_t)
 		{
-			leafset = route_neighbors();
+			leafset = _np_route_neighbors();
 			_np_keycache_ref_keys(leafset);
 		}
 
@@ -355,7 +355,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
 		__leafset_check_type++;
 	}
 	// np_mem_printpool();
-	np_job_submit_event(__leafset_check_period, _np_check_leafset);
+	np_job_submit_event(__leafset_check_period, _np_route_check_leafset_jobexec);
 	log_msg(LOG_TRACE, ".end  .np_check_leafset");
 }
 
@@ -365,7 +365,7 @@ void _np_check_leafset(NP_UNUSED np_jobargs_t* args)
  ** default ttl value for message exchange tokens is ten seconds, afterwards they will be invalid
  ** and a new token is required. this also ensures that the correct encryption key will be transmitted
  **/
-void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
+void _np_retransmit_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	// log_msg(LOG_TRACE, "start np_retransmit_tokens");
 	np_state_t* state = _np_state();
@@ -448,7 +448,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 		_LOCK_MODULE(np_routeglobal_t)
 		{
 			_np_route_set_key(state->my_node_key);
-			leafset = route_neighbors();
+			leafset = _np_route_neighbors();
 		}
 
 		while (NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
@@ -482,7 +482,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 	}
 
 	// retrigger execution
-	np_job_submit_event(__token_retransmit_period, _np_retransmit_tokens);
+	np_job_submit_event(__token_retransmit_period, _np_retransmit_tokens_jobexec);
 }
 
 /**
@@ -492,7 +492,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
  ** the message gets deleted or dropped (if max redelivery has been reached)
  ** redelivery has two aspects -> simple resend or reroute because of bad link nodes in the routing table
  **/
-void _np_cleanup_ack(NP_UNUSED np_jobargs_t* args)
+void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start.np_cleanup");
 
@@ -542,11 +542,11 @@ void _np_cleanup_ack(NP_UNUSED np_jobargs_t* args)
 	pthread_mutex_unlock(&ng->lock);
 
 	// submit the function itself for additional execution
-	np_job_submit_event(__cleanup_interval, _np_cleanup_ack);
+	np_job_submit_event(__cleanup_interval, _np_cleanup_ack_jobexec);
 	log_msg(LOG_TRACE, ".end  .np_cleanup");
 }
 
-void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
+void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start._np_cleanup_keycache");
 
@@ -637,7 +637,7 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
 	}
 
 	// submit the function itself for additional execution
-	np_job_submit_event(__cleanup_interval, _np_cleanup_keycache);
+	np_job_submit_event(__cleanup_interval, _np_cleanup_keycache_jobexec);
 	log_msg(LOG_TRACE, ".end  ._np_cleanup_keycache");
 }
 
@@ -645,7 +645,7 @@ void _np_cleanup_keycache(NP_UNUSED np_jobargs_t* args)
  ** np_send_rowinfo:
  ** sends matching row of its table to the target node
  **/
-void _np_send_rowinfo(np_jobargs_t* args)
+void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start np_send_rowinfo");
 
@@ -660,13 +660,13 @@ void _np_send_rowinfo(np_jobargs_t* args)
 	/* send one row of our routing table back to joiner #host# */
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		sll_of_keys = route_row_lookup(target_key);
+		sll_of_keys = _np_route_row_lookup(target_key);
 		if (0 == sll_size(sll_of_keys))
 		{
 			// nothing found, send leafset to exchange some data at least
 			// prevents small clusters from not exchanging all data
 			sll_free(np_key_t, sll_of_keys);
-			sll_of_keys = route_neighbors();
+			sll_of_keys = _np_route_neighbors();
 		}
 	}
 

@@ -27,6 +27,7 @@
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_key_t);
+NP_PLL_GENERATE_IMPLEMENTATION(np_key_ptr);
 
 int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 {

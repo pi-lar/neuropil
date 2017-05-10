@@ -278,7 +278,7 @@ void _np_in_received(np_jobargs_t* args)
 
 		_LOCK_MODULE(np_routeglobal_t)
 		{	// zero as "consider this node as final target"
-			tmp = route_lookup(target_key, 0);
+			tmp = _np_route_lookup(target_key, 0);
 
 			if (0 < sll_size(tmp))
 				log_msg(LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
@@ -524,7 +524,7 @@ void _np_in_leave_req(np_jobargs_t* args)
 	np_key_t* deleted = NULL;
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		leafset_update(leave_req_key, FALSE, &deleted, NULL);
+		_np_route_leafset_update(leave_req_key, FALSE, &deleted, NULL);
 		if (NULL != deleted)
 		{
 			np_unref_obj(np_key_t, deleted);
@@ -534,7 +534,7 @@ void _np_in_leave_req(np_jobargs_t* args)
 	deleted = NULL;
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		route_update(leave_req_key, FALSE, &deleted, NULL);
+		_np_route_update(leave_req_key, FALSE, &deleted, NULL);
 		if (NULL != deleted)
 		{
 			np_unref_obj(np_key_t, deleted);
@@ -721,7 +721,7 @@ void _np_in_join_req(np_jobargs_t* args)
 	np_key_t *added = NULL, *deleted = NULL;
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		leafset_update(routing_key, TRUE, &deleted, &added);
+		_np_route_leafset_update(routing_key, TRUE, &deleted, &added);
 		if (routing_key == added)
 		{
 			np_ref_obj(np_key_t, added);
@@ -735,7 +735,7 @@ void _np_in_join_req(np_jobargs_t* args)
 	added = NULL, deleted = NULL;
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		route_update(routing_key, TRUE, &deleted, &added);
+		_np_route_update(routing_key, TRUE, &deleted, &added);
 		if (routing_key == added)
 		{
 			np_ref_obj(np_key_t, added);
@@ -885,7 +885,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 	np_key_t *added = NULL, *deleted = NULL;
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		route_update(routing_key, TRUE, &deleted, &added);
+		_np_route_update(routing_key, TRUE, &deleted, &added);
 		if (added == routing_key)
 		{
 			np_ref_obj(np_key_t, added);
@@ -900,7 +900,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 	added = NULL, deleted = NULL;
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		leafset_update(routing_key, TRUE, &deleted, &added);
+		_np_route_leafset_update(routing_key, TRUE, &deleted, &added);
 		if (added == routing_key)
 		{
 			np_ref_obj(np_key_t, added);

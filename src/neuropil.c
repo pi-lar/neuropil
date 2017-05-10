@@ -1017,10 +1017,10 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 
 
     // initialize real network layer last
-    np_job_submit_event(0.0, _np_cleanup_ack);
-	np_job_submit_event(0.0, _np_cleanup_keycache);
+    np_job_submit_event(0.0, _np_cleanup_ack_jobexec);
+	np_job_submit_event(0.0, _np_cleanup_keycache_jobexec);
     // start leafset checking jobs
-    np_job_submit_event(0.0, _np_check_leafset);
+    np_job_submit_event(0.0, _np_route_check_leafset_jobexec);
 
 #ifdef SKIP_EVLOOP
     // intialize log file writing
@@ -1029,7 +1029,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 #endif
 
     // initialize retransmission of tokens
-    np_job_submit_event(0.0, _np_retransmit_tokens);
+    np_job_submit_event(0.0, _np_retransmit_tokens_jobexec);
     // initialize network/io reading and writing
     np_job_submit_event(0.0, _np_events_read);
 

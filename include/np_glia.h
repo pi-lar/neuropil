@@ -13,19 +13,19 @@
 extern "C" {
 #endif
 
-void _np_route_lookup (np_jobargs_t* args);
+void _np_route_lookup_jobexec (np_jobargs_t* args);
 
 // critical self invoking functions
-void _np_check_leafset(np_jobargs_t* args);
-void _np_retransmit_tokens(np_jobargs_t* args);
+void _np_route_check_leafset_jobexec(np_jobargs_t* args);
+void _np_retransmit_tokens_jobexec(np_jobargs_t* args);
 
-void _np_cleanup_ack(np_jobargs_t* args);
-void _np_cleanup_keycache(np_jobargs_t* args);
+void _np_cleanup_ack_jobexec(np_jobargs_t* args);
+void _np_cleanup_keycache_jobexec(np_jobargs_t* args);
 
-void _np_never_called(np_jobargs_t* args);
+void _np_never_called_jobexec(np_jobargs_t* args);
 
 // other helper functions
-void _np_send_rowinfo (np_jobargs_t* args);
+void _np_send_rowinfo_jobexec (np_jobargs_t* args);
 
 np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request);
 
