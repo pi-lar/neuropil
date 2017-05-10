@@ -252,7 +252,7 @@ void np_send_wildcard_join(const char* node_string)
 	np_msgproperty_t* prop = NULL;
 
 	np_new_obj(np_message_t, msg_out);
-	np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST_WILDCARD, jrb_me);
+	_np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST_WILDCARD, jrb_me);
 
 	log_msg(LOG_DEBUG, "submitting wildcard join request to target key %s", _np_key_as_str(wildcard_node_key));
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST_WILDCARD);
@@ -515,11 +515,11 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 	np_message_t* msg = NULL;
 	np_new_obj(np_message_t, msg);
 
-	tree_insert_str(msg->header, NP_MSG_HEADER_SUBJECT, new_val_s((char*) subject));
-	tree_insert_str(msg->header, NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(_np_state()->my_node_key)));
+	tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT, new_val_s((char*) subject));
+	tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(_np_state()->my_node_key)));
 
-	np_message_setbody(msg, body);
-	np_message_setproperties(msg, properties);
+	_np_message_setbody(msg, body);
+	_np_message_setproperties(msg, properties);
 
 	// msg_prop->msg_threshold++;
 	// _np_send_msg_availability(subject);
@@ -580,11 +580,11 @@ void np_send_text (char* subject, char *data, uint32_t seqnum, char* targetDhkey
 	np_message_t* msg = NULL;
 	np_new_obj(np_message_t, msg);
 
-	tree_insert_str(msg->header, NP_MSG_HEADER_SUBJECT, new_val_s(subject));
-	tree_insert_str(msg->header, NP_MSG_HEADER_FROM, new_val_s(_np_key_as_str(state->my_node_key)));
+	tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT, new_val_s(subject));
+	tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, new_val_s(_np_key_as_str(state->my_node_key)));
 	tree_insert_str(msg->body,   NP_MSG_BODY_TEXT, new_val_s(data));
 
-	tree_insert_str(msg->properties, NP_MSG_INST_SEQ, new_val_ul(seqnum));
+	tree_insert_str(msg->properties, _NP_MSG_INST_SEQ, new_val_ul(seqnum));
 
 	_np_send_subject_discovery_messages(OUTBOUND, subject);
 
@@ -636,7 +636,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		msg = sll_first(msg_prop->msg_cache_in)->val;
 
 		// next check or wait for valid sender tokens
-		sender_id = tree_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
+		sender_id = tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.s;
 		sender_token = _np_aaatoken_get_sender(subject, sender_id);
 		if (NULL == sender_token)
 		{
@@ -656,7 +656,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	msg = sll_head(np_message_t, msg_prop->msg_cache_in);
 
 	log_msg(LOG_DEBUG, "decrypting message ...");
-	np_bool decrypt_ok = np_message_decrypt_payload(msg, sender_token);
+	np_bool decrypt_ok = _np_message_decrypt_payload(msg, sender_token);
 
 	if (FALSE == decrypt_ok)
 	{
@@ -689,7 +689,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		if (tmp->key.type == unsigned_long_type) tree_insert_ulong(body, tmp->key.value.ul, tmp->val);
 	}
 
-	uint8_t ack_mode = tree_find_str(msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
+	uint8_t ack_mode = tree_find_str(msg->instructions, _NP_MSG_INST_ACK)->val.value.ush;
 	if (0 < (ack_mode & ACK_DESTINATION))
 	{
 		_np_send_ack(msg);
@@ -745,7 +745,7 @@ uint32_t np_receive_text (char* subject, char **data)
 		msg = sll_first(msg_prop->msg_cache_in)->val;
 
 		// next check or wait for valid sender tokens
-		sender_id = tree_find_str(msg->header, NP_MSG_HEADER_FROM)->val.value.s;
+		sender_id = tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.s;
 		sender_token = _np_aaatoken_get_sender(subject, sender_id);
 		if (NULL == sender_token)
 		{
@@ -765,7 +765,7 @@ uint32_t np_receive_text (char* subject, char **data)
 	msg = sll_head(np_message_t, msg_prop->msg_cache_in);
 
 	log_msg(LOG_DEBUG, "decrypting message ...");
-	np_bool decrypt_ok = np_message_decrypt_payload(msg, sender_token);
+	np_bool decrypt_ok = _np_message_decrypt_payload(msg, sender_token);
 
 	if (FALSE == decrypt_ok)
 	{
@@ -778,11 +778,11 @@ uint32_t np_receive_text (char* subject, char **data)
 		return (0);
 	}
 
-	uint32_t received = tree_find_str(msg->properties, NP_MSG_INST_SEQ)->val.value.ul;
+	uint32_t received = tree_find_str(msg->properties, _NP_MSG_INST_SEQ)->val.value.ul;
 	np_tree_elem_t* reply_data = tree_find_str(msg->body, NP_MSG_BODY_TEXT);
 	*data = strndup(reply_data->val.value.s, strlen(reply_data->val.value.s));
 
-	uint8_t ack_mode = tree_find_str(msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
+	uint8_t ack_mode = tree_find_str(msg->instructions, _NP_MSG_INST_ACK)->val.value.ush;
 	if (0 < (ack_mode & ACK_DESTINATION))
 	{
 		_np_send_ack(msg);
@@ -813,16 +813,16 @@ void _np_send_ack(np_message_t* in_msg)
 
 	// np_message_t* in_msg = args->msg;
 
-	if (NULL != tree_find_str(in_msg->header, NP_MSG_INST_ACK_TO))
+	if (NULL != tree_find_str(in_msg->header, _NP_MSG_INST_ACK_TO))
 	{
 		// extract data from incoming message
-		seq = tree_find_str(in_msg->instructions, NP_MSG_INST_SEQ)->val.value.ul;
+		seq = tree_find_str(in_msg->instructions, _NP_MSG_INST_SEQ)->val.value.ul;
 		// ack = tree_find_str(in_msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
-		uuid = tree_find_str(in_msg->instructions, NP_MSG_INST_UUID)->val.value.s;
+		uuid = tree_find_str(in_msg->instructions, _NP_MSG_INST_UUID)->val.value.s;
 
 		// create new ack message & handlers
 		np_dhkey_t ack_key = np_dhkey_create_from_hash(
-				tree_find_str(in_msg->header, NP_MSG_INST_ACK_TO)->val.value.s);
+				tree_find_str(in_msg->header, _NP_MSG_INST_ACK_TO)->val.value.s);
 
 		// TODO: find in keycache, must be present
 		np_key_t* ack_target = NULL;
@@ -834,10 +834,10 @@ void _np_send_ack(np_message_t* in_msg)
 
 		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
 
-		np_message_create(ack_msg, ack_target, state->my_node_key, _NP_MSG_ACK, NULL);
-		tree_insert_str(ack_msg->instructions, NP_MSG_INST_ACK, new_val_ush(prop->ack_mode));
-		tree_insert_str(ack_msg->instructions, NP_MSG_INST_ACKUUID, new_val_s(uuid));
-		tree_insert_str(ack_msg->instructions, NP_MSG_INST_SEQ, new_val_ul(seq));
+		_np_message_create(ack_msg, ack_target, state->my_node_key, _NP_MSG_ACK, NULL);
+		tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACK, new_val_ush(prop->ack_mode));
+		tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACKUUID, new_val_s(uuid));
+		tree_insert_str(ack_msg->instructions, _NP_MSG_INST_SEQ, new_val_ul(seq));
 		// send the ack out
 		_np_job_submit_route_event(0.0, prop, ack_target, ack_msg);
 
@@ -862,7 +862,7 @@ void _np_ping (np_key_t* key)
     np_message_t* out_msg = NULL;
     np_new_obj(np_message_t, out_msg);
 
-    np_message_create (out_msg, key, state->my_node_key, _NP_MSG_PING_REQUEST, NULL);
+    _np_message_create (out_msg, key, state->my_node_key, _NP_MSG_PING_REQUEST, NULL);
     log_msg(LOG_DEBUG, "ping request to: %s", _np_key_as_str(key));
 
     np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REQUEST);

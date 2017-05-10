@@ -72,8 +72,8 @@ void _np_route_lookup(np_jobargs_t* args)
 	np_key_t* target_key = NULL;
 	np_message_t* msg_in = args->msg;
 
-	char* msg_subject = tree_find_str(msg_in->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
-	char* msg_address = tree_find_str(msg_in->header, NP_MSG_HEADER_TO)->val.value.s;
+	char* msg_subject = tree_find_str(msg_in->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
+	char* msg_address = tree_find_str(msg_in->header, _NP_MSG_HEADER_TO)->val.value.s;
 
 	np_bool is_a_join_request = FALSE;
 	if (0 == strncmp(msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) )
@@ -137,7 +137,7 @@ void _np_route_lookup(np_jobargs_t* args)
 			_LOCK_MODULE(np_messagesgpart_cache_t)
 			{
 				// sum up message parts if the message is for this node
-				msg_to_submit = np_message_check_chunks_complete(args->msg);
+				msg_to_submit = _np_message_check_chunks_complete(args->msg);
 			}
 			if (NULL == msg_to_submit)
 			{
@@ -147,7 +147,7 @@ void _np_route_lookup(np_jobargs_t* args)
 			}
 			if (msg_in == msg_to_submit) np_ref_obj(np_message_t, msg_to_submit);
 
-			np_message_deserialize_chunked(msg_to_submit);
+			_np_message_deserialize_chunked(msg_to_submit);
 			np_unref_obj(np_message_t, msg_to_submit);
 		}
 		else
@@ -465,7 +465,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 				np_message_t* msg_out = NULL;
 				np_new_obj(np_message_t, msg_out);
 
-				np_message_create(msg_out, tmp_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
+				_np_message_create(msg_out, tmp_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
 				log_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(tmp_node_key));
 				np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
 				_np_job_submit_msgout_event(0.0, prop, tmp_node_key, msg_out);
@@ -678,7 +678,7 @@ void _np_send_rowinfo(np_jobargs_t* args)
 
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
-		np_message_create(msg_out, target_key, state->my_node_key, _NP_MSG_PIGGY_REQUEST, msg_body);
+		_np_message_create(msg_out, target_key, state->my_node_key, _NP_MSG_PIGGY_REQUEST, msg_body);
 		_np_job_submit_route_event(0.0, outprop, target_key, msg_out);
 		np_free_obj(np_message_t, msg_out);
 
@@ -805,9 +805,9 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 	msg_prop->msg_threshold++;
 
 	if(NULL != target) {
-		tree_replace_str(msg->header, NP_MSG_HEADER_TARGET, new_val_key(*target));
+		tree_replace_str(msg->header, _NP_MSG_HEADER_TARGET, new_val_key(*target));
 	}else{
-		np_tree_elem_t* target_container = 	tree_find_str(msg->header, NP_MSG_HEADER_TARGET);
+		np_tree_elem_t* target_container = 	tree_find_str(msg->header, _NP_MSG_HEADER_TARGET);
 		if(NULL != target_container) {
 			target = &(target_container->val.value.key);
 		}
@@ -817,12 +817,12 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 
 	if (NULL != tmp_token)
 	{
-		tree_del_str(msg->header, NP_MSG_HEADER_TARGET);
+		tree_del_str(msg->header, _NP_MSG_HEADER_TARGET);
 
 		tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
 
 		// first encrypt the relevant message part itself
-		np_message_encrypt_payload(msg, tmp_token);
+		_np_message_encrypt_payload(msg, tmp_token);
 
 		char* target_node_str = NULL;
 
@@ -843,7 +843,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		_np_dhkey_from_str(target_node_str, &receiver_dhkey);
 		receiver_key->dhkey = receiver_dhkey;
 
-		tree_replace_str(msg->header, NP_MSG_HEADER_TO, new_val_s(target_node_str));
+		tree_replace_str(msg->header, _NP_MSG_HEADER_TO, new_val_s(target_node_str));
 		// tree_replace_str(msg->header, NP_MSG_HEADER_TO, new_val_s(tmp_token->issuer));
 		np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);
 		_np_job_submit_route_event(0.0, out_prop, receiver_key, msg);

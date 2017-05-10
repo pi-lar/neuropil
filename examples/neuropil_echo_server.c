@@ -39,7 +39,7 @@ np_bool receive_echo_message(np_message_t* msg, np_tree_t* properties, np_tree_t
 	fprintf(stdout, "RECEIVED");
 
 	char* reply_to = NULL; // All
-	np_tree_elem_t* repl_to = tree_find_str(header, NP_MSG_HEADER_FROM);
+	np_tree_elem_t* repl_to = tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
 		reply_to = repl_to->val.value.s;
 

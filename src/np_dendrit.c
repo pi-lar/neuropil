@@ -122,7 +122,7 @@ void _np_in_received(np_jobargs_t* args)
 
 	np_new_obj(np_message_t, msg_in);
 
-	ret = np_message_deserialize(msg_in, raw_msg);
+	ret = _np_message_deserialize(msg_in, raw_msg);
 	if (FALSE == ret)
 	{
 		log_msg(LOG_ERROR, "error de-serializing message %s", msg_in->uuid);
@@ -132,7 +132,7 @@ void _np_in_received(np_jobargs_t* args)
 	// now read decrypted (or handshake plain text) message
 	// char* msg_subject =
 	// tree_find_str(msg_in->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
-	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_SUBJECT, msg_subject);
+	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
 
 	if ( 0 == strncmp(msg_subject.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) )
 	{
@@ -154,16 +154,16 @@ void _np_in_received(np_jobargs_t* args)
 	}
 
 	/* real receive part */
-	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_TO, msg_to);
-	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_UUID, msg_uuid);
+	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_to);
+	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_UUID, msg_uuid);
 
 	log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", msg_in->uuid, msg_uuid.value.s);
 	free(msg_in->uuid);
 	msg_in->uuid = strdup(msg_uuid.value.s);
 
-	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_TSTAMP, msg_tstamp);
-	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_TTL, msg_ttl);
-	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_ACK, msg_ack);
+	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TTL, msg_ttl);
+	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack);
 
 //	char*   msg_to      = tree_find_str(msg_in->header, NP_MSG_HEADER_TO)->val.value.s;
 //	char*   msg_uuid    = tree_find_str(msg_in->instructions, NP_MSG_INST_UUID)->val.value.s;
@@ -173,7 +173,7 @@ void _np_in_received(np_jobargs_t* args)
 
 	if (0 == strncmp(_NP_MSG_ACK, msg_subject.value.s, strlen(_NP_MSG_ACK)))
 	{
-		CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_ACKUUID, ack_uuid);
+		CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACKUUID, ack_uuid);
 
 		/* just an acknowledgement of own messages send out earlier */
 		LOCK_CACHE(my_network)
@@ -215,7 +215,7 @@ void _np_in_received(np_jobargs_t* args)
 		/* acknowledge part, each hop has to acknowledge the message */
 		// TODO: move this ack after a) a message handler has been found or b) the message has been forwarded
 		np_key_t* ack_key = NULL;
-		CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_ACK_TO, ack_to);
+		CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK_TO, ack_to);
 		// char* ack_to = tree_find_str(msg_in->instructions, NP_MSG_INST_ACK_TO)->val.value.s;
 		np_dhkey_t search_key = np_dhkey_create_from_hash(ack_to.value.s);
 
@@ -232,13 +232,13 @@ void _np_in_received(np_jobargs_t* args)
 			np_message_t* ack_msg_out = NULL;
 			np_new_obj(np_message_t, ack_msg_out);
 			np_msgproperty_t* ack_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
-			np_message_create(ack_msg_out, ack_key, state->my_node_key, _NP_MSG_ACK, NULL);
+			_np_message_create(ack_msg_out, ack_key, state->my_node_key, _NP_MSG_ACK, NULL);
 
 			/* add/create network header */
-			tree_insert_str(ack_msg_out->instructions, NP_MSG_INST_ACK, new_val_ush(ack_prop->ack_mode));
-			tree_insert_str(ack_msg_out->instructions, NP_MSG_INST_ACKUUID, new_val_s(msg_uuid.value.s));
-			tree_insert_str(ack_msg_out->instructions, NP_MSG_INST_TSTAMP, new_val_d(ev_time()));
-			tree_insert_str(ack_msg_out->instructions, NP_MSG_INST_TTL, new_val_d(1.0));
+			tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_ACK, new_val_ush(ack_prop->ack_mode));
+			tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_ACKUUID, new_val_s(msg_uuid.value.s));
+			tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_TSTAMP, new_val_d(ev_time()));
+			tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_TTL, new_val_d(1.0));
 
 			log_msg(LOG_DEBUG, "sending back acknowledge for: %s (seq=%s, ack=%hhd)",
 					msg_subject.value.s, msg_uuid.value.s, msg_ack.value.ush);
@@ -314,7 +314,7 @@ void _np_in_received(np_jobargs_t* args)
 
 	_LOCK_MODULE(np_messagesgpart_cache_t)
 	{
-		msg_to_submit = np_message_check_chunks_complete(msg_in);
+		msg_to_submit = _np_message_check_chunks_complete(msg_in);
 	}
 
 	if (NULL == msg_to_submit)   goto __np_cleanup__;
@@ -326,7 +326,7 @@ void _np_in_received(np_jobargs_t* args)
 		log_msg(LOG_DEBUG,
 				"deserializing message for subject: %s (uuid=%s)", msg_subject.value.s, msg_to_submit->uuid);
 		// finally submit msg job for later execution
-		np_message_deserialize_chunked(msg_to_submit);
+		_np_message_deserialize_chunked(msg_to_submit);
 		_np_job_submit_msgin_event(0.0, handler, state->my_node_key, msg_to_submit);
 
 		np_unref_obj(np_message_t, msg_to_submit);
@@ -382,7 +382,7 @@ void _np_in_piggy(np_jobargs_t* args)
 
 				np_message_t* msg_out = NULL;
 				np_new_obj(np_message_t, msg_out);
-				np_message_create(msg_out, node_entry, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
+				_np_message_create(msg_out, node_entry, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
 
 				log_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(node_entry));
 				np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
@@ -410,8 +410,8 @@ void _np_in_signal_np_receive (np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".start._np_signal");
 	np_message_t* msg_in = args->msg;
 
-	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_SUBJECT, msg_subject);
-	CHECK_STR_FIELD(msg_in->header, NP_MSG_INST_ACK, msg_ack_mode);
+	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
+	CHECK_STR_FIELD(msg_in->header, _NP_MSG_INST_ACK, msg_ack_mode);
 
 	np_msgproperty_t* real_prop = np_msgproperty_get(INBOUND, msg_subject.value.s);
 
@@ -459,8 +459,8 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
 	msg_prop->msg_threshold++;
 
-	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_FROM, msg_from);
-	CHECK_STR_FIELD(msg_in->instructions, NP_MSG_INST_ACK, msg_ack_mode);
+	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
+	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
 
 	sender_token = _np_aaatoken_get_sender((char*) subject, msg_from.value.s);
 	if (NULL == sender_token)
@@ -472,7 +472,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	log_msg(LOG_DEBUG, "decrypting message ...");
 	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 
-	np_bool decrypt_ok = np_message_decrypt_payload(msg_in, sender_token);
+	np_bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
 	if (FALSE == decrypt_ok)
 	{
 		tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
@@ -643,7 +643,7 @@ void _np_in_join_req(np_jobargs_t* args)
 				sourceNode->dns_name, sourceNode->port, timeval, sourceNode->failuretime);
 
 		np_new(np_message_t, o_msg_out);
-		np_message_create(o_msg_out, sourceNode->key, state->neuropil->me->key, NP_MSG_JOIN_NACK, NULL );
+		_np_message_create(o_msg_out, sourceNode->key, state->neuropil->me->key, NP_MSG_JOIN_NACK, NULL );
 		msg_prop = np_msgproperty_get(OUTBOUND, NP_MSG_JOIN_NACK);
 		_np_job_submit_msg_event(msg_prop, sourceNode->key, o_msg_out);
 		np_unref(np_message_t, o_msg_out);
@@ -677,7 +677,7 @@ void _np_in_join_req(np_jobargs_t* args)
 		}
 	}
 
-	CHECK_STR_FIELD(args->msg->instructions, NP_MSG_INST_UUID, in_uuid);
+	CHECK_STR_FIELD(args->msg->instructions, _NP_MSG_INST_UUID, in_uuid);
 
 	log_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", args->msg->uuid, in_uuid.value.s);
 	free(args->msg->uuid );
@@ -694,8 +694,8 @@ void _np_in_join_req(np_jobargs_t* args)
 		np_tree_t* jrb_me = make_nptree();
 		np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
 
-		np_message_create(msg_out, routing_key, state->my_node_key, _NP_MSG_JOIN_ACK, jrb_me);
-		tree_insert_str(msg_out->instructions, NP_MSG_INST_ACKUUID, in_uuid);
+		_np_message_create(msg_out, routing_key, state->my_node_key, _NP_MSG_JOIN_ACK, jrb_me);
+		tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACKUUID, in_uuid);
 
 		msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_ACK);
 		state->my_node_key->node->joined_network = TRUE;
@@ -711,8 +711,8 @@ void _np_in_join_req(np_jobargs_t* args)
 				"JOIN request denied by user implementation, rejected key %s",
 				_np_key_as_str(join_req_key) );
 
-		np_message_create(msg_out, routing_key, state->my_node_key, _NP_MSG_JOIN_NACK, NULL );
-		tree_insert_str(msg_out->instructions, NP_MSG_INST_ACKUUID, in_uuid);
+		_np_message_create(msg_out, routing_key, state->my_node_key, _NP_MSG_JOIN_NACK, NULL );
+		tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACKUUID, in_uuid);
 		msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_NACK);
 		send_reply = TRUE;
 	}
@@ -817,7 +817,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 	}
 
 	/* acknowledgement of join message send out earlier */
-	CHECK_STR_FIELD(args->msg->instructions, NP_MSG_INST_ACKUUID, ack_uuid);
+	CHECK_STR_FIELD(args->msg->instructions, _NP_MSG_INST_ACKUUID, ack_uuid);
 
 	np_state_t* state = _np_state();
 	np_network_t* ng = state->my_node_key->network;
@@ -870,7 +870,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 		np_tree_t* jrb_join_node = make_nptree();
 		np_aaatoken_encode(jrb_join_node, join_token);
 
-		np_message_create(msg_out, elem, state->my_node_key, _NP_MSG_UPDATE_REQUEST, jrb_join_node);
+		_np_message_create(msg_out, elem, state->my_node_key, _NP_MSG_UPDATE_REQUEST, jrb_join_node);
 		out_props = np_msgproperty_get(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
 		_np_job_submit_route_event(0.0, out_props, elem, msg_out);
 
@@ -942,8 +942,8 @@ void _np_in_join_nack(np_jobargs_t* args)
 	np_network_t* ng = state->my_node_key->network;
 	np_key_t* nack_key = NULL;
 
-	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_FROM, msg_from);
-	CHECK_STR_FIELD(args->msg->instructions, NP_MSG_INST_ACKUUID, ack_uuid);
+	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
+	CHECK_STR_FIELD(args->msg->instructions, _NP_MSG_INST_ACKUUID, ack_uuid);
 
 	np_dhkey_t search_key = np_dhkey_create_from_hash(msg_from.value.s);
 	_LOCK_MODULE(np_keycache_t)
@@ -989,7 +989,7 @@ void _np_in_ping(np_jobargs_t* args)
 	np_message_t *msg_out = NULL;
 	np_key_t* ping_key = NULL;
 
-	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_FROM, msg_from);
+	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
 	np_dhkey_t search_key = np_dhkey_create_from_hash(msg_from.value.s);
 
@@ -1008,7 +1008,7 @@ void _np_in_ping(np_jobargs_t* args)
 		_np_node_update_stat(ping_key->node, 1);
 
 		np_new_obj(np_message_t, msg_out);
-		np_message_create(msg_out, ping_key, _np_state()->my_node_key, _NP_MSG_PING_REPLY, NULL );
+		_np_message_create(msg_out, ping_key, _np_state()->my_node_key, _NP_MSG_PING_REPLY, NULL );
 		np_msgproperty_t* msg_pingreply_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REPLY);
 		_np_job_submit_msgout_event(0.0, msg_pingreply_prop, ping_key, msg_out);
 		np_free_obj(np_message_t, msg_out);
@@ -1029,7 +1029,7 @@ void _np_in_pingreply(np_jobargs_t * args)
 {
 	np_key_t* pingreply_key = NULL;
 
-	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_FROM, msg_from);
+	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
 	np_dhkey_t search_key = np_dhkey_create_from_hash(msg_from.value.s);
 	_LOCK_MODULE(np_keycache_t)
@@ -1109,7 +1109,7 @@ void _np_in_update(np_jobargs_t* args)
 
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
-		np_message_create(msg_out, update_key, _np_state()->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
+		_np_message_create(msg_out, update_key, _np_state()->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
 
 		log_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(update_key));
 		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
@@ -1134,7 +1134,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".start._np_in_discover_sender");
 	np_key_t *reply_to_key = NULL;
 
-	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_REPLY_TO, msg_reply_to);
+	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
 
 	np_new_obj(np_key_t, reply_to_key);
 	reply_to_key->dhkey = np_dhkey_create_from_hash(msg_reply_to.value.s);
@@ -1165,7 +1165,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 
 		np_message_t *msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
-		np_message_create(msg_out, reply_to_key, NULL, _NP_MSG_AVAILABLE_SENDER, available_data);
+		_np_message_create(msg_out, reply_to_key, NULL, _NP_MSG_AVAILABLE_SENDER, available_data);
 		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AVAILABLE_SENDER);
 		_np_job_submit_route_event(0.0, prop_route, reply_to_key, msg_out);
 		np_free_obj(np_message_t, msg_out);
@@ -1192,7 +1192,7 @@ void _np_in_available_sender(np_jobargs_t* args)
 	// extract e2e encryption details for sender
 	np_aaatoken_t* msg_token = NULL;
 
-	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_TO, msg_to);
+	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_TO, msg_to);
 
 	np_new_obj(np_aaatoken_t, msg_token);
 	np_aaatoken_decode(msg_in->body, msg_token);
@@ -1250,7 +1250,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 	np_aaatoken_t* msg_token = NULL;
 	np_message_t *msg_in = args->msg;
 
-	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_REPLY_TO, msg_reply_to);
+	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
 
 	np_new_obj(np_key_t, reply_to_key);
 	reply_to_key->dhkey = np_dhkey_create_from_hash(msg_reply_to.value.s);
@@ -1282,7 +1282,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 		np_message_t *msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
-		np_message_create(msg_out, reply_to_key, NULL, _NP_MSG_AVAILABLE_RECEIVER, interest_data);
+		_np_message_create(msg_out, reply_to_key, NULL, _NP_MSG_AVAILABLE_RECEIVER, interest_data);
 		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AVAILABLE_RECEIVER);
 
 		log_msg(LOG_DEBUG, "sending back msg interest to %s", _np_key_as_str(reply_to_key));
@@ -1307,7 +1307,7 @@ void _np_in_available_receiver(np_jobargs_t* args)
 	// extract e2e encryption details for sender
 	np_aaatoken_t* msg_token = NULL;
 
-	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_TO, msg_to);
+	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_TO, msg_to);
 	np_dhkey_t to_key = np_dhkey_create_from_hash(msg_to.value.s);
 
 	np_new_obj(np_aaatoken_t, msg_token);
@@ -1364,8 +1364,8 @@ void _np_in_authenticate(np_jobargs_t* args)
 
 	args->properties->msg_threshold++;
 
-	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_REPLY_TO, msg_reply_to);
-	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_FROM, msg_from);
+	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
+	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
 	np_new_obj(np_key_t, reply_to_key);
 	reply_to_key->dhkey = np_dhkey_create_from_hash(msg_reply_to.value.s);
@@ -1377,7 +1377,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	np_bool decrypt_ok = np_message_decrypt_payload(msg_in, sender_token);
+	np_bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
 	if (FALSE == decrypt_ok)
 	{
 		goto __np_cleanup__;
@@ -1409,7 +1409,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 		np_aaatoken_encode(token_data, authentication_token);
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
-		np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AUTHENTICATION_REPLY, token_data);
+		_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AUTHENTICATION_REPLY, token_data);
 		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REPLY);
 
 		log_msg(LOG_DEBUG, "sending back authenticated data to %s", _np_key_as_str(reply_to_key));
@@ -1446,7 +1446,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 
 	// args->properties->msg_threshold++;
 
-	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_FROM, msg_from);
+	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
 	sender_token = _np_aaatoken_get_sender((char*) _NP_MSG_AUTHENTICATION_REPLY, msg_from.value.s);
 	if (NULL == sender_token)
@@ -1456,7 +1456,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 	}
 
 	// TODO: the following should not be required/possible, because it invalidates the token
-	np_bool decrypt_ok = np_message_decrypt_payload(args->msg, sender_token);
+	np_bool decrypt_ok = _np_message_decrypt_payload(args->msg, sender_token);
 	if (FALSE == decrypt_ok)
 	{
 		log_msg(LOG_DEBUG, "decryption of authentication reply failed");
@@ -1547,8 +1547,8 @@ void _np_in_authorize(np_jobargs_t* args)
 
 	args->properties->msg_threshold++;
 
-	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_REPLY_TO, msg_reply_to);
-	CHECK_STR_FIELD(msg_in->header, NP_MSG_HEADER_FROM, msg_from);
+	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
+	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
 	np_new_obj(np_key_t, reply_to_key);
 	reply_to_key->dhkey = np_dhkey_create_from_hash(msg_reply_to.value.s);
@@ -1560,7 +1560,7 @@ void _np_in_authorize(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	np_bool decrypt_ok = np_message_decrypt_payload(msg_in, sender_token);
+	np_bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
 	if (FALSE == decrypt_ok)
 	{
 		goto __np_cleanup__;
@@ -1592,7 +1592,7 @@ void _np_in_authorize(np_jobargs_t* args)
 
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
-		np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AUTHORIZATION_REPLY, token_data);
+		_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AUTHORIZATION_REPLY, token_data);
 		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REPLY);
 
 		log_msg(LOG_DEBUG, "sending back authorized data to %s", _np_key_as_str(reply_to_key));
@@ -1627,7 +1627,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 
 	// args->properties->msg_threshold++;
 
-	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_FROM, msg_from);
+	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
 	sender_token = _np_aaatoken_get_sender((char*) _NP_MSG_AUTHORIZATION_REPLY, msg_from.value.s);
 	if (NULL == sender_token)
@@ -1635,7 +1635,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	np_bool decrypt_ok = np_message_decrypt_payload(args->msg, sender_token);
+	np_bool decrypt_ok = _np_message_decrypt_payload(args->msg, sender_token);
 	if (FALSE == decrypt_ok)
 	{
 		goto __np_cleanup__;
@@ -1721,7 +1721,7 @@ void _np_in_account(np_jobargs_t* args)
 
 	args->properties->msg_threshold++;
 
-	CHECK_STR_FIELD(args->msg->header, NP_MSG_HEADER_FROM, msg_from);
+	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
 	sender_token = _np_aaatoken_get_sender((char*) _NP_MSG_ACCOUNTING_REQUEST, msg_from.value.s);
 	if (NULL == sender_token)
@@ -1730,7 +1730,7 @@ void _np_in_account(np_jobargs_t* args)
 	}
 
 	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
-	np_bool decrypt_ok = np_message_decrypt_payload(args->msg, sender_token);
+	np_bool decrypt_ok = _np_message_decrypt_payload(args->msg, sender_token);
 	if (FALSE == decrypt_ok)
 	{
 		goto __np_cleanup__;
@@ -1759,7 +1759,7 @@ void _np_in_handshake(np_jobargs_t* args)
 	np_aaatoken_t* tmp_token = NULL;
 	np_tree_t* hs_payload = make_nptree();
 
-	np_message_deserialize_chunked(args->msg);
+	_np_message_deserialize_chunked(args->msg);
 
 	// initial handshake message contains public encryption parameter
 	CHECK_STR_FIELD(args->msg->footer, NP_MSG_FOOTER_ALIAS_KEY, alias_dhkey);

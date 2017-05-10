@@ -34,6 +34,12 @@ _NP_ENABLE_MODULE_LOCK(np_messagesgpart_cache_t);
 NP_API_INTERN
 int8_t _np_messagepart_cmp (const np_messagepart_ptr value1, const np_messagepart_ptr value2);
 
+// encrypt / decrypt parts of a message
+NP_API_INTERN
+np_bool _np_messagepart_decrypt(np_tree_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
+NP_API_INTERN
+np_bool _np_messagepart_encrypt(np_tree_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
+
 #ifdef __cplusplus
 }
 #endif

@@ -112,7 +112,7 @@ void _np_message_t_del(void* data)
 	free(msg->uuid);
 }
 
-void np_message_calculate_chunking(np_message_t* msg)
+void _np_message_calculate_chunking(np_message_t* msg)
 {
 	// tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 
@@ -147,14 +147,14 @@ void np_message_calculate_chunking(np_message_t* msg)
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "Size of msg (%s) %"PRIu16" bytes. Size of garbage %"PRIu16" Size of fixed_size %"PRIu16" bytes. Chunking into %"PRIu16" parts", msg->uuid, payload_size, real_garbage_size, fixed_size, msg->no_of_chunks);
 }
 
-np_message_t* np_message_check_chunks_complete(np_message_t* msg_to_check)
+np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 {
 	np_state_t* state = _np_state();
 
-	char* subject = tree_find_str(msg_to_check->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
-	char* msg_uuid = tree_find_str(msg_to_check->instructions, NP_MSG_INST_UUID)->val.value.s;
+	char* subject = tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
+	char* msg_uuid = tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val.value.s;
 
-	uint16_t msg_chunks = tree_find_str(msg_to_check->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[0];
+	uint16_t msg_chunks = tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
 
 	if (1 < msg_chunks)
 	{
@@ -203,7 +203,7 @@ np_message_t* np_message_check_chunks_complete(np_message_t* msg_to_check)
 	}
 }
 
-np_bool np_message_serialize(np_jobargs_t* args)
+np_bool _np_message_serialize(np_jobargs_t* args)
 {
 	cmp_ctx_t cmp;
 	np_messagepart_ptr part = pll_first(args->msg->msg_chunks)->val;
@@ -227,7 +227,7 @@ np_bool np_message_serialize(np_jobargs_t* args)
 	return (TRUE);
 }
 
-np_bool np_message_serialize_chunked(np_jobargs_t* args)
+np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 {
 	np_bool ret_val = FALSE;
 	np_message_t* msg = args->msg;
@@ -275,13 +275,13 @@ np_bool np_message_serialize_chunked(np_jobargs_t* args)
 	uint16_t max_chunk_size = (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40);
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "-----------------------------------------------------" );
 
-	tree_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[0] = msg->no_of_chunks;
+	tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0] = msg->no_of_chunks;
 
 	uint16_t current_chunk_size = 0;
 
     while (i < msg->no_of_chunks)
     {
-		tree_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i+1;
+		tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i+1;
 
 		np_messagepart_ptr part = (np_messagepart_ptr) malloc(sizeof(np_messagepart_t));
 		CHECK_MALLOC(part);
@@ -541,7 +541,7 @@ np_bool np_message_serialize_chunked(np_jobargs_t* args)
 	return (ret_val);
 }
 
-np_bool np_message_deserialize(np_message_t* msg, void* buffer)
+np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 {
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, buffer_reader, buffer_writer);
@@ -568,13 +568,13 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer)
 	deserialize_jrb_node_t(msg->instructions, &cmp );
 	// TODO: check if the complete buffer was read (byte count match)
 
-	if (NULL != tree_find_str(msg->instructions, NP_MSG_INST_PARTS)) {
-		msg->no_of_chunks = tree_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[0];
+	if (NULL != tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
+		msg->no_of_chunks = tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
 	}
 
 	uint16_t chunk_id = 0;
-	if (NULL != tree_find_str(msg->instructions, NP_MSG_INST_PARTS)) {
-		chunk_id = tree_find_str(msg->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
+	if (NULL != tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
+		chunk_id = tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1];
 	}
 	msg->is_single_part = TRUE;
 
@@ -598,7 +598,7 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer)
 	return (TRUE);
 }
 
-np_bool np_message_deserialize_chunked(np_message_t* msg)
+np_bool _np_message_deserialize_chunked(np_message_t* msg)
 {
 	void* bin_properties = NULL;
 	void* bin_properties_ptr = NULL;
@@ -771,35 +771,35 @@ np_bool np_message_deserialize_chunked(np_message_t* msg)
  ** creates the message to the destination #dest# the message format would be like:
  **  [ type ] [ size ] [ key ] [ data ]. It return the created message structure.
  */
-void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data)
+void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data)
 {
 	// np_message_t* new_msg;
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
-	tree_insert_str(msg->header, NP_MSG_HEADER_SUBJECT,  new_val_s((char*) subject));
-	tree_insert_str(msg->header, NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(to)));
-	if (from != NULL) tree_insert_str(msg->header, NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(from)));
-	if (from != NULL) tree_insert_str(msg->header, NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _np_key_as_str(from)));
+	tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT,  new_val_s((char*) subject));
+	tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(to)));
+	if (from != NULL) tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(from)));
+	if (from != NULL) tree_insert_str(msg->header, _NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _np_key_as_str(from)));
 
 	if (the_data != NULL)
 	{
-		np_message_setbody(msg, the_data);
+		_np_message_setbody(msg, the_data);
 	}
 }
 
-inline void np_message_setproperties(np_message_t* msg, np_tree_t* properties)
+inline void _np_message_setproperties(np_message_t* msg, np_tree_t* properties)
 {
 	np_free_tree(msg->properties);
 	msg->properties = properties;
 };
 
-inline void np_message_setinstruction(np_message_t* msg, np_tree_t* instructions)
+inline void _np_message_setinstructions(np_message_t* msg, np_tree_t* instructions)
 {
 	np_free_tree(msg->instructions);
 	msg->instructions = instructions;
 };
 
-inline void np_message_setbody(np_message_t* msg, np_tree_t* body)
+inline void _np_message_setbody(np_message_t* msg, np_tree_t* body)
 {
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
 	np_free_tree(msg->body);
@@ -807,20 +807,20 @@ inline void np_message_setbody(np_message_t* msg, np_tree_t* body)
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
 };
 
-inline void np_message_setto(np_message_t* msg, np_key_t* target)
+inline void _np_message_set_to(np_message_t* msg, np_key_t* target)
 {
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
-	tree_replace_str(msg->header, NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(target)));
+	tree_replace_str(msg->header, _NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(target)));
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
 };
 
-inline void np_message_setfooter(np_message_t* msg, np_tree_t* footer)
+inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
 {
 	np_free_tree(msg->footer);
 	msg->footer = footer;
 };
 
-//		if (-1 == np_message_decrypt_part(newmsg->instructions,
+//		if (-1 == _np_messagepart_decrypt(newmsg->instructions,
 //										  enc_nonce->val.value.bin,
 //										  session_token->session_key, NULL))
 //		{
@@ -831,118 +831,7 @@ inline void np_message_setfooter(np_message_t* msg, np_tree_t* footer)
 //			return;
 //		}
 
-np_bool np_message_decrypt_part(np_tree_t* msg_part,
-							unsigned char* enc_nonce,
-							unsigned char* public_key,
-							NP_UNUSED unsigned char* secret_key)
-{
-	log_msg(LOG_TRACE, ".start.np_message_decrypt_part");
-	np_tree_elem_t* enc_msg_part = tree_find_str(msg_part, NP_ENCRYPTED);
-	if (NULL == enc_msg_part)
-	{
-		log_msg(LOG_ERROR, "couldn't find encrypted msg part");
-		log_msg(LOG_TRACE, ".end  .np_message_decrypt_part");
-		return (FALSE);
-	}
-	unsigned char dec_part[enc_msg_part->val.size - crypto_box_MACBYTES];
-
-	int16_t ret = crypto_secretbox_open_easy(
-			dec_part,
-			enc_msg_part->val.value.bin,
-			enc_msg_part->val.size,
-			enc_nonce,
-			public_key);
-//	int16_t ret = crypto_box_open_easy(
-//			dec_part,
-//			enc_msg_part->val.value.bin,
-//			enc_msg_part->val.size,
-//			enc_nonce,
-//			public_key,
-//			secret_key);
-//	int16_t ret = crypto_box_open_easy_afternm(
-//			dec_part,
-//			enc_msg_part->val.value.bin,
-//			enc_msg_part->val.size,
-//			enc_nonce,
-//			public_key);
-	if (ret < 0)
-	{
-		log_msg(LOG_ERROR, "couldn't decrypt msg part with session key %s", public_key);
-		log_msg(LOG_TRACE, ".end  .np_message_decrypt_part");
-		return (FALSE);
-	}
-
-	cmp_ctx_t cmp;
-	cmp_init(&cmp, dec_part, buffer_reader, buffer_writer);
-	deserialize_jrb_node_t(msg_part, &cmp);
-	// TODO: check if the complete buffer was read (byte count match)
-
-	tree_del_str(msg_part, NP_ENCRYPTED);
-
-	log_msg(LOG_TRACE, ".end  .np_message_decrypt_part");
-	return (TRUE);
-}
-
-//		if (-1 == np_message_encrypt_part(args->msg->header,
-//										  nonce,
-//										  target_token->session_key,
-//										  NULL))
-//		{
-//			log_msg(LOG_WARN,
-//				"incorrect encryption of message header (not sending to %s:%hd)",
-//				target_node->dns_name, target_node->port);
-//			return;
-//		}
-//
-np_bool np_message_encrypt_part(np_tree_t* msg_part,
-							unsigned char* nonce,
-							unsigned char* public_key,
-							NP_UNUSED unsigned char* secret_key)
-{
-	log_msg(LOG_TRACE, ".start.np_message_encrypt_part");
-	cmp_ctx_t cmp;
-
-    unsigned char msg_part_buffer[65536];
-    void* msg_part_buf_ptr = msg_part_buffer;
-
-    cmp_init(&cmp, msg_part_buf_ptr, buffer_reader, buffer_writer);
-    serialize_jrb_node_t(msg_part, &cmp);
-
-    uint64_t msg_part_len = cmp.buf-msg_part_buf_ptr;
-
-	uint64_t enc_msg_part_len = msg_part_len + crypto_box_MACBYTES;
-
-	unsigned char enc_msg_part[enc_msg_part_len];
-	int16_t ret = crypto_secretbox_easy(enc_msg_part,
-										msg_part_buf_ptr,
-										msg_part_len,
-										nonce,
-										public_key);
-//	int16_t ret = crypto_box_easy(enc_msg_part,
-//							  msg_part_buf_ptr,
-//							  msg_part_len,
-//							  nonce,
-//							  public_key,
-//							  secret_key);
-//	int16_t ret = crypto_box_easy_afternm(enc_msg_part,
-//								msg_part_buf_ptr,
-//								msg_part_len,
-//								nonce,
-//								public_key);
-	if (ret < 0)
-	{
-		log_msg(LOG_TRACE, ".end  .np_message_encrypt_part");
-		return (FALSE);
-	}
-
-	_tree_replace_all_with_str(msg_part, NP_ENCRYPTED,
-			new_val_bin(enc_msg_part, enc_msg_part_len));
-
-	log_msg(LOG_TRACE, ".end  .np_message_encrypt_part");
-	return (TRUE);
-}
-
-void np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
+void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
 	log_msg(LOG_TRACE, ".start.np_message_encrypt_payload");
 	np_state_t* state = _np_state();
@@ -954,8 +843,8 @@ void np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	randombytes_buf((void*) nonce, crypto_box_NONCEBYTES);
 	randombytes_buf((void*) sym_key, crypto_secretbox_KEYBYTES);
 
-	np_message_encrypt_part(msg->properties, nonce, sym_key, NULL);
-	np_message_encrypt_part(msg->body, nonce, sym_key, NULL);
+	_np_messagepart_encrypt(msg->properties, nonce, sym_key, NULL);
+	_np_messagepart_encrypt(msg->body, nonce, sym_key, NULL);
 
 	// now encrypt the encryption key using public key crypto stuff
 	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
@@ -1000,7 +889,7 @@ void np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	log_msg(LOG_TRACE, ".end  .np_message_encrypt_payload");
 }
 
-np_bool np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
+np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
 	log_msg(LOG_TRACE, ".start.np_message_decrypt_payload");
 	np_state_t* state = _np_state();
@@ -1053,8 +942,8 @@ np_bool np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	}
 // 	log_msg(LOG_MESSAGE | LOG_DEBUG, "sym_key:    %s", sym_key);
 
-	np_message_decrypt_part(msg->properties, nonce, sym_key, NULL);
-	np_message_decrypt_part(msg->body, nonce, sym_key, NULL);
+	_np_messagepart_decrypt(msg->properties, nonce, sym_key, NULL);
+	_np_messagepart_decrypt(msg->body, nonce, sym_key, NULL);
 
 	log_msg(LOG_TRACE, ".end  .np_message_decrypt_payload");
 	return (TRUE);

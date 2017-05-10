@@ -48,7 +48,7 @@ np_bool receive_ping(np_message_t* msg, np_tree_t* properties, np_tree_t* body)
 {
 
 	char* text = tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
-	uint32_t seq = tree_find_str(properties, NP_MSG_INST_SEQ)->val.value.ul;
+	uint32_t seq = tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 
 	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
@@ -62,7 +62,7 @@ np_bool receive_pong(np_message_t* msg, np_tree_t* properties, np_tree_t* body)
 {
 
 	char* text = tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
-	uint32_t seq = tree_find_str(properties, NP_MSG_INST_SEQ)->val.value.ul;
+	uint32_t seq = tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 
 	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
@@ -193,7 +193,6 @@ int main(int argc, char **argv)
 	pong_props->ttl = 20.0;
 	np_msgproperty_register(pong_props);
 	np_set_listener(receive_pong, "pong");
-
 
 	/**
 	register the listener function to receive data from the sender

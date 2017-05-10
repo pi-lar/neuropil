@@ -65,15 +65,15 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
 
     np_message_t* write_msg = NULL;
     np_new_obj(np_message_t, write_msg);
-    np_message_create(write_msg, write_to, write_from, "serialize_np_message_t", write_tree);
-	tree_insert_str(write_msg->instructions, NP_MSG_INST_PARTS, new_val_iarray(0, 0));
+    _np_message_create(write_msg, write_to, write_from, "serialize_np_message_t", write_tree);
+	tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, new_val_iarray(0, 0));
 
     np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL);
     cr_assert(NULL != write_args,"Expected to receive jobargs");
 
     // Do the serialsation
-	np_message_calculate_chunking(write_msg);
-    np_bool write_ret = np_message_serialize_chunked(write_args);
+	_np_message_calculate_chunking(write_msg);
+    np_bool write_ret = _np_message_serialize_chunked(write_args);
     cr_assert(TRUE == write_ret, "Expected positive result in serialisation");
 
     cr_expect(pll_size(write_msg->msg_chunks) == 1, "Expected 1 chunk for message");
@@ -83,7 +83,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
     np_new_obj(np_message_t,read_msg);
     read_msg->msg_chunks = write_msg->msg_chunks;
 
-    np_bool read_ret = np_message_deserialize_chunked(read_msg);
+    np_bool read_ret = _np_message_deserialize_chunked(read_msg);
     cr_assert(TRUE == read_ret, "Expected positive result in deserialisation");
 
 	// Compare deserialized content with expected
@@ -125,28 +125,28 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 	my_key->dhkey = my_dhkey;
 
 	uint16_t parts = 0;
-	tree_insert_str(msg_out->header, NP_MSG_HEADER_SUBJECT,  new_val_s((char*) msg_subject));
-	tree_insert_str(msg_out->header, NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(my_key)) );
-	tree_insert_str(msg_out->header, NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(my_key)) );
-	tree_insert_str(msg_out->header, NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _np_key_as_str(my_key)) );
+	tree_insert_str(msg_out->header, _NP_MSG_HEADER_SUBJECT,  new_val_s((char*) msg_subject));
+	tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(my_key)) );
+	tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(my_key)) );
+	tree_insert_str(msg_out->header, _NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _np_key_as_str(my_key)) );
 
-	tree_insert_str(msg_out->instructions, NP_MSG_INST_ACK, new_val_ush(0));
-	tree_insert_str(msg_out->instructions, NP_MSG_INST_ACK_TO, new_val_s((char*) _np_key_as_str(my_key)) );
-	tree_insert_str(msg_out->instructions, NP_MSG_INST_SEQ, new_val_ul(0));
+	tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, new_val_ush(0));
+	tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, new_val_s((char*) _np_key_as_str(my_key)) );
+	tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, new_val_ul(0));
 
 	char* new_uuid = np_create_uuid(msg_subject, 1);
-	tree_insert_str(msg_out->instructions, NP_MSG_INST_UUID, new_val_s(new_uuid));
+	tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, new_val_s(new_uuid));
 	free(new_uuid);
 
 	double now = ev_time();
-	tree_insert_str(msg_out->instructions, NP_MSG_INST_TSTAMP, new_val_d(now));
+	tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, new_val_d(now));
 	now += 20;
-	tree_insert_str(msg_out->instructions, NP_MSG_INST_TTL, new_val_d(now));
+	tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, new_val_d(now));
 
-	tree_insert_str(msg_out->instructions, NP_MSG_INST_SEND_COUNTER, new_val_ush(0));
+	tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, new_val_ush(0));
 
 	// TODO: message part split-up informations
-	tree_insert_str(msg_out->instructions, NP_MSG_INST_PARTS, new_val_iarray(parts, parts));
+	tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, new_val_iarray(parts, parts));
 
 	char prop_payload[30]; //  = (char*) malloc(25 * sizeof(char));
 	memset (prop_payload, 'a', 29);
@@ -169,12 +169,12 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 	np_tree_elem_t* properties_node = tree_find_int(msg_out->properties, 1);
 	np_tree_elem_t* body_node = tree_find_int(msg_out->body, 20);
 
-	np_message_calculate_chunking(msg_out);
+	_np_message_calculate_chunking(msg_out);
 
 	np_jobargs_t args = { .msg=msg_out };
-	np_message_serialize_chunked(&args);
+	_np_message_serialize_chunked(&args);
 
-	np_message_deserialize_chunked(msg_out);
+	_np_message_deserialize_chunked(msg_out);
 
 	np_tree_elem_t* properties_node_2 = tree_find_int(msg_out->properties, 1);
 	np_tree_elem_t* body_node_2 = tree_find_int(msg_out->body, 20);

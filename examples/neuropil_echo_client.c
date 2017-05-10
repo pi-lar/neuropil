@@ -39,7 +39,7 @@ np_bool receive_message(np_message_t* msg, np_tree_t* properties, np_tree_t* bod
 	fprintf(stdout, "body: %s\n", np_json_to_char( np_tree_to_json(body), FALSE) );
 
 	char* reply_to = NULL; // All
-	np_tree_elem_t* repl_to = tree_find_str(header, NP_MSG_HEADER_FROM);
+	np_tree_elem_t* repl_to = tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
 		reply_to = repl_to->val.value.s;
 	}
