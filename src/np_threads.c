@@ -24,7 +24,7 @@ np_bool _np_threads_init()
 {
 	np_bool ret = TRUE;
 	for(int i = 0; i < PREDEFINED_DUMMY_START; i++){
-		ret = create_mutex(i);
+		ret = _np_threads_create_mutex(i);
 		if(FALSE == ret) {
 			log_msg(LOG_ERROR,"Cannot initialize mutex %d.", i);
 			break;
@@ -33,19 +33,19 @@ np_bool _np_threads_init()
 	return ret;
 }
 
-pthread_mutex_t* get_mutex(int mutex_id)
+pthread_mutex_t* _np_threads_get_mutex(int mutex_id)
 {
 	mutex_t* mutex = mutexes[mutex_id];
 	if(NULL == mutex ){
 		log_msg(LOG_MUTEX | LOG_WARN, "Mutex %d was not initialised. Do so now.", mutex_id);
-		create_mutex(mutex_id);
+		_np_threads_create_mutex(mutex_id);
 	}else{
 		log_msg(LOG_MUTEX | LOG_DEBUG,"Got mutex %d.", mutex_id);
 	}
 	return &(mutexes[mutex_id]->lock);
 }
 
-np_bool create_mutex(int mutex_id){
+np_bool _np_threads_create_mutex(int mutex_id){
 
 	mutex_t* new_mutex = (mutex_t*) malloc(sizeof(mutex_t));
 	if(new_mutex != NULL){

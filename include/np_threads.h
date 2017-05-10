@@ -27,13 +27,13 @@ extern "C" {
 #define _NP_MODULE_LOCK_IMPL(TYPE) 									\
 	int  _##TYPE##_lock()   {										\
 /*		log_msg(LOG_DEBUG,"wait lock for "#TYPE);   			*/	\
-		int ret =  pthread_mutex_lock(get_mutex(mutex_##TYPE));	   	\
+		int ret =  pthread_mutex_lock(_np_threads_get_mutex(mutex_##TYPE));	   	\
 /*		log_msg(LOG_DEBUG,"res %d lock for "#TYPE,ret);			*/	\
 		return ret;	    											\
 	} 																\
 	int _##TYPE##_unlock() {               		            	\
 /*		log_msg(LOG_DEBUG,"unlock for "#TYPE);   				*/	\
-		int ret = pthread_mutex_unlock(get_mutex(mutex_##TYPE));   	\
+		int ret = pthread_mutex_unlock(_np_threads_get_mutex(mutex_##TYPE));   	\
 /*		log_msg(LOG_DEBUG,"res %d unlock for "#TYPE,ret);   	*/	\
 		return ret;	    											\
 	}
@@ -64,6 +64,7 @@ return_type func_name(arg_1 a_1, arg_2 a_2) {		\
 }													\
 return_type wrapped_##func_name(arg_1, arg_2);
 
+NP_API_INTERN
 typedef enum lock_e {
 	mutex_np_memory_t = 0,
 	mutex_np_keycache_t,
@@ -127,9 +128,9 @@ typedef enum lock_e {
 NP_API_INTERN
 np_bool _np_threads_init();
 NP_API_INTERN
-pthread_mutex_t* get_mutex(int mutex_id);
+pthread_mutex_t* _np_threads_get_mutex(int mutex_id);
 NP_API_INTERN
-np_bool create_mutex(int mutex_id);
+np_bool _np_threads_create_mutex(int mutex_id);
 
 #ifdef __cplusplus
 }

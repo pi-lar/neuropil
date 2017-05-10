@@ -18,7 +18,6 @@ extern "C" {
 
 #define SIMPLE_CACHE_NR_BUCKETS 32
 
-
 struct np_cache_item_t {
     char *key;
     void *value;
