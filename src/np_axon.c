@@ -95,7 +95,7 @@ void _np_send(np_jobargs_t* args)
 	np_msgproperty_t* prop = args->properties;
 	np_network_t* network = _np_state()->my_node_key->network;
 
-	if (!np_node_check_address_validity(args->target->node))
+	if (!_np_node_check_address_validity(args->target->node))
 	{
 		log_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
 							_np_key_as_str(args->target));
@@ -291,7 +291,7 @@ void _np_send_handshake(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start._np_out_handshake");
 
-	if (!np_node_check_address_validity(args->target->node)) return;
+	if (!_np_node_check_address_validity(args->target->node)) return;
 
 	// get our node identity from the cache
 	np_aaatoken_t* my_id_token = _np_state()->my_node_key->aaa_token;

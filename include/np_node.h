@@ -58,19 +58,19 @@ struct np_node_s
 // generate new and del method for np_node_t
 _NP_GENERATE_MEMORY_PROTOTYPES(np_node_t);
 
-/** np_node_update
+/** _np_node_update
  ** updates node hostname and port for a given node, without changing the hash
  **/
 NP_API_INTERN
-void np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port);
+void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port);
 
-/** np_node_update_stat
+/** _np_node_update_stat
  ** updates the success rate to the np_node based on the SUCCESS_WINDOW average
  **/
 NP_API_INTERN
-void np_node_update_stat (np_node_t* np_node, uint8_t success);
+void _np_node_update_stat (np_node_t* np_node, uint8_t success);
 NP_API_INTERN
-void np_node_update_latency (np_node_t* node, double new_latency);
+void _np_node_update_latency (np_node_t* node, double new_latency);
 
 /** np_node_decode routines
  ** decodes a string into a neuropil np_node structure, including lookup to the global key tree
@@ -105,19 +105,19 @@ np_key_t* _np_create_node_from_token(np_aaatoken_t* token);
 
 /** various getter method, mostly unused **/
 NP_API_INTERN
-char* np_node_get_dns_name (np_node_t* np_node);
+char* _np_node_get_dns_name (np_node_t* np_node);
 
 NP_API_INTERN
-char* np_node_get_port (np_node_t* np_node);
+char* _np_node_get_port (np_node_t* np_node);
 
 NP_API_INTERN
-float np_node_get_success_avg (np_node_t* np_node);
+float _np_node_get_success_avg (np_node_t* np_node);
 
 NP_API_INTERN
-float np_node_get_latency (np_node_t* np_node);
+float _np_node_get_latency (np_node_t* np_node);
 
 NP_API_INTERN
-uint8_t np_node_check_address_validity (np_node_t* np_node);
+uint8_t _np_node_check_address_validity (np_node_t* np_node);
 
 #ifdef __cplusplus
 }

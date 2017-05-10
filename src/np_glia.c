@@ -517,8 +517,8 @@ void _np_cleanup_ack(NP_UNUSED np_jobargs_t* args)
 			// update latency and statistics for a node
 			double latency = ackentry->acktime - ackentry->transmittime;
 
-			np_node_update_latency(ackentry->dest_key->node, latency);
-			np_node_update_stat(ackentry->dest_key->node, 1);
+			_np_node_update_latency(ackentry->dest_key->node, latency);
+			_np_node_update_stat(ackentry->dest_key->node, 1);
 
 			RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
 			np_unref_obj(np_key_t, ackentry->dest_key);
@@ -529,7 +529,7 @@ void _np_cleanup_ack(NP_UNUSED np_jobargs_t* args)
 		}
 		else if (ev_time() > ackentry->expiration)
 		{
-			np_node_update_stat(ackentry->dest_key->node, 0);
+			_np_node_update_stat(ackentry->dest_key->node, 0);
 
 			RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
 			np_unref_obj(np_key_t, ackentry->dest_key);

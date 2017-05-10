@@ -227,7 +227,7 @@ void _np_in_received(np_jobargs_t* args)
 		if (NULL != ack_key                       &&
 			NULL != ack_key->node                 &&
 			TRUE == ack_key->node->joined_network &&
-			np_node_check_address_validity(ack_key->node))
+			_np_node_check_address_validity(ack_key->node))
 		{
 			np_message_t* ack_msg_out = NULL;
 			np_new_obj(np_message_t, ack_msg_out);
@@ -1005,7 +1005,7 @@ void _np_in_ping(np_jobargs_t* args)
 	{
 		log_msg(LOG_DEBUG, "received a PING message from %s:%s !", ping_key->node->dns_name, ping_key->node->port);
 
-		np_node_update_stat(ping_key->node, 1);
+		_np_node_update_stat(ping_key->node, 1);
 
 		np_new_obj(np_message_t, msg_out);
 		np_message_create(msg_out, ping_key, _np_state()->my_node_key, _NP_MSG_PING_REPLY, NULL );
@@ -1046,11 +1046,11 @@ void _np_in_pingreply(np_jobargs_t * args)
 		if (now > pingreply_key->node->failuretime)
 		{
 			double latency = now - pingreply_key->node->failuretime;
-			np_node_update_latency(pingreply_key->node, latency);
+			_np_node_update_latency(pingreply_key->node, latency);
 			// reset for next ping attempt
 			pingreply_key->node->failuretime = 0;
 		}
-		np_node_update_stat(pingreply_key->node, 1);
+		_np_node_update_stat(pingreply_key->node, 1);
 
 		log_msg(LOG_DEBUG, "ping reply received from: %s:%s, latency now: %f!",
 				pingreply_key->node->dns_name, pingreply_key->node->port,

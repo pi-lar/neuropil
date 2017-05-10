@@ -161,7 +161,7 @@ np_key_t* _np_node_decode_from_str (const char *key)
 		NULL == node_key->node->dns_name)
 	{	// overwrite hostname only if it is not set yet
 		uint8_t proto = _np_network_parse_protocol_string(s_hostproto);
-		np_node_update(node_key->node, proto, s_hostname, s_hostport);
+		_np_node_update(node_key->node, proto, s_hostname, s_hostport);
 	}
 
 	free (key_dup);
@@ -183,7 +183,7 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 		NULL == new_node->dns_name)
 	{
 		// uint8_t proto = _np_network_parse_protocol_string(s_host_proto);
-		np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
+		_np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
 		log_msg(LOG_DEBUG, "decoded node from jrb %d:%s:%s",
 				i_host_proto, s_host_name, s_host_port);
 	}
@@ -305,7 +305,7 @@ np_aaatoken_t* _np_create_node_token(np_node_t* node)
 	return (node_token);
 }
 
-void np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
+void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 {
 	node->protocol = proto;
 
@@ -317,10 +317,10 @@ void np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 }
 
 
-/** np_node_update_stat:
+/** _np_node_update_stat:
  ** updates the success rate to the host based on the SUCCESS_WINDOW average
  **/
-void np_node_update_stat (np_node_t* node, uint8_t success)
+void _np_node_update_stat (np_node_t* node, uint8_t success)
 {
     float total = 0;
     node->success_win[node->success_win_index++ % SUCCESS_WINDOW] = success;
@@ -338,7 +338,7 @@ void np_node_update_stat (np_node_t* node, uint8_t success)
 			node->dns_name, node->port, node->success_avg);
 }
 
-void np_node_update_latency (np_node_t* node, double new_latency)
+void _np_node_update_latency (np_node_t* node, double new_latency)
 {
 	if (new_latency > 0.0)
 	{
@@ -364,31 +364,31 @@ void np_node_update_latency (np_node_t* node, double new_latency)
 	}
 }
 
-char* np_node_get_dns_name (np_node_t* np_node)
+char* _np_node_get_dns_name (np_node_t* np_node)
 {
 	assert(np_node != NULL);
 	return (np_node->dns_name);
 }
 
-char* np_node_get_port (np_node_t* np_node)
+char* _np_node_get_port (np_node_t* np_node)
 {
 	assert(np_node != NULL);
 	return (np_node->port);
 }
 
-float np_node_get_success_avg (np_node_t* np_node)
+float _np_node_get_success_avg (np_node_t* np_node)
 {
 	assert(np_node != NULL);
 	return (np_node->success_avg);
 }
 
-float np_node_get_latency (np_node_t* np_node)
+float _np_node_get_latency (np_node_t* np_node)
 {
 	assert(np_node != NULL);
 	return (np_node->latency);
 }
 
-uint8_t np_node_check_address_validity (np_node_t* np_node)
+uint8_t _np_node_check_address_validity (np_node_t* np_node)
 {
 	assert(np_node != NULL);
 	// assert(np_node->network != NULL);

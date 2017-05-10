@@ -417,12 +417,12 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 				// do not update the success, because UDP sending could result in false positives
 				// if (0 > ret)
 				// {
-				//     // np_node_update_stat(key->node, 0);
+				//     // _np_node_update_stat(key->node, 0);
 				//     // log_msg(LOG_DEBUG, "node update reduce %d", ret);
 				// }
 				// else
 				// {
-				//     np_node_update_stat(key->node, 1);
+				//     _np_node_update_stat(key->node, 1);
 				//     log_msg(LOG_DEBUG, "node update increase %d", ret);
 				// }
 			}
@@ -559,7 +559,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 		// TODO handle cleanup of node structures ?
 		// maybe / probably the node received already a disjoin message before
 		ev_io_stop(EV_A_ &ng->watcher);
-		np_node_update_stat(key->node, 0);
+		_np_node_update_stat(key->node, 0);
 		close(ng->socket);
 	}
 
@@ -607,7 +607,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 
 	_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL);
 
-	// np_node_update_stat(key->node, 1);
+	// _np_node_update_stat(key->node, 1);
 
 	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 }

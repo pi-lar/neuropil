@@ -856,7 +856,7 @@ void _np_ping (np_key_t* key)
 	if (NULL != key->node)
 	{
 		key->node->failuretime = ev_time();
-		np_node_update_stat(key->node, 0);
+		_np_node_update_stat(key->node, 0);
 	}
 
     np_message_t* out_msg = NULL;
@@ -974,7 +974,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 	    exit(EXIT_FAILURE);
 	}
     log_msg(LOG_DEBUG, "update my node data");
-	np_node_update(my_node, np_proto, hostname, np_service);
+	_np_node_update(my_node, np_proto, hostname, np_service);
 	log_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
 			           _np_network_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);
     // create a new token for encryption each time neuropil starts
