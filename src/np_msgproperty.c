@@ -34,43 +34,6 @@
 #include "np_threads.h"
 #include "np_util.h"
 #include "np_val.h"
-
-// default message type enumeration
-enum {
-	NEUROPIL_PING_REQUEST = 1,
-	NEUROPIL_PING_REPLY,
-
-	NEUROPIL_JOIN,
-	NEUROPIL_JOIN_ACK,
-	NEUROPIL_JOIN_NACK,
-
-	NEUROPIL_LEAVE,
-
-	NEUROPIL_UPDATE,
-	NEUROPIL_PIGGY,
-
-	NEUROPIL_MSG_DISCOVER_RECEIVER,
-	NEUROPIL_MSG_DISCOVER_SENDER,
-	NEUROPIL_MSG_AVAILABLE_RECEIVER,
-	NEUROPIL_MSG_AVAILABLE_SENDER,
-
-	NEUROPIL_MSG_AUTHENTICATE_REQUEST,
-	NEUROPIL_MSG_AUTHENTICATE_REPLY,
-
-	NEUROPIL_MSG_AUTHORIZE_REQUEST,
-	NEUROPIL_MSG_AUTHORIZE_REPLY,
-
-	NEUROPIL_MSG_ACCOUNTING_REQUEST,
-
-	NEUROPIL_REST_OPERATIONS, // TODO: implement me
-	NEUROPIL_POST,   /*create*/
-	NEUROPIL_GET,    /*read*/
-	NEUROPIL_PUT,    /*update*/
-	NEUROPIL_DELETE, /*delete*/
-	NEUROPIL_QUERY,
-
-} message_enumeration;
-
 #define NR_OF_ELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
 #include "np_msgproperty_init.c"
@@ -218,7 +181,7 @@ void _np_msgproperty_t_del(void* property)
 	pthread_mutex_destroy (&prop->lock);
 }
 
-void _np_check_sender_msgcache(np_msgproperty_t* send_prop)
+void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 {
 	// check if we are (one of the) sending node(s) of this kind of message
 	// should not return NULL
@@ -260,7 +223,7 @@ void _np_check_sender_msgcache(np_msgproperty_t* send_prop)
 	}
 }
 
-void _np_check_receiver_msgcache(np_msgproperty_t* recv_prop)
+void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 {
 	log_msg(LOG_DEBUG,
 			"this node is the receiver of messages, checking msgcache (%p / %u) ...",
@@ -296,7 +259,7 @@ void _np_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 	}
 }
 
-void _np_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
+void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
 	LOCK_CACHE(msg_prop)
 	{
@@ -339,7 +302,7 @@ void _np_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 	}
 }
 
-void _np_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
+void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
 	LOCK_CACHE(msg_prop)
 	{

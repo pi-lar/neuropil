@@ -465,7 +465,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	sender_token = _np_aaatoken_get_sender((char*) subject, msg_from.value.s);
 	if (NULL == sender_token)
 	{
-		_np_add_msg_to_recv_cache(msg_prop, msg_in);
+		_np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
 		goto __np_return__;
 	}
 
@@ -1231,7 +1231,7 @@ void _np_in_available_sender(np_jobargs_t* args)
 	// check if we are (one of the) receiving node(s) of this kind of message
 	if ( NULL != real_prop)
 	{
-		_np_check_receiver_msgcache(real_prop);
+		_np_msgproperty_check_receiver_msgcache(real_prop);
 	}
 
 	__np_cleanup__:
@@ -1344,7 +1344,7 @@ void _np_in_available_receiver(np_jobargs_t* args)
 	np_msgproperty_t* real_prop = np_msgproperty_get(OUTBOUND, msg_token->subject);
 	if ( NULL != real_prop)
 	{
-		_np_check_sender_msgcache(real_prop);
+		_np_msgproperty_check_sender_msgcache(real_prop);
 	}
 
 	__np_cleanup__:
@@ -1501,7 +1501,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 				if (0 == strncmp(tmp_token->uuid, authentication_token->uuid, 255) )
 				{
 					tmp_token->state |= AAA_AUTHENTICATED;
-					_np_check_receiver_msgcache(subject_key->recv_property);
+					_np_msgproperty_check_receiver_msgcache(subject_key->recv_property);
 					break;
 				}
 				// TODO: move to msgcache.h and change parameter
@@ -1518,7 +1518,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 				if (0 == strncmp(tmp_token->uuid, authentication_token->uuid, 255) )
 				{
 					tmp_token->state |= AAA_AUTHENTICATED;
-					_np_check_sender_msgcache(subject_key->send_property);
+					_np_msgproperty_check_sender_msgcache(subject_key->send_property);
 					break;
 				}
 				// TODO: move to msgcache.h and change parameter
@@ -1680,7 +1680,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 				if (0 == strncmp(tmp_token->uuid, authorization_token->uuid, 255) )
 				{
 					tmp_token->state |= AAA_AUTHORIZED;
-					_np_check_receiver_msgcache(subject_key->recv_property);
+					_np_msgproperty_check_receiver_msgcache(subject_key->recv_property);
 					break;
 				}
 				// TODO: move to msgcache.h and change parameter
@@ -1697,7 +1697,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 				if (0 == strncmp(tmp_token->uuid, authorization_token->uuid, 255) )
 				{
 					tmp_token->state |= AAA_AUTHORIZED;
-					_np_check_sender_msgcache(subject_key->send_property);
+					_np_msgproperty_check_sender_msgcache(subject_key->send_property);
 					break;
 				}
 				pll_next(iter);

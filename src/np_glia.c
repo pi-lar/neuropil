@@ -863,7 +863,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 	}
 	else
 	{
-		_np_add_msg_to_send_cache(msg_prop, msg);
+		_np_msgproperty_add_msg_to_send_cache(msg_prop, msg);
 	}
 	return (FALSE);
 }
