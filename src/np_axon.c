@@ -328,8 +328,8 @@ void _np_send_handshake(np_jobargs_t* args)
     unsigned char hs_payload[65536];
     void* hs_buf_ptr = hs_payload;
 
-    cmp_init(&cmp, hs_buf_ptr, buffer_reader, buffer_writer);
-	serialize_jrb_node_t(hs_data, &cmp);
+    cmp_init(&cmp, hs_buf_ptr, _np_buffer_reader, _np_buffer_writer);
+	_np_tree_serialize(hs_data, &cmp);
 	uint64_t hs_payload_len = cmp.buf-hs_buf_ptr;
 
 	np_tree_free(hs_data);

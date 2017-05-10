@@ -30,7 +30,7 @@ Test(np_uuid_t, _uuid_create, .description="test the creation of unique uuid's")
 
 	for (int i = 0; i < 999; i++)
 	{
-		uuid[i] = np_create_uuid(subject, i);
+		uuid[i] = np_uuid_create(subject, i);
 
 		cr_expect(36 == strlen(uuid[i]), "expect the size of the uuid to be 32");
 

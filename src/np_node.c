@@ -285,7 +285,7 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 	strncpy(node_token->subject, node_subject, 255);
 	// strncpy(node_token->audience, (char*) _np_key_as_str(state->my_identity->aaa_token->realm), 255);
 
-	node_token->uuid = np_create_uuid(node_subject, 0);
+	node_token->uuid = np_uuid_create(node_subject, 0);
 
 	node_token->not_before = ev_time();
 	node_token->expiration = ev_time() + 3600.0; // 1 hour valid token

@@ -35,8 +35,8 @@ extern int optind;
 np_bool receive_message(np_message_t* msg, np_tree_t* properties, np_tree_t* body) {
  	 np_tree_t* header = msg->header;
 
-	fprintf(stdout, "properties: %s\n", np_json_to_char( np_tree_to_json(properties), FALSE) );
-	fprintf(stdout, "body: %s\n", np_json_to_char( np_tree_to_json(body), FALSE) );
+	fprintf(stdout, "properties: %s\n", np_json2char( np_tree2json(properties), FALSE) );
+	fprintf(stdout, "body: %s\n", np_json2char( np_tree2json(body), FALSE) );
 
 	char* reply_to = NULL; // All
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);

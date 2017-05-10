@@ -43,54 +43,39 @@ inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, 
 
 // create a sha156 uuid string, take the current date into account
 NP_API_EXPORT
-char* np_create_uuid(const char* str, const uint16_t num);
+char* np_uuid_create(const char* str, const uint16_t num);
 
 // the following four are helper functions for c-message-pack to work on jtree structures
 NP_API_INTERN
-np_bool buffer_reader(cmp_ctx_t *ctx, void *data, size_t count);
+np_bool _np_buffer_reader(cmp_ctx_t *ctx, void *data, size_t count);
 
 NP_API_INTERN
-size_t buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count);
+size_t _np_buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count);
 
 NP_API_INTERN
-void serialize_jrb_node_t(np_tree_t* jrb, cmp_ctx_t* cmp);
+void _np_tree2jsonobj(np_tree_t* jtree, JSON_Object* json_obj);
 
 NP_API_INTERN
-void serialize_jrb_to_json(np_tree_t* jtree, JSON_Object* json_obj);
-
-NP_API_INTERN
-void deserialize_jrb_node_t(np_tree_t* jrb, cmp_ctx_t* cmp);
-
-NP_API_INTERN
-void _np_remove_doublettes(np_sll_t(np_key_t, list_of_keys));
-
-/**
- * Create a json representation of this nodes system information
- */
-NP_API_EXPORT
-JSON_Value* np_generate_my_sysinfo_json();
-
-NP_API_INTERN
-JSON_Value* _np_generate_error_json(const char* error,const char* details);
+void _np_sll_remove_doublettes(np_sll_t(np_key_t, list_of_keys));
 
 /**
  * Create a json object from a given tree
  */
 NP_API_EXPORT
-JSON_Value* np_tree_to_json(np_tree_t* tree) ;
+JSON_Value* np_tree2json(np_tree_t* tree) ;
 /**
  * Create a string from a given JSON Object
  */
 NP_API_EXPORT
-char* np_json_to_char(JSON_Value* data,np_bool prettyPrint) ;
+char* np_json2char(JSON_Value* data,np_bool prettyPrint) ;
 /**
  * convert np_val_t to JSON_Value
  */
 NP_API_EXPORT
-JSON_Value* np_val_to_json(np_val_t val);
+JSON_Value* np_treeval2json(np_val_t val);
 
 NP_API_EXPORT
-void np_tree_dump2log(np_tree_t* tree);
+void np_dump_tree2log(np_tree_t* tree);
 
 #ifdef __cplusplus
 }

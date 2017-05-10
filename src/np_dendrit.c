@@ -1769,8 +1769,8 @@ void _np_in_handshake(np_jobargs_t* args)
 	np_dhkey_t search_alias_key = np_dhkey_create_from_hash(alias_dhkey.value.s);
 
 	cmp_ctx_t cmp;
-	cmp_init(&cmp, payload.value.bin, buffer_reader, buffer_writer);
-	deserialize_jrb_node_t(hs_payload, &cmp);
+	cmp_init(&cmp, payload.value.bin, _np_buffer_reader, _np_buffer_writer);
+	_np_tree_deserialize(hs_payload, &cmp);
 	// TODO: check if the complete buffer was read (byte count match)
 
 	np_new_obj(np_aaatoken_t, tmp_token);

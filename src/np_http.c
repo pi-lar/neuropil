@@ -33,7 +33,15 @@
 #include "np_sysinfo.h"
 #include "np_event.h"
 
+JSON_Value* _np_generate_error_json(const char* error,const char* details);
+JSON_Value* _np_generate_error_json(const char* error,const char* details) {
+	JSON_Value* ret = json_value_init_object();
 
+	json_object_set_string(json_object(ret), "error", error);
+	json_object_set_string(json_object(ret), "details", details);
+
+	return ret;
+}
 static double __np_http_timeout = 20.0f;
 // static pthread_mutex_t __http_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -308,7 +316,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 						sysinfo->size);
 
 				log_msg(LOG_DEBUG, "Convert sysinfo to json");
-				json_obj = np_tree_to_json(sysinfo);
+				json_obj = np_tree2json(sysinfo);
 				log_msg(LOG_DEBUG, "cleanup");
 				np_tree_free(sysinfo);
 			}
@@ -322,7 +330,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 				json_obj = _np_generate_error_json("Unknown Error",
 						"no response defined");
 			}
-			response = np_json_to_char(json_obj, TRUE);
+			response = np_json2char(json_obj, TRUE);
 			log_msg(LOG_DEBUG, "sysinfo response should be (strlen: %lu):",
 					strlen(response));
 			json_value_free(json_obj);

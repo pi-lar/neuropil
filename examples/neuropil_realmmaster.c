@@ -211,7 +211,7 @@ np_aaatoken_t* create_realm_identity()
 	realm_identity->expiration = realm_identity->not_before + 7200.0;
 	realm_identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
-	realm_identity->uuid = np_create_uuid("pi-lar realmmaster", 0);
+	realm_identity->uuid = np_uuid_create("pi-lar realmmaster", 0);
 
 	// add some unique identification parameters
 	// a far better approach is to follow the "zero-knowledge" paradigm (use the source, luke)

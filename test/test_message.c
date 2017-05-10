@@ -134,7 +134,7 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, new_val_s((char*) _np_key_as_str(my_key)) );
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, new_val_ul(0));
 
-	char* new_uuid = np_create_uuid(msg_subject, 1);
+	char* new_uuid = np_uuid_create(msg_subject, 1);
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, new_val_s(new_uuid));
 	free(new_uuid);
 

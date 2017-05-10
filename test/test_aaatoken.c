@@ -70,14 +70,14 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
     void* buf_ptr = buffer;
     memset(buf_ptr, 0, 65536);
 
-    cmp_init(&cmp_empty, buf_ptr, buffer_reader, buffer_writer);
-	serialize_jrb_node_t(aaa_tree, &cmp_empty);
+    cmp_init(&cmp_empty, buf_ptr, _np_buffer_reader, _np_buffer_writer);
+	_np_tree_serialize(aaa_tree, &cmp_empty);
 
 	np_tree_t* out_jrb = np_tree_create();
 	cmp_ctx_t cmp_out;
-	cmp_init(&cmp_out, buffer, buffer_reader, buffer_writer);
+	cmp_init(&cmp_out, buffer, _np_buffer_reader, _np_buffer_writer);
 
-	deserialize_jrb_node_t(out_jrb, &cmp_out);
+	_np_tree_deserialize(out_jrb, &cmp_out);
 
 	np_aaatoken_t* test_token_3 = NULL;
 	np_new_obj(np_aaatoken_t, test_token_3);

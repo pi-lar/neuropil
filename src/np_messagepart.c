@@ -75,8 +75,8 @@ np_bool _np_messagepart_decrypt(np_tree_t* msg_part,
 	}
 
 	cmp_ctx_t cmp;
-	cmp_init(&cmp, dec_part, buffer_reader, buffer_writer);
-	deserialize_jrb_node_t(msg_part, &cmp);
+	cmp_init(&cmp, dec_part, _np_buffer_reader, _np_buffer_writer);
+	_np_tree_deserialize(msg_part, &cmp);
 	// TODO: check if the complete buffer was read (byte count match)
 
 	np_tree_del_str(msg_part, NP_ENCRYPTED);
@@ -107,8 +107,8 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
     unsigned char msg_part_buffer[65536];
     void* msg_part_buf_ptr = msg_part_buffer;
 
-    cmp_init(&cmp, msg_part_buf_ptr, buffer_reader, buffer_writer);
-    serialize_jrb_node_t(msg_part, &cmp);
+    cmp_init(&cmp, msg_part_buf_ptr, _np_buffer_reader, _np_buffer_writer);
+    _np_tree_serialize(msg_part, &cmp);
 
     uint64_t msg_part_len = cmp.buf-msg_part_buf_ptr;
 

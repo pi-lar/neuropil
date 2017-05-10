@@ -218,6 +218,21 @@ uint64_t np_tree_get_byte_size(np_tree_elem_t* node);
 NP_API_EXPORT
 np_tree_t* np_tree_copy(np_tree_t* source);
 
+NP_API_INTERN
+void _np_tree_serialize(np_tree_t* jrb, cmp_ctx_t* cmp);
+NP_API_INTERN
+void _np_tree_deserialize(np_tree_t* jrb, cmp_ctx_t* cmp);
+
+NP_API_INTERN
+uint8_t __np_tree_serialize_read_type_key(void* buffer_ptr, np_val_t* target);
+NP_API_INTERN
+void __np_tree_serialize_write_type_key(np_dhkey_t source, cmp_ctx_t* target);
+NP_API_INTERN
+void __np_tree_serialize_write_type(np_val_t val, cmp_ctx_t* cmp);
+NP_API_INTERN
+void __np_tree_serialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value);
+
+
 #ifdef __cplusplus
 }
 #endif
