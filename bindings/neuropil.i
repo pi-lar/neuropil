@@ -23,7 +23,7 @@ typedef struct np_tree_elem_s np_tree_elem_t;
 
 %extend np_tree_s {
     np_tree_s () {
-	return make_nptree();
+	return np_tree_create();
     };
     ~np_tree_s () {
         np_free_tree ($self);

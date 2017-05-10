@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 		np_enable_realm_slave();
 		if (NULL != code)
 		{
-			tree_insert_str(state->my_node_key->aaa_token->extensions,
+			np_tree_insert_str(state->my_node_key->aaa_token->extensions,
 							"passcode",
 							new_val_hash(code));
 		}

@@ -46,9 +46,9 @@ np_bool receive_this_is_a_test(np_message_t* msg, np_tree_t* properties, np_tree
 
     .. code-block:: c
 
-	      char* text = tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	      char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	*/
-	char* text = tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	log_msg(LOG_INFO, "RECEIVED: %s", text);
 
 	/**

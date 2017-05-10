@@ -47,8 +47,8 @@ uint32_t _pong_count = 0;
 np_bool receive_ping(np_message_t* msg, np_tree_t* properties, np_tree_t* body)
 {
 
-	char* text = tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
-	uint32_t seq = tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
+	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 
 	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
@@ -61,8 +61,8 @@ np_bool receive_ping(np_message_t* msg, np_tree_t* properties, np_tree_t* body)
 np_bool receive_pong(np_message_t* msg, np_tree_t* properties, np_tree_t* body)
 {
 
-	char* text = tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
-	uint32_t seq = tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
+	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 
 	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);

@@ -43,28 +43,28 @@ int main(int argc, char **argv) {
 	my_key->dhkey = my_dhkey;
 
 	uint16_t parts = 0;
-	tree_insert_str(msg_out->header, _NP_MSG_HEADER_SUBJECT,  new_val_s((char*) msg_subject));
-	tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(my_key)) );
-	tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(my_key)) );
-	tree_insert_str(msg_out->header, _NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _np_key_as_str(my_key)) );
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_SUBJECT,  new_val_s((char*) msg_subject));
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(my_key)) );
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(my_key)) );
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _np_key_as_str(my_key)) );
 
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, new_val_ush(0));
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, new_val_s((char*) _np_key_as_str(my_key)) );
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, new_val_ul(0));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, new_val_ush(0));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, new_val_s((char*) _np_key_as_str(my_key)) );
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, new_val_ul(0));
 
 	char* new_uuid = np_create_uuid(msg_subject, 1);
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, new_val_s(new_uuid));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, new_val_s(new_uuid));
 	free(new_uuid);
 
 	double now = ev_time();
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, new_val_d(now));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, new_val_d(now));
 	now += 20;
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, new_val_d(now));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, new_val_d(now));
 
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, new_val_ush(0));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, new_val_ush(0));
 
 	// TODO: message part split-up informations
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, new_val_iarray(parts, parts));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, new_val_iarray(parts, parts));
 
 	char prop_payload[30]; //  = (char*) malloc(25 * sizeof(char));
 	memset (prop_payload, 'a', 29);
@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
 
 	for (int16_t i = 0; i < 9; i++)
 	{
-		tree_insert_int(msg_out->properties, i, new_val_s(prop_payload));
+		np_tree_insert_int(msg_out->properties, i, new_val_s(prop_payload));
 	}
 
 	char body_payload[51]; //  = (char*) malloc(50 * sizeof(char));
@@ -81,11 +81,11 @@ int main(int argc, char **argv) {
 
 	for (int16_t i = 0; i < 60; i++)
 	{
-		tree_insert_int(msg_out->body, i, new_val_s(body_payload));
+		np_tree_insert_int(msg_out->body, i, new_val_s(body_payload));
 	}
 
-	np_tree_elem_t* properties_node = tree_find_int(msg_out->properties, 1);
-	np_tree_elem_t* body_node = tree_find_int(msg_out->body, 20);
+	np_tree_elem_t* properties_node = np_tree_find_int(msg_out->properties, 1);
+	np_tree_elem_t* body_node = np_tree_find_int(msg_out->body, 20);
 
 	np_jobargs_t args = { .msg=msg_out };
 
@@ -104,18 +104,18 @@ int main(int argc, char **argv) {
 	 **/
 	_np_message_calculate_chunking(msg_out);
 	_np_message_serialize_chunked(NULL, &args);
-	np_tree_elem_t* footer_node = tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
+	np_tree_elem_t* footer_node = np_tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
 	log_msg(LOG_DEBUG, "properties %s, body %s, garbage size %hd",
 			properties_node->val.value.s,
 			body_node->val.value.s,
-			jrb_get_byte_size(footer_node));
+			np_tree_get_byte_size(footer_node));
 
 
 	_np_message_deserialize_chunked(msg_out);
 
-	np_tree_elem_t* properties_node_2 = tree_find_int(msg_out->properties, 1);
-	np_tree_elem_t* body_node_2 = tree_find_int(msg_out->body, 20);
-	// np_tree_elem_t* footer_node_2 = tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
+	np_tree_elem_t* properties_node_2 = np_tree_find_int(msg_out->properties, 1);
+	np_tree_elem_t* body_node_2 = np_tree_find_int(msg_out->body, 20);
+	// np_tree_elem_t* footer_node_2 = np_tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
 	log_msg(LOG_DEBUG, "properties %s, body %s",
 			properties_node_2->val.value.s,
 			body_node_2->val.value.s);

@@ -46,8 +46,8 @@
  */
 #define CHECK_STR_FIELD(TREE, FIELD_NAME, VAR_NAME) \
 np_val_t VAR_NAME = NP_VAL_NULL; \
-if (NULL == tree_find_str(TREE, FIELD_NAME)) goto __np_cleanup__; \
-else VAR_NAME = tree_find_str(TREE, FIELD_NAME)->val;
+if (NULL == np_tree_find_str(TREE, FIELD_NAME)) goto __np_cleanup__; \
+else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
 
 /**
  ** message_received:
@@ -131,7 +131,7 @@ void _np_in_received(np_jobargs_t* args)
 
 	// now read decrypted (or handshake plain text) message
 	// char* msg_subject =
-	// tree_find_str(msg_in->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
+	// np_tree_find_str(msg_in->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
 
 	if ( 0 == strncmp(msg_subject.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) )
@@ -140,7 +140,7 @@ void _np_in_received(np_jobargs_t* args)
 		if ( (NULL == alias_key->aaa_token) ||
 			  IS_INVALID(alias_key->aaa_token->state) )
 		{
-			tree_insert_str(msg_in->footer, NP_MSG_FOOTER_ALIAS_KEY,
+			np_tree_insert_str(msg_in->footer, NP_MSG_FOOTER_ALIAS_KEY,
 					new_val_s(_np_key_as_str(alias_key)));
 			np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_HANDSHAKE);
 			_np_job_submit_msgin_event(0.0, msg_prop, state->my_node_key, msg_in);
@@ -165,11 +165,11 @@ void _np_in_received(np_jobargs_t* args)
 	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TTL, msg_ttl);
 	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack);
 
-//	char*   msg_to      = tree_find_str(msg_in->header, NP_MSG_HEADER_TO)->val.value.s;
-//	char*   msg_uuid    = tree_find_str(msg_in->instructions, NP_MSG_INST_UUID)->val.value.s;
-//	double  msg_tstamp  = tree_find_str(msg_in->instructions, NP_MSG_INST_TSTAMP)->val.value.d;
-//	double  msg_ttl     = tree_find_str(msg_in->instructions, NP_MSG_INST_TTL)->val.value.d;
-//	uint8_t msg_ack     = tree_find_str(msg_in->instructions, NP_MSG_INST_ACK)->val.value.ush;
+//	char*   msg_to      = np_tree_find_str(msg_in->header, NP_MSG_HEADER_TO)->val.value.s;
+//	char*   msg_uuid    = np_tree_find_str(msg_in->instructions, NP_MSG_INST_UUID)->val.value.s;
+//	double  msg_tstamp  = np_tree_find_str(msg_in->instructions, NP_MSG_INST_TSTAMP)->val.value.d;
+//	double  msg_ttl     = np_tree_find_str(msg_in->instructions, NP_MSG_INST_TTL)->val.value.d;
+//	uint8_t msg_ack     = np_tree_find_str(msg_in->instructions, NP_MSG_INST_ACK)->val.value.ush;
 
 	if (0 == strncmp(_NP_MSG_ACK, msg_subject.value.s, strlen(_NP_MSG_ACK)))
 	{
@@ -178,7 +178,7 @@ void _np_in_received(np_jobargs_t* args)
 		/* just an acknowledgement of own messages send out earlier */
 		LOCK_CACHE(my_network)
 		{
-			np_tree_elem_t *jrb_node = tree_find_str(my_network->waiting, ack_uuid.value.s);
+			np_tree_elem_t *jrb_node = np_tree_find_str(my_network->waiting, ack_uuid.value.s);
 			if (jrb_node != NULL)
 			{
 				np_ackentry_t *entry = (np_ackentry_t *) jrb_node->val.value.v;
@@ -216,7 +216,7 @@ void _np_in_received(np_jobargs_t* args)
 		// TODO: move this ack after a) a message handler has been found or b) the message has been forwarded
 		np_key_t* ack_key = NULL;
 		CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK_TO, ack_to);
-		// char* ack_to = tree_find_str(msg_in->instructions, NP_MSG_INST_ACK_TO)->val.value.s;
+		// char* ack_to = np_tree_find_str(msg_in->instructions, NP_MSG_INST_ACK_TO)->val.value.s;
 		np_dhkey_t search_key = np_dhkey_create_from_hash(ack_to.value.s);
 
 		_LOCK_MODULE(np_keycache_t)
@@ -235,10 +235,10 @@ void _np_in_received(np_jobargs_t* args)
 			_np_message_create(ack_msg_out, ack_key, state->my_node_key, _NP_MSG_ACK, NULL);
 
 			/* add/create network header */
-			tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_ACK, new_val_ush(ack_prop->ack_mode));
-			tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_ACKUUID, new_val_s(msg_uuid.value.s));
-			tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_TSTAMP, new_val_d(ev_time()));
-			tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_TTL, new_val_d(1.0));
+			np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_ACK, new_val_ush(ack_prop->ack_mode));
+			np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_ACKUUID, new_val_s(msg_uuid.value.s));
+			np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_TSTAMP, new_val_d(ev_time()));
+			np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_TTL, new_val_d(1.0));
 
 			log_msg(LOG_DEBUG, "sending back acknowledge for: %s (seq=%s, ack=%hhd)",
 					msg_subject.value.s, msg_uuid.value.s, msg_ack.value.ush);
@@ -377,7 +377,7 @@ void _np_in_piggy(np_jobargs_t* args)
 			// answer: only send join request !
 			// if (GRACEPERIOD > (ev_time() - tmp_ft))
 			// {
-				np_tree_t* jrb_me = make_nptree();
+				np_tree_t* jrb_me = np_tree_create();
 				np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
 
 				np_message_t* msg_out = NULL;
@@ -470,12 +470,12 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	}
 
 	log_msg(LOG_DEBUG, "decrypting message ...");
-	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 
 	np_bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
 	if (FALSE == decrypt_ok)
 	{
-		tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
+		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 		goto __np_cleanup__;
 	}
 
@@ -624,9 +624,9 @@ void _np_in_join_req(np_jobargs_t* args)
 
 	log_msg(LOG_DEBUG, "find target node");
 	np_key_t* routing_key = NULL;
-	if (NULL != tree_find_str(join_token->extensions, "target_node"))
+	if (NULL != np_tree_find_str(join_token->extensions, "target_node"))
 	{
-		np_dhkey_t search_key = np_dhkey_create_from_hash(tree_find_str(join_token->extensions, "target_node")->val.value.s);
+		np_dhkey_t search_key = np_dhkey_create_from_hash(np_tree_find_str(join_token->extensions, "target_node")->val.value.s);
 		routing_key = _np_keycache_find_or_create(search_key);
 	}
 	else
@@ -691,11 +691,11 @@ void _np_in_join_req(np_jobargs_t* args)
 				"JOIN request approved, sending back join acknowledge for key %s",
 				_np_key_as_str(join_req_key));
 
-		np_tree_t* jrb_me = make_nptree();
+		np_tree_t* jrb_me = np_tree_create();
 		np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
 
 		_np_message_create(msg_out, routing_key, state->my_node_key, _NP_MSG_JOIN_ACK, jrb_me);
-		tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACKUUID, in_uuid);
+		np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACKUUID, in_uuid);
 
 		msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_ACK);
 		state->my_node_key->node->joined_network = TRUE;
@@ -712,7 +712,7 @@ void _np_in_join_req(np_jobargs_t* args)
 				_np_key_as_str(join_req_key) );
 
 		_np_message_create(msg_out, routing_key, state->my_node_key, _NP_MSG_JOIN_NACK, NULL );
-		tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACKUUID, in_uuid);
+		np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACKUUID, in_uuid);
 		msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_NACK);
 		send_reply = TRUE;
 	}
@@ -805,9 +805,9 @@ void _np_in_join_ack(np_jobargs_t* args)
 	}
 
 	np_key_t* routing_key = NULL;
-	if (NULL != tree_find_str(join_token->extensions, "target_node"))
+	if (NULL != np_tree_find_str(join_token->extensions, "target_node"))
 	{
-		np_dhkey_t search_key = np_dhkey_create_from_hash(tree_find_str(join_token->extensions, "target_node")->val.value.s);
+		np_dhkey_t search_key = np_dhkey_create_from_hash(np_tree_find_str(join_token->extensions, "target_node")->val.value.s);
 		routing_key = _np_keycache_find(search_key);
 		routing_key->aaa_token->state |= AAA_AUTHENTICATED;
 	}
@@ -824,7 +824,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 	LOCK_CACHE(ng)
 	{
-		np_tree_elem_t *jrb_node = tree_find_str(ng->waiting, ack_uuid.value.s);
+		np_tree_elem_t *jrb_node = np_tree_find_str(ng->waiting, ack_uuid.value.s);
 		if (jrb_node != NULL)
 		{
 			np_ackentry_t *entry = (np_ackentry_t *) jrb_node->val.value.v;
@@ -867,7 +867,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 		// encode informations -> has to be done for each update message new
 		// otherwise there is a crash when deleting the message
-		np_tree_t* jrb_join_node = make_nptree();
+		np_tree_t* jrb_join_node = np_tree_create();
 		np_aaatoken_encode(jrb_join_node, join_token);
 
 		_np_message_create(msg_out, elem, state->my_node_key, _NP_MSG_UPDATE_REQUEST, jrb_join_node);
@@ -953,7 +953,7 @@ void _np_in_join_nack(np_jobargs_t* args)
 
 	LOCK_CACHE(ng)
 	{
-		np_tree_elem_t *jrb_node = tree_find_str(ng->waiting, ack_uuid.value.s);
+		np_tree_elem_t *jrb_node = np_tree_find_str(ng->waiting, ack_uuid.value.s);
 		if (jrb_node != NULL)
 		{
 			np_ackentry_t *entry = (np_ackentry_t *) jrb_node->val.value.v;
@@ -1104,7 +1104,7 @@ void _np_in_update(np_jobargs_t* args)
 		HANDSHAKE_INITIALIZED > update_key->node->handshake_status &&
 		FALSE == update_key->node->joined_network)
 	{
-		np_tree_t* jrb_me = make_nptree();
+		np_tree_t* jrb_me = np_tree_create();
 		np_aaatoken_encode(jrb_me, _np_state()->my_identity->aaa_token);
 
 		np_message_t* msg_out = NULL;
@@ -1159,7 +1159,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 	while (NULL != (tmp_token = sll_head(np_aaatoken_t, available_list)))
 	{
 		log_msg(LOG_DEBUG, "found a sender of messages, sending back message availabilities ...");
-		np_tree_t* available_data = make_nptree();
+		np_tree_t* available_data = np_tree_create();
 
 		np_aaatoken_encode(available_data, tmp_token);
 
@@ -1276,7 +1276,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 	while (NULL != (tmp_token = sll_head(np_aaatoken_t, receiver_list)))
 	{
-		np_tree_t* interest_data = make_nptree();
+		np_tree_t* interest_data = np_tree_create();
 
 		np_aaatoken_encode(interest_data, tmp_token);
 
@@ -1382,7 +1382,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	{
 		goto __np_cleanup__;
 	}
-	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authentication_token);
@@ -1404,7 +1404,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	{
 		_np_aaatoken_add_receiver(_NP_MSG_AUTHENTICATION_REPLY, sender_token);
 
-		np_tree_t* token_data = make_nptree();
+		np_tree_t* token_data = np_tree_create();
 
 		np_aaatoken_encode(token_data, authentication_token);
 		np_message_t* msg_out = NULL;
@@ -1462,7 +1462,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 		log_msg(LOG_DEBUG, "decryption of authentication reply failed");
 		goto __np_cleanup__;
 	}
-	// tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	// np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authentication_token);
@@ -1566,7 +1566,7 @@ void _np_in_authorize(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authorization_token);
 	np_aaatoken_decode(msg_in->body, authorization_token);
@@ -1587,7 +1587,7 @@ void _np_in_authorize(np_jobargs_t* args)
 	{
 		_np_aaatoken_add_receiver(_NP_MSG_AUTHORIZATION_REPLY, sender_token);
 
-		np_tree_t* token_data = make_nptree();
+		np_tree_t* token_data = np_tree_create();
 		np_aaatoken_encode(token_data, authorization_token);
 
 		np_message_t* msg_out = NULL;
@@ -1641,7 +1641,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	// tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	// np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authorization_token);
@@ -1729,7 +1729,7 @@ void _np_in_account(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 	np_bool decrypt_ok = _np_message_decrypt_payload(args->msg, sender_token);
 	if (FALSE == decrypt_ok)
 	{
@@ -1757,7 +1757,7 @@ void _np_in_handshake(np_jobargs_t* args)
 
 	np_key_t* alias_key = NULL;
 	np_aaatoken_t* tmp_token = NULL;
-	np_tree_t* hs_payload = make_nptree();
+	np_tree_t* hs_payload = np_tree_create();
 
 	_np_message_deserialize_chunked(args->msg);
 
@@ -1780,13 +1780,13 @@ void _np_in_handshake(np_jobargs_t* args)
 	sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES*2+1, tmp_token->public_key, crypto_sign_PUBLICKEYBYTES);
 	log_msg(LOG_DEBUG, "public key fingerprint: %s", pk_hex);
 
-//	char* node_proto            = tree_find_str(hs_payload, "_np.protocol")->val.value.s;
-//	char* node_hn               = tree_find_str(hs_payload, "_np.dns_name")->val.value.s;
-//	char* node_port             = tree_find_str(hs_payload, "_np.port")->val.value.s;
-//  np_tree_elem_t* public_key  = tree_find_str(hs_payload, "_np.public_key");
-	np_tree_elem_t* session_key = tree_find_str(hs_payload, "_np.session");
-//	double issued_at            = tree_find_str(hs_payload, "_np.issued_at")->val.value.d;
-//	double expiration           = tree_find_str(hs_payload, "_np.expiration")->val.value.d;
+//	char* node_proto            = np_tree_find_str(hs_payload, "_np.protocol")->val.value.s;
+//	char* node_hn               = np_tree_find_str(hs_payload, "_np.dns_name")->val.value.s;
+//	char* node_port             = np_tree_find_str(hs_payload, "_np.port")->val.value.s;
+//  np_tree_elem_t* public_key  = np_tree_find_str(hs_payload, "_np.public_key");
+	np_tree_elem_t* session_key = np_tree_find_str(hs_payload, "_np.session");
+//	double issued_at            = np_tree_find_str(hs_payload, "_np.issued_at")->val.value.d;
+//	double expiration           = np_tree_find_str(hs_payload, "_np.expiration")->val.value.d;
 
 	char sign_hex[crypto_sign_BYTES*2+1];
 	sodium_bin2hex(sign_hex, crypto_sign_BYTES*2+1, signature.value.bin, crypto_sign_BYTES);
@@ -1955,6 +1955,6 @@ void _np_in_handshake(np_jobargs_t* args)
 	if (NULL != tmp_token)  np_free_obj(np_aaatoken_t, tmp_token);
 
 	__np_return__:
-	if (NULL != hs_payload) np_free_tree(hs_payload);
+	if (NULL != hs_payload) np_tree_free(hs_payload);
 	return;
 }

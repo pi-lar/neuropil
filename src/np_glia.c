@@ -72,8 +72,8 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 	np_key_t* target_key = NULL;
 	np_message_t* msg_in = args->msg;
 
-	char* msg_subject = tree_find_str(msg_in->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
-	char* msg_address = tree_find_str(msg_in->header, _NP_MSG_HEADER_TO)->val.value.s;
+	char* msg_subject = np_tree_find_str(msg_in->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
+	char* msg_address = np_tree_find_str(msg_in->header, _NP_MSG_HEADER_TO)->val.value.s;
 
 	np_bool is_a_join_request = FALSE;
 	if (0 == strncmp(msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) )
@@ -459,7 +459,7 @@ void _np_retransmit_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 				tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
 				/* otherwise request reevaluation of peer */
 
-				np_tree_t* jrb_me = make_nptree();
+				np_tree_t* jrb_me = np_tree_create();
 				np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
 
 				np_message_t* msg_out = NULL;
@@ -672,7 +672,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 
 	if (0 < sll_size(sll_of_keys))
 	{
-		np_tree_t* msg_body = make_nptree();
+		np_tree_t* msg_body = np_tree_create();
 		_np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, FALSE);
 		np_msgproperty_t* outprop = np_msgproperty_get(OUTBOUND, _NP_MSG_PIGGY_REQUEST);
 
@@ -724,17 +724,17 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 		   (char*) state->my_identity->aaa_token->private_key,
 		   crypto_sign_SECRETKEYBYTES);
 
-	tree_insert_str(msg_token->extensions, "mep_type",
+	np_tree_insert_str(msg_token->extensions, "mep_type",
 			new_val_ul(msg_request->mep_type));
-	tree_insert_str(msg_token->extensions, "ack_mode",
+	np_tree_insert_str(msg_token->extensions, "ack_mode",
 			new_val_ush(msg_request->ack_mode));
-	tree_insert_str(msg_token->extensions, "max_threshold",
+	np_tree_insert_str(msg_token->extensions, "max_threshold",
 			new_val_ui(msg_request->max_threshold));
-	tree_insert_str(msg_token->extensions, "msg_threshold",
+	np_tree_insert_str(msg_token->extensions, "msg_threshold",
 			new_val_ui(msg_request->msg_threshold));
 
 	// TODO: insert value based on msg properties / respect (sticky) reply
-	tree_insert_str(msg_token->extensions, "target_node",
+	np_tree_insert_str(msg_token->extensions, "target_node",
 			new_val_s((char*) _np_key_as_str(state->my_node_key)));
 
 	// fingerprinting and signing the token
@@ -751,9 +751,9 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 	log_msg(LOG_TRACE, ".start._np_send_subject_discovery_messages");
 
 	// insert into msg token token renewal queue
-	if (NULL == tree_find_str(_np_state()->msg_tokens, subject))
+	if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))
 	{
-		tree_insert_str(_np_state()->msg_tokens, subject, new_val_v(NULL));
+		np_tree_insert_str(_np_state()->msg_tokens, subject, new_val_v(NULL));
 
 		np_msgproperty_t* msg_prop = np_msgproperty_get(mode_type, subject);
 		msg_prop->mode_type |= TRANSFORM;
@@ -778,9 +778,9 @@ void _np_send_msg_interest(const char* subject)
 	log_msg(LOG_TRACE, ".start.np_send_msg_interest");
 
 	// insert into msg token token renewal queue
-	if (NULL == tree_find_str(_np_state()->msg_tokens, subject))
+	if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))
 	{
-		tree_insert_str(_np_state()->msg_tokens, subject, new_val_v(NULL));
+		np_tree_insert_str(_np_state()->msg_tokens, subject, new_val_v(NULL));
 
 		np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
 		msg_prop->mode_type |= TRANSFORM;
@@ -805,9 +805,9 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 	msg_prop->msg_threshold++;
 
 	if(NULL != target) {
-		tree_replace_str(msg->header, _NP_MSG_HEADER_TARGET, new_val_key(*target));
+		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TARGET, new_val_key(*target));
 	}else{
-		np_tree_elem_t* target_container = 	tree_find_str(msg->header, _NP_MSG_HEADER_TARGET);
+		np_tree_elem_t* target_container = 	np_tree_find_str(msg->header, _NP_MSG_HEADER_TARGET);
 		if(NULL != target_container) {
 			target = &(target_container->val.value.key);
 		}
@@ -817,16 +817,16 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 
 	if (NULL != tmp_token)
 	{
-		tree_del_str(msg->header, _NP_MSG_HEADER_TARGET);
+		np_tree_del_str(msg->header, _NP_MSG_HEADER_TARGET);
 
-		tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
+		np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
 
 		// first encrypt the relevant message part itself
 		_np_message_encrypt_payload(msg, tmp_token);
 
 		char* target_node_str = NULL;
 
-		np_tree_elem_t* tn_node = tree_find_str(tmp_token->extensions, "target_node");
+		np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions, "target_node");
 		if (NULL != tn_node)
 		{
 			target_node_str = tn_node->val.value.s;
@@ -843,8 +843,8 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		_np_dhkey_from_str(target_node_str, &receiver_dhkey);
 		receiver_key->dhkey = receiver_dhkey;
 
-		tree_replace_str(msg->header, _NP_MSG_HEADER_TO, new_val_s(target_node_str));
-		// tree_replace_str(msg->header, NP_MSG_HEADER_TO, new_val_s(tmp_token->issuer));
+		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, new_val_s(target_node_str));
+		// np_tree_replace_str(msg->header, NP_MSG_HEADER_TO, new_val_s(tmp_token->issuer));
 		np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);
 		_np_job_submit_route_event(0.0, out_prop, receiver_key, msg);
 

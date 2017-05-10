@@ -158,9 +158,9 @@
 
 /* Support for throwing Java exceptions */
 typedef enum {
-  SWIG_JavaOutOfMemoryError = 1, 
-  SWIG_JavaIOException, 
-  SWIG_JavaRuntimeException, 
+  SWIG_JavaOutOfMemoryError = 1,
+  SWIG_JavaIOException,
+  SWIG_JavaRuntimeException,
   SWIG_JavaIndexOutOfBoundsException,
   SWIG_JavaArithmeticException,
   SWIG_JavaIllegalArgumentException,
@@ -211,7 +211,7 @@ static void SWIGUNUSED SWIG_JavaThrowException(JNIEnv *jenv, SWIG_JavaExceptionC
 #include "../include/np_tree.h"
 
 SWIGINTERN struct np_tree_s *new_np_tree_s(void){
-	return make_nptree();
+	return np_tree_create();
     }
 SWIGINTERN void delete_np_tree_s(struct np_tree_s *self){
         np_free_tree (self);
@@ -224,21 +224,21 @@ extern "C" {
 SWIGEXPORT jlong JNICALL Java_neuropilJNI_new_1np_1tree_1s(JNIEnv *jenv, jclass jcls) {
   jlong jresult = 0 ;
   struct np_tree_s *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   result = (struct np_tree_s *)new_np_tree_s();
-  *(struct np_tree_s **)&jresult = result; 
+  *(struct np_tree_s **)&jresult = result;
   return jresult;
 }
 
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_delete_1np_1tree_1s(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   struct np_tree_s *arg1 = (struct np_tree_s *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
-  arg1 = *(struct np_tree_s **)&jarg1; 
+  arg1 = *(struct np_tree_s **)&jarg1;
   delete_np_tree_s(arg1);
 }
 
@@ -247,17 +247,17 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1np_1clear_1tree(JNIEnv *je
   struct np_tree_s *arg1 = (struct np_tree_s *) 0 ;
   $self arg2 ;
   $self *argp2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   np_tree_s_np_clear_tree(arg1,arg2);
 }
 
@@ -269,28 +269,28 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1insert_1str(JNIEnv *
   np_val_t arg4 ;
   $self *argp2 ;
   np_val_t *argp4 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   arg3 = 0;
   if (jarg3) {
     arg3 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg3, 0);
     if (!arg3) return ;
   }
-  argp4 = *(np_val_t **)&jarg4; 
+  argp4 = *(np_val_t **)&jarg4;
   if (!argp4) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
     return ;
   }
-  arg4 = *argp4; 
+  arg4 = *argp4;
   np_tree_s_tree_insert_str(arg1,arg2,(char const *)arg3,arg4);
   if (arg3) (*jenv)->ReleaseStringUTFChars(jenv, jarg3, (const char *)arg3);
 }
@@ -304,29 +304,29 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1insert_1int(JNIEnv *
   $self *argp2 ;
   int16_t *argp3 ;
   np_val_t *argp4 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
-  argp3 = *(int16_t **)&jarg3; 
+  arg2 = *argp2;
+  argp3 = *(int16_t **)&jarg3;
   if (!argp3) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null int16_t");
     return ;
   }
-  arg3 = *argp3; 
-  argp4 = *(np_val_t **)&jarg4; 
+  arg3 = *argp3;
+  argp4 = *(np_val_t **)&jarg4;
   if (!argp4) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
     return ;
   }
-  arg4 = *argp4; 
+  arg4 = *argp4;
   np_tree_s_tree_insert_int(arg1,arg2,arg3,arg4);
 }
 
@@ -339,29 +339,29 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1insert_1ulong(JNIEnv
   $self *argp2 ;
   uint32_t *argp3 ;
   np_val_t *argp4 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
-  argp3 = *(uint32_t **)&jarg3; 
+  arg2 = *argp2;
+  argp3 = *(uint32_t **)&jarg3;
   if (!argp3) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint32_t");
     return ;
   }
-  arg3 = *argp3; 
-  argp4 = *(np_val_t **)&jarg4; 
+  arg3 = *argp3;
+  argp4 = *(np_val_t **)&jarg4;
   if (!argp4) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
     return ;
   }
-  arg4 = *argp4; 
+  arg4 = *argp4;
   np_tree_s_tree_insert_ulong(arg1,arg2,arg3,arg4);
 }
 
@@ -373,24 +373,24 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1insert_1dbl(JNIEnv *
   np_val_t arg4 ;
   $self *argp2 ;
   np_val_t *argp4 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
-  arg3 = (double)jarg3; 
-  argp4 = *(np_val_t **)&jarg4; 
+  arg2 = *argp2;
+  arg3 = (double)jarg3;
+  argp4 = *(np_val_t **)&jarg4;
   if (!argp4) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
     return ;
   }
-  arg4 = *argp4; 
+  arg4 = *argp4;
   np_tree_s_tree_insert_dbl(arg1,arg2,arg3,arg4);
 }
 
@@ -402,28 +402,28 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1replace_1str(JNIEnv 
   np_val_t arg4 ;
   $self *argp2 ;
   np_val_t *argp4 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   arg3 = 0;
   if (jarg3) {
     arg3 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg3, 0);
     if (!arg3) return ;
   }
-  argp4 = *(np_val_t **)&jarg4; 
+  argp4 = *(np_val_t **)&jarg4;
   if (!argp4) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
     return ;
   }
-  arg4 = *argp4; 
+  arg4 = *argp4;
   np_tree_s_tree_replace_str(arg1,arg2,(char const *)arg3,arg4);
   if (arg3) (*jenv)->ReleaseStringUTFChars(jenv, jarg3, (const char *)arg3);
 }
@@ -437,29 +437,29 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1replace_1int(JNIEnv 
   $self *argp2 ;
   int16_t *argp3 ;
   np_val_t *argp4 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
-  argp3 = *(int16_t **)&jarg3; 
+  arg2 = *argp2;
+  argp3 = *(int16_t **)&jarg3;
   if (!argp3) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null int16_t");
     return ;
   }
-  arg3 = *argp3; 
-  argp4 = *(np_val_t **)&jarg4; 
+  arg3 = *argp3;
+  argp4 = *(np_val_t **)&jarg4;
   if (!argp4) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
     return ;
   }
-  arg4 = *argp4; 
+  arg4 = *argp4;
   np_tree_s_tree_replace_int(arg1,arg2,arg3,arg4);
 }
 
@@ -472,29 +472,29 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1replace_1ulong(JNIEn
   $self *argp2 ;
   uint32_t *argp3 ;
   np_val_t *argp4 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
-  argp3 = *(uint32_t **)&jarg3; 
+  arg2 = *argp2;
+  argp3 = *(uint32_t **)&jarg3;
   if (!argp3) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint32_t");
     return ;
   }
-  arg3 = *argp3; 
-  argp4 = *(np_val_t **)&jarg4; 
+  arg3 = *argp3;
+  argp4 = *(np_val_t **)&jarg4;
   if (!argp4) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
     return ;
   }
-  arg4 = *argp4; 
+  arg4 = *argp4;
   np_tree_s_tree_replace_ulong(arg1,arg2,arg3,arg4);
 }
 
@@ -506,24 +506,24 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1replace_1dbl(JNIEnv 
   np_val_t arg4 ;
   $self *argp2 ;
   np_val_t *argp4 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
-  arg3 = (double)jarg3; 
-  argp4 = *(np_val_t **)&jarg4; 
+  arg2 = *argp2;
+  arg3 = (double)jarg3;
+  argp4 = *(np_val_t **)&jarg4;
   if (!argp4) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
     return ;
   }
-  arg4 = *argp4; 
+  arg4 = *argp4;
   np_tree_s_tree_replace_dbl(arg1,arg2,arg3,arg4);
 }
 
@@ -535,24 +535,24 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1find_1str(JNIEnv *j
   char *arg3 = (char *) 0 ;
   $self *argp2 ;
   np_tree_elem_t *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return 0;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   arg3 = 0;
   if (jarg3) {
     arg3 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg3, 0);
     if (!arg3) return 0;
   }
   result = (np_tree_elem_t *)np_tree_s_tree_find_str(arg1,arg2,(char const *)arg3);
-  *(np_tree_elem_t **)&jresult = result; 
+  *(np_tree_elem_t **)&jresult = result;
   if (arg3) (*jenv)->ReleaseStringUTFChars(jenv, jarg3, (const char *)arg3);
   return jresult;
 }
@@ -566,25 +566,25 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1find_1int(JNIEnv *j
   $self *argp2 ;
   int16_t *argp3 ;
   np_tree_elem_t *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return 0;
   }
-  arg2 = *argp2; 
-  argp3 = *(int16_t **)&jarg3; 
+  arg2 = *argp2;
+  argp3 = *(int16_t **)&jarg3;
   if (!argp3) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null int16_t");
     return 0;
   }
-  arg3 = *argp3; 
+  arg3 = *argp3;
   result = (np_tree_elem_t *)np_tree_s_tree_find_int(arg1,arg2,arg3);
-  *(np_tree_elem_t **)&jresult = result; 
+  *(np_tree_elem_t **)&jresult = result;
   return jresult;
 }
 
@@ -597,25 +597,25 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1find_1ulong(JNIEnv 
   $self *argp2 ;
   uint32_t *argp3 ;
   np_tree_elem_t *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return 0;
   }
-  arg2 = *argp2; 
-  argp3 = *(uint32_t **)&jarg3; 
+  arg2 = *argp2;
+  argp3 = *(uint32_t **)&jarg3;
   if (!argp3) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint32_t");
     return 0;
   }
-  arg3 = *argp3; 
+  arg3 = *argp3;
   result = (np_tree_elem_t *)np_tree_s_tree_find_ulong(arg1,arg2,arg3);
-  *(np_tree_elem_t **)&jresult = result; 
+  *(np_tree_elem_t **)&jresult = result;
   return jresult;
 }
 
@@ -627,20 +627,20 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1find_1dbl(JNIEnv *j
   double arg3 ;
   $self *argp2 ;
   np_tree_elem_t *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return 0;
   }
-  arg2 = *argp2; 
-  arg3 = (double)jarg3; 
+  arg2 = *argp2;
+  arg3 = (double)jarg3;
   result = (np_tree_elem_t *)np_tree_s_tree_find_dbl(arg1,arg2,arg3);
-  *(np_tree_elem_t **)&jresult = result; 
+  *(np_tree_elem_t **)&jresult = result;
   return jresult;
 }
 
@@ -653,25 +653,25 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1find_1gte_1str(JNIE
   uint8_t *arg4 = (uint8_t *) 0 ;
   $self *argp2 ;
   np_tree_elem_t *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return 0;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   arg3 = 0;
   if (jarg3) {
     arg3 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg3, 0);
     if (!arg3) return 0;
   }
-  arg4 = *(uint8_t **)&jarg4; 
+  arg4 = *(uint8_t **)&jarg4;
   result = (np_tree_elem_t *)np_tree_s_tree_find_gte_str(arg1,arg2,(char const *)arg3,arg4);
-  *(np_tree_elem_t **)&jresult = result; 
+  *(np_tree_elem_t **)&jresult = result;
   if (arg3) (*jenv)->ReleaseStringUTFChars(jenv, jarg3, (const char *)arg3);
   return jresult;
 }
@@ -686,26 +686,26 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1find_1gte_1int(JNIE
   $self *argp2 ;
   int16_t *argp3 ;
   np_tree_elem_t *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return 0;
   }
-  arg2 = *argp2; 
-  argp3 = *(int16_t **)&jarg3; 
+  arg2 = *argp2;
+  argp3 = *(int16_t **)&jarg3;
   if (!argp3) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null int16_t");
     return 0;
   }
-  arg3 = *argp3; 
-  arg4 = *(uint8_t **)&jarg4; 
+  arg3 = *argp3;
+  arg4 = *(uint8_t **)&jarg4;
   result = (np_tree_elem_t *)np_tree_s_tree_find_gte_int(arg1,arg2,arg3,arg4);
-  *(np_tree_elem_t **)&jresult = result; 
+  *(np_tree_elem_t **)&jresult = result;
   return jresult;
 }
 
@@ -719,26 +719,26 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1find_1gte_1ulong(JN
   $self *argp2 ;
   uint32_t *argp3 ;
   np_tree_elem_t *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return 0;
   }
-  arg2 = *argp2; 
-  argp3 = *(uint32_t **)&jarg3; 
+  arg2 = *argp2;
+  argp3 = *(uint32_t **)&jarg3;
   if (!argp3) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint32_t");
     return 0;
   }
-  arg3 = *argp3; 
-  arg4 = *(uint8_t **)&jarg4; 
+  arg3 = *argp3;
+  arg4 = *(uint8_t **)&jarg4;
   result = (np_tree_elem_t *)np_tree_s_tree_find_gte_ulong(arg1,arg2,arg3,arg4);
-  *(np_tree_elem_t **)&jresult = result; 
+  *(np_tree_elem_t **)&jresult = result;
   return jresult;
 }
 
@@ -751,21 +751,21 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1find_1gte_1dbl(JNIE
   uint8_t *arg4 = (uint8_t *) 0 ;
   $self *argp2 ;
   np_tree_elem_t *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return 0;
   }
-  arg2 = *argp2; 
-  arg3 = (double)jarg3; 
-  arg4 = *(uint8_t **)&jarg4; 
+  arg2 = *argp2;
+  arg3 = (double)jarg3;
+  arg4 = *(uint8_t **)&jarg4;
   result = (np_tree_elem_t *)np_tree_s_tree_find_gte_dbl(arg1,arg2,arg3,arg4);
-  *(np_tree_elem_t **)&jresult = result; 
+  *(np_tree_elem_t **)&jresult = result;
   return jresult;
 }
 
@@ -775,17 +775,17 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1del_1str(JNIEnv *jen
   $self arg2 ;
   char *arg3 = (char *) 0 ;
   $self *argp2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   arg3 = 0;
   if (jarg3) {
     arg3 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg3, 0);
@@ -802,23 +802,23 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1del_1int(JNIEnv *jen
   int16_t arg3 ;
   $self *argp2 ;
   int16_t const *argp3 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
-  argp3 = *(int16_t **)&jarg3; 
+  arg2 = *argp2;
+  argp3 = *(int16_t **)&jarg3;
   if (!argp3) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null int16_t const");
     return ;
   }
-  arg3 = *argp3; 
+  arg3 = *argp3;
   np_tree_s_tree_del_int(arg1,arg2,arg3);
 }
 
@@ -828,18 +828,18 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1del_1double(JNIEnv *
   $self arg2 ;
   double arg3 ;
   $self *argp2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
-  arg3 = (double)jarg3; 
+  arg2 = *argp2;
+  arg3 = (double)jarg3;
   np_tree_s_tree_del_double(arg1,arg2,arg3);
 }
 
@@ -850,23 +850,23 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1del_1ulong(JNIEnv *j
   uint32_t arg3 ;
   $self *argp2 ;
   uint32_t const *argp3 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_s **)&jarg1; 
-  argp2 = *($self **)&jarg2; 
+  arg1 = *(struct np_tree_s **)&jarg1;
+  argp2 = *($self **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null $self");
     return ;
   }
-  arg2 = *argp2; 
-  argp3 = *(uint32_t **)&jarg3; 
+  arg2 = *argp2;
+  argp3 = *(uint32_t **)&jarg3;
   if (!argp3) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint32_t const");
     return ;
   }
-  arg3 = *argp3; 
+  arg3 = *argp3;
   np_tree_s_tree_del_ulong(arg1,arg2,arg3);
 }
 
@@ -875,17 +875,17 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1key_1set(JNIEnv *jen
   struct np_tree_elem_s *arg1 = (struct np_tree_elem_s *) 0 ;
   np_val_t arg2 ;
   np_val_t *argp2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_elem_s **)&jarg1; 
-  argp2 = *(np_val_t **)&jarg2; 
+  arg1 = *(struct np_tree_elem_s **)&jarg1;
+  argp2 = *(np_val_t **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   if (arg1) (arg1)->key = arg2;
 }
 
@@ -894,11 +894,11 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1key_1get(JNIEnv *je
   jlong jresult = 0 ;
   struct np_tree_elem_s *arg1 = (struct np_tree_elem_s *) 0 ;
   np_val_t result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_elem_s **)&jarg1; 
+  arg1 = *(struct np_tree_elem_s **)&jarg1;
   result =  ((arg1)->key);
   {
     np_val_t * resultptr = (np_val_t *) malloc(sizeof(np_val_t));
@@ -913,17 +913,17 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1val_1set(JNIEnv *jen
   struct np_tree_elem_s *arg1 = (struct np_tree_elem_s *) 0 ;
   np_val_t arg2 ;
   np_val_t *argp2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_elem_s **)&jarg1; 
-  argp2 = *(np_val_t **)&jarg2; 
+  arg1 = *(struct np_tree_elem_s **)&jarg1;
+  argp2 = *(np_val_t **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   if (arg1) (arg1)->val = arg2;
 }
 
@@ -932,11 +932,11 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1val_1get(JNIEnv *je
   jlong jresult = 0 ;
   struct np_tree_elem_s *arg1 = (struct np_tree_elem_s *) 0 ;
   np_val_t result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_tree_elem_s **)&jarg1; 
+  arg1 = *(struct np_tree_elem_s **)&jarg1;
   result =  ((arg1)->val);
   {
     np_val_t * resultptr = (np_val_t *) malloc(sizeof(np_val_t));
@@ -950,21 +950,21 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1val_1get(JNIEnv *je
 SWIGEXPORT jlong JNICALL Java_neuropilJNI_new_1np_1tree_1elem_1s(JNIEnv *jenv, jclass jcls) {
   jlong jresult = 0 ;
   struct np_tree_elem_s *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   result = (struct np_tree_elem_s *)calloc(1, sizeof(struct np_tree_elem_s));
-  *(struct np_tree_elem_s **)&jresult = result; 
+  *(struct np_tree_elem_s **)&jresult = result;
   return jresult;
 }
 
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_delete_1np_1tree_1elem_1s(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   struct np_tree_elem_s *arg1 = (struct np_tree_elem_s *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
-  arg1 = *(struct np_tree_elem_s **)&jarg1; 
+  arg1 = *(struct np_tree_elem_s **)&jarg1;
   free((char *) arg1);
 }
 
@@ -975,7 +975,7 @@ SWIGEXPORT jstring JNICALL Java_neuropilJNI_np_1create_1uuid(JNIEnv *jenv, jclas
   uint16_t arg2 ;
   uint16_t const *argp2 ;
   char *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   arg1 = 0;
@@ -983,12 +983,12 @@ SWIGEXPORT jstring JNICALL Java_neuropilJNI_np_1create_1uuid(JNIEnv *jenv, jclas
     arg1 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg1, 0);
     if (!arg1) return 0;
   }
-  argp2 = *(uint16_t **)&jarg2; 
+  argp2 = *(uint16_t **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint16_t const");
     return 0;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   result = (char *)np_create_uuid((char const *)arg1,arg2);
   if (result) jresult = (*jenv)->NewStringUTF(jenv, (const char *)result);
   if (arg1) (*jenv)->ReleaseStringUTFChars(jenv, jarg1, (const char *)arg1);
@@ -999,11 +999,11 @@ SWIGEXPORT jstring JNICALL Java_neuropilJNI_np_1create_1uuid(JNIEnv *jenv, jclas
 SWIGEXPORT jint JNICALL Java_neuropilJNI_DEFAULT_1MODE_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mode_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mode_enum)DEFAULT_MODE;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1011,11 +1011,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_DEFAULT_1MODE_1get(JNIEnv *jenv, jclass
 SWIGEXPORT jint JNICALL Java_neuropilJNI_INBOUND_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mode_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mode_enum)INBOUND;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1023,11 +1023,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_INBOUND_1get(JNIEnv *jenv, jclass jcls)
 SWIGEXPORT jint JNICALL Java_neuropilJNI_OUTBOUND_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mode_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mode_enum)OUTBOUND;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1035,11 +1035,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_OUTBOUND_1get(JNIEnv *jenv, jclass jcls
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ROUTE_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mode_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mode_enum)ROUTE;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1047,11 +1047,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_ROUTE_1get(JNIEnv *jenv, jclass jcls) {
 SWIGEXPORT jint JNICALL Java_neuropilJNI_TRANSFORM_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mode_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mode_enum)TRANSFORM;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1059,11 +1059,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_TRANSFORM_1get(JNIEnv *jenv, jclass jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_DEFAULT_1TYPE_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)DEFAULT_TYPE;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1071,11 +1071,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_DEFAULT_1TYPE_1get(JNIEnv *jenv, jclass
 SWIGEXPORT jint JNICALL Java_neuropilJNI_RECEIVER_1MASK_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)RECEIVER_MASK;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1083,11 +1083,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_RECEIVER_1MASK_1get(JNIEnv *jenv, jclas
 SWIGEXPORT jint JNICALL Java_neuropilJNI_SENDER_1MASK_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)SENDER_MASK;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1095,11 +1095,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_SENDER_1MASK_1get(JNIEnv *jenv, jclass 
 SWIGEXPORT jint JNICALL Java_neuropilJNI_FILTER_1MASK_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)FILTER_MASK;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1107,11 +1107,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_FILTER_1MASK_1get(JNIEnv *jenv, jclass 
 SWIGEXPORT jint JNICALL Java_neuropilJNI_SINGLE_1RECEIVER_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)SINGLE_RECEIVER;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1119,11 +1119,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_SINGLE_1RECEIVER_1get(JNIEnv *jenv, jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_GROUP_1RECEIVER_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)GROUP_RECEIVER;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1131,11 +1131,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_GROUP_1RECEIVER_1get(JNIEnv *jenv, jcla
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ANY_1RECEIVER_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)ANY_RECEIVER;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1143,11 +1143,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_ANY_1RECEIVER_1get(JNIEnv *jenv, jclass
 SWIGEXPORT jint JNICALL Java_neuropilJNI_SINGLE_1SENDER_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)SINGLE_SENDER;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1155,11 +1155,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_SINGLE_1SENDER_1get(JNIEnv *jenv, jclas
 SWIGEXPORT jint JNICALL Java_neuropilJNI_GROUP_1SENDER_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)GROUP_SENDER;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1167,11 +1167,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_GROUP_1SENDER_1get(JNIEnv *jenv, jclass
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ANY_1SENDER_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)ANY_SENDER;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1179,11 +1179,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_ANY_1SENDER_1get(JNIEnv *jenv, jclass j
 SWIGEXPORT jint JNICALL Java_neuropilJNI_FILTER_1MSG_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)FILTER_MSG;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1191,11 +1191,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_FILTER_1MSG_1get(JNIEnv *jenv, jclass j
 SWIGEXPORT jint JNICALL Java_neuropilJNI_HAS_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)HAS_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1203,11 +1203,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_HAS_1REPLY_1get(JNIEnv *jenv, jclass jc
 SWIGEXPORT jint JNICALL Java_neuropilJNI_STICKY_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)STICKY_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1215,11 +1215,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_STICKY_1REPLY_1get(JNIEnv *jenv, jclass
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ONE_1WAY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)ONE_WAY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1227,11 +1227,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_ONE_1WAY_1get(JNIEnv *jenv, jclass jcls
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ONE_1WAY_1WITH_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)ONE_WAY_WITH_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1239,11 +1239,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_ONE_1WAY_1WITH_1REPLY_1get(JNIEnv *jenv
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ONE_1TO_1GROUP_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)ONE_TO_GROUP;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1251,11 +1251,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_ONE_1TO_1GROUP_1get(JNIEnv *jenv, jclas
 SWIGEXPORT jint JNICALL Java_neuropilJNI_O2G_1WITH_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)O2G_WITH_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1263,11 +1263,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_O2G_1WITH_1REPLY_1get(JNIEnv *jenv, jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ONE_1TO_1ANY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)ONE_TO_ANY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1275,11 +1275,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_ONE_1TO_1ANY_1get(JNIEnv *jenv, jclass 
 SWIGEXPORT jint JNICALL Java_neuropilJNI_O2A_1WITH_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)O2A_WITH_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1287,11 +1287,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_O2A_1WITH_1REPLY_1get(JNIEnv *jenv, jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_GROUP_1TO_1GROUP_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)GROUP_TO_GROUP;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1299,11 +1299,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_GROUP_1TO_1GROUP_1get(JNIEnv *jenv, jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_G2G_1WITH_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)G2G_WITH_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1311,11 +1311,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_G2G_1WITH_1REPLY_1get(JNIEnv *jenv, jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_G2G_1STICKY_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)G2G_STICKY_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1323,11 +1323,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_G2G_1STICKY_1REPLY_1get(JNIEnv *jenv, j
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ANY_1TO_1ANY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)ANY_TO_ANY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1335,11 +1335,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_ANY_1TO_1ANY_1get(JNIEnv *jenv, jclass 
 SWIGEXPORT jint JNICALL Java_neuropilJNI_A2A_1WITH_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)A2A_WITH_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1347,11 +1347,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_A2A_1WITH_1REPLY_1get(JNIEnv *jenv, jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_A2A_1STICKY_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)A2A_STICKY_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1359,11 +1359,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_A2A_1STICKY_1REPLY_1get(JNIEnv *jenv, j
 SWIGEXPORT jint JNICALL Java_neuropilJNI_GROUP_1TO_1ANY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)GROUP_TO_ANY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1371,11 +1371,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_GROUP_1TO_1ANY_1get(JNIEnv *jenv, jclas
 SWIGEXPORT jint JNICALL Java_neuropilJNI_G2A_1WITH_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)G2A_WITH_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1383,11 +1383,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_G2A_1WITH_1REPLY_1get(JNIEnv *jenv, jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_G2A_1STICKY_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)G2A_STICKY_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1395,11 +1395,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_G2A_1STICKY_1REPLY_1get(JNIEnv *jenv, j
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ANY_1TO_1GROUP_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)ANY_TO_GROUP;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1407,11 +1407,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_ANY_1TO_1GROUP_1get(JNIEnv *jenv, jclas
 SWIGEXPORT jint JNICALL Java_neuropilJNI_A2G_1WITH_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)A2G_WITH_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1419,11 +1419,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_A2G_1WITH_1REPLY_1get(JNIEnv *jenv, jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_A2G_1STICKY_1REPLY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)A2G_STICKY_REPLY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1431,11 +1431,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_A2G_1STICKY_1REPLY_1get(JNIEnv *jenv, j
 SWIGEXPORT jint JNICALL Java_neuropilJNI_REQ_1REP_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)REQ_REP;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1443,11 +1443,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_REQ_1REP_1get(JNIEnv *jenv, jclass jcls
 SWIGEXPORT jint JNICALL Java_neuropilJNI_PIPELINE_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)PIPELINE;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1455,11 +1455,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_PIPELINE_1get(JNIEnv *jenv, jclass jcls
 SWIGEXPORT jint JNICALL Java_neuropilJNI_AGGREGATE_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)AGGREGATE;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1467,11 +1467,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_AGGREGATE_1get(JNIEnv *jenv, jclass jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_MULTICAST_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)MULTICAST;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1479,11 +1479,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_MULTICAST_1get(JNIEnv *jenv, jclass jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_BROADCAST_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)BROADCAST;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1491,11 +1491,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_BROADCAST_1get(JNIEnv *jenv, jclass jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_INTERVIEW_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)INTERVIEW;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1503,11 +1503,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_INTERVIEW_1get(JNIEnv *jenv, jclass jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_BUS_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)BUS;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1515,11 +1515,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_BUS_1get(JNIEnv *jenv, jclass jcls) {
 SWIGEXPORT jint JNICALL Java_neuropilJNI_SURVEY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)SURVEY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1527,11 +1527,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_SURVEY_1get(JNIEnv *jenv, jclass jcls) 
 SWIGEXPORT jint JNICALL Java_neuropilJNI_PUBSUB_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_mep_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_mep_enum)PUBSUB;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1539,11 +1539,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_PUBSUB_1get(JNIEnv *jenv, jclass jcls) 
 SWIGEXPORT jint JNICALL Java_neuropilJNI_FIFO_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msgcache_policy_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msgcache_policy_enum)FIFO;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1551,11 +1551,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_FIFO_1get(JNIEnv *jenv, jclass jcls) {
 SWIGEXPORT jint JNICALL Java_neuropilJNI_FILO_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msgcache_policy_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msgcache_policy_enum)FILO;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1563,11 +1563,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_FILO_1get(JNIEnv *jenv, jclass jcls) {
 SWIGEXPORT jint JNICALL Java_neuropilJNI_OVERFLOW_1REJECT_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msgcache_policy_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msgcache_policy_enum)OVERFLOW_REJECT;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1575,11 +1575,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_OVERFLOW_1REJECT_1get(JNIEnv *jenv, jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_OVERFLOW_1PURGE_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msgcache_policy_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msgcache_policy_enum)OVERFLOW_PURGE;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1587,11 +1587,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_OVERFLOW_1PURGE_1get(JNIEnv *jenv, jcla
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ACK_1NONE_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_ack_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_ack_enum)ACK_NONE;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1599,11 +1599,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_ACK_1NONE_1get(JNIEnv *jenv, jclass jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ACK_1EACHHOP_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_ack_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_ack_enum)ACK_EACHHOP;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1611,11 +1611,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_ACK_1EACHHOP_1get(JNIEnv *jenv, jclass 
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ACK_1DESTINATION_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_ack_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_ack_enum)ACK_DESTINATION;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1623,11 +1623,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_ACK_1DESTINATION_1get(JNIEnv *jenv, jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_ACK_1CLIENT_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_msg_ack_enum result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_msg_ack_enum)ACK_CLIENT;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1636,17 +1636,17 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1partner_1key_1set(J
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   np_dhkey_t arg2 ;
   np_dhkey_t *argp2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
-  argp2 = *(np_dhkey_t **)&jarg2; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
+  argp2 = *(np_dhkey_t **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_dhkey_t");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   if (arg1) (arg1)->partner_key = arg2;
 }
 
@@ -1655,11 +1655,11 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1msgproperty_1s_1partner_1key_1get(
   jlong jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   np_dhkey_t result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result =  ((arg1)->partner_key);
   {
     np_dhkey_t * resultptr = (np_dhkey_t *) malloc(sizeof(np_dhkey_t));
@@ -1673,11 +1673,11 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1msgproperty_1s_1partner_1key_1get(
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1msg_1subject_1set(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jstring jarg2) {
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   char *arg2 = (char *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   arg2 = 0;
   if (jarg2) {
     arg2 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg2, 0);
@@ -1700,11 +1700,11 @@ SWIGEXPORT jstring JNICALL Java_neuropilJNI_np_1msgproperty_1s_1msg_1subject_1ge
   jstring jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   char *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result = (char *) ((arg1)->msg_subject);
   if (result) jresult = (*jenv)->NewStringUTF(jenv, (const char *)result);
   return jresult;
@@ -1714,11 +1714,11 @@ SWIGEXPORT jstring JNICALL Java_neuropilJNI_np_1msgproperty_1s_1msg_1subject_1ge
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1rep_1subject_1set(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jstring jarg2) {
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   char *arg2 = (char *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   arg2 = 0;
   if (jarg2) {
     arg2 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg2, 0);
@@ -1741,11 +1741,11 @@ SWIGEXPORT jstring JNICALL Java_neuropilJNI_np_1msgproperty_1s_1rep_1subject_1ge
   jstring jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   char *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result = (char *) ((arg1)->rep_subject);
   if (result) jresult = (*jenv)->NewStringUTF(jenv, (const char *)result);
   return jresult;
@@ -1755,11 +1755,11 @@ SWIGEXPORT jstring JNICALL Java_neuropilJNI_np_1msgproperty_1s_1rep_1subject_1ge
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1msg_1audience_1set(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jstring jarg2) {
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   char *arg2 = (char *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   arg2 = 0;
   if (jarg2) {
     arg2 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg2, 0);
@@ -1782,11 +1782,11 @@ SWIGEXPORT jstring JNICALL Java_neuropilJNI_np_1msgproperty_1s_1msg_1audience_1g
   jstring jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   char *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result = (char *) ((arg1)->msg_audience);
   if (result) jresult = (*jenv)->NewStringUTF(jenv, (const char *)result);
   return jresult;
@@ -1796,12 +1796,12 @@ SWIGEXPORT jstring JNICALL Java_neuropilJNI_np_1msgproperty_1s_1msg_1audience_1g
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1mode_1type_1set(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jint jarg2) {
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   np_msg_mode_type arg2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
-  arg2 = (np_msg_mode_type)jarg2; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
+  arg2 = (np_msg_mode_type)jarg2;
   if (arg1) (arg1)->mode_type = arg2;
 }
 
@@ -1810,13 +1810,13 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_np_1msgproperty_1s_1mode_1type_1get(JNI
   jint jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   np_msg_mode_type result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result = (np_msg_mode_type) ((arg1)->mode_type);
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1824,12 +1824,12 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_np_1msgproperty_1s_1mode_1type_1get(JNI
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1mep_1type_1set(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jint jarg2) {
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   np_msg_mep_type arg2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
-  arg2 = (np_msg_mep_type)jarg2; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
+  arg2 = (np_msg_mep_type)jarg2;
   if (arg1) (arg1)->mep_type = arg2;
 }
 
@@ -1838,13 +1838,13 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_np_1msgproperty_1s_1mep_1type_1get(JNIE
   jint jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   np_msg_mep_type result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result = (np_msg_mep_type) ((arg1)->mep_type);
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1852,12 +1852,12 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_np_1msgproperty_1s_1mep_1type_1get(JNIE
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1ack_1mode_1set(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jint jarg2) {
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   np_msg_ack_type arg2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
-  arg2 = (np_msg_ack_type)jarg2; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
+  arg2 = (np_msg_ack_type)jarg2;
   if (arg1) (arg1)->ack_mode = arg2;
 }
 
@@ -1866,13 +1866,13 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_np_1msgproperty_1s_1ack_1mode_1get(JNIE
   jint jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   np_msg_ack_type result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result = (np_msg_ack_type) ((arg1)->ack_mode);
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -1880,12 +1880,12 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_np_1msgproperty_1s_1ack_1mode_1get(JNIE
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1ttl_1set(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jdouble jarg2) {
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   double arg2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
-  arg2 = (double)jarg2; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
+  arg2 = (double)jarg2;
   if (arg1) (arg1)->ttl = arg2;
 }
 
@@ -1894,13 +1894,13 @@ SWIGEXPORT jdouble JNICALL Java_neuropilJNI_np_1msgproperty_1s_1ttl_1get(JNIEnv 
   jdouble jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   double result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result = (double) ((arg1)->ttl);
-  jresult = (jdouble)result; 
+  jresult = (jdouble)result;
   return jresult;
 }
 
@@ -1909,17 +1909,17 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1priority_1set(JNIEn
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   uint8_t arg2 ;
   uint8_t *argp2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
-  argp2 = *(uint8_t **)&jarg2; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
+  argp2 = *(uint8_t **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint8_t");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   if (arg1) (arg1)->priority = arg2;
 }
 
@@ -1928,11 +1928,11 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1msgproperty_1s_1priority_1get(JNIE
   jlong jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   uint8_t result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result =  ((arg1)->priority);
   {
     uint8_t * resultptr = (uint8_t *) malloc(sizeof(uint8_t));
@@ -1947,17 +1947,17 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1retry_1set(JNIEnv *
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   uint8_t arg2 ;
   uint8_t *argp2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
-  argp2 = *(uint8_t **)&jarg2; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
+  argp2 = *(uint8_t **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint8_t");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   if (arg1) (arg1)->retry = arg2;
 }
 
@@ -1966,11 +1966,11 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1msgproperty_1s_1retry_1get(JNIEnv 
   jlong jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   uint8_t result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result =  ((arg1)->retry);
   {
     uint8_t * resultptr = (uint8_t *) malloc(sizeof(uint8_t));
@@ -1985,17 +1985,17 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1msg_1threshold_1set
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   uint16_t arg2 ;
   uint16_t *argp2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
-  argp2 = *(uint16_t **)&jarg2; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
+  argp2 = *(uint16_t **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint16_t");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   if (arg1) (arg1)->msg_threshold = arg2;
 }
 
@@ -2004,11 +2004,11 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1msgproperty_1s_1msg_1threshold_1ge
   jlong jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   uint16_t result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result =  ((arg1)->msg_threshold);
   {
     uint16_t * resultptr = (uint16_t *) malloc(sizeof(uint16_t));
@@ -2023,17 +2023,17 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1max_1threshold_1set
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   uint16_t arg2 ;
   uint16_t *argp2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
-  argp2 = *(uint16_t **)&jarg2; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
+  argp2 = *(uint16_t **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint16_t");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   if (arg1) (arg1)->max_threshold = arg2;
 }
 
@@ -2042,11 +2042,11 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1msgproperty_1s_1max_1threshold_1ge
   jlong jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   uint16_t result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result =  ((arg1)->max_threshold);
   {
     uint16_t * resultptr = (uint16_t *) malloc(sizeof(uint16_t));
@@ -2060,12 +2060,12 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1msgproperty_1s_1max_1threshold_1ge
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1last_1update_1set(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jdouble jarg2) {
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   double arg2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
-  arg2 = (double)jarg2; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
+  arg2 = (double)jarg2;
   if (arg1) (arg1)->last_update = arg2;
 }
 
@@ -2074,13 +2074,13 @@ SWIGEXPORT jdouble JNICALL Java_neuropilJNI_np_1msgproperty_1s_1last_1update_1ge
   jdouble jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   double result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result = (double) ((arg1)->last_update);
-  jresult = (jdouble)result; 
+  jresult = (jdouble)result;
   return jresult;
 }
 
@@ -2088,12 +2088,12 @@ SWIGEXPORT jdouble JNICALL Java_neuropilJNI_np_1msgproperty_1s_1last_1update_1ge
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1cache_1policy_1set(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jint jarg2) {
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   np_msgcache_policy_type arg2 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
-  arg2 = (np_msgcache_policy_type)jarg2; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
+  arg2 = (np_msgcache_policy_type)jarg2;
   if (arg1) (arg1)->cache_policy = arg2;
 }
 
@@ -2102,13 +2102,13 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_np_1msgproperty_1s_1cache_1policy_1get(
   jint jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   np_msgcache_policy_type result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result = (np_msgcache_policy_type) ((arg1)->cache_policy);
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2116,12 +2116,12 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_np_1msgproperty_1s_1cache_1policy_1get(
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1s_1user_1clb_1set(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jlong jarg2) {
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   np_usercallback_t arg2 = (np_usercallback_t) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
-  arg2 = *(np_usercallback_t *)&jarg2; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
+  arg2 = *(np_usercallback_t *)&jarg2;
   if (arg1) (arg1)->user_clb = arg2;
 }
 
@@ -2130,13 +2130,13 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1msgproperty_1s_1user_1clb_1get(JNI
   jlong jresult = 0 ;
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
   np_usercallback_t result;
-  
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   result = (np_usercallback_t) ((arg1)->user_clb);
-  *(np_usercallback_t *)&jresult = result; 
+  *(np_usercallback_t *)&jresult = result;
   return jresult;
 }
 
@@ -2144,31 +2144,31 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1msgproperty_1s_1user_1clb_1get(JNI
 SWIGEXPORT jlong JNICALL Java_neuropilJNI_new_1np_1msgproperty_1s(JNIEnv *jenv, jclass jcls) {
   jlong jresult = 0 ;
   struct np_msgproperty_s *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   result = (struct np_msgproperty_s *)calloc(1, sizeof(struct np_msgproperty_s));
-  *(struct np_msgproperty_s **)&jresult = result; 
+  *(struct np_msgproperty_s **)&jresult = result;
   return jresult;
 }
 
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_delete_1np_1msgproperty_1s(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   struct np_msgproperty_s *arg1 = (struct np_msgproperty_s *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
-  arg1 = *(struct np_msgproperty_s **)&jarg1; 
+  arg1 = *(struct np_msgproperty_s **)&jarg1;
   free((char *) arg1);
 }
 
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1msgproperty_1register(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   np_msgproperty_t *arg1 = (np_msgproperty_t *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
-  arg1 = *(np_msgproperty_t **)&jarg1; 
+  arg1 = *(np_msgproperty_t **)&jarg1;
   np_msgproperty_register(arg1);
 }
 
@@ -2178,17 +2178,17 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1msgproperty_1get(JNIEnv *jenv, jcl
   np_msg_mode_type arg1 ;
   char *arg2 = (char *) 0 ;
   np_msgproperty_t *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
-  arg1 = (np_msg_mode_type)jarg1; 
+  arg1 = (np_msg_mode_type)jarg1;
   arg2 = 0;
   if (jarg2) {
     arg2 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg2, 0);
     if (!arg2) return 0;
   }
   result = (np_msgproperty_t *)np_msgproperty_get(arg1,(char const *)arg2);
-  *(np_msgproperty_t **)&jresult = result; 
+  *(np_msgproperty_t **)&jresult = result;
   if (arg2) (*jenv)->ReleaseStringUTFChars(jenv, jarg2, (const char *)arg2);
   return jresult;
 }
@@ -2198,16 +2198,16 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1mem_1newobj(JNIEnv *jenv, jclass jc
   np_obj_enum arg1 ;
   np_obj_t **arg2 = (np_obj_t **) 0 ;
   np_obj_enum *argp1 ;
-  
+
   (void)jenv;
   (void)jcls;
-  argp1 = *(np_obj_enum **)&jarg1; 
+  argp1 = *(np_obj_enum **)&jarg1;
   if (!argp1) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_obj_enum");
     return ;
   }
-  arg1 = *argp1; 
-  arg2 = *(np_obj_t ***)&jarg2; 
+  arg1 = *argp1;
+  arg2 = *(np_obj_t ***)&jarg2;
   np_mem_newobj(arg1,arg2);
 }
 
@@ -2216,36 +2216,36 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1mem_1freeobj(JNIEnv *jenv, jclass j
   np_obj_enum arg1 ;
   np_obj_t **arg2 = (np_obj_t **) 0 ;
   np_obj_enum *argp1 ;
-  
+
   (void)jenv;
   (void)jcls;
-  argp1 = *(np_obj_enum **)&jarg1; 
+  argp1 = *(np_obj_enum **)&jarg1;
   if (!argp1) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_obj_enum");
     return ;
   }
-  arg1 = *argp1; 
-  arg2 = *(np_obj_t ***)&jarg2; 
+  arg1 = *argp1;
+  arg2 = *(np_obj_t ***)&jarg2;
   np_mem_freeobj(arg1,arg2);
 }
 
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1mem_1refobj(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   np_obj_t *arg1 = (np_obj_t *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
-  arg1 = *(np_obj_t **)&jarg1; 
+  arg1 = *(np_obj_t **)&jarg1;
   np_mem_refobj(arg1);
 }
 
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1mem_1unrefobj(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   np_obj_t *arg1 = (np_obj_t *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
-  arg1 = *(np_obj_t **)&jarg1; 
+  arg1 = *(np_obj_t **)&jarg1;
   np_mem_unrefobj(arg1);
 }
 
@@ -2253,11 +2253,11 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1mem_1unrefobj(JNIEnv *jenv, jclass 
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1NONE_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_NONE;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2265,11 +2265,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1NONE_1get(JNIEnv *jenv, jclass jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1NOMOD_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_NOMOD;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2277,11 +2277,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1NOMOD_1get(JNIEnv *jenv, jclass jc
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1ERROR_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_ERROR;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2289,11 +2289,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1ERROR_1get(JNIEnv *jenv, jclass jc
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1WARN_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_WARN;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2301,11 +2301,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1WARN_1get(JNIEnv *jenv, jclass jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1INFO_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_INFO;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2313,11 +2313,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1INFO_1get(JNIEnv *jenv, jclass jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1DEBUG_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_DEBUG;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2325,11 +2325,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1DEBUG_1get(JNIEnv *jenv, jclass jc
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1TRACE_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_TRACE;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2337,11 +2337,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1TRACE_1get(JNIEnv *jenv, jclass jc
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1KEY_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_KEY;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2349,11 +2349,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1KEY_1get(JNIEnv *jenv, jclass jcls
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1NETWORK_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_NETWORK;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2361,11 +2361,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1NETWORK_1get(JNIEnv *jenv, jclass 
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1ROUTING_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_ROUTING;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2373,11 +2373,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1ROUTING_1get(JNIEnv *jenv, jclass 
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1MESSAGE_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_MESSAGE;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2385,11 +2385,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1MESSAGE_1get(JNIEnv *jenv, jclass 
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1SECURE_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_SECURE;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2397,11 +2397,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1SECURE_1get(JNIEnv *jenv, jclass j
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1HTTP_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_HTTP;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2409,11 +2409,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1HTTP_1get(JNIEnv *jenv, jclass jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1AAATOKEN_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_AAATOKEN;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2421,11 +2421,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1AAATOKEN_1get(JNIEnv *jenv, jclass
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1GLOBAL_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_GLOBAL;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2433,11 +2433,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1GLOBAL_1get(JNIEnv *jenv, jclass j
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1MODUL_1MASK_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_MODUL_MASK;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2445,11 +2445,11 @@ SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1MODUL_1MASK_1get(JNIEnv *jenv, jcl
 SWIGEXPORT jint JNICALL Java_neuropilJNI_LOG_1NOMOD_1MASK_1get(JNIEnv *jenv, jclass jcls) {
   jint jresult = 0 ;
   enum np_log_e result;
-  
+
   (void)jenv;
   (void)jcls;
   result = (enum np_log_e)LOG_NOMOD_MASK;
-  jresult = (jint)result; 
+  jresult = (jint)result;
   return jresult;
 }
 
@@ -2458,7 +2458,7 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1log_1init(JNIEnv *jenv, jclass jcls
   char *arg1 = (char *) 0 ;
   uint16_t arg2 ;
   uint16_t *argp2 ;
-  
+
   (void)jenv;
   (void)jcls;
   arg1 = 0;
@@ -2466,12 +2466,12 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1log_1init(JNIEnv *jenv, jclass jcls
     arg1 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg1, 0);
     if (!arg1) return ;
   }
-  argp2 = *(uint16_t **)&jarg2; 
+  argp2 = *(uint16_t **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint16_t");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   np_log_init((char const *)arg1,arg2);
   if (arg1) (*jenv)->ReleaseStringUTFChars(jenv, jarg1, (const char *)arg1);
 }
@@ -2480,15 +2480,15 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1log_1init(JNIEnv *jenv, jclass jcls
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1log_1setlevel(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   uint16_t arg1 ;
   uint16_t *argp1 ;
-  
+
   (void)jenv;
   (void)jcls;
-  argp1 = *(uint16_t **)&jarg1; 
+  argp1 = *(uint16_t **)&jarg1;
   if (!argp1) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint16_t");
     return ;
   }
-  arg1 = *argp1; 
+  arg1 = *argp1;
   np_log_setlevel(arg1);
 }
 
@@ -2507,7 +2507,7 @@ SWIGEXPORT void JNICALL Java_neuropilJNI__1np_1add_1http_1callback(JNIEnv *jenv,
   _np_http_callback_func_t arg4 ;
   htp_method *argp2 ;
   _np_http_callback_func_t *argp4 ;
-  
+
   (void)jenv;
   (void)jcls;
   arg1 = 0;
@@ -2515,19 +2515,19 @@ SWIGEXPORT void JNICALL Java_neuropilJNI__1np_1add_1http_1callback(JNIEnv *jenv,
     arg1 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg1, 0);
     if (!arg1) return ;
   }
-  argp2 = *(htp_method **)&jarg2; 
+  argp2 = *(htp_method **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null htp_method");
     return ;
   }
-  arg2 = *argp2; 
-  arg3 = *(void **)&jarg3; 
-  argp4 = *(_np_http_callback_func_t **)&jarg4; 
+  arg2 = *argp2;
+  arg3 = *(void **)&jarg3;
+  argp4 = *(_np_http_callback_func_t **)&jarg4;
   if (!argp4) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null _np_http_callback_func_t");
     return ;
   }
-  arg4 = *argp4; 
+  arg4 = *argp4;
   _np_add_http_callback((char const *)arg1,arg2,arg3,arg4);
   if (arg1) (*jenv)->ReleaseStringUTFChars(jenv, jarg1, (const char *)arg1);
 }
@@ -2537,7 +2537,7 @@ SWIGEXPORT void JNICALL Java_neuropilJNI__1np_1rem_1http_1callback(JNIEnv *jenv,
   char *arg1 = (char *) 0 ;
   htp_method arg2 ;
   htp_method *argp2 ;
-  
+
   (void)jenv;
   (void)jcls;
   arg1 = 0;
@@ -2545,12 +2545,12 @@ SWIGEXPORT void JNICALL Java_neuropilJNI__1np_1rem_1http_1callback(JNIEnv *jenv,
     arg1 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg1, 0);
     if (!arg1) return ;
   }
-  argp2 = *(htp_method **)&jarg2; 
+  argp2 = *(htp_method **)&jarg2;
   if (!argp2) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null htp_method");
     return ;
   }
-  arg2 = *argp2; 
+  arg2 = *argp2;
   _np_rem_http_callback((char const *)arg1,arg2);
   if (arg1) (*jenv)->ReleaseStringUTFChars(jenv, jarg1, (const char *)arg1);
 }
@@ -2563,7 +2563,7 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1init(JNIEnv *jenv, jclass jcls, js
   np_bool arg3 ;
   np_bool *argp3 ;
   np_state_t *result = 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   arg1 = 0;
@@ -2576,14 +2576,14 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1init(JNIEnv *jenv, jclass jcls, js
     arg2 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg2, 0);
     if (!arg2) return 0;
   }
-  argp3 = *(np_bool **)&jarg3; 
+  argp3 = *(np_bool **)&jarg3;
   if (!argp3) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_bool");
     return 0;
   }
-  arg3 = *argp3; 
+  arg3 = *argp3;
   result = (np_state_t *)np_init(arg1,arg2,arg3);
-  *(np_state_t **)&jresult = result; 
+  *(np_state_t **)&jresult = result;
   if (arg1) (*jenv)->ReleaseStringUTFChars(jenv, jarg1, (const char *)arg1);
   if (arg2) (*jenv)->ReleaseStringUTFChars(jenv, jarg2, (const char *)arg2);
   return jresult;
@@ -2613,7 +2613,7 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1enable_1realm_1slave(JNIEnv *jenv, 
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1set_1realm_1name(JNIEnv *jenv, jclass jcls, jstring jarg1) {
   char *arg1 = (char *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   arg1 = 0;
@@ -2628,17 +2628,17 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1set_1realm_1name(JNIEnv *jenv, jcla
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1set_1identity(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   np_aaatoken_t *arg1 = (np_aaatoken_t *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
-  arg1 = *(np_aaatoken_t **)&jarg1; 
+  arg1 = *(np_aaatoken_t **)&jarg1;
   np_set_identity(arg1);
 }
 
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1send_1join(JNIEnv *jenv, jclass jcls, jstring jarg1) {
   char *arg1 = (char *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   arg1 = 0;
@@ -2660,30 +2660,30 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1waitforjoin(JNIEnv *jenv, jclass jc
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1setauthorizing_1cb(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   np_aaa_func_t arg1 = (np_aaa_func_t) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
-  arg1 = *(np_aaa_func_t *)&jarg1; 
+  arg1 = *(np_aaa_func_t *)&jarg1;
   np_setauthorizing_cb(arg1);
 }
 
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1setauthenticate_1cb(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   np_aaa_func_t arg1 = (np_aaa_func_t) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
-  arg1 = *(np_aaa_func_t *)&jarg1; 
+  arg1 = *(np_aaa_func_t *)&jarg1;
   np_setauthenticate_cb(arg1);
 }
 
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1setaccounting_1cb(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   np_aaa_func_t arg1 = (np_aaa_func_t) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
-  arg1 = *(np_aaa_func_t *)&jarg1; 
+  arg1 = *(np_aaa_func_t *)&jarg1;
   np_setaccounting_cb(arg1);
 }
 
@@ -2691,10 +2691,10 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1setaccounting_1cb(JNIEnv *jenv, jcl
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1set_1listener(JNIEnv *jenv, jclass jcls, jlong jarg1, jstring jarg2) {
   np_usercallback_t arg1 = (np_usercallback_t) 0 ;
   char *arg2 = (char *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
-  arg1 = *(np_usercallback_t *)&jarg1; 
+  arg1 = *(np_usercallback_t *)&jarg1;
   arg2 = 0;
   if (jarg2) {
     arg2 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg2, 0);
@@ -2710,7 +2710,7 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1send_1text(JNIEnv *jenv, jclass jcl
   char *arg2 = (char *) 0 ;
   uint32_t arg3 ;
   uint32_t *argp3 ;
-  
+
   (void)jenv;
   (void)jcls;
   arg1 = 0;
@@ -2723,12 +2723,12 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1send_1text(JNIEnv *jenv, jclass jcl
     arg2 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg2, 0);
     if (!arg2) return ;
   }
-  argp3 = *(uint32_t **)&jarg3; 
+  argp3 = *(uint32_t **)&jarg3;
   if (!argp3) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint32_t");
     return ;
   }
-  arg3 = *argp3; 
+  arg3 = *argp3;
   np_send_text(arg1,arg2,arg3);
   if (arg1) (*jenv)->ReleaseStringUTFChars(jenv, jarg1, (const char *)arg1);
   if (arg2) (*jenv)->ReleaseStringUTFChars(jenv, jarg2, (const char *)arg2);
@@ -2739,7 +2739,7 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1send_1msg(JNIEnv *jenv, jclass jcls
   char *arg1 = (char *) 0 ;
   np_tree_t *arg2 = (np_tree_t *) 0 ;
   np_tree_t *arg3 = (np_tree_t *) 0 ;
-  
+
   (void)jenv;
   (void)jcls;
   arg1 = 0;
@@ -2747,8 +2747,8 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1send_1msg(JNIEnv *jenv, jclass jcls
     arg1 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg1, 0);
     if (!arg1) return ;
   }
-  arg2 = *(np_tree_t **)&jarg2; 
-  arg3 = *(np_tree_t **)&jarg3; 
+  arg2 = *(np_tree_t **)&jarg2;
+  arg3 = *(np_tree_t **)&jarg3;
   np_send_msg(arg1,arg2,arg3);
   if (arg1) (*jenv)->ReleaseStringUTFChars(jenv, jarg1, (const char *)arg1);
 }
@@ -2759,7 +2759,7 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1receive_1text(JNIEnv *jenv, jclass
   char *arg1 = (char *) 0 ;
   char **arg2 = (char **) 0 ;
   uint32_t result;
-  
+
   (void)jenv;
   (void)jcls;
   arg1 = 0;
@@ -2767,7 +2767,7 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1receive_1text(JNIEnv *jenv, jclass
     arg1 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg1, 0);
     if (!arg1) return 0;
   }
-  arg2 = *(char ***)&jarg2; 
+  arg2 = *(char ***)&jarg2;
   result = np_receive_text(arg1,arg2);
   {
     uint32_t * resultptr = (uint32_t *) malloc(sizeof(uint32_t));
@@ -2785,7 +2785,7 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1receive_1msg(JNIEnv *jenv, jclass 
   np_tree_t *arg2 = (np_tree_t *) 0 ;
   np_tree_t *arg3 = (np_tree_t *) 0 ;
   uint32_t result;
-  
+
   (void)jenv;
   (void)jcls;
   arg1 = 0;
@@ -2793,8 +2793,8 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1receive_1msg(JNIEnv *jenv, jclass 
     arg1 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg1, 0);
     if (!arg1) return 0;
   }
-  arg2 = *(np_tree_t **)&jarg2; 
-  arg3 = *(np_tree_t **)&jarg3; 
+  arg2 = *(np_tree_t **)&jarg2;
+  arg3 = *(np_tree_t **)&jarg3;
   result = np_receive_msg(arg1,arg2,arg3);
   {
     uint32_t * resultptr = (uint32_t *) malloc(sizeof(uint32_t));
@@ -2809,15 +2809,15 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1receive_1msg(JNIEnv *jenv, jclass 
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1start_1job_1queue(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   uint8_t arg1 ;
   uint8_t *argp1 ;
-  
+
   (void)jenv;
   (void)jcls;
-  argp1 = *(uint8_t **)&jarg1; 
+  argp1 = *(uint8_t **)&jarg1;
   if (!argp1) {
     SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null uint8_t");
     return ;
   }
-  arg1 = *argp1; 
+  arg1 = *argp1;
   np_start_job_queue(arg1);
 }
 

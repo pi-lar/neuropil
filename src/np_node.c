@@ -92,22 +92,22 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, np_bool includ
 {
 	char* keystring = (char*) _np_key_as_str (node_key);
 
-	tree_insert_str(data, NP_NODE_KEY, new_val_s(keystring));
-	tree_insert_str(data, NP_NODE_PROTOCOL, new_val_ush(node_key->node->protocol));
-	tree_insert_str(data, NP_NODE_DNS_NAME, new_val_s(node_key->node->dns_name));
-	tree_insert_str(data, NP_NODE_PORT, new_val_s(node_key->node->port));
+	np_tree_insert_str(data, NP_NODE_KEY, new_val_s(keystring));
+	np_tree_insert_str(data, NP_NODE_PROTOCOL, new_val_ush(node_key->node->protocol));
+	np_tree_insert_str(data, NP_NODE_DNS_NAME, new_val_s(node_key->node->dns_name));
+	np_tree_insert_str(data, NP_NODE_PORT, new_val_s(node_key->node->port));
 
 	if (node_key->node->failuretime > 0.0)
-		tree_insert_str(data, NP_NODE_FAILURETIME,
+		np_tree_insert_str(data, NP_NODE_FAILURETIME,
 				new_val_d(node_key->node->failuretime));
 
 	if (TRUE == include_stats)
 	{
-		tree_insert_str(data, NP_NODE_SUCCESS_AVG,
+		np_tree_insert_str(data, NP_NODE_SUCCESS_AVG,
 				new_val_f(node_key->node->success_avg));
-		tree_insert_str(data, NP_NODE_LATENCY,
+		np_tree_insert_str(data, NP_NODE_LATENCY,
 				new_val_d(node_key->node->latency));
-		tree_insert_str(data, NP_NODE_LAST_SUCCESS,
+		np_tree_insert_str(data, NP_NODE_LAST_SUCCESS,
 				new_val_d(node_key->node->last_success));
 	}
 }
@@ -172,9 +172,9 @@ np_key_t* _np_node_decode_from_str (const char *key)
 np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 {
 	// MANDATORY paramter
-	uint8_t i_host_proto = tree_find_str(data, NP_NODE_PROTOCOL)->val.value.ush;
-	char* s_host_name  = tree_find_str(data, NP_NODE_DNS_NAME)->val.value.s;
-	char* s_host_port  = tree_find_str(data, NP_NODE_PORT)->val.value.s;
+	uint8_t i_host_proto = np_tree_find_str(data, NP_NODE_PROTOCOL)->val.value.ush;
+	char* s_host_name  = np_tree_find_str(data, NP_NODE_DNS_NAME)->val.value.s;
+	char* s_host_port  = np_tree_find_str(data, NP_NODE_PORT)->val.value.s;
 
 	np_node_t* new_node = NULL;
 	np_new_obj(np_node_t, new_node);
@@ -189,13 +189,13 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 	}
 
 	// OPTIONAL parameter
-	np_tree_elem_t* failure = tree_find_str(data, NP_NODE_FAILURETIME);
+	np_tree_elem_t* failure = np_tree_find_str(data, NP_NODE_FAILURETIME);
 	if (NULL != failure)
 	{
 		new_node->failuretime = failure->val.value.d;
 	}
 
-	// np_jrb_t* latency = tree_find_str(data, "_np.node.latency");
+	// np_jrb_t* latency = np_tree_find_str(data, "_np.node.latency");
 	// if (latency) node->latency = latency->val.value.d;
 
 	return (new_node);
@@ -214,14 +214,14 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_t, no
     	current = sll_head(np_key_t, node_keys);
     	if (current->node)
     	{
-    		np_tree_t* node_jrb = make_nptree();
+    		np_tree_t* node_jrb = np_tree_create();
     		// log_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
     		_np_node_encode_to_jrb(node_jrb, current, include_stats);
-    		tree_insert_str(node_jrb, NP_NODE_KEY, new_val_s(_np_key_as_str(current)));
+    		np_tree_insert_str(node_jrb, NP_NODE_KEY, new_val_s(_np_key_as_str(current)));
 
-    		tree_insert_int(data, j, new_val_tree(node_jrb));
+    		np_tree_insert_int(data, j, new_val_tree(node_jrb));
     		j++;
-    		np_free_tree(node_jrb);
+    		np_tree_free(node_jrb);
     	}
     }
     return (j);
@@ -237,9 +237,9 @@ sll_return(np_key_t) _np_node_decode_multiple_from_jrb (np_tree_t* data)
     /* gets the number of hosts in the lists and goes through them 1 by 1 */
     for (uint16_t i = 0; i < nodenum; i++)
 	{
-    	np_tree_elem_t* node_data = tree_find_int(data, i);
+    	np_tree_elem_t* node_data = np_tree_find_int(data, i);
 
-    	char* s_key = tree_find_str(node_data->val.value.tree, NP_NODE_KEY)->val.value.s;
+    	char* s_key = np_tree_find_str(node_data->val.value.tree, NP_NODE_KEY)->val.value.s;
     	np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
     	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
     	if (NULL == node_key->node)
@@ -292,11 +292,11 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 
     crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
 
-	tree_insert_str(node_token->extensions, NP_NODE_DNS_NAME,
+	np_tree_insert_str(node_token->extensions, NP_NODE_DNS_NAME,
 			new_val_s(node->dns_name));
-	tree_insert_str(node_token->extensions, NP_NODE_PORT,
+	np_tree_insert_str(node_token->extensions, NP_NODE_PORT,
 			new_val_s(node->port));
-	tree_insert_str(node_token->extensions, NP_NODE_PROTOCOL,
+	np_tree_insert_str(node_token->extensions, NP_NODE_PROTOCOL,
 			new_val_ush(node->protocol));
 
 	_np_aaatoken_add_signature(node_token);

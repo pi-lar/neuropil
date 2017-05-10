@@ -91,7 +91,7 @@ void _np_sysinfo_init(np_bool isRequestor) {
 np_bool _np_in_sysinfo(np_message_t* msg, np_tree_t* properties, np_tree_t* body) {
 	log_msg(LOG_TRACE, ".start._in_sysinfo");
 
-	np_tree_elem_t* source = tree_find_str(properties, _NP_SYSINFO_SOURCE);
+	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
 
 	if (NULL == source) {
 		log_msg(LOG_WARN,
@@ -99,7 +99,7 @@ np_bool _np_in_sysinfo(np_message_t* msg, np_tree_t* properties, np_tree_t* body
 		return FALSE;
 	}
 
-	np_tree_elem_t* target = tree_find_str(properties, _NP_SYSINFO_TARGET);
+	np_tree_elem_t* target = np_tree_find_str(properties, _NP_SYSINFO_TARGET);
 
 	if (NULL == target) {
 		log_msg(LOG_WARN,
@@ -126,10 +126,10 @@ np_bool _np_in_sysinfo(np_message_t* msg, np_tree_t* properties, np_tree_t* body
 	np_tree_t* reply_body = np_get_my_sysinfo();
 
 	// build properties
-	np_tree_t* reply_properties = make_nptree();
-	tree_insert_str(reply_properties, _NP_SYSINFO_SOURCE,
+	np_tree_t* reply_properties = np_tree_create();
+	np_tree_insert_str(reply_properties, _NP_SYSINFO_SOURCE,
 			new_val_s(mynode_hash));
-	tree_insert_str(reply_properties, _NP_SYSINFO_TARGET,
+	np_tree_insert_str(reply_properties, _NP_SYSINFO_TARGET,
 			new_val_s(source->val.value.s));
 
 	// send msg
@@ -149,7 +149,7 @@ np_bool _np_in_sysinfo(np_message_t* msg, np_tree_t* properties, np_tree_t* body
 np_bool _np_in_sysinforeply(np_message_t* msg, np_tree_t* properties, np_tree_t* body) {
 	log_msg(LOG_TRACE, ".start._in_sysinforeply");
 
-	np_tree_elem_t* source = tree_find_str(properties, _NP_SYSINFO_SOURCE);
+	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
 
 	if (NULL == source) {
 		log_msg(LOG_WARN,
@@ -172,12 +172,12 @@ np_bool _np_in_sysinforeply(np_message_t* msg, np_tree_t* properties, np_tree_t*
 }
 
 np_tree_t* np_get_my_sysinfo() {
-	np_tree_t* ret = make_nptree();
+	np_tree_t* ret = np_tree_create();
 
 	// build local node
-	np_tree_t* local_node = make_nptree();
+	np_tree_t* local_node = np_tree_create();
 	_np_node_encode_to_jrb(local_node, _np_state()->my_node_key, FALSE);
-	tree_insert_str(ret, _NP_SYSINFO_MY_NODE, new_val_tree(local_node));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE, new_val_tree(local_node));
 	log_msg(LOG_DEBUG, "my sysinfo object has a node");
 
 	// build neighbours list
@@ -186,16 +186,16 @@ np_tree_t* np_get_my_sysinfo() {
 	{
 		neighbours_table = _np_route_neighbors();
 	}
-	np_tree_t* neighbours = make_nptree();
+	np_tree_t* neighbours = np_tree_create();
 	int neighbour_counter = 0;
 	if (NULL != neighbours_table && 0 < neighbours_table->size) {
 		np_key_t* current;
 		while (NULL != sll_first(neighbours_table)) {
 			current = sll_head(np_key_t, neighbours_table);
 			if (current->node) {
-				np_tree_t* neighbour = make_nptree();
+				np_tree_t* neighbour = np_tree_create();
 				_np_node_encode_to_jrb(neighbour, current, TRUE);
-				tree_insert_int(neighbours, neighbour_counter++,
+				np_tree_insert_int(neighbours, neighbour_counter++,
 						new_val_tree(neighbour));
 			}
 		}
@@ -203,9 +203,9 @@ np_tree_t* np_get_my_sysinfo() {
 	log_msg(LOG_DEBUG, "my sysinfo object has %d neighbours",
 			neighbour_counter);
 
-	tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, new_val_tree(neighbours));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, new_val_tree(neighbours));
 	sll_free(np_key_t, neighbours_table);
-	np_free_tree(neighbours);
+	np_tree_free(neighbours);
 
 	// build routing list
 	np_sll_t(np_key_t, routing_table) = NULL;
@@ -213,25 +213,25 @@ np_tree_t* np_get_my_sysinfo() {
 	{
 		routing_table = _np_route_get_table();
 	}
-	np_tree_t* routes = make_nptree();
+	np_tree_t* routes = np_tree_create();
 	int routes_counter = 0;
 	if (NULL != routing_table && 0 < routing_table->size) {
 		np_key_t* current;
 		while (NULL != sll_first(routing_table)) {
 			current = sll_head(np_key_t, routing_table);
 			if (current->node) {
-				np_tree_t* route = make_nptree();
+				np_tree_t* route = np_tree_create();
 				_np_node_encode_to_jrb(route, current, TRUE);
-				tree_insert_int(routes, routes_counter++, new_val_tree(route));
+				np_tree_insert_int(routes, routes_counter++, new_val_tree(route));
 			}
 		}
 	}
 	log_msg(LOG_DEBUG, "my sysinfo object has %d routing table entries",
 			routes_counter);
 
-	tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, new_val_tree(routes));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, new_val_tree(routes));
 	sll_free(np_key_t, routing_table);
-	np_free_tree(routes);
+	np_tree_free(routes);
 
 	return ret;
 }
@@ -239,13 +239,13 @@ np_tree_t* np_get_my_sysinfo() {
 void _np_request_sysinfo(const char* hash_of_target) {
 	if (NULL != hash_of_target) {
 		log_msg(LOG_INFO, "sending sysinfo request to %s", hash_of_target);
-		np_tree_t* properties = make_nptree();
-		np_tree_t* body = make_nptree();
+		np_tree_t* properties = np_tree_create();
+		np_tree_t* body = np_tree_create();
 
-		tree_insert_str(properties, _NP_SYSINFO_SOURCE,
+		np_tree_insert_str(properties, _NP_SYSINFO_SOURCE,
 				new_val_s(_np_key_as_str(_np_state()->my_node_key)));
 
-		tree_insert_str(properties, _NP_SYSINFO_TARGET,
+		np_tree_insert_str(properties, _NP_SYSINFO_TARGET,
 				new_val_s((char*) hash_of_target));
 
 		log_msg(LOG_DEBUG, "Converting %s to dhkey", hash_of_target);

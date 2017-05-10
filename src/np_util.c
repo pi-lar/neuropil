@@ -398,7 +398,7 @@ void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
 			if (obj->as.ext.type == jrb_tree_type)
 			{
 				// tree type
-				np_tree_t* subtree = make_nptree();
+				np_tree_t* subtree = np_tree_create();
 				cmp_ctx_t tree_cmp;
 				cmp_init(&tree_cmp, buf_ptr, buffer_reader, buffer_writer);
 				deserialize_jrb_node_t(subtree, &tree_cmp);
@@ -528,19 +528,19 @@ void deserialize_jrb_node_t(np_tree_t* jtree, cmp_ctx_t* cmp)
 		{
 		case int_type:
 			// log_msg(LOG_DEBUG, "read int key (%d)", tmp_key.value.i);
-			tree_insert_int(jtree, tmp_key.value.i, tmp_val);
+			np_tree_insert_int(jtree, tmp_key.value.i, tmp_val);
 			break;
 		case unsigned_long_type:
 			// log_msg(LOG_DEBUG, "read uint key (%ul)", tmp_key.value.ul);
-			tree_insert_ulong(jtree, tmp_key.value.ul, tmp_val);
+			np_tree_insert_ulong(jtree, tmp_key.value.ul, tmp_val);
 			break;
 		case double_type:
 			// log_msg(LOG_DEBUG, "read double key (%f)", tmp_key.value.d);
-			tree_insert_dbl(jtree, tmp_key.value.d, tmp_val);
+			np_tree_insert_dbl(jtree, tmp_key.value.d, tmp_val);
 			break;
 		case char_ptr_type:
 			// log_msg(LOG_DEBUG, "read str key (%s)", tmp_key.value.s);
-			tree_insert_str(jtree, tmp_key.value.s, tmp_val);
+			np_tree_insert_str(jtree, tmp_key.value.s, tmp_val);
 			free (tmp_key.value.s);
 			break;
 		default:
@@ -550,7 +550,7 @@ void deserialize_jrb_node_t(np_tree_t* jtree, cmp_ctx_t* cmp)
 
 		if (tmp_val.type == char_ptr_type) free(tmp_val.value.s);
 		if (tmp_val.type == bin_type)      free(tmp_val.value.bin);
-		if (tmp_val.type == jrb_tree_type) np_free_tree(tmp_val.value.tree);
+		if (tmp_val.type == jrb_tree_type) np_tree_free(tmp_val.value.tree);
 	}
 	// log_msg(LOG_DEBUG, "read all key/value pairs from message part %p", jrb);
 }

@@ -112,18 +112,18 @@ void _np_dhkey_encode(np_tree_t* jrb, np_dhkey_t* key)
 {
     // log_msg(LOG_KEY | LOG_WARN, "encoding key %0lu %0lu %0lu %0lu", key->t[0], key->t[1], key->t[2], key->t[3]);
 
-	tree_insert_str(jrb, "_np.key.0", new_val_ull(key->t[0]));
-	tree_insert_str(jrb, "_np.key.1", new_val_ull(key->t[1]));
-	tree_insert_str(jrb, "_np.key.2", new_val_ull(key->t[2]));
-	tree_insert_str(jrb, "_np.key.3", new_val_ull(key->t[3]));
+	np_tree_insert_str(jrb, "_np.key.0", new_val_ull(key->t[0]));
+	np_tree_insert_str(jrb, "_np.key.1", new_val_ull(key->t[1]));
+	np_tree_insert_str(jrb, "_np.key.2", new_val_ull(key->t[2]));
+	np_tree_insert_str(jrb, "_np.key.3", new_val_ull(key->t[3]));
 }
 
 void _np_dhkey_decode(np_tree_t* jrb, np_dhkey_t* key)
 {
-	key->t[0] = tree_find_str(jrb, "_np.key.0")->val.value.ull;
-	key->t[1] = tree_find_str(jrb, "_np.key.1")->val.value.ull;
-	key->t[2] = tree_find_str(jrb, "_np.key.2")->val.value.ull;
-	key->t[3] = tree_find_str(jrb, "_np.key.3")->val.value.ull;
+	key->t[0] = np_tree_find_str(jrb, "_np.key.0")->val.value.ull;
+	key->t[1] = np_tree_find_str(jrb, "_np.key.1")->val.value.ull;
+	key->t[2] = np_tree_find_str(jrb, "_np.key.2")->val.value.ull;
+	key->t[3] = np_tree_find_str(jrb, "_np.key.3")->val.value.ull;
 }
 
 void _np_dhkey_assign (np_dhkey_t* k1, const np_dhkey_t* const k2)

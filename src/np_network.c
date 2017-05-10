@@ -641,7 +641,7 @@ void _np_network_t_del(void* nw)
 	pthread_mutex_lock(&network->lock);
 
 	if (NULL != network->waiting)
-		np_free_tree(network->waiting);
+		np_tree_free(network->waiting);
 
 	if (NULL != network->in_events)
 	{
@@ -772,7 +772,7 @@ void _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, ch
     	}
 
     	// create own retransmit structures
-    	ng->waiting = make_nptree();
+    	ng->waiting = np_tree_create();
     	sll_init(void_ptr, ng->in_events);
 
     	// own sequence number counter

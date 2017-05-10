@@ -46,7 +46,7 @@ int joinComplete = 0;
 np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
-	if (NULL == authorized_tokens) authorized_tokens = make_nptree();
+	if (NULL == authorized_tokens) authorized_tokens = np_tree_create();
 
 	// if a token reaches this point, is has already been check for technical validity
 	np_bool ret_val = FALSE;
@@ -54,7 +54,7 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	char pub_key[2*crypto_sign_PUBLICKEYBYTES+1];
 	sodium_bin2hex(pub_key, 2*crypto_sign_PUBLICKEYBYTES+1, token->public_key, crypto_sign_PUBLICKEYBYTES);
 
-	if (NULL != tree_find_str(authorized_tokens, token->issuer))
+	if (NULL != np_tree_find_str(authorized_tokens, token->issuer))
 	{
 		pthread_mutex_unlock(&_aaa_mutex);
 		return (TRUE);
@@ -86,11 +86,11 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	fprintf(stdout, "\texpiration        : %s\n", time_entry);
 
 	fprintf(stdout, "\tpublic_key        : %s\n", pub_key);
-//	if (tree_find_str(token->extensions, "passcode"))
+//	if (np_tree_find_str(token->extensions, "passcode"))
 //	{
 //		fprintf(stdout, "----------------------------------------------\n");
 //		fprintf(stdout, "\tpasscode          : %s\n",
-//				tree_find_str(token->extensions, "passcode")->val.value.s);
+//				np_tree_find_str(token->extensions, "passcode")->val.value.s);
 //	}
 	fprintf(stdout, "----------------------------------------------\n");
 	fflush(stdout);
@@ -104,7 +104,7 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 		ret_val = TRUE;
 		*/
 	np_ref_obj(np_aaatoken_t, token);
-	tree_insert_str(authorized_tokens, token->issuer, new_val_v(token));
+	np_tree_insert_str(authorized_tokens, token->issuer, new_val_v(token));
 /*
 	  	break;
 	case 'o':
@@ -126,7 +126,7 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
 
-	if (NULL == authenticated_tokens) authenticated_tokens = make_nptree();
+	if (NULL == authenticated_tokens) authenticated_tokens = np_tree_create();
 	// if a token reaches this point, is has already been check for technical validity
 	np_bool ret_val = FALSE;
 

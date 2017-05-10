@@ -22,8 +22,8 @@ NP_PLL_GENERATE_IMPLEMENTATION(np_messagepart_ptr);
 
 int8_t _np_messagepart_cmp (const np_messagepart_ptr value1, const np_messagepart_ptr value2)
 {
-	uint16_t part_1 = value1->part; // tree_find_str(value1->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
-	uint16_t part_2 = value2->part; // tree_find_str(value2->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
+	uint16_t part_1 = value1->part; // np_tree_find_str(value1->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
+	uint16_t part_2 = value2->part; // np_tree_find_str(value2->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
 
 	log_msg(LOG_MESSAGE | LOG_DEBUG, "message part compare %d / %d / %d", part_1, part_2, part_1 - part_2);
 
@@ -39,7 +39,7 @@ np_bool _np_messagepart_decrypt(np_tree_t* msg_part,
 							NP_UNUSED unsigned char* secret_key)
 {
 	log_msg(LOG_TRACE, ".start.np_message_decrypt_part");
-	np_tree_elem_t* enc_msg_part = tree_find_str(msg_part, NP_ENCRYPTED);
+	np_tree_elem_t* enc_msg_part = np_tree_find_str(msg_part, NP_ENCRYPTED);
 	if (NULL == enc_msg_part)
 	{
 		log_msg(LOG_ERROR, "couldn't find encrypted msg part");
@@ -79,7 +79,7 @@ np_bool _np_messagepart_decrypt(np_tree_t* msg_part,
 	deserialize_jrb_node_t(msg_part, &cmp);
 	// TODO: check if the complete buffer was read (byte count match)
 
-	tree_del_str(msg_part, NP_ENCRYPTED);
+	np_tree_del_str(msg_part, NP_ENCRYPTED);
 
 	log_msg(LOG_TRACE, ".end  .np_message_decrypt_part");
 	return (TRUE);
@@ -137,7 +137,7 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 		return (FALSE);
 	}
 
-	_tree_replace_all_with_str(msg_part, NP_ENCRYPTED,
+	_np_tree_replace_all_with_str(msg_part, NP_ENCRYPTED,
 			new_val_bin(enc_msg_part, enc_msg_part_len));
 
 	log_msg(LOG_TRACE, ".end  .np_message_encrypt_part");

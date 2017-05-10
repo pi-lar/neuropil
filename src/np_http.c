@@ -102,7 +102,7 @@ typedef struct _np_http_callback_s {
 void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 		_np_http_callback_func_t func) {
 	if (NULL == __local_http->user_hooks)
-		__local_http->user_hooks = make_nptree();
+		__local_http->user_hooks = np_tree_create();
 
 	char key[32];
 	snprintf(key, 31, "%d:%s", method, path);
@@ -112,20 +112,20 @@ void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 
 	callback_data->user_arg = user_args;
 	callback_data->callback = func;
-	tree_insert_str(__local_http->user_hooks, key, new_val_v(callback_data));
+	np_tree_insert_str(__local_http->user_hooks, key, new_val_v(callback_data));
 }
 
 void _np_rem_http_callback(const char* path, htp_method method) {
 	if (NULL == __local_http->user_hooks)
-		__local_http->user_hooks = make_nptree();
+		__local_http->user_hooks = np_tree_create();
 
 	char key[32];
 	snprintf(key, 31, "%d:%s", method, path);
-	np_tree_elem_t* callback_val = tree_find_str(__local_http->user_hooks, key);
+	np_tree_elem_t* callback_val = np_tree_find_str(__local_http->user_hooks, key);
 	if (NULL != callback_val) {
 		_np_http_callback_t* callback_data =
 				(_np_http_callback_t*) callback_val->val.value.v;
-		tree_del_str(__local_http->user_hooks, key);
+		np_tree_del_str(__local_http->user_hooks, key);
 		free(callback_data);
 	}
 }
@@ -144,9 +144,9 @@ int _np_http_query_args(NP_UNUSED htparser * parser, const char * data,
 	char* val = NULL;
 
 	if (NULL != __local_http->ht_request.ht_query_args)
-		np_clear_tree(__local_http->ht_request.ht_query_args);
+		np_tree_clear(__local_http->ht_request.ht_query_args);
 	if (NULL == __local_http->ht_request.ht_query_args)
-		__local_http->ht_request.ht_query_args = make_nptree();
+		__local_http->ht_request.ht_query_args = np_tree_create();
 
 	char* query_string = strndup(data, in_len);
 	char* kv_pair = strtok(query_string, "&=");
@@ -156,7 +156,7 @@ int _np_http_query_args(NP_UNUSED htparser * parser, const char * data,
 			key = strndup(kv_pair, strlen(kv_pair));
 		} else {
 			val = strndup(kv_pair, strlen(kv_pair));
-			tree_insert_str(__local_http->ht_request.ht_query_args, key,
+			np_tree_insert_str(__local_http->ht_request.ht_query_args, key,
 					new_val_s(val));
 			free(key);
 			free(val);
@@ -171,9 +171,9 @@ int _np_http_query_args(NP_UNUSED htparser * parser, const char * data,
 
 int _np_http_on_hdrs_begin(NP_UNUSED htparser* parser) {
 	if (NULL != __local_http->ht_request.ht_header)
-		np_clear_tree(__local_http->ht_request.ht_header);
+		np_tree_clear(__local_http->ht_request.ht_header);
 	if (NULL == __local_http->ht_request.ht_header)
-		__local_http->ht_request.ht_header = make_nptree();
+		__local_http->ht_request.ht_header = np_tree_create();
 	return 0;
 }
 
@@ -187,7 +187,7 @@ int _np_http_hdr_key(NP_UNUSED htparser * parser, const char * data,
 
 int _np_http_hdr_value(NP_UNUSED htparser * parser, const char * data,
 NP_UNUSED size_t in_len) {
-	tree_insert_str(__local_http->ht_request.ht_header,
+	np_tree_insert_str(__local_http->ht_request.ht_header,
 			__local_http->ht_request.current_key, new_val_s((char*) data));
 
 	free(__local_http->ht_request.current_key);
@@ -227,13 +227,13 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 	assert(PROCESSING == __local_http->status);
 
 	if (NULL == __local_http->user_hooks)
-		__local_http->user_hooks = make_nptree();
+		__local_http->user_hooks = np_tree_create();
 
 	char key[32];
 	snprintf(key, 31, "%d:%s", __local_http->ht_request.ht_method,
 			__local_http->ht_request.ht_path);
 
-	np_tree_elem_t* user_callback = tree_find_str(__local_http->user_hooks,
+	np_tree_elem_t* user_callback = np_tree_find_str(__local_http->user_hooks,
 			key);
 
 	if (NULL != user_callback) {
@@ -310,7 +310,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 				log_msg(LOG_DEBUG, "Convert sysinfo to json");
 				json_obj = np_tree_to_json(sysinfo);
 				log_msg(LOG_DEBUG, "cleanup");
-				np_free_tree(sysinfo);
+				np_tree_free(sysinfo);
 			}
 
 			__json_return__:
@@ -331,12 +331,12 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 			__local_http->ht_response.ht_status = http_status;
 			__local_http->ht_response.ht_body = response; //strdup(response);;
 
-			__local_http->ht_response.ht_header = make_nptree();
-			tree_insert_str(__local_http->ht_response.ht_header, "Content-Type",
+			__local_http->ht_response.ht_header = np_tree_create();
+			np_tree_insert_str(__local_http->ht_response.ht_header, "Content-Type",
 					new_val_s("application/json"));
-			tree_insert_str(__local_http->ht_response.ht_header,
+			np_tree_insert_str(__local_http->ht_response.ht_header,
 					"Access-Control-Allow-Origin", new_val_s("*"));
-			tree_insert_str(__local_http->ht_response.ht_header,
+			np_tree_insert_str(__local_http->ht_response.ht_header,
 					"Access-Control-Allow-Methods", new_val_s("GET"));
 			__local_http->ht_response.cleanup_body = TRUE;
 			__local_http->status = RESPONSE;
@@ -345,7 +345,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 
 		default:
 			__local_http->ht_response.ht_body = HTML_NOT_IMPLEMENTED;
-			__local_http->ht_response.ht_header = make_nptree();
+			__local_http->ht_response.ht_header = np_tree_create();
 			__local_http->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
 			__local_http->ht_response.cleanup_body = FALSE;
 			__local_http->status = RESPONSE;
@@ -370,12 +370,12 @@ NP_UNUSED ev_io* ev, int event_type) {
 		size_t s_cl = strlen(__local_http->ht_response.ht_body);
 		char body_length[snprintf(NULL, 0, "%lu", s_cl) + 1];
 		snprintf(body_length, s_cl, "%lu", s_cl);
-		tree_insert_str(__local_http->ht_response.ht_header, "Content-Length",
+		np_tree_insert_str(__local_http->ht_response.ht_header, "Content-Length",
 				new_val_s(body_length));
-		tree_insert_str(__local_http->ht_response.ht_header, "Content-Type",
+		np_tree_insert_str(__local_http->ht_response.ht_header, "Content-Type",
 				new_val_s("text/html"));
 		// add keep alive header
-		tree_insert_str(__local_http->ht_response.ht_header, "Connection",
+		np_tree_insert_str(__local_http->ht_response.ht_header, "Connection",
 				new_val_s(
 						htparser_should_keep_alive(__local_http->parser) ?
 								"Keep-Alive" : "close"));
@@ -395,7 +395,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 				"" HTTP_CRLF);
 		// send header
 		send(__local_http->client_fd, data, pos, 0);
-		np_free_tree(__local_http->ht_response.ht_header);
+		np_tree_free(__local_http->ht_response.ht_header);
 
 		log_msg(LOG_HTTP | LOG_DEBUG, "send http header success");
 
@@ -615,14 +615,14 @@ void _np_http_destroy() {
 	if (__local_http->ht_request.current_key)
 		free(__local_http->ht_request.current_key);
 	if (__local_http->user_hooks)
-		np_free_tree(__local_http->user_hooks);
+		np_tree_free(__local_http->user_hooks);
 	if (__local_http->ht_request.ht_header)
-		np_free_tree(__local_http->ht_request.ht_header);
+		np_tree_free(__local_http->ht_request.ht_header);
 	if (__local_http->ht_request.ht_query_args)
-		np_free_tree(__local_http->ht_request.ht_query_args);
+		np_tree_free(__local_http->ht_request.ht_query_args);
 
 	if (__local_http->ht_response.ht_header)
-		np_free_tree(__local_http->ht_response.ht_header);
+		np_tree_free(__local_http->ht_response.ht_header);
 	if (__local_http->ht_response.ht_body)
 		free(__local_http->ht_response.ht_body);
 

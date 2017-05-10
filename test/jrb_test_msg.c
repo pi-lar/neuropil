@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORK | LOG_KEY;
 	log_init(log_file, level);
 
-	np_tree_t* test_jrb_1 = make_nptree();
+	np_tree_t* test_jrb_1 = np_tree_create();
 
 	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_1->size, test_jrb_1->byte_size);
     cmp_ctx_t cmp_empty;
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 	jrb_insert_str(test_jrb_1, "halli", new_jval_s("galli"));
 	jrb_insert_str(test_jrb_1, "hallo", new_jval_s("gulli"));
 
-	np_tree_t* test_jrb_2 = make_nptree();
+	np_tree_t* test_jrb_2 = np_tree_create();
 	char* from = "from";
 	char* to = "to";
 	char* id = "id";
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
 	log_msg(LOG_INFO, "----------------------");
 	log_msg(LOG_INFO, "deserializing message:");
 
-	np_tree_t* out_jrb = make_nptree();
+	np_tree_t* out_jrb = np_tree_create();
 	cmp_ctx_t cmp_out;
 	// int cmp_err_out;
 	cmp_init(&cmp_out, buffer, buffer_reader, buffer_writer);

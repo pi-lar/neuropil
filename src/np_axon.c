@@ -55,8 +55,8 @@ void _np_out_ack(np_jobargs_t* args)
 {
 	//TODO: Was soll diese Methode machen?
 
-	tree_insert_str(args->msg->instructions, _NP_MSG_INST_UUID, new_val_s(args->msg->uuid));
-	tree_insert_str(args->msg->instructions, _NP_MSG_INST_PARTS, new_val_iarray(1, 1));
+	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_UUID, new_val_s(args->msg->uuid));
+	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_PARTS, new_val_iarray(1, 1));
 
 	// chunking for 1024 bit message size
 	_np_message_calculate_chunking(args->msg);
@@ -106,11 +106,11 @@ void _np_send(np_jobargs_t* args)
 	// check ack indicator if this is a resend of a message
 	if (TRUE == is_resend)
 	{
-		uuid = tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
+		uuid = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
 
 		pthread_mutex_lock(&network->lock);
 		// first find the uuid
-		if (NULL == tree_find_str(network->waiting, uuid))
+		if (NULL == np_tree_find_str(network->waiting, uuid))
 		{
 			// has been deleted already
 			log_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
@@ -118,7 +118,7 @@ void _np_send(np_jobargs_t* args)
 			pthread_mutex_unlock(&network->lock);
 			return;
 		}
-		else if (TRUE == ((np_ackentry_t*) tree_find_str(network->waiting, uuid)->val.value.v)->acked)
+		else if (TRUE == ((np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v)->acked)
 		{
 			log_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
 			log_msg(LOG_TRACE, ".end  ._np_out_send");
@@ -132,7 +132,7 @@ void _np_send(np_jobargs_t* args)
 		}
 		pthread_mutex_unlock(&network->lock);
 
-		double initial_tstamp = tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
+		double initial_tstamp = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
 		double now = ev_time();
 		if (now > (initial_tstamp + args->properties->ttl) )
 		{
@@ -144,29 +144,29 @@ void _np_send(np_jobargs_t* args)
 	}
 
 	// find correct ack_mode, inspect message first because of forwarding
-	if (NULL == tree_find_str(msg_out->instructions, _NP_MSG_INST_ACK))
+	if (NULL == np_tree_find_str(msg_out->instructions, _NP_MSG_INST_ACK))
 	{
 		ack_mode = prop->ack_mode;
 	}
 	else
 	{
-		ack_mode = tree_find_str(msg_out->instructions, _NP_MSG_INST_ACK)->val.value.ush;
+		ack_mode = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_ACK)->val.value.ush;
 		ack_mode_from_msg = TRUE;
 	}
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, new_val_ush(prop->ack_mode));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, new_val_ush(prop->ack_mode));
 
 	char* ack_to_str = _np_key_as_str(_np_state()->my_node_key);
 
 	if ( 0 < (ack_mode & ACK_EACHHOP) )
 	{
 		// we have to reset the existing ack_to field in case of forwarding and each-hop acknowledge
-		tree_replace_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, new_val_s(ack_to_str));
+		np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, new_val_s(ack_to_str));
 		ack_to_is_me = TRUE;
 	}
 	else if ( 0 < (ack_mode & ACK_DESTINATION) || 0 < (ack_mode & ACK_CLIENT) )
 	{
 		// only set ack_to for these two ack mode values if not yet set !
-		tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, new_val_s(ack_to_str));
+		np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, new_val_s(ack_to_str));
 		if (FALSE == ack_mode_from_msg) ack_to_is_me = TRUE;
 	}
 	else
@@ -174,37 +174,37 @@ void _np_send(np_jobargs_t* args)
 		ack_to_is_me = FALSE;
 	}
 
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, new_val_ul(0));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, new_val_ul(0));
 	if (TRUE == ack_to_is_me && FALSE == is_resend)
 	{
 		pthread_mutex_lock(&network->lock);
 		/* get/set sequence number to keep increasing sequence numbers per node */
 		seq = network->seqend;
-		tree_replace_str(msg_out->instructions, _NP_MSG_INST_SEQ, new_val_ul(seq));
+		np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_SEQ, new_val_ul(seq));
 		network->seqend++;
 		pthread_mutex_unlock(&network->lock);
 	}
 
 	// insert a uuid if not yet present
- 	tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, new_val_s(msg_out->uuid));
+ 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, new_val_s(msg_out->uuid));
 
 	// log_msg(LOG_DEBUG, "message ttl %s (tstamp: %f / ttl: %f) %s", uuid, now, args->properties->ttl, args->properties->msg_subject);
 
 	// set re-send count to zero if not yet present
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, new_val_ush(0));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, new_val_ush(0));
 	// and increase resend count by one
 	// TODO: forwarding of message will also increase re-send counter, ok ?
-	np_tree_elem_t* jrb_send_counter = tree_find_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER);
+	np_tree_elem_t* jrb_send_counter = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER);
 	jrb_send_counter->val.value.ush++;
 	// TODO: insert resend count check
 
 	// insert timestamp and time-to-live
 	double now = ev_time();
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, new_val_d(now));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, new_val_d(now));
 	// now += args->properties->ttl;
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, new_val_d(args->properties->ttl));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, new_val_d(args->properties->ttl));
 
-	tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, new_val_iarray(1, 1));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, new_val_iarray(1, 1));
 	if (FALSE == msg_out->is_single_part)
 	{
 		// dummy message part split-up informations
@@ -215,15 +215,15 @@ void _np_send(np_jobargs_t* args)
 	{
 		if (FALSE == is_resend)
 		{
-			uuid = tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
+			uuid = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
 
 			pthread_mutex_lock(&network->lock);
 			/* get/set sequence number to initialize acknowledgement indicator correctly */
 			np_ackentry_t *ackentry = NULL;
 
-			if (NULL != tree_find_str(network->waiting, uuid))
+			if (NULL != np_tree_find_str(network->waiting, uuid))
 			{
-				ackentry = (np_ackentry_t*) tree_find_str(network->waiting, uuid)->val.value.v;
+				ackentry = (np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v;
 			}
 			else
 			{
@@ -248,7 +248,7 @@ void _np_send(np_jobargs_t* args)
 				ackentry->expected_ack = msg_out->no_of_chunks;
 			}
 
-			tree_insert_str(network->waiting, uuid, new_val_v(ackentry));
+			np_tree_insert_str(network->waiting, uuid, new_val_v(ackentry));
 			log_msg(LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", network->waiting, uuid);
 			pthread_mutex_unlock(&network->lock);
 		}
@@ -259,7 +259,7 @@ void _np_send(np_jobargs_t* args)
 		_np_job_resubmit_route_event(retransmit_interval, out_prop, args->target, args->msg);
 	}
 
-	// char* subj = tree_find_str(msg_out->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
+	// char* subj = np_tree_find_str(msg_out->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
 	// log_msg(LOG_DEBUG, "message %s (%u) to %s", subj, seq, key_get_as_string(args->target));
 	// log_msg(LOG_DEBUG, "message part byte sizes: %lu %lu %lu %lu %lu, total: %lu",
 	// 			msg_out->header->byte_size, msg_out->instructions->byte_size,
@@ -305,10 +305,10 @@ void _np_send_handshake(np_jobargs_t* args)
 	crypto_scalarmult_base(my_dh_sessionkey, curve25519_sk);
 
 	// create handshake data
-	np_tree_t* hs_data = make_nptree();
+	np_tree_t* hs_data = np_tree_create();
 
-	tree_insert_str(hs_data, "_np.session", new_val_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
-	// tree_insert_str(hs_data, "_np.public_key", new_val_bin(my_id_token->public_key, crypto_sign_PUBLICKEYBYTES));
+	np_tree_insert_str(hs_data, "_np.session", new_val_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
+	// np_tree_insert_str(hs_data, "_np.public_key", new_val_bin(my_id_token->public_key, crypto_sign_PUBLICKEYBYTES));
 
 	np_aaatoken_encode(hs_data, my_id_token);
 
@@ -316,11 +316,11 @@ void _np_send_handshake(np_jobargs_t* args)
 //	sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES*2+1, my_id_token->public_key, crypto_sign_PUBLICKEYBYTES);
 //	log_msg(LOG_DEBUG, "public key fingerprint: %s", pk_hex);
 
-//	tree_insert_str(hs_data, "_np.protocol", new_val_s(np_get_protocol_string(my_node->protocol)));
-//	tree_insert_str(hs_data, "_np.dns_name", new_val_s(my_node->dns_name));
-//	tree_insert_str(hs_data, "_np.port", new_val_s(my_node->port));
-//	tree_insert_str(hs_data, "_np.expiration", new_val_d(my_id_token->expiration));
-//	tree_insert_str(hs_data, "_np.issued_at", new_val_d(my_id_token->issued_at));
+//	np_tree_insert_str(hs_data, "_np.protocol", new_val_s(np_get_protocol_string(my_node->protocol)));
+//	np_tree_insert_str(hs_data, "_np.dns_name", new_val_s(my_node->dns_name));
+//	np_tree_insert_str(hs_data, "_np.port", new_val_s(my_node->port));
+//	np_tree_insert_str(hs_data, "_np.expiration", new_val_d(my_id_token->expiration));
+//	np_tree_insert_str(hs_data, "_np.issued_at", new_val_d(my_id_token->issued_at));
 
 	// pre-serialize handshake data
 	cmp_ctx_t cmp;
@@ -332,7 +332,7 @@ void _np_send_handshake(np_jobargs_t* args)
 	serialize_jrb_node_t(hs_data, &cmp);
 	uint64_t hs_payload_len = cmp.buf-hs_buf_ptr;
 
-	np_free_tree(hs_data);
+	np_tree_free(hs_data);
 
 	// sign the handshake payload with our private key
 	char signature[crypto_sign_BYTES];
@@ -355,13 +355,13 @@ void _np_send_handshake(np_jobargs_t* args)
 	np_message_t* hs_message = NULL;
 	np_new_obj(np_message_t, hs_message);
 
-	tree_insert_str(hs_message->header, _NP_MSG_HEADER_SUBJECT, new_val_s(_NP_MSG_HANDSHAKE));
-	tree_insert_str(hs_message->instructions, _NP_MSG_INST_PARTS, new_val_iarray(1, 1));
+	np_tree_insert_str(hs_message->header, _NP_MSG_HEADER_SUBJECT, new_val_s(_NP_MSG_HANDSHAKE));
+	np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_PARTS, new_val_iarray(1, 1));
 
 	// ... add signature and payload to this message
-	tree_insert_str(hs_message->body, NP_HS_SIGNATURE,
+	np_tree_insert_str(hs_message->body, NP_HS_SIGNATURE,
 			new_val_bin(signature, crypto_sign_BYTES));
-	tree_insert_str(hs_message->body, NP_HS_PAYLOAD,
+	np_tree_insert_str(hs_message->body, NP_HS_PAYLOAD,
 			new_val_bin(hs_payload, (uint32_t) hs_payload_len));
 //	log_msg(LOG_DEBUG, "payload has length %llu, signature length %u", hs_payload_len, crypto_sign_BYTES);
 //	log_msg(LOG_DEBUG, "header has length %llu, instructions length %llu",
@@ -463,7 +463,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 		if (NULL != msg_token)
 		{
 			log_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
-			np_tree_t* _data = make_nptree();
+			np_tree_t* _data = np_tree_create();
 			np_aaatoken_encode(_data, msg_token);
 
 			np_message_t* msg_out = NULL;
@@ -484,7 +484,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 		if (NULL != msg_token)
 		{
 			log_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
-			np_tree_t* _data = make_nptree();
+			np_tree_t* _data = np_tree_create();
 			np_aaatoken_encode(_data, msg_token);
 
 			np_message_t* msg_out = NULL;
@@ -519,7 +519,7 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 
 	if (NULL != msg_token)
 	{
-		np_tree_t* _data = make_nptree();
+		np_tree_t* _data = np_tree_create();
 		np_aaatoken_encode(_data, msg_token);
 
 		np_message_t* msg_out = NULL;
@@ -554,7 +554,7 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 	if (NULL != msg_token)
 	{
 		log_msg(LOG_DEBUG, "encoding receiver token for subject %p / %s", msg_token, msg_token->uuid);
-		np_tree_t* _data = make_nptree();
+		np_tree_t* _data = np_tree_create();
 		np_aaatoken_encode(_data, msg_token);
 
 		np_message_t* msg_out = NULL;
@@ -606,7 +606,7 @@ void _np_send_authentication_request(np_jobargs_t* args)
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 
-	np_tree_t* auth_data = make_nptree();
+	np_tree_t* auth_data = np_tree_create();
 	np_aaatoken_encode(auth_data, args->target->aaa_token);
 
 //	log_msg(LOG_DEBUG, "realm             : %s", args->target->aaa_token->realm);
@@ -635,7 +635,7 @@ void _np_send_authentication_reply(np_jobargs_t* args)
 
 	np_dhkey_t target_dhkey;
 
-	np_msg_mep_type mep_reply_sticky = tree_find_str(args->target->aaa_token->extensions, "mep_type")->val.value.ul & STICKY_REPLY;
+	np_msg_mep_type mep_reply_sticky = np_tree_find_str(args->target->aaa_token->extensions, "mep_type")->val.value.ul & STICKY_REPLY;
 
 	if (STICKY_REPLY != mep_reply_sticky &&
 		0 < strlen(args->target->aaa_token->realm) )
@@ -694,7 +694,7 @@ void _np_send_authorization_request(np_jobargs_t* args)
 	// create and and send authorization request
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
-	np_tree_t* auth_data = make_nptree();
+	np_tree_t* auth_data = np_tree_create();
 	np_aaatoken_encode(auth_data, args->target->aaa_token);
 
 //	log_msg(LOG_DEBUG, "realm             : %s", args->target->aaa_token->realm);
@@ -721,7 +721,7 @@ void _np_send_authorization_reply(np_jobargs_t* args)
 
 	np_dhkey_t target_dhkey;
 
-	np_msg_mep_type mep_reply_sticky = tree_find_str(args->target->aaa_token->extensions, "mep_type")->val.value.ul & STICKY_REPLY;
+	np_msg_mep_type mep_reply_sticky = np_tree_find_str(args->target->aaa_token->extensions, "mep_type")->val.value.ul & STICKY_REPLY;
 
 	if (STICKY_REPLY != mep_reply_sticky &&
 		0 < strlen(args->target->aaa_token->realm) )
@@ -781,7 +781,7 @@ void _np_send_accounting_request(np_jobargs_t* args)
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 
-	np_tree_t* auth_data = make_nptree();
+	np_tree_t* auth_data = np_tree_create();
 	np_aaatoken_encode(auth_data, args->target->aaa_token);
 	_np_message_create(msg_out, aaa_target, state->my_node_key, _NP_MSG_ACCOUNTING_REQUEST, auth_data);
 
@@ -800,7 +800,7 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 
 	np_state_t* state = _np_state();
 
-	np_tree_t* jrb_me = make_nptree();
+	np_tree_t* jrb_me = np_tree_create();
 	np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
 
 	np_message_t* msg_out = NULL;

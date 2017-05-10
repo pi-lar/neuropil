@@ -45,7 +45,7 @@ void _np_aaatoken_t_new(void* token)
     // set expiration to one day and recreate each day by default
     // TODO: make it configurable or use random timeframe
     aaa_token->expiration = aaa_token->issued_at + 120;
-    aaa_token->extensions = make_nptree();
+    aaa_token->extensions = np_tree_create();
     aaa_token->state |= AAA_INVALID;
 }
 
@@ -55,7 +55,7 @@ void _np_aaatoken_t_del (void* token)
 	// clean up extensions
 	if (NULL != aaa_token->extensions)
 	{
-		np_free_tree(aaa_token->extensions);
+		np_tree_free(aaa_token->extensions);
 	}
 	if (NULL != aaa_token->uuid)
 	{
@@ -66,19 +66,19 @@ void _np_aaatoken_t_del (void* token)
 void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 {
 	// add e2e encryption details for sender
-	tree_insert_str(data, "_np.realm", new_val_s(token->realm));
+	np_tree_insert_str(data, "_np.realm", new_val_s(token->realm));
 
-	tree_insert_str(data, "_np.subject", new_val_s(token->subject));
-	tree_insert_str(data, "_np.issuer", new_val_s(token->issuer));
-	tree_insert_str(data, "_np.audience", new_val_s(token->audience));
+	np_tree_insert_str(data, "_np.subject", new_val_s(token->subject));
+	np_tree_insert_str(data, "_np.issuer", new_val_s(token->issuer));
+	np_tree_insert_str(data, "_np.audience", new_val_s(token->audience));
 
-	tree_insert_str(data, "_np.uuid", new_val_s(token->uuid));
+	np_tree_insert_str(data, "_np.uuid", new_val_s(token->uuid));
 
-	tree_insert_str(data, "_np.not_before", new_val_d(token->not_before));
-	tree_insert_str(data, "_np.expiration", new_val_d(token->expiration));
+	np_tree_insert_str(data, "_np.not_before", new_val_d(token->not_before));
+	np_tree_insert_str(data, "_np.expiration", new_val_d(token->expiration));
 
-	tree_insert_str(data, "_np.public_key", new_val_bin(token->public_key, crypto_sign_PUBLICKEYBYTES));
-	tree_insert_str(data, "_np.ext", new_val_tree(token->extensions));
+	np_tree_insert_str(data, "_np.public_key", new_val_bin(token->public_key, crypto_sign_PUBLICKEYBYTES));
+	np_tree_insert_str(data, "_np.ext", new_val_tree(token->extensions));
 }
 
 void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
@@ -87,55 +87,55 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	assert (NULL != token);
 
 	// get e2e encryption details of sending entity
-	if (NULL != tree_find_str(data, "_np.realm"))
+	if (NULL != np_tree_find_str(data, "_np.realm"))
 	{
-		strncpy(token->realm, tree_find_str(data, "_np.realm")->val.value.s, 255);
+		strncpy(token->realm, np_tree_find_str(data, "_np.realm")->val.value.s, 255);
 	}
 
-	if (NULL != tree_find_str(data, "_np.subject"))
+	if (NULL != np_tree_find_str(data, "_np.subject"))
 	{
-		strncpy(token->subject, tree_find_str(data, "_np.subject")->val.value.s, 255);
+		strncpy(token->subject, np_tree_find_str(data, "_np.subject")->val.value.s, 255);
 	}
-	if (NULL != tree_find_str(data, "_np.issuer"))
+	if (NULL != np_tree_find_str(data, "_np.issuer"))
 	{
-		strncpy(token->issuer, tree_find_str(data, "_np.issuer")->val.value.s, 255);
+		strncpy(token->issuer, np_tree_find_str(data, "_np.issuer")->val.value.s, 255);
 	}
-	if (NULL != tree_find_str(data, "_np.audience"))
+	if (NULL != np_tree_find_str(data, "_np.audience"))
 	{
-		strncpy(token->audience, tree_find_str(data, "_np.audience")->val.value.s, 255);
-	}
-
-	if (NULL != tree_find_str(data, "_np.uuid"))
-	{
-		token->uuid = strndup(tree_find_str(data, "_np.uuid")->val.value.s, 255);
+		strncpy(token->audience, np_tree_find_str(data, "_np.audience")->val.value.s, 255);
 	}
 
-	if (NULL != tree_find_str(data, "_np.not_before"))
+	if (NULL != np_tree_find_str(data, "_np.uuid"))
 	{
-		token->not_before = tree_find_str(data, "_np.not_before")->val.value.d;
-	}
-	if (NULL != tree_find_str(data, "_np.expiration"))
-	{
-		token->expiration = tree_find_str(data, "_np.expiration")->val.value.d;
+		token->uuid = strndup(np_tree_find_str(data, "_np.uuid")->val.value.s, 255);
 	}
 
-	if (NULL != tree_find_str(data, "_np.public_key"))
+	if (NULL != np_tree_find_str(data, "_np.not_before"))
 	{
-		memcpy(token->public_key, tree_find_str(data, "_np.public_key")->val.value.bin, crypto_sign_PUBLICKEYBYTES);
+		token->not_before = np_tree_find_str(data, "_np.not_before")->val.value.d;
+	}
+	if (NULL != np_tree_find_str(data, "_np.expiration"))
+	{
+		token->expiration = np_tree_find_str(data, "_np.expiration")->val.value.d;
+	}
+
+	if (NULL != np_tree_find_str(data, "_np.public_key"))
+	{
+		memcpy(token->public_key, np_tree_find_str(data, "_np.public_key")->val.value.bin, crypto_sign_PUBLICKEYBYTES);
 	}
 
 	// decode extensions
-	if (NULL != tree_find_str(data, "_np.ext"))
+	if (NULL != np_tree_find_str(data, "_np.ext"))
 	{
-		np_clear_tree(token->extensions);
-		np_tree_t* from = tree_find_str(data, "_np.ext")->val.value.tree;
+		np_tree_clear(token->extensions);
+		np_tree_t* from = np_tree_find_str(data, "_np.ext")->val.value.tree;
 		np_tree_elem_t* tmp = NULL;
 		RB_FOREACH(tmp, np_tree_s, from)
 		{
-			if (tmp->key.type == char_ptr_type)      tree_insert_str(token->extensions, tmp->key.value.s, tmp->val);
-			if (tmp->key.type == int_type)           tree_insert_int(token->extensions, tmp->key.value.i, tmp->val);
-			if (tmp->key.type == double_type)        tree_insert_dbl(token->extensions, tmp->key.value.d, tmp->val);
-			if (tmp->key.type == unsigned_long_type) tree_insert_ulong(token->extensions, tmp->key.value.ul, tmp->val);
+			if (tmp->key.type == char_ptr_type)      np_tree_insert_str(token->extensions, tmp->key.value.s, tmp->val);
+			if (tmp->key.type == int_type)           np_tree_insert_int(token->extensions, tmp->key.value.i, tmp->val);
+			if (tmp->key.type == double_type)        np_tree_insert_dbl(token->extensions, tmp->key.value.d, tmp->val);
+			if (tmp->key.type == unsigned_long_type) np_tree_insert_ulong(token->extensions, tmp->key.value.ul, tmp->val);
 		}
 	}
 
@@ -227,10 +227,10 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	// verify inserted signature first
 	char* signature = NULL;
 	unsigned long long signature_len = 0;
-	if (NULL != tree_find_str(token->extensions, NP_HS_SIGNATURE))
+	if (NULL != np_tree_find_str(token->extensions, NP_HS_SIGNATURE))
 	{
-		signature = tree_find_str(token->extensions, NP_HS_SIGNATURE)->val.value.bin;
-		signature_len = crypto_sign_BYTES; // tree_find_str(token->extensions, NP_HS_SIGNATURE)->val.size;
+		signature = np_tree_find_str(token->extensions, NP_HS_SIGNATURE)->val.value.bin;
+		signature_len = crypto_sign_BYTES; // np_tree_find_str(token->extensions, NP_HS_SIGNATURE)->val.size;
 		log_msg(LOG_AAATOKEN | LOG_DEBUG, "found signature with length %llu for checksum verification", signature_len);
 	}
 
@@ -267,8 +267,8 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 
 	// TODO: only if this is a message token
 	log_msg(LOG_AAATOKEN | LOG_DEBUG, "try to find max/msg threshold ");
-	np_tree_elem_t* max_threshold = tree_find_str(token->extensions, "max_threshold");
-	np_tree_elem_t* msg_threshold = tree_find_str(token->extensions, "msg_threshold");
+	np_tree_elem_t* max_threshold = np_tree_find_str(token->extensions, "max_threshold");
+	np_tree_elem_t* msg_threshold = np_tree_find_str(token->extensions, "msg_threshold");
 	if ( max_threshold && msg_threshold)
 	{
 		log_msg(LOG_AAATOKEN | LOG_DEBUG, "found max/msg threshold");
@@ -428,11 +428,11 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 	LOCK_CACHE(subject_key->send_property)
 	{
 		// update #2 subject specific data
-		subject_key->send_property->mep_type |= (tree_find_str(token->extensions, "mep_type")->val.value.ul & SENDER_MASK);
-		subject_key->send_property->ack_mode = tree_find_str(token->extensions, "ack_mode")->val.value.ush;
+		subject_key->send_property->mep_type |= (np_tree_find_str(token->extensions, "mep_type")->val.value.ul & SENDER_MASK);
+		subject_key->send_property->ack_mode = np_tree_find_str(token->extensions, "ack_mode")->val.value.ush;
 		subject_key->send_property->last_update = ev_time();
 
-		uint16_t max_threshold = tree_find_str(token->extensions, "max_threshold")->val.value.ui;
+		uint16_t max_threshold = np_tree_find_str(token->extensions, "max_threshold")->val.value.ui;
 		np_aaatoken_t *tmp_token = NULL;
 
 		if (max_threshold > 0)
@@ -459,8 +459,8 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 			else
 			{
 				// save old threshold value in case of a token replace
-				uint16_t current_threshold = tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
-				tree_find_str(token->extensions, "msg_threshold")->val.value.ui = current_threshold;
+				uint16_t current_threshold = np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
+				np_tree_find_str(token->extensions, "msg_threshold")->val.value.ui = current_threshold;
 
 				token->state = tmp_token->state;
 				np_unref_obj(np_aaatoken_t, tmp_token);
@@ -644,15 +644,15 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 //		log_msg(LOG_AAATOKEN | LOG_DEBUG, "receiver token %03x mask %03x",
 //										  subject_key->recv_property->mep_type, (RECEIVER_MASK | FILTER_MASK) );
 
-		subject_key->recv_property->mep_type |= (tree_find_str(token->extensions, "mep_type")->val.value.ul & RECEIVER_MASK);
+		subject_key->recv_property->mep_type |= (np_tree_find_str(token->extensions, "mep_type")->val.value.ul & RECEIVER_MASK);
 
 //		log_msg(LOG_AAATOKEN | LOG_DEBUG, "receiver token %03x %03x",
-//				                          subject_key->recv_property->mep_type, tree_find_str(token->extensions, "mep_type")->val.value.ul );
+//				                          subject_key->recv_property->mep_type, np_tree_find_str(token->extensions, "mep_type")->val.value.ul );
 
-		// subject_key->recv_property->ack_mode = tree_find_str(token->extensions, "ack_mode")->val.value.ush;
+		// subject_key->recv_property->ack_mode = np_tree_find_str(token->extensions, "ack_mode")->val.value.ush;
 		subject_key->recv_property->last_update = ev_time();
 
-		uint16_t max_threshold = tree_find_str(token->extensions, "max_threshold")->val.value.ui;
+		uint16_t max_threshold = np_tree_find_str(token->extensions, "max_threshold")->val.value.ui;
 
 		log_msg(LOG_AAATOKEN | LOG_DEBUG, "adding receiver token %p threshold %d", token, max_threshold );
 
@@ -681,8 +681,8 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 			else
 			{
 				// save old threshold value in case of a token replace
-				uint16_t current_threshold = tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
-				tree_find_str(token->extensions, "msg_threshold")->val.value.ui = current_threshold;
+				uint16_t current_threshold = np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
+				np_tree_find_str(token->extensions, "msg_threshold")->val.value.ui = current_threshold;
 
 				token->state = tmp_token->state;
 				np_unref_obj(np_aaatoken_t, tmp_token);
@@ -880,7 +880,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 	else
 	{
 		// TODO: refactor name NP_HS_SIGNATURE to a common name NP_SIGNATURE
-		tree_replace_str(msg_token->extensions, NP_HS_SIGNATURE,
+		np_tree_replace_str(msg_token->extensions, NP_HS_SIGNATURE,
 				new_val_bin(signature, crypto_sign_BYTES));
 	}
 	log_msg(LOG_TRACE | LOG_AAATOKEN, ".end  ._np_aaatoken_add_signature");

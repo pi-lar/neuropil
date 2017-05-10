@@ -54,15 +54,15 @@ void _np_message_t_new(void* msg)
 
 	msg_tmp->uuid = np_create_uuid("msg", 0);
 
-	msg_tmp->header       = make_nptree();
+	msg_tmp->header       = np_tree_create();
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "header now (%p: %p->%p)", tmp, tmp->header, tmp->header->flink);
-	msg_tmp->properties   = make_nptree();
+	msg_tmp->properties   = np_tree_create();
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "properties now (%p: %p->%p)", tmp, tmp->properties, tmp->properties->flink);
-	msg_tmp->instructions = make_nptree();
+	msg_tmp->instructions = np_tree_create();
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "instructions now (%p: %p->%p)", tmp, tmp->instructions, tmp->instructions->flink);
-	msg_tmp->body         = make_nptree();
+	msg_tmp->body         = np_tree_create();
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "body now (%p: %p->%p)", tmp, tmp->body, tmp->body->flink);
-	msg_tmp->footer       = make_nptree();
+	msg_tmp->footer       = np_tree_create();
 
 	msg_tmp->no_of_chunks = 1;
 	msg_tmp->is_single_part = FALSE;
@@ -75,25 +75,25 @@ void _np_message_t_del(void* data)
 {
 	np_message_t* msg = (np_message_t*) data;
 
-//	if (NULL != tree_find_str(msg->instructions, NP_MSG_INST_UUID)) {
-//		char* msg_uuid = tree_find_str(msg->instructions, NP_MSG_INST_UUID)->val.value.s;
+//	if (NULL != np_tree_find_str(msg->instructions, NP_MSG_INST_UUID)) {
+//		char* msg_uuid = np_tree_find_str(msg->instructions, NP_MSG_INST_UUID)->val.value.s;
 //		log_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting msg (%s) %p / %p", msg_uuid, msg, msg->msg_chunks);
 //	}
 
 	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free header",msg->uuid);
-	np_free_tree(msg->header);
+	np_tree_free(msg->header);
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting instructions %p", msg->instructions);
 	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free instructions",msg->uuid);
-	np_free_tree(msg->instructions);
+	np_tree_free(msg->instructions);
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting properties %p", msg->properties);
 	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free properties",msg->uuid);
-	np_free_tree(msg->properties);
+	np_tree_free(msg->properties);
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting body %p", msg->body);
 	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free body",msg->uuid);
-	np_free_tree(msg->body);
+	np_tree_free(msg->body);
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting footer %p", msg->footer);
 	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free footer",msg->uuid);
-	np_free_tree(msg->footer);
+	np_tree_free(msg->footer);
 
 	log_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free msg_chunks",msg->uuid);
 	if (0 < pll_size(msg->msg_chunks))
@@ -114,7 +114,7 @@ void _np_message_t_del(void* data)
 
 void _np_message_calculate_chunking(np_message_t* msg)
 {
-	// tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
+	// np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 
 	// TODO: message part split-up informations
 	uint16_t fixed_size =
@@ -140,7 +140,7 @@ void _np_message_calculate_chunking(np_message_t* msg)
 //
 //	unsigned char garbage[real_garbage_size];
 //	randombytes_buf(garbage, real_garbage_size);
-//	tree_insert_str(msg->footer, NP_MSG_FOOTER_GARBAGE, new_val_bin(garbage, real_garbage_size));
+//	np_tree_insert_str(msg->footer, NP_MSG_FOOTER_GARBAGE, new_val_bin(garbage, real_garbage_size));
 
 	msg->no_of_chunks = chunks;
 
@@ -151,18 +151,18 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 {
 	np_state_t* state = _np_state();
 
-	char* subject = tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
-	char* msg_uuid = tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val.value.s;
+	char* subject = np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
+	char* msg_uuid = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val.value.s;
 
-	uint16_t msg_chunks = tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
+	uint16_t msg_chunks = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
 
 	if (1 < msg_chunks)
 	{
 		np_message_t* msg_to_submit = NULL;
 
-		if (NULL != tree_find_str(state->msg_part_cache, msg_uuid))
+		if (NULL != np_tree_find_str(state->msg_part_cache, msg_uuid))
 		{
-			msg_to_submit = tree_find_str(state->msg_part_cache, msg_uuid)->val.value.v;
+			msg_to_submit = np_tree_find_str(state->msg_part_cache, msg_uuid)->val.value.v;
 			np_messagepart_ptr to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks);
 			log_msg(LOG_MESSAGE | LOG_DEBUG,
 					"message (%s) %p / %p / %p", msg_uuid, msg_to_submit, msg_to_submit->msg_chunks, to_add);
@@ -170,7 +170,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 		}
 		else
 		{
-			tree_insert_str(state->msg_part_cache, msg_uuid, new_val_v(msg_to_check));
+			np_tree_insert_str(state->msg_part_cache, msg_uuid, new_val_v(msg_to_check));
 			msg_to_submit = msg_to_check;
 			np_ref_obj(np_message_t, msg_to_check);
 	//		log_msg(LOG_MESSAGE | LOG_DEBUG,
@@ -187,7 +187,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 		}
 		else
 		{
-			tree_del_str(state->msg_part_cache, msg_uuid);
+			np_tree_del_str(state->msg_part_cache, msg_uuid);
 		}
 
 		log_msg(LOG_MESSAGE | LOG_DEBUG,
@@ -275,13 +275,13 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 	uint16_t max_chunk_size = (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40);
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "-----------------------------------------------------" );
 
-	tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0] = msg->no_of_chunks;
+	np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0] = msg->no_of_chunks;
 
 	uint16_t current_chunk_size = 0;
 
     while (i < msg->no_of_chunks)
     {
-		tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i+1;
+		np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i+1;
 
 		np_messagepart_ptr part = (np_messagepart_ptr) malloc(sizeof(np_messagepart_t));
 		CHECK_MALLOC(part);
@@ -568,13 +568,13 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 	deserialize_jrb_node_t(msg->instructions, &cmp );
 	// TODO: check if the complete buffer was read (byte count match)
 
-	if (NULL != tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
-		msg->no_of_chunks = tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
+	if (NULL != np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
+		msg->no_of_chunks = np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
 	}
 
 	uint16_t chunk_id = 0;
-	if (NULL != tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
-		chunk_id = tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1];
+	if (NULL != np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
+		chunk_id = np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1];
 	}
 	msg->is_single_part = TRUE;
 
@@ -758,7 +758,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 	free(bin_body);
 	free(bin_properties);
 
-	tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
+	np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 	msg->is_single_part = FALSE;
 
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "-----------------------------------------------------" );
@@ -776,10 +776,10 @@ void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const c
 	// np_message_t* new_msg;
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
-	tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT,  new_val_s((char*) subject));
-	tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(to)));
-	if (from != NULL) tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(from)));
-	if (from != NULL) tree_insert_str(msg->header, _NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _np_key_as_str(from)));
+	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT,  new_val_s((char*) subject));
+	np_tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(to)));
+	if (from != NULL) np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(from)));
+	if (from != NULL) np_tree_insert_str(msg->header, _NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _np_key_as_str(from)));
 
 	if (the_data != NULL)
 	{
@@ -789,20 +789,20 @@ void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const c
 
 inline void _np_message_setproperties(np_message_t* msg, np_tree_t* properties)
 {
-	np_free_tree(msg->properties);
+	np_tree_free(msg->properties);
 	msg->properties = properties;
 };
 
 inline void _np_message_setinstructions(np_message_t* msg, np_tree_t* instructions)
 {
-	np_free_tree(msg->instructions);
+	np_tree_free(msg->instructions);
 	msg->instructions = instructions;
 };
 
 inline void _np_message_setbody(np_message_t* msg, np_tree_t* body)
 {
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
-	np_free_tree(msg->body);
+	np_tree_free(msg->body);
 	msg->body = body;
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
 };
@@ -810,13 +810,13 @@ inline void _np_message_setbody(np_message_t* msg, np_tree_t* body)
 inline void _np_message_set_to(np_message_t* msg, np_key_t* target)
 {
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
-	tree_replace_str(msg->header, _NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(target)));
+	np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(target)));
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
 };
 
 inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
 {
-	np_free_tree(msg->footer);
+	np_tree_free(msg->footer);
 	msg->footer = footer;
 };
 
@@ -875,16 +875,16 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	// int crypto_box_seal(unsigned char *c, const unsigned char *m,
 	// unsigned long long mlen, const unsigned char *pk);
 
-	np_tree_t* encryption_details = make_nptree();
+	np_tree_t* encryption_details = np_tree_create();
 	// insert the public-key encrypted encryption key for each receiver of the message
-	tree_insert_str(encryption_details, NP_NONCE,
+	np_tree_insert_str(encryption_details, NP_NONCE,
 				   new_val_bin(nonce, crypto_box_NONCEBYTES));
-	tree_insert_str(encryption_details, tmp_token->issuer,
+	np_tree_insert_str(encryption_details, tmp_token->issuer,
 				   new_val_bin(ciphertext,
 						   	    crypto_box_MACBYTES + crypto_secretbox_KEYBYTES));
 	// add encryption details to the message
-	tree_insert_str(msg->properties, NP_SYMKEY, new_val_tree(encryption_details));
-	np_free_tree(encryption_details);
+	np_tree_insert_str(msg->properties, NP_SYMKEY, new_val_tree(encryption_details));
+	np_tree_free(encryption_details);
 
 	log_msg(LOG_TRACE, ".end  .np_message_encrypt_payload");
 }
@@ -895,18 +895,18 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	np_state_t* state = _np_state();
 
 	np_tree_t* encryption_details =
-			tree_find_str(msg->properties, NP_SYMKEY)->val.value.tree;
+			np_tree_find_str(msg->properties, NP_SYMKEY)->val.value.tree;
 	if(NULL == encryption_details  ) {
 			log_msg(LOG_WARN, "no encryption_details! msg->properties:");
 			np_tree_dump2log(msg->properties);
 		}
 	// insert the public-key encrypted encryption key for each receiver of the message
 	unsigned char nonce[crypto_box_NONCEBYTES];
-	memcpy(nonce, tree_find_str(encryption_details, NP_NONCE)->val.value.bin, crypto_box_NONCEBYTES);
+	memcpy(nonce, np_tree_find_str(encryption_details, NP_NONCE)->val.value.bin, crypto_box_NONCEBYTES);
 	unsigned char enc_sym_key[crypto_secretbox_KEYBYTES + crypto_box_MACBYTES];
 
 
-	np_tree_elem_t* encryption_details_elem = tree_find_str(encryption_details, (char*) _np_key_as_str(state->my_identity));
+	np_tree_elem_t* encryption_details_elem = np_tree_find_str(encryption_details, (char*) _np_key_as_str(state->my_identity));
 	if(NULL == encryption_details_elem  ) {
 		log_msg(LOG_ERROR, "decryption of message payload failed. no identity information in encryption_details for %s",_np_key_as_str(state->my_identity));
 		log_msg(LOG_DEBUG, "msg->properties:");
