@@ -92,23 +92,23 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, np_bool includ
 {
 	char* keystring = (char*) _np_key_as_str (node_key);
 
-	np_tree_insert_str(data, NP_NODE_KEY, new_val_s(keystring));
-	np_tree_insert_str(data, NP_NODE_PROTOCOL, new_val_ush(node_key->node->protocol));
-	np_tree_insert_str(data, NP_NODE_DNS_NAME, new_val_s(node_key->node->dns_name));
-	np_tree_insert_str(data, NP_NODE_PORT, new_val_s(node_key->node->port));
+	np_tree_insert_str(data, NP_NODE_KEY, np_treeval_new_s(keystring));
+	np_tree_insert_str(data, NP_NODE_PROTOCOL, np_treeval_new_ush(node_key->node->protocol));
+	np_tree_insert_str(data, NP_NODE_DNS_NAME, np_treeval_new_s(node_key->node->dns_name));
+	np_tree_insert_str(data, NP_NODE_PORT, np_treeval_new_s(node_key->node->port));
 
 	if (node_key->node->failuretime > 0.0)
 		np_tree_insert_str(data, NP_NODE_FAILURETIME,
-				new_val_d(node_key->node->failuretime));
+				np_treeval_new_d(node_key->node->failuretime));
 
 	if (TRUE == include_stats)
 	{
 		np_tree_insert_str(data, NP_NODE_SUCCESS_AVG,
-				new_val_f(node_key->node->success_avg));
+				np_treeval_new_f(node_key->node->success_avg));
 		np_tree_insert_str(data, NP_NODE_LATENCY,
-				new_val_d(node_key->node->latency));
+				np_treeval_new_d(node_key->node->latency));
 		np_tree_insert_str(data, NP_NODE_LAST_SUCCESS,
-				new_val_d(node_key->node->last_success));
+				np_treeval_new_d(node_key->node->last_success));
 	}
 }
 
@@ -217,9 +217,9 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_t, no
     		np_tree_t* node_jrb = np_tree_create();
     		// log_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
     		_np_node_encode_to_jrb(node_jrb, current, include_stats);
-    		np_tree_insert_str(node_jrb, NP_NODE_KEY, new_val_s(_np_key_as_str(current)));
+    		np_tree_insert_str(node_jrb, NP_NODE_KEY, np_treeval_new_s(_np_key_as_str(current)));
 
-    		np_tree_insert_int(data, j, new_val_tree(node_jrb));
+    		np_tree_insert_int(data, j, np_treeval_new_tree(node_jrb));
     		j++;
     		np_tree_free(node_jrb);
     	}
@@ -293,11 +293,11 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
     crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
 
 	np_tree_insert_str(node_token->extensions, NP_NODE_DNS_NAME,
-			new_val_s(node->dns_name));
+			np_treeval_new_s(node->dns_name));
 	np_tree_insert_str(node_token->extensions, NP_NODE_PORT,
-			new_val_s(node->port));
+			np_treeval_new_s(node->port));
 	np_tree_insert_str(node_token->extensions, NP_NODE_PROTOCOL,
-			new_val_ush(node->protocol));
+			np_treeval_new_ush(node->protocol));
 
 	_np_aaatoken_add_signature(node_token);
 

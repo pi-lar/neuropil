@@ -120,7 +120,7 @@ void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 
 	callback_data->user_arg = user_args;
 	callback_data->callback = func;
-	np_tree_insert_str(__local_http->user_hooks, key, new_val_v(callback_data));
+	np_tree_insert_str(__local_http->user_hooks, key, np_treeval_new_v(callback_data));
 }
 
 void _np_rem_http_callback(const char* path, htp_method method) {
@@ -165,7 +165,7 @@ int _np_http_query_args(NP_UNUSED htparser * parser, const char * data,
 		} else {
 			val = strndup(kv_pair, strlen(kv_pair));
 			np_tree_insert_str(__local_http->ht_request.ht_query_args, key,
-					new_val_s(val));
+					np_treeval_new_s(val));
 			free(key);
 			free(val);
 			key = NULL;
@@ -196,7 +196,7 @@ int _np_http_hdr_key(NP_UNUSED htparser * parser, const char * data,
 int _np_http_hdr_value(NP_UNUSED htparser * parser, const char * data,
 NP_UNUSED size_t in_len) {
 	np_tree_insert_str(__local_http->ht_request.ht_header,
-			__local_http->ht_request.current_key, new_val_s((char*) data));
+			__local_http->ht_request.current_key, np_treeval_new_s((char*) data));
 
 	free(__local_http->ht_request.current_key);
 	__local_http->ht_request.current_key = NULL;
@@ -341,11 +341,11 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 
 			__local_http->ht_response.ht_header = np_tree_create();
 			np_tree_insert_str(__local_http->ht_response.ht_header, "Content-Type",
-					new_val_s("application/json"));
+					np_treeval_new_s("application/json"));
 			np_tree_insert_str(__local_http->ht_response.ht_header,
-					"Access-Control-Allow-Origin", new_val_s("*"));
+					"Access-Control-Allow-Origin", np_treeval_new_s("*"));
 			np_tree_insert_str(__local_http->ht_response.ht_header,
-					"Access-Control-Allow-Methods", new_val_s("GET"));
+					"Access-Control-Allow-Methods", np_treeval_new_s("GET"));
 			__local_http->ht_response.cleanup_body = TRUE;
 			__local_http->status = RESPONSE;
 			break;
@@ -379,12 +379,12 @@ NP_UNUSED ev_io* ev, int event_type) {
 		char body_length[snprintf(NULL, 0, "%lu", s_cl) + 1];
 		snprintf(body_length, s_cl, "%lu", s_cl);
 		np_tree_insert_str(__local_http->ht_response.ht_header, "Content-Length",
-				new_val_s(body_length));
+				np_treeval_new_s(body_length));
 		np_tree_insert_str(__local_http->ht_response.ht_header, "Content-Type",
-				new_val_s("text/html"));
+				np_treeval_new_s("text/html"));
 		// add keep alive header
 		np_tree_insert_str(__local_http->ht_response.ht_header, "Connection",
-				new_val_s(
+				np_treeval_new_s(
 						htparser_should_keep_alive(__local_http->parser) ?
 								"Keep-Alive" : "close"));
 

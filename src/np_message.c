@@ -140,7 +140,7 @@ void _np_message_calculate_chunking(np_message_t* msg)
 //
 //	unsigned char garbage[real_garbage_size];
 //	randombytes_buf(garbage, real_garbage_size);
-//	np_tree_insert_str(msg->footer, NP_MSG_FOOTER_GARBAGE, new_val_bin(garbage, real_garbage_size));
+//	np_tree_insert_str(msg->footer, NP_MSG_FOOTER_GARBAGE, np_treeval_new_bin(garbage, real_garbage_size));
 
 	msg->no_of_chunks = chunks;
 
@@ -170,7 +170,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 		}
 		else
 		{
-			np_tree_insert_str(state->msg_part_cache, msg_uuid, new_val_v(msg_to_check));
+			np_tree_insert_str(state->msg_part_cache, msg_uuid, np_treeval_new_v(msg_to_check));
 			msg_to_submit = msg_to_check;
 			np_ref_obj(np_message_t, msg_to_check);
 	//		log_msg(LOG_MESSAGE | LOG_DEBUG,
@@ -776,10 +776,10 @@ void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const c
 	// np_message_t* new_msg;
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
-	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT,  new_val_s((char*) subject));
-	np_tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(to)));
-	if (from != NULL) np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(from)));
-	if (from != NULL) np_tree_insert_str(msg->header, _NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _np_key_as_str(from)));
+	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) subject));
+	np_tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(to)));
+	if (from != NULL) np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(from)));
+	if (from != NULL) np_tree_insert_str(msg->header, _NP_MSG_HEADER_REPLY_TO, np_treeval_new_s((char*) _np_key_as_str(from)));
 
 	if (the_data != NULL)
 	{
@@ -810,7 +810,7 @@ inline void _np_message_setbody(np_message_t* msg, np_tree_t* body)
 inline void _np_message_set_to(np_message_t* msg, np_key_t* target)
 {
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
-	np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(target)));
+	np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(target)));
 	// log_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
 };
 
@@ -878,12 +878,12 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	np_tree_t* encryption_details = np_tree_create();
 	// insert the public-key encrypted encryption key for each receiver of the message
 	np_tree_insert_str(encryption_details, NP_NONCE,
-				   new_val_bin(nonce, crypto_box_NONCEBYTES));
+				   np_treeval_new_bin(nonce, crypto_box_NONCEBYTES));
 	np_tree_insert_str(encryption_details, tmp_token->issuer,
-				   new_val_bin(ciphertext,
+				   np_treeval_new_bin(ciphertext,
 						   	    crypto_box_MACBYTES + crypto_secretbox_KEYBYTES));
 	// add encryption details to the message
-	np_tree_insert_str(msg->properties, NP_SYMKEY, new_val_tree(encryption_details));
+	np_tree_insert_str(msg->properties, NP_SYMKEY, np_treeval_new_tree(encryption_details));
 	np_tree_free(encryption_details);
 
 	log_msg(LOG_TRACE, ".end  .np_message_encrypt_payload");

@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 		{
 			np_tree_insert_str(state->my_node_key->aaa_token->extensions,
 							"passcode",
-							new_val_hash(code));
+							np_treeval_new_hash(code));
 		}
 	}
 

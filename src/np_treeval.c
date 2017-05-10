@@ -19,7 +19,130 @@
 
 np_treeval_t np_treeval_NULL = { .type = none_type, .size=0 };
 
-char* val_to_str(np_treeval_t val) {
+np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
+	np_treeval_t to;
+	switch (from.type) {
+	// length is always 1 (to identify the type) + the length of the type
+	case short_type:
+		to.type = short_type;
+		to.value.sh = from.value.sh;
+		to.size = sizeof(int8_t);
+		break;
+	case int_type:
+		to.type = int_type;
+		to.value.i = from.value.i;
+		to.size = sizeof(int16_t);
+		break;
+	case long_type:
+		to.type = long_type;
+		to.value.l = from.value.l;
+		to.size = sizeof(int32_t);
+		break;
+	case long_long_type:
+		to.type = long_long_type;
+		to.value.ll = from.value.ll;
+		to.size = sizeof(int64_t);
+		break;
+	case float_type:
+		to.type = float_type;
+		to.value.f = from.value.f;
+		to.size = sizeof(float);
+		break;
+	case double_type:
+		to.type = double_type;
+		to.value.d = from.value.d;
+		to.size = sizeof(double);
+		break;
+	case char_ptr_type:
+		to.type = char_ptr_type;
+		to.value.s = strndup(from.value.s, strlen(from.value.s));
+		to.size = strlen(from.value.s);
+		// log_msg(LOG_DEBUG, "copy str %s %hd", to.value.s, to.size);
+		break;
+	case char_type:
+		to.type = char_type;
+		to.value.c = from.value.c;
+		to.size = sizeof(char);
+		break;
+	case unsigned_char_type:
+		to.type = unsigned_char_type;
+		to.value.uc = from.value.uc;
+		to.size = sizeof(unsigned char);
+		break;
+	case unsigned_short_type:
+		to.type = unsigned_short_type;
+		to.value.ush = from.value.ush;
+		to.size = sizeof(uint8_t);
+		break;
+	case unsigned_int_type:
+		to.type = unsigned_int_type;
+		to.value.ui = from.value.ui;
+		to.size = sizeof(uint16_t);
+		break;
+	case unsigned_long_type:
+		to.type = unsigned_long_type;
+		to.value.ul = from.value.ul;
+		to.size = sizeof(uint32_t);
+		break;
+	case unsigned_long_long_type:
+		to.type = unsigned_long_long_type;
+		to.value.ull = from.value.ull;
+		to.size = sizeof(uint64_t);
+		break;
+	case uint_array_2_type:
+		to.type = uint_array_2_type;
+		to.value.a2_ui[0] = from.value.a2_ui[0];
+		to.value.a2_ui[1] = from.value.a2_ui[1];
+		to.size = 2 * sizeof(uint16_t);
+		break;
+		// 		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
+		// 		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
+		// 		case unsigned_char_array_8_type: byte_size += 1 +8*sizeof(unsigned char); break;
+	case bin_type:
+		// if (0 < to.size && bin_type == to.type) free (to.value.bin);
+		to.type = bin_type;
+		to.value.bin = malloc(from.size);
+		CHECK_MALLOC(to.value.bin)
+		;
+		memset(to.value.bin, 0, from.size);
+		memcpy(to.value.bin, from.value.bin, from.size);
+		to.size = from.size;
+		break;
+	case jrb_tree_type:
+		to.type = jrb_tree_type;
+		to.size = from.size;
+		to.value.tree = np_tree_copy(from.value.tree);
+		break;
+	case key_type:
+		to.type = key_type;
+		to.value.key = from.value.key;
+		to.size = sizeof(np_dhkey_t);
+		break;
+	case hash_type:
+		to.type = bin_type;
+		to.value.bin = malloc(from.size);
+		CHECK_MALLOC(to.value.bin)
+		;
+
+		memset(to.value.bin, 0, from.size);
+		memcpy(to.value.bin, from.value.bin, from.size);
+		to.size = from.size;
+		break;
+	case void_type:
+		to.type = void_type;
+		to.value.v = from.value.v;
+		to.size = from.size;
+		break;
+	default:
+		to.type = none_type;
+		log_msg(LOG_WARN, "unsupported copy operation for jval type %hhd",
+				from.type);
+		break;
+	}
+	return to;
+}
+
+char* np_treeval_to_str(np_treeval_t val) {
 
 	int len = 0;
 	char* result = NULL;
@@ -146,129 +269,7 @@ char* val_to_str(np_treeval_t val) {
 	return result;
 }
 
-np_treeval_t copy_of_val(np_treeval_t from)
-{
-	np_treeval_t to;
-
-	switch(from.type) {
-		// length is always 1 (to identify the type) + the length of the type
-  		case short_type:
-			to.type = short_type;
-			to.value.sh = from.value.sh;
-			to.size = sizeof(int8_t);
-			break;
-		case int_type:
-			to.type = int_type;
-			to.value.i = from.value.i;
-			to.size = sizeof(int16_t);
-			break;
-		case long_type:
-			to.type = long_type;
-			to.value.l = from.value.l;
-			to.size = sizeof(int32_t);
-			break;
-		case long_long_type:
-			to.type = long_long_type;
-			to.value.ll = from.value.ll;
-			to.size = sizeof(int64_t);
-			break;
- 		case float_type:
-			to.type = float_type;
-			to.value.f = from.value.f;
-			to.size = sizeof(float);
-			break;
-		case double_type:
-			to.type = double_type;
-			to.value.d = from.value.d;
-			to.size = sizeof(double);
-			break;
-		case char_ptr_type:
-			to.type = char_ptr_type;
-			to.value.s = strndup(from.value.s, strlen(from.value.s));
-			to.size = strlen(from.value.s);
-			// log_msg(LOG_DEBUG, "copy str %s %hd", to.value.s, to.size);
-			break;
-		case char_type:
-			to.type = char_type;
-			to.value.c = from.value.c;
-			to.size = sizeof(char);
-			break;
-		case unsigned_char_type:
-			to.type = unsigned_char_type;
-			to.value.uc = from.value.uc;
-			to.size = sizeof(unsigned char);
-			break;
- 		case unsigned_short_type:
- 			to.type = unsigned_short_type;
- 			to.value.ush = from.value.ush;
- 			to.size = sizeof(uint8_t);
- 			break;
- 		case unsigned_int_type:
-			to.type = unsigned_int_type;
-			to.value.ui = from.value.ui;
-			to.size = sizeof(uint16_t);
-			break;
-		case unsigned_long_type:
-			to.type = unsigned_long_type;
-			to.value.ul = from.value.ul;
-			to.size = sizeof(uint32_t);
-			break;
-		case unsigned_long_long_type:
-			to.type = unsigned_long_long_type;
-			to.value.ull = from.value.ull;
-			to.size = sizeof(uint64_t);
-			break;
- 		case uint_array_2_type:
-			to.type = uint_array_2_type;
-			to.value.a2_ui[0] = from.value.a2_ui[0];
-			to.value.a2_ui[1] = from.value.a2_ui[1];
-			to.size = 2*sizeof(uint16_t);
- 			break;
-// 		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
-// 		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
-// 		case unsigned_char_array_8_type: byte_size += 1 +8*sizeof(unsigned char); break;
- 		case bin_type:
- 			// if (0 < to.size && bin_type == to.type) free (to.value.bin);
-			to.type = bin_type;
-			to.value.bin = malloc(from.size);
-			CHECK_MALLOC(to.value.bin);
- 		    memset(to.value.bin, 0, from.size);
- 		    memcpy(to.value.bin, from.value.bin, from.size);
-			to.size = from.size;
-			break;
- 		case jrb_tree_type:
- 			to.type = jrb_tree_type;
-			to.size = from.size;
- 			to.value.tree = np_tree_copy(from.value.tree);
-			break;
-		case key_type:
-			to.type = key_type;
-			to.value.key = from.value.key;
-			to.size = sizeof(np_dhkey_t);
-			break;
- 		case hash_type:
-			to.type = bin_type;
-			to.value.bin = malloc(from.size);
-			CHECK_MALLOC(to.value.bin);
-
- 		    memset(to.value.bin, 0, from.size);
- 		    memcpy(to.value.bin, from.value.bin, from.size);
-			to.size = from.size;
-			break;
- 		case void_type:
-			to.type = void_type;
-			to.value.v = from.value.v;
-			to.size = from.size;
-			break;
-		default:
-			to.type = none_type;
-			log_msg(LOG_WARN, "unsupported copy operation for jval type %hhd", from.type);
-			break;
-	}
-	return to;
-}
-
-np_treeval_t new_val_i (int16_t i)
+np_treeval_t np_treeval_new_i (int16_t i)
 {
     np_treeval_t j;
     j.value.i = i;
@@ -277,7 +278,7 @@ np_treeval_t new_val_i (int16_t i)
     return j;
 }
 
-np_treeval_t new_val_l (int32_t l)
+np_treeval_t np_treeval_new_l (int32_t l)
 {
     np_treeval_t j;
     j.value.l = l;
@@ -286,7 +287,7 @@ np_treeval_t new_val_l (int32_t l)
     return j;
 }
 
-np_treeval_t new_val_ll (int64_t ll)
+np_treeval_t np_treeval_new_ll (int64_t ll)
 {
     np_treeval_t j;
     j.value.ll = ll;
@@ -295,7 +296,7 @@ np_treeval_t new_val_ll (int64_t ll)
     return j;
 }
 
-np_treeval_t new_val_f (float f)
+np_treeval_t np_treeval_new_f (float f)
 {
     np_treeval_t j;
     j.value.f = f;
@@ -304,7 +305,7 @@ np_treeval_t new_val_f (float f)
     return j;
 }
 
-np_treeval_t new_val_d (double d)
+np_treeval_t np_treeval_new_d (double d)
 {
     np_treeval_t j;
     j.value.d = d;
@@ -313,7 +314,7 @@ np_treeval_t new_val_d (double d)
     return j;
 }
 
-np_treeval_t new_val_v (void *v)
+np_treeval_t np_treeval_new_v (void *v)
 {
     np_treeval_t j;
     j.value.v = v;
@@ -321,7 +322,7 @@ np_treeval_t new_val_v (void *v)
     return j;
 }
 
-np_treeval_t new_val_s (char *s)
+np_treeval_t np_treeval_new_s (char *s)
 {
     np_treeval_t j;
     j.size = strlen(s);
@@ -330,7 +331,7 @@ np_treeval_t new_val_s (char *s)
     return j;
 }
 
-np_treeval_t new_val_c (char c)
+np_treeval_t np_treeval_new_c (char c)
 {
     np_treeval_t j;
     j.value.c = c;
@@ -339,7 +340,7 @@ np_treeval_t new_val_c (char c)
     return j;
 }
 
-np_treeval_t new_val_uc (unsigned char uc)
+np_treeval_t np_treeval_new_uc (unsigned char uc)
 {
     np_treeval_t j;
     j.value.uc = uc;
@@ -348,7 +349,7 @@ np_treeval_t new_val_uc (unsigned char uc)
     return j;
 }
 
-np_treeval_t new_val_sh (int8_t sh)
+np_treeval_t np_treeval_new_sh (int8_t sh)
 {
     np_treeval_t j;
     j.value.sh = sh;
@@ -357,7 +358,7 @@ np_treeval_t new_val_sh (int8_t sh)
     return j;
 }
 
-np_treeval_t new_val_ush (uint8_t ush)
+np_treeval_t np_treeval_new_ush (uint8_t ush)
 {
     np_treeval_t j;
     j.value.ush = ush;
@@ -366,7 +367,7 @@ np_treeval_t new_val_ush (uint8_t ush)
     return j;
 }
 
-np_treeval_t new_val_ui (uint16_t i)
+np_treeval_t np_treeval_new_ui (uint16_t i)
 {
     np_treeval_t j;
     j.value.ui = i;
@@ -375,7 +376,7 @@ np_treeval_t new_val_ui (uint16_t i)
     return j;
 }
 
-np_treeval_t new_val_ul (uint32_t ul)
+np_treeval_t np_treeval_new_ul (uint32_t ul)
 {
     np_treeval_t j;
     j.value.ul = ul;
@@ -384,7 +385,7 @@ np_treeval_t new_val_ul (uint32_t ul)
     return j;
 }
 
-np_treeval_t new_val_ull (uint64_t ull)
+np_treeval_t np_treeval_new_ull (uint64_t ull)
 {
     np_treeval_t j;
     j.value.ull = ull;
@@ -393,7 +394,7 @@ np_treeval_t new_val_ull (uint64_t ull)
     return j;
 }
 
-np_treeval_t new_val_bin (void* data, uint32_t ul)
+np_treeval_t np_treeval_new_bin (void* data, uint32_t ul)
 {
     np_treeval_t j;
 
@@ -409,7 +410,7 @@ np_treeval_t new_val_bin (void* data, uint32_t ul)
     return j;
 }
 
-np_treeval_t new_val_key (np_dhkey_t key)
+np_treeval_t np_treeval_new_key (np_dhkey_t key)
 {
     np_treeval_t j;
 
@@ -422,7 +423,7 @@ np_treeval_t new_val_key (np_dhkey_t key)
     return j;
 }
 
-np_treeval_t new_val_iarray (uint16_t i0, uint16_t i1)
+np_treeval_t np_treeval_new_iarray (uint16_t i0, uint16_t i1)
 {
     np_treeval_t j;
     j.value.a2_ui[0] = i0;
@@ -432,7 +433,7 @@ np_treeval_t new_val_iarray (uint16_t i0, uint16_t i1)
     return j;
 }
 
-np_treeval_t new_val_farray (float f0, float f1)
+np_treeval_t np_treeval_new_farray (float f0, float f1)
 {
     np_treeval_t j;
     j.value.farray[0] = f0;
@@ -442,7 +443,7 @@ np_treeval_t new_val_farray (float f0, float f1)
     return j;
 }
 
-np_treeval_t new_val_carray_nt (char *carray)
+np_treeval_t np_treeval_new_carray_nt (char *carray)
 {
     np_treeval_t j;
     uint8_t i;
@@ -459,7 +460,7 @@ np_treeval_t new_val_carray_nt (char *carray)
     return j;
 }
 
-np_treeval_t new_val_carray_nnt (char *carray)
+np_treeval_t np_treeval_new_carray_nnt (char *carray)
 {
     np_treeval_t j;
     memcpy (j.value.carray, carray, 8);
@@ -467,7 +468,7 @@ np_treeval_t new_val_carray_nnt (char *carray)
 	return j;
 }
 
-np_treeval_t new_val_tree(np_tree_t* tree)
+np_treeval_t np_treeval_new_tree(np_tree_t* tree)
 {
 	np_treeval_t j;
     j.value.tree = tree;
@@ -476,7 +477,7 @@ np_treeval_t new_val_tree(np_tree_t* tree)
 	return j;
 }
 
-np_treeval_t new_val_hash (char *s)
+np_treeval_t np_treeval_new_hash (char *s)
 {
     np_treeval_t j;
 
@@ -495,7 +496,7 @@ np_treeval_t new_val_hash (char *s)
     return j;
 }
 
-np_treeval_t new_val_pwhash (NP_UNUSED char *s)
+np_treeval_t np_treeval_new_pwhash (NP_UNUSED char *s)
 {
 	// TODO: implement password hashing function / update of libsodium required ?
     np_treeval_t j = np_treeval_NULL;
@@ -513,7 +514,7 @@ np_treeval_t new_val_pwhash (NP_UNUSED char *s)
     return j;
 }
 
-np_treeval_t new_val_obj(np_obj_t* obj)
+np_treeval_t np_treeval_new_obj(np_obj_t* obj)
 {
 	np_treeval_t j;
 	j.value.obj = obj;
@@ -606,7 +607,7 @@ char* jval_carray (np_treeval_t j)
 {
     return j.value.carray;
 }
-uint64_t val_get_byte_size(np_treeval_t ele)
+uint64_t np_treeval_get_byte_size(np_treeval_t ele)
 {
 	uint64_t byte_size = 0;
 

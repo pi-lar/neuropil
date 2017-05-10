@@ -138,7 +138,7 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 	}
 
 	_np_tree_replace_all_with_str(msg_part, NP_ENCRYPTED,
-			new_val_bin(enc_msg_part, enc_msg_part_len));
+			np_treeval_new_bin(enc_msg_part, enc_msg_part_len));
 
 	log_msg(LOG_TRACE, ".end  .np_message_encrypt_part");
 	return (TRUE);

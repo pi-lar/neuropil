@@ -332,10 +332,10 @@ void _np_print_tree (np_tree_t* n, uint8_t indent)
 		memset(s_indent, ' ', indent);
 		s_indent[indent] = '\0';
 
-		if (tmp->key.type == char_ptr_type)      log_msg(LOG_DEBUG, "%s%s: %s", s_indent, val_to_str(tmp->key), val_to_str(tmp->val));
-		if (tmp->key.type == int_type)           log_msg(LOG_DEBUG, "%s%s: %s", s_indent, val_to_str(tmp->key), val_to_str(tmp->val));
-		if (tmp->key.type == double_type)        log_msg(LOG_DEBUG, "%s%s: %s", s_indent, val_to_str(tmp->key), val_to_str(tmp->val));
-		if (tmp->key.type == unsigned_long_type) log_msg(LOG_DEBUG, "%s%s: %s", s_indent, val_to_str(tmp->key), val_to_str(tmp->val));
+		if (tmp->key.type == char_ptr_type)      log_msg(LOG_DEBUG, "%s%s: %s", s_indent, np_treeval_to_str(tmp->key), np_treeval_to_str(tmp->val));
+		if (tmp->key.type == int_type)           log_msg(LOG_DEBUG, "%s%s: %s", s_indent, np_treeval_to_str(tmp->key), np_treeval_to_str(tmp->val));
+		if (tmp->key.type == double_type)        log_msg(LOG_DEBUG, "%s%s: %s", s_indent, np_treeval_to_str(tmp->key), np_treeval_to_str(tmp->val));
+		if (tmp->key.type == unsigned_long_type) log_msg(LOG_DEBUG, "%s%s: %s", s_indent, np_treeval_to_str(tmp->key), np_treeval_to_str(tmp->val));
 
 		if (tmp->val.type == jrb_tree_type) _np_print_tree(tmp->val.value.v, indent+1);
 	}
@@ -352,7 +352,7 @@ uint64_t np_tree_get_byte_size(np_tree_elem_t* node)
 {
 	assert(node  != NULL);
 
-	uint64_t byte_size = val_get_byte_size(node->key) + val_get_byte_size(node->val) ;
+	uint64_t byte_size = np_treeval_get_byte_size(node->key) + np_treeval_get_byte_size(node->val) ;
 
 
 	return byte_size;
@@ -375,7 +375,7 @@ void np_tree_insert_str (np_tree_t* tree, const char *key, np_treeval_t val)
 	    found->key.type = char_ptr_type;
 	    found->key.size = strlen(key);
 
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 		// log_msg(LOG_WARN, "e->%p k->%p v->%p", found, found->key.value.s, &found->val);
 		// log_msg(LOG_WARN, "e->%p k->%p v->%p", found, &found->key, &found->val);
 
@@ -402,7 +402,7 @@ void np_tree_insert_int (np_tree_t* tree, int16_t ikey, np_treeval_t val)
 	    found->key.value.i = ikey;
 	    found->key.type = int_type;
 	    found->key.size = sizeof(int16_t);
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 
 		RB_INSERT(np_tree_s, tree, found);
 	    tree->size++;
@@ -426,7 +426,7 @@ void np_tree_insert_ulong (np_tree_t* tree, uint32_t ulkey, np_treeval_t val)
 	    found->key.type = unsigned_long_type;
 	    found->key.size = sizeof(uint32_t);
 
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 
 		RB_INSERT(np_tree_s, tree, found);
 	    tree->size++;
@@ -450,7 +450,7 @@ void np_tree_insert_dbl (np_tree_t* tree, double dkey, np_treeval_t val)
 	    found->key.type = double_type;
 	    found->key.size = sizeof(double);
 
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 
 		RB_INSERT(np_tree_s, tree, found);
 	    tree->size++;
@@ -483,7 +483,7 @@ void np_tree_replace_str (np_tree_t* tree, const char *key, np_treeval_t val)
 		if (found->val.type == bin_type)      free(found->val.value.bin);
 		if (found->val.type == jrb_tree_type) np_tree_free(found->val.value.tree);
 
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 		tree->byte_size += np_tree_get_byte_size(found);
 	}
 }
@@ -507,7 +507,7 @@ void np_tree_replace_int (np_tree_t* tree, int16_t ikey, np_treeval_t val)
 		if (found->val.type == bin_type)      free(found->val.value.bin);
 		if (found->val.type == jrb_tree_type) np_tree_free(found->val.value.tree);
 
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 
 		tree->byte_size += np_tree_get_byte_size(found);
 	}
@@ -531,7 +531,7 @@ void np_tree_replace_ulong (np_tree_t* tree, uint32_t ulkey, np_treeval_t val)
 		if (found->val.type == bin_type)      free(found->val.value.bin);
 		if (found->val.type == jrb_tree_type) np_tree_free(found->val.value.tree);
 
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 		tree->byte_size += np_tree_get_byte_size(found);
 	}
 }
@@ -555,7 +555,7 @@ void np_tree_replace_dbl (np_tree_t* tree, double dkey, np_treeval_t val)
 		if (found->val.type == bin_type)      free(found->val.value.bin);
 		if (found->val.type == jrb_tree_type) np_tree_free(found->val.value.tree);
 
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 		tree->byte_size += np_tree_get_byte_size(found);
 	}
 }

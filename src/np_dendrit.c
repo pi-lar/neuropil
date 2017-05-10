@@ -141,7 +141,7 @@ void _np_in_received(np_jobargs_t* args)
 			  IS_INVALID(alias_key->aaa_token->state) )
 		{
 			np_tree_insert_str(msg_in->footer, NP_MSG_FOOTER_ALIAS_KEY,
-					new_val_s(_np_key_as_str(alias_key)));
+					np_treeval_new_s(_np_key_as_str(alias_key)));
 			np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_HANDSHAKE);
 			_np_job_submit_msgin_event(0.0, msg_prop, state->my_node_key, msg_in);
 		}
@@ -235,10 +235,10 @@ void _np_in_received(np_jobargs_t* args)
 			_np_message_create(ack_msg_out, ack_key, state->my_node_key, _NP_MSG_ACK, NULL);
 
 			/* add/create network header */
-			np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_ACK, new_val_ush(ack_prop->ack_mode));
-			np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_ACKUUID, new_val_s(msg_uuid.value.s));
-			np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_TSTAMP, new_val_d(ev_time()));
-			np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_TTL, new_val_d(1.0));
+			np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(ack_prop->ack_mode));
+			np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_ACKUUID, np_treeval_new_s(msg_uuid.value.s));
+			np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(ev_time()));
+			np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(1.0));
 
 			log_msg(LOG_DEBUG, "sending back acknowledge for: %s (seq=%s, ack=%hhd)",
 					msg_subject.value.s, msg_uuid.value.s, msg_ack.value.ush);

@@ -43,28 +43,28 @@ int main(int argc, char **argv) {
 	my_key->dhkey = my_dhkey;
 
 	uint16_t parts = 0;
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_SUBJECT,  new_val_s((char*) msg_subject));
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  new_val_s((char*) _np_key_as_str(my_key)) );
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(my_key)) );
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_REPLY_TO, new_val_s((char*) _np_key_as_str(my_key)) );
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) msg_subject));
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(my_key)) );
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_REPLY_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
 
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, new_val_ush(0));
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, new_val_s((char*) _np_key_as_str(my_key)) );
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, new_val_ul(0));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(0));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
 
 	char* new_uuid = np_uuid_create(msg_subject, 1);
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, new_val_s(new_uuid));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(new_uuid));
 	free(new_uuid);
 
 	double now = ev_time();
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, new_val_d(now));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
 	now += 20;
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, new_val_d(now));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(now));
 
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, new_val_ush(0));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, np_treeval_new_ush(0));
 
 	// TODO: message part split-up informations
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, new_val_iarray(parts, parts));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(parts, parts));
 
 	char prop_payload[30]; //  = (char*) malloc(25 * sizeof(char));
 	memset (prop_payload, 'a', 29);
@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
 
 	for (int16_t i = 0; i < 9; i++)
 	{
-		np_tree_insert_int(msg_out->properties, i, new_val_s(prop_payload));
+		np_tree_insert_int(msg_out->properties, i, np_treeval_new_s(prop_payload));
 	}
 
 	char body_payload[51]; //  = (char*) malloc(50 * sizeof(char));
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
 
 	for (int16_t i = 0; i < 60; i++)
 	{
-		np_tree_insert_int(msg_out->body, i, new_val_s(body_payload));
+		np_tree_insert_int(msg_out->body, i, np_treeval_new_s(body_payload));
 	}
 
 	np_tree_elem_t* properties_node = np_tree_find_int(msg_out->properties, 1);

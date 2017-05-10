@@ -298,7 +298,7 @@ void np_set_realm_name(const char* realm_name)
     else
     {
         // set target node string for correct routing
-    	np_tree_replace_str(_np_state()->my_identity->aaa_token->extensions, "target_node", new_val_s(_np_key_as_str(new_node_key)) );
+    	np_tree_replace_str(_np_state()->my_identity->aaa_token->extensions, "target_node", np_treeval_new_s(_np_key_as_str(new_node_key)) );
     }
     _np_state()->my_node_key = new_node_key;
 
@@ -422,7 +422,7 @@ void np_set_identity(np_aaatoken_t* identity)
 	}
 
 	// set target node string for correct routing
-	np_tree_insert_str(identity->extensions, "target_node", new_val_s(_np_key_as_str(state->my_node_key)) );
+	np_tree_insert_str(identity->extensions, "target_node", np_treeval_new_s(_np_key_as_str(state->my_node_key)) );
 
     // create encryption parameter
 	crypto_sign_keypair(identity->public_key, identity->private_key);
@@ -515,8 +515,8 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 	np_message_t* msg = NULL;
 	np_new_obj(np_message_t, msg);
 
-	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT, new_val_s((char*) subject));
-	np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, new_val_s((char*) _np_key_as_str(_np_state()->my_node_key)));
+	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s((char*) subject));
+	np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(_np_state()->my_node_key)));
 
 	_np_message_setbody(msg, body);
 	_np_message_setproperties(msg, properties);
@@ -580,11 +580,11 @@ void np_send_text (char* subject, char *data, uint32_t seqnum, char* targetDhkey
 	np_message_t* msg = NULL;
 	np_new_obj(np_message_t, msg);
 
-	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT, new_val_s(subject));
-	np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, new_val_s(_np_key_as_str(state->my_node_key)));
-	np_tree_insert_str(msg->body,   NP_MSG_BODY_TEXT, new_val_s(data));
+	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s(subject));
+	np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s(_np_key_as_str(state->my_node_key)));
+	np_tree_insert_str(msg->body,   NP_MSG_BODY_TEXT, np_treeval_new_s(data));
 
-	np_tree_insert_str(msg->properties, _NP_MSG_INST_SEQ, new_val_ul(seqnum));
+	np_tree_insert_str(msg->properties, _NP_MSG_INST_SEQ, np_treeval_new_ul(seqnum));
 
 	_np_send_subject_discovery_messages(OUTBOUND, subject);
 
@@ -835,9 +835,9 @@ void _np_send_ack(np_message_t* in_msg)
 		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
 
 		_np_message_create(ack_msg, ack_target, state->my_node_key, _NP_MSG_ACK, NULL);
-		np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACK, new_val_ush(prop->ack_mode));
-		np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACKUUID, new_val_s(uuid));
-		np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_SEQ, new_val_ul(seq));
+		np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop->ack_mode));
+		np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACKUUID, np_treeval_new_s(uuid));
+		np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
 		// send the ack out
 		_np_job_submit_route_event(0.0, prop, ack_target, ack_msg);
 

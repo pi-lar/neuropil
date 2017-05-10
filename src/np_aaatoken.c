@@ -66,19 +66,19 @@ void _np_aaatoken_t_del (void* token)
 void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 {
 	// add e2e encryption details for sender
-	np_tree_insert_str(data, "_np.realm", new_val_s(token->realm));
+	np_tree_insert_str(data, "_np.realm", np_treeval_new_s(token->realm));
 
-	np_tree_insert_str(data, "_np.subject", new_val_s(token->subject));
-	np_tree_insert_str(data, "_np.issuer", new_val_s(token->issuer));
-	np_tree_insert_str(data, "_np.audience", new_val_s(token->audience));
+	np_tree_insert_str(data, "_np.subject", np_treeval_new_s(token->subject));
+	np_tree_insert_str(data, "_np.issuer", np_treeval_new_s(token->issuer));
+	np_tree_insert_str(data, "_np.audience", np_treeval_new_s(token->audience));
 
-	np_tree_insert_str(data, "_np.uuid", new_val_s(token->uuid));
+	np_tree_insert_str(data, "_np.uuid", np_treeval_new_s(token->uuid));
 
-	np_tree_insert_str(data, "_np.not_before", new_val_d(token->not_before));
-	np_tree_insert_str(data, "_np.expiration", new_val_d(token->expiration));
+	np_tree_insert_str(data, "_np.not_before", np_treeval_new_d(token->not_before));
+	np_tree_insert_str(data, "_np.expiration", np_treeval_new_d(token->expiration));
 
-	np_tree_insert_str(data, "_np.public_key", new_val_bin(token->public_key, crypto_sign_PUBLICKEYBYTES));
-	np_tree_insert_str(data, "_np.ext", new_val_tree(token->extensions));
+	np_tree_insert_str(data, "_np.public_key", np_treeval_new_bin(token->public_key, crypto_sign_PUBLICKEYBYTES));
+	np_tree_insert_str(data, "_np.ext", np_treeval_new_tree(token->extensions));
 }
 
 void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
@@ -881,7 +881,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 	{
 		// TODO: refactor name NP_HS_SIGNATURE to a common name NP_SIGNATURE
 		np_tree_replace_str(msg_token->extensions, NP_HS_SIGNATURE,
-				new_val_bin(signature, crypto_sign_BYTES));
+				np_treeval_new_bin(signature, crypto_sign_BYTES));
 	}
 	log_msg(LOG_TRACE | LOG_AAATOKEN, ".end  ._np_aaatoken_add_signature");
 }

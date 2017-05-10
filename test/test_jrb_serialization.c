@@ -74,7 +74,7 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
     tst.t[2] = 3;
     tst.t[3] = 4;
 
-    np_treeval_t val = new_val_key(tst);
+    np_treeval_t val = np_treeval_new_key(tst);
 	cr_expect(val.type == key_type, "Expected source val to be of type key_type. But is: %"PRIu8, val.type);
 	cr_expect(total_write_count == 0, "Expected empty buffer. But size is %"PRIu32, total_write_count);
     __np_tree_serialize_write_type(val, &cmp_write);
@@ -140,7 +140,7 @@ Test(test_serialization, serialize_np_dhkey_t_in_np_tree_t_, .description="test 
     tst2.t[3] = 8;
 
     np_tree_t* write_tree = np_tree_create();
-    np_tree_insert_str(write_tree,"TESTKEY", new_val_key(tst));
+    np_tree_insert_str(write_tree,"TESTKEY", np_treeval_new_key(tst));
 
 	cr_expect(total_write_count == 0, "Expected empty buffer. But size is %"PRIu32, total_write_count);
 
@@ -207,12 +207,12 @@ Test(test_serialization, _np_tree_serialize, .description="test the serializatio
 	//	}
 	// free (empty_buffer);
 	// np_free_tree(test_jrb_1);
-	np_tree_insert_str(test_jrb_1, "halli", new_val_s("galli"));
+	np_tree_insert_str(test_jrb_1, "halli", np_treeval_new_s("galli"));
 	cr_expect(   1 == test_jrb_1->size, "expect size of tree to be 1");
 	cr_expect(  20 == np_tree_get_byte_size(test_jrb_1->rbh_root), "expect byte size to be 20");
 	cr_expect(  25 == test_jrb_1->byte_size, "expect byte size to be 25");
 
-	np_tree_insert_str(test_jrb_1, "hallo", new_val_s("gulli"));
+	np_tree_insert_str(test_jrb_1, "hallo", np_treeval_new_s("gulli"));
 	cr_expect(  2 == test_jrb_1->size, "expect size of tree to be 2");
 	cr_expect( 20 == np_tree_get_byte_size(test_jrb_1->rbh_root), "expect byte size to be 20");
 	cr_expect( 45 == test_jrb_1->byte_size, "expect byte size to be 45");
@@ -231,27 +231,27 @@ Test(test_serialization, _np_tree_serialize, .description="test the serializatio
 	char* mail_t = "signed.by.me@test.de";
 
 	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
-	np_tree_insert_str(test_jrb_2, from, new_val_s(me));
+	np_tree_insert_str(test_jrb_2, from, np_treeval_new_s(me));
 	cr_expect(   1 == test_jrb_2->size, "expect size of tree to be 1");
 	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
-	np_tree_insert_str(test_jrb_2, to,   new_val_s(you));
+	np_tree_insert_str(test_jrb_2, to,   np_treeval_new_s(you));
 	cr_expect(   2 == test_jrb_2->size, "expect size of tree to be 2");
 	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
-	np_tree_insert_str(test_jrb_2, id,   new_val_i(18000));
+	np_tree_insert_str(test_jrb_2, id,   np_treeval_new_i(18000));
 	cr_expect(   3 == test_jrb_2->size, "expect size of tree to be 3");
 	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
-	np_tree_insert_str(test_jrb_2, exp,  new_val_d(5.0));
+	np_tree_insert_str(test_jrb_2, exp,  np_treeval_new_d(5.0));
 	cr_expect(   4 == test_jrb_2->size, "expect size of tree to be 4");
 	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
-	np_tree_insert_str(test_jrb_2, mail, new_val_s(mail_t));
+	np_tree_insert_str(test_jrb_2, mail, np_treeval_new_s(mail_t));
 	cr_expect(   5 == test_jrb_2->size, "expect size of tree to be 5");
 	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
 
-	np_tree_insert_str(test_jrb_2, "ul", new_val_ull(4905283925042198132));
+	np_tree_insert_str(test_jrb_2, "ul", np_treeval_new_ull(4905283925042198132));
 	cr_expect(   6 == test_jrb_2->size, "expect size of tree to be 6");
 	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
 
-	np_tree_insert_str(test_jrb_2, "tree_1", new_val_tree(test_jrb_1));
+	np_tree_insert_str(test_jrb_2, "tree_1", np_treeval_new_tree(test_jrb_1));
 	cr_expect(   7 == test_jrb_2->size, "expect size of tree to be 7");
 	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
 
@@ -322,9 +322,9 @@ Test(test_serialization, _np_tree_serialize, .description="test the serializatio
 	np_jobargs_t job_args = { .msg=msg };
 	np_message_serialize(&job_args);
 
-	tree_insert_str(msg->instructions, "_np.ack", new_val_i(1));
+	tree_insert_str(msg->instructions, "_np.ack", np_treeval_new_i(1));
 	tree_insert_str(msg->instructions, "_np.seq", new_val_ul(2));
-	tree_insert_str(msg->instructions, "_np.part", new_val_i(3));
+	tree_insert_str(msg->instructions, "_np.part", np_treeval_new_i(3));
 
 	// char send_buffer[120000];
 	// void* send_buf_ptr = send_buffer;

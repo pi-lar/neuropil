@@ -104,7 +104,7 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 		ret_val = TRUE;
 		*/
 	np_ref_obj(np_aaatoken_t, token);
-	np_tree_insert_str(authorized_tokens, token->issuer, new_val_v(token));
+	np_tree_insert_str(authorized_tokens, token->issuer, np_treeval_new_v(token));
 /*
 	  	break;
 	case 'o':
@@ -180,7 +180,7 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 		ret_val = TRUE;
 		*/
 	np_ref_obj(np_aaatoken_t, token);
-	tree_insert_str(authenticated_tokens, token->issuer, new_val_v(token));
+	tree_insert_str(authenticated_tokens, token->issuer, np_treeval_new_v(token));
 /*		break;
 	case 'N':
 	default:
@@ -216,7 +216,7 @@ np_aaatoken_t* create_realm_identity()
 	// add some unique identification parameters
 	// a far better approach is to follow the "zero-knowledge" paradigm (use the source, luke)
 	// also check libsodium password hahsing functionality
-	tree_insert_str(realm_identity->extensions, "passcode", new_val_hash("test"));
+	tree_insert_str(realm_identity->extensions, "passcode", np_treeval_new_hash("test"));
 
 	return (realm_identity);
 }

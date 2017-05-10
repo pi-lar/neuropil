@@ -128,9 +128,9 @@ np_bool _np_in_sysinfo(np_message_t* msg, np_tree_t* properties, np_tree_t* body
 	// build properties
 	np_tree_t* reply_properties = np_tree_create();
 	np_tree_insert_str(reply_properties, _NP_SYSINFO_SOURCE,
-			new_val_s(mynode_hash));
+			np_treeval_new_s(mynode_hash));
 	np_tree_insert_str(reply_properties, _NP_SYSINFO_TARGET,
-			new_val_s(source->val.value.s));
+			np_treeval_new_s(source->val.value.s));
 
 	// send msg
 	log_msg(LOG_INFO, "sending sysinfo reply (size: %"PRIu16")",
@@ -177,7 +177,7 @@ np_tree_t* np_get_my_sysinfo() {
 	// build local node
 	np_tree_t* local_node = np_tree_create();
 	_np_node_encode_to_jrb(local_node, _np_state()->my_node_key, FALSE);
-	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE, new_val_tree(local_node));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE, np_treeval_new_tree(local_node));
 	log_msg(LOG_DEBUG, "my sysinfo object has a node");
 
 	// build neighbours list
@@ -196,14 +196,14 @@ np_tree_t* np_get_my_sysinfo() {
 				np_tree_t* neighbour = np_tree_create();
 				_np_node_encode_to_jrb(neighbour, current, TRUE);
 				np_tree_insert_int(neighbours, neighbour_counter++,
-						new_val_tree(neighbour));
+						np_treeval_new_tree(neighbour));
 			}
 		}
 	}
 	log_msg(LOG_DEBUG, "my sysinfo object has %d neighbours",
 			neighbour_counter);
 
-	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, new_val_tree(neighbours));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, np_treeval_new_tree(neighbours));
 	sll_free(np_key_t, neighbours_table);
 	np_tree_free(neighbours);
 
@@ -222,14 +222,14 @@ np_tree_t* np_get_my_sysinfo() {
 			if (current->node) {
 				np_tree_t* route = np_tree_create();
 				_np_node_encode_to_jrb(route, current, TRUE);
-				np_tree_insert_int(routes, routes_counter++, new_val_tree(route));
+				np_tree_insert_int(routes, routes_counter++, np_treeval_new_tree(route));
 			}
 		}
 	}
 	log_msg(LOG_DEBUG, "my sysinfo object has %d routing table entries",
 			routes_counter);
 
-	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, new_val_tree(routes));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));
 	sll_free(np_key_t, routing_table);
 	np_tree_free(routes);
 
@@ -243,10 +243,10 @@ void _np_request_sysinfo(const char* hash_of_target) {
 		np_tree_t* body = np_tree_create();
 
 		np_tree_insert_str(properties, _NP_SYSINFO_SOURCE,
-				new_val_s(_np_key_as_str(_np_state()->my_node_key)));
+				np_treeval_new_s(_np_key_as_str(_np_state()->my_node_key)));
 
 		np_tree_insert_str(properties, _NP_SYSINFO_TARGET,
-				new_val_s((char*) hash_of_target));
+				np_treeval_new_s((char*) hash_of_target));
 
 		log_msg(LOG_DEBUG, "Converting %s to dhkey", hash_of_target);
 		np_dhkey_t* target_dhkey = malloc(sizeof(np_dhkey_t));

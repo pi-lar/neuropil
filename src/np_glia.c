@@ -725,17 +725,17 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 		   crypto_sign_SECRETKEYBYTES);
 
 	np_tree_insert_str(msg_token->extensions, "mep_type",
-			new_val_ul(msg_request->mep_type));
+			np_treeval_new_ul(msg_request->mep_type));
 	np_tree_insert_str(msg_token->extensions, "ack_mode",
-			new_val_ush(msg_request->ack_mode));
+			np_treeval_new_ush(msg_request->ack_mode));
 	np_tree_insert_str(msg_token->extensions, "max_threshold",
-			new_val_ui(msg_request->max_threshold));
+			np_treeval_new_ui(msg_request->max_threshold));
 	np_tree_insert_str(msg_token->extensions, "msg_threshold",
-			new_val_ui(msg_request->msg_threshold));
+			np_treeval_new_ui(msg_request->msg_threshold));
 
 	// TODO: insert value based on msg properties / respect (sticky) reply
 	np_tree_insert_str(msg_token->extensions, "target_node",
-			new_val_s((char*) _np_key_as_str(state->my_node_key)));
+			np_treeval_new_s((char*) _np_key_as_str(state->my_node_key)));
 
 	// fingerprinting and signing the token
 	_np_aaatoken_add_signature(msg_token);
@@ -753,7 +753,7 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 	// insert into msg token token renewal queue
 	if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))
 	{
-		np_tree_insert_str(_np_state()->msg_tokens, subject, new_val_v(NULL));
+		np_tree_insert_str(_np_state()->msg_tokens, subject, np_treeval_new_v(NULL));
 
 		np_msgproperty_t* msg_prop = np_msgproperty_get(mode_type, subject);
 		msg_prop->mode_type |= TRANSFORM;
@@ -780,7 +780,7 @@ void _np_send_msg_interest(const char* subject)
 	// insert into msg token token renewal queue
 	if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))
 	{
-		np_tree_insert_str(_np_state()->msg_tokens, subject, new_val_v(NULL));
+		np_tree_insert_str(_np_state()->msg_tokens, subject, np_treeval_new_v(NULL));
 
 		np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
 		msg_prop->mode_type |= TRANSFORM;
@@ -805,7 +805,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 	msg_prop->msg_threshold++;
 
 	if(NULL != target) {
-		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TARGET, new_val_key(*target));
+		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TARGET, np_treeval_new_key(*target));
 	}else{
 		np_tree_elem_t* target_container = 	np_tree_find_str(msg->header, _NP_MSG_HEADER_TARGET);
 		if(NULL != target_container) {
@@ -843,8 +843,8 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		_np_dhkey_from_str(target_node_str, &receiver_dhkey);
 		receiver_key->dhkey = receiver_dhkey;
 
-		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, new_val_s(target_node_str));
-		// np_tree_replace_str(msg->header, NP_MSG_HEADER_TO, new_val_s(tmp_token->issuer));
+		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_s(target_node_str));
+		// np_tree_replace_str(msg->header, NP_MSG_HEADER_TO, np_treeval_new_s(tmp_token->issuer));
 		np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);
 		_np_job_submit_route_event(0.0, out_prop, receiver_key, msg);
 
