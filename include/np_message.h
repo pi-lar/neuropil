@@ -66,28 +66,28 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg);
 NP_API_INTERN
 void _np_message_setinstructions(np_message_t* msg, np_tree_t* instructions);
 NP_API_INTERN
-void _np_message_add_instruction(np_message_t*, const char* key, np_val_t value);
+void _np_message_add_instruction(np_message_t*, const char* key, np_treeval_t value);
 NP_API_INTERN
 void _np_message_del_instruction(np_message_t*, const char* key);
 
 NP_API_INTERN
 void _np_message_setproperties(np_message_t* msg, np_tree_t* properties);
 NP_API_INTERN
-void _np_message_add_property(np_message_t*, const char* key, np_val_t value);
+void _np_message_add_property(np_message_t*, const char* key, np_treeval_t value);
 NP_API_INTERN
 void _np_message_del_property(np_message_t*, const char* key);
 
 NP_API_INTERN
 void _np_message_setbody(np_message_t* msg, np_tree_t* body);
 NP_API_INTERN
-void _np_message_add_bodyentry(np_message_t*, const char* key, np_val_t value);
+void _np_message_add_bodyentry(np_message_t*, const char* key, np_treeval_t value);
 NP_API_INTERN
 void _np_message_del_bodyentry(np_message_t*, const char* key);
 
 NP_API_INTERN
 inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer);
 NP_API_INTERN
-void _np_message_add_footerentry(np_message_t*, const char* key, np_val_t value);
+void _np_message_add_footerentry(np_message_t*, const char* key, np_treeval_t value);
 NP_API_INTERN
 void _np_message_del_footerentry(np_message_t*, const char* key);
 

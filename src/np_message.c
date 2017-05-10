@@ -36,7 +36,7 @@
 #include "np_node.h"
 #include "np_threads.h"
 #include "np_util.h"
-#include "np_val.h"
+#include "np_treeval.h"
 
 static const int MSG_ARRAY_SIZE = 1;
 static const int MSG_PAYLOADBIN_SIZE = 15;

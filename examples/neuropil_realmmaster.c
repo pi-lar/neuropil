@@ -19,7 +19,7 @@
 #include "np_node.h"
 #include "np_types.h"
 #include "np_util.h"
-#include "np_val.h"
+#include "np_treeval.h"
 
 
 /**

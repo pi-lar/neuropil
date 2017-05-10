@@ -23,7 +23,7 @@
 #include "dtime.h"
 #include "np_dhkey.h"
 #include "np_keycache.h"
-#include "np_val.h"
+#include "np_treeval.h"
 #include "np_tree.h"
 #include "np_node.h"
 #include "np_route.h"
@@ -76,7 +76,7 @@ size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
 
 
 // TODO: replace with function pointer, same for __np_tree_read_type
-// typedef void (*write_type_function)(const np_val_t* val, cmp_ctx_t* ctx);
+// typedef void (*write_type_function)(const np_treeval_t* val, cmp_ctx_t* ctx);
 // write_type_function write_type_arr[npval_count] = {NULL};
 // write_type_arr[npval_count] = &write_short_type;
 // write_type_arr[npval_count] = NULL;
@@ -116,7 +116,7 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_t, list_of_keys))
 }
 
 
-JSON_Value* np_treeval2json(np_val_t val) {
+JSON_Value* np_treeval2json(np_treeval_t val) {
 	JSON_Value* ret = NULL;
 	//log_msg(LOG_DEBUG, "np_treeval2json type: %"PRIu8,val.type);
 	void* tmp;

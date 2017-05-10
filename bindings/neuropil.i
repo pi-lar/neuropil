@@ -16,8 +16,8 @@ struct np_tree_s
 
 struct np_tree_elem_s
 {
-    np_val_t key;
-    np_val_t val;
+    np_treeval_t key;
+    np_treeval_t val;
 };
 typedef struct np_tree_elem_s np_tree_elem_t;
 
@@ -31,15 +31,15 @@ typedef struct np_tree_elem_s np_tree_elem_t;
 
     extern void np_clear_tree ($self);
 
-    extern void tree_insert_str ($self, const char *key, np_val_t val);
-    extern void tree_insert_int ($self, int16_t ikey, np_val_t val);
-    extern void tree_insert_ulong ($self, uint32_t ulkey, np_val_t val);
-    extern void tree_insert_dbl ($self, double dkey, np_val_t val);
+    extern void tree_insert_str ($self, const char *key, np_treeval_t val);
+    extern void tree_insert_int ($self, int16_t ikey, np_treeval_t val);
+    extern void tree_insert_ulong ($self, uint32_t ulkey, np_treeval_t val);
+    extern void tree_insert_dbl ($self, double dkey, np_treeval_t val);
 
-    extern void tree_replace_str ($self, const char *key, np_val_t val);
-    extern void tree_replace_int ($self, int16_t ikey, np_val_t val);
-    extern void tree_replace_ulong ($self, uint32_t ulkey, np_val_t val);
-    extern void tree_replace_dbl ($self, double dkey, np_val_t val);
+    extern void tree_replace_str ($self, const char *key, np_treeval_t val);
+    extern void tree_replace_int ($self, int16_t ikey, np_treeval_t val);
+    extern void tree_replace_ulong ($self, uint32_t ulkey, np_treeval_t val);
+    extern void tree_replace_dbl ($self, double dkey, np_treeval_t val);
 
     extern np_tree_elem_t* tree_find_str ($self, const char *key);
     extern np_tree_elem_t* tree_find_int ($self, int16_t ikey);

@@ -266,9 +266,9 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1insert_1str(JNIEnv *
   struct np_tree_s *arg1 = (struct np_tree_s *) 0 ;
   $self arg2 ;
   char *arg3 = (char *) 0 ;
-  np_val_t arg4 ;
+  np_treeval_t arg4 ;
   $self *argp2 ;
-  np_val_t *argp4 ;
+  np_treeval_t *argp4 ;
 
   (void)jenv;
   (void)jcls;
@@ -285,9 +285,9 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1insert_1str(JNIEnv *
     arg3 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg3, 0);
     if (!arg3) return ;
   }
-  argp4 = *(np_val_t **)&jarg4;
+  argp4 = *(np_treeval_t **)&jarg4;
   if (!argp4) {
-    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_treeval_t");
     return ;
   }
   arg4 = *argp4;
@@ -300,10 +300,10 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1insert_1int(JNIEnv *
   struct np_tree_s *arg1 = (struct np_tree_s *) 0 ;
   $self arg2 ;
   int16_t arg3 ;
-  np_val_t arg4 ;
+  np_treeval_t arg4 ;
   $self *argp2 ;
   int16_t *argp3 ;
-  np_val_t *argp4 ;
+  np_treeval_t *argp4 ;
 
   (void)jenv;
   (void)jcls;
@@ -321,9 +321,9 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1insert_1int(JNIEnv *
     return ;
   }
   arg3 = *argp3;
-  argp4 = *(np_val_t **)&jarg4;
+  argp4 = *(np_treeval_t **)&jarg4;
   if (!argp4) {
-    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_treeval_t");
     return ;
   }
   arg4 = *argp4;
@@ -335,10 +335,10 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1insert_1ulong(JNIEnv
   struct np_tree_s *arg1 = (struct np_tree_s *) 0 ;
   $self arg2 ;
   uint32_t arg3 ;
-  np_val_t arg4 ;
+  np_treeval_t arg4 ;
   $self *argp2 ;
   uint32_t *argp3 ;
-  np_val_t *argp4 ;
+  np_treeval_t *argp4 ;
 
   (void)jenv;
   (void)jcls;
@@ -356,9 +356,9 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1insert_1ulong(JNIEnv
     return ;
   }
   arg3 = *argp3;
-  argp4 = *(np_val_t **)&jarg4;
+  argp4 = *(np_treeval_t **)&jarg4;
   if (!argp4) {
-    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_treeval_t");
     return ;
   }
   arg4 = *argp4;
@@ -370,9 +370,9 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1insert_1dbl(JNIEnv *
   struct np_tree_s *arg1 = (struct np_tree_s *) 0 ;
   $self arg2 ;
   double arg3 ;
-  np_val_t arg4 ;
+  np_treeval_t arg4 ;
   $self *argp2 ;
-  np_val_t *argp4 ;
+  np_treeval_t *argp4 ;
 
   (void)jenv;
   (void)jcls;
@@ -385,9 +385,9 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1insert_1dbl(JNIEnv *
   }
   arg2 = *argp2;
   arg3 = (double)jarg3;
-  argp4 = *(np_val_t **)&jarg4;
+  argp4 = *(np_treeval_t **)&jarg4;
   if (!argp4) {
-    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_treeval_t");
     return ;
   }
   arg4 = *argp4;
@@ -399,9 +399,9 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1replace_1str(JNIEnv 
   struct np_tree_s *arg1 = (struct np_tree_s *) 0 ;
   $self arg2 ;
   char *arg3 = (char *) 0 ;
-  np_val_t arg4 ;
+  np_treeval_t arg4 ;
   $self *argp2 ;
-  np_val_t *argp4 ;
+  np_treeval_t *argp4 ;
 
   (void)jenv;
   (void)jcls;
@@ -418,9 +418,9 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1replace_1str(JNIEnv 
     arg3 = (char *)(*jenv)->GetStringUTFChars(jenv, jarg3, 0);
     if (!arg3) return ;
   }
-  argp4 = *(np_val_t **)&jarg4;
+  argp4 = *(np_treeval_t **)&jarg4;
   if (!argp4) {
-    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_treeval_t");
     return ;
   }
   arg4 = *argp4;
@@ -433,10 +433,10 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1replace_1int(JNIEnv 
   struct np_tree_s *arg1 = (struct np_tree_s *) 0 ;
   $self arg2 ;
   int16_t arg3 ;
-  np_val_t arg4 ;
+  np_treeval_t arg4 ;
   $self *argp2 ;
   int16_t *argp3 ;
-  np_val_t *argp4 ;
+  np_treeval_t *argp4 ;
 
   (void)jenv;
   (void)jcls;
@@ -454,9 +454,9 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1replace_1int(JNIEnv 
     return ;
   }
   arg3 = *argp3;
-  argp4 = *(np_val_t **)&jarg4;
+  argp4 = *(np_treeval_t **)&jarg4;
   if (!argp4) {
-    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_treeval_t");
     return ;
   }
   arg4 = *argp4;
@@ -468,10 +468,10 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1replace_1ulong(JNIEn
   struct np_tree_s *arg1 = (struct np_tree_s *) 0 ;
   $self arg2 ;
   uint32_t arg3 ;
-  np_val_t arg4 ;
+  np_treeval_t arg4 ;
   $self *argp2 ;
   uint32_t *argp3 ;
-  np_val_t *argp4 ;
+  np_treeval_t *argp4 ;
 
   (void)jenv;
   (void)jcls;
@@ -489,9 +489,9 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1replace_1ulong(JNIEn
     return ;
   }
   arg3 = *argp3;
-  argp4 = *(np_val_t **)&jarg4;
+  argp4 = *(np_treeval_t **)&jarg4;
   if (!argp4) {
-    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_treeval_t");
     return ;
   }
   arg4 = *argp4;
@@ -503,9 +503,9 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1replace_1dbl(JNIEnv 
   struct np_tree_s *arg1 = (struct np_tree_s *) 0 ;
   $self arg2 ;
   double arg3 ;
-  np_val_t arg4 ;
+  np_treeval_t arg4 ;
   $self *argp2 ;
-  np_val_t *argp4 ;
+  np_treeval_t *argp4 ;
 
   (void)jenv;
   (void)jcls;
@@ -518,9 +518,9 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1replace_1dbl(JNIEnv 
   }
   arg2 = *argp2;
   arg3 = (double)jarg3;
-  argp4 = *(np_val_t **)&jarg4;
+  argp4 = *(np_treeval_t **)&jarg4;
   if (!argp4) {
-    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_treeval_t");
     return ;
   }
   arg4 = *argp4;
@@ -873,16 +873,16 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1s_1tree_1del_1ulong(JNIEnv *j
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1key_1set(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jlong jarg2) {
   struct np_tree_elem_s *arg1 = (struct np_tree_elem_s *) 0 ;
-  np_val_t arg2 ;
-  np_val_t *argp2 ;
+  np_treeval_t arg2 ;
+  np_treeval_t *argp2 ;
 
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
   arg1 = *(struct np_tree_elem_s **)&jarg1;
-  argp2 = *(np_val_t **)&jarg2;
+  argp2 = *(np_treeval_t **)&jarg2;
   if (!argp2) {
-    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_treeval_t");
     return ;
   }
   arg2 = *argp2;
@@ -893,7 +893,7 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1key_1set(JNIEnv *jen
 SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1key_1get(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_) {
   jlong jresult = 0 ;
   struct np_tree_elem_s *arg1 = (struct np_tree_elem_s *) 0 ;
-  np_val_t result;
+  np_treeval_t result;
 
   (void)jenv;
   (void)jcls;
@@ -901,9 +901,9 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1key_1get(JNIEnv *je
   arg1 = *(struct np_tree_elem_s **)&jarg1;
   result =  ((arg1)->key);
   {
-    np_val_t * resultptr = (np_val_t *) malloc(sizeof(np_val_t));
-    memmove(resultptr, &result, sizeof(np_val_t));
-    *(np_val_t **)&jresult = resultptr;
+    np_treeval_t * resultptr = (np_treeval_t *) malloc(sizeof(np_treeval_t));
+    memmove(resultptr, &result, sizeof(np_treeval_t));
+    *(np_treeval_t **)&jresult = resultptr;
   }
   return jresult;
 }
@@ -911,16 +911,16 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1key_1get(JNIEnv *je
 
 SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1val_1set(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jlong jarg2) {
   struct np_tree_elem_s *arg1 = (struct np_tree_elem_s *) 0 ;
-  np_val_t arg2 ;
-  np_val_t *argp2 ;
+  np_treeval_t arg2 ;
+  np_treeval_t *argp2 ;
 
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
   arg1 = *(struct np_tree_elem_s **)&jarg1;
-  argp2 = *(np_val_t **)&jarg2;
+  argp2 = *(np_treeval_t **)&jarg2;
   if (!argp2) {
-    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_val_t");
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null np_treeval_t");
     return ;
   }
   arg2 = *argp2;
@@ -931,7 +931,7 @@ SWIGEXPORT void JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1val_1set(JNIEnv *jen
 SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1val_1get(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_) {
   jlong jresult = 0 ;
   struct np_tree_elem_s *arg1 = (struct np_tree_elem_s *) 0 ;
-  np_val_t result;
+  np_treeval_t result;
 
   (void)jenv;
   (void)jcls;
@@ -939,9 +939,9 @@ SWIGEXPORT jlong JNICALL Java_neuropilJNI_np_1tree_1elem_1s_1val_1get(JNIEnv *je
   arg1 = *(struct np_tree_elem_s **)&jarg1;
   result =  ((arg1)->val);
   {
-    np_val_t * resultptr = (np_val_t *) malloc(sizeof(np_val_t));
-    memmove(resultptr, &result, sizeof(np_val_t));
-    *(np_val_t **)&jresult = resultptr;
+    np_treeval_t * resultptr = (np_treeval_t *) malloc(sizeof(np_treeval_t));
+    memmove(resultptr, &result, sizeof(np_treeval_t));
+    *(np_treeval_t **)&jresult = resultptr;
   }
   return jresult;
 }

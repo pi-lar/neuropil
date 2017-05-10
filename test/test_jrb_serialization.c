@@ -8,7 +8,7 @@
 #include "event/ev.h"
 
 #include "np_log.h"
-#include "np_val.h"
+#include "np_treeval.h"
 #include "np_tree.h"
 #include "np_dhkey.h"
 #include "np_memory.h"
@@ -74,7 +74,7 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
     tst.t[2] = 3;
     tst.t[3] = 4;
 
-    np_val_t val = new_val_key(tst);
+    np_treeval_t val = new_val_key(tst);
 	cr_expect(val.type == key_type, "Expected source val to be of type key_type. But is: %"PRIu8, val.type);
 	cr_expect(total_write_count == 0, "Expected empty buffer. But size is %"PRIu32, total_write_count);
     __np_tree_serialize_write_type(val, &cmp_write);
@@ -94,7 +94,7 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
     reset_buffer_counter();
 
 	cmp_object_t obj;
-	np_val_t read_tst = { .type = none_type, .size = 0 };
+	np_treeval_t read_tst = { .type = none_type, .size = 0 };
 	cmp_read_object(&cmp_read, &obj);
 
 	cr_assert(cmp_read.error == ERROR_NONE, "Expected no error on object read. But is: %"PRIu8,cmp_read.error);

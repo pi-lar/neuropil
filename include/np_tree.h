@@ -16,7 +16,7 @@ Copyright 2002 Niels Provos <provos@citi.umich.edu>
 #include "tree/tree.h"
 
 #include "np_types.h"
-#include "np_val.h"
+#include "np_treeval.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,8 +49,8 @@ struct np_tree_elem_s
 {
 	RB_ENTRY(np_tree_elem_s) link;
 
-	np_val_t key;
-    np_val_t val;
+	np_treeval_t key;
+    np_treeval_t val;
 } NP_API_INTERN;
 
 NP_API_INTERN
@@ -89,10 +89,10 @@ NP_API_EXPORT
 void np_tree_clear(np_tree_t* root);
 
 /**
-.. c:function:: void tree_insert_str(np_tree_t *tree, const char *key, np_val_t val)
-.. c:function:: void np_tree_insert_int(np_tree_t *tree, int16_t ikey, np_val_t val)
-.. c:function:: void np_tree_insert_ulong(np_tree_t *tree, uint32_t ulkey, np_val_t val)
-.. c:function:: void np_tree_insert_dbl(np_tree_t *tree, double dkey, np_val_t val)
+.. c:function:: void tree_insert_str(np_tree_t *tree, const char *key, np_treeval_t val)
+.. c:function:: void np_tree_insert_int(np_tree_t *tree, int16_t ikey, np_treeval_t val)
+.. c:function:: void np_tree_insert_ulong(np_tree_t *tree, uint32_t ulkey, np_treeval_t val)
+.. c:function:: void np_tree_insert_dbl(np_tree_t *tree, double dkey, np_treeval_t val)
 
    insert a value into the np_tree_t with the given key. mixing key types in one np_tree_t
    is not prohibited, but useless since then there is no ordering of elements and lookup of keys
@@ -102,38 +102,38 @@ void np_tree_clear(np_tree_t* root);
 
    :param tree: the np_tree_t structure where the value should be inserted
    :param key: the key that should be used to insert/lookup values
-   :param val: a generic np_val_t structure to add any kind of values to the structure
+   :param val: a generic np_treeval_t structure to add any kind of values to the structure
 */
 NP_API_EXPORT
-void np_tree_insert_str (np_tree_t *tree, const char *key, np_val_t val);
+void np_tree_insert_str (np_tree_t *tree, const char *key, np_treeval_t val);
 NP_API_EXPORT
-void np_tree_insert_int (np_tree_t *tree, int16_t ikey, np_val_t val);
+void np_tree_insert_int (np_tree_t *tree, int16_t ikey, np_treeval_t val);
 NP_API_EXPORT
-void np_tree_insert_ulong (np_tree_t *tree, uint32_t ulkey, np_val_t val);
+void np_tree_insert_ulong (np_tree_t *tree, uint32_t ulkey, np_treeval_t val);
 NP_API_EXPORT
-void np_tree_insert_dbl (np_tree_t *tree, double dkey, np_val_t val);
+void np_tree_insert_dbl (np_tree_t *tree, double dkey, np_treeval_t val);
 
 /**
-.. c:function:: void np_tree_replace_str(np_tree_t *tree, const char *key, np_val_t val)
-.. c:function:: void np_tree_replace_int(np_tree_t *tree, int16_t ikey, np_val_t val)
-.. c:function:: void np_tree_replace_ulong(np_tree_t *tree, uint32_t ulkey, np_val_t val)
-.. c:function:: void np_tree_replace_dbl(np_tree_t *tree, double dkey, np_val_t val)
+.. c:function:: void np_tree_replace_str(np_tree_t *tree, const char *key, np_treeval_t val)
+.. c:function:: void np_tree_replace_int(np_tree_t *tree, int16_t ikey, np_treeval_t val)
+.. c:function:: void np_tree_replace_ulong(np_tree_t *tree, uint32_t ulkey, np_treeval_t val)
+.. c:function:: void np_tree_replace_dbl(np_tree_t *tree, double dkey, np_treeval_t val)
 
    Replace a value into the np_tree_t with the given key, and insert if it not already existed.
    Otherwise the same rules as for jrb_insert_[str|int|ulong|dbl] functions apply.
 
    :param tree: the np_tree_t structure where the value should be inserted
    :param key: the key that should be used to insert/lookup values
-   :param val: a generic np_val_t structure to add any kind of values to the structure
+   :param val: a generic np_treeval_t structure to add any kind of values to the structure
 */
 NP_API_EXPORT
-void np_tree_replace_str (np_tree_t *tree, const char *key, np_val_t val);
+void np_tree_replace_str (np_tree_t *tree, const char *key, np_treeval_t val);
 NP_API_EXPORT
-void np_tree_replace_int (np_tree_t *tree, int16_t ikey, np_val_t val);
+void np_tree_replace_int (np_tree_t *tree, int16_t ikey, np_treeval_t val);
 NP_API_EXPORT
-void np_tree_replace_ulong (np_tree_t *tree, uint32_t ulkey, np_val_t val);
+void np_tree_replace_ulong (np_tree_t *tree, uint32_t ulkey, np_treeval_t val);
 NP_API_EXPORT
-void np_tree_replace_dbl (np_tree_t *tree, double dkey, np_val_t val);
+void np_tree_replace_dbl (np_tree_t *tree, double dkey, np_treeval_t val);
 
 /**
 .. c:function:: np_tree_elem_t* np_tree_find_str(np_tree_t *tree, const char *key)
@@ -142,13 +142,13 @@ void np_tree_replace_dbl (np_tree_t *tree, double dkey, np_val_t val);
 .. c:function:: np_tree_elem_t* np_tree_replace_dbl(np_tree_t *tree, double dkey)
 
    Lookup a value in the tree structure for a given key. You have to check the return value
-   for NULL before accessing the np_val_t structure.
+   for NULL before accessing the np_treeval_t structure.
 
    Searching an element is not recursively stepping into subtree structures.
 
    :param tree: the np_tree_t structure where the value should be inserted
    :param key: the key that should be used to insert/lookup values
-   :return np_tree_elem_t*: a pointer to a np_tree_elem_t element which contains the np_val_t under the val member
+   :return np_tree_elem_t*: a pointer to a np_tree_elem_t element which contains the np_treeval_t under the val member
 */
 NP_API_EXPORT
 np_tree_elem_t* np_tree_find_str (np_tree_t* root, const char *key);
@@ -168,14 +168,14 @@ np_tree_elem_t* np_tree_find_dbl (np_tree_t* root, double dkey);
    Lookup a value in the tree structure for a given key. Returns an external node in the np_tree_t
    whose value is equal k or whose value is the smallest value greater than k. Sets found to
    1 if the key was found, and 0 otherwise. You still have to check the return value for NULL before
-   accessing the np_val_t structure.
+   accessing the np_treeval_t structure.
 
    Searching an element is not recursively stepping into subtree structures.
 
    :param tree: the np_tree_t structure where the value should be inserted
    :param key: the key that should be used to insert/lookup values
    :param found: point to a local uint8_t variable to store whether an result has been found
-   :return np_tree_elem_t*: a pointer to a np_tree_elem_t element which contains the np_val_t under the val member
+   :return np_tree_elem_t*: a pointer to a np_tree_elem_t element which contains the np_treeval_t under the val member
   */
 NP_API_EXPORT
 np_tree_elem_t* np_tree_find_gte_str (np_tree_t* root, const char *key, uint8_t *found);
@@ -188,7 +188,7 @@ np_tree_elem_t* np_tree_find_gte_dbl (np_tree_t* root, double dkey, uint8_t *fou
 
 // replace the entire tree with the new jval
 NP_API_INTERN
-void _np_tree_replace_all_with_str(np_tree_t* root, const char* key, np_val_t val);
+void _np_tree_replace_all_with_str(np_tree_t* root, const char* key, np_treeval_t val);
 
 /* Deletes and frees a node */
 NP_API_EXPORT
@@ -224,13 +224,13 @@ NP_API_INTERN
 void _np_tree_deserialize(np_tree_t* jrb, cmp_ctx_t* cmp);
 
 NP_API_INTERN
-uint8_t __np_tree_serialize_read_type_key(void* buffer_ptr, np_val_t* target);
+uint8_t __np_tree_serialize_read_type_key(void* buffer_ptr, np_treeval_t* target);
 NP_API_INTERN
 void __np_tree_serialize_write_type_key(np_dhkey_t source, cmp_ctx_t* target);
 NP_API_INTERN
-void __np_tree_serialize_write_type(np_val_t val, cmp_ctx_t* cmp);
+void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp);
 NP_API_INTERN
-void __np_tree_serialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value);
+void __np_tree_serialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value);
 
 
 #ifdef __cplusplus

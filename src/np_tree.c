@@ -46,8 +46,8 @@ int16_t _np_tree_elem_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2)
 	assert(NULL != j1);
 	assert(NULL != j2);
 
-	np_val_t jv1 = j1->key;
-	np_val_t jv2 = j2->key;
+	np_treeval_t jv1 = j1->key;
+	np_treeval_t jv2 = j2->key;
 
 	if (jv1.type == jv2.type)
 	{
@@ -80,7 +80,7 @@ np_tree_elem_t* np_tree_find_gte_str (np_tree_t* n, const char *key, uint8_t *fn
 
 	np_tree_elem_t* result = NULL;
 
-	np_val_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
+	np_treeval_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	result = RB_NFIND(np_tree_s, n, &search_elem);
@@ -101,7 +101,7 @@ np_tree_elem_t* np_tree_find_str (np_tree_t* n, const char *key)
 	assert(NULL != n);
 	assert(NULL != key);
 
-	np_val_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
+	np_treeval_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
 	np_tree_elem_t search_elem = { .key = search_key };
 	return RB_FIND(np_tree_s, n, &search_elem);
 }
@@ -112,7 +112,7 @@ np_tree_elem_t* np_tree_find_gte_int (np_tree_t* n, int16_t ikey, uint8_t *fnd)
 
 	np_tree_elem_t* result = NULL;
 
-	np_val_t search_key = { .type = int_type, .value.i = ikey };
+	np_treeval_t search_key = { .type = int_type, .value.i = ikey };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	result = RB_NFIND(np_tree_s, n, &search_elem);
@@ -131,7 +131,7 @@ np_tree_elem_t* np_tree_find_gte_int (np_tree_t* n, int16_t ikey, uint8_t *fnd)
 
 np_tree_elem_t* np_tree_find_int (np_tree_t* n, int16_t key)
 {
-	np_val_t search_key = { .type = int_type, .value.i = key };
+	np_treeval_t search_key = { .type = int_type, .value.i = key };
 	np_tree_elem_t search_elem = { .key = search_key };
 	return (RB_FIND(np_tree_s, n, &search_elem));
 }
@@ -142,7 +142,7 @@ np_tree_elem_t* np_tree_find_gte_ulong (np_tree_t* n, uint32_t ulkey, uint8_t *f
 
 	np_tree_elem_t* result = NULL;
 
-	np_val_t search_key = { .type = unsigned_long_type, .value.ul = ulkey };
+	np_treeval_t search_key = { .type = unsigned_long_type, .value.ul = ulkey };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	result = RB_NFIND(np_tree_s, n, &search_elem);
@@ -161,7 +161,7 @@ np_tree_elem_t* np_tree_find_gte_ulong (np_tree_t* n, uint32_t ulkey, uint8_t *f
 
 np_tree_elem_t* np_tree_find_ulong (np_tree_t* n, uint32_t ulkey)
 {
-	np_val_t search_key = { .type = unsigned_long_type, .value.ul = ulkey };
+	np_treeval_t search_key = { .type = unsigned_long_type, .value.ul = ulkey };
 	np_tree_elem_t search_elem = { .key = search_key };
 	return (RB_FIND(np_tree_s, n, &search_elem));
 }
@@ -172,7 +172,7 @@ np_tree_elem_t* np_tree_find_gte_dbl (np_tree_t* n, double dkey, uint8_t *fnd)
 
 	np_tree_elem_t* result = NULL;
 
-	np_val_t search_key = { .type = double_type, .value.d = dkey };
+	np_treeval_t search_key = { .type = double_type, .value.d = dkey };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	result = RB_NFIND(np_tree_s, n, &search_elem);
@@ -192,14 +192,14 @@ np_tree_elem_t* np_tree_find_gte_dbl (np_tree_t* n, double dkey, uint8_t *fnd)
 
 np_tree_elem_t* np_tree_find_dbl (np_tree_t* n, double dkey)
 {
-	np_val_t search_key = { .type = double_type, .value.d = dkey };
+	np_treeval_t search_key = { .type = double_type, .value.d = dkey };
 	np_tree_elem_t search_elem = { .key = search_key };
 	return (RB_FIND(np_tree_s, n, &search_elem));
 }
 
 void np_tree_del_str (np_tree_t* tree, const char *key)
 {
-	np_val_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
+	np_treeval_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	np_tree_elem_t* to_delete = RB_FIND(np_tree_s, tree, &search_elem);
@@ -221,7 +221,7 @@ void np_tree_del_str (np_tree_t* tree, const char *key)
 
 void np_tree_del_int (np_tree_t* tree, const int16_t key)
 {
-	np_val_t search_key = { .type = int_type, .value.i = key };
+	np_treeval_t search_key = { .type = int_type, .value.i = key };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	np_tree_elem_t* to_delete = RB_FIND(np_tree_s, tree, &search_elem);
@@ -240,7 +240,7 @@ void np_tree_del_int (np_tree_t* tree, const int16_t key)
 
 void np_tree_del_double (np_tree_t* tree, const double dkey)
 {
-	np_val_t search_key = { .type = double_type, .value.d = dkey };
+	np_treeval_t search_key = { .type = double_type, .value.d = dkey };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	np_tree_elem_t* to_delete = RB_FIND(np_tree_s, tree, &search_elem);
@@ -258,7 +258,7 @@ void np_tree_del_double (np_tree_t* tree, const double dkey)
 
 void np_tree_del_ulong (np_tree_t* tree, const uint32_t key)
 {
-	np_val_t search_key = { .type = unsigned_long_type, .value.ul = key };
+	np_treeval_t search_key = { .type = unsigned_long_type, .value.ul = key };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	np_tree_elem_t* to_delete = RB_FIND(np_tree_s, tree, &search_elem);
@@ -341,7 +341,7 @@ void _np_print_tree (np_tree_t* n, uint8_t indent)
 	}
 }
 
-void _np_tree_replace_all_with_str(np_tree_t* n, const char* key, np_val_t val)
+void _np_tree_replace_all_with_str(np_tree_t* n, const char* key, np_treeval_t val)
 {
 	np_tree_clear(n);
     np_tree_insert_str(n, key, val);
@@ -358,7 +358,7 @@ uint64_t np_tree_get_byte_size(np_tree_elem_t* node)
 	return byte_size;
 }
 
-void np_tree_insert_str (np_tree_t* tree, const char *key, np_val_t val)
+void np_tree_insert_str (np_tree_t* tree, const char *key, np_treeval_t val)
 {
 	assert(tree    != NULL);
 	assert(key     != NULL);
@@ -385,7 +385,7 @@ void np_tree_insert_str (np_tree_t* tree, const char *key, np_val_t val)
 	}
 }
 
-void np_tree_insert_int (np_tree_t* tree, int16_t ikey, np_val_t val)
+void np_tree_insert_int (np_tree_t* tree, int16_t ikey, np_treeval_t val)
 {
 	assert(tree    != NULL);
 
@@ -410,7 +410,7 @@ void np_tree_insert_int (np_tree_t* tree, int16_t ikey, np_val_t val)
 	}
 }
 
-void np_tree_insert_ulong (np_tree_t* tree, uint32_t ulkey, np_val_t val)
+void np_tree_insert_ulong (np_tree_t* tree, uint32_t ulkey, np_treeval_t val)
 {
 	assert(tree    != NULL);
 
@@ -434,7 +434,7 @@ void np_tree_insert_ulong (np_tree_t* tree, uint32_t ulkey, np_val_t val)
 	}
 }
 
-void np_tree_insert_dbl (np_tree_t* tree, double dkey, np_val_t val)
+void np_tree_insert_dbl (np_tree_t* tree, double dkey, np_treeval_t val)
 {
 	assert(tree    != NULL);
 
@@ -462,7 +462,7 @@ void np_tree_insert_dbl (np_tree_t* tree, double dkey, np_val_t val)
 	}
 }
 
-void np_tree_replace_str (np_tree_t* tree, const char *key, np_val_t val)
+void np_tree_replace_str (np_tree_t* tree, const char *key, np_treeval_t val)
 {
 	assert(tree    != NULL);
 	assert(key     != NULL);
@@ -488,7 +488,7 @@ void np_tree_replace_str (np_tree_t* tree, const char *key, np_val_t val)
 	}
 }
 
-void np_tree_replace_int (np_tree_t* tree, int16_t ikey, np_val_t val)
+void np_tree_replace_int (np_tree_t* tree, int16_t ikey, np_treeval_t val)
 {
 	assert(tree    != NULL);
 
@@ -513,7 +513,7 @@ void np_tree_replace_int (np_tree_t* tree, int16_t ikey, np_val_t val)
 	}
 }
 
-void np_tree_replace_ulong (np_tree_t* tree, uint32_t ulkey, np_val_t val)
+void np_tree_replace_ulong (np_tree_t* tree, uint32_t ulkey, np_treeval_t val)
 {
 	assert(tree    != NULL);
 
@@ -536,7 +536,7 @@ void np_tree_replace_ulong (np_tree_t* tree, uint32_t ulkey, np_val_t val)
 	}
 }
 
-void np_tree_replace_dbl (np_tree_t* tree, double dkey, np_val_t val)
+void np_tree_replace_dbl (np_tree_t* tree, double dkey, np_treeval_t val)
 {
 	assert(tree    != NULL);
 
@@ -650,7 +650,7 @@ void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 	for (uint32_t i = 0; i < (size/2); i++)
 	{
 		// read key
-		np_val_t tmp_key = { .type = none_type, .size = 0 };
+		np_treeval_t tmp_key = { .type = none_type, .size = 0 };
 		cmp_read_object(cmp, &obj);
 		__np_tree_serialize_read_type(&obj, cmp, &tmp_key);
 		if (none_type == tmp_key.type) {
@@ -658,7 +658,7 @@ void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 		}
 
 		// read value
-		np_val_t tmp_val = { .type = none_type, .size = 0 };
+		np_treeval_t tmp_val = { .type = none_type, .size = 0 };
 		cmp_read_object(cmp, &obj);
 		__np_tree_serialize_read_type(&obj, cmp, &tmp_val);
 		if (none_type == tmp_val.type) {
@@ -696,7 +696,7 @@ void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 	// log_msg(LOG_DEBUG, "read all key/value pairs from message part %p", jrb);
 }
 
-uint8_t __np_tree_serialize_read_type_key(void* buffer_ptr, np_val_t* target) {
+uint8_t __np_tree_serialize_read_type_key(void* buffer_ptr, np_treeval_t* target) {
 	cmp_ctx_t cmp_key;
 	cmp_init(&cmp_key, buffer_ptr, _np_buffer_reader, _np_buffer_writer);
 	np_dhkey_t new_key;
@@ -731,7 +731,7 @@ void __np_tree_serialize_write_type_key(np_dhkey_t source, cmp_ctx_t* target) {
 	cmp_write_ext32(target, key_type, transport_size, buf_ptr);
 }
 
-void __np_tree_serialize_write_type(np_val_t val, cmp_ctx_t* cmp)
+void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 {
 	// void* count_buf_start = cmp->buf;
 	// log_msg(LOG_DEBUG, "writing jrb (%p) value: %s", jrb, jrb->key.value.s);
@@ -847,7 +847,7 @@ void __np_tree_serialize_write_type(np_val_t val, cmp_ctx_t* cmp)
 	}
 }
 
-void __np_tree_serialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_val_t* value)
+void __np_tree_serialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value)
 {
 	switch (obj->type)
 	{

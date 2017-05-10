@@ -33,7 +33,7 @@
 #include "np_node.h"
 #include "np_threads.h"
 #include "np_util.h"
-#include "np_val.h"
+#include "np_treeval.h"
 #define NR_OF_ELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
 #include "np_msgproperty_init.c"

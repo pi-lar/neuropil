@@ -437,7 +437,7 @@ void np_set_identity(np_aaatoken_t* identity)
  * @param key
  * @param value
  */
-void np_set_mx_property(char* subject, const char* key, np_val_t value)
+void np_set_mx_property(char* subject, const char* key, np_treeval_t value)
 {
 	// TODO: rework key from char to enum
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);

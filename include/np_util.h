@@ -69,10 +69,10 @@ JSON_Value* np_tree2json(np_tree_t* tree) ;
 NP_API_EXPORT
 char* np_json2char(JSON_Value* data,np_bool prettyPrint) ;
 /**
- * convert np_val_t to JSON_Value
+ * convert np_treeval_t to JSON_Value
  */
 NP_API_EXPORT
-JSON_Value* np_treeval2json(np_val_t val);
+JSON_Value* np_treeval2json(np_treeval_t val);
 
 NP_API_EXPORT
 void np_dump_tree2log(np_tree_t* tree);

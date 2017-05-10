@@ -272,7 +272,7 @@ NP_API_EXPORT
 uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body);
 
 /**
-.. c:function:: void np_set_mx_properties(char* subject, const char* key, np_val_t value)
+.. c:function:: void np_set_mx_properties(char* subject, const char* key, np_treeval_t value)
 
    Set properties of a message exchange for a given by subject.
    Using this function the message exchange for a subject can be altered on the fly without interruption.
@@ -284,7 +284,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body);
    :param value: the value which should be set
 
 */
-void np_set_mx_property(char* subject, const char* key, np_val_t value);
+void np_set_mx_property(char* subject, const char* key, np_treeval_t value);
 
 /**
 .. c:function:: void np_rem_mx_properties(char* subject, const char* key)

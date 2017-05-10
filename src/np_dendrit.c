@@ -36,7 +36,7 @@
 #include "np_util.h"
 #include "np_threads.h"
 #include "np_tree.h"
-#include "np_val.h"
+#include "np_treeval.h"
 #include "np_axon.h"
 #include "np_event.h"
 
@@ -45,7 +45,7 @@
  * check the existence of a field and extracts it, otherwise continues with a goto __cleanup__
  */
 #define CHECK_STR_FIELD(TREE, FIELD_NAME, VAR_NAME) \
-np_val_t VAR_NAME = NP_VAL_NULL; \
+np_treeval_t VAR_NAME = np_treeval_NULL; \
 if (NULL == np_tree_find_str(TREE, FIELD_NAME)) goto __np_cleanup__; \
 else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
 

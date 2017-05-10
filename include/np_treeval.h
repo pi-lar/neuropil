@@ -38,8 +38,8 @@ Knoxville, TN 37996-3450
 Fax: 865-974-4404
 */
 
-#ifndef	_NP_VAL_H_
-#define	_NP_VAL_H_
+#ifndef	_np_treeval_H_
+#define	_np_treeval_H_
 
 #include "stdint.h"
 
@@ -75,7 +75,7 @@ enum {
 	hash_type,
 	npobj_type,
 	npval_count
-} np_valtype_t;
+} np_treevaltype_t;
 
 /* The Jval -- a type that can hold any type */
 typedef union val
@@ -104,62 +104,62 @@ typedef union val
     unsigned char ucarray[8];
 } val;
 
-struct np_val_s
+struct np_treeval_s
 {
 	uint8_t  type;
 	uint32_t size;
 	val      value;
 };
 
-np_val_t copy_of_val(np_val_t from);
+np_treeval_t copy_of_val(np_treeval_t from);
 
-np_val_t new_val_sh (int8_t sh);
-np_val_t new_val_i (int16_t i);
-np_val_t new_val_l (int32_t l);
-np_val_t new_val_ll (int64_t ll);
-np_val_t new_val_f (float f);
-np_val_t new_val_d (double d);
-np_val_t new_val_v (void* v);
-np_val_t new_val_bin (void* data, uint32_t size);
-np_val_t new_val_s (char * s);
-np_val_t new_val_c (char c);
-np_val_t new_val_uc (unsigned char uc);
-np_val_t new_val_ush (uint8_t ush);
-np_val_t new_val_ui (uint16_t ui);
-np_val_t new_val_ul (uint32_t ul);
-np_val_t new_val_ull (uint64_t ull);
-np_val_t new_val_iarray (uint16_t i0, uint16_t i1);
-np_val_t new_val_farray (float f0, float f1);
-np_val_t new_val_carray_nt (char * carray);	/* Carray is null terminated */
-np_val_t new_val_carray_nnt (char * carray);	/* Carray is not null terminated */
+np_treeval_t new_val_sh (int8_t sh);
+np_treeval_t new_val_i (int16_t i);
+np_treeval_t new_val_l (int32_t l);
+np_treeval_t new_val_ll (int64_t ll);
+np_treeval_t new_val_f (float f);
+np_treeval_t new_val_d (double d);
+np_treeval_t new_val_v (void* v);
+np_treeval_t new_val_bin (void* data, uint32_t size);
+np_treeval_t new_val_s (char * s);
+np_treeval_t new_val_c (char c);
+np_treeval_t new_val_uc (unsigned char uc);
+np_treeval_t new_val_ush (uint8_t ush);
+np_treeval_t new_val_ui (uint16_t ui);
+np_treeval_t new_val_ul (uint32_t ul);
+np_treeval_t new_val_ull (uint64_t ull);
+np_treeval_t new_val_iarray (uint16_t i0, uint16_t i1);
+np_treeval_t new_val_farray (float f0, float f1);
+np_treeval_t new_val_carray_nt (char * carray);	/* Carray is null terminated */
+np_treeval_t new_val_carray_nnt (char * carray);	/* Carray is not null terminated */
        /* For ucarray -- use carray, because it uses memcpy */
-np_val_t new_val_tree(np_tree_t* tree);
-np_val_t new_val_hash(char* h_val);
-np_val_t new_val_pwhash (char *pw_key);
-np_val_t new_val_key(np_dhkey_t key);
-np_val_t new_val_obj(np_obj_t* obj);
-uint64_t val_get_byte_size(np_val_t ele);
+np_treeval_t new_val_tree(np_tree_t* tree);
+np_treeval_t new_val_hash(char* h_val);
+np_treeval_t new_val_pwhash (char *pw_key);
+np_treeval_t new_val_key(np_dhkey_t key);
+np_treeval_t new_val_obj(np_obj_t* obj);
+uint64_t val_get_byte_size(np_treeval_t ele);
 
-np_val_t NP_VAL_NULL;
+np_treeval_t np_treeval_NULL;
 
-int16_t  val_i (np_val_t);
-int32_t  val_l (np_val_t);
-uint16_t val_ui (np_val_t);
-uint32_t val_ul (np_val_t);
+int16_t  val_i (np_treeval_t);
+int32_t  val_l (np_treeval_t);
+uint16_t val_ui (np_treeval_t);
+uint32_t val_ul (np_treeval_t);
 
-float  val_f (np_val_t);
-double val_d (np_val_t);
+float  val_f (np_treeval_t);
+double val_d (np_treeval_t);
 
-void *val_v (np_val_t);
+void *val_v (np_treeval_t);
 
-char *val_s (np_val_t);
-char  val_c (np_val_t);
-char *val_h (np_val_t);
-unsigned char val_uc (np_val_t);
+char *val_s (np_treeval_t);
+char  val_c (np_treeval_t);
+char *val_h (np_treeval_t);
+unsigned char val_uc (np_treeval_t);
 
-int16_t *val_iarray (np_val_t);
-float   *val_farray (np_val_t);
-char    *val_carray (np_val_t);
-char    *val_to_str(np_val_t val);
+int16_t *val_iarray (np_treeval_t);
+float   *val_farray (np_treeval_t);
+char    *val_carray (np_treeval_t);
+char    *val_to_str(np_treeval_t val);
 
 #endif // _NP_JVAL_H_

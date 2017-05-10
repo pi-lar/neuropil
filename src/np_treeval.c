@@ -11,15 +11,15 @@
 
 #include "sodium.h"
 
-#include "np_val.h"
+#include "np_treeval.h"
 
 #include "np_log.h"
 #include "np_dhkey.h"
 #include "np_tree.h"
 
-np_val_t NP_VAL_NULL = { .type = none_type, .size=0 };
+np_treeval_t np_treeval_NULL = { .type = none_type, .size=0 };
 
-char* val_to_str(np_val_t val) {
+char* val_to_str(np_treeval_t val) {
 
 	int len = 0;
 	char* result = NULL;
@@ -146,9 +146,9 @@ char* val_to_str(np_val_t val) {
 	return result;
 }
 
-np_val_t copy_of_val(np_val_t from)
+np_treeval_t copy_of_val(np_treeval_t from)
 {
-	np_val_t to;
+	np_treeval_t to;
 
 	switch(from.type) {
 		// length is always 1 (to identify the type) + the length of the type
@@ -268,134 +268,134 @@ np_val_t copy_of_val(np_val_t from)
 	return to;
 }
 
-np_val_t new_val_i (int16_t i)
+np_treeval_t new_val_i (int16_t i)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.i = i;
     j.type = int_type;
     j.size = sizeof(int16_t);
     return j;
 }
 
-np_val_t new_val_l (int32_t l)
+np_treeval_t new_val_l (int32_t l)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.l = l;
     j.type = long_type;
     j.size = sizeof(int32_t);
     return j;
 }
 
-np_val_t new_val_ll (int64_t ll)
+np_treeval_t new_val_ll (int64_t ll)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.ll = ll;
     j.type = long_long_type;
     j.size = sizeof(int64_t);
     return j;
 }
 
-np_val_t new_val_f (float f)
+np_treeval_t new_val_f (float f)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.f = f;
     j.type = float_type;
     j.size = sizeof(float);
     return j;
 }
 
-np_val_t new_val_d (double d)
+np_treeval_t new_val_d (double d)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.d = d;
     j.type = double_type;
     j.size = sizeof(double);
     return j;
 }
 
-np_val_t new_val_v (void *v)
+np_treeval_t new_val_v (void *v)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.v = v;
     j.type = void_type;
     return j;
 }
 
-np_val_t new_val_s (char *s)
+np_treeval_t new_val_s (char *s)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.size = strlen(s);
     j.value.s = s; // strndup(s, j.size);
     j.type = char_ptr_type;
     return j;
 }
 
-np_val_t new_val_c (char c)
+np_treeval_t new_val_c (char c)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.c = c;
     j.type = char_type;
     j.size = sizeof(char);
     return j;
 }
 
-np_val_t new_val_uc (unsigned char uc)
+np_treeval_t new_val_uc (unsigned char uc)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.uc = uc;
     j.type = unsigned_char_type;
     j.size = sizeof(unsigned char);
     return j;
 }
 
-np_val_t new_val_sh (int8_t sh)
+np_treeval_t new_val_sh (int8_t sh)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.sh = sh;
     j.type = short_type;
     j.size = sizeof(int8_t);
     return j;
 }
 
-np_val_t new_val_ush (uint8_t ush)
+np_treeval_t new_val_ush (uint8_t ush)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.ush = ush;
     j.type = unsigned_short_type;
     j.size = sizeof(uint8_t);
     return j;
 }
 
-np_val_t new_val_ui (uint16_t i)
+np_treeval_t new_val_ui (uint16_t i)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.ui = i;
     j.type = unsigned_int_type;
     j.size = sizeof(uint16_t);
     return j;
 }
 
-np_val_t new_val_ul (uint32_t ul)
+np_treeval_t new_val_ul (uint32_t ul)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.ul = ul;
     j.type = unsigned_long_type;
     j.size = sizeof(uint32_t);
     return j;
 }
 
-np_val_t new_val_ull (uint64_t ull)
+np_treeval_t new_val_ull (uint64_t ull)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.ull = ull;
     j.type = unsigned_long_long_type;
     j.size = sizeof(uint64_t);
     return j;
 }
 
-np_val_t new_val_bin (void* data, uint32_t ul)
+np_treeval_t new_val_bin (void* data, uint32_t ul)
 {
-    np_val_t j;
+    np_treeval_t j;
 
     j.value.bin = data; // malloc(ul);
 	// CHECK_MALLOC(j.value.bin);
@@ -409,9 +409,9 @@ np_val_t new_val_bin (void* data, uint32_t ul)
     return j;
 }
 
-np_val_t new_val_key (np_dhkey_t key)
+np_treeval_t new_val_key (np_dhkey_t key)
 {
-    np_val_t j;
+    np_treeval_t j;
 
     j.value.key = key;
     j.type = key_type;
@@ -422,9 +422,9 @@ np_val_t new_val_key (np_dhkey_t key)
     return j;
 }
 
-np_val_t new_val_iarray (uint16_t i0, uint16_t i1)
+np_treeval_t new_val_iarray (uint16_t i0, uint16_t i1)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.a2_ui[0] = i0;
     j.value.a2_ui[1] = i1;
     j.type = uint_array_2_type;
@@ -432,9 +432,9 @@ np_val_t new_val_iarray (uint16_t i0, uint16_t i1)
     return j;
 }
 
-np_val_t new_val_farray (float f0, float f1)
+np_treeval_t new_val_farray (float f0, float f1)
 {
-    np_val_t j;
+    np_treeval_t j;
     j.value.farray[0] = f0;
     j.value.farray[1] = f1;
     j.type = float_array_2_type;
@@ -442,9 +442,9 @@ np_val_t new_val_farray (float f0, float f1)
     return j;
 }
 
-np_val_t new_val_carray_nt (char *carray)
+np_treeval_t new_val_carray_nt (char *carray)
 {
-    np_val_t j;
+    np_treeval_t j;
     uint8_t i;
 
     for (i = 0; i < 8 && carray[i] != '\0'; i++)
@@ -459,26 +459,26 @@ np_val_t new_val_carray_nt (char *carray)
     return j;
 }
 
-np_val_t new_val_carray_nnt (char *carray)
+np_treeval_t new_val_carray_nnt (char *carray)
 {
-    np_val_t j;
+    np_treeval_t j;
     memcpy (j.value.carray, carray, 8);
     j.type = unsigned_char_array_8_type;
 	return j;
 }
 
-np_val_t new_val_tree(np_tree_t* tree)
+np_treeval_t new_val_tree(np_tree_t* tree)
 {
-	np_val_t j;
+	np_treeval_t j;
     j.value.tree = tree;
     j.size = tree->byte_size;
     j.type = jrb_tree_type;
 	return j;
 }
 
-np_val_t new_val_hash (char *s)
+np_treeval_t new_val_hash (char *s)
 {
-    np_val_t j;
+    np_treeval_t j;
 
     char* hash = malloc(crypto_generichash_BYTES);
 	CHECK_MALLOC(hash);
@@ -495,10 +495,10 @@ np_val_t new_val_hash (char *s)
     return j;
 }
 
-np_val_t new_val_pwhash (NP_UNUSED char *s)
+np_treeval_t new_val_pwhash (NP_UNUSED char *s)
 {
 	// TODO: implement password hashing function / update of libsodium required ?
-    np_val_t j = NP_VAL_NULL;
+    np_treeval_t j = np_treeval_NULL;
 
 //    char pw_hash[crypto_pwhash_STRBYTES];
 //    if (crypto_pwhash_str
@@ -513,100 +513,100 @@ np_val_t new_val_pwhash (NP_UNUSED char *s)
     return j;
 }
 
-np_val_t new_val_obj(np_obj_t* obj)
+np_treeval_t new_val_obj(np_obj_t* obj)
 {
-	np_val_t j;
+	np_treeval_t j;
 	j.value.obj = obj;
 	j.size = 0;
 	j.type = npobj_type;
 	return j;
 }
 
-int16_t jval_i (np_val_t j)
+int16_t jval_i (np_treeval_t j)
 {
     return j.value.i;
 }
 
-int32_t jval_l (np_val_t j)
+int32_t jval_l (np_treeval_t j)
 {
     return j.value.l;
 }
 
-int64_t jval_ll (np_val_t j)
+int64_t jval_ll (np_treeval_t j)
 {
     return j.value.ll;
 }
 
-float jval_f (np_val_t j)
+float jval_f (np_treeval_t j)
 {
     return j.value.f;
 }
 
-double jval_d (np_val_t j)
+double jval_d (np_treeval_t j)
 {
     return j.value.d;
 }
 
-void *jval_v (np_val_t j)
+void *jval_v (np_treeval_t j)
 {
     return j.value.v;
 }
 
-char *jval_s (np_val_t j)
+char *jval_s (np_treeval_t j)
 {
     return j.value.s;
 }
 
-char jval_c (np_val_t j)
+char jval_c (np_treeval_t j)
 {
     return j.value.c;
 }
 
-unsigned char jval_uc (np_val_t j)
+unsigned char jval_uc (np_treeval_t j)
 {
     return j.value.uc;
 }
 
-int8_t jval_sh (np_val_t j)
+int8_t jval_sh (np_treeval_t j)
 {
     return j.value.sh;
 }
 
-uint8_t jval_ush (np_val_t j)
+uint8_t jval_ush (np_treeval_t j)
 {
     return j.value.ush;
 }
 
-uint16_t jval_ui (np_val_t j)
+uint16_t jval_ui (np_treeval_t j)
 {
     return j.value.ui;
 }
 
-uint32_t jval_ul (np_val_t j)
+uint32_t jval_ul (np_treeval_t j)
 {
     return j.value.ul;
 }
 
-uint64_t jval_ull (np_val_t j)
+uint64_t jval_ull (np_treeval_t j)
 {
     return j.value.ull;
 }
 
-//int16_t* jval_iarray (np_val_t j)
+//int16_t* jval_iarray (np_treeval_t j)
 //{
 //    return j.value.a2_ui;
 //}
 
-float* jval_farray (np_val_t j)
+float* jval_farray (np_treeval_t j)
 {
     return j.value.farray;
 }
 
-char* jval_carray (np_val_t j)
+char* jval_carray (np_treeval_t j)
 {
     return j.value.carray;
 }
-uint64_t val_get_byte_size(np_val_t ele)
+uint64_t val_get_byte_size(np_treeval_t ele)
 {
 	uint64_t byte_size = 0;
 

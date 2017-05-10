@@ -29,7 +29,7 @@
 #include "np_util.h"
 #include "np_dhkey.h"
 #include "np_keycache.h"
-#include "np_val.h"
+#include "np_treeval.h"
 #include "np_sysinfo.h"
 #include "np_event.h"
 
