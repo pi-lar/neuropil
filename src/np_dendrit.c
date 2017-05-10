@@ -312,7 +312,7 @@ void _np_in_received(np_jobargs_t* args)
 	// sum up message parts if the message is for this node
 	np_message_t* msg_to_submit = NULL;
 
-	_LOCK_MODULE(msgpart_cache)
+	_LOCK_MODULE(np_messagesgpart_cache_t)
 	{
 		msg_to_submit = np_message_check_chunks_complete(msg_in);
 	}

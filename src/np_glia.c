@@ -134,7 +134,7 @@ void _np_route_lookup(np_jobargs_t* args)
 
 		if (TRUE == args->msg->is_single_part)
 		{
-			_LOCK_MODULE(msgpart_cache)
+			_LOCK_MODULE(np_messagesgpart_cache_t)
 			{
 				// sum up message parts if the message is for this node
 				msg_to_submit = np_message_check_chunks_complete(args->msg);

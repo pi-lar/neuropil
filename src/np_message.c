@@ -46,23 +46,6 @@ static const int MSG_FOOTERBIN_SIZE = 10;
 static const int MSG_CHUNK_SIZE_1024 = 1024;
 static const int MSG_ENCRYPTION_BYTES_40 = 40;
 
-_NP_MODULE_LOCK_IMPL(msgpart_cache);
-
-
-int8_t _cmp_messagepart_ptr (const np_messagepart_ptr value1, const np_messagepart_ptr value2)
-{
-	uint16_t part_1 = value1->part; // tree_find_str(value1->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
-	uint16_t part_2 = value2->part; // tree_find_str(value2->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
-
-	log_msg(LOG_MESSAGE | LOG_DEBUG, "message part compare %d / %d / %d", part_1, part_2, part_1 - part_2);
-
-	if (part_2 > part_1) return ( 1);
-	if (part_1 > part_2) return (-1);
-	return (0);
-}
-
-NP_PLL_GENERATE_IMPLEMENTATION(np_messagepart_ptr);
-
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_t);
 
 void _np_message_t_new(void* msg)
@@ -183,7 +166,7 @@ np_message_t* np_message_check_chunks_complete(np_message_t* msg_to_check)
 			np_messagepart_ptr to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks);
 			log_msg(LOG_MESSAGE | LOG_DEBUG,
 					"message (%s) %p / %p / %p", msg_uuid, msg_to_submit, msg_to_submit->msg_chunks, to_add);
-			pll_insert(np_messagepart_ptr, msg_to_submit->msg_chunks, to_add, FALSE, _cmp_messagepart_ptr);
+			pll_insert(np_messagepart_ptr, msg_to_submit->msg_chunks, to_add, FALSE, _np_messagepart_cmp);
 		}
 		else
 		{
@@ -538,7 +521,7 @@ np_bool np_message_serialize_chunked(np_jobargs_t* args)
 		//  		(max_chunk_size - current_chunk_size), current_chunk_size );
 		i++;
 
-		pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _cmp_messagepart_ptr);
+		pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp);
 
 		// log_msg(LOG_MESSAGE | LOG_DEBUG, "-------------------------" );
 	}
@@ -608,7 +591,7 @@ np_bool np_message_deserialize(np_message_t* msg, void* buffer)
 	part->part = chunk_id;
 	part->msg_part = buffer;
 
-	pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _cmp_messagepart_ptr);
+	pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp);
 
 	log_msg(LOG_MESSAGE | LOG_DEBUG, "received message part (%d / %d)", chunk_id, msg->no_of_chunks);
 

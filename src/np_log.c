@@ -108,7 +108,7 @@ void np_log_message(uint16_t level, const char* srcFile, const char* funcName, u
 	}
 }
 
-void _log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
+void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
 {
 	if (revents & EV_WRITE)
 	{
@@ -163,7 +163,7 @@ void np_log_init(const char* filename, uint16_t level)
 
     // _np_suspend_event_loop();
     EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-	ev_io_init(&logger->watcher, _log_evflush, logger->fp, EV_WRITE);
+	ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
 	ev_io_start(EV_A_ &logger->watcher);
 	// _np_resume_event_loop();
 }

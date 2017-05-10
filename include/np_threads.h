@@ -67,7 +67,7 @@ return_type wrapped_##func_name(arg_1, arg_2);
 typedef enum lock_e {
 	mutex_np_memory_t = 0,
 	mutex_np_keycache_t,
-	mutex_msgpart_cache,
+	mutex_np_messagesgpart_cache_t,
 	mutex_np_msgproperty_t,
 	mutex_np_network_t,
 	mutex_np_routeglobal_t,

@@ -9,23 +9,11 @@
 
 #include "np_memory.h"
 #include "np_types.h"
+#include "np_messagepart.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct np_messagepart_s np_messagepart_t;
-typedef np_messagepart_t* np_messagepart_ptr;
-
-struct np_messagepart_s
-{
-	np_tree_t* header;
-	np_tree_t* instructions;
-	uint16_t part;
-	void* msg_part;
-} NP_API_INTERN;
-
-NP_PLL_GENERATE_PROTOTYPES(np_messagepart_ptr);
 
 struct np_message_s
 {
