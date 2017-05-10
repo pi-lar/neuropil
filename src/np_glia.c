@@ -430,7 +430,7 @@ void _np_retransmit_tokens(NP_UNUSED np_jobargs_t* args)
 	{
 		log_msg(LOG_WARN, "---------- expiration of own node token reached ----------");
 
-		np_aaatoken_t* new_token = _np_create_node_token(state->my_node_key->node);
+		np_aaatoken_t* new_token = _np_node_create_token(state->my_node_key->node);
 		np_key_t* new_key = NULL;
 		np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(new_token);
 		_LOCK_MODULE(np_keycache_t)
@@ -673,7 +673,7 @@ void _np_send_rowinfo(np_jobargs_t* args)
 	if (0 < sll_size(sll_of_keys))
 	{
 		np_tree_t* msg_body = make_nptree();
-		_np_encode_nodes_to_jrb(msg_body, sll_of_keys, FALSE);
+		_np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, FALSE);
 		np_msgproperty_t* outprop = np_msgproperty_get(OUTBOUND, _NP_MSG_PIGGY_REQUEST);
 
 		np_message_t* msg_out = NULL;

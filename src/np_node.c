@@ -205,7 +205,7 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 
 
 
-uint16_t _np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats)
+uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats)
 {
 	uint16_t j=0;
     np_key_t* current;
@@ -227,7 +227,7 @@ uint16_t _np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys)
     return (j);
 }
 
-sll_return(np_key_t) _np_decode_nodes_from_jrb (np_tree_t* data)
+sll_return(np_key_t) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 {
     uint16_t nodenum = data->size;
 
@@ -252,7 +252,7 @@ sll_return(np_key_t) _np_decode_nodes_from_jrb (np_tree_t* data)
     return (node_list);
 }
 
-np_key_t* _np_create_node_from_token(np_aaatoken_t* token)
+np_key_t* _np_node_create_from_token(np_aaatoken_t* token)
 {
 	// TODO: check whether metadata is used as a hash key in general
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(token);
@@ -264,7 +264,7 @@ np_key_t* _np_create_node_from_token(np_aaatoken_t* token)
 	return (node_key);
 }
 
-np_aaatoken_t* _np_create_node_token(np_node_t* node)
+np_aaatoken_t* _np_node_create_token(np_node_t* node)
 {
 	log_msg(LOG_TRACE, ".start.np_create_node_token");
 	np_state_t* state = _np_state();

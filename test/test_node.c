@@ -42,8 +42,8 @@ Test(np_node_t, _node_create, .description="test the creation of node structure"
 	log_msg(LOG_DEBUG, "creating 1st key/node");
 	_np_node_update(new_node_1, IPv4 | UDP, "localhost", "1111");
 
-	np_aaatoken_t* node_token_1 = _np_create_node_token(new_node_1);
-	np_key_t* node_key_1 = _np_create_node_from_token(node_token_1);
+	np_aaatoken_t* node_token_1 = _np_node_create_token(new_node_1);
+	np_key_t* node_key_1 = _np_node_create_from_token(node_token_1);
 	np_key_t* node_key_2 = _np_node_decode_from_str ("e596f97cec7761a0a228451b4fa69b1f0cf7409ad5b830b173c2f264c97a0522:udp4:localhost:2222");
 }
 

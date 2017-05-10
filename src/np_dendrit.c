@@ -358,7 +358,7 @@ void _np_in_piggy(np_jobargs_t* args)
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		o_piggy_list = _np_decode_nodes_from_jrb(args->msg->body);
+		o_piggy_list = _np_node_decode_multiple_from_jrb(args->msg->body);
 	}
 
 	while (NULL != (node_entry = sll_head(np_key_t, o_piggy_list)))
@@ -518,7 +518,7 @@ void _np_in_leave_req(np_jobargs_t* args)
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		leave_req_key = _np_create_node_from_token(node_token);
+		leave_req_key = _np_node_create_from_token(node_token);
 	}
 
 	np_key_t* deleted = NULL;
@@ -1090,7 +1090,7 @@ void _np_in_update(np_jobargs_t* args)
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		update_key = _np_create_node_from_token(update_token);
+		update_key = _np_node_create_from_token(update_token);
 	}
 
 	if (NULL == update_key->aaa_token)
@@ -1811,7 +1811,7 @@ void _np_in_handshake(np_jobargs_t* args)
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		hs_key = _np_create_node_from_token(tmp_token);
+		hs_key = _np_node_create_from_token(tmp_token);
 		np_dhkey_t wildcard_key = np_dhkey_create_from_hostport("*", np_get_connection_string_from(hs_key, FALSE));
 		hs_wildcard_key = _np_keycache_find(wildcard_key);
 
