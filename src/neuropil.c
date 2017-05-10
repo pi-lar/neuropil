@@ -938,7 +938,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 	}
 	if (NULL != proto)
 	{
-		np_proto = np_parse_protocol_string(proto);
+		np_proto = _np_network_parse_protocol_string(proto);
 		log_msg(LOG_DEBUG, "now initializing networking for %s:%s", proto, np_service);
 	}
 	else
@@ -965,7 +965,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     log_msg(LOG_DEBUG, "initialise network");
 	_LOCK_MODULE(np_network_t)
 	{
-		network_init(my_network, TRUE, np_proto, hostname, np_service);
+		_np_network_init(my_network, TRUE, np_proto, hostname, np_service);
 	}
     log_msg(LOG_DEBUG, "check for initialised network");
 	if (FALSE == my_network->initialized)
@@ -976,7 +976,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     log_msg(LOG_DEBUG, "update my node data");
 	np_node_update(my_node, np_proto, hostname, np_service);
 	log_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
-			           np_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);
+			           _np_network_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);
     // create a new token for encryption each time neuropil starts
     np_aaatoken_t* auth_token = _np_create_node_token(my_node);
     auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
@@ -1111,12 +1111,12 @@ char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){
 	 if(TRUE == includeHash){
 		 asprintf(&connection_str, "%s:%s:%s:%s",
 		  			_np_key_as_str(node_key),
-		 			np_get_protocol_string(node_key->node->protocol),
+		 			_np_network_get_protocol_string(node_key->node->protocol),
 		 			node_key->node->dns_name,
 		 			node_key->node->port);
 		 	 }else {
 		 		 asprintf(&connection_str, "%s:%s:%s",
-		 			np_get_protocol_string(node_key->node->protocol),
+		 			_np_network_get_protocol_string(node_key->node->protocol),
 		 			node_key->node->dns_name,
 		 			node_key->node->port);
 		 	 }

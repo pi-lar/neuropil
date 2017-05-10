@@ -48,7 +48,7 @@
  **/
 
 /**
- ** network_send: host, data, size
+ ** _np_network_send_msg: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
 void _np_out_ack(np_jobargs_t* args)
@@ -68,13 +68,13 @@ void _np_out_ack(np_jobargs_t* args)
 	np_message_serialize_chunked(chunk_args);
 	free(chunk_args);
 
-	network_send(args->target, args->msg);
+	_np_network_send_msg(args->target, args->msg);
 	// send_ok is 1 or 0
 	// np_node_update_stat(args->target->node, send_ok);
 }
 
 /**
- ** network_send: host, data, size
+ ** _np_network_send_msg: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
 void _np_send(np_jobargs_t* args)
@@ -227,7 +227,7 @@ void _np_send(np_jobargs_t* args)
 			}
 			else
 			{
-				ackentry = get_new_ackentry();
+				ackentry = _np_network_get_new_ackentry();
 			}
 
 			ackentry->acked = FALSE;
@@ -280,7 +280,7 @@ void _np_send(np_jobargs_t* args)
 		np_message_serialize_chunked(&chunk_args);
 	}
 
-	network_send(args->target, msg_out);
+	_np_network_send_msg(args->target, msg_out);
 	// ret is 1 or 0
 	// np_node_update_stat(args->target->node, send_ok);
 
@@ -389,7 +389,7 @@ void _np_send_handshake(np_jobargs_t* args)
 			{
 				// initialize network
 				np_new_obj(np_network_t, args->target->network);
-				network_init(args->target->network,
+				_np_network_init(args->target->network,
 							 FALSE,
 							 args->target->node->protocol,
 							 args->target->node->dns_name,

@@ -97,41 +97,41 @@ struct np_prioq_s {
 
 // parse protocol string of the form "tcp4://..." and return the correct @see socket_type
 NP_API_INTERN
-uint8_t np_parse_protocol_string (const char* protocol_str);
+uint8_t _np_network_parse_protocol_string (const char* protocol_str);
 
 NP_API_INTERN
-char* np_get_protocol_string (uint8_t protocol);
+char* _np_network_get_protocol_string (uint8_t protocol);
 
 /** network_address:
  ** returns the ip address of the #hostname#
  **/
 NP_API_INTERN
-void get_network_address (np_bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
-// struct addrinfo get_network_address (char *hostname);
+void _np_network_get_address (np_bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
+// struct addrinfo _np_network_get_address (char *hostname);
 
 NP_API_INTERN
-np_ackentry_t* get_new_ackentry();
+np_ackentry_t* _np_network_get_new_ackentry();
 
 NP_API_INTERN
-np_prioq_t* get_new_pqentry();
+np_prioq_t* _np_network_get_new_pqentry();
 
-/** network_init:
+/** _np_network_init:
  ** initiates the networking layer by creating socket and bind it to #port#
  **/
 NP_API_INTERN
-void network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);
+void _np_network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);
 
 NP_API_INTERN
 void _network_destroy (np_network_t* network);
 
 /**
- ** network_send: host, data, size
+ ** _np_network_send_msg: host, data, size
  ** Sends a message to host, updating the measurement info.
  ** type are 1 or 2, 1 indicates that the data should be acknowledged by the
  ** receiver, and 2 indicates that no ack is necessary.
  **/
 NP_API_INTERN
-void network_send (np_key_t* node,  np_message_t* msg);
+void _np_network_send_msg (np_key_t* node,  np_message_t* msg);
 
 /*
  * libev driven functions to send/receive messages over the wire
@@ -139,7 +139,7 @@ void network_send (np_key_t* node,  np_message_t* msg);
 NP_API_INTERN
 void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
-void _np_network_send(struct ev_loop *loop, ev_io *event, int revents);
+void _np_network_send_from_events(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
 void _np_network_read(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN

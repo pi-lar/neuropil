@@ -52,7 +52,7 @@ _NP_MODULE_LOCK_IMPL(np_network_t);
 
 
 // allocate a new pointer and return it
-np_prioq_t* get_new_pqentry()
+np_prioq_t* _np_network_get_new_pqentry()
 {
 	np_prioq_t* entry = (np_prioq_t *) malloc(sizeof(np_prioq_t));
 	CHECK_MALLOC(entry);
@@ -66,7 +66,7 @@ np_prioq_t* get_new_pqentry()
 	return (entry);
 }
 
-np_ackentry_t* get_new_ackentry()
+np_ackentry_t* _np_network_get_new_ackentry()
 {
 	np_ackentry_t *entry = (np_ackentry_t *) malloc(sizeof(np_ackentry_t));
 	CHECK_MALLOC(entry);
@@ -90,7 +90,7 @@ static char* URN_UDP_V6 = "udp6";
 static char* URN_IP_V4  = "ip4";
 static char* URN_IP_V6  = "ip6";
 
-uint8_t np_parse_protocol_string (const char* protocol_str)
+uint8_t _np_network_parse_protocol_string (const char* protocol_str)
 {
 	if (0 == strncmp(protocol_str, URN_TCP_V4, 4)) return (TCP     | IPv4);
 	if (0 == strncmp(protocol_str, URN_TCP_V6, 4)) return (TCP     | IPv6);
@@ -104,7 +104,7 @@ uint8_t np_parse_protocol_string (const char* protocol_str)
 	return (UNKNOWN_PROTO);
 }
 
-char* np_get_protocol_string (uint8_t protocol)
+char* _np_network_get_protocol_string (uint8_t protocol)
 {
 	if (protocol == (TCP     | IPv4)) return (URN_TCP_V4);
 	if (protocol == (TCP     | IPv6)) return (URN_TCP_V6);
@@ -121,7 +121,7 @@ char* np_get_protocol_string (uint8_t protocol)
 /** network_address:
  ** returns the addrinfo structure of the hostname / service
  **/
-void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint8_t type, char *hostname, char* service)
+void _np_network_get_address (np_bool create_socket, struct addrinfo** ai_head, uint8_t type, char *hostname, char* service)
 {
 	int err;
     // struct addrinfo *ai_head;
@@ -275,7 +275,7 @@ void get_network_address (np_bool create_socket, struct addrinfo** ai_head, uint
 /**
  ** Resends a message to host
  **/
-void network_send (np_key_t *node_key, np_message_t* msg)
+void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 {
 	int ret;
 
@@ -382,7 +382,7 @@ void network_send (np_key_t *node_key, np_message_t* msg)
 	return; // TRUE;
 }
 
-void _np_network_send (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents)
+void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents)
 {
 	if (EV_ERROR == (revents & EV_ERROR))
 	{
@@ -616,7 +616,7 @@ void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 {
 	if (revents & EV_WRITE)
 	{
-		_np_network_send(loop, event, revents);
+		_np_network_send_from_events(loop, event, revents);
 	}
 
 	if (revents & EV_READ)
@@ -682,15 +682,14 @@ void _np_network_t_new(void* nw)
     ng->in_events = NULL;
     ng->out_events = NULL;
     ng->initialized = FALSE;
-
 }
 
-/** network_init:
+/** _np_network_init:
  ** initiates the networking layer structures required for a node
  ** if the port number is bigger than zero, it will create a socket and bind it to #port#
  ** the type defines the protocol which is used by the node (@see socket_type)
  **/
-void network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* hostname, char* service)
+void _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* hostname, char* service)
 {
 	int ret = 0;
     int one = 1;
@@ -706,7 +705,7 @@ void network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* 
     log_msg(LOG_DEBUG, "done pthread_mutex_init");
 
     log_msg(LOG_DEBUG, "try to get_network_address");
-    get_network_address (create_socket, &ng->addr_in, type, hostname, service);
+    _np_network_get_address (create_socket, &ng->addr_in, type, hostname, service);
     if (NULL == ng->addr_in)
     {
     	return;
@@ -851,7 +850,7 @@ void network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* 
     	}
     	else
     	{
-    		ev_io_init(&ng->watcher, _np_network_send, ng->socket, EV_WRITE);
+    		ev_io_init(&ng->watcher, _np_network_send_from_events, ng->socket, EV_WRITE);
     	}
 		ev_io_start(EV_A_ &ng->watcher);
 

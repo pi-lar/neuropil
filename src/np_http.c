@@ -543,7 +543,7 @@ np_bool _np_http_init() {
 		return FALSE;
 
 	np_new_obj(np_network_t, __local_http->network);
-	network_init(__local_http->network, TRUE, TCP | IPv4, "localhost", "31415");
+	_np_network_init(__local_http->network, TRUE, TCP | IPv4, "localhost", "31415");
 	if (NULL == __local_http->network)
 		return FALSE;
 

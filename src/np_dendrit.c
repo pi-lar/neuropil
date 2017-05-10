@@ -1848,7 +1848,7 @@ void _np_in_handshake(np_jobargs_t* args)
 			np_new_obj(np_network_t, hs_key->network);
 			if (!(hs_key->node->protocol & PASSIVE))
 			{
-				network_init(hs_key->network, FALSE, hs_key->node->protocol, hs_key->node->dns_name, hs_key->node->port);
+				_np_network_init(hs_key->network, FALSE, hs_key->node->protocol, hs_key->node->dns_name, hs_key->node->port);
 				if (TRUE == hs_key->network->initialized)
 				{
 					hs_key->network->watcher.data = hs_key;

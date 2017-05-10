@@ -82,7 +82,7 @@ void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
     snprintf (s, len, "%s:", _np_key_as_str(key));
 
     if (NULL != key->node->dns_name) {
-    	snprintf (s + strlen (s), len - strlen (s), "%s:", np_get_protocol_string(key->node->protocol));
+    	snprintf (s + strlen (s), len - strlen (s), "%s:", _np_network_get_protocol_string(key->node->protocol));
     	snprintf (s + strlen (s), len - strlen (s), "%s:", key->node->dns_name);
     	snprintf (s + strlen (s), len - strlen (s), "%s",  key->node->port);
     }
@@ -160,7 +160,7 @@ np_key_t* _np_node_decode_from_str (const char *key)
 	if (NULL != s_hostname &&
 		NULL == node_key->node->dns_name)
 	{	// overwrite hostname only if it is not set yet
-		uint8_t proto = np_parse_protocol_string(s_hostproto);
+		uint8_t proto = _np_network_parse_protocol_string(s_hostproto);
 		np_node_update(node_key->node, proto, s_hostname, s_hostport);
 	}
 
@@ -182,7 +182,7 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 	if (NULL != s_host_name &&
 		NULL == new_node->dns_name)
 	{
-		// uint8_t proto = np_parse_protocol_string(s_host_proto);
+		// uint8_t proto = _np_network_parse_protocol_string(s_host_proto);
 		np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
 		log_msg(LOG_DEBUG, "decoded node from jrb %d:%s:%s",
 				i_host_proto, s_host_name, s_host_port);
@@ -274,7 +274,7 @@ np_aaatoken_t* _np_create_node_token(np_node_t* node)
 
 	char node_subject[255];
 	snprintf(node_subject, 255, "urn:np:node:%s:%s:%s",
-			np_get_protocol_string(node->protocol), node->dns_name, node->port);
+			_np_network_get_protocol_string(node->protocol), node->dns_name, node->port);
 
 	// create token
 	if (NULL != state->realm_name)
