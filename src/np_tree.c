@@ -18,6 +18,7 @@
 #include <inttypes.h>
 
 #include "np_tree.h"
+#include "np_treeval.h"
 
 #include "np_util.h"
 #include "np_log.h"
@@ -656,6 +657,10 @@ void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 		if (none_type == tmp_key.type) {
 			return;
 		}
+
+
+		log_msg(LOG_DEBUG, "deserialised key %s",np_json2char(np_treeval2json(tmp_key),FALSE));
+
 
 		// read value
 		np_treeval_t tmp_val = { .type = none_type, .size = 0 };
