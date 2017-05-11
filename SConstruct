@@ -112,14 +112,14 @@ if int(analyze) and not scan_build_exe:
     print 'did not find clang checker executable in the path, skipping build of static code analysis'
     print 'please consider to install the additional clang static code analysis tool checker (version 278 as of this writing)'
     print '---'
-    Exit(0)
+    Exit(1)
 
 sphinx_exe = env.WhereIs('sphinx-build')
 if int(build_doc) and not sphinx_exe:
     print '---'
     print 'did not find sphinx executable in the path, skipping build of documentation'
     print '---'
-    Exit(0)
+    Exit(1)
 
 env = conf.Finish()
 
@@ -149,13 +149,13 @@ if int(analyze) and scan_build_exe:
 #     env.Append(CCFLAGS='-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include')
 
 # sources for neuropil
-SOURCES =  ['src/dtime.c','src/neuropil.c','src/np_aaatoken.c','src/np_axon.c','src/np_dendrit.c']
-SOURCES += ['src/np_glia.c','src/np_http.c','src/np_jobqueue.c','src/np_dhkey.c','src/np_key.c','src/np_keycache.c']
-SOURCES += ['src/np_log.c','src/np_memory.c','src/np_message.c','src/np_msgproperty.c','src/np_network.c','src/np_node.c']
-SOURCES += ['src/np_route.c','src/np_tree.c','src/np_util.c','src/np_treeval.c','src/np_threads.c']
-SOURCES += ['src/np_sysinfo.c','src/np_scache.c','src/np_event.c','src/np_messagepart.c']
+SOURCES =  ['build/obj/dtime.c','build/obj/neuropil.c','build/obj/np_aaatoken.c','build/obj/np_axon.c','build/obj/np_dendrit.c']
+SOURCES += ['build/obj/np_glia.c','build/obj/np_http.c','build/obj/np_jobqueue.c','build/obj/np_dhkey.c','build/obj/np_key.c','build/obj/np_keycache.c']
+SOURCES += ['build/obj/np_log.c','build/obj/np_memory.c','build/obj/np_message.c','build/obj/np_msgproperty.c','build/obj/np_network.c','build/obj/np_node.c']
+SOURCES += ['build/obj/np_route.c','build/obj/np_tree.c','build/obj/np_util.c','build/obj/np_treeval.c','build/obj/np_threads.c']
+SOURCES += ['build/obj/np_sysinfo.c','build/obj/np_scache.c','build/obj/np_event.c','build/obj/np_messagepart.c']
 # source code 3rd party libraries
-SOURCES += ['src/event/ev.c','src/http/htparse.c','src/json/parson.c','src/msgpack/cmp.c']
+SOURCES += ['build/obj/event/ev.c','build/obj/http/htparse.c','build/obj/json/parson.c','build/obj/msgpack/cmp.c']
 
 # test cases for neuropil
 TESTS =  ['test/test_suites.c']
