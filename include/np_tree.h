@@ -14,6 +14,7 @@ Copyright 2002 Niels Provos <provos@citi.umich.edu>
 #define	_NP_TREE_H_
 
 #include "tree/tree.h"
+#include "msgpack/cmp.h"
 
 #include "np_types.h"
 #include "np_treeval.h"

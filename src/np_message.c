@@ -556,7 +556,7 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 
 	if (array_size != 5)
 	{
-		log_msg(LOG_WARN, "unrecognized array length while deserializing message");
+		log_msg(LOG_WARN, "wrong array length while deserializing message");
 		return (FALSE);
 	}
 

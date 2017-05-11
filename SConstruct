@@ -83,7 +83,7 @@ conf = Configure(env)
 # Checks for libraries, header files, etc.
 if not conf.CheckLibWithHeader('sodium', 'sodium.h', 'c'):
     print 'Did not find libsodium.a or sodium.lib ...'
-    Exit(0)
+    Exit(1)
 
 if int(release) < 1 and int(build_tests) > 0 and conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c'):
     print 'Test cases included'

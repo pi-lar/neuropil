@@ -125,8 +125,10 @@ void _np_in_received(np_jobargs_t* args)
 	ret = _np_message_deserialize(msg_in, raw_msg);
 	if (FALSE == ret)
 	{
-		log_msg(LOG_ERROR, "error de-serializing message %s", msg_in->uuid);
+		log_msg(LOG_ERROR, "error deserializing message %s", msg_in->uuid);
 		goto __np_cleanup__;
+	} else {
+		log_msg(LOG_DEBUG, "deserialized message %s", msg_in->uuid);
 	}
 
 	// now read decrypted (or handshake plain text) message

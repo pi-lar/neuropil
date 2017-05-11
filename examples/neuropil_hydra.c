@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 	char* logpath = ".";
 
 	uint32_t required_nodes = NUM_HOST;
-	int level = LOG_ERROR | LOG_WARN ;//| LOG_INFO | LOG_MESSAGE | LOG_DEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_DEBUG;//| LOG_INFO | LOG_MESSAGE | LOG_DEBUG;
 
 	np_bool startHTTP = TRUE;
 
