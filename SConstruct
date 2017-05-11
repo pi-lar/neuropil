@@ -48,6 +48,8 @@ if int(debug):
 # platform specific compiler options
 if 'FreeBSD' in platform.system():
   env.Append(LIBS = ['util','m'] )
+  env.Append(LIBPATH = ['/usr/local/lib'] )
+  env.Append(CCFLAGS = ['-I/usr/local/include'] )
 if 'Darwin' in platform.system():
   env.Append(CCFLAGS = ['-Wno-deprecated'] )
   env.Append(CCFLAGS = ['-mmacosx-version-min=10.11'] )
