@@ -731,7 +731,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	np_tree_insert_str(msg_token->extensions, "max_threshold",
 			np_treeval_new_ui(msg_request->max_threshold));
 	np_tree_insert_str(msg_token->extensions, "msg_threshold",
-			np_treeval_new_ui(msg_request->msg_threshold));
+			np_treeval_new_ui( msg_request->msg_threshold ));
 
 	// TODO: insert value based on msg properties / respect (sticky) reply
 	np_tree_insert_str(msg_token->extensions, "target_node",
@@ -804,12 +804,14 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 {
 	msg_prop->msg_threshold++;
 
+	log_msg(LOG_DEBUG,"_np_send_msg: Target pointer %p",target);
 	if(NULL != target) {
 		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TARGET, np_treeval_new_key(*target));
 	}else{
 		np_tree_elem_t* target_container = 	np_tree_find_str(msg->header, _NP_MSG_HEADER_TARGET);
 		if(NULL != target_container) {
 			target = &(target_container->val.value.key);
+			log_msg(LOG_DEBUG, "_np_send_msg: Target pointer %p after re set", target);
 		}
 	}
 
@@ -817,9 +819,9 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 
 	if (NULL != tmp_token)
 	{
-		np_tree_del_str(msg->header, _NP_MSG_HEADER_TARGET);
+		//np_tree_del_str(msg->header, _NP_MSG_HEADER_TARGET);
 
-		np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
+		//np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
 
 		// first encrypt the relevant message part itself
 		_np_message_encrypt_payload(msg, tmp_token);

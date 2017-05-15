@@ -211,9 +211,9 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 
 			// check for more messages in cache after head/tail command
 			msg_available = sll_size(send_prop->msg_cache_out);
-			send_prop->msg_threshold--;
 		}
 		if(NULL != msg_out){
+			send_prop->msg_threshold--;
 			sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop, NULL);
 			np_unref_obj(np_message_t, msg_out);
 
@@ -250,9 +250,9 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 				msg_in = sll_head(np_message_t, recv_prop->msg_cache_in);
 
 			msg_available = sll_size(recv_prop->msg_cache_in);
-			recv_prop->msg_threshold--;
 		}
 		if(NULL != msg_in) {
+			recv_prop->msg_threshold--;
 			_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in);
 			np_unref_obj(np_message_t, msg_in);
 		}

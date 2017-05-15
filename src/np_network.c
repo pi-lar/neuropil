@@ -362,7 +362,9 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 				// ret = send (node_key->node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
 				sll_append(void_ptr, node_key->network->out_events, (void*) enc_buffer);
 			}
-			pthread_mutex_unlock(&(_np_state()->my_node_key->network->lock));
+			if( 0 != pthread_mutex_unlock(&(_np_state()->my_node_key->network->lock))){
+				log_msg(LOG_ERROR,"Could not unlock my network mutex");
+			}
 		}
 		// if (ret < 0)
 		// {
