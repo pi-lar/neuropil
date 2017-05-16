@@ -659,7 +659,7 @@ void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 		}
 
 
-		log_msg(LOG_DEBUG, "deserialised key %s",np_json2char(np_treeval2json(tmp_key),FALSE));
+		log_msg(LOG_DEBUG, "deserialised type: %"PRIu8" key %s", tmp_key.type, np_json2char(np_treeval2json(tmp_key),FALSE));
 
 
 		// read value

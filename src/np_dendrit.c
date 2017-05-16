@@ -123,8 +123,7 @@ void _np_in_received(np_jobargs_t* args)
 	np_new_obj(np_message_t, msg_in);
 
 	ret = _np_message_deserialize(msg_in, raw_msg);
-	if (FALSE == ret)
-	{
+	if (FALSE == ret) {
 		log_msg(LOG_ERROR, "error deserializing message %s", msg_in->uuid);
 		goto __np_cleanup__;
 	} else {
@@ -1386,7 +1385,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	{
 		goto __np_cleanup__;
 	}
-	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	//np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 
 	// extract e2e encryption details for sender
 	np_new_obj(np_aaatoken_t, authentication_token);
