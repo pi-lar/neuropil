@@ -37,7 +37,7 @@ a message is received by the node that you are currently starting
    {
 */
 
-np_bool receive_this_is_a_test(np_message_t* msg, np_tree_t* properties, np_tree_t* body)
+np_bool receive_this_is_a_test(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
 
 	/**

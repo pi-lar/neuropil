@@ -112,12 +112,14 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 
 		// Is it the same bitmask ?
 		if (prop1->mode_type == prop2->mode_type) return  (0);
+
 		// for searching: Are some test bits set ?
 		if (0 < (prop1->mode_type & prop2->mode_type)) return (0);
 
 		// for sorting / inserting different entries
 		if (prop1->mode_type > prop2->mode_type)  return ( 1);
 		if (prop1->mode_type < prop2->mode_type)  return (-1);
+
 		return (-1);
 	}
 	else
@@ -211,9 +213,10 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 
 			// check for more messages in cache after head/tail command
 			msg_available = sll_size(send_prop->msg_cache_out);
-			send_prop->msg_threshold--;
 		}
+
 		if(NULL != msg_out){
+			send_prop->msg_threshold--;
 			sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop, NULL);
 			np_unref_obj(np_message_t, msg_out);
 
@@ -250,9 +253,9 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 				msg_in = sll_head(np_message_t, recv_prop->msg_cache_in);
 
 			msg_available = sll_size(recv_prop->msg_cache_in);
-			recv_prop->msg_threshold--;
 		}
 		if(NULL != msg_in) {
+			recv_prop->msg_threshold--;
 			_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in);
 			np_unref_obj(np_message_t, msg_in);
 		}
@@ -275,6 +278,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 
 				if ((msg_prop->cache_policy & FIFO) > 0)
 					old_msg = sll_head(np_message_t, msg_prop->msg_cache_out);
+
 				if ((msg_prop->cache_policy & FILO) > 0)
 					old_msg = sll_tail(np_message_t, msg_prop->msg_cache_out);
 
@@ -290,7 +294,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 			{
 				log_msg(LOG_WARN,
 						"rejecting new message because cache is full");
-				continue;
+				break;
 			}
 		}
 
