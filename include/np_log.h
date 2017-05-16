@@ -41,8 +41,8 @@ enum np_log_e
     LOG_DEBUG      		= 0x0008, /* debugging messages */
     LOG_TRACE      		= 0x0010, /* tracing messages   */
 
-	LOG_SERIALIZATION	= 0x0011, /* debugging the serialization methods  */
-	LOG_MUTEX      		= 0x0012, /* debugging messages for mutex subsystem */
+	LOG_SERIALIZATION	= 0x0020, /* debugging the serialization methods  */
+	LOG_MUTEX      		= 0x0040, /* debugging messages for mutex subsystem */
 	LOG_KEY        		= 0x0100, /* debugging messages for key subsystem */
 	LOG_NETWORK    		= 0x0200, /* debugging messages for network layer */
     LOG_ROUTING    		= 0x0400, /* debugging the routing table          */
@@ -50,7 +50,7 @@ enum np_log_e
     LOG_SECURE     		= 0x1000, /* debugging the security module        */
     LOG_HTTP       		= 0x2000, /* debugging the message subsystem      */
 	LOG_AAATOKEN   		= 0x4000, /* debugging the message subsystem      */
-    LOG_GLOBAL     		= 0xA000, /* debugging the global system          */
+    LOG_GLOBAL     		= 0x8000, /* debugging the global system          */
 
 	LOG_MODUL_MASK 		= 0xFF00, /* debugging the global system          */
 	LOG_NOMOD_MASK 		= 0x7F00, /* debugging the global system          */
