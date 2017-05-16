@@ -46,10 +46,11 @@ void _np_sysinfo_init(np_bool isRequestor) {
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	sysinfo_request_props->mep_type = ONE_WAY_WITH_REPLY;
+	sysinfo_request_props->rep_subject = _NP_SYSINFO_REPLY;
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
-	sysinfo_request_props->ack_mode = ACK_DESTINATION;
+	sysinfo_request_props->ack_mode = ACK_NONE;
 	sysinfo_request_props->ttl = 20.0;
-	sysinfo_request_props->max_threshold = 4;
+	sysinfo_request_props->max_threshold = 64000;
 
 	np_msgproperty_t* sysinfo_response_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_response_props);
@@ -57,7 +58,7 @@ void _np_sysinfo_init(np_bool isRequestor) {
 	sysinfo_response_props->msg_subject = _NP_SYSINFO_REPLY;
 	sysinfo_response_props->ack_mode = ACK_DESTINATION;
 	sysinfo_response_props->ttl = 20.0;
-	sysinfo_response_props->max_threshold = 8;
+	sysinfo_response_props->max_threshold = 64000;
 
 	if (isRequestor) {
 		_cache = (np_simple_cache_table_t*) malloc(

@@ -32,27 +32,28 @@ typedef enum np_log_e log_type;
 
 enum np_log_e
 {
-	LOG_NONE       = 0x0000, /* log nothing        */
-	LOG_NOMOD      = 0x0000, /*           */
+	LOG_NONE  		    = 0x0000, /* log nothing        */
+	LOG_NOMOD		    = 0x0000, /*           */
 
-	LOG_ERROR      = 0x0001, /* error messages     */
-    LOG_WARN       = 0x0002, /* warning messages   */
-    LOG_INFO       = 0x0004, /* info messages      */
-    LOG_DEBUG      = 0x0008, /* debugging messages */
-    LOG_TRACE      = 0x0010, /* tracing messages   */
+	LOG_ERROR     		= 0x0001, /* error messages     */
+    LOG_WARN       		= 0x0002, /* warning messages   */
+    LOG_INFO       		= 0x0004, /* info messages      */
+    LOG_DEBUG      		= 0x0008, /* debugging messages */
+    LOG_TRACE      		= 0x0010, /* tracing messages   */
 
-	LOG_MUTEX      = 0x0101, /* debugging messages for mutex subsystem */
-	LOG_KEY        = 0x0100, /* debugging messages for key subsystem */
-	LOG_NETWORK    = 0x0200, /* debugging messages for network layer */
-    LOG_ROUTING    = 0x0400, /* debugging the routing table          */
-    LOG_MESSAGE    = 0x0800, /* debugging the message subsystem      */
-    LOG_SECURE     = 0x1000, /* debugging the security module        */
-    LOG_HTTP       = 0x2000, /* debugging the message subsystem      */
-    LOG_AAATOKEN   = 0x4000, /* debugging the message subsystem      */
-    LOG_GLOBAL     = 0x8000, /* debugging the global system          */
+	LOG_SERIALIZATION	= 0x0011, /* debugging the serialization methods  */
+	LOG_MUTEX      		= 0x0012, /* debugging messages for mutex subsystem */
+	LOG_KEY        		= 0x0100, /* debugging messages for key subsystem */
+	LOG_NETWORK    		= 0x0200, /* debugging messages for network layer */
+    LOG_ROUTING    		= 0x0400, /* debugging the routing table          */
+    LOG_MESSAGE    		= 0x0800, /* debugging the message subsystem      */
+    LOG_SECURE     		= 0x1000, /* debugging the security module        */
+    LOG_HTTP       		= 0x2000, /* debugging the message subsystem      */
+	LOG_AAATOKEN   		= 0x4000, /* debugging the message subsystem      */
+    LOG_GLOBAL     		= 0xA000, /* debugging the global system          */
 
-	LOG_MODUL_MASK = 0xFF00, /* debugging the global system          */
-	LOG_NOMOD_MASK = 0x7F00, /* debugging the global system          */
+	LOG_MODUL_MASK 		= 0xFF00, /* debugging the global system          */
+	LOG_NOMOD_MASK 		= 0x7F00, /* debugging the global system          */
 
 } NP_ENUM NP_API_EXPORT;
 

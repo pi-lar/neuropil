@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 	char* logpath = ".";
 
 	uint32_t required_nodes = NUM_HOST;
-	int level = LOG_ERROR | LOG_WARN | LOG_DEBUG;//| LOG_INFO | LOG_MESSAGE | LOG_DEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_AAATOKEN | LOG_DEBUG;
 
 	np_bool startHTTP = TRUE;
 
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
 
 			np_log_init(log_file_host, level);
 			np_init(proto, bootstrap_port, TRUE, "localhost");
-			np_start_job_queue(required_nodes*2+2);
+			np_start_job_queue(10);
 			while (TRUE) {
 				ev_sleep(0.1);
 			}

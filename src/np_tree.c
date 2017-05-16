@@ -355,7 +355,6 @@ uint64_t np_tree_get_byte_size(np_tree_elem_t* node)
 
 	uint64_t byte_size = np_treeval_get_byte_size(node->key) + np_treeval_get_byte_size(node->val) ;
 
-
 	return byte_size;
 }
 
@@ -607,7 +606,7 @@ void _np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 		 	}
 			else
 			{
-				log_msg(LOG_DEBUG, "unknown key type for serialization" );
+				log_msg(LOG_ERROR, "unknown key type for serialization" );
 		 	}
 		}
 	}
@@ -658,9 +657,7 @@ void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 			return;
 		}
 
-
-		log_msg(LOG_DEBUG, "deserialised type: %"PRIu8" key %s", tmp_key.type, np_json2char(np_treeval2json(tmp_key),FALSE));
-
+		log_msg(LOG_SERIALIZATION | LOG_DEBUG, "deserialised type: %"PRIu8" key %s", tmp_key.type, np_json2char(np_treeval2json(tmp_key),FALSE));
 
 		// read value
 		np_treeval_t tmp_val = { .type = none_type, .size = 0 };

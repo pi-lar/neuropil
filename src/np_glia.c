@@ -819,9 +819,11 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 
 	if (NULL != tmp_token)
 	{
+		log_msg(LOG_DEBUG, "(msg: %s) _np_send_msg for subject \"%s\" over %s", msg->uuid, subject, tmp_token->issuer);
+
 		//np_tree_del_str(msg->header, _NP_MSG_HEADER_TARGET);
 
-		//np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
+		np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
 
 		// first encrypt the relevant message part itself
 		_np_message_encrypt_payload(msg, tmp_token);

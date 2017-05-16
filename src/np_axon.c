@@ -462,6 +462,8 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 
 		if (NULL != msg_token)
 		{
+			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
+
 			log_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
 			np_tree_t* _data = np_tree_create();
 			np_aaatoken_encode(_data, msg_token);
@@ -483,6 +485,8 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 		log_msg(LOG_TRACE, ".step ._np_send_discovery_messages");
 		if (NULL != msg_token)
 		{
+			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
+
 			log_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
 			np_tree_t* _data = np_tree_create();
 			np_aaatoken_encode(_data, msg_token);

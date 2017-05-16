@@ -276,7 +276,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		uint16_t token_msg_threshold = msg_threshold->val.value.ui;
 
 		if (0                   <=  token_msg_threshold &&
-			token_msg_threshold <   token_max_threshold)
+			token_msg_threshold <=   token_max_threshold)
 		{
 			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token can be used for %"PRIu32" msgs", token_max_threshold-token_msg_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
@@ -458,10 +458,6 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 			}
 			else
 			{
-				// save old threshold value in case of a token replace
-				//uint16_t current_threshold = np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
-				//np_tree_find_str(token->extensions, "msg_threshold")->val.value.ui = current_threshold;
-
 				token->state = tmp_token->state;
 				np_unref_obj(np_aaatoken_t, tmp_token);
 			}
@@ -680,10 +676,6 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 			}
 			else
 			{
-				// save old threshold value in case of a token replace
-				//uint16_t current_threshold = np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui;
-				//np_tree_find_str(token->extensions, "msg_threshold")->val.value.ui = current_threshold;
-
 				token->state = tmp_token->state;
 				np_unref_obj(np_aaatoken_t, tmp_token);
 			}
