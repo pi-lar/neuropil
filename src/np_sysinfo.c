@@ -40,27 +40,27 @@ _NP_MODULE_LOCK_IMPL(np_sysinfo);
 
 static struct np_simple_cache_table_t* _cache;
 
-void _np_sysinfo_init(np_bool isRequestor) {
-
-	//TODO: currently the system cannot handle in/out of the same node A->A as is decryptes wrong
+void _np_sysinfo_init(np_bool isRequestor)
+{
+	// TODO: currently the system cannot handle in/out of the same node A->A
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
-	sysinfo_request_props->mep_type = ONE_WAY_WITH_REPLY;
-	sysinfo_request_props->rep_subject = _NP_SYSINFO_REPLY;
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
+	sysinfo_request_props->mep_type = AGGREGATE;
 	sysinfo_request_props->ack_mode = ACK_NONE;
-	sysinfo_request_props->ttl = 20.0;
-	sysinfo_request_props->max_threshold = 64000;
+	sysinfo_request_props->retry    = 1;
+	sysinfo_request_props->ttl      = 20.0;
 
 	np_msgproperty_t* sysinfo_response_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_response_props);
-	sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->msg_subject = _NP_SYSINFO_REPLY;
-	sysinfo_response_props->ack_mode = ACK_DESTINATION;
-	sysinfo_response_props->ttl = 20.0;
-	sysinfo_response_props->max_threshold = 64000;
+	sysinfo_response_props->mep_type = ONE_WAY;
+	sysinfo_response_props->ack_mode = ACK_NONE;
+	sysinfo_response_props->retry    = 1;
+	sysinfo_response_props->ttl      = 20.0;
 
-	if (isRequestor) {
+	if (isRequestor)
+	{
 		_cache = (np_simple_cache_table_t*) malloc(
 				sizeof(np_simple_cache_table_t));
     	CHECK_MALLOC(_cache);
@@ -69,17 +69,22 @@ void _np_sysinfo_init(np_bool isRequestor) {
 			sll_init(np_cache_item_t, _cache->buckets[i]);
 		}
 
-		sysinfo_response_props->mode_type = INBOUND | ROUTE;
 		sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
+		sysinfo_request_props->max_threshold = SIMPLE_CACHE_NR_BUCKETS;
+		sysinfo_response_props->mode_type = INBOUND | ROUTE;
+		sysinfo_response_props->max_threshold = SIMPLE_CACHE_NR_BUCKETS;
 
 		np_msgproperty_register(sysinfo_response_props);
 		np_msgproperty_register(sysinfo_request_props);
 
 		np_set_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
-
-	} else {
-		sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
+	}
+	else
+	{
 		sysinfo_request_props->mode_type = INBOUND | ROUTE;
+		sysinfo_request_props->max_threshold = 2;
+		sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
+		sysinfo_response_props->max_threshold = 2;
 
 		np_msgproperty_register(sysinfo_response_props);
 		np_msgproperty_register(sysinfo_request_props);
@@ -89,7 +94,7 @@ void _np_sysinfo_init(np_bool isRequestor) {
 
 }
 
-np_bool _np_in_sysinfo(np_message_t* msg, np_tree_t* properties, np_tree_t* body) {
+np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {
 	log_msg(LOG_TRACE, ".start._in_sysinfo");
 
 	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
@@ -147,7 +152,7 @@ np_bool _np_in_sysinfo(np_message_t* msg, np_tree_t* properties, np_tree_t* body
 	return TRUE;
 }
 
-np_bool _np_in_sysinforeply(np_message_t* msg, np_tree_t* properties, np_tree_t* body) {
+np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
 	log_msg(LOG_TRACE, ".start._in_sysinforeply");
 
 	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
@@ -238,8 +243,10 @@ np_tree_t* np_get_my_sysinfo() {
 }
 
 void _np_request_sysinfo(const char* hash_of_target) {
-	if (NULL != hash_of_target) {
-		log_msg(LOG_INFO, "sending sysinfo request to %s", hash_of_target);
+
+	if (NULL != hash_of_target)
+	{
+		log_msg(LOG_DEBUG, "sending sysinfo request to %s", hash_of_target);
 		np_tree_t* properties = np_tree_create();
 		np_tree_t* body = np_tree_create();
 
@@ -250,11 +257,10 @@ void _np_request_sysinfo(const char* hash_of_target) {
 				np_treeval_new_s((char*) hash_of_target));
 
 		log_msg(LOG_DEBUG, "Converting %s to dhkey", hash_of_target);
-		np_dhkey_t* target_dhkey = malloc(sizeof(np_dhkey_t));
-		CHECK_MALLOC(target_dhkey);
 
-		_np_dhkey_from_str(hash_of_target, target_dhkey);
-		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, target_dhkey);
+		np_dhkey_t target_dhkey = np_dhkey_create_from_hash(hash_of_target);
+		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, &target_dhkey);
+
 	} else {
 		log_msg(LOG_WARN,
 				"could not sending sysinfo request. (unknown target)");

@@ -64,7 +64,7 @@ return_type func_name(arg_1 a_1, arg_2 a_2) {		\
 }													\
 return_type wrapped_##func_name(arg_1, arg_2);
 
-NP_API_INTERN
+
 typedef enum lock_e {
 	mutex_np_memory_t = 0,
 	mutex_np_keycache_t,
@@ -123,7 +123,7 @@ typedef enum lock_e {
 	PREDEFINED_DUMMY_47,
 	PREDEFINED_DUMMY_48,
 	PREDEFINED_DUMMY_49,
-} lock_e;
+} NP_API_INTERN lock_e;
 
 NP_API_INTERN
 np_bool _np_threads_init();

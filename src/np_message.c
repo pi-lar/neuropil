@@ -40,7 +40,6 @@
 
 static const int MSG_ARRAY_SIZE = 1;
 static const int MSG_PAYLOADBIN_SIZE = 15;
-static const int MSG_FOOTERBIN_SIZE = 10;
 
 // double definition in np_network.c !
 static const int MSG_CHUNK_SIZE_1024 = 1024;
@@ -908,7 +907,7 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 
 	np_tree_elem_t* encryption_details_elem = np_tree_find_str(encryption_details, (char*) _np_key_as_str(state->my_identity));
 	if(NULL == encryption_details_elem  ) {
-		log_msg(LOG_ERROR, "decryption of message payload failed. no identity information in encryption_details for %s",_np_key_as_str(state->my_identity));
+		log_msg(LOG_ERROR, "decryption of message payload failed. no identity information in encryption_details for %s", _np_key_as_str(state->my_identity));
 		log_msg(LOG_DEBUG, "msg->properties:");
 		np_dump_tree2log(msg->properties);
 		log_msg(LOG_DEBUG, "encryption_details:");

@@ -458,7 +458,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 
 	if (0 < (args->properties->mode_type & INBOUND))
 	{
-		log_msg(LOG_TRACE, ".step ._np_send_discovery_messages");
+		log_msg(LOG_DEBUG, ".step ._np_send_discovery_messages.inbound");
 
 		if (NULL != msg_token)
 		{
@@ -482,7 +482,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 
 	if (0 < (args->properties->mode_type & OUTBOUND))
 	{
-		log_msg(LOG_TRACE, ".step ._np_send_discovery_messages");
+		log_msg(LOG_DEBUG, ".step ._np_send_discovery_messages.outbound");
 		if (NULL != msg_token)
 		{
 			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
@@ -493,6 +493,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 
 			np_message_t* msg_out = NULL;
 			np_new_obj(np_message_t, msg_out);
+
 			_np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_RECEIVER, _data);
 			// send message availability
 			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);

@@ -44,7 +44,7 @@ a ping or pong message is received by the nodes that you are going to start
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
 
-np_bool receive_ping(np_message_t* msg, np_tree_t* properties, np_tree_t* body)
+np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
 
 	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
@@ -58,7 +58,7 @@ np_bool receive_ping(np_message_t* msg, np_tree_t* properties, np_tree_t* body)
 	return TRUE;
 }
 
-np_bool receive_pong(np_message_t* msg, np_tree_t* properties, np_tree_t* body)
+np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
 
 	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;

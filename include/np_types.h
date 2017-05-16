@@ -79,8 +79,8 @@ typedef struct np_tree_s np_tree_t;
 typedef struct np_treeval_s np_treeval_t;
 
  /*
- * list types and typedefs
- */
+  * list types and typedefs
+  */
 NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_t);
 NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_node_t);
@@ -91,7 +91,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_message_t);
  *  user callback functions
  */
 typedef np_bool (*np_aaa_func_t) (np_aaatoken_t* aaa_token );
-typedef np_bool (*np_usercallback_t) (np_message_t* msg, np_tree_t* properties, np_tree_t* body);
+typedef np_bool (*np_usercallback_t) (const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
 
 // internal callback functions
 typedef void (*np_callback_t) (np_jobargs_t*);

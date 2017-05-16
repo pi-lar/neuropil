@@ -32,9 +32,9 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 extern char *optarg;
 extern int optind;
 
-np_bool receive_echo_message(np_message_t* msg, np_tree_t* properties, np_tree_t* body);
+np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
 
-np_bool receive_echo_message(np_message_t* msg, np_tree_t* properties, np_tree_t* body) {
+np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
   	np_tree_t* header = msg->header;
 	fprintf(stdout, "RECEIVED");
 

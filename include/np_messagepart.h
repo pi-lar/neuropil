@@ -15,9 +15,7 @@
 extern "C" {
 #endif
 
-NP_API_INTERN
 typedef struct np_messagepart_s np_messagepart_t;
-NP_API_INTERN
 typedef np_messagepart_t* np_messagepart_ptr;
 
 struct np_messagepart_s

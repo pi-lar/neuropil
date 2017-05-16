@@ -62,8 +62,8 @@ np_state_t* _np_state ()
  */
 np_bool _np_default_authorizefunc (np_aaatoken_t* token )
 {
-	log_msg(LOG_WARN, "using default handler to authorize %s", token->subject );
-	log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
+	log_msg(LOG_WARN, "using default handler (authorize all) to authorize %s", token->subject );
+	// log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
 
 	return (TRUE);
 }
@@ -100,8 +100,8 @@ np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
  */
 np_bool _np_default_authenticatefunc (np_aaatoken_t* token )
 {
-	log_msg(LOG_WARN, "using default handler to authenticate %s", token->subject);
-	log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
+	log_msg(LOG_WARN, "using default handler (auth all) to authenticate %s", token->subject);
+	// log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
 
 	return (TRUE);
 }
@@ -139,7 +139,7 @@ np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token)
 np_bool _np_default_accountingfunc (np_aaatoken_t* token )
 {
 	log_msg(LOG_WARN, "using default handler to account for %s", token->subject );
-	log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
+	// log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
 
 	return (TRUE);
 }
@@ -506,7 +506,7 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
-		msg_prop->mode_type = OUTBOUND;
+		msg_prop->mode_type |= OUTBOUND;
 
 		np_msgproperty_register(msg_prop);
 	}
@@ -525,16 +525,17 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 	// _np_send_msg_availability(subject);
 	_np_send_subject_discovery_messages(OUTBOUND, subject);
 
-	char tmp_dhkey_hash[65];
-	_np_dhkey_to_str(target_key,tmp_dhkey_hash);
-	np_key_t* target = _np_get_key_by_key_hash(tmp_dhkey_hash);
+	// char tmp_dhkey_hash[65];
+	// _np_dhkey_to_str(target_key,tmp_dhkey_hash);
+	// np_key_t* target = _np_get_key_by_key_hash(tmp_dhkey_hash);
 
-	_np_send_msg(subject, msg, msg_prop, NULL == target ? NULL: &target->dhkey);
+	_np_send_msg(subject, msg, msg_prop, NULL == target_key ? NULL : target_key);
 
 	np_free_obj(np_message_t, msg);
 }
 
-np_key_t* _np_get_key_by_key_hash(char* targetDhkey) {
+np_key_t* _np_get_key_by_key_hash(char* targetDhkey)
+{
 	np_key_t* target = NULL;
 
 	if (NULL != targetDhkey) {

@@ -46,14 +46,12 @@
 
 
 static uint8_t __leafset_check_type = 0;
-static double  __leafset_check_period = 3.1415;
-static double  __leafset_yield_period = 0.0031415;
+static double  __leafset_check_period = 31.415;
+static double  __leafset_yield_period = 0.031415;
 
 static double  __rowinfo_send_delay = 0.03141;
 
 static double  __token_retransmit_period = 3.1415;
-
-static double  __logfile_flush_period = 0.31415;
 
 static double  __cleanup_interval = 0.31415;
 
@@ -278,6 +276,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 	}
 	sll_free(np_key_t, leafset);
 
+
 	if (__leafset_check_type == 1)
 	{
 		log_msg(LOG_DEBUG, "leafset check for table started");
@@ -338,14 +337,15 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 			leafset = _np_route_neighbors();
 			_np_keycache_ref_keys(leafset);
 		}
-
+		int i=0;
 		while ( NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
 		{
 			// send a piggy message to the the nodes in our routing table
 			np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-			_np_job_submit_transform_event(0.0, piggy_prop, tmp_node_key, NULL);
-			_np_job_yield(__leafset_yield_period);
+			_np_job_submit_transform_event(__leafset_yield_period*i, piggy_prop, tmp_node_key, NULL);
+			// _np_job_yield(__leafset_yield_period);
 			np_unref_obj(np_key_t, tmp_node_key);
+			i++;
 		}
 		__leafset_check_type = 0;
 		sll_free(np_key_t, leafset);
@@ -387,13 +387,14 @@ void _np_retransmit_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		msg_prop = np_msgproperty_get(TRANSFORM, iter->key.value.s);
 		if (NULL != msg_prop)
 		{
+			log_msg(LOG_DEBUG, "---------- refresh for subject token: %s ----------", iter->key.value.s);
 			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 		}
 		else
 		{
-			deleted = RB_REMOVE(np_tree_s, state->msg_tokens, iter);
-			free(deleted->key.value.s);
-			free(deleted);
+			// deleted = RB_REMOVE(np_tree_s, state->msg_tokens, iter);
+			// free(deleted->key.value.s);
+			// free(deleted);
 			break;
 		}
 	}
@@ -713,7 +714,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	msg_token->not_before = ev_time();
 	// TODO: make it configurable for the user
 	// how to allow the possible transmit jitter ?
-	msg_token->expiration = ev_time() + (3.1415*msg_request->ttl);
+	msg_token->expiration = ev_time() + (msg_request->ttl + (0.31415 * msg_request->ttl) );
 
 	// add e2e encryption details for sender
 	memcpy((char*) msg_token->public_key,
@@ -772,33 +773,6 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 	log_msg(LOG_TRACE, ".end  ._np_send_subject_discovery_messages");
 }
 
-// deprecated
-void _np_send_msg_interest(const char* subject)
-{
-	log_msg(LOG_TRACE, ".start.np_send_msg_interest");
-
-	// insert into msg token token renewal queue
-	if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))
-	{
-		np_tree_insert_str(_np_state()->msg_tokens, subject, np_treeval_new_v(NULL));
-
-		np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
-		msg_prop->mode_type |= TRANSFORM;
-		msg_prop->clb_transform = _np_send_discovery_messages;
-
-		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
-		np_key_t* target = NULL;
-		np_new_obj(np_key_t, target);
-		target->dhkey = target_dhkey;
-
-		log_msg(LOG_DEBUG, "registering for message interest token handling");
-		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-		np_free_obj(np_key_t, target);
-	}
-
-	log_msg(LOG_TRACE, ".end  .np_send_msg_interest");
-}
-
 // TODO: add a wrapper function which can be scheduled via jobargs
 np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
 {
@@ -807,7 +781,9 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 	log_msg(LOG_DEBUG,"_np_send_msg: Target pointer %p",target);
 	if(NULL != target) {
 		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TARGET, np_treeval_new_key(*target));
+		_np_dhkey_assign(&target_key, target);
 	}else{
+
 		np_tree_elem_t* target_container = 	np_tree_find_str(msg->header, _NP_MSG_HEADER_TARGET);
 		if(NULL != target_container) {
 			target = &(target_container->val.value.key);
@@ -815,7 +791,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		}
 	}
 
-	np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, target);
+	np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
 
 	if (NULL != tmp_token)
 	{
@@ -848,7 +824,6 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		receiver_key->dhkey = receiver_dhkey;
 
 		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_s(target_node_str));
-		// np_tree_replace_str(msg->header, NP_MSG_HEADER_TO, np_treeval_new_s(tmp_token->issuer));
 		np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);
 		_np_job_submit_route_event(0.0, out_prop, receiver_key, msg);
 

@@ -53,7 +53,7 @@ void _np_node_t_new(void* node)
 	entry->failuretime = 0.0;
 	entry->last_success = ev_time();
 	entry->success_win_index = 0;
-	entry->success_avg = 0.5;
+	entry->success_avg = 0.7;
 	entry->handshake_status = HANDSHAKE_UNKNOWN;
 	entry->joined_network = FALSE;
 

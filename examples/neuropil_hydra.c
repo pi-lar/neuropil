@@ -34,7 +34,7 @@ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 #define DEBUG 0
-#define NUM_HOST 30
+#define NUM_HOST 24
 
 extern char *optarg;
 extern int optind;
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 	char* logpath = ".";
 
 	uint32_t required_nodes = NUM_HOST;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_AAATOKEN | LOG_DEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO; //  | LOG_MESSAGE | LOG_DEBUG;
 
 	np_bool startHTTP = TRUE;
 

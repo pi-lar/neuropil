@@ -195,7 +195,7 @@ void _np_in_received(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	log_msg(LOG_INFO, "received message for subject: %s (uuid=%s, ack=%hhd)",
+	log_msg(LOG_DEBUG, "received message for subject: %s (uuid=%s, ack=%hhd)",
 			msg_subject.value.s, msg_uuid.value.s, msg_ack.value.ush);
 
 	// check time-to-live for message and expiry if neccessary
@@ -324,8 +324,8 @@ void _np_in_received(np_jobargs_t* args)
 	if (TRUE == state->my_node_key->node->joined_network ||
 		0 == strncmp(msg_subject.value.s, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) )
 	{
-		log_msg(LOG_DEBUG,
-				"deserializing message for subject: %s (uuid=%s)", msg_subject.value.s, msg_to_submit->uuid);
+		log_msg(LOG_INFO,
+				"finally handling message for subject: %s / uuid: %s", msg_subject.value.s, msg_to_submit->uuid);
 		// finally submit msg job for later execution
 		_np_message_deserialize_chunked(msg_to_submit);
 		_np_job_submit_msgin_event(0.0, handler, state->my_node_key, msg_to_submit);
@@ -1331,6 +1331,7 @@ void _np_in_available_receiver(np_jobargs_t* args)
 
 	log_msg(LOG_DEBUG, "now handling message interest");
 	_np_aaatoken_add_receiver(msg_token->subject, msg_token);
+
 	// check if we are (one of the) sending node(s) of this kind of message
 	if ( _np_dhkey_equal(&to_key, &state->my_node_key->dhkey) )
 	{
