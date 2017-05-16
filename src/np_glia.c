@@ -778,6 +778,8 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 {
 	msg_prop->msg_threshold++;
 
+	np_dhkey_t target_key;
+
 	log_msg(LOG_DEBUG,"_np_send_msg: Target pointer %p",target);
 	if(NULL != target) {
 		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TARGET, np_treeval_new_key(*target));
@@ -786,7 +788,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 
 		np_tree_elem_t* target_container = 	np_tree_find_str(msg->header, _NP_MSG_HEADER_TARGET);
 		if(NULL != target_container) {
-			target = &(target_container->val.value.key);
+			_np_dhkey_assign(&target_key, &target_container->val.value.key);
 			log_msg(LOG_DEBUG, "_np_send_msg: Target pointer %p after re set", target);
 		}
 	}
