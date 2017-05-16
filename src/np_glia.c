@@ -778,6 +778,8 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 {
 	msg_prop->msg_threshold++;
 
+	np_dhkey_t target_key;
+
 	log_msg(LOG_DEBUG,"_np_send_msg: Target pointer %p",target);
 	if(NULL != target) {
 		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TARGET, np_treeval_new_key(*target));
