@@ -28,7 +28,7 @@ typedef struct np_log_s
 	char filename[256];
 	int fp;
 	// FILE *fp;
-	uint16_t level;
+	uint32_t level;
 	np_sll_t(char, logentries_l);
 	ev_io watcher;
 } np_log_t;
@@ -58,15 +58,18 @@ log_str_t __level_str[] = {
 static np_log_t* logger;
 static pthread_mutex_t __log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+
 void np_log_message(uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
 {
-	// first check if desired module mask is matching the configured mask
-	if ( (level & LOG_NOMOD_MASK ) > 0)
-			if ( (level & logger->level & LOG_MODUL_MASK) == 0 )
-				return;
+	// filter if a module log entry is wanted
+	if ( LOG_NONE < (level & LOG_MODUL_MASK) )
+		// if a module log entry is wanted, is it in the configured log mask ?
+		if ( LOG_NONE == (level & LOG_MODUL_MASK & logger->level) )
+			// not found, nothing to do
+			return;
 
 	// next check if the log level (debug, error, ...) is set
-	if ( (level & logger->level & LOG_LEVEL_MASK) > LOG_NONE)
+	if ( (level & LOG_LEVEL_MASK & logger->level) > LOG_NONE)
 	{
   	    char* new_log_entry = malloc(sizeof(char)*1124);
 		CHECK_MALLOC(new_log_entry);
@@ -97,10 +100,9 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		 pthread_mutex_lock(&__log_mutex);
 		 write(logger->fp, new_log_entry, strlen(new_log_entry));
 		 //fprintf(logger->fp, "%s\n", new_log_entry);
-
-// /*DEBUG ONLY*/	fprintf(stdout, "%s", new_log_entry);
-		// fsync(logger->fp);
-		  fflush(NULL);
+		 // /* DEBUG ONLY */ fprintf(stdout, "%s", new_log_entry);
+		 // fsync(logger->fp);
+		 fflush(NULL);
 		 pthread_mutex_unlock(&__log_mutex);
 		 free (new_log_entry);
 	}
@@ -136,12 +138,12 @@ void _np_log_fflush()
 	} while(NULL != entry);
 }
 
-void np_log_setlevel(uint16_t level)
+void np_log_setlevel(uint32_t level)
 {
     logger->level = level;
 }
 
-void np_log_init(const char* filename, uint16_t level)
+void np_log_init(const char* filename, uint32_t level)
 {
 	logger = (np_log_t *) malloc(sizeof(np_log_t));
 	CHECK_MALLOC(logger);

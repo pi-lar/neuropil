@@ -55,16 +55,16 @@ enum np_log_e
 
 } NP_ENUM NP_API_EXPORT;
 
-#define LOG_NOMOD_MASK 0x7FFF00 /* filter the module mask */
+#define LOG_NOMOD_MASK 0x8000FF /* filter the module mask */
 #define LOG_MODUL_MASK 0x0FFF00 /* filter the module mask */
 #define LOG_LEVEL_MASK 0x0000FF /* filter the log level */
 
 
 NP_API_EXPORT
-void np_log_init (const char* filename, uint16_t level);
+void np_log_init (const char* filename, uint32_t level);
 
 NP_API_EXPORT
-void np_log_setlevel(uint16_t level);
+void np_log_setlevel(uint32_t level);
 
 NP_API_EXPORT
 void np_log_destroy ();
@@ -74,11 +74,13 @@ void _np_log_fflush();
 
 NP_API_EXPORT
 void np_log_message(uint32_t level,
-					 const char* srcFile, const char* funcName,
-					 uint16_t lineno, const char* msg, ...)
+					const char* srcFile, const char* funcName,
+					uint16_t lineno, const char* msg, ...)
 	 __attribute__((__format__ (__printf__, 5,6) ));
+
 
 #define log_msg(level, msg, ...) \
 	 np_log_message(level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
+
 
 #endif /* _NP_LOG_H_ */
