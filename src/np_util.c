@@ -188,6 +188,13 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 	}
 	return ret;
 }
+
+char* np_dump_tree2char(np_tree_t* tree) {
+	JSON_Value * tmp = np_tree2json(tree);
+	char* tmp2 = np_json2char(tmp,TRUE);
+	free(tmp);
+	return tmp2;
+}
 JSON_Value* np_tree2json(np_tree_t* tree) {
 	JSON_Value* ret = json_value_init_object();
 	JSON_Value* arr = NULL;
@@ -280,28 +287,38 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 }
 
 char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
-	size_t json_size ;
 	char* ret;
+	/*
+	size_t json_size ;
 	if(prettyPrint){
 		json_size = json_serialization_size_pretty(data);
 		ret = (char*) malloc(json_size * sizeof(char));
 		CHECK_MALLOC(ret);
-
 		json_serialize_to_buffer_pretty(data, ret, json_size);
+
 	}else{
 		json_size = json_serialization_size(data);
 		ret = (char*) malloc(json_size * sizeof(char));
 		CHECK_MALLOC(ret);
-
 		json_serialize_to_buffer(data, ret, json_size);
 	}
-		return ret;
+	 */
+	if(prettyPrint){
+		ret = json_serialize_to_string_pretty(data);
+	}else{
+		ret = json_serialize_to_string(data);
+	}
+
+
+	return ret;
 }
 
 void np_dump_tree2log(np_tree_t* tree){
 	if(NULL == tree){
 		log_msg(LOG_DEBUG, "NULL");
 	}else{
-		log_msg(LOG_DEBUG, "%s", np_json2char(np_tree2json(tree), TRUE));
+ 		char* tmp = np_dump_tree2char(tree);
+		log_msg(LOG_DEBUG, "%s", tmp);
+		json_free_serialized_string(tmp);
 	}
 }

@@ -76,7 +76,8 @@ JSON_Value* np_treeval2json(np_treeval_t val);
 
 NP_API_EXPORT
 void np_dump_tree2log(np_tree_t* tree);
-
+NP_API_EXPORT
+char* np_dump_tree2char(np_tree_t* tree);
 #ifdef __cplusplus
 }
 #endif

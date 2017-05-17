@@ -40,7 +40,7 @@ pthread_mutex_t* _np_threads_get_mutex(int mutex_id)
 		log_msg(LOG_MUTEX | LOG_WARN, "Mutex %d was not initialised. Do so now.", mutex_id);
 		_np_threads_create_mutex(mutex_id);
 	}else{
-		log_msg(LOG_MUTEX | LOG_DEBUG,"Got mutex %d.", mutex_id);
+		log_msg(LOG_MUTEX | LOG_DEBUG, "Got mutex %d.", mutex_id);
 	}
 	return &(mutexes[mutex_id]->lock);
 }

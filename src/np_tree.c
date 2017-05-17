@@ -657,7 +657,11 @@ void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 			return;
 		}
 
-		log_msg(LOG_SERIALIZATION | LOG_DEBUG, "deserialised type: %"PRIu8" key %s", tmp_key.type, np_json2char(np_treeval2json(tmp_key),FALSE));
+		JSON_Value * tmp = np_treeval2json(tmp_key);
+		char* tmp2 = np_json2char(tmp, FALSE);
+		log_msg(LOG_SERIALIZATION | LOG_DEBUG, "deserialised type: %"PRIu8" key %s", tmp_key.type, tmp2);
+		json_free_serialized_string(tmp2);
+		json_value_free(tmp);
 
 		// read value
 		np_treeval_t tmp_val = { .type = none_type, .size = 0 };

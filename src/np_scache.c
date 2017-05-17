@@ -68,10 +68,10 @@ int np_simple_cache_insert(struct np_simple_cache_table_t *table, char *key, voi
     		log_msg(LOG_ERROR, "cannot allocate memory for np_cache_item");
     	}
     	sll_append(np_cache_item_t, bucket_list, item);
+    	item->key = strdup(key);
     }else{
     	item = iter->val;
     }
-	item->key = key;
 	item->value = value;
 	item->insert_time = ev_time();
 

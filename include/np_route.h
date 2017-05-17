@@ -68,6 +68,9 @@ void _np_route_leafset_delete (np_key_t* host, uint8_t right_or_left, np_key_t**
 NP_API_INTERN
 void _np_route_leafset_range_update ();
 
+NP_API_EXPORT
+np_key_t* np_route_get_bootstrap_key();
+
 #ifdef __cplusplus
 }
 #endif

@@ -36,7 +36,7 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 
 np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
   	np_tree_t* header = msg->header;
-	fprintf(stdout, "RECEIVED");
+	fprintf(stdout, "%f - RECEIVED", ev_time());
 
 	char* reply_to = NULL; // All
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
 	char* logpath = ".";
 	char* publish_domain = "localhost";
 	int no_threads = 8;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_AAATOKEN |LOG_DEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 	char* port = "3333";
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {

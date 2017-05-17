@@ -258,8 +258,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 
 			log_msg(LOG_DEBUG, "Requesting sysinfo");
 
-			char* target_hash = (char*) malloc(65 * sizeof(char));
-			CHECK_MALLOC(target_hash);
+			char* target_hash = "12345678901234567890123456789012345678901234567890123456789012345";
 
 			np_bool usedefault = TRUE;
 			int http_status = HTTP_CODE_OK;
@@ -287,9 +286,11 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 						json_obj = _np_generate_error_json(
 								"provided key invalid.",
 								"length is not 64 characters");
+						free(path);
 						goto __json_return__;
 					}
 				}
+				free(path);
 
 			} else {
 				log_msg(LOG_DEBUG, "no arguments provided");
@@ -348,6 +349,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 					"Access-Control-Allow-Methods", np_treeval_new_s("GET"));
 			__local_http->ht_response.cleanup_body = TRUE;
 			__local_http->status = RESPONSE;
+
 			break;
 		}
 

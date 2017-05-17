@@ -142,11 +142,10 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 	log_msg(LOG_INFO, "sending sysinfo reply (size: %"PRIu16")",
 			reply_body->size);
 
-	np_dhkey_t* target_dhkey = malloc(sizeof(np_dhkey_t));
-	CHECK_MALLOC(target_dhkey);
+	np_dhkey_t target_dhkey;
 
-	_np_dhkey_from_str(source->val.value.s, target_dhkey);
-	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, target_dhkey);
+	_np_dhkey_from_str(source->val.value.s, &target_dhkey);
+	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, &target_dhkey);
 
 	log_msg(LOG_TRACE, ".end  ._in_sysinfo");
 	return TRUE;
@@ -167,10 +166,15 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 			source->val.value.s, body->size, body->byte_size);
 	//log_msg(LOG_DEBUG, "%s", np_json_to_char(np_tree_to_json(body), TRUE));
 
+	// insert / replace cache item
 	_LOCK_MODULE(np_sysinfo)
 	{
-		np_simple_cache_insert(_cache, strdup(source->val.value.s),
-				np_tree_copy(body));
+		np_cache_item_t* item = np_simple_cache_get(_cache,source->val.value.s);
+		if(NULL != item) {
+			np_tree_free(item->value);
+		}
+		source->val.value.s[65] = '\0';
+		np_simple_cache_insert(_cache, source->val.value.s, np_tree_copy(body));
 	}
 	log_msg(LOG_TRACE, ".end  ._in_sysinforeply");
 
@@ -185,6 +189,7 @@ np_tree_t* np_get_my_sysinfo() {
 	_np_node_encode_to_jrb(local_node, _np_state()->my_node_key, FALSE);
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE, np_treeval_new_tree(local_node));
 	log_msg(LOG_DEBUG, "my sysinfo object has a node");
+	np_tree_free(local_node);
 
 	// build neighbours list
 	np_sll_t(np_key_t, neighbours_table) = NULL;
@@ -203,6 +208,7 @@ np_tree_t* np_get_my_sysinfo() {
 				_np_node_encode_to_jrb(neighbour, current, TRUE);
 				np_tree_insert_int(neighbours, neighbour_counter++,
 						np_treeval_new_tree(neighbour));
+				np_tree_free(neighbour);
 			}
 		}
 	}
@@ -229,6 +235,7 @@ np_tree_t* np_get_my_sysinfo() {
 				np_tree_t* route = np_tree_create();
 				_np_node_encode_to_jrb(route, current, TRUE);
 				np_tree_insert_int(routes, routes_counter++, np_treeval_new_tree(route));
+				np_tree_free(route);
 			}
 		}
 	}
@@ -242,7 +249,7 @@ np_tree_t* np_get_my_sysinfo() {
 	return ret;
 }
 
-void _np_request_sysinfo(const char* hash_of_target) {
+void _np_request_sysinfo(const char* const hash_of_target) {
 
 	if (NULL != hash_of_target)
 	{
@@ -254,7 +261,7 @@ void _np_request_sysinfo(const char* hash_of_target) {
 				np_treeval_new_s(_np_key_as_str(_np_state()->my_node_key)));
 
 		np_tree_insert_str(properties, _NP_SYSINFO_TARGET,
-				np_treeval_new_s((char*) hash_of_target));
+				np_treeval_new_s(hash_of_target));
 
 		log_msg(LOG_DEBUG, "Converting %s to dhkey", hash_of_target);
 
@@ -267,7 +274,7 @@ void _np_request_sysinfo(const char* hash_of_target) {
 	}
 }
 
-np_tree_t* np_get_sysinfo(const char* hash_of_target) {
+np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 
 	char* my_key = _np_key_as_str(_np_state()->my_node_key);
 
@@ -282,13 +289,12 @@ np_tree_t* np_get_sysinfo(const char* hash_of_target) {
 		log_msg(LOG_DEBUG, "Requesting sysinfo for node %s", hash_of_target);
 		_np_request_sysinfo(hash_of_target);
 		ret = _np_get_sysinfo_from_cache(hash_of_target);
-		//TODO: maybe drop informations if they are too old
 	}
 
 	return ret;
 }
 
-np_tree_t* _np_get_sysinfo_from_cache(const char* hash_of_target) {
+np_tree_t* _np_get_sysinfo_from_cache(const char* const hash_of_target) {
 	np_tree_t* ret = NULL;
 	_LOCK_MODULE(np_sysinfo)
 	{
@@ -317,6 +323,7 @@ void _np_request_others() {
 
 	np_sll_t(np_key_t, routing_table) = NULL;
 	np_sll_t(np_key_t, neighbours_table) = NULL;
+	np_tree_t * tmp = NULL;
 	_LOCK_MODULE(np_routeglobal_t)
 	{
 		routing_table = _np_route_get_table();
@@ -326,10 +333,11 @@ void _np_request_others() {
 				current = sll_head(np_key_t, routing_table);
 				if (	NULL != current &&
 						strcmp(_np_key_as_str(current),_np_key_as_str(_np_state()->my_node_key) ) != 0 &&
-						NULL == _np_get_sysinfo_from_cache(_np_key_as_str(current)))
+						NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current))))
 				{
 					_np_request_sysinfo(_np_key_as_str(current));
 				}
+				np_tree_free(tmp);
 			}
 		}
 
@@ -340,10 +348,11 @@ void _np_request_others() {
 				current = sll_head(np_key_t, neighbours_table);
 				if (	NULL != current &&
 						strcmp(_np_key_as_str(current),_np_key_as_str(_np_state()->my_node_key) ) != 0 &&
-						NULL == _np_get_sysinfo_from_cache(_np_key_as_str(current)))
+						NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current))))
 				{
 							_np_request_sysinfo(_np_key_as_str(current));
 				}
+				np_tree_free(tmp);
 			}
 		}
 	}

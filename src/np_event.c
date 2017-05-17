@@ -76,11 +76,17 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 		ev_async_init(&__libev_async_watcher, _np_events_async);
 		async_setup_done = TRUE;
 	}
+	// TODO: evaluate if 1 ore more threads are started and init appropriately
+	np_bool isMultiThreaded = FALSE;
 
-	// ev_set_io_collect_interval (EV_A_ __libev_interval);
-	// ev_set_timeout_collect_interval (EV_A_ __libev_interval);
-	ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
-	// ev_run(EV_A_ (0));
+	if(TRUE == isMultiThreaded) {
+		ev_set_io_collect_interval (EV_A_ __libev_interval);
+		ev_set_timeout_collect_interval (EV_A_ __libev_interval);
+		ev_run(EV_A_ (0));
+	} else {
+		//Single Thread
+		ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
+	}
 
 	if (TRUE == __exit_libev_loop) return;
 

@@ -36,6 +36,7 @@ typedef struct np_routeglobal_s np_routeglobal_t;
 struct np_routeglobal_s
 {
 	np_key_t* my_key;
+	np_key_t* bootstrap_key;
 
 	np_key_t* table[__MAX_ROW * __MAX_COL * __MAX_ENTRY];
 
@@ -614,6 +615,10 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 	/* a node joins the routing table */
 	if (TRUE == joined)
 	{
+		if(NULL == __routing_table->bootstrap_key){
+			np_ref_obj(np_key_t, key);
+			__routing_table->bootstrap_key = key;
+		}
 		found = 0;
 		for (k = 0; k < __MAX_ENTRY; k++)
 		{
@@ -682,4 +687,11 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 	}
 
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
+}
+
+np_key_t* np_route_get_bootstrap_key() {
+	if(FALSE == _np_state()->my_node_key->node->joined_network){
+		log_msg(LOG_WARN, "trying to receive bootstrap node before join completed");
+	}
+	return __routing_table->bootstrap_key;
 }

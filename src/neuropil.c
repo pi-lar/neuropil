@@ -237,6 +237,7 @@ void np_send_wildcard_join(const char* node_string)
 	CHECK_MALLOC(wildcard_dhkey_str);
 	_np_dhkey_to_str(&wildcard_dhkey, wildcard_dhkey_str);
 	asprintf(&wildcard_node, "%s:%s", wildcard_dhkey_str, node_string);
+	free(wildcard_dhkey_str);
 	//END Build our wildcard connection string
 
 	_LOCK_MODULE(np_keycache_t)

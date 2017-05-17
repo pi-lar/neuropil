@@ -115,7 +115,10 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 		break;
 	case key_type:
 		to.type = key_type;
-		to.value.key = from.value.key;
+		to.value.key.t[0] = from.value.key.t[0];
+		to.value.key.t[1] = from.value.key.t[1];
+		to.value.key.t[2] = from.value.key.t[2];
+		to.value.key.t[3] = from.value.key.t[3];
 		to.size = sizeof(np_dhkey_t);
 		break;
 	case hash_type:

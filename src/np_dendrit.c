@@ -1815,7 +1815,9 @@ void _np_in_handshake(np_jobargs_t* args)
 	_LOCK_MODULE(np_keycache_t)
 	{
 		hs_key = _np_node_create_from_token(tmp_token);
-		np_dhkey_t wildcard_key = np_dhkey_create_from_hostport("*", np_get_connection_string_from(hs_key, FALSE));
+		char*tmp;
+		np_dhkey_t wildcard_key = np_dhkey_create_from_hostport("*",tmp = np_get_connection_string_from(hs_key, FALSE));
+		free(tmp);
 		hs_wildcard_key = _np_keycache_find(wildcard_key);
 
 		if(NULL != hs_wildcard_key){

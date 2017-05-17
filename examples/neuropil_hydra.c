@@ -34,7 +34,7 @@ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 #define DEBUG 0
-#define NUM_HOST 24
+#define NUM_HOST 31
 
 extern char *optarg;
 extern int optind;

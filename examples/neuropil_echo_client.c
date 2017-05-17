@@ -18,6 +18,7 @@
 #include "np_msgproperty.h"
 #include "np_keycache.h"
 #include "np_tree.h"
+#include "np_route.h"
 
 #include "neuropil.h"
 
@@ -35,9 +36,6 @@ extern int optind;
 np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
  	 np_tree_t* header = msg->header;
 
-	fprintf(stdout, "properties: %s\n", np_json2char( np_tree2json(properties), FALSE) );
-	fprintf(stdout, "body: %s\n", np_json2char( np_tree2json(body), FALSE) );
-
 	char* reply_to = NULL; // All
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
@@ -52,7 +50,7 @@ np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np
 	}else{
 		text = "<NON TEXT MSG>";
 	}
-	fprintf(stdout, "RECEIVED: \"%s\" from: %s \n", text, reply_to);
+	fprintf(stdout, "%f - RECEIVED: \"%s\" from: %s \n", ev_time(), text, reply_to);
 
 	return TRUE;
 }
@@ -67,7 +65,7 @@ int main(int argc, char **argv) {
 	char* message_to_send = "Hello World!";
 	int no_threads = 8;
 	int retry_connection = 3;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_AAATOKEN | LOG_DEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 	np_bool j_key_provided = FALSE;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
@@ -148,7 +146,7 @@ int main(int argc, char **argv) {
 		}
 
 		if (TRUE == status->my_node_key->node->joined_network) {
-			bootstrap_node = _np_keycache_find_by_details(j_key,FALSE,HANDSHAKE_COMPLETE,TRUE,TRUE,TRUE,FALSE);
+			bootstrap_node = np_route_get_bootstrap_key();
 			fprintf(stdout, "%s joined network!\n", port);
 			break;
 		} else {
@@ -171,7 +169,7 @@ int main(int argc, char **argv) {
 	int i = 0;
 	while (TRUE == status->my_node_key->node->joined_network) {
 		if (i++ % 100 == 0) {
-			fprintf(stdout, "SENDING: %s to %s\n", message_to_send,_np_key_as_str(bootstrap_node));
+			fprintf(stdout, "%f - SENDING: %s to %s\n", ev_time(), message_to_send,_np_key_as_str(bootstrap_node));
 			log_msg(LOG_INFO, "SENDING: %s to %s", message_to_send,_np_key_as_str(bootstrap_node));
 
 			np_send_text("echo", message_to_send, 0, _np_key_as_str(bootstrap_node));

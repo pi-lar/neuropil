@@ -371,7 +371,6 @@ void _np_retransmit_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 	np_state_t* state = _np_state();
 
 	np_tree_elem_t *iter = NULL;
-	np_tree_elem_t *deleted = NULL;
 	np_msgproperty_t* msg_prop = NULL;
 
 	// TODO: crashes sometimes ??
@@ -799,7 +798,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 	{
 		log_msg(LOG_DEBUG, "(msg: %s) _np_send_msg for subject \"%s\" over %s", msg->uuid, subject, tmp_token->issuer);
 
-		//np_tree_del_str(msg->header, _NP_MSG_HEADER_TARGET);
+		np_tree_del_str(msg->header, _NP_MSG_HEADER_TARGET);
 
 		np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
 
