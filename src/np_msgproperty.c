@@ -193,11 +193,11 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 
 	// get message from cache (maybe only for one way mep ?!)
 	uint16_t msg_available = 0;
-
 	LOCK_CACHE(send_prop)
 	{
 		msg_available = sll_size(send_prop->msg_cache_out);
 	}
+
 	np_bool sending_ok = TRUE;
 
 	while (0 < msg_available && TRUE == sending_ok)
@@ -240,6 +240,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 	}
 
 	np_state_t* state = _np_state();
+
 	while (0 < msg_available)
 	{
 		np_message_t* msg_in = NULL;
@@ -248,9 +249,9 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 		{
 			// if messages are available in cache, try to decode them !
 			if (recv_prop->cache_policy & FIFO)
-				msg_in = sll_tail(np_message_t, recv_prop->msg_cache_in);
-			if (recv_prop->cache_policy & FILO)
 				msg_in = sll_head(np_message_t, recv_prop->msg_cache_in);
+			if (recv_prop->cache_policy & FILO)
+				msg_in = sll_tail(np_message_t, recv_prop->msg_cache_in);
 
 			msg_available = sll_size(recv_prop->msg_cache_in);
 		}
@@ -273,7 +274,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 
 			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
 			{
-				log_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding first message");
+				log_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding message in send msgcache for %s", msg_prop->msg_subject);
 				np_message_t* old_msg = NULL;
 
 				if ((msg_prop->cache_policy & FIFO) > 0)
@@ -317,7 +318,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 
 			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
 			{
-				log_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding first message");
+				log_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding message in recv msgcache for %s", msg_prop->msg_subject);
 				np_message_t* old_msg = NULL;
 
 				if ((msg_prop->cache_policy & FIFO) > 0)

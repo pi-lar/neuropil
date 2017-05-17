@@ -46,7 +46,7 @@ void _np_sysinfo_init(np_bool isRequestor)
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
-	sysinfo_request_props->mep_type = AGGREGATE;
+//	sysinfo_request_props->mep_type = AGGREGATE;
 	sysinfo_request_props->ack_mode = ACK_NONE;
 	sysinfo_request_props->retry    = 1;
 	sysinfo_request_props->ttl      = 20.0;
@@ -54,7 +54,7 @@ void _np_sysinfo_init(np_bool isRequestor)
 	np_msgproperty_t* sysinfo_response_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_response_props);
 	sysinfo_response_props->msg_subject = _NP_SYSINFO_REPLY;
-	sysinfo_response_props->mep_type = ONE_WAY;
+	//sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 1;
 	sysinfo_response_props->ttl      = 20.0;
@@ -284,11 +284,15 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 		// If i request myself i can answer instantly
 		ret = np_get_my_sysinfo();
 		// I may anticipate the one requesting my information wants to request others as well
-		_np_request_others();
+		//_np_request_others();
 	} else {
 		log_msg(LOG_DEBUG, "Requesting sysinfo for node %s", hash_of_target);
-		_np_request_sysinfo(hash_of_target);
 		ret = _np_get_sysinfo_from_cache(hash_of_target);
+		if(NULL == ret ){
+			_np_request_sysinfo(hash_of_target);
+			ev_sleep(0.05);
+			ret = _np_get_sysinfo_from_cache(hash_of_target);
+		}
 	}
 
 	return ret;
@@ -304,7 +308,6 @@ np_tree_t* _np_get_sysinfo_from_cache(const char* const hash_of_target) {
 				np_tree_t* tmp = item->value;
 				ret = np_tree_copy(tmp);
 			}
-
 		}
 	}
 

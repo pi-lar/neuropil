@@ -3,6 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -63,6 +64,7 @@ int main(int argc, char **argv) {
  	char j_key[256];
 	char* publish_domain = "localhost";
 	char* message_to_send = "Hello World!";
+	np_bool add_id_to_msg = TRUE;
 	int no_threads = 8;
 	int retry_connection = 3;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
@@ -81,6 +83,7 @@ int main(int argc, char **argv) {
 			break;
 		case 'm':
 			message_to_send = optarg;
+			add_id_to_msg = FALSE;
 			break;
 		case 'p':
 			proto = optarg;
@@ -166,13 +169,21 @@ int main(int argc, char **argv) {
 	np_msgproperty_register(msg_props);
 	np_set_listener(receive_message, "echo");
 
-	int i = 0;
+	uint64_t i = 0;
 	while (TRUE == status->my_node_key->node->joined_network) {
-		if (i++ % 100 == 0) {
-			fprintf(stdout, "%f - SENDING: %s to %s\n", ev_time(), message_to_send,_np_key_as_str(bootstrap_node));
-			log_msg(LOG_INFO, "SENDING: %s to %s", message_to_send,_np_key_as_str(bootstrap_node));
+		if (i++ % 50 == 0) {
+			char * s_out;
+			if(add_id_to_msg){
+				asprintf(&s_out, "%s - %"PRIu64, message_to_send, i );
+			} else {
+				asprintf(&s_out,"%s", message_to_send);
+			}
 
-			np_send_text("echo", message_to_send, 0, _np_key_as_str(bootstrap_node));
+			fprintf(stdout, "%f - SENDING:  \"%s\" to    %s\n", ev_time(), s_out, _np_key_as_str(bootstrap_node));
+			log_msg(LOG_INFO, "SENDING:  \"%s\" to    %s", s_out, _np_key_as_str(bootstrap_node));
+
+			np_send_text("echo", s_out, 0, _np_key_as_str(bootstrap_node));
+			free(s_out);
 		}
 		ev_sleep(0.1);
 	}

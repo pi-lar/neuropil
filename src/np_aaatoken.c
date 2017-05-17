@@ -240,7 +240,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		int16_t ret = crypto_sign_verify_detached((unsigned char*) signature, hash, crypto_generichash_BYTES, token->public_key);
 		if (ret < 0)
 		{
-			log_msg(LOG_WARN, "token checksum verification failed");
+			log_msg(LOG_WARN, "token r subject \"%s\" checksum verification failed",token->subject);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state &= AAA_INVALID;
 			return (FALSE);
@@ -249,7 +249,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	}
 	else
 	{
-		log_msg(LOG_WARN, "signature missing in token, not continuing without checksum verification");
+		log_msg(LOG_WARN, "signature missing in token for subject \"%s\", not continuing without checksum verification",token->subject);
 		return (FALSE);
 	}
 
@@ -257,7 +257,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	double now = ev_time();
 	if (now > (token->expiration))
 	{
-		log_msg(LOG_AAATOKEN | LOG_WARN, "token has expired: %f>%f", now, token->expiration);
+		log_msg(LOG_AAATOKEN | LOG_WARN, "token for %s has expired: %f>%f",token->subject, now, token->expiration);
 		log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 		token->state &= AAA_INVALID;
 		return (FALSE);
@@ -276,22 +276,22 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		uint16_t token_msg_threshold = msg_threshold->val.value.ui;
 
 		if (0                   <= token_msg_threshold &&
-			token_msg_threshold <= token_max_threshold)
+			token_msg_threshold < token_max_threshold)
 		{
-			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token can be used for %"PRIu32" msgs", token_max_threshold-token_msg_threshold);
+			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token for %s can be used for %"PRIu32" msgs", token->subject, token_max_threshold-token_msg_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state |= AAA_VALID;
 			return (TRUE);
 		}
 		else
 		{
-			log_msg(LOG_AAATOKEN | LOG_WARN, "token was already used: 0<=%"PRIu16"<%"PRIu16, token_msg_threshold, token_max_threshold);
+			log_msg(LOG_AAATOKEN | LOG_WARN, "token for %s was already used: 0<=%"PRIu16"<%"PRIu16, token->subject, token_msg_threshold, token_max_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state &= AAA_INVALID;
 			return (FALSE);
 		}
 	}
-	log_msg(LOG_AAATOKEN | LOG_DEBUG, "token is valid");
+	log_msg(LOG_AAATOKEN | LOG_DEBUG, "token for %s is valid", token->subject);
 	token->state |= AAA_VALID;
 	return (TRUE);
 }
