@@ -32,32 +32,32 @@ typedef enum np_log_e log_type;
 
 enum np_log_e
 {
-	LOG_NONE  		    = 0x00000, /* log nothing        */
-	LOG_NOMOD		    = 0x00000, /*                    */
+	LOG_NONE  		    = 0x000000, /* log nothing        */
+	LOG_NOMOD		    = 0x000000, /*                    */
 
-	LOG_ERROR     		= 0x00001, /* error messages     */
-    LOG_WARN       		= 0x00002, /* warning messages   */
-    LOG_INFO       		= 0x00004, /* info messages      */
-    LOG_DEBUG      		= 0x00008, /* debugging messages */
-    LOG_TRACE      		= 0x00010, /* tracing messages   */
+	LOG_ERROR     		= 0x000001, /* error messages     */
+    LOG_WARN       		= 0x000002, /* warning messages   */
+    LOG_INFO       		= 0x000004, /* info messages      */
+    LOG_DEBUG      		= 0x000008, /* debugging messages */
+    LOG_TRACE      		= 0x000010, /* tracing messages   */
 
-	LOG_LEVEL_MASK      = 0x000FF, /* filter the log level */
+	LOG_SERIALIZATION	= 0x000100, /* debugging the serialization methods    */
+	LOG_MUTEX      		= 0x000200, /* debugging messages for mutex subsystem */
+	LOG_KEY        		= 0x000400, /* debugging messages for key subsystem   */
+	LOG_NETWORK    		= 0x000800, /* debugging messages for network layer   */
+    LOG_ROUTING    		= 0x001000, /* debugging the routing table            */
+    LOG_MESSAGE    		= 0x002000, /* debugging the message subsystem        */
+    LOG_SECURE     		= 0x004000, /* debugging the security module          */
+    LOG_HTTP       		= 0x008000, /* debugging the http subsystem           */
+	LOG_AAATOKEN   		= 0x010000, /* debugging the aaatoken subsystem       */
 
-	LOG_SERIALIZATION	= 0x00100, /* debugging the serialization methods    */
-	LOG_MUTEX      		= 0x00200, /* debugging messages for mutex subsystem */
-	LOG_KEY        		= 0x00400, /* debugging messages for key subsystem   */
-	LOG_NETWORK    		= 0x00800, /* debugging messages for network layer   */
-    LOG_ROUTING    		= 0x01000, /* debugging the routing table            */
-    LOG_MESSAGE    		= 0x02000, /* debugging the message subsystem        */
-    LOG_SECURE     		= 0x04000, /* debugging the security module          */
-    LOG_HTTP       		= 0x08000, /* debugging the http subsystem           */
-	LOG_AAATOKEN   		= 0x10000, /* debugging the aaatoken subsystem       */
-
-	LOG_GLOBAL     		= 0x80000, /* debugging the global system            */
-	LOG_MODUL_MASK 		= 0x7FF00, /* filter the module mask                 */
-	LOG_NOMOD_MASK 		= 0x7FF00, /* filter the module mask                 */
+	LOG_GLOBAL     		= 0x800000, /* debugging the global system            */
 
 } NP_ENUM NP_API_EXPORT;
+
+#define LOG_NOMOD_MASK 0x7FFF00 /* filter the module mask */
+#define LOG_MODUL_MASK 0x0FFF00 /* filter the module mask */
+#define LOG_LEVEL_MASK 0x0000FF /* filter the log level */
 
 
 NP_API_EXPORT
@@ -73,7 +73,7 @@ NP_API_INTERN
 void _np_log_fflush();
 
 NP_API_EXPORT
-void np_log_message(uint16_t level,
+void np_log_message(uint32_t level,
 					 const char* srcFile, const char* funcName,
 					 uint16_t lineno, const char* msg, ...)
 	 __attribute__((__format__ (__printf__, 5,6) ));

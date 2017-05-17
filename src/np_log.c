@@ -58,11 +58,12 @@ log_str_t __level_str[] = {
 static np_log_t* logger;
 static pthread_mutex_t __log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void np_log_message(uint16_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
+void np_log_message(uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
 {
 	// first check if desired module mask is matching the configured mask
-	if ( (level & logger->level & LOG_MODUL_MASK) == 0 )
-		return;
+	if ( (level & LOG_NOMOD_MASK ) > 0)
+			if ( (level & logger->level & LOG_MODUL_MASK) == 0 )
+				return;
 
 	// next check if the log level (debug, error, ...) is set
 	if ( (level & logger->level & LOG_LEVEL_MASK) > LOG_NONE)
