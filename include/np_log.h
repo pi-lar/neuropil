@@ -35,12 +35,11 @@ enum np_log_e
 	LOG_NONE  		    = 0x00000, /* log nothing        */
 	LOG_NOMOD		    = 0x00000, /*                    */
 
-	LOG_FATAL     		= 0x00001, /* error messages     */
-	LOG_ERROR     		= 0x00002, /* error messages     */
-    LOG_WARN       		= 0x00004, /* warning messages   */
-    LOG_INFO       		= 0x00008, /* info messages      */
-    LOG_DEBUG      		= 0x00010, /* debugging messages */
-    LOG_TRACE      		= 0x00020, /* tracing messages   */
+	LOG_ERROR     		= 0x00001, /* error messages     */
+    LOG_WARN       		= 0x00002, /* warning messages   */
+    LOG_INFO       		= 0x00004, /* info messages      */
+    LOG_DEBUG      		= 0x00008, /* debugging messages */
+    LOG_TRACE      		= 0x00010, /* tracing messages   */
 
 	LOG_LEVEL_MASK      = 0x000FF, /* filter the log level */
 
@@ -55,8 +54,8 @@ enum np_log_e
 	LOG_AAATOKEN   		= 0x10000, /* debugging the aaatoken subsystem       */
 
 	LOG_GLOBAL     		= 0x80000, /* debugging the global system            */
-	LOG_MODUL_MASK 		= 0x0FF00, /* filter the module mask                 */
-	LOG_NOMOD_MASK 		= 0x7FF00, /* filter the the module mask             */
+	LOG_MODUL_MASK 		= 0x7FF00, /* filter the module mask                 */
+	LOG_NOMOD_MASK 		= 0x7FF00, /* filter the module mask                 */
 
 } NP_ENUM NP_API_EXPORT;
 

@@ -36,23 +36,23 @@ typedef struct np_log_s
 typedef struct log_str_t { const char* text; int log_code; } log_str_t;
 // TODO: ugly, but works. clean it up
 log_str_t __level_str[] = {
-		{NULL   , 0x0000 },
-		{"ERROR", 0x0001 },         /* error messages     */
-		{"WARN_", 0x0002 },			/* warning messages   */
-		{NULL   , 0x0003 },			/* none messages      */
-		{"INFO_", 0x0004 },			/* info messages      */
-		{NULL   , 0x0005 },			/* none messages      */
-		{NULL   , 0x0006 },			/* none messages      */
-		{NULL   , 0x0007 },			/* none messages      */
-		{"DEBUG", 0x0008 },			/* debugging messages */
-		{NULL   , 0x0009 },			/* none messages      */
-		{NULL   , 0x000a },			/* none messages      */
-		{NULL   , 0x000b },			/* none messages      */
-		{NULL   , 0x000c },			/* none messages      */
-		{NULL   , 0x000d },			/* none messages      */
-		{NULL   , 0x000e },			/* none messages      */
-		{NULL   , 0x000f },			/* none messages      */
-		{"TRACE", 0x0010 }			/* tracing messages   */
+		{NULL   , 0x00000 },
+		{"ERROR", 0x00001 },            /* error messages     */
+		{"WARN_", 0x00002 },			/* warning messages   */
+		{NULL   , 0x00003 },			/* none messages      */
+		{"INFO_", 0x00004 },			/* info messages      */
+		{NULL   , 0x00005 },			/* none messages      */
+		{NULL   , 0x00006 },			/* none messages      */
+		{NULL   , 0x00007 },			/* none messages      */
+		{"DEBUG", 0x00008 },			/* debugging messages */
+		{NULL   , 0x00009 },			/* none messages      */
+		{NULL   , 0x0000a },			/* none messages      */
+		{NULL   , 0x0000b },			/* none messages      */
+		{NULL   , 0x0000c },			/* none messages      */
+		{NULL   , 0x0000d },			/* none messages      */
+		{NULL   , 0x0000e },			/* none messages      */
+		{NULL   , 0x0000f },			/* none messages      */
+		{"TRACE", 0x00010 }			    /* trace messages   */
 };
 
 static np_log_t* logger;
@@ -60,10 +60,11 @@ static pthread_mutex_t __log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void np_log_message(uint16_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
 {
-	if ( (level & LOG_NOMOD_MASK ) > 0)
-		if ( (level & logger->level & LOG_MODUL_MASK) == 0 )
-			return;
+	// first check if desired module mask is matching the configured mask
+	if ( (level & logger->level & LOG_MODUL_MASK) == 0 )
+		return;
 
+	// next check if the log level (debug, error, ...) is set
 	if ( (level & logger->level & LOG_LEVEL_MASK) > LOG_NONE)
 	{
   	    char* new_log_entry = malloc(sizeof(char)*1124);
