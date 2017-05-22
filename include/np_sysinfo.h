@@ -31,7 +31,7 @@ void _np_request_others() ;
 NP_API_INTERN
 void _np_request_sysinfo(const char* dhkey_of_target) ;
 NP_API_INTERN
-np_tree_t* _np_get_sysinfo_from_cache(const char* hash_of_target) ;
+np_tree_t* _np_get_sysinfo_from_cache(const char* hash_of_target, uint16_t max_cache_ttl) ;
 #ifdef __cplusplus
 }
 #endif

@@ -789,7 +789,8 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		}
 	}
 
-	np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
+	//np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
+	np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, NULL);
 
 	if (NULL != tmp_token)
 	{

@@ -30,6 +30,7 @@ static char _NP_SYSINFO_REQUEST[] = "_NP.SYSINFO.REQUEST";
 static char _NP_SYSINFO_REPLY[] = "_NP.SYSINFO.REPLY";
 
 static const char* _NP_SYSINFO_MY_NODE = "node";
+static const char* _NP_SYSINFO_MY_NODE_TIMESTAMP = "timestamp";
 static const char* _NP_SYSINFO_MY_NEIGHBOURS = "neighbour_nodes";
 static const char* _NP_SYSINFO_MY_ROUTES = "routing_nodes";
 
@@ -185,6 +186,8 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 np_tree_t* np_get_my_sysinfo() {
 	np_tree_t* ret = np_tree_create();
 
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_f(ev_time()));
+
 	// build local node
 	np_tree_t* local_node = np_tree_create();
 	_np_node_encode_to_jrb(local_node, _np_state()->my_node_key, FALSE);
@@ -266,8 +269,8 @@ void _np_request_sysinfo(const char* const hash_of_target) {
 
 		log_msg(LOG_DEBUG, "Converting %s to dhkey", hash_of_target);
 
-		np_dhkey_t target_dhkey = np_dhkey_create_from_hash(hash_of_target);
-		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, &target_dhkey);
+		//np_dhkey_t target_dhkey = np_dhkey_create_from_hash(hash_of_target);
+		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, NULL);
 
 	} else {
 		log_msg(LOG_WARN,
@@ -288,24 +291,25 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 		//_np_request_others();
 	} else {
 		log_msg(LOG_DEBUG, "Requesting sysinfo for node %s", hash_of_target);
-		ret = _np_get_sysinfo_from_cache(hash_of_target);
+		ret = _np_get_sysinfo_from_cache(hash_of_target, 0);
 		if(NULL == ret ){
+
 			_np_request_sysinfo(hash_of_target);
 			ev_sleep(0.05);
-			ret = _np_get_sysinfo_from_cache(hash_of_target);
+			ret = _np_get_sysinfo_from_cache(hash_of_target,-1);
 		}
 	}
 
 	return ret;
 }
 
-np_tree_t* _np_get_sysinfo_from_cache(const char* const hash_of_target) {
+np_tree_t* _np_get_sysinfo_from_cache(const char* const hash_of_target, uint16_t max_cache_ttl) {
 	np_tree_t* ret = NULL;
 	_LOCK_MODULE(np_sysinfo)
 	{
 		np_cache_item_t* item = np_simple_cache_get(_cache, hash_of_target);
 		if (NULL != item && item->value != NULL) {
-			if ((ev_time() - item->insert_time) < 30.0) {
+			if ((ev_time() - item->insert_time) <= max_cache_ttl) {
 				np_tree_t* tmp = item->value;
 				ret = np_tree_copy(tmp);
 			}
@@ -337,7 +341,7 @@ void _np_request_others() {
 				current = sll_head(np_key_t, routing_table);
 				if (	NULL != current &&
 						strcmp(_np_key_as_str(current),_np_key_as_str(_np_state()->my_node_key) ) != 0 &&
-						NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current))))
+						NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current),-1)))
 				{
 					_np_request_sysinfo(_np_key_as_str(current));
 				}
@@ -352,7 +356,7 @@ void _np_request_others() {
 				current = sll_head(np_key_t, neighbours_table);
 				if (	NULL != current &&
 						strcmp(_np_key_as_str(current),_np_key_as_str(_np_state()->my_node_key) ) != 0 &&
-						NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current))))
+						NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current),-1)))
 				{
 							_np_request_sysinfo(_np_key_as_str(current));
 				}
