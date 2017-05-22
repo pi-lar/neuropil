@@ -46,10 +46,10 @@ void _np_sysinfo_init(np_bool isRequestor)
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
-	 sysinfo_request_props->mep_type =  ANY_TO_ANY;
+	sysinfo_request_props->mep_type =  ANY_TO_ANY;
 	sysinfo_request_props->ack_mode = ACK_NONE;
 	sysinfo_request_props->retry    = 1;
-	sysinfo_request_props->ttl      = 20.0;
+	sysinfo_request_props->ttl      = 2000.0;
 
 	np_msgproperty_t* sysinfo_response_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_response_props);
@@ -57,7 +57,7 @@ void _np_sysinfo_init(np_bool isRequestor)
 	sysinfo_response_props->mep_type = ANY_TO_ANY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 1;
-	sysinfo_response_props->ttl      = 20.0;
+	sysinfo_response_props->ttl      = 2000.0;
 
 	// TODO: currently the system cannot handle in/out of the same node A->A
 	if (isRequestor)
@@ -280,7 +280,7 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 	char* my_key = _np_key_as_str(_np_state()->my_node_key);
 
 	np_tree_t* ret = NULL;
-	if (strcmp(hash_of_target, my_key) == 0) {
+	if (strncmp(hash_of_target, my_key, 64) == 0) {
 		log_msg(LOG_DEBUG, "Requesting sysinfo for myself");
 		// If i request myself i can answer instantly
 		ret = np_get_my_sysinfo();

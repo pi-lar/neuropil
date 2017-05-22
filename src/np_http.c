@@ -258,7 +258,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 
 			log_msg(LOG_DEBUG, "Requesting sysinfo");
 
-			char* target_hash = "12345678901234567890123456789012345678901234567890123456789012345";
+			char target_hash[65];
 
 			np_bool usedefault = TRUE;
 			int http_status = HTTP_CODE_OK;
@@ -279,7 +279,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 
 				if (NULL != tmp_target_hash) {
 					if (strlen(tmp_target_hash) == 64) {
-						target_hash = tmp_target_hash;
+						sprintf(target_hash, "%s",tmp_target_hash);
 						usedefault = FALSE;
 					} else {
 						http_status = HTTP_CODE_BAD_REQUEST;
@@ -299,9 +299,9 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 			char* my_key = _np_key_as_str(_np_state()->my_node_key);
 			if (usedefault) {
 				log_msg(LOG_DEBUG, "using own node as info system");
-				target_hash = my_key;
+				sprintf(target_hash, "%s",my_key);
 			}
-
+			target_hash[64] = '\0';
 			np_tree_t* sysinfo = NULL;
 			sysinfo = np_get_sysinfo(target_hash);
 
