@@ -50,7 +50,7 @@ void _np_sysinfo_init(np_bool isRequestor)
 	sysinfo_request_props->mep_type =  ANY_TO_ANY;
 	sysinfo_request_props->ack_mode = ACK_NONE;
 	sysinfo_request_props->retry    = 1;
-	sysinfo_request_props->ttl      = 2000.0;
+	sysinfo_request_props->ttl      = 20.0;
 
 	np_msgproperty_t* sysinfo_response_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_response_props);
@@ -58,7 +58,7 @@ void _np_sysinfo_init(np_bool isRequestor)
 	sysinfo_response_props->mep_type = ANY_TO_ANY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 1;
-	sysinfo_response_props->ttl      = 2000.0;
+	sysinfo_response_props->ttl      = 20.0;
 
 	// TODO: currently the system cannot handle in/out of the same node A->A
 	if (isRequestor)
@@ -291,7 +291,7 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 		//_np_request_others();
 	} else {
 		log_msg(LOG_DEBUG, "Requesting sysinfo for node %s", hash_of_target);
-		ret = _np_get_sysinfo_from_cache(hash_of_target, 0);
+		ret = _np_get_sysinfo_from_cache(hash_of_target, 5);
 		if(NULL == ret ){
 
 			_np_request_sysinfo(hash_of_target);
