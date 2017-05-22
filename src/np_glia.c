@@ -777,26 +777,12 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 {
 	msg_prop->msg_threshold++;
 
-	np_dhkey_t target_key;
-
-	if(NULL != target) {
-		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TARGET, np_treeval_new_key(*target));
-		_np_dhkey_assign(&target_key, target);
-	}else{
-		np_tree_elem_t* target_container = 	np_tree_find_str(msg->header, _NP_MSG_HEADER_TARGET);
-		if(NULL != target_container) {
-			_np_dhkey_assign(&target_key, &target_container->val.value.key);
-		}
-	}
-
-	//np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
-	np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, NULL);
+	// np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
+	np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, target);
 
 	if (NULL != tmp_token)
 	{
 		log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);
-
-		np_tree_del_str(msg->header, _NP_MSG_HEADER_TARGET);
 
 		np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
 

@@ -278,14 +278,14 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		if (0                   <= token_msg_threshold &&
 			token_msg_threshold <= token_max_threshold)
 		{
-			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token for %s from %s to %s can be used for %"PRIu16" msgs", token->subject, _np_key_as_str(_np_state()->my_node_key), token->issuer, token_max_threshold-token_msg_threshold);
+			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token for %s to %s can be used for %"PRIu16" msgs", token->subject, token->issuer, token_max_threshold-token_msg_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state |= AAA_VALID;
 			return (TRUE);
 		}
 		else
 		{
-			log_msg(LOG_AAATOKEN | LOG_WARN, "token for %s from %s to %s was already used: 0<=%"PRIu16"<%"PRIu16, token->subject,  _np_key_as_str(_np_state()->my_node_key),token->issuer, token_msg_threshold, token_max_threshold);
+			log_msg(LOG_AAATOKEN | LOG_WARN, "token for %s to %s was already used: 0<=%"PRIu16"<%"PRIu16, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state &= AAA_INVALID;
 			return (FALSE);

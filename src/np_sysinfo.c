@@ -47,7 +47,7 @@ void _np_sysinfo_init(np_bool isRequestor)
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
-	sysinfo_request_props->mep_type =  ANY_TO_ANY;
+	 sysinfo_request_props->mep_type =  REQ_REP;
 	sysinfo_request_props->ack_mode = ACK_NONE;
 	sysinfo_request_props->retry    = 1;
 	sysinfo_request_props->ttl      = 20.0;
@@ -55,7 +55,7 @@ void _np_sysinfo_init(np_bool isRequestor)
 	np_msgproperty_t* sysinfo_response_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_response_props);
 	sysinfo_response_props->msg_subject = _NP_SYSINFO_REPLY;
-	sysinfo_response_props->mep_type = ANY_TO_ANY;
+	sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 1;
 	sysinfo_response_props->ttl      = 20.0;
@@ -84,9 +84,9 @@ void _np_sysinfo_init(np_bool isRequestor)
 	} else {
 
 		sysinfo_request_props->mode_type = INBOUND | ROUTE;
-		sysinfo_request_props->max_threshold = 5;
+		sysinfo_request_props->max_threshold = 10;
 		sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-		sysinfo_response_props->max_threshold = 5;
+		sysinfo_response_props->max_threshold = 10;
 
 		np_msgproperty_register(sysinfo_response_props);
 		np_msgproperty_register(sysinfo_request_props);
@@ -98,35 +98,34 @@ void _np_sysinfo_init(np_bool isRequestor)
 np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {
 	log_msg(LOG_TRACE, ".start._in_sysinfo");
 
-	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
+// np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
 
-	if (NULL == source) {
-		log_msg(LOG_WARN,
-				"received sysinfo request w/o source key information.");
-		return FALSE;
-	}
-
-	np_tree_elem_t* target = np_tree_find_str(properties, _NP_SYSINFO_TARGET);
-
-	if (NULL == target) {
-		log_msg(LOG_WARN,
-				"received sysinfo request w/o target key information.");
-		return FALSE;
-	}
+//	if (NULL == source) {
+//		log_msg(LOG_WARN,
+//				"received sysinfo request w/o source key information.");
+//		return FALSE;
+//	}
+//	np_tree_elem_t* target = np_tree_find_str(properties, _NP_SYSINFO_TARGET);
+//
+//	if (NULL == target) {
+//		log_msg(LOG_WARN,
+//				"received sysinfo request w/o target key information.");
+//		return FALSE;
+//	}
 	log_msg(LOG_INFO, "received sysinfo request");
 
-	log_msg(LOG_DEBUG, "sysinfo request message is from %s for %s !",
-			source->val.value.s, target->val.value.s);
+//	log_msg(LOG_DEBUG, "sysinfo request message is from %s for %s !",
+//			source->val.value.s, target->val.value.s);
 
 	char* mynode_hash = _np_key_as_str(_np_state()->my_node_key);
 
-	if (strcmp(mynode_hash, target->val.value.s) != 0) {
-		// should not happen as it does mean a wrong routing
-		log_msg(LOG_WARN,
-				"i am %s not %s . I cannot handle this sysinfo request",
-				mynode_hash, target->val.value.s);
-		return FALSE;
-	}
+//	if (strcmp(mynode_hash, target->val.value.s) != 0) {
+//		// should not happen as it does mean a wrong routing
+//		log_msg(LOG_WARN,
+//				"i am %s not %s . I cannot handle this sysinfo request",
+//				mynode_hash, target->val.value.s);
+//		return FALSE;
+//	}
 	// checks completed. continue with reply building
 
 	// build body
@@ -136,17 +135,17 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 	np_tree_t* reply_properties = np_tree_create();
 	np_tree_insert_str(reply_properties, _NP_SYSINFO_SOURCE,
 			np_treeval_new_s(mynode_hash));
-	np_tree_insert_str(reply_properties, _NP_SYSINFO_TARGET,
-			np_treeval_new_s(source->val.value.s));
+//	np_tree_insert_str(reply_properties, _NP_SYSINFO_TARGET,
+//			np_treeval_new_s(source->val.value.s));
 
 	// send msg
 	log_msg(LOG_INFO, "sending sysinfo reply (size: %"PRIu16")",
 			reply_body->size);
 
-	np_dhkey_t target_dhkey;
+	// np_dhkey_t target_dhkey;
 
-	_np_dhkey_from_str(source->val.value.s, &target_dhkey);
-	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, &target_dhkey);
+	// _np_dhkey_from_str(source->val.value.s, &target_dhkey);
+	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, NULL /* &target_dhkey */);
 
 	log_msg(LOG_TRACE, ".end  ._in_sysinfo");
 	return TRUE;
@@ -261,16 +260,16 @@ void _np_request_sysinfo(const char* const hash_of_target) {
 		np_tree_t* properties = np_tree_create();
 		np_tree_t* body = np_tree_create();
 
-		np_tree_insert_str(properties, _NP_SYSINFO_SOURCE,
-				np_treeval_new_s(_np_key_as_str(_np_state()->my_node_key)));
+//		np_tree_insert_str(properties, _NP_SYSINFO_SOURCE,
+//				np_treeval_new_s(_np_key_as_str(_np_state()->my_node_key)));
+//
+//		np_tree_insert_str(properties, _NP_SYSINFO_TARGET,
+//				np_treeval_new_s(hash_of_target));
 
-		np_tree_insert_str(properties, _NP_SYSINFO_TARGET,
-				np_treeval_new_s(hash_of_target));
+		// log_msg(LOG_DEBUG, "Converting %s to dhkey", hash_of_target);
+		np_dhkey_t target_dhkey = np_dhkey_create_from_hash(hash_of_target);
 
-		log_msg(LOG_DEBUG, "Converting %s to dhkey", hash_of_target);
-
-		//np_dhkey_t target_dhkey = np_dhkey_create_from_hash(hash_of_target);
-		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, NULL);
+		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, &target_dhkey);
 
 	} else {
 		log_msg(LOG_WARN,
@@ -290,10 +289,11 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 		// I may anticipate the one requesting my information wants to request others as well
 		//_np_request_others();
 	} else {
+
 		log_msg(LOG_DEBUG, "Requesting sysinfo for node %s", hash_of_target);
 		ret = _np_get_sysinfo_from_cache(hash_of_target, 5);
-		if(NULL == ret ){
 
+		if(NULL == ret ){
 			_np_request_sysinfo(hash_of_target);
 			ev_sleep(0.05);
 			ret = _np_get_sysinfo_from_cache(hash_of_target,-1);

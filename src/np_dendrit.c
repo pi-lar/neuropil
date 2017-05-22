@@ -1151,6 +1151,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
+	log_msg(LOG_DEBUG, "handling sender discovery");
 	// just store the available tokens in memory and update them if new data arrives
 	_np_aaatoken_add_receiver(msg_token->subject, msg_token);
 
@@ -1160,7 +1161,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 
 	while (NULL != (tmp_token = sll_head(np_aaatoken_t, available_list)))
 	{
-		log_msg(LOG_DEBUG, "found a sender of messages, sending back message availabilities ...");
+		log_msg(LOG_DEBUG, "discovery success: sending back message sender token ...");
 		np_tree_t* available_data = np_tree_create();
 
 		np_aaatoken_encode(available_data, tmp_token);
@@ -1270,7 +1271,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	log_msg(LOG_DEBUG, "now handling message availability");
+	log_msg(LOG_DEBUG, "handling receiver discovery");
 
 	_np_aaatoken_add_sender(msg_token->subject, msg_token);
 
@@ -1279,6 +1280,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 	while (NULL != (tmp_token = sll_head(np_aaatoken_t, receiver_list)))
 	{
+		log_msg(LOG_DEBUG, "discovery success: sending back message receiver token ...");
 		np_tree_t* interest_data = np_tree_create();
 
 		np_aaatoken_encode(interest_data, tmp_token);
