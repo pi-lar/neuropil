@@ -1211,7 +1211,8 @@ void _np_in_available_sender(np_jobargs_t* args)
 	if (_np_dhkey_equal(&sendtoken_issuer_key, &state->my_identity->dhkey) )
 	{
 		// only add the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
-		goto __np_cleanup__;
+		// TODO CHECK IF NESSECARY
+		// goto __np_cleanup__;
 	}
 
 	log_msg(LOG_DEBUG, "now handling message availability");
@@ -1326,7 +1327,8 @@ void _np_in_available_receiver(np_jobargs_t* args)
 	if (_np_dhkey_equal(&recvtoken_issuer_key, &state->my_identity->dhkey) )
 	{
 		// only add the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
-		goto __np_cleanup__;
+		// TODO CHECK IF NESSECARY
+		// goto __np_cleanup__;
 	}
 
 	log_msg(LOG_DEBUG, "now handling message interest");

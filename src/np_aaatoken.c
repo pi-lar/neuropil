@@ -276,16 +276,16 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		uint16_t token_msg_threshold = msg_threshold->val.value.ui;
 
 		if (0                   <= token_msg_threshold &&
-			token_msg_threshold < token_max_threshold)
+			token_msg_threshold <= token_max_threshold)
 		{
-			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token for %s can be used for %"PRIu32" msgs", token->subject, token_max_threshold-token_msg_threshold);
+			log_msg(LOG_AAATOKEN | LOG_DEBUG, "token for %s from %s to %s can be used for %"PRIu16" msgs", token->subject, _np_key_as_str(_np_state()->my_node_key), token->issuer, token_max_threshold-token_msg_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state |= AAA_VALID;
 			return (TRUE);
 		}
 		else
 		{
-			log_msg(LOG_AAATOKEN | LOG_WARN, "token for %s was already used: 0<=%"PRIu16"<%"PRIu16, token->subject, token_msg_threshold, token_max_threshold);
+			log_msg(LOG_AAATOKEN | LOG_WARN, "token for %s from %s to %s was already used: 0<=%"PRIu16"<%"PRIu16, token->subject,  _np_key_as_str(_np_state()->my_node_key),token->issuer, token_msg_threshold, token_max_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state &= AAA_INVALID;
 			return (FALSE);
@@ -342,25 +342,7 @@ static int8_t _np_aaatoken_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr sec
 		return (ret_check);
 	}
 
-	ret_check = strncmp(first->issuer, second->issuer, strlen(first->issuer));
-	if (0 != ret_check )
-	{
-		return (ret_check);
-	}
-
-	ret_check = strncmp(first->subject, second->subject, strlen(first->subject));
-	if (0 != ret_check )
-	{
-		return (ret_check);
-	}
-
-	ret_check = strncmp(first->realm, second->realm, strlen(first->realm));
-	if (0 != ret_check )
-	{
-		return (ret_check);
-	}
-
-	return (0);
+	return _np_aaatoken_cmp(first,second);
 }
 
 
@@ -461,7 +443,6 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 			else
 			{
 				token->state = tmp_token->state;
-				// }
 				np_unref_obj(np_aaatoken_t, tmp_token);
 			}
 			log_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
@@ -732,6 +713,12 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 
 	LOCK_CACHE(subject_key->recv_property)
 	{
+		if(NULL != target) {
+			char targetnode_str[65];
+			_np_dhkey_to_str(target, targetnode_str);
+			log_msg(LOG_AAATOKEN | LOG_DEBUG, "searching token for %s ", targetnode_str);
+		}
+
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
 		while (NULL != iter &&
 			   FALSE == found_return_token)

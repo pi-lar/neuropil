@@ -279,6 +279,7 @@ void _np_send(np_jobargs_t* args)
 	{
 		_np_message_serialize_chunked(&chunk_args);
 	}
+	log_msg(LOG_INFO, "Try sending message %s for subject \"%s\" to %s", msg_out->uuid, prop->msg_subject, _np_key_as_str(args->target));
 
 	_np_network_send_msg(args->target, msg_out);
 	// ret is 1 or 0

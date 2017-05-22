@@ -123,8 +123,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 
 	/* if I am the only host or the closest host is me, deliver the message */
 	// TODO: not working ?
-	if (NULL  == target_key &&
-		FALSE == is_a_join_request)
+	if (NULL == target_key && FALSE == is_a_join_request)
 	{
 		// the message has to be handled by this node (e.g. msg interest messages)
 		log_msg(LOG_DEBUG, "internal routing for subject '%s'", msg_subject);
@@ -158,9 +157,8 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		{
 			_np_job_submit_msgin_event(0.0, prop, state->my_node_key, msg_to_submit);
 		}
-	}
-	else /* otherwise, hand it over to the np_axon sending unit */
-	{
+	} else {
+		/* hand it over to the np_axon sending unit */
 		log_msg(LOG_DEBUG, "forward routing for subject '%s'", msg_subject);
 
 		if (NULL == target_key || TRUE == is_a_join_request)
@@ -169,13 +167,15 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		}
 
 		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, msg_subject);
-		if (NULL == prop)
+		if (NULL == prop) {
 			prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
+		}
 
-		if (TRUE == args->is_resend)
+		if (TRUE == args->is_resend) {
 			_np_job_resubmit_msgout_event(0.0, prop, target_key, args->msg);
-		else
+		} else {
 			_np_job_submit_msgout_event(0.0, prop, target_key, args->msg);
+		}
 
 		/* set next hop to the next node */
 // 		// TODO: already routed by forward message call ?
@@ -779,16 +779,13 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 
 	np_dhkey_t target_key;
 
-	log_msg(LOG_DEBUG,"_np_send_msg: Target pointer %p",target);
 	if(NULL != target) {
 		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TARGET, np_treeval_new_key(*target));
 		_np_dhkey_assign(&target_key, target);
 	}else{
-
 		np_tree_elem_t* target_container = 	np_tree_find_str(msg->header, _NP_MSG_HEADER_TARGET);
 		if(NULL != target_container) {
 			_np_dhkey_assign(&target_key, &target_container->val.value.key);
-			log_msg(LOG_DEBUG, "_np_send_msg: Target pointer %p after re set", target);
 		}
 	}
 
@@ -796,7 +793,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 
 	if (NULL != tmp_token)
 	{
-		log_msg(LOG_DEBUG, "(msg: %s) _np_send_msg for subject \"%s\" over %s", msg->uuid, subject, tmp_token->issuer);
+		log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);
 
 		np_tree_del_str(msg->header, _NP_MSG_HEADER_TARGET);
 
@@ -843,6 +840,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 	}
 	else
 	{
+		log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has NO valid token", msg->uuid, subject);
 		_np_msgproperty_add_msg_to_send_cache(msg_prop, msg);
 	}
 	return (FALSE);

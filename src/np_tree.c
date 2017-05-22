@@ -905,7 +905,7 @@ void __np_tree_serialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval
 		{
 			value->type = bin_type;
 			value->size = obj->as.bin_size;
-			value->value.bin = malloc(obj->as.bin_size);
+			value->value.bin = malloc(value->size);
 			// value->value.bin = calloc(1, value->size);
 			CHECK_MALLOC(value->value.bin);
 			// log_msg(LOG_DEBUG, "BIN size %"PRIu32, value->size);

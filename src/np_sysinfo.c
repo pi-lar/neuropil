@@ -21,6 +21,7 @@
 #include "np_keycache.h"
 #include "np_treeval.h"
 #include "np_tree.h"
+#include "np_axon.h"
 
 #include "np_scache.h"
 
@@ -42,11 +43,10 @@ static struct np_simple_cache_table_t* _cache;
 
 void _np_sysinfo_init(np_bool isRequestor)
 {
-	// TODO: currently the system cannot handle in/out of the same node A->A
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
-//	sysinfo_request_props->mep_type = AGGREGATE;
+	 sysinfo_request_props->mep_type =  ANY_TO_ANY;
 	sysinfo_request_props->ack_mode = ACK_NONE;
 	sysinfo_request_props->retry    = 1;
 	sysinfo_request_props->ttl      = 20.0;
@@ -54,11 +54,12 @@ void _np_sysinfo_init(np_bool isRequestor)
 	np_msgproperty_t* sysinfo_response_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_response_props);
 	sysinfo_response_props->msg_subject = _NP_SYSINFO_REPLY;
-	//sysinfo_response_props->mep_type = ONE_WAY;
+	sysinfo_response_props->mep_type = ANY_TO_ANY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 1;
 	sysinfo_response_props->ttl      = 20.0;
 
+	// TODO: currently the system cannot handle in/out of the same node A->A
 	if (isRequestor)
 	{
 		_cache = (np_simple_cache_table_t*) malloc(
@@ -78,20 +79,19 @@ void _np_sysinfo_init(np_bool isRequestor)
 		np_msgproperty_register(sysinfo_request_props);
 
 		np_set_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
-	}
-	else
-	{
+
+	} else {
+
 		sysinfo_request_props->mode_type = INBOUND | ROUTE;
-		sysinfo_request_props->max_threshold = 2;
+		sysinfo_request_props->max_threshold = 5;
 		sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-		sysinfo_response_props->max_threshold = 2;
+		sysinfo_response_props->max_threshold = 5;
 
 		np_msgproperty_register(sysinfo_response_props);
 		np_msgproperty_register(sysinfo_request_props);
 
 		np_set_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
 	}
-
 }
 
 np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {
@@ -161,8 +161,9 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 				"received sysinfo request w/o source key information.");
 		return FALSE;
 	}
-	log_msg(LOG_DEBUG,
-			"received sysinfo reply. caching content for key %s (size: %"PRIu16", byte_size: %"PRIu64")",
+	log_msg(LOG_INFO, "received sysinfo reply");
+
+	log_msg(LOG_DEBUG,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu64")",
 			source->val.value.s, body->size, body->byte_size);
 	//log_msg(LOG_DEBUG, "%s", np_json_to_char(np_tree_to_json(body), TRUE));
 
@@ -173,7 +174,7 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 		if(NULL != item) {
 			np_tree_free(item->value);
 		}
-		source->val.value.s[65] = '\0';
+		//source->val.value.s[65] = '\0';
 		np_simple_cache_insert(_cache, source->val.value.s, np_tree_copy(body));
 	}
 	log_msg(LOG_TRACE, ".end  ._in_sysinforeply");
@@ -251,9 +252,9 @@ np_tree_t* np_get_my_sysinfo() {
 
 void _np_request_sysinfo(const char* const hash_of_target) {
 
-	if (NULL != hash_of_target)
+	if (NULL != hash_of_target && hash_of_target[0] != '\0')
 	{
-		log_msg(LOG_DEBUG, "sending sysinfo request to %s", hash_of_target);
+		log_msg(LOG_INFO, "sending sysinfo request to %s", hash_of_target);
 		np_tree_t* properties = np_tree_create();
 		np_tree_t* body = np_tree_create();
 
