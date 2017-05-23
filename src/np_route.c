@@ -204,66 +204,8 @@ void _np_route_set_key (np_key_t* new_node_key)
 	_np_dhkey_assign (&__routing_table->Rrange, &__routing_table->my_key->dhkey );
 	_np_dhkey_assign (&__routing_table->Lrange, &__routing_table->my_key->dhkey );
 
-	// TODO: re-order table entries and leafset table
-	np_sll_t(np_key_t, tmp_key_list) = NULL;
-	np_key_t *tmp_key = NULL;
-	np_key_t *added = NULL, *deleted = NULL;
-
-	// get list of keys
-	tmp_key_list = _np_route_get_table();
-
-	// wipe out old table
-	for (int i = 0; i < __MAX_ROW; i++)
-	{
-		for (int j = 0; j < __MAX_COL; j++)
-		{
-			int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
-			for (int k = 0; k < __MAX_ENTRY; k++)
-			{
-				// log_msg(LOG_ROUTING | LOG_DEBUG, "init routes->table[%d]", index + k);
-				__routing_table->table[index + k] = NULL;
-			}
-		}
-	}
-	// re-add all entries, unref replaced or not added keys ?
-	while (NULL != (tmp_key = sll_head(np_key_t, tmp_key_list)))
-	{
-		// _np_route_update(tmp_key, TRUE, &added, &deleted);
-		// if (added == NULL)
-		// {
-		np_unref_obj(np_key_t, tmp_key);
-		// }
-//		if (deleted != NULL)
-//		{
-//			np_unref_obj(np_key_t, deleted);
-//			deleted = NULL;
-//		}
-	}
-	sll_free(np_key_t, tmp_key_list);
-
-	// get list of neighbours
-	tmp_key_list = _np_route_neighbors();
-
-	// wipe out all entries
-	pll_clear(np_key_ptr,__routing_table->left_leafset);
-	pll_clear(np_key_ptr,__routing_table->right_leafset);
-
-	// add all entries, unref replaced or not added keys
-	deleted = NULL;
-	while (NULL != (tmp_key = sll_head(np_key_t, tmp_key_list)))
-	{
-		_np_route_leafset_update(tmp_key, TRUE, &added, &deleted);
-		if (added == NULL)
-		{
-			np_unref_obj(np_key_t, tmp_key);
-		}
-		if (deleted != NULL)
-		{
-			np_unref_obj(np_key_t, deleted);
-			deleted = NULL;
-		}
-	}
-	sll_free(np_key_t, tmp_key_list);
+	// TODO: re-order table entries and leafset table maybe ?
+	// for now: hope that the routing table does it on its own as new keys arrive ...
 }
 
 /** route_get_table:

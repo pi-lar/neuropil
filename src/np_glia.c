@@ -443,34 +443,23 @@ void _np_retransmit_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 			state->my_node_key = new_key;
 		}
 
-		np_sll_t(np_key_t, leafset) = NULL;
+		np_sll_t(np_key_t, table) = NULL;
 		np_key_t *tmp_node_key = NULL;
 		_LOCK_MODULE(np_routeglobal_t)
 		{
 			_np_route_set_key(state->my_node_key);
-			leafset = _np_route_neighbors();
+			table = _np_route_neighbors();
 		}
 
-		while (NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
+		while (NULL != (tmp_node_key = sll_head(np_key_t, table)))
 		{
-			// send join messages to all surviving neighbours
+			// send join messages to all entries in the routing table to re-arrange internal routing
 			_LOCK_MODULE(np_keycache_t)
 			{
 				tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
 				/* otherwise request reevaluation of peer */
-
-				np_tree_t* jrb_me = np_tree_create();
-				np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
-
-				np_message_t* msg_out = NULL;
-				np_new_obj(np_message_t, msg_out);
-
-				_np_message_create(msg_out, tmp_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
-				log_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(tmp_node_key));
-				np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
-				_np_job_submit_msgout_event(0.0, prop, tmp_node_key, msg_out);
-
-				np_free_obj(np_message_t, msg_out);
+				_np_send_simple_invoke_request(tmp_node_key, _NP_MSG_HANDSHAKE);
+				_np_job_yield(__leafset_yield_period);
 			}
 		}
 	}
