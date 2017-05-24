@@ -40,10 +40,23 @@ static const char* _NP_SYSINFO_TARGET = "target_hash";
 
 _NP_MODULE_LOCK_IMPL(np_sysinfo);
 
-static struct np_simple_cache_table_t* _cache;
+static struct np_simple_cache_table_t* _cache = NULL;
 
-void _np_sysinfo_init(np_bool isRequestor)
+void _np_sysinfo_init()
 {
+	if(NULL == _cache) {
+		_cache = (np_simple_cache_table_t*) malloc(
+				sizeof(np_simple_cache_table_t));
+    	CHECK_MALLOC(_cache);
+
+		for (int i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
+			sll_init(np_cache_item_t, _cache->buckets[i]);
+		}
+	}
+}
+
+void np_sysinfo_enable_slave() {
+	_np_sysinfo_init();
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
@@ -60,40 +73,48 @@ void _np_sysinfo_init(np_bool isRequestor)
 	sysinfo_response_props->retry    = 1;
 	sysinfo_response_props->ttl      = 20.0;
 
-	// TODO: currently the system cannot handle in/out of the same node A->A
-	if (isRequestor)
-	{
-		_cache = (np_simple_cache_table_t*) malloc(
-				sizeof(np_simple_cache_table_t));
-    	CHECK_MALLOC(_cache);
+	sysinfo_request_props->mode_type = INBOUND | ROUTE;
+	sysinfo_request_props->max_threshold = 10;
+	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
+	sysinfo_response_props->max_threshold = 10;
 
-		for (int i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
-			sll_init(np_cache_item_t, _cache->buckets[i]);
-		}
+	np_msgproperty_register(sysinfo_response_props);
+	np_msgproperty_register(sysinfo_request_props);
 
-		sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
-		sysinfo_request_props->max_threshold = SIMPLE_CACHE_NR_BUCKETS;
-		sysinfo_response_props->mode_type = INBOUND | ROUTE;
-		sysinfo_response_props->max_threshold = SIMPLE_CACHE_NR_BUCKETS;
+	np_set_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
 
-		np_msgproperty_register(sysinfo_response_props);
-		np_msgproperty_register(sysinfo_request_props);
-
-		np_set_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
-
-	} else {
-
-		sysinfo_request_props->mode_type = INBOUND | ROUTE;
-		sysinfo_request_props->max_threshold = 10;
-		sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-		sysinfo_response_props->max_threshold = 10;
-
-		np_msgproperty_register(sysinfo_response_props);
-		np_msgproperty_register(sysinfo_request_props);
-
-		np_set_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
-	}
 }
+void np_sysinfo_enable_master(){
+	_np_sysinfo_init();
+	np_msgproperty_t* sysinfo_request_props = NULL;
+	np_new_obj(np_msgproperty_t, sysinfo_request_props);
+	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
+	 sysinfo_request_props->mep_type =  REQ_REP;
+	sysinfo_request_props->ack_mode = ACK_NONE;
+	sysinfo_request_props->retry    = 1;
+	sysinfo_request_props->ttl      = 20.0;
+
+	np_msgproperty_t* sysinfo_response_props = NULL;
+	np_new_obj(np_msgproperty_t, sysinfo_response_props);
+	sysinfo_response_props->msg_subject = _NP_SYSINFO_REPLY;
+	sysinfo_response_props->mep_type = ONE_WAY;
+	sysinfo_response_props->ack_mode = ACK_NONE;
+	sysinfo_response_props->retry    = 1;
+	sysinfo_response_props->ttl      = 20.0;
+
+	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
+	sysinfo_request_props->max_threshold = SIMPLE_CACHE_NR_BUCKETS;
+	sysinfo_response_props->mode_type = INBOUND | ROUTE;
+	sysinfo_response_props->max_threshold = SIMPLE_CACHE_NR_BUCKETS;
+
+	np_msgproperty_register(sysinfo_response_props);
+	np_msgproperty_register(sysinfo_request_props);
+
+	np_set_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
+}
+
+
+
 
 np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {
 	log_msg(LOG_TRACE, ".start._in_sysinfo");

@@ -115,6 +115,7 @@ int main(int argc, char **argv) {
 
 			np_log_init(log_file_host, level);
 			np_init(proto, bootstrap_port, TRUE, "localhost");
+			np_sysinfo_enable_master();
 			np_start_job_queue(10);
 			while (TRUE) {
 				ev_sleep(0.1);
@@ -157,7 +158,7 @@ int main(int argc, char **argv) {
 				np_log_init(log_file, level);
 				// used the pid as the port
 				np_state_t* child_status = np_init(proto, port, startHTTPnow, "localhost");
-
+				np_sysinfo_enable_slave();
 				log_msg(LOG_DEBUG, "starting job queue");
 				np_start_job_queue(no_threads);
 
