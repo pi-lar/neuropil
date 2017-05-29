@@ -34,13 +34,13 @@ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 #define DEBUG 0
-#define NUM_HOST 5
+#define NUM_HOST 25
 
 extern char *optarg;
 extern int optind;
 
-int main(int argc, char **argv) {
-
+int main(int argc, char **argv)
+{
 	int opt;
 	int no_threads = 3;
 	char* bootstrap_hostnode = NULL;
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 	char* logpath = ".";
 
 	uint32_t required_nodes = NUM_HOST;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 
 	np_bool startHTTP = TRUE;
 
@@ -194,7 +194,9 @@ int main(int argc, char **argv) {
 				sll_append(int, list_of_childs,
 						&array_of_pids[sll_size(list_of_childs)]);
 			}
-			ev_sleep(3.1415);
+
+			ev_sleep(3 * 3.1415);
+
 		} else {
 			current_pid = waitpid(-1, &status, WNOHANG);
 			// check for stopped child processes
@@ -220,7 +222,7 @@ int main(int argc, char **argv) {
 			} else {
 				// fprintf(stdout, "all (%d) child processes running\n", sll_size(list_of_childs));
 			}
-			ev_sleep(3.1415);
+			ev_sleep(3.415);
 		}
 	}
 }

@@ -82,13 +82,13 @@ np_bool _np_route_init (np_key_t* me)
     // _np_dhkey_assign (&__routing_table->Rrange, &me->dhkey );
     // _np_dhkey_assign (&__routing_table->Lrange, &me->dhkey );
     np_dhkey_t half = np_dhkey_half();
-    _np_dhkey_add(&__routing_table->Rrange, &me->dhkey, &half);
-    _np_dhkey_sub(&__routing_table->Lrange, &me->dhkey, &half);
+    _np_dhkey_add(&__routing_table->Rrange, &__routing_table->my_key->dhkey, &half);
+    _np_dhkey_sub(&__routing_table->Lrange, &__routing_table->my_key->dhkey, &half);
 
     pll_init(np_key_ptr,__routing_table->left_leafset);
     pll_init(np_key_ptr,__routing_table->right_leafset);
 
-    return TRUE;
+    return (TRUE);
 }
 
 /**
@@ -201,8 +201,12 @@ void _np_route_set_key (np_key_t* new_node_key)
 	__routing_table->my_key = new_node_key;
 	np_ref_obj(np_key_t, __routing_table->my_key);
 
-	_np_dhkey_assign (&__routing_table->Rrange, &__routing_table->my_key->dhkey );
-	_np_dhkey_assign (&__routing_table->Lrange, &__routing_table->my_key->dhkey );
+	// pll_clear(np_key_ptr,__routing_table->left_leafset);
+    // pll_clear(np_key_ptr,__routing_table->right_leafset);
+
+    np_dhkey_t half = np_dhkey_half();
+    _np_dhkey_add(&__routing_table->Rrange, &__routing_table->my_key->dhkey, &half);
+    _np_dhkey_sub(&__routing_table->Lrange, &__routing_table->my_key->dhkey, &half);
 
 	// TODO: re-order table entries and leafset table maybe ?
 	// for now: hope that the routing table does it on its own as new keys arrive ...

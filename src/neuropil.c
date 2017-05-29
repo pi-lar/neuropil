@@ -228,16 +228,14 @@ void np_send_wildcard_join(const char* node_string)
 	 */
 
 	np_state_t* state = _np_state();
-	char* wildcard_node;
+	char* wildcard_node = NULL;
 	np_key_t* wildcard_node_key = NULL;
 
 	//START Build our wildcard connection string
 	np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", node_string);
-	char* wildcard_dhkey_str = malloc(sizeof(char)*65);
-	CHECK_MALLOC(wildcard_dhkey_str);
+	char wildcard_dhkey_str[65]; // = malloc(sizeof(char)*65);
 	_np_dhkey_to_str(&wildcard_dhkey, wildcard_dhkey_str);
 	asprintf(&wildcard_node, "%s:%s", wildcard_dhkey_str, node_string);
-	free(wildcard_dhkey_str);
 	//END Build our wildcard connection string
 
 	_LOCK_MODULE(np_keycache_t)
@@ -246,18 +244,22 @@ void np_send_wildcard_join(const char* node_string)
 	}
 	free(wildcard_node);
 
-	np_tree_t* jrb_me = np_tree_create();
-	np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
+	// proposal: only invoke handshake ?
+	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
+	_np_job_submit_transform_event(0.0, msg_prop, wildcard_node_key, NULL);
 
-	np_message_t* msg_out = NULL;
-	np_msgproperty_t* prop = NULL;
-
-	np_new_obj(np_message_t, msg_out);
-	_np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST_WILDCARD, jrb_me);
-
-	log_msg(LOG_DEBUG, "submitting wildcard join request to target key %s", _np_key_as_str(wildcard_node_key));
-	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST_WILDCARD);
-	_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
+//	np_tree_t* jrb_me = np_tree_create();
+//	np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
+//
+//	np_message_t* msg_out = NULL;
+//	np_msgproperty_t* prop = NULL;
+//
+//	np_new_obj(np_message_t, msg_out);
+//	_np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST_WILDCARD, jrb_me);
+//
+//	log_msg(LOG_DEBUG, "submitting wildcard join request to target key %s", _np_key_as_str(wildcard_node_key));
+//	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST_WILDCARD);
+//	_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
 }
 
 /**

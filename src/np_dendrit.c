@@ -1017,7 +1017,7 @@ void _np_in_ping(np_jobargs_t* args)
 	}
 	else
 	{
-		log_msg(LOG_WARN, "received a PING message from unknown %s !", _np_key_as_str(ping_key));
+		log_msg(LOG_WARN, "received a PING message from unknown node (%s) !", msg_from.value.s);
 	}
 
 	__np_cleanup__:
@@ -1115,10 +1115,14 @@ void _np_in_update(np_jobargs_t* args)
 
 		log_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(update_key));
 		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
-		_np_job_submit_msgout_event(0.0, prop, update_key, msg_out);
 
+		// double update_time = update_key->aaa_token->not_before - ev_time();
+		// if (0 > update_time) update_time = 0.0;
+
+		_np_job_submit_msgout_event(0.0, prop, update_key, msg_out);
 		np_free_obj(np_message_t, msg_out);
 	}
+
 	goto __np_return__;
 
 	// TODO: forward update token to other neighbours
@@ -1783,9 +1787,9 @@ void _np_in_handshake(np_jobargs_t* args)
 	np_new_obj(np_aaatoken_t, tmp_token);
 	np_aaatoken_decode(hs_payload, tmp_token);
 
-	char pk_hex[crypto_sign_PUBLICKEYBYTES*2+1];
-	sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES*2+1, tmp_token->public_key, crypto_sign_PUBLICKEYBYTES);
-	log_msg(LOG_DEBUG, "public key fingerprint: %s", pk_hex);
+//	char pk_hex[crypto_sign_PUBLICKEYBYTES*2+1];
+//	sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES*2+1, tmp_token->public_key, crypto_sign_PUBLICKEYBYTES);
+//	log_msg(LOG_DEBUG, "public key fingerprint: %s", pk_hex);
 
 //	char* node_proto            = np_tree_find_str(hs_payload, "_np.protocol")->val.value.s;
 //	char* node_hn               = np_tree_find_str(hs_payload, "_np.dns_name")->val.value.s;
@@ -1795,9 +1799,9 @@ void _np_in_handshake(np_jobargs_t* args)
 //	double issued_at            = np_tree_find_str(hs_payload, "_np.issued_at")->val.value.d;
 //	double expiration           = np_tree_find_str(hs_payload, "_np.expiration")->val.value.d;
 
-	char sign_hex[crypto_sign_BYTES*2+1];
-	sodium_bin2hex(sign_hex, crypto_sign_BYTES*2+1, signature.value.bin, crypto_sign_BYTES);
-	log_msg(LOG_DEBUG, "signature key fingerprint: %s", sign_hex);
+//	char sign_hex[crypto_sign_BYTES*2+1];
+//	sodium_bin2hex(sign_hex, crypto_sign_BYTES*2+1, signature.value.bin, crypto_sign_BYTES);
+//	log_msg(LOG_DEBUG, "signature key fingerprint: %s", sign_hex);
 
 	if (0 != crypto_sign_verify_detached( (const unsigned char*) signature.value.bin,
 			                              (const unsigned char*) payload.value.bin,
@@ -1811,6 +1815,7 @@ void _np_in_handshake(np_jobargs_t* args)
 	log_msg(LOG_DEBUG, "decoding of handshake message from %s (i:%f/e:%f) complete",
 			tmp_token->subject, tmp_token->issued_at, tmp_token->expiration);
 
+
 	// store the handshake data in the node cache, use hostname/port for key generation
 	// key could be changed later, but we need a way to lookup the handshake data later
 	np_key_t* hs_key = NULL;
@@ -1819,34 +1824,42 @@ void _np_in_handshake(np_jobargs_t* args)
 	_LOCK_MODULE(np_keycache_t)
 	{
 		hs_key = _np_node_create_from_token(tmp_token);
-		char*tmp;
-		np_dhkey_t wildcard_key = np_dhkey_create_from_hostport("*",tmp = np_get_connection_string_from(hs_key, FALSE));
-		free(tmp);
+	}
+
+	char* tmp = np_get_connection_string_from(hs_key, FALSE);
+	np_dhkey_t wildcard_key = np_dhkey_create_from_hostport("*", tmp );
+	free(tmp);
+
+	_LOCK_MODULE(np_keycache_t)
+	{
 		hs_wildcard_key = _np_keycache_find(wildcard_key);
-
-		if(NULL != hs_wildcard_key){
-			// Updating wildcard key with actual info about the external node
-
-			log_msg(LOG_DEBUG, "Updating wildcard key %s to %s",
+		if(NULL != hs_wildcard_key)
+		{
+			// Updating handshake key with already existing network structure of the wildcard key
+			log_msg(LOG_DEBUG,
+					"Updating wildcard key %s to %s",
 					_np_key_as_str(hs_wildcard_key),
 					_np_key_as_str(hs_key));
 
 			hs_key->network = hs_wildcard_key->network;
 			hs_key->network->watcher.data = hs_key;
-			np_ref_obj(np_network_t, hs_key->network);
 			hs_key->node->handshake_status= hs_wildcard_key->node->handshake_status;
 
-			//hs_wildcard_key->network = NULL;
-			//_np_key_destroy(hs_wildcard_key);
+			np_ref_obj(np_network_t, hs_key->network);
 
-			_np_send_simple_invoke_request(hs_key,_NP_MSG_JOIN_REQUEST);
+			// clean up, wildcard key not needed anymore
+			hs_wildcard_key->network = NULL;
+			_np_keycache_remove(wildcard_key);
+			np_free_obj(np_key_t, hs_wildcard_key);
+
+			_np_send_simple_invoke_request(hs_key, _NP_MSG_JOIN_REQUEST);
 		}
 	}
 
 	// should never happen
 	if (NULL == hs_key)
 	{
-		log_msg(LOG_WARN, "HAPPEND NEVERLESS");
+		log_msg(LOG_WARN, "HAPPENED NEVERLESS");
 		goto __np_cleanup__;
 	}
 
@@ -1870,100 +1883,103 @@ void _np_in_handshake(np_jobargs_t* args)
 		}
 	}
 
-	if (hs_key->node->handshake_status <= HANDSHAKE_INITIALIZED)
+	np_state_t* state = _np_state();
+	np_aaatoken_t* my_id_token = state->my_node_key->aaa_token;
+
+	// get our own identity from the cache and convert to curve key
+	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
+	// unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES];
+	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk, my_id_token->private_key);
+	// crypto_sign_ed25519_pk_to_curve25519(curve25519_pk, my_id_token->public_key);
+
+	// create shared secret
+	unsigned char shared_secret[crypto_scalarmult_BYTES];
+	crypto_scalarmult(shared_secret, curve25519_sk, session_key->val.value.bin);
+
+	np_aaatoken_t* old_token = NULL;
+	if (NULL != hs_key->aaa_token &&
+		IS_VALID(hs_key->aaa_token->state) )
 	{
-		np_state_t* state = _np_state();
+		// print warning if overwrite happens
+		log_msg(LOG_WARN, "found valid authentication token for node %s, overwriting ...", _np_key_as_str(hs_key));
+		old_token = hs_key->aaa_token;
+	}
 
-		np_aaatoken_t* my_id_token;
-		my_id_token = state->my_node_key->aaa_token;
+	hs_key->aaa_token = tmp_token;
+	np_ref_obj(np_aaatoken_t, hs_key->aaa_token);
+	np_unref_obj(np_aaatoken_t, old_token);
 
-		// get our own identity from the cache and convert to curve key
-		unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
-		// unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES];
-		crypto_sign_ed25519_sk_to_curve25519(curve25519_sk, my_id_token->private_key);
-		// crypto_sign_ed25519_pk_to_curve25519(curve25519_pk, my_id_token->public_key);
+	// handle alias key, also in case a new connection has been established
+	_LOCK_MODULE(np_keycache_t)
+	{
+		alias_key = _np_keycache_find_or_create(search_alias_key);
+	}
 
-		// create shared secret
-		unsigned char shared_secret[crypto_scalarmult_BYTES];
-		crypto_scalarmult(shared_secret, curve25519_sk, session_key->val.value.bin);
+	if (NULL != alias_key)
+	{
+		alias_key->aaa_token = hs_key->aaa_token;
+		np_ref_obj(np_aaatoken_t, alias_key->aaa_token);
 
-		// TODO: renewal of token and encryption data ?
-		// for now, use the token that has been send
-		if (NULL == hs_key->aaa_token)
+		alias_key->node = hs_key->node;
+		np_ref_obj(np_node_t, alias_key->node);
+
+		if (alias_key->node->protocol & PASSIVE)
 		{
-			hs_key->aaa_token = tmp_token;
-		}
-		np_aaatoken_t* hs_token = hs_key->aaa_token;
-		if (IS_VALID(hs_token->state))
-		{
-			// TODO: np_unref_obj ?
-			log_msg(LOG_WARN, "found valid authentication token for node %s, overwriting ...", _np_key_as_str(hs_key));
-			hs_key->aaa_token = tmp_token;
-		}
+			np_free_obj(np_network_t, hs_key->network);
 
-		strncpy((char*) hs_key->aaa_token->session_key, (char*) shared_secret, crypto_scalarmult_BYTES);
+			hs_key->network = alias_key->network;
+			np_ref_obj(np_network_t, hs_key->network);
+
+			_np_suspend_event_loop();
+			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+			ev_io_stop(EV_A_ &hs_key->network->watcher);
+			ev_io_init(&hs_key->network->watcher, _np_network_sendrecv, hs_key->network->socket, EV_WRITE | EV_READ);
+			ev_io_start(EV_A_ &hs_key->network->watcher);
+			_np_resume_event_loop();
+		}
+		else if (alias_key->node->protocol & TCP)
+		{
+			// with tcp we accepted the connection already and have an incoming channel defined
+			// alias key and hs_key have different network_t structures, so there is nothing to do
+		}
+		else
+		{
+			if (IS_INVALID(hs_key->aaa_token->state)) {
+				// new connection, setup alias key
+				alias_key->network = hs_key->network;
+				np_ref_obj(np_network_t, alias_key->network);
+			}
+		}
+	}
+
+	// copy over session key
+	strncpy((char*) hs_key->aaa_token->session_key, (char*) shared_secret, crypto_scalarmult_BYTES);
+	// mark as valid to identify existing connections
+	hs_key->aaa_token->state |= AAA_VALID;
 
 //		char session_hex[crypto_scalarmult_SCALARBYTES*2+1];
 //		sodium_bin2hex(session_hex, crypto_scalarmult_SCALARBYTES*2+1, hs_key->aaa_token->session_key, crypto_scalarmult_SCALARBYTES);
 //		log_msg(LOG_DEBUG, "session key %s", session_hex);
 
-		hs_key->aaa_token->state |= AAA_VALID;
-
-		_LOCK_MODULE(np_keycache_t)
-		{
-			alias_key = _np_keycache_find_or_create(search_alias_key);
-		}
-
-		if (NULL != alias_key)
-		{
-			alias_key->aaa_token = hs_key->aaa_token;
-			np_ref_obj(np_aaatoken_t, alias_key->aaa_token);
-
-			alias_key->node = hs_key->node;
-			np_ref_obj(np_node_t, alias_key->node);
-
-			if (alias_key->node->protocol & PASSIVE)
-			{
-				np_free_obj(np_network_t, hs_key->network);
-
-				hs_key->network = alias_key->network;
-				np_ref_obj(np_network_t, hs_key->network);
-
-				_np_suspend_event_loop();
-				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-				ev_io_stop(EV_A_ &hs_key->network->watcher);
-				ev_io_init(&hs_key->network->watcher, _np_network_sendrecv, hs_key->network->socket, EV_WRITE | EV_READ);
-	    		ev_io_start(EV_A_ &hs_key->network->watcher);
-	        	_np_resume_event_loop();
-			}
-			else if (alias_key->node->protocol & TCP)
-			{
-				// with tcp we accepted the connection already and have an incoming channel defined
-				// alias key and hs_key have different network_t structures, so there is nothing to do
-			}
-			else
-			{
-				alias_key->network = hs_key->network;
-				np_ref_obj(np_network_t, alias_key->network);
-			}
-		}
-		// sodium_bin2hex(session_hex, crypto_scalarmult_SCALARBYTES*2+1, alias_key->authentication->session_key, crypto_scalarmult_SCALARBYTES);
-		// log_msg(LOG_DEBUG, "session a  key   %s", session_hex);
-
-		hs_key->node->handshake_status = HANDSHAKE_COMPLETE;
-		log_msg(LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
-				_np_key_as_str(hs_key), _np_key_as_str(alias_key));
-
-		// send out our own handshake data
+	if (hs_key->node->handshake_status <= HANDSHAKE_INITIALIZED)
+	{
+		// send out our own handshake data if initialization hat not finished yet
 		np_msgproperty_t* hs_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_HANDSHAKE);
 		_np_job_submit_transform_event(0.0, hs_prop, hs_key, NULL);
 	}
-	goto __np_return__;
+
+	// sodium_bin2hex(session_hex, crypto_scalarmult_SCALARBYTES*2+1, alias_key->authentication->session_key, crypto_scalarmult_SCALARBYTES);
+	// log_msg(LOG_DEBUG, "session a  key   %s", session_hex);
+
+	hs_key->node->handshake_status = HANDSHAKE_COMPLETE;
+	log_msg(LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
+			_np_key_as_str(hs_key), _np_key_as_str(alias_key));
 
 	__np_cleanup__:
 	if (NULL != tmp_token)  np_free_obj(np_aaatoken_t, tmp_token);
 
-	__np_return__:
+	// __np_return__:
 	if (NULL != hs_payload) np_tree_free(hs_payload);
+
 	return;
 }

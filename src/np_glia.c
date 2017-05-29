@@ -19,24 +19,26 @@
 #include "np_glia.h"
 
 #include "dtime.h"
-#include "np_log.h"
 #include "neuropil.h"
-#include "np_axon.h"
+
 #include "np_aaatoken.h"
-#include "np_jobqueue.h"
-#include "np_tree.h"
+#include "np_axon.h"
 #include "np_dhkey.h"
+#include "np_event.h"
+#include "np_jobqueue.h"
+#include "np_key.h"
 #include "np_keycache.h"
 #include "np_list.h"
+#include "np_log.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_network.h"
 #include "np_node.h"
 #include "np_route.h"
 #include "np_threads.h"
-#include "np_util.h"
+#include "np_tree.h"
 #include "np_treeval.h"
-#include "np_key.h"
+#include "np_util.h"
 
 
 // TODO: make these configurable (via struct np_config)
@@ -259,7 +261,8 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 			}
 			else
 			{
-				log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _np_key_as_str(deleted));
+				log_msg(LOG_WARN, "deleting from neighbours returned different key");
+				// log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _np_key_as_str(deleted));
 			}
 		}
 		else
@@ -296,9 +299,11 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 				tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
 			{
 				log_msg(LOG_DEBUG, "deleting from table: %s", _np_key_as_str(tmp_node_key));
+
 				// request a new handshake with the node
 				if (NULL != tmp_node_key->aaa_token)
 					tmp_node_key->aaa_token->state &= AAA_INVALID;
+
 				tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
 
 				np_key_t *added = NULL, *deleted = NULL;
@@ -309,7 +314,8 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 				}
 				else
 				{
-					log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _np_key_as_str(deleted));
+					log_msg(LOG_WARN, "deleting from table returned different key");
+					// log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _np_key_as_str(deleted));
 				}
 			}
 			else
@@ -426,42 +432,91 @@ void _np_retransmit_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 	// TODO: test the node token renewal
 	// check an refresh my own identity + node tokens if required
 	double exp_ts = ev_time() + 10.0; // now plus 10s for handshake etc.
+
 	if (state->my_node_key->aaa_token->expiration < exp_ts)
 	{
 		log_msg(LOG_WARN, "---------- expiration of own node token reached ----------");
 
-		np_aaatoken_t* new_token = _np_node_create_token(state->my_node_key->node);
 		np_key_t* new_key = NULL;
+		np_aaatoken_t* new_token = _np_node_create_token(state->my_node_key->node);
 		np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(new_token);
+
 		_LOCK_MODULE(np_keycache_t)
 		{
 			new_key = _np_keycache_find_or_create(my_dhkey);
-			if (state->my_identity == state->my_node_key)
-			{
-				state->my_identity = new_key;
-			}
-			state->my_node_key = new_key;
 		}
+		// save old network setup
+		np_ref_obj(np_network_t, state->my_node_key->network);
+		new_key->network   = state->my_node_key->network;
 
+		np_ref_obj(np_node_t, state->my_node_key->node);
+		new_key->node      = state->my_node_key->node;
+
+		np_ref_obj(np_aaatoken_t, new_token);
+		new_key->aaa_token = new_token;
+
+		// find closest member according to old routing table
 		np_sll_t(np_key_t, table) = NULL;
 		np_key_t *tmp_node_key = NULL;
 		_LOCK_MODULE(np_routeglobal_t)
 		{
-			_np_route_set_key(state->my_node_key);
-			table = _np_route_neighbors();
+			table = _np_route_get_table();
+			_np_keycache_ref_keys(table);
 		}
+
+		// sort to get potential closest neighbour first
+		_np_keycache_sort_keys_kd(table, &new_key->dhkey);
 
 		while (NULL != (tmp_node_key = sll_head(np_key_t, table)))
 		{
-			// send join messages to all entries in the routing table to re-arrange internal routing
-			_LOCK_MODULE(np_keycache_t)
-			{
-				tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
-				/* otherwise request reevaluation of peer */
-				_np_send_simple_invoke_request(tmp_node_key, _NP_MSG_HANDSHAKE);
-				_np_job_yield(__leafset_yield_period);
-			}
+			// send join messages to entries of the routing table to re-arrange internal routing
+			/* request update from join with peer */
+			np_tree_t* jrb_new_me = np_tree_create();
+			np_aaatoken_encode(jrb_new_me, new_key->aaa_token);
+
+			np_message_t* msg_out = NULL;
+			np_new_obj(np_message_t, msg_out);
+			_np_message_create(msg_out, tmp_node_key, new_key, _NP_MSG_UPDATE_REQUEST, jrb_new_me);
+
+			log_msg(LOG_DEBUG, "submitting update request to target key %s", _np_key_as_str(tmp_node_key));
+			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
+			_np_job_submit_msgout_event(0.0, prop, tmp_node_key, msg_out);
+			// tmp_node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
+			np_unref_obj(np_key_t, tmp_node_key);
+
+			np_free_obj(np_message_t, msg_out);
 		}
+		sll_free(np_key_t, table);
+
+		_LOCK_MODULE(np_keycache_t)
+		{
+			// _np_job_yield(state->my_node_key->aaa_token->expiration - ev_time());
+			// exchange identity if required
+			if (state->my_identity == state->my_node_key)
+			{
+				np_unref_obj(np_key_t, state->my_identity);
+				state->my_identity = new_key;
+				np_ref_obj(np_key_t, state->my_identity);
+			}
+			else
+			{
+				np_tree_replace_str(state->my_identity->aaa_token->extensions, "target_node", np_treeval_new_s(_np_key_as_str(new_key)) );
+			}
+			// exchange node key
+			state->my_node_key = new_key;
+
+			_np_suspend_event_loop();
+			state->my_node_key->network->watcher.data = new_key;
+			state->my_node_key->node->joined_network = FALSE;
+			_np_resume_event_loop();
+		}
+
+		_LOCK_MODULE(np_routeglobal_t)
+		{
+			// re-set routing table midpoint
+			_np_route_set_key(state->my_node_key);
+		}
+
 	}
 
 	if (state->my_identity->aaa_token->expiration < exp_ts)
@@ -491,44 +546,43 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 	np_tree_elem_t *jrb_ack_node = NULL;
 
 	// wake up and check for acknowledged messages
-	pthread_mutex_lock(&ng->lock);
-
-	np_tree_elem_t* iter = RB_MIN(np_tree_s, ng->waiting);
-	while (iter != NULL)
-	{
-		jrb_ack_node = iter;
-		iter = RB_NEXT(np_tree_s, ng->waiting, iter);
-
-		np_ackentry_t *ackentry = (np_ackentry_t *) jrb_ack_node->val.value.v;
-		if (TRUE == ackentry->acked &&
-			ackentry->expected_ack == ackentry->received_ack)
+	LOCK_CACHE(ng) {
+		np_tree_elem_t* iter = RB_MIN(np_tree_s, ng->waiting);
+		while (iter != NULL)
 		{
-			// update latency and statistics for a node
-			double latency = ackentry->acktime - ackentry->transmittime;
+			jrb_ack_node = iter;
+			iter = RB_NEXT(np_tree_s, ng->waiting, iter);
 
-			_np_node_update_latency(ackentry->dest_key->node, latency);
-			_np_node_update_stat(ackentry->dest_key->node, 1);
+			np_ackentry_t *ackentry = (np_ackentry_t *) jrb_ack_node->val.value.v;
+			if (TRUE == ackentry->acked &&
+				ackentry->expected_ack == ackentry->received_ack)
+			{
+				// update latency and statistics for a node
+				double latency = ackentry->acktime - ackentry->transmittime;
 
-			RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
-			np_unref_obj(np_key_t, ackentry->dest_key);
+				_np_node_update_latency(ackentry->dest_key->node, latency);
+				_np_node_update_stat(ackentry->dest_key->node, 1);
 
-			free(ackentry);
-			free(jrb_ack_node->key.value.s);
-			free(jrb_ack_node);
-		}
-		else if (ev_time() > ackentry->expiration)
-		{
-			_np_node_update_stat(ackentry->dest_key->node, 0);
+				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
+				np_unref_obj(np_key_t, ackentry->dest_key);
 
-			RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
-			np_unref_obj(np_key_t, ackentry->dest_key);
+				free(ackentry);
+				free(jrb_ack_node->key.value.s);
+				free(jrb_ack_node);
+			}
+			else if (ev_time() > ackentry->expiration)
+			{
+				_np_node_update_stat(ackentry->dest_key->node, 0);
 
-			free(ackentry);
-			free(jrb_ack_node->key.value.s);
-			free(jrb_ack_node);
+				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
+				np_unref_obj(np_key_t, ackentry->dest_key);
+
+				free(ackentry);
+				free(jrb_ack_node->key.value.s);
+				free(jrb_ack_node);
+			}
 		}
 	}
-	pthread_mutex_unlock(&ng->lock);
 
 	// submit the function itself for additional execution
 	np_job_submit_event(__cleanup_interval, _np_cleanup_ack_jobexec);

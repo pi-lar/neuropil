@@ -25,6 +25,7 @@
 
 extern char *optarg;
 extern int optind;
+
 /**
 first we have to define a global np_state_t variable
 
