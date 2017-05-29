@@ -62,6 +62,7 @@ char* _np_key_as_str(np_key_t* key)
 void _np_key_destroy(np_key_t* to_destroy) {
 
 	if(NULL != to_destroy){
+
 		char* keyident = _np_key_as_str(to_destroy);
 		log_msg(LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
 
@@ -84,6 +85,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 				pll_free(np_aaatoken_ptr, to_destroy->recv_tokens);
 			}
 		}
+
 		// delete send tokens
 		if (NULL != to_destroy->send_tokens)
 		{

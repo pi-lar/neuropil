@@ -407,7 +407,6 @@ void _np_send_handshake(np_jobargs_t* args)
 		// construct target address and send it out
 		np_node_t* hs_node = args->target->node;
 
-		pthread_mutex_lock(&args->target->network->lock);
 		/* send data if handshake status is still just initialized or less */
 		log_msg(LOG_DEBUG,
 				"sending handshake message to (%s:%s)",
@@ -424,20 +423,25 @@ void _np_send_handshake(np_jobargs_t* args)
 		memset(packet, 0, 1024);
 		memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 
-		sll_append(
-				void_ptr,
-				args->target->network->out_events,
-				(void*) packet);
-		// notify main ev loop ? should be running already
-		// ret = send(args->target->network->socket, pll_first(hs_message->msg_chunks)->val->msg_part, 984, 0);
-		// ret = sendto(my_node->network->socket, hs_msg_ptr, msg_size, 0, to, to_size);
+		LOCK_CACHE(args->target->network)
+		{
+			if(NULL != args->target->network->out_events) {
+				sll_append(
+						void_ptr,
+						args->target->network->out_events,
+						(void*) packet);
+			} else {
+				free (packet);
+			}
+			// notify main ev loop ? should be running already
+			// ret = send(args->target->network->socket, pll_first(hs_message->msg_chunks)->val->msg_part, 984, 0);
+			// ret = sendto(my_node->network->socket, hs_msg_ptr, msg_size, 0, to, to_size);
 
-//		np_node_update_stat(hs_node, ret);
-//		if (ret < 0) {
-//			log_msg(LOG_ERROR, "send handshake error: %s", strerror (errno));
-//		}
-
-		pthread_mutex_unlock(&args->target->network->lock);
+			//	np_node_update_stat(hs_node, ret);
+			//	if (ret < 0) {
+			//		log_msg(LOG_ERROR, "send handshake error: %s", strerror (errno));
+			//	}
+		}
 	}
 	np_free_obj(np_message_t, hs_message);
 

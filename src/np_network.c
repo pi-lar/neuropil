@@ -355,17 +355,18 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 		memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
 		/* send data */
-		if( 0==pthread_mutex_lock(&(_np_state()->my_node_key->network->lock))){
+		// LOCK_CACHE(_np_state()->my_node_key->network) {
+		LOCK_CACHE(node_key->network) {
 			if(NULL != node_key->network->out_events) {
 				// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
 				// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
 				// ret = send (node_key->node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
 				sll_append(void_ptr, node_key->network->out_events, (void*) enc_buffer);
-			}
-			if( 0 != pthread_mutex_unlock(&(_np_state()->my_node_key->network->lock))){
-				log_msg(LOG_ERROR,"Could not unlock my network mutex");
+			} else {
+				free (enc_buffer);
 			}
 		}
+
 		// if (ret < 0)
 		// {
 		// log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
@@ -393,47 +394,46 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	else if (EV_WRITE == (revents & EV_WRITE))
 	{
 		// TODO: have we done a ref on this key ?
-		// seems to be called although the key is deleted already
+		// seems to be called sometimes although the key is deleted already ...
 		np_key_t* key = (np_key_t*) event->data;
 
-		if (NULL != key &&
-			NULL != key->node &&
-			NULL != key->network &&
-			NULL != key->network->out_events &&
-			0 < sll_size(key->network->out_events)
-			)
-		{
-			pthread_mutex_lock(&key->network->lock);
-			void* data_to_send = sll_head(void_ptr, key->network->out_events);
-			if(NULL != data_to_send){
-				// log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%d bytes) to %s:%s",
-				log_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
-						MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
-				// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
-				// int ret = send(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024, 0);
-				write(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
-				free(data_to_send);
+		if (NULL != key && NULL != key->network) {
 
-				// ret is -1 or > 0 (bytes send)
-				// pthread_mutex_lock(&key->network->lock);
-				// do not update the success, because UDP sending could result in false positives
-				// if (0 > ret)
-				// {
-				//     // _np_node_update_stat(key->node, 0);
-				//     // log_msg(LOG_DEBUG, "node update reduce %d", ret);
-				// }
-				// else
-				// {
-				//     _np_node_update_stat(key->node, 1);
-				//     log_msg(LOG_DEBUG, "node update increase %d", ret);
-				// }
+			LOCK_CACHE(key->network) {
+
+				if (NULL != key->network->out_events &&
+					0 < sll_size(key->network->out_events)
+					)
+				{
+					if (NULL != key->node) {
+						log_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
+								MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
+					}
+
+					void* data_to_send = sll_head(void_ptr, key->network->out_events);
+					if(NULL != data_to_send) {
+						write(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
+						free(data_to_send);
+					// ret is -1 or > 0 (bytes send)
+					// do not update the success, because UDP sending could result in false positives
+					// if (0 > ret)
+					// {
+					//     // _np_node_update_stat(key->node, 0);
+					//     // log_msg(LOG_DEBUG, "node update reduce %d", ret);
+					// }
+					// else
+					// {
+					//     _np_node_update_stat(key->node, 1);
+					//     log_msg(LOG_DEBUG, "node update increase %d", ret);
+					// }
+					}
+				}
+				else
+				{
+					// log_msg(LOG_DEBUG, "no data to write to %s:%s ...", key->node->dns_name, key->node->port);
+					// log_msg(LOG_DEBUG, "no data to write ...");
+				}
 			}
-			pthread_mutex_unlock(&key->network->lock);
-		}
-		else
-		{
-			// log_msg(LOG_DEBUG, "no data to write to %s:%s ...", key->node->dns_name, key->node->port);
-			// log_msg(LOG_DEBUG, "no data to write ...");
 		}
 	}
 	else if (EV_READ == (revents & EV_READ))
@@ -599,11 +599,10 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 	memset(data_ptr, 0,    in_msg_len);
 	memcpy(data_ptr, data, in_msg_len);
 
-	if( 0==pthread_mutex_lock(&(ng->lock))) {
+	LOCK_CACHE(ng) {
 		if(NULL != ng->in_events) {
 			sll_append(void_ptr, ng->in_events, data_ptr);
 		}
-		pthread_mutex_unlock(&(ng->lock));
 	}
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
 
@@ -640,39 +639,38 @@ void _np_network_t_del(void* nw)
 	ev_io_stop(EV_A_ &network->watcher);
 	_np_resume_event_loop();
 
-	pthread_mutex_lock(&network->lock);
-
-	if (NULL != network->waiting)
-		np_tree_free(network->waiting);
-
-	if (NULL != network->in_events)
+	LOCK_CACHE(network)
 	{
-		if (0 < sll_size(network->in_events))
+		if (NULL != network->waiting)
+			np_tree_free(network->waiting);
+
+		if (NULL != network->in_events)
 		{
-			do {
-				void* tmp = sll_head(void_ptr, network->in_events);
-				free(tmp);
-			} while (0 < sll_size(network->in_events));
+			if (0 < sll_size(network->in_events))
+			{
+				do {
+					void* tmp = sll_head(void_ptr, network->in_events);
+					free(tmp);
+				} while (0 < sll_size(network->in_events));
+			}
+			sll_free(void_ptr, network->in_events);
 		}
-		sll_free(void_ptr, network->in_events);
-	}
 
-	if (NULL != network->out_events)
-	{
-		if (0 < sll_size(network->out_events))
+		if (NULL != network->out_events)
 		{
-			do {
-				void* tmp = sll_head(void_ptr, network->out_events);
-				free(tmp);
-			} while (0 < sll_size(network->out_events));
+			if (0 < sll_size(network->out_events))
+			{
+				do {
+					void* tmp = sll_head(void_ptr, network->out_events);
+					free(tmp);
+				} while (0 < sll_size(network->out_events));
+			}
+			sll_free(void_ptr, network->out_events);
 		}
-		sll_free(void_ptr, network->out_events);
+
+		if (0 < network->socket) close (network->socket);
 	}
-
-	if (0 < network->socket)
-		close (network->socket);
-
-	pthread_mutex_unlock  (&network->lock);
+	// finally destroy the mutex again
 	pthread_mutex_destroy (&network->lock);
 }
 
