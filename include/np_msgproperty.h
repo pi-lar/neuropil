@@ -31,6 +31,7 @@ extern "C" {
    Do not worry about sending replies, this is/will be handled internally.
 
    use the string "mode_type" to alter this value using :c:func:`np_set_mx_properties`
+
 */
 typedef enum np_msg_mode_enum {
 	DEFAULT_MODE = 0,
@@ -84,6 +85,7 @@ typedef enum np_msg_mode_enum {
    PIPELINE  = SINGLE_SENDER | GROUP_RECEVER
 
    AGGREGATE = SINGLE_SENDER | ANY_RECEIVER | STICKY_REPLY
+
 */
 typedef enum np_msg_mep_enum {
 
@@ -164,6 +166,7 @@ typedef enum np_msg_mep_enum {
    OVERFLOW_REJECT - reject new messages when the limit is reached
 
    OVERFLOW_PURGE  - purge old messages when the limit is reached
+
 */
 typedef enum np_msgcache_policy_enum {
 	FIFO = 0x01,
@@ -191,6 +194,7 @@ typedef enum np_msgcache_policy_enum {
 
    Please note: acknowledge types can be ORed (|), so you can request the acknowledge between each hop and the acknowledge
    when the message receives the final destination. We recommend against it because it will flood your network with acknowledges
+
 */
 typedef enum np_msg_ack_enum {
 	ACK_NONE = 0x00, // 0000 0000  - don't ack at all
@@ -213,6 +217,7 @@ typedef enum np_msg_ack_enum {
 
    use the string "max_threshold" to alter the amount of messages that a nodes is willing to receive and
    the cache size of a message using :c:func:`np_set_mx_properties`
+
 */
 struct np_msgproperty_s
 {
@@ -286,6 +291,7 @@ _NP_GENERATE_PROPERTY_SETSTR(np_msgproperty_t, msg_audience);
 
    :param state: the global neuropil :c:type:`np_state_t` structure
    :param msgprops: the np_msgproperty_t structure which should be registered
+
 */
 NP_API_EXPORT
 void np_msgproperty_register(np_msgproperty_t* msgprops);
@@ -301,6 +307,7 @@ void np_msgproperty_register(np_msgproperty_t* msgprops);
    :param mode_type: either INBOUND or OUTBOUND (see :c:type:`np_msg_mode_type`)
    :param subject: the subject of the messages that are send
    :returns: np_msgproperty_t structure of NULL if none found
+
 */
 NP_API_EXPORT
 np_msgproperty_t* np_msgproperty_get(np_msg_mode_type msg_mode, const char* subject);
@@ -334,12 +341,14 @@ static char _NP_MSG_ACCOUNTING_REQUEST[]     = "_NP.MESSAGE.ACCOUNT";
  ** message_init
  ** Initialize messaging subsystem on port and returns the MessageGlobal * which
  ** contains global state of message subsystem.
+ **
  **/
 NP_API_INTERN
 np_bool _np_msgproperty_init ();
 
 /**
  ** compare two msg properties for rb cache management
+ **
  **/
 NP_API_INTERN
 int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2);

@@ -14,7 +14,6 @@
 extern "C" {
 #endif
 
-
 NP_API_INTERN
 void _np_sysinfo_init();
 NP_API_INTERN
@@ -22,16 +21,16 @@ np_bool _np_in_sysinfo(const np_message_t* const msg, np_tree_t* properties, np_
 NP_API_INTERN
 np_bool _np_in_sysinforeply(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) ;
 /**
-.. c:function:: void np_get_sysinfo()
+.. c:function:: void np_get_sysinfo(const char* const dhkey_of_node_target)
 
    Tries to evaluate the sysinfo informations for the given target.
    Make sure to enable the target as sysinfo slave.
 
 */
 NP_API_EXPORT
-np_tree_t* np_get_sysinfo(const char* dhkey_of_node_target);
+np_tree_t* np_get_sysinfo(const char* const dhkey_of_node_target);
 /**
-.. c:function:: void np_get_my_sysinfo()
+.. c:function:: np_get_my_sysinfo()
 
    Evaluates the sysinfo information for the current node.
 

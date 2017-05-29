@@ -2,6 +2,17 @@
 // neuropil is copyright 2016 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
+/**
+ * .. NOTE::
+ *
+ * If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
+ *
+ *
+ */
+/**
+.. highlight:: c
+*/
+
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -10,10 +21,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-/**
-.. highlight:: c
-*/
 
 #include "np_types.h"
 #include "np_log.h"
@@ -24,12 +31,14 @@
 #include "np_msgproperty.h"
 #include "np_node.h"
 
-
 #define USAGE "neuropil_receiver_cb [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count]"
 #define OPTSTR "j:p:b:t:"
 
 extern char *optarg;
 extern int optind;
+
+uint32_t _ping_count = 0;
+uint32_t _pong_count = 0;
 
 /**
 right, let's define two callback functions that will be called each time
@@ -40,9 +49,6 @@ a ping or pong message is received by the nodes that you are going to start
    np_bool receive_ping(np_tree_t* properties, np_tree_t* body)
    {
 */
-
-uint32_t _ping_count = 0;
-uint32_t _pong_count = 0;
 
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {

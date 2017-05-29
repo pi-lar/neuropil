@@ -2,6 +2,16 @@
 // neuropil is copyright 2016 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
+/**
+  .. NOTE::
+
+  If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
+
+ */
+/**
+.. highlight:: c
+*/
+
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
@@ -27,6 +37,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+
+
 #define USAGE "neuropil_hydra [-j key:proto:host:port] [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count] [-l path_to_log_folder]"
 #define OPTSTR "j:p:n:t:l:"
 
@@ -39,6 +51,19 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 extern char *optarg;
 extern int optind;
 
+/**
+ * The purpose of this program is to start a set of nodes
+ * and restart them in the case of failure.
+ *
+ * For this to accomplish we will do the following steps:
+
+   #. :ref:`Create a bootstrap node (with http server), if none is given <np_hydra_create_bootstrap_node>`.
+   #. :ref:`Start X nodes. Each node will be started in a different process <neuropil_hydra_step_startnodes>`.
+   #. :ref:`Check if the created nodes are still present, if not we may start a new node <neuropil_hydra_step_check_nodes_still_present>`
+
+ * The last step will be executed in a loop.
+ *
+ */
 int main(int argc, char **argv)
 {
 	int opt;
@@ -51,8 +76,6 @@ int main(int argc, char **argv)
 
 	uint32_t required_nodes = NUM_HOST;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
-
-	np_bool startHTTP = TRUE;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
 		switch ((char) opt) {
@@ -98,7 +121,6 @@ int main(int argc, char **argv)
 
 	int create_bootstrap = NULL == bootstrap_hostnode;
 	if (TRUE == create_bootstrap) {
-		startHTTP = FALSE;
 		bootstrap_hostnode = bootstrap_hostnode_default;
 
 		fprintf(stdout, "No bootstrap host specified.\n");
@@ -108,18 +130,55 @@ int main(int argc, char **argv)
 		if (0 == current_pid) {
 
 			fprintf(stdout, "Creating new bootstrap node...\n");
+			/**
 
+			   .. _np_hydra_create_bootstrap_node:
+
+			 * **Step 1: Create a bootstrap node**
+
+			   We enable the HTTP Server for this node to use our JSON interface.
+ 	 	 	   .. code-block:: c
+
+			  \code
+			 */
 			char log_file_host[256];
 			sprintf(log_file_host, "%s%s_host_%s.log", logpath, "/neuropil_hydra", bootstrap_port);
 			fprintf(stdout, "logpath: %s\n", log_file_host);
 
 			np_log_init(log_file_host, level);
+			// provide localhost as hostname to support development on local machines
 			np_init(proto, bootstrap_port, TRUE, "localhost");
+			/**
+
+			   \endcode
+			 */
+			/**
+			 * Enable the bootstrap node as master for our SysInfo subsystem
+
+			   .. code-block:: c
+
+			   \code
+			 */
 			np_sysinfo_enable_master();
+			/**
+
+			 \endcode
+			 */
+			/**
+			 * And wait for incomming connections
+
+			   .. code-block:: c
+
+			   \code
+			 */
 			np_start_job_queue(10);
 			while (TRUE) {
-				ev_sleep(0.1);
+			    ev_sleep(0.1);
 			}
+			/**
+
+			 \endcode
+			 */
 		}
 		fprintf(stdout, "Bootstrap host node: %s\n", bootstrap_hostnode);
 		if (NULL == bootstrap_hostnode) {
@@ -128,17 +187,67 @@ int main(int argc, char **argv)
 		}
 	}
 
+	/**
+
+	   .. _neuropil_hydra_step_startnodes:
+
+	 * **Step 2: Start nodes**
+
+	   This step does contain 2 parts.
+
+	   #. we create X nodes an join them with our bootstrap node
+	   #. we need to remember the nodes to implement Step 3
+
+	   Let us beginn with part 2:
+
+	   We declare a list where we store the pid of our newly created nodes:
+
+	   .. code-block:: c
+
+	  \code
+
+	 */
 	np_sll_t(int, list_of_childs) = sll_init(int, list_of_childs);
+	/**
+
+	 \endcode
+
+	 */
+	/**
+	 * and will later on add to this list.
+	 */
 	int array_of_pids[required_nodes + 1];
 
 	current_pid = 0;
 	int status;
 
+	/**
+	 * Now we will create the additional nodes.
+	 * To prevent an ever growing list of nodes we will only create an set amount
+
+	   .. code-block:: c
+
+	   \code
+
+	 */
 	while (TRUE) {
 		// (re-) start child processes
 		if (list_of_childs->size < required_nodes) {
-			np_bool startHTTPnow = startHTTP == TRUE;
-			startHTTP = FALSE;
+
+			/**
+			 \endcode
+			 */
+
+			/**
+			 * To create unique names and to use a seperate port for every
+			 * node we will start the nodes in forks of this thread and use the pid as unique id.
+			 *
+			 * As the pid may be greater then the port range we will shift it if necessary.
+
+				.. code-block:: c
+
+			   \code
+			 */
 			current_pid = fork();
 
 			if (0 == current_pid) {
@@ -151,18 +260,46 @@ int main(int argc, char **argv)
 				} else {
 					sprintf(port, "%d", current_pid);
 				}
+				/**
+				 \endcode
+				 */
+				/**
+				 * We now start the nodes like before
+				 *
+				.. code-block:: c
 
+				  \code
+				 */
 				char log_file[256];
 				sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_hydra", port);
-				// child process
 				np_log_init(log_file, level);
-				// used the pid as the port
-				np_state_t* child_status = np_init(proto, port, startHTTPnow, "localhost");
-				np_sysinfo_enable_slave();
+				// use the pid as port
+				// provide localhost as hostname to support development on local machines
+				np_state_t* child_status = np_init(proto, port, FALSE, "localhost");
 				log_msg(LOG_DEBUG, "starting job queue");
 				np_start_job_queue(no_threads);
+				/**
+				 \endcode
+				 */
+				/**
+				 * and enable the nodes as slaves in our SysInfo subsystem
+				 *
+				.. code-block:: c
 
-				while(TRUE){
+				  \code
+				 */
+				np_sysinfo_enable_slave();
+				/**
+				 \endcode
+				 */
+				/**
+				   and join our bootstrap node
+
+					.. code-block:: c
+
+				   \code
+				 */
+				do {
  					fprintf(stdout, "try to join bootstrap node\n");
 					np_send_wildcard_join(bootstrap_hostnode);
 
@@ -173,31 +310,54 @@ int main(int argc, char **argv)
 						timeout--;
 					}
 
-					if(TRUE == child_status->my_node_key->node->joined_network ){
-						fprintf(stdout, "%s joined network!\n",port);
-						break;
-					}else{
+					if(FALSE == child_status->my_node_key->node->joined_network ) {
 						fprintf(stderr, "%s could not join network!\n",port);
 					}
-				}
+				} while (FALSE == child_status->my_node_key->node->joined_network) ;
+
+				fprintf(stdout, "%s joined network!\n",port);
+				/**
+				 \endcode
+				 */
+
 				while (TRUE) {
-					// log_msg(LOG_DEBUG, "Running application");
 					ev_sleep(0.1);
 				}
-				exit(EXIT_SUCCESS);
 
 			} else {
-				// parent process keeps iterating
+				/**
+				 * While the fork process starts the new node,
+				 * the main process needs to add the new process id to the list we created before.
+				 *
+				 .. code-block:: c
+
+				 \code
+				 */
 				fprintf(stdout, "adding (%d) : child process %d \n",
 						sll_size(list_of_childs), current_pid);
 				array_of_pids[sll_size(list_of_childs)] = current_pid;
 				sll_append(int, list_of_childs,
 						&array_of_pids[sll_size(list_of_childs)]);
+				/**
+				 \endcode
+				 */
 			}
 
 			ev_sleep(3 * 3.1415);
 
 		} else {
+			/**
+			  .. _neuropil_hydra_step_check_nodes_still_present:
+
+			 * **Step 3: Check if the created nodes are still present**
+			 *
+			 * To do this we gather informations regarding our stopped subprocesses
+			 * and delete them from our list of pids
+			 *
+			 .. code-block:: c
+
+			 \code
+			 */
 			current_pid = waitpid(-1, &status, WNOHANG);
 			// check for stopped child processes
 			if (current_pid != 0) {
@@ -219,9 +379,10 @@ int main(int argc, char **argv)
 					}
 					i++;
 				}
-			} else {
-				// fprintf(stdout, "all (%d) child processes running\n", sll_size(list_of_childs));
 			}
+			/**
+			 \endcode
+			 */
 			ev_sleep(3.415);
 		}
 	}

@@ -80,27 +80,30 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-	   char log_file[256];
-	   sprintf(log_file, "%s_%d.log", "./neuropil_controller", getpid());
-	   int level = LOG_ERROR | LOG_WARN | LOG_INFO;
-	   np_log_init(log_file, level);
+	\code
 	*/
 	char log_file[256];
 	sprintf(log_file, "%s_%d.log", "./neuropil_controller", getpid());
-	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
-	// int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	np_log_init(log_file, level);
+	/**
+
+	 \endcode
+	 */
+
 
 	/**
 	initialize the global variable with the np_init function
 
 	.. code-block:: c
 
-	   state = np_init(proto, port, TRUE, NULL);
+	\code
 	*/
 	state = np_init(proto, port, TRUE, NULL);
+	/**
+
+	 \endcode
+	 */
 	// state->my_node_key->node->joined_network = 1;
 
 	/**
@@ -109,12 +112,14 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-	   np_start_job_queue(8);
+	\code
 	*/
-
-	// dsleep(50);
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
+	/**
+
+	 \endcode
+	 */
 
 	/**
 	check stdout and the log file because it will contain this nodes hashvalue / connect string, e.g.
@@ -147,8 +152,6 @@ int main(int argc, char **argv)
 	   to control with which nodes you exchange messages. By default everybody is allowed to interact
 	   with your node
 	*/
-
-	// np_message_t* msg_out = NULL;
 
 	while (1)
 	{
@@ -196,3 +199,4 @@ int main(int argc, char **argv)
 		// dsleep(1.0);
 	}
 }
+

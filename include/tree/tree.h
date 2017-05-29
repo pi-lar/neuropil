@@ -27,6 +27,7 @@
    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
    THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 */
 
 #ifndef	_SYS_TREE_H_
@@ -57,6 +58,7 @@
  *
  * Every operation on a red-black tree is bounded as O(lg n).
  * The maximum height of a red-black tree is 2lg (n+1).
+ *
  */
 
 #define SPLAY_HEAD(name, type)						\

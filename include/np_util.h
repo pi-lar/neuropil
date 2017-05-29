@@ -59,13 +59,19 @@ NP_API_INTERN
 void _np_sll_remove_doublettes(np_sll_t(np_key_t, list_of_keys));
 
 /**
- * Create a json object from a given tree
- */
+.. c:function:: void np_tree2json()
+
+  Create a json object from a given tree
+
+*/
 NP_API_EXPORT
 JSON_Value* np_tree2json(np_tree_t* tree) ;
-/**
- * Create a string from a given JSON Object
- */
+ /**
+.. c:function:: void np_json2char()
+
+   Create a string from a given JSON Object
+
+*/
 NP_API_EXPORT
 char* np_json2char(JSON_Value* data,np_bool prettyPrint) ;
 /**
@@ -73,9 +79,20 @@ char* np_json2char(JSON_Value* data,np_bool prettyPrint) ;
  */
 NP_API_EXPORT
 JSON_Value* np_treeval2json(np_treeval_t val);
+/**
+.. c:function:: void np_dump_tree2log()
 
+   Dumps the given tree as json string into the debug log
+
+*/
 NP_API_EXPORT
 void np_dump_tree2log(np_tree_t* tree);
+/**
+.. c:function:: void np_dump_tree2log()
+
+   Dumps the given tree as json string into a char array
+
+*/
 NP_API_EXPORT
 char* np_dump_tree2char(np_tree_t* tree);
 #ifdef __cplusplus

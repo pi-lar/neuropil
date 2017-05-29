@@ -23,12 +23,14 @@ extern "C" {
 
 /**
  ** NETWORK_PACK_SIZE is the maximum packet size that will be handled by neuropil network layer
+ **
  */
 #define NETWORK_PACK_SIZE 65536
 
 /**
  ** TIMEOUT is the number of seconds to wait for receiving ack from the destination, if you want
  ** the sender to wait forever put 0 for TIMEOUT.
+ **
  */
 #define TIMEOUT 1.0
 
@@ -104,6 +106,7 @@ char* _np_network_get_protocol_string (uint8_t protocol);
 
 /** network_address:
  ** returns the ip address of the #hostname#
+ **
  **/
 NP_API_INTERN
 void _np_network_get_address (np_bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
@@ -117,6 +120,7 @@ np_prioq_t* _np_network_get_new_pqentry();
 
 /** _np_network_init:
  ** initiates the networking layer by creating socket and bind it to #port#
+ **
  **/
 NP_API_INTERN
 void _np_network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);
@@ -129,6 +133,7 @@ void _network_destroy (np_network_t* network);
  ** Sends a message to host, updating the measurement info.
  ** type are 1 or 2, 1 indicates that the data should be acknowledged by the
  ** receiver, and 2 indicates that no ack is necessary.
+ **
  **/
 NP_API_INTERN
 void _np_network_send_msg (np_key_t* node,  np_message_t* msg);

@@ -7,6 +7,7 @@
 neuropil.h is the entry point to use the neuropil messaging library.
 It defines all user centric functions and hides the complexity of the double encryption layer.
 It should contain all required functions to send or receive messages.
+
 */
 
 #ifndef _NEUROPIL_H_

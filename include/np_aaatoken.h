@@ -3,6 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
+ *
 The structure np_aaatoken_t is used for authorization, authentication and accounting purposes.
 Add-on information can be stored in a nested jtree structure. Several analogies have been used as a baseline for this structure:
 json web token, kerberos and diameter. Tokens do get integrity protected by adding an additional signature based on
@@ -126,6 +127,7 @@ enum np_aaastate_e
 
    neuropil nodes can use the realm and issuer hash key informations to request authentication and authorization of a subject
    token can then be send to gather accounting information about message exchange
+
 */
 struct np_aaatoken_s
 {
@@ -173,6 +175,7 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
 
    :param token: the token to check
    :return: a boolean indicating whether the token is valid
+
 */
 NP_API_EXPORT
 np_bool _np_aaatoken_is_valid(np_aaatoken_t* token);

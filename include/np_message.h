@@ -38,6 +38,7 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
 /** message_create / free:
  ** creates the message to the destination #dest# the message format would be like:
  ** deletes the message and corresponding structures
+ **
  **/
 NP_API_INTERN
 void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data);

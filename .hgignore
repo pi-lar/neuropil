@@ -27,3 +27,6 @@ test/.DS_STORE
 .cproject
 *.prefs
 *.os
+
+doc/sphinxcontrib-cmtinc/
+doc/pyenv/

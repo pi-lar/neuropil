@@ -35,6 +35,7 @@ extern "C" {
    The np_tree_t structure is re-used in many aspects in the neuropil library.
    One main usage is for the np_message_t structure, which mainly consists of several np_tree_t elements
    that form the different message parts.
+
 */
 
 struct np_tree_s
@@ -65,6 +66,7 @@ RB_PROTOTYPE(np_tree_s, np_tree_elem_s, link, _val_cmp);
    create a new instance of a np_tree_t structure
 
    :return: the newly constructed np_tree_t
+
 */
 NP_API_EXPORT
 np_tree_t*   np_tree_create ();
@@ -75,6 +77,7 @@ np_tree_t*   np_tree_create ();
    Delete and free an entire tree
 
    :param root: the np_tree_t struture which should be freed
+
 */
 NP_API_EXPORT
 void np_tree_free (np_tree_t* root);
@@ -85,6 +88,7 @@ void np_tree_free (np_tree_t* root);
    clear a np_tree_t structure, but keep the root node for re-use
 
    :param root: the np_tree_t structure which should be freed
+
 */
 NP_API_EXPORT
 void np_tree_clear(np_tree_t* root);
@@ -104,6 +108,7 @@ void np_tree_clear(np_tree_t* root);
    :param tree: the np_tree_t structure where the value should be inserted
    :param key: the key that should be used to insert/lookup values
    :param val: a generic np_treeval_t structure to add any kind of values to the structure
+
 */
 NP_API_EXPORT
 void np_tree_insert_str (np_tree_t *tree, const char *key, np_treeval_t val);
@@ -126,6 +131,7 @@ void np_tree_insert_dbl (np_tree_t *tree, double dkey, np_treeval_t val);
    :param tree: the np_tree_t structure where the value should be inserted
    :param key: the key that should be used to insert/lookup values
    :param val: a generic np_treeval_t structure to add any kind of values to the structure
+
 */
 NP_API_EXPORT
 void np_tree_replace_str (np_tree_t *tree, const char *key, np_treeval_t val);
@@ -150,6 +156,7 @@ void np_tree_replace_dbl (np_tree_t *tree, double dkey, np_treeval_t val);
    :param tree: the np_tree_t structure where the value should be inserted
    :param key: the key that should be used to insert/lookup values
    :return np_tree_elem_t*: a pointer to a np_tree_elem_t element which contains the np_treeval_t under the val member
+
 */
 NP_API_EXPORT
 np_tree_elem_t* np_tree_find_str (np_tree_t* root, const char *key);
@@ -177,6 +184,7 @@ np_tree_elem_t* np_tree_find_dbl (np_tree_t* root, double dkey);
    :param key: the key that should be used to insert/lookup values
    :param found: point to a local uint8_t variable to store whether an result has been found
    :return np_tree_elem_t*: a pointer to a np_tree_elem_t element which contains the np_treeval_t under the val member
+
   */
 NP_API_EXPORT
 np_tree_elem_t* np_tree_find_gte_str (np_tree_t* root, const char *key, uint8_t *found);
@@ -215,6 +223,7 @@ uint64_t np_tree_get_byte_size(np_tree_elem_t* node);
    Convinience function to create a full copy of a given tree
 
    :param tree: the np_tree_t structure to copy
+
   */
 NP_API_EXPORT
 np_tree_t* np_tree_copy(np_tree_t* source);

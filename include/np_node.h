@@ -60,12 +60,14 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_node_t);
 
 /** _np_node_update
  ** updates node hostname and port for a given node, without changing the hash
+ **
  **/
 NP_API_INTERN
 void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port);
 
 /** _np_node_update_stat
  ** updates the success rate to the np_node based on the SUCCESS_WINDOW average
+ **
  **/
 NP_API_INTERN
 void _np_node_update_stat (np_node_t* np_node, uint8_t success);
@@ -74,6 +76,7 @@ void _np_node_update_latency (np_node_t* node, double new_latency);
 
 /** np_node_decode routines
  ** decodes a string into a neuropil np_node structure, including lookup to the global key tree
+ **
  **/
 NP_API_INTERN
 np_key_t* _np_node_decode_from_str (const char *key);

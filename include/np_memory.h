@@ -47,6 +47,7 @@ typedef void (*np_alloc_t) (void* data);
  ** each np_new_obj needs a corresponding np_free_obj
  ** if other methods would like to claim ownership, they should call np_ref_obj, np_unref_obj
  ** will release the object again (and possible delete it)
+ **
  **/
 typedef struct np_obj_s np_obj_t;
 
@@ -149,6 +150,7 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
 
 /**
  ** following this line: np_memory cache and object prototype definitions
+ **
  **/
 NP_API_INTERN
 void np_mem_init();
