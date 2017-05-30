@@ -76,6 +76,7 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 		ev_async_init(&__libev_async_watcher, _np_events_async);
 		async_setup_done = TRUE;
 	}
+
 	// TODO: evaluate if 1 ore more threads are started and init appropriately
 	np_bool isMultiThreaded = FALSE;
 

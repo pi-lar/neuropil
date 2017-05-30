@@ -1842,10 +1842,12 @@ void _np_in_handshake(np_jobargs_t* args)
 					_np_key_as_str(hs_key));
 
 			hs_key->network = hs_wildcard_key->network;
+			np_ref_obj(np_network_t, hs_key->network);
+
+			_np_suspend_event_loop();
 			hs_key->network->watcher.data = hs_key;
 			hs_key->node->handshake_status= hs_wildcard_key->node->handshake_status;
-
-			np_ref_obj(np_network_t, hs_key->network);
+			_np_resume_event_loop();
 
 			// clean up, wildcard key not needed anymore
 			hs_wildcard_key->network = NULL;
@@ -1873,7 +1875,9 @@ void _np_in_handshake(np_jobargs_t* args)
 				_np_network_init(hs_key->network, FALSE, hs_key->node->protocol, hs_key->node->dns_name, hs_key->node->port);
 				if (TRUE == hs_key->network->initialized)
 				{
+					_np_suspend_event_loop();
 					hs_key->network->watcher.data = hs_key;
+					_np_resume_event_loop();
 				}
 				else
 				{

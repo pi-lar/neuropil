@@ -21,6 +21,7 @@
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"
+#include "np_event.h"
 #include "np_glia.h"
 #include "np_jobqueue.h"
 #include "np_tree.h"
@@ -401,7 +402,11 @@ void _np_send_handshake(np_jobargs_t* args)
 					args->target->node->handshake_status = HANDSHAKE_UNKNOWN;
 					return;
 				}
+
+				_np_suspend_event_loop();
 				args->target->network->watcher.data = args->target;
+				_np_resume_event_loop();
+
 			}
 		}
 		// construct target address and send it out

@@ -498,10 +498,10 @@ void _np_network_accept(struct ev_loop *loop, NP_UNUSED ev_io *event, NP_UNUSED 
 	// it could be a passive socket
 	sll_init(void_ptr, alias_key->network->out_events);
 
+	_np_suspend_event_loop();
     alias_key->network->watcher.data = alias_key;
 
-	_np_suspend_event_loop();
-	ev_io_init(&alias_key->network->watcher, _np_network_read, alias_key->network->socket, EV_READ);
+    ev_io_init(&alias_key->network->watcher, _np_network_read, alias_key->network->socket, EV_READ);
 	ev_io_start(EV_A_ &ng->watcher);
 	_np_resume_event_loop();
 }
