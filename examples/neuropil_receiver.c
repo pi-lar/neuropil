@@ -53,8 +53,6 @@ int main(int argc, char **argv)
 
 	char log_file[256];
 	sprintf(log_file, "%s_%s.log", "./neuropil_node", port);
-	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 	np_log_init(log_file, level);
 
@@ -73,7 +71,6 @@ int main(int argc, char **argv)
 	while (1)
 	{
 		ev_sleep(0.9);
-		// dsleep(0.9);
 		char* testdata;
 
 		uint32_t real_seq = np_receive_text("this.is.a.test", &testdata);

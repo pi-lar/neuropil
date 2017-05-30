@@ -3,15 +3,10 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
-  .. NOTE::
-
-  If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
-
+ *.. NOTE::
+ *
+ *   If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
  */
-/**
-.. highlight:: c
-*/
-
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -78,10 +73,10 @@ int main(int argc, char **argv) {
 			break;
 		case 'm':
     /**
-     * The default value for the message we like to send is "Hello World! {x}"
-     * {x} will be replaced by a increasing number.
-     * If you like to send your own message you can
-     * call the programm with the "-m <string>" parameter.
+      The default value for the message we like to send is "Hello World! {x}"
+      {x} will be replaced by a increasing number.
+      If you like to send your own message you can
+      call the programm with the "-m <string>" parameter.
      */
 			message_to_send = optarg;
 			add_id_to_msg = FALSE;
@@ -108,13 +103,12 @@ int main(int argc, char **argv) {
 		}
 	}
   /**
-	 * To create unique names and to use a seperate port for every
-	 * node we will start the nodes in forks of this thread and use the pid as unique id.
-	 *
-	 * As the pid may be greater then the port range we will shift it if necessary.
+	  To create unique names and to use a seperate port for every
+	  node we will start the nodes in forks of this thread and use the pid as unique id.
+
+	  As the pid may be greater then the port range we will shift it if necessary.
 
 	 .. code-block:: c
-
 	 \code
    */
 	char port[7];
@@ -128,19 +122,17 @@ int main(int argc, char **argv) {
 	} else {
 		sprintf(port, "%d", current_pid);
 	}
-  /**
-   \endcode
-   */
+	/** \endcode */
+
 	char log_file_host[256];
 	sprintf(log_file_host, "%s%s_%s.log", logpath, "/neuropil_echo_client",
 			port);
 	fprintf(stdout, "logpath: %s\n", log_file_host);
 
 /**
- * We create our node,
- *
- .. code-block:: c
+  We create our node,
 
+ .. code-block:: c
  \code
  */
 	np_log_init(log_file_host, level);
@@ -149,13 +141,11 @@ int main(int argc, char **argv) {
 	np_start_job_queue(no_threads);
 /**
  \endcode
- */
-/**
- * and join to our bootstrap node
- * (either the default localhost or a node provided by parameter)
- *
- .. code-block: c
+ 
+  and join to our bootstrap node
+ (either the default localhost or a node provided by parameter)
 
+ .. code-block: c
  \code
  */
 	np_key_t* bootstrap_node = NULL;
@@ -189,15 +179,11 @@ int main(int argc, char **argv) {
 		}
 	}
   /**
-
    \endcode
-   */
 
-	/**
 	and initialize the message property for the echo service
 
 	.. code-block:: c
-
 	\code
 	*/
 
@@ -209,23 +195,19 @@ int main(int argc, char **argv) {
 	np_msgproperty_register(msg_props);
 	/**
 	 \endcode
-	 */
-	/**
-	and add a listener to receive a callback every time a "echo" message is received
-	.. code-block:: c
 
+	and add a listener to receive a callback every time a "echo" message is received
+
+	.. code-block:: c
 	\code
 	*/
 	np_set_listener(receive_message, "echo");
 	/**
 	 \endcode
-	 */
 
-	/**
-	 * And now we can send, periodically, our message to our bootstrap node
-	 *
+	  And now we can send, periodically, our message to our bootstrap node
+
 	 .. code-block:: c
-
 	 \code
 	 */
 	uint64_t i = 0;
@@ -247,31 +229,25 @@ int main(int argc, char **argv) {
 		}
 		ev_sleep(0.1);
 	}
-	/**
-	 \endcode
-	 */
+	/** \endcode */
 }
 
 /**
- * If  we receive a message for the "echo" subject we now get a callback to this function
+  If  we receive a message for the "echo" subject we now get a callback to this function
 
  .. code-block:: c
-
  \code
  */
 np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
 	/**
 	 \endcode
-	 */
-	/**
-	 * We can now handle the message an can access
-	 * the payload via the body and properties tree structures.
+
+	  We can now handle the message an can access
+	  the payload via the body and properties tree structures.
 
 	 .. code-block:: c
-
 	 \code
 	 */
-
  	 np_tree_t* header = msg->header;
 
 	char* reply_to = NULL;
@@ -291,18 +267,13 @@ np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np
 	fprintf(stdout, "%f - RECEIVED: \"%s\" from: %s \n", ev_time(), text, reply_to);
 	/**
 	 \endcode
-	 */
 
-	/**
-	 * To signal the network a completely processed message
-	 * (no resends necessary) we return a TRUE value to our caller.
+	  To signal the network a completely processed message
+	  (no resends necessary) we return a TRUE value to our caller.
 
 	 .. code-block:: c
-
 	 \code
 	 */
 	return TRUE;
-	/**
-	 \endcode
-	 */
+	/** \endcode */
 }

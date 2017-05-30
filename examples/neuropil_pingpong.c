@@ -3,13 +3,6 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
- * .. NOTE::
- *
- * If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
- *
- *
- */
-/**
 .. highlight:: c
 */
 
@@ -45,13 +38,12 @@ right, let's define two callback functions that will be called each time
 a ping or pong message is received by the nodes that you are going to start
 
 .. code-block:: c
-
-   np_bool receive_ping(np_tree_t* properties, np_tree_t* body)
-   {
+	\code
 */
 
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
+	/** \endcode */
 
 	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
@@ -63,10 +55,15 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 
 	return TRUE;
 }
+/**
+	And
 
+	.. code-block:: c
+ 	\code
+*/
 np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
-
+	/** \endcode */
 	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 
@@ -121,115 +118,114 @@ int main(int argc, char **argv)
 	in your main program, initialize the logging of neuopil, but this time use the port for the filename
 
 	.. code-block:: c
-
-	   char log_file[256];
-	   sprintf(log_file, "%s_%d.log", "./neuropil_node", port);
-	   int level = LOG_ERROR | LOG_WARN | LOG_INFO;
-	   log_init(log_file, level);
+	\code
 	*/
 	char log_file[256];
 	sprintf(log_file, "%s_%s.log", "./neuropil_pingpong", port);
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	np_log_init(log_file, level);
+	/** \endcode */
 
 	/**
 	initialize the neuropil subsystem with the np_init function
 
 	.. code-block:: c
-
-	   np_init(proto, port, FALSE);
+	\code
 	*/
 	np_state_t* state = np_init(proto, port, FALSE, NULL);
-	// The port may change due to default setting for NULL
-	port =  state->my_node_key->node->port;
+	/** \endcode
 
+		The port may change due to default setting for NULL,
+		so we need to reevaluate the port to print it out later on
+
+			.. code-block:: c
+			\code
+	*/
+	port =  state->my_node_key->node->port;
+	/** \endcode */
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
 	you should start at least 2 threads (network io is non-blocking).
 
 	.. code-block:: c
-
-	   np_start_job_queue(8);
+	\code
 	*/
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
+	/** \endcode */
 
 	/**
-	use the connect string that is printed to stdout and pass it to the np_controller to send a join message.
-	wait until the node has received a join message before proceeding
+	If this is your first start of the program copy the connections tring from stout and
+	start a second instance of the program and provide the connection string via the -j parameter.
+
+	the next step in the  program is to check if the j_key was provided. if so we will try to join the node.
+	If not we will print out the connection string of this node and wait for a node to join this network.
 
 	.. code-block:: c
-
-	   np_waitforjoin();
+	\code
 	*/
 
 	if (NULL != j_key)
 	{
 		np_send_join(j_key);
-	}else{
+	} else {
 		fprintf(stdout, "Node waits for connections.\n");
 		fprintf(stdout, "Please start another node with the following arguments:\n");
 		fprintf(stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string());
 	}
 
 	np_waitforjoin();
-	fprintf(stdout, "Connection established.\n");
 
+	fprintf(stdout, "Connection established.\n");
+	/** \endcode */
 
 	/**
-	.. note::
-	   Make sure that you have implemented and registered the appropiate aaa callback functions
-	   to control with which nodes you exchange messages. By default everybody is allowed to interact
-	   with your node
+	*.. note::
+
+	*   Make sure that you have implemented and registered the appropiate aaa callback functions
+	*   to control with which nodes you exchange messages. By default everybody is allowed to interact
+	*   with your node
+	 */
+
+	/**
+	 Now we need to register this node as interested in "ping" and "pong" messages.
+	 For this we will configure two message properties with the appropiate callbacks to our handlers.
+
+	 .. code-block:: c
+	 \code
 	 */
 	np_msgproperty_t* ping_props = NULL;
 	np_new_obj(np_msgproperty_t, ping_props);
-	// ping_props->mode_type = INBOUND | OUTBOUND;
 	ping_props->msg_subject = "ping";
 	ping_props->ack_mode = ACK_NONE;
 	ping_props->ttl = 20.0;
 	np_msgproperty_register(ping_props);
+//register the listener function to receive data from the sender
 	np_set_listener(receive_ping, "ping");
 
 	np_msgproperty_t* pong_props = NULL;
 	np_new_obj(np_msgproperty_t, pong_props);
-	// pong_props->mode_type = INBOUND | OUTBOUND; // this is already the default
 	pong_props->msg_subject = "pong";
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->ttl = 20.0;
 	np_msgproperty_register(pong_props);
+	//register the listener function to receive data from the sender
 	np_set_listener(receive_pong, "pong");
+	/** \endcode */
 
-	/**
-	register the listener function to receive data from the sender
-
-	.. code-block:: c
-
-	   np_set_listener(receive_this_is_a_test, "this.is.a.test");
-	*/
-
-	/**
-	loop (almost) forever, you're done :-)
-
-	.. code-block:: c
-
-	   while (1)
-	   {
-		   ev_sleep(0.9);
-	   }
-	*/
 	log_msg(LOG_INFO, "Sending initial ping");
 	// send an initial ping
 	np_send_text("ping", "ping", _ping_count++, NULL);
 
 	/**
-	the loopback function will be triggered each time a message is received
-	make sure that you've understood how to alter the message exchange to change
-	receiving of message from the default values
+ 	loop (almost) forever, you're done :-)
 
+ 	.. code-block:: c
+	\code
  	*/
 	while (1)
 	{
 		ev_sleep(0.9);
 	}
+	/** \endcode */
 }

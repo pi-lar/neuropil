@@ -30,6 +30,8 @@ It should contain all required functions to send or receive messages.
 extern "C" {
 #endif
 
+/** \toggle_keepwhitespaces  */
+
 /**
 .. c:type:: np_state_t
 

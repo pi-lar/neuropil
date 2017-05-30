@@ -32,23 +32,21 @@ first, let's define a callback function that will be called each time
 a message is received by the node that you are currently starting
 
 .. code-block:: c
-
-   np_bool receive_this_is_a_test(np_tree_t* properties, np_tree_t* body)
-   {
+\code
 */
 
 np_bool receive_this_is_a_test(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
-
+/** \endcode */
 	/**
 	for this message exchange the message is send as a text element (if you used np_send_text)
 	otherwise inspect the properties and payload np_tree_t structures ...
 
     .. code-block:: c
-
-	      char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+		\code
 	*/
 	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	/** \endcode */
 	log_msg(LOG_INFO, "RECEIVED: %s", text);
 
 	/**
@@ -56,11 +54,10 @@ np_bool receive_this_is_a_test(const np_message_t* const msg, np_tree_t* propert
 	the message may get delivered a second time
 
 	.. code-block:: c
-
-	      return TRUE;
-	   }
+	\code
 	*/
 	return TRUE;
+	/** \endcode */
 }
 
 
@@ -105,92 +102,82 @@ int main(int argc, char **argv)
 	in your main program, initialize the logging of neuopil, but this time use the port for the filename
 
 	.. code-block:: c
-
-	   char log_file[256];
-	   sprintf(log_file, "%s_%d.log", "./neuropil_node", port);
-	   int level = LOG_ERROR | LOG_WARN | LOG_INFO;
-	   log_init(log_file, level);
+	\code
 	*/
 	char log_file[256];
 	sprintf(log_file, "%s_%s.log", "./neuropil_node", port);
-	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_MESSAGE;
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_AAATOKEN;
-	// int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	np_log_init(log_file, level);
+	/** \endcode */
 
 	/**
 	initialize the neuropil subsystem with the np_init function
 
 	.. code-block:: c
-
-	   np_init(proto, port, FALSE);
+	\code
 	*/
 	np_init(proto, port, FALSE, NULL);
+	/** \endcode */
 
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
 	you should start at least 2 threads (network io is non-blocking).
 
 	.. code-block:: c
-
-	   np_start_job_queue(8);
+		\code
 	*/
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
+	/** \endcode */
 
-	/**
-	use the connect string that is printed to stdout and pass it to the np_controller to send a join message.
-	wait until the node has received a join message before proceeding
-
-	.. code-block:: c
-
-	   np_waitforjoin();
-	*/
 
 	if (NULL != j_key)
 	{
 		np_send_join(j_key);
 	}
 
+		/**
+		use the connect string that is printed to stdout and pass it to the np_controller to send a join message.
+		wait until the node has received a join message before proceeding
+
+		.. code-block:: c
+		\code
+		*/
 	np_waitforjoin();
+	/** \endcode */
 
 	/**
-	.. note::
-	   Make sure that you have implemented and registered the appropiate aaa callback functions
-	   to control with which nodes you exchange messages. By default everybody is allowed to interact
-	   with your node
+	*.. note::
+	*   Make sure that you have implemented and registered the appropiate aaa callback functions
+	*   to control with which nodes you exchange messages. By default everybody is allowed to interact
+	*   with your node
 	 */
 
 	/**
 	register the listener function to receive data from the sender
 
 	.. code-block:: c
-
-	   np_set_listener(receive_this_is_a_test, "this.is.a.test");
+		\code
 	*/
 	np_set_listener(receive_this_is_a_test, "this.is.a.test");
+	/** \endcode */
 
-	/**
-	loop (almost) forever, you're done :-)
-
-	.. code-block:: c
-
-	   while (1)
-	   {
-		   ev_sleep(0.9);
-	   }
-	*/
 
 	/**
 	the loopback function will be triggered each time a message is received
 	make sure that you've understood how to alter the message exchange to change
 	receiving of message from the default values
-
  	*/
+
+	/**
+	loop (almost) forever, you're done :-)
+
+	.. code-block:: c
+	\code
+	*/
 	while (1)
 	{
 		ev_sleep(0.9);
 	}
+	/** \endcode */
 }

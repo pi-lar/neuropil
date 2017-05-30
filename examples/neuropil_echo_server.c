@@ -3,14 +3,10 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
-  .. NOTE::
-
-  If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
-
+ *.. NOTE::
+ *
+ *   If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
  */
-/**
-.. highlight:: c
-*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,9 +36,6 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 extern char *optarg;
 extern int optind;
-
-
-
 
 np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
 
@@ -118,8 +111,7 @@ int main(int argc, char **argv) {
 	np_msgproperty_register(msg_props);
 	/**
 	 \endcode
-	 */
-	/**
+
 	and add a listener to receive a callback everytime a "echo" message is received
 
 	.. code-block:: c
@@ -128,9 +120,7 @@ int main(int argc, char **argv) {
 	*/
 	np_set_listener(receive_echo_message, "echo");
 
-	/**
-	 \endcode
-	 */
+	/** \endcode */
 
 	while (TRUE) {
 		ev_sleep(0.1);
@@ -146,14 +136,12 @@ a echo message is received by the nodes that you are going to start
 \code
 */
 np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
-/**
-\endcode
-*/
+/** \endcode */
   	np_tree_t* header = msg->header;
 	fprintf(stdout, "%f - RECEIVED", ev_time());
 
 	/**
-	 * we try to evaluate the source of the message
+	 we try to evaluate the source of the message
 
 	 .. code-block:: c
 
@@ -166,12 +154,11 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 
 		/**
 		 \endcode
-		 */
-		/**
-		 * we evaluate the content and check if we did receive a text message
-		 * to prevent malicious use of the demo service and then
-		 * send the message back to its sender
-		 *
+
+		  we evaluate the content and check if we did receive a text message
+		  to prevent malicious use of the demo service and then
+		  send the message back to its sender
+
 		 .. code-block:: c
 
 		 \code
@@ -187,9 +174,7 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 		fprintf(stdout, ": \"%s\" from: %s \n", text, reply_to);
 		// send the message back
 		np_send_text("echo", text, 0, reply_to);
-		/**
-		 \endcode
-		 */
+		/** \endcode */
 	}
 	return TRUE;
 }

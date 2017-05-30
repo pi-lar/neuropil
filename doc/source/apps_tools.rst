@@ -20,6 +20,7 @@ You can now illustrate the network at http://view.neuropil.io.
   source code of this example is available at examples/neuropil_hydra.c
 
 .. include-comment:: ../../examples/neuropil_hydra.c
+    
 
 .. raw:: html
 

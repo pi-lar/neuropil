@@ -16,10 +16,6 @@
 #include "np_log.h"
 #include "np_types.h"
 
-/**
-.. highlight:: c
-*/
-
 #define USAGE "neuropil [ -j bootstrap:port ] [ -p protocol] [-b port] [-t worker_thread_count]"
 #define OPTSTR "j:p:b:t:"
 
@@ -29,11 +25,11 @@ extern int optind;
 /**
 first we have to define a global np_state_t variable
 
-.. code-block:: c
-
-   np_state_t *state = NULL;
+ .. code-block:: c
+ \code
 */
 np_state_t *state;
+/** \endcode */
 
 int seq = -1;
 int joinComplete = 0;
@@ -86,10 +82,7 @@ int main(int argc, char **argv)
 	sprintf(log_file, "%s_%d.log", "./neuropil_controller", getpid());
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 	np_log_init(log_file, level);
-	/**
-
-	 \endcode
-	 */
+	/** \endcode */
 
 
 	/**
@@ -100,10 +93,7 @@ int main(int argc, char **argv)
 	\code
 	*/
 	state = np_init(proto, port, TRUE, NULL);
-	/**
-
-	 \endcode
-	 */
+	/** \endcode */
 	// state->my_node_key->node->joined_network = 1;
 
 	/**
@@ -116,28 +106,25 @@ int main(int argc, char **argv)
 	*/
 	log_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
-	/**
-
-	 \endcode
-	 */
+	/** \endcode */
 
 	/**
-	check stdout and the log file because it will contain this nodes hashvalue / connect string, e.g.
+	  check stdout and the log file because it will contain this nodes hashvalue / connect string, e.g.
 
-	.. code-block:: c
-
-       2f96848a8c490e0f0f71c74caa900423bcf2d32882a9a0b3510c50085f7ec0e5:udp6:localhost:3333
+   *.. code-block:: c
+   *
+   *    2f96848a8c490e0f0f71c74caa900423bcf2d32882a9a0b3510c50085f7ec0e5:udp6:localhost:3333
 
     */
 
 	/**
 	and finally loop (almost) forever
 
-	.. code-block:: c
-
-	   while (1) {
-	       dsleep(1.0);
-	   }
+	*.. code-block:: c
+	*
+	*   while (1) {
+	*       ev_sleep(1.0);
+	*   }
 	*/
 
 	/**
@@ -147,10 +134,11 @@ int main(int argc, char **argv)
 	By default the authentication / authorization / accounting handler accept nodes/message request
 	from everybody.
 
-    .. note::
-	   Make sure that you implement and register the appropiate aaa callback functions
-	   to control with which nodes you exchange messages. By default everybody is allowed to interact
-	   with your node
+   *.. note::
+	 *
+	 *  Make sure that you implement and register the appropiate aaa callback functions
+	 *  to control with which nodes you exchange messages. By default everybody is allowed to interact
+	 *  with your node
 	*/
 
 	while (1)
@@ -173,15 +161,15 @@ int main(int argc, char **argv)
 		you can use it to send join request to other nodes.
 		In the example below the 'node_string' must contain exactly this string:
 
-	    .. code-block:: c
-
-		   LOCK_CACHE(state)
-		   {
-		       node_key = np_node_decode_from_str(state, node_string);
-		   }
-
-		   log_msg(LOG_DEBUG, "sending join message");
-           np_sendjoin(state, node_key);
+	  *.. code-block:: c
+		*
+		*   LOCK_CACHE(state)
+		*  {
+		*       node_key = np_node_decode_from_str(state, node_string);
+		*  }
+		*
+		*  log_msg(LOG_DEBUG, "sending join message");
+    *      np_sendjoin(state, node_key);
 		*/
 		log_msg(LOG_DEBUG, "creating welcome message");
 		np_send_join(node_string);
@@ -196,7 +184,5 @@ int main(int argc, char **argv)
 //		_np_job_submit_msg_event(0.0, prop, node_key, msg_out);
 
 		ev_sleep(1.0);
-		// dsleep(1.0);
 	}
 }
-

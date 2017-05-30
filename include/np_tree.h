@@ -3,6 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // Original version taken from chimera project, copyright (C) 2001 James S. Plank
+/** \toggle_keepwhitespaces  */
 /*
 Published under the GNU Lesser General Public License as published by the Free Software Foundation; either
 version 2.1 of the License, or (at your option) any later version

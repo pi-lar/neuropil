@@ -3,15 +3,10 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
-  .. NOTE::
-
-  If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
-
+ *.. NOTE::
+ *
+ *   If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
  */
-/**
-.. highlight:: c
-*/
-
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
@@ -52,17 +47,17 @@ extern char *optarg;
 extern int optind;
 
 /**
- * The purpose of this program is to start a set of nodes
- * and restart them in the case of failure.
- *
- * For this to accomplish we will do the following steps:
+  The purpose of this program is to start a set of nodes
+  and restart them in the case of failure.
 
-   #. :ref:`Create a bootstrap node (with http server), if none is given <np_hydra_create_bootstrap_node>`.
-   #. :ref:`Start X nodes. Each node will be started in a different process <neuropil_hydra_step_startnodes>`.
-   #. :ref:`Check if the created nodes are still present, if not we may start a new node <neuropil_hydra_step_check_nodes_still_present>`
+  For this to accomplish we will do the following steps:
 
- * The last step will be executed in a loop.
- *
+ *  #. :ref:`Create a bootstrap node (with http server), if none is given <np_hydra_create_bootstrap_node>`.
+ *  #. :ref:`Start X nodes. Each node will be started in a different process <neuropil_hydra_step_startnodes>`.
+ *  #. :ref:`Check if the created nodes are still present, if not we may start a new node <neuropil_hydra_step_check_nodes_still_present>`
+
+  The last step will be executed in a loop.
+
  */
 int main(int argc, char **argv)
 {
@@ -132,11 +127,12 @@ int main(int argc, char **argv)
 			fprintf(stdout, "Creating new bootstrap node...\n");
 			/**
 
-			   .. _np_hydra_create_bootstrap_node:
-
+			 *.. _np_hydra_create_bootstrap_node:
+			 *
 			 * **Step 1: Create a bootstrap node**
-
+			 *
 			   We enable the HTTP Server for this node to use our JSON interface.
+
  	 	 	   .. code-block:: c
 
 			  \code
@@ -149,11 +145,10 @@ int main(int argc, char **argv)
 			// provide localhost as hostname to support development on local machines
 			np_init(proto, bootstrap_port, TRUE, "localhost");
 			/**
-
-			   \endcode
+			 \endcode
 			 */
 			/**
-			 * Enable the bootstrap node as master for our SysInfo subsystem
+			 Enable the bootstrap node as master for our SysInfo subsystem
 
 			   .. code-block:: c
 
@@ -165,7 +160,7 @@ int main(int argc, char **argv)
 			 \endcode
 			 */
 			/**
-			 * And wait for incomming connections
+			  And wait for incomming connections
 
 			   .. code-block:: c
 
@@ -195,26 +190,21 @@ int main(int argc, char **argv)
 
 	   This step does contain 2 parts.
 
-	   #. we create X nodes an join them with our bootstrap node
-	   #. we need to remember the nodes to implement Step 3
+	 *  #. we create X nodes an join them with our bootstrap node
+	 *  #. we need to remember the nodes to implement Step 3
 
 	   Let us beginn with part 2:
 
 	   We declare a list where we store the pid of our newly created nodes:
 
-	   .. code-block:: c
+	 .. code-block:: c
 
 	  \code
-
 	 */
 	np_sll_t(int, list_of_childs) = sll_init(int, list_of_childs);
-	/**
+	/** \endcode
 
-	 \endcode
-
-	 */
-	/**
-	 * and will later on add to this list.
+	 and will later on add to this list.
 	 */
 	int array_of_pids[required_nodes + 1];
 
@@ -222,13 +212,12 @@ int main(int argc, char **argv)
 	int status;
 
 	/**
-	 * Now we will create the additional nodes.
-	 * To prevent an ever growing list of nodes we will only create an set amount
+	  Now we will create the additional nodes.
+	  To prevent an ever growing list of nodes we will only create an set amount
 
 	   .. code-block:: c
 
 	   \code
-
 	 */
 	while (TRUE) {
 		// (re-) start child processes
@@ -236,13 +225,10 @@ int main(int argc, char **argv)
 
 			/**
 			 \endcode
-			 */
+			  To create unique names and to use a seperate port for every
+			  node we will start the nodes in forks of this thread and use the pid as unique id.
 
-			/**
-			 * To create unique names and to use a seperate port for every
-			 * node we will start the nodes in forks of this thread and use the pid as unique id.
-			 *
-			 * As the pid may be greater then the port range we will shift it if necessary.
+			  As the pid may be greater then the port range we will shift it if necessary.
 
 				.. code-block:: c
 
@@ -262,10 +248,9 @@ int main(int argc, char **argv)
 				}
 				/**
 				 \endcode
-				 */
-				/**
-				 * We now start the nodes like before
-				 *
+
+				  We now start the nodes like before
+
 				.. code-block:: c
 
 				  \code
@@ -280,10 +265,9 @@ int main(int argc, char **argv)
 				np_start_job_queue(no_threads);
 				/**
 				 \endcode
-				 */
-				/**
-				 * and enable the nodes as slaves in our SysInfo subsystem
-				 *
+
+				  and enable the nodes as slaves in our SysInfo subsystem
+
 				.. code-block:: c
 
 				  \code
@@ -291,8 +275,7 @@ int main(int argc, char **argv)
 				np_sysinfo_enable_slave();
 				/**
 				 \endcode
-				 */
-				/**
+
 				   and join our bootstrap node
 
 					.. code-block:: c
@@ -326,9 +309,9 @@ int main(int argc, char **argv)
 
 			} else {
 				/**
-				 * While the fork process starts the new node,
-				 * the main process needs to add the new process id to the list we created before.
-				 *
+				  While the fork process starts the new node,
+				  the main process needs to add the new process id to the list we created before.
+
 				 .. code-block:: c
 
 				 \code
@@ -349,11 +332,11 @@ int main(int argc, char **argv)
 			/**
 			  .. _neuropil_hydra_step_check_nodes_still_present:
 
-			 * **Step 3: Check if the created nodes are still present**
-			 *
-			 * To do this we gather informations regarding our stopped subprocesses
-			 * and delete them from our list of pids
-			 *
+			  * **Step 3: Check if the created nodes are still present**
+
+			  To do this we gather informations regarding our stopped subprocesses
+			  and delete them from our list of pids
+
 			 .. code-block:: c
 
 			 \code

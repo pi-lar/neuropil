@@ -11,10 +11,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-/**
-.. highlight:: c
-*/
-
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"
@@ -31,12 +27,11 @@ extern int optind;
 /**
 first we have to define a global np_state_t variable
 
-.. code-block:: c
-
-   np_state_t *state = NULL;
+ .. code-block:: c
+ \code
 */
 np_state_t *state;
-
+/** \endcode */
 
 int main(int argc, char **argv)
 {
@@ -82,26 +77,23 @@ int main(int argc, char **argv)
 	in your main program, initialize the logging of neuopil, use the port for the filename
 
 	.. code-block:: c
-
-	   char log_file[256];
-	   sprintf(log_file, "%s_%d.log", "./neuropil_node", port);
-	   int level = LOG_ERROR | LOG_WARN | LOG_INFO;
-	   log_init(log_file, level);
+	\code
 	*/
 	char log_file[256];
 	sprintf(log_file, "%s_%s.log", "./neuropil_node", port);
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG  | LOG_AAATOKEN;
 	np_log_init(log_file, level);
+	/** \endcode */
 
 	/**
 	initialize the global variable with the np_init function. the last argument
 	defines if you would like to have simplistic http interface on port 31415
 
 	.. code-block:: c
-
-	   state = np_init(proto, port, FALSE);
+	\code
 	*/
 	state = np_init(proto, port, FALSE, NULL);
+	/** \endcode */
 
 	if (NULL != realm)
 	{
@@ -120,10 +112,10 @@ int main(int argc, char **argv)
 	you should start at least 2 threads, because network reading currently is blocking.
 
 	.. code-block:: c
-
-	   np_start_job_queue(8);
+	\code
 	*/
 	np_start_job_queue(no_threads);
+	/** \endcode */
 
 	if (NULL != j_key)
 	{
@@ -135,42 +127,34 @@ int main(int argc, char **argv)
 	wait until the node has received a join message before actually proceeding
 
 	.. code-block:: c
-
-	   np_waitforjoin();
+	\code
 	*/
 	np_waitforjoin();
+	/** \endcode */
 
 	/**
-	.. note::
-	   Make sure that you implement and register the appropiate aaa callback functions
-	   to control with which nodes you exchange messages. By default everybody is allowed to interact
-	   with your node
+	 *.. note::
+	 *  Make sure that you implement and register the appropiate aaa callback functions
+	 *  to control with which nodes you exchange messages. By default everybody is allowed to interact
+	 *  with your node
 	 */
 
 	/**
 	create the message that you would like to send across (now or in the loop later)
 
 	.. code-block:: c
-
-	   char* msg_subject = "this.is.a.test";
-	   char* msg_data = "testdata";
-	   unsigned long k = 1; // send across a sequence number
+	\code
 	*/
 	char* msg_subject = "this.is.a.test";
 	char* msg_data = "testdata";
 	unsigned long k = 1;
+	/** \endcode */
 
 	/**
 	loop (almost) forever and send your messages to the receiver :-)
 
 	.. code-block:: c
-
-	   while (1)
-	   {
-	      ev_sleep(1.0);
-		  np_send_text(state, msg_subject, msg_data, k);
-		  k++;
-	   }
+	\code
  	*/
 	while (1) {
 
@@ -181,4 +165,5 @@ int main(int argc, char **argv)
 
 		k++;
 	}
+	/** \endcode */
 }
