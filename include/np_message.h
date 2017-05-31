@@ -33,6 +33,14 @@ struct np_message_s
 	np_pll_t(np_messagepart_ptr, msg_chunks);
 } NP_API_INTERN;
 
+struct _np_message_buffer_container_s
+{
+	np_message_t * message;
+	size_t bufferCount;
+	size_t bufferMaxCount;
+	void* buffer;
+} NP_API_INTERN;
+
 _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
 
 /** message_create / free:

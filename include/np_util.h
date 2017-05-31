@@ -53,6 +53,11 @@ NP_API_INTERN
 size_t _np_buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count);
 
 NP_API_INTERN
+np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit);
+NP_API_INTERN
+size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx,const void* data, size_t count);
+
+NP_API_INTERN
 void _np_tree2jsonobj(np_tree_t* jtree, JSON_Object* json_obj);
 
 NP_API_INTERN

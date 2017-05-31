@@ -543,7 +543,15 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 {
 	cmp_ctx_t cmp;
+	_np_message_buffer_container_t buffer_container;
+	buffer_container.buffer = buffer;
+	buffer_container.bufferCount = 0;
+	buffer_container.bufferMaxCount = MSG_CHUNK_SIZE_1024;
+	buffer_container.message = msg;
+
+	//cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_writer);
 	cmp_init(&cmp, buffer, _np_buffer_reader, _np_buffer_writer);
+
 
 	uint32_t array_size;
 
@@ -628,7 +636,14 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		uint32_t size_footer_add = 0;
 
 		cmp_ctx_t cmp;
-		cmp_init(&cmp, current_chunk->msg_part, _np_buffer_reader, _np_buffer_writer);
+		_np_message_buffer_container_t buffer_container;
+		buffer_container.buffer = current_chunk->msg_part;
+		buffer_container.bufferCount = 0;
+		buffer_container.bufferMaxCount = MSG_CHUNK_SIZE_1024;
+		buffer_container.message = msg;
+
+		cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_writer);
+		//cmp_init(&cmp, current_chunk->msg_part, _np_buffer_reader, _np_buffer_writer);
 
 		uint32_t array_size;
 		if (!cmp_read_array(&cmp, &array_size)) return (0);
@@ -638,7 +653,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			return (FALSE);
 		}
 
-		if (0 == msg->header->size)
+		if ( 0 == msg->header->size)
 		{
 			log_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg header", msg->uuid);
 			_np_tree_deserialize(msg->header, &cmp);
@@ -646,10 +661,11 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		}
 		else
 		{
-			cmp.buf += msg->header->byte_size;
+			((_np_message_buffer_container_t*)cmp.buf)->buffer += msg->header->byte_size;
+			((_np_message_buffer_container_t*)cmp.buf)->bufferCount += msg->header->byte_size;
 		}
 
-		if (0 == msg->instructions->size)
+		if ( 0 == msg->instructions->size)
 		{
 			log_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg instructions", msg->uuid);
 			_np_tree_deserialize(msg->instructions, &cmp);
@@ -657,9 +673,9 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		}
 		else
 		{
-			cmp.buf += msg->instructions->byte_size;
+			((_np_message_buffer_container_t*)cmp.buf)->buffer += msg->instructions->byte_size;
+			((_np_message_buffer_container_t*)cmp.buf)->bufferCount += msg->instructions->byte_size;
 		}
-
 		cmp_read_bin_size(&cmp, &size_properties_add);
 		if (0 < size_properties_add)
 		{
@@ -671,7 +687,8 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		}
 		else
 		{
-			// cmp.buf += size_properties_add;
+			// buffer_container.buffer += size_properties_add;
+			// buffer_container.bufferCount += size_properties_add;
 		}
 
 		cmp_read_bin_size(&cmp, &size_body_add);
@@ -685,7 +702,8 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		}
 		else
 		{
-			// cmp.buf += size_body_add;
+			// buffer_container.buffer += size_body_add;
+			// buffer_container.bufferCount += size_body_add;
 		}
 
 		cmp_read_bin_size(&cmp, &size_footer_add);
@@ -699,7 +717,8 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		}
 		else
 		{
-			// cmp.buf += size_footer_add;
+			// buffer_container.buffer += size_footer_add;
+			// buffer_container.bufferCount += size_footer_add;
 		}
 
 		// log_msg(LOG_MESSAGE | LOG_DEBUG, "-------------------------" );

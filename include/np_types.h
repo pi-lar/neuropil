@@ -68,6 +68,7 @@ typedef struct np_key_s np_key_t;
 
 typedef struct np_message_s np_message_t;
 typedef struct np_msgproperty_s np_msgproperty_t;
+typedef struct _np_message_buffer_container_s _np_message_buffer_container_t;
 
 typedef struct np_network_s np_network_t;
 typedef struct np_node_s np_node_t;

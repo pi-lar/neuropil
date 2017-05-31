@@ -24,6 +24,7 @@
 #include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_treeval.h"
+#include "np_message.h"
 #include "np_tree.h"
 #include "np_node.h"
 #include "np_route.h"
@@ -55,13 +56,42 @@ char* np_uuid_create(const char* str, const uint16_t num)
 
 np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit)
 {
-	if(ctx == NULL ){
-		log_msg(LOG_DEBUG, "ctx is null");
-	}
-
 	memcpy(data, ctx->buf, limit);
 	ctx->buf += limit;
 	return TRUE;
+}
+
+np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit)
+{
+	np_bool ret = FALSE;
+	_np_message_buffer_container_t* wrapper = ctx->buf;
+
+	size_t nextCount = wrapper->bufferCount + limit;
+	log_msg(LOG_DEBUG,
+			 "BUFFER CHECK Current size: %zu; Max size: %zu; Read size: %zu",
+			 wrapper->bufferCount, wrapper->bufferMaxCount, limit);
+
+	if(nextCount > wrapper->bufferMaxCount) {
+ 		 log_msg(LOG_WARN,
+ 				 "Message deserialization error. Read size exceeds buffer. May be invoked due to changed key (see: kb) Current size: %zu; Max size: %zu; Read size: %zu",
+				 wrapper->bufferCount, wrapper->bufferMaxCount);
+	} else {
+		log_msg(LOG_DEBUG, "memcpy %p <- %p o %p",data, wrapper->buffer,wrapper);
+		memcpy(data, wrapper->buffer, limit);
+		wrapper->buffer += limit;
+		wrapper->bufferCount = nextCount;
+		ret = TRUE;
+	}
+	return ret;
+}
+
+size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size_t count)
+{
+	_np_message_buffer_container_t* wrapper = ctx->buf;
+
+	memcpy(wrapper->buffer, data, count);
+	wrapper->buffer += count;
+	return count;
 }
 
 size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
