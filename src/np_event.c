@@ -69,24 +69,33 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 {
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
-	static np_bool async_setup_done = FALSE;
-	if (FALSE == async_setup_done)
-	{
-		// TODO: move it outside of this function
-		ev_async_init(&__libev_async_watcher, _np_events_async);
-		async_setup_done = TRUE;
-	}
 
 	// TODO: evaluate if 1 ore more threads are started and init appropriately
 	np_bool isMultiThreaded = FALSE;
 
 	if(TRUE == isMultiThreaded) {
+
+		static np_bool async_setup_done = FALSE;
+		if (FALSE == async_setup_done)
+		{
+			// TODO: move it outside of this function
+			ev_async_init(&__libev_async_watcher, _np_events_async);
+			async_setup_done = TRUE;
+		}
+
 		ev_set_io_collect_interval (EV_A_ __libev_interval);
 		ev_set_timeout_collect_interval (EV_A_ __libev_interval);
+
 		ev_run(EV_A_ (0));
+		// never returns
 	} else {
-		//Single Thread
-		ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
+
+		pthread_mutex_lock(&__libev_mutex);
+
+		if (! __suspended_libev_loop)
+			ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
+
+		pthread_mutex_unlock(&__libev_mutex);
 	}
 
 	if (TRUE == __exit_libev_loop) return;
