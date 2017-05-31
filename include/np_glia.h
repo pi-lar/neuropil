@@ -17,7 +17,8 @@ void _np_route_lookup_jobexec (np_jobargs_t* args);
 
 // critical self invoking functions
 void _np_route_check_leafset_jobexec(np_jobargs_t* args);
-void _np_retransmit_tokens_jobexec(np_jobargs_t* args);
+void _np_retransmit_message_tokens_jobexec(np_jobargs_t* args);
+void _np_renew_node_token_jobexec(np_jobargs_t* args);
 
 void _np_cleanup_ack_jobexec(np_jobargs_t* args);
 void _np_cleanup_keycache_jobexec(np_jobargs_t* args);

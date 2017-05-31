@@ -10,19 +10,18 @@
 #include <errno.h>
 #include <assert.h>
 
+#include "np_route.h"
 
 #include "neuropil.h"
-#include "np_types.h"
-#include "np_list.h"
-#include "np_log.h"
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_list.h"
+#include "np_log.h"
 #include "np_memory.h"
 #include "np_node.h"
 #include "np_threads.h"
+#include "np_types.h"
 
-#include "np_route.h"
 
 static const uint16_t __MAX_ROW   = 64; // length of key
 static const uint16_t __MAX_COL   = 16; // 16 different characters
@@ -31,6 +30,7 @@ static const uint16_t __MAX_ENTRY =  3; // three alternatives for each key
 // TODO: change size to match the possible log10(hash key max value)
 // TODO: change the size according to the number of entries in the routing table (min: 2/ max: 8)
 static const uint16_t __LEAFSET_SIZE = 8; /* (must be even) excluding node itself */
+
 
 typedef struct np_routeglobal_s np_routeglobal_t;
 struct np_routeglobal_s
@@ -54,7 +54,7 @@ _NP_MODULE_LOCK_IMPL(np_routeglobal_t);
 void _np_route_append_leafset_to_sll(np_key_ptr_pll_t* left_leafset, np_sll_t(np_key_t, result));
 
 /* route_init:
- * Ininitiates routing table and leafsets
+ * Initiates routing table and leafsets
  */
 np_bool _np_route_init (np_key_t* me)
 {
@@ -79,8 +79,6 @@ np_bool _np_route_init (np_key_t* me)
 		}
 	}
 
-    // _np_dhkey_assign (&__routing_table->Rrange, &me->dhkey );
-    // _np_dhkey_assign (&__routing_table->Lrange, &me->dhkey );
     np_dhkey_t half = np_dhkey_half();
     _np_dhkey_add(&__routing_table->Rrange, &__routing_table->my_key->dhkey, &half);
     _np_dhkey_sub(&__routing_table->Lrange, &__routing_table->my_key->dhkey, &half);
@@ -110,11 +108,11 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 	if(FALSE == joined) {
 
 		if(NULL != find_right ) {
-			*deleted = (np_key_t*)update_key;
+			*deleted = (np_key_t*) update_key;
 			pll_remove(np_key_ptr, __routing_table->right_leafset, update_key,_np_key_cmp_inv );
 
 		} else if (NULL != find_left ) {
-			*deleted = (np_key_t*)update_key;
+			*deleted = (np_key_t*) update_key;
 			pll_remove(np_key_ptr, __routing_table->left_leafset, update_key, _np_key_cmp);
 		} else {
 			log_msg (LOG_ROUTING | LOG_DEBUG, "leafset did not change as key was not found");
@@ -530,6 +528,30 @@ sll_return(np_key_t) _np_route_neighbors ()
 
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_neighbors");
     return node_keys;
+}
+
+/** _np_route_clear
+ ** wipe out all entries from the table and the leafset
+ **/
+void _np_route_clear ()
+{
+    /* initialize memory for routing table */
+    uint16_t i, j, k;
+    for (i = 0; i < __MAX_ROW; i++)
+	{
+	    for (j = 0; j < __MAX_COL; j++)
+		{
+	    	int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
+		    for (k = 0; k < __MAX_ENTRY; k++)
+		    {
+		    	// log_msg(LOG_ROUTING | LOG_DEBUG, "init routes->table[%d]", index + k);
+		    	__routing_table->table[index + k] = NULL;
+		    }
+		}
+	}
+
+    pll_clear(np_key_ptr, __routing_table->left_leafset);
+    pll_clear(np_key_ptr, __routing_table->right_leafset);
 }
 
 /** _np_route_update:

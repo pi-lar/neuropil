@@ -674,6 +674,7 @@ void _np_network_t_del(void* nw)
 	pthread_mutex_destroy (&network->lock);
 }
 
+
 void _np_network_t_new(void* nw)
 {
     np_network_t* ng = (np_network_t *) nw;

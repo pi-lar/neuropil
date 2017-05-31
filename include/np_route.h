@@ -38,6 +38,9 @@ void _np_route_leafset_update (np_key_t* key, np_bool joined, np_key_t** deleted
 NP_API_INTERN
 void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added);
 
+NP_API_INTERN
+void _np_route_clear ();
+
 /** _np_route_lookup:
  ** returns an list of 'count' nodes that are acceptable next hops for a message being routed to key
  **

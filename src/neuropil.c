@@ -227,7 +227,6 @@ void np_send_wildcard_join(const char* node_string)
 	 * So wird aus dem wildcard key ein vollwertiger key eintrag in der routing Tabelle.
 	 */
 
-	np_state_t* state = _np_state();
 	char* wildcard_node = NULL;
 	np_key_t* wildcard_node_key = NULL;
 
@@ -1026,6 +1025,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     // start leafset checking jobs
     np_job_submit_event(0.0, _np_route_check_leafset_jobexec);
 
+
 #ifdef SKIP_EVLOOP
     // intialize log file writing
     np_job_submit_event(0.0, _np_write_log);
@@ -1033,7 +1033,9 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 #endif
 
     // initialize retransmission of tokens
-    np_job_submit_event(0.0, _np_retransmit_tokens_jobexec);
+    np_job_submit_event(0.0, _np_retransmit_message_tokens_jobexec);
+    // initialize node token renewal
+    np_job_submit_event(0.0, _np_renew_node_token_jobexec);
     // initialize network/io reading and writing
     np_job_submit_event(0.0, _np_events_read);
 

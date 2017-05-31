@@ -202,9 +202,6 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 }
 
 
-
-
-
 uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats)
 {
 	uint16_t j=0;
