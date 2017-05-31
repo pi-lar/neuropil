@@ -406,7 +406,7 @@ sll_return(np_key_t) _np_route_lookup (np_key_t* key, uint8_t count)
 			if (__routing_table->table[index + k] != NULL)
 			{
 				tmp_1 = __routing_table->table[index + k];
-				if (tmp_1->node->success_avg > BAD_LINK)
+				if (NULL != tmp_1->node && tmp_1->node->success_avg > BAD_LINK)
 				{
 					sll_append(np_key_t, key_list, tmp_1);
 					log_msg (LOG_ROUTING | LOG_DEBUG, "+Table[%ul][%ul][%ul]: (%s)",
