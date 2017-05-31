@@ -45,14 +45,14 @@ function like macros are:
 *             void pll_init(TYPE, priolist, compare_func)
 *             void pll_insert(TYPE, priolist, value, dups_ok)
 *             void pll_remove(TYPE, priolist, value)
-*			 TYPE pll_replace(TYPE, priolist, value, cmp_func)
-*			 TYPE pll_find(TYPE, priolist, value, cmp_func)
-*			 TYPE pll_head(TYPE, priolist)
-*			 TYPE pll_tail(TYPE, priolist)
+*			  TYPE pll_replace(TYPE, priolist, value, cmp_func)
+*			  TYPE pll_find(TYPE, priolist, value, cmp_func)
+*			  TYPE pll_head(TYPE, priolist)
+*			  TYPE pll_tail(TYPE, priolist)
 *             void pll_free(TYPE, priolist)
 *             void pll_clear(TYPE, priolist)
-
 */
+
 #define np_pll_t(TYPE, NAME) TYPE##_pll_t* NAME;
 
 #define pll_init(TYPE, priolist) priolist = TYPE##_pll_init();
@@ -267,6 +267,7 @@ void TYPE##_pll_clear(TYPE##_pll_t* pll_list) {                       \
 	}                                                                 \
 	pll_list->first = NULL;                                           \
 	pll_list->last = NULL;                                            \
+	pll_list->size = 0;                                               \
 }                                                                     \
 
 
@@ -446,8 +447,9 @@ void TYPE##_dll_clear(TYPE##_dll_t* dll_list) {\
 		dll_list->first = dll_list->first->flink;\
 		free(tmp);\
 	}\
-	dll_list->first = NULL;\
-	dll_list->last = NULL;\
+	dll_list->first = NULL; \
+	dll_list->last = NULL;  \
+	dll_list->size = 0;     \
 }\
 
 
@@ -620,8 +622,8 @@ void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {   \
 		tmp = sll_list->first;                    \
 		sll_list->first = sll_list->first->flink; \
 		free(tmp);                                \
-		sll_list->size--;                         \
 	}                                             \
+	sll_list->size = 0;                           \
 }                                                 \
 void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) { \
 	if (sll_list->first == tbr) {\
