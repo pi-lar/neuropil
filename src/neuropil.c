@@ -531,7 +531,7 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 	// _np_dhkey_to_str(target_key,tmp_dhkey_hash);
 	// np_key_t* target = _np_get_key_by_key_hash(tmp_dhkey_hash);
 
-	_np_send_msg(subject, msg, msg_prop, NULL == target_key ? NULL : target_key);
+	_np_send_msg(subject, msg, msg_prop, target_key);
 
 	np_free_obj(np_message_t, msg);
 }
