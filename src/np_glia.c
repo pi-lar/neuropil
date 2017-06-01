@@ -537,6 +537,7 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 			// clear the table
 			_np_route_clear();
 			_np_keycache_unref_keys(leafset);
+			sll_clear(np_key_t, leafset);
 
 			// re-set routing table midpoint
 			_np_route_set_key(state->my_node_key);
@@ -554,8 +555,10 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 			sll_iterator(np_key_t) iterator = sll_first(table);
 			while (NULL != iterator)
 			{
+				deleted = NULL;
 				_np_route_update(iterator->val, TRUE, &deleted, &added);
 				if (added != iterator->val) sll_append(np_key_t, change_list, iterator->val);
+				if (deleted != NULL) sll_append(np_key_t, change_list, iterator->val);
 				sll_next(iterator);
 			}
 			// unref keys not wanted anymore
@@ -568,12 +571,14 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 			while (NULL != iterator)
 			{
 				_np_route_leafset_update(iterator->val, TRUE, &deleted, &added);
-				if (added == iterator->val) sll_append(np_key_t, change_list, iterator->val);
 				sll_next(iterator);
 			}
-			_np_keycache_ref_keys(change_list);
-			sll_free(np_key_t, change_list);
+			// ref keys inserted into the leafset
+			leafset = _np_route_neighbors();
+			_np_keycache_ref_keys(leafset);
 
+			// clean up
+			sll_free(np_key_t, change_list);
 			sll_free(np_key_t, table);
 			sll_free(np_key_t, leafset);
 		}
