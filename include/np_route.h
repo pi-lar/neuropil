@@ -13,8 +13,6 @@
 extern "C" {
 #endif
 
-_NP_ENABLE_MODULE_LOCK(np_routeglobal_t);
-
 /** route_init:
  ** Ininitiates routing table and leafsets.
  **

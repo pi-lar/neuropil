@@ -40,12 +40,10 @@
 #include "np_treeval.h"
 #include "np_util.h"
 
-
 // TODO: make these configurable (via struct np_config)
 /**
  *  neuropil is copyright 2015 by pi-lar GmbH
  */
-
 
 static uint8_t __leafset_check_type = 0;
 static double  __leafset_check_period = 31.415;
@@ -519,7 +517,8 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 			state->my_node_key = new_node_key;
 
 			_np_suspend_event_loop();
-			state->my_node_key->network->watcher.data = new_node_key;
+			np_ref_switch(np_key_t, state->my_node_key->network->watcher.data, new_node_key);
+			// state->my_node_key->network->watcher.data = new_node_key;
 			state->my_node_key->node->joined_network = TRUE;
 			_np_resume_event_loop();
 		}
@@ -613,7 +612,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 	np_tree_elem_t *jrb_ack_node = NULL;
 
 	// wake up and check for acknowledged messages
-	LOCK_CACHE(ng)
+	_LOCK_ACCESS(&ng->lock)
 	{
 		np_tree_elem_t* iter = RB_MIN(np_tree_s, ng->waiting);
 		while (iter != NULL)
@@ -664,10 +663,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 	np_key_t* old = NULL;
 	double now = ev_time();
 
-	_LOCK_MODULE(np_keycache_t)
-	{
-		old = _np_keycache_find_deprecated();
-	}
+	old = _np_keycache_find_deprecated();
 
 	if (NULL != old)
 	{
@@ -694,7 +690,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 
 		if (NULL != old->recv_tokens)
 		{
-			LOCK_CACHE(old->recv_property)
+			_LOCK_ACCESS(&old->recv_property->lock)
 			{
 				// check old receiver token structure
 				pll_iterator(np_aaatoken_ptr) iter = pll_first(old->recv_tokens);
@@ -715,7 +711,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 
 		if (NULL != old->send_tokens)
 		{
-			LOCK_CACHE(old->send_property)
+			_LOCK_ACCESS(&old->send_property->lock)
 			{
 				// check old sender token structure
 				pll_iterator(np_aaatoken_ptr) iter = pll_first(old->send_tokens);
@@ -745,6 +741,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 			// update timestamp so that the same key cannot be evaluated twice
 			old->last_update = ev_time();
 		}
+		np_unref_obj(np_key_t, old);
 	}
 
 	// submit the function itself for additional execution

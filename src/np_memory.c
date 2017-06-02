@@ -36,8 +36,6 @@ typedef struct np_obj_pool_s
 static np_obj_pool_t* __np_obj_pool_ptr;
 static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-_NP_MODULE_LOCK_IMPL(np_memory_t);
-
 void np_mem_init()
 {
 	__np_obj_pool_ptr = (np_obj_pool_t*) malloc(sizeof(np_obj_pool_t));

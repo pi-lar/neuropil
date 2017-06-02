@@ -20,13 +20,13 @@
 #include "np_dhkey.h"
 #include "np_network.h"
 #include "np_node.h"
+#include "np_threads.h"
 
 // TODO: make this a better constant value
 static double __keycache_deprecation_interval = 31.415;
 
-SPLAY_GENERATE(st_keycache_s, np_key_s, link, _np_key_cmp);
 
-_NP_MODULE_LOCK_IMPL(np_keycache_t);
+SPLAY_GENERATE(st_keycache_s, np_key_s, link, _np_key_cmp);
 
 typedef struct st_keycache_s st_keycache_t;
 static st_keycache_t* __key_cache;
@@ -42,39 +42,50 @@ void _np_keycache_init()
 
 np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey)
 {
+	np_key_t* subject_key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
 
-	np_key_t* subject_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
-	if (NULL == subject_key)
+	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = _np_keycache_create(search_dhkey);
-    }
-	subject_key->last_update = ev_time();
-	return subject_key;
+		subject_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
+		if (NULL == subject_key)
+		{
+			subject_key = _np_keycache_create(search_dhkey);
+    	}
+		np_ref_obj(np_key_t, subject_key);
+		subject_key->last_update = ev_time();
+	}
+	return (subject_key);
 }
 
 np_key_t* _np_keycache_create(np_dhkey_t search_dhkey)
 {
-	np_key_t* subject_key ;
+	np_key_t* subject_key = NULL;
+
 	np_new_obj(np_key_t, subject_key);
 	subject_key->dhkey = search_dhkey;
-
-	SPLAY_INSERT(st_keycache_s, __key_cache, subject_key);
-
-	// np_ref_obj(np_key_t, subject_key);
-
 	subject_key->last_update = ev_time();
+
+	_LOCK_MODULE(np_keycache_t) {
+		SPLAY_INSERT(st_keycache_s, __key_cache, subject_key);
+	}
+
 	return subject_key;
 }
 
-np_key_t* _np_keycache_find(np_dhkey_t search_dhkey)
+np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey)
 {
+	np_key_t* return_key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
-	np_key_t* return_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
 
-	if (NULL != return_key)
+	_LOCK_MODULE(np_keycache_t)
 	{
-		return_key->last_update = ev_time();
+		return_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
+		if (NULL != return_key)
+		{
+			np_ref_obj(np_key_t, return_key);
+			return_key->last_update = ev_time();
+		}
 	}
 	return return_key;
 }
@@ -90,40 +101,32 @@ np_key_t* _np_keycache_find_by_details(
 	){
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
-	SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
+
+	_LOCK_MODULE(np_keycache_t)
 	{
-		if(TRUE == search_myself){
-			if (
-				TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_node_key->dhkey) ||
-				TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_identity->dhkey) )
-			{
-				continue;
+		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
+		{
+			if(TRUE == search_myself){
+				if (
+					TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_node_key->dhkey) ||
+					TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_identity->dhkey) )
+				{
+					continue;
+				}
 			}
-		}
 
-		if (
-				(!require_handshake_status || (NULL != iter->node && iter->node->handshake_status == handshake_status)) &&
-				(!require_hash || (NULL != iter->dhkey_str && strstr(details_container, iter->dhkey_str) != NULL)) &&
-				(!require_dns || (NULL != iter->node &&NULL != iter->node->dns_name && strstr(details_container, iter->node->dns_name) != NULL)) &&
-				(!require_port || (NULL != iter->node && NULL != iter->node->port &&strstr(details_container, iter->node->port) != NULL))
-		)
-		{
-			ret = iter;
-			break;
-		}
-	}
-	return (ret);
-}
-
-np_key_t* _np_keycache_find_key_by_dhkey(const np_dhkey_t dhkey){
-	np_key_t* ret = NULL;
-	np_key_t *iter = NULL;
-	SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
-	{
-		if (_np_dhkey_comp(&dhkey,&iter->dhkey) == 0)
-		{
-			ret = iter;
-			break;
+			if (
+					(!require_handshake_status || (NULL != iter->node && iter->node->handshake_status == handshake_status)) &&
+					(!require_hash || (NULL != iter->dhkey_str && strstr(details_container, iter->dhkey_str) != NULL)) &&
+					(!require_dns || (NULL != iter->node &&NULL != iter->node->dns_name && strstr(details_container, iter->node->dns_name) != NULL)) &&
+					(!require_port || (NULL != iter->node && NULL != iter->node->port &&strstr(details_container, iter->node->port) != NULL))
+			)
+			{
+				ret = iter;
+				np_ref_obj(np_key_t, ret);
+				ret->last_update = ev_time();
+				break;
+			}
 		}
 	}
 	return (ret);
@@ -132,19 +135,23 @@ np_key_t* _np_keycache_find_key_by_dhkey(const np_dhkey_t dhkey){
 np_key_t* _np_keycache_find_deprecated()
 {
 	np_key_t *iter = NULL;
-	SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
+	_LOCK_MODULE(np_keycache_t)
 	{
-		// our own key / identity never deprecates
-		if (TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_node_key->dhkey) ||
-			TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_identity->dhkey) )
+		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
 		{
-			continue;
-		}
+			// our own key / identity never deprecates
+			if (TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_node_key->dhkey) ||
+				TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_identity->dhkey) )
+			{
+				continue;
+			}
 
-		double now = ev_time();
-		if ((now - __keycache_deprecation_interval) > iter->last_update)
-		{
-			break;
+			double now = ev_time();
+			if ((now - __keycache_deprecation_interval) > iter->last_update)
+			{
+				np_ref_obj(np_key_t, iter);
+				break;
+			}
 		}
 	}
 	return (iter);
@@ -152,23 +159,33 @@ np_key_t* _np_keycache_find_deprecated()
 
 np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey)
 {
+	np_key_t* rem_key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
 
-	np_key_t* rem_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
-	// np_key_t* rem_key = SPLAY_REMOVE(st_keycache_s, __key_cache, &search_key);
-	SPLAY_REMOVE(st_keycache_s, __key_cache, rem_key);
+	_LOCK_MODULE(np_keycache_t)
+	{
+		rem_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
+		if (NULL != rem_key) {
+			SPLAY_REMOVE(st_keycache_s, __key_cache, rem_key);
+			np_unref_obj(np_key_t, rem_key);
+		}
+	}
 	return rem_key;
 }
 
 np_key_t* _np_keycache_add(np_key_t* subject_key)
 {
-	np_new_obj(np_key_t, subject_key);
+	if (NULL == subject_key)
+	{
+		np_new_obj(np_key_t, subject_key);
+	}
 
-	SPLAY_INSERT(st_keycache_s, __key_cache, subject_key);
-
-	// np_ref_obj(np_key_t, subject_key);
-
-	subject_key->last_update = ev_time();
+	_LOCK_MODULE(np_keycache_t)
+	{
+		SPLAY_INSERT(st_keycache_s, __key_cache, subject_key);
+		np_ref_obj(np_key_t, subject_key);
+		subject_key->last_update = ev_time();
+	}
 	return subject_key;
 }
 
@@ -205,6 +222,26 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_t, list_of_keys), c
 	}
 
 	return (min);
+}
+
+void _np_keycache_ref_keys (np_sll_t(np_key_t, list_of_keys))
+{
+ 	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
+	while (NULL != iter)
+	{
+		np_ref_obj(np_key_t,iter->val);
+		sll_next(iter);
+	}
+}
+
+void _np_keycache_unref_keys (np_sll_t(np_key_t, list_of_keys))
+{
+	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
+	while (NULL != iter)
+	{
+		np_unref_obj(np_key_t,iter->val);
+		sll_next(iter);
+	}
 }
 
 /** sort_hosts:
@@ -252,27 +289,6 @@ void _np_keycache_sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t
 		} while (NULL != (sll_next(iter2)) );
 	} while (NULL != (sll_next(iter1)) );
 }
-
-void _np_keycache_ref_keys (np_sll_t(np_key_t, list_of_keys))
-{
- 	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
-	while (NULL != iter)
-	{
-		np_ref_obj(np_key_t,iter->val);
-		sll_next(iter);
-	}
-}
-
-void _np_keycache_unref_keys (np_sll_t(np_key_t, list_of_keys))
-{
-	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
-	while (NULL != iter)
-	{
-		np_unref_obj(np_key_t,iter->val);
-		sll_next(iter);
-	}
-}
-
 
 /** sort_hosts_key:
  ** Sorts #hosts# based on their key distance from #np_key_t*

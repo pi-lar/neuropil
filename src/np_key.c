@@ -61,20 +61,17 @@ char* _np_key_as_str(np_key_t* key)
  */
 void _np_key_destroy(np_key_t* to_destroy) {
 
-	if(NULL != to_destroy){
+	if(NULL != to_destroy) {
 
 		char* keyident = _np_key_as_str(to_destroy);
 		log_msg(LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
 
-		_LOCK_MODULE(np_keycache_t)
-		{
-			_np_keycache_remove(to_destroy->dhkey);
-		}
+		_np_keycache_remove(to_destroy->dhkey);
 
 		// delete old receive tokens
 		if (NULL != to_destroy->recv_tokens)
 		{
-			LOCK_CACHE(to_destroy->recv_property)
+			_LOCK_ACCESS(&to_destroy->recv_property->lock)
 			{
 				pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->recv_tokens);
 				while (NULL != iter)
@@ -89,7 +86,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 		// delete send tokens
 		if (NULL != to_destroy->send_tokens)
 		{
-			LOCK_CACHE(to_destroy->send_property)
+			_LOCK_ACCESS(&to_destroy->send_property->lock)
 			{
 				pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->send_tokens);
 				while (NULL != iter)
@@ -105,8 +102,6 @@ void _np_key_destroy(np_key_t* to_destroy) {
 		if (NULL != to_destroy->aaa_token) np_unref_obj(np_aaatoken_t, to_destroy->aaa_token);
 		if (NULL != to_destroy->node)      np_unref_obj(np_node_t,     to_destroy->node);
 		if (NULL != to_destroy->network)   np_unref_obj(np_network_t,  to_destroy->network);
-
-		np_unref_obj(np_key_t, to_destroy);
 
 		log_msg(LOG_DEBUG, "cleanup of key and associated data structures done");
 	}else{

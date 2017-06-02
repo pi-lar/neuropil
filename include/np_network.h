@@ -65,13 +65,10 @@ struct np_network_s
 
     uint32_t seqend;
 
-	pthread_attr_t attr;
-    pthread_mutex_t lock;
+    np_mutex_t lock;
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
-
-_NP_ENABLE_MODULE_LOCK(np_network_t);
 
 typedef struct np_ackentry_s np_ackentry_t;
 

@@ -163,7 +163,7 @@ int main(int argc, char **argv)
 
 	  *.. code-block:: c
 		*
-		*   LOCK_CACHE(state)
+		*   _LOCK_ACCESS(state)
 		*  {
 		*       node_key = np_node_decode_from_str(state, node_string);
 		*  }

@@ -49,7 +49,6 @@ struct np_routeglobal_s
 
 static np_routeglobal_t* __routing_table;
 
-_NP_MODULE_LOCK_IMPL(np_routeglobal_t);
 
 void _np_route_append_leafset_to_sll(np_key_ptr_pll_t* left_leafset, np_sll_t(np_key_t, result));
 
@@ -195,9 +194,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 
 void _np_route_set_key (np_key_t* new_node_key)
 {
-	np_unref_obj(np_key_t, __routing_table->my_key);
-	__routing_table->my_key = new_node_key;
-	np_ref_obj(np_key_t, __routing_table->my_key);
+	np_ref_switch(np_key_t, __routing_table->my_key, new_node_key);
 
 	// pll_clear(np_key_ptr,__routing_table->left_leafset);
     // pll_clear(np_key_ptr,__routing_table->right_leafset);

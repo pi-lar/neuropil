@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 	char* logpath = ".";
 
 	uint32_t required_nodes = NUM_HOST;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
 		switch ((char) opt) {

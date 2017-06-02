@@ -13,18 +13,26 @@
 #include "np_list.h"
 #include "np_log.h"
 
-typedef struct mutex {
-    int lock_id;
-    pthread_mutex_t lock;
-} mutex_t;
 
-mutex_t* mutexes[PREDEFINED_DUMMY_START-1];
+/** predefined module mutex array **/
+np_mutex_t __mutexes[PREDEFINED_DUMMY_START-1];
+
+np_bool __np_threads_create_module_mutex(np_module_lock_type module_id)
+{
+	pthread_mutexattr_init(&__mutexes[module_id].lock_attr);
+	pthread_mutexattr_settype(&__mutexes[module_id].lock_attr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&__mutexes[module_id].lock, &__mutexes[module_id].lock_attr);
+
+	log_msg(LOG_MUTEX | LOG_DEBUG, "created module mutex %d", module_id);
+
+	return TRUE;
+}
 
 np_bool _np_threads_init()
 {
 	np_bool ret = TRUE;
 	for(int i = 0; i < PREDEFINED_DUMMY_START; i++){
-		ret = _np_threads_create_mutex(i);
+		ret = __np_threads_create_module_mutex(i);
 		if(FALSE == ret) {
 			log_msg(LOG_ERROR,"Cannot initialize mutex %d.", i);
 			break;
@@ -33,29 +41,52 @@ np_bool _np_threads_init()
 	return ret;
 }
 
-pthread_mutex_t* _np_threads_get_mutex(int mutex_id)
+int _np_threads_lock_module(np_module_lock_type module_id) {
+	return pthread_mutex_lock(&__mutexes[module_id].lock);
+}
+
+int _np_threads_unlock_module(np_module_lock_type module_id) {
+	return pthread_mutex_unlock(&__mutexes[module_id].lock);
+}
+
+
+/** pthread mutex platform wrapper functions following this line **/
+int _np_threads_mutex_init(np_mutex_t* mutex)
 {
-	mutex_t* mutex = mutexes[mutex_id];
-	if(NULL == mutex ){
-		log_msg(LOG_MUTEX | LOG_WARN, "Mutex %d was not initialised. Do so now.", mutex_id);
-		_np_threads_create_mutex(mutex_id);
-	}else{
-		log_msg(LOG_MUTEX | LOG_DEBUG, "Got mutex %d.", mutex_id);
-	}
-	return &(mutexes[mutex_id]->lock);
+	pthread_mutexattr_init(&mutex->lock_attr);
+	pthread_mutexattr_settype(&mutex->lock_attr, PTHREAD_MUTEX_RECURSIVE);
+	return pthread_mutex_init(&mutex->lock, &mutex->lock_attr);
+}
+int _np_threads_mutex_lock(np_mutex_t* mutex)
+{
+	return pthread_mutex_lock(&mutex->lock);
+}
+int _np_threads_mutex_unlock(np_mutex_t* mutex)
+{
+	return pthread_mutex_unlock(&mutex->lock);
+}
+void _np_threads_mutex_destroy(np_mutex_t* mutex)
+{
+	pthread_mutex_destroy (&mutex->lock);
 }
 
-np_bool _np_threads_create_mutex(int mutex_id){
-
-	mutex_t* new_mutex = (mutex_t*) malloc(sizeof(mutex_t));
-	if(new_mutex != NULL){
-		new_mutex->lock_id = mutex_id;
-		pthread_mutex_init(&(new_mutex->lock), NULL);
-
-		mutexes[mutex_id] = new_mutex;
-		log_msg(LOG_MUTEX | LOG_DEBUG, "Created mutex %d.", mutex_id);
-	} else {
-		log_msg(LOG_ERROR, "Cannot allocate mutex %d.", mutex_id);
-	}
-	return new_mutex != NULL ? TRUE : FALSE;
+/** pthread condition platform wrapper functions following this line **/
+void _np_threads_condition_init(np_cond_t* condition)
+{
+	pthread_cond_init (&condition->cond, &condition->cond_attr);
+	pthread_condattr_setpshared(&condition->cond_attr, PTHREAD_PROCESS_PRIVATE);
 }
+void _np_threads_condition_destroy(np_cond_t* condition)
+{
+	pthread_condattr_destroy(&condition->cond_attr);
+	pthread_cond_destroy (&condition->cond);
+}
+int _np_threads_condition_wait(np_cond_t* condition, np_mutex_t* mutex)
+{
+	return pthread_cond_wait(&condition->cond, &mutex->lock);
+}
+int _np_threads_condition_signal(np_cond_t* condition)
+{
+	return pthread_cond_signal(&condition->cond);
+}
+

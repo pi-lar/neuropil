@@ -66,9 +66,6 @@ struct np_obj_s
 	np_bool persistent;
 };
 
-// enable locking of memory table
-_NP_ENABLE_MODULE_LOCK(np_memory_t);
-
 
 // convenience function like wrappers
 #define np_ref_obj(TYPE, np_obj)              \
