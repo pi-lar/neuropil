@@ -17,7 +17,7 @@ extern "C" {
 #endif
 
 NP_API_INTERN
-void _np_sysinfo_init();
+void _np_sysinfo_init_cache();
 NP_API_INTERN
 np_bool _np_in_sysinfo(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) ;
 NP_API_INTERN

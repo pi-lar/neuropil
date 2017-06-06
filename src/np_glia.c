@@ -440,7 +440,7 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 	log_msg(LOG_TRACE, "start._np_renew_node_token_jobexec");
 
 	np_state_t* state = _np_state();
-	// TODO: test the node token renewal
+
 	// check an refresh my own identity + node tokens if required
 	double exp_ts = ev_time() + 10.0; // now plus 10s for handshake etc.
 
@@ -516,7 +516,10 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 				np_tree_replace_str(state->my_identity->aaa_token->extensions, "target_node", np_treeval_new_s(_np_key_as_str(new_node_key)) );
 			}
 			// exchange node key
+			//np_unref_obj(np_key_t, state->my_node_key );
 			state->my_node_key = new_node_key;
+			np_ref_obj(np_key_t, state->my_node_key );
+
 
 			_np_suspend_event_loop();
 			state->my_node_key->network->watcher.data = new_node_key;

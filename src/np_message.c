@@ -915,8 +915,9 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	np_tree_t* encryption_details =
 			np_tree_find_str(msg->properties, NP_SYMKEY)->val.value.tree;
 	if(NULL == encryption_details  ) {
-			log_msg(LOG_WARN, "no encryption_details! msg->properties:");
-			np_dump_tree2log(msg->properties);
+		log_msg(LOG_WARN, "no encryption_details!:");
+		//log_msg(LOG_DEBUG, "msg->properties:");
+		//np_dump_tree2log(msg->properties);
 		}
 	// insert the public-key encrypted encryption key for each receiver of the message
 	unsigned char nonce[crypto_box_NONCEBYTES];
@@ -927,10 +928,10 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	np_tree_elem_t* encryption_details_elem = np_tree_find_str(encryption_details, (char*) _np_key_as_str(state->my_identity));
 	if(NULL == encryption_details_elem  ) {
 		log_msg(LOG_ERROR, "decryption of message payload failed. no identity information in encryption_details for %s", _np_key_as_str(state->my_identity));
-		log_msg(LOG_DEBUG, "msg->properties:");
-		np_dump_tree2log(msg->properties);
-		log_msg(LOG_DEBUG, "encryption_details:");
-		np_dump_tree2log(encryption_details);
+		//log_msg(LOG_DEBUG, "msg->properties:");
+		//np_dump_tree2log(msg->properties);
+		//log_msg(LOG_DEBUG, "encryption_details:");
+		//np_dump_tree2log(encryption_details);
 		return (FALSE);
 	}
 	memcpy(enc_sym_key,

@@ -42,21 +42,24 @@ _NP_MODULE_LOCK_IMPL(np_sysinfo);
 
 static struct np_simple_cache_table_t* _cache = NULL;
 
-void _np_sysinfo_init()
+void _np_sysinfo_init_cache()
 {
 	if(NULL == _cache) {
-		_cache = (np_simple_cache_table_t*) malloc(
-				sizeof(np_simple_cache_table_t));
-    	CHECK_MALLOC(_cache);
+		_LOCK_MODULE(np_sysinfo)
+		{
+			_cache = (np_simple_cache_table_t*) malloc(
+					sizeof(np_simple_cache_table_t));
+			CHECK_MALLOC(_cache);
 
-		for (int i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
-			sll_init(np_cache_item_t, _cache->buckets[i]);
+			for (int i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
+				sll_init(np_cache_item_t, _cache->buckets[i]);
+			}
 		}
 	}
 }
 
 void np_sysinfo_enable_slave() {
-	_np_sysinfo_init();
+	_np_sysinfo_init_cache();
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
@@ -85,7 +88,7 @@ void np_sysinfo_enable_slave() {
 
 }
 void np_sysinfo_enable_master(){
-	_np_sysinfo_init();
+	_np_sysinfo_init_cache();
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
@@ -118,35 +121,37 @@ void np_sysinfo_enable_master(){
 
 np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {
 	log_msg(LOG_TRACE, ".start._in_sysinfo");
-
-// np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
-
-//	if (NULL == source) {
-//		log_msg(LOG_WARN,
-//				"received sysinfo request w/o source key information.");
-//		return FALSE;
-//	}
-//	np_tree_elem_t* target = np_tree_find_str(properties, _NP_SYSINFO_TARGET);
-//
-//	if (NULL == target) {
-//		log_msg(LOG_WARN,
-//				"received sysinfo request w/o target key information.");
-//		return FALSE;
-//	}
 	log_msg(LOG_INFO, "received sysinfo request");
 
-//	log_msg(LOG_DEBUG, "sysinfo request message is from %s for %s !",
-//			source->val.value.s, target->val.value.s);
+	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
+
+	if (NULL == source) {
+		log_msg(LOG_WARN,
+				"received sysinfo request w/o source key information.");
+		return FALSE;
+	}
+
+
+	np_tree_elem_t* target = np_tree_find_str(properties, _NP_SYSINFO_TARGET);
 
 	char* mynode_hash = _np_key_as_str(_np_state()->my_node_key);
 
-//	if (strcmp(mynode_hash, target->val.value.s) != 0) {
-//		// should not happen as it does mean a wrong routing
-//		log_msg(LOG_WARN,
-//				"i am %s not %s . I cannot handle this sysinfo request",
-//				mynode_hash, target->val.value.s);
-//		return FALSE;
-//	}
+	if (NULL != target ){
+		log_msg(LOG_DEBUG, "sysinfo request message is from %s for %s !",
+				source->val.value.s, target->val.value.s);
+
+		if(strcmp(mynode_hash, target->val.value.s) != 0) {
+			// should not happen as it does mean a wrong routing
+			log_msg(LOG_WARN,
+					"i am %s not %s . I cannot handle this sysinfo request",
+					mynode_hash, target->val.value.s);
+			return FALSE;
+		}
+	}else{
+		log_msg(LOG_DEBUG, "sysinfo request message is from %s for anyone!",
+						source->val.value.s);
+
+	}
 	// checks completed. continue with reply building
 
 	// build body
@@ -156,16 +161,17 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 	np_tree_t* reply_properties = np_tree_create();
 	np_tree_insert_str(reply_properties, _NP_SYSINFO_SOURCE,
 			np_treeval_new_s(mynode_hash));
+
+// TODO: Reenable target after functional audience selection for messages is implemented
 //	np_tree_insert_str(reply_properties, _NP_SYSINFO_TARGET,
 //			np_treeval_new_s(source->val.value.s));
+//	np_dhkey_t target_dhkey;
+//	_np_dhkey_from_str(source->val.value.s, &target_dhkey);
 
 	// send msg
 	log_msg(LOG_INFO, "sending sysinfo reply (size: %"PRIu16")",
 			reply_body->size);
 
-	// np_dhkey_t target_dhkey;
-
-	// _np_dhkey_from_str(source->val.value.s, &target_dhkey);
 	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, NULL /* &target_dhkey */);
 
 	log_msg(LOG_TRACE, ".end  ._in_sysinfo");
@@ -173,6 +179,7 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 }
 
 np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
+	_np_sysinfo_init_cache();
 	log_msg(LOG_TRACE, ".start._in_sysinforeply");
 
 	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
@@ -186,7 +193,6 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 
 	log_msg(LOG_DEBUG,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu64")",
 			source->val.value.s, body->size, body->byte_size);
-	//log_msg(LOG_DEBUG, "%s", np_json_to_char(np_tree_to_json(body), TRUE));
 
 	// insert / replace cache item
 	_LOCK_MODULE(np_sysinfo)
@@ -195,7 +201,6 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 		if(NULL != item) {
 			np_tree_free(item->value);
 		}
-		//source->val.value.s[65] = '\0';
 		np_simple_cache_insert(_cache, source->val.value.s, np_tree_copy(body));
 	}
 	log_msg(LOG_TRACE, ".end  ._in_sysinforeply");
@@ -281,13 +286,13 @@ void _np_request_sysinfo(const char* const hash_of_target) {
 		np_tree_t* properties = np_tree_create();
 		np_tree_t* body = np_tree_create();
 
-//		np_tree_insert_str(properties, _NP_SYSINFO_SOURCE,
-//				np_treeval_new_s(_np_key_as_str(_np_state()->my_node_key)));
-//
+		np_tree_insert_str(properties, _NP_SYSINFO_SOURCE,
+				np_treeval_new_s(_np_key_as_str(_np_state()->my_node_key)));
+
+// TODO: Reenable target after functional audience selection for messages is implemented
 //		np_tree_insert_str(properties, _NP_SYSINFO_TARGET,
 //				np_treeval_new_s(hash_of_target));
 
-		// log_msg(LOG_DEBUG, "Converting %s to dhkey", hash_of_target);
 		np_dhkey_t target_dhkey = np_dhkey_create_from_hash(hash_of_target);
 
 		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, &target_dhkey);
@@ -307,6 +312,8 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 		log_msg(LOG_DEBUG, "Requesting sysinfo for myself");
 		// If i request myself i can answer instantly
 		ret = np_get_my_sysinfo();
+
+		// TODO: Reenable target after functional audience selection for messages is implemented
 		// I may anticipate the one requesting my information wants to request others as well
 		//_np_request_others();
 	} else {
@@ -325,6 +332,7 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 }
 
 np_tree_t* _np_get_sysinfo_from_cache(const char* const hash_of_target, uint16_t max_cache_ttl) {
+	_np_sysinfo_init_cache();
 	np_tree_t* ret = NULL;
 	_LOCK_MODULE(np_sysinfo)
 	{
