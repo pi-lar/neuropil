@@ -24,8 +24,6 @@ extern "C" {
 #endif
 
 
-_NP_ENABLE_MODULE_LOCK(np_keycache_t);
-
 // organize keys in a splay tree
 SPLAY_HEAD(st_keycache_s, np_key_s);
 SPLAY_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp);
@@ -64,9 +62,6 @@ void _np_keycache_sort_keys_kd (np_sll_t(np_key_t, list_of_keys), const np_dhkey
 
 NP_API_INTERN
 np_key_t* _np_keycache_find_by_details(char* details_container, np_bool search_myself, handshake_status_e handshake_status, np_bool require_handshake_status, np_bool require_dns,np_bool require_port,np_bool require_hash );
-
-NP_API_INTERN
-np_key_t* _np_keycache_find_key_by_dhkey(const np_dhkey_t dhkey);
 
 NP_API_INTERN
 void _np_keycache_ref_keys (np_sll_t(np_key_t, list_of_keys));

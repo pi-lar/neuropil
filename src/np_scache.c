@@ -12,22 +12,23 @@
 #include "np_scache.h"
 #include "np_list.h"
 
+#include "np_scache.h"
+
 #include "np_threads.h"
 #include "np_log.h"
 #include "inttypes.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_cache_item_t);
 
-np_cache_item_t* np_simple_cache_get(struct np_simple_cache_table_t *table,
-		const char *key) {
-
+np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key)
+{
 	if(NULL == key){
 		log_msg(LOG_ERROR, "cache key cannot be NULL!");
 		exit(EXIT_FAILURE);
 	}
 	unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
-	struct np_cache_item_t_sll_s* bucket_list = table->buckets[bucket];
+	np_cache_item_t_sll_t* bucket_list = table->buckets[bucket];
     sll_iterator(np_cache_item_t) iter = sll_first(bucket_list);
 	do
 	{
@@ -39,7 +40,7 @@ np_cache_item_t* np_simple_cache_get(struct np_simple_cache_table_t *table,
 	return NULL;
 }
 
-int np_simple_cache_insert(struct np_simple_cache_table_t *table, char *key, void *value) {
+int np_simple_cache_insert(np_simple_cache_table_t *table, char *key, void *value) {
 
 	if(NULL == key){
 		log_msg(LOG_ERROR, "cache key cannot be NULL!");
@@ -48,7 +49,7 @@ int np_simple_cache_insert(struct np_simple_cache_table_t *table, char *key, voi
 
 	unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
-	struct np_cache_item_t_sll_s* bucket_list = table->buckets[bucket];
+	np_cache_item_t_sll_t* bucket_list = table->buckets[bucket];
 
     sll_iterator(np_cache_item_t) iter = sll_first(bucket_list);
 	do

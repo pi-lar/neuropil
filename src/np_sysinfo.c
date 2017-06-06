@@ -38,9 +38,7 @@ static const char* _NP_SYSINFO_SOURCE = "source_hash";
 static const char* _NP_SYSINFO_TARGET = "target_hash";
 
 
-_NP_MODULE_LOCK_IMPL(np_sysinfo);
-
-static struct np_simple_cache_table_t* _cache = NULL;
+static np_simple_cache_table_t* _cache = NULL;
 
 void _np_sysinfo_init_cache()
 {
@@ -195,7 +193,7 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 			source->val.value.s, body->size, body->byte_size);
 
 	// insert / replace cache item
-	_LOCK_MODULE(np_sysinfo)
+	_LOCK_MODULE(np_sysinfo_t)
 	{
 		np_cache_item_t* item = np_simple_cache_get(_cache,source->val.value.s);
 		if(NULL != item) {
@@ -334,7 +332,7 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 np_tree_t* _np_get_sysinfo_from_cache(const char* const hash_of_target, uint16_t max_cache_ttl) {
 	_np_sysinfo_init_cache();
 	np_tree_t* ret = NULL;
-	_LOCK_MODULE(np_sysinfo)
+	_LOCK_MODULE(np_sysinfo_t)
 	{
 		np_cache_item_t* item = np_simple_cache_get(_cache, hash_of_target);
 		if (NULL != item && item->value != NULL) {

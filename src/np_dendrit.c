@@ -69,7 +69,7 @@ void _np_in_received(np_jobargs_t* args)
 	// we registered this token info before in the first handshake message
 	np_key_t* alias_key = args->target;
 
-	LOCK_CACHE(my_network)
+	_LOCK_ACCESS(&my_network->lock)
 	{
 		raw_msg = sll_head(void_ptr, my_network->in_events);
 	}
@@ -177,7 +177,7 @@ void _np_in_received(np_jobargs_t* args)
 		CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACKUUID, ack_uuid);
 
 		/* just an acknowledgement of own messages send out earlier */
-		LOCK_CACHE(my_network)
+		_LOCK_ACCESS(&my_network->lock)
 		{
 			np_tree_elem_t *jrb_node = np_tree_find_str(my_network->waiting, ack_uuid.value.s);
 			if (jrb_node != NULL)
@@ -220,10 +220,7 @@ void _np_in_received(np_jobargs_t* args)
 		// char* ack_to = np_tree_find_str(msg_in->instructions, NP_MSG_INST_ACK_TO)->val.value.s;
 		np_dhkey_t search_key = np_dhkey_create_from_hash(ack_to.value.s);
 
-		_LOCK_MODULE(np_keycache_t)
-		{
-			ack_key = _np_keycache_find_or_create(search_key);
-		}
+		ack_key = _np_keycache_find_or_create(search_key);
 
 		if (NULL != ack_key                       &&
 			NULL != ack_key->node                 &&
@@ -246,6 +243,8 @@ void _np_in_received(np_jobargs_t* args)
 
 			_np_job_submit_route_event(0.0, ack_prop, ack_key, ack_msg_out);
 			np_free_obj(np_message_t, ack_msg_out);
+
+			np_unref_obj(np_key_t, ack_key);
 			// user space acknowledgement handled later, also for join messages
 		}
 	}
@@ -289,8 +288,8 @@ void _np_in_received(np_jobargs_t* args)
 			sll_size(tmp) > 0   &&
 			(!_np_dhkey_equal(&sll_first(tmp)->val->dhkey, &state->my_node_key->dhkey)) )
 		{
-			log_msg(LOG_DEBUG, "received unrecognized message type %s, requesting forwarding of message ...",
-								msg_subject.value.s);
+			log_msg(LOG_INFO,
+					"forwarding message for subject: %s / uuid: %s", msg_subject.value.s, msg_uuid.value.s);
 			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
 			_np_job_submit_route_event(0.0, prop, args->target, msg_in);
 
@@ -325,7 +324,7 @@ void _np_in_received(np_jobargs_t* args)
 		0 == strncmp(msg_subject.value.s, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) )
 	{
 		log_msg(LOG_INFO,
-				"finally handling message for subject: %s / uuid: %s", msg_subject.value.s, msg_to_submit->uuid);
+				"handling message for subject: %s / uuid: %s", msg_subject.value.s, msg_to_submit->uuid);
 		// finally submit msg job for later execution
 		_np_message_deserialize_chunked(msg_to_submit);
 		_np_job_submit_msgin_event(0.0, handler, state->my_node_key, msg_to_submit);
@@ -357,10 +356,7 @@ void _np_in_piggy(np_jobargs_t* args)
 	// double tmp_ft;
 	np_sll_t(np_key_t, o_piggy_list) = NULL;
 
-	_LOCK_MODULE(np_keycache_t)
-	{
-		o_piggy_list = _np_node_decode_multiple_from_jrb(args->msg->body);
-	}
+	o_piggy_list = _np_node_decode_multiple_from_jrb(args->msg->body);
 
 	while (NULL != (node_entry = sll_head(np_key_t, o_piggy_list)))
 	{
@@ -378,19 +374,20 @@ void _np_in_piggy(np_jobargs_t* args)
 			// answer: only send join request !
 			// if (GRACEPERIOD > (ev_time() - tmp_ft))
 			// {
-				np_tree_t* jrb_me = np_tree_create();
-				np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
+			np_tree_t* jrb_me = np_tree_create();
+			np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
 
-				np_message_t* msg_out = NULL;
-				np_new_obj(np_message_t, msg_out);
-				_np_message_create(msg_out, node_entry, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
+			np_message_t* msg_out = NULL;
+			np_new_obj(np_message_t, msg_out);
+			_np_message_create(msg_out, node_entry, state->my_node_key, _NP_MSG_JOIN_REQUEST, jrb_me);
 
-				log_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(node_entry));
-				np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
-				_np_job_submit_msgout_event(0.0, prop, node_entry, msg_out);
+			log_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(node_entry));
+			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
+			_np_job_submit_msgout_event(0.0, prop, node_entry, msg_out);
 
-				np_free_obj(np_message_t, msg_out);
+			np_free_obj(np_message_t, msg_out);
 		}
+		np_unref_obj(np_key_t, node_entry);
 	}
 	sll_free(np_key_t, o_piggy_list);
 
@@ -424,7 +421,7 @@ void _np_in_signal_np_receive (np_jobargs_t* args)
 		np_ref_obj(np_message_t, args->msg);
 		// signal the np_receive function that the message has arrived
 		log_msg(LOG_DEBUG, "signaling via available %p", real_prop);
-		pthread_cond_signal(&real_prop->msg_received);
+		_np_threads_condition_signal(&real_prop->msg_received);
 	}
 
 	// TODO: more detailed msg ack handling
@@ -614,14 +611,12 @@ void _np_in_join_req(np_jobargs_t* args)
 
     // build a hash to find a place in the dhkey table, not for signing !
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(join_token);
-	_LOCK_MODULE(np_keycache_t)
+
+	join_req_key = _np_keycache_find_or_create(search_key);
+	if (NULL == join_req_key->aaa_token)
 	{
-		join_req_key = _np_keycache_find_or_create(search_key);
-		if (NULL == join_req_key->aaa_token)
-		{
-			join_req_key->aaa_token = join_token;
-			np_ref_obj(np_aaatoken_t, join_token);
-		}
+		join_req_key->aaa_token = join_token;
+		np_ref_obj(np_aaatoken_t, join_token);
 	}
 
 	log_msg(LOG_DEBUG, "find target node");
@@ -759,6 +754,9 @@ void _np_in_join_req(np_jobargs_t* args)
 	if (NULL != msg_out)    np_free_obj(np_message_t, msg_out);
 
 	// __np_return__:
+	if (routing_key != join_req_key) np_unref_obj(np_key_t, join_req_key);
+	np_unref_obj(np_key_t, routing_key);
+
 	log_msg(LOG_TRACE, ".end  ._np_in_join_req");
 	return;
 }
@@ -787,18 +785,15 @@ void _np_in_join_ack(np_jobargs_t* args)
 	}
 
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(join_token);
-	_LOCK_MODULE(np_keycache_t)
-	{
-		join_key = _np_keycache_find_or_create(search_key);
+	join_key = _np_keycache_find_or_create(search_key);
 
-		if (NULL != join_key &&
-			NULL == join_key->aaa_token)
-		{
-			join_key->aaa_token = join_token;
-			np_ref_obj(np_aaatoken_t, join_key->aaa_token);
-			// if a join ack is received here, then this node has send the join request
-			join_key->aaa_token->state |= AAA_AUTHENTICATED;
-		}
+	if (NULL != join_key &&
+		NULL == join_key->aaa_token)
+	{
+		join_key->aaa_token = join_token;
+		np_ref_obj(np_aaatoken_t, join_key->aaa_token);
+		// if a join ack is received here, then this node has send the join request
+		join_key->aaa_token->state |= AAA_AUTHENTICATED;
 	}
 
 	if (NULL == join_key)
@@ -824,7 +819,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 	np_state_t* state = _np_state();
 	np_network_t* ng = state->my_node_key->network;
 
-	LOCK_CACHE(ng)
+	_LOCK_ACCESS(&ng->lock)
 	{
 		np_tree_elem_t *jrb_node = np_tree_find_str(ng->waiting, ack_uuid.value.s);
 		if (jrb_node != NULL)
@@ -926,6 +921,9 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 	// nothing to do
 	// __np_return__:
+	if (routing_key != join_key) np_unref_obj(np_key_t, routing_key);
+	np_unref_obj(np_key_t, join_key);
+
 	log_msg(LOG_TRACE, ".end  ._np_in_join_ack");
 	return;
 }
@@ -948,12 +946,9 @@ void _np_in_join_nack(np_jobargs_t* args)
 	CHECK_STR_FIELD(args->msg->instructions, _NP_MSG_INST_ACKUUID, ack_uuid);
 
 	np_dhkey_t search_key = np_dhkey_create_from_hash(msg_from.value.s);
-	_LOCK_MODULE(np_keycache_t)
-	{
-		nack_key = _np_keycache_find(search_key);
-	}
+	nack_key = _np_keycache_find(search_key);
 
-	LOCK_CACHE(ng)
+	_LOCK_ACCESS(&ng->lock)
 	{
 		np_tree_elem_t *jrb_node = np_tree_find_str(ng->waiting, ack_uuid.value.s);
 		if (jrb_node != NULL)
@@ -981,6 +976,8 @@ void _np_in_join_nack(np_jobargs_t* args)
 	__np_cleanup__:
 	// nothing to do
 	// __np_return__:
+
+	np_unref_obj(np_key_t, nack_key);
 	log_msg(LOG_TRACE, ".end  ._np_in_join_nack");
 	return;
 }
@@ -989,16 +986,12 @@ void _np_in_ping(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start._np_in_ping");
 	np_message_t *msg_out = NULL;
-	np_key_t* ping_key = NULL;
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
 	np_dhkey_t search_key = np_dhkey_create_from_hash(msg_from.value.s);
 
-	_LOCK_MODULE(np_keycache_t)
-	{
-		ping_key = _np_keycache_find(search_key);
-	}
+	np_key_t* ping_key = _np_keycache_find(search_key);
 
 	// send out a ping reply if the hostname and port is known
 	if (NULL               != ping_key                          &&
@@ -1013,7 +1006,9 @@ void _np_in_ping(np_jobargs_t* args)
 		_np_message_create(msg_out, ping_key, _np_state()->my_node_key, _NP_MSG_PING_REPLY, NULL );
 		np_msgproperty_t* msg_pingreply_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REPLY);
 		_np_job_submit_msgout_event(0.0, msg_pingreply_prop, ping_key, msg_out);
+
 		np_free_obj(np_message_t, msg_out);
+		np_unref_obj(np_key_t, ping_key);
 	}
 	else
 	{
@@ -1034,10 +1029,7 @@ void _np_in_pingreply(np_jobargs_t * args)
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
 	np_dhkey_t search_key = np_dhkey_create_from_hash(msg_from.value.s);
-	_LOCK_MODULE(np_keycache_t)
-	{
-		pingreply_key = _np_keycache_find(search_key);
-	}
+	pingreply_key = _np_keycache_find(search_key);
 
 	if (NULL != pingreply_key &&
 		NULL != pingreply_key->node &&
@@ -1067,6 +1059,7 @@ void _np_in_pingreply(np_jobargs_t * args)
 	__np_cleanup__:
 	// nothing to do
 	// __np_return__:
+	np_unref_obj(np_key_t, pingreply_key);
 	log_msg(LOG_TRACE, ".end  ._np_in_pingreply");
 	return;
 }
@@ -1492,10 +1485,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 		search_key = np_dhkey_create_from_hostport(authentication_token->subject, "0");
 	}
 
-	_LOCK_MODULE(np_keycache_t)
-	{
-		subject_key = _np_keycache_find_or_create(search_key);
-	}
+	subject_key = _np_keycache_find_or_create(search_key);
 
 	if (0 == strncmp(authentication_token->subject, "urn:np:node:", 12))
 	{
@@ -1503,7 +1493,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 	}
 	else /* if (0 == strncmp(authentication_token->subject, "urn:np:msg:", 11)) */
 	{
-		LOCK_CACHE(subject_key->recv_property)
+		_LOCK_ACCESS(&subject_key->recv_property->lock)
 		{
 			pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
 			while (NULL != iter)
@@ -1520,7 +1510,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 			}
 		}
 
-		LOCK_CACHE(subject_key->send_property)
+		_LOCK_ACCESS(&subject_key->send_property->lock)
 		{
 			pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->send_tokens);
 			while (NULL != iter)
@@ -1544,6 +1534,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 
 	// __np_return__:
 	// args->properties->msg_threshold--;
+	np_unref_obj(np_key_t, subject_key);
 	log_msg(LOG_TRACE, ".end  ._np_in_authenticate_reply");
 	return;
 }
@@ -1671,10 +1662,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 		search_key = np_dhkey_create_from_hostport(authorization_token->subject, "0");
 	}
 
-	_LOCK_MODULE(np_keycache_t)
-	{
-		subject_key = _np_keycache_find_or_create(search_key);
-	}
+	subject_key = _np_keycache_find_or_create(search_key);
 
 	if (0 == strncmp(authorization_token->subject, "urn:np:node:", 12))
 	{
@@ -1682,7 +1670,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 	}
 	else /* if (0 == strncmp(authorization_token->subject, "urn:np:msg:", 11)) */
 	{
-		LOCK_CACHE(subject_key->recv_property)
+		_LOCK_ACCESS(&subject_key->recv_property->lock)
 		{
 			pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
 			while (NULL != iter)
@@ -1699,7 +1687,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 			}
 		}
 
-		LOCK_CACHE(subject_key->send_property)
+		_LOCK_ACCESS(&subject_key->send_property->lock)
 		{
 			pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->send_tokens);
 			while (NULL != iter)
@@ -1722,6 +1710,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 
 	// __np_return__:
 	// args->properties->msg_threshold--;
+	np_unref_obj(np_key_t, subject_key);
 	return;
 }
 
@@ -1755,7 +1744,7 @@ void _np_in_account(np_jobargs_t* args)
 
 	__np_cleanup__:
 	if (NULL != accounting_token) np_free_obj(np_aaatoken_t, accounting_token);
-	if (NULL != sender_token)        np_unref_obj(np_aaatoken_t, sender_token);
+	if (NULL != sender_token)     np_unref_obj(np_aaatoken_t, sender_token);
 
 	// __np_return__:
 	args->properties->msg_threshold--;
@@ -1766,9 +1755,11 @@ void _np_in_handshake(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start._np_in_handshake");
 
+	np_key_t* hs_key = NULL;
+	np_key_t* hs_wildcard_key = NULL;
 	np_key_t* alias_key = NULL;
+
 	np_aaatoken_t* tmp_token = NULL;
-	np_tree_t* hs_payload = np_tree_create();
 
 	_np_message_deserialize_chunked(args->msg);
 
@@ -1781,6 +1772,8 @@ void _np_in_handshake(np_jobargs_t* args)
 
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, payload.value.bin, _np_buffer_reader, _np_buffer_writer);
+	np_tree_t* hs_payload = np_tree_create();
+
 	_np_tree_deserialize(hs_payload, &cmp);
 	// TODO: check if the complete buffer was read (byte count match)
 
@@ -1815,53 +1808,44 @@ void _np_in_handshake(np_jobargs_t* args)
 	log_msg(LOG_DEBUG, "decoding of handshake message from %s (i:%f/e:%f) complete",
 			tmp_token->subject, tmp_token->issued_at, tmp_token->expiration);
 
-
 	// store the handshake data in the node cache, use hostname/port for key generation
 	// key could be changed later, but we need a way to lookup the handshake data later
-	np_key_t* hs_key = NULL;
-	np_key_t* hs_wildcard_key = NULL;
-
-	_LOCK_MODULE(np_keycache_t)
-	{
-		hs_key = _np_node_create_from_token(tmp_token);
-	}
+	hs_key = _np_node_create_from_token(tmp_token);
 
 	char* tmp = np_get_connection_string_from(hs_key, FALSE);
 	np_dhkey_t wildcard_key = np_dhkey_create_from_hostport("*", tmp );
 	free(tmp);
 
-	_LOCK_MODULE(np_keycache_t)
+	hs_wildcard_key = _np_keycache_find(wildcard_key);
+	if(NULL != hs_wildcard_key)
 	{
-		hs_wildcard_key = _np_keycache_find(wildcard_key);
-		if(NULL != hs_wildcard_key)
-		{
-			// Updating handshake key with already existing network structure of the wildcard key
-			log_msg(LOG_DEBUG,
-					"Updating wildcard key %s to %s",
-					_np_key_as_str(hs_wildcard_key),
-					_np_key_as_str(hs_key));
+		// Updating handshake key with already existing network structure of the wildcard key
+		log_msg(LOG_DEBUG,
+				"Updating wildcard key %s to %s",
+				_np_key_as_str(hs_wildcard_key),
+				_np_key_as_str(hs_key));
 
-			hs_key->network = hs_wildcard_key->network;
-			np_ref_obj(np_network_t, hs_key->network);
+		hs_key->network = hs_wildcard_key->network;
+		np_ref_obj(np_network_t, hs_key->network);
 
-			_np_suspend_event_loop();
-			hs_key->network->watcher.data = hs_key;
-			hs_key->node->handshake_status= hs_wildcard_key->node->handshake_status;
-			_np_resume_event_loop();
+		_np_suspend_event_loop();
+		np_ref_switch(np_key_t, hs_key->network->watcher.data, hs_key);
+		// hs_key->network->watcher.data = hs_key;
+		hs_key->node->handshake_status= hs_wildcard_key->node->handshake_status;
+		_np_resume_event_loop();
 
-			// clean up, wildcard key not needed anymore
-			hs_wildcard_key->network = NULL;
-			_np_keycache_remove(wildcard_key);
-			np_free_obj(np_key_t, hs_wildcard_key);
+		// clean up, wildcard key not needed anymore
+		hs_wildcard_key->network = NULL;
 
-			_np_send_simple_invoke_request(hs_key, _NP_MSG_JOIN_REQUEST);
-		}
+		_np_send_simple_invoke_request(hs_key, _NP_MSG_JOIN_REQUEST);
+
+		_np_keycache_remove(wildcard_key);
+		np_unref_obj(np_key_t, hs_wildcard_key);
 	}
 
 	// should never happen
 	if (NULL == hs_key)
 	{
-		log_msg(LOG_WARN, "HAPPENED NEVERLESS");
 		goto __np_cleanup__;
 	}
 
@@ -1877,6 +1861,7 @@ void _np_in_handshake(np_jobargs_t* args)
 				{
 					_np_suspend_event_loop();
 					hs_key->network->watcher.data = hs_key;
+					np_ref_obj(np_key_t, hs_key);
 					_np_resume_event_loop();
 				}
 				else
@@ -1914,11 +1899,7 @@ void _np_in_handshake(np_jobargs_t* args)
 	np_unref_obj(np_aaatoken_t, old_token);
 
 	// handle alias key, also in case a new connection has been established
-	_LOCK_MODULE(np_keycache_t)
-	{
-		alias_key = _np_keycache_find_or_create(search_alias_key);
-	}
-
+	alias_key = _np_keycache_find_or_create(search_alias_key);
 	if (NULL != alias_key)
 	{
 		alias_key->aaa_token = hs_key->aaa_token;
@@ -1980,9 +1961,12 @@ void _np_in_handshake(np_jobargs_t* args)
 			_np_key_as_str(hs_key), _np_key_as_str(alias_key));
 
 	__np_cleanup__:
-	if (NULL != tmp_token)  np_free_obj(np_aaatoken_t, tmp_token);
+	np_unref_obj(np_aaatoken_t, tmp_token);
 
 	// __np_return__:
+	np_unref_obj(np_key_t, hs_key);
+	np_unref_obj(np_key_t, alias_key);
+
 	if (NULL != hs_payload) np_tree_free(hs_payload);
 
 	return;

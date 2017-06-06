@@ -17,7 +17,6 @@
 
 #include "np_messagepart.h"
 
-_NP_MODULE_LOCK_IMPL(np_messagesgpart_cache_t);
 NP_PLL_GENERATE_IMPLEMENTATION(np_messagepart_ptr);
 
 int8_t _np_messagepart_cmp (const np_messagepart_ptr value1, const np_messagepart_ptr value2)

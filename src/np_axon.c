@@ -108,30 +108,33 @@ void _np_send(np_jobargs_t* args)
 	if (TRUE == is_resend)
 	{
 		uuid = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
+		np_bool skip = FALSE;
+		_LOCK_ACCESS(&network->lock)
+		{
+			// first find the uuid
+			if (NULL == np_tree_find_str(network->waiting, uuid))
+			{
+				// has been deleted already
+				log_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
+				skip = TRUE;
+			}
+			else if (TRUE == ((np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v)->acked)
+			{
+				// uuid has been acked
+				log_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
+				skip = TRUE;
+			}
+			else
+			{
+				// ack indicator still there ! initiate resend ...
+				log_msg(LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
+			}
+		}
 
-		pthread_mutex_lock(&network->lock);
-		// first find the uuid
-		if (NULL == np_tree_find_str(network->waiting, uuid))
-		{
-			// has been deleted already
-			log_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
+		if (TRUE == skip) {
 			log_msg(LOG_TRACE, ".end  ._np_out_send");
-			pthread_mutex_unlock(&network->lock);
 			return;
 		}
-		else if (TRUE == ((np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v)->acked)
-		{
-			log_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
-			log_msg(LOG_TRACE, ".end  ._np_out_send");
-			pthread_mutex_unlock(&network->lock);
-			return;
-		}
-		else
-		{
-			// ack indicator still there ? initiate resend ...
-			log_msg(LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
-		}
-		pthread_mutex_unlock(&network->lock);
 
 		double initial_tstamp = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
 		double now = ev_time();
@@ -178,12 +181,13 @@ void _np_send(np_jobargs_t* args)
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
 	if (TRUE == ack_to_is_me && FALSE == is_resend)
 	{
-		pthread_mutex_lock(&network->lock);
-		/* get/set sequence number to keep increasing sequence numbers per node */
-		seq = network->seqend;
-		np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
-		network->seqend++;
-		pthread_mutex_unlock(&network->lock);
+		_LOCK_ACCESS(&network->lock)
+		{
+			/* get/set sequence number to keep increasing sequence numbers per node */
+			seq = network->seqend;
+			np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
+			network->seqend++;
+		}
 	}
 
 	// insert a uuid if not yet present
@@ -218,40 +222,41 @@ void _np_send(np_jobargs_t* args)
 		{
 			uuid = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
 
-			pthread_mutex_lock(&network->lock);
-			/* get/set sequence number to initialize acknowledgement indicator correctly */
-			np_ackentry_t *ackentry = NULL;
-
-			if (NULL != np_tree_find_str(network->waiting, uuid))
+			_LOCK_ACCESS(&network->lock)
 			{
-				ackentry = (np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v;
-			}
-			else
-			{
-				ackentry = _np_network_get_new_ackentry();
-			}
+				/* get/set sequence number to initialize acknowledgement indicator correctly */
+				np_ackentry_t *ackentry = NULL;
 
-			ackentry->acked = FALSE;
-			ackentry->transmittime = ev_time();
-			// + 1.0 because of time delays for processing
-			ackentry->expiration = ackentry->transmittime + args->properties->ttl + 1.0;
-			ackentry->dest_key = args->target;
-			np_ref_obj(np_key_t,  args->target);
+				if (NULL != np_tree_find_str(network->waiting, uuid))
+				{
+					ackentry = (np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v;
+				}
+				else
+				{
+					ackentry = _np_network_get_new_ackentry();
+				}
 
-			if (TRUE == is_forward)
-			{
-				// single part message can only occur in intermediate hops
-				ackentry->expected_ack++;
-			}
-			else
-			{
-				// full message can only occur when sending the original message
-				ackentry->expected_ack = msg_out->no_of_chunks;
-			}
+				ackentry->acked = FALSE;
+				ackentry->transmittime = ev_time();
+				// + 1.0 because of time delays for processing
+				ackentry->expiration = ackentry->transmittime + args->properties->ttl + 1.0;
+				ackentry->dest_key = args->target;
+				np_ref_obj(np_key_t,  args->target);
 
-			np_tree_insert_str(network->waiting, uuid, np_treeval_new_v(ackentry));
-			log_msg(LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", network->waiting, uuid);
-			pthread_mutex_unlock(&network->lock);
+				if (TRUE == is_forward)
+				{
+					// single part message can only occur in intermediate hops
+					ackentry->expected_ack++;
+				}
+				else
+				{
+					// full message can only occur when sending the original message
+					ackentry->expected_ack = msg_out->no_of_chunks;
+				}
+
+				np_tree_insert_str(network->waiting, uuid, np_treeval_new_v(ackentry));
+				log_msg(LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", network->waiting, uuid);
+			}
 		}
 
 		// insert a record into the priority queue with the following information:
@@ -280,7 +285,7 @@ void _np_send(np_jobargs_t* args)
 	{
 		_np_message_serialize_chunked(&chunk_args);
 	}
-	log_msg(LOG_INFO, "Try sending message %s for subject \"%s\" to %s", msg_out->uuid, prop->msg_subject, _np_key_as_str(args->target));
+	log_msg(LOG_DEBUG, "Try sending message %s for subject \"%s\" to %s", msg_out->uuid, prop->msg_subject, _np_key_as_str(args->target));
 
 	_np_network_send_msg(args->target, msg_out);
 	// ret is 1 or 0
@@ -405,7 +410,8 @@ void _np_send_handshake(np_jobargs_t* args)
 
 				_np_suspend_event_loop();
 				args->target->network->watcher.data = args->target;
-				_np_resume_event_loop();
+			    np_ref_obj(np_key_t, args->target);
+			    _np_resume_event_loop();
 
 			}
 		}
@@ -428,7 +434,7 @@ void _np_send_handshake(np_jobargs_t* args)
 		memset(packet, 0, 1024);
 		memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 
-		LOCK_CACHE(args->target->network)
+		_LOCK_ACCESS(&args->target->network->lock)
 		{
 			if(NULL != args->target->network->out_events) {
 				sll_append(

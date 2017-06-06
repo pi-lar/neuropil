@@ -27,7 +27,6 @@ struct np_messagepart_s
 } NP_API_INTERN;
 
 NP_PLL_GENERATE_PROTOTYPES(np_messagepart_ptr);
-_NP_ENABLE_MODULE_LOCK(np_messagesgpart_cache_t);
 
 NP_API_INTERN
 int8_t _np_messagepart_cmp (const np_messagepart_ptr value1, const np_messagepart_ptr value2);

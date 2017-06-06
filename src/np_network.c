@@ -48,8 +48,6 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
-_NP_MODULE_LOCK_IMPL(np_network_t);
-
 
 // allocate a new pointer and return it
 np_prioq_t* _np_network_get_new_pqentry()
@@ -355,8 +353,8 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 		memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
 		/* send data */
-		// LOCK_CACHE(_np_state()->my_node_key->network) {
-		LOCK_CACHE(node_key->network) {
+		// _LOCK_ACCESS(_np_state()->my_node_key->network) {
+		_LOCK_ACCESS(&node_key->network->lock) {
 			if(NULL != node_key->network->out_events) {
 				// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
 				// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
@@ -397,10 +395,10 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 		// seems to be called sometimes although the key is deleted already ...
 		np_key_t* key = (np_key_t*) event->data;
 
-		if (NULL != key && NULL != key->network) {
-
-			LOCK_CACHE(key->network) {
-
+		if (NULL != key && NULL != key->network && TRUE == key->network->initialized)
+		{
+			_LOCK_ACCESS(&key->network->lock)
+			{
 				if (NULL != key->network->out_events &&
 					0 < sll_size(key->network->out_events)
 					)
@@ -482,10 +480,7 @@ void _np_network_accept(struct ev_loop *loop, NP_UNUSED ev_io *event, NP_UNUSED 
 	np_key_t* alias_key = NULL;
 	np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
 
-	_LOCK_MODULE(np_keycache_t)
-	{
-		alias_key = _np_keycache_find_or_create(search_key);
-	}
+	alias_key = _np_keycache_find_or_create(search_key);
 
 	// set non blocking
 	int current_flags = fcntl(client_fd, F_GETFL);
@@ -499,7 +494,8 @@ void _np_network_accept(struct ev_loop *loop, NP_UNUSED ev_io *event, NP_UNUSED 
 	sll_init(void_ptr, alias_key->network->out_events);
 
 	_np_suspend_event_loop();
-    alias_key->network->watcher.data = alias_key;
+
+	alias_key->network->watcher.data = alias_key;
 
     ev_io_init(&alias_key->network->watcher, _np_network_read, alias_key->network->socket, EV_READ);
 	ev_io_start(EV_A_ &ng->watcher);
@@ -585,13 +581,10 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 	log_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (size: %hd)", ipstr, port, in_msg_len);
 
 	// we registered this token info before in the first handshake message
-	np_key_t* alias_key = NULL;
 	np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
+	np_key_t* alias_key = _np_keycache_find_or_create(search_key);
 
-	_LOCK_MODULE(np_keycache_t)
-	{
-		alias_key = _np_keycache_find_or_create(search_key);
-	}
+	if (NULL == alias_key) return;
 
 	void* data_ptr = malloc(in_msg_len * sizeof(char));
 	CHECK_MALLOC(data_ptr);
@@ -599,8 +592,10 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 	memset(data_ptr, 0,    in_msg_len);
 	memcpy(data_ptr, data, in_msg_len);
 
-	LOCK_CACHE(ng) {
-		if(NULL != ng->in_events) {
+	_LOCK_ACCESS(&ng->lock)
+	{
+		if(NULL != ng->in_events)
+		{
 			sll_append(void_ptr, ng->in_events, data_ptr);
 		}
 	}
@@ -608,7 +603,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 
 	_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL);
 
-	// _np_node_update_stat(key->node, 1);
+	np_unref_obj(np_key_t, alias_key);
 
 	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 }
@@ -637,9 +632,14 @@ void _np_network_t_del(void* nw)
 
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 	ev_io_stop(EV_A_ &network->watcher);
+	network->initialized = FALSE;
+	np_key_t* old_key = (np_key_t*) network->watcher.data;
+	np_unref_obj(np_key_t, old_key);
+	// network->watcher.data = NULL;
+
 	_np_resume_event_loop();
 
-	LOCK_CACHE(network)
+	_LOCK_ACCESS(&network->lock)
 	{
 		if (NULL != network->waiting)
 			np_tree_free(network->waiting);
@@ -671,7 +671,7 @@ void _np_network_t_del(void* nw)
 		if (0 < network->socket) close (network->socket);
 	}
 	// finally destroy the mutex again
-	pthread_mutex_destroy (&network->lock);
+	_np_threads_mutex_destroy (&network->lock);
 }
 
 
@@ -697,7 +697,7 @@ void _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, ch
     int v6_only = 0;
 
     log_msg(LOG_DEBUG, "try to pthread_mutex_init");
-    if ((ret = pthread_mutex_init (&(ng->lock), NULL)) != 0)
+    if ((ret = _np_threads_mutex_init (&ng->lock)) != 0)
 	{
 		log_msg(LOG_ERROR, "pthread_mutex_init: %s:", strerror (ret));
 		close (ng->socket);

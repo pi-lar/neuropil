@@ -19,6 +19,7 @@ A developer should be familiar with the main settings
 #include "np_memory.h"
 #include "np_util.h"
 #include "np_types.h"
+#include "np_threads.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -251,9 +252,11 @@ struct np_msgproperty_s
 	np_sll_t(np_message_t, msg_cache_out);
 
 	// only send/receive after opposite partner has been found
-    pthread_mutex_t    lock;
-    pthread_cond_t     msg_received;
-    pthread_condattr_t cond_attr;
+	np_mutex_t lock;
+	np_cond_t  msg_received;
+
+	// pthread_cond_t     msg_received;
+    // pthread_condattr_t cond_attr;
 
 	// callback function(s) to invoke when a message is received
 	np_callback_t clb_default; // internal neuropil supplied
@@ -265,7 +268,6 @@ struct np_msgproperty_s
 	np_usercallback_t user_clb; // external user supplied for inbound
 } NP_API_EXPORT;
 
-_NP_ENABLE_MODULE_LOCK(np_msgproperty_t);
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
 
 // create setter methods

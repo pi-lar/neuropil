@@ -205,11 +205,8 @@ void np_send_join(const char* node_string)
 {
 	np_key_t* node_key = NULL;
 
-	_LOCK_MODULE(np_keycache_t)
-	{
-		node_key = _np_node_decode_from_str(node_string);
-	}
-	_np_send_simple_invoke_request(node_key,_NP_MSG_JOIN_REQUEST);
+	node_key = _np_node_decode_from_str(node_string);
+	_np_send_simple_invoke_request(node_key, _NP_MSG_JOIN_REQUEST);
 }
 
 /**
@@ -227,38 +224,24 @@ void np_send_wildcard_join(const char* node_string)
 	 * So wird aus dem wildcard key ein vollwertiger key eintrag in der routing Tabelle.
 	 */
 
-	char* wildcard_node = NULL;
+	char* wildcard_node_str = NULL;
 	np_key_t* wildcard_node_key = NULL;
 
 	//START Build our wildcard connection string
 	np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", node_string);
-	char wildcard_dhkey_str[65]; // = malloc(sizeof(char)*65);
+	char wildcard_dhkey_str[65];
 	_np_dhkey_to_str(&wildcard_dhkey, wildcard_dhkey_str);
-	asprintf(&wildcard_node, "%s:%s", wildcard_dhkey_str, node_string);
+	asprintf(&wildcard_node_str, "%s:%s", wildcard_dhkey_str, node_string);
 	//END Build our wildcard connection string
 
-	_LOCK_MODULE(np_keycache_t)
-	{
-		wildcard_node_key = _np_node_decode_from_str(wildcard_node);
-	}
-	free(wildcard_node);
+	wildcard_node_key = _np_node_decode_from_str(wildcard_node_str);
+	free(wildcard_node_str);
 
 	// proposal: only invoke handshake ?
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
 	_np_job_submit_transform_event(0.0, msg_prop, wildcard_node_key, NULL);
 
-//	np_tree_t* jrb_me = np_tree_create();
-//	np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
-//
-//	np_message_t* msg_out = NULL;
-//	np_msgproperty_t* prop = NULL;
-//
-//	np_new_obj(np_message_t, msg_out);
-//	_np_message_create(msg_out, wildcard_node_key, state->my_node_key, _NP_MSG_JOIN_REQUEST_WILDCARD, jrb_me);
-//
-//	log_msg(LOG_DEBUG, "submitting wildcard join request to target key %s", _np_key_as_str(wildcard_node_key));
-//	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST_WILDCARD);
-//	_np_job_submit_msgout_event(0.0, prop, wildcard_node_key, msg_out);
+	np_unref_obj(np_key_t, wildcard_node_key);
 }
 
 /**
@@ -277,10 +260,11 @@ void np_set_realm_name(const char* realm_name)
 	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // np_dhkey_create_from_hostport(my_node->dns_name, my_node->port);
 	np_key_t* new_node_key = _np_keycache_find_or_create(my_dhkey);
 
-	// TODO: use ref/unref
 	new_node_key->network = _np_state()->my_node_key->network;
 	_np_state()->my_node_key->network = NULL;
+
 	new_node_key->network->watcher.data = new_node_key;
+    np_ref_obj(np_key_t, new_node_key);
 
 	new_node_key->node = _np_state()->my_node_key->node;
 	_np_state()->my_node_key->node = NULL;
@@ -293,9 +277,7 @@ void np_set_realm_name(const char* realm_name)
 	// set and ref additional identity
     if (_np_state()->my_identity == _np_state()->my_node_key)
     {
-        np_unref_obj(np_key_t, _np_state()->my_identity);
-        _np_state()->my_identity = new_node_key;
-        np_ref_obj(np_key_t, _np_state()->my_identity);
+    	np_ref_switch(np_key_t, _np_state()->my_identity, new_node_key);
     }
     else
     {
@@ -305,6 +287,8 @@ void np_set_realm_name(const char* realm_name)
     _np_state()->my_node_key = new_node_key;
 
 	log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _np_key_as_str(_np_state()->my_node_key));
+
+	np_unref_obj(np_key_t, new_node_key);
 }
 /**
  * Enables this node as realm slave.
@@ -400,22 +384,17 @@ void np_set_listener (np_usercallback_t msg_handler, char* subject)
 void np_set_identity(np_aaatoken_t* identity)
 {
 	np_state_t* state = _np_state();
-    np_key_t* my_identity_key = NULL;
 
     // build a hash to find a place in the dhkey table, not for signing !
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(identity);
-	_LOCK_MODULE(np_keycache_t)
-	{
-		my_identity_key = _np_keycache_find_or_create(search_key);
-	}
+	np_key_t* my_identity_key = _np_keycache_find_or_create(search_key);
 
 	if (NULL != state->my_identity)
 	{
-		// delete old identity
-		np_unref_obj(np_key_t, state->my_identity);
+		np_ref_switch(np_key_t, state->my_identity, my_identity_key);
+		np_unref_obj(np_key_t, my_identity_key);
 	}
-
-	if (NULL != my_identity_key)
+	else
 	{
 		// cannot be null, but otherwise checker complains
 		state->my_identity = my_identity_key;
@@ -541,19 +520,16 @@ np_key_t* _np_get_key_by_key_hash(char* targetDhkey)
 	np_key_t* target = NULL;
 
 	if (NULL != targetDhkey) {
-		_LOCK_MODULE(np_keycache_t)
-		{
-			target = _np_keycache_find_by_details(targetDhkey, FALSE,
-					HANDSHAKE_COMPLETE, TRUE, FALSE, FALSE, TRUE);
-		}
+
+		target = _np_keycache_find_by_details(targetDhkey, FALSE, HANDSHAKE_COMPLETE, TRUE, FALSE, FALSE, TRUE);
+
 		if (NULL == target) {
 			log_msg(LOG_WARN,
-					"could not find the specific target %s for message. broadcasting msg",
-					targetDhkey);
+					"could not find the specific target %s for message. broadcasting msg", targetDhkey);
 		} else {
-			log_msg(LOG_DEBUG, "could find the specific target %s for message.",
-					targetDhkey);
+			log_msg(LOG_DEBUG, "could find the specific target %s for message.", targetDhkey);
 		}
+
 		if (NULL != target && strcmp(_np_key_as_str(target), targetDhkey) != 0) {
 			log_msg(LOG_ERROR,
 					"Found target key (%s) does not match requested target key (%s)! Aborting",
@@ -629,10 +605,10 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	{	// first check or wait for available messages
 		if (0 == sll_size(msg_prop->msg_cache_in))
 		{
-			LOCK_CACHE(msg_prop)
+			_LOCK_ACCESS(&msg_prop->lock)
 			{
 				log_msg(LOG_DEBUG, "waiting for signal that a new message arrived %p", msg_prop);
-				pthread_cond_wait(&msg_prop->msg_received, &msg_prop->lock);
+				_np_threads_condition_wait(&msg_prop->msg_received, &msg_prop->lock);
 				log_msg(LOG_DEBUG, "received signal that a new message arrived %p", msg_prop);
 			}
 		}
@@ -738,10 +714,10 @@ uint32_t np_receive_text (char* subject, char **data)
 	{	// first check or wait for available messages
 		if (0 == sll_size(msg_prop->msg_cache_in))
 		{
-			LOCK_CACHE(msg_prop)
+			_LOCK_ACCESS(&msg_prop->lock)
 			{
 				log_msg(LOG_DEBUG, "waiting for signal that a new message arrived %p", msg_prop);
-				pthread_cond_wait(&msg_prop->msg_received, &msg_prop->lock);
+				_np_threads_condition_wait(&msg_prop->msg_received, &msg_prop->lock);
 				log_msg(LOG_DEBUG, "received signal that a new message arrived %p", msg_prop);
 			}
 		}
@@ -987,6 +963,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // np_dhkey_create_from_hostport(my_node->dns_name, my_node->port);
     state->my_node_key = _np_keycache_find_or_create(my_dhkey);
     my_network->watcher.data = state->my_node_key;
+    np_ref_obj(np_key_t, state->my_node_key);
     // log_msg(LOG_WARN, "node_key %p", state->my_node_key);
 
     state->my_node_key->node = my_node;

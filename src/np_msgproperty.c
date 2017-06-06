@@ -55,8 +55,6 @@ RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
 typedef struct rbt_msgproperty rbt_msgproperty_t;
 static rbt_msgproperty_t* __msgproperty_table;
 
-_NP_MODULE_LOCK_IMPL(np_msgproperty_t);
-
 /**
  ** _np_msgproperty_init
  ** Initialize message property subsystem.
@@ -164,9 +162,8 @@ void _np_msgproperty_t_new(void* property)
 	sll_init(np_message_t, prop->msg_cache_in);
 	sll_init(np_message_t, prop->msg_cache_out);
 
-	pthread_mutex_init (&prop->lock, NULL);
-    pthread_cond_init (&prop->msg_received, &prop->cond_attr);
-    pthread_condattr_setpshared(&prop->cond_attr, PTHREAD_PROCESS_PRIVATE);
+	_np_threads_mutex_init (&prop->lock);
+	_np_threads_condition_init(&prop->msg_received);
 }
 
 void _np_msgproperty_t_del(void* property)
@@ -178,9 +175,8 @@ void _np_msgproperty_t_del(void* property)
 	sll_free(np_message_t, prop->msg_cache_in);
 	sll_free(np_message_t, prop->msg_cache_out);
 
-	pthread_condattr_destroy(&prop->cond_attr);
-    pthread_cond_destroy (&prop->msg_received);
-	pthread_mutex_destroy (&prop->lock);
+	_np_threads_mutex_destroy(&prop->lock);
+	_np_threads_condition_destroy(&prop->msg_received);
 }
 
 void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
@@ -193,7 +189,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 
 	// get message from cache (maybe only for one way mep ?!)
 	uint16_t msg_available = 0;
-	LOCK_CACHE(send_prop)
+	_LOCK_ACCESS(&send_prop->lock)
 	{
 		msg_available = sll_size(send_prop->msg_cache_out);
 	}
@@ -203,7 +199,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 	while (0 < msg_available && TRUE == sending_ok)
 	{
 		np_message_t* msg_out = NULL;
-		LOCK_CACHE(send_prop)
+		_LOCK_ACCESS(&send_prop->lock)
 		{
 			// if messages are available in cache, send them !
 			if (send_prop->cache_policy & FIFO)
@@ -234,7 +230,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 
 	// get message from cache (maybe only for one way mep ?!)
 	uint16_t msg_available = 0;
-	LOCK_CACHE(recv_prop)
+	_LOCK_ACCESS(&recv_prop->lock)
 	{
 		msg_available = sll_size(recv_prop->msg_cache_in);
 	}
@@ -245,7 +241,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 	{
 		np_message_t* msg_in = NULL;
 
-		LOCK_CACHE(recv_prop)
+		_LOCK_ACCESS(&recv_prop->lock)
 		{
 			// if messages are available in cache, try to decode them !
 			if (recv_prop->cache_policy & FIFO)
@@ -255,6 +251,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 
 			msg_available = sll_size(recv_prop->msg_cache_in);
 		}
+
 		if(NULL != msg_in) {
 			recv_prop->msg_threshold--;
 			_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in);
@@ -265,7 +262,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 
 void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
-	LOCK_CACHE(msg_prop)
+	_LOCK_ACCESS(&msg_prop->lock)
 	{
 		// cache already full ?
 		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_out))
@@ -309,7 +306,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
-	LOCK_CACHE(msg_prop)
+	_LOCK_ACCESS(&msg_prop->lock)
 	{
 		// cache already full ?
 		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))

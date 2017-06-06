@@ -365,7 +365,6 @@ np_msgproperty_t __authenticate =
 		.cache_policy = FIFO | OVERFLOW_PURGE,
 		.ttl = 20.0,
 		.max_threshold = 10,
-		.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
 np_msgproperty_t __authenticate_reply =
@@ -387,7 +386,6 @@ np_msgproperty_t __authenticate_reply =
 		.clb_route = _np_route_lookup_jobexec,
 		.ttl = 20.0,
 		.max_threshold = 10,
-		.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
 np_msgproperty_t __authorize =
@@ -410,7 +408,6 @@ np_msgproperty_t __authorize =
 		.cache_policy = FIFO | OVERFLOW_PURGE,
 		.ttl = 20.0,
 		.max_threshold = 10,
-		.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
 np_msgproperty_t __authorize_reply =
@@ -432,7 +429,6 @@ np_msgproperty_t __authorize_reply =
 		.clb_route = _np_route_lookup_jobexec,
 		.ttl = 20.0,
 		.max_threshold = 10,
-		.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
 np_msgproperty_t __account =
@@ -455,7 +451,6 @@ np_msgproperty_t __account =
 		.cache_policy = FIFO | OVERFLOW_PURGE,
 		.ttl = 20.0,
 		.max_threshold = 10,
-		.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
 np_msgproperty_t* __np_internal_messages[] =
