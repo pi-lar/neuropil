@@ -43,7 +43,7 @@ static np_simple_cache_table_t* _cache = NULL;
 void _np_sysinfo_init_cache()
 {
 	if(NULL == _cache) {
-		_LOCK_MODULE(np_sysinfo)
+		_LOCK_MODULE(np_sysinfo_t)
 		{
 			_cache = (np_simple_cache_table_t*) malloc(
 					sizeof(np_simple_cache_table_t));
@@ -128,7 +128,6 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 				"received sysinfo request w/o source key information.");
 		return FALSE;
 	}
-
 
 	np_tree_elem_t* target = np_tree_find_str(properties, _NP_SYSINFO_TARGET);
 
