@@ -284,7 +284,11 @@ int main(int argc, char **argv)
 				 */
 				do {
  					fprintf(stdout, "try to join bootstrap node\n");
-					np_send_wildcard_join(bootstrap_hostnode);
+ 					if(TRUE == create_bootstrap){
+ 						np_send_wildcard_join(bootstrap_hostnode);
+ 					} else {
+ 						np_send_join(bootstrap_hostnode);
+ 					}
 
 					int timeout = 100;
 					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {
