@@ -89,23 +89,23 @@ struct np_obj_s
 
 #define np_unref_obj(TYPE, np_obj)                \
 {                                                 \
-  if(NULL != np_obj) {                   	      \
-    _LOCK_MODULE(np_memory_t) {                   \
-      assert (np_obj->obj != NULL);               \
-      assert (np_obj->obj->type == TYPE##_e);     \
-      assert (np_obj->obj->ptr != NULL);          \
-      np_mem_unrefobj(np_obj->obj);               \
-      if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) { \
-	    if (np_obj->obj->type != np_none_t_e)     \
-	    { 										  \
-		  if(np_obj->obj->del_callback != NULL)   \
-			np_obj->obj->del_callback(np_obj);    \
-		  np_mem_freeobj(TYPE##_e, &np_obj->obj); \
-		  np_obj->obj->ptr = NULL;                \
-		  np_obj->obj = NULL;                     \
-		  free(np_obj);                           \
-		  np_obj = NULL;                          \
-		}                                         \
+	_LOCK_MODULE(np_memory_t) {                   \
+	  if(NULL != np_obj) {                   	  \
+        assert (np_obj->obj != NULL);               \
+        assert (np_obj->obj->type == TYPE##_e);     \
+        assert (np_obj->obj->ptr != NULL);          \
+        np_mem_unrefobj(np_obj->obj);               \
+        if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) { \
+	      if (np_obj->obj->type != np_none_t_e)     \
+	      { 										\
+		    if(np_obj->obj->del_callback != NULL)   \
+			  np_obj->obj->del_callback(np_obj);    \
+		    np_mem_freeobj(TYPE##_e, &np_obj->obj); \
+		    np_obj->obj->ptr = NULL;                \
+		    np_obj->obj = NULL;                     \
+		    free(np_obj);                           \
+		    np_obj = NULL;                          \
+		  }                                         \
 	  }                                           \
     }                                             \
   }                                               \
