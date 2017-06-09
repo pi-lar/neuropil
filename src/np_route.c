@@ -21,6 +21,7 @@
 #include "np_node.h"
 #include "np_threads.h"
 #include "np_types.h"
+#include "np_event.h"
 
 
 static const uint16_t __MAX_ROW   = 64; // length of key
@@ -60,6 +61,7 @@ np_bool _np_route_init (np_key_t* me)
 	__routing_table = (np_routeglobal_t *) malloc (sizeof (np_routeglobal_t));
 	CHECK_MALLOC(__routing_table);
 
+	__routing_table->bootstrap_key = NULL;
     __routing_table->my_key = me;
     np_ref_obj(np_key_t, __routing_table->my_key);
 
@@ -216,17 +218,19 @@ sll_return(np_key_t) _np_route_get_table ()
 	sll_init(np_key_t, sll_of_keys);
 
 	uint16_t i, j, k;
-	for (i = 0; i < __MAX_ROW; i++)
-	{
-		for (j = 0; j < __MAX_COL; j++)
+	_LOCK_MODULE(np_routeglobal_t) {
+		for (i = 0; i < __MAX_ROW; i++)
 		{
-			int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
-			for (k = 0; k < __MAX_ENTRY; k++)
+			for (j = 0; j < __MAX_COL; j++)
 			{
-				if (NULL != __routing_table->table[index + k])
+				int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
+				for (k = 0; k < __MAX_ENTRY; k++)
 				{
-					sll_append(np_key_t, sll_of_keys, __routing_table->table[index + k]);
-					log_msg(LOG_ROUTING | LOG_DEBUG, "added to routes->table[%d]", index+k);
+					if (NULL != __routing_table->table[index + k])
+					{
+						sll_append(np_key_t, sll_of_keys, __routing_table->table[index + k]);
+						log_msg(LOG_ROUTING | LOG_DEBUG, "added to routes->table[%d]", index+k);
+					}
 				}
 			}
 		}
@@ -583,6 +587,7 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 		if(NULL == __routing_table->bootstrap_key){
 			np_ref_obj(np_key_t, key);
 			__routing_table->bootstrap_key = key;
+			_np_event_rejoin_if_necessary(NULL);
 		}
 		found = 0;
 		for (k = 0; k < __MAX_ENTRY; k++)

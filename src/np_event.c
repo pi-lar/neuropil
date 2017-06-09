@@ -22,7 +22,9 @@
 #include "np_jobqueue.h"
 
 #include "np_event.h"
-
+#include "neuropil.h"
+#include "np_list.h"
+#include "np_route.h"
 
 static np_bool __exit_libev_loop = FALSE;
 
@@ -61,6 +63,31 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 	log_msg(LOG_TRACE, ".end  ._np_events_async");
 }
 
+void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
+{
+	sll_return(np_key_t)  sll_routing_tbl;
+	np_bool rejoin = FALSE;
+
+	sll_routing_tbl = _np_route_get_table();
+
+	if(sll_routing_tbl->size < 1 ) {
+		rejoin = TRUE;
+	}
+
+	sll_free(np_key_t, sll_routing_tbl);
+
+	if(TRUE == rejoin){
+		np_key_t* bootstrap = np_route_get_bootstrap_key();
+		if(NULL != bootstrap){
+			char* connection_str = np_get_connection_string_from(bootstrap, FALSE);
+			np_send_wildcard_join(connection_str);
+			free(connection_str);
+		}
+	}
+
+	// Reschedule myself
+    np_job_submit_event(10, _np_event_rejoin_if_necessary);
+}
 /**
  ** _np_events_read
  ** schedule the libev event loop one time and reschedule again
