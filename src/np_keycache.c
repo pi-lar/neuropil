@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include "sodium.h"
+#include "tree/tree.h"
 
 #include "np_keycache.h"
 
@@ -21,6 +22,7 @@
 #include "np_network.h"
 #include "np_node.h"
 #include "np_threads.h"
+
 
 // TODO: make this a better constant value
 static double __keycache_deprecation_interval = 31.415;
@@ -38,7 +40,6 @@ void _np_keycache_init()
 
 	SPLAY_INIT(__key_cache);
 }
-
 
 np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey)
 {
@@ -202,8 +203,8 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_t, list_of_keys), c
 	np_bool first_run = TRUE;
 	while (NULL != iter)
 	{
-		// clculate distance to the left and right
-		_np_dhkey_distance (&dif, key, &iter->val->dhkey);
+		// calculate distance to the left and right
+		_np_dhkey_distance (&dif, key, &(iter->val->dhkey));
 
 		// Set reference point at first iteration, then compare current iterations distance with shortest known distance
 		if (TRUE == first_run || _np_dhkey_comp (&dif, &minDif) < 0)

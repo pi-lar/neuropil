@@ -76,7 +76,9 @@ void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 
 	sll_free(np_key_t, sll_routing_tbl);
 
-	if(TRUE == rejoin){
+	if(TRUE == rejoin
+			// check for state availibility to prevent test issues. TODO: Make network objects mockable
+			&& _np_state() != NULL) {
 		np_key_t* bootstrap = np_route_get_bootstrap_key();
 		if(NULL != bootstrap){
 			char* connection_str = np_get_connection_string_from(bootstrap, FALSE);

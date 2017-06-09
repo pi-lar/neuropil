@@ -660,8 +660,5 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 }
 
 np_key_t* np_route_get_bootstrap_key() {
-	if(FALSE == _np_state()->my_node_key->node->joined_network){
-		log_msg(LOG_WARN, "trying to receive bootstrap node before join completed");
-	}
 	return __routing_table->bootstrap_key;
 }
