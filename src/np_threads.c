@@ -16,6 +16,7 @@
 
 /** predefined module mutex array **/
 np_mutex_t __mutexes[PREDEFINED_DUMMY_START-1];
+np_bool _np_threads_initiated = FALSE;
 
 np_bool __np_threads_create_module_mutex(np_module_lock_type module_id)
 {
@@ -31,11 +32,14 @@ np_bool __np_threads_create_module_mutex(np_module_lock_type module_id)
 np_bool _np_threads_init()
 {
 	np_bool ret = TRUE;
-	for(int i = 0; i < PREDEFINED_DUMMY_START; i++){
-		ret = __np_threads_create_module_mutex(i);
-		if(FALSE == ret) {
-			log_msg(LOG_ERROR,"Cannot initialize mutex %d.", i);
-			break;
+	if(FALSE == _np_threads_initiated ){
+		_np_threads_initiated = TRUE;
+		for(int i = 0; i < PREDEFINED_DUMMY_START; i++){
+			ret = __np_threads_create_module_mutex(i);
+			if(FALSE == ret) {
+				log_msg(LOG_ERROR,"Cannot initialize mutex %d.", i);
+				break;
+			}
 		}
 	}
 	return ret;
