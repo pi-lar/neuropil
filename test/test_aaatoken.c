@@ -21,8 +21,8 @@ void setup_aaatoken(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_AAATOKEN;
 
-	np_log_init("test_aaatoken.log", log_level);
-	np_init("udp4", NULL, FALSE, "localhost");
+ 	np_log_init("test_aaatoken.log", log_level);
+	np_init("udp4", "31416", FALSE, "localhost");
 }
 
 void teardown_aaatoken(void)

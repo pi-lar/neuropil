@@ -18,6 +18,7 @@
 #include "np_memory.h"
 #include "np_message.h"
 #include "np_util.h"
+#include "np_threads.h"
 
 #include "../src/np_jobqueue.c"
 
@@ -25,6 +26,7 @@ void setup_message(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_MESSAGE;
 	np_log_init("test_message.log", log_level);
+	_np_threads_init();
 
 	np_mem_init();
 }

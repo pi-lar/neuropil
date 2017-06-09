@@ -9,6 +9,7 @@
 #include "np_keycache.h"
 #include "np_log.h"
 #include "np_memory.h"
+#include "np_threads.h"
 
 #include "np_route.h"
 
@@ -19,14 +20,8 @@ void setup_route(void)
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING;
 	np_log_init("test_route.log", log_level);
 
-	_np_dhkey_init();
-	np_mem_init();
+	np_init("udp4", "31417", FALSE, "localhost");
 
-	np_dhkey_t my_dhkey = np_dhkey_create_from_hostport("pi-lar", "0");
-	np_new_obj(np_key_t, me);
-	me->dhkey = my_dhkey;
-
-	_np_route_init(me);
 }
 
 void teardown_route(void)

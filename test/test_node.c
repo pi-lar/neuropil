@@ -22,7 +22,7 @@ void setup_node(void)
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_MESSAGE;
 	np_log_init("test_node.log", log_level);
 
-	np_init("udp4", "31415", FALSE, NULL);
+	np_init("udp4", "31415", FALSE, "localhost");
 }
 
 void teardown_node(void)
