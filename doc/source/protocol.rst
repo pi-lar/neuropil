@@ -84,3 +84,6 @@ sending/receiving identity.
 
 Each partner can now again authenticate or authorize if the identified partner is the correct one by inspecting the
 token. Once the correct partner has been identified, data exchange will happen "directly" between the two nodes.
+
+The routing to the hash value of the subject has nothing to do with the routing of the message exchange after the 
+handshake is complete.

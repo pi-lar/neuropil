@@ -23,8 +23,8 @@ data between devices, enterprise applications directly. (Some example projects w
 I2P and GNUnet)
 
 
-Why can't we do a direct integration with our server infrastructure ?
----------------------------------------------------------------------
+Why can't we do a direct integration of a device with our server infrastructure ?
+---------------------------------------------------------------------------------
 
 Well, obviously you can! But you're exposing i.e. enterprise applications to the risk of public access.
 
@@ -62,12 +62,12 @@ I cannot start a node on my laptop, what's wrong ?
 
 neuropil currently needs a valid DNS entry of your host to start up correctly. This is a consequence of the internal
 routing table. It requires that all nodes are addressable by means of IP and port. The only way to check this kind of
-connectivity is a dns lookup. If you switch of your network, the neuropil nodes will start, as then all host names
-resolve to 127.0.0.1.
+connectivity is a dns lookup. If you switch of your network, the neuropil nodes will start (because all host names
+resolve to 127.0.0.1)
 
 
 This is all great, can I use it in production ?
 -----------------------------------------------
 
-please don't (for now). This is an alpha release ! We are not yet using memory protection routines from sodium and there
-will be improvements to the protocol as well.
+please don't (for now). This is (still) an alpha release ! We are not yet using memory protection routines from sodium 
+and there will be improvements to the protocol as well. But we think it is stable enough to play with it and the concepts.
