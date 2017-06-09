@@ -29,6 +29,7 @@ np_msgproperty.h
 
 .. include-comment:: ../../include/np_msgproperty.h
 
+
 .. raw:: html
 
    <hr width=200>
@@ -39,15 +40,17 @@ np_list.h
 
 .. include-comment:: ../../include/np_list.h
 
+
 .. raw:: html
 
    <hr width=200>
 
-**********
+*********
 np_tree.h
-**********
+*********
 
 .. include-comment:: ../../include/np_tree.h
+
 
 .. raw:: html
 
@@ -59,13 +62,19 @@ tree.h
 
 .. include-comment:: ../../include/tree/tree.h
 
-.. _np_sysinfo:
 
-*************
+.. raw:: html
+
+   <hr width=200>
+
+************
 np_sysinfo.h
-*************
-The SysInfo subsystem can be used to evaluate the current connections of a node.
+************
+
+The sysinfo subsystem can be used to exchange the current connections of a node with another one.
 To activate the subsystem you may either call :c:func:`np_sysinfo_enable_slave` or :c:func:`np_sysinfo_enable_master`.
-See :ref:`neuropil_hydra` for an example implementation.
+The master will then receive updates of the slave nodes and store this information locally. 
+
+We have activated this feature in the :ref:`neuropil_hydra` as an example implementation.
 
 .. include-comment:: ../../include/np_sysinfo.h

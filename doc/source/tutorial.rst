@@ -78,9 +78,9 @@ topics you may be interested to look at now:
 
    <hr width=200>
 
-******************
+***************
 Advanced topics
-******************
+***************
 
 .. _to_join_or_to_be_joined:
 
@@ -123,7 +123,7 @@ tweak you message exchange parameter
 
 The neuropil messaging layer uses a "pull" principle to establish communication between nodes. Apart from the
 messages that are required to maintain the DHT, message subjects are annotated by the sender and receiver. This
-additional message exchange paramter are exchanged with tokens when a sender and receiver try to communicate with each
+additional message exchange parameter are exchanged with tokens when a sender and receiver try to communicate with each
 other over the same subject. This message exchange token protect sender and receiver from each other. Without a valid
 token the correct hash value is not available to the sender, and the receiver is able to throw away messages after the
 token has expired.
@@ -134,7 +134,7 @@ that is transported between nodes.
 
 As a consequence, a sender will not be able to send more data than the receiver allows him to send. At the same time
 the receiver is able to increase the amount of messages slowly. This is why we call it "pulling" messages. The receiver
-will periodically re-publish it's current threshold sizes to inform all senders of messages to his subject about its
+will periodically re-publish it's current threshold sizes to inform all senders of messages for a subject about its
 current state.
 
 There is no hard upper limit to the number of messages a receiver could receive. But please bear in mind that the in
@@ -160,7 +160,7 @@ send more than pure text data
 -----------------------------
 
 The examples given above only exchange a simple string as the payload. But the neuropil message format actually is
-composed of a json structure. The binary serialization protocol is usin the `msgpack`_ protocol, data types are
+composed of a json structure. The binary serialization protocol is using the `msgpack`_ protocol, data types are
 statically typed.
 
 This allows you to send a message with a nested tree structure. There is no technical limit to the nesting depth, but
@@ -179,7 +179,7 @@ The second user controlled part is called "message body" and should contain the 
 required here.
 
 You should consider to publish your message formats to our public github repository (TODO on our side) so that they can
-be used by other persond to exchange data with you.
+be used by other persons to exchange data with you.
 
 .. raw:: html
 
@@ -197,19 +197,20 @@ public. This allows your partners to implement a receiver or sender independant 
 
 When switching to a private message format you have to implement the authentication and authorization callbacks. This
 will enable you to see who is requesting access to your messages. In addition you can change the subject name. Note that
-the hash value of the subject is used internally to match sender and receiver of messages. Without a valid sender name
-communication between sender and receiver is not possible, even a small change of the subject will change the hash value
+the hash value of the subject is used internally to match sender and receiver of messages. Without a valid subject name
+communication between sender and receiver is not possible. Even a small change of the subject will change the hash value
 in a non predictable way. Some call this "security by obscurity", but together with the authentication and authorization
-callbacks it is a valid protection against message exchange with unwanted partners.
+callbacks it is a valid protection against message exchanges with unwanted partners.
 
 .. _node_count_and_its_impact:
 
 node count and its impact on network stability
------------------------------------------------
+----------------------------------------------
 
 Neuropil uses :term:`DHT` to store the network connections for every node.
-As the network grows it will be more reliable as every single node will strengthen the network, even if the node does not contribute to the user application.
-This is due to the fact that in case of an malicious attack which may target a single node, every other node in the network will be able to take over the routing of this node.
+As the network grows it will be more reliable as every single node will strengthen the network, even if the node does
+not contribute to the user application. This is due to the fact that in case of an malicious attack which may target 
+a single node, every other node in the network will be able to take over the routing of this node.
 
 
 .. _msgpack: https://www.msgpack.org/
