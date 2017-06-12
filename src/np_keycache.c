@@ -219,7 +219,7 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_t, list_of_keys), c
 
 	if (sll_size(list_of_keys) == 0)
 	{
-		log_msg(LOG_KEY | LOG_ERROR, "minimum size for closest key calculation not met !");
+		log_msg(LOG_ERROR, "minimum size for closest key calculation not met !");
 	}
 
 	return (min);

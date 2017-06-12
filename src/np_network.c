@@ -553,7 +553,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 	if (0 == in_msg_len)
 	{
 		// tcp disconnect
-		log_msg(LOG_NETWORK | LOG_ERROR, "received disconnect from: %s:%s", ipstr, port);
+		log_msg(LOG_ERROR, "received disconnect from: %s:%s", ipstr, port);
 		// TODO handle cleanup of node structures ?
 		// maybe / probably the node received already a disjoin message before
 		ev_io_stop(EV_A_ &ng->watcher);
@@ -563,7 +563,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 
 	if (0 > in_msg_len)
 	{
-		log_msg(LOG_NETWORK | LOG_ERROR, "recvfrom failed: %s", strerror(errno));
+		log_msg(LOG_ERROR, "recvfrom failed: %s", strerror(errno));
 		// job_submit_event(state->jobq, 0.0, _np_network_read);
 		log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 		return;
@@ -807,12 +807,12 @@ void _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, ch
     	ng->socket = socket (ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
     	if (0 > ng->socket)
     	{
-    		log_msg(LOG_NETWORK | LOG_ERROR, "could not create socket: %s", strerror (errno));
+    		log_msg(LOG_ERROR, "could not create socket: %s", strerror (errno));
     		return;
     	}
     	if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
     	{
-    		log_msg(LOG_NETWORK | LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
+    		log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
     		close (ng->socket);
     		return;
 		}
@@ -832,7 +832,7 @@ void _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, ch
         // for finding the correct decryption shared secret. Especially true for ipv6 ...
 		if (0 > connect(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
 		{
-			log_msg(LOG_NETWORK | LOG_ERROR, "connect: %s:", strerror (errno));
+			log_msg(LOG_ERROR, "connect: %s:", strerror (errno));
 			close (ng->socket);
 			return;
     	}
