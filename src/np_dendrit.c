@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <arpa/inet.h>
@@ -546,44 +546,6 @@ void _np_in_leave_req(np_jobargs_t* args)
 	log_msg(LOG_TRACE, ".end  ._np_in_leave_req");
 	return;
 }
-//
-//void _np_in_join_wildcard_req(np_jobargs_t* args){
-//	log_msg(LOG_TRACE, ".start._np_in_join_wildcard_req");
-//
-//	np_msgproperty_t *msg_prop = NULL;
-//	np_key_t* join_req_key = NULL;
-//	np_message_t* msg_out = NULL;
-//	np_aaatoken_t* join_token = NULL;
-//
-//	np_new_obj(np_aaatoken_t, join_token);
-//	np_aaatoken_decode(args->msg->body, join_token);
-//
-//	if (FALSE == token_is_valid(join_token))
-//	{
-//		// silently exit join protocol for invalid tokens
-//		goto __np_cleanup__;
-//	}
-//
-//    // build a hash to find a place in the dhkey table, not for signing !
-//	np_dhkey_t search_key = _np_aaatoken_create_dhkey(join_token);
-//	_LOCK_MODULE(np_keycache_t)
-//	{
-//		join_req_key = _np_keycache_find_or_create(search_key);
-//		if (NULL == join_req_key->aaa_token)
-//		{
-//			join_req_key->aaa_token = join_token;
-//			np_ref_obj(np_aaatoken_t, join_token);
-//		}
-//	}
-//	np_send_join(_np_key_as_str( join_req_key));
-//
-//	__np_cleanup__:
-//		if (NULL != join_token) np_free_obj(np_aaatoken_t, join_token);
-//		if (NULL != msg_out)    np_free_obj(np_message_t, msg_out);
-//
-//		// __np_return__:
-//		log_msg(LOG_TRACE, ".end  ._np_in_join_wildcard_req");
-//}
 
 /** _np_in_join_req:
  ** internal function that is called at the destination of a JOIN message. This

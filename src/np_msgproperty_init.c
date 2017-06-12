@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include "np_types.h"
@@ -131,27 +131,6 @@ np_msgproperty_t __join_nack =
 		.clb_transform = _np_never_called_jobexec,
 		.clb_route = _np_never_called_jobexec,
 		.ttl = 5.0,
-		.max_threshold = 5
-};
-
-np_msgproperty_t __join_wildcard_req =
-{
-		.obj = &((np_obj_t) {
-			.type = np_msgproperty_t_e,
-			.persistent = TRUE
-		}),
-		.msg_subject = _NP_MSG_JOIN_REQUEST_WILDCARD,
-		.rep_subject = NULL,
-		.mode_type = INBOUND | OUTBOUND,
-		.mep_type = REQ_REP,
-		.priority = 5,
-		.ack_mode = ACK_NONE,
-		.retry = 0,
-		.clb_inbound = _np_never_called_jobexec,
-		.clb_outbound = _np_send,
-		.clb_transform = _np_never_called_jobexec,
-		.clb_route = _np_send,
-		.ttl = 20.0,
 		.max_threshold = 5
 };
 
@@ -461,7 +440,6 @@ np_msgproperty_t* __np_internal_messages[] =
 		&__join_req,
 		&__join_ack,
 		&__join_nack,
-		&__join_wildcard_req,
 		&__leave,
 		&__ping,
 		&__ping_reply,

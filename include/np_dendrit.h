@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_DENDRIT_H_
@@ -34,8 +34,6 @@ NP_API_INTERN
 void _np_in_join_ack (np_jobargs_t* args);
 NP_API_INTERN
 void _np_in_join_nack (np_jobargs_t* args);
-NP_API_INTERN
-void _np_in_join_wildcard_req(np_jobargs_t* args);
 
 NP_API_INTERN
 void _np_in_leave_req(np_jobargs_t* args);

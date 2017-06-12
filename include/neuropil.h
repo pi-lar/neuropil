@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version was taken from chimera project, but heavily modified
@@ -18,7 +18,7 @@ It should contain all required functions to send or receive messages.
 #include "np_types.h"
 
 #define NP_VERSION_MAJOR	"0"
-#define NP_VERSION_MINOR	"1"
+#define NP_VERSION_MINOR	"2"
 #define NP_VERSION_RELEASE	"0"
 
 #define NEUROPIL_VERSION	"neuropil " NP_VERSION_MAJOR "." NP_VERSION_MINOR
