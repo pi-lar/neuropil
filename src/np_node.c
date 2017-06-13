@@ -147,7 +147,7 @@ np_key_t* _np_node_decode_from_str (const char *key)
 
 	// string encoded data contains key, eventually plus hostname and hostport
 	// key string is mandatory !
-	log_msg(LOG_WARN, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
+	log_msg(LOG_DEBUG, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
 
 	np_dhkey_t search_key = np_dhkey_create_from_hash(s_hostkey);
 	np_key_t* node_key    = _np_keycache_find_or_create(search_key);

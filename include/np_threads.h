@@ -33,6 +33,7 @@ typedef enum np_module_lock_e np_module_lock_type;
 enum np_module_lock_e {
 	np_memory_t_lock = 0,
 	np_aaatoken_t_lock,
+	np_event_t_lock,
 	np_keycache_t_lock,
 	np_messagesgpart_cache_t_lock,
 	np_msgproperty_t_lock,

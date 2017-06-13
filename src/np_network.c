@@ -24,6 +24,7 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <assert.h>
+#include <event/ev.h>
 
 #include "np_network.h"
 
@@ -119,7 +120,12 @@ char* _np_network_get_protocol_string (uint8_t protocol)
 /** network_address:
  ** returns the addrinfo structure of the hostname / service
  **/
-void _np_network_get_address (np_bool create_socket, struct addrinfo** ai_head, uint8_t type, char *hostname, char* service)
+void _np_network_get_address (
+		np_bool create_socket,
+		struct addrinfo** ai_head,
+		uint8_t type,
+		char *hostname,
+		char* service)
 {
 	int err;
     // struct addrinfo *ai_head;
@@ -148,7 +154,8 @@ void _np_network_get_address (np_bool create_socket, struct addrinfo** ai_head, 
 	log_msg(LOG_NETWORK | LOG_DEBUG, "using getaddrinfo: %d:%s:%s", type, hostname, service);
 	if ( 0 != ( err = getaddrinfo( hostname, service, &hints, ai_head ) ))
 	{
-		log_msg(LOG_ERROR, "hostname: %s, servicename %s, protocol %d", hostname, service, type);
+		log_msg(LOG_ERROR, "hostname: %s, servicename %s, protocol %d",
+				hostname, service, type);
 		log_msg(LOG_ERROR, "error getaddrinfo: %s", gai_strerror( err ) );
 		return;
 	}
@@ -410,10 +417,24 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 
 					void* data_to_send = sll_head(void_ptr, key->network->out_events);
 					if(NULL != data_to_send) {
-						write(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
+						ssize_t written = 0, current_write=0;
+						while(written < MSG_CHUNK_SIZE_1024 ){
+							current_write += write(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
+							if(current_write == -1){
+								if(errno != EAGAIN){
+									log_msg(LOG_WARN,
+										"cannot write to socket: %s (%d)",
+										strerror(errno),errno);
+
+								}
+								break;
+							}
+							written += current_write;
+						}
 						free(data_to_send);
 					// ret is -1 or > 0 (bytes send)
-					// do not update the success, because UDP sending could result in false positives
+					// do not update the success, because UDP sending could result in
+					// false positives
 					// if (0 > ret)
 					// {
 					//     // _np_node_update_stat(key->node, 0);
@@ -456,60 +477,83 @@ void _np_network_accept(struct ev_loop *loop, NP_UNUSED ev_io *event, NP_UNUSED 
 
 	int client_fd = accept(ng->socket, (struct sockaddr*)&from, &fromlen);
 
-	// get calling address and port
-	char ipstr[255];
-	char port [7];
-	// int16_t port;
+	if (client_fd < 0) {
+		if(errno != EWOULDBLOCK ){
+			log_msg(LOG_ERROR, "Could not accept socket connection on client fd %d. %s (%d)",
+					ng->socket, strerror(errno), errno);
+		}
+	} else {
+		log_msg(LOG_NETWORK | LOG_DEBUG, "accept socket from client fd: %d", client_fd);
 
-	// deal with both IPv4 and IPv6:
-	if (from.ss_family == AF_INET)
-	{   // AF_INET
-	    struct sockaddr_in *s = (struct sockaddr_in *) &from;
-	    snprintf(port, 6, "%d", ntohs(s->sin_port));
-	    inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
+		// get calling address and port
+		char ipstr[255];
+		char port [7];
+		// int16_t port;
+
+		// deal with both IPv4 and IPv6:
+		if (from.ss_family == AF_INET)
+		{   // AF_INET
+			struct sockaddr_in *s = (struct sockaddr_in *) &from;
+			snprintf(port, 6, "%d", ntohs(s->sin_port));
+			inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
+		}
+		else
+		{   // AF_INET6
+			struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+			snprintf(port, 6, "%d", ntohs(s->sin6_port));
+			inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
+		}
+
+		log_msg(LOG_NETWORK | LOG_DEBUG,
+				"received connection request from %s:%s (client fd: %d)",
+				ipstr, port, client_fd);
+
+		np_key_t* alias_key = NULL;
+		np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
+
+		alias_key = _np_keycache_find_or_create(search_key);
+
+		// set non blocking
+		/*
+		int current_flags = fcntl(client_fd, F_GETFL);
+		current_flags |= O_NONBLOCK;
+		fcntl(client_fd, F_SETFL, current_flags);
+*/
+		np_new_obj(np_network_t, alias_key->network);
+
+		alias_key->network->addr_in = NULL;
+		//memcpy(&alias_key->network->addr_in,ng->addr_in, sizeof(struct addrinfo));
+ 		alias_key->network->socket = client_fd;
+
+		// it could be a passive socket
+		sll_init(void_ptr, alias_key->network->out_events);
+		sll_init(void_ptr, alias_key->network->in_events);
+
+		_np_suspend_event_loop();
+		alias_key->network->watcher.data = alias_key;
+		ev_io_init(
+				&alias_key->network->watcher,
+				_np_network_read,
+				alias_key->network->socket,
+				EV_READ
+				);
+		ev_io_start(EV_A_ &ng->watcher);
+		_np_resume_event_loop();
+		log_msg(LOG_NETWORK | LOG_DEBUG,
+				"created network for alias key and watching it.");
 	}
-	else
-	{   // AF_INET6
-	    struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-	    snprintf(port, 6, "%d", ntohs(s->sin6_port));
-	    inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
-	}
-
-	log_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (client fd: %d)", ipstr, port, client_fd);
-
-	np_key_t* alias_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
-
-	alias_key = _np_keycache_find_or_create(search_key);
-
-	// set non blocking
-	int current_flags = fcntl(client_fd, F_GETFL);
-	current_flags |= O_NONBLOCK;
-	fcntl(client_fd, F_SETFL, current_flags);
-
-	np_new_obj(np_network_t, alias_key->network);
-	alias_key->network->addr_in = NULL;
-	alias_key->network->socket = client_fd;
-	// it could be a passive socket
-	sll_init(void_ptr, alias_key->network->out_events);
-
-	_np_suspend_event_loop();
-
-	alias_key->network->watcher.data = alias_key;
-
-    ev_io_init(&alias_key->network->watcher, _np_network_read, alias_key->network->socket, EV_READ);
-	ev_io_start(EV_A_ &ng->watcher);
-	_np_resume_event_loop();
 }
 
 /**
  ** _np_network_read:
- ** reads the network layer in listen mode. This function delivers incoming messages to the default message handler
+ ** reads the network layer in listen mode.
+ ** This function delivers incoming messages to the default message handler
  **/
 void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 {
 	log_msg(LOG_NETWORK | LOG_TRACE, ".start.np_network_read");
 	// cast event data structure to np_state_t pointer
+	log_msg(LOG_NETWORK | LOG_DEBUG, "TICK _np_network_read");
 
 	char data[MSG_CHUNK_SIZE_1024];
 	struct sockaddr_storage from;
@@ -524,87 +568,89 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 	/* receive the new data */
 	int16_t in_msg_len = recvfrom(ng->socket, data, MSG_CHUNK_SIZE_1024, 0, (struct sockaddr*)&from, &fromlen);
 
-	// deal with both IPv4 and IPv6:
-	if (from.ss_family == AF_INET)
-	{   // AF_INET
-	    struct sockaddr_in *s = (struct sockaddr_in *) &from;
-	    snprintf(port, 6, "%d", ntohs(s->sin_port));
-	    inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
-	}
-	else
-	{   // AF_INET6
-	    struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-	    snprintf(port, 6, "%d", ntohs(s->sin6_port));
-	    inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
-	}
-
-	// getnameinfo is slow because it is doing a ns lookup ! replaced it with a more native approach
-	//	if (from.ss_family == AF_INET)
-	//	{
-	//		struct sockaddr_in *s = (struct sockaddr_in *) &from;
-	//		getnameinfo((struct sockaddr*)s, sizeof s, ipstr, 255, port, 6, 0);
-	//	}
-	//	else
-	//	{
-	//		struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-	//		getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
-	//	}
-
-	if (0 == in_msg_len)
-	{
-		// tcp disconnect
-		log_msg(LOG_ERROR, "received disconnect from: %s:%s", ipstr, port);
-		// TODO handle cleanup of node structures ?
-		// maybe / probably the node received already a disjoin message before
-		ev_io_stop(EV_A_ &ng->watcher);
-		_np_node_update_stat(key->node, 0);
-		close(ng->socket);
-	}
-
-	if (0 > in_msg_len)
-	{
-		log_msg(LOG_ERROR, "recvfrom failed: %s", strerror(errno));
-		// job_submit_event(state->jobq, 0.0, _np_network_read);
-		log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
-		return;
-	}
-
-	if ( ! (MSG_CHUNK_SIZE_1024                            == in_msg_len ||
-	       (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40) == in_msg_len) )
-	{
-		log_msg(LOG_NETWORK | LOG_DEBUG, "received wrong message size (%hd)", in_msg_len);
-		// job_submit_event(state->jobq, 0.0, _np_network_read);
-		log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
-		return;
-	}
-
-	log_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (size: %hd)", ipstr, port, in_msg_len);
-
-	// we registered this token info before in the first handshake message
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
-	np_key_t* alias_key = _np_keycache_find_or_create(search_key);
-
-	if (NULL == alias_key) return;
-
-	void* data_ptr = malloc(in_msg_len * sizeof(char));
-	CHECK_MALLOC(data_ptr);
-
-	memset(data_ptr, 0,    in_msg_len);
-	memcpy(data_ptr, data, in_msg_len);
-
-	_LOCK_ACCESS(&ng->lock)
-	{
-		if(NULL != ng->in_events)
-		{
-			sll_append(void_ptr, ng->in_events, data_ptr);
+	if( in_msg_len >=0) {
+		// deal with both IPv4 and IPv6:
+		if (from.ss_family == AF_INET)
+		{   // AF_INET
+			struct sockaddr_in *s = (struct sockaddr_in *) &from;
+			snprintf(port, 6, "%d", ntohs(s->sin_port));
+			inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
 		}
+		else
+		{   // AF_INET6
+			struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+			snprintf(port, 6, "%d", ntohs(s->sin6_port));
+			inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
+		}
+
+		// getnameinfo is slow because it is doing a ns lookup ! replaced it with a more native approach
+		//	if (from.ss_family == AF_INET)
+		//	{
+		//		struct sockaddr_in *s = (struct sockaddr_in *) &from;
+		//		getnameinfo((struct sockaddr*)s, sizeof s, ipstr, 255, port, 6, 0);
+		//	}
+		//	else
+		//	{
+		//		struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+		//		getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
+		//	}
+
+		if (0 == in_msg_len)
+		{
+			// tcp disconnect
+			log_msg(LOG_ERROR, "received disconnect from: %s:%s", ipstr, port);
+			// TODO handle cleanup of node structures ?
+			// maybe / probably the node received already a disjoin message before
+			ev_io_stop(EV_A_ &ng->watcher);
+			_np_node_update_stat(key->node, 0);
+			close(ng->socket);
+			return;
+		}
+
+		if (0 > in_msg_len)
+		{
+			log_msg(LOG_ERROR, "recvfrom failed: %s", strerror(errno));
+			// job_submit_event(state->jobq, 0.0, _np_network_read);
+			log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
+			return;
+		}
+
+		if ( ! (MSG_CHUNK_SIZE_1024                            == in_msg_len ||
+			   (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40) == in_msg_len) )
+		{
+			log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%hd)", in_msg_len);
+			// job_submit_event(state->jobq, 0.0, _np_network_read);
+			log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
+			return;
+		}
+
+		log_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (size: %hd)", ipstr, port, in_msg_len);
+
+		// we registered this token info before in the first handshake message
+		np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
+		np_key_t* alias_key = _np_keycache_find_or_create(search_key);
+
+		if (NULL == alias_key) return;
+
+		void* data_ptr = malloc(in_msg_len * sizeof(char));
+		CHECK_MALLOC(data_ptr);
+
+		memset(data_ptr, 0,    in_msg_len);
+		memcpy(data_ptr, data, in_msg_len);
+
+		_LOCK_ACCESS(&ng->lock)
+		{
+			if(NULL != ng->in_events)
+			{
+				sll_append(void_ptr, ng->in_events, data_ptr);
+			}
+		}
+		np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
+
+		_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL);
+
+		np_unref_obj(np_key_t, alias_key);
 	}
-	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
-
-	_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL);
-
-	np_unref_obj(np_key_t, alias_key);
-
 	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 }
 
@@ -827,15 +873,7 @@ void _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, ch
     	current_flags |= O_NONBLOCK;
     	fcntl(ng->socket, F_SETFL, current_flags);
 
-    	// UDP note: not using a connected socket for sending messages to a different node
-        // leads to unreliable delivery. The sending socket changes too often to be useful
-        // for finding the correct decryption shared secret. Especially true for ipv6 ...
-		if (0 > connect(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
-		{
-			log_msg(LOG_ERROR, "connect: %s:", strerror (errno));
-			close (ng->socket);
-			return;
-    	}
+
 
 #ifdef SKIP_EVLOOP
     	// TODO: write normal threading receiver
@@ -858,9 +896,33 @@ void _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, ch
 		log_msg(LOG_NETWORK | LOG_DEBUG, ": %d %p %p :", ng->socket, &ng->watcher,  &ng->watcher.data);
 		_np_resume_event_loop();
 
+
+		// UDP note: not using a connected socket for sending messages to a different node
+		// leads to unreliable delivery. The sending socket changes too often to be useful
+		// for finding the correct decryption shared secret. Especially true for ipv6 ...
+
+		// As we do have a async connection (and TCP may need longer due to handshake packages)
+		// we need to check the connection status for a moment
+		int retry_connect = 100;
+		int connection_status = -1;
+		do{
+			connection_status = connect(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen);
+			if (0 != connection_status)
+			{
+				ev_sleep(0.01);
+			}
+		}while(0 != connection_status && retry_connect-- > 0);
+
+		if(0 != connection_status && errno != EISCONN) {
+			log_msg(LOG_ERROR, "could not connect: %s (%d)", strerror (errno), errno);
+			close (ng->socket);
+			ev_io_stop(EV_A_ &ng->watcher);
+			return;
+		}
+
 		ng->initialized = TRUE;
+    	log_msg(LOG_NETWORK | LOG_DEBUG, "created local sending socket");
     }
 
     freeaddrinfo( ng->addr_in );
 }
-

@@ -22,13 +22,13 @@
 #include "np_jobqueue.h"
 
 #include "np_event.h"
+#include "np_threads.h"
 #include "neuropil.h"
 #include "np_list.h"
 #include "np_route.h"
 
 static np_bool __exit_libev_loop = FALSE;
 
-static pthread_mutex_t __libev_mutex = PTHREAD_MUTEX_INITIALIZER;
 // the optimal libev run interval remains to be seen
 // if set too low, base cpu usage increases on no load
 // static uint8_t __suspended_libev_loop = 0;
@@ -47,17 +47,17 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 
 	static int suspend_loop = 0;
 
-	pthread_mutex_lock(&__libev_mutex);
+	_np_threads_lock_module(np_event_t_lock);
 	suspend_loop = __suspended_libev_loop;
-	pthread_mutex_unlock(&__libev_mutex);
+	_np_threads_unlock_module(np_event_t_lock);
 
 	while (0 < suspend_loop)
 	{
 		_np_job_yield(__libev_interval);
 
-		pthread_mutex_lock(&__libev_mutex);
+		_np_threads_lock_module(np_event_t_lock);
 		suspend_loop = __suspended_libev_loop;
-		pthread_mutex_unlock(&__libev_mutex);
+		_np_threads_unlock_module(np_event_t_lock);
 	}
 
 	log_msg(LOG_TRACE, ".end  ._np_events_async");
@@ -119,12 +119,12 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 		// never returns
 	} else {
 
-		pthread_mutex_lock(&__libev_mutex);
+		_np_threads_lock_module(np_event_t_lock);
 
 		if (! __suspended_libev_loop)
 			ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
 
-		pthread_mutex_unlock(&__libev_mutex);
+		_np_threads_unlock_module(np_event_t_lock);
 	}
 
 	if (TRUE == __exit_libev_loop) return;
@@ -134,15 +134,15 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 
 void _np_suspend_event_loop()
 {
-	pthread_mutex_lock(&__libev_mutex);
-	__suspended_libev_loop++;
-    pthread_mutex_unlock(&__libev_mutex);
+	_np_threads_lock_module(np_event_t_lock);
+ 	__suspended_libev_loop++;
+	_np_threads_unlock_module(np_event_t_lock);
     ev_async_send (EV_DEFAULT_ &__libev_async_watcher);
 }
 
 void _np_resume_event_loop()
 {
-	pthread_mutex_lock(&__libev_mutex);
+	_np_threads_lock_module(np_event_t_lock);
 	__suspended_libev_loop--;
-	pthread_mutex_unlock(&__libev_mutex);
+	_np_threads_unlock_module(np_event_t_lock);
 }

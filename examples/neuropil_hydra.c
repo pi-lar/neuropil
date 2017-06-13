@@ -41,7 +41,7 @@ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 #define DEBUG 0
-#define NUM_HOST 25
+#define NUM_HOST 1
 
 extern char *optarg;
 extern int optind;
@@ -66,11 +66,11 @@ int main(int argc, char **argv)
 	char* bootstrap_hostnode = NULL;
 	char* bootstrap_hostnode_default;
 	char bootstrap_port[7];
-	char* proto = "udp4";
+	char* proto = "tcp4";
 	char* logpath = ".";
 
 	uint32_t required_nodes = NUM_HOST;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_SERIALIZATION;
+	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
 		switch ((char) opt) {

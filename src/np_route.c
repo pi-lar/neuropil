@@ -323,12 +323,13 @@ sll_return(np_key_t) _np_route_lookup (np_key_t* key, uint8_t count)
 		_np_route_append_leafset_to_sll(__routing_table->right_leafset, key_list);
 
 		min = _np_keycache_find_closest_key_to (key_list, &key->dhkey);
+		if(NULL != min) {
+			sll_append(np_key_t, return_list, min);
 
-		sll_append(np_key_t, return_list, min);
+			log_msg (LOG_ROUTING | LOG_DEBUG, "++NEXT_HOP = %s", _np_key_as_str (min));
+		}
+
 		sll_free (np_key_t, key_list);
-
-		log_msg (LOG_ROUTING | LOG_DEBUG, "++NEXT_HOP = %s", _np_key_as_str (min));
-
 		log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_lookup");
 		return (return_list);
 	}
