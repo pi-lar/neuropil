@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef	_NP_UTIL_H_
@@ -43,27 +43,63 @@ inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, 
 
 // create a sha156 uuid string, take the current date into account
 NP_API_EXPORT
-char* np_create_uuid(const char* str, const uint16_t num);
+char* np_uuid_create(const char* str, const uint16_t num);
 
 // the following four are helper functions for c-message-pack to work on jtree structures
 NP_API_INTERN
-np_bool buffer_reader(cmp_ctx_t *ctx, void *data, size_t count);
+np_bool _np_buffer_reader(cmp_ctx_t *ctx, void *data, size_t count);
 
 NP_API_INTERN
-size_t buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count);
+size_t _np_buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count);
 
 NP_API_INTERN
-void serialize_jrb_node_t(np_tree_t* jrb, cmp_ctx_t* cmp);
+np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit);
+NP_API_INTERN
+size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx,const void* data, size_t count);
 
 NP_API_INTERN
-void serialize_jrb_to_json(np_tree_t* jtree, JSON_Object* json_obj);
+void _np_tree2jsonobj(np_tree_t* jtree, JSON_Object* json_obj);
 
 NP_API_INTERN
-void deserialize_jrb_node_t(np_tree_t* jrb, cmp_ctx_t* cmp);
+void _np_sll_remove_doublettes(np_sll_t(np_key_t, list_of_keys));
 
-NP_API_INTERN
-void _np_remove_doublettes(np_sll_t(np_key_t, list_of_keys));
+/**
+.. c:function:: void np_tree2json()
 
+  Create a json object from a given tree
+
+*/
+NP_API_EXPORT
+JSON_Value* np_tree2json(np_tree_t* tree) ;
+ /**
+.. c:function:: void np_json2char()
+
+   Create a string from a given JSON Object
+
+*/
+NP_API_EXPORT
+char* np_json2char(JSON_Value* data,np_bool prettyPrint) ;
+/**
+ * convert np_treeval_t to JSON_Value
+ */
+NP_API_EXPORT
+JSON_Value* np_treeval2json(np_treeval_t val);
+/**
+.. c:function:: void np_dump_tree2log()
+
+   Dumps the given tree as json string into the debug log
+
+*/
+NP_API_EXPORT
+void np_dump_tree2log(np_tree_t* tree);
+/**
+.. c:function:: void np_dump_tree2log()
+
+   Dumps the given tree as json string into a char array
+
+*/
+NP_API_EXPORT
+char* np_dump_tree2char(np_tree_t* tree);
 #ifdef __cplusplus
 }
 #endif

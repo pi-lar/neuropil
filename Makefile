@@ -43,7 +43,7 @@ TARGET=x86_64-apple-darwin-macho
 SOURCES  = src/dtime.c src/neuropil.c src/np_aaatoken.c src/np_axon.c src/np_dendrit.c    
 SOURCES += src/np_glia.c src/np_http.c src/np_jobqueue.c src/np_key.c src/np_keycache.c 
 SOURCES += src/np_log.c src/np_memory.c src/np_message.c src/np_msgproperty.c src/np_network.c src/np_node.c 
-SOURCES += src/np_route.c src/np_tree.c src/np_util.c src/np_val.c 
+SOURCES += src/np_route.c src/np_tree.c src/np_util.c src/np_treeval.c 
 SOURCES += src/event/ev.c src/http/htparse.c src/json/parson.c src/msgpack/cmp.c 
 
 TEST_SOURCES=test/test_suites.c

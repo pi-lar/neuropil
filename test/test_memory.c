@@ -14,6 +14,7 @@
 #include "neuropil.h"
 #include "np_message.h"
 #include "np_types.h"
+#include "np_threads.h"
 
 typedef struct test_struct
 {
@@ -39,6 +40,7 @@ void setup_memory(void)
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_MESSAGE;
 	np_log_init("test_jrb_impl.log", log_level);
 
+	_np_threads_init();
 	np_mem_init();
 }
 
@@ -48,6 +50,7 @@ void teardown_memory(void)
 }
 
 TestSuite(np_memory_t, .init=setup_memory, .fini=teardown_memory);
+
 
 // TODO: add the appropiate cr_expect() statements to really test the memory chunking
 Test(np_memory_t, _memory_create, .description="test the memory allocation routines")
@@ -63,6 +66,8 @@ Test(np_memory_t, _memory_create, .description="test the memory allocation routi
 
 	{
 		np_new_obj(test_struct_t, t_obj1);
+
+		cr_expect(NULL != t_obj1, "expect object to be not null");
 
 		t_obj1->i_test = 1;
 		t_obj1->s_test = "dies ist ein test";

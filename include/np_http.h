@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_HTTP_H_
@@ -21,6 +21,7 @@ enum http_return_e {
 	HTTP_NO_RESPONSE = 0,
 	HTTP_CODE_CONTINUE              ,
 	HTTP_CODE_OK                    ,
+	HTTP_CODE_ACCEPTED              ,
 	HTTP_CODE_CREATED               ,
 	HTTP_CODE_NO_CONTENT            ,
 	HTTP_CODE_PARTIAL_CONTENT       ,

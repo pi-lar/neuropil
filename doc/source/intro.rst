@@ -20,7 +20,7 @@ Use Cases
 * global and secure micro-service driver
 * establish data ownership with ACL
 * enable exclusive access to devices / resources for partners
-* establish secure software defined networks (S-SDN)
+* establish secure application defined networks (ADN)
 
 .. raw:: html
 

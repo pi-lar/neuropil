@@ -1,7 +1,8 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
+/** \toggle_keepwhitespaces  */
 /**
 The structure np_msgproperty_t is used to describe properties of the message exchange itself.
 It is setup by sender and receiver independent of each other.
@@ -18,6 +19,7 @@ A developer should be familiar with the main settings
 #include "np_memory.h"
 #include "np_util.h"
 #include "np_types.h"
+#include "np_threads.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,6 +33,7 @@ extern "C" {
    Do not worry about sending replies, this is/will be handled internally.
 
    use the string "mode_type" to alter this value using :c:func:`np_set_mx_properties`
+
 */
 typedef enum np_msg_mode_enum {
 	DEFAULT_MODE = 0,
@@ -84,6 +87,7 @@ typedef enum np_msg_mode_enum {
    PIPELINE  = SINGLE_SENDER | GROUP_RECEVER
 
    AGGREGATE = SINGLE_SENDER | ANY_RECEIVER | STICKY_REPLY
+
 */
 typedef enum np_msg_mep_enum {
 
@@ -127,6 +131,8 @@ typedef enum np_msg_mep_enum {
 	GROUP_TO_ANY = GROUP_SENDER | ANY_RECEIVER,
 	G2A_WITH_REPLY = GROUP_TO_ANY | HAS_REPLY,
 	G2A_STICKY_REPLY = G2A_WITH_REPLY | STICKY_REPLY,
+	// ANY to ONE
+	ANY_TO_ONE = ANY_SENDER | SINGLE_RECEIVER,
 	// ANY to GROUP
 	ANY_TO_GROUP = ANY_SENDER | GROUP_RECEIVER,
 	A2G_WITH_REPLY = ANY_TO_GROUP | HAS_REPLY,
@@ -162,6 +168,7 @@ typedef enum np_msg_mep_enum {
    OVERFLOW_REJECT - reject new messages when the limit is reached
 
    OVERFLOW_PURGE  - purge old messages when the limit is reached
+
 */
 typedef enum np_msgcache_policy_enum {
 	FIFO = 0x01,
@@ -189,6 +196,7 @@ typedef enum np_msgcache_policy_enum {
 
    Please note: acknowledge types can be ORed (|), so you can request the acknowledge between each hop and the acknowledge
    when the message receives the final destination. We recommend against it because it will flood your network with acknowledges
+
 */
 typedef enum np_msg_ack_enum {
 	ACK_NONE = 0x00, // 0000 0000  - don't ack at all
@@ -211,6 +219,7 @@ typedef enum np_msg_ack_enum {
 
    use the string "max_threshold" to alter the amount of messages that a nodes is willing to receive and
    the cache size of a message using :c:func:`np_set_mx_properties`
+
 */
 struct np_msgproperty_s
 {
@@ -239,12 +248,15 @@ struct np_msgproperty_s
 
 	// cache which will hold up to max_threshold messages
 	np_msgcache_policy_type cache_policy;
-	np_sll_t(np_message_t, msg_cache);
+	np_sll_t(np_message_t, msg_cache_in);
+	np_sll_t(np_message_t, msg_cache_out);
 
 	// only send/receive after opposite partner has been found
-    pthread_mutex_t    lock;
-    pthread_cond_t     msg_received;
-    pthread_condattr_t cond_attr;
+	np_mutex_t lock;
+	np_cond_t  msg_received;
+
+	// pthread_cond_t     msg_received;
+    // pthread_condattr_t cond_attr;
 
 	// callback function(s) to invoke when a message is received
 	np_callback_t clb_default; // internal neuropil supplied
@@ -256,7 +268,6 @@ struct np_msgproperty_s
 	np_usercallback_t user_clb; // external user supplied for inbound
 } NP_API_EXPORT;
 
-_NP_ENABLE_MODULE_LOCK(np_msgproperty_t);
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
 
 // create setter methods
@@ -283,6 +294,7 @@ _NP_GENERATE_PROPERTY_SETSTR(np_msgproperty_t, msg_audience);
 
    :param state: the global neuropil :c:type:`np_state_t` structure
    :param msgprops: the np_msgproperty_t structure which should be registered
+
 */
 NP_API_EXPORT
 void np_msgproperty_register(np_msgproperty_t* msgprops);
@@ -298,6 +310,7 @@ void np_msgproperty_register(np_msgproperty_t* msgprops);
    :param mode_type: either INBOUND or OUTBOUND (see :c:type:`np_msg_mode_type`)
    :param subject: the subject of the messages that are send
    :returns: np_msgproperty_t structure of NULL if none found
+
 */
 NP_API_EXPORT
 np_msgproperty_t* np_msgproperty_get(np_msg_mode_type msg_mode, const char* subject);
@@ -312,6 +325,7 @@ static char _NP_MSG_PING_REPLY[]             = "_NP.PING.REPLY";
 static char _NP_MSG_LEAVE_REQUEST[]          = "_NP.LEAVE.REQUEST";
 static char _NP_MSG_JOIN[]                   = "_NP.JOIN.";
 static char _NP_MSG_JOIN_REQUEST[]           = "_NP.JOIN.REQUEST";
+static char _NP_MSG_JOIN_REQUEST_WILDCARD[]  = "_NP_MSG_JOIN_REQUEST_WILDCARD";
 static char _NP_MSG_JOIN_ACK[]               = "_NP.JOIN.ACK";
 static char _NP_MSG_JOIN_NACK[]              = "_NP.JOIN.NACK";
 static char _NP_MSG_PIGGY_REQUEST[]          = "_NP.NODES.PIGGY";
@@ -328,25 +342,29 @@ static char _NP_MSG_ACCOUNTING_REQUEST[]     = "_NP.MESSAGE.ACCOUNT";
 
 /**
  ** message_init
- ** Initialize messaging subsystem on port and returns the MessageGlobal * which 
+ ** Initialize messaging subsystem on port and returns the MessageGlobal * which
  ** contains global state of message subsystem.
+ **
  **/
 NP_API_INTERN
 np_bool _np_msgproperty_init ();
 
 /**
  ** compare two msg properties for rb cache management
+ **
  **/
 NP_API_INTERN
 int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2);
 
 NP_API_INTERN
-void _np_check_sender_msgcache(np_msgproperty_t* send_prop);
+void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop);
 NP_API_INTERN
-void _np_check_receiver_msgcache(np_msgproperty_t* recv_prop);
+void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop);
 
 NP_API_INTERN
-void _np_add_msg_to_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
+void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
+NP_API_INTERN
+void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
 
 #ifdef __cplusplus
 }

@@ -16,6 +16,17 @@ syntax: glob
 # syntax: regexp
 # ^\.pc/
 
-bin/*
+*.log
 build/*
-Default/*
+bin/*
+
+*.orig
+.DS_STORE
+test/.DS_STORE
+.project
+.cproject
+*.prefs
+*.os
+
+doc/sphinxcontrib-cmtinc/
+doc/pyenv/

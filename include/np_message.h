@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_MESSAGE_H_
@@ -9,26 +9,16 @@
 
 #include "np_memory.h"
 #include "np_types.h"
+#include "np_messagepart.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct np_messagepart_s np_messagepart_t;
-typedef np_messagepart_t* np_messagepart_ptr;
-
-struct np_messagepart_s
-{
-	np_tree_t* header;
-	np_tree_t* instructions;
-	int part;
-	void* msg_part;
-} NP_API_INTERN;
-
-NP_PLL_GENERATE_PROTOTYPES(np_messagepart_ptr);
-
 struct np_message_s
 {
+	char* uuid;
+
 	np_obj_t* obj; // link to memory pool
 
 	np_tree_t* header;
@@ -43,83 +33,94 @@ struct np_message_s
 	np_pll_t(np_messagepart_ptr, msg_chunks);
 } NP_API_INTERN;
 
+struct _np_message_buffer_container_s
+{
+	np_message_t * message;
+	size_t bufferCount;
+	size_t bufferMaxCount;
+	void* buffer;
+} NP_API_INTERN;
+
 _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
 
 /** message_create / free:
  ** creates the message to the destination #dest# the message format would be like:
  ** deletes the message and corresponding structures
+ **
  **/
 NP_API_INTERN
-void np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data);
+void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data);
 
-void np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token);
-np_bool np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token);
-
-// encrypt / decrypt parts of a message
-np_bool np_message_decrypt_part(np_tree_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
-np_bool np_message_encrypt_part(np_tree_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
+NP_API_INTERN
+void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token);
+NP_API_INTERN
+np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token);
 
 // (de-) serialize a message to a binary stream using message pack (cmp.h)
 NP_API_INTERN
-void np_message_calculate_chunking(np_message_t* msg);
+void _np_message_calculate_chunking(np_message_t* msg);
 
 NP_API_INTERN
-np_message_t* np_message_check_chunks_complete(np_jobargs_t* args);
+np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check);
 NP_API_INTERN
-np_bool np_message_serialize(np_jobargs_t* args);
+np_bool _np_message_serialize(np_jobargs_t* args);
 NP_API_INTERN
-np_bool np_message_serialize_chunked(np_jobargs_t* args);
+np_bool _np_message_serialize_chunked(np_jobargs_t* args);
 
 NP_API_INTERN
-np_bool np_message_deserialize(np_message_t* msg, void* buffer);
+np_bool _np_message_deserialize(np_message_t* msg, void* buffer);
 NP_API_INTERN
-np_bool np_message_deserialize_chunked(np_message_t* msg);
+np_bool _np_message_deserialize_chunked(np_message_t* msg);
 
 NP_API_INTERN
-void np_message_setinstruction(np_message_t* msg, np_tree_t* instructions);
+void _np_message_setinstructions(np_message_t* msg, np_tree_t* instructions);
 NP_API_INTERN
-void np_message_addinstructionentry(np_message_t*, const char* key, np_val_t value);
+void _np_message_add_instruction(np_message_t*, const char* key, np_treeval_t value);
 NP_API_INTERN
-void np_message_delinstructionentry(np_message_t*, const char* key);
+void _np_message_del_instruction(np_message_t*, const char* key);
 
 NP_API_INTERN
-void np_message_setproperties(np_message_t* msg, np_tree_t* properties);
+void _np_message_setproperties(np_message_t* msg, np_tree_t* properties);
 NP_API_INTERN
-void np_message_addpropertyentry(np_message_t*, const char* key, np_val_t value);
+void _np_message_add_property(np_message_t*, const char* key, np_treeval_t value);
 NP_API_INTERN
-void np_message_delpropertyentry(np_message_t*, const char* key);
+void _np_message_del_property(np_message_t*, const char* key);
 
 NP_API_INTERN
-void np_message_setbody(np_message_t* msg, np_tree_t* body);
+void _np_message_setbody(np_message_t* msg, np_tree_t* body);
 NP_API_INTERN
-void np_message_addbodyentry(np_message_t*, const char* key, np_val_t value);
+void _np_message_add_bodyentry(np_message_t*, const char* key, np_treeval_t value);
 NP_API_INTERN
-void np_message_delbodyentry(np_message_t*, const char* key);
+void _np_message_del_bodyentry(np_message_t*, const char* key);
 
 NP_API_INTERN
-inline void np_message_setfooter(np_message_t* msg, np_tree_t* footer);
+inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer);
 NP_API_INTERN
-void np_message_addfooterentry(np_message_t*, const char* key, np_val_t value);
+void _np_message_add_footerentry(np_message_t*, const char* key, np_treeval_t value);
 NP_API_INTERN
-void np_message_delfooterentry(np_message_t*, const char* key);
+void _np_message_del_footerentry(np_message_t*, const char* key);
+
+NP_API_INTERN
+void _np_message_set_to(np_message_t* msg, np_key_t* target);
 
 // msg header constants
-static const char* NP_MSG_HEADER_SUBJECT   = "_np.subj";
-static const char* NP_MSG_HEADER_TO        = "_np.to";
-static const char* NP_MSG_HEADER_FROM      = "_np.from";
-static const char* NP_MSG_HEADER_REPLY_TO  = "_np.r_to";
+static const char* _NP_MSG_HEADER_TARGET    = "_np.target";
+static const char* _NP_MSG_HEADER_SUBJECT   = "_np.subj";
+static const char* _NP_MSG_HEADER_TO        = "_np.to";
+static const char* _NP_MSG_HEADER_FROM      = "_np.from";
+static const char* _NP_MSG_HEADER_REPLY_TO  = "_np.r_to";
 
 // msg instructions constants
-static const char* NP_MSG_INST_SEND_COUNTER = "_np.sendnr";
-static const char* NP_MSG_INST_PART         = "_np.part";
-static const char* NP_MSG_INST_PARTS        = "_np.parts";
-static const char* NP_MSG_INST_ACK          = "_np.ack";
-static const char* NP_MSG_INST_ACK_TO       = "_np.ack_to";
-static const char* NP_MSG_INST_SEQ          = "_np.seq";
-static const char* NP_MSG_INST_UUID         = "_np.uuid";
-static const char* NP_MSG_INST_ACKUUID      = "_np.ackuuid";
-static const char* NP_MSG_INST_TTL          = "_np.ttl";
-static const char* NP_MSG_INST_TSTAMP       = "_np.tstamp";
+static const char* _NP_MSG_INST_SEND_COUNTER = "_np.sendnr";
+static const char* _NP_MSG_INST_PART         = "_np.part";
+static const char* _NP_MSG_INST_PARTS        = "_np.parts";
+static const char* _NP_MSG_INST_ACK          = "_np.ack";
+static const char* _NP_MSG_INST_ACK_TO       = "_np.ack_to";
+static const char* _NP_MSG_INST_SEQ          = "_np.seq";
+static const char* _NP_MSG_INST_UUID         = "_np.uuid";
+static const char* _NP_MSG_INST_ACKUUID      = "_np.ackuuid";
+static const char* _NP_MSG_INST_TTL          = "_np.ttl";
+static const char* _NP_MSG_INST_TSTAMP       = "_np.tstamp";
 
 // msg handshake constants
 static const char* NP_HS_PAYLOAD = "_np.payload";
