@@ -1,374 +1,354 @@
-/*
- *
- */
+//
+// neuropil is copyright 2016-2017 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <ctype.h>
 #include <pthread.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "sodium.h"
+#include "event/ev.h"
+#include "json/parson.h"
+#include "msgpack/cmp.h"
+#include "inttypes.h"
+
 #include "np_util.h"
 
-#include "jval.h"
-#include "log.h"
 
-void del_callback(void* data) {
-	log_msg(LOG_ERROR, "del_callback should never be called !!!");
-}
-void new_callback(void* data) {
-	log_msg(LOG_ERROR, "new_callback should never be called !!!");
+#include "np_log.h"
+#include "neuropil.h"
+
+#include "dtime.h"
+#include "np_dhkey.h"
+#include "np_keycache.h"
+#include "np_treeval.h"
+#include "np_message.h"
+#include "np_tree.h"
+#include "np_node.h"
+#include "np_route.h"
+#include "np_types.h"
+#include "np_memory.h"
+#include "assert.h"
+
+
+char* np_uuid_create(const char* str, const uint16_t num)
+{
+	char input[256];
+	unsigned char out[18];
+	char* uuid_out = malloc(sizeof(char)*37);
+	CHECK_MALLOC(uuid_out);
+
+	double now = ev_time();
+	snprintf (input, 255, "%s:%u:%16.16f", str, num, now);
+	// log_msg(LOG_DEBUG, "created input uuid: %s", input);
+	crypto_generichash(out, 18, (unsigned char*) input, 256, NULL, 0);
+	sodium_bin2hex(uuid_out, 37, out, 18);
+	// log_msg(LOG_DEBUG, "created raw uuid: %s", uuid_out);
+	uuid_out[8] = uuid_out[13] = uuid_out[18] = uuid_out[23] = '-';
+	uuid_out[14] = '5';
+	uuid_out[19] = '9';
+	// log_msg(LOG_DEBUG, "created new uuid: %s", uuid_out);
+
+	return uuid_out;
 }
 
-np_bool buffer_reader(cmp_ctx_t *ctx, void *data, size_t count) {
-	memcpy(data, ctx->buf, count);
-	ctx->buf += count;
-	return 1;
+np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit)
+{
+	memcpy(data, ctx->buf, limit);
+	ctx->buf += limit;
+	return TRUE;
 }
 
-size_t buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count) {
-	// log_msg(LOG_DEBUG, "-- writing cmp->buf: %p size: %d", ctx->buf, count);
+np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit)
+{
+	np_bool ret = FALSE;
+	_np_message_buffer_container_t* wrapper = ctx->buf;
+
+	size_t nextCount = wrapper->bufferCount + limit;
+	log_msg(LOG_DEBUG,
+			 "BUFFER CHECK Current size: %zu; Max size: %zu; Read size: %zu",
+			 wrapper->bufferCount, wrapper->bufferMaxCount, limit);
+
+	if(nextCount > wrapper->bufferMaxCount) {
+ 		 log_msg(LOG_WARN,
+ 				 "Message deserialization error. Read size exceeds buffer. May be invoked due to changed key (see: kb) Current size: %zu; Max size: %zu; Read size: %zu",
+				 wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
+	} else {
+		log_msg(LOG_DEBUG, "memcpy %p <- %p o %p",data, wrapper->buffer,wrapper);
+		memcpy(data, wrapper->buffer, limit);
+		wrapper->buffer += limit;
+		wrapper->bufferCount = nextCount;
+		ret = TRUE;
+	}
+	return ret;
+}
+
+size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size_t count)
+{
+	_np_message_buffer_container_t* wrapper = ctx->buf;
+
+	memcpy(wrapper->buffer, data, count);
+	wrapper->buffer += count;
+	return count;
+}
+
+size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
+{
+	// log_msg(LOG_DEBUG, "-- writing cmp->buf: %p size: %hd", ctx->buf, count);
+	// printf( "-- writing cmp->buf: %p size: %hd\n", ctx->buf, count);
+
 	memcpy(ctx->buf, data, count);
 	ctx->buf += count;
 	return count;
 }
 
-int write_type(np_jval_t val, cmp_ctx_t* cmp) {
 
-	// void* count_buf_start = cmp->buf;
-	// log_msg(LOG_DEBUG, "writing jrb (%p) value: %s", jrb, jrb->key.value.s);
+// TODO: replace with function pointer, same for __np_tree_read_type
+// typedef void (*write_type_function)(const np_treeval_t* val, cmp_ctx_t* ctx);
+// write_type_function write_type_arr[npval_count] = {NULL};
+// write_type_arr[npval_count] = &write_short_type;
+// write_type_arr[npval_count] = NULL;
+
+
+void _np_sll_remove_doublettes(np_sll_t(np_key_t, list_of_keys))
+{
+    sll_iterator(np_key_t) iter1 = sll_first(list_of_keys);
+    sll_iterator(np_key_t) tmp = NULL;
+
+    do
+    {
+        sll_iterator(np_key_t) iter2 = sll_get_next(iter1);
+
+        if (NULL == iter2) break;
+
+        do
+        {
+        	if (0 == _np_dhkey_comp(&iter1->val->dhkey,
+								 &iter2->val->dhkey))
+        	{
+        		tmp = iter2;
+        	}
+
+        	sll_next(iter2);
+
+        	if (NULL != tmp)
+        	{
+        		sll_delete(np_key_t, list_of_keys, tmp);
+        		tmp = NULL;
+        	}
+        } while(NULL != iter2);
+
+        sll_next(iter1);
+
+    } while (NULL != iter1);
+}
+
+
+JSON_Value* np_treeval2json(np_treeval_t val) {
+	JSON_Value* ret = NULL;
+	//log_msg(LOG_DEBUG, "np_treeval2json type: %"PRIu8,val.type);
+	void* tmp;
 	switch (val.type) {
-	// signed numbers
-//	case short_type:
-//		cmp_write_s8(cmp, val.value.sh);
-//		break;
+	case short_type:
+		ret = json_value_init_number(val.value.sh);
+		break;
 	case int_type:
-		cmp_write_s16(cmp, val.value.i);
+		ret = json_value_init_number(val.value.i);
 		break;
 	case long_type:
-		cmp_write_s32(cmp, val.value.l);
+		ret = json_value_init_number(val.value.l);
 		break;
 	case long_long_type:
-		cmp_write_s64(cmp, val.value.ll);
+		ret = json_value_init_number(val.value.ll);
 		break;
-		// characters
-	case char_ptr_type:
-		cmp_write_str32(cmp, val.value.s, strlen(val.value.s));
-		break;
-	case char_type:
-		cmp_write_fixstr(cmp, (const char*) &val.value.c, sizeof(char));
-		break;
-	// case unsigned_char_type:
-	// 	cmp_write_str(cmp, (const char*) &val.value.uc,
-	// 			sizeof(unsigned char));
-	// 	break;
-
-	// float and double precision
 	case float_type:
-		cmp_write_float(cmp, val.value.f);
+		ret = json_value_init_number(val.value.f);
 		break;
 	case double_type:
-		cmp_write_double(cmp, val.value.d);
+		ret = json_value_init_number(val.value.d);
 		break;
-
-// unsigned numbers
-//	case unsigned_short_type:
-//		cmp_write_u8(cmp, val.value.ush);
-//		break;
-
+	case char_ptr_type:
+		ret = json_value_init_string(val.value.s);
+		break;
+	case char_type:
+		ret = json_value_init_string(&val.value.c);
+		break;
+	case unsigned_short_type:
+		ret = json_value_init_number(val.value.ush);
+		break;
 	case unsigned_int_type:
-		cmp_write_u16(cmp, val.value.ui);
+		ret = json_value_init_number(val.value.ui);
 		break;
 	case unsigned_long_type:
-		cmp_write_u32(cmp, val.value.ul);
+		ret = json_value_init_number(val.value.ul);
 		break;
 	case unsigned_long_long_type:
-		cmp_write_u64(cmp, val.value.ull);
+		ret = json_value_init_number(val.value.ull);
 		break;
-
-	case int_array_2_type:
-	case float_array_2_type:
-	case char_array_8_type:
-	case unsigned_char_array_8_type:
-		log_msg(LOG_WARN, "please implement serialization for type %d", val.type);
-		break;
-
-	case void_type:
-		log_msg(LOG_WARN, "please implement serialization for type %d", val.type);
-		break;
-
+	case uint_array_2_type:
+		ret = json_value_init_array();
+		json_array_append_number(json_array(ret), val.value.a2_ui[0]);
+		json_array_append_number(json_array(ret), val.value.a2_ui[1]);
+ 		break;
 	case bin_type:
-		cmp_write_bin(cmp, val.value.bin, val.size);
-		break;
+		tmp =  malloc(sizeof(char)*64);
+		CHECK_MALLOC(tmp);
 
+		sprintf(tmp, "<binaray data (size: %"PRIu32")>", val.size);
+		ret = json_value_init_string((char*)tmp);
+		free(tmp);
+		break;
 	case jrb_tree_type:
-		{
-			cmp_ctx_t tree_cmp;
-			char buffer[val.size];
-			// log_msg(LOG_DEBUG, "buffer size for subtree %d %ll", val.value.tree->size, val.value.tree->byte_size);
-			// log_msg(LOG_DEBUG, "buffer size for subtree %d", val.size);
-			void* buf_ptr = buffer;
-			cmp_init(&tree_cmp, buf_ptr, buffer_reader, buffer_writer);
-			serialize_jrb_node_t(val.value.tree, &tree_cmp);
-			int buf_size = tree_cmp.buf - buf_ptr;
-
-			// log_msg(LOG_DEBUG, "now writing tree cmp extension type %d size %d", jrb_tree_type, buf_size);
-			// write the serialized tree to the upper level buffer
-			if (!cmp_write_ext(cmp, jrb_tree_type, buf_size, buf_ptr)) {
-				log_msg(LOG_WARN, "couldn't write tree data -- ignoring for now");
-			}
-			// buffer_writer(cmp, buf_ptr, buf_size);
-			// cmp_write_bin(cmp, buffer, buf_size);
-			// log_msg(LOG_DEBUG, "assumed size %ul, real size %ul",
-			// 		val.value.tree->byte_size + 20, buf_size);
-		}
+		ret = np_tree2json(val.value.tree);
 		break;
+	case key_type:
+		ret = json_value_init_array();
+		json_array_append_number(json_array(ret), val.value.key.t[0]);
+		json_array_append_number(json_array(ret), val.value.key.t[1]);
+		json_array_append_number(json_array(ret), val.value.key.t[2]);
+		json_array_append_number(json_array(ret), val.value.key.t[3]);
+ 		break;
 	default:
-		log_msg(LOG_WARN, "please implement serialization for type %d", val.type);
+		log_msg(LOG_WARN, "please implement serialization for type %hhd",
+				val.type);
+
 		break;
 	}
-	// void* count_buf_end = cmp->buf;
-	// log_msg(LOG_DEBUG, "wrote %d bytes ", (count_buf_end - count_buf_start));
-	return 1;
+	return ret;
 }
 
-void serialize_jrb_node_t(np_jrb_t* jrb, cmp_ctx_t* cmp)
-{
-	unsigned int i = 0;
-	// first assume a size based on jrb size
-	// void* buf_ptr_map = cmp->buf;
-
-	// if (!cmp_write_map(cmp, jrb->size*2 )) return;
-	cmp_write_map(cmp, jrb->size*2);
-
-	// log_msg(LOG_DEBUG, "wrote jrb tree size %d", jrb->size*2);
-	// write jrb tree
-	if (jrb->size) {
-		np_jrb_t* tmp = NULL;
-		jrb_traverse(tmp, jrb)
-		{
-			if (int_type           == tmp->key.type ||
-		 		unsigned_long_type == tmp->key.type ||
-		 		double_type        == tmp->key.type ||
-		 		char_ptr_type      == tmp->key.type)
-		 	{
-				// log_msg(LOG_DEBUG, "%p: key: %d, value: %d (%d/%d)", tmp, tmp->key.type, tmp->val.type, tmp->size, tmp->byte_size );
-				// log_msg(LOG_DEBUG, "for (%p; %p!=%p; %p=%p) ", tmp->flink, tmp, msg->header, node, node->flink);
-				write_type(tmp->key, cmp); i++;
-				write_type(tmp->val, cmp); i++;
-		 	}
-		}
-	}
-	// void* buf_ptr = cmp->buf;
-	// cmp->buf = buf_ptr_map;
-	// cmp_write_map32(cmp, i );
-
-	if (i != jrb->size*2)
-		log_msg(LOG_WARN, "serialized jrb size map size is %d, but should be %d", jrb->size*2, i);
-
-	// cmp->buf = buf_ptr;
-
-//	switch (jrb->key.type) {
-//	case int_type:
-//		log_msg(LOG_DEBUG, "wrote int key (%d)", jrb->key.value.i);
-//		break;
-//	case unsigned_long_type:
-//		log_msg(LOG_DEBUG, "wrote uint key (%ul)", jrb->key.value.ul);
-//		break;
-//	case double_type:
-//		log_msg(LOG_DEBUG, "wrote double key (%f)", jrb->key.value.d);
-//		break;
-//	case char_ptr_type:
-//		log_msg(LOG_DEBUG, "wrote str key (%s)", jrb->key.value.s);
-//		break;
-//	}
+char* np_dump_tree2char(np_tree_t* tree) {
+	JSON_Value * tmp = np_tree2json(tree);
+	char* tmp2 = np_json2char(tmp,TRUE);
+	free(tmp);
+	return tmp2;
 }
+JSON_Value* np_tree2json(np_tree_t* tree) {
+	JSON_Value* ret = json_value_init_object();
+	JSON_Value* arr = NULL;
 
-void read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_jval_t* value) {
+	if(NULL != tree) {
+		// log_msg(LOG_DEBUG, "np_tree2json (size: %"PRIu16", byte_size: %"PRIu64"):", tree->size, tree->byte_size);
 
-	switch (obj->type) {
-
-	case CMP_TYPE_FIXMAP:
-	case CMP_TYPE_MAP16:
-	case CMP_TYPE_MAP32:
-		log_msg(LOG_WARN,
-				"error de-serializing message to normal form, found map type");
-		break;
-	case CMP_TYPE_FIXARRAY:
-	case CMP_TYPE_ARRAY16:
-	case CMP_TYPE_ARRAY32:
-		log_msg(LOG_WARN,
-				"error de-serializing message to normal form, found array type");
-		break;
-
-	case CMP_TYPE_FIXSTR:
-		cmp->read(cmp, &value->value.c, sizeof(char));
-		value->type = char_type;
-		value->size = 1;
-		break;
-
-	case CMP_TYPE_STR8:
-	case CMP_TYPE_STR16:
-	case CMP_TYPE_STR32:
+		uint16_t i = 0;
+		// write jrb tree
+		if (0 < tree->size)
 		{
-			value->value.s = (char*) malloc(obj->as.str_size+1);
-			cmp->read(cmp, value->value.s, obj->as.str_size * sizeof(char));
-			value->type = char_ptr_type;
-			value->size = obj->as.str_size;
-			value->value.s[obj->as.str_size] = '\0';
-			// log_msg(LOG_WARN, "string size %d/%d -> %s", value->size, strlen(value->value.s), value->value.s);
-			break;
-		}
-	case CMP_TYPE_BIN8:
-	case CMP_TYPE_BIN16:
-	case CMP_TYPE_BIN32:
-		{
-			value->value.bin = malloc(obj->as.bin_size);
-			value->type = bin_type;
-			value->size = obj->as.bin_size;
-			memset(value->value.bin, 0, value->size);
-			cmp->read(cmp, value->value.bin, obj->as.bin_size);
-			break;
-		}
-	case CMP_TYPE_NIL:
-		log_msg(LOG_WARN, "unknown de-serialization for given type (cmp NIL) ");
-		break;
-	case CMP_TYPE_BOOLEAN:
-		log_msg(LOG_WARN,
-				"unknown de-serialization for given type (cmp boolean) ");
-		break;
-	case CMP_TYPE_EXT8:
-	case CMP_TYPE_EXT16:
-	case CMP_TYPE_EXT32:
-	case CMP_TYPE_FIXEXT1:
-	case CMP_TYPE_FIXEXT2:
-	case CMP_TYPE_FIXEXT4:
-	case CMP_TYPE_FIXEXT8:
-	case CMP_TYPE_FIXEXT16:
-		{
-			// required for tree de-serialization
-			// log_msg(LOG_DEBUG, "now reading cmp-extension type %d size %d", obj->as.ext.type, obj->as.ext.size);
-			char buffer[obj->as.ext.size];
-			void* buf_ptr = buffer;
-			buffer_reader(cmp, buf_ptr, obj->as.ext.size);
+			np_tree_elem_t* tmp = NULL;
+			np_bool useArray = FALSE;
+			RB_FOREACH(tmp, np_tree_s, tree)
+			{
+				char* name = NULL;
+				if (int_type == tmp->key.type)
+				{
+					useArray = TRUE;
+					int size = snprintf(NULL, 0, "%d", tmp->key.value.i);
+					name = malloc(size + 1);
+					CHECK_MALLOC(name);
 
-			if (obj->as.ext.type == jrb_tree_type) {
-				// tree type
-				np_jrb_t* subtree = make_jrb();
-				cmp_ctx_t tree_cmp;
-				cmp_init(&tree_cmp, buf_ptr, buffer_reader, buffer_writer);
-				deserialize_jrb_node_t(subtree, &tree_cmp);
+					snprintf(name, size + 1, "%d", tmp->key.value.i);
+				}
+				else if (double_type == tmp->key.type)
+				{
+					int size = snprintf(NULL, 0, "%f", tmp->key.value.d);
+					name = malloc(size + 1);
+					CHECK_MALLOC(name);
 
-				value->value.tree = subtree;
-				value->type = jrb_tree_type;
-				value->size = subtree->byte_size;
-			} else {
-				log_msg(LOG_WARN,
-						"unknown de-serialization for given extension type %d", obj->as.ext.type);
+					snprintf(name, size + 1, "%f", tmp->key.value.d);
+				}
+				else if (unsigned_long_type == tmp->key.type)
+				{
+					int size = snprintf(NULL, 0, "%u", tmp->key.value.ul);
+					name = malloc(size + 1);
+					CHECK_MALLOC(name);
+
+					snprintf(name, size + 1, "%u", tmp->key.value.ul);
+				}
+				else if (char_ptr_type == tmp->key.type)
+				{
+					name = strndup(tmp->key.value.s, strlen(tmp->key.value.s));
+				}
+				else
+				{
+					log_msg(LOG_WARN, "unknown key type for serialization. (type: %d)",tmp->key.type);
+					continue;
+				}
+
+				//log_msg(LOG_DEBUG, "np_tree2json set key %s:", name);
+				JSON_Value* value = np_treeval2json(tmp->val);
+
+				if(useArray == TRUE) {
+					if(NULL == arr) {
+						arr = json_value_init_array();
+					}
+					//log_msg(LOG_DEBUG, "np_tree2json add to array");
+
+					if(NULL != value) {
+						json_array_append_value(json_array(arr), value);
+						i++;
+					}
+				} else {
+
+					if (NULL != name && NULL != value)
+					{
+						json_object_set_value(json_object(ret), name, value);
+						i++;
+					}
+				}
+				free(name);
 			}
 		}
-		break;
-	case CMP_TYPE_FLOAT:
-		value->value.f = 0.0;
-		value->value.f = obj->as.flt;
-		value->type = float_type;
-		break;
-	case CMP_TYPE_DOUBLE:
-		value->value.d = 0.0;
-		value->value.d = obj->as.dbl;
-		value->type = double_type;
-		break;
 
-	case CMP_TYPE_POSITIVE_FIXNUM:
-	case CMP_TYPE_UINT8:
-//		value->value.ush = obj->as.u8;
-//		value->type = unsigned_short_type;
-		break;
-	case CMP_TYPE_UINT16:
-		value->value.ui = 0;
-		value->value.ui = obj->as.u16;
-		value->type = unsigned_int_type;
-		break;
-	case CMP_TYPE_UINT32:
-		value->value.ul = 0;
-		value->value.ul = obj->as.u32;
-		value->type = unsigned_long_type;
-		break;
-	case CMP_TYPE_UINT64:
-		value->value.ull = 0;
-		value->value.ull = obj->as.u64;
-		value->type = unsigned_long_long_type;
-		break;
-	case CMP_TYPE_NEGATIVE_FIXNUM:
-	case CMP_TYPE_SINT8:
-//		value->value.sh = obj->as.s8;
-//		value->type = short_type;
-		break;
-	case CMP_TYPE_SINT16:
-		value->value.i = 0;
-		value->value.i = obj->as.s16;
-		value->type = int_type;
-		break;
-	case CMP_TYPE_SINT32:
-		value->value.l = obj->as.s32;
-		value->type = long_type;
-		break;
-	case CMP_TYPE_SINT64:
-		value->value.ll = 0;
-		value->value.ll = obj->as.s64;
-		value->type = long_long_type;
-		break;
-	default:
-		log_msg(LOG_WARN, "unknown deserialization for given type");
-		break;
-	}
-}
-
-void deserialize_jrb_node_t(np_jrb_t* jrb, cmp_ctx_t* cmp) {
-
-	cmp_object_t obj;
-	unsigned int size = 0;
-
-	// if ( !cmp_read_map(cmp, &size)     ) return;
-	cmp_read_map(cmp, &size);
-
-	// log_msg(LOG_DEBUG, "read jrb tree size %d", size);
-	// if ( ((size%2) != 0) || (size <= 0) ) return;
-
-	for (int i = 0; i < (size/2); i++) {
-		// log_msg(LOG_DEBUG, "reading key (%d) from message part %p", i, jrb);
-		// read key
-		np_jval_t tmp_key;
-		// if (!cmp_read_object(cmp, &obj)) return;
-		cmp_read_object(cmp, &obj);
-		read_type(&obj, cmp, &tmp_key);
-
-		// log_msg(LOG_DEBUG, "reading value (%d) from message part %p", i, jrb);
-		// read value
-		np_jval_t tmp_val;
-		// if (!cmp_read_object(cmp, &obj)) return;
-		cmp_read_object(cmp, &obj);
-		read_type(&obj, cmp, &tmp_val);
-
-		switch (tmp_key.type) {
-		case int_type:
-			// log_msg(LOG_DEBUG, "read int key (%d)", tmp_key.value.i);
-			jrb_insert_int(jrb, tmp_key.value.i, tmp_val);
-			break;
-		case unsigned_long_type:
-			// log_msg(LOG_DEBUG, "read uint key (%ul)", tmp_key.value.ul);
-			jrb_insert_ulong(jrb, tmp_key.value.ul, tmp_val);
-			break;
-		case double_type:
-			// log_msg(LOG_DEBUG, "read double key (%f)", tmp_key.value.d);
-			jrb_insert_dbl(jrb, tmp_key.value.d, tmp_val);
-			break;
-		case char_ptr_type:
-			// log_msg(LOG_DEBUG, "read str key (%s)", tmp_key.value.s);
-			jrb_insert_str(jrb, tmp_key.value.s, tmp_val);
-			break;
-		default:
-			break;
+		// sanity check and warning message
+		if (i != tree->size)
+		{
+			log_msg(LOG_WARN, "serialized jrb size map size is %hd, but should be %hd", tree->size, i);
 		}
 	}
-	// log_msg(LOG_DEBUG, "read all key/value pairs from message part %p", jrb);
+
+	if(NULL != arr) {
+		json_value_free(ret);
+		ret = arr;
+	}
+
+	return ret;
+}
+
+char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
+	char* ret;
+	/*
+	size_t json_size ;
+	if(prettyPrint){
+		json_size = json_serialization_size_pretty(data);
+		ret = (char*) malloc(json_size * sizeof(char));
+		CHECK_MALLOC(ret);
+		json_serialize_to_buffer_pretty(data, ret, json_size);
+
+	}else{
+		json_size = json_serialization_size(data);
+		ret = (char*) malloc(json_size * sizeof(char));
+		CHECK_MALLOC(ret);
+		json_serialize_to_buffer(data, ret, json_size);
+	}
+	 */
+	if(prettyPrint){
+		ret = json_serialize_to_string_pretty(data);
+	}else{
+		ret = json_serialize_to_string(data);
+	}
+
+
+	return ret;
+}
+
+void np_dump_tree2log(np_tree_t* tree){
+	if(NULL == tree){
+		log_msg(LOG_DEBUG, "NULL");
+	}else{
+ 		char* tmp = np_dump_tree2char(tree);
+		log_msg(LOG_DEBUG, "%s", tmp);
+		json_free_serialized_string(tmp);
+	}
 }

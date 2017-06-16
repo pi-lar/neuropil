@@ -1,3 +1,8 @@
+//
+// neuropil is copyright 2016-2017 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
+// original version is based on the chimera project
 #include <stdio.h>
 #include <string.h>		/* memset */
 #include <sys/time.h>		/* struct timeval, gettimeofday */
@@ -33,7 +38,7 @@ void dalarm (double time)
 }
 
 /**
- ** dalarm:
+ ** dsleep:
  **  sleeps for #time# seconds
  **/
 void dsleep (double time)

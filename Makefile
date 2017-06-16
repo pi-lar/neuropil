@@ -1,37 +1,119 @@
-CC=clang
-CFLAGS=-c -Wall -g -std=c99
-INCLUDES=-I ./include -I ./lib/libsodium-master/src/libsodium/include
+PLATFORM ?= $(shell uname -s)
+
+CC=clang 
+# CC=./checker-277/libexec/ccc-analyzer
+
+# CFLAGS=-c -Wall -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
+CFLAGS=-c -Wall -Wextra -g -gdwarf-2 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
+# CFLAGS+=--analyze -Xanalyzer -analyzer-config -analyzer-checker=alpha.secure -anaylyzer-checker=alpha.core -analyzer-output=html -o build/html
+# CFLAGS=-c -Wall -Wextra -pedantic -g -std=c99
+# CFLAGS=-c -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
+LDFLAGS=
+
+# CLANG_SANITIZER=-fsanitize=address -fno-omit-frame-pointer
+CLANG_SANITIZER=
+
+ifneq (,$(findstring FreeBSD, $(PLATFORM)))
+  override LDFLAGS+=-lutil
+else ifneq (,$(findstring Darwin, $(PLATFORM)))
+  override CFLAGS+=-Wno-deprecated
+  override LDFLAGS+=-framework CoreServices -Wno-deprecated
+  override CLANG_SANITIZER+=-mmacosx-version-min=10.11
+else ifneq (,$(findstring CYGWIN, $(PLATFORM)))
+  # -std=gnu++0x doesn't work, so work around...
+  override CXXFLAGS+=-U__STRICT_ANSI__
+else
+
+ifeq (,$(findstring Windows, $(PLATFORM)))
+ifeq (,$(findstring OpenBSD, $(PLATFORM)))
+  override LDFLAGS+=-lrt
+endif
+endif
+
+endif
+
+
+INCLUDES=-I ./include -I ./lib/libsodium-master/src/libsodium/include -I ./lib/criterion-v2.2.1/include
 SODIUM_LIBRARIES=-L ./lib/libsodium-master/src/libsodium/.libs -l sodium
+CRITERION_LIBRARIES=-L ./lib/criterion-v2.2.1/lib -l criterion
 
-SOURCES=src/neuropil.c src/np_glia.c src/aaatoken.c src/cmp.c src/dtime.c src/job_queue.c src/jrb.c src/jval.c src/key.c src/log.c src/message.c src/network.c src/node.c src/np_axon.c src/np_container.c src/np_dendrit.c src/np_util.c src/priqueue.c src/route.c src/semaphore.c 
-TEST_SOURCES=test/neuropil_controller.c test/jrb_test_msg.c
+TARGET=x86_64-apple-darwin-macho
+# TARGET=x86_64-pc-gnu-elf
 
-# TARGET_PLATFORM=-target x86-apple
+SOURCES  = src/dtime.c src/neuropil.c src/np_aaatoken.c src/np_axon.c src/np_dendrit.c    
+SOURCES += src/np_glia.c src/np_http.c src/np_jobqueue.c src/np_key.c src/np_keycache.c 
+SOURCES += src/np_log.c src/np_memory.c src/np_message.c src/np_msgproperty.c src/np_network.c src/np_node.c 
+SOURCES += src/np_route.c src/np_tree.c src/np_util.c src/np_treeval.c 
+SOURCES += src/event/ev.c src/http/htparse.c src/json/parson.c src/msgpack/cmp.c 
+
+TEST_SOURCES=test/test_suites.c
+# test/test_key.c test/neuropil_controller.c test/jrb_test_msg.c test/test_util_uuid.c test/neuropil_hydra.c test/test_list_impl.c test/test_chunk_message.c
+
 OBJECTS=$(SOURCES:.c=.o)
 TEST_OBJECTS=$(TEST_SOURCES:.c=.o)
 
-all: src/libneuropil.a neuropil_controller neuropil_node neuropil_sender neuropil_receiver jrb_test_msg
+all: src/libneuropil.a ipv6_addrinfo neuropil_hydra neuropil_controller neuropil_node neuropil_sender neuropil_receiver neuropil_receiver_cb neuropil_realmmaster
+test: test_suites
+
+# jrb_test_msg test_util_uuid test_key test_list_impl test_chunk_message
 
 neuropil_controller: test/neuropil_controller.o
-	$(CC) $(SODIUM_LIBRARIES) -L./src -lneuropil $< -o $@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -L. -lneuropil.$(TARGET) $< -o $@
+# /usr/bin/dsymutil $< -o $@.dsym
+
+neuropil_hydra: test/neuropil_hydra.o
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -L. -lneuropil.$(TARGET) $< -o $@
+#/usr/bin/dsymutil $< -o $@.dsym
 
 neuropil_node: test/neuropil_node.o
-	$(CC) $(SODIUM_LIBRARIES) -L./src -lneuropil $< -o $@
-neuropil_sender: test/neuropil_sender.o
-	$(CC) $(SODIUM_LIBRARIES) -L./src -lneuropil $< -o $@
-neuropil_receiver: test/neuropil_receiver.o
-	$(CC) $(SODIUM_LIBRARIES) -L./src -lneuropil $< -o $@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -L. -lneuropil.$(TARGET) $< -o $@
 
-jrb_test_msg: test/jrb_test_msg.o
-	$(CC) $(SODIUM_LIBRARIES) -L./src -lneuropil $< -o $@
+neuropil_realmmaster: test/neuropil_realmmaster.o
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -L. -lneuropil.$(TARGET) $< -o $@
+# /usr/bin/dsymutil $< -o $@.dsym
+
+# neuropil_realmslave: test/neuropil_realmslave.o
+# 	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -L. -lneuropil.$(TARGET) $< -o $@
+# /usr/bin/dsymutil $< -o $@.dsym
+
+neuropil_sender: test/neuropil_sender.o
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -L. -lneuropil.$(TARGET) $< -o $@
+
+# /usr/bin/dsymutil $< -o $@.dsym
+neuropil_receiver: test/neuropil_receiver.o
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -L. -lneuropil.$(TARGET) $< -o $@
+
+# /usr/bin/dsymutil $< -o $@.dsym
+
+neuropil_receiver_cb: test/neuropil_receiver_cb.o
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate  -L. -lneuropil.$(TARGET) $< -o $@
+# /usr/bin/dsymutil $< -o $@.dsym
+
+test_chunk_message: test/test_chunk_message.o
+	$(CC) -fprofile-instr-generate $(LDFLAGS) $(SODIUM_LIBRARIES) $(CRITERION_LIBRARIES) $(CLANG_SANITIZER) -L. -lneuropil.$(TARGET) $< -o $@
+
+test_list_impl: test/test_list_impl.o
+	$(CC) -fprofile-instr-generate $(LDFLAGS) $(SODIUM_LIBRARIES) $(CRITERION_LIBRARIES) $(CLANG_SANITIZER) -L. -lneuropil.$(TARGET) $< -o $@
+
+ipv6_addrinfo: test/ipv6_addrinfo.o
+	$(CC) -fprofile-instr-generate $(LDFLAGS) $(SODIUM_LIBRARIES) $(CRITERION_LIBRARIES) $(CLANG_SANITIZER) -L. -lneuropil.$(TARGET) $< -o $@
+
+test_suites: test/test_suites.o
+	-rm test_*.log
+	$(CC) -fprofile-instr-generate $(LDFLAGS) $(SODIUM_LIBRARIES) $(CRITERION_LIBRARIES) $(CLANG_SANITIZER) -L. -lneuropil.$(TARGET) $< -o $@
 
 src/libneuropil.a: $(OBJECTS)
-	$(CC) -dynamiclib -std=c99 $(SODIUM_LIBRARIES) $(OBJECTS) -o $@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(CLANG_SANITIZER) -dynamiclib -fprofile-instr-generate -std=c99 $(SODIUM_LIBRARIES) $(OBJECTS) -o libneuropil.$(TARGET).a
+	dsymutil libneuropil.$(TARGET).a -o libneuropil.$(TARGET).a.dSYM
 
 .c.o: $(SOURCES) $(TEST_SOURCES)
-	$(CC) $(CFLAGS) $(INCLUDES) $< -o $@
+	$(CC) -target $(TARGET) $(CFLAGS) -fprofile-instr-generate $(INCLUDES) $< -o $@
 
 clean:
-	rm ./src/libneuropil.a ./src/*.o ./test/*.o ./neuropil_controller ./neuropil_node ./neuropil_sender
-	rm ./neuropil_receiver ./jrb_test_msg
-	rm ./neuropil_*.log
+	-rm -r *.dsym
+	-rm ./libneuropil.$(TARGET).a ./src/*.o ./test/*.o ./neuropil_controller ./neuropil_node ./neuropil_sender
+	-rm ./neuropil_* ./jrb_test_msg ./test_*
+	-rm ./neuropil_*.log ./test_*.log
+
+clean_log:
+	-rm -r *.log
