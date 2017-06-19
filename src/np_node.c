@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -7,7 +7,7 @@
 ** $Id: host.c,v 1.14 2006/06/16 07:55:37 ravenben Exp $
 **
 ** Matthew Allen
-** description: 
+** description:
 */
 
 #include <assert.h>
@@ -25,7 +25,7 @@
 #include "neuropil.h"
 #include "np_aaatoken.h"
 #include "np_tree.h"
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_network.h"
 #include "np_threads.h"
@@ -47,12 +47,13 @@ void _np_node_t_new(void* node)
 	np_node_t* entry = (np_node_t *) node;
 
 	entry->dns_name = NULL;
+	entry->protocol = 0;
 	entry->port = 0;
 
 	entry->failuretime = 0.0;
 	entry->last_success = ev_time();
 	entry->success_win_index = 0;
-	entry->success_avg = 0.5;
+	entry->success_avg = 0.7;
 	entry->handshake_status = HANDSHAKE_UNKNOWN;
 	entry->joined_network = FALSE;
 
@@ -78,42 +79,45 @@ void _np_node_t_del(void* node)
  **/
 void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 {
-    snprintf (s, len, "%s:", _key_as_str(key));
+    snprintf (s, len, "%s:", _np_key_as_str(key));
 
     if (NULL != key->node->dns_name) {
-    	snprintf (s + strlen (s), len - strlen (s), "%s:", np_get_protocol_string(key->node->protocol));
+    	snprintf (s + strlen (s), len - strlen (s), "%s:", _np_network_get_protocol_string(key->node->protocol));
     	snprintf (s + strlen (s), len - strlen (s), "%s:", key->node->dns_name);
     	snprintf (s + strlen (s), len - strlen (s), "%s",  key->node->port);
     }
 }
 
-void _np_node_encode_to_jrb (np_tree_t* data, np_node_t* node, np_bool include_stats)
+void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, np_bool include_stats)
 {
-	// char* keystring = (char*) _key_as_str (key);
+	char* keystring = (char*) _np_key_as_str (node_key);
 
-	// tree_insert_str(data, NP_NODE_KEY, new_val_s(keystring));
-	tree_insert_str(data, NP_NODE_PROTOCOL, new_val_ush(node->protocol));
-	tree_insert_str(data, NP_NODE_DNS_NAME, new_val_s(node->dns_name));
-	tree_insert_str(data, NP_NODE_PORT, new_val_s(node->port));
+	np_tree_insert_str(data, NP_NODE_KEY, np_treeval_new_s(keystring));
+	np_tree_insert_str(data, NP_NODE_PROTOCOL, np_treeval_new_ush(node_key->node->protocol));
+	np_tree_insert_str(data, NP_NODE_DNS_NAME, np_treeval_new_s(node_key->node->dns_name));
+	np_tree_insert_str(data, NP_NODE_PORT, np_treeval_new_s(node_key->node->port));
 
-	if (node->failuretime > 0.0)
-		tree_insert_str(data, NP_NODE_FAILURETIME,
-				new_val_d(node->failuretime));
+	if (node_key->node->failuretime > 0.0)
+		np_tree_insert_str(data, NP_NODE_FAILURETIME,
+				np_treeval_new_d(node_key->node->failuretime));
 
 	if (TRUE == include_stats)
 	{
-		tree_insert_str(data, NP_NODE_SUCCESS_AVG,
-				new_val_f(node->success_avg));
-		tree_insert_str(data, NP_NODE_LATENCY,
-				new_val_d(node->latency));
-		tree_insert_str(data, NP_NODE_LAST_SUCCESS,
-				new_val_d(node->last_success));
+		np_tree_insert_str(data, NP_NODE_SUCCESS_AVG,
+				np_treeval_new_f(node_key->node->success_avg));
+		np_tree_insert_str(data, NP_NODE_LATENCY,
+				np_treeval_new_d(node_key->node->latency));
+		np_tree_insert_str(data, NP_NODE_LAST_SUCCESS,
+				np_treeval_new_d(node_key->node->last_success));
 	}
 }
 
 /** np_node_decode
  * decodes a string into a node structure. This acts as a
  * np_node_get, and should be followed eventually by a np_node_release.
+ *
+ * Example: _np_node_decode_from_str("04436571312f73109f697851cfd0529a06ae66080dc9f07581f45526691d4290:udp4:example.com:1234");
+ * The key always requires a 64 char hash value as first parameter
  **/
 np_key_t* _np_node_decode_from_str (const char *key)
 {
@@ -145,8 +149,8 @@ np_key_t* _np_node_decode_from_str (const char *key)
 	// key string is mandatory !
 	log_msg(LOG_WARN, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
 
-	np_dhkey_t search_key = dhkey_create_from_hash(s_hostkey);
-	np_key_t* node_key    = _np_key_find_create(search_key);
+	np_dhkey_t search_key = np_dhkey_create_from_hash(s_hostkey);
+	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
 
 	if (NULL == node_key->node)
 	{
@@ -156,8 +160,8 @@ np_key_t* _np_node_decode_from_str (const char *key)
 	if (NULL != s_hostname &&
 		NULL == node_key->node->dns_name)
 	{	// overwrite hostname only if it is not set yet
-		uint8_t proto = np_parse_protocol_string(s_hostproto);
-		np_node_update(node_key->node, proto, s_hostname, s_hostport);
+		uint8_t proto = _np_network_parse_protocol_string(s_hostproto);
+		_np_node_update(node_key->node, proto, s_hostname, s_hostport);
 	}
 
 	free (key_dup);
@@ -168,9 +172,9 @@ np_key_t* _np_node_decode_from_str (const char *key)
 np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 {
 	// MANDATORY paramter
-	uint8_t i_host_proto = tree_find_str(data, NP_NODE_PROTOCOL)->val.value.ush;
-	char* s_host_name  = tree_find_str(data, NP_NODE_DNS_NAME)->val.value.s;
-	char* s_host_port  = tree_find_str(data, NP_NODE_PORT)->val.value.s;
+	uint8_t i_host_proto = np_tree_find_str(data, NP_NODE_PROTOCOL)->val.value.ush;
+	char* s_host_name  = np_tree_find_str(data, NP_NODE_DNS_NAME)->val.value.s;
+	char* s_host_port  = np_tree_find_str(data, NP_NODE_PORT)->val.value.s;
 
 	np_node_t* new_node = NULL;
 	np_new_obj(np_node_t, new_node);
@@ -178,27 +182,27 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 	if (NULL != s_host_name &&
 		NULL == new_node->dns_name)
 	{
-		// uint8_t proto = np_parse_protocol_string(s_host_proto);
-		np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
+		// uint8_t proto = _np_network_parse_protocol_string(s_host_proto);
+		_np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
 		log_msg(LOG_DEBUG, "decoded node from jrb %d:%s:%s",
 				i_host_proto, s_host_name, s_host_port);
 	}
 
 	// OPTIONAL parameter
-	np_tree_elem_t* failure = tree_find_str(data, NP_NODE_FAILURETIME);
+	np_tree_elem_t* failure = np_tree_find_str(data, NP_NODE_FAILURETIME);
 	if (NULL != failure)
 	{
 		new_node->failuretime = failure->val.value.d;
 	}
 
-	// np_jrb_t* latency = tree_find_str(data, "_np.node.latency");
+	// np_jrb_t* latency = np_tree_find_str(data, "_np.node.latency");
 	// if (latency) node->latency = latency->val.value.d;
 
 	return (new_node);
 }
 
 
-uint16_t _np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats)
+uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats)
 {
 	uint16_t j=0;
     np_key_t* current;
@@ -207,20 +211,20 @@ uint16_t _np_encode_nodes_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys)
     	current = sll_head(np_key_t, node_keys);
     	if (current->node)
     	{
-    		np_tree_t* node_jrb = make_nptree();
+    		np_tree_t* node_jrb = np_tree_create();
     		// log_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
-    		_np_node_encode_to_jrb(node_jrb, current->node, include_stats);
-    		tree_insert_str(node_jrb, NP_NODE_KEY, new_val_s(_key_as_str(current)));
+    		_np_node_encode_to_jrb(node_jrb, current, include_stats);
+    		np_tree_insert_str(node_jrb, NP_NODE_KEY, np_treeval_new_s(_np_key_as_str(current)));
 
-    		tree_insert_int(data, j, new_val_tree(node_jrb));
+    		np_tree_insert_int(data, j, np_treeval_new_tree(node_jrb));
     		j++;
-    		np_free_tree(node_jrb);
+    		np_tree_free(node_jrb);
     	}
     }
     return (j);
 }
 
-sll_return(np_key_t) _np_decode_nodes_from_jrb (np_tree_t* data)
+sll_return(np_key_t) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 {
     uint16_t nodenum = data->size;
 
@@ -230,11 +234,11 @@ sll_return(np_key_t) _np_decode_nodes_from_jrb (np_tree_t* data)
     /* gets the number of hosts in the lists and goes through them 1 by 1 */
     for (uint16_t i = 0; i < nodenum; i++)
 	{
-    	np_tree_elem_t* node_data = tree_find_int(data, i);
+    	np_tree_elem_t* node_data = np_tree_find_int(data, i);
 
-    	char* s_key = tree_find_str(node_data->val.value.tree, NP_NODE_KEY)->val.value.s;
-    	np_dhkey_t search_key = dhkey_create_from_hash(s_key);
-    	np_key_t* node_key    = _np_key_find_create(search_key);
+    	char* s_key = np_tree_find_str(node_data->val.value.tree, NP_NODE_KEY)->val.value.s;
+    	np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
+    	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
     	if (NULL == node_key->node)
     	{
     		node_key->node = _np_node_decode_from_jrb(node_data->val.value.tree);
@@ -245,11 +249,11 @@ sll_return(np_key_t) _np_decode_nodes_from_jrb (np_tree_t* data)
     return (node_list);
 }
 
-np_key_t* _np_create_node_from_token(np_aaatoken_t* token)
+np_key_t* _np_node_create_from_token(np_aaatoken_t* token)
 {
 	// TODO: check whether metadata is used as a hash key in general
-	np_dhkey_t search_key = _np_create_dhkey_for_token(token);
-	np_key_t* node_key    = _np_key_find_create(search_key);
+	np_dhkey_t search_key = _np_aaatoken_create_dhkey(token);
+	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
 	if (NULL == node_key->node)
 	{
 		node_key->node = _np_node_decode_from_jrb(token->extensions);
@@ -257,7 +261,7 @@ np_key_t* _np_create_node_from_token(np_aaatoken_t* token)
 	return (node_key);
 }
 
-np_aaatoken_t* _np_create_node_token(np_node_t* node)
+np_aaatoken_t* _np_node_create_token(np_node_t* node)
 {
 	log_msg(LOG_TRACE, ".start.np_create_node_token");
 	np_state_t* state = _np_state();
@@ -267,7 +271,7 @@ np_aaatoken_t* _np_create_node_token(np_node_t* node)
 
 	char node_subject[255];
 	snprintf(node_subject, 255, "urn:np:node:%s:%s:%s",
-			np_get_protocol_string(node->protocol), node->dns_name, node->port);
+			_np_network_get_protocol_string(node->protocol), node->dns_name, node->port);
 
 	// create token
 	if (NULL != state->realm_name)
@@ -276,21 +280,21 @@ np_aaatoken_t* _np_create_node_token(np_node_t* node)
 	}
 	strncpy(node_token->issuer, node_subject, 255);
 	strncpy(node_token->subject, node_subject, 255);
-	// strncpy(node_token->audience, (char*) _key_as_str(state->my_identity->aaa_token->realm), 255);
+	// strncpy(node_token->audience, (char*) _np_key_as_str(state->my_identity->aaa_token->realm), 255);
 
-	node_token->uuid = np_create_uuid(node_subject, 0);
+	node_token->uuid = np_uuid_create(node_subject, 0);
 
 	node_token->not_before = ev_time();
 	node_token->expiration = ev_time() + 3600.0; // 1 hour valid token
 
     crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
 
-	tree_insert_str(node_token->extensions, NP_NODE_DNS_NAME,
-			new_val_s(node->dns_name));
-	tree_insert_str(node_token->extensions, NP_NODE_PORT,
-			new_val_s(node->port));
-	tree_insert_str(node_token->extensions, NP_NODE_PROTOCOL,
-			new_val_ush(node->protocol));
+	np_tree_insert_str(node_token->extensions, NP_NODE_DNS_NAME,
+			np_treeval_new_s(node->dns_name));
+	np_tree_insert_str(node_token->extensions, NP_NODE_PORT,
+			np_treeval_new_s(node->port));
+	np_tree_insert_str(node_token->extensions, NP_NODE_PROTOCOL,
+			np_treeval_new_ush(node->protocol));
 
 	_np_aaatoken_add_signature(node_token);
 
@@ -298,7 +302,7 @@ np_aaatoken_t* _np_create_node_token(np_node_t* node)
 	return (node_token);
 }
 
-void np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
+void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 {
 	node->protocol = proto;
 
@@ -310,15 +314,15 @@ void np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 }
 
 
-/** np_node_update_stat:
+/** _np_node_update_stat:
  ** updates the success rate to the host based on the SUCCESS_WINDOW average
  **/
-void np_node_update_stat (np_node_t* node, uint8_t success)
+void _np_node_update_stat (np_node_t* node, uint8_t success)
 {
     float total = 0;
     node->success_win[node->success_win_index++ % SUCCESS_WINDOW] = success;
     node->success_avg = 0.0;
-    // printf("SUCCESS_WIN["); 
+    // printf("SUCCESS_WIN[");
     for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
 	{
 	    total += node->success_win[i];
@@ -331,7 +335,7 @@ void np_node_update_stat (np_node_t* node, uint8_t success)
 			node->dns_name, node->port, node->success_avg);
 }
 
-void np_node_update_latency (np_node_t* node, double new_latency)
+void _np_node_update_latency (np_node_t* node, double new_latency)
 {
 	if (new_latency > 0.0)
 	{
@@ -357,31 +361,31 @@ void np_node_update_latency (np_node_t* node, double new_latency)
 	}
 }
 
-char* np_node_get_dns_name (np_node_t* np_node)
+char* _np_node_get_dns_name (np_node_t* np_node)
 {
 	assert(np_node != NULL);
 	return (np_node->dns_name);
 }
 
-char* np_node_get_port (np_node_t* np_node)
+char* _np_node_get_port (np_node_t* np_node)
 {
 	assert(np_node != NULL);
 	return (np_node->port);
 }
 
-float np_node_get_success_avg (np_node_t* np_node)
+float _np_node_get_success_avg (np_node_t* np_node)
 {
 	assert(np_node != NULL);
 	return (np_node->success_avg);
 }
 
-float np_node_get_latency (np_node_t* np_node)
+float _np_node_get_latency (np_node_t* np_node)
 {
 	assert(np_node != NULL);
 	return (np_node->latency);
 }
 
-uint8_t np_node_check_address_validity (np_node_t* np_node)
+uint8_t _np_node_check_address_validity (np_node_t* np_node)
 {
 	assert(np_node != NULL);
 	// assert(np_node->network != NULL);

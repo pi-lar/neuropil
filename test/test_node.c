@@ -9,7 +9,7 @@
 
 #include "msgpack/cmp.h"
 
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_log.h"
 #include "np_node.h"
 #include "np_memory.h"
@@ -21,13 +21,15 @@ void setup_node(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_MESSAGE;
 	np_log_init("test_node.log", log_level);
-	np_mem_init();
+
+	np_init("udp4", "31415", FALSE, "localhost");
 }
 
 void teardown_node(void)
 {
 	np_log_destroy();
 }
+
 
 TestSuite(np_node_t, .init=setup_node, .fini=teardown_node);
 
@@ -38,11 +40,11 @@ Test(np_node_t, _node_create, .description="test the creation of node structure"
 	np_new_obj(np_node_t, new_node_1);
 
 	log_msg(LOG_DEBUG, "creating 1st key/node");
-	np_node_update(new_node_1, IPv6 | UDP, "test1.pi-lar.net", "1111");
+	_np_node_update(new_node_1, IPv4 | UDP, "localhost", "1111");
 
-	np_aaatoken_t* node_token_1 = _np_create_node_token(new_node_1);
-	np_key_t* node_key_1 = _np_create_node_from_token(node_token_1);
-	np_key_t* node_key_2 = _np_node_decode_from_str ("e596f97cec7761a0a228451b4fa69b1f0cf7409ad5b830b173c2f264c97a0522:udp6:brandon.local:2222");
+	np_aaatoken_t* node_token_1 = _np_node_create_token(new_node_1);
+	np_key_t* node_key_1 = _np_node_create_from_token(node_token_1);
+	np_key_t* node_key_2 = _np_node_decode_from_str ("e596f97cec7761a0a228451b4fa69b1f0cf7409ad5b830b173c2f264c97a0522:udp4:localhost:2222");
 }
 
 
@@ -73,7 +75,7 @@ Test(np_node_t, _node_list_serialize, .description="test the serialization of a 
 	np_node_update(node_list[3], "test4.pi-lar.net", 0);
 
     log_msg(LOG_DEBUG, "serializing");
-	np_tree_t* node_jrb = make_nptree();
+	np_tree_t* node_jrb = np_tree_create();
 	_np_encode_nodes_to_jrb(node_jrb, node_list, TRUE);
 
 	cmp_ctx_t cmp;

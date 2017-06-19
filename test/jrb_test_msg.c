@@ -10,7 +10,7 @@
 #include "msgpack/cmp.h"
 
 #include "np_log.h"
-#include "np_val.h"
+#include "np_treeval.h"
 #include "np_jobqueue.h"
 #include "np_tree.h"
 #include "np_memory.h"
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORK | LOG_KEY;
 	log_init(log_file, level);
 
-	np_tree_t* test_jrb_1 = make_nptree();
+	np_tree_t* test_jrb_1 = np_tree_create();
 
 	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_1->size, test_jrb_1->byte_size);
     cmp_ctx_t cmp_empty;
@@ -33,8 +33,8 @@ int main(int argc, char **argv) {
     void* empty_buf_ptr = empty_buffer;
     memset(empty_buf_ptr, 0, 65536);
 
-    cmp_init(&cmp_empty, empty_buf_ptr, buffer_reader, buffer_writer);
-	serialize_jrb_node_t(test_jrb_1, &cmp_empty);
+    cmp_init(&cmp_empty, empty_buf_ptr, _np_buffer_reader, _np_buffer_writer);
+	_np_tree_serialize(test_jrb_1, &cmp_empty);
 
 	// np_jrb_t* node = NULL;
 	// cmp_write_array(&cmp_empty, 1);
@@ -43,14 +43,14 @@ int main(int argc, char **argv) {
 	// log_msg(LOG_DEBUG, "for %p; %p!=%p; %p=%p", test_jrb->flink, node, test_jrb, node, node->flink);
 	//	jrb_traverse(node, test_jrb) {
 	//		log_msg(LOG_INFO, "serializing now: %s", node->key.value.s);
-	//		serialize_jrb_node_t(node, &cmp_empty);
+	//		_np_tree_serialize(node, &cmp_empty);
 	//	}
 	// free (empty_buffer);
 	// np_free_tree(test_jrb_1);
 	jrb_insert_str(test_jrb_1, "halli", new_jval_s("galli"));
 	jrb_insert_str(test_jrb_1, "hallo", new_jval_s("gulli"));
 
-	np_tree_t* test_jrb_2 = make_nptree();
+	np_tree_t* test_jrb_2 = np_tree_create();
 	char* from = "from";
 	char* to = "to";
 	char* id = "id";
@@ -87,23 +87,23 @@ int main(int argc, char **argv) {
     void* buffer = malloc(65536);
     memset(buffer, 0, 65536);
 
-    cmp_init(&cmp, buffer, buffer_reader, buffer_writer);
-	serialize_jrb_node_t(test_jrb_2, &cmp);
+    cmp_init(&cmp, buffer, _np_buffer_reader, _np_buffer_writer);
+	_np_tree_serialize(test_jrb_2, &cmp);
 
 	log_msg(LOG_INFO, "serialized message is: %p %s (size: %d)", buffer, buffer, cmp.buf-buffer);
 	log_msg(LOG_INFO, "----------------------");
 	log_msg(LOG_INFO, "deserializing message:");
 
-	np_tree_t* out_jrb = make_nptree();
+	np_tree_t* out_jrb = np_tree_create();
 	cmp_ctx_t cmp_out;
 	// int cmp_err_out;
-	cmp_init(&cmp_out, buffer, buffer_reader, buffer_writer);
+	cmp_init(&cmp_out, buffer, _np_buffer_reader, _np_buffer_writer);
 
 	// unsigned int map_size = 0;
 	// cmp_err_out = cmp_read_map(&cmp_out, &map_size);
 	// if (!cmp_err_out) log_msg(LOG_WARN, cmp_strerror(&cmp_out));
 	// log_msg(LOG_INFO, "deserialized buffer contains %d elements", map_size);
-	deserialize_jrb_node_t(out_jrb, &cmp_out);
+	_np_tree_deserialize(out_jrb, &cmp_out);
 
 	log_msg(LOG_INFO, "deserialized tree is: %p (size %d)", out_jrb, out_jrb->size);
 	log_msg(LOG_INFO, "id: %d", jrb_find_str(out_jrb, "id")->val.value.i);

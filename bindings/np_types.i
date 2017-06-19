@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -27,8 +27,6 @@
 %ignore np_node_t;
 %ignore np_state_t;
 %ignore np_tree_t;
-%ignore np_val_t;
+%ignore np_treeval_t;
 
 %include "../include/np_types.h"
-
-

@@ -5,7 +5,7 @@ import platform
 print '####'
 print '#### starting neuropil build'
 print '####'
-print 'building on : ' + str(platform.machine()) + '/' + str(platform.processor()) + '/' + str(platform.system()) 
+print 'building on : ' + str(platform.machine()) + '/' + str(platform.processor()) + '/' + str(platform.system())
 
 # building on : x86_64/i386/Darwin
 # TARGET=x86_64-apple-darwin-macho
@@ -16,7 +16,7 @@ env.VariantDir('build/obj', 'src', duplicate=0)
 
 # read in additional compile flags
 analyze = ARGUMENTS.get('analyze', 0)
-build_tests = ARGUMENTS.get('test', 0)
+build_tests = ARGUMENTS.get('test', 1)
 build_doc = ARGUMENTS.get('doc', 0)
 debug = ARGUMENTS.get('debug', 0)
 release = ARGUMENTS.get('release', 0)
@@ -27,10 +27,10 @@ print '#### adding compiler options and flags'
 print '####'
 
 # add libev flags to the compilation
-env.Append(CCFLAGS = ['-DEV_STANDALONE']) 
-env.Append(CCFLAGS = ['-DHAVE_SELECT']) 
-env.Append(CCFLAGS = ['-DHAVE_KQUEUE']) 
-env.Append(CCFLAGS = ['-DHAVE_POLL']) 
+env.Append(CCFLAGS = ['-DEV_STANDALONE'])
+env.Append(CCFLAGS = ['-DHAVE_SELECT'])
+env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
+env.Append(CCFLAGS = ['-DHAVE_POLL'])
 
 env.Append(CCFLAGS = ['-std=c99'])
 env.Append(LDFLAGS = ['-std=c99'])
@@ -48,12 +48,16 @@ if int(debug):
 # platform specific compiler options
 if 'FreeBSD' in platform.system():
   env.Append(LIBS = ['util','m'] )
+  env.Append(LIBPATH = ['/usr/local/lib'] )
+  env.Append(CCFLAGS = ['-I/usr/local/include'] )
 if 'Darwin' in platform.system():
   env.Append(CCFLAGS = ['-Wno-deprecated'] )
   env.Append(CCFLAGS = ['-mmacosx-version-min=10.11'] )
   env.Append(CCFLAGS = ['-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include'] )
+  tpl_library_target = 'ios'
 if 'Linux' in platform.system():
   env.Append(CCFLAGS = ['-D_GNU_SOURCE'])
+  env.Append(LIBS = ['rt', 'pthread'] )
 if 'CYGWIN' in platform.system():
   # -std=gnu++0x doesn't work, so work around...
   env.Append(CCFLAGS = ['-U__STRICT_ANSI__'] )
@@ -72,12 +76,7 @@ print '#### detecting 3rd party libraries'
 print '####'
 
 # add 3rd party library path info here
-tpl_library_list = ['sodium', 'criterion']
-tpl_include_path = ['/usr/local/include', './lib/sodium/include', './lib/criterion/include']
-tpl_library_path = ['/usr/local/lib', './lib/sodium/lib', './lib/criterion/lib']
-
-env.Append(CPPPATH = tpl_include_path)
-env.Append(LIBPATH = tpl_library_path)
+tpl_library_list = ['sodium']
 env.Append(LIBS = tpl_library_list)
 
 conf = Configure(env)
@@ -85,20 +84,15 @@ conf = Configure(env)
 # Checks for libraries, header files, etc.
 if not conf.CheckLibWithHeader('sodium', 'sodium.h', 'c'):
     print 'Did not find libsodium.a or sodium.lib ...'
+    Exit(1)
 
-if not conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c'):
-    print 'Did not find libcriterion.a or criterion.lib !'
-    print '... Test cases cannot be compiled'
-    tpl_library_list = ['sodium']
-    tpl_include_path = ['/usr/local/include','./lib/sodium/include']
-    tpl_library_path = ['/usr/local/lib','./lib/sodium/lib']
-    env.Replace(CPPPATH = tpl_include_path)
-    env.Replace(LIBPATH = tpl_library_path)
-    env.Replace(LIBS = tpl_library_list)
-    build_tests = 0
+if int(release) < 1 and int(build_tests) > 0 and conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c'):
+    print 'Test cases included'
+    tpl_library_list += ['criterion']
+    env.Append(LIBS = tpl_library_list)
 else:
-    build_tests = 1
-
+    print 'Test cases not included'
+    build_tests = 0
 
 print '####'
 print '#### adding neuropil specific build path informations'
@@ -119,14 +113,14 @@ if int(analyze) and not scan_build_exe:
     print 'did not find clang checker executable in the path, skipping build of static code analysis'
     print 'please consider to install the additional clang static code analysis tool checker (version 278 as of this writing)'
     print '---'
-    Exit(0)
+    Exit(1)
 
 sphinx_exe = env.WhereIs('sphinx-build')
 if int(build_doc) and not sphinx_exe:
     print '---'
     print 'did not find sphinx executable in the path, skipping build of documentation'
     print '---'
-    Exit(0)
+    Exit(1)
 
 env = conf.Finish()
 
@@ -157,45 +151,62 @@ if int(analyze) and scan_build_exe:
 
 # sources for neuropil
 SOURCES =  ['build/obj/dtime.c','build/obj/neuropil.c','build/obj/np_aaatoken.c','build/obj/np_axon.c','build/obj/np_dendrit.c']
-SOURCES += ['build/obj/np_glia.c','build/obj/np_http.c','build/obj/np_jobqueue.c','build/obj/np_key.c','build/obj/np_keycache.c']
+SOURCES += ['build/obj/np_glia.c','build/obj/np_http.c','build/obj/np_jobqueue.c','build/obj/np_dhkey.c','build/obj/np_key.c','build/obj/np_keycache.c']
 SOURCES += ['build/obj/np_log.c','build/obj/np_memory.c','build/obj/np_message.c','build/obj/np_msgproperty.c','build/obj/np_network.c','build/obj/np_node.c']
-SOURCES += ['build/obj/np_route.c','build/obj/np_tree.c','build/obj/np_util.c','build/obj/np_val.c']
+SOURCES += ['build/obj/np_route.c','build/obj/np_tree.c','build/obj/np_util.c','build/obj/np_treeval.c','build/obj/np_threads.c']
+SOURCES += ['build/obj/np_sysinfo.c','build/obj/np_scache.c','build/obj/np_event.c','build/obj/np_messagepart.c']
 # source code 3rd party libraries
 SOURCES += ['build/obj/event/ev.c','build/obj/http/htparse.c','build/obj/json/parson.c','build/obj/msgpack/cmp.c']
 
 # test cases for neuropil
-TESTS = ['test/test_suites.c']
+TESTS =  ['test/test_suites.c']
 
 print '####'
 print '#### building neuropil libraries/testsuite/example programs:'
 print '####'
-# build the neuropil library as static and shared library 
+# build the neuropil library as static and shared library
 
 np_stlib = env.Library('build/lib/neuropil', SOURCES, LIBS=tpl_library_list)
 np_dylib = env.SharedLibrary('build/lib/neuropil', SOURCES, LIBS=tpl_library_list)
+AlwaysBuild(np_dylib)
+AlwaysBuild(np_stlib)
 
 # build test executable
 if int(build_tests):
-    test_suite = env.Program('bin/neuropil_test_suite', TESTS) 
+    test_suite = env.Program('bin/neuropil_test_suite', TESTS)
     Depends(test_suite, np_dylib)
     AlwaysBuild(test_suite)
 
 # build example programs
-prg_np_ctrl = env.Program('bin/neuropil_controller', 'test/neuropil_controller.c') 
+prg_np_ctrl = env.Program('bin/neuropil_controller', 'examples/neuropil_controller.c')
 Depends(prg_np_ctrl, np_dylib)
 
-prg_np_node = env.Program('bin/neuropil_node', 'test/neuropil_node.c') 
+prg_np_node = env.Program('bin/neuropil_node', 'examples/neuropil_node.c')
 Depends(prg_np_node, np_dylib)
 
-prg_np_recv = env.Program('bin/neuropil_receiver', 'test/neuropil_receiver.c') 
+prg_np_recv = env.Program('bin/neuropil_receiver', 'examples/neuropil_receiver.c')
 Depends(prg_np_recv, np_dylib)
 
-prg_np_send = env.Program('bin/neuropil_sender', 'test/neuropil_sender.c') 
+prg_np_send = env.Program('bin/neuropil_sender', 'examples/neuropil_sender.c')
 Depends(prg_np_send, np_dylib)
 
-prg_np_rccb = env.Program('bin/neuropil_receiver_cb', 'test/neuropil_receiver_cb.c') 
+prg_np_rccb = env.Program('bin/neuropil_receiver_cb', 'examples/neuropil_receiver_cb.c')
 Depends(prg_np_rccb, np_dylib)
 
+prg_np_rccb = env.Program('bin/neuropil_pingpong', 'examples/neuropil_pingpong.c')
+Depends(prg_np_rccb, np_dylib)
+
+prg_np_hydra = env.Program('bin/neuropil_hydra', 'examples/neuropil_hydra.c')
+Depends(prg_np_hydra, np_dylib)
+
+prg_np_shared_hydra = env.Program('bin/neuropil_shared_hydra', 'examples/neuropil_shared_hydra.c')
+Depends(prg_np_shared_hydra, np_dylib)
+
+prg_np_hydra = env.Program('bin/neuropil_echo_server', 'examples/neuropil_echo_server.c')
+Depends(prg_np_hydra, np_dylib)
+
+prg_np_hydra = env.Program('bin/neuropil_echo_client', 'examples/neuropil_echo_client.c')
+Depends(prg_np_hydra, np_dylib)
 
 # clean up
 Clean('.', 'build')

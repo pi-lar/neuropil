@@ -5,43 +5,29 @@
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.toolchain.gnu.macosx.base.727082218" moduleId="org.eclipse.cdt.core.settings" name="Default">
 				<externalSettings/>
 				<extensions>
+					<extension id="org.eclipse.cdt.core.MachO64" point="org.eclipse.cdt.core.BinaryParser"/>
 					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.MachO64" point="org.eclipse.cdt.core.BinaryParser"/>
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactName="${ProjName}" buildProperties="" description="" id="cdt.managedbuild.toolchain.gnu.macosx.base.727082218" name="Default" parent="org.eclipse.cdt.build.core.emptycfg">
+				<configuration artifactName="${ProjName}" buildProperties="" description="" id="cdt.managedbuild.toolchain.gnu.macosx.base.727082218" name="Default" parent="org.eclipse.cdt.build.core.emptycfg" prebuildStep="/usr/local/bin/scons --clean">
 					<folderInfo id="cdt.managedbuild.toolchain.gnu.macosx.base.727082218.1630778850" name="/" resourcePath="">
-						<toolChain id="cdt.managedbuild.toolchain.llvm.clang.macosx.base.515697077" name="LLVM with Clang (MacOSX)" superClass="cdt.managedbuild.toolchain.llvm.clang.macosx.base">
-							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.MachO64" id="cdt.managedbuild.target.llvm.macosx.platform.base.596990971" isAbstract="true" name="Debug Platform" osList="macosx" superClass="cdt.managedbuild.target.llvm.macosx.platform.base"/>
-							<builder buildPath="${workspace_loc:/neuropil}/Default" id="cdt.managedbuild.target.gnu.builder.base.133521200" superClass="cdt.managedbuild.target.gnu.builder.base"/>
-							<tool id="cdt.managedbuild.tool.llvm.assembler.base.1961241756" name="LLVM assembler" superClass="cdt.managedbuild.tool.llvm.assembler.base"/>
-							<tool id="cdt.managedbuild.tool.llvm.archiver.base.1501293311" name="LLVM archiver" superClass="cdt.managedbuild.tool.llvm.archiver.base"/>
-							<tool id="cdt.managedbuild.tool.llvm.c.compiler.base.1771752387" name="LLVM Clang" superClass="cdt.managedbuild.tool.llvm.c.compiler.base">
-								<option id="llvm.c_cpp.compiler.option.include.paths.239189622" superClass="llvm.c_cpp.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/neuropil/include}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/neuropil/lib/criterion-v2.2.1/include}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/neuropil/lib/libsodium-master/src/libsodium/include}&quot;"/>
-								</option>
-								<inputType id="cdt.managedbuild.tool.llvm.c.compiler.input.154900896" superClass="cdt.managedbuild.tool.llvm.c.compiler.input"/>
-							</tool>
-							<tool id="cdt.managedbuild.tool.llvm.cpp.compiler.base.1439650367" name="LLVM Clang++" superClass="cdt.managedbuild.tool.llvm.cpp.compiler.base"/>
-							<tool id="cdt.managedbuild.tool.llvm.c.linker.base.254392630" name="LLVM Clang C linker" superClass="cdt.managedbuild.tool.llvm.c.linker.base">
-								<inputType id="cdt.managedbuild.tool.llvm.c.linker.input.141858624" superClass="cdt.managedbuild.tool.llvm.c.linker.input">
-									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
-									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
-								</inputType>
-							</tool>
-							<tool id="cdt.managedbuild.tool.llvm.cpp.linker.base.751408455" name="LLVM Clang C++ linker" superClass="cdt.managedbuild.tool.llvm.cpp.linker.base"/>
+						<toolChain id="cdt.managedbuild.toolchain.llvm.clang.macosx.base.515697077" name="LLVM with Clang (MacOSX)" nonInternalBuilderId="cdt.managedbuild.target.gnu.builder.base">
+							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.MachO64" id="cdt.managedbuild.target.llvm.macosx.platform.base.596990971" isAbstract="true" name="Debug Platform" osList="macosx"/>
+							<builder autoBuildTarget="all" buildPath="${workspace_loc:/neuropil}/Default" cleanBuildTarget=" --clean" command="scons" enableAutoBuild="false" enableCleanBuild="true" enabledIncrementalBuild="true" id="cdt.managedbuild.target.gnu.builder.base.759357473" incrementalBuildTarget="" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" parallelBuildOn="false" superClass="cdt.managedbuild.target.gnu.builder.base"/>
 						</toolChain>
 					</folderInfo>
+					<folderInfo id="cdt.managedbuild.toolchain.gnu.macosx.base.727082218.931972630" name="/" resourcePath="src">
+						<toolChain id="cdt.managedbuild.toolchain.llvm.clang.macosx.base.515697077.2042751148" name="LLVM with Clang (MacOSX)" superClass="cdt.managedbuild.toolchain.llvm.clang.macosx.base.515697077" unusedChildren=""/>
+					</folderInfo>
 					<sourceEntries>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="criterion_usr_local_include"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="examples"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="include"/>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="src"/>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="test"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="usr_include"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -49,7 +35,7 @@
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-		<project id="neuropil.null.1776697634" name="neuropil"/>
+		<project id="neuropil.null.983024725" name="neuropil"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
@@ -75,5 +61,8 @@
 				<runAllBuilders>true</runAllBuilders>
 			</target>
 		</buildTargets>
+	</storageModule>
+	<storageModule moduleId="ch.hsr.ifs.sconsolidator.core.buildtargets">
+		<buildTargets/>
 	</storageModule>
 </cproject>

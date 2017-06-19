@@ -26,112 +26,111 @@
     %immutable byte_size;
 
     np_tree_s() {
-        np_tree_t *tree = make_nptree();
+        np_tree_t *tree = np_tree_create();
         return tree;
     }
     ~np_tree_s() {
-        np_free_tree($self);
+        np_tree_free($self);
     }
     void clear() {
-        np_clear_tree($self);
-    }
-    
-    void insert_str (const char *key, np_val_t val) {
-        tree_insert_str ($self, key, val);
-    }
-    void insert_int (int16_t ikey, np_val_t val) {
-        tree_insert_int ($self, ikey, val);
-    }
-    void insert_ulong (uint32_t ulkey, np_val_t val) {
-        tree_insert_ulong ($self, ulkey, val);
-    }
-    void insert_dbl (double dkey, np_val_t val) {
-        tree_insert_dbl ($self, dkey, val);
+        np_tree_clear($self);
     }
 
-    void replace_str (const char *key, np_val_t val){
-        tree_replace_str ($self,  key,  val);
+    void insert_str (const char *key, np_treeval_t val) {
+        np_tree_insert_str ($self, key, val);
     }
-    void replace_int (int16_t ikey, np_val_t val){
-        tree_replace_int ($self,  ikey,  val);
+    void insert_int (int16_t ikey, np_treeval_t val) {
+        np_tree_insert_int ($self, ikey, val);
     }
-    void replace_ulong (uint32_t ulkey, np_val_t val){
-        tree_replace_ulong ($self, ulkey, val);
+    void insert_ulong (uint32_t ulkey, np_treeval_t val) {
+        np_tree_insert_ulong ($self, ulkey, val);
     }
-    void replace_dbl (double dkey, np_val_t val){
-        tree_replace_dbl ($self, dkey, val);
+    void insert_dbl (double dkey, np_treeval_t val) {
+        np_tree_insert_dbl ($self, dkey, val);
     }
-    
-    np_val_t find_str (const char *key) {
-        np_tree_elem_t*  elem = elem = tree_find_str ($self, key);
+
+    void replace_str (const char *key, np_treeval_t val){
+        np_tree_replace_str ($self,  key,  val);
+    }
+    void replace_int (int16_t ikey, np_treeval_t val){
+        np_tree_replace_int ($self,  ikey,  val);
+    }
+    void replace_ulong (uint32_t ulkey, np_treeval_t val){
+        np_tree_replace_ulong ($self, ulkey, val);
+    }
+    void replace_dbl (double dkey, np_treeval_t val){
+        np_tree_replace_dbl ($self, dkey, val);
+    }
+
+    np_treeval_t find_str (const char *key) {
+        np_tree_elem_t*  elem = elem = np_tree_find_str ($self, key);
         if (elem) return elem->val;
-        else return NP_VAL_NULL;
+        else return np_treeval_NULL;
     }
-    np_val_t find_int (int16_t ikey){
-        np_tree_elem_t*  elem = tree_find_int ($self, ikey);
+    np_treeval_t find_int (int16_t ikey){
+        np_tree_elem_t*  elem = np_tree_find_int ($self, ikey);
         if (elem) return elem->val;
-        else return NP_VAL_NULL;
+        else return np_treeval_NULL;
     }
-    np_val_t find_ulong (uint32_t ikey){
-        np_tree_elem_t*  elem = tree_find_ulong ($self, ikey);
+    np_treeval_t find_ulong (uint32_t ikey){
+        np_tree_elem_t*  elem = np_tree_find_ulong ($self, ikey);
         if (elem) return elem->val;
-        else return NP_VAL_NULL;
+        else return np_treeval_NULL;
     }
-    np_val_t find_dbl (double dkey){
-        np_tree_elem_t* elem = tree_find_dbl ($self, dkey);
+    np_treeval_t find_dbl (double dkey){
+        np_tree_elem_t* elem = np_tree_find_dbl ($self, dkey);
         if (elem) return elem->val;
-        else return NP_VAL_NULL;
+        else return np_treeval_NULL;
     }
-    
+
     void del_str (const char *key) {
-        tree_del_str ($self, key);
+        np_tree_del_str ($self, key);
     }
     void del_int (const int16_t key) {
-        tree_del_int ($self, key);
+        np_tree_del_int ($self, key);
     }
     void del_double (const double key){
-        tree_del_double ($self, key);
+        np_tree_del_double ($self, key);
     }
     void del_ulong (const uint32_t key) {
-        tree_del_ulong ($self, key);
+        np_tree_del_ulong ($self, key);
     }
 };
 
 %ignore np_tree_elem_s;
 
 %ignore _val_cmp;
-%ignore _tree_replace_all_with_str;
+%ignore _np_tree_replace_all_with_str;
 %ignore jrb_get_byte_size;
 %ignore np_print_tree;
 
-%ignore make_nptree;
-%ignore np_free_tree;
-%ignore np_clear_tree;
+%ignore np_tree_create;
+%ignore np_tree_free;
+%ignore np_tree_clear;
 
-%ignore tree_insert_str;
-%ignore tree_insert_int;
-%ignore tree_insert_ulong;
-%ignore tree_insert_dbl;
+%ignore np_tree_insert_str;
+%ignore np_tree_insert_int;
+%ignore np_tree_insert_ulong;
+%ignore np_tree_insert_dbl;
 
-%ignore tree_replace_str;
-%ignore tree_replace_int;
-%ignore tree_replace_ulong;
-%ignore tree_replace_dbl;
+%ignore np_tree_replace_str;
+%ignore np_tree_replace_int;
+%ignore np_tree_replace_ulong;
+%ignore np_tree_replace_dbl;
 
-%ignore tree_find_str;
-%ignore tree_find_int;
-%ignore tree_find_ulong;
-%ignore tree_find_dbl;
+%ignore np_tree_find_str;
+%ignore np_tree_find_int;
+%ignore np_tree_find_ulong;
+%ignore np_tree_find_dbl;
 
-%ignore tree_find_gte_str;
-%ignore tree_find_gte_int;
-%ignore tree_find_gte_ulong;
-%ignore tree_find_gte_dbl;
+%ignore np_tree_find_gte_str;
+%ignore np_tree_find_gte_int;
+%ignore np_tree_find_gte_ulong;
+%ignore np_tree_find_gte_dbl;
 
-%ignore tree_del_str;
-%ignore tree_del_int;
-%ignore tree_del_double;
-%ignore tree_del_ulong;
+%ignore np_tree_del_str;
+%ignore np_tree_del_int;
+%ignore np_tree_del_double;
+%ignore np_tree_del_ulong;
 
 %include "../include/np_tree.h"
-

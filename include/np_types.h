@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_TYPES_H_
@@ -69,6 +69,7 @@ typedef struct np_key_s np_key_t;
 
 typedef struct np_message_s np_message_t;
 typedef struct np_msgproperty_s np_msgproperty_t;
+typedef struct _np_message_buffer_container_s _np_message_buffer_container_t;
 
 typedef struct np_network_s np_network_t;
 typedef struct np_node_s np_node_t;
@@ -77,7 +78,7 @@ typedef struct np_state_s np_state_t;
 
 typedef struct np_tree_s np_tree_t;
 
-typedef struct np_val_s np_val_t;
+typedef struct np_treeval_s np_treeval_t;
 
 /*
  * list types and typedefs
@@ -94,7 +95,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_message_t);
  *  user callback functions
  */
 typedef np_bool (*np_aaa_func_t) (np_aaatoken_t* aaa_token );
-typedef np_bool (*np_usercallback_t) (np_tree_t* msg_properties, np_tree_t* msg_body);
+typedef np_bool (*np_usercallback_t) (const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
 
 // internal callback functions
 typedef void (*np_callback_t) (np_jobargs_t*);

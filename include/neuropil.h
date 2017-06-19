@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version was taken from chimera project, but heavily modified
@@ -7,6 +7,7 @@
 neuropil.h is the entry point to use the neuropil messaging library.
 It defines all user centric functions and hides the complexity of the double encryption layer.
 It should contain all required functions to send or receive messages.
+
 */
 
 #ifndef _NEUROPIL_H_
@@ -16,10 +17,20 @@ It should contain all required functions to send or receive messages.
 
 #include "np_types.h"
 
+#define NP_VERSION_MAJOR	"0"
+#define NP_VERSION_MINOR	"2"
+#define NP_VERSION_RELEASE	"0"
+
+#define NEUROPIL_VERSION	"neuropil " NP_VERSION_MAJOR "." NP_VERSION_MINOR
+#define NEUROPIL_RELEASE	NEUROPIL_VERSION "." NP_VERSION_RELEASE
+#define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2017 neuropil.org, Cologne, Germany"
+#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2017 pi-lar GmbH, Cologne, Germany"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** \toggle_keepwhitespaces  */
 
 /**
 .. c:type:: np_state_t
@@ -55,18 +66,20 @@ struct np_state_s
 
 
 /**
-.. c:function:: np_state_t* np_init(char* protocol, char* port)
+.. c:function:: np_state_t* np_init(char* protocol, char* port, np_bool start_http, char* hostname)
 
    Initializes the neuropil library and instructs to listen on the given port. Protocol is a string defining
    the IP protocol to use (tcp/udp/ipv4/ipv6/...), right now only udp is implemented
 
    :param port: the port to listen on, default is 3141
    :param proto: the default value for the protocol "udp6", which is UDP | IPv6
+   :param start_http: if the http server on port 31415 should start (default: FALSE)
+   :param hostname: (optional) The hostname to bind on. If not provided will be received via gethostname()
    :return: the np_state_t* which contains global state of different np sub modules or NULL on failure
 
 */
 NP_API_EXPORT
-np_state_t* np_init (char* proto, char* port, np_bool start_http);
+np_state_t* np_init (char* proto, char* port, np_bool start_http, char* hostname);
 
 /**
 .. c:function:: np_state_t* np_destroy()
@@ -131,7 +144,7 @@ NP_API_EXPORT
 void np_set_identity(np_aaatoken_t* identity);
 
 /**
-.. c:function:: np_sendjoin(np_key_t* node_key);
+.. c:function:: np_send_join(np_key_t* node_key);
 
    send a join message to another node and request to enter his network.
 
@@ -142,6 +155,22 @@ void np_set_identity(np_aaatoken_t* identity);
 */
 NP_API_EXPORT
 void np_send_join(const char* node_string);
+
+/**
+  .. c:function:: np_send_wildcard_join(np_key_t* node_key);
+
+  Takes a node connection string and tries to connect to any node available on the other end.
+  node_string should not contain a hash value (nor the trailing: character).
+  Example: np_send_wildcard_join("udp4:example.com:1234");
+
+  :param node_key_string: the node string to which the join request is send
+
+  see also :ref:`to_join_or_to_be_joined`
+
+ */
+NP_API_EXPORT
+void np_send_wildcard_join(const char* node_string);
+
 
 /**
 .. c:function:: np_waitforjoin()
@@ -197,10 +226,11 @@ void np_set_listener (np_usercallback_t msg_handler, char* subject);
    :param subject: the subject the data should be send to
    :param data: the message text that should be send
    :param seqnum: a sequence number which will be stored in the message properties
+   :param targetDhkey: (optional/nullable) a dhkey hash to define a specific receiver node
 
 */
 NP_API_EXPORT
-void np_send_text    (char* subject, char *data, uint32_t seqnum);
+void np_send_text    (char* subject, char *data, uint32_t seqnum, char* targetDhkey);
 
 /**
 .. c:function:: void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body)
@@ -211,10 +241,11 @@ void np_send_text    (char* subject, char *data, uint32_t seqnum);
    :param subject: the subject the data should be send to
    :param properties: a tree (np_tree_t) structure containing the properties of a message
    :param body: a tree (np_tree_t) structure containing the body of a message
+   :param target_key: (optional/nullable) a dhkey to define a specific receiver node
 
 */
 NP_API_EXPORT
-void np_send_msg    (char* subject, np_tree_t *properties, np_tree_t *body);
+void np_send_msg    (char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
 
 /**
 .. c:function:: uint32_t np_receive_text(char* subject, char **data)
@@ -244,7 +275,7 @@ NP_API_EXPORT
 uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body);
 
 /**
-.. c:function:: void np_set_mx_properties(char* subject, const char* key, np_val_t value)
+.. c:function:: void np_set_mx_properties(char* subject, const char* key, np_treeval_t value)
 
    Set properties of a message exchange for a given by subject.
    Using this function the message exchange for a subject can be altered on the fly without interruption.
@@ -256,7 +287,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body);
    :param value: the value which should be set
 
 */
-void np_set_mx_property(char* subject, const char* key, np_val_t value);
+void np_set_mx_property(char* subject, const char* key, np_treeval_t value);
 
 /**
 .. c:function:: void np_rem_mx_properties(char* subject, const char* key)
@@ -272,6 +303,26 @@ void np_set_mx_property(char* subject, const char* key, np_val_t value);
 
 */
 void np_rem_mx_property(char* subject, const char* key);
+
+/**
+.. c:function:: char*  np_get_connection_string()
+
+   Convenience function to build the current connection string for the node.
+
+*/
+NP_API_EXPORT
+char* np_get_connection_string();
+
+/**
+.. c:function:: char*  np_get_connection_string_from(np_key_t* node_key, char* hash)
+
+   Convenience function to build the connection string for any node key.
+   :param node_key: the np_key_t to build the connection string for
+   :param includeHash: Include the hash into the connection string
+
+*/
+NP_API_EXPORT
+char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash);
 
 /**
 .. c:function:: void np_start_job_queue(np_state_t* state, uint8_t pool_size)

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -15,21 +15,25 @@
 #include <ctype.h>
 #include <assert.h>
 #include <pthread.h>
+#include <inttypes.h>
 
 #include "np_tree.h"
+#include "np_treeval.h"
 
+#include "np_util.h"
 #include "np_log.h"
 
-RB_GENERATE(np_tree_s, np_tree_elem_s, link, _val_cmp);
+RB_GENERATE(np_tree_s, np_tree_elem_s, link, _np_tree_elem_cmp);
 
-//RB_GENERATE_STATIC(np_str_jtree, np_tree_elem_s, link, _val_cmp);
-//RB_GENERATE_STATIC(np_int_jtree, np_tree_elem_s, link, _val_cmp);
-//RB_GENERATE_STATIC(np_dbl_jtree, np_tree_elem_s, link, _val_cmp);
-//RB_GENERATE_STATIC(np_ulong_jtree, np_tree_elem_s, link, _val_cmp);
+//RB_GENERATE_STATIC(np_str_jtree, np_tree_elem_s, link, _np_tree_elem_cmp);
+//RB_GENERATE_STATIC(np_int_jtree, np_tree_elem_s, link, _np_tree_elem_cmp);
+//RB_GENERATE_STATIC(np_dbl_jtree, np_tree_elem_s, link, _np_tree_elem_cmp);
+//RB_GENERATE_STATIC(np_ulong_jtree, np_tree_elem_s, link, _np_tree_elem_cmp);
 
-np_tree_t* make_nptree ()
+np_tree_t* np_tree_create ()
 {
 	np_tree_t* new_tree = (np_tree_t*) malloc(sizeof(np_tree_t));
+	CHECK_MALLOC(new_tree);
 
 	new_tree->rbh_root = NULL;
 	new_tree->size = 0;
@@ -38,13 +42,13 @@ np_tree_t* make_nptree ()
 	return new_tree;
 }
 
-int16_t _val_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2)
+int16_t _np_tree_elem_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2)
 {
 	assert(NULL != j1);
 	assert(NULL != j2);
 
-	np_val_t jv1 = j1->key;
-	np_val_t jv2 = j2->key;
+	np_treeval_t jv1 = j1->key;
+	np_treeval_t jv2 = j2->key;
 
 	if (jv1.type == jv2.type)
 	{
@@ -70,14 +74,14 @@ int16_t _val_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2)
 	return (0);
 };
 
-np_tree_elem_t* tree_find_gte_str (np_tree_t* n, const char *key, uint8_t *fnd)
+np_tree_elem_t* np_tree_find_gte_str (np_tree_t* n, const char *key, uint8_t *fnd)
 {
 	assert(n   != NULL);
 	assert(key != NULL);
 
 	np_tree_elem_t* result = NULL;
 
-	np_val_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
+	np_treeval_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	result = RB_NFIND(np_tree_s, n, &search_elem);
@@ -93,23 +97,23 @@ np_tree_elem_t* tree_find_gte_str (np_tree_t* n, const char *key, uint8_t *fnd)
 	return (result);
 }
 
-np_tree_elem_t* tree_find_str (np_tree_t* n, const char *key)
+np_tree_elem_t* np_tree_find_str (np_tree_t* n, const char *key)
 {
 	assert(NULL != n);
 	assert(NULL != key);
 
-	np_val_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
+	np_treeval_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
 	np_tree_elem_t search_elem = { .key = search_key };
 	return RB_FIND(np_tree_s, n, &search_elem);
 }
 
-np_tree_elem_t* tree_find_gte_int (np_tree_t* n, int16_t ikey, uint8_t *fnd)
+np_tree_elem_t* np_tree_find_gte_int (np_tree_t* n, int16_t ikey, uint8_t *fnd)
 {
 	assert(n   != NULL);
 
 	np_tree_elem_t* result = NULL;
 
-	np_val_t search_key = { .type = int_type, .value.i = ikey };
+	np_treeval_t search_key = { .type = int_type, .value.i = ikey };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	result = RB_NFIND(np_tree_s, n, &search_elem);
@@ -126,20 +130,20 @@ np_tree_elem_t* tree_find_gte_int (np_tree_t* n, int16_t ikey, uint8_t *fnd)
 	return (result);
 }
 
-np_tree_elem_t* tree_find_int (np_tree_t* n, int16_t key)
+np_tree_elem_t* np_tree_find_int (np_tree_t* n, int16_t key)
 {
-	np_val_t search_key = { .type = int_type, .value.i = key };
+	np_treeval_t search_key = { .type = int_type, .value.i = key };
 	np_tree_elem_t search_elem = { .key = search_key };
 	return (RB_FIND(np_tree_s, n, &search_elem));
 }
 
-np_tree_elem_t* tree_find_gte_ulong (np_tree_t* n, uint32_t ulkey, uint8_t *fnd)
+np_tree_elem_t* np_tree_find_gte_ulong (np_tree_t* n, uint32_t ulkey, uint8_t *fnd)
 {
 	assert(n   != NULL);
 
 	np_tree_elem_t* result = NULL;
 
-	np_val_t search_key = { .type = unsigned_long_type, .value.ul = ulkey };
+	np_treeval_t search_key = { .type = unsigned_long_type, .value.ul = ulkey };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	result = RB_NFIND(np_tree_s, n, &search_elem);
@@ -156,20 +160,20 @@ np_tree_elem_t* tree_find_gte_ulong (np_tree_t* n, uint32_t ulkey, uint8_t *fnd)
 	return (result);
 }
 
-np_tree_elem_t* tree_find_ulong (np_tree_t* n, uint32_t ulkey)
+np_tree_elem_t* np_tree_find_ulong (np_tree_t* n, uint32_t ulkey)
 {
-	np_val_t search_key = { .type = unsigned_long_type, .value.ul = ulkey };
+	np_treeval_t search_key = { .type = unsigned_long_type, .value.ul = ulkey };
 	np_tree_elem_t search_elem = { .key = search_key };
 	return (RB_FIND(np_tree_s, n, &search_elem));
 }
 
-np_tree_elem_t* tree_find_gte_dbl (np_tree_t* n, double dkey, uint8_t *fnd)
+np_tree_elem_t* np_tree_find_gte_dbl (np_tree_t* n, double dkey, uint8_t *fnd)
 {
 	assert(n   != NULL);
 
 	np_tree_elem_t* result = NULL;
 
-	np_val_t search_key = { .type = double_type, .value.d = dkey };
+	np_treeval_t search_key = { .type = double_type, .value.d = dkey };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	result = RB_NFIND(np_tree_s, n, &search_elem);
@@ -186,16 +190,17 @@ np_tree_elem_t* tree_find_gte_dbl (np_tree_t* n, double dkey, uint8_t *fnd)
 	return (result);
 }
 
-np_tree_elem_t* tree_find_dbl (np_tree_t* n, double dkey)
+
+np_tree_elem_t* np_tree_find_dbl (np_tree_t* n, double dkey)
 {
-	np_val_t search_key = { .type = double_type, .value.d = dkey };
+	np_treeval_t search_key = { .type = double_type, .value.d = dkey };
 	np_tree_elem_t search_elem = { .key = search_key };
 	return (RB_FIND(np_tree_s, n, &search_elem));
 }
 
-void tree_del_str (np_tree_t* tree, const char *key)
+void np_tree_del_str (np_tree_t* tree, const char *key)
 {
-	np_val_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
+	np_treeval_t search_key = { .type = char_ptr_type, .value.s = (char*) key };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	np_tree_elem_t* to_delete = RB_FIND(np_tree_s, tree, &search_elem);
@@ -203,75 +208,75 @@ void tree_del_str (np_tree_t* tree, const char *key)
 	{
 		RB_REMOVE(np_tree_s, tree, to_delete);
 
-		tree->byte_size -= jrb_get_byte_size(to_delete);
+		tree->byte_size -= np_tree_get_byte_size(to_delete);
 		tree->size--;
 		free(to_delete->key.value.s);
 
 		if (to_delete->val.type == char_ptr_type) free(to_delete->val.value.s);
 		if (to_delete->val.type == bin_type) free(to_delete->val.value.bin);
-		if (to_delete->val.type == jrb_tree_type) np_free_tree(to_delete->val.value.tree);
+		if (to_delete->val.type == jrb_tree_type) np_tree_free(to_delete->val.value.tree);
 
 		free (to_delete);
 	}
 }
 
-void tree_del_int (np_tree_t* tree, const int16_t key)
+void np_tree_del_int (np_tree_t* tree, const int16_t key)
 {
-	np_val_t search_key = { .type = int_type, .value.i = key };
+	np_treeval_t search_key = { .type = int_type, .value.i = key };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	np_tree_elem_t* to_delete = RB_FIND(np_tree_s, tree, &search_elem);
 	if (to_delete != NULL)
 	{
 		RB_REMOVE(np_tree_s, tree, to_delete);
-		tree->byte_size -= jrb_get_byte_size(to_delete);
+		tree->byte_size -= np_tree_get_byte_size(to_delete);
 		tree->size--;
 		if (to_delete->val.type == char_ptr_type) free(to_delete->val.value.s);
 		if (to_delete->val.type == bin_type) free(to_delete->val.value.bin);
-		if (to_delete->val.type == jrb_tree_type) np_free_tree(to_delete->val.value.tree);
+		if (to_delete->val.type == jrb_tree_type) np_tree_free(to_delete->val.value.tree);
 
 		free (to_delete);
 	}
 }
 
-void tree_del_double (np_tree_t* tree, const double dkey)
+void np_tree_del_double (np_tree_t* tree, const double dkey)
 {
-	np_val_t search_key = { .type = double_type, .value.d = dkey };
+	np_treeval_t search_key = { .type = double_type, .value.d = dkey };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	np_tree_elem_t* to_delete = RB_FIND(np_tree_s, tree, &search_elem);
 	if (to_delete != NULL)
 	{
 		RB_REMOVE(np_tree_s, tree, to_delete);
-		tree->byte_size -= jrb_get_byte_size(to_delete);
+		tree->byte_size -= np_tree_get_byte_size(to_delete);
 		tree->size--;
 		if (to_delete->val.type == char_ptr_type) free(to_delete->val.value.s);
 		if (to_delete->val.type == bin_type) free(to_delete->val.value.bin);
-		if (to_delete->val.type == jrb_tree_type) np_free_tree(to_delete->val.value.tree);
+		if (to_delete->val.type == jrb_tree_type) np_tree_free(to_delete->val.value.tree);
 		free (to_delete);
 	}
 }
 
-void tree_del_ulong (np_tree_t* tree, const uint32_t key)
+void np_tree_del_ulong (np_tree_t* tree, const uint32_t key)
 {
-	np_val_t search_key = { .type = unsigned_long_type, .value.ul = key };
+	np_treeval_t search_key = { .type = unsigned_long_type, .value.ul = key };
 	np_tree_elem_t search_elem = { .key = search_key };
 
 	np_tree_elem_t* to_delete = RB_FIND(np_tree_s, tree, &search_elem);
 	if (to_delete != NULL)
 	{
 		RB_REMOVE(np_tree_s, tree, to_delete);
-		tree->byte_size -= jrb_get_byte_size(to_delete);
+		tree->byte_size -= np_tree_get_byte_size(to_delete);
 		tree->size--;
 		if (to_delete->val.type == char_ptr_type) free(to_delete->val.value.s);
 		if (to_delete->val.type == bin_type) free(to_delete->val.value.bin);
-		if (to_delete->val.type == jrb_tree_type) np_free_tree(to_delete->val.value.tree);
+		if (to_delete->val.type == jrb_tree_type) np_tree_free(to_delete->val.value.tree);
 
 		free (to_delete);
 	}
 }
 
-void np_clear_tree (np_tree_t* n)
+void np_tree_clear (np_tree_t* n)
 {
 	np_tree_elem_t* iter = RB_MIN(np_tree_s, n);
 	np_tree_elem_t* tmp = NULL;
@@ -288,16 +293,16 @@ void np_clear_tree (np_tree_t* n)
 			switch (tmp->key.type)
 			{
 			case (char_ptr_type):
-				tree_del_str(n, tmp->key.value.s);
+				np_tree_del_str(n, tmp->key.value.s);
 				break;
 			case (int_type):
-				tree_del_int(n, tmp->key.value.i);
+				np_tree_del_int(n, tmp->key.value.i);
 				break;
 			case (double_type):
-				tree_del_double(n, tmp->key.value.d);
+				np_tree_del_double(n, tmp->key.value.d);
 				break;
 			case (unsigned_long_type):
-				tree_del_ulong(n, tmp->key.value.ul);
+				np_tree_del_ulong(n, tmp->key.value.ul);
 				break;
 			default:
 				break;
@@ -307,13 +312,18 @@ void np_clear_tree (np_tree_t* n)
 	}
 }
 
-void np_free_tree (np_tree_t* n)
+void np_tree_free (np_tree_t* n)
 {
-	np_clear_tree(n);
-	free (n);
+	if(NULL != n) {
+		if(n->size > 0) {
+			np_tree_clear(n);
+		}
+		free (n);
+		n = NULL;
+	}
 }
 
-void np_print_tree (np_tree_t* n, uint8_t indent)
+void _np_print_tree (np_tree_t* n, uint8_t indent)
 {
 	np_tree_elem_t* tmp = NULL;
 
@@ -323,192 +333,128 @@ void np_print_tree (np_tree_t* n, uint8_t indent)
 		memset(s_indent, ' ', indent);
 		s_indent[indent] = '\0';
 
-		if (tmp->key.type == char_ptr_type)      log_msg(LOG_DEBUG, "%s%s: %s", s_indent, val_to_str(tmp->key), val_to_str(tmp->val));
-		if (tmp->key.type == int_type)           log_msg(LOG_DEBUG, "%s%s: %s", s_indent, val_to_str(tmp->key), val_to_str(tmp->val));
-		if (tmp->key.type == double_type)        log_msg(LOG_DEBUG, "%s%s: %s", s_indent, val_to_str(tmp->key), val_to_str(tmp->val));
-		if (tmp->key.type == unsigned_long_type) log_msg(LOG_DEBUG, "%s%s: %s", s_indent, val_to_str(tmp->key), val_to_str(tmp->val));
+		if (tmp->key.type == char_ptr_type)      log_msg(LOG_DEBUG, "%s%s: %s", s_indent, np_treeval_to_str(tmp->key), np_treeval_to_str(tmp->val));
+		if (tmp->key.type == int_type)           log_msg(LOG_DEBUG, "%s%s: %s", s_indent, np_treeval_to_str(tmp->key), np_treeval_to_str(tmp->val));
+		if (tmp->key.type == double_type)        log_msg(LOG_DEBUG, "%s%s: %s", s_indent, np_treeval_to_str(tmp->key), np_treeval_to_str(tmp->val));
+		if (tmp->key.type == unsigned_long_type) log_msg(LOG_DEBUG, "%s%s: %s", s_indent, np_treeval_to_str(tmp->key), np_treeval_to_str(tmp->val));
 
-		if (tmp->val.type == jrb_tree_type) np_print_tree(tmp->val.value.v, indent+1);
+		if (tmp->val.type == jrb_tree_type) _np_print_tree(tmp->val.value.v, indent+1);
 	}
 }
 
-void _tree_replace_all_with_str(np_tree_t* n, const char* key, np_val_t val)
+void _np_tree_replace_all_with_str(np_tree_t* n, const char* key, np_treeval_t val)
 {
-	np_clear_tree(n);
-    tree_insert_str(n, key, val);
+	np_tree_clear(n);
+    np_tree_insert_str(n, key, val);
 }
 
-np_val_t jrb_val (np_tree_elem_t* n)
-{
-	assert(n     != NULL);
-    return n->val;
-}
 
-uint64_t jrb_get_byte_size(np_tree_elem_t* node)
+uint64_t np_tree_get_byte_size(np_tree_elem_t* node)
 {
 	assert(node  != NULL);
 
-	// if (isint(node)) return 0;
-
-	// log_msg(LOG_DEBUG, "c: %p -> key/value size calculation", node);
-	uint64_t byte_size = 0;
-
-	switch(node->key.type)
-	{
-		// length is always 1 (to identify the type) + the length of the type
-  		case short_type: 		  byte_size += 1 + sizeof(int8_t); break;
-		case int_type: 			  byte_size += 1 + sizeof(int16_t); break;
-		case long_type: 		  byte_size += 1 + sizeof(int32_t); break;
-		case long_long_type:	  byte_size += 1 + sizeof(int64_t); break;
- 		case float_type: 		  byte_size += 1 + sizeof(float); break;
-		case double_type: 		  byte_size += 1 + sizeof(double); break;
-		case char_ptr_type: 	  byte_size += 1 + sizeof(uint32_t) + node->key.size; break;
-		case char_type: 		  byte_size += 1 + sizeof(char); break;
-		case unsigned_char_type:  byte_size += 1 + sizeof(unsigned char); break;
- 		case unsigned_short_type: byte_size += 1 + sizeof(uint8_t); break;
-		case unsigned_int_type:   byte_size += 1 + sizeof(uint16_t); break;
-		case unsigned_long_type:  byte_size += 1 + sizeof(uint32_t); break;
-		case unsigned_long_long_type:  byte_size += 1 + sizeof(uint64_t); break;
-// 		case int_array_2_type:    byte_size += 1 + 2*sizeof(int16_t); break;
-// 		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
-// 		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
-// 		case unsigned_char_array_8_type: byte_size += 1 +8*sizeof(unsigned char); break;
-// 		case void_type: 		  byte_size += 1 + sizeof(void*); break;
-// 		case bin_type: 			  byte_size += 1 + node->key.size; break;
-// 		case jrb_tree_type:       byte_size += jrb_get_byte_size(node->key.value.tree); break;
-		case key_type:            byte_size += 1 + (4 * sizeof(uint64_t)); break;
-		default:                  log_msg(LOG_WARN, "unsupported length calculation for key / type %hhd", node->key.type); break;
-	}
-	// assert(byte_size  >= 2);
-	// log_msg(LOG_DEBUG, "key size (%hd) calculated to %llu", node->key.type, byte_size);
-
-	switch(node->val.type)
-	{
-  		case short_type: 		  byte_size += 1 + sizeof(int8_t); break;
-		case int_type: 			  byte_size += 1 + sizeof(int16_t); break;
-		case long_type: 		  byte_size += 1 + sizeof(int32_t); break;
-		case long_long_type:	  byte_size += 1 + sizeof(int64_t); break;
- 		case float_type: 		  byte_size += 1 + sizeof(float); break;
-		case double_type: 		  byte_size += 1 + sizeof(double); break;
-		case char_ptr_type: 	  byte_size += 1 + sizeof(uint32_t) + node->val.size; break;
-		case char_type: 		  byte_size += 1 + sizeof(char); break;
-		case unsigned_char_type:  byte_size += 1 + sizeof(unsigned char); break;
- 		case unsigned_short_type: byte_size += 1 + sizeof(uint8_t); break;
-		case unsigned_int_type:   byte_size += 1 + sizeof(uint16_t); break;
-		case unsigned_long_type:  byte_size += 1 + sizeof(uint32_t); break;
-		case unsigned_long_long_type:  byte_size += 1 + sizeof(uint64_t); break;
- 		case uint_array_2_type:    byte_size += 1 + 2 * sizeof(uint16_t); break;
- 		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
- 		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
- 		case unsigned_char_array_8_type: byte_size += 1+8*sizeof(unsigned char); break;
- 		case void_type: 		  byte_size += 1 + sizeof(void*); break;
- 		case hash_type: 		  byte_size += 2 + sizeof(uint32_t) + node->val.size; break;
- 		case bin_type: 			  byte_size += 1 + sizeof(uint32_t) + node->val.size; break;
-		case jrb_tree_type:
-			// use the real tree byte_size since data could have been altered
-			byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + node->val.value.tree->byte_size;
-			break;
-		case key_type:            byte_size += 1 + (4 * sizeof(uint64_t)); break;
-		default:                  log_msg(LOG_WARN, "unsupported length calculation for value / type %hhd", node->val.type ); break;
-	}
-	// log_msg(LOG_DEBUG, "value size (%hd) calculated to %llu", node->val.type, byte_size);
-	// log_msg(LOG_DEBUG, "c: %p -> key/value size calculated to %llu", node, byte_size);
-
-	// assert(byte_size  >= 4);
+	uint64_t byte_size = np_treeval_get_byte_size(node->key) + np_treeval_get_byte_size(node->val) ;
 
 	return byte_size;
 }
 
-void tree_insert_str (np_tree_t* tree, const char *key, np_val_t val)
+void np_tree_insert_str (np_tree_t* tree, const char *key, np_treeval_t val)
 {
 	assert(tree    != NULL);
 	assert(key     != NULL);
 
-	np_tree_elem_t* found = tree_find_str(tree, key);
+	np_tree_elem_t* found = np_tree_find_str(tree, key);
 
 	if (found == NULL)
 	{
 		// insert new value
 		found = (np_tree_elem_t*) malloc(sizeof(np_tree_elem_t));
+		CHECK_MALLOC(found);
 
 		found->key.value.s = strndup(key, 255);
 	    found->key.type = char_ptr_type;
 	    found->key.size = strlen(key);
 
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 		// log_msg(LOG_WARN, "e->%p k->%p v->%p", found, found->key.value.s, &found->val);
 		// log_msg(LOG_WARN, "e->%p k->%p v->%p", found, &found->key, &found->val);
 
 		RB_INSERT(np_tree_s, tree, found);
 	    tree->size++;
-		tree->byte_size += jrb_get_byte_size(found);
+		tree->byte_size += np_tree_get_byte_size(found);
 	}
 }
 
-void tree_insert_int (np_tree_t* tree, int16_t ikey, np_val_t val)
+void np_tree_insert_int (np_tree_t* tree, int16_t ikey, np_treeval_t val)
 {
 	assert(tree    != NULL);
 
-	np_tree_elem_t* found = tree_find_int(tree, ikey);
+	np_tree_elem_t* found = np_tree_find_int(tree, ikey);
 
 	if (found == NULL)
 	{
 		// insert new value
 		found = (np_tree_elem_t*) malloc(sizeof(np_tree_elem_t));
+		CHECK_MALLOC(found);
+
 		// if (NULL == found) return;
 
 	    found->key.value.i = ikey;
 	    found->key.type = int_type;
 	    found->key.size = sizeof(int16_t);
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 
 		RB_INSERT(np_tree_s, tree, found);
 	    tree->size++;
-		tree->byte_size += jrb_get_byte_size(found);
+		tree->byte_size += np_tree_get_byte_size(found);
 	}
 }
 
-void tree_insert_ulong (np_tree_t* tree, uint32_t ulkey, np_val_t val)
+void np_tree_insert_ulong (np_tree_t* tree, uint32_t ulkey, np_treeval_t val)
 {
 	assert(tree    != NULL);
 
-	np_tree_elem_t* found = tree_find_ulong(tree, ulkey);
+	np_tree_elem_t* found = np_tree_find_ulong(tree, ulkey);
 
 	if (found == NULL)
 	{
 		// insert new value
 		found = (np_tree_elem_t*) malloc(sizeof(np_tree_elem_t));
+		CHECK_MALLOC(found);
+
 	    found->key.value.ul = ulkey;
 	    found->key.type = unsigned_long_type;
 	    found->key.size = sizeof(uint32_t);
 
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 
 		RB_INSERT(np_tree_s, tree, found);
 	    tree->size++;
-		tree->byte_size += jrb_get_byte_size(found);
+		tree->byte_size += np_tree_get_byte_size(found);
 	}
 }
 
-void tree_insert_dbl (np_tree_t* tree, double dkey, np_val_t val)
+void np_tree_insert_dbl (np_tree_t* tree, double dkey, np_treeval_t val)
 {
 	assert(tree    != NULL);
 
-	np_tree_elem_t* found = tree_find_dbl(tree, dkey);
+	np_tree_elem_t* found = np_tree_find_dbl(tree, dkey);
 
 	if (found == NULL)
 	{
 		// insert new value
 		found = (np_tree_elem_t*) malloc(sizeof(np_tree_elem_t));
+		CHECK_MALLOC(found);
+
 		found->key.value.d = dkey;
 	    found->key.type = double_type;
 	    found->key.size = sizeof(double);
 
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 
 		RB_INSERT(np_tree_s, tree, found);
 	    tree->size++;
-		tree->byte_size += jrb_get_byte_size(found);
+		tree->byte_size += np_tree_get_byte_size(found);
 	}
 	else
 	{
@@ -516,101 +462,580 @@ void tree_insert_dbl (np_tree_t* tree, double dkey, np_val_t val)
 	}
 }
 
-void tree_replace_str (np_tree_t* tree, const char *key, np_val_t val)
+void np_tree_replace_str (np_tree_t* tree, const char *key, np_treeval_t val)
 {
 	assert(tree    != NULL);
 	assert(key     != NULL);
 
-	np_tree_elem_t* found = tree_find_str(tree, key);
+	np_tree_elem_t* found = np_tree_find_str(tree, key);
 
 	if (found == NULL)
 	{
 		// insert new value
-		tree_insert_str(tree, key, val);
+		np_tree_insert_str(tree, key, val);
 	}
 	else
 	{
 		// free up memory before replacing
-		tree->byte_size -= jrb_get_byte_size(found);
+		tree->byte_size -= np_tree_get_byte_size(found);
 
 		if (found->val.type == char_ptr_type) free(found->val.value.s);
 		if (found->val.type == bin_type)      free(found->val.value.bin);
-		if (found->val.type == jrb_tree_type) np_free_tree(found->val.value.tree);
+		if (found->val.type == jrb_tree_type) np_tree_free(found->val.value.tree);
 
-	    found->val = copy_of_val(val);
-		tree->byte_size += jrb_get_byte_size(found);
+	    found->val = np_treeval_copy_of_val(val);
+		tree->byte_size += np_tree_get_byte_size(found);
 	}
 }
 
-void tree_replace_int (np_tree_t* tree, int16_t ikey, np_val_t val)
+void np_tree_replace_int (np_tree_t* tree, int16_t ikey, np_treeval_t val)
 {
 	assert(tree    != NULL);
 
-	np_tree_elem_t* found = tree_find_int(tree, ikey);
+	np_tree_elem_t* found = np_tree_find_int(tree, ikey);
 
 	if (found == NULL)
 	{
 		// insert new value
-		tree_insert_int(tree, ikey, val);
+		np_tree_insert_int(tree, ikey, val);
 	}
 	else
 	{
-		tree->byte_size -= jrb_get_byte_size(found);
+		tree->byte_size -= np_tree_get_byte_size(found);
 		// free up memory before replacing
 		if (found->val.type == char_ptr_type) free(found->val.value.s);
 		if (found->val.type == bin_type)      free(found->val.value.bin);
-		if (found->val.type == jrb_tree_type) np_free_tree(found->val.value.tree);
+		if (found->val.type == jrb_tree_type) np_tree_free(found->val.value.tree);
 
-	    found->val = copy_of_val(val);
+	    found->val = np_treeval_copy_of_val(val);
 
-		tree->byte_size += jrb_get_byte_size(found);
+		tree->byte_size += np_tree_get_byte_size(found);
 	}
 }
 
-void tree_replace_ulong (np_tree_t* tree, uint32_t ulkey, np_val_t val)
+void np_tree_replace_ulong (np_tree_t* tree, uint32_t ulkey, np_treeval_t val)
 {
 	assert(tree    != NULL);
 
-	np_tree_elem_t* found = tree_find_ulong(tree, ulkey);
+	np_tree_elem_t* found = np_tree_find_ulong(tree, ulkey);
 
 	if (found == NULL)
 	{
-		tree_insert_ulong(tree, ulkey, val);
+		np_tree_insert_ulong(tree, ulkey, val);
 	}
 	else
 	{
-		tree->byte_size -= jrb_get_byte_size(found);
+		tree->byte_size -= np_tree_get_byte_size(found);
 		// free up memory before replacing
 		if (found->val.type == char_ptr_type) free(found->val.value.s);
 		if (found->val.type == bin_type)      free(found->val.value.bin);
-		if (found->val.type == jrb_tree_type) np_free_tree(found->val.value.tree);
+		if (found->val.type == jrb_tree_type) np_tree_free(found->val.value.tree);
 
-	    found->val = copy_of_val(val);
-		tree->byte_size += jrb_get_byte_size(found);
+	    found->val = np_treeval_copy_of_val(val);
+		tree->byte_size += np_tree_get_byte_size(found);
 	}
 }
 
-void tree_replace_dbl (np_tree_t* tree, double dkey, np_val_t val)
+void np_tree_replace_dbl (np_tree_t* tree, double dkey, np_treeval_t val)
 {
 	assert(tree    != NULL);
 
-	np_tree_elem_t* found = tree_find_dbl(tree, dkey);
+	np_tree_elem_t* found = np_tree_find_dbl(tree, dkey);
 
 	if (found == NULL)
 	{
 		// insert new value
-		tree_insert_dbl(tree, dkey, val);
+		np_tree_insert_dbl(tree, dkey, val);
 	}
 	else
 	{
-		tree->byte_size -= jrb_get_byte_size(found);
+		tree->byte_size -= np_tree_get_byte_size(found);
 		// free up memory before replacing
 		if (found->val.type == char_ptr_type) free(found->val.value.s);
 		if (found->val.type == bin_type)      free(found->val.value.bin);
-		if (found->val.type == jrb_tree_type) np_free_tree(found->val.value.tree);
+		if (found->val.type == jrb_tree_type) np_tree_free(found->val.value.tree);
 
-	    found->val = copy_of_val(val);
-		tree->byte_size += jrb_get_byte_size(found);
+	    found->val = np_treeval_copy_of_val(val);
+		tree->byte_size += np_tree_get_byte_size(found);
 	}
 }
 
+np_tree_t* np_tree_copy(np_tree_t* source) {
+
+	np_tree_t* ret =	np_tree_create();
+	np_tree_elem_t* tmp = NULL;
+	RB_FOREACH(tmp, np_tree_s, source)
+	{
+		if (tmp->key.type == char_ptr_type)      np_tree_insert_str(ret, tmp->key.value.s, tmp->val);
+		if (tmp->key.type == int_type)           np_tree_insert_int(ret, tmp->key.value.i, tmp->val);
+		if (tmp->key.type == double_type)        np_tree_insert_dbl(ret, tmp->key.value.d, tmp->val);
+		if (tmp->key.type == unsigned_long_type) np_tree_insert_ulong(ret, tmp->key.value.ul, tmp->val);
+	}
+	return ret;
+}
+
+
+void _np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp)
+{
+	uint16_t i = 0;
+	// first assume a size based on jrb size
+	// void* buf_ptr_map = cmp->buf;
+
+	// if (!cmp_write_map(cmp, jrb->size*2 )) return;
+	cmp_write_map32(cmp, jtree->size*2);
+
+	// log_msg(LOG_DEBUG, "wrote jrb tree size %hd", jtree->size*2);
+	// write jrb tree
+	if (0 < jtree->size)
+	{
+		np_tree_elem_t* tmp = NULL;
+
+		RB_FOREACH(tmp, np_tree_s, jtree)
+		{
+//			if (tmp)
+//				log_msg(LOG_DEBUG, "%p: keytype: %hd, valuetype: %hd (size: %u)", tmp, tmp->key.type, tmp->val.type, tmp->val.size );
+
+			if (int_type           == tmp->key.type ||
+		 		unsigned_long_type == tmp->key.type ||
+		 		double_type        == tmp->key.type ||
+		 		char_ptr_type      == tmp->key.type)
+		 	{
+				// log_msg(LOG_DEBUG, "for (%p; %p!=%p; %p=%p) ", tmp->flink, tmp, msg->header, node, node->flink);
+				__np_tree_serialize_write_type(tmp->key, cmp); i++;
+				__np_tree_serialize_write_type(tmp->val, cmp); i++;
+		 	}
+			else
+			{
+				log_msg(LOG_ERROR, "unknown key type for serialization" );
+		 	}
+		}
+	}
+
+	// void* buf_ptr = cmp->buf;
+	// cmp->buf = buf_ptr_map;
+	// cmp_write_map32(cmp, i );
+
+	if (i != jtree->size*2)
+		log_msg(LOG_ERROR, "serialized jrb size map size is %d, but should be %hd", jtree->size*2, i);
+
+	// cmp->buf = buf_ptr;
+
+//	switch (jrb->key.type) {
+//	case int_type:
+//		log_msg(LOG_DEBUG, "wrote int key (%hd)", jrb->key.value.i);
+//		break;
+//	case unsigned_long_type:
+//		log_msg(LOG_DEBUG, "wrote uint key (%u)", jrb->key.value.ul);
+//		break;
+//	case double_type:
+//		log_msg(LOG_DEBUG, "wrote double key (%f)", jrb->key.value.d);
+//		break;
+//	case char_ptr_type:
+//		log_msg(LOG_DEBUG, "wrote str key (%s)", jrb->key.value.s);
+//		break;
+//	}
+}
+
+
+void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
+{
+	cmp_object_t obj;
+
+	uint32_t size = 0;
+
+	cmp_read_map(cmp, &size);
+
+	// if ( ((size%2) != 0) || (size <= 0) ) return;
+
+	for (uint32_t i = 0; i < (size/2); i++)
+	{
+		// read key
+		np_treeval_t tmp_key = { .type = none_type, .size = 0 };
+		cmp_read_object(cmp, &obj);
+		__np_tree_serialize_read_type(&obj, cmp, &tmp_key);
+		if (none_type == tmp_key.type) {
+			return;
+		}
+
+		JSON_Value * tmp = np_treeval2json(tmp_key);
+		char* tmp2 = np_json2char(tmp, FALSE);
+		log_msg(LOG_SERIALIZATION | LOG_DEBUG, "deserialised type: %"PRIu8" key %s", tmp_key.type, tmp2);
+		json_free_serialized_string(tmp2);
+		json_value_free(tmp);
+
+		// read value
+		np_treeval_t tmp_val = { .type = none_type, .size = 0 };
+		cmp_read_object(cmp, &obj);
+		__np_tree_serialize_read_type(&obj, cmp, &tmp_val);
+		if (none_type == tmp_val.type) {
+			return;
+		}
+
+		switch (tmp_key.type)
+		{
+		case int_type:
+			// log_msg(LOG_DEBUG, "read int key (%d)", tmp_key.value.i);
+			np_tree_insert_int(jtree, tmp_key.value.i, tmp_val);
+			break;
+		case unsigned_long_type:
+			// log_msg(LOG_DEBUG, "read uint key (%ul)", tmp_key.value.ul);
+			np_tree_insert_ulong(jtree, tmp_key.value.ul, tmp_val);
+			break;
+		case double_type:
+			// log_msg(LOG_DEBUG, "read double key (%f)", tmp_key.value.d);
+			np_tree_insert_dbl(jtree, tmp_key.value.d, tmp_val);
+			break;
+		case char_ptr_type:
+			// log_msg(LOG_DEBUG, "read str key (%s)", tmp_key.value.s);
+			np_tree_insert_str(jtree, tmp_key.value.s, tmp_val);
+			free (tmp_key.value.s);
+			break;
+		default:
+			tmp_val.type = none_type;
+			break;
+		}
+
+		if (tmp_val.type == char_ptr_type) free(tmp_val.value.s);
+		if (tmp_val.type == bin_type)      free(tmp_val.value.bin);
+		if (tmp_val.type == jrb_tree_type) np_tree_free(tmp_val.value.tree);
+	}
+	// log_msg(LOG_DEBUG, "read all key/value pairs from message part %p", jrb);
+}
+
+uint8_t __np_tree_serialize_read_type_key(void* buffer_ptr, np_treeval_t* target) {
+	cmp_ctx_t cmp_key;
+	cmp_init(&cmp_key, buffer_ptr, _np_buffer_reader, _np_buffer_writer);
+	np_dhkey_t new_key;
+
+	if (cmp_read_u64(&cmp_key, &(new_key.t[0])))
+		if(cmp_read_u64(&cmp_key, &(new_key.t[1])))
+			if(cmp_read_u64(&cmp_key, &(new_key.t[2])))
+				cmp_read_u64(&cmp_key, &(new_key.t[3]));
+
+	target->value.key = new_key;
+	target->type = key_type;
+	target->size = sizeof(np_dhkey_t);
+
+	return cmp_key.error;
+}
+
+void __np_tree_serialize_write_type_key(np_dhkey_t source, cmp_ctx_t* target) {
+	// source->size is not relevant here as the transport size includes marker sizes etc..
+    //                        4 * size of uint64 marker + size of key element
+	uint32_t transport_size = 4 * (sizeof(uint8_t) 		+ sizeof(uint64_t)); // 36 on x64
+
+	cmp_ctx_t key_ctx;
+	char buffer[transport_size];
+	void* buf_ptr = buffer;
+	cmp_init(&key_ctx, buf_ptr, _np_buffer_reader, _np_buffer_writer);
+
+	cmp_write_u64(&key_ctx, source.t[0]);
+	cmp_write_u64(&key_ctx, source.t[1]);
+	cmp_write_u64(&key_ctx, source.t[2]);
+	cmp_write_u64(&key_ctx, source.t[3]);
+
+	cmp_write_ext32(target, key_type, transport_size, buf_ptr);
+}
+
+void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
+{
+	// void* count_buf_start = cmp->buf;
+	// log_msg(LOG_DEBUG, "writing jrb (%p) value: %s", jrb, jrb->key.value.s);
+	switch (val.type)
+	{
+	// signed numbers
+	case short_type:
+		cmp_write_s8(cmp, val.value.sh);
+		break;
+	case int_type:
+		cmp_write_s16(cmp, val.value.i);
+		break;
+	case long_type:
+		cmp_write_s32(cmp, val.value.l);
+		break;
+	case long_long_type:
+		cmp_write_s64(cmp, val.value.ll);
+		break;
+		// characters
+	case char_ptr_type:
+		//log_msg(LOG_DEBUG, "string size %u/%lu -> %s", val.size, strlen(val.value.s), val.value.s);
+		cmp_write_str32(cmp, val.value.s, val.size);
+		break;
+
+	case char_type:
+		cmp_write_fixstr(cmp, (const char*) &val.value.c, sizeof(char));
+		break;
+//	case unsigned_char_type:
+//	 	cmp_write_str(cmp, (const char*) &val.value.uc, sizeof(unsigned char));
+//	 	break;
+
+	// float and double precision
+	case float_type:
+		cmp_write_float(cmp, val.value.f);
+		break;
+	case double_type:
+		cmp_write_double(cmp, val.value.d);
+		break;
+
+	// unsigned numbers
+	case unsigned_short_type:
+		cmp_write_u8(cmp, val.value.ush);
+		break;
+	case unsigned_int_type:
+		cmp_write_u16(cmp, val.value.ui);
+		break;
+	case unsigned_long_type:
+		cmp_write_u32(cmp, val.value.ul);
+		break;
+	case unsigned_long_long_type:
+		cmp_write_u64(cmp, val.value.ull);
+		break;
+
+	case uint_array_2_type:
+		cmp_write_fixarray(cmp, 2);
+		cmp->write(cmp, &val.value.a2_ui[0], sizeof(uint16_t));
+		cmp->write(cmp, &val.value.a2_ui[1], sizeof(uint16_t));
+		break;
+
+	case float_array_2_type:
+	case char_array_8_type:
+	case unsigned_char_array_8_type:
+		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		break;
+
+	case void_type:
+		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		break;
+
+	case bin_type:
+		cmp_write_bin32(cmp, val.value.bin, val.size);
+		//log_msg(LOG_DEBUG, "BIN size %"PRIu32, val.size);
+		break;
+
+	case key_type:
+		{
+			__np_tree_serialize_write_type_key(val.value.key, cmp);
+			break;
+		}
+
+	case hash_type:
+		// log_msg(LOG_DEBUG, "adding hash value %s to serialization", val.value.s);
+		cmp_write_ext32(cmp, hash_type, val.size, val.value.bin);
+		break;
+
+	case jrb_tree_type:
+		{
+			cmp_ctx_t tree_cmp;
+			char buffer[val.size];
+			// log_msg(LOG_DEBUG, "buffer size for subtree %u (%hd %llu)", val.size, val.value.tree->size, val.value.tree->byte_size);
+			// log_msg(LOG_DEBUG, "buffer size for subtree %u", val.size);
+			void* buf_ptr = buffer;
+			cmp_init(&tree_cmp, buf_ptr, _np_buffer_reader, _np_buffer_writer);
+			_np_tree_serialize(val.value.tree, &tree_cmp);
+			uint32_t buf_size = tree_cmp.buf - buf_ptr;
+
+			// void* top_buf_ptr = cmp->buf;
+			// write the serialized tree to the upper level buffer
+			if (!cmp_write_ext32(cmp, jrb_tree_type, buf_size, buf_ptr))
+			{
+				log_msg(LOG_WARN, "couldn't write tree data -- ignoring for now");
+			}
+			// uint32_t top_buf_size = cmp->buf-top_buf_ptr;
+
+//			else {
+			// log_msg(LOG_DEBUG, "wrote tree structure size pre: %hu/%hu post: %hu %hu", val.size, val.value.tree->byte_size, buf_size, top_buf_size);
+//			}
+		}
+		break;
+	default:
+		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		break;
+	}
+}
+
+void __np_tree_serialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value)
+{
+	switch (obj->type)
+	{
+	case CMP_TYPE_FIXMAP:
+	case CMP_TYPE_MAP16:
+	case CMP_TYPE_MAP32:
+		log_msg(LOG_WARN,
+				"error de-serializing message to normal form, found map type");
+		break;
+
+	case CMP_TYPE_FIXARRAY:
+		if (2 == obj->as.array_size)
+		{
+			cmp->read(cmp, &value->value.a2_ui[0], sizeof(uint16_t));
+			cmp->read(cmp, &value->value.a2_ui[1], sizeof(uint16_t));
+			value->type = uint_array_2_type;
+		}
+		break;
+
+	case CMP_TYPE_ARRAY16:
+	case CMP_TYPE_ARRAY32:
+		log_msg(LOG_WARN,
+				"error de-serializing message to normal form, found array type");
+		break;
+
+	case CMP_TYPE_FIXSTR:
+		cmp->read(cmp, &value->value.c, sizeof(char));
+		value->type = char_type;
+		value->size = 1;
+		break;
+
+	case CMP_TYPE_STR8:
+	case CMP_TYPE_STR16:
+	case CMP_TYPE_STR32:
+		{
+			value->type = char_ptr_type;
+			value->size = obj->as.str_size;
+			value->value.s = (char*) malloc(obj->as.str_size+1);
+			CHECK_MALLOC(value->value.s);
+
+			cmp->read(cmp, value->value.s, obj->as.str_size * sizeof(char));
+			value->value.s[obj->as.str_size] = '\0';
+			//log_msg(LOG_DEBUG, "string size %u/%lu -> %s", value->size, strlen(value->value.s), value->value.s);
+			break;
+		}
+	case CMP_TYPE_BIN8:
+	case CMP_TYPE_BIN16:
+	case CMP_TYPE_BIN32:
+		{
+			value->type = bin_type;
+			value->size = obj->as.bin_size;
+			value->value.bin = malloc(value->size);
+			// value->value.bin = calloc(1, value->size);
+			CHECK_MALLOC(value->value.bin);
+			// log_msg(LOG_DEBUG, "BIN size %"PRIu32, value->size);
+
+			memset(value->value.bin, 0, value->size);
+			cmp->read(cmp, value->value.bin, obj->as.bin_size);
+			break;
+		}
+	case CMP_TYPE_NIL:
+		log_msg(LOG_WARN, "unknown de-serialization for given type (cmp NIL) ");
+		break;
+
+	case CMP_TYPE_BOOLEAN:
+		log_msg(LOG_WARN,
+				"unknown de-serialization for given type (cmp boolean) ");
+		break;
+
+	case CMP_TYPE_EXT8:
+	case CMP_TYPE_EXT16:
+	case CMP_TYPE_EXT32:
+	case CMP_TYPE_FIXEXT1:
+	case CMP_TYPE_FIXEXT2:
+	case CMP_TYPE_FIXEXT4:
+	case CMP_TYPE_FIXEXT8:
+	case CMP_TYPE_FIXEXT16:
+		{
+			// required for tree de-serialization
+			// log_msg(LOG_DEBUG, "now reading cmp-extension type %hhd size %u", obj->as.ext.type, obj->as.ext.size);
+			char buffer[obj->as.ext.size];
+			void* buf_ptr = buffer;
+			cmp->read(cmp, buf_ptr, obj->as.ext.size);
+
+			// log_msg(LOG_DEBUG, "read %u bytes ", (cmp->buf - buf_ptr));
+			if (obj->as.ext.type == jrb_tree_type)
+			{
+				// tree type
+				np_tree_t* subtree = np_tree_create();
+				cmp_ctx_t tree_cmp;
+				cmp_init(&tree_cmp, buf_ptr, _np_buffer_reader, _np_buffer_writer);
+				_np_tree_deserialize(subtree, &tree_cmp);
+				// TODO: check if the complete buffer was read (byte count match)
+
+				value->value.tree = subtree;
+				value->type = jrb_tree_type;
+				value->size = subtree->size;
+				// log_msg(LOG_DEBUG, "read tree structure %u size %hu %lu", (tree_cmp.buf-buf_ptr), subtree->size, subtree->byte_size);
+			}
+			else if (obj->as.ext.type == key_type)
+			{
+				__np_tree_serialize_read_type_key(buf_ptr, value);
+			}
+			else if (obj->as.ext.type == hash_type)
+			{
+				value->type = hash_type;
+				value->size = obj->as.ext.size;
+
+				value->value.bin = (char*) malloc(obj->as.ext.size);
+				CHECK_MALLOC(value->value.bin);
+
+				memset(value->value.bin, 0, value->size);
+				memcpy(value->value.bin, buffer, obj->as.ext.size);
+				// value->value.s[obj->as.ext.size] = '\0';
+				// log_msg(LOG_DEBUG, "reading hash value %s from serialization", value->value.s);
+			}
+			else
+			{
+				log_msg(LOG_WARN,
+						"unknown de-serialization for given extension type %hhd", obj->as.ext.type);
+			}
+		}
+		break;
+	case CMP_TYPE_FLOAT:
+		value->value.f = 0.0;
+		value->value.f = obj->as.flt;
+		value->type = float_type;
+		break;
+
+	case CMP_TYPE_DOUBLE:
+		value->value.d = 0.0;
+		value->value.d = obj->as.dbl;
+		value->type = double_type;
+		break;
+
+	case CMP_TYPE_POSITIVE_FIXNUM:
+	case CMP_TYPE_UINT8:
+		value->value.ush = obj->as.u8;
+		value->type = unsigned_short_type;
+		break;
+	case CMP_TYPE_UINT16:
+		value->value.ui = 0;
+		value->value.ui = obj->as.u16;
+		value->type = unsigned_int_type;
+		break;
+	case CMP_TYPE_UINT32:
+		value->value.ul = 0;
+		value->value.ul = obj->as.u32;
+		value->type = unsigned_long_type;
+		break;
+
+	case CMP_TYPE_UINT64:
+		value->value.ull = 0;
+		value->value.ull = obj->as.u64;
+		value->type = unsigned_long_long_type;
+		break;
+
+	case CMP_TYPE_NEGATIVE_FIXNUM:
+	case CMP_TYPE_SINT8:
+		value->value.sh = obj->as.s8;
+		value->type = short_type;
+		break;
+
+	case CMP_TYPE_SINT16:
+		value->value.i = 0;
+		value->value.i = obj->as.s16;
+		value->type = int_type;
+		break;
+
+	case CMP_TYPE_SINT32:
+		value->value.l = obj->as.s32;
+		value->type = long_type;
+		break;
+
+	case CMP_TYPE_SINT64:
+		value->value.ll = 0;
+		value->value.ll = obj->as.s64;
+		value->type = long_long_type;
+		break;
+	default:
+		value->type = none_type;
+		log_msg(LOG_WARN, "unknown deserialization for given type");
+		break;
+	}
+}

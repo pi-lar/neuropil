@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_MEMORY_H
@@ -9,6 +9,7 @@
 
 #include "np_threads.h"
 #include "np_types.h"
+#include "assert.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,6 +47,7 @@ typedef void (*np_alloc_t) (void* data);
  ** each np_new_obj needs a corresponding np_free_obj
  ** if other methods would like to claim ownership, they should call np_ref_obj, np_unref_obj
  ** will release the object again (and possible delete it)
+ **
  **/
 typedef struct np_obj_s np_obj_t;
 
@@ -60,51 +62,74 @@ struct np_obj_s
 
 	// additional field for memory management
 	np_obj_t* next;
+
+	np_bool persistent;
 };
 
-// enable locking of memory table
-_NP_ENABLE_MODULE_LOCK(np_memory_t);
 
 // convenience function like wrappers
 #define np_ref_obj(TYPE, np_obj)              \
 {                                             \
   _LOCK_MODULE(np_memory_t) {                 \
+    assert (np_obj != NULL);      		      \
     assert (np_obj->obj != NULL);             \
+    if (np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",np_obj->obj->type, TYPE##_e);   \
     assert (np_obj->obj->type == TYPE##_e);   \
     np_mem_refobj(np_obj->obj);               \
   }                                           \
 }
 
-#define np_unref_obj(TYPE, np_obj)              \
-{                                               \
-  _LOCK_MODULE(np_memory_t) {                   \
-    assert (np_obj->obj != NULL);               \
-    assert (np_obj->obj->type == TYPE##_e);     \
-    assert (np_obj->obj->ptr != NULL);          \
-    np_mem_unrefobj(np_obj->obj);     \
-    if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->ptr == np_obj) { \
-      if (np_obj->obj->type != np_none_t_e)     \
-      {                                         \
-        np_obj->obj->del_callback(np_obj);      \
-	    np_mem_freeobj(TYPE##_e, &np_obj->obj); \
-	    np_obj->obj->ptr = NULL;                \
-	    np_obj->obj = NULL;                     \
-	    free(np_obj);                           \
-	    np_obj = NULL;                          \
-      }                                         \
-    }                                           \
-  }                                             \
+#define CHECK_MALLOC(obj)		              			\
+{                                             			\
+	if(NULL == obj ) {									\
+		log_msg(LOG_ERROR,"could not allocate memory");	\
+	}													\
+	assert(NULL != obj);                               	\
+}														\
+
+#define np_unref_obj(TYPE, np_obj)                \
+{                                                 \
+	_LOCK_MODULE(np_memory_t) {                   \
+	  if(NULL != np_obj) {                   	  \
+        assert (np_obj->obj != NULL);               \
+        assert (np_obj->obj->type == TYPE##_e);     \
+        assert (np_obj->obj->ptr != NULL);          \
+        np_mem_unrefobj(np_obj->obj);               \
+        if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) { \
+	      if (np_obj->obj->type != np_none_t_e)     \
+	      { 										\
+		    if(np_obj->obj->del_callback != NULL)   \
+			  np_obj->obj->del_callback(np_obj);    \
+		    np_mem_freeobj(TYPE##_e, &np_obj->obj); \
+		    np_obj->obj->ptr = NULL;                \
+		    np_obj->obj = NULL;                     \
+		    free(np_obj);                           \
+		    np_obj = NULL;                          \
+		  }                                         \
+	  }                                           \
+    }                                             \
+  }                                               \
+}
+
+#define np_ref_switch(TYPE, old_obj, new_obj) \
+{                                             \
+	TYPE* tmp_obj = old_obj;                  \
+	old_obj = new_obj;                        \
+	np_ref_obj(TYPE, new_obj);                \
+	np_unref_obj(TYPE, tmp_obj);              \
 }
 
 #define np_new_obj(TYPE, np_obj)                \
 {                                               \
   _LOCK_MODULE(np_memory_t) {                   \
     np_obj = (TYPE*) malloc(sizeof(TYPE));      \
+    CHECK_MALLOC(np_obj);						\
     np_mem_newobj(TYPE##_e, &np_obj->obj);      \
     np_obj->obj->new_callback = _##TYPE##_new;  \
     np_obj->obj->del_callback = _##TYPE##_del;  \
     np_obj->obj->new_callback(np_obj);          \
     np_obj->obj->ptr = np_obj;                  \
+    np_obj->obj->persistent = FALSE;            \
     np_mem_refobj(np_obj->obj);                 \
   }                                             \
 }
@@ -114,7 +139,7 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
 {                                               \
   _LOCK_MODULE(np_memory_t) {                   \
     np_mem_unrefobj(np_obj->obj);               \
-    if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->ptr == np_obj) { \
+    if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) { \
       if (np_obj->obj->type != np_none_t_e)     \
       {                                         \
         np_obj->obj->del_callback(np_obj);      \
@@ -131,6 +156,7 @@ _NP_ENABLE_MODULE_LOCK(np_memory_t);
 
 /**
  ** following this line: np_memory cache and object prototype definitions
+ **
  **/
 NP_API_INTERN
 void np_mem_init();

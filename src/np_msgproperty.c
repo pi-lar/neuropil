@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <stdio.h>
@@ -33,44 +33,7 @@
 #include "np_node.h"
 #include "np_threads.h"
 #include "np_util.h"
-#include "np_val.h"
-
-// default message type enumeration
-enum {
-	NEUROPIL_PING_REQUEST = 1,
-	NEUROPIL_PING_REPLY,
-
-	NEUROPIL_JOIN,
-	NEUROPIL_JOIN_ACK,
-	NEUROPIL_JOIN_NACK,
-
-	NEUROPIL_LEAVE,
-
-	NEUROPIL_UPDATE,
-	NEUROPIL_PIGGY,
-
-	NEUROPIL_MSG_DISCOVER_RECEIVER,
-	NEUROPIL_MSG_DISCOVER_SENDER,
-	NEUROPIL_MSG_AVAILABLE_RECEIVER,
-	NEUROPIL_MSG_AVAILABLE_SENDER,
-
-	NEUROPIL_MSG_AUTHENTICATE_REQUEST,
-	NEUROPIL_MSG_AUTHENTICATE_REPLY,
-
-	NEUROPIL_MSG_AUTHORIZE_REQUEST,
-	NEUROPIL_MSG_AUTHORIZE_REPLY,
-
-	NEUROPIL_MSG_ACCOUNTING_REQUEST,
-
-	NEUROPIL_REST_OPERATIONS, // TODO: implement me
-	NEUROPIL_POST,   /*create*/
-	NEUROPIL_GET,    /*read*/
-	NEUROPIL_PUT,    /*update*/
-	NEUROPIL_DELETE, /*delete*/
-	NEUROPIL_QUERY,
-
-} message_enumeration;
-
+#include "np_treeval.h"
 #define NR_OF_ELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
 #include "np_msgproperty_init.c"
@@ -90,10 +53,7 @@ RB_HEAD(rbt_msgproperty, np_msgproperty_s);
 RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
 
 typedef struct rbt_msgproperty rbt_msgproperty_t;
-static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 static rbt_msgproperty_t* __msgproperty_table;
-
-_NP_MODULE_LOCK_IMPL(np_msgproperty_t);
 
 /**
  ** _np_msgproperty_init
@@ -102,6 +62,8 @@ _NP_MODULE_LOCK_IMPL(np_msgproperty_t);
 np_bool _np_msgproperty_init ()
 {
 	__msgproperty_table = (rbt_msgproperty_t*) malloc(sizeof(rbt_msgproperty_t));
+	CHECK_MALLOC(__msgproperty_table);
+
 	if (NULL == __msgproperty_table) return FALSE;
 
 	RB_INIT(__msgproperty_table);
@@ -120,7 +82,7 @@ np_bool _np_msgproperty_init ()
 
 /**
  ** registers the handler function #func# with the message type #type#,
- ** it also defines the acknowledgment requirement for this type 
+ ** it also defines the acknowledgment requirement for this type
  **/
 np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* subject)
 {
@@ -148,12 +110,14 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 
 		// Is it the same bitmask ?
 		if (prop1->mode_type == prop2->mode_type) return  (0);
+
 		// for searching: Are some test bits set ?
 		if (0 < (prop1->mode_type & prop2->mode_type)) return (0);
 
 		// for sorting / inserting different entries
 		if (prop1->mode_type > prop2->mode_type)  return ( 1);
 		if (prop1->mode_type < prop2->mode_type)  return (-1);
+
 		return (-1);
 	}
 	else
@@ -164,6 +128,7 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 
 void np_msgproperty_register(np_msgproperty_t* msgprops)
 {
+	log_msg(LOG_DEBUG, "registering user property: %s", msgprops->msg_subject);
 	RB_INSERT(rbt_msgproperty, __msgproperty_table, msgprops);
 }
 
@@ -187,18 +152,18 @@ void _np_msgproperty_t_new(void* property)
 
 	prop->last_update = ev_time();
 
-	prop->clb_inbound = _np_never_called;
-	prop->clb_outbound = _np_never_called;
-	prop->clb_route = _np_route_lookup;
-	prop->clb_transform = _np_never_called;
+	prop->clb_inbound = _np_never_called_jobexec;
+	prop->clb_outbound = _np_never_called_jobexec;
+	prop->clb_route = _np_route_lookup_jobexec;
+	prop->clb_transform = _np_never_called_jobexec;
 
 	// cache which will hold up to max_threshold messages
 	prop->cache_policy = FIFO | OVERFLOW_PURGE;
-	sll_init(np_message_t, prop->msg_cache);
+	sll_init(np_message_t, prop->msg_cache_in);
+	sll_init(np_message_t, prop->msg_cache_out);
 
-	pthread_mutex_init (&prop->lock, NULL);
-    pthread_cond_init (&prop->msg_received, &prop->cond_attr);
-    pthread_condattr_setpshared(&prop->cond_attr, PTHREAD_PROCESS_PRIVATE);
+	_np_threads_mutex_init (&prop->lock);
+	_np_threads_condition_init(&prop->msg_received);
 }
 
 void _np_msgproperty_t_del(void* property)
@@ -207,105 +172,156 @@ void _np_msgproperty_t_del(void* property)
 
 	if (prop->msg_subject) free(prop->msg_subject);
 
-	sll_free(np_message_t, prop->msg_cache);
+	sll_free(np_message_t, prop->msg_cache_in);
+	sll_free(np_message_t, prop->msg_cache_out);
 
-	pthread_condattr_destroy(&prop->cond_attr);
-    pthread_cond_destroy (&prop->msg_received);
-	pthread_mutex_destroy (&prop->lock);
+	_np_threads_mutex_destroy(&prop->lock);
+	_np_threads_condition_destroy(&prop->msg_received);
 }
 
-void _np_check_sender_msgcache(np_msgproperty_t* send_prop)
+void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 {
 	// check if we are (one of the) sending node(s) of this kind of message
 	// should not return NULL
 	log_msg(LOG_DEBUG,
 			"this node is one sender of messages, checking msgcache (%p / %u) ...",
-			send_prop->msg_cache, sll_size(send_prop->msg_cache));
+			send_prop->msg_cache_out, sll_size(send_prop->msg_cache_out));
 
 	// get message from cache (maybe only for one way mep ?!)
 	uint16_t msg_available = 0;
-
-	LOCK_CACHE(send_prop)
+	_LOCK_ACCESS(&send_prop->lock)
 	{
-		msg_available = sll_size(send_prop->msg_cache);
+		msg_available = sll_size(send_prop->msg_cache_out);
 	}
+
 	np_bool sending_ok = TRUE;
 
 	while (0 < msg_available && TRUE == sending_ok)
 	{
 		np_message_t* msg_out = NULL;
-		LOCK_CACHE(send_prop)
+		_LOCK_ACCESS(&send_prop->lock)
 		{
 			// if messages are available in cache, send them !
 			if (send_prop->cache_policy & FIFO)
-				msg_out = sll_head(np_message_t, send_prop->msg_cache);
+				msg_out = sll_head(np_message_t, send_prop->msg_cache_out);
 			if (send_prop->cache_policy & FILO)
-				msg_out = sll_tail(np_message_t, send_prop->msg_cache);
+				msg_out = sll_tail(np_message_t, send_prop->msg_cache_out);
 
 			// check for more messages in cache after head/tail command
-			msg_available = sll_size(send_prop->msg_cache);
-			send_prop->msg_threshold--;
+			msg_available = sll_size(send_prop->msg_cache_out);
 		}
 
-		sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop);
-		np_unref_obj(np_message_t, msg_out);
-		log_msg(LOG_DEBUG,
-				"message in cache found and re-send initialized");
+		if(NULL != msg_out){
+			send_prop->msg_threshold--;
+			sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop, NULL);
+			np_unref_obj(np_message_t, msg_out);
+
+			log_msg(LOG_DEBUG,
+					"message in cache found and re-send initialized");
+		}
 	}
 }
 
-void _np_check_receiver_msgcache(np_msgproperty_t* recv_prop)
+void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 {
 	log_msg(LOG_DEBUG,
 			"this node is the receiver of messages, checking msgcache (%p / %u) ...",
-			recv_prop->msg_cache, sll_size(recv_prop->msg_cache));
+			recv_prop->msg_cache_in, sll_size(recv_prop->msg_cache_in));
 
 	// get message from cache (maybe only for one way mep ?!)
 	uint16_t msg_available = 0;
-	LOCK_CACHE(recv_prop)
+	_LOCK_ACCESS(&recv_prop->lock)
 	{
-		msg_available = sll_size(recv_prop->msg_cache);
+		msg_available = sll_size(recv_prop->msg_cache_in);
 	}
 
 	np_state_t* state = _np_state();
+
 	while (0 < msg_available)
 	{
 		np_message_t* msg_in = NULL;
 
-		LOCK_CACHE(recv_prop)
+		_LOCK_ACCESS(&recv_prop->lock)
 		{
 			// if messages are available in cache, try to decode them !
 			if (recv_prop->cache_policy & FIFO)
-				msg_in = sll_tail(np_message_t, recv_prop->msg_cache);
+				msg_in = sll_head(np_message_t, recv_prop->msg_cache_in);
 			if (recv_prop->cache_policy & FILO)
-				msg_in = sll_head(np_message_t, recv_prop->msg_cache);
+				msg_in = sll_tail(np_message_t, recv_prop->msg_cache_in);
 
-			msg_available = sll_size(recv_prop->msg_cache);
-			recv_prop->msg_threshold--;
+			msg_available = sll_size(recv_prop->msg_cache_in);
 		}
-		_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in);
-		np_unref_obj(np_message_t, msg_in);
+
+		if(NULL != msg_in) {
+			recv_prop->msg_threshold--;
+			_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in);
+			np_unref_obj(np_message_t, msg_in);
+		}
 	}
 }
 
-void _np_add_msg_to_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
+void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
-	LOCK_CACHE(msg_prop)
+	_LOCK_ACCESS(&msg_prop->lock)
 	{
 		// cache already full ?
-		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache))
+		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_out))
 		{
-			log_msg(LOG_DEBUG, "msg cache full, checking overflow policy ...");
+			log_msg(LOG_DEBUG, "send msg cache full, checking overflow policy ...");
 
 			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
 			{
-				log_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding first message");
+				log_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding message in send msgcache for %s", msg_prop->msg_subject);
 				np_message_t* old_msg = NULL;
 
 				if ((msg_prop->cache_policy & FIFO) > 0)
-					old_msg = sll_head(np_message_t, msg_prop->msg_cache);
+					old_msg = sll_head(np_message_t, msg_prop->msg_cache_out);
+
 				if ((msg_prop->cache_policy & FILO) > 0)
-					old_msg = sll_tail(np_message_t, msg_prop->msg_cache);
+					old_msg = sll_tail(np_message_t, msg_prop->msg_cache_out);
+
+				if (old_msg != NULL)
+				{
+					// TODO: add callback hook to allow user space handling of discarded message
+					msg_prop->msg_threshold--;
+					np_unref_obj(np_message_t, old_msg);
+				}
+			}
+
+			if (0 < (msg_prop->cache_policy & OVERFLOW_REJECT))
+			{
+				log_msg(LOG_WARN,
+						"rejecting new message because cache is full");
+				break;
+			}
+		}
+
+		sll_prepend(np_message_t, msg_prop->msg_cache_out, msg_in);
+
+		log_msg(LOG_DEBUG, "added message to the sender msgcache (%p / %d) ...",
+				msg_prop->msg_cache_out, sll_size(msg_prop->msg_cache_out));
+		np_ref_obj(np_message_t, msg_in);
+	}
+}
+
+void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
+{
+	_LOCK_ACCESS(&msg_prop->lock)
+	{
+		// cache already full ?
+		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
+		{
+			log_msg(LOG_DEBUG, "recv msg cache full, checking overflow policy ...");
+
+			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
+			{
+				log_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding message in recv msgcache for %s", msg_prop->msg_subject);
+				np_message_t* old_msg = NULL;
+
+				if ((msg_prop->cache_policy & FIFO) > 0)
+					old_msg = sll_head(np_message_t, msg_prop->msg_cache_in);
+				if ((msg_prop->cache_policy & FILO) > 0)
+					old_msg = sll_tail(np_message_t, msg_prop->msg_cache_in);
 
 				if (old_msg != NULL)
 				{
@@ -323,10 +339,10 @@ void _np_add_msg_to_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 			}
 		}
 
-		sll_prepend(np_message_t, msg_prop->msg_cache, msg_in);
+		sll_prepend(np_message_t, msg_prop->msg_cache_in, msg_in);
 
-		log_msg(LOG_DEBUG, "added message to the msgcache (%p / %d) ...",
-				msg_prop->msg_cache, sll_size(msg_prop->msg_cache));
+		log_msg(LOG_DEBUG, "added message to the recv msgcache (%p / %d) ...",
+				msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
 		np_ref_obj(np_message_t, msg_in);
 	}
 }

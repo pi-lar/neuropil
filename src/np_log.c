@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <fcntl.h>
@@ -15,6 +15,7 @@
 #include "np_log.h"
 
 #include "np_list.h"
+#include "np_memory.h"
 
 #include <sys/time.h>
 #include <time.h>
@@ -27,7 +28,7 @@ typedef struct np_log_s
 	char filename[256];
 	int fp;
 	// FILE *fp;
-	uint16_t level;
+	uint32_t level;
 	np_sll_t(char, logentries_l);
 	ev_io watcher;
 } np_log_t;
@@ -35,39 +36,44 @@ typedef struct np_log_s
 typedef struct log_str_t { const char* text; int log_code; } log_str_t;
 // TODO: ugly, but works. clean it up
 log_str_t __level_str[] = {
-		{NULL   , 0x0000 },
-		{"ERROR", 0x0001 },         /* error messages     */
-		{"WARN_", 0x0002 },			/* warning messages   */
-		{NULL   , 0x0003 },			/* none messages      */
-		{"INFO_", 0x0004 },			/* info messages      */
-		{NULL   , 0x0005 },			/* none messages      */
-		{NULL   , 0x0006 },			/* none messages      */
-		{NULL   , 0x0007 },			/* none messages      */
-		{"DEBUG", 0x0008 },			/* debugging messages */
-		{NULL   , 0x0009 },			/* none messages      */
-		{NULL   , 0x000a },			/* none messages      */
-		{NULL   , 0x000b },			/* none messages      */
-		{NULL   , 0x000c },			/* none messages      */
-		{NULL   , 0x000d },			/* none messages      */
-		{NULL   , 0x000e },			/* none messages      */
-		{NULL   , 0x000f },			/* none messages      */
-		{"TRACE", 0x0010 }			/* tracing messages   */
+		{NULL   , 0x00000 },
+		{"ERROR", 0x00001 },            /* error messages     */
+		{"WARN_", 0x00002 },			/* warning messages   */
+		{NULL   , 0x00003 },			/* none messages      */
+		{"INFO_", 0x00004 },			/* info messages      */
+		{NULL   , 0x00005 },			/* none messages      */
+		{NULL   , 0x00006 },			/* none messages      */
+		{NULL   , 0x00007 },			/* none messages      */
+		{"DEBUG", 0x00008 },			/* debugging messages */
+		{NULL   , 0x00009 },			/* none messages      */
+		{NULL   , 0x0000a },			/* none messages      */
+		{NULL   , 0x0000b },			/* none messages      */
+		{NULL   , 0x0000c },			/* none messages      */
+		{NULL   , 0x0000d },			/* none messages      */
+		{NULL   , 0x0000e },			/* none messages      */
+		{NULL   , 0x0000f },			/* none messages      */
+		{"TRACE", 0x00010 }			    /* trace messages   */
 };
 
 static np_log_t* logger = NULL;
 static pthread_mutex_t __log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void np_log_message(uint16_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
-{
-	if (logger == NULL) return;
 
-	if ( (level & LOG_NOMOD_MASK ) > 0)
-		if ( (level & logger->level & LOG_MODUL_MASK) == 0 )
+void np_log_message(uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
+{
+	// filter if a module log entry is wanted
+	if ( LOG_NONE < (level & LOG_MODUL_MASK) )
+		// if a module log entry is wanted, is it in the configured log mask ?
+		if ( LOG_NONE == (level & LOG_MODUL_MASK & logger->level) )
+			// not found, nothing to do
 			return;
 
-	if ( (level & logger->level & LOG_LEVEL_MASK) > LOG_NONE)
+	// next check if the log level (debug, error, ...) is set
+	if ( (level & LOG_LEVEL_MASK & logger->level) > LOG_NONE)
 	{
   	    char* new_log_entry = malloc(sizeof(char)*1124);
+		CHECK_MALLOC(new_log_entry);
+
   	    int wb = 0;
 		struct timeval tval;
 		struct tm local_time;
@@ -87,16 +93,18 @@ void np_log_message(uint16_t level, const char* srcFile, const char* funcName, u
 		va_end(ap);
 		snprintf(new_log_entry+wb, 1124-wb, "\n");
 
-//		pthread_mutex_lock(&__log_mutex);
-//	    sll_append(char, logger->logentries_l, new_log_entry);
-//		pthread_mutex_unlock(&__log_mutex);
+		//pthread_mutex_lock(&__log_mutex);
+	    //sll_append(char, logger->logentries_l, new_log_entry);
+		//pthread_mutex_unlock(&__log_mutex);
 
-		pthread_mutex_lock(&__log_mutex);
-		write(logger->fp, new_log_entry, strlen(new_log_entry));
-		// fprintf(logger->fp, "%s\n", new_log_entry);
-		// fflush(logger->fp);
-		pthread_mutex_unlock(&__log_mutex);
-		free (new_log_entry);
+		 pthread_mutex_lock(&__log_mutex);
+		 write(logger->fp, new_log_entry, strlen(new_log_entry));
+		 //fprintf(logger->fp, "%s\n", new_log_entry);
+		 // /* DEBUG ONLY */ fprintf(stdout, "%s", new_log_entry);
+		 // fsync(logger->fp);
+		 fflush(NULL);
+		 pthread_mutex_unlock(&__log_mutex);
+		 free (new_log_entry);
 	}
 	else
 	{
@@ -104,7 +112,7 @@ void np_log_message(uint16_t level, const char* srcFile, const char* funcName, u
 	}
 }
 
-void _log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
+void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
 {
 	if (revents & EV_WRITE)
 	{
@@ -130,14 +138,16 @@ void _np_log_fflush()
 	} while(NULL != entry);
 }
 
-void np_log_setlevel(uint16_t level)
+void np_log_setlevel(uint32_t level)
 {
     logger->level = level;
 }
 
-void np_log_init(const char* filename, uint16_t level)
+void np_log_init(const char* filename, uint32_t level)
 {
 	logger = (np_log_t *) malloc(sizeof(np_log_t));
+	CHECK_MALLOC(logger);
+
 
     snprintf (logger->filename, 255, "%s", filename);
 	// logger->fp = fopen(logger->filename, "a"); // "a"
@@ -146,6 +156,8 @@ void np_log_init(const char* filename, uint16_t level)
 
     sll_init(char, logger->logentries_l);
     char* new_log_entry = malloc(sizeof(char)*256);
+	CHECK_MALLOC(new_log_entry);
+
     snprintf(new_log_entry, 255, "initialized log system %p: %s / %x", logger, logger->filename, logger->level);
     np_log_message(LOG_DEBUG, __FILE__, __func__, __LINE__, "%s", new_log_entry);
 
@@ -155,7 +167,7 @@ void np_log_init(const char* filename, uint16_t level)
 
     // _np_suspend_event_loop();
     EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-	ev_io_init(&logger->watcher, _log_evflush, logger->fp, EV_WRITE);
+	ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
 	ev_io_start(EV_A_ &logger->watcher);
 	// _np_resume_event_loop();
 }

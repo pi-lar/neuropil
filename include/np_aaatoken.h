@@ -1,8 +1,9 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-/**
+/** \toggle_keepwhitespaces  */
+/** 
 The structure np_aaatoken_t is used for authorization, authentication and accounting purposes.
 Add-on information can be stored in a nested jtree structure. Several analogies have been used as a baseline for this structure:
 json web token, kerberos and diameter. Tokens do get integrity protected by adding an additional signature based on
@@ -27,7 +28,7 @@ AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizi
 
 #include "sodium.h"
 
-#include "np_key.h"
+#include "np_dhkey.h"
 #include "np_list.h"
 #include "np_memory.h"
 #include "np_types.h"
@@ -126,6 +127,7 @@ enum np_aaastate_e
 
    neuropil nodes can use the realm and issuer hash key informations to request authentication and authorization of a subject
    token can then be send to gather accounting information about message exchange
+
 */
 struct np_aaatoken_s
 {
@@ -163,10 +165,9 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
 
 // serialization of the np_aaatoken_t structure
 NP_API_INTERN
-void np_encode_aaatoken(np_tree_t* data, np_aaatoken_t* token);
-
+void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token);
 NP_API_INTERN
-void np_decode_aaatoken(np_tree_t* data, np_aaatoken_t* token);
+void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
 
 /**
 .. c:function::np_bool token_is_valid(np_aaatoken_t* token)
@@ -176,34 +177,36 @@ void np_decode_aaatoken(np_tree_t* data, np_aaatoken_t* token);
 
    :param token: the token to check
    :return: a boolean indicating whether the token is valid
+
 */
 NP_API_EXPORT
-np_bool token_is_valid(np_aaatoken_t* token);
+np_bool _np_aaatoken_is_valid(np_aaatoken_t* token);
 
 NP_API_INTERN
-np_dhkey_t _np_create_dhkey_for_token(np_aaatoken_t* identity);
+np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* identity);
 
 // neuropil internal aaatoken storage and exchange functions
 NP_API_INTERN
-void _np_add_sender_token(char* subject, np_aaatoken_t *token);
+void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token);
+NP_API_INTERN
+sll_return(np_aaatoken_t) _np_aaatoken_get_sender_all(char* subject);
+NP_API_INTERN
+np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender);
 
 NP_API_INTERN
-sll_return(np_aaatoken_t) _np_get_sender_token_all(char* subject);
-
+void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
-np_aaatoken_t* _np_get_sender_token(char* subject, char* sender);
-
+sll_return(np_aaatoken_t) _np_aaatoken_get_receiver_all(char* subject);
 NP_API_INTERN
-void _np_add_receiver_token(char* subject, np_aaatoken_t *token);
-
-NP_API_INTERN
-sll_return(np_aaatoken_t) _np_get_receiver_token_all(char* subject);
-
-NP_API_INTERN
-np_aaatoken_t* _np_get_receiver_token(char* subject);
+np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target);
 
 NP_API_INTERN
 void _np_aaatoken_add_signature(np_aaatoken_t* msg_token);
+
+NP_API_INTERN
+np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject);
+NP_API_INTERN
+void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token);
 
 #ifdef __cplusplus
 }
