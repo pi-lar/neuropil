@@ -1,0 +1,52 @@
+//
+// neuropil is copyright 2016-2017 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
+
+%module(package="neuropil") np_treeval
+
+#define NP_ENUM
+#define NP_API_EXPORT
+#define NP_API_HIDDEN
+#define NP_API_PROTEC
+#define NP_API_INTERN
+
+%{
+#include "../include/np_treeval.h"
+%}
+
+%rename(np_treeval_t) np_treeval;
+%rename(np_treeval_s) np_treeval;
+
+%extend treeval {
+    %immutable v;
+    %immutable bin;
+    %immutable tree;
+    %immutable key;
+    %immutable obj;
+    %immutable sh;
+    %immutable i;
+    %immutable l;
+    %immutable ll;
+    %immutable f;
+    %immutable d;
+    %immutable s;
+    %immutable c;
+    %immutable uc;
+    %immutable ush;
+    %immutable ui;
+    %immutable ul;
+    %immutable ull;
+    %immutable a2_ui;
+    %immutable farray;
+    %immutable carray;
+    %immutable ucarray;
+};
+
+%extend np_treeval_s {
+    %immutable type;
+    %immutable size;
+    %immutable value;
+};
+
+%include "../include/np_treeval.h"
