@@ -25,8 +25,12 @@
 #include "../include/np_dendrit.h"
 %}
 
-%include "np_types.i"
 %include "np_aaatoken.i"
+%include "np_log.i"
+%include "np_tree.i"
+%include "np_treeval.i"
+%include "np_types.i"
+
 
 %rename(np_state_s) np_state;
 %rename(np_state_t) np_state;
@@ -94,11 +98,6 @@ static np_bool python_accounting_callback(struct np_aaatoken_s* aaa_token)
 
 static np_tree_t* callback_tree = NULL;
 
-// _NP_ENABLE_MODULE_LOCK(py_callback_wrap);
-// _NP_MODULE_LOCK_IMPL(py_callback_wrap);
-
-// static const char* NP_MSG_INST_UUID = "_np.uuid";
-
 static PyObject* _py_convert_callback_data(np_tree_t* msg_properties, np_tree_t* msg_body)
 {
     PyObject *arglist;
@@ -112,15 +111,11 @@ static PyObject* _py_convert_callback_data(np_tree_t* msg_properties, np_tree_t*
 static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tree_t* msg_properties, np_tree_t* msg_body)
 {
     // lookup handler
-    np_treeval_t msg_uuid = np_tree_find_str(msg_properties, "_np.uuid")->val;
     np_treeval_t msg_subject = np_tree_find_str(msg->header, "_np.subject")->val;
-
-    PyObject* py_callback = np_tree_find_str(callback_tree, msg_uuid.value.s)->val.value.v;
+    PyObject* py_callback = np_tree_find_str(callback_tree, msg_subject.value.s)->val.value.v;
 
     // convert arguments to python args
     PyObject *arglist = _py_convert_callback_data(msg_properties, msg_body);
-
-    // find real python handler
 
     // call real python handler
     PyObject* result = PyEval_CallObject(py_callback, arglist);
@@ -160,20 +155,18 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
 
     void py_set_listener(PyObject* PyString, PyObject *PyFunc)
     {
-//          _MODULE_LOCK(py_callback_wrapper) {
-            if (NULL == callback_tree) {
-                callback_tree = np_tree_create();
-            }
-            char* subject = PyString_AsString(PyString);
-            // char* subject = Py_BuildValue("s", PyString);
+        if (NULL == callback_tree) {
+            callback_tree = np_tree_create();
+        }
+        char* subject = PyString_AsString(PyString);
 
-            np_tree_insert_str(callback_tree, subject, np_treeval_new_v(PyFunc));
-            np_set_listener(_py_subject_callback, subject);
+        PyObject* old_py_func = np_tree_find_str(callback_tree, subject)->val.value.v;
+        if (NULL != old_py_func) Py_XDECREF(old_py_func); /* Dispose of previous callback */
 
-            np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
-            msg_prop->user_clb = _py_subject_callback;
+        Py_XINCREF(PyFunc); /* Add a reference to new callback */
 
-//          }
+        np_tree_replace_str(callback_tree, subject, np_treeval_new_v(PyFunc));
+        np_set_listener(_py_subject_callback, subject);
     }
 
 
@@ -213,13 +206,8 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
 }
 #endif
 
-
 %ignore _np_state;
 %ignore _np_ping;
 %ignore _np_send_ack;
-
-%include "np_log.i"
-%include "np_tree.i"
-%include "np_treeval.i"
 
 %include "../include/neuropil.h"

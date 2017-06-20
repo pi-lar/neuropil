@@ -25,13 +25,13 @@
     %ignore obj;
 
     %immutable issued_at;
-    
+
     %immutable state;
     %immutable uuid;
 
     %immutable public_key;
     %immutable session_key;
-    %immutable private_key;    
+    %immutable private_key;
 
     np_aaatoken_s() {
         np_aaatoken_t *token;
@@ -44,19 +44,26 @@
 };
 
 %ignore np_aaastate_e;
+
 %ignore _np_aaatoken_t_new;
 %ignore _np_aaatoken_t_del;
 
-%ignore np_encode_aaatoken;
-%ignore np_decode_aaatoken;
-%ignore _np_create_dhkey_for_token;
-%ignore _np_add_sender_token;
-%ignore _np_get_sender_token_all;
-%ignore _np_get_sender_token;
-%ignore _np_add_receiver_token;
-%ignore _np_get_receiver_token_all;
-%ignore _np_get_receiver_token;
+%ignore np_aaatoken_encode;
+%ignore np_aaatoken_decode;
+
+%ignore _np_aaatoken_create_dhkey;
+
+%ignore _np_aaatoken_add_sender;
+%ignore _np_aaatoken_get_sender;
+%ignore _np_aaatoken_get_sender_all;
+
+%ignore _np_aaatoken_add_receiver;
+%ignore _np_aaatoken_get_receiver;
+%ignore _np_aaatoken_get_receiver_all;
+
 %ignore _np_aaatoken_add_signature;
+%ignore _np_aaatoken_add_local_mx;
+%ignore _np_aaatoken_get_local_mx;
 
 %nodefaultctor np_aaatoken_s;
 

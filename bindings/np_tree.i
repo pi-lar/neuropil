@@ -108,6 +108,16 @@
 %ignore np_tree_free;
 %ignore np_tree_clear;
 
+%ignore _np_print_tree;
+%ignore np_tree_get_byte_size;
+%ignore _np_tree_deserialize;
+%ignore _np_tree_serialize;
+%ignore _np_tree_elem_cmp;
+%ignore __np_tree_serialize_read_type;
+%ignore __np_tree_serialize_read_type_key;
+%ignore __np_tree_serialize_write_type;
+%ignore __np_tree_serialize_write_type_key;
+
 %ignore np_tree_insert_str;
 %ignore np_tree_insert_int;
 %ignore np_tree_insert_ulong;

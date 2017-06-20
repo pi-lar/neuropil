@@ -659,7 +659,7 @@ void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 
 		JSON_Value * tmp = np_treeval2json(tmp_key);
 		char* tmp2 = np_json2char(tmp, FALSE);
-		log_msg(LOG_SERIALIZATION | LOG_DEBUG, "deserialised type: %"PRIu8" key %s", tmp_key.type, tmp2);
+		log_msg(LOG_SERIALIZATION | LOG_DEBUG, "deserialised type: %u key %s", tmp_key.type, tmp2);
 		json_free_serialized_string(tmp2);
 		json_value_free(tmp);
 
@@ -800,11 +800,11 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 	case float_array_2_type:
 	case char_array_8_type:
 	case unsigned_char_array_8_type:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		log_msg(LOG_WARN, "please implement serialization for type %u", val.type);
 		break;
 
 	case void_type:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		log_msg(LOG_WARN, "please implement serialization for type %u", val.type);
 		break;
 
 	case bin_type:
@@ -848,7 +848,7 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 		}
 		break;
 	default:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		log_msg(LOG_WARN, "please implement serialization for type %u", val.type);
 		break;
 	}
 }

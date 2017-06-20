@@ -1,5 +1,5 @@
 
-rm python/*
+rm -r python/*
 
 swig -python -outdir python -o python/neuropil_wrap.c neuropil.i
 
@@ -19,6 +19,3 @@ otool -L _neuropil.dylib
 # osx security settings require the folloiwing steps if testing locally
 sudo install_name_tool -change build/lib/libneuropil.dylib /Volumes/SAFE/net.pi-lar/repositories/neuropil/build/lib/libneuropil.dylib /Volumes/SAFE/net.pi-lar/repositories/neuropil/bindings/python/_neuropil.so
 sudo install_name_tool -change build/lib/libneuropil.dylib /Volumes/SAFE/net.pi-lar/repositories/neuropil/build/lib/libneuropil.dylib /Volumes/SAFE/net.pi-lar/repositories/neuropil/bindings/python/_neuropil.dylib
-
-
-

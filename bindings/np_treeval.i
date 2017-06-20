@@ -18,7 +18,7 @@
 %rename(np_treeval_t) np_treeval;
 %rename(np_treeval_s) np_treeval;
 
-%extend treeval {
+%extend np_val_u {
     %immutable v;
     %immutable bin;
     %immutable tree;

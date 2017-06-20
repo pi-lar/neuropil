@@ -526,90 +526,97 @@ np_treeval_t np_treeval_new_obj(np_obj_t* obj)
 	return j;
 }
 
-int16_t jval_i (np_treeval_t j)
+int16_t np_treeval_i (np_treeval_t j)
 {
     return j.value.i;
 }
 
-int32_t jval_l (np_treeval_t j)
+int32_t np_treeval_l (np_treeval_t j)
 {
     return j.value.l;
 }
 
-int64_t jval_ll (np_treeval_t j)
+int64_t np_treeval_ll (np_treeval_t j)
 {
     return j.value.ll;
 }
 
-float jval_f (np_treeval_t j)
+float np_treeval_f (np_treeval_t j)
 {
     return j.value.f;
 }
 
-double jval_d (np_treeval_t j)
+double np_treeval_d (np_treeval_t j)
 {
     return j.value.d;
 }
 
-void *jval_v (np_treeval_t j)
+void *np_treeval_v (np_treeval_t j)
 {
     return j.value.v;
 }
 
-char *jval_s (np_treeval_t j)
+char *np_treeval_str (np_treeval_t j)
 {
     return j.value.s;
 }
 
-char jval_c (np_treeval_t j)
+char np_treeval_c (np_treeval_t j)
 {
     return j.value.c;
 }
 
-unsigned char jval_uc (np_treeval_t j)
+unsigned char np_treeval_uc (np_treeval_t j)
 {
     return j.value.uc;
 }
 
-int8_t jval_sh (np_treeval_t j)
+int8_t np_treeval_sh (np_treeval_t j)
 {
     return j.value.sh;
 }
 
-uint8_t jval_ush (np_treeval_t j)
+uint8_t np_treeval_ush (np_treeval_t j)
 {
     return j.value.ush;
 }
 
-uint16_t jval_ui (np_treeval_t j)
+uint16_t np_treeval_ui (np_treeval_t j)
 {
     return j.value.ui;
 }
 
-uint32_t jval_ul (np_treeval_t j)
+uint32_t np_treeval_ul (np_treeval_t j)
 {
     return j.value.ul;
 }
 
-uint64_t jval_ull (np_treeval_t j)
+uint64_t np_treeval_ull (np_treeval_t j)
 {
     return j.value.ull;
 }
 
-//int16_t* jval_iarray (np_treeval_t j)
-//{
-//    return j.value.a2_ui;
-//}
 
-float* jval_farray (np_treeval_t j)
+void* np_treeval_h (np_treeval_t j)
+{
+    return j.value.bin;
+}
+
+int16_t* np_treeval_iarray (np_treeval_t j)
+{
+    return j.value.a2_ui;
+}
+
+float* np_treeval_farray (np_treeval_t j)
 {
     return j.value.farray;
 }
 
-char* jval_carray (np_treeval_t j)
+char* np_treeval_carray (np_treeval_t j)
 {
     return j.value.carray;
 }
+
 uint64_t np_treeval_get_byte_size(np_treeval_t ele)
 {
 	uint64_t byte_size = 0;

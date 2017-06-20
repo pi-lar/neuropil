@@ -49,7 +49,7 @@ Fax: 865-974-4404
 #include "np_memory.h"
 #include "np_types.h"
 
-enum {
+typedef enum {
 	none_type = 0,
     short_type,
 	int_type,
@@ -75,10 +75,10 @@ enum {
 	hash_type,
 	npobj_type,
 	npval_count
-} np_treeval_type_t;
+} np_val_type_t;
 
 /* The Jval -- a type that can hold any type */
-typedef union val_type
+typedef union np_val_u
 {	// put void pointer first to enforce zero initialization of union
     void* v;
     void* bin;
@@ -102,16 +102,17 @@ typedef union val_type
     float farray[2];
     char carray[8];
     unsigned char ucarray[8];
-} val;
+} np_val_t;
+
 
 struct np_treeval_s
 {
-	uint8_t  type;
-	uint32_t size;
-	val      value;
+	np_val_type_t type;
+	uint32_t      size;
+	np_val_t      value;
 };
 
-np_treeval_t np_treeval_copy_of_val(np_treeval_t from) ;
+np_treeval_t np_treeval_copy_of_val(np_treeval_t from);
 
 np_treeval_t np_treeval_new_sh (int8_t sh);
 np_treeval_t np_treeval_new_i (int16_t i);
@@ -138,19 +139,29 @@ np_treeval_t np_treeval_new_hash(char* h_val);
 np_treeval_t np_treeval_new_pwhash (char *pw_key);
 np_treeval_t np_treeval_new_key(np_dhkey_t key);
 np_treeval_t np_treeval_new_obj(np_obj_t* obj);
+
+
 uint64_t np_treeval_get_byte_size(np_treeval_t ele);
 
 NP_API_EXPORT
 np_treeval_t np_treeval_NULL;
 
 NP_API_EXPORT
+int8_t  np_treeval_sh (np_treeval_t);
+NP_API_EXPORT
 int16_t  np_treeval_i (np_treeval_t);
 NP_API_EXPORT
 int32_t  np_treeval_l (np_treeval_t);
 NP_API_EXPORT
+int64_t  np_treeval_ll (np_treeval_t);
+NP_API_EXPORT
+uint8_t  np_treeval_ush (np_treeval_t);
+NP_API_EXPORT
 uint16_t np_treeval_ui (np_treeval_t);
 NP_API_EXPORT
 uint32_t np_treeval_ul (np_treeval_t);
+NP_API_EXPORT
+uint64_t np_treeval_ull (np_treeval_t);
 
 NP_API_EXPORT
 float  np_treeval_f (np_treeval_t);
@@ -159,13 +170,13 @@ double np_treeval_d (np_treeval_t);
 
 NP_API_EXPORT
 void* np_treeval_v (np_treeval_t);
+NP_API_EXPORT
+void* np_treeval_h (np_treeval_t);
 
 NP_API_EXPORT
 char* np_treeval_str (np_treeval_t);
 NP_API_EXPORT
 char  np_treeval_c (np_treeval_t);
-NP_API_EXPORT
-char* np_treeval_h (np_treeval_t);
 NP_API_EXPORT
 unsigned char np_treeval_uc (np_treeval_t);
 
