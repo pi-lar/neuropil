@@ -6,6 +6,7 @@
 #include <errno.h>
 
 #include "event/ev.h"
+#include "sodium.h"
 
 #include "np_aaatoken.h"
 
@@ -43,8 +44,8 @@ void _np_aaatoken_t_new(void* token)
 
 	aaa_token->issued_at = ev_time();
     // set expiration to one day and recreate each day by default
-    // TODO: make it configurable or use random timeframe
-    aaa_token->expiration = aaa_token->issued_at + 120;
+    // TODO: make it configurable
+    aaa_token->expiration = aaa_token->issued_at + ((int)randombytes_uniform(110)+10);
     aaa_token->extensions = np_tree_create();
     aaa_token->state |= AAA_INVALID;
 }
