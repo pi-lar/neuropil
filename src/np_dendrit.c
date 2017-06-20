@@ -56,6 +56,7 @@ else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
 void _np_in_received(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, ".start._np_in_received");
+	log_msg(LOG_DEBUG, "received msg");
 	void* raw_msg = NULL;
 
 	np_state_t* state = _np_state();

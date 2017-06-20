@@ -44,6 +44,11 @@ struct np_key_s
     np_pll_t(np_aaatoken_ptr, send_tokens); // link to runtime interest data on which this node is interested in
 
     np_aaatoken_t* aaa_token; // link to aaatoken for this key (if it exists)
+
+    /*
+     * Holds a reference to the parent if the key is an alias key.
+     */
+    np_key_t* parent;
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_key_t);

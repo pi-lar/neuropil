@@ -36,6 +36,7 @@
 #include "np_jobqueue.h"
 #include "np_tree.h"
 #include "np_dhkey.h"
+#include "np_key.h"
 #include "np_keycache.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
@@ -417,20 +418,20 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 
 					void* data_to_send = sll_head(void_ptr, key->network->out_events);
 					if(NULL != data_to_send) {
-						ssize_t written = 0, current_write=0;
+						ssize_t written = 0, current_write = 0;
 						while(written < MSG_CHUNK_SIZE_1024 ){
-							current_write += write(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
-							if(current_write == -1){
-								if(errno != EAGAIN){
+							current_write = write(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
+							if (current_write == -1) {
+								//if(errno != EWOULDBLOCK && errno != EAGAIN) {
 									log_msg(LOG_WARN,
 										"cannot write to socket: %s (%d)",
 										strerror(errno),errno);
-
-								}
+								//}
 								break;
 							}
 							written += current_write;
 						}
+						log_msg(LOG_DEBUG,"did write %d bytes",written);
 						free(data_to_send);
 					// ret is -1 or > 0 (bytes send)
 					// do not update the success, because UDP sending could result in
@@ -465,25 +466,40 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	}
 }
 
-void _np_network_accept(struct ev_loop *loop, NP_UNUSED ev_io *event, NP_UNUSED int revents)
+void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 {
 	log_msg(LOG_NETWORK | LOG_TRACE, ".start.np_network_accept");
+
+	if(EV_ERROR & revents)
+	{
+		log_msg(LOG_DEBUG,"got invalid tcp accept event");
+	  return;
+	}
 
 	struct sockaddr_storage from;
 	socklen_t fromlen = sizeof(from);
 
-	np_state_t* state = _np_state();
-	np_network_t* ng = state->my_node_key->network;
+	//np_state_t* state = _np_state();
+	//np_network_t* ng = state->my_node_key->network;
+	np_key_t* key = (np_key_t*) event->data; // state->my_node_key->network;
+	np_network_t* ng = key->network;
 
-	int client_fd = accept(ng->socket, (struct sockaddr*)&from, &fromlen);
+	int client_fd = accept(ng->socket, (struct sockaddr*)NULL,NULL);
 
 	if (client_fd < 0) {
-		if(errno != EWOULDBLOCK ){
-			log_msg(LOG_ERROR, "Could not accept socket connection on client fd %d. %s (%d)",
-					ng->socket, strerror(errno), errno);
+		if(errno != EWOULDBLOCK && errno != EAGAIN ){
+			log_msg(LOG_ERROR,
+					"Could not accept socket connection on client fd %d. %s (%d)"
+					, ng->socket, strerror(errno), errno);
 		}
 	} else {
-		log_msg(LOG_NETWORK | LOG_DEBUG, "accept socket from client fd: %d", client_fd);
+		log_msg(LOG_NETWORK | LOG_DEBUG, "accept socket from client fd: %d",
+				client_fd);
+
+		int err = -1;
+		do{
+			err =  getpeername(client_fd, (struct sockaddr*) &from, &fromlen);
+		}while(0 != err && errno != ENOTCONN );
 
 		// get calling address and port
 		char ipstr[255];
@@ -510,37 +526,70 @@ void _np_network_accept(struct ev_loop *loop, NP_UNUSED ev_io *event, NP_UNUSED 
 
 		np_key_t* alias_key = NULL;
 		np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
+		alias_key = _np_keycache_find(search_key);
 
-		alias_key = _np_keycache_find_or_create(search_key);
+		//if(alias_key == NULL) {
+			np_network_t* old_network = NULL;
+			_LOCK_MODULE(np_network_t)
+			{
+				if(alias_key != NULL) {
+					old_network = 	alias_key->network;
+				} else {
+					// init new alias key
+					alias_key = _np_keycache_create(search_key);
+					np_ref_obj(np_key_t, alias_key);
+					alias_key->parent = key;
+				}
+				np_new_obj(np_network_t, alias_key->network);
+				log_msg(LOG_DEBUG, "try to pthread_mutex_init");
+				int network_mutex_init = 0;
+				if ((network_mutex_init = _np_threads_mutex_init (
+						&alias_key->network->lock)) != 0)
+				{
+					log_msg(LOG_ERROR, "pthread_mutex_init: %s:",
+							strerror (network_mutex_init));
+					close (alias_key->network->socket);
+					return;
+				}
+				log_msg(LOG_DEBUG, "done pthread_mutex_init");
 
-		// set non blocking
-		/*
-		int current_flags = fcntl(client_fd, F_GETFL);
-		current_flags |= O_NONBLOCK;
-		fcntl(client_fd, F_SETFL, current_flags);
-*/
-		np_new_obj(np_network_t, alias_key->network);
+				alias_key->network->socket = client_fd;
+				alias_key->network->socket_type = ng->socket_type;
+				alias_key->network->waiting = np_tree_create();
+				alias_key->network->seqend = 0LU;
 
-		alias_key->network->addr_in = NULL;
-		//memcpy(&alias_key->network->addr_in,ng->addr_in, sizeof(struct addrinfo));
- 		alias_key->network->socket = client_fd;
+				// it could be a passive socket
+				sll_init(void_ptr, alias_key->network->out_events);
 
-		// it could be a passive socket
-		sll_init(void_ptr, alias_key->network->out_events);
-		sll_init(void_ptr, alias_key->network->in_events);
+				// set non blocking
+				int current_flags = fcntl(client_fd, F_GETFL);
+				current_flags |= O_NONBLOCK;
+				fcntl(client_fd, F_SETFL, current_flags);
 
-		_np_suspend_event_loop();
-		alias_key->network->watcher.data = alias_key;
-		ev_io_init(
-				&alias_key->network->watcher,
-				_np_network_read,
-				alias_key->network->socket,
-				EV_READ
-				);
-		ev_io_start(EV_A_ &ng->watcher);
-		_np_resume_event_loop();
+				alias_key->network->initialized = TRUE;
+			}
+			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+
+			_np_suspend_event_loop();
+			alias_key->network->watcher.data = alias_key;
+			ev_io_init(
+					&alias_key->network->watcher,
+					_np_network_read,
+					alias_key->network->socket,
+					EV_READ
+					);
+			ev_io_start(EV_A_ &alias_key->network->watcher);
+			_np_resume_event_loop();
+
+			if(old_network != NULL) {
+				_LOCK_MODULE(np_network_t)
+				{
+					np_unref_obj(np_network_t, old_network);
+				}
+			}
+		//}
 		log_msg(LOG_NETWORK | LOG_DEBUG,
-				"created network for alias key and watching it.");
+				"created network for key: %s and watching it.", _np_key_as_str(alias_key));
 	}
 }
 
@@ -564,46 +613,59 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 
 	np_key_t* key = (np_key_t*) event->data; // state->my_node_key->network;
 	np_network_t* ng = key->network;
+	np_network_t* ng_tcp = NULL;
 
 	/* receive the new data */
-	int16_t in_msg_len = recvfrom(ng->socket, data, MSG_CHUNK_SIZE_1024, 0, (struct sockaddr*)&from, &fromlen);
+	int16_t in_msg_len = -1;
+	log_msg(LOG_NETWORK | LOG_DEBUG, "ng->socket_type: %d", ng->socket_type);
+	log_msg(LOG_NETWORK | LOG_DEBUG, "key: %s", _np_key_as_str(key));
 
-	if( in_msg_len >=0) {
+	if ((ng->socket_type & TCP) == TCP) {
+		in_msg_len = recv(ng->socket, data,	MSG_CHUNK_SIZE_1024, 0);
+		if ( 0 != getpeername(ng->socket, (struct sockaddr*) &from, &fromlen))
+		{
+			log_msg(LOG_WARN, "could not receive socket peer: %s (%d)",
+					strerror(errno), errno);
+			return;
+		}
+		key = key->parent;
+		ng_tcp = ng;
+		ng = key->network;
+	} else {
+		in_msg_len = recvfrom(ng->socket, data,
+				MSG_CHUNK_SIZE_1024, 0, (struct sockaddr*)&from, &fromlen);
+	}
+	log_msg(LOG_NETWORK | LOG_DEBUG, "in_msg_len: %d", in_msg_len);
+
+	if ( in_msg_len >=0) {
 		// deal with both IPv4 and IPv6:
-		if (from.ss_family == AF_INET)
-		{   // AF_INET
+		if (from.ss_family == AF_INET )
+		{
+			log_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
+			// AF_INET
 			struct sockaddr_in *s = (struct sockaddr_in *) &from;
 			snprintf(port, 6, "%d", ntohs(s->sin_port));
 			inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
 		}
 		else
-		{   // AF_INET6
+		{
+			log_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
+			// AF_INET6
 			struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
 			snprintf(port, 6, "%d", ntohs(s->sin6_port));
 			inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 		}
 
-		// getnameinfo is slow because it is doing a ns lookup ! replaced it with a more native approach
-		//	if (from.ss_family == AF_INET)
-		//	{
-		//		struct sockaddr_in *s = (struct sockaddr_in *) &from;
-		//		getnameinfo((struct sockaddr*)s, sizeof s, ipstr, 255, port, 6, 0);
-		//	}
-		//	else
-		//	{
-		//		struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-		//		getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
-		//	}
-
-		if (0 == in_msg_len)
+		if (0 == in_msg_len && ng_tcp != NULL)
 		{
 			// tcp disconnect
 			log_msg(LOG_ERROR, "received disconnect from: %s:%s", ipstr, port);
 			// TODO handle cleanup of node structures ?
 			// maybe / probably the node received already a disjoin message before
-			ev_io_stop(EV_A_ &ng->watcher);
+			ev_io_stop(EV_A_ &ng_tcp->watcher);
 			_np_node_update_stat(key->node, 0);
-			close(ng->socket);
+
+			log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 			return;
 		}
 
@@ -624,13 +686,21 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 			return;
 		}
 
-		log_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (size: %hd)", ipstr, port, in_msg_len);
+		log_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (size: %hd)",
+				ipstr, port, in_msg_len);
 
 		// we registered this token info before in the first handshake message
 		np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
 		np_key_t* alias_key = _np_keycache_find_or_create(search_key);
 
-		if (NULL == alias_key) return;
+		if (NULL == alias_key){
+			log_msg(LOG_NETWORK | LOG_DEBUG, "could not find alias_key for msg");
+			log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
+			return;
+		}
+
+		log_msg(LOG_NETWORK | LOG_DEBUG, "alias_key for msg: %s",
+				_np_key_as_str(alias_key));
 
 		void* data_ptr = malloc(in_msg_len * sizeof(char));
 		CHECK_MALLOC(data_ptr);
@@ -648,8 +718,13 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 		np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
 
 		_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL);
+		log_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
+				_np_key_as_str(key) );
 
 		np_unref_obj(np_key_t, alias_key);
+	} else {
+		log_msg(LOG_NETWORK | LOG_DEBUG, "message package error: %s (%d)",
+				strerror(errno), errno);
 	}
 	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 }
@@ -736,7 +811,7 @@ void _np_network_t_new(void* nw)
  ** if the port number is bigger than zero, it will create a socket and bind it to #port#
  ** the type defines the protocol which is used by the node (@see socket_type)
  **/
-void _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* hostname, char* service)
+np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* hostname, char* service)
 {
 	int ret = 0;
     int one = 1;
@@ -747,99 +822,91 @@ void _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, ch
 	{
 		log_msg(LOG_ERROR, "pthread_mutex_init: %s:", strerror (ret));
 		close (ng->socket);
-		return;
+		return FALSE;
 	}
     log_msg(LOG_DEBUG, "done pthread_mutex_init");
 
     log_msg(LOG_DEBUG, "try to get_network_address");
     _np_network_get_address (create_socket, &ng->addr_in, type, hostname, service);
+    ng->socket_type = type;
     if (NULL == ng->addr_in)
     {
-    	return;
+        log_msg(LOG_ERROR, "could not receive network address");
+        return FALSE;
     }
     log_msg(LOG_DEBUG, "done get_network_address");
-
-
-//	  char host_name[255];
-//    char service_name[6];
-//    getnameinfo( ng->addr_in->ai_addr, ng->addr_in->ai_addrlen,
-//				 host_name, sizeof( host_name ),
-//				 service_name, sizeof( service_name ),
-//                 AI_NUMERICHOST | NI_NUMERICSERV );
-//    fprintf(stdout, "%s:%s\n", host_name, service_name);
 
     // create an inbound socket - happens only once per node
     if (TRUE == create_socket )
     {
+		// create own retransmit structures
+		ng->waiting = np_tree_create();
+		sll_init(void_ptr, ng->in_events);
+		// own sequence number counter
+		ng->seqend = 0LU;
+
     	// nothing to do for passive nodes
-    	if (type & PASSIVE) return;
+		if ((type & PASSIVE) != PASSIVE) {
 
-    	// server setup - create socket
-        // UDP note: not using a connected socket for sending messages to a different node
-        // leads to unreliable delivery. The sending socket changes too often to be useful
-        // for finding the correct decryption shared secret. Especially true for ipv6 ...
+			// server setup - create socket
+			// UDP note: not using a connected socket for sending messages to a different node
+			// leads to unreliable delivery. The sending socket changes too often to be useful
+			// for finding the correct decryption shared secret. Especially true for ipv6 ...
 
-    	ng->socket = socket (ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
-    	if (0 > ng->socket)
-    	{
-    		log_msg(LOG_ERROR, "could not create socket: %s", strerror (errno));
-    		exit(EXIT_FAILURE) ;
-    	}
-    	if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
-    	{
-    		log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
-    		close (ng->socket);
-    		exit(EXIT_FAILURE);
-		}
-    	if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
-    	{
-    		// enable ipv4 mapping
-    		log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
-		}
-
-    	// set non blocking
-    	int current_flags = fcntl(ng->socket, F_GETFL);
-    	current_flags |= O_NONBLOCK;
-    	fcntl(ng->socket, F_SETFL, current_flags);
-
-    	/* attach socket to #port#. */
-    	if (0 > bind (ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
-    	{
-    		log_msg(LOG_ERROR, "bind failed: %s:", strerror (errno));
-    		close (ng->socket);
-    		// exit, because listening port could not be opened
-    		exit(EXIT_FAILURE);
-		}
-
-    	if (type & TCP) {
-    		if (0 > listen(ng->socket, 10)) {
-    			log_msg(LOG_ERROR, "listen on tcp port failed: %s:", strerror (errno));
-    			exit(EXIT_FAILURE);
+			ng->socket = socket (ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
+			if (0 > ng->socket)
+			{
+				log_msg(LOG_ERROR, "could not create socket: %s", strerror (errno));
+				return FALSE;
 			}
-    	}
+			if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
+			{
+				log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
+				close (ng->socket);
+				return FALSE;
+			}
+			if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
+			{
+				// enable ipv4 mapping
+				log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
+			}
 
-    	// create own retransmit structures
-    	ng->waiting = np_tree_create();
-    	sll_init(void_ptr, ng->in_events);
+			// set non blocking
+			int current_flags = fcntl(ng->socket, F_GETFL);
+			current_flags |= O_NONBLOCK;
+			fcntl(ng->socket, F_SETFL, current_flags);
 
-    	// own sequence number counter
-    	ng->seqend = 0LU;
+			/* attach socket to #port#. */
+			if (0 > bind (ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
+			{
+				log_msg(LOG_ERROR, "bind failed: %s:", strerror (errno));
+				close (ng->socket);
+				// listening port could not be opened
+				return FALSE;
+			}
 
-    	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+			if (type & TCP) {
+				if (0 > listen(ng->socket, 10)) {
+					log_msg(LOG_ERROR, "listen on tcp port failed: %s:", strerror (errno));
+					close (ng->socket);
+					return FALSE;
+				}
+			}
 
-    	_np_suspend_event_loop();
-    	if (type & TCP)
-    	{
-    		// TODO implement accept and create client socket for each connection
-    		ev_io_init(&ng->watcher, _np_network_accept, ng->socket, EV_READ);
-    	}
-    	else if (type & UDP)
-    	{
-    		ev_io_init(&ng->watcher, _np_network_read, ng->socket, EV_READ);
-    	}
-    	ev_io_start(EV_A_ &ng->watcher);
-    	_np_resume_event_loop();
+			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
+			_np_suspend_event_loop();
+			if (type & TCP)
+			{
+				ev_io_init(&ng->watcher, _np_network_accept, ng->socket, EV_READ);
+			}
+			else if (type & UDP)
+			{
+				ev_io_init(&ng->watcher, _np_network_read, ng->socket, EV_READ);
+			}
+			ev_io_start(EV_A_ &ng->watcher);
+			_np_resume_event_loop();
+		}
     	ng->initialized = TRUE;
     	log_msg(LOG_NETWORK | LOG_DEBUG, "created local listening socket");
 
@@ -854,25 +921,19 @@ void _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, ch
     	if (0 > ng->socket)
     	{
     		log_msg(LOG_ERROR, "could not create socket: %s", strerror (errno));
-    		return;
+    		return FALSE;
     	}
     	if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
     	{
     		log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
     		close (ng->socket);
-    		return;
+    		return FALSE;
 		}
     	if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
     	{
     		// enable ipv4 mapping
     		log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
 		}
-
-    	// set non blocking
-    	int current_flags = fcntl(ng->socket, F_GETFL);
-    	current_flags |= O_NONBLOCK;
-    	fcntl(ng->socket, F_SETFL, current_flags);
-
 
 
 #ifdef SKIP_EVLOOP
@@ -882,47 +943,58 @@ void _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, ch
 		ng->watcher.data = NULL;
 		EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
-    	_np_suspend_event_loop();
-    	if (0 != (type & PASSIVE))
-    	{
-    		// not here and now, but after the handshake
-    	}
-    	else
-    	{
-    		ev_io_init(&ng->watcher, _np_network_send_from_events, ng->socket, EV_WRITE);
-    	}
-		ev_io_start(EV_A_ &ng->watcher);
-
-		log_msg(LOG_NETWORK | LOG_DEBUG, ": %d %p %p :", ng->socket, &ng->watcher,  &ng->watcher.data);
-		_np_resume_event_loop();
-
-
 		// UDP note: not using a connected socket for sending messages to a different node
 		// leads to unreliable delivery. The sending socket changes too often to be useful
 		// for finding the correct decryption shared secret. Especially true for ipv6 ...
 
-		// As we do have a async connection (and TCP may need longer due to handshake packages)
-		// we need to check the connection status for a moment
-		int retry_connect = 100;
+		// As we do have a async connection (and TCP may need longer due to
+		// handshake packages) we need to check the connection status for a moment
+		int retry_connect = 3;
 		int connection_status = -1;
 		do{
-			connection_status = connect(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen);
-			if (0 != connection_status)
-			{
-				ev_sleep(0.01);
-			}
-		}while(0 != connection_status && retry_connect-- > 0);
+			connection_status = connect(
+					ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen);
 
-		if(0 != connection_status && errno != EISCONN) {
-			log_msg(LOG_ERROR, "could not connect: %s (%d)", strerror (errno), errno);
-			close (ng->socket);
-			ev_io_stop(EV_A_ &ng->watcher);
-			return;
+			log_msg(LOG_NETWORK | LOG_DEBUG,"TRY CONNECT");
+			if(connection_status != 0){
+				ev_sleep(0.1);
+			}
+		}while( 0 != connection_status && retry_connect-- > 0);
+
+		if (0 != connection_status) {
+			if( errno != EISCONN) {
+				log_msg(LOG_ERROR,
+						"could not connect: %s (%d)", strerror (errno), errno);
+				close (ng->socket);
+				return FALSE;
+			}
 		}
+    	// set non blocking
+    	int current_flags = fcntl(ng->socket, F_GETFL);
+    	current_flags |= O_NONBLOCK;
+    	fcntl(ng->socket, F_SETFL, current_flags);
+
+		_np_suspend_event_loop();
+		if (0 != (type & PASSIVE))
+		{
+			// not here and now, but after the handshake
+		}
+		else
+		{
+			ev_io_init(
+					&ng->watcher, _np_network_send_from_events,
+					ng->socket, EV_WRITE);
+		}
+		ev_io_start(EV_A_ &ng->watcher);
+
+		log_msg(LOG_NETWORK | LOG_DEBUG,
+				": %d %p %p :", ng->socket, &ng->watcher,  &ng->watcher.data);
+		_np_resume_event_loop();
 
 		ng->initialized = TRUE;
     	log_msg(LOG_NETWORK | LOG_DEBUG, "created local sending socket");
     }
 
     freeaddrinfo( ng->addr_in );
+    return TRUE;
 }

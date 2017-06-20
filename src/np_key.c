@@ -130,6 +130,8 @@ void _np_key_t_new(void* key)
 
     new_key->send_tokens = NULL; // link to runtime interest data on which this node is interested in
     new_key->recv_tokens = NULL; // link to runtime interest data on which this node is interested in
+
+    new_key->parent = NULL;
 }
 
 void _np_key_t_del(void* key)

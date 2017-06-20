@@ -552,9 +552,13 @@ np_bool _np_http_init() {
 	if (NULL == __local_http)
 		return FALSE;
 
-	np_new_obj(np_network_t, __local_http->network);
-	_np_network_init(__local_http->network, TRUE, TCP | IPv4, "localhost", "31415");
-	if (NULL == __local_http->network)
+	_LOCK_MODULE(np_network_t)
+	{
+		np_new_obj(np_network_t, __local_http->network);
+
+		_np_network_init(__local_http->network, TRUE, TCP | IPv4, "localhost", "31415");
+	}
+	if (NULL == __local_http->network || FALSE == __local_http->network->initialized )
 		return FALSE;
 
 	__local_http->parser = htparser_new();

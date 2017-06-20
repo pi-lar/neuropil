@@ -32,16 +32,14 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-
-
-#define USAGE "neuropil_hydra [-j key:proto:host:port] [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count] [-l path_to_log_folder]"
-#define OPTSTR "j:p:n:t:l:"
+#define USAGE "neuropil_hydra [-j key:proto:host:port] [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count] [-l path_to_log_folder] [-d loglevel]"
+#define OPTSTR "j:p:n:t:l:d:"
 
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 #define DEBUG 0
-#define NUM_HOST 1
+#define NUM_HOST 3
 
 extern char *optarg;
 extern int optind;
@@ -70,7 +68,7 @@ int main(int argc, char **argv)
 	char* logpath = ".";
 
 	uint32_t required_nodes = NUM_HOST;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK;
+	int level = -2;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
 		switch ((char) opt) {
@@ -87,6 +85,16 @@ int main(int argc, char **argv)
 			break;
 		case 'n':
 			required_nodes = atoi(optarg);
+			break;
+		case 'd':
+			level = atoi(optarg);
+			if(level == -1){	   // production client
+				level = LOG_ERROR;
+			}else if(level == -2){ // production server
+				level = LOG_ERROR | LOG_WARN | LOG_INFO;
+			}else if(level <= -3){ // debug
+				level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK;
+			}
 			break;
 		case 'l':
 			if(optarg != NULL){

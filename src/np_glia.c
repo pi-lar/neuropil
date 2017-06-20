@@ -31,6 +31,7 @@
 #include "np_list.h"
 #include "np_log.h"
 #include "np_message.h"
+#include "np_memory.h"
 #include "np_msgproperty.h"
 #include "np_network.h"
 #include "np_node.h"

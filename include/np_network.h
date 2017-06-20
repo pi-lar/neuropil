@@ -120,7 +120,7 @@ np_prioq_t* _np_network_get_new_pqentry();
  **
  **/
 NP_API_INTERN
-void _np_network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);
+np_bool _np_network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);
 
 NP_API_INTERN
 void _network_destroy (np_network_t* network);
