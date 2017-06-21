@@ -106,11 +106,6 @@ void _np_key_destroy(np_key_t* to_destroy) {
 			np_unref_obj(np_key_t, iter->val);
 			sll_next(iter);
 		}
-		log_debug_msg(LOG_DEBUG, "refcount of key %s at destroy: %d (should be: 2)", keyident, to_destroy->obj->ref_count);
-		// 1 ref for this method
-		// and another one from the calling function
-		// every additional referece has to be from an async thread
-		np_unref_obj(np_key_t, to_destroy);
 
 		log_debug_msg(LOG_DEBUG, "cleanup of key and associated data structures done");
 	}else{

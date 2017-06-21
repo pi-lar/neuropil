@@ -201,11 +201,11 @@ np_key_t* _np_keycache_add(np_key_t* subject_key)
 	{
 		np_new_obj(np_key_t, subject_key);
 	}
+	np_ref_obj(np_key_t, subject_key);
 
 	_LOCK_MODULE(np_keycache_t)
 	{
 		SPLAY_INSERT(st_keycache_s, __key_cache, subject_key);
-		np_ref_obj(np_key_t, subject_key);
 		subject_key->last_update = ev_time();
 	}
 	return subject_key;
