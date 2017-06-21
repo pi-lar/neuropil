@@ -17,6 +17,7 @@
 #include "np_message.h"
 #include "np_node.h"
 #include "np_log.h"
+#include "np_threads.h"
 
 
 /** np_obj_pool_t
@@ -64,6 +65,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 		__np_obj_pool_ptr->size++;
     }
 
+	_np_threads_mutex_init(&__np_obj_pool_ptr->current->lock);
     __np_obj_pool_ptr->current->type = obj_type;
     __np_obj_pool_ptr->current->ref_count = 0;
     __np_obj_pool_ptr->current->next = NULL;
@@ -79,6 +81,8 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 
 void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 {
+	_np_threads_mutex_lock(&(*obj)->lock);
+
 	if (NULL != (*obj) &&
 		NULL != (*obj)->ptr &&
 		(*obj)->type == obj_type &&
@@ -95,9 +99,14 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 		else __np_obj_pool_ptr->first = __np_obj_pool_ptr->first->next;
 		(*obj)->type = np_none_t_e;
 	    (*obj)->next = __np_obj_pool_ptr->free_obj;
+		_np_threads_mutex_unlock(&(*obj)->lock);
+		_np_threads_mutex_destroy(&(*obj)->lock);
 		__np_obj_pool_ptr->free_obj = (*obj);
 		__np_obj_pool_ptr->available++;
 		__np_obj_pool_ptr->current = NULL;
+
+	}else{
+		_np_threads_mutex_unlock(&(*obj)->lock);
 	}
 }
 
@@ -106,12 +115,16 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 // increase ref count
 void np_mem_refobj(np_obj_t* obj)
 {
+	_np_threads_mutex_lock(&obj->lock);
     obj->ref_count++;
+	_np_threads_mutex_unlock(&obj->lock);
 }
 // decrease ref count
 void np_mem_unrefobj(np_obj_t* obj)
 {
-	obj->ref_count--;
+	_np_threads_mutex_lock(&obj->lock);
+    obj->ref_count--;
+	_np_threads_mutex_unlock(&obj->lock);
 }
 
 // print the complete object list and statistics

@@ -53,6 +53,7 @@ typedef struct np_obj_s np_obj_t;
 
 struct np_obj_s
 {
+	np_mutex_t	lock;
 	np_obj_enum type;
 	int16_t ref_count;
 	void* ptr;
