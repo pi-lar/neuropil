@@ -82,5 +82,11 @@ void np_log_message(uint32_t level,
 #define log_msg(level, msg, ...) \
 	 np_log_message(level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
 
+#ifdef DEBUG
+#define log_debug_msg(level, msg, ...) \
+	 np_log_message(level & LOG_DEBUG, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
+#else
+#define log_debug_msg(level, msg, ...)
+#endif
 
 #endif /* _NP_LOG_H_ */

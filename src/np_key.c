@@ -50,7 +50,7 @@ char* _np_key_as_str(np_key_t* key)
 		CHECK_MALLOC(key->dhkey_str);
 
 		_np_dhkey_to_str(&key->dhkey, key->dhkey_str);
-		log_msg (LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
+		log_debug_msg(LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
 	}
 
 	return key->dhkey_str;
@@ -64,7 +64,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 	if(NULL != to_destroy) {
 
 		char* keyident = _np_key_as_str(to_destroy);
-		log_msg(LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
+		log_debug_msg(LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
 
 		_np_keycache_remove(to_destroy->dhkey);
 
@@ -98,14 +98,23 @@ void _np_key_destroy(np_key_t* to_destroy) {
 			}
 		}
 
-		// delete old network structure
-		if (NULL != to_destroy->aaa_token) np_unref_obj(np_aaatoken_t, to_destroy->aaa_token);
-		if (NULL != to_destroy->node)      np_unref_obj(np_node_t,     to_destroy->node);
-		if (NULL != to_destroy->network)   np_unref_obj(np_network_t,  to_destroy->network);
+		np_sll_t(np_key_t, aliasse)  = _np_keycache_find_aliase(to_destroy);
+		sll_iterator(np_key_t) iter = sll_first(aliasse);
 
-		log_msg(LOG_DEBUG, "cleanup of key and associated data structures done");
+		while(iter != NULL) {
+			_np_key_destroy(iter->val);
+			np_unref_obj(np_key_t, iter->val);
+			sll_next(iter);
+		}
+		log_debug_msg(LOG_DEBUG, "refcount of key %s at destroy: %d (should be: 2)", keyident, to_destroy->obj->ref_count);
+		// 1 ref for this method
+		// and another one from the calling function
+		// every additional referece has to be from an async thread
+		np_unref_obj(np_key_t, to_destroy);
+
+		log_debug_msg(LOG_DEBUG, "cleanup of key and associated data structures done");
 	}else{
-		log_msg(LOG_DEBUG, "no key provided for cleanup");
+		log_debug_msg(LOG_DEBUG, "no key provided for cleanup");
 	}
 }
 
@@ -148,5 +157,12 @@ void _np_key_t_del(void* key)
 	}
 	// unref and delete of other object pointers has to be done outside of this function
 	// otherwise double locking the memory pool will lead to a deadlock
+
+	// delete old network structure
+	if (NULL != old_key->aaa_token) np_unref_obj(np_aaatoken_t, old_key->aaa_token);
+	if (NULL != old_key->node)      np_unref_obj(np_node_t,     old_key->node);
+	if (NULL != old_key->network)   np_unref_obj(np_network_t,  old_key->network);
+
+
 }
 

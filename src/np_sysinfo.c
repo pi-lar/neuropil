@@ -134,7 +134,7 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 	char* mynode_hash = _np_key_as_str(_np_state()->my_node_key);
 
 	if (NULL != target ){
-		log_msg(LOG_DEBUG, "sysinfo request message is from %s for %s !",
+		log_debug_msg(LOG_DEBUG, "sysinfo request message is from %s for %s !",
 				source->val.value.s, target->val.value.s);
 
 		if(strcmp(mynode_hash, target->val.value.s) != 0) {
@@ -145,7 +145,7 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 			return FALSE;
 		}
 	}else{
-		log_msg(LOG_DEBUG, "sysinfo request message is from %s for anyone!",
+		log_debug_msg(LOG_DEBUG, "sysinfo request message is from %s for anyone!",
 						source->val.value.s);
 
 	}
@@ -188,7 +188,7 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 	}
 	log_msg(LOG_INFO, "received sysinfo reply");
 
-	log_msg(LOG_DEBUG,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu64")",
+	log_debug_msg(LOG_DEBUG,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu64")",
 			source->val.value.s, body->size, body->byte_size);
 
 	// insert / replace cache item
@@ -214,7 +214,7 @@ np_tree_t* np_get_my_sysinfo() {
 	np_tree_t* local_node = np_tree_create();
 	_np_node_encode_to_jrb(local_node, _np_state()->my_node_key, FALSE);
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE, np_treeval_new_tree(local_node));
-	log_msg(LOG_DEBUG, "my sysinfo object has a node");
+	log_debug_msg(LOG_DEBUG, "my sysinfo object has a node");
 	np_tree_free(local_node);
 
 	// build neighbours list
@@ -238,7 +238,7 @@ np_tree_t* np_get_my_sysinfo() {
 			}
 		}
 	}
-	log_msg(LOG_DEBUG, "my sysinfo object has %d neighbours",
+	log_debug_msg(LOG_DEBUG, "my sysinfo object has %d neighbours",
 			neighbour_counter);
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, np_treeval_new_tree(neighbours));
@@ -265,7 +265,7 @@ np_tree_t* np_get_my_sysinfo() {
 			}
 		}
 	}
-	log_msg(LOG_DEBUG, "my sysinfo object has %d routing table entries",
+	log_debug_msg(LOG_DEBUG, "my sysinfo object has %d routing table entries",
 			routes_counter);
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));
@@ -306,7 +306,7 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 
 	np_tree_t* ret = NULL;
 	if (strncmp(hash_of_target, my_key, 64) == 0) {
-		log_msg(LOG_DEBUG, "Requesting sysinfo for myself");
+		log_debug_msg(LOG_DEBUG, "Requesting sysinfo for myself");
 		// If i request myself i can answer instantly
 		ret = np_get_my_sysinfo();
 
@@ -315,7 +315,7 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 		//_np_request_others();
 	} else {
 
-		log_msg(LOG_DEBUG, "Requesting sysinfo for node %s", hash_of_target);
+		log_debug_msg(LOG_DEBUG, "Requesting sysinfo for node %s", hash_of_target);
 		ret = _np_get_sysinfo_from_cache(hash_of_target, 5);
 
 		if(NULL == ret ){
@@ -343,9 +343,9 @@ np_tree_t* _np_get_sysinfo_from_cache(const char* const hash_of_target, uint16_t
 	}
 
 	if (NULL == ret) {
-		log_msg(LOG_DEBUG, "sysinfo reply data received: no");
+		log_debug_msg(LOG_DEBUG, "sysinfo reply data received: no");
 	} else {
-		log_msg(LOG_DEBUG,
+		log_debug_msg(LOG_DEBUG,
 				"sysinfo reply data received: yes (size: %"PRIu16", byte_size: %"PRIu64")",
 				ret->size, ret->byte_size);
 	}

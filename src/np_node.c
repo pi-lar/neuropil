@@ -24,6 +24,7 @@
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"
+#include "np_memory.h"
 #include "np_tree.h"
 #include "np_dhkey.h"
 #include "np_keycache.h"
@@ -136,7 +137,7 @@ np_key_t* _np_node_decode_from_str (const char *key)
 
 	// key is mandatory element in string
 	s_hostkey = strtok(key_dup, ":");
-	// log_msg(LOG_DEBUG, "node decoded, extracted hostkey %s", sHostkey);
+	// log_debug_msg(LOG_DEBUG, "node decoded, extracted hostkey %s", sHostkey);
 
 	if (iLen > strlen(s_hostkey))
 	{
@@ -147,7 +148,7 @@ np_key_t* _np_node_decode_from_str (const char *key)
 
 	// string encoded data contains key, eventually plus hostname and hostport
 	// key string is mandatory !
-	log_msg(LOG_DEBUG, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
+	log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
 
 	np_dhkey_t search_key = np_dhkey_create_from_hash(s_hostkey);
 	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
@@ -184,7 +185,7 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 	{
 		// uint8_t proto = _np_network_parse_protocol_string(s_host_proto);
 		_np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
-		log_msg(LOG_DEBUG, "decoded node from jrb %d:%s:%s",
+		log_debug_msg(LOG_DEBUG, "decoded node from jrb %d:%s:%s",
 				i_host_proto, s_host_name, s_host_port);
 	}
 
@@ -212,7 +213,7 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_t, no
     	if (current->node)
     	{
     		np_tree_t* node_jrb = np_tree_create();
-    		// log_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
+    		// log_debug_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
     		_np_node_encode_to_jrb(node_jrb, current, include_stats);
     		np_tree_insert_str(node_jrb, NP_NODE_KEY, np_treeval_new_s(_np_key_as_str(current)));
 
@@ -285,7 +286,10 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 	node_token->uuid = np_uuid_create(node_subject, 0);
 
 	node_token->not_before = ev_time();
-	node_token->expiration = ev_time() + 3600.0; // 1 hour valid token
+	node_token->expiration = node_token->not_before + 3600.0; // 1 hour valid token
+#ifdef DEBUG
+	 node_token->expiration = node_token->not_before + 61.0;
+#endif
 
     crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
 
@@ -320,6 +324,7 @@ void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 void _np_node_update_stat (np_node_t* node, uint8_t success)
 {
     float total = 0;
+    np_ref_obj(np_node_t, node);
     node->success_win[node->success_win_index++ % SUCCESS_WINDOW] = success;
     node->success_avg = 0.0;
     // printf("SUCCESS_WIN[");
@@ -333,6 +338,8 @@ void _np_node_update_stat (np_node_t* node, uint8_t success)
 
 	log_msg(LOG_INFO, "node %s:%s success rate now: %1.1f",
 			node->dns_name, node->port, node->success_avg);
+
+    np_unref_obj(np_node_t, node);
 }
 
 void _np_node_update_latency (np_node_t* node, double new_latency)
@@ -350,13 +357,13 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
 	    	double total = 0.0;
 		    for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
 		    {
-		    	// log_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency_win[i]);
+		    	// log_debug_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency_win[i]);
 		    	total += node->latency_win[i];
 		    }
 			node->latency = total / SUCCESS_WINDOW;
 			log_msg(LOG_INFO, "node %s:%s latency now: %1.3f",
 					node->dns_name, node->port, node->latency);
-	    	// log_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency);
+	    	// log_debug_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency);
 		}
 	}
 }

@@ -256,7 +256,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 		switch (__local_http->ht_request.ht_method) {
 		case (htp_method_GET): {
 
-			log_msg(LOG_DEBUG, "Requesting sysinfo");
+			log_debug_msg(LOG_DEBUG, "Requesting sysinfo");
 
 			char target_hash[65];
 
@@ -268,11 +268,11 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 			/**
 			 * Default behavior if no argument is given: display own node informations
 			 */
-			log_msg(LOG_DEBUG, "parse arguments of %s",
+			log_debug_msg(LOG_DEBUG, "parse arguments of %s",
 					__local_http->ht_request.ht_path);
 
 			if ( NULL != __local_http->ht_request.ht_path) {
-				log_msg(LOG_DEBUG, "request has arguments");
+				log_debug_msg(LOG_DEBUG, "request has arguments");
 
 				char* path = strdup(__local_http->ht_request.ht_path);
 				char* tmp_target_hash = strtok(path, "/");
@@ -293,12 +293,15 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 				free(path);
 
 			} else {
-				log_msg(LOG_DEBUG, "no arguments provided");
+				log_debug_msg(LOG_DEBUG, "no arguments provided");
 			}
 
-			char* my_key = _np_key_as_str(_np_state()->my_node_key);
+			np_key_t*  key = _np_state()->my_node_key;
+			np_ref_obj(np_key_t, key);
+
+			char* my_key = _np_key_as_str(key);
 			if (usedefault) {
-				log_msg(LOG_DEBUG, "using own node as info system");
+				log_debug_msg(LOG_DEBUG, "using own node as info system");
 				sprintf(target_hash, "%s",my_key);
 			}
 			target_hash[64] = '\0';
@@ -306,24 +309,25 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 			sysinfo = np_get_sysinfo(target_hash);
 
 			if (NULL == sysinfo) {
-				log_msg(LOG_DEBUG, "Could not find system informations");
+				log_debug_msg(LOG_DEBUG, "Could not find system informations");
 				http_status = HTTP_CODE_ACCEPTED;
 				json_obj = _np_generate_error_json("key not found.",
 						"update request is send. please wait.");
 			} else {
-				log_msg(LOG_DEBUG, "sysinfo response tree (byte_size: %"PRIu64,
+				log_debug_msg(LOG_DEBUG, "sysinfo response tree (byte_size: %"PRIu64,
 						sysinfo->byte_size);
-				log_msg(LOG_DEBUG, "sysinfo response tree (size: %"PRIu16,
+				log_debug_msg(LOG_DEBUG, "sysinfo response tree (size: %"PRIu16,
 						sysinfo->size);
 
-				log_msg(LOG_DEBUG, "Convert sysinfo to json");
+				log_debug_msg(LOG_DEBUG, "Convert sysinfo to json");
 				json_obj = np_tree2json(sysinfo);
-				log_msg(LOG_DEBUG, "cleanup");
+				log_debug_msg(LOG_DEBUG, "cleanup");
 				np_tree_free(sysinfo);
 			}
 
 			__json_return__:
-			log_msg(LOG_DEBUG, "serialise json response");
+			np_unref_obj(np_key_t, key);
+			log_debug_msg(LOG_DEBUG, "serialise json response");
 			if (NULL == json_obj) {
 				log_msg(LOG_ERROR,
 						"HTTP return is not defined for this code path");
@@ -332,11 +336,11 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 						"no response defined");
 			}
 			response = np_json2char(json_obj, TRUE);
-			log_msg(LOG_DEBUG, "sysinfo response should be (strlen: %lu):",
+			log_debug_msg(LOG_DEBUG, "sysinfo response should be (strlen: %lu):",
 					strlen(response));
 			json_value_free(json_obj);
 
-			log_msg(LOG_DEBUG, "write to body");
+			log_debug_msg(LOG_DEBUG, "write to body");
 			__local_http->ht_response.ht_status = http_status;
 			__local_http->ht_response.ht_body = response; //strdup(response);;
 
@@ -366,7 +370,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 void _np_http_write_callback(NP_UNUSED struct ev_loop* loop,
 NP_UNUSED ev_io* ev, int event_type) {
 	if ((event_type & EV_WRITE) && RESPONSE == __local_http->status) {
-		log_msg(LOG_HTTP | LOG_DEBUG, "start writing response");
+		log_debug_msg(LOG_HTTP | LOG_DEBUG, "start writing response");
 		// create http reply
 		char data[2048];
 
@@ -407,7 +411,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 		send(__local_http->client_fd, data, pos, 0);
 		np_tree_free(__local_http->ht_response.ht_header);
 
-		log_msg(LOG_HTTP | LOG_DEBUG, "send http header success");
+		log_debug_msg(LOG_HTTP | LOG_DEBUG, "send http header success");
 
 		// HTTP body
 		memset(data, 0, 2048);
@@ -417,20 +421,20 @@ NP_UNUSED ev_io* ev, int event_type) {
 
 		pos = 0;
 		for (int i = 0; i < parts; i++) {
-			log_msg(LOG_HTTP | LOG_DEBUG, "sending http body part (%d / %d)",
+			log_debug_msg(LOG_HTTP | LOG_DEBUG, "sending http body part (%d / %d)",
 					i + 1, parts);
 			if (i + 1 == parts) {
 				send(__local_http->client_fd,
 						__local_http->ht_response.ht_body + pos, last_part_size,
 						0);
-				log_msg(LOG_HTTP | LOG_DEBUG,
+				log_debug_msg(LOG_HTTP | LOG_DEBUG,
 						"send http body end (%lu) success",
 						strlen(__local_http->ht_response.ht_body) - pos);
 			} else {
 				send(__local_http->client_fd,
 						__local_http->ht_response.ht_body + pos, 2048, 0);
 				pos += 2048;
-				log_msg(LOG_HTTP | LOG_DEBUG, "send http body part success");
+				log_debug_msg(LOG_HTTP | LOG_DEBUG, "send http body part success");
 			}
 		}
 
@@ -451,7 +455,7 @@ void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 
 		if (0 == in_msg_len) {
 			// tcp disconnect
-			log_msg(LOG_HTTP | LOG_DEBUG, "received disconnect");
+			log_debug_msg(LOG_HTTP | LOG_DEBUG, "received disconnect");
 			close(__local_http->client_fd);
 			ev_io_stop(EV_A_&__local_http->client_watcher_in);
 			ev_io_stop(EV_A_&__local_http->client_watcher_out);
@@ -464,7 +468,7 @@ void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 			return;
 		}
 
-		log_msg(LOG_HTTP | LOG_DEBUG, "parsing http request");
+		log_debug_msg(LOG_HTTP | LOG_DEBUG, "parsing http request");
 		htparser_run(__local_http->parser, __local_http->hooks, data,
 				in_msg_len);
 		if (htparser_get_error(__local_http->parser) != htparse_error_none) {
@@ -478,7 +482,7 @@ void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 		}
 
 	} else {
-		// log_msg(LOG_DEBUG, "local http status now %d, but should be %d or %d",
+		// log_debug_msg(LOG_DEBUG, "local http status now %d, but should be %d or %d",
 		// __local_http->status, CONNECTED, REQUEST);
 	}
 }
@@ -519,7 +523,7 @@ NP_UNUSED int event_type) {
 			getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
 		}
 
-		log_msg(LOG_HTTP | LOG_DEBUG,
+		log_debug_msg(LOG_HTTP | LOG_DEBUG,
 				"received http request from %s:%s (client fd: %d)", ipstr, port,
 				__local_http->client_fd);
 
@@ -541,7 +545,7 @@ NP_UNUSED int event_type) {
 		// _np_resume_event_loop();
 
 	} else {
-		log_msg(LOG_HTTP | LOG_DEBUG, "http connection attempt not accepted");
+		log_debug_msg(LOG_HTTP | LOG_DEBUG, "http connection attempt not accepted");
 	}
 }
 

@@ -18,6 +18,7 @@
 #include "np_types.h"
 #include "np_node.h"
 #include "np_key.h"
+#include "np_list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,6 +49,9 @@ np_key_t* _np_keycache_remove(np_dhkey_t key);
 
 NP_API_INTERN
 np_key_t* _np_keycache_find_deprecated();
+
+NP_API_INTERN
+sll_return(np_key_t) _np_keycache_find_aliase(np_key_t* forKey);
 
 // TODO: this needs to be refactored: closest distance clock- or counterclockwise ?
 // will have an important effect on routing decisions

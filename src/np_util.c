@@ -42,14 +42,14 @@ char* np_uuid_create(const char* str, const uint16_t num)
 
 	double now = ev_time();
 	snprintf (input, 255, "%s:%u:%16.16f", str, num, now);
-	// log_msg(LOG_DEBUG, "created input uuid: %s", input);
+	// log_debug_msg(LOG_DEBUG, "created input uuid: %s", input);
 	crypto_generichash(out, 18, (unsigned char*) input, 256, NULL, 0);
 	sodium_bin2hex(uuid_out, 37, out, 18);
-	// log_msg(LOG_DEBUG, "created raw uuid: %s", uuid_out);
+	// log_debug_msg(LOG_DEBUG, "created raw uuid: %s", uuid_out);
 	uuid_out[8] = uuid_out[13] = uuid_out[18] = uuid_out[23] = '-';
 	uuid_out[14] = '5';
 	uuid_out[19] = '9';
-	// log_msg(LOG_DEBUG, "created new uuid: %s", uuid_out);
+	// log_debug_msg(LOG_DEBUG, "created new uuid: %s", uuid_out);
 
 	return uuid_out;
 }
@@ -67,7 +67,7 @@ np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t li
 	_np_message_buffer_container_t* wrapper = ctx->buf;
 
 	size_t nextCount = wrapper->bufferCount + limit;
-	log_msg(LOG_DEBUG,
+	log_debug_msg(LOG_DEBUG,
 			 "BUFFER CHECK Current size: %zu; Max size: %zu; Read size: %zu",
 			 wrapper->bufferCount, wrapper->bufferMaxCount, limit);
 
@@ -76,7 +76,7 @@ np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t li
  				 "Message deserialization error. Read size exceeds buffer. May be invoked due to changed key (see: kb) Current size: %zu; Max size: %zu; Read size: %zu",
 				 wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
 	} else {
-		log_msg(LOG_DEBUG, "memcpy %p <- %p o %p",data, wrapper->buffer,wrapper);
+		log_debug_msg(LOG_DEBUG, "memcpy %p <- %p o %p",data, wrapper->buffer,wrapper);
 		memcpy(data, wrapper->buffer, limit);
 		wrapper->buffer += limit;
 		wrapper->bufferCount = nextCount;
@@ -96,7 +96,7 @@ size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size
 
 size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
 {
-	// log_msg(LOG_DEBUG, "-- writing cmp->buf: %p size: %hd", ctx->buf, count);
+	// log_debug_msg(LOG_DEBUG, "-- writing cmp->buf: %p size: %hd", ctx->buf, count);
 	// printf( "-- writing cmp->buf: %p size: %hd\n", ctx->buf, count);
 
 	memcpy(ctx->buf, data, count);
@@ -148,7 +148,7 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_t, list_of_keys))
 
 JSON_Value* np_treeval2json(np_treeval_t val) {
 	JSON_Value* ret = NULL;
-	//log_msg(LOG_DEBUG, "np_treeval2json type: %"PRIu8,val.type);
+	//log_debug_msg(LOG_DEBUG, "np_treeval2json type: %"PRIu8,val.type);
 	void* tmp;
 	switch (val.type) {
 	case short_type:
@@ -230,7 +230,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 	JSON_Value* arr = NULL;
 
 	if(NULL != tree) {
-		// log_msg(LOG_DEBUG, "np_tree2json (size: %"PRIu16", byte_size: %"PRIu64"):", tree->size, tree->byte_size);
+		// log_debug_msg(LOG_DEBUG, "np_tree2json (size: %"PRIu16", byte_size: %"PRIu64"):", tree->size, tree->byte_size);
 
 		uint16_t i = 0;
 		// write jrb tree
@@ -276,14 +276,14 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 					continue;
 				}
 
-				//log_msg(LOG_DEBUG, "np_tree2json set key %s:", name);
+				//log_debug_msg(LOG_DEBUG, "np_tree2json set key %s:", name);
 				JSON_Value* value = np_treeval2json(tmp->val);
 
 				if(useArray == TRUE) {
 					if(NULL == arr) {
 						arr = json_value_init_array();
 					}
-					//log_msg(LOG_DEBUG, "np_tree2json add to array");
+					//log_debug_msg(LOG_DEBUG, "np_tree2json add to array");
 
 					if(NULL != value) {
 						json_array_append_value(json_array(arr), value);
@@ -345,10 +345,10 @@ char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
 
 void np_dump_tree2log(np_tree_t* tree){
 	if(NULL == tree){
-		log_msg(LOG_DEBUG, "NULL");
+		log_debug_msg(LOG_DEBUG, "NULL");
 	}else{
  		char* tmp = np_dump_tree2char(tree);
-		log_msg(LOG_DEBUG, "%s", tmp);
+		log_debug_msg(LOG_DEBUG, "%s", tmp);
 		json_free_serialized_string(tmp);
 	}
 }

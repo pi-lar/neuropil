@@ -162,10 +162,10 @@ int main(int argc, char **argv)
 					// used the pid as the port
 					np_state_t* child_status = np_init(proto, port, FALSE, NULL);
 
-					log_msg(LOG_DEBUG, "starting job queue");
+					log_debug_msg(LOG_DEBUG, "starting job queue");
 					np_start_job_queue(no_threads);
 					// send join message
-					log_msg(LOG_DEBUG, "creating welcome message");
+					log_debug_msg(LOG_DEBUG, "creating welcome message");
 
 					np_send_join(data);
 

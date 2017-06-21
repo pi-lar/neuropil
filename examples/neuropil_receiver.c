@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 
 	np_init(proto, port, FALSE, NULL);
 
-	log_msg(LOG_DEBUG, "starting job queue");
+	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
 
 	if (NULL != j_key)
@@ -75,9 +75,9 @@ int main(int argc, char **argv)
 
 		uint32_t real_seq = np_receive_text("this.is.a.test", &testdata);
 		if (0 < real_seq)
-			log_msg(LOG_DEBUG, "received message %u: %s", real_seq, testdata);
+			log_debug_msg(LOG_DEBUG, "received message %u: %s", real_seq, testdata);
 		else
-			log_msg(LOG_DEBUG, "message receive failed ...");
+			log_debug_msg(LOG_DEBUG, "message receive failed ...");
 
 		free(testdata);
 	}

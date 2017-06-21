@@ -320,7 +320,7 @@ void* _job_exec ()
 	// np_state_t* state = _np_state();
 	np_job_t* tmp = NULL;
 
-	log_msg(LOG_DEBUG, "job queue thread starting");
+	log_debug_msg(LOG_DEBUG, "job queue thread starting");
 
     double now;
 
@@ -330,7 +330,7 @@ void* _job_exec ()
 	    now = ev_time();
 	    while (0 == pll_size(__np_job_queue->job_list))
 		{
-    		// log_msg(LOG_DEBUG, "now %f: list empty, start sleeping", now);
+    		// log_debug_msg(LOG_DEBUG, "now %f: list empty, start sleeping", now);
 	    	pthread_cond_wait (&__cond_empty, &__lock_mutex);
 	    	// wake up, check first job in the queue to be executed by now
 		}
@@ -340,19 +340,19 @@ void* _job_exec ()
     	{
     		double sleep_time = next_job->tstamp - now;
     		if (sleep_time > __jobqueue_sleep_time) sleep_time = __jobqueue_sleep_time;
-    		// log_msg(LOG_DEBUG, "now %f: next execution %f", now, next_job->tstamp);
-    		// log_msg(LOG_DEBUG, "currently %d jobs, now sleeping for %f seconds", pll_size(Q->job_list), sleep_time);
+    		// log_debug_msg(LOG_DEBUG, "now %f: next execution %f", now, next_job->tstamp);
+    		// log_debug_msg(LOG_DEBUG, "currently %d jobs, now sleeping for %f seconds", pll_size(Q->job_list), sleep_time);
     		struct timeval tv_sleep = dtotv(now + sleep_time);
     		struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec=tv_sleep.tv_usec*1000 };
 	    	pthread_cond_timedwait (&__cond_empty, &__lock_mutex, &waittime);
 	    	// now = dtime();
-    		// log_msg(LOG_DEBUG, "now %f: woke up or interupted", now);
+    		// log_debug_msg(LOG_DEBUG, "now %f: woke up or interupted", now);
 	    	pthread_mutex_unlock (&__lock_mutex);
     		continue;
     	}
     	else
     	{
-    		// log_msg(LOG_DEBUG, "now %f --> executing %f", now, next_job->tstamp);
+    		// log_debug_msg(LOG_DEBUG, "now %f --> executing %f", now, next_job->tstamp);
     		tmp = pll_head(np_job_ptr, __np_job_queue->job_list);
     		pthread_mutex_unlock (&__lock_mutex);
     	}
@@ -360,7 +360,7 @@ void* _job_exec ()
     	// sanity checks if the job list really returned an element
 	    if (NULL == tmp) continue;
 	    if (NULL == tmp->processorFunc) continue;
-	    // log_msg(LOG_DEBUG, "%hhd:     job-->%p func-->%p args-->%p", tmp->type, tmp, tmp->processorFunc, tmp->args);
+	    // log_debug_msg(LOG_DEBUG, "%hhd:     job-->%p func-->%p args-->%p", tmp->type, tmp, tmp->processorFunc, tmp->args);
 
     	tmp->processorFunc(tmp->args);
 

@@ -24,7 +24,7 @@ np_bool __np_threads_create_module_mutex(np_module_lock_type module_id)
 	pthread_mutexattr_settype(&__mutexes[module_id].lock_attr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&__mutexes[module_id].lock, &__mutexes[module_id].lock_attr);
 
-	log_msg(LOG_MUTEX | LOG_DEBUG, "created module mutex %d", module_id);
+	log_debug_msg(LOG_MUTEX | LOG_DEBUG, "created module mutex %d", module_id);
 
 	return TRUE;
 }
@@ -46,10 +46,12 @@ np_bool _np_threads_init()
 }
 
 int _np_threads_lock_module(np_module_lock_type module_id) {
+	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locking module mutex %d.", module_id);
 	return pthread_mutex_lock(&__mutexes[module_id].lock);
 }
 
 int _np_threads_unlock_module(np_module_lock_type module_id) {
+	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Unlocking module mutex %d.", module_id);
 	return pthread_mutex_unlock(&__mutexes[module_id].lock);
 }
 

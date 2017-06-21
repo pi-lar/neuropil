@@ -57,7 +57,7 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 		to.type = char_ptr_type;
 		to.value.s = strndup(from.value.s, strlen(from.value.s));
 		to.size = strlen(from.value.s);
-		// log_msg(LOG_DEBUG, "copy str %s %hd", to.value.s, to.size);
+		// log_debug_msg(LOG_DEBUG, "copy str %s %hd", to.value.s, to.size);
 		break;
 	case char_type:
 		to.type = char_type;

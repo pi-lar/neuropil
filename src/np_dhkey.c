@@ -42,7 +42,7 @@ void _np_dhkey_to_str (const np_dhkey_t* k, char* key_string)
 	sprintf ((char*) key_string, "%016llx%016llx%016llx%016llx", k->t[0], k->t[1], k->t[2], k->t[3]);
 	key_string[64] = '\0';
 	// k->valid = TRUE;
-    // log_msg (LOG_KEY | LOG_DEBUG, "key string now: %s", k->keystr);
+    // log_debug_msg(LOG_KEY | LOG_DEBUG, "key string now: %s", k->keystr);
 }
 
 void _np_dhkey_from_str (const char* key_string, np_dhkey_t* k)
@@ -58,10 +58,10 @@ void _np_dhkey_from_str (const char* key_string, np_dhkey_t* k)
     {
     	memcpy(substring, key_string + i*16, 16);
     	k->t[i] = strtoull((const char*) substring, NULL, 16);
-        // log_msg(LOG_KEY | LOG_DEBUG, "keystr substring to ul: %s -> %ul ", substring, k->t[i]);
+        // log_debug_msg(LOG_KEY | LOG_DEBUG, "keystr substring to ul: %s -> %ul ", substring, k->t[i]);
     }
 
-    log_msg(LOG_KEY | LOG_DEBUG, "key %016llx %016llx %016llx %016llx", k->t[0], k->t[1], k->t[2], k->t[3]);
+    log_debug_msg(LOG_KEY | LOG_DEBUG, "key %016llx %016llx %016llx %016llx", k->t[0], k->t[1], k->t[2], k->t[3]);
 }
 
 char* _np_dhkey_generate_hash (const char* key_in)
@@ -92,10 +92,10 @@ np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port)
 	snprintf (name, 255, "%s:%s", strOrig, port);
 
 	char* digest = _np_dhkey_generate_hash (name);
-	log_msg (LOG_KEY | LOG_DEBUG, "digest calculation returned HASH: %s", digest);
+	log_debug_msg(LOG_KEY | LOG_DEBUG, "digest calculation returned HASH: %s", digest);
 
     np_dhkey_t tmp = np_dhkey_create_from_hash(digest);
-	log_msg (LOG_KEY | LOG_DEBUG, "HASH(%s) = [key %016llx %016llx %016llx %016llx]", name, tmp.t[0], tmp.t[1], tmp.t[2], tmp.t[3]);
+	log_debug_msg(LOG_KEY | LOG_DEBUG, "HASH(%s) = [key %016llx %016llx %016llx %016llx]", name, tmp.t[0], tmp.t[1], tmp.t[2], tmp.t[3]);
 
 	free (digest);
 	return tmp;
@@ -169,7 +169,7 @@ int8_t _np_dhkey_comp (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 
     for (uint8_t i = 0; i < 4; i++)
 	{
-    	log_msg(LOG_KEY | LOG_DEBUG, "k1 %llu / k2 %llu", k1->t[i], k2->t[i]);
+    	log_debug_msg(LOG_KEY | LOG_DEBUG, "k1 %llu / k2 %llu", k1->t[i], k2->t[i]);
 	    if 		(k1->t[i] > k2->t[i]) return ( 1);
 	    else if (k1->t[i] < k2->t[i]) return (-1);
 	}
@@ -184,8 +184,8 @@ void _np_dhkey_add (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dh
     for (uint8_t i = 4; 0 != i--; )
 	{
 	    result->t[i] = op1->t[i] + op2->t[i];
-    	log_msg(LOG_KEY | LOG_DEBUG, "op1[%llu] + op2[%llu] = r[%llu]", op1->t[i], op2->t[i], result->t[i]);
-	    // log_msg(LOG_KEY | LOG_DEBUG, "[%llu] + op2[%llu] = r[%llu] / %f", 9223372036854775807, 9223372036854775807, 9223372036854775807+9223372036854775807, tmp);
+    	log_debug_msg(LOG_KEY | LOG_DEBUG, "op1[%llu] + op2[%llu] = r[%llu]", op1->t[i], op2->t[i], result->t[i]);
+	    // log_debug_msg(LOG_KEY | LOG_DEBUG, "[%llu] + op2[%llu] = r[%llu] / %f", 9223372036854775807, 9223372036854775807, 9223372036854775807+9223372036854775807, tmp);
 	    // if (tmp > ULONG_MAX) tmp = 1; // tmp - ULONG_MAX;
 	    // else                 tmp = 0;
 	}
@@ -210,14 +210,14 @@ void _np_dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dh
 //    	_np_dhkey_assign(&key_tmp, &key_a);
 //    	_np_dhkey_assign(&key_a, &key_b);
 //    	_np_dhkey_assign(&key_b, &key_tmp);
-//    	// log_msg (LOG_KEY | LOG_DEBUG, "swapped input data (key_a < key_b");
+//    	// log_debug_msg(LOG_KEY | LOG_DEBUG, "swapped input data (key_a < key_b");
 //    	swapped = TRUE;
 //	}
 
     for (uint8_t i = 4; 0 != i--; )
 	{
 	    result->t[i] = op1->t[i] - op2->t[i];
-    	log_msg(LOG_KEY | LOG_DEBUG, "op1[%llu] - op2[%llu] = r[%llu]", op1->t[i], op2->t[i], result->t[i]);
+    	log_debug_msg(LOG_KEY | LOG_DEBUG, "op1[%llu] - op2[%llu] = r[%llu]", op1->t[i], op2->t[i], result->t[i]);
     	// if (key_a.t[i] > key_b.t[i])
 
 	    // a = key_a.t[i] - carry;
@@ -254,7 +254,7 @@ void _np_dhkey_init ()
     	__dhkey_max.t[i]  = ULONG_MAX;
     	__dhkey_half.t[i] = (__dhkey_max.t[i] >> 1) + 1;
     	__dhkey_min.t[1]  = 0;
-    	log_msg(LOG_KEY | LOG_DEBUG,
+    	log_debug_msg(LOG_KEY | LOG_DEBUG,
     			"dhkey_max[%d] %llu / dhkey_half[%d] %llu / dhkey_half[%d] %llu",
 				i, __dhkey_max.t[i],
 				i, __dhkey_half.t[i],
@@ -263,7 +263,7 @@ void _np_dhkey_init ()
 	}
 
     // __dhkey_half.t[0] = __dhkey_half.t[0] >> 1; //  __dhkey_max.t[0] / 2;
-	// log_msg(LOG_KEY | LOG_DEBUG, "np_dhkey_half[0] %llu", __dhkey_half.t[0]);
+	// log_debug_msg(LOG_KEY | LOG_DEBUG, "np_dhkey_half[0] %llu", __dhkey_half.t[0]);
 }
 
 np_dhkey_t np_dhkey_min()  { return __dhkey_min;  };
@@ -330,7 +330,7 @@ uint16_t _np_dhkey_index (const np_dhkey_t* mykey, const np_dhkey_t* otherkey)
     	{
     		uint64_t t1 = mykey->t[k]    & bit_mask;
     		uint64_t t2 = otherkey->t[k] & bit_mask;
-    	    log_msg (LOG_KEY | LOG_DEBUG, "key_index: %d me: %016llx other: %016llx mask: %016llx", i, t1, t2, bit_mask);
+    	    log_debug_msg(LOG_KEY | LOG_DEBUG, "key_index: %d me: %016llx other: %016llx mask: %016llx", i, t1, t2, bit_mask);
     		if (t1 != t2)
     		{
     		    log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_index");
@@ -358,7 +358,7 @@ uint8_t _np_dhkey_hexalpha_at (const np_dhkey_t* key, const int8_t c)
     uint8_t tuple      = (uint8_t) c / 16 ; // array index
     uint8_t tuple_rest = c % 16;            // position in found array
 
-    log_msg (LOG_KEY | LOG_DEBUG, "lookup_pos: %d -> key[%d]: %016llx mod %u", c, tuple, key->t[tuple], tuple_rest);
+    log_debug_msg(LOG_KEY | LOG_DEBUG, "lookup_pos: %d -> key[%d]: %016llx mod %u", c, tuple, key->t[tuple], tuple_rest);
 
     uint64_t bit_mask = 0xf000000000000000;
     for (; j < tuple_rest; ++j)
@@ -366,17 +366,17 @@ uint8_t _np_dhkey_hexalpha_at (const np_dhkey_t* key, const int8_t c)
     	// shift bitmask to correct position
     	bit_mask = bit_mask >> 4;
     }
-    log_msg (LOG_KEY | LOG_DEBUG, "bitmask: %016llx", bit_mask);
+    log_debug_msg(LOG_KEY | LOG_DEBUG, "bitmask: %016llx", bit_mask);
     // filter with bitmask
     answer = key->t[tuple] & bit_mask;
-    log_msg (LOG_KEY | LOG_DEBUG, "bitmask & key->[%d]: %016llx", tuple, answer);
+    log_debug_msg(LOG_KEY | LOG_DEBUG, "bitmask & key->[%d]: %016llx", tuple, answer);
 
     for (; j < 16; ++j)
     {
     	// shift result to the end of the number
     	answer = answer >> 4;
     }
-    log_msg (LOG_KEY | LOG_DEBUG, "final answer: %llu (%0llx)", answer, answer);
+    log_debug_msg(LOG_KEY | LOG_DEBUG, "final answer: %llu (%0llx)", answer, answer);
 
     log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_hexalpha_at");
     return (uint8_t) answer;

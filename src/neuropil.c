@@ -78,12 +78,12 @@ np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->aaa_token = token;
 
-//	log_msg(LOG_DEBUG, "realm             : %s", token->realm);
-//	log_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
-//	log_msg(LOG_DEBUG, "subject           : %s", token->subject);
-//	log_msg(LOG_DEBUG, "audience          : %s", token->audience);
-//	log_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
-	log_msg(LOG_DEBUG, "realm authorization request for subject: %s", token->subject);
+//	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);
+//	log_debug_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
+//	log_debug_msg(LOG_DEBUG, "subject           : %s", token->subject);
+//	log_debug_msg(LOG_DEBUG, "audience          : %s", token->audience);
+//	log_debug_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
+	log_debug_msg(LOG_DEBUG, "realm authorization request for subject: %s", token->subject);
 
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
 	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
@@ -117,12 +117,12 @@ np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token)
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->aaa_token = token;
 
-//	log_msg(LOG_DEBUG, "realm             : %s", token->realm);
-//	log_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
-//	log_msg(LOG_DEBUG, "subject           : %s", token->subject);
-//	log_msg(LOG_DEBUG, "audience          : %s", token->audience);
-//	log_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
-	log_msg(LOG_DEBUG, "realm authentication request for subject: %s", token->subject);
+//	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);
+//	log_debug_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
+//	log_debug_msg(LOG_DEBUG, "subject           : %s", token->subject);
+//	log_debug_msg(LOG_DEBUG, "audience          : %s", token->audience);
+//	log_debug_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
+	log_debug_msg(LOG_DEBUG, "realm authentication request for subject: %s", token->subject);
 
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
 	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
@@ -155,13 +155,13 @@ np_bool _np_aaa_accountingfunc (np_aaatoken_t* token)
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->aaa_token = token;
 
-//	log_msg(LOG_DEBUG, "realm             : %s", token->realm);
-//	log_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
-//	log_msg(LOG_DEBUG, "subject           : %s", token->subject);
-//	log_msg(LOG_DEBUG, "audience          : %s", token->audience);
-//	log_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
+//	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);
+//	log_debug_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
+//	log_debug_msg(LOG_DEBUG, "subject           : %s", token->subject);
+//	log_debug_msg(LOG_DEBUG, "audience          : %s", token->audience);
+//	log_debug_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
 
-	log_msg(LOG_DEBUG, "realm accounting request for subject: %s", token->subject);
+	log_debug_msg(LOG_DEBUG, "realm accounting request for subject: %s", token->subject);
 
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
 	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
@@ -527,7 +527,7 @@ np_key_t* _np_get_key_by_key_hash(char* targetDhkey)
 			log_msg(LOG_WARN,
 					"could not find the specific target %s for message. broadcasting msg", targetDhkey);
 		} else {
-			log_msg(LOG_DEBUG, "could find the specific target %s for message.", targetDhkey);
+			log_debug_msg(LOG_DEBUG, "could find the specific target %s for message.", targetDhkey);
 		}
 
 		if (NULL != target && strcmp(_np_key_as_str(target), targetDhkey) != 0) {
@@ -607,9 +607,9 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		{
 			_LOCK_ACCESS(&msg_prop->lock)
 			{
-				log_msg(LOG_DEBUG, "waiting for signal that a new message arrived %p", msg_prop);
+				log_debug_msg(LOG_DEBUG, "waiting for signal that a new message arrived %p", msg_prop);
 				_np_threads_condition_wait(&msg_prop->msg_received, &msg_prop->lock);
-				log_msg(LOG_DEBUG, "received signal that a new message arrived %p", msg_prop);
+				log_debug_msg(LOG_DEBUG, "received signal that a new message arrived %p", msg_prop);
 			}
 		}
 		msg = sll_first(msg_prop->msg_cache_in)->val;
@@ -631,15 +631,15 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	} while (FALSE == msg_received);
 
 	// in receive function, we can only receive one message per call, different for callback function
-	log_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache_in));
+	log_debug_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache_in));
 	msg = sll_head(np_message_t, msg_prop->msg_cache_in);
 
-	log_msg(LOG_DEBUG, "decrypting message ...");
+	log_debug_msg(LOG_DEBUG, "decrypting message ...");
 	np_bool decrypt_ok = _np_message_decrypt_payload(msg, sender_token);
 
 	if (FALSE == decrypt_ok)
 	{
-		log_msg(LOG_DEBUG, "decryption of message failed, deleting message");
+		log_debug_msg(LOG_DEBUG, "decryption of message failed, deleting message");
 		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 		msg_prop->max_threshold--;
 
@@ -716,9 +716,9 @@ uint32_t np_receive_text (char* subject, char **data)
 		{
 			_LOCK_ACCESS(&msg_prop->lock)
 			{
-				log_msg(LOG_DEBUG, "waiting for signal that a new message arrived %p", msg_prop);
+				log_debug_msg(LOG_DEBUG, "waiting for signal that a new message arrived %p", msg_prop);
 				_np_threads_condition_wait(&msg_prop->msg_received, &msg_prop->lock);
-				log_msg(LOG_DEBUG, "received signal that a new message arrived %p", msg_prop);
+				log_debug_msg(LOG_DEBUG, "received signal that a new message arrived %p", msg_prop);
 			}
 		}
 		msg = sll_first(msg_prop->msg_cache_in)->val;
@@ -740,15 +740,15 @@ uint32_t np_receive_text (char* subject, char **data)
 	} while (FALSE == msg_received);
 
 	// in receive function, we can only receive one message per call, different for callback function
-	log_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache_in));
+	log_debug_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache_in));
 	msg = sll_head(np_message_t, msg_prop->msg_cache_in);
 
-	log_msg(LOG_DEBUG, "decrypting message ...");
+	log_debug_msg(LOG_DEBUG, "decrypting message ...");
 	np_bool decrypt_ok = _np_message_decrypt_payload(msg, sender_token);
 
 	if (FALSE == decrypt_ok)
 	{
-		log_msg(LOG_DEBUG, "decryption of message failed, deleting message");
+		log_debug_msg(LOG_DEBUG, "decryption of message failed, deleting message");
 		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 		msg_prop->max_threshold--;
 
@@ -842,7 +842,7 @@ void _np_ping (np_key_t* key)
     np_new_obj(np_message_t, out_msg);
 
     _np_message_create (out_msg, key, state->my_node_key, _NP_MSG_PING_REQUEST, NULL);
-    log_msg(LOG_DEBUG, "ping request to: %s", _np_key_as_str(key));
+    log_debug_msg(LOG_DEBUG, "ping request to: %s", _np_key_as_str(key));
 
     np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REQUEST);
 	_np_job_submit_msgout_event(0.0, prop, key, out_msg);
@@ -866,7 +866,7 @@ void np_destroy()
  **/
 np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 {
-	log_msg(LOG_DEBUG, "neuropil_init");
+	log_debug_msg(LOG_DEBUG, "neuropil_init");
 	 if(_np_threads_init() == FALSE){
 		log_msg(LOG_ERROR, "neuropil_init: could not init threding mutexes");
 		exit(EXIT_FAILURE);
@@ -918,18 +918,18 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 	if (NULL != proto)
 	{
 		np_proto = _np_network_parse_protocol_string(proto);
-		log_msg(LOG_DEBUG, "now initializing networking for %s:%s", proto, np_service);
+		log_debug_msg(LOG_DEBUG, "now initializing networking for %s:%s", proto, np_service);
 	}
 	else
 	{
-		log_msg(LOG_DEBUG, "now initializing networking for udp6://%s", np_service);
+		log_debug_msg(LOG_DEBUG, "now initializing networking for udp6://%s", np_service);
 	}
 
-	log_msg(LOG_DEBUG, "building node base structure");
+	log_debug_msg(LOG_DEBUG, "building node base structure");
 	np_node_t* my_node = NULL;
     np_new_obj(np_node_t, my_node);
 
-    log_msg(LOG_DEBUG, "building network base structure");
+    log_debug_msg(LOG_DEBUG, "building network base structure");
     np_network_t* my_network = NULL;
     np_new_obj(np_network_t, my_network);
 
@@ -941,20 +941,20 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 
     	gethostname(hostname, 255);
     }
-    log_msg(LOG_DEBUG, "initialise network");
+    log_debug_msg(LOG_DEBUG, "initialise network");
 	_LOCK_MODULE(np_network_t)
 	{
 		_np_network_init(my_network, TRUE, np_proto, hostname, np_service);
 	}
-    log_msg(LOG_DEBUG, "check for initialised network");
+    log_debug_msg(LOG_DEBUG, "check for initialised network");
 	if (FALSE == my_network->initialized)
 	{
 		log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
 	    exit(EXIT_FAILURE);
 	}
-    log_msg(LOG_DEBUG, "update my node data");
+    log_debug_msg(LOG_DEBUG, "update my node data");
 	_np_node_update(my_node, np_proto, hostname, np_service);
-	log_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
+	log_debug_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
 			           _np_network_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);
     // create a new token for encryption each time neuropil starts
     np_aaatoken_t* auth_token = _np_node_create_token(my_node);
@@ -1059,9 +1059,9 @@ void np_start_job_queue(uint8_t pool_size)
     for (uint8_t i = 0; i < pool_size; i++)
     {
         pthread_create (&_np_state()->thread_ids[i], &_np_state()->attr, _job_exec, (void *) _np_state());
-    	log_msg(LOG_DEBUG, "neuropil worker thread started: %p", _np_state()->thread_ids[i]);
+    	log_debug_msg(LOG_DEBUG, "neuropil worker thread started: %p", _np_state()->thread_ids[i]);
    	}
-	log_msg(LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
+	log_debug_msg(LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
 	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 

@@ -24,7 +24,7 @@ int8_t _np_messagepart_cmp (const np_messagepart_ptr value1, const np_messagepar
 	uint16_t part_1 = value1->part; // np_tree_find_str(value1->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
 	uint16_t part_2 = value2->part; // np_tree_find_str(value2->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
 
-	log_msg(LOG_MESSAGE | LOG_DEBUG, "message part compare %d / %d / %d", part_1, part_2, part_1 - part_2);
+	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message part compare %d / %d / %d", part_1, part_2, part_1 - part_2);
 
 	if (part_2 > part_1) return ( 1);
 	if (part_1 > part_2) return (-1);

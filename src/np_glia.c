@@ -85,14 +85,14 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 	np_key_t k_msg_address = { .dhkey = search_key };
 
 	// first lookup call for target key
-	log_msg(LOG_DEBUG, "message target is key %s", _np_key_as_str(&k_msg_address));
+	log_debug_msg(LOG_DEBUG, "message target is key %s", _np_key_as_str(&k_msg_address));
 
 	_LOCK_MODULE(np_routeglobal_t)
 	{
 		// 1 means: always send out message to another node first, even if it returns
 		tmp = _np_route_lookup(&k_msg_address, 1);
 		if ( 0 < sll_size(tmp) )
-			log_msg(LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
+			log_debug_msg(LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
 	}
 
 	if ( NULL != tmp                &&
@@ -107,7 +107,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		{
 			tmp = _np_route_lookup(&k_msg_address, 2);
 			if (0 < sll_size(tmp))
-				log_msg(LOG_DEBUG, "route_lookup result 2 = %s", _np_key_as_str(sll_first(tmp)->val));
+				log_debug_msg(LOG_DEBUG, "route_lookup result 2 = %s", _np_key_as_str(sll_first(tmp)->val));
 		}
 		// TODO: increase count parameter again ?
 	}
@@ -119,7 +119,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &state->my_node_key->dhkey))
 	{
 		target_key = sll_first(tmp)->val;
-		log_msg(LOG_DEBUG, "route_lookup result   = %s", _np_key_as_str(target_key));
+		log_debug_msg(LOG_DEBUG, "route_lookup result   = %s", _np_key_as_str(target_key));
 	}
 
 	/* if I am the only host or the closest host is me, deliver the message */
@@ -127,7 +127,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 	if (NULL == target_key && FALSE == is_a_join_request)
 	{
 		// the message has to be handled by this node (e.g. msg interest messages)
-		log_msg(LOG_DEBUG, "internal routing for subject '%s'", msg_subject);
+		log_debug_msg(LOG_DEBUG, "internal routing for subject '%s'", msg_subject);
 		np_message_t* msg_to_submit = NULL;
 
 		if (TRUE == args->msg->is_single_part)
@@ -160,7 +160,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		}
 	} else {
 		/* hand it over to the np_axon sending unit */
-		log_msg(LOG_DEBUG, "forward routing for subject '%s'", msg_subject);
+		log_debug_msg(LOG_DEBUG, "forward routing for subject '%s'", msg_subject);
 
 		if (NULL == target_key || TRUE == is_a_join_request)
 		{
@@ -230,7 +230,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 	np_sll_t(np_key_t, leafset) = NULL;
 	np_key_t *tmp_node_key = NULL;
 
-	log_msg(LOG_DEBUG, "leafset check for neighbours started");
+	log_debug_msg(LOG_DEBUG, "leafset check for neighbours started");
 
 	// each time to try to ping our leafset hosts
 	_LOCK_MODULE(np_routeglobal_t)
@@ -246,7 +246,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 			tmp_node_key->node->success_avg < BAD_LINK &&
 			tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
 		{
-			log_msg(LOG_DEBUG, "deleting from neighbours: %s", _np_key_as_str(tmp_node_key));
+			log_debug_msg(LOG_DEBUG, "deleting from neighbours: %s", _np_key_as_str(tmp_node_key));
 			// request a new handshake with the node
 			if (NULL != tmp_node_key->aaa_token)
 				tmp_node_key->aaa_token->state &= AAA_INVALID;
@@ -281,7 +281,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 
 	if (__leafset_check_type == 1)
 	{
-		log_msg(LOG_DEBUG, "leafset check for table started");
+		log_debug_msg(LOG_DEBUG, "leafset check for table started");
 		np_sll_t(np_key_t, table) = NULL;
 		_LOCK_MODULE(np_routeglobal_t)
 		{
@@ -297,7 +297,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 				tmp_node_key->node->success_avg < BAD_LINK &&
 				tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
 			{
-				log_msg(LOG_DEBUG, "deleting from table: %s", _np_key_as_str(tmp_node_key));
+				log_debug_msg(LOG_DEBUG, "deleting from table: %s", _np_key_as_str(tmp_node_key));
 
 				// request a new handshake with the node
 				if (NULL != tmp_node_key->aaa_token)
@@ -335,7 +335,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 	if (__leafset_check_type == 2)
 	{
 		/* send leafset exchange data every 3 times that pings the leafset */
-		log_msg(LOG_DEBUG, "leafset exchange for neighbours started");
+		log_debug_msg(LOG_DEBUG, "leafset exchange for neighbours started");
 
 		_LOCK_MODULE(np_routeglobal_t)
 		{
@@ -391,7 +391,7 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		msg_prop = np_msgproperty_get(TRANSFORM, iter->key.value.s);
 		if (NULL != msg_prop)
 		{
-			log_msg(LOG_DEBUG, "---------- refresh for subject token: %s ----------", iter->key.value.s);
+			log_debug_msg(LOG_DEBUG, "---------- refresh for subject token: %s ----------", iter->key.value.s);
 			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 		}
 		else
@@ -464,7 +464,7 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 		new_node_key->aaa_token = new_token;
 
 		// find closest member according to old routing table
-		log_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec");
+		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec");
 		np_sll_t(np_key_t, table) = NULL;
 		np_sll_t(np_key_t, leafset) = NULL;
 
@@ -489,7 +489,7 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 			np_new_obj(np_message_t, msg_out);
 			_np_message_create(msg_out, tmp_node_key, old_node_key, _NP_MSG_UPDATE_REQUEST, jrb_new_me);
 
-			log_msg(LOG_DEBUG, "submitting update request to target key %s", _np_key_as_str(tmp_node_key));
+			log_debug_msg(LOG_DEBUG, "submitting update request to target key %s", _np_key_as_str(tmp_node_key));
 			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
 			_np_job_submit_msgout_event(0.0, prop, tmp_node_key, msg_out);
 			// tmp_node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
@@ -501,7 +501,7 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 
 		_LOCK_MODULE(np_keycache_t)
 		{
-			log_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec");
+			log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec");
 			// _np_job_yield(state->my_node_key->aaa_token->expiration - ev_time());
 			// exchange identity if required
 			if (state->my_identity == state->my_node_key)
@@ -519,7 +519,6 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 			state->my_node_key = new_node_key;
 			np_ref_obj(np_key_t, state->my_node_key );
 
-
 			_np_suspend_event_loop();
 			np_ref_switch(np_key_t, state->my_node_key->network->watcher.data, new_node_key);
 			// state->my_node_key->network->watcher.data = new_node_key;
@@ -530,7 +529,7 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 		// re-arrange routing table and leafset
 		_LOCK_MODULE(np_routeglobal_t)
 		{
-			log_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec");
+			log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec");
 			// get all routing table entries
 			table = _np_route_get_table();
 
@@ -671,7 +670,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 
 	if (NULL != old)
 	{
-		log_msg(LOG_DEBUG, "cleanup check started for key : %p -> %s", old, _np_key_as_str(old));
+		log_debug_msg(LOG_DEBUG, "cleanup check started for key : %p -> %s", old, _np_key_as_str(old));
 		np_bool delete_key = TRUE;
 
 		if (NULL != old->node)
@@ -680,7 +679,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 			double delta = ev_time() - old->node->last_success;
 			if (delta < (31.415 * __leafset_check_period))
 			{
-				log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid node last_success value: %s", _np_key_as_str(old));
+				log_debug_msg(LOG_DEBUG, "cleanup of key cancelled because of valid node last_success value: %s", _np_key_as_str(old));
 				delete_key &= FALSE;
 			}
 		}
@@ -688,7 +687,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 		if (NULL != old->aaa_token                  &&
 			TRUE == _np_aaatoken_is_valid(old->aaa_token) )
 		{
-			log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _np_key_as_str(old));
+			log_debug_msg(LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _np_key_as_str(old));
 			delete_key &= FALSE;
 		}
 
@@ -700,11 +699,11 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 				pll_iterator(np_aaatoken_ptr) iter = pll_first(old->recv_tokens);
 				while (NULL != iter)
 				{
-					log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
+					log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
 					np_aaatoken_t* tmp_token = iter->val;
 					if (TRUE == _np_aaatoken_is_valid(tmp_token))
 					{
-						log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _np_key_as_str(old));
+						log_debug_msg(LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _np_key_as_str(old));
 						delete_key &= FALSE;
 						break;
 					}
@@ -721,11 +720,11 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 				pll_iterator(np_aaatoken_ptr) iter = pll_first(old->send_tokens);
 				while (NULL != iter)
 				{
-					log_msg(LOG_AAATOKEN | LOG_DEBUG, "checking sender msg tokens %p/%p", iter, iter->val);
+					log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking sender msg tokens %p/%p", iter, iter->val);
 					np_aaatoken_t* tmp_token = iter->val;
 					if (TRUE == _np_aaatoken_is_valid(tmp_token))
 					{
-						log_msg(LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _np_key_as_str(old));
+						log_debug_msg(LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _np_key_as_str(old));
 						delete_key &= FALSE;
 						break;
 					}
@@ -765,7 +764,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 	np_key_t* target_key = args->target;
 
 	// check for correct target
-	log_msg(LOG_DEBUG, "job submit route row info to %s:%s!",
+	log_debug_msg(LOG_DEBUG, "job submit route row info to %s:%s!",
 			target_key->node->dns_name, target_key->node->port);
 
 	np_sll_t(np_key_t, sll_of_keys) = NULL;
@@ -876,7 +875,7 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 		np_new_obj(np_key_t, target);
 		target->dhkey = target_dhkey;
 
-		log_msg(LOG_DEBUG, "registering for message discovery token handling (%s)", subject);
+		log_debug_msg(LOG_DEBUG, "registering for message discovery token handling (%s)", subject);
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 		np_free_obj(np_key_t, target);
 	}

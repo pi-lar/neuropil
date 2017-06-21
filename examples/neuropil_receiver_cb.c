@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 	.. code-block:: c
 		\code
 	*/
-	log_msg(LOG_DEBUG, "starting job queue");
+	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
 	/** \endcode */
 

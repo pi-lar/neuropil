@@ -39,7 +39,7 @@ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 #define DEBUG 0
-#define NUM_HOST 3
+#define NUM_HOST 5
 
 extern char *optarg;
 extern int optind;
@@ -64,7 +64,7 @@ int main(int argc, char **argv)
 	char* bootstrap_hostnode = NULL;
 	char* bootstrap_hostnode_default;
 	char bootstrap_port[7];
-	char* proto = "tcp4";
+	char* proto = "udp4";
 	char* logpath = ".";
 
 	uint32_t required_nodes = NUM_HOST;
@@ -93,7 +93,8 @@ int main(int argc, char **argv)
 			}else if(level == -2){ // production server
 				level = LOG_ERROR | LOG_WARN | LOG_INFO;
 			}else if(level <= -3){ // debug
-				level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK;
+				level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE
+						  | LOG_HTTP | LOG_NETWORK;
 			}
 			break;
 		case 'l':
@@ -269,7 +270,7 @@ int main(int argc, char **argv)
 				// use the pid as port
 				// provide localhost as hostname to support development on local machines
 				np_state_t* child_status = np_init(proto, port, FALSE, "localhost");
-				log_msg(LOG_DEBUG, "starting job queue");
+				log_debug_msg(LOG_DEBUG, "starting job queue");
 				np_start_job_queue(no_threads);
 				/**
 				 \endcode

@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 
 	\code
 	*/
-	log_msg(LOG_DEBUG, "starting job queue");
+	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
 	/** \endcode */
 
@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 			continue;
 		}
 		node_string[strcspn(node_string, "\r\n")] = '\0';
-		log_msg(LOG_DEBUG, "creating internal structure");
+		log_debug_msg(LOG_DEBUG, "creating internal structure");
 
 		/**
 		do you remember the connect string that is printed to stdout and to the log file ?
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 		*  log_msg(LOG_DEBUG, "sending join message");
     *      np_sendjoin(state, node_key);
 		*/
-		log_msg(LOG_DEBUG, "creating welcome message");
+		log_debug_msg(LOG_DEBUG, "creating welcome message");
 		np_send_join(node_string);
 
 //		np_new_obj(np_message_t, msg_out);

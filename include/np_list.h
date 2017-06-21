@@ -455,7 +455,7 @@ void TYPE##_dll_clear(TYPE##_dll_t* dll_list) {\
 
 /**
 
-single linked list macros (DLL)
+single linked list macros (SLL)
 
 function like macros are:
 

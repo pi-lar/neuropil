@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 		ev_sleep(1.0);
 
 		np_send_text(msg_subject, msg_data, k, NULL);
-		log_msg(LOG_DEBUG, "send message %lu", k);
+		log_debug_msg(LOG_DEBUG, "send message %lu", k);
 
 		k++;
 	}

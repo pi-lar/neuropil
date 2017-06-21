@@ -22,6 +22,8 @@
 #include "np_network.h"
 #include "np_node.h"
 #include "np_threads.h"
+#include "np_key.h"
+#include "np_list.h"
 
 
 // TODO: make this a better constant value
@@ -140,6 +142,7 @@ np_key_t* _np_keycache_find_deprecated()
 	{
 		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
 		{
+
 			// our own key / identity never deprecates
 			if (TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_node_key->dhkey) ||
 				TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_identity->dhkey) )
@@ -156,6 +159,24 @@ np_key_t* _np_keycache_find_deprecated()
 		}
 	}
 	return (iter);
+}
+
+sll_return(np_key_t) _np_keycache_find_aliase(np_key_t* forKey)
+{
+	np_sll_t(np_key_t,ret) = sll_init(np_key_t, ret);
+	np_key_t *iter = NULL;
+	_LOCK_MODULE(np_keycache_t)
+	{
+		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
+		{
+ 			if (_np_key_cmp(iter->parent,forKey)==0)
+			{
+				np_ref_obj(np_key_t, iter);
+				sll_append(np_key_t, ret, iter);
+ 			}
+		}
+	}
+	return (ret);
 }
 
 np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey)
