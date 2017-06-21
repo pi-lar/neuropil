@@ -64,9 +64,13 @@ void _np_key_destroy(np_key_t* to_destroy) {
 	if(NULL != to_destroy) {
 
 		char* keyident = _np_key_as_str(to_destroy);
-		log_debug_msg(LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
+		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
+
+		log_debug_msg( LOG_DEBUG, "refcount of key %s at destroy: %d", keyident, to_destroy->obj->ref_count);
 
 		_np_keycache_remove(to_destroy->dhkey);
+
+		_np_network_stop(to_destroy->network);
 
 		// delete old receive tokens
 		if (NULL != to_destroy->recv_tokens)
@@ -107,9 +111,9 @@ void _np_key_destroy(np_key_t* to_destroy) {
 			sll_next(iter);
 		}
 
-		log_debug_msg(LOG_DEBUG, "cleanup of key and associated data structures done");
+		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
 	}else{
-		log_debug_msg(LOG_DEBUG, "no key provided for cleanup");
+		log_debug_msg(LOG_KEY | LOG_DEBUG, "no key provided for cleanup");
 	}
 }
 

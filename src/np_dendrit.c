@@ -1832,19 +1832,20 @@ void _np_in_handshake(np_jobargs_t* args)
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		hs_wildcard_key = _np_keycache_find(wildcard_dhkey);
-		if(NULL != hs_wildcard_key)
+		_LOCK_MODULE(np_network_t)
 		{
-			// Updating handshake key with already existing network
-			// structure of the wildcard key
-			log_debug_msg(LOG_DEBUG,
-					"Updating wildcard key %s to %s",
-					_np_key_as_str(hs_wildcard_key),
-					_np_key_as_str(hs_key));
-
-
-			_LOCK_MODULE(np_network_t)
+			hs_wildcard_key = _np_keycache_find(wildcard_dhkey);
+			if(NULL != hs_wildcard_key)
 			{
+				np_mutex_t* lock = &hs_wildcard_key->network->lock;
+				_np_threads_mutex_lock(lock);
+				// Updating handshake key with already existing network
+				// structure of the wildcard key
+				log_debug_msg(LOG_DEBUG,
+						"Updating wildcard key %s to %s",
+						_np_key_as_str(hs_wildcard_key),
+						_np_key_as_str(hs_key));
+
 				hs_key->network = hs_wildcard_key->network;
 				np_ref_obj(np_network_t, hs_key->network);
 
@@ -1855,6 +1856,7 @@ void _np_in_handshake(np_jobargs_t* args)
 
 				// clean up, wildcard key not needed anymore
 				hs_wildcard_key->network = NULL;
+				_np_threads_mutex_unlock(lock);
 			}
 			_np_send_simple_invoke_request(hs_key, _NP_MSG_JOIN_REQUEST);
 
@@ -1948,13 +1950,13 @@ void _np_in_handshake(np_jobargs_t* args)
 
 			_np_suspend_event_loop();
 			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-			ev_io_stop(EV_A_ &hs_key->network->watcher);
+			_np_network_stop(hs_key->network);
 			ev_io_init(
 					&hs_key->network->watcher,
 					_np_network_sendrecv,
 					hs_key->network->socket,
 					EV_WRITE | EV_READ);
-			ev_io_start(EV_A_ &hs_key->network->watcher);
+			_np_network_start(hs_key->network);
 			_np_resume_event_loop();
 		}
 		else if (alias_key->node->protocol & TCP)

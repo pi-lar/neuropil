@@ -52,6 +52,7 @@ struct np_network_s
 	np_obj_t* obj;
 
 	np_bool initialized;
+	np_bool isWatching;
 	int socket;
     ev_io watcher;
 
@@ -114,6 +115,10 @@ np_ackentry_t* _np_network_get_new_ackentry();
 
 NP_API_INTERN
 np_prioq_t* _np_network_get_new_pqentry();
+NP_API_INTERN
+void _np_network_stop(np_network_t* ng);
+NP_API_INTERN
+void _np_network_start(np_network_t* ng);
 
 /** _np_network_init:
  ** initiates the networking layer by creating socket and bind it to #port#

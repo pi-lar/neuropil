@@ -578,7 +578,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 					alias_key->network->socket,
 					EV_READ
 					);
-			ev_io_start(EV_A_ &alias_key->network->watcher);
+			_np_network_start(alias_key->network);
 			_np_resume_event_loop();
 
 			if(old_network != NULL) {
@@ -602,7 +602,6 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 {
 	log_msg(LOG_NETWORK | LOG_TRACE, ".start.np_network_read");
 	// cast event data structure to np_state_t pointer
-	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "TICK _np_network_read");
 
 	char data[MSG_CHUNK_SIZE_1024];
 	struct sockaddr_storage from;
@@ -662,7 +661,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 			log_msg(LOG_ERROR, "received disconnect from: %s:%s", ipstr, port);
 			// TODO handle cleanup of node structures ?
 			// maybe / probably the node received already a disjoin message before
-			ev_io_stop(EV_A_ &ng_tcp->watcher);
+			_np_network_stop(ng_tcp);
 			_np_node_update_stat(key->node, 0);
 
 			log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
@@ -742,6 +741,26 @@ void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 	}
 }
 
+void _np_network_stop(np_network_t* network){
+	_LOCK_ACCESS(&network->lock){
+		if(network->isWatching == TRUE) {
+			network->isWatching 	= FALSE;
+			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+			ev_io_stop(EV_A_ &network->watcher);
+		}
+	}
+}
+
+void _np_network_start(np_network_t* network){
+	_LOCK_ACCESS(&network->lock){
+		if(network->isWatching == FALSE) {
+			network->isWatching 	= TRUE;
+			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+			ev_io_start(EV_A_ &network->watcher);
+		}
+	}
+}
+
 /**
  * network_destroy
  */
@@ -750,9 +769,7 @@ void _np_network_t_del(void* nw)
 	np_network_t* network = (np_network_t*) nw;
 
 	_np_suspend_event_loop();
-
-	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-	ev_io_stop(EV_A_ &network->watcher);
+	_np_network_stop(network);
 	network->initialized = FALSE;
 	np_key_t* old_key = (np_key_t*) network->watcher.data;
 	np_unref_obj(np_key_t, old_key);
@@ -799,10 +816,11 @@ void _np_network_t_del(void* nw)
 void _np_network_t_new(void* nw)
 {
     np_network_t* ng = (np_network_t *) nw;
-    ng->addr_in = NULL;
-    ng->waiting = NULL;
-    ng->in_events = NULL;
-    ng->out_events = NULL;
+    ng->addr_in 	= NULL;
+    ng->waiting 	= NULL;
+    ng->in_events 	= NULL;
+    ng->out_events 	= NULL;
+    ng->isWatching 	= FALSE;
     ng->initialized = FALSE;
 }
 
@@ -904,7 +922,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			{
 				ev_io_init(&ng->watcher, _np_network_read, ng->socket, EV_READ);
 			}
-			ev_io_start(EV_A_ &ng->watcher);
+			_np_network_start(ng);
 			_np_resume_event_loop();
 		}
     	ng->initialized = TRUE;
@@ -985,7 +1003,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 					&ng->watcher, _np_network_send_from_events,
 					ng->socket, EV_WRITE);
 		}
-		ev_io_start(EV_A_ &ng->watcher);
+		_np_network_start(ng);
 
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 				": %d %p %p :", ng->socket, &ng->watcher,  &ng->watcher.data);
