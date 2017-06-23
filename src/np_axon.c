@@ -82,7 +82,6 @@ void _np_out_ack(np_jobargs_t* args)
 void _np_send(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_send(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_out_send");
 
 	uint32_t seq = 0;
 	np_message_t* msg_out = args->msg;
@@ -102,7 +101,6 @@ void _np_send(np_jobargs_t* args)
 	{
 		log_debug_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
 							_np_key_as_str(args->target));
-		log_msg(LOG_TRACE, ".end  ._np_out_send");
 		return;
 	}
 
@@ -134,7 +132,6 @@ void _np_send(np_jobargs_t* args)
 		}
 
 		if (TRUE == skip) {
-			log_msg(LOG_TRACE, ".end  ._np_out_send");
 			return;
 		}
 
@@ -292,14 +289,11 @@ void _np_send(np_jobargs_t* args)
 	_np_network_send_msg(args->target, msg_out);
 	// ret is 1 or 0
 	// np_node_update_stat(args->target->node, send_ok);
-
-	log_msg(LOG_TRACE, ".end  ._np_out_send");
 }
 
 void _np_send_handshake(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_send_handshake(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_out_handshake");
 
 	if (!_np_node_check_address_validity(args->target->node)) return;
 
@@ -458,14 +452,11 @@ void _np_send_handshake(np_jobargs_t* args)
 		}
 	}
 	np_free_obj(np_message_t, hs_message);
-
-	log_msg(LOG_TRACE, ".end  ._np_out_handshake");
 }
 
 void _np_send_discovery_messages(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_send_discovery_messages(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_send_discovery_messages");
 	np_aaatoken_t* msg_token = NULL;
 
 	msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
@@ -521,15 +512,12 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 			np_free_obj(np_message_t, msg_out);
 		}
 	}
-
-	log_msg(LOG_TRACE, ".end  ._np_send_discovery_messages");
 }
 
 // deprecated
 void _np_send_receiver_discovery(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_send_receiver_discovery(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_send_receiver_discovery");
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
 
@@ -557,15 +545,12 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 		np_free_obj(np_message_t, msg_out);
 	}
 	np_unref_obj(np_aaatoken_t, msg_token);
-
-	log_msg(LOG_TRACE, ".end  ._np_send_receiver_discovery");
 }
 
 // deprecated
 void _np_send_sender_discovery(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_send_sender_discovery(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_send_sender_discovery");
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
 
@@ -595,14 +580,11 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 		np_free_obj(np_message_t, msg_out);
 		np_unref_obj(np_aaatoken_t, msg_token);
 	}
-
-	log_msg(LOG_TRACE, ".end  ._np_send_sender_discovery");
 }
 
 void _np_send_authentication_request(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_send_authentication_request(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start.np_send_authentication_request");
 
 	np_state_t* state = _np_state();
 	np_dhkey_t target_dhkey;
@@ -618,7 +600,6 @@ void _np_send_authentication_request(np_jobargs_t* args)
 	}
 	else
 	{
-		log_msg(LOG_TRACE, ".end  .np_send_authentication_request");
 		return;
 	}
 
@@ -653,14 +634,11 @@ void _np_send_authentication_request(np_jobargs_t* args)
 	np_free_obj(np_message_t, msg_out);
 
 	np_free_obj(np_key_t, aaa_target);
-
-	log_msg(LOG_TRACE, ".end  .np_send_authentication_request");
 }
 
 void _np_send_authentication_reply(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_send_authentication_reply(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start.np_send_authentication_reply");
 
 	np_dhkey_t target_dhkey;
 
@@ -692,14 +670,11 @@ void _np_send_authentication_reply(np_jobargs_t* args)
 		_np_send_receiver_discovery(&jargs);
 	}
 	np_free_obj(np_key_t, aaa_target);
-
-	log_msg(LOG_TRACE, ".end  .np_send_authentication_reply");
 }
 
 void _np_send_authorization_request(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_send_authorization_request(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start.np_send_authorization_request");
 
 	np_state_t* state = _np_state();
 	np_dhkey_t target_dhkey;
@@ -710,7 +685,6 @@ void _np_send_authorization_request(np_jobargs_t* args)
 	}
 	else
 	{
-		log_msg(LOG_TRACE, ".end  .np_send_authorization_request");
 		return;
 	}
 
@@ -741,14 +715,11 @@ void _np_send_authorization_request(np_jobargs_t* args)
 	}
 	np_free_obj(np_message_t, msg_out);
 	np_free_obj(np_key_t, aaa_target);
-
-	log_msg(LOG_TRACE, ".end  .np_send_authorization_request");
 }
 
 void _np_send_authorization_reply(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_send_authorization_reply(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start.np_send_authorization_reply");
 
 	np_dhkey_t target_dhkey;
 
@@ -780,14 +751,11 @@ void _np_send_authorization_reply(np_jobargs_t* args)
 		_np_send_receiver_discovery(&jargs);
 	}
 	np_free_obj(np_key_t, aaa_target);
-
-	log_msg(LOG_TRACE, ".end  .np_send_authorization_reply");
 }
 
 void _np_send_accounting_request(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_send_accounting_request(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start.np_send_accounting_request");
 
 	np_state_t* state = _np_state();
 	np_dhkey_t target_dhkey;
@@ -798,7 +766,6 @@ void _np_send_accounting_request(np_jobargs_t* args)
 	}
 	else
 	{
-		log_msg(LOG_TRACE, ".end  .np_send_accounting_request");
 		return;
 	}
 
@@ -825,7 +792,6 @@ void _np_send_accounting_request(np_jobargs_t* args)
 	np_free_obj(np_message_t, msg_out);
 
 	np_free_obj(np_key_t, aaa_target);
-	log_msg(LOG_TRACE, ".end  .np_send_accounting_request");
 }
 
 void _np_send_simple_invoke_request(np_key_t* target, const char* type) {

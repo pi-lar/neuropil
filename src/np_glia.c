@@ -65,7 +65,6 @@ static double  __cleanup_interval = 0.31415;
 void _np_route_lookup_jobexec(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_route_lookup_jobexec(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start.np_route_lookup");
 	np_state_t* state = _np_state();
 
 	np_sll_t(np_key_t, tmp) = NULL;
@@ -141,7 +140,6 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 			if (NULL == msg_to_submit)
 			{
 				sll_free(np_key_t, tmp);
-				log_msg(LOG_TRACE, ".end  .np_route_lookup");
 				return;
 			}
 			if (msg_in == msg_to_submit) np_ref_obj(np_message_t, msg_to_submit);
@@ -199,7 +197,6 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 	}
 
 	sll_free(np_key_t, tmp);
-	log_msg(LOG_TRACE, ".end  .np_route_lookup");
 }
 
 void _np_never_called_jobexec(np_jobargs_t* args)
@@ -228,7 +225,6 @@ void _np_never_called_jobexec(np_jobargs_t* args)
 void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start.np_check_leafset");
 
 	np_sll_t(np_key_t, leafset) = NULL;
 	np_key_t *tmp_node_key = NULL;
@@ -364,7 +360,6 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 	}
 	// np_mem_printpool();
 	np_job_submit_event(__leafset_check_period, _np_route_check_leafset_jobexec);
-	log_msg(LOG_TRACE, ".end  .np_check_leafset");
 }
 
 /**
@@ -376,7 +371,6 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args){");
-	log_msg(LOG_TRACE, "start._np_retransmit_message_tokens_jobexec");
 	np_state_t* state = _np_state();
 
 	np_tree_elem_t *iter = NULL;
@@ -434,14 +428,12 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 
 	// retrigger execution
 	np_job_submit_event(__token_retransmit_period, _np_retransmit_message_tokens_jobexec);
-	log_msg(LOG_TRACE, "end  ._np_retransmit_message_tokens_jobexec");
 }
 
 
 void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args){");
-	log_msg(LOG_TRACE, "start._np_renew_node_token_jobexec");
 
 	np_state_t* state = _np_state();
 
@@ -599,8 +591,6 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 
 	// retrigger execution
 	np_job_submit_event(__token_retransmit_period, _np_renew_node_token_jobexec);
-
-	log_msg(LOG_TRACE, "end  ._np_renew_node_token_jobexec");
 }
 
 /**
@@ -613,7 +603,6 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start.np_cleanup");
 
 	np_state_t* state = _np_state();
 	np_network_t* ng = state->my_node_key->network;
@@ -662,13 +651,11 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 
 	// submit the function itself for additional execution
 	np_job_submit_event(__cleanup_interval, _np_cleanup_ack_jobexec);
-	log_msg(LOG_TRACE, ".end  .np_cleanup");
 }
 
 void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_cleanup_keycache");
 
 	np_key_t* old = NULL;
 	double now = ev_time();
@@ -756,7 +743,6 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 
 	// submit the function itself for additional execution
 	np_job_submit_event(__cleanup_interval, _np_cleanup_keycache_jobexec);
-	log_msg(LOG_TRACE, ".end  ._np_cleanup_keycache");
 }
 
 /**
@@ -766,7 +752,6 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_send_rowinfo_jobexec(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, "start np_send_rowinfo");
 
 	np_state_t* state = _np_state();
 	np_key_t* target_key = args->target;
@@ -809,7 +794,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 
 np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 {
-    log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request){");	log_msg(LOG_TRACE, ".start.np_create_msg_token");
+    log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request){");
 
 	np_state_t* state = _np_state();
 
@@ -861,15 +846,12 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	_np_aaatoken_add_signature(msg_token);
 
 	msg_token->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
-
-	log_msg(LOG_TRACE, ".end  .np_create_msg_token");
 	return (msg_token);
 }
 
 void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject)
 {
     log_msg(LOG_TRACE, "start: void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject){");
-	log_msg(LOG_TRACE, ".start._np_send_subject_discovery_messages");
 
 	// insert into msg token token renewal queue
 	if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))
@@ -889,8 +871,6 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 		np_free_obj(np_key_t, target);
 	}
-
-	log_msg(LOG_TRACE, ".end  ._np_send_subject_discovery_messages");
 }
 
 // TODO: add a wrapper function which can be scheduled via jobargs

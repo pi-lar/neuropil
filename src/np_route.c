@@ -661,6 +661,6 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 }
 
 np_key_t* np_route_get_bootstrap_key() {
-    log_msg(LOG_TRACE, "start: np_key_t* np_route_get_bootstrap_key() {");
+    log_msg(LOG_TRACE | LOG_ROUTING, "start: np_key_t* np_route_get_bootstrap_key() {");
 	return __routing_table->bootstrap_key;
 }

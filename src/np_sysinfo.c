@@ -122,7 +122,6 @@ void np_sysinfo_enable_master(){
 
 np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {
     log_msg(LOG_TRACE, "start: np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {");
-	log_msg(LOG_TRACE, ".start._in_sysinfo");
 	log_msg(LOG_INFO, "received sysinfo request");
 
 	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
@@ -174,15 +173,12 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 			reply_body->size);
 
 	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, NULL /* &target_dhkey */);
-
-	log_msg(LOG_TRACE, ".end  ._in_sysinfo");
 	return TRUE;
 }
 
 np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
     log_msg(LOG_TRACE, "start: np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {");
 	_np_sysinfo_init_cache();
-	log_msg(LOG_TRACE, ".start._in_sysinforeply");
 
 	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
 
@@ -205,7 +201,6 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 		}
 		np_simple_cache_insert(_cache, source->val.value.s, np_tree_copy(body));
 	}
-	log_msg(LOG_TRACE, ".end  ._in_sysinforeply");
 
 	return TRUE;
 }

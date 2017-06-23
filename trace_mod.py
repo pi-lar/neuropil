@@ -1,76 +1,54 @@
 #!/usr/bin/env python
 
-# Inserts a tracing log msg after/before every { and } symbol
-# if not already present
+# Inserts a tracing log msg after every {  symbol
 
 import os
 import re
 from pathlib2 import Path
 
 startDir = "./src/"
-
-
-stack = []
-currFile = ''
-ignoreFindings = []
-counter =0
-
+currentGroup = ""
 def replStart(m):
-    global stack
-    global counter
-    global ignoreFindings
-    counter += 1
+    global currentGroup
     org = m.group(0)
     ident = m.group(1).strip().replace('\n','')
     if(ident in ['enum','struct','[]']):
-        ignoreFindings.append(counter)
         return org
     else:
-        print ident
-        stack.append(ident)
-        return org + '\n    log_msg(LOG_TRACE, "start: ' + ident + '");'
+        return org + '\n    log_msg(LOG_TRACE'+currentGroup+', "start: ' + ident + '");'
 
-def replEnd(m):
-    global stack
-    global counter
-    global currFile
-    global ignoreFindings
-    counter += 1
+def addTraceTo(txt):
+    ret = re.sub(r"^(\s*([\w\*]+\s+[\w\*]+\([\n\w,\*\s]*\))\s*\n?\s*{)",replStart, txt,flags=re.MULTILINE)
+    return ret;
 
-    if not stack:
-        print "error on " + currFile + ". Wrong {} count " + str(counter)
-        exit(1)
-    else:
-        if(counter in ignoreFindings):
-            ignoreCounter-=1
-            return "}"
+def removeTraceFrom(txt):
+    ret = re.sub(r"\s*log_msg\(LOG_TRACE[\| \w]*, \".*\"\);", "", txt)
+    return ret;
+
+for fileName in os.listdir(startDir):
+    if fileName.endswith(".c"):
+
+        if(fileName == "np_http.c"):
+            currentGroup = " | LOG_HTTP"
+        elif(fileName == "np_key.c"):
+            currentGroup = " | LOG_KEY"
+        elif(fileName == "np_network.c"):
+            currentGroup = " | LOG_NETWORK"
+        elif(fileName == "np_route.c"):
+            currentGroup = " | LOG_ROUTING"
+        elif(fileName == "np_threads.c"):
+            currentGroup = " | LOG_MUTEX"
+        elif(fileName == "np_aaatoken.c"):
+            currentGroup = " | LOG_AAATOKEN"
+        elif(fileName == "np_message.c" or fileName == "np_messagepart.c"):
+            currentGroup = " | LOG_MESSAGE"
         else:
-            ident = stack.pop()
-            return '    log_msg(LOG_TRACE, "end: ' + ident + '");\n}'
+            currentGroup = ""
 
-
-def scanFile(fileToScan):
-    global stack
-    global counter
-    global ignoreFindings
-    global currFile
-    stack =[]
-    ignoreFindings=[]
-
-    filepath = os.path.join(startDir,fileToScan)
-    print "editing " + filepath
-
-    currFile = filepath
-    txt = Path(filepath).read_text().encode('utf-8')
-    counter = 0
-    txt = re.sub(r"^(\s*([\w\*]+\s+[\w\*]+\([\n\w,\*\s]*\))\s*\n?\s*{)",replStart, txt,flags=re.MULTILINE)
-    #counter = 0
-    #txt = re.sub(r"\}", replEnd,  txt)
-    file = open(filepath, 'w')
-    file.write(txt)
-    #print txt
-    file.close()
-
-for file in os.listdir(startDir):
-    if file.endswith(".c"):
-        scanFile(file)
+        filepath = os.path.join(startDir,fileName)
+        txt = Path(filepath).read_text().encode('utf-8')
+        txt = removeTraceFrom(txt)
+        txt = addTraceTo(txt)
+        file = open(filepath, 'w')
+        file.write(txt)
+        file.close()

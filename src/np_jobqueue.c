@@ -236,7 +236,7 @@ void _np_job_submit_transform_event (double delay, np_msgproperty_t* prop, np_ke
 
 void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
-	// log_msg(LOG_TRACE, "job_submit_msg_event starting ...");
+	//
 
     // create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
@@ -255,7 +255,7 @@ void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t
     new_job->processorFunc = prop->clb_outbound;
 
 	_np_job_queue_insert(delay, new_job);
-	// log_msg(LOG_TRACE, "... job_submit_msg_event finished");
+	//
 }
 
 void np_job_submit_event (double delay, np_callback_t callback)

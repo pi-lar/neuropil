@@ -56,7 +56,6 @@ else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
 void _np_in_received(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_received(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_received");
 	log_debug_msg(LOG_DEBUG, "received msg");
 	void* raw_msg = NULL;
 
@@ -340,7 +339,6 @@ void _np_in_received(np_jobargs_t* args)
 	if (NULL != msg_in)     np_free_obj(np_message_t, msg_in);
 
 	// __np_return__:
-	log_msg(LOG_TRACE, ".end  ._np_in_received");
 	return;
 }
 
@@ -353,7 +351,6 @@ void _np_in_received(np_jobargs_t* args)
 void _np_in_piggy(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_piggy(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_piggy");
 	np_state_t* state = _np_state();
 	np_key_t* node_entry = NULL;
 	// double tmp_ft;
@@ -397,7 +394,6 @@ void _np_in_piggy(np_jobargs_t* args)
 	// __np_cleanup__:
 	// nothing to do
 	// __np_return__:
-	log_msg(LOG_TRACE, ".end  ._np_in_piggy");
 	return;
 }
 
@@ -408,7 +404,6 @@ void _np_in_piggy(np_jobargs_t* args)
  **/
 void _np_in_signal_np_receive (np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, ".start._np_signal");
 	np_message_t* msg_in = args->msg;
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
@@ -436,7 +431,6 @@ void _np_in_signal_np_receive (np_jobargs_t* args)
 	__np_cleanup__:
 	// nothing to do
 	// __np_return__:
-	log_msg(LOG_TRACE, ".end  ._np_signal");
 	return;
 }
 
@@ -502,7 +496,6 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	if (NULL != sender_token) np_unref_obj(np_aaatoken_t, sender_token);
 
 	__np_return__:
-	log_msg(LOG_TRACE, ".end  .np_signal");
 	return;
 }
 
@@ -513,7 +506,6 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 void _np_in_leave_req(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_leave_req(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_leave_req");
 	np_key_t* leave_req_key = NULL;
 	np_aaatoken_t* node_token = NULL;
 
@@ -548,12 +540,11 @@ void _np_in_leave_req(np_jobargs_t* args)
 	// __np_cleanup__:
 	// nothing to do
 	// __np_return__:
-	log_msg(LOG_TRACE, ".end  ._np_in_leave_req");
 	return;
 }
 //
 //void _np_in_join_wildcard_req(np_jobargs_t* args){
-//	log_msg(LOG_TRACE, ".start._np_in_join_wildcard_req");
+//
 //
 //	np_msgproperty_t *msg_prop = NULL;
 //	np_key_t* join_req_key = NULL;
@@ -587,7 +578,7 @@ void _np_in_leave_req(np_jobargs_t* args)
 //		if (NULL != msg_out)    np_free_obj(np_message_t, msg_out);
 //
 //		// __np_return__:
-//		log_msg(LOG_TRACE, ".end  ._np_in_join_wildcard_req");
+//
 //}
 
 /** _np_in_join_req:
@@ -597,7 +588,6 @@ void _np_in_leave_req(np_jobargs_t* args)
 void _np_in_join_req(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_join_req(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_join_req");
 
 	np_msgproperty_t *msg_prop = NULL;
 	np_key_t* join_req_key = NULL;
@@ -762,8 +752,6 @@ void _np_in_join_req(np_jobargs_t* args)
 	// __np_return__:
 	if (routing_key != join_req_key) np_unref_obj(np_key_t, join_req_key);
 	np_unref_obj(np_key_t, routing_key);
-
-	log_msg(LOG_TRACE, ".end  ._np_in_join_req");
 	return;
 }
 
@@ -775,7 +763,6 @@ void _np_in_join_req(np_jobargs_t* args)
 void _np_in_join_ack(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_join_ack(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_join_ack");
 
 	np_message_t* msg_out = NULL;
 	np_key_t* join_key = NULL;
@@ -930,8 +917,6 @@ void _np_in_join_ack(np_jobargs_t* args)
 	// __np_return__:
 	if (routing_key != join_key) np_unref_obj(np_key_t, routing_key);
 	np_unref_obj(np_key_t, join_key);
-
-	log_msg(LOG_TRACE, ".end  ._np_in_join_ack");
 	return;
 }
 
@@ -944,7 +929,6 @@ void _np_in_join_ack(np_jobargs_t* args)
 void _np_in_join_nack(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_join_nack(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_join_nack");
 
 	np_state_t* state = _np_state();
 	np_network_t* ng = state->my_node_key->network;
@@ -971,7 +955,6 @@ void _np_in_join_nack(np_jobargs_t* args)
 	// should never happen
 	if (NULL == nack_key || NULL == nack_key->node)
 	{
-		log_msg(LOG_TRACE, ".start._np_in_join_nack");
 		return;
 	}
 
@@ -986,14 +969,12 @@ void _np_in_join_nack(np_jobargs_t* args)
 	// __np_return__:
 
 	np_unref_obj(np_key_t, nack_key);
-	log_msg(LOG_TRACE, ".end  ._np_in_join_nack");
 	return;
 }
 
 void _np_in_ping(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_ping(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_ping");
 	np_message_t *msg_out = NULL;
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
@@ -1027,7 +1008,6 @@ void _np_in_ping(np_jobargs_t* args)
 	__np_cleanup__:
 		// nothing to do
 	// __np_return__:
-	log_msg(LOG_TRACE, ".end  ._np_in_ping");
 	return;
 }
 
@@ -1070,7 +1050,6 @@ void _np_in_pingreply(np_jobargs_t * args)
 	// nothing to do
 	// __np_return__:
 	np_unref_obj(np_key_t, pingreply_key);
-	log_msg(LOG_TRACE, ".end  ._np_in_pingreply");
 	return;
 }
 
@@ -1082,7 +1061,6 @@ void _np_in_pingreply(np_jobargs_t * args)
 void _np_in_update(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_update(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_update");
 
 	np_key_t *update_key = NULL;
 	np_aaatoken_t* update_token = NULL;
@@ -1135,14 +1113,12 @@ void _np_in_update(np_jobargs_t* args)
 
 	// nothing to do
 	__np_return__:
-	log_msg(LOG_TRACE, ".end  ._np_in_update");
 	return;
 }
 
 void _np_in_discover_sender(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_discover_sender(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_discover_sender");
 	np_key_t *reply_to_key = NULL;
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
@@ -1191,14 +1167,12 @@ void _np_in_discover_sender(np_jobargs_t* args)
 	if (NULL != msg_token)    np_free_obj(np_aaatoken_t, msg_token);
 
 	// __np_return__:
-	log_msg(LOG_TRACE, ".end  ._np_in_discover_sender");
 	return;
 }
 
 void _np_in_available_sender(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_available_sender(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_available_sender");
 
 	np_message_t *msg_in = args->msg;
 
@@ -1252,14 +1226,12 @@ void _np_in_available_sender(np_jobargs_t* args)
 	if (NULL != msg_token)    np_free_obj(np_aaatoken_t, msg_token);
 
 	// __np_return__:
-	log_msg(LOG_TRACE, ".end  ._np_in_available_sender");
 	return;
 }
 
 void _np_in_discover_receiver(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_discover_receiver(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_discover_receiver");
 
 	np_key_t *reply_to_key = NULL;
 	np_aaatoken_t* msg_token = NULL;
@@ -1314,7 +1286,6 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 	if (NULL != msg_token)    np_free_obj(np_aaatoken_t, msg_token);
 
 	// __np_return__:
-	log_msg(LOG_TRACE, ".end  ._np_in_discover_receiver");
 	return;
 }
 
@@ -1370,7 +1341,6 @@ void _np_in_available_receiver(np_jobargs_t* args)
 	if (NULL != msg_token)    np_free_obj(np_aaatoken_t, msg_token);
 
 	// __np_return__:
-	log_msg(LOG_TRACE, ".end  ._np_in_discover_receiver");
 	return;
 }
 
@@ -1453,14 +1423,12 @@ void _np_in_authenticate(np_jobargs_t* args)
 
 	// __np_return__:
 	args->properties->msg_threshold--;
-	log_msg(LOG_TRACE, ".end  ._np_in_discover_receiver");
 	return;
 }
 
 void _np_in_authenticate_reply(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_authenticate_reply(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_authenticate_reply");
 	np_aaatoken_t* authentication_token = NULL;
 	np_aaatoken_t* sender_token = NULL;
 	np_key_t* subject_key = NULL;
@@ -1552,7 +1520,6 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 	// __np_return__:
 	// args->properties->msg_threshold--;
 	np_unref_obj(np_key_t, subject_key);
-	log_msg(LOG_TRACE, ".end  ._np_in_authenticate_reply");
 	return;
 }
 
@@ -1636,7 +1603,6 @@ void _np_in_authorize(np_jobargs_t* args)
 
 	// __np_return__:
 	args->properties->msg_threshold--;
-	log_msg(LOG_TRACE, ".end  ._np_in_discover_receiver");
 	return;
 }
 
@@ -1774,7 +1740,6 @@ void _np_in_account(np_jobargs_t* args)
 void _np_in_handshake(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_handshake(np_jobargs_t* args){");
-	log_msg(LOG_TRACE, ".start._np_in_handshake");
 
 	np_key_t* hs_key = NULL;
 	np_key_t* hs_wildcard_key = NULL;

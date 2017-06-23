@@ -60,8 +60,6 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 		suspend_loop = __suspended_libev_loop;
 		_np_threads_unlock_module(np_event_t_lock);
 	}
-
-	log_msg(LOG_TRACE, ".end  ._np_events_async");
 }
 
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)

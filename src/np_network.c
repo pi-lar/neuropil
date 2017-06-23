@@ -54,7 +54,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 // allocate a new pointer and return it
 np_prioq_t* _np_network_get_new_pqentry()
 {
-    log_msg(LOG_TRACE, "start: np_prioq_t* _np_network_get_new_pqentry(){");
+    log_msg(LOG_TRACE | LOG_NETWORK, "start: np_prioq_t* _np_network_get_new_pqentry(){");
 	np_prioq_t* entry = (np_prioq_t *) malloc(sizeof(np_prioq_t));
 	CHECK_MALLOC(entry);
 
@@ -69,7 +69,7 @@ np_prioq_t* _np_network_get_new_pqentry()
 
 np_ackentry_t* _np_network_get_new_ackentry()
 {
-    log_msg(LOG_TRACE, "start: np_ackentry_t* _np_network_get_new_ackentry(){");
+    log_msg(LOG_TRACE | LOG_NETWORK, "start: np_ackentry_t* _np_network_get_new_ackentry(){");
 	np_ackentry_t *entry = (np_ackentry_t *) malloc(sizeof(np_ackentry_t));
 	CHECK_MALLOC(entry);
 
@@ -470,7 +470,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 
 void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 {
-    log_msg(LOG_TRACE, "start: void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents){");
+    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents){");
 	log_msg(LOG_NETWORK | LOG_TRACE, ".start.np_network_accept");
 
 	if(EV_ERROR & revents)
@@ -603,7 +603,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
  **/
 void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 {
-    log_msg(LOG_TRACE, "start: void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents){");
+    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents){");
 	log_msg(LOG_NETWORK | LOG_TRACE, ".start.np_network_read");
 	// cast event data structure to np_state_t pointer
 
@@ -734,7 +734,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 
 void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 {
-    log_msg(LOG_TRACE, "start: void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents){");
+    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents){");
 	if (revents & EV_WRITE)
 	{
 		_np_network_send_from_events(loop, event, revents);
@@ -747,7 +747,7 @@ void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 }
 
 void _np_network_stop(np_network_t* network){
-    log_msg(LOG_TRACE, "start: void _np_network_stop(np_network_t* network){");
+    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_stop(np_network_t* network){");
     if(NULL != network){
 		_LOCK_ACCESS(&network->lock){
 			if(network->isWatching == TRUE) {
@@ -760,7 +760,7 @@ void _np_network_stop(np_network_t* network){
 }
 
 void _np_network_start(np_network_t* network){
-    log_msg(LOG_TRACE, "start: void _np_network_start(np_network_t* network){");
+    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
     if(NULL != network){
     	_LOCK_ACCESS(&network->lock){
 			if(network->isWatching == FALSE) {
@@ -777,7 +777,7 @@ void _np_network_start(np_network_t* network){
  */
 void _np_network_t_del(void* nw)
 {
-    log_msg(LOG_TRACE, "start: void _np_network_t_del(void* nw){");
+    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_del(void* nw){");
 	np_network_t* network = (np_network_t*) nw;
 
 	_np_suspend_event_loop();
@@ -827,7 +827,7 @@ void _np_network_t_del(void* nw)
 
 void _np_network_t_new(void* nw)
 {
-    log_msg(LOG_TRACE, "start: void _np_network_t_new(void* nw){");
+    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_new(void* nw){");
     np_network_t* ng = (np_network_t *) nw;
     ng->addr_in 	= NULL;
     ng->waiting 	= NULL;

@@ -268,7 +268,6 @@ np_key_t* _np_node_create_from_token(np_aaatoken_t* token)
 np_aaatoken_t* _np_node_create_token(np_node_t* node)
 {
     log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_node_create_token(np_node_t* node){");
-	log_msg(LOG_TRACE, ".start.np_create_node_token");
 	np_state_t* state = _np_state();
 
 	np_aaatoken_t* node_token = NULL;
@@ -305,8 +304,6 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 			np_treeval_new_ush(node->protocol));
 
 	_np_aaatoken_add_signature(node_token);
-
-	log_msg(LOG_TRACE, ".end  .np_create_node_token");
 	return (node_token);
 }
 
