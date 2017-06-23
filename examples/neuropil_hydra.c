@@ -68,6 +68,7 @@ int main(int argc, char **argv)
 	char* logpath = ".";
 
 	uint32_t required_nodes = NUM_HOST;
+	// The Log level. See below for settings
 	int level = -2;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
@@ -88,14 +89,6 @@ int main(int argc, char **argv)
 			break;
 		case 'd':
 			level = atoi(optarg);
-			if(level == -1){	   // production client
-				level = LOG_ERROR;
-			}else if(level == -2){ // production server
-				level = LOG_ERROR | LOG_WARN | LOG_INFO;
-			}else if(level <= -3){ // debug
-				level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE
-						   | LOG_HTTP | LOG_NETWORK;
-			}
 			break;
 		case 'l':
 			if(optarg != NULL){
@@ -112,6 +105,15 @@ int main(int argc, char **argv)
 			exit(EXIT_FAILURE);
 		}
 	}
+	if(level == -1){	   // production client
+		level = LOG_ERROR;
+	}else if(level == -2){ // production server
+		level = LOG_ERROR | LOG_WARN | LOG_INFO;
+	}else if(level <= -3){ // debug
+		level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE
+				   | LOG_HTTP | LOG_NETWORK;
+	}
+
 	// Get the current pid and shift it to be a viable port.
 	// This way the application may be used for multiple instances on one system
 	int current_pid = getpid();
