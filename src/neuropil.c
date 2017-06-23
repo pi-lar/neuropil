@@ -175,6 +175,7 @@ np_bool _np_aaa_accountingfunc (np_aaatoken_t* token)
  */
 void np_setauthorizing_cb(np_aaa_func_t aaaFunc)
 {
+    log_msg(LOG_TRACE, "start: void np_setauthorizing_cb(np_aaa_func_t aaaFunc){");
 	log_msg(LOG_INFO, "setting user defined authorization handler, that's good ...");
 	_np_state()->authorize_func = aaaFunc;
 }
@@ -184,6 +185,7 @@ void np_setauthorizing_cb(np_aaa_func_t aaaFunc)
  */
 void np_setauthenticate_cb(np_aaa_func_t aaaFunc)
 {
+    log_msg(LOG_TRACE, "start: void np_setauthenticate_cb(np_aaa_func_t aaaFunc){");
 	log_msg(LOG_INFO, "setting user defined authentication handler, that's good ...");
 	_np_state()->authenticate_func = aaaFunc;
 }
@@ -193,6 +195,7 @@ void np_setauthenticate_cb(np_aaa_func_t aaaFunc)
  */
 void np_setaccounting_cb(np_aaa_func_t aaaFunc)
 {
+    log_msg(LOG_TRACE, "start: void np_setaccounting_cb(np_aaa_func_t aaaFunc){");
 	log_msg(LOG_INFO, "setting user defined accounting handler, that's good ...");
 	_np_state()->accounting_func = aaaFunc;
 }
@@ -203,6 +206,7 @@ void np_setaccounting_cb(np_aaa_func_t aaaFunc)
  */
 void np_send_join(const char* node_string)
 {
+    log_msg(LOG_TRACE, "start: void np_send_join(const char* node_string){");
 	np_key_t* node_key = NULL;
 
 	node_key = _np_node_decode_from_str(node_string);
@@ -216,6 +220,7 @@ void np_send_join(const char* node_string)
  */
 void np_send_wildcard_join(const char* node_string)
 {
+    log_msg(LOG_TRACE, "start: void np_send_wildcard_join(const char* node_string){");
 	/**
 	 * Wir erzeugen einen festen hash key der als wildcard fungiert.
 	 * Anschließend wird diesem der node_string mit allen anderen informationen (dns/port/etc) hinzugefügt.
@@ -251,6 +256,7 @@ void np_send_wildcard_join(const char* node_string)
  */
 void np_set_realm_name(const char* realm_name)
 {
+    log_msg(LOG_TRACE, "start: void np_set_realm_name(const char* realm_name){");
 	_np_state()->realm_name = strndup(realm_name, 255);
 
 	// create a new token
@@ -296,6 +302,7 @@ void np_set_realm_name(const char* realm_name)
  */
 void np_enable_realm_slave()
 {
+    log_msg(LOG_TRACE, "start: void np_enable_realm_slave(){");
 	_np_state()->authorize_func    = _np_aaa_authorizefunc;
 	_np_state()->authenticate_func = _np_aaa_authenticatefunc;
 	_np_state()->accounting_func   = _np_aaa_accountingfunc;
@@ -308,6 +315,7 @@ void np_enable_realm_slave()
  */
 void np_enable_realm_master()
 {
+    log_msg(LOG_TRACE, "start: void np_enable_realm_master(){");
 	if (NULL == _np_state()->realm_name)
 	{
 		return;
@@ -344,6 +352,7 @@ void np_enable_realm_master()
  */
 void np_waitforjoin()
 {
+    log_msg(LOG_TRACE, "start: void np_waitforjoin(){");
 	np_state_t* state = _np_state();
 	while (FALSE == state->my_node_key->node->joined_network)
 	{
@@ -383,6 +392,7 @@ void np_set_listener (np_usercallback_t msg_handler, char* subject)
  */
 void np_set_identity(np_aaatoken_t* identity)
 {
+    log_msg(LOG_TRACE, "start: void np_set_identity(np_aaatoken_t* identity){");
 	np_state_t* state = _np_state();
 
     // build a hash to find a place in the dhkey table, not for signing !
@@ -420,6 +430,7 @@ void np_set_identity(np_aaatoken_t* identity)
  */
 void np_set_mx_property(char* subject, const char* key, np_treeval_t value)
 {
+    log_msg(LOG_TRACE, "start: void np_set_mx_property(char* subject, const char* key, np_treeval_t value){");
 	// TODO: rework key from char to enum
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
@@ -463,6 +474,7 @@ void np_set_mx_property(char* subject, const char* key, np_treeval_t value)
 
 void np_rem_mx_property(char* subject, const char* key)
 {
+    log_msg(LOG_TRACE, "start: void np_rem_mx_property(char* subject, const char* key){");
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
 	{
@@ -517,6 +529,7 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 
 np_key_t* _np_get_key_by_key_hash(char* targetDhkey)
 {
+    log_msg(LOG_TRACE, "start: np_key_t* _np_get_key_by_key_hash(char* targetDhkey){");
 	np_key_t* target = NULL;
 
 	if (NULL != targetDhkey) {
@@ -784,6 +797,7 @@ uint32_t np_receive_text (char* subject, char **data)
  */
 void _np_send_ack(np_message_t* in_msg)
 {
+    log_msg(LOG_TRACE, "start: void _np_send_ack(np_message_t* in_msg){");
 	np_state_t* state = _np_state();
 
 	// uint8_t ack = ACK_NONE;
@@ -856,6 +870,7 @@ void _np_ping (np_key_t* key)
  **/
 void np_destroy()
 {
+    log_msg(LOG_TRACE, "start: void np_destroy(){");
 	// TODO: implement me ...
 }
 
@@ -866,6 +881,7 @@ void np_destroy()
  **/
 np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 {
+    log_msg(LOG_TRACE, "start: np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname){");
 	log_debug_msg(LOG_DEBUG, "neuropil_init");
 	 if(_np_threads_init() == FALSE){
 		log_msg(LOG_ERROR, "neuropil_init: could not init threding mutexes");
@@ -1032,6 +1048,7 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 
 void np_start_job_queue(uint8_t pool_size)
 {
+    log_msg(LOG_TRACE, "start: void np_start_job_queue(uint8_t pool_size){");
 	if (pthread_attr_init (&_np_state()->attr) != 0)
 	{
 	    log_msg (LOG_ERROR, "pthread_attr_init: %s", strerror (errno));
@@ -1083,11 +1100,13 @@ void np_start_job_queue(uint8_t pool_size)
 }
 
 char* np_get_connection_string(){
+    log_msg(LOG_TRACE, "start: char* np_get_connection_string(){");
 	char* connection_str = np_get_connection_string_from(_np_state()->my_node_key, TRUE);
 	return connection_str;
 }
 
 char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){
+    log_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
 	char* connection_str;
 	 if(TRUE == includeHash){
 		 asprintf(&connection_str, "%s:%s:%s:%s",

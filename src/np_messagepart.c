@@ -37,6 +37,7 @@ np_bool _np_messagepart_decrypt(np_tree_t* msg_part,
 							unsigned char* public_key,
 							NP_UNUSED unsigned char* secret_key)
 {
+    log_msg(LOG_TRACE, "start: np_bool _np_messagepart_decrypt(np_tree_t* msg_part,							unsigned char* enc_nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
 	log_msg(LOG_TRACE, ".start.np_message_decrypt_part");
 	np_tree_elem_t* enc_msg_part = np_tree_find_str(msg_part, NP_ENCRYPTED);
 	if (NULL == enc_msg_part)
@@ -100,6 +101,7 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 							unsigned char* public_key,
 							NP_UNUSED unsigned char* secret_key)
 {
+    log_msg(LOG_TRACE, "start: np_bool _np_messagepart_encrypt(np_tree_t* msg_part,							unsigned char* nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
 	log_msg(LOG_TRACE, ".start.np_message_encrypt_part");
 	cmp_ctx_t cmp;
 

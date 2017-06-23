@@ -45,6 +45,7 @@ static const char* NP_NODE_LAST_SUCCESS = "_np.node.last_success";
 
 void _np_node_t_new(void* node)
 {
+    log_msg(LOG_TRACE, "start: void _np_node_t_new(void* node){");
 	np_node_t* entry = (np_node_t *) node;
 
 	entry->dns_name = NULL;
@@ -69,6 +70,7 @@ void _np_node_t_new(void* node)
 
 void _np_node_t_del(void* node)
 {
+    log_msg(LOG_TRACE, "start: void _np_node_t_del(void* node){");
 	np_node_t* entry = (np_node_t *) node;
 	if (entry->dns_name) free (entry->dns_name);
 	if (entry->port) free (entry->port);
@@ -252,6 +254,7 @@ sll_return(np_key_t) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 
 np_key_t* _np_node_create_from_token(np_aaatoken_t* token)
 {
+    log_msg(LOG_TRACE, "start: np_key_t* _np_node_create_from_token(np_aaatoken_t* token){");
 	// TODO: check whether metadata is used as a hash key in general
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(token);
 	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
@@ -264,6 +267,7 @@ np_key_t* _np_node_create_from_token(np_aaatoken_t* token)
 
 np_aaatoken_t* _np_node_create_token(np_node_t* node)
 {
+    log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_node_create_token(np_node_t* node){");
 	log_msg(LOG_TRACE, ".start.np_create_node_token");
 	np_state_t* state = _np_state();
 

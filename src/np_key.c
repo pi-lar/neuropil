@@ -31,6 +31,7 @@ NP_PLL_GENERATE_IMPLEMENTATION(np_key_ptr);
 
 int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 {
+    log_msg(LOG_TRACE, "start: int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2){");
 	if (k1 == NULL) return -1;
 	if (k2 == NULL) return  1;
 
@@ -39,11 +40,13 @@ int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 
 int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
 {
+    log_msg(LOG_TRACE, "start: int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2){");
 	return -1 * _np_key_cmp(k1, k2);
 }
 
 char* _np_key_as_str(np_key_t* key)
 {
+    log_msg(LOG_TRACE, "start: char* _np_key_as_str(np_key_t* key){");
 	if (NULL == key->dhkey_str)
 	{
 		key->dhkey_str = (char*) malloc(65);
@@ -60,6 +63,7 @@ char* _np_key_as_str(np_key_t* key)
  * Destroys a key with all resources
  */
 void _np_key_destroy(np_key_t* to_destroy) {
+    log_msg(LOG_TRACE, "start: void _np_key_destroy(np_key_t* to_destroy) {");
 
 	if(NULL != to_destroy) {
 		np_ref_obj(np_key_t, to_destroy);
@@ -122,6 +126,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
 void _np_key_t_new(void* key)
 {
+    log_msg(LOG_TRACE, "start: void _np_key_t_new(void* key){");
 	np_key_t* new_key = (np_key_t*) key;
 
 	new_key->last_update = ev_time();
@@ -146,6 +151,7 @@ void _np_key_t_new(void* key)
 
 void _np_key_t_del(void* key)
 {
+    log_msg(LOG_TRACE, "start: void _np_key_t_del(void* key){");
 	np_key_t* old_key = (np_key_t*) key;
 
     // log_msg(LOG_WARN, "destructor of key %p -> %s called ", old_key, _key_as_str(old_key));

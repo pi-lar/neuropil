@@ -43,6 +43,7 @@ static ev_async    __libev_async_watcher;
 
 void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents)
 {
+    log_msg(LOG_TRACE, "start: void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents){");
 	log_debug_msg(LOG_DEBUG, ".start._np_events_async");
 
 	static int suspend_loop = 0;
@@ -65,6 +66,7 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args){");
 	sll_return(np_key_t)  sll_routing_tbl;
 	np_bool rejoin = FALSE;
 
@@ -96,6 +98,7 @@ void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
  **/
 void _np_events_read(NP_UNUSED np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
 	// TODO: evaluate if 1 ore more threads are started and init appropriately
@@ -132,6 +135,7 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 
 void _np_suspend_event_loop()
 {
+    log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
 	_LOCK_MODULE(np_event_t){
 		__suspended_libev_loop++;
 	}
@@ -140,6 +144,7 @@ void _np_suspend_event_loop()
 
 void _np_resume_event_loop()
 {
+    log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
 	_LOCK_MODULE(np_event_t) {
 		__suspended_libev_loop--;
 	}

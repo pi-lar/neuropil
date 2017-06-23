@@ -35,6 +35,7 @@
 
 char* np_uuid_create(const char* str, const uint16_t num)
 {
+    log_msg(LOG_TRACE, "start: char* np_uuid_create(const char* str, const uint16_t num){");
 	char input[256];
 	unsigned char out[18];
 	char* uuid_out = malloc(sizeof(char)*37);
@@ -56,6 +57,7 @@ char* np_uuid_create(const char* str, const uint16_t num)
 
 np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit)
 {
+    log_msg(LOG_TRACE, "start: np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit){");
 	memcpy(data, ctx->buf, limit);
 	ctx->buf += limit;
 	return TRUE;
@@ -63,6 +65,7 @@ np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit)
 
 np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit)
 {
+    log_msg(LOG_TRACE, "start: np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit){");
 	np_bool ret = FALSE;
 	_np_message_buffer_container_t* wrapper = ctx->buf;
 
@@ -87,6 +90,7 @@ np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t li
 
 size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size_t count)
 {
+    log_msg(LOG_TRACE, "start: size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size_t count){");
 	_np_message_buffer_container_t* wrapper = ctx->buf;
 
 	memcpy(wrapper->buffer, data, count);
@@ -96,6 +100,7 @@ size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size
 
 size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
 {
+    log_msg(LOG_TRACE, "start: size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count){");
 	// log_debug_msg(LOG_DEBUG, "-- writing cmp->buf: %p size: %hd", ctx->buf, count);
 	// printf( "-- writing cmp->buf: %p size: %hd\n", ctx->buf, count);
 
@@ -147,6 +152,7 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_t, list_of_keys))
 
 
 JSON_Value* np_treeval2json(np_treeval_t val) {
+    log_msg(LOG_TRACE, "start: JSON_Value* np_treeval2json(np_treeval_t val) {");
 	JSON_Value* ret = NULL;
 	//log_debug_msg(LOG_DEBUG, "np_treeval2json type: %"PRIu8,val.type);
 	void* tmp;
@@ -220,12 +226,14 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 }
 
 char* np_dump_tree2char(np_tree_t* tree) {
+    log_msg(LOG_TRACE, "start: char* np_dump_tree2char(np_tree_t* tree) {");
 	JSON_Value * tmp = np_tree2json(tree);
 	char* tmp2 = np_json2char(tmp,TRUE);
 	free(tmp);
 	return tmp2;
 }
 JSON_Value* np_tree2json(np_tree_t* tree) {
+    log_msg(LOG_TRACE, "start: JSON_Value* np_tree2json(np_tree_t* tree) {");
 	JSON_Value* ret = json_value_init_object();
 	JSON_Value* arr = NULL;
 
@@ -317,6 +325,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 }
 
 char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
+    log_msg(LOG_TRACE, "start: char* np_json2char(JSON_Value* data, np_bool prettyPrint) {");
 	char* ret;
 	/*
 	size_t json_size ;
@@ -344,6 +353,7 @@ char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
 }
 
 void np_dump_tree2log(np_tree_t* tree){
+    log_msg(LOG_TRACE, "start: void np_dump_tree2log(np_tree_t* tree){");
 	if(NULL == tree){
 		log_debug_msg(LOG_DEBUG, "NULL");
 	}else{

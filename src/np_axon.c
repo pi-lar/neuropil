@@ -54,6 +54,7 @@
  **/
 void _np_out_ack(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_out_ack(np_jobargs_t* args){");
 	//TODO: Was soll diese Methode machen?
 
 	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(args->msg->uuid));
@@ -80,6 +81,7 @@ void _np_out_ack(np_jobargs_t* args)
  **/
 void _np_send(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_send(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_out_send");
 
 	uint32_t seq = 0;
@@ -296,6 +298,7 @@ void _np_send(np_jobargs_t* args)
 
 void _np_send_handshake(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_send_handshake(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_out_handshake");
 
 	if (!_np_node_check_address_validity(args->target->node)) return;
@@ -461,6 +464,7 @@ void _np_send_handshake(np_jobargs_t* args)
 
 void _np_send_discovery_messages(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_send_discovery_messages(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_send_discovery_messages");
 	np_aaatoken_t* msg_token = NULL;
 
@@ -524,6 +528,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 // deprecated
 void _np_send_receiver_discovery(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_send_receiver_discovery(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_send_receiver_discovery");
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
@@ -559,6 +564,7 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 // deprecated
 void _np_send_sender_discovery(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_send_sender_discovery(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_send_sender_discovery");
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
@@ -595,6 +601,7 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 
 void _np_send_authentication_request(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_send_authentication_request(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start.np_send_authentication_request");
 
 	np_state_t* state = _np_state();
@@ -652,6 +659,7 @@ void _np_send_authentication_request(np_jobargs_t* args)
 
 void _np_send_authentication_reply(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_send_authentication_reply(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start.np_send_authentication_reply");
 
 	np_dhkey_t target_dhkey;
@@ -690,6 +698,7 @@ void _np_send_authentication_reply(np_jobargs_t* args)
 
 void _np_send_authorization_request(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_send_authorization_request(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start.np_send_authorization_request");
 
 	np_state_t* state = _np_state();
@@ -738,6 +747,7 @@ void _np_send_authorization_request(np_jobargs_t* args)
 
 void _np_send_authorization_reply(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_send_authorization_reply(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start.np_send_authorization_reply");
 
 	np_dhkey_t target_dhkey;
@@ -776,6 +786,7 @@ void _np_send_authorization_reply(np_jobargs_t* args)
 
 void _np_send_accounting_request(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_send_accounting_request(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start.np_send_accounting_request");
 
 	np_state_t* state = _np_state();
@@ -818,6 +829,7 @@ void _np_send_accounting_request(np_jobargs_t* args)
 }
 
 void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
+    log_msg(LOG_TRACE, "start: void _np_send_simple_invoke_request(np_key_t* target, const char* type) {");
 
 	np_state_t* state = _np_state();
 

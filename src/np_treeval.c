@@ -20,6 +20,7 @@
 np_treeval_t np_treeval_NULL = { .type = none_type, .size=0 };
 
 np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
+    log_msg(LOG_TRACE, "start: np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {");
 	np_treeval_t to;
 	switch (from.type) {
 	// length is always 1 (to identify the type) + the length of the type
@@ -146,6 +147,7 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 }
 
 char* np_treeval_to_str(np_treeval_t val) {
+    log_msg(LOG_TRACE, "start: char* np_treeval_to_str(np_treeval_t val) {");
 
 	int len = 0;
 	char* result = NULL;
@@ -473,6 +475,7 @@ np_treeval_t np_treeval_new_carray_nnt (char *carray)
 
 np_treeval_t np_treeval_new_tree(np_tree_t* tree)
 {
+    log_msg(LOG_TRACE, "start: np_treeval_t np_treeval_new_tree(np_tree_t* tree){");
 	np_treeval_t j;
     j.value.tree = tree;
     j.size = tree->byte_size;
@@ -519,6 +522,7 @@ np_treeval_t np_treeval_new_pwhash (NP_UNUSED char *s)
 
 np_treeval_t np_treeval_new_obj(np_obj_t* obj)
 {
+    log_msg(LOG_TRACE, "start: np_treeval_t np_treeval_new_obj(np_obj_t* obj){");
 	np_treeval_t j;
 	j.value.obj = obj;
 	j.size = 0;
@@ -612,6 +616,7 @@ char* jval_carray (np_treeval_t j)
 }
 uint64_t np_treeval_get_byte_size(np_treeval_t ele)
 {
+    log_msg(LOG_TRACE, "start: uint64_t np_treeval_get_byte_size(np_treeval_t ele){");
 	uint64_t byte_size = 0;
 
 	switch(ele.type)

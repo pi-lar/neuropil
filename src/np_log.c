@@ -117,6 +117,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 
 void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
 {
+    log_msg(LOG_TRACE, "start: void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents){");
 	if (revents & EV_WRITE)
 	{
 		_np_log_fflush();
@@ -125,6 +126,7 @@ void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int
 
 void _np_log_fflush()
 {
+    log_msg(LOG_TRACE, "start: void _np_log_fflush(){");
 	char* entry = NULL;
 	do
 	{
@@ -143,11 +145,13 @@ void _np_log_fflush()
 
 void np_log_setlevel(uint32_t level)
 {
+    log_msg(LOG_TRACE, "start: void np_log_setlevel(uint32_t level){");
     logger->level = level;
 }
 
 void np_log_init(const char* filename, uint32_t level)
 {
+    log_msg(LOG_TRACE, "start: void np_log_init(const char* filename, uint32_t level){");
 	logger = (np_log_t *) malloc(sizeof(np_log_t));
 	CHECK_MALLOC(logger);
 
@@ -177,6 +181,7 @@ void np_log_init(const char* filename, uint32_t level)
 
 void np_log_destroy()
 {
+    log_msg(LOG_TRACE, "start: void np_log_destroy(){");
 	logger->level=LOG_NONE;
 
     EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);

@@ -86,6 +86,7 @@ np_bool _np_msgproperty_init ()
  **/
 np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* subject)
 {
+    log_msg(LOG_TRACE, "start: np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* subject){");
 	assert(subject != NULL);
 
 	np_msgproperty_t prop = { .msg_subject=(char*) subject, .mode_type=mode_type };
@@ -94,6 +95,7 @@ np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* sub
 
 int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2)
 {
+    log_msg(LOG_TRACE, "start: int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2){");
 //	log_debug_msg(LOG_DEBUG, "%s %d (&) %s %d",
 //			prop1->msg_subject, prop1->mode_type,
 //			prop2->msg_subject, prop2->mode_type );
@@ -128,12 +130,14 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 
 void np_msgproperty_register(np_msgproperty_t* msgprops)
 {
+    log_msg(LOG_TRACE, "start: void np_msgproperty_register(np_msgproperty_t* msgprops){");
 	log_debug_msg(LOG_DEBUG, "registering user property: %s", msgprops->msg_subject);
 	RB_INSERT(rbt_msgproperty, __msgproperty_table, msgprops);
 }
 
 void _np_msgproperty_t_new(void* property)
 {
+    log_msg(LOG_TRACE, "start: void _np_msgproperty_t_new(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
 	prop->msg_audience = NULL;
@@ -168,6 +172,7 @@ void _np_msgproperty_t_new(void* property)
 
 void _np_msgproperty_t_del(void* property)
 {
+    log_msg(LOG_TRACE, "start: void _np_msgproperty_t_del(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
 	if (prop->msg_subject) free(prop->msg_subject);
@@ -181,6 +186,7 @@ void _np_msgproperty_t_del(void* property)
 
 void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 {
+    log_msg(LOG_TRACE, "start: void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop){");
 	// check if we are (one of the) sending node(s) of this kind of message
 	// should not return NULL
 	log_debug_msg(LOG_DEBUG,
@@ -224,6 +230,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 
 void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 {
+    log_msg(LOG_TRACE, "start: void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop){");
 	log_debug_msg(LOG_DEBUG,
 			"this node is the receiver of messages, checking msgcache (%p / %u) ...",
 			recv_prop->msg_cache_in, sll_size(recv_prop->msg_cache_in));
@@ -262,6 +269,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 
 void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
+    log_msg(LOG_TRACE, "start: void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in){");
 	_LOCK_ACCESS(&msg_prop->lock)
 	{
 		// cache already full ?
@@ -306,6 +314,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
+    log_msg(LOG_TRACE, "start: void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in){");
 	_LOCK_ACCESS(&msg_prop->lock)
 	{
 		// cache already full ?

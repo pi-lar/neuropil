@@ -55,6 +55,7 @@ else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
  */
 void _np_in_received(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_received(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_received");
 	log_debug_msg(LOG_DEBUG, "received msg");
 	void* raw_msg = NULL;
@@ -351,6 +352,7 @@ void _np_in_received(np_jobargs_t* args)
  **/
 void _np_in_piggy(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_piggy(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_piggy");
 	np_state_t* state = _np_state();
 	np_key_t* node_entry = NULL;
@@ -446,6 +448,7 @@ void _np_in_signal_np_receive (np_jobargs_t* args)
  **/
 void _np_in_callback_wrapper(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_callback_wrapper(np_jobargs_t* args){");
 	np_aaatoken_t* sender_token = NULL;
 	np_message_t* msg_in = args->msg;
 	if(NULL == msg_in){
@@ -509,6 +512,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
  **/
 void _np_in_leave_req(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_leave_req(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_leave_req");
 	np_key_t* leave_req_key = NULL;
 	np_aaatoken_t* node_token = NULL;
@@ -592,6 +596,7 @@ void _np_in_leave_req(np_jobargs_t* args)
  **/
 void _np_in_join_req(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_join_req(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_join_req");
 
 	np_msgproperty_t *msg_prop = NULL;
@@ -769,6 +774,7 @@ void _np_in_join_req(np_jobargs_t* args)
  **/
 void _np_in_join_ack(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_join_ack(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_join_ack");
 
 	np_message_t* msg_out = NULL;
@@ -937,6 +943,7 @@ void _np_in_join_ack(np_jobargs_t* args)
  **/
 void _np_in_join_nack(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_join_nack(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_join_nack");
 
 	np_state_t* state = _np_state();
@@ -985,6 +992,7 @@ void _np_in_join_nack(np_jobargs_t* args)
 
 void _np_in_ping(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_ping(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_ping");
 	np_message_t *msg_out = NULL;
 
@@ -1025,6 +1033,7 @@ void _np_in_ping(np_jobargs_t* args)
 
 void _np_in_pingreply(np_jobargs_t * args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_pingreply(np_jobargs_t * args){");
 	np_key_t* pingreply_key = NULL;
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
@@ -1072,6 +1081,7 @@ void _np_in_pingreply(np_jobargs_t * args)
 // receive information about new nodes in the network and try to contact new nodes
 void _np_in_update(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_update(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_update");
 
 	np_key_t *update_key = NULL;
@@ -1131,6 +1141,7 @@ void _np_in_update(np_jobargs_t* args)
 
 void _np_in_discover_sender(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_discover_sender(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_discover_sender");
 	np_key_t *reply_to_key = NULL;
 
@@ -1186,6 +1197,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 
 void _np_in_available_sender(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_available_sender(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_available_sender");
 
 	np_message_t *msg_in = args->msg;
@@ -1246,6 +1258,7 @@ void _np_in_available_sender(np_jobargs_t* args)
 
 void _np_in_discover_receiver(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_discover_receiver(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_discover_receiver");
 
 	np_key_t *reply_to_key = NULL;
@@ -1307,6 +1320,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 void _np_in_available_receiver(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_available_receiver(np_jobargs_t* args){");
 	// extract e2e encryption details for sender
 	np_aaatoken_t* msg_token = NULL;
 
@@ -1362,6 +1376,7 @@ void _np_in_available_receiver(np_jobargs_t* args)
 
 void _np_in_authenticate(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_authenticate(np_jobargs_t* args){");
 	np_key_t *reply_to_key = NULL;
 	np_aaatoken_t* sender_token = NULL;
 	np_aaatoken_t* authentication_token = NULL;
@@ -1444,6 +1459,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 
 void _np_in_authenticate_reply(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_authenticate_reply(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_authenticate_reply");
 	np_aaatoken_t* authentication_token = NULL;
 	np_aaatoken_t* sender_token = NULL;
@@ -1542,6 +1558,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 
 void _np_in_authorize(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_authorize(np_jobargs_t* args){");
 	np_key_t *reply_to_key = NULL;
 	np_aaatoken_t* sender_token = NULL;
 	np_aaatoken_t* authorization_token = NULL;
@@ -1625,6 +1642,7 @@ void _np_in_authorize(np_jobargs_t* args)
 
 void _np_in_authorize_reply(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_authorize_reply(np_jobargs_t* args){");
 	np_aaatoken_t* authorization_token = NULL;
 	np_aaatoken_t* sender_token = NULL;
 
@@ -1717,6 +1735,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 
 void _np_in_account(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_account(np_jobargs_t* args){");
 	np_aaatoken_t* sender_token = NULL;
 	np_aaatoken_t* accounting_token = NULL;
 
@@ -1754,6 +1773,7 @@ void _np_in_account(np_jobargs_t* args)
 
 void _np_in_handshake(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_in_handshake(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_in_handshake");
 
 	np_key_t* hs_key = NULL;

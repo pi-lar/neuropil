@@ -38,6 +38,7 @@ static np_obj_pool_t* __np_obj_pool_ptr;
 
 void np_mem_init()
 {
+    log_msg(LOG_TRACE, "start: void np_mem_init(){");
 	__np_obj_pool_ptr = (np_obj_pool_t*) malloc(sizeof(np_obj_pool_t));
 	CHECK_MALLOC(__np_obj_pool_ptr);
 
@@ -50,6 +51,7 @@ void np_mem_init()
 
 void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 {
+    log_msg(LOG_TRACE, "start: void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj){");
     if (NULL != __np_obj_pool_ptr->free_obj)
 	{
     	__np_obj_pool_ptr->current  = __np_obj_pool_ptr->free_obj;
@@ -82,6 +84,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 
 void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 {
+    log_msg(LOG_TRACE, "start: void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj){");
 	_np_threads_mutex_lock(&(*obj)->lock);
 
 	if (NULL != (*obj) &&
@@ -116,6 +119,7 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 // increase ref count
 void np_mem_refobj(np_obj_t* obj)
 {
+    log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
 	_LOCK_ACCESS(&obj->lock){
 		obj->ref_count++;
 		log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
@@ -124,16 +128,20 @@ void np_mem_refobj(np_obj_t* obj)
 // decrease ref count
 void np_mem_unrefobj(np_obj_t* obj)
 {
+    log_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
 	_LOCK_ACCESS(&obj->lock){
 		obj->ref_count--;
 		log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
-		log_msg(LOG_ERROR,"Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
+		if(obj->ref_count < 0){
+			log_msg(LOG_ERROR,"Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
+		}
 	}
 }
 
 // print the complete object list and statistics
 void np_mem_printpool()
 {
+    log_msg(LOG_TRACE, "start: void np_mem_printpool(){");
 		printf("\n--- used memory table---\n");
 		for (np_obj_t* iter = __np_obj_pool_ptr->first; iter != NULL; iter = iter->next )
 		{

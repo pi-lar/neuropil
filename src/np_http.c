@@ -35,6 +35,7 @@
 
 JSON_Value* _np_generate_error_json(const char* error,const char* details);
 JSON_Value* _np_generate_error_json(const char* error,const char* details) {
+    log_msg(LOG_TRACE, "start: JSON_Value* _np_generate_error_json(const char* error,const char* details) {");
 	JSON_Value* ret = json_value_init_object();
 
 	json_object_set_string(json_object(ret), "error", error);
@@ -109,6 +110,7 @@ typedef struct _np_http_callback_s {
 
 void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 		_np_http_callback_func_t func) {
+    log_msg(LOG_TRACE, "start: void _np_add_http_callback(const char* path, htp_method method, void* user_args,		_np_http_callback_func_t func) {");
 	if (NULL == __local_http->user_hooks)
 		__local_http->user_hooks = np_tree_create();
 
@@ -124,6 +126,7 @@ void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 }
 
 void _np_rem_http_callback(const char* path, htp_method method) {
+    log_msg(LOG_TRACE, "start: void _np_rem_http_callback(const char* path, htp_method method) {");
 	if (NULL == __local_http->user_hooks)
 		__local_http->user_hooks = np_tree_create();
 
@@ -139,6 +142,7 @@ void _np_rem_http_callback(const char* path, htp_method method) {
 }
 
 int _np_http_on_msg_begin(NP_UNUSED htparser* parser) {
+    log_msg(LOG_TRACE, "start: int _np_http_on_msg_begin(NP_UNUSED htparser* parser) {");
 	// pthread_mutex_lock(__http_mutex);
 	__local_http->status = REQUEST;
 	__local_http->last_update = ev_time();
@@ -148,6 +152,7 @@ int _np_http_on_msg_begin(NP_UNUSED htparser* parser) {
 
 int _np_http_query_args(NP_UNUSED htparser * parser, const char * data,
 		size_t in_len) {
+    log_msg(LOG_TRACE, "start: int _np_http_query_args(NP_UNUSED htparser * parser, const char * data,		size_t in_len) {");
 	char* key = NULL;
 	char* val = NULL;
 
@@ -178,6 +183,7 @@ int _np_http_query_args(NP_UNUSED htparser * parser, const char * data,
 }
 
 int _np_http_on_hdrs_begin(NP_UNUSED htparser* parser) {
+    log_msg(LOG_TRACE, "start: int _np_http_on_hdrs_begin(NP_UNUSED htparser* parser) {");
 	if (NULL != __local_http->ht_request.ht_header)
 		np_tree_clear(__local_http->ht_request.ht_header);
 	if (NULL == __local_http->ht_request.ht_header)
@@ -187,6 +193,7 @@ int _np_http_on_hdrs_begin(NP_UNUSED htparser* parser) {
 
 int _np_http_hdr_key(NP_UNUSED htparser * parser, const char * data,
 		size_t in_len) {
+    log_msg(LOG_TRACE, "start: int _np_http_hdr_key(NP_UNUSED htparser * parser, const char * data,		size_t in_len) {");
 	if (NULL != __local_http->ht_request.current_key)
 		free(__local_http->ht_request.current_key);
 	__local_http->ht_request.current_key = strndup(data, in_len);
@@ -195,6 +202,7 @@ int _np_http_hdr_key(NP_UNUSED htparser * parser, const char * data,
 
 int _np_http_hdr_value(NP_UNUSED htparser * parser, const char * data,
 NP_UNUSED size_t in_len) {
+    log_msg(LOG_TRACE, "start: int _np_http_hdr_value(NP_UNUSED htparser * parser, const char * data,NP_UNUSED size_t in_len) {");
 	np_tree_insert_str(__local_http->ht_request.ht_header,
 			__local_http->ht_request.current_key, np_treeval_new_s((char*) data));
 
@@ -205,6 +213,7 @@ NP_UNUSED size_t in_len) {
 }
 
 int _np_http_path(NP_UNUSED htparser * parser, const char * data, size_t in_len) {
+    log_msg(LOG_TRACE, "start: int _np_http_path(NP_UNUSED htparser * parser, const char * data, size_t in_len) {");
 	if (NULL != __local_http->ht_request.ht_path)
 		free(__local_http->ht_request.ht_path);
 
@@ -214,6 +223,7 @@ int _np_http_path(NP_UNUSED htparser * parser, const char * data, size_t in_len)
 }
 
 int _np_http_body(NP_UNUSED htparser * parser, const char * data, size_t in_len) {
+    log_msg(LOG_TRACE, "start: int _np_http_body(NP_UNUSED htparser * parser, const char * data, size_t in_len) {");
 	if (NULL != __local_http->ht_request.ht_body)
 		free(__local_http->ht_request.ht_body);
 	__local_http->ht_request.ht_body = strndup(data, in_len);
@@ -222,6 +232,7 @@ int _np_http_body(NP_UNUSED htparser * parser, const char * data, size_t in_len)
 }
 
 int _np_http_on_msg_complete(NP_UNUSED htparser* parser) {
+    log_msg(LOG_TRACE, "start: int _np_http_on_msg_complete(NP_UNUSED htparser* parser) {");
 	__local_http->ht_request.ht_method = htparser_get_method(parser);
 	__local_http->ht_request.ht_length = htparser_get_content_length(parser);
 
@@ -232,6 +243,7 @@ int _np_http_on_msg_complete(NP_UNUSED htparser* parser) {
 }
 
 void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
+    log_msg(LOG_TRACE, "start: void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {");
 	assert(PROCESSING == __local_http->status);
 
 	if (NULL == __local_http->user_hooks)
@@ -369,6 +381,7 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 
 void _np_http_write_callback(NP_UNUSED struct ev_loop* loop,
 NP_UNUSED ev_io* ev, int event_type) {
+    log_msg(LOG_TRACE, "start: void _np_http_write_callback(NP_UNUSED struct ev_loop* loop,NP_UNUSED ev_io* ev, int event_type) {");
 	if ((event_type & EV_WRITE) && RESPONSE == __local_http->status) {
 		log_debug_msg(LOG_HTTP | LOG_DEBUG, "start writing response");
 		// create http reply
@@ -447,6 +460,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 
 void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 		int event_type) {
+    log_msg(LOG_TRACE, "start: void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,		int event_type) {");
 	if ((event_type & EV_READ) && CONNECTED <= __local_http->status
 			&& REQUEST >= __local_http->status) {
 		char data[2048];
@@ -489,6 +503,7 @@ void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 
 void _np_http_accept(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 NP_UNUSED int event_type) {
+    log_msg(LOG_TRACE, "start: void _np_http_accept(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,NP_UNUSED int event_type) {");
 	log_msg(LOG_HTTP | LOG_TRACE, ".start.np_network_accept");
 
 	struct sockaddr_storage from;
@@ -550,6 +565,7 @@ NP_UNUSED int event_type) {
 }
 
 np_bool _np_http_init() {
+    log_msg(LOG_TRACE, "start: np_bool _np_http_init() {");
 	__local_http = (np_http_t*) malloc(sizeof(np_http_t));
 	CHECK_MALLOC(__local_http);
 
@@ -617,6 +633,7 @@ np_bool _np_http_init() {
 }
 
 void _np_http_destroy() {
+    log_msg(LOG_TRACE, "start: void _np_http_destroy() {");
 	__local_http->status = SHUTDOWN;
 
 	close(__local_http->client_fd);

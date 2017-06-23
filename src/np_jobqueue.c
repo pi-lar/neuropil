@@ -47,6 +47,7 @@ static pthread_cond_t  __cond_empty = PTHREAD_COND_INITIALIZER;
 
 int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2)
 {
+    log_msg(LOG_TRACE, "start: int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2){");
 	if (job1->tstamp > job2->tstamp) return (-1);
 	if (job1->tstamp < job2->tstamp) return ( 1);
 	return (0);
@@ -61,6 +62,7 @@ void _np_job_free (np_job_t * n)
 
 np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop)
 {
+    log_msg(LOG_TRACE, "start: np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop){");
 	assert( (msg == NULL)  || ( msg->obj->type == np_message_t_e)       );
 	assert( (key == NULL)  || ( key->obj->type == np_key_t_e)           );
  	assert( (prop == NULL) || ( prop->obj->type == np_msgproperty_t_e ) );
@@ -79,6 +81,7 @@ np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproper
 
 np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs)
 {
+    log_msg(LOG_TRACE, "start: np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs){");
 	// create job itself
 	np_job_t* new_job = (np_job_t*) malloc(sizeof(np_job_t));
 	CHECK_MALLOC(new_job);
@@ -91,6 +94,7 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs)
 
 void _np_job_queue_insert(double delay, np_job_t* new_job)
 {
+    log_msg(LOG_TRACE, "start: void _np_job_queue_insert(double delay, np_job_t* new_job){");
 	pthread_mutex_lock(&__lock_mutex);
 
 	pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_tstamp);
@@ -268,6 +272,7 @@ void np_job_submit_event (double delay, np_callback_t callback)
  **/
 np_bool _np_job_queue_create()
 {
+    log_msg(LOG_TRACE, "start: np_bool _np_job_queue_create(){");
 	__np_job_queue = (np_jobqueue_t *) malloc (sizeof(np_jobqueue_t));
 	CHECK_MALLOC(__np_job_queue);
 
@@ -280,6 +285,7 @@ np_bool _np_job_queue_create()
 
 void _np_job_yield(const double delay)
 {
+    log_msg(LOG_TRACE, "start: void _np_job_yield(const double delay){");
 	if (1 == _np_state()->thread_count)
 	{
 		ev_sleep(delay);

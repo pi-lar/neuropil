@@ -64,6 +64,7 @@ static double  __cleanup_interval = 0.31415;
  **/
 void _np_route_lookup_jobexec(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_route_lookup_jobexec(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start.np_route_lookup");
 	np_state_t* state = _np_state();
 
@@ -203,6 +204,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 
 void _np_never_called_jobexec(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_never_called_jobexec(np_jobargs_t* args){");
 	log_msg(LOG_WARN, "!!!                               !!!");
 	log_msg(LOG_WARN, "!!! wrong job execution requested !!!");
 	if (NULL != args)
@@ -225,6 +227,7 @@ void _np_never_called_jobexec(np_jobargs_t* args)
  **/
 void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start.np_check_leafset");
 
 	np_sll_t(np_key_t, leafset) = NULL;
@@ -372,6 +375,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
  **/
 void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args){");
 	log_msg(LOG_TRACE, "start._np_retransmit_message_tokens_jobexec");
 	np_state_t* state = _np_state();
 
@@ -436,6 +440,7 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 
 void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args){");
 	log_msg(LOG_TRACE, "start._np_renew_node_token_jobexec");
 
 	np_state_t* state = _np_state();
@@ -607,6 +612,7 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
  **/
 void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start.np_cleanup");
 
 	np_state_t* state = _np_state();
@@ -661,6 +667,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 
 void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args){");
 	log_msg(LOG_TRACE, ".start._np_cleanup_keycache");
 
 	np_key_t* old = NULL;
@@ -758,6 +765,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
  **/
 void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: void _np_send_rowinfo_jobexec(np_jobargs_t* args){");
 	log_msg(LOG_TRACE, "start np_send_rowinfo");
 
 	np_state_t* state = _np_state();
@@ -800,7 +808,8 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 }
 
 np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
-{	log_msg(LOG_TRACE, ".start.np_create_msg_token");
+{
+    log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request){");	log_msg(LOG_TRACE, ".start.np_create_msg_token");
 
 	np_state_t* state = _np_state();
 
@@ -859,6 +868,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 
 void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject)
 {
+    log_msg(LOG_TRACE, "start: void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject){");
 	log_msg(LOG_TRACE, ".start._np_send_subject_discovery_messages");
 
 	// insert into msg token token renewal queue

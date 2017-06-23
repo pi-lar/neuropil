@@ -49,6 +49,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_message_t);
 
 void _np_message_t_new(void* msg)
 {
+    log_msg(LOG_TRACE, "start: void _np_message_t_new(void* msg){");
 	np_message_t* msg_tmp = (np_message_t*) msg;
 
 	msg_tmp->uuid = np_uuid_create("msg", 0);
@@ -72,6 +73,7 @@ void _np_message_t_new(void* msg)
 // destructor of np_message_t
 void _np_message_t_del(void* data)
 {
+    log_msg(LOG_TRACE, "start: void _np_message_t_del(void* data){");
 	np_message_t* msg = (np_message_t*) data;
 
 //	if (NULL != np_tree_find_str(msg->instructions, NP_MSG_INST_UUID)) {
@@ -113,6 +115,7 @@ void _np_message_t_del(void* data)
 
 void _np_message_calculate_chunking(np_message_t* msg)
 {
+    log_msg(LOG_TRACE, "start: void _np_message_calculate_chunking(np_message_t* msg){");
 	// np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 
 	// TODO: message part split-up informations
@@ -148,6 +151,7 @@ void _np_message_calculate_chunking(np_message_t* msg)
 
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 {
+    log_msg(LOG_TRACE, "start: np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check){");
 	np_state_t* state = _np_state();
 
 	char* subject = np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
@@ -204,6 +208,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 
 np_bool _np_message_serialize(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: np_bool _np_message_serialize(np_jobargs_t* args){");
 	cmp_ctx_t cmp;
 	np_messagepart_ptr part = pll_first(args->msg->msg_chunks)->val;
 	// we simply override the header and instructions part for a single part message here
@@ -228,6 +233,7 @@ np_bool _np_message_serialize(np_jobargs_t* args)
 
 np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 {
+    log_msg(LOG_TRACE, "start: np_bool _np_message_serialize_chunked(np_jobargs_t* args){");
 	np_bool ret_val = FALSE;
 	np_message_t* msg = args->msg;
 
@@ -542,6 +548,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 
 np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 {
+    log_msg(LOG_TRACE, "start: np_bool _np_message_deserialize(np_message_t* msg, void* buffer){");
 	cmp_ctx_t cmp;
 	_np_message_buffer_container_t buffer_container;
 	buffer_container.buffer = buffer;
@@ -607,6 +614,7 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 
 np_bool _np_message_deserialize_chunked(np_message_t* msg)
 {
+    log_msg(LOG_TRACE, "start: np_bool _np_message_deserialize_chunked(np_message_t* msg){");
 	void* bin_properties = NULL;
 	void* bin_properties_ptr = NULL;
 	cmp_ctx_t cmp_properties;
@@ -791,6 +799,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
  */
 void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data)
 {
+    log_msg(LOG_TRACE, "start: void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data){");
 	// np_message_t* new_msg;
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
@@ -851,6 +860,7 @@ inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
 
 void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
+    log_msg(LOG_TRACE, "start: void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
 	log_msg(LOG_TRACE, ".start.np_message_encrypt_payload");
 	np_state_t* state = _np_state();
 
@@ -909,6 +919,7 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 
 np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
+    log_msg(LOG_TRACE, "start: np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
 	log_msg(LOG_TRACE, ".start.np_message_decrypt_payload");
 	np_state_t* state = _np_state();
 
