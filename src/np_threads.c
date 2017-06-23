@@ -59,7 +59,6 @@ int _np_threads_unlock_module(np_module_lock_type module_id) {
 	return pthread_mutex_unlock(&__mutexes[module_id].lock);
 }
 
-
 /** pthread mutex platform wrapper functions following this line **/
 int _np_threads_mutex_init(np_mutex_t* mutex)
 {
