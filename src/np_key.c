@@ -62,6 +62,7 @@ char* _np_key_as_str(np_key_t* key)
 void _np_key_destroy(np_key_t* to_destroy) {
 
 	if(NULL != to_destroy) {
+		np_ref_obj(np_key_t, to_destroy);
 
 		char* keyident = _np_key_as_str(to_destroy);
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
@@ -110,6 +111,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 			np_unref_obj(np_key_t, iter->val);
 			sll_next(iter);
 		}
+		np_unref_obj(np_key_t, to_destroy);
 
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
 	}else{

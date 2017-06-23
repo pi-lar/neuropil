@@ -35,7 +35,6 @@ typedef struct np_obj_pool_s
 } np_obj_pool_t;
 
 static np_obj_pool_t* __np_obj_pool_ptr;
-static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void np_mem_init()
 {
@@ -75,6 +74,8 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 	}
 	__np_obj_pool_ptr->first = __np_obj_pool_ptr->current;
 	(*obj) = __np_obj_pool_ptr->current;
+	log_msg(LOG_DEBUG, "Created new object on %p; t: %d", (*obj), (*obj)->type);
+
 }
 
 // printf("new  obj %p (type %d ptr %p ref_count %d):(next -> %p)n", np_obj->obj, np_obj->obj->type, np_obj->obj->ptr, np_obj->obj->ref_count, np_obj->obj->next );
@@ -115,35 +116,36 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 // increase ref count
 void np_mem_refobj(np_obj_t* obj)
 {
-	_np_threads_mutex_lock(&obj->lock);
-    obj->ref_count++;
-	_np_threads_mutex_unlock(&obj->lock);
+	_LOCK_ACCESS(&obj->lock){
+		obj->ref_count++;
+		log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
+	}
 }
 // decrease ref count
 void np_mem_unrefobj(np_obj_t* obj)
 {
-	_np_threads_mutex_lock(&obj->lock);
-    obj->ref_count--;
-	_np_threads_mutex_unlock(&obj->lock);
+	_LOCK_ACCESS(&obj->lock){
+		obj->ref_count--;
+		log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
+		log_msg(LOG_ERROR,"Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
+	}
 }
 
 // print the complete object list and statistics
 void np_mem_printpool()
 {
-	pthread_mutex_lock(&__lock_mutex);
-	printf("\n--- used memory table---\n");
-	for (np_obj_t* iter = __np_obj_pool_ptr->first; iter != NULL; iter = iter->next )
-	{
-		printf("obj %p (type %d ptr %p ref_count %d):(next -> %p)\n", iter, iter->type, iter->ptr, iter->ref_count, iter->next );
-	}
-	printf("--- free memory table---\n");
-	for (np_obj_t* iter = __np_obj_pool_ptr->free_obj; iter != NULL; iter = iter->next )
-	{
-		printf("obj %p (type %d ptr %p ref_count %d):(next -> %p)\n", iter, iter->type, iter->ptr, iter->ref_count, iter->next );
-	}
-	printf("--- memory summary---\n");
-	printf("first %p, free %p, current %p\n", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current);
-	printf("size %d            available %d\n", __np_obj_pool_ptr->size, __np_obj_pool_ptr->available);
-	printf("--- memory end---\n");
-	pthread_mutex_unlock(&__lock_mutex);
+		printf("\n--- used memory table---\n");
+		for (np_obj_t* iter = __np_obj_pool_ptr->first; iter != NULL; iter = iter->next )
+		{
+			printf("obj %p (type %d ptr %p ref_count %d):(next -> %p)\n", iter, iter->type, iter->ptr, iter->ref_count, iter->next );
+		}
+		printf("--- free memory table---\n");
+		for (np_obj_t* iter = __np_obj_pool_ptr->free_obj; iter != NULL; iter = iter->next )
+		{
+			printf("obj %p (type %d ptr %p ref_count %d):(next -> %p)\n", iter, iter->type, iter->ptr, iter->ref_count, iter->next );
+		}
+		printf("--- memory summary---\n");
+		printf("first %p, free %p, current %p\n", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current);
+		printf("size %d            available %d\n", __np_obj_pool_ptr->size, __np_obj_pool_ptr->available);
+		printf("--- memory end---\n");
 }
