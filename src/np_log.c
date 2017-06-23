@@ -55,12 +55,15 @@ log_str_t __level_str[] = {
 		{"TRACE", 0x00010 }			    /* trace messages   */
 };
 
-static np_log_t* logger;
+static np_log_t* logger = NULL;
 static pthread_mutex_t __log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 void np_log_message(uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
 {
+	if(logger == NULL){
+		return;
+	}
 	// filter if a module log entry is wanted
 	if ( LOG_NONE < (level & LOG_MODUL_MASK) )
 		// if a module log entry is wanted, is it in the configured log mask ?
