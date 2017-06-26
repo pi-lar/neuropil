@@ -3,6 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <fcntl.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -157,8 +158,12 @@ void np_log_init(const char* filename, uint32_t level)
 
 
     snprintf (logger->filename, 255, "%s", filename);
-	// logger->fp = fopen(logger->filename, "a"); // "a"
-	logger->fp = open(logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP); // "a"
+	logger->fp = open(logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
+	if(logger->fp < 0) {
+		printf(stderr,"Could not create logfile at %s. Error: %s (%d)",logger->filename, strerror(errno), errno);
+		fflush(NULL);
+		EXIT(EXIT_FAILURE);
+	}
     logger->level = level;
 
     sll_init(char, logger->logentries_l);
@@ -172,11 +177,11 @@ void np_log_init(const char* filename, uint32_t level)
     // sll_append(char, logger->logentries_l, new_log_entry);
     // fflush(logger->fp);
 
-    // _np_suspend_event_loop();
+     _np_suspend_event_loop();
     EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 	ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
 	ev_io_start(EV_A_ &logger->watcher);
-	// _np_resume_event_loop();
+	_np_resume_event_loop();
 }
 
 void np_log_destroy()

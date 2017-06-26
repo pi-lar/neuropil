@@ -44,7 +44,8 @@ if int(release):
 debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2']
 if int(debug):
     env.Append(CCFLAGS = debug_flags)
-    env.Append(CCFLAGS = ['-DDEBUG'])
+    env.Append(CCFLAGS = ['-DDEBUG']) 
+
 
 # platform specific compiler options
 if 'FreeBSD' in platform.system():

@@ -53,6 +53,50 @@ int _np_threads_lock_module(np_module_lock_type module_id) {
 	return pthread_mutex_lock(&__mutexes[module_id].lock);
 }
 
+int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b) {
+    log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
+	int ret = -1;
+    log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locking module mutex %d and %d.", module_id_a,module_id_b);
+
+    pthread_mutex_t* lock_a = &__mutexes[module_id_a].lock;
+    pthread_mutex_t* lock_b = &__mutexes[module_id_b].lock;
+
+	while(ret != 0){
+		ret = pthread_mutex_trylock(lock_a);
+		if(ret == 0){
+			ret = pthread_mutex_trylock(lock_b);
+			if(ret != 0){
+				pthread_mutex_unlock(lock_a);
+				ev_sleep(0.010); // wait 10ms
+			}
+		}
+	}
+	return ret;
+}
+
+int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b) {
+    log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
+	int ret = -1;
+    log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locking module mutex %d and %d.", module_id_a,module_id_b);
+
+    pthread_mutex_t* lock_a = &__mutexes[module_id_a].lock;
+    pthread_mutex_t* lock_b = &__mutexes[module_id_b].lock;
+
+	while(ret != 0){
+		ret = pthread_mutex_trylock(lock_b);
+		if(ret == 0){
+			ret = pthread_mutex_trylock(lock_a);
+			if(ret != 0){
+				pthread_mutex_unlock(lock_b);
+				ev_sleep(0.010); // wait 10ms
+			}
+		}
+	}
+	return ret;
+}
+
+
+
 int _np_threads_unlock_module(np_module_lock_type module_id) {
     log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_unlock_module(np_module_lock_type module_id) {");
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Unlocking module mutex %d.", module_id);

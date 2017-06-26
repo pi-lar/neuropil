@@ -73,6 +73,10 @@ NP_API_INTERN
 int _np_threads_lock_module(np_module_lock_type module_id);
 NP_API_INTERN
 int _np_threads_unlock_module(np_module_lock_type module_id);
+NP_API_INTERN
+int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b);
+NP_API_INTERN
+int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b);
 
 NP_API_INTERN
 int _np_threads_mutex_init(np_mutex_t* mutex);
@@ -108,6 +112,7 @@ _LOCK_ACCESS(&object->lock)
 */
 
 #define _LOCK_MODULE(TYPE) for(uint8_t i=0; (i < 1) && 0 == _np_threads_lock_module(TYPE##_lock); _np_threads_unlock_module(TYPE##_lock), i++)
+#define _LOCK_MODULES(TYPE_A,TYPE_B) for(uint8_t i=0; (i < 1) && 0 == _np_threads_lock_modules(TYPE_A##_lock,TYPE_B##_lock); _np_threads_unlock_modules(TYPE_A##_lock,TYPE_B##_lock), i++)
 // protect access to a module in the rest of your code like this
 /*
 _LOCK_MODULE(np_keycache_t)
