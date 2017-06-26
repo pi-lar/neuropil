@@ -116,14 +116,14 @@ void np_mem_refobj(np_obj_t* obj)
 {
     log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
 	obj->ref_count++;
-	log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
+	//log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
 }
 // decrease ref count
 void np_mem_unrefobj(np_obj_t* obj)
 {
     log_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
 	obj->ref_count--;
-	log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
+	//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
 	if(obj->ref_count < 0){
 		log_msg(LOG_ERROR,"Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
 	}
