@@ -78,15 +78,18 @@ void np_log_message(uint32_t level,
 					uint16_t lineno, const char* msg, ...)
 	 __attribute__((__format__ (__printf__, 5,6) ));
 
-
+#ifndef log_msg(level, msg, ...)
 #define log_msg(level, msg, ...) \
 	 np_log_message(level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
+#endif
 
 #ifdef DEBUG
+#ifndef log_debug_msg(level, msg, ...)
 #define log_debug_msg(level, msg, ...) \
 	 np_log_message(level & LOG_DEBUG, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
 #else
 #define log_debug_msg(level, msg, ...)
+#endif
 #endif
 
 #endif /* _NP_LOG_H_ */
