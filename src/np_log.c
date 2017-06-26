@@ -162,7 +162,7 @@ void np_log_init(const char* filename, uint32_t level)
 	if(logger->fp < 0) {
 		printf(stderr,"Could not create logfile at %s. Error: %s (%d)",logger->filename, strerror(errno), errno);
 		fflush(NULL);
-		EXIT(EXIT_FAILURE);
+		exit(EXIT_FAILURE);
 	}
     logger->level = level;
 
