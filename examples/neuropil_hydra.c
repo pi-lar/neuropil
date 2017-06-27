@@ -39,7 +39,7 @@ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 #define DEBUG 0
-#define NUM_HOST 5
+#define NUM_HOST 15
 
 extern char *optarg;
 extern int optind;
@@ -113,7 +113,8 @@ int main(int argc, char **argv)
 		level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG
 				  //|LOG_MUTEX | LOG_TRACE
 				  //| LOG_HTTP
-				  | LOG_NETWORK
+				  //| LOG_NETWORK
+				  //| LOG_AAATOKEN
 				   ;
 	}
 

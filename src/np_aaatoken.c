@@ -46,7 +46,13 @@ void _np_aaatoken_t_new(void* token)
 	aaa_token->issued_at = ev_time();
     // set expiration to one day and recreate each day by default
     // TODO: make it configurable
-    aaa_token->expiration = aaa_token->issued_at + ((int)randombytes_uniform(110)+10);
+    int expire_sec = ((int)randombytes_uniform(110)+10);
+#if DEBUG
+    //expire_sec =  30;
+#endif
+    aaa_token->expiration = aaa_token->issued_at + expire_sec;
+    log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "aaatoken expires in %d sec", expire_sec);
+
     aaa_token->extensions = np_tree_create();
     aaa_token->state |= AAA_INVALID;
 }

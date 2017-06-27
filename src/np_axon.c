@@ -33,6 +33,7 @@
 #include "np_util.h"
 #include "np_threads.h"
 #include "np_route.h"
+#include "np_settings.h"
 
 /** message split up maths
  ** message size = 1b (common header) + 40b (encryption) +
@@ -520,7 +521,7 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 
 	msg_token = _np_aaatoken_get_sender(args->properties->msg_subject,
 			 	 	 	 	 	 	 _np_key_as_str(_np_state()->my_identity));
-	if (NULL == msg_token)
+	if (NULL == msg_token  || ev_time() < (msg_token->expiration - AAATOKEN_SOFT_FAIL_SENDER))
 	{
 		log_debug_msg(LOG_DEBUG, "creating new sender token for subject %s", args->properties->msg_subject);
 		msg_token = _np_create_msg_token(args->properties);
@@ -552,7 +553,7 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 	np_aaatoken_t* msg_token = NULL;
 
 	msg_token = _np_aaatoken_get_receiver(args->properties->msg_subject, NULL);
-	if (NULL == msg_token)
+	if (NULL == msg_token || ev_time() < (msg_token->expiration - AAATOKEN_SOFT_FAIL_RECEIVER))
 	{
 		log_debug_msg(LOG_DEBUG, "creating new receiver token for subject %s", args->properties->msg_subject);
 		msg_token = _np_create_msg_token(args->properties);

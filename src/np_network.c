@@ -409,58 +409,60 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 			//_np_threads_lock_module(np_network_t_lock);
 
 			np_network_t* key_network = key->network ;
-			if (NULL != key && NULL != key_network && TRUE == key_network->initialized)
+			np_tryref_obj(np_network_t, key_network, networkExists);
+			if (TRUE == networkExists )
 			{
-				np_ref_obj(np_network_t, key_network);
-				_LOCK_ACCESS(&key_network->lock)
-				{
-					//_np_threads_unlock_module(np_network_t_lock);
-
-					if (NULL != key_network->out_events &&
-						0 < sll_size(key_network->out_events)
-						)
+				if(TRUE == key_network->initialized) {
+					_LOCK_ACCESS(&key_network->lock)
 					{
-						if (NULL != key->node) {
-							log_debug_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
-									MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
-						}
+						//_np_threads_unlock_module(np_network_t_lock);
 
-						void* data_to_send = sll_head(void_ptr, key_network->out_events);
-						if(NULL != data_to_send) {
-							ssize_t written = 0, current_write = 0;
-							while(written < MSG_CHUNK_SIZE_1024 ){
-								current_write = write(key_network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
-								if (current_write == -1) {
-									//if(errno != EWOULDBLOCK && errno != EAGAIN) {
-										log_msg(LOG_WARN,
-											"cannot write to socket: %s (%d)",
-											strerror(errno),errno);
-									//}
-									break;
-								}
-								written += current_write;
+						if (NULL != key_network->out_events &&
+							0 < sll_size(key_network->out_events)
+							)
+						{
+							if (NULL != key->node) {
+								log_debug_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
+										MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
 							}
-							log_debug_msg(LOG_DEBUG,"did write %d bytes",written);
-							free(data_to_send);
-						// ret is -1 or > 0 (bytes send)
-						// do not update the success, because UDP sending could result in
-						// false positives
-						// if (0 > ret)
-						// {
-						//     // _np_node_update_stat(key->node, 0);
-						//     // log_debug_msg(LOG_DEBUG, "node update reduce %d", ret);
-						// }
-						// else
-						// {
-						//     _np_node_update_stat(key->node, 1);
-						//     log_debug_msg(LOG_DEBUG, "node update increase %d", ret);
-						// }
+
+							void* data_to_send = sll_head(void_ptr, key_network->out_events);
+							if(NULL != data_to_send) {
+								ssize_t written = 0, current_write = 0;
+								while(written < MSG_CHUNK_SIZE_1024 ){
+									current_write = write(key_network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
+									if (current_write == -1) {
+										//if(errno != EWOULDBLOCK && errno != EAGAIN) {
+											log_msg(LOG_WARN,
+												"cannot write to socket: %s (%d)",
+												strerror(errno),errno);
+										//}
+										break;
+									}
+									written += current_write;
+								}
+								log_debug_msg(LOG_DEBUG,"did write %d bytes",written);
+								free(data_to_send);
+							// ret is -1 or > 0 (bytes send)
+							// do not update the success, because UDP sending could result in
+							// false positives
+							// if (0 > ret)
+							// {
+							//     // _np_node_update_stat(key->node, 0);
+							//     // log_debug_msg(LOG_DEBUG, "node update reduce %d", ret);
+							// }
+							// else
+							// {
+							//     _np_node_update_stat(key->node, 1);
+							//     log_debug_msg(LOG_DEBUG, "node update increase %d", ret);
+							// }
+							}
 						}
-					}
-					else
-					{
-						// log_debug_msg(LOG_DEBUG, "no data to write to %s:%s ...", key->node->dns_name, key->node->port);
-						// log_debug_msg(LOG_DEBUG, "no data to write ...");
+						else
+						{
+							// log_debug_msg(LOG_DEBUG, "no data to write to %s:%s ...", key->node->dns_name, key->node->port);
+							// log_debug_msg(LOG_DEBUG, "no data to write ...");
+						}
 					}
 				}
 				np_unref_obj(np_network_t, key_network);
