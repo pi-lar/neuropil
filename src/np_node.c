@@ -291,7 +291,7 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 	node_token->not_before = ev_time();
 	node_token->expiration = node_token->not_before + 3600.0; // 1 hour valid token
 #ifdef DEBUG
-	 node_token->expiration = node_token->not_before + 900.0; // 15min
+	 node_token->expiration = node_token->not_before + 15/*min*/ * 60 /*sec*/;
 #endif
 
     crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519

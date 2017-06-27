@@ -31,17 +31,17 @@ return_type wrapped_##func_name(arg_1, arg_2);
 typedef enum np_module_lock_e np_module_lock_type;
 
 enum np_module_lock_e {
-	np_memory_t_lock = 0,
-	np_aaatoken_t_lock,
-	np_event_t_lock,
-	np_keycache_t_lock,
-	np_messagesgpart_cache_t_lock,
-	np_msgproperty_t_lock,
-	np_network_t_lock,
-	np_routeglobal_t_lock,
-	np_sysinfo_t_lock,
-	np_logsys_t_lock,
-	np_jobqueue_t_lock,
+	/*00*/np_memory_t_lock = 0,
+	/*01*/np_aaatoken_t_lock,
+	/*02*/np_event_t_lock,
+	/*03*/np_keycache_t_lock,
+	/*04*/np_messagesgpart_cache_t_lock,
+	/*05*/np_msgproperty_t_lock,
+	/*06*/np_network_t_lock,
+	/*07*/np_routeglobal_t_lock,
+	/*08*/np_sysinfo_t_lock,
+	/*09*/np_logsys_t_lock,
+	/*10*/np_jobqueue_t_lock,
  	PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
 	PREDEFINED_DUMMY_1,
 	PREDEFINED_DUMMY_2,
