@@ -32,6 +32,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_cache_item_t);
 
 struct np_simple_cache_table_s {
     struct np_cache_item_t_sll_s *buckets[SIMPLE_CACHE_NR_BUCKETS];
+    np_mutex_t lock;
 } NP_API_EXPORT;
 typedef struct np_simple_cache_table_s np_simple_cache_table_t;
 

@@ -48,17 +48,17 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 
 	static int suspend_loop = 0;
 
-	_np_threads_lock_module(np_event_t_lock);
-	suspend_loop = __suspended_libev_loop;
-	_np_threads_unlock_module(np_event_t_lock);
+	_LOCK_MODULE(np_event_t){
+		suspend_loop = __suspended_libev_loop;
+	}
 
 	while (0 < suspend_loop)
 	{
 		_np_job_yield(__libev_interval);
 
-		_np_threads_lock_module(np_event_t_lock);
-		suspend_loop = __suspended_libev_loop;
-		_np_threads_unlock_module(np_event_t_lock);
+		_LOCK_MODULE(np_event_t) {
+			suspend_loop = __suspended_libev_loop;
+		}
 	}
 }
 
@@ -120,7 +120,7 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 	} else {
 
 		_LOCK_MODULE(np_event_t) {
-			if (! __suspended_libev_loop) {
+			if (0 == __suspended_libev_loop) {
 				ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
 			}
 		}
@@ -130,7 +130,9 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 
 	np_job_submit_event(__libev_interval, _np_events_read);
 }
-
+/**
+ * Call this fucntion only in an event (as in async callback)
+ */
 void _np_suspend_event_loop()
 {
     log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");

@@ -20,6 +20,7 @@
 #include "np_msgproperty.h"
 #include "np_message.h"
 #include "np_log.h"
+#include "np_threads.h"
 
 static double __jobqueue_sleep_time = 0.3141592;
 
@@ -42,8 +43,8 @@ struct np_jobqueue_s
 };
 
 static np_jobqueue_t*  __np_job_queue;
-static pthread_mutex_t __lock_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t  __cond_empty = PTHREAD_COND_INITIALIZER;
+
+static np_cond_t  __cond_empty;
 
 int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2)
 {
@@ -95,18 +96,18 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs)
 void _np_job_queue_insert(double delay, np_job_t* new_job)
 {
     log_msg(LOG_TRACE, "start: void _np_job_queue_insert(double delay, np_job_t* new_job){");
-	pthread_mutex_lock(&__lock_mutex);
+	_LOCK_MODULE(np_jobqueue_t){
 
-	pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_tstamp);
-	// if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
-	if (0.0 == delay)
-	{
-		// restart all waiting jobs & yields
-		pthread_cond_broadcast(&__cond_empty);
-		// restart single job or yield
-		// pthread_cond_signal(&__cond_empty);
+		pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_tstamp);
+		// if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
+		if (0.0 == delay)
+		{
+			// restart all waiting jobs & yields
+			_np_threads_module_condition_broadcast(&__cond_empty);
+			// restart single job or yield
+			// pthread_cond_signal(&__cond_empty);
+		}
 	}
-	pthread_mutex_unlock(&__lock_mutex);
 }
 
 /** (re-)submit message event
@@ -280,6 +281,8 @@ np_bool _np_job_queue_create()
 
 	pll_init(np_job_ptr, __np_job_queue->job_list);
 
+	_np_threads_condition_init(&__cond_empty);
+
     return (TRUE);
 }
 
@@ -293,25 +296,25 @@ void _np_job_yield(const double delay)
 	else
 	{
 		// unlock another thread
-		pthread_mutex_lock (&__lock_mutex);
-		pthread_cond_signal(&__cond_empty);
-		pthread_mutex_unlock (&__lock_mutex);
+		_LOCK_MODULE(np_jobqueue_t){
+			_np_threads_condition_signal(&__cond_empty);
+		}
 
 		if (0.0 != delay)
 		{
 			struct timeval tv_sleep = dtotv(ev_time() + delay);
 			struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec=tv_sleep.tv_usec*1000 };
 			// wait for time x to be unlocked again
-			pthread_mutex_lock (&__lock_mutex);
-			pthread_cond_timedwait (&__cond_empty, &__lock_mutex, &waittime);
-			pthread_mutex_unlock (&__lock_mutex);
+			_LOCK_MODULE(np_jobqueue_t){
+				_np_threads_module_condition_timedwait(&__cond_empty, np_jobqueue_t_lock, &waittime);
+			}
 		}
 		else
 		{
 			// wait for next wakeup signal
-			pthread_mutex_lock (&__lock_mutex);
-			pthread_cond_wait (&__cond_empty, &__lock_mutex);
-			pthread_mutex_unlock (&__lock_mutex);
+			_LOCK_MODULE(np_jobqueue_t){
+				_np_threads_module_condition_wait(&__cond_empty, np_jobqueue_t_lock);
+			}
 		}
 	}
 }
@@ -332,12 +335,13 @@ void* _job_exec ()
 
 	while (1)
 	{
-	    pthread_mutex_lock (&__lock_mutex);
+		_np_threads_lock_module(np_jobqueue_t_lock);
+
 	    now = ev_time();
 	    while (0 == pll_size(__np_job_queue->job_list))
 		{
     		// log_debug_msg(LOG_DEBUG, "now %f: list empty, start sleeping", now);
-	    	pthread_cond_wait (&__cond_empty, &__lock_mutex);
+			_np_threads_module_condition_wait(&__cond_empty, np_jobqueue_t_lock);
 	    	// wake up, check first job in the queue to be executed by now
 		}
 
@@ -350,17 +354,17 @@ void* _job_exec ()
     		// log_debug_msg(LOG_DEBUG, "currently %d jobs, now sleeping for %f seconds", pll_size(Q->job_list), sleep_time);
     		struct timeval tv_sleep = dtotv(now + sleep_time);
     		struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec=tv_sleep.tv_usec*1000 };
-	    	pthread_cond_timedwait (&__cond_empty, &__lock_mutex, &waittime);
+			_np_threads_module_condition_timedwait(&__cond_empty, np_jobqueue_t_lock, &waittime);
 	    	// now = dtime();
     		// log_debug_msg(LOG_DEBUG, "now %f: woke up or interupted", now);
-	    	pthread_mutex_unlock (&__lock_mutex);
+	    	_np_threads_unlock_module(np_jobqueue_t_lock);
     		continue;
     	}
     	else
     	{
     		// log_debug_msg(LOG_DEBUG, "now %f --> executing %f", now, next_job->tstamp);
     		tmp = pll_head(np_job_ptr, __np_job_queue->job_list);
-    		pthread_mutex_unlock (&__lock_mutex);
+    		_np_threads_unlock_module(np_jobqueue_t_lock);
     	}
 
     	// sanity checks if the job list really returned an element

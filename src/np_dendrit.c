@@ -1815,18 +1815,14 @@ void _np_in_handshake(np_jobargs_t* args)
 	np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp );
 	free(tmp);
 
-	_LOCK_MODULES(np_keycache_t, np_network_t)
-	//_LOCK_MODULE(np_keycache_t)
+	_LOCK_MODULES (np_keycache_t, np_network_t)
 	{
-		//_LOCK_MODULE(np_network_t)
+		hs_wildcard_key = _np_keycache_find(wildcard_dhkey);
+		if(NULL != hs_wildcard_key && NULL != hs_wildcard_key->network)
 		{
-		    log_debug_msg(LOG_MUTEX | LOG_DEBUG, "DF got module mutexes %d and %d.", np_keycache_t_lock, np_network_t_lock);
-
-			hs_wildcard_key = _np_keycache_find(wildcard_dhkey);
-			if(NULL != hs_wildcard_key)
-			{
-				np_mutex_t* lock = &hs_wildcard_key->network->lock;
-				_np_threads_mutex_lock(lock);
+			np_network_t* old_network = hs_wildcard_key->network;
+			np_ref_obj(np_network_t,old_network);
+			_LOCK_ACCESS(&old_network->lock) {
 				// Updating handshake key with already existing network
 				// structure of the wildcard key
 				log_debug_msg(LOG_DEBUG,
@@ -1834,9 +1830,8 @@ void _np_in_handshake(np_jobargs_t* args)
 						_np_key_as_str(hs_wildcard_key),
 						_np_key_as_str(hs_key));
 
-				hs_key->network = hs_wildcard_key->network;
-				np_ref_obj(np_network_t, hs_key->network);
-
+				// hs_key->network is uninitialised till now
+				hs_key->network = old_network;
 				np_ref_switch(
 						np_key_t, hs_key->network->watcher.data, hs_key);
 				hs_key->node->handshake_status =
@@ -1844,13 +1839,14 @@ void _np_in_handshake(np_jobargs_t* args)
 
 				// clean up, wildcard key not needed anymore
 				hs_wildcard_key->network = NULL;
-				_np_threads_mutex_unlock(lock);
+				//_np_key_destroy(hs_wildcard_key);
 			}
-			_np_send_simple_invoke_request(hs_key, _NP_MSG_JOIN_REQUEST);
-
-			_np_keycache_remove(wildcard_dhkey);
-			np_unref_obj(np_key_t, hs_wildcard_key);
+			np_unref_obj(np_network_t,old_network);
 		}
+		_np_send_simple_invoke_request(hs_key, _NP_MSG_JOIN_REQUEST);
+
+		_np_keycache_remove(wildcard_dhkey);
+		np_unref_obj(np_key_t, hs_wildcard_key);
 	}
 
 	// should never happen
@@ -1876,10 +1872,8 @@ void _np_in_handshake(np_jobargs_t* args)
 
 				if (TRUE == hs_key->network->initialized)
 				{
-					_np_suspend_event_loop();
-					hs_key->network->watcher.data = hs_key;
 					np_ref_obj(np_key_t, hs_key);
-					_np_resume_event_loop();
+					hs_key->network->watcher.data = hs_key;
 				}
 				else
 				{
@@ -1937,7 +1931,6 @@ void _np_in_handshake(np_jobargs_t* args)
 			hs_key->network = alias_key->network;
 			np_ref_obj(np_network_t, hs_key->network);
 
-			_np_suspend_event_loop();
 			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 			_np_network_stop(hs_key->network);
 			ev_io_init(
@@ -1946,7 +1939,6 @@ void _np_in_handshake(np_jobargs_t* args)
 					hs_key->network->socket,
 					EV_WRITE | EV_READ);
 			_np_network_start(hs_key->network);
-			_np_resume_event_loop();
 		}
 		else if (alias_key->node->protocol & TCP)
 		{

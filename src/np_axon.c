@@ -405,11 +405,8 @@ void _np_send_handshake(np_jobargs_t* args)
 					return;
 				}
 
-				_np_suspend_event_loop();
+				np_ref_obj(np_key_t, args->target);
 				args->target->network->watcher.data = args->target;
-			    np_ref_obj(np_key_t, args->target);
-			    _np_resume_event_loop();
-
 			}
 		}
 		// construct target address and send it out

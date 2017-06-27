@@ -511,16 +511,14 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 			{
 				np_tree_replace_str(state->my_identity->aaa_token->extensions, "target_node", np_treeval_new_s(_np_key_as_str(new_node_key)) );
 			}
+
 			// exchange node key
-			//np_unref_obj(np_key_t, state->my_node_key );
 			state->my_node_key = new_node_key;
 			np_ref_obj(np_key_t, state->my_node_key );
 
-			_np_suspend_event_loop();
+			log_debug_msg(LOG_DEBUG,"suspend ev loop for key reconfig");
 			np_ref_switch(np_key_t, state->my_node_key->network->watcher.data, new_node_key);
-			// state->my_node_key->network->watcher.data = new_node_key;
 			state->my_node_key->node->joined_network = TRUE;
-			_np_resume_event_loop();
 		}
 
 		// re-arrange routing table and leafset

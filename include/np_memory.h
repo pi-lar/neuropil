@@ -80,6 +80,23 @@ struct np_obj_s
   }                                           \
 }
 
+#define np_tryref_obj(TYPE, np_obj, ret)      															\
+    np_bool ret = FALSE;																				\
+	_LOCK_MODULE(np_memory_t) {                 														\
+		if(np_obj != NULL) {      		      															\
+			if((np_obj->obj != NULL)) {             													\
+				if (np_obj->obj->type != TYPE##_e) {  													\
+					log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",np_obj->obj->type, TYPE##_e);   	\
+					assert (np_obj->obj->type == TYPE##_e);   											\
+				} else {																				\
+					np_mem_refobj(np_obj->obj);               											\
+					ret = TRUE;																			\
+				}																						\
+			}																							\
+		}																								\
+	}
+
+
 #define CHECK_MALLOC(obj)		              			\
 {                                             			\
 	if(NULL == obj ) {									\
@@ -115,8 +132,8 @@ struct np_obj_s
 #define np_ref_switch(TYPE, old_obj, new_obj) \
 {                                             \
 	TYPE* tmp_obj = old_obj;                  \
-	old_obj = new_obj;                        \
 	np_ref_obj(TYPE, new_obj);                \
+	old_obj = new_obj;                        \
 	np_unref_obj(TYPE, tmp_obj);              \
 }
 

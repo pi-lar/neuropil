@@ -40,6 +40,8 @@ enum np_module_lock_e {
 	np_network_t_lock,
 	np_routeglobal_t_lock,
 	np_sysinfo_t_lock,
+	np_logsys_t_lock,
+	np_jobqueue_t_lock,
  	PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
 	PREDEFINED_DUMMY_1,
 	PREDEFINED_DUMMY_2,
@@ -90,13 +92,24 @@ void _np_threads_mutex_destroy(np_mutex_t* mutex);
 NP_API_INTERN
 void _np_threads_condition_init(np_cond_t* condition);
 NP_API_INTERN
+void _np_threads_condition_init_shared(np_cond_t* condition);
+NP_API_INTERN
 int _np_threads_condition_wait(np_cond_t* condition, np_mutex_t* mutex);
+NP_API_INTERN
+int _np_threads_module_condition_wait(np_cond_t* condition, np_module_lock_type module_id);
 NP_API_INTERN
 int _np_threads_condition_signal(np_cond_t* condition);
 NP_API_INTERN
 void _np_threads_condition_destroy(np_cond_t* condition);
+NP_API_INTERN
+int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime);
+NP_API_INTERN
+int _np_threads_module_condition_broadcast(np_cond_t* condition);
 
-#define _LOCK_ACCESS(obj) for(uint8_t i=0; (i < 1) && !_np_threads_mutex_lock(obj); _np_threads_mutex_unlock(obj), i++)
+#define TOKENPASTE(x, y) x ## y
+#define TOKENPASTE2(x, y) TOKENPASTE(x, y)
+
+#define _LOCK_ACCESS(obj) np_mutex_t* TOKENPASTE2(lock, __LINE__) = obj; for(uint8_t i=0; (i < 1) && !_np_threads_mutex_lock(TOKENPASTE2(lock, __LINE__)); _np_threads_mutex_unlock(TOKENPASTE2(lock, __LINE__)), i++)
 // protect access to restricted area in the rest of your code like this
 /*
 struct obj {

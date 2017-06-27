@@ -39,7 +39,7 @@
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_message.h"
-#include "np_msgproperty.h"
+#include "np_memory.h"
 #include "np_node.h"
 #include "np_threads.h"
 #include "np_event.h"
@@ -401,61 +401,73 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	}
 	else if (EV_WRITE == (revents & EV_WRITE))
 	{
-		// TODO: have we done a ref on this key ?
-		// seems to be called sometimes although the key is deleted already ...
 		np_key_t* key = (np_key_t*) event->data;
+		np_tryref_obj(np_key_t, key, keyExists);
 
-		if (NULL != key && NULL != key->network && TRUE == key->network->initialized)
-		{
-			_LOCK_ACCESS(&key->network->lock)
+		if(keyExists == TRUE) {
+
+			//_np_threads_lock_module(np_network_t_lock);
+
+			np_network_t* key_network = key->network ;
+			if (NULL != key && NULL != key_network && TRUE == key_network->initialized)
 			{
-				if (NULL != key->network->out_events &&
-					0 < sll_size(key->network->out_events)
-					)
+				np_ref_obj(np_network_t, key_network);
+				_LOCK_ACCESS(&key_network->lock)
 				{
-					if (NULL != key->node) {
-						log_debug_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
-								MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
-					}
+					//_np_threads_unlock_module(np_network_t_lock);
 
-					void* data_to_send = sll_head(void_ptr, key->network->out_events);
-					if(NULL != data_to_send) {
-						ssize_t written = 0, current_write = 0;
-						while(written < MSG_CHUNK_SIZE_1024 ){
-							current_write = write(key->network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
-							if (current_write == -1) {
-								//if(errno != EWOULDBLOCK && errno != EAGAIN) {
-									log_msg(LOG_WARN,
-										"cannot write to socket: %s (%d)",
-										strerror(errno),errno);
-								//}
-								break;
-							}
-							written += current_write;
+					if (NULL != key_network->out_events &&
+						0 < sll_size(key_network->out_events)
+						)
+					{
+						if (NULL != key->node) {
+							log_debug_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
+									MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
 						}
-						log_debug_msg(LOG_DEBUG,"did write %d bytes",written);
-						free(data_to_send);
-					// ret is -1 or > 0 (bytes send)
-					// do not update the success, because UDP sending could result in
-					// false positives
-					// if (0 > ret)
-					// {
-					//     // _np_node_update_stat(key->node, 0);
-					//     // log_debug_msg(LOG_DEBUG, "node update reduce %d", ret);
-					// }
-					// else
-					// {
-					//     _np_node_update_stat(key->node, 1);
-					//     log_debug_msg(LOG_DEBUG, "node update increase %d", ret);
-					// }
+
+						void* data_to_send = sll_head(void_ptr, key_network->out_events);
+						if(NULL != data_to_send) {
+							ssize_t written = 0, current_write = 0;
+							while(written < MSG_CHUNK_SIZE_1024 ){
+								current_write = write(key_network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
+								if (current_write == -1) {
+									//if(errno != EWOULDBLOCK && errno != EAGAIN) {
+										log_msg(LOG_WARN,
+											"cannot write to socket: %s (%d)",
+											strerror(errno),errno);
+									//}
+									break;
+								}
+								written += current_write;
+							}
+							log_debug_msg(LOG_DEBUG,"did write %d bytes",written);
+							free(data_to_send);
+						// ret is -1 or > 0 (bytes send)
+						// do not update the success, because UDP sending could result in
+						// false positives
+						// if (0 > ret)
+						// {
+						//     // _np_node_update_stat(key->node, 0);
+						//     // log_debug_msg(LOG_DEBUG, "node update reduce %d", ret);
+						// }
+						// else
+						// {
+						//     _np_node_update_stat(key->node, 1);
+						//     log_debug_msg(LOG_DEBUG, "node update increase %d", ret);
+						// }
+						}
+					}
+					else
+					{
+						// log_debug_msg(LOG_DEBUG, "no data to write to %s:%s ...", key->node->dns_name, key->node->port);
+						// log_debug_msg(LOG_DEBUG, "no data to write ...");
 					}
 				}
-				else
-				{
-					// log_debug_msg(LOG_DEBUG, "no data to write to %s:%s ...", key->node->dns_name, key->node->port);
-					// log_debug_msg(LOG_DEBUG, "no data to write ...");
-				}
+				np_unref_obj(np_network_t, key_network);
+			}else{
+			//	_np_threads_unlock_module(np_network_t_lock);
 			}
+			np_unref_obj(np_key_t,key);
 		}
 	}
 	else if (EV_READ == (revents & EV_READ))
@@ -544,36 +556,28 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 					alias_key->parent = key;
 				}
 				np_new_obj(np_network_t, alias_key->network);
-				log_debug_msg(LOG_DEBUG, "try to pthread_mutex_init");
-				int network_mutex_init = 0;
-				if ((network_mutex_init = _np_threads_mutex_init (
-						&alias_key->network->lock)) != 0)
-				{
-					log_msg(LOG_ERROR, "pthread_mutex_init: %s:",
-							strerror (network_mutex_init));
-					close (alias_key->network->socket);
-					return;
+
+				_LOCK_ACCESS (&alias_key->network->lock) {
+					alias_key->network->socket = client_fd;
+					alias_key->network->socket_type = ng->socket_type;
+					alias_key->network->waiting = np_tree_create();
+					alias_key->network->seqend = 0LU;
+
+					// it could be a passive socket
+					sll_init(void_ptr, alias_key->network->out_events);
+
+					// set non blocking
+					int current_flags = fcntl(client_fd, F_GETFL);
+					current_flags |= O_NONBLOCK;
+					fcntl(client_fd, F_SETFL, current_flags);
+
+					alias_key->network->initialized = TRUE;
 				}
-				log_debug_msg(LOG_DEBUG, "done pthread_mutex_init");
-
-				alias_key->network->socket = client_fd;
-				alias_key->network->socket_type = ng->socket_type;
-				alias_key->network->waiting = np_tree_create();
-				alias_key->network->seqend = 0LU;
-
-				// it could be a passive socket
-				sll_init(void_ptr, alias_key->network->out_events);
-
-				// set non blocking
-				int current_flags = fcntl(client_fd, F_GETFL);
-				current_flags |= O_NONBLOCK;
-				fcntl(client_fd, F_SETFL, current_flags);
-
-				alias_key->network->initialized = TRUE;
 			}
 			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
-			_np_suspend_event_loop();
+			log_debug_msg(LOG_DEBUG,"suspend ev loop for tcp new socket network start");
+
 			alias_key->network->watcher.data = alias_key;
 			ev_io_init(
 					&alias_key->network->watcher,
@@ -582,7 +586,6 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 					EV_READ
 					);
 			_np_network_start(alias_key->network);
-			_np_resume_event_loop();
 
 			if(old_network != NULL) {
 				_LOCK_MODULE(np_network_t)
@@ -780,17 +783,12 @@ void _np_network_t_del(void* nw)
     log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_del(void* nw){");
 	np_network_t* network = (np_network_t*) nw;
 
-	_np_suspend_event_loop();
-	_np_network_stop(network);
-	network->initialized = FALSE;
-	np_key_t* old_key = (np_key_t*) network->watcher.data;
-	np_unref_obj(np_key_t, old_key);
-	// network->watcher.data = NULL;
-
-	_np_resume_event_loop();
-
 	_LOCK_ACCESS(&network->lock)
 	{
+		_np_network_stop(network);
+		np_key_t* old_key = (np_key_t*) network->watcher.data;
+		np_unref_obj(np_key_t, old_key);
+
 		if (NULL != network->waiting)
 			np_tree_free(network->waiting);
 
@@ -819,9 +817,12 @@ void _np_network_t_del(void* nw)
 		}
 
 		if (0 < network->socket) close (network->socket);
+
+		network->initialized = FALSE;
 	}
 	// finally destroy the mutex again
 	_np_threads_mutex_destroy (&network->lock);
+
 }
 
 
@@ -835,6 +836,17 @@ void _np_network_t_new(void* nw)
     ng->out_events 	= NULL;
     ng->isWatching 	= FALSE;
     ng->initialized = FALSE;
+
+	log_debug_msg(LOG_DEBUG, "try to pthread_mutex_init");
+	int network_mutex_init = -1;
+	if ((network_mutex_init = _np_threads_mutex_init (
+			&ng->lock)) != 0)
+	{
+		log_msg(LOG_ERROR, "pthread_mutex_init: %s (%d)",
+				strerror (network_mutex_init),network_mutex_init);
+	}
+	log_debug_msg(LOG_DEBUG, "done pthread_mutex_init");
+
 }
 
 /** _np_network_init:
@@ -848,16 +860,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
     int one = 1;
     int v6_only = 0;
 
-    log_debug_msg(LOG_DEBUG, "try to pthread_mutex_init");
-    if ((ret = _np_threads_mutex_init (&ng->lock)) != 0)
-	{
-		log_msg(LOG_ERROR, "pthread_mutex_init: %s:", strerror (ret));
-		close (ng->socket);
-		return FALSE;
-	}
-    log_debug_msg(LOG_DEBUG, "done pthread_mutex_init");
-
-    log_debug_msg(LOG_DEBUG, "try to get_network_address");
+    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "try to get_network_address");
     _np_network_get_address (create_socket, &ng->addr_in, type, hostname, service);
     ng->socket_type = type;
     if (NULL == ng->addr_in)
@@ -865,11 +868,13 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
         log_msg(LOG_ERROR, "could not receive network address");
         return FALSE;
     }
-    log_debug_msg(LOG_DEBUG, "done get_network_address");
+    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "done get_network_address");
 
     // create an inbound socket - happens only once per node
     if (TRUE == create_socket )
     {
+    	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating receiving network");
+
 		// create own retransmit structures
 		ng->waiting = np_tree_create();
 		sll_init(void_ptr, ng->in_events);
@@ -926,7 +931,6 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 
 			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
-			_np_suspend_event_loop();
 			if (type & TCP)
 			{
 				ev_io_init(&ng->watcher, _np_network_accept, ng->socket, EV_READ);
@@ -936,12 +940,12 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 				ev_io_init(&ng->watcher, _np_network_read, ng->socket, EV_READ);
 			}
 			_np_network_start(ng);
-			_np_resume_event_loop();
 		}
     	ng->initialized = TRUE;
     	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local listening socket");
 
 	} else {
+		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating sending network");
 
 		// client setup
 
@@ -1005,7 +1009,6 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
     	current_flags |= O_NONBLOCK;
     	fcntl(ng->socket, F_SETFL, current_flags);
 
-		_np_suspend_event_loop();
 		if (0 != (type & PASSIVE))
 		{
 			// not here and now, but after the handshake
@@ -1020,7 +1023,6 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 				": %d %p %p :", ng->socket, &ng->watcher,  &ng->watcher.data);
-		_np_resume_event_loop();
 
 		ng->initialized = TRUE;
     	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local sending socket");

@@ -611,14 +611,12 @@ np_bool _np_http_init() {
 	__local_http->hooks->body = _np_http_body;
 	__local_http->hooks->on_msg_complete = _np_http_on_msg_complete;
 
-	_np_suspend_event_loop();
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 	ev_io_stop(EV_A_&__local_http->network->watcher);
 	ev_io_init(&__local_http->network->watcher, _np_http_accept,
 			__local_http->network->socket, EV_READ);
 	__local_http->network->watcher.data = __local_http;
 	ev_io_start(EV_A_&__local_http->network->watcher);
-	_np_resume_event_loop();
 
 	__local_http->ht_request.ht_header = NULL;
 	__local_http->ht_request.ht_query_args = NULL;

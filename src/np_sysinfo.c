@@ -21,6 +21,7 @@
 #include "np_keycache.h"
 #include "np_treeval.h"
 #include "np_tree.h"
+#include "np_threads.h"
 #include "np_axon.h"
 
 #include "np_scache.h"
@@ -49,6 +50,7 @@ void _np_sysinfo_init_cache()
 			_cache = (np_simple_cache_table_t*) malloc(
 					sizeof(np_simple_cache_table_t));
 			CHECK_MALLOC(_cache);
+			_np_threads_mutex_init(&_cache->lock);
 
 			for (int i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
 				sll_init(np_cache_item_t, _cache->buckets[i]);
@@ -281,6 +283,13 @@ void _np_request_sysinfo(const char* const hash_of_target) {
 
 	if (NULL != hash_of_target && hash_of_target[0] != '\0')
 	{
+		// Add dummy to prevent request spam
+		if(NULL ==  _np_get_sysinfo_from_cache(hash_of_target,-1)) {
+			np_tree_t* dummy = np_tree_create();
+			np_tree_insert_str(dummy, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_f(ev_time()));
+			np_simple_cache_insert(_cache, hash_of_target, np_tree_copy(dummy));
+		}
+
 		log_msg(LOG_INFO, "sending sysinfo request to %s", hash_of_target);
 		np_tree_t* properties = np_tree_create();
 		np_tree_t* body = np_tree_create();
@@ -313,18 +322,18 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 		// If i request myself i can answer instantly
 		ret = np_get_my_sysinfo();
 
-		// TODO: Reenable target after functional audience selection for messages is implemented
 		// I may anticipate the one requesting my information wants to request others as well
-		//_np_request_others();
+		_np_request_others();
 	} else {
 
 		log_debug_msg(LOG_DEBUG, "Requesting sysinfo for node %s", hash_of_target);
-		ret = _np_get_sysinfo_from_cache(hash_of_target, 5);
+		ret = _np_get_sysinfo_from_cache(hash_of_target, 1);
 
-		if(NULL == ret ){
+		if(NULL == ret ) {
 			_np_request_sysinfo(hash_of_target);
 			ev_sleep(0.05);
-			ret = _np_get_sysinfo_from_cache(hash_of_target,-1);
+
+			ret = _np_get_sysinfo_from_cache(hash_of_target,-2);
 		}
 	}
 
@@ -343,6 +352,13 @@ np_tree_t* _np_get_sysinfo_from_cache(const char* const hash_of_target, uint16_t
 				np_tree_t* tmp = item->value;
 				ret = np_tree_copy(tmp);
 			}
+		}
+	}
+	// we may need to reset the found item to prevent the output of a dummy
+	if(NULL != ret && max_cache_ttl != ((uint16_t)-1)){
+		if( NULL == np_tree_find_str(ret, _NP_SYSINFO_MY_NODE)){
+			np_tree_free(ret);
+			ret = NULL;
 		}
 	}
 
@@ -372,7 +388,7 @@ void _np_request_others() {
 				current = sll_head(np_key_t, routing_table);
 				if (	NULL != current &&
 						strcmp(_np_key_as_str(current),_np_key_as_str(_np_state()->my_node_key) ) != 0 &&
-						NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current),-1)))
+						NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current),-2)))
 				{
 					_np_request_sysinfo(_np_key_as_str(current));
 				}
@@ -387,7 +403,7 @@ void _np_request_others() {
 				current = sll_head(np_key_t, neighbours_table);
 				if (	NULL != current &&
 						strcmp(_np_key_as_str(current),_np_key_as_str(_np_state()->my_node_key) ) != 0 &&
-						NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current),-1)))
+						NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current),-2)))
 				{
 							_np_request_sysinfo(_np_key_as_str(current));
 				}

@@ -153,37 +153,39 @@ void np_log_setlevel(uint32_t level)
 void np_log_init(const char* filename, uint32_t level)
 {
     log_msg(LOG_TRACE, "start: void np_log_init(const char* filename, uint32_t level){");
-	logger = (np_log_t *) malloc(sizeof(np_log_t));
-	CHECK_MALLOC(logger);
+    np_log_t* logsys = (np_log_t *) malloc(sizeof(np_log_t));
+	CHECK_MALLOC(logsys);
 
 
-    snprintf (logger->filename, 255, "%s", filename);
-	logger->fp = open(logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
-	if(logger->fp < 0) {
-		printf(stderr,"Could not create logfile at %s. Error: %s (%d)",logger->filename, strerror(errno), errno);
+    snprintf (logsys->filename, 255, "%s", filename);
+    logsys->fp = open(logsys->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
+	if(logsys->fp < 0) {
+		printf(stderr,"Could not create logfile at %s. Error: %s (%d)",logsys->filename, strerror(errno), errno);
 		fflush(NULL);
 		exit(EXIT_FAILURE);
 	}
-    logger->level = level;
+	logsys->level = level;
 
-    sll_init(char, logger->logentries_l);
+    sll_init(char, logsys->logentries_l);
     char* new_log_entry = malloc(sizeof(char)*256);
 	CHECK_MALLOC(new_log_entry);
 
-    snprintf(new_log_entry, 255, "initialized log system %p: %s / %x", logger, logger->filename, logger->level);
+    snprintf(new_log_entry, 255, "initialized log system %p: %s / %x", logsys, logsys->filename, logsys->level);
     np_log_message(LOG_DEBUG, __FILE__, __func__, __LINE__, "%s", new_log_entry);
 
     // fprintf(logger->fp, "initialized log system %p: %s (%p) %d\n", logger, logger->filename, logger->fp, logger->level);
     // sll_append(char, logger->logentries_l, new_log_entry);
     // fflush(logger->fp);
 
-     _np_suspend_event_loop();
+   //  _np_suspend_event_loop();
     EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-	ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
-	ev_io_start(EV_A_ &logger->watcher);
-	_np_resume_event_loop();
-}
+	ev_io_init(&logsys->watcher, _np_log_evflush, logsys->fp, EV_WRITE);
+	ev_io_start(EV_A_ &logsys->watcher);
+//	_np_resume_event_loop();
 
+	// make available to system
+	logger = logsys;
+}
 void np_log_destroy()
 {
     log_msg(LOG_TRACE, "start: void np_log_destroy(){");

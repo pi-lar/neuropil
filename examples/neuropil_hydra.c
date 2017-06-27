@@ -110,8 +110,10 @@ int main(int argc, char **argv)
 	}else if(level == -2){ // production server
 		level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	}else if(level <= -3){ // debug
-		level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG// | LOG_TRACE
-				  |LOG_MUTEX //| LOG_HTTP | LOG_NETWORK
+		level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG //| LOG_TRACE
+				  |LOG_MUTEX
+				  //| LOG_HTTP
+				  | LOG_NETWORK
 				   ;
 	}
 
