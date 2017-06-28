@@ -9,12 +9,14 @@
 #include "inttypes.h"
 
 #include "np_sysinfo.h"
+#include "event/ev.h"
 
 #include "neuropil.h"
 #include "np_types.h"
 #include "np_log.h"
 #include "np_msgproperty.h"
 #include "np_message.h"
+#include "np_memory.h"
 #include "np_node.h"
 #include "np_route.h"
 #include "np_dhkey.h"
@@ -23,6 +25,7 @@
 #include "np_tree.h"
 #include "np_threads.h"
 #include "np_axon.h"
+#include "np_settings.h"
 
 #include "np_scache.h"
 
@@ -40,13 +43,18 @@ static const char* _NP_SYSINFO_TARGET = "target_hash";
 
 
 static np_simple_cache_table_t* _cache = NULL;
+static ev_timer* slave_send;
+
+void slave_send_cb(NP_UNUSED EV_P_ ev_timer *w, NP_UNUSED int re);
 
 void _np_sysinfo_init_cache()
 {
     log_msg(LOG_TRACE, "start: void _np_sysinfo_init_cache(){");
-	if(NULL == _cache) {
-		_LOCK_MODULE(np_sysinfo_t)
-		{
+
+    _LOCK_MODULE(np_sysinfo_t)
+	{
+    	if(NULL == _cache) {
+
 			_cache = (np_simple_cache_table_t*) malloc(
 					sizeof(np_simple_cache_table_t));
 			CHECK_MALLOC(_cache);
@@ -59,9 +67,32 @@ void _np_sysinfo_init_cache()
 	}
 }
 
+void slave_send_cb(NP_UNUSED EV_P_ ev_timer *w, NP_UNUSED int re) {
+
+	np_tryref_obj(np_key_t, _np_state()->my_node_key, keyExists);
+	if(keyExists == TRUE){
+		np_tree_t* reply_body = np_get_my_sysinfo();
+
+		// build properties
+		np_tree_t* reply_properties = np_tree_create();
+		np_tree_insert_str(reply_properties, _NP_SYSINFO_SOURCE,
+				np_treeval_new_s(_np_key_as_str(_np_state()->my_node_key)));
+
+		// send msg
+		log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16")",
+				reply_body->size);
+
+		// TODO: set to broadcast (or better every master) if available
+		np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, NULL);
+
+		np_unref_obj(np_key_t, _np_state()->my_node_key);
+	}
+}
+
 void np_sysinfo_enable_slave() {
     log_msg(LOG_TRACE, "start: void np_sysinfo_enable_slave() {");
-	_np_sysinfo_init_cache();
+    // the slave does not need the cache
+	//_np_sysinfo_init_cache();
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
@@ -88,7 +119,15 @@ void np_sysinfo_enable_slave() {
 
 	np_set_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
 
+	if(slave_send  == NULL){
+		slave_send = (ev_timer*) malloc(sizeof(struct ev_timer));
+		CHECK_MALLOC(slave_send);
+		ev_timer_init(slave_send, slave_send_cb, 0., SYSINFO_PROACTIVE_SEND_IN_SEC);
+		EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+		ev_timer_start(EV_A_ slave_send);
+ 	}
 }
+
 void np_sysinfo_enable_master(){
     log_msg(LOG_TRACE, "start: void np_sysinfo_enable_master(){");
 	_np_sysinfo_init_cache();
@@ -119,9 +158,6 @@ void np_sysinfo_enable_master(){
 	np_set_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
 }
 
-
-
-
 np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {
     log_msg(LOG_TRACE, "start: np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {");
 	log_msg(LOG_INFO, "received sysinfo request");
@@ -138,7 +174,7 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 
 	char* mynode_hash = _np_key_as_str(_np_state()->my_node_key);
 
-	if (NULL != target ){
+	if (NULL != target) {
 		log_debug_msg(LOG_DEBUG, "sysinfo request message is from %s for %s !",
 				source->val.value.s, target->val.value.s);
 
@@ -149,10 +185,9 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 					mynode_hash, target->val.value.s);
 			return FALSE;
 		}
-	}else{
+	} else {
 		log_debug_msg(LOG_DEBUG, "sysinfo request message is from %s for anyone!",
 						source->val.value.s);
-
 	}
 	// checks completed. continue with reply building
 
@@ -175,6 +210,8 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 			reply_body->size);
 
 	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, NULL /* &target_dhkey */);
+
+
 	return TRUE;
 }
 
@@ -198,10 +235,22 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 	_LOCK_MODULE(np_sysinfo_t)
 	{
 		np_cache_item_t* item = np_simple_cache_get(_cache,source->val.value.s);
+		// only insert if the data is newer
 		if(NULL != item) {
-			np_tree_free(item->value);
+			np_tree_elem_t* new_check = np_tree_find_str(body, _NP_SYSINFO_MY_NODE_TIMESTAMP);
+			np_tree_elem_t* old_check = np_tree_find_str(item->value, _NP_SYSINFO_MY_NODE_TIMESTAMP);
+
+			if(NULL != new_check && NULL != old_check
+			&& new_check->val.value.d > old_check->val.value.d) {
+				np_tree_free(item->value);
+				np_simple_cache_insert(_cache, source->val.value.s, np_tree_copy(body));
+			}else{
+			    log_debug_msg(LOG_DEBUG, "Ignoring SysInfo reply due to newer data in cache");
+			}
+
+		} else {
+			np_simple_cache_insert(_cache, source->val.value.s, np_tree_copy(body));
 		}
-		np_simple_cache_insert(_cache, source->val.value.s, np_tree_copy(body));
 	}
 
 	return TRUE;
@@ -211,7 +260,7 @@ np_tree_t* np_get_my_sysinfo() {
     log_msg(LOG_TRACE, "start: np_tree_t* np_get_my_sysinfo() {");
 	np_tree_t* ret = np_tree_create();
 
-	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_f(ev_time()));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_d(ev_time()));
 
 	// build local node
 	np_tree_t* local_node = np_tree_create();
@@ -281,15 +330,19 @@ np_tree_t* np_get_my_sysinfo() {
 void _np_request_sysinfo(const char* const hash_of_target) {
     log_msg(LOG_TRACE, "start: void _np_request_sysinfo(const char* const hash_of_target) {");
 
+	_np_sysinfo_init_cache();
+
 	if (NULL != hash_of_target && hash_of_target[0] != '\0')
 	{
 		// Add dummy to prevent request spam
-		if(NULL ==  _np_get_sysinfo_from_cache(hash_of_target,-1)) {
-			np_tree_t* dummy = np_tree_create();
-			np_tree_insert_str(dummy, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_f(ev_time()));
-			np_simple_cache_insert(_cache, hash_of_target, np_tree_copy(dummy));
+		_LOCK_MODULE(np_sysinfo_t)
+		{
+			if(NULL ==  _np_get_sysinfo_from_cache(hash_of_target,-1)) {
+				np_tree_t* dummy = np_tree_create();
+				np_tree_insert_str(dummy, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_f(ev_time()));
+				np_simple_cache_insert(_cache, hash_of_target, np_tree_copy(dummy));
+			}
 		}
-
 		log_msg(LOG_INFO, "sending sysinfo request to %s", hash_of_target);
 		np_tree_t* properties = np_tree_create();
 		np_tree_t* body = np_tree_create();
@@ -309,6 +362,7 @@ void _np_request_sysinfo(const char* const hash_of_target) {
 		log_msg(LOG_WARN,
 				"could not sending sysinfo request. (unknown target)");
 	}
+
 }
 
 np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
@@ -325,18 +379,9 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 		// I may anticipate the one requesting my information wants to request others as well
 		_np_request_others();
 	} else {
-
 		log_debug_msg(LOG_DEBUG, "Requesting sysinfo for node %s", hash_of_target);
-		ret = _np_get_sysinfo_from_cache(hash_of_target, 1);
-
-		if(NULL == ret ) {
-			_np_request_sysinfo(hash_of_target);
-			ev_sleep(0.05);
-
-			ret = _np_get_sysinfo_from_cache(hash_of_target,-2);
-		}
+		ret = _np_get_sysinfo_from_cache(hash_of_target, -1);
 	}
-
 	return ret;
 }
 

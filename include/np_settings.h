@@ -5,15 +5,24 @@
 #ifndef NP_SETTINGS_H_
 #define NP_SETTINGS_H_
 
+#include <stdlib.h>
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
- *	A new msg receiver token will be created x sec before a exipry will take place
- *	can be changed during runtime
+ *	if the sysinfo subsystem in enabled and the node is a slave
+ *	this is the intervall ist may send his own data in a proactive
+ *	attempt to share its data.
+ *
+ *	set before slave enable
  */
-uint8_t AAATOKEN_SOFT_FAIL_RECEIVER = 1;
-/*
- *	A new msg sender token will be created x sec before a exipry will take place
- *	can be changed during runtime
- */
-uint8_t AAATOKEN_SOFT_FAIL_SENDER = 1;
+double SYSINFO_PROACTIVE_SEND_IN_SEC = 1;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NP_SETTINGS_H_ */

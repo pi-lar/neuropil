@@ -103,8 +103,7 @@ void _np_message_t_del(void* data)
 		while (NULL != iter)
 		{
 			np_messagepart_ptr current_part = iter->val;
-			free(current_part->msg_part);
-			free(current_part);
+			np_unref_obj(np_messagepart_t, current_part);
 			pll_next(iter);
 		}
 	}
@@ -169,6 +168,10 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 			np_messagepart_ptr to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks);
 			log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
 					"message (%s) %p / %p / %p", msg_uuid, msg_to_submit, msg_to_submit->msg_chunks, to_add);
+
+			// remove any existing
+			pll_remove(np_messagepart_ptr,msg_to_submit->msg_chunks, to_add, _np_messagepart_cmp);
+			// insert new
 			pll_insert(np_messagepart_ptr, msg_to_submit->msg_chunks, to_add, FALSE, _np_messagepart_cmp);
 		}
 		else
@@ -244,8 +247,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 		while (NULL != iter)
 		{
 			np_messagepart_ptr current_part = iter->val;
-			free(current_part->msg_part);
-			free(current_part);
+			np_unref_obj(np_messagepart_t, current_part);
 			pll_next(iter);
 		}
 		pll_clear(np_messagepart_ptr, msg->msg_chunks);
@@ -288,14 +290,9 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
     {
 		np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i+1;
 
-		np_messagepart_ptr part = (np_messagepart_ptr) malloc(sizeof(np_messagepart_t));
-		CHECK_MALLOC(part);
+		np_messagepart_t* part;
+		np_new_obj(np_messagepart_t, part);
 
-		if (NULL == part)
-		{
-			ret_val = FALSE;
-			goto __np_cleanup__;
-		}
 
 		part->header = msg->header;
 		// TODO: possible error ? have to pass the chunk number explicitly
@@ -306,7 +303,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 		if (NULL == part->msg_part)
 		{
 			ret_val = FALSE;
-			free(part);
+			np_free_obj(np_messagepart_t, part);
 			goto __np_cleanup__;
 		}
 
@@ -326,7 +323,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 			if (NULL == bin_header)
 			{
 				ret_val = FALSE;
-				free(part);
+				np_free_obj(np_messagepart_t, part);
 				goto __np_cleanup__;
 			}
 
@@ -348,7 +345,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 		if (NULL == bin_instructions)
 		{
 			ret_val = FALSE;
-			free(part);
+			np_free_obj(np_messagepart_t, part);
 			goto __np_cleanup__;
 		}
 
@@ -376,7 +373,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 			if (NULL == bin_properties)
 			{
 				ret_val = FALSE;
-				free(part);
+				np_free_obj(np_messagepart_t, part);
 				goto __np_cleanup__;
 			}
 
@@ -428,7 +425,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 			if (NULL == bin_body)
 			{
 				ret_val = FALSE;
-				free(part);
+				np_free_obj(np_messagepart_t, part);
 				goto __np_cleanup__;
 			}
 
@@ -483,7 +480,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 			if (NULL == bin_footer)
 			{
 				ret_val = FALSE;
-				free(part);
+				np_free_obj(np_messagepart_t, part);
 				goto __np_cleanup__;
 			}
 
@@ -526,6 +523,9 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 		//  		(max_chunk_size - current_chunk_size), current_chunk_size );
 		i++;
 
+		// remove any existing
+		pll_remove(np_messagepart_ptr,msg->msg_chunks, part, _np_messagepart_cmp);
+		// insert new
 		pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp);
 
 		// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-------------------------" );
@@ -597,14 +597,17 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 		return (FALSE);
 	}
 
-	np_messagepart_ptr part = (np_messagepart_ptr) malloc(sizeof(np_messagepart_t));
-	CHECK_MALLOC(part);
+	np_messagepart_ptr part;
+	np_new_obj(np_messagepart_t, part);
 
 	part->header = msg->header;
 	part->instructions = msg->instructions;
 	part->part = chunk_id;
 	part->msg_part = buffer;
 
+	// remove any existing
+	pll_remove(np_messagepart_ptr,msg->msg_chunks, part, _np_messagepart_cmp);
+	// insert new
 	pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp);
 
 	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "received message part (%d / %d)", chunk_id, msg->no_of_chunks);
@@ -765,8 +768,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		while (NULL != iter)
 		{
 			np_messagepart_ptr current_part = iter->val;
-			free(current_part->msg_part);
-			free(current_part);
+			np_unref_obj(np_messagepart_t, current_part);
 			pll_next(iter);
 		}
 		pll_clear(np_messagepart_ptr, msg->msg_chunks);

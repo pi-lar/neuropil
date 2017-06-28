@@ -20,6 +20,8 @@ typedef np_messagepart_t* np_messagepart_ptr;
 
 struct np_messagepart_s
 {
+	np_obj_t* obj;
+
 	np_tree_t* header;
 	np_tree_t* instructions;
 	uint16_t part;
@@ -27,6 +29,7 @@ struct np_messagepart_s
 } NP_API_INTERN;
 
 NP_PLL_GENERATE_PROTOTYPES(np_messagepart_ptr);
+_NP_GENERATE_MEMORY_PROTOTYPES(np_messagepart_t);
 
 NP_API_INTERN
 int8_t _np_messagepart_cmp (const np_messagepart_ptr value1, const np_messagepart_ptr value2);

@@ -472,7 +472,7 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 			_np_keycache_ref_keys(table);
 		}
 
-		// sort to get potential closest neighbour first
+		// sort to get potential closest neighbor first
 		_np_keycache_sort_keys_kd(table, &new_node_key->dhkey);
 
 		while (NULL != (tmp_node_key = sll_head(np_key_t, table)))

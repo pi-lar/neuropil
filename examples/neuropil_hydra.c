@@ -38,7 +38,6 @@
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
-#define DEBUG 0
 #define NUM_HOST 15
 
 extern char *optarg;
@@ -60,7 +59,7 @@ extern int optind;
 int main(int argc, char **argv)
 {
 	int opt;
-	int no_threads = 3;
+	int no_threads = 5;
 	char* bootstrap_hostnode = NULL;
 	char* bootstrap_hostnode_default;
 	char bootstrap_port[7];
@@ -297,6 +296,7 @@ int main(int argc, char **argv)
 
 				   \code
 				 */
+
 				do {
  					fprintf(stdout, "try to join bootstrap node\n");
  					if(TRUE == create_bootstrap){

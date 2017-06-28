@@ -137,3 +137,17 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 }
 
 
+void _np_messagepart_t_del(void* nw)
+{
+    log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
+    np_messagepart_t* part = (np_messagepart_t*) nw;
+
+    if(part->msg_part != NULL) free(part->msg_part );
+}
+void _np_messagepart_t_new(void* nw)
+{
+    log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
+    np_messagepart_t* part = (np_messagepart_t *) nw;
+
+    part->msg_part  = NULL;
+}

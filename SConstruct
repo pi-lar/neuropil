@@ -28,6 +28,7 @@ print '####'
 
 # add libev flags to the compilation
 env.Append(CCFLAGS = ['-DEV_STANDALONE'])
+env.Append(CCFLAGS = ['-DEV_PERIODIC_ENABLE'])
 env.Append(CCFLAGS = ['-DHAVE_SELECT'])
 env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
 env.Append(CCFLAGS = ['-DHAVE_POLL'])
@@ -44,7 +45,7 @@ if int(release):
 debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2']
 if int(debug):
     env.Append(CCFLAGS = debug_flags)
-    env.Append(CCFLAGS = ['-DDEBUG']) 
+    env.Append(CCFLAGS = ['-DDEBUG'])
 
 
 # platform specific compiler options

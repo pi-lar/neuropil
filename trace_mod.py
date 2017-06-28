@@ -7,7 +7,13 @@ import re
 from pathlib2 import Path
 
 startDir = "./src/"
+# if empty all files are included
+includeFiles =[];
+
+
+# helper variable
 currentGroup = ""
+
 def replStart(m):
     global currentGroup
     org = m.group(0)
@@ -27,28 +33,28 @@ def removeTraceFrom(txt):
 
 for fileName in os.listdir(startDir):
     if fileName.endswith(".c"):
+        if ((not includeFiles) or (fileName in includeFiles)):
+            if(fileName == "np_http.c"):
+                currentGroup = " | LOG_HTTP"
+            elif(fileName == "np_key.c"):
+                currentGroup = " | LOG_KEY"
+            elif(fileName == "np_network.c"):
+                currentGroup = " | LOG_NETWORK"
+            elif(fileName == "np_route.c"):
+                currentGroup = " | LOG_ROUTING"
+            elif(fileName == "np_threads.c"):
+                currentGroup = " | LOG_MUTEX"
+            elif(fileName == "np_aaatoken.c"):
+                currentGroup = " | LOG_AAATOKEN"
+            elif(fileName == "np_message.c" or fileName == "np_messagepart.c"):
+                currentGroup = " | LOG_MESSAGE"
+            else:
+                currentGroup = " | LOG_GLOBAL"
 
-        if(fileName == "np_http.c"):
-            currentGroup = " | LOG_HTTP"
-        elif(fileName == "np_key.c"):
-            currentGroup = " | LOG_KEY"
-        elif(fileName == "np_network.c"):
-            currentGroup = " | LOG_NETWORK"
-        elif(fileName == "np_route.c"):
-            currentGroup = " | LOG_ROUTING"
-        elif(fileName == "np_threads.c"):
-            currentGroup = " | LOG_MUTEX"
-        elif(fileName == "np_aaatoken.c"):
-            currentGroup = " | LOG_AAATOKEN"
-        elif(fileName == "np_message.c" or fileName == "np_messagepart.c"):
-            currentGroup = " | LOG_MESSAGE"
-        else:
-            currentGroup = ""
-
-        filepath = os.path.join(startDir,fileName)
-        txt = Path(filepath).read_text().encode('utf-8')
-        txt = removeTraceFrom(txt)
-        txt = addTraceTo(txt)
-        file = open(filepath, 'w')
-        file.write(txt)
-        file.close()
+            filepath = os.path.join(startDir,fileName)
+            txt = Path(filepath).read_text().encode('utf-8')
+            txt = removeTraceFrom(txt)
+            txt = addTraceTo(txt)
+            file = open(filepath, 'w')
+            file.write(txt)
+            file.close()

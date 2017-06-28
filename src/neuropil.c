@@ -993,19 +993,19 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     if (FALSE == _np_route_init (state->my_node_key) )
     {
 		log_msg(LOG_ERROR, "neuropil_init: route_init failed: %s", strerror (errno));
-	    exit(1);
+	    exit(EXIT_FAILURE);
 	}
     // initialize job queue
     if (FALSE == _np_job_queue_create())
 	{
     	log_msg(LOG_ERROR, "neuropil_init: job_queue_create failed: %s", strerror (errno));
-	    exit(1);
+	    exit(EXIT_FAILURE);
 	}
     // initialize message handling system
     if (FALSE == _np_msgproperty_init())
 	{
     	log_msg(LOG_ERROR, "neuropil_init: job_queue_create failed: %s", strerror (errno));
-	    exit(1);
+	    exit(EXIT_FAILURE);
 	}
 
     state->msg_tokens = np_tree_create();
@@ -1088,9 +1088,9 @@ void np_start_job_queue(uint8_t pool_size)
 	fprintf(stdout, "your neuropil node will be addressable as:\n");
 	fprintf(stdout, "\n");
 
-	char* connectionstr = np_get_connection_string();
- 	fprintf(stdout, "\t%s\n",connectionstr);
- 	free(connectionstr);
+	char* connection_str = np_get_connection_string();
+ 	fprintf(stdout, "\t%s\n",connection_str);
+ 	free(connection_str);
 
 	fprintf(stdout, "\n");
 	fprintf(stdout, "%s\n", NEUROPIL_COPYRIGHT);

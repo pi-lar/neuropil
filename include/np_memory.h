@@ -29,6 +29,7 @@ typedef enum np_obj_type
 {
 	np_none_t_e = 0,
 	np_message_t_e,
+	np_messagepart_t_e,
 	np_node_t_e,
 	np_key_t_e,
 	np_aaatoken_t_e,
@@ -109,8 +110,11 @@ struct np_obj_s
 {                                                 \
 	_LOCK_MODULE(np_memory_t) {                   \
 	  if(NULL != np_obj) {                   	  \
-        assert (np_obj->obj != NULL);               \
+		if(np_obj->obj == NULL) log_msg(LOG_ERROR,"ref obj is null");	\
+		assert (np_obj->obj != NULL);               \
+		if(np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"ref obj is wrong type %d != %d",np_obj->obj->type, TYPE##_e);	\
         assert (np_obj->obj->type == TYPE##_e);     \
+        if(np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");	\
         assert (np_obj->obj->ptr != NULL);          \
         np_mem_unrefobj(np_obj->obj);               \
         if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) { \

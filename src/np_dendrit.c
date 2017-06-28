@@ -1067,6 +1067,7 @@ void _np_in_update(np_jobargs_t* args)
 
 	np_new_obj(np_aaatoken_t, update_token);
 	np_aaatoken_decode(args->msg->body, update_token);
+
 	if (FALSE == _np_aaatoken_is_valid(update_token))
 	{
 		goto __np_cleanup__;
@@ -1811,9 +1812,9 @@ void _np_in_handshake(np_jobargs_t* args)
 	// but we need a way to lookup the handshake data later
 	hs_key = _np_node_create_from_token(tmp_token);
 
-	char* tmp = np_get_connection_string_from(hs_key, FALSE);
-	np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp );
-	free(tmp);
+	char* tmp_connection_str = np_get_connection_string_from(hs_key, FALSE);
+	np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str );
+	free(tmp_connection_str);
 
 	_LOCK_MODULES (np_keycache_t, np_network_t)
 	{
@@ -1979,12 +1980,12 @@ void _np_in_handshake(np_jobargs_t* args)
 			_np_key_as_str(hs_key), _np_key_as_str(alias_key));
 
 	__np_cleanup__:
-	if ( NULL != tmp_token) np_unref_obj(np_aaatoken_t, tmp_token);
+	np_unref_obj(np_aaatoken_t, tmp_token);
 
 	// __np_return__:
-	if (NULL != hs_key) np_unref_obj(np_key_t, hs_key);
-	if (NULL != alias_key ) np_unref_obj(np_key_t, alias_key);
-	if (NULL != hs_payload) np_tree_free(hs_payload);
+	np_unref_obj(np_key_t, hs_key);
+	np_unref_obj(np_key_t, alias_key);
+	np_tree_free(hs_payload);
 
 	return;
 }
