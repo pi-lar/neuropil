@@ -454,9 +454,9 @@ void np_set_mx_property(char* subject, const char* key, np_treeval_t value)
 	{
 		_np_msgproperty_t_set_ack_mode(msg_prop, value.value.ush);
 	}
-	if (0 == strncmp(key, ttl_str, strlen(ttl_str)))
+	if (0 == strncmp(key, msg_ttl_str, strlen(msg_ttl_str)))
 	{
-		_np_msgproperty_t_set_ttl(msg_prop, value.value.d);
+		_np_msgproperty_t_set_msg_ttl(msg_prop, value.value.d);
 	}
 	if (0 == strncmp(key, retry_str, strlen(retry_str)))
 	{

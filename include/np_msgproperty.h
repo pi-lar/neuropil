@@ -237,7 +237,7 @@ struct np_msgproperty_s
 	np_msg_mode_type mode_type;
 	np_msg_mep_type  mep_type;
 	np_msg_ack_type  ack_mode;
-	double           ttl;
+	double           msg_ttl;
 	uint8_t          priority;
 	uint8_t          retry; // the # of retries when sending a message
 	uint16_t         msg_threshold; // current cache size
@@ -266,6 +266,11 @@ struct np_msgproperty_s
 	np_callback_t clb_transform; // internal neuropil supplied
 
 	np_usercallback_t user_clb; // external user supplied for inbound
+
+	// The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
+	uint32_t token_max_ttl;
+	// The token created for this msgproperty will guaranteed live for token_min_ttl seconds
+	uint32_t token_min_ttl;
 } NP_API_EXPORT;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
@@ -274,7 +279,7 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mode_type, np_msg_mode_type);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mep_type, np_msg_mep_type);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, ack_mode, np_msg_ack_type);
-_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, ttl, double);
+_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, msg_ttl, double);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, retry, uint8_t);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, max_threshold, uint16_t);
 

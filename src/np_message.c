@@ -549,70 +549,79 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 {
     log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_deserialize(np_message_t* msg, void* buffer){");
-	cmp_ctx_t cmp;
-	_np_message_buffer_container_t buffer_container;
-	buffer_container.buffer = buffer;
-	buffer_container.bufferCount = 0;
-	buffer_container.bufferMaxCount = MSG_CHUNK_SIZE_1024;
-	buffer_container.message = msg;
 
-	//cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_writer);
-	cmp_init(&cmp, buffer, _np_buffer_reader, _np_buffer_writer);
+    np_tryref_obj(np_message_t,msg,msgExisits);
 
+    if(msgExisits) {
+		cmp_ctx_t cmp;
+		_np_message_buffer_container_t buffer_container;
+		buffer_container.buffer = buffer;
+		buffer_container.bufferCount = 0;
+		buffer_container.bufferMaxCount = MSG_CHUNK_SIZE_1024;
+		buffer_container.message = msg;
 
-	uint32_t array_size;
+		cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_writer);
+		//cmp_init(&cmp, buffer, _np_buffer_reader, _np_buffer_writer);
 
-	if (!cmp_read_array(&cmp, &array_size))
-	{
-		log_msg(LOG_WARN, "unrecognized first array element while deserializing message. error: %"PRIu8, cmp.error);
-		return (FALSE);
-	}
+		uint32_t array_size;
 
-	if (array_size != 5)
-	{
-		log_msg(LOG_WARN, "wrong array length while deserializing message");
-		return (FALSE);
-	}
+		if (!cmp_read_array(&cmp, &array_size))
+		{
+			log_msg(LOG_WARN, "unrecognized first array element while deserializing message. error: %"PRIu8, cmp.error);
+			np_unref_obj(np_message_t,msg);
+			return (FALSE);
+		}
 
-	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg header");
-	_np_tree_deserialize(msg->header, &cmp );
-	// TODO: check if the complete buffer was read (byte count match)
+		if (array_size != 5)
+		{
+			log_msg(LOG_WARN, "wrong array length while deserializing message");
+			np_unref_obj(np_message_t,msg);
+			return (FALSE);
+		}
 
-	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg instructions");
-	_np_tree_deserialize(msg->instructions, &cmp );
-	// TODO: check if the complete buffer was read (byte count match)
+		// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg header");
+		_np_tree_deserialize(msg->header, &cmp );
+		// TODO: check if the complete buffer was read (byte count match)
 
-	if (NULL != np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
-		msg->no_of_chunks = np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
-	}
+		// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg instructions");
+		_np_tree_deserialize(msg->instructions, &cmp );
+		// TODO: check if the complete buffer was read (byte count match)
 
-	uint16_t chunk_id = 0;
-	if (NULL != np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
-		chunk_id = np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1];
-	}
-	msg->is_single_part = TRUE;
+		if (NULL != np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
+			msg->no_of_chunks = np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
+		}
 
-	if (0 == msg->no_of_chunks || 0 == chunk_id){
-		log_msg(LOG_WARN, "no_of_chunks (%"PRIu16") or chunk_id (%"PRIu16") zero while deserializing message.",msg->no_of_chunks,chunk_id);
-		return (FALSE);
-	}
+		uint16_t chunk_id = 0;
+		if (NULL != np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
+			chunk_id = np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1];
+		}
+		msg->is_single_part = TRUE;
 
-	np_messagepart_ptr part;
-	np_new_obj(np_messagepart_t, part);
+		if (0 == msg->no_of_chunks || 0 == chunk_id){
+			log_msg(LOG_WARN, "no_of_chunks (%"PRIu16") or chunk_id (%"PRIu16") zero while deserializing message.",msg->no_of_chunks,chunk_id);
+			np_unref_obj(np_message_t,msg);
+			return (FALSE);
+		}
 
-	part->header = msg->header;
-	part->instructions = msg->instructions;
-	part->part = chunk_id;
-	part->msg_part = buffer;
+		np_messagepart_ptr part;
+		np_new_obj(np_messagepart_t, part);
 
-	// remove any existing
-	pll_remove(np_messagepart_ptr,msg->msg_chunks, part, _np_messagepart_cmp);
-	// insert new
-	pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp);
+		part->header = msg->header;
+		part->instructions = msg->instructions;
+		part->part = chunk_id;
+		part->msg_part = buffer;
 
-	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "received message part (%d / %d)", chunk_id, msg->no_of_chunks);
+		// remove any existing
+		pll_remove(np_messagepart_ptr,msg->msg_chunks, part, _np_messagepart_cmp);
+		// insert new
+		pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp);
 
-	return (TRUE);
+		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "received message part (%d / %d)", chunk_id, msg->no_of_chunks);
+
+		np_unref_obj(np_message_t,msg);
+		return (TRUE);
+    }
+	return (FALSE);
 }
 
 np_bool _np_message_deserialize_chunked(np_message_t* msg)

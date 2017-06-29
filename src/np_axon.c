@@ -137,7 +137,7 @@ void _np_send(np_jobargs_t* args)
 
 		double initial_tstamp = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
 		double now = ev_time();
-		if (now > (initial_tstamp + args->properties->ttl) )
+		if (now > (initial_tstamp + args->properties->msg_ttl) )
 		{
 			log_debug_msg(LOG_DEBUG, "resend message %s (%s) expired, not resending ...", prop->msg_subject, uuid);
 			return;
@@ -206,7 +206,7 @@ void _np_send(np_jobargs_t* args)
 	double now = ev_time();
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
 	// now += args->properties->ttl;
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args->properties->ttl));
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args->properties->msg_ttl));
 
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
 	if (FALSE == msg_out->is_single_part)
@@ -238,7 +238,7 @@ void _np_send(np_jobargs_t* args)
 				ackentry->acked = FALSE;
 				ackentry->transmittime = ev_time();
 				// + 1.0 because of time delays for processing
-				ackentry->expiration = ackentry->transmittime + args->properties->ttl + 1.0;
+				ackentry->expiration = ackentry->transmittime + args->properties->msg_ttl + 1.0;
 				ackentry->dest_key = args->target;
 				np_ref_obj(np_key_t,  args->target);
 
@@ -259,7 +259,7 @@ void _np_send(np_jobargs_t* args)
 		}
 
 		// insert a record into the priority queue with the following information:
-		double retransmit_interval = args->properties->ttl / args->properties->retry;
+		double retransmit_interval = args->properties->msg_ttl / args->properties->retry;
 		np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
 		_np_job_resubmit_route_event(retransmit_interval, out_prop, args->target, args->msg);
 	}
@@ -457,10 +457,12 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 	np_aaatoken_t* msg_token = NULL;
 
 	msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
-	if (NULL == msg_token)
+	np_tryref_obj(np_aaatoken_t, msg_token, tokenExists);
+	if (FALSE == tokenExists)
 	{
 		log_debug_msg(LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 		msg_token = _np_create_msg_token(args->properties);
+		np_ref_obj(np_aaatoken_t, msg_token);
 		_np_aaatoken_add_local_mx(msg_token->subject, msg_token);
 	}
 
@@ -468,101 +470,9 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 	{
 		log_debug_msg(LOG_DEBUG, ".step ._np_send_discovery_messages.inbound");
 
-		if (NULL != msg_token)
-		{
-			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
+		np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
 
-			log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
-			np_tree_t* _data = np_tree_create();
-			np_aaatoken_encode(_data, msg_token);
-
-			np_message_t* msg_out = NULL;
-			np_new_obj(np_message_t, msg_out);
-			_np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_SENDER, _data);
-
-			// send message availability
-			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
-			_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
-
-			np_free_obj(np_message_t, msg_out);
-		}
-	}
-
-	if (0 < (args->properties->mode_type & OUTBOUND))
-	{
-		log_debug_msg(LOG_DEBUG, ".step ._np_send_discovery_messages.outbound");
-		if (NULL != msg_token)
-		{
-			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
-
-			log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
-			np_tree_t* _data = np_tree_create();
-			np_aaatoken_encode(_data, msg_token);
-
-			np_message_t* msg_out = NULL;
-			np_new_obj(np_message_t, msg_out);
-
-			_np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_RECEIVER, _data);
-			// send message availability
-			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
-			_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
-			np_free_obj(np_message_t, msg_out);
-		}
-	}
-}
-
-// deprecated
-void _np_send_receiver_discovery(np_jobargs_t* args)
-{
-    log_msg(LOG_TRACE, "start: void _np_send_receiver_discovery(np_jobargs_t* args){");
-	// create message interest in authentication request
-	np_aaatoken_t* msg_token = NULL;
-
-	msg_token = _np_aaatoken_get_sender(args->properties->msg_subject,
-			 	 	 	 	 	 	 _np_key_as_str(_np_state()->my_identity));
-	if (NULL == msg_token)
-	{
-		log_debug_msg(LOG_DEBUG, "creating new sender token for subject %s", args->properties->msg_subject);
-		np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
-		_np_aaatoken_add_sender(msg_token_new->subject, msg_token_new);
-		msg_token = msg_token_new;
-	}
-
-	if (NULL != msg_token)
-	{
-		np_tree_t* _data = np_tree_create();
-		np_aaatoken_encode(_data, msg_token);
-
-		np_message_t* msg_out = NULL;
-		np_new_obj(np_message_t, msg_out);
-		_np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_RECEIVER, _data);
-		// send message availability
-		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
-		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
-		np_free_obj(np_message_t, msg_out);
-	}
-	np_unref_obj(np_aaatoken_t, msg_token);
-}
-
-// deprecated
-void _np_send_sender_discovery(np_jobargs_t* args)
-{
-    log_msg(LOG_TRACE, "start: void _np_send_sender_discovery(np_jobargs_t* args){");
-	// create message interest in authentication request
-	np_aaatoken_t* msg_token = NULL;
-
-	msg_token = _np_aaatoken_get_receiver(args->properties->msg_subject, NULL);
-	if (NULL == msg_token)
-	{
-		log_debug_msg(LOG_DEBUG, "creating new receiver token for subject %s", args->properties->msg_subject);
-		np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
-		_np_aaatoken_add_receiver(msg_token_new->subject, msg_token_new);
-		msg_token = msg_token_new;
-	}
-
-	if (NULL != msg_token)
-	{
-		log_debug_msg(LOG_DEBUG, "encoding receiver token for subject %p / %s", msg_token, msg_token->uuid);
+		log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
 		np_tree_t* _data = np_tree_create();
 		np_aaatoken_encode(_data, msg_token);
 
@@ -575,8 +485,95 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
 
 		np_free_obj(np_message_t, msg_out);
-		np_unref_obj(np_aaatoken_t, msg_token);
+
 	}
+
+	if (0 < (args->properties->mode_type & OUTBOUND))
+	{
+		log_debug_msg(LOG_DEBUG, ".step ._np_send_discovery_messages.outbound");
+
+		np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
+
+		log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
+		np_tree_t* _data = np_tree_create();
+		np_aaatoken_encode(_data, msg_token);
+
+		np_message_t* msg_out = NULL;
+		np_new_obj(np_message_t, msg_out);
+
+		_np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_RECEIVER, _data);
+		// send message availability
+		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
+		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+		np_free_obj(np_message_t, msg_out);
+	}
+	np_unref_obj(np_aaatoken_t, msg_token);
+}
+
+// deprecated
+void _np_send_receiver_discovery(np_jobargs_t* args)
+{
+    log_msg(LOG_TRACE, "start: void _np_send_receiver_discovery(np_jobargs_t* args){");
+	// create message interest in authentication request
+	np_aaatoken_t* msg_token = NULL;
+
+	msg_token = _np_aaatoken_get_sender(args->properties->msg_subject,
+			 	 	 	 	 	 	 _np_key_as_str(_np_state()->my_identity));
+ 	if (NULL == msg_token)
+	{
+		log_debug_msg(LOG_DEBUG, "creating new sender token for subject %s", args->properties->msg_subject);
+		np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
+		np_ref_obj(np_aaatoken_t, msg_token_new);
+		_np_aaatoken_add_sender(msg_token_new->subject, msg_token_new);
+		msg_token = msg_token_new;
+	}
+	np_tree_t* _data = np_tree_create();
+	np_aaatoken_encode(_data, msg_token);
+
+	np_message_t* msg_out = NULL;
+	np_new_obj(np_message_t, msg_out);
+	_np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_RECEIVER, _data);
+	// send message availability
+	np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
+	_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+	np_free_obj(np_message_t, msg_out);
+
+	np_unref_obj(np_aaatoken_t, msg_token);
+}
+
+// deprecated
+void _np_send_sender_discovery(np_jobargs_t* args)
+{
+    log_msg(LOG_TRACE, "start: void _np_send_sender_discovery(np_jobargs_t* args){");
+	// create message interest in authentication request
+	np_aaatoken_t* msg_token = NULL;
+
+	msg_token = _np_aaatoken_get_receiver(args->properties->msg_subject, NULL);
+
+	if (NULL == msg_token)
+	{
+		log_debug_msg(LOG_DEBUG, "creating new receiver token for subject %s", args->properties->msg_subject);
+		np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
+		np_ref_obj(np_aaatoken_t, msg_token_new);
+		_np_aaatoken_add_receiver(msg_token_new->subject, msg_token_new);
+		msg_token = msg_token_new;
+	}
+
+	log_debug_msg(LOG_DEBUG, "encoding receiver token for subject %p / %s", msg_token, msg_token->uuid);
+	np_tree_t* _data = np_tree_create();
+	np_aaatoken_encode(_data, msg_token);
+
+	np_message_t* msg_out = NULL;
+	np_new_obj(np_message_t, msg_out);
+	_np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_SENDER, _data);
+
+	// send message availability
+	np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
+	_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+
+	np_free_obj(np_message_t, msg_out);
+
+	np_unref_obj(np_aaatoken_t, msg_token);
 }
 
 void _np_send_authentication_request(np_jobargs_t* args)

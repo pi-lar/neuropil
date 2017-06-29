@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 				  //|LOG_MUTEX | LOG_TRACE
 				  //| LOG_HTTP
 				  //| LOG_NETWORK
-				  //| LOG_AAATOKEN
+				  | LOG_AAATOKEN
 				   ;
 	}
 

@@ -145,6 +145,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 			if (msg_in == msg_to_submit) np_ref_obj(np_message_t, msg_to_submit);
 
 			_np_message_deserialize_chunked(msg_to_submit);
+			// TODO: check this ref
 			np_unref_obj(np_message_t, msg_to_submit);
 		}
 		else
@@ -814,9 +815,12 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	msg_token->uuid =  np_uuid_create(msg_uuid_subject, 0);
 
 	msg_token->not_before = ev_time();
-	// TODO: make it configurable for the user
+
 	// how to allow the possible transmit jitter ?
-	msg_token->expiration = ev_time() + (msg_request->ttl + (0.31415 * msg_request->ttl) );
+	int expire_sec =  ((int)randombytes_uniform(msg_request->token_max_ttl - msg_request->token_min_ttl)+msg_request->token_min_ttl);
+
+	log_debug_msg(LOG_DEBUG,"setting msg token EXPIRY to: %d",expire_sec);
+	msg_token->expiration = msg_token->not_before + expire_sec;
 
 	// add e2e encryption details for sender
 	memcpy((char*) msg_token->public_key,

@@ -44,13 +44,11 @@ void _np_aaatoken_t_new(void* token)
 	aaa_token->uuid = NULL;
 
 	aaa_token->issued_at = ev_time();
-    // set expiration to one day and recreate each day by default
-    // TODO: make it configurable
-    int expire_sec = ((int)randombytes_uniform(110)+10);
-#ifdef DEBUG
-    expire_sec =  ((int)randombytes_uniform(20)+10);
-#endif
-    aaa_token->expiration = aaa_token->issued_at + expire_sec;
+	aaa_token->not_before = aaa_token->issued_at;
+
+    int expire_sec =  ((int)randombytes_uniform(20)+10);
+
+    aaa_token->expiration = aaa_token->not_before + expire_sec;
     log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "aaatoken expires in %d sec", expire_sec);
 
     aaa_token->extensions = np_tree_create();
@@ -270,8 +268,8 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	if (now > (token->expiration))
 	{
 		log_msg(LOG_AAATOKEN | LOG_WARN, "token for subject \"%s\": expired ", token->subject);
-		log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 		token->state &= AAA_INVALID;
+		log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 		return (FALSE);
 	}else{
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token has not expired");

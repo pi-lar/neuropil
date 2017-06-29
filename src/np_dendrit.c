@@ -26,6 +26,7 @@
 #include "np_jobqueue.h"
 #include "np_tree.h"
 #include "np_dhkey.h"
+#include "np_key.h"
 #include "np_keycache.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
@@ -1911,8 +1912,8 @@ void _np_in_handshake(np_jobargs_t* args)
 		old_token = hs_key->aaa_token;
 	}
 
+	np_ref_obj(np_aaatoken_t, tmp_token);
 	hs_key->aaa_token = tmp_token;
-	np_ref_obj(np_aaatoken_t, hs_key->aaa_token);
 	np_unref_obj(np_aaatoken_t, old_token);
 
 	// handle alias key, also in case a new connection has been established
@@ -1932,7 +1933,6 @@ void _np_in_handshake(np_jobargs_t* args)
 			hs_key->network = alias_key->network;
 			np_ref_obj(np_network_t, hs_key->network);
 
-			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 			_np_network_stop(hs_key->network);
 			ev_io_init(
 					&hs_key->network->watcher,

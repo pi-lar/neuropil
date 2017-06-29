@@ -42,7 +42,7 @@
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mode_type, np_msg_mode_type);
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mep_type, np_msg_mep_type);
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, ack_mode, np_msg_ack_type);
-_NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, ttl, double);
+_NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, msg_ttl, double);
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, retry, uint8_t);
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, max_threshold, uint16_t);
 
@@ -140,6 +140,9 @@ void _np_msgproperty_t_new(void* property)
     log_msg(LOG_TRACE, "start: void _np_msgproperty_t_new(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
+	prop->token_min_ttl = 10;
+	prop->token_max_ttl = 30;
+
 	prop->msg_audience = NULL;
 	prop->msg_subject = NULL;
 	prop->rep_subject = NULL;
@@ -147,9 +150,9 @@ void _np_msgproperty_t_new(void* property)
 	prop->mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE;
 	prop->mep_type = DEFAULT_TYPE;
 	prop->ack_mode = ACK_EACHHOP;
-	prop->priority = 5;
+	prop->priority = 4;
 	prop->retry    = 5;
-	prop->ttl      = 20.0;
+	prop->msg_ttl      = 20.0;
 
 	prop->max_threshold = 10;
 	prop->msg_threshold =  0;

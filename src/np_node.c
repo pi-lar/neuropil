@@ -48,9 +48,12 @@ void _np_node_t_new(void* node)
     log_msg(LOG_TRACE, "start: void _np_node_t_new(void* node){");
 	np_node_t* entry = (np_node_t *) node;
 
+	_np_threads_mutex_init(&entry->lock);
+
 	entry->dns_name = NULL;
 	entry->protocol = 0;
 	entry->port = 0;
+
 
 	entry->failuretime = 0.0;
 	entry->last_success = ev_time();
@@ -74,6 +77,8 @@ void _np_node_t_del(void* node)
 	np_node_t* entry = (np_node_t *) node;
 	if (entry->dns_name) free (entry->dns_name);
 	if (entry->port) free (entry->port);
+
+	_np_threads_mutex_destroy(&entry->lock);
 }
 
 /** np_node_encode:
@@ -325,46 +330,56 @@ void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 void _np_node_update_stat (np_node_t* node, uint8_t success)
 {
     float total = 0;
-    np_ref_obj(np_node_t, node);
-    node->success_win[node->success_win_index++ % SUCCESS_WINDOW] = success;
-    node->success_avg = 0.0;
-    // printf("SUCCESS_WIN[");
-    for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
-	{
-	    total += node->success_win[i];
-	}
-    node->success_avg = total / SUCCESS_WINDOW;
+    np_tryref_obj(np_node_t, node,nodeExists);
+    if(nodeExists) {
+		_LOCK_ACCESS(&node->lock) {
 
-    if (0 < success) node->last_success = ev_time();
+			node->success_win[node->success_win_index++ % SUCCESS_WINDOW] = success;
+			//node->success_avg = 0.0;
+			// printf("SUCCESS_WIN[");
+			for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
+			{
+				total += node->success_win[i];
+			}
+			node->success_avg = total / SUCCESS_WINDOW;
 
-	log_msg(LOG_INFO, "node %s:%s success rate now: %1.1f",
-			node->dns_name, node->port, node->success_avg);
+			if (0 < success) node->last_success = ev_time();
+		}
+		log_msg(LOG_INFO, "node %s:%s success rate now: %1.1f",
+				node->dns_name, node->port, node->success_avg);
 
-    np_unref_obj(np_node_t, node);
+		np_unref_obj(np_node_t, node);
+    }
 }
 
 void _np_node_update_latency (np_node_t* node, double new_latency)
 {
 	if (new_latency > 0.0)
 	{
-	    node->latency_win[node->latency_win_index++ % SUCCESS_WINDOW] = new_latency;
+		np_tryref_obj(np_node_t, node,nodeExists);
+		if(nodeExists) {
+			_LOCK_ACCESS(&node->lock) {
+				node->latency_win[node->latency_win_index++ % SUCCESS_WINDOW] = new_latency;
 
-	    if (node->latency <= 0.0)
-	    {
-			node->latency = new_latency;
-		}
-	    else
-	    {
-	    	double total = 0.0;
-		    for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
-		    {
-		    	// log_debug_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency_win[i]);
-		    	total += node->latency_win[i];
-		    }
-			node->latency = total / SUCCESS_WINDOW;
-			log_msg(LOG_INFO, "node %s:%s latency now: %1.3f",
-					node->dns_name, node->port, node->latency);
-	    	// log_debug_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency);
+				if (node->latency <= 0.0)
+				{
+					node->latency = new_latency;
+				}
+				else
+				{
+					double total = 0.0;
+					for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
+					{
+						// log_debug_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency_win[i]);
+						total += node->latency_win[i];
+					}
+					node->latency = total / SUCCESS_WINDOW;
+					log_msg(LOG_INFO, "node %s:%s latency now: %1.3f",
+							node->dns_name, node->port, node->latency);
+					// log_debug_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency);
+				}
+			}
+			np_unref_obj(np_node_t, node);
 		}
 	}
 }

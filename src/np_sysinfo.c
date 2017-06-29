@@ -96,10 +96,11 @@ void np_sysinfo_enable_slave() {
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
-	 sysinfo_request_props->mep_type =  REQ_REP;
-	sysinfo_request_props->ack_mode = ACK_NONE;
+	sysinfo_request_props->rep_subject = _NP_SYSINFO_REPLY;
+	sysinfo_request_props->mep_type =  REQ_REP;
+	sysinfo_request_props->ack_mode = ACK_DESTINATION;
 	sysinfo_request_props->retry    = 1;
-	sysinfo_request_props->ttl      = 20.0;
+	sysinfo_request_props->msg_ttl  = 20.0;
 
 	np_msgproperty_t* sysinfo_response_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_response_props);
@@ -107,12 +108,15 @@ void np_sysinfo_enable_slave() {
 	sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 1;
-	sysinfo_response_props->ttl      = 20.0;
+	sysinfo_response_props->msg_ttl  = 20.0;
+
+	//sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = 180;
+	//sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = 120;
 
 	sysinfo_request_props->mode_type = INBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 10;
 	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 10;
+	sysinfo_response_props->max_threshold = 120;
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
@@ -134,10 +138,11 @@ void np_sysinfo_enable_master(){
 	np_msgproperty_t* sysinfo_request_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	sysinfo_request_props->msg_subject = _NP_SYSINFO_REQUEST;
-	 sysinfo_request_props->mep_type =  REQ_REP;
-	sysinfo_request_props->ack_mode = ACK_NONE;
+	sysinfo_request_props->rep_subject = _NP_SYSINFO_REPLY;
+	sysinfo_request_props->mep_type =  REQ_REP;
+	sysinfo_request_props->ack_mode = ACK_DESTINATION;
 	sysinfo_request_props->retry    = 1;
-	sysinfo_request_props->ttl      = 20.0;
+	sysinfo_request_props->msg_ttl  = 20.0;
 
 	np_msgproperty_t* sysinfo_response_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_response_props);
@@ -145,12 +150,15 @@ void np_sysinfo_enable_master(){
 	sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 1;
-	sysinfo_response_props->ttl      = 20.0;
+	sysinfo_response_props->msg_ttl  = 20.0;
+
+	//sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = 180;
+	//sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = 120;
 
 	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_request_props->max_threshold = SIMPLE_CACHE_NR_BUCKETS;
+	sysinfo_request_props->max_threshold = 99;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = SIMPLE_CACHE_NR_BUCKETS;
+	sysinfo_response_props->max_threshold = 199;
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
@@ -226,7 +234,7 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 				"received sysinfo request w/o source key information.");
 		return FALSE;
 	}
-	log_msg(LOG_INFO, "received sysinfo reply");
+	log_msg(LOG_INFO, "received sysinfo reply (uuid: %s )",msg->uuid);
 
 	log_debug_msg(LOG_DEBUG,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu64")",
 			source->val.value.s, body->size, body->byte_size);
@@ -377,7 +385,7 @@ np_tree_t* np_get_sysinfo(const char* const hash_of_target) {
 		ret = np_get_my_sysinfo();
 
 		// I may anticipate the one requesting my information wants to request others as well
-		_np_request_others();
+		//_np_request_others();
 	} else {
 		log_debug_msg(LOG_DEBUG, "Requesting sysinfo for node %s", hash_of_target);
 		ret = _np_get_sysinfo_from_cache(hash_of_target, -1);
