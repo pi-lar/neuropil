@@ -39,6 +39,7 @@
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_message.h"
+#include "np_messagepart.h"
 #include "np_memory.h"
 #include "np_node.h"
 #include "np_threads.h"
