@@ -133,18 +133,48 @@ void np_mem_unrefobj(np_obj_t* obj)
 void np_mem_printpool()
 {
     log_msg(LOG_TRACE, "start: void np_mem_printpool(){");
+
+    _LOCK_MODULE(np_memory_t) {
+
+		uint64_t summary[100] = {
+				0,0,0,0,0,0,0,0,0,0,
+				0,0,0,0,0,0,0,0,0,0,
+				0,0,0,0,0,0,0,0,0,0,
+				0,0,0,0,0,0,0,0,0,0,
+				0,0,0,0,0,0,0,0,0,0,
+				0,0,0,0,0,0,0,0,0,0,
+				0,0,0,0,0,0,0,0,0,0,
+				0,0,0,0,0,0,0,0,0,0,
+				0,0,0,0,0,0,0,0,0,0,
+				0,0,0,0,0,0,0,0,0,0
+		};
+
 		printf("\n--- used memory table---\n");
 		for (np_obj_t* iter = __np_obj_pool_ptr->first; iter != NULL; iter = iter->next )
 		{
-			printf("obj %p (type %d ptr %p ref_count %d):(next -> %p)\n", iter, iter->type, iter->ptr, iter->ref_count, iter->next );
+			summary[iter->type]++;
+			//printf("obj %p (type %d ptr %p ref_count %d):(next -> %p)\n", iter, iter->type, iter->ptr, iter->ref_count, iter->next );
 		}
 		printf("--- free memory table---\n");
 		for (np_obj_t* iter = __np_obj_pool_ptr->free_obj; iter != NULL; iter = iter->next )
 		{
-			printf("obj %p (type %d ptr %p ref_count %d):(next -> %p)\n", iter, iter->type, iter->ptr, iter->ref_count, iter->next );
+			//printf("obj %p (type %d ptr %p ref_count %d):(next -> %p)\n", iter, iter->type, iter->ptr, iter->ref_count, iter->next );
 		}
 		printf("--- memory summary---\n");
 		printf("first %p, free %p, current %p\n", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current);
 		printf("size %d            available %d\n", __np_obj_pool_ptr->size, __np_obj_pool_ptr->available);
+
+		printf("np_none_t_e        count %d \n", 	summary[np_none_t_e]);
+		printf("np_message_t_e     count %d \n", 	summary[np_message_t_e]);
+		printf("np_messagepart_t_e count %d \n", 	summary[np_messagepart_t_e]);
+		printf("np_node_t_e        count %d \n", 	summary[np_node_t_e]);
+		printf("np_key_t_e         count %d \n", 	summary[np_key_t_e]);
+		printf("np_aaatoken_t_e    count %d \n", 	summary[np_aaatoken_t_e]);
+		printf("np_msgproperty_t_e count %d \n", 	summary[np_msgproperty_t_e]);
+		printf("np_http_t_e        count %d \n", 	summary[np_http_t_e]);
+		printf("np_network_t_e     count %d \n", 	summary[np_network_t_e]);
+		printf("test_struct_t_e    count %d \n", 	summary[test_struct_t_e]);
+
 		printf("--- memory end---\n");
+    }
 }

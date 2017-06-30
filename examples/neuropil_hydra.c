@@ -38,7 +38,7 @@
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
-#define NUM_HOST 15
+#define NUM_HOST 3
 
 extern char *optarg;
 extern int optind;
@@ -181,8 +181,12 @@ int main(int argc, char **argv)
 			   \code
 			 */
 			np_start_job_queue(10);
+			uint32_t i = 0;
 			while (TRUE) {
 			    ev_sleep(0.1);
+			    if(i++ % 10 == 0){
+			    	np_mem_printpool();
+			    }
 			}
 			/**
 
@@ -192,7 +196,7 @@ int main(int argc, char **argv)
 		fprintf(stdout, "Bootstrap host node: %s\n", bootstrap_hostnode);
 		if (NULL == bootstrap_hostnode) {
 			fprintf(stderr, "Bootstrap host node could not start ... exit\n");
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 	}
 
