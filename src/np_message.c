@@ -67,6 +67,7 @@ void _np_message_t_new(void* msg)
 	msg_tmp->no_of_chunks = 1;
 	msg_tmp->is_single_part = FALSE;
 
+	_np_threads_mutex_init(&msg_tmp->msg_chunks_lock);
 	pll_init(np_messagepart_ptr, msg_tmp->msg_chunks);
 }
 
@@ -97,18 +98,20 @@ void _np_message_t_del(void* data)
 	np_tree_free(msg->footer);
 
 	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free msg_chunks",msg->uuid);
-	if (0 < pll_size(msg->msg_chunks))
-	{
-		pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
-		while (NULL != iter)
+	_LOCK_ACCESS(&msg->msg_chunks_lock){
+		if (0 < pll_size(msg->msg_chunks))
 		{
-			np_messagepart_ptr current_part = iter->val;
-			np_unref_obj(np_messagepart_t, current_part);
-			pll_next(iter);
+			pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
+			while (NULL != iter)
+			{
+				np_messagepart_ptr current_part = iter->val;
+				np_unref_obj(np_messagepart_t, current_part);
+				pll_next(iter);
+			}
 		}
+		pll_free(np_messagepart_ptr, msg->msg_chunks);
 	}
-	pll_free(np_messagepart_ptr, msg->msg_chunks);
-
+	_np_threads_mutex_destroy(&msg->msg_chunks_lock);
 	free(msg->uuid);
 }
 
@@ -165,15 +168,21 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 		if (NULL != np_tree_find_str(state->msg_part_cache, msg_uuid))
 		{
 			msg_to_submit = np_tree_find_str(state->msg_part_cache, msg_uuid)->val.value.v;
-			np_messagepart_ptr to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks);
+			np_messagepart_ptr to_add = NULL;
+			_LOCK_ACCESS(&msg_to_check->msg_chunks_lock){
+				to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks);
+				np_ref_obj(np_messagepart_t, to_add);
+			}
 			log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
 					"message (%s) %p / %p / %p", msg_uuid, msg_to_submit, msg_to_submit->msg_chunks, to_add);
 
+			_LOCK_ACCESS(&msg_to_submit->msg_chunks_lock) {
+				// insert new
+				if(FALSE == pll_insert(np_messagepart_ptr, msg_to_submit->msg_chunks, to_add, FALSE, _np_messagepart_cmp)) {
+					// new entry is rejected (already present)
 
-			// insert new
-			if(FALSE == pll_insert(np_messagepart_ptr, msg_to_submit->msg_chunks, to_add, FALSE, _np_messagepart_cmp)) {
-				// new entry is rejected (already present)
-
+				}
+				np_unref_obj(np_messagepart_t, to_add);
 			}
 		}
 		else
@@ -185,7 +194,11 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 	//				"message (%s)  %p / %p", msg_uuid, args->msg, args->msg->msg_chunks);
 		}
 
-		if (pll_size(msg_to_submit->msg_chunks) < msg_chunks)
+		uint32_t size =0;
+		_LOCK_ACCESS(&msg_to_submit->msg_chunks_lock){
+			size = pll_size(msg_to_submit->msg_chunks) ;
+		}
+		if (size < msg_chunks)
 		{
 			log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
 					"message %s (%s) not complete yet (%d of %d), waiting for missing parts",
@@ -215,7 +228,10 @@ np_bool _np_message_serialize(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_serialize(np_jobargs_t* args){");
 	cmp_ctx_t cmp;
-	np_messagepart_ptr part = pll_first(args->msg->msg_chunks)->val;
+	np_messagepart_ptr part = NULL;
+	_LOCK_ACCESS(&args->msg->msg_chunks_lock){
+		part = pll_first(args->msg->msg_chunks)->val;
+	}
 	// we simply override the header and instructions part for a single part message here
 	// the byte size should be the same as before
     cmp_init(&cmp, part->msg_part, _np_buffer_reader, _np_buffer_writer);
@@ -242,17 +258,20 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 	np_bool ret_val = FALSE;
 	np_message_t* msg = args->msg;
 
+
 	// clean up any old chunking
-	if (0 < pll_size(msg->msg_chunks))
-	{
-		pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
-		while (NULL != iter)
+	_LOCK_ACCESS(&msg->msg_chunks_lock){
+		if (0 < pll_size(msg->msg_chunks))
 		{
-			np_messagepart_ptr current_part = iter->val;
-			np_unref_obj(np_messagepart_t, current_part);
-			pll_next(iter);
+			pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
+			while (NULL != iter)
+			{
+				np_messagepart_ptr current_part = iter->val;
+				np_unref_obj(np_messagepart_t, current_part);
+				pll_next(iter);
+			}
+			pll_clear(np_messagepart_ptr, msg->msg_chunks);
 		}
-		pll_clear(np_messagepart_ptr, msg->msg_chunks);
 	}
 
 	// TODO: optimize, more streaming
@@ -526,8 +545,10 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 		i++;
 
 		// insert new
-		if(FALSE == pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp)){
-			// new entry is rejected (already present)
+		_LOCK_ACCESS(&msg->msg_chunks_lock){
+			if(FALSE == pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp)){
+				// new entry is rejected (already present)
+			}
 		}
 
 		// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-------------------------" );
@@ -613,10 +634,11 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 		part->part = chunk_id;
 		part->msg_part = buffer;
 
-
-		// insert new
-		if(FALSE == pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp)){
-			// new entry is rejected (already present)
+		_LOCK_ACCESS(&msg->msg_chunks_lock){
+			// insert new
+			if(FALSE == pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp)){
+				// new entry is rejected (already present)
+			}
 		}
 
 		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "received message part (%d / %d)", chunk_id, msg->no_of_chunks);
@@ -647,105 +669,107 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-----------------------------------------------------" );
 
-	pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
-	np_messagepart_ptr current_chunk = NULL;
+	_LOCK_ACCESS(&msg->msg_chunks_lock) {
+		pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
+		np_messagepart_ptr current_chunk = NULL;
 
-	while (NULL != iter)
-	{
-		current_chunk = iter->val;
-		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) now working on msg part %d",msg->uuid, current_chunk->part );
-		uint32_t size_properties_add = 0;
-		uint32_t size_body_add = 0;
-		uint32_t size_footer_add = 0;
+		while (NULL != iter)
+		{
+			current_chunk = iter->val;
+			log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) now working on msg part %d",msg->uuid, current_chunk->part );
+			uint32_t size_properties_add = 0;
+			uint32_t size_body_add = 0;
+			uint32_t size_footer_add = 0;
 
-		cmp_ctx_t cmp;
-		_np_message_buffer_container_t buffer_container;
-		buffer_container.buffer = current_chunk->msg_part;
-		buffer_container.bufferCount = 0;
-		buffer_container.bufferMaxCount = MSG_CHUNK_SIZE_1024;
-		buffer_container.message = msg;
+			cmp_ctx_t cmp;
+			_np_message_buffer_container_t buffer_container;
+			buffer_container.buffer = current_chunk->msg_part;
+			buffer_container.bufferCount = 0;
+			buffer_container.bufferMaxCount = MSG_CHUNK_SIZE_1024;
+			buffer_container.message = msg;
 
-		cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_writer);
-		//cmp_init(&cmp, current_chunk->msg_part, _np_buffer_reader, _np_buffer_writer);
+			cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_writer);
+			//cmp_init(&cmp, current_chunk->msg_part, _np_buffer_reader, _np_buffer_writer);
 
-		uint32_t array_size;
-		if (!cmp_read_array(&cmp, &array_size)) return (0);
-		if (array_size != 5)
-		{
-			log_msg(LOG_WARN, "(msg:%s) unrecognized message length while deserializing message", msg->uuid);
-			return (FALSE);
-		}
+			uint32_t array_size;
+			if (!cmp_read_array(&cmp, &array_size)) return (0);
+			if (array_size != 5)
+			{
+				log_msg(LOG_WARN, "(msg:%s) unrecognized message length while deserializing message", msg->uuid);
+				return (FALSE);
+			}
 
-		if ( 0 == msg->header->size)
-		{
-			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg header", msg->uuid);
-			_np_tree_deserialize(msg->header, &cmp);
-			// TODO: check if the complete buffer was read (byte count match)
-		}
-		else
-		{
-			((_np_message_buffer_container_t*)cmp.buf)->buffer += msg->header->byte_size;
-			((_np_message_buffer_container_t*)cmp.buf)->bufferCount += msg->header->byte_size;
-		}
+			if ( 0 == msg->header->size)
+			{
+				log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg header", msg->uuid);
+				_np_tree_deserialize(msg->header, &cmp);
+				// TODO: check if the complete buffer was read (byte count match)
+			}
+			else
+			{
+				((_np_message_buffer_container_t*)cmp.buf)->buffer += msg->header->byte_size;
+				((_np_message_buffer_container_t*)cmp.buf)->bufferCount += msg->header->byte_size;
+			}
 
-		if ( 0 == msg->instructions->size)
-		{
-			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg instructions", msg->uuid);
-			_np_tree_deserialize(msg->instructions, &cmp);
-			// TODO: check if the complete buffer was read (byte count match)
-		}
-		else
-		{
-			((_np_message_buffer_container_t*)cmp.buf)->buffer += msg->instructions->byte_size;
-			((_np_message_buffer_container_t*)cmp.buf)->bufferCount += msg->instructions->byte_size;
-		}
-		cmp_read_bin_size(&cmp, &size_properties_add);
-		if (0 < size_properties_add)
-		{
-			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) adding properties part size %u", msg->uuid, size_properties_add);
-			size_properties += size_properties_add;
-			bin_properties = realloc(bin_properties, size_properties);
-			bin_properties_ptr = bin_properties + (size_properties - size_properties_add);
-			cmp.read(&cmp, bin_properties_ptr, size_properties_add);
-		}
-		else
-		{
-			// buffer_container.buffer += size_properties_add;
-			// buffer_container.bufferCount += size_properties_add;
-		}
+			if ( 0 == msg->instructions->size)
+			{
+				log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg instructions", msg->uuid);
+				_np_tree_deserialize(msg->instructions, &cmp);
+				// TODO: check if the complete buffer was read (byte count match)
+			}
+			else
+			{
+				((_np_message_buffer_container_t*)cmp.buf)->buffer += msg->instructions->byte_size;
+				((_np_message_buffer_container_t*)cmp.buf)->bufferCount += msg->instructions->byte_size;
+			}
+			cmp_read_bin_size(&cmp, &size_properties_add);
+			if (0 < size_properties_add)
+			{
+				log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) adding properties part size %u", msg->uuid, size_properties_add);
+				size_properties += size_properties_add;
+				bin_properties = realloc(bin_properties, size_properties);
+				bin_properties_ptr = bin_properties + (size_properties - size_properties_add);
+				cmp.read(&cmp, bin_properties_ptr, size_properties_add);
+			}
+			else
+			{
+				// buffer_container.buffer += size_properties_add;
+				// buffer_container.bufferCount += size_properties_add;
+			}
 
-		cmp_read_bin_size(&cmp, &size_body_add);
-		if (0 < size_body_add)
-		{
-			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) adding body part size %u", msg->uuid, size_body_add);
-			size_body += size_body_add;
-			bin_body = realloc(bin_body, size_body);
-			bin_body_ptr = bin_body + (size_body - size_body_add);
-			cmp.read(&cmp, bin_body_ptr, size_body_add);
-		}
-		else
-		{
-			// buffer_container.buffer += size_body_add;
-			// buffer_container.bufferCount += size_body_add;
-		}
+			cmp_read_bin_size(&cmp, &size_body_add);
+			if (0 < size_body_add)
+			{
+				log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) adding body part size %u", msg->uuid, size_body_add);
+				size_body += size_body_add;
+				bin_body = realloc(bin_body, size_body);
+				bin_body_ptr = bin_body + (size_body - size_body_add);
+				cmp.read(&cmp, bin_body_ptr, size_body_add);
+			}
+			else
+			{
+				// buffer_container.buffer += size_body_add;
+				// buffer_container.bufferCount += size_body_add;
+			}
 
-		cmp_read_bin_size(&cmp, &size_footer_add);
-		if (0 < size_footer_add)
-		{
-			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) adding footer part size %u", msg->uuid, size_footer_add);
-			size_footer += size_footer_add;
-			bin_footer = realloc(bin_footer, size_footer);
-			bin_footer_ptr = bin_footer + (size_footer - size_footer_add);
-			cmp.read(&cmp, bin_footer_ptr, size_footer_add);
-		}
-		else
-		{
-			// buffer_container.buffer += size_footer_add;
-			// buffer_container.bufferCount += size_footer_add;
-		}
+			cmp_read_bin_size(&cmp, &size_footer_add);
+			if (0 < size_footer_add)
+			{
+				log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) adding footer part size %u", msg->uuid, size_footer_add);
+				size_footer += size_footer_add;
+				bin_footer = realloc(bin_footer, size_footer);
+				bin_footer_ptr = bin_footer + (size_footer - size_footer_add);
+				cmp.read(&cmp, bin_footer_ptr, size_footer_add);
+			}
+			else
+			{
+				// buffer_container.buffer += size_footer_add;
+				// buffer_container.bufferCount += size_footer_add;
+			}
 
-		// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-------------------------" );
-		pll_next(iter);
+			// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-------------------------" );
+			pll_next(iter);
+		}
 	}
 
 	if (NULL != bin_properties)
@@ -774,18 +798,19 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		// TODO: check if the complete buffer was read (byte count match)
 	}
 
-	if (0 < pll_size(msg->msg_chunks))
-	{
-		pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
-		while (NULL != iter)
+	_LOCK_ACCESS(&msg->msg_chunks_lock) {
+		if (0 < pll_size(msg->msg_chunks))
 		{
-			np_messagepart_ptr current_part = iter->val;
-			np_unref_obj(np_messagepart_t, current_part);
-			pll_next(iter);
+			pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
+			while (NULL != iter)
+			{
+				np_messagepart_ptr current_part = iter->val;
+				np_unref_obj(np_messagepart_t, current_part);
+				pll_next(iter);
+			}
+			pll_clear(np_messagepart_ptr, msg->msg_chunks);
 		}
-		pll_clear(np_messagepart_ptr, msg->msg_chunks);
 	}
-
 	uint16_t fixed_size =
 			MSG_ARRAY_SIZE + MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
 			msg->header->byte_size + msg->instructions->byte_size;

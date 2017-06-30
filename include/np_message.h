@@ -31,6 +31,8 @@ struct np_message_s
 	np_bool is_single_part;
 	uint16_t no_of_chunks;
 	np_pll_t(np_messagepart_ptr, msg_chunks);
+	np_mutex_t msg_chunks_lock;
+
 } NP_API_INTERN;
 
 struct _np_message_buffer_container_s

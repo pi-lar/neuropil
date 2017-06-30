@@ -324,78 +324,80 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 		// log_msg(LOG_NETWORKDEBUG, "serialized message to %llu bytes", send_buf_len);
 		uint16_t i = 0;
 
-		pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
-		do
-		{
-			np_tryref_obj(np_messagepart_t, iter->val, hasMsgPart);
-			if(hasMsgPart) {
-				unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
-				CHECK_MALLOC(enc_buffer);
+		_LOCK_ACCESS(&msg->msg_chunks_lock) {
+			pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
+			do
+			{
+				np_tryref_obj(np_messagepart_t, iter->val, hasMsgPart);
+				if(hasMsgPart) {
+					unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
+					CHECK_MALLOC(enc_buffer);
 
-				// add protection from replay attacks ...
-				unsigned char nonce[crypto_secretbox_NONCEBYTES];
-				// TODO: move nonce to np_node_t and re-use it with increments
-				randombytes_buf(nonce, sizeof(nonce));
+					// add protection from replay attacks ...
+					unsigned char nonce[crypto_secretbox_NONCEBYTES];
+					// TODO: move nonce to np_node_t and re-use it with increments
+					randombytes_buf(nonce, sizeof(nonce));
 
-				// char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
-				// sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
-				// log_debug_msg(LOG_DEBUG, "encryption nonce %s", nonce_hex);
+					// char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
+					// sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
+					// log_debug_msg(LOG_DEBUG, "encryption nonce %s", nonce_hex);
 
-				// char session_hex[crypto_scalarmult_SCALARBYTES*2+1];
-				// sodium_bin2hex(session_hex, crypto_scalarmult_SCALARBYTES*2+1, auth_token->session_key, crypto_scalarmult_SCALARBYTES);
-				// log_debug_msg(LOG_DEBUG, "session    key   %s", session_hex);
+					// char session_hex[crypto_scalarmult_SCALARBYTES*2+1];
+					// sodium_bin2hex(session_hex, crypto_scalarmult_SCALARBYTES*2+1, auth_token->session_key, crypto_scalarmult_SCALARBYTES);
+					// log_debug_msg(LOG_DEBUG, "session    key   %s", session_hex);
 
-				// uint64_t enc_msg_len = send_buf_len + crypto_secretbox_MACBYTES;
-				unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
-				int ecryption = crypto_secretbox_easy(enc_msg,
-						(const unsigned char*) iter->val->msg_part,
-						MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
-						nonce,
-						auth_token->session_key);
+					// uint64_t enc_msg_len = send_buf_len + crypto_secretbox_MACBYTES;
+					unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
+					int ecryption = crypto_secretbox_easy(enc_msg,
+							(const unsigned char*) iter->val->msg_part,
+							MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
+							nonce,
+							auth_token->session_key);
 
-				if (ecryption != 0)
-				{
-					log_msg(LOG_NETWORK | LOG_WARN,
-							"incorrect encryption of message (not sending to %s:%s)",
-							node_key->node->dns_name, node_key->node->port);
-					free(enc_buffer);
-					np_unref_obj(np_message_t, msg);
-					return; //  FALSE;
-				}
-
-				uint64_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
-				memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
-				memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
-
-				/* send data */
-				// _LOCK_ACCESS(_np_state()->my_node_key->network) {
-				_LOCK_ACCESS(&node_key->network->lock) {
-					if(NULL != node_key->network->out_events) {
-						// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
-						// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
-						// ret = send (node_key->node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
-						sll_append(void_ptr, node_key->network->out_events, (void*) enc_buffer);
-					} else {
-						free (enc_buffer);
+					if (ecryption != 0)
+					{
+						log_msg(LOG_NETWORK | LOG_WARN,
+								"incorrect encryption of message (not sending to %s:%s)",
+								node_key->node->dns_name, node_key->node->port);
+						free(enc_buffer);
+						np_unref_obj(np_message_t, msg);
+						return; //  FALSE;
 					}
+
+					uint64_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
+					memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
+					memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
+
+					/* send data */
+					// _LOCK_ACCESS(_np_state()->my_node_key->network) {
+					_LOCK_ACCESS(&node_key->network->lock) {
+						if(NULL != node_key->network->out_events) {
+							// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
+							// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
+							// ret = send (node_key->node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
+							sll_append(void_ptr, node_key->network->out_events, (void*) enc_buffer);
+						} else {
+							free (enc_buffer);
+						}
+					}
+
+					// if (ret < 0)
+					// {
+					// log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
+					// return FALSE;
+					// }
+					// else
+					// {
+					// log_msg (LOG_NETWORKDEBUG, "sent message");
+					// }
+
+					np_unref_obj(np_messagepart_t, iter->val);
+					pll_next(iter);
 				}
+				i++;
 
-				// if (ret < 0)
-				// {
-				// log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
-				// return FALSE;
-				// }
-				// else
-				// {
-				// log_msg (LOG_NETWORKDEBUG, "sent message");
-				// }
-
-				np_unref_obj(np_messagepart_t, iter->val);
-				pll_next(iter);
-			}
-			i++;
-
-		} while (NULL != iter);
+			} while (NULL != iter);
+		}
 		np_unref_obj(np_message_t, msg);
 	}
 	return; // TRUE;

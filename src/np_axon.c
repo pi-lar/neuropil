@@ -426,7 +426,9 @@ void _np_send_handshake(np_jobargs_t* args)
 		CHECK_MALLOC(packet);
 
 		memset(packet, 0, 1024);
-		memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
+		_LOCK_ACCESS(&hs_message->msg_chunks_lock){
+			memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
+		}
 
 		_LOCK_ACCESS(&args->target->network->lock)
 		{
