@@ -16,7 +16,7 @@
 #include "json/parson.h"
 
 #include "np_log.h"
-#include "np_log.h"
+#include "np_memory.h"
 #include "neuropil.h"
 #include "np_glia.h"
 #include "np_http.h"
@@ -28,6 +28,7 @@
 #include "np_threads.h"
 #include "np_util.h"
 #include "np_dhkey.h"
+#include "np_key.h"
 #include "np_keycache.h"
 #include "np_treeval.h"
 #include "np_sysinfo.h"
@@ -276,12 +277,14 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 			int http_status = HTTP_CODE_OK;
 			char* response;
 			JSON_Value* json_obj;
+			np_key_t*  key = NULL;
 
 			/**
 			 * Default behavior if no argument is given: display own node informations
 			 */
 			log_debug_msg(LOG_DEBUG, "parse arguments of %s",
 					__local_http->ht_request.ht_path);
+
 
 			if ( NULL != __local_http->ht_request.ht_path) {
 				log_debug_msg(LOG_DEBUG, "request has arguments");
@@ -308,37 +311,42 @@ void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {
 				log_debug_msg(LOG_DEBUG, "no arguments provided");
 			}
 
-			np_key_t*  key = _np_state()->my_node_key;
-			np_ref_obj(np_key_t, key);
+			key = _np_state()->my_node_key;
+			np_tryref_obj(np_key_t, key,keyExisits);
+			if(keyExisits) {
+				char* my_key = _np_key_as_str(key);
+				if (usedefault) {
+					log_debug_msg(LOG_DEBUG, "using own node as info system");
+					sprintf(target_hash, "%s",my_key);
+				}
+				target_hash[64] = '\0';
+				np_tree_t* sysinfo = NULL;
+				sysinfo = np_get_sysinfo(target_hash);
 
-			char* my_key = _np_key_as_str(key);
-			if (usedefault) {
-				log_debug_msg(LOG_DEBUG, "using own node as info system");
-				sprintf(target_hash, "%s",my_key);
+				if (NULL == sysinfo) {
+					log_debug_msg(LOG_DEBUG, "Could not find system informations");
+					http_status = HTTP_CODE_ACCEPTED;
+					json_obj = _np_generate_error_json("key not found.",
+							"update request is send. please wait.");
+				} else {
+					log_debug_msg(LOG_DEBUG, "sysinfo response tree (byte_size: %"PRIu64,
+							sysinfo->byte_size);
+					log_debug_msg(LOG_DEBUG, "sysinfo response tree (size: %"PRIu16,
+							sysinfo->size);
+
+					log_debug_msg(LOG_DEBUG, "Convert sysinfo to json");
+					json_obj = np_tree2json(sysinfo);
+					log_debug_msg(LOG_DEBUG, "cleanup");
+					np_tree_free(sysinfo);
+				}
+			}else{
+				http_status = HTTP_CODE_SERVICE_UNAVAILABLE;
+				json_obj = _np_generate_error_json("refreshing own key",
+						"Refreshing own key. please wait.");
 			}
-			target_hash[64] = '\0';
-			np_tree_t* sysinfo = NULL;
-			sysinfo = np_get_sysinfo(target_hash);
-
-			if (NULL == sysinfo) {
-				log_debug_msg(LOG_DEBUG, "Could not find system informations");
-				http_status = HTTP_CODE_ACCEPTED;
-				json_obj = _np_generate_error_json("key not found.",
-						"update request is send. please wait.");
-			} else {
-				log_debug_msg(LOG_DEBUG, "sysinfo response tree (byte_size: %"PRIu64,
-						sysinfo->byte_size);
-				log_debug_msg(LOG_DEBUG, "sysinfo response tree (size: %"PRIu16,
-						sysinfo->size);
-
-				log_debug_msg(LOG_DEBUG, "Convert sysinfo to json");
-				json_obj = np_tree2json(sysinfo);
-				log_debug_msg(LOG_DEBUG, "cleanup");
-				np_tree_free(sysinfo);
-			}
-
 			__json_return__:
 			np_unref_obj(np_key_t, key);
+
 			log_debug_msg(LOG_DEBUG, "serialise json response");
 			if (NULL == json_obj) {
 				log_msg(LOG_ERROR,
