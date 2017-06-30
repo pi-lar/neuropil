@@ -14,6 +14,7 @@
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_tree.h"
+#include "np_key.h"
 #include "np_keycache.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
@@ -370,10 +371,10 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 		if (NULL == subject_key->send_tokens)
 			pll_init(np_aaatoken_ptr, subject_key->send_tokens);
 
+
 		np_msgproperty_t* send_prop = np_msgproperty_get(OUTBOUND, subject);
-		if (NULL != send_prop && NULL == subject_key->send_property)
-		{
-			subject_key->send_property = send_prop;
+		if (NULL != send_prop && NULL == subject_key->send_property){
+				subject_key->send_property = send_prop;
 		}
 		else
 		{
@@ -381,9 +382,8 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 		}
 
 		np_msgproperty_t* recv_prop = np_msgproperty_get(INBOUND, subject);
-		if (NULL != recv_prop && NULL == subject_key->recv_property)
-		{
-			subject_key->recv_property = recv_prop;
+		if (NULL != recv_prop && NULL == subject_key->recv_property){
+				subject_key->recv_property = recv_prop;
 		}
 		else
 		{
@@ -392,11 +392,27 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 
 		if (TRUE == create_new_prop)
 		{
-			np_new_obj(np_msgproperty_t, prop);
-			if (NULL == subject_key->send_property)
+		    log_debug_msg(LOG_DEBUG, "creating ledger property for %s", subject);
+
+		    if(send_prop != NULL){
+		    	prop = send_prop;
+		    }else{
+		    	if(recv_prop != NULL){
+					prop = recv_prop;
+				}else{
+					np_new_obj(np_msgproperty_t, prop);
+				}
+		    }
+		    prop->msg_subject = subject;
+			if (NULL == subject_key->send_property) {
+				prop->mode_type |= OUTBOUND;
 				subject_key->send_property = prop;
-			if (NULL == subject_key->recv_property)
+			}
+			if (NULL == subject_key->recv_property){
+				prop->mode_type |= INBOUND;
 				subject_key->recv_property = prop;
+			}
+			np_msgproperty_register(prop);
 		}
 	}
 }
