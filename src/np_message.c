@@ -169,10 +169,12 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 			log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
 					"message (%s) %p / %p / %p", msg_uuid, msg_to_submit, msg_to_submit->msg_chunks, to_add);
 
-			// remove any existing
-			pll_remove(np_messagepart_ptr,msg_to_submit->msg_chunks, to_add, _np_messagepart_cmp);
+
 			// insert new
-			pll_insert(np_messagepart_ptr, msg_to_submit->msg_chunks, to_add, FALSE, _np_messagepart_cmp);
+			if(FALSE == pll_insert(np_messagepart_ptr, msg_to_submit->msg_chunks, to_add, FALSE, _np_messagepart_cmp)) {
+				// new entry is rejected (already present)
+
+			}
 		}
 		else
 		{
@@ -523,10 +525,10 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 		//  		(max_chunk_size - current_chunk_size), current_chunk_size );
 		i++;
 
-		// remove any existing
-		pll_remove(np_messagepart_ptr,msg->msg_chunks, part, _np_messagepart_cmp);
 		// insert new
-		pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp);
+		if(FALSE == pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp)){
+			// new entry is rejected (already present)
+		}
 
 		// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-------------------------" );
 	}
@@ -611,10 +613,11 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 		part->part = chunk_id;
 		part->msg_part = buffer;
 
-		// remove any existing
-		pll_remove(np_messagepart_ptr,msg->msg_chunks, part, _np_messagepart_cmp);
+
 		// insert new
-		pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp);
+		if(FALSE == pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp)){
+			// new entry is rejected (already present)
+		}
 
 		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "received message part (%d / %d)", chunk_id, msg->no_of_chunks);
 
