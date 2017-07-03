@@ -74,11 +74,14 @@ void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 	}
 	sll_free(np_key_t, sll_routing_tbl);
 
+	log_msg(LOG_DEBUG, "Check for rejoin result: %s necessary",(rejoin == TRUE ?"":"not"));
+
 	if(TRUE == rejoin
 			// check for state availibility to prevent test issues. TODO: Make network objects mockable
 			&& _np_state() != NULL) {
 		np_key_t* bootstrap = np_route_get_bootstrap_key();
 		if(NULL != bootstrap) {
+		    log_msg(LOG_WARN, "lost all connections. try to reconnect to bootstrap host");
 			char* connection_str = np_get_connection_string_from(bootstrap, FALSE);
 			np_send_wildcard_join(connection_str);
 			free(connection_str);
@@ -86,7 +89,7 @@ void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 	}
 
 	// Reschedule myself
-    np_job_submit_event(10, _np_event_rejoin_if_necessary);
+    np_job_submit_event(1, _np_event_rejoin_if_necessary);
 }
 /**
  ** _np_events_read

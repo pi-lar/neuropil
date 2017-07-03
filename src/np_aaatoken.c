@@ -373,24 +373,10 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 
 
 		np_msgproperty_t* send_prop = np_msgproperty_get(OUTBOUND, subject);
-		if (NULL != send_prop && NULL == subject_key->send_property){
-				subject_key->send_property = send_prop;
-		}
-		else
-		{
-			create_new_prop |= TRUE;
-		}
-
 		np_msgproperty_t* recv_prop = np_msgproperty_get(INBOUND, subject);
-		if (NULL != recv_prop && NULL == subject_key->recv_property){
-				subject_key->recv_property = recv_prop;
-		}
-		else
-		{
-			create_new_prop |= TRUE;
-		}
 
-		if (TRUE == create_new_prop)
+		if (send_prop == NULL || recv_prop == NULL
+		||  subject_key->send_property == NULL || subject_key->recv_property == NULL)
 		{
 		    log_debug_msg(LOG_DEBUG, "creating ledger property for %s", subject);
 
@@ -399,16 +385,18 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 		    } else {
 		    	if(recv_prop != NULL) {
 					prop = recv_prop;
-				}else{
+				} else {
 					np_new_obj(np_msgproperty_t, prop);
 				}
 		    }
 		    prop->msg_subject = strndup(subject, 255);
 			if (NULL == subject_key->send_property) {
+				np_ref_obj(np_msgproperty_t, prop);
 				prop->mode_type |= OUTBOUND;
 				subject_key->send_property = prop;
 			}
 			if (NULL == subject_key->recv_property){
+				np_ref_obj(np_msgproperty_t, prop);
 				prop->mode_type |= INBOUND;
 				subject_key->recv_property = prop;
 			}

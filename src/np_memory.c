@@ -173,7 +173,7 @@ void np_mem_printpool()
 		}
 		printf("--- memory summary---\n");
 		printf("first %p, free %p, current %p\n", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current);
-		printf("size %d            available %d\n", __np_obj_pool_ptr->size, __np_obj_pool_ptr->available);
+		printf("size %d, in use %d,  available %d\n", __np_obj_pool_ptr->size, __np_obj_pool_ptr->size - __np_obj_pool_ptr->available,__np_obj_pool_ptr->available);
 
 		printf("np_none_t_e        count %d \n", 	summary[np_none_t_e]);
 		printf("np_message_t_e     count %d \n", 	summary[np_message_t_e]);

@@ -101,7 +101,12 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 //			prop2->msg_subject, prop2->mode_type );
 
 	// TODO: check how to use bitmasks with red-black-tree efficiently
-	int16_t i = strncmp(prop1->msg_subject, prop2->msg_subject, 255);
+	int16_t i = 1;
+	if(prop1 == NULL || prop1->msg_subject == NULL || prop2 == NULL || prop2->msg_subject == NULL){
+		log_msg(LOG_ERROR,"Comparing properties where one is NULL");
+	}else{
+		i = strncmp(prop1->msg_subject, prop2->msg_subject, 255);
+	}
 
 	if (0 == i)
 	{
@@ -132,6 +137,8 @@ void np_msgproperty_register(np_msgproperty_t* msgprops)
 {
     log_msg(LOG_TRACE, "start: void np_msgproperty_register(np_msgproperty_t* msgprops){");
 	log_debug_msg(LOG_DEBUG, "registering user property: %s", msgprops->msg_subject);
+
+	np_ref_obj(np_msgproperty_t, msgprops);
 	RB_INSERT(rbt_msgproperty, __msgproperty_table, msgprops);
 }
 
@@ -178,9 +185,8 @@ void _np_msgproperty_t_del(void* property)
     log_msg(LOG_TRACE, "start: void _np_msgproperty_t_del(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
-	if(prop == NULL) {
-		log_msg(LOG_ERROR, "msgproperty is already NULL and cannot be deleted additional times");
-	}
+    log_debug_msg(LOG_DEBUG, "Deleting msgproperty %s",prop->msg_subject);
+
 	assert(prop != NULL);
 
 	_LOCK_ACCESS(&prop->lock){

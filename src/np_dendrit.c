@@ -847,6 +847,8 @@ void _np_in_join_ack(np_jobargs_t* args)
 		out_props = np_msgproperty_get(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
 		_np_job_submit_route_event(0.0, out_props, elem, msg_out);
 
+		// TODO: Check ref
+		//np_unref_obj(np_message_t, msg_out);
 		np_unref_obj(np_key_t, elem);
 	}
 	sll_free(np_key_t, node_keys);

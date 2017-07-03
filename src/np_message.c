@@ -192,6 +192,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 			np_tree_insert_str(state->msg_part_cache, msg_uuid, np_treeval_new_v(msg_to_check));
 			msg_to_submit = msg_to_check;
 			np_ref_obj(np_message_t, msg_to_check);
+
 	//		log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
 	//				"message (%s)  %p / %p", msg_uuid, args->msg, args->msg->msg_chunks);
 		}

@@ -24,6 +24,8 @@ extern "C" {
 
 struct np_key_s
 {
+	double created_at;
+
     np_obj_t* obj;              // link to memory management and ref counter
     SPLAY_ENTRY(np_key_s) link; // link for cache management
 

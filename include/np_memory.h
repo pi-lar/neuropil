@@ -114,8 +114,8 @@ struct np_obj_s
 		assert (np_obj->obj != NULL);               																				\
 		if(np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"ref obj is wrong type %d != %d",np_obj->obj->type, TYPE##_e);			\
         assert (np_obj->obj->type == TYPE##_e);     																				\
-        if(np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");													\
-        assert (np_obj->obj->ptr != NULL);          																				\
+        if(!np_obj->obj->persistent && np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");													\
+        assert (np_obj->obj->persistent  || np_obj->obj->ptr != NULL);          																				\
         np_mem_unrefobj(np_obj->obj);               																				\
         if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) { \
 	      if (np_obj->obj->type != np_none_t_e)     																				\

@@ -12,6 +12,7 @@
 
 #include "neuropil.h"
 
+#include "event/ev.h"
 #include "sodium.h"
 
 #include "np_log.h"
@@ -79,6 +80,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
 			_np_network_stop(to_destroy->network);
 
+
 			// delete old receive tokens
 			if (NULL != to_destroy->recv_tokens)
 			{
@@ -92,15 +94,15 @@ void _np_key_destroy(np_key_t* to_destroy) {
 							pll_next(iter);
 						}
 						pll_free(np_aaatoken_ptr, to_destroy->recv_tokens);
+						to_destroy->recv_tokens = NULL;
 					}
-					np_unref_obj(np_msgproperty_t, to_destroy->recv_property);
 				}
 			}
 
 			// delete send tokens
 			if (NULL != to_destroy->send_tokens)
 			{
-				if(to_destroy->send_property != NULL){
+				if(to_destroy->send_property != NULL) {
 					_LOCK_ACCESS(&to_destroy->send_property->lock)
 					{
 						pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->send_tokens);
@@ -110,21 +112,22 @@ void _np_key_destroy(np_key_t* to_destroy) {
 							pll_next(iter);
 						}
 						pll_free(np_aaatoken_ptr, to_destroy->send_tokens);
+						to_destroy->send_tokens = NULL;
 					}
-					np_unref_obj(np_msgproperty_t, to_destroy->send_property);
 				}
 			}
-
-			np_sll_t(np_key_t, aliasse)  = _np_keycache_find_aliase(to_destroy);
-			sll_iterator(np_key_t) iter = sll_first(aliasse);
-
-			while(iter != NULL) {
-				_np_key_destroy(iter->val);
-				np_unref_obj(np_key_t, iter->val);
-				sll_next(iter);
-			}
 		}
-		np_unref_obj(np_key_t, to_destroy);
+
+		np_sll_t(np_key_t, aliasse)  = _np_keycache_find_aliase(to_destroy);
+		sll_iterator(np_key_t) iter = sll_first(aliasse);
+
+		while(iter != NULL) {
+			_np_key_destroy(iter->val);
+			np_unref_obj(np_key_t, iter->val); // _np_keycache_find_aliase
+			sll_next(iter);
+		}
+
+		np_unref_obj(np_key_t, to_destroy); // np_tryref_obj
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
 	} else {
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "no key provided for cleanup");
@@ -155,6 +158,7 @@ void _np_key_t_new(void* key)
     new_key->recv_tokens = NULL; // link to runtime interest data on which this node is interested in
 
     new_key->parent = NULL;
+    new_key->created_at = ev_time();
 }
 
 void _np_key_t_del(void* key)
@@ -162,7 +166,7 @@ void _np_key_t_del(void* key)
     log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_del(void* key){");
 	np_key_t* old_key = (np_key_t*) key;
 
-    // log_msg(LOG_WARN, "destructor of key %p -> %s called ", old_key, _key_as_str(old_key));
+	//_np_key_destroy(old_key);
 
 	// delete string presentation of key
 	if (NULL != old_key->dhkey_str)
@@ -170,13 +174,16 @@ void _np_key_t_del(void* key)
 		free (old_key->dhkey_str);
 		old_key->dhkey_str = NULL;
 	}
+
 	// unref and delete of other object pointers has to be done outside of this function
 	// otherwise double locking the memory pool will lead to a deadlock
 
-	// delete old network structure
-	if (NULL != old_key->aaa_token) np_unref_obj(np_aaatoken_t, old_key->aaa_token);
-	if (NULL != old_key->node)      np_unref_obj(np_node_t,     old_key->node);
-	if (NULL != old_key->network)   np_unref_obj(np_network_t,  old_key->network);
+
+	np_unref_obj(np_msgproperty_t, 	old_key->recv_property);
+	np_unref_obj(np_msgproperty_t, 	old_key->send_property);
+	np_unref_obj(np_aaatoken_t,		old_key->aaa_token);
+	np_unref_obj(np_node_t,     	old_key->node);
+	np_unref_obj(np_network_t,  	old_key->network);
 
 
 }

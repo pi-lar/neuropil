@@ -16,6 +16,7 @@
 #include "dtime.h"
 #include "neuropil.h"
 #include "np_keycache.h"
+#include "np_key.h"
 #include "np_memory.h"
 #include "np_msgproperty.h"
 #include "np_message.h"
@@ -64,9 +65,10 @@ void _np_job_free (np_job_t * n)
 np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop)
 {
     log_msg(LOG_TRACE, "start: np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop){");
-	assert( (msg == NULL)  || ( msg->obj->type == np_message_t_e)       );
-	assert( (key == NULL)  || ( key->obj->type == np_key_t_e)           );
- 	assert( (prop == NULL) || ( prop->obj->type == np_msgproperty_t_e ) );
+
+    np_tryref_obj(np_message_t, msg, hasMsg);
+	np_tryref_obj(np_key_t, key, hasKey);
+	np_tryref_obj(np_msgproperty_t, prop, hasProp);
 
 	// create runtime arguments
 	np_jobargs_t* jargs = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
@@ -78,6 +80,17 @@ np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproper
 	jargs->properties = prop;
 
 	return (jargs);
+}
+void _np_job_free_args(np_jobargs_t* args)
+{
+    log_msg(LOG_TRACE, "start: void* _np_job_free_args(np_jobargs_t* args){");
+
+    if(args != NULL){
+		np_unref_obj(np_message_t, args->msg);
+		np_unref_obj(np_key_t, args->target);
+		np_unref_obj(np_msgproperty_t, args->properties);
+    }
+	free(args);
 }
 
 np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs)
@@ -125,15 +138,6 @@ void _np_job_resubmit_msgout_event (double delay, np_msgproperty_t* prop, np_key
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
     jargs->is_resend = TRUE;
 
-    if (msg != NULL)
-    {
-    	np_ref_obj(np_message_t, jargs->msg);
-    }
-    if (NULL != jargs->target)
-    {
-    	np_ref_obj(np_key_t, jargs->target);
-    }
-
     // create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs);
     new_job->processorFunc = prop->clb_outbound;
@@ -149,15 +153,6 @@ void _np_job_resubmit_route_event (double delay, np_msgproperty_t* prop, np_key_
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
     jargs->is_resend = TRUE;
 
-	if (jargs->msg != NULL)
-	{
-		np_ref_obj(np_message_t, jargs->msg);
-	}
-	if (NULL != jargs->target)
-	{
-		np_ref_obj(np_key_t, jargs->target);
-	}
-
     // create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs);
     new_job->processorFunc = prop->clb_route;
@@ -172,16 +167,7 @@ void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t*
 	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
 
-	if (msg != NULL)
-    {
-    	np_ref_obj(np_message_t, jargs->msg);
-    }
-    if (NULL != jargs->target)
-    {
-    	np_ref_obj(np_key_t, jargs->target);
-    }
-
-    // create job itself
+	// create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs);
     new_job->processorFunc = prop->clb_route; // ->msg_handler;
 
@@ -196,15 +182,6 @@ void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t*
 	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
 
-	if (NULL != jargs->msg )
-    {
-    	np_ref_obj(np_message_t, jargs->msg);
-    }
-    if (NULL != jargs->target)
-    {
-    	np_ref_obj(np_key_t, jargs->target);
-    }
-
     // create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs);
     new_job->processorFunc = prop->clb_inbound; // ->msg_handler;
@@ -218,16 +195,6 @@ void _np_job_submit_transform_event (double delay, np_msgproperty_t* prop, np_ke
 
 	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
-
-	if (NULL != jargs->msg)
-    {
-    	np_ref_obj(np_message_t, jargs->msg);
-    }
-    if (NULL != jargs->target)
-    {
-    	np_ref_obj(np_key_t, jargs->target);
-    }
-
     // create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs);
     new_job->processorFunc = prop->clb_transform; // ->msg_handler;
@@ -237,26 +204,14 @@ void _np_job_submit_transform_event (double delay, np_msgproperty_t* prop, np_ke
 
 void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
-	//
-
     // create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
 
-	if (NULL != jargs->msg)
-    {
-    	np_ref_obj(np_message_t, jargs->msg);
-    }
-    if (NULL != jargs->target)
-    {
-    	np_ref_obj(np_key_t, jargs->target);
-    }
-
-    // create job itself
+	// create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs);
     new_job->processorFunc = prop->clb_outbound;
 
 	_np_job_queue_insert(delay, new_job);
-	//
 }
 
 void np_job_submit_event (double delay, np_callback_t callback)
@@ -374,20 +329,8 @@ void* _job_exec ()
 
     	tmp->processorFunc(tmp->args);
 
-    	if (tmp->type == 1)
-	    {
-	    	if (NULL != tmp->args->msg)
-	    	{
-	        	np_unref_obj(np_message_t, tmp->args->msg);
-	    	}
-	        if (NULL != tmp->args->target)
-	        {
-	        	np_unref_obj(np_key_t, tmp->args->target);
-	        }
-	    }
-
 	    // cleanup
-	    free(tmp->args);
+    	_np_job_free_args(tmp->args);
 	    _np_job_free(tmp);
 	    tmp = NULL;
 	}

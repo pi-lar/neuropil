@@ -31,6 +31,7 @@
 #include "np_network.h"
 #include "np_threads.h"
 #include "np_util.h"
+#include "np_settings.h"
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
@@ -38,6 +39,7 @@ static const char* NP_NODE_KEY          = "_np.node.key";
 static const char* NP_NODE_PROTOCOL     = "_np.node.protocol";
 static const char* NP_NODE_DNS_NAME     = "_np.node.dns_name";
 static const char* NP_NODE_PORT         = "_np.node.port";
+static const char* NP_NODE_CREATED_AT   = "_np.node.created_at";
 static const char* NP_NODE_FAILURETIME  = "_np.node.failuretime";
 static const char* NP_NODE_SUCCESS_AVG  = "_np.node.success_avg";
 static const char* NP_NODE_LATENCY      = "_np.node.latency";
@@ -104,6 +106,7 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, np_bool includ
 	np_tree_insert_str(data, NP_NODE_PROTOCOL, np_treeval_new_ush(node_key->node->protocol));
 	np_tree_insert_str(data, NP_NODE_DNS_NAME, np_treeval_new_s(node_key->node->dns_name));
 	np_tree_insert_str(data, NP_NODE_PORT, np_treeval_new_s(node_key->node->port));
+	np_tree_insert_str(data, NP_NODE_CREATED_AT, np_treeval_new_d(node_key->created_at));
 
 	if (node_key->node->failuretime > 0.0)
 		np_tree_insert_str(data, NP_NODE_FAILURETIME,
@@ -294,10 +297,9 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 	node_token->uuid = np_uuid_create(node_subject, 0);
 
 	node_token->not_before = ev_time();
-	node_token->expiration = node_token->not_before + 3600.0; // 1 hour valid token
-#ifdef DEBUG
-	 node_token->expiration = node_token->not_before + 15/*min*/ * 60 /*sec*/;
-#endif
+
+	int rand_interval =  ((int)randombytes_uniform(NODE_MAX_TTL_SEC-NODE_MIN_TTL_SEC)+NODE_MIN_TTL_SEC);
+	node_token->expiration = node_token->not_before + rand_interval ;
 
     crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
 
