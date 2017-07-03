@@ -394,16 +394,16 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 		{
 		    log_debug_msg(LOG_DEBUG, "creating ledger property for %s", subject);
 
-		    if(send_prop != NULL){
+		    if(send_prop != NULL) {
 		    	prop = send_prop;
-		    }else{
-		    	if(recv_prop != NULL){
+		    } else {
+		    	if(recv_prop != NULL) {
 					prop = recv_prop;
 				}else{
 					np_new_obj(np_msgproperty_t, prop);
 				}
 		    }
-		    prop->msg_subject = subject;
+		    prop->msg_subject = strndup(subject, 255);
 			if (NULL == subject_key->send_property) {
 				prop->mode_type |= OUTBOUND;
 				subject_key->send_property = prop;
@@ -412,7 +412,6 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 				prop->mode_type |= INBOUND;
 				subject_key->recv_property = prop;
 			}
-			np_msgproperty_register(prop);
 		}
 	}
 }

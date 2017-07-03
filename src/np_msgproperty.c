@@ -101,7 +101,7 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 //			prop2->msg_subject, prop2->mode_type );
 
 	// TODO: check how to use bitmasks with red-black-tree efficiently
-	int16_t i = strncmp(prop1->msg_subject, prop2->msg_subject, 64);
+	int16_t i = strncmp(prop1->msg_subject, prop2->msg_subject, 255);
 
 	if (0 == i)
 	{
@@ -178,13 +178,34 @@ void _np_msgproperty_t_del(void* property)
     log_msg(LOG_TRACE, "start: void _np_msgproperty_t_del(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
-	if (prop->msg_subject) free(prop->msg_subject);
+	if(prop == NULL) {
+		log_msg(LOG_ERROR, "msgproperty is already NULL and cannot be deleted additional times");
+	}
+	assert(prop != NULL);
 
-	sll_free(np_message_t, prop->msg_cache_in);
-	sll_free(np_message_t, prop->msg_cache_out);
+	_LOCK_ACCESS(&prop->lock){
 
+		if (prop->msg_subject != NULL) {
+			free(prop->msg_subject);
+			prop->msg_subject = NULL;
+		}
+
+		if (prop->rep_subject != NULL) {
+			free(prop->rep_subject);
+			prop->rep_subject = NULL;
+		}
+
+		if(prop->msg_cache_in != NULL ){
+			sll_free(np_message_t, prop->msg_cache_in);
+		}
+
+		if(prop->msg_cache_out != NULL ){
+			sll_free(np_message_t, prop->msg_cache_out);
+		}
+	}
 	_np_threads_mutex_destroy(&prop->lock);
 	_np_threads_condition_destroy(&prop->msg_received);
+	prop = NULL;
 }
 
 void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)

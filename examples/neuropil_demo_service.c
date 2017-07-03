@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
 
 	np_msgproperty_t* msg_props = NULL;
 	np_new_obj(np_msgproperty_t, msg_props);
-	msg_props->msg_subject = "echo";
+	msg_props->msg_subject =  strndup("echo", 255);
 	msg_props->ack_mode = ACK_NONE;
 	msg_props->msg_ttl = 20.0;
 	np_msgproperty_register(msg_props);
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
 
 	np_msgproperty_t* ping_props = NULL;
 	np_new_obj(np_msgproperty_t, ping_props);
-	ping_props->msg_subject = "ping";
+	ping_props->msg_subject = strndup("ping", 255);
 	ping_props->ack_mode = ACK_NONE;
 	ping_props->msg_ttl = 20.0;
 	np_msgproperty_register(ping_props);
@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
 
 	np_msgproperty_t* pong_props = NULL;
 	np_new_obj(np_msgproperty_t, pong_props);
-	pong_props->msg_subject = "pong";
+	pong_props->msg_subject = strndup("pong", 255);
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 20.0;
 	np_msgproperty_register(pong_props);

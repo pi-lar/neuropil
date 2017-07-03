@@ -620,6 +620,7 @@ void TYPE##_sll_free(TYPE##_sll_t* sll_list) {    \
 		free(tmp);                                \
 	}                                             \
 	free(sll_list);                               \
+	sll_list = NULL;                              \
 }                                                 \
 void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {   \
 	TYPE##_sll_node_t *tmp;                       \

@@ -180,6 +180,8 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 				// insert new
 				if(FALSE == pll_insert(np_messagepart_ptr, msg_to_submit->msg_chunks, to_add, FALSE, _np_messagepart_cmp)) {
 					// new entry is rejected (already present)
+					log_debug_msg(LOG_DEBUG,"Msg part was rejected in _np_message_chunk_chunks_complete");
+
 
 				}
 				np_unref_obj(np_messagepart_t, to_add);
@@ -545,9 +547,10 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 		i++;
 
 		// insert new
-		_LOCK_ACCESS(&msg->msg_chunks_lock){
+		_LOCK_ACCESS(&msg->msg_chunks_lock) {
 			if(FALSE == pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp)){
 				// new entry is rejected (already present)
+				log_debug_msg(LOG_DEBUG,"Msg part was rejected in _np_message_serialize_chunked");
 			}
 		}
 
@@ -638,6 +641,7 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 			// insert new
 			if(FALSE == pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp)){
 				// new entry is rejected (already present)
+				log_debug_msg(LOG_DEBUG,"Msg part was rejected in _np_message_deserialize");
 			}
 		}
 

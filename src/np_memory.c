@@ -14,7 +14,9 @@
 
 #include "np_aaatoken.h"
 #include "np_dhkey.h"
+#include "np_key.h"
 #include "np_message.h"
+#include "np_messagepart.h"
 #include "np_node.h"
 #include "np_log.h"
 #include "np_threads.h"
@@ -47,6 +49,16 @@ void np_mem_init()
 	__np_obj_pool_ptr->free_obj = NULL;
 	__np_obj_pool_ptr->size = 0;
 	__np_obj_pool_ptr->available = 0;
+
+	// init cache
+	np_messagepart_t* tmp = NULL;
+	int i = 0;
+	for(; i < 500; i++){
+		np_new_obj(np_messagepart_t, tmp);
+		np_free_obj(np_messagepart_t, tmp);
+	}
+    log_msg(LOG_DEBUG, "Initiated cache with %d free spaces",i);
+
 }
 
 void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
@@ -77,7 +89,6 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 	__np_obj_pool_ptr->first = __np_obj_pool_ptr->current;
 	(*obj) = __np_obj_pool_ptr->current;
 	log_msg(LOG_DEBUG, "Created new object on %p; t: %d", (*obj), (*obj)->type);
-
 }
 
 // printf("new  obj %p (type %d ptr %p ref_count %d):(next -> %p)n", np_obj->obj, np_obj->obj->type, np_obj->obj->ptr, np_obj->obj->ref_count, np_obj->obj->next );

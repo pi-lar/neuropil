@@ -528,15 +528,8 @@ void _np_in_leave_req(np_jobargs_t* args)
 		}
 	}
 
-	deleted = NULL;
-	_LOCK_MODULE(np_routeglobal_t)
-	{
-		_np_route_update(leave_req_key, FALSE, &deleted, NULL);
-		if (NULL != deleted)
-		{
-			np_unref_obj(np_key_t, deleted);
-		}
-	}
+	_np_route_update(leave_req_key, FALSE, &deleted, NULL);
+
 
 	// __np_cleanup__:
 	// nothing to do
@@ -726,19 +719,7 @@ void _np_in_join_req(np_jobargs_t* args)
 		}
 	}
 
-	added = NULL, deleted = NULL;
-	_LOCK_MODULE(np_routeglobal_t)
-	{
 		_np_route_update(routing_key, TRUE, &deleted, &added);
-		if (routing_key == added)
-		{
-			np_ref_obj(np_key_t, added);
-		}
-		if (NULL != deleted && routing_key != deleted)
-		{
-			np_unref_obj(np_key_t, deleted);
-		}
-	}
 
 	if (TRUE == send_reply)
 	{
@@ -875,18 +856,8 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 	// update table
 	np_key_t *added = NULL, *deleted = NULL;
-	_LOCK_MODULE(np_routeglobal_t)
-	{
-		_np_route_update(routing_key, TRUE, &deleted, &added);
-		if (added == routing_key)
-		{
-			np_ref_obj(np_key_t, added);
-		}
-		if (deleted != NULL && deleted != routing_key)
-		{
-			np_unref_obj(np_key_t, deleted);
-		}
-	}
+	_np_route_update(routing_key, TRUE, &deleted, &added);
+
 
 	// update leafset
 	added = NULL, deleted = NULL;

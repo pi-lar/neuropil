@@ -309,7 +309,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 				_np_route_update(tmp_node_key, FALSE, &deleted, &added);
 				if (deleted == tmp_node_key)
 				{
-					np_unref_obj(np_key_t, deleted);
+					np_unref_obj(np_key_t, tmp_node_key);
 				}
 				else
 				{
@@ -377,8 +377,7 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 	np_tree_elem_t *iter = NULL;
 	np_msgproperty_t* msg_prop = NULL;
 
-	// TODO: crashes sometimes ??
-	RB_FOREACH(iter, np_tree_s, state->msg_tokens)
+ 	RB_FOREACH(iter, np_tree_s, state->msg_tokens)
 	{
 		// double now = dtime();
 		// double last_update = iter->val.value.d;
@@ -392,12 +391,14 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		{
 			log_debug_msg(LOG_DEBUG, "---------- refresh for subject token: %s ----------", iter->key.value.s);
 			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
+			np_unref_obj(np_key_t, target);
 		}
 		else
 		{
 			// deleted = RB_REMOVE(np_tree_s, state->msg_tokens, iter);
 			// free(deleted->key.value.s);
 			// free(deleted);
+			np_unref_obj(np_key_t,target);
 			break;
 		}
 	}
@@ -677,11 +678,14 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 			}
 		}
 
-		if (NULL != old->aaa_token                  &&
-			TRUE == _np_aaatoken_is_valid(old->aaa_token) )
-		{
-			log_debug_msg(LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _np_key_as_str(old));
-			delete_key &= FALSE;
+		np_tryref_obj(np_aaatoken_t, old->aaa_token ,tokenExists);
+		if(tokenExists) {
+			if (TRUE == _np_aaatoken_is_valid(old->aaa_token) )
+			{
+				log_debug_msg(LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _np_key_as_str(old));
+				delete_key &= FALSE;
+			}
+			np_unref_obj(np_aaatoken_t, old->aaa_token);
 		}
 
 		if (NULL != old->recv_tokens)

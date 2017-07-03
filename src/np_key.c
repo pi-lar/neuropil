@@ -65,9 +65,11 @@ char* _np_key_as_str(np_key_t* key)
 void _np_key_destroy(np_key_t* to_destroy) {
     log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_destroy(np_key_t* to_destroy) {");
 
-	if(NULL != to_destroy) {
-		np_ref_obj(np_key_t, to_destroy);
-		_LOCK_ACCESS(&to_destroy->obj->lock){
+    np_tryref_obj(np_key_t, to_destroy, to_destroyExists);
+	if(to_destroyExists) {
+
+		_LOCK_ACCESS(&to_destroy->obj->lock) {
+
 			char* keyident = _np_key_as_str(to_destroy);
 			log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
 
@@ -80,30 +82,36 @@ void _np_key_destroy(np_key_t* to_destroy) {
 			// delete old receive tokens
 			if (NULL != to_destroy->recv_tokens)
 			{
-				_LOCK_ACCESS(&to_destroy->recv_property->lock)
-				{
-					pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->recv_tokens);
-					while (NULL != iter)
+				if(to_destroy->recv_property != NULL) {
+					_LOCK_ACCESS(&to_destroy->recv_property->lock)
 					{
-						np_free_obj(np_aaatoken_t, iter->val);
-						pll_next(iter);
+						pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->recv_tokens);
+						while (NULL != iter)
+						{
+							np_free_obj(np_aaatoken_t, iter->val);
+							pll_next(iter);
+						}
+						pll_free(np_aaatoken_ptr, to_destroy->recv_tokens);
 					}
-					pll_free(np_aaatoken_ptr, to_destroy->recv_tokens);
+					np_unref_obj(np_msgproperty_t, to_destroy->recv_property);
 				}
 			}
 
 			// delete send tokens
 			if (NULL != to_destroy->send_tokens)
 			{
-				_LOCK_ACCESS(&to_destroy->send_property->lock)
-				{
-					pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->send_tokens);
-					while (NULL != iter)
+				if(to_destroy->send_property != NULL){
+					_LOCK_ACCESS(&to_destroy->send_property->lock)
 					{
-						np_free_obj(np_aaatoken_t, iter->val);
-						pll_next(iter);
+						pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->send_tokens);
+						while (NULL != iter)
+						{
+							np_free_obj(np_aaatoken_t, iter->val);
+							pll_next(iter);
+						}
+						pll_free(np_aaatoken_ptr, to_destroy->send_tokens);
 					}
-					pll_free(np_aaatoken_ptr, to_destroy->send_tokens);
+					np_unref_obj(np_msgproperty_t, to_destroy->send_property);
 				}
 			}
 
@@ -115,10 +123,10 @@ void _np_key_destroy(np_key_t* to_destroy) {
 				np_unref_obj(np_key_t, iter->val);
 				sll_next(iter);
 			}
-			np_unref_obj(np_key_t, to_destroy);
 		}
+		np_unref_obj(np_key_t, to_destroy);
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
-	}else{
+	} else {
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "no key provided for cleanup");
 	}
 }

@@ -834,6 +834,7 @@ void _np_send_ack(np_message_t* in_msg)
 		// send the ack out
 		_np_job_submit_route_event(0.0, prop, ack_target, ack_msg);
 
+		np_unref_obj(np_key_t, ack_target);
 		np_free_obj(np_message_t, ack_msg);
 	}
 }
@@ -986,9 +987,11 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     state->my_node_key->network = my_network;
     state->my_node_key->aaa_token = auth_token;
 
+    //TODO: via np_setIdentity
     // set and ref additional identity
     state->my_identity = state->my_node_key;
     np_ref_obj(np_key_t, state->my_identity);
+
     // initialize routing table
     if (FALSE == _np_route_init (state->my_node_key) )
     {

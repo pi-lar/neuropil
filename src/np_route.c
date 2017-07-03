@@ -565,98 +565,111 @@ void _np_route_clear ()
 void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added)
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_update");
-	log_msg(LOG_ROUTING | LOG_INFO, "update in routing: %u %s", joined, _np_key_as_str(key));
-
-    if (_np_dhkey_equal (&__routing_table->my_key->dhkey, &key->dhkey))
+	_LOCK_MODULE(np_routeglobal_t)
 	{
-    	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
-	    return;
-	}
-    *added = NULL;
-    *deleted = NULL;
 
-    uint16_t i, j, k, found, pick;
+		log_msg(LOG_ROUTING | LOG_INFO, "update in routing: %u %s", joined, _np_key_as_str(key));
 
-	i = _np_dhkey_index (&__routing_table->my_key->dhkey, &key->dhkey);
-	j = _np_dhkey_hexalpha_at (&key->dhkey, i);
-
-	int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
-
-	/* a node joins the routing table */
-	if (TRUE == joined)
-	{
-		if(NULL == __routing_table->bootstrap_key){
-			np_ref_obj(np_key_t, key);
-			__routing_table->bootstrap_key = key;
-			_np_event_rejoin_if_necessary(NULL);
-		}
-		found = 0;
-		for (k = 0; k < __MAX_ENTRY; k++)
+		if (_np_dhkey_equal (&__routing_table->my_key->dhkey, &key->dhkey))
 		{
-			if (__routing_table->table[index + k] != NULL &&
-				_np_dhkey_equal (&__routing_table->table[index + k]->dhkey, &key->dhkey))
-			{
-				found = 0;
-				break;
-			}
-
-			if (__routing_table->table[index + k] == NULL)
-			{
-				__routing_table->table[index + k] = key;
-				found = 0;
-				*added   = key;
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "added to routes->table[%d]", index+k);
-				break;
-			}
-			else if (__routing_table->table[index + k] != NULL &&
-					 !_np_dhkey_equal (&__routing_table->table[index + k]->dhkey, &key->dhkey ))
-			{
-				found = 1;
-			}
+			log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
+			return;
 		}
+		*added = NULL;
+		*deleted = NULL;
 
-		/* the entry array is full we have to get rid of one */
-		/* replace the new node with the node with the highest latency in the entry array */
-		if (found)
+		uint16_t i, j, k, found, pick;
+
+		i = _np_dhkey_index (&__routing_table->my_key->dhkey, &key->dhkey);
+		j = _np_dhkey_hexalpha_at (&key->dhkey, i);
+
+		int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
+
+		/* a node joins the routing table */
+		if (TRUE == joined)
 		{
-			pick = 0;
-			for (k = 1; k < __MAX_ENTRY; k++)
+			if(NULL == __routing_table->bootstrap_key) {
+				np_ref_obj(np_key_t, key);
+				__routing_table->bootstrap_key = key;
+				_np_event_rejoin_if_necessary(NULL);
+			}
+			found = 0;
+			for (k = 0; k < __MAX_ENTRY; k++)
 			{
-				np_key_t *pick_node, *tmp_node;
-
-				pick_node = __routing_table->table[index + pick];
-				tmp_node  = __routing_table->table[index + k];
-
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d: t..%f > p..%f ?",
-						index, tmp_node->node->latency, pick_node->node->latency);
-
-				if (tmp_node->node->latency > pick_node->node->latency  )
+				if (__routing_table->table[index + k] != NULL &&
+					_np_dhkey_equal (&__routing_table->table[index + k]->dhkey, &key->dhkey))
 				{
-					pick = k;
+					found = 0;
+					break;
+				}
+
+				if (__routing_table->table[index + k] == NULL)
+				{
+					__routing_table->table[index + k] = key;
+					found = 0;
+					*added   = key;
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "added to routes->table[%d]", index+k);
+					break;
+				}
+				else if (__routing_table->table[index + k] != NULL &&
+						 !_np_dhkey_equal (&__routing_table->table[index + k]->dhkey, &key->dhkey ))
+				{
+					found = 1;
 				}
 			}
-			*deleted = __routing_table->table[index + pick];
-			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%d]", index+pick);
-			__routing_table->table[index + pick] = key;
-			*added = __routing_table->table[index + pick];
-		}
-	}
-	else
-	{
-		/* delete a node from the routing table */
-		for (k = 0; k < __MAX_ENTRY; k++)
-		{
-			if (__routing_table->table[index + k] != NULL &&
-				_np_dhkey_equal (&__routing_table->table[index + k]->dhkey, &key->dhkey) )
+
+			/* the entry array is full we have to get rid of one */
+			/* replace the new node with the node with the highest latency in the entry array */
+			if (found)
 			{
-				*deleted = key;
-				__routing_table->table[index + k] = NULL;
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "deleted to routes->table[%d]", index+k);
-				break;
+				pick = 0;
+				for (k = 1; k < __MAX_ENTRY; k++)
+				{
+					np_key_t *pick_node, *tmp_node;
+
+					pick_node = __routing_table->table[index + pick];
+					tmp_node  = __routing_table->table[index + k];
+
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d: t..%f > p..%f ?",
+							index, tmp_node->node->latency, pick_node->node->latency);
+
+					if (tmp_node->node->latency > pick_node->node->latency  )
+					{
+						pick = k;
+					}
+				}
+				*deleted = __routing_table->table[index + pick];
+				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%d]", index+pick);
+				__routing_table->table[index + pick] = key;
+				*added = __routing_table->table[index + pick];
 			}
 		}
-	}
+		else
+		{
+			/* delete a node from the routing table */
+			for (k = 0; k < __MAX_ENTRY; k++)
+			{
+				if (__routing_table->table[index + k] != NULL &&
+					_np_dhkey_equal (&__routing_table->table[index + k]->dhkey, &key->dhkey) )
+				{
+					*deleted = key;
+					__routing_table->table[index + k] = NULL;
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "deleted to routes->table[%d]", index+k);
+					break;
+				}
+			}
+		}
 
+		np_key_t* tmp = *added ;
+		if(tmp != NULL){
+			np_ref_obj(np_key_t, tmp);
+		}
+
+		tmp = *deleted ;
+		if(tmp != NULL){
+			np_unref_obj(np_key_t, tmp);
+		}
+	}
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
 }
 

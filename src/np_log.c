@@ -160,7 +160,7 @@ void np_log_init(const char* filename, uint32_t level)
     snprintf (logsys->filename, 255, "%s", filename);
     logsys->fp = open(logsys->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
 	if(logsys->fp < 0) {
-		printf(stderr,"Could not create logfile at %s. Error: %s (%d)",logsys->filename, strerror(errno), errno);
+		fprintf(stderr,"Could not create logfile at %s. Error: %s (%d)",logsys->filename, strerror(errno), errno);
 		fflush(NULL);
 		exit(EXIT_FAILURE);
 	}

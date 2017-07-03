@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
 
 	np_msgproperty_t* msg_props = NULL;
 	np_new_obj(np_msgproperty_t, msg_props);
-	msg_props->msg_subject = "echo";
+	msg_props->msg_subject = strndup("echo", 255);
 	msg_props->ack_mode = ACK_NONE;
 	msg_props->msg_ttl = 20.0;
 	np_msgproperty_register(msg_props);
