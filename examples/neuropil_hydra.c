@@ -25,6 +25,7 @@
 #include "np_sysinfo.h"
 #include "np_node.h"
 #include "np_keycache.h"
+#include "np_key.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,7 +64,7 @@ int main(int argc, char **argv)
 	char* bootstrap_hostnode = NULL;
 	char* bootstrap_hostnode_default;
 	char bootstrap_port[7];
-	char* proto = "tcp4";
+	char* proto = "udp4";
 	char* logpath = ".";
 
 	uint32_t required_nodes = NUM_HOST;
@@ -110,10 +111,12 @@ int main(int argc, char **argv)
 		level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	}else if(level <= -3){ // debug
 		level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG
-				  //|LOG_MUTEX | LOG_TRACE
+				  //| LOG_MUTEX | LOG_TRACE
+				  //| LOG_ROUTING
+				  //| LOG_ROUTING
 				  //| LOG_HTTP
-				  //| LOG_NETWORK
-				  | LOG_AAATOKEN
+				  | LOG_NETWORK
+				  //| LOG_AAATOKEN
 				   ;
 	}
 
@@ -184,9 +187,15 @@ int main(int argc, char **argv)
 			uint32_t i = 0;
 			while (TRUE) {
 			    ev_sleep(0.1);
-			    if(i++ % 10 == 0){
+			    i +=1;
+			    if(i % 10 == 0) {
 			    	np_mem_printpool();
 			    }
+			    if((i == (60 * 10))){
+					fprintf(stdout, "Renew bootstrap token");
+					np_key_renew_token();
+			    }
+
 			}
 			/**
 
@@ -348,9 +357,6 @@ int main(int argc, char **argv)
 				 \endcode
 				 */
 			}
-
-			ev_sleep(3 * 3.1415);
-
 		} else {
 			/**
 			  .. _neuropil_hydra_step_check_nodes_still_present:
@@ -364,6 +370,7 @@ int main(int argc, char **argv)
 
 			 \code
 			 */
+			/*
 			current_pid = waitpid(-1, &status, WNOHANG);
 			// check for stopped child processes
 			if (current_pid != 0) {
@@ -386,10 +393,12 @@ int main(int argc, char **argv)
 					i++;
 				}
 			}
+			*/
 			/**
 			 \endcode
 			 */
-			ev_sleep(3.415);
 		}
+		ev_sleep(3.415);
+
 	}
 }

@@ -60,7 +60,21 @@ int _np_threads_lock_module(np_module_lock_type module_id) {
 		_np_threads_init();
 	}
 	int ret =  1;
+#ifdef DEBUG
+	double start = ev_time();
+#endif
 	while(ret != 0){
+		#ifdef DEBUG
+		double diff = ev_time() - start;
+			if(diff > (MUTEX_WAIT_SEC*1000)){
+				log_msg(LOG_ERROR, "Waiting too long for module mutex %d (%f sec)", module_id, diff);
+				exit(EXIT_FAILURE);
+			}
+			if(diff > (MUTEX_WAIT_SEC*10)){
+				log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for module mutex %d (%f sec)", module_id, diff);
+			}
+		#endif
+
 		ret = pthread_mutex_trylock(&__mutexes[module_id].lock);
 		if(ret == EBUSY){
 			ev_sleep(MUTEX_WAIT_SEC);

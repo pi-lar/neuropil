@@ -104,7 +104,8 @@ void _np_message_del_footerentry(np_message_t*, const char* key);
 
 NP_API_INTERN
 void _np_message_set_to(np_message_t* msg, np_key_t* target);
-
+NP_API_INTERN
+char* _np_message_get_subject(np_message_t* msg);
 // msg header constants
 static const char* _NP_MSG_HEADER_TARGET    = "_np.target";
 static const char* _NP_MSG_HEADER_SUBJECT   = "_np.subj";

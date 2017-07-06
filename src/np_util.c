@@ -76,7 +76,7 @@ np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t li
 
 	if(nextCount > wrapper->bufferMaxCount) {
  		 log_msg(LOG_WARN,
- 				 "Message deserialization error. Read size exceeds buffer. May be invoked due to changed key (see: kb) Current size: %zu; Max size: %zu; Read size: %zu",
+ 				 "Read size exceeds buffer. May be invoked due to changed key (see: kb) Current size: %zu; Max size: %zu; Read size: %zu",
 				 wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
 	} else {
 		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "memcpy %p <- %p o %p",data, wrapper->buffer,wrapper);
@@ -93,6 +93,16 @@ size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size
     log_msg(LOG_TRACE, "start: size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size_t count){");
 	_np_message_buffer_container_t* wrapper = ctx->buf;
 
+	size_t nextCount = wrapper->bufferCount + count;
+	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
+			 "BUFFER CHECK Current size: %zu; Max size: %zu; Read size: %zu",
+			 wrapper->bufferCount, wrapper->bufferMaxCount, count);
+
+	if(nextCount > wrapper->bufferMaxCount) {
+		 log_msg(LOG_WARN,
+				 "Write size exceeds buffer. Current size: %zu; Max size: %zu; Read size: %zu",
+				 wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
+	}
 	memcpy(wrapper->buffer, data, count);
 	wrapper->buffer += count;
 	return count;

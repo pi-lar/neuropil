@@ -37,13 +37,9 @@
 #include "np_threads.h"
 #include "np_util.h"
 #include "np_treeval.h"
+#include "np_settings.h"
+#include "np_types.h"
 
-static const int MSG_ARRAY_SIZE = 1;
-static const int MSG_PAYLOADBIN_SIZE = 15;
-
-// double definition in np_network.c !
-static const int MSG_CHUNK_SIZE_1024 = 1024;
-static const int MSG_ENCRYPTION_BYTES_40 = 40;
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_t);
 
@@ -259,8 +255,9 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_serialize_chunked(np_jobargs_t* args){");
 	np_bool ret_val = FALSE;
-	np_message_t* msg = args->msg;
 
+	np_message_t* msg = args->msg;
+	np_tree_replace_str(msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(msg->uuid));
 
 	// clean up any old chunking
 	_LOCK_ACCESS(&msg->msg_chunks_lock){
@@ -648,6 +645,13 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 
 		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "received message part (%d / %d)", chunk_id, msg->no_of_chunks);
 
+
+		CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_UUID, msg_uuid);
+		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", msg->uuid, msg_uuid.value.s);
+		free(msg->uuid);
+		msg->uuid = strdup(msg_uuid.value.s);
+		__np_cleanup__:
+
 		np_unref_obj(np_message_t,msg);
 		return (TRUE);
     }
@@ -1016,4 +1020,15 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	_np_messagepart_decrypt(msg->body, nonce, sym_key, NULL);
 	return (TRUE);
 }
+char* _np_message_get_subject(np_message_t* msg) {
+	char* ret = NULL;
+	if(msg->header != NULL){
+		np_tree_elem_t* ele = np_tree_find_str(msg->header, _NP_MSG_HEADER_SUBJECT);
+		if(ele != NULL){
+			ret = ele->val.value.s;
+		}
+	}
+	return ret;
+}
+
 

@@ -23,7 +23,11 @@ void _np_renew_node_token_jobexec(np_jobargs_t* args);
 void _np_cleanup_ack_jobexec(np_jobargs_t* args);
 void _np_cleanup_keycache_jobexec(np_jobargs_t* args);
 
-void _np_never_called_jobexec(np_jobargs_t* args);
+void _np_never_called_jobexec(np_jobargs_t* args,char* category);
+void _np_never_called_jobexec_transform(np_jobargs_t* args);
+void _np_never_called_jobexec_route(np_jobargs_t* args);
+void _np_never_called_jobexec_inbound(np_jobargs_t* args);
+void _np_never_called_jobexec_outbound(np_jobargs_t* args);
 
 // other helper functions
 void _np_send_rowinfo_jobexec (np_jobargs_t* args);

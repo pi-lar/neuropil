@@ -133,13 +133,14 @@ void _np_log_fflush()
 	{
 		pthread_mutex_lock(&__log_mutex);
 		entry = sll_head(char, logger->logentries_l);
-		pthread_mutex_unlock(&__log_mutex);
 
 		if (NULL != entry)
 		{
 			write(logger->fp, entry, strlen(entry));
 			free(entry);
 		}
+		pthread_mutex_unlock(&__log_mutex);
+
 
 	} while(NULL != entry);
 }
@@ -198,5 +199,7 @@ void np_log_destroy()
 
 	close(logger->fp);
 	free(logger);
+	pthread_mutex_destroy(&__log_mutex);
+
 }
 

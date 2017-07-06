@@ -110,14 +110,17 @@ np_key_t* _np_keycache_find_by_details(
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
 
+ 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key);
+ 	np_waitref_obj(np_key_t, _np_state()->my_identity, my_identity);
+
 	_LOCK_MODULE(np_keycache_t)
 	{
 		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
 		{
 			if(TRUE == search_myself){
 				if (
-					TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_node_key->dhkey) ||
-					TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_identity->dhkey) )
+					TRUE == _np_dhkey_equal(&iter->dhkey, &my_node_key->dhkey) ||
+					TRUE == _np_dhkey_equal(&iter->dhkey, &my_identity->dhkey) )
 				{
 					continue;
 				}
@@ -137,6 +140,9 @@ np_key_t* _np_keycache_find_by_details(
 			}
 		}
 	}
+ 	np_unref_obj(np_key_t, my_identity);
+ 	np_unref_obj(np_key_t, my_node_key);
+
 	return (ret);
 }
 

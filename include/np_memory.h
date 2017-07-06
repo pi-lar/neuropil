@@ -97,6 +97,28 @@ struct np_obj_s
 		}																								\
 	}
 
+#define np_waitref_obj(TYPE, np_obj, saveTo)       															\
+TYPE* saveTo = NULL;																						\
+{                                             																\
+    np_bool ret = FALSE;																					\
+    while(ret == FALSE) {                          															\
+		_LOCK_MODULE(np_memory_t) {                 														\
+			if(np_obj != NULL) {      		      															\
+				if((np_obj->obj != NULL)) {             													\
+					if (np_obj->obj->type != TYPE##_e) {  													\
+						log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",np_obj->obj->type, TYPE##_e);   	\
+						assert (np_obj->obj->type == TYPE##_e);   											\
+					} else {																				\
+						np_mem_refobj(np_obj->obj);               											\
+						ret = TRUE;																			\
+						saveTo = np_obj;																	\
+					}																						\
+				}																							\
+			}																								\
+		}																									\
+	if(ret == FALSE) ev_sleep(0.005);																		\
+	}																										\
+}
 
 #define CHECK_MALLOC(obj)		              			\
 {                                             			\

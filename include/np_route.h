@@ -38,6 +38,9 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 
 NP_API_INTERN
 void _np_route_clear ();
+NP_API_INTERN
+void _np_route_leafset_clear ();
+
 
 /** _np_route_lookup:
  ** returns an list of 'count' nodes that are acceptable next hops for a message being routed to key
@@ -77,6 +80,11 @@ void _np_route_leafset_range_update ();
 
 NP_API_EXPORT
 np_key_t* np_route_get_bootstrap_key();
+NP_API_EXPORT
+void np_route_set_bootstrap_key(np_key_t* bootstrapKey);
+
+NP_API_INTERN
+void _np_route_rejoin_bootstrap(np_bool force);
 
 #ifdef __cplusplus
 }

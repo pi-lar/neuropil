@@ -81,6 +81,7 @@ np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproper
 
 	return (jargs);
 }
+
 void _np_job_free_args(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void* _np_job_free_args(np_jobargs_t* args){");
@@ -327,8 +328,15 @@ void* _job_exec ()
 	    if (NULL == tmp->processorFunc) continue;
 	    // log_debug_msg(LOG_DEBUG, "%hhd:     job-->%p func-->%p args-->%p", tmp->type, tmp, tmp->processorFunc, tmp->args);
 
+	    if(tmp->args != NULL && tmp->args->msg != NULL){
+	    	log_msg(LOG_DEBUG, "handeling msg %s for %s",tmp->args->msg->uuid, _np_message_get_subject(tmp->args->msg));
+	    }
+
     	tmp->processorFunc(tmp->args);
 
+    	if(tmp->args != NULL && tmp->args->msg != NULL) {
+	    	log_msg(LOG_DEBUG, "completed handeling msg %s for %s",tmp->args->msg ->uuid,_np_message_get_subject(tmp->args->msg));
+	    }
 	    // cleanup
     	_np_job_free_args(tmp->args);
 	    _np_job_free(tmp);

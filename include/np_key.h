@@ -70,6 +70,8 @@ void _np_key_destroy(np_key_t* to_destroy) ;
 NP_API_INTERN
 char* _np_key_as_str(np_key_t * key);
 
+NP_API_EXPORT
+void np_key_renew_token();
 
 #ifdef __cplusplus
 }

@@ -22,20 +22,37 @@ extern "C" {
 	static const int SYSINFO_PROACTIVE_SEND_IN_SEC = 1;
 #endif
 
+#ifndef MSGPROPERTY_DEFAULT_MAX_TTL
+	static const uint32_t MSGPROPERTY_DEFAULT_MAX_TTL_SEC = 30;
+#endif
 
+#ifndef MSGPROPERTY_DEFAULT_MIN_TTL
+	static const uint32_t MSGPROPERTY_DEFAULT_MIN_TTL_SEC = 20;
+#endif
 /*
  * The maximum lifetime of a node before it is refreshed
  */
 #ifndef NODE_MAX_TTL_SEC
-	static const double NODE_MAX_TTL_SEC = 3*60; //3600; // 3600 = 1h
+	static const double NODE_MAX_TTL_SEC = 3600; // 3600 = 1h
 #endif
 
 /*
  * The minimum lifetime of a node before it is refreshed
  */
 #ifndef NODE_MIN_TTL_SEC
-	static const double NODE_MIN_TTL_SEC = 2*60; //3480; // 3480 = 58min
+	static const double NODE_MIN_TTL_SEC =  3480; // 3480 = 58min
 #endif
+
+#ifndef NODE_RENEW_BEFORE_EOL_SEC
+	static const double NODE_RENEW_BEFORE_EOL_SEC = 5;
+#endif
+
+
+static const int MSG_ARRAY_SIZE = 1;
+static const int MSG_PAYLOADBIN_SIZE = 15;
+
+static const int MSG_CHUNK_SIZE_1024 = 1024;
+static const int MSG_ENCRYPTION_BYTES_40 = 40;
 
 #ifdef __cplusplus
 }

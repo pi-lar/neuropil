@@ -33,6 +33,8 @@
 #include "np_util.h"
 #include "np_threads.h"
 #include "np_route.h"
+#include "np_settings.h"
+#include "np_types.h"
 
 /** message split up maths
  ** message size = 1b (common header) + 40b (encryption) +
@@ -57,7 +59,7 @@ void _np_out_ack(np_jobargs_t* args)
     log_msg(LOG_TRACE, "start: void _np_out_ack(np_jobargs_t* args){");
 	//TODO: Was soll diese Methode machen?
 
-	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(args->msg->uuid));
+    np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(args->msg->uuid));
 	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
 
 	// chunking for 1024 bit message size
@@ -95,7 +97,6 @@ void _np_send(np_jobargs_t* args)
 	char* uuid = NULL;
 
 	np_msgproperty_t* prop = args->properties;
-	np_network_t* network = _np_state()->my_node_key->network;
 
 	if (!_np_node_check_address_validity(args->target->node))
 	{
@@ -104,191 +105,206 @@ void _np_send(np_jobargs_t* args)
 		return;
 	}
 
-	// check ack indicator if this is a resend of a message
-	if (TRUE == is_resend)
+	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key);
 	{
-		uuid = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
-		np_bool skip = FALSE;
-		_LOCK_ACCESS(&network->lock)
+		np_network_t* network = my_key->network;
+		np_tryref_obj(np_network_t, network , networkExists);
+		if(networkExists== TRUE)
 		{
-			// first find the uuid
-			if (NULL == np_tree_find_str(network->waiting, uuid))
+			// check ack indicator if this is a resend of a message
+			if (TRUE == is_resend)
 			{
-				// has been deleted already
-				log_debug_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
-				skip = TRUE;
+				uuid = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
+				np_bool skip = FALSE;
+				_LOCK_ACCESS(&network->lock)
+				{
+					// first find the uuid
+					if (NULL == np_tree_find_str(network->waiting, uuid))
+					{
+						// has been deleted already
+						log_debug_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
+						skip = TRUE;
+					}
+					else if (TRUE == ((np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v)->acked)
+					{
+						// uuid has been acked
+						log_debug_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
+						skip = TRUE;
+					}
+					else
+					{
+						// ack indicator still there ! initiate resend ...
+						log_debug_msg(LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
+					}
+				}
+
+				if (TRUE == skip) {
+					np_unref_obj(np_network_t,network);
+					np_unref_obj(np_key_t,my_key);
+					return;
+				}
+
+				double initial_tstamp = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
+				double now = ev_time();
+				if (now > (initial_tstamp + args->properties->msg_ttl) )
+				{
+					log_debug_msg(LOG_DEBUG, "resend message %s (%s) expired, not resending ...", prop->msg_subject, uuid);
+
+					np_unref_obj(np_network_t,network);
+					np_unref_obj(np_key_t,my_key);
+					return;
+				}
+				// only redeliver if ack_to has been initialized correctly, so this must be TRUE for a resend
+				ack_to_is_me = TRUE;
 			}
-			else if (TRUE == ((np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v)->acked)
+
+			// find correct ack_mode, inspect message first because of forwarding
+			if (NULL == np_tree_find_str(msg_out->instructions, _NP_MSG_INST_ACK))
 			{
-				// uuid has been acked
-				log_debug_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
-				skip = TRUE;
+				ack_mode = prop->ack_mode;
 			}
 			else
 			{
-				// ack indicator still there ! initiate resend ...
-				log_debug_msg(LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
+				ack_mode = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_ACK)->val.value.ush;
+				ack_mode_from_msg = TRUE;
 			}
-		}
+			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop->ack_mode));
 
-		if (TRUE == skip) {
-			return;
-		}
+			char* ack_to_str = _np_key_as_str(my_key);
 
-		double initial_tstamp = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
-		double now = ev_time();
-		if (now > (initial_tstamp + args->properties->msg_ttl) )
-		{
-			log_debug_msg(LOG_DEBUG, "resend message %s (%s) expired, not resending ...", prop->msg_subject, uuid);
-			return;
-		}
-		// only redeliver if ack_to has been initialized correctly, so this must be TRUE for a resend
-		ack_to_is_me = TRUE;
-	}
-
-	// find correct ack_mode, inspect message first because of forwarding
-	if (NULL == np_tree_find_str(msg_out->instructions, _NP_MSG_INST_ACK))
-	{
-		ack_mode = prop->ack_mode;
-	}
-	else
-	{
-		ack_mode = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_ACK)->val.value.ush;
-		ack_mode_from_msg = TRUE;
-	}
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop->ack_mode));
-
-	char* ack_to_str = _np_key_as_str(_np_state()->my_node_key);
-
-	if ( 0 < (ack_mode & ACK_EACHHOP) )
-	{
-		// we have to reset the existing ack_to field in case of forwarding and each-hop acknowledge
-		np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
-		ack_to_is_me = TRUE;
-	}
-	else if ( 0 < (ack_mode & ACK_DESTINATION) || 0 < (ack_mode & ACK_CLIENT) )
-	{
-		// only set ack_to for these two ack mode values if not yet set !
-		np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
-		if (FALSE == ack_mode_from_msg) ack_to_is_me = TRUE;
-	}
-	else
-	{
-		ack_to_is_me = FALSE;
-	}
-
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
-	if (TRUE == ack_to_is_me && FALSE == is_resend)
-	{
-		_LOCK_ACCESS(&network->lock)
-		{
-			/* get/set sequence number to keep increasing sequence numbers per node */
-			seq = network->seqend;
-			np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
-			network->seqend++;
-		}
-	}
-
-	// insert a uuid if not yet present
- 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(msg_out->uuid));
-
-	// log_debug_msg(LOG_DEBUG, "message ttl %s (tstamp: %f / ttl: %f) %s", uuid, now, args->properties->ttl, args->properties->msg_subject);
-
-	// set re-send count to zero if not yet present
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, np_treeval_new_ush(0));
-	// and increase resend count by one
-	// TODO: forwarding of message will also increase re-send counter, ok ?
-	np_tree_elem_t* jrb_send_counter = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER);
-	jrb_send_counter->val.value.ush++;
-	// TODO: insert resend count check
-
-	// insert timestamp and time-to-live
-	double now = ev_time();
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
-	// now += args->properties->ttl;
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args->properties->msg_ttl));
-
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
-	if (FALSE == msg_out->is_single_part)
-	{
-		// dummy message part split-up informations
-		_np_message_calculate_chunking(msg_out);
-	}
-
-	if (TRUE == ack_to_is_me)
-	{
-		if (FALSE == is_resend)
-		{
-			uuid = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
-
-			_LOCK_ACCESS(&network->lock)
+			if ( 0 < (ack_mode & ACK_EACHHOP) )
 			{
-				/* get/set sequence number to initialize acknowledgement indicator correctly */
-				np_ackentry_t *ackentry = NULL;
-
-				if (NULL != np_tree_find_str(network->waiting, uuid))
-				{
-					ackentry = (np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v;
-				}
-				else
-				{
-					ackentry = _np_network_get_new_ackentry();
-				}
-
-				ackentry->acked = FALSE;
-				ackentry->transmittime = ev_time();
-				// + 1.0 because of time delays for processing
-				ackentry->expiration = ackentry->transmittime + args->properties->msg_ttl + 1.0;
-				ackentry->dest_key = args->target;
-				np_ref_obj(np_key_t,  args->target);
-
-				if (TRUE == is_forward)
-				{
-					// single part message can only occur in intermediate hops
-					ackentry->expected_ack++;
-				}
-				else
-				{
-					// full message can only occur when sending the original message
-					ackentry->expected_ack = msg_out->no_of_chunks;
-				}
-
-				np_tree_insert_str(network->waiting, uuid, np_treeval_new_v(ackentry));
-				log_debug_msg(LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", network->waiting, uuid);
+				// we have to reset the existing ack_to field in case of forwarding and each-hop acknowledge
+				np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
+				ack_to_is_me = TRUE;
 			}
+			else if ( 0 < (ack_mode & ACK_DESTINATION) || 0 < (ack_mode & ACK_CLIENT) )
+			{
+				// only set ack_to for these two ack mode values if not yet set !
+				np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
+				if (FALSE == ack_mode_from_msg) ack_to_is_me = TRUE;
+			}
+			else
+			{
+				ack_to_is_me = FALSE;
+			}
+
+			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
+			if (TRUE == ack_to_is_me && FALSE == is_resend)
+			{
+				_LOCK_ACCESS(&network->lock)
+				{
+					/* get/set sequence number to keep increasing sequence numbers per node */
+					seq = network->seqend;
+					np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
+					network->seqend++;
+				}
+			}
+
+			// insert a uuid if not yet present
+			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(msg_out->uuid));
+
+			// log_debug_msg(LOG_DEBUG, "message ttl %s (tstamp: %f / ttl: %f) %s", uuid, now, args->properties->ttl, args->properties->msg_subject);
+
+			// set re-send count to zero if not yet present
+			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, np_treeval_new_ush(0));
+			// and increase resend count by one
+			// TODO: forwarding of message will also increase re-send counter, ok ?
+			np_tree_elem_t* jrb_send_counter = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER);
+			jrb_send_counter->val.value.ush++;
+			// TODO: insert resend count check
+
+			// insert timestamp and time-to-live
+			double now = ev_time();
+			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+			// now += args->properties->ttl;
+			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args->properties->msg_ttl));
+
+			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
+			if (FALSE == msg_out->is_single_part)
+			{
+				// dummy message part split-up informations
+				_np_message_calculate_chunking(msg_out);
+			}
+
+			if (TRUE == ack_to_is_me)
+			{
+				if (FALSE == is_resend)
+				{
+					uuid = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
+
+					_LOCK_ACCESS(&network->lock)
+					{
+						/* get/set sequence number to initialize acknowledgement indicator correctly */
+						np_ackentry_t *ackentry = NULL;
+
+						if (NULL != np_tree_find_str(network->waiting, uuid))
+						{
+							ackentry = (np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v;
+						}
+						else
+						{
+							ackentry = _np_network_get_new_ackentry();
+						}
+
+						ackentry->acked = FALSE;
+						ackentry->transmittime = ev_time();
+						// + 1.0 because of time delays for processing
+						ackentry->expiration = ackentry->transmittime + args->properties->msg_ttl + 1.0;
+						ackentry->dest_key = args->target;
+						np_ref_obj(np_key_t,  args->target);
+
+						if (TRUE == is_forward)
+						{
+							// single part message can only occur in intermediate hops
+							ackentry->expected_ack++;
+						}
+						else
+						{
+							// full message can only occur when sending the original message
+							ackentry->expected_ack = msg_out->no_of_chunks;
+						}
+
+						np_tree_insert_str(network->waiting, uuid, np_treeval_new_v(ackentry));
+						log_debug_msg(LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", network->waiting, uuid);
+					}
+				}
+
+				// insert a record into the priority queue with the following information:
+				double retransmit_interval = args->properties->msg_ttl / args->properties->retry;
+				np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
+				_np_job_resubmit_route_event(retransmit_interval, out_prop, args->target, args->msg);
+			}
+
+			// char* subj = np_tree_find_str(msg_out->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
+			// log_debug_msg(LOG_DEBUG, "message %s (%u) to %s", subj, seq, key_get_as_string(args->target));
+			// log_debug_msg(LOG_DEBUG, "message part byte sizes: %lu %lu %lu %lu %lu, total: %lu",
+			// 			msg_out->header->byte_size, msg_out->instructions->byte_size,
+			// 			msg_out->properties->byte_size, msg_out->body->byte_size,
+			// 			msg_out->footer->byte_size,
+			// 			msg_out->header->byte_size + msg_out->instructions->byte_size + msg_out->properties->byte_size + msg_out->body->byte_size + msg_out->footer->byte_size);
+
+			// TODO: do this serialization in parallel in background
+			np_jobargs_t chunk_args = { .msg = msg_out };
+
+			// np_print_tree (msg_out->body, 0);
+			if (TRUE == is_forward)
+			{
+				_np_message_serialize(&chunk_args);
+			}
+			else
+			{
+				_np_message_serialize_chunked(&chunk_args);
+			}
+			log_debug_msg(LOG_DEBUG, "Try sending message %s for subject \"%s\" to %s", msg_out->uuid, prop->msg_subject, _np_key_as_str(args->target));
+
+			_np_network_send_msg(args->target, msg_out);
+			// ret is 1 or 0
+			// np_node_update_stat(args->target->node, send_ok);
+			np_unref_obj(np_network_t,network);
 		}
-
-		// insert a record into the priority queue with the following information:
-		double retransmit_interval = args->properties->msg_ttl / args->properties->retry;
-		np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
-		_np_job_resubmit_route_event(retransmit_interval, out_prop, args->target, args->msg);
+		np_unref_obj(np_key_t,my_key);
 	}
-
-	// char* subj = np_tree_find_str(msg_out->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
-	// log_debug_msg(LOG_DEBUG, "message %s (%u) to %s", subj, seq, key_get_as_string(args->target));
-	// log_debug_msg(LOG_DEBUG, "message part byte sizes: %lu %lu %lu %lu %lu, total: %lu",
-	// 			msg_out->header->byte_size, msg_out->instructions->byte_size,
-	// 			msg_out->properties->byte_size, msg_out->body->byte_size,
-	// 			msg_out->footer->byte_size,
-	// 			msg_out->header->byte_size + msg_out->instructions->byte_size + msg_out->properties->byte_size + msg_out->body->byte_size + msg_out->footer->byte_size);
-
-	// TODO: do this serialization in parallel in background
-	np_jobargs_t chunk_args = { .msg = msg_out };
-
-	// np_print_tree (msg_out->body, 0);
-	if (TRUE == is_forward)
-	{
-		_np_message_serialize(&chunk_args);
-	}
-	else
-	{
-		_np_message_serialize_chunked(&chunk_args);
-	}
-	log_debug_msg(LOG_DEBUG, "Try sending message %s for subject \"%s\" to %s", msg_out->uuid, prop->msg_subject, _np_key_as_str(args->target));
-
-	_np_network_send_msg(args->target, msg_out);
-	// ret is 1 or 0
-	// np_node_update_stat(args->target->node, send_ok);
 }
 
 void _np_send_handshake(np_jobargs_t* args)
@@ -328,13 +344,23 @@ void _np_send_handshake(np_jobargs_t* args)
 
 	// pre-serialize handshake data
 	cmp_ctx_t cmp;
-	// TODO:
     unsigned char hs_payload[65536];
     void* hs_buf_ptr = hs_payload;
 
+    /*
+	_np_message_buffer_container_t buffer_container;
+	buffer_container.buffer = hs_buf_ptr;
+	buffer_container.bufferCount = 0;
+	buffer_container.bufferMaxCount = 65536;
+	buffer_container.message = NULL;
+
+ 	cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_writer);
+ 	*/
     cmp_init(&cmp, hs_buf_ptr, _np_buffer_reader, _np_buffer_writer);
+
 	_np_tree_serialize(hs_data, &cmp);
 	uint64_t hs_payload_len = cmp.buf-hs_buf_ptr;
+	//uint64_t hs_payload_len = buffer_container.bufferCount;
 
 	np_tree_free(hs_data);
 
@@ -376,14 +402,15 @@ void _np_send_handshake(np_jobargs_t* args)
 
 	// log_debug_msg(LOG_DEBUG, "msg chunks %u", hs_message->no_of_chunks);
 
-	np_jobargs_t* chunk_args = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
-	CHECK_MALLOC(chunk_args);
+	//np_jobargs_t* chunk_args = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
+	//CHECK_MALLOC(chunk_args);
+	//chunk_args->msg = hs_message;
+	np_jobargs_t* chunk_args = _np_job_create_args(hs_message, NULL, NULL);
 
-	chunk_args->msg = hs_message;
 	np_bool serialize_ok = _np_message_serialize_chunked(chunk_args);
 
-	// log_debug_msg(LOG_DEBUG, "serialized handshake message msg_size %llu", hs_msg_ptr, msg_size);
-	free(chunk_args);
+	//free(chunk_args);
+	_np_job_free_args(chunk_args);
 
 	if (TRUE == serialize_ok)
 	{
@@ -414,8 +441,8 @@ void _np_send_handshake(np_jobargs_t* args)
 
 		/* send data if handshake status is still just initialized or less */
 		log_debug_msg(LOG_DEBUG,
-				"sending handshake message to (%s:%s)",
-				hs_node->dns_name, hs_node->port);
+				"sending handshake message %s to (%s:%s)",
+				hs_message->uuid, hs_node->dns_name, hs_node->port);
 
 //		log_debug_msg(LOG_DEBUG, ": %d %p %p :",
 //				args->target->network->socket,

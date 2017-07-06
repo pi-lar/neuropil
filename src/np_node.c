@@ -417,3 +417,5 @@ uint8_t _np_node_check_address_validity (np_node_t* np_node)
 
 	return (np_node->dns_name && np_node->port);
 }
+
+

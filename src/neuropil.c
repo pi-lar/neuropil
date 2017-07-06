@@ -36,7 +36,8 @@
 #include "np_threads.h"
 #include "np_route.h"
 #include "np_event.h"
-
+#include "np_types.h"
+#include "np_settings.h"
 #include "np_sysinfo.h"
 /**
  * Gets a np_key_t or a NULL pointer for the given hash value.
@@ -211,6 +212,10 @@ void np_send_join(const char* node_string)
 
 	node_key = _np_node_decode_from_str(node_string);
 	_np_send_simple_invoke_request(node_key, _NP_MSG_JOIN_REQUEST);
+
+	np_route_set_bootstrap_key(node_key);
+
+	np_unref_obj(np_key_t, node_key); // _np_node_decode_from_str
 }
 
 /**
@@ -246,6 +251,7 @@ void np_send_wildcard_join(const char* node_string)
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
 	_np_job_submit_transform_event(0.0, msg_prop, wildcard_node_key, NULL);
 
+	np_route_set_bootstrap_key(wildcard_node_key);
 	np_unref_obj(np_key_t, wildcard_node_key);
 }
 
@@ -269,8 +275,8 @@ void np_set_realm_name(const char* realm_name)
 	new_node_key->network = _np_state()->my_node_key->network;
 	_np_state()->my_node_key->network = NULL;
 
-	new_node_key->network->watcher.data = new_node_key;
     np_ref_obj(np_key_t, new_node_key);
+	new_node_key->network->watcher.data = new_node_key;
 
 	new_node_key->node = _np_state()->my_node_key->node;
 	_np_state()->my_node_key->node = NULL;
@@ -979,8 +985,10 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
 
 	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // np_dhkey_create_from_hostport(my_node->dns_name, my_node->port);
     state->my_node_key = _np_keycache_find_or_create(my_dhkey);
-    my_network->watcher.data = state->my_node_key;
+
     np_ref_obj(np_key_t, state->my_node_key);
+    my_network->watcher.data = state->my_node_key;
+
     // log_msg(LOG_WARN, "node_key %p", state->my_node_key);
 
     state->my_node_key->node = my_node;

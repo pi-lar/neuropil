@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <inttypes.h>
 
 #include "np_memory.h"
 
@@ -51,6 +52,7 @@ void np_mem_init()
 	__np_obj_pool_ptr->available = 0;
 
 	// init cache
+	/*
 	np_messagepart_t* tmp = NULL;
 	int i = 0;
 	for(; i < 500; i++){
@@ -58,6 +60,7 @@ void np_mem_init()
 		np_free_obj(np_messagepart_t, tmp);
 	}
     log_msg(LOG_DEBUG, "Initiated cache with %d free spaces",i);
+    */
 
 }
 
@@ -175,16 +178,16 @@ void np_mem_printpool()
 		printf("first %p, free %p, current %p\n", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current);
 		printf("size %d, in use %d,  available %d\n", __np_obj_pool_ptr->size, __np_obj_pool_ptr->size - __np_obj_pool_ptr->available,__np_obj_pool_ptr->available);
 
-		printf("np_none_t_e        count %d \n", 	summary[np_none_t_e]);
-		printf("np_message_t_e     count %d \n", 	summary[np_message_t_e]);
-		printf("np_messagepart_t_e count %d \n", 	summary[np_messagepart_t_e]);
-		printf("np_node_t_e        count %d \n", 	summary[np_node_t_e]);
-		printf("np_key_t_e         count %d \n", 	summary[np_key_t_e]);
-		printf("np_aaatoken_t_e    count %d \n", 	summary[np_aaatoken_t_e]);
-		printf("np_msgproperty_t_e count %d \n", 	summary[np_msgproperty_t_e]);
-		printf("np_http_t_e        count %d \n", 	summary[np_http_t_e]);
-		printf("np_network_t_e     count %d \n", 	summary[np_network_t_e]);
-		printf("test_struct_t_e    count %d \n", 	summary[test_struct_t_e]);
+		printf("np_none_t_e        count %"PRIu64" \n", 	summary[np_none_t_e]);
+		printf("np_message_t_e     count %"PRIu64" \n", 	summary[np_message_t_e]);
+		printf("np_messagepart_t_e count %"PRIu64" \n", 	summary[np_messagepart_t_e]);
+		printf("np_node_t_e        count %"PRIu64" \n", 	summary[np_node_t_e]);
+		printf("np_key_t_e         count %"PRIu64" \n", 	summary[np_key_t_e]);
+		printf("np_aaatoken_t_e    count %"PRIu64" \n", 	summary[np_aaatoken_t_e]);
+		printf("np_msgproperty_t_e count %"PRIu64" \n", 	summary[np_msgproperty_t_e]);
+		printf("np_http_t_e        count %"PRIu64" \n", 	summary[np_http_t_e]);
+		printf("np_network_t_e     count %"PRIu64" \n", 	summary[np_network_t_e]);
+		printf("test_struct_t_e    count %"PRIu64" \n", 	summary[test_struct_t_e]);
 
 		printf("--- memory end---\n");
     }

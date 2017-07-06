@@ -20,6 +20,7 @@
 #include "np_node.h"
 #include "np_route.h"
 #include "np_dhkey.h"
+#include "np_key.h"
 #include "np_keycache.h"
 #include "np_treeval.h"
 #include "np_tree.h"
@@ -69,24 +70,23 @@ void _np_sysinfo_init_cache()
 
 void slave_send_cb(NP_UNUSED EV_P_ ev_timer *w, NP_UNUSED int re) {
 
-	np_tryref_obj(np_key_t, _np_state()->my_node_key, keyExists);
-	if(keyExists == TRUE){
-		np_tree_t* reply_body = np_get_my_sysinfo();
+  	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key);
+	np_tree_t* reply_body = np_get_my_sysinfo();
 
-		// build properties
-		np_tree_t* reply_properties = np_tree_create();
-		np_tree_insert_str(reply_properties, _NP_SYSINFO_SOURCE,
-				np_treeval_new_s(_np_key_as_str(_np_state()->my_node_key)));
+	// build properties
+	np_tree_t* reply_properties = np_tree_create();
+	np_tree_insert_str(reply_properties, _NP_SYSINFO_SOURCE,
+			np_treeval_new_s(_np_key_as_str(my_node_key)));
 
-		// send msg
-		log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16")",
-				reply_body->size);
+	// send msg
+	log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16")",
+			reply_body->size);
 
-		// TODO: set to broadcast (or better every master) if available
-		np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, NULL);
+	// TODO: set to broadcast (or better every master) if available
+	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, NULL);
 
-		np_unref_obj(np_key_t, _np_state()->my_node_key);
-	}
+	np_unref_obj(np_key_t, my_node_key);
+
 }
 
 void np_sysinfo_enable_slave() {
@@ -110,8 +110,8 @@ void np_sysinfo_enable_slave() {
 	sysinfo_response_props->retry    = 1;
 	sysinfo_response_props->msg_ttl  = 20.0;
 
-	//sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = 180;
-	//sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = 120;
+	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = 180;
+	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = 120;
 
 	sysinfo_request_props->mode_type = INBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 10;
@@ -152,8 +152,8 @@ void np_sysinfo_enable_master(){
 	sysinfo_response_props->retry    = 1;
 	sysinfo_response_props->msg_ttl  = 20.0;
 
-	//sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = 180;
-	//sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = 120;
+	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = 180;
+	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = 120;
 
 	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 99;
@@ -272,17 +272,17 @@ np_tree_t* np_get_my_sysinfo() {
 
 	// build local node
 	np_tree_t* local_node = np_tree_create();
-	_np_node_encode_to_jrb(local_node, _np_state()->my_node_key, FALSE);
+  	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key);
+	_np_node_encode_to_jrb(local_node, my_node_key, FALSE);
+	np_unref_obj(np_key_t, my_node_key);
+
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE, np_treeval_new_tree(local_node));
 	log_debug_msg(LOG_DEBUG, "my sysinfo object has a node");
 	np_tree_free(local_node);
 
 	// build neighbours list
-	np_sll_t(np_key_t, neighbours_table) = NULL;
-	_LOCK_MODULE(np_routeglobal_t)
-	{
-		neighbours_table = _np_route_neighbors();
-	}
+	np_sll_t(np_key_t, neighbours_table) = _np_route_neighbors();
+
 	np_tree_t* neighbours = np_tree_create();
 	int neighbour_counter = 0;
 	if (NULL != neighbours_table && 0 < neighbours_table->size) {
@@ -302,15 +302,13 @@ np_tree_t* np_get_my_sysinfo() {
 			neighbour_counter);
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, np_treeval_new_tree(neighbours));
+	_np_keycache_unref_keys(neighbours_table);
 	sll_free(np_key_t, neighbours_table);
 	np_tree_free(neighbours);
 
 	// build routing list
-	np_sll_t(np_key_t, routing_table) = NULL;
-	_LOCK_MODULE(np_routeglobal_t)
-	{
-		routing_table = _np_route_get_table();
-	}
+	np_sll_t(np_key_t, routing_table) = _np_route_get_table();
+
 	np_tree_t* routes = np_tree_create();
 	int routes_counter = 0;
 	if (NULL != routing_table && 0 < routing_table->size) {
@@ -329,6 +327,7 @@ np_tree_t* np_get_my_sysinfo() {
 			routes_counter);
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));
+	_np_keycache_unref_keys(routing_table);
 	sll_free(np_key_t, routing_table);
 	np_tree_free(routes);
 
@@ -432,38 +431,42 @@ void _np_request_others() {
 	np_sll_t(np_key_t, routing_table) = NULL;
 	np_sll_t(np_key_t, neighbours_table) = NULL;
 	np_tree_t * tmp = NULL;
-	_LOCK_MODULE(np_routeglobal_t)
-	{
-		routing_table = _np_route_get_table();
-		if (NULL != routing_table && 0 < routing_table->size) {
-			np_key_t* current;
-			while (NULL != sll_first(routing_table)) {
-				current = sll_head(np_key_t, routing_table);
-				if (	NULL != current &&
-						strcmp(_np_key_as_str(current),_np_key_as_str(_np_state()->my_node_key) ) != 0 &&
-						NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current),-2)))
-				{
-					_np_request_sysinfo(_np_key_as_str(current));
-				}
-				np_tree_free(tmp);
-			}
-		}
 
-		neighbours_table = _np_route_neighbors();
-		if (NULL != neighbours_table && 0 < neighbours_table->size) {
-			np_key_t* current;
-			while (NULL != sll_first(neighbours_table)) {
-				current = sll_head(np_key_t, neighbours_table);
-				if (	NULL != current &&
-						strcmp(_np_key_as_str(current),_np_key_as_str(_np_state()->my_node_key) ) != 0 &&
-						NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current),-2)))
-				{
-							_np_request_sysinfo(_np_key_as_str(current));
-				}
-				np_tree_free(tmp);
+	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key);
+
+	routing_table = _np_route_get_table();
+	if (NULL != routing_table && 0 < routing_table->size) {
+		np_key_t* current;
+		while (NULL != sll_first(routing_table)) {
+			current = sll_head(np_key_t, routing_table);
+			if (	NULL != current &&
+					strcmp(_np_key_as_str(current),_np_key_as_str(my_node_key) ) != 0 &&
+					NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current),-2)))
+			{
+				_np_request_sysinfo(_np_key_as_str(current));
 			}
+			np_tree_free(tmp);
 		}
 	}
+
+	neighbours_table = _np_route_neighbors();
+	if (NULL != neighbours_table && 0 < neighbours_table->size) {
+		np_key_t* current;
+		while (NULL != sll_first(neighbours_table)) {
+			current = sll_head(np_key_t, neighbours_table);
+			if (	NULL != current &&
+					strcmp(_np_key_as_str(current),_np_key_as_str(my_node_key) ) != 0 &&
+					NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current),-2)))
+			{
+						_np_request_sysinfo(_np_key_as_str(current));
+			}
+			np_tree_free(tmp);
+		}
+	}
+
+	_np_keycache_unref_keys(routing_table);
 	sll_free(np_key_t, routing_table);
+	_np_keycache_unref_keys(neighbours_table);
 	sll_free(np_key_t, neighbours_table);
+	np_unref_obj(np_key_t, my_node_key);
 }

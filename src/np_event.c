@@ -21,9 +21,12 @@
 #include "np_log.h"
 #include "np_jobqueue.h"
 
+#include "np_key.h"
+#include "np_keycache.h"
 #include "np_event.h"
 #include "np_threads.h"
 #include "neuropil.h"
+#include "np_types.h"
 #include "np_list.h"
 #include "np_route.h"
 
@@ -65,28 +68,8 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args){");
-	sll_return(np_key_t)  sll_routing_tbl;
-	np_bool rejoin = FALSE;
 
-	sll_routing_tbl = _np_route_get_table();
-	if(sll_routing_tbl->size < 1 ) {
-		rejoin = TRUE;
-	}
-	sll_free(np_key_t, sll_routing_tbl);
-
-	log_msg(LOG_DEBUG, "Check for rejoin result: %s necessary",(rejoin == TRUE ?"":"not"));
-
-	if(TRUE == rejoin
-			// check for state availibility to prevent test issues. TODO: Make network objects mockable
-			&& _np_state() != NULL) {
-		np_key_t* bootstrap = np_route_get_bootstrap_key();
-		if(NULL != bootstrap) {
-		    log_msg(LOG_WARN, "lost all connections. try to reconnect to bootstrap host");
-			char* connection_str = np_get_connection_string_from(bootstrap, FALSE);
-			np_send_wildcard_join(connection_str);
-			free(connection_str);
-		}
-	}
+    _np_route_rejoin_bootstrap(FALSE);
 
 	// Reschedule myself
     np_job_submit_event(1, _np_event_rejoin_if_necessary);

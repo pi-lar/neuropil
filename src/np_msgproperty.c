@@ -34,6 +34,7 @@
 #include "np_threads.h"
 #include "np_util.h"
 #include "np_treeval.h"
+#include "np_settings.h"
 #define NR_OF_ELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
 #include "np_msgproperty_init.c"
@@ -147,8 +148,8 @@ void _np_msgproperty_t_new(void* property)
     log_msg(LOG_TRACE, "start: void _np_msgproperty_t_new(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
-	prop->token_min_ttl = 10;
-	prop->token_max_ttl = 30;
+	prop->token_min_ttl = MSGPROPERTY_DEFAULT_MIN_TTL_SEC;
+	prop->token_max_ttl = MSGPROPERTY_DEFAULT_MAX_TTL_SEC;
 
 	prop->msg_audience = NULL;
 	prop->msg_subject = NULL;
@@ -166,10 +167,10 @@ void _np_msgproperty_t_new(void* property)
 
 	prop->last_update = ev_time();
 
-	prop->clb_inbound = _np_never_called_jobexec;
-	prop->clb_outbound = _np_never_called_jobexec;
+	prop->clb_inbound = _np_never_called_jobexec_inbound;
+	prop->clb_outbound = _np_never_called_jobexec_outbound;
 	prop->clb_route = _np_route_lookup_jobexec;
-	prop->clb_transform = _np_never_called_jobexec;
+	prop->clb_transform = _np_never_called_jobexec_transform;
 
 	// cache which will hold up to max_threshold messages
 	prop->cache_policy = FIFO | OVERFLOW_PURGE;

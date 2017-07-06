@@ -52,7 +52,7 @@ struct np_network_s
 	np_obj_t* obj;
 
 	np_bool initialized;
-	np_bool isWatching;
+	int isWatching;
 	int socket;
     ev_io watcher;
 

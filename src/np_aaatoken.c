@@ -95,49 +95,45 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	assert (NULL != data);
 	assert (NULL != token);
 
+	np_tree_elem_t* tmp;
 	// get e2e encryption details of sending entity
-	if (NULL != np_tree_find_str(data, "_np.realm"))
+	if (NULL != (tmp = np_tree_find_str(data, "_np.realm")))
 	{
-		strncpy(token->realm, np_tree_find_str(data, "_np.realm")->val.value.s, 255);
+		strncpy(token->realm, tmp->val.value.s, 255);
 	}
-
-	if (NULL != np_tree_find_str(data, "_np.subject"))
+	if (NULL != (tmp = np_tree_find_str(data, "_np.subject")))
 	{
-		strncpy(token->subject, np_tree_find_str(data, "_np.subject")->val.value.s, 255);
+		strncpy(token->subject, tmp->val.value.s, 255);
 	}
-	if (NULL != np_tree_find_str(data, "_np.issuer"))
+	if (NULL != (tmp = np_tree_find_str(data, "_np.issuer")))
 	{
-		strncpy(token->issuer, np_tree_find_str(data, "_np.issuer")->val.value.s, 255);
+		strncpy(token->issuer, tmp->val.value.s, 255);
 	}
-	if (NULL != np_tree_find_str(data, "_np.audience"))
+	if (NULL != (tmp = np_tree_find_str(data, "_np.audience")))
 	{
-		strncpy(token->audience, np_tree_find_str(data, "_np.audience")->val.value.s, 255);
+		strncpy(token->audience, tmp->val.value.s, 255);
 	}
-
-	if (NULL != np_tree_find_str(data, "_np.uuid"))
+	if (NULL !=(tmp = np_tree_find_str(data, "_np.uuid")))
 	{
-		token->uuid = strndup(np_tree_find_str(data, "_np.uuid")->val.value.s, 255);
+		token->uuid = strndup(tmp->val.value.s, 255);
 	}
-
-	if (NULL != np_tree_find_str(data, "_np.not_before"))
+	if (NULL != (tmp = np_tree_find_str(data, "_np.not_before")))
 	{
-		token->not_before = np_tree_find_str(data, "_np.not_before")->val.value.d;
+		token->not_before = tmp->val.value.d;
 	}
-	if (NULL != np_tree_find_str(data, "_np.expiration"))
+	if (NULL !=(tmp =  np_tree_find_str(data, "_np.expiration")))
 	{
-		token->expiration = np_tree_find_str(data, "_np.expiration")->val.value.d;
+		token->expiration = tmp->val.value.d;
 	}
-
-	if (NULL != np_tree_find_str(data, "_np.public_key"))
+	if (NULL != (tmp = np_tree_find_str(data, "_np.public_key")))
 	{
-		memcpy(token->public_key, np_tree_find_str(data, "_np.public_key")->val.value.bin, crypto_sign_PUBLICKEYBYTES);
+		memcpy(token->public_key, tmp->val.value.bin, crypto_sign_PUBLICKEYBYTES);
 	}
-
 	// decode extensions
-	if (NULL != np_tree_find_str(data, "_np.ext"))
+	if (NULL != (tmp = np_tree_find_str(data, "_np.ext")))
 	{
 		np_tree_clear(token->extensions);
-		np_tree_t* from = np_tree_find_str(data, "_np.ext")->val.value.tree;
+		np_tree_t* from = tmp->val.value.tree;
 		np_tree_elem_t* tmp = NULL;
 		RB_FOREACH(tmp, np_tree_s, from)
 		{
@@ -289,7 +285,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		if (0                   <= token_msg_threshold &&
 			token_msg_threshold <= token_max_threshold)
 		{
-			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token for subject \"%s\": %s can be used for %"PRIu16" msgs", token->subject, token->issuer, token_max_threshold-token_msg_threshold);
+			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token for subject \"%s\": %s can be used for %d msgs", token->subject, token->issuer, token_max_threshold-token_msg_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state |= AAA_VALID;
 			return (TRUE);
@@ -373,10 +369,28 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 
 
 		np_msgproperty_t* send_prop = np_msgproperty_get(OUTBOUND, subject);
-		np_msgproperty_t* recv_prop = np_msgproperty_get(INBOUND, subject);
+		if (NULL != send_prop && NULL == subject_key->send_property)
+		{
+			np_ref_obj(np_msgproperty_t, send_prop);
+			subject_key->send_property = send_prop;
+		}
+		else
+		{
+			create_new_prop |= TRUE;
+		}
 
-		if (send_prop == NULL || recv_prop == NULL
-		||  subject_key->send_property == NULL || subject_key->recv_property == NULL)
+		np_msgproperty_t* recv_prop = np_msgproperty_get(INBOUND, subject);
+		if (NULL != recv_prop && NULL == subject_key->recv_property)
+		{
+			np_ref_obj(np_msgproperty_t, recv_prop);
+			subject_key->recv_property = recv_prop;
+		}
+		else
+		{
+			create_new_prop |= TRUE;
+		}
+
+		if (TRUE == create_new_prop && (NULL == subject_key->send_property || NULL == subject_key->recv_property))
 		{
 		    log_debug_msg(LOG_DEBUG, "creating ledger property for %s", subject);
 
@@ -387,17 +401,17 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 					prop = recv_prop;
 				} else {
 					np_new_obj(np_msgproperty_t, prop);
+		 		    prop->msg_subject = strndup(subject, 255);
+					prop->mode_type |= OUTBOUND | INBOUND;
 				}
 		    }
-		    prop->msg_subject = strndup(subject, 255);
+
 			if (NULL == subject_key->send_property) {
 				np_ref_obj(np_msgproperty_t, prop);
-				prop->mode_type |= OUTBOUND;
 				subject_key->send_property = prop;
 			}
-			if (NULL == subject_key->recv_property){
+			if (NULL == subject_key->recv_property) {
 				np_ref_obj(np_msgproperty_t, prop);
-				prop->mode_type |= INBOUND;
 				subject_key->recv_property = prop;
 			}
 		}

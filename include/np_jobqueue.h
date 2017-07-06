@@ -29,7 +29,10 @@ struct np_jobargs_s
 	np_error_t error_code;
 };
 
-
+NP_API_INTERN
+np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop);
+NP_API_INTERN
+void _np_job_free_args(np_jobargs_t* args);
 
 /** _np_job_queue_create
  *  initiate the queue and thread pool of size "pool_size" returns a pointer

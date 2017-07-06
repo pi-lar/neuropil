@@ -24,6 +24,8 @@
 #include "np_node.h"
 #include "np_msgproperty.h"
 #include "np_key.h"
+#include "np_route.h"
+#include "np_jobqueue.h"
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
 
@@ -77,6 +79,10 @@ void _np_key_destroy(np_key_t* to_destroy) {
 			log_debug_msg( LOG_DEBUG, "refcount of key %s at destroy: %d", keyident, to_destroy->obj->ref_count);
 
 			_np_keycache_remove(to_destroy->dhkey);
+			np_key_t* deleted;
+			np_key_t* added;
+ 			_np_route_leafset_update(to_destroy,FALSE,&deleted,&added);
+			_np_route_update(to_destroy,FALSE,&deleted,&added);
 
 			_np_network_stop(to_destroy->network);
 
@@ -188,3 +194,134 @@ void _np_key_t_del(void* key)
 
 }
 
+void np_key_renew_token() {
+
+	_LOCK_MODULE(np_node_renewal_t) {
+		np_state_t* state = _np_state();
+
+		np_key_t* new_node_key = NULL;
+		np_key_t* old_node_key = state->my_node_key;
+
+		np_ref_obj(np_key_t, old_node_key);
+
+		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Creating new node key");
+
+		np_aaatoken_t* new_token = _np_node_create_token(old_node_key->node);
+		new_node_key = _np_node_create_from_token(new_token);
+
+		np_ref_obj(np_aaatoken_t, new_token);
+		new_node_key->aaa_token = new_token;
+
+		// find closest member according to old routing table
+		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.get routing table");
+		np_sll_t(np_key_t, table) = _np_route_get_table();
+
+		// sort to get potential closest neighbor first
+		_np_keycache_sort_keys_kd(table, &new_node_key->dhkey);
+		sll_iterator(np_key_t) iterator = sll_first(table);
+
+
+		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
+		np_message_t* msg_out_update = NULL;
+		np_message_t* msg_out_leave = NULL;
+		np_tree_t* jrb_new = np_tree_create();
+		np_aaatoken_encode(jrb_new, new_node_key->aaa_token);
+		np_tree_t* jrb_old = np_tree_create();
+		np_aaatoken_encode(jrb_old, old_node_key->aaa_token);
+
+		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Sending new aaatoken to old known nodes");
+		iterator = sll_first(table);
+		while (NULL != iterator)
+		{
+			//_np_route_update(iterator->val, TRUE, &deleted, &added);
+			//_np_route_leafset_update(iterator->val, TRUE, &deleted, &added);
+
+			// send join messages to entries of the routing	 table to re-arrange internal routing
+			/* request update from join with peer */
+			np_tree_t* jrb_new_me = np_tree_copy(jrb_new);
+			np_new_obj(np_message_t, msg_out_update);
+			log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.submitting update request to target key %s", _np_key_as_str(iterator->val));
+			_np_message_create(msg_out_update, iterator->val, old_node_key, _NP_MSG_UPDATE_REQUEST, jrb_new_me);
+
+			_np_job_submit_msgout_event(0.0, prop, iterator->val, msg_out_update);
+			np_unref_obj(np_message_t, msg_out_update);
+
+			/*
+			np_tree_t* jrb_old_me = np_tree_copy(jrb_old);
+			np_new_obj(np_message_t, msg_out_leave);
+			_np_message_create(msg_out_leave, iterator->val, new_node_key, _NP_MSG_LEAVE_REQUEST, jrb_old_me);
+			_np_job_submit_msgout_event(0.0, prop, iterator->val, msg_out_leave);
+			np_unref_obj(np_message_t, msg_out_leave);
+			 */
+
+			sll_next(iterator);
+		}
+		np_tree_free(jrb_new);
+		np_tree_free(jrb_old);
+
+		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.replacing identity");
+		// _np_job_yield(state->my_node_key->aaa_token->expiration - ev_time());
+		// exchange identity if required
+		if (state->my_identity == old_node_key)
+		{
+			np_ref_switch(np_key_t, state->my_identity, new_node_key);
+		}
+		else
+		{
+			np_tree_replace_str(state->my_identity->aaa_token->extensions, "target_node", np_treeval_new_s(_np_key_as_str(new_node_key)) );
+		}
+		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.replacing key");
+
+
+		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Updating network");
+		_LOCK_ACCESS(&old_node_key->network->lock)
+		{
+			// save old network setup
+			np_ref_obj(np_network_t, old_node_key->network);
+			new_node_key->network   = old_node_key->network;
+
+			np_ref_switch(np_key_t, state->my_node_key->network->watcher.data, new_node_key);
+			state->my_node_key->node->joined_network = old_node_key->node->joined_network;
+		}
+
+		_LOCK_MODULE(np_routeglobal_t)
+		{
+			log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.got _LOCK_MODULE(np_routeglobal_t)");
+
+			// exchange node key
+			np_ref_obj(np_key_t, new_node_key );
+			state->my_node_key = new_node_key;
+
+			log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec._np_route_clear");
+			// clear the table
+			_np_route_clear();
+
+			log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.set key");
+			// re-set routing table midpoint
+			_np_route_set_key(state->my_node_key);
+
+			// re-arrange routing table and leafset
+			np_key_t* deleted = NULL;
+			np_key_t* added = NULL;
+			iterator = sll_first(table);
+			while (NULL != iterator)
+			{
+				_np_route_update(iterator->val, TRUE, &deleted, &added);
+				_np_route_leafset_update(iterator->val, TRUE, &deleted, &added);
+
+				sll_next(iterator);
+			}
+		}
+
+		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Completed node renewal. cleaning up now");
+
+		// clean up
+		_np_keycache_unref_keys(table); // _np_route_get_table
+		sll_free(np_key_t, table);
+
+		_np_key_destroy(old_node_key);
+		_np_network_start(new_node_key->network);
+
+		np_unref_obj(np_key_t, old_node_key);
+	}
+}
