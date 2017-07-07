@@ -165,6 +165,8 @@ void _np_key_t_new(void* key)
 
     new_key->parent = NULL;
     new_key->created_at = ev_time();
+    log_debug_msg(LOG_KEY | LOG_DEBUG, "Created new key");
+
 }
 
 void _np_key_t_del(void* key)
@@ -190,8 +192,6 @@ void _np_key_t_del(void* key)
 	np_unref_obj(np_aaatoken_t,		old_key->aaa_token);
 	np_unref_obj(np_node_t,     	old_key->node);
 	np_unref_obj(np_network_t,  	old_key->network);
-
-
 }
 
 void np_key_renew_token() {

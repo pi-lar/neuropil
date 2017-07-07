@@ -428,6 +428,7 @@ void _np_send_handshake(np_jobargs_t* args)
 				if (FALSE == args->target->network->initialized)
 				{
 					np_free_obj(np_message_t, hs_message);
+				    log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
 					args->target->node->handshake_status = HANDSHAKE_UNKNOWN;
 					return;
 				}

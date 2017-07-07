@@ -36,12 +36,12 @@ extern "C" {
 
 enum socket_type {
 	UNKNOWN_PROTO = 0x00,
-	IPv4    = 0x01,
-	IPv6    = 0x02,
-	UDP     = 0x10, // UDP protocol - default
-	TCP     = 0x20, // TCP protocol
-	RAW     = 0x40, // pure IP protocol - no ports
-	PASSIVE = 0x80  // TCP passive (like FTP passive) for nodes behind firewalls
+	IPv4    	  = 0x01,
+	IPv6    	  = 0x02,
+	UDP     	  = 0x10, // UDP protocol - default
+	TCP     	  = 0x20, // TCP protocol
+	RAW     	  = 0x40, // pure IP protocol - no ports
+	PASSIVE 	  = 0x80  // TCP passive (like FTP passive) for nodes behind firewalls
 } NP_ENUM;
 
 typedef void* void_ptr;

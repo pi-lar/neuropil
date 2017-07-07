@@ -823,10 +823,7 @@ void _np_send_ack(np_message_t* in_msg)
 		np_dhkey_t ack_key = np_dhkey_create_from_hash(
 				np_tree_find_str(in_msg->header, _NP_MSG_INST_ACK_TO)->val.value.s);
 
-		// TODO: find in keycache, must be present
-		np_key_t* ack_target = NULL;
-		np_new_obj(np_key_t, ack_target);
-		ack_target->dhkey = ack_key;
+		np_key_t* ack_target = _np_keycache_find(ack_key);
 
 		np_message_t* ack_msg = NULL;
 		np_new_obj(np_message_t, ack_msg);

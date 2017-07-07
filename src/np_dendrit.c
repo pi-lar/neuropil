@@ -243,8 +243,7 @@ void _np_in_received(np_jobargs_t* args)
 			np_dhkey_t target_dhkey;
 			_np_dhkey_from_str(msg_to.value.s, &target_dhkey);
 
-			np_new_obj(np_key_t, target_key);
-			target_key->dhkey = target_dhkey;
+			target_key = _np_keycache_find_or_create(target_dhkey);
 
 			//	if () {
 		//		log_debug_msg(LOG_DEBUG, "received wildcart msg");
@@ -904,6 +903,7 @@ void _np_in_join_nack(np_jobargs_t* args)
 
 	nack_key->aaa_token->state &= AAA_INVALID;
 	nack_key->node->joined_network = FALSE;
+    log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
 	nack_key->node->handshake_status = HANDSHAKE_UNKNOWN;
 
 	__np_cleanup__:
@@ -1054,8 +1054,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
 
-	np_new_obj(np_key_t, reply_to_key);
-	reply_to_key->dhkey = np_dhkey_create_from_hash(msg_reply_to.value.s);
+	reply_to_key = _np_keycache_find_or_create(np_dhkey_create_from_hash(msg_reply_to.value.s));
 
 	// extract e2e encryption details for sender
 	np_aaatoken_t* msg_token = NULL;
@@ -1170,8 +1169,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
 
-	np_new_obj(np_key_t, reply_to_key);
-	reply_to_key->dhkey = np_dhkey_create_from_hash(msg_reply_to.value.s);
+	reply_to_key = _np_keycache_find_or_create(np_dhkey_create_from_hash(msg_reply_to.value.s));
 
 	log_debug_msg(LOG_DEBUG, "reply key: %s", _np_key_as_str(reply_to_key) );
 
@@ -1293,8 +1291,8 @@ void _np_in_authenticate(np_jobargs_t* args)
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
-	np_new_obj(np_key_t, reply_to_key);
-	reply_to_key->dhkey = np_dhkey_create_from_hash(msg_reply_to.value.s);
+	reply_to_key = _np_keycache_find_or_create(np_dhkey_create_from_hash(msg_reply_to.value.s));
+
 	log_debug_msg(LOG_DEBUG, "reply key: %s", _np_key_as_str(reply_to_key) );
 
 	sender_token = _np_aaatoken_get_sender((char*) _NP_MSG_AUTHENTICATION_REQUEST, msg_from.value.s);
@@ -1473,8 +1471,8 @@ void _np_in_authorize(np_jobargs_t* args)
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
-	np_new_obj(np_key_t, reply_to_key);
-	reply_to_key->dhkey = np_dhkey_create_from_hash(msg_reply_to.value.s);
+	reply_to_key = _np_keycache_find_or_create(np_dhkey_create_from_hash(msg_reply_to.value.s));
+
 	log_debug_msg(LOG_DEBUG, "reply key: %s", _np_key_as_str(reply_to_key) );
 
 	sender_token = _np_aaatoken_get_sender((char*) _NP_MSG_AUTHORIZATION_REQUEST, msg_from.value.s);
@@ -1802,7 +1800,7 @@ void _np_in_handshake(np_jobargs_t* args)
 		{
 			log_debug_msg(LOG_DEBUG, "handshake: init alias network");
 			np_new_obj(np_network_t, hs_key->network);
-			if (!(hs_key->node->protocol & PASSIVE))
+			if (((hs_key->node->protocol & PASSIVE) != PASSIVE))
 			{
 				_np_network_init(
 						hs_key->network,
@@ -1866,18 +1864,19 @@ void _np_in_handshake(np_jobargs_t* args)
 	alias_key = _np_keycache_find_or_create(search_alias_key);
 	if (NULL != alias_key)
 	{
+		np_ref_obj(np_aaatoken_t, hs_key->aaa_token);
 		alias_key->aaa_token = hs_key->aaa_token;
-		np_ref_obj(np_aaatoken_t, alias_key->aaa_token);
 
+		np_ref_obj(np_node_t, hs_key->node);
 		alias_key->node = hs_key->node;
-		np_ref_obj(np_node_t, alias_key->node);
 
-		if (alias_key->node->protocol & PASSIVE)
+
+		if ((alias_key->node->protocol & PASSIVE ) == PASSIVE)
 		{
 			np_free_obj(np_network_t, hs_key->network);
 
+			np_ref_obj(np_network_t, alias_key->network);
 			hs_key->network = alias_key->network;
-			np_ref_obj(np_network_t, hs_key->network);
 
 			_np_network_stop(hs_key->network);
 			ev_io_init(
@@ -1887,7 +1886,7 @@ void _np_in_handshake(np_jobargs_t* args)
 					EV_WRITE | EV_READ);
 			_np_network_start(hs_key->network);
 		}
-		else if (alias_key->node->protocol & TCP)
+		else if((alias_key->node->protocol & TCP) == TCP)
 		{
 			// with tcp we accepted the connection already and have an incoming channel defined
 			// alias key and hs_key have different network_t structures, so there is nothing to do

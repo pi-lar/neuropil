@@ -389,8 +389,9 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		// double last_update = iter->val.value.d;
 		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(iter->key.value.s, "0");
 		np_key_t* target = NULL;
-		np_new_obj(np_key_t, target);
-		target->dhkey = target_dhkey;
+
+		target = _np_keycache_find_or_create(target_dhkey);
+
 
 		msg_prop = np_msgproperty_get(TRANSFORM, iter->key.value.s);
 		if (NULL != msg_prop)
@@ -415,8 +416,7 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 
 		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(state->my_identity->aaa_token->realm, "0");
 		np_key_t* target = NULL;
-		np_new_obj(np_key_t, target);
-		target->dhkey = target_dhkey;
+		target = _np_keycache_find_or_create(target_dhkey);
 
 		msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
 		msg_prop->clb_transform = _np_send_sender_discovery;
@@ -752,8 +752,7 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 
 		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
 		np_key_t* target = NULL;
-		np_new_obj(np_key_t, target);
-		target->dhkey = target_dhkey;
+		target = _np_keycache_find_or_create(target_dhkey);
 
 		log_debug_msg(LOG_DEBUG, "registering for message discovery token handling (%s)", subject);
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
@@ -791,11 +790,11 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		}
 
 		np_key_t* receiver_key = NULL;
-		np_new_obj(np_key_t, receiver_key);
 
 		np_dhkey_t receiver_dhkey;
 		_np_dhkey_from_str(target_node_str, &receiver_dhkey);
-		receiver_key->dhkey = receiver_dhkey;
+		receiver_key = _np_keycache_find_or_create(receiver_dhkey);
+
 
 		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_s(target_node_str));
 		np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);

@@ -294,8 +294,8 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 		// {
 		if (node_key->node->handshake_status < HANDSHAKE_COMPLETE)
 		{
-			log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
-					node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
+			log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake (current status: %d) with %s:%s (%s)",
+					node_key->node->handshake_status, node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
 
 			node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
 			np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
@@ -945,7 +945,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 				return FALSE;
 			}
 
-			if (type & TCP) {
+			if ((type & TCP) == TCP) {
 				if (0 > listen(ng->socket, 10)) {
 					log_msg(LOG_ERROR, "listen on tcp port failed: %s:", strerror (errno));
 					close (ng->socket);
@@ -953,11 +953,11 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 				}
 			}
 
-			if (type & TCP)
+			if ((type & TCP) == TCP)
 			{
 				ev_io_init(&ng->watcher, _np_network_accept, ng->socket, EV_READ);
 			}
-			else if (type & UDP)
+			else if ((type & UDP) == UDP)
 			{
 				ev_io_init(&ng->watcher, _np_network_read, ng->socket, EV_READ);
 			}

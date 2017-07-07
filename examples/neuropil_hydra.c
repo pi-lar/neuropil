@@ -113,8 +113,8 @@ int main(int argc, char **argv)
 		level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG
 				  //| LOG_MUTEX | LOG_TRACE
 				  //| LOG_ROUTING
-				  //| LOG_ROUTING
 				  //| LOG_HTTP
+				  | LOG_KEY
 				  | LOG_NETWORK
 				  //| LOG_AAATOKEN
 				   ;
@@ -191,7 +191,7 @@ int main(int argc, char **argv)
 			    if(i % 10 == 0) {
 			    	np_mem_printpool();
 			    }
-			    if((i == (60 * 10))){
+			    if((i == (35/*sec*/ * 10))){
 					fprintf(stdout, "Renew bootstrap token");
 					np_key_renew_token();
 			    }
