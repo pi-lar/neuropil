@@ -19,7 +19,7 @@ extern "C" {
  *	attempt to share its data.
  */
 #ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
-	static const int SYSINFO_PROACTIVE_SEND_IN_SEC = 1;
+	static const double SYSINFO_PROACTIVE_SEND_IN_SEC = 1.0;
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL
@@ -33,14 +33,14 @@ extern "C" {
  * The maximum lifetime of a node before it is refreshed
  */
 #ifndef NODE_MAX_TTL_SEC
-	static const double NODE_MAX_TTL_SEC = 3600; // 3600 = 1h
+	static const double NODE_MAX_TTL_SEC =  31540000; // 3600 = 1h
 #endif
 
 /*
  * The minimum lifetime of a node before it is refreshed
  */
 #ifndef NODE_MIN_TTL_SEC
-	static const double NODE_MIN_TTL_SEC =  3480; // 3480 = 58min
+	static const double NODE_MIN_TTL_SEC = NODE_MAX_TTL_SEC - 120;
 #endif
 
 #ifndef NODE_RENEW_BEFORE_EOL_SEC

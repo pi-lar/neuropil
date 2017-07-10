@@ -191,10 +191,12 @@ int main(int argc, char **argv)
 			    if(i % 10 == 0) {
 			    	np_mem_printpool();
 			    }
-			    if((i == (35/*sec*/ * 10))){
-					fprintf(stdout, "Renew bootstrap token");
-					np_key_renew_token();
-			    }
+
+			    //if((i == (35/*sec*/ * 10))){
+				//	fprintf(stdout, "Renew bootstrap token");
+				//	np_key_renew_token();
+			    //}
+
 
 			}
 			/**
