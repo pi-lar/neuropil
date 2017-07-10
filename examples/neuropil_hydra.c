@@ -34,8 +34,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define USAGE "neuropil_hydra [-j key:proto:host:port] [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count] [-l path_to_log_folder] [-d loglevel]"
-#define OPTSTR "j:p:n:t:l:d:"
+#define USAGE "neuropil_hydra [-j key:proto:host:port] [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count] [-l path_to_log_folder] [-d loglevel] [-u publish_domain] "
+#define OPTSTR "j:p:n:t:l:d:u:"
 
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
@@ -67,6 +67,7 @@ int main(int argc, char **argv)
 	char bootstrap_port[7];
 	char* proto = "udp4";
 	char* logpath = ".";
+	char* publish_domain = "localhost";
 
 	uint32_t required_nodes = NUM_HOST;
 	// The Log level. See below for settings
@@ -87,6 +88,9 @@ int main(int argc, char **argv)
 			break;
 		case 'n':
 			required_nodes = atoi(optarg);
+			break;
+		case 'u':
+			publish_domain = optarg;
 			break;
 		case 'd':
 			level = atoi(optarg);
@@ -130,7 +134,7 @@ int main(int argc, char **argv)
 	} else {
 		sprintf(bootstrap_port, "%d", current_pid);
 	}
-	asprintf(&bootstrap_hostnode_default, "%s:localhost:%s", proto, bootstrap_port);
+	asprintf(&bootstrap_hostnode_default, "%s:%s:%s", proto,publish_domain, bootstrap_port);
 
 	int create_bootstrap = NULL == bootstrap_hostnode;
 	if (TRUE == create_bootstrap) {
@@ -161,7 +165,7 @@ int main(int argc, char **argv)
 
 			np_log_init(log_file_host, level);
 			// provide localhost as hostname to support development on local machines
-			np_init(proto, bootstrap_port, TRUE, "localhost");
+			np_init(proto, bootstrap_port, TRUE, publish_domain);
 			/**
 			 \endcode
 			 */
@@ -295,7 +299,7 @@ int main(int argc, char **argv)
 				np_log_init(log_file, level);
 				// use the pid as port
 				// provide localhost as hostname to support development on local machines
-				np_state_t* child_status = np_init(proto, port, FALSE, "localhost");
+				np_state_t* child_status = np_init(proto, port, FALSE, publish_domain);
 				log_debug_msg(LOG_DEBUG, "starting job queue");
 				np_start_job_queue(no_threads);
 				/**
