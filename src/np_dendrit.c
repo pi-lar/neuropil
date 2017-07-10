@@ -1046,12 +1046,14 @@ void _np_in_update(np_jobargs_t* args)
 						_np_key_as_str(update_key)
 						);
 
-				// reuse network
-				np_ref_obj(np_network_t,alias_key->network);
-				_np_network_start(alias_key->network);
-				update_key->network = alias_key->network;
+				if(alias_key->network != NULL) {
+					// reuse network
+					np_ref_obj(np_network_t, alias_key->network);
+					_np_network_start(alias_key->network);
+					update_key->network = alias_key->network;
 
-				_np_key_destroy(alias_key);
+					//_np_key_destroy(alias_key);
+				}
 
 				np_unref_obj(np_key_t, alias_key); // _np_keycache_find_by_details
 			}
