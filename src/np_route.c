@@ -562,8 +562,10 @@ void _np_route_clear ()
 				{
 					// log_debug_msg(LOG_ROUTING | LOG_DEBUG, "init routes->table[%d]", index + k);
 					np_key_t* item = __routing_table->table[index + k];
-					if(item != NULL){
+					np_tryref_obj(np_key_t, item, itemExists);
+					if(itemExists){
 						_np_route_update(item, FALSE, &deleted, &added);
+						np_unref_obj(np_key_t, item);
 					}
 					__routing_table->table[index + k] = NULL;
 				}
@@ -581,7 +583,11 @@ void _np_route_leafset_clear ()
 		np_key_t* deleted = NULL;
 		np_key_t* added = NULL;
 		while(iter != NULL){
-			_np_route_leafset_update(iter->val,FALSE,&deleted,&added);
+			np_tryref_obj(np_key_t, iter->val, itemExists);
+			if(itemExists){
+				_np_route_leafset_update(iter->val,FALSE,&deleted,&added);
+				np_unref_obj(np_key_t, iter->val);
+			}
 			pll_next(iter);
 
 		}
@@ -589,7 +595,11 @@ void _np_route_leafset_clear ()
 		deleted = NULL;
 		added = NULL;
 		while(iter != NULL){
-			_np_route_leafset_update(iter->val,FALSE,&deleted,&added);
+			np_tryref_obj(np_key_t, iter->val, itemExists);
+			if(itemExists){
+				_np_route_leafset_update(iter->val,FALSE,&deleted,&added);
+				np_unref_obj(np_key_t, iter->val);
+			}
 			pll_next(iter);
 		}
 
