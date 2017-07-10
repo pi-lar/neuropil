@@ -7,6 +7,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
+#include <assert.h>
 
 #include "sodium.h"
 #include "event/ev.h"
@@ -371,4 +373,30 @@ void np_dump_tree2log(np_tree_t* tree){
 		log_debug_msg(LOG_DEBUG, "%s", tmp);
 		json_free_serialized_string(tmp);
 	}
+}
+/*
+ * cancats target with source and applys the variable arguments as a string format on source
+ * frees target and reasigns it with the new string
+ * @param target
+ * @param source
+ * @return
+ */
+char* _np_concatAndFree(char* target, char* source, ... ) {
+
+	if(target== NULL){
+		asprintf(&target,"%s","");
+	}
+	char* new_target = NULL;
+ 	char* tmp = NULL;
+	va_list args;
+	va_start(args, source);
+	vasprintf(&tmp, source, args);
+    va_end(args);
+
+	asprintf(&new_target ,"%s%s",target,tmp);
+
+	free(tmp);
+	free(target);
+	//free(source);
+	return new_target;
 }

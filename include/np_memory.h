@@ -223,7 +223,7 @@ void np_mem_unrefobj(np_obj_t* obj);
 
 // print the complete object list and statistics
 NP_API_INTERN
-void np_mem_printpool();
+char* np_mem_printpool(np_bool asOneLine);
 
 #ifdef __cplusplus
 }

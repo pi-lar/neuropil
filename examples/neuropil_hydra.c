@@ -26,6 +26,7 @@
 #include "np_node.h"
 #include "np_keycache.h"
 #include "np_key.h"
+#include "np_memory.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -189,7 +190,12 @@ int main(int argc, char **argv)
 			    ev_sleep(0.1);
 			    i +=1;
 			    if(i % 10 == 0) {
-			    	np_mem_printpool();
+			    	char* memory_str = np_mem_printpool(FALSE);
+			    	printf("%s", memory_str);
+			    	free(memory_str);
+			    	memory_str = np_mem_printpool(TRUE);
+			    	log_msg(LOG_INFO, "%s", memory_str );
+			    	free(memory_str);
 			    }
 
 			    //if((i == (35/*sec*/ * 10))){
@@ -339,6 +345,9 @@ int main(int argc, char **argv)
 
 				while (TRUE) {
 					ev_sleep(0.1);
+					char* memory_str = np_mem_printpool(TRUE);
+					log_msg(LOG_INFO, "%s", memory_str );
+					free(memory_str);
 				}
 
 			} else {

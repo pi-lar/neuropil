@@ -100,6 +100,9 @@ void np_dump_tree2log(np_tree_t* tree);
 */
 NP_API_EXPORT
 char* np_dump_tree2char(np_tree_t* tree);
+
+NP_API_INTERN
+char* _np_concatAndFree(char* target, char* source, ... );
 #ifdef __cplusplus
 }
 #endif
