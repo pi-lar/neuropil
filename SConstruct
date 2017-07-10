@@ -61,8 +61,8 @@ if 'Darwin' in platform.system():
 if 'Linux' in platform.system():
   env.Append(CCFLAGS = ['-D_GNU_SOURCE'])
   env.Append(LIBS = ['rt', 'pthread'] )
-  env.Append(LIBPATH = ['/usr/local/lib'] )
-  env.Append(CCFLAGS = ['-I/usr/local/include'] )
+  #env.Append(LIBPATH = ['/usr/local/lib'] )
+  #env.Append(CCFLAGS = ['-I/usr/local/include'] )
 if 'CYGWIN' in platform.system():
   # -std=gnu++0x doesn't work, so work around...
   env.Append(CCFLAGS = ['-U__STRICT_ANSI__'] )
