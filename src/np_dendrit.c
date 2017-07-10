@@ -1031,9 +1031,37 @@ void _np_in_update(np_jobargs_t* args)
 		HANDSHAKE_INITIALIZED > update_key->node->handshake_status &&
 		FALSE == update_key->node->joined_network)
 	{
-		log_debug_msg(LOG_DEBUG, "Sending join");
-		_np_send_simple_invoke_request(update_key, _NP_MSG_JOIN_REQUEST);
-	}else{
+		// do not join myself
+		if(0!= _np_key_cmp(update_key,_np_state()->my_identity)
+		&& 0!= _np_key_cmp(update_key,_np_state()->my_node_key))
+		{
+			np_key_t* alias_key = _np_keycache_find_by_details(
+					np_get_connection_string_from(update_key,FALSE)
+					,FALSE,FALSE,FALSE,TRUE,TRUE,FALSE);
+
+			if(alias_key != NULL) {
+				log_msg(LOG_INFO,
+						"Node %s replaces itself with node %s",
+						_np_key_as_str(args->target),
+						_np_key_as_str(update_key)
+						);
+
+				// reuse network
+				np_ref_obj(np_network_t,alias_key->network);
+				_np_network_start(alias_key->network);
+				update_key->network = alias_key->network;
+
+				_np_key_destroy(alias_key);
+
+				np_unref_obj(np_key_t, alias_key); // _np_keycache_find_by_details
+			}
+
+			log_debug_msg(LOG_DEBUG,
+					"Sending join %s:%s",
+					args->target->network->ip,update_key->node->port);
+			_np_send_simple_invoke_request(update_key, _NP_MSG_JOIN_REQUEST);
+		}
+	} else {
 	    log_debug_msg(LOG_DEBUG, "Sending no join %d",update_key->node->handshake_status);
 	}
 
@@ -1848,8 +1876,8 @@ void _np_in_handshake(np_jobargs_t* args)
 	{
 		// print warning if overwrite happens
 		log_msg(LOG_WARN,
-			   "found valid authentication token for node %s, overwriting...",
-			   _np_key_as_str(hs_key));
+			   "found valid authentication token for node %s (%p), overwriting...",
+			   _np_key_as_str(hs_key),hs_key->node->obj);
 		old_token = hs_key->aaa_token;
 
 		hs_key->node->handshake_status = HANDSHAKE_INITIALIZED;

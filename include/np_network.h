@@ -66,6 +66,7 @@ struct np_network_s
 
     uint32_t seqend;
 
+    char ip[255];
     np_mutex_t lock;
 } NP_API_INTERN;
 

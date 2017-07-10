@@ -294,8 +294,8 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 		// {
 		if (node_key->node->handshake_status < HANDSHAKE_COMPLETE)
 		{
-			log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake (current status: %d) with %s:%s (%s)",
-					node_key->node->handshake_status, node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
+			log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake (current status: %d for %p) with %s:%s (%s)",
+					node_key->node->handshake_status, node_key->node->obj, node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
 
 			node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
 			np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
@@ -682,6 +682,8 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 		}
 
+		memcpy(ng->ip, ipstr, 255);
+
 		if (0 == in_msg_len && ng_tcp != NULL)
 		{
 			// tcp disconnect
@@ -775,6 +777,7 @@ void _np_network_stop(np_network_t* network){
 		_LOCK_ACCESS(&network->lock){
 			network->isWatching 	-= 1;
 			if(network->isWatching == 0) {
+				log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p",network);
 				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 				ev_io_stop(EV_A_ &network->watcher);
 			}
@@ -788,6 +791,7 @@ void _np_network_start(np_network_t* network){
     	_LOCK_ACCESS(&network->lock){
     		network->isWatching 	+= 1;
 			if(network->isWatching == 1) {
+				log_msg(LOG_NETWORK | LOG_INFO, "starting network %p",network);
 				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 				ev_io_start(EV_A_ &network->watcher);
 			}

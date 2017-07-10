@@ -133,8 +133,8 @@ np_key_t* _np_keycache_find_by_details(
 					(!require_port || (NULL != iter->node && NULL != iter->node->port &&strstr(details_container, iter->node->port) != NULL))
 			)
 			{
+				np_ref_obj(np_key_t, iter);
 				ret = iter;
-				np_ref_obj(np_key_t, ret);
 				ret->last_update = ev_time();
 				break;
 			}

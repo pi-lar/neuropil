@@ -279,6 +279,7 @@ void np_key_renew_token() {
 			// save old network setup
 			np_ref_obj(np_network_t, old_node_key->network);
 			new_node_key->network   = old_node_key->network;
+			_np_network_start(new_node_key->network);
 
 			np_ref_switch(np_key_t, state->my_node_key->network->watcher.data, new_node_key);
 			state->my_node_key->node->joined_network = old_node_key->node->joined_network;
@@ -320,7 +321,6 @@ void np_key_renew_token() {
 		sll_free(np_key_t, table);
 
 		_np_key_destroy(old_node_key);
-		_np_network_start(new_node_key->network);
 
 		np_unref_obj(np_key_t, old_node_key);
 	}
