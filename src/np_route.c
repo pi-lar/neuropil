@@ -58,8 +58,9 @@ void _np_route_append_leafset_to_sll(np_key_ptr_pll_t* left_leafset, np_sll_t(np
  */
 np_bool _np_route_init (np_key_t* me)
 {
-	__routing_table = (np_routeglobal_t *) malloc (sizeof (np_routeglobal_t));
+	__routing_table = (np_routeglobal_t *) calloc (1, sizeof (np_routeglobal_t));
 	CHECK_MALLOC(__routing_table);
+
 
 	__routing_table->bootstrap_key = NULL;
 	_np_route_set_key(me);
@@ -68,7 +69,7 @@ np_bool _np_route_init (np_key_t* me)
     pll_init(np_key_ptr,__routing_table->left_leafset);
     pll_init(np_key_ptr,__routing_table->right_leafset);
 
-    _np_route_clear();
+   // _np_route_clear();
 
     return (TRUE);
 }
