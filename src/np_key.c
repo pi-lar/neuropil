@@ -174,7 +174,7 @@ void _np_key_t_del(void* key)
     log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_del(void* key){");
 	np_key_t* old_key = (np_key_t*) key;
 
-	//_np_key_destroy(old_key);
+	_np_key_destroy(old_key);
 
 	// delete string presentation of key
 	if (NULL != old_key->dhkey_str)

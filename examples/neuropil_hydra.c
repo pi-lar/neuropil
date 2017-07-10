@@ -385,7 +385,7 @@ int main(int argc, char **argv)
 
 			 \code
 			 */
-			/*
+
 			current_pid = waitpid(-1, &status, WNOHANG);
 			// check for stopped child processes
 			if (current_pid != 0) {
@@ -408,7 +408,7 @@ int main(int argc, char **argv)
 					i++;
 				}
 			}
-			*/
+
 			/**
 			 \endcode
 			 */

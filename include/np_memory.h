@@ -54,6 +54,7 @@ typedef struct np_obj_s np_obj_t;
 
 struct np_obj_s
 {
+	np_bool freeing;
 	np_mutex_t	lock;
 	np_obj_enum type;
 	int16_t ref_count;
@@ -128,31 +129,37 @@ TYPE* saveTo = NULL;																						\
 	assert(NULL != obj);                               	\
 }														\
 
-#define np_unref_obj(TYPE, np_obj)                																					\
-{                                                 																					\
-	_LOCK_MODULE(np_memory_t) {                   																					\
-	  if(NULL != np_obj) {                   	  																					\
-		if(np_obj->obj == NULL) log_msg(LOG_ERROR,"ref obj is null");																\
-		assert (np_obj->obj != NULL);               																				\
-		if(np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"ref obj is wrong type %d != %d",np_obj->obj->type, TYPE##_e);			\
-        assert (np_obj->obj->type == TYPE##_e);     																				\
-        if(!np_obj->obj->persistent && np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");													\
-        assert (np_obj->obj->persistent  || np_obj->obj->ptr != NULL);          																				\
-        np_mem_unrefobj(np_obj->obj);               																				\
-        if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) { \
-	      if (np_obj->obj->type != np_none_t_e)     																				\
-	      { 																														\
-		    if(np_obj->obj->del_callback != NULL)   																				\
-			  np_obj->obj->del_callback(np_obj);    																				\
-		    np_mem_freeobj(TYPE##_e, &np_obj->obj); 																				\
-		    np_obj->obj->ptr = NULL;                																				\
-		    np_obj->obj = NULL;                     																				\
-		    free(np_obj);                           																				\
-		    np_obj = NULL;                          																				\
-		  }                                         																				\
-	  }                                           																					\
-    }                                             																					\
-  }                                               																					\
+#define np_unref_obj(TYPE, np_obj)                																							\
+{                                                 																							\
+	_LOCK_MODULE(np_memory_t) {                   																							\
+	  if(NULL != np_obj) {                   	  																							\
+		if(np_obj->obj == NULL) log_msg(LOG_ERROR,"ref obj is null");																		\
+		assert (np_obj->obj != NULL);         																								\
+		if(np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"ref obj is wrong type %d != %d",np_obj->obj->type, TYPE##_e);					\
+		assert (np_obj->obj->type == TYPE##_e);     																					\
+		if(!np_obj->obj->persistent && np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");							\
+		assert (np_obj->obj->persistent  || np_obj->obj->ptr != NULL);          														\
+		np_mem_unrefobj(np_obj->obj);               																					\
+		if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) 		\
+		{ 																																\
+		  if (np_obj->obj->type != np_none_t_e)     																					\
+		  { 																															\
+			if (np_obj->obj->freeing != TRUE) 																							\
+			{ 																															\
+				np_obj->obj->freeing = TRUE;																							\
+				if(np_obj->obj->del_callback != NULL)   																				\
+					np_obj->obj->del_callback(np_obj);    																				\
+				np_mem_freeobj(TYPE##_e, &np_obj->obj); 																				\
+				np_obj->obj->freeing = FALSE;                																			\
+				np_obj->obj->ptr = NULL;                																				\
+				np_obj->obj = NULL;                     																				\
+				free(np_obj);                           																				\
+				np_obj = NULL;                          																				\
+			}                          																									\
+		 }	 																															\
+	   }                                           																							\
+    }                                             																							\
+  }                                               																							\
 }
 
 #define np_ref_switch(TYPE, old_obj, new_obj) \
