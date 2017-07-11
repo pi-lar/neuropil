@@ -61,8 +61,9 @@ if 'Darwin' in platform.system():
 if 'Linux' in platform.system():
   env.Append(CCFLAGS = ['-D_GNU_SOURCE'])
   env.Append(LIBS = ['rt', 'pthread'] )
-  #env.Append(LIBPATH = ['/usr/local/lib'] )
-  #env.Append(CCFLAGS = ['-I/usr/local/include'] )
+  if('arm' in platform.processor()):
+    env.Append(LIBPATH = ['/usr/lib', '/usr/local/lib','/usr/lib/arm-linux-gnueabihf'] )
+    env.Append(CCFLAGS = ['-I/usr/include','-I/usr/local/include','-I/usr/include/arm-linux-gnueabihf'] )
 if 'CYGWIN' in platform.system():
   # -std=gnu++0x doesn't work, so work around...
   env.Append(CCFLAGS = ['-U__STRICT_ANSI__'] )
@@ -71,7 +72,7 @@ if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
 
 # env.Append(CCFLAGS = '-march='+platform.processor())
 # env.Append(CCFLAGS = '-arch='+platform.machine())
-env.Append(CCFLAGS = '-target ' + platform.machine() + '-' + platform.system().lower() )
+#env.Append(CCFLAGS = '-target ' + platform.machine() + '-' + platform.system().lower() )
 # env.Append(CCFLAGS = '-target ' + platform.machine())
 
 print 'continuing with CCFLAGS set to: ' + env.Dump(key='CCFLAGS')
