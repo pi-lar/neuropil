@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_AAATOKEN;
 	np_log_init(log_file, level);
 
-	np_state_t* state = np_init(proto, port, FALSE, NULL);
+	np_state_t* state = np_init(proto, port, NULL);
 
 	if (NULL != realm)
 	{

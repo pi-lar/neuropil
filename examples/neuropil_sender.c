@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 	.. code-block:: c
 	\code
 	*/
-	state = np_init(proto, port, FALSE, NULL);
+	state = np_init(proto, port, NULL);
 	/** \endcode */
 
 	if (NULL != realm)

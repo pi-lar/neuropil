@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 					sprintf(log_file_host, "%s_host.log", "./neuropil_shared_hydra");
 
 					np_log_init(log_file_host, level);
-					np_init(proto, port, TRUE, "localhost");
+					np_init(proto, port, "localhost");
 
 					fprintf(stdout, "getting connection string\n");
 					bootstrap_hostnode = np_get_connection_string();
@@ -160,7 +160,7 @@ int main(int argc, char **argv)
 					// child process
 					np_log_init(log_file, level);
 					// used the pid as the port
-					np_state_t* child_status = np_init(proto, port, FALSE, NULL);
+					np_state_t* child_status = np_init(proto, port, NULL);
 
 					log_debug_msg(LOG_DEBUG, "starting job queue");
 					np_start_job_queue(no_threads);

@@ -27,6 +27,7 @@
 #include "np_keycache.h"
 #include "np_key.h"
 #include "np_memory.h"
+#include "np_http.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -165,10 +166,15 @@ int main(int argc, char **argv)
 
 			np_log_init(log_file_host, level);
 			// provide localhost as hostname to support development on local machines
-			np_init(proto, bootstrap_port, TRUE, publish_domain);
+			np_init(proto, bootstrap_port, publish_domain);
 			/**
 			 \endcode
 			 */
+
+			// start http endpoint
+
+			_np_http_init();
+
 			/**
 			 Enable the bootstrap node as master for our SysInfo subsystem
 
@@ -299,7 +305,7 @@ int main(int argc, char **argv)
 				np_log_init(log_file, level);
 				// use the pid as port
 				// provide localhost as hostname to support development on local machines
-				np_state_t* child_status = np_init(proto, port, FALSE, publish_domain);
+				np_state_t* child_status = np_init(proto, port, publish_domain);
 				log_debug_msg(LOG_DEBUG, "starting job queue");
 				np_start_job_queue(no_threads);
 				/**

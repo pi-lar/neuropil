@@ -30,6 +30,7 @@
 #include "np_types.h"
 #include "np_list.h"
 #include "np_util.h"
+#include "np_http.h"
 #include "np_memory.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
@@ -100,7 +101,13 @@ int main(int argc, char **argv) {
 	sprintf(log_file_host, "%s%s_%s.log", logpath, "/neuropil_demo_service",port);
 
 	np_log_init(log_file_host, level);
-	np_init(proto, port, TRUE, publish_domain);
+	np_init(proto, port, publish_domain);
+
+	if (FALSE == _np_http_init())
+	{
+		log_msg(LOG_WARN, "neuropil_init: initialization of http interface failed");
+	}
+
 	np_start_job_queue(no_threads);
 
 	np_sysinfo_enable_master();

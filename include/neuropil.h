@@ -73,13 +73,12 @@ struct np_state_s
 
    :param port: the port to listen on, default is 3141
    :param proto: the default value for the protocol "udp6", which is UDP | IPv6
-   :param start_http: if the http server on port 31415 should start (default: FALSE)
    :param hostname: (optional) The hostname to bind on. If not provided will be received via gethostname()
    :return: the np_state_t* which contains global state of different np sub modules or NULL on failure
 
 */
 NP_API_EXPORT
-np_state_t* np_init (char* proto, char* port, np_bool start_http, char* hostname);
+np_state_t* np_init (char* proto, char* port, char* hostname);
 
 /**
 .. c:function:: np_state_t* np_destroy()

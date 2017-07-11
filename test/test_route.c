@@ -20,7 +20,7 @@ void setup_route(void)
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING;
 	np_log_init("test_route.log", log_level);
 
-	np_init("udp4", "31417", FALSE, "localhost");
+	np_init("udp4", "31417", "localhost");
 
 }
 

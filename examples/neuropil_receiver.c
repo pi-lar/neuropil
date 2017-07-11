@@ -56,7 +56,7 @@ int main(int argc, char **argv)
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 	np_log_init(log_file, level);
 
-	np_init(proto, port, FALSE, NULL);
+	np_init(proto, port, NULL);
 
 	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);

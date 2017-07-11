@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
  \code
  */
 	np_log_init(log_file_host, level);
-	np_state_t* status = np_init(proto, port, FALSE,
+	np_state_t* status = np_init(proto, port,
 			strcmp(publish_domain, "localhost") == 0 ? publish_domain : NULL);
 	np_start_job_queue(no_threads);
 /**

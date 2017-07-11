@@ -132,7 +132,7 @@ int main(int argc, char **argv)
 	.. code-block:: c
 	\code
 	*/
-	np_state_t* state = np_init(proto, port, FALSE, NULL);
+	np_state_t* state = np_init(proto, port, NULL);
 	/** \endcode
 
 		The port may change due to default setting for NULL,

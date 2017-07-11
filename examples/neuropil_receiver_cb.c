@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 	.. code-block:: c
 	\code
 	*/
-	np_init(proto, port, FALSE, NULL);
+	np_init(proto, port, NULL);
 	/** \endcode */
 
 	/**

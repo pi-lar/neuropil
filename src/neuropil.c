@@ -883,7 +883,7 @@ void np_destroy()
  ** initializes neuropil on specified port and returns the const np_state_t* which
  ** contains global state of different neuropil modules.
  **/
-np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
+np_state_t* np_init(char* proto, char* port, char* hostname)
 {
     log_msg(LOG_TRACE, "start: np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname){");
 	log_debug_msg(LOG_DEBUG, "neuropil_init");
@@ -1039,14 +1039,6 @@ np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname)
     np_job_submit_event(0.0, _np_renew_node_token_jobexec);
     // initialize network/io reading and writing
     np_job_submit_event(0.0, _np_events_read);
-
-	if (TRUE == start_http)
-	{
-		if (FALSE == _np_http_init())
-		{
-			log_msg(LOG_WARN, "neuropil_init: initialization of http interface failed");
-		}
-	}
 
 	log_msg(LOG_INFO, "neuropil successfully initialized: %s", _np_key_as_str(state->my_node_key));
 	_np_log_fflush();

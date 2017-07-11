@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 	fprintf(stdout, "logpath: %s\n", log_file_host);
 
 	np_log_init(log_file_host, level);
-	np_init(proto, port, TRUE, publish_domain);
+	np_init(proto, port, publish_domain);
 	np_start_job_queue(no_threads);
 
 	/**

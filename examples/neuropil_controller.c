@@ -92,7 +92,8 @@ int main(int argc, char **argv)
 
 	\code
 	*/
-	state = np_init(proto, port, TRUE, NULL);
+	state = np_init(proto, port, NULL);
+
 	/** \endcode */
 	// state->my_node_key->node->joined_network = 1;
 
