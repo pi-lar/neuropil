@@ -332,8 +332,8 @@ void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 void _np_node_update_stat (np_node_t* node, uint8_t success)
 {
     float total = 0;
-    np_tryref_obj(np_node_t, node,nodeExists);
-    if(nodeExists) {
+    np_ref_obj(np_node_t, node);
+     {
 		_LOCK_ACCESS(&node->lock) {
 
 			node->success_win[node->success_win_index++ % SUCCESS_WINDOW] = success;
@@ -358,8 +358,8 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
 {
 	if (new_latency > 0.0)
 	{
-		np_tryref_obj(np_node_t, node,nodeExists);
-		if(nodeExists) {
+	    np_ref_obj(np_node_t, node);
+		{
 			_LOCK_ACCESS(&node->lock) {
 				node->latency_win[node->latency_win_index++ % SUCCESS_WINDOW] = new_latency;
 

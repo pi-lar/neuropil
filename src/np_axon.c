@@ -107,9 +107,7 @@ void _np_send(np_jobargs_t* args)
 
 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key);
 	{
-		np_network_t* network = my_key->network;
-		np_tryref_obj(np_network_t, network , networkExists);
-		if(networkExists== TRUE)
+		np_waitref_obj(np_network_t, my_key->network, network);
 		{
 			// check ack indicator if this is a resend of a message
 			if (TRUE == is_resend)

@@ -182,20 +182,20 @@ char* np_mem_printpool(np_bool asOneLine)
 			//printf("obj %p (type %d ptr %p ref_count %d):(next -> %p)\n", iter, iter->type, iter->ptr, iter->ref_count, iter->next );
 		}
 		ret = _np_concatAndFree(ret, "--- memory summary---%s", new_line);
-		ret = _np_concatAndFree(ret, "first %.12p, free %.12p, current %.12p%s", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current,new_line);
-		ret = _np_concatAndFree(ret, "size %.4d, in use %.4d,  available %.4d%s", __np_obj_pool_ptr->size, __np_obj_pool_ptr->size - __np_obj_pool_ptr->available,__np_obj_pool_ptr->available,new_line);
+		ret = _np_concatAndFree(ret, "first %12p, free %12p, current %12p%s", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current,new_line);
+		ret = _np_concatAndFree(ret, "size %4d, in use %4d,  available %4d%s", __np_obj_pool_ptr->size, __np_obj_pool_ptr->size - __np_obj_pool_ptr->available,__np_obj_pool_ptr->available,new_line);
 		//0x7f8455c03e80
     }
-    ret = _np_concatAndFree(ret, "np_none_t_e        count %.4"PRIu64" %s", 	summary[np_none_t_e],		new_line);
-    ret = _np_concatAndFree(ret, "np_message_t_e     count %.4"PRIu64" %s", 	summary[np_message_t_e],	new_line);
-    ret = _np_concatAndFree(ret, "np_messagepart_t_e count %.4"PRIu64" %s", 	summary[np_messagepart_t_e],new_line);
-    ret = _np_concatAndFree(ret, "np_node_t_e        count %.4"PRIu64" %s", 	summary[np_node_t_e],		new_line);
-    ret = _np_concatAndFree(ret, "np_key_t_e         count %.4"PRIu64" %s", 	summary[np_key_t_e],		new_line);
-    ret = _np_concatAndFree(ret, "np_aaatoken_t_e    count %.4"PRIu64" %s", 	summary[np_aaatoken_t_e],	new_line);
-    ret = _np_concatAndFree(ret, "np_msgproperty_t_e count %.4"PRIu64" %s", 	summary[np_msgproperty_t_e],new_line);
-    ret = _np_concatAndFree(ret, "np_http_t_e        count %.4"PRIu64" %s", 	summary[np_http_t_e],		new_line);
-    ret = _np_concatAndFree(ret, "np_network_t_e     count %.4"PRIu64" %s", 	summary[np_network_t_e],	new_line);
-    ret = _np_concatAndFree(ret, "test_struct_t_e    count %.4"PRIu64" %s", 	summary[test_struct_t_e],	new_line);
+    ret = _np_concatAndFree(ret, "np_none_t_e        count %4"PRIu64" %s", 	summary[np_none_t_e],		new_line);
+    ret = _np_concatAndFree(ret, "np_message_t_e     count %4"PRIu64" %s", 	summary[np_message_t_e],	new_line);
+    ret = _np_concatAndFree(ret, "np_messagepart_t_e count %4"PRIu64" %s", 	summary[np_messagepart_t_e],new_line);
+    ret = _np_concatAndFree(ret, "np_node_t_e        count %4"PRIu64" %s", 	summary[np_node_t_e],		new_line);
+    ret = _np_concatAndFree(ret, "np_key_t_e         count %4"PRIu64" %s", 	summary[np_key_t_e],		new_line);
+    ret = _np_concatAndFree(ret, "np_aaatoken_t_e    count %4"PRIu64" %s", 	summary[np_aaatoken_t_e],	new_line);
+    ret = _np_concatAndFree(ret, "np_msgproperty_t_e count %4"PRIu64" %s", 	summary[np_msgproperty_t_e],new_line);
+    ret = _np_concatAndFree(ret, "np_http_t_e        count %4"PRIu64" %s", 	summary[np_http_t_e],		new_line);
+    ret = _np_concatAndFree(ret, "np_network_t_e     count %4"PRIu64" %s", 	summary[np_network_t_e],	new_line);
+    ret = _np_concatAndFree(ret, "test_struct_t_e    count %4"PRIu64" %s", 	summary[test_struct_t_e],	new_line);
 
     ret = _np_concatAndFree(ret, "--- memory end---%s",new_line);
 

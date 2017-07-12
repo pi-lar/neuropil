@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 				  //| LOG_MUTEX | LOG_TRACE
 				  //| LOG_ROUTING
 				  //| LOG_HTTP
-				  | LOG_KEY
+				  //| LOG_KEY
 				  | LOG_NETWORK
 				  //| LOG_AAATOKEN
 				   ;

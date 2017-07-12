@@ -362,6 +362,7 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 								node_key->node->dns_name, node_key->node->port);
 						free(enc_buffer);
 						np_unref_obj(np_message_t, msg);
+						np_unref_obj(np_messagepart_t, iter->val);
 						return; //  FALSE;
 					}
 
