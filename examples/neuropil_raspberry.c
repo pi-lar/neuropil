@@ -40,7 +40,7 @@ uint32_t _pong_count = 0;
 #define LED_GPIO_GREEN 23
 #define LED_GPIO_YELLOW 18
 
-np_bool is_gpioenabled = FALSE;
+np_bool is_gpio_enabled = FALSE;
 
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
@@ -51,7 +51,7 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
 
-	if(is_gpioenabled == TRUE){
+	if(is_gpio_enabled == TRUE){
 		gpioSetPin(LED_GPIO_YELLOW, low);
 		gpioSetPin(LED_GPIO_GREEN, high);
 	}
@@ -70,7 +70,7 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_count++, "ping");
 
-	if(is_gpioenabled == TRUE){
+	if(is_gpio_enabled == TRUE){
 		gpioSetPin(LED_GPIO_GREEN, low);
 		gpioSetPin(LED_GPIO_YELLOW, high);
 	}
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 			proto = optarg;
 			break;
 		case 'g':
-			is_gpioenabled = atoi(optarg) == 1;
+			is_gpio_enabled = atoi(optarg) == 1;
 			break;
 		case 'u':
 			publish_domain = optarg;
@@ -149,7 +149,7 @@ int main(int argc, char **argv)
 		fprintf(stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string());
 	}
 
-	if(is_gpioenabled == TRUE) {
+	if(is_gpio_enabled == TRUE) {
 		if (gpioSetup() != OK)
 		{
 			gpioCleanup();
@@ -162,12 +162,14 @@ int main(int argc, char **argv)
 
 		gpioSetFunction(LED_GPIO_GREEN, output);
 		gpioSetFunction(LED_GPIO_YELLOW, output);
+
+		gpioSetPin(LED_GPIO_YELLOW, high);
+		gpioSetPin(LED_GPIO_GREEN, high);
+
+		ev_sleep(1);
 	}
 
 
-	np_waitforjoin();
-
-	fprintf(stdout, "Connection established.\n");
 
 	np_msgproperty_t* ping_props = NULL;
 	np_new_obj(np_msgproperty_t, ping_props);
@@ -186,6 +188,15 @@ int main(int argc, char **argv)
 	np_msgproperty_register(pong_props);
 	//register the listener function to receive data from the sender
 	np_set_listener(receive_pong, "pong");
+
+	if(is_gpio_enabled == TRUE) {
+		gpioSetPin(LED_GPIO_YELLOW, low);
+		gpioSetPin(LED_GPIO_GREEN, low);
+	}
+
+	np_waitforjoin();
+
+	fprintf(stdout, "Connection established.\n");
 
 
 	log_msg(LOG_INFO, "Sending initial ping");
