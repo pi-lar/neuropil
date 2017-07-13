@@ -165,8 +165,8 @@ int main(int argc, char **argv)
 
 		gpioSetPin(LED_GPIO_YELLOW, high);
 		gpioSetPin(LED_GPIO_GREEN, high);
+		fprintf(stdout, "GPIO initiated\n");
 
-		ev_sleep(1);
 	}
 
 
