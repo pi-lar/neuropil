@@ -24,8 +24,7 @@
 #include "np_msgproperty.h"
 #include "np_node.h"
 
-#include "gpio/bcm2835_gpio.h"
-#include "gpio/rpiGpio.h"
+#include "gpio/c_gpio.h"
 
 
 #define USAGE "neuropil_raspberry [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count] [-g 0/1 enables or disables GPIO support ] [-u publish_domain]"
@@ -52,8 +51,8 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
 
 	if(is_gpio_enabled == TRUE){
-		gpioSetPin(LED_GPIO_YELLOW, low);
-		gpioSetPin(LED_GPIO_GREEN, high);
+		output_gpio(LED_GPIO_YELLOW, LOW);
+		output_gpio(LED_GPIO_GREEN, HIGH);
 	}
 
 	np_send_text("pong", "pong", _pong_count,NULL);
@@ -71,8 +70,8 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_count++, "ping");
 
 	if(is_gpio_enabled == TRUE){
-		gpioSetPin(LED_GPIO_GREEN, low);
-		gpioSetPin(LED_GPIO_YELLOW, high);
+		output_gpio(LED_GPIO_GREEN, LOW);
+		output_gpio(LED_GPIO_YELLOW, HIGH);
 	}
 	np_send_text("ping", "ping", _ping_count,NULL);
 
@@ -150,21 +149,13 @@ int main(int argc, char **argv)
 	}
 
 	if(is_gpio_enabled == TRUE) {
-		if (gpioSetup() != OK)
-		{
-			gpioCleanup();
-			if (gpioSetup() != OK)
-			{
-				fprintf(stdout, "GPIO Error! Exiting\n");
-				exit(EXIT_FAILURE);
-			}
-		}
 
-		gpioSetFunction(LED_GPIO_GREEN, output);
-		gpioSetFunction(LED_GPIO_YELLOW, output);
+		setup();
+		setup_gpio(LED_GPIO_GREEN, OUTPUT, PUD_OFF);
+		setup_gpio(LED_GPIO_YELLOW, OUTPUT, PUD_OFF);
 
-		gpioSetPin(LED_GPIO_YELLOW, high);
-		gpioSetPin(LED_GPIO_GREEN, high);
+		output_gpio(LED_GPIO_YELLOW, HIGH);
+		output_gpio(LED_GPIO_GREEN, HIGH);
 		fprintf(stdout, "GPIO initiated\n");
 
 	}
@@ -190,8 +181,8 @@ int main(int argc, char **argv)
 	np_set_listener(receive_pong, "pong");
 
 	if(is_gpio_enabled == TRUE) {
-		gpioSetPin(LED_GPIO_YELLOW, low);
-		gpioSetPin(LED_GPIO_GREEN, low);
+		output_gpio(LED_GPIO_YELLOW, LOW);
+		output_gpio(LED_GPIO_GREEN, LOW);
 	}
 
 	np_waitforjoin();
