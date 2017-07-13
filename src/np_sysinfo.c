@@ -98,7 +98,7 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->msg_subject = strndup(_NP_SYSINFO_REQUEST, 255);
 	sysinfo_request_props->rep_subject = strndup(_NP_SYSINFO_REPLY, 255);
 	sysinfo_request_props->mep_type =  REQ_REP;
-	sysinfo_request_props->ack_mode = ACK_NONE;
+	sysinfo_request_props->ack_mode = ACK_DESTINATION;
 	sysinfo_request_props->retry    = 1;
 	sysinfo_request_props->msg_ttl  = 20.0;
 
@@ -110,8 +110,8 @@ void np_sysinfo_enable_slave() {
 	sysinfo_response_props->retry    = 1;
 	sysinfo_response_props->msg_ttl  = 20.0;
 
-	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = 180;
-	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = 120;
+	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
+	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
 	sysinfo_request_props->mode_type = INBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 10;
@@ -140,7 +140,7 @@ void np_sysinfo_enable_master(){
 	sysinfo_request_props->msg_subject = strndup(_NP_SYSINFO_REQUEST, 255);
 	sysinfo_request_props->rep_subject = strndup(_NP_SYSINFO_REPLY, 255);
 	sysinfo_request_props->mep_type =  REQ_REP;
-	sysinfo_request_props->ack_mode = ACK_NONE;
+	sysinfo_request_props->ack_mode = ACK_DESTINATION;
 	sysinfo_request_props->retry    = 1;
 	sysinfo_request_props->msg_ttl  = 20.0;
 
@@ -152,8 +152,8 @@ void np_sysinfo_enable_master(){
 	sysinfo_response_props->retry    = 1;
 	sysinfo_response_props->msg_ttl  = 20.0;
 
-	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = 180;
-	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = 120;
+	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
+	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
 	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 99;
@@ -302,7 +302,7 @@ np_tree_t* np_get_my_sysinfo() {
 			neighbour_counter);
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, np_treeval_new_tree(neighbours));
-	_np_keycache_unref_keys(neighbours_table);
+	np_unref_list(np_key_t, neighbours_table);
 	sll_free(np_key_t, neighbours_table);
 	np_tree_free(neighbours);
 
@@ -327,7 +327,7 @@ np_tree_t* np_get_my_sysinfo() {
 			routes_counter);
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));
-	_np_keycache_unref_keys(routing_table);
+	np_unref_list(np_key_t, routing_table);
 	sll_free(np_key_t, routing_table);
 	np_tree_free(routes);
 
@@ -464,9 +464,9 @@ void _np_request_others() {
 		}
 	}
 
-	_np_keycache_unref_keys(routing_table);
+	np_unref_list(np_key_t, routing_table);
 	sll_free(np_key_t, routing_table);
-	_np_keycache_unref_keys(neighbours_table);
+	np_unref_list(np_key_t, neighbours_table);
 	sll_free(np_key_t, neighbours_table);
 	np_unref_obj(np_key_t, my_node_key);
 }

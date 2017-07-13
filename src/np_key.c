@@ -317,7 +317,7 @@ void np_key_renew_token() {
 		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Completed node renewal. cleaning up now");
 
 		// clean up
-		_np_keycache_unref_keys(table); // _np_route_get_table
+		np_unref_list(np_key_t, table); // _np_route_get_table
 		sll_free(np_key_t, table);
 
 		_np_key_destroy(old_node_key);

@@ -1040,6 +1040,8 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
     // initialize network/io reading and writing
     np_job_submit_event(0.0, _np_events_read);
 
+    _np_event_cleanup_msgpart_cache(NULL);
+
 	log_msg(LOG_INFO, "neuropil successfully initialized: %s", _np_key_as_str(state->my_node_key));
 	_np_log_fflush();
 

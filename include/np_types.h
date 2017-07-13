@@ -11,6 +11,7 @@
 
 #include "np_list.h"
 
+
 /* just in case NULL is not defined */
 #ifndef NULL
 #define NULL (void*)0

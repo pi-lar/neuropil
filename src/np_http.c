@@ -48,7 +48,7 @@ JSON_Value* _np_generate_error_json(const char* error,const char* details) {
 
 	return ret;
 }
-static double __np_http_timeout = 20.0f;
+
 // static pthread_mutex_t __http_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // static char* HTML_DEFAULT_PAGE    = "<html><head><title>neuropil</title></head><body></body></html>";

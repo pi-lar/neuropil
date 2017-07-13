@@ -74,12 +74,17 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
     	__np_obj_pool_ptr->current  = __np_obj_pool_ptr->free_obj;
     	__np_obj_pool_ptr->free_obj = __np_obj_pool_ptr->free_obj->next;
     	__np_obj_pool_ptr->available--;
+
+#ifdef DEBUG
+    	free(__np_obj_pool_ptr->current->id);
+    	__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);
+#endif
 	}
 	else
 	{
 		__np_obj_pool_ptr->current = (np_obj_t*) malloc (sizeof(np_obj_t) );
 		CHECK_MALLOC(__np_obj_pool_ptr->current);
-
+		__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);
 		__np_obj_pool_ptr->size++;
     }
 

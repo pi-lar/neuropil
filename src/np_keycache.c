@@ -260,26 +260,6 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_t, list_of_keys), c
 	return (min);
 }
 
-void _np_keycache_ref_keys (np_sll_t(np_key_t, list_of_keys))
-{
- 	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
-	while (NULL != iter)
-	{
-		np_ref_obj(np_key_t,iter->val);
-		sll_next(iter);
-	}
-}
-
-void _np_keycache_unref_keys (np_sll_t(np_key_t, list_of_keys))
-{
-	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
-	while (NULL != iter)
-	{
-		np_unref_obj(np_key_t,iter->val);
-		sll_next(iter);
-	}
-}
-
 /** sort_hosts:
  ** Sorts #hosts# based on common prefix match and key distance from #np_key_t*
  */

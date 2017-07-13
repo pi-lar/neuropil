@@ -132,11 +132,9 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 
 		if (TRUE == args->msg->is_single_part)
 		{
-			_LOCK_MODULE(np_messagesgpart_cache_t)
-			{
-				// sum up message parts if the message is for this node
-				msg_to_submit = _np_message_check_chunks_complete(args->msg);
-			}
+			// sum up message parts if the message is for this node
+			msg_to_submit = _np_message_check_chunks_complete(args->msg);
+
 			if (NULL == msg_to_submit)
 			{
 				sll_free(np_key_t, tmp);
@@ -646,7 +644,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 	{
 		// nothing found, send leafset to exchange some data at least
 		// prevents small clusters from not exchanging all data
-		_np_keycache_unref_keys(sll_of_keys); // only for completion
+		np_unref_list(np_key_t, sll_of_keys); // only for completion
 		sll_free(np_key_t, sll_of_keys);
 		sll_of_keys = _np_route_neighbors();
 	}
@@ -667,7 +665,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 		_np_job_yield(__rowinfo_send_delay);
 	}
 
-	_np_keycache_unref_keys(sll_of_keys);
+	np_unref_list(np_key_t, sll_of_keys);
 	sll_free(np_key_t, sll_of_keys);
 }
 

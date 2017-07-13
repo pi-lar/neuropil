@@ -53,9 +53,9 @@ void _np_in_received(np_jobargs_t* args)
 
 	np_state_t* state = _np_state();
 
-	np_waitref_obj(np_key_t, state->my_node_key, key);
+	np_waitref_obj(np_key_t, state->my_node_key, my_key);
 	{
-		np_waitref_obj(np_network_t,key->network, my_network);
+		np_waitref_obj(np_network_t,my_key->network, my_network);
 		{
 
 			np_message_t* msg_in = NULL;
@@ -128,9 +128,14 @@ void _np_in_received(np_jobargs_t* args)
 			}
 
 			// now read decrypted (or handshake plain text) message
-			// char* msg_subject =
-			// np_tree_find_str(msg_in->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
 			CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
+			CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
+			CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack);
+			CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TTL, msg_ttl);
+			CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+
+			log_debug_msg(LOG_DEBUG, "received message for subject: %s (uuid=%s, ack=%hhd) from %s",
+					msg_subject.value.s, msg_in->uuid, msg_ack.value.ush, msg_from.value.s);
 
 			if ( 0 == strncmp(msg_subject.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) )
 			{
@@ -139,9 +144,10 @@ void _np_in_received(np_jobargs_t* args)
 					  IS_INVALID(alias_key->aaa_token->state) )
 				{
 					np_tree_insert_str(msg_in->footer, NP_MSG_FOOTER_ALIAS_KEY,
-							np_treeval_new_s(_np_key_as_str(alias_key)));
+							np_treeval_new_s(_np_key_as_str(alias_key))
+					);
 					np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_HANDSHAKE);
-					_np_job_submit_msgin_event(0.0, msg_prop, key, msg_in);
+					_np_job_submit_msgin_event(0.0, msg_prop, my_key, msg_in);
 				}
 				else
 				{
@@ -153,9 +159,6 @@ void _np_in_received(np_jobargs_t* args)
 
 			/* real receive part */
 			CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_to);
-			CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
-			CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TTL, msg_ttl);
-			CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack);
 
 		//	char*   msg_to      = np_tree_find_str(msg_in->header, NP_MSG_HEADER_TO)->val.value.s;
 		//	char*   msg_uuid    = np_tree_find_str(msg_in->instructions, NP_MSG_INST_UUID)->val.value.s;
@@ -186,16 +189,11 @@ void _np_in_received(np_jobargs_t* args)
 				goto __np_cleanup__;
 			}
 
-			log_debug_msg(LOG_DEBUG, "received message for subject: %s (uuid=%s, ack=%hhd)",
-					msg_subject.value.s, msg_in->uuid, msg_ack.value.ush);
-
 			// check time-to-live for message and expiry if neccessary
-			double now = ev_time();
-			if (now > (msg_tstamp.value.d + msg_ttl.value.d))
+			if (TRUE == _np_message_is_expired(msg_in))
 			{
-				log_msg(LOG_INFO, "message ttl expired, dropping message (part) %s / %s",
+				log_msg(LOG_MESSAGE | LOG_INFO, "message ttl expired, dropping message (part) %s / %s",
 						msg_in->uuid, msg_subject.value.s);
-				log_debug_msg(LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f",msg_in->uuid, now, msg_ttl.value.d, msg_tstamp.value.d);
 				goto __np_cleanup__;
 			} else {
 				log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) message ttl not expired",msg_in->uuid);
@@ -221,7 +219,7 @@ void _np_in_received(np_jobargs_t* args)
 					np_message_t* ack_msg_out = NULL;
 					np_new_obj(np_message_t, ack_msg_out);
 					np_msgproperty_t* ack_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
-					_np_message_create(ack_msg_out, ack_key, key, _NP_MSG_ACK, NULL);
+					_np_message_create(ack_msg_out, ack_key, my_key, _NP_MSG_ACK, NULL);
 
 					/* add/create network header */
 					np_tree_insert_str(ack_msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(ack_prop->ack_mode));
@@ -233,8 +231,7 @@ void _np_in_received(np_jobargs_t* args)
 							msg_subject.value.s, msg_in->uuid, msg_ack.value.ush);
 
 					_np_job_submit_route_event(0.0, ack_prop, ack_key, ack_msg_out);
-					np_free_obj(np_message_t, ack_msg_out);
-
+					np_unref_obj(np_message_t, ack_msg_out);
 					np_unref_obj(np_key_t, ack_key);
 					// user space acknowledgement handled later, also for join messages
 				}
@@ -259,7 +256,7 @@ void _np_in_received(np_jobargs_t* args)
 			// redirect message if
 			// msg is not for my dhkey
 			// no handler is present
-			if ( _np_dhkey_equal(&args->target->dhkey, &key->dhkey) || handler == NULL)
+			if ( _np_key_cmp(args->target, my_key) == FALSE || handler == NULL)
 			{
 				log_debug_msg(LOG_DEBUG, "perform route_lookup");
 
@@ -275,7 +272,7 @@ void _np_in_received(np_jobargs_t* args)
 
 				if (NULL         != tmp &&
 					sll_size(tmp) > 0   &&
-					(!_np_dhkey_equal(&sll_first(tmp)->val->dhkey, &key->dhkey)) )
+					(!_np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)) )
 				{
 					log_msg(LOG_INFO,
 							"forwarding message for subject: %s / uuid: %s", msg_subject.value.s, msg_in->uuid);
@@ -301,25 +298,23 @@ void _np_in_received(np_jobargs_t* args)
 			// sum up message parts if the message is for this node
 			np_message_t* msg_to_submit = NULL;
 
-			_LOCK_MODULE(np_messagesgpart_cache_t)
-			{
+
 				msg_to_submit = _np_message_check_chunks_complete(msg_in);
-			}
+
 
 			if (NULL == msg_to_submit)   goto __np_cleanup__;
-			if (msg_in == msg_to_submit) np_ref_obj(np_message_t, msg_to_submit);
+			np_ref_obj(np_message_t, msg_to_submit);
 
-			if (TRUE == key->node->joined_network ||
+			if (TRUE == my_key->node->joined_network ||
 				0 == strncmp(msg_subject.value.s, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) )
 			{
 				log_msg(LOG_INFO,
 						"handling message for subject: %s / uuid: %s", msg_subject.value.s, msg_to_submit->uuid);
 				// finally submit msg job for later execution
 				_np_message_deserialize_chunked(msg_to_submit);
-				_np_job_submit_msgin_event(0.0, handler, key, msg_to_submit);
-
-				np_unref_obj(np_message_t, msg_to_submit);
+				_np_job_submit_msgin_event(0.0, handler, my_key, msg_to_submit);
 			}
+			np_unref_obj(np_message_t, msg_to_submit);
 
 			// clean the mess up
 			__np_cleanup__:
@@ -327,7 +322,7 @@ void _np_in_received(np_jobargs_t* args)
 			np_unref_obj(np_message_t, msg_in);
 			np_unref_obj(np_network_t,my_network);
 		}
-		np_unref_obj(np_key_t, key);
+		np_unref_obj(np_key_t, my_key);
 	}
 
 
@@ -457,6 +452,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	if (NULL == sender_token)
 	{
 		_np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
+		log_msg(LOG_INFO,"No token to decrypt msg. Retrying later");
 		goto __np_return__;
 	}
 
@@ -1035,9 +1031,13 @@ void _np_in_update(np_jobargs_t* args)
 		if(0!= _np_key_cmp(update_key,_np_state()->my_identity)
 		&& 0!= _np_key_cmp(update_key,_np_state()->my_node_key))
 		{
+
+			char* connection_str = np_get_connection_string_from(
+					update_key,FALSE);
 			np_key_t* alias_key = _np_keycache_find_by_details(
-					np_get_connection_string_from(update_key,FALSE)
-					,FALSE,FALSE,FALSE,TRUE,TRUE,FALSE);
+					connection_str, FALSE, HANDSHAKE_UNKNOWN,
+					FALSE, TRUE, TRUE, FALSE);
+			free(connection_str);
 
 			if(alias_key != NULL) {
 				log_msg(LOG_INFO,
@@ -1113,7 +1113,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 
 		np_message_t *msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
-		_np_message_create(msg_out, reply_to_key, NULL, _NP_MSG_AVAILABLE_SENDER, available_data);
+		_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AVAILABLE_SENDER, available_data);
 		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AVAILABLE_SENDER);
 		_np_job_submit_route_event(0.0, prop_route, reply_to_key, msg_out);
 		np_free_obj(np_message_t, msg_out);
@@ -1229,7 +1229,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 		np_message_t *msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
-		_np_message_create(msg_out, reply_to_key, NULL, _NP_MSG_AVAILABLE_RECEIVER, interest_data);
+		_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AVAILABLE_RECEIVER, interest_data);
 		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AVAILABLE_RECEIVER);
 
 		log_debug_msg(LOG_DEBUG, "sending back msg interest to %s", _np_key_as_str(reply_to_key));

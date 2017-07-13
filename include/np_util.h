@@ -41,6 +41,7 @@ inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, 
 	msg_prop->PROP_NAME = value;                          \
 }
 
+#define UUID_SIZE 37
 // create a sha156 uuid string, take the current date into account
 NP_API_EXPORT
 char* np_uuid_create(const char* str, const uint16_t num);

@@ -15,6 +15,7 @@
 #include <string.h>
 #include "inttypes.h"
 
+#include "event/ev.h"
 #include "sodium.h"
 #include "msgpack/cmp.h"
 
@@ -28,7 +29,6 @@
 #include "np_dendrit.h"
 #include "np_glia.h"
 #include "np_jobqueue.h"
-#include "np_tree.h"
 #include "np_keycache.h"
 #include "np_memory.h"
 #include "np_msgproperty.h"
@@ -37,6 +37,7 @@
 #include "np_threads.h"
 #include "np_util.h"
 #include "np_treeval.h"
+#include "np_tree.h"
 #include "np_settings.h"
 #include "np_types.h"
 
@@ -151,76 +152,83 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 {
     log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check){");
 	np_state_t* state = _np_state();
+	np_message_t* ret= NULL;
 
-	char* subject = np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
-	char* msg_uuid = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val.value.s;
-
-	uint16_t msg_chunks = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
-
-	if (1 < msg_chunks)
+	_LOCK_MODULE(np_messagesgpart_cache_t)
 	{
-		np_message_t* msg_to_submit = NULL;
+		char* subject = np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
+		char* msg_uuid = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val.value.s;
 
-		if (NULL != np_tree_find_str(state->msg_part_cache, msg_uuid))
+		uint16_t msg_chunks = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
+
+		if (1 < msg_chunks)
 		{
-			msg_to_submit = np_tree_find_str(state->msg_part_cache, msg_uuid)->val.value.v;
-			np_messagepart_ptr to_add = NULL;
-			_LOCK_ACCESS(&msg_to_check->msg_chunks_lock){
-				to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks);
-				np_ref_obj(np_messagepart_t, to_add);
-			}
-			log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-					"message (%s) %p / %p / %p", msg_uuid, msg_to_submit, msg_to_submit->msg_chunks, to_add);
+			np_message_t* msg_to_submit = NULL;
 
-			_LOCK_ACCESS(&msg_to_submit->msg_chunks_lock) {
-				// insert new
-				if(FALSE == pll_insert(np_messagepart_ptr, msg_to_submit->msg_chunks, to_add, FALSE, _np_messagepart_cmp)) {
-					// new entry is rejected (already present)
-					log_debug_msg(LOG_DEBUG,"Msg part was rejected in _np_message_chunk_chunks_complete");
-
-
+			if (NULL != np_tree_find_str(state->msg_part_cache, msg_uuid))
+			{
+				msg_to_submit = np_tree_find_str(state->msg_part_cache, msg_uuid)->val.value.v;
+				np_messagepart_ptr to_add = NULL;
+				_LOCK_ACCESS(&msg_to_check->msg_chunks_lock){
+					to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks);
+					np_ref_obj(np_messagepart_t, to_add);
 				}
-				np_unref_obj(np_messagepart_t, to_add);
+				log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+						"message (%s) %p / %p / %p", msg_uuid, msg_to_submit, msg_to_submit->msg_chunks, to_add);
+
+				_LOCK_ACCESS(&msg_to_submit->msg_chunks_lock) {
+					// insert new
+					if(FALSE == pll_insert(np_messagepart_ptr, msg_to_submit->msg_chunks, to_add, FALSE, _np_messagepart_cmp)) {
+						// new entry is rejected (already present)
+						log_debug_msg(LOG_DEBUG,"Msg part was rejected in _np_message_chunk_chunks_complete");
+
+
+					}
+					np_unref_obj(np_messagepart_t, to_add);
+				}
+			}
+			else
+			{
+				np_tree_insert_str(state->msg_part_cache, msg_uuid, np_treeval_new_v(msg_to_check));
+				msg_to_submit = msg_to_check;
+				np_ref_obj(np_message_t, msg_to_check);
+
+		//		log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+		//				"message (%s)  %p / %p", msg_uuid, args->msg, args->msg->msg_chunks);
+			}
+
+			uint32_t size =0;
+			_LOCK_ACCESS(&msg_to_submit->msg_chunks_lock){
+				size = pll_size(msg_to_submit->msg_chunks) ;
+			}
+			if (size < msg_chunks)
+			{
+				log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+						"message %s (%s) not complete yet (%d of %d), waiting for missing parts",
+						subject, msg_uuid, pll_size(msg_to_submit->msg_chunks), msg_chunks);
+
+				ret = NULL;
+			}
+			else
+			{
+				np_tree_del_str(state->msg_part_cache, msg_uuid);
+
+
+				log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+						"message %s (%s) is complete now  (%d of %d)",
+						subject, msg_uuid, pll_size(msg_to_submit->msg_chunks), msg_chunks);
+
+				ret = msg_to_submit;
 			}
 		}
 		else
 		{
-			np_tree_insert_str(state->msg_part_cache, msg_uuid, np_treeval_new_v(msg_to_check));
-			msg_to_submit = msg_to_check;
-			np_ref_obj(np_message_t, msg_to_check);
-
-	//		log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-	//				"message (%s)  %p / %p", msg_uuid, args->msg, args->msg->msg_chunks);
-		}
-
-		uint32_t size =0;
-		_LOCK_ACCESS(&msg_to_submit->msg_chunks_lock){
-			size = pll_size(msg_to_submit->msg_chunks) ;
-		}
-		if (size < msg_chunks)
-		{
 			log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-					"message %s (%s) not complete yet (%d of %d), waiting for missing parts",
-					subject, msg_uuid, pll_size(msg_to_submit->msg_chunks), msg_chunks);
-
-			return (NULL);
+					"message %s (%s) is unchunked  ", subject, msg_uuid);
+			ret = msg_to_check;
 		}
-		else
-		{
-			np_tree_del_str(state->msg_part_cache, msg_uuid);
-		}
-
-		log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-				"message %s (%s) is complete now  (%d of %d)",
-				subject, msg_uuid, pll_size(msg_to_submit->msg_chunks), msg_chunks);
-		return (msg_to_submit);
 	}
-	else
-	{
-		log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-				"message %s (%s) is unchunked  ", subject, msg_uuid);
-		return (msg_to_check);
-	}
+	return ret;
 }
 
 np_bool _np_message_serialize(np_jobargs_t* args)
@@ -593,6 +601,7 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 		{
 			log_msg(LOG_WARN, "unrecognized first array element while deserializing message. error: %"PRIu8, cmp.error);
 			np_unref_obj(np_message_t,msg);
+			//free(buffer);
 			return (FALSE);
 		}
 
@@ -600,6 +609,7 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 		{
 			log_msg(LOG_WARN, "wrong array length while deserializing message");
 			np_unref_obj(np_message_t,msg);
+			//free(buffer);
 			return (FALSE);
 		}
 
@@ -624,6 +634,7 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 		if (0 == msg->no_of_chunks || 0 == chunk_id){
 			log_msg(LOG_WARN, "no_of_chunks (%"PRIu16") or chunk_id (%"PRIu16") zero while deserializing message.",msg->no_of_chunks,chunk_id);
 			np_unref_obj(np_message_t,msg);
+			//free(buffer);
 			return (FALSE);
 		}
 
@@ -1032,3 +1043,25 @@ char* _np_message_get_subject(np_message_t* msg) {
 }
 
 
+np_bool _np_message_is_expired(np_message_t* msg_to_check)
+{
+	np_bool ret = FALSE;
+	double now = ev_time();
+	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TTL, msg_ttl);
+	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+
+	double tstamp = msg_tstamp.value.d ;
+	if(tstamp > now) {
+		log_msg(LOG_WARN, "Detected faulty timestamp for message. Setting to now. (timestamp: %f, now: %f, diff: %f sec)", tstamp, now, tstamp - now);
+		msg_tstamp.value.d = tstamp = now;
+	}
+
+	double remaining_ttl = (tstamp + msg_ttl.value.d) - now;
+	ret = remaining_ttl <= 0;
+
+	log_debug_msg(LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f",msg_to_check->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
+
+	__np_cleanup__:
+
+	 return ret;
+}

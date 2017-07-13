@@ -213,7 +213,7 @@ sll_return(np_key_t) _np_route_get_table ()
 	sll_init(np_key_t, sll_of_keys);
 
 	uint16_t i, j, k;
-	_LOCK_MODULE(np_routeglobal_t)
+	_LOCK_MODULES(np_keycache_t, np_routeglobal_t)
 	{
 		for (i = 0; i < __MAX_ROW; i++)
 		{
@@ -230,7 +230,7 @@ sll_return(np_key_t) _np_route_get_table ()
 				}
 			}
 		}
-		_np_keycache_ref_keys(sll_of_keys);
+		np_ref_list(np_key_t, sll_of_keys);
 	}
     return (sll_of_keys);
 }
@@ -246,7 +246,7 @@ sll_return(np_key_t) _np_route_row_lookup (np_key_t* key)
 	np_sll_t(np_key_t, sll_of_keys);
 	sll_init(np_key_t, sll_of_keys);
 
-	_LOCK_MODULE(np_routeglobal_t)
+	_LOCK_MODULES(np_keycache_t, np_routeglobal_t)
 	{
 
 		i = _np_dhkey_index (&__routing_table->my_key->dhkey, &key->dhkey);
@@ -265,7 +265,7 @@ sll_return(np_key_t) _np_route_row_lookup (np_key_t* key)
 
 		sll_append(np_key_t, sll_of_keys, __routing_table->my_key);
 
-		_np_keycache_ref_keys(sll_of_keys);
+		np_ref_list(np_key_t, sll_of_keys);
 	}
 
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_row_lookup");
@@ -528,7 +528,7 @@ sll_return(np_key_t) _np_route_neighbors ()
 
     np_sll_t(np_key_t, node_keys);
     sll_init(np_key_t, node_keys);
-	_LOCK_MODULE(np_routeglobal_t)
+	_LOCK_MODULES(np_keycache_t, np_routeglobal_t)
 	{
 		_np_route_append_leafset_to_sll(__routing_table->left_leafset, node_keys);
 		_np_route_append_leafset_to_sll(__routing_table->right_leafset, node_keys);
@@ -536,7 +536,7 @@ sll_return(np_key_t) _np_route_neighbors ()
 		/* sort aux */
 		_np_keycache_sort_keys_kd(node_keys, &__routing_table->my_key->dhkey);
 
-		_np_keycache_ref_keys(node_keys);
+		np_ref_list(np_key_t, node_keys);
 	}
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_neighbors");
     return node_keys;
@@ -749,7 +749,7 @@ void _np_route_rejoin_bootstrap(np_bool force) {
 		if(sll_routing_tbl->size < 1 ) {
 			rejoin = TRUE;
 		}
-		_np_keycache_unref_keys(sll_routing_tbl);
+		np_unref_list(np_key_t, sll_routing_tbl);
 		sll_free(np_key_t, sll_routing_tbl);
 	}
 

@@ -45,7 +45,7 @@ typedef void (*np_alloc_t) (void* data);
 /** np_obj_t
  **
  ** void* like wrapper around structures to allow ref counting and null pointer checking
- ** each np_new_obj needs a corresponding np_free_obj
+ ** each np_new_obj needs a corresponding np_unref_obj
  ** if other methods would like to claim ownership, they should call np_ref_obj, np_unref_obj
  ** will release the object again (and possible delete it)
  **
@@ -55,6 +55,8 @@ typedef struct np_obj_s np_obj_t;
 struct np_obj_s
 {
 	np_bool freeing;
+	char* id;
+
 	np_mutex_t	lock;
 	np_obj_enum type;
 	int16_t ref_count;
@@ -136,27 +138,28 @@ TYPE* saveTo = NULL;																						\
 		if(np_obj->obj == NULL) log_msg(LOG_ERROR,"ref obj is null");																		\
 		assert (np_obj->obj != NULL);         																								\
 		if(np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"ref obj is wrong type %d != %d",np_obj->obj->type, TYPE##_e);					\
-		assert (np_obj->obj->type == TYPE##_e);     																					\
-		if(!np_obj->obj->persistent && np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");							\
-		assert (np_obj->obj->persistent  || np_obj->obj->ptr != NULL);          														\
-		np_mem_unrefobj(np_obj->obj);               																					\
-		if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) 		\
-		{ 																																\
-		  if (np_obj->obj->type != np_none_t_e)     																					\
-		  { 																															\
-			if (np_obj->obj->freeing != TRUE) 																							\
-			{ 																															\
-				np_obj->obj->freeing = TRUE;																							\
-				if(np_obj->obj->del_callback != NULL)   																				\
-					np_obj->obj->del_callback(np_obj);    																				\
-				np_mem_freeobj(TYPE##_e, &np_obj->obj); 																				\
-				np_obj->obj->freeing = FALSE;                																			\
-				np_obj->obj->ptr = NULL;                																				\
-				np_obj->obj = NULL;                     																				\
-				free(np_obj);                           																				\
-				np_obj = NULL;                          																				\
-			}                          																									\
-		 }	 																															\
+		assert (np_obj->obj->type == TYPE##_e);     																						\
+		if(!np_obj->obj->persistent && np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");								\
+		assert (np_obj->obj->persistent  || np_obj->obj->ptr != NULL);          															\
+		np_mem_unrefobj(np_obj->obj);               																						\
+		if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) 			\
+		{ 																																	\
+		  if (np_obj->obj->type != np_none_t_e)     																						\
+		  { 																																\
+			if (np_obj->obj->freeing != TRUE) 																								\
+			{ 																																\
+				np_obj->obj->freeing = TRUE;																								\
+			    log_debug_msg(LOG_DEBUG,"_Deleting object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 									\
+				if(np_obj->obj->del_callback != NULL)   																					\
+					np_obj->obj->del_callback(np_obj);    																					\
+				np_mem_freeobj(TYPE##_e, &np_obj->obj); 																					\
+				np_obj->obj->freeing = FALSE;                																				\
+				np_obj->obj->ptr = NULL;                																					\
+				np_obj->obj = NULL;                     																					\
+				free(np_obj);                           																					\
+				np_obj = NULL;                          																					\
+			}                          																										\
+		 }	 																																\
 	   }                                           																							\
     }                                             																							\
   }                                               																							\
@@ -170,19 +173,20 @@ TYPE* saveTo = NULL;																						\
 	np_unref_obj(TYPE, tmp_obj);              \
 }
 
-#define np_new_obj(TYPE, np_obj)                \
-{                                               \
-  _LOCK_MODULE(np_memory_t) {                   \
-    np_obj = (TYPE*) malloc(sizeof(TYPE));      \
-    CHECK_MALLOC(np_obj);						\
-    np_mem_newobj(TYPE##_e, &np_obj->obj);      \
-    np_obj->obj->new_callback = _##TYPE##_new;  \
-    np_obj->obj->del_callback = _##TYPE##_del;  \
-    np_obj->obj->new_callback(np_obj);          \
-    np_obj->obj->ptr = np_obj;                  \
-    np_obj->obj->persistent = FALSE;            \
-    np_mem_refobj(np_obj->obj);                 \
-  }                                             \
+#define np_new_obj(TYPE, np_obj)                												\
+{                                               												\
+  _LOCK_MODULE(np_memory_t) {                   												\
+    np_obj = (TYPE*) malloc(sizeof(TYPE));								      					\
+    CHECK_MALLOC(np_obj);																		\
+    np_mem_newobj(TYPE##_e, &np_obj->obj);      												\
+    log_debug_msg(LOG_DEBUG,"Creating_ object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 	\
+    np_obj->obj->new_callback = _##TYPE##_new;  												\
+    np_obj->obj->del_callback = _##TYPE##_del;  												\
+    np_obj->obj->new_callback(np_obj);          												\
+    np_obj->obj->ptr = np_obj;                  												\
+    np_obj->obj->persistent = FALSE;            												\
+    np_mem_refobj(np_obj->obj);                 												\
+  }                                             												\
 }
 
 
@@ -190,7 +194,11 @@ TYPE* saveTo = NULL;																						\
 {                                               \
   _LOCK_MODULE(np_memory_t) {                   \
     np_mem_unrefobj(np_obj->obj);               \
-    if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) { \
+    if (NULL != np_obj->obj						\
+    && np_obj->obj->ref_count <= 0 				\
+	&& np_obj->obj->persistent == FALSE 		\
+	&& np_obj->obj->ptr == np_obj				\
+	) { 										\
       if (np_obj->obj->type != np_none_t_e)     \
       {                                         \
         np_obj->obj->del_callback(np_obj);      \
@@ -204,7 +212,25 @@ TYPE* saveTo = NULL;																						\
   }                                             \
 }
 
+#define np_ref_list(TYPE, sll_list)               				\
+{																\
+ 	sll_iterator(TYPE) iter = sll_first(sll_list);				\
+	while (NULL != iter)										\
+	{															\
+		np_ref_obj(TYPE,iter->val);								\
+		sll_next(iter);											\
+	}															\
+}
 
+#define np_unref_list(TYPE, sll_list)               			\
+{																\
+ 	sll_iterator(TYPE) iter = sll_first(sll_list);				\
+	while (NULL != iter)										\
+	{															\
+		np_unref_obj(TYPE,iter->val);							\
+		sll_next(iter);											\
+	}															\
+}
 /**
  ** following this line: np_memory cache and object prototype definitions
  **

@@ -12,7 +12,7 @@
 #include <sys/select.h>
 
 #include "msgpack/cmp.h"
-
+#include "event/ev.h"
 #include "sodium.h"
 
 #include "np_axon.h"
@@ -382,9 +382,15 @@ void _np_send_handshake(np_jobargs_t* args)
 	// create real handshake message ...
 	np_message_t* hs_message = NULL;
 	np_new_obj(np_message_t, hs_message);
+	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
 
-	np_tree_insert_str(hs_message->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s(_NP_MSG_HANDSHAKE));
-	np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
+	np_tree_insert_str(hs_message->header,			_NP_MSG_HEADER_SUBJECT,	np_treeval_new_s(_NP_MSG_HANDSHAKE));
+	np_tree_insert_str(hs_message->header, 			_NP_MSG_HEADER_FROM,	np_treeval_new_s((char*) _np_key_as_str(_np_state()->my_node_key)));
+	np_tree_insert_str(hs_message->instructions, 	_NP_MSG_INST_PARTS, 	np_treeval_new_iarray(1, 1));
+ 	np_tree_insert_str(hs_message->instructions, 	_NP_MSG_INST_ACK,		np_treeval_new_ush(prop->ack_mode));
+	np_tree_insert_str(hs_message->instructions, 	_NP_MSG_INST_TTL, 		np_treeval_new_d(prop->token_max_ttl+0.0));
+	np_tree_insert_str(hs_message->instructions, 	_NP_MSG_INST_TSTAMP, 	np_treeval_new_d((double) ev_time()));
+
 
 	// ... add signature and payload to this message
 	np_tree_insert_str(hs_message->body, NP_HS_SIGNATURE,
@@ -425,7 +431,7 @@ void _np_send_handshake(np_jobargs_t* args)
 							 args->target->node->port);
 				if (FALSE == args->target->network->initialized)
 				{
-					np_free_obj(np_message_t, hs_message);
+					np_unref_obj(np_message_t, hs_message);
 				    log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
 					args->target->node->handshake_status = HANDSHAKE_UNKNOWN;
 					return;
@@ -476,7 +482,7 @@ void _np_send_handshake(np_jobargs_t* args)
 			//	}
 		}
 	}
-	np_free_obj(np_message_t, hs_message);
+	np_unref_obj(np_message_t, hs_message);
 }
 
 void _np_send_discovery_messages(np_jobargs_t* args)
@@ -512,8 +518,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
 		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
 
-		np_free_obj(np_message_t, msg_out);
-
+		np_unref_obj(np_message_t, msg_out);
 	}
 
 	if (0 < (args->properties->mode_type & OUTBOUND))

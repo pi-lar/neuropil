@@ -20,6 +20,7 @@ build_tests = ARGUMENTS.get('test', 1)
 build_doc = ARGUMENTS.get('doc', 0)
 debug = ARGUMENTS.get('debug', 0)
 release = ARGUMENTS.get('release', 0)
+raspberry = ARGUMENTS.get('raspberry', 0)
 
 
 print '####'
@@ -163,7 +164,7 @@ SOURCES += ['build/obj/np_log.c','build/obj/np_memory.c','build/obj/np_message.c
 SOURCES += ['build/obj/np_route.c','build/obj/np_tree.c','build/obj/np_util.c','build/obj/np_treeval.c','build/obj/np_threads.c']
 SOURCES += ['build/obj/np_sysinfo.c','build/obj/np_scache.c','build/obj/np_event.c','build/obj/np_messagepart.c']
 # source code 3rd party libraries
-SOURCES += ['build/obj/event/ev.c', 'build/obj/json/parson.c','build/obj/msgpack/cmp.c']
+SOURCES += ['build/obj/event/ev.c', 'build/obj/json/parson.c','build/obj/msgpack/cmp.c','build/obj/gpio/gpio.c']
 
 # test cases for neuropil
 TESTS =  ['test/test_suites.c']
@@ -209,11 +210,14 @@ Depends(prg_np_hydra, np_dylib)
 prg_np_shared_hydra = env.Program('bin/neuropil_shared_hydra', 'examples/neuropil_shared_hydra.c')
 Depends(prg_np_shared_hydra, np_dylib)
 
-prg_np_hydra = env.Program('bin/neuropil_echo_server', 'examples/neuropil_echo_server.c')
-Depends(prg_np_hydra, np_dylib)
+prg_np_echo_server = env.Program('bin/neuropil_echo_server', 'examples/neuropil_echo_server.c')
+Depends(prg_np_echo_server, np_dylib)
 
-prg_np_hydra = env.Program('bin/neuropil_echo_client', 'examples/neuropil_echo_client.c')
-Depends(prg_np_hydra, np_dylib)
+prg_np_echo_client = env.Program('bin/neuropil_echo_client', 'examples/neuropil_echo_client.c')
+Depends(prg_np_echo_client, np_dylib)
+
+prg_np_raspberry = env.Program('bin/neuropil_raspberry', 'examples/neuropil_raspberry.c')
+Depends(prg_np_raspberry, np_dylib)
 
 # clean up
 Clean('.', 'build')

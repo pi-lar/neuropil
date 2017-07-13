@@ -17,6 +17,7 @@
 #include <inttypes.h>
 
 #include "event/ev.h"
+#include "tree/tree.h"
 
 #include "np_log.h"
 #include "np_jobqueue.h"
@@ -29,6 +30,12 @@
 #include "np_types.h"
 #include "np_list.h"
 #include "np_route.h"
+#include "np_tree.h"
+#include "np_message.h"
+#include "np_messagepart.h"
+#include "np_memory.h"
+#include "np_settings.h"
+
 
 static np_bool __exit_libev_loop = FALSE;
 
@@ -64,7 +71,31 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 		}
 	}
 }
+void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
+{
+	np_sll_t(np_message_t,to_del);
+	sll_init(np_message_t,to_del);
 
+	_LOCK_MODULE(np_messagesgpart_cache_t)
+	{
+		np_state_t* state = _np_state();
+		np_tree_elem_t* tmp = NULL;
+
+		RB_FOREACH(tmp, np_tree_s, state->msg_part_cache)
+		{
+			np_message_t* msg = tmp->val.value.v;
+
+			if(TRUE == _np_message_is_expired(msg)){
+				np_tree_del_str(state->msg_part_cache,msg->uuid);
+				sll_append(np_message_t,to_del,msg);
+			}
+		}
+	}
+	np_unref_list(np_message_t, to_del);
+
+
+    np_job_submit_event(MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache);
+}
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args){");
@@ -72,7 +103,7 @@ void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
     _np_route_rejoin_bootstrap(FALSE);
 
 	// Reschedule myself
-    np_job_submit_event(1, _np_event_rejoin_if_necessary);
+    np_job_submit_event(MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary);
 }
 /**
  ** _np_events_read
