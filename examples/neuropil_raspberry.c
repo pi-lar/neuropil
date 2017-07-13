@@ -142,7 +142,7 @@ int main(int argc, char **argv)
 
 	if (NULL != j_key)
 	{
-		np_send_join(j_key);
+		np_send_wildcard_join(j_key);
 	} else {
 		fprintf(stdout, "Node waits for connections.\n");
 		fprintf(stdout, "Please start another node with the following arguments:\n");
