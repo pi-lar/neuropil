@@ -1,7 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env bash
 
-import subprocess
-import os
-
-with open(os.devnull, 'w') as devnull:
-  subprocess.Popen(["./bin/neuropil_raspberry","-g","1","-b","3334"], env={"DYLD_LIBRARY_PATH":".;build/lib","LD_LIBRARY_PATH":".;build/lib"}, stdin=devnull, stdout=devnull, stderr=devnull)
+export DYLD_LIBRARY_PATH=build/lib 
+export LD_LIBRARY_PATH=build/lib 
+./bin/neuropil_raspberry -g 1
