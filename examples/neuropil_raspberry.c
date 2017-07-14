@@ -164,7 +164,23 @@ int main(int argc, char **argv)
 
 	if (NULL != j_key)
 	{
-		np_send_wildcard_join(j_key);
+
+		do {
+				fprintf(stdout, "try to join bootstrap node\n");
+ 					np_send_join(j_key);
+
+			int timeout = 100;
+			while (timeout > 0 && FALSE == state->my_node_key->node->joined_network) {
+				// wait for join acceptance
+				ev_sleep(0.1);
+				timeout--;
+			}
+
+			if(FALSE == state->my_node_key->node->joined_network ) {
+				fprintf(stderr, "%s could not join network!\n",port);
+			}
+		} while (FALSE == state->my_node_key->node->joined_network) ;
+
 	} else {
 		fprintf(stdout, "Node waits for connections.\n");
 		fprintf(stdout, "Please start another node with the following arguments:\n");
