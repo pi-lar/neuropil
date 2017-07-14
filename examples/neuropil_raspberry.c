@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 	char *j_key = NULL;
 	char* proto = "udp4";
 	char* port = NULL;
-	char* publish_domain = "localhost";
+	char* publish_domain = NULL;
 
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF)
 	{
@@ -180,7 +180,7 @@ int main(int argc, char **argv)
 
 		do {
 				fprintf(stdout, "try to join bootstrap node\n");
- 					np_send_join(j_key);
+ 					np_send_wildcard_join(j_key);
 
 			int timeout = 100;
 			while (timeout > 0 && FALSE == state->my_node_key->node->joined_network) {
