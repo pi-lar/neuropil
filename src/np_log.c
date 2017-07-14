@@ -101,6 +101,10 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 	    //sll_append(char, logger->logentries_l, new_log_entry);
 		//pthread_mutex_unlock(&__log_mutex);
 
+#ifdef CONSOLE_LOG && CONSOLE_LOG == 1
+		fprintf(stdout, new_log_entry);
+		fprintf(stdout, "/n");
+#endif
 		 pthread_mutex_lock(&__log_mutex);
 		 write(logger->fp, new_log_entry, strlen(new_log_entry));
 		 //fprintf(logger->fp, "%s\n", new_log_entry);
