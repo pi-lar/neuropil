@@ -63,9 +63,10 @@ np_state_t* _np_state ()
  */
 np_bool _np_default_authorizefunc (np_aaatoken_t* token )
 {
+#ifndef DEBUG
 	log_msg(LOG_WARN, "using default handler (authorize all) to authorize %s", token->subject );
 	// log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
-
+#endif
 	return (TRUE);
 }
 /**
