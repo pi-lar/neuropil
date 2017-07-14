@@ -139,14 +139,6 @@ int main(int argc, char **argv)
 	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
 
-	if (NULL != j_key)
-	{
-		np_send_wildcard_join(j_key);
-	} else {
-		fprintf(stdout, "Node waits for connections.\n");
-		fprintf(stdout, "Please start another node with the following arguments:\n");
-		fprintf(stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string());
-	}
 
 	if(is_gpio_enabled == TRUE) {
 
@@ -164,6 +156,15 @@ int main(int argc, char **argv)
 		}
 	}
 
+
+	if (NULL != j_key)
+	{
+		np_send_wildcard_join(j_key);
+	} else {
+		fprintf(stdout, "Node waits for connections.\n");
+		fprintf(stdout, "Please start another node with the following arguments:\n");
+		fprintf(stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string());
+	}
 
 
 	np_msgproperty_t* ping_props = NULL;
