@@ -262,21 +262,27 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_t, list_of_keys), c
 
 void _np_keycache_ref_keys (np_sll_t(np_key_t, list_of_keys))
 {
- 	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
-	while (NULL != iter)
+	_LOCK_MODULE(np_keycache_t)
 	{
-		np_ref_obj(np_key_t,iter->val);
-		sll_next(iter);
+		sll_iterator(np_key_t) iter = sll_first(list_of_keys);
+		while (NULL != iter)
+		{
+			np_ref_obj(np_key_t,iter->val);
+			sll_next(iter);
+		}
 	}
 }
 
 void _np_keycache_unref_keys (np_sll_t(np_key_t, list_of_keys))
 {
-	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
-	while (NULL != iter)
+	_LOCK_MODULE(np_keycache_t)
 	{
-		np_unref_obj(np_key_t,iter->val);
-		sll_next(iter);
+		sll_iterator(np_key_t) iter = sll_first(list_of_keys);
+		while (NULL != iter)
+		{
+			np_unref_obj(np_key_t,iter->val);
+			sll_next(iter);
+		}
 	}
 }
 
