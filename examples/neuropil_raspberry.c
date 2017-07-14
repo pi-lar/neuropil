@@ -154,9 +154,16 @@ int main(int argc, char **argv)
 			bcm2835_gpio_fsel(LED_GPIO_GREEN, BCM2835_GPIO_FSEL_OUTP);
 			bcm2835_gpio_fsel(LED_GPIO_YELLOW, BCM2835_GPIO_FSEL_OUTP);
 
-			bcm2835_gpio_set(LED_GPIO_GREEN);
-			bcm2835_gpio_set(LED_GPIO_YELLOW);
-
+			int i = 5;
+			while(--i>0){
+				bcm2835_gpio_clr(LED_GPIO_GREEN);
+				bcm2835_gpio_set(LED_GPIO_YELLOW);
+				ev_sleep(0.2);
+				bcm2835_gpio_set(LED_GPIO_GREEN);
+				bcm2835_gpio_clr(LED_GPIO_YELLOW);
+			}
+			bcm2835_gpio_clr(LED_GPIO_GREEN);
+			bcm2835_gpio_clr(LED_GPIO_YELLOW);
 			fprintf(stdout, "GPIO initiated\n");
 		}
 	}
@@ -206,10 +213,7 @@ int main(int argc, char **argv)
 	//register the listener function to receive data from the sender
 	np_set_listener(receive_pong, "pong");
 
-	if(is_gpio_enabled == TRUE) {
-		bcm2835_gpio_clr(LED_GPIO_GREEN);
-		bcm2835_gpio_clr(LED_GPIO_YELLOW);
-	}
+
 
 	np_waitforjoin();
 
