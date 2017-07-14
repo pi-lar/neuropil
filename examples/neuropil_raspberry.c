@@ -147,8 +147,7 @@ int main(int argc, char **argv)
 			fprintf(stdout, "GPIO NOT initiated\n");
 			is_gpio_enabled = FALSE;
 
-		}
-		else{
+		} else {
 			bcm2835_gpio_set_pud(LED_GPIO_GREEN,  BCM2835_GPIO_PUD_OFF);
 			bcm2835_gpio_set_pud(LED_GPIO_YELLOW, BCM2835_GPIO_PUD_OFF);
 			bcm2835_gpio_fsel(LED_GPIO_GREEN,  BCM2835_GPIO_FSEL_OUTP);
@@ -162,19 +161,23 @@ int main(int argc, char **argv)
 				bcm2835_gpio_write(LED_GPIO_GREEN, HIGH);
 				bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
 				ev_sleep(0.1);
-  		                fprintf(stdout, "A\n");
-
 			}
 			bcm2835_gpio_write(LED_GPIO_GREEN, LOW);
 			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
 
 			fprintf(stdout, "GPIO initiated\n");
 		}
-		np_sysinfo_enable_master();
-		_np_http_init();
-	}else{
-		np_sysinfo_enable_slave();
 
+		np_sysinfo_enable_slave();
+	} else {
+		if(FALSE == _np_http_init())
+		{
+			fprintf(stderr,   "Node could not start HTTP interface");
+			log_msg(LOG_WARN, "Node could not start HTTP interface");
+			np_sysinfo_enable_master();
+		} else {
+			np_sysinfo_enable_slave();
+		}
 	}
 
 

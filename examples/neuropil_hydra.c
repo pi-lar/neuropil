@@ -174,7 +174,10 @@ int main(int argc, char **argv)
 
 			// start http endpoint
 
-			_np_http_init();
+			if(FALSE == _np_http_init()){
+				fprintf(stdout, "Node could not start HTTP interface");
+				log_msg(LOG_WARN, "Node could not start HTTP interface");
+			}
 
 			/**
 			 Enable the bootstrap node as master for our SysInfo subsystem
