@@ -102,9 +102,10 @@ np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
  */
 np_bool _np_default_authenticatefunc (np_aaatoken_t* token )
 {
+#ifndef DEBUG
 	log_msg(LOG_WARN, "using default handler (auth all) to authenticate %s", token->subject);
 	// log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
-
+#endif
 	return (TRUE);
 }
 
@@ -140,9 +141,10 @@ np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token)
  */
 np_bool _np_default_accountingfunc (np_aaatoken_t* token )
 {
+#ifndef DEBUG
 	log_msg(LOG_WARN, "using default handler to account for %s", token->subject );
 	// log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
-
+#endif
 	return (TRUE);
 }
 

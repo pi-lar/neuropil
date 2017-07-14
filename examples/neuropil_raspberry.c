@@ -36,8 +36,8 @@ extern int optind;
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
 
-#define LED_GPIO_GREEN 16
-#define LED_GPIO_YELLOW 12
+#define LED_GPIO_GREEN RPI_BPLUS_GPIO_J8_18
+#define LED_GPIO_YELLOW RPI_BPLUS_GPIO_J8_12
 
 np_bool is_gpio_enabled = FALSE;
 
