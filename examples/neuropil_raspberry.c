@@ -163,6 +163,7 @@ int main(int argc, char **argv)
 			output_gpio(LED_GPIO_YELLOW, HIGH);
 			output_gpio(LED_GPIO_GREEN, HIGH);
 			fprintf(stdout, "GPIO initiated\n");
+			ev_sleep(5);
 		}
 	}
 
