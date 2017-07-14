@@ -153,7 +153,7 @@ void np_set_identity(np_aaatoken_t* identity);
 
 */
 NP_API_EXPORT
-void np_send_join(char* node_string);
+void np_send_join(const char* node_string);
 
 /**
   .. c:function:: np_send_wildcard_join(np_key_t* node_key);

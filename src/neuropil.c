@@ -208,14 +208,15 @@ void np_setaccounting_cb(np_aaa_func_t aaaFunc)
  * Please see @np_get_connection_string() for the node_string definition
  * @param node_string
  */
-void np_send_join(char* node_string)
+void np_send_join(const char* node_string)
 {
     log_msg(LOG_TRACE, "start: void np_send_join(const char* node_string){");
 
     if(node_string[0] == '*') {
+    	char* node_string2 = node_string;
         log_msg(LOG_INFO, "Assumed wildcard join for \"%s\"", node_string);
-    	node_string += 2;
-		np_send_wildcard_join(node_string);
+    	node_string2 += 2;
+		np_send_wildcard_join(node_string2);
     }else{
 		np_key_t* node_key = NULL;
 
