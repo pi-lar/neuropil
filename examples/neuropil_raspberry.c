@@ -151,6 +151,15 @@ int main(int argc, char **argv)
 			setup_gpio(LED_GPIO_GREEN, OUTPUT, PUD_OFF);
 			setup_gpio(LED_GPIO_YELLOW, OUTPUT, PUD_OFF);
 
+			if(gpio_function(LED_GPIO_GREEN) != 1)
+			{
+				fprintf(stdout, "GPIO error in GREEN \n");
+			}
+			if(gpio_function(LED_GPIO_YELLOW) != 1)
+			{
+				fprintf(stdout, "GPIO error in yellow \n");
+			}
+
 			output_gpio(LED_GPIO_YELLOW, HIGH);
 			output_gpio(LED_GPIO_GREEN, HIGH);
 			fprintf(stdout, "GPIO initiated\n");

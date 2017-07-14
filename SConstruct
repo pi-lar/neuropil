@@ -20,7 +20,7 @@ build_tests = ARGUMENTS.get('test', 1)
 build_doc = ARGUMENTS.get('doc', 0)
 debug = ARGUMENTS.get('debug', 0)
 release = ARGUMENTS.get('release', 0)
-raspberry = ARGUMENTS.get('raspberry', 0)
+console_log = ARGUMENTS.get('console', 0)
 
 
 print '####'
@@ -47,6 +47,8 @@ debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2']
 if int(debug):
     env.Append(CCFLAGS = debug_flags)
     env.Append(CCFLAGS = ['-DDEBUG'])
+if int(console_log):
+    env.Append(CCFLAGS = ['-DCONSOLE_LOG'])
 
 
 # platform specific compiler options
