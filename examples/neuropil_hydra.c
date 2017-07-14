@@ -216,8 +216,6 @@ int main(int argc, char **argv)
 				//	fprintf(stdout, "Renew bootstrap token");
 				//	np_key_renew_token();
 			    //}
-
-
 			}
 			/**
 

@@ -236,9 +236,23 @@ int main(int argc, char **argv)
 	// send an initial ping
 	np_send_text("ping", "ping", _ping_count++, NULL);
 
-	while (1)
-	{
-		ev_sleep(0.9);
+	uint32_t i = 0;
+	while (TRUE) {
+	    ev_sleep(0.1);
+	    i +=1;
+	    if(i % 10 == 0) {
+	    	char* memory_str = np_mem_printpool(FALSE);
+	    	printf("%s", memory_str);
+	    	free(memory_str);
+	    	memory_str = np_mem_printpool(TRUE);
+	    	log_msg(LOG_INFO, "%s", memory_str );
+	    	free(memory_str);
+	    }
+
+	    //if((i == (35/*sec*/ * 10))){
+		//	fprintf(stdout, "Renew bootstrap token");
+		//	np_key_renew_token();
+	    //}
 	}
 
 }
