@@ -413,10 +413,8 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	}
 	else if (EV_WRITE == (revents & EV_WRITE))
 	{
-		np_key_t* key = (np_key_t*) event->data;
-		np_tryref_obj(np_key_t, key, keyExists);
-
-		if(keyExists == TRUE) {
+		np_waitref_obj(np_key_t, event->data, key);
+		{
 
 			//_np_threads_lock_module(np_network_t_lock);
 

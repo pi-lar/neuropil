@@ -1064,7 +1064,6 @@ char* _np_message_get_subject(np_message_t* msg) {
 	return ret;
 }
 
-
 np_bool _np_message_is_expired(np_message_t* msg_to_check)
 {
 	np_bool ret = FALSE;
