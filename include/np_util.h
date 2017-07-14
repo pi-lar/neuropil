@@ -104,6 +104,10 @@ char* np_dump_tree2char(np_tree_t* tree);
 
 NP_API_INTERN
 char* _np_concatAndFree(char* target, char* source, ... );
+
+NP_API_INTERN
+np_bool _np_get_local_ip(char buffer[]);
+
 #ifdef __cplusplus
 }
 #endif

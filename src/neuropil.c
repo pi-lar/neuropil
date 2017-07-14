@@ -962,7 +962,9 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 		CHECK_MALLOC(hostname);
 		log_msg(LOG_INFO, "neuropil_init: resolve hostname");
 
-    	gethostname(hostname, 255);
+		if(_np_get_local_ip(hostname) == FALSE) {
+			gethostname(hostname, 255);
+		}
     }
     log_debug_msg(LOG_DEBUG, "initialise network");
 	_LOCK_MODULE(np_network_t)

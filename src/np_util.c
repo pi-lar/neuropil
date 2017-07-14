@@ -9,6 +9,11 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <errno.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 #include "sodium.h"
 #include "event/ev.h"
@@ -398,4 +403,42 @@ char* _np_concatAndFree(char* target, char* source, ... ) {
 	free(target);
 	//free(source);
 	return new_target;
+}
+
+
+np_bool _np_get_local_ip(char* buffer){
+
+	np_bool ret = TRUE;
+	const char* google_dns_server = "8.8.8.8";
+	int dns_port = 53;
+
+	struct sockaddr_in serv;
+
+	int sock = socket ( AF_INET, SOCK_DGRAM, 0);
+
+	if(sock < 0)
+	{
+		ret = FALSE;
+		log_msg(LOG_ERROR,"Could not detect local ip. Error: Socket could not be created");
+	} else {
+		memset( &serv, 0, sizeof(serv) );
+		serv.sin_family = AF_INET;
+		serv.sin_addr.s_addr = inet_addr( google_dns_server );
+		serv.sin_port = htons( dns_port );
+
+		int err = connect( sock , (const struct sockaddr*) &serv , sizeof(serv) );
+
+		struct sockaddr_in name;
+		socklen_t namelen = sizeof(name);
+		err = getsockname(sock, (struct sockaddr*) &name, &namelen);
+
+		const char* p = inet_ntop(AF_INET, &name.sin_addr, buffer, 100);
+
+		if(p == NULL){
+			ret = FALSE;
+			log_msg(LOG_ERROR,"Could not detect local ip. Error: %s (%d)", strerror(errno), errno);
+		}
+		close(sock);
+	}
+	return ret;
 }
