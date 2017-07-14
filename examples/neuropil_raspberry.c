@@ -24,7 +24,7 @@
 #include "np_msgproperty.h"
 #include "np_node.h"
 
-#include "gpio/c_gpio.h"
+#include "gpio/bcm2835.h"
 
 
 #define USAGE "neuropil_raspberry [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count] [-g 0/1 enables or disables GPIO support ] [-u publish_domain]"
@@ -36,8 +36,8 @@ extern int optind;
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
 
-#define LED_GPIO_GREEN 16
-#define LED_GPIO_YELLOW 12
+#define LED_GPIO_GREEN 23//16
+#define LED_GPIO_YELLOW 18// 12
 
 np_bool is_gpio_enabled = FALSE;
 
@@ -51,8 +51,9 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
 
 	if(is_gpio_enabled == TRUE){
-		output_gpio(LED_GPIO_YELLOW, LOW);
-		output_gpio(LED_GPIO_GREEN, HIGH);
+
+		bcm2835_gpio_clr(LED_GPIO_YELLOW);
+		bcm2835_gpio_set(LED_GPIO_GREEN);
 	}
 
 	np_send_text("pong", "pong", _pong_count,NULL);
@@ -70,8 +71,8 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_count++, "ping");
 
 	if(is_gpio_enabled == TRUE){
-		output_gpio(LED_GPIO_GREEN, LOW);
-		output_gpio(LED_GPIO_YELLOW, HIGH);
+		bcm2835_gpio_set(LED_GPIO_YELLOW);
+		bcm2835_gpio_clr(LED_GPIO_GREEN);
 	}
 	np_send_text("ping", "ping", _ping_count,NULL);
 
@@ -142,28 +143,21 @@ int main(int argc, char **argv)
 
 	if(is_gpio_enabled == TRUE) {
 
-		if( SETUP_OK != setup()){
+		if( 1 != bcm2835_init()){
 			fprintf(stdout, "GPIO NOT initiated\n");
 			is_gpio_enabled = FALSE;
 
 		}
 		else{
-			setup_gpio(LED_GPIO_GREEN, OUTPUT, PUD_OFF);
-			setup_gpio(LED_GPIO_YELLOW, OUTPUT, PUD_OFF);
+			bcm2835_gpio_set_pud(LED_GPIO_GREEN, BCM2835_GPIO_PUD_OFF);
+			bcm2835_gpio_set_pud(LED_GPIO_YELLOW, BCM2835_GPIO_PUD_OFF);
+			bcm2835_gpio_fsel(LED_GPIO_GREEN, BCM2835_GPIO_FSEL_OUTP);
+			bcm2835_gpio_fsel(LED_GPIO_YELLOW, BCM2835_GPIO_FSEL_OUTP);
 
-			if(gpio_function(LED_GPIO_GREEN) != 1)
-			{
-				fprintf(stdout, "GPIO error in GREEN \n");
-			}
-			if(gpio_function(LED_GPIO_YELLOW) != 1)
-			{
-				fprintf(stdout, "GPIO error in yellow \n");
-			}
+			bcm2835_gpio_set(LED_GPIO_GREEN);
+			bcm2835_gpio_set(LED_GPIO_YELLOW);
 
-			output_gpio(LED_GPIO_YELLOW, HIGH);
-			output_gpio(LED_GPIO_GREEN, HIGH);
 			fprintf(stdout, "GPIO initiated\n");
-			ev_sleep(5);
 		}
 	}
 
@@ -197,8 +191,8 @@ int main(int argc, char **argv)
 	np_set_listener(receive_pong, "pong");
 
 	if(is_gpio_enabled == TRUE) {
-		output_gpio(LED_GPIO_YELLOW, LOW);
-		output_gpio(LED_GPIO_GREEN, LOW);
+		bcm2835_gpio_clr(LED_GPIO_GREEN);
+		bcm2835_gpio_clr(LED_GPIO_YELLOW);
 	}
 
 	np_waitforjoin();

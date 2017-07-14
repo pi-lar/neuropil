@@ -166,7 +166,7 @@ SOURCES += ['build/obj/np_log.c','build/obj/np_memory.c','build/obj/np_message.c
 SOURCES += ['build/obj/np_route.c','build/obj/np_tree.c','build/obj/np_util.c','build/obj/np_treeval.c','build/obj/np_threads.c']
 SOURCES += ['build/obj/np_sysinfo.c','build/obj/np_scache.c','build/obj/np_event.c','build/obj/np_messagepart.c']
 # source code 3rd party libraries
-SOURCES += ['build/obj/event/ev.c', 'build/obj/json/parson.c','build/obj/msgpack/cmp.c','build/obj/gpio/c_gpio.c']
+SOURCES += ['build/obj/event/ev.c', 'build/obj/json/parson.c','build/obj/msgpack/cmp.c','build/obj/gpio/bcm2835.c']
 
 # test cases for neuropil
 TESTS =  ['test/test_suites.c']
