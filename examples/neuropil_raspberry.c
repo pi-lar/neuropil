@@ -36,8 +36,8 @@ extern int optind;
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
 
-#define LED_GPIO_GREEN RPI_BPLUS_GPIO_J8_18
-#define LED_GPIO_YELLOW RPI_BPLUS_GPIO_J8_12
+#define LED_GPIO_GREEN 23
+#define LED_GPIO_YELLOW 18
 
 np_bool is_gpio_enabled = FALSE;
 
@@ -153,16 +153,19 @@ int main(int argc, char **argv)
 			bcm2835_gpio_set_pud(LED_GPIO_YELLOW, BCM2835_GPIO_PUD_OFF);
 			bcm2835_gpio_fsel(LED_GPIO_GREEN, BCM2835_GPIO_FSEL_OUTP);
 			bcm2835_gpio_fsel(LED_GPIO_YELLOW, BCM2835_GPIO_FSEL_OUTP);
-			bcm2835_gpio_set(LED_GPIO_GREEN);
-			bcm2835_gpio_set(LED_GPIO_YELLOW);
+			//bcm2835_gpio_set(LED_GPIO_GREEN);
+			//bcm2835_gpio_set(LED_GPIO_YELLOW);
 
 			int i = 5;
 			while(--i>0){
-				bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
+				bcm2835_gpio_write(LED_GPIO_GREEN, LOW);
 				bcm2835_gpio_write(LED_GPIO_YELLOW,HIGH);
-				ev_sleep(0.2);
-				bcm2835_gpio_write(LED_GPIO_GREEN,HIGH);
+				ev_sleep(0.1);
+				bcm2835_gpio_write(LED_GPIO_GREEN, HIGH);
 				bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
+				ev_sleep(0.1);
+  		                fprintf(stdout, "A\n");
+
 			}
 			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
 			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
