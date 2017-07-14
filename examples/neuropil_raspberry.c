@@ -150,14 +150,18 @@ int main(int argc, char **argv)
 
 	if(is_gpio_enabled == TRUE) {
 
-		setup();
-		setup_gpio(LED_GPIO_GREEN, OUTPUT, PUD_OFF);
-		setup_gpio(LED_GPIO_YELLOW, OUTPUT, PUD_OFF);
+		if( SETUP_OK != setup()){
+			fprintf(stdout, "GPIO NOT initiated\n");
 
-		output_gpio(LED_GPIO_YELLOW, HIGH);
-		output_gpio(LED_GPIO_GREEN, HIGH);
-		fprintf(stdout, "GPIO initiated\n");
+		}
+		else{
+			setup_gpio(LED_GPIO_GREEN, OUTPUT, PUD_OFF);
+			setup_gpio(LED_GPIO_YELLOW, OUTPUT, PUD_OFF);
 
+			output_gpio(LED_GPIO_YELLOW, HIGH);
+			output_gpio(LED_GPIO_GREEN, HIGH);
+			fprintf(stdout, "GPIO initiated\n");
+		}
 	}
 
 
