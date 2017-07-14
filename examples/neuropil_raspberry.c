@@ -149,12 +149,10 @@ int main(int argc, char **argv)
 
 		}
 		else{
-			bcm2835_gpio_set_pud(LED_GPIO_GREEN, BCM2835_GPIO_PUD_OFF);
+			bcm2835_gpio_set_pud(LED_GPIO_GREEN,  BCM2835_GPIO_PUD_OFF);
 			bcm2835_gpio_set_pud(LED_GPIO_YELLOW, BCM2835_GPIO_PUD_OFF);
-			bcm2835_gpio_fsel(LED_GPIO_GREEN, BCM2835_GPIO_FSEL_OUTP);
+			bcm2835_gpio_fsel(LED_GPIO_GREEN,  BCM2835_GPIO_FSEL_OUTP);
 			bcm2835_gpio_fsel(LED_GPIO_YELLOW, BCM2835_GPIO_FSEL_OUTP);
-			//bcm2835_gpio_set(LED_GPIO_GREEN);
-			//bcm2835_gpio_set(LED_GPIO_YELLOW);
 
 			int i = 5;
 			while(--i>0){
@@ -167,11 +165,16 @@ int main(int argc, char **argv)
   		                fprintf(stdout, "A\n");
 
 			}
-			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
+			bcm2835_gpio_write(LED_GPIO_GREEN, LOW);
 			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
 
 			fprintf(stdout, "GPIO initiated\n");
 		}
+		np_sysinfo_enable_master();
+		_np_http_init();
+	}else{
+		np_sysinfo_enable_slave();
+
 	}
 
 
@@ -180,7 +183,7 @@ int main(int argc, char **argv)
 
 		do {
 				fprintf(stdout, "try to join bootstrap node\n");
- 					np_send_wildcard_join(j_key);
+				np_send_join(j_key);
 
 			int timeout = 100;
 			while (timeout > 0 && FALSE == state->my_node_key->node->joined_network) {
