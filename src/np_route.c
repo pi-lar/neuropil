@@ -212,9 +212,9 @@ sll_return(np_key_t) _np_route_get_table ()
 	np_sll_t(np_key_t, sll_of_keys);
 	sll_init(np_key_t, sll_of_keys);
 
-	uint16_t i, j, k;
 	_LOCK_MODULES(np_keycache_t, np_routeglobal_t)
 	{
+		uint16_t i, j, k;
 		for (i = 0; i < __MAX_ROW; i++)
 		{
 			for (j = 0; j < __MAX_COL; j++)
@@ -241,14 +241,13 @@ sll_return(np_key_t) _np_route_get_table ()
 sll_return(np_key_t) _np_route_row_lookup (np_key_t* key)
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_row_lookup");
-    uint16_t i, j, k;
 
 	np_sll_t(np_key_t, sll_of_keys);
 	sll_init(np_key_t, sll_of_keys);
 
 	_LOCK_MODULES(np_keycache_t, np_routeglobal_t)
 	{
-
+	    uint16_t i, j, k;
 		i = _np_dhkey_index (&__routing_table->my_key->dhkey, &key->dhkey);
 		for (j = 0; j < __MAX_COL; j++)
 		{
@@ -583,19 +582,19 @@ void _np_route_leafset_clear ()
 		pll_iterator(np_key_ptr) iter = pll_first(__routing_table->right_leafset);
 		np_key_t* deleted = NULL;
 		np_key_t* added = NULL;
-		while(iter != NULL){
+		while(iter != NULL) {
 			np_tryref_obj(np_key_t, iter->val, itemExists);
 			if(itemExists){
 				_np_route_leafset_update(iter->val,FALSE,&deleted,&added);
 				np_unref_obj(np_key_t, iter->val);
 			}
 			pll_next(iter);
-
 		}
+
 		iter = pll_first(__routing_table->left_leafset);
 		deleted = NULL;
 		added = NULL;
-		while(iter != NULL){
+		while(iter != NULL) {
 			np_tryref_obj(np_key_t, iter->val, itemExists);
 			if(itemExists){
 				_np_route_leafset_update(iter->val,FALSE,&deleted,&added);

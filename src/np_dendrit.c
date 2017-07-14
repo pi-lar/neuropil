@@ -141,11 +141,11 @@ void _np_in_received(np_jobargs_t* args)
 			{
 				// log_debug_msg(LOG_DEBUG, "identified handshake message ...");
 				if ( (NULL == alias_key->aaa_token) ||
-					  IS_INVALID(alias_key->aaa_token->state) )
+					 IS_INVALID(alias_key->aaa_token->state) )
 				{
+
 					np_tree_insert_str(msg_in->footer, NP_MSG_FOOTER_ALIAS_KEY,
-							np_treeval_new_s(_np_key_as_str(alias_key))
-					);
+									   np_treeval_new_s(_np_key_as_str(alias_key)));
 					np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_HANDSHAKE);
 					_np_job_submit_msgin_event(0.0, msg_prop, my_key, msg_in);
 				}
@@ -196,7 +196,7 @@ void _np_in_received(np_jobargs_t* args)
 						msg_in->uuid, msg_subject.value.s);
 				goto __np_cleanup__;
 			} else {
-				log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) message ttl not expired",msg_in->uuid);
+				log_debug_msg(LOG_DEBUG, "(msg: %s) message ttl not expired",msg_in->uuid);
 			}
 
 			// check if an acknowledge has to be send
@@ -401,16 +401,18 @@ void _np_in_signal_np_receive (np_jobargs_t* args)
 
 	np_msgproperty_t* real_prop = np_msgproperty_get(INBOUND, msg_subject.value.s);
 
-	log_debug_msg(LOG_DEBUG, "pushing message into cache %p", real_prop);
-	_LOCK_MODULE(np_msgproperty_t)
-	{
-		real_prop->msg_threshold++;
-		sll_append(np_message_t, real_prop->msg_cache_in, args->msg);
-		np_ref_obj(np_message_t, args->msg);
-		// signal the np_receive function that the message has arrived
-		log_debug_msg(LOG_DEBUG, "signaling via available %p", real_prop);
-		_np_threads_condition_signal(&real_prop->msg_received);
-	}
+	real_prop->msg_threshold++;
+	_np_msgproperty_add_msg_to_recv_cache(real_prop, msg_in);
+	_np_threads_condition_signal(&real_prop->msg_received);
+
+	// log_debug_msg(LOG_DEBUG, "pushing message into cache %p", real_prop);
+	// _LOCK_MODULE(np_msgproperty_t)
+	// {
+	//		sll_append(np_message_t, real_prop->msg_cache_in, args->msg);
+	//		np_ref_obj(np_message_t, args->msg);
+	//		// signal the np_receive function that the message has arrived
+	//		log_debug_msg(LOG_DEBUG, "signaling via available %p", real_prop);
+	// }
 
 	// TODO: more detailed msg ack handling
 	if (0 < (msg_ack_mode.value.ush & ACK_DESTINATION))
@@ -435,6 +437,8 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
     log_msg(LOG_TRACE, "start: void _np_in_callback_wrapper(np_jobargs_t* args){");
 	np_aaatoken_t* sender_token = NULL;
 	np_message_t* msg_in = args->msg;
+	np_bool msg_has_expired = FALSE;
+
 	if(NULL == msg_in){
 		// Eine msg wurde gelöscht obwohl sie in benutzung ist!
 		log_msg(LOG_ERROR, "message object null but in use!");
@@ -447,13 +451,20 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
+	msg_has_expired = _np_message_check_has_expired(msg_in);
 
 	sender_token = _np_aaatoken_get_sender((char*) subject, msg_from.value.s);
-	if (NULL == sender_token)
+	if ( (NULL  == sender_token) &&
+		 (FALSE == msg_has_expired)   )
 	{
 		_np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
 		log_msg(LOG_INFO,"No token to decrypt msg. Retrying later");
 		goto __np_return__;
+	}
+
+	if (TRUE == msg_has_expired) {
+		log_debug_msg(LOG_DEBUG, "discarding expired message %s / %s ...", msg_prop->msg_subject, msg_in->uuid);
+		goto __np_cleanup__;
 	}
 
 	log_debug_msg(LOG_DEBUG, "decrypting message ...");
@@ -485,6 +496,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 
 	__np_cleanup__:
 	if (NULL != sender_token) np_unref_obj(np_aaatoken_t, sender_token);
+	// if (NULL != msg_in)       np_unref_obj(np_message_t, msg_in);
 
 	__np_return__:
 	return;
@@ -1028,40 +1040,42 @@ void _np_in_update(np_jobargs_t* args)
 		FALSE == update_key->node->joined_network)
 	{
 		// do not join myself
-		if(0!= _np_key_cmp(update_key,_np_state()->my_identity)
-		&& 0!= _np_key_cmp(update_key,_np_state()->my_node_key))
+		if(0 != _np_key_cmp(update_key,_np_state()->my_identity)
+		&& 0 != _np_key_cmp(update_key,_np_state()->my_node_key))
 		{
 
 			char* connection_str = np_get_connection_string_from(
 					update_key,FALSE);
-			np_key_t* alias_key = _np_keycache_find_by_details(
+			np_key_t* old_key = _np_keycache_find_by_details(
 					connection_str, FALSE, HANDSHAKE_UNKNOWN,
 					FALSE, TRUE, TRUE, FALSE);
 			free(connection_str);
 
-			if(alias_key != NULL) {
+		    if(NULL != old_key)
+		    {
 				log_msg(LOG_INFO,
-						"Node %s replaces itself with node %s",
-						_np_key_as_str(args->target),
-						_np_key_as_str(update_key)
-						);
+					"Node %s replaces itself with node %s",
+					_np_key_as_str(args->target),
+					_np_key_as_str(update_key)
+					);
 
-				if(alias_key->network != NULL) {
+				if(old_key->network != NULL)
+				{
 					// reuse network
-					np_ref_obj(np_network_t, alias_key->network);
-					_np_network_start(alias_key->network);
-					update_key->network = alias_key->network;
+					np_ref_obj(np_network_t, old_key->network);
+					_np_network_start(old_key->network);
+					update_key->network = old_key->network;
 
-					//_np_key_destroy(alias_key);
+					//_np_key_destroy(old_key);
+					np_unref_obj(np_key_t, old_key); // _np_keycache_find_by_details
 				}
-
-				np_unref_obj(np_key_t, alias_key); // _np_keycache_find_by_details
 			}
 
 			log_debug_msg(LOG_DEBUG,
-					"Sending join %s:%s",
-					args->target->network->ip,update_key->node->port);
+			"Sending join %s:%s",
+			args->target->network->ip,update_key->node->port);
 			_np_send_simple_invoke_request(update_key, _NP_MSG_JOIN_REQUEST);
+
 		}
 	} else {
 	    log_debug_msg(LOG_DEBUG, "Sending no join %d",update_key->node->handshake_status);
@@ -1073,7 +1087,7 @@ void _np_in_update(np_jobargs_t* args)
 	np_unref_obj(np_aaatoken_t, update_token);
 
 	// nothing to do
-	__np_return__:
+	// __np_return__:
 	return;
 }
 
@@ -1823,7 +1837,6 @@ void _np_in_handshake(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-
 	_LOCK_MODULE(np_network_t)
 	{
 		if (NULL == hs_key->network)
@@ -1899,7 +1912,6 @@ void _np_in_handshake(np_jobargs_t* args)
 
 		np_ref_obj(np_node_t, hs_key->node);
 		alias_key->node = hs_key->node;
-
 
 		if ((alias_key->node->protocol & PASSIVE ) == PASSIVE)
 		{

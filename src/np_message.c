@@ -36,6 +36,7 @@
 #include "np_node.h"
 #include "np_threads.h"
 #include "np_util.h"
+#include "np_tree.h"
 #include "np_treeval.h"
 #include "np_tree.h"
 #include "np_settings.h"
@@ -229,6 +230,27 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 		}
 	}
 	return ret;
+}
+
+np_bool _np_message_check_has_expired(const np_message_t* const msg_to_check)
+{
+	// check time-to-live for message and expiry if neccessary
+	CHECK_STR_FIELD(msg_to_check->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
+	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TTL, msg_ttl);
+
+	double now = ev_time();
+	if (now > (msg_tstamp.value.d + msg_ttl.value.d))
+	{
+		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f",
+					  msg_to_check->uuid, now, msg_ttl.value.d, msg_tstamp.value.d);
+		return (TRUE);
+	} else {
+		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) message ttl not expired",msg_to_check->uuid);
+	}
+
+	__np_cleanup__:
+	return (FALSE);
 }
 
 np_bool _np_message_serialize(np_jobargs_t* args)
@@ -582,7 +604,7 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 {
     log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_deserialize(np_message_t* msg, void* buffer){");
 
-    np_tryref_obj(np_message_t,msg,msgExisits);
+    np_tryref_obj(np_message_t, msg, msgExisits);
 
     if(msgExisits) {
 		cmp_ctx_t cmp;
