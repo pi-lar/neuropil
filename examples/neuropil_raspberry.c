@@ -52,8 +52,8 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 
 	if(is_gpio_enabled == TRUE){
 
-		bcm2835_gpio_clr(LED_GPIO_YELLOW);
-		bcm2835_gpio_set(LED_GPIO_GREEN);
+		bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
+		bcm2835_gpio_write(LED_GPIO_GREEN,HIGH);
 	}
 
 	np_send_text("pong", "pong", _pong_count,NULL);
@@ -71,8 +71,8 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_count++, "ping");
 
 	if(is_gpio_enabled == TRUE){
-		bcm2835_gpio_set(LED_GPIO_YELLOW);
-		bcm2835_gpio_clr(LED_GPIO_GREEN);
+		bcm2835_gpio_write(LED_GPIO_YELLOW,HIGH);
+		bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
 	}
 	np_send_text("ping", "ping", _ping_count,NULL);
 
@@ -153,17 +153,20 @@ int main(int argc, char **argv)
 			bcm2835_gpio_set_pud(LED_GPIO_YELLOW, BCM2835_GPIO_PUD_OFF);
 			bcm2835_gpio_fsel(LED_GPIO_GREEN, BCM2835_GPIO_FSEL_OUTP);
 			bcm2835_gpio_fsel(LED_GPIO_YELLOW, BCM2835_GPIO_FSEL_OUTP);
+			bcm2835_gpio_set(LED_GPIO_GREEN);
+			bcm2835_gpio_set(LED_GPIO_YELLOW);
 
 			int i = 5;
 			while(--i>0){
-				bcm2835_gpio_clr(LED_GPIO_GREEN);
-				bcm2835_gpio_set(LED_GPIO_YELLOW);
+				bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
+				bcm2835_gpio_write(LED_GPIO_YELLOW,HIGH);
 				ev_sleep(0.2);
-				bcm2835_gpio_set(LED_GPIO_GREEN);
-				bcm2835_gpio_clr(LED_GPIO_YELLOW);
+				bcm2835_gpio_write(LED_GPIO_GREEN,HIGH);
+				bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
 			}
-			bcm2835_gpio_clr(LED_GPIO_GREEN);
-			bcm2835_gpio_clr(LED_GPIO_YELLOW);
+			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
+			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
+
 			fprintf(stdout, "GPIO initiated\n");
 		}
 	}
