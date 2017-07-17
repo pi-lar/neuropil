@@ -390,7 +390,6 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 
 		target = _np_keycache_find_or_create(target_dhkey);
 
-
 		msg_prop = np_msgproperty_get(TRANSFORM, iter->key.value.s);
 		if (NULL != msg_prop)
 		{

@@ -296,8 +296,7 @@ void _np_in_received(np_jobargs_t* args)
 			}
 
 			// sum up message parts if the message is for this node
-			np_message_t* msg_to_submit = NULL;
-			msg_to_submit = _np_message_check_chunks_complete(msg_in);
+			np_message_t* msg_to_submit  = _np_message_check_chunks_complete(msg_in);
 
 			if (NULL == msg_to_submit)
 				goto __np_cleanup__;
@@ -313,7 +312,7 @@ void _np_in_received(np_jobargs_t* args)
 				_np_message_deserialize_chunked(msg_to_submit);
 				_np_job_submit_msgin_event(0.0, handler, my_key, msg_to_submit);
 			}
-			np_unref_obj(np_message_t, msg_to_submit);
+			np_unref_obj(np_message_t, msg_to_submit); // unref from _np_message_check_chunks_complete
 
 			// clean the mess up
 			__np_cleanup__:
@@ -450,54 +449,51 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
-	msg_has_expired = _np_message_check_has_expired(msg_in);
+	msg_has_expired = _np_message_is_expired(msg_in);
 
-	sender_token = _np_aaatoken_get_sender((char*) subject, msg_from.value.s);
-	if ( (NULL  == sender_token) &&
-		 (FALSE == msg_has_expired)   )
+	if (TRUE == msg_has_expired)
 	{
-		_np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
-		log_msg(LOG_INFO,"No token to decrypt msg. Retrying later");
-		goto __np_return__;
-	}
-
-	if (TRUE == msg_has_expired) {
 		log_debug_msg(LOG_DEBUG, "discarding expired message %s / %s ...", msg_prop->msg_subject, msg_in->uuid);
-		goto __np_cleanup__;
-	}
-
-	log_debug_msg(LOG_DEBUG, "decrypting message ...");
-	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
-
-	np_bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
-	if (FALSE == decrypt_ok)
+	} else
 	{
-		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
-		msg_prop->msg_threshold--;
-		goto __np_cleanup__;
+		sender_token = _np_aaatoken_get_sender((char*) subject, msg_from.value.s);
+		if ( NULL  == sender_token )
+		{
+			_np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
+			log_msg(LOG_INFO,"No token to decrypt msg. Retrying later");
+		} else
+		{
+			log_debug_msg(LOG_DEBUG, "decrypting message ...");
+			np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+
+			np_bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
+			if (FALSE == decrypt_ok)
+			{
+				np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
+				msg_prop->msg_threshold--;
+			} else
+			{
+				if (0 < (msg_ack_mode.value.ush & ACK_DESTINATION))
+				{
+					_np_send_ack(args->msg);
+				}
+
+				np_bool result = msg_prop->user_clb(msg_in,msg_in->properties,msg_in->body);
+				msg_prop->msg_threshold--;
+
+				// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
+				// log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
+
+				if (0 < (msg_ack_mode.value.ush & ACK_CLIENT) && (TRUE == result))
+				{
+					_np_send_ack(args->msg);
+				}
+			}
+		}
 	}
-
-	if (0 < (msg_ack_mode.value.ush & ACK_DESTINATION))
-	{
-		_np_send_ack(args->msg);
-	}
-
-	np_bool result = msg_prop->user_clb(msg_in,msg_in->properties,msg_in->body);
-	msg_prop->msg_threshold--;
-
-	// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
-	// log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
-
-	if (0 < (msg_ack_mode.value.ush & ACK_CLIENT) && (TRUE == result))
-	{
-		_np_send_ack(args->msg);
-	}
-
 	__np_cleanup__:
-	if (NULL != sender_token) np_unref_obj(np_aaatoken_t, sender_token);
-	// if (NULL != msg_in)       np_unref_obj(np_message_t, msg_in);
+	np_unref_obj(np_aaatoken_t, sender_token);
 
-	__np_return__:
 	return;
 }
 
@@ -1104,37 +1100,49 @@ void _np_in_discover_sender(np_jobargs_t* args)
 	np_new_obj(np_aaatoken_t, msg_token);
 	np_aaatoken_decode(args->msg->body, msg_token);
 
-	if (FALSE == _np_aaatoken_is_valid(msg_token))
+	if (TRUE == _np_aaatoken_is_valid(msg_token))
 	{
-		goto __np_cleanup__;
+		log_debug_msg(LOG_DEBUG, "handling sender discovery");
+		// just store the available tokens in memory and update them if new data arrives
+		_np_aaatoken_add_receiver(msg_token->subject, msg_token);
+
+		// this node is the man in the middle - inform receiver of sender token
+		np_sll_t(np_aaatoken_t, available_list) =
+				_np_aaatoken_get_sender_all(msg_token->subject);
+
+		np_aaatoken_t* tmp_token =
+				sll_head(np_aaatoken_t, available_list);
+
+		while (NULL != tmp_token )
+		{
+			log_debug_msg(LOG_DEBUG,
+					"discovery success: sending back message sender token ...");
+			np_tree_t* available_data = np_tree_create();
+
+			np_aaatoken_encode(available_data, tmp_token);
+
+			np_message_t *msg_out = NULL;
+			np_new_obj(np_message_t, msg_out);
+			_np_message_create(
+					msg_out,
+					reply_to_key,
+					_np_state()->my_node_key,
+					_NP_MSG_AVAILABLE_SENDER,
+					available_data
+					);
+			np_msgproperty_t* prop_route =
+					np_msgproperty_get(
+							OUTBOUND,
+							_NP_MSG_AVAILABLE_SENDER
+							);
+			_np_job_submit_route_event(
+					0.0, prop_route, reply_to_key, msg_out);
+			np_unref_obj(np_message_t, msg_out);
+
+			np_unref_obj(np_aaatoken_t, tmp_token);
+		}
+		sll_free(np_aaatoken_t, available_list);
 	}
-
-	log_debug_msg(LOG_DEBUG, "handling sender discovery");
-	// just store the available tokens in memory and update them if new data arrives
-	_np_aaatoken_add_receiver(msg_token->subject, msg_token);
-
-	// this node is the man in the middle - inform receiver of sender token
-	np_sll_t(np_aaatoken_t, available_list) = _np_aaatoken_get_sender_all(msg_token->subject);
-	np_aaatoken_t* tmp_token = NULL;
-
-	while (NULL != (tmp_token = sll_head(np_aaatoken_t, available_list)))
-	{
-		log_debug_msg(LOG_DEBUG, "discovery success: sending back message sender token ...");
-		np_tree_t* available_data = np_tree_create();
-
-		np_aaatoken_encode(available_data, tmp_token);
-
-		np_message_t *msg_out = NULL;
-		np_new_obj(np_message_t, msg_out);
-		_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AVAILABLE_SENDER, available_data);
-		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AVAILABLE_SENDER);
-		_np_job_submit_route_event(0.0, prop_route, reply_to_key, msg_out);
-		np_unref_obj(np_message_t, msg_out);
-
-		np_unref_obj(np_aaatoken_t, tmp_token);
-	}
-	sll_free(np_aaatoken_t, available_list);
-
 	__np_cleanup__:
 	np_unref_obj(np_key_t, reply_to_key);
 	np_unref_obj(np_aaatoken_t, msg_token);

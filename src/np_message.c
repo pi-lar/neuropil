@@ -228,6 +228,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 						subject, msg_uuid, pll_size(msg_in_cache->msg_chunks), expected_msg_chunks);
 
 				ret = msg_in_cache;
+				// already reffed from cache
 			}
 		}
 		else
@@ -242,27 +243,28 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 	return ret;
 }
 
-np_bool _np_message_check_has_expired(const np_message_t* const msg_to_check)
+np_bool _np_message_is_expired(const np_message_t* const msg_to_check)
 {
-	// check time-to-live for message and expiry if neccessary
-	CHECK_STR_FIELD(msg_to_check->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
-	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
-	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TTL, msg_ttl);
-
+	np_bool ret = FALSE;
 	double now = ev_time();
-	if (now > (msg_tstamp.value.d + msg_ttl.value.d))
-	{
-		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f",
-					  msg_to_check->uuid, now, msg_ttl.value.d, msg_tstamp.value.d);
-		return (TRUE);
-	} else {
-		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) message ttl not expired",msg_to_check->uuid);
+	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TTL, msg_ttl);
+	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+
+	double tstamp = msg_tstamp.value.d ;
+	if(tstamp > now) {
+		log_msg(LOG_WARN, "Detected faulty timestamp for message. Setting to now. (timestamp: %f, now: %f, diff: %f sec)", tstamp, now, tstamp - now);
+		msg_tstamp.value.d = tstamp = now;
 	}
 
-	__np_cleanup__:
-	return (FALSE);
-}
+	double remaining_ttl = (tstamp + msg_ttl.value.d) - now;
+	ret = remaining_ttl <= 0;
 
+	log_debug_msg(LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f",msg_to_check->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
+
+	__np_cleanup__:
+
+	 return ret;
+}
 np_bool _np_message_serialize(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_serialize(np_jobargs_t* args){");
@@ -896,8 +898,13 @@ void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const c
 
 	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) subject));
 	np_tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(to)));
-	if (from != NULL) np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(from)));
-	if (from != NULL) np_tree_insert_str(msg->header, _NP_MSG_HEADER_REPLY_TO, np_treeval_new_s((char*) _np_key_as_str(from)));
+	if (from == NULL)
+		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(_np_state()->my_node_key)));
+	else{
+		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(from)));
+	}
+	if (from != NULL)
+		np_tree_insert_str(msg->header, _NP_MSG_HEADER_REPLY_TO, np_treeval_new_s((char*) _np_key_as_str(from)));
 
 	if (the_data != NULL)
 	{
@@ -1074,25 +1081,4 @@ char* _np_message_get_subject(np_message_t* msg) {
 	return ret;
 }
 
-np_bool _np_message_is_expired(np_message_t* msg_to_check)
-{
-	np_bool ret = FALSE;
-	double now = ev_time();
-	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TTL, msg_ttl);
-	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
 
-	double tstamp = msg_tstamp.value.d ;
-	if(tstamp > now) {
-		log_msg(LOG_WARN, "Detected faulty timestamp for message. Setting to now. (timestamp: %f, now: %f, diff: %f sec)", tstamp, now, tstamp - now);
-		msg_tstamp.value.d = tstamp = now;
-	}
-
-	double remaining_ttl = (tstamp + msg_ttl.value.d) - now;
-	ret = remaining_ttl <= 0;
-
-	log_debug_msg(LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f",msg_to_check->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
-
-	__np_cleanup__:
-
-	 return ret;
-}

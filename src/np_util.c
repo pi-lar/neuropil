@@ -409,7 +409,7 @@ char* _np_concatAndFree(char* target, char* source, ... ) {
 np_bool _np_get_local_ip(char* buffer){
 
 	np_bool ret = TRUE;
-	const char* google_dns_server = "8.8.8.8";
+	const char* google_dns_server = "neuropil.io";
 	int dns_port = 53;
 
 	struct sockaddr_in serv;

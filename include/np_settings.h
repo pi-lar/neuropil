@@ -30,7 +30,7 @@ extern "C" {
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL
-	static const uint32_t MSGPROPERTY_DEFAULT_MAX_TTL_SEC = 30;
+	static const uint32_t MSGPROPERTY_DEFAULT_MAX_TTL_SEC = 31540000;//30;
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MIN_TTL
@@ -48,6 +48,10 @@ extern "C" {
  */
 #ifndef NODE_MIN_TTL_SEC
 	static const double NODE_MIN_TTL_SEC = NODE_MAX_TTL_SEC - 120;
+#endif
+
+#ifndef TOKEN_GRACETIME_SEC
+	static const double TOKEN_GRACETIME_SEC = 10;
 #endif
 
 #ifndef NODE_RENEW_BEFORE_EOL_SEC

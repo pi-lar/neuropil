@@ -61,10 +61,6 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 // (de-) serialize a message to a binary stream using message pack (cmp.h)
 NP_API_INTERN
 void _np_message_calculate_chunking(np_message_t* msg);
-
-NP_API_INTERN
-np_bool _np_message_check_has_expired(const np_message_t* const msg_to_check);
-
 NP_API_INTERN
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check);
 NP_API_INTERN
@@ -110,7 +106,7 @@ void _np_message_set_to(np_message_t* msg, np_key_t* target);
 NP_API_INTERN
 char* _np_message_get_subject(np_message_t* msg);
 NP_API_INTERN
-np_bool _np_message_is_expired(np_message_t* msg_to_check);
+np_bool _np_message_is_expired(const np_message_t* const msg_to_check);
 // msg header constants
 static const char* _NP_MSG_HEADER_TARGET    = "_np.target";
 static const char* _NP_MSG_HEADER_SUBJECT   = "_np.subj";

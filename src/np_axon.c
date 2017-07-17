@@ -552,6 +552,7 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 
 	msg_token = _np_aaatoken_get_sender(args->properties->msg_subject,
 			 	 	 	 	 	 	 _np_key_as_str(_np_state()->my_identity));
+
  	if (NULL == msg_token)
 	{
 		log_debug_msg(LOG_DEBUG, "creating new sender token for subject %s", args->properties->msg_subject);

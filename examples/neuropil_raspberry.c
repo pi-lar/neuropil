@@ -27,8 +27,8 @@
 #include "gpio/bcm2835.h"
 
 
-#define USAGE "neuropil_raspberry [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count] [-g 0/1 enables or disables GPIO support ] [-u publish_domain]"
-#define OPTSTR "j:p:b:t:g:u:"
+#define USAGE "neuropil_raspberry [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count] [-g 0/1 enables or disables GPIO support ] [-u publish_domain] [-d loglevel]"
+#define OPTSTR "j:p:b:t:g:u:d:"
 
 extern char *optarg;
 extern int optind;
@@ -81,13 +81,14 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 
 int main(int argc, char **argv)
 {
-	int opt;
 	int no_threads = 8;
 	char *j_key = NULL;
 	char* proto = "udp4";
 	char* port = NULL;
 	char* publish_domain = NULL;
+	int level = -2;
 
+	int opt;
 	while ((opt = getopt(argc, argv, OPTSTR)) != EOF)
 	{
 		switch ((char) opt)
@@ -108,6 +109,9 @@ int main(int argc, char **argv)
 		case 'u':
 			publish_domain = optarg;
 			break;
+		case 'd':
+			level = atoi(optarg);
+			break;
 		case 'b':
 			port = optarg;
 			break;
@@ -117,6 +121,22 @@ int main(int argc, char **argv)
 			exit(EXIT_FAILURE);
 		}
 	}
+	if(level == -1){	   // production client
+		level = LOG_ERROR;
+	}else if(level == -2){ // production server
+		level = LOG_ERROR | LOG_WARN | LOG_INFO;
+	}else if(level <= -3){ // debug
+		level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG
+				  //| LOG_MUTEX | LOG_TRACE
+				  //| LOG_ROUTING
+				  //| LOG_HTTP
+				  //| LOG_KEY
+				  | LOG_NETWORK
+				  //| LOG_AAATOKEN
+				  | LOG_MESSAGE
+				   ;
+	}
+
 	if (port == NULL){
 		int current_pid = getpid();
 
@@ -128,9 +148,10 @@ int main(int argc, char **argv)
 			sprintf(port, "%d", current_pid);
 		}
 	}
+
+
 	char log_file[256];
 	sprintf(log_file, "%s_%s.log", "./neuropil_raspberry", port);
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	np_log_init(log_file, level);
 
 	np_state_t* state = np_init(proto, port, publish_domain);
@@ -143,7 +164,7 @@ int main(int argc, char **argv)
 
 	if(is_gpio_enabled == TRUE) {
 
-		if( 1 != bcm2835_init()){
+		if( 1 != bcm2835_init()) {
 			fprintf(stdout, "GPIO NOT initiated\n");
 			is_gpio_enabled = FALSE;
 

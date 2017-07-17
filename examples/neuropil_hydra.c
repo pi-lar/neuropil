@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 				  //| LOG_HTTP
 				  //| LOG_KEY
 				  | LOG_NETWORK
-				  //| LOG_AAATOKEN
+				  | LOG_AAATOKEN
 				  | LOG_MESSAGE
 				   ;
 	}

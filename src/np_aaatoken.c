@@ -67,6 +67,7 @@ void _np_aaatoken_t_del (void* token)
 	if (NULL != aaa_token->uuid)
 	{
 		free(aaa_token->uuid);
+		aaa_token->uuid= NULL;
 	}
 }
 
@@ -608,13 +609,27 @@ np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender)
 				return_token = NULL;
 				continue;
 			}
-
-			if (IS_AUTHORIZED(return_token->state) && IS_AUTHENTICATED(return_token->state))
+			if (! (IS_AUTHORIZED(return_token->state)) )
 			{
-				found_return_token = TRUE;
-				np_ref_obj(np_aaatoken_t, return_token);
-				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", return_token->issuer);
+				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring sender token for issuer %s / send_hk: %s as it is not authorized",
+						return_token->issuer, sender);
+				pll_next(iter);
+				return_token = NULL;
+				continue;
 			}
+			if (! (IS_AUTHENTICATED(return_token->state)) )
+			{
+				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring sender token for issuer %s / send_hk: %s as it is not authenticated",
+						return_token->issuer, sender);
+				pll_next(iter);
+				return_token = NULL;
+				continue;
+			}
+
+			found_return_token = TRUE;
+			np_ref_obj(np_aaatoken_t, return_token);
+			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", return_token->issuer);
+			break;
 		}
 	}
 

@@ -117,7 +117,7 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->mode_type = INBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 10;
 	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 120;
+	sysinfo_response_props->max_threshold = 10;
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
@@ -157,9 +157,9 @@ void np_sysinfo_enable_master(){
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
 	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_request_props->max_threshold = 99;
+	sysinfo_request_props->max_threshold = 10;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 199;
+	sysinfo_response_props->max_threshold = 65534;
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
@@ -251,6 +251,7 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 
 			if(NULL != new_check && NULL != old_check
 			&& new_check->val.value.d > old_check->val.value.d) {
+			    log_debug_msg(LOG_DEBUG, "Removing old SysInfo reply for newer data");
 				np_tree_free(item->value);
 				np_simple_cache_insert(_cache, source->val.value.s, np_tree_copy(body));
 			}else{
@@ -258,7 +259,8 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 			}
 
 		} else {
-			np_simple_cache_insert(_cache, source->val.value.s, np_tree_copy(body));
+		    log_debug_msg(LOG_DEBUG, "Got SysInfo reply for a new node");
+		    np_simple_cache_insert(_cache, source->val.value.s, np_tree_copy(body));
 		}
 	}
 
