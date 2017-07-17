@@ -629,7 +629,6 @@ np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender)
 			found_return_token = TRUE;
 			np_ref_obj(np_aaatoken_t, return_token);
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", return_token->issuer);
-			break;
 		}
 	}
 
