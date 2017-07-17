@@ -4,6 +4,8 @@
 //
 #include <assert.h>
 #include <errno.h>
+#include <string.h>
+#include <inttypes.h>
 
 #include "event/ev.h"
 #include "sodium.h"
@@ -19,8 +21,7 @@
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_threads.h"
-#include "np_threads.h"
-#include "inttypes.h"
+#include "np_settings.h"
 
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_aaatoken_t);
@@ -67,7 +68,7 @@ void _np_aaatoken_t_del (void* token)
 	if (NULL != aaa_token->uuid)
 	{
 		free(aaa_token->uuid);
-		aaa_token->uuid= NULL;
+	//	aaa_token->uuid= NULL;
 	}
 }
 
@@ -116,7 +117,7 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	}
 	if (NULL !=(tmp = np_tree_find_str(data, "_np.uuid")))
 	{
-		token->uuid = strndup(tmp->val.value.s, 255);
+		token->uuid = strndup(tmp->val.value.s, UUID_SIZE);
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "_np.not_before")))
 	{
@@ -311,6 +312,8 @@ static int8_t _np_aaatoken_cmp (np_aaatoken_ptr first, np_aaatoken_ptr second)
 
 	if (first == second) return (0);
 
+	if (first == NULL || second == NULL ) return (-1);
+
 	ret_check = strncmp(first->issuer, second->issuer, strlen(first->issuer));
 	if (0 != ret_check )
 	{
@@ -338,13 +341,15 @@ static int8_t _np_aaatoken_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr sec
 
 	if (first == second) return (0);
 
+	if (first == NULL || second == NULL ) return (-1);
+
 	ret_check = sodium_memcmp(first->public_key, second->public_key, crypto_sign_PUBLICKEYBYTES);
 	if (0 != ret_check )
 	{
 		return (ret_check);
 	}
 
-	ret_check = strncmp(first->uuid, second->uuid, strlen(first->uuid));
+	ret_check = strncmp(first->uuid, second->uuid, UUID_SIZE);
 	if (0 != ret_check )
 	{
 		return (ret_check);
@@ -702,11 +707,7 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
 					_np_key_as_str(subject_key) );
 		}
-	}
 
-	// check for old and outdated token
-	_LOCK_ACCESS(&subject_key->recv_property->lock)
-	{
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
 
 		while (NULL != iter)

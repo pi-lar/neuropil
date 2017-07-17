@@ -496,7 +496,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 	{
 		log_debug_msg(LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 		msg_token = _np_create_msg_token(args->properties);
-		np_ref_obj(np_aaatoken_t, msg_token);
+ 		np_ref_obj(np_aaatoken_t, msg_token); // usage ref
 		_np_aaatoken_add_local_mx(msg_token->subject, msg_token);
 	}
 
@@ -538,9 +538,9 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 		// send message availability
 		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
 		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
-		np_unref_obj(np_message_t, msg_out);
+		np_unref_obj(np_message_t, msg_out); // np_new_obj
 	}
-	np_unref_obj(np_aaatoken_t, msg_token);
+	np_unref_obj(np_aaatoken_t, msg_token); // _np_aaatoken_get_local_mx / usage ref
 }
 
 // deprecated
@@ -557,7 +557,7 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 	{
 		log_debug_msg(LOG_DEBUG, "creating new sender token for subject %s", args->properties->msg_subject);
 		np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
-		np_ref_obj(np_aaatoken_t, msg_token_new);
+		np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
 		_np_aaatoken_add_sender(msg_token_new->subject, msg_token_new);
 		msg_token = msg_token_new;
 	}
@@ -572,7 +572,7 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 	_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
 	np_unref_obj(np_message_t, msg_out);
 
-	np_unref_obj(np_aaatoken_t, msg_token);
+	np_unref_obj(np_aaatoken_t, msg_token); // _np_aaatoken_get_sender
 }
 
 // deprecated
@@ -588,7 +588,7 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 	{
 		log_debug_msg(LOG_DEBUG, "creating new receiver token for subject %s", args->properties->msg_subject);
 		np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
-		np_ref_obj(np_aaatoken_t, msg_token_new);
+		np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
 		_np_aaatoken_add_receiver(msg_token_new->subject, msg_token_new);
 		msg_token = msg_token_new;
 	}
@@ -607,7 +607,7 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 
 	np_unref_obj(np_message_t, msg_out);
 
-	np_unref_obj(np_aaatoken_t, msg_token);
+	np_unref_obj(np_aaatoken_t, msg_token); // _np_aaatoken_get_receiver
 }
 
 void _np_send_authentication_request(np_jobargs_t* args)

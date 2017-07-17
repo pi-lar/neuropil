@@ -450,13 +450,13 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
 	msg_has_expired = _np_message_is_expired(msg_in);
+	sender_token = _np_aaatoken_get_sender((char*) subject, msg_from.value.s);
 
 	if (TRUE == msg_has_expired)
 	{
 		log_debug_msg(LOG_DEBUG, "discarding expired message %s / %s ...", msg_prop->msg_subject, msg_in->uuid);
 	} else
 	{
-		sender_token = _np_aaatoken_get_sender((char*) subject, msg_from.value.s);
 		if ( NULL  == sender_token )
 		{
 			_np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
@@ -492,7 +492,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 		}
 	}
 	__np_cleanup__:
-	np_unref_obj(np_aaatoken_t, sender_token);
+	np_unref_obj(np_aaatoken_t, sender_token); // _np_aaatoken_get_sender
 
 	return;
 }
@@ -596,7 +596,7 @@ void _np_in_join_req(np_jobargs_t* args)
 	if (NULL == join_req_key->aaa_token)
 	{
 		join_req_key->aaa_token = join_token;
-		np_ref_obj(np_aaatoken_t, join_token);
+		np_ref_obj(np_aaatoken_t, join_token); // additional reffing for later use
 	}
 
 	log_debug_msg(LOG_DEBUG, "find target node");
@@ -708,8 +708,8 @@ void _np_in_join_req(np_jobargs_t* args)
 	}
 
 	__np_cleanup__:
-	if (NULL != join_token) np_unref_obj(np_aaatoken_t, join_token);
-	if (NULL != msg_out)    np_unref_obj(np_message_t, msg_out);
+	np_unref_obj(np_aaatoken_t, join_token); // np_new_obj
+	np_unref_obj(np_message_t, msg_out);
 
 	// __np_return__:
 	if (routing_key != join_req_key) np_unref_obj(np_key_t, join_req_key);
@@ -1110,10 +1110,9 @@ void _np_in_discover_sender(np_jobargs_t* args)
 		np_sll_t(np_aaatoken_t, available_list) =
 				_np_aaatoken_get_sender_all(msg_token->subject);
 
-		np_aaatoken_t* tmp_token =
-				sll_head(np_aaatoken_t, available_list);
+		np_aaatoken_t* tmp_token = NULL;
 
-		while (NULL != tmp_token )
+		while (NULL != (tmp_token = sll_head(np_aaatoken_t, available_list)))
 		{
 			log_debug_msg(LOG_DEBUG,
 					"discovery success: sending back message sender token ...");
@@ -1139,7 +1138,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 					0.0, prop_route, reply_to_key, msg_out);
 			np_unref_obj(np_message_t, msg_out);
 
-			np_unref_obj(np_aaatoken_t, tmp_token);
+			np_unref_obj(np_aaatoken_t, tmp_token); // _np_aaatoken_get_sender_all
 		}
 		sll_free(np_aaatoken_t, available_list);
 	}

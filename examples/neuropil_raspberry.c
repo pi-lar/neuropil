@@ -132,10 +132,19 @@ int main(int argc, char **argv)
 				  //| LOG_HTTP
 				  //| LOG_KEY
 				  | LOG_NETWORK
-				  //| LOG_AAATOKEN
+				  | LOG_AAATOKEN
 				  | LOG_MESSAGE
 				   ;
 	}
+	level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG
+			  //| LOG_MUTEX | LOG_TRACE
+			  //| LOG_ROUTING
+			  //| LOG_HTTP
+			  //| LOG_KEY
+			  | LOG_NETWORK
+			  | LOG_AAATOKEN
+			  | LOG_MESSAGE
+			   ;
 
 	if (port == NULL){
 		int current_pid = getpid();
