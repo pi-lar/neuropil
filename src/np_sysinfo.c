@@ -71,20 +71,21 @@ void _np_sysinfo_init_cache()
 void slave_send_cb(NP_UNUSED EV_P_ ev_timer *w, NP_UNUSED int re) {
 
   	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key);
-	np_tree_t* reply_body = np_get_my_sysinfo();
+  	if(my_node_key->node->joined_network == TRUE) {
+		np_tree_t* reply_body = np_get_my_sysinfo();
 
-	// build properties
-	np_tree_t* reply_properties = np_tree_create();
-	np_tree_insert_str(reply_properties, _NP_SYSINFO_SOURCE,
-			np_treeval_new_s(_np_key_as_str(my_node_key)));
+		// build properties
+		np_tree_t* reply_properties = np_tree_create();
+		np_tree_insert_str(reply_properties, _NP_SYSINFO_SOURCE,
+				np_treeval_new_s(_np_key_as_str(my_node_key)));
 
-	// send msg
-	log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16")",
-			reply_body->size);
+		// send msg
+		log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16")",
+				reply_body->size);
 
-	// TODO: set to broadcast (or better every master) if available
-	np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, NULL);
-
+		// TODO: set to broadcast (or better every master) if available
+		np_send_msg(_NP_SYSINFO_REPLY, reply_properties, reply_body, NULL);
+  	}
 	np_unref_obj(np_key_t, my_node_key);
 
 }
