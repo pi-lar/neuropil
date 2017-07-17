@@ -134,7 +134,7 @@ void _np_in_received(np_jobargs_t* args)
 			CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TTL, msg_ttl);
 			CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
 
-			log_debug_msg(LOG_DEBUG, "received message for subject: %s (uuid=%s, ack=%hhd) from %s",
+			log_msg(LOG_INFO, "received message for subject: %s (uuid=%s, ack=%hhd) from %s",
 					msg_subject.value.s, msg_in->uuid, msg_ack.value.ush, msg_from.value.s);
 
 			if ( 0 == strncmp(msg_subject.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) )
