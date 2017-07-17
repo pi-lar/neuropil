@@ -96,7 +96,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 						pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->recv_tokens);
 						while (NULL != iter)
 						{
-							np_free_obj(np_aaatoken_t, iter->val);
+							np_unref_obj(np_aaatoken_t, iter->val);
 							pll_next(iter);
 						}
 						pll_free(np_aaatoken_ptr, to_destroy->recv_tokens);
@@ -114,7 +114,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 						pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->send_tokens);
 						while (NULL != iter)
 						{
-							np_free_obj(np_aaatoken_t, iter->val);
+							np_unref_obj(np_aaatoken_t, iter->val);
 							pll_next(iter);
 						}
 						pll_free(np_aaatoken_ptr, to_destroy->send_tokens);

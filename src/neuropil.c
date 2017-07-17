@@ -90,7 +90,7 @@ np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
 	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
 
-	np_free_obj(np_key_t, aaa_target);
+	np_unref_obj(np_key_t, aaa_target);
 
 	return (FALSE);
 }
@@ -130,7 +130,7 @@ np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token)
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
 	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
 
-	np_free_obj(np_key_t, aaa_target);
+	np_unref_obj(np_key_t, aaa_target);
 
 	return (FALSE);
 }
@@ -170,7 +170,7 @@ np_bool _np_aaa_accountingfunc (np_aaatoken_t* token)
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
 	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
 
-	np_free_obj(np_key_t, aaa_target);
+	np_unref_obj(np_key_t, aaa_target);
 	return (FALSE);
 }
 /**
@@ -541,7 +541,7 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 
 	_np_send_msg(subject, msg, msg_prop, target_key);
 
-	np_free_obj(np_message_t, msg);
+	np_unref_obj(np_message_t, msg);
 }
 
 np_key_t* _np_get_key_by_key_hash(char* targetDhkey)
@@ -601,7 +601,7 @@ void np_send_text (char* subject, char *data, uint32_t seqnum, char* targetDhkey
 
 	_np_send_msg(subject, msg, msg_prop, NULL == target ? NULL: &target->dhkey);
 
-	np_free_obj(np_message_t, msg);
+	np_unref_obj(np_message_t, msg);
 }
 
 uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
@@ -849,7 +849,7 @@ void _np_send_ack(np_message_t* in_msg)
 		_np_job_submit_route_event(0.0, prop, ack_target, ack_msg);
 
 		np_unref_obj(np_key_t, ack_target);
-		np_free_obj(np_message_t, ack_msg);
+		np_unref_obj(np_message_t, ack_msg);
 	}
 }
 
@@ -876,7 +876,7 @@ void _np_ping (np_key_t* key)
     np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REQUEST);
 	_np_job_submit_msgout_event(0.0, prop, key, out_msg);
 
-	np_free_obj(np_message_t, out_msg);
+	np_unref_obj(np_message_t, out_msg);
 }
 
 /**

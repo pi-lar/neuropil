@@ -538,7 +538,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 		// send message availability
 		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
 		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
-		np_free_obj(np_message_t, msg_out);
+		np_unref_obj(np_message_t, msg_out);
 	}
 	np_unref_obj(np_aaatoken_t, msg_token);
 }
@@ -569,7 +569,7 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 	// send message availability
 	np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
 	_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
-	np_free_obj(np_message_t, msg_out);
+	np_unref_obj(np_message_t, msg_out);
 
 	np_unref_obj(np_aaatoken_t, msg_token);
 }
@@ -604,7 +604,7 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 	np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
 	_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
 
-	np_free_obj(np_message_t, msg_out);
+	np_unref_obj(np_message_t, msg_out);
 
 	np_unref_obj(np_aaatoken_t, msg_token);
 }
@@ -658,9 +658,9 @@ void _np_send_authentication_request(np_jobargs_t* args)
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_send_receiver_discovery(&jargs);
 	}
-	np_free_obj(np_message_t, msg_out);
+	np_unref_obj(np_message_t, msg_out);
 
-	np_free_obj(np_key_t, aaa_target);
+	np_unref_obj(np_key_t, aaa_target);
 }
 
 void _np_send_authentication_reply(np_jobargs_t* args)
@@ -696,7 +696,7 @@ void _np_send_authentication_reply(np_jobargs_t* args)
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_send_receiver_discovery(&jargs);
 	}
-	np_free_obj(np_key_t, aaa_target);
+	np_unref_obj(np_key_t, aaa_target);
 }
 
 void _np_send_authorization_request(np_jobargs_t* args)
@@ -740,8 +740,8 @@ void _np_send_authorization_request(np_jobargs_t* args)
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_send_receiver_discovery(&jargs);
 	}
-	np_free_obj(np_message_t, msg_out);
-	np_free_obj(np_key_t, aaa_target);
+	np_unref_obj(np_message_t, msg_out);
+	np_unref_obj(np_key_t, aaa_target);
 }
 
 void _np_send_authorization_reply(np_jobargs_t* args)
@@ -777,7 +777,7 @@ void _np_send_authorization_reply(np_jobargs_t* args)
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_send_receiver_discovery(&jargs);
 	}
-	np_free_obj(np_key_t, aaa_target);
+	np_unref_obj(np_key_t, aaa_target);
 }
 
 void _np_send_accounting_request(np_jobargs_t* args)
@@ -816,9 +816,9 @@ void _np_send_accounting_request(np_jobargs_t* args)
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_send_receiver_discovery(&jargs);
 	}
-	np_free_obj(np_message_t, msg_out);
+	np_unref_obj(np_message_t, msg_out);
 
-	np_free_obj(np_key_t, aaa_target);
+	np_unref_obj(np_key_t, aaa_target);
 }
 
 void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
@@ -837,5 +837,5 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, type);
 	_np_job_submit_msgout_event(0.0, prop, target, msg_out);
 
-	np_free_obj(np_message_t, msg_out);
+	np_unref_obj(np_message_t, msg_out);
 }

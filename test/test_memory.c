@@ -127,7 +127,7 @@ Test(np_memory_t, _memory_create, .description="test the memory allocation routi
 	// np_mem_printpool();
 	obj = t_obj1->obj;
 
-	np_free_obj(test_struct_t, t_obj1);
+	np_unref_obj(test_struct_t, t_obj1);
 
 	cr_expect(t_obj1 == NULL, "test whether the t_obj1 has been deleted");
 	cr_expect(obj->ref_count == 0, "test whether the reference counter of former meta obj is zero");

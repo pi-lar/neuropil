@@ -729,6 +729,6 @@ void _np_http_destroy() {
 
 	free(__local_http->hooks);
 
-	np_free_obj(np_network_t, __local_http->network);
+	np_unref_obj(np_network_t, __local_http->network);
 }
 

@@ -329,13 +329,13 @@ void* _job_exec ()
 	    // log_debug_msg(LOG_DEBUG, "%hhd:     job-->%p func-->%p args-->%p", tmp->type, tmp, tmp->processorFunc, tmp->args);
 
 	    if(tmp->args != NULL && tmp->args->msg != NULL){
-	    	log_msg(LOG_DEBUG, "handeling msg %s for %s",tmp->args->msg->uuid, _np_message_get_subject(tmp->args->msg));
+	    	log_msg(LOG_DEBUG, "handeling function for msg %s for %s",tmp->args->msg->uuid, _np_message_get_subject(tmp->args->msg));
 	    }
 
     	tmp->processorFunc(tmp->args);
 
     	if(tmp->args != NULL && tmp->args->msg != NULL) {
-	    	log_msg(LOG_DEBUG, "completed handeling msg %s for %s",tmp->args->msg ->uuid,_np_message_get_subject(tmp->args->msg));
+	    	log_msg(LOG_DEBUG, "completed handeling function for msg %s for %s",tmp->args->msg ->uuid,_np_message_get_subject(tmp->args->msg));
 	    }
 	    // cleanup
     	_np_job_free_args(tmp->args);

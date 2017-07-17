@@ -429,7 +429,7 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		msg_prop->clb_transform = _np_send_sender_discovery;
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 
-		np_free_obj(np_key_t, target);
+		np_unref_obj(np_key_t, target);
 	}
 
 	// retrigger execution
@@ -660,7 +660,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 		np_new_obj(np_message_t, msg_out);
 		_np_message_create(msg_out, target_key, state->my_node_key, _NP_MSG_PIGGY_REQUEST, msg_body);
 		_np_job_submit_route_event(0.0, outprop, target_key, msg_out);
-		np_free_obj(np_message_t, msg_out);
+		np_unref_obj(np_message_t, msg_out);
 
 		_np_job_yield(__rowinfo_send_delay);
 	}
@@ -754,7 +754,7 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 
 		log_debug_msg(LOG_DEBUG, "registering for message discovery token handling (%s)", subject);
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-		np_free_obj(np_key_t, target);
+		np_unref_obj(np_key_t, target);
 	}
 }
 
@@ -807,7 +807,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 			_np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
 		}
 		np_unref_obj(np_aaatoken_t, tmp_token);
-		np_free_obj(np_key_t, receiver_key);
+		np_unref_obj(np_key_t, receiver_key);
 
 		return (TRUE);
 	}

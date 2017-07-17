@@ -136,8 +136,8 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 		else
 		{
 			log_msg(LOG_DEBUG, "key %s not added to the leafset", _np_key_as_str(insert_key));
-			np_free_obj(np_node_t, insert_key->node);
-			np_free_obj(np_key_t, insert_key);
+			np_unref_obj(np_node_t, insert_key->node);
+			np_unref_obj(np_key_t, insert_key);
 		}
 
 		if (NULL != deleted)
@@ -156,8 +156,8 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 				sll_next(iter);
 			}
 
-			np_free_obj(np_node_t, deleted->node);
-			np_free_obj(np_key_t, deleted);
+			np_unref_obj(np_node_t, deleted->node);
+			np_unref_obj(np_key_t, deleted);
 		}
 		log_msg(LOG_INFO, "routing table now contains %d entries / %lu inserted", current_size, i+1);
 		i++;

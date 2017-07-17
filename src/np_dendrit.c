@@ -297,13 +297,12 @@ void _np_in_received(np_jobargs_t* args)
 
 			// sum up message parts if the message is for this node
 			np_message_t* msg_to_submit = NULL;
+			msg_to_submit = _np_message_check_chunks_complete(msg_in);
 
+			if (NULL == msg_to_submit)
+				goto __np_cleanup__;
 
-				msg_to_submit = _np_message_check_chunks_complete(msg_in);
-
-
-			if (NULL == msg_to_submit)   goto __np_cleanup__;
-			np_ref_obj(np_message_t, msg_to_submit);
+			//np_ref_obj(np_message_t, msg_to_submit); is already refed from the cache system
 
 			if (TRUE == my_key->node->joined_network ||
 				0 == strncmp(msg_subject.value.s, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) )
@@ -374,7 +373,7 @@ void _np_in_piggy(np_jobargs_t* args)
 			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
 			_np_job_submit_msgout_event(0.0, prop, node_entry, msg_out);
 
-			np_free_obj(np_message_t, msg_out);
+			np_unref_obj(np_message_t, msg_out);
 		}
 		np_unref_obj(np_key_t, my_key);
 		np_unref_obj(np_key_t, node_entry);
@@ -713,8 +712,8 @@ void _np_in_join_req(np_jobargs_t* args)
 	}
 
 	__np_cleanup__:
-	if (NULL != join_token) np_free_obj(np_aaatoken_t, join_token);
-	if (NULL != msg_out)    np_free_obj(np_message_t, msg_out);
+	if (NULL != join_token) np_unref_obj(np_aaatoken_t, join_token);
+	if (NULL != msg_out)    np_unref_obj(np_message_t, msg_out);
 
 	// __np_return__:
 	if (routing_key != join_req_key) np_unref_obj(np_key_t, join_req_key);
@@ -858,7 +857,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 	__np_cleanup__:
 	np_unref_obj(np_key_t, my_key);
-	if (NULL != join_token) np_free_obj(np_aaatoken_t, join_token);
+	if (NULL != join_token) np_unref_obj(np_aaatoken_t, join_token);
 
 	// nothing to do
 	// __np_return__:
@@ -947,7 +946,7 @@ void _np_in_ping(np_jobargs_t* args)
 		np_msgproperty_t* msg_pingreply_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REPLY);
 		_np_job_submit_msgout_event(0.0, msg_pingreply_prop, ping_key, msg_out);
 
-		np_free_obj(np_message_t, msg_out);
+		np_unref_obj(np_message_t, msg_out);
 		np_unref_obj(np_key_t, ping_key);
 	}
 	else
@@ -1130,15 +1129,15 @@ void _np_in_discover_sender(np_jobargs_t* args)
 		_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AVAILABLE_SENDER, available_data);
 		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AVAILABLE_SENDER);
 		_np_job_submit_route_event(0.0, prop_route, reply_to_key, msg_out);
-		np_free_obj(np_message_t, msg_out);
+		np_unref_obj(np_message_t, msg_out);
 
 		np_unref_obj(np_aaatoken_t, tmp_token);
 	}
 	sll_free(np_aaatoken_t, available_list);
 
 	__np_cleanup__:
-	if (NULL != reply_to_key) np_free_obj(np_key_t, reply_to_key);
-	if (NULL != msg_token)    np_free_obj(np_aaatoken_t, msg_token);
+	np_unref_obj(np_key_t, reply_to_key);
+	np_unref_obj(np_aaatoken_t, msg_token);
 
 	// __np_return__:
 	return;
@@ -1197,7 +1196,7 @@ void _np_in_available_sender(np_jobargs_t* args)
 	}
 
 	__np_cleanup__:
-	if (NULL != msg_token)    np_free_obj(np_aaatoken_t, msg_token);
+	if (NULL != msg_token)    np_unref_obj(np_aaatoken_t, msg_token);
 
 	// __np_return__:
 	return;
@@ -1249,14 +1248,14 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 		log_debug_msg(LOG_DEBUG, "sending back msg interest to %s", _np_key_as_str(reply_to_key));
 		_np_job_submit_route_event(0.0, prop_route, reply_to_key, msg_out);
 
-		np_free_obj(np_message_t, msg_out);
+		np_unref_obj(np_message_t, msg_out);
 		np_unref_obj(np_aaatoken_t, tmp_token);
 	}
 	sll_free(np_aaatoken_t, receiver_list);
 
 	__np_cleanup__:
-	if (NULL != reply_to_key) np_free_obj(np_key_t, reply_to_key);
-	if (NULL != msg_token)    np_free_obj(np_aaatoken_t, msg_token);
+	if (NULL != reply_to_key) np_unref_obj(np_key_t, reply_to_key);
+	if (NULL != msg_token)    np_unref_obj(np_aaatoken_t, msg_token);
 
 	// __np_return__:
 	return;
@@ -1316,7 +1315,7 @@ void _np_in_available_receiver(np_jobargs_t* args)
 	}
 
 	__np_cleanup__:
-	if (NULL != msg_token)    np_free_obj(np_aaatoken_t, msg_token);
+	if (NULL != msg_token)    np_unref_obj(np_aaatoken_t, msg_token);
 
 	// __np_return__:
 	return;
@@ -1386,7 +1385,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 			reply_to_key->aaa_token = sender_token;
 		}
 		_np_job_submit_transform_event(0.0, prop_route, reply_to_key, msg_out);
-		np_free_obj(np_message_t, msg_out);
+		np_unref_obj(np_message_t, msg_out);
 	}
 	else
 	{
@@ -1395,7 +1394,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	}
 
 	__np_cleanup__:
-	if (NULL != reply_to_key) np_free_obj(np_key_t, reply_to_key);
+	if (NULL != reply_to_key) np_unref_obj(np_key_t, reply_to_key);
 	if (NULL != sender_token) np_unref_obj(np_aaatoken_t, sender_token);
 	if (NULL != authentication_token) np_unref_obj(np_aaatoken_t, authentication_token);
 
@@ -1492,7 +1491,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 	}
 
 	__np_cleanup__:
-	if (NULL != authentication_token) np_free_obj(np_aaatoken_t, authentication_token);
+	if (NULL != authentication_token) np_unref_obj(np_aaatoken_t, authentication_token);
 	if (NULL != sender_token)         np_unref_obj(np_aaatoken_t, sender_token);
 
 	// __np_return__:
@@ -1566,7 +1565,7 @@ void _np_in_authorize(np_jobargs_t* args)
 			reply_to_key->aaa_token = sender_token;
 		}
 		_np_job_submit_transform_event(0.0, prop_route, reply_to_key, msg_out);
-		np_free_obj(np_message_t, msg_out);
+		np_unref_obj(np_message_t, msg_out);
 	}
 	else
 	{
@@ -1575,7 +1574,7 @@ void _np_in_authorize(np_jobargs_t* args)
 	}
 
 	__np_cleanup__:
-	if (NULL != reply_to_key) np_free_obj(np_key_t, reply_to_key);
+	if (NULL != reply_to_key) np_unref_obj(np_key_t, reply_to_key);
 	if (NULL != sender_token) np_unref_obj(np_aaatoken_t, sender_token);
 	if (NULL != authorization_token) np_unref_obj(np_aaatoken_t, authorization_token);
 
@@ -1668,7 +1667,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 	}
 
 	__np_cleanup__:
-	if (NULL != authorization_token) np_free_obj(np_aaatoken_t, authorization_token);
+	if (NULL != authorization_token) np_unref_obj(np_aaatoken_t, authorization_token);
 	if (NULL != sender_token)        np_unref_obj(np_aaatoken_t, sender_token);
 
 	// __np_return__:
@@ -1707,7 +1706,7 @@ void _np_in_account(np_jobargs_t* args)
 	_np_state()->accounting_func(accounting_token);
 
 	__np_cleanup__:
-	if (NULL != accounting_token) np_free_obj(np_aaatoken_t, accounting_token);
+	if (NULL != accounting_token) np_unref_obj(np_aaatoken_t, accounting_token);
 	if (NULL != sender_token)     np_unref_obj(np_aaatoken_t, sender_token);
 
 	// __np_return__:
@@ -1915,7 +1914,7 @@ void _np_in_handshake(np_jobargs_t* args)
 
 		if ((alias_key->node->protocol & PASSIVE ) == PASSIVE)
 		{
-			np_free_obj(np_network_t, hs_key->network);
+			np_unref_obj(np_network_t, hs_key->network);
 
 			np_ref_obj(np_network_t, alias_key->network);
 			hs_key->network = alias_key->network;
