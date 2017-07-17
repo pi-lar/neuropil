@@ -80,7 +80,7 @@ struct np_obj_s
     assert (np_obj->obj != NULL);             \
     if (np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",np_obj->obj->type, TYPE##_e);   \
     assert (np_obj->obj->type == TYPE##_e);   \
-	log_debug_msg(LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",np_obj->obj->ref_count,#TYPE, np_obj->obj->id); 												\
+	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",np_obj->obj->ref_count,#TYPE, np_obj->obj->id); 												\
     np_mem_refobj(np_obj->obj);               \
   }                                           \
 }
@@ -94,7 +94,7 @@ struct np_obj_s
 					log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",np_obj->obj->type, TYPE##_e);   	\
 					assert (np_obj->obj->type == TYPE##_e);   											\
 				} else {																				\
-					log_debug_msg(LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 												\
+					log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 												\
 					np_mem_refobj(np_obj->obj);               											\
 					ret = TRUE;																			\
 				}																						\
@@ -115,7 +115,7 @@ TYPE* saveTo = NULL;																						\
 						log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",org->obj->type, TYPE##_e);   	\
 						assert (org->obj->type == TYPE##_e);   											\
 					} else {																				\
-						log_debug_msg(LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",org->obj->ref_count,#TYPE, org->obj->id); 												\
+						log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",org->obj->ref_count,#TYPE, org->obj->id); 												\
 						np_mem_refobj(org->obj);               											\
 						ret = TRUE;																			\
 						saveTo = org;																	\
@@ -145,7 +145,7 @@ TYPE* saveTo = NULL;																						\
 		assert (np_obj->obj->type == TYPE##_e);     																						\
 		if(!np_obj->obj->persistent && np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");								\
 		assert (np_obj->obj->persistent  || np_obj->obj->ptr != NULL);          															\
-	    log_debug_msg(LOG_DEBUG,"_Unref_ (%d) object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 												\
+	    log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Unref_ (%d) object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 												\
 		np_mem_unrefobj(np_obj->obj);               																						\
 		if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) 			\
 		{ 																																	\
@@ -154,7 +154,7 @@ TYPE* saveTo = NULL;																						\
 			if (np_obj->obj->freeing != TRUE) 																								\
 			{ 																																\
 				np_obj->obj->freeing = TRUE;																								\
-			    log_debug_msg(LOG_DEBUG,"_Deleting object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 									\
+			    log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Deleting object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 									\
 				if(np_obj->obj->del_callback != NULL)   																					\
 					np_obj->obj->del_callback(np_obj);    																					\
 				np_mem_freeobj(TYPE##_e, &np_obj->obj); 																					\
@@ -184,7 +184,7 @@ TYPE* saveTo = NULL;																						\
     np_obj = (TYPE*) malloc(sizeof(TYPE));								      					\
     CHECK_MALLOC(np_obj);																		\
     np_mem_newobj(TYPE##_e, &np_obj->obj);      												\
-    log_debug_msg(LOG_DEBUG,"Creating_ object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 	\
+    log_debug_msg(LOG_MEMORY | LOG_DEBUG,"Creating_ object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 	\
     np_obj->obj->new_callback = _##TYPE##_new;  												\
     np_obj->obj->del_callback = _##TYPE##_del;  												\
     np_obj->obj->new_callback(np_obj);          												\
