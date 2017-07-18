@@ -1795,43 +1795,44 @@ void _np_in_handshake(np_jobargs_t* args)
 	// but we need a way to lookup the handshake data later
 	hs_key = _np_node_create_from_token(tmp_token);
 
-	char* tmp_connection_str = np_get_connection_string_from(hs_key, FALSE);
-	np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str );
-	free(tmp_connection_str);
+	if(hs_key->node->joined_network == FALSE) {
+		char* tmp_connection_str = np_get_connection_string_from(hs_key, FALSE);
+		np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str );
+		free(tmp_connection_str);
 
-	_LOCK_MODULES (np_keycache_t, np_network_t)
-	{
-		hs_wildcard_key = _np_keycache_find(wildcard_dhkey);
-		if(NULL != hs_wildcard_key && NULL != hs_wildcard_key->network)
+		_LOCK_MODULES (np_keycache_t, np_network_t)
 		{
-			np_network_t* old_network = hs_wildcard_key->network;
-			np_ref_obj(np_network_t,old_network);
-			_LOCK_ACCESS(&old_network->lock)
+			hs_wildcard_key = _np_keycache_find(wildcard_dhkey);
+			if(NULL != hs_wildcard_key && NULL != hs_wildcard_key->network)
 			{
-				// Updating handshake key with already existing network
-				// structure of the wildcard key
-				log_debug_msg(LOG_DEBUG,
-						"Updating wildcard key %s to %s",
-						_np_key_as_str(hs_wildcard_key),
-						_np_key_as_str(hs_key));
+				np_network_t* old_network = hs_wildcard_key->network;
+				np_ref_obj(np_network_t,old_network);
+				_LOCK_ACCESS(&old_network->lock)
+				{
+					// Updating handshake key with already existing network
+					// structure of the wildcard key
+					log_debug_msg(LOG_DEBUG,
+							"Updating wildcard key %s to %s",
+							_np_key_as_str(hs_wildcard_key),
+							_np_key_as_str(hs_key));
 
-				_np_network_remap_network(hs_key, hs_wildcard_key);
+					_np_network_remap_network(hs_key, hs_wildcard_key);
 
-				hs_key->node->handshake_status =
-					hs_wildcard_key->node->handshake_status;
+					hs_key->node->handshake_status =
+						hs_wildcard_key->node->handshake_status;
 
-				// clean up, wildcard key not needed anymore
-				hs_wildcard_key->network = NULL;
-				//_np_key_destroy(hs_wildcard_key);
+					// clean up, wildcard key not needed anymore
+					hs_wildcard_key->network = NULL;
+					//_np_key_destroy(hs_wildcard_key);
+				}
+				np_unref_obj(np_network_t, old_network);
+				_np_send_simple_invoke_request(hs_key, _NP_MSG_JOIN_REQUEST);
 			}
-			np_unref_obj(np_network_t, old_network);
-			_np_send_simple_invoke_request(hs_key, _NP_MSG_JOIN_REQUEST);
+
+			_np_keycache_remove(wildcard_dhkey);
+			np_unref_obj(np_key_t, hs_wildcard_key);
 		}
-
-		_np_keycache_remove(wildcard_dhkey);
-		np_unref_obj(np_key_t, hs_wildcard_key);
 	}
-
 	// should never happen
 	if (NULL == hs_key)
 	{

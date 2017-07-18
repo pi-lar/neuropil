@@ -50,10 +50,6 @@ extern "C" {
 	static const double NODE_MIN_TTL_SEC = NODE_MAX_TTL_SEC - 120;
 #endif
 
-#ifndef TOKEN_GRACETIME_SEC
-	static const double TOKEN_GRACETIME_SEC = 10;
-#endif
-
 #ifndef NODE_RENEW_BEFORE_EOL_SEC
 	static const double NODE_RENEW_BEFORE_EOL_SEC = 5;
 #endif

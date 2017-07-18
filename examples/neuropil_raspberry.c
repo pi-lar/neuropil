@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 				  | LOG_NETWORK
 				  | LOG_AAATOKEN
 				  | LOG_MESSAGE
-				  | LOG_MEMORY
+				//  | LOG_MEMORY
 				   ;
 	}
 
@@ -294,7 +294,7 @@ int main(int argc, char **argv)
 	    i +=1;
 	    ev_sleep(0.01);
 	    now = ev_time() ;
-	    if ((now - last_ping ) > 5) {
+	    if ((now - last_ping ) > ping_props->msg_ttl) {
 	    	last_ping  = now;
 	    	fprintf(stdout, "Invoking ping.\n");
 	    	log_msg(LOG_INFO, "Invoking ping");
