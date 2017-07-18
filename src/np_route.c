@@ -729,34 +729,38 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 }
 void _np_route_check_for_joined_network()
 {
-	if(__routing_table->my_key->node->joined_network == TRUE) {
-		np_bool hasRoutingEntry = FALSE;
-		uint16_t i, j, k;
-		for (i = 0; i < __MAX_ROW; i++)
-		{
-			for (j = 0; j < __MAX_COL; j++)
+	_LOCK_MODULE(np_routeglobal_t)
+	{
+		if(__routing_table->my_key->node->joined_network == TRUE) {
+			np_bool hasRoutingEntry = FALSE;
+			uint16_t i, j, k;
+			for (i = 0; i < __MAX_ROW; i++)
 			{
-				int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
-				for (k = 0; k < __MAX_ENTRY; k++)
+				for (j = 0; j < __MAX_COL; j++)
 				{
-					if (NULL != __routing_table->table[index + k])
+					int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
+					for (k = 0; k < __MAX_ENTRY; k++)
 					{
-						hasRoutingEntry = TRUE;
-						break;
+						if (NULL != __routing_table->table[index + k])
+						{
+							hasRoutingEntry = TRUE;
+							break;
+						}
 					}
+					if(hasRoutingEntry == TRUE)
+						break;
 				}
 				if(hasRoutingEntry == TRUE)
 					break;
 			}
-			if(hasRoutingEntry == TRUE)
-				break;
-		}
 
-		if( FALSE == hasRoutingEntry
-		&& pll_size(__routing_table->left_leafset) == 0
-		&& pll_size(__routing_table->right_leafset) == 0
-		){
-			__routing_table->my_key->node->joined_network = FALSE;
+			if( FALSE == hasRoutingEntry
+			&& pll_size(__routing_table->left_leafset) == 0
+			&& pll_size(__routing_table->right_leafset) == 0
+			){
+				__routing_table->my_key->node->joined_network = FALSE;
+				_np_route_rejoin_bootstrap(TRUE);
+			}
 		}
 	}
 }
