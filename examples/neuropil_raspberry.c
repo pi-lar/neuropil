@@ -29,6 +29,7 @@
 #include "np_settings.h"
 
 #include "gpio/bcm2835.h"
+#include "event/ev.h"
 #include "example_helper.c"
 
 #define USAGE "neuropil_raspberry [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count] [-g 0/1 enables or disables GPIO support ] [-u publish_domain] [-d loglevel]"
@@ -45,6 +46,7 @@ uint32_t _pong_count = 0;
 
 np_bool is_gpio_enabled = FALSE;
 np_mutex_t gpio_lock;
+double last_ping = 0;
 
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
@@ -54,8 +56,10 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
+	last_ping = ev_time();
 
-	if(is_gpio_enabled == TRUE){
+	if(is_gpio_enabled == TRUE)
+	{
 		_LOCK_ACCESS(&gpio_lock){
 			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
 			bcm2835_gpio_write(LED_GPIO_GREEN,HIGH);
@@ -63,6 +67,9 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
 			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
 		}
+	} else
+	{
+		ev_sleep(0.01);
 	}
 
 	np_send_text("pong", "pong", _pong_count,NULL);
@@ -79,7 +86,8 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_count++, "ping");
 
-	if(is_gpio_enabled == TRUE){
+	if(is_gpio_enabled == TRUE)
+	{
 		_LOCK_ACCESS(&gpio_lock){
 			bcm2835_gpio_write(LED_GPIO_YELLOW,HIGH);
 			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
@@ -87,6 +95,9 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
 			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
 		}
+	} else
+	{
+		ev_sleep(0.01);
 	}
 	np_send_text("ping", "ping", _ping_count,NULL);
 
@@ -248,7 +259,7 @@ int main(int argc, char **argv)
 	np_msgproperty_t* ping_props = NULL;
 	np_new_obj(np_msgproperty_t, ping_props);
 	ping_props->msg_subject = strndup("ping", 255);
-	ping_props->ack_mode = ACK_NONE;
+	ping_props->ack_mode = ACK_DESTINATION;
 	ping_props->msg_ttl = 20.0;
 	ping_props->max_threshold = UINT16_MAX;
 	np_msgproperty_register(ping_props);
@@ -258,7 +269,7 @@ int main(int argc, char **argv)
 	np_msgproperty_t* pong_props = NULL;
 	np_new_obj(np_msgproperty_t, pong_props);
 	pong_props->msg_subject = strndup("pong", 255);
-	pong_props->ack_mode = ACK_NONE;
+	pong_props->ack_mode = ACK_DESTINATION;
 	pong_props->msg_ttl = 20.0;
 	pong_props->max_threshold = UINT16_MAX;
 	np_msgproperty_register(pong_props);
@@ -269,10 +280,26 @@ int main(int argc, char **argv)
 
 	fprintf(stdout, "Connection established.\n");
 
+	fprintf(stdout, "Sending initial ping.\n");
 	log_msg(LOG_INFO, "Sending initial ping");
 	// send an initial ping
 	np_send_text("ping", "ping", _ping_count++, NULL);
 
-	__np_example_helper_run_loop();
+	//__np_example_helper_run_loop();
+	uint32_t i = 0;
+	double now;
+	last_ping  = now;
+
+	while (TRUE) {
+	    i +=1;
+	    ev_sleep(0.01);
+	    now = ev_time() ;
+	    if ((now - last_ping ) > 5) {
+	    	last_ping  = now;
+	    	fprintf(stdout, "Invoking ping.\n");
+	    	log_msg(LOG_INFO, "Invoking ping");
+	    	np_send_text("ping", "ping", _ping_count++, NULL);
+	    }
+	}
 
 }

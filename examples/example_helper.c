@@ -19,10 +19,10 @@
 void __np_example_helper_run_loop(){
 	uint32_t i = 0;
 	while (TRUE) {
+	    i +=1;
 	    ev_sleep(0.01);
 #ifdef DEBUG
   #if DEBUG == 1
-	    i +=1;
 	    if(i % 100 == 0) {
 	    	// to output
 	    	char* memory_str = np_mem_printpool(FALSE);
