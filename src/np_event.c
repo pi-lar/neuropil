@@ -84,14 +84,16 @@ void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 		RB_FOREACH(tmp, np_tree_s, state->msg_part_cache)
 		{
 			np_message_t* msg = tmp->val.value.v;
+			np_tryref_obj(np_message_t,msg, msgExists);
 
-			if(TRUE == _np_message_is_expired(msg)){
+			if(msgExists == TRUE && TRUE == _np_message_is_expired(msg)){
 				np_tree_del_str(state->msg_part_cache,msg->uuid);
 				sll_append(np_message_t,to_del,msg);
 			}
 		}
 	}
-	np_unref_list(np_message_t, to_del);
+	np_unref_list(np_message_t, to_del); // np_tryref_obj
+	np_unref_list(np_message_t, to_del); // cleanup
 
 
     np_job_submit_event(MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache);
