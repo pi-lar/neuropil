@@ -20,6 +20,8 @@ void __np_example_helper_run_loop(){
 	uint32_t i = 0;
 	while (TRUE) {
 	    ev_sleep(0.01);
+#ifdef DEBUG
+  #if DEBUG == 1
 	    i +=1;
 	    if(i % 100 == 0) {
 	    	// to output
@@ -41,5 +43,7 @@ void __np_example_helper_run_loop(){
 		//	fprintf(stdout, "Renew bootstrap token");
 		//	np_key_renew_token();
 	    //}
+  #endif
+#endif
 	}
 }

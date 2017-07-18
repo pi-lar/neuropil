@@ -42,6 +42,7 @@ uint32_t _pong_count = 0;
 #define LED_GPIO_YELLOW 18
 
 np_bool is_gpio_enabled = FALSE;
+np_mutex_t gpio_lock;
 
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
@@ -53,9 +54,13 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
 
 	if(is_gpio_enabled == TRUE){
-
-		bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
-		bcm2835_gpio_write(LED_GPIO_GREEN,HIGH);
+		_LOCK_ACCESS(&gpio_lock){
+			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
+			bcm2835_gpio_write(LED_GPIO_GREEN,HIGH);
+			ev_sleep(0.01);
+			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
+			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
+		}
 	}
 
 	np_send_text("pong", "pong", _pong_count,NULL);
@@ -73,8 +78,13 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_count++, "ping");
 
 	if(is_gpio_enabled == TRUE){
-		bcm2835_gpio_write(LED_GPIO_YELLOW,HIGH);
-		bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
+		_LOCK_ACCESS(&gpio_lock){
+			bcm2835_gpio_write(LED_GPIO_YELLOW,HIGH);
+			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
+			ev_sleep(0.01);
+			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
+			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
+		}
 	}
 	np_send_text("ping", "ping", _ping_count,NULL);
 
@@ -83,6 +93,8 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 
 int main(int argc, char **argv)
 {
+	_np_threads_mutex_init(&gpio_lock);
+
 	int no_threads = 8;
 	char *j_key = NULL;
 	char* proto = "udp4";
