@@ -277,9 +277,7 @@ void np_key_renew_token() {
 		_LOCK_ACCESS(&old_node_key->network->lock)
 		{
 			// save old network setup
-			np_ref_obj(np_network_t, old_node_key->network);
-			new_node_key->network   = old_node_key->network;
-			_np_network_start(new_node_key->network);
+			_np_network_remap_network(new_node_key,old_node_key);
 
 			np_ref_switch(np_key_t, state->my_node_key->network->watcher.data, new_node_key);
 			state->my_node_key->node->joined_network = old_node_key->node->joined_network;

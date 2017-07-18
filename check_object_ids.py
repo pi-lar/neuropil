@@ -8,7 +8,7 @@ from pathlib2 import Path
 
 startDir = '.'
 
-rx = re.compile(r"^((.* _?(.*)_? object of type \"(.*)\".*) on (.*))$", flags=re.MULTILINE)
+rx = re.compile(r"^((.* _?(Creating|Deleting)_? object of type \"(.*)\".*) on (.*))$", flags=re.MULTILINE)
 
 for fileName in os.listdir(startDir):
     if fileName.endswith(".log"):
@@ -31,5 +31,5 @@ for fileName in os.listdir(startDir):
         for k in dictResult:
             print(dictResult[k][0])
 
-        print("created items: %d non removed objects: %d" %(i/2 + len(dictResult.keys()),len(dictResult.keys()) ))
+        print("%s: created items: %d non removed objects: %d" %(fileName,i/2 + len(dictResult.keys()),len(dictResult.keys()) ))
         print("")

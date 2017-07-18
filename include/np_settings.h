@@ -22,7 +22,7 @@ extern "C" {
 	static const double SYSINFO_PROACTIVE_SEND_IN_SEC = 1.0;
 #endif
 #ifndef SYSINFO_MAX_TTL
-	static const uint32_t SYSINFO_MAX_TTL = 31540000;//30;
+	static const uint32_t SYSINFO_MAX_TTL = 30;//31540000;//30;
 #endif
 
 #ifndef SYSINFO_MIN_TTL
@@ -30,7 +30,7 @@ extern "C" {
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL
-	static const uint32_t MSGPROPERTY_DEFAULT_MAX_TTL_SEC = 31540000;//30;
+	static const uint32_t MSGPROPERTY_DEFAULT_MAX_TTL_SEC = 30;//31540000;//30;
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MIN_TTL

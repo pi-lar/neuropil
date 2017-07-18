@@ -779,11 +779,42 @@ void _np_network_stop(np_network_t* network){
 				log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p",network);
 				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 				ev_io_stop(EV_A_ &network->watcher);
+			}else
+			{
+				log_msg(LOG_WARN,
+						"COULD NOT STOP NETWORK %p (still in use? (%d))",
+						network,network->isWatching
+				);
 			}
 		}
     }
 }
+void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
+{
 
+	log_debug_msg(LOG_DEBUG,
+			"try to remap network of %s to network of %s",
+			_np_key_as_str(old_target),
+			_np_key_as_str(new_target)
+			);
+	assert(new_target->network == NULL);
+	assert(old_target->network != NULL);
+
+
+	_LOCK_ACCESS(&old_target->network->lock){
+		_np_network_stop(old_target->network); 			// stop network
+		new_target->network = old_target->network; 		// remap
+		np_ref_switch(np_key_t,new_target->network->watcher.data, new_target); // remap network key
+		old_target->network = NULL;						// remove from old structure
+		_np_network_start(new_target->network); 		// restart network
+	}
+
+	log_debug_msg(LOG_DEBUG,
+				"remap network of %s to network of %s completed",
+				_np_key_as_str(old_target),
+				_np_key_as_str(new_target)
+				);
+}
 void _np_network_start(np_network_t* network){
     log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
     if(NULL != network){
@@ -793,6 +824,8 @@ void _np_network_start(np_network_t* network){
 				log_msg(LOG_NETWORK | LOG_INFO, "starting network %p",network);
 				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 				ev_io_start(EV_A_ &network->watcher);
+			}else{
+				log_msg(LOG_WARN, "COULD NOT START NETWORK %p (already started? (%d))",network,network->isWatching);
 			}
     	}
     }

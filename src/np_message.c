@@ -196,6 +196,8 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 			}
 			else
 			{
+				// TODO: limit msg_part_cache size
+
 				// there is no chunk for this msg in cache,
 				// so we insert this message into out cache
 				// as a structure to accumulate further chunks into
@@ -723,7 +725,8 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-----------------------------------------------------" );
 
-	_LOCK_ACCESS(&msg->msg_chunks_lock) {
+	_LOCK_ACCESS(&msg->msg_chunks_lock)
+	{
 		pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
 		np_messagepart_ptr current_chunk = NULL;
 
@@ -824,35 +827,34 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-------------------------" );
 			pll_next(iter);
 		}
-	}
 
-	if (NULL != bin_properties)
-	{
-		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg properties %u", msg->uuid, size_properties);
-		cmp_init(&cmp_properties, bin_properties, _np_buffer_reader, _np_buffer_writer);
-		_np_tree_deserialize(msg->properties, &cmp_properties);
-		// TODO: check if the complete buffer was read (byte count match)
 
-	}
+		if (NULL != bin_properties)
+		{
+			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg properties %u", msg->uuid, size_properties);
+			cmp_init(&cmp_properties, bin_properties, _np_buffer_reader, _np_buffer_writer);
+			_np_tree_deserialize(msg->properties, &cmp_properties);
+			// TODO: check if the complete buffer was read (byte count match)
 
-	if (NULL != bin_body)
-	{
-		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg body %u", msg->uuid, size_body);
-		cmp_init(&cmp_body, bin_body, _np_buffer_reader, _np_buffer_writer);
-		_np_tree_deserialize(msg->body, &cmp_body);
-		// TODO: check if the complete buffer was read (byte count match)
+		}
 
-	}
+		if (NULL != bin_body)
+		{
+			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg body %u", msg->uuid, size_body);
+			cmp_init(&cmp_body, bin_body, _np_buffer_reader, _np_buffer_writer);
+			_np_tree_deserialize(msg->body, &cmp_body);
+			// TODO: check if the complete buffer was read (byte count match)
 
-	if (NULL != bin_footer)
-	{
-		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg footer %u", msg->uuid, size_footer);
-		cmp_init(&cmp_footer, bin_footer, _np_buffer_reader, _np_buffer_writer);
-		_np_tree_deserialize(msg->footer, &cmp_footer);
-		// TODO: check if the complete buffer was read (byte count match)
-	}
+		}
 
-	_LOCK_ACCESS(&msg->msg_chunks_lock) {
+		if (NULL != bin_footer)
+		{
+			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg footer %u", msg->uuid, size_footer);
+			cmp_init(&cmp_footer, bin_footer, _np_buffer_reader, _np_buffer_writer);
+			_np_tree_deserialize(msg->footer, &cmp_footer);
+			// TODO: check if the complete buffer was read (byte count match)
+		}
+
 		if (0 < pll_size(msg->msg_chunks))
 		{
 			pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);

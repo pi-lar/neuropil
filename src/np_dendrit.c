@@ -309,7 +309,10 @@ void _np_in_received(np_jobargs_t* args)
 				log_msg(LOG_INFO,
 						"handling message for subject: %s / uuid: %s", msg_subject.value.s, msg_to_submit->uuid);
 				// finally submit msg job for later execution
-				_np_message_deserialize_chunked(msg_to_submit);
+				if(!_np_message_deserialize_chunked(msg_to_submit)){
+					log_msg(LOG_INFO,
+					"could not deserialize chunked msg (uuid: %s)", msg_to_submit->uuid);
+				}
 				_np_job_submit_msgin_event(0.0, handler, my_key, msg_to_submit);
 			}
 			np_unref_obj(np_message_t, msg_to_submit); // unref from _np_message_check_chunks_complete
@@ -1056,10 +1059,7 @@ void _np_in_update(np_jobargs_t* args)
 
 				if(old_key->network != NULL)
 				{
-					// reuse network
-					np_ref_obj(np_network_t, old_key->network);
-					_np_network_start(old_key->network);
-					update_key->network = old_key->network;
+					_np_network_remap_network(update_key,old_key);
 
 					//_np_key_destroy(old_key);
 					np_unref_obj(np_key_t, old_key); // _np_keycache_find_by_details
@@ -1815,11 +1815,7 @@ void _np_in_handshake(np_jobargs_t* args)
 						_np_key_as_str(hs_wildcard_key),
 						_np_key_as_str(hs_key));
 
-				// hs_key->network is uninitialised till now
-				hs_key->network = old_network;
-				np_ref_switch(
-						np_key_t, hs_key->network->watcher.data, hs_key);
-				_np_network_start(hs_key->network);
+				_np_network_remap_network(hs_key, hs_wildcard_key);
 
 				hs_key->node->handshake_status =
 					hs_wildcard_key->node->handshake_status;

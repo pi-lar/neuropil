@@ -120,6 +120,8 @@ NP_API_INTERN
 void _np_network_stop(np_network_t* ng);
 NP_API_INTERN
 void _np_network_start(np_network_t* ng);
+NP_API_INTERN
+void _np_network_remap_network( np_key_t* new_target, np_key_t* old_target);
 
 /** _np_network_init:
  ** initiates the networking layer by creating socket and bind it to #port#
