@@ -73,6 +73,7 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 #ifndef MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC
 	static const double MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC = 5;
 #endif
+
 #ifdef __cplusplus
 }
 #endif

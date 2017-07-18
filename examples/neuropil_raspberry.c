@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +26,7 @@
 #include "np_node.h"
 #include "np_sysinfo.h"
 #include "np_http.h"
+#include "np_settings.h"
 
 #include "gpio/bcm2835.h"
 #include "example_helper.c"
@@ -248,6 +250,7 @@ int main(int argc, char **argv)
 	ping_props->msg_subject = strndup("ping", 255);
 	ping_props->ack_mode = ACK_NONE;
 	ping_props->msg_ttl = 20.0;
+	ping_props->max_threshold = UINT16_MAX;
 	np_msgproperty_register(ping_props);
 	//register the listener function to receive data from the sender
 	np_set_listener(receive_ping, "ping");
@@ -257,6 +260,7 @@ int main(int argc, char **argv)
 	pong_props->msg_subject = strndup("pong", 255);
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 20.0;
+	pong_props->max_threshold = UINT16_MAX;
 	np_msgproperty_register(pong_props);
 	//register the listener function to receive data from the sender
 	np_set_listener(receive_pong, "pong");

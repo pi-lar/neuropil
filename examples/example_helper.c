@@ -26,11 +26,11 @@ void __np_example_helper_run_loop(){
 	    if(i % 100 == 0) {
 	    	// to output
 	    	char* memory_str = np_mem_printpool(FALSE);
-	    	if(memory_str != NULL) printf("%s", memory_str);
+	    //	if(memory_str != NULL) printf("%s", memory_str);
 	    	free(memory_str);
 
 	    	memory_str = np_messagepart_printcache(FALSE);
-	    	if(memory_str != NULL) printf("%s", memory_str);
+	    	//if(memory_str != NULL) printf("%s", memory_str);
 			free(memory_str);
 
 	    	// to logfile
