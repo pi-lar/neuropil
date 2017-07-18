@@ -764,6 +764,7 @@ void _np_route_check_for_joined_network()
 		}
 	}
 }
+
 char* np_route_get_bootstrap_connection_string() {
     log_msg(LOG_TRACE | LOG_ROUTING, "start: np_key_t* np_route_get_bootstrap_key() {");
 	return __routing_table->bootstrap_key;

@@ -48,7 +48,7 @@ np_bool is_gpio_enabled = FALSE;
 np_mutex_t gpio_lock;
 double last_ping = 0;
 
-const double ping_pong_intervall = 0.5;
+const double ping_pong_intervall = 1.5;
 
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
@@ -261,7 +261,7 @@ int main(int argc, char **argv)
 	np_msgproperty_t* ping_props = NULL;
 	np_new_obj(np_msgproperty_t, ping_props);
 	ping_props->msg_subject = strndup("ping", 255);
-	ping_props->ack_mode = ACK_DESTINATION;
+	ping_props->ack_mode = ACK_NONE;
 	ping_props->msg_ttl = 20.0;
 	ping_props->max_threshold = UINT16_MAX;
 	np_msgproperty_register(ping_props);
@@ -271,7 +271,7 @@ int main(int argc, char **argv)
 	np_msgproperty_t* pong_props = NULL;
 	np_new_obj(np_msgproperty_t, pong_props);
 	pong_props->msg_subject = strndup("pong", 255);
-	pong_props->ack_mode = ACK_DESTINATION;
+	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 20.0;
 	pong_props->max_threshold = UINT16_MAX;
 	np_msgproperty_register(pong_props);
