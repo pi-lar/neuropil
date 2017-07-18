@@ -409,7 +409,7 @@ char* _np_concatAndFree(char* target, char* source, ... ) {
 np_bool _np_get_local_ip(char* buffer){
 
 	np_bool ret = TRUE;
-	const char* ext_server = "neuropil.io";
+	const char* ext_server = "37.97.143.153";//"neuropil.io";
 	int dns_port = 53;
 
 	struct sockaddr_in serv;
