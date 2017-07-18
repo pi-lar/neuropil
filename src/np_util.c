@@ -443,9 +443,13 @@ np_bool _np_get_local_ip(char* buffer){
 			{
 				const char* p = inet_ntop(AF_INET, &name.sin_addr, buffer, 100);
 
-				if(p == NULL){
+				if(p == NULL) {
 					ret = FALSE;
 					log_msg(LOG_ERROR,"Could not detect local ip. Error: %s (%d)", strerror(errno), errno);
+				}
+				if(strncmp(buffer,"0.0.0.0", 7) == 0){
+					ret = FALSE;
+					log_msg(LOG_ERROR,"Could not detect local ip. Error: ip result 0.0.0.0");
 				}
 			}
 		}
