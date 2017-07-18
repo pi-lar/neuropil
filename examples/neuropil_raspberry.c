@@ -48,6 +48,8 @@ np_bool is_gpio_enabled = FALSE;
 np_mutex_t gpio_lock;
 double last_ping = 0;
 
+const double ping_pong_intervall = 0.5;
+
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
 	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
@@ -63,13 +65,13 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 		_LOCK_ACCESS(&gpio_lock){
 			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
 			bcm2835_gpio_write(LED_GPIO_GREEN,HIGH);
-			ev_sleep(0.01);
+			ev_sleep(ping_pong_intervall);
 			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
 			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
 		}
 	} else
 	{
-		ev_sleep(0.01);
+		ev_sleep(ping_pong_intervall);
 	}
 
 	np_send_text("pong", "pong", _pong_count,NULL);
@@ -91,13 +93,13 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 		_LOCK_ACCESS(&gpio_lock){
 			bcm2835_gpio_write(LED_GPIO_YELLOW,HIGH);
 			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
-			ev_sleep(0.01);
+			ev_sleep(ping_pong_intervall);
 			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
 			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
 		}
 	} else
 	{
-		ev_sleep(0.01);
+		ev_sleep(ping_pong_intervall);
 	}
 	np_send_text("ping", "ping", _ping_count,NULL);
 
