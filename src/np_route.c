@@ -37,7 +37,7 @@ typedef struct np_routeglobal_s np_routeglobal_t;
 struct np_routeglobal_s
 {
 	np_key_t* my_key;
-	np_key_t* bootstrap_key;
+	char* bootstrap_key;
 
 	np_key_t* table[__MAX_ROW * __MAX_COL * __MAX_ENTRY];
 
@@ -184,6 +184,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 		tmp = *deleted ;
 		if(tmp != NULL){
 			np_unref_obj(np_key_t, tmp);
+			_np_route_check_for_joined_network();
 		}
 	}
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_update");
@@ -720,12 +721,46 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 		tmp = *deleted ;
 		if(tmp != NULL){
 			np_unref_obj(np_key_t, tmp);
+
+			_np_route_check_for_joined_network();
 		}
 	}
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
 }
+void _np_route_check_for_joined_network()
+{
+	if(__routing_table->my_key->node->joined_network == TRUE) {
+		np_bool hasRoutingEntry = FALSE;
+		uint16_t i, j, k;
+		for (i = 0; i < __MAX_ROW; i++)
+		{
+			for (j = 0; j < __MAX_COL; j++)
+			{
+				int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
+				for (k = 0; k < __MAX_ENTRY; k++)
+				{
+					if (NULL != __routing_table->table[index + k])
+					{
+						hasRoutingEntry = TRUE;
+						break;
+					}
+				}
+				if(hasRoutingEntry == TRUE)
+					break;
+			}
+			if(hasRoutingEntry == TRUE)
+				break;
+		}
 
-np_key_t* np_route_get_bootstrap_key() {
+		if( FALSE == hasRoutingEntry
+		&& pll_size(__routing_table->left_leafset) == 0
+		&& pll_size(__routing_table->right_leafset) == 0
+		){
+			__routing_table->my_key->node->joined_network = FALSE;
+		}
+	}
+}
+char* np_route_get_bootstrap_connection_string() {
     log_msg(LOG_TRACE | LOG_ROUTING, "start: np_key_t* np_route_get_bootstrap_key() {");
 	return __routing_table->bootstrap_key;
 }
@@ -736,7 +771,9 @@ void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {
     if(NULL == __routing_table->bootstrap_key) {
     	_np_event_rejoin_if_necessary(NULL); // start intervall check
     }
-    np_ref_switch(np_key_t, __routing_table->bootstrap_key, bootstrap_key);
+
+    free(__routing_table->bootstrap_key);
+    __routing_table->bootstrap_key = np_get_connection_string_from(bootstrap_key,FALSE);
 }
 
 void _np_route_rejoin_bootstrap(np_bool force) {
@@ -757,16 +794,14 @@ void _np_route_rejoin_bootstrap(np_bool force) {
 	if(TRUE == rejoin
 			// check for state availibility to prevent test issues. TODO: Make network objects mockable
 			&& _np_state() != NULL) {
-		np_key_t* bootstrap = np_route_get_bootstrap_key();
+		char* bootstrap = np_route_get_bootstrap_connection_string();
 		if(NULL != bootstrap)
 		{
 			if(force == FALSE)
 			{
 				log_msg(LOG_WARN, "lost all connections. try to reconnect to bootstrap host");
 			}
-			char* connection_str = np_get_connection_string_from(bootstrap, FALSE);
-			np_send_wildcard_join(connection_str);
-			free(connection_str);
+ 			np_send_wildcard_join(bootstrap);
 		}
 	}
 }

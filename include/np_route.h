@@ -79,12 +79,14 @@ NP_API_INTERN
 void _np_route_leafset_range_update ();
 
 NP_API_EXPORT
-np_key_t* np_route_get_bootstrap_key();
+char* np_route_get_bootstrap_connection_string();
 NP_API_EXPORT
 void np_route_set_bootstrap_key(np_key_t* bootstrapKey);
 
 NP_API_INTERN
 void _np_route_rejoin_bootstrap(np_bool force);
+NP_API_INTERN
+void _np_route_check_for_joined_network();
 
 #ifdef __cplusplus
 }

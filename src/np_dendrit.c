@@ -1816,6 +1816,10 @@ void _np_in_handshake(np_jobargs_t* args)
 							_np_key_as_str(hs_wildcard_key),
 							_np_key_as_str(hs_key));
 
+					if(hs_key->network != NULL){
+						np_unref_obj(np_network_t,hs_key->network);
+						hs_key->network = NULL;
+					}
 					_np_network_remap_network(hs_key, hs_wildcard_key);
 
 					hs_key->node->handshake_status =

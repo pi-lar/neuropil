@@ -148,7 +148,7 @@ int main(int argc, char **argv) {
  .. code-block: c
  \code
  */
-	np_key_t* bootstrap_node = NULL;
+	char* bootstrap_node = NULL;
 	while (TRUE) {
 		fprintf(stdout, "try to join bootstrap node\n");
 		if (TRUE == j_key_provided) {
@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
 		}
 
 		if (TRUE == status->my_node_key->node->joined_network) {
-			bootstrap_node = np_route_get_bootstrap_key();
+			bootstrap_node = np_route_get_bootstrap_connection_string();
 			fprintf(stdout, "%s joined network!\n", port);
 			break;
 		} else {
@@ -220,11 +220,11 @@ int main(int argc, char **argv) {
 				asprintf(&s_out,"%s", message_to_send);
 			}
 
-			fprintf(stdout, "%f - SENDING:  \"%s\" to    %s\n", ev_time(), s_out, _np_key_as_str(bootstrap_node));
-			log_msg(LOG_INFO, "SENDING:  \"%s\" to    %s", s_out, _np_key_as_str(bootstrap_node));
+			fprintf(stdout, "%f - SENDING:  \"%s\" to    %s\n", ev_time(), s_out, bootstrap_node);
+			log_msg(LOG_INFO, "SENDING:  \"%s\" to    %s", s_out, bootstrap_node);
 
 			// Send our message
-			np_send_text("echo", s_out, 0, _np_key_as_str(bootstrap_node));
+			np_send_text("echo", s_out, 0, NULL);
 			free(s_out);
 		}
 		ev_sleep(0.1);
