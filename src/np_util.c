@@ -419,7 +419,7 @@ np_bool _np_get_local_ip(char* buffer){
 	if(sock < 0)
 	{
 		ret = FALSE;
-		log_msg(LOG_ERROR,"Could not detect local ip. Error: Socket could not be created");
+		log_msg(LOG_ERROR,"Could not detect local ip. (1) Error: Socket could not be created");
 	} else {
 		memset( &serv, 0, sizeof(serv) );
 		serv.sin_family = AF_INET;
@@ -429,7 +429,7 @@ np_bool _np_get_local_ip(char* buffer){
 		int err = connect( sock , (const struct sockaddr*) &serv , sizeof(serv) );
 		if(err < 0 ){
 			ret = FALSE;
-			log_msg(LOG_ERROR,"Could not detect local ip. Error: %s (%d)", strerror(errno), errno);
+			log_msg(LOG_ERROR,"Could not detect local ip. (2) Error: %s (%d)", strerror(errno), errno);
 		} else
 		{
 			struct sockaddr_in name;
@@ -438,18 +438,18 @@ np_bool _np_get_local_ip(char* buffer){
 			if(err < 0 )
 			{
 				ret = FALSE;
-				log_msg(LOG_ERROR,"Could not detect local ip. Error: %s (%d)", strerror(errno), errno);
+				log_msg(LOG_ERROR,"Could not detect local ip. (3) Error: %s (%d)", strerror(errno), errno);
 			} else
 			{
 				const char* p = inet_ntop(AF_INET, &name.sin_addr, buffer, 100);
 
 				if(p == NULL) {
 					ret = FALSE;
-					log_msg(LOG_ERROR,"Could not detect local ip. Error: %s (%d)", strerror(errno), errno);
+					log_msg(LOG_ERROR,"Could not detect local ip. (4) Error: %s (%d)", strerror(errno), errno);
 				}
 				if(strncmp(buffer,"0.0.0.0", 7) == 0){
 					ret = FALSE;
-					log_msg(LOG_ERROR,"Could not detect local ip. Error: ip result 0.0.0.0");
+					log_msg(LOG_ERROR,"Could not detect local ip. (5) Error: ip result 0.0.0.0");
 				}
 			}
 		}
