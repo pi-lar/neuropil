@@ -35,6 +35,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include "example_helper.c"
+
 #define USAGE "neuropil_hydra [-j key:proto:host:port] [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count] [-l path_to_log_folder] [-d loglevel] [-u publish_domain] "
 #define OPTSTR "j:p:n:t:l:d:u:"
 
@@ -200,24 +202,8 @@ int main(int argc, char **argv)
 			   \code
 			 */
 			np_start_job_queue(10);
-			uint32_t i = 0;
-			while (TRUE) {
-			    ev_sleep(0.1);
-			    i +=1;
-			    if(i % 10 == 0) {
-			    	char* memory_str = np_mem_printpool(FALSE);
-			    	printf("%s", memory_str);
-			    	free(memory_str);
-			    	memory_str = np_mem_printpool(TRUE);
-			    	log_msg(LOG_INFO, "%s", memory_str );
-			    	free(memory_str);
-			    }
 
-			    //if((i == (35/*sec*/ * 10))){
-				//	fprintf(stdout, "Renew bootstrap token");
-				//	np_key_renew_token();
-			    //}
-			}
+			__np_example_helper_run_loop();
 			/**
 
 			 \endcode

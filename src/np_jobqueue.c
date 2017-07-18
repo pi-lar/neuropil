@@ -328,7 +328,7 @@ void* _job_exec ()
 	    if (NULL == tmp->processorFunc) continue;
 	    // log_debug_msg(LOG_DEBUG, "%hhd:     job-->%p func-->%p args-->%p", tmp->type, tmp, tmp->processorFunc, tmp->args);
 
-	    if(tmp->args != NULL && tmp->args->msg != NULL){
+	    if(tmp->args != NULL && tmp->args->msg != NULL) {
 	    	log_msg(LOG_DEBUG, "handeling function for msg %s for %s",tmp->args->msg->uuid, _np_message_get_subject(tmp->args->msg));
 	    }
 

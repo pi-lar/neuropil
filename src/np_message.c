@@ -52,6 +52,8 @@ void _np_message_t_new(void* msg)
 
 	msg_tmp->uuid = np_uuid_create("msg", 0);
 
+	log_debug_msg(LOG_MEMORY| LOG_DEBUG, "creating uuid %s for new msg", msg_tmp->uuid);
+
 	msg_tmp->header       = np_tree_create();
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "header now (%p: %p->%p)", tmp, tmp->header, tmp->header->flink);
 	msg_tmp->properties   = np_tree_create();
@@ -188,7 +190,9 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 						log_debug_msg(LOG_DEBUG,"Msg part was rejected in _np_message_chunk_chunks_complete");
 						_LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
 							// reinsert into old struct for cleanup later on
-							pll_insert(np_messagepart_ptr, msg_to_check->msg_chunks, to_add, FALSE, _np_messagepart_cmp);
+							if(FALSE == pll_insert(np_messagepart_ptr, msg_to_check->msg_chunks, to_add, FALSE, _np_messagepart_cmp)){
+								np_unref_obj(np_messagepart_t, to_add); // may be resend in the time between the locks
+							}
 						}
 					}
 				}
@@ -254,6 +258,9 @@ np_bool _np_message_is_expired(const np_message_t* const msg_to_check)
 
 	double tstamp = msg_tstamp.value.d ;
 	if(tstamp > now) {
+		// timestap of msg is in the future.
+		// this is not possible and may indecate
+		// a faulty date/time setup on the client
 		log_msg(LOG_WARN, "Detected faulty timestamp for message. Setting to now. (timestamp: %f, now: %f, diff: %f sec)", tstamp, now, tstamp - now);
 		msg_tstamp.value.d = tstamp = now;
 	}
@@ -357,7 +364,6 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 
 		np_messagepart_t* part;
 		np_new_obj(np_messagepart_t, part);
-
 
 		part->header = msg->header;
 		// TODO: possible error ? have to pass the chunk number explicitly

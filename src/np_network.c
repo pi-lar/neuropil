@@ -439,14 +439,12 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 							void* data_to_send = sll_head(void_ptr, key_network->out_events);
 							if(NULL != data_to_send) {
 								ssize_t written = 0, current_write = 0;
-								while(written < MSG_CHUNK_SIZE_1024 ){
+								while(written < MSG_CHUNK_SIZE_1024 ) {
 									current_write = write(key_network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
 									if (current_write == -1) {
-										//if(errno != EWOULDBLOCK && errno != EAGAIN) {
-											log_msg(LOG_WARN,
-												"cannot write to socket: %s (%d)",
-												strerror(errno),errno);
-										//}
+										log_msg(LOG_WARN,
+											"cannot write to socket: %s (%d)",
+											strerror(errno),errno);
 										break;
 									}
 									written += current_write;
@@ -759,12 +757,12 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 {
     log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents){");
-	if (revents & EV_WRITE)
+	if ((revents & EV_WRITE) == EV_WRITE )
 	{
 		_np_network_send_from_events(loop, event, revents);
 	}
 
-	if (revents & EV_READ)
+	if ((revents & EV_READ) == EV_READ)
 	{
 		_np_network_read(loop, event, revents);
 	}

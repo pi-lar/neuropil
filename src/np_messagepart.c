@@ -4,6 +4,10 @@
  *  Created on: 10.05.2017
  *      Author: sklampt
  */
+
+#include <inttypes.h>
+
+
 #include "msgpack/cmp.h"
 #include "sodium.h"
 
@@ -150,4 +154,35 @@ void _np_messagepart_t_new(void* nw)
     np_messagepart_t* part = (np_messagepart_t *) nw;
 
     part->msg_part  = NULL;
+}
+
+char* np_messagepart_printcache(np_bool asOneLine)
+{
+	char* ret = NULL;
+    char* new_line = "\n";
+    if(asOneLine == TRUE){
+    	new_line = "    ";
+    }
+
+	_LOCK_MODULE(np_messagesgpart_cache_t)
+	{
+		np_tree_elem_t* tmp = NULL;
+		ret = _np_concatAndFree(ret, "--- Messagepart cache (%"PRIu16") ---%s", _np_state()->msg_part_cache->size,new_line);
+
+		RB_FOREACH(tmp, np_tree_s, _np_state()->msg_part_cache)
+		{
+			np_message_t* msg = tmp->val.value.v;
+
+			ret = _np_concatAndFree(ret,
+					"%s   received %2"PRIu32" of %2"PRIu16" expected%s",
+					msg->uuid,
+					pll_size(msg->msg_chunks),
+					msg->no_of_chunks,
+					new_line
+					);
+		}
+		ret = _np_concatAndFree(ret, "--- Messagepart cache end ---%s", new_line);
+	}
+
+	return ret;
 }

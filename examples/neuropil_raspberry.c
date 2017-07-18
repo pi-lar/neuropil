@@ -23,9 +23,11 @@
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_node.h"
+#include "np_sysinfo.h"
+#include "np_http.h"
 
 #include "gpio/bcm2835.h"
-
+#include "example_helper.c"
 
 #define USAGE "neuropil_raspberry [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count] [-g 0/1 enables or disables GPIO support ] [-u publish_domain] [-d loglevel]"
 #define OPTSTR "j:p:b:t:g:u:d:"
@@ -134,6 +136,7 @@ int main(int argc, char **argv)
 				  | LOG_NETWORK
 				  | LOG_AAATOKEN
 				  | LOG_MESSAGE
+				  | LOG_MEMORY
 				   ;
 	}
 
@@ -246,34 +249,14 @@ int main(int argc, char **argv)
 	//register the listener function to receive data from the sender
 	np_set_listener(receive_pong, "pong");
 
-
-
 	np_waitforjoin();
 
 	fprintf(stdout, "Connection established.\n");
-
 
 	log_msg(LOG_INFO, "Sending initial ping");
 	// send an initial ping
 	np_send_text("ping", "ping", _ping_count++, NULL);
 
-	uint32_t i = 0;
-	while (TRUE) {
-	    ev_sleep(0.1);
-	    i +=1;
-	    if(i % 10 == 0) {
-	    	char* memory_str = np_mem_printpool(FALSE);
-	    	printf("%s", memory_str);
-	    	free(memory_str);
-	    	memory_str = np_mem_printpool(TRUE);
-	    	log_msg(LOG_INFO, "%s", memory_str );
-	    	free(memory_str);
-	    }
-
-	    //if((i == (35/*sec*/ * 10))){
-		//	fprintf(stdout, "Renew bootstrap token");
-		//	np_key_renew_token();
-	    //}
-	}
+	__np_example_helper_run_loop();
 
 }
