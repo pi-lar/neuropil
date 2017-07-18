@@ -727,41 +727,50 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 	}
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
 }
-void _np_route_check_for_joined_network()
-{
+
+np_bool _np_route_my_key_has_connection(){
+	np_bool ret = TRUE;
 	_LOCK_MODULE(np_routeglobal_t)
-	{
-		if(__routing_table->my_key->node->joined_network == TRUE) {
-			np_bool hasRoutingEntry = FALSE;
-			uint16_t i, j, k;
-			for (i = 0; i < __MAX_ROW; i++)
-			{
-				for (j = 0; j < __MAX_COL; j++)
+		{
+			if(__routing_table->my_key->node->joined_network == TRUE) {
+				np_bool hasRoutingEntry = FALSE;
+				uint16_t i, j, k;
+				for (i = 0; i < __MAX_ROW; i++)
 				{
-					int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
-					for (k = 0; k < __MAX_ENTRY; k++)
+					for (j = 0; j < __MAX_COL; j++)
 					{
-						if (NULL != __routing_table->table[index + k])
+						int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
+						for (k = 0; k < __MAX_ENTRY; k++)
 						{
-							hasRoutingEntry = TRUE;
-							break;
+							if (NULL != __routing_table->table[index + k])
+							{
+								hasRoutingEntry = TRUE;
+								break;
+							}
 						}
+						if(hasRoutingEntry == TRUE)
+							break;
 					}
 					if(hasRoutingEntry == TRUE)
 						break;
 				}
-				if(hasRoutingEntry == TRUE)
-					break;
-			}
 
-			if( FALSE == hasRoutingEntry
-			&& pll_size(__routing_table->left_leafset) == 0
-			&& pll_size(__routing_table->right_leafset) == 0
-			){
-				__routing_table->my_key->node->joined_network = FALSE;
-				_np_route_rejoin_bootstrap(TRUE);
+				if( FALSE == hasRoutingEntry
+				&& pll_size(__routing_table->left_leafset) == 0
+				&& pll_size(__routing_table->right_leafset) == 0
+				){
+					ret = FALSE;
+				}
 			}
 		}
+	return ret;
+}
+void _np_route_check_for_joined_network()
+{
+	if( _np_route_my_key_has_connection() == FALSE)
+	{
+		__routing_table->my_key->node->joined_network = FALSE;
+		_np_route_rejoin_bootstrap(TRUE);
 	}
 }
 
@@ -783,16 +792,9 @@ void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {
 
 void _np_route_rejoin_bootstrap(np_bool force) {
 	sll_return(np_key_t)  sll_routing_tbl;
-	np_bool rejoin = force;
 
-	if(rejoin == FALSE){
-		sll_routing_tbl = _np_route_get_table();
-		if(sll_routing_tbl->size < 1 ) {
-			rejoin = TRUE;
-		}
-		np_unref_list(np_key_t, sll_routing_tbl);
-		sll_free(np_key_t, sll_routing_tbl);
-	}
+	np_bool rejoin = force
+			|| _np_route_my_key_has_connection() == FALSE;
 
 	log_msg(LOG_DEBUG, "Check for rejoin result: %s necessary",(rejoin == TRUE ?"":"not"));
 

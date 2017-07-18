@@ -87,6 +87,8 @@ NP_API_INTERN
 void _np_route_rejoin_bootstrap(np_bool force);
 NP_API_INTERN
 void _np_route_check_for_joined_network();
+NP_API_INTERN
+np_bool _np_route_my_key_has_connection();
 
 #ifdef __cplusplus
 }
