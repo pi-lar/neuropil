@@ -87,9 +87,14 @@ void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 			np_tryref_obj(np_message_t,msg, msgExists);
 
 			if(msgExists == TRUE && TRUE == _np_message_is_expired(msg)){
-				np_tree_del_str(state->msg_part_cache,msg->uuid);
 				sll_append(np_message_t,to_del,msg);
 			}
+		}
+	 	sll_iterator(np_message_t) iter = sll_first(to_del);
+		while (NULL != iter)
+		{
+			np_tree_del_str(state->msg_part_cache,iter->val->uuid);
+			sll_next(iter);
 		}
 	}
 	np_unref_list(np_message_t, to_del); // np_tryref_obj

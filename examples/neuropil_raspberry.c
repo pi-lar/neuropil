@@ -287,7 +287,7 @@ int main(int argc, char **argv)
 
 	//__np_example_helper_run_loop();
 	uint32_t i = 0;
-	double now;
+	double now = ev_time();
 	last_ping  = now;
 
 	while (TRUE) {
