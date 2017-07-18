@@ -298,6 +298,7 @@ np_tree_t* np_get_my_sysinfo() {
 				np_tree_insert_int(neighbours, neighbour_counter++,
 						np_treeval_new_tree(neighbour));
 				np_tree_free(neighbour);
+				np_unref_obj(np_key_t, current);
 			}
 		}
 	}
@@ -305,7 +306,6 @@ np_tree_t* np_get_my_sysinfo() {
 			neighbour_counter);
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, np_treeval_new_tree(neighbours));
-	np_unref_list(np_key_t, neighbours_table);
 	sll_free(np_key_t, neighbours_table);
 	np_tree_free(neighbours);
 
@@ -323,6 +323,7 @@ np_tree_t* np_get_my_sysinfo() {
 				_np_node_encode_to_jrb(route, current, TRUE);
 				np_tree_insert_int(routes, routes_counter++, np_treeval_new_tree(route));
 				np_tree_free(route);
+				np_unref_obj(np_key_t, current);
 			}
 		}
 	}
@@ -330,7 +331,6 @@ np_tree_t* np_get_my_sysinfo() {
 			routes_counter);
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));
-	np_unref_list(np_key_t, routing_table);
 	sll_free(np_key_t, routing_table);
 	np_tree_free(routes);
 
