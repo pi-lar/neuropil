@@ -493,8 +493,9 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 	double now = ev_time();
 	msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 	np_tryref_obj(np_aaatoken_t, msg_token, tokenExists);
-	//TODO: implement gracetime for old token / and publication of new
-	if (FALSE == tokenExists)// || (msg_token->expiration - now ) <= TOKEN_GRACETIME)
+
+	if (FALSE == tokenExists
+	|| (msg_token->expiration - now )/* = remaining_ttl*/ <= (args->properties->token_max_ttl - args->properties->token_min_ttl))
 	{
 		log_debug_msg(LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 		np_aaatoken_t* msg_token_new  = _np_create_msg_token(args->properties);

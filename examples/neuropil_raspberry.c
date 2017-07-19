@@ -46,7 +46,7 @@ uint32_t _pong_count = 0;
 
 np_bool is_gpio_enabled = FALSE;
 np_mutex_t gpio_lock;
-double last_ping = 0;
+double last_response_or_invokation = 0;
 
 const double ping_pong_intervall = 0.01;
 
@@ -58,7 +58,6 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
-	last_ping = ev_time();
 
 	if(is_gpio_enabled == TRUE)
 	{
@@ -83,6 +82,7 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 {
 	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
+	last_response_or_invokation = ev_time();
 
 	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
@@ -155,7 +155,7 @@ int main(int argc, char **argv)
 	}else if(level == -2){ // production server
 		level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	}else if(level <= -3){ // debug
-		level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG
+		level = LOG_ERROR | LOG_WARN | LOG_INFO //| LOG_DEBUG
 				  //| LOG_MUTEX | LOG_TRACE
 				  //| LOG_ROUTING
 				  //| LOG_HTTP
@@ -163,7 +163,7 @@ int main(int argc, char **argv)
 				  | LOG_NETWORK
 				  | LOG_AAATOKEN
 				  | LOG_MESSAGE
-				  | LOG_MEMORY
+				//  | LOG_MEMORY
 				   ;
 	}
 
@@ -262,7 +262,8 @@ int main(int argc, char **argv)
 	np_new_obj(np_msgproperty_t, ping_props);
 	ping_props->msg_subject = strndup("ping", 255);
 	ping_props->ack_mode = ACK_NONE;
-	ping_props->msg_ttl = ping_props->token_max_ttl;
+	ping_props->msg_ttl = 5.0;
+	ping_props->retry = 1;
 	ping_props->max_threshold = UINT16_MAX;
 	np_msgproperty_register(ping_props);
 	//register the listener function to receive data from the sender
@@ -272,7 +273,8 @@ int main(int argc, char **argv)
 	np_new_obj(np_msgproperty_t, pong_props);
 	pong_props->msg_subject = strndup("pong", 255);
 	pong_props->ack_mode = ACK_NONE;
-	pong_props->msg_ttl = pong_props->token_max_ttl;
+	pong_props->msg_ttl = 5.0;
+	pong_props->retry = 1;
 	pong_props->max_threshold = UINT16_MAX;
 	np_msgproperty_register(pong_props);
 	//register the listener function to receive data from the sender
@@ -290,14 +292,14 @@ int main(int argc, char **argv)
 	//__np_example_helper_run_loop();
 	uint32_t i = 0;
 	double now = ev_time();
-	last_ping  = now;
+	last_response_or_invokation  = now;
 
 	while (TRUE) {
 	    i +=1;
 	    ev_sleep(0.01);
 	    now = ev_time() ;
-	    if ((now - last_ping ) > ping_props->msg_ttl) {
-	    	last_ping  = now;
+	    if ((now - last_response_or_invokation ) > ping_props->msg_ttl) {
+	    	last_response_or_invokation  = now;
 	    	fprintf(stdout, "Invoking ping.\n");
 	    	log_msg(LOG_INFO, "Invoking ping");
 	    	np_send_text("ping", "ping", _ping_count++, NULL);
