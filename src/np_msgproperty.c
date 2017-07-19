@@ -158,7 +158,7 @@ void _np_msgproperty_t_new(void* property)
 	prop->mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE;
 	prop->mep_type = DEFAULT_TYPE;
 	prop->ack_mode = ACK_EACHHOP;
-	prop->priority = 4;
+	prop->priority = 6;
 	prop->retry    = 5;
 	prop->msg_ttl      = 20.0;
 

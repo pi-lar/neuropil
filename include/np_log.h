@@ -50,16 +50,16 @@ enum np_log_e
     LOG_SECURE     		= 0x004000, /* debugging the security module          */
     LOG_HTTP       		= 0x008000, /* debugging the http subsystem           */
 	LOG_AAATOKEN   		= 0x010000, /* debugging the aaatoken subsystem       */
-	LOG_MEMORY 			= 0x020000, /* debugging the memory subsystem       */
-	LOG_SYSINFO			= 0x040000, /* debugging the Sysinfo subsystem       */
+	LOG_MEMORY 			= 0x020000, /* debugging the memory subsystem      	  */
+	LOG_SYSINFO			= 0x040000, /* debugging the Sysinfo subsystem     	  */
 
 	LOG_GLOBAL     		= 0x800000, /* debugging the global system            */
 
 } NP_ENUM NP_API_EXPORT;
 
-#define LOG_NOMOD_MASK 0x8000FF /* filter the module mask */
-#define LOG_MODUL_MASK 0x0FFF00 /* filter the module mask */
-#define LOG_LEVEL_MASK 0x0000FF /* filter the log level */
+#define LOG_NOMOD_MASK 	  0x8000FF /* filter the module mask */
+#define LOG_MODUL_MASK    0x0FFF00 /* filter the module mask */
+#define LOG_LEVEL_MASK    0x0000FF /* filter the log level */
 
 
 NP_API_EXPORT

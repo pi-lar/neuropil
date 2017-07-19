@@ -3,6 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <stdint.h>
+#include <float.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -23,6 +24,7 @@
 #include "np_message.h"
 #include "np_log.h"
 #include "np_threads.h"
+#include "np_settings.h"
 
 static double __jobqueue_sleep_time = 0.3141592;
 
@@ -31,10 +33,11 @@ struct np_job_s
 {
 	uint8_t type; // 1=msg handler, 2=internal handler, 4=unknown yet
 	char* job_name;
-	double tstamp;
+	double exec_not_before_tstamp;
 	np_callback_t processorFunc;
 	np_jobargs_t* args;
 	np_job_t* next;
+	double priority;
 };
 
 /* job_queue structure */
@@ -48,12 +51,46 @@ static np_jobqueue_t*  __np_job_queue;
 
 static np_cond_t  __cond_empty;
 
-int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2)
+np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_modifier)
+{
+    log_msg(LOG_TRACE, "start: np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs){");
+	// create job itself
+	np_job_t* new_job = (np_job_t*) malloc(sizeof(np_job_t));
+	CHECK_MALLOC(new_job);
+
+	new_job->exec_not_before_tstamp = ev_time() + delay;
+	new_job->args = jargs;
+	new_job->type = 1;
+	new_job->priority =  priority_modifier;
+
+	if(jargs != NULL){
+		if(jargs->properties != NULL) {
+			if(jargs->properties->priority < 1) {
+				jargs->properties->priority = 1;
+			}
+			new_job->priority += jargs->properties->priority;
+		}
+	}
+
+	return (new_job);
+}
+int8_t _np_job_compare_job_scheduling(np_job_ptr job1, np_job_ptr job2)
 {
     log_msg(LOG_TRACE, "start: int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2){");
-	if (job1->tstamp > job2->tstamp) return (-1);
-	if (job1->tstamp < job2->tstamp) return ( 1);
-	return (0);
+
+    int8_t ret = 0;
+    double now = ev_time();
+	double scheduling_job1 = (now - job1->exec_not_before_tstamp) / (1.0 +job1->priority);
+	double scheduling_job2 = (now - job2->exec_not_before_tstamp) / (1.0 +job2->priority);
+
+	if (scheduling_job1 == scheduling_job2)
+		ret = 0;
+	else if (scheduling_job1 > scheduling_job2)
+		ret = 1;
+	else
+		ret = -1;
+
+	return (ret);
 }
 
 NP_PLL_GENERATE_IMPLEMENTATION(np_job_ptr);
@@ -95,25 +132,13 @@ void _np_job_free_args(np_jobargs_t* args)
 	free(args);
 }
 
-np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs)
-{
-    log_msg(LOG_TRACE, "start: np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs){");
-	// create job itself
-	np_job_t* new_job = (np_job_t*) malloc(sizeof(np_job_t));
-	CHECK_MALLOC(new_job);
-
-	new_job->tstamp = ev_time() + delay;
-	new_job->args = jargs;
-	new_job->type = 1;
-	return (new_job);
-}
 
 void _np_job_queue_insert(double delay, np_job_t* new_job)
 {
     log_msg(LOG_TRACE, "start: void _np_job_queue_insert(double delay, np_job_t* new_job){");
 	_LOCK_MODULE(np_jobqueue_t){
 
-		pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_tstamp);
+		pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_scheduling);
 		// if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
 		if (0.0 == delay)
 		{
@@ -141,7 +166,7 @@ void _np_job_resubmit_msgout_event (double delay, np_msgproperty_t* prop, np_key
     jargs->is_resend = TRUE;
 
     // create job itself
-	np_job_t* new_job = _np_job_create_job(delay, jargs);
+	np_job_t* new_job = _np_job_create_job(delay, jargs,JOBQUEUE_PRIORITY_MOD_RESUBMIT_MSG_OUT);
     new_job->processorFunc = prop->clb_outbound;
 
 	_np_job_queue_insert(delay, new_job);
@@ -156,7 +181,7 @@ void _np_job_resubmit_route_event (double delay, np_msgproperty_t* prop, np_key_
     jargs->is_resend = TRUE;
 
     // create job itself
-	np_job_t* new_job = _np_job_create_job(delay, jargs);
+	np_job_t* new_job = _np_job_create_job(delay, jargs,JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE);
     new_job->processorFunc = prop->clb_route;
 
 	_np_job_queue_insert(delay, new_job);
@@ -170,7 +195,7 @@ void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t*
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
 
 	// create job itself
-	np_job_t* new_job = _np_job_create_job(delay, jargs);
+	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE);
     new_job->processorFunc = prop->clb_route; // ->msg_handler;
 
 	_np_job_queue_insert(delay, new_job);
@@ -185,7 +210,7 @@ void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t*
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
 
     // create job itself
-	np_job_t* new_job = _np_job_create_job(delay, jargs);
+	np_job_t* new_job = _np_job_create_job(delay, jargs,JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_IN);
     new_job->processorFunc = prop->clb_inbound; // ->msg_handler;
 
 	_np_job_queue_insert(delay, new_job);
@@ -198,7 +223,7 @@ void _np_job_submit_transform_event (double delay, np_msgproperty_t* prop, np_ke
 	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
     // create job itself
-	np_job_t* new_job = _np_job_create_job(delay, jargs);
+	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG);
     new_job->processorFunc = prop->clb_transform; // ->msg_handler;
 
 	_np_job_queue_insert(delay, new_job);
@@ -210,7 +235,7 @@ void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
 
 	// create job itself
-	np_job_t* new_job = _np_job_create_job(delay, jargs);
+	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_OUT);
     new_job->processorFunc = prop->clb_outbound;
 
 	_np_job_queue_insert(delay, new_job);
@@ -218,7 +243,7 @@ void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t
 
 void np_job_submit_event (double delay, np_callback_t callback)
 {
-	np_job_t* new_job = _np_job_create_job(delay, NULL);
+	np_job_t* new_job = _np_job_create_job(delay, NULL, JOBQUEUE_PRIORITY_MOD_SUBMIT_EVENT);
     new_job->processorFunc = callback;
     new_job->type = 2;
 
@@ -303,9 +328,9 @@ void* _job_exec ()
 		}
 
     	np_job_ptr next_job = pll_first(__np_job_queue->job_list)->val;
-    	if (now <= next_job->tstamp)
+    	if (now <= next_job->exec_not_before_tstamp)
     	{
-    		double sleep_time = next_job->tstamp - now;
+    		double sleep_time = next_job->exec_not_before_tstamp - now;
     		if (sleep_time > __jobqueue_sleep_time) sleep_time = __jobqueue_sleep_time;
     		// log_debug_msg(LOG_DEBUG, "now %f: next execution %f", now, next_job->tstamp);
     		// log_debug_msg(LOG_DEBUG, "currently %d jobs, now sleeping for %f seconds", pll_size(Q->job_list), sleep_time);

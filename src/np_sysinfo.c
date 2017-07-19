@@ -101,6 +101,7 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->mep_type =  REQ_REP;
 	sysinfo_request_props->ack_mode = ACK_NONE;
 	sysinfo_request_props->retry    = 1;
+	sysinfo_request_props->priority -= 1;
 	sysinfo_request_props->msg_ttl  = 20.0;
 
 	np_msgproperty_t* sysinfo_response_props = NULL;
@@ -109,6 +110,7 @@ void np_sysinfo_enable_slave() {
 	sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 1;
+	sysinfo_response_props->priority -= 1;
 	sysinfo_response_props->msg_ttl  = 20.0;
 
 	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
@@ -144,6 +146,7 @@ void np_sysinfo_enable_master(){
 	sysinfo_request_props->ack_mode = ACK_NONE;
 	sysinfo_request_props->retry    = 1;
 	sysinfo_request_props->msg_ttl  = 20.0;
+	sysinfo_request_props->priority -= 1;
 
 	np_msgproperty_t* sysinfo_response_props = NULL;
 	np_new_obj(np_msgproperty_t, sysinfo_response_props);
@@ -152,6 +155,7 @@ void np_sysinfo_enable_master(){
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 1;
 	sysinfo_response_props->msg_ttl  = 20.0;
+	sysinfo_response_props->priority -= 1;
 
 	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;

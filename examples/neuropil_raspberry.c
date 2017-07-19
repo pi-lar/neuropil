@@ -262,7 +262,7 @@ int main(int argc, char **argv)
 	np_new_obj(np_msgproperty_t, ping_props);
 	ping_props->msg_subject = strndup("ping", 255);
 	ping_props->ack_mode = ACK_NONE;
-	ping_props->msg_ttl = 20.0;
+	ping_props->msg_ttl = ping_props->token_max_ttl;
 	ping_props->max_threshold = UINT16_MAX;
 	np_msgproperty_register(ping_props);
 	//register the listener function to receive data from the sender
@@ -272,7 +272,7 @@ int main(int argc, char **argv)
 	np_new_obj(np_msgproperty_t, pong_props);
 	pong_props->msg_subject = strndup("pong", 255);
 	pong_props->ack_mode = ACK_NONE;
-	pong_props->msg_ttl = 20.0;
+	pong_props->msg_ttl = pong_props->token_max_ttl;
 	pong_props->max_threshold = UINT16_MAX;
 	np_msgproperty_register(pong_props);
 	//register the listener function to receive data from the sender
