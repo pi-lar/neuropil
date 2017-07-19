@@ -163,7 +163,7 @@ int main(int argc, char **argv)
 				  | LOG_NETWORK
 				  | LOG_AAATOKEN
 				  | LOG_MESSAGE
-				//  | LOG_MEMORY
+				  | LOG_MEMORY
 				   ;
 	}
 
