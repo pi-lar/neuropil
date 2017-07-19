@@ -97,22 +97,17 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		va_end(ap);
 		snprintf(new_log_entry+wb, 1124-wb, "\n");
 
-		//pthread_mutex_lock(&__log_mutex);
-	    //sll_append(char, logger->logentries_l, new_log_entry);
-		//pthread_mutex_unlock(&__log_mutex);
-
 #ifdef CONSOLE_LOG && CONSOLE_LOG == 1
 		fprintf(stdout, new_log_entry);
 		fprintf(stdout, "/n");
 #endif
 		 pthread_mutex_lock(&__log_mutex);
-		 write(logger->fp, new_log_entry, strlen(new_log_entry));
-		 //fprintf(logger->fp, "%s\n", new_log_entry);
-		 // /* DEBUG ONLY */ fprintf(stdout, "%s", new_log_entry);
+		 sll_append(char, logger->logentries_l, new_log_entry);
+		 //write(logger->fp, new_log_entry, strlen(new_log_entry));
+		 //fflush(NULL);
 		 // fsync(logger->fp);
-		 fflush(NULL);
 		 pthread_mutex_unlock(&__log_mutex);
-		 free (new_log_entry);
+		 //free (new_log_entry);
 	}
 	else
 	{
@@ -123,7 +118,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
 {
     log_msg(LOG_TRACE, "start: void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents){");
-	if (revents & EV_WRITE)
+	if ((revents &  EV_WRITE) == EV_WRITE && (revents &  EV_ERROR) != EV_ERROR)
 	{
 		_np_log_fflush();
 	}
@@ -133,20 +128,23 @@ void _np_log_fflush()
 {
     log_msg(LOG_TRACE, "start: void _np_log_fflush(){");
 	char* entry = NULL;
-	do
-	{
-		pthread_mutex_lock(&__log_mutex);
-		entry = sll_head(char, logger->logentries_l);
 
-		if (NULL != entry)
-		{
-			write(logger->fp, entry, strlen(entry));
+	if(0 == pthread_mutex_trylock(&__log_mutex)) {
+		entry = sll_head(char, logger->logentries_l);
+		pthread_mutex_unlock(&__log_mutex);
+	}
+
+	if (NULL != entry)
+	{
+		if( 0 >= write(logger->fp, entry, strlen(entry))){
+			 pthread_mutex_lock(&__log_mutex);
+			 sll_append(char, logger->logentries_l, entry);
+			 pthread_mutex_unlock(&__log_mutex);
+
+		} else	{
 			free(entry);
 		}
-		pthread_mutex_unlock(&__log_mutex);
-
-
-	} while(NULL != entry);
+	}
 }
 
 void np_log_setlevel(uint32_t level)
@@ -185,6 +183,7 @@ void np_log_init(const char* filename, uint32_t level)
    //  _np_suspend_event_loop();
     EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 	ev_io_init(&logsys->watcher, _np_log_evflush, logsys->fp, EV_WRITE);
+
 	ev_io_start(EV_A_ &logsys->watcher);
 //	_np_resume_event_loop();
 
