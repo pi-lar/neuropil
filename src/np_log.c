@@ -107,7 +107,9 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		 //fflush(NULL);
 		 // fsync(logger->fp);
 		 pthread_mutex_unlock(&__log_mutex);
-		 //free (new_log_entry);
+
+		 // instant writeout
+		 _np_log_fflush();
 	}
 	else
 	{

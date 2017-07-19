@@ -377,7 +377,6 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		msg_prop = np_msgproperty_get(TRANSFORM, iter->key.value.s);
 		if (NULL != msg_prop)
 		{
-			log_debug_msg(LOG_DEBUG, "---------- refresh for subject token: %s ----------", iter->key.value.s);
 			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 			np_unref_obj(np_key_t, target);
 		}
