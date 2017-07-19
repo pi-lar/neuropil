@@ -43,7 +43,7 @@
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
-#define NUM_HOST 2
+#define NUM_HOST 4
 
 extern char *optarg;
 extern int optind;
@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 				  | LOG_NETWORK
 				  | LOG_AAATOKEN
 				  | LOG_MESSAGE
-				  | LOG_MEMORY
+				 // | LOG_MEMORY
 				   ;
 	}
 

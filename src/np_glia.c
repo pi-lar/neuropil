@@ -75,7 +75,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 	np_message_t* msg_in = args->msg;
 
 	char* msg_subject = np_tree_find_str(msg_in->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
-	char* msg_address = np_tree_find_str(msg_in->header, _NP_MSG_HEADER_TO)->val.value.s;
+	char* msg_target = np_tree_find_str(msg_in->header, _NP_MSG_HEADER_TO)->val.value.s;
 
 	np_bool is_a_join_request = FALSE;
 	if (0 == strncmp(msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) )
@@ -84,7 +84,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 	}
 
 	np_dhkey_t search_key;
-	_np_dhkey_from_str(msg_address, &search_key);
+	_np_dhkey_from_str(msg_target, &search_key);
 	np_key_t k_msg_address = { .dhkey = search_key };
 
 	// first lookup call for target key
@@ -112,7 +112,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		// TODO: increase count parameter again ?
 	}
 
-	_np_key_t_del(&k_msg_address);
+	//_np_key_t_del(&k_msg_address);
 
 	if (NULL  != tmp           &&
 		0     <  sll_size(tmp) &&
@@ -176,24 +176,6 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		} else {
 			_np_job_submit_msgout_event(0.0, prop, target_key, args->msg);
 		}
-
-		/* set next hop to the next node */
-// 		// TODO: already routed by forward message call ?
-// 		// why is there an additional message_send directive here ?
-//	    while (!message_send (state->messages, host, message, TRUE, 1))
-//		{
-//		    host->failuretime = dtime ();
-//		    log_msg(LOG_WARN,
-//				    "message send to host: %s:%hd at time: %f failed!",
-//				    host->dns_name, host->port, host->failuretime);
-//
-//		    /* remove the faulty node from the routing table */
-//		    if (host->success_avg < BAD_LINK) _np_route_update (state->routes, host, 0);
-//		    if (tmp != NULL) free (tmp);
-//		    tmp = _np_route_lookup (state->routes, *key, 1, 0);
-//		    host = tmp[0];
-//		    log_msg(LOG_WARN, "re-route through %s:%hd!", host->dns_name, host->port);
-//		}
 	}
 
 	sll_free(np_key_t, tmp);
@@ -738,6 +720,7 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 {
     log_msg(LOG_TRACE, "start: void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject){");
 
+    //TODO: msg_tokens for either
 	// insert into msg token token renewal queue
 	if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))
 	{

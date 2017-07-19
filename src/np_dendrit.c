@@ -242,21 +242,13 @@ void _np_in_received(np_jobargs_t* args)
 
 			target_key = _np_keycache_find_or_create(target_dhkey);
 
-			//	if () {
-		//		log_debug_msg(LOG_DEBUG, "received wildcart msg");
-		//		char tmp[128];
-		//		_np_node_encode_to_str(tmp, 128, alias_key->node);
-		//		np_send_join(tmp);
-		//		goto __np_cleanup__;
-		//	}
-
 			// check if inbound subject handler exists
 			np_msgproperty_t* handler = np_msgproperty_get(INBOUND, msg_subject.value.s);
 
 			// redirect message if
 			// msg is not for my dhkey
 			// no handler is present
-			if ( _np_key_cmp(args->target, my_key) == FALSE || handler == NULL)
+			if ( _np_key_cmp(args->target, my_key) != 0 || handler == NULL)
 			{
 				log_debug_msg(LOG_DEBUG, "perform route_lookup");
 
@@ -1102,8 +1094,8 @@ void _np_in_discover_sender(np_jobargs_t* args)
 
 	if (TRUE == _np_aaatoken_is_valid(msg_token))
 	{
-		log_debug_msg(LOG_DEBUG, "handling sender discovery");
 		// just store the available tokens in memory and update them if new data arrives
+		log_debug_msg(LOG_DEBUG, "received new receiver token %s for %s",msg_token->uuid, msg_token->subject);
 		_np_aaatoken_add_receiver(msg_token->subject, msg_token);
 
 		// this node is the man in the middle - inform receiver of sender token
@@ -1233,7 +1225,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	log_debug_msg(LOG_DEBUG, "handling receiver discovery");
+	log_debug_msg(LOG_DEBUG, "received new sender token %s for %s",msg_token->uuid, msg_token->subject);
 
 	_np_aaatoken_add_sender(msg_token->subject, msg_token);
 
@@ -1816,7 +1808,7 @@ void _np_in_handshake(np_jobargs_t* args)
 							_np_key_as_str(hs_wildcard_key),
 							_np_key_as_str(hs_key));
 
-					if(hs_key->network != NULL){
+					if(hs_key->network != NULL) {
 						np_unref_obj(np_network_t,hs_key->network);
 						hs_key->network = NULL;
 					}

@@ -981,6 +981,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	_LOCK_MODULE(np_network_t)
 	{
 		_np_network_init(my_network, TRUE, np_proto, hostname, np_service);
+		_np_network_stop(my_network);
 	}
     log_debug_msg(LOG_DEBUG, "check for initialised network");
 	if (FALSE == my_network->initialized)
@@ -1001,6 +1002,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 
     np_ref_obj(np_key_t, state->my_node_key);
     my_network->watcher.data = state->my_node_key;
+    _np_network_start(my_network);
 
     // log_msg(LOG_WARN, "node_key %p", state->my_node_key);
 
