@@ -51,6 +51,7 @@ enum np_log_e
     LOG_HTTP       		= 0x008000, /* debugging the http subsystem           */
 	LOG_AAATOKEN   		= 0x010000, /* debugging the aaatoken subsystem       */
 	LOG_MEMORY 			= 0x020000, /* debugging the memory subsystem       */
+	LOG_SYSINFO			= 0x040000, /* debugging the Sysinfo subsystem       */
 
 	LOG_GLOBAL     		= 0x800000, /* debugging the global system            */
 
