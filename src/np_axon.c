@@ -495,14 +495,18 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 	np_tryref_obj(np_aaatoken_t, msg_token, tokenExists);
 
 	if (FALSE == tokenExists
-	|| (msg_token->expiration - now )/* = remaining_ttl*/ <= (args->properties->token_max_ttl - args->properties->token_min_ttl))
+	|| (now - msg_token->issued_at )
+		/* = lifetime */ >= /* random time = */
+		( args->properties->token_min_ttl)
+	)
 	{
+		log_msg(LOG_INFO | LOG_AAATOKEN, "---------- refresh for subject token: %s ----------", args->properties->msg_subject);
+
 		log_debug_msg(LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 		np_aaatoken_t* msg_token_new  = _np_create_msg_token(args->properties);
  		np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
 		_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
 		msg_token = msg_token_new;
-
 	}
 
 	// args->target == Key of subject
