@@ -76,12 +76,12 @@ struct np_obj_s
 #define np_ref_obj(TYPE, np_obj)              \
 {                                             \
   _LOCK_MODULE(np_memory_t) {                 \
-    assert (np_obj != NULL);      		      \
-    assert (np_obj->obj != NULL);             \
-    if (np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",np_obj->obj->type, TYPE##_e);   \
-    assert (np_obj->obj->type == TYPE##_e);   \
-	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",np_obj->obj->ref_count,#TYPE, np_obj->obj->id); 												\
-    np_mem_refobj(np_obj->obj);               \
+    assert (((TYPE*)np_obj) != NULL);      		      \
+    assert (((TYPE*)np_obj)->obj != NULL);             \
+    if (((TYPE*)np_obj)->obj->type != TYPE##_e) log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",((TYPE*)np_obj)->obj->type, TYPE##_e);   \
+    assert (((TYPE*)np_obj)->obj->type == TYPE##_e);   \
+	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count,#TYPE, ((TYPE*)np_obj)->obj->id); 												\
+    np_mem_refobj(((TYPE*)np_obj)->obj);               \
   }                                           \
 }
 
@@ -89,13 +89,13 @@ struct np_obj_s
     np_bool ret = FALSE;																				\
 	_LOCK_MODULE(np_memory_t) {                 														\
 		if(np_obj != NULL) {      		      															\
-			if((np_obj->obj != NULL)) {             													\
-				if (np_obj->obj->type != TYPE##_e) {  													\
-					log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",np_obj->obj->type, TYPE##_e);   	\
-					assert (np_obj->obj->type == TYPE##_e);   											\
+			if((((TYPE*)np_obj)->obj != NULL)) {             													\
+				if (((TYPE*)np_obj)->obj->type != TYPE##_e) {  													\
+					log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",((TYPE*)np_obj)->obj->type, TYPE##_e);   	\
+					assert (((TYPE*)np_obj)->obj->type == TYPE##_e);   											\
 				} else {																				\
-					log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 												\
-					np_mem_refobj(np_obj->obj);               											\
+					log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count, #TYPE, ((TYPE*)np_obj)->obj->id); 												\
+					np_mem_refobj(((TYPE*)np_obj)->obj);               											\
 					ret = TRUE;																			\
 				}																						\
 			}																							\
@@ -172,9 +172,9 @@ TYPE* saveTo = NULL;																						\
 
 #define np_ref_switch(TYPE, old_obj, new_obj) \
 {                                             \
-	TYPE* tmp_obj = old_obj;                  \
+	TYPE* tmp_obj = (TYPE*)old_obj;           \
 	np_ref_obj(TYPE, new_obj);                \
-	old_obj = new_obj;                        \
+	old_obj = (TYPE*)new_obj;                 \
 	np_unref_obj(TYPE, tmp_obj);              \
 }
 
