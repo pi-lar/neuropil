@@ -24,7 +24,7 @@ static np_msgproperty_t __default_properties =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl = 20.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -47,7 +47,7 @@ static np_msgproperty_t __handshake_properties =
 		.clb_transform = _np_send_handshake,
 		.clb_route = _np_never_called_jobexec_route,
 		.msg_ttl = 20.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -71,7 +71,7 @@ np_msgproperty_t __ack_properties =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl = 20.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -95,7 +95,7 @@ np_msgproperty_t __join_req =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_send,
 		.msg_ttl = 20.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -118,7 +118,7 @@ np_msgproperty_t __join_ack =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_never_called_jobexec_route,
 		.msg_ttl = 5.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -141,7 +141,7 @@ np_msgproperty_t __join_nack =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_never_called_jobexec_route,
 		.msg_ttl = 5.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -165,7 +165,7 @@ np_msgproperty_t __leave =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl = 20.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -188,7 +188,7 @@ np_msgproperty_t __ping =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl = 2.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -211,7 +211,7 @@ np_msgproperty_t __ping_reply =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl = 2.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -234,7 +234,7 @@ np_msgproperty_t __piggy =
 		.clb_transform = _np_send_rowinfo_jobexec,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl = 20.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -257,7 +257,7 @@ np_msgproperty_t __update =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl =20.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -280,7 +280,7 @@ np_msgproperty_t __discover_receiver =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl = 20.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -303,7 +303,7 @@ np_msgproperty_t __discover_sender =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl = 20.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -326,7 +326,7 @@ np_msgproperty_t __available_receiver =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl = 20.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -349,7 +349,7 @@ np_msgproperty_t __available_sender =
 		.clb_transform = _np_never_called_jobexec_transform,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl = 20.0,
-		.max_threshold = 5,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -373,7 +373,7 @@ np_msgproperty_t __authenticate =
 		.clb_transform = _np_send_authentication_request,
 		.cache_policy = FIFO | OVERFLOW_PURGE,
 		.msg_ttl = 20.0,
-		.max_threshold = 10,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -396,7 +396,7 @@ np_msgproperty_t __authenticate_reply =
 		.clb_transform = _np_send_authentication_reply,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl = 20.0,
-		.max_threshold = 10,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -420,7 +420,7 @@ np_msgproperty_t __authorize =
 		.clb_transform = _np_send_authorization_request,
 		.cache_policy = FIFO | OVERFLOW_PURGE,
 		.msg_ttl = 20.0,
-		.max_threshold = 10,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -443,7 +443,7 @@ np_msgproperty_t __authorize_reply =
 		.clb_transform = _np_send_authorization_reply,
 		.clb_route = _np_route_lookup_jobexec,
 		.msg_ttl = 20.0,
-		.max_threshold = 10,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
@@ -467,7 +467,7 @@ np_msgproperty_t __account =
 		.clb_transform = _np_send_accounting_request,
 		.cache_policy = FIFO | OVERFLOW_PURGE,
 		.msg_ttl = 20.0,
-		.max_threshold = 10,
+		.max_threshold = UINT16_MAX,
 		.token_max_ttl = 30,
 		.token_min_ttl = 20
 };
