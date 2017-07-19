@@ -225,9 +225,9 @@ int main(int argc, char **argv)
 		{
 			fprintf(stderr,   "Node could not start HTTP interface");
 			log_msg(LOG_WARN, "Node could not start HTTP interface");
-			np_sysinfo_enable_master();
-		} else {
 			np_sysinfo_enable_slave();
+		} else {
+			np_sysinfo_enable_master();
 		}
 	}
 
