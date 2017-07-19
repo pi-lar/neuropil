@@ -492,7 +492,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 
 	msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 	np_tryref_obj(np_aaatoken_t, msg_token, tokenExists);
-	if (FALSE == tokenExists || IS_INVALID(msg_token->state))
+	if (FALSE == tokenExists)// || FALSE == _np_aaatoken_is_valid(msg_token))
 	{
 		log_debug_msg(LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 		msg_token = _np_create_msg_token(args->properties);

@@ -99,7 +99,7 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->msg_subject = strndup(_NP_SYSINFO_REQUEST, 255);
 	sysinfo_request_props->rep_subject = strndup(_NP_SYSINFO_REPLY, 255);
 	sysinfo_request_props->mep_type =  REQ_REP;
-	sysinfo_request_props->ack_mode = ACK_DESTINATION;
+	sysinfo_request_props->ack_mode = ACK_NONE;
 	sysinfo_request_props->retry    = 1;
 	sysinfo_request_props->msg_ttl  = 20.0;
 
@@ -141,7 +141,7 @@ void np_sysinfo_enable_master(){
 	sysinfo_request_props->msg_subject = strndup(_NP_SYSINFO_REQUEST, 255);
 	sysinfo_request_props->rep_subject = strndup(_NP_SYSINFO_REPLY, 255);
 	sysinfo_request_props->mep_type =  REQ_REP;
-	sysinfo_request_props->ack_mode = ACK_DESTINATION;
+	sysinfo_request_props->ack_mode = ACK_NONE;
 	sysinfo_request_props->retry    = 1;
 	sysinfo_request_props->msg_ttl  = 20.0;
 
