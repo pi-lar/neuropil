@@ -430,7 +430,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 
     np_http_client_t* client = (np_http_client_t*) ev->data;
 
-	if ((event_type & EV_WRITE) && RESPONSE == client->status) {
+	if (((event_type & EV_WRITE) == EV_WRITE && (event_type &  EV_ERROR) != EV_ERROR) && RESPONSE == client->status) {
 		log_debug_msg(LOG_HTTP | LOG_DEBUG, "start writing response");
 		// create http reply
 		char data[2048];
@@ -512,7 +512,7 @@ void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 
     np_http_client_t* client = (np_http_client_t*) ev->data;
 
-	if ((event_type & EV_READ) && CONNECTED <= client->status
+	if ((event_type & EV_READ) == EV_READ && (event_type &  EV_ERROR) != EV_ERROR && CONNECTED <= client->status
 			&& REQUEST >= client->status) {
 		char data[2048];
 		/* receive the new data */

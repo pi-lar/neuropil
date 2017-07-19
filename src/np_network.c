@@ -759,18 +759,22 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 {
     log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents){");
-	if ((revents & EV_WRITE) == EV_WRITE )
-	{
-		_np_network_send_from_events(loop, event, revents);
-	}
 
-	if ((revents & EV_READ) == EV_READ)
-	{
-		_np_network_read(loop, event, revents);
-	}
+    if((revents &  EV_ERROR) != EV_ERROR)
+    {
+		if ((revents & EV_WRITE) == EV_WRITE )
+		{
+			_np_network_send_from_events(loop, event, revents);
+		}
+
+		if ((revents & EV_READ) == EV_READ)
+		{
+			_np_network_read(loop, event, revents);
+		}
+    }
 }
 
-void _np_network_stop(np_network_t* network){
+void _np_network_stop(np_network_t* network) {
     log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_stop(np_network_t* network){");
     if(NULL != network){
 		_LOCK_ACCESS(&network->lock){
