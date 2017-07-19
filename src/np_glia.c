@@ -232,12 +232,13 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 	// each time to try to ping our leafset hosts
 	leafset = _np_route_neighbors();
 
-
+	double now = ev_time();
 	while (NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
 	{
 		// check for bad link nodes
 		if (NULL != tmp_node_key->node &&
 			tmp_node_key->node->success_avg < BAD_LINK &&
+			(now - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
 			tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
 		{
 			log_debug_msg(LOG_DEBUG, "deleting from neighbours: %s", _np_key_as_str(tmp_node_key));
@@ -285,6 +286,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 			/* first check for bad link nodes */
 			if (NULL != tmp_node_key->node &&
 				tmp_node_key->node->success_avg < BAD_LINK &&
+				(now - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
 				tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
 			{
 				log_debug_msg(LOG_DEBUG, "deleting from table: %s", _np_key_as_str(tmp_node_key));

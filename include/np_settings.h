@@ -43,6 +43,10 @@ extern "C" {
 	static const double NODE_MAX_TTL_SEC =  31540000; // 3600 = 1h
 #endif
 
+#ifndef TOKEN_GRACETIME
+	static const double TOKEN_GRACETIME =  10;
+#endif
+
 /*
  * The minimum lifetime of a node before it is refreshed
  */
@@ -68,6 +72,20 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 
 #ifndef MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC
 	static const double MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC = 5;
+#endif
+
+#ifndef GOOD_LINK
+	#define GOOD_LINK 0.7
+#endif
+#ifndef BAD_LINK
+	#define BAD_LINK 0.3
+#endif
+/* Even if the link is bad we wait
+ * BAD_LINK_REMOVE_GRACETIME seconds before we
+ * remove the link from the leafset/routing table
+ */
+#ifndef BAD_LINK_REMOVE_GRACETIME
+	#define BAD_LINK_REMOVE_GRACETIME 2.0
 #endif
 
 

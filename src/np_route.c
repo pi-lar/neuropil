@@ -22,6 +22,7 @@
 #include "np_threads.h"
 #include "np_types.h"
 #include "np_event.h"
+#include "np_settings.h"
 
 
 static const uint16_t __MAX_ROW   = 64; // length of key

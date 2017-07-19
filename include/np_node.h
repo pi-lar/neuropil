@@ -10,14 +10,13 @@
 
 #include "np_memory.h"
 #include "np_types.h"
+#include "np_settings.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define SUCCESS_WINDOW 20
-#define GOOD_LINK 0.7
-#define BAD_LINK 0.3
 
 typedef enum handshake_status
 {
