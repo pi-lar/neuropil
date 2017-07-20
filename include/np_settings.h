@@ -110,6 +110,23 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 #ifndef JOBQUEUE_PRIORITY_MOD_SUBMIT_EVENT
 	static const double JOBQUEUE_PRIORITY_MOD_SUBMIT_EVENT = 1;
 #endif
+#ifndef LOG_ROTATE_COUNT
+	#define LOG_ROTATE_COUNT 3
+#endif
+#ifndef LOG_ROTATE_AFTER_BYTES
+	#if defined(DEBUG) && DEBUG == 1
+		#define LOG_ROTATE_AFTER_BYTES 10000000	// 100 MB
+	#else
+		#define LOG_ROTATE_AFTER_BYTES 1000000	// 10 MB
+	#endif
+#endif
+#ifndef LOG_ROTATE_ENABLE
+	#define LOG_ROTATE_ENABLE TRUE
+#endif
+#ifndef LOG_FORCE_INSTANT_WRITE
+	#define LOG_FORCE_INSTANT_WRITE FALSE
+#endif
+
 
 #ifdef __cplusplus
 }

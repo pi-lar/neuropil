@@ -72,7 +72,7 @@ NP_API_EXPORT
 void np_log_destroy ();
 
 NP_API_INTERN
-void _np_log_fflush();
+void _np_log_fflush(np_bool force);
 
 NP_API_EXPORT
 void np_log_message(uint32_t level,

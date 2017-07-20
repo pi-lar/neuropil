@@ -8,7 +8,7 @@ import collections
 while True:
   print '-----------------------------------------'
   extensions = collections.defaultdict(int)
-  subprocess.call("ls -al *.log *core*",shell=True)
+  subprocess.call("ls -alh *.log *core*",shell=True)
   for filename in os.listdir('.'):
       if(filename.endswith(".log")):
         extensions[os.path.splitext(filename)[1].lower()] += 1
