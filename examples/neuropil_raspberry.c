@@ -16,6 +16,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "event/ev.h"
+
 #include "np_types.h"
 #include "np_log.h"
 #include "neuropil.h"
@@ -29,7 +31,7 @@
 #include "np_settings.h"
 
 #include "gpio/bcm2835.h"
-#include "event/ev.h"
+
 #include "example_helper.c"
 
 #define USAGE "neuropil_raspberry [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count] [-g 0/1 enables or disables GPIO support ] [-u publish_domain] [-d loglevel]"

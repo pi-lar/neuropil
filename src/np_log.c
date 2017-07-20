@@ -103,11 +103,13 @@ void log_rotation()
 
 
 		 // Closing old file
-		 log_msg(LOG_INFO, "Continuing log in file %s now.",logger->filename);
-		 _np_log_fflush(TRUE);
-		 if(close(logger->fp) != 0) {
-			fprintf(stderr,"Could not close old logfile %s. Error: %s (%d)", old_filename, strerror(errno), errno);
-			fflush(NULL);
+		 if(logger->log_count > 1) {
+			 log_msg(LOG_INFO, "Continuing log in file %s now.",logger->filename);
+			 _np_log_fflush(TRUE);
+			 if(close(logger->fp) != 0) {
+				fprintf(stderr,"Could not close old logfile %s. Error: %s (%d)", old_filename, strerror(errno), errno);
+				fflush(NULL);
+			 }
 		 }
 
 		 // setting up new file
