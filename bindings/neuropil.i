@@ -111,10 +111,20 @@ static PyObject* _py_convert_callback_data(np_tree_t* msg_properties, np_tree_t*
 static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tree_t* msg_properties, np_tree_t* msg_body)
 {
     // lookup handler
-    np_treeval_t msg_subject = np_tree_find_str(msg->header, "_np.subject")->val;
-    PyObject* py_callback = np_tree_find_str(callback_tree, msg_subject.value.s)->val.value.v;
+    np_tree_elem_t* msg_subject = np_tree_find_str(msg->header, "_np.subject");
+    if (NULL == msg_subject) {
+        log_msg(LOG_ERROR, "incoming message without subject, giving up");
+        return FALSE;
+    }
+    np_tree_elem_t* old_py_func_elem = np_tree_find_str(callback_tree, msg_subject->val.value.s);
 
-    // convert arguments to python args
+    if (NULL == old_py_func_elem) {
+        log_msg(LOG_ERROR, "no python user callback handler found for message %s", msg_subject->val.value.s);
+        return FALSE;
+    }
+
+    // use found functor, convert arguments to python args
+    PyObject* py_callback = old_py_func_elem->val.value.v;
     PyObject *arglist = _py_convert_callback_data(msg_properties, msg_body);
 
     // call real python handler
@@ -126,7 +136,6 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
 
     return ret_val;
 }
-
 
 %}
 
@@ -158,17 +167,20 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
         if (NULL == callback_tree) {
             callback_tree = np_tree_create();
         }
-        char* subject = PyString_AsString(PyString);
 
-        PyObject* old_py_func = np_tree_find_str(callback_tree, subject)->val.value.v;
-        if (NULL != old_py_func) Py_XDECREF(old_py_func); /* Dispose of previous callback */
+        char* subject = PyString_AsString(PyString);
+        // find old (eventually)
+        np_tree_elem_t* old_py_func_elem = np_tree_find_str(callback_tree, subject);
 
         Py_XINCREF(PyFunc); /* Add a reference to new callback */
+        np_tree_replace_str(callback_tree, subject, np_treeval_new_v(PyFunc)); /* set new callback */
+        np_set_listener(_py_subject_callback, subject); /* set python proxy as listener */
 
-        np_tree_replace_str(callback_tree, subject, np_treeval_new_v(PyFunc));
-        np_set_listener(_py_subject_callback, subject);
+        if (NULL != old_py_func_elem) {
+            PyObject* old_py_func = old_py_func_elem->val.value.v;
+            Py_XDECREF(old_py_func); /* Dispose of previous callback */
+        }
     }
-
 
     void py_set_authenticate_func(PyObject *PyFunc)
     {
