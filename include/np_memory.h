@@ -104,26 +104,26 @@ struct np_obj_s
 
 #define np_waitref_obj(TYPE, np_obj, saveTo)       															\
 TYPE* saveTo = NULL;																						\
-{       \
-	TYPE* org = (TYPE* )np_obj ;    \
+{                                                                                                           \
+	TYPE* org = (TYPE* )np_obj ;                                                                            \
 	np_bool ret = FALSE;																					\
     while(ret == FALSE) {                          															\
 		_LOCK_MODULE(np_memory_t) {                 														\
 			if(np_obj != NULL) {      		      															\
-				if((org->obj != NULL)) {             													\
-					if (org->obj->type != TYPE##_e) {  													\
-						log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",org->obj->type, TYPE##_e);   	\
-						assert (org->obj->type == TYPE##_e);   											\
+				if((org->obj != NULL)) {             													    \
+					if (org->obj->type != TYPE##_e) {  													    \
+						log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",org->obj->type, TYPE##_e);   	    \
+						assert (org->obj->type == TYPE##_e);   											    \
 					} else {																				\
 						log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",org->obj->ref_count,#TYPE, org->obj->id); 												\
-						np_mem_refobj(org->obj);               											\
+						np_mem_refobj(org->obj);               											    \
 						ret = TRUE;																			\
-						saveTo = org;																	\
+						saveTo = org;						   											    \
 					}																						\
 				}																							\
 			}																								\
 		}																									\
-	if(ret == FALSE) ev_sleep(0.005);																		\
+	    if(ret == FALSE) ev_sleep(0.005);																	\
 	}																										\
 }
 

@@ -445,9 +445,9 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 	// should never happen
 	if (NULL == subject_key) return;
 
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-			"update in global sender msg token structures (%p)...",
-			subject_key->send_property);
+	log_debug_msg(LOG_DEBUG, "update on global sender msg token structures ... %p (size %d)",
+							 subject_key->send_property,
+							 pll_size(subject_key->send_tokens) );
 
 	// insert new token
 	_LOCK_ACCESS(&subject_key->send_property->lock)
@@ -662,7 +662,9 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 	// should never happen
 	if (NULL == subject_key) return;
 
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "update on global receiving msg token structures ... %p", subject_key->recv_property);
+	log_debug_msg(LOG_DEBUG, "update on global receiving msg token structures ... %p (size %d)",
+							 subject_key->recv_property,
+							 pll_size(subject_key->recv_tokens) );
 
 	// insert new token
 	_LOCK_ACCESS(&subject_key->recv_property->lock)
@@ -811,10 +813,9 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 			}
 		}
 	}
-	if(NULL == return_token ) {
-		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-				"found no valid receiver token" );
 
+	if(NULL == return_token ) {
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found no valid receiver token" );
 	}
 
 	np_unref_obj(np_key_t, subject_key);

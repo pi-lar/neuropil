@@ -492,19 +492,15 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 
 	double now = ev_time();
 	msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
-	np_tryref_obj(np_aaatoken_t, msg_token, tokenExists);
 
-	if (FALSE == tokenExists
-	|| (now - msg_token->issued_at )
-		/* = lifetime */ >= /* random time = */
-		( args->properties->token_min_ttl)
-	)
+	if ( ( NULL == msg_token ) ||
+		 ( /* = lifetime */ (now - msg_token->issued_at ) >=
+		   /* random time = */ (args->properties->token_min_ttl) ) )
 	{
 		log_msg(LOG_INFO | LOG_AAATOKEN, "---------- refresh for subject token: %s ----------", args->properties->msg_subject);
-
 		log_debug_msg(LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 		np_aaatoken_t* msg_token_new  = _np_create_msg_token(args->properties);
- 		np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
+ 		np_unref_obj(np_aaatoken_t, msg_token); // usage ref
 		_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
 		msg_token = msg_token_new;
 	}
@@ -545,6 +541,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 		np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
 
 		log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
+
 		np_tree_t* _data = np_tree_create();
 		np_aaatoken_encode(_data, msg_token);
 
@@ -567,6 +564,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
 		np_unref_obj(np_message_t, msg_out); // np_new_obj
 	}
+
 	np_unref_obj(np_aaatoken_t, msg_token); // _np_aaatoken_get_local_mx / usage ref
 }
 

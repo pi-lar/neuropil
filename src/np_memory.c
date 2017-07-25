@@ -159,6 +159,7 @@ char* np_mem_printpool(np_bool asOneLine)
     if(asOneLine == TRUE){
     	new_line = "    ";
     }
+    char* subject_list = NULL;
 
 	uint64_t summary[100] = {
 			0,0,0,0,0,0,0,0,0,0,
@@ -173,13 +174,15 @@ char* np_mem_printpool(np_bool asOneLine)
 			0,0,0,0,0,0,0,0,0,0
 	};
 
-
     _LOCK_MODULE(np_memory_t) {
 		//asprintf(ret, "--- used memory table---");
 		for (np_obj_t* iter = __np_obj_pool_ptr->first; iter != NULL; iter = iter->next )
 		{
 			summary[iter->type]++;
-			//printf("obj %p (type %d ptr %p ref_count %d):(next -> %p)\n", iter, iter->type, iter->ptr, iter->ref_count, iter->next );
+			// printf("obj %p (type %d ptr %p ref_count %d):(next -> %p)\n", iter, iter->type, iter->ptr, iter->ref_count, iter->next );
+			// if (iter->type == np_message_t_e) {
+			// subject_list = _np_concatAndFree(subject_list, "%s%s", ((np_message_t*)iter->ptr)->uuid, new_line);
+			// }
 		}
 		//asprintf(ret, "--- free memory table---\n");
 		for (np_obj_t* iter = __np_obj_pool_ptr->free_obj; iter != NULL; iter = iter->next )
@@ -202,7 +205,11 @@ char* np_mem_printpool(np_bool asOneLine)
     ret = _np_concatAndFree(ret, "np_network_t_e     count %4"PRIu64" %s", 	summary[np_network_t_e],	new_line);
     ret = _np_concatAndFree(ret, "test_struct_t_e    count %4"PRIu64" %s", 	summary[test_struct_t_e],	new_line);
 
-    ret = _np_concatAndFree(ret, "--- memory end---%s",new_line);
+    ret = _np_concatAndFree(ret, "--- memory end ---%s",new_line);
 
-    return ret;
+    // ret = _np_concatAndFree(ret, "--- subject list start ---%s",new_line);
+    // ret = _np_concatAndFree(ret, "%s",subject_list);
+    // ret = _np_concatAndFree(ret, "--- subject list end   ---%s",new_line);
+
+    return (ret);
 }

@@ -35,7 +35,7 @@ enum np_module_lock_e {
 	/*01*/np_aaatoken_t_lock,
 	/*02*/np_event_t_lock,
 	/*03*/np_keycache_t_lock,
-	/*04*/np_messagesgpart_cache_t_lock,
+	/*04*/np_message_part_cache_t_lock,
 	/*05*/np_msgproperty_t_lock,
 	/*06*/np_network_t_lock,
 	/*07*/np_routeglobal_t_lock,

@@ -71,12 +71,14 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 		}
 	}
 }
+
+
 void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 {
 	np_sll_t(np_message_t,to_del);
 	sll_init(np_message_t,to_del);
 
-	_LOCK_MODULE(np_messagesgpart_cache_t)
+	_LOCK_MODULE(np_message_part_cache_t)
 	{
 		np_state_t* state = _np_state();
 		np_tree_elem_t* tmp = NULL;
@@ -84,25 +86,26 @@ void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 		RB_FOREACH(tmp, np_tree_s, state->msg_part_cache)
 		{
 			np_message_t* msg = tmp->val.value.v;
-			np_tryref_obj(np_message_t,msg, msgExists);
+			// np_tryref_obj(np_message_t,msg, msgExists);
 
-			if(msgExists == TRUE && TRUE == _np_message_is_expired(msg)){
+			if(TRUE == _np_message_is_expired(msg)) {
 				sll_append(np_message_t,to_del,msg);
 			}
 		}
-	 	sll_iterator(np_message_t) iter = sll_first(to_del);
+
+		sll_iterator(np_message_t) iter = sll_first(to_del);
 		while (NULL != iter)
 		{
 			np_tree_del_str(state->msg_part_cache,iter->val->uuid);
 			sll_next(iter);
 		}
 	}
-	np_unref_list(np_message_t, to_del); // np_tryref_obj
-	np_unref_list(np_message_t, to_del); // cleanup
 
+	np_unref_list(np_message_t, to_del); // cleanup
 
     np_job_submit_event(MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache);
 }
+
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args){");
@@ -112,6 +115,7 @@ void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 	// Reschedule myself
     np_job_submit_event(MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary);
 }
+
 /**
  ** _np_events_read
  ** schedule the libev event loop one time and reschedule again

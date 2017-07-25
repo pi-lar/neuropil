@@ -46,7 +46,7 @@ static const char* _NP_SYSINFO_TARGET = "target_hash";
 static np_simple_cache_table_t* _cache = NULL;
 static ev_timer* slave_send;
 
-void slave_send_cb(NP_UNUSED EV_P_ ev_timer *w, NP_UNUSED int re);
+void slave_send_cb(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_timer *w, NP_UNUSED int re);
 
 void _np_sysinfo_init_cache()
 {
@@ -68,7 +68,7 @@ void _np_sysinfo_init_cache()
 	}
 }
 
-void slave_send_cb(NP_UNUSED EV_P_ ev_timer *w, NP_UNUSED int re) {
+void slave_send_cb(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_timer *w, NP_UNUSED int re) {
 
   	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key);
   	if(my_node_key->node->joined_network == TRUE) {
@@ -117,16 +117,16 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
 	sysinfo_request_props->mode_type = INBOUND | ROUTE;
-	sysinfo_request_props->max_threshold = UINT16_MAX;
+	sysinfo_request_props->max_threshold = 2;
 	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = UINT16_MAX;
+	sysinfo_response_props->max_threshold = 2;
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
 
 	np_set_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
 
-	if(slave_send  == NULL){
+	if(slave_send  == NULL) {
 		slave_send = (ev_timer*) malloc(sizeof(struct ev_timer));
 		CHECK_MALLOC(slave_send);
 		ev_timer_init(slave_send, slave_send_cb, 0., SYSINFO_PROACTIVE_SEND_IN_SEC);
@@ -161,9 +161,9 @@ void np_sysinfo_enable_master(){
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
 	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_request_props->max_threshold = UINT16_MAX;
+	sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = UINT16_MAX;
+	sysinfo_response_props->max_threshold = 20;
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);

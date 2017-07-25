@@ -157,7 +157,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 	np_state_t* state = _np_state();
 	np_message_t* ret= NULL;
 
-	_LOCK_MODULE(np_messagesgpart_cache_t)
+	_LOCK_MODULE(np_message_part_cache_t)
 	{
 		char* subject = np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
 		char* msg_uuid = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val.value.s;
@@ -168,7 +168,6 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 		if (1 < expected_msg_chunks)
 		{
 			// If there exists multiple chunks, check if we already have one in cache
-
 			np_message_t* msg_in_cache = NULL;
 
 			np_tree_elem_t* tmp = np_tree_find_str(state->msg_part_cache, msg_uuid);
@@ -187,10 +186,10 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 					// insert new
 					if(FALSE == pll_insert(np_messagepart_ptr, msg_in_cache->msg_chunks, to_add, FALSE, _np_messagepart_cmp)) {
 						// new entry is rejected (already present)
-						log_debug_msg(LOG_DEBUG,"Msg part was rejected in _np_message_chunk_chunks_complete");
+						log_debug_msg(LOG_DEBUG,"msg part was rejected");
 						_LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
 							// reinsert into old struct for cleanup later on
-							if(FALSE == pll_insert(np_messagepart_ptr, msg_to_check->msg_chunks, to_add, FALSE, _np_messagepart_cmp)){
+							if(FALSE == pll_insert(np_messagepart_ptr, msg_to_check->msg_chunks, to_add, FALSE, _np_messagepart_cmp)) {
 								np_unref_obj(np_messagepart_t, to_add); // may be resend in the time between the locks
 							}
 						}
@@ -215,6 +214,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 			_LOCK_ACCESS(&msg_in_cache->msg_chunks_lock){
 				current_count_of_chunks = pll_size(msg_in_cache->msg_chunks) ;
 			}
+
 			if (current_count_of_chunks < expected_msg_chunks)
 			{
 				log_debug_msg(LOG_MESSAGE | LOG_DEBUG,

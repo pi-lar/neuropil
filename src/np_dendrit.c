@@ -195,6 +195,7 @@ void _np_in_received(np_jobargs_t* args)
 				log_msg(LOG_MESSAGE | LOG_INFO, "message ttl expired, dropping message (part) %s / %s",
 						msg_in->uuid, msg_subject.value.s);
 				goto __np_cleanup__;
+
 			} else {
 				log_debug_msg(LOG_DEBUG, "(msg: %s) message ttl not expired",msg_in->uuid);
 			}
@@ -231,6 +232,8 @@ void _np_in_received(np_jobargs_t* args)
 							msg_subject.value.s, msg_in->uuid, msg_ack.value.ush);
 
 					_np_job_submit_route_event(0.0, ack_prop, ack_key, ack_msg_out);
+					// _np_job_submit_msgout_event(0.0, ack_prop, ack_key, ack_msg_out); ?
+
 					np_unref_obj(np_message_t, ack_msg_out);
 					np_unref_obj(np_key_t, ack_key);
 					// user space acknowledgement handled later, also for join messages
@@ -292,8 +295,6 @@ void _np_in_received(np_jobargs_t* args)
 
 			if (NULL == msg_to_submit)
 				goto __np_cleanup__;
-
-			//np_ref_obj(np_message_t, msg_to_submit); is already refed from the cache system
 
 			if (TRUE == my_key->node->joined_network ||
 				0 == strncmp(msg_subject.value.s, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) )
@@ -450,13 +451,15 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	if (TRUE == msg_has_expired)
 	{
 		log_debug_msg(LOG_DEBUG, "discarding expired message %s / %s ...", msg_prop->msg_subject, msg_in->uuid);
-	} else
+	}
+	else
 	{
-		if ( NULL  == sender_token )
+		if ( NULL == sender_token )
 		{
 			_np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
 			log_msg(LOG_INFO,"No token to decrypt msg. Retrying later");
-		} else
+		}
+		else
 		{
 			log_debug_msg(LOG_DEBUG, "decrypting message ...");
 			np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
@@ -466,7 +469,8 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 			{
 				np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 				msg_prop->msg_threshold--;
-			} else
+			}
+			else
 			{
 				if (0 < (msg_ack_mode.value.ush & ACK_DESTINATION))
 				{
@@ -486,6 +490,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 			}
 		}
 	}
+
 	__np_cleanup__:
 	np_unref_obj(np_aaatoken_t, sender_token); // _np_aaatoken_get_sender
 
@@ -493,7 +498,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 }
 
 /** _np_in_leave_req:
- ** internal function that is called at the destination of a JOIN message. This
+ ** internal function that is called at the destination of a LEAVE message. This
  ** call encodes the leaf set of the current host and sends it to the joiner.
  **/
 void _np_in_leave_req(np_jobargs_t* args)
@@ -709,6 +714,7 @@ void _np_in_join_req(np_jobargs_t* args)
 	// __np_return__:
 	if (routing_key != join_req_key) np_unref_obj(np_key_t, join_req_key);
 	np_unref_obj(np_key_t, routing_key);
+
 	return;
 }
 
@@ -820,8 +826,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 		out_props = np_msgproperty_get(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
 		_np_job_submit_route_event(0.0, out_props, elem, msg_out);
 
-		// TODO: Check ref
-		//np_unref_obj(np_message_t, msg_out);
+		np_unref_obj(np_message_t, msg_out);
 		np_unref_obj(np_key_t, elem);
 	}
 	sll_free(np_key_t, node_keys);
@@ -1128,12 +1133,13 @@ void _np_in_discover_sender(np_jobargs_t* args)
 							);
 			_np_job_submit_route_event(
 					0.0, prop_route, reply_to_key, msg_out);
-			np_unref_obj(np_message_t, msg_out);
 
+			np_unref_obj(np_message_t, msg_out);
 			np_unref_obj(np_aaatoken_t, tmp_token); // _np_aaatoken_get_sender_all
 		}
 		sll_free(np_aaatoken_t, available_list);
 	}
+
 	__np_cleanup__:
 	np_unref_obj(np_key_t, reply_to_key);
 	np_unref_obj(np_aaatoken_t, msg_token);
@@ -1195,7 +1201,7 @@ void _np_in_available_sender(np_jobargs_t* args)
 	}
 
 	__np_cleanup__:
-	if (NULL != msg_token)    np_unref_obj(np_aaatoken_t, msg_token);
+	np_unref_obj(np_aaatoken_t, msg_token);
 
 	// __np_return__:
 	return;
@@ -1263,7 +1269,12 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 void _np_in_available_receiver(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_in_available_receiver(np_jobargs_t* args){");
-	// extract e2e encryption details for sender
+
+    np_state_t* state = _np_state();
+	np_waitref_obj(np_key_t, state->my_node_key, my_key);
+	np_waitref_obj(np_key_t, state->my_identity, my_identity);
+
+    // extract e2e encryption details for sender
 	np_aaatoken_t* msg_token = NULL;
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_TO, msg_to);
@@ -1276,10 +1287,6 @@ void _np_in_available_receiver(np_jobargs_t* args)
 	{
 		goto __np_cleanup__;
 	}
-
-	np_state_t* state = _np_state();
-	np_waitref_obj(np_key_t, state->my_node_key, my_key);
-	np_waitref_obj(np_key_t, state->my_identity, my_identity);
 
 	np_dhkey_t recvtoken_issuer_key = np_dhkey_create_from_hash(msg_token->issuer);
 	if (_np_dhkey_equal(&recvtoken_issuer_key, &my_identity->dhkey) )
@@ -1302,9 +1309,6 @@ void _np_in_available_receiver(np_jobargs_t* args)
 			msg_token->state |= AAA_AUTHORIZED;
 	}
 
-	np_unref_obj(np_key_t, my_key);
-	np_unref_obj(np_key_t, my_identity);
-
 	// check if we are (one of the) sending node(s) of this kind of message
 	// should not return NULL
 	np_msgproperty_t* real_prop = np_msgproperty_get(OUTBOUND, msg_token->subject);
@@ -1314,7 +1318,9 @@ void _np_in_available_receiver(np_jobargs_t* args)
 	}
 
 	__np_cleanup__:
-	if (NULL != msg_token)    np_unref_obj(np_aaatoken_t, msg_token);
+	np_unref_obj(np_aaatoken_t, msg_token);
+	np_unref_obj(np_key_t, my_key);
+	np_unref_obj(np_key_t, my_identity);
 
 	// __np_return__:
 	return;

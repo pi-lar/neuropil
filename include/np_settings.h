@@ -15,14 +15,14 @@ extern "C" {
 
 /*
  *	if the sysinfo subsystem in enabled and the node is a slave
- *	this is the intervall ist may send his own data in a proactive
+ *	this is the intervall it may send his own data in a proactive
  *	attempt to share its data.
  */
 #ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
-	static const double SYSINFO_PROACTIVE_SEND_IN_SEC = 1.0;
+	static const double SYSINFO_PROACTIVE_SEND_IN_SEC = 5.0;
 #endif
 #ifndef SYSINFO_MAX_TTL
-	static const uint32_t SYSINFO_MAX_TTL = 30;//31540000;//30;
+	static const uint32_t SYSINFO_MAX_TTL = 30; //31540000;//30;
 #endif
 
 #ifndef SYSINFO_MIN_TTL
@@ -30,7 +30,7 @@ extern "C" {
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL
-	static const uint32_t MSGPROPERTY_DEFAULT_MAX_TTL_SEC = 30;//31540000;//30;
+	static const uint32_t MSGPROPERTY_DEFAULT_MAX_TTL_SEC = 30; //31540000;//30;
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MIN_TTL
@@ -71,7 +71,7 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 #endif
 
 #ifndef MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC
-	static const double MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC = 5;
+	static const double MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC = 0.31415;
 #endif
 
 #ifndef GOOD_LINK
@@ -110,9 +110,11 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 #ifndef JOBQUEUE_PRIORITY_MOD_SUBMIT_EVENT
 	static const double JOBQUEUE_PRIORITY_MOD_SUBMIT_EVENT = 1;
 #endif
+
 #ifndef LOG_ROTATE_COUNT
 	#define LOG_ROTATE_COUNT 3
 #endif
+
 #ifndef LOG_ROTATE_AFTER_BYTES
 	#if defined(DEBUG) && DEBUG == 1
 		#define LOG_ROTATE_AFTER_BYTES 10000000	// 100 MB
@@ -120,6 +122,7 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 		#define LOG_ROTATE_AFTER_BYTES 1000000	// 10 MB
 	#endif
 #endif
+
 #ifndef LOG_ROTATE_ENABLE
 	#define LOG_ROTATE_ENABLE TRUE
 #endif

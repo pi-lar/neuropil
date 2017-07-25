@@ -134,17 +134,13 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		{
 			// sum up message parts if the message is for this node
 			msg_to_submit = _np_message_check_chunks_complete(args->msg);
-
 			if (NULL == msg_to_submit)
 			{
 				sll_free(np_key_t, tmp);
 			 	np_unref_obj(np_key_t, my_key);
 			 	return;
 			}
-			if (msg_in == msg_to_submit) np_ref_obj(np_message_t, msg_to_submit);
-
 			_np_message_deserialize_chunked(msg_to_submit);
-			// TODO: check this ref
 			np_unref_obj(np_message_t, msg_to_submit);
 		}
 		else
@@ -157,6 +153,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		{
 			_np_job_submit_msgin_event(0.0, prop, my_key, msg_to_submit);
 		}
+
 	} else {
 		/* hand it over to the np_axon sending unit */
 		log_debug_msg(LOG_DEBUG, "forward routing for subject '%s'", msg_subject);

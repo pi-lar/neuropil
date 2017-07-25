@@ -104,9 +104,9 @@ np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproper
 {
     log_msg(LOG_TRACE, "start: np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop){");
 
-    np_tryref_obj(np_message_t, msg, hasMsg);
-	np_tryref_obj(np_key_t, key, hasKey);
-	np_tryref_obj(np_msgproperty_t, prop, hasProp);
+    if (NULL != msg)  np_ref_obj(np_message_t, msg);
+	if (NULL != key)  np_ref_obj(np_key_t, key);
+	if (NULL != prop) np_ref_obj(np_msgproperty_t, prop);
 
 	// create runtime arguments
 	np_jobargs_t* jargs = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
@@ -124,8 +124,8 @@ void _np_job_free_args(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void* _np_job_free_args(np_jobargs_t* args){");
 
-    if(args != NULL){
-		np_unref_obj(np_message_t, args->msg);
+    if(args != NULL) {
+        np_unref_obj(np_message_t, args->msg);
 		np_unref_obj(np_key_t, args->target);
 		np_unref_obj(np_msgproperty_t, args->properties);
     }
@@ -355,7 +355,7 @@ void* _job_exec ()
 	    // log_debug_msg(LOG_DEBUG, "%hhd:     job-->%p func-->%p args-->%p", tmp->type, tmp, tmp->processorFunc, tmp->args);
 
 	    if(tmp->args != NULL && tmp->args->msg != NULL) {
-	    	log_msg(LOG_DEBUG, "handeling function for msg %s for %s",tmp->args->msg->uuid, _np_message_get_subject(tmp->args->msg));
+	    	log_msg(LOG_DEBUG, "handling function for msg %s for %s",tmp->args->msg->uuid, _np_message_get_subject(tmp->args->msg));
 	    }
 
     	tmp->processorFunc(tmp->args);

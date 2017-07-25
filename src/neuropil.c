@@ -213,11 +213,12 @@ void np_send_join(const char* node_string)
     log_msg(LOG_TRACE, "start: void np_send_join(const char* node_string){");
 
     if(node_string[0] == '*') {
-    	char* node_string2 = node_string;
+    	const char* node_string_2 = node_string + 2;
         log_msg(LOG_INFO, "Assumed wildcard join for \"%s\"", node_string);
-    	node_string2 += 2;
-		np_send_wildcard_join(node_string2);
-    }else{
+    	// node_string2 += 2;
+		np_send_wildcard_join(node_string_2);
+
+    } else {
 		np_key_t* node_key = NULL;
 
 		node_key = _np_node_decode_from_str(node_string);
@@ -1038,10 +1039,12 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
     state->msg_part_cache = np_tree_create();
 
 
-    // initialize real network layer last
+    // initialize cleanup layer last
     np_job_submit_event(0.0, _np_cleanup_ack_jobexec);
 	np_job_submit_event(0.0, _np_cleanup_keycache_jobexec);
-    // start leafset checking jobs
+	np_job_submit_event(0.0, _np_event_cleanup_msgpart_cache);
+
+	// start leafset checking jobs
     np_job_submit_event(0.0, _np_route_check_leafset_jobexec);
 
 
@@ -1057,8 +1060,6 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
     np_job_submit_event(0.0, _np_renew_node_token_jobexec);
     // initialize network/io reading and writing
     np_job_submit_event(0.0, _np_events_read);
-
-    _np_event_cleanup_msgpart_cache(NULL);
 
 	log_msg(LOG_INFO, "neuropil successfully initialized: %s", _np_key_as_str(state->my_node_key));
 	_np_log_fflush(TRUE);
@@ -1125,7 +1126,7 @@ char* np_get_connection_string(){
 	return connection_str;
 }
 
-char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){
+char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash) {
     log_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
 	char* connection_str;
 	 if(TRUE == includeHash){
