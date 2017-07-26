@@ -18,7 +18,7 @@ It should contain all required functions to send or receive messages.
 #include "np_types.h"
 
 #define NP_VERSION_MAJOR	"0"
-#define NP_VERSION_MINOR	"1"
+#define NP_VERSION_MINOR	"3"
 #define NP_VERSION_RELEASE	"0"
 
 #define NEUROPIL_VERSION	"neuropil " NP_VERSION_MAJOR "." NP_VERSION_MINOR
