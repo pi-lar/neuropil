@@ -25,6 +25,7 @@
 #include "np_keycache.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
+#include "np_threads.h"
 #include "np_node.h"
 #include "np_sysinfo.h"
 #include "np_http.h"
@@ -47,7 +48,7 @@ uint32_t _pong_count = 0;
 #define LED_GPIO_YELLOW 18
 
 np_bool is_gpio_enabled = FALSE;
-np_mutex_t gpio_lock;
+np_mutex_t gpio_lock = { };
 double last_response_or_invokation = 0;
 
 const double ping_pong_intervall = 0.01;
@@ -266,7 +267,7 @@ int main(int argc, char **argv)
 	ping_props->ack_mode = ACK_NONE;
 	ping_props->msg_ttl = 5.0;
 	ping_props->retry = 1;
-	ping_props->max_threshold = UINT16_MAX;
+	ping_props->max_threshold = UINT8_MAX;
 	np_msgproperty_register(ping_props);
 	//register the listener function to receive data from the sender
 	np_set_listener(receive_ping, "ping");
@@ -277,7 +278,7 @@ int main(int argc, char **argv)
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 5.0;
 	pong_props->retry = 1;
-	pong_props->max_threshold = UINT16_MAX;
+	pong_props->max_threshold = UINT8_MAX;
 	np_msgproperty_register(pong_props);
 	//register the listener function to receive data from the sender
 	np_set_listener(receive_pong, "pong");
