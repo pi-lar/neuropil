@@ -78,6 +78,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 #ifdef DEBUG
     	free(__np_obj_pool_ptr->current->id);
     	__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);
+    	sll_init(char_ptr, __np_obj_pool_ptr->current->reasons);
 #endif
 	}
 	else
@@ -85,6 +86,9 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 		__np_obj_pool_ptr->current = (np_obj_t*) malloc (sizeof(np_obj_t) );
 		CHECK_MALLOC(__np_obj_pool_ptr->current);
 		__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);
+#ifdef DEBUG
+		sll_init(char_ptr, __np_obj_pool_ptr->current->reasons);
+#endif
 		__np_obj_pool_ptr->size++;
     }
 
@@ -133,14 +137,17 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 // printf("free obj %p (type %d ptr %p ref_count %d):(next -> %p)n", obj, obj->type, obj->ptr, obj->ref_count, obj->next );
 
 // increase ref count
-void np_mem_refobj(np_obj_t* obj)
+void np_mem_refobj(np_obj_t* obj,char* reason)
 {
     log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
 	obj->ref_count++;
 	//log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
-}
+#ifdef DEBUG
+	sll_prepend(char_ptr, obj->reasons,reason);
+#endif
+	}
 // decrease ref count
-void np_mem_unrefobj(np_obj_t* obj)
+void np_mem_unrefobj(np_obj_t* obj, char* reason)
 {
     log_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
 	obj->ref_count--;
@@ -148,6 +155,10 @@ void np_mem_unrefobj(np_obj_t* obj)
 	if(obj->ref_count < 0){
 		log_msg(LOG_ERROR,"Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
 	}
+#ifdef DEBUG
+	sll_delete(char_ptr, obj->reasons,reason);
+#endif
+
 }
 
 // print the complete object list and statistics

@@ -39,6 +39,9 @@
 #include "np_memory.h"
 #include "assert.h"
 
+
+NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
+
 char* np_uuid_create(const char* str, const uint16_t num)
 {
     log_msg(LOG_TRACE, "start: char* np_uuid_create(const char* str, const uint16_t num){");

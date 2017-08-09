@@ -41,6 +41,7 @@
 #include "np_tree.h"
 #include "np_settings.h"
 #include "np_types.h"
+#include "np_constants.h"
 
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_t);
@@ -105,7 +106,7 @@ void _np_message_t_del(void* data)
 			while (NULL != iter)
 			{
 				np_messagepart_ptr current_part = iter->val;
-				np_unref_obj(np_messagepart_t, current_part);
+				np_unref_obj(np_messagepart_t, current_part,"ref_message_messagepart");
 				pll_next(iter);
 			}
 		}
@@ -177,12 +178,13 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 				np_messagepart_ptr to_add = NULL;
 				_LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
 					to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks);
-					np_ref_obj(np_messagepart_t, to_add);
+					np_ref_obj(np_messagepart_t, to_add, ref_message_messagepart);
 				}
 				log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
 						"message (%s) %p / %p / %p", msg_uuid, msg_in_cache, msg_in_cache->msg_chunks, to_add);
 
-				_LOCK_ACCESS(&msg_in_cache->msg_chunks_lock) {
+				_LOCK_ACCESS(&msg_in_cache->msg_chunks_lock)
+				{
 					// insert new
 					if(FALSE == pll_insert(np_messagepart_ptr, msg_in_cache->msg_chunks, to_add, FALSE, _np_messagepart_cmp)) {
 						// new entry is rejected (already present)
@@ -190,12 +192,12 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 						_LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
 							// reinsert into old struct for cleanup later on
 							if(FALSE == pll_insert(np_messagepart_ptr, msg_to_check->msg_chunks, to_add, FALSE, _np_messagepart_cmp)) {
-								np_unref_obj(np_messagepart_t, to_add); // may be resend in the time between the locks
+								np_unref_obj(np_messagepart_t, to_add, ref_message_messagepart);
 							}
 						}
 					}
 				}
-				np_unref_obj(np_messagepart_t, to_add);
+				np_unref_obj(np_messagepart_t, to_add, ref_message_messagepart);
 			}
 			else
 			{
@@ -206,7 +208,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 				// as a structure to accumulate further chunks into
 				np_tree_insert_str(state->msg_part_cache, msg_uuid, np_treeval_new_v(msg_to_check));
 				msg_in_cache = msg_to_check;
-				np_ref_obj(np_message_t, msg_in_cache); // we need to unref this after we finish the handeling of this msg
+				np_ref_obj(np_message_t, msg_in_cache, ref_msgpartcache); // we need to unref this after we finish the handeling of this msg
 			}
 
 			// now we check if all chunks are complete for this msg

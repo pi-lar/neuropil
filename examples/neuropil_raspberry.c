@@ -41,15 +41,15 @@
 extern char *optarg;
 extern int optind;
 
-uint32_t _ping_count = 0;
-uint32_t _pong_count = 0;
+static uint32_t _ping_count = 0;
+static uint32_t _pong_count = 0;
 
 #define LED_GPIO_GREEN 23
 #define LED_GPIO_YELLOW 18
 
-np_bool is_gpio_enabled = FALSE;
-np_mutex_t gpio_lock = { };
-double last_response_or_invokation = 0;
+static np_bool is_gpio_enabled = FALSE;
+static np_mutex_t gpio_lock = { };
+static double last_response_or_invokation = 0;
 
 const double ping_pong_intervall = 0.01;
 

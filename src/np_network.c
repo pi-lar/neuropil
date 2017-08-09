@@ -46,6 +46,7 @@
 #include "np_event.h"
 #include "np_settings.h"
 #include "np_types.h"
+#include "np_constants.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
@@ -808,7 +809,7 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 	_LOCK_ACCESS(&old_target->network->lock){
 		_np_network_stop(old_target->network); 			// stop network
 		new_target->network = old_target->network; 		// remap
-		np_ref_switch(np_key_t,new_target->network->watcher.data, new_target); // remap network key
+		np_ref_switch(np_key_t,new_target->network->watcher.data, ref_network_watcher, new_target); // remap network key
 		old_target->network = NULL;						// remove from old structure
 		_np_network_start(new_target->network); 		// restart network
 	}
@@ -851,7 +852,7 @@ void _np_network_t_del(void* nw)
 			_np_network_stop(network);
 			np_key_t* old_key = (np_key_t*) network->watcher.data;
 			network->watcher.data = NULL;
-			np_unref_obj(np_key_t, old_key);
+			np_unref_obj(np_key_t, old_key,ref_network_watcher);
 
 			if (NULL != network->waiting)
 				np_tree_free(network->waiting);

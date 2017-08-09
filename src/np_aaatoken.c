@@ -475,7 +475,7 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 			}
 
 			// update #1 key specific data
-			np_ref_obj(np_aaatoken_t, token);
+			np_ref_obj(np_aaatoken_t, token,"send_tokens");
 			tmp_token = pll_replace(np_aaatoken_ptr, subject_key->send_tokens, token, cmp_aaatoken_replace);
 			if (NULL == tmp_token)
 			{
@@ -484,7 +484,7 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 			else
 			{
 				token->state = tmp_token->state;
-				np_unref_obj(np_aaatoken_t, tmp_token);
+				np_unref_obj(np_aaatoken_t, tmp_token,"send_tokens");
 			}
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
 					_np_key_as_str(subject_key) );
@@ -506,13 +506,13 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 			{
 				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid sender msg tokens %p", tmp_token);
 				pll_remove(np_aaatoken_ptr, subject_key->send_tokens, tmp_token, _np_aaatoken_cmp_exact);
-				np_unref_obj(np_aaatoken_t, tmp_token);
+				np_unref_obj(np_aaatoken_t, tmp_token,"send_tokens");
 				break;
 			}
 		}
 	}
 
-	np_unref_obj(np_key_t, subject_key);
+	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_sender_token");
 }
@@ -567,7 +567,7 @@ sll_return(np_aaatoken_t) _np_aaatoken_get_sender_all(char* subject)
 		}
 	}
 
-	np_unref_obj(np_key_t, subject_key);
+	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 
 	return (return_list);
 }
@@ -643,7 +643,7 @@ np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender)
 		}
 	}
 
-	np_unref_obj(np_key_t, subject_key);
+	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 	return (return_token);
 }
 
@@ -701,7 +701,7 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 			}
 
 			// update #1 key specific data
-			np_ref_obj(np_aaatoken_t, token);
+			np_ref_obj(np_aaatoken_t, token,"recv_tokens");
 			tmp_token = pll_replace(np_aaatoken_ptr, subject_key->recv_tokens, token, cmp_aaatoken_replace);
 			if (NULL == tmp_token)
 			{
@@ -710,7 +710,7 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 			else
 			{
 				token->state = tmp_token->state;
-				np_unref_obj(np_aaatoken_t, tmp_token);
+				np_unref_obj(np_aaatoken_t, tmp_token,"recv_tokens");
 			}
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
 					_np_key_as_str(subject_key) );
@@ -730,13 +730,13 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 			{
 				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid receiver msg tokens %p", tmp_token);
 				pll_remove(np_aaatoken_ptr, subject_key->recv_tokens, tmp_token, _np_aaatoken_cmp_exact);
-				np_unref_obj(np_aaatoken_t, tmp_token);
+				np_unref_obj(np_aaatoken_t, tmp_token,"recv_tokens");
 				break;
 			}
 		}
 	}
 
-	np_unref_obj(np_key_t, subject_key);
+	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_receiver_token");
 }
 
@@ -818,7 +818,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found no valid receiver token" );
 	}
 
-	np_unref_obj(np_key_t, subject_key);
+	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 	return (return_token);
 }
 
@@ -866,7 +866,7 @@ sll_return(np_aaatoken_t) _np_aaatoken_get_receiver_all(char* subject)
 		}
 	}
 
-	np_unref_obj(np_key_t, subject_key);
+	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 	return (return_list);
 }
 
@@ -960,7 +960,7 @@ np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject)
 		}
 	}
 
-	np_unref_obj(np_key_t, subject_key);
+	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  ._np_get_local_mx_token");
 	return (return_token);
 }
@@ -992,7 +992,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 		np_aaatoken_t *tmp_token = NULL;
 
 		// update #1 key specific data
-		np_ref_obj(np_aaatoken_t, token);
+		np_ref_obj(np_aaatoken_t, token,"local_mx_tokens");
 		tmp_token = pll_replace(np_aaatoken_ptr, subject_key->local_mx_tokens, token, _np_aaatoken_cmp);
 		if (NULL == tmp_token)
 		{
@@ -1000,7 +1000,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 		}
 		else
 		{
-			np_unref_obj(np_aaatoken_t, tmp_token);
+			np_unref_obj(np_aaatoken_t, tmp_token,"local_mx_tokens");
 		}
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single mx token for message hash %s",
 				_np_key_as_str(subject_key) );
@@ -1021,13 +1021,13 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 			{
 				log_msg(LOG_INFO, "deleting old / invalid mx msg token %p", tmp_token);
 				pll_remove(np_aaatoken_ptr, subject_key->local_mx_tokens, tmp_token, _np_aaatoken_cmp_exact);
-				np_unref_obj(np_aaatoken_t, tmp_token);
+				np_unref_obj(np_aaatoken_t, tmp_token,"local_mx_tokens");
 				break;
 			}
 		}
 	}
 
-	np_unref_obj(np_key_t, subject_key);
+	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  ._np_add_local_mx_token");
 }
 

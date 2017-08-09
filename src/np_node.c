@@ -270,6 +270,12 @@ np_key_t* _np_node_create_from_token(np_aaatoken_t* token)
 	{
 		node_key->node = _np_node_decode_from_jrb(token->extensions);
 	}
+	ref_restack_reason(
+			np_key_t, node_key,
+			"_np_keycache_find_or_create",
+			"_np_node_create_from_token"
+	);
+
 	return (node_key);
 }
 

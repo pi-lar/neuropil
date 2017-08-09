@@ -39,6 +39,7 @@
 #include "np_types.h"
 #include "np_settings.h"
 #include "np_sysinfo.h"
+#include "np_constants.h"
 /**
  * Gets a np_key_t or a NULL pointer for the given hash value.
  * Generates warnings and aborts the process if a misschief configuration is found.
@@ -90,7 +91,7 @@ np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
 	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
 
-	np_unref_obj(np_key_t, aaa_target);
+	np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
 
 	return (FALSE);
 }
@@ -130,7 +131,7 @@ np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token)
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
 	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
 
-	np_unref_obj(np_key_t, aaa_target);
+	np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
 
 	return (FALSE);
 }
@@ -170,7 +171,7 @@ np_bool _np_aaa_accountingfunc (np_aaatoken_t* token)
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
 	_np_job_submit_transform_event(0.0, aaa_props, aaa_target, NULL);
 
-	np_unref_obj(np_key_t, aaa_target);
+	np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
 	return (FALSE);
 }
 /**
@@ -226,7 +227,7 @@ void np_send_join(const char* node_string)
 
 		np_route_set_bootstrap_key(node_key);
 
-		np_unref_obj(np_key_t, node_key); // _np_node_decode_from_str
+		np_unref_obj(np_key_t, node_key,"_np_node_decode_from_str"); // _np_node_decode_from_str
     }
 }
 
@@ -264,7 +265,7 @@ void np_send_wildcard_join(const char* node_string)
 	_np_job_submit_transform_event(0.0, msg_prop, wildcard_node_key, NULL);
 
 	np_route_set_bootstrap_key(wildcard_node_key);
-	np_unref_obj(np_key_t, wildcard_node_key);
+	np_unref_obj(np_key_t, wildcard_node_key, "_np_node_decode_from_str");
 }
 
 /**
@@ -299,9 +300,10 @@ void np_set_realm_name(const char* realm_name)
     _np_route_set_key (new_node_key);
 
 	// set and ref additional identity
+    //TODO: use np_set_identity
     if (_np_state()->my_identity == _np_state()->my_node_key)
     {
-    	np_ref_switch(np_key_t, _np_state()->my_identity, new_node_key);
+    	np_ref_switch(np_key_t, _np_state()->my_identity, ref_state_identity, new_node_key);
     }
     else
     {
@@ -312,7 +314,7 @@ void np_set_realm_name(const char* realm_name)
 
 	log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _np_key_as_str(_np_state()->my_node_key));
 
-	np_unref_obj(np_key_t, new_node_key);
+	np_unref_obj(np_key_t, new_node_key,"_np_keycache_find_or_create");
 }
 /**
  * Enables this node as realm slave.
@@ -419,24 +421,23 @@ void np_set_identity(np_aaatoken_t* identity)
 
 	if (NULL != state->my_identity)
 	{
-		np_ref_switch(np_key_t, state->my_identity, my_identity_key);
-		np_unref_obj(np_key_t, my_identity_key);
+		np_ref_switch(np_key_t, state->my_identity, ref_state_identity, my_identity_key);
 	}
 	else
 	{
 		// cannot be null, but otherwise checker complains
 		state->my_identity = my_identity_key;
 		state->my_identity->aaa_token = identity;
-		np_ref_obj(np_aaatoken_t, identity);
+		np_ref_obj(np_aaatoken_t, identity, ref_state_identity);
 	}
-
 	// set target node string for correct routing
 	np_tree_insert_str(identity->extensions, "target_node", np_treeval_new_s(_np_key_as_str(state->my_node_key)) );
+
 
     // create encryption parameter
 	crypto_sign_keypair(identity->public_key, identity->private_key);
 	_np_aaatoken_add_signature(identity);
-
+	np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 }
 /**
  * Sets the property key for the subject np_msgproperty_t to a given value.
@@ -542,7 +543,7 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 
 	_np_send_msg(subject, msg, msg_prop, target_key);
 
-	np_unref_obj(np_message_t, msg);
+	np_unref_obj(np_message_t, msg, ref_obj_creation);
 }
 
 np_key_t* _np_get_key_by_key_hash(char* targetDhkey)
@@ -602,7 +603,7 @@ void np_send_text (char* subject, char *data, uint32_t seqnum, char* targetDhkey
 
 	_np_send_msg(subject, msg, msg_prop, NULL == target ? NULL: &target->dhkey);
 
-	np_unref_obj(np_message_t, msg);
+	np_unref_obj(np_message_t, msg, ref_obj_creation);
 }
 
 uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
@@ -674,8 +675,8 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 		msg_prop->max_threshold--;
 
-		np_unref_obj(np_message_t, msg);
-		np_unref_obj(np_aaatoken_t, sender_token);
+		np_unref_obj(np_message_t, msg,"?");
+		np_unref_obj(np_aaatoken_t, sender_token,"?");
 		return (FALSE);
 	}
 
@@ -709,8 +710,8 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	msg_prop->msg_threshold--;
 	msg_prop->max_threshold--;
 
-	np_unref_obj(np_message_t, msg);
-	np_unref_obj(np_aaatoken_t, sender_token);
+	np_unref_obj(np_message_t, msg, "?");
+	np_unref_obj(np_aaatoken_t, sender_token,"?");
 
 	return (TRUE);
 }
@@ -783,8 +784,8 @@ uint32_t np_receive_text (char* subject, char **data)
 		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 		msg_prop->max_threshold--;
 
-		np_unref_obj(np_message_t, msg);
-		np_unref_obj(np_aaatoken_t, sender_token);
+		np_unref_obj(np_message_t, msg, "unknown");
+		np_unref_obj(np_aaatoken_t, sender_token, "unknown");
 		return (0);
 	}
 
@@ -802,8 +803,8 @@ uint32_t np_receive_text (char* subject, char **data)
 	msg_prop->msg_threshold--;
 	msg_prop->max_threshold--;
 
-	np_unref_obj(np_message_t, msg);
-	np_unref_obj(np_aaatoken_t, sender_token);
+	np_unref_obj(np_message_t, msg, "unknown");
+	np_unref_obj(np_aaatoken_t, sender_token, "unknown");
 
 	log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
 
@@ -849,8 +850,8 @@ void _np_send_ack(np_message_t* in_msg)
 		// send the ack out
 		_np_job_submit_route_event(0.0, prop, ack_target, ack_msg);
 
-		np_unref_obj(np_key_t, ack_target);
-		np_unref_obj(np_message_t, ack_msg);
+		np_unref_obj(np_key_t, ack_target,"_np_keycache_find");
+		np_unref_obj(np_message_t, ack_msg,ref_obj_creation);
 	}
 }
 
@@ -877,7 +878,7 @@ void _np_ping (np_key_t* key)
     np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REQUEST);
 	_np_job_submit_msgout_event(0.0, prop, key, out_msg);
 
-	np_unref_obj(np_message_t, out_msg);
+	np_unref_obj(np_message_t, out_msg, ref_obj_creation);
 }
 
 /**

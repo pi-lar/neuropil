@@ -24,6 +24,7 @@
 #include "np_threads.h"
 #include "np_key.h"
 #include "np_list.h"
+#include "np_constants.h"
 
 
 // TODO: make this a better constant value
@@ -110,8 +111,8 @@ np_key_t* _np_keycache_find_by_details(
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
 
- 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key);
- 	np_waitref_obj(np_key_t, _np_state()->my_identity, my_identity);
+ 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key,"np_waitref_key");
+ 	np_waitref_obj(np_key_t, _np_state()->my_identity, my_identity,"np_waitref_identity");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -127,10 +128,28 @@ np_key_t* _np_keycache_find_by_details(
 			}
 
 			if (
-					(!require_handshake_status || (NULL != iter->node && iter->node->handshake_status == handshake_status)) &&
-					(!require_hash || (NULL != iter->dhkey_str && strstr(details_container, iter->dhkey_str) != NULL)) &&
-					(!require_dns || (NULL != iter->node &&NULL != iter->node->dns_name && strstr(details_container, iter->node->dns_name) != NULL)) &&
-					(!require_port || (NULL != iter->node && NULL != iter->node->port &&strstr(details_container, iter->node->port) != NULL))
+					(!require_handshake_status ||
+							(NULL != iter->node &&
+							iter->node->handshake_status == handshake_status
+							)
+					) &&
+					(!require_hash ||
+							(NULL != iter->dhkey_str &&
+							strstr(details_container, iter->dhkey_str) != NULL
+							)
+					) &&
+					(!require_dns ||
+							(NULL != iter->node &&
+							NULL != iter->node->dns_name &&
+							strstr(details_container, iter->node->dns_name) != NULL
+							)
+					) &&
+					(!require_port ||
+							(NULL != iter->node &&
+							NULL != iter->node->port &&
+							strstr(details_container, iter->node->port) != NULL
+							)
+					)
 			)
 			{
 				np_ref_obj(np_key_t, iter);
@@ -140,8 +159,8 @@ np_key_t* _np_keycache_find_by_details(
 			}
 		}
 	}
- 	np_unref_obj(np_key_t, my_identity);
- 	np_unref_obj(np_key_t, my_node_key);
+ 	np_unref_obj(np_key_t, my_identity,"np_waitref_identity");
+ 	np_unref_obj(np_key_t, my_node_key,"np_waitref_key");
 
 	return (ret);
 }
@@ -202,7 +221,7 @@ np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey)
 		rem_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
 		if (NULL != rem_key) {
 			SPLAY_REMOVE(st_keycache_s, __key_cache, rem_key);
-			np_unref_obj(np_key_t, rem_key);
+			np_unref_obj(np_key_t, rem_key, ref_keycache);
 		}
 	}
 	return rem_key;
@@ -211,11 +230,12 @@ np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey)
 np_key_t* _np_keycache_add(np_key_t* subject_key)
 {
     log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* subject_key){");
+    //TODO: ist das notwendig? warum einen leeren key hinzufügen?
 	if (NULL == subject_key)
 	{
 		np_new_obj(np_key_t, subject_key);
 	}
-	np_ref_obj(np_key_t, subject_key);
+	np_ref_obj(np_key_t, subject_key,ref_keycache);
 
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -257,6 +277,7 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_t, list_of_keys), c
 		log_msg(LOG_KEY | LOG_WARN, "minimum size for closest key calculation not met !");
 	}
 
+	np_ref_obj(np_key_t, min);
 	return (min);
 }
 

@@ -80,6 +80,8 @@ typedef struct np_tree_s np_tree_t;
 
 typedef struct np_treeval_s np_treeval_t;
 
+typedef char* char_ptr;
+
  /*
   * list types and typedefs
   */
@@ -88,6 +90,7 @@ NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_node_t);
 NP_SLL_GENERATE_PROTOTYPES(np_key_t);
 NP_SLL_GENERATE_PROTOTYPES(np_message_t);
+NP_SLL_GENERATE_PROTOTYPES(char_ptr);
 
 /*
  *  user callback functions

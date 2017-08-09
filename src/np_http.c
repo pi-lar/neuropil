@@ -382,7 +382,7 @@ void _np_http_dispatch( np_http_client_t* client) {
 						"Refreshing own key. please wait.");
 			}
 			__json_return__:
-			np_unref_obj(np_key_t, key);
+			np_unref_obj(np_key_t, key, __func__);
 
 			log_debug_msg(LOG_DEBUG, "serialise json response");
 			if (NULL == json_obj) {
@@ -729,6 +729,6 @@ void _np_http_destroy() {
 
 	free(__local_http->hooks);
 
-	np_unref_obj(np_network_t, __local_http->network);
+	np_unref_obj(np_network_t, __local_http->network,"_np_http_init");
 }
 

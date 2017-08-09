@@ -26,6 +26,7 @@
 #include "np_key.h"
 #include "np_route.h"
 #include "np_jobqueue.h"
+#include "np_constants.h"
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
 
@@ -68,7 +69,7 @@ char* _np_key_as_str(np_key_t* key)
 void _np_key_destroy(np_key_t* to_destroy) {
     log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_destroy(np_key_t* to_destroy) {");
 
-    np_tryref_obj(np_key_t, to_destroy, to_destroyExists);
+    np_tryref_obj(np_key_t, to_destroy, to_destroyExists,"np_tryref_key");
 	if(to_destroyExists) {
 
 		_LOCK_ACCESS(&to_destroy->obj->lock) {
@@ -96,7 +97,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 						pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->recv_tokens);
 						while (NULL != iter)
 						{
-							np_unref_obj(np_aaatoken_t, iter->val);
+							np_unref_obj(np_aaatoken_t, iter->val,"recv_tokens");
 							pll_next(iter);
 						}
 						pll_free(np_aaatoken_ptr, to_destroy->recv_tokens);
@@ -114,7 +115,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 						pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->send_tokens);
 						while (NULL != iter)
 						{
-							np_unref_obj(np_aaatoken_t, iter->val);
+							np_unref_obj(np_aaatoken_t, iter->val,"send_tokens");
 							pll_next(iter);
 						}
 						pll_free(np_aaatoken_ptr, to_destroy->send_tokens);
@@ -129,11 +130,11 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
 		while(iter != NULL) {
 			_np_key_destroy(iter->val);
-			np_unref_obj(np_key_t, iter->val); // _np_keycache_find_aliase
+			np_unref_obj(np_key_t, iter->val,"_np_keycache_find_aliase");
 			sll_next(iter);
 		}
 
-		np_unref_obj(np_key_t, to_destroy); // np_tryref_obj
+		np_unref_obj(np_key_t, to_destroy,"np_tryref_key");
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
 	} else {
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "no key provided for cleanup");
@@ -186,12 +187,11 @@ void _np_key_t_del(void* key)
 	// unref and delete of other object pointers has to be done outside of this function
 	// otherwise double locking the memory pool will lead to a deadlock
 
-
-	np_unref_obj(np_msgproperty_t, 	old_key->recv_property);
-	np_unref_obj(np_msgproperty_t, 	old_key->send_property);
-	np_unref_obj(np_aaatoken_t,		old_key->aaa_token);
-	np_unref_obj(np_node_t,     	old_key->node);
-	np_unref_obj(np_network_t,  	old_key->network);
+	np_unref_obj(np_msgproperty_t, 	old_key->recv_property,ref_key_recv_property);
+	np_unref_obj(np_msgproperty_t, 	old_key->send_property,ref_key_send_property);
+	np_unref_obj(np_aaatoken_t,		old_key->aaa_token,ref_key_aaa_token);
+	np_unref_obj(np_node_t,     	old_key->node,ref_key_node);
+	np_unref_obj(np_network_t,  	old_key->network,ref_key_network);
 }
 
 void np_key_renew_token() {
@@ -202,14 +202,14 @@ void np_key_renew_token() {
 		np_key_t* new_node_key = NULL;
 		np_key_t* old_node_key = state->my_node_key;
 
-		np_ref_obj(np_key_t, old_node_key);
+		np_ref_obj(np_key_t, old_node_key,"np_key_renew_token");
 
 		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Creating new node key");
 
 		np_aaatoken_t* new_token = _np_node_create_token(old_node_key->node);
 		new_node_key = _np_node_create_from_token(new_token);
 
-		np_ref_obj(np_aaatoken_t, new_token);
+		np_ref_obj(np_aaatoken_t, new_token,ref_key_aaa_token);
 		new_node_key->aaa_token = new_token;
 
 		// find closest member according to old routing table
@@ -244,7 +244,7 @@ void np_key_renew_token() {
 			_np_message_create(msg_out_update, iterator->val, old_node_key, _NP_MSG_UPDATE_REQUEST, jrb_new_me);
 
 			_np_job_submit_msgout_event(0.0, prop, iterator->val, msg_out_update);
-			np_unref_obj(np_message_t, msg_out_update);
+			np_unref_obj(np_message_t, msg_out_update, ref_obj_creation);
 
 			/*
 			np_tree_t* jrb_old_me = np_tree_copy(jrb_old);
@@ -315,11 +315,11 @@ void np_key_renew_token() {
 		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Completed node renewal. cleaning up now");
 
 		// clean up
-		np_unref_list(np_key_t, table); // _np_route_get_table
+		np_unref_list(np_key_t, table,"_np_route_get_table");
 		sll_free(np_key_t, table);
 
 		_np_key_destroy(old_node_key);
 
-		np_unref_obj(np_key_t, old_node_key);
+		np_unref_obj(np_key_t, old_node_key,"np_key_renew_token");
 	}
 }

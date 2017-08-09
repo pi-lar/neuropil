@@ -42,6 +42,7 @@
 #include "np_types.h"
 #include "np_util.h"
 #include "np_settings.h"
+#include "np_constants.h"
 
 // TODO: make these configurable (via struct np_config)
 /**
@@ -68,7 +69,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 {
     log_msg(LOG_TRACE, "start: void _np_route_lookup_jobexec(np_jobargs_t* args){");
 
- 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key);
+ 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key, "np_waitref_obj");
 
 	np_sll_t(np_key_t, tmp) = NULL;
 	np_key_t* target_key = NULL;
@@ -137,11 +138,11 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 			if (NULL == msg_to_submit)
 			{
 				sll_free(np_key_t, tmp);
-			 	np_unref_obj(np_key_t, my_key);
+			 	np_unref_obj(np_key_t, my_key, "np_waitref_obj");
 			 	return;
 			}
 			_np_message_deserialize_chunked(msg_to_submit);
-			np_unref_obj(np_message_t, msg_to_submit);
+			np_unref_obj(np_message_t, msg_to_submit, "_np_message_check_chunks_complete");
 		}
 		else
 		{
@@ -176,7 +177,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 	}
 
 	sll_free(np_key_t, tmp);
-	np_unref_obj(np_key_t, my_key);
+	np_unref_obj(np_key_t, my_key, "np_waitref_obj");
 }
 void _np_never_called_jobexec_transform(np_jobargs_t* args)
 {
@@ -246,15 +247,12 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 
 			np_key_t *added = NULL, *deleted = NULL;
 			_np_route_leafset_update(tmp_node_key, FALSE, &deleted, &added);
-			if (deleted == tmp_node_key)
+			if (deleted != tmp_node_key)
 			{
-				np_unref_obj(np_key_t, tmp_node_key);
-			}
-			else
-			{
-				log_msg(LOG_WARN, "deleting from neighbours returned different key");
+				log_msg(LOG_ERROR, "deleting from neighbours returned different key");
 				// log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _np_key_as_str(deleted));
 			}
+			//np_unref_obj(np_key_t, tmp_node_key,"?");
 		}
 		else
 		{
@@ -266,7 +264,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 				_np_job_yield(__leafset_yield_period);
 			}
 		}
-		np_unref_obj(np_key_t, tmp_node_key);
+		np_unref_obj(np_key_t, tmp_node_key,"_np_route_neighbors");
 	}
 	sll_free(np_key_t, leafset);
 
@@ -296,15 +294,12 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 
 				np_key_t *added = NULL, *deleted = NULL;
 				_np_route_update(tmp_node_key, FALSE, &deleted, &added);
-				if (deleted == tmp_node_key)
-				{
-					np_unref_obj(np_key_t, tmp_node_key);
-				}
-				else
+				if (deleted != tmp_node_key)
 				{
 					log_msg(LOG_WARN, "deleting from table returned different key");
 					// log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _np_key_as_str(deleted));
 				}
+				//np_unref_obj(np_key_t, tmp_node_key,"?");
 			}
 			else
 			{
@@ -316,7 +311,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 					_np_job_yield(__leafset_yield_period);
 				}
 			}
-			np_unref_obj(np_key_t, tmp_node_key);
+			np_unref_obj(np_key_t, tmp_node_key,"_np_route_get_table");
 		}
 		sll_free(np_key_t, table);
 	}
@@ -334,7 +329,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 			np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
 			_np_job_submit_transform_event(__leafset_yield_period*i, piggy_prop, tmp_node_key, NULL);
 			// _np_job_yield(__leafset_yield_period);
-			np_unref_obj(np_key_t, tmp_node_key);
+			np_unref_obj(np_key_t, tmp_node_key,"_np_route_neighbors");
 			i++;
 		}
 		__leafset_check_type = 0;
@@ -375,14 +370,14 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		if (NULL != msg_prop)
 		{
 			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-			np_unref_obj(np_key_t, target);
+			np_unref_obj(np_key_t, target,"_np_keycache_find_or_create");
 		}
 		else
 		{
 			// deleted = RB_REMOVE(np_tree_s, state->msg_tokens, iter);
 			// free(deleted->key.value.s);
 			// free(deleted);
-			np_unref_obj(np_key_t,target);
+			np_unref_obj(np_key_t,target,"_np_keycache_find_or_create");
 			break;
 		}
 	}
@@ -408,7 +403,7 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		msg_prop->clb_transform = _np_send_sender_discovery;
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 
-		np_unref_obj(np_key_t, target);
+		np_unref_obj(np_key_t, target,"_np_keycache_find_or_create");
 	}
 
 	// retrigger execution
@@ -456,7 +451,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
     log_msg(LOG_TRACE, "start: void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args){");
 
 
- 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key);
+ 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key,"np_waitref_obj");
  	np_network_t* ng = my_key->network;
 
 	np_tree_elem_t *jrb_ack_node = NULL;
@@ -481,7 +476,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				_np_node_update_stat(ackentry->dest_key->node, 1);
 
 				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
-				np_unref_obj(np_key_t, ackentry->dest_key);
+				//np_unref_obj(np_key_t, ackentry->dest_key,"?");
 
 				free(ackentry);
 				free(jrb_ack_node->key.value.s);
@@ -492,7 +487,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				_np_node_update_stat(ackentry->dest_key->node, 0);
 
 				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
-				np_unref_obj(np_key_t, ackentry->dest_key);
+				//np_unref_obj(np_key_t, ackentry->dest_key,"?");
 
 				free(ackentry);
 				free(jrb_ack_node->key.value.s);
@@ -500,7 +495,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 			}
 		}
 	}
-	np_unref_obj(np_key_t, my_key);
+	np_unref_obj(np_key_t, my_key,"np_waitref_obj");
 	// submit the function itself for additional execution
 	np_job_submit_event(__cleanup_interval, _np_cleanup_ack_jobexec);
 }
@@ -530,14 +525,14 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 			}
 		}
 
-		np_tryref_obj(np_aaatoken_t, old->aaa_token ,tokenExists);
+		np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists,"np_tryref_old->aaa_token");
 		if(tokenExists) {
 			if (TRUE == _np_aaatoken_is_valid(old->aaa_token) )
 			{
 				log_debug_msg(LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _np_key_as_str(old));
 				delete_key &= FALSE;
 			}
-			np_unref_obj(np_aaatoken_t, old->aaa_token);
+			np_unref_obj(np_aaatoken_t, old->aaa_token,"np_tryref_old->aaa_token");
 		}
 
 		if (NULL != old->recv_tokens)
@@ -593,7 +588,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 			// update timestamp so that the same key cannot be evaluated twice
 			old->last_update = ev_time();
 		}
-		np_unref_obj(np_key_t, old);
+		np_unref_obj(np_key_t, old, "_np_keycache_find_deprecated");
 	}
 
 	// submit the function itself for additional execution
@@ -619,13 +614,15 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 	/* send one row of our routing table back to joiner #host# */
 
 	sll_of_keys = _np_route_row_lookup(target_key);
+	char* source_sll_of_keys = "_np_route_row_lookup";
 	if (0 == sll_size(sll_of_keys))
 	{
 		// nothing found, send leafset to exchange some data at least
 		// prevents small clusters from not exchanging all data
-		np_unref_list(np_key_t, sll_of_keys); // only for completion
+		np_unref_list(np_key_t, sll_of_keys,source_sll_of_keys); // only for completion
 		sll_free(np_key_t, sll_of_keys);
 		sll_of_keys = _np_route_neighbors();
+		source_sll_of_keys = "_np_route_neighbors";
 	}
 
 
@@ -639,12 +636,12 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 		np_new_obj(np_message_t, msg_out);
 		_np_message_create(msg_out, target_key, state->my_node_key, _NP_MSG_PIGGY_REQUEST, msg_body);
 		_np_job_submit_route_event(0.0, outprop, target_key, msg_out);
-		np_unref_obj(np_message_t, msg_out);
+		np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 
 		_np_job_yield(__rowinfo_send_delay);
 	}
 
-	np_unref_list(np_key_t, sll_of_keys);
+	np_unref_list(np_key_t, sll_of_keys, source_sll_of_keys);
 	sll_free(np_key_t, sll_of_keys);
 }
 
@@ -660,7 +657,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	char msg_uuid_subject[255];
 	snprintf(msg_uuid_subject, 255, "urn:np:msg:%s", msg_request->msg_subject);
 
- 	np_waitref_obj(np_key_t, state->my_identity, my_identity);
+ 	np_waitref_obj(np_key_t, state->my_identity, my_identity,"np_waitref_obj");
 
 	// create token
 	strncpy(msg_token->realm, my_identity->aaa_token->realm, 255);
@@ -710,7 +707,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	_np_aaatoken_add_signature(msg_token);
 
 	msg_token->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
- 	np_unref_obj(np_key_t, my_identity);
+ 	np_unref_obj(np_key_t, my_identity,"np_waitref_obj");
  	return (msg_token);
 }
 
@@ -734,7 +731,7 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 
 		log_debug_msg(LOG_DEBUG, "registering for message discovery token handling (%s)", subject);
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-		np_unref_obj(np_key_t, target);
+		np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
 	}
 }
 
@@ -786,8 +783,8 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		{
 			_np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
 		}
-		np_unref_obj(np_aaatoken_t, tmp_token);
-		np_unref_obj(np_key_t, receiver_key);
+		np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_receiver");
+		np_unref_obj(np_key_t, receiver_key,"_np_keycache_find_or_create");
 
 		return (TRUE);
 	}
