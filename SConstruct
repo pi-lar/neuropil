@@ -21,11 +21,15 @@ build_doc = ARGUMENTS.get('doc', 0)
 debug = ARGUMENTS.get('debug', 0)
 release = ARGUMENTS.get('release', 0)
 console_log = ARGUMENTS.get('console', 0)
+strict = int(ARGUMENTS.get('strict', 0))
 
 
 print '####'
 print '#### adding compiler options and flags'
 print '####'
+
+if strict:
+    env.Append(CCFLAGS = ['-DSTRICT'])
 
 # add libev flags to the compilation
 env.Append(CCFLAGS = ['-DEV_STANDALONE'])
@@ -71,7 +75,9 @@ if 'CYGWIN' in platform.system():
   # -std=gnu++0x doesn't work, so work around...
   env.Append(CCFLAGS = ['-U__STRICT_ANSI__'] )
 if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
-  env.Append(LIBS = ['rt'] )
+    env.Append(LIBS = ['rt'] )
+    env.Append(CCFLAGS = ['-x c'])
+
 
 # env.Append(CCFLAGS = '-march='+platform.processor())
 # env.Append(CCFLAGS = '-arch='+platform.machine())
@@ -85,6 +91,8 @@ print '####'
 print '#### detecting 3rd party libraries'
 print '####'
 
+env.Append(LINKFLAGS = ['-v']) # shows linker invokation
+
 # add 3rd party library path info here
 tpl_library_list = ['sodium']
 env.Append(LIBS = tpl_library_list)
@@ -92,6 +100,11 @@ env.Append(LIBS = tpl_library_list)
 conf = Configure(env)
 
 # Checks for libraries, header files, etc.
+for lib in env['LIBS']:
+    if not conf.CheckLib(lib):
+        print 'Did not find library %s. Please install the appropiate package' % (lib)
+        Exit(1)
+
 if not conf.CheckLibWithHeader('sodium', 'sodium.h', 'c'):
     print 'Did not find libsodium.a or sodium.lib ...'
     Exit(1)

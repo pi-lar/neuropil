@@ -110,28 +110,28 @@ real macros for convenience usage
 #define NP_PLL_GENERATE_PROTOTYPES(TYPE)\
 	typedef int8_t (*TYPE##_cmp_func_t) (TYPE const value_1, TYPE const value_2 );\
 	typedef struct TYPE##_pll_s TYPE##_pll_t;\
-    typedef struct TYPE##_pll_node_s TYPE##_pll_node_t;\
-    struct TYPE##_pll_s\
-    {\
-	    uint32_t size;\
-	    TYPE##_pll_node_t *first;\
-	    TYPE##_pll_node_t *last;\
-    };\
-    struct TYPE##_pll_node_s\
-    {\
-	    TYPE##_pll_node_t *flink;\
-	    TYPE##_pll_node_t *blink;\
-        TYPE val;\
-    };\
-    TYPE##_pll_t* TYPE##_pll_init(); 																			\
-    np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, TYPE##_cmp_func_t cmp_func);	\
-    void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value, TYPE##_cmp_func_t cmp_func);						\
+	typedef struct TYPE##_pll_node_s TYPE##_pll_node_t;\
+	struct TYPE##_pll_s\
+	{\
+		uint32_t size;\
+		TYPE##_pll_node_t *first;\
+		TYPE##_pll_node_t *last;\
+	};\
+	struct TYPE##_pll_node_s\
+	{\
+		TYPE##_pll_node_t *flink;\
+		TYPE##_pll_node_t *blink;\
+		TYPE val;\
+	};\
+	TYPE##_pll_t* TYPE##_pll_init(); 																			\
+	np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, TYPE##_cmp_func_t cmp_func);	\
+	void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value, TYPE##_cmp_func_t cmp_func);						\
 	TYPE TYPE##_pll_replace(TYPE##_pll_t* list, TYPE value, TYPE##_cmp_func_t cmp_func);   						\
 	TYPE TYPE##_pll_find(TYPE##_pll_t* list, TYPE value, TYPE##_cmp_func_t cmp_func);   						\
 	TYPE TYPE##_pll_head(TYPE##_pll_t* list);                  													\
 	TYPE TYPE##_pll_tail(TYPE##_pll_t* list);                  													\
-    void TYPE##_pll_free(TYPE##_pll_t* list);                  													\
-    void TYPE##_pll_clear(TYPE##_pll_t* list);                 													\
+	void TYPE##_pll_free(TYPE##_pll_t* list);                  													\
+	void TYPE##_pll_clear(TYPE##_pll_t* list);                 													\
 
 
 //
@@ -207,11 +207,11 @@ TYPE TYPE##_pll_replace(TYPE##_pll_t* pll_list, TYPE value, TYPE##_cmp_func_t cm
 		if (0 == cmp_res) {                                           \
 			TYPE old_val = pll_current->val;                          \
 			pll_current->val = value;                                 \
-		    return (old_val);                                         \
+			return (old_val);                                         \
 		}                                                             \
-        pll_next(pll_current);                                        \
-    }                                                                 \
-    return (ret_val);                                                 \
+		pll_next(pll_current);                                        \
+	}                                                                 \
+	return (ret_val);                                                 \
 }                                                                     \
 TYPE TYPE##_pll_find(TYPE##_pll_t* pll_list, TYPE value, TYPE##_cmp_func_t cmp_func) { \
 	TYPE ret_val = 0;                                                 \
@@ -221,9 +221,9 @@ TYPE TYPE##_pll_find(TYPE##_pll_t* pll_list, TYPE value, TYPE##_cmp_func_t cmp_f
 		if (0 == cmp_res) {                                           \
 			return (pll_current->val);                                \
 		}                                                             \
-        pll_next(pll_current);                                        \
+		pll_next(pll_current);                                        \
 	}                                                                 \
-    return (ret_val);                                                 \
+	return (ret_val);                                                 \
 }                                                                     \
 TYPE TYPE##_pll_head(TYPE##_pll_t* pll_list) {                        \
 	TYPE ret_val = 0;                                                 \
@@ -347,26 +347,26 @@ real macros for convenience usage
 //
 #define NP_DLL_GENERATE_PROTOTYPES(TYPE)\
 	typedef struct TYPE##_dll_s TYPE##_dll_t;\
-    typedef struct TYPE##_dll_node_s TYPE##_dll_node_t;\
-    struct TYPE##_dll_s\
-    {\
-	    uint32_t size;\
-	    TYPE##_dll_node_t *first;\
-	    TYPE##_dll_node_t *last;\
-    };\
-    struct TYPE##_dll_node_s\
-    {\
-	    TYPE##_dll_node_t *flink;\
-	    TYPE##_dll_node_t *blink;\
-        TYPE* val;\
-    };\
-    TYPE##_dll_t* TYPE##_dll_init();\
-    void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE* value);\
-    void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE* value);\
+	typedef struct TYPE##_dll_node_s TYPE##_dll_node_t;\
+	struct TYPE##_dll_s\
+	{\
+		uint32_t size;\
+		TYPE##_dll_node_t *first;\
+		TYPE##_dll_node_t *last;\
+	};\
+	struct TYPE##_dll_node_s\
+	{\
+		TYPE##_dll_node_t *flink;\
+		TYPE##_dll_node_t *blink;\
+		TYPE* val;\
+	};\
+	TYPE##_dll_t* TYPE##_dll_init();\
+	void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE* value);\
+	void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE* value);\
 	TYPE* TYPE##_dll_head(TYPE##_dll_t* list);\
-    TYPE* TYPE##_dll_tail(TYPE##_dll_t* list);\
-    void TYPE##_dll_free(TYPE##_dll_t* list);\
-    void TYPE##_dll_clear(TYPE##_dll_t* list);\
+	TYPE* TYPE##_dll_tail(TYPE##_dll_t* list);\
+	void TYPE##_dll_free(TYPE##_dll_t* list);\
+	void TYPE##_dll_clear(TYPE##_dll_t* list);\
 
 
 //
@@ -537,16 +537,16 @@ real macros for convenience usage
 	struct TYPE##_sll_node_s                                      \
 	{                                                             \
 		TYPE##_sll_node_t *flink;                                 \
-    	TYPE* val;                                                \
+		TYPE* val;                                                \
 	};                                                            \
 	TYPE##_sll_t* TYPE##_sll_init();                              \
-    void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value);  \
-    void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value); \
+	void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value);  \
+	void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value); \
 	TYPE* TYPE##_sll_head(TYPE##_sll_t* list);                    \
-    TYPE* TYPE##_sll_tail(TYPE##_sll_t* list);                    \
-    void TYPE##_sll_free(TYPE##_sll_t* list);                     \
-    void TYPE##_sll_clear(TYPE##_sll_t* list);                    \
-    void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);\
+	TYPE* TYPE##_sll_tail(TYPE##_sll_t* list);                    \
+	void TYPE##_sll_free(TYPE##_sll_t* list);                     \
+	void TYPE##_sll_clear(TYPE##_sll_t* list);                    \
+	void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);\
 
 
 //
@@ -601,9 +601,9 @@ TYPE* TYPE##_sll_tail(TYPE##_sll_t* sll_list) {\
 		ret_val = tmp->val;\
 		TYPE##_sll_node_t* tmp_list_elem = sll_list->first;\
 		if(sll_list->first != sll_list->last) {\
-		    while (tmp_list_elem->flink != sll_list->last) { tmp_list_elem = tmp_list_elem->flink; }\
-		    sll_list->last = tmp_list_elem;\
-		    sll_list->last->flink = NULL;\
+			while (tmp_list_elem->flink != sll_list->last) { tmp_list_elem = tmp_list_elem->flink; }\
+			sll_list->last = tmp_list_elem;\
+			sll_list->last->flink = NULL;\
 		} else {\
 			sll_list->last = NULL; sll_list->first = NULL; \
 		}\

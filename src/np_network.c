@@ -54,7 +54,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 // allocate a new pointer and return it
 np_prioq_t* _np_network_get_new_pqentry()
 {
-    log_msg(LOG_TRACE | LOG_NETWORK, "start: np_prioq_t* _np_network_get_new_pqentry(){");
+	log_msg(LOG_TRACE | LOG_NETWORK, "start: np_prioq_t* _np_network_get_new_pqentry(){");
 	np_prioq_t* entry = (np_prioq_t *) malloc(sizeof(np_prioq_t));
 	CHECK_MALLOC(entry);
 
@@ -69,7 +69,7 @@ np_prioq_t* _np_network_get_new_pqentry()
 
 np_ackentry_t* _np_network_get_new_ackentry()
 {
-    log_msg(LOG_TRACE | LOG_NETWORK, "start: np_ackentry_t* _np_network_get_new_ackentry(){");
+	log_msg(LOG_TRACE | LOG_NETWORK, "start: np_ackentry_t* _np_network_get_new_ackentry(){");
 	np_ackentry_t *entry = (np_ackentry_t *) malloc(sizeof(np_ackentry_t));
 	CHECK_MALLOC(entry);
 
@@ -131,13 +131,13 @@ void _np_network_get_address (
 		char* service)
 {
 	int err;
-    // struct addrinfo *ai_head;
-    struct addrinfo hints;
+	// struct addrinfo *ai_head;
+	struct addrinfo hints;
 
-    if (TRUE == create_socket)
-    	hints.ai_flags = AI_PASSIVE | AI_CANONNAME | AI_NUMERICSERV;
-    else
-    	hints.ai_flags = AI_CANONNAME | AI_NUMERICSERV;
+	if (TRUE == create_socket)
+		hints.ai_flags = AI_PASSIVE | AI_CANONNAME | AI_NUMERICSERV;
+	else
+		hints.ai_flags = AI_CANONNAME | AI_NUMERICSERV;
 
 	if (0 < (type & IPv4) ) {
 		hints.ai_family = PF_INET;
@@ -189,54 +189,54 @@ void _np_network_get_address (
 		char sericename[255];
 
 		getnameinfo( ai->ai_addr,
-                     ai->ai_addrlen,
+					 ai->ai_addrlen,
 					 hostname,
-                     sizeof( hostname ),
+					 sizeof( hostname ),
 					 sericename,
-                     sizeof( sericename ),
-                     NI_NUMERICHOST | NI_NUMERICSERV );
-         switch ( ai->ai_family )
-         {
-            case PF_INET:   // IPv4 address record.
-            {
-                struct sockaddr_in *p = (struct sockaddr_in*) ai->ai_addr;
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                        "found nameinfo sin_family: %d"
-            		    " (AF_INET = %d, AF_INET6 = %d)"
-                        " sin_addr:     %s"
-                        " sin_port:     %s",
-                        p->sin_family,
-                        AF_INET,
-                        AF_INET6,
+					 sizeof( sericename ),
+					 NI_NUMERICHOST | NI_NUMERICSERV );
+		 switch ( ai->ai_family )
+		 {
+			case PF_INET:   // IPv4 address record.
+			{
+				struct sockaddr_in *p = (struct sockaddr_in*) ai->ai_addr;
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG,
+						"found nameinfo sin_family: %d"
+						" (AF_INET = %d, AF_INET6 = %d)"
+						" sin_addr:     %s"
+						" sin_port:     %s",
+						p->sin_family,
+						AF_INET,
+						AF_INET6,
 						hostname,
 						sericename );
-                break;
-            }  // End CASE of IPv4.
-            case PF_INET6:   // IPv6 address record.
-            {
-               struct sockaddr_in6 *p = (struct sockaddr_in6*) ai->ai_addr;
-               log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                        "found nameinfo sin6_family: %d"
-            		    " (AF_INET = %d, AF_INET6 = %d)"
-                        " sin6_addr:     %s"
-                        " sin6_port:     %s"
-                        " sin6_flowinfo: %d"
-                        " sin6_scope_id: %d",
-                        p->sin6_family,
-                        AF_INET,
-                        AF_INET6,
+				break;
+			}  // End CASE of IPv4.
+			case PF_INET6:   // IPv6 address record.
+			{
+			   struct sockaddr_in6 *p = (struct sockaddr_in6*) ai->ai_addr;
+			   log_debug_msg(LOG_NETWORK | LOG_DEBUG,
+						"found nameinfo sin6_family: %d"
+						" (AF_INET = %d, AF_INET6 = %d)"
+						" sin6_addr:     %s"
+						" sin6_port:     %s"
+						" sin6_flowinfo: %d"
+						" sin6_scope_id: %d",
+						p->sin6_family,
+						AF_INET,
+						AF_INET6,
 						hostname,
 						sericename,
-                        p->sin6_flowinfo,
-                        p->sin6_scope_id );
-               break;
-            }  // End CASE of IPv6.
-            default:   // Can never get here, but just for completeness.
-            {
-               // freeaddrinfo( aiHead );
-               // return -1;
-            }  // End DEFAULT case (unknown protocol family).
-         }  // End SWITCH on protocol family.
+						p->sin6_flowinfo,
+						p->sin6_scope_id );
+			   break;
+			}  // End CASE of IPv6.
+			default:   // Can never get here, but just for completeness.
+			{
+			   // freeaddrinfo( aiHead );
+			   // return -1;
+			}  // End DEFAULT case (unknown protocol family).
+		 }  // End SWITCH on protocol family.
 	}
 */
 //	int is_addr;
@@ -285,7 +285,7 @@ void _np_network_get_address (
  **/
 void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 {
-	np_tryref_obj(np_message_t, msg, hasMsg);
+	np_tryref_obj(np_message_t, msg, hasMsg,"np_tryref_obj_msg");
 	if(hasMsg) {
 		// get encryption details
 		np_aaatoken_t* auth_token = node_key->aaa_token;
@@ -301,7 +301,7 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 			node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
 			np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
 			_np_job_submit_transform_event(0.0, msg_prop, node_key, NULL);
-			np_unref_obj(np_message_t, msg);
+			np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
 			return;
 		}
 	/*
@@ -330,7 +330,7 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 			pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
 			do
 			{
-				np_tryref_obj(np_messagepart_t, iter->val, hasMsgPart);
+				np_tryref_obj(np_messagepart_t, iter->val, hasMsgPart, "np_tryref_obj_iter->val");
 				if(hasMsgPart) {
 					unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
 					CHECK_MALLOC(enc_buffer);
@@ -362,8 +362,8 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 								"incorrect encryption of message (not sending to %s:%s)",
 								node_key->node->dns_name, node_key->node->port);
 						free(enc_buffer);
-						np_unref_obj(np_message_t, msg);
-						np_unref_obj(np_messagepart_t, iter->val);
+						np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
+						np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
 						return; //  FALSE;
 					}
 
@@ -394,14 +394,14 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 					// log_msg (LOG_NETWORKDEBUG, "sent message");
 					// }
 
-					np_unref_obj(np_messagepart_t, iter->val);
+					np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
 					pll_next(iter);
 				}
 				i++;
 
 			} while (NULL != iter);
 		}
-		np_unref_obj(np_message_t, msg);
+		np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
 	}
 	return; // TRUE;
 }
@@ -415,14 +415,14 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	else if (EV_WRITE == (revents & EV_WRITE))
 	{
 		np_key_t* key = event->data;
-		np_tryref_obj(np_key_t, key, keyExists);
+		np_tryref_obj(np_key_t, key, keyExists,"np_tryref_obj_key");
 		if(keyExists)
 		{
 
 			//_np_threads_lock_module(np_network_t_lock);
 
 			np_network_t* key_network = key->network ;
-			np_tryref_obj(np_network_t, key_network, networkExists);
+			np_tryref_obj(np_network_t, key_network, networkExists, "np_tryref_obj_key_network");
 			if (TRUE == networkExists )
 			{
 				if(TRUE == key_network->initialized) {
@@ -476,11 +476,11 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 						}
 					}
 				}
-				np_unref_obj(np_network_t, key_network);
+				np_unref_obj(np_network_t, key_network, "np_tryref_obj_key_network");
 			}else{
 			//	_np_threads_unlock_module(np_network_t_lock);
 			}
-			np_unref_obj(np_key_t,key);
+			np_unref_obj(np_key_t,key, "np_tryref_obj_key");
 		}
 	}
 	else if (EV_READ == (revents & EV_READ))
@@ -495,7 +495,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 
 void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 {
-    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents){");
+	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents){");
 	log_msg(LOG_NETWORK | LOG_TRACE, ".start.np_network_accept");
 
 	if(EV_ERROR & revents)
@@ -510,11 +510,11 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 	//np_state_t* state = _np_state();
 	//np_network_t* ng = state->my_node_key->network;
 	np_key_t* key = (np_key_t*) event->data; // state->my_node_key->network;
-	np_tryref_obj(np_key_t, key, keyExists);
+	np_tryref_obj(np_key_t, key, keyExists, "np_tryref_obj_key");
 	if(keyExists)
 	{
 		np_network_t* ng = key->network;
-		np_tryref_obj(np_network_t, key->network, networkExists);
+		np_tryref_obj(np_network_t, key->network, networkExists, "np_tryref_obj_key_network");
 		if(networkExists)
 		{
 			int client_fd = accept(ng->socket, (struct sockaddr*)NULL,NULL);
@@ -556,67 +556,67 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 						"received connection request from %s:%s (client fd: %d)",
 						ipstr, port, client_fd);
-
-				np_key_t* alias_key = NULL;
+			
 				np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
-				alias_key = _np_keycache_find(search_key);
+				np_key_t* alias_key = _np_keycache_find(search_key);
+				char* alias_key_reason = "_np_keycache_find";
+				np_network_t* old_network = NULL;
+				_LOCK_MODULE(np_network_t)
+				{
+					if(alias_key != NULL) {
+						old_network = 	alias_key->network;
+					} else {
+						// init new alias key
+						alias_key = _np_keycache_create(search_key);
+						alias_key_reason = "_np_keycache_create";
+						alias_key->parent = key;
+					}
+					np_new_obj(np_network_t, alias_key->network);
 
-				//if(alias_key == NULL) {
-					np_network_t* old_network = NULL;
+					_LOCK_ACCESS (&alias_key->network->lock) {
+						alias_key->network->socket = client_fd;
+						alias_key->network->socket_type = ng->socket_type;
+						alias_key->network->waiting = np_tree_create();
+						alias_key->network->seqend = 0LU;
+
+						// it could be a passive socket
+						sll_init(void_ptr, alias_key->network->out_events);
+
+						// set non blocking
+						int current_flags = fcntl(client_fd, F_GETFL);
+						current_flags |= O_NONBLOCK;
+						fcntl(client_fd, F_SETFL, current_flags);
+
+						alias_key->network->initialized = TRUE;
+					}
+				}
+
+				log_debug_msg(LOG_DEBUG,"suspend ev loop for tcp new socket network start");
+
+				alias_key->network->watcher.data = alias_key;
+				ev_io_init(
+						&alias_key->network->watcher,
+						_np_network_read,
+						alias_key->network->socket,
+						EV_READ
+						);
+				_np_network_start(alias_key->network);
+
+				if(old_network != NULL) {
 					_LOCK_MODULE(np_network_t)
 					{
-						if(alias_key != NULL) {
-							old_network = 	alias_key->network;
-						} else {
-							// init new alias key
-							alias_key = _np_keycache_create(search_key);
-							np_ref_obj(np_key_t, alias_key);
-							alias_key->parent = key;
-						}
-						np_new_obj(np_network_t, alias_key->network);
-
-						_LOCK_ACCESS (&alias_key->network->lock) {
-							alias_key->network->socket = client_fd;
-							alias_key->network->socket_type = ng->socket_type;
-							alias_key->network->waiting = np_tree_create();
-							alias_key->network->seqend = 0LU;
-
-							// it could be a passive socket
-							sll_init(void_ptr, alias_key->network->out_events);
-
-							// set non blocking
-							int current_flags = fcntl(client_fd, F_GETFL);
-							current_flags |= O_NONBLOCK;
-							fcntl(client_fd, F_SETFL, current_flags);
-
-							alias_key->network->initialized = TRUE;
-						}
+						np_unref_obj(np_network_t, old_network, ref_key_network);
 					}
+				}
 
-					log_debug_msg(LOG_DEBUG,"suspend ev loop for tcp new socket network start");
-
-					alias_key->network->watcher.data = alias_key;
-					ev_io_init(
-							&alias_key->network->watcher,
-							_np_network_read,
-							alias_key->network->socket,
-							EV_READ
-							);
-					_np_network_start(alias_key->network);
-
-					if(old_network != NULL) {
-						_LOCK_MODULE(np_network_t)
-						{
-							np_unref_obj(np_network_t, old_network);
-						}
-					}
-				//}
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 						"created network for key: %s and watching it.", _np_key_as_str(alias_key));
+
+				np_unref_obj(np_key_t, alias_key, alias_key_reason);
 			}
-			np_unref_obj(np_network_t, ng);
+			np_unref_obj(np_network_t, ng, "np_tryref_obj_key_network");
 		}
-		np_unref_obj(np_key_t, key);
+		np_unref_obj(np_key_t, key, "np_tryref_obj_key");
 	}
 }
 
@@ -627,8 +627,8 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
  **/
 void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 {
-    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents){");
- 	// cast event data structure to np_state_t pointer
+	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents){");
+	// cast event data structure to np_state_t pointer
 
 	char data[MSG_CHUNK_SIZE_1024];
 	struct sockaddr_storage from;
@@ -749,7 +749,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
 				_np_key_as_str(key) );
 
-		np_unref_obj(np_key_t, alias_key);
+		np_unref_obj(np_key_t, alias_key,"_np_keycache_find_or_create");
 	} else {
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "message package error: %s (%d)",
 				strerror(errno), errno);
@@ -759,10 +759,10 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 
 void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 {
-    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents){");
+	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents){");
 
-    if((revents &  EV_ERROR) != EV_ERROR)
-    {
+	if((revents &  EV_ERROR) != EV_ERROR)
+	{
 		if ((revents & EV_WRITE) == EV_WRITE )
 		{
 			_np_network_send_from_events(loop, event, revents);
@@ -772,12 +772,12 @@ void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 		{
 			_np_network_read(loop, event, revents);
 		}
-    }
+	}
 }
 
 void _np_network_stop(np_network_t* network) {
-    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_stop(np_network_t* network){");
-    if(NULL != network){
+	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_stop(np_network_t* network){");
+	if(NULL != network){
 		_LOCK_ACCESS(&network->lock){
 			network->isWatching 	-= 1;
 			if(network->isWatching == 0) {
@@ -792,7 +792,7 @@ void _np_network_stop(np_network_t* network) {
 				);
 			}
 		}
-    }
+	}
 }
 void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 {
@@ -821,10 +821,10 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 				);
 }
 void _np_network_start(np_network_t* network){
-    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
-    if(NULL != network){
-    	_LOCK_ACCESS(&network->lock){
-    		network->isWatching 	+= 1;
+	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
+	if(NULL != network){
+		_LOCK_ACCESS(&network->lock){
+			network->isWatching 	+= 1;
 			if(network->isWatching == 1) {
 				log_msg(LOG_NETWORK | LOG_INFO, "starting network %p",network);
 				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
@@ -832,8 +832,8 @@ void _np_network_start(np_network_t* network){
 			}else{
 				log_msg(LOG_WARN, "COULD NOT START NETWORK %p (already started? (%d))",network,network->isWatching);
 			}
-    	}
-    }
+		}
+	}
 }
 
 /**
@@ -841,7 +841,7 @@ void _np_network_start(np_network_t* network){
  */
 void _np_network_t_del(void* nw)
 {
-    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_del(void* nw){");
+	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_del(void* nw){");
 	np_network_t* network = (np_network_t*) nw;
 
 	// TODO: this may hold the potential for a deadlock
@@ -893,14 +893,14 @@ void _np_network_t_del(void* nw)
 
 void _np_network_t_new(void* nw)
 {
-    log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_new(void* nw){");
-    np_network_t* ng = (np_network_t *) nw;
-    ng->addr_in 	= NULL;
-    ng->waiting 	= NULL;
-    ng->in_events 	= NULL;
-    ng->out_events 	= NULL;
-    ng->isWatching 	= 0;
-    ng->initialized = FALSE;
+	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_new(void* nw){");
+	np_network_t* ng = (np_network_t *) nw;
+	ng->addr_in 	= NULL;
+	ng->waiting 	= NULL;
+	ng->in_events 	= NULL;
+	ng->out_events 	= NULL;
+	ng->isWatching 	= 0;
+	ng->initialized = FALSE;
 
 	log_debug_msg(LOG_DEBUG, "try to pthread_mutex_init");
 	int network_mutex_init = _np_threads_mutex_init (&ng->lock);
@@ -920,25 +920,25 @@ void _np_network_t_new(void* nw)
  **/
 np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* hostname, char* service)
 {
-    int one = 1;
-    int v6_only = 0;
+	int one = 1;
+	int v6_only = 0;
 
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "try to get_network_address");
-    _np_network_get_address (create_socket, &ng->addr_in, type, hostname, service);
-    ng->socket_type = type;
-    if (NULL == ng->addr_in)
-    {
-        log_msg(LOG_ERROR, "could not receive network address");
-        return FALSE;
-    }
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "done get_network_address");
+	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "try to get_network_address");
+	_np_network_get_address (create_socket, &ng->addr_in, type, hostname, service);
+	ng->socket_type = type;
+	if (NULL == ng->addr_in)
+	{
+		log_msg(LOG_ERROR, "could not receive network address");
+		return FALSE;
+	}
+	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "done get_network_address");
 
-    // create an inbound socket - happens only once per node
-    if (TRUE == create_socket )
-    {
-    	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating receiving network");
+	// create an inbound socket - happens only once per node
+	if (TRUE == create_socket )
+	{
+		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating receiving network");
 
-    	_LOCK_ACCESS(&ng->lock)
+		_LOCK_ACCESS(&ng->lock)
 		{
 			// create own retransmit structures
 			ng->waiting = np_tree_create();
@@ -946,7 +946,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			// own sequence number counter
 			ng->seqend = 0LU;
 		}
-    	// nothing to do for passive nodes
+		// nothing to do for passive nodes
 		if ((type & PASSIVE) != PASSIVE) {
 
 			// server setup - create socket
@@ -1004,8 +1004,8 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			}
 			_np_network_start(ng);
 		}
-    	ng->initialized = TRUE;
-    	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local listening socket");
+		ng->initialized = TRUE;
+		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local listening socket");
 
 	} else {
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating sending network");
@@ -1015,27 +1015,27 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 		sll_init(void_ptr, ng->out_events);
 
 		// client socket - wait for writeable socket
-    	ng->socket = socket (ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
-    	if (0 > ng->socket)
-    	{
-    		log_msg(LOG_ERROR, "could not create socket: %s", strerror (errno));
-    		return FALSE;
-    	}
-    	if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
-    	{
-    		log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
-    		close (ng->socket);
-    		return FALSE;
+		ng->socket = socket (ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
+		if (0 > ng->socket)
+		{
+			log_msg(LOG_ERROR, "could not create socket: %s", strerror (errno));
+			return FALSE;
 		}
-    	if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
-    	{
-    		// enable ipv4 mapping
-    		log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
+		if (-1 == setsockopt (ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *) &one, sizeof (one)))
+		{
+			log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror (errno));
+			close (ng->socket);
+			return FALSE;
+		}
+		if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
+		{
+			// enable ipv4 mapping
+			log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
 		}
 
 
 #ifdef SKIP_EVLOOP
-    	// TODO: write normal threading receiver
+		// TODO: write normal threading receiver
 #endif
 		// initialize to be on the safe side
 		ng->watcher.data = NULL;
@@ -1066,10 +1066,10 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 				return FALSE;
 			}
 		}
-    	// set non blocking
-    	int current_flags = fcntl(ng->socket, F_GETFL);
-    	current_flags |= O_NONBLOCK;
-    	fcntl(ng->socket, F_SETFL, current_flags);
+		// set non blocking
+		int current_flags = fcntl(ng->socket, F_GETFL);
+		current_flags |= O_NONBLOCK;
+		fcntl(ng->socket, F_SETFL, current_flags);
 
 		if (0 != (type & PASSIVE))
 		{
@@ -1087,9 +1087,9 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 				": %d %p %p :", ng->socket, &ng->watcher,  &ng->watcher.data);
 
 		ng->initialized = TRUE;
-    	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local sending socket");
-    }
+		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local sending socket");
+	}
 
-    freeaddrinfo( ng->addr_in );
-    return TRUE;
+	freeaddrinfo( ng->addr_in );
+	return TRUE;
 }

@@ -13,17 +13,23 @@
 extern "C" {
 #endif
 
-const char* ref_msgpartcache = "ref_msgpartcache";
-const char* ref_state_identity = "ref_state_identity";
-const char* ref_obj_creation = "obj_creation";
- const char* ref_network_watcher = "ref_network_watcher";
-const char* ref_keycache = "ref_keycache";
-const char* ref_key_recv_property = "ref_key_recv_property";
-const char* ref_key_send_property = "ref_key_send_property";
-const char* ref_key_aaa_token = "ref_key_aaa_token";
-const char* ref_key_node = "ref_key_node";
-const char* ref_key_network = "ref_key_network";
-const char* ref_message_messagepart = "ref_key_network";
+	#define ref_msgpartcache				"ref_msgpartcache"
+	#define ref_state_identity				"ref_state_identity"
+	#define ref_obj_creation				"ref_obj_creation"
+	#define ref_network_watcher				"ref_network_watcher"
+	#define ref_keycache					"ref_keycache"
+	#define ref_key_recv_property			"ref_key_recv_property"
+	#define ref_key_send_property			"ref_key_send_property"
+	#define ref_key_aaa_token				"ref_key_aaa_token"
+	#define ref_key_node					"ref_key_node"
+	#define ref_key_network					"ref_key_network"
+	#define ref_message_messagepart			"ref_key_network"
+	#define ref_system_msgproperty			"ref_system_msgproperty"
+	#define ref_route_routingtable_mykey	"ref_route_routingtable_mykey"
+	#define ref_route_inroute				"ref_route_inroute"
+	#define ref_route_inleafset				"ref_route_inleafset"
+	#define ref_msgproperty_msgcache		"ref_msgproperty_msgcache"
+
 
 #ifdef __cplusplus
 }

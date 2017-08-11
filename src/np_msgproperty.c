@@ -35,6 +35,9 @@
 #include "np_util.h"
 #include "np_treeval.h"
 #include "np_settings.h"
+#include "np_constants.h"
+
+
 #define NR_OF_ELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
 #include "np_msgproperty_init.c"
@@ -87,7 +90,7 @@ np_bool _np_msgproperty_init ()
  **/
 np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* subject)
 {
-    log_msg(LOG_TRACE, "start: np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* subject){");
+	log_msg(LOG_TRACE, "start: np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* subject){");
 	assert(subject != NULL);
 
 	np_msgproperty_t prop = { .msg_subject=(char*) subject, .mode_type=mode_type };
@@ -96,7 +99,7 @@ np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* sub
 
 int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2)
 {
-    log_msg(LOG_TRACE, "start: int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2){");
+	log_msg(LOG_TRACE, "start: int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2){");
 //	log_debug_msg(LOG_DEBUG, "%s %d (&) %s %d",
 //			prop1->msg_subject, prop1->mode_type,
 //			prop2->msg_subject, prop2->mode_type );
@@ -136,16 +139,16 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 
 void np_msgproperty_register(np_msgproperty_t* msgprops)
 {
-    log_msg(LOG_TRACE, "start: void np_msgproperty_register(np_msgproperty_t* msgprops){");
+	log_msg(LOG_TRACE, "start: void np_msgproperty_register(np_msgproperty_t* msgprops){");
 	log_debug_msg(LOG_DEBUG, "registering user property: %s", msgprops->msg_subject);
 
-	np_ref_obj(np_msgproperty_t, msgprops);
+	np_ref_obj(np_msgproperty_t, msgprops, ref_system_msgproperty);
 	RB_INSERT(rbt_msgproperty, __msgproperty_table, msgprops);
 }
 
 void _np_msgproperty_t_new(void* property)
 {
-    log_msg(LOG_TRACE, "start: void _np_msgproperty_t_new(void* property){");
+	log_msg(LOG_TRACE, "start: void _np_msgproperty_t_new(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
 	prop->token_min_ttl = MSGPROPERTY_DEFAULT_MIN_TTL_SEC;
@@ -183,10 +186,10 @@ void _np_msgproperty_t_new(void* property)
 
 void _np_msgproperty_t_del(void* property)
 {
-    log_msg(LOG_TRACE, "start: void _np_msgproperty_t_del(void* property){");
+	log_msg(LOG_TRACE, "start: void _np_msgproperty_t_del(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
-    log_debug_msg(LOG_DEBUG, "Deleting msgproperty %s",prop->msg_subject);
+	log_debug_msg(LOG_DEBUG, "Deleting msgproperty %s",prop->msg_subject);
 
 	assert(prop != NULL);
 
@@ -217,7 +220,7 @@ void _np_msgproperty_t_del(void* property)
 
 void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 {
-    log_msg(LOG_TRACE, "start: void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop){");
+	log_msg(LOG_TRACE, "start: void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop){");
 	// check if we are (one of the) sending node(s) of this kind of message
 	// should not return NULL
 	log_debug_msg(LOG_DEBUG,
@@ -251,7 +254,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 		if(NULL != msg_out){
 			send_prop->msg_threshold--;
 			sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop, NULL);
-			np_unref_obj(np_message_t, msg_out);
+			np_unref_obj(np_message_t, msg_out, ref_msgproperty_msgcache);
 
 			log_debug_msg(LOG_DEBUG,
 					"message in cache found and re-send initialized");
@@ -261,7 +264,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 
 void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 {
-    log_msg(LOG_TRACE, "start: void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop){");
+	log_msg(LOG_TRACE, "start: void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop){");
 	log_debug_msg(LOG_DEBUG,
 			"this node is the receiver of messages, checking msgcache (%p / %u) ...",
 			recv_prop->msg_cache_in, sll_size(recv_prop->msg_cache_in));
@@ -293,14 +296,14 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 		if(NULL != msg_in) {
 			recv_prop->msg_threshold--;
 			_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in);
-			np_unref_obj(np_message_t, msg_in);
+			np_unref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 		}
 	}
 }
 
 void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
-    log_msg(LOG_TRACE, "start: void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in){");
+	log_msg(LOG_TRACE, "start: void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in){");
 	_LOCK_ACCESS(&msg_prop->lock)
 	{
 		// cache already full ?
@@ -323,7 +326,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 				{
 					// TODO: add callback hook to allow user space handling of discarded message
 					msg_prop->msg_threshold--;
-					np_unref_obj(np_message_t, old_msg);
+					np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
 				}
 			}
 
@@ -339,13 +342,13 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 
 		log_debug_msg(LOG_DEBUG, "added message to the sender msgcache (%p / %d) ...",
 				msg_prop->msg_cache_out, sll_size(msg_prop->msg_cache_out));
-		np_ref_obj(np_message_t, msg_in);
+		np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 	}
 }
 
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
-    log_msg(LOG_TRACE, "start: void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in){");
+	log_msg(LOG_TRACE, "start: void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in){");
 	_LOCK_ACCESS(&msg_prop->lock)
 	{
 		// cache already full ?
@@ -367,7 +370,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 				{
 					// TODO: add callback hook to allow user space handling of discarded message
 					msg_prop->msg_threshold--;
-					np_unref_obj(np_message_t, old_msg);
+					np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
 				}
 			}
 
@@ -383,6 +386,6 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 
 		log_debug_msg(LOG_DEBUG, "added message to the recv msgcache (%p / %d) ...",
 				msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
-		np_ref_obj(np_message_t, msg_in);
+		np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 	}
 }

@@ -43,7 +43,7 @@ static np_obj_pool_t* __np_obj_pool_ptr;
 
 void np_mem_init()
 {
-    log_msg(LOG_TRACE, "start: void np_mem_init(){");
+	log_msg(LOG_TRACE, "start: void np_mem_init(){");
 	__np_obj_pool_ptr = (np_obj_pool_t*) malloc(sizeof(np_obj_pool_t));
 	CHECK_MALLOC(__np_obj_pool_ptr);
 
@@ -61,24 +61,24 @@ void np_mem_init()
 		np_new_obj(np_messagepart_t, tmp);
 		np_free_obj(np_messagepart_t, tmp);
 	}
-    log_msg(LOG_DEBUG, "Initiated cache with %d free spaces",i);
-    */
+	log_msg(LOG_DEBUG, "Initiated cache with %d free spaces",i);
+	*/
 
 }
 
 void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 {
-    log_msg(LOG_TRACE, "start: void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj){");
-    if (NULL != __np_obj_pool_ptr->free_obj)
+	log_msg(LOG_TRACE, "start: void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj){");
+	if (NULL != __np_obj_pool_ptr->free_obj)
 	{
-    	__np_obj_pool_ptr->current  = __np_obj_pool_ptr->free_obj;
-    	__np_obj_pool_ptr->free_obj = __np_obj_pool_ptr->free_obj->next;
-    	__np_obj_pool_ptr->available--;
+		__np_obj_pool_ptr->current  = __np_obj_pool_ptr->free_obj;
+		__np_obj_pool_ptr->free_obj = __np_obj_pool_ptr->free_obj->next;
+		__np_obj_pool_ptr->available--;
 
 #ifdef DEBUG
-    	free(__np_obj_pool_ptr->current->id);
-    	__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);
-    	sll_init(char_ptr, __np_obj_pool_ptr->current->reasons);
+		free(__np_obj_pool_ptr->current->id);
+		__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);
+		sll_clear(char_ptr, __np_obj_pool_ptr->current->reasons);
 #endif
 	}
 	else
@@ -87,15 +87,15 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 		CHECK_MALLOC(__np_obj_pool_ptr->current);
 		__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);
 #ifdef DEBUG
-		sll_init(char_ptr, __np_obj_pool_ptr->current->reasons);
+		sll_init(char_ptr, (__np_obj_pool_ptr->current->reasons));
 #endif
 		__np_obj_pool_ptr->size++;
-    }
+	}
 
 	_np_threads_mutex_init(&__np_obj_pool_ptr->current->lock);
-    __np_obj_pool_ptr->current->type = obj_type;
-    __np_obj_pool_ptr->current->ref_count = 0;
-    __np_obj_pool_ptr->current->next = NULL;
+	__np_obj_pool_ptr->current->type = obj_type;
+	__np_obj_pool_ptr->current->ref_count = 0;
+	__np_obj_pool_ptr->current->next = NULL;
 	if (NULL != __np_obj_pool_ptr->first)
 	{
 		__np_obj_pool_ptr->current->next = __np_obj_pool_ptr->first;
@@ -109,7 +109,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 
 void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 {
-    log_msg(LOG_TRACE, "start: void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj){");
+	log_msg(LOG_TRACE, "start: void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj){");
 
 	if (NULL != (*obj) &&
 		NULL != (*obj)->ptr &&
@@ -126,7 +126,10 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 		if (NULL != obj_tmp) obj_tmp->next = (*obj)->next;
 		else __np_obj_pool_ptr->first = __np_obj_pool_ptr->first->next;
 		(*obj)->type = np_none_t_e;
-	    (*obj)->next = __np_obj_pool_ptr->free_obj;
+		(*obj)->next = __np_obj_pool_ptr->free_obj;
+#ifdef DEBUG
+		sll_clear(char_ptr, (*obj)->reasons);
+#endif
 		_np_threads_mutex_destroy(&(*obj)->lock);
 		__np_obj_pool_ptr->free_obj = (*obj);
 		__np_obj_pool_ptr->available++;
@@ -139,24 +142,40 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 // increase ref count
 void np_mem_refobj(np_obj_t* obj,char* reason)
 {
-    log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
+	log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
 	obj->ref_count++;
 	//log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
 #ifdef DEBUG
-	sll_prepend(char_ptr, obj->reasons,reason);
+	sll_append(char_ptr, obj->reasons, reason);
 #endif
 	}
 // decrease ref count
 void np_mem_unrefobj(np_obj_t* obj, char* reason)
 {
-    log_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
+	log_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
 	obj->ref_count--;
 	//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
 	if(obj->ref_count < 0){
 		log_msg(LOG_ERROR,"Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
 	}
 #ifdef DEBUG
-	sll_delete(char_ptr, obj->reasons,reason);
+	sll_iterator(char_ptr) iter_reasons = sll_first(obj->reasons);
+	np_bool foundReason = FALSE;
+	while (foundReason == FALSE && iter_reasons != NULL)
+	{
+		foundReason = 0 == strcmp(iter_reasons->val,reason);
+		if (foundReason == TRUE) {
+			sll_delete(char_ptr, obj->reasons, iter_reasons);
+			break;
+		}
+		sll_next(iter_reasons);
+	}
+	if (FALSE == foundReason) {
+		log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (%d) was not found.",reason,obj->id,obj->type);
+#ifdef STRICT
+		exit(EXIT_FAILURE);
+#endif
+	}	
 #endif
 
 }
@@ -164,13 +183,13 @@ void np_mem_unrefobj(np_obj_t* obj, char* reason)
 // print the complete object list and statistics
 char* np_mem_printpool(np_bool asOneLine)
 {
-    log_msg(LOG_TRACE, "start: void np_mem_printpool(){");
-    char* ret = NULL;
-    char* new_line = "\n";
-    if(asOneLine == TRUE){
-    	new_line = "    ";
-    }
-    char* subject_list = NULL;
+	log_msg(LOG_TRACE, "start: void np_mem_printpool(){");
+	char* ret = NULL;
+	char* new_line = "\n";
+	if(asOneLine == TRUE){
+		new_line = "    ";
+	}
+	char* subject_list = NULL;
 
 	uint64_t summary[100] = {
 			0,0,0,0,0,0,0,0,0,0,
@@ -185,7 +204,7 @@ char* np_mem_printpool(np_bool asOneLine)
 			0,0,0,0,0,0,0,0,0,0
 	};
 
-    _LOCK_MODULE(np_memory_t) {
+	_LOCK_MODULE(np_memory_t) {
 		//asprintf(ret, "--- used memory table---");
 		for (np_obj_t* iter = __np_obj_pool_ptr->first; iter != NULL; iter = iter->next )
 		{
@@ -194,6 +213,21 @@ char* np_mem_printpool(np_bool asOneLine)
 			// if (iter->type == np_message_t_e) {
 			// subject_list = _np_concatAndFree(subject_list, "%s%s", ((np_message_t*)iter->ptr)->uuid, new_line);
 			// }
+#ifdef DEBUG
+			if (FALSE == asOneLine) 
+			{
+				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (%d) start ---%s",iter->id, iter->type, new_line);
+
+				sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
+				while(iter_reasons != NULL)
+				{
+					ret = _np_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+					sll_next(iter_reasons);
+				}
+				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (%d) end  ---%s", iter->id, iter->type, new_line);
+			}
+#endif
+
 		}
 		//asprintf(ret, "--- free memory table---\n");
 		for (np_obj_t* iter = __np_obj_pool_ptr->free_obj; iter != NULL; iter = iter->next )
@@ -204,23 +238,23 @@ char* np_mem_printpool(np_bool asOneLine)
 		ret = _np_concatAndFree(ret, "first %12p, free %12p, current %12p%s", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current,new_line);
 		ret = _np_concatAndFree(ret, "size %4d, in use %4d,  available %4d%s", __np_obj_pool_ptr->size, __np_obj_pool_ptr->size - __np_obj_pool_ptr->available,__np_obj_pool_ptr->available,new_line);
 		//0x7f8455c03e80
-    }
-    ret = _np_concatAndFree(ret, "np_none_t_e        count %4"PRIu64" %s", 	summary[np_none_t_e],		new_line);
-    ret = _np_concatAndFree(ret, "np_message_t_e     count %4"PRIu64" %s", 	summary[np_message_t_e],	new_line);
-    ret = _np_concatAndFree(ret, "np_messagepart_t_e count %4"PRIu64" %s", 	summary[np_messagepart_t_e],new_line);
-    ret = _np_concatAndFree(ret, "np_node_t_e        count %4"PRIu64" %s", 	summary[np_node_t_e],		new_line);
-    ret = _np_concatAndFree(ret, "np_key_t_e         count %4"PRIu64" %s", 	summary[np_key_t_e],		new_line);
-    ret = _np_concatAndFree(ret, "np_aaatoken_t_e    count %4"PRIu64" %s", 	summary[np_aaatoken_t_e],	new_line);
-    ret = _np_concatAndFree(ret, "np_msgproperty_t_e count %4"PRIu64" %s", 	summary[np_msgproperty_t_e],new_line);
-    ret = _np_concatAndFree(ret, "np_http_t_e        count %4"PRIu64" %s", 	summary[np_http_t_e],		new_line);
-    ret = _np_concatAndFree(ret, "np_network_t_e     count %4"PRIu64" %s", 	summary[np_network_t_e],	new_line);
-    ret = _np_concatAndFree(ret, "test_struct_t_e    count %4"PRIu64" %s", 	summary[test_struct_t_e],	new_line);
+	}
+	ret = _np_concatAndFree(ret, "np_none_t_e        count %4"PRIu64" %s", 	summary[np_none_t_e],		new_line);
+	ret = _np_concatAndFree(ret, "np_message_t_e     count %4"PRIu64" %s", 	summary[np_message_t_e],	new_line);
+	ret = _np_concatAndFree(ret, "np_messagepart_t_e count %4"PRIu64" %s", 	summary[np_messagepart_t_e],new_line);
+	ret = _np_concatAndFree(ret, "np_node_t_e        count %4"PRIu64" %s", 	summary[np_node_t_e],		new_line);
+	ret = _np_concatAndFree(ret, "np_key_t_e         count %4"PRIu64" %s", 	summary[np_key_t_e],		new_line);
+	ret = _np_concatAndFree(ret, "np_aaatoken_t_e    count %4"PRIu64" %s", 	summary[np_aaatoken_t_e],	new_line);
+	ret = _np_concatAndFree(ret, "np_msgproperty_t_e count %4"PRIu64" %s", 	summary[np_msgproperty_t_e],new_line);
+	ret = _np_concatAndFree(ret, "np_http_t_e        count %4"PRIu64" %s", 	summary[np_http_t_e],		new_line);
+	ret = _np_concatAndFree(ret, "np_network_t_e     count %4"PRIu64" %s", 	summary[np_network_t_e],	new_line);
+	ret = _np_concatAndFree(ret, "test_struct_t_e    count %4"PRIu64" %s", 	summary[test_struct_t_e],	new_line);
 
-    ret = _np_concatAndFree(ret, "--- memory end ---%s",new_line);
+	ret = _np_concatAndFree(ret, "--- memory end ---%s",new_line);
 
-    // ret = _np_concatAndFree(ret, "--- subject list start ---%s",new_line);
-    // ret = _np_concatAndFree(ret, "%s",subject_list);
-    // ret = _np_concatAndFree(ret, "--- subject list end   ---%s",new_line);
+	// ret = _np_concatAndFree(ret, "--- subject list start ---%s",new_line);
+	// ret = _np_concatAndFree(ret, "%s",subject_list);
+	// ret = _np_concatAndFree(ret, "--- subject list end   ---%s",new_line);
 
-    return (ret);
+	return (ret);
 }
