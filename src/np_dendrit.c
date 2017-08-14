@@ -48,7 +48,7 @@
  */
 void _np_in_received(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_received(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_received(np_jobargs_t* args){");
 	log_debug_msg(LOG_DEBUG, "received msg");
 	void* raw_msg = NULL;
 
@@ -334,7 +334,7 @@ void _np_in_received(np_jobargs_t* args)
  **/
 void _np_in_piggy(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_piggy(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_piggy(np_jobargs_t* args){");
 	np_state_t* state = _np_state();
 	np_key_t* node_entry = NULL;
 	// double tmp_ft;
@@ -431,7 +431,7 @@ void _np_in_signal_np_receive (np_jobargs_t* args)
  **/
 void _np_in_callback_wrapper(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_callback_wrapper(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_callback_wrapper(np_jobargs_t* args){");
 	np_aaatoken_t* sender_token = NULL;
 	np_message_t* msg_in = args->msg;
 	np_bool msg_has_expired = FALSE;
@@ -506,7 +506,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
  **/
 void _np_in_leave_req(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_leave_req(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_leave_req(np_jobargs_t* args){");
 	np_key_t* leave_req_key = NULL;
 	np_aaatoken_t* node_token = NULL;
 
@@ -535,7 +535,7 @@ void _np_in_leave_req(np_jobargs_t* args)
  **/
 void _np_in_join_req(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_join_req(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_join_req(np_jobargs_t* args){");
 
 	np_msgproperty_t *msg_prop = NULL;
 	np_key_t* join_req_key = NULL;
@@ -553,7 +553,7 @@ void _np_in_join_req(np_jobargs_t* args)
 	}
 	log_debug_msg(LOG_DEBUG, "token is valid");
 
-    // build a hash to find a place in the dhkey table, not for signing !
+	// build a hash to find a place in the dhkey table, not for signing !
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(join_token);
 
 	join_req_key = _np_keycache_find_or_create(search_key);
@@ -690,7 +690,7 @@ void _np_in_join_req(np_jobargs_t* args)
  **/
 void _np_in_join_ack(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_join_ack(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_join_ack(np_jobargs_t* args){");
 
 	np_message_t* msg_out = NULL;
 	np_key_t* join_key = NULL;
@@ -836,7 +836,7 @@ void _np_in_join_ack(np_jobargs_t* args)
  **/
 void _np_in_join_nack(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_join_nack(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_join_nack(np_jobargs_t* args){");
 
 	np_state_t* state = _np_state();
 	np_waitref_obj(np_key_t, state->my_node_key, my_key,"np_waitref_key");
@@ -872,7 +872,7 @@ void _np_in_join_nack(np_jobargs_t* args)
 
 	nack_key->aaa_token->state &= AAA_INVALID;
 	nack_key->node->joined_network = FALSE;
-    log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
+	log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
 	nack_key->node->handshake_status = HANDSHAKE_UNKNOWN;
 
 	__np_cleanup__:
@@ -886,7 +886,7 @@ void _np_in_join_nack(np_jobargs_t* args)
 
 void _np_in_ping(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_ping(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_ping(np_jobargs_t* args){");
 	np_message_t *msg_out = NULL;
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
@@ -925,7 +925,7 @@ void _np_in_ping(np_jobargs_t* args)
 
 void _np_in_pingreply(np_jobargs_t * args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_pingreply(np_jobargs_t * args){");
+	log_msg(LOG_TRACE, "start: void _np_in_pingreply(np_jobargs_t * args){");
 	np_key_t* pingreply_key = NULL;
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
@@ -950,12 +950,12 @@ void _np_in_pingreply(np_jobargs_t * args)
 
 		log_debug_msg(LOG_DEBUG, "ping reply received from: %s:%s, latency now: %f!",
 				pingreply_key->node->dns_name, pingreply_key->node->port,
-			    pingreply_key->node->latency);
+				pingreply_key->node->latency);
 	}
 	else
 	{
 		log_debug_msg(LOG_DEBUG, "ignoring unknown ping reply from %s", msg_from.value.s);
-		 		// pingreply_key->node->dns_name, pingreply_key->node->port);
+				// pingreply_key->node->dns_name, pingreply_key->node->port);
 	}
 
 	__np_cleanup__:
@@ -972,7 +972,7 @@ void _np_in_pingreply(np_jobargs_t * args)
 // receive information about new nodes in the network and try to contact new nodes
 void _np_in_update(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_update(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_update(np_jobargs_t* args){");
 
 	np_key_t *update_key = NULL;
 	np_aaatoken_t* update_token = NULL;
@@ -1013,8 +1013,8 @@ void _np_in_update(np_jobargs_t* args)
 					FALSE, TRUE, TRUE, FALSE);
 			free(connection_str);
 
-		    if(NULL != old_key)
-		    {
+			if(NULL != old_key)
+			{
 				log_msg(LOG_INFO,
 					"Node %s replaces itself with node %s",
 					_np_key_as_str(args->target),
@@ -1035,7 +1035,7 @@ void _np_in_update(np_jobargs_t* args)
 			_np_send_simple_invoke_request(update_key, _NP_MSG_JOIN_REQUEST);
 		}
 	} else {
-	    log_debug_msg(LOG_DEBUG, "Sending no join %d",update_key->node->handshake_status);
+		log_debug_msg(LOG_DEBUG, "Sending no join %d",update_key->node->handshake_status);
 	}
 
 	// TODO: forward update token to other neighbours
@@ -1050,7 +1050,7 @@ void _np_in_update(np_jobargs_t* args)
 
 void _np_in_discover_sender(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_discover_sender(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_discover_sender(np_jobargs_t* args){");
 	np_key_t *reply_to_key = NULL;
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
@@ -1115,7 +1115,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 
 void _np_in_available_sender(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_available_sender(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_available_sender(np_jobargs_t* args){");
 
 	np_message_t *msg_in = args->msg;
 
@@ -1174,7 +1174,7 @@ void _np_in_available_sender(np_jobargs_t* args)
 
 void _np_in_discover_receiver(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_discover_receiver(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_discover_receiver(np_jobargs_t* args){");
 
 	np_key_t *reply_to_key = NULL;
 	np_aaatoken_t* msg_token = NULL;
@@ -1233,13 +1233,13 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 void _np_in_available_receiver(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_available_receiver(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_available_receiver(np_jobargs_t* args){");
 
-    np_state_t* state = _np_state();
+	np_state_t* state = _np_state();
 	np_waitref_obj(np_key_t, state->my_node_key, my_key,"np_waitref_key");
 	np_waitref_obj(np_key_t, state->my_identity, my_identity,"np_waitref_identity");
 
-    // extract e2e encryption details for sender
+	// extract e2e encryption details for sender
 	np_aaatoken_t* msg_token = NULL;
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_TO, msg_to);
@@ -1293,7 +1293,7 @@ void _np_in_available_receiver(np_jobargs_t* args)
 
 void _np_in_authenticate(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_authenticate(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_authenticate(np_jobargs_t* args){");
 	np_key_t *reply_to_key = NULL;
 	np_aaatoken_t* sender_token = NULL;
 	np_aaatoken_t* authentication_token = NULL;
@@ -1375,7 +1375,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 
 void _np_in_authenticate_reply(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_authenticate_reply(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_authenticate_reply(np_jobargs_t* args){");
 	np_aaatoken_t* authentication_token = NULL;
 	np_aaatoken_t* sender_token = NULL;
 	np_key_t* subject_key = NULL;
@@ -1472,7 +1472,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 
 void _np_in_authorize(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_authorize(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_authorize(np_jobargs_t* args){");
 	np_key_t *reply_to_key = NULL;
 	np_aaatoken_t* sender_token = NULL;
 	np_aaatoken_t* authorization_token = NULL;
@@ -1555,7 +1555,7 @@ void _np_in_authorize(np_jobargs_t* args)
 
 void _np_in_authorize_reply(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_authorize_reply(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_authorize_reply(np_jobargs_t* args){");
 	np_aaatoken_t* authorization_token = NULL;
 	np_aaatoken_t* sender_token = NULL;
 
@@ -1648,7 +1648,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 
 void _np_in_account(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_account(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_account(np_jobargs_t* args){");
 	np_aaatoken_t* sender_token = NULL;
 	np_aaatoken_t* accounting_token = NULL;
 
@@ -1686,7 +1686,7 @@ void _np_in_account(np_jobargs_t* args)
 
 void _np_in_handshake(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_in_handshake(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_handshake(np_jobargs_t* args){");
 
 	np_key_t* hs_key = NULL;
 	np_key_t* hs_wildcard_key = NULL;
@@ -1838,7 +1838,7 @@ void _np_in_handshake(np_jobargs_t* args)
 	}
 
 	np_state_t* state = _np_state();
- 	np_waitref_obj(np_aaatoken_t, state->my_node_key->aaa_token, my_id_token,"np_waitref_my_node_key->aaa_token");
+	np_waitref_obj(np_aaatoken_t, state->my_node_key->aaa_token, my_id_token,"np_waitref_my_node_key->aaa_token");
 
 	// get our own identity from the cache and convert to curve key
 	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
@@ -1848,7 +1848,7 @@ void _np_in_handshake(np_jobargs_t* args)
 	// crypto_sign_ed25519_pk_to_curve25519(
 	//		curve25519_pk, my_id_token->public_key);
 
- 	np_unref_obj(np_aaatoken_t, my_id_token,"np_waitref_my_node_key->aaa_token");
+	np_unref_obj(np_aaatoken_t, my_id_token,"np_waitref_my_node_key->aaa_token");
 
 	// create shared secret
 	unsigned char shared_secret[crypto_scalarmult_BYTES];

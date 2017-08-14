@@ -183,10 +183,10 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		va_end(ap);
 		snprintf(new_log_entry+wb, 1124-wb, "\n");
 
-//#if defined(CONSOLE_LOG) && CONSOLE_LOG == 1
+#if defined(CONSOLE_LOG) && CONSOLE_LOG == 1
 		fprintf(stdout, new_log_entry);
 		fprintf(stdout, "/n");
-//#endif
+#endif
 		
 		if(0 == pthread_mutex_lock(&__log_mutex)) 
 		{
@@ -206,7 +206,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 
 void _np_log_fflush(np_bool force)
 {
-	log_msg(LOG_TRACE, "start: void _np_log_fflush(){");
+	//log_msg(LOG_TRACE, "start: void _np_log_fflush(){");
 	char* entry = NULL;
 	int lock_result = 0;
 

@@ -159,7 +159,8 @@ int main(int argc, char **argv)
 		level = LOG_ERROR | LOG_WARN | LOG_INFO;
 	}else if(level <= -3){ // debug
 		level = LOG_ERROR | LOG_WARN | LOG_INFO //| LOG_DEBUG
-				  //| LOG_MUTEX | LOG_TRACE
+				  | LOG_MUTEX 
+				  //| LOG_TRACE
 				  //| LOG_ROUTING
 				  //| LOG_HTTP
 				  //| LOG_KEY

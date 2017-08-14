@@ -67,9 +67,9 @@ static double  __cleanup_interval = 0.31415;
  **/
 void _np_route_lookup_jobexec(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_route_lookup_jobexec(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_route_lookup_jobexec(np_jobargs_t* args){");
 
- 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key, "np_waitref_obj");
+	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key, "np_waitref_obj");
 
 	np_sll_t(np_key_t, tmp) = NULL;
 	np_key_t* target_key = NULL;
@@ -138,8 +138,8 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 			if (NULL == msg_to_submit)
 			{
 				sll_free(np_key_t, tmp);
-			 	np_unref_obj(np_key_t, my_key, "np_waitref_obj");
-			 	return;
+				np_unref_obj(np_key_t, my_key, "np_waitref_obj");
+				return;
 			}
 			_np_message_deserialize_chunked(msg_to_submit);
 			np_unref_obj(np_message_t, msg_to_submit, "_np_message_check_chunks_complete");
@@ -197,7 +197,7 @@ void _np_never_called_jobexec_outbound(np_jobargs_t* args)
 }
 void _np_never_called_jobexec(np_jobargs_t* args,char* category)
 {
-    log_msg(LOG_TRACE, "start: void _np_never_called_jobexec(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_never_called_jobexec(np_jobargs_t* args){");
 	log_msg(LOG_WARN, "!!!                               !!!");
 	log_msg(LOG_WARN, "!!! wrong job execution requested (%s) !!!",category);
 	if (NULL != args)
@@ -220,7 +220,7 @@ void _np_never_called_jobexec(np_jobargs_t* args,char* category)
  **/
 void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args){");
 
 	np_sll_t(np_key_t, leafset) = NULL;
 	np_key_t *tmp_node_key = NULL;
@@ -351,13 +351,13 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
  **/
 void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args){");
 	np_state_t* state = _np_state();
 
 	np_tree_elem_t *iter = NULL;
 	np_msgproperty_t* msg_prop = NULL;
 
- 	RB_FOREACH(iter, np_tree_s, state->msg_tokens)
+	RB_FOREACH(iter, np_tree_s, state->msg_tokens)
 	{
 		// double now = dtime();
 		// double last_update = iter->val.value.d;
@@ -413,9 +413,9 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 
 void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args){");
 
-    _LOCK_MODULE(np_node_renewal_t) {
+	_LOCK_MODULE(np_node_renewal_t) {
 		np_state_t* state = _np_state();
 
 		// check an refresh my own identity + node tokens if required
@@ -436,7 +436,7 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 
 		// retrigger execution
 		np_job_submit_event(__token_retransmit_period, _np_renew_node_token_jobexec);
-    }
+	}
 }
 
 /**
@@ -448,11 +448,11 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
  **/
 void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args){");
 
 
- 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key,"np_waitref_obj");
- 	np_network_t* ng = my_key->network;
+	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key,"np_waitref_obj");
+	np_network_t* ng = my_key->network;
 
 	np_tree_elem_t *jrb_ack_node = NULL;
 
@@ -502,7 +502,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 
 void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args){");
 
 	np_key_t* old = NULL;
 	double now = ev_time();
@@ -601,7 +601,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
  **/
 void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_send_rowinfo_jobexec(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_send_rowinfo_jobexec(np_jobargs_t* args){");
 
 	np_state_t* state = _np_state();
 	np_key_t* target_key = args->target;
@@ -647,7 +647,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 
 np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 {
-    log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request){");
+	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request){");
 
 	np_state_t* state = _np_state();
 
@@ -657,7 +657,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	char msg_uuid_subject[255];
 	snprintf(msg_uuid_subject, 255, "urn:np:msg:%s", msg_request->msg_subject);
 
- 	np_waitref_obj(np_key_t, state->my_identity, my_identity,"np_waitref_obj");
+	np_waitref_obj(np_key_t, state->my_identity, my_identity,"np_waitref_obj");
 
 	// create token
 	strncpy(msg_token->realm, my_identity->aaa_token->realm, 255);
@@ -707,15 +707,15 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	_np_aaatoken_add_signature(msg_token);
 
 	msg_token->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
- 	np_unref_obj(np_key_t, my_identity,"np_waitref_obj");
- 	return (msg_token);
+	np_unref_obj(np_key_t, my_identity,"np_waitref_obj");
+	return (msg_token);
 }
 
 void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject)
 {
-    log_msg(LOG_TRACE, "start: void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject){");
+	log_msg(LOG_TRACE, "start: void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject){");
 
-    //TODO: msg_tokens for either
+	//TODO: msg_tokens for either
 	// insert into msg token token renewal queue
 	if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))
 	{
