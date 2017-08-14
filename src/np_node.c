@@ -32,6 +32,7 @@
 #include "np_threads.h"
 #include "np_util.h"
 #include "np_settings.h"
+#include "np_constants.h"
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 

@@ -36,19 +36,19 @@ enum np_log_e
 	LOG_NOMOD		    = 0x000000, /*                    */
 
 	LOG_ERROR     		= 0x000001, /* error messages     */
-    LOG_WARN       		= 0x000002, /* warning messages   */
-    LOG_INFO       		= 0x000004, /* info messages      */
-    LOG_DEBUG      		= 0x000008, /* debugging messages */
-    LOG_TRACE      		= 0x000010, /* tracing messages   */
+	LOG_WARN       		= 0x000002, /* warning messages   */
+	LOG_INFO       		= 0x000004, /* info messages      */
+	LOG_DEBUG      		= 0x000008, /* debugging messages */
+	LOG_TRACE      		= 0x000010, /* tracing messages   */
 
 	LOG_SERIALIZATION	= 0x000100, /* debugging the serialization methods    */
 	LOG_MUTEX      		= 0x000200, /* debugging messages for mutex subsystem */
 	LOG_KEY        		= 0x000400, /* debugging messages for key subsystem   */
 	LOG_NETWORK    		= 0x000800, /* debugging messages for network layer   */
-    LOG_ROUTING    		= 0x001000, /* debugging the routing table            */
-    LOG_MESSAGE    		= 0x002000, /* debugging the message subsystem        */
-    LOG_SECURE     		= 0x004000, /* debugging the security module          */
-    LOG_HTTP       		= 0x008000, /* debugging the http subsystem           */
+	LOG_ROUTING    		= 0x001000, /* debugging the routing table            */
+	LOG_MESSAGE    		= 0x002000, /* debugging the message subsystem        */
+	LOG_SECURE     		= 0x004000, /* debugging the security module          */
+	LOG_HTTP       		= 0x008000, /* debugging the http subsystem           */
 	LOG_AAATOKEN   		= 0x010000, /* debugging the aaatoken subsystem       */
 	LOG_MEMORY 			= 0x020000, /* debugging the memory subsystem      	  */
 	LOG_SYSINFO			= 0x040000, /* debugging the Sysinfo subsystem     	  */

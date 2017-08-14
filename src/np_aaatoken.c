@@ -22,6 +22,7 @@
 #include "np_msgproperty.h"
 #include "np_threads.h"
 #include "np_settings.h"
+#include "np_constants.h"
 
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_aaatoken_t);

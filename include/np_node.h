@@ -34,24 +34,24 @@ struct np_node_s
 
 	uint8_t protocol;
 	char *dns_name;
-    char* port;
+	char* port;
 
-    // state extension
-    handshake_status_e handshake_status; // enum
-    np_bool joined_network;   // TRUE / FALSE
+	// state extension
+	handshake_status_e handshake_status; // enum
+	np_bool joined_network;   // TRUE / FALSE
 
 	// statistics
-    double failuretime;
-    double last_success;
-    double latency;
-    double latency_win[SUCCESS_WINDOW];
-    uint8_t latency_win_index;
-    uint8_t success_win[SUCCESS_WINDOW];
-    uint8_t success_win_index;
-    float success_avg;
+	double failuretime;
+	double last_success;
+	double latency;
+	double latency_win[SUCCESS_WINDOW];
+	uint8_t latency_win_index;
+	uint8_t success_win[SUCCESS_WINDOW];
+	uint8_t success_win_index;
+	float success_avg;
 
-    // load average of the node
-    float load;
+	// load average of the node
+	float load;
 
 } NP_API_INTERN;
 

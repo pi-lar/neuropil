@@ -76,7 +76,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 		__np_obj_pool_ptr->free_obj = __np_obj_pool_ptr->free_obj->next;
 		__np_obj_pool_ptr->available--;
 
-#ifdef DEBUG
+#ifdef MEMORY_CHECK
 		free(__np_obj_pool_ptr->current->id);
 		__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);		
 #endif
@@ -86,7 +86,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 		__np_obj_pool_ptr->current = (np_obj_t*) malloc (sizeof(np_obj_t) );
 		CHECK_MALLOC(__np_obj_pool_ptr->current);
 		__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);
-#ifdef DEBUG
+#ifdef MEMORY_CHECK
 		sll_init(char_ptr, (__np_obj_pool_ptr->current->reasons));
 #endif
 		__np_obj_pool_ptr->size++;
@@ -127,7 +127,7 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 		else __np_obj_pool_ptr->first = __np_obj_pool_ptr->first->next;
 		(*obj)->type = np_none_t_e;
 		(*obj)->next = __np_obj_pool_ptr->free_obj;
-#ifdef DEBUG
+#ifdef MEMORY_CHECK
 		// cleanup old reasoning (if any, should be none)
 		sll_iterator(char_ptr) iter_reasons = sll_first((*obj)->reasons);		
 		while (iter_reasons != NULL)
@@ -152,7 +152,7 @@ void np_mem_refobj(np_obj_t* obj, char* reason)
 	log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
 	obj->ref_count++;
 	//log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
-#ifdef DEBUG
+#ifdef MEMORY_CHECK
 	assert(reason != NULL);
 	sll_prepend(char_ptr, obj->reasons, strndup(reason,strlen(reason)));
 #endif
@@ -166,20 +166,21 @@ void np_mem_unrefobj(np_obj_t* obj, char* reason)
 	if(obj->ref_count < 0){
 		log_msg(LOG_ERROR,"Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
 	}
-#ifdef DEBUG
+#ifdef MEMORY_CHECK
 	sll_iterator(char_ptr) iter_reasons = sll_first(obj->reasons);
 	np_bool foundReason = FALSE;
 	while (foundReason == FALSE && iter_reasons != NULL)
 	{
 		foundReason = (0 == strcmp(iter_reasons->val,reason)) ? TRUE : FALSE;
 		if (foundReason == TRUE) {
+			free(iter_reasons->val);
 			sll_delete(char_ptr, obj->reasons, iter_reasons);
 			break;
 		}
 		sll_next(iter_reasons);
 	}
 	if (FALSE == foundReason) {
-		log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ",reason,obj->id,obj->type, sll_size(obj->reasons), make_char_sll_flat(obj->reasons));
+		log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ",reason, obj->id, obj->type, sll_size(obj->reasons), make_char_sll_flat(obj->reasons));
 		abort();
 	}	
 #endif
@@ -219,7 +220,7 @@ char* np_mem_printpool(np_bool asOneLine)
 			// if (iter->type == np_message_t_e) {
 			// subject_list = _np_concatAndFree(subject_list, "%s%s", ((np_message_t*)iter->ptr)->uuid, new_line);
 			// }
-#ifdef DEBUG
+#ifdef MEMORY_CHECK
 			if (FALSE == asOneLine) 
 			{
 				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (%d) start ---%s",iter->id, iter->type, new_line);

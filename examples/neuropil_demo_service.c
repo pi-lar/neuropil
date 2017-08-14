@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
 }
 
 np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
-  	np_tree_t* header = msg->header;
+	np_tree_t* header = msg->header;
 
 	char* reply_to = NULL; // All
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);

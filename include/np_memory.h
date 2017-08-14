@@ -5,15 +5,19 @@
 #ifndef _NP_MEMORY_H
 #define _NP_MEMORY_H
 
-#include "stdint.h"
+#include <stdint.h>
+#include <assert.h>
 
 #include "np_threads.h"
 #include "np_types.h"
 #include "np_list.h"
-#include "assert.h"
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifdef DEBUG
+	#define MEMORY_CHECK 
 #endif
 
 // macro definitions to generate header prototype definitions
@@ -70,7 +74,7 @@ struct np_obj_s
 	np_obj_t* next;
 
 	np_bool persistent;
-#ifdef DEBUG
+#ifdef MEMORY_CHECK
 	np_sll_t(char_ptr, reasons);
 #endif
 };
@@ -110,7 +114,7 @@ struct np_obj_s
 #define VFUNC(func, ...) _VFUNC(func, __NARG__(__VA_ARGS__)) (__VA_ARGS__)
 // Macro overloading macros END
 
-#ifndef DEBUG
+#ifndef MEMORY_CHECK
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)
 #else
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)																			\
@@ -123,6 +127,7 @@ struct np_obj_s
 		assert(old_reason != NULL);																											\
 		foundReason = (0 == strcmp(iter_reasons->val, old_reason))? TRUE : FALSE;															\
 		if (foundReason == TRUE) {																											\
+			free(iter_reasons->val);																										\
 			sll_delete(char_ptr, obj->reasons, iter_reasons);																				\
 			break;																															\
 		}																																	\

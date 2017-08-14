@@ -23,7 +23,7 @@ extern "C" {
 	#define ref_key_aaa_token				"ref_key_aaa_token"
 	#define ref_key_node					"ref_key_node"
 	#define ref_key_network					"ref_key_network"
-	#define ref_message_messagepart			"ref_key_network"
+	#define ref_message_messagepart			"ref_message_messagepart"
 	#define ref_system_msgproperty			"ref_system_msgproperty"
 	#define ref_route_routingtable_mykey	"ref_route_routingtable_mykey"
 	#define ref_route_inroute				"ref_route_inroute"

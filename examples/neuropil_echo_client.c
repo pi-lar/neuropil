@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
 
 	char* proto = "udp4";
 	char* logpath = ".";
- 	char j_key[256];
+	char j_key[256];
 	char* publish_domain = "localhost";
 	char* message_to_send = "Hello World!";
 	np_bool add_id_to_msg = TRUE;
@@ -72,12 +72,12 @@ int main(int argc, char **argv) {
 				no_threads = 2;
 			break;
 		case 'm':
-    /**
-      The default value for the message we like to send is "Hello World! {x}"
-      {x} will be replaced by a increasing number.
-      If you like to send your own message you can
-      call the programm with the "-m <string>" parameter.
-     */
+	/**
+	  The default value for the message we like to send is "Hello World! {x}"
+	  {x} will be replaced by a increasing number.
+	  If you like to send your own message you can
+	  call the programm with the "-m <string>" parameter.
+	 */
 			message_to_send = optarg;
 			add_id_to_msg = FALSE;
 			break;
@@ -248,7 +248,7 @@ np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np
 	 .. code-block:: c
 	 \code
 	 */
- 	 np_tree_t* header = msg->header;
+	 np_tree_t* header = msg->header;
 
 	char* reply_to = NULL;
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);

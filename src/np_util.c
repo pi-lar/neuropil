@@ -412,7 +412,8 @@ char* _np_concatAndFree(char* target, char* source, ... ) {
 
 np_bool _np_get_local_ip(char* buffer){
 
-	np_bool ret = TRUE;
+	np_bool ret = FALSE;
+	
 	const char* ext_server = "37.97.143.153";//"neuropil.io";
 	int dns_port = 53;
 
@@ -425,11 +426,12 @@ np_bool _np_get_local_ip(char* buffer){
 		ret = FALSE;
 		log_msg(LOG_ERROR,"Could not detect local ip. (1) Error: Socket could not be created");
 	} else {
+		
 		memset( &serv, 0, sizeof(serv) );
 		serv.sin_family = AF_INET;
 		serv.sin_addr.s_addr = inet_addr( ext_server );
 		serv.sin_port = htons( dns_port );
-
+		
 		int err = connect( sock , (const struct sockaddr*) &serv , sizeof(serv) );
 		if(err < 0 ){
 			ret = FALSE;
@@ -439,6 +441,7 @@ np_bool _np_get_local_ip(char* buffer){
 			struct sockaddr_in name;
 			socklen_t namelen = sizeof(name);
 			err = getsockname(sock, (struct sockaddr*) &name, &namelen);
+			
 			if(err < 0 )
 			{
 				ret = FALSE;
@@ -454,12 +457,19 @@ np_bool _np_get_local_ip(char* buffer){
 				if(strncmp(buffer,"0.0.0.0", 7) == 0){
 					ret = FALSE;
 					log_msg(LOG_ERROR,"Could not detect local ip. (5) Error: ip result 0.0.0.0");
+				}else{
+					ret = TRUE;
 				}
+				
 			}
+			
+			
 		}
+		
 		close(sock);
-
+		
 	}
+	
 	return ret;
 }
 

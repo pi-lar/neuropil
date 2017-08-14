@@ -18,14 +18,12 @@
 
 #include "np_list.h"
 #include "np_memory.h"
+#include "np_types.h"
 #include "np_settings.h"
 
 
 #include <sys/time.h>
 #include <time.h>
-
-NP_SLL_GENERATE_PROTOTYPES(char);
-NP_SLL_GENERATE_IMPLEMENTATION(char);
 
 typedef struct np_log_s
 {
@@ -35,7 +33,7 @@ typedef struct np_log_s
 	int fp;
 	// FILE *fp;
 	uint32_t level;
-	np_sll_t(char, logentries_l);
+	np_sll_t(char_ptr, logentries_l);
 	ev_io watcher;
 	uint64_t log_size;
 	uint64_t log_count;
@@ -186,9 +184,9 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		fprintf(stdout, new_log_entry);
 		fprintf(stdout, "/n");
 #endif
-
+		
 		pthread_mutex_lock(&__log_mutex);
-		sll_append(char, logger->logentries_l, new_log_entry);
+		sll_append(char_ptr, logger->logentries_l, new_log_entry);
 		pthread_mutex_unlock(&__log_mutex);
 
 		// instant writeout
@@ -214,7 +212,7 @@ void _np_log_fflush(np_bool force)
 			lock_result = pthread_mutex_trylock(&__log_mutex);
 		}
 		if(0 == lock_result) {
-			entry = sll_head(char, logger->logentries_l);
+			entry = sll_head(char_ptr, logger->logentries_l);
 			pthread_mutex_unlock(&__log_mutex);
 		}
 
@@ -230,7 +228,7 @@ void _np_log_fflush(np_bool force)
 				if(current_bytes_witten < 0)
 				{
 					 pthread_mutex_lock(&__log_mutex);
-					 sll_append(char, logger->logentries_l, entry);
+					 sll_append(char_ptr, logger->logentries_l, entry);
 					 pthread_mutex_unlock(&__log_mutex);
 					 break;
 				}
@@ -296,7 +294,7 @@ void np_log_init(const char* filename, uint32_t level)
 	snprintf (logger->filename, 255, "%s%s", parsed_filename,logger->filename_ext );
 	free(parsed_filename);
 
-	sll_init(char, logger->logentries_l);
+	sll_init(char_ptr, logger->logentries_l);
 
 	log_rotation();
 
