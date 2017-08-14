@@ -36,11 +36,14 @@
 #include "np_treeval.h"
 #include "np_settings.h"
 #include "np_constants.h"
+#include "np_list.h"
 
 
 #define NR_OF_ELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
 #include "np_msgproperty_init.c"
+ 
+NP_SLL_GENERATE_IMPLEMENTATION(np_msgproperty_t);
 
 // required to properly link inline in debug mode
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mode_type, np_msg_mode_type);
@@ -72,14 +75,20 @@ np_bool _np_msgproperty_init ()
 
 	RB_INIT(__msgproperty_table);
 
-	/* NEUROPIL_INTERN_MESSAGES */
-	for (uint8_t i = 0; i < NR_OF_ELEMS(__np_internal_messages); i++)
+	// NEUROPIL_INTERN_MESSAGES
+
+	sll_iterator(np_msgproperty_t) __np_internal_messages =  sll_first(default_msgproperties());
+
+	while(__np_internal_messages != NULL)
 	{
-		if (strlen(__np_internal_messages[i]->msg_subject) > 0)
+		np_msgproperty_t* property = __np_internal_messages->val;
+		
+		if (strlen(property->msg_subject) > 0)
 		{
-			log_debug_msg(LOG_DEBUG, "register handler (%hhd): %s", i, __np_internal_messages[i]->msg_subject);
-			RB_INSERT(rbt_msgproperty, __msgproperty_table, __np_internal_messages[i]);
+			log_debug_msg(LOG_DEBUG, "register handler: %s", property->msg_subject);
+			RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
 		}
+		sll_next(__np_internal_messages);
 	}
 	return TRUE;
 }

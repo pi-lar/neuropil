@@ -72,7 +72,7 @@ static pthread_mutexattr_t __log_mutex_attr;
 
 void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
 {
-    log_msg(LOG_TRACE, "start: void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents){");
+	log_msg(LOG_TRACE, "start: void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents){");
 	if ((revents &  EV_WRITE) == EV_WRITE && (revents &  EV_ERROR) != EV_ERROR)
 	{
 		_np_log_fflush(FALSE);
@@ -160,10 +160,10 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 	// next check if the log level (debug, error, ...) is set
 	if ( (level & LOG_LEVEL_MASK & logger->level) > LOG_NONE)
 	{
-  	    char* new_log_entry = malloc(sizeof(char)*1124);
+		char* new_log_entry = malloc(sizeof(char)*1124);
 		CHECK_MALLOC(new_log_entry);
 
-  	    int wb = 0;
+		int wb = 0;
 		struct timeval tval;
 		struct tm local_time;
 		gettimeofday(&tval, (struct timezone*)0);
@@ -172,8 +172,8 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 
 		wb  = strftime(new_log_entry, 80, "%Y-%m-%d %H:%M:%S", &local_time);
 		wb += snprintf(new_log_entry+wb, 1124-wb,
-	    				   ".%06d %-15lu %15.15s:%-5hd %-25.25s _%5s_ ",
-	    				   millis, (unsigned long) pthread_self(),
+						   ".%06d %-15lu %15.15s:%-5hd %-25.25s _%5s_ ",
+						   millis, (unsigned long) pthread_self(),
 						   srcFile, lineno, funcName,
 						   __level_str[level & LOG_LEVEL_MASK].text);
 		va_list ap;
@@ -202,7 +202,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 
 void _np_log_fflush(np_bool force)
 {
-    log_msg(LOG_TRACE, "start: void _np_log_fflush(){");
+	log_msg(LOG_TRACE, "start: void _np_log_fflush(){");
 	char* entry = NULL;
 	int lock_result = 0;
 
@@ -252,20 +252,20 @@ void _np_log_fflush(np_bool force)
 
 void np_log_setlevel(uint32_t level)
 {
-    log_msg(LOG_TRACE, "start: void np_log_setlevel(uint32_t level){");
-    logger->level = level;
+	log_msg(LOG_TRACE, "start: void np_log_setlevel(uint32_t level){");
+	logger->level = level;
 }
 
 void np_log_init(const char* filename, uint32_t level)
 {
-    log_msg(LOG_TRACE, "start: void np_log_init(const char* filename, uint32_t level){");
+	log_msg(LOG_TRACE, "start: void np_log_init(const char* filename, uint32_t level){");
 
-    pthread_mutexattr_init(&__log_mutex_attr);
-    pthread_mutexattr_settype(&__log_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&__log_mutex, &__log_mutex_attr);
+	pthread_mutexattr_init(&__log_mutex_attr);
+	pthread_mutexattr_settype(&__log_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&__log_mutex, &__log_mutex_attr);
 
 
-    logger = (np_log_t *) calloc(1,sizeof(np_log_t));
+	logger = (np_log_t *) calloc(1,sizeof(np_log_t));
 	CHECK_MALLOC(logger);
 
 	// init logsystem
@@ -296,20 +296,20 @@ void np_log_init(const char* filename, uint32_t level)
 	snprintf (logger->filename, 255, "%s%s", parsed_filename,logger->filename_ext );
 	free(parsed_filename);
 
-    sll_init(char, logger->logentries_l);
+	sll_init(char, logger->logentries_l);
 
-    log_rotation();
+	log_rotation();
 
-    log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", logger, logger->filename, logger->level);
+	log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", logger, logger->filename, logger->level);
 
 
 }
 void np_log_destroy()
 {
-    log_msg(LOG_TRACE, "start: void np_log_destroy(){");
+	log_msg(LOG_TRACE, "start: void np_log_destroy(){");
 	logger->level=LOG_NONE;
 
-    EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 	ev_io_stop(EV_A_ &logger->watcher);
 
 	_np_log_fflush(TRUE);

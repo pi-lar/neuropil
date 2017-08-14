@@ -91,6 +91,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_node_t);
 NP_SLL_GENERATE_PROTOTYPES(np_key_t);
 NP_SLL_GENERATE_PROTOTYPES(np_message_t);
 NP_SLL_GENERATE_PROTOTYPES(char_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_t);
 
 /*
  *  user callback functions

@@ -44,7 +44,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
 
 char* np_uuid_create(const char* str, const uint16_t num)
 {
-    log_msg(LOG_TRACE, "start: char* np_uuid_create(const char* str, const uint16_t num){");
+	log_msg(LOG_TRACE, "start: char* np_uuid_create(const char* str, const uint16_t num){");
 	char input[256];
 	unsigned char out[18];
 	char* uuid_out = malloc(sizeof(char)*UUID_SIZE);
@@ -66,7 +66,7 @@ char* np_uuid_create(const char* str, const uint16_t num)
 
 np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit)
 {
-    log_msg(LOG_TRACE, "start: np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit){");
+	log_msg(LOG_TRACE, "start: np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit){");
 	memcpy(data, ctx->buf, limit);
 	ctx->buf += limit;
 	return TRUE;
@@ -74,7 +74,7 @@ np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit)
 
 np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit)
 {
-    log_msg(LOG_TRACE, "start: np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit){");
+	log_msg(LOG_TRACE, "start: np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit){");
 	np_bool ret = FALSE;
 	_np_message_buffer_container_t* wrapper = ctx->buf;
 
@@ -84,8 +84,8 @@ np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t li
 			 wrapper->bufferCount, wrapper->bufferMaxCount, limit);
 
 	if(nextCount > wrapper->bufferMaxCount) {
- 		 log_msg(LOG_WARN,
- 				 "Read size exceeds buffer. May be invoked due to changed key (see: kb) Current size: %zu; Max size: %zu; Read size: %zu",
+		 log_msg(LOG_WARN,
+				 "Read size exceeds buffer. May be invoked due to changed key (see: kb) Current size: %zu; Max size: %zu; Read size: %zu",
 				 wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
 	} else {
 		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "memcpy %p <- %p o %p",data, wrapper->buffer,wrapper);
@@ -99,7 +99,7 @@ np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t li
 
 size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size_t count)
 {
-    log_msg(LOG_TRACE, "start: size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size_t count){");
+	log_msg(LOG_TRACE, "start: size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size_t count){");
 	_np_message_buffer_container_t* wrapper = ctx->buf;
 
 	size_t nextCount = wrapper->bufferCount + count;
@@ -119,7 +119,7 @@ size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size
 
 size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
 {
-    log_msg(LOG_TRACE, "start: size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count){");
+	log_msg(LOG_TRACE, "start: size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count){");
 	// log_debug_msg(LOG_DEBUG, "-- writing cmp->buf: %p size: %hd", ctx->buf, count);
 	// printf( "-- writing cmp->buf: %p size: %hd\n", ctx->buf, count);
 
@@ -138,40 +138,40 @@ size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
 
 void _np_sll_remove_doublettes(np_sll_t(np_key_t, list_of_keys))
 {
-    sll_iterator(np_key_t) iter1 = sll_first(list_of_keys);
-    sll_iterator(np_key_t) tmp = NULL;
+	sll_iterator(np_key_t) iter1 = sll_first(list_of_keys);
+	sll_iterator(np_key_t) tmp = NULL;
 
-    do
-    {
-        sll_iterator(np_key_t) iter2 = sll_get_next(iter1);
+	do
+	{
+		sll_iterator(np_key_t) iter2 = sll_get_next(iter1);
 
-        if (NULL == iter2) break;
+		if (NULL == iter2) break;
 
-        do
-        {
-        	if (0 == _np_dhkey_comp(&iter1->val->dhkey,
+		do
+		{
+			if (0 == _np_dhkey_comp(&iter1->val->dhkey,
 								 &iter2->val->dhkey))
-        	{
-        		tmp = iter2;
-        	}
+			{
+				tmp = iter2;
+			}
 
-        	sll_next(iter2);
+			sll_next(iter2);
 
-        	if (NULL != tmp)
-        	{
-        		sll_delete(np_key_t, list_of_keys, tmp);
-        		tmp = NULL;
-        	}
-        } while(NULL != iter2);
+			if (NULL != tmp)
+			{
+				sll_delete(np_key_t, list_of_keys, tmp);
+				tmp = NULL;
+			}
+		} while(NULL != iter2);
 
-        sll_next(iter1);
+		sll_next(iter1);
 
-    } while (NULL != iter1);
+	} while (NULL != iter1);
 }
 
 
 JSON_Value* np_treeval2json(np_treeval_t val) {
-    log_msg(LOG_TRACE, "start: JSON_Value* np_treeval2json(np_treeval_t val) {");
+	log_msg(LOG_TRACE, "start: JSON_Value* np_treeval2json(np_treeval_t val) {");
 	JSON_Value* ret = NULL;
 	//log_debug_msg(LOG_DEBUG, "np_treeval2json type: %"PRIu8,val.type);
 	void* tmp;
@@ -216,7 +216,7 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 		ret = json_value_init_array();
 		json_array_append_number(json_array(ret), val.value.a2_ui[0]);
 		json_array_append_number(json_array(ret), val.value.a2_ui[1]);
- 		break;
+		break;
 	case bin_type:
 		tmp =  malloc(sizeof(char)*64);
 		CHECK_MALLOC(tmp);
@@ -234,7 +234,7 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 		json_array_append_number(json_array(ret), val.value.key.t[1]);
 		json_array_append_number(json_array(ret), val.value.key.t[2]);
 		json_array_append_number(json_array(ret), val.value.key.t[3]);
- 		break;
+		break;
 	default:
 		log_msg(LOG_WARN, "please implement serialization for type %hhd",
 				val.type);
@@ -245,14 +245,14 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 }
 
 char* np_dump_tree2char(np_tree_t* tree) {
-    log_msg(LOG_TRACE, "start: char* np_dump_tree2char(np_tree_t* tree) {");
+	log_msg(LOG_TRACE, "start: char* np_dump_tree2char(np_tree_t* tree) {");
 	JSON_Value * tmp = np_tree2json(tree);
 	char* tmp2 = np_json2char(tmp,TRUE);
 	free(tmp);
 	return tmp2;
 }
 JSON_Value* np_tree2json(np_tree_t* tree) {
-    log_msg(LOG_TRACE, "start: JSON_Value* np_tree2json(np_tree_t* tree) {");
+	log_msg(LOG_TRACE, "start: JSON_Value* np_tree2json(np_tree_t* tree) {");
 	JSON_Value* ret = json_value_init_object();
 	JSON_Value* arr = NULL;
 
@@ -344,7 +344,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 }
 
 char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
-    log_msg(LOG_TRACE, "start: char* np_json2char(JSON_Value* data, np_bool prettyPrint) {");
+	log_msg(LOG_TRACE, "start: char* np_json2char(JSON_Value* data, np_bool prettyPrint) {");
 	char* ret;
 	/*
 	size_t json_size ;
@@ -372,11 +372,11 @@ char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
 }
 
 void np_dump_tree2log(np_tree_t* tree){
-    log_msg(LOG_TRACE, "start: void np_dump_tree2log(np_tree_t* tree){");
+	log_msg(LOG_TRACE, "start: void np_dump_tree2log(np_tree_t* tree){");
 	if(NULL == tree){
 		log_debug_msg(LOG_DEBUG, "NULL");
 	}else{
- 		char* tmp = np_dump_tree2char(tree);
+		char* tmp = np_dump_tree2char(tree);
 		log_debug_msg(LOG_DEBUG, "%s", tmp);
 		json_free_serialized_string(tmp);
 	}
@@ -394,16 +394,17 @@ char* _np_concatAndFree(char* target, char* source, ... ) {
 		asprintf(&target,"%s","");
 	}
 	char* new_target = NULL;
- 	char* tmp = NULL;
+	char* tmp = NULL;
 	va_list args;
 	va_start(args, source);
 	vasprintf(&tmp, source, args);
-    va_end(args);
+	va_end(args);
 
 	asprintf(&new_target ,"%s%s",target,tmp);
 
 	free(tmp);
 	free(target);
+	target = new_target;
 	//free(source);
 	return new_target;
 }
@@ -458,6 +459,23 @@ np_bool _np_get_local_ip(char* buffer){
 		}
 		close(sock);
 
+	}
+	return ret;
+}
+
+char* make_char_sll_flat(np_sll_t(char_ptr, target)) {
+	char* ret = NULL;
+
+	sll_iterator(char_ptr) iter = sll_first(target);
+	int i = 1;
+	while (iter != NULL)
+	{				
+		ret = _np_concatAndFree(ret, "%d:\"%s\"->", i, iter->val);
+		i += 1;
+		sll_next(iter);
+	}			
+	if (sll_size(target) != i) {
+		abort();
 	}
 	return ret;
 }

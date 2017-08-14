@@ -108,6 +108,10 @@ char* _np_concatAndFree(char* target, char* source, ... );
 NP_API_INTERN
 np_bool _np_get_local_ip(char buffer[]);
 
+NP_API_INTERN
+char* make_char_sll_flat(np_sll_t(char_ptr, target));
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -14,6 +14,7 @@
 #include "neuropil.h"
 #include "np_message.h"
 #include "np_types.h"
+#include "np_constants.h"
 #include "np_threads.h"
 
 typedef struct test_struct
@@ -72,7 +73,7 @@ Test(np_memory_t, _memory_create, .description="test the memory allocation routi
 		t_obj1->i_test = 1;
 		t_obj1->s_test = "dies ist ein test";
 
-		np_ref_obj(test_struct_t, t_obj1);
+		np_ref_obj(test_struct_t, t_obj1,"ref2");
 		cr_expect(t_obj1->obj->ref_count == 2, "test whether the reference counter of obj 1 is equal to 2");
 	}
 
@@ -101,7 +102,7 @@ Test(np_memory_t, _memory_create, .description="test the memory allocation routi
 	// np_mem_printpool();
 	obj = t_obj3->obj;
 
-	np_unref_obj(test_struct_t, t_obj3);
+	np_unref_obj(test_struct_t, t_obj3,ref_obj_creation);
 	cr_expect(t_obj3 == NULL, "test whether the t_obj3 has been deleted");
 	cr_expect(obj->ref_count == 0, "test whether the reference counter of former meta obj is zero");
 	cr_expect(obj->ptr == NULL,"test whether the ptr of the meta object points to NULL");
@@ -120,14 +121,14 @@ Test(np_memory_t, _memory_create, .description="test the memory allocation routi
 
 	// np_mem_printpool();
 
-	np_unref_obj(test_struct_t, t_obj1);
+	np_unref_obj(test_struct_t, t_obj1,"ref2");
 	cr_expect(t_obj1->obj->ref_count == 1, "test whether the reference counter  of obj 1 is equal to 1");
 	cr_expect(t_obj1->obj->type == test_struct_t_e, "test whether the meta obj type is set to test_struct_t_e");
 
 	// np_mem_printpool();
 	obj = t_obj1->obj;
 
-	np_unref_obj(test_struct_t, t_obj1);
+	np_unref_obj(test_struct_t, t_obj1, ref_obj_creation);
 
 	cr_expect(t_obj1 == NULL, "test whether the t_obj1 has been deleted");
 	cr_expect(obj->ref_count == 0, "test whether the reference counter of former meta obj is zero");

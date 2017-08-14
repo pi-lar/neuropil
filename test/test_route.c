@@ -10,6 +10,7 @@
 #include "np_log.h"
 #include "np_memory.h"
 #include "np_threads.h"
+#include "np_constants.h"
 
 #include "np_route.h"
 
@@ -136,8 +137,8 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 		else
 		{
 			log_msg(LOG_DEBUG, "key %s not added to the leafset", _np_key_as_str(insert_key));
-			np_unref_obj(np_node_t, insert_key->node);
-			np_unref_obj(np_key_t, insert_key);
+			np_unref_obj(np_node_t, insert_key->node, ref_obj_creation);
+			np_unref_obj(np_key_t, insert_key, ref_obj_creation);
 		}
 
 		if (NULL != deleted)
@@ -156,8 +157,8 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 				sll_next(iter);
 			}
 
-			np_unref_obj(np_node_t, deleted->node);
-			np_unref_obj(np_key_t, deleted);
+			np_unref_obj(np_node_t, deleted->node, ref_obj_creation);
+			np_unref_obj(np_key_t, deleted, ref_obj_creation);
 		}
 		log_msg(LOG_INFO, "routing table now contains %d entries / %lu inserted", current_size, i+1);
 		i++;

@@ -177,6 +177,8 @@ np_key_t* _np_node_decode_from_str (const char *key)
 
 	free (key_dup);
 
+	ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", __func__);
+
 	return (node_key);
 }
 
@@ -270,7 +272,7 @@ np_key_t* _np_node_create_from_token(np_aaatoken_t* token)
 	{
 		node_key->node = _np_node_decode_from_jrb(token->extensions);
 	}
-	ref_restack_reason(
+	ref_replace_reason(
 			np_key_t, node_key,
 			"_np_keycache_find_or_create",
 			"_np_node_create_from_token"

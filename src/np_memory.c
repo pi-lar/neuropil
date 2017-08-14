@@ -22,6 +22,7 @@
 #include "np_log.h"
 #include "np_threads.h"
 #include "np_util.h"
+#include "np_list.h"
 
 
 
@@ -77,8 +78,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 
 #ifdef DEBUG
 		free(__np_obj_pool_ptr->current->id);
-		__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);
-		sll_clear(char_ptr, __np_obj_pool_ptr->current->reasons);
+		__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);		
 #endif
 	}
 	else
@@ -128,6 +128,13 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 		(*obj)->type = np_none_t_e;
 		(*obj)->next = __np_obj_pool_ptr->free_obj;
 #ifdef DEBUG
+		// cleanup old reasoning (if any, should be none)
+		sll_iterator(char_ptr) iter_reasons = sll_first((*obj)->reasons);		
+		while (iter_reasons != NULL)
+		{
+			free(iter_reasons->val);
+			sll_next(iter_reasons);
+		}
 		sll_clear(char_ptr, (*obj)->reasons);
 #endif
 		_np_threads_mutex_destroy(&(*obj)->lock);
@@ -140,13 +147,14 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 // printf("free obj %p (type %d ptr %p ref_count %d):(next -> %p)n", obj, obj->type, obj->ptr, obj->ref_count, obj->next );
 
 // increase ref count
-void np_mem_refobj(np_obj_t* obj,char* reason)
+void np_mem_refobj(np_obj_t* obj, char* reason)
 {
 	log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
 	obj->ref_count++;
 	//log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
 #ifdef DEBUG
-	sll_append(char_ptr, obj->reasons, reason);
+	assert(reason != NULL);
+	sll_prepend(char_ptr, obj->reasons, strndup(reason,strlen(reason)));
 #endif
 	}
 // decrease ref count
@@ -163,7 +171,7 @@ void np_mem_unrefobj(np_obj_t* obj, char* reason)
 	np_bool foundReason = FALSE;
 	while (foundReason == FALSE && iter_reasons != NULL)
 	{
-		foundReason = 0 == strcmp(iter_reasons->val,reason);
+		foundReason = (0 == strcmp(iter_reasons->val,reason)) ? TRUE : FALSE;
 		if (foundReason == TRUE) {
 			sll_delete(char_ptr, obj->reasons, iter_reasons);
 			break;
@@ -171,10 +179,8 @@ void np_mem_unrefobj(np_obj_t* obj, char* reason)
 		sll_next(iter_reasons);
 	}
 	if (FALSE == foundReason) {
-		log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (%d) was not found.",reason,obj->id,obj->type);
-#ifdef STRICT
-		exit(EXIT_FAILURE);
-#endif
+		log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ",reason,obj->id,obj->type, sll_size(obj->reasons), make_char_sll_flat(obj->reasons));
+		abort();
 	}	
 #endif
 

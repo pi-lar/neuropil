@@ -226,13 +226,13 @@ struct np_msgproperty_s
 	// link to memory management
 	np_obj_t* obj;
 
-    RB_ENTRY(np_msgproperty_s) link; // link for cache management
+	RB_ENTRY(np_msgproperty_s) link; // link for cache management
 
-    // link to node(s) which is/are interested in message exchange
-    np_dhkey_t partner_key;
+	// link to node(s) which is/are interested in message exchange
+	np_dhkey_t partner_key;
 
-    char*            msg_subject;
-    char*            rep_subject;
+	char*            msg_subject;
+	char*            rep_subject;
 	char*            msg_audience;
 	np_msg_mode_type mode_type;
 	np_msg_mep_type  mep_type;
@@ -256,7 +256,7 @@ struct np_msgproperty_s
 	np_cond_t  msg_received;
 
 	// pthread_cond_t     msg_received;
-    // pthread_condattr_t cond_attr;
+	// pthread_condattr_t cond_attr;
 
 	// callback function(s) to invoke when a message is received
 	np_callback_t clb_default; // internal neuropil supplied

@@ -560,17 +560,15 @@ TYPE##_sll_t* TYPE##_sll_init() {\
 	sll_list->last = NULL;\
 	return (sll_list);\
 }\
-void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value) {\
-	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) malloc(sizeof(TYPE##_sll_node_t));\
-	sll_node->val = value;\
-	sll_node->flink = NULL;\
-	if (sll_list->first == NULL) { sll_list->first = sll_node; sll_list->last = sll_node; }\
-	if (sll_list->last != sll_node) {\
-		sll_list->last->flink = sll_node;\
-		sll_list->last = sll_node;\
-	}\
-	sll_list->size++;\
-}\
+void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value) {									\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) malloc(sizeof(TYPE##_sll_node_t));		\
+	sll_node->val = value;																		\
+	sll_node->flink = NULL;																		\
+	if (sll_list->first == NULL) { sll_list->first = sll_node; sll_list->last = sll_node; }		\
+		sll_list->last->flink = sll_node;														\
+		sll_list->last = sll_node;																\
+	sll_list->size++;																			\
+}																								\
 void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value) {\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) malloc(sizeof(TYPE##_sll_node_t));\
 	sll_node->val = value;\
@@ -631,26 +629,26 @@ void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {   \
 	}                                             \
 	sll_list->size = 0;                           \
 }                                                 \
-void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) { \
-	if (sll_list->first == tbr) {\
-		sll_list->first = tbr->flink;\
-		free(tbr);\
-		sll_list->size--;\
-	} else {\
-		TYPE##_sll_node_t *tmp = sll_list->first;\
-		TYPE##_sll_node_t *mem = sll_list->first;\
-		while (tmp->flink != NULL) {\
-			tmp = tmp->flink;\
-			if (tmp == tbr) {\
-				mem->flink = tbr->flink;\
-				free(tmp);\
-				sll_list->size--;\
-				break;\
-			} else {\
-				mem = mem->flink;\
-			}\
-		}\
-	}\
+void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) { 									 \
+	if (sll_list->first == tbr) {																			 \
+		sll_list->first = tbr->flink;																		 \
+		free(tbr);																							 \
+		sll_list->size -=1;																					 \
+	} else {																								 \
+		TYPE##_sll_node_t *tmp = sll_list->first;															 \
+		TYPE##_sll_node_t *mem = sll_list->first;															 \
+		while (tmp->flink != NULL) {																		 \
+			tmp = tmp->flink;																				 \
+			if (tmp == tbr) {																				 \
+				mem->flink = tmp->flink;																	 \
+				free(tmp);																					 \
+				sll_list->size -=1;																			 \
+				break;																						 \
+			} else {																						 \
+				mem = mem->flink;																			 \
+			}																								 \
+		}																									 \
+	}																										 \
 }
 
 #ifdef __cplusplus
