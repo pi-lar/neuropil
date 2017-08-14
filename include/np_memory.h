@@ -263,7 +263,7 @@ TYPE* saveTo = NULL;																																\
 #define np_new_obj3(TYPE, np_obj, reason)                													\
 {                                               															\
   _LOCK_MODULE(np_memory_t) {                   															\
-	np_obj = (TYPE*) malloc(sizeof(TYPE));											      					\
+	np_obj = (TYPE*) calloc(1,sizeof(TYPE));											      					\
 	CHECK_MALLOC(np_obj);																					\
 	np_mem_newobj(TYPE##_e, &np_obj->obj);      															\
 	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"Creating_ object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 	\

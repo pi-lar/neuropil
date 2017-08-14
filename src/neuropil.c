@@ -994,10 +994,10 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 		log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
 		exit(EXIT_FAILURE);
 	}
-	//--
+	
 	log_debug_msg(LOG_DEBUG, "update my node data");
 	_np_node_update(my_node, np_proto, hostname, np_service);
-	/*
+	
 	log_debug_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
 					   _np_network_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);
 	// create a new token for encryption each time neuropil starts
@@ -1007,7 +1007,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // np_dhkey_create_from_hostport(my_node->dns_name, my_node->port);
 	state->my_node_key = _np_keycache_find_or_create(my_dhkey);
 
-	/*
+	
 	np_ref_obj(np_key_t, state->my_node_key);
 	my_network->watcher.data = state->my_node_key;
 	_np_network_start(my_network);
@@ -1067,12 +1067,11 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	np_job_submit_event(0.0, _np_renew_node_token_jobexec);
 	// initialize network/io reading and writing
 	np_job_submit_event(0.0, _np_events_read);
-	*/
-	log_msg(LOG_INFO, "neuropil TEST");
-	//log_msg(LOG_INFO, "neuropil successfully initialized: %s", _np_key_as_str(state->my_node_key));
+
+
+	log_msg(LOG_INFO, "neuropil successfully initialized: %s", _np_key_as_str(state->my_node_key));
 	_np_log_fflush(TRUE);
-	exit(0);
-	//np_state_t* state = NULL;
+
 	return (state);
 }
 

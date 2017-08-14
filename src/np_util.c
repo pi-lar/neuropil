@@ -36,8 +36,8 @@
 #include "np_node.h"
 #include "np_route.h"
 #include "np_types.h"
+#include "np_list.h"
 #include "np_memory.h"
-#include "assert.h"
 
 
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
@@ -45,9 +45,9 @@ NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
 char* np_uuid_create(const char* str, const uint16_t num)
 {
 	log_msg(LOG_TRACE, "start: char* np_uuid_create(const char* str, const uint16_t num){");
-	char input[256];
-	unsigned char out[18];
-	char* uuid_out = malloc(sizeof(char)*UUID_SIZE);
+	char input[256] ="";
+	unsigned char out[18]="";
+	char* uuid_out = calloc(1,sizeof(char)*UUID_SIZE);
 	CHECK_MALLOC(uuid_out);
 
 	double now = ev_time();

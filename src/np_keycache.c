@@ -279,8 +279,9 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_t, list_of_keys), c
 	{
 		log_msg(LOG_KEY | LOG_WARN, "minimum size for closest key calculation not met !");
 	}
-
-	np_ref_obj(np_key_t, min);
+	if(NULL != min){
+		np_ref_obj(np_key_t, min);
+	}
 	return (min);
 }
 

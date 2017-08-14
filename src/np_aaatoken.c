@@ -181,7 +181,7 @@ np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* identity)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* identity){");
 	// build a hash to find a place in the dhkey table, not for signing !
-	unsigned char hash[crypto_generichash_BYTES];
+	unsigned char hash[crypto_generichash_BYTES] ="";
 	crypto_generichash_state gh_state;
 	crypto_generichash_init(&gh_state, NULL, 0, sizeof hash);
 
@@ -883,8 +883,12 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->issuer, strlen(msg_token->issuer));
 	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->subject, strlen(msg_token->subject));
 	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->audience, strlen(msg_token->audience));
+	
 	if (NULL != msg_token->uuid)
+	{
 		crypto_generichash_update(&gh_state, (unsigned char*) msg_token->uuid, strlen(msg_token->uuid));
+	}
+
 	crypto_generichash_update(&gh_state, (unsigned char*) msg_token->public_key, crypto_sign_PUBLICKEYBYTES);
 
 	// TODO: hash 'not_before' and 'expiration' values as well ?

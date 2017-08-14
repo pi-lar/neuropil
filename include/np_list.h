@@ -140,7 +140,7 @@ real macros for convenience usage
 #define NP_PLL_GENERATE_IMPLEMENTATION(TYPE) \
 TYPE##_pll_t* TYPE##_pll_init() \
 { \
-	TYPE##_pll_t* pll_list = (TYPE##_pll_t*) malloc(sizeof(TYPE##_pll_t)); \
+	TYPE##_pll_t* pll_list = (TYPE##_pll_t*) calloc(1,sizeof(TYPE##_pll_t)); \
 	pll_list->size = 0; \
 	pll_list->first = NULL; \
 	pll_list->last = NULL; \
@@ -148,7 +148,7 @@ TYPE##_pll_t* TYPE##_pll_init() \
 } \
 np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, TYPE##_cmp_func_t cmp_func) 	\
 { 																											\
-	TYPE##_pll_node_t* new_pll_node = (TYPE##_pll_node_t*) malloc(sizeof(TYPE##_pll_node_t)); 				\
+	TYPE##_pll_node_t* new_pll_node = (TYPE##_pll_node_t*) calloc(1,sizeof(TYPE##_pll_node_t)); 				\
 	new_pll_node->val = value; 																				\
 	new_pll_node->flink = NULL; 																			\
 	new_pll_node->blink = NULL; 																			\
@@ -374,14 +374,14 @@ real macros for convenience usage
 //
 #define NP_DLL_GENERATE_IMPLEMENTATION(TYPE)\
 TYPE##_dll_t* TYPE##_dll_init() {\
-	TYPE##_dll_t* dll_list = (TYPE##_dll_t*) malloc(sizeof(TYPE##_dll_t));\
+	TYPE##_dll_t* dll_list = (TYPE##_dll_t*) calloc(1,sizeof(TYPE##_dll_t));\
 	dll_list->size = 0;\
 	dll_list->first = NULL;\
 	dll_list->last = NULL;\
 	return (dll_list);\
 }\
 void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE* value) {\
-	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) malloc(sizeof(TYPE##_dll_node_t));\
+	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) calloc(1,sizeof(TYPE##_dll_node_t));\
 	dll_node->val = value;\
 	dll_node->flink = NULL;\
 	dll_node->blink = NULL;\
@@ -396,7 +396,7 @@ void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE* value) {\
 	dll_list->size++;\
 }\
 void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE* value) {\
-	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) malloc(sizeof(TYPE##_dll_node_t));\
+	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) calloc(1,sizeof(TYPE##_dll_node_t));\
 	dll_node->val = value;  \
 	dll_node->flink = NULL; \
 	dll_node->blink = NULL; \
@@ -554,44 +554,53 @@ real macros for convenience usage
 //
 #define NP_SLL_GENERATE_IMPLEMENTATION(TYPE)\
 TYPE##_sll_t* TYPE##_sll_init() {\
-	TYPE##_sll_t* sll_list = (TYPE##_sll_t*) malloc(sizeof(TYPE##_sll_t));\
+	TYPE##_sll_t* sll_list = (TYPE##_sll_t*) calloc(1,sizeof(TYPE##_sll_t));\
 	sll_list->size = 0;\
 	sll_list->first = NULL;\
 	sll_list->last = NULL;\
 	return (sll_list);\
 }\
-void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value) {									\
-	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) malloc(sizeof(TYPE##_sll_node_t));		\
-	sll_node->val = value;																		\
-	sll_node->flink = NULL;																		\
-	if (sll_list->first == NULL) { sll_list->first = sll_node; sll_list->last = sll_node; }		\
-		sll_list->last->flink = sll_node;														\
-		sll_list->last = sll_node;																\
-	sll_list->size++;																			\
-}																								\
-void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value) {\
-	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) malloc(sizeof(TYPE##_sll_node_t));\
-	sll_node->val = value;\
-	sll_node->flink = NULL;\
-	if (sll_list->first == NULL) { sll_list->first = sll_node; sll_list->last = sll_node; }\
-	if (sll_list->first != sll_node) {\
-		sll_node->flink = sll_list->first;\
-		sll_list->first = sll_node;\
-	}\
-	sll_list->size++;\
-}\
-TYPE* TYPE##_sll_head(TYPE##_sll_t* sll_list) {\
-	TYPE* ret_val = NULL;\
-	if (NULL != sll_list->first) {\
-		TYPE##_sll_node_t* tmp = sll_list->first;\
-		ret_val = tmp->val;\
-		sll_list->first = sll_list->first->flink;\
-		if (sll_list->first == NULL) sll_list->last = NULL; \
-		free(tmp);\
-		sll_list->size--;\
-	}\
-	return (ret_val);\
-}\
+void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value) {											\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));				\
+	CHECK_MALLOC(sll_node);																				\
+	sll_node->val = value;																				\
+	sll_node->flink = NULL;																				\
+	if (sll_list->first == NULL) { 																		\
+		sll_list->first = sll_node; 																	\
+		sll_list->last = sll_node; 																		\
+	}																									\
+	sll_list->last->flink = sll_node;																	\
+	sll_list->last = sll_node;																			\
+	sll_list->size++;																					\
+}																										\
+void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value) {											\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));				\
+	sll_node->val = value;																				\
+	sll_node->flink = NULL;																				\
+	if (sll_list->first == NULL) { sll_list->first = sll_node; sll_list->last = sll_node; }				\
+	if (sll_list->first != sll_node) {																	\
+		sll_node->flink = sll_list->first;																\
+		sll_list->first = sll_node;																		\
+	}																									\
+	sll_list->size++;																					\
+}																										\
+TYPE* TYPE##_sll_head(TYPE##_sll_t* sll_list) {															\
+	TYPE* ret_val = NULL;																				\
+	if (NULL != sll_list->first) {																		\
+		TYPE##_sll_node_t* tmp = sll_list->first;														\
+		ret_val = tmp->val;																				\
+		if (tmp == sll_list->last) {																	\
+			sll_list->first = NULL; 																	\
+			sll_list->last = NULL;																		\
+		}																								\
+		else {																							\
+			sll_list->first = sll_list->first->flink;													\
+		}																								\
+		free(tmp);																						\
+		sll_list->size--;																				\
+	}																									\
+	return (ret_val);																					\
+}																										\
 TYPE* TYPE##_sll_tail(TYPE##_sll_t* sll_list) {\
 	TYPE* ret_val = NULL;\
 	if (NULL != sll_list->last) {\
