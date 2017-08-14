@@ -26,7 +26,7 @@ np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char 
     // Contract
     if(NULL == key){
 		log_msg(LOG_ERROR, "cache key cannot be NULL!");
-		exit(EXIT_FAILURE);
+		abort();
 	}
     // Contract end
 
@@ -53,7 +53,7 @@ int np_simple_cache_insert(np_simple_cache_table_t *table, char *key, void *valu
     // Contract
     if(NULL == key){
 		log_msg(LOG_ERROR, "cache key cannot be NULL!");
-		exit(EXIT_FAILURE);
+		abort();
 	}
     // Contract end
 

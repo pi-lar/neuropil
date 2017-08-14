@@ -43,7 +43,7 @@ enum np_module_lock_e {
 	/*09*/np_logsys_t_lock,
 	/*10*/np_jobqueue_t_lock,
 	/*11*/np_node_renewal_t_lock,
- 	PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
+	PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
 	PREDEFINED_DUMMY_1,
 	PREDEFINED_DUMMY_2,
 	PREDEFINED_DUMMY_3,
@@ -57,8 +57,8 @@ enum np_module_lock_e {
 /** platform mutex/condition wrapper structures are defined here **/
 /** mutex                                                        **/
 struct np_mutex_s {
-    pthread_mutex_t lock;
-    pthread_mutexattr_t lock_attr;
+	pthread_mutex_t lock;
+	pthread_mutexattr_t lock_attr;
 };
 typedef struct np_mutex_s np_mutex_t;
 /** condition                                                    **/
@@ -114,14 +114,14 @@ int _np_threads_module_condition_broadcast(np_cond_t* condition);
 // protect access to restricted area in the rest of your code like this
 /*
 struct obj {
-    np_mutex_t lock;
+	np_mutex_t lock;
 } obj_t;
 
 obj_t object;
 
 _LOCK_ACCESS(&object->lock)
 {
-    ... call_a_function_of_locked_module() ...;
+	... call_a_function_of_locked_module() ...;
 }
 */
 
@@ -131,7 +131,7 @@ _LOCK_ACCESS(&object->lock)
 /*
 _LOCK_MODULE(np_keycache_t)
 {
-    ... call_a_function_of_locked_module() ...;
+	... call_a_function_of_locked_module() ...;
 }
 */
 
