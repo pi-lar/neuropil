@@ -707,7 +707,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	_np_aaatoken_add_signature(msg_token);
 
 	msg_token->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
-	np_unref_obj(np_key_t, my_identity,"np_waitref_obj");
+	np_unref_obj(np_key_t, my_identity, "np_waitref_obj");
 	return (msg_token);
 }
 

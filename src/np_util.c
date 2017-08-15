@@ -477,14 +477,15 @@ char* make_char_sll_flat(np_sll_t(char_ptr, target)) {
 	char* ret = NULL;
 
 	sll_iterator(char_ptr) iter = sll_first(target);
-	int i = 1;
+	int i = 0;
 	while (iter != NULL)
 	{				
 		ret = _np_concatAndFree(ret, "%d:\"%s\"->", i, iter->val);
-		i += 1;
+		i++;
 		sll_next(iter);
 	}			
 	if (sll_size(target) != i) {
+		log_msg(LOG_ERROR, "Size of target does not equal the expected size.");
 		abort();
 	}
 	return ret;

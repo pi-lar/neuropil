@@ -45,7 +45,7 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	test_key->dhkey = dhkey;
 
 	np_node_t* test_node = NULL;
-	np_new_obj(np_node_t, test_node);
+	np_new_obj(np_node_t, test_node, , ref_key_node);
 	_np_node_update(test_node, IPv4 | UDP, "localhost", "1111");
 	test_key->node = test_node;
 

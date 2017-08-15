@@ -167,6 +167,7 @@ np_key_t* _np_node_decode_from_str (const char *key)
 	if (NULL == node_key->node)
 	{
 		np_new_obj(np_node_t, node_key->node);
+		ref_replace_reason(np_node_t, node_key->node, ref_obj_creation, ref_key_node);
 	}
 
 	if (NULL != s_hostname &&
@@ -211,6 +212,7 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 
 	// np_jrb_t* latency = np_tree_find_str(data, "_np.node.latency");
 	// if (latency) node->latency = latency->val.value.d;
+	ref_replace_reason(np_node_t, new_node, ref_obj_creation, __func__);
 
 	return (new_node);
 }

@@ -215,7 +215,7 @@ sll_return(np_key_t) _np_route_get_table ()
 	np_sll_t(np_key_t, sll_of_keys);
 	sll_init(np_key_t, sll_of_keys);
 
-	_LOCK_MODULES(np_keycache_t, np_routeglobal_t)
+	_LOCK_MODULE(np_routeglobal_t)
 	{
 		uint16_t i, j, k;
 		for (i = 0; i < __MAX_ROW; i++)
@@ -250,7 +250,7 @@ sll_return(np_key_t) _np_route_row_lookup (np_key_t* key)
 	np_sll_t(np_key_t, sll_of_keys);
 	sll_init(np_key_t, sll_of_keys);
 
-	_LOCK_MODULES(np_keycache_t, np_routeglobal_t)
+	_LOCK_MODULE(np_routeglobal_t)
 	{
 		uint16_t i, j, k;
 		i = _np_dhkey_index (&__routing_table->my_key->dhkey, &key->dhkey);
@@ -462,6 +462,7 @@ sll_return(np_key_t) _np_route_lookup (np_key_t* key, uint8_t count)
 				} while (i < count && NULL != iter1);
 			}
 		}
+		//sll_free(np_key_t, key_list);
 
 		/*  to prevent bouncing */
 		if (count == 1 && sll_size(return_list) > 0)
@@ -489,7 +490,7 @@ sll_return(np_key_t) _np_route_lookup (np_key_t* key, uint8_t count)
 		} else {
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "route_lookup bounce detection not wanted ...");
 		}
-		sll_free (np_key_t, key_list);
+		
 	}
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_lookup");
 	return (return_list);
@@ -532,16 +533,16 @@ sll_return(np_key_t) _np_route_neighbors ()
 
 	np_sll_t(np_key_t, node_keys);
 	sll_init(np_key_t, node_keys);
-	_LOCK_MODULES(np_keycache_t, np_routeglobal_t)
+	_LOCK_MODULE(np_routeglobal_t)
 	{
 		_np_route_append_leafset_to_sll(__routing_table->left_leafset, node_keys);
-		_np_route_append_leafset_to_sll(__routing_table->right_leafset, node_keys);
-
-		/* sort aux */
-		_np_keycache_sort_keys_kd(node_keys, &__routing_table->my_key->dhkey);
+		_np_route_append_leafset_to_sll(__routing_table->right_leafset, node_keys);	
 
 		np_ref_list(np_key_t, node_keys);
 	}
+	/* sort aux */
+	_np_keycache_sort_keys_kd(node_keys, &__routing_table->my_key->dhkey);
+
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_neighbors");
 	return node_keys;
 }
@@ -735,38 +736,38 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 np_bool _np_route_my_key_has_connection(){
 	np_bool ret = TRUE;
 	_LOCK_MODULE(np_routeglobal_t)
-		{
-			if(__routing_table->my_key->node->joined_network == TRUE) {
-				np_bool hasRoutingEntry = FALSE;
-				uint16_t i, j, k;
-				for (i = 0; i < __MAX_ROW; i++)
+	{
+		if(__routing_table->my_key->node->joined_network == TRUE) {
+			np_bool hasRoutingEntry = FALSE;
+			uint16_t i, j, k;
+			for (i = 0; i < __MAX_ROW; i++)
+			{
+				for (j = 0; j < __MAX_COL; j++)
 				{
-					for (j = 0; j < __MAX_COL; j++)
+					int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
+					for (k = 0; k < __MAX_ENTRY; k++)
 					{
-						int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
-						for (k = 0; k < __MAX_ENTRY; k++)
+						if (NULL != __routing_table->table[index + k])
 						{
-							if (NULL != __routing_table->table[index + k])
-							{
-								hasRoutingEntry = TRUE;
-								break;
-							}
-						}
-						if(hasRoutingEntry == TRUE)
+							hasRoutingEntry = TRUE;
 							break;
+						}
 					}
 					if(hasRoutingEntry == TRUE)
 						break;
 				}
+				if(hasRoutingEntry == TRUE)
+					break;
+			}
 
-				if( FALSE == hasRoutingEntry
-				&& pll_size(__routing_table->left_leafset) == 0
-				&& pll_size(__routing_table->right_leafset) == 0
-				){
-					ret = FALSE;
-				}
+			if( FALSE == hasRoutingEntry
+			&& pll_size(__routing_table->left_leafset) == 0
+			&& pll_size(__routing_table->right_leafset) == 0
+			){
+				ret = FALSE;
 			}
 		}
+	}
 	return ret;
 }
 void _np_route_check_for_joined_network()

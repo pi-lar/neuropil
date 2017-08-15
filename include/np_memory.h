@@ -58,8 +58,7 @@ typedef void (*np_alloc_t) (void* data);
 typedef struct np_obj_s np_obj_t;
 
 struct np_obj_s
-{
-	np_bool freeing;
+{	
 	char* id;
 
 	np_mutex_t	lock;
@@ -214,11 +213,12 @@ TYPE* saveTo = NULL;																																\
 }														\
 
 #define np_unref_obj(TYPE, np_obj, reason)                																					\
-{                                                 																							\
-	_LOCK_MODULE(np_memory_t) {                   																							\
-	  if(NULL != np_obj) {                   	  																							\
-		if(np_obj->obj == NULL) log_msg(LOG_ERROR,"ref obj is null");																		\
-		assert (np_obj->obj != NULL);         																								\
+{																																			\
+	np_bool delete_obj = FALSE;																												\
+	_LOCK_MODULE(np_memory_t) 																												\
+	{                   																													\
+	  if(NULL != np_obj && np_obj->obj != NULL) 																													\
+	  {                   	  																												\
 		if(np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"ref obj is wrong type %d != %d",np_obj->obj->type, TYPE##_e);					\
 		assert (np_obj->obj->type == TYPE##_e);     																						\
 		if(!np_obj->obj->persistent && np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");								\
@@ -229,23 +229,22 @@ TYPE* saveTo = NULL;																																\
 		{ 																																	\
 		  if (np_obj->obj->type != np_none_t_e)     																						\
 		  { 																																\
-			if (np_obj->obj->freeing != TRUE) 																								\
-			{ 																																\
-				np_obj->obj->freeing = TRUE;																								\
-				log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Deleting object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 						\
-				if(np_obj->obj->del_callback != NULL)   																					\
-					np_obj->obj->del_callback(np_obj);    																					\
-				np_mem_freeobj(TYPE##_e, &np_obj->obj); 																					\
-				np_obj->obj->freeing = FALSE;                																				\
-				np_obj->obj->ptr = NULL;                																					\
-				np_obj->obj = NULL;                     																					\
-				free(np_obj);                           																					\
-				np_obj = NULL;                          																					\
-			}                          																										\
+			log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Deleting object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 							\
+			np_mem_freeobj(TYPE##_e, &np_obj->obj); 																						\
+			np_obj->obj->ptr = NULL;                																						\
+			np_obj->obj = NULL;                     																						\
+			delete_obj = TRUE;                     																							\
 		 }	 																																\
 	   }                                           																							\
-	}                                             																							\
-  }                                               																							\
+	 }                                             																							\
+	} 																																		\
+	if (delete_obj == TRUE)																													\
+	{																																		\
+		if (np_obj->obj->del_callback != NULL)   																							\
+			np_obj->obj->del_callback(np_obj);    																							\
+		free(np_obj);                           																							\
+		np_obj = NULL;                          																							\
+	}																																		\
 }
 
 #define np_ref_switch(...) VFUNC(np_ref_switch, __VA_ARGS__)

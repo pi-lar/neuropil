@@ -163,8 +163,13 @@ void np_mem_unrefobj(np_obj_t* obj, char* reason)
 	log_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
 	obj->ref_count--;
 	//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
-	if(obj->ref_count < 0){
-		log_msg(LOG_ERROR,"Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
+	if(obj->ref_count < 0){		
+#ifdef MEMORY_CHECK
+		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (%d) (left reasons(%d): %s)", obj, obj->type, obj->ref_count, make_char_sll_flat(obj->reasons));
+#else
+		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
+#endif
+		abort();
 	}
 #ifdef MEMORY_CHECK
 	sll_iterator(char_ptr) iter_reasons = sll_first(obj->reasons);

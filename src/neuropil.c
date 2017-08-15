@@ -1014,15 +1014,18 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 
 	// log_msg(LOG_WARN, "node_key %p", state->my_node_key);
 
+	np_ref_obj(np_node_t, my_node, ref_key_node);
 	state->my_node_key->node = my_node;
+	np_ref_obj(np_network_t, my_network, ref_key_network);
 	state->my_node_key->network = my_network;
+	np_ref_obj(np_aaatoken_t, auth_token, ref_key_aaa_token);
 	state->my_node_key->aaa_token = auth_token;
 
 	//TODO: via np_setIdentity
 	// set and ref additional identity
 	state->my_identity = state->my_node_key;
-	np_ref_obj(np_key_t, state->my_identity);
-
+	np_ref_obj(np_key_t, state->my_identity, ref_state_identity);
+	
 	// initialize routing table
 	if (FALSE == _np_route_init (state->my_node_key) )
 	{
@@ -1068,6 +1071,10 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	// initialize network/io reading and writing
 	np_job_submit_event(0.0, _np_events_read);
 
+
+	np_unref_obj(np_node_t, my_node, ref_obj_creation);
+	np_unref_obj(np_network_t, my_network, ref_obj_creation);
+	np_unref_obj(np_aaatoken_t, auth_token, ref_obj_creation);
 
 	log_msg(LOG_INFO, "neuropil successfully initialized: %s", _np_key_as_str(state->my_node_key));
 	_np_log_fflush(TRUE);

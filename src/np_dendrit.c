@@ -1769,7 +1769,7 @@ void _np_in_handshake(np_jobargs_t* args)
 			if(NULL != hs_wildcard_key && NULL != hs_wildcard_key->network)
 			{
 				np_network_t* old_network = hs_wildcard_key->network;
-				np_ref_obj(np_network_t,old_network);
+				np_ref_obj(np_network_t,old_network,"usage_of_old_network");
 				_LOCK_ACCESS(&old_network->lock)
 				{
 					// Updating handshake key with already existing network
@@ -1792,12 +1792,12 @@ void _np_in_handshake(np_jobargs_t* args)
 					hs_wildcard_key->network = NULL;
 					//_np_key_destroy(hs_wildcard_key);
 				}
-				np_unref_obj(np_network_t, old_network,ref_key_network);
+				np_unref_obj(np_network_t, old_network, "usage_of_old_network");
 				_np_send_simple_invoke_request(hs_key, _NP_MSG_JOIN_REQUEST);
 			}
 
 			_np_keycache_remove(wildcard_dhkey);
-			np_unref_obj(np_key_t, hs_wildcard_key,ref_key_network);
+			np_unref_obj(np_key_t, hs_wildcard_key,"_np_keycache_find");
 		}
 	}
 	// should never happen
@@ -1869,18 +1869,18 @@ void _np_in_handshake(np_jobargs_t* args)
 		hs_key->node->joined_network = FALSE;
 	}
 
-	np_ref_obj(np_aaatoken_t, tmp_token,ref_key_aaa_token);
+	np_ref_obj(np_aaatoken_t, tmp_token, ref_key_aaa_token);
 	hs_key->aaa_token = tmp_token;
-	np_unref_obj(np_aaatoken_t, old_token,ref_key_aaa_token);
+	np_unref_obj(np_aaatoken_t, old_token, ref_key_aaa_token);
 
 	// handle alias key, also in case a new connection has been established
 	alias_key = _np_keycache_find_or_create(search_alias_key);
 	if (NULL != alias_key)
 	{
-		np_ref_obj(np_aaatoken_t, hs_key->aaa_token);
+		np_ref_obj(np_aaatoken_t, hs_key->aaa_token, ref_key_aaa_token);
 		alias_key->aaa_token = hs_key->aaa_token;
 
-		np_ref_obj(np_node_t, hs_key->node);
+		np_ref_obj(np_node_t, hs_key->node, ref_key_node);
 		alias_key->node = hs_key->node;
 
 		if ((alias_key->node->protocol & PASSIVE ) == PASSIVE)

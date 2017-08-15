@@ -524,140 +524,138 @@ real macros for convenience usage
 
 //
 // SLL (single linked list) prototype generator
-//
-#define NP_SLL_GENERATE_PROTOTYPES(TYPE)                          \
-	typedef struct TYPE##_sll_s TYPE##_sll_t;                     \
-	typedef struct TYPE##_sll_node_s TYPE##_sll_node_t;           \
-	struct TYPE##_sll_s                                           \
-	{                                                             \
-		uint32_t size;                                            \
-		TYPE##_sll_node_t *first;                                 \
-		TYPE##_sll_node_t *last;                                  \
-	};                                                            \
-	struct TYPE##_sll_node_s                                      \
-	{                                                             \
-		TYPE##_sll_node_t *flink;                                 \
-		TYPE* val;                                                \
-	};                                                            \
-	TYPE##_sll_t* TYPE##_sll_init();                              \
-	void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value);  \
-	void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value); \
-	TYPE* TYPE##_sll_head(TYPE##_sll_t* list);                    \
-	TYPE* TYPE##_sll_tail(TYPE##_sll_t* list);                    \
-	void TYPE##_sll_free(TYPE##_sll_t* list);                     \
-	void TYPE##_sll_clear(TYPE##_sll_t* list);                    \
-	void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);\
-
-
+//																  
+#define NP_SLL_GENERATE_PROTOTYPES(TYPE)                          											\
+	typedef struct TYPE##_sll_s TYPE##_sll_t;                     											\
+	typedef struct TYPE##_sll_node_s TYPE##_sll_node_t;           											\
+	struct TYPE##_sll_s                                           											\
+	{                                                             											\
+		uint32_t size;                                            											\
+		TYPE##_sll_node_t *first;                                 											\
+		TYPE##_sll_node_t *last;                                  											\
+	};                                                            											\
+	struct TYPE##_sll_node_s                                      											\
+	{                                                             											\
+		TYPE##_sll_node_t *flink;                                 											\
+		TYPE* val;                                                											\
+	};                                                            											\
+	TYPE##_sll_t* TYPE##_sll_init();                              											\
+	void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value);  											\
+	void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value); 											\
+	TYPE* TYPE##_sll_head(TYPE##_sll_t* list);                    											\
+	TYPE* TYPE##_sll_tail(TYPE##_sll_t* list);                    											\
+	void TYPE##_sll_free(TYPE##_sll_t* list);                     											\
+	void TYPE##_sll_clear(TYPE##_sll_t* list);                    											\
+	void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);										\
+																											\
+																											\
 //
 // SLL (single linked list) implementation generator
 //
-#define NP_SLL_GENERATE_IMPLEMENTATION(TYPE)\
-TYPE##_sll_t* TYPE##_sll_init() {\
-	TYPE##_sll_t* sll_list = (TYPE##_sll_t*) calloc(1,sizeof(TYPE##_sll_t));\
-	sll_list->size = 0;\
-	sll_list->first = NULL;\
-	sll_list->last = NULL;\
-	return (sll_list);\
-}\
-void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value) {											\
-	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));				\
-	CHECK_MALLOC(sll_node);																				\
-	sll_node->val = value;																				\
-	sll_node->flink = NULL;																				\
-	if (sll_list->first == NULL) { 																		\
-		sll_list->first = sll_node; 																	\
-		sll_list->last = sll_node; 																		\
-	}																									\
-	sll_list->last->flink = sll_node;																	\
-	sll_list->last = sll_node;																			\
-	sll_list->size++;																					\
-}																										\
-void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value) {											\
-	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));				\
-	sll_node->val = value;																				\
-	sll_node->flink = NULL;																				\
-	if (sll_list->first == NULL) { sll_list->first = sll_node; sll_list->last = sll_node; }				\
-	if (sll_list->first != sll_node) {																	\
-		sll_node->flink = sll_list->first;																\
-		sll_list->first = sll_node;																		\
-	}																									\
-	sll_list->size++;																					\
-}																										\
-TYPE* TYPE##_sll_head(TYPE##_sll_t* sll_list) {															\
-	TYPE* ret_val = NULL;																				\
-	if (NULL != sll_list->first) {																		\
-		TYPE##_sll_node_t* tmp = sll_list->first;														\
-		ret_val = tmp->val;																				\
-		if (tmp == sll_list->last) {																	\
-			sll_list->first = NULL; 																	\
-			sll_list->last = NULL;																		\
-		}																								\
-		else {																							\
-			sll_list->first = sll_list->first->flink;													\
-		}																								\
-		free(tmp);																						\
-		sll_list->size--;																				\
-	}																									\
-	return (ret_val);																					\
-}																										\
-TYPE* TYPE##_sll_tail(TYPE##_sll_t* sll_list) {\
-	TYPE* ret_val = NULL;\
-	if (NULL != sll_list->last) {\
-		TYPE##_sll_node_t* tmp = sll_list->last;\
-		ret_val = tmp->val;\
-		TYPE##_sll_node_t* tmp_list_elem = sll_list->first;\
-		if(sll_list->first != sll_list->last) {\
-			while (tmp_list_elem->flink != sll_list->last) { tmp_list_elem = tmp_list_elem->flink; }\
-			sll_list->last = tmp_list_elem;\
-			sll_list->last->flink = NULL;\
-		} else {\
-			sll_list->last = NULL; sll_list->first = NULL; \
-		}\
-		free(tmp);\
-		sll_list->size--;\
-	}                                             \
-	return (ret_val);                             \
-}                                                 \
-void TYPE##_sll_free(TYPE##_sll_t* sll_list) {    \
-	TYPE##_sll_node_t *tmp;                       \
-	while (NULL != sll_list->first) {             \
-		tmp = sll_list->first;                    \
-		sll_list->first = sll_list->first->flink; \
-		free(tmp);                                \
-	}                                             \
-	free(sll_list);                               \
-	sll_list = NULL;                              \
-}                                                 \
-void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {   \
-	TYPE##_sll_node_t *tmp;                       \
-	while (sll_list->first != NULL) {             \
-		tmp = sll_list->first;                    \
-		sll_list->first = sll_list->first->flink; \
-		free(tmp);                                \
-	}                                             \
-	sll_list->size = 0;                           \
-}                                                 \
-void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) { 									 \
-	if (sll_list->first == tbr) {																			 \
-		sll_list->first = tbr->flink;																		 \
-		free(tbr);																							 \
-		sll_list->size -=1;																					 \
-	} else {																								 \
-		TYPE##_sll_node_t *tmp = sll_list->first;															 \
-		TYPE##_sll_node_t *mem = sll_list->first;															 \
-		while (tmp->flink != NULL) {																		 \
-			tmp = tmp->flink;																				 \
-			if (tmp == tbr) {																				 \
-				mem->flink = tmp->flink;																	 \
-				free(tmp);																					 \
-				sll_list->size -=1;																			 \
-				break;																						 \
-			} else {																						 \
-				mem = mem->flink;																			 \
-			}																								 \
-		}																									 \
-	}																										 \
+#define NP_SLL_GENERATE_IMPLEMENTATION(TYPE)																\
+TYPE##_sll_t* TYPE##_sll_init() {																			\
+	TYPE##_sll_t* sll_list = (TYPE##_sll_t*) calloc(1,sizeof(TYPE##_sll_t));								\
+	sll_list->size = 0;																						\
+	sll_list->first = NULL;																					\
+	sll_list->last = NULL;																					\
+	return (sll_list);																						\
+}																											\
+void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value) {												\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
+	CHECK_MALLOC(sll_node);																					\
+	sll_node->val = value;																					\
+	sll_node->flink = NULL;																					\
+	if (sll_list->first == NULL) { 																			\
+		sll_list->first = sll_node; 																		\
+		sll_list->last = sll_node; 																			\
+	}																										\
+	sll_list->last->flink = sll_node;																		\
+	sll_list->last = sll_node;																				\
+	sll_list->size++;																						\
+}																											\
+void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value) {												\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
+	sll_node->val = value;																					\
+	sll_node->flink = sll_list->first;																		\
+	if (sll_list->first == NULL) { sll_list->first = sll_node; sll_list->last = sll_node; }					\
+	if (sll_list->first != sll_node) {																		\
+		sll_list->first = sll_node;																			\
+	}																										\
+	sll_list->size++;																						\
+}																											\
+TYPE* TYPE##_sll_head(TYPE##_sll_t* sll_list) {																\
+	TYPE* ret_val = NULL;																					\
+	if (NULL != sll_list->first) {																			\
+		TYPE##_sll_node_t* tmp = sll_list->first;															\
+		ret_val = tmp->val;																					\
+		if (tmp == sll_list->last) {																		\
+			sll_list->first = NULL; 																		\
+			sll_list->last = NULL;																			\
+		}																									\
+		else {																								\
+			sll_list->first = sll_list->first->flink;														\
+		}																									\
+		free(tmp);																							\
+		sll_list->size--;																					\
+	}																										\
+	return (ret_val);																						\
+}																											\
+TYPE* TYPE##_sll_tail(TYPE##_sll_t* sll_list) {																\
+	TYPE* ret_val = NULL;																					\
+	if (NULL != sll_list->last) {																			\
+		TYPE##_sll_node_t* tmp = sll_list->last;															\
+		ret_val = tmp->val;																					\
+		TYPE##_sll_node_t* tmp_list_elem = sll_list->first;													\
+		if(sll_list->first != sll_list->last) {																\
+			while (tmp_list_elem->flink != sll_list->last) { tmp_list_elem = tmp_list_elem->flink; }		\
+			sll_list->last = tmp_list_elem;																	\
+			sll_list->last->flink = NULL;																	\
+		} else {																							\
+			sll_list->last = NULL; sll_list->first = NULL; 													\
+		}																									\
+		free(tmp);																							\
+		sll_list->size--;																					\
+	}																										\
+	return (ret_val);																						\
+}																											\
+void TYPE##_sll_free(TYPE##_sll_t* sll_list) {																\
+	TYPE##_sll_node_t *tmp;																					\
+	while (NULL != sll_list->first) {																		\
+		tmp = sll_list->first;																				\
+		sll_list->first = sll_list->first->flink;															\
+		free(tmp);																							\
+	}																										\
+	free(sll_list);																							\
+	sll_list = NULL;																						\
+}																											\
+void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {																\
+	TYPE##_sll_node_t *tmp;																					\
+	while (sll_list->first != NULL) {																		\
+		tmp = sll_list->first;																				\
+		sll_list->first = sll_list->first->flink;															\
+		free(tmp);																							\
+	}																										\
+	sll_list->size = 0;																						\
+}																											\
+void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) { 									\
+	if (sll_list->first == tbr) {																			\
+		sll_list->first = tbr->flink;																		\
+		free(tbr);																							\
+		sll_list->size--;																					\
+	} else {																								\
+		TYPE##_sll_node_t *tmp = sll_list->first;															\
+		TYPE##_sll_node_t *mem = sll_list->first;															\
+		while (tmp->flink != NULL) {																		\
+			tmp = tmp->flink;																				\
+			if (tmp == tbr) {																				\
+				mem->flink = tmp->flink;																	\
+				free(tmp);																					\
+				sll_list->size--;																			\
+				break;	/*while*/																			\
+			} 																								\
+			mem = mem->flink;																				\
+		}																									\
+	}																										\
 }
 
 #ifdef __cplusplus
