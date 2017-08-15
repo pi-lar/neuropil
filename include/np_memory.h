@@ -215,9 +215,10 @@ TYPE* saveTo = NULL;																																\
 #define np_unref_obj(TYPE, np_obj, reason)                																					\
 {																																			\
 	np_bool delete_obj = FALSE;																												\
+	np_dealloc_t del_callback;																												\
 	_LOCK_MODULE(np_memory_t) 																												\
 	{                   																													\
-	  if(NULL != np_obj && np_obj->obj != NULL) 																													\
+	  if(NULL != np_obj && np_obj->obj != NULL) 																							\
 	  {                   	  																												\
 		if(np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"ref obj is wrong type %d != %d",np_obj->obj->type, TYPE##_e);					\
 		assert (np_obj->obj->type == TYPE##_e);     																						\
@@ -230,18 +231,19 @@ TYPE* saveTo = NULL;																																\
 		  if (np_obj->obj->type != np_none_t_e)     																						\
 		  { 																																\
 			log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Deleting object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 							\
+			delete_obj = TRUE;                     																							\
+			del_callback = np_obj->obj->del_callback;																						\
 			np_mem_freeobj(TYPE##_e, &np_obj->obj); 																						\
 			np_obj->obj->ptr = NULL;                																						\
 			np_obj->obj = NULL;                     																						\
-			delete_obj = TRUE;                     																							\
 		 }	 																																\
 	   }                                           																							\
 	 }                                             																							\
 	} 																																		\
 	if (delete_obj == TRUE)																													\
 	{																																		\
-		if (np_obj->obj->del_callback != NULL)   																							\
-			np_obj->obj->del_callback(np_obj);    																							\
+		if (del_callback != NULL)   																										\
+			del_callback(np_obj);    																										\
 		free(np_obj);                           																							\
 		np_obj = NULL;                          																							\
 	}																																		\
