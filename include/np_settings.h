@@ -112,7 +112,11 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 #endif
 
 #ifndef LOG_ROTATE_COUNT
-	#define LOG_ROTATE_COUNT 3
+#define LOG_ROTATE_COUNT 3
+#endif
+
+#ifndef LOG_ROW_SIZE
+	#define LOG_ROW_SIZE 5000
 #endif
 
 #ifndef LOG_ROTATE_AFTER_BYTES

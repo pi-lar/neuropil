@@ -317,7 +317,7 @@ void* _job_exec ()
 
 	while (1)
 	{
-		_np_threads_lock_module(np_jobqueue_t_lock);
+		_np_threads_lock_module(np_jobqueue_t_lock, __func__);
 
 		now = ev_time();
 		while (0 == pll_size(__np_job_queue->job_list))

@@ -41,7 +41,7 @@ np_bool _np_messagepart_decrypt(np_tree_t* msg_part,
 							unsigned char* public_key,
 							NP_UNUSED unsigned char* secret_key)
 {
-    log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_decrypt(np_tree_t* msg_part,							unsigned char* enc_nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
+	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_decrypt(np_tree_t* msg_part,							unsigned char* enc_nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
 	np_tree_elem_t* enc_msg_part = np_tree_find_str(msg_part, NP_ENCRYPTED);
 	if (NULL == enc_msg_part)
 	{
@@ -100,16 +100,16 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 							unsigned char* public_key,
 							NP_UNUSED unsigned char* secret_key)
 {
-    log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_encrypt(np_tree_t* msg_part,							unsigned char* nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
+	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_encrypt(np_tree_t* msg_part,							unsigned char* nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
 	cmp_ctx_t cmp;
 
-    unsigned char msg_part_buffer[65536];
-    void* msg_part_buf_ptr = msg_part_buffer;
+	unsigned char msg_part_buffer[65536];
+	void* msg_part_buf_ptr = msg_part_buffer;
 
-    cmp_init(&cmp, msg_part_buf_ptr, _np_buffer_reader, _np_buffer_writer);
-    _np_tree_serialize(msg_part, &cmp);
+	cmp_init(&cmp, msg_part_buf_ptr, _np_buffer_reader, _np_buffer_writer);
+	_np_tree_serialize(msg_part, &cmp);
 
-    uint64_t msg_part_len = cmp.buf-msg_part_buf_ptr;
+	uint64_t msg_part_len = cmp.buf-msg_part_buf_ptr;
 
 	uint64_t enc_msg_part_len = msg_part_len + crypto_box_MACBYTES;
 
@@ -143,26 +143,26 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 
 void _np_messagepart_t_del(void* nw)
 {
-    log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
-    np_messagepart_t* part = (np_messagepart_t*) nw;
+	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
+	np_messagepart_t* part = (np_messagepart_t*) nw;
 
-    if(part->msg_part != NULL) free(part->msg_part );
+	if(part->msg_part != NULL) free(part->msg_part );
 }
 void _np_messagepart_t_new(void* nw)
 {
-    log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
-    np_messagepart_t* part = (np_messagepart_t *) nw;
+	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
+	np_messagepart_t* part = (np_messagepart_t *) nw;
 
-    part->msg_part  = NULL;
+	part->msg_part  = NULL;
 }
 
 char* np_messagepart_printcache(np_bool asOneLine)
 {
 	char* ret = NULL;
-    char* new_line = "\n";
-    if(asOneLine == TRUE){
-    	new_line = "    ";
-    }
+	char* new_line = "\n";
+	if(asOneLine == TRUE){
+		new_line = "    ";
+	}
 
 	_LOCK_MODULE(np_message_part_cache_t)
 	{

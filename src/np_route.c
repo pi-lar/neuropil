@@ -276,8 +276,8 @@ sll_return(np_key_t) _np_route_row_lookup (np_key_t* key)
 	return sll_of_keys;
 }
 
-void _np_route_append_leafset_to_sll(np_key_ptr_pll_t* leafset, np_sll_t(np_key_t, result)  ) {
-
+void _np_route_append_leafset_to_sll(np_key_ptr_pll_t* leafset, np_sll_t(np_key_t, result)) 
+{
 	pll_iterator(np_key_ptr) iter = pll_first(leafset);
 
 	while(iter != NULL) {
@@ -775,7 +775,7 @@ void _np_route_check_for_joined_network()
 	if( _np_route_my_key_has_connection() == FALSE)
 	{
 		__routing_table->my_key->node->joined_network = FALSE;
-		_np_route_rejoin_bootstrap(TRUE);
+		//_np_route_rejoin_bootstrap(TRUE);
 	}
 }
 

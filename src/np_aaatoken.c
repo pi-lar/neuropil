@@ -366,7 +366,8 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 	np_msgproperty_t* prop = NULL;
 	np_bool create_new_prop = FALSE;
 
-	_LOCK_MODULE(np_aaatoken_t) {
+	_LOCK_MODULE(np_aaatoken_t) 
+	{
 
 		if (NULL == subject_key->recv_tokens)
 			pll_init(np_aaatoken_ptr, subject_key->recv_tokens);

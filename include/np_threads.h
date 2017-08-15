@@ -59,6 +59,10 @@ enum np_module_lock_e {
 struct np_mutex_s {
 	pthread_mutex_t lock;
 	pthread_mutexattr_t lock_attr;
+#ifdef DEBUG
+	char* lastlock;
+	char* wantlock;
+#endif
 };
 typedef struct np_mutex_s np_mutex_t;
 /** condition                                                    **/
@@ -73,11 +77,11 @@ NP_API_INTERN
 np_bool _np_threads_init();
 
 NP_API_INTERN
-int _np_threads_lock_module(np_module_lock_type module_id);
+int _np_threads_lock_module(np_module_lock_type module_id, char* where);
 NP_API_INTERN
 int _np_threads_unlock_module(np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b);
+int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b, char* where);
 NP_API_INTERN
 int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b);
 
@@ -110,7 +114,7 @@ int _np_threads_module_condition_broadcast(np_cond_t* condition);
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
 
-#define _LOCK_ACCESS(obj) np_mutex_t* TOKENPASTE2(lock, __LINE__) = obj; for(uint8_t i=0; (i < 1) && !_np_threads_mutex_lock(TOKENPASTE2(lock, __LINE__)); _np_threads_mutex_unlock(TOKENPASTE2(lock, __LINE__)), i++)
+#define _LOCK_ACCESS(obj) np_mutex_t* TOKENPASTE2(lock, __LINE__) = obj; for(uint8_t _LOCK_ACCESS##__LINE__=0; (_LOCK_ACCESS##__LINE__ < 1) && !_np_threads_mutex_lock(TOKENPASTE2(lock, __LINE__)); _np_threads_mutex_unlock(TOKENPASTE2(lock, __LINE__)), _LOCK_ACCESS##__LINE__++)
 // protect access to restricted area in the rest of your code like this
 /*
 struct obj {
@@ -125,8 +129,8 @@ _LOCK_ACCESS(&object->lock)
 }
 */
 
-#define _LOCK_MODULE(TYPE) for(uint8_t i=0; (i < 1) && 0 == _np_threads_lock_module(TYPE##_lock); _np_threads_unlock_module(TYPE##_lock), i++)
-#define _LOCK_MODULES(TYPE_A,TYPE_B) for(uint8_t i=0; (i < 1) && 0 == _np_threads_lock_modules(TYPE_A##_lock,TYPE_B##_lock); _np_threads_unlock_modules(TYPE_A##_lock,TYPE_B##_lock), i++)
+#define _LOCK_MODULE(TYPE) for(uint8_t _LOCK_MODULE_i##__LINE__=0; (_LOCK_MODULE_i##__LINE__ < 1) && 0 == _np_threads_lock_module(TYPE##_lock,__func__); _np_threads_unlock_module(TYPE##_lock), _LOCK_MODULE_i##__LINE__++)
+#define _LOCK_MODULES(TYPE_A,TYPE_B) for(uint8_t _LOCK_MODULES_i##__LINE__=0; (_LOCK_MODULES_i##__LINE__ < 1) && 0 == _np_threads_lock_modules(TYPE_A##_lock,TYPE_B##_lock,__func__); _np_threads_unlock_modules(TYPE_A##_lock,TYPE_B##_lock), _LOCK_MODULES_i##__LINE__++)
 // protect access to a module in the rest of your code like this
 /*
 _LOCK_MODULE(np_keycache_t)

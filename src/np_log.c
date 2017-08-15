@@ -4,7 +4,6 @@
 //
 #include <fcntl.h>
 #include <errno.h>
-#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +14,7 @@
 #include <time.h>
 
 #include "event/ev.h"
+#include "pthread.h"
 
 #include "np_log.h"
 
@@ -161,7 +161,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 	// next check if the log level (debug, error, ...) is set
 	if ( (level & LOG_LEVEL_MASK & logger->level) > LOG_NONE)
 	{
-		char* new_log_entry = malloc(sizeof(char)*1124);
+		char* new_log_entry = malloc(sizeof(char)*LOG_ROW_SIZE);
 		CHECK_MALLOC(new_log_entry);
 
 		int wb = 0;
@@ -172,16 +172,16 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		localtime_r(&tval.tv_sec, &local_time);
 
 		wb  = strftime(new_log_entry, 80, "%Y-%m-%d %H:%M:%S", &local_time);
-		wb += snprintf(new_log_entry+wb, 1124-wb,
+		wb += snprintf(new_log_entry+wb, LOG_ROW_SIZE -wb,
 						   ".%06d %-15lu %15.15s:%-5hd %-25.25s _%5s_ ",
 						   millis, (unsigned long) pthread_self(),
 						   srcFile, lineno, funcName,
 						   __level_str[level & LOG_LEVEL_MASK].text);
 		va_list ap;
 		va_start (ap, msg);
-		wb += vsnprintf (new_log_entry+wb, 1124-wb, msg, ap);
+		wb += vsnprintf (new_log_entry+wb, LOG_ROW_SIZE -wb, msg, ap);
 		va_end(ap);
-		snprintf(new_log_entry+wb, 1124-wb, "\n");
+		snprintf(new_log_entry+wb, LOG_ROW_SIZE-wb, "\n");
 
 #if defined(CONSOLE_LOG) && CONSOLE_LOG == 1
 		fprintf(stdout, new_log_entry);
