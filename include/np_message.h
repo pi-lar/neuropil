@@ -10,6 +10,7 @@
 #include "np_memory.h"
 #include "np_types.h"
 #include "np_messagepart.h"
+#include "np_threads.h"
 
 #ifdef __cplusplus
 extern "C" {

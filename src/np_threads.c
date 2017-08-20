@@ -8,16 +8,21 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "np_threads.h"
+
 #include "event/ev.h"
 #include "pthread.h"
 
+#include "neuropil.h"
 #include "np_types.h"
 #include "np_list.h"
 #include "np_util.h"
 #include "np_log.h"
 #include "np_settings.h"
+
 
 #ifndef MUTEX_WAIT_SEC
 const ev_tstamp MUTEX_WAIT_SEC = 0.005;
@@ -33,12 +38,7 @@ np_bool __np_threads_create_module_mutex(np_module_lock_type module_id)
 	pthread_mutexattr_init(&__mutexes[module_id].lock_attr);
 	pthread_mutexattr_settype(&__mutexes[module_id].lock_attr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&__mutexes[module_id].lock, &__mutexes[module_id].lock_attr);
-
-#ifdef DEBUG
-	__mutexes[module_id].wantlock = strdup(__func__);
-	__mutexes[module_id].lastlock = strdup(__func__);
-#endif
-
+	
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG, "created module mutex %d", module_id);
 
 	return TRUE;
@@ -76,11 +76,15 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 		#ifdef DEBUG
 		double diff = ev_time() - start;
 			if(diff > (MUTEX_WAIT_SEC*1000)){
-				log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %d (%f sec)", pthread_getthreadid_np(), module_id, diff);
+				log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %d (%f sec)", getpid(), module_id, diff);
 #ifdef DEBUG			
-				for (int i = 0; i < PREDEFINED_DUMMY_START; i++) {
-					log_msg(LOG_ERROR, "mutex %d last lock was at %s", i, __mutexes[i].lastlock);
-					log_msg(LOG_ERROR, "mutex %d last want lock was at %s", i, __mutexes[i].wantlock);
+
+				sll_iterator(np_thread_t) iter_threads = sll_first(_np_state()->threads);
+				while (iter_threads != NULL)
+				{
+					log_msg(LOG_DEBUG, "Thread %"PRIu32" LOCKS: %s", iter_threads->val->id, _sll_char_make_flat(_sll_char_part(iter_threads->val->has_lock,-5)));
+					log_msg(LOG_DEBUG, "Thread %"PRIu32" WANTS LOCKS: %s", iter_threads->val->id, _sll_char_make_flat(_sll_char_part(iter_threads->val->want_lock,-5)));
+					sll_next(iter_threads);
 				}
 #endif
 				abort();
@@ -91,19 +95,30 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 		#endif
 
 		ret = pthread_mutex_trylock(&__mutexes[module_id].lock);
+
+#ifdef DEBUG 
+		char * tmp = NULL;
+		asprintf(&tmp, "%d@%s", module_id, where);
+#endif
 		if(ret == EBUSY){
 			#ifdef DEBUG		
-						free(__mutexes[module_id].wantlock);
-						asprintf(&__mutexes[module_id].wantlock, "%s(%d@%f)", where, pthread_getthreadid_np(), ev_time());
+			if (_np_threads_get_self() != NULL)
+			{
+				_sll_char_remove(_np_threads_get_self()->want_lock, tmp);
+				sll_append(char_ptr, _np_threads_get_self()->want_lock, tmp);
+			}
 			#endif
 			ev_sleep(MUTEX_WAIT_SEC);
 		}else if(ret != 0) {
 			log_msg(LOG_ERROR,"error at acquiring mutex for module %d. Error: %s (%d)", module_id, strerror(ret), ret);
 		}
 		else {
-#ifdef DEBUG		
-			free(__mutexes[module_id].lastlock);
-			asprintf(&__mutexes[module_id].lastlock, "%s(%d@%f)", where, pthread_getthreadid_np(),ev_time());
+#ifdef DEBUG	
+			if (_np_threads_get_self() != NULL)
+			{
+				sll_append(char_ptr, _np_threads_get_self()->has_lock, tmp);
+				_sll_char_remove(_np_threads_get_self()->want_lock, tmp);
+			}
 #endif
 		}
 	}
@@ -123,15 +138,23 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 
 	pthread_mutex_t* lock_a = &__mutexes[module_id_a].lock;
 	pthread_mutex_t* lock_b = &__mutexes[module_id_b].lock;
-
+#ifdef DEBUG
+	char * tmp_a = NULL;
+	asprintf(&tmp_a, "%d@%s", module_id_a, where);
+	char * tmp_b = NULL;
+	asprintf(&tmp_b, "%d@%s", module_id_b, where);
+#endif
 	while(ret != 0){
 		ret = pthread_mutex_trylock(lock_a);
 		if (ret == 0) {
 			ret = pthread_mutex_trylock(lock_b);
 			if(ret != 0){
 #ifdef DEBUG
-				free(__mutexes[module_id_b].wantlock);
-				asprintf(&__mutexes[module_id_b].wantlock, "%s(%d@%f)", where, pthread_getthreadid_np(),ev_time());
+				if (_np_threads_get_self() != NULL)
+				{
+					_sll_char_remove(_np_threads_get_self()->want_lock, tmp_b);
+					sll_append(char_ptr, _np_threads_get_self()->want_lock, tmp_b);
+				}
 #endif
 				pthread_mutex_unlock(lock_a);
 				ev_sleep(MUTEX_WAIT_SEC);
@@ -139,8 +162,11 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 			}
 		}else{
 #ifdef DEBUG		
-			free(__mutexes[module_id_a].wantlock);
-			asprintf(&__mutexes[module_id_a].wantlock, "%s(%d@%f)", where, pthread_getthreadid_np(),ev_time());
+			if (_np_threads_get_self() != NULL)
+			{
+				_sll_char_remove(_np_threads_get_self()->want_lock, tmp_a);
+				sll_append(char_ptr, _np_threads_get_self()->want_lock, tmp_a);
+			}
 #endif
 			ev_sleep(MUTEX_WAIT_SEC);
 		}
@@ -148,10 +174,15 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG, "got module mutexes %d and %d.", module_id_a,module_id_b);
 	if (ret == 0) {
 #ifdef DEBUG
-		free(__mutexes[module_id_a].lastlock);
-		asprintf(&__mutexes[module_id_a].lastlock, "%s(%d@%f)", where, pthread_getthreadid_np(), ev_time());
-		free(__mutexes[module_id_b].lastlock);
-		asprintf(&__mutexes[module_id_b].lastlock, "%s(%d@%f)", where, pthread_getthreadid_np(), ev_time());
+		if (_np_threads_get_self() != NULL)
+		{
+			_sll_char_remove(_np_threads_get_self()->want_lock, tmp_a); 
+			sll_append(char_ptr, _np_threads_get_self()->has_lock, tmp_a);
+			
+
+			_sll_char_remove(_np_threads_get_self()->want_lock, tmp_b); 
+			sll_append(char_ptr, _np_threads_get_self()->has_lock, tmp_b);			
+		}
 #endif
 
 	}
@@ -170,14 +201,6 @@ int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_ty
 	pthread_mutex_t* lock_a = &__mutexes[module_id_a].lock;
 	pthread_mutex_t* lock_b = &__mutexes[module_id_b].lock;
 
-#ifdef DEBUG
-	free(__mutexes[module_id_a].lastlock);
-	__mutexes[module_id_a].lastlock = strdup("");
-	free(__mutexes[module_id_b].lastlock);
-	__mutexes[module_id_b].lastlock = strdup("");
-#endif
-
-
 	ret = pthread_mutex_unlock(lock_b);
 	ret = pthread_mutex_unlock(lock_a);
 	return ret;
@@ -190,10 +213,6 @@ int _np_threads_unlock_module(np_module_lock_type module_id) {
 		_np_threads_init();
 	}
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Unlocking module mutex %d.", module_id);
-#ifdef DEBUG
-	free(__mutexes[module_id].lastlock);
-	__mutexes[module_id].lastlock = strdup("");
-#endif
 
 	return pthread_mutex_unlock(&__mutexes[module_id].lock);
 }
@@ -276,3 +295,75 @@ int _np_threads_condition_signal(np_cond_t* condition)
 	return pthread_cond_signal(&condition->cond);
 }
 
+#ifdef DEBUG
+NP_SLL_GENERATE_IMPLEMENTATION(np_thread_t);
+_NP_GENERATE_MEMORY_IMPLEMENTATION(np_thread_t);
+
+np_thread_t*_np_threads_get_self()
+{
+	np_thread_t* ret = NULL;
+
+	if (_np_state() != NULL)
+	{
+		unsigned long id_to_find = (unsigned long)pthread_self();
+
+		sll_iterator(np_thread_t) iter_threads = sll_first(_np_state()->threads);
+		while (iter_threads != NULL)
+		{
+			if (iter_threads->val->id == id_to_find) {
+				ret = iter_threads->val;
+				break;
+			}
+			sll_next(iter_threads);
+		}
+
+		if (ret == NULL) {
+			id_to_find = (unsigned long)getpid();
+
+			iter_threads = sll_first(_np_state()->threads);
+			while (iter_threads != NULL)
+			{
+				if (iter_threads->val->id == id_to_find) {
+					ret = iter_threads->val;
+					break;
+				}
+				sll_next(iter_threads);
+			}
+		}
+	}
+	return ret;
+}
+void _np_thread_t_del(void* obj)
+{
+	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
+	np_thread_t* thread = (np_thread_t*)obj;
+
+
+	sll_iterator(char_ptr) iter_has_lock = sll_first(thread->has_lock);
+	while (iter_has_lock != NULL)
+	{
+		free(iter_has_lock->val);
+		sll_next(iter_has_lock);
+	}
+	sll_free(char_ptr, thread->has_lock);
+
+	sll_iterator(char_ptr) iter_want_lock = sll_first(thread->want_lock);
+	while (iter_want_lock != NULL)
+	{
+		free(iter_want_lock->val);
+		sll_next(iter_want_lock);
+	}
+	sll_free(char_ptr, thread->want_lock);
+	
+}
+void _np_thread_t_new(void* obj)
+{
+	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
+	np_thread_t* thread = (np_thread_t*)obj;
+
+
+	sll_init(char_ptr, thread->has_lock);
+	sll_init(char_ptr, thread->want_lock);
+
+}
+#endif

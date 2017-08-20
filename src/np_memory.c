@@ -8,7 +8,6 @@
  */
 #include <assert.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <inttypes.h>
 
 #include "np_memory.h"
@@ -91,8 +90,9 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 #endif
 		__np_obj_pool_ptr->size++;
 	}
-
-	_np_threads_mutex_init(&__np_obj_pool_ptr->current->lock);
+	__np_obj_pool_ptr->current->lock = calloc(1, sizeof(np_mutex_t));
+	CHECK_MALLOC(__np_obj_pool_ptr->current->lock);
+	_np_threads_mutex_init(__np_obj_pool_ptr->current->lock);
 	__np_obj_pool_ptr->current->type = obj_type;
 	__np_obj_pool_ptr->current->ref_count = 0;
 	__np_obj_pool_ptr->current->next = NULL;
@@ -137,7 +137,8 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 		}
 		sll_clear(char_ptr, (*obj)->reasons);
 #endif
-		_np_threads_mutex_destroy(&(*obj)->lock);
+		_np_threads_mutex_destroy((*obj)->lock);
+		free((*obj)->lock);
 		__np_obj_pool_ptr->free_obj = (*obj);
 		__np_obj_pool_ptr->available++;
 		__np_obj_pool_ptr->current = NULL;
@@ -165,7 +166,7 @@ void np_mem_unrefobj(np_obj_t* obj, char* reason)
 	//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
 	if(obj->ref_count < 0){		
 #ifdef MEMORY_CHECK
-		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (%d) (left reasons(%d): %s)", obj, obj->type, obj->ref_count, make_char_sll_flat(obj->reasons));
+		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (%d) (left reasons(%d): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
 #else
 		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
 #endif
@@ -185,7 +186,7 @@ void np_mem_unrefobj(np_obj_t* obj, char* reason)
 		sll_next(iter_reasons);
 	}
 	if (FALSE == foundReason) {
-		log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ",reason, obj->id, obj->type, sll_size(obj->reasons), make_char_sll_flat(obj->reasons));
+		log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ",reason, obj->id, obj->type, sll_size(obj->reasons), _sll_char_make_flat(obj->reasons));
 		abort();
 	}	
 #endif
@@ -259,7 +260,8 @@ char* np_mem_printpool(np_bool asOneLine)
 	ret = _np_concatAndFree(ret, "np_aaatoken_t_e    count %4"PRIu64" %s", 	summary[np_aaatoken_t_e],	new_line);
 	ret = _np_concatAndFree(ret, "np_msgproperty_t_e count %4"PRIu64" %s", 	summary[np_msgproperty_t_e],new_line);
 	ret = _np_concatAndFree(ret, "np_http_t_e        count %4"PRIu64" %s", 	summary[np_http_t_e],		new_line);
-	ret = _np_concatAndFree(ret, "np_network_t_e     count %4"PRIu64" %s", 	summary[np_network_t_e],	new_line);
+	ret = _np_concatAndFree(ret, "np_network_t_e     count %4"PRIu64" %s",  summary[np_network_t_e],	new_line);
+	ret = _np_concatAndFree(ret, "np_thread_t_e      count %4"PRIu64" %s",  summary[np_thread_t_e],		new_line);
 	ret = _np_concatAndFree(ret, "test_struct_t_e    count %4"PRIu64" %s", 	summary[test_struct_t_e],	new_line);
 
 	ret = _np_concatAndFree(ret, "--- memory end ---%s",new_line);

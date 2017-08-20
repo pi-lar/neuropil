@@ -261,7 +261,7 @@ sll_return(np_key_t) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 		}
 		sll_append(np_key_t, node_list, node_key);
 	}
-
+	ref_replace_reason_sll(np_key_t, node_list, "_np_node_decode_from_jrb", __func__);
 	return (node_list);
 }
 

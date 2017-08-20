@@ -14,6 +14,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "sodium.h"
 #include "event/ev.h"
@@ -472,8 +473,21 @@ np_bool _np_get_local_ip(char* buffer){
 	
 	return ret;
 }
+void _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove) {
+	sll_iterator(char_ptr) iter = sll_first(target);	
+	int l = strlen(to_remove);
+	while (iter != NULL)
+	{
+		if (strncmp(iter->val, to_remove, l) == 0)
+		{
+			sll_delete(char_ptr, target, iter);
+			break;
+		}
+		sll_next(iter);
+	}
+}
 
-char* make_char_sll_flat(np_sll_t(char_ptr, target)) {
+char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
 	char* ret = NULL;
 
 	sll_iterator(char_ptr) iter = sll_first(target);
@@ -487,6 +501,37 @@ char* make_char_sll_flat(np_sll_t(char_ptr, target)) {
 	if (sll_size(target) != i) {
 		log_msg(LOG_ERROR, "Size of target does not equal the expected size.");
 		abort();
+	}
+	return ret;
+}
+
+sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount) {
+	
+	sll_return(char_ptr) ret;
+	sll_init(char_ptr, ret);
+
+	int begin_copy_at = 0;
+
+	if (amount < 0) {
+		// get from tail
+		amount = amount * -1;
+		if (sll_size(target) <= amount) {
+			amount = sll_size(target);
+		}
+		else {
+			begin_copy_at = sll_size(target) - amount;
+		}		
+	}
+
+	sll_iterator(char_ptr) iter = sll_first(target);
+	int i = 0;
+	while (iter != NULL)
+	{
+		if (i >= begin_copy_at) {
+			sll_append(char_ptr, ret, iter->val);
+		}
+		i++;
+		sll_next(iter);
 	}
 	return ret;
 }

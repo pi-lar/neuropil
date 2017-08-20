@@ -73,7 +73,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 	np_tryref_obj(np_key_t, to_destroy, to_destroyExists,"np_tryref_key");
 	if(to_destroyExists) {
 
-		_LOCK_ACCESS(&to_destroy->obj->lock) {
+		_LOCK_ACCESS(to_destroy->obj->lock) {
 
 			char* keyident = _np_key_as_str(to_destroy);
 			log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);

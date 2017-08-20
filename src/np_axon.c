@@ -138,7 +138,7 @@ void _np_send(np_jobargs_t* args)
 						log_debug_msg(LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
 					}
 				}
-
+				// TODO: ref counting on ack may differ (ref_message_ack) / key may not be the same more
 				if (TRUE == skip) {
 					np_unref_obj(np_network_t,network,"np_waitref_network");
 					np_unref_obj(np_key_t,my_key,"np_waitref_key");
@@ -253,7 +253,7 @@ void _np_send(np_jobargs_t* args)
 						// + 1.0 because of time delays for processing
 						ackentry->expiration = ackentry->transmittime + args->properties->msg_ttl + 1.0;
 						ackentry->dest_key = args->target;
-						np_ref_obj(np_key_t,  args->target);
+						np_ref_obj(np_key_t,  args->target,ref_message_ack);
 
 						if (TRUE == is_forward)
 						{

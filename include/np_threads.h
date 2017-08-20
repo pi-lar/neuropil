@@ -10,6 +10,7 @@
 
 #include "np_threads.h"
 
+#include "np_memory.h"
 #include "np_list.h"
 #include "np_log.h"
 #include "np_types.h"
@@ -26,9 +27,24 @@ return_type func_name(arg_1 a_1, arg_2 a_2) {		\
 }													\
 return_type wrapped_##func_name(arg_1, arg_2);
 
+#ifdef DEBUG
+	_NP_GENERATE_MEMORY_PROTOTYPES(np_thread_t);
+#endif
+
+
+ 
+struct np_thread_s
+{
+	np_obj_t* obj;
+
+	unsigned long id;
+	np_sll_t(char_ptr, want_lock);
+	np_sll_t(char_ptr, has_lock);
+} NP_API_INTERN;
 
 
 typedef enum np_module_lock_e np_module_lock_type;
+
 
 enum np_module_lock_e {
 	/*00*/np_memory_t_lock = 0,
@@ -59,12 +75,8 @@ enum np_module_lock_e {
 struct np_mutex_s {
 	pthread_mutex_t lock;
 	pthread_mutexattr_t lock_attr;
-#ifdef DEBUG
-	char* lastlock;
-	char* wantlock;
-#endif
 };
-typedef struct np_mutex_s np_mutex_t;
+
 /** condition                                                    **/
 struct np_cond_s {
 	pthread_cond_t     cond;
@@ -110,6 +122,8 @@ NP_API_INTERN
 int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime);
 NP_API_INTERN
 int _np_threads_module_condition_broadcast(np_cond_t* condition);
+NP_API_INTERN
+np_thread_t*_np_threads_get_self();
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)

@@ -10,6 +10,7 @@
 
 #include "np_memory.h"
 #include "np_types.h"
+#include "np_threads.h"
 #include "np_settings.h"
 
 #ifdef __cplusplus

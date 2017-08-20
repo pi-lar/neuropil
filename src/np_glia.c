@@ -476,7 +476,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				_np_node_update_stat(ackentry->dest_key->node, 1);
 
 				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
-				//np_unref_obj(np_key_t, ackentry->dest_key,"?");
+				np_unref_obj(np_key_t, ackentry->dest_key, ref_message_ack);
 
 				free(ackentry);
 				free(jrb_ack_node->key.value.s);
@@ -487,7 +487,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				_np_node_update_stat(ackentry->dest_key->node, 0);
 
 				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
-				//np_unref_obj(np_key_t, ackentry->dest_key,"?");
+				np_unref_obj(np_key_t, ackentry->dest_key,ref_message_ack);
 
 				free(ackentry);
 				free(jrb_ack_node->key.value.s);
