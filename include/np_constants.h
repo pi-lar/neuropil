@@ -33,6 +33,9 @@ extern "C" {
 	#define ref_message_ack					"ref_message_ack"
 	
 
+#ifndef MUTEX_WAIT_SEC
+	#define MUTEX_WAIT_SEC  ((const ev_tstamp )0.005)
+#endif
 
 #ifdef __cplusplus
 }

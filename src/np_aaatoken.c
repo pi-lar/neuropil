@@ -377,11 +377,11 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 
 
 		np_msgproperty_t* send_prop = np_msgproperty_get(OUTBOUND, subject);
-		if (NULL != send_prop )
+		if (NULL != send_prop)
 		{
 			if(NULL == subject_key->send_property)
 			{
-				np_ref_obj(np_msgproperty_t, send_prop);
+				np_ref_obj(np_msgproperty_t, send_prop, ref_key_send_property);
 				subject_key->send_property = send_prop;
 			}
 		}
@@ -395,7 +395,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 		{
 			if(NULL == subject_key->recv_property)
 			{
-				np_ref_obj(np_msgproperty_t, recv_prop);
+				np_ref_obj(np_msgproperty_t, recv_prop, ref_key_recv_property);
 				subject_key->recv_property = recv_prop;
 			}
 		}
@@ -421,11 +421,11 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 			}
 
 			if (NULL == subject_key->send_property) {
-				np_ref_obj(np_msgproperty_t, prop);
+				np_ref_obj(np_msgproperty_t, prop, ref_key_send_property);
 				subject_key->send_property = prop;
 			}
 			if (NULL == subject_key->recv_property) {
-				np_ref_obj(np_msgproperty_t, prop);
+				np_ref_obj(np_msgproperty_t, prop,ref_key_recv_property);
 				subject_key->recv_property = prop;
 			}
 		}

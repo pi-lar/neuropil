@@ -16,11 +16,7 @@
 #include "np_log.h"
 #include "np_types.h"
 
-#define USAGE "neuropil [ -j bootstrap:port ] [ -p protocol] [-b port] [-t worker_thread_count]"
-#define OPTSTR "j:p:b:t:"
-
-extern char *optarg;
-extern int optind;
+#include "example_helper.c"
 
 /**
 first we have to define a global np_state_t variable
@@ -36,39 +32,30 @@ int joinComplete = 0;
 
 int main(int argc, char **argv)
 {
-	int opt;
 	int no_threads = 8;
-	char *b_hn = NULL;
-	char *b_port = NULL;
-	char* proto = NULL;
+	char *j_key = NULL;
+	char* proto = "udp4";
 	char* port = NULL;
-	unsigned long i;
+	char* publish_domain = NULL;
+	int level = -2;
+	char* logpath = ".";
 
-	while ((opt = getopt(argc, argv, OPTSTR)) != EOF)
-	{
-		switch ((char) opt)
-		{
-		case 'j':
-			for (i = 0; optarg[i] != ':' && i < strlen(optarg); i++);
-			optarg[i] = 0;
-			b_hn = optarg;
-			b_port = optarg + (i+1);
-			break;
-		case 't':
-			no_threads = atoi(optarg);
-			if (no_threads <= 0) no_threads = 8;
-			break;
-		case 'p':
-			proto = optarg;
-			break;
-		case 'b':
-			port = optarg;
-			break;
-		default:
-			fprintf(stderr, "invalid option %c\n", (char) opt);
-			fprintf(stderr, "usage: %s\n", USAGE);
-			exit(1);
-		}
+	int opt;
+	if (parse_program_args(
+		__FILE__,
+		argc,
+		argv,
+		&no_threads,
+		&j_key,
+		&proto,
+		&port,
+		&publish_domain,
+		&level,
+		&logpath,
+		NULL,
+		NULL
+	) == FALSE) {
+		exit(EXIT_FAILURE);
 	}
 
 	/**
@@ -78,9 +65,8 @@ int main(int argc, char **argv)
 
 	\code
 	*/
-	char log_file[256];
-	sprintf(log_file, "%s_%d.log", "./neuropil_controller", getpid());
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
+	char log_file[256];	
+	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
 	np_log_init(log_file, level);
 	/** \endcode */
 
@@ -92,7 +78,7 @@ int main(int argc, char **argv)
 
 	\code
 	*/
-	state = np_init(proto, port, NULL);
+	state = np_init(proto, port, publish_domain);
 
 	/** \endcode */
 	// state->my_node_key->node->joined_network = 1;
@@ -116,7 +102,7 @@ int main(int argc, char **argv)
    *
    *    2f96848a8c490e0f0f71c74caa900423bcf2d32882a9a0b3510c50085f7ec0e5:udp6:localhost:3333
 
-    */
+	*/
 
 	/**
 	and finally loop (almost) forever
@@ -142,6 +128,9 @@ int main(int argc, char **argv)
 	 *  with your node
 	*/
 
+	if(j_key != NULL){
+		np_send_join(j_key);
+	}
 	while (1)
 	{
 		size_t nbytes = 255;
@@ -170,7 +159,7 @@ int main(int argc, char **argv)
 		*  }
 		*
 		*  log_msg(LOG_DEBUG, "sending join message");
-    *      np_sendjoin(state, node_key);
+	*      np_sendjoin(state, node_key);
 		*/
 		log_debug_msg(LOG_DEBUG, "creating welcome message");
 		np_send_join(node_string);

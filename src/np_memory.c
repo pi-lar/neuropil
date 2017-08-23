@@ -155,7 +155,7 @@ void np_mem_refobj(np_obj_t* obj, char* reason)
 	//log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
 #ifdef MEMORY_CHECK
 	assert(reason != NULL);
-	sll_prepend(char_ptr, obj->reasons, strndup(reason,strlen(reason)));
+	sll_prepend(char_ptr, obj->reasons, strdup(reason));
 #endif
 	}
 // decrease ref count
@@ -240,7 +240,6 @@ char* np_mem_printpool(np_bool asOneLine)
 				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (%d) end  ---%s", iter->id, iter->type, new_line);
 			}
 #endif
-
 		}
 		//asprintf(ret, "--- free memory table---\n");
 		for (np_obj_t* iter = __np_obj_pool_ptr->free_obj; iter != NULL; iter = iter->next )

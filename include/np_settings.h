@@ -134,7 +134,6 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 	#define LOG_FORCE_INSTANT_WRITE TRUE
 #endif
 
-
 #ifdef __cplusplus
 }
 #endif

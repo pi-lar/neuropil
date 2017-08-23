@@ -111,7 +111,7 @@ np_bool _np_get_local_ip(char buffer[]);
 NP_API_INTERN
 char* _sll_char_make_flat(np_sll_t(char_ptr, target));
 NP_API_INTERN
-void _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove);
+char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len);
 NP_API_INTERN
 sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount);
 

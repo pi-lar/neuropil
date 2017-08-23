@@ -8,8 +8,6 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-#include "np_threads.h"
-
 #include "np_memory.h"
 #include "np_list.h"
 #include "np_log.h"
@@ -17,6 +15,10 @@
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifdef DEBUG
+	#define CHECK_THREADING
 #endif
 
 
@@ -32,19 +34,7 @@ return_type wrapped_##func_name(arg_1, arg_2);
 #endif
 
 
- 
-struct np_thread_s
-{
-	np_obj_t* obj;
-
-	unsigned long id;
-	np_sll_t(char_ptr, want_lock);
-	np_sll_t(char_ptr, has_lock);
-} NP_API_INTERN;
-
-
 typedef enum np_module_lock_e np_module_lock_type;
-
 
 enum np_module_lock_e {
 	/*00*/np_memory_t_lock = 0,
@@ -83,6 +73,19 @@ struct np_cond_s {
 	pthread_condattr_t cond_attr;
 };
 typedef struct np_cond_s np_cond_t;
+/** thread														**/
+struct np_thread_s
+{
+	np_obj_t* obj;
+
+	unsigned long id;
+#ifdef CHECK_THREADING
+	np_mutex_t locklists_lock;
+	np_sll_t(char_ptr, want_lock);
+	np_sll_t(char_ptr, has_lock);
+#endif
+} NP_API_INTERN;
+
 
 
 NP_API_INTERN

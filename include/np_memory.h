@@ -125,7 +125,7 @@ struct np_obj_s
 	}																																		\
 	if (FALSE == foundReason)																												\
 	{																																		\
-		log_msg(LOG_ERROR, "Reason switch on object (%p; t: %d) not possible! Reason not found. (left reasons(%d): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons)); \
+		log_msg(LOG_ERROR, "Reason switch on object (%p; t: %d) \"%s\" to \"%s\" not possible! Reason not found. (left reasons(%d): %s)", obj, obj->type,old_reason, new_reason, obj->ref_count, _sll_char_make_flat(obj->reasons)); \
 		abort();																															\
 	}																																		\
 	else {																																	\

@@ -473,18 +473,23 @@ np_bool _np_get_local_ip(char* buffer){
 	
 	return ret;
 }
-void _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove) {
-	sll_iterator(char_ptr) iter = sll_first(target);	
-	int l = strlen(to_remove);
+char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len) {
+	char * ret = NULL;
+	char * tmp = NULL;
+	sll_iterator(char_ptr) iter = sll_first(target);		
 	while (iter != NULL)
 	{
-		if (strncmp(iter->val, to_remove, l) == 0)
+		tmp = (iter->val);
+
+		if (strncmp(tmp, to_remove, cmp_len) == 0)
 		{
+			ret = tmp;
 			sll_delete(char_ptr, target, iter);
 			break;
 		}
 		sll_next(iter);
 	}
+	return ret;
 }
 
 char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {

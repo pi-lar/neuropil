@@ -29,52 +29,54 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define USAGE "neuropil_hydra -j key:proto:host:port [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count]"
-#define OPTSTR "j:p:n:t:"
+#include "example_helper.c"
 
-NP_SLL_GENERATE_PROTOTYPES(int);
+ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
-#define DEBUG 0
-#define NUM_HOST 120
+ #define NUM_HOST 120
 
-extern char *optarg;
-extern int optind;
-
+ 
 int main(int argc, char **argv)
 {
-	int opt;
-	int no_threads = 3;
+	
 	char* bootstrap_hostnode = NULL;
+	char* bootstrap_hostnode_default;
+	uint32_t required_nodes = NUM_HOST;
+
+	int no_threads = 8;
+	char *j_key = NULL;
 	char* proto = "udp4";
-	uint32_t required_nodes = 5;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
+	char* port = NULL;
+	char* publish_domain = NULL;
+	int level = -2;
+	char* logpath = ".";
+	char* required_nodes_opt = NULL;
 
-	while ((opt = getopt(argc, argv, OPTSTR)) != EOF)
-	{
-		switch ((char) opt) {
-		case 'j':
-			bootstrap_hostnode = optarg;
-			break;
-		case 't':
-			no_threads = atoi(optarg);
-			if (no_threads <= 0) no_threads = 2;
-			break;
-		case 'p':
-			proto = optarg;
-			break;
-		case 'n':
-			required_nodes = atoi(optarg);
-			break;
-		default:
-			fprintf(stderr, "invalid option %c\n", (char) opt);
-			fprintf(stderr, "usage: %s\n", USAGE);
-			exit(1);
-		}
+	int opt;
+	if (parse_program_args(
+		__FILE__,
+		argc,
+		argv,
+		&no_threads,
+		&j_key,
+		&proto,
+		&port,
+		&publish_domain,
+		&level,
+		&logpath,
+		"[-n nr_of_nodes]",
+		"n:",
+		&required_nodes_opt
+	) == FALSE) {
+		exit(EXIT_FAILURE);
 	}
+	if (required_nodes_opt != NULL) required_nodes = atoi(required_nodes_opt);
 
-
-	int current_pid = 0;
+	/**
+	for the general initialisation of a node please look into the neuropil_node example
+	*/
+	int current_pid = getpid();
 
 	np_sll_t(int, list_of_childs) = sll_init(int, list_of_childs);
 	int array_of_pids[required_nodes + 1];
@@ -105,22 +107,12 @@ int main(int argc, char **argv)
 				if (shmid == -1)
 				{
 					fprintf(stdout, "No bootstrap host detected, creating a new one\n");
-
-					current_pid = getpid();
-					char port[7];
-					if (current_pid > 65535)
-					{
-						sprintf(port, "%d", (current_pid >> 1));
-					}
-					else
-					{
-						sprintf(port, "%d", current_pid);
-					}
+				
 					char log_file_host[256];
 					sprintf(log_file_host, "%s_host.log", "./neuropil_shared_hydra");
 
 					np_log_init(log_file_host, level);
-					np_init(proto, port, "localhost");
+					np_init(proto, port, publish_domain);
 
 					fprintf(stdout, "getting connection string\n");
 					bootstrap_hostnode = np_get_connection_string();
