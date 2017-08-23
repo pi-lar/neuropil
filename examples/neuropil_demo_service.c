@@ -38,15 +38,12 @@
 #include "np_tree.h"
 
 #include "neuropil.h"
-
-#define USAGE "neuropil_echo_server [ -p protocol] [-t worker_thread_count] [-l path_to_log_folder] [-u publish_domain] "
-#define OPTSTR "p:t:l:u:"
+#include "example_helper.c"
 
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
-extern char *optarg;
-extern int optind;
+#define DEBUG 0
 
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
@@ -56,43 +53,30 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
 
 int main(int argc, char **argv) {
+	int no_threads = 8;
+	char *j_key = NULL;
+	char* proto = "udp4";
+	char* port = NULL;
+	char* publish_domain = NULL;
+	int level = -2;
+	char* logpath = ".";
 
 	int opt;
-
-	char* proto = "udp4";
-	char* logpath = ".";
-	char* publish_domain = "localhost";
-	int no_threads = 8;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO;
-	char* port = "3333";
-
-	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
-		switch ((char) opt) {
-		case 't':
-			no_threads = atoi(optarg);
-			if (no_threads <= 0)
-				no_threads = 2;
-			break;
-		case 'p':
-			proto = optarg;
-			break;
-		case 'u':
-			publish_domain = optarg;
-			break;
-		case 'l':
-			if (optarg != NULL) {
-				logpath = optarg;
-			} else {
-				fprintf(stderr, "invalid option value\n");
-				fprintf(stderr, "usage: %s\n", USAGE);
-				exit(EXIT_FAILURE);
-			}
-			break;
-		default:
-			fprintf(stderr, "invalid option %c\n", (char) opt);
-			fprintf(stderr, "usage: %s\n", USAGE);
-			exit(EXIT_FAILURE);
-		}
+	if (parse_program_args(
+		__FILE__,
+		argc,
+		argv,
+		&no_threads,
+		&j_key,
+		&proto,
+		&port,
+		&publish_domain,
+		&level,
+		&logpath,
+		NULL,
+		NULL
+	) == FALSE) {
+		exit(EXIT_FAILURE);
 	}
 
 	char log_file_host[256];

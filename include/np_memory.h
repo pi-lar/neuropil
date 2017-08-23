@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include "np_threads.h"
 #include "np_types.h"
 #include "np_list.h"
 
@@ -16,9 +15,9 @@
 extern "C" {
 #endif
 
-//#ifdef DEBUG
-//	#define MEMORY_CHECK
-//#endif
+#ifdef DEBUG
+	#define MEMORY_CHECK 
+#endif
 
 // macro definitions to generate header prototype definitions
 #define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE) \
@@ -41,27 +40,19 @@ typedef enum np_obj_type
 	np_msgproperty_t_e,
 	np_http_t_e,
 	np_network_t_e,
+	np_thread_t_e,
 	test_struct_t_e = 99
 } np_obj_enum;
 
 typedef void (*np_dealloc_t) (void* data);
 typedef void (*np_alloc_t) (void* data);
 
-/** np_obj_t
- **
- ** void* like wrapper around structures to allow ref counting and null pointer checking
- ** each np_new_obj needs a corresponding np_unref_obj
- ** if other methods would like to claim ownership, they should call np_ref_obj, np_unref_obj
- ** will release the object again (and possible delete it)
- **
- **/
-typedef struct np_obj_s np_obj_t;
 
 struct np_obj_s
 {	
 	char* id;
 
-	np_mutex_t	lock;
+	np_mutex_t*	lock;
 	np_obj_enum type;
 	int16_t ref_count;
 	void* ptr;
@@ -134,7 +125,7 @@ struct np_obj_s
 	}																																		\
 	if (FALSE == foundReason)																												\
 	{																																		\
-		log_msg(LOG_ERROR, "old_reason \"%s\" for reason switch on obj %s (%d) was not found.", old_reason, obj->id, obj->type);			\
+		log_msg(LOG_ERROR, "Reason switch on object (%p; t: %d) \"%s\" to \"%s\" not possible! Reason not found. (left reasons(%d): %s)", obj, obj->type,old_reason, new_reason, obj->ref_count, _sll_char_make_flat(obj->reasons)); \
 		abort();																															\
 	}																																		\
 	else {																																	\
@@ -259,6 +250,20 @@ TYPE* saveTo = NULL;																																\
 	np_unref_obj(TYPE, tmp_obj, old_reason);							\
 }
 
+#ifndef MEMORY_CHECK
+#define ref_replace_reason_sll(TYPE, sll_list, old_reason, new_reason)
+#else
+#define ref_replace_reason_sll(TYPE, sll_list, old_reason, new_reason)					\
+{																						\
+	sll_iterator(TYPE) iter##__LINE__ = sll_first(sll_list);							\
+	while (NULL != iter##__LINE__ )														\
+	{																					\
+		ref_replace_reason(TYPE, (iter##__LINE__)->val, old_reason, new_reason);		\
+		sll_next(iter##__LINE__ );														\
+	}																					\
+}
+#endif
+
 #define np_new_obj(...) VFUNC(np_new_obj, __VA_ARGS__)
 #define np_new_obj2(TYPE, np_obj) np_new_obj3(TYPE, np_obj, "ref_obj_creation")
 #define np_new_obj3(TYPE, np_obj, reason)                													\
@@ -278,8 +283,27 @@ TYPE* saveTo = NULL;																																\
 }
 
 
-// #define np_ref_list(...) VFUNC(np_ref_list, __VA_ARGS__)
-// #define np_ref_list2(TYPE, sll_list) np_ref_list3(TYPE, sll_list, __func__)
+//#define np_ref_list(...) VFUNC(np_ref_list, __VA_ARGS__)
+//#define np_ref_list2(TYPE, sll_list) np_ref_list3(TYPE, sll_list, __func__)
+//#define np_ref_list3(TYPE, sll_list, reason)               		\
+//{																\
+//	sll_iterator(TYPE) iter##__LINE__ = sll_first(sll_list);	\
+//	while (NULL != iter##__LINE__ )								\
+//	{															\
+//		np_ref_obj3(TYPE, (iter##__LINE__ ->val), reason);		\
+//		sll_next(iter##__LINE__ );								\
+//	}															\
+//}
+//
+//#define np_unref_list(TYPE, sll_list, reason)               	\
+//{																\
+//	sll_iterator(TYPE) iter##__LINE__  = sll_first(sll_list);	\
+//	while (NULL != iter##__LINE__ )								\
+//	{															\
+//		np_unref_obj(TYPE,(iter##__LINE__ ->val), reason);		\
+//		sll_next(iter##__LINE__ );								\
+//	}															\
+//}
 
 /**
  ** following this line: np_memory cache and object prototype definitions
@@ -298,11 +322,11 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj);
 
 // increase ref count
 NP_API_EXPORT
-void np_mem_refobj(np_obj_t* obj, const char* reason);
+void np_mem_refobj(np_obj_t* obj,char* reason);
 
 // decrease ref count
 NP_API_EXPORT
-void np_mem_unrefobj(np_obj_t* obj, const char* reason);
+void np_mem_unrefobj(np_obj_t* obj,char* reason);
 
 // print the complete object list and statistics
 NP_API_INTERN

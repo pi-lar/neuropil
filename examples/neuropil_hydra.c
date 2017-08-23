@@ -37,17 +37,13 @@
 
 #include "example_helper.c"
 
-#define USAGE "neuropil_hydra [-j key:proto:host:port] [ -p protocol] [-n nr_of_nodes] [-t worker_thread_count] [-l path_to_log_folder] [-d loglevel] [-u publish_domain] "
-#define OPTSTR "j:p:n:t:l:d:u:"
-
+ 
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 #define NUM_HOST 4
 
-extern char *optarg;
-extern int optind;
-
+ 
 /**
   The purpose of this program is to start a set of nodes
   and restart them in the case of failure.
@@ -63,83 +59,47 @@ extern int optind;
  */
 int main(int argc, char **argv)
 {
-	int opt;
-	int no_threads = 5;
 	char* bootstrap_hostnode = NULL;
 	char* bootstrap_hostnode_default;
-	char bootstrap_port[7];
-	char* proto = "udp4";
-	char* logpath = ".";
-	char* publish_domain = "localhost";
-
 	uint32_t required_nodes = NUM_HOST;
-	// The Log level. See below for settings
-	int level = -2;
 
-	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
-		switch ((char) opt) {
-		case 'j':
-			bootstrap_hostnode = optarg;
-			break;
-		case 't':
-			no_threads = atoi(optarg);
-			if (no_threads <= 0)
-				no_threads = 2;
-			break;
-		case 'p':
-			proto = optarg;
-			break;
-		case 'n':
-			required_nodes = atoi(optarg);
-			break;
-		case 'u':
-			publish_domain = optarg;
-			break;
-		case 'd':
-			level = atoi(optarg);
-			break;
-		case 'l':
-			if(optarg != NULL){
-				logpath = optarg;
-			}else{
-				fprintf(stderr, "invalid option value\n");
-				fprintf(stderr, "usage: %s\n", USAGE);
-				exit(EXIT_FAILURE);
-			}
-			break;
-		default:
-			fprintf(stderr, "invalid option %c\n", (char) opt);
-			fprintf(stderr, "usage: %s\n", USAGE);
-			exit(EXIT_FAILURE);
-		}
+	int no_threads = 8;
+	char *j_key = NULL;
+	char* proto = "udp4";
+	char* port = NULL;
+	char* publish_domain = NULL;
+	int level = -2;
+	char* logpath = ".";
+	char* required_nodes_opt = NULL;
+
+	int opt;
+	if (parse_program_args(
+		__FILE__,
+		argc,
+		argv,
+		&no_threads,
+		&j_key,
+		&proto,
+		&port,
+		&publish_domain,
+		&level,
+		&logpath,
+		"[-n nr_of_nodes]",
+		"n:",
+		&required_nodes_opt
+	) == FALSE) {
+		exit(EXIT_FAILURE);
 	}
-	if(level == -1){	   // production client
-		level = LOG_ERROR;
-	}else if(level == -2){ // production server
-		level = LOG_ERROR | LOG_WARN | LOG_INFO;
-	}else if(level <= -3){ // debug
-		level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG
-				  //| LOG_MUTEX | LOG_TRACE
-				  //| LOG_ROUTING
-				  //| LOG_HTTP
-				  //| LOG_KEY
-				  | LOG_NETWORK
-				  | LOG_AAATOKEN
-				  | LOG_MESSAGE
-				 // | LOG_MEMORY
-				   ;
-	}
+	if (required_nodes_opt != NULL) required_nodes = atoi(required_nodes_opt);
+
+	/**
+	for the general initialisation of a node please look into the neuropil_node example
+	*/
+	int current_pid = getpid();
 
 	// Get the current pid and shift it to be a viable port.
 	// This way the application may be used for multiple instances on one system
-	int current_pid = getpid();
-
-	if (current_pid > 65535) {
-		sprintf(bootstrap_port, "%d", (current_pid >> 1));
-	} else {
-		sprintf(bootstrap_port, "%d", current_pid);
-	}
-	asprintf(&bootstrap_hostnode_default, "%s:%s:%s", proto,publish_domain, bootstrap_port);
+	asprintf(&bootstrap_hostnode_default, "%s:%s:%s", proto,publish_domain, port);
 
 	int create_bootstrap = NULL == bootstrap_hostnode;
 	if (TRUE == create_bootstrap) {
@@ -160,17 +120,17 @@ int main(int argc, char **argv)
 			 *
 			   We enable the HTTP Server for this node to use our JSON interface.
 
- 	 	 	   .. code-block:: c
+			   .. code-block:: c
 
 			  \code
 			 */
 			char log_file_host[256];
-			sprintf(log_file_host, "%s%s_host_%s.log", logpath, "/neuropil_hydra", bootstrap_port);
+			sprintf(log_file_host, "%s%s_host_%s.log", logpath, "/neuropil_hydra", port);
 			fprintf(stdout, "logpath: %s\n", log_file_host);
 
 			np_log_init(log_file_host, level);
 			// provide localhost as hostname to support development on local machines
-			np_init(proto, bootstrap_port, publish_domain);
+			np_init(proto, port, publish_domain);
 			/**
 			 \endcode
 			 */
@@ -318,12 +278,12 @@ int main(int argc, char **argv)
 				 */
 
 				do {
- 					fprintf(stdout, "try to join bootstrap node\n");
- 					if(TRUE == create_bootstrap){
- 						np_send_wildcard_join(bootstrap_hostnode);
- 					} else {
- 						np_send_join(bootstrap_hostnode);
- 					}
+					fprintf(stdout, "try to join bootstrap node\n");
+					if(TRUE == create_bootstrap){
+						np_send_wildcard_join(bootstrap_hostnode);
+					} else {
+						np_send_join(bootstrap_hostnode);
+					}
 
 					int timeout = 100;
 					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {

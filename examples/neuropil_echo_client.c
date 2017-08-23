@@ -27,14 +27,12 @@
 
 #include "neuropil.h"
 
-#define USAGE "neuropil_echo_client [-j key:proto:host:port] [ -p protocol] [-t worker_thread_count] [-l path_to_log_folder] [-u publish_domain] [-m message_to_send]"
-#define OPTSTR "j:p:t:l:u:m:"
+#include "example_helper.c"
+
 
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
-extern char *optarg;
-extern int optind;
 
 np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
 
@@ -45,86 +43,48 @@ np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np
   from the server.
  */
 int main(int argc, char **argv) {
-	int opt;
-
-	char* proto = "udp4";
-	char* logpath = ".";
-	char j_key[256];
-	char* publish_domain = "localhost";
-	char* message_to_send = "Hello World!";
-	np_bool add_id_to_msg = TRUE;
 	int no_threads = 8;
-	int retry_connection = 3;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
-	np_bool j_key_provided = FALSE;
-
-	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
-		switch ((char) opt) {
-		case 'j':
-			j_key_provided = TRUE;
-			sprintf(j_key, "%s", optarg);
-			break;
-		case 't':
-			no_threads = atoi(optarg);
-			if (no_threads <= 0)
-				no_threads = 2;
-			break;
-		case 'm':
+	char *j_key = NULL;
+	char* proto = "udp4";
+	char* port = NULL;
+	char* publish_domain = NULL;
+	int level = -2;
+	char* logpath = ".";
 	/**
-	  The default value for the message we like to send is "Hello World! {x}"
-	  {x} will be replaced by a increasing number.
-	  If you like to send your own message you can
-	  call the programm with the "-m <string>" parameter.
-	 */
-			message_to_send = optarg;
-			add_id_to_msg = FALSE;
-			break;
-		case 'p':
-			proto = optarg;
-			break;
-		case 'u':
-			publish_domain = optarg;
-			break;
-		case 'l':
-			if (optarg != NULL) {
-				logpath = optarg;
-			} else {
-				fprintf(stderr, "invalid option value\n");
-				fprintf(stderr, "usage: %s\n", USAGE);
-				exit(EXIT_FAILURE);
-			}
-			break;
-		default:
-			fprintf(stderr, "invalid option %c\n", (char) opt);
-			fprintf(stderr, "usage: %s\n", USAGE);
-			exit(EXIT_FAILURE);
-		}
+	The default value for the message we like to send is "Hello World! {x}"
+	{x} will be replaced by a increasing number.
+	If you like to send your own message you can
+	call the programm with the "-m <string>" parameter.
+	*/
+
+	char* message_to_send_org = "Hello World!";
+	char* message_to_send = message_to_send_org;
+
+	int opt;
+	if (parse_program_args(
+		__FILE__,
+		argc,
+		argv,
+		&no_threads,
+		&j_key,
+		&proto,
+		&port,
+		&publish_domain,
+		&level,
+		&logpath,
+		"[-m message_to_send]",
+		"m:",
+		&message_to_send
+
+	) == FALSE) {
+		exit(EXIT_FAILURE);
 	}
-  /**
-	  To create unique names and to use a seperate port for every
-	  node we will start the nodes in forks of this thread and use the pid as unique id.
-
-	  As the pid may be greater then the port range we will shift it if necessary.
-
-	 .. code-block:: c
-	 \code
-   */
-	char port[7];
-	// Get the current pid and shift it to be a viable port.
-	// This way the application may be used for multiple instances on one system
-	int current_pid = getpid();
-	fprintf(stdout, "%d\n", current_pid);
-
-	if (current_pid > 65535) {
-		sprintf(port, "%d", (current_pid >> 1));
-	} else {
-		sprintf(port, "%d", current_pid);
-	}
-	/** \endcode */
+	np_bool j_key_provided = j_key != NULL;
+	int retry_connection = 3;
+	np_bool add_id_to_msg = strcmp(message_to_send, message_to_send_org ) == 0;
 
 	char log_file_host[256];
-	sprintf(log_file_host, "%s%s_%s.log", logpath, "/neuropil_echo_client",
-			port);
+	sprintf(log_file_host, "%s%s_%s.log", logpath, "/neuropil_echo_client", port);	
 	fprintf(stdout, "logpath: %s\n", log_file_host);
 
 /**
@@ -134,8 +94,7 @@ int main(int argc, char **argv) {
  \code
  */
 	np_log_init(log_file_host, level);
-	np_state_t* status = np_init(proto, port,
-			strcmp(publish_domain, "localhost") == 0 ? publish_domain : NULL);
+	np_state_t* status = np_init(proto, port, publish_domain);
 	np_start_job_queue(no_threads);
 /**
  \endcode

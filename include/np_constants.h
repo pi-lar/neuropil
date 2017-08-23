@@ -29,7 +29,13 @@ extern "C" {
 	#define ref_route_inroute				"ref_route_inroute"
 	#define ref_route_inleafset				"ref_route_inleafset"
 	#define ref_msgproperty_msgcache		"ref_msgproperty_msgcache"
+	// ref for message type ack handeling
+	#define ref_message_ack					"ref_message_ack"
+	
 
+#ifndef MUTEX_WAIT_SEC
+	#define MUTEX_WAIT_SEC  ((const ev_tstamp )0.005)
+#endif
 
 #ifdef __cplusplus
 }

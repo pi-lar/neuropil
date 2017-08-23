@@ -8,14 +8,17 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-#include "np_threads.h"
-
+#include "np_memory.h"
 #include "np_list.h"
 #include "np_log.h"
 #include "np_types.h"
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifdef DEBUG
+	#define CHECK_THREADING
 #endif
 
 
@@ -26,6 +29,9 @@ return_type func_name(arg_1 a_1, arg_2 a_2) {		\
 }													\
 return_type wrapped_##func_name(arg_1, arg_2);
 
+#ifdef DEBUG
+	_NP_GENERATE_MEMORY_PROTOTYPES(np_thread_t);
+#endif
 
 
 typedef enum np_module_lock_e np_module_lock_type;
@@ -59,29 +65,38 @@ enum np_module_lock_e {
 struct np_mutex_s {
 	pthread_mutex_t lock;
 	pthread_mutexattr_t lock_attr;
-#ifdef DEBUG
-	char* lastlock;
-	char* wantlock;
-#endif
 };
-typedef struct np_mutex_s np_mutex_t;
+
 /** condition                                                    **/
 struct np_cond_s {
 	pthread_cond_t     cond;
 	pthread_condattr_t cond_attr;
 };
 typedef struct np_cond_s np_cond_t;
+/** thread														**/
+struct np_thread_s
+{
+	np_obj_t* obj;
+
+	unsigned long id;
+#ifdef CHECK_THREADING
+	np_mutex_t locklists_lock;
+	np_sll_t(char_ptr, want_lock);
+	np_sll_t(char_ptr, has_lock);
+#endif
+} NP_API_INTERN;
+
 
 
 NP_API_INTERN
-void _np_threads_init();
+np_bool _np_threads_init();
 
 NP_API_INTERN
-int _np_threads_lock_module(np_module_lock_type module_id, const char* where);
+int _np_threads_lock_module(np_module_lock_type module_id, char* where);
 NP_API_INTERN
 int _np_threads_unlock_module(np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b, const char* where);
+int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b, char* where);
 NP_API_INTERN
 int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b);
 
@@ -110,6 +125,8 @@ NP_API_INTERN
 int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime);
 NP_API_INTERN
 int _np_threads_module_condition_broadcast(np_cond_t* condition);
+NP_API_INTERN
+np_thread_t*_np_threads_get_self();
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)

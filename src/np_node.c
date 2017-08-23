@@ -258,10 +258,13 @@ sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 		if (NULL == node_key->node)
 		{
 			node_key->node = _np_node_decode_from_jrb(node_data->val.value.tree);
+			ref_replace_reason(np_key_t, node_key, "_np_node_decode_from_jrb", __func__);
+		}
+		else {
+			ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", __func__);
 		}
 		sll_append(np_key_ptr, node_list, node_key);
 	}
-
 	return (node_list);
 }
 

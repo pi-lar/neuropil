@@ -16,6 +16,7 @@ It should contain all required functions to send or receive messages.
 #include <pthread.h>
 
 #include "np_types.h"
+#include "np_list.h"
 
 #define NP_VERSION_MAJOR	"0"
 #define NP_VERSION_MINOR	"3"
@@ -50,14 +51,18 @@ struct np_state_s
 	char* realm_name;
 
 	np_tree_t *msg_tokens;
-    np_tree_t* msg_part_cache;
+	np_tree_t* msg_part_cache;
 
-    pthread_attr_t attr;
-    pthread_t* thread_ids;
-    int thread_count;
+	pthread_attr_t attr;
+	pthread_t* thread_ids;
+#ifdef DEBUG 
+	np_sll_t(np_thread_ptr, threads);
+#endif
 
-    np_bool enable_realm_master; // act as a realm master for other nodes or not
-    np_bool enable_realm_slave; // act as a realm salve and ask master for aaatokens
+	int thread_count;
+
+	np_bool enable_realm_master; // act as a realm master for other nodes or not
+	np_bool enable_realm_slave; // act as a realm salve and ask master for aaatokens
 
 	np_aaa_func_t  authenticate_func; // authentication callback
 	np_aaa_func_t  authorize_func;    // authorization callback

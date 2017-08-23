@@ -35,12 +35,6 @@
 
 #include "example_helper.c"
 
-#define USAGE "neuropil_raspberry [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count] [-g 0/1 enables or disables GPIO support ] [-u publish_domain] [-d loglevel]"
-#define OPTSTR "j:p:b:t:g:u:d:"
-
-extern char *optarg;
-extern int optind;
-
 static uint32_t _ping_count = 0;
 static uint32_t _pong_count = 0;
 
@@ -48,7 +42,7 @@ static uint32_t _pong_count = 0;
 #define LED_GPIO_YELLOW 18
 
 static np_bool is_gpio_enabled = FALSE;
-static np_mutex_t gpio_lock = { };
+static np_mutex_t gpio_lock = { 0 };
 static double last_response_or_invokation = 0;
 
 const double ping_pong_intervall = 0.01;
@@ -119,74 +113,33 @@ int main(int argc, char **argv)
 	char* port = NULL;
 	char* publish_domain = NULL;
 	int level = -2;
+	char* logpath = ".";
+	char* is_gpio_enabled_opt = "1234";
 
 	int opt;
-	while ((opt = getopt(argc, argv, OPTSTR)) != EOF)
-	{
-		switch ((char) opt)
-		{
-		case 'j':
-			j_key = optarg;
-			break;
-		case 't':
-			no_threads = atoi(optarg);
-			if (no_threads <= 0) no_threads = 2;
-			break;
-		case 'p':
-			proto = optarg;
-			break;
-		case 'g':
-			is_gpio_enabled = atoi(optarg) == 1;
-			break;
-		case 'u':
-			publish_domain = optarg;
-			break;
-		case 'd':
-			level = atoi(optarg);
-			break;
-		case 'b':
-			port = optarg;
-			break;
-		default:
-			fprintf(stderr, "invalid option %c\n", (char) opt);
-			fprintf(stderr, "usage: %s\n", USAGE);
-			exit(EXIT_FAILURE);
-		}
-	}
-	if(level == -1){	   // production client
-		level = LOG_ERROR;
-	}else if(level == -2){ // production server
-		level = LOG_ERROR | LOG_WARN | LOG_INFO;
-	}else if(level <= -3){ // debug
-		level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG
-				  | LOG_MUTEX 
-				  | LOG_TRACE
-				  //| LOG_ROUTING
-				  //| LOG_HTTP
-				  //| LOG_KEY
-				  //| LOG_NETWORK
-				  //| LOG_AAATOKEN
-				  //| LOG_MESSAGE
-				  //| LOG_MEMORY
-				   ;
-	}
+	if (parse_program_args(
+		__FILE__,
+		argc,
+		argv,
+		&no_threads,
+		&j_key,
+		&proto,
+		&port,
+		&publish_domain,
+		&level,
+		&logpath,
+		"[-g 0 / 1 enables or disables GPIO support]",
+		"g:",
+		&is_gpio_enabled_opt
+	) == FALSE) {
+		exit(EXIT_FAILURE);
+	}	
 
-	if (port == NULL){
-		int current_pid = getpid();
-
-		port = calloc(1,sizeof(char)*7);
-
-		if (current_pid > 65535) {
-			sprintf(port, "%d", (current_pid >> 1));
-		} else {
-			sprintf(port, "%d", current_pid);
-		}
-	}
-
+	is_gpio_enabled = strcmp(is_gpio_enabled_opt, "0") != 0;
 
 	char log_file[256];
-	sprintf(log_file, "%s_%s.log", "./neuropil_raspberry", port);
-	np_log_init(log_file, level);
+	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_raspberry", port);
+	np_log_init(log_file, level);	
 
 	np_state_t* state = np_init(proto, port, publish_domain);
 
@@ -299,15 +252,16 @@ int main(int argc, char **argv)
 	last_response_or_invokation  = now;
 
 	while (TRUE) {
-	    i +=1;
-	    ev_sleep(0.01);
-	    now = ev_time() ;
-	    if ((now - last_response_or_invokation ) > ping_props->msg_ttl) {
-	    	last_response_or_invokation  = now;
-	    	fprintf(stdout, "Invoking ping.\n");
-	    	log_msg(LOG_INFO, "Invoking ping");
-	    	np_send_text("ping", "ping", _ping_count++, NULL);
-	    }
+		i +=1;
+		ev_sleep(0.01);
+		now = ev_time() ;
+		if ((now - last_response_or_invokation ) > ping_props->msg_ttl) {
+			last_response_or_invokation  = now;
+			fprintf(stdout, "Invoking ping.\n");
+			log_msg(LOG_INFO, "Invoking ping");
+			np_send_text("ping", "ping", _ping_count++, NULL);
+		}
+		__np_example_helper_loop(i);
 	}
 
 }

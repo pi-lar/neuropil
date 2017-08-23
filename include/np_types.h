@@ -11,7 +11,6 @@
 
 #include "np_list.h"
 
-
 /* just in case NULL is not defined */
 #ifndef NULL
 #define NULL (void*)0
@@ -54,6 +53,17 @@ typedef enum
 // #endif
 
 
+/* np_obj_t
+*
+* void* like wrapper around structures to allow ref counting and null pointer checking
+* each np_new_obj needs a corresponding np_unref_obj
+* if other methods would like to claim ownership, they should call np_ref_obj, np_unref_obj
+* will release the object again (and possible delete it)
+*
+*/
+typedef struct np_obj_s np_obj_t;
+
+
 /*
  *  simple types / typedefs
  */
@@ -87,6 +97,8 @@ typedef struct np_tree_s np_tree_t;
 
 typedef struct np_treeval_s np_treeval_t;
 
+typedef struct np_mutex_s np_mutex_t;
+
 typedef char* char_ptr;
 
  /*
@@ -100,6 +112,12 @@ NP_SLL_GENERATE_PROTOTYPES(np_key_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_message_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_node_ptr);
+
+#ifdef DEBUG
+typedef struct np_thread_s np_thread_t;
+typedef np_thread_t* np_thread_ptr;
+NP_SLL_GENERATE_PROTOTYPES(np_thread_ptr);
+#endif
 
 /*
  *  user callback functions

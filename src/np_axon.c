@@ -138,7 +138,7 @@ void _np_send(np_jobargs_t* args)
 						log_debug_msg(LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
 					}
 				}
-
+				// TODO: ref counting on ack may differ (ref_message_ack) / key may not be the same more
 				if (TRUE == skip) {
 					np_unref_obj(np_network_t,network,"np_waitref_network");
 					np_unref_obj(np_key_t,my_key,"np_waitref_key");
@@ -253,7 +253,7 @@ void _np_send(np_jobargs_t* args)
 						// + 1.0 because of time delays for processing
 						ackentry->expiration = ackentry->transmittime + args->properties->msg_ttl + 1.0;
 						ackentry->dest_key = args->target;
-						np_ref_obj(np_key_t,  args->target, "np_ref_ack_key");
+						np_ref_obj(np_key_t,  args->target,ref_message_ack);
 
 						if (TRUE == is_forward)
 						{
@@ -302,10 +302,10 @@ void _np_send(np_jobargs_t* args)
 			_np_network_send_msg(args->target, msg_out);
 			// ret is 1 or 0
 			// np_node_update_stat(args->target->node, send_ok);
+			np_unref_obj(np_network_t,network,"np_waitref_network");
 		}
-		np_unref_obj(np_network_t,network,"np_waitref_network");
+		np_unref_obj(np_key_t,my_key,"np_waitref_key");
 	}
-	np_unref_obj(np_key_t,my_key,"np_waitref_key");
 }
 
 void _np_send_handshake(np_jobargs_t* args)
@@ -440,7 +440,7 @@ void _np_send_handshake(np_jobargs_t* args)
 					return;
 				}
 
-				np_ref_obj(np_key_t, args->target, ref_network_watcher);
+				np_ref_obj(np_key_t, args->target,ref_network_watcher);
 				args->target->network->watcher.data = args->target;
 			}
 		}

@@ -11,7 +11,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#include <inttypes.h>
+#include <sys/types.h>
+ 
 #include "sodium.h"
 #include "event/ev.h"
 
@@ -900,7 +902,10 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	log_msg(LOG_TRACE, "start: np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname){");
 	log_debug_msg(LOG_DEBUG, "neuropil_init");
 	
-	_np_threads_init();
+	 if(_np_threads_init() == FALSE){
+		log_msg(LOG_ERROR, "neuropil_init: could not init threding mutexes");
+		exit(EXIT_FAILURE);
+	}
 	// encryption and memory protection
 	if(sodium_init() == -1){
 		log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
@@ -916,12 +921,22 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	// global neuropil structure
 	np_state_t *state = (np_state_t *) calloc (1,sizeof (np_state_t));
 	CHECK_MALLOC(state);
-
 	if (state == NULL)
 	{
-		log_msg(LOG_ERROR, "neuropil_init: state module not created: %s", strerror (errno));
+		log_msg(LOG_ERROR, "neuropil_init: state module not created: %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
+
+#ifdef DEBUG
+	sll_init(np_thread_ptr, state->threads);
+
+	np_thread_t * new_main_thread;
+	np_new_obj(np_thread_t, new_main_thread);
+	new_main_thread->id = (unsigned long)getpid();
+	sll_append(np_thread_ptr, state->threads, new_main_thread);
+#endif
+
+	
 	__global_state = state;
 
 	// splay tree initializing
@@ -955,7 +970,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	{
 		log_debug_msg(LOG_DEBUG, "now initializing networking for udp6://%s", np_service);
 	}
-
+	
 	log_debug_msg(LOG_DEBUG, "building node base structure");
 	np_node_t* my_node = NULL;
 	np_new_obj(np_node_t, my_node);
@@ -1101,13 +1116,19 @@ void np_start_job_queue(uint8_t pool_size)
 
 	_np_state()->thread_count = pool_size;
 	_np_state()->thread_ids = (pthread_t *) malloc (sizeof (pthread_t) * pool_size);
-	CHECK_MALLOC(_np_state()->thread_ids);
 
+	CHECK_MALLOC(_np_state()->thread_ids);
 
 	/* create the thread pool */
 	for (uint8_t i = 0; i < pool_size; i++)
 	{
 		pthread_create (&_np_state()->thread_ids[i], &_np_state()->attr, _job_exec, (void *) _np_state());
+#ifdef DEBUG
+		np_thread_t * new_thread;
+		np_new_obj(np_thread_t, new_thread);
+		new_thread->id  = (unsigned long)_np_state()->thread_ids[i];
+		sll_append(np_thread_ptr, _np_state()->threads, new_thread);
+#endif
 		log_debug_msg(LOG_DEBUG, "neuropil worker thread started: %p", _np_state()->thread_ids[i]);
 	}
 	log_debug_msg(LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);

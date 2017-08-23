@@ -518,7 +518,7 @@ real macros for convenience usage
 #define sll_size(sll_list) sll_list->size
 #define sll_first(sll_list) (sll_list->first)
 #define sll_last(sll_list) (sll_list->last)
-#define sll_next(sll_elem) (sll_elem = sll_elem == NULL ? NULL : sll_elem->flink)
+#define sll_next(sll_elem) (sll_elem = ((sll_elem == NULL || sll_elem->flink == sll_elem) ? NULL : sll_elem->flink))
 #define sll_get_next(sll_elem) (sll_elem->flink)
 // #define sll_previous(sll_elem) (sll_elem->blink)
 
@@ -640,16 +640,20 @@ void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {																\
 void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) { 									\
 	if (sll_list->first == tbr) {																			\
 		sll_list->first = tbr->flink;																		\
+		if (sll_list->last == tbr) {																		\
+			sll_list->last = sll_list->first;																\
+		}																									\
 		free(tbr);																							\
 		sll_list->size--;																					\
 	} else {																								\
 		TYPE##_sll_node_t *tmp = sll_list->first;															\
 		TYPE##_sll_node_t *mem = sll_list->first;															\
-		while (tmp->flink != NULL) {																		\
+		while (tmp != NULL && tmp->flink != NULL) {															\
 			tmp = tmp->flink;																				\
 			if (tmp == tbr) {																				\
 				mem->flink = tmp->flink;																	\
 				free(tmp);																					\
+				tmp = NULL;																					\
 				sll_list->size--;																			\
 				break;	/*while*/																			\
 			} 																								\
