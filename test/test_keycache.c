@@ -250,7 +250,7 @@ Test(np_keycache_t, _np_keycache_sort_keys_cpm, .description="sort a list of key
 		np_dhkey_t key = { .t[0] = i, .t[1] = i, .t[2] = i, .t[3] = i};
 
 		new_keys[i] = _np_keycache_find_or_create(key);
-		sll_append(np_key_t, key_list, new_keys[i]);
+		sll_append(np_key_ptr, key_list, new_keys[i]);
 	}
 
 	_np_keycache_sort_keys_cpm(key_list, &dummy_key);
@@ -277,7 +277,7 @@ Test(np_keycache_t, _np_keycache_sort_keys_kd, .description="sort a list of key 
 		np_dhkey_t key = { .t[0] = i, .t[1] = i, .t[2] = i, .t[3] = i};
 
 		new_keys[i] = _np_keycache_find_or_create(key);
-		sll_append(np_key_t, key_list, new_keys[i]);
+		sll_append(np_key_ptr, key_list, new_keys[i]);
 	}
 
 	_np_keycache_sort_keys_kd(key_list, &dummy_key);
