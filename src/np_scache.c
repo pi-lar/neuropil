@@ -18,9 +18,9 @@
 #include "np_log.h"
 #include "inttypes.h"
 
-NP_SLL_GENERATE_IMPLEMENTATION(np_cache_item_t);
+NP_SLL_GENERATE_IMPLEMENTATION(np_cache_item_ptr);
 
-np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key)
+np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char* const key)
 {
     log_msg(LOG_TRACE, "start: np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key){");
     // Contract
@@ -35,8 +35,8 @@ np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char 
 
 		unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
-		np_cache_item_t_sll_t* bucket_list = table->buckets[bucket];
-		sll_iterator(np_cache_item_t) iter = sll_first(bucket_list);
+		np_sll_t(np_cache_item_ptr, bucket_list) = table->buckets[bucket];
+		sll_iterator(np_cache_item_ptr) iter = sll_first(bucket_list);
 		do
 		{
 			if(NULL != iter && NULL != iter->val && strcmp(iter->val->key, key) == 0){
@@ -48,7 +48,7 @@ np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char 
 	return ret;
 }
 
-int np_simple_cache_insert(np_simple_cache_table_t *table, char *key, void *value) {
+int np_simple_cache_insert(np_simple_cache_table_t *table, const char* const key, void *value) {
     log_msg(LOG_TRACE, "start: int np_simple_cache_insert(np_simple_cache_table_t *table, char *key, void *value) {");
     // Contract
     if(NULL == key){
@@ -60,9 +60,8 @@ int np_simple_cache_insert(np_simple_cache_table_t *table, char *key, void *valu
     _LOCK_ACCESS(&table->lock){
 		unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
-		np_cache_item_t_sll_t* bucket_list = table->buckets[bucket];
-
-		sll_iterator(np_cache_item_t) iter = sll_first(bucket_list);
+		np_sll_t(np_cache_item_ptr, bucket_list) = table->buckets[bucket];
+		sll_iterator(np_cache_item_ptr) iter = sll_first(bucket_list);
 		do
 		{
 			if(NULL != iter && NULL != iter->val && strcmp(iter->val->key, key) == 0){
@@ -79,7 +78,7 @@ int np_simple_cache_insert(np_simple_cache_table_t *table, char *key, void *valu
 			if(item < 0){
 				log_msg(LOG_ERROR, "cannot allocate memory for np_cache_item");
 			}
-			sll_append(np_cache_item_t, bucket_list, item);
+			sll_append(np_cache_item_ptr, bucket_list, item);
 			item->key = strdup(key);
 		}else{
 			item = iter->val;
@@ -90,9 +89,10 @@ int np_simple_cache_insert(np_simple_cache_table_t *table, char *key, void *valu
 	return 0;
 }
 
-unsigned int _np_simple_cache_strhash(const char *str) {
+unsigned int _np_simple_cache_strhash(const char* const str) {
 	uint32_t hash = 0;
-	for (; *str; str++)
-		hash = 31 * hash + *str;
+	const char* str_ptr = str;
+	for (; *str_ptr; str_ptr++)
+		hash = 31 * hash + *str_ptr;
 	return hash;
 }

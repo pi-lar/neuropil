@@ -195,9 +195,9 @@ np_key_t* _np_keycache_find_deprecated()
 	return (iter);
 }
 
-sll_return(np_key_t) _np_keycache_find_aliase(np_key_t* forKey)
+sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)
 {
-	np_sll_t(np_key_t,ret) = sll_init(np_key_t, ret);
+	np_sll_t(np_key_ptr,ret) = sll_init(np_key_ptr, ret);
 	np_key_t *iter = NULL;
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -206,7 +206,7 @@ sll_return(np_key_t) _np_keycache_find_aliase(np_key_t* forKey)
 			if (_np_key_cmp(iter->parent,forKey)==0)
 			{
 				np_ref_obj(np_key_t, iter);
-				sll_append(np_key_t, ret, iter);
+				sll_append(np_key_ptr, ret, iter);
 			}
 		}
 	}
@@ -252,12 +252,12 @@ np_key_t* _np_keycache_add(np_key_t* subject_key)
 /** _np_keycache_find_closest_key_to:
  ** finds the closest node in the array of #hosts# to #key# and put that in min.
  */
-np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* const key)
+np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_ptr, list_of_keys), const np_dhkey_t* const key)
 {
 	np_dhkey_t  dif, minDif;
 	np_key_t *min = NULL;
 
-	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
+	sll_iterator(np_key_ptr) iter = sll_first(list_of_keys);
 	np_bool first_run = TRUE;
 	while (NULL != iter)
 	{
@@ -279,6 +279,7 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_t, list_of_keys), c
 	{
 		log_msg(LOG_KEY | LOG_WARN, "minimum size for closest key calculation not met !");
 	}
+
 	if(NULL != min){
 		np_ref_obj(np_key_t, min);
 	}
@@ -288,7 +289,7 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_t, list_of_keys), c
 /** sort_hosts:
  ** Sorts #hosts# based on common prefix match and key distance from #np_key_t*
  */
-void _np_keycache_sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t* key)
+void _np_keycache_sort_keys_cpm (np_sll_t(np_key_ptr, node_keys), const np_dhkey_t* key)
 {
 	np_dhkey_t dif1, dif2;
 
@@ -298,11 +299,11 @@ void _np_keycache_sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t
 	if (sll_size(node_keys) < 2) return;
 
 	np_key_t* tmp;
-	sll_iterator(np_key_t) iter1 = sll_first(node_keys);
+	sll_iterator(np_key_ptr) iter1 = sll_first(node_keys);
 
 	do
 	{
-		sll_iterator(np_key_t) iter2 = sll_get_next(iter1);
+		sll_iterator(np_key_ptr) iter2 = sll_get_next(iter1);
 
 		if (NULL == iter2) break;
 
@@ -334,17 +335,17 @@ void _np_keycache_sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t
 /** sort_hosts_key:
  ** Sorts #hosts# based on their key distance from #np_key_t*
  */
-void _np_keycache_sort_keys_kd (np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key)
+void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhkey_t* key)
 {
 	np_dhkey_t dif1, dif2;
 
 	// entry check for empty list
 	if (NULL == sll_first(list_of_keys)) return;
 
-	sll_iterator(np_key_t) curr = sll_first(list_of_keys);
+	sll_iterator(np_key_ptr) curr = sll_first(list_of_keys);
 	do {
 		// Maintain pointers.
-		sll_iterator(np_key_t) next = sll_get_next(curr);
+		sll_iterator(np_key_ptr) next = sll_get_next(curr);
 
 		// Cannot swap last element with its next.
 		while (NULL != next)

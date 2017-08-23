@@ -45,8 +45,6 @@
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
-#define DEBUG 0
-
 extern char *optarg;
 extern int optind;
 

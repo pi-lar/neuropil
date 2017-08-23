@@ -16,9 +16,9 @@
 extern "C" {
 #endif
 
-#ifdef DEBUG
-	#define MEMORY_CHECK 
-#endif
+//#ifdef DEBUG
+//	#define MEMORY_CHECK
+//#endif
 
 // macro definitions to generate header prototype definitions
 #define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE) \
@@ -278,27 +278,9 @@ TYPE* saveTo = NULL;																																\
 }
 
 
-#define np_ref_list(...) VFUNC(np_ref_list, __VA_ARGS__)
-#define np_ref_list2(TYPE, sll_list) np_ref_list3(TYPE, sll_list, __func__)
-#define np_ref_list3(TYPE, sll_list, reason)               		\
-{																\
-	sll_iterator(TYPE) iter = sll_first(sll_list);				\
-	while (NULL != iter)										\
-	{															\
-		np_ref_obj3(TYPE, (iter->val), reason);					\
-		sll_next(iter);											\
-	}															\
-}
+// #define np_ref_list(...) VFUNC(np_ref_list, __VA_ARGS__)
+// #define np_ref_list2(TYPE, sll_list) np_ref_list3(TYPE, sll_list, __func__)
 
-#define np_unref_list(TYPE, sll_list, reason)               	\
-{																\
-	sll_iterator(TYPE) iter = sll_first(sll_list);				\
-	while (NULL != iter)										\
-	{															\
-		np_unref_obj(TYPE,(iter->val), reason);					\
-		sll_next(iter);											\
-	}															\
-}
 /**
  ** following this line: np_memory cache and object prototype definitions
  **
@@ -316,11 +298,11 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj);
 
 // increase ref count
 NP_API_EXPORT
-void np_mem_refobj(np_obj_t* obj,char* reason);
+void np_mem_refobj(np_obj_t* obj, const char* reason);
 
 // decrease ref count
 NP_API_EXPORT
-void np_mem_unrefobj(np_obj_t* obj,char* reason);
+void np_mem_unrefobj(np_obj_t* obj, const char* reason);
 
 // print the complete object list and statistics
 NP_API_INTERN

@@ -31,7 +31,7 @@
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
 
-NP_SLL_GENERATE_IMPLEMENTATION(np_key_t);
+NP_SLL_GENERATE_IMPLEMENTATION(np_key_ptr);
 NP_PLL_GENERATE_IMPLEMENTATION(np_key_ptr);
 
 int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
@@ -64,6 +64,26 @@ char* _np_key_as_str(np_key_t* key)
 	return key->dhkey_str;
 }
 
+void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason)
+{
+	sll_iterator(np_key_ptr) iter = sll_first(sll_list);
+	while (NULL != iter)
+	{
+		np_ref_obj3(np_key_t, (iter->val), reason);
+		sll_next(iter);
+	}
+}
+
+void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
+{
+	sll_iterator(np_key_ptr) iter = sll_first(sll_list);
+	while (NULL != iter)
+	{
+		np_unref_obj(np_key_t, (iter->val), reason);
+		sll_next(iter);
+	}
+}
+
 /**
  * Destroys a key with all resources
  */
@@ -82,12 +102,12 @@ void _np_key_destroy(np_key_t* to_destroy) {
 			
 			np_key_t* deleted;
 			np_key_t* added;
+
 			_np_route_leafset_update(to_destroy,FALSE,&deleted,&added);
 			_np_route_update(to_destroy,FALSE,&deleted,&added);
-			_np_keycache_remove(to_destroy->dhkey);
-
 			_np_network_stop(to_destroy->network);
 
+			_np_keycache_remove(to_destroy->dhkey);
 
 			// delete old receive tokens
 			if (NULL != to_destroy->recv_tokens)
@@ -126,15 +146,15 @@ void _np_key_destroy(np_key_t* to_destroy) {
 			}
 		}
 
-		np_sll_t(np_key_t, aliasse)  = _np_keycache_find_aliase(to_destroy);
-		sll_iterator(np_key_t) iter = sll_first(aliasse);
+		np_sll_t(np_key_ptr, aliasse)  = _np_keycache_find_aliase(to_destroy);
+		sll_iterator(np_key_ptr) iter = sll_first(aliasse);
 
 		while(iter != NULL) {
 			_np_key_destroy(iter->val);
 			np_unref_obj(np_key_t, iter->val,"_np_keycache_find_aliase");
 			sll_next(iter);
 		}
-		sll_free(np_key_t, aliasse);
+		sll_free(np_key_ptr, aliasse);
 
 		np_unref_obj(np_key_t, to_destroy,"np_tryref_key");
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
@@ -217,16 +237,15 @@ void np_key_renew_token() {
 
 		// find closest member according to old routing table
 		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.get routing table");
-		np_sll_t(np_key_t, table) = _np_route_get_table();
+		np_sll_t(np_key_ptr, table) = _np_route_get_table();
 
 		// sort to get potential closest neighbor first
 		_np_keycache_sort_keys_kd(table, &new_node_key->dhkey);
-		sll_iterator(np_key_t) iterator = sll_first(table);
-
+		sll_iterator(np_key_ptr) iterator = sll_first(table);
 
 		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
 		np_message_t* msg_out_update = NULL;
-		np_message_t* msg_out_leave = NULL;
+
 		np_tree_t* jrb_new = np_tree_create();
 		np_aaatoken_encode(jrb_new, new_node_key->aaa_token);
 		np_tree_t* jrb_old = np_tree_create();
@@ -318,8 +337,8 @@ void np_key_renew_token() {
 		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Completed node renewal. cleaning up now");
 
 		// clean up
-		np_unref_list(np_key_t, table,"_np_route_get_table");
-		sll_free(np_key_t, table);
+		np_unref_list(table,"_np_route_get_table");
+		sll_free(np_key_ptr, table);
 
 		_np_key_destroy(old_node_key);
 

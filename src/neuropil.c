@@ -433,7 +433,6 @@ void np_set_identity(np_aaatoken_t* identity)
 	// set target node string for correct routing
 	np_tree_insert_str(identity->extensions, "target_node", np_treeval_new_s(_np_key_as_str(state->my_node_key)) );
 
-
 	// create encryption parameter
 	crypto_sign_keypair(identity->public_key, identity->private_key);
 	_np_aaatoken_add_signature(identity);
@@ -664,7 +663,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 
 	// in receive function, we can only receive one message per call, different for callback function
 	log_debug_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache_in));
-	msg = sll_head(np_message_t, msg_prop->msg_cache_in);
+	msg = sll_head(np_message_ptr, msg_prop->msg_cache_in);
 
 	log_debug_msg(LOG_DEBUG, "decrypting message ...");
 	np_bool decrypt_ok = _np_message_decrypt_payload(msg, sender_token);
@@ -773,7 +772,7 @@ uint32_t np_receive_text (char* subject, char **data)
 
 	// in receive function, we can only receive one message per call, different for callback function
 	log_debug_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache_in));
-	msg = sll_head(np_message_t, msg_prop->msg_cache_in);
+	msg = sll_head(np_message_ptr, msg_prop->msg_cache_in);
 
 	log_debug_msg(LOG_DEBUG, "decrypting message ...");
 	np_bool decrypt_ok = _np_message_decrypt_payload(msg, sender_token);
@@ -901,10 +900,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	log_msg(LOG_TRACE, "start: np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname){");
 	log_debug_msg(LOG_DEBUG, "neuropil_init");
 	
-	 if(_np_threads_init() == FALSE){
-		log_msg(LOG_ERROR, "neuropil_init: could not init threding mutexes");
-		exit(EXIT_FAILURE);
-	}
+	_np_threads_init();
 	// encryption and memory protection
 	if(sodium_init() == -1){
 		log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");

@@ -76,8 +76,8 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 
 void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 {
-	np_sll_t(np_message_t,to_del);
-	sll_init(np_message_t,to_del);
+	np_sll_t(np_message_ptr,to_del);
+	sll_init(np_message_ptr,to_del);
 
 	_LOCK_MODULE(np_message_part_cache_t)
 	{
@@ -90,19 +90,20 @@ void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 			// np_tryref_obj(np_message_t,msg, msgExists);
 
 			if(TRUE == _np_message_is_expired(msg)) {
-				sll_append(np_message_t,to_del,msg);
+				sll_append(np_message_ptr,to_del,msg);
 			}
 		}
 
-		sll_iterator(np_message_t) iter = sll_first(to_del);
+		sll_iterator(np_message_ptr) iter = sll_first(to_del);
 		while (NULL != iter)
 		{
 			np_tree_del_str(state->msg_part_cache,iter->val->uuid);
+			np_unref_obj(np_message_t, iter->val, ref_msgpartcache);
 			sll_next(iter);
 		}
 	}
 
-	np_unref_list(np_message_t, to_del, ref_msgpartcache); // cleanup
+	// np_unref_list(np_message_ptr, to_del, ref_msgpartcache); // cleanup
 
 	np_job_submit_event(MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache);
 }

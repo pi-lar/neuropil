@@ -44,7 +44,7 @@
 #include "np_constants.h"
 
 
-NP_SLL_GENERATE_IMPLEMENTATION(np_message_t);
+NP_SLL_GENERATE_IMPLEMENTATION(np_message_ptr);
 
 void _np_message_t_new(void* msg)
 {

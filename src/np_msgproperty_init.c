@@ -11,14 +11,14 @@
 #include "np_list.h"
 #include "neuropil.h"
 
-sll_return(np_msgproperty_t) default_msgproperties() {
+sll_return(np_msgproperty_ptr) default_msgproperties() {
 
-	np_sll_t(np_msgproperty_t, ret);
-	sll_init(np_msgproperty_t, ret);
+	np_sll_t(np_msgproperty_ptr, ret);
+	sll_init(np_msgproperty_ptr, ret);
 
 	np_msgproperty_t* __default_properties = NULL;
 	np_new_obj(np_msgproperty_t, __default_properties);
-	sll_append(np_msgproperty_t, ret, __default_properties);
+	sll_append(np_msgproperty_ptr, ret, __default_properties);
 
 	__default_properties->msg_subject = _DEFAULT;
 	__default_properties->rep_subject = NULL;
@@ -38,7 +38,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __handshake_properties = NULL;
 	np_new_obj(np_msgproperty_t, __handshake_properties);
-	sll_append(np_msgproperty_t, ret, __handshake_properties);
+	sll_append(np_msgproperty_ptr, ret, __handshake_properties);
 
 	__handshake_properties->msg_subject = _NP_MSG_HANDSHAKE;
 	__handshake_properties->rep_subject = NULL;
@@ -59,7 +59,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 	// we don't need to ack the ack the ack the ack ...
 	np_msgproperty_t* __ack_properties = NULL;
 	np_new_obj(np_msgproperty_t, __ack_properties);
-	sll_append(np_msgproperty_t, ret, __ack_properties);
+	sll_append(np_msgproperty_ptr, ret, __ack_properties);
 
 	__ack_properties->msg_subject = _NP_MSG_ACK;
 	__ack_properties->rep_subject = NULL;
@@ -80,7 +80,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 	// join request: node unknown yet; therefore send without ack; explicit ack handling via extra messages
 	np_msgproperty_t* __join_req = NULL;
 	np_new_obj(np_msgproperty_t, __join_req);
-	sll_append(np_msgproperty_t, ret, __join_req);
+	sll_append(np_msgproperty_ptr, ret, __join_req);
 
 	__join_req->msg_subject = _NP_MSG_JOIN_REQUEST;
 	__join_req->rep_subject = NULL;
@@ -100,7 +100,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __join_ack = NULL;
 	np_new_obj(np_msgproperty_t, __join_ack);
-	sll_append(np_msgproperty_t, ret, __join_ack);
+	sll_append(np_msgproperty_ptr, ret, __join_ack);
 
 	__join_ack->msg_subject = _NP_MSG_JOIN_ACK;
 	__join_ack->rep_subject = NULL;
@@ -120,7 +120,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __join_nack = NULL;
 	np_new_obj(np_msgproperty_t, __join_nack);
-	sll_append(np_msgproperty_t, ret, __join_nack);
+	sll_append(np_msgproperty_ptr, ret, __join_nack);
 
 	__join_nack->msg_subject = _NP_MSG_JOIN_NACK;
 	__join_nack->rep_subject = NULL;
@@ -141,7 +141,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 	// leave the network and clean up the mess
 	np_msgproperty_t* __leave_properties = NULL;
 	np_new_obj(np_msgproperty_t, __leave_properties);
-	sll_append(np_msgproperty_t, ret, __leave_properties);
+	sll_append(np_msgproperty_ptr, ret, __leave_properties);
 
 	__leave_properties->msg_subject = _NP_MSG_LEAVE_REQUEST;
 	__leave_properties->rep_subject = NULL;
@@ -161,7 +161,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __ping = NULL;
 	np_new_obj(np_msgproperty_t, __ping);
-	sll_append(np_msgproperty_t, ret, __ping);
+	sll_append(np_msgproperty_ptr, ret, __ping);
 
 	__ping->msg_subject = _NP_MSG_PING_REQUEST;
 	__ping->rep_subject = _NP_MSG_PING_REPLY;
@@ -181,7 +181,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __ping_reply = NULL;
 	np_new_obj(np_msgproperty_t, __ping_reply);
-	sll_append(np_msgproperty_t, ret, __ping_reply);
+	sll_append(np_msgproperty_ptr, ret, __ping_reply);
 
 	__ping_reply->msg_subject = _NP_MSG_PING_REPLY;
 	__ping_reply->rep_subject = NULL;
@@ -201,7 +201,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __piggy = NULL;
 	np_new_obj(np_msgproperty_t, __piggy);
-	sll_append(np_msgproperty_t, ret, __piggy);
+	sll_append(np_msgproperty_ptr, ret, __piggy);
 
 	__piggy->msg_subject = _NP_MSG_PIGGY_REQUEST;
 	__piggy->rep_subject = NULL;
@@ -221,7 +221,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __update = NULL;
 	np_new_obj(np_msgproperty_t, __update);
-	sll_append(np_msgproperty_t, ret, __update);
+	sll_append(np_msgproperty_ptr, ret, __update);
 
 	__update->msg_subject = _NP_MSG_UPDATE_REQUEST;
 	__update->rep_subject = NULL;
@@ -241,7 +241,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __discover_receiver = NULL;
 	np_new_obj(np_msgproperty_t, __discover_receiver);
-	sll_append(np_msgproperty_t, ret, __discover_receiver);
+	sll_append(np_msgproperty_ptr, ret, __discover_receiver);
 
 	__discover_receiver->msg_subject = _NP_MSG_DISCOVER_RECEIVER;
 	__discover_receiver->rep_subject = _NP_MSG_AVAILABLE_RECEIVER;
@@ -261,7 +261,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __discover_sender = NULL;
 	np_new_obj(np_msgproperty_t, __discover_sender);
-	sll_append(np_msgproperty_t, ret, __discover_sender);
+	sll_append(np_msgproperty_ptr, ret, __discover_sender);
 
 	__discover_sender->msg_subject = _NP_MSG_DISCOVER_SENDER;
 	__discover_sender->rep_subject = _NP_MSG_AVAILABLE_SENDER;
@@ -281,7 +281,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __available_receiver = NULL;
 	np_new_obj(np_msgproperty_t, __available_receiver);
-	sll_append(np_msgproperty_t, ret, __available_receiver);
+	sll_append(np_msgproperty_ptr, ret, __available_receiver);
 
 	__available_receiver->msg_subject = _NP_MSG_AVAILABLE_RECEIVER;
 	__available_receiver->rep_subject = NULL;
@@ -301,7 +301,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __available_sender = NULL;
 	np_new_obj(np_msgproperty_t, __available_sender);
-	sll_append(np_msgproperty_t, ret, __available_sender);
+	sll_append(np_msgproperty_ptr, ret, __available_sender);
 
 	__available_sender->msg_subject = _NP_MSG_AVAILABLE_SENDER;
 	__available_sender->rep_subject = NULL;
@@ -321,7 +321,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __authenticate = NULL;
 	np_new_obj(np_msgproperty_t, __authenticate);
-	sll_append(np_msgproperty_t, ret, __authenticate);
+	sll_append(np_msgproperty_ptr, ret, __authenticate);
 
 	__authenticate->msg_subject = _NP_MSG_AUTHENTICATION_REQUEST;
 	__authenticate->rep_subject = _NP_MSG_AUTHENTICATION_REPLY;
@@ -342,7 +342,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __authenticate_reply = NULL;
 	np_new_obj(np_msgproperty_t, __authenticate_reply);
-	sll_append(np_msgproperty_t, ret, __authenticate_reply);
+	sll_append(np_msgproperty_ptr, ret, __authenticate_reply);
 
 	__authenticate_reply->msg_subject = _NP_MSG_AUTHENTICATION_REPLY;
 	__authenticate_reply->rep_subject = NULL;
@@ -362,7 +362,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __authorize = NULL;
 	np_new_obj(np_msgproperty_t, __authorize);
-	sll_append(np_msgproperty_t, ret, __authorize);
+	sll_append(np_msgproperty_ptr, ret, __authorize);
 
 	__authorize->msg_subject = _NP_MSG_AUTHORIZATION_REQUEST;
 	__authorize->rep_subject = _NP_MSG_AUTHORIZATION_REPLY;
@@ -383,7 +383,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __authorize_reply = NULL;
 	np_new_obj(np_msgproperty_t, __authorize_reply);
-	sll_append(np_msgproperty_t, ret, __authorize_reply);
+	sll_append(np_msgproperty_ptr, ret, __authorize_reply);
 
 	__authorize_reply->msg_subject = _NP_MSG_AUTHORIZATION_REPLY;
 	__authorize_reply->rep_subject = NULL;
@@ -403,7 +403,7 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 
 	np_msgproperty_t* __account = NULL;
 	np_new_obj(np_msgproperty_t, __account);
-	sll_append(np_msgproperty_t, ret, __account);
+	sll_append(np_msgproperty_ptr, ret, __account);
 
 	__account->msg_subject = _NP_MSG_ACCOUNTING_REQUEST;
 	__account->rep_subject = NULL;
@@ -422,6 +422,5 @@ sll_return(np_msgproperty_t) default_msgproperties() {
 	__account->token_max_ttl = 30;
 	__account->token_min_ttl = 20;
 
-
-	return ret;
+	return (ret);
 }

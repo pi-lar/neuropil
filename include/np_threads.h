@@ -74,14 +74,14 @@ typedef struct np_cond_s np_cond_t;
 
 
 NP_API_INTERN
-np_bool _np_threads_init();
+void _np_threads_init();
 
 NP_API_INTERN
-int _np_threads_lock_module(np_module_lock_type module_id, char* where);
+int _np_threads_lock_module(np_module_lock_type module_id, const char* where);
 NP_API_INTERN
 int _np_threads_unlock_module(np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b, char* where);
+int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b, const char* where);
 NP_API_INTERN
 int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b);
 

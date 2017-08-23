@@ -362,7 +362,7 @@ int main(int argc, char **argv)
 						sll_size(list_of_childs), current_pid);
 				array_of_pids[sll_size(list_of_childs)] = current_pid;
 				sll_append(int, list_of_childs,
-						&array_of_pids[sll_size(list_of_childs)]);
+						array_of_pids[sll_size(list_of_childs)]);
 				/**
 				 \endcode
 				 */
@@ -390,7 +390,7 @@ int main(int argc, char **argv)
 				uint32_t i = 0;
 				for (iter = sll_first(list_of_childs); iter != NULL;
 						sll_next(iter)) {
-					if (current_pid == *iter->val) {
+					if (current_pid == iter->val) {
 						fprintf(stderr, "removing stopped child process\n");
 						sll_delete(int, list_of_childs, iter);
 						for (; i < required_nodes; i++) {

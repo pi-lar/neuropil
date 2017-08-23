@@ -47,7 +47,7 @@ void _np_route_leafset_clear ();
  **
  **/
 NP_API_INTERN
-sll_return(np_key_t) _np_route_lookup (np_key_t* key, uint8_t count);
+sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count);
 // np_key_t** _np_route_lookup (np_state_t* state, np_key_t* key, int count, int is_safe);
 
 /** _np_route_neighbors:
@@ -55,21 +55,21 @@ sll_return(np_key_t) _np_route_lookup (np_key_t* key, uint8_t count);
  **
  **/
 NP_API_INTERN
-sll_return(np_key_t) _np_route_neighbors ();
+sll_return(np_key_ptr) _np_route_neighbors ();
 
 /** _np_route_row_lookup:
  ** return the row in the routing table that matches the longest prefix with key.
  **
  **/
 NP_API_INTERN
-sll_return(np_key_t) _np_route_row_lookup (np_key_t* key);
+sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key);
 
 /** route_get_table:
  ** returns all the entries in the routing table in an array of ChimeraHost.
  **
  **/
 NP_API_INTERN
-sll_return(np_key_t) _np_route_get_table ();
+sll_return(np_key_ptr) _np_route_get_table ();
 
 NP_API_INTERN
 void _np_route_leafset_insert (np_key_t* host, uint8_t right_or_left, np_key_t** deleted, np_key_t** added);

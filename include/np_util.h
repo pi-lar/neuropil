@@ -62,7 +62,7 @@ NP_API_INTERN
 void _np_tree2jsonobj(np_tree_t* jtree, JSON_Object* json_obj);
 
 NP_API_INTERN
-void _np_sll_remove_doublettes(np_sll_t(np_key_t, list_of_keys));
+void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys));
 
 /**
 .. c:function:: void np_tree2json()

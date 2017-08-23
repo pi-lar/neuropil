@@ -27,7 +27,7 @@
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_aaatoken_t);
 
-NP_SLL_GENERATE_IMPLEMENTATION(np_aaatoken_t);
+NP_SLL_GENERATE_IMPLEMENTATION(np_aaatoken_ptr);
 
 NP_PLL_GENERATE_IMPLEMENTATION(np_aaatoken_ptr);
 
@@ -523,7 +523,7 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
  ** TODO extend this function with a key and an amount of messages
  ** TODO use a different function for mitm and leaf nodes ?
  **/
-sll_return(np_aaatoken_t) _np_aaatoken_get_sender_all(char* subject)
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_sender_all(char* subject)
 {
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
@@ -534,8 +534,8 @@ sll_return(np_aaatoken_t) _np_aaatoken_get_sender_all(char* subject)
 
 	// log_debug_msg(LOG_DEBUG, "available %hd interests %hd", subject_key->send_property->max_threshold, subject_key->recv_property->max_threshold );
 	// look up sources to see whether a sender already exists
-	np_sll_t(np_aaatoken_t, return_list) = NULL;
-	sll_init(np_aaatoken_t, return_list);
+	np_sll_t(np_aaatoken_ptr, return_list) = NULL;
+	sll_init(np_aaatoken_ptr, return_list);
 
 	// should never happen
 	if (NULL == subject_key) return (return_list);
@@ -563,7 +563,7 @@ sll_return(np_aaatoken_t) _np_aaatoken_get_sender_all(char* subject)
 				// and the sending threshold is bigger than zero as well
 				// and we actually have a receiver node in the list
 				np_ref_obj(np_aaatoken_t, tmp->val);
-				sll_append(np_aaatoken_t, return_list, tmp->val);
+				sll_append(np_aaatoken_ptr, return_list, tmp->val);
 			}
 			pll_next(tmp);
 		}
@@ -824,7 +824,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 	return (return_token);
 }
 
-sll_return(np_aaatoken_t) _np_aaatoken_get_receiver_all(char* subject)
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_receiver_all(char* subject)
 {
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
@@ -835,8 +835,8 @@ sll_return(np_aaatoken_t) _np_aaatoken_get_receiver_all(char* subject)
 //	log_debug_msg(LOG_DEBUG, "available %hd interests %hd",
 //			subject_key->send_property->max_threshold, subject_key->recv_property->max_threshold );
 	// look up sources to see whether a sender already exists
-	np_sll_t(np_aaatoken_t, return_list) = NULL;
-	sll_init(np_aaatoken_t, return_list);
+	np_sll_t(np_aaatoken_ptr, return_list) = NULL;
+	sll_init(np_aaatoken_ptr, return_list);
 
 	// should never happen
 	if (NULL == subject_key) return (return_list);
@@ -861,7 +861,7 @@ sll_return(np_aaatoken_t) _np_aaatoken_get_receiver_all(char* subject)
 				// only pick key from a list if the subject msg_treshold is bigger than zero
 				// and the sending threshold is bigger than zero as well
 				// and we actually have a receiver node in the list
-				sll_append(np_aaatoken_t, return_list, tmp->val);
+				sll_append(np_aaatoken_ptr, return_list, tmp->val);
 			}
 			pll_next(tmp);
 			// tmp = pll_head(np_aaatoken_ptr, subject_key->recv_tokens);
@@ -970,6 +970,7 @@ np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject)
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  ._np_get_local_mx_token");
 	return (return_token);
 }
+
 // update internal structure and return a interest if a matching pair has been found
 void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 {

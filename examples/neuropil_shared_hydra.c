@@ -35,7 +35,6 @@
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
-#define DEBUG 0
 #define NUM_HOST 120
 
 extern char *optarg;
@@ -196,7 +195,7 @@ int main(int argc, char **argv)
 				// parent process keeps iterating
 				fprintf(stdout, "adding (%d) : child process %d \n", sll_size(list_of_childs), current_pid);
 				array_of_pids[sll_size(list_of_childs)] = current_pid;
-				sll_append(int, list_of_childs, &array_of_pids[sll_size(list_of_childs)]);
+				sll_append(int, list_of_childs, array_of_pids[sll_size(list_of_childs)]);
 			}
 			ev_sleep(3.1415);
 
@@ -211,7 +210,7 @@ int main(int argc, char **argv)
 				uint32_t i = 0;
 				for (iter = sll_first(list_of_childs); iter != NULL; sll_next(iter))
 				{
-					if (current_pid == *iter->val)
+					if (current_pid == iter->val)
 					{
 						fprintf(stderr, "removing stopped child process\n");
 						sll_delete(int, list_of_childs, iter);

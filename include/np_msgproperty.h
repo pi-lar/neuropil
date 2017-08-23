@@ -248,8 +248,8 @@ struct np_msgproperty_s
 
 	// cache which will hold up to max_threshold messages
 	np_msgcache_policy_type cache_policy;
-	np_sll_t(np_message_t, msg_cache_in);
-	np_sll_t(np_message_t, msg_cache_out);
+	np_sll_t(np_message_ptr, msg_cache_in);
+	np_sll_t(np_message_ptr, msg_cache_out);
 
 	// only send/receive after opposite partner has been found
 	np_mutex_t lock;

@@ -147,30 +147,36 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 // printf("free obj %p (type %d ptr %p ref_count %d):(next -> %p)n", obj, obj->type, obj->ptr, obj->ref_count, obj->next );
 
 // increase ref count
-void np_mem_refobj(np_obj_t* obj, char* reason)
+void np_mem_refobj(np_obj_t* obj, const char* reason)
 {
 	log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
 	obj->ref_count++;
+	// log_msg(LOG_ERROR, "%p   ref reason: %s", obj, reason);
 	//log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
 #ifdef MEMORY_CHECK
 	assert(reason != NULL);
 	sll_prepend(char_ptr, obj->reasons, strndup(reason,strlen(reason)));
 #endif
 	}
+
 // decrease ref count
-void np_mem_unrefobj(np_obj_t* obj, char* reason)
+void np_mem_unrefobj(np_obj_t* obj, const char* reason)
 {
 	log_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
 	obj->ref_count--;
+
 	//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
-	if(obj->ref_count < 0){		
+	// log_msg(LOG_ERROR, "%p unref reason: %s", obj, reason);
+
+	if(obj->ref_count < 0) {
 #ifdef MEMORY_CHECK
 		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (%d) (left reasons(%d): %s)", obj, obj->type, obj->ref_count, make_char_sll_flat(obj->reasons));
 #else
-		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
+		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (%d / %s)", obj, obj->type, obj->ref_count, reason);
 #endif
-		abort();
+		// abort();
 	}
+
 #ifdef MEMORY_CHECK
 	sll_iterator(char_ptr) iter_reasons = sll_first(obj->reasons);
 	np_bool foundReason = FALSE;
@@ -185,9 +191,12 @@ void np_mem_unrefobj(np_obj_t* obj, char* reason)
 		sll_next(iter_reasons);
 	}
 	if (FALSE == foundReason) {
-		log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ",reason, obj->id, obj->type, sll_size(obj->reasons), make_char_sll_flat(obj->reasons));
-		abort();
+		// log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ",reason, obj->id, obj->type, sll_size(obj->reasons), make_char_sll_flat(obj->reasons));
+		log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reason: %s) was not found. ",reason, obj->id, obj->type, reason);
+		// abort();
 	}	
+
+	_np_log_fflush();
 #endif
 
 }

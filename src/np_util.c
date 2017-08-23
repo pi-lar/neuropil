@@ -136,14 +136,14 @@ size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
 // write_type_arr[npval_count] = NULL;
 
 
-void _np_sll_remove_doublettes(np_sll_t(np_key_t, list_of_keys))
+void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
 {
-	sll_iterator(np_key_t) iter1 = sll_first(list_of_keys);
-	sll_iterator(np_key_t) tmp = NULL;
+	sll_iterator(np_key_ptr) iter1 = sll_first(list_of_keys);
+	sll_iterator(np_key_ptr) tmp = NULL;
 
 	do
 	{
-		sll_iterator(np_key_t) iter2 = sll_get_next(iter1);
+		sll_iterator(np_key_ptr) iter2 = sll_get_next(iter1);
 
 		if (NULL == iter2) break;
 
@@ -159,7 +159,7 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_t, list_of_keys))
 
 			if (NULL != tmp)
 			{
-				sll_delete(np_key_t, list_of_keys, tmp);
+				sll_delete(np_key_ptr, list_of_keys, tmp);
 				tmp = NULL;
 			}
 		} while(NULL != iter2);

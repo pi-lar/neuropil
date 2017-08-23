@@ -62,7 +62,7 @@ void _np_sysinfo_init_cache()
 			_np_threads_mutex_init(&_cache->lock);
 
 			for (int i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
-				sll_init(np_cache_item_t, _cache->buckets[i]);
+				sll_init(np_cache_item_ptr, _cache->buckets[i]);
 			}
 		}
 	}
@@ -288,14 +288,14 @@ np_tree_t* np_get_my_sysinfo() {
 	np_tree_free(local_node);
 
 	// build neighbours list
-	np_sll_t(np_key_t, neighbours_table) = _np_route_neighbors();
+	np_sll_t(np_key_ptr, neighbours_table) = _np_route_neighbors();
 
 	np_tree_t* neighbours = np_tree_create();
 	int neighbour_counter = 0;
 	if (NULL != neighbours_table && 0 < neighbours_table->size) {
 		np_key_t* current;
 		while (NULL != sll_first(neighbours_table)) {
-			current = sll_head(np_key_t, neighbours_table);
+			current = sll_head(np_key_ptr, neighbours_table);
 			if (current->node) {
 				np_tree_t* neighbour = np_tree_create();
 				_np_node_encode_to_jrb(neighbour, current, TRUE);
@@ -310,18 +310,18 @@ np_tree_t* np_get_my_sysinfo() {
 			neighbour_counter);
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, np_treeval_new_tree(neighbours));
-	sll_free(np_key_t, neighbours_table);
+	sll_free(np_key_ptr, neighbours_table);
 	np_tree_free(neighbours);
 
 	// build routing list
-	np_sll_t(np_key_t, routing_table) = _np_route_get_table();
+	np_sll_t(np_key_ptr, routing_table) = _np_route_get_table();
 
 	np_tree_t* routes = np_tree_create();
 	int routes_counter = 0;
 	if (NULL != routing_table && 0 < routing_table->size) {
 		np_key_t* current;
 		while (NULL != sll_first(routing_table)) {
-			current = sll_head(np_key_t, routing_table);
+			current = sll_head(np_key_ptr, routing_table);
 			if (current->node) {
 				np_tree_t* route = np_tree_create();
 				_np_node_encode_to_jrb(route, current, TRUE);
@@ -335,7 +335,7 @@ np_tree_t* np_get_my_sysinfo() {
 			routes_counter);
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));
-	sll_free(np_key_t, routing_table);
+	sll_free(np_key_ptr, routing_table);
 	np_tree_free(routes);
 
 	return ret;
@@ -435,8 +435,8 @@ np_tree_t* _np_get_sysinfo_from_cache(const char* const hash_of_target, uint16_t
 void _np_request_others() {
 	log_msg(LOG_TRACE, "start: void _np_request_others() {");
 
-	np_sll_t(np_key_t, routing_table) = NULL;
-	np_sll_t(np_key_t, neighbours_table) = NULL;
+	np_sll_t(np_key_ptr, routing_table) = NULL;
+	np_sll_t(np_key_ptr, neighbours_table) = NULL;
 	np_tree_t * tmp = NULL;
 
 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key,"usage");
@@ -445,14 +445,14 @@ void _np_request_others() {
 	if (NULL != routing_table && 0 < routing_table->size) {
 		np_key_t* current;
 		while (NULL != sll_first(routing_table)) {
-			current = sll_head(np_key_t, routing_table);
+			current = sll_head(np_key_ptr, routing_table);
 			if (	NULL != current &&
 					strcmp(_np_key_as_str(current),_np_key_as_str(my_node_key) ) != 0 &&
 					NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current),-2)))
 			{
 				_np_request_sysinfo(_np_key_as_str(current));
 			}
-			np_tree_free(tmp);
+			np_unref_obj(np_key_t, current,"_np_route_neighbors");
 		}
 	}
 
@@ -460,20 +460,18 @@ void _np_request_others() {
 	if (NULL != neighbours_table && 0 < neighbours_table->size) {
 		np_key_t* current;
 		while (NULL != sll_first(neighbours_table)) {
-			current = sll_head(np_key_t, neighbours_table);
+			current = sll_head(np_key_ptr, neighbours_table);
 			if (	NULL != current &&
 					strcmp(_np_key_as_str(current),_np_key_as_str(my_node_key) ) != 0 &&
 					NULL == (tmp = _np_get_sysinfo_from_cache(_np_key_as_str(current),-2)))
 			{
 						_np_request_sysinfo(_np_key_as_str(current));
 			}
-			np_tree_free(tmp);
+			np_unref_obj(np_key_t, current,"_np_route_get_table");
 		}
 	}
 
-	np_unref_list(np_key_t, routing_table,"_np_route_get_table");
-	sll_free(np_key_t, routing_table);
-	np_unref_list(np_key_t, neighbours_table,"_np_route_neighbors");
-	sll_free(np_key_t, neighbours_table);
+	sll_free(np_key_ptr, routing_table);
+	sll_free(np_key_ptr, neighbours_table);
 	np_unref_obj(np_key_t, my_node_key, "usage");
 }

@@ -56,7 +56,7 @@ void _np_in_received(np_jobargs_t* args)
 
 	np_waitref_obj(np_key_t, state->my_node_key, my_key,"np_waitref_key");
 	{
-		np_waitref_obj(np_network_t,my_key->network, my_network,"np_waitref_network");
+		np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
 		{
 
 			np_message_t* msg_in = NULL;
@@ -236,9 +236,9 @@ void _np_in_received(np_jobargs_t* args)
 					// _np_job_submit_msgout_event(0.0, ack_prop, ack_key, ack_msg_out); ?
 
 					np_unref_obj(np_message_t, ack_msg_out,ref_obj_creation);
-					np_unref_obj(np_key_t, ack_key,"_np_keycache_find_or_create");
 					// user space acknowledgement handled later, also for join messages
 				}
+				np_unref_obj(np_key_t, ack_key,"_np_keycache_find_or_create");
 			}
 
 			np_dhkey_t target_dhkey;
@@ -257,7 +257,7 @@ void _np_in_received(np_jobargs_t* args)
 				log_debug_msg(LOG_DEBUG, "perform route_lookup");
 
 				// perform a route lookup
-				np_sll_t(np_key_t, tmp) = NULL;
+				np_sll_t(np_key_ptr, tmp) = NULL;
 
 				// zero as "consider this node as final target"
 				tmp = _np_route_lookup(target_key, 0);
@@ -275,10 +275,10 @@ void _np_in_received(np_jobargs_t* args)
 					np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
 					_np_job_submit_route_event(0.0, prop, args->target, msg_in);
 
-					sll_free(np_key_t, tmp);
+					sll_free(np_key_ptr, tmp);
 					goto __np_cleanup__;
 				}
-				sll_free(np_key_t, tmp);
+				sll_free(np_key_ptr, tmp);
 				log_debug_msg(LOG_DEBUG, "internal routing for subject '%s'", msg_subject.value.s);
 			}
 
@@ -318,10 +318,10 @@ void _np_in_received(np_jobargs_t* args)
 			np_unref_obj(np_key_t, target_key,"_np_keycache_find_or_create");
 			np_unref_obj(np_message_t, msg_in, ref_obj_creation);
 
-			np_unref_obj(np_network_t,my_network,"np_waitref_network");
 		}
-		np_unref_obj(np_key_t, my_key,"np_waitref_key");
+		np_unref_obj(np_network_t,my_network,"np_waitref_network");
 	}
+	np_unref_obj(np_key_t, my_key,"np_waitref_key");
 	// __np_return__:
 	return;
 }
@@ -338,11 +338,11 @@ void _np_in_piggy(np_jobargs_t* args)
 	np_state_t* state = _np_state();
 	np_key_t* node_entry = NULL;
 	// double tmp_ft;
-	np_sll_t(np_key_t, o_piggy_list) = NULL;
+	np_sll_t(np_key_ptr, o_piggy_list) = NULL;
 
 	o_piggy_list = _np_node_decode_multiple_from_jrb(args->msg->body);
 
-	while (NULL != (node_entry = sll_head(np_key_t, o_piggy_list)))
+	while (NULL != (node_entry = sll_head(np_key_ptr, o_piggy_list)))
 	{
 		// add entries in the message to our routing table
 		// routing table is responsible to handle possible double entries
@@ -376,7 +376,7 @@ void _np_in_piggy(np_jobargs_t* args)
 		np_unref_obj(np_key_t, my_key,"np_waitref_key");
 		np_unref_obj(np_key_t, node_entry,"_np_node_decode_multiple_from_jrb");
 	}
-	sll_free(np_key_t, o_piggy_list);
+	sll_free(np_key_ptr, o_piggy_list);
 
 	// __np_cleanup__:
 	// nothing to do
@@ -770,12 +770,12 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 	/* announce arrival of new node to the nodes in my routing table */
 	// TODO: check for protected node neighbours ?
-	np_sll_t(np_key_t, node_keys) = NULL;
+	np_sll_t(np_key_ptr, node_keys) = NULL;
 
 	node_keys = _np_route_get_table();
 
 	np_key_t* elem = NULL;
-	while ( NULL != (elem = sll_head(np_key_t, node_keys)))
+	while ( NULL != (elem = sll_head(np_key_ptr, node_keys)))
 	{
 		// send update of new node to all nodes in my routing table
 		if (_np_dhkey_equal(&elem->dhkey, &routing_key->dhkey)) continue;
@@ -794,7 +794,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 		np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 		np_unref_obj(np_key_t, elem,"_np_route_get_table");
 	}
-	sll_free(np_key_t, node_keys);
+	sll_free(np_key_ptr, node_keys);
 
 	// remember key for routing table update
 	log_debug_msg(LOG_DEBUG, "join acknowledged and updates to other nodes send");
@@ -820,11 +820,11 @@ void _np_in_join_ack(np_jobargs_t* args)
 	np_unref_obj(np_key_t, my_key,"np_waitref_key");
 	np_unref_obj(np_aaatoken_t, join_token,ref_obj_creation);
 
-	// nothing to do
 	// __np_return__:
 	if (routing_key != join_key)
 		np_unref_obj(np_key_t, routing_key,"_np_keycache_find");
 	np_unref_obj(np_key_t, join_key,"_np_keycache_find_or_create");
+
 	return;
 }
 
@@ -1069,12 +1069,12 @@ void _np_in_discover_sender(np_jobargs_t* args)
 		_np_aaatoken_add_receiver(msg_token->subject, msg_token);
 
 		// this node is the man in the middle - inform receiver of sender token
-		np_sll_t(np_aaatoken_t, available_list) =
+		np_sll_t(np_aaatoken_ptr, available_list) =
 				_np_aaatoken_get_sender_all(msg_token->subject);
 
 		np_aaatoken_t* tmp_token = NULL;
 
-		while (NULL != (tmp_token = sll_head(np_aaatoken_t, available_list)))
+		while (NULL != (tmp_token = sll_head(np_aaatoken_ptr, available_list)))
 		{
 			log_debug_msg(LOG_DEBUG,
 					"discovery success: sending back message sender token ...");
@@ -1102,7 +1102,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 			np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_sender_all");
 		}
-		sll_free(np_aaatoken_t, available_list);
+		sll_free(np_aaatoken_ptr, available_list);
 	}
 
 	__np_cleanup__:
@@ -1201,9 +1201,9 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 	_np_aaatoken_add_sender(msg_token->subject, msg_token);
 
 	np_aaatoken_t* tmp_token = NULL;
-	np_sll_t(np_aaatoken_t, receiver_list) = _np_aaatoken_get_receiver_all(msg_token->subject);
+	np_sll_t(np_aaatoken_ptr, receiver_list) = _np_aaatoken_get_receiver_all(msg_token->subject);
 
-	while (NULL != (tmp_token = sll_head(np_aaatoken_t, receiver_list)))
+	while (NULL != (tmp_token = sll_head(np_aaatoken_ptr, receiver_list)))
 	{
 		log_debug_msg(LOG_DEBUG, "discovery success: sending back message receiver token ...");
 		np_tree_t* interest_data = np_tree_create();
@@ -1221,7 +1221,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 		np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 		np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_receiver_all");
 	}
-	sll_free(np_aaatoken_t, receiver_list);
+	sll_free(np_aaatoken_ptr, receiver_list);
 
 	__np_cleanup__:
 	np_unref_obj(np_key_t, reply_to_key,"_np_keycache_find_or_create");
@@ -1824,7 +1824,7 @@ void _np_in_handshake(np_jobargs_t* args)
 
 				if (TRUE == hs_key->network->initialized)
 				{
-					np_ref_obj(np_key_t, hs_key);
+					np_ref_obj(np_key_t, hs_key, ref_network_watcher);
 					hs_key->network->watcher.data = hs_key;
 				}
 				else
@@ -1877,18 +1877,17 @@ void _np_in_handshake(np_jobargs_t* args)
 	alias_key = _np_keycache_find_or_create(search_alias_key);
 	if (NULL != alias_key)
 	{
-		np_ref_obj(np_aaatoken_t, hs_key->aaa_token, ref_key_aaa_token);
 		alias_key->aaa_token = hs_key->aaa_token;
+		np_ref_obj(np_aaatoken_t, hs_key->aaa_token, ref_key_aaa_token);
 
-		np_ref_obj(np_node_t, hs_key->node, ref_key_node);
 		alias_key->node = hs_key->node;
+		np_ref_obj(np_node_t, hs_key->node, ref_key_node);
 
 		if ((alias_key->node->protocol & PASSIVE ) == PASSIVE)
 		{
-
 			np_unref_obj(np_network_t, hs_key->network, ref_key_network);
-			np_ref_obj(np_network_t, alias_key->network, ref_key_network);
 			hs_key->network = alias_key->network;
+			np_ref_obj(np_network_t, hs_key->network, ref_key_network);
 
 			_np_network_stop(hs_key->network);
 			ev_io_init(
@@ -1907,8 +1906,8 @@ void _np_in_handshake(np_jobargs_t* args)
 		{
 			if (IS_INVALID(hs_key->aaa_token->state)) {
 				// new connection, setup alias key
-				np_ref_obj(np_network_t, hs_key->network);
 				alias_key->network = hs_key->network;
+				np_ref_obj(np_network_t, alias_key->network);
 			}
 		}
 	}

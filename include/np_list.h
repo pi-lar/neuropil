@@ -358,13 +358,13 @@ real macros for convenience usage
 	{\
 		TYPE##_dll_node_t *flink;\
 		TYPE##_dll_node_t *blink;\
-		TYPE* val;\
+		TYPE val;\
 	};\
 	TYPE##_dll_t* TYPE##_dll_init();\
-	void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE* value);\
-	void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE* value);\
-	TYPE* TYPE##_dll_head(TYPE##_dll_t* list);\
-	TYPE* TYPE##_dll_tail(TYPE##_dll_t* list);\
+	void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE value);\
+	void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE value);\
+	TYPE TYPE##_dll_head(TYPE##_dll_t* list);\
+	TYPE TYPE##_dll_tail(TYPE##_dll_t* list);\
 	void TYPE##_dll_free(TYPE##_dll_t* list);\
 	void TYPE##_dll_clear(TYPE##_dll_t* list);\
 
@@ -380,7 +380,7 @@ TYPE##_dll_t* TYPE##_dll_init() {\
 	dll_list->last = NULL;\
 	return (dll_list);\
 }\
-void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE* value) {\
+void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE value) {\
 	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) calloc(1,sizeof(TYPE##_dll_node_t));\
 	dll_node->val = value;\
 	dll_node->flink = NULL;\
@@ -395,7 +395,7 @@ void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE* value) {\
 	}\
 	dll_list->size++;\
 }\
-void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE* value) {\
+void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE value) {\
 	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) calloc(1,sizeof(TYPE##_dll_node_t));\
 	dll_node->val = value;  \
 	dll_node->flink = NULL; \
@@ -410,8 +410,8 @@ void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE* value) {\
 	}\
 	dll_list->size++;\
 }\
-TYPE* TYPE##_dll_head(TYPE##_dll_t* dll_list) {\
-	TYPE* ret_val = NULL;\
+TYPE TYPE##_dll_head(TYPE##_dll_t* dll_list) {\
+	TYPE* ret_val = 0;\
 	if (NULL != dll_list->first) {\
 		TYPE##_dll_node_t* tmp = dll_list->first;\
 		ret_val = tmp->val;\
@@ -423,8 +423,8 @@ TYPE* TYPE##_dll_head(TYPE##_dll_t* dll_list) {\
 	}\
 	return (ret_val);\
 }\
-TYPE* TYPE##_dll_tail(TYPE##_dll_t* dll_list) {\
-	TYPE* ret_val = NULL;\
+TYPE TYPE##_dll_tail(TYPE##_dll_t* dll_list) {\
+	TYPE ret_val = 0;\
 	if (NULL != dll_list->last) {\
 		TYPE##_dll_node_t* tmp = dll_list->last;\
 		ret_val = tmp->val;\
@@ -537,13 +537,13 @@ real macros for convenience usage
 	struct TYPE##_sll_node_s                                      											\
 	{                                                             											\
 		TYPE##_sll_node_t *flink;                                 											\
-		TYPE* val;                                                											\
+		TYPE val;                                                											\
 	};                                                            											\
 	TYPE##_sll_t* TYPE##_sll_init();                              											\
-	void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value);  											\
-	void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value); 											\
-	TYPE* TYPE##_sll_head(TYPE##_sll_t* list);                    											\
-	TYPE* TYPE##_sll_tail(TYPE##_sll_t* list);                    											\
+	void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value);  											\
+	void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value); 											\
+	TYPE TYPE##_sll_head(TYPE##_sll_t* list);                    											\
+	TYPE TYPE##_sll_tail(TYPE##_sll_t* list);                    											\
 	void TYPE##_sll_free(TYPE##_sll_t* list);                     											\
 	void TYPE##_sll_clear(TYPE##_sll_t* list);                    											\
 	void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);										\
@@ -560,20 +560,20 @@ TYPE##_sll_t* TYPE##_sll_init() {																			\
 	sll_list->last = NULL;																					\
 	return (sll_list);																						\
 }																											\
-void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE* value) {												\
+void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {												\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
 	CHECK_MALLOC(sll_node);																					\
 	sll_node->val = value;																					\
 	sll_node->flink = NULL;																					\
 	if (sll_list->first == NULL) { 																			\
 		sll_list->first = sll_node; 																		\
-		sll_list->last = sll_node; 																			\
+	} else {																								\
+		sll_list->last->flink = sll_node;																	\
 	}																										\
-	sll_list->last->flink = sll_node;																		\
 	sll_list->last = sll_node;																				\
 	sll_list->size++;																						\
 }																											\
-void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value) {												\
+void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value) {												\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
 	sll_node->val = value;																					\
 	sll_node->flink = sll_list->first;																		\
@@ -583,8 +583,8 @@ void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE* value) {												\
 	}																										\
 	sll_list->size++;																						\
 }																											\
-TYPE* TYPE##_sll_head(TYPE##_sll_t* sll_list) {																\
-	TYPE* ret_val = NULL;																					\
+TYPE TYPE##_sll_head(TYPE##_sll_t* sll_list) {																\
+	TYPE ret_val = 0;																					\
 	if (NULL != sll_list->first) {																			\
 		TYPE##_sll_node_t* tmp = sll_list->first;															\
 		ret_val = tmp->val;																					\
@@ -600,8 +600,8 @@ TYPE* TYPE##_sll_head(TYPE##_sll_t* sll_list) {																\
 	}																										\
 	return (ret_val);																						\
 }																											\
-TYPE* TYPE##_sll_tail(TYPE##_sll_t* sll_list) {																\
-	TYPE* ret_val = NULL;																					\
+TYPE TYPE##_sll_tail(TYPE##_sll_t* sll_list) {																\
+	TYPE ret_val = 0;																					\
 	if (NULL != sll_list->last) {																			\
 		TYPE##_sll_node_t* tmp = sll_list->last;															\
 		ret_val = tmp->val;																					\

@@ -218,13 +218,13 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 }
 
 
-uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats)
+uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, node_keys), np_bool include_stats)
 {
 	uint16_t j=0;
 	np_key_t* current;
 	while(NULL != sll_first(node_keys))
 	{
-		current = sll_head(np_key_t, node_keys);
+		current = sll_head(np_key_ptr, node_keys);
 		if (current->node)
 		{
 			np_tree_t* node_jrb = np_tree_create();
@@ -240,12 +240,12 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_t, no
 	return (j);
 }
 
-sll_return(np_key_t) _np_node_decode_multiple_from_jrb (np_tree_t* data)
+sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 {
 	uint16_t nodenum = data->size;
 
-	np_sll_t(np_key_t, node_list);
-	sll_init(np_key_t, node_list);
+	np_sll_t(np_key_ptr, node_list);
+	sll_init(np_key_ptr, node_list);
 
 	/* gets the number of hosts in the lists and goes through them 1 by 1 */
 	for (uint16_t i = 0; i < nodenum; i++)
@@ -259,7 +259,7 @@ sll_return(np_key_t) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 		{
 			node_key->node = _np_node_decode_from_jrb(node_data->val.value.tree);
 		}
-		sll_append(np_key_t, node_list, node_key);
+		sll_append(np_key_ptr, node_list, node_key);
 	}
 
 	return (node_list);

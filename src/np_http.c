@@ -62,7 +62,6 @@ typedef enum np_http_status_e {
 } np_http_status_e;
 
 
-typedef struct np_http_client_s np_http_client_t;
 struct np_http_client_s {
 	int client_fd;
 	struct ev_io client_watcher_in;
@@ -76,12 +75,12 @@ struct np_http_client_s {
 	ht_response_t ht_response;
 	// global status and last update time
 	np_http_status_e status;
-
-
 };
+typedef struct np_http_client_s np_http_client_t;
+typedef np_http_client_t* np_http_client_ptr;
 
-NP_SLL_GENERATE_PROTOTYPES(np_http_client_t);
-NP_SLL_GENERATE_IMPLEMENTATION(np_http_client_t);
+NP_SLL_GENERATE_PROTOTYPES(np_http_client_ptr);
+NP_SLL_GENERATE_IMPLEMENTATION(np_http_client_ptr);
 
 typedef struct np_http_s np_http_t;
 struct np_http_s {
@@ -91,7 +90,7 @@ struct np_http_s {
 	// network io handling
 	np_network_t* network;
 
-	np_sll_t(np_http_client_t, clients);
+	np_sll_t(np_http_client_ptr, clients);
 
 	htparse_hooks* hooks;
 	np_tree_t* user_hooks;
@@ -349,8 +348,8 @@ void _np_http_dispatch( np_http_client_t* client) {
 			}
 
 			key = _np_state()->my_node_key;
-			np_tryref_obj(np_key_t, key,keyExisits);
-			if(keyExisits) {
+			np_tryref_obj(np_key_t, key,keyExists);
+			if(keyExists) {
 				char* my_key = _np_key_as_str(key);
 				if (usedefault) {
 					log_debug_msg(LOG_DEBUG, "using own node as info system");
@@ -376,13 +375,13 @@ void _np_http_dispatch( np_http_client_t* client) {
 					log_debug_msg(LOG_DEBUG, "cleanup");
 					np_tree_free(sysinfo);
 				}
+				np_unref_obj(np_key_t, key, __func__);
 			}else{
 				http_status = HTTP_CODE_SERVICE_UNAVAILABLE;
 				json_obj = _np_generate_error_json("refreshing own key",
 						"Refreshing own key. please wait.");
 			}
 			__json_return__:
-			np_unref_obj(np_key_t, key, __func__);
 
 			log_debug_msg(LOG_DEBUG, "serialise json response");
 			if (NULL == json_obj) {
@@ -571,7 +570,7 @@ NP_UNUSED int event_type) {
 	new_client->ht_request.current_key = NULL;
 	new_client->status = UNUSED;
 
-	sll_append(np_http_client_t, __local_http->clients, new_client);
+	sll_append(np_http_client_ptr, __local_http->clients, new_client);
 
 
 	/*
@@ -639,7 +638,7 @@ np_bool _np_http_init() {
 	__local_http = (np_http_t*) malloc(sizeof(np_http_t));
 	CHECK_MALLOC(__local_http);
 
-	sll_init(np_http_client_t, __local_http->clients);
+	sll_init(np_http_client_ptr, __local_http->clients);
 
 	_LOCK_MODULE(np_network_t)
 	{
@@ -694,7 +693,7 @@ void _np_http_destroy() {
 
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
-	sll_iterator(np_http_client_t) iter = sll_first(__local_http->clients);
+	sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
 	while(iter != NULL){
 		np_http_client_t* client = iter->val;
 		client->status = SHUTDOWN;

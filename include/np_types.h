@@ -66,13 +66,20 @@ typedef struct np_job_s np_job_t;
 typedef struct np_jobargs_s np_jobargs_t;
 
 typedef struct np_key_s np_key_t;
+typedef np_key_t* np_key_ptr;
 
 typedef struct np_message_s np_message_t;
+typedef np_message_t* np_message_ptr;
+
 typedef struct np_msgproperty_s np_msgproperty_t;
+typedef np_msgproperty_t* np_msgproperty_ptr;
+
 typedef struct _np_message_buffer_container_s _np_message_buffer_container_t;
 
 typedef struct np_network_s np_network_t;
+
 typedef struct np_node_s np_node_t;
+typedef np_node_t* np_node_ptr;
 
 typedef struct np_state_s np_state_t;
 
@@ -85,13 +92,14 @@ typedef char* char_ptr;
  /*
   * list types and typedefs
   */
-NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_t);
 NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
-NP_SLL_GENERATE_PROTOTYPES(np_node_t);
-NP_SLL_GENERATE_PROTOTYPES(np_key_t);
-NP_SLL_GENERATE_PROTOTYPES(np_message_t);
+
 NP_SLL_GENERATE_PROTOTYPES(char_ptr);
-NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_t);
+NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_key_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_message_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_node_ptr);
 
 /*
  *  user callback functions

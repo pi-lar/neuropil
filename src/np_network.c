@@ -131,8 +131,7 @@ void _np_network_get_address (
 		char* service)
 {
 	int err;
-	// struct addrinfo *ai_head;
-	struct addrinfo hints;
+	struct addrinfo hints = (const struct addrinfo) { 0 };
 
 	if (TRUE == create_socket)
 		hints.ai_flags = AI_PASSIVE | AI_CANONNAME | AI_NUMERICSERV;
@@ -418,9 +417,6 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 		np_tryref_obj(np_key_t, key, keyExists,"np_tryref_obj_key");
 		if(keyExists)
 		{
-
-			//_np_threads_lock_module(np_network_t_lock);
-
 			np_network_t* key_network = key->network ;
 			np_tryref_obj(np_network_t, key_network, networkExists, "np_tryref_obj_key_network");
 			if (TRUE == networkExists )
@@ -428,8 +424,6 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 				if(TRUE == key_network->initialized) {
 					_LOCK_ACCESS(&key_network->lock)
 					{
-						//_np_threads_unlock_module(np_network_t_lock);
-
 						if (NULL != key_network->out_events &&
 							0 < sll_size(key_network->out_events)
 							)
@@ -480,7 +474,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 			}else{
 			//	_np_threads_unlock_module(np_network_t_lock);
 			}
-			np_unref_obj(np_key_t,key, "np_tryref_obj_key");
+			np_unref_obj(np_key_t, key, "np_tryref_obj_key");
 		}
 	}
 	else if (EV_READ == (revents & EV_READ))
@@ -750,6 +744,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				_np_key_as_str(key) );
 
 		np_unref_obj(np_key_t, alias_key,"_np_keycache_find_or_create");
+
 	} else {
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "message package error: %s (%d)",
 				strerror(errno), errno);
@@ -794,6 +789,7 @@ void _np_network_stop(np_network_t* network) {
 		}
 	}
 }
+
 void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 {
 
@@ -808,9 +804,11 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 
 	_LOCK_ACCESS(&old_target->network->lock){
 		_np_network_stop(old_target->network); 			// stop network
+
 		new_target->network = old_target->network; 		// remap
 		np_ref_switch(np_key_t,new_target->network->watcher.data, ref_network_watcher, new_target); // remap network key
 		old_target->network = NULL;						// remove from old structure
+
 		_np_network_start(new_target->network); 		// restart network
 	}
 
@@ -820,6 +818,7 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 				_np_key_as_str(new_target)
 				);
 }
+
 void _np_network_start(np_network_t* network){
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
 	if(NULL != network){
@@ -851,8 +850,8 @@ void _np_network_t_del(void* nw)
 		{
 			_np_network_stop(network);
 			np_key_t* old_key = (np_key_t*) network->watcher.data;
-			network->watcher.data = NULL;
 			np_unref_obj(np_key_t, old_key,ref_network_watcher);
+			network->watcher.data = NULL;
 
 			if (NULL != network->waiting)
 				np_tree_free(network->waiting);

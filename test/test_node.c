@@ -51,11 +51,11 @@ Test(np_node_t, _node_create, .description="test the creation of node structure"
 Test(np_node_t, _node_list_serialize, .description="test the serialization of a node list")
 {
 /*	// _np_node_encode_to_str
-	np_sll_t(np_node_t, node_list);
-	sll_init(np_node_t, node_list);
+	np_sll_t(np_node_ptr, node_list);
+	sll_init(np_node_ptr, node_list);
 
 	np_dhkey_t* key1 = dhkey_create_from_hostport("test1.pi-lar.net", 0);
-	sll_append(np_node_t, node_list, key1);
+	sll_append(np_node_ptr, node_list, key1);
 
 	np_node_update(node_list[0], "test1.pi-lar.net", 0);
 

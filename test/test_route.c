@@ -95,8 +95,8 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 	int routing_table_size = 64*16*3; // keysize * hex * alternatives
 	int current_size = 0;
 
-	np_sll_t(np_key_t, my_keys);
-	sll_init(np_key_t, my_keys);
+	np_sll_t(np_key_ptr, my_keys);
+	sll_init(np_key_ptr, my_keys);
 	unsigned long i = 0;
 
 	// TODO: seems to run forever with no check for i :-/ better reduce the loglevel to save my laptop
@@ -132,7 +132,7 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 		{
 			cr_expect(0 == _np_dhkey_comp(&insert_key->dhkey, &added->dhkey), "test whether the new key was added");
 			current_size++;
-			sll_append(np_key_t, my_keys, insert_key);
+			sll_append(np_key_ptr, my_keys, insert_key);
 		}
 		else
 		{
@@ -146,12 +146,12 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 			cr_expect(0 != _np_dhkey_comp(&insert_key->dhkey, &deleted->dhkey), "test whether a different key was deleted");
 			current_size--;
 
-			sll_iterator(np_key_t) iter = sll_first(my_keys);
+			sll_iterator(np_key_ptr) iter = sll_first(my_keys);
 			while (NULL != iter)
 			{
 				if (0 == _np_dhkey_comp(&iter->val->dhkey, &deleted->dhkey))
 				{
-					sll_delete(np_key_t, my_keys, iter);
+					sll_delete(np_key_ptr, my_keys, iter);
 					break;
 				}
 				sll_next(iter);

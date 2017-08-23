@@ -55,7 +55,6 @@ struct np_key_s
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_key_t);
 
-typedef np_key_t* np_key_ptr;
 NP_PLL_GENERATE_PROTOTYPES(np_key_ptr);
 
 
@@ -72,6 +71,13 @@ char* _np_key_as_str(np_key_t * key);
 
 NP_API_EXPORT
 void np_key_renew_token();
+
+
+NP_API_INTERN
+void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason);
+
+NP_API_INTERN
+void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);
 
 #ifdef __cplusplus
 }

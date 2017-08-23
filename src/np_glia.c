@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -71,7 +71,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 
 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key, "np_waitref_obj");
 
-	np_sll_t(np_key_t, tmp) = NULL;
+	np_sll_t(np_key_ptr, tmp) = NULL;
 	np_key_t* target_key = NULL;
 	np_message_t* msg_in = args->msg;
 
@@ -104,7 +104,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		 (_np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)) )
 	{
 		// the result returned the sending node, try again with a higher count parameter
-		sll_free(np_key_t, tmp);
+		sll_free(np_key_ptr, tmp);
 
 		tmp = _np_route_lookup(&k_msg_address, 2);
 		if (0 < sll_size(tmp))
@@ -137,7 +137,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 			msg_to_submit = _np_message_check_chunks_complete(args->msg);
 			if (NULL == msg_to_submit)
 			{
-				sll_free(np_key_t, tmp);
+				sll_free(np_key_ptr, tmp);
 				np_unref_obj(np_key_t, my_key, "np_waitref_obj");
 				return;
 			}
@@ -176,7 +176,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		}
 	}
 
-	sll_free(np_key_t, tmp);
+	sll_free(np_key_ptr, tmp);
 	np_unref_obj(np_key_t, my_key, "np_waitref_obj");
 }
 void _np_never_called_jobexec_transform(np_jobargs_t* args)
@@ -222,7 +222,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args){");
 
-	np_sll_t(np_key_t, leafset) = NULL;
+	np_sll_t(np_key_ptr, leafset) = NULL;
 	np_key_t *tmp_node_key = NULL;
 
 	log_debug_msg(LOG_DEBUG, "leafset check for neighbours started");
@@ -231,7 +231,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 	leafset = _np_route_neighbors();
 
 	double now = ev_time();
-	while (NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
+	while (NULL != (tmp_node_key = sll_head(np_key_ptr, leafset)))
 	{
 		// check for bad link nodes
 		if (NULL != tmp_node_key->node &&
@@ -266,16 +266,16 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 		}
 		np_unref_obj(np_key_t, tmp_node_key,"_np_route_neighbors");
 	}
-	sll_free(np_key_t, leafset);
+	sll_free(np_key_ptr, leafset);
 
 
 	if (__leafset_check_type == 1)
 	{
 		log_debug_msg(LOG_DEBUG, "leafset check for table started");
-		np_sll_t(np_key_t, table) = NULL;
+		np_sll_t(np_key_ptr, table) = NULL;
 		table = _np_route_get_table();
 
-		while ( NULL != (tmp_node_key = sll_head(np_key_t, table)))
+		while ( NULL != (tmp_node_key = sll_head(np_key_ptr, table)))
 		{
 			// send update of new node to all nodes in my routing table
 			/* first check for bad link nodes */
@@ -313,7 +313,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 			}
 			np_unref_obj(np_key_t, tmp_node_key,"_np_route_get_table");
 		}
-		sll_free(np_key_t, table);
+		sll_free(np_key_ptr, table);
 	}
 
 	if (__leafset_check_type == 2)
@@ -323,7 +323,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 
 		leafset = _np_route_neighbors();
 		int i=0;
-		while ( NULL != (tmp_node_key = sll_head(np_key_t, leafset)))
+		while ( NULL != (tmp_node_key = sll_head(np_key_ptr, leafset)))
 		{
 			// send a piggy message to the the nodes in our routing table
 			np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
@@ -333,7 +333,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 			i++;
 		}
 		__leafset_check_type = 0;
-		sll_free(np_key_t, leafset);
+		sll_free(np_key_ptr, leafset);
 	}
 	else
 	{
@@ -450,7 +450,6 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args){");
 
-
 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key,"np_waitref_obj");
 	np_network_t* ng = my_key->network;
 
@@ -476,7 +475,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				_np_node_update_stat(ackentry->dest_key->node, 1);
 
 				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
-				//np_unref_obj(np_key_t, ackentry->dest_key,"?");
+				np_unref_obj(np_key_t, ackentry->dest_key,"np_unref_ack_key");
 
 				free(ackentry);
 				free(jrb_ack_node->key.value.s);
@@ -487,7 +486,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				_np_node_update_stat(ackentry->dest_key->node, 0);
 
 				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
-				//np_unref_obj(np_key_t, ackentry->dest_key,"?");
+				np_unref_obj(np_key_t, ackentry->dest_key, "np_unref_ack_key");
 
 				free(ackentry);
 				free(jrb_ack_node->key.value.s);
@@ -495,7 +494,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 			}
 		}
 	}
-	np_unref_obj(np_key_t, my_key,"np_waitref_obj");
+	np_unref_obj(np_key_t, my_key, "np_waitref_obj");
 	// submit the function itself for additional execution
 	np_job_submit_event(__cleanup_interval, _np_cleanup_ack_jobexec);
 }
@@ -610,7 +609,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 	log_debug_msg(LOG_DEBUG, "job submit route row info to %s:%s!",
 			target_key->node->dns_name, target_key->node->port);
 
-	np_sll_t(np_key_t, sll_of_keys) = NULL;
+	np_sll_t(np_key_ptr, sll_of_keys) = NULL;
 	/* send one row of our routing table back to joiner #host# */
 
 	sll_of_keys = _np_route_row_lookup(target_key);
@@ -619,8 +618,8 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 	{
 		// nothing found, send leafset to exchange some data at least
 		// prevents small clusters from not exchanging all data
-		np_unref_list(np_key_t, sll_of_keys,source_sll_of_keys); // only for completion
-		sll_free(np_key_t, sll_of_keys);
+		np_unref_list(source_sll_of_keys, __func__); // only for completion
+		sll_free(np_key_ptr, sll_of_keys);
 		sll_of_keys = _np_route_neighbors();
 		source_sll_of_keys = "_np_route_neighbors";
 	}
@@ -641,8 +640,8 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 		_np_job_yield(__rowinfo_send_delay);
 	}
 
-	np_unref_list(np_key_t, sll_of_keys, source_sll_of_keys);
-	sll_free(np_key_t, sll_of_keys);
+	np_unref_list(sll_of_keys, source_sll_of_keys);
+	sll_free(np_key_ptr, sll_of_keys);
 }
 
 np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
