@@ -70,41 +70,32 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 #endif
 
 #ifdef CHECK_THREADING 
-	char * tmp = NULL;
+	char * tmp;
 	asprintf(&tmp, "%d@%s", module_id, where);
 	CHECK_MALLOC(tmp);
 
 	if (_np_threads_get_self() != NULL)
 	{
 		_LOCK_ACCESS(&_np_threads_get_self()->locklists_lock) {
-			sll_append(char_ptr, _np_threads_get_self()->want_lock, tmp);
+			sll_prepend(char_ptr, _np_threads_get_self()->want_lock, tmp);
 		}
 	}
 #endif
 
 	while(ret != 0){
-		#ifdef DEBUG
+#ifdef DEBUG
 		double diff = ev_time() - start;
 			if(diff > (MUTEX_WAIT_SEC*1000)){
 				log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %"PRIu32" (%f sec)", _np_threads_get_self()->id, module_id, diff);
 #ifdef CHECK_THREADING			
-
-				sll_iterator(np_thread_ptr) iter_threads = sll_first(_np_state()->threads);
-				while (iter_threads != NULL)
-				{
-					_LOCK_ACCESS(&iter_threads->val->locklists_lock) {
-						log_msg(LOG_DEBUG, "Thread %"PRIu32" LOCKS: %s", iter_threads->val->id, _sll_char_make_flat(_sll_char_part(iter_threads->val->has_lock, -5)));
-						log_msg(LOG_DEBUG, "Thread %"PRIu32" WANTS LOCKS: %s", iter_threads->val->id, _sll_char_make_flat(_sll_char_part(iter_threads->val->want_lock, -5)));
-					}
-					sll_next(iter_threads);
-				}
+				log_msg(LOG_ERROR, np_threads_printpool(FALSE));
 #endif
 				abort();
 			}
 			if(diff > (MUTEX_WAIT_SEC*10)){
 				log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for module mutex %d (%f sec)", module_id, diff);
 			}
-		#endif
+#endif
 
 		ret = pthread_mutex_trylock(&__mutexes[module_id].lock);
 
@@ -118,7 +109,7 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 			if (_np_threads_get_self() != NULL)
 			{
 				_LOCK_ACCESS(&_np_threads_get_self()->locklists_lock) {
-					sll_append(char_ptr, _np_threads_get_self()->has_lock, tmp);
+					sll_prepend(char_ptr, _np_threads_get_self()->has_lock, tmp);
 					_sll_char_remove(_np_threads_get_self()->want_lock, tmp, strlen(tmp));
 				}
 			}
@@ -152,8 +143,8 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 	{
 		_LOCK_ACCESS(&_np_threads_get_self()->locklists_lock) {
 
-			sll_append(char_ptr, _np_threads_get_self()->want_lock, tmp_a);
-			sll_append(char_ptr, _np_threads_get_self()->want_lock, tmp_b);
+			sll_prepend(char_ptr, _np_threads_get_self()->want_lock, tmp_a);
+			sll_prepend(char_ptr, _np_threads_get_self()->want_lock, tmp_b);
 		}
 	}
 
@@ -176,8 +167,8 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 	if (ret == 0) {
 		if (_np_threads_get_self() != NULL)	{
 			_LOCK_ACCESS(&_np_threads_get_self()->locklists_lock) {
-				sll_append(char_ptr, _np_threads_get_self()->has_lock, tmp_a);
-				sll_append(char_ptr, _np_threads_get_self()->has_lock, tmp_b);
+				sll_prepend(char_ptr, _np_threads_get_self()->has_lock, tmp_a);
+				sll_prepend(char_ptr, _np_threads_get_self()->has_lock, tmp_b);
 				_sll_char_remove(_np_threads_get_self()->want_lock, tmp_a, strlen(tmp_a));
 				_sll_char_remove(_np_threads_get_self()->want_lock, tmp_b, strlen(tmp_b));
 				
@@ -332,7 +323,6 @@ int _np_threads_condition_signal(np_cond_t* condition)
 	return pthread_cond_signal(&condition->cond);
 }
 
-#ifdef DEBUG
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_thread_t);
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_thread_ptr);
@@ -411,6 +401,26 @@ void _np_thread_t_new(void* obj)
 	sll_init(char_ptr, thread->has_lock);
 	sll_init(char_ptr, thread->want_lock);
 #endif
-
 }
-#endif
+
+char* np_threads_printpool(np_bool asOneLine) {
+	char* ret = NULL;
+	char* new_line = "\n";
+	if (asOneLine == TRUE) {
+		new_line = "    ";
+	}	
+
+	sll_iterator(np_thread_ptr) iter_threads = sll_first(_np_state()->threads);
+	ret = _np_concatAndFree(ret, "--- Threadpool START ---%s", new_line);
+	while (iter_threads != NULL)
+	{
+		_LOCK_ACCESS(&iter_threads->val->locklists_lock) {
+			ret = _np_concatAndFree(ret, "Thread %"PRIu32" LOCKS: %s%s", iter_threads->val->id, _sll_char_make_flat(_sll_char_part(iter_threads->val->has_lock, -5)), new_line);
+			ret = _np_concatAndFree(ret, "Thread %"PRIu32" WANTS LOCKS: %s%s", iter_threads->val->id, _sll_char_make_flat(_sll_char_part(iter_threads->val->want_lock, -5)), new_line);
+		}
+		sll_next(iter_threads);
+	}
+	ret = _np_concatAndFree(ret, "--- Threadpool END   ---%s", new_line);
+
+	return ret;
+}

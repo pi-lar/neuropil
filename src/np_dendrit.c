@@ -275,9 +275,11 @@ void _np_in_received(np_jobargs_t* args)
 					np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
 					_np_job_submit_route_event(0.0, prop, args->target, msg_in);
 
+					np_unref_list(tmp, "_np_route_lookup");
 					sll_free(np_key_ptr, tmp);
 					goto __np_cleanup__;
 				}
+				np_unref_list(tmp, "_np_route_lookup");
 				sll_free(np_key_ptr, tmp);
 				log_debug_msg(LOG_DEBUG, "internal routing for subject '%s'", msg_subject.value.s);
 			}

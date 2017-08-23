@@ -52,7 +52,7 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 
-	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
+	fprintf(stdout, "\e[1ARECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
 
@@ -81,7 +81,7 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 	last_response_or_invokation = ev_time();
 
-	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
+	fprintf(stdout, "\e[1ARECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_count++, "ping");
 
@@ -261,7 +261,7 @@ int main(int argc, char **argv)
 			log_msg(LOG_INFO, "Invoking ping");
 			np_send_text("ping", "ping", _ping_count++, NULL);
 		}
-		__np_example_helper_loop(i);
+		__np_example_helper_loop(i, 0.01);
 	}
 
 }

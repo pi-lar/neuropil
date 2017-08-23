@@ -330,11 +330,13 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 			_np_route_append_leafset_to_sll(__routing_table->right_leafset, key_list);
 
 			min = _np_keycache_find_closest_key_to (key_list, &key->dhkey);
-			if(NULL != min) {
+			if(NULL != min) {				
+				ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", __func__); 
 				sll_append(np_key_ptr, return_list, min);
-
+				
+ 
 				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "++NEXT_HOP = %s", _np_key_as_str (min));
-			}
+			}			
 
 			sll_free (np_key_ptr, key_list);
 			_np_threads_unlock_module(np_routeglobal_t_lock);
@@ -379,6 +381,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 				}
 			}
 
+			np_ref_obj(np_key_t, tmp_1 );
 			sll_append(np_key_ptr, return_list, tmp_1);
 
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Routing through Table(%s), NEXT_HOP=%s",
@@ -432,7 +435,11 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 			// printf ("route.c (%d): _np_route_lookup bounce count==1 ...\n", getpid());
 			// printTable(state);
 			min = _np_keycache_find_closest_key_to (key_list, &key->dhkey);
-			if (NULL != min) sll_append(np_key_ptr, return_list, min);
+			
+			if (NULL != min) {
+				ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", __func__);
+				sll_append(np_key_ptr, return_list, min);
+			}
 		}
 		else
 		{
@@ -446,6 +453,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 				sll_iterator(np_key_ptr) iter2 = sll_first(key_list);
 				do {
 					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "++Result[%hd]: (%s)", i, _np_key_as_str (iter1->val) );
+					np_ref_obj(np_key_t, iter1->val);
 					sll_append(np_key_ptr, return_list, iter1->val);
 
 					while (NULL != iter2 && _np_dhkey_equal (&iter2->val->dhkey, &iter1->val->dhkey ))
@@ -477,7 +485,12 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 
 			// if (key_equal (dif1, dif2)) ret[0] = rg->me;
 			// changed on 03.06.2014 STSW choose the closest neighbour
-			if (_np_dhkey_comp (&dif1, &dif2) <= 0) sll_first(return_list)->val = __routing_table->my_key;
+			if (_np_dhkey_comp(&dif1, &dif2) <= 0) {
+				pll_iterator(np_key_ptr) first = sll_first(return_list);
+				np_unref_obj(np_key_t, first->val, __func__);
+				first->val = __routing_table->my_key;
+				np_ref_obj(np_key_t, first->val);
+			}
 
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "route  key: %s", _np_key_as_str(sll_first(return_list)->val));
 

@@ -301,13 +301,7 @@ int main(int argc, char **argv)
 				/**
 				 \endcode
 				 */
-
-				while (TRUE) {
-					ev_sleep(0.1);
-					char* memory_str = np_mem_printpool(TRUE);
-					log_msg(LOG_INFO, "%s", memory_str );
-					free(memory_str);
-				}
+				__np_example_helper_run_loop();
 
 			} else {
 				/**

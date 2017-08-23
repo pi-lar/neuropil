@@ -104,6 +104,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		 (_np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)) )
 	{
 		// the result returned the sending node, try again with a higher count parameter
+		np_unref_list(tmp, "_np_route_lookup"); 
 		sll_free(np_key_ptr, tmp);
 
 		tmp = _np_route_lookup(&k_msg_address, 2);
@@ -137,6 +138,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 			msg_to_submit = _np_message_check_chunks_complete(args->msg);
 			if (NULL == msg_to_submit)
 			{
+				np_unref_list(tmp, "_np_route_lookup");
 				sll_free(np_key_ptr, tmp);
 				np_unref_obj(np_key_t, my_key, "np_waitref_obj");
 				return;
@@ -175,7 +177,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 			_np_job_submit_msgout_event(0.0, prop, target_key, args->msg);
 		}
 	}
-
+	np_unref_list(tmp, "_np_route_lookup");
 	sll_free(np_key_ptr, tmp);
 	np_unref_obj(np_key_t, my_key, "np_waitref_obj");
 }

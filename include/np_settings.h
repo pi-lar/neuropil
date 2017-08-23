@@ -116,7 +116,11 @@ static const int MSG_ENCRYPTION_BYTES_40 = 40;
 #endif
 
 #ifndef LOG_ROW_SIZE
-	#define LOG_ROW_SIZE 5000
+	#ifdef DEBUG
+		#define LOG_ROW_SIZE 8192
+	#else
+		#define LOG_ROW_SIZE 5000
+	#endif
 #endif
 
 #ifndef LOG_ROTATE_AFTER_BYTES

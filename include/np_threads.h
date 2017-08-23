@@ -29,9 +29,9 @@ return_type func_name(arg_1 a_1, arg_2 a_2) {		\
 }													\
 return_type wrapped_##func_name(arg_1, arg_2);
 
-#ifdef DEBUG
-	_NP_GENERATE_MEMORY_PROTOTYPES(np_thread_t);
-#endif
+
+_NP_GENERATE_MEMORY_PROTOTYPES(np_thread_t);
+
 
 
 typedef enum np_module_lock_e np_module_lock_type;
@@ -155,6 +155,9 @@ _LOCK_MODULE(np_keycache_t)
 	... call_a_function_of_locked_module() ...;
 }
 */
+// print the complete object list and statistics
+NP_API_INTERN
+char* np_threads_printpool(np_bool asOneLine);
 
 
 #ifdef __cplusplus

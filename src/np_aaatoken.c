@@ -653,6 +653,8 @@ np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender)
 void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token){");
+
+	assert(token != NULL);
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start.np_add_receiver_token");
 
 	np_key_t* subject_key = NULL;

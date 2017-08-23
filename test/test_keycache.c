@@ -224,15 +224,15 @@ Test(np_keycache_t, _np_keycache_find_closest_key_to, .description="test the fin
 	}
 
 	uint32_t i = 0;
- 	found = _np_keycache_find_closest_key_to(key_list, &new_keys[1]->dhkey);
+	found = _np_keycache_find_closest_key_to(key_list, &new_keys[1]->dhkey);
 	cr_expect(NULL != found, "expecting to find the new key in list");
 
- 	for(i=1;(i-1) < count_of_keys && _np_key_cmp(found, new_keys[i-1]) != 0 ; i++);
+	for(i=1;(i-1) < count_of_keys && _np_key_cmp(found, new_keys[i-1]) != 0 ; i++);
 	cr_expect(0 == _np_key_cmp(found, new_keys[1]), "expecting the closest key to be the first in the array, But was at idx:  %d",(i == sll_size(key_list) ? 666 : (i-1)));
 
- 	found = _np_keycache_find_closest_key_to(key_list, &dummy_key);
+	found = _np_keycache_find_closest_key_to(key_list, &dummy_key);
 	cr_expect(NULL != found, "expecting to find the dummy_key in list");
- 	for(i=1; (i-1) < count_of_keys && _np_key_cmp(found, new_keys[i-1]) != 0; i++);
+	for(i=1; (i-1) < count_of_keys && _np_key_cmp(found, new_keys[i-1]) != 0; i++);
 	cr_expect(0 == _np_key_cmp(found, new_keys[count_of_keys-1]), "expecting the closest key to be the last in the array, But was at idx: %d ", (i == sll_size(key_list) ? 666 : (i-1)));
 }
 

@@ -157,7 +157,6 @@ np_bool parse_program_args(
 			}
 		}
 		/** \endcode */
-
 	}
 	else {		
 		fprintf(stderr, "usage: %s\n", usage);
@@ -166,24 +165,38 @@ np_bool parse_program_args(
 	return ret;
 }
 
-void __np_example_helper_loop(uint32_t i) {
+void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 #ifdef DEBUG
 #if DEBUG == 1
-		if (i % 100 == 0) 
+		
+		double sec_since_start = iteration * sec_per_iteration ; 
+		double ms_since_start = sec_since_start  * 1000;	
+		if (((int)ms_since_start) % 10000 == 0)
 		{
 			// to output
-			char* memory_str = np_mem_printpool(FALSE);
-			//	if(memory_str != NULL) printf("%s", memory_str);
+			char* memory_str = np_mem_printpool(FALSE,FALSE);
+			if(memory_str != NULL) printf("%f - %s", sec_since_start, memory_str);
 			free(memory_str);
-
-			memory_str = np_messagepart_printcache(FALSE);
-			//if(memory_str != NULL) printf("%s", memory_str);
-			free(memory_str);
-
-			// to logfile
-			memory_str = np_mem_printpool(TRUE);
+			memory_str = np_mem_printpool(TRUE,TRUE);
 			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 			free(memory_str);
+
+
+			memory_str = np_messagepart_printcache(FALSE);
+			//if(memory_str != NULL) printf("%f - %s", sec_since_start, memory_str);
+			free(memory_str);
+			memory_str = np_messagepart_printcache(TRUE);
+			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+			free(memory_str);
+
+
+			memory_str = np_threads_printpool(FALSE);
+			if(memory_str != NULL) printf("%f - %s", sec_since_start, memory_str);
+			free(memory_str);
+			memory_str = np_threads_printpool(TRUE);
+			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+			free(memory_str);
+			
 		}
 
 		//if((i == (35/*sec*/ * 10))){
@@ -200,6 +213,6 @@ void __np_example_helper_run_loop() {
 	{
 		i += 1;
 		ev_sleep(0.01);
-		__np_example_helper_loop(i);
+		__np_example_helper_loop(i, 0.01);
 	}
 }

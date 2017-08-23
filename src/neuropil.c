@@ -927,14 +927,12 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 		exit(EXIT_FAILURE);
 	}
 
-#ifdef DEBUG
 	sll_init(np_thread_ptr, state->threads);
 
 	np_thread_t * new_main_thread;
 	np_new_obj(np_thread_t, new_main_thread);
 	new_main_thread->id = (unsigned long)getpid();
 	sll_append(np_thread_ptr, state->threads, new_main_thread);
-#endif
 
 	
 	__global_state = state;
@@ -1123,12 +1121,11 @@ void np_start_job_queue(uint8_t pool_size)
 	for (uint8_t i = 0; i < pool_size; i++)
 	{
 		pthread_create (&_np_state()->thread_ids[i], &_np_state()->attr, _job_exec, (void *) _np_state());
-#ifdef DEBUG
 		np_thread_t * new_thread;
 		np_new_obj(np_thread_t, new_thread);
 		new_thread->id  = (unsigned long)_np_state()->thread_ids[i];
 		sll_append(np_thread_ptr, _np_state()->threads, new_thread);
-#endif
+
 		log_debug_msg(LOG_DEBUG, "neuropil worker thread started: %p", _np_state()->thread_ids[i]);
 	}
 	log_debug_msg(LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
