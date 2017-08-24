@@ -68,12 +68,9 @@ void _np_out_ack(np_jobargs_t* args)
 	// chunking for 1024 bit message size
 	_np_message_calculate_chunking(args->msg);
 
-	np_jobargs_t* chunk_args = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
-	CHECK_MALLOC(chunk_args);
-
-	chunk_args->msg = args->msg;
-	_np_message_serialize_chunked(chunk_args);
-	free(chunk_args);
+	np_jobargs_t* chunk_args = _np_job_create_args(args->msg, NULL, NULL);
+	_np_message_serialize_chunked(chunk_args);	
+	_np_job_free_args(chunk_args);
 
 	_np_network_send_msg(args->target, args->msg);
 	// send_ok is 1 or 0
@@ -252,8 +249,10 @@ void _np_send(np_jobargs_t* args)
 						ackentry->transmittime = ev_time();
 						// + 1.0 because of time delays for processing
 						ackentry->expiration = ackentry->transmittime + args->properties->msg_ttl + 1.0;
-						ackentry->dest_key = args->target;
-						np_ref_obj(np_key_t,  args->target,ref_message_ack);
+						if(ackentry->dest_key != args->target) {
+							np_ref_obj(np_key_t, args->target, ref_message_ack); 
+							ackentry->dest_key = args->target;
+						}					
 
 						if (TRUE == is_forward)
 						{
@@ -416,7 +415,6 @@ void _np_send_handshake(np_jobargs_t* args)
 
 	np_bool serialize_ok = _np_message_serialize_chunked(chunk_args);
 
-	//free(chunk_args);
 	_np_job_free_args(chunk_args);
 
 	if (TRUE == serialize_ok)

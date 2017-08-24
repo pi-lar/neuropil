@@ -1016,8 +1016,8 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // np_dhkey_create_from_hostport(my_node->dns_name, my_node->port);
 	state->my_node_key = _np_keycache_find_or_create(my_dhkey);
 
-	
-	np_ref_obj(np_key_t, state->my_node_key);
+
+	np_ref_obj(np_key_t, state->my_node_key, ref_network_watcher);
 	my_network->watcher.data = state->my_node_key;
 	_np_network_start(my_network);
 
@@ -1081,6 +1081,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	np_job_submit_event(0.0, _np_events_read);
 
 
+	np_unref_obj(np_key_t, state->my_node_key, "_np_keycache_find_or_create");
 	np_unref_obj(np_node_t, my_node, ref_obj_creation);
 	np_unref_obj(np_network_t, my_network, ref_obj_creation);
 	np_unref_obj(np_aaatoken_t, auth_token, ref_obj_creation);

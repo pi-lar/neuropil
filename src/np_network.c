@@ -79,6 +79,7 @@ np_ackentry_t* _np_network_get_new_ackentry()
 
 	entry->expected_ack = 0;
 	entry->received_ack = 0;
+	entry->dest_key = NULL;
 
 	return (entry);
 }

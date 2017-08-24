@@ -104,6 +104,7 @@ np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproper
 {
 	log_msg(LOG_TRACE, "start: np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop){");
 
+	// optional parameters
 	if (NULL != msg)  np_ref_obj(np_message_t, msg);
 	if (NULL != key)  np_ref_obj(np_key_t, key);
 	if (NULL != prop) np_ref_obj(np_msgproperty_t, prop);
@@ -112,8 +113,8 @@ np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproper
 	np_jobargs_t* jargs = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
 	CHECK_MALLOC(jargs);
 
-	jargs->msg = msg;
 	jargs->is_resend = FALSE;
+	jargs->msg = msg;	
 	jargs->target = key;
 	jargs->properties = prop;
 

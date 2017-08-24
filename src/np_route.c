@@ -332,8 +332,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 			min = _np_keycache_find_closest_key_to (key_list, &key->dhkey);
 			if(NULL != min) {				
 				ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", __func__); 
-				sll_append(np_key_ptr, return_list, min);
-				
+				sll_append(np_key_ptr, return_list, min);				
  
 				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "++NEXT_HOP = %s", _np_key_as_str (min));
 			}			
@@ -447,25 +446,29 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 			{
 				_np_keycache_sort_keys_cpm (key_list, &key->dhkey);
 				/* find the best #count# entries that we looked at ... could be much better */
-				/* removing duplicates from the list */
-				uint16_t i = j = 0;
+				
+				/* removing duplicates from the list */				
 				sll_iterator(np_key_ptr) iter1 = sll_first(key_list);
-				sll_iterator(np_key_ptr) iter2 = sll_first(key_list);
-				do {
-					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "++Result[%hd]: (%s)", i, _np_key_as_str (iter1->val) );
-					np_ref_obj(np_key_t, iter1->val);
-					sll_append(np_key_ptr, return_list, iter1->val);
-
-					while (NULL != iter2 && _np_dhkey_equal (&iter2->val->dhkey, &iter1->val->dhkey ))
+				sll_iterator(np_key_ptr) iter2 = NULL;
+				np_bool iters_equal = FALSE;
+				while (iter1 != NULL)
+				{
+					iters_equal = FALSE;
+					iter2 = sll_first(return_list);
+					while (iter2 != NULL)
 					{
+						if (_np_dhkey_equal(&iter2->val->dhkey, &iter1->val->dhkey)==TRUE) {
+							iters_equal = TRUE;
+							break;
+						}
 						sll_next(iter2);
-						continue;
 					}
-
-					iter1 = iter2;
-					i++;
-
-				} while (i < count && NULL != iter1);
+					if (iters_equal == FALSE) {
+						np_ref_obj(np_key_t, iter1->val);
+						sll_append(np_key_ptr, return_list, iter1->val);
+					}
+					sll_next(iter1);
+				}
 			}
 		}
 		//sll_free(np_key_t, key_list);
@@ -486,7 +489,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 			// if (key_equal (dif1, dif2)) ret[0] = rg->me;
 			// changed on 03.06.2014 STSW choose the closest neighbour
 			if (_np_dhkey_comp(&dif1, &dif2) <= 0) {
-				pll_iterator(np_key_ptr) first = sll_first(return_list);
+				sll_iterator(np_key_ptr) first = sll_first(return_list);
 				np_unref_obj(np_key_t, first->val, __func__);
 				first->val = __routing_table->my_key;
 				np_ref_obj(np_key_t, first->val);

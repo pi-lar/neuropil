@@ -217,7 +217,7 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 
 #ifdef MEMORY_CHECK		
 			if (iter->type == np_key_t_e && TRUE == extended) {
-				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (%d) start ---%s", iter->id, iter->type, new_line);
+				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, iter->type, sll_size(iter->reasons), new_line);
 				sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
 				while (iter_reasons != NULL)
 				{
