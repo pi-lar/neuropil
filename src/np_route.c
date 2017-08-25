@@ -271,7 +271,7 @@ sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key)
 	}
 
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_row_lookup");
-	return sll_of_keys;
+	return (sll_of_keys);
 }
 
 void _np_route_append_leafset_to_sll(np_key_ptr_pll_t* leafset, np_sll_t(np_key_ptr, result))

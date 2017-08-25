@@ -178,7 +178,7 @@ void np_mem_unrefobj(np_obj_t* obj, char* reason)
 	np_bool foundReason = FALSE;
 	while (foundReason == FALSE && iter_reasons != NULL)
 	{
-		foundReason = (0 == strcmp(iter_reasons->val,reason)) ? TRUE : FALSE;
+		foundReason = (0 == strncmp(iter_reasons->val, reason, strlen(reason))) ? TRUE : FALSE;
 		if (foundReason == TRUE) {
 			free(iter_reasons->val);
 			sll_delete(char_ptr, obj->reasons, iter_reasons);

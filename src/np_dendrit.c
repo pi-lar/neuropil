@@ -343,6 +343,8 @@ void _np_in_piggy(np_jobargs_t* args)
 	np_sll_t(np_key_ptr, o_piggy_list) = NULL;
 
 	o_piggy_list = _np_node_decode_multiple_from_jrb(args->msg->body);
+	
+	np_waitref_obj(np_key_t, state->my_node_key, my_key, "np_waitref_key");
 
 	while (NULL != (node_entry = sll_head(np_key_ptr, o_piggy_list)))
 	{
@@ -352,7 +354,7 @@ void _np_in_piggy(np_jobargs_t* args)
 
 		// TODO: those new entries in the piggy message must be authenticated before sending join requests
 
-		np_waitref_obj(np_key_t, state->my_node_key, my_key,"np_waitref_key");
+		
 
 		if (!_np_dhkey_equal(&node_entry->dhkey, &my_key->dhkey) &&
 			HANDSHAKE_INITIALIZED > node_entry->node->handshake_status &&
@@ -374,10 +376,10 @@ void _np_in_piggy(np_jobargs_t* args)
 			_np_job_submit_msgout_event(0.0, prop, node_entry, msg_out);
 
 			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-		}
-		np_unref_obj(np_key_t, my_key,"np_waitref_key");
+		}		
 		np_unref_obj(np_key_t, node_entry,"_np_node_decode_multiple_from_jrb");
 	}
+	np_unref_obj(np_key_t, my_key, "np_waitref_key");
 	sll_free(np_key_ptr, o_piggy_list);
 
 	// __np_cleanup__:

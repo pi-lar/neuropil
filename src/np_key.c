@@ -69,7 +69,7 @@ void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason)
 	sll_iterator(np_key_ptr) iter = sll_first(sll_list);
 	while (NULL != iter)
 	{
-		np_ref_obj3(np_key_t, (iter->val), reason);
+		np_ref_obj(np_key_t, (iter->val), reason);
 		sll_next(iter);
 	}
 }

@@ -69,6 +69,9 @@ struct np_obj_s
 #endif
 };
 
+#define _CONCAT(a, b) a##b
+#define CONCAT(a, b) _CONCAT(a, b)
+
 /* Macro for overloading macros
  * Use like this if you want to overload foo(a,b) with foo(a,b,c)
  * #define foo(...) VFUNC(foo, __VA_ARGS__)
@@ -99,10 +102,16 @@ struct np_obj_s
 	 9,8,7,6,5,4,3,2,1,0
 
 // general definition for any function name
-#define _VFUNC_(name, n) name##n
-#define _VFUNC(name, n) _VFUNC_(name, n)
-#define VFUNC(func, ...) _VFUNC(func, __NARG__(__VA_ARGS__)) (__VA_ARGS__)
+#define VFUNC(func, ...) CONCAT(func, __NARG__(__VA_ARGS__)) (__VA_ARGS__)
 // Macro overloading macros END
+
+
+#define _NP_REF_REASON(reason,new_reason)																								    \
+	char new_reason[strlen(reason)+10];																										\
+	sprintf(new_reason,"%s___line:%d",reason,__LINE__);             																				\
+																																		    \
+																																		    \
+																																		    \
 
 #ifndef MEMORY_CHECK
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)
@@ -115,7 +124,7 @@ struct np_obj_s
 	while (foundReason == FALSE && iter_reasons != NULL)																					\
 	{																																		\
 		assert(old_reason != NULL);																											\
-		foundReason = (0 == strcmp(iter_reasons->val, old_reason))? TRUE : FALSE;															\
+		foundReason = (0 == strncmp(iter_reasons->val, old_reason,strlen(old_reason)))? TRUE : FALSE;															\
 		if (foundReason == TRUE) {																											\
 			free(iter_reasons->val);																										\
 			sll_delete(char_ptr, obj->reasons, iter_reasons);																				\
@@ -129,7 +138,8 @@ struct np_obj_s
 		abort();																															\
 	}																																		\
 	else {																																	\
-		sll_prepend(char_ptr, obj->reasons, strndup(new_reason,strlen(new_reason)));														\
+		_NP_REF_REASON(new_reason, reason2)																									\
+		sll_prepend(char_ptr, obj->reasons, strndup(reason2,strlen(reason2)));																\
 	}																																		\
 }
 #endif
@@ -145,7 +155,8 @@ struct np_obj_s
 	if (((TYPE*)np_obj)->obj->type != TYPE##_e) log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",((TYPE*)np_obj)->obj->type, TYPE##_e);									\
 	assert (((TYPE*)np_obj)->obj->type == TYPE##_e);   																													\
 	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count,#TYPE, ((TYPE*)np_obj)->obj->id); 					\
-	np_mem_refobj(((TYPE*)np_obj)->obj,reason);             																											\
+	_NP_REF_REASON(reason, reason2)																																		\
+	np_mem_refobj(((TYPE*)np_obj)->obj,reason2);             																											\
   }																																										\
 }
 
@@ -161,7 +172,8 @@ struct np_obj_s
 					assert (((TYPE*)np_obj)->obj->type == TYPE##_e);   																									\
 				} else {																																				\
 					log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count, #TYPE, ((TYPE*)np_obj)->obj->id); 	\
-					np_mem_refobj(((TYPE*)np_obj)->obj,reason);               																							\
+					_NP_REF_REASON(reason, reason2)																																		\
+					np_mem_refobj(((TYPE*)np_obj)->obj,reason2);             																							\
 					ret = TRUE;																																			\
 				}																																						\
 			}																																							\
@@ -184,7 +196,8 @@ TYPE* saveTo = NULL;																																\
 						assert (org->obj->type == TYPE##_e);   																					    \
 					} else {																														\
 						log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",org->obj->ref_count,#TYPE, org->obj->id); 	\
-						np_mem_refobj(org->obj,reason);               																				\
+						_NP_REF_REASON(reason, reason2)																								\
+						np_mem_refobj(org->obj, reason2);             																				\
 						ret = TRUE;																													\
 						saveTo = org;						   																					    \
 					}																																\
@@ -269,7 +282,7 @@ TYPE* saveTo = NULL;																																\
 #define np_new_obj3(TYPE, np_obj, reason)                													\
 {                                               															\
   _LOCK_MODULE(np_memory_t) {                   															\
-	np_obj = (TYPE*) calloc(1,sizeof(TYPE));											      					\
+	np_obj = (TYPE*) calloc(1,sizeof(TYPE));											      				\
 	CHECK_MALLOC(np_obj);																					\
 	np_mem_newobj(TYPE##_e, &np_obj->obj);      															\
 	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"Creating_ object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 	\
@@ -278,7 +291,8 @@ TYPE* saveTo = NULL;																																\
 	np_obj->obj->new_callback(np_obj);          															\
 	np_obj->obj->ptr = np_obj;																				\
 	np_obj->obj->persistent = FALSE;			            												\
-	np_mem_refobj(np_obj->obj,reason);                 														\
+	_NP_REF_REASON(reason, reason2)																			\
+	np_mem_refobj(np_obj->obj, reason2);             														\
   }                                             															\
 }
 

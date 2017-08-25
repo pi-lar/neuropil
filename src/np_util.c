@@ -480,7 +480,6 @@ char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cm
 	while (iter != NULL)
 	{
 		tmp = (iter->val);
-
 		if (strncmp(tmp, to_remove, cmp_len) == 0)
 		{
 			ret = tmp;

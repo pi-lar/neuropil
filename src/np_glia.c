@@ -616,11 +616,11 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 
 	sll_of_keys = _np_route_row_lookup(target_key);
 	char* source_sll_of_keys = "_np_route_row_lookup";
-	if (0 == sll_size(sll_of_keys))
+	if (sll_size(sll_of_keys) <= 1)
 	{
 		// nothing found, send leafset to exchange some data at least
 		// prevents small clusters from not exchanging all data
-		np_unref_list(source_sll_of_keys, __func__); // only for completion
+		np_unref_list(sll_of_keys, "_np_route_row_lookup"); // only for completion
 		sll_free(np_key_ptr, sll_of_keys);
 		sll_of_keys = _np_route_neighbors();
 		source_sll_of_keys = "_np_route_neighbors";
@@ -637,9 +637,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 		np_new_obj(np_message_t, msg_out);
 		_np_message_create(msg_out, target_key, state->my_node_key, _NP_MSG_PIGGY_REQUEST, msg_body);
 		_np_job_submit_route_event(0.0, outprop, target_key, msg_out);
-		np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-
-		_np_job_yield(__rowinfo_send_delay);
+		np_unref_obj(np_message_t, msg_out, ref_obj_creation);		
 	}
 
 	np_unref_list(sll_of_keys, source_sll_of_keys);

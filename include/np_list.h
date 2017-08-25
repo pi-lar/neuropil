@@ -487,6 +487,10 @@ function like macros are:
 #define sll_free(TYPE, sll_list) { TYPE##_sll_free(sll_list); sll_list = NULL; }
 #define sll_clear(TYPE, sll_list) TYPE##_sll_clear(sll_list)
 #define sll_delete(TYPE, sll_list, iter) TYPE##_sll_delete(sll_list, iter)
+#define sll_clone(TYPE, sll_list_source, sll_list_target)										\
+	np_sll_t(TYPE, sll_list_target);															\
+	sll_init(TYPE, sll_list_target);															\
+	TYPE##_sll_clone(sll_list_source, sll_list_target);											\
 
 /**
 return type definition macros are
@@ -547,12 +551,21 @@ real macros for convenience usage
 	void TYPE##_sll_free(TYPE##_sll_t* list);                     											\
 	void TYPE##_sll_clear(TYPE##_sll_t* list);                    											\
 	void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);										\
+	void TYPE##_sll_clone(TYPE##_sll_t* sll_list_source, TYPE##_sll_t* sll_list_target);					\
 																											\
 																											\
 //
 // SLL (single linked list) implementation generator
 //
 #define NP_SLL_GENERATE_IMPLEMENTATION(TYPE)																\
+void TYPE##_sll_clone(TYPE##_sll_t* sll_list_source, TYPE##_sll_t* sll_list_target) {						\
+	sll_iterator(TYPE) iter = sll_first(sll_list_source);													\
+	while (iter != NULL)																					\
+	{																										\
+		sll_append(TYPE, sll_list_target, iter->val)														\
+		sll_next(iter);																						\
+	}																										\
+}																											\
 TYPE##_sll_t* TYPE##_sll_init() {																			\
 	TYPE##_sll_t* sll_list = (TYPE##_sll_t*) calloc(1,sizeof(TYPE##_sll_t));								\
 	sll_list->size = 0;																						\

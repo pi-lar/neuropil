@@ -171,7 +171,7 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 		
 		double sec_since_start = iteration * sec_per_iteration ; 
 		double ms_since_start = sec_since_start  * 1000;	
-		if (((int)ms_since_start) % (5/*sec*/ * 1000) == 0)
+		if (iteration == 0 || ((int)ms_since_start) % (1/*sec*/ * 1000) == 0)
 		{
 			// to output
 			char* memory_str = np_mem_printpool(FALSE,TRUE);
