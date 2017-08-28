@@ -1075,7 +1075,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 
 		// this node is the man in the middle - inform receiver of sender token
 		np_sll_t(np_aaatoken_ptr, available_list) =
-				_np_aaatoken_get_sender_all(msg_token->subject);
+				_np_aaatoken_get_all_sender(msg_token->subject);
 
 		np_aaatoken_t* tmp_token = NULL;
 
@@ -1105,7 +1105,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 					0.0, prop_route, reply_to_key, msg_out);
 
 			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-			np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_sender_all");
+			np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_all_sender");
 		}
 		sll_free(np_aaatoken_ptr, available_list);
 	}
@@ -1206,7 +1206,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 	_np_aaatoken_add_sender(msg_token->subject, msg_token);
 
 	np_aaatoken_t* tmp_token = NULL;
-	np_sll_t(np_aaatoken_ptr, receiver_list) = _np_aaatoken_get_receiver_all(msg_token->subject);
+	np_sll_t(np_aaatoken_ptr, receiver_list) = _np_aaatoken_get_all_receiver(msg_token->subject);
 
 	while (NULL != (tmp_token = sll_head(np_aaatoken_ptr, receiver_list)))
 	{
@@ -1224,7 +1224,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 		_np_job_submit_route_event(0.0, prop_route, reply_to_key, msg_out);
 
 		np_unref_obj(np_message_t, msg_out,ref_obj_creation);
-		np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_receiver_all");
+		np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_all_receiver");
 	}
 	sll_free(np_aaatoken_ptr, receiver_list);
 

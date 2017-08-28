@@ -174,17 +174,18 @@ void np_mem_unrefobj(np_obj_t* obj, char* reason)
 		abort();
 	}
 #ifdef MEMORY_CHECK
-	sll_iterator(char_ptr) iter_reasons = sll_first(obj->reasons);
+	sll_iterator(char_ptr) iter_reason = sll_first(obj->reasons);
 	np_bool foundReason = FALSE;
-	while (foundReason == FALSE && iter_reasons != NULL)
+	while (foundReason == FALSE && iter_reason != NULL)
 	{
-		foundReason = (0 == strncmp(iter_reasons->val, reason, strlen(reason))) ? TRUE : FALSE;
+		foundReason = (0 == strncmp(iter_reason->val, reason, strlen(reason)) 
+			&& 0 == strncmp(iter_reason->val + strlen(reason), _NP_REF_REASON_SEPERATOR_CHAR, _NP_REF_REASON_SEPERATOR_CHAR_LEN)) ? TRUE : FALSE;
 		if (foundReason == TRUE) {
-			free(iter_reasons->val);
-			sll_delete(char_ptr, obj->reasons, iter_reasons);
+			free(iter_reason->val);
+			sll_delete(char_ptr, obj->reasons, iter_reason);
 			break;
 		}
-		sll_next(iter_reasons);
+		sll_next(iter_reason);
 	}
 	if (FALSE == foundReason) {
 		log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ",reason, obj->id, obj->type, sll_size(obj->reasons), _sll_char_make_flat(obj->reasons));

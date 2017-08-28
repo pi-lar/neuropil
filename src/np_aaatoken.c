@@ -523,8 +523,11 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
  ** TODO extend this function with a key and an amount of messages
  ** TODO use a different function for mitm and leaf nodes ?
  **/
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_sender_all(char* subject)
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(char* subject)
 {
+	np_sll_t(np_aaatoken_ptr, return_list) = NULL;
+	sll_init(np_aaatoken_ptr, return_list); 
+	
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
 
@@ -533,13 +536,10 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_sender_all(char* subject)
 	_np_aaatoken_create_ledger(subject_key, subject);
 
 	// log_debug_msg(LOG_DEBUG, "available %hd interests %hd", subject_key->send_property->max_threshold, subject_key->recv_property->max_threshold );
-	// look up sources to see whether a sender already exists
-	np_sll_t(np_aaatoken_ptr, return_list) = NULL;
-	sll_init(np_aaatoken_ptr, return_list);
+	// look up sources to see whether a sender already exists	
 
 	// should never happen
 	if (NULL == subject_key) return (return_list);
-
 
 	pll_iterator(np_aaatoken_ptr) tmp = NULL;
 
@@ -547,7 +547,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_sender_all(char* subject)
 			"lookup in global sender msg token structures (%p)...",
 			subject_key->send_property);
 
-	_LOCK_ACCESS(&subject_key->send_property->lock)
+	_LOCK_ACCESS(&(subject_key->send_property->lock))
 	{
 		tmp = pll_first(subject_key->send_tokens);
 		while (NULL != tmp)
@@ -561,7 +561,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_sender_all(char* subject)
 				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", tmp->val->issuer );
 				// only pick key from a list if the subject msg_treshold is bigger than zero
 				// and the sending threshold is bigger than zero as well
-				// and we actually have a receiver node in the list
+				// and we actually have a receiver node in the list				
 				np_ref_obj(np_aaatoken_t, tmp->val);
 				sll_append(np_aaatoken_ptr, return_list, tmp->val);
 			}
@@ -573,6 +573,8 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_sender_all(char* subject)
 
 	return (return_list);
 }
+
+
 np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender){");
@@ -826,7 +828,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 	return (return_token);
 }
 
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_receiver_all(char* subject)
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(char* subject)
 {
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");

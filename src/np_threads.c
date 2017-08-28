@@ -427,7 +427,7 @@ char* np_threads_printpool(np_bool asOneLine) {
 	char * tmp2;
 	while (iter_threads != NULL)
 	{
-		_LOCK_ACCESS(&iter_threads->val->locklists_lock) {
+		_LOCK_ACCESS(&(iter_threads->val->locklists_lock)) {
 			tmp = _sll_char_part(iter_threads->val->has_lock, -5);
 			tmp2 = _sll_char_make_flat(tmp);
 			sll_free(char_ptr,tmp);

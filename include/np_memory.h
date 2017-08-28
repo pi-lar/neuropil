@@ -105,10 +105,12 @@ struct np_obj_s
 #define VFUNC(func, ...) CONCAT(func, __NARG__(__VA_ARGS__)) (__VA_ARGS__)
 // Macro overloading macros END
 
+#define _NP_REF_REASON_SEPERATOR_CHAR "___"
+#define _NP_REF_REASON_SEPERATOR_CHAR_LEN 3
 
 #define _NP_REF_REASON(reason,new_reason)																									    \
-	char new_reason[strlen(reason)+10];																											\
-	sprintf(new_reason,"%s___line:%d",reason,__LINE__);             																			\
+	char new_reason[strlen(reason)+20];																											\
+	sprintf(new_reason,"%s%sline:%d",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__);             												\
 																																			    \
 																																			    \
 																																			    \
@@ -125,7 +127,9 @@ struct np_obj_s
 		while (foundReason == FALSE && iter_reasons != NULL)																					\
 		{																																		\
 			assert(old_reason != NULL);																											\
-			foundReason = (0 == strncmp(iter_reasons->val, old_reason,strlen(old_reason)))? TRUE : FALSE;										\
+			foundReason = (0 == strncmp(iter_reasons->val, old_reason,strlen(old_reason))														\
+							&& 0 == strncmp(iter_reasons->val + strlen(old_reason),																\
+									_NP_REF_REASON_SEPERATOR_CHAR,_NP_REF_REASON_SEPERATOR_CHAR_LEN) )? TRUE : FALSE;							\
 			if (foundReason == TRUE) {																											\
 				free(iter_reasons->val);																										\
 				sll_delete(char_ptr, obj->reasons, iter_reasons);																				\
@@ -135,7 +139,9 @@ struct np_obj_s
 		}																																		\
 		if (FALSE == foundReason)																												\
 		{																																		\
-			log_msg(LOG_ERROR, "Reason switch on object (%p; t: %d) \"%s\" to \"%s\" not possible! Reason not found. (left reasons(%d): %s)", obj, obj->type,old_reason, new_reason, obj->ref_count, _sll_char_make_flat(obj->reasons)); \
+			log_msg(LOG_ERROR, 																													\
+				"Reason switch on object (%p; t: %d) \"%s\" to \"%s\" not possible! Reason not found. (left reasons(%d): %s)",					\
+				obj, obj->type,old_reason, new_reason, obj->ref_count, _sll_char_make_flat(obj->reasons));										\
 			abort();																															\
 		}																																		\
 		else {																																	\

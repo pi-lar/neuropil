@@ -522,7 +522,8 @@ real macros for convenience usage
 #define sll_size(sll_list) sll_list->size
 #define sll_first(sll_list) (sll_list->first)
 #define sll_last(sll_list) (sll_list->last)
-#define sll_next(sll_elem) (sll_elem = ((sll_elem == NULL || sll_elem->flink == sll_elem) ? NULL : sll_elem->flink))
+#define sll_next(sll_elem) (sll_elem = sll_next_select(sll_elem))
+#define sll_next_select(sll_elem) (((sll_elem == NULL || sll_elem->flink == sll_elem) ? NULL : sll_elem->flink))
 #define sll_get_next(sll_elem) (sll_elem->flink)
 // #define sll_previous(sll_elem) (sll_elem->blink)
 
@@ -599,15 +600,7 @@ TYPE TYPE##_sll_head(TYPE##_sll_t* sll_list) {																\
 	if (NULL != sll_list->first) {																			\
 		TYPE##_sll_node_t* tmp = sll_list->first;															\
 		ret_val = tmp->val;																					\
-		if (tmp == sll_list->last) {																		\
-			sll_list->first = NULL; 																		\
-			sll_list->last = NULL;																			\
-		}																									\
-		else {																								\
-			sll_list->first = sll_list->first->flink;														\
-		}																									\
-		free(tmp);																							\
-		sll_list->size--;																					\
+		TYPE##_sll_delete(sll_list, tmp);																	\
 	}																										\
 	return (ret_val);																						\
 }																											\
@@ -616,26 +609,12 @@ TYPE TYPE##_sll_tail(TYPE##_sll_t* sll_list) {																\
 	if (NULL != sll_list->last) {																			\
 		TYPE##_sll_node_t* tmp = sll_list->last;															\
 		ret_val = tmp->val;																					\
-		TYPE##_sll_node_t* tmp_list_elem = sll_list->first;													\
-		if(sll_list->first != sll_list->last) {																\
-			while (tmp_list_elem->flink != sll_list->last) { tmp_list_elem = tmp_list_elem->flink; }		\
-			sll_list->last = tmp_list_elem;																	\
-			sll_list->last->flink = NULL;																	\
-		} else {																							\
-			sll_list->last = NULL; sll_list->first = NULL; 													\
-		}																									\
-		free(tmp);																							\
-		sll_list->size--;																					\
+		TYPE##_sll_delete(sll_list, tmp);																	\
 	}																										\
 	return (ret_val);																						\
 }																											\
 void TYPE##_sll_free(TYPE##_sll_t* sll_list) {																\
-	TYPE##_sll_node_t *tmp;																					\
-	while (NULL != sll_list->first) {																		\
-		tmp = sll_list->first;																				\
-		sll_list->first = sll_list->first->flink;															\
-		free(tmp);																							\
-	}																										\
+	TYPE##_sll_clear(sll_list);																				\
 	free(sll_list);																							\
 	sll_list = NULL;																						\
 }																											\
@@ -653,24 +632,31 @@ void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) { 							
 		if (sll_list->last == tbr) {																		\
 			sll_list->first = NULL;																			\
 			sll_list->last  = NULL;																			\
+			sll_list->size = 0;																				\
 		}else{																								\
 			sll_list->first = tbr->flink;																	\
+			sll_list->size--;																				\
 		}																									\
 		free(tbr);																							\
-		sll_list->size--;																					\
+		tbr = NULL;																							\
 	} else {																								\
 		TYPE##_sll_node_t *tmp = sll_list->first;															\
 		TYPE##_sll_node_t *mem = sll_list->first;															\
-		while (tmp != NULL && tmp->flink != NULL) {															\
-			sll_next(tmp);																					\
+		while (tmp != NULL) {																				\
+			tmp = tmp->flink;																				\
 			if (tmp == tbr) {																				\
-				mem->flink = tmp->flink;																	\
+				if (sll_list->last == tbr) {																\
+					sll_list->last = mem;																	\
+					mem->flink = NULL;																		\
+				}else{ 																						\
+					mem->flink = tmp->flink;																\
+				}																							\
 				free(tmp);																					\
-				tmp = NULL;																					\
+				tbr = NULL;																					\
 				sll_list->size--;																			\
 				break;	/*while*/																			\
 			} 																								\
-			sll_next(mem);																					\
+			mem = mem->flink;																				\
 		}																									\
 	}																										\
 }

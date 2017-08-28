@@ -473,6 +473,8 @@ np_bool _np_get_local_ip(char* buffer){
 	
 	return ret;
 }
+
+
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len) {
 	char * ret = NULL;
 	char * tmp = NULL;
@@ -505,7 +507,7 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
 		sll_next(iter);
 	}			
 	if (sll_size(target) != i) {
-		log_msg(LOG_ERROR, "Size of target does not equal the expected size.");
+		log_msg(LOG_ERROR, "Size of original list (%d) does not equal the size of the flattend string (items flattend: %d).", sll_size(target),i);
 		abort();
 	}
 	return ret;

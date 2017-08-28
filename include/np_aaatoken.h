@@ -188,14 +188,14 @@ np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* identity);
 NP_API_INTERN
 void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_sender_all(char* subject);
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(char* subject);
 NP_API_INTERN
 np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender);
 
 NP_API_INTERN
 void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_receiver_all(char* subject);
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(char* subject);
 NP_API_INTERN
 np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target);
 

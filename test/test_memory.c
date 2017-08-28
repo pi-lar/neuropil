@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #include "pthread.h"
 #include <criterion/criterion.h>
@@ -135,4 +136,60 @@ Test(np_memory_t, _memory_create, .description="test the memory allocation routi
 	cr_expect(obj->ptr == NULL,"test whether the ptr of the meta object points to NULL");
 	cr_expect(obj->type == np_none_t_e, "test whether the type of the meta obj is none");
 
+}
+
+Test(np_memory_t, _memory_reasons, .description = "test the memory reasoning routines")
+{
+	test_struct_t
+		*t_obj1 = NULL;
+
+	np_new_obj(test_struct_t, t_obj1, "test___1");
+	cr_assert(NULL != t_obj1, "expect object to be not null");
+	cr_assert(1 == t_obj1->obj->ref_count, "expect ref count on object to be 1");
+	cr_assert(1 == sll_size(t_obj1->obj->reasons), "expect reason count on object to be 1");
+	cr_assert(0 == strncmp("test___1", sll_first(t_obj1->obj->reasons)->val,8), "expect 1. reason object to be test___1");
+
+	np_ref_obj(test_struct_t, t_obj1, "test___1");
+	cr_assert(NULL != t_obj1, "expect object to be not null");
+	cr_assert(2 == t_obj1->obj->ref_count, "expect ref count on object to be 2");
+	cr_assert(2 == sll_size(t_obj1->obj->reasons), "expect reason count on object to be 2");
+	cr_assert(0 == strncmp("test___1", sll_first(t_obj1->obj->reasons)->val, 8), "expect 1. reason object to be test___1");
+	cr_assert(0 == strncmp("test___1", sll_next_select(sll_first(t_obj1->obj->reasons))->val, 8), "expect 2. reason object to be test___1");
+
+	np_unref_obj(test_struct_t, t_obj1, "test___1"); 
+	cr_assert(NULL != t_obj1, "expect object to be not null");
+	cr_assert(1 == t_obj1->obj->ref_count, "expect ref count on object to be 1");
+	cr_assert(1 == sll_size(t_obj1->obj->reasons), "expect reason count on object to be 1 (but is: %"PRIu32")", sll_size(t_obj1->obj->reasons));
+	cr_assert(0 == strncmp("test___1", sll_first(t_obj1->obj->reasons)->val, 8), "expect 1. reason object to be test___1");
+
+
+	np_ref_obj(test_struct_t, t_obj1, "test___2");
+	cr_assert(NULL != t_obj1, "expect object to be not null");
+	cr_assert(2 == t_obj1->obj->ref_count, "expect ref count on object to be 2");
+	cr_assert(2 == sll_size(t_obj1->obj->reasons), "expect reason count on object to be 2");
+	cr_assert(0 == strncmp("test___2", sll_first(t_obj1->obj->reasons)->val, 8), "expect 1. reason object to be test___2");
+	cr_assert(0 == strncmp("test___1", sll_next_select(sll_first(t_obj1->obj->reasons))->val, 8), "expect 2. reason object to be test___1");
+
+	np_unref_obj(test_struct_t, t_obj1, "test___1");
+	cr_assert(NULL != t_obj1, "expect object to be not null");
+	cr_assert(1 == t_obj1->obj->ref_count, "expect ref count on object to be 1");
+	cr_assert(1 == sll_size(t_obj1->obj->reasons), "expect reason count on object to be 1");
+	cr_assert(0 == strncmp("test___2", sll_first(t_obj1->obj->reasons)->val, 8), "expect 1. reason object to be test___2");
+
+
+	np_ref_obj(test_struct_t, t_obj1, "test___3");
+	cr_assert(NULL != t_obj1, "expect object to be not null");
+	cr_assert(2 == t_obj1->obj->ref_count, "expect ref count on object to be 2");
+	cr_assert(2 == sll_size(t_obj1->obj->reasons), "expect reason count on object to be 2");
+	cr_assert(0 == strncmp("test___3", sll_first(t_obj1->obj->reasons)->val, 8), "expect 1. reason object to be test___3");
+	cr_assert(0 == strncmp("test___2", sll_next_select(sll_first(t_obj1->obj->reasons))->val, 8), "expect 2. reason object to be test___2");
+
+
+	np_unref_obj(test_struct_t, t_obj1, "test___2");
+	cr_assert(NULL != t_obj1, "expect object to be not null");
+	cr_assert(1 == t_obj1->obj->ref_count, "expect ref count on object to be 1");
+	cr_assert(1 == sll_size(t_obj1->obj->reasons), "expect reason count on object to be 1");
+	cr_assert(0 == strncmp("test___3", sll_first(t_obj1->obj->reasons)->val, 8), "expect 1. reason object to be test___3");
+
+	np_unref_obj(test_struct_t, t_obj1, "test___3");
 }
