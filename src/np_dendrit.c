@@ -33,6 +33,7 @@
 #include "np_network.h"
 #include "np_node.h"
 #include "np_memory.h"
+#include "np_list.h"
 #include "np_route.h"
 #include "np_util.h"
 #include "np_threads.h"
@@ -1773,7 +1774,8 @@ void _np_in_handshake(np_jobargs_t* args)
 			if(NULL != hs_wildcard_key && NULL != hs_wildcard_key->network)
 			{
 				np_network_t* old_network = hs_wildcard_key->network;
-				np_ref_obj(np_network_t,old_network,"usage_of_old_network");
+				np_ref_obj(np_network_t, old_network, "usage_of_old_network");
+
 				_LOCK_ACCESS(&old_network->lock)
 				{
 					// Updating handshake key with already existing network

@@ -490,7 +490,9 @@ char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cm
 	}
 	return ret;
 }
-
+/*
+ * Takes a char pointer list and concatinates it to one string
+ */
 char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
 	char* ret = NULL;
 
@@ -509,6 +511,10 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
 	return ret;
 }
 
+/** 
+ * Returns a part copy of the original list. 
+ * If amount is negative the part contains the last elements of the original list.
+*/
 sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount) {
 	
 	sll_return(char_ptr) ret;

@@ -553,7 +553,7 @@ real macros for convenience usage
 	void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);										\
 	void TYPE##_sll_clone(TYPE##_sll_t* sll_list_source, TYPE##_sll_t* sll_list_target);					\
 																											\
-																											\
+																											
 //
 // SLL (single linked list) implementation generator
 //
@@ -590,14 +590,12 @@ void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value) {												\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
 	sll_node->val = value;																					\
 	sll_node->flink = sll_list->first;																		\
-	if (sll_list->first == NULL) { sll_list->first = sll_node; sll_list->last = sll_node; }					\
-	if (sll_list->first != sll_node) {																		\
-		sll_list->first = sll_node;																			\
-	}																										\
+	if (sll_list->last == NULL) { sll_list->last = sll_node; }												\
+	sll_list->first = sll_node;																				\
 	sll_list->size++;																						\
 }																											\
 TYPE TYPE##_sll_head(TYPE##_sll_t* sll_list) {																\
-	TYPE ret_val = 0;																					\
+	TYPE ret_val = 0;																						\
 	if (NULL != sll_list->first) {																			\
 		TYPE##_sll_node_t* tmp = sll_list->first;															\
 		ret_val = tmp->val;																					\
@@ -614,7 +612,7 @@ TYPE TYPE##_sll_head(TYPE##_sll_t* sll_list) {																\
 	return (ret_val);																						\
 }																											\
 TYPE TYPE##_sll_tail(TYPE##_sll_t* sll_list) {																\
-	TYPE ret_val = 0;																					\
+	TYPE ret_val = 0;																						\
 	if (NULL != sll_list->last) {																			\
 		TYPE##_sll_node_t* tmp = sll_list->last;															\
 		ret_val = tmp->val;																					\
@@ -652,9 +650,11 @@ void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {																\
 }																											\
 void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) { 									\
 	if (sll_list->first == tbr) {																			\
-		sll_list->first = tbr->flink;																		\
 		if (sll_list->last == tbr) {																		\
-			sll_list->last = sll_list->first;																\
+			sll_list->first = NULL;																			\
+			sll_list->last  = NULL;																			\
+		}else{																								\
+			sll_list->first = tbr->flink;																	\
 		}																									\
 		free(tbr);																							\
 		sll_list->size--;																					\
@@ -662,7 +662,7 @@ void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) { 							
 		TYPE##_sll_node_t *tmp = sll_list->first;															\
 		TYPE##_sll_node_t *mem = sll_list->first;															\
 		while (tmp != NULL && tmp->flink != NULL) {															\
-			tmp = tmp->flink;																				\
+			sll_next(tmp);																					\
 			if (tmp == tbr) {																				\
 				mem->flink = tmp->flink;																	\
 				free(tmp);																					\
@@ -670,7 +670,7 @@ void TYPE##_sll_delete(TYPE##_sll_t* sll_list, TYPE##_sll_node_t *tbr) { 							
 				sll_list->size--;																			\
 				break;	/*while*/																			\
 			} 																								\
-			mem = mem->flink;																				\
+			sll_next(mem);																					\
 		}																									\
 	}																										\
 }

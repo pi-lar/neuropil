@@ -106,41 +106,43 @@ struct np_obj_s
 // Macro overloading macros END
 
 
-#define _NP_REF_REASON(reason,new_reason)																								    \
-	char new_reason[strlen(reason)+10];																										\
-	sprintf(new_reason,"%s___line:%d",reason,__LINE__);             																				\
-																																		    \
-																																		    \
-																																		    \
+#define _NP_REF_REASON(reason,new_reason)																									    \
+	char new_reason[strlen(reason)+10];																											\
+	sprintf(new_reason,"%s___line:%d",reason,__LINE__);             																			\
+																																			    \
+																																			    \
+																																			    \
 
 #ifndef MEMORY_CHECK
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)
 #else
-#define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)																			\
-{																																			\
-	np_obj_t* obj = (np_obj)->obj;																											\
-	sll_iterator(char_ptr) iter_reasons = sll_first(obj->reasons);																			\
-	np_bool foundReason = FALSE;																											\
-	while (foundReason == FALSE && iter_reasons != NULL)																					\
-	{																																		\
-		assert(old_reason != NULL);																											\
-		foundReason = (0 == strncmp(iter_reasons->val, old_reason,strlen(old_reason)))? TRUE : FALSE;															\
-		if (foundReason == TRUE) {																											\
-			free(iter_reasons->val);																										\
-			sll_delete(char_ptr, obj->reasons, iter_reasons);																				\
-			break;																															\
-		}																																	\
-		sll_next(iter_reasons);																												\
-	}																																		\
-	if (FALSE == foundReason)																												\
-	{																																		\
-		log_msg(LOG_ERROR, "Reason switch on object (%p; t: %d) \"%s\" to \"%s\" not possible! Reason not found. (left reasons(%d): %s)", obj, obj->type,old_reason, new_reason, obj->ref_count, _sll_char_make_flat(obj->reasons)); \
-		abort();																															\
-	}																																		\
-	else {																																	\
-		_NP_REF_REASON(new_reason, reason2)																									\
-		sll_prepend(char_ptr, obj->reasons, strndup(reason2,strlen(reason2)));																\
-	}																																		\
+#define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)																				\
+{																																				\
+	np_obj_t* obj = (np_obj)->obj;																												\
+	_LOCK_MODULE(np_memory_t) {                 																								\
+		sll_iterator(char_ptr) iter_reasons = sll_first(obj->reasons);																			\
+		np_bool foundReason = FALSE;																											\
+		while (foundReason == FALSE && iter_reasons != NULL)																					\
+		{																																		\
+			assert(old_reason != NULL);																											\
+			foundReason = (0 == strncmp(iter_reasons->val, old_reason,strlen(old_reason)))? TRUE : FALSE;										\
+			if (foundReason == TRUE) {																											\
+				free(iter_reasons->val);																										\
+				sll_delete(char_ptr, obj->reasons, iter_reasons);																				\
+				break;																															\
+			}																																	\
+			sll_next(iter_reasons);																												\
+		}																																		\
+		if (FALSE == foundReason)																												\
+		{																																		\
+			log_msg(LOG_ERROR, "Reason switch on object (%p; t: %d) \"%s\" to \"%s\" not possible! Reason not found. (left reasons(%d): %s)", obj, obj->type,old_reason, new_reason, obj->ref_count, _sll_char_make_flat(obj->reasons)); \
+			abort();																															\
+		}																																		\
+		else {																																	\
+			_NP_REF_REASON(new_reason, reason2)																									\
+			sll_prepend(char_ptr, obj->reasons, strndup(reason2,strlen(reason2)));																\
+		}																																		\
+	}																																			\
 }
 #endif
 
@@ -268,11 +270,13 @@ TYPE* saveTo = NULL;																																\
 #else
 #define ref_replace_reason_sll(TYPE, sll_list, old_reason, new_reason)					\
 {																						\
-	sll_iterator(TYPE) iter##__LINE__ = sll_first(sll_list);							\
-	while (NULL != iter##__LINE__ )														\
-	{																					\
-		ref_replace_reason(TYPE, (iter##__LINE__)->val, old_reason, new_reason);		\
-		sll_next(iter##__LINE__ );														\
+	_LOCK_MODULE(np_memory_t) {															\
+		sll_iterator(TYPE) iter##__LINE__ = sll_first(sll_list);						\
+		while (NULL != iter##__LINE__ )													\
+		{																				\
+			ref_replace_reason(TYPE, (iter##__LINE__)->val, old_reason, new_reason);	\
+			sll_next(iter##__LINE__ );													\
+		}																				\
 	}																					\
 }
 #endif

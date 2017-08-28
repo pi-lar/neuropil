@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -167,7 +168,6 @@ np_bool parse_program_args(
 
 void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 #ifdef DEBUG
-#if DEBUG == 1
 		
 		double sec_since_start = iteration * sec_per_iteration ; 
 		double ms_since_start = sec_since_start  * 1000;	
@@ -202,7 +202,6 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 		//	fprintf(stdout, "Renew bootstrap token");
 		//	np_key_renew_token();
 		//}
-#endif
 #endif	
 }
 
