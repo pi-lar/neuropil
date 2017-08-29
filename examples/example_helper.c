@@ -19,6 +19,8 @@
 #include "np_log.h"
 #include "np_messagepart.h"
 
+const float output_intervall_sec = 0.5;
+
 extern char *optarg;
 extern int optind;
 
@@ -171,7 +173,7 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 		
 		double sec_since_start = iteration * sec_per_iteration ; 
 		double ms_since_start = sec_since_start  * 1000;	
-		if (iteration == 0 || ((int)ms_since_start) % (1/*sec*/ * 1000) == 0)
+		if (iteration == 0 || ((int)ms_since_start) % (int)(output_intervall_sec * 1000) == 0)
 		{
 			// to output
 			char* memory_str = np_mem_printpool(FALSE,TRUE);
@@ -206,8 +208,14 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 }
 
 void __np_example_helper_run_loop() {
+	while (TRUE)
+	{
+		ev_sleep(0.01);
+	}
+}
+void __np_example_helper_run_info_loop() {
 	uint32_t i = 0;
-	while (TRUE) 
+	while (TRUE)
 	{
 		i += 1;
 		ev_sleep(0.01);

@@ -161,27 +161,28 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 	// next check if the log level (debug, error, ...) is set
 	if ( (level & LOG_LEVEL_MASK & logger->level) > LOG_NONE)
 	{
-		char* new_log_entry = malloc(sizeof(char)*LOG_ROW_SIZE);
-		CHECK_MALLOC(new_log_entry);
-
-		int wb = 0;
 		struct timeval tval;
 		struct tm local_time;
 		gettimeofday(&tval, (struct timezone*)0);
 		int32_t millis = tval.tv_usec;
 		localtime_r(&tval.tv_sec, &local_time);
-
+		 
+		char* new_log_entry = malloc(sizeof(char)*LOG_ROW_SIZE);
+		CHECK_MALLOC(new_log_entry);
+		
+		int wb = 0;
 		wb  = strftime(new_log_entry, 80, "%Y-%m-%d %H:%M:%S", &local_time);
 		wb += snprintf(new_log_entry+wb, LOG_ROW_SIZE -wb,
-						   ".%06d %-15lu %15.15s:%-5hd %-25.25s _%5s_ ",
-						   millis, (unsigned long) pthread_self(),
-						   srcFile, lineno, funcName,
-						   __level_str[level & LOG_LEVEL_MASK].text);
+							".%06d %-15lu %15.15s:%-5hd %-25.25s _%5s_ ",
+							millis, (unsigned long) pthread_self(),
+							srcFile, lineno, funcName,
+							__level_str[level & LOG_LEVEL_MASK].text);
+			
 		va_list ap;
-		va_start (ap, msg);
-		wb += vsnprintf (new_log_entry+wb, LOG_ROW_SIZE -wb, msg, ap);
+		va_start(ap, msg);
+		wb += vsnprintf (new_log_entry+wb, LOG_ROW_SIZE - wb - 1/*space for line ending*/-1 /*space for NULL terminator*/, msg, ap);
 		va_end(ap);
-		snprintf(new_log_entry+wb, LOG_ROW_SIZE-wb, "\n");
+		snprintf(new_log_entry+strlen(new_log_entry), 2, "\n\0");
 
 #if defined(CONSOLE_LOG) && CONSOLE_LOG == 1
 		fprintf(stdout, new_log_entry);
@@ -194,7 +195,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 
 			pthread_mutex_unlock(&__log_mutex);
 		}
-
+			
 		// instant writeout
 		_np_log_fflush(LOG_FORCE_INSTANT_WRITE);
 	}

@@ -1,3 +1,7 @@
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 /*
  * np_scache.c
  *
@@ -22,16 +26,16 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_cache_item_ptr);
 
 np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char* const key)
 {
-    log_msg(LOG_TRACE, "start: np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key){");
-    // Contract
-    if(NULL == key){
+	log_msg(LOG_TRACE, "start: np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key){");
+	// Contract
+	if(NULL == key){
 		log_msg(LOG_ERROR, "cache key cannot be NULL!");
 		abort();
 	}
-    // Contract end
+	// Contract end
 
-    np_cache_item_t* ret = NULL;
-    _LOCK_ACCESS(&table->lock) {
+	np_cache_item_t* ret = NULL;
+	_LOCK_ACCESS(&table->lock) {
 
 		unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
@@ -44,20 +48,20 @@ np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char*
 				break;
 			}
 		} while (NULL != ( sll_next(iter)) );
-    }
+	}
 	return ret;
 }
 
 int np_simple_cache_insert(np_simple_cache_table_t *table, const char* const key, void *value) {
-    log_msg(LOG_TRACE, "start: int np_simple_cache_insert(np_simple_cache_table_t *table, char *key, void *value) {");
-    // Contract
-    if(NULL == key){
+	log_msg(LOG_TRACE, "start: int np_simple_cache_insert(np_simple_cache_table_t *table, char *key, void *value) {");
+	// Contract
+	if(NULL == key){
 		log_msg(LOG_ERROR, "cache key cannot be NULL!");
 		abort();
 	}
-    // Contract end
+	// Contract end
 
-    _LOCK_ACCESS(&table->lock){
+	_LOCK_ACCESS(&table->lock){
 		unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
 		np_sll_t(np_cache_item_ptr, bucket_list) = table->buckets[bucket];
@@ -85,7 +89,7 @@ int np_simple_cache_insert(np_simple_cache_table_t *table, const char* const key
 		}
 		item->value = value;
 		item->insert_time = ev_time();
-    }
+	}
 	return 0;
 }
 

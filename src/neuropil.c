@@ -81,6 +81,7 @@ np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
 {
 	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
+	np_ref_obj(np_aaatoken_t, token, ref_key_aaa_token);
 	aaa_target->aaa_token = token;
 
 //	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);
@@ -121,6 +122,7 @@ np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token)
 {
 	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
+	np_ref_obj(np_aaatoken_t, token, ref_key_aaa_token);
 	aaa_target->aaa_token = token;
 
 //	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);
@@ -160,6 +162,7 @@ np_bool _np_aaa_accountingfunc (np_aaatoken_t* token)
 {
 	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
+	np_ref_obj(np_aaatoken_t, token, ref_key_aaa_token);
 	aaa_target->aaa_token = token;
 
 //	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);
@@ -296,6 +299,7 @@ void np_set_realm_name(const char* realm_name)
 	new_node_key->node = _np_state()->my_node_key->node;
 	_np_state()->my_node_key->node = NULL;
 
+	np_ref_obj(np_aaatoken_t, auth_token, ref_key_aaa_token);
 	new_node_key->aaa_token = auth_token;
 
 	// re-initialize routing table
@@ -428,9 +432,16 @@ void np_set_identity(np_aaatoken_t* identity)
 	else
 	{
 		// cannot be null, but otherwise checker complains
-		state->my_identity = my_identity_key;
+		np_ref_obj(np_key_t, my_identity_key, ref_state_identity); 
+		state->my_identity = my_identity_key;		
+
+		np_aaatoken_t* old_aaatoken = state->my_identity->aaa_token;		
+		np_ref_obj(np_aaatoken_t, identity, ref_key_aaa_token); 
 		state->my_identity->aaa_token = identity;
-		np_ref_obj(np_aaatoken_t, identity, ref_state_identity);
+
+		if (old_aaatoken != NULL) {
+			np_unref_obj(np_aaatoken_t, old_aaatoken, ref_key_aaa_token);
+		}
 	}
 	// set target node string for correct routing
 	np_tree_insert_str(identity->extensions, "target_node", np_treeval_new_s(_np_key_as_str(state->my_node_key)) );

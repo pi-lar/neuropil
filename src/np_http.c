@@ -633,8 +633,16 @@ NP_UNUSED int event_type) {
 	}
 }
 
-np_bool _np_http_init() {
+np_bool _np_http_init(char* domain, char* port) {
 	log_msg(LOG_TRACE | LOG_HTTP, "start: np_bool _np_http_init() {");
+
+	if (domain == NULL) {
+		domain = strdup("localhost");
+	}
+	if (port == NULL) {
+		port = strdup("31415");
+	}
+
 	__local_http = (np_http_t*) malloc(sizeof(np_http_t));
 	CHECK_MALLOC(__local_http);
 
@@ -644,7 +652,7 @@ np_bool _np_http_init() {
 	{
 		np_new_obj(np_network_t, __local_http->network);
 
-		_np_network_init(__local_http->network, TRUE, TCP | IPv4, "localhost", "31415");
+		_np_network_init(__local_http->network, TRUE, TCP | IPv4, domain, port);
 	}
 	if (NULL == __local_http->network || FALSE == __local_http->network->initialized )
 		return FALSE;

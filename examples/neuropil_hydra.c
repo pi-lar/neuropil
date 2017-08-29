@@ -59,7 +59,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
  */
 int main(int argc, char **argv)
 {
-	char* bootstrap_hostnode = NULL;
+	np_bool create_bootstrap = TRUE; 
 	char* bootstrap_hostnode_default;
 	uint32_t required_nodes = NUM_HOST;
 
@@ -91,19 +91,22 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 	if (required_nodes_opt != NULL) required_nodes = atoi(required_nodes_opt);
+	
+	if (j_key != NULL) {
+		create_bootstrap = FALSE;
+	}
 
 	/**
 	for the general initialisation of a node please look into the neuropil_node example
 	*/
 	int current_pid = getpid();
-
-	// Get the current pid and shift it to be a viable port.
-	// This way the application may be used for multiple instances on one system
-	asprintf(&bootstrap_hostnode_default, "%s:%s:%s", proto,publish_domain, port);
-
-	int create_bootstrap = NULL == bootstrap_hostnode;
+	
 	if (TRUE == create_bootstrap) {
-		bootstrap_hostnode = bootstrap_hostnode_default;
+		// Get the current pid and shift it to be a viable port.
+		// This way the application may be used for multiple instances on one system
+		asprintf(&bootstrap_hostnode_default, "%s:%s:%s", proto, publish_domain, port);
+
+		j_key = bootstrap_hostnode_default;
 
 		fprintf(stdout, "No bootstrap host specified.\n");
 		current_pid = fork();
@@ -137,7 +140,7 @@ int main(int argc, char **argv)
 
 			// start http endpoint
 
-			if(FALSE == _np_http_init()){
+			if(FALSE == _np_http_init(NULL, NULL)){
 				fprintf(stdout, "Node could not start HTTP interface");
 				log_msg(LOG_WARN, "Node could not start HTTP interface");
 			}
@@ -163,14 +166,14 @@ int main(int argc, char **argv)
 			 */
 			np_start_job_queue(10);
 
-			__np_example_helper_run_loop();
+			__np_example_helper_run_info_loop();
 			/**
 
 			 \endcode
 			 */
 		}
-		fprintf(stdout, "Bootstrap host node: %s\n", bootstrap_hostnode);
-		if (NULL == bootstrap_hostnode) {
+		fprintf(stdout, "Bootstrap host node: %s\n", j_key);
+		if (NULL == j_key) {
 			fprintf(stderr, "Bootstrap host node could not start ... exit\n");
 			exit(EXIT_FAILURE);
 		}
@@ -279,11 +282,8 @@ int main(int argc, char **argv)
 
 				do {
 					fprintf(stdout, "try to join bootstrap node\n");
-					if(TRUE == create_bootstrap){
-						np_send_wildcard_join(bootstrap_hostnode);
-					} else {
-						np_send_join(bootstrap_hostnode);
-					}
+				 
+					np_send_join(j_key);
 
 					int timeout = 100;
 					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {

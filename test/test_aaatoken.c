@@ -116,7 +116,9 @@ Test(np_aaatoken_t, encode_decode_loop, .description="test the encoding and deco
 	np_new_obj(np_key_t, test_key);
 	test_key->dhkey = _np_aaatoken_create_dhkey(ref);
 	test_key->node = test_node;
+	np_ref_obj(np_aaatoken_t, test_node, ref_key_node);
 	test_key->aaa_token = ref;
+	np_ref_obj(np_aaatoken_t, ref, ref_key_aaa_token);
 
 	test_token_1 = ref;
 	for (int i=0; i< 10; ++i)

@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
 	np_log_init(log_file_host, level);
 	np_init(proto, port, publish_domain);
 
-	if (FALSE == _np_http_init())
+	if (FALSE == _np_http_init(NULL,NULL))
 	{
 		log_msg(LOG_WARN, "neuropil_init: initialization of http interface failed");
 	}

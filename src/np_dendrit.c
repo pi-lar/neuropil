@@ -78,7 +78,8 @@ void _np_in_received(np_jobargs_t* args)
 					goto __np_cleanup__;
 			}
 			log_debug_msg(LOG_DEBUG, "alias_key %s", _np_key_as_str(alias_key));
-
+			
+			np_bool is_decryption_successful = FALSE;
 			if (NULL != alias_key &&
 				NULL != alias_key->aaa_token &&
 				IS_VALID (alias_key->aaa_token->state) )
@@ -104,14 +105,10 @@ void _np_in_received(np_jobargs_t* args)
 						nonce,
 						alias_key->aaa_token->session_key);
 				// log_debug_msg(LOG_DEBUG, "/stop  decrypting message with alias %s", _np_key_as_str(alias_key));
-
-				if (ret != 0)
+				
+				if (ret == 0)
 				{
-					log_msg(LOG_WARN,
-							"incorrect decryption of message (send from %s)", _np_key_as_str(alias_key));
-				}
-				else
-				{
+					is_decryption_successful = TRUE;
 					log_debug_msg(LOG_DEBUG,
 							"correct decryption of message (send from %s)", _np_key_as_str(alias_key));
 					memset(raw_msg, 0, 1024);
@@ -123,7 +120,12 @@ void _np_in_received(np_jobargs_t* args)
 
 			ret = _np_message_deserialize(msg_in, raw_msg);
 			if (FALSE == ret) {
-				log_msg(LOG_ERROR, "error deserializing message %s", msg_in->uuid);
+				if(is_decryption_successful == TRUE){
+					log_msg(LOG_ERROR,	"error deserializing message %s after   successful decryption (source: %s)", msg_in->uuid, alias_key->network->ip);
+				}
+				else {
+					log_msg(LOG_WARN,	"error deserializing message %s after unsuccessful decryption (source: %s)", msg_in->uuid, alias_key->network->ip);
+				}
 				goto __np_cleanup__;
 			} else {
 				log_debug_msg(LOG_DEBUG, "deserialized message %s", msg_in->uuid);
@@ -137,9 +139,11 @@ void _np_in_received(np_jobargs_t* args)
 			CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
 
 			log_msg(LOG_INFO, "received message for subject: %s (uuid=%s, ack=%hhd) from %s",
-					msg_subject.value.s, msg_in->uuid, msg_ack.value.ush, msg_from.value.s);
+					msg_subject.value.s, msg_in->uuid, msg_ack.value.ush, msg_from.value.s );
 
-			if ( 0 == strncmp(msg_subject.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) )
+			np_bool is_handshake_msg = 0 == strncmp(msg_subject.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE));
+
+			if (is_handshake_msg)
 			{
 				// log_debug_msg(LOG_DEBUG, "identified handshake message ...");
 				if ( (NULL == alias_key->aaa_token) ||
@@ -157,6 +161,13 @@ void _np_in_received(np_jobargs_t* args)
 				}
 
 				goto __np_cleanup__;
+			}
+			else {
+				if(is_decryption_successful == FALSE){
+					log_msg(LOG_WARN,
+						"incorrect decryption of message (send from %s / %s)", _np_key_as_str(alias_key), alias_key->network->ip);
+				}
+
 			}
 
 			/* real receive part */
@@ -565,7 +576,7 @@ void _np_in_join_req(np_jobargs_t* args)
 	if (NULL == join_req_key->aaa_token)
 	{
 		join_req_key->aaa_token = join_token;
-		np_ref_obj(np_aaatoken_t, join_token); // additional reffing for later use
+		np_ref_obj(np_aaatoken_t, join_token, ref_key_aaa_token); // additional reffing for later use
 	}
 
 	log_debug_msg(LOG_DEBUG, "find target node");
@@ -998,7 +1009,7 @@ void _np_in_update(np_jobargs_t* args)
 	if (NULL == update_key->aaa_token)
 	{
 		update_key->aaa_token = update_token;
-		np_ref_obj(np_aaatoken_t, update_token);
+		np_ref_obj(np_aaatoken_t, update_token,ref_key_aaa_token);
 	}
 
 	if (NULL != update_key &&
@@ -1357,6 +1368,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 		log_debug_msg(LOG_DEBUG, "sending back authenticated data to %s", _np_key_as_str(reply_to_key));
 		if (NULL == reply_to_key->aaa_token)
 		{
+			np_ref_obj(np_aaatoken_t, sender_token, ref_key_aaa_token); 
 			reply_to_key->aaa_token = sender_token;
 		}
 		_np_job_submit_transform_event(0.0, prop_route, reply_to_key, msg_out);
@@ -1537,6 +1549,7 @@ void _np_in_authorize(np_jobargs_t* args)
 		log_debug_msg(LOG_DEBUG, "sending back authorized data to %s", _np_key_as_str(reply_to_key));
 		if (NULL == reply_to_key->aaa_token)
 		{
+			np_ref_obj(np_aaatoken_t, sender_token, ref_key_aaa_token);
 			reply_to_key->aaa_token = sender_token;
 		}
 		_np_job_submit_transform_event(0.0, prop_route, reply_to_key, msg_out);
