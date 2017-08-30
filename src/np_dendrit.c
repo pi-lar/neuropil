@@ -10,6 +10,9 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "sodium.h"
 #include "event/ev.h"
@@ -36,6 +39,7 @@
 #include "np_list.h"
 #include "np_route.h"
 #include "np_util.h"
+#include "np_types.h"
 #include "np_threads.h"
 #include "np_tree.h"
 #include "np_treeval.h"
@@ -115,20 +119,28 @@ void _np_in_received(np_jobargs_t* args)
 					memcpy(raw_msg, dec_msg, 1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
 				}
 			}
-
+			
 			np_new_obj(np_message_t, msg_in);
 
 			ret = _np_message_deserialize(msg_in, raw_msg);
+			
+
 			if (FALSE == ret) {
 				if(is_decryption_successful == TRUE){
-					log_msg(LOG_ERROR,	"error deserializing message %s after   successful decryption (source: %s)", msg_in->uuid, &alias_key->network->ip);
+					log_msg(LOG_ERROR,
+						"error deserializing message %s after   successful decryption (source: \"%s:%s\")",
+						msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
 				}
 				else {
-					log_msg(LOG_WARN,	"error deserializing message %s after unsuccessful decryption (source: %s)", msg_in->uuid, &alias_key->network->ip);
+					log_msg(LOG_WARN,	
+						"error deserializing message %s after unsuccessful decryption (source: \"%s:%s\")",
+						msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
 				}
 				goto __np_cleanup__;
 			} else {
-				log_debug_msg(LOG_DEBUG, "deserialized message %s", msg_in->uuid);
+				log_debug_msg(LOG_DEBUG, 
+					"deserialized message %s (source: \"%s:%s\")",
+					msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
 			}
 
 			// now read decrypted (or handshake plain text) message
@@ -165,7 +177,9 @@ void _np_in_received(np_jobargs_t* args)
 			else {
 				if(is_decryption_successful == FALSE){
 					log_msg(LOG_WARN,
-						"incorrect decryption of message (send from %s / %s)", _np_key_as_str(alias_key), &alias_key->network->ip);
+						"incorrect decryption of message (send from %s / %s:%s)",
+						_np_key_as_str(alias_key), np_network_get_ip(alias_key), 
+						np_network_get_port(alias_key));
 				}
 
 			}
@@ -1802,9 +1816,14 @@ void _np_in_handshake(np_jobargs_t* args)
 					hs_key->node->handshake_status =
 						hs_wildcard_key->node->handshake_status;
 
+					if(hs_key->parent == NULL) {
+						hs_key->parent = hs_wildcard_key->parent;
+						hs_wildcard_key->parent = NULL;
+					}
+
 					// clean up, wildcard key not needed anymore
 					hs_wildcard_key->network = NULL;
-					//_np_key_destroy(hs_wildcard_key);
+					//TODO: _np_key_destroy(hs_wildcard_key);
 				}
 				np_unref_obj(np_network_t, old_network, "usage_of_old_network");
 				_np_send_simple_invoke_request(hs_key, _NP_MSG_JOIN_REQUEST);

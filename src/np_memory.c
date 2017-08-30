@@ -214,9 +214,9 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 		for (np_obj_t* iter = __np_obj_pool_ptr->first; iter != NULL; iter = iter->next)
 		{
 			summary[iter->type]++;
+#ifdef MEMORY_CHECK
 			summary[iter->type*100] = summary[iter->type * 100] > sll_size(iter->reasons) ? summary[iter->type * 100]: sll_size(iter->reasons);
 
-#ifdef MEMORY_CHECK		
 			if (iter->type == np_key_t_e && TRUE == extended) {
 				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, iter->type, sll_size(iter->reasons), new_line);
 				sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
@@ -226,9 +226,12 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 					sll_next(iter_reasons);
 				}
 				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (%d) end  ---%s", iter->id, iter->type, new_line);
-			}
+			}		
+#else 
+			ret = _np_concatAndFree(ret, "NO DATA %s",new_line);
 #endif
-		}		
+		}
+
 		if (TRUE == extended) {
 			ret = _np_concatAndFree(ret, "--- extended reasons end  ---%s", new_line);
 		}

@@ -156,6 +156,11 @@ void _np_key_destroy(np_key_t* to_destroy) {
 		}
 		sll_free(np_key_ptr, aliasse);
 
+		if(to_destroy->parent != NULL){
+			np_unref_obj(np_key_t, to_destroy->parent, ref_key_parent);
+			to_destroy->parent = NULL;
+		}
+
 		np_unref_obj(np_key_t, to_destroy,"np_tryref_key");
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
 	} else {

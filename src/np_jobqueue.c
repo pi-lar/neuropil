@@ -137,17 +137,17 @@ void _np_job_free_args(np_jobargs_t* args)
 void _np_job_queue_insert(double delay, np_job_t* new_job)
 {
 	log_msg(LOG_TRACE, "start: void _np_job_queue_insert(double delay, np_job_t* new_job){");
-	_LOCK_MODULE(np_jobqueue_t){
+	_LOCK_MODULE(np_jobqueue_t) {
 
 		pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_scheduling);
-		// if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
-		if (0.0 == delay)
-		{
-			// restart all waiting jobs & yields
-			_np_threads_module_condition_broadcast(&__cond_empty);
-			// restart single job or yield
-			// pthread_cond_signal(&__cond_empty);
-		}
+	}
+	// if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
+	if (0.0 == delay)
+	{
+		// restart all waiting jobs & yields
+		_np_threads_module_condition_broadcast(&__cond_empty);
+		// restart single job or yield
+		// pthread_cond_signal(&__cond_empty);
 	}
 }
 
@@ -282,20 +282,18 @@ void _np_job_yield(const double delay)
 		_LOCK_MODULE(np_jobqueue_t){
 			_np_threads_condition_signal(&__cond_empty);
 		}
-
-		if (0.0 != delay)
-		{
-			struct timeval tv_sleep = dtotv(ev_time() + delay);
-			struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec=tv_sleep.tv_usec*1000 };
-			// wait for time x to be unlocked again
-			_LOCK_MODULE(np_jobqueue_t){
+		_LOCK_MODULE(np_jobqueue_t) {
+			if (0.0 != delay)
+			{
+				struct timeval tv_sleep = dtotv(ev_time() + delay);
+				struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
+				// wait for time x to be unlocked again			
 				_np_threads_module_condition_timedwait(&__cond_empty, np_jobqueue_t_lock, &waittime);
+
 			}
-		}
-		else
-		{
-			// wait for next wakeup signal
-			_LOCK_MODULE(np_jobqueue_t){
+			else
+			{
+				// wait for next wakeup signal			
 				_np_threads_module_condition_wait(&__cond_empty, np_jobqueue_t_lock);
 			}
 		}
@@ -318,36 +316,40 @@ void* _job_exec ()
 
 	while (1)
 	{
-		_np_threads_lock_module(np_jobqueue_t_lock, __func__);
-
+		//_np_threads_lock_module(np_jobqueue_t_lock, __func__);
 		now = ev_time();
-		while (0 == pll_size(__np_job_queue->job_list))
-		{
-			// log_debug_msg(LOG_DEBUG, "now %f: list empty, start sleeping", now);
-			_np_threads_module_condition_wait(&__cond_empty, np_jobqueue_t_lock);
-			// wake up, check first job in the queue to be executed by now
-		}
 
-		np_job_ptr next_job = pll_first(__np_job_queue->job_list)->val;
-		if (now <= next_job->exec_not_before_tstamp)
-		{
-			double sleep_time = next_job->exec_not_before_tstamp - now;
-			if (sleep_time > __jobqueue_sleep_time) sleep_time = __jobqueue_sleep_time;
-			// log_debug_msg(LOG_DEBUG, "now %f: next execution %f", now, next_job->tstamp);
-			// log_debug_msg(LOG_DEBUG, "currently %d jobs, now sleeping for %f seconds", pll_size(Q->job_list), sleep_time);
-			struct timeval tv_sleep = dtotv(now + sleep_time);
-			struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec=tv_sleep.tv_usec*1000 };
-			_np_threads_module_condition_timedwait(&__cond_empty, np_jobqueue_t_lock, &waittime);
-			// now = dtime();
-			// log_debug_msg(LOG_DEBUG, "now %f: woke up or interupted", now);
-			_np_threads_unlock_module(np_jobqueue_t_lock);
-			continue;
-		}
-		else
-		{
-			// log_debug_msg(LOG_DEBUG, "now %f --> executing %f", now, next_job->tstamp);
-			tmp = pll_head(np_job_ptr, __np_job_queue->job_list);
-			_np_threads_unlock_module(np_jobqueue_t_lock);
+		_LOCK_MODULE(np_jobqueue_t)
+		{	
+			while (0 == pll_size(__np_job_queue->job_list))
+			{
+				// log_debug_msg(LOG_DEBUG, "now %f: list empty, start sleeping", now);				
+				_np_threads_module_condition_wait(&__cond_empty, np_jobqueue_t_lock);			
+				// wake up, check first job in the queue to be executed by now
+			}
+
+			np_job_ptr next_job = pll_first(__np_job_queue->job_list)->val;
+			if (now <= next_job->exec_not_before_tstamp)
+			{
+				double sleep_time = next_job->exec_not_before_tstamp - now;
+				if (sleep_time > __jobqueue_sleep_time) sleep_time = __jobqueue_sleep_time;
+				// log_debug_msg(LOG_DEBUG, "now %f: next execution %f", now, next_job->tstamp);
+				// log_debug_msg(LOG_DEBUG, "currently %d jobs, now sleeping for %f seconds", pll_size(Q->job_list), sleep_time);
+				struct timeval tv_sleep = dtotv(now + sleep_time);
+				struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec=tv_sleep.tv_usec*1000 };
+				
+				_np_threads_module_condition_timedwait(&__cond_empty, np_jobqueue_t_lock, &waittime);				
+				// now = dtime();
+				// log_debug_msg(LOG_DEBUG, "now %f: woke up or interupted", now);
+			
+				continue;
+			}
+			else
+			{
+				// log_debug_msg(LOG_DEBUG, "now %f --> executing %f", now, next_job->tstamp);
+				tmp = pll_head(np_job_ptr, __np_job_queue->job_list);
+				//_np_threads_unlock_module(np_jobqueue_t_lock);
+			}
 		}
 
 		// sanity checks if the job list really returned an element

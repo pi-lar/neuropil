@@ -55,9 +55,8 @@ struct np_state_s
 
 	pthread_attr_t attr;
 	pthread_t* thread_ids;
-#ifdef DEBUG 
+
 	np_sll_t(np_thread_ptr, threads);
-#endif
 
 	int thread_count;
 

@@ -186,7 +186,7 @@ int main(int argc, char **argv)
 		// get public / local network interface id		
 		char * http_domain= calloc(1, sizeof(char) * 255);
 		CHECK_MALLOC(http_domain);
-		if (_np_get_local_ip(http_domain) == FALSE) {
+		if (_np_get_local_ip(http_domain, 255) == FALSE) {
 			free(http_domain);
 			http_domain = NULL;
 		}

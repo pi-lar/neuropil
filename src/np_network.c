@@ -25,7 +25,7 @@
 #include <pthread.h>
 #include <assert.h>
 #include <event/ev.h>
-
+ 
 #include "np_network.h"
 
 #include "dtime.h"
@@ -498,6 +498,9 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 		log_debug_msg(LOG_DEBUG,"got invalid tcp accept event");
 	  return;
 	}
+	// calling address and port
+	char ipstr[255] = { 0 };
+	char port[7] = { 0 };
 
 	struct sockaddr_storage from;
 	socklen_t fromlen = sizeof(from);
@@ -524,35 +527,43 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "accept socket from client fd: %d",
 						client_fd);
 
-				int err = -1;
-				do{
-					err =  getpeername(client_fd, (struct sockaddr*) &from, &fromlen);
-				}while(0 != err && errno != ENOTCONN );
+				//if (ng->ip == NULL || ng->port == NULL)
+				{
+					int err = -1;
+					do{
+						err =  getpeername(client_fd, (struct sockaddr*) &from, &fromlen);
+					}while(0 != err && errno != ENOTCONN );
 
-				// get calling address and port
-				char ipstr[255];
-				char port [7];
-				// int16_t port;
+				
+					if (from.ss_family == AF_INET)
+					{
+						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
+						// AF_INET
+						struct sockaddr_in *s = (struct sockaddr_in *) &from;
+						snprintf(port, 6, "%d", ntohs(s->sin_port));
+						inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
+					}
+					else
+					{
+						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
+						// AF_INET6
+						struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+						snprintf(port, 6, "%d", ntohs(s->sin6_port));
+						inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
+					}
 
-				// deal with both IPv4 and IPv6:
-				if (from.ss_family == AF_INET)
-				{   // AF_INET
-					struct sockaddr_in *s = (struct sockaddr_in *) &from;
-					snprintf(port, 6, "%d", ntohs(s->sin_port));
-					inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
-				}
-				else
-				{   // AF_INET6
-					struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-					snprintf(port, 6, "%d", ntohs(s->sin6_port));
-					inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
+					free(ng->ip);
+					ng->ip = strndup(ipstr, 255);
+
+					free(ng->port);
+					ng->port = strndup(port, 7);
 				}
 
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 						"received connection request from %s:%s (client fd: %d)",
-						ipstr, port, client_fd);
+						ng->ip, ng->port, client_fd);
 			
-				np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
+				np_dhkey_t search_key = np_dhkey_create_from_hostport(ng->ip, ng->port);
 				np_key_t* alias_key = _np_keycache_find(search_key);
 				char* alias_key_reason = "_np_keycache_find";
 				np_network_t* old_network = NULL;
@@ -565,6 +576,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						alias_key = _np_keycache_create(search_key);
 						alias_key_reason = "_np_keycache_create";
 						alias_key->parent = key;
+						np_ref_obj(np_key_t, key, ref_key_parent);
 					}
 					np_new_obj(np_network_t, alias_key->network);
 
@@ -628,12 +640,12 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	struct sockaddr_storage from;
 	socklen_t fromlen = sizeof(from);
 	// calling address and port
-	char ipstr[255];
-	char port [7];
+	char ipstr[255] = { 0 };
+	char port [7] = { 0 };
 
-	np_key_t* key = (np_key_t*) event->data; // state->my_node_key->network;
+	np_key_t* key = (np_key_t*) event->data;
 	np_network_t* ng = key->network;
-	np_network_t* ng_tcp = NULL;
+	np_network_t* ng_tcp_host = NULL;
 
 	/* receive the new data */
 	int16_t in_msg_len = -1;
@@ -649,7 +661,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			return;
 		}
 		key = key->parent;
-		ng_tcp = ng;
+		ng_tcp_host = ng;
 		ng = key->network;
 	} else {
 		in_msg_len = recvfrom(ng->socket, data,
@@ -659,36 +671,40 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 
 	if ( in_msg_len >=0) {
 		// deal with both IPv4 and IPv6:
-		if (from.ss_family == AF_INET )
+	//	if (ng->ip == NULL || ng->port == NULL )
 		{
-			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
-			// AF_INET
-			struct sockaddr_in *s = (struct sockaddr_in *) &from;
-			snprintf(port, 6, "%d", ntohs(s->sin_port));
-			inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
-		}
-		else
-		{
-			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
-			// AF_INET6
-			struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-			snprintf(port, 6, "%d", ntohs(s->sin6_port));
-			inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
-		}
+			if (from.ss_family == AF_INET )
+			{
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
+				// AF_INET
+				struct sockaddr_in *s = (struct sockaddr_in *) &from;
+				snprintf(port, 6, "%d", ntohs(s->sin_port));
+				inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
+			}
+			else
+			{
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
+				// AF_INET6
+				struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+				snprintf(port, 6, "%d", ntohs(s->sin6_port));
+				inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
+			}
 
-		if(ng->ip[0] == 0)
-		{
-			memcpy(ng->ip, ipstr, 255);
+			free(ng->ip);
+			ng->ip = strndup(ipstr, 255);
+
+			free(ng->port);
+			ng->port= strndup(port, 7);
 		}
 			
-
-		if (0 == in_msg_len && ng_tcp != NULL)
+		if (0 == in_msg_len && ng_tcp_host != NULL)
 		{
 			// tcp disconnect
-			log_msg(LOG_ERROR, "received disconnect from: %s:%s", ipstr, port);
+			log_msg(LOG_ERROR, "received disconnect from: %s:%s", ng->ip, ng->port);
 			// TODO handle cleanup of node structures ?
 			// maybe / probably the node received already a disjoin message before
-			_np_network_stop(ng_tcp);
+			//TODO: prüfen ob hier wirklich der host geschlossen werden muss
+			_np_network_stop(ng_tcp_host);			
 			//_np_node_update_stat(key->node, 0);
 
 			log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
@@ -713,11 +729,18 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		}
 
 		log_debug_msg(LOG_DEBUG, "received message from %s:%s (size: %hd)",
-				ipstr, port, in_msg_len);
+				ng->ip, ng->port, in_msg_len);
 
 		// we registered this token info before in the first handshake message
-		np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
-		np_key_t* alias_key = _np_keycache_find_or_create(search_key);
+		np_dhkey_t search_key = np_dhkey_create_from_hostport(ng->ip, ng->port);
+		np_key_t* alias_key = _np_keycache_find(search_key);
+		char* alias_key_ref_reason = "_np_keycache_find";
+		if (NULL == alias_key) {
+			alias_key = _np_keycache_create(search_key);
+			alias_key_ref_reason = "_np_keycache_create";
+			alias_key->parent = key;
+			np_ref_obj(np_key_t, key, ref_key_parent);
+		}
 
 		if (NULL == alias_key){
 			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "could not find alias_key for msg");
@@ -747,10 +770,10 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
 				_np_key_as_str(key) );
 
-		np_unref_obj(np_key_t, alias_key,"_np_keycache_find_or_create");
+		np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
 
 	} else {
-		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "message package error: %s (%d)",
+		log_debug_msg(LOG_ERROR, "message package error: %s (%d)",
 				strerror(errno), errno);
 	}
 	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
@@ -892,10 +915,14 @@ void _np_network_t_del(void* nw)
 
 			if (0 < network->socket) close (network->socket);
 
+			free(network->ip);
+			network->ip = NULL;
+
 			network->initialized = FALSE;
 		}
 		// finally destroy the mutex again
 		_np_threads_mutex_destroy (&network->lock);
+		
 	}
 }
 
@@ -909,7 +936,8 @@ void _np_network_t_new(void* nw)
 	ng->in_events 	= NULL;
 	ng->out_events 	= NULL;
 	ng->isWatching 	= 0;
-	ng->initialized = FALSE;
+	ng->initialized = FALSE;	
+	ng->ip = NULL;
 
 	log_debug_msg(LOG_DEBUG, "try to pthread_mutex_init");
 	int network_mutex_init = _np_threads_mutex_init (&ng->lock);
@@ -1101,4 +1129,42 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 
 	freeaddrinfo( ng->addr_in );
 	return TRUE;
+}
+
+char* np_network_get_ip(np_key_t * container) {
+	char * ret = NULL;
+
+	if (container->network != NULL) {
+		ret = container->network->ip;
+	}
+
+	if (ret == NULL && container->parent != NULL && container->parent->network != NULL) {
+		ret = container->parent->network->ip;
+	}
+
+	if (ret == NULL)
+	{
+		ret = "127.0.0.1";
+	}
+
+	return ret;
+}
+
+char* np_network_get_port(np_key_t * container) {
+	char * ret = NULL;
+
+	if (container->network != NULL) {
+		ret = container->network->port;
+	}
+
+	if (ret == NULL && container->parent != NULL && container->parent->network != NULL) {
+		ret = container->parent->network->port;
+	}
+
+	if (ret == NULL)
+	{
+		ret = "3141";
+	}
+
+	return ret;
 }

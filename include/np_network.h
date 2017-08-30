@@ -66,7 +66,8 @@ struct np_network_s
 
 	uint32_t seqend;
 
-	char ip[255];
+	char * ip;
+	char * port;
 	np_mutex_t lock;
 } NP_API_INTERN;
 
@@ -154,7 +155,10 @@ NP_API_INTERN
 void _np_network_read(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
 void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents);
-
+NP_API_INTERN
+char* np_network_get_ip(np_key_t * container);
+NP_API_INTERN
+char* np_network_get_port(np_key_t * container);
 
 #ifdef __cplusplus
 }

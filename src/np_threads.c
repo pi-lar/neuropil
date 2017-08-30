@@ -418,11 +418,12 @@ char* np_threads_printpool(np_bool asOneLine) {
 	char* new_line = "\n";
 	if (asOneLine == TRUE) {
 		new_line = "    ";
-	}	
+	}
 
 	sll_iterator(np_thread_ptr) iter_threads = sll_first(_np_state()->threads);
 	ret = _np_concatAndFree(ret, "--- Threadpool START ---%s", new_line);
-	
+
+#ifdef CHECK_THREADING
 	np_sll_t(char_ptr, tmp);
 	char * tmp2;
 	while (iter_threads != NULL)
@@ -430,19 +431,25 @@ char* np_threads_printpool(np_bool asOneLine) {
 		_LOCK_ACCESS(&(iter_threads->val->locklists_lock)) {
 			tmp = _sll_char_part(iter_threads->val->has_lock, -5);
 			tmp2 = _sll_char_make_flat(tmp);
-			sll_free(char_ptr,tmp);
+			sll_free(char_ptr, tmp);
 			ret = _np_concatAndFree(ret, "Thread %"PRIu32" LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
 			free(tmp2);
-			
+
 			tmp = _sll_char_part(iter_threads->val->want_lock, -5);
 			tmp2 = _sll_char_make_flat(tmp);
-			sll_free(char_ptr,tmp);
+			sll_free(char_ptr, tmp);
 			ret = _np_concatAndFree(ret, "Thread %"PRIu32" WANTS LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
 			free(tmp2);
-			
+
 		}
 		sll_next(iter_threads);
 	}
+#else
+	while (iter_threads != NULL)
+	{
+		ret = _np_concatAndFree(ret, "Thread %"PRIu32" %s", iter_threads->val->id, new_line);
+	}
+#endif
 	ret = _np_concatAndFree(ret, "--- Threadpool END   ---%s", new_line);
 
 	return ret;

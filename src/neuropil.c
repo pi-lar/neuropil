@@ -998,7 +998,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 		CHECK_MALLOC(hostname);
 		log_msg(LOG_INFO, "neuropil_init: resolve hostname");
 
-		if(_np_get_local_ip(hostname) == FALSE) {
+		if(_np_get_local_ip(hostname, 255) == FALSE) {
 			if( 0 != gethostname(hostname, 255)){
 				free(hostname);
 				hostname = strdup("localhost");

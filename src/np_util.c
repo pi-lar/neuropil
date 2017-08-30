@@ -411,7 +411,7 @@ char* _np_concatAndFree(char* target, char* source, ... ) {
 }
 
 
-np_bool _np_get_local_ip(char* buffer){
+np_bool _np_get_local_ip(char* buffer,int buffer_size){
 
 	np_bool ret = FALSE;
 	
@@ -449,7 +449,7 @@ np_bool _np_get_local_ip(char* buffer){
 				log_msg(LOG_ERROR,"Could not detect local ip. (3) Error: %s (%d)", strerror(errno), errno);
 			} else
 			{
-				const char* p = inet_ntop(AF_INET, &name.sin_addr, buffer, 100);
+				const char* p = inet_ntop(AF_INET, &name.sin_addr, buffer, buffer_size);
 
 				if(p == NULL) {
 					ret = FALSE;
