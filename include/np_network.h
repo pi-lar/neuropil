@@ -54,20 +54,20 @@ struct np_network_s
 	np_bool initialized;
 	int isWatching;
 	int socket;
-    ev_io watcher;
+	ev_io watcher;
 
 	uint8_t socket_type;
 	struct addrinfo* addr_in; // where a node receives messages
 
-    np_tree_t* waiting;
+	np_tree_t* waiting;
 
-    np_sll_t(void_ptr, in_events);
-    np_sll_t(void_ptr, out_events);
+	np_sll_t(void_ptr, in_events);
+	np_sll_t(void_ptr, out_events);
 
-    uint32_t seqend;
+	uint32_t seqend;
 
-    char ip[255];
-    np_mutex_t lock;
+	char ip[255];
+	np_mutex_t lock;
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);

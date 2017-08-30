@@ -308,16 +308,16 @@ int main(int argc, char **argv)
 
 			statistics = _np_concatAndFree(statistics,
 				"received %5d (%5.1f per min [%+5.1f]) pings\n",
-				_ping_received_count,	current_ping_received_count_per_min		,	last_ping_received_count_per_min	- current_ping_received_count_per_min	);
+				_ping_received_count,	current_ping_received_count_per_min		, current_ping_received_count_per_min	- last_ping_received_count_per_min			);
 			statistics = _np_concatAndFree(statistics,
 				"send     %5d (%5.1f per min [%+5.1f]) pings\n",
-				_ping_send_count,		current_ping_send_count_per_min			,	last_ping_send_count_per_min		- current_ping_send_count_per_min		);
+				_ping_send_count,		current_ping_send_count_per_min			, current_ping_send_count_per_min		- last_ping_send_count_per_min			);
 			statistics = _np_concatAndFree(statistics,
 				"received %5d (%5.1f per min [%+5.1f]) pongs\n",
-				_pong_received_count, current_pong_received_count_per_min		, last_pong_received_count_per_min - current_pong_received_count_per_min		);
+				_pong_received_count, current_pong_received_count_per_min		, current_pong_received_count_per_min	- last_pong_received_count_per_min		);
 			statistics = _np_concatAndFree(statistics, 
 				"send     %5d (%5.1f per min [%+5.1f]) pongs\n",
-				_pong_send_count,		current_pong_send_count_per_min			, last_pong_send_count_per_min - current_pong_send_count_per_min				);
+				_pong_send_count,		current_pong_send_count_per_min			, current_pong_send_count_per_min		- last_pong_send_count_per_min			);
 			statistics = _np_concatAndFree(statistics, "--- Statistics PingPong END   ---\n");
 			
 			last_ping_received_count_per_min = current_ping_received_count_per_min;

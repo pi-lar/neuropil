@@ -131,7 +131,7 @@ np_bool parse_program_args(
 				//| LOG_HTTP
 				//| LOG_KEY
 				//| LOG_NETWORK
-				//| LOG_AAATOKEN
+				| LOG_AAATOKEN
 				//| LOG_MESSAGE
 				//| LOG_MEMORY
 				;

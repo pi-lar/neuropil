@@ -170,17 +170,17 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		char* new_log_entry = malloc(sizeof(char)*LOG_ROW_SIZE);
 		CHECK_MALLOC(new_log_entry);
 		
-		int wb = 0;
-		wb  = strftime(new_log_entry, 80, "%Y-%m-%d %H:%M:%S", &local_time);
-		wb += snprintf(new_log_entry+wb, LOG_ROW_SIZE -wb,
+		strftime(new_log_entry, 80, "%Y-%m-%d %H:%M:%S", &local_time);
+		int new_log_entry_length = strlen(new_log_entry);
+		snprintf(new_log_entry+ new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length,
 							".%06d %-15lu %15.15s:%-5hd %-25.25s _%5s_ ",
 							millis, (unsigned long) pthread_self(),
 							srcFile, lineno, funcName,
-							__level_str[level & LOG_LEVEL_MASK].text);
-			
+							__level_str[level & LOG_LEVEL_MASK].text);			
 		va_list ap;
 		va_start(ap, msg);
-		wb += vsnprintf (new_log_entry+wb, LOG_ROW_SIZE - wb - 1/*space for line ending*/-1 /*space for NULL terminator*/, msg, ap);
+		new_log_entry_length = strlen(new_log_entry);
+		vsnprintf (new_log_entry + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length - 1/*space for line ending*/-1 /*space for NULL terminator*/, msg, ap);
 		va_end(ap);
 		snprintf(new_log_entry+strlen(new_log_entry), 2, "\n\0");
 

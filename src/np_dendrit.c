@@ -121,10 +121,10 @@ void _np_in_received(np_jobargs_t* args)
 			ret = _np_message_deserialize(msg_in, raw_msg);
 			if (FALSE == ret) {
 				if(is_decryption_successful == TRUE){
-					log_msg(LOG_ERROR,	"error deserializing message %s after   successful decryption (source: %s)", msg_in->uuid, alias_key->network->ip);
+					log_msg(LOG_ERROR,	"error deserializing message %s after   successful decryption (source: %s)", msg_in->uuid, &alias_key->network->ip);
 				}
 				else {
-					log_msg(LOG_WARN,	"error deserializing message %s after unsuccessful decryption (source: %s)", msg_in->uuid, alias_key->network->ip);
+					log_msg(LOG_WARN,	"error deserializing message %s after unsuccessful decryption (source: %s)", msg_in->uuid, &alias_key->network->ip);
 				}
 				goto __np_cleanup__;
 			} else {
@@ -165,7 +165,7 @@ void _np_in_received(np_jobargs_t* args)
 			else {
 				if(is_decryption_successful == FALSE){
 					log_msg(LOG_WARN,
-						"incorrect decryption of message (send from %s / %s)", _np_key_as_str(alias_key), alias_key->network->ip);
+						"incorrect decryption of message (send from %s / %s)", _np_key_as_str(alias_key), &alias_key->network->ip);
 				}
 
 			}
@@ -1039,8 +1039,7 @@ void _np_in_update(np_jobargs_t* args)
 
 				if(old_key->network != NULL)
 				{
-					_np_network_remap_network(update_key,old_key);
-					//_np_key_destroy(old_key);
+					_np_network_remap_network(update_key, old_key);					
 				}
 				np_unref_obj(np_key_t, old_key,"_np_keycache_find_by_details");
 			}
@@ -1798,10 +1797,6 @@ void _np_in_handshake(np_jobargs_t* args)
 							_np_key_as_str(hs_wildcard_key),
 							_np_key_as_str(hs_key));
 
-					if(hs_key->network != NULL) {
-						np_unref_obj(np_network_t,hs_key->network,ref_key_network);
-						hs_key->network = NULL;
-					}
 					_np_network_remap_network(hs_key, hs_wildcard_key);
 
 					hs_key->node->handshake_status =
@@ -1904,9 +1899,10 @@ void _np_in_handshake(np_jobargs_t* args)
 
 		if ((alias_key->node->protocol & PASSIVE ) == PASSIVE)
 		{
+			np_ref_obj(np_network_t, alias_key->network, ref_key_network); 
 			np_unref_obj(np_network_t, hs_key->network, ref_key_network);
 			hs_key->network = alias_key->network;
-			np_ref_obj(np_network_t, hs_key->network, ref_key_network);
+			
 
 			_np_network_stop(hs_key->network);
 			ev_io_init(
@@ -1926,7 +1922,7 @@ void _np_in_handshake(np_jobargs_t* args)
 			if (IS_INVALID(hs_key->aaa_token->state)) {
 				// new connection, setup alias key
 				alias_key->network = hs_key->network;
-				np_ref_obj(np_network_t, alias_key->network);
+				np_ref_obj(np_network_t, alias_key->network, ref_key_network);
 			}
 		}
 	}

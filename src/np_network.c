@@ -589,6 +589,8 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 				log_debug_msg(LOG_DEBUG,"suspend ev loop for tcp new socket network start");
 
 				alias_key->network->watcher.data = alias_key;
+				np_ref_obj(np_network_t, alias_key, ref_network_watcher);
+
 				ev_io_init(
 						&alias_key->network->watcher,
 						_np_network_read,
@@ -597,11 +599,8 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						);
 				_np_network_start(alias_key->network);
 
-				if(old_network != NULL) {
-					_LOCK_MODULE(np_network_t)
-					{
-						np_unref_obj(np_network_t, old_network, ref_key_network);
-					}
+				if(old_network != NULL) {					
+					np_unref_obj(np_network_t, old_network, ref_key_network);					
 				}
 
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG,
@@ -677,7 +676,11 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 		}
 
-		memcpy(ng->ip, ipstr, 255);
+		if(ng->ip[0] == 0)
+		{
+			memcpy(ng->ip, ipstr, 255);
+		}
+			
 
 		if (0 == in_msg_len && ng_tcp != NULL)
 		{
@@ -793,16 +796,18 @@ void _np_network_stop(np_network_t* network) {
 
 void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 {
-
 	log_debug_msg(LOG_DEBUG,
 			"try to remap network of %s to network of %s",
 			_np_key_as_str(old_target),
 			_np_key_as_str(new_target)
 			);
-	assert(new_target->network == NULL);
+
 	assert(old_target->network != NULL);
 
-
+	np_network_t * old_network = NULL;
+	if (new_target->network != NULL) {
+		old_network = new_target->network;		
+	}	
 	_LOCK_ACCESS(&old_target->network->lock){
 		_np_network_stop(old_target->network); 			// stop network
 
@@ -811,6 +816,10 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 		old_target->network = NULL;						// remove from old structure
 
 		_np_network_start(new_target->network); 		// restart network
+	}
+	// remove old network referrence (if any)
+	if (old_network != NULL) {
+		np_unref_obj(np_network_t, old_network, ref_key_network);
 	}
 
 	log_debug_msg(LOG_DEBUG,

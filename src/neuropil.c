@@ -291,12 +291,16 @@ void np_set_realm_name(const char* realm_name)
 	np_key_t* new_node_key = _np_keycache_find_or_create(my_dhkey);
 
 	new_node_key->network = _np_state()->my_node_key->network;
+	np_ref_obj(np_network_t, new_node_key->network, ref_key_network);
+
 	_np_state()->my_node_key->network = NULL;
 
-	np_ref_obj(np_key_t, new_node_key);
+	np_ref_obj(np_key_t, new_node_key,ref_network_watcher);
 	new_node_key->network->watcher.data = new_node_key;
 
 	new_node_key->node = _np_state()->my_node_key->node;
+	np_ref_obj(np_node_t, new_node_key->node, ref_key_node);
+
 	_np_state()->my_node_key->node = NULL;
 
 	np_ref_obj(np_aaatoken_t, auth_token, ref_key_aaa_token);

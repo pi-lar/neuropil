@@ -284,7 +284,7 @@ np_key_t* _np_node_create_from_token(np_aaatoken_t* token)
 	ref_replace_reason(
 			np_key_t, node_key,
 			"_np_keycache_find_or_create",
-			"_np_node_create_from_token"
+			__func__
 	);
 
 	return (node_key);
