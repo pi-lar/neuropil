@@ -142,9 +142,20 @@ int main(int argc, char **argv)
 
 			// start http endpoint
 
-			if(FALSE == _np_http_init(NULL, NULL)){
-				fprintf(stdout, "Node could not start HTTP interface");
+
+			// get public / local network interface id		
+			char * http_domain = calloc(1, sizeof(char) * 255);
+			CHECK_MALLOC(http_domain);
+			if (_np_get_local_ip(http_domain, 255) == FALSE) {
+				free(http_domain);
+				http_domain = NULL;
+			}
+
+			if (FALSE == _np_http_init(http_domain, NULL))
+			{
+				fprintf(stderr, "Node could not start HTTP interface\n");
 				log_msg(LOG_WARN, "Node could not start HTTP interface");
+				np_sysinfo_enable_slave();
 			}
 
 			/**
