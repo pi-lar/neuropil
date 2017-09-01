@@ -123,8 +123,8 @@ int main(int argc, char **argv) {
 	
 	double lastping = ev_time();
 	np_send_text("ping", "ping", _ping_count++, NULL);
-	uint16_t last_count_of_routes = 0;
-	uint16_t count_of_routes = 0;
+	uint32_t last_count_of_routes = 0;
+	uint32_t count_of_routes = 0;
 
 	while (TRUE) {
 		ev_sleep(0.1);
