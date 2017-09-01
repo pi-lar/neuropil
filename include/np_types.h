@@ -104,18 +104,6 @@ typedef char* char_ptr;
 typedef struct np_thread_s np_thread_t;
 typedef np_thread_t* np_thread_ptr;
 
-/*
-  * list types and typedefs
-  */
-NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
-
-NP_SLL_GENERATE_PROTOTYPES(char_ptr);
-NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
-NP_SLL_GENERATE_PROTOTYPES(np_key_ptr);
-NP_SLL_GENERATE_PROTOTYPES(np_message_ptr);
-NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_ptr);
-NP_SLL_GENERATE_PROTOTYPES(np_node_ptr);
-NP_SLL_GENERATE_PROTOTYPES(np_thread_ptr);
 
 /*
  *  user callback functions
@@ -127,6 +115,20 @@ typedef np_bool (*np_usercallback_t) (const np_message_t* const msg, np_tree_t* 
 typedef void (*np_callback_t) (np_jobargs_t*);
 
 // void f() __attribute__ ((weak, alias ("__f")));
+
+/*
+* list types and typedefs
+*/
+NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
+
+NP_SLL_GENERATE_PROTOTYPES(char_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_key_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_message_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_node_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_thread_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_usercallback_t);
 
 
 #endif /* _INCLUDE_H_ */

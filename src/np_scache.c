@@ -24,6 +24,21 @@
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_cache_item_ptr);
 
+np_simple_cache_table_t* np_cache_init(int size) {
+
+	np_simple_cache_table_t* ret = 
+		(np_simple_cache_table_t*)malloc(
+		sizeof(np_simple_cache_table_t));
+	CHECK_MALLOC(ret);
+	_np_threads_mutex_init(&ret->lock);
+
+	for (uint32_t i = 0; i < size; i++) {
+		sll_init(np_cache_item_ptr, ret->buckets[i]);
+	}
+
+	return ret; 
+}
+
 np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char* const key)
 {
 	log_msg(LOG_TRACE, "start: np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key){");
@@ -37,7 +52,7 @@ np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char*
 	np_cache_item_t* ret = NULL;
 	_LOCK_ACCESS(&table->lock) {
 
-		unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
+		uint32_t bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
 		np_sll_t(np_cache_item_ptr, bucket_list) = table->buckets[bucket];
 		sll_iterator(np_cache_item_ptr) iter = sll_first(bucket_list);
@@ -62,7 +77,7 @@ int np_simple_cache_insert(np_simple_cache_table_t *table, const char* const key
 	// Contract end
 
 	_LOCK_ACCESS(&table->lock){
-		unsigned int bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
+		uint32_t bucket = _np_simple_cache_strhash(key) % SIMPLE_CACHE_NR_BUCKETS;
 
 		np_sll_t(np_cache_item_ptr, bucket_list) = table->buckets[bucket];
 		sll_iterator(np_cache_item_ptr) iter = sll_first(bucket_list);
@@ -93,7 +108,7 @@ int np_simple_cache_insert(np_simple_cache_table_t *table, const char* const key
 	return 0;
 }
 
-unsigned int _np_simple_cache_strhash(const char* const str) {
+uint32_t _np_simple_cache_strhash(const char* const str) {
 	uint32_t hash = 0;
 	const char* str_ptr = str;
 	for (; *str_ptr; str_ptr++)

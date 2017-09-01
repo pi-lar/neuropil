@@ -98,6 +98,21 @@ void _np_send(np_jobargs_t* args)
 
 	np_msgproperty_t* prop = args->properties;
 
+	if (msg_out != NULL && prop != NULL) {
+		if (msg_out->msg_property != NULL) {
+			np_unref_obj(np_msgproperty_t, prop, ref_message_msg_property);
+		}
+		msg_out->msg_property = prop;
+		np_ref_obj(np_msgproperty_t, prop, ref_message_msg_property);
+	}
+
+	sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_out->msg_property->user_send_clb);
+	while (iter_usercallbacks != NULL)
+	{
+		iter_usercallbacks->val(msg_out, msg_out->properties, msg_out->body);
+		sll_next(iter_usercallbacks);
+	}
+
 	if (!_np_node_check_address_validity(args->target->node))
 	{
 		log_debug_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",

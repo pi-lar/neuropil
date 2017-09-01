@@ -510,7 +510,16 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 					_np_send_ack(args->msg);
 				}
 
-				np_bool result = msg_prop->user_clb(msg_in,msg_in->properties,msg_in->body);
+
+				np_bool result = TRUE;
+
+				sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_prop->user_receive_clb);				
+				while (result == TRUE && iter_usercallbacks != NULL)
+				{
+					result = iter_usercallbacks->val(msg_in, msg_in->properties, msg_in->body) && result;
+					sll_next(iter_usercallbacks);
+				}
+				
 				msg_prop->msg_threshold--;
 
 				// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);

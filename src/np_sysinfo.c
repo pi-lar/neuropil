@@ -1,3 +1,7 @@
+//
+// neuropil is copyright 2016 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 /*
  * np_sysinfo.c
  *
@@ -30,10 +34,6 @@
 
 #include "np_scache.h"
 
-
-static char _NP_SYSINFO_REQUEST[] = "_NP.SYSINFO.REQUEST";
-static char _NP_SYSINFO_REPLY[] = "_NP.SYSINFO.REPLY";
-
 static const char* _NP_SYSINFO_MY_NODE = "node";
 static const char* _NP_SYSINFO_MY_NODE_TIMESTAMP = "timestamp";
 static const char* _NP_SYSINFO_MY_NEIGHBOURS = "neighbour_nodes";
@@ -56,14 +56,7 @@ void _np_sysinfo_init_cache()
 	{
 		if(NULL == _cache) {
 
-			_cache = (np_simple_cache_table_t*) malloc(
-					sizeof(np_simple_cache_table_t));
-			CHECK_MALLOC(_cache);
-			_np_threads_mutex_init(&_cache->lock);
-
-			for (int i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
-				sll_init(np_cache_item_ptr, _cache->buckets[i]);
-			}
+			_cache = np_cache_init(SIMPLE_CACHE_NR_BUCKETS);
 		}
 	}
 }
@@ -94,8 +87,10 @@ void np_sysinfo_enable_slave() {
 	log_msg(LOG_TRACE, "start: void np_sysinfo_enable_slave() {");
 	// the slave does not need the cache
 	//_np_sysinfo_init_cache();
-	np_msgproperty_t* sysinfo_request_props = NULL;
-	np_new_obj(np_msgproperty_t, sysinfo_request_props);
+	np_msgproperty_t* sysinfo_request_props = np_msgproperty_get(INBOUND, _NP_SYSINFO_REQUEST);
+	if(sysinfo_request_props == NULL){
+		np_new_obj(np_msgproperty_t, sysinfo_request_props);
+	}
 	sysinfo_request_props->msg_subject = strndup(_NP_SYSINFO_REQUEST, 255);
 	sysinfo_request_props->rep_subject = strndup(_NP_SYSINFO_REPLY, 255);
 	sysinfo_request_props->mep_type =  REQ_REP;
@@ -104,10 +99,12 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->priority -= 1;
 	sysinfo_request_props->msg_ttl  = 20.0;
 
-	np_msgproperty_t* sysinfo_response_props = NULL;
-	np_new_obj(np_msgproperty_t, sysinfo_response_props);
+	np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(OUTBOUND, _NP_SYSINFO_REPLY);
+	if(sysinfo_response_props == NULL){
+		np_new_obj(np_msgproperty_t, sysinfo_response_props);
+	}
 	sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
-	sysinfo_response_props->mep_type = ONE_WAY;
+	sysinfo_response_props->mep_type = BROADCAST;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 1;
 	sysinfo_response_props->priority -= 1;
@@ -124,7 +121,7 @@ void np_sysinfo_enable_slave() {
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
 
-	np_set_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
+	np_add_receive_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
 
 	if(slave_send  == NULL) {
 		slave_send = (ev_timer*) malloc(sizeof(struct ev_timer));
@@ -135,11 +132,13 @@ void np_sysinfo_enable_slave() {
 	}
 }
 
-void np_sysinfo_enable_master(){
+void np_sysinfo_enable_master() {
 	log_msg(LOG_TRACE, "start: void np_sysinfo_enable_master(){");
 	_np_sysinfo_init_cache();
-	np_msgproperty_t* sysinfo_request_props = NULL;
-	np_new_obj(np_msgproperty_t, sysinfo_request_props);
+	np_msgproperty_t* sysinfo_request_props = np_msgproperty_get(OUTBOUND, _NP_SYSINFO_REQUEST);
+	if (sysinfo_request_props == NULL) {
+		np_new_obj(np_msgproperty_t, sysinfo_request_props);
+	}
 	sysinfo_request_props->msg_subject = strndup(_NP_SYSINFO_REQUEST, 255);
 	sysinfo_request_props->rep_subject = strndup(_NP_SYSINFO_REPLY, 255);
 	sysinfo_request_props->mep_type =  REQ_REP;
@@ -148,10 +147,12 @@ void np_sysinfo_enable_master(){
 	sysinfo_request_props->msg_ttl  = 20.0;
 	sysinfo_request_props->priority -= 1;
 
-	np_msgproperty_t* sysinfo_response_props = NULL;
-	np_new_obj(np_msgproperty_t, sysinfo_response_props);
+	np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(INBOUND, _NP_SYSINFO_REPLY);
+	if(sysinfo_response_props == NULL){
+		np_new_obj(np_msgproperty_t, sysinfo_response_props);
+	}
 	sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
-	sysinfo_response_props->mep_type = ONE_WAY;
+	sysinfo_response_props->mep_type = BROADCAST;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 1;
 	sysinfo_response_props->msg_ttl  = 20.0;
@@ -168,7 +169,7 @@ void np_sysinfo_enable_master(){
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
 
-	np_set_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
+	np_add_receive_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
 }
 
 np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {

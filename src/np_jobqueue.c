@@ -25,6 +25,7 @@
 #include "np_log.h"
 #include "np_threads.h"
 #include "np_settings.h"
+#include "np_constants.h"
 
 static double __jobqueue_sleep_time = 0.3141592;
 
@@ -204,6 +205,15 @@ void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t*
 
 void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
+	if(msg != NULL && prop != NULL){
+		if (msg->msg_property != NULL) {
+			np_unref_obj(np_msgproperty_t, prop, ref_message_msg_property);
+		}
+		msg->msg_property = prop;
+		np_ref_obj(np_msgproperty_t, prop, ref_message_msg_property);
+	}
+
+
 	// could be NULL if msg is not defined in this node
 	// assert(NULL != prop);
 
@@ -232,6 +242,9 @@ void _np_job_submit_transform_event (double delay, np_msgproperty_t* prop, np_ke
 
 void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
+	assert(NULL != prop);
+	assert(NULL != msg);
+
 	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop);
 

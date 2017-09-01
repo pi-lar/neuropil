@@ -104,7 +104,9 @@ int main(int argc, char **argv)
 	if (TRUE == create_bootstrap) {
 		// Get the current pid and shift it to be a viable port.
 		// This way the application may be used for multiple instances on one system
-		asprintf(&bootstrap_hostnode_default, "%s:%s:%s", proto, publish_domain, port);
+		free(publish_domain);
+		publish_domain = strdup("localhost");
+		bootstrap_hostnode_default = _np_build_connection_string("*", proto, publish_domain, port, TRUE);
 
 		j_key = bootstrap_hostnode_default;
 

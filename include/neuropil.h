@@ -208,7 +208,7 @@ NP_API_EXPORT
 void np_setaccounting_cb(np_aaa_func_t join_func);
 
 /**
-.. c:function:: void np_set_listener(np_usercallback_t msg_handler, char* subject)
+.. c:function:: void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
 
    register an message callback handler for a subject. The callback is called when a message arrives.
    The callback function should return TRUE if the message was processed successfully, FALSE otherwise.
@@ -219,7 +219,20 @@ void np_setaccounting_cb(np_aaa_func_t join_func);
 
 */
 NP_API_EXPORT
-void np_set_listener (np_usercallback_t msg_handler, char* subject);
+void np_add_receive_listener (np_usercallback_t msg_handler, char* subject);
+
+/**
+.. c:function:: void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
+
+register an message callback handler for a subject. The callback is called when a message will be send.
+The callback function should return TRUE if the message should be send, FALSE otherwise.
+
+:param msg_handler: a function pointer to a np_usercallback_t function
+:param subject: the message subject the handler should be called for
+
+*/
+NP_API_EXPORT
+void np_add_send_listener(np_usercallback_t msg_handler, char* subject);
 
 /**
 .. c:function:: void np_send_text(char* subject, char *data, uint32_t seqnum)
@@ -326,6 +339,9 @@ char* np_get_connection_string();
 */
 NP_API_EXPORT
 char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash);
+
+NP_API_INTERN
+char* _np_build_connection_string(char* hash, char* protocol, char*dns_name, char* port, np_bool includeHash);
 
 /**
 .. c:function:: void np_start_job_queue(np_state_t* state, uint8_t pool_size)

@@ -30,6 +30,8 @@ extern "C" {
 	#define ref_route_inleafset				"ref_route_inleafset"
 	#define ref_msgproperty_msgcache		"ref_msgproperty_msgcache"
 	#define ref_key_parent					"ref_key_parent"
+	#define ref_message_msg_property		"ref_message_msg_property"
+	
 	
 	// ref for message type ack handeling
 	#define ref_message_ack					"ref_message_ack"

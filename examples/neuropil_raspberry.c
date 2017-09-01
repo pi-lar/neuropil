@@ -28,6 +28,7 @@
 #include "np_threads.h"
 #include "np_node.h"
 #include "np_sysinfo.h"
+#include "np_statistics.h"
 #include "np_http.h"
 #include "np_settings.h"
 
@@ -227,17 +228,18 @@ int main(int argc, char **argv)
 		fprintf(stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string());
 	}
 
-
 	np_msgproperty_t* ping_props = NULL;
 	np_new_obj(np_msgproperty_t, ping_props);
 	ping_props->msg_subject = strndup("ping", 255);
 	ping_props->ack_mode = ACK_NONE;
 	ping_props->msg_ttl = 5.0;
 	ping_props->retry = 1;
-	ping_props->max_threshold = UINT8_MAX;
+	ping_props->max_threshold = 150;
+	ping_props->token_max_ttl = 60;
+	ping_props->token_min_ttl = 30;
 	np_msgproperty_register(ping_props);
 	//register the listener function to receive data from the sender
-	np_set_listener(receive_ping, "ping");
+	np_add_receive_listener(receive_ping, "ping");
 
 	np_msgproperty_t* pong_props = NULL;
 	np_new_obj(np_msgproperty_t, pong_props);
@@ -245,11 +247,19 @@ int main(int argc, char **argv)
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 5.0;
 	pong_props->retry = 1;
-	pong_props->max_threshold = UINT8_MAX;
+	pong_props->max_threshold = 150;
+	pong_props->token_max_ttl = 60;
+	pong_props->token_min_ttl = 30;
 	np_msgproperty_register(pong_props);
 	//register the listener function to receive data from the sender
-	np_set_listener(receive_pong, "pong");
-
+	np_add_receive_listener(receive_pong, "pong");
+	
+	
+	np_statistics_add_watch("ping"); 
+	np_statistics_add_watch("pong");	
+	np_statistics_add_watch(_NP_SYSINFO_REQUEST);
+	np_statistics_add_watch(_NP_SYSINFO_REPLY);
+	
 	np_waitforjoin();
 
 	fprintf(stdout, "Connection established.\n");
@@ -264,23 +274,6 @@ int main(int argc, char **argv)
 	double now = ev_time();
 	last_response_or_invokation  = now;
 
-	float last_ping_send_count_per_min = 0;
-	float last_ping_received_count_per_min = 0;
-	float last_pong_send_count_per_min = 0;
-	float last_pong_received_count_per_min = 0;
-	
-	float current_ping_send_count_per_min = 0;
-	float current_ping_received_count_per_min = 0;
-	float current_pong_send_count_per_min = 0;
-	float current_pong_received_count_per_min = 0;
-
-	float reset_ping_send_count_per_min		= 0;
-	float reset_ping_received_count_per_min = 0;
-	float reset_pong_send_count_per_min		= 0;
-	float reset_pong_received_count_per_min = 0;
-	float reset_sec_since_start_per_min = 0;
-
-	char* statistics = NULL;
 	while (TRUE) {
 		i +=1;
 		ev_sleep(0.01);
@@ -293,51 +286,6 @@ int main(int argc, char **argv)
 			last_response_or_invokation = now;
 		}
 		__np_example_helper_loop(i, 0.01);
-		double sec_since_start = i * 0.01;
-		double ms_since_start = sec_since_start * 1000;
-		
-		
-		if (i != 0 && ((int)ms_since_start) % (int)(output_intervall_sec * 1000) == 0)
-		{
-			current_ping_received_count_per_min = (_ping_received_count	- reset_ping_received_count_per_min	) / (sec_since_start - reset_sec_since_start_per_min);
-			current_ping_send_count_per_min		= (_ping_send_count		- reset_ping_send_count_per_min		) / (sec_since_start - reset_sec_since_start_per_min);
-			current_pong_received_count_per_min = (_pong_received_count	- reset_pong_received_count_per_min	) / (sec_since_start - reset_sec_since_start_per_min);
-			current_pong_send_count_per_min		= (_pong_send_count		- reset_pong_send_count_per_min		) / (sec_since_start - reset_sec_since_start_per_min);
-			
-			statistics = _np_concatAndFree(statistics, "--- Statistics PingPong START ---\n");
-
-			statistics = _np_concatAndFree(statistics,
-				"received %5d (%5.1f per min [%+5.1f]) pings\n",
-				_ping_received_count,	current_ping_received_count_per_min		, current_ping_received_count_per_min	- last_ping_received_count_per_min			);
-			statistics = _np_concatAndFree(statistics,
-				"send     %5d (%5.1f per min [%+5.1f]) pings\n",
-				_ping_send_count,		current_ping_send_count_per_min			, current_ping_send_count_per_min		- last_ping_send_count_per_min			);
-			statistics = _np_concatAndFree(statistics,
-				"received %5d (%5.1f per min [%+5.1f]) pongs\n",
-				_pong_received_count, current_pong_received_count_per_min		, current_pong_received_count_per_min	- last_pong_received_count_per_min		);
-			statistics = _np_concatAndFree(statistics, 
-				"send     %5d (%5.1f per min [%+5.1f]) pongs\n",
-				_pong_send_count,		current_pong_send_count_per_min			, current_pong_send_count_per_min		- last_pong_send_count_per_min			);
-			statistics = _np_concatAndFree(statistics, "--- Statistics PingPong END   ---\n");
-			
-			last_ping_received_count_per_min = current_ping_received_count_per_min;
-			last_ping_send_count_per_min = current_ping_send_count_per_min ;
-			last_pong_received_count_per_min = current_pong_received_count_per_min ;
-			last_pong_send_count_per_min = current_pong_send_count_per_min;
-		
-			if ((int)sec_since_start % 60 == 0) {
-				reset_ping_received_count_per_min = _ping_received_count;
-				reset_ping_send_count_per_min = _ping_send_count;
-				reset_pong_received_count_per_min = _pong_received_count;
-				reset_pong_send_count_per_min = _pong_send_count;
-				reset_sec_since_start_per_min = sec_since_start;
-			}
-
-			fprintf(stdout, "%s", statistics);
-			free(statistics);
-			statistics = NULL;
-		}
-		
 	}
 
 }

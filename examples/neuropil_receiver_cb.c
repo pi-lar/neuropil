@@ -146,7 +146,7 @@ int main(int argc, char **argv)
 	.. code-block:: c
 		\code
 	*/
-	np_set_listener(receive_this_is_a_test, "this.is.a.test");
+	np_add_receive_listener(receive_this_is_a_test, "this.is.a.test");
 	/** \endcode */
 
 

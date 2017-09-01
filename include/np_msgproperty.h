@@ -265,12 +265,14 @@ struct np_msgproperty_s
 	np_callback_t clb_route; // internal neuropil supplied
 	np_callback_t clb_transform; // internal neuropil supplied
 
-	np_usercallback_t user_clb; // external user supplied for inbound
+	np_sll_t(np_usercallback_t, user_receive_clb); // external user supplied for inbound
+	np_sll_t(np_usercallback_t, user_send_clb); // external user supplied for outnound
 
 	// The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
 	uint32_t token_max_ttl;
 	// The token created for this msgproperty will guaranteed live for token_min_ttl seconds
 	uint32_t token_min_ttl;
+
 } NP_API_EXPORT;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);

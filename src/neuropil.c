@@ -42,6 +42,10 @@
 #include "np_settings.h"
 #include "np_sysinfo.h"
 #include "np_constants.h"
+
+NP_SLL_GENERATE_IMPLEMENTATION(np_usercallback_t);
+
+
 /**
  * Gets a np_key_t or a NULL pointer for the given hash value.
  * Generates warnings and aborts the process if a misschief configuration is found.
@@ -391,12 +395,12 @@ void np_waitforjoin()
 }
 
 /**
- * Sets a callback for a given msg subject.
- * Each msg for the given subject may invoke this handler.
- * @param msg_handler
- * @param subject
- */
-void np_set_listener (np_usercallback_t msg_handler, char* subject)
+* Sets a callback for a given msg subject.
+* Each msg for the given subject may invoke this handler.
+* @param msg_handler
+* @param subject
+*/
+void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
 {
 	// check whether an handler already exists
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
@@ -407,15 +411,40 @@ void np_set_listener (np_usercallback_t msg_handler, char* subject)
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mode_type = INBOUND;
-		np_msgproperty_register(msg_prop);
+		np_msgproperty_register(msg_prop);		
 	}
-
+	
 	msg_prop->clb_inbound = _np_in_callback_wrapper;
-	msg_prop->user_clb = msg_handler;
+
+	sll_append(np_usercallback_t, msg_prop->user_receive_clb, msg_handler);
 
 	// update informations somewhere in the network
 	_np_send_subject_discovery_messages(INBOUND, subject);
 }
+
+/**
+* Sets a callback for a given msg subject.
+* Each msg for the given subject may invoke this handler.
+* @param msg_handler
+* @param subject
+*/
+void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
+{
+	// check whether an handler already exists
+	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
+
+	if (NULL == msg_prop)
+	{
+		// create a default set of properties for listening to messages
+		np_new_obj(np_msgproperty_t, msg_prop);
+		msg_prop->msg_subject = strndup(subject, 255);
+		msg_prop->mode_type = OUTBOUND;
+		np_msgproperty_register(msg_prop);
+	}
+
+	sll_append(np_usercallback_t, msg_prop->user_send_clb, msg_handler);
+}
+
 /**
  * Sets the identity of the node.
  * @param identity
@@ -1167,24 +1196,38 @@ void np_start_job_queue(uint8_t pool_size)
 
 char* np_get_connection_string(){
 	log_msg(LOG_TRACE, "start: char* np_get_connection_string(){");
-	char* connection_str = np_get_connection_string_from(_np_state()->my_node_key, TRUE);
-	return connection_str;
+	
+	return np_get_connection_string_from(_np_state()->my_node_key, TRUE);
 }
 
 char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash) {
 	log_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
+	
+	return _np_build_connection_string(
+		includeHash == TRUE ? _np_key_as_str(node_key) : NULL,
+		_np_network_get_protocol_string(node_key->node->protocol),
+		node_key->node->dns_name,
+		node_key->node->port,
+		includeHash
+	);
+}
+char* _np_build_connection_string(char* hash, char* protocol, char*dns_name,char* port, np_bool includeHash) {
+	log_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
 	char* connection_str;
-	 if(TRUE == includeHash){
-		 asprintf(&connection_str, "%s:%s:%s:%s",
-					_np_key_as_str(node_key),
-					_np_network_get_protocol_string(node_key->node->protocol),
-					node_key->node->dns_name,
-					node_key->node->port);
-			 }else {
-				 asprintf(&connection_str, "%s:%s:%s",
-					_np_network_get_protocol_string(node_key->node->protocol),
-					node_key->node->dns_name,
-					node_key->node->port);
-			 }
+	
+	if (TRUE == includeHash) {
+		asprintf(&connection_str, "%s:%s:%s:%s",
+			hash,
+			protocol,
+			dns_name,
+			port);
+	}
+	else {
+		asprintf(&connection_str, "%s:%s:%s",
+			protocol,
+			dns_name,
+			port);
+	}
+
 	return connection_str;
 }

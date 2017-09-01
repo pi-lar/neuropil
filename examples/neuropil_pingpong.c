@@ -191,7 +191,7 @@ int main(int argc, char **argv)
 	ping_props->msg_ttl = 20.0;
 	np_msgproperty_register(ping_props);
 //register the listener function to receive data from the sender
-	np_set_listener(receive_ping, "ping");
+	np_add_receive_listener(receive_ping, "ping");
 
 	np_msgproperty_t* pong_props = NULL;
 	np_new_obj(np_msgproperty_t, pong_props);
@@ -200,7 +200,7 @@ int main(int argc, char **argv)
 	pong_props->msg_ttl = 20.0;
 	np_msgproperty_register(pong_props);
 	//register the listener function to receive data from the sender
-	np_set_listener(receive_pong, "pong");
+	np_add_receive_listener(receive_pong, "pong");
 	/** \endcode */
 
 	log_msg(LOG_INFO, "Sending initial ping");

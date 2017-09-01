@@ -34,6 +34,8 @@ struct np_message_s
 	np_pll_t(np_messagepart_ptr, msg_chunks);
 	np_mutex_t msg_chunks_lock;
 
+	np_msgproperty_ptr msg_property;
+
 } NP_API_INTERN;
 
 struct _np_message_buffer_container_s

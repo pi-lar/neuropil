@@ -78,6 +78,8 @@ void _np_message_t_del(void* data)
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_del(void* data){");
 	np_message_t* msg = (np_message_t*) data;
 
+	np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
+
 //	if (NULL != np_tree_find_str(msg->instructions, NP_MSG_INST_UUID)) {
 //		char* msg_uuid = np_tree_find_str(msg->instructions, NP_MSG_INST_UUID)->val.value.s;
 //		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting msg (%s) %p / %p", msg_uuid, msg, msg->msg_chunks);

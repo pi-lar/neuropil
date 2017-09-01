@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
 	msg_props->ack_mode = ACK_NONE;
 	msg_props->msg_ttl = 20.0;
 	np_msgproperty_register(msg_props);
-	np_set_listener(receive_echo_message, "echo");
+	np_add_receive_listener(receive_echo_message, "echo");
 
 	np_msgproperty_t* ping_props = NULL;
 	np_new_obj(np_msgproperty_t, ping_props);
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
 	ping_props->ack_mode = ACK_NONE;
 	ping_props->msg_ttl = 20.0;
 	np_msgproperty_register(ping_props);
-	np_set_listener(receive_ping, "ping");
+	np_add_receive_listener(receive_ping, "ping");
 
 	np_msgproperty_t* pong_props = NULL;
 	np_new_obj(np_msgproperty_t, pong_props);
@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 20.0;
 	np_msgproperty_register(pong_props);
-	np_set_listener(receive_pong, "pong");
+	np_add_receive_listener(receive_pong, "pong");
 
 	while (TRUE) {
 		ev_sleep(0.1);

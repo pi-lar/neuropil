@@ -184,6 +184,8 @@ void _np_msgproperty_t_new(void* property)
 	prop->clb_outbound = _np_never_called_jobexec_outbound;
 	prop->clb_route = _np_route_lookup_jobexec;
 	prop->clb_transform = _np_never_called_jobexec_transform;
+	sll_init(np_usercallback_t, prop->user_receive_clb);
+	sll_init(np_usercallback_t, prop->user_send_clb);
 
 	// cache which will hold up to max_threshold messages
 	prop->cache_policy = FIFO | OVERFLOW_PURGE;
@@ -222,6 +224,9 @@ void _np_msgproperty_t_del(void* property)
 		if(prop->msg_cache_out != NULL ){
 			sll_free(np_message_ptr, prop->msg_cache_out);
 		}
+
+		sll_free(np_usercallback_t, prop->user_receive_clb);
+		sll_free(np_usercallback_t, prop->user_send_clb);
 	}
 	_np_threads_mutex_destroy(&prop->lock);
 	_np_threads_condition_destroy(&prop->msg_received);

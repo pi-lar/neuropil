@@ -16,8 +16,10 @@
 #include "neuropil.h"
 #include "np_types.h"
 #include "np_memory.h"
+#include "np_threads.h"
 #include "np_log.h"
 #include "np_messagepart.h"
+#include "np_statistics.h"
 
 const float output_intervall_sec = 0.5;
 
@@ -169,15 +171,16 @@ np_bool parse_program_args(
 }
 
 void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
-#ifdef DEBUG
 		
 		double sec_since_start = iteration * sec_per_iteration ; 
 		double ms_since_start = sec_since_start  * 1000;	
 		if (iteration == 0 || ((int)ms_since_start) % (int)(output_intervall_sec * 1000) == 0)
 		{
+			char* memory_str;
+
 			// to output
-			char* memory_str = np_mem_printpool(FALSE,TRUE);
-			if(memory_str != NULL) printf("%f - %s", sec_since_start, memory_str);
+			memory_str = np_mem_printpool(FALSE,TRUE);
+			if(memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
 			free(memory_str);
 			memory_str = np_mem_printpool(TRUE,TRUE);
 			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
@@ -185,26 +188,32 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 
 
 			memory_str = np_messagepart_printcache(FALSE);
-			//if(memory_str != NULL) printf("%f - %s", sec_since_start, memory_str);
+			//if(memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
 			free(memory_str);
 			memory_str = np_messagepart_printcache(TRUE);
 			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 			free(memory_str);
 
-
 			memory_str = np_threads_printpool(FALSE);
-			if(memory_str != NULL) printf("%f - %s", sec_since_start, memory_str);
+			if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
 			free(memory_str);
 			memory_str = np_threads_printpool(TRUE);
 			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
-			free(memory_str);			
-		}
+			free(memory_str);
 
+			memory_str = np_statistics_print(FALSE);			
+			if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
+			free(memory_str);
+			memory_str = np_statistics_print(TRUE);
+			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+			free(memory_str);
+			
+		}
 		//if((i == (35/*sec*/ * 10))){
 		//	fprintf(stdout, "Renew bootstrap token");
 		//	np_key_renew_token();
 		//}
-#endif	
+
 }
 
 void __np_example_helper_run_loop() {
