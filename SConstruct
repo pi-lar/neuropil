@@ -20,14 +20,20 @@ build_tests = ARGUMENTS.get('test', 1)
 build_doc = ARGUMENTS.get('doc', 0)
 debug = ARGUMENTS.get('debug', 0)
 release = ARGUMENTS.get('release', 0)
+console_log = ARGUMENTS.get('console', 0)
+strict = int(ARGUMENTS.get('strict', 0))
 
 
 print '####'
 print '#### adding compiler options and flags'
 print '####'
 
+if strict:
+    env.Append(CCFLAGS = ['-DSTRICT'])
+
 # add libev flags to the compilation
 env.Append(CCFLAGS = ['-DEV_STANDALONE'])
+env.Append(CCFLAGS = ['-DEV_PERIODIC_ENABLE'])
 env.Append(CCFLAGS = ['-DHAVE_SELECT'])
 env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
 env.Append(CCFLAGS = ['-DHAVE_POLL'])
@@ -44,6 +50,10 @@ if int(release):
 debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2']
 if int(debug):
     env.Append(CCFLAGS = debug_flags)
+    env.Append(CCFLAGS = ['-DDEBUG'])
+if int(console_log):
+    env.Append(CCFLAGS = ['-DCONSOLE_LOG'])
+
 
 # platform specific compiler options
 if 'FreeBSD' in platform.system():
@@ -58,22 +68,30 @@ if 'Darwin' in platform.system():
 if 'Linux' in platform.system():
   env.Append(CCFLAGS = ['-D_GNU_SOURCE'])
   env.Append(LIBS = ['rt', 'pthread'] )
+  if('arm' in platform.processor()):
+    env.Append(LIBPATH = ['/usr/lib', '/usr/local/lib','/usr/lib/arm-linux-gnueabihf'] )
+    env.Append(CCFLAGS = ['-I/usr/include','-I/usr/local/include','-I/usr/include/arm-linux-gnueabihf'] )
 if 'CYGWIN' in platform.system():
   # -std=gnu++0x doesn't work, so work around...
   env.Append(CCFLAGS = ['-U__STRICT_ANSI__'] )
 if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
-  env.Append(LIBS = ['rt'] )
+    env.Append(LIBS = ['rt'] )
+    env.Append(CCFLAGS = ['-x c'])
 
-# env.Append(CCFLAGS = '-arch i386 -arch x86_64')
-env.Append(CCFLAGS = '-arch x86_64')
+
+# env.Append(CCFLAGS = '-march='+platform.processor())
+# env.Append(CCFLAGS = '-arch='+platform.machine())
+#env.Append(CCFLAGS = '-target ' + platform.machine() + '-' + platform.system().lower() )
+# env.Append(CCFLAGS = '-target ' + platform.machine())
 
 print 'continuing with CCFLAGS set to: ' + env.Dump(key='CCFLAGS')
 print 'continuing with LDFLAGS set to: ' + env.Dump(key='LDFLAGS')
 
-
 print '####'
 print '#### detecting 3rd party libraries'
 print '####'
+
+env.Append(LINKFLAGS = ['-v']) # shows linker invokation
 
 # add 3rd party library path info here
 tpl_library_list = ['sodium']
@@ -82,6 +100,11 @@ env.Append(LIBS = tpl_library_list)
 conf = Configure(env)
 
 # Checks for libraries, header files, etc.
+for lib in env['LIBS']:
+    if not conf.CheckLib(lib):
+        print 'Did not find library %s. Please install the appropiate package' % (lib)
+        Exit(1)
+
 if not conf.CheckLibWithHeader('sodium', 'sodium.h', 'c'):
     print 'Did not find libsodium.a or sodium.lib ...'
     Exit(1)
@@ -154,9 +177,9 @@ SOURCES =  ['build/obj/dtime.c','build/obj/neuropil.c','build/obj/np_aaatoken.c'
 SOURCES += ['build/obj/np_glia.c','build/obj/np_http.c','build/obj/np_jobqueue.c','build/obj/np_dhkey.c','build/obj/np_key.c','build/obj/np_keycache.c']
 SOURCES += ['build/obj/np_log.c','build/obj/np_memory.c','build/obj/np_message.c','build/obj/np_msgproperty.c','build/obj/np_network.c','build/obj/np_node.c']
 SOURCES += ['build/obj/np_route.c','build/obj/np_tree.c','build/obj/np_util.c','build/obj/np_treeval.c','build/obj/np_threads.c']
-SOURCES += ['build/obj/np_sysinfo.c','build/obj/np_scache.c','build/obj/np_event.c','build/obj/np_messagepart.c']
+SOURCES += ['build/obj/np_sysinfo.c','build/obj/np_scache.c','build/obj/np_event.c','build/obj/np_messagepart.c','build/obj/np_statistics.c']
 # source code 3rd party libraries
-SOURCES += ['build/obj/event/ev.c','build/obj/http/htparse.c','build/obj/json/parson.c','build/obj/msgpack/cmp.c']
+SOURCES += ['build/obj/event/ev.c', 'build/obj/json/parson.c','build/obj/msgpack/cmp.c','build/obj/gpio/bcm2835.c']
 
 # test cases for neuropil
 TESTS =  ['test/test_suites.c']
@@ -202,11 +225,14 @@ Depends(prg_np_hydra, np_dylib)
 prg_np_shared_hydra = env.Program('bin/neuropil_shared_hydra', 'examples/neuropil_shared_hydra.c')
 Depends(prg_np_shared_hydra, np_dylib)
 
-prg_np_hydra = env.Program('bin/neuropil_echo_server', 'examples/neuropil_echo_server.c')
-Depends(prg_np_hydra, np_dylib)
+prg_np_echo_server = env.Program('bin/neuropil_echo_server', 'examples/neuropil_echo_server.c')
+Depends(prg_np_echo_server, np_dylib)
 
-prg_np_hydra = env.Program('bin/neuropil_echo_client', 'examples/neuropil_echo_client.c')
-Depends(prg_np_hydra, np_dylib)
+prg_np_echo_client = env.Program('bin/neuropil_echo_client', 'examples/neuropil_echo_client.c')
+Depends(prg_np_echo_client, np_dylib)
+
+prg_np_raspberry = env.Program('bin/neuropil_raspberry', 'examples/neuropil_raspberry.c')
+Depends(prg_np_raspberry, np_dylib)
 
 # clean up
 Clean('.', 'build')

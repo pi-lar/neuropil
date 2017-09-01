@@ -24,6 +24,25 @@ Copyright 2002 Niels Provos <provos@citi.umich.edu>
 extern "C" {
 #endif
 
+/*
+ * convenience helper macros when messages are received
+ * check the existence of a field and extracts it, otherwise continues with a goto __cleanup__
+ */
+#define CHECK_STR_FIELD(TREE, FIELD_NAME, VAR_NAME) 						\
+np_treeval_t VAR_NAME = np_treeval_NULL; 									\
+if (NULL == np_tree_find_str(TREE, FIELD_NAME)){							\
+	if (NULL != np_tree_find_str(TREE, _NP_MSG_HEADER_SUBJECT)){			\
+		log_msg(LOG_WARN,"Missing field \"%s\" in message for \"%s\"",		\
+			FIELD_NAME,														\
+			np_tree_find_str(TREE, _NP_MSG_HEADER_SUBJECT)->val.value.s);	\
+	}else {																	\
+		log_msg(LOG_WARN,"Missing field \"%s\" in tree", FIELD_NAME);		\
+	}																		\
+	goto __np_cleanup__; 													\
+} 																			\
+else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
+
+
 /**
 .. c:type:: np_tree_t
 
@@ -55,7 +74,7 @@ struct np_tree_elem_s
 #endif
 
 	np_treeval_t key;
-    np_treeval_t val;
+	np_treeval_t val;
 } NP_API_INTERN;
 
 NP_API_INTERN

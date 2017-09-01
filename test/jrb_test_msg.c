@@ -28,12 +28,12 @@ int main(int argc, char **argv) {
 	np_tree_t* test_jrb_1 = np_tree_create();
 
 	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_1->size, test_jrb_1->byte_size);
-    cmp_ctx_t cmp_empty;
-    char empty_buffer[65536];
-    void* empty_buf_ptr = empty_buffer;
-    memset(empty_buf_ptr, 0, 65536);
+	cmp_ctx_t cmp_empty;
+	char empty_buffer[65536];
+	void* empty_buf_ptr = empty_buffer;
+	memset(empty_buf_ptr, 0, 65536);
 
-    cmp_init(&cmp_empty, empty_buf_ptr, _np_buffer_reader, _np_buffer_writer);
+	cmp_init(&cmp_empty, empty_buf_ptr, _np_buffer_reader, _np_buffer_writer);
 	_np_tree_serialize(test_jrb_1, &cmp_empty);
 
 	// np_jrb_t* node = NULL;
@@ -83,11 +83,11 @@ int main(int argc, char **argv) {
 	log_msg(LOG_INFO, "----------------------");
 	log_msg(LOG_INFO, "serializing message:  ");
 
-    cmp_ctx_t cmp;
-    void* buffer = malloc(65536);
-    memset(buffer, 0, 65536);
+	cmp_ctx_t cmp;
+	void* buffer = malloc(65536);
+	memset(buffer, 0, 65536);
 
-    cmp_init(&cmp, buffer, _np_buffer_reader, _np_buffer_writer);
+	cmp_init(&cmp, buffer, _np_buffer_reader, _np_buffer_writer);
 	_np_tree_serialize(test_jrb_2, &cmp);
 
 	log_msg(LOG_INFO, "serialized message is: %p %s (size: %d)", buffer, buffer, cmp.buf-buffer);

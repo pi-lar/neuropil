@@ -15,18 +15,29 @@
 #include <inttypes.h>
 
 #include "event/ev.h"
+#include "tree/tree.h"
 
 #include "np_log.h"
 #include "np_jobqueue.h"
 
+#include "np_key.h"
+#include "np_keycache.h"
 #include "np_event.h"
+#include "np_threads.h"
 #include "neuropil.h"
+#include "np_types.h"
 #include "np_list.h"
 #include "np_route.h"
+#include "np_tree.h"
+#include "np_message.h"
+#include "np_messagepart.h"
+#include "np_memory.h"
+#include "np_settings.h"
+#include "np_constants.h"
+
 
 static np_bool __exit_libev_loop = FALSE;
 
-static pthread_mutex_t __libev_mutex = PTHREAD_MUTEX_INITIALIZER;
 // the optimal libev run interval remains to be seen
 // if set too low, base cpu usage increases on no load
 // static uint8_t __suspended_libev_loop = 0;
@@ -41,61 +52,78 @@ static ev_async    __libev_async_watcher;
 
 void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents)
 {
-	log_msg(LOG_DEBUG, ".start._np_events_async");
+	log_msg(LOG_TRACE, "start: void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents){");
+	log_debug_msg(LOG_DEBUG, ".start._np_events_async");
 
 	static int suspend_loop = 0;
 
-	pthread_mutex_lock(&__libev_mutex);
-	suspend_loop = __suspended_libev_loop;
-	pthread_mutex_unlock(&__libev_mutex);
+	_LOCK_MODULE(np_event_t){
+		suspend_loop = __suspended_libev_loop;
+	}
 
 	while (0 < suspend_loop)
 	{
 		_np_job_yield(__libev_interval);
 
-		pthread_mutex_lock(&__libev_mutex);
-		suspend_loop = __suspended_libev_loop;
-		pthread_mutex_unlock(&__libev_mutex);
+		_LOCK_MODULE(np_event_t) {
+			suspend_loop = __suspended_libev_loop;
+		}
+	}
+}
+
+
+void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
+{
+	np_sll_t(np_message_ptr,to_del);
+	sll_init(np_message_ptr,to_del);
+
+	_LOCK_MODULE(np_message_part_cache_t)
+	{
+		np_state_t* state = _np_state();
+		np_tree_elem_t* tmp = NULL;
+
+		RB_FOREACH(tmp, np_tree_s, state->msg_part_cache)
+		{
+			np_message_t* msg = tmp->val.value.v;
+			// np_tryref_obj(np_message_t,msg, msgExists);
+
+			if(TRUE == _np_message_is_expired(msg)) {
+				sll_append(np_message_ptr,to_del,msg);
+			}
+		}
+
+		sll_iterator(np_message_ptr) iter = sll_first(to_del);
+		while (NULL != iter)
+		{
+			np_tree_del_str(state->msg_part_cache,iter->val->uuid);
+			np_unref_obj(np_message_t, iter->val, ref_msgpartcache);
+			sll_next(iter);
+		}
 	}
 
-	log_msg(LOG_TRACE, ".end  ._np_events_async");
+	// np_unref_list(np_message_ptr, to_del, ref_msgpartcache); // cleanup
+
+	np_job_submit_event(MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache);
 }
 
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 {
-	sll_return(np_key_t)  sll_routing_tbl;
-	np_bool rejoin = FALSE;
+	log_msg(LOG_TRACE, "start: void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args){");
 
-	sll_routing_tbl = _np_route_get_table();
-
-	if(sll_routing_tbl->size < 1 ) {
-		rejoin = TRUE;
-	}
-
-	sll_free(np_key_t, sll_routing_tbl);
-
-	if(TRUE == rejoin
-			// check for state availibility to prevent test issues. TODO: Make network objects mockable
-			&& _np_state() != NULL) {
-		np_key_t* bootstrap = np_route_get_bootstrap_key();
-		if(NULL != bootstrap){
-			char* connection_str = np_get_connection_string_from(bootstrap, FALSE);
-			np_send_wildcard_join(connection_str);
-			free(connection_str);
-		}
-	}
+	_np_route_rejoin_bootstrap(FALSE);
 
 	// Reschedule myself
-    np_job_submit_event(10, _np_event_rejoin_if_necessary);
+	np_job_submit_event(MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary);
 }
+
 /**
  ** _np_events_read
  ** schedule the libev event loop one time and reschedule again
  **/
 void _np_events_read(NP_UNUSED np_jobargs_t* args)
 {
+	log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-
 
 	// TODO: evaluate if 1 ore more threads are started and init appropriately
 	np_bool isMultiThreaded = FALSE;
@@ -117,30 +145,33 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 		// never returns
 	} else {
 
-		pthread_mutex_lock(&__libev_mutex);
-
-		if (! __suspended_libev_loop)
-			ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
-
-		pthread_mutex_unlock(&__libev_mutex);
+		_LOCK_MODULE(np_event_t) {
+			if (0 == __suspended_libev_loop) {
+				ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
+			}
+		}
 	}
 
 	if (TRUE == __exit_libev_loop) return;
 
 	np_job_submit_event(__libev_interval, _np_events_read);
 }
-
+/**
+ * Call this fucntion only in an event (as in async callback)
+ */
 void _np_suspend_event_loop()
 {
-	pthread_mutex_lock(&__libev_mutex);
-	__suspended_libev_loop++;
-    pthread_mutex_unlock(&__libev_mutex);
-    ev_async_send (EV_DEFAULT_ &__libev_async_watcher);
+	log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
+	_LOCK_MODULE(np_event_t){
+		__suspended_libev_loop++;
+	}
+	ev_async_send (EV_DEFAULT_ &__libev_async_watcher);
 }
 
 void _np_resume_event_loop()
 {
-	pthread_mutex_lock(&__libev_mutex);
-	__suspended_libev_loop--;
-	pthread_mutex_unlock(&__libev_mutex);
+	log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
+	_LOCK_MODULE(np_event_t) {
+		__suspended_libev_loop--;
+	}
 }

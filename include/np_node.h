@@ -10,14 +10,14 @@
 
 #include "np_memory.h"
 #include "np_types.h"
+#include "np_threads.h"
+#include "np_settings.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define SUCCESS_WINDOW 20
-#define GOOD_LINK 0.7
-#define BAD_LINK 0.3
 
 typedef enum handshake_status
 {
@@ -31,27 +31,28 @@ struct np_node_s
 {
 	// link to memory management
 	np_obj_t* obj;
+	np_mutex_t lock;
 
 	uint8_t protocol;
 	char *dns_name;
-    char* port;
+	char* port;
 
-    // state extension
-    handshake_status_e handshake_status; // enum
-    np_bool joined_network;   // TRUE / FALSE
+	// state extension
+	handshake_status_e handshake_status; // enum
+	np_bool joined_network;   // TRUE / FALSE
 
 	// statistics
-    double failuretime;
-    double last_success;
-    double latency;
-    double latency_win[SUCCESS_WINDOW];
-    uint8_t latency_win_index;
-    uint8_t success_win[SUCCESS_WINDOW];
-    uint8_t success_win_index;
-    float success_avg;
+	double failuretime;
+	double last_success;
+	double latency;
+	double latency_win[SUCCESS_WINDOW];
+	uint8_t latency_win_index;
+	uint8_t success_win[SUCCESS_WINDOW];
+	uint8_t success_win_index;
+	float success_avg;
 
-    // load average of the node
-    float load;
+	// load average of the node
+	float load;
 
 } NP_API_INTERN;
 
@@ -82,7 +83,7 @@ NP_API_INTERN
 np_key_t* _np_node_decode_from_str (const char *key);
 
 NP_API_INTERN
-sll_return(np_key_t) _np_node_decode_multiple_from_jrb (np_tree_t* data);
+sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_tree_t* data);
 
 NP_API_INTERN
 np_node_t*  _np_node_decode_from_jrb (np_tree_t* data);
@@ -93,7 +94,7 @@ NP_API_INTERN
 void _np_node_encode_to_str  (char *s, uint16_t len, np_key_t* key);
 
 NP_API_INTERN
-uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats);
+uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, node_keys), np_bool include_stats);
 
 NP_API_INTERN
 void _np_node_encode_to_jrb  (np_tree_t* data, np_key_t* node_key, np_bool include_stats);

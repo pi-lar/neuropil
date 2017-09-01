@@ -36,12 +36,12 @@ extern "C" {
 
 enum socket_type {
 	UNKNOWN_PROTO = 0x00,
-	IPv4    = 0x01,
-	IPv6    = 0x02,
-	UDP     = 0x10, // UDP protocol - default
-	TCP     = 0x20, // TCP protocol
-	RAW     = 0x40, // pure IP protocol - no ports
-	PASSIVE = 0x80  // TCP passive (like FTP passive) for nodes behind firewalls
+	IPv4    	  = 0x01,
+	IPv6    	  = 0x02,
+	UDP     	  = 0x10, // UDP protocol - default
+	TCP     	  = 0x20, // TCP protocol
+	RAW     	  = 0x40, // pure IP protocol - no ports
+	PASSIVE 	  = 0x80  // TCP passive (like FTP passive) for nodes behind firewalls
 } NP_ENUM;
 
 typedef void* void_ptr;
@@ -52,20 +52,23 @@ struct np_network_s
 	np_obj_t* obj;
 
 	np_bool initialized;
+	int isWatching;
 	int socket;
-    ev_io watcher;
+	ev_io watcher;
 
 	uint8_t socket_type;
 	struct addrinfo* addr_in; // where a node receives messages
 
-    np_tree_t* waiting;
+	np_tree_t* waiting;
 
-    np_sll_t(void_ptr, in_events);
-    np_sll_t(void_ptr, out_events);
+	np_sll_t(void_ptr, in_events);
+	np_sll_t(void_ptr, out_events);
 
-    uint32_t seqend;
+	uint32_t seqend;
 
-    np_mutex_t lock;
+	char * ip;
+	char * port;
+	np_mutex_t lock;
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
@@ -114,13 +117,19 @@ np_ackentry_t* _np_network_get_new_ackentry();
 
 NP_API_INTERN
 np_prioq_t* _np_network_get_new_pqentry();
+NP_API_INTERN
+void _np_network_stop(np_network_t* ng);
+NP_API_INTERN
+void _np_network_start(np_network_t* ng);
+NP_API_INTERN
+void _np_network_remap_network( np_key_t* new_target, np_key_t* old_target);
 
 /** _np_network_init:
  ** initiates the networking layer by creating socket and bind it to #port#
  **
  **/
 NP_API_INTERN
-void _np_network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);
+np_bool _np_network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);
 
 NP_API_INTERN
 void _network_destroy (np_network_t* network);
@@ -146,7 +155,10 @@ NP_API_INTERN
 void _np_network_read(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
 void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents);
-
+NP_API_INTERN
+char* np_network_get_ip(np_key_t * container);
+NP_API_INTERN
+char* np_network_get_port(np_key_t * container);
 
 #ifdef __cplusplus
 }

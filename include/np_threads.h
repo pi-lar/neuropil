@@ -8,14 +8,17 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-#include "np_threads.h"
-
+#include "np_memory.h"
 #include "np_list.h"
 #include "np_log.h"
 #include "np_types.h"
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifdef DEBUG
+	#define CHECK_THREADING
 #endif
 
 
@@ -27,19 +30,27 @@ return_type func_name(arg_1 a_1, arg_2 a_2) {		\
 return_type wrapped_##func_name(arg_1, arg_2);
 
 
+_NP_GENERATE_MEMORY_PROTOTYPES(np_thread_t);
+
+
 
 typedef enum np_module_lock_e np_module_lock_type;
 
 enum np_module_lock_e {
-	np_memory_t_lock = 0,
-	np_aaatoken_t_lock,
-	np_keycache_t_lock,
-	np_messagesgpart_cache_t_lock,
-	np_msgproperty_t_lock,
-	np_network_t_lock,
-	np_routeglobal_t_lock,
-	np_sysinfo_t_lock,
- 	PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
+	/*00*/np_memory_t_lock = 0,
+	/*01*/np_aaatoken_t_lock,
+	/*02*/np_event_t_lock,
+	/*03*/np_keycache_t_lock,
+	/*04*/np_message_part_cache_t_lock,
+	/*05*/np_msgproperty_t_lock,
+	/*06*/np_network_t_lock,
+	/*07*/np_routeglobal_t_lock,
+	/*08*/np_sysinfo_t_lock,
+	/*09*/np_logsys_t_lock,
+	/*10*/np_jobqueue_t_lock,
+	/*11*/np_node_renewal_t_lock,
+	/*12*/np_statistics_t_lock,
+	PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
 	PREDEFINED_DUMMY_1,
 	PREDEFINED_DUMMY_2,
 	PREDEFINED_DUMMY_3,
@@ -53,25 +64,42 @@ enum np_module_lock_e {
 /** platform mutex/condition wrapper structures are defined here **/
 /** mutex                                                        **/
 struct np_mutex_s {
-    pthread_mutex_t lock;
-    pthread_mutexattr_t lock_attr;
+	pthread_mutex_t lock;
+	pthread_mutexattr_t lock_attr;
 };
-typedef struct np_mutex_s np_mutex_t;
+
 /** condition                                                    **/
 struct np_cond_s {
 	pthread_cond_t     cond;
 	pthread_condattr_t cond_attr;
 };
 typedef struct np_cond_s np_cond_t;
+/** thread														**/
+struct np_thread_s
+{
+	np_obj_t* obj;
+
+	unsigned long id;
+#ifdef CHECK_THREADING
+	np_mutex_t locklists_lock;
+	np_sll_t(char_ptr, want_lock);
+	np_sll_t(char_ptr, has_lock);
+#endif
+} NP_API_INTERN;
+
 
 
 NP_API_INTERN
 np_bool _np_threads_init();
 
-NP_API_EXPORT
-int _np_threads_lock_module(np_module_lock_type module_id);
-NP_API_EXPORT
+NP_API_INTERN
+int _np_threads_lock_module(np_module_lock_type module_id, char* where);
+NP_API_INTERN
 int _np_threads_unlock_module(np_module_lock_type module_id);
+NP_API_INTERN
+int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b, char* where);
+NP_API_INTERN
+int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b);
 
 NP_API_INTERN
 int _np_threads_mutex_init(np_mutex_t* mutex);
@@ -85,35 +113,52 @@ void _np_threads_mutex_destroy(np_mutex_t* mutex);
 NP_API_INTERN
 void _np_threads_condition_init(np_cond_t* condition);
 NP_API_INTERN
+void _np_threads_condition_init_shared(np_cond_t* condition);
+NP_API_INTERN
 int _np_threads_condition_wait(np_cond_t* condition, np_mutex_t* mutex);
+NP_API_INTERN
+int _np_threads_module_condition_wait(np_cond_t* condition, np_module_lock_type module_id);
 NP_API_INTERN
 int _np_threads_condition_signal(np_cond_t* condition);
 NP_API_INTERN
 void _np_threads_condition_destroy(np_cond_t* condition);
+NP_API_INTERN
+int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime);
+NP_API_INTERN
+int _np_threads_module_condition_broadcast(np_cond_t* condition);
+NP_API_INTERN
+np_thread_t*_np_threads_get_self();
 
-#define _LOCK_ACCESS(obj) for(uint8_t i=0; (i < 1) && !_np_threads_mutex_lock(obj); _np_threads_mutex_unlock(obj), i++)
+#define TOKENPASTE(x, y) x ## y
+#define TOKENPASTE2(x, y) TOKENPASTE(x, y)
+
+#define _LOCK_ACCESS(obj) np_mutex_t* TOKENPASTE2(lock, __LINE__) = obj; for(uint8_t _LOCK_ACCESS##__LINE__=0; (_LOCK_ACCESS##__LINE__ < 1) && !_np_threads_mutex_lock(TOKENPASTE2(lock, __LINE__)); _np_threads_mutex_unlock(TOKENPASTE2(lock, __LINE__)), _LOCK_ACCESS##__LINE__++)
 // protect access to restricted area in the rest of your code like this
 /*
 struct obj {
-    np_mutex_t lock;
+	np_mutex_t lock;
 } obj_t;
 
 obj_t object;
 
 _LOCK_ACCESS(&object->lock)
 {
-    ... call_a_function_of_locked_module() ...;
+	... call_a_function_of_locked_module() ...;
 }
 */
 
-#define _LOCK_MODULE(TYPE) for(uint8_t i=0; (i < 1) && 0 == _np_threads_lock_module(TYPE##_lock); _np_threads_unlock_module(TYPE##_lock), i++)
+#define _LOCK_MODULE(TYPE) for(uint8_t _LOCK_MODULE_i##__LINE__=0; (_LOCK_MODULE_i##__LINE__ < 1) && 0 == _np_threads_lock_module(TYPE##_lock,__func__); _np_threads_unlock_module(TYPE##_lock), _LOCK_MODULE_i##__LINE__++)
+#define _LOCK_MODULES(TYPE_A,TYPE_B) for(uint8_t _LOCK_MODULES_i##__LINE__=0; (_LOCK_MODULES_i##__LINE__ < 1) && 0 == _np_threads_lock_modules(TYPE_A##_lock,TYPE_B##_lock,__func__); _np_threads_unlock_modules(TYPE_A##_lock,TYPE_B##_lock), _LOCK_MODULES_i##__LINE__++)
 // protect access to a module in the rest of your code like this
 /*
 _LOCK_MODULE(np_keycache_t)
 {
-    ... call_a_function_of_locked_module() ...;
+	... call_a_function_of_locked_module() ...;
 }
 */
+// print the complete object list and statistics
+NP_API_INTERN
+char* np_threads_printpool(np_bool asOneLine);
 
 
 #ifdef __cplusplus
