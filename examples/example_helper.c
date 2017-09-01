@@ -45,7 +45,7 @@ np_bool parse_program_args(
 	char* usage;
 	asprintf(&usage,
 		"./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] %s",
-		program, additional_fields_desc
+		program, additional_fields_desc == NULL ?"": additional_fields_desc
 	);
 	char* optstr; 
 	asprintf(&optstr, "j:p:b:t:u:d:g:%s", additional_fields_optstr);
@@ -54,7 +54,12 @@ np_bool parse_program_args(
 	va_list args;
 	va_start(args, additional_fields_optstr);
 	char* additional_field_char;
-	int additional_fields_count = strlen(additional_fields_optstr) / 2;
+
+	int additional_fields_count = 0;
+
+	if(additional_fields_optstr != NULL){
+		additional_fields_count = strlen(additional_fields_optstr) / 2;
+	}
 	
 	int additional_field_idx = 0 ;
 	int opt;
