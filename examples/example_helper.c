@@ -187,6 +187,7 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 			free(memory_str);
 
 
+#ifdef DEBUG
 			memory_str = np_messagepart_printcache(FALSE);
 			//if(memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
 			free(memory_str);
@@ -194,12 +195,14 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 			free(memory_str);
 
+
 			memory_str = np_threads_printpool(FALSE);
 			if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
 			free(memory_str);
 			memory_str = np_threads_printpool(TRUE);
 			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 			free(memory_str);
+#endif
 
 			memory_str = np_statistics_print(FALSE);			
 			if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
@@ -209,6 +212,7 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 			free(memory_str);
 			
 		}
+		fflush(NULL);
 		//if((i == (35/*sec*/ * 10))){
 		//	fprintf(stdout, "Renew bootstrap token");
 		//	np_key_renew_token();

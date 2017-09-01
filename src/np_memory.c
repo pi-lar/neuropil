@@ -227,12 +227,13 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 				}
 				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (%d) end  ---%s", iter->id, iter->type, new_line);
 			}		
-#else 
-			ret = _np_concatAndFree(ret, "NO DATA %s",new_line);
 #endif
 		}
-
+		
 		if (TRUE == extended) {
+#ifndef MEMORY_CHECK
+			ret = _np_concatAndFree(ret, "NO DATA. Compile with MEMORY_CHECK %s", new_line); 
+#endif
 			ret = _np_concatAndFree(ret, "--- extended reasons end  ---%s", new_line);
 		}
 		

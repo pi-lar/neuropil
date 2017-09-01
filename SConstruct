@@ -234,6 +234,9 @@ Depends(prg_np_echo_client, np_dylib)
 prg_np_raspberry = env.Program('bin/neuropil_raspberry', 'examples/neuropil_raspberry.c')
 Depends(prg_np_raspberry, np_dylib)
 
+prg_np_demo_service= env.Program('bin/neuropil_demo_service', 'examples/neuropil_demo_service.c')
+Depends(prg_np_demo_service, np_dylib)
+
 # clean up
 Clean('.', 'build')
 Clean('.', 'bin')

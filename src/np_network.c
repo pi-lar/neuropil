@@ -158,8 +158,10 @@ void _np_network_get_address (
 	if ( 0 != ( err = getaddrinfo( hostname, service, &hints, ai_head ) ))
 	{
 		log_msg(LOG_ERROR, "hostname: %s, servicename %s, protocol %d",
-				hostname, service, type);
-		log_msg(LOG_ERROR, "error getaddrinfo: %s", gai_strerror( err ) );
+				hostname, service, type);		
+		log_msg(LOG_ERROR, "error getaddrinfo: %s (%d)", gai_strerror(err), err);
+		log_msg(LOG_ERROR, "error errno: %s (%d)", gai_strerror(errno), errno);
+
 		return;
 	}
 /*

@@ -280,7 +280,6 @@ int main(int argc, char **argv)
 		now = ev_time() ;
 		if ((now - last_response_or_invokation ) > ping_props->msg_ttl) {
 			
-			//fprintf(stdout, "Invoking ping (last one was at %f (before %f sec))\n", last_response_or_invokation, now - last_response_or_invokation);
 			log_msg(LOG_INFO, "Invoking ping (last one was at %f (before %f sec))", last_response_or_invokation, now - last_response_or_invokation);
 			np_send_text("ping", "ping", _ping_send_count++, NULL);
 			last_response_or_invokation = now;

@@ -164,10 +164,11 @@ char* np_messagepart_printcache(np_bool asOneLine)
 		new_line = "    ";
 	}
 
+	ret = _np_concatAndFree(ret, "--- Messagepart cache (%"PRIu16") ---%s", _np_state()->msg_part_cache->size, new_line);
 	_LOCK_MODULE(np_message_part_cache_t)
 	{
 		np_tree_elem_t* tmp = NULL;
-		ret = _np_concatAndFree(ret, "--- Messagepart cache (%"PRIu16") ---%s", _np_state()->msg_part_cache->size,new_line);
+		
 
 		RB_FOREACH(tmp, np_tree_s, _np_state()->msg_part_cache)
 		{
@@ -180,9 +181,9 @@ char* np_messagepart_printcache(np_bool asOneLine)
 					msg->no_of_chunks,
 					new_line
 					);
-		}
-		ret = _np_concatAndFree(ret, "--- Messagepart cache end ---%s", new_line);
+		}		
 	}
+	ret = _np_concatAndFree(ret, "--- Messagepart cache end ---%s", new_line);
 
 	return (ret);
 }

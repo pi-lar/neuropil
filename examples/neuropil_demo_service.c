@@ -36,6 +36,9 @@
 #include "np_msgproperty.h"
 #include "np_keycache.h"
 #include "np_tree.h"
+#include "np_route.h"
+#include "np_key.h"
+
 
 #include "neuropil.h"
 #include "example_helper.c"
@@ -117,9 +120,34 @@ int main(int argc, char **argv) {
 	pong_props->msg_ttl = 20.0;
 	np_msgproperty_register(pong_props);
 	np_add_receive_listener(receive_pong, "pong");
+	
+	double lastping = ev_time();
+	np_send_text("ping", "ping", _ping_count++, NULL);
+	uint16_t last_count_of_routes = 0;
+	uint16_t count_of_routes = 0;
 
 	while (TRUE) {
 		ev_sleep(0.1);
+
+		 double now = ev_time();
+				// invoke a ping message every 10 seconds
+			if ((now - lastping) > 10.0)
+		{
+			lastping = ev_time();
+			np_send_text("ping", "ping", _ping_count++, NULL);
+		}
+		// As long as we do not have the appropiate events (node_joined/node_left)
+		// we try to evaluate this via the routing table
+		sll_return(np_key_ptr) routes = _np_route_get_table();
+		count_of_routes = sll_size(routes);
+		np_unref_list(routes, "_np_route_get_table");
+		if (count_of_routes < last_count_of_routes) {
+			fprintf(stdout, "Node left network.\n");
+		}
+		else if (count_of_routes < last_count_of_routes) {
+			fprintf(stdout, "Node joined network.\n");
+		}
+		last_count_of_routes = count_of_routes;
 	}
 }
 
