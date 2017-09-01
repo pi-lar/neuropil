@@ -18,8 +18,8 @@
 #include "../include/np_aaatoken.h"
 %}
 
-%rename(np_aaatoken_s) np_aaatoken;
-%rename(np_aaatoken_t) np_aaatoken;
+%rename(np_aaatoken) np_aaatoken_s;
+%rename(np_aaatoken) np_aaatoken_t;
 
 %extend np_aaatoken_s {
     %ignore obj;

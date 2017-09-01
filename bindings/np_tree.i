@@ -16,8 +16,8 @@
 #include "../include/np_tree.h"
 %}
 
-%rename(np_tree_t) np_tree;
-%rename(np_tree_s) np_tree;
+%rename(np_tree) np_tree_t;
+%rename(np_tree) np_tree_s;
 
 %extend np_tree_s {
 

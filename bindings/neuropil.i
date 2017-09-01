@@ -31,16 +31,14 @@
 %include "np_treeval.i"
 %include "np_types.i"
 
-
-%rename(np_state_s) np_state;
-%rename(np_state_t) np_state;
+%rename(np_state) np_state_s;
+%rename(np_state) np_state_t;
 
 %{
 
 static PyObject *py_authenticate_func = NULL;
 static PyObject *py_authorize_func = NULL;
 static PyObject *py_accounting_func = NULL;
-
 
 static np_bool python_authenticate_callback(struct np_aaatoken_s* aaa_token)
 {
@@ -105,6 +103,7 @@ static PyObject* _py_convert_callback_data(np_tree_t* msg_properties, np_tree_t*
     PyObject* prop = SWIG_NewPointerObj(SWIG_as_voidptr(msg_properties), SWIGTYPE_p_np_tree_s, 0);
     PyObject* body = SWIG_NewPointerObj(SWIG_as_voidptr(msg_body), SWIGTYPE_p_np_tree_s, 0);
     arglist = Py_BuildValue("(OO)", prop, body);
+
     return arglist;
 }
 
@@ -122,7 +121,6 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
         log_msg(LOG_ERROR, "no python user callback handler found for message %s", msg_subject->val.value.s);
         return FALSE;
     }
-
     // use found functor, convert arguments to python args
     PyObject* py_callback = old_py_func_elem->val.value.v;
     PyObject *arglist = _py_convert_callback_data(msg_properties, msg_body);
