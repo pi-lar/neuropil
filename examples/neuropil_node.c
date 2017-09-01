@@ -17,6 +17,7 @@
 #include "np_keycache.h"
 #include "np_tree.h"
 #include "np_types.h"
+#include "np_sysinfo.h"
 
 #include "example_helper.c"
 
@@ -70,6 +71,8 @@ int main(int argc, char **argv)
 							np_treeval_new_hash(code));
 		}
 	}
+
+	np_sysinfo_enable_slave();
 
 	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
