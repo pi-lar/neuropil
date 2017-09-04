@@ -32,6 +32,7 @@
 #include "np_threads.h"
 #include "np_util.h"
 #include "np_settings.h"
+#include "np_constants.h"
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
@@ -47,7 +48,7 @@ static const char* NP_NODE_LAST_SUCCESS = "_np.node.last_success";
 
 void _np_node_t_new(void* node)
 {
-    log_msg(LOG_TRACE, "start: void _np_node_t_new(void* node){");
+	log_msg(LOG_TRACE, "start: void _np_node_t_new(void* node){");
 	np_node_t* entry = (np_node_t *) node;
 
 	_np_threads_mutex_init(&entry->lock);
@@ -65,17 +66,17 @@ void _np_node_t_new(void* node)
 	entry->joined_network = FALSE;
 
 	for (uint8_t i = 0; i < SUCCESS_WINDOW / 2; i++)
-    	entry->success_win[i] = 0;
-    for (uint8_t i = SUCCESS_WINDOW / 2; i < SUCCESS_WINDOW; i++)
-    	entry->success_win[i] = 1;
-    for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
-    	entry->latency_win[i] = 0.031415;
-    entry->latency = 0.031415;
+		entry->success_win[i] = 0;
+	for (uint8_t i = SUCCESS_WINDOW / 2; i < SUCCESS_WINDOW; i++)
+		entry->success_win[i] = 1;
+	for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
+		entry->latency_win[i] = 0.031415;
+	entry->latency = 0.031415;
 }
 
 void _np_node_t_del(void* node)
 {
-    log_msg(LOG_TRACE, "start: void _np_node_t_del(void* node){");
+	log_msg(LOG_TRACE, "start: void _np_node_t_del(void* node){");
 	np_node_t* entry = (np_node_t *) node;
 	if (entry->dns_name) free (entry->dns_name);
 	if (entry->port) free (entry->port);
@@ -89,13 +90,13 @@ void _np_node_t_del(void* node)
  **/
 void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 {
-    snprintf (s, len, "%s:", _np_key_as_str(key));
+	snprintf (s, len, "%s:", _np_key_as_str(key));
 
-    if (NULL != key->node->dns_name) {
-    	snprintf (s + strlen (s), len - strlen (s), "%s:", _np_network_get_protocol_string(key->node->protocol));
-    	snprintf (s + strlen (s), len - strlen (s), "%s:", key->node->dns_name);
-    	snprintf (s + strlen (s), len - strlen (s), "%s",  key->node->port);
-    }
+	if (NULL != key->node->dns_name) {
+		snprintf (s + strlen (s), len - strlen (s), "%s:", _np_network_get_protocol_string(key->node->protocol));
+		snprintf (s + strlen (s), len - strlen (s), "%s:", key->node->dns_name);
+		snprintf (s + strlen (s), len - strlen (s), "%s",  key->node->port);
+	}
 }
 
 void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, np_bool include_stats)
@@ -166,6 +167,7 @@ np_key_t* _np_node_decode_from_str (const char *key)
 	if (NULL == node_key->node)
 	{
 		np_new_obj(np_node_t, node_key->node);
+		ref_replace_reason(np_node_t, node_key->node, ref_obj_creation, ref_key_node);
 	}
 
 	if (NULL != s_hostname &&
@@ -176,6 +178,8 @@ np_key_t* _np_node_decode_from_str (const char *key)
 	}
 
 	free (key_dup);
+
+	ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", __func__);
 
 	return (node_key);
 }
@@ -208,61 +212,68 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 
 	// np_jrb_t* latency = np_tree_find_str(data, "_np.node.latency");
 	// if (latency) node->latency = latency->val.value.d;
+	ref_replace_reason(np_node_t, new_node, ref_obj_creation, __func__);
 
 	return (new_node);
 }
 
 
-uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_t, node_keys), np_bool include_stats)
+uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, node_keys), np_bool include_stats)
 {
 	uint16_t j=0;
-    np_key_t* current;
-    while(NULL != sll_first(node_keys))
-	{
-    	current = sll_head(np_key_t, node_keys);
-    	if (current->node)
-    	{
-    		np_tree_t* node_jrb = np_tree_create();
-    		// log_debug_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
-    		_np_node_encode_to_jrb(node_jrb, current, include_stats);
-    		np_tree_insert_str(node_jrb, NP_NODE_KEY, np_treeval_new_s(_np_key_as_str(current)));
+	np_key_t* current;
 
-    		np_tree_insert_int(data, j, np_treeval_new_tree(node_jrb));
-    		j++;
-    		np_tree_free(node_jrb);
-    	}
-    }
-    return (j);
+	sll_clone(np_key_ptr, node_keys, node_keys_to_encode)
+
+	while(NULL != (current = sll_head(np_key_ptr, node_keys_to_encode)))
+	{		
+		if (current->node)
+		{
+			np_tree_t* node_jrb = np_tree_create();
+			// log_debug_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
+			_np_node_encode_to_jrb(node_jrb, current, include_stats);
+			np_tree_insert_str(node_jrb, NP_NODE_KEY, np_treeval_new_s(_np_key_as_str(current)));
+
+			np_tree_insert_int(data, j, np_treeval_new_tree(node_jrb));
+			j++;
+			np_tree_free(node_jrb);
+		}
+	}
+	sll_free(np_key_ptr, node_keys_to_encode);
+	return (j);
 }
 
-sll_return(np_key_t) _np_node_decode_multiple_from_jrb (np_tree_t* data)
+sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 {
-    uint16_t nodenum = data->size;
+	uint16_t nodenum = data->size;
 
-    np_sll_t(np_key_t, node_list);
-	sll_init(np_key_t, node_list);
+	np_sll_t(np_key_ptr, node_list);
+	sll_init(np_key_ptr, node_list);
 
-    /* gets the number of hosts in the lists and goes through them 1 by 1 */
-    for (uint16_t i = 0; i < nodenum; i++)
+	/* gets the number of hosts in the lists and goes through them 1 by 1 */
+	for (uint16_t i = 0; i < nodenum; i++)
 	{
-    	np_tree_elem_t* node_data = np_tree_find_int(data, i);
+		np_tree_elem_t* node_data = np_tree_find_int(data, i);
 
-    	char* s_key = np_tree_find_str(node_data->val.value.tree, NP_NODE_KEY)->val.value.s;
-    	np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
-    	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
-    	if (NULL == node_key->node)
-    	{
-    		node_key->node = _np_node_decode_from_jrb(node_data->val.value.tree);
-    	}
-    	sll_append(np_key_t, node_list, node_key);
+		char* s_key = np_tree_find_str(node_data->val.value.tree, NP_NODE_KEY)->val.value.s;
+		np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
+		np_key_t* node_key    = _np_keycache_find_or_create(search_key);
+		if (NULL == node_key->node)
+		{
+			node_key->node = _np_node_decode_from_jrb(node_data->val.value.tree);
+			ref_replace_reason(np_node_t, node_key->node, "_np_node_decode_from_jrb", ref_key_node);
+		} 
+		
+		ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", __func__);
+		
+		sll_append(np_key_ptr, node_list, node_key);
 	}
-
-    return (node_list);
+	return (node_list);
 }
 
 np_key_t* _np_node_create_from_token(np_aaatoken_t* token)
 {
-    log_msg(LOG_TRACE, "start: np_key_t* _np_node_create_from_token(np_aaatoken_t* token){");
+	log_msg(LOG_TRACE, "start: np_key_t* _np_node_create_from_token(np_aaatoken_t* token){");
 	// TODO: check whether metadata is used as a hash key in general
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(token);
 	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
@@ -270,12 +281,18 @@ np_key_t* _np_node_create_from_token(np_aaatoken_t* token)
 	{
 		node_key->node = _np_node_decode_from_jrb(token->extensions);
 	}
+	ref_replace_reason(
+			np_key_t, node_key,
+			"_np_keycache_find_or_create",
+			__func__
+	);
+
 	return (node_key);
 }
 
 np_aaatoken_t* _np_node_create_token(np_node_t* node)
 {
-    log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_node_create_token(np_node_t* node){");
+	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_node_create_token(np_node_t* node){");
 	np_state_t* state = _np_state();
 
 	np_aaatoken_t* node_token = NULL;
@@ -301,7 +318,7 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 	int rand_interval =  ((int)randombytes_uniform(NODE_MAX_TTL_SEC-NODE_MIN_TTL_SEC)+NODE_MIN_TTL_SEC);
 	node_token->expiration = node_token->not_before + rand_interval ;
 
-    crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
+	crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
 
 	np_tree_insert_str(node_token->extensions, NP_NODE_DNS_NAME,
 			np_treeval_new_s(node->dns_name));
@@ -331,9 +348,9 @@ void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
  **/
 void _np_node_update_stat (np_node_t* node, uint8_t success)
 {
-    float total = 0;
-    np_tryref_obj(np_node_t, node,nodeExists);
-    if(nodeExists) {
+	float total = 0;
+	np_ref_obj(np_node_t, node,"usage");
+	 {
 		_LOCK_ACCESS(&node->lock) {
 
 			node->success_win[node->success_win_index++ % SUCCESS_WINDOW] = success;
@@ -350,16 +367,16 @@ void _np_node_update_stat (np_node_t* node, uint8_t success)
 		log_msg(LOG_INFO, "node %s:%s success rate now: %1.1f",
 				node->dns_name, node->port, node->success_avg);
 
-		np_unref_obj(np_node_t, node);
-    }
+		np_unref_obj(np_node_t, node,"usage");
+	}
 }
 
 void _np_node_update_latency (np_node_t* node, double new_latency)
 {
 	if (new_latency > 0.0)
 	{
-		np_tryref_obj(np_node_t, node,nodeExists);
-		if(nodeExists) {
+		np_ref_obj(np_node_t, node,"usage");
+		{
 			_LOCK_ACCESS(&node->lock) {
 				node->latency_win[node->latency_win_index++ % SUCCESS_WINDOW] = new_latency;
 
@@ -381,7 +398,7 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
 					// log_debug_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency);
 				}
 			}
-			np_unref_obj(np_node_t, node);
+			np_unref_obj(np_node_t, node,"usage");
 		}
 	}
 }

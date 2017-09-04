@@ -41,6 +41,7 @@ inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, 
 	msg_prop->PROP_NAME = value;                          \
 }
 
+#define UUID_SIZE 37
 // create a sha156 uuid string, take the current date into account
 NP_API_EXPORT
 char* np_uuid_create(const char* str, const uint16_t num);
@@ -61,7 +62,7 @@ NP_API_INTERN
 void _np_tree2jsonobj(np_tree_t* jtree, JSON_Object* json_obj);
 
 NP_API_INTERN
-void _np_sll_remove_doublettes(np_sll_t(np_key_t, list_of_keys));
+void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys));
 
 /**
 .. c:function:: void np_tree2json()
@@ -100,6 +101,21 @@ void np_dump_tree2log(np_tree_t* tree);
 */
 NP_API_EXPORT
 char* np_dump_tree2char(np_tree_t* tree);
+
+NP_API_INTERN
+char* _np_concatAndFree(char* target, char* source, ... );
+
+NP_API_INTERN
+np_bool _np_get_local_ip(char buffer[], int buffer_size);
+
+NP_API_INTERN
+char* _sll_char_make_flat(np_sll_t(char_ptr, target));
+NP_API_INTERN
+char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len);
+NP_API_INTERN
+sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount);
+
+
 #ifdef __cplusplus
 }
 #endif

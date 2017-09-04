@@ -226,13 +226,13 @@ struct np_msgproperty_s
 	// link to memory management
 	np_obj_t* obj;
 
-    RB_ENTRY(np_msgproperty_s) link; // link for cache management
+	RB_ENTRY(np_msgproperty_s) link; // link for cache management
 
-    // link to node(s) which is/are interested in message exchange
-    np_dhkey_t partner_key;
+	// link to node(s) which is/are interested in message exchange
+	np_dhkey_t partner_key;
 
-    char*            msg_subject;
-    char*            rep_subject;
+	char*            msg_subject;
+	char*            rep_subject;
 	char*            msg_audience;
 	np_msg_mode_type mode_type;
 	np_msg_mep_type  mep_type;
@@ -248,15 +248,15 @@ struct np_msgproperty_s
 
 	// cache which will hold up to max_threshold messages
 	np_msgcache_policy_type cache_policy;
-	np_sll_t(np_message_t, msg_cache_in);
-	np_sll_t(np_message_t, msg_cache_out);
+	np_sll_t(np_message_ptr, msg_cache_in);
+	np_sll_t(np_message_ptr, msg_cache_out);
 
 	// only send/receive after opposite partner has been found
 	np_mutex_t lock;
 	np_cond_t  msg_received;
 
 	// pthread_cond_t     msg_received;
-    // pthread_condattr_t cond_attr;
+	// pthread_condattr_t cond_attr;
 
 	// callback function(s) to invoke when a message is received
 	np_callback_t clb_default; // internal neuropil supplied
@@ -265,12 +265,14 @@ struct np_msgproperty_s
 	np_callback_t clb_route; // internal neuropil supplied
 	np_callback_t clb_transform; // internal neuropil supplied
 
-	np_usercallback_t user_clb; // external user supplied for inbound
+	np_sll_t(np_usercallback_t, user_receive_clb); // external user supplied for inbound
+	np_sll_t(np_usercallback_t, user_send_clb); // external user supplied for outnound
 
 	// The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
 	uint32_t token_max_ttl;
 	// The token created for this msgproperty will guaranteed live for token_min_ttl seconds
 	uint32_t token_min_ttl;
+
 } NP_API_EXPORT;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
@@ -330,7 +332,6 @@ static char _NP_MSG_PING_REPLY[]             = "_NP.PING.REPLY";
 static char _NP_MSG_LEAVE_REQUEST[]          = "_NP.LEAVE.REQUEST";
 static char _NP_MSG_JOIN[]                   = "_NP.JOIN.";
 static char _NP_MSG_JOIN_REQUEST[]           = "_NP.JOIN.REQUEST";
-static char _NP_MSG_JOIN_REQUEST_WILDCARD[]  = "_NP_MSG_JOIN_REQUEST_WILDCARD";
 static char _NP_MSG_JOIN_ACK[]               = "_NP.JOIN.ACK";
 static char _NP_MSG_JOIN_NACK[]              = "_NP.JOIN.NACK";
 static char _NP_MSG_PIGGY_REQUEST[]          = "_NP.NODES.PIGGY";

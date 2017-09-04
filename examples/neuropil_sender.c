@@ -18,11 +18,7 @@
 #include "np_tree.h"
 #include "np_types.h"
 
-#define USAGE "neuropil_sender [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t worker_thread_count] [-r realmname] [-c code]"
-#define OPTSTR "j:p:b:t:r:c:"
-
-extern char *optarg;
-extern int optind;
+#include "example_helper.c"
 
 /**
 first we have to define a global np_state_t variable
@@ -35,43 +31,34 @@ np_state_t *state;
 
 int main(int argc, char **argv)
 {
-	int opt;
-	int no_threads = 2;
-	char *j_key = NULL;
-	char* proto = NULL;
-	char* port = NULL;
 	char* realm = NULL;
 	char* code = NULL;
 
-	while ((opt = getopt(argc, argv, OPTSTR)) != EOF)
-	{
-		switch ((char) opt)
-		{
-		case 'j':
-			j_key = optarg;
-			break;
-		case 't':
-			no_threads = atoi(optarg);
-			if (no_threads <= 0) no_threads = 8;
-			break;
-		case 'p':
-			proto = optarg;
-			break;
-		case 'b':
-			port = optarg;
-			break;
-		case 'r':
-			realm = optarg;
-			break;
-		case 'c':
-			code = optarg;
-			break;
-		default:
-			fprintf(stderr, "invalid option %c\n", (char) opt);
-			fprintf(stderr, "usage: %s\n", USAGE);
-			exit(1);
-		}
-	}
+	int no_threads = 8;
+	char *j_key = NULL;
+	char* proto = "udp4";
+	char* port = NULL;
+	char* publish_domain = NULL;
+	int level = -2;
+	char* logpath = ".";
+
+	int opt;
+	if (parse_program_args(
+		__FILE__,
+		argc,
+		argv,
+		&no_threads,
+		&j_key,
+		&proto,
+		&port,
+		&publish_domain,
+		&level,
+		&logpath,
+		"[-r realmname] [-c code]",
+		"r:c:"
+	) == FALSE) {
+		exit(EXIT_FAILURE);
+	}	
 
 	/**
 	in your main program, initialize the logging of neuopil, use the port for the filename
@@ -80,8 +67,7 @@ int main(int argc, char **argv)
 	\code
 	*/
 	char log_file[256];
-	sprintf(log_file, "%s_%s.log", "./neuropil_node", port);
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG  | LOG_AAATOKEN;
+	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_sender", port);
 	np_log_init(log_file, level);
 	/** \endcode */
 
@@ -92,7 +78,7 @@ int main(int argc, char **argv)
 	.. code-block:: c
 	\code
 	*/
-	state = np_init(proto, port, FALSE, NULL);
+	state = np_init(proto, port, publish_domain);
 	/** \endcode */
 
 	if (NULL != realm)
@@ -155,7 +141,7 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 	\code
- 	*/
+	*/
 	while (1) {
 
 		ev_sleep(1.0);

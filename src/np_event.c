@@ -17,6 +17,7 @@
 #include <inttypes.h>
 
 #include "event/ev.h"
+#include "tree/tree.h"
 
 #include "np_log.h"
 #include "np_jobqueue.h"
@@ -29,6 +30,13 @@
 #include "np_types.h"
 #include "np_list.h"
 #include "np_route.h"
+#include "np_tree.h"
+#include "np_message.h"
+#include "np_messagepart.h"
+#include "np_memory.h"
+#include "np_settings.h"
+#include "np_constants.h"
+
 
 static np_bool __exit_libev_loop = FALSE;
 
@@ -46,7 +54,7 @@ static ev_async    __libev_async_watcher;
 
 void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents)
 {
-    log_msg(LOG_TRACE, "start: void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents){");
+	log_msg(LOG_TRACE, "start: void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents){");
 	log_debug_msg(LOG_DEBUG, ".start._np_events_async");
 
 	static int suspend_loop = 0;
@@ -65,22 +73,58 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 	}
 }
 
+
+void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
+{
+	np_sll_t(np_message_ptr,to_del);
+	sll_init(np_message_ptr,to_del);
+
+	_LOCK_MODULE(np_message_part_cache_t)
+	{
+		np_state_t* state = _np_state();
+		np_tree_elem_t* tmp = NULL;
+
+		RB_FOREACH(tmp, np_tree_s, state->msg_part_cache)
+		{
+			np_message_t* msg = tmp->val.value.v;
+			// np_tryref_obj(np_message_t,msg, msgExists);
+
+			if(TRUE == _np_message_is_expired(msg)) {
+				sll_append(np_message_ptr,to_del,msg);
+			}
+		}
+
+		sll_iterator(np_message_ptr) iter = sll_first(to_del);
+		while (NULL != iter)
+		{
+			np_tree_del_str(state->msg_part_cache,iter->val->uuid);
+			np_unref_obj(np_message_t, iter->val, ref_msgpartcache);
+			sll_next(iter);
+		}
+	}
+
+	// np_unref_list(np_message_ptr, to_del, ref_msgpartcache); // cleanup
+
+	np_job_submit_event(MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache);
+}
+
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args){");
 
-    _np_route_rejoin_bootstrap(FALSE);
+	_np_route_rejoin_bootstrap(FALSE);
 
 	// Reschedule myself
-    np_job_submit_event(1, _np_event_rejoin_if_necessary);
+	np_job_submit_event(MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary);
 }
+
 /**
  ** _np_events_read
  ** schedule the libev event loop one time and reschedule again
  **/
 void _np_events_read(NP_UNUSED np_jobargs_t* args)
 {
-    log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
 	// TODO: evaluate if 1 ore more threads are started and init appropriately
@@ -119,16 +163,16 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
  */
 void _np_suspend_event_loop()
 {
-    log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
+	log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
 	_LOCK_MODULE(np_event_t){
 		__suspended_libev_loop++;
 	}
-    ev_async_send (EV_DEFAULT_ &__libev_async_watcher);
+	ev_async_send (EV_DEFAULT_ &__libev_async_watcher);
 }
 
 void _np_resume_event_loop()
 {
-    log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
+	log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
 	_LOCK_MODULE(np_event_t) {
 		__suspended_libev_loop--;
 	}

@@ -16,6 +16,10 @@
 extern "C" {
 #endif
 
+
+	#define _NP_SYSINFO_REQUEST "_NP.SYSINFO.REQUEST"
+	#define _NP_SYSINFO_REPLY "_NP.SYSINFO.REPLY"
+
 NP_API_INTERN
 void _np_sysinfo_init_cache();
 NP_API_INTERN

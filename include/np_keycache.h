@@ -51,27 +51,21 @@ NP_API_INTERN
 np_key_t* _np_keycache_find_deprecated();
 
 NP_API_INTERN
-sll_return(np_key_t) _np_keycache_find_aliase(np_key_t* forKey);
+sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey);
 
 // TODO: this needs to be refactored: closest distance clock- or counterclockwise ?
 // will have an important effect on routing decisions
 NP_API_INTERN
-np_key_t* _np_keycache_find_closest_key_to (np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key);
+np_key_t* _np_keycache_find_closest_key_to (np_sll_t(np_key_ptr, list_of_keys), const np_dhkey_t* key);
 
 NP_API_INTERN
-void _np_keycache_sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t* key);
+void _np_keycache_sort_keys_cpm (np_sll_t(np_key_ptr, node_keys), const np_dhkey_t* key);
 
 NP_API_INTERN
-void _np_keycache_sort_keys_kd (np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key);
+void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhkey_t* key);
 
 NP_API_INTERN
 np_key_t* _np_keycache_find_by_details(char* details_container, np_bool search_myself, handshake_status_e handshake_status, np_bool require_handshake_status, np_bool require_dns,np_bool require_port,np_bool require_hash );
-
-NP_API_INTERN
-void _np_keycache_ref_keys (np_sll_t(np_key_t, list_of_keys));
-NP_API_INTERN
-void _np_keycache_unref_keys (np_sll_t(np_key_t, list_of_keys));
-
 
 #ifdef __cplusplus
 }

@@ -202,13 +202,13 @@ Test(np_keycache_t, _np_key_as_str, .description="test the creation of a string 
 
 }
 
-// np_key_t* _np_keycache_find_closest_key_to (np_sll_t(np_key_t, list_of_keys), np_dhkey_t* key);
+// np_key_t* _np_keycache_find_closest_key_to (np_sll_t(np_key_ptr, list_of_keys), np_dhkey_t* key);
 Test(np_keycache_t, _np_keycache_find_closest_key_to, .description="test the finding of the closest key")
 {
 	const int count_of_keys = 10; // should be lower than 99
 	np_key_t* new_keys[count_of_keys];
-	np_sll_t(np_key_t, key_list);
-	sll_init(np_key_t, key_list);
+	np_sll_t(np_key_ptr, key_list);
+	sll_init(np_key_ptr, key_list);
 
 	np_dhkey_t dummy_key = { .t[0] = 99, .t[1] = 99, .t[2] = 99, .t[3] = 99};
 
@@ -220,28 +220,28 @@ Test(np_keycache_t, _np_keycache_find_closest_key_to, .description="test the fin
 		np_dhkey_t key = { .t[0] = i, .t[1] = i, .t[2] = i, .t[3] = i};
 
 		new_keys[i] = _np_keycache_find_or_create(key);
-		sll_append(np_key_t, key_list, new_keys[i]);
+		sll_append(np_key_ptr, key_list, new_keys[i]);
 	}
 
 	uint32_t i = 0;
- 	found = _np_keycache_find_closest_key_to(key_list, &new_keys[1]->dhkey);
+	found = _np_keycache_find_closest_key_to(key_list, &new_keys[1]->dhkey);
 	cr_expect(NULL != found, "expecting to find the new key in list");
 
- 	for(i=1;(i-1) < count_of_keys && _np_key_cmp(found, new_keys[i-1]) != 0 ; i++);
+	for(i=1;(i-1) < count_of_keys && _np_key_cmp(found, new_keys[i-1]) != 0 ; i++);
 	cr_expect(0 == _np_key_cmp(found, new_keys[1]), "expecting the closest key to be the first in the array, But was at idx:  %d",(i == sll_size(key_list) ? 666 : (i-1)));
 
- 	found = _np_keycache_find_closest_key_to(key_list, &dummy_key);
+	found = _np_keycache_find_closest_key_to(key_list, &dummy_key);
 	cr_expect(NULL != found, "expecting to find the dummy_key in list");
- 	for(i=1; (i-1) < count_of_keys && _np_key_cmp(found, new_keys[i-1]) != 0; i++);
+	for(i=1; (i-1) < count_of_keys && _np_key_cmp(found, new_keys[i-1]) != 0; i++);
 	cr_expect(0 == _np_key_cmp(found, new_keys[count_of_keys-1]), "expecting the closest key to be the last in the array, But was at idx: %d ", (i == sll_size(key_list) ? 666 : (i-1)));
 }
 
-// void _np_keycache_sort_keys_cpm (np_sll_t(np_key_t, node_keys), np_dhkey_t* key);
+// void _np_keycache_sort_keys_cpm (np_sll_t(np_key_ptr, node_keys), np_dhkey_t* key);
 Test(np_keycache_t, _np_keycache_sort_keys_cpm, .description="sort a list of key based on common prefix and key distance")
 {
 	np_key_t* new_keys[200];
-	np_sll_t(np_key_t, key_list);
-	sll_init(np_key_t, key_list);
+	np_sll_t(np_key_ptr, key_list);
+	sll_init(np_key_ptr, key_list);
 
 	np_dhkey_t dummy_key = { .t[0] = 99, .t[1] = 99, .t[2] = 99, .t[3] = 99};
 
@@ -250,7 +250,7 @@ Test(np_keycache_t, _np_keycache_sort_keys_cpm, .description="sort a list of key
 		np_dhkey_t key = { .t[0] = i, .t[1] = i, .t[2] = i, .t[3] = i};
 
 		new_keys[i] = _np_keycache_find_or_create(key);
-		sll_append(np_key_t, key_list, new_keys[i]);
+		sll_append(np_key_ptr, key_list, new_keys[i]);
 	}
 
 	_np_keycache_sort_keys_cpm(key_list, &dummy_key);
@@ -263,12 +263,12 @@ Test(np_keycache_t, _np_keycache_sort_keys_cpm, .description="sort a list of key
 	}
 }
 
-// void _np_keycache_sort_keys_kd (np_sll_t(np_key_t, list_of_keys), np_dhkey_t* key);
+// void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), np_dhkey_t* key);
 Test(np_keycache_t, _np_keycache_sort_keys_kd, .description="sort a list of key based on key distance")
 {
 	np_key_t* new_keys[200];
-	np_sll_t(np_key_t, key_list);
-	sll_init(np_key_t, key_list);
+	np_sll_t(np_key_ptr, key_list);
+	sll_init(np_key_ptr, key_list);
 
 	np_dhkey_t dummy_key = { .t[0] = 99, .t[1] = 99, .t[2] = 99, .t[3] = 99};
 
@@ -277,7 +277,7 @@ Test(np_keycache_t, _np_keycache_sort_keys_kd, .description="sort a list of key 
 		np_dhkey_t key = { .t[0] = i, .t[1] = i, .t[2] = i, .t[3] = i};
 
 		new_keys[i] = _np_keycache_find_or_create(key);
-		sll_append(np_key_t, key_list, new_keys[i]);
+		sll_append(np_key_ptr, key_list, new_keys[i]);
 	}
 
 	_np_keycache_sort_keys_kd(key_list, &dummy_key);

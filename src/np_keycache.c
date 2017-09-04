@@ -24,6 +24,7 @@
 #include "np_threads.h"
 #include "np_key.h"
 #include "np_list.h"
+#include "np_constants.h"
 
 
 // TODO: make this a better constant value
@@ -37,7 +38,7 @@ static st_keycache_t* __key_cache;
 
 void _np_keycache_init()
 {
-    log_msg(LOG_TRACE, "start: void _np_keycache_init(){");
+	log_msg(LOG_TRACE, "start: void _np_keycache_init(){");
 	__key_cache = (st_keycache_t*) malloc(sizeof(st_keycache_t));
 	CHECK_MALLOC(__key_cache);
 
@@ -46,7 +47,7 @@ void _np_keycache_init()
 
 np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey)
 {
-    log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey){");
+	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey){");
 	np_key_t* subject_key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
 
@@ -56,8 +57,12 @@ np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey)
 		if (NULL == subject_key)
 		{
 			subject_key = _np_keycache_create(search_dhkey);
-    	}
-		np_ref_obj(np_key_t, subject_key);
+			ref_replace_reason(np_key_t, subject_key, "_np_keycache_create", __func__);
+		}
+		else {
+			np_ref_obj(np_key_t, subject_key);
+		}
+
 		subject_key->last_update = ev_time();
 	}
 	return (subject_key);
@@ -65,23 +70,22 @@ np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey)
 
 np_key_t* _np_keycache_create(np_dhkey_t search_dhkey)
 {
-    log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_create(np_dhkey_t search_dhkey){");
+	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_create(np_dhkey_t search_dhkey){");
 	np_key_t* subject_key = NULL;
 
 	np_new_obj(np_key_t, subject_key);
 	subject_key->dhkey = search_dhkey;
 	subject_key->last_update = ev_time();
 
-	_LOCK_MODULE(np_keycache_t) {
-		SPLAY_INSERT(st_keycache_s, __key_cache, subject_key);
-	}
-
+	ref_replace_reason(np_key_t, subject_key, ref_obj_creation, __func__);
+	_np_keycache_add(subject_key);
+	
 	return subject_key;
 }
 
 np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey)
 {
-    log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey){");
+	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey){");
 	np_key_t* return_key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
 
@@ -106,12 +110,12 @@ np_key_t* _np_keycache_find_by_details(
 		np_bool require_port,
 		np_bool require_hash
 	){
-    log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		np_bool search_myself,		handshake_status_e handshake_status,		np_bool require_handshake_status,		np_bool require_dns,		np_bool require_port,		np_bool require_hash	){");
+	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		np_bool search_myself,		handshake_status_e handshake_status,		np_bool require_handshake_status,		np_bool require_dns,		np_bool require_port,		np_bool require_hash	){");
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
 
- 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key);
- 	np_waitref_obj(np_key_t, _np_state()->my_identity, my_identity);
+	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key,"np_waitref_key");
+	np_waitref_obj(np_key_t, _np_state()->my_identity, my_identity,"np_waitref_identity");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -127,10 +131,28 @@ np_key_t* _np_keycache_find_by_details(
 			}
 
 			if (
-					(!require_handshake_status || (NULL != iter->node && iter->node->handshake_status == handshake_status)) &&
-					(!require_hash || (NULL != iter->dhkey_str && strstr(details_container, iter->dhkey_str) != NULL)) &&
-					(!require_dns || (NULL != iter->node &&NULL != iter->node->dns_name && strstr(details_container, iter->node->dns_name) != NULL)) &&
-					(!require_port || (NULL != iter->node && NULL != iter->node->port &&strstr(details_container, iter->node->port) != NULL))
+					(!require_handshake_status ||
+							(NULL != iter->node &&
+							iter->node->handshake_status == handshake_status
+							)
+					) &&
+					(!require_hash ||
+							(NULL != iter->dhkey_str &&
+							strstr(details_container, iter->dhkey_str) != NULL
+							)
+					) &&
+					(!require_dns ||
+							(NULL != iter->node &&
+							NULL != iter->node->dns_name &&
+							strstr(details_container, iter->node->dns_name) != NULL
+							)
+					) &&
+					(!require_port ||
+							(NULL != iter->node &&
+							NULL != iter->node->port &&
+							strstr(details_container, iter->node->port) != NULL
+							)
+					)
 			)
 			{
 				np_ref_obj(np_key_t, iter);
@@ -140,15 +162,15 @@ np_key_t* _np_keycache_find_by_details(
 			}
 		}
 	}
- 	np_unref_obj(np_key_t, my_identity);
- 	np_unref_obj(np_key_t, my_node_key);
+	np_unref_obj(np_key_t, my_identity,"np_waitref_identity");
+	np_unref_obj(np_key_t, my_node_key,"np_waitref_key");
 
 	return (ret);
 }
 
 np_key_t* _np_keycache_find_deprecated()
 {
-    log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_deprecated(){");
+	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_deprecated(){");
 	np_key_t *iter = NULL;
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -173,19 +195,19 @@ np_key_t* _np_keycache_find_deprecated()
 	return (iter);
 }
 
-sll_return(np_key_t) _np_keycache_find_aliase(np_key_t* forKey)
+sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)
 {
-	np_sll_t(np_key_t,ret) = sll_init(np_key_t, ret);
+	np_sll_t(np_key_ptr,ret) = sll_init(np_key_ptr, ret);
 	np_key_t *iter = NULL;
 	_LOCK_MODULE(np_keycache_t)
 	{
 		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
 		{
- 			if (_np_key_cmp(iter->parent,forKey)==0)
+			if (_np_key_cmp(iter->parent,forKey)==0)
 			{
 				np_ref_obj(np_key_t, iter);
-				sll_append(np_key_t, ret, iter);
- 			}
+				sll_append(np_key_ptr, ret, iter);
+			}
 		}
 	}
 	return (ret);
@@ -193,7 +215,7 @@ sll_return(np_key_t) _np_keycache_find_aliase(np_key_t* forKey)
 
 np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey)
 {
-    log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey){");
+	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey){");
 	np_key_t* rem_key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
 
@@ -202,7 +224,7 @@ np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey)
 		rem_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
 		if (NULL != rem_key) {
 			SPLAY_REMOVE(st_keycache_s, __key_cache, rem_key);
-			np_unref_obj(np_key_t, rem_key);
+			np_unref_obj(np_key_t, rem_key, ref_keycache);
 		}
 	}
 	return rem_key;
@@ -210,12 +232,13 @@ np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey)
 
 np_key_t* _np_keycache_add(np_key_t* subject_key)
 {
-    log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* subject_key){");
+	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* subject_key){");
+	//TODO: ist das notwendig? warum einen leeren key hinzufügen?
 	if (NULL == subject_key)
 	{
 		np_new_obj(np_key_t, subject_key);
 	}
-	np_ref_obj(np_key_t, subject_key);
+	np_ref_obj(np_key_t, subject_key,ref_keycache);
 
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -229,12 +252,12 @@ np_key_t* _np_keycache_add(np_key_t* subject_key)
 /** _np_keycache_find_closest_key_to:
  ** finds the closest node in the array of #hosts# to #key# and put that in min.
  */
-np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* const key)
+np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_ptr, list_of_keys), const np_dhkey_t* const key)
 {
-    np_dhkey_t  dif, minDif;
-    np_key_t *min = NULL;
+	np_dhkey_t  dif, minDif;
+	np_key_t *min = NULL;
 
-	sll_iterator(np_key_t) iter = sll_first(list_of_keys);
+	sll_iterator(np_key_ptr) iter = sll_first(list_of_keys);
 	np_bool first_run = TRUE;
 	while (NULL != iter)
 	{
@@ -257,59 +280,36 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_t, list_of_keys), c
 		log_msg(LOG_KEY | LOG_WARN, "minimum size for closest key calculation not met !");
 	}
 
+	if(NULL != min){
+		np_ref_obj(np_key_t, min);
+	}
 	return (min);
-}
-
-void _np_keycache_ref_keys (np_sll_t(np_key_t, list_of_keys))
-{
-	_LOCK_MODULE(np_keycache_t)
-	{
-		sll_iterator(np_key_t) iter = sll_first(list_of_keys);
-		while (NULL != iter)
-		{
-			np_ref_obj(np_key_t,iter->val);
-			sll_next(iter);
-		}
-	}
-}
-
-void _np_keycache_unref_keys (np_sll_t(np_key_t, list_of_keys))
-{
-	_LOCK_MODULE(np_keycache_t)
-	{
-		sll_iterator(np_key_t) iter = sll_first(list_of_keys);
-		while (NULL != iter)
-		{
-			np_unref_obj(np_key_t,iter->val);
-			sll_next(iter);
-		}
-	}
 }
 
 /** sort_hosts:
  ** Sorts #hosts# based on common prefix match and key distance from #np_key_t*
  */
-void _np_keycache_sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t* key)
+void _np_keycache_sort_keys_cpm (np_sll_t(np_key_ptr, node_keys), const np_dhkey_t* key)
 {
-    np_dhkey_t dif1, dif2;
+	np_dhkey_t dif1, dif2;
 
-    uint16_t pmatch1 = 0;
-    uint16_t pmatch2 = 0;
+	uint16_t pmatch1 = 0;
+	uint16_t pmatch2 = 0;
 
-    if (sll_size(node_keys) < 2) return;
+	if (sll_size(node_keys) < 2) return;
 
-    np_key_t* tmp;
-    sll_iterator(np_key_t) iter1 = sll_first(node_keys);
+	np_key_t* tmp;
+	sll_iterator(np_key_ptr) iter1 = sll_first(node_keys);
 
-    do
-    {
-        sll_iterator(np_key_t) iter2 = sll_get_next(iter1);
+	do
+	{
+		sll_iterator(np_key_ptr) iter2 = sll_get_next(iter1);
 
-        if (NULL == iter2) break;
+		if (NULL == iter2) break;
 
-        do
-        {
-        	pmatch1 = _np_dhkey_index (key, &iter1->val->dhkey);
+		do
+		{
+			pmatch1 = _np_dhkey_index (key, &iter1->val->dhkey);
 			pmatch2 = _np_dhkey_index (key, &iter2->val->dhkey);
 			if (pmatch2 > pmatch1)
 			{
@@ -319,9 +319,9 @@ void _np_keycache_sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t
 			}
 			else if (pmatch1 == pmatch2)
 			{
-			    _np_dhkey_distance (&dif1, &iter1->val->dhkey, key);
-			    _np_dhkey_distance (&dif2, &iter2->val->dhkey, key);
-			    if (_np_dhkey_comp (&dif2, &dif1) < 0)
+				_np_dhkey_distance (&dif1, &iter1->val->dhkey, key);
+				_np_dhkey_distance (&dif2, &iter2->val->dhkey, key);
+				if (_np_dhkey_comp (&dif2, &dif1) < 0)
 				{
 					tmp = iter1->val;
 					iter1->val = iter2->val;
@@ -335,38 +335,38 @@ void _np_keycache_sort_keys_cpm (np_sll_t(np_key_t, node_keys), const np_dhkey_t
 /** sort_hosts_key:
  ** Sorts #hosts# based on their key distance from #np_key_t*
  */
-void _np_keycache_sort_keys_kd (np_sll_t(np_key_t, list_of_keys), const np_dhkey_t* key)
+void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhkey_t* key)
 {
-    np_dhkey_t dif1, dif2;
+	np_dhkey_t dif1, dif2;
 
-    // entry check for empty list
-    if (NULL == sll_first(list_of_keys)) return;
+	// entry check for empty list
+	if (NULL == sll_first(list_of_keys)) return;
 
-    sll_iterator(np_key_t) curr = sll_first(list_of_keys);
-    do {
-        // Maintain pointers.
-        sll_iterator(np_key_t) next = sll_get_next(curr);
+	sll_iterator(np_key_ptr) curr = sll_first(list_of_keys);
+	do {
+		// Maintain pointers.
+		sll_iterator(np_key_ptr) next = sll_get_next(curr);
 
-        // Cannot swap last element with its next.
-        while (NULL != next)
-        {
-        	// Swap if items in wrong order.
-		    _np_dhkey_distance (&dif1, &curr->val->dhkey, key);
-		    _np_dhkey_distance (&dif2, &next->val->dhkey, key);
-		    if (_np_dhkey_comp (&dif2, &dif1) < 0)
+		// Cannot swap last element with its next.
+		while (NULL != next)
+		{
+			// Swap if items in wrong order.
+			_np_dhkey_distance (&dif1, &curr->val->dhkey, key);
+			_np_dhkey_distance (&dif2, &next->val->dhkey, key);
+			if (_np_dhkey_comp (&dif2, &dif1) < 0)
 			{
-		    	np_key_t* tmp = curr->val;
-		    	curr->val = next->val;
-		    	next->val = tmp;
-		    	// Notify loop to do one more pass.
-                break;
+				np_key_t* tmp = curr->val;
+				curr->val = next->val;
+				next->val = tmp;
+				// Notify loop to do one more pass.
+				break;
 			}
-		    // continue with the loop
-		    sll_next(next);
-        }
-	    sll_next(curr);
+			// continue with the loop
+			sll_next(next);
+		}
+		sll_next(curr);
 
-    } while (curr != sll_last(list_of_keys) && NULL != curr);
+	} while (curr != sll_last(list_of_keys) && NULL != curr);
 
 //    for (i = 0; i < size; i++)
 //	{

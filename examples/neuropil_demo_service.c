@@ -30,24 +30,23 @@
 #include "np_types.h"
 #include "np_list.h"
 #include "np_util.h"
+#include "np_http.h"
 #include "np_memory.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_keycache.h"
 #include "np_tree.h"
+#include "np_route.h"
+#include "np_key.h"
+
 
 #include "neuropil.h"
-
-#define USAGE "neuropil_echo_server [ -p protocol] [-t worker_thread_count] [-l path_to_log_folder] [-u publish_domain] "
-#define OPTSTR "p:t:l:u:"
+#include "example_helper.c"
 
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 #define DEBUG 0
-
-extern char *optarg;
-extern int optind;
 
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
@@ -57,61 +56,58 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
 
 int main(int argc, char **argv) {
+	int no_threads = 8;
+	char *j_key = NULL;
+	char* proto = "udp4";
+	char* port = NULL;
+	char* publish_domain = NULL;
+	int level = -2;
+	char* logpath = ".";
 
 	int opt;
-
-	char* proto = "udp4";
-	char* logpath = ".";
-	char* publish_domain = "localhost";
-	int no_threads = 8;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO;
-	char* port = "3333";
-
-	while ((opt = getopt(argc, argv, OPTSTR)) != EOF) {
-		switch ((char) opt) {
-		case 't':
-			no_threads = atoi(optarg);
-			if (no_threads <= 0)
-				no_threads = 2;
-			break;
-		case 'p':
-			proto = optarg;
-			break;
-		case 'u':
-			publish_domain = optarg;
-			break;
-		case 'l':
-			if (optarg != NULL) {
-				logpath = optarg;
-			} else {
-				fprintf(stderr, "invalid option value\n");
-				fprintf(stderr, "usage: %s\n", USAGE);
-				exit(EXIT_FAILURE);
-			}
-			break;
-		default:
-			fprintf(stderr, "invalid option %c\n", (char) opt);
-			fprintf(stderr, "usage: %s\n", USAGE);
-			exit(EXIT_FAILURE);
-		}
+	if (parse_program_args(
+		__FILE__,
+		argc,
+		argv,
+		&no_threads,
+		&j_key,
+		&proto,
+		&port,
+		&publish_domain,
+		&level,
+		&logpath,
+		NULL,
+		NULL
+	) == FALSE) {
+		exit(EXIT_FAILURE);
 	}
 
 	char log_file_host[256];
 	sprintf(log_file_host, "%s%s_%s.log", logpath, "/neuropil_demo_service",port);
 
 	np_log_init(log_file_host, level);
-	np_init(proto, port, TRUE, publish_domain);
+	np_init(proto, port, publish_domain);
+
+
+
+	if (FALSE == _np_http_init(NULL, NULL))
+	{
+		fprintf(stderr, "Node could not start HTTP interface\n");
+		log_msg(LOG_WARN, "Node could not start HTTP interface");
+		np_sysinfo_enable_slave();
+	} else {
+		np_sysinfo_enable_master();
+	} 
+
 	np_start_job_queue(no_threads);
-
-	np_sysinfo_enable_master();
-
+ 
 	np_msgproperty_t* msg_props = NULL;
 	np_new_obj(np_msgproperty_t, msg_props);
 	msg_props->msg_subject =  strndup("echo", 255);
 	msg_props->ack_mode = ACK_NONE;
 	msg_props->msg_ttl = 20.0;
 	np_msgproperty_register(msg_props);
-	np_set_listener(receive_echo_message, "echo");
+	np_add_receive_listener(receive_echo_message, "echo");
 
 	np_msgproperty_t* ping_props = NULL;
 	np_new_obj(np_msgproperty_t, ping_props);
@@ -119,7 +115,7 @@ int main(int argc, char **argv) {
 	ping_props->ack_mode = ACK_NONE;
 	ping_props->msg_ttl = 20.0;
 	np_msgproperty_register(ping_props);
-	np_set_listener(receive_ping, "ping");
+	np_add_receive_listener(receive_ping, "ping");
 
 	np_msgproperty_t* pong_props = NULL;
 	np_new_obj(np_msgproperty_t, pong_props);
@@ -127,15 +123,40 @@ int main(int argc, char **argv) {
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 20.0;
 	np_msgproperty_register(pong_props);
-	np_set_listener(receive_pong, "pong");
+	np_add_receive_listener(receive_pong, "pong");
+	
+	double lastping = ev_time();
+	np_send_text("ping", "ping", _ping_count++, NULL);
+	uint32_t last_count_of_routes = 0;
+	uint32_t count_of_routes = 0;
 
 	while (TRUE) {
 		ev_sleep(0.1);
+
+		 double now = ev_time();
+				// invoke a ping message every 10 seconds
+			if ((now - lastping) > 10.0)
+		{
+			lastping = ev_time();
+			np_send_text("ping", "ping", _ping_count++, NULL);
+		}
+		// As long as we do not have the appropiate events (node_joined/node_left)
+		// we try to evaluate this via the routing table
+		sll_return(np_key_ptr) routes = _np_route_get_table();
+		count_of_routes = sll_size(routes);
+		np_unref_list(routes, "_np_route_get_table");
+		if (count_of_routes < last_count_of_routes) {
+			fprintf(stdout, "Node left network.\n");
+		}
+		else if (count_of_routes < last_count_of_routes) {
+			fprintf(stdout, "Node joined network.\n");
+		}
+		last_count_of_routes = count_of_routes;
 	}
 }
 
 np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
-  	np_tree_t* header = msg->header;
+	np_tree_t* header = msg->header;
 
 	char* reply_to = NULL; // All
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
