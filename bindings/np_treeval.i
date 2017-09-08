@@ -5,12 +5,6 @@
 
 %module(package="neuropil") np_treeval
 
-#define NP_ENUM
-#define NP_API_EXPORT
-#define NP_API_HIDDEN
-#define NP_API_PROTEC
-#define NP_API_INTERN
-
 %{
 #include "../include/np_treeval.h"
 %}

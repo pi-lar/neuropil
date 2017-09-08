@@ -5,12 +5,6 @@
 
 %module(package="neuropil") np_types
 
-#define NP_ENUM
-#define NP_API_EXPORT
-#define NP_API_HIDDEN
-#define NP_API_PROTEC
-#define NP_API_INTERN
-
 %{
 #include "../include/np_types.h"
 %}
@@ -28,5 +22,13 @@
 %ignore np_state_t;
 %ignore np_tree_t;
 %ignore np_treeval_t;
+%ignore char_ptr;
+%ignore np_key_ptr;
+%ignore np_thread_ptr;
+%ignore np_node_ptr;
+%ignore np_msgproperty_ptr;
+%ignore np_message_ptr;
+
+%ignore np_usercallback_t;
 
 %include "../include/np_types.h"

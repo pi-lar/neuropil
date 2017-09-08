@@ -65,7 +65,7 @@ print some_value.type, some_value.size, some_value.value.s
 # start an example implementation
 #
 np.np_log_init('../../neuropil_python_test.log', np.LOG_ERROR | np.LOG_WARN | np.LOG_INFO | np.LOG_DEBUG)
-state = np.np_init('udp4', '4444', np.FALSE, None)
+state = np.np_init('udp4', '4444', None)
 
 state.py_set_authenticate_func(my_python_authn_callback)
 state.py_set_authorize_func(my_python_authz_callback)

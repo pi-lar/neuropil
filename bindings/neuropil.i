@@ -5,31 +5,19 @@
 
 %module(package="neuropil") neuropil
 
+
 %include "stdint.i"
 
-#define NP_ENUM
-#define NP_API_EXPORT
-#define NP_API_HIDDEN
-#define NP_API_PROTEC
-#define NP_API_INTERN
-
 %{
-#include "../include/np_types.h"
 #include "../include/neuropil.h"
-#include "../include/np_threads.h"
-#include "../include/np_treeval.h"
-#include "../include/np_message.h"
-#include "../include/np_msgproperty.h"
-#include "../include/np_tree.h"
-#include "../include/np_jobqueue.h"
-#include "../include/np_dendrit.h"
 %}
 
+%include "np_types.i"
 %include "np_aaatoken.i"
 %include "np_log.i"
 %include "np_tree.i"
 %include "np_treeval.i"
-%include "np_types.i"
+%include "np_message.i"
 
 %rename(np_state) np_state_s;
 %rename(np_state) np_state_t;
@@ -40,24 +28,29 @@ static PyObject *py_authenticate_func = NULL;
 static PyObject *py_authorize_func = NULL;
 static PyObject *py_accounting_func = NULL;
 
+PyGILState_STATE gstate;
+
 static np_bool python_authenticate_callback(struct np_aaatoken_s* aaa_token)
 {
-   PyObject *arglist;
-   PyObject *result;
+    PyObject *arglist;
+    PyObject *result;
 
-   // arglist = Py_BuildValue("()");
-   // arglist = Py_BuildValue("(isO)", the_int, the_str, the_pyobject);
+    PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
+    arglist = Py_BuildValue("(O)", obj);
 
-   PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
-   arglist = Py_BuildValue("(O)", obj);
+    gstate = PyGILState_Ensure();
 
-   result = PyEval_CallObject(py_authenticate_func, arglist);
-   np_bool ret_val = PyObject_IsTrue(result);
+    result = PyObject_CallObject(py_authenticate_func, arglist);
+    np_bool ret_val = PyObject_IsTrue(result);
 
-   Py_DECREF(arglist);
-   Py_XDECREF(result);
+    PyGILState_Release(gstate);
+    // PyEval_ReleaseLock();
 
-   return ret_val;
+    Py_DECREF(arglist);
+    Py_XDECREF(result);
+
+
+    return ret_val;
 }
 
 static np_bool python_authorize_callback(struct np_aaatoken_s* aaa_token)
@@ -68,11 +61,15 @@ static np_bool python_authorize_callback(struct np_aaatoken_s* aaa_token)
    PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
    arglist = Py_BuildValue("(O)", obj);
 
+   gstate = PyGILState_Ensure();
+
    result = PyEval_CallObject(py_authorize_func, arglist);
    np_bool ret_val = PyObject_IsTrue(result);
 
+   PyGILState_Release(gstate);
+
    Py_DECREF(arglist);
-   Py_XDECREF(result);
+   // Py_XDECREF(result);
 
    return ret_val;
 }
@@ -85,11 +82,15 @@ static np_bool python_accounting_callback(struct np_aaatoken_s* aaa_token)
    PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
    arglist = Py_BuildValue("(O)", obj);
 
+   gstate = PyGILState_Ensure();
+
    result = PyEval_CallObject(py_accounting_func, arglist);
    np_bool ret_val = PyObject_IsTrue(result);
 
+   PyGILState_Release(gstate);
+
    Py_DECREF(arglist);
-   Py_XDECREF(result);
+   // Py_XDECREF(result);
 
    return ret_val;
 }
@@ -125,9 +126,13 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
     PyObject* py_callback = old_py_func_elem->val.value.v;
     PyObject *arglist = _py_convert_callback_data(msg_properties, msg_body);
 
+    gstate = PyGILState_Ensure();
+
     // call real python handler
     PyObject* result = PyEval_CallObject(py_callback, arglist);
     np_bool ret_val = PyObject_IsTrue(result);
+
+    PyGILState_Release(gstate);
 
     Py_DECREF(arglist);
     Py_XDECREF(result);
@@ -172,7 +177,7 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
 
         Py_XINCREF(PyFunc); /* Add a reference to new callback */
         np_tree_replace_str(callback_tree, subject, np_treeval_new_v(PyFunc)); /* set new callback */
-        np_set_listener(_py_subject_callback, subject); /* set python proxy as listener */
+        np_add_receive_listener(_py_subject_callback, subject); /* set python proxy as listener */
 
         if (NULL != old_py_func_elem) {
             PyObject* old_py_func = old_py_func_elem->val.value.v;
@@ -193,7 +198,7 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
         Py_XDECREF(py_authorize_func); /* Dispose of previous callback */
         Py_XINCREF(PyFunc);            /* Add a reference to new callback */
         py_authorize_func = PyFunc;    /* Remember new callback */
-        np_setauthenticate_cb(python_authorize_callback);
+        np_setauthorizing_cb(python_authorize_callback);
     }
 
     void py_set_accounting_func(PyObject *PyFunc)
@@ -201,7 +206,7 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
         Py_XDECREF(py_accounting_func); /* Dispose of previous callback */
         Py_XINCREF(PyFunc);            /* Add a reference to new callback */
         py_accounting_func = PyFunc;   /* Remember new callback */
-        np_setauthenticate_cb(python_accounting_callback);
+        np_setaccounting_cb(python_accounting_callback);
     }
 };
 

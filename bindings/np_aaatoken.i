@@ -5,21 +5,13 @@
 
 %module(package="neuropil") np_aaatoken
 
-#define NP_ENUM
-#define NP_API_EXPORT
-#define NP_API_HIDDEN
-#define NP_API_PROTEC
-#define NP_API_INTERN
-
 %{
-#include "../include/np_types.h"
-#include "../include/np_list.h"
-#include "../include/np_memory.h"
 #include "../include/np_aaatoken.h"
 %}
 
 %rename(np_aaatoken) np_aaatoken_s;
 %rename(np_aaatoken) np_aaatoken_t;
+
 
 %extend np_aaatoken_s {
     %ignore obj;
@@ -35,11 +27,11 @@
 
     np_aaatoken_s() {
         np_aaatoken_t *token;
-        np_new_obj(np_aaatoken_t, token);
+        _np_aaatoken_t_new(token);
         return token;
     }
     ~np_aaatoken_s() {
-        np_free_obj(np_aaatoken_t, $self);
+        _np_aaatoken_t_del($self);
     }
 };
 
