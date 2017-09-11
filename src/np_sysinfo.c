@@ -164,7 +164,7 @@ void np_sysinfo_enable_master() {
 	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 20;
+	sysinfo_response_props->max_threshold = 20;	
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);

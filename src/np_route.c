@@ -471,7 +471,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 				}
 			}
 		}
-		//sll_free(np_key_t, key_list);
+		
 
 		/*  to prevent bouncing */
 		if (count == 1 && sll_size(return_list) > 0)
@@ -505,7 +505,8 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "route_lookup bounce detection not wanted ...");
 		}
 		
-	}
+		sll_free(np_key_ptr, key_list);
+	}	
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_lookup");
 	return (return_list);
 }

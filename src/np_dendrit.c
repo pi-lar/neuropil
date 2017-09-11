@@ -1317,6 +1317,7 @@ void _np_in_available_receiver(np_jobargs_t* args)
 	np_msgproperty_t* real_prop = np_msgproperty_get(OUTBOUND, msg_token->subject);
 	if ( NULL != real_prop)
 	{
+
 		_np_msgproperty_check_sender_msgcache(real_prop);
 	}
 

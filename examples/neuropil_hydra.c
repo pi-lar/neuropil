@@ -166,10 +166,15 @@ int main(int argc, char **argv)
 			   \code
 			 */
 			np_sysinfo_enable_master();
+
 			/**
 
 			 \endcode
 			 */
+			// If you want to you can enable the statistics modulte to view the nodes statistics
+			np_statistics_add_watch(_NP_SYSINFO_REQUEST);
+			np_statistics_add_watch(_NP_SYSINFO_REPLY);
+
 			/**
 			  And wait for incomming connections
 

@@ -102,6 +102,7 @@ void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 			sll_next(iter);
 		}
 	}
+	sll_free(np_message_ptr, to_del);
 
 	// np_unref_list(np_message_ptr, to_del, ref_msgpartcache); // cleanup
 

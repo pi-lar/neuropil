@@ -88,8 +88,9 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 	_np_dhkey_from_str(msg_target, &search_key);
 	np_key_t k_msg_address = { .dhkey = search_key };
 
+	char * k_msg_address_key = _np_key_as_str(&k_msg_address);
 	// first lookup call for target key
-	log_debug_msg(LOG_DEBUG, "message target is key %s", _np_key_as_str(&k_msg_address));
+	log_debug_msg(LOG_DEBUG, "message target is key %s", k_msg_address_key);
 
 
 	// 1 means: always send out message to another node first, even if it returns
@@ -114,7 +115,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		// TODO: increase count parameter again ?
 	}
 
-	//_np_key_t_del(&k_msg_address);
+	free(k_msg_address_key);
 
 	if (NULL  != tmp           &&
 		0     <  sll_size(tmp) &&

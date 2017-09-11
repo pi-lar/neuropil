@@ -77,7 +77,9 @@ np_bool _np_msgproperty_init ()
 
 	// NEUROPIL_INTERN_MESSAGES
 	
-	sll_iterator(np_msgproperty_ptr) __np_internal_messages =  sll_first(default_msgproperties());
+	np_sll_t(np_msgproperty_ptr, msgproperties);
+	msgproperties  = default_msgproperties();
+	sll_iterator(np_msgproperty_ptr) __np_internal_messages =  sll_first(msgproperties);
 
 	while(__np_internal_messages != NULL)
 	{
@@ -90,6 +92,8 @@ np_bool _np_msgproperty_init ()
 		}
 		sll_next(__np_internal_messages);
 	}	
+
+	sll_free(np_msgproperty_ptr, msgproperties);
 	
 	return TRUE;
 }

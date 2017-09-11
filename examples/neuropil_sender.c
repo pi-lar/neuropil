@@ -138,7 +138,7 @@ int main(int argc, char **argv)
 
 	/**
 	loop (almost) forever and send your messages to the receiver :-)
-
+	 
 	.. code-block:: c
 	\code
 	*/
