@@ -30,3 +30,4 @@ test/.DS_STORE
 
 doc/sphinxcontrib-cmtinc/
 doc/pyenv/
+*.pyc
