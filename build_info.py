@@ -27,6 +27,8 @@ def get_build_name():
     return  ("%s__%s__%s__%s" % (get_version_tag(), p.system(), p.release(), p.machine()))
 
 if __name__ == "__main__":
+    if not os.path.isdir('release'):
+        os.mkdir('release')
     parser = argparse.ArgumentParser(description='Build helper.')
     parser.add_argument('--build',help='build the tar file',action="store_true")
     parser.add_argument('--version',help='prints the current version',action="store_true")
@@ -36,7 +38,7 @@ if __name__ == "__main__":
     action = False
     if args.build:
         action = True
-        with tarfile.open("%s.tar.gz" % (get_build_name()), "w:gz") as tar:
+        with tarfile.open("release/%s.tar.gz" % (get_build_name()), "w:gz") as tar:
             tar.add("build/lib/", arcname=os.path.basename("build/lib/"))
             tar.add("bin/", arcname=os.path.basename("bin/"))
     if args.version:
