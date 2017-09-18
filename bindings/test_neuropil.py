@@ -4,19 +4,21 @@ import neuropil as np
 
 
 def my_python_authn_callback(token):
-    print token.issuer
+    print "authn: r:" + token.realm + " i: " + token.issuer + " s:" + token.subject
     return True
 
 def my_python_authz_callback(token):
-    print token.issuer
+    print "authz: r:" + token.realm + " i: " + token.issuer + " s:" + token.subject
     return True
 
 ping_count = 0
 pong_count = 0
 
 def my_python_data_callback_handle(msg, properties, body):
+
     print msg
-    msg_subject = msg.find_str(np._NP_MSG_HEADER_SUBJECT).value.s
+
+    msg_subject = msg.header.find_str(np._NP_MSG_HEADER_SUBJECT).value.s
 
     print msg_subject
     print properties
@@ -67,11 +69,11 @@ print some_value.type, some_value.size, some_value.value.s
 np.np_log_init('../../neuropil_python_test.log', np.LOG_ERROR | np.LOG_WARN | np.LOG_INFO | np.LOG_DEBUG)
 state = np.np_init('udp4', '4444', None)
 
-state.py_set_authenticate_func(my_python_authn_callback)
-state.py_set_authorize_func(my_python_authz_callback)
+state.set_authn_func(my_python_authn_callback)
+state.set_authz_func(my_python_authz_callback)
 
-state.py_set_listener('ping', my_python_data_callback_handle)
-state.py_set_listener('pong', my_python_data_callback_handle)
+state.set_listener('ping', my_python_data_callback_handle)
+state.set_listener('pong', my_python_data_callback_handle)
 
 np.np_start_job_queue(4)
 # np.np_send_join('*:udp4:brandon.in.pi-lar.net:3333')

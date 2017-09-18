@@ -35,20 +35,18 @@ static np_bool python_authenticate_callback(struct np_aaatoken_s* aaa_token)
     PyObject *arglist;
     PyObject *result;
 
+    gstate = PyGILState_Ensure();
+
     PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
     arglist = Py_BuildValue("(O)", obj);
-
-    gstate = PyGILState_Ensure();
 
     result = PyObject_CallObject(py_authenticate_func, arglist);
     np_bool ret_val = PyObject_IsTrue(result);
 
-    PyGILState_Release(gstate);
-    // PyEval_ReleaseLock();
-
     Py_DECREF(arglist);
     Py_XDECREF(result);
 
+    PyGILState_Release(gstate);
 
     return ret_val;
 }
@@ -58,18 +56,18 @@ static np_bool python_authorize_callback(struct np_aaatoken_s* aaa_token)
    PyObject *arglist;
    PyObject *result;
 
+   gstate = PyGILState_Ensure();
+
    PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
    arglist = Py_BuildValue("(O)", obj);
-
-   gstate = PyGILState_Ensure();
 
    result = PyEval_CallObject(py_authorize_func, arglist);
    np_bool ret_val = PyObject_IsTrue(result);
 
-   PyGILState_Release(gstate);
-
    Py_DECREF(arglist);
-   // Py_XDECREF(result);
+   Py_XDECREF(result);
+
+   PyGILState_Release(gstate);
 
    return ret_val;
 }
@@ -79,18 +77,18 @@ static np_bool python_accounting_callback(struct np_aaatoken_s* aaa_token)
    PyObject *arglist;
    PyObject *result;
 
+   gstate = PyGILState_Ensure();
+
    PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
    arglist = Py_BuildValue("(O)", obj);
-
-   gstate = PyGILState_Ensure();
 
    result = PyEval_CallObject(py_accounting_func, arglist);
    np_bool ret_val = PyObject_IsTrue(result);
 
-   PyGILState_Release(gstate);
-
    Py_DECREF(arglist);
-   // Py_XDECREF(result);
+   Py_XDECREF(result);
+
+   PyGILState_Release(gstate);
 
    return ret_val;
 }
@@ -122,20 +120,21 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
         log_msg(LOG_ERROR, "no python user callback handler found for message %s", msg_subject->val.value.s);
         return FALSE;
     }
+
+    gstate = PyGILState_Ensure();
+
     // use found functor, convert arguments to python args
     PyObject* py_callback = old_py_func_elem->val.value.v;
     PyObject *arglist = _py_convert_callback_data(msg_properties, msg_body);
-
-    gstate = PyGILState_Ensure();
 
     // call real python handler
     PyObject* result = PyEval_CallObject(py_callback, arglist);
     np_bool ret_val = PyObject_IsTrue(result);
 
-    PyGILState_Release(gstate);
-
     Py_DECREF(arglist);
     Py_XDECREF(result);
+
+    PyGILState_Release(gstate);
 
     return ret_val;
 }
@@ -165,11 +164,13 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
     %ignore authorize_func;    // authorization callback
     %ignore accounting_func;   // really needed ?
 
-    void py_set_listener(PyObject* PyString, PyObject *PyFunc)
+    void set_listener(PyObject* PyString, PyObject *PyFunc)
     {
         if (NULL == callback_tree) {
             callback_tree = np_tree_create();
         }
+
+        gstate = PyGILState_Ensure();
 
         char* subject = PyString_AsString(PyString);
         // find old (eventually)
@@ -183,33 +184,45 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
             PyObject* old_py_func = old_py_func_elem->val.value.v;
             Py_XDECREF(old_py_func); /* Dispose of previous callback */
         }
+        PyGILState_Release(gstate);
     }
 
-    void py_set_authenticate_func(PyObject *PyFunc)
+    void set_authn_func(PyObject *PyFunc)
     {
+        gstate = PyGILState_Ensure();
+
         Py_XDECREF(py_authenticate_func); /* Dispose of previous callback */
         Py_XINCREF(PyFunc);               /* Add a reference to new callback */
         py_authenticate_func = PyFunc;    /* Remember new callback */
         np_setauthenticate_cb(python_authenticate_callback);
+
+        PyGILState_Release(gstate);
     }
 
-    void py_set_authorize_func(PyObject *PyFunc)
+    void set_authz_func(PyObject *PyFunc)
     {
+        gstate = PyGILState_Ensure();
+
         Py_XDECREF(py_authorize_func); /* Dispose of previous callback */
         Py_XINCREF(PyFunc);            /* Add a reference to new callback */
         py_authorize_func = PyFunc;    /* Remember new callback */
         np_setauthorizing_cb(python_authorize_callback);
+
+        PyGILState_Release(gstate);
     }
 
-    void py_set_accounting_func(PyObject *PyFunc)
+    void set_acc_func(PyObject *PyFunc)
     {
+        gstate = PyGILState_Ensure();
+
         Py_XDECREF(py_accounting_func); /* Dispose of previous callback */
         Py_XINCREF(PyFunc);            /* Add a reference to new callback */
         py_accounting_func = PyFunc;   /* Remember new callback */
         np_setaccounting_cb(python_accounting_callback);
+
+        PyGILState_Release(gstate);
     }
 };
-
 
 #ifdef SWIG<python>
 %typemap(in) PyObject *PyFunc {

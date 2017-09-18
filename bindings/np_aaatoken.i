@@ -14,25 +14,28 @@
 
 
 %extend np_aaatoken_s {
+
+    %feature ("ref") np_aaatoken_s "np_mem_refobj($this->obj, NULL);"
+    %feature ("unref") np_aaatoken_s "np_mem_unrefobj($this->obj, NULL);"
+
     %ignore obj;
+    %ignore state;
+    %ignore private_key;
 
-    %immutable issued_at;
-
-    %immutable state;
-    %immutable uuid;
+    %immutable version;
+	%immutable realm;
+	%immutable issuer; // from (can be self signed)
+	%immutable subject; // about
+	%immutable audience; // to
+	%immutable issued_at;
+	%immutable not_before;
+	%immutable expiration;
+	%immutable uuid;
 
     %immutable public_key;
     %immutable session_key;
-    %immutable private_key;
 
-    np_aaatoken_s() {
-        np_aaatoken_t *token;
-        _np_aaatoken_t_new(token);
-        return token;
-    }
-    ~np_aaatoken_s() {
-        _np_aaatoken_t_del($self);
-    }
+    %immutable extensions;
 };
 
 %ignore np_aaastate_e;
@@ -57,7 +60,6 @@
 %ignore _np_aaatoken_add_local_mx;
 %ignore _np_aaatoken_get_local_mx;
 
-%nodefaultctor np_aaatoken_s;
-
+%include "../include/np_memory.h"
 %include "../include/np_list.h"
 %include "../include/np_aaatoken.h"
