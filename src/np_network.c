@@ -658,7 +658,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	np_bool is_first = TRUE;
 	do{
 		if ((ng->socket_type & TCP) == TCP) {
-			current_in_msg_len = recv(ng->socket, data + in_msg_len,	MSG_CHUNK_SIZE_1024- in_msg_len, 0);
+			current_in_msg_len = recv(ng->socket, data + in_msg_len,	MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
 			if (is_first && 0 != getpeername(ng->socket, (struct sockaddr*) &from, &fromlen))
 			{
 				log_msg(LOG_WARN, "could not receive socket peer: %s (%d)",

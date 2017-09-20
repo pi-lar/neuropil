@@ -401,7 +401,7 @@ void _np_send_handshake(np_jobargs_t* args)
 	char* signature_hex = calloc(1, crypto_sign_BYTES * 2 + 1);
 	sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
 		signature, crypto_sign_BYTES);
-	log_debug_msg(LOG_DEBUG, "signature: (payload size: %"PRIu64") %s", hs_payload_len, signature_hex);
+	log_debug_msg(LOG_DEBUG, "signature: (payload size: %"PRIu32") %s", hs_payload_len, signature_hex);
 	free(signature_hex);
 #endif
 
