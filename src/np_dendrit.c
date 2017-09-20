@@ -1793,7 +1793,7 @@ void _np_in_handshake(np_jobargs_t* args)
 		char* signature_hex = calloc(1,signature.size * 2 + 1);
 		sodium_bin2hex(signature_hex, signature.size * 2 + 1,
 			signature.value.bin, signature.size);
-		log_debug_msg(LOG_DEBUG, "signature: (payload size: %"PRIu32") %s", payload.size, signature_hex);
+		log_debug_msg(LOG_DEBUG, "signature: (payload size: %4"PRIu32") %s", payload.size, signature_hex);
 		free(signature_hex);
 #endif
 		goto __np_cleanup__;
