@@ -14,7 +14,7 @@
 
 %extend np_tree_s {
 
-    %immutable rbh_root;
+    %ignore rbh_root;
     %immutable size;
     %immutable byte_size;
 

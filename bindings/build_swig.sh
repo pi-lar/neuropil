@@ -10,7 +10,7 @@ cd python
 # python setup.py build
 # -stdlib=libc++ ??
 
-clang -c -I/usr/include/python2.7 -I/Volumes/SAFE/net.pi-lar/repositories/neuropil/include neuropil_wrap.c -o neuropil_wrap.o
+clang -Wall -c -I/usr/include/python2.7 -I/Volumes/SAFE/net.pi-lar/repositories/neuropil/include neuropil_wrap.c -o neuropil_wrap.o
 clang -dynamiclib -L/usr/lib -lpython2.7 -L/Volumes/SAFE/net.pi-lar/repositories/neuropil/build/lib -lneuropil neuropil_wrap.o -o _neuropil.dylib
 clang -dynamiclib -L/usr/lib -lpython2.7 -L/Volumes/SAFE/net.pi-lar/repositories/neuropil/build/lib -lneuropil neuropil_wrap.o -o _neuropil.so
 

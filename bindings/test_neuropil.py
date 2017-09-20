@@ -1,7 +1,7 @@
 from ctypes import c_uint8, c_int8, c_int16
 
+from time import sleep
 import neuropil as np
-
 
 def my_python_authn_callback(token):
     print "authn: r:" + token.realm + " i: " + token.issuer + " s:" + token.subject
@@ -11,30 +11,55 @@ def my_python_authz_callback(token):
     print "authz: r:" + token.realm + " i: " + token.issuer + " s:" + token.subject
     return True
 
-ping_count = 0
-pong_count = 0
 
 def my_python_data_callback_handle(msg, properties, body):
 
+    print "message"
     print msg
 
-    msg_subject = msg.header.find_str(np._NP_MSG_HEADER_SUBJECT).value.s
+    print "header"
+    print msg.header
 
-    print msg_subject
+    print "properties"
     print properties
+
+    print "body"
+    print msg.body
     print body
 
-    print body.find_str(np.NP_MSG_BODY_TEXT)
-    print properties.find_str(np._NP_MSG_INST_SEQ)
+    msg_subject = msg.header.find_str("_np.subj")
 
-    if msg_subject == "pong":
-        np.np_send_text("ping", "ping", ping_count, None);
-        ping_count = ping_count + 1
-    if msg_subject == "ping":
-        np.np_send_text("pong", "pong", pong_count, None);
-        pong_count = pong_count + 1
+    if msg_subject is None:
+        print "no subject in header found"
+    else:
+        print msg_subject.type, msg_subject.size, msg_subject.value, msg_subject.value.s
 
-    return True # return true to acknowldege the message
+    print my_python_data_callback_handle.ping_count
+    print my_python_data_callback_handle.pong_count
+
+    try:
+        if "pong" == msg_subject.value.s:
+            my_python_data_callback_handle.ping_count += 1
+            print ("pong message received, sending ping #%d " % (my_python_data_callback_handle.ping_count))
+            np.np_send_text("ping", "ping", 1, None);
+        else:
+            print "not a pong message"
+
+        if 'ping' == msg_subject.value.s:
+            my_python_data_callback_handle.pong_count += 1
+            print ("ping message received, sending pong #%d" % (my_python_data_callback_handle.pong_count))
+            np.np_send_text("pong", "pong", 1, None);
+        else:
+            print "not a ping message"
+
+    except Exception as e:
+         print e
+
+    return True
+
+    # return True to acknowldege the message
+my_python_data_callback_handle.ping_count = 0
+my_python_data_callback_handle.pong_count = 0
 
 some_value = np.np_treeval( 3 );
 int_value = np.np_treeval( 3 );
@@ -53,7 +78,9 @@ tree.insert_str('test3', np.np_treeval(0.31415) )
 tree.insert_str('test0', np.np_treeval(29) )
 
 some_value = tree.find_str('test3')
-print some_value.type, some_value.size, some_value.value, some_value.value.d
+print some_value.type, some_value.size, some_value.value, some_value.value.f
+print some_value.type, some_value.size, some_value.value, some_value.value.f
+print some_value.type, some_value.size, some_value.value, some_value.value.f
 
 some_value = tree.find_str('test2')
 print some_value.type, some_value.size, some_value.value, some_value.value.s
@@ -76,7 +103,13 @@ state.set_listener('ping', my_python_data_callback_handle)
 state.set_listener('pong', my_python_data_callback_handle)
 
 np.np_start_job_queue(4)
+
 # np.np_send_join('*:udp4:brandon.in.pi-lar.net:3333')
+# np.np_set_mx_property("pong", "", np_treeval_t value);
+
 
 while(True):
-    pass
+    sleep(5)
+    np.np_send_text("pong", "pong", 1, None);
+    sleep(5)
+    np.np_send_text("ping", "ping", 1, None);
