@@ -396,8 +396,14 @@ void _np_send_handshake(np_jobargs_t* args)
 		log_msg(LOG_WARN, "signature creation failed, not continuing with handshake");
 		return;
 	}
+#ifdef DEBUG
 	log_debug_msg(LOG_DEBUG, "signature has %"PRIu32" bytes", crypto_sign_BYTES);
-	log_debug_msg(LOG_DEBUG, "signature: %s", signature);
+	char* signature_hex = calloc(1, crypto_sign_BYTES * 2 + 1);
+	sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
+		signature, crypto_sign_BYTES);
+	log_debug_msg(LOG_DEBUG, "signature: %s", signature_hex);
+	free(signature_hex);
+#endif
 
 
 //	char sign_hex[crypto_sign_BYTES*2+1];
