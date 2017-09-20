@@ -63,6 +63,7 @@ int main(int argc, char **argv) {
 	char* publish_domain = NULL;
 	int level = -2;
 	char* logpath = ".";
+	char* http_domain = NULL;
 
 	int opt;
 	if (parse_program_args(
@@ -76,8 +77,9 @@ int main(int argc, char **argv) {
 		&publish_domain,
 		&level,
 		&logpath,
-		NULL,
-		NULL
+		"[-w]",
+		":w",
+		&http_domain
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
@@ -90,7 +92,7 @@ int main(int argc, char **argv) {
 
 
 
-	if (FALSE == _np_http_init(NULL, NULL))
+	if (FALSE == _np_http_init(http_domain, NULL))
 	{
 		fprintf(stderr, "Node could not start HTTP interface\n");
 		log_msg(LOG_WARN, "Node could not start HTTP interface");
