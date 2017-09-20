@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
 		&level,
 		&logpath,
 		"[-w]",
-		":w",
+		"w:",
 		&http_domain
 	) == FALSE) {
 		exit(EXIT_FAILURE);
