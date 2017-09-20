@@ -83,7 +83,7 @@ void _np_in_received(np_jobargs_t* args)
 					goto __np_cleanup__;
 			}
 			log_debug_msg(LOG_DEBUG, "alias_key %s", _np_key_as_str(alias_key));
-			
+
 			np_bool is_decryption_successful = FALSE;
 			if (NULL != alias_key &&
 				NULL != alias_key->aaa_token &&
@@ -110,7 +110,7 @@ void _np_in_received(np_jobargs_t* args)
 						nonce,
 						alias_key->aaa_token->session_key);
 				// log_debug_msg(LOG_DEBUG, "/stop  decrypting message with alias %s", _np_key_as_str(alias_key));
-				
+
 				if (ret == 0)
 				{
 					is_decryption_successful = TRUE;
@@ -120,11 +120,11 @@ void _np_in_received(np_jobargs_t* args)
 					memcpy(raw_msg, dec_msg, 1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
 				}
 			}
-			
+
 			np_new_obj(np_message_t, msg_in);
 
 			ret = _np_message_deserialize(msg_in, raw_msg);
-			
+
 
 			if (FALSE == ret) {
 				if(is_decryption_successful == TRUE){
@@ -133,13 +133,13 @@ void _np_in_received(np_jobargs_t* args)
 						msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
 				}
 				else {
-					log_msg(LOG_WARN,	
+					log_msg(LOG_WARN,
 						"error deserializing message %s after unsuccessful decryption (source: \"%s:%s\")",
 						msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
 				}
 				goto __np_cleanup__;
 			} else {
-				log_debug_msg(LOG_DEBUG, 
+				log_debug_msg(LOG_DEBUG,
 					"deserialized message %s (source: \"%s:%s\")",
 					msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
 			}
@@ -179,7 +179,7 @@ void _np_in_received(np_jobargs_t* args)
 				if(is_decryption_successful == FALSE){
 					log_msg(LOG_WARN,
 						"incorrect decryption of message (send from %s / %s:%s)",
-						_np_key_as_str(alias_key), np_network_get_ip(alias_key), 
+						_np_key_as_str(alias_key), np_network_get_ip(alias_key),
 						np_network_get_port(alias_key));
 				}
 
@@ -370,7 +370,7 @@ void _np_in_piggy(np_jobargs_t* args)
 	np_sll_t(np_key_ptr, o_piggy_list) = NULL;
 
 	o_piggy_list = _np_node_decode_multiple_from_jrb(args->msg->body);
-	
+
 	np_waitref_obj(np_key_t, state->my_node_key, my_key, "np_waitref_key");
 
 	while (NULL != (node_entry = sll_head(np_key_ptr, o_piggy_list)))
@@ -381,7 +381,7 @@ void _np_in_piggy(np_jobargs_t* args)
 
 		// TODO: those new entries in the piggy message must be authenticated before sending join requests
 
-		
+
 
 		if (!_np_dhkey_equal(&node_entry->dhkey, &my_key->dhkey) &&
 			HANDSHAKE_INITIALIZED > node_entry->node->handshake_status &&
@@ -403,7 +403,7 @@ void _np_in_piggy(np_jobargs_t* args)
 			_np_job_submit_msgout_event(0.0, prop, node_entry, msg_out);
 
 			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-		}		
+		}
 		np_unref_obj(np_key_t, node_entry,"_np_node_decode_multiple_from_jrb");
 	}
 	np_unref_obj(np_key_t, my_key, "np_waitref_key");
@@ -514,13 +514,13 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 
 				np_bool result = TRUE;
 
-				sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_prop->user_receive_clb);				
+				sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_prop->user_receive_clb);
 				while (result == TRUE && iter_usercallbacks != NULL)
 				{
 					result = iter_usercallbacks->val(msg_in, msg_in->properties, msg_in->body) && result;
 					sll_next(iter_usercallbacks);
 				}
-				
+
 				msg_prop->msg_threshold--;
 
 				// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
@@ -1063,7 +1063,7 @@ void _np_in_update(np_jobargs_t* args)
 
 				if(old_key->network != NULL)
 				{
-					_np_network_remap_network(update_key, old_key);					
+					_np_network_remap_network(update_key, old_key);
 				}
 				np_unref_obj(np_key_t, old_key,"_np_keycache_find_by_details");
 			}
@@ -1392,7 +1392,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 		log_debug_msg(LOG_DEBUG, "sending back authenticated data to %s", _np_key_as_str(reply_to_key));
 		if (NULL == reply_to_key->aaa_token)
 		{
-			np_ref_obj(np_aaatoken_t, sender_token, ref_key_aaa_token); 
+			np_ref_obj(np_aaatoken_t, sender_token, ref_key_aaa_token);
 			reply_to_key->aaa_token = sender_token;
 		}
 		_np_job_submit_transform_event(0.0, prop_route, reply_to_key, msg_out);
@@ -1787,8 +1787,15 @@ void _np_in_handshake(np_jobargs_t* args)
 			tmp_token->public_key))
 	{
 		log_msg(LOG_ERROR, "incorrect signature in handshake message");
+
+#ifdef DEBUG
 		log_debug_msg(LOG_DEBUG, "signature has %"PRIu32" bytes", signature.size);
-		log_debug_msg(LOG_DEBUG, "signature: %s", (const unsigned char*)signature.value.bin);
+		char* signature_hex = calloc(1,signature.size * 2 + 1);
+		sodium_bin2hex(signature_hex, signature.size * 2 + 1,
+			signature.value.bin, signature.size);
+		log_debug_msg(LOG_DEBUG, "signature: %s", signature_hex);
+		free(signature_hex);
+#endif
 		goto __np_cleanup__;
 	}
 
@@ -1931,10 +1938,10 @@ void _np_in_handshake(np_jobargs_t* args)
 
 		if ((alias_key->node->protocol & PASSIVE ) == PASSIVE)
 		{
-			np_ref_obj(np_network_t, alias_key->network, ref_key_network); 
+			np_ref_obj(np_network_t, alias_key->network, ref_key_network);
 			np_unref_obj(np_network_t, hs_key->network, ref_key_network);
 			hs_key->network = alias_key->network;
-			
+
 
 			_np_network_stop(hs_key->network);
 			ev_io_init(
