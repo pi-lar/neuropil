@@ -923,7 +923,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 		char* signature_hex = calloc(1,crypto_sign_BYTES * 2 + 1);
 		sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
 			signature, crypto_sign_BYTES);
-		log_debug_msg(LOG_DEBUG, "signature: (payload size: %4"PRIu32") %s", crypto_generichash_BYTES, signature_hex);
+		log_debug_msg(LOG_DEBUG, "signature: (payload size: %5"PRIu32") %s", crypto_generichash_BYTES, signature_hex);
 		free(signature_hex);
 #endif
 

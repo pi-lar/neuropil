@@ -447,7 +447,9 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 											strerror(errno),errno);
 										break;
 									}
-									written += current_write;
+									if (current_write > 0) {
+										written += current_write;
+									}									
 								}
 								log_debug_msg(LOG_DEBUG,"did write %d bytes",written);
 								free(data_to_send);
@@ -672,7 +674,9 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			current_in_msg_len = recvfrom(ng->socket, data + in_msg_len,
 					MSG_CHUNK_SIZE_1024 - in_msg_len, 0, (struct sockaddr*)&from, &fromlen);
 		}
-		in_msg_len += current_in_msg_len;
+		if(current_in_msg_len > 0){
+			in_msg_len += current_in_msg_len;
+		}
 		is_first = FALSE;
 	} while (in_msg_len <= MSG_CHUNK_SIZE_1024 && current_in_msg_len > 0);
 	
