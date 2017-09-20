@@ -375,15 +375,15 @@ void _np_send_handshake(np_jobargs_t* args)
 	cmp_init(&cmp, hs_buf_ptr, _np_buffer_reader, _np_buffer_writer);
 
 	_np_tree_serialize(hs_data, &cmp);
-	uint64_t hs_payload_len = cmp.buf-hs_buf_ptr;
-	//uint64_t hs_payload_len = buffer_container.bufferCount;
+	uint32_t hs_payload_len = cmp.buf-hs_buf_ptr;
+	//uint32_t hs_payload_len = buffer_container.bufferCount;
 
 	np_tree_free(hs_data);
 
 	// sign the handshake payload with our private key
 	char signature[crypto_sign_BYTES];
 	memset(signature, '0', crypto_sign_BYTES);
-	// uint64_t signature_len;
+	// uint32_t signature_len;
 	int16_t ret = crypto_sign_detached(
 			(unsigned char*) signature,
 			NULL,
@@ -401,7 +401,7 @@ void _np_send_handshake(np_jobargs_t* args)
 	char* signature_hex = calloc(1, crypto_sign_BYTES * 2 + 1);
 	sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
 		signature, crypto_sign_BYTES);
-	log_debug_msg(LOG_DEBUG, "signature: %s", signature_hex);
+	log_debug_msg(LOG_DEBUG, "signature: (payload size: %"PRIu64") %s", hs_payload_len, signature_hex);
 	free(signature_hex);
 #endif
 
