@@ -440,7 +440,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 							if(NULL != data_to_send) {
 								ssize_t written = 0, current_write = 0;
 								while(written < MSG_CHUNK_SIZE_1024 ) {
-									current_write = write(key_network->socket, data_to_send, MSG_CHUNK_SIZE_1024);
+									current_write = write(key_network->socket, data_to_send + written, MSG_CHUNK_SIZE_1024 - written);
 									if (current_write == -1) {
 										log_msg(LOG_WARN,
 											"cannot write to socket: %s (%d)",
@@ -658,7 +658,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	np_bool is_first = TRUE;
 	do{
 		if ((ng->socket_type & TCP) == TCP) {
-			current_in_msg_len = recv(ng->socket, data,	MSG_CHUNK_SIZE_1024, 0);
+			current_in_msg_len = recv(ng->socket, data + in_msg_len,	MSG_CHUNK_SIZE_1024- in_msg_len, 0);
 			if (is_first && 0 != getpeername(ng->socket, (struct sockaddr*) &from, &fromlen))
 			{
 				log_msg(LOG_WARN, "could not receive socket peer: %s (%d)",
@@ -669,12 +669,12 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			ng_tcp_host = ng;
 			ng = key->network;
 		} else {
-			current_in_msg_len = recvfrom(ng->socket, data,
-					MSG_CHUNK_SIZE_1024, 0, (struct sockaddr*)&from, &fromlen);
+			current_in_msg_len = recvfrom(ng->socket, data + in_msg_len,
+					MSG_CHUNK_SIZE_1024 - in_msg_len, 0, (struct sockaddr*)&from, &fromlen);
 		}
 		in_msg_len += current_in_msg_len;
 		is_first = FALSE;
-	} while (current_in_msg_len > 0);
+	} while (in_msg_len <= MSG_CHUNK_SIZE_1024 && current_in_msg_len > 0);
 	
 
 
