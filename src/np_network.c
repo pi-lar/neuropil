@@ -650,25 +650,34 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	np_network_t* ng_tcp_host = NULL;
 
 	/* receive the new data */
-	int16_t in_msg_len = -1;
+	int16_t in_msg_len = 0;	
 	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "ng->socket_type: %d", ng->socket_type);
 	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "key: %s", _np_key_as_str(key));
 
-	if ((ng->socket_type & TCP) == TCP) {
-		in_msg_len = recv(ng->socket, data,	MSG_CHUNK_SIZE_1024, 0);
-		if ( 0 != getpeername(ng->socket, (struct sockaddr*) &from, &fromlen))
-		{
-			log_msg(LOG_WARN, "could not receive socket peer: %s (%d)",
-					strerror(errno), errno);
-			return;
+	int16_t current_in_msg_len = 0;
+	np_bool is_first = TRUE;
+	do{
+		if ((ng->socket_type & TCP) == TCP) {
+			current_in_msg_len = recv(ng->socket, data,	MSG_CHUNK_SIZE_1024, 0);
+			if (is_first && 0 != getpeername(ng->socket, (struct sockaddr*) &from, &fromlen))
+			{
+				log_msg(LOG_WARN, "could not receive socket peer: %s (%d)",
+						strerror(errno), errno);
+				return;
+			}
+			key = key->parent;
+			ng_tcp_host = ng;
+			ng = key->network;
+		} else {
+			current_in_msg_len = recvfrom(ng->socket, data,
+					MSG_CHUNK_SIZE_1024, 0, (struct sockaddr*)&from, &fromlen);
 		}
-		key = key->parent;
-		ng_tcp_host = ng;
-		ng = key->network;
-	} else {
-		in_msg_len = recvfrom(ng->socket, data,
-				MSG_CHUNK_SIZE_1024, 0, (struct sockaddr*)&from, &fromlen);
-	}
+		in_msg_len += current_in_msg_len;
+		is_first = FALSE;
+	} while (current_in_msg_len > 0);
+	
+
+
 	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "in_msg_len: %d", in_msg_len);
 
 	if ( in_msg_len >=0) {
