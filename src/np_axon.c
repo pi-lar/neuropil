@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <inttypes.h>
 #include <sys/select.h>
 
 #include "msgpack/cmp.h"
@@ -69,7 +70,7 @@ void _np_out_ack(np_jobargs_t* args)
 	_np_message_calculate_chunking(args->msg);
 
 	np_jobargs_t* chunk_args = _np_job_create_args(args->msg, NULL, NULL);
-	_np_message_serialize_chunked(chunk_args);	
+	_np_message_serialize_chunked(chunk_args);
 	_np_job_free_args(chunk_args);
 
 	_np_network_send_msg(args->target, args->msg);
@@ -265,9 +266,9 @@ void _np_send(np_jobargs_t* args)
 						// + 1.0 because of time delays for processing
 						ackentry->expiration = ackentry->transmittime + args->properties->msg_ttl + 1.0;
 						if(ackentry->dest_key != args->target) {
-							np_ref_obj(np_key_t, args->target, ref_message_ack); 
+							np_ref_obj(np_key_t, args->target, ref_message_ack);
 							ackentry->dest_key = args->target;
-						}					
+						}
 
 						if (TRUE == is_forward)
 						{
@@ -383,14 +384,21 @@ void _np_send_handshake(np_jobargs_t* args)
 	char signature[crypto_sign_BYTES];
 	memset(signature, '0', crypto_sign_BYTES);
 	// uint64_t signature_len;
-	int16_t ret = crypto_sign_detached((unsigned char*)       signature,  NULL,
-									   (const unsigned char*) hs_payload,  hs_payload_len,
-									   my_id_token->private_key);
+	int16_t ret = crypto_sign_detached(
+			(unsigned char*) signature,
+			NULL,
+			(const unsigned char*) hs_payload,
+			hs_payload_len,
+		  my_id_token->private_key
+		 );
 	if (ret < 0)
 	{
 		log_msg(LOG_WARN, "signature creation failed, not continuing with handshake");
 		return;
 	}
+	log_debug_msg(LOG_DEBUG, "signature has %"PRIu32" bytes", crypto_sign_BYTES);
+	log_debug_msg(LOG_DEBUG, "signature: %s", signature);
+
 
 //	char sign_hex[crypto_sign_BYTES*2+1];
 //	sodium_bin2hex(sign_hex, crypto_sign_BYTES*2+1, (unsigned char*) signature, crypto_sign_BYTES);

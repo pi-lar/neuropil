@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -1783,9 +1784,11 @@ void _np_in_handshake(np_jobargs_t* args)
 			(const unsigned char*) signature.value.bin,
 			(const unsigned char*) payload.value.bin,
 			payload.size,
-			tmp_token->public_key) )
+			tmp_token->public_key))
 	{
 		log_msg(LOG_ERROR, "incorrect signature in handshake message");
+		log_debug_msg(LOG_DEBUG, "signature has %"PRIu32" bytes", signature.size);
+		log_debug_msg(LOG_DEBUG, "signature: %s", (const unsigned char*)signature.value.bin);
 		goto __np_cleanup__;
 	}
 
