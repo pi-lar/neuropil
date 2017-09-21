@@ -236,12 +236,13 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 
 	// verify inserted signature first
 	char* signature = NULL;
-	unsigned long long signature_len = 0;
-	if (NULL != np_tree_find_str(token->extensions, NP_HS_SIGNATURE))
+	uint32_t signature_len = 0;
+	np_tree_elem_t* sig;
+	if (NULL != (sig = np_tree_find_str(token->extensions, NP_HS_SIGNATURE)))
 	{
-		signature = np_tree_find_str(token->extensions, NP_HS_SIGNATURE)->val.value.bin;
-		signature_len = crypto_sign_BYTES; // np_tree_find_str(token->extensions, NP_HS_SIGNATURE)->val.size;
-		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found signature with length %llu for checksum verification", signature_len);
+		signature = sig->val.value.bin;
+		signature_len = sig->val.size;
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found signature with length %"PRIu32" for checksum verification", signature_len);
 	}
 
 	if (NULL != signature)
@@ -907,7 +908,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 	// TODO: signature could be filled with padding zero's, remove them for efficiency
 	char signature[crypto_sign_BYTES];
 	unsigned long long signature_len;
-	int16_t ret = crypto_sign_detached((unsigned char*) signature, signature_len ,
+	int16_t ret = crypto_sign_detached((unsigned char*) signature, &signature_len ,
 			(const unsigned char*) hash, crypto_generichash_BYTES,
 			msg_token->private_key);
 
