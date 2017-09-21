@@ -360,7 +360,7 @@ void _np_send_handshake(np_jobargs_t* args)
 
 	// pre-serialize handshake data
 	cmp_ctx_t cmp;
-	unsigned char hs_payload[65536];
+	unsigned char hs_payload[65536] = { 0 };
 	void* hs_buf_ptr = hs_payload;
 
 	/*
