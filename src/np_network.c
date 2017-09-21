@@ -719,18 +719,20 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				ng->port = strndup(port, 7);
 			}
 
-			if (0 == in_msg_len && ng_tcp_host != NULL)
+			if (0 == in_msg_len)
 			{
-				// tcp disconnect
-				log_msg(LOG_ERROR, "received disconnect from: %s:%s", ng->ip, ng->port);
-				// TODO handle cleanup of node structures ?
-				// maybe / probably the node received already a disjoin message before
-				//TODO: prüfen ob hier wirklich der host geschlossen werden muss
-				_np_network_stop(ng_tcp_host);
-				//_np_node_update_stat(key->node, 0);
-
+				if(ng_tcp_host != NULL){
+					// tcp disconnect
+					log_msg(LOG_ERROR, "received disconnect from: %s:%s", ng->ip, ng->port);
+					// TODO handle cleanup of node structures ?
+					// maybe / probably the node received already a disjoin message before
+					//TODO: prüfen ob hier wirklich der host geschlossen werden muss
+					_np_network_stop(ng_tcp_host);
+					//_np_node_update_stat(key->node, 0);
+				
+					log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");				
+				}
 				free(data);
-				log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 				continue;
 			}
 
@@ -739,6 +741,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%hd)", in_msg_len);
 				// job_submit_event(state->jobq, 0.0, _np_network_read);
 				log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
+				free(data);
 				continue;
 			}
 
