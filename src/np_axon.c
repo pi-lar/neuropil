@@ -406,10 +406,6 @@ void _np_send_handshake(np_jobargs_t* args)
 #endif
 
 
-//	char sign_hex[crypto_sign_BYTES*2+1];
-//	sodium_bin2hex(sign_hex, crypto_sign_BYTES*2+1, (unsigned char*) signature, crypto_sign_BYTES);
-//	log_debug_msg(LOG_DEBUG, "signature key fingerprint: %s", sign_hex);
-
 	// create real handshake message ...
 	np_message_t* hs_message = NULL;
 	np_new_obj(np_message_t, hs_message);

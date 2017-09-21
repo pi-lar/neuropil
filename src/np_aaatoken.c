@@ -906,8 +906,8 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 
 	// TODO: signature could be filled with padding zero's, remove them for efficiency
 	char signature[crypto_sign_BYTES];
-	// uint64_t signature_len;
-	int16_t ret = crypto_sign_detached((unsigned char*) signature, NULL /* signature_len */,
+	unsigned long long signature_len;
+	int16_t ret = crypto_sign_detached((unsigned char*) signature, signature_len ,
 			(const unsigned char*) hash, crypto_generichash_BYTES,
 			msg_token->private_key);
 
@@ -919,17 +919,17 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 	else
 	{
 #ifdef DEBUG
-		log_debug_msg(LOG_DEBUG, "signature has %"PRIu32" bytes", crypto_sign_BYTES);
-		char* signature_hex = calloc(1,crypto_sign_BYTES * 2 + 1);
-		sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
-			signature, crypto_sign_BYTES);
+		log_debug_msg(LOG_DEBUG, "signature has %"PRIu32" bytes", signature_len);
+		char* signature_hex = calloc(1, signature_len * 2 + 1);
+		sodium_bin2hex(signature_hex, signature_len * 2 + 1,
+			signature, signature_len);
 		log_debug_msg(LOG_DEBUG, "signature: (payload size: %5"PRIu32") %s", crypto_generichash_BYTES, signature_hex);
 		free(signature_hex);
 #endif
 
 		// TODO: refactor name NP_HS_SIGNATURE to a common name NP_SIGNATURE
 		np_tree_replace_str(msg_token->extensions, NP_HS_SIGNATURE,
-				np_treeval_new_bin(signature, crypto_sign_BYTES));
+				np_treeval_new_bin(signature, signature_len));
 	}
 }
 
