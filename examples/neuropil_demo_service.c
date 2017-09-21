@@ -38,6 +38,7 @@
 #include "np_tree.h"
 #include "np_route.h"
 #include "np_key.h"
+#include "np_sysinfo.h"
 
 
 #include "neuropil.h"
@@ -45,8 +46,6 @@
 
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
-
-#define DEBUG 0
 
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;

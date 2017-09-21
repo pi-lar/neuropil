@@ -41,6 +41,8 @@ if __name__ == "__main__":
         with tarfile.open("release/%s.tar.gz" % (get_build_name()), "w:gz") as tar:
             tar.add("build/lib/", arcname=os.path.basename("build/lib/"))
             tar.add("bin/", arcname=os.path.basename("bin/"))
+            tar.add("README", arcname=os.path.basename(""))
+            tar.add("LICENSE", arcname=os.path.basename(""))
     if args.version:
         action = True
         print get_version()
