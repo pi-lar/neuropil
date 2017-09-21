@@ -167,9 +167,9 @@ void np_mem_unrefobj(np_obj_t* obj, char* reason)
 	//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
 	if(obj->ref_count < 0){		
 #ifdef MEMORY_CHECK
-		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (%d) (left reasons(%d): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
+		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (left reasons(%d): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
 #else
-		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
+		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! left reasons(%d)", obj, obj->type, obj->ref_count);
 #endif
 		abort();
 	}
@@ -203,7 +203,6 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 	if(asOneLine == TRUE){
 		new_line = "    ";
 	}
-	char* subject_list = NULL;
 
 	uint64_t summary[10000] = { 0 };
 	
@@ -255,10 +254,6 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 	ret = _np_concatAndFree(ret, "test_struct_t_e    count %4"PRIu64" max ref %3"PRIu64" %s", summary[test_struct_t_e],		summary[100 * test_struct_t_e],			new_line);
 
 	ret = _np_concatAndFree(ret, "--- memory end ---%s",new_line);
-
-	// ret = _np_concatAndFree(ret, "--- subject list start ---%s",new_line);
-	// ret = _np_concatAndFree(ret, "%s",subject_list);
-	// ret = _np_concatAndFree(ret, "--- subject list end   ---%s",new_line);
 
 	return (ret);
 }

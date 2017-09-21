@@ -25,6 +25,7 @@
 #include "np_key.h"
 #include "np_list.h"
 #include "np_constants.h"
+#include "np_util.h"
 
 
 // TODO: make this a better constant value
