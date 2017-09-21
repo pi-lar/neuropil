@@ -305,7 +305,7 @@ void _np_http_dispatch( np_http_client_t* client) {
 		switch (client->ht_request.ht_method) {
 		case (htp_method_GET): {
 
-			log_debug_msg(LOG_DEBUG, "Requesting sysinfo");
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Requesting sysinfo");
 
 			char target_hash[65];
 
@@ -318,12 +318,12 @@ void _np_http_dispatch( np_http_client_t* client) {
 			/**
 			 * Default behavior if no argument is given: display own node informations
 			 */
-			log_debug_msg(LOG_DEBUG, "parse arguments of %s",
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "parse arguments of %s",
 					client->ht_request.ht_path);
 
 
 			if ( NULL != client->ht_request.ht_path) {
-				log_debug_msg(LOG_DEBUG, "request has arguments");
+				log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "request has arguments");
 
 				char* path = strdup(client->ht_request.ht_path);
 				char* tmp_target_hash = strtok(path, "/");
@@ -344,7 +344,7 @@ void _np_http_dispatch( np_http_client_t* client) {
 				free(path);
 
 			} else {
-				log_debug_msg(LOG_DEBUG, "no arguments provided");
+				log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "no arguments provided");
 			}
 
 			key = _np_state()->my_node_key;
@@ -352,7 +352,7 @@ void _np_http_dispatch( np_http_client_t* client) {
 			if(keyExists) {
 				char* my_key = _np_key_as_str(key);
 				if (usedefault) {
-					log_debug_msg(LOG_DEBUG, "using own node as info system");
+					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "using own node as info system");
 					sprintf(target_hash, "%s",my_key);
 				}
 				target_hash[64] = '\0';
@@ -360,19 +360,19 @@ void _np_http_dispatch( np_http_client_t* client) {
 				sysinfo = np_get_sysinfo(target_hash);
 
 				if (NULL == sysinfo) {
-					log_debug_msg(LOG_DEBUG, "Could not find system informations");
+					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Could not find system informations");
 					http_status = HTTP_CODE_ACCEPTED;
 					json_obj = _np_generate_error_json("key not found.",
 							"update request is send. please wait.");
 				} else {
-					log_debug_msg(LOG_DEBUG, "sysinfo response tree (byte_size: %"PRIu64,
+					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (byte_size: %"PRIu64,
 							sysinfo->byte_size);
-					log_debug_msg(LOG_DEBUG, "sysinfo response tree (size: %"PRIu16,
+					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (size: %"PRIu16,
 							sysinfo->size);
 
-					log_debug_msg(LOG_DEBUG, "Convert sysinfo to json");
+					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Convert sysinfo to json");
 					json_obj = np_tree2json(sysinfo);
-					log_debug_msg(LOG_DEBUG, "cleanup");
+					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "cleanup");
 					np_tree_free(sysinfo);
 				}
 				np_unref_obj(np_key_t, key, __func__);
@@ -383,7 +383,7 @@ void _np_http_dispatch( np_http_client_t* client) {
 			}
 			__json_return__:
 
-			log_debug_msg(LOG_DEBUG, "serialise json response");
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "serialise json response");
 			if (NULL == json_obj) {
 				log_msg(LOG_ERROR,
 						"HTTP return is not defined for this code path");
@@ -392,11 +392,11 @@ void _np_http_dispatch( np_http_client_t* client) {
 						"no response defined");
 			}
 			response = np_json2char(json_obj, TRUE);
-			log_debug_msg(LOG_DEBUG, "sysinfo response should be (strlen: %lu):",
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response should be (strlen: %lu):",
 					strlen(response));
 			json_value_free(json_obj);
 
-			log_debug_msg(LOG_DEBUG, "write to body");
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "write to body");
 			client->ht_response.ht_status = http_status;
 			client->ht_response.ht_body = response; //strdup(response);;
 

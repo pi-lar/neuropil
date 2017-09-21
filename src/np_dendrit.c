@@ -1219,53 +1219,56 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 	np_aaatoken_t* msg_token = NULL;
 	np_message_t *msg_in = args->msg;
 
-	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
+	np_tryref_obj(np_message_t, msg_in, msg_exists);
+	if(msg_exists){
+		CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
 
-	reply_to_key = _np_keycache_find_or_create(np_dhkey_create_from_hash(msg_reply_to.value.s));
+		reply_to_key = _np_keycache_find_or_create(np_dhkey_create_from_hash(msg_reply_to.value.s));
 
-	log_debug_msg(LOG_DEBUG, "reply key: %s", _np_key_as_str(reply_to_key) );
+		log_debug_msg(LOG_DEBUG, "reply key: %s", _np_key_as_str(reply_to_key) );
 
-	// extract e2e encryption details for sender
-	np_new_obj(np_aaatoken_t, msg_token);
-	np_aaatoken_decode(msg_in->body, msg_token);
+		// extract e2e encryption details for sender
+		np_new_obj(np_aaatoken_t, msg_token);
+		np_aaatoken_decode(msg_in->body, msg_token);
 
-	// always?: just store the available messages in memory and update if new data arrives
-	if (FALSE == _np_aaatoken_is_valid(msg_token))
-	{
-		goto __np_cleanup__;
-	}
+		// always?: just store the available messages in memory and update if new data arrives
+		if (FALSE == _np_aaatoken_is_valid(msg_token))
+		{
+			goto __np_cleanup__;
+		}
 
-	log_debug_msg(LOG_DEBUG, "received new sender token %s for %s",msg_token->uuid, msg_token->subject);
+		log_debug_msg(LOG_DEBUG, "received new sender token %s for %s",msg_token->uuid, msg_token->subject);
 
-	_np_aaatoken_add_sender(msg_token->subject, msg_token);
+		_np_aaatoken_add_sender(msg_token->subject, msg_token);
 
-	np_aaatoken_t* tmp_token = NULL;
-	np_sll_t(np_aaatoken_ptr, receiver_list) = _np_aaatoken_get_all_receiver(msg_token->subject);
+		np_aaatoken_t* tmp_token = NULL;
+		np_sll_t(np_aaatoken_ptr, receiver_list) = _np_aaatoken_get_all_receiver(msg_token->subject);
 
-	while (NULL != (tmp_token = sll_head(np_aaatoken_ptr, receiver_list)))
-	{
-		log_debug_msg(LOG_DEBUG, "discovery success: sending back message receiver token ...");
-		np_tree_t* interest_data = np_tree_create();
+		while (NULL != (tmp_token = sll_head(np_aaatoken_ptr, receiver_list)))
+		{
+			log_debug_msg(LOG_DEBUG, "discovery success: sending back message receiver token ...");
+			np_tree_t* interest_data = np_tree_create();
 
-		np_aaatoken_encode(interest_data, tmp_token);
+			np_aaatoken_encode(interest_data, tmp_token);
 
-		np_message_t *msg_out = NULL;
-		np_new_obj(np_message_t, msg_out);
-		_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AVAILABLE_RECEIVER, interest_data);
-		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AVAILABLE_RECEIVER);
+			np_message_t *msg_out = NULL;
+			np_new_obj(np_message_t, msg_out);
+			_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AVAILABLE_RECEIVER, interest_data);
+			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AVAILABLE_RECEIVER);
 
-		log_debug_msg(LOG_DEBUG, "sending back msg interest to %s", _np_key_as_str(reply_to_key));
-		_np_job_submit_route_event(0.0, prop_route, reply_to_key, msg_out);
+			log_debug_msg(LOG_DEBUG, "sending back msg interest to %s", _np_key_as_str(reply_to_key));
+			_np_job_submit_route_event(0.0, prop_route, reply_to_key, msg_out);
 
-		np_unref_obj(np_message_t, msg_out,ref_obj_creation);
-		np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_all_receiver");
-	}
-	sll_free(np_aaatoken_ptr, receiver_list);
+			np_unref_obj(np_message_t, msg_out,ref_obj_creation);
+			np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_all_receiver");
+		}
+		sll_free(np_aaatoken_ptr, receiver_list);
 
 	__np_cleanup__:
-	np_unref_obj(np_key_t, reply_to_key,"_np_keycache_find_or_create");
-	np_unref_obj(np_aaatoken_t, msg_token,ref_obj_creation);
-
+		np_unref_obj(np_message_t, msg_in, __func__);
+		np_unref_obj(np_key_t, reply_to_key,"_np_keycache_find_or_create");
+		np_unref_obj(np_aaatoken_t, msg_token,ref_obj_creation);
+	}
 	// __np_return__:
 	return;
 }

@@ -178,3 +178,8 @@ void _np_resume_event_loop()
 		__suspended_libev_loop--;
 	}
 }
+
+double np_event_sleep(double time) {	
+	ev_sleep(time);
+	return time;
+}

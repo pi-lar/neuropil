@@ -188,7 +188,7 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 			if(memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
 			free(memory_str);
 			memory_str = np_mem_printpool(TRUE,TRUE);
-			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+		//	if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 			free(memory_str);
 
 
@@ -197,7 +197,7 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 			//if(memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
 			free(memory_str);
 			memory_str = np_messagepart_printcache(TRUE);
-			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+			//if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 			free(memory_str);
 
 
@@ -205,7 +205,7 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 			if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
 			free(memory_str);
 			memory_str = np_threads_printpool(TRUE);
-			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+			//if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 			free(memory_str);
 #endif
 
@@ -213,7 +213,7 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 			if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
 			free(memory_str);
 			memory_str = np_statistics_print(TRUE);
-			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+			//if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 			free(memory_str);
 			
 		}

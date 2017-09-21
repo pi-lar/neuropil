@@ -138,6 +138,11 @@ extern "C" {
 	#define LOG_FORCE_INSTANT_WRITE (TRUE)
 #endif
 
+
+
+#ifndef NP_NETWORK_MAX_MSGS_PER_SCAN
+	#define NP_NETWORK_MAX_MSGS_PER_SCAN (100)
+#endif
 #ifdef __cplusplus
 }
 #endif

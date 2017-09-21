@@ -194,7 +194,7 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 
 		if(strcmp(mynode_hash, target->val.value.s) != 0) {
 			// should not happen as it does mean a wrong routing
-			log_msg(LOG_WARN,
+			log_msg(LOG_WARN | LOG_SYSINFO,
 					"i am %s not %s . I cannot handle this sysinfo request",
 					mynode_hash, target->val.value.s);
 			return FALSE;
@@ -242,7 +242,7 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 	}
 	log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo reply (uuid: %s )",msg->uuid);
 
-	log_debug_msg(LOG_DEBUG,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu64")",
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu64")",
 			source->val.value.s, body->size, body->byte_size);
 
 	// insert / replace cache item
@@ -374,7 +374,7 @@ void _np_request_sysinfo(const char* const hash_of_target) {
 		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, &target_dhkey);
 
 	} else {
-		log_msg(LOG_WARN,
+		log_msg(LOG_WARN | LOG_SYSINFO,
 				"could not sending sysinfo request. (unknown target)");
 	}
 
