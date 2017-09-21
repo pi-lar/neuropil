@@ -77,11 +77,11 @@ void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token){");
 	// add e2e encryption details for sender
-	np_tree_insert_str(data, "_np.realm", np_treeval_new_s(token->realm));
+	//np_tree_insert_str(data, "_np.realm", np_treeval_new_s(token->realm));
 
 	np_tree_insert_str(data, "_np.subject", np_treeval_new_s(token->subject));
 	np_tree_insert_str(data, "_np.issuer", np_treeval_new_s(token->issuer));
-	np_tree_insert_str(data, "_np.audience", np_treeval_new_s(token->audience));
+	//np_tree_insert_str(data, "_np.audience", np_treeval_new_s(token->audience));
 
 	np_tree_insert_str(data, "_np.uuid", np_treeval_new_s(token->uuid));
 
@@ -250,7 +250,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	{
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to check signature checksum");
 		int16_t ret = crypto_sign_verify_detached((unsigned char*) signature, hash, crypto_generichash_BYTES, token->public_key);
-		if (FALSE /*ignore signature*/&& ret < 0)
+		if (ret < 0)
 		{
 			log_msg(LOG_WARN, "token for subject \"%s\": checksum verification failed",token->subject);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");

@@ -337,7 +337,7 @@ void _np_send_handshake(np_jobargs_t* args)
 	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
 	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk, my_id_token->private_key);
 	// calculate session key for dh key exchange
-	unsigned char my_dh_sessionkey[crypto_scalarmult_BYTES];
+	unsigned char my_dh_sessionkey[crypto_scalarmult_BYTES] = { 0 };
 	crypto_scalarmult_base(my_dh_sessionkey, curve25519_sk);
 
 	// create handshake data
