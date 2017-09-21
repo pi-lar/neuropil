@@ -381,12 +381,12 @@ void _np_send_handshake(np_jobargs_t* args)
 	np_tree_free(hs_data);
 
 	// sign the handshake payload with our private key
-	char signature[crypto_sign_BYTES];
-	memset(signature, '0', crypto_sign_BYTES);
+	char signature[crypto_sign_BYTES] = { 0 };
+	unsigned long long siglen = 0;
 	// uint32_t signature_len;
 	int16_t ret = crypto_sign_detached(
 			(unsigned char*) signature,
-			NULL,
+			&siglen,
 			(const unsigned char*) hs_payload,
 			hs_payload_len,
 		  my_id_token->private_key
@@ -425,7 +425,7 @@ void _np_send_handshake(np_jobargs_t* args)
 
 	// ... add signature and payload to this message
 	np_tree_insert_str(hs_message->body, NP_HS_SIGNATURE,
-			np_treeval_new_bin(signature, crypto_sign_BYTES));
+			np_treeval_new_bin(signature, siglen));
 	np_tree_insert_str(hs_message->body, NP_HS_PAYLOAD,
 			np_treeval_new_bin(hs_payload, (uint32_t) hs_payload_len));
 //	log_debug_msg(LOG_DEBUG, "payload has length %llu, signature length %u", hs_payload_len, crypto_sign_BYTES);

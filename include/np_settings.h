@@ -141,8 +141,11 @@ extern "C" {
 
 
 #ifndef NP_NETWORK_MAX_MSGS_PER_SCAN
-	#define NP_NETWORK_MAX_MSGS_PER_SCAN (100)
+	#define NP_NETWORK_MAX_MSGS_PER_SCAN (100) 
 #endif
+
+// indirect #define NP_NETWORK_MAX_BYTES_PER_SCAN (NP_NETWORK_MAX_MSGS_PER_SCAN*1024) 
+
 #ifdef __cplusplus
 }
 #endif
