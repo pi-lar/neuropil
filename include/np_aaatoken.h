@@ -154,6 +154,8 @@ struct np_aaatoken_s
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
 	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
 
+	unsigned char signature[crypto_sign_BYTES];
+
 	// key/value extension list
 	np_tree_t* extensions;
 } NP_API_EXPORT;
@@ -164,6 +166,8 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
 // serialization of the np_aaatoken_t structure
 NP_API_INTERN
 void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token);
+NP_API_INTERN
+void np_aaatoken_core_encode(np_tree_t* data, np_aaatoken_t* token, np_bool standalone);
 NP_API_INTERN
 void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
 
@@ -206,7 +210,14 @@ NP_API_INTERN
 np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject);
 NP_API_INTERN
 void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token);
-
+NP_API_INTERN
+unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool full);
+NP_API_INTERN
+np_bool _np_aaatoken_is_core_token(np_aaatoken_t* token);
+NP_API_INTERN
+char * _np_aaatoken_get_signature(np_aaatoken_t* msg_token, unsigned long long* signature_len);
+NP_API_INTERN
+void _np_aaatoken_make_core_token(np_aaatoken_t* token);
 #ifdef __cplusplus
 }
 #endif

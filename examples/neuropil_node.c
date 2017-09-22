@@ -82,6 +82,7 @@ int main(int argc, char **argv)
 		np_send_join(j_key);
 	}
 	np_waitforjoin();
+	fprintf(stdout, "Connected");
 
 	while (1) {
 		ev_sleep(1.0);

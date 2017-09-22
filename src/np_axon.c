@@ -342,41 +342,34 @@ void _np_send_handshake(np_jobargs_t* args)
 
 	// create handshake data
 	np_tree_t* hs_data = np_tree_create();
+	
+	//	Required informations in this MSG
+	//	 protocol
+	//	 protocol-connection informations
+	//		currently:
+	//		- dns_name
+	//		- port
+	//	 expiration
+	//	 issued_at
+	//	 session key
+	//	 public key
+	//	 signature(fingerprint?) of full aaatoken
+	//
+	// -> will be hashed and this then signed
 
-	np_tree_insert_str(hs_data, "_np.session", np_treeval_new_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
-	// np_tree_insert_str(hs_data, "_np.public_key", np_treeval_new_bin(my_id_token->public_key, crypto_sign_PUBLICKEYBYTES));
+	np_tree_insert_str(hs_data, "_np.session", np_treeval_new_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));	
 
 	np_aaatoken_encode(hs_data, my_id_token);
-
-//	char pk_hex[crypto_sign_PUBLICKEYBYTES*2+1];
-//	sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES*2+1, my_id_token->public_key, crypto_sign_PUBLICKEYBYTES);
-//	log_debug_msg(LOG_DEBUG, "public key fingerprint: %s", pk_hex);
-
-//	np_tree_insert_str(hs_data, "_np.protocol", np_treeval_new_s(np_get_protocol_string(my_node->protocol)));
-//	np_tree_insert_str(hs_data, "_np.dns_name", np_treeval_new_s(my_node->dns_name));
-//	np_tree_insert_str(hs_data, "_np.port", np_treeval_new_s(my_node->port));
-//	np_tree_insert_str(hs_data, "_np.expiration", np_treeval_new_d(my_id_token->expiration));
-//	np_tree_insert_str(hs_data, "_np.issued_at", np_treeval_new_d(my_id_token->issued_at));
-
+	
 	// pre-serialize handshake data
 	cmp_ctx_t cmp;
 	unsigned char hs_payload[65536] = { 0 };
 	void* hs_buf_ptr = hs_payload;
 
-	/*
-	_np_message_buffer_container_t buffer_container;
-	buffer_container.buffer = hs_buf_ptr;
-	buffer_container.bufferCount = 0;
-	buffer_container.bufferMaxCount = 65536;
-	buffer_container.message = NULL;
-
-	cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_writer);
-	*/
 	cmp_init(&cmp, hs_buf_ptr, _np_buffer_reader, _np_buffer_writer);
 
 	_np_tree_serialize(hs_data, &cmp);
 	uint32_t hs_payload_len = cmp.buf-hs_buf_ptr;
-	//uint32_t hs_payload_len = buffer_container.bufferCount;
 
 	np_tree_free(hs_data);
 
@@ -424,21 +417,17 @@ void _np_send_handshake(np_jobargs_t* args)
 			np_treeval_new_bin(signature, siglen));
 	np_tree_insert_str(hs_message->body, NP_HS_PAYLOAD,
 			np_treeval_new_bin(hs_payload, (uint32_t) hs_payload_len));
-//	log_debug_msg(LOG_DEBUG, "payload has length %llu, signature length %u", hs_payload_len, crypto_sign_BYTES);
-//	log_debug_msg(LOG_DEBUG, "header has length %llu, instructions length %llu",
-//						hs_message->header->byte_size, hs_message->instructions->byte_size);
 
 	// TODO: do this serialization in parallel in background
 	_np_message_calculate_chunking(hs_message);
 
-	// log_debug_msg(LOG_DEBUG, "msg chunks %u", hs_message->no_of_chunks);
-
-	//np_jobargs_t* chunk_args = (np_jobargs_t*) malloc(sizeof(np_jobargs_t));
-	//CHECK_MALLOC(chunk_args);
-	//chunk_args->msg = hs_message;
 	np_jobargs_t* chunk_args = _np_job_create_args(hs_message, NULL, NULL);
 
 	np_bool serialize_ok = _np_message_serialize_chunked(chunk_args);
+
+	if (hs_message->is_single_part == FALSE || hs_message->no_of_chunks != 1) {
+		log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will be ignored from other nodes in the network");
+	}
 
 	_np_job_free_args(chunk_args);
 
@@ -475,11 +464,6 @@ void _np_send_handshake(np_jobargs_t* args)
 				"sending handshake message %s to (%s:%s)",
 				hs_message->uuid, hs_node->dns_name, hs_node->port);
 
-//		log_debug_msg(LOG_DEBUG, ": %d %p %p :",
-//				args->target->network->socket,
-//				&args->target->network->watcher,
-//				&args->target->network->watcher.data);
-
 		char* packet = (char*) malloc(1024);
 		CHECK_MALLOC(packet);
 
@@ -498,14 +482,6 @@ void _np_send_handshake(np_jobargs_t* args)
 			} else {
 				free (packet);
 			}
-			// notify main ev loop ? should be running already
-			// ret = send(args->target->network->socket, pll_first(hs_message->msg_chunks)->val->msg_part, 984, 0);
-			// ret = sendto(my_node->network->socket, hs_msg_ptr, msg_size, 0, to, to_size);
-
-			//	np_node_update_stat(hs_node, ret);
-			//	if (ret < 0) {
-			//		log_msg(LOG_ERROR, "send handshake error: %s", strerror (errno));
-			//	}
 		}
 	}
 	np_unref_obj(np_message_t, hs_message,ref_obj_creation);

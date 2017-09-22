@@ -36,6 +36,7 @@ extern "C" {
 	// ref for message type ack handeling
 	#define ref_message_ack					"ref_message_ack"
 	
+	#define NP_AAATOKEN_MAX_SIZE_EXTENSIONS (1024)
 
 #ifndef MUTEX_WAIT_SEC
 	#define MUTEX_WAIT_SEC  ((const ev_tstamp )0.005)

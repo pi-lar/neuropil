@@ -579,6 +579,7 @@ void _np_in_join_req(np_jobargs_t* args)
 
 	np_msgproperty_t *msg_prop = NULL;
 	np_key_t* join_req_key = NULL;
+	np_key_t* routing_key = NULL;
 	np_message_t* msg_out = NULL;
 	np_aaatoken_t* join_token = NULL;
 
@@ -604,7 +605,6 @@ void _np_in_join_req(np_jobargs_t* args)
 	}
 
 	log_debug_msg(LOG_DEBUG, "find target node");
-	np_key_t* routing_key = NULL;
 	if (NULL != np_tree_find_str(join_token->extensions, "target_node"))
 	{
 		np_dhkey_t search_key = np_dhkey_create_from_hash(np_tree_find_str(join_token->extensions, "target_node")->val.value.s);
@@ -1758,30 +1758,6 @@ void _np_in_handshake(np_jobargs_t* args)
 	np_new_obj(np_aaatoken_t, tmp_token);
 	np_aaatoken_decode(hs_payload, tmp_token);
 
-//	char pk_hex[crypto_sign_PUBLICKEYBYTES*2+1];
-//	sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES*2+1,
-//	tmp_token->public_key, crypto_sign_PUBLICKEYBYTES);
-//	log_debug_msg(LOG_DEBUG, "public key fingerprint: %s", pk_hex);
-
-//	char* node_proto            = np_tree_find_str(
-//	hs_payload, "_np.protocol")->val.value.s;
-//	char* node_hn               = np_tree_find_str(
-//	hs_payload, "_np.dns_name")->val.value.s;
-//	char* node_port             = np_tree_find_str(
-//	hs_payload, "_np.port")->val.value.s;
-//    np_tree_elem_t* public_key  = np_tree_find_str(
-//	hs_payload, "_np.public_key");
-	np_tree_elem_t* session_key = np_tree_find_str(
-			hs_payload, "_np.session");
-//	double issued_at            = np_tree_find_str(
-//	hs_payload, "_np.issued_at")->val.value.d;
-//	double expiration           = np_tree_find_str(
-//	hs_payload, "_np.expiration")->val.value.d;
-
-//	char sign_hex[crypto_sign_BYTES*2+1];
-//	sodium_bin2hex(sign_hex, crypto_sign_BYTES*2+1,
-//	signature.value.bin, crypto_sign_BYTES);
-//	log_debug_msg(LOG_DEBUG, "signature key fingerprint: %s", sign_hex);
 
 	if (0 != crypto_sign_verify_detached(
 			(const unsigned char*) signature.value.bin,
@@ -1905,6 +1881,9 @@ void _np_in_handshake(np_jobargs_t* args)
 	//		curve25519_pk, my_id_token->public_key);
 
 	np_unref_obj(np_aaatoken_t, my_id_token,"np_waitref_my_node_key->aaa_token");
+
+	np_tree_elem_t* session_key = np_tree_find_str(
+		hs_payload, "_np.session");
 
 	// create shared secret
 	unsigned char shared_secret[crypto_scalarmult_BYTES];
