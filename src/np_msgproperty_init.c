@@ -88,12 +88,12 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__join_req->mep_type = REQ_REP;
 	__join_req->priority = 0;
 	__join_req->ack_mode = ACK_DESTINATION;
-	__join_req->retry = 5;
+	__join_req->retry = 6;	
 	__join_req->clb_inbound = _np_in_join_req;
 	__join_req->clb_outbound = _np_send;
 	__join_req->clb_transform = _np_never_called_jobexec_transform;
 	__join_req->clb_route = _np_send;
-	__join_req->msg_ttl = 20.0;
+	__join_req->msg_ttl = 30.0;
 	__join_req->max_threshold = UINT16_MAX;
 	__join_req->token_max_ttl = 30;
 	__join_req->token_min_ttl = 20;

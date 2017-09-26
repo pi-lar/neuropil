@@ -269,9 +269,7 @@ void np_send_wildcard_join(const char* node_string)
 	wildcard_node_key = _np_node_decode_from_str(wildcard_node_str);
 	free(wildcard_node_str);
 
-	// proposal: only invoke handshake ?
-	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
-	_np_job_submit_transform_event(0.0, msg_prop, wildcard_node_key, NULL);
+	_np_network_send_handshake(wildcard_node_key);
 
 	np_route_set_bootstrap_key(wildcard_node_key);
 	np_unref_obj(np_key_t, wildcard_node_key, "_np_node_decode_from_str");
@@ -598,7 +596,7 @@ np_key_t* _np_get_key_by_key_hash(char* targetDhkey)
 
 	if (NULL != targetDhkey) {
 
-		target = _np_keycache_find_by_details(targetDhkey, FALSE, HANDSHAKE_COMPLETE, TRUE, FALSE, FALSE, TRUE);
+		target = _np_keycache_find_by_details(targetDhkey, FALSE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE);
 
 		if (NULL == target) {
 			log_msg(LOG_WARN,

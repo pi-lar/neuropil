@@ -134,7 +134,7 @@ Test(np_aaatoken_t, encode_decode_loop, .description="test the encoding and deco
 
 		cr_expect( 1 == 1, "test the equality of 1");
 		cr_expect( 0 == strncmp(ref->realm, test_token_1->realm, 255), "test the realm to be equal");
-		cr_expect( 0 == strncmp(ref->issuer, test_token_1->issuer, 255), "test the issuer to be equal");
+		cr_expect( 0 == strncmp(ref->issuer, test_token_1->issuer, 65), "test the issuer to be equal");
 		cr_expect( 0 == strncmp(ref->subject, test_token_1->subject, 255), "test the subject to be equal");
 		// cr_expect( 0 == strncmp((char*) ref->public_key, (char*) test_token_1->public_key, 255), "test the public_key to be equal");
 		cr_expect( 0 == strncmp(ref->audience, test_token_1->audience, 255), "test the audience to be equal");

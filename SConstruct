@@ -22,6 +22,7 @@ debug = ARGUMENTS.get('debug', 0)
 release = ARGUMENTS.get('release', 0)
 console_log = ARGUMENTS.get('console', 0)
 strict = int(ARGUMENTS.get('strict', 0))
+build_program = ARGUMENTS.get('program', False)
 
 
 print '####'
@@ -201,41 +202,20 @@ if int(build_tests):
     AlwaysBuild(test_suite)
 
 # build example programs
-prg_np_ctrl = env.Program('bin/neuropil_controller', 'examples/neuropil_controller.c')
-Depends(prg_np_ctrl, np_dylib)
-
-prg_np_node = env.Program('bin/neuropil_node', 'examples/neuropil_node.c')
-Depends(prg_np_node, np_dylib)
-
-prg_np_recv = env.Program('bin/neuropil_receiver', 'examples/neuropil_receiver.c')
-Depends(prg_np_recv, np_dylib)
-
-prg_np_send = env.Program('bin/neuropil_sender', 'examples/neuropil_sender.c')
-Depends(prg_np_send, np_dylib)
-
-prg_np_rccb = env.Program('bin/neuropil_receiver_cb', 'examples/neuropil_receiver_cb.c')
-Depends(prg_np_rccb, np_dylib)
-
-prg_np_rccb = env.Program('bin/neuropil_pingpong', 'examples/neuropil_pingpong.c')
-Depends(prg_np_rccb, np_dylib)
-
-prg_np_hydra = env.Program('bin/neuropil_hydra', 'examples/neuropil_hydra.c')
-Depends(prg_np_hydra, np_dylib)
-
-prg_np_shared_hydra = env.Program('bin/neuropil_shared_hydra', 'examples/neuropil_shared_hydra.c')
-Depends(prg_np_shared_hydra, np_dylib)
-
-prg_np_echo_server = env.Program('bin/neuropil_echo_server', 'examples/neuropil_echo_server.c')
-Depends(prg_np_echo_server, np_dylib)
-
-prg_np_echo_client = env.Program('bin/neuropil_echo_client', 'examples/neuropil_echo_client.c')
-Depends(prg_np_echo_client, np_dylib)
-
-prg_np_raspberry = env.Program('bin/neuropil_raspberry', 'examples/neuropil_raspberry.c')
-Depends(prg_np_raspberry, np_dylib)
-
-prg_np_demo_service= env.Program('bin/neuropil_demo_service', 'examples/neuropil_demo_service.c')
-Depends(prg_np_demo_service, np_dylib)
+programs = [
+    'controller','node','receiver','sender','receiver_cb','pingpong','hydra','shared_hydra',
+    'echo_server','echo_client','raspberry','demo_service'
+    ]
+if build_program != False and build_program not in programs:
+    if build_program != 'lib_only':
+        print 'desired program %s does not exist' % build_program
+        print 'please select from: %s, lib_only' % ', '.join(programs)
+else:
+    for program in programs:
+        if build_program == False or build_program == program:
+            prg_np = env.Program('bin/neuropil_%s'%program, 'examples/neuropil_%s.c'%program)
+            Depends(prg_np, np_dylib)
+            print 'build'
 
 # clean up
 Clean('.', 'build')

@@ -119,33 +119,35 @@ struct np_obj_s
 #else
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)																				\
 {																																				\
-	np_obj_t* obj = (np_obj)->obj;																												\
-	_LOCK_MODULE(np_memory_t) {                 																								\
-		sll_iterator(char_ptr) iter_reasons = sll_first(obj->reasons);																			\
-		np_bool foundReason = FALSE;																											\
-		while (foundReason == FALSE && iter_reasons != NULL)																					\
-		{																																		\
-			assert(old_reason != NULL);																											\
-			foundReason = (0 == strncmp(iter_reasons->val, old_reason,strlen(old_reason))														\
-							&& 0 == strncmp(iter_reasons->val + strlen(old_reason),																\
-									_NP_REF_REASON_SEPERATOR_CHAR,_NP_REF_REASON_SEPERATOR_CHAR_LEN) )? TRUE : FALSE;							\
-			if (foundReason == TRUE) {																											\
-				free(iter_reasons->val);																										\
-				sll_delete(char_ptr, obj->reasons, iter_reasons);																				\
-				break;																															\
+	if(np_obj != NULL) {																														\
+		np_obj_t* obj = (np_obj)->obj;																											\
+		_LOCK_MODULE(np_memory_t) {                 																							\
+			sll_iterator(char_ptr) iter_reasons = sll_first(obj->reasons);																		\
+			np_bool foundReason = FALSE;																										\
+			while (foundReason == FALSE && iter_reasons != NULL)																				\
+			{																																	\
+				assert(old_reason != NULL);																										\
+				foundReason = (0 == strncmp(iter_reasons->val, old_reason,strlen(old_reason))													\
+								&& 0 == strncmp(iter_reasons->val + strlen(old_reason),															\
+										_NP_REF_REASON_SEPERATOR_CHAR,_NP_REF_REASON_SEPERATOR_CHAR_LEN) )? TRUE : FALSE;						\
+				if (foundReason == TRUE) {																										\
+					free(iter_reasons->val);																									\
+					sll_delete(char_ptr, obj->reasons, iter_reasons);																			\
+					break;																														\
+				}																																\
+				sll_next(iter_reasons);																											\
 			}																																	\
-			sll_next(iter_reasons);																												\
-		}																																		\
-		if (FALSE == foundReason)																												\
-		{																																		\
-			log_msg(LOG_ERROR, 																													\
-				"Reason switch on object (%p; t: %d) \"%s\" to \"%s\" not possible! Reason not found. (left reasons(%d): %s)",					\
-				obj, obj->type,old_reason, new_reason, obj->ref_count, _sll_char_make_flat(obj->reasons));										\
-			abort();																															\
-		}																																		\
-		else {																																	\
-			_NP_REF_REASON(new_reason, reason2)																									\
-			sll_prepend(char_ptr, obj->reasons, strndup(reason2,strlen(reason2)));																\
+			if (FALSE == foundReason)																											\
+			{																																	\
+				log_msg(LOG_ERROR, 																												\
+					"Reason switch on object (%p; t: %d) \"%s\" to \"%s\" not possible! Reason not found. (left reasons(%d): %s)",				\
+					obj, obj->type,old_reason, new_reason, obj->ref_count, _sll_char_make_flat(obj->reasons));									\
+				abort();																														\
+			}																																	\
+			else {																																\
+				_NP_REF_REASON(new_reason, reason2)																								\
+				sll_prepend(char_ptr, obj->reasons, strndup(reason2,strlen(reason2)));															\
+			}																																	\
 		}																																		\
 	}																																			\
 }

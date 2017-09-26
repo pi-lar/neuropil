@@ -133,25 +133,7 @@ void _np_message_calculate_chunking(np_message_t* msg)
 	uint16_t chunks =
 			((uint16_t) (payload_size) / (MSG_CHUNK_SIZE_1024 - fixed_size)) + 1;
 
-//	uint16_t garbage_size = (chunks*MSG_CHUNK_SIZE_1024 - chunks*fixed_size) - payload_size;
-//
-//	if (garbage_size <= (strlen(NP_MSG_FOOTER_GARBAGE) + MSG_FOOTERBIN_SIZE) )
-//	{
-//		// TODO: check if this recalculation is working
-//		log_msg(LOG_INFO, "recalculating garbage size for %s", msg->uuid);
-//		chunks++;
-//		garbage_size = (chunks*MSG_CHUNK_SIZE_1024 - chunks*fixed_size) - payload_size;
-//	}
-//
-//	uint16_t real_garbage_size = garbage_size - strlen(NP_MSG_FOOTER_GARBAGE) - MSG_FOOTERBIN_SIZE - chunks*MSG_ARRAY_SIZE;
-//
-//	unsigned char garbage[real_garbage_size];
-//	randombytes_buf(garbage, real_garbage_size);
-//	np_tree_insert_str(msg->footer, NP_MSG_FOOTER_GARBAGE, np_treeval_new_bin(garbage, real_garbage_size));
-
 	msg->no_of_chunks = chunks;
-
-	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "Size of msg (%s) %"PRIu16" bytes. Size of garbage %"PRIu16" Size of fixed_size %"PRIu16" bytes. Chunking into %"PRIu16" parts", msg->uuid, payload_size, real_garbage_size, fixed_size, msg->no_of_chunks);
 }
 
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
@@ -362,6 +344,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 
 	uint16_t current_chunk_size = 0;
 
+	// TODO: do this serialization in parallel in background
 	while (i < msg->no_of_chunks)
 	{
 		np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i+1;

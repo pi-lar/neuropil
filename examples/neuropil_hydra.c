@@ -156,7 +156,9 @@ int main(int argc, char **argv)
 				fprintf(stderr, "Node could not start HTTP interface\n");
 				log_msg(LOG_WARN, "Node could not start HTTP interface");
 				np_sysinfo_enable_slave();
-			}
+			}else{
+				fprintf(stderr, "HTTP interface set to %s\n" ,http_domain);
+				log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
 
 			/**
 			 Enable the bootstrap node as master for our SysInfo subsystem
@@ -171,6 +173,7 @@ int main(int argc, char **argv)
 
 			 \endcode
 			 */
+			}
 			// If you want to you can enable the statistics modulte to view the nodes statistics
 			np_statistics_add_watch(_NP_SYSINFO_REQUEST);
 			np_statistics_add_watch(_NP_SYSINFO_REPLY);
@@ -242,25 +245,20 @@ int main(int argc, char **argv)
 			 \endcode
 			  To create unique names and to use a seperate port for every
 			  node we will start the nodes in forks of this thread and use the pid as unique id.
-
-			  As the pid may be greater then the port range we will shift it if necessary.
-
+			  
 				.. code-block:: c
 
 			   \code
 			 */
+			
+			sprintf(port, "%d", atoi(port) + 1);
+
 			current_pid = fork();
 
 			if (0 == current_pid) {
 				fprintf(stdout, "started child process %d\n", current_pid);
 				current_pid = getpid();
 
-				char port[7];
-				if (current_pid > 65535) {
-					sprintf(port, "%d", (current_pid >> 1));
-				} else {
-					sprintf(port, "%d", current_pid);
-				}
 				/**
 				 \endcode
 

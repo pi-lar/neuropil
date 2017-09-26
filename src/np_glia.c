@@ -240,13 +240,13 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 		if (NULL != tmp_node_key->node &&
 			tmp_node_key->node->success_avg < BAD_LINK &&
 			(now - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
-			tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
+			tmp_node_key->node->is_handshake_send == TRUE)
 		{
 			log_debug_msg(LOG_DEBUG, "deleting from neighbours: %s", _np_key_as_str(tmp_node_key));
 			// request a new handshake with the node
 			if (NULL != tmp_node_key->aaa_token)
 				tmp_node_key->aaa_token->state &= AAA_INVALID;
-			tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
+			tmp_node_key->node->is_handshake_send = FALSE;
 
 			np_key_t *added = NULL, *deleted = NULL;
 			_np_route_leafset_update(tmp_node_key, FALSE, &deleted, &added);
@@ -285,7 +285,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 			if (NULL != tmp_node_key->node &&
 				tmp_node_key->node->success_avg < BAD_LINK &&
 				(now - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
-				tmp_node_key->node->handshake_status > HANDSHAKE_UNKNOWN)
+				tmp_node_key->node->is_handshake_send == TRUE)
 			{
 				log_debug_msg(LOG_DEBUG, "deleting from table: %s", _np_key_as_str(tmp_node_key));
 
@@ -293,7 +293,7 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 				if (NULL != tmp_node_key->aaa_token)
 					tmp_node_key->aaa_token->state &= AAA_INVALID;
 
-				tmp_node_key->node->handshake_status = HANDSHAKE_UNKNOWN;
+				tmp_node_key->node->is_handshake_send = FALSE;
 
 				np_key_t *added = NULL, *deleted = NULL;
 				_np_route_update(tmp_node_key, FALSE, &deleted, &added);
@@ -661,7 +661,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 
 	// create token
 	strncpy(msg_token->realm, my_identity->aaa_token->realm, 255);
-	strncpy(msg_token->issuer, (char*) _np_key_as_str(my_identity), 255);
+	strncpy(msg_token->issuer, (char*) _np_key_as_str(my_identity), 64);
 	strncpy(msg_token->subject, msg_request->msg_subject, 255);
 	if (NULL != msg_request->msg_audience)
 	{

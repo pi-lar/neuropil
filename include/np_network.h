@@ -159,7 +159,8 @@ NP_API_INTERN
 char* np_network_get_ip(np_key_t * container);
 NP_API_INTERN
 char* np_network_get_port(np_key_t * container);
-
+NP_API_INTERN
+np_bool _np_network_send_handshake(np_key_t* node_key);
 #ifdef __cplusplus
 }
 #endif

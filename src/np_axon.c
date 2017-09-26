@@ -330,12 +330,14 @@ void _np_send_handshake(np_jobargs_t* args)
 	if (!_np_node_check_address_validity(args->target->node)) return;
 
 	// get our node identity from the cache
-	np_aaatoken_t* my_id_token = _np_state()->my_node_key->aaa_token;
-	// np_node_t* my_node = _np_state()->my_node_key->node;
+	np_aaatoken_t* my_token = _np_state()->my_node_key->aaa_token;
+	np_key_t* my_key = _np_state()->my_node_key;
+
+	// TODO: reffing of key, node token in function context
 
 	// convert to curve key
 	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
-	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk, my_id_token->private_key);
+	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk, my_token->private_key);
 	// calculate session key for dh key exchange
 	unsigned char my_dh_sessionkey[crypto_scalarmult_BYTES] = { 0 };
 	crypto_scalarmult_base(my_dh_sessionkey, curve25519_sk);
@@ -359,7 +361,8 @@ void _np_send_handshake(np_jobargs_t* args)
 
 	np_tree_insert_str(hs_data, "_np.session", np_treeval_new_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));	
 
-	np_aaatoken_encode(hs_data, my_id_token);
+	np_aaatoken_core_encode(hs_data, my_token, TRUE);
+	_np_node_encode_to_jrb(hs_data, my_key, FALSE);
 	
 	// pre-serialize handshake data
 	cmp_ctx_t cmp;
@@ -374,7 +377,7 @@ void _np_send_handshake(np_jobargs_t* args)
 	np_tree_free(hs_data);
 
 	// sign the handshake payload with our private key
-	char signature[crypto_sign_BYTES] = { 0 };
+	unsigned char signature[crypto_sign_BYTES] = { 0 };
 	unsigned long long siglen = 0;
 	// uint32_t signature_len;
 	int16_t ret = crypto_sign_detached(
@@ -382,7 +385,7 @@ void _np_send_handshake(np_jobargs_t* args)
 			&siglen,
 			(const unsigned char*) hs_payload,
 			hs_payload_len,
-		  my_id_token->private_key
+		  my_token->private_key
 		 );
 	if (ret < 0)
 	{
@@ -397,7 +400,6 @@ void _np_send_handshake(np_jobargs_t* args)
 	log_debug_msg(LOG_DEBUG, "signature: (payload size: %5"PRIu32") %s", hs_payload_len, signature_hex);
 	free(signature_hex);
 #endif
-
 
 	// create real handshake message ...
 	np_message_t* hs_message = NULL;
@@ -418,18 +420,18 @@ void _np_send_handshake(np_jobargs_t* args)
 	np_tree_insert_str(hs_message->body, NP_HS_PAYLOAD,
 			np_treeval_new_bin(hs_payload, (uint32_t) hs_payload_len));
 
-	// TODO: do this serialization in parallel in background
 	_np_message_calculate_chunking(hs_message);
-
 	np_jobargs_t* chunk_args = _np_job_create_args(hs_message, NULL, NULL);
-
+	
 	np_bool serialize_ok = _np_message_serialize_chunked(chunk_args);
 
-	if (hs_message->is_single_part == FALSE || hs_message->no_of_chunks != 1) {
-		log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will be ignored from other nodes in the network");
-	}
-
 	_np_job_free_args(chunk_args);
+
+	if (hs_message->no_of_chunks != 1) {
+		log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
+		np_unref_obj(np_message_t, hs_message, ref_obj_creation);
+		return;
+	}
 
 	if (TRUE == serialize_ok)
 	{
@@ -447,8 +449,8 @@ void _np_send_handshake(np_jobargs_t* args)
 				if (FALSE == args->target->network->initialized)
 				{
 					np_unref_obj(np_message_t, hs_message, ref_obj_creation);
-					log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
-					args->target->node->handshake_status = HANDSHAKE_UNKNOWN;
+					//log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
+					//args->target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
 					return;
 				}
 
@@ -579,7 +581,7 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 	np_aaatoken_t* msg_token = NULL;
 
 	msg_token = _np_aaatoken_get_sender(args->properties->msg_subject,
-									 _np_key_as_str(_np_state()->my_identity));
+									 _np_key_as_str(_np_state()->my_node_key));
 
 	if (NULL == msg_token)
 	{
@@ -858,7 +860,7 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 	np_state_t* state = _np_state();
 
 	np_tree_t* jrb_me = np_tree_create();
-	np_aaatoken_encode(jrb_me, state->my_identity->aaa_token);
+	np_aaatoken_encode(jrb_me, state->my_node_key->aaa_token);
 
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);

@@ -21,6 +21,7 @@
 #include "np_node.h"
 #include "np_threads.h"
 #include "np_types.h"
+#include "np_util.h"
 #include "np_event.h"
 #include "np_settings.h"
 #include "np_constants.h"

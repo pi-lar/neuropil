@@ -138,7 +138,7 @@ struct np_aaatoken_s
 
 	char realm[255]; // owner or parent entity
 
-	char issuer[255]; // from (can be self signed)
+	char issuer[65]; // from (can be self signed)
 	char subject[255]; // about
 	char audience[255]; // to
 
@@ -152,12 +152,18 @@ struct np_aaatoken_s
 
 	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
+	np_bool session_key_is_set;
 	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
 
 	unsigned char signature[crypto_sign_BYTES];
 
 	// key/value extension list
 	np_tree_t* extensions;
+	/*
+	A core token only has a subset of defined en-/decoded  values and may only be used to 
+	instanciate a cryptographic safe communication
+	*/
+	np_bool is_core_token;
 } NP_API_EXPORT;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
@@ -215,7 +221,7 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 NP_API_INTERN
 np_bool _np_aaatoken_is_core_token(np_aaatoken_t* token);
 NP_API_INTERN
-char * _np_aaatoken_get_signature(np_aaatoken_t* msg_token, unsigned long long* signature_len);
+unsigned char * _np_aaatoken_get_signature(np_aaatoken_t* msg_token, np_bool only_core, unsigned long long* signature_len);
 NP_API_INTERN
 void _np_aaatoken_make_core_token(np_aaatoken_t* token);
 #ifdef __cplusplus

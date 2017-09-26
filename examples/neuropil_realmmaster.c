@@ -195,7 +195,7 @@ np_aaatoken_t* create_realm_identity()
 
 	strncpy(realm_identity->realm,   "pi-lar test realm",  255);
 	strncpy(realm_identity->subject, "pi-lar realmmaster", 255);
-	strncpy(realm_identity->issuer,  "pi-lar realmmaster", 255);
+	strncpy(realm_identity->issuer,  "pi-lar realmmaster", 64);
 
 	realm_identity->not_before = ev_time();
 	realm_identity->expiration = realm_identity->not_before + 7200.0;

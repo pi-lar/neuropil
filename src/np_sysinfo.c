@@ -281,7 +281,7 @@ np_tree_t* np_get_my_sysinfo() {
 	// build local node
 	np_tree_t* local_node = np_tree_create();
 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "usage");
-	_np_node_encode_to_jrb(local_node, my_node_key, FALSE);
+	_np_node_encode_to_jrb(local_node, my_node_key, TRUE);
 	np_unref_obj(np_key_t, my_node_key, "usage");
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE, np_treeval_new_tree(local_node));

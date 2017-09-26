@@ -282,6 +282,26 @@ void _np_network_get_address (
 //    return (addr);
 }
 
+np_bool _np_network_send_handshake(np_key_t* node_key)
+{
+	np_bool ret = FALSE;
+	if(node_key != NULL && node_key->node != NULL) {
+		_LOCK_ACCESS(&(node_key->node->lock)){
+			if (node_key->node->is_handshake_send == FALSE)
+			{
+				log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake (current status: %d for %p) with %s:%s (%s)",
+					node_key->node->is_handshake_send, node_key->node->obj, node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
+
+				node_key->node->is_handshake_send = TRUE;
+				np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
+				_np_job_submit_transform_event(0.0, msg_prop, node_key, NULL);
+				log_debug_msg(LOG_DEBUG, "transform _NP_MSG_HANDSHAKE %s",_np_key_as_str(node_key));
+				ret = TRUE;
+			}
+		}
+	}
+	return ret;
+}
 /**
  ** Resends a message to host
  **/
@@ -295,37 +315,24 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 		// if (NULL == auth_token ||
 		//  	IS_INVALID(auth_token->state))
 		// {
-		if (node_key->node->handshake_status < HANDSHAKE_COMPLETE)
-		{
-			log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake (current status: %d for %p) with %s:%s (%s)",
-					node_key->node->handshake_status, node_key->node->obj, node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
-
-			node_key->node->handshake_status = HANDSHAKE_INITIALIZED;
-			np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
-			_np_job_submit_transform_event(0.0, msg_prop, node_key, NULL);
+		if (_np_network_send_handshake(node_key) == TRUE || node_key->node->is_handshake_received == FALSE) {
 			np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
 			return;
 		}
-	/*
-			for  (int count = 0; 3 > count; count++)
-			{
-				_np_job_yield(0.031415);
-				if (node_key->node->handshake_status > HANDSHAKE_INITIALIZED)
-				{
-					break;
-				}
-			}
-			if (node_key->node->handshake_status <= HANDSHAKE_INITIALIZED)
-			{
-				return;
-			}
-	*/
-		// }
+		if (auth_token == NULL ) {
+			log_msg(LOG_ERROR, "auth token not set, but handshake is done (key: %s)", _np_key_as_str(node_key));
+			np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
+			return;
+		}
+		if (auth_token->session_key_is_set == FALSE) {
+			log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
 
-		// log_msg(LOG_NETWORKDEBUG, "serialized message to %llu bytes", send_buf_len);
+			np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
+			return;
+		}
 		uint16_t i = 0;
 
-		log_debug_msg(LOG_DEBUG, "sending msg %s for \"%s\"", msg->uuid, _np_message_get_subject(msg));
+		log_debug_msg(LOG_DEBUG, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
 
 
 		_LOCK_ACCESS(&msg->msg_chunks_lock) {
@@ -340,17 +347,9 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 					// add protection from replay attacks ...
 					unsigned char nonce[crypto_secretbox_NONCEBYTES];
 					// TODO: move nonce to np_node_t and re-use it with increments
+					// FIXME: doesnt sizeof(nonce) == sizeof(unsigned char)? if so the array will not be filled, only the first char
 					randombytes_buf(nonce, sizeof(nonce));
 
-					// char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
-					// sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
-					// log_debug_msg(LOG_DEBUG, "encryption nonce %s", nonce_hex);
-
-					// char session_hex[crypto_scalarmult_SCALARBYTES*2+1];
-					// sodium_bin2hex(session_hex, crypto_scalarmult_SCALARBYTES*2+1, auth_token->session_key, crypto_scalarmult_SCALARBYTES);
-					// log_debug_msg(LOG_DEBUG, "session    key   %s", session_hex);
-
-					// uint64_t enc_msg_len = send_buf_len + crypto_secretbox_MACBYTES;
 					unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
 					int ecryption = crypto_secretbox_easy(enc_msg,
 							(const unsigned char*) iter->val->msg_part,
@@ -659,11 +658,12 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	/* receive the new data */
 	int16_t last_recv_result = 0;
 	int msgs_received = 0;
+	void* data;
 	do {
 		key = (np_key_t*)event->data;
 		ng = key->network;
 
-		void* data = calloc(1, MSG_CHUNK_SIZE_1024 * sizeof(char));
+		data = calloc(1, MSG_CHUNK_SIZE_1024 * sizeof(char));
 		CHECK_MALLOC(data);
 
 		int16_t in_msg_len = 0;
@@ -745,9 +745,6 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				continue;
 			}
 
-			log_debug_msg(LOG_DEBUG, "received message from %s:%s (size: %hd)",
-				ng->ip, ng->port, in_msg_len);
-
 			np_key_t* alias_key = NULL;
 			char* alias_key_ref_reason = "";
 
@@ -761,8 +758,9 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				alias_key->parent = key;
 				np_ref_obj(np_key_t, key, ref_key_parent);
 			}
-			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "alias_key for msg: %s",
-				_np_key_as_str(alias_key));
+
+			log_debug_msg(LOG_NETWORK |LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
+				ng->ip, ng->port, in_msg_len, _np_key_as_str(alias_key));
 						
 			_LOCK_ACCESS(&ng->lock)
 			{
@@ -778,7 +776,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 
 			np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
 		}
-	} while (msgs_received <= NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result >= 0); // there is maybe more then one msg in our socket pipeline
+	} while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result >= 0); // there is maybe more then one msg in our socket pipeline
 
 
 

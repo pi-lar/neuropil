@@ -105,18 +105,19 @@ np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey)
 np_key_t* _np_keycache_find_by_details(
 		char* details_container,
 		np_bool search_myself,
-		handshake_status_e handshake_status,
+		np_bool is_handshake_send,
+		np_bool is_handshake_received,
 		np_bool require_handshake_status,
 		np_bool require_dns,
 		np_bool require_port,
 		np_bool require_hash
 	){
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		np_bool search_myself,		handshake_status_e handshake_status,		np_bool require_handshake_status,		np_bool require_dns,		np_bool require_port,		np_bool require_hash	){");
+	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		np_bool search_myself,		handshake_status_e is_handshake_send,		np_bool require_handshake_status,		np_bool require_dns,		np_bool require_port,		np_bool require_hash	){");
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key,"np_waitref_key");
-	np_waitref_obj(np_key_t, _np_state()->my_identity, my_identity,"np_waitref_identity");
+	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "np_waitref_key");
+	np_waitref_obj(np_key_t, _np_state()->my_identity, my_identity, "np_waitref_identity");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -134,8 +135,11 @@ np_key_t* _np_keycache_find_by_details(
 			if (
 					(!require_handshake_status ||
 							(NULL != iter->node &&
-							iter->node->handshake_status == handshake_status
-							)
+								iter->node->is_handshake_send == is_handshake_send
+								&&
+								iter->node->is_handshake_received == is_handshake_received
+							) 
+
 					) &&
 					(!require_hash ||
 							(NULL != iter->dhkey_str &&
