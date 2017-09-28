@@ -88,7 +88,7 @@ void _np_in_received(np_jobargs_t* args)
 			if (NULL != alias_key &&
 				NULL != alias_key->aaa_token &&
 				IS_VALID (alias_key->aaa_token->state) && 
-				alias_key->aaa_token->session_key_is_set == TRUE
+				alias_key->node->session_key_is_set == TRUE
 				)
 			{
 				log_debug_msg(LOG_DEBUG, "/start decrypting message with alias %s", _np_key_as_str(alias_key));
@@ -104,7 +104,7 @@ void _np_in_received(np_jobargs_t* args)
 						(const unsigned char *) raw_msg + crypto_secretbox_NONCEBYTES,
 						1024 - crypto_secretbox_NONCEBYTES,
 						nonce,
-						alias_key->aaa_token->session_key);
+						alias_key->node->session_key);
 
 				if (ret == 0)
 				{
@@ -358,6 +358,8 @@ void _np_in_piggy(np_jobargs_t* args)
 
 	np_waitref_obj(np_key_t, state->my_node_key, my_key, "np_waitref_key");
 
+	log_debug_msg(LOG_DEBUG, "received piggy msg (%"PRIu32" nodes)", sll_size(o_piggy_list));
+
 	while (NULL != (node_entry = sll_head(np_key_ptr, o_piggy_list)))
 	{
 		// add entries in the message to our routing table
@@ -369,7 +371,6 @@ void _np_in_piggy(np_jobargs_t* args)
 
 
 		if (!_np_dhkey_equal(&node_entry->dhkey, &my_key->dhkey) &&
-			TRUE == node_entry->node->is_handshake_send &&
 			FALSE == node_entry->node->joined_network)
 		{
 			// just record nodes in the network or send an join request as well ?
@@ -388,6 +389,9 @@ void _np_in_piggy(np_jobargs_t* args)
 			_np_job_submit_msgout_event(0.0, prop, node_entry, msg_out);
 
 			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+		}
+		else {
+			log_debug_msg(LOG_DEBUG, "node %s is not qualified for a piggy join. ()", _np_key_as_str(node_entry));
 		}
 		np_unref_obj(np_key_t, node_entry,"_np_node_decode_multiple_from_jrb");
 	}
@@ -552,24 +556,6 @@ void _np_in_leave_req(np_jobargs_t* args)
 	return;
 }
 
-void _np_in_upgrade_aaatoken(np_key_t* key_to_upgrade, np_aaatoken_t* new_token)
-{
-	if (NULL == key_to_upgrade->aaa_token || _np_aaatoken_is_core_token(key_to_upgrade->aaa_token))
-	{
-		np_ref_obj(np_aaatoken_t, new_token, ref_key_aaa_token);
-		np_aaatoken_t* old = key_to_upgrade->aaa_token;
-		if (NULL != old) {
-			memcpy(new_token->session_key, old->session_key, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
-			new_token->session_key_is_set = old->session_key_is_set;
-		}
-
-		key_to_upgrade->aaa_token = new_token;
-		if (NULL != old) {
-			log_debug_msg(LOG_DEBUG, "Upgrade core_token to full token");
-			np_unref_obj(np_aaatoken_t, old, ref_key_aaa_token);
-		}
-	}
-}
 /** _np_in_join_req:
  ** internal function that is called at the destination of a JOIN message. This
  ** call encodes the leaf set of the current host and sends it to the joiner.
@@ -606,7 +592,7 @@ void _np_in_join_req(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 	
-	_np_in_upgrade_aaatoken(join_req_key, join_token);
+	_np_aaatoken_upgrade_core_token(join_req_key, join_token);
 
 	log_debug_msg(LOG_DEBUG, "find target node");
 	if (NULL != np_tree_find_str(join_token->extensions, "target_node"))
@@ -733,7 +719,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 	if (NULL != join_key )
 	{
-		_np_in_upgrade_aaatoken(join_key, join_token);
+		_np_aaatoken_upgrade_core_token(join_key, join_token);
 
 		// if a join ack is received here, then this node has send the join request
 		join_key->aaa_token->state |= AAA_AUTHENTICATED;
@@ -1999,12 +1985,12 @@ void _np_in_handshake(np_jobargs_t* args)
 				}
 			}		
 			// copy over session key
-			memcpy(msg_source_key->aaa_token->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
-			msg_source_key->aaa_token->session_key_is_set = TRUE;
+			memcpy(msg_source_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
+			msg_source_key->node->session_key_is_set = TRUE;
 
 			/* Implicit: as both keys share the same token 
-			memcpy(alias_key->aaa_token->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
-			alias_key->aaa_token->session_key_is_set = TRUE;
+			memcpy(alias_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
+			alias_key->node->session_key_is_set = TRUE;
 			*/
 
 

@@ -747,24 +747,19 @@ np_bool _np_route_my_key_has_connection(){
 		if(__routing_table->my_key->node->joined_network == TRUE) {
 			np_bool hasRoutingEntry = FALSE;
 			uint16_t i, j, k;
-			for (i = 0; i < __MAX_ROW; i++)
+			for (i = 0; i < __MAX_ROW && hasRoutingEntry == FALSE; i++)
 			{
-				for (j = 0; j < __MAX_COL; j++)
+				for (j = 0; j < __MAX_COL && hasRoutingEntry == FALSE; j++)
 				{
 					int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
-					for (k = 0; k < __MAX_ENTRY; k++)
+					for (k = 0; k < __MAX_ENTRY && hasRoutingEntry == FALSE; k++)
 					{
 						if (NULL != __routing_table->table[index + k])
 						{
 							hasRoutingEntry = TRUE;
-							break;
 						}
 					}
-					if(hasRoutingEntry == TRUE)
-						break;
 				}
-				if(hasRoutingEntry == TRUE)
-					break;
 			}
 
 			if( FALSE == hasRoutingEntry

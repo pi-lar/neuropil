@@ -57,6 +57,8 @@ void _np_node_t_new(void* node)
 	entry->protocol = 0;
 	entry->port = 0;
 
+	memset(entry->session_key, 0, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
+	entry->session_key_is_set = FALSE;
 
 	entry->failuretime = 0.0;
 	entry->last_success = ev_time();
@@ -344,7 +346,7 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 	node_token->expiration = node_token->not_before + rand_interval ;
 
 	crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
-
+	node_token->private_key_is_set = TRUE;
 	/*
 	np_tree_insert_str(node_token->extensions, NP_NODE_DNS_NAME,
 			np_treeval_new_s(node->dns_name));
@@ -353,7 +355,7 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 	np_tree_insert_str(node_token->extensions, NP_NODE_PROTOCOL,
 			np_treeval_new_ush(node->protocol));
 	*/
-	_np_aaatoken_add_signature(node_token);
+	//_np_aaatoken_add_signature(node_token);
 	return (node_token);
 }
 

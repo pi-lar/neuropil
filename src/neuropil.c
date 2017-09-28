@@ -479,7 +479,8 @@ void np_set_identity(np_aaatoken_t* identity)
 
 	// create encryption parameter
 	crypto_sign_keypair(identity->public_key, identity->private_key);
-	_np_aaatoken_add_signature(identity);
+	identity->private_key_is_set = TRUE;
+	//_np_aaatoken_add_signature(identity);
 	np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 }
 /**

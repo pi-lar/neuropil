@@ -324,7 +324,7 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 			np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
 			return;
 		}
-		if (auth_token->session_key_is_set == FALSE) {
+		if (node_key->node->session_key_is_set == FALSE) {
 			log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
 
 			np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
@@ -355,7 +355,7 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 							(const unsigned char*) iter->val->msg_part,
 							MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
 							nonce,
-							auth_token->session_key);
+							node_key->node->session_key);
 
 					if (ecryption != 0)
 					{

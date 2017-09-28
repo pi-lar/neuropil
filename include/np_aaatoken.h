@@ -54,16 +54,16 @@ enum np_aaastate_e
 
 #define AAA_INVALID (~AAA_VALID)
 
-#define IS_VALID(x) (0 < (x & AAA_VALID))
+#define IS_VALID(x) (AAA_VALID == (AAA_VALID & x ))
 #define IS_INVALID(x) (!IS_VALID(x))
 
-#define IS_AUTHENTICATED(x) (0 < (AAA_AUTHENTICATED & x))
+#define IS_AUTHENTICATED(x) (AAA_AUTHENTICATED  == (AAA_AUTHENTICATED & x))
 #define IS_NOT_AUTHENTICATED(x) (!IS_AUTHENTICATED(x))
 
-#define IS_AUTHORIZED(x) (0 < (AAA_AUTHORIZED & x))
+#define IS_AUTHORIZED(x) (AAA_AUTHORIZED  == (AAA_AUTHORIZED & x))
 #define IS_NOT_AUTHORIZED(x) (!IS_AUTHORIZED(x))
 
-#define IS_ACCOUNTING(x) (0 < (AAA_ACCOUNTING & x))
+#define IS_ACCOUNTING(x) (AAA_ACCOUNTING  == (AAA_ACCOUNTING & x))
 #define IS_NOT_ACCOUNTING(x) (!IS_ACCOUNTING(x))
 
 /**
@@ -151,10 +151,10 @@ struct np_aaatoken_s
 	char* uuid;
 
 	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
-	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
-	np_bool session_key_is_set;
 	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
+	np_bool private_key_is_set;
 
+	unsigned char* signed_hash;
 	unsigned char signature[crypto_sign_BYTES];
 
 	// key/value extension list
@@ -221,9 +221,12 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 NP_API_INTERN
 np_bool _np_aaatoken_is_core_token(np_aaatoken_t* token);
 NP_API_INTERN
-unsigned char * _np_aaatoken_get_signature(np_aaatoken_t* msg_token, np_bool only_core, unsigned long long* signature_len);
+void _np_aaatoken_mark_as_core_token(np_aaatoken_t* token);
 NP_API_INTERN
-void _np_aaatoken_make_core_token(np_aaatoken_t* token);
+void _np_aaatoken_mark_as_full_token(np_aaatoken_t* token);
+NP_API_INTERN
+void _np_aaatoken_upgrade_core_token(np_key_t* key_with_core_token, np_aaatoken_t* full_token);
+
 #ifdef __cplusplus
 }
 #endif

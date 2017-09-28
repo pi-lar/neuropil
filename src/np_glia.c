@@ -628,11 +628,12 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 	}
 
 
-	if (0 < sll_size(sll_of_keys))
+	if (sll_size(sll_of_keys) > 0)
 	{
 		np_tree_t* msg_body = np_tree_create();
 		_np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, FALSE);
 		np_msgproperty_t* outprop = np_msgproperty_get(OUTBOUND, _NP_MSG_PIGGY_REQUEST);
+		log_debug_msg(LOG_DEBUG, "sending piggy msg (%"PRIu32" nodes) to %s", sll_size(sll_of_keys), _np_key_as_str(target_key));
 
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
@@ -687,8 +688,9 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 		   crypto_sign_PUBLICKEYBYTES);
 	// private key is only required for signing later, will not be send over the wire
 	memcpy((char*) msg_token->private_key,
-		   (char*) state->my_identity->aaa_token->private_key,
+		   (char*) my_identity->aaa_token->private_key,
 		   crypto_sign_SECRETKEYBYTES);
+	msg_token->private_key_is_set = TRUE;
 
 	np_tree_insert_str(msg_token->extensions, "mep_type",
 			np_treeval_new_ul(msg_request->mep_type));
@@ -704,7 +706,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 			np_treeval_new_s((char*) _np_key_as_str(my_identity)));
 
 	// fingerprinting and signing the token
-	_np_aaatoken_add_signature(msg_token);
+	//_np_aaatoken_add_signature(msg_token);
 
 	msg_token->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
 	np_unref_obj(np_key_t, my_identity, "np_waitref_obj");

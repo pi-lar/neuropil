@@ -14,6 +14,21 @@
 extern "C" {
 #endif
 
+#ifndef MIN(a,b)
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#endif
+#ifndef MAX(a,b)
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#endif
+#ifndef min(a,b)
+#define min(a,b) MIN(a,b)
+#endif
+#ifndef max(a,b)
+#define max(a,b) MAX(a,b)
+#endif
+
+
+
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)    \
 static const char* PROP_NAME##_str = # PROP_NAME;             \
 inline void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value) {  \

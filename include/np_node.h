@@ -8,6 +8,8 @@
 
 #include <pthread.h>
 
+#include "sodium.h"
+
 #include "np_memory.h"
 #include "np_types.h"
 #include "np_threads.h"
@@ -33,6 +35,8 @@ struct np_node_s
 	np_bool is_handshake_send;
 	np_bool is_handshake_received;
 	np_bool joined_network;   // TRUE / FALSE
+	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
+	np_bool session_key_is_set;
 
 	// statistics
 	double failuretime;

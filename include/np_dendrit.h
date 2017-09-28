@@ -66,8 +66,6 @@ NP_API_INTERN
 void _np_in_signal_np_receive (np_jobargs_t* args);
 NP_API_INTERN
 void _np_in_callback_wrapper(np_jobargs_t* args);
-NP_API_INTERN
-void _np_in_upgrade_aaatoken(np_key_t* key_to_upgrade, np_aaatoken_t* new_token);
 #ifdef __cplusplus
 }
 #endif

@@ -64,7 +64,7 @@ void _np_sysinfo_init_cache()
 void slave_send_cb(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_timer *w, NP_UNUSED int re) {
 
 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key,"usage");
-	if(my_node_key->node->joined_network == TRUE) {
+	if(_np_route_my_key_has_connection() == TRUE) {
 		np_tree_t* reply_body = np_get_my_sysinfo();
 
 		// build properties
@@ -114,9 +114,9 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
 	sysinfo_request_props->mode_type = INBOUND | ROUTE;
-	sysinfo_request_props->max_threshold = 2;
+	sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 2;
+	sysinfo_response_props->max_threshold = 20;
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
