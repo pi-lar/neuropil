@@ -15,7 +15,7 @@ def sign_file(filepath,pw):
     }
     cmds = [        
             ["openssl","dgst","-sha256","-sign","build_sign.key","-passin","pass:%(pw)s"% data,"-out","%(filepath)s.sig.raw"% data,"%(filepath)s"% data],
-            ["openssl","base64","-in","%(filepath)s.sig.raw"% data, "-out", "%(filepath)s.sig" % data],
+            ["openssl","base64","-in","%(filepath)s.sig.raw"% data, "-out", "%(filepath)s.sha256.sig" % data],
             ["rm","%(filepath)s.sig.raw"% data] 
         ]
     for cmd in cmds:    
