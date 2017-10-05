@@ -3,7 +3,7 @@
 PROG="neuropil_raspberry"
 ARGS="-d -1"
 
-while [[ $# -gt 1 ]]
+while [[ $# -gt 0 ]]
 do
 key="$1"
 case $key in
