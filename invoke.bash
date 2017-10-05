@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-#
+
 PROG="neuropil_raspberry"
 ARGS="-d -1"
-#
+
 while [[ $# -gt 1 ]]
 do
 key="$1"
