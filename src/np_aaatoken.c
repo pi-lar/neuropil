@@ -313,7 +313,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		int ret = crypto_sign_verify_detached((unsigned char*)signature, hash, crypto_generichash_BYTES, token->public_key);
 
 #ifdef DEBUG
-		if (strcmp(token->subject, "_NP.SYSINFO.REPLY") == 0) {
+		if (ret != 0 || strcmp(token->subject, "_NP.SYSINFO.REPLY") == 0 || strcmp(token->subject, "_NP.SYSINFO.REQUEST") == 0 ) {
 			unsigned long long signature_len = crypto_sign_BYTES;
 			char* signature_hex = calloc(1, signature_len * 2 + 1);
 			sodium_bin2hex(signature_hex, signature_len * 2 + 1,
