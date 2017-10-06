@@ -64,9 +64,7 @@ if 'FreeBSD' in platform.system():
 if 'Darwin' in platform.system():
   env.Append(CCFLAGS = ['-Wno-deprecated'] )
   env.Append(CCFLAGS = ['-mmacosx-version-min=10.11'] )
-  env.Append(CCFLAGS = ['-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include'] )
-  env.Append(LIBPATH = ['/usr/local/lib'] )
-  env.Append(CCFLAGS = ['-I/usr/local/include'] )
+  env.Append(CCFLAGS = ['-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include'] )
 if 'Linux' in platform.system():
   env.Append(CCFLAGS = ['-D_GNU_SOURCE'])
   env.Append(LIBS = ['rt', 'pthread'] )
