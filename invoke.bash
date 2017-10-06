@@ -3,7 +3,7 @@
 PROG="neuropil_raspberry"
 ARGS="-d -1"
 
-while [[ $# -gt 1 ]]
+while [[ $# -gt 0 ]]
 do
 key="$1"
 case $key in
@@ -24,7 +24,7 @@ done
 
 echo "removing old instances"
 killall ${PROG}
-rm *.log *core
+rm *.log *core*
 export DYLD_LIBRARY_PATH=build/lib
 export LD_LIBRARY_PATH=build/lib
 echo "start program"

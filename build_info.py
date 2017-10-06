@@ -5,6 +5,10 @@ import platform as p
 import argparse
 import tarfile
 import subprocess
+try:
+    from urllib.parse import quote_plus
+except:
+    from urllib import quote_plus
 
 rx = re.compile("#define NEUROPIL_RELEASE	[\"'](.*)[\"']")
 
@@ -15,7 +19,7 @@ def sign_file(filepath,pw):
     }
     cmds = [        
             ["openssl","dgst","-sha256","-sign","build_sign.key","-passin","pass:%(pw)s"% data,"-out","%(filepath)s.sig.raw"% data,"%(filepath)s"% data],
-            ["openssl","base64","-in","%(filepath)s.sig.raw"% data, "-out", "%(filepath)s.sig" % data],
+            ["openssl","base64","-in","%(filepath)s.sig.raw"% data, "-out", "%(filepath)s.sha256.sig" % data],
             ["rm","%(filepath)s.sig.raw"% data] 
         ]
     for cmd in cmds:    
@@ -46,7 +50,7 @@ def get_version_tag():
     return ("%s_alpha"% (get_version()))
 
 def get_build_name():
-    return  ("%s__%s__%s__%s" % (get_version_tag(), p.system(), p.release(), p.machine()))
+    return quote_plus("%s__%s__%s__%s" % (get_version_tag(), p.system(), p.release(), p.machine()))
 
 if __name__ == "__main__":
     if not os.path.isdir('release'):
