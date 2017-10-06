@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <arpa/inet.h>
@@ -22,7 +22,6 @@
 #include "np_dendrit.h"
 
 #include "np_axon.h"
-#include "dtime.h"
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"
@@ -1041,7 +1040,7 @@ void _np_in_update(np_jobargs_t* args)
 			_np_send_simple_invoke_request(update_key, _NP_MSG_JOIN_REQUEST);
 		}
 	} else {
-		log_debug_msg(LOG_DEBUG, "Sending no join %d",update_key->node->is_handshake_send);
+		// log_debug_msg(LOG_DEBUG, "Sending no join %d",update_key->node->is_handshake_send);
 	}
 
 	// TODO: forward update token to other neighbours
@@ -1901,7 +1900,7 @@ void _np_in_handshake(np_jobargs_t* args)
 							log_msg(LOG_ERROR, "could not initiate network to alias key for %s:%s", msg_source_key->network->ip, msg_source_key->network->port);
 
 							np_unref_obj(np_network_t, msg_source_key->network, ref_key_network);
-							msg_source_key->network = NULL;
+							// msg_source_key->network = NULL;
 						}
 					}
 				}

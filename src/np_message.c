@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <stdio.h>
@@ -21,7 +21,6 @@
 
 #include "np_message.h"
 
-#include "dtime.h"
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"
@@ -559,12 +558,12 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg: %s) chunked into %"PRIu32" parts (calculated no of chunks: %"PRIu16")"
 			,msg->uuid, pll_size(msg->msg_chunks),msg->no_of_chunks);
 
-	__np_cleanup__:
-		if (NULL != bin_footer) free(bin_footer);
-		if (NULL != bin_body) free(bin_body);
-		if (NULL != bin_properties) free(bin_properties);
-		if (NULL != bin_instructions) free(bin_instructions);
-		if (NULL != bin_header) free(bin_header);
+	// __np_cleanup__:
+	if (NULL != bin_footer) free(bin_footer);
+	if (NULL != bin_body) free(bin_body);
+	if (NULL != bin_properties) free(bin_properties);
+	if (NULL != bin_instructions) free(bin_instructions);
+	if (NULL != bin_header) free(bin_header);
 
 	return (ret_val);
 }

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <assert.h>
@@ -13,7 +13,6 @@
 
 #include "np_aaatoken.h"
 
-#include "dtime.h"
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_tree.h"
@@ -40,7 +39,7 @@ void _np_aaatoken_t_new(void* token)
 
 	aaa_token->realm[0]      = '\0';
 
-	aaa_token->issuer;
+	// aaa_token->issuer;
 	memset(aaa_token->issuer, '\0', 65);
 
 	aaa_token->subject[0]    = '\0';
@@ -86,7 +85,7 @@ void _np_aaatoken_t_del (void* token)
 
 void _np_aaatoken_mark_as_core_token(np_aaatoken_t* token) {
 	token->is_core_token = TRUE;
-	unsigned long long sig_len = 0;
+	// unsigned long long sig_len = 0;
 	// set token->signature to signature of full token
 	if (token->private_key_is_set){
 	//	_np_aaatoken_add_signature(token);
@@ -95,7 +94,7 @@ void _np_aaatoken_mark_as_core_token(np_aaatoken_t* token) {
 
 void _np_aaatoken_mark_as_full_token(np_aaatoken_t* token) {
 	token->is_core_token = FALSE;
-	unsigned long long sig_len = 0;
+	// unsigned long long sig_len = 0;
 	// set token->signature to signature of full token
 	if (token->private_key_is_set){
 		//_np_aaatoken_add_signature(token);
@@ -1044,6 +1043,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 			int ret = crypto_sign_detached((unsigned char*)msg_token->signature, &signature_len,
 				(const unsigned char*)hash, crypto_generichash_BYTES,
 				msg_token->private_key);
+
 			if (ret < 0)
 			{
 				log_msg(LOG_WARN,
@@ -1054,7 +1054,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 				msg_token->signed_hash = hash;
 #ifdef DEBUG
 				if (strcmp(msg_token->subject, "_NP.SYSINFO.REPLY") == 0) {
-					log_debug_msg(LOG_DEBUG, "signature has %"PRIu32" bytes", signature_len);
+					log_debug_msg(LOG_DEBUG, "signature has %"PRIu64" bytes", signature_len);
 					char* signature_hex = calloc(1, signature_len * 2 + 1);
 					sodium_bin2hex(signature_hex, signature_len * 2 + 1,
 						msg_token->signature, signature_len);

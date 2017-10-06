@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_THREADS_H_
@@ -93,11 +93,11 @@ NP_API_INTERN
 np_bool _np_threads_init();
 
 NP_API_INTERN
-int _np_threads_lock_module(np_module_lock_type module_id, char* where);
+int _np_threads_lock_module(np_module_lock_type module_id, const char* where);
 NP_API_INTERN
 int _np_threads_unlock_module(np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b, char* where);
+int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b, const char* where);
 NP_API_INTERN
 int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b);
 

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
@@ -159,7 +159,7 @@ int main(int argc, char **argv)
 			}else{
 				fprintf(stderr, "HTTP interface set to %s\n" ,http_domain);
 				log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
-
+			}
 			/**
 			 Enable the bootstrap node as master for our SysInfo subsystem
 
@@ -173,7 +173,7 @@ int main(int argc, char **argv)
 
 			 \endcode
 			 */
-			}
+
 			// If you want to you can enable the statistics modulte to view the nodes statistics
 			np_statistics_add_watch(_NP_SYSINFO_REQUEST);
 			np_statistics_add_watch(_NP_SYSINFO_REPLY);

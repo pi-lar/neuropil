@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <assert.h>
@@ -19,7 +19,6 @@
 
 #include "neuropil.h"
 
-#include "dtime.h"
 #include "np_log.h"
 #include "np_aaatoken.h"
 #include "np_axon.h"
@@ -269,7 +268,8 @@ void np_send_wildcard_join(const char* node_string)
 	wildcard_node_key = _np_node_decode_from_str(wildcard_node_str);
 	free(wildcard_node_str);
 
-	_np_network_send_handshake(wildcard_node_key);
+	// proposal: only invoke handshake ?
+    _np_network_send_handshake(wildcard_node_key);
 
 	np_route_set_bootstrap_key(wildcard_node_key);
 	np_unref_obj(np_key_t, wildcard_node_key, "_np_node_decode_from_str");
@@ -479,10 +479,13 @@ void np_set_identity(np_aaatoken_t* identity)
 
 	// create encryption parameter
 	crypto_sign_keypair(identity->public_key, identity->private_key);
-	identity->private_key_is_set = TRUE;
-	//_np_aaatoken_add_signature(identity);
+    identity->private_key_is_set = TRUE;
+    // _np_aaatoken_add_signature(identity);
 	np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
+
 }
+
+
 /**
  * Sets the property key for the subject np_msgproperty_t to a given value.
  * If the subject does not have a np_msgproperty_t a new one will be created and registered.

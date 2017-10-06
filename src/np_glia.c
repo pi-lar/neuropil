@@ -18,7 +18,6 @@
 
 #include "np_glia.h"
 
-#include "dtime.h"
 #include "neuropil.h"
 
 #include "np_aaatoken.h"
@@ -53,7 +52,7 @@ static uint8_t __leafset_check_type = 0;
 static double  __leafset_check_period = 3.1415;
 static double  __leafset_yield_period = 0.031415;
 
-static double  __rowinfo_send_delay = 0.03141;
+// static double  __rowinfo_send_delay = 0.03141;
 
 static double  __token_retransmit_period = 3.1415;
 
@@ -264,7 +263,8 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 			if (delta > __leafset_check_period)
 			{
 				_np_ping(tmp_node_key);
-				_np_job_yield(__leafset_yield_period);
+				ev_sleep(__leafset_yield_period);
+				// _np_job_yield(__leafset_yield_period);
 			}
 		}
 		np_unref_obj(np_key_t, tmp_node_key,"_np_route_neighbors");
@@ -311,7 +311,8 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 				if (delta > (3 * __leafset_check_period))
 				{
 					_np_ping(tmp_node_key);
-					_np_job_yield(__leafset_yield_period);
+					ev_sleep(__leafset_yield_period);
+					// _np_job_yield(__leafset_yield_period);
 				}
 			}
 			np_unref_obj(np_key_t, tmp_node_key,"_np_route_get_table");
@@ -706,7 +707,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 			np_treeval_new_s((char*) _np_key_as_str(my_identity)));
 
 	// fingerprinting and signing the token
-	//_np_aaatoken_add_signature(msg_token);
+	// _np_aaatoken_add_signature(msg_token);
 
 	msg_token->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
 	np_unref_obj(np_key_t, my_identity, "np_waitref_obj");

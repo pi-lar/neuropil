@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // Original version taken from chimera project, copyright (C) 2001 James S. Plank
@@ -72,7 +72,7 @@ struct np_tree_elem_s
 	RB_ENTRY(np_tree_elem_s) link;
 
 	np_treeval_t key;
-	np_treeval_t val;
+    np_treeval_t val;
 } NP_API_INTERN;
 
 NP_API_INTERN

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef	_NP_UTIL_H_
@@ -14,17 +14,20 @@
 extern "C" {
 #endif
 
-#ifndef MIN(a,b)
-#define MIN(a,b) (((a)<(b))?(a):(b))
+#ifndef MIN
+	#define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
-#ifndef MAX(a,b)
-#define MAX(a,b) (((a)>(b))?(a):(b))
+
+#ifndef MAX
+	#define MAX(a,b) (((a)>(b))?(a):(b))
 #endif
-#ifndef min(a,b)
-#define min(a,b) MIN(a,b)
+
+#ifndef min
+	#define min(a,b) MIN(a,b)
 #endif
-#ifndef max(a,b)
-#define max(a,b) MAX(a,b)
+
+#ifndef max
+	#define max(a,b) MAX(a,b)
 #endif
 
 

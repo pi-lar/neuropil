@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <ctype.h>
@@ -28,7 +28,6 @@
 #include "np_log.h"
 #include "neuropil.h"
 
-#include "dtime.h"
 #include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_treeval.h"
@@ -499,7 +498,7 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
 	char* ret = NULL;
 
 	sll_iterator(char_ptr) iter = sll_first(target);
-	int i = 0;
+	uint32_t i = 0;
 	while (iter != NULL)
 	{				
 		ret = _np_concatAndFree(ret, "%d:\"%s\"->", i, iter->val);

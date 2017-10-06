@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -28,7 +28,6 @@
  
 #include "np_network.h"
 
-#include "dtime.h"
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"
@@ -451,7 +450,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 										written += current_write;
 									}									
 								} while (written < MSG_CHUNK_SIZE_1024 && iter <= (1 /*max delay sec*/ / 0.001) && np_event_sleep(0.001*iter) > 0 );
-								log_debug_msg(LOG_DEBUG | LOG_NETWORK, "out_msg_len %d bytes", written);
+								log_debug_msg(LOG_DEBUG | LOG_NETWORK, "out_msg_len %zd bytes", written);
 								if(iter > 1){
 									log_debug_msg(LOG_DEBUG | LOG_NETWORK, "send delay %f", 0.001 * iter - 0.001);
 								}
@@ -726,7 +725,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					log_msg(LOG_ERROR, "received disconnect from: %s:%s", ng->ip, ng->port);
 					// TODO handle cleanup of node structures ?
 					// maybe / probably the node received already a disjoin message before
-					//TODO: prüfen ob hier wirklich der host geschlossen werden muss
+					//TODO: prï¿½fen ob hier wirklich der host geschlossen werden muss
 					_np_network_stop(ng_tcp_host);
 					//_np_node_update_stat(key->node, 0);
 				

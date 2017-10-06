@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
@@ -148,7 +148,7 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 // printf("free obj %p (type %d ptr %p ref_count %d):(next -> %p)n", obj, obj->type, obj->ptr, obj->ref_count, obj->next );
 
 // increase ref count
-void np_mem_refobj(np_obj_t* obj, char* reason)
+void np_mem_refobj(np_obj_t* obj, const char* reason)
 {
 	log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
 	obj->ref_count++;
@@ -160,7 +160,7 @@ void np_mem_refobj(np_obj_t* obj, char* reason)
 	}
 
 // decrease ref count
-void np_mem_unrefobj(np_obj_t* obj, char* reason)
+void np_mem_unrefobj(np_obj_t* obj, const char* reason)
 {
 	log_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
 	obj->ref_count--;

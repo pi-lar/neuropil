@@ -57,7 +57,7 @@ np_bool _np_threads_init()
 	return ret;
 }
 
-int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
+int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locking module mutex %d.", module_id);
 	if(FALSE == _np_threads_initiated ){
@@ -87,9 +87,9 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 #ifdef DEBUG
 		double diff = ev_time() - start;
 			if(diff > (MUTEX_WAIT_SEC*1000)){
-				log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id, diff);
+				log_msg(LOG_ERROR, "Thread %lu waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id, diff);
 #ifdef CHECK_THREADING			
-				log_msg(LOG_ERROR, np_threads_printpool(FALSE));
+				log_msg(LOG_ERROR, "%s", np_threads_printpool(FALSE));
 #endif
 				abort();
 			}
@@ -122,7 +122,7 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 	return ret;
 }
 
-int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_type module_id_b, char* where)
+int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_type module_id_b, const char* where)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
 	if(FALSE == _np_threads_initiated ){

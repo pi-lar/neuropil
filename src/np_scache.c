@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /*
@@ -32,7 +32,7 @@ np_simple_cache_table_t* np_cache_init(int size) {
 	CHECK_MALLOC(ret);
 	_np_threads_mutex_init(&ret->lock);
 
-	for (uint32_t i = 0; i < size; i++) {
+	for (int32_t i = 0; i < size; i++) {
 		sll_init(np_cache_item_ptr, ret->buckets[i]);
 	}
 

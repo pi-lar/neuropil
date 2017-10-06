@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <fcntl.h>
@@ -136,7 +136,7 @@ void log_rotation()
 			ev_io_start(EV_A_ &logger->watcher);
 		 }
 		 if(logger->log_count > LOG_ROTATE_COUNT) {
-			 log_msg(LOG_INFO, "Continuing log from file %s. This is the %dth iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
+			 log_msg(LOG_INFO, "Continuing log from file %s. This is the %lluth iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
 		 }
 
 		 _np_log_fflush(TRUE);
@@ -182,7 +182,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		new_log_entry_length = strlen(new_log_entry);
 		vsnprintf (new_log_entry + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length - 1/*space for line ending*/-1 /*space for NULL terminator*/, msg, ap);
 		va_end(ap);
-		snprintf(new_log_entry+strlen(new_log_entry), 2, "\n\0");
+		snprintf(new_log_entry+strlen(new_log_entry), 2, "\n");
 
 #if defined(CONSOLE_LOG) && CONSOLE_LOG == 1
 		fprintf(stdout, new_log_entry);
@@ -225,11 +225,11 @@ void _np_log_fflush(np_bool force)
 
 		if (NULL != entry)
 		{
-			int bytes_witten = 0;
+			uint32_t bytes_witten = 0;
 
 			while(bytes_witten  != strlen(entry))
 			{
-				int current_bytes_witten = write(logger->fp, entry, strlen(entry));
+				int32_t current_bytes_witten = write(logger->fp, entry, strlen(entry));
 				// if we write was not successful we reschedule the entry
 				// and break free from this iteration
 				if(current_bytes_witten < 0)
@@ -280,19 +280,19 @@ void np_log_init(const char* filename, uint32_t level)
 	logger->log_rotate = LOG_ROTATE_ENABLE;
 
 	// detect filename_ext from filename (. symbol)
-	char* parsed_filename = filename;
-	int len_f = strlen(parsed_filename);
+	char* parsed_filename = NULL;
+	int len_f = strlen(filename);
 	for(int i= len_f; i >= 0;i--){
-		if(strncmp((parsed_filename + i) ,".",1) == 0)
+		if(strncmp((filename + i) ,".",1) == 0)
 		{
 			// found extension
-			snprintf (logger->filename_ext, len_f-i+1, "%s",parsed_filename+i);
-			parsed_filename = strndup(parsed_filename, i);
+			snprintf (logger->filename_ext, len_f-i+1, "%s", filename+i);
+			parsed_filename = strndup(filename, i);
 			break;
 		}
 	}
 
-	if(logger->filename_ext == NULL || strncmp(logger->filename_ext,"",1) == 0)
+	if(logger->filename_ext == NULL || strncmp(logger->filename_ext, "", 1) == 0)
 	{
 		snprintf (logger->filename_ext, 15, ".log");
 	}

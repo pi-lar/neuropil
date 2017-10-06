@@ -65,7 +65,8 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 
 	while (0 < suspend_loop)
 	{
-		_np_job_yield(__libev_interval);
+		// _np_job_yield(__libev_interval);
+		ev_sleep(__libev_interval);
 
 		_LOCK_MODULE(np_event_t) {
 			suspend_loop = __suspended_libev_loop;

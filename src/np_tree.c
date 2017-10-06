@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -651,7 +651,7 @@ void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 
 	cmp_read_map(cmp, &size);
 
-	// if ( ((size%2) != 0) || (size <= 0) ) return;
+	if ( ((size%2) != 0) || (size == 0) ) return;
 
 	for (uint32_t i = 0; i < (size/2); i++)
 	{
