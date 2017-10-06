@@ -5,6 +5,10 @@ import platform as p
 import argparse
 import tarfile
 import subprocess
+try:
+    from urllib.parse import quote_plus
+except:
+    from urllib import quote_plus
 
 rx = re.compile("#define NEUROPIL_RELEASE	[\"'](.*)[\"']")
 
@@ -46,7 +50,7 @@ def get_version_tag():
     return ("%s_alpha"% (get_version()))
 
 def get_build_name():
-    return  ("%s__%s__%s__%s" % (get_version_tag(), p.system(), p.release(), p.machine()))
+    return quote_plus("%s__%s__%s__%s" % (get_version_tag(), p.system(), p.release(), p.machine()))
 
 if __name__ == "__main__":
     if not os.path.isdir('release'):
