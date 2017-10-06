@@ -102,7 +102,7 @@ conf = Configure(env)
 # Checks for libraries, header files, etc.
 for lib in env['LIBS']:
     if not conf.CheckLib(lib):
-        print 'Did not find library %s. Please install the appropiate package' % (lib)
+        print 'Did not find library %s. Please install the appropiate package. (More information regarding this error may be in "config.log")' % (lib)
         Exit(1)
 
 if not conf.CheckLibWithHeader('sodium', 'sodium.h', 'c'):

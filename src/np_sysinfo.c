@@ -114,9 +114,9 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
 	sysinfo_request_props->mode_type = INBOUND | ROUTE;
-	sysinfo_request_props->max_threshold = 20;
+	sysinfo_request_props->max_threshold = 3;
 	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 20;
+	sysinfo_response_props->max_threshold = 3;
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
@@ -164,7 +164,7 @@ void np_sysinfo_enable_master() {
 	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 20;	
+	sysinfo_response_props->max_threshold = 5/*expected count of nodes */ * (60 /  SYSINFO_PROACTIVE_SEND_IN_SEC );
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);

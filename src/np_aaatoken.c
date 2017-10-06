@@ -1000,6 +1000,7 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 		crypto_generichash_update(&gh_state, (unsigned char*)msg_token->audience, strnlen(msg_token->audience, 255));
 		crypto_generichash_update(&gh_state, (unsigned char*)msg_token->realm, strnlen(msg_token->realm,255));
 
+		/* FIXME: seems to interrupt the signature later on
 		if (msg_token->extensions != NULL) {
 
 			cmp_ctx_t cmp;
@@ -1010,9 +1011,10 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 			_np_tree_serialize(msg_token->extensions, &cmp);
 			
 			crypto_generichash_update(&gh_state, (unsigned char*)extensions_buf_ptr,
-				// min(msg_token->extensions->byte_size, NP_AAATOKEN_MAX_SIZE_EXTENSIONS)
-				(msg_token->extensions->byte_size > NP_AAATOKEN_MAX_SIZE_EXTENSIONS)? NP_AAATOKEN_MAX_SIZE_EXTENSIONS: msg_token->extensions->byte_size);
+				min(msg_token->extensions->byte_size, NP_AAATOKEN_MAX_SIZE_EXTENSIONS)
+			;
 		}
+		*/
 	}
 	crypto_generichash_final(&gh_state, hash, crypto_generichash_BYTES);
 	
