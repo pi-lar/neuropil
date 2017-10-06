@@ -909,12 +909,6 @@ void _np_send_ack(np_message_t* in_msg)
 void _np_ping (np_key_t* key)
 {
 	np_state_t* state = _np_state();
-	/* weired: assume failure of the node now, will be reset with ping reply later */
-	if (NULL != key->node)
-	{
-		key->node->failuretime = ev_time();
-		_np_node_update_stat(key->node, 0);
-	}
 
 	np_message_t* out_msg = NULL;
 	np_new_obj(np_message_t, out_msg);
@@ -922,6 +916,12 @@ void _np_ping (np_key_t* key)
 	_np_message_create (out_msg, key, state->my_node_key, _NP_MSG_PING_REQUEST, NULL);
 	log_debug_msg(LOG_DEBUG, "ping request to: %s", _np_key_as_str(key));
 
+	/* weired: assume failure of the node now, will be reset with ping reply later */
+	if (NULL != key->node)
+	{
+		key->node->failuretime = ev_time();
+		_np_node_update_stat(key->node, 0);
+	}
 	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REQUEST);
 	_np_job_submit_msgout_event(0.0, prop, key, out_msg);
 

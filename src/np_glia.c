@@ -659,7 +659,8 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	char msg_uuid_subject[255];
 	snprintf(msg_uuid_subject, 255, "urn:np:msg:%s", msg_request->msg_subject);
 
-	np_waitref_obj(np_key_t, state->my_identity, my_identity,"np_waitref_obj");
+	np_waitref_obj(np_key_t, state->my_identity, my_identity, "np_waitref_obj");
+	np_waitref_obj(np_key_t, state->my_node_key, my_node_key, "np_waitref_obj");
 
 	// create token
 	strncpy(msg_token->realm, my_identity->aaa_token->realm, 255);
@@ -691,6 +692,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	memcpy((char*) msg_token->private_key,
 		   (char*) my_identity->aaa_token->private_key,
 		   crypto_sign_SECRETKEYBYTES);
+
 	msg_token->private_key_is_set = TRUE;
 
 	np_tree_insert_str(msg_token->extensions, "mep_type",
@@ -704,12 +706,13 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 
 	// TODO: insert value based on msg properties / respect (sticky) reply
 	np_tree_insert_str(msg_token->extensions, "target_node",
-			np_treeval_new_s((char*) _np_key_as_str(my_identity)));
+			np_treeval_new_s((char*) _np_key_as_str(my_node_key)));
 
 	// fingerprinting and signing the token
 	// _np_aaatoken_add_signature(msg_token);
 
 	msg_token->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
+	np_unref_obj(np_key_t, my_node_key, "np_waitref_obj");
 	np_unref_obj(np_key_t, my_identity, "np_waitref_obj");
 	return (msg_token);
 }

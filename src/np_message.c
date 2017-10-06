@@ -253,7 +253,7 @@ np_bool _np_message_is_expired(const np_message_t* const msg_to_check)
 	double remaining_ttl = (tstamp + msg_ttl.value.d) - now;
 	ret = remaining_ttl <= 0;
 
-	log_debug_msg(LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f",msg_to_check->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
+	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f",msg_to_check->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
 
 	__np_cleanup__:
 

@@ -200,7 +200,7 @@ void _np_in_received(np_jobargs_t* args)
 					// check time-to-live for message and expiry if neccessary
 					if (TRUE == _np_message_is_expired(msg_in))
 					{
-						log_msg(LOG_MESSAGE | LOG_INFO, "message ttl expired, dropping message (part) %s / %s",
+						log_msg(LOG_INFO, "message ttl expired, dropping message (part) %s / %s",
 							msg_in->uuid, msg_subject.value.s);
 					}
 					else {
@@ -472,7 +472,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 
 	if (TRUE == msg_has_expired)
 	{
-		log_debug_msg(LOG_DEBUG, "discarding expired message %s / %s ...", msg_prop->msg_subject, msg_in->uuid);
+		log_debug_msg(LOG_INFO, "discarding expired message %s / %s ...", msg_prop->msg_subject, msg_in->uuid);
 	}
 	else
 	{

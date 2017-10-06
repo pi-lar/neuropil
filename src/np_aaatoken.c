@@ -124,15 +124,16 @@ void _np_aaatoken_upgrade_core_token(np_key_t* key_with_core_token, np_aaatoken_
 
 	}
 }
+
 void np_aaatoken_core_encode(np_tree_t* data, np_aaatoken_t* token, np_bool standalone)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token){");	
-	if (standalone == TRUE) {
-		if (!_np_aaatoken_is_core_token(token)) {
-			_np_aaatoken_mark_as_core_token(token);
-		}
-	}
-	np_tree_insert_str(data, "np.t.c", np_treeval_new_sh(_np_aaatoken_is_core_token(token)));
+//	if (standalone == TRUE) {
+//		if (!_np_aaatoken_is_core_token(token)) {
+//			_np_aaatoken_mark_as_core_token(token);
+//		}
+//	}
+	np_tree_insert_str(data, "np.t.c", np_treeval_new_sh(standalone));
 	np_tree_insert_str(data, "np.t.s", np_treeval_new_s(token->subject));
 	np_tree_insert_str(data, "np.t.u", np_treeval_new_s(token->uuid));
 	np_tree_insert_str(data, "np.t.i", np_treeval_new_s(token->issuer));
@@ -149,7 +150,6 @@ void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token){");
 	// add e2e encryption details for sender
-
 	np_tree_insert_str(data, "np.t.ia", np_treeval_new_d(token->issued_at));
 	np_tree_insert_str(data, "np.t.nb", np_treeval_new_d(token->not_before));
 
@@ -337,7 +337,6 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 			token->state &= AAA_INVALID;			
 			return (FALSE);
 		}
-
 	}
 	
 	/*
@@ -346,10 +345,8 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		and an successfully verifying the new tokens identity is the same as the core tokens 
 	*/
 	if (is_full_token == TRUE) {
-
 		// check for already received core token
 		np_dhkey_t core_token_dhkey = _np_aaatoken_create_dhkey(token);
-
 		np_key_t* core_token_key = _np_keycache_find(core_token_dhkey);
 		if (core_token_key != NULL){				
 
@@ -389,7 +386,6 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	token->state |= AAA_VALID;
 	return (TRUE);
 }
-
 
 static int8_t _np_aaatoken_cmp (np_aaatoken_ptr first, np_aaatoken_ptr second)
 {
@@ -442,7 +438,6 @@ static int8_t _np_aaatoken_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr sec
 
 	return _np_aaatoken_cmp(first,second);
 }
-
 
 void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 {
@@ -960,11 +955,15 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(char* subject)
 	return (return_list);
 }
 
+// calculate the fingerprint of an aaatoken
 unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool full) {
+
 	int sizeof_hash = crypto_generichash_BYTES * sizeof(unsigned char);
 	unsigned char* hash = calloc(1, sizeof_hash);
+
 	crypto_generichash_state gh_state;
-	crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
+	crypto_generichash_init(&gh_state, msg_token->public_key, crypto_sign_PUBLICKEYBYTES, crypto_generichash_BYTES);
+	// crypto_generichash_update(&gh_state, (unsigned char*)msg_token->public_key, crypto_sign_PUBLICKEYBYTES);
 	
 	log_debug_msg(LOG_DEBUG, "fingerprint: use full: %s", full ? "yes":"no");
 
@@ -979,10 +978,6 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 	crypto_generichash_update(&gh_state, (unsigned char*)msg_token->uuid, strnlen(msg_token->uuid, UUID_SIZE));
 	log_debug_msg(LOG_DEBUG, "fingerprint: uuid: %s", msg_token->uuid);
 
-	crypto_generichash_update(&gh_state, (unsigned char*)msg_token->public_key, crypto_sign_PUBLICKEYBYTES);
-
-
-
 	if(full == TRUE) {
 		// may contain all other fields
 
@@ -995,10 +990,10 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 		crypto_generichash_update(&gh_state, (unsigned char*)&(msg_token->not_before), sizeof(double));
 		log_debug_msg(LOG_DEBUG, "fingerprint: not_before: %f", msg_token->not_before);
 
-		
 		crypto_generichash_update(&gh_state, (unsigned char*)msg_token->audience, strnlen(msg_token->audience, 255));
 		crypto_generichash_update(&gh_state, (unsigned char*)msg_token->realm, strnlen(msg_token->realm,255));
 
+/*
 		if (msg_token->extensions != NULL) {
 
 			cmp_ctx_t cmp;
@@ -1008,11 +1003,13 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 			cmp_init(&cmp, extensions_buf_ptr, _np_buffer_reader, _np_buffer_writer);
 			_np_tree_serialize(msg_token->extensions, &cmp);
 			
-			crypto_generichash_update(&gh_state, (unsigned char*)extensions_buf_ptr,
+			crypto_generichash_update(&gh_state, (unsigned char*)extensions_payload,
 				// min(msg_token->extensions->byte_size, NP_AAATOKEN_MAX_SIZE_EXTENSIONS)
 				(msg_token->extensions->byte_size > NP_AAATOKEN_MAX_SIZE_EXTENSIONS)? NP_AAATOKEN_MAX_SIZE_EXTENSIONS: msg_token->extensions->byte_size);
 		}
+*/
 	}
+
 	crypto_generichash_final(&gh_state, hash, crypto_generichash_BYTES);
 	
 #ifdef DEBUG
@@ -1023,6 +1020,8 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 
 	return hash;
 }
+
+// add a signature to a aaatoken
 void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_add_signature(np_aaatoken_t* msg_token){");

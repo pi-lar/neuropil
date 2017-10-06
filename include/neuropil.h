@@ -18,7 +18,7 @@ It should contain all required functions to send or receive messages.
 #include "np_types.h"
 #include "np_list.h"
 
-#define NEUROPIL_RELEASE	"neuropil_0.4.0"
+#define NEUROPIL_RELEASE	"neuropil 0.4.0"
 #define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2017 neuropil.org, Cologne, Germany"
 #define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2017 pi-lar GmbH, Cologne, Germany"
 
