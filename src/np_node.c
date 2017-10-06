@@ -296,11 +296,11 @@ np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
 	// TODO: check whether metadata is used as a hash key in general
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(token);
 	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
-	if (NULL == node_key->node)
-	{
-		if(token->extensions != NULL && token->extensions->size > 0){
-			node_key->node = _np_node_decode_from_jrb(token->extensions);
-		
+	
+	if (NULL == node_key->node && token->extensions != NULL && token->extensions->size > 0){
+	
+		node_key->node = _np_node_decode_from_jrb(token->extensions);
+		if(node_key->node != NULL){
 			ref_replace_reason(
 				np_node_t, node_key->node,
 				"_np_node_decode_from_jrb",
