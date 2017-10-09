@@ -45,7 +45,8 @@ static double last_response_or_invokation = 0;
 
 const double ping_pong_intervall = 0.01;
 
-void handle_ping_pong_receive(char* in, char* out, int first_low, , int first_high, const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+void handle_ping_pong_receive(char * response, int first_low, int first_high, const np_message_t * const msg, np_tree_t * properties, np_tree_t * body);
+void handle_ping_pong_receive(char * response, int first_low, int first_high, const np_message_t * const msg, np_tree_t * properties, np_tree_t * body)
 {
 	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
@@ -67,18 +68,18 @@ void handle_ping_pong_receive(char* in, char* out, int first_low, , int first_hi
 		ev_sleep(ping_pong_intervall);
 	}
 
-	np_send_text(out, out, 0, NULL);
+	np_send_text(response, response, 0, NULL);
 }
 
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
-	handle_receive("ping", "pong", LED_GPIO_YELLOW, LED_GPIO_GREEN, msg, properties, body);
+	handle_ping_pong_receive("pong", LED_GPIO_YELLOW, LED_GPIO_GREEN, msg, properties, body);
 	return TRUE;
 }
 
 np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
-	handle_receive("pong", "ping", LED_GPIO_GREEN, LED_GPIO_YELLOW, msg, properties, body);
+	handle_ping_pong_receive("ping", LED_GPIO_GREEN, LED_GPIO_YELLOW, msg, properties, body);
 	return TRUE;
 }
 
