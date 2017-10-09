@@ -48,7 +48,7 @@ static np_bool is_gpio_enabled = FALSE;
 static np_mutex_t gpio_lock = { 0 };
 static double last_response_or_invokation = 0;
 
-const double ping_pong_intervall = 0.0001;
+const double ping_pong_intervall = 0.01;
 
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
