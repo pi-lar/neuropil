@@ -241,7 +241,7 @@ int main(int argc, char **argv)
 	fprintf(stdout, "Sending initial ping.\n");
 	log_msg(LOG_INFO, "Sending initial ping");
 	// send an initial ping
-	np_send_text("ping", "ping", _ping_send_count++, NULL);
+	np_send_text("ping", "ping", 0, NULL);
 
 	//__np_example_helper_run_loop();
 	uint32_t i = 0;
@@ -255,7 +255,7 @@ int main(int argc, char **argv)
 		if ((now - last_response_or_invokation ) > ping_props->msg_ttl) {
 			
 			log_msg(LOG_INFO, "Invoking ping (last one was at %f (before %f sec))", last_response_or_invokation, now - last_response_or_invokation);
-			np_send_text("ping", "ping", _ping_send_count++, NULL);
+			np_send_text("ping", "ping", 0, NULL);
 			last_response_or_invokation = now;
 		}
 		__np_example_helper_loop(i, 0.01);
