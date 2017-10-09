@@ -107,12 +107,14 @@ struct np_obj_s
 #define _NP_REF_REASON_SEPERATOR_CHAR "___"
 #define _NP_REF_REASON_SEPERATOR_CHAR_LEN 3
 
+#ifdef MEMORY_CHECK
 #define _NP_REF_REASON(reason,new_reason)																									    \
 	char new_reason[strlen(reason)+20];																											\
-	sprintf(new_reason,"%s%sline:%d",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__);             												\
-																																			    \
-																																			    \
-																																			    \
+	sprintf(new_reason,"%s%sline:%d",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__);             												
+#else
+#define _NP_REF_REASON(reason,new_reason)										
+#endif
+
 
 #ifndef MEMORY_CHECK
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)
