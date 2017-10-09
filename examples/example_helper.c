@@ -26,6 +26,8 @@ const float output_intervall_sec = 0.5;
 extern char *optarg;
 extern int optind;
 
+uint8_t enable_statistics = 1;
+
 np_bool parse_program_args(
 	char* program,
 	int argc, 
@@ -44,11 +46,11 @@ np_bool parse_program_args(
 	np_bool ret = TRUE;
 	char* usage;
 	asprintf(&usage,
-		"./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] %s",
+		"./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-s statistics 0=Off 1=Console 2=Log 3=1&2] %s",
 		program, additional_fields_desc == NULL ?"": additional_fields_desc
 	);
 	char* optstr; 
-	asprintf(&optstr, "j:p:b:t:u:d:g:%s", additional_fields_optstr);
+	asprintf(&optstr, "j:p:b:t:u:d:s:%s", additional_fields_optstr);
 
 	char* additional_fields[32] = { 0 }; // max additional fields
 	va_list args;
@@ -84,7 +86,10 @@ np_bool parse_program_args(
 			*publish_domain = strdup(optarg);
 			break;
 		case 'd':
-			(*level)= atoi(optarg);
+			(*level) = atoi(optarg);
+			break;
+		case 's':
+			enable_statistics = atoi(optarg) ;
 			break;
 		case 'b':
 			*port = strdup(optarg);
@@ -184,37 +189,48 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 			char* memory_str;
 
 			// to output
-			memory_str = np_mem_printpool(FALSE,TRUE);
-			if(memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
-			free(memory_str);
-			memory_str = np_mem_printpool(TRUE,TRUE);
-		//	if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
-			free(memory_str);
-
+			if(enable_statistics == 1 || enable_statistics > 2) {
+				memory_str = np_mem_printpool(FALSE,TRUE);
+				if(memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
+				free(memory_str);
+			}
+			else if (enable_statistics >= 2) {
+				memory_str = np_mem_printpool(TRUE, TRUE);
+				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+				free(memory_str);
+			}
 
 #ifdef DEBUG
-			memory_str = np_messagepart_printcache(FALSE);
-			//if(memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
-			free(memory_str);
-			memory_str = np_messagepart_printcache(TRUE);
-			//if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
-			free(memory_str);
+			if (enable_statistics == 1 || enable_statistics > 2) {
 
-
-			memory_str = np_threads_printpool(FALSE);
-			if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
-			free(memory_str);
-			memory_str = np_threads_printpool(TRUE);
-			//if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
-			free(memory_str);
+				memory_str = np_messagepart_printcache(FALSE);
+				if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
+				free(memory_str);
+				memory_str = np_threads_printpool(FALSE);
+				if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
+				free(memory_str);
+			}
+			else if (enable_statistics >= 2) {
+				memory_str = np_messagepart_printcache(TRUE);
+				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+				free(memory_str);
+				
+				memory_str = np_threads_printpool(TRUE);
+				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+				free(memory_str);
+			}
 #endif
 
-			memory_str = np_statistics_print(FALSE);			
-			if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
-			free(memory_str);
-			memory_str = np_statistics_print(TRUE);
-			//if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
-			free(memory_str);
+			if (enable_statistics == 1 || enable_statistics > 2) {
+				memory_str = np_statistics_print(FALSE);			
+				if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
+				free(memory_str);
+			}
+			else if (enable_statistics >= 2) {
+				memory_str = np_statistics_print(TRUE);
+				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+				free(memory_str);
+			}
 			
 		}
 		fflush(NULL);
