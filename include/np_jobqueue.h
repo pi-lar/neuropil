@@ -42,7 +42,7 @@ NP_API_INTERN
 np_bool _np_job_queue_create();
 
 NP_API_INTERN
-void _np_job_queue_insert(double delay, np_job_t* new_job);
+void _np_job_queue_insert(np_job_t* new_job);
 
 /** np_job_submit_event
  ** create a new node and pass "func","args","args_size"
@@ -50,7 +50,10 @@ void _np_job_queue_insert(double delay, np_job_t* new_job);
  ** signal the thread pool if the queue was empty
  **/
 NP_API_EXPORT
-void np_job_submit_event (double delay, np_callback_t clb );
+void np_job_submit_event (double delay, np_callback_t clb, char* ident);
+
+NP_API_EXPORT
+void np_job_submit_event_periodic(double first_delay, double interval, np_callback_t callback, char* ident);
 
 NP_API_INTERN
 void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);

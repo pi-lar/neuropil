@@ -350,7 +350,7 @@ NP_API_EXPORT
 void np_start_job_queue(uint8_t pool_size);
 
 /**
-.. c:function:: void _np_ping(np_key_t* key)
+.. c:function:: void _np_ping_send(np_key_t* key)
 
    Sends a ping message to a key. Can be used to check the connectivity to a node
    The ping message is acknowledged in network layer. This function is mainly used by the neuropil subsystem.
@@ -361,11 +361,13 @@ void np_start_job_queue(uint8_t pool_size);
 
 */
 NP_API_INTERN
-void _np_ping(np_key_t* key);
+void _np_ping_send(np_key_t* key);
 
 NP_API_INTERN
 void _np_send_ack(np_message_t* in_msg);
 
+NP_API_INTERN
+double np_time_now();
 
 #ifdef __cplusplus
 }

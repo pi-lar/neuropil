@@ -739,39 +739,55 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
 }
 
-np_bool _np_route_my_key_has_connection(){
-	np_bool ret = TRUE;
+
+
+uint32_t __np_route_my_key_count_routes(np_bool break_on_first) {
+	uint32_t ret = 0;
 
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		if(__routing_table->my_key->node->joined_network == TRUE) {
-			np_bool hasRoutingEntry = FALSE;
+		if (__routing_table->my_key->node->joined_network == TRUE) {
+			
 			uint16_t i, j, k;
-			for (i = 0; i < __MAX_ROW && hasRoutingEntry == FALSE; i++)
+			for (i = 0; i < __MAX_ROW; i++)
 			{
-				for (j = 0; j < __MAX_COL && hasRoutingEntry == FALSE; j++)
+				for (j = 0; j < __MAX_COL; j++)
 				{
 					int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
-					for (k = 0; k < __MAX_ENTRY && hasRoutingEntry == FALSE; k++)
+					for (k = 0; k < __MAX_ENTRY; k++)
 					{
 						if (NULL != __routing_table->table[index + k])
 						{
-							hasRoutingEntry = TRUE;
+							ret += 1;
+						}
+						if (ret > 0 && break_on_first) {
+							break;
 						}
 					}
+					if (ret > 0 && break_on_first) {
+						break;
+					}
 				}
-			}
-
-			if( FALSE == hasRoutingEntry
-			&& pll_size(__routing_table->left_leafset) == 0
-			&& pll_size(__routing_table->right_leafset) == 0
-			){
-				ret = FALSE;
+				if (ret > 0 && break_on_first) {
+					break;
+				}
 			}
 		}
 	}
 	return ret;
 }
+
+np_bool _np_route_my_key_has_connection() {
+	return (__np_route_my_key_count_routes(TRUE) + _np_route_my_key_count_neighbours()) > 0 ? TRUE: FALSE;
+}
+
+uint32_t _np_route_my_key_count_routes() {
+	return __np_route_my_key_count_routes(FALSE);
+}
+uint32_t _np_route_my_key_count_neighbours() {
+	return  pll_size(__routing_table->left_leafset) + pll_size(__routing_table->right_leafset);
+}
+
 void _np_route_check_for_joined_network()
 {
 	if( _np_route_my_key_has_connection() == FALSE)

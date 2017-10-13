@@ -24,6 +24,9 @@ extern "C" {
 	NP_API_EXPORT
 		char * np_statistics_print(char* asOneLine);
 
+	NP_API_EXPORT
+		void np_statistics_add_watch_internals();
+
 #ifdef __cplusplus
 }
 #endif

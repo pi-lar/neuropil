@@ -73,7 +73,6 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 	}
 }
 
-
 void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 {
 	np_sll_t(np_message_ptr,to_del);
@@ -106,7 +105,6 @@ void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 
 	// np_unref_list(np_message_ptr, to_del, ref_msgpartcache); // cleanup
 
-	np_job_submit_event(MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache);
 }
 
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
@@ -116,7 +114,7 @@ void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 	_np_route_rejoin_bootstrap(FALSE);
 
 	// Reschedule myself
-	np_job_submit_event(MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary);
+	np_job_submit_event(MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary,"_np_event_rejoin_if_necessary");
 }
 
 /**
@@ -156,8 +154,6 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 	}
 
 	if (TRUE == __exit_libev_loop) return;
-
-	np_job_submit_event(__libev_interval, _np_events_read);
 }
 /**
  * Call this fucntion only in an event (as in async callback)

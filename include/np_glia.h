@@ -16,7 +16,6 @@ extern "C" {
 void _np_route_lookup_jobexec (np_jobargs_t* args);
 
 // critical self invoking functions
-void _np_route_check_leafset_jobexec(np_jobargs_t* args);
 void _np_retransmit_message_tokens_jobexec(np_jobargs_t* args);
 void _np_renew_node_token_jobexec(np_jobargs_t* args);
 
@@ -39,6 +38,14 @@ void _np_send_msg_interest(const char* subject);
 void _np_send_msg_availability(const char* subject);
 
 np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target);
+
+void _np_glia_check_neighbours(np_jobargs_t* args);
+void _np_glia_check_routes(np_jobargs_t* args);
+void _np_glia_send_piggy_requests(np_jobargs_t* args);
+void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args);
+
+typedef void(*__np_glia_check_connections_handler)(np_key_t*, np_bool, np_key_t**, np_key_t**);
+void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_check_connections_handler fn);
 
 #ifdef __cplusplus
 }

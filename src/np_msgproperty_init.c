@@ -10,6 +10,7 @@
 #include "np_glia.h"
 #include "np_list.h"
 #include "neuropil.h"
+#include "np_pinging.h"
 
 sll_return(np_msgproperty_ptr) default_msgproperties() {
 
@@ -63,16 +64,16 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 
 	__ack_properties->msg_subject = _NP_MSG_ACK;
 	__ack_properties->rep_subject = NULL;
-	__ack_properties->mode_type = OUTBOUND | ROUTE;
+	__ack_properties->mode_type = OUTBOUND | INBOUND | ROUTE;
 	__ack_properties->mep_type = ONE_WAY;
 	__ack_properties->priority = 0;
 	__ack_properties->ack_mode = ACK_NONE;
 	__ack_properties->retry = 0;
-	__ack_properties->clb_inbound = _np_never_called_jobexec_inbound;
+	__ack_properties->clb_inbound = _np_in_ack;
 	__ack_properties->clb_outbound = _np_out_ack;
 	__ack_properties->clb_transform = _np_never_called_jobexec_transform;
 	__ack_properties->clb_route = _np_route_lookup_jobexec;
-	__ack_properties->msg_ttl = 20.0;
+	__ack_properties->msg_ttl = 60.0;
 	__ack_properties->max_threshold = UINT16_MAX;
 	__ack_properties->token_max_ttl = 30;
 	__ack_properties->token_min_ttl = 20;
@@ -164,41 +165,21 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_msgproperty_ptr, ret, __ping);
 
 	__ping->msg_subject = _NP_MSG_PING_REQUEST;
-	__ping->rep_subject = _NP_MSG_PING_REPLY;
+	__ping->rep_subject = NULL;
 	__ping->mode_type = INBOUND | OUTBOUND | ROUTE;
-	__ping->mep_type = REQ_REP;
+	__ping->mep_type = ONE_TO_ANY;
 	__ping->priority = 0;
-	__ping->ack_mode = ACK_NONE;
+	__ping->ack_mode = ACK_DESTINATION;
 	__ping->retry = 5;
 	__ping->clb_inbound = _np_in_ping;
 	__ping->clb_outbound = _np_send;
 	__ping->clb_transform = _np_never_called_jobexec_transform;
 	__ping->clb_route = _np_route_lookup_jobexec;
 	__ping->msg_ttl = 2.0;
-	__ping->max_threshold = UINT16_MAX;
+	__ping->max_threshold = 1;
 	__ping->token_max_ttl = 30;
 	__ping->token_min_ttl = 20;
-
-	np_msgproperty_t* __ping_reply = NULL;
-	np_new_obj(np_msgproperty_t, __ping_reply);
-	sll_append(np_msgproperty_ptr, ret, __ping_reply);
-
-	__ping_reply->msg_subject = _NP_MSG_PING_REPLY;
-	__ping_reply->rep_subject = NULL;
-	__ping_reply->mode_type = INBOUND | OUTBOUND | ROUTE;
-	__ping_reply->mep_type = ONE_WAY;
-	__ping_reply->priority = 0;
-	__ping_reply->ack_mode = ACK_NONE;
-	__ping_reply->retry = 5;
-	__ping_reply->clb_inbound = _np_in_pingreply;
-	__ping_reply->clb_outbound = _np_send;
-	__ping_reply->clb_transform = _np_never_called_jobexec_transform;
-	__ping_reply->clb_route = _np_route_lookup_jobexec;
-	__ping_reply->msg_ttl = 2.0;
-	__ping_reply->max_threshold = UINT16_MAX;
-	__ping_reply->token_max_ttl = 30;
-	__ping_reply->token_min_ttl = 20;
-
+	
 	np_msgproperty_t* __piggy = NULL;
 	np_new_obj(np_msgproperty_t, __piggy);
 	sll_append(np_msgproperty_ptr, ret, __piggy);

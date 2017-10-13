@@ -53,11 +53,9 @@ extern "C" {
 #ifndef NODE_MIN_TTL_SEC
 	#define NODE_MIN_TTL_SEC (NODE_MAX_TTL_SEC - 120)
 #endif
-
 #ifndef NODE_RENEW_BEFORE_EOL_SEC
 	#define NODE_RENEW_BEFORE_EOL_SEC (5)
 #endif
-
 
 #define MSG_ARRAY_SIZE (1)
 #define MSG_PAYLOADBIN_SIZE (15)
@@ -67,12 +65,51 @@ extern "C" {
 
 
 #ifndef MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC
-	#define MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC (5)
+	#define MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC (5.0)
 #endif
-
 #ifndef MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC
-	#define MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC (0.31415)
+	#define MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC (3.1415)
 #endif
+#ifndef MISC_KEYCACHE_CLEANUP_INTERVAL_SEC
+	#define MISC_KEYCACHE_CLEANUP_INTERVAL_SEC (3.1415)
+#endif
+#ifndef MISC_ACKENTRY_CLEANUP_INTERVAL_SEC
+	#define MISC_ACKENTRY_CLEANUP_INTERVAL_SEC (3.1415)
+#endif
+#ifndef MISC_CHECK_ROUTES_SEC
+	#define MISC_CHECK_ROUTES_SEC (3.1415)
+#endif
+#ifndef MISC_SEND_PIGGY_REQUESTS_SEC
+	#define MISC_SEND_PIGGY_REQUESTS_SEC (3.1415)
+#endif
+#ifndef MISC_SEND_UPDATE_MSGS_SEC
+	#define MISC_SEND_UPDATE_MSGS_SEC (3.1415)
+#endif
+#ifndef MISC_RENEW_NODE_SEC
+	#define MISC_RENEW_NODE_SEC (3.1415)
+#endif
+#ifndef MISC_RETRANSMIT_MSG_TOKENS_SEC
+	#define MISC_RETRANSMIT_MSG_TOKENS_SEC (3.1415)
+#endif
+#ifndef MISC_READ_EVENTS_SEC
+	#define MISC_READ_EVENTS_SEC (0.031415)
+#endif
+#ifndef MISC_SEND_PINGS_SEC
+	#define MISC_SEND_PINGS_SEC (13.1415)
+#endif
+	
+	
+ /*
+ static double  __leafset_check_period = 3.1415;
+ static double  __leafset_yield_period = 0.031415;
+
+ static double  __rowinfo_send_delay = 0.03141;
+
+ static double  __token_retransmit_period = 3.1415;
+
+ static double  __cleanup_interval = 0.31415;
+ */
+
 
 #ifndef GOOD_LINK
 	#define GOOD_LINK 0.7
@@ -132,7 +169,11 @@ extern "C" {
 #endif
 
 #ifndef LOG_ROTATE_ENABLE
-	#define LOG_ROTATE_ENABLE (TRUE)
+	#if defined(DEBUG) && DEBUG == 1
+		#define LOG_ROTATE_ENABLE FALSE
+	#else
+		#define LOG_ROTATE_ENABLE TRUE
+	#endif
 #endif
 #ifndef LOG_FORCE_INSTANT_WRITE
 	#define LOG_FORCE_INSTANT_WRITE (TRUE)
@@ -141,7 +182,7 @@ extern "C" {
 
 
 #ifndef NP_NETWORK_MAX_MSGS_PER_SCAN
-	#define NP_NETWORK_MAX_MSGS_PER_SCAN (10) 
+	#define NP_NETWORK_MAX_MSGS_PER_SCAN (1) 
 #endif
 
 // indirect #define NP_NETWORK_MAX_BYTES_PER_SCAN (NP_NETWORK_MAX_MSGS_PER_SCAN*1024) 

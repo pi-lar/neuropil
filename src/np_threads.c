@@ -66,7 +66,7 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 	}
 	int ret =  1;
 #ifdef DEBUG
-	double start = ev_time();
+	double start = np_time_now();
 #endif
 
 #ifdef CHECK_THREADING 
@@ -85,8 +85,8 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 
 	while(ret != 0){
 #ifdef DEBUG
-		double diff = ev_time() - start;
-			if(diff > (MUTEX_WAIT_SEC*1000)){
+		double diff = np_time_now() - start;
+			if(diff > (MUTEX_WAIT_SEC*1000)) {
 				log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id, diff);
 #ifdef CHECK_THREADING			
 				log_msg(LOG_ERROR, np_threads_printpool(FALSE));
@@ -98,7 +98,7 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 			}
 #endif
 
-		ret = pthread_mutex_trylock(&__mutexes[module_id].lock);
+		ret = pthread_mutex_lock(&__mutexes[module_id].lock);
 
 		if(ret == EBUSY){			
 			ev_sleep(MUTEX_WAIT_SEC);
@@ -154,9 +154,9 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 
 #endif
 	while(ret != 0) {
-		ret = pthread_mutex_trylock(lock_a);
+		ret = pthread_mutex_lock(lock_a);
 		if (ret == 0) {
-			ret = pthread_mutex_trylock(lock_b);
+			ret = pthread_mutex_lock(lock_b);
 			if(ret != 0) {
 				pthread_mutex_unlock(lock_a);
 				ev_sleep(MUTEX_WAIT_SEC);
@@ -267,7 +267,7 @@ int _np_threads_mutex_lock(np_mutex_t* mutex) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
 	int ret =  1;
 	while(ret != 0) {
-		ret = pthread_mutex_trylock(&mutex->lock);
+		ret = pthread_mutex_lock(&mutex->lock);
 		if(ret == EBUSY){
 			ev_sleep(MUTEX_WAIT_SEC);
 		}else if(ret != 0) {

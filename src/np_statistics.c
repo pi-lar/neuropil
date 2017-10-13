@@ -11,6 +11,7 @@
 #include "np_msgproperty.h"
 #include "np_scache.h"
 #include "np_list.h"
+#include "np_route.h"
 #include "np_util.h"
 
 #include "np_statistics.h"
@@ -122,24 +123,47 @@ void np_statistics_add_watch(char* subject) {
 		container->last_sec_check =
 			container->last_min_check =
 			container->first_check =
-			ev_time();
+			np_time_now();
 	}
-	np_msgproperty_t* msg_prop;
 
-	msg_prop = np_msgproperty_get(INBOUND, key);
-
-	if (FALSE == container->watch_receive && msg_prop != NULL) {
+	if (FALSE == container->watch_receive && np_msgproperty_get(INBOUND, key) != NULL) {
 		container->watch_receive = TRUE;
 		np_add_receive_listener(_np_statistics_receive_msg_on_watched, key);
 	}
 
-	msg_prop = np_msgproperty_get(OUTBOUND, key);
-	if (FALSE == container->watch_send && msg_prop != NULL) {
+	if (FALSE == container->watch_send && np_msgproperty_get(OUTBOUND, key) != NULL) {
 		container->watch_send = TRUE;
 		np_add_send_listener(_np_statistics_send_msg_on_watched, key);
 	}
 }
 
+void np_statistics_add_watch_internals() {
+	/*
+	FIXME: Seems to interrupt functionality
+	np_statistics_add_watch(_DEFAULT);
+	np_statistics_add_watch(_ROUTE_LOOKUP);
+
+	np_statistics_add_watch(_NP_MSG_ACK);
+	np_statistics_add_watch(_NP_MSG_HANDSHAKE);
+	np_statistics_add_watch(_NP_MSG_PING_REQUEST);
+	np_statistics_add_watch(_NP_MSG_LEAVE_REQUEST);
+	np_statistics_add_watch(_NP_MSG_JOIN);
+	np_statistics_add_watch(_NP_MSG_JOIN_REQUEST);
+	np_statistics_add_watch(_NP_MSG_JOIN_ACK);
+	np_statistics_add_watch(_NP_MSG_JOIN_NACK);
+	np_statistics_add_watch(_NP_MSG_PIGGY_REQUEST);
+	np_statistics_add_watch(_NP_MSG_UPDATE_REQUEST);
+	np_statistics_add_watch(_NP_MSG_DISCOVER_RECEIVER);
+	np_statistics_add_watch(_NP_MSG_DISCOVER_SENDER);
+	np_statistics_add_watch(_NP_MSG_AVAILABLE_RECEIVER);
+	np_statistics_add_watch(_NP_MSG_AVAILABLE_SENDER);
+	np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REQUEST);
+	np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REPLY);
+	np_statistics_add_watch(_NP_MSG_AUTHORIZATION_REQUEST);
+	np_statistics_add_watch(_NP_MSG_AUTHORIZATION_REPLY);
+	np_statistics_add_watch(_NP_MSG_ACCOUNTING_REQUEST);
+	*/
+}
 char * np_statistics_print(char* asOneLine) {
 	if (FALSE == _np_statistcs_initiated) {
 		return NULL;
@@ -165,7 +189,7 @@ char * np_statistics_print(char* asOneLine) {
 	double current_sec_received;
 	double sec_since_last_print;
 
-	double now = ev_time();
+	double now = np_time_now();
 
 	while (iter_subjects != NULL)
 	{
@@ -248,6 +272,14 @@ char * np_statistics_print(char* asOneLine) {
 
 		sll_next(iter_subjects);
 	}
+	
+	uint32_t routes = _np_route_my_key_count_routes();
+	int tenth = min(8, ceil(routes % 10));
+	char* tmp_format[30] = { 0 };
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Reachable nodes:", tenth);
+	ret = _np_concatAndFree(ret, tmp_format, routes, new_line);
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Neighbours nodes:", tenth);
+	ret = _np_concatAndFree(ret, tmp_format, _np_route_my_key_count_neighbours(), new_line);
 
 	ret = _np_concatAndFree(ret, "--- Statistics END  ---%s", new_line);
 

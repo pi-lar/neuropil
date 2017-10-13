@@ -41,7 +41,6 @@ static const char* NP_NODE_PROTOCOL     = "np.n.pr";
 static const char* NP_NODE_DNS_NAME     = "np.n.d";
 static const char* NP_NODE_PORT         = "np.n.p";
 static const char* NP_NODE_CREATED_AT   = "np.n.c";
-static const char* NP_NODE_FAILURETIME  = "np.n.f";
 static const char* NP_NODE_SUCCESS_AVG  = "np.n.sa";
 static const char* NP_NODE_LATENCY      = "np.n.l";
 static const char* NP_NODE_LAST_SUCCESS = "np.n.ls";
@@ -60,19 +59,18 @@ void _np_node_t_new(void* node)
 	memset(entry->session_key, 0, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
 	entry->session_key_is_set = FALSE;
 
-	entry->failuretime = 0.0;
-	entry->last_success = ev_time();
+	entry->last_success = np_time_now();
 	entry->success_win_index = 0;
 	entry->success_avg = 0.7;
 	entry->is_handshake_send = FALSE;
 	entry->is_handshake_received = FALSE;
 	entry->joined_network = FALSE;
 
-	for (uint8_t i = 0; i < SUCCESS_WINDOW / 2; i++)
+	for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW / 2; i++)
 		entry->success_win[i] = 0;
-	for (uint8_t i = SUCCESS_WINDOW / 2; i < SUCCESS_WINDOW; i++)
+	for (uint8_t i = NP_NODE_SUCCESS_WINDOW / 2; i < NP_NODE_SUCCESS_WINDOW; i++)
 		entry->success_win[i] = 1;
-	for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
+	for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
 		entry->latency_win[i] = 0.031415;
 	entry->latency = 0.031415;
 }
@@ -106,10 +104,6 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, np_bool includ
 	np_tree_insert_str(data, NP_NODE_PROTOCOL, np_treeval_new_ush(node_key->node->protocol));
 	np_tree_insert_str(data, NP_NODE_DNS_NAME, np_treeval_new_s(node_key->node->dns_name));
 	np_tree_insert_str(data, NP_NODE_PORT, np_treeval_new_s(node_key->node->port));
-
-	if (node_key->node->failuretime > 0.0)
-		np_tree_insert_str(data, NP_NODE_FAILURETIME,
-				np_treeval_new_d(node_key->node->failuretime));
 
 	if (TRUE == include_stats)
 	{		
@@ -222,15 +216,6 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 				i_host_proto, s_host_name, s_host_port);
 	}
 
-	// OPTIONAL parameter
-	np_tree_elem_t* failure = np_tree_find_str(data, NP_NODE_FAILURETIME);
-	if (NULL != failure)
-	{
-		new_node->failuretime = failure->val.value.d;
-	}
-
-	// np_jrb_t* latency = np_tree_find_str(data, "_np.node.latency");
-	// if (latency) node->latency = latency->val.value.d;
 	ref_replace_reason(np_node_t, new_node, ref_obj_creation, __func__);
 
 	return (new_node);
@@ -340,10 +325,10 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 
 	node_token->uuid = np_uuid_create(node_subject, 0);
 
-	node_token->not_before = ev_time();
+	node_token->not_before = np_time_now();
 
 	int rand_interval =  ((int)randombytes_uniform(NODE_MAX_TTL_SEC-NODE_MIN_TTL_SEC)+NODE_MIN_TTL_SEC);
-	node_token->expiration = node_token->not_before + rand_interval ;
+	node_token->expires_at = node_token->not_before + rand_interval ;
 
 	crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
 	node_token->private_key_is_set = TRUE;
@@ -372,25 +357,25 @@ void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 
 
 /** _np_node_update_stat:
- ** updates the success rate to the host based on the SUCCESS_WINDOW average
+ ** updates the responded rate to the host based on the NP_NODE_SUCCESS_WINDOW average
  **/
-void _np_node_update_stat (np_node_t* node, uint8_t success)
+void _np_node_update_stat (np_node_t* node, np_bool responded)
 {
 	float total = 0;
 	np_ref_obj(np_node_t, node,"usage");
 	 {
 		_LOCK_ACCESS(&node->lock) {
 
-			node->success_win[node->success_win_index++ % SUCCESS_WINDOW] = success;
+			node->success_win[node->success_win_index++ % NP_NODE_SUCCESS_WINDOW] = responded;
 			//node->success_avg = 0.0;
 			// printf("SUCCESS_WIN[");
-			for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
+			for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
 			{
 				total += node->success_win[i];
 			}
-			node->success_avg = total / SUCCESS_WINDOW;
+			node->success_avg = total / NP_NODE_SUCCESS_WINDOW;
 
-			if (0 < success) node->last_success = ev_time();
+			if (0 < responded) node->last_success = np_time_now();
 		}
 		log_msg(LOG_INFO, "node %s:%s success rate now: %1.1f",
 				node->dns_name, node->port, node->success_avg);
@@ -403,24 +388,24 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
 {
 	if (new_latency > 0.0)
 	{
-		np_ref_obj(np_node_t, node,"usage");
+		np_ref_obj(np_node_t, node, "usage");
 		{
 			_LOCK_ACCESS(&node->lock) {
-				node->latency_win[node->latency_win_index++ % SUCCESS_WINDOW] = new_latency;
+				node->latency_win[node->latency_win_index++ % NP_NODE_SUCCESS_WINDOW] = new_latency;
 
-				if (node->latency <= 0.0)
+				if (DEBUG || node->latency_win_index < NP_NODE_SUCCESS_WINDOW)
 				{
 					node->latency = new_latency;
 				}
 				else
 				{
 					double total = 0.0;
-					for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
+					for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
 					{
 						// log_debug_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency_win[i]);
 						total += node->latency_win[i];
 					}
-					node->latency = total / SUCCESS_WINDOW;
+					node->latency = total / NP_NODE_SUCCESS_WINDOW;
 					log_msg(LOG_INFO, "node %s:%s latency now: %1.3f",
 							node->dns_name, node->port, node->latency);
 					// log_debug_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency);

@@ -228,7 +228,7 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(new_uuid));
 	free(new_uuid);
 
-	double now = ev_time();
+	double now = np_time_now();
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
 	now += 20;
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(now));

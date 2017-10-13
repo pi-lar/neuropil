@@ -45,7 +45,6 @@ static double last_response_or_invokation = 0;
 
 const double ping_pong_intervall = 0.01;
 
-void handle_ping_pong_receive(char * response, int first_low, int first_high, const np_message_t * const msg, np_tree_t * properties, np_tree_t * body);
 void handle_ping_pong_receive(char * response, int first_low, int first_high, const np_message_t * const msg, np_tree_t * properties, np_tree_t * body)
 {
 	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
@@ -246,13 +245,13 @@ int main(int argc, char **argv)
 
 	//__np_example_helper_run_loop();
 	uint32_t i = 0;
-	double now = ev_time();
+	double now = np_time_now();
 	last_response_or_invokation  = now;
 
 	while (TRUE) {
 		i +=1;
 		ev_sleep(0.01);
-		now = ev_time() ;
+		now = np_time_now() ;
 		if ((now - last_response_or_invokation ) > ping_props->msg_ttl) {
 			
 			log_msg(LOG_INFO, "Invoking ping (last one was at %f (before %f sec))", last_response_or_invokation, now - last_response_or_invokation);

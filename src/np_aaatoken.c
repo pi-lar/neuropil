@@ -57,12 +57,12 @@ void _np_aaatoken_t_new(void* token)
 
 	aaa_token->uuid = np_uuid_create("generic_aaatoken", 0);;
 
-	aaa_token->issued_at = ev_time();
+	aaa_token->issued_at = np_time_now();
 	aaa_token->not_before = aaa_token->issued_at;
 
 	int expire_sec =  ((int)randombytes_uniform(20)+10);
 
-	aaa_token->expiration = aaa_token->not_before + expire_sec;
+	aaa_token->expires_at = aaa_token->not_before + expire_sec;
 	log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "aaatoken expires in %d sec", expire_sec);
 
 	aaa_token->extensions = np_tree_create();
@@ -137,7 +137,7 @@ void np_aaatoken_core_encode(np_tree_t* data, np_aaatoken_t* token, np_bool stan
 	np_tree_insert_str(data, "np.t.s", np_treeval_new_s(token->subject));
 	np_tree_insert_str(data, "np.t.u", np_treeval_new_s(token->uuid));
 	np_tree_insert_str(data, "np.t.i", np_treeval_new_s(token->issuer));
-	np_tree_insert_str(data, "np.t.ex", np_treeval_new_d(token->expiration));
+	np_tree_insert_str(data, "np.t.ex", np_treeval_new_d(token->expires_at));
 	np_tree_insert_str(data, "np.t.p", np_treeval_new_bin(token->public_key, crypto_sign_PUBLICKEYBYTES));
 	
 	if (token->private_key_is_set == TRUE) {
@@ -204,7 +204,7 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.ex")))
 	{
-		token->expiration = tmp->val.value.d;
+		token->expires_at = tmp->val.value.d;
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.ia")))
 	{
@@ -250,12 +250,12 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 //	snprintf(time_entry+19,  6, ".%6d", token_time.tv_usec);
 //	log_debug_msg(LOG_DEBUG, "issued date       : %s", time_entry);
 //
-//	token_time.tv_sec = (long) token->expiration;
-//	token_time.tv_usec = (long) ((token->expiration - (double) token_time.tv_sec) * 1000000.0);
+//	token_time.tv_sec = (long) token->expires_at;
+//	token_time.tv_usec = (long) ((token->expires_at - (double) token_time.tv_sec) * 1000000.0);
 //	localtime_r(&token_time.tv_sec, &token_ts);
 //	strftime(time_entry, 19, "%Y-%m-%d %H:%M:%S", &token_ts);
 //	snprintf(time_entry+19, 6, ".%6d", token_time.tv_usec);
-//	log_debug_msg(LOG_DEBUG, "expiration        : %s", time_entry);
+//	log_debug_msg(LOG_DEBUG, "expires_at        : %s", time_entry);
 //
 //	char pub_key[2*crypto_sign_PUBLICKEYBYTES+1];
 //	sodium_bin2hex(pub_key, 2*crypto_sign_PUBLICKEYBYTES+1, token->public_key, crypto_sign_PUBLICKEYBYTES);
@@ -286,8 +286,8 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	np_bool is_full_token = FALSE == _np_aaatoken_is_core_token(token);
 
 	// check timestamp
-	double now = ev_time();
-	if (now > (token->expiration))
+	double now = np_time_now();
+	if (now > (token->expires_at))
 	{
 		log_msg(LOG_AAATOKEN | LOG_WARN, "token for subject \"%s\": expired. verification failed", token->subject);
 		token->state &= AAA_INVALID;
@@ -542,7 +542,7 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 		// update #2 subject specific data
 		subject_key->send_property->mep_type |= (np_tree_find_str(token->extensions, "mep_type")->val.value.ul & SENDER_MASK);
 		subject_key->send_property->ack_mode = np_tree_find_str(token->extensions, "ack_mode")->val.value.ush;
-		subject_key->send_property->last_update = ev_time();
+		subject_key->send_property->last_update = np_time_now();
 
 		uint16_t max_threshold = np_tree_find_str(token->extensions, "max_threshold")->val.value.ui;
 		np_aaatoken_t *tmp_token = NULL;
@@ -770,7 +770,7 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 //				                          subject_key->recv_property->mep_type, np_tree_find_str(token->extensions, "mep_type")->val.value.ul );
 
 		// subject_key->recv_property->ack_mode = np_tree_find_str(token->extensions, "ack_mode")->val.value.ush;
-		subject_key->recv_property->last_update = ev_time();
+		subject_key->recv_property->last_update = np_time_now();
 
 		uint16_t max_threshold = np_tree_find_str(token->extensions, "max_threshold")->val.value.ui;
 
@@ -987,8 +987,8 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 	if(full == TRUE) {
 		// may contain all other fields
 
-		crypto_generichash_update(&gh_state, (unsigned char*)&(msg_token->expiration), sizeof(double));
-		log_debug_msg(LOG_DEBUG, "fingerprint: expiration: %f", msg_token->expiration);
+		crypto_generichash_update(&gh_state, (unsigned char*)&(msg_token->expires_at), sizeof(double));
+		log_debug_msg(LOG_DEBUG, "fingerprint: expiration: %f", msg_token->expires_at);
 
 		crypto_generichash_update(&gh_state, (unsigned char*)&(msg_token->issued_at), sizeof(double));
 		log_debug_msg(LOG_DEBUG, "fingerprint: issued_at: %f", msg_token->issued_at);

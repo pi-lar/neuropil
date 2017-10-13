@@ -13,8 +13,7 @@
 #include "inttypes.h"
 
 #include "np_sysinfo.h"
-#include "event/ev.h"
-
+ 
 #include "neuropil.h"
 #include "np_types.h"
 #include "np_log.h"
@@ -29,6 +28,7 @@
 #include "np_treeval.h"
 #include "np_tree.h"
 #include "np_threads.h"
+#include "np_jobqueue.h"
 #include "np_axon.h"
 #include "np_settings.h"
 
@@ -44,9 +44,8 @@ static const char* _NP_SYSINFO_TARGET = "target_hash";
 
 
 static np_simple_cache_table_t* _cache = NULL;
-static ev_timer* slave_send;
 
-void slave_send_cb(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_timer *w, NP_UNUSED int re);
+void slave_send_cb(NP_UNUSED np_jobargs_t* args);
 
 void _np_sysinfo_init_cache()
 {
@@ -61,7 +60,7 @@ void _np_sysinfo_init_cache()
 	}
 }
 
-void slave_send_cb(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_timer *w, NP_UNUSED int re) {
+void slave_send_cb(NP_UNUSED np_jobargs_t* args) {
 
 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key,"usage");
 	if(_np_route_my_key_has_connection() == TRUE) {
@@ -123,13 +122,8 @@ void np_sysinfo_enable_slave() {
 
 	np_add_receive_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
 
-	if(slave_send  == NULL) {
-		slave_send = (ev_timer*) malloc(sizeof(struct ev_timer));
-		CHECK_MALLOC(slave_send);
-		ev_timer_init(slave_send, slave_send_cb, 0., SYSINFO_PROACTIVE_SEND_IN_SEC);
-		EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-		ev_timer_start(EV_A_ slave_send);
-	}
+	np_job_submit_event_periodic(0, SYSINFO_PROACTIVE_SEND_IN_SEC, slave_send_cb,"sysinfo_slave_send_cb");
+	
 }
 
 void np_sysinfo_enable_master() {
@@ -276,7 +270,7 @@ np_tree_t* np_get_my_sysinfo() {
 	log_msg(LOG_TRACE, "start: np_tree_t* np_get_my_sysinfo() {");
 	np_tree_t* ret = np_tree_create();
 
-	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_d(ev_time()));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_d(np_time_now()));
 
 	// build local node
 	np_tree_t* local_node = np_tree_create();
@@ -354,7 +348,7 @@ void _np_request_sysinfo(const char* const hash_of_target) {
 		{
 			if(NULL ==  _np_get_sysinfo_from_cache(hash_of_target,-1)) {
 				np_tree_t* dummy = np_tree_create();
-				np_tree_insert_str(dummy, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_f(ev_time()));
+				np_tree_insert_str(dummy, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_f(np_time_now()));
 				np_simple_cache_insert(_cache, hash_of_target, np_tree_copy(dummy));
 			}
 		}
@@ -408,7 +402,7 @@ np_tree_t* _np_get_sysinfo_from_cache(const char* const hash_of_target, uint16_t
 	{
 		np_cache_item_t* item = np_simple_cache_get(_cache, hash_of_target);
 		if (NULL != item && item->value != NULL) {
-			if ((ev_time() - item->insert_time) <= max_cache_ttl) {
+			if ((np_time_now() - item->insert_time) <= max_cache_ttl) {
 				np_tree_t* tmp = item->value;
 				ret = np_tree_copy(tmp);
 			}

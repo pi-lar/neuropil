@@ -328,7 +328,6 @@ static char _ROUTE_LOOKUP[]                  = "_NP.ROUTE.LOOKUP";
 static char _NP_MSG_ACK[]                    = "_NP.ACK";
 static char _NP_MSG_HANDSHAKE[]              = "_NP.HANDSHAKE";
 static char _NP_MSG_PING_REQUEST[]           = "_NP.PING.REQUEST";
-static char _NP_MSG_PING_REPLY[]             = "_NP.PING.REPLY";
 static char _NP_MSG_LEAVE_REQUEST[]          = "_NP.LEAVE.REQUEST";
 static char _NP_MSG_JOIN[]                   = "_NP.JOIN.";
 static char _NP_MSG_JOIN_REQUEST[]           = "_NP.JOIN.REQUEST";

@@ -40,12 +40,12 @@ typedef enum np_obj_type
 	np_msgproperty_t_e,
 	np_network_t_e,
 	np_thread_t_e,
+	np_ackentry_t_e,
 	test_struct_t_e = 99
 } np_obj_enum;
 
 typedef void (*np_dealloc_t) (void* data);
 typedef void (*np_alloc_t) (void* data);
-
 
 struct np_obj_s
 {	

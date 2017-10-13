@@ -158,6 +158,12 @@ void np_msgproperty_register(np_msgproperty_t* msgprops)
 
 	np_ref_obj(np_msgproperty_t, msgprops, ref_system_msgproperty);
 	RB_INSERT(rbt_msgproperty, __msgproperty_table, msgprops);
+
+	if ((msgprops->mode_type & OUTBOUND) == OUTBOUND) {
+		_np_send_subject_discovery_messages(OUTBOUND, msgprops->msg_subject);
+	}else if ((msgprops->mode_type & INBOUND) == INBOUND) {
+		_np_send_subject_discovery_messages(INBOUND, msgprops->msg_subject);
+	}	
 }
 
 void _np_msgproperty_t_new(void* property)
@@ -182,7 +188,7 @@ void _np_msgproperty_t_new(void* property)
 	prop->max_threshold = 10;
 	prop->msg_threshold =  0;
 
-	prop->last_update = ev_time();
+	prop->last_update = np_time_now();
 
 	prop->clb_inbound = _np_never_called_jobexec_inbound;
 	prop->clb_outbound = _np_never_called_jobexec_outbound;

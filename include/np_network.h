@@ -52,7 +52,6 @@ struct np_network_s
 	np_obj_t* obj;
 
 	np_bool initialized;
-	int isWatching;
 	int socket;
 	ev_io watcher;
 
@@ -73,18 +72,6 @@ struct np_network_s
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
 
-typedef struct np_ackentry_s np_ackentry_t;
-
-struct np_ackentry_s {
-	np_bool acked;       // signal when all pakets have been acked
-	double acktime;      // the time when the last packet is acked
-	double transmittime; // this is the time the packet is transmitted (or retransmitted)
-	double expiration;   // the time when the ackentry will expire and will be deleted
-	np_key_t* dest_key; // the destination key / next/final hop of the message
-	uint16_t expected_ack;
-	uint16_t received_ack;
-} NP_API_INTERN;
-
 typedef struct np_prioq_s np_prioq_t;
 struct np_prioq_s {
 
@@ -94,7 +81,7 @@ struct np_prioq_s {
 	uint8_t max_retries; // max number of retries / subject specific
 	uint8_t retry;     // number of retries
 	uint32_t seqnum; // seqnum to identify the packet to be retransmitted
-	double transmittime; // this is the time the packet is transmitted (or retransmitted)
+	double send_at; // this is the time the packet is transmitted (or retransmitted)
 } NP_API_INTERN;
 
 // parse protocol string of the form "tcp4://..." and return the correct @see socket_type
@@ -111,9 +98,6 @@ char* _np_network_get_protocol_string (uint8_t protocol);
 NP_API_INTERN
 void _np_network_get_address (np_bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
 // struct addrinfo _np_network_get_address (char *hostname);
-
-NP_API_INTERN
-np_ackentry_t* _np_network_get_new_ackentry();
 
 NP_API_INTERN
 np_prioq_t* _np_network_get_new_pqentry();

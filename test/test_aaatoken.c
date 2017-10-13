@@ -51,7 +51,7 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 
 	test_token_1 = _np_node_create_token(test_node);
 	// re-set the validity of this token for this test only
-	test_token_1->expiration = test_token_1->not_before + 9.0;
+	test_token_1->expires_at = test_token_1->not_before + 9.0;
 
 	cr_expect (NULL != test_token_1, "expect the token to be not NULL");
 	cr_expect (TRUE == _np_aaatoken_is_valid(test_token_1), "expect that the token is not valid");

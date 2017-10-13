@@ -11,6 +11,7 @@
 #include "np_types.h"
 #include "np_messagepart.h"
 #include "np_threads.h"
+#include "np_list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,6 +36,10 @@ struct np_message_s
 	np_mutex_t msg_chunks_lock;
 
 	np_msgproperty_ptr msg_property;
+
+	np_sll_t(np_ackentry_on_t, on_ack);
+	np_sll_t(np_ackentry_on_t, on_nack);
+	np_sll_t(np_ackentry_on_t, on_timeout);
 
 } NP_API_INTERN;
 

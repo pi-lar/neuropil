@@ -39,6 +39,7 @@
 #include "np_types.h"
 #include "np_constants.h"
 #include "np_list.h"
+#include "np_ackentry.h"
 
 /** message split up maths
  ** message size = 1b (common header) + 40b (encryption) +
@@ -77,7 +78,6 @@ void _np_out_ack(np_jobargs_t* args)
 	// send_ok is 1 or 0
 	// np_node_update_stat(args->target->node, send_ok);
 }
-
 /**
  ** _np_network_send_msg: host, data, size
  ** Sends a message to host, updating the measurement info.
@@ -99,6 +99,7 @@ void _np_send(np_jobargs_t* args)
 
 	np_msgproperty_t* prop = args->properties;
 
+	// set msgproperty of msg 
 	if (msg_out != NULL && prop != NULL) {
 		if (msg_out->msg_property != NULL) {
 			np_unref_obj(np_msgproperty_t, prop, ref_message_msg_property);
@@ -106,7 +107,14 @@ void _np_send(np_jobargs_t* args)
 		msg_out->msg_property = prop;
 		np_ref_obj(np_msgproperty_t, prop, ref_message_msg_property);
 	}
-
+	// sanity check
+	if (!_np_node_check_address_validity(args->target->node))
+	{
+		log_debug_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
+			_np_key_as_str(args->target));
+		return;
+	}	
+	// Call user handler for send msgs
 	sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_out->msg_property->user_send_clb);
 	while (iter_usercallbacks != NULL)
 	{
@@ -114,13 +122,7 @@ void _np_send(np_jobargs_t* args)
 		sll_next(iter_usercallbacks);
 	}
 
-	if (!_np_node_check_address_validity(args->target->node))
-	{
-		log_debug_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
-							_np_key_as_str(args->target));
-		return;
-	}
-
+	// now we can try to send the msg
 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key,"np_waitref_key");
 	{
 		np_waitref_obj(np_network_t, my_key->network, network,"np_waitref_network");
@@ -133,16 +135,17 @@ void _np_send(np_jobargs_t* args)
 				_LOCK_ACCESS(&network->lock)
 				{
 					// first find the uuid
-					if (NULL == np_tree_find_str(network->waiting, uuid))
+					np_tree_elem_t* uuid_ele = np_tree_find_str(network->waiting, uuid);
+					if (NULL == uuid_ele)
 					{
 						// has been deleted already
-						log_debug_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
+						log_debug_msg(LOG_DEBUG, "message %s (%s) assumed acknowledged, not resending ...", prop->msg_subject, uuid);
 						skip = TRUE;
 					}
-					else if (TRUE == ((np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v)->acked)
+					else if (TRUE == ((np_ackentry_t*)uuid_ele->val.value.v)->has_received_ack)
 					{
 						// uuid has been acked
-						log_debug_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
+						log_debug_msg(LOG_DEBUG, "message %s (%s) acknowledged (ACK), not resending ...", prop->msg_subject, uuid);
 						skip = TRUE;
 					}
 					else
@@ -159,7 +162,7 @@ void _np_send(np_jobargs_t* args)
 				}
 
 				double initial_tstamp = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
-				double now = ev_time();
+				double now = np_time_now();
 				if (now > (initial_tstamp + args->properties->msg_ttl) )
 				{
 					log_debug_msg(LOG_DEBUG, "resend message %s (%s) expired, not resending ...", prop->msg_subject, uuid);
@@ -218,8 +221,6 @@ void _np_send(np_jobargs_t* args)
 			// insert a uuid if not yet present
 			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(msg_out->uuid));
 
-			// log_debug_msg(LOG_DEBUG, "message ttl %s (tstamp: %f / ttl: %f) %s", uuid, now, args->properties->ttl, args->properties->msg_subject);
-
 			// set re-send count to zero if not yet present
 			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, np_treeval_new_ush(0));
 			// and increase resend count by one
@@ -229,7 +230,7 @@ void _np_send(np_jobargs_t* args)
 			// TODO: insert resend count check
 
 			// insert timestamp and time-to-live
-			double now = ev_time();
+			double now = np_time_now();
 			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
 			// now += args->properties->ttl;
 			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args->properties->msg_ttl));
@@ -237,7 +238,6 @@ void _np_send(np_jobargs_t* args)
 			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
 			if (FALSE == msg_out->is_single_part)
 			{
-				// dummy message part split-up informations
 				_np_message_calculate_chunking(msg_out);
 			}
 
@@ -258,16 +258,20 @@ void _np_send(np_jobargs_t* args)
 						}
 						else
 						{
-							ackentry = _np_network_get_new_ackentry();
-						}
+							np_new_obj(np_ackentry_t, ackentry, ref_ack_obj);
+						}						
+						ackentry->send_at = np_time_now();
 
-						ackentry->acked = FALSE;
-						ackentry->transmittime = ev_time();
-						// + 1.0 because of time delays for processing
-						ackentry->expiration = ackentry->transmittime + args->properties->msg_ttl + 1.0;
-						if(ackentry->dest_key != args->target) {
-							np_ref_obj(np_key_t, args->target, ref_message_ack);
-							ackentry->dest_key = args->target;
+						ackentry->expires_at = ackentry->send_at + args->properties->msg_ttl + np_msgproperty_get(INBOUND, _NP_MSG_ACK)->msg_ttl;
+
+						if(ackentry->dest_key != args->target) {							
+							np_ref_switch(np_key_t, ackentry->dest_key, ref_ack_key, args->target);
+													
+							if( sll_size(args->msg->on_ack) > 0  || 
+								sll_size(args->msg->on_nack) > 0 ||
+								sll_size(args->msg->on_timeout) > 0) {
+								np_ref_switch(np_key_t, ackentry->msg, ref_ack_msg, args->msg);
+							}
 						}
 
 						if (TRUE == is_forward)
@@ -287,23 +291,17 @@ void _np_send(np_jobargs_t* args)
 				}
 
 				// insert a record into the priority queue with the following information:
-				double retransmit_interval = args->properties->msg_ttl / args->properties->retry;
+				int retry = args->properties->retry;
+				if (retry  == 0) {
+					retry = 1;
+				}
+				double retransmit_interval = args->properties->msg_ttl / retry;
 				np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
 				_np_job_resubmit_route_event(retransmit_interval, out_prop, args->target, args->msg);
 			}
 
-			// char* subj = np_tree_find_str(msg_out->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
-			// log_debug_msg(LOG_DEBUG, "message %s (%u) to %s", subj, seq, key_get_as_string(args->target));
-			// log_debug_msg(LOG_DEBUG, "message part byte sizes: %lu %lu %lu %lu %lu, total: %lu",
-			// 			msg_out->header->byte_size, msg_out->instructions->byte_size,
-			// 			msg_out->properties->byte_size, msg_out->body->byte_size,
-			// 			msg_out->footer->byte_size,
-			// 			msg_out->header->byte_size + msg_out->instructions->byte_size + msg_out->properties->byte_size + msg_out->body->byte_size + msg_out->footer->byte_size);
-
-			// TODO: do this serialization in parallel in background
 			np_jobargs_t chunk_args = { .msg = msg_out };
 
-			// np_print_tree (msg_out->body, 0);
 			if (TRUE == is_forward)
 			{
 				_np_message_serialize(&chunk_args);
@@ -312,11 +310,9 @@ void _np_send(np_jobargs_t* args)
 			{
 				_np_message_serialize_chunked(&chunk_args);
 			}
-			log_debug_msg(LOG_DEBUG, "Try sending message %s for subject \"%s\" to %s", msg_out->uuid, prop->msg_subject, _np_key_as_str(args->target));
+			log_debug_msg(LOG_DEBUG, "Try sending message for subject \"%s\" (msg id: %s) to %s", prop->msg_subject, msg_out->uuid, _np_key_as_str(args->target));
 
 			_np_network_send_msg(args->target, msg_out);
-			// ret is 1 or 0
-			// np_node_update_stat(args->target->node, send_ok);
 			np_unref_obj(np_network_t,network,"np_waitref_network");
 		}
 		np_unref_obj(np_key_t,my_key,"np_waitref_key");
@@ -327,166 +323,171 @@ void _np_send_handshake(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_send_handshake(np_jobargs_t* args){");
 
-	if (!_np_node_check_address_validity(args->target->node)) return;
+	_LOCK_MODULE(np_handshake_t) {
+		if (_np_node_check_address_validity(args->target->node))
+		{
+			// get our node identity from the cache
+			np_key_t* my_key = _np_state()->my_node_key;
+			np_aaatoken_t* my_token = my_key->aaa_token;
+			
 
-	// get our node identity from the cache
-	np_aaatoken_t* my_token = _np_state()->my_node_key->aaa_token;
-	np_key_t* my_key = _np_state()->my_node_key;
+			// TODO: reffing of key, node token in function context
 
-	// TODO: reffing of key, node token in function context
+			// convert to curve key
+			unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
+			crypto_sign_ed25519_sk_to_curve25519(curve25519_sk, my_token->private_key);
+			// calculate session key for dh key exchange
+			unsigned char my_dh_sessionkey[crypto_scalarmult_BYTES] = { 0 };
+			crypto_scalarmult_base(my_dh_sessionkey, curve25519_sk);
 
-	// convert to curve key
-	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
-	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk, my_token->private_key);
-	// calculate session key for dh key exchange
-	unsigned char my_dh_sessionkey[crypto_scalarmult_BYTES] = { 0 };
-	crypto_scalarmult_base(my_dh_sessionkey, curve25519_sk);
+			// create handshake data
+			np_tree_t* hs_data = np_tree_create();
 
-	// create handshake data
-	np_tree_t* hs_data = np_tree_create();
-	
-	//	Required informations in this MSG
-	//	 protocol
-	//	 protocol-connection informations
-	//		currently:
-	//		- dns_name
-	//		- port
-	//	 expiration
-	//	 issued_at
-	//	 session key
-	//	 public key
-	//	 signature(fingerprint?) of full aaatoken
-	//
-	// -> will be hashed and this then signed
+			//	Required informations in this MSG
+			//	 protocol
+			//	 protocol-connection informations
+			//		currently:
+			//		- dns_name
+			//		- port
+			//	 expires_at
+			//	 issued_at
+			//	 session key
+			//	 public key
+			//	 signature(fingerprint?) of full aaatoken
+			//
+			// -> will be hashed and this then signed
 
-	np_tree_insert_str(hs_data, "_np.session", np_treeval_new_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));	
+			np_tree_insert_str(hs_data, "_np.session", np_treeval_new_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
 
-	np_aaatoken_core_encode(hs_data, my_token, TRUE);
-	_np_node_encode_to_jrb(hs_data, my_key, FALSE);
-	
-	// pre-serialize handshake data
-	cmp_ctx_t cmp;
-	unsigned char hs_payload[65536] = { 0 };
-	void* hs_buf_ptr = hs_payload;
+			np_aaatoken_core_encode(hs_data, my_token, TRUE);
+			_np_node_encode_to_jrb(hs_data, my_key, FALSE);
 
-	cmp_init(&cmp, hs_buf_ptr, _np_buffer_reader, _np_buffer_writer);
+			// pre-serialize handshake data
+			cmp_ctx_t cmp;
+			unsigned char hs_payload[65536] = { 0 };
+			void* hs_buf_ptr = hs_payload;
 
-	_np_tree_serialize(hs_data, &cmp);
-	uint32_t hs_payload_len = cmp.buf-hs_buf_ptr;
+			cmp_init(&cmp, hs_buf_ptr, _np_buffer_reader, _np_buffer_writer);
 
-	np_tree_free(hs_data);
+			_np_tree_serialize(hs_data, &cmp);
+			uint32_t hs_payload_len = cmp.buf - hs_buf_ptr;
 
-	// sign the handshake payload with our private key
-	unsigned char signature[crypto_sign_BYTES] = { 0 };
-	unsigned long long siglen = 0;
-	// uint32_t signature_len;
-	int16_t ret = crypto_sign_detached(
-			(unsigned char*) signature,
-			&siglen,
-			(const unsigned char*) hs_payload,
-			hs_payload_len,
-		  my_token->private_key
-		 );
-	if (ret < 0)
-	{
-		log_msg(LOG_WARN, "signature creation failed, not continuing with handshake");
-		return;
-	}
+			np_tree_free(hs_data);
+
+			// sign the handshake payload with our private key
+			unsigned char signature[crypto_sign_BYTES] = { 0 };
+			unsigned long long siglen = 0;
+			// uint32_t signature_len;
+			int16_t ret = crypto_sign_detached(
+				(unsigned char*)signature,
+				&siglen,
+				(const unsigned char*)hs_payload,
+				hs_payload_len,
+				my_token->private_key
+			);
+			if (ret < 0)
+			{
+				log_msg(LOG_WARN, "signature creation failed, not continuing with handshake");
+				return;
+			}
 #ifdef DEBUG
-	log_debug_msg(LOG_DEBUG, "signature has %"PRIu32" bytes", crypto_sign_BYTES);
-	char* signature_hex = calloc(1, crypto_sign_BYTES * 2 + 1);
-	sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
-		signature, crypto_sign_BYTES);
-	log_debug_msg(LOG_DEBUG, "signature: (payload size: %5"PRIu32") %s", hs_payload_len, signature_hex);
-	free(signature_hex);
+			log_debug_msg(LOG_DEBUG, "signature has %"PRIu32" bytes", crypto_sign_BYTES);
+			char* signature_hex = calloc(1, crypto_sign_BYTES * 2 + 1);
+			sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
+				signature, crypto_sign_BYTES);
+			log_debug_msg(LOG_DEBUG, "signature: (payload size: %5"PRIu32") %s", hs_payload_len, signature_hex);
+			free(signature_hex);
 #endif
 
-	// create real handshake message ...
-	np_message_t* hs_message = NULL;
-	np_new_obj(np_message_t, hs_message);
-	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
+			// create real handshake message ...
+			np_message_t* hs_message = NULL;
+			np_new_obj(np_message_t, hs_message);
+			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
 
-	np_tree_insert_str(hs_message->header,			_NP_MSG_HEADER_SUBJECT,	np_treeval_new_s(_NP_MSG_HANDSHAKE));
-	np_tree_insert_str(hs_message->header, 			_NP_MSG_HEADER_FROM,	np_treeval_new_s((char*) _np_key_as_str(_np_state()->my_node_key)));
-	np_tree_insert_str(hs_message->instructions, 	_NP_MSG_INST_PARTS, 	np_treeval_new_iarray(1, 1));
-	np_tree_insert_str(hs_message->instructions, 	_NP_MSG_INST_ACK,		np_treeval_new_ush(prop->ack_mode));
-	np_tree_insert_str(hs_message->instructions, 	_NP_MSG_INST_TTL, 		np_treeval_new_d(prop->token_max_ttl+0.0));
-	np_tree_insert_str(hs_message->instructions, 	_NP_MSG_INST_TSTAMP, 	np_treeval_new_d((double) ev_time()));
+			np_tree_insert_str(hs_message->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s(_NP_MSG_HANDSHAKE));
+			np_tree_insert_str(hs_message->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*)_np_key_as_str(_np_state()->my_node_key)));
+			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
+			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop->ack_mode));
+			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(prop->token_max_ttl + 0.0));
+			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d((double)np_time_now()));
 
 
-	// ... add signature and payload to this message
-	np_tree_insert_str(hs_message->body, NP_HS_SIGNATURE,
-			np_treeval_new_bin(signature, siglen));
-	np_tree_insert_str(hs_message->body, NP_HS_PAYLOAD,
-			np_treeval_new_bin(hs_payload, (uint32_t) hs_payload_len));
+			// ... add signature and payload to this message
+			np_tree_insert_str(hs_message->body, NP_HS_SIGNATURE,
+				np_treeval_new_bin(signature, siglen));
+			np_tree_insert_str(hs_message->body, NP_HS_PAYLOAD,
+				np_treeval_new_bin(hs_payload, (uint32_t)hs_payload_len));
 
-	_np_message_calculate_chunking(hs_message);
-	np_jobargs_t* chunk_args = _np_job_create_args(hs_message, NULL, NULL);
-	
-	np_bool serialize_ok = _np_message_serialize_chunked(chunk_args);
+			_np_message_calculate_chunking(hs_message);
+			np_jobargs_t* chunk_args = _np_job_create_args(hs_message, NULL, NULL);
 
-	_np_job_free_args(chunk_args);
+			np_bool serialize_ok = _np_message_serialize_chunked(chunk_args);
 
-	if (hs_message->no_of_chunks != 1) {
-		log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
-		np_unref_obj(np_message_t, hs_message, ref_obj_creation);
-		return;
-	}
+			_np_job_free_args(chunk_args);
 
-	if (TRUE == serialize_ok)
-	{
-		_LOCK_MODULE(np_network_t)
-		{
-			if (NULL == args->target->network)
+			if (hs_message->no_of_chunks != 1) {
+				log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
+				np_unref_obj(np_message_t, hs_message, ref_obj_creation);
+				return;
+			}
+
+			if (TRUE == serialize_ok)
 			{
-				// initialize network
-				np_new_obj(np_network_t, args->target->network);
-				_np_network_init(args->target->network,
-							 FALSE,
-							 args->target->node->protocol,
-							 args->target->node->dns_name,
-							 args->target->node->port);
-				if (FALSE == args->target->network->initialized)
+				_LOCK_MODULE(np_network_t)
 				{
-					np_unref_obj(np_message_t, hs_message, ref_obj_creation);
-					//log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
-					//args->target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
-					return;
+					if (NULL == args->target->network)
+					{
+						// initialize network
+						np_new_obj(np_network_t, args->target->network);
+						_np_network_init(args->target->network,
+							FALSE,
+							args->target->node->protocol,
+							args->target->node->dns_name,
+							args->target->node->port);
+						if (FALSE == args->target->network->initialized)
+						{
+							np_unref_obj(np_message_t, hs_message, ref_obj_creation);
+							//log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
+							//args->target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
+							return;
+						}
+
+						np_ref_obj(np_key_t, args->target, ref_network_watcher);
+						args->target->network->watcher.data = args->target;
+					}
+				}
+				// construct target address and send it out
+				np_node_t* hs_node = args->target->node;
+
+				/* send data if handshake status is still just initialized or less */
+				log_debug_msg(LOG_DEBUG,
+					"sending handshake message %s to (%s:%s)",
+					hs_message->uuid, hs_node->dns_name, hs_node->port);
+
+				char* packet = (char*)malloc(1024);
+				CHECK_MALLOC(packet);
+
+				memset(packet, 0, 1024);
+				_LOCK_ACCESS(&hs_message->msg_chunks_lock) {
+					memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 				}
 
-				np_ref_obj(np_key_t, args->target,ref_network_watcher);
-				args->target->network->watcher.data = args->target;
+				_LOCK_ACCESS(&args->target->network->lock)
+				{
+					if (NULL != args->target->network->out_events) {
+						sll_append(
+							void_ptr,
+							args->target->network->out_events,
+							(void*)packet);
+					}
+					else {
+						free(packet);
+					}
+				}
 			}
-		}
-		// construct target address and send it out
-		np_node_t* hs_node = args->target->node;
-
-		/* send data if handshake status is still just initialized or less */
-		log_debug_msg(LOG_DEBUG,
-				"sending handshake message %s to (%s:%s)",
-				hs_message->uuid, hs_node->dns_name, hs_node->port);
-
-		char* packet = (char*) malloc(1024);
-		CHECK_MALLOC(packet);
-
-		memset(packet, 0, 1024);
-		_LOCK_ACCESS(&hs_message->msg_chunks_lock){
-			memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
-		}
-
-		_LOCK_ACCESS(&args->target->network->lock)
-		{
-			if(NULL != args->target->network->out_events) {
-				sll_append(
-						void_ptr,
-						args->target->network->out_events,
-						(void*) packet);
-			} else {
-				free (packet);
-			}
+			np_unref_obj(np_message_t, hs_message, ref_obj_creation);
 		}
 	}
-	np_unref_obj(np_message_t, hs_message,ref_obj_creation);
 }
 
 void _np_send_discovery_messages(np_jobargs_t* args)
@@ -494,7 +495,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 	log_msg(LOG_TRACE, "start: void _np_send_discovery_messages(np_jobargs_t* args){");
 	np_aaatoken_t* msg_token = NULL;
 
-	double now = ev_time();
+	double now = np_time_now();
 	msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 
 	if ( ( NULL == msg_token ) ||

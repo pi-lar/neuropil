@@ -31,16 +31,18 @@ extern "C" {
 	#define ref_msgproperty_msgcache		"ref_msgproperty_msgcache"
 	#define ref_key_parent					"ref_key_parent"
 	#define ref_message_msg_property		"ref_message_msg_property"
-	
-	
-	// ref for message type ack handeling
-	#define ref_message_ack					"ref_message_ack"
+	#define ref_ack_obj						"ref_ack_obj"
+	#define ref_ack_msg						"ref_ack_msg"
+	#define ref_ack_key						"ref_ack_key"
 	
 	#define NP_AAATOKEN_MAX_SIZE_EXTENSIONS (1024)
 
 #ifndef MUTEX_WAIT_SEC
-	#define MUTEX_WAIT_SEC  ((const ev_tstamp )0.005)
+#define MUTEX_WAIT_SEC  ((const ev_tstamp )0.005)
 #endif
+	
+#define NP_NODE_SUCCESS_WINDOW 20
+
 
 #ifdef __cplusplus
 }

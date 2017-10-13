@@ -71,6 +71,7 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 	char* required_nodes_opt = NULL;
+	char* http_domain = NULL;
 
 	int opt;
 	if (parse_program_args(
@@ -84,9 +85,11 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-n nr_of_nodes]",
-		"n:",
-		&required_nodes_opt
+		"[-n nr_of_nodes] [-w http domain]",
+		"n:w:",
+		&required_nodes_opt,
+		&http_domain
+
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
@@ -144,11 +147,13 @@ int main(int argc, char **argv)
 
 
 			// get public / local network interface id		
-			char * http_domain = calloc(1, sizeof(char) * 255);
-			CHECK_MALLOC(http_domain);
-			if (_np_get_local_ip(http_domain, 255) == FALSE) {
-				free(http_domain);
-				http_domain = NULL;
+			if (http_domain == NULL) {
+				http_domain = calloc(1, sizeof(char) * 255);
+				CHECK_MALLOC(http_domain);
+				if (_np_get_local_ip(http_domain, 255) == FALSE) {
+					free(http_domain);
+					http_domain = NULL;
+				}
 			}
 
 			if (FALSE == _np_http_init(http_domain, NULL))
@@ -177,6 +182,7 @@ int main(int argc, char **argv)
 			// If you want to you can enable the statistics modulte to view the nodes statistics
 			np_statistics_add_watch(_NP_SYSINFO_REQUEST);
 			np_statistics_add_watch(_NP_SYSINFO_REPLY);
+			np_statistics_add_watch_internals();
 
 			/**
 			  And wait for incomming connections

@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <sys/types.h>
- 
+
 #include "sodium.h"
 #include "event/ev.h"
 
@@ -409,15 +409,13 @@ void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mode_type = INBOUND;
-		np_msgproperty_register(msg_prop);		
+		np_msgproperty_register(msg_prop);
 	}
-	
+
 	msg_prop->clb_inbound = _np_in_callback_wrapper;
 
 	sll_append(np_usercallback_t, msg_prop->user_receive_clb, msg_handler);
 
-	// update informations somewhere in the network
-	_np_send_subject_discovery_messages(INBOUND, subject);
 }
 
 /**
@@ -463,11 +461,11 @@ void np_set_identity(np_aaatoken_t* identity)
 	else
 	{
 		// cannot be null, but otherwise checker complains
-		np_ref_obj(np_key_t, my_identity_key, ref_state_identity); 
-		state->my_identity = my_identity_key;		
+		np_ref_obj(np_key_t, my_identity_key, ref_state_identity);
+		state->my_identity = my_identity_key;
 
-		np_aaatoken_t* old_aaatoken = state->my_identity->aaa_token;		
-		np_ref_obj(np_aaatoken_t, identity, ref_key_aaa_token); 
+		np_aaatoken_t* old_aaatoken = state->my_identity->aaa_token;
+		np_ref_obj(np_aaatoken_t, identity, ref_key_aaa_token);
 		state->my_identity->aaa_token = identity;
 
 		if (old_aaatoken != NULL) {
@@ -579,7 +577,7 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 
 	// msg_prop->msg_threshold++;
 	// _np_send_msg_availability(subject);
-	_np_send_subject_discovery_messages(OUTBOUND, subject);
+	//_np_send_subject_discovery_messages(OUTBOUND, subject);
 
 	// char tmp_dhkey_hash[65];
 	// _np_dhkey_to_str(target_key,tmp_dhkey_hash);
@@ -616,7 +614,7 @@ np_key_t* _np_get_key_by_key_hash(char* targetDhkey)
 	return target;
 }
 
-void np_send_text (char* subject, char *data, uint32_t seqnum, char* targetDhkey)
+void np_send_text(char* subject, char *data, uint32_t seqnum, char* targetDhkey)
 {
 	np_state_t* state = _np_state();
 
@@ -637,7 +635,7 @@ void np_send_text (char* subject, char *data, uint32_t seqnum, char* targetDhkey
 
 	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s(subject));
 	np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s(_np_key_as_str(state->my_node_key)));
-	np_tree_insert_str(msg->body,   NP_MSG_BODY_TEXT, np_treeval_new_s(data));
+	np_tree_insert_str(msg->body, NP_MSG_BODY_TEXT, np_treeval_new_s(data));
 
 	np_tree_insert_str(msg->properties, _NP_MSG_INST_SEQ, np_treeval_new_ul(seqnum));
 
@@ -645,7 +643,7 @@ void np_send_text (char* subject, char *data, uint32_t seqnum, char* targetDhkey
 
 	np_key_t* target = _np_get_key_by_key_hash(targetDhkey);
 
-	_np_send_msg(subject, msg, msg_prop, NULL == target ? NULL: &target->dhkey);
+	_np_send_msg(subject, msg, msg_prop, NULL == target ? NULL : &target->dhkey);
 
 	np_unref_obj(np_message_t, msg, ref_obj_creation);
 }
@@ -867,63 +865,54 @@ void _np_send_ack(np_message_t* in_msg)
 	uint32_t seq = 0;
 	char* uuid = NULL;
 
-	// np_message_t* in_msg = args->msg;
+	np_tree_elem_t* target_key_str;
 
-	if (NULL != np_tree_find_str(in_msg->header, _NP_MSG_INST_ACK_TO))
-	{
+	if (NULL == (target_key_str = np_tree_find_str(in_msg->header, _NP_MSG_INST_ACK_TO))) {
+		target_key_str = np_tree_find_str(in_msg->header, _NP_MSG_HEADER_FROM);
+	}
+
+	if (target_key_str != NULL) {
 		// extract data from incoming message
-		seq = np_tree_find_str(in_msg->instructions, _NP_MSG_INST_SEQ)->val.value.ul;
+		np_tree_elem_t* tmp;
+		if((tmp = np_tree_find_str(in_msg->instructions, _NP_MSG_INST_SEQ)) != NULL)
+			seq = tmp->val.value.ul;
 		// ack = np_tree_find_str(in_msg->instructions, NP_MSG_INST_ACK)->val.value.ush;
-		uuid = np_tree_find_str(in_msg->instructions, _NP_MSG_INST_UUID)->val.value.s;
 
 		// create new ack message & handlers
-		np_dhkey_t ack_key = np_dhkey_create_from_hash(
-				np_tree_find_str(in_msg->header, _NP_MSG_INST_ACK_TO)->val.value.s);
-
+		np_dhkey_t ack_key = np_dhkey_create_from_hash(target_key_str->val.value.s);
 		np_key_t* ack_target = _np_keycache_find(ack_key);
 
-		np_message_t* ack_msg = NULL;
-		np_new_obj(np_message_t, ack_msg);
+		if (NULL != ack_target                       &&
+			NULL != ack_target->node                 &&
+			TRUE == ack_target->node->joined_network &&
+			_np_node_check_address_validity(ack_target->node))
+		{
+			np_message_t* ack_msg = NULL;
+			np_new_obj(np_message_t, ack_msg);
 
-		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
+			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
 
-		_np_message_create(ack_msg, ack_target, state->my_node_key, _NP_MSG_ACK, NULL);
-		np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop->ack_mode));
-		np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACKUUID, np_treeval_new_s(uuid));
-		np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
-		// send the ack out
-		_np_job_submit_route_event(0.0, prop, ack_target, ack_msg);
+			_np_message_create(ack_msg, ack_target, state->my_node_key, _NP_MSG_ACK, NULL);
+			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop->ack_mode));
+			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACKUUID, np_treeval_new_s(in_msg->uuid));
+			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(np_time_now()));
+			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
 
-		np_unref_obj(np_key_t, ack_target,"_np_keycache_find");
-		np_unref_obj(np_message_t, ack_msg,ref_obj_creation);
+			// send the ack out
+			_np_job_submit_route_event(0.0, prop, ack_target, ack_msg);
+
+			np_unref_obj(np_key_t, ack_target, "_np_keycache_find");
+			np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
+		}
+		else {
+			log_debug_msg(LOG_DEBUG, "ACK Target not inititated");
+		}
+	}
+	else {
+		log_debug_msg(LOG_DEBUG, "ACK Target blank");
 	}
 }
 
-/**
- ** _np_ping:
- ** sends a PING message to another node. The message is acknowledged in network layer.
- **/
-void _np_ping (np_key_t* key)
-{
-	np_state_t* state = _np_state();
-	/* weired: assume failure of the node now, will be reset with ping reply later */
-	if (NULL != key->node)
-	{
-		key->node->failuretime = ev_time();
-		_np_node_update_stat(key->node, 0);
-	}
-
-	np_message_t* out_msg = NULL;
-	np_new_obj(np_message_t, out_msg);
-
-	_np_message_create (out_msg, key, state->my_node_key, _NP_MSG_PING_REQUEST, NULL);
-	log_debug_msg(LOG_DEBUG, "ping request to: %s", _np_key_as_str(key));
-
-	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REQUEST);
-	_np_job_submit_msgout_event(0.0, prop, key, out_msg);
-
-	np_unref_obj(np_message_t, out_msg, ref_obj_creation);
-}
 
 /**
  ** np_destroy:
@@ -944,7 +933,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 {
 	log_msg(LOG_TRACE, "start: np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname){");
 	log_debug_msg(LOG_DEBUG, "neuropil_init");
-	
+
 	 if(_np_threads_init() == FALSE){
 		log_msg(LOG_ERROR, "neuropil_init: could not init threding mutexes");
 		exit(EXIT_FAILURE);
@@ -954,13 +943,13 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 		log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	// memory pool
 	np_mem_init();
 
 	// initialize key min max ranges
 	_np_dhkey_init();
-	
+
 	// global neuropil structure
 	np_state_t *state = (np_state_t *) calloc (1,sizeof (np_state_t));
 	CHECK_MALLOC(state);
@@ -977,13 +966,13 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	new_main_thread->id = (unsigned long)getpid();
 	sll_append(np_thread_ptr, state->threads, new_main_thread);
 
-	
+
 	__global_state = state;
 
 	// splay tree initializing
-	
+
 	_np_keycache_init();
-	
+
 	//
 	// TODO: read my own identity from file, if a e.g. a password is given
 	//
@@ -994,7 +983,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 
 	state->enable_realm_slave = FALSE;
 	state->enable_realm_master = FALSE;
-	
+
 	char* np_service = "3141";
 	uint8_t np_proto = UDP | IPv6;
 
@@ -1011,7 +1000,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	{
 		log_debug_msg(LOG_DEBUG, "now initializing networking for udp6://%s", np_service);
 	}
-	
+
 	log_debug_msg(LOG_DEBUG, "building node base structure");
 	np_node_t* my_node = NULL;
 	np_new_obj(np_node_t, my_node);
@@ -1019,7 +1008,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	log_debug_msg(LOG_DEBUG, "building network base structure");
 	np_network_t* my_network = NULL;
 	np_new_obj(np_network_t, my_network);
-	
+
 	// get public / local network interface id
 	if(NULL == hostname){
 		hostname = calloc(1,sizeof(char) * 255);
@@ -1046,10 +1035,10 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 		log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	log_debug_msg(LOG_DEBUG, "update my node data");
 	_np_node_update(my_node, np_proto, hostname, np_service);
-	
+
 	log_debug_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
 					   _np_network_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);
 	// create a new token for encryption each time neuropil starts
@@ -1077,7 +1066,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	// set and ref additional identity
 	state->my_identity = state->my_node_key;
 	np_ref_obj(np_key_t, state->my_identity, ref_state_identity);
-	
+
 	// initialize routing table
 	if (FALSE == _np_route_init (state->my_node_key) )
 	{
@@ -1100,15 +1089,15 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	state->msg_tokens = np_tree_create();
 	state->msg_part_cache = np_tree_create();
 
-
 	// initialize cleanup layer last
-	np_job_submit_event(0.0, _np_cleanup_ack_jobexec);
-	np_job_submit_event(0.0, _np_cleanup_keycache_jobexec);
-	np_job_submit_event(0.0, _np_event_cleanup_msgpart_cache);
+	np_job_submit_event_periodic(0, MISC_ACKENTRY_CLEANUP_INTERVAL_SEC, _np_cleanup_ack_jobexec,"_np_cleanup_ack_jobexec");
+	np_job_submit_event_periodic(0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_cleanup_keycache_jobexec,"_np_cleanup_keycache_jobexec");
+	np_job_submit_event_periodic(0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache,"_np_event_cleanup_msgpart_cache");
 
 	// start leafset checking jobs
-	np_job_submit_event(0.0, _np_route_check_leafset_jobexec);
-
+	np_job_submit_event_periodic(0, MISC_CHECK_ROUTES_SEC, _np_glia_check_neighbours,"_np_glia_check_neighbours");
+	np_job_submit_event_periodic(0, MISC_SEND_UPDATE_MSGS_SEC, _np_glia_check_routes,"_np_glia_check_routes");
+	np_job_submit_event_periodic(0, MISC_SEND_PIGGY_REQUESTS_SEC, _np_glia_send_piggy_requests,"_np_glia_send_piggy_requests");
 
 #ifdef SKIP_EVLOOP
 	// intialize log file writing
@@ -1117,12 +1106,13 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 #endif
 
 	// initialize retransmission of tokens
-	np_job_submit_event(0.0, _np_retransmit_message_tokens_jobexec);
+	np_job_submit_event_periodic(0.0, MISC_RETRANSMIT_MSG_TOKENS_SEC, _np_retransmit_message_tokens_jobexec,"_np_retransmit_message_tokens_jobexec");
 	// initialize node token renewal
-	np_job_submit_event(0.0, _np_renew_node_token_jobexec);
+	np_job_submit_event_periodic(0.0, MISC_RENEW_NODE_SEC, _np_renew_node_token_jobexec,"_np_renew_node_token_jobexec");
 	// initialize network/io reading and writing
-	np_job_submit_event(0.0, _np_events_read);
-
+	np_job_submit_event_periodic(0.0, MISC_READ_EVENTS_SEC, _np_events_read,"_np_events_read");
+	log_debug_msg(LOG_DEBUG, "init _np_glia_send_pings");
+	np_job_submit_event_periodic(0.0, MISC_SEND_PINGS_SEC, _np_glia_send_pings,"_np_glia_send_pings");
 
 	np_unref_obj(np_key_t, state->my_node_key, "_np_keycache_find_or_create");
 	np_unref_obj(np_node_t, my_node, ref_obj_creation);
@@ -1170,6 +1160,10 @@ void np_start_job_queue(uint8_t pool_size)
 		new_thread->id  = (unsigned long)_np_state()->thread_ids[i];
 		sll_append(np_thread_ptr, _np_state()->threads, new_thread);
 
+		// initialize additional events handeling
+		// if(i%2==0)
+		//		np_job_submit_event_periodic(0.0, MISC_READ_EVENTS_SEC, _np_events_read);
+
 		log_debug_msg(LOG_DEBUG, "neuropil worker thread started: %p", _np_state()->thread_ids[i]);
 	}
 	log_debug_msg(LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
@@ -1195,13 +1189,13 @@ void np_start_job_queue(uint8_t pool_size)
 
 char* np_get_connection_string(){
 	log_msg(LOG_TRACE, "start: char* np_get_connection_string(){");
-	
+
 	return np_get_connection_string_from(_np_state()->my_node_key, TRUE);
 }
 
 char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash) {
 	log_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
-	
+
 	return _np_build_connection_string(
 		includeHash == TRUE ? _np_key_as_str(node_key) : NULL,
 		_np_network_get_protocol_string(node_key->node->protocol),
@@ -1213,7 +1207,7 @@ char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash) {
 char* _np_build_connection_string(char* hash, char* protocol, char*dns_name,char* port, np_bool includeHash) {
 	log_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
 	char* connection_str;
-	
+
 	if (TRUE == includeHash) {
 		asprintf(&connection_str, "%s:%s:%s:%s",
 			hash,

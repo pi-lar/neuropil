@@ -103,7 +103,7 @@ int np_simple_cache_insert(np_simple_cache_table_t *table, const char* const key
 			item = iter->val;
 		}
 		item->value = value;
-		item->insert_time = ev_time();
+		item->insert_time = np_time_now();
 	}
 	return 0;
 }

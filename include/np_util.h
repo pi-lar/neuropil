@@ -14,6 +14,10 @@
 extern "C" {
 #endif
 
+
+#ifndef CEIL(a)
+#define CEIL(a) (((a-(int)a) > 0) ? a+1:a)
+#endif
 #ifndef MIN(a,b)
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
@@ -23,10 +27,12 @@ extern "C" {
 #ifndef min(a,b)
 #define min(a,b) MIN(a,b)
 #endif
+#ifndef ceil(a)
+#define ceil(a) CEIL(a)
+#endif
 #ifndef max(a,b)
 #define max(a,b) MAX(a,b)
 #endif
-
 
 
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)    \

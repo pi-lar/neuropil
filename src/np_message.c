@@ -41,6 +41,7 @@
 #include "np_tree.h"
 #include "np_settings.h"
 #include "np_types.h"
+#include "np_ackentry.h"
 #include "np_constants.h"
 
 
@@ -50,6 +51,8 @@ void _np_message_t_new(void* msg)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_new(void* msg){");
 	np_message_t* msg_tmp = (np_message_t*) msg;
+
+	_np_threads_mutex_init(&msg_tmp->msg_chunks_lock);
 
 	msg_tmp->uuid = np_uuid_create("msg", 0);
 
@@ -67,16 +70,23 @@ void _np_message_t_new(void* msg)
 
 	msg_tmp->no_of_chunks = 1;
 	msg_tmp->is_single_part = FALSE;
-
-	_np_threads_mutex_init(&msg_tmp->msg_chunks_lock);
+	
+	sll_init(np_ackentry_on_t, msg_tmp->on_ack);
+	sll_init(np_ackentry_on_t, msg_tmp->on_nack);
+	sll_init(np_ackentry_on_t, msg_tmp->on_timeout);
+	
 	pll_init(np_messagepart_ptr, msg_tmp->msg_chunks);
 }
 
 // destructor of np_message_t
 void _np_message_t_del(void* data)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_del(void* data){");
+	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_del(void* data){");	
 	np_message_t* msg = (np_message_t*) data;
+
+	sll_free(np_ackentry_on_t, msg->on_ack);
+	sll_free(np_ackentry_on_t, msg->on_nack);
+	sll_free(np_ackentry_on_t, msg->on_timeout);
 
 	np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
 
@@ -191,7 +201,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 					{
 						log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
 							"message %s (%s) not complete yet (%d of %d), waiting for missing parts",
-							subject, msg_uuid, pll_size(msg_in_cache->msg_chunks), expected_msg_chunks);
+							subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
 
 						// nothing to return as we still wait for chunks
 						// ret = NULL;
@@ -207,7 +217,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 
 						log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
 							"message %s (%s) is complete now  (%d of %d)",
-							subject, msg_uuid, pll_size(msg_in_cache->msg_chunks), expected_msg_chunks);						
+							subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
 					}
 				}
 				else
@@ -238,7 +248,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 np_bool _np_message_is_expired(const np_message_t* const msg_to_check)
 {
 	np_bool ret = FALSE;
-	double now = ev_time();
+	double now = np_time_now();
 	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TTL, msg_ttl);
 	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
 

@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
 	np_msgproperty_register(pong_props);
 	np_add_receive_listener(receive_pong, "pong");
 	
-	double lastping = ev_time();
+	double lastping = np_time_now();
 	np_send_text("ping", "ping", _ping_count++, NULL);
 	uint32_t last_count_of_routes = 0;
 	uint32_t count_of_routes = 0;
@@ -134,11 +134,11 @@ int main(int argc, char **argv) {
 	while (TRUE) {
 		ev_sleep(0.1);
 
-		 double now = ev_time();
+		 double now = np_time_now();
 				// invoke a ping message every 10 seconds
 			if ((now - lastping) > 10.0)
 		{
-			lastping = ev_time();
+			lastping = np_time_now();
 			np_send_text("ping", "ping", _ping_count++, NULL);
 		}
 		// As long as we do not have the appropiate events (node_joined/node_left)

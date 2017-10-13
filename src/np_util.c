@@ -51,7 +51,7 @@ char* np_uuid_create(const char* str, const uint16_t num)
 	char* uuid_out = calloc(1,sizeof(char)*UUID_SIZE);
 	CHECK_MALLOC(uuid_out);
 
-	double now = ev_time();
+	double now = np_time_now();
 	snprintf (input, 255, "%s:%u:%16.16f", str, num, now);
 	// log_debug_msg(LOG_DEBUG, "created input uuid: %s", input);
 	crypto_generichash(out, 18, (unsigned char*) input, 256, NULL, 0);
