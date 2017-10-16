@@ -14,6 +14,7 @@
 #include "np_log.h"
 #include "np_types.h"
 #include "np_constants.h"
+#include "np_settings.h"
 
 #ifdef __cplusplus
 extern "C" {

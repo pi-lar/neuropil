@@ -8,7 +8,6 @@
 
 #include <stdlib.h>
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,11 +18,10 @@ extern "C" {
 	 - CHECK_THREADING
 	 - DEBUG_CALLBACKS
 */
-
-#define DISABLED_DEBUG_CALLBACKS 
-#define DISABLED_MEMORY_CHECK
 #ifdef DEBUG
-	#define CHECK_THREADING
+	#define DEBUG_CALLBACKS 1
+	#define MEMORY_CHECK 1
+	#define CHECK_THREADING 1
 #endif // DEBUG
 
 /*

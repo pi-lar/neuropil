@@ -79,7 +79,7 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 	np_thread_t* self_thread = _np_threads_get_self();
 	if (self_thread != NULL)
 	{
-		_LOCK_ACCESS(&(self_thread ->locklists_lock)) {
+		_LOCK_ACCESS(&(self_thread->locklists_lock)) {
 			sll_prepend(char_ptr, self_thread->want_lock, tmp);
 		}
 	}

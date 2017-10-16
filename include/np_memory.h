@@ -10,6 +10,8 @@
 
 #include "np_types.h"
 #include "np_list.h"
+#include "np_constants.h"
+#include "np_settings.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -106,9 +108,10 @@ struct np_obj_s
 #ifdef MEMORY_CHECK
 #define _NP_REF_REASON(reason,new_reason)																									    \
 	char new_reason[strlen(reason)+20];																											\
-	sprintf(new_reason,"%s%sline:%d",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__);             												
+	snprintf(new_reason,strlen(reason)+20,"%s%sline:%d",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__);
 #else
-#define _NP_REF_REASON(reason,new_reason)										
+#define _NP_REF_REASON(reason,new_reason)																										\
+	char new_reason[0];																											
 #endif
 
 

@@ -15,6 +15,8 @@ It should contain all required functions to send or receive messages.
 
 #include <pthread.h>
 
+#include "np_constants.h"
+#include "np_settings.h"
 #include "np_types.h"
 #include "np_list.h"
 

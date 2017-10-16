@@ -325,7 +325,7 @@ void _np_in_piggy(np_jobargs_t* args)
 
 
 
-		if (!_np_dhkey_equal(&node_entry->dhkey, &my_key->dhkey) &&
+		if (FALSE == _np_dhkey_equal(&node_entry->dhkey, &my_key->dhkey) &&
 			FALSE == node_entry->node->joined_network)
 		{
 			// just record nodes in the network or send an join request as well ?
@@ -339,14 +339,15 @@ void _np_in_piggy(np_jobargs_t* args)
 			np_new_obj(np_message_t, msg_out);
 			_np_message_create(msg_out, node_entry, my_key, _NP_MSG_JOIN_REQUEST, jrb_me);
 
-			log_debug_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(node_entry));
+			log_debug_msg(LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(node_entry));
+
 			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
 			_np_job_submit_msgout_event(0.0, prop, node_entry, msg_out);
 
 			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 		}
 		else {
-			log_debug_msg(LOG_DEBUG, "node %s is not qualified for a piggy join. ()", _np_key_as_str(node_entry));
+			log_debug_msg(LOG_DEBUG, "node %s is not qualified for a piggy join. (%s)", _np_key_as_str(node_entry), node_entry->node->joined_network ? "J":"NJ");
 		}
 		np_unref_obj(np_key_t, node_entry,"_np_node_decode_multiple_from_jrb");
 	}

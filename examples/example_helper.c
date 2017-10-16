@@ -249,10 +249,21 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 				}
 			}
 #endif
-			if (statistic_types == np_stat_all || (statistic_types & np_stat_general) == np_stat_general) {
+			if (statistic_types == np_stat_all || (statistic_types & np_stat_general) == np_stat_general) {							
+				double time_s = sec_since_start;
+				double time_d = (int)sec_since_start / 216000;
+				time_s -= time_d * 216000;
+				double time_h = (int)sec_since_start / 3600;
+				time_s -= time_h * 3600;
+				double time_m = (int)sec_since_start / 60;
+				time_s -= time_m * 60;
+				char time[50] = { 0 };
+				snprintf(time, 49, "%2.0fd %2.0fh %2.0fmin %2.0fsec", time_d, time_h, time_m, time_s);
+
 				if (enable_statistics == 1 || enable_statistics > 2) {
 					memory_str = np_statistics_print(FALSE);
-					if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
+									
+					if (memory_str != NULL) printf("%s -\n%s", time, memory_str);
 					free(memory_str);
 					
 					printf("timediff: %f(now) => %f(real) - %f(should) = %f\n", np_time_now(), sec_since_start, sec_since_start_iter, sec_since_start - sec_since_start_iter);
