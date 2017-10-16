@@ -130,7 +130,7 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
 	// TODO: evaluate if 1 ore more threads are started and init appropriately
-	np_bool isMultiThreaded = FALSE;
+	np_bool isMultiThreaded = TRUE;
 
 	if(TRUE == isMultiThreaded) {
 

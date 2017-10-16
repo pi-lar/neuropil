@@ -96,8 +96,8 @@ void _np_in_received(np_jobargs_t* args)
 				unsigned char dec_msg[1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES];
 				memcpy(nonce, raw_msg, crypto_secretbox_NONCEBYTES);
 
-				char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
-				sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
+				// char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
+				// sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
 
 				int ret = crypto_secretbox_open_easy(dec_msg,
 						(const unsigned char *) raw_msg + crypto_secretbox_NONCEBYTES,
@@ -281,7 +281,7 @@ void _np_in_received(np_jobargs_t* args)
 								log_msg(LOG_INFO,
 									"forwarding message for subject: %s / uuid: %s", msg_subject.value.s, msg_in->uuid);
 								np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
-								_np_job_submit_route_event(0.0, prop, args->target, msg_in);
+								_np_job_submit_route_event(0.1, prop, args->target, msg_in);
 
 								np_unref_list(tmp, "_np_route_lookup");
 								sll_free(np_key_ptr, tmp);
@@ -366,8 +366,6 @@ void _np_in_piggy(np_jobargs_t* args)
 		// tmp_ft = node_entry->node->failuretime;
 
 		// TODO: those new entries in the piggy message must be authenticated before sending join requests
-
-
 
 		if (!_np_dhkey_equal(&node_entry->dhkey, &my_key->dhkey) &&
 			FALSE == node_entry->node->joined_network)
@@ -1015,8 +1013,8 @@ void _np_in_update(np_jobargs_t* args)
 			char* connection_str = np_get_connection_string_from(
 					update_key,FALSE);
 			np_key_t* old_key = _np_keycache_find_by_details(
-					connection_str, FALSE, FALSE,FALSE,
-					FALSE, TRUE, TRUE, FALSE);
+					connection_str, FALSE,FALSE,FALSE,
+					TRUE, TRUE, TRUE, FALSE);
 			free(connection_str);
 
 			if(NULL != old_key)
@@ -1029,7 +1027,9 @@ void _np_in_update(np_jobargs_t* args)
 
 				if(old_key->network != NULL)
 				{
-					_np_network_remap_network(update_key, old_key);
+					_LOCK_ACCESS(&old_key->network->lock) {
+						_np_network_remap_network(update_key, old_key);
+					}
 				}
 				np_unref_obj(np_key_t, old_key,"_np_keycache_find_by_details");
 			}
@@ -1756,7 +1756,6 @@ void _np_in_handshake(np_jobargs_t* args)
 	np_node_t* tokens_node = _np_node_decode_from_jrb(hs_payload);	
 	msg_source_key = _np_key_create_from_token(tmp_token);
 	
-
 	log_debug_msg(LOG_DEBUG, "handshake for %s",_np_key_as_str(msg_source_key));
 
 	// should never happen
@@ -1822,7 +1821,7 @@ void _np_in_handshake(np_jobargs_t* args)
 		np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str );
 		free(tmp_connection_str);
 
-		_LOCK_MODULES (np_keycache_t, np_network_t)
+		_LOCK_MODULES (np_network_t, np_handshake_t)
 		{
 			hs_wildcard_key = _np_keycache_find(wildcard_dhkey);
 			if(NULL != hs_wildcard_key && NULL != hs_wildcard_key->network)
@@ -1873,13 +1872,14 @@ void _np_in_handshake(np_jobargs_t* args)
 		}
 		else {
 
-			_LOCK_MODULE(np_network_t)
+			_LOCK_MODULES(np_network_t, np_handshake_t)
 			{
 				if (NULL == msg_source_key->network)
 				{
 					log_debug_msg(LOG_DEBUG, "handshake: init alias network");
 					np_new_obj(np_network_t, msg_source_key->network);
 					ref_replace_reason(np_network_t, msg_source_key->network, ref_obj_creation, ref_key_network);
+
 					if (((msg_source_key->node->protocol & PASSIVE) != PASSIVE))
 					{
 						_np_network_init(
@@ -1891,14 +1891,12 @@ void _np_in_handshake(np_jobargs_t* args)
 
 						if (TRUE == msg_source_key->network->initialized)
 						{
-							
 							np_ref_obj(np_key_t, msg_source_key, ref_network_watcher);
 							msg_source_key->network->watcher.data = msg_source_key;
 						}
 						else
 						{
 							log_msg(LOG_ERROR, "could not initiate network to alias key for %s:%s", msg_source_key->network->ip, msg_source_key->network->port);
-
 							np_unref_obj(np_network_t, msg_source_key->network, ref_key_network);
 							// msg_source_key->network = NULL;
 						}
@@ -1945,7 +1943,7 @@ void _np_in_handshake(np_jobargs_t* args)
 			msg_source_key->aaa_token = tmp_token;
 			np_unref_obj(np_aaatoken_t, old_token, ref_key_aaa_token);
 
-			// handle alias key, also in case a new connection has been established			
+			// handle alias key, also in case a new connection has been established
 			alias_key = _np_keycache_find_or_create(search_alias_key);
 			log_debug_msg(LOG_DEBUG, "handshake for alias %s", _np_key_as_str(alias_key));
 
@@ -1960,7 +1958,6 @@ void _np_in_handshake(np_jobargs_t* args)
 				np_ref_obj(np_network_t, alias_key->network, ref_key_network);
 				np_unref_obj(np_network_t, msg_source_key->network, ref_key_network);
 				msg_source_key->network = alias_key->network;
-
 
 				_np_network_stop(msg_source_key->network);
 				ev_io_init(
@@ -1977,21 +1974,24 @@ void _np_in_handshake(np_jobargs_t* args)
 			}
 			else
 			{
+
 				if (IS_INVALID(msg_source_key->aaa_token->state)) {
 					// new connection, setup alias key
 					alias_key->network = msg_source_key->network;
 					np_ref_obj(np_network_t, alias_key->network, ref_key_network);
+					np_unref_obj(np_key_t, alias_key->parent, ref_key_parent);
+					alias_key->parent = msg_source_key;
+					np_ref_obj(np_key_t, alias_key->parent, ref_key_parent);
 				}
-			}		
+			}
 			// copy over session key
 			memcpy(msg_source_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
 			msg_source_key->node->session_key_is_set = TRUE;
 
-			/* Implicit: as both keys share the same token 
+			/* Implicit: as both keys share the same token
 			memcpy(alias_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
 			alias_key->node->session_key_is_set = TRUE;
 			*/
-
 
 			// mark as valid to identify existing connections
 			msg_source_key->aaa_token->state |= AAA_VALID;
@@ -2003,7 +2003,8 @@ void _np_in_handshake(np_jobargs_t* args)
 				_np_key_as_str(msg_source_key), _np_key_as_str(alias_key));
 		}
 	}
-__np_cleanup__:
+
+	__np_cleanup__:
 	np_unref_obj(np_aaatoken_t, tmp_token, ref_obj_creation);
 
 	// __np_return__:

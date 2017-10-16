@@ -50,6 +50,7 @@ enum np_module_lock_e {
 	/*10*/np_jobqueue_t_lock,
 	/*11*/np_node_renewal_t_lock,
 	/*12*/np_statistics_t_lock,
+	/*13*/np_handshake_t_lock,
 	PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
 	PREDEFINED_DUMMY_1,
 	PREDEFINED_DUMMY_2,

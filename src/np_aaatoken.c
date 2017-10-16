@@ -348,12 +348,14 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		// check for already received core token
 		np_dhkey_t core_token_dhkey = _np_aaatoken_create_dhkey(token);
 		np_key_t* core_token_key = _np_keycache_find(core_token_dhkey);
-		if (core_token_key != NULL){				
+		if (core_token_key != NULL && core_token_key->aaa_token != NULL){
 
 			if (memcmp(core_token_key->aaa_token->signature, token->signature, crypto_sign_BYTES*(sizeof(unsigned char))) != 0) {
 				log_msg(LOG_WARN, "Someone tried to impersonate a token. verification failed");
+				np_unref_obj(np_key_t, core_token_key, "_np_keycache_find");
 				return (FALSE);
 			}
+			np_unref_obj(np_key_t, core_token_key, "_np_keycache_find");
 		}
 	}
 
@@ -495,7 +497,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 				} else {
 					np_new_obj(np_msgproperty_t, prop);
 					prop->msg_subject = strndup(subject, 255);
-					prop->mode_type |= OUTBOUND | INBOUND;
+					prop->mode_type |= (OUTBOUND | INBOUND);
 				}
 			}
 

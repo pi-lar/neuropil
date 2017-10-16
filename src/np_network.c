@@ -301,6 +301,7 @@ np_bool _np_network_send_handshake(np_key_t* node_key)
 	}
 	return ret;
 }
+
 /**
  ** Resends a message to host
  **/
@@ -314,21 +315,25 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 		// if (NULL == auth_token ||
 		//  	IS_INVALID(auth_token->state))
 		// {
-		if (_np_network_send_handshake(node_key) == TRUE || node_key->node->is_handshake_received == FALSE) {
+		np_bool continue_sending = TRUE;
+		_LOCK_MODULE (np_handshake_t) {
+			if (_np_network_send_handshake(node_key) == TRUE || node_key->node->is_handshake_received == FALSE) {
+				continue_sending = FALSE;
+			}
+			if (auth_token == NULL ) {
+				log_msg(LOG_ERROR, "auth token not set, but handshake is done (key: %s)", _np_key_as_str(node_key));
+				continue_sending = FALSE;
+			}
+			if (node_key->node->session_key_is_set == FALSE) {
+				log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
+				continue_sending = FALSE;
+			}
+		}
+		if (FALSE == continue_sending) {
 			np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
 			return;
 		}
-		if (auth_token == NULL ) {
-			log_msg(LOG_ERROR, "auth token not set, but handshake is done (key: %s)", _np_key_as_str(node_key));
-			np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
-			return;
-		}
-		if (node_key->node->session_key_is_set == FALSE) {
-			log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
 
-			np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
-			return;
-		}
 		uint16_t i = 0;
 
 		log_debug_msg(LOG_DEBUG, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
@@ -414,10 +419,10 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	}
 	else if (EV_WRITE == (revents & EV_WRITE))
 	{
-		np_key_t* key = event->data;
-		np_tryref_obj(np_key_t, key, keyExists,"np_tryref_obj_key");
+		np_tryref_obj(np_key_t, (np_key_t*) event->data, keyExists,"np_tryref_obj_key");
 		if(keyExists)
 		{
+			np_key_t* key = event->data;
 			np_network_t* key_network = key->network ;
 			np_tryref_obj(np_network_t, key_network, networkExists, "np_tryref_obj_key_network");
 			if (TRUE == networkExists )
@@ -725,7 +730,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					log_msg(LOG_ERROR, "received disconnect from: %s:%s", ng->ip, ng->port);
 					// TODO handle cleanup of node structures ?
 					// maybe / probably the node received already a disjoin message before
-					//TODO: pr�fen ob hier wirklich der host geschlossen werden muss
+					//TODO: pruefen ob hier wirklich der host geschlossen werden muss
 					_np_network_stop(ng_tcp_host);
 					//_np_node_update_stat(key->node, 0);
 				
@@ -777,8 +782,6 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		}
 	} while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result >= 0); // there is maybe more then one msg in our socket pipeline
 
-
-
 	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 }
 
@@ -802,20 +805,21 @@ void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 
 void _np_network_stop(np_network_t* network) {
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_stop(np_network_t* network){");
-	if(NULL != network){
-		_LOCK_ACCESS(&network->lock){
-			network->isWatching 	-= 1;
-			if(network->isWatching == 0) {
-				log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p",network);
-				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-				ev_io_stop(EV_A_ &network->watcher);
-			}else
-			{
-				log_msg(LOG_WARN,
-						"COULD NOT STOP NETWORK %p (still in use? (%d))",
-						network,network->isWatching
-				);
-			}
+
+	if (NULL == network) return;
+
+	_LOCK_ACCESS(&network->lock){
+		network->isWatching -= 1;
+		if(network->isWatching == 0) {
+			log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p",network);
+			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+			ev_io_stop(EV_A_ &network->watcher);
+		}else
+		{
+			log_msg(LOG_WARN,
+					"COULD NOT STOP NETWORK %p (still in use? (%d))",
+					network,network->isWatching
+			);
 		}
 	}
 }
@@ -830,22 +834,21 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 
 	assert(old_target->network != NULL);
 
-	np_network_t * old_network = NULL;
+	np_network_t * prev_network = NULL;
 	if (new_target->network != NULL) {
-		old_network = new_target->network;		
-	}	
-	_LOCK_ACCESS(&old_target->network->lock){
-		_np_network_stop(old_target->network); 			// stop network
-
-		new_target->network = old_target->network; 		// remap
-		np_ref_switch(np_key_t,new_target->network->watcher.data, ref_network_watcher, new_target); // remap network key
-		old_target->network = NULL;						// remove from old structure
-
-		_np_network_start(new_target->network); 		// restart network
+		prev_network = new_target->network;
+		_np_network_stop(prev_network); 			// stop previous network of new_target
 	}
-	// remove old network referrence (if any)
-	if (old_network != NULL) {
-		np_unref_obj(np_network_t, old_network, ref_key_network);
+
+	_np_network_stop(old_target->network); 			// stop network
+	new_target->network = old_target->network; 		// remap
+	np_ref_switch(np_key_t,new_target->network->watcher.data, ref_network_watcher, new_target); // remap network key
+	old_target->network = NULL;						// remove from old structure
+	_np_network_start(new_target->network); 		// restart network
+
+	// remove prev network reference (if any)
+	if (prev_network != NULL) {
+		np_unref_obj(np_network_t, prev_network, ref_key_network);
 	}
 
 	log_debug_msg(LOG_DEBUG,
@@ -857,19 +860,21 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 
 void _np_network_start(np_network_t* network){
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
-	if(NULL != network){
-		_LOCK_ACCESS(&network->lock){
-			network->isWatching 	+= 1;
-			if(network->isWatching == 1) {
-				log_msg(LOG_NETWORK | LOG_INFO, "starting network %p",network);
-				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-				ev_io_start(EV_A_ &network->watcher);
-			}else{
-				log_msg(LOG_WARN, "COULD NOT START NETWORK %p (already started? (%d))",network,network->isWatching);
-			}
+
+	if (NULL == network) return;
+
+	_LOCK_ACCESS(&network->lock){
+		network->isWatching += 1;
+		if(network->isWatching == 1) {
+			log_msg(LOG_NETWORK | LOG_INFO, "starting network %p",network);
+			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+			ev_io_start(EV_A_ &network->watcher);
+		}else{
+			log_msg(LOG_WARN, "COULD NOT START NETWORK %p (already started? (%d))",network,network->isWatching);
 		}
 	}
 }
+
 
 /**
  * network_destroy
@@ -1051,7 +1056,6 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating sending network");
 
 		// client setup
-
 		sll_init(void_ptr, ng->out_events);
 
 		// client socket - wait for writeable socket

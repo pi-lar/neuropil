@@ -408,7 +408,7 @@ void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
 		// create a default set of properties for listening to messages
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->mode_type = INBOUND;
+		msg_prop->mode_type |= INBOUND;
 		np_msgproperty_register(msg_prop);		
 	}
 	
@@ -436,7 +436,7 @@ void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
 		// create a default set of properties for listening to messages
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->mode_type = OUTBOUND;
+		msg_prop->mode_type |= OUTBOUND;
 		np_msgproperty_register(msg_prop);
 	}
 
@@ -629,7 +629,7 @@ void np_send_text (char* subject, char *data, uint32_t seqnum, char* targetDhkey
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
-		msg_prop->mode_type = OUTBOUND;
+		msg_prop->mode_type |= OUTBOUND;
 
 		np_msgproperty_register(msg_prop);
 	}
@@ -662,7 +662,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
-		msg_prop->mode_type = INBOUND;
+		msg_prop->mode_type |= INBOUND;
 		msg_prop->clb_inbound = _np_in_signal_np_receive;
 		// when creating, set to zero because callback function is not used
 		msg_prop->max_threshold = 0;
@@ -772,7 +772,7 @@ uint32_t np_receive_text (char* subject, char **data)
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
-		msg_prop->mode_type = INBOUND;
+		msg_prop->mode_type |= INBOUND;
 		msg_prop->clb_inbound = _np_in_signal_np_receive;
 		// when creating, set to zero because callback function is not used
 		msg_prop->max_threshold = 0;

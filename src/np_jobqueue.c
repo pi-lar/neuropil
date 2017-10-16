@@ -142,13 +142,13 @@ void _np_job_queue_insert(double delay, np_job_t* new_job)
 
 		pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_scheduling);
 	}
-	// if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
-	if (0.0 == delay)
+	// if (0.0 == delay)
+	if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
 	{
 		// restart all waiting jobs & yields
-		_np_threads_module_condition_broadcast(&__cond_empty);
+		// _np_threads_module_condition_broadcast(&__cond_empty);
 		// restart single job or yield
-		// pthread_cond_signal(&__cond_empty);
+		_np_threads_condition_signal(&__cond_empty);
 	}
 }
 

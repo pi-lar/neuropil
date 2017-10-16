@@ -131,14 +131,20 @@ void _np_send(np_jobargs_t* args)
 				np_bool skip = FALSE;
 				_LOCK_ACCESS(&network->lock)
 				{
+					np_ackentry_t* ackentry = NULL;
+					if (NULL != np_tree_find_str(network->waiting, uuid))
+					{
+						ackentry = (np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v;
+					}
+
 					// first find the uuid
-					if (NULL == np_tree_find_str(network->waiting, uuid))
+					if (NULL == ackentry)
 					{
 						// has been deleted already
 						log_debug_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
 						skip = TRUE;
 					}
-					else if (TRUE == ((np_ackentry_t*) np_tree_find_str(network->waiting, uuid)->val.value.v)->acked)
+					else if (TRUE == ackentry->acked)
 					{
 						// uuid has been acked
 						log_debug_msg(LOG_DEBUG, "message %s (%s) acknowledged, not resending ...", prop->msg_subject, uuid);
@@ -148,6 +154,9 @@ void _np_send(np_jobargs_t* args)
 					{
 						// ack indicator still there ! initiate resend ...
 						log_debug_msg(LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
+						if(0 != _np_key_cmp(ackentry->dest_key, args->target)) {
+							np_ref_switch(np_key_t, ackentry->dest_key, ref_message_ack, args->target, ref_message_ack);
+						}
 					}
 				}
 				// TODO: ref counting on ack may differ (ref_message_ack) / key may not be the same more
@@ -264,10 +273,10 @@ void _np_send(np_jobargs_t* args)
 						ackentry->transmittime = ev_time();
 						// + 1.0 because of time delays for processing
 						ackentry->expiration = ackentry->transmittime + args->properties->msg_ttl + 1.0;
-						if(ackentry->dest_key != args->target) {
-							np_ref_obj(np_key_t, args->target, ref_message_ack);
-							ackentry->dest_key = args->target;
-						}
+
+						// if(0 != _np_key_cmp(ackentry->dest_key, args->target)) {
+						ackentry->dest_key = args->target;
+						np_ref_obj(np_key_t, ackentry->dest_key, ref_message_ack);
 
 						if (TRUE == is_forward)
 						{
@@ -422,7 +431,6 @@ void _np_send_handshake(np_jobargs_t* args)
 
 	_np_message_calculate_chunking(hs_message);
 	np_jobargs_t* chunk_args = _np_job_create_args(hs_message, NULL, NULL);
-	
 	np_bool serialize_ok = _np_message_serialize_chunked(chunk_args);
 
 	_np_job_free_args(chunk_args);
@@ -435,7 +443,7 @@ void _np_send_handshake(np_jobargs_t* args)
 
 	if (TRUE == serialize_ok)
 	{
-		_LOCK_MODULE(np_network_t)
+		_LOCK_MODULES(np_network_t, np_handshake_t)
 		{
 			if (NULL == args->target->network)
 			{
@@ -457,25 +465,21 @@ void _np_send_handshake(np_jobargs_t* args)
 				np_ref_obj(np_key_t, args->target,ref_network_watcher);
 				args->target->network->watcher.data = args->target;
 			}
-		}
-		// construct target address and send it out
-		np_node_t* hs_node = args->target->node;
+			// construct target address and send it out
+			np_node_t* hs_node = args->target->node;
+			/* send data if handshake status is still just initialized or less */
+			log_debug_msg(LOG_DEBUG,
+					"sending handshake message %s to (%s:%s)",
+					hs_message->uuid, hs_node->dns_name, hs_node->port);
 
-		/* send data if handshake status is still just initialized or less */
-		log_debug_msg(LOG_DEBUG,
-				"sending handshake message %s to (%s:%s)",
-				hs_message->uuid, hs_node->dns_name, hs_node->port);
+			char* packet = (char*) malloc(1024);
+			CHECK_MALLOC(packet);
 
-		char* packet = (char*) malloc(1024);
-		CHECK_MALLOC(packet);
+			memset(packet, 0, 1024);
+			_LOCK_ACCESS(&hs_message->msg_chunks_lock){
+				memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
+			}
 
-		memset(packet, 0, 1024);
-		_LOCK_ACCESS(&hs_message->msg_chunks_lock){
-			memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
-		}
-
-		_LOCK_ACCESS(&args->target->network->lock)
-		{
 			if(NULL != args->target->network->out_events) {
 				sll_append(
 						void_ptr,
@@ -512,7 +516,6 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 	}
 
 	// args->target == Key of subject
-
 	if (0 < (args->properties->mode_type & INBOUND))
 	{
 		log_debug_msg(LOG_DEBUG, ".step ._np_send_discovery_messages.inbound");

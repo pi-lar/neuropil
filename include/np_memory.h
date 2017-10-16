@@ -107,12 +107,15 @@ struct np_obj_s
 #define _NP_REF_REASON_SEPERATOR_CHAR "___"
 #define _NP_REF_REASON_SEPERATOR_CHAR_LEN 3
 
+#ifdef MEMORY_CHECK
 #define _NP_REF_REASON(reason,new_reason)																									    \
 	char new_reason[strlen(reason)+20];																											\
-	sprintf(new_reason,"%s%sline:%d",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__);             												\
-																																			    \
-																																			    \
-																																			    \
+	snprintf(new_reason,strlen(reason)+20,"%s%sline:%d",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__);
+#else
+#define _NP_REF_REASON(reason,new_reason) 																										\
+char new_reason[strlen(reason)+20];
+#endif
+
 
 #ifndef MEMORY_CHECK
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)
@@ -170,7 +173,7 @@ struct np_obj_s
 }
 
 #define np_tryref_obj(...) VFUNC(np_tryref_obj, __VA_ARGS__)
-#define np_tryref_obj3(TYPE, np_obj, ret) np_tryref_obj4(TYPE, np_obj, ret,__func__)
+#define np_tryref_obj3(TYPE, np_obj, ret) np_tryref_obj4(TYPE, np_obj, ret, __func__)
 #define np_tryref_obj4(TYPE, np_obj, ret, reason)      																													\
 	np_bool ret = FALSE;																																				\
 	_LOCK_MODULE(np_memory_t) {                 																														\
@@ -181,7 +184,7 @@ struct np_obj_s
 					assert (((TYPE*)np_obj)->obj->type == TYPE##_e);   																									\
 				} else {																																				\
 					log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count, #TYPE, ((TYPE*)np_obj)->obj->id); 	\
-					_NP_REF_REASON(reason, reason2)																																		\
+					_NP_REF_REASON(reason, reason2)																														\
 					np_mem_refobj(((TYPE*)np_obj)->obj,reason2);             																							\
 					ret = TRUE;																																			\
 				}																																						\
