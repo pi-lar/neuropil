@@ -393,7 +393,7 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
 			_LOCK_ACCESS(&node->lock) {
 				node->latency_win[node->latency_win_index++ % NP_NODE_SUCCESS_WINDOW] = new_latency;
 
-				if (DEBUG || node->latency_win_index < NP_NODE_SUCCESS_WINDOW)
+				if (node->latency_win_index < NP_NODE_SUCCESS_WINDOW)
 				{
 					node->latency = new_latency;
 				}

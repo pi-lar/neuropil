@@ -38,7 +38,16 @@ extern "C" {
 	#define NP_AAATOKEN_MAX_SIZE_EXTENSIONS (1024)
 
 #ifndef MUTEX_WAIT_SEC
-#define MUTEX_WAIT_SEC  ((const ev_tstamp )0.005)
+#define MUTEX_WAIT_SEC  ((const ev_tstamp )0.5)
+#endif
+#ifndef MUTEX_WAIT_SOFT_SEC
+#define MUTEX_WAIT_SOFT_SEC  MUTEX_WAIT_SEC *5
+#endif
+#ifndef MUTEX_WAIT_MAX_SEC
+#define MUTEX_WAIT_MAX_SEC  MUTEX_WAIT_SEC *10
+#endif
+#ifndef NP_JOBQUEUE_MAX_SLEEPTIME_SEC
+#define NP_JOBQUEUE_MAX_SLEEPTIME_SEC (0.3)
 #endif
 	
 #define NP_NODE_SUCCESS_WINDOW 20

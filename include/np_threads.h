@@ -7,20 +7,17 @@
 
 #include <stdlib.h>
 #include <pthread.h>
+#include <sys/time.h>
 
 #include "np_memory.h"
 #include "np_list.h"
 #include "np_log.h"
 #include "np_types.h"
+#include "np_constants.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#ifdef DEBUG
-	#define CHECK_THREADING
-#endif
-
 
 // first try to decorate functions, usable ?
 #define _WRAP(return_type, func_name, arg_1, arg_2) \
@@ -126,12 +123,21 @@ void _np_threads_condition_destroy(np_cond_t* condition);
 NP_API_INTERN
 int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime);
 NP_API_INTERN
-int _np_threads_module_condition_broadcast(np_cond_t* condition);
+int _np_threads_condition_broadcast(np_cond_t* condition);
 NP_API_INTERN
 np_thread_t*_np_threads_get_self();
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
+
+#define __NP_THREADS_GET_MUTEX_DEFAULT_WAIT(NAME)															\
+struct timespec NAME##_ts={0};																				\
+struct timeval NAME##_tv;																					\
+struct timespec* NAME=&NAME##_ts;																			\
+																											\
+gettimeofday(&NAME##_tv, NULL);																				\
+NAME##_ts.tv_sec = NAME##_tv.tv_sec + MUTEX_WAIT_SEC;													
+
 
 #define _LOCK_ACCESS(obj) np_mutex_t* TOKENPASTE2(lock, __LINE__) = obj; for(uint8_t _LOCK_ACCESS##__LINE__=0; (_LOCK_ACCESS##__LINE__ < 1) && !_np_threads_mutex_lock(TOKENPASTE2(lock, __LINE__)); _np_threads_mutex_unlock(TOKENPASTE2(lock, __LINE__)), _LOCK_ACCESS##__LINE__++)
 // protect access to restricted area in the rest of your code like this

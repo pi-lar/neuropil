@@ -12,6 +12,19 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+	
+/*
+	Possible compile switches:
+	 - MEMORY_CHECK
+	 - CHECK_THREADING
+	 - DEBUG_CALLBACKS
+*/
+
+#define DISABLED_DEBUG_CALLBACKS 
+#define DISABLED_MEMORY_CHECK
+#ifdef DEBUG
+	#define CHECK_THREADING
+#endif // DEBUG
 
 /*
  *	if the sysinfo subsystem in enabled and the node is a slave
@@ -153,19 +166,11 @@ extern "C" {
 #endif
 
 #ifndef LOG_ROW_SIZE
-	#ifdef DEBUG
-		#define LOG_ROW_SIZE (8192)
-	#else
 		#define LOG_ROW_SIZE (5000)
-	#endif
 #endif
 
-#ifndef LOG_ROTATE_AFTER_BYTES
-	#if defined(DEBUG) && DEBUG == 1
-		#define LOG_ROTATE_AFTER_BYTES (10000000 /*100 MB*/)
-	#else
+#ifndef LOG_ROTATE_AFTER_BYTES	
 		#define LOG_ROTATE_AFTER_BYTES (1000000	/* 10 MB */)
-	#endif
 #endif
 
 #ifndef LOG_ROTATE_ENABLE
@@ -182,7 +187,7 @@ extern "C" {
 
 
 #ifndef NP_NETWORK_MAX_MSGS_PER_SCAN
-	#define NP_NETWORK_MAX_MSGS_PER_SCAN (1) 
+	#define NP_NETWORK_MAX_MSGS_PER_SCAN (10) 
 #endif
 
 // indirect #define NP_NETWORK_MAX_BYTES_PER_SCAN (NP_NETWORK_MAX_MSGS_PER_SCAN*1024) 

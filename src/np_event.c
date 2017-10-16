@@ -47,10 +47,6 @@ static int         __suspended_libev_loop = 0;
 static double      __libev_interval = 0.0031415;
 static ev_async    __libev_async_watcher;
 
-// static ev_periodic __libev_periodic_watcher;
-// static ev_idle __libev_idle_watcher;
-// static ev_check __libev_check_watcher;
-
 
 void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents)
 {
@@ -73,6 +69,7 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 	}
 }
 
+// TODO: move to glia
 void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 {
 	np_sll_t(np_message_ptr,to_del);
@@ -107,6 +104,7 @@ void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 
 }
 
+// TODO: move to glia
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args){");
@@ -127,7 +125,7 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
 	// TODO: evaluate if 1 ore more threads are started and init appropriately
-	np_bool isMultiThreaded = FALSE;
+	np_bool isMultiThreaded = TRUE;
 
 	if(TRUE == isMultiThreaded) {
 

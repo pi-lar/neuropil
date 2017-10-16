@@ -15,10 +15,6 @@
 extern "C" {
 #endif
 
-#ifdef DEBUG
-	#define MEMORY_CHECK 
-#endif
-
 // macro definitions to generate header prototype definitions
 #define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE) \
 void _##TYPE##_new(void*); \

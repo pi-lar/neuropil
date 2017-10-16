@@ -102,6 +102,7 @@ typedef struct np_treeval_s np_treeval_t;
 typedef struct np_mutex_s np_mutex_t;
 
 typedef char* char_ptr;
+typedef void* void_ptr;
 
 typedef struct np_thread_s np_thread_t;
 typedef np_thread_t* np_thread_ptr;
@@ -124,6 +125,7 @@ typedef void (*np_callback_t) (np_jobargs_t*);
 */
 NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 
+NP_SLL_GENERATE_PROTOTYPES(void_ptr);
 NP_SLL_GENERATE_PROTOTYPES(char_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_key_ptr);

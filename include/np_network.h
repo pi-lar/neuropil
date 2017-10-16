@@ -12,6 +12,7 @@
 #include "event/ev.h"
 
 #include "np_list.h"
+#include "np_util.h"
 #include "np_memory.h"
 #include "np_keycache.h"
 #include "np_message.h"
@@ -43,9 +44,6 @@ enum socket_type {
 	RAW     	  = 0x40, // pure IP protocol - no ports
 	PASSIVE 	  = 0x80  // TCP passive (like FTP passive) for nodes behind firewalls
 } NP_ENUM;
-
-typedef void* void_ptr;
-NP_SLL_GENERATE_PROTOTYPES(void_ptr)
 
 struct np_network_s
 {

@@ -9,6 +9,7 @@
 #include "json/parson.h"
 
 #include "np_tree.h"
+#include "np_threads.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -136,7 +137,22 @@ char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cm
 NP_API_INTERN
 sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount);
 
+#ifdef DEBUG_CALLBACKS
+typedef struct {
+	char key[255];
+	uint32_t count;
+	np_mutex_t lock;
+	double avg;
+	double min;
+	double max;
+} _np_util_debug_statistics_t;
 
+NP_API_INTERN
+_np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double value);
+NP_API_INTERN
+_np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key);
+
+#endif
 #ifdef __cplusplus
 }
 #endif

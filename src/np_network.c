@@ -25,7 +25,7 @@
 #include <pthread.h>
 #include <assert.h>
 #include <event/ev.h>
- 
+
 #include "np_network.h"
 
 #include "dtime.h"
@@ -47,8 +47,7 @@
 #include "np_types.h"
 #include "np_constants.h"
 #include "np_settings.h"
-
-NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
+#include "np_util.h"
 
 
 // allocate a new pointer and return it
@@ -141,7 +140,7 @@ void _np_network_get_address (
 	if ( 0 != ( err = getaddrinfo( hostname, service, &hints, ai_head ) ))
 	{
 		log_msg(LOG_ERROR, "hostname: %s, servicename %s, protocol %d",
-				hostname, service, type);		
+				hostname, service, type);
 		log_msg(LOG_ERROR, "error getaddrinfo: %s (%d)", gai_strerror(err), err);
 		log_msg(LOG_ERROR, "error errno: %s (%d)", gai_strerror(errno), errno);
 
@@ -441,11 +440,11 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 									if (current_write == -1) {
 										log_msg(LOG_WARN,
 											"cannot write to socket: %s (%d).",
-											strerror(errno),errno);																				
+											strerror(errno),errno);
 									}
 									if (current_write > 0) {
 										written += current_write;
-									}									
+									}
 								} while (written < MSG_CHUNK_SIZE_1024 && iter <= (1 /*max delay sec*/ / 0.001) && np_event_sleep(0.001*iter) > 0 );
 								log_debug_msg(LOG_DEBUG | LOG_NETWORK, "out_msg_len %d bytes", written);
 								if(iter > 1){
@@ -537,7 +536,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						err =  getpeername(client_fd, (struct sockaddr*) &from, &fromlen);
 					}while(0 != err && errno != ENOTCONN );
 
-				
+
 					if (from.ss_family == AF_INET)
 					{
 						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
@@ -565,7 +564,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 						"received connection request from %s:%s (client fd: %d)",
 						ng->ip, ng->port, client_fd);
-			
+
 				np_dhkey_t search_key = np_dhkey_create_from_hostport(ng->ip, ng->port);
 				np_key_t* alias_key = _np_keycache_find(search_key);
 				char* alias_key_reason = "_np_keycache_find";
@@ -614,8 +613,8 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						);
 				_np_network_start(alias_key->network);
 
-				if(old_network != NULL) {					
-					np_unref_obj(np_network_t, old_network, ref_key_network);					
+				if(old_network != NULL) {
+					np_unref_obj(np_network_t, old_network, ref_key_network);
 				}
 
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG,
@@ -638,13 +637,13 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 {
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents){");
 	// cast event data structure to np_state_t pointer
-	
+
 	struct sockaddr_storage from;
 	socklen_t fromlen = sizeof(from);
 	// calling address and port
 	char ipstr[255] = { 0 };
 	char port [7] = { 0 };
-	
+
 	np_key_t* key;
 	np_network_t* ng;
 	np_network_t* ng_tcp_host = NULL;
@@ -674,7 +673,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			}
 			key = key->parent;
 			ng_tcp_host = ng;
-			ng = key->network;				
+			ng = key->network;
 		}
 		else {
 			last_recv_result = recvfrom(ng->socket, data + in_msg_len,
@@ -682,7 +681,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		}
 		if (last_recv_result > 0) {
 			in_msg_len += last_recv_result;
-		}		
+		}
 
 		log_debug_msg(LOG_DEBUG | LOG_NETWORK, "in_msg_len %d bytes", in_msg_len);
 
@@ -708,11 +707,11 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 				}
 
-				char * old = ng->ip;				
+				char * old = ng->ip;
 				ng->ip = strndup(ipstr, 255);
 				free(old);
 
-				old = ng->port;				
+				old = ng->port;
 				ng->port = strndup(port, 7);
 				free(old);
 			}
@@ -724,11 +723,11 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					log_msg(LOG_ERROR, "received disconnect from: %s:%s", ng->ip, ng->port);
 					// TODO handle cleanup of node structures ?
 					// maybe / probably the node received already a disjoin message before
-					//TODO: prüfen ob hier wirklich der host geschlossen werden muss
+					//TODO: prï¿½fen ob hier wirklich der host geschlossen werden muss
 					_np_network_stop(ng_tcp_host);
 					//_np_node_update_stat(key->node, 0);
-				
-					log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");				
+
+					log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 				}
 				free(data);
 				continue;
@@ -759,14 +758,14 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 
 			log_debug_msg(LOG_NETWORK |LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
 				ng->ip, ng->port, in_msg_len, _np_key_as_str(alias_key));
-						
+
 			_LOCK_ACCESS(&ng->lock)
 			{
 				if (NULL != ng->in_events)
 				{
 					sll_append(void_ptr, ng->in_events, data);
 				}
-			}			
+			}
 
 			_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL);
 			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
@@ -775,8 +774,6 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
 		}
 	} while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result > 0); // there is maybe more then one msg in our socket pipeline
-
-
 
 	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 }
@@ -805,7 +802,7 @@ void _np_network_stop(np_network_t* network) {
 		_LOCK_ACCESS(&network->lock){
 			log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p",network);
 			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-			ev_io_stop(EV_A_ &network->watcher);			
+			ev_io_stop(EV_A_ &network->watcher);
 		}
 	}
 }
@@ -822,8 +819,8 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 
 	np_network_t * old_network = NULL;
 	if (new_target->network != NULL) {
-		old_network = new_target->network;		
-	}	
+		old_network = new_target->network;
+	}
 	_LOCK_ACCESS(&old_target->network->lock){
 		_np_network_stop(old_target->network); 			// stop network
 
@@ -851,7 +848,7 @@ void _np_network_start(np_network_t* network){
 		_LOCK_ACCESS(&network->lock){
 			log_msg(LOG_NETWORK | LOG_INFO, "starting network %p",network);
 			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-			ev_io_start(EV_A_ &network->watcher);			 
+			ev_io_start(EV_A_ &network->watcher);
 		}
 	}
 }
@@ -910,7 +907,7 @@ void _np_network_t_del(void* nw)
 		}
 		// finally destroy the mutex again
 		_np_threads_mutex_destroy (&network->lock);
-		
+
 	}
 }
 
@@ -923,7 +920,7 @@ void _np_network_t_new(void* nw)
 	ng->waiting 	= NULL;
 	ng->in_events 	= NULL;
 	ng->out_events 	= NULL;
-	ng->initialized = FALSE;	
+	ng->initialized = FALSE;
 	ng->ip = NULL;
 	ng->watcher.data = NULL;
 

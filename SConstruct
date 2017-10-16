@@ -212,9 +212,10 @@ if build_program != False and build_program not in programs:
 else:
     for program in programs:
         if build_program == False or build_program == program:
+            print 'building neuropil_%s' %program
             prg_np = env.Program('bin/neuropil_%s'%program, 'examples/neuropil_%s.c'%program)
             Depends(prg_np, np_dylib)
-            print 'build'
+
 
 # clean up
 Clean('.', 'build')

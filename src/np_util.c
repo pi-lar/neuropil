@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <float.h>
 #include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -38,10 +39,11 @@
 #include "np_route.h"
 #include "np_types.h"
 #include "np_list.h"
-#include "np_memory.h"
+#include "np_threads.h"
 
 
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
+NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
 char* np_uuid_create(const char* str, const uint16_t num)
 {
@@ -547,3 +549,53 @@ sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount) {
 	}
 	return ret;
 }
+
+#ifdef DEBUG_CALLBACKS
+np_sll_t(void_ptr, __np_debug_statistics) = NULL;
+
+void __np_util_debug_statistics_init() {
+	if (__np_debug_statistics == NULL) {
+		sll_init(void_ptr, __np_debug_statistics);
+	}
+}
+_np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key) {
+	__np_util_debug_statistics_init();
+	_np_util_debug_statistics_t* ret = NULL;
+	sll_iterator(void_ptr) iter = sll_first(__np_debug_statistics);
+
+	while (iter != NULL) {
+		_np_util_debug_statistics_t* item = (_np_util_debug_statistics_t*)iter->val;		
+		if (strncmp(item->key, key, 255) == 0) {
+			ret = item;
+			break;
+		}			
+		sll_next(iter);
+	}
+	return ret;
+}
+_np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double value) {
+	__np_util_debug_statistics_init();
+
+	_np_util_debug_statistics_t* item = __np_util_debug_statistics_get(key);
+	if (item == NULL) {
+		item = (_np_util_debug_statistics_t*)calloc(1, sizeof(_np_util_debug_statistics_t));
+		item->min = DBL_MAX;
+		memcpy(item->key, key, strnlen(key, 254));
+		_np_threads_mutex_init(&item->lock);
+
+		sll_append(void_ptr, __np_debug_statistics, (void_ptr)item);
+	}
+
+	_LOCK_ACCESS(&item->lock)
+	{
+		item->avg = (item->avg * item->count + value) / (item->count + 1);
+		item->count++;
+
+		item->max = max(value, item->max);
+		item->min = min(value, item->min);
+	}
+
+	return item;
+}
+
+#endif

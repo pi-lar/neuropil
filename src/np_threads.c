@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include "np_threads.h"
@@ -27,6 +28,7 @@
 /** predefined module mutex array **/
 np_mutex_t __mutexes[PREDEFINED_DUMMY_START-1];
 np_bool _np_threads_initiated = FALSE;
+
 
 np_bool __np_threads_create_module_mutex(np_module_lock_type module_id)
 {
@@ -86,20 +88,19 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 	while(ret != 0){
 #ifdef DEBUG
 		double diff = np_time_now() - start;
-			if(diff > (MUTEX_WAIT_SEC*1000)) {
+			if(diff >MUTEX_WAIT_MAX_SEC) {
 				log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id, diff);
 #ifdef CHECK_THREADING			
 				log_msg(LOG_ERROR, np_threads_printpool(FALSE));
 #endif
 				abort();
 			}
-			if(diff > (MUTEX_WAIT_SEC*10)){
+			if(diff >  MUTEX_WAIT_SOFT_SEC){
 				log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for module mutex %d (%f sec)", module_id, diff);
 			}
 #endif
-
-		ret = pthread_mutex_lock(&__mutexes[module_id].lock);
-
+		__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait);
+		ret = pthread_mutex_timedlock(&__mutexes[module_id].lock, __np_default_wait);
 		if(ret == EBUSY){			
 			ev_sleep(MUTEX_WAIT_SEC);
 		}else if(ret != 0) {
@@ -153,16 +154,51 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 	}
 
 #endif
+	double start = np_time_now();
+	double diff;
 	while(ret != 0) {
-		ret = pthread_mutex_lock(lock_a);
+		__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait);
+		ret = pthread_mutex_timedlock(lock_a, __np_default_wait);
+
 		if (ret == 0) {
-			ret = pthread_mutex_lock(lock_b);
-			if(ret != 0) {
-				pthread_mutex_unlock(lock_a);
+			__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait2);
+			ret = pthread_mutex_timedlock(lock_b, __np_default_wait2);
+
+			if(ret != 0) {				
+#ifdef DEBUG
+				diff = np_time_now() - start;
+				if (diff >MUTEX_WAIT_MAX_SEC) {
+					log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id_b, diff);
+#ifdef CHECK_THREADING			
+					log_msg(LOG_ERROR, np_threads_printpool(FALSE));
+#endif
+					abort();
+				}
+				if (diff >  MUTEX_WAIT_SOFT_SEC) {
+					log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for module mutex %d (%f sec)", module_id_b, diff);
+				}
+#endif
+
+				ret = pthread_mutex_unlock(lock_a);
+
 				ev_sleep(MUTEX_WAIT_SEC);
 				ret = ret -100;
 			}
 		}else{
+#ifdef DEBUG
+			diff = np_time_now() - start;
+			if (diff >MUTEX_WAIT_MAX_SEC) {
+				log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id_a, diff);
+#ifdef CHECK_THREADING			
+				log_msg(LOG_ERROR, np_threads_printpool(FALSE));
+#endif
+				abort();
+			}
+			if (diff >  MUTEX_WAIT_SOFT_SEC) {
+				log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for module mutex %d (%f sec)", module_id_a, diff);
+			}
+#endif
+
 			ev_sleep(MUTEX_WAIT_SEC);
 		}
 	}
@@ -266,8 +302,22 @@ int _np_threads_mutex_init(np_mutex_t* mutex)
 int _np_threads_mutex_lock(np_mutex_t* mutex) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
 	int ret =  1;
+	double start = np_time_now();
 	while(ret != 0) {
-		ret = pthread_mutex_lock(&mutex->lock);
+		__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait);		
+		ret = pthread_mutex_timedlock(&mutex->lock, __np_default_wait);
+#ifdef DEBUG
+		double diff = np_time_now() - start;
+		if (diff > MUTEX_WAIT_MAX_SEC) {
+			log_msg(LOG_ERROR, "Thread %d waits too long for mutex %p (%f sec)", _np_threads_get_self()->id, mutex, diff);
+			abort();
+		}
+		if (diff > MUTEX_WAIT_SOFT_SEC) {
+			log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for mutex %p (%f sec)", mutex, diff);
+		}
+#endif
+
+
 		if(ret == EBUSY){
 			ev_sleep(MUTEX_WAIT_SEC);
 		}else if(ret != 0) {
@@ -315,9 +365,9 @@ int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime){");
 	return pthread_cond_timedwait(&condition->cond, &__mutexes[module_id].lock, waittime);
 }
-int _np_threads_module_condition_broadcast(np_cond_t* condition)
+int _np_threads_condition_broadcast(np_cond_t* condition)
 {
-	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_module_condition_broadcast(np_cond_t* condition)");
+	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_condition_broadcast(np_cond_t* condition)");
 	return pthread_cond_broadcast(&condition->cond);
 }
 
