@@ -7,6 +7,7 @@
 #define NP_SETTINGS_H_
 
 #include <stdlib.h>
+#include "np_constants.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,6 +24,7 @@ extern "C" {
 	#define MEMORY_CHECK 1
 	#define CHECK_THREADING 1
 #endif // DEBUG
+
 
 /*
  *	if the sysinfo subsystem in enabled and the node is a slave
@@ -74,7 +76,6 @@ extern "C" {
 #define MSG_CHUNK_SIZE_1024 (1024)
 #define MSG_ENCRYPTION_BYTES_40 (40)
 
-
 #ifndef MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC
 	#define MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC (5.0)
 #endif
@@ -97,7 +98,7 @@ extern "C" {
 	#define MISC_SEND_UPDATE_MSGS_SEC (3.1415)
 #endif
 #ifndef MISC_RENEW_NODE_SEC
-	#define MISC_RENEW_NODE_SEC (3.1415)
+	#define MISC_RENEW_NODE_SEC (3141.5)
 #endif
 #ifndef MISC_RETRANSMIT_MSG_TOKENS_SEC
 	#define MISC_RETRANSMIT_MSG_TOKENS_SEC (3.1415)
@@ -109,18 +110,6 @@ extern "C" {
 	#define MISC_SEND_PINGS_SEC (13.1415)
 #endif
 	
-	
- /*
- static double  __leafset_check_period = 3.1415;
- static double  __leafset_yield_period = 0.031415;
-
- static double  __rowinfo_send_delay = 0.03141;
-
- static double  __token_retransmit_period = 3.1415;
-
- static double  __cleanup_interval = 0.31415;
- */
-
 
 #ifndef GOOD_LINK
 	#define GOOD_LINK 0.7
@@ -136,27 +125,26 @@ extern "C" {
 	#define BAD_LINK_REMOVE_GRACETIME 2.0
 #endif
 
-
+#ifndef JOBQUEUE_PRIORITY_MOD_BASE_STEP
+#define JOBQUEUE_PRIORITY_MOD_BASE_STEP (10000)
+#endif
 #ifndef JOBQUEUE_PRIORITY_MOD_RESUBMIT_MSG_OUT
-	#define JOBQUEUE_PRIORITY_MOD_RESUBMIT_MSG_OUT (3)
+	#define JOBQUEUE_PRIORITY_MOD_RESUBMIT_MSG_OUT (PRIORITY_MOD_MEDIUM * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
 #endif
 #ifndef JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE
-	#define JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE (3)
+	#define JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE (PRIORITY_MOD_MEDIUM * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
 #endif
 #ifndef JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE
-	#define JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE (4)
+	#define JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE (PRIORITY_MOD_LEVEL_4 * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
 #endif
 #ifndef JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_IN
-	#define JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_IN (3)
+	#define JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_IN (PRIORITY_MOD_MEDIUM * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
 #endif
 #ifndef JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG
-	#define JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG (2)
+	#define JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG (PRIORITY_MOD_LEVEL_2 * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
 #endif
 #ifndef JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_OUT
-	#define JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_OUT (4)
-#endif
-#ifndef JOBQUEUE_PRIORITY_MOD_SUBMIT_EVENT
-	#define JOBQUEUE_PRIORITY_MOD_SUBMIT_EVENT (1)
+	#define JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_OUT (PRIORITY_MOD_MEDIUM * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
 #endif
 
 #ifndef LOG_ROTATE_COUNT
@@ -179,16 +167,37 @@ extern "C" {
 	#endif
 #endif
 #ifndef LOG_FORCE_INSTANT_WRITE
-	#define LOG_FORCE_INSTANT_WRITE (TRUE)
+	#if defined(DEBUG) && DEBUG == 1
+		#define LOG_FORCE_INSTANT_WRITE (TRUE)
+	#else
+		#define LOG_FORCE_INSTANT_WRITE (FALSE)
+	#endif
 #endif
-
-
 
 #ifndef NP_NETWORK_MAX_MSGS_PER_SCAN
 	#define NP_NETWORK_MAX_MSGS_PER_SCAN (10) 
 #endif
+ // indirect #define NP_NETWORK_MAX_BYTES_PER_SCAN (NP_NETWORK_MAX_MSGS_PER_SCAN*1024) 
 
-// indirect #define NP_NETWORK_MAX_BYTES_PER_SCAN (NP_NETWORK_MAX_MSGS_PER_SCAN*1024) 
+
+#ifndef MUTEX_WAIT_SEC
+	#define MUTEX_WAIT_SEC  ((const ev_tstamp )0.5)
+#endif
+#ifndef MUTEX_WAIT_SOFT_SEC
+	#define MUTEX_WAIT_SOFT_SEC  MUTEX_WAIT_SEC *5
+#endif
+#ifndef MUTEX_WAIT_MAX_SEC
+	#define MUTEX_WAIT_MAX_SEC  MUTEX_WAIT_SEC *10
+#endif
+#ifndef NP_JOBQUEUE_MAX_SLEEPTIME_SEC
+	#define NP_JOBQUEUE_MAX_SLEEPTIME_SEC (0.3)
+#endif
+
+#ifndef NP_EVENT_IO_CHECK_PERIOD_SEC
+	#define NP_EVENT_IO_CHECK_PERIOD_SEC (0.0031415)
+#endif
+
+#define NP_NODE_SUCCESS_WINDOW 100
 
 #ifdef __cplusplus
 }

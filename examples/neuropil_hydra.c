@@ -72,6 +72,8 @@ int main(int argc, char **argv)
 	char* logpath = ".";
 	char* required_nodes_opt = NULL;
 	char* http_domain = NULL;
+	char* node_creation_speed_str = NULL;
+	double node_creation_speed = 3.415;
 
 	int opt;
 	if (parse_program_args(
@@ -85,15 +87,21 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-n nr_of_nodes] [-w http domain]",
-		"n:w:",
+		"[-n nr_of_nodes] [-w http domain] [-z (double|\"default\")speed of node creation]",
+		"n:w:z:",
 		&required_nodes_opt,
-		&http_domain
+		&http_domain,
+		&node_creation_speed_str
 
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
 	if (required_nodes_opt != NULL) required_nodes = atoi(required_nodes_opt);
+	if (node_creation_speed_str != NULL) {
+		if (strcmp(node_creation_speed_str, "default") != 0) {
+			node_creation_speed = atof(required_nodes_opt);
+		}
+	}
 	
 	if (j_key != NULL) {
 		create_bootstrap = FALSE;
@@ -343,6 +351,8 @@ int main(int argc, char **argv)
 				 \endcode
 				 */
 			}
+			if(node_creation_speed > 0)
+				ev_sleep(node_creation_speed);
 		} else {
 			/**
 			  .. _neuropil_hydra_step_check_nodes_still_present:
@@ -383,8 +393,8 @@ int main(int argc, char **argv)
 			/**
 			 \endcode
 			 */
+			ev_sleep(3.415);
 		}
-		ev_sleep(3.415);
 
 	}
 }

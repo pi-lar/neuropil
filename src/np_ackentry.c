@@ -22,8 +22,17 @@ void _np_ackentry_set_acked(np_ackentry_t* entry)
 
 	double latency = (entry->received_at - entry->send_at)/2;
 	_np_node_update_latency(entry->dest_key->node, latency);
+	
+	if (entry->msg != NULL && sll_size(entry->msg->on_ack) > 0) {
 
-	//TODO call msg ack functions
+		sll_iterator(np_ackentry_on_t) iter_on = sll_first(entry->msg->on_ack);
+		while (iter_on != NULL)
+		{
+			//TODO: call async
+			iter_on->val(entry);
+			sll_next(iter_on);
+		}
+	}
 
 	np_unref_obj(np_ackentry_t, entry, __func__);
 }

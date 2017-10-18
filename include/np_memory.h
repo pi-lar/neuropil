@@ -106,12 +106,12 @@ struct np_obj_s
 #define _NP_REF_REASON_SEPERATOR_CHAR_LEN 3
 
 #ifdef MEMORY_CHECK
-#define _NP_REF_REASON(reason,new_reason)																									    \
-	char new_reason[strlen(reason)+20];																											\
-	snprintf(new_reason,strlen(reason)+20,"%s%sline:%d",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__);
+#define _NP_REF_REASON(reason, reason_desc, new_reason)																							\
+	char new_reason[strlen(reason)+255];	/*255 chars for additional desc data*/																\
+	snprintf(new_reason,strlen(reason)+255,"%s%sline:%d_%s",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__, reason_desc == NULL ? "" : reason_desc);
 #else
-#define _NP_REF_REASON(reason,new_reason)																										\
-	char new_reason[0];																											
+#define _NP_REF_REASON(reason, reason_desc, new_reason)																							\
+	char new_reason[0];																										
 #endif
 
 
@@ -146,7 +146,7 @@ struct np_obj_s
 				abort();																														\
 			}																																	\
 			else {																																\
-				_NP_REF_REASON(new_reason, reason2)																								\
+				_NP_REF_REASON(new_reason,"", reason2)																							\
 				sll_prepend(char_ptr, obj->reasons, strndup(reason2,strlen(reason2)));															\
 			}																																	\
 		}																																		\
@@ -157,7 +157,8 @@ struct np_obj_s
 // convenience function like wrappers
 #define np_ref_obj(...) VFUNC(np_ref_obj, __VA_ARGS__)
 #define np_ref_obj2(TYPE, np_obj) np_ref_obj3(TYPE, np_obj, __func__)
-#define np_ref_obj3(TYPE, np_obj, reason)              																													\
+#define np_ref_obj3(TYPE, np_obj, reason) np_ref_obj4(TYPE, np_obj, reason,"")
+#define np_ref_obj4(TYPE, np_obj, reason, reason_desc)              																													\
 {                                             																															\
   _LOCK_MODULE(np_memory_t) {                 																															\
 	assert (((TYPE*)np_obj) != NULL);      		      																													\
@@ -165,14 +166,15 @@ struct np_obj_s
 	if (((TYPE*)np_obj)->obj->type != TYPE##_e) log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",((TYPE*)np_obj)->obj->type, TYPE##_e);									\
 	assert (((TYPE*)np_obj)->obj->type == TYPE##_e);   																													\
 	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count,#TYPE, ((TYPE*)np_obj)->obj->id); 					\
-	_NP_REF_REASON(reason, reason2)																																		\
+	_NP_REF_REASON(reason, reason_desc, reason2)																																		\
 	np_mem_refobj(((TYPE*)np_obj)->obj,reason2);             																											\
   }																																										\
 }
 
 #define np_tryref_obj(...) VFUNC(np_tryref_obj, __VA_ARGS__)
 #define np_tryref_obj3(TYPE, np_obj, ret) np_tryref_obj4(TYPE, np_obj, ret,__func__)
-#define np_tryref_obj4(TYPE, np_obj, ret, reason)      																													\
+#define np_tryref_obj4(TYPE, np_obj, ret, reason) np_tryref_obj5(TYPE, np_obj, ret, reason,"")
+#define np_tryref_obj5(TYPE, np_obj, ret, reason, reason_desc)      																													\
 	np_bool ret = FALSE;																																				\
 	_LOCK_MODULE(np_memory_t) {                 																														\
 		if(np_obj != NULL) {      		      																															\
@@ -182,7 +184,7 @@ struct np_obj_s
 					assert (((TYPE*)np_obj)->obj->type == TYPE##_e);   																									\
 				} else {																																				\
 					log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count, #TYPE, ((TYPE*)np_obj)->obj->id); 	\
-					_NP_REF_REASON(reason, reason2)																																		\
+					_NP_REF_REASON(reason, reason_desc, reason2)																																		\
 					np_mem_refobj(((TYPE*)np_obj)->obj,reason2);             																							\
 					ret = TRUE;																																			\
 				}																																						\
@@ -192,7 +194,8 @@ struct np_obj_s
 
 #define np_waitref_obj(...) VFUNC(np_waitref_obj, __VA_ARGS__)
 #define np_waitref_obj3(TYPE, np_obj, saveTo) np_waitref_obj4(TYPE, np_obj, saveTo, __func__)
-#define np_waitref_obj4(TYPE, np_obj, saveTo, reason)    																							\
+#define np_waitref_obj4(TYPE, np_obj, saveTo, reason) np_waitref_obj5(TYPE, np_obj, saveTo, reason,"")
+#define np_waitref_obj5(TYPE, np_obj, saveTo, reason, reason_desc)    																				\
 TYPE* saveTo = NULL;																																\
 {																																				    \
 	TYPE* org = (TYPE* )np_obj ;																												    \
@@ -206,7 +209,7 @@ TYPE* saveTo = NULL;																																\
 						assert (org->obj->type == TYPE##_e);   																					    \
 					} else {																														\
 						log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",org->obj->ref_count,#TYPE, org->obj->id); 	\
-						_NP_REF_REASON(reason, reason2)																								\
+						_NP_REF_REASON(reason, reason_desc, reason2)																				\
 						np_mem_refobj(org->obj, reason2);             																				\
 						ret = TRUE;																													\
 						saveTo = org;						   																					    \
@@ -218,94 +221,95 @@ TYPE* saveTo = NULL;																																\
 	}																																				\
 }
 
-#define CHECK_MALLOC(obj)		              			\
-{                                             			\
-	if(NULL == obj ) {									\
-		log_msg(LOG_ERROR,"could not allocate memory");	\
-	}													\
-	assert(NULL != obj);                               	\
-}														\
+#define CHECK_MALLOC(obj)		              																										\
+{                                             																										\
+	if(NULL == obj ) {																																\
+		log_msg(LOG_ERROR,"could not allocate memory");																								\
+	}																																				\
+	assert(NULL != obj);                               																								\
+}																																					\
 
-#define np_unref_obj(TYPE, np_obj, reason)                																					\
-{																																			\
-	np_bool delete_obj = FALSE;																												\
-	np_dealloc_t del_callback;																												\
-	_LOCK_MODULE(np_memory_t) 																												\
-	{                   																													\
-	  if(NULL != np_obj && np_obj->obj != NULL) 																							\
-	  {                   	  																												\
-		if(np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"ref obj is wrong type %d != %d",np_obj->obj->type, TYPE##_e);					\
-		assert (np_obj->obj->type == TYPE##_e);     																						\
-		if(!np_obj->obj->persistent && np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");								\
-		assert (np_obj->obj->persistent  || np_obj->obj->ptr != NULL);          															\
-		log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Unref_ (%d) object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 	\
-		np_mem_unrefobj(np_obj->obj, reason);               																				\
-		if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) 			\
-		{ 																																	\
-		  if (np_obj->obj->type != np_none_t_e)     																						\
-		  { 																																\
-			log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Deleting object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 							\
-			delete_obj = TRUE;                     																							\
-			del_callback = np_obj->obj->del_callback;																						\
-			np_mem_freeobj(TYPE##_e, &np_obj->obj); 																						\
-			np_obj->obj->ptr = NULL;                																						\
-			np_obj->obj = NULL;                     																						\
-		 }	 																																\
-	   }                                           																							\
-	 }                                             																							\
-	} 																																		\
-	if (delete_obj == TRUE)																													\
-	{																																		\
-		if (del_callback != NULL)   																										\
-			del_callback(np_obj);    																										\
-		free(np_obj);                           																							\
-		np_obj = NULL;                          																							\
-	}																																		\
+#define np_unref_obj(TYPE, np_obj, reason)                																							\
+{																																					\
+	np_bool delete_obj = FALSE;																														\
+	np_dealloc_t del_callback;																														\
+	_LOCK_MODULE(np_memory_t) 																														\
+	{                   																															\
+	  if(NULL != np_obj && np_obj->obj != NULL) 																									\
+	  {                   	  																														\
+		if(np_obj->obj->type != TYPE##_e) log_msg(LOG_ERROR,"ref obj is wrong type %d != %d",np_obj->obj->type, TYPE##_e);							\
+		assert (np_obj->obj->type == TYPE##_e);     																								\
+		if(!np_obj->obj->persistent && np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");										\
+		assert (np_obj->obj->persistent  || np_obj->obj->ptr != NULL);          																	\
+		log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Unref_ (%d) object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 			\
+		np_mem_unrefobj(np_obj->obj, reason);               																						\
+		if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) 					\
+		{ 																																			\
+		  if (np_obj->obj->type != np_none_t_e)     																								\
+		  { 																																		\
+			log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Deleting object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 									\
+			delete_obj = TRUE;                     																									\
+			del_callback = np_obj->obj->del_callback;																								\
+			np_mem_freeobj(TYPE##_e, &np_obj->obj); 																								\
+			np_obj->obj->ptr = NULL;                																								\
+			np_obj->obj = NULL;                     																								\
+		 }	 																																		\
+	   }                                           																									\
+	 }                                             																									\
+	} 																																				\
+	if (delete_obj == TRUE)																															\
+	{																																				\
+		if (del_callback != NULL)   																												\
+			del_callback(np_obj);    																												\
+		free(np_obj);                           																									\
+		np_obj = NULL;                          																									\
+	}																																				\
 }
 
 #define np_ref_switch(...) VFUNC(np_ref_switch, __VA_ARGS__)
 #define np_ref_switch4(TYPE, old_obj, old_reason, new_obj) np_ref_switch5(TYPE, old_obj, old_reason, new_obj, old_reason)
-#define np_ref_switch5(TYPE, old_obj, old_reason, new_obj, new_reason)	\
-{																		\
-	TYPE* tmp_obj = (TYPE*)old_obj;										\
-	np_ref_obj3(TYPE, new_obj, new_reason);								\
-	old_obj = (TYPE*)new_obj;											\
-	np_unref_obj(TYPE, tmp_obj, old_reason);							\
+#define np_ref_switch5(TYPE, old_obj, old_reason, new_obj, new_reason)																				\
+{																																					\
+	TYPE* tmp_obj = (TYPE*)old_obj;																													\
+	np_ref_obj3(TYPE, new_obj, new_reason);																											\
+	old_obj = (TYPE*)new_obj;																														\
+	np_unref_obj(TYPE, tmp_obj, old_reason);																										\
 }
 
 #ifndef MEMORY_CHECK
 #define ref_replace_reason_sll(TYPE, sll_list, old_reason, new_reason)
 #else
-#define ref_replace_reason_sll(TYPE, sll_list, old_reason, new_reason)					\
-{																						\
-	_LOCK_MODULE(np_memory_t) {															\
-		sll_iterator(TYPE) iter##__LINE__ = sll_first(sll_list);						\
-		while (NULL != iter##__LINE__ )													\
-		{																				\
-			ref_replace_reason(TYPE, (iter##__LINE__)->val, old_reason, new_reason);	\
-			sll_next(iter##__LINE__ );													\
-		}																				\
-	}																					\
+#define ref_replace_reason_sll(TYPE, sll_list, old_reason, new_reason)																				\
+{																																					\
+	_LOCK_MODULE(np_memory_t) {																														\
+		sll_iterator(TYPE) iter##__LINE__ = sll_first(sll_list);																					\
+		while (NULL != iter##__LINE__ )																												\
+		{																																			\
+			ref_replace_reason(TYPE, (iter##__LINE__)->val, old_reason, new_reason);																\
+			sll_next(iter##__LINE__ );																												\
+		}																																			\
+	}																																				\
 }
 #endif
 
 #define np_new_obj(...) VFUNC(np_new_obj, __VA_ARGS__)
 #define np_new_obj2(TYPE, np_obj) np_new_obj3(TYPE, np_obj, "ref_obj_creation")
-#define np_new_obj3(TYPE, np_obj, reason)                													\
-{                                               															\
-  _LOCK_MODULE(np_memory_t) {                   															\
-	np_obj = (TYPE*) calloc(1,sizeof(TYPE));											      				\
-	CHECK_MALLOC(np_obj);																					\
-	np_mem_newobj(TYPE##_e, &np_obj->obj);      															\
-	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"Creating_ object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 	\
-	np_obj->obj->new_callback = _##TYPE##_new;  															\
-	np_obj->obj->del_callback = _##TYPE##_del;  															\
-	np_obj->obj->new_callback(np_obj);          															\
-	np_obj->obj->ptr = np_obj;																				\
-	np_obj->obj->persistent = FALSE;			            												\
-	_NP_REF_REASON(reason, reason2)																			\
-	np_mem_refobj(np_obj->obj, reason2);             														\
-  }                                             															\
+#define np_new_obj3(TYPE, np_obj, reason) np_new_obj4(TYPE, np_obj, reason,"")
+#define np_new_obj4(TYPE, np_obj, reason, reason_desc)                																				\
+{                                               																									\
+  _LOCK_MODULE(np_memory_t) {                   																									\
+	np_obj = (TYPE*) calloc(1,sizeof(TYPE));											      														\
+	CHECK_MALLOC(np_obj);																															\
+	np_mem_newobj(TYPE##_e, &np_obj->obj);      																									\
+	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"Creating_ object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 											\
+	np_obj->obj->new_callback = _##TYPE##_new;  																									\
+	np_obj->obj->del_callback = _##TYPE##_del;  																									\
+	np_obj->obj->new_callback(np_obj);          																									\
+	np_obj->obj->ptr = np_obj;																														\
+	np_obj->obj->persistent = FALSE;			            																						\
+	_NP_REF_REASON(reason, reason_desc, reason2)																									\
+	np_mem_refobj(np_obj->obj, reason2);             																								\
+  }                                             																									\
 }
 
 

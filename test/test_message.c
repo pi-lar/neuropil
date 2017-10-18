@@ -70,7 +70,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
     _np_message_create(write_msg, write_to, write_from, "serialize_np_message_t", write_tree);
 	np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
-    np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL);
+    np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL,"tst");
     cr_assert(NULL != write_args,"Expected to receive jobargs");
 
     // Do the serialsation
@@ -152,7 +152,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
     _np_message_create(write_msg, write_to, write_from, "serialize_np_message_t", write_tree);
 	np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
-    np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL);
+    np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL,"tst");
     cr_assert(NULL != write_args,"Expected to receive jobargs");
 
     // Do the serialsation

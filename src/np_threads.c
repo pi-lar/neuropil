@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <float.h>
 
 #include "np_threads.h"
 
@@ -24,6 +25,12 @@
 #include "np_log.h"
 #include "np_settings.h"
 #include "np_constants.h"
+
+
+#include "np_jobqueue.h"
+#include "np_glia.h"
+#include "np_event.h"
+
 
 /** predefined module mutex array **/
 np_mutex_t __mutexes[PREDEFINED_DUMMY_START-1];
@@ -84,10 +91,10 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 		}
 	}
 #endif
-
+	double diff = 0;
 	while(ret != 0){
 #ifdef DEBUG
-		double diff = np_time_now() - start;
+		diff = np_time_now() - start;
 			if(diff >MUTEX_WAIT_MAX_SEC) {
 				log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id, diff);
 #ifdef CHECK_THREADING			
@@ -99,10 +106,10 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 				log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for module mutex %d (%f sec)", module_id, diff);
 			}
 #endif
-		__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait);
+		__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait, diff);
 		ret = pthread_mutex_timedlock(&__mutexes[module_id].lock, __np_default_wait);
-		if(ret == EBUSY){			
-			ev_sleep(MUTEX_WAIT_SEC);
+		if(ret == ETIMEDOUT) {			
+			//continue;
 		}else if(ret != 0) {
 			log_msg(LOG_ERROR,"error at acquiring mutex for module %d. Error: %s (%d)", module_id, strerror(ret), ret);
 		}
@@ -155,18 +162,22 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 
 #endif
 	double start = np_time_now();
-	double diff;
+	double diff = 0;
 	while(ret != 0) {
-		__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait);
+		__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait, diff);
 		ret = pthread_mutex_timedlock(lock_a, __np_default_wait);
-
-		if (ret == 0) {
-			__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait2);
-			ret = pthread_mutex_timedlock(lock_b, __np_default_wait2);
-
-			if(ret != 0) {				
 #ifdef DEBUG
-				diff = np_time_now() - start;
+		diff = np_time_now() - start;
+#endif
+		if (ret == 0) {
+			__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait2, diff);
+			ret = pthread_mutex_timedlock(lock_b, __np_default_wait2);			
+#ifdef DEBUG
+			diff = np_time_now() - start;
+#endif
+
+			if(ret != 0) {
+#ifdef DEBUG
 				if (diff >MUTEX_WAIT_MAX_SEC) {
 					log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id_b, diff);
 #ifdef CHECK_THREADING			
@@ -180,13 +191,10 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 #endif
 
 				ret = pthread_mutex_unlock(lock_a);
-
-				ev_sleep(MUTEX_WAIT_SEC);
 				ret = ret -100;
 			}
 		}else{
 #ifdef DEBUG
-			diff = np_time_now() - start;
 			if (diff >MUTEX_WAIT_MAX_SEC) {
 				log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id_a, diff);
 #ifdef CHECK_THREADING			
@@ -198,8 +206,6 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 				log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for module mutex %d (%f sec)", module_id_a, diff);
 			}
 #endif
-
-			ev_sleep(MUTEX_WAIT_SEC);
 		}
 	}
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG, "got module mutexes %d and %d.", module_id_a,module_id_b);
@@ -303,11 +309,13 @@ int _np_threads_mutex_lock(np_mutex_t* mutex) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
 	int ret =  1;
 	double start = np_time_now();
+	double diff = 0;
 	while(ret != 0) {
-		__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait);		
+		__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait, diff);
 		ret = pthread_mutex_timedlock(&mutex->lock, __np_default_wait);
+		
 #ifdef DEBUG
-		double diff = np_time_now() - start;
+		diff = np_time_now() - start;
 		if (diff > MUTEX_WAIT_MAX_SEC) {
 			log_msg(LOG_ERROR, "Thread %d waits too long for mutex %p (%f sec)", _np_threads_get_self()->id, mutex, diff);
 			abort();
@@ -318,10 +326,9 @@ int _np_threads_mutex_lock(np_mutex_t* mutex) {
 #endif
 
 
-		if(ret == EBUSY){
-			ev_sleep(MUTEX_WAIT_SEC);
-		}else if(ret != 0) {
+		if(ret != ETIMEDOUT && ret != 0) {
 			log_msg(LOG_ERROR, "error at acquiring mutex. Error: %s (%d)", strerror(ret), ret);
+			abort();
 		}
 	}
 	return ret;
@@ -456,6 +463,9 @@ void _np_thread_t_new(void* obj)
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
 	np_thread_t* thread = (np_thread_t*)obj;
 
+	thread->max_job_priority = DBL_MAX;
+	thread->min_job_priority = 0;
+
 #ifdef CHECK_THREADING
 	_np_threads_mutex_init(&thread->locklists_lock);
 	sll_init(char_ptr, thread->has_lock);
@@ -503,4 +513,123 @@ char* np_threads_printpool(np_bool asOneLine) {
 	ret = _np_concatAndFree(ret, "--- Threadpool END   ---%s", new_line);
 
 	return ret;
+}
+
+
+np_thread_t * __np_createThread(uint8_t number, void *(fn)(void *)) {
+	pthread_create(&_np_state()->thread_ids[number], &_np_state()->attr, fn, (void *)_np_state());
+	np_thread_t * new_thread;
+	np_new_obj(np_thread_t, new_thread);
+	new_thread->id = (unsigned long)_np_state()->thread_ids[number];
+
+	return new_thread;
+}
+
+void __np_createThreadPool(uint8_t pool_size) {
+	/* create the thread pool */
+	for (uint8_t i = 0; i < pool_size; i++)
+	{
+		np_thread_t* new_thread = __np_createThread(i, __np_jobqueue_run);
+
+		if (pool_size >= PRIORITY_MOD_LOWEST) {
+			new_thread->max_job_priority = max(i, PRIORITY_MOD_HIGHEST) * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
+			new_thread->min_job_priority = min(i, PRIORITY_MOD_MEDIUM)  * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
+		}
+		else if (pool_size > 3 && i < 3) {
+			new_thread->max_job_priority = PRIORITY_MOD_LEVEL_5  * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
+			new_thread->min_job_priority = 0;
+		}
+		else if (pool_size > 3 && i >= 3) {
+			new_thread->max_job_priority = PRIORITY_MOD_HIGHEST * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
+			new_thread->min_job_priority = PRIORITY_MOD_LEVEL_6  * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
+		}
+		else {
+			new_thread->max_job_priority = DBL_MAX;
+			new_thread->min_job_priority = 0;
+		}
+
+		sll_append(np_thread_ptr, _np_state()->threads, new_thread);
+
+		log_debug_msg(LOG_DEBUG, "neuropil worker thread started: %p", _np_state()->thread_ids[i]);
+	}
+}
+
+void np_start_job_queue(uint8_t pool_size)
+{
+	log_msg(LOG_TRACE, "start: void np_start_job_queue(uint8_t pool_size){");
+	if (pthread_attr_init(&_np_state()->attr) != 0)
+	{
+		log_msg(LOG_ERROR, "pthread_attr_init: %s", strerror(errno));
+		return;
+	}
+
+	if (pthread_attr_setscope(&_np_state()->attr, PTHREAD_SCOPE_SYSTEM) != 0)
+	{
+		log_msg(LOG_ERROR, "pthread_attr_setscope: %s", strerror(errno));
+		return;
+	}
+
+	if (pthread_attr_setdetachstate(&_np_state()->attr, PTHREAD_CREATE_DETACHED) != 0)
+	{
+		log_msg(LOG_ERROR, "pthread_attr_setdetachstate: %s", strerror(errno));
+		return;
+	}
+
+	_np_state()->thread_count = pool_size;
+	_np_state()->thread_ids = (pthread_t *)malloc(sizeof(pthread_t) * pool_size);
+
+	CHECK_MALLOC(_np_state()->thread_ids);
+
+	np_bool create_own_event_thread = FALSE;
+	if (pool_size >= 2) {
+		pool_size--;
+		create_own_event_thread = TRUE;
+	}
+
+	__np_createThreadPool(pool_size);
+
+	//start jobs
+
+	if (create_own_event_thread) {
+		__np_createThread(pool_size, _np_event_run);
+	}
+	else {
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC,				_np_events_read, "_np_events_read");
+	}
+
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_SEND_PINGS_SEC,					_np_glia_send_pings, "_np_glia_send_pings");
+
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC,	_np_event_cleanup_msgpart_cache, "_np_event_cleanup_msgpart_cache");
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_SEND_PIGGY_REQUESTS_SEC,			_np_glia_send_piggy_requests, "_np_glia_send_piggy_requests");
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_RETRANSMIT_MSG_TOKENS_SEC,			_np_retransmit_message_tokens_jobexec, "_np_retransmit_message_tokens_jobexec");
+
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_ACKENTRY_CLEANUP_INTERVAL_SEC,		_np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC,		_np_cleanup_keycache_jobexec, "_np_cleanup_keycache_jobexec");
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_CHECK_ROUTES_SEC,					_np_glia_check_neighbours, "_np_glia_check_neighbours");
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_SEND_UPDATE_MSGS_SEC,				_np_glia_check_routes, "_np_glia_check_routes");
+
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_RENEW_NODE_SEC,					_np_renew_node_token_jobexec, "_np_renew_node_token_jobexec");
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC,		_np_event_rejoin_if_necessary, "_np_event_rejoin_if_necessary");
+
+
+	// TODO: move output to example helpers
+	log_debug_msg(LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
+	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
+	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
+
+	fprintf(stdout, "\n");
+	fprintf(stdout, "%s initializiation successful\n", NEUROPIL_RELEASE);
+	fprintf(stdout, "%s event loop with %d worker threads started\n", NEUROPIL_RELEASE, pool_size);
+	fprintf(stdout, "your neuropil node will be addressable as:\n");
+	fprintf(stdout, "\n");
+
+	char* connection_str = np_get_connection_string();
+	fprintf(stdout, "\t%s\n", connection_str);
+	free(connection_str);
+
+	fprintf(stdout, "\n");
+	fprintf(stdout, "%s\n", NEUROPIL_COPYRIGHT);
+	fprintf(stdout, "%s\n", NEUROPIL_TRADEMARK);
+	fprintf(stdout, "\n");
+	fflush(stdout);
 }

@@ -87,7 +87,7 @@ void np_sysinfo_enable_slave() {
 	// the slave does not need the cache
 	//_np_sysinfo_init_cache();
 	np_msgproperty_t* sysinfo_request_props = np_msgproperty_get(INBOUND, _NP_SYSINFO_REQUEST);
-	if(sysinfo_request_props == NULL){
+	if(sysinfo_request_props == NULL) {
 		np_new_obj(np_msgproperty_t, sysinfo_request_props);
 	}
 	sysinfo_request_props->msg_subject = strndup(_NP_SYSINFO_REQUEST, 255);
@@ -122,7 +122,7 @@ void np_sysinfo_enable_slave() {
 
 	np_add_receive_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
 
-	np_job_submit_event_periodic(0, SYSINFO_PROACTIVE_SEND_IN_SEC, slave_send_cb,"sysinfo_slave_send_cb");
+	np_job_submit_event_periodic(PRIORITY_MOD_USER_DEFAULT, 0, SYSINFO_PROACTIVE_SEND_IN_SEC, slave_send_cb,"sysinfo_slave_send_cb");
 	
 }
 
@@ -447,7 +447,7 @@ void _np_request_others() {
 			{
 				_np_request_sysinfo(_np_key_as_str(current));
 			}
-			np_unref_obj(np_key_t, current,"_np_route_neighbors");
+			np_unref_obj(np_key_t, current,"_np_route_get_table");
 		}
 	}
 
@@ -462,7 +462,7 @@ void _np_request_others() {
 			{
 						_np_request_sysinfo(_np_key_as_str(current));
 			}
-			np_unref_obj(np_key_t, current,"_np_route_get_table");
+			np_unref_obj(np_key_t, current,"_np_route_neighbors");
 		}
 	}
 

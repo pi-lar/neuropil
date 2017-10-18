@@ -234,7 +234,7 @@ sll_return(np_key_ptr) _np_route_get_table ()
 			}
 		}
 
-		np_ref_list(sll_of_keys, __func__);
+		np_ref_list(sll_of_keys, __func__,NULL);
 	}
 	return (sll_of_keys);
 }
@@ -268,7 +268,7 @@ sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key)
 
 		sll_append(np_key_ptr, sll_of_keys, __routing_table->my_key);
 
-		np_ref_list(sll_of_keys, __func__);
+		np_ref_list(sll_of_keys, __func__, NULL);
 	}
 
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_row_lookup");
@@ -554,7 +554,7 @@ sll_return(np_key_ptr) _np_route_neighbors ()
 		_np_route_append_leafset_to_sll(__routing_table->left_leafset, node_keys);
 		_np_route_append_leafset_to_sll(__routing_table->right_leafset, node_keys);	
 
-		np_ref_list(node_keys, __func__);
+		np_ref_list(node_keys, __func__, NULL);
 	}
 	/* sort aux */
 	_np_keycache_sort_keys_kd(node_keys, &__routing_table->my_key->dhkey);
@@ -604,14 +604,11 @@ void _np_route_leafset_clear ()
 		np_key_t* added = NULL;
 
 		while(iter != NULL) {
-			// np_tryref_obj(np_key_t, iter->val, itemExists,"usage");
-			// if(itemExists){
 			_np_route_leafset_update(iter->val,FALSE,&deleted,&added);
 			assert (deleted == iter->val);
-			np_unref_obj(np_key_t, iter->val, "usage");
-			// }
 			sll_next(iter);
 		}
+		np_unref_list(neighbour_list, "_np_route_neighbors");
 		sll_free(np_key_ptr, neighbour_list);
 
 		if(__routing_table->left_leafset->size != 0){
@@ -804,33 +801,33 @@ char* np_route_get_bootstrap_connection_string() {
 
 void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {
 	log_msg(LOG_TRACE | LOG_ROUTING, "void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {");
-
-	if(NULL == __routing_table->bootstrap_key) {
-		_np_event_rejoin_if_necessary(NULL); // start intervall check
-	}
-
-	free(__routing_table->bootstrap_key);
+		
+	char* old = __routing_table->bootstrap_key;	
 	__routing_table->bootstrap_key = np_get_connection_string_from(bootstrap_key,FALSE);
+	free(old);
 }
 
 void _np_route_rejoin_bootstrap(np_bool force) {
 
+	if (__routing_table->bootstrap_key != NULL) {
+
 	np_bool rejoin = force
 			|| _np_route_my_key_has_connection() == FALSE;
+	
+		log_msg(LOG_DEBUG, "Check for rejoin result: %s%s necessary", (rejoin == TRUE ? "" : "not"), (force == TRUE ? "(f)" : ""));
 
-	log_msg(LOG_DEBUG, "Check for rejoin result: %s%s necessary", (rejoin == TRUE ? "" : "not"), (force == TRUE ? "(f)" : ""));
-
-	if(TRUE == rejoin
-			// check for state availibility to prevent test issues. TODO: Make network objects mockable
-			&& _np_state() != NULL) {
-		char* bootstrap = np_route_get_bootstrap_connection_string();
-		if(NULL != bootstrap)
-		{
-			if(force == FALSE)
+		if(TRUE == rejoin
+				// check for state availibility to prevent test issues. TODO: Make network objects mockable
+				&& _np_state() != NULL) {
+			char* bootstrap = np_route_get_bootstrap_connection_string();
+			if(NULL != bootstrap)
 			{
-				log_msg(LOG_WARN, "lost all connections. try to reconnect to bootstrap host");
+				if(force == FALSE)
+				{
+					log_msg(LOG_WARN, "lost all connections. try to reconnect to bootstrap host");
+				}
+				np_send_wildcard_join(bootstrap);
 			}
-			np_send_wildcard_join(bootstrap);
 		}
 	}
 }

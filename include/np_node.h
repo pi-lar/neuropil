@@ -25,6 +25,7 @@ struct np_node_s
 	// link to memory management
 	np_obj_t* obj;
 	np_mutex_t lock;
+	np_mutex_t latency_lock;
 
 	uint8_t protocol;
 	char *dns_name;

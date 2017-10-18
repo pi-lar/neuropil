@@ -16,6 +16,7 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -294,111 +295,116 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 		np_tryref_obj(np_key_t, node_key, hasKey, "np_tryref_obj_key");
 		if (hasKey) {
 			np_tryref_obj(np_node_t, node_key->node, hasNode, "np_tryref_obj_node");
-			if (hasNode) {
+			if (hasNode) {				
 				np_tryref_obj(np_network_t, node_key->network, hasNetwork, "np_tryref_obj_network");
-				if (hasNetwork) {
+				// Send handshake info if neseccary
+				if (_np_network_send_handshake(node_key) == FALSE && 
+					node_key->node->is_handshake_received == TRUE && 
+					hasNetwork) 
+				{
 					// get encryption details
 					np_aaatoken_t* auth_token = node_key->aaa_token;
 
-					// if (NULL == auth_token ||
-					//  	IS_INVALID(auth_token->state))
-					// {
-					if (_np_network_send_handshake(node_key) == TRUE || node_key->node->is_handshake_received == FALSE) {
-						np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
-						return;
-					}
-					if (auth_token == NULL ) {
-						log_msg(LOG_ERROR, "auth token not set, but handshake is done (key: %s)", _np_key_as_str(node_key));
-						np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
-						return;
-					}
-					if (node_key->node->session_key_is_set == FALSE) {
-						log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
+					np_tryref_obj(np_aaatoken_t, auth_token, hasToken, "np_tryref_obj_token");
+					if (hasToken) {
 
-						np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
-						return;
-					}
-					uint16_t i = 0;
+						if (node_key->node->session_key_is_set == FALSE) {
+							log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
+						}
+						else {
+							uint16_t i = 0;
 
-					log_debug_msg(LOG_DEBUG, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
+							log_debug_msg(LOG_DEBUG, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
 
 
-					_LOCK_ACCESS(&msg->msg_chunks_lock) {
-						pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
-						do
-						{
-							np_tryref_obj(np_messagepart_t, iter->val, hasMsgPart, "np_tryref_obj_iter->val");
-							if(hasMsgPart) {
-								unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
-								CHECK_MALLOC(enc_buffer);
-
-								// add protection from replay attacks ...
-								unsigned char nonce[crypto_secretbox_NONCEBYTES];
-								// TODO: move nonce to np_node_t and re-use it with increments
-								// FIXME: doesnt sizeof(nonce) == sizeof(unsigned char)? if so the array will not be filled, only the first char
-								randombytes_buf(nonce, sizeof(nonce));
-
-								unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
-								int ecryption = crypto_secretbox_easy(enc_msg,
-										(const unsigned char*) iter->val->msg_part,
-										MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
-										nonce,
-										node_key->node->session_key);
-
-								if (ecryption != 0)
+							_LOCK_ACCESS(&msg->msg_chunks_lock) {
+								pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
+								do
 								{
-									log_msg(LOG_NETWORK | LOG_WARN,
-											"incorrect encryption of message (not sending to %s:%s)",
-											node_key->node->dns_name, node_key->node->port);
-									free(enc_buffer);
-									np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
-									np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
-									return; //  FALSE;
-								}
+									np_tryref_obj(np_messagepart_t, iter->val, hasMsgPart, "np_tryref_obj_iter->val");
+									if (hasMsgPart) {
+										unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
+										CHECK_MALLOC(enc_buffer);
 
-								uint64_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
-								memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
-								memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
+										// add protection from replay attacks ...
+										unsigned char nonce[crypto_secretbox_NONCEBYTES];
+										// TODO: move nonce to np_node_t and re-use it with increments
+										// FIXME: doesnt sizeof(nonce) == sizeof(unsigned char)? if so the array will not be filled, only the first char
+										randombytes_buf(nonce, sizeof(nonce));
 
-								/* send data */
-								// _LOCK_ACCESS(_np_state()->my_node_key->network) {
-								_LOCK_ACCESS(&node_key->network->lock) {
-									if(NULL != node_key->network->out_events) {
-										// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
-										// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
-										// ret = send (node_key->node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
-										sll_append(void_ptr, node_key->network->out_events, (void*) enc_buffer);
-									} else {
-										free (enc_buffer);
+										unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
+										int ecryption = crypto_secretbox_easy(enc_msg,
+											(const unsigned char*)iter->val->msg_part,
+											MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
+											nonce,
+											node_key->node->session_key);
+
+										if (ecryption != 0)
+										{
+											log_msg(LOG_NETWORK | LOG_WARN,
+												"incorrect encryption of message (not sending to %s:%s)",
+												node_key->node->dns_name, node_key->node->port);
+											free(enc_buffer);
+											np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
+											np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
+											return; //  FALSE;
+										}
+
+										uint64_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
+										memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
+										memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
+
+										/* send data */
+										// _LOCK_ACCESS(_np_state()->my_node_key->network) {
+										_LOCK_ACCESS(&node_key->network->lock) {
+											if (NULL != node_key->network->out_events) {
+												// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
+												// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
+												// ret = send (node_key->node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
+												sll_append(void_ptr, node_key->network->out_events, (void*)enc_buffer);
+											}
+											else {
+												free(enc_buffer);
+											}
+										}
+
+										// if (ret < 0)
+										// {
+										// log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
+										// return FALSE;
+										// }
+										// else
+										// {
+										// log_msg (LOG_NETWORKDEBUG, "sent message");
+										// }
+
+										np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
+										pll_next(iter);
 									}
-								}
+									i++;
 
-								// if (ret < 0)
-								// {
-								// log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
-								// return FALSE;
-								// }
-								// else
-								// {
-								// log_msg (LOG_NETWORKDEBUG, "sent message");
-								// }
+								} while (NULL != iter);
+							} // _LOCK_ACCESS(&msg->msg_chunks_lock)
 
-								np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
-								pll_next(iter);
-							}
-							i++;
-
-						} while (NULL != iter);
+						}
+						np_unref_obj(np_aaatoken_t, auth_token, "np_tryref_obj_token");
 					}
+					else { log_msg(LOG_ERROR, "auth token not set, but handshake is done (key: %s)", _np_key_as_str(node_key)); }
+					
 					np_unref_obj(np_network_t, node_key->network, "np_tryref_obj_network");
 				}
+
 				np_unref_obj(np_node_t, node_key->node, "np_tryref_obj_node");
-			}
+			}else { log_msg(LOG_NETWORK | LOG_WARN, "Cannot send msg. No node obj"); }
+
 			np_unref_obj(np_key_t, node_key, "np_tryref_obj_key");
-		}
+		}else { log_msg(LOG_NETWORK | LOG_WARN, "Cannot send msg. No key obj"); }
+
 		np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
 	}
-	return; // TRUE;
+	else { log_msg(LOG_NETWORK | LOG_WARN, "Cannot send msg. No msg obj"); }
+
+	return;
 }
 
 void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents)
@@ -735,7 +741,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 
 			if (in_msg_len != MSG_CHUNK_SIZE_1024 && in_msg_len != (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40 ))
 			{
-				log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%hd)", in_msg_len);
+				log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%"PRIi16")", in_msg_len);
 				// job_submit_event(state->jobq, 0.0, _np_network_read);
 				log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 				free(data);

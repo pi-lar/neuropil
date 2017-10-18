@@ -172,7 +172,7 @@ void _np_in_received(np_jobargs_t* args)
 				np_bool is_ack_msg = 0 == strncmp(msg_subject.value.s, _NP_MSG_ACK, strlen(_NP_MSG_ACK));
 				if (is_ack_msg) {
 					__np_in_ack_handle(msg_in);
-				}else {
+				} else {
 
 					/* real receive part */
 					CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_to);
@@ -228,7 +228,7 @@ void _np_in_received(np_jobargs_t* args)
 
 							if (NULL != tmp &&
 								sll_size(tmp) > 0 &&
-								(!_np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
+								(FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
 							{
 								log_msg(LOG_INFO,
 									"forwarding message for subject: %s / uuid: %s", msg_subject.value.s, msg_in->uuid);
@@ -335,16 +335,9 @@ void _np_in_piggy(np_jobargs_t* args)
 			np_tree_t* jrb_me = np_tree_create();
 			np_aaatoken_encode(jrb_me, state->my_node_key->aaa_token);
 
-			np_message_t* msg_out = NULL;
-			np_new_obj(np_message_t, msg_out);
-			_np_message_create(msg_out, node_entry, my_key, _NP_MSG_JOIN_REQUEST, jrb_me);
-
 			log_debug_msg(LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(node_entry));
+			_np_send_simple_invoke_request(node_entry, _NP_MSG_JOIN_REQUEST);
 
-			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_REQUEST);
-			_np_job_submit_msgout_event(0.0, prop, node_entry, msg_out);
-
-			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 		}
 		else {
 			log_debug_msg(LOG_DEBUG, "node %s is not qualified for a piggy join. (%s)", _np_key_as_str(node_entry), node_entry->node->joined_network ? "J":"NJ");

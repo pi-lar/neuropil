@@ -64,12 +64,12 @@ char* _np_key_as_str(np_key_t* key)
 	return key->dhkey_str;
 }
 
-void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason)
+void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc)
 {
 	sll_iterator(np_key_ptr) iter = sll_first(sll_list);
 	while (NULL != iter)
 	{
-		np_ref_obj(np_key_t, (iter->val), reason);
+		np_ref_obj(np_key_t, (iter->val), reason, reason_desc);
 		sll_next(iter);
 	}
 }

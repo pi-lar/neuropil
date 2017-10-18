@@ -35,22 +35,57 @@ extern "C" {
 	#define ref_ack_msg						"ref_ack_msg"
 	#define ref_ack_key						"ref_ack_key"
 	
-	#define NP_AAATOKEN_MAX_SIZE_EXTENSIONS (1024)
 
-#ifndef MUTEX_WAIT_SEC
-#define MUTEX_WAIT_SEC  ((const ev_tstamp )0.5)
+#define NP_AAATOKEN_MAX_SIZE_EXTENSIONS (1024)
+
+
+	/*
+	PRIORITY:
+	0 defines the first job to execute
+	...
+	99... defines the last job to execute
+	*/
+#ifndef PRIORITY_MOD_HIGHEST
+#define PRIORITY_MOD_HIGHEST (0.0)
 #endif
-#ifndef MUTEX_WAIT_SOFT_SEC
-#define MUTEX_WAIT_SOFT_SEC  MUTEX_WAIT_SEC *5
+#ifndef PRIORITY_MOD_LEVEL_0
+#define PRIORITY_MOD_LEVEL_0 (PRIORITY_MOD_HIGHEST)
 #endif
-#ifndef MUTEX_WAIT_MAX_SEC
-#define MUTEX_WAIT_MAX_SEC  MUTEX_WAIT_SEC *10
+
+#ifndef PRIORITY_MOD_LEVEL_1
+#define PRIORITY_MOD_LEVEL_1 (1.0)
 #endif
-#ifndef NP_JOBQUEUE_MAX_SLEEPTIME_SEC
-#define NP_JOBQUEUE_MAX_SLEEPTIME_SEC (0.3)
+
+#ifndef PRIORITY_MOD_LEVEL_2
+#define PRIORITY_MOD_LEVEL_2 (2.0)
 #endif
-	
-#define NP_NODE_SUCCESS_WINDOW 20
+
+#ifndef PRIORITY_MOD_LEVEL_3
+#define PRIORITY_MOD_LEVEL_3 (3.0)
+#endif
+
+#ifndef PRIORITY_MOD_LEVEL_4
+#define PRIORITY_MOD_LEVEL_4 (4.0)
+#endif
+
+#ifndef PRIORITY_MOD_LEVEL_5
+#define PRIORITY_MOD_LEVEL_5 (5.0)
+#endif
+
+#ifndef PRIORITY_MOD_LEVEL_6
+#define PRIORITY_MOD_LEVEL_6 (6.0)
+#endif
+
+#ifndef PRIORITY_MOD_LOWEST
+#define PRIORITY_MOD_LOWEST (PRIORITY_MOD_LEVEL_6)
+#endif
+#ifndef PRIORITY_MOD_MEDIUM
+#define PRIORITY_MOD_MEDIUM (PRIORITY_MOD_LEVEL_3)
+#endif
+
+#ifndef PRIORITY_MOD_USER_DEFAULT
+#define PRIORITY_MOD_USER_DEFAULT (PRIORITY_MOD_LEVEL_6)
+#endif
 
 
 #ifdef __cplusplus

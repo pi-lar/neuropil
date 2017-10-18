@@ -38,7 +38,6 @@ struct np_message_s
 	np_msgproperty_ptr msg_property;
 
 	np_sll_t(np_ackentry_on_t, on_ack);
-	np_sll_t(np_ackentry_on_t, on_nack);
 	np_sll_t(np_ackentry_on_t, on_timeout);
 
 } NP_API_INTERN;

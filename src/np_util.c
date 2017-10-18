@@ -580,6 +580,8 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 	if (item == NULL) {
 		item = (_np_util_debug_statistics_t*)calloc(1, sizeof(_np_util_debug_statistics_t));
 		item->min = DBL_MAX;
+		item->max = 0;
+		item->avg = 0;
 		memcpy(item->key, key, strnlen(key, 254));
 		_np_threads_mutex_init(&item->lock);
 

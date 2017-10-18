@@ -16,6 +16,7 @@
 #include "np_memory.h"
 #include "np_log.h"
 #include "np_message.h"
+#include "np_msgproperty.h"
 #include "np_tree.h"
 #include "np_util.h"
 
@@ -175,10 +176,11 @@ char* np_messagepart_printcache(np_bool asOneLine)
 			np_message_t* msg = tmp->val.value.v;
 
 			ret = _np_concatAndFree(ret,
-					"%s   received %2"PRIu32" of %2"PRIu16" expected%s",
+					"%s   received %2"PRIu32" of %2"PRIu16" expected parts. msg subject:%s%s",
 					msg->uuid,
 					pll_size(msg->msg_chunks),
 					msg->no_of_chunks,
+					_np_message_get_subject(msg),
 					new_line
 					);
 		}		

@@ -72,7 +72,6 @@ void _np_message_t_new(void* msg)
 	msg_tmp->is_single_part = FALSE;
 	
 	sll_init(np_ackentry_on_t, msg_tmp->on_ack);
-	sll_init(np_ackentry_on_t, msg_tmp->on_nack);
 	sll_init(np_ackentry_on_t, msg_tmp->on_timeout);
 	
 	pll_init(np_messagepart_ptr, msg_tmp->msg_chunks);
@@ -85,7 +84,6 @@ void _np_message_t_del(void* data)
 	np_message_t* msg = (np_message_t*) data;
 
 	sll_free(np_ackentry_on_t, msg->on_ack);
-	sll_free(np_ackentry_on_t, msg->on_nack);
 	sll_free(np_ackentry_on_t, msg->on_timeout);
 
 	np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);

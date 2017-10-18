@@ -75,7 +75,7 @@ void np_key_renew_token();
 
 
 NP_API_INTERN
-void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason);
+void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc);
 
 NP_API_INTERN
 void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);

@@ -116,16 +116,19 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		target_key = sll_first(tmp)->val;
 		log_debug_msg(LOG_DEBUG, "route_lookup result   = %s", _np_key_as_str(target_key));
 	}
+	else {
+		log_debug_msg(LOG_DEBUG, "route_lookup result   = myself");
+	}
 
-	/* if I am the only host or the closest host is me, deliver the message */
-	// TODO: not working ?
+	/* if I am the only host or the closest host is me, deliver the message */	
 	if (NULL == target_key && FALSE == is_a_join_request)
 	{
 		// the message has to be handled by this node (e.g. msg interest messages)
 		log_debug_msg(LOG_DEBUG, "internal routing for subject '%s'", msg_subject);
 		np_message_t* msg_to_submit = NULL;
-
-		if (TRUE == args->msg->is_single_part)
+		/*
+		TODO: Purpose? de-chunking is done in _np_in_received
+		if (args->msg->no_of_chunks > 0)
 		{
 			// sum up message parts if the message is for this node
 			msg_to_submit = _np_message_check_chunks_complete(args->msg);
@@ -141,8 +144,9 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		}
 		else
 		{
+		*/
 			msg_to_submit = args->msg;
-		}
+		//}
 
 		np_msgproperty_t* prop = np_msgproperty_get(INBOUND, msg_subject);
 		if (prop != NULL)
@@ -211,22 +215,20 @@ void _np_never_called_jobexec(np_jobargs_t* args,char* category)
 void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_check_connections_handler fn) {
 
 	np_key_t *tmp_node_key = NULL;
-	while (NULL != (tmp_node_key = sll_head(np_key_ptr, connections)))
+
+	sll_iterator(np_key_ptr) iter_keys = sll_first(connections);
+	while (iter_keys != NULL)
 	{
-		// send update of new node to all nodes in my routing table
+		tmp_node_key = iter_keys->val;
+		// send update of new node to all nodes in my routing/neighbor table
 		/* first check for bad link nodes */
 		if (NULL != tmp_node_key->node &&
 			tmp_node_key->node->success_avg < BAD_LINK &&
 			(np_time_now() - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
-			tmp_node_key->node->is_handshake_send == TRUE)
+			tmp_node_key->node->is_handshake_send == TRUE 
+			)
 		{
 			log_debug_msg(LOG_DEBUG, "deleting from table: %s", _np_key_as_str(tmp_node_key));
-
-			// request a new handshake with the node
-			if (NULL != tmp_node_key->aaa_token)
-				tmp_node_key->aaa_token->state &= AAA_INVALID;
-
-			tmp_node_key->node->is_handshake_send = FALSE;
 
 			np_key_t *added = NULL, *deleted = NULL;
 			fn(tmp_node_key, FALSE, &deleted, &added);
@@ -235,6 +237,8 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
 				log_msg(LOG_WARN, "deleting from table returned different key");
 			}
 		}
+
+		sll_next(iter_keys);
 	}
 }
 
@@ -278,6 +282,7 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 			np_tryref_obj(np_node_t, iter->val->node, node_exists);
 			if(node_exists && iter->val->node->joined_network) {
 				_np_ping_send(iter->val);
+				np_unref_obj(np_node_t, iter->val->node, __func__);
 			}
 		}
 		sll_next(iter);
@@ -296,7 +301,7 @@ void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
 	np_sll_t(np_key_ptr, leafset) = NULL;
 	np_key_t *tmp_node_key = NULL;
 
-	leafset = _np_route_neighbors();	
+	leafset = _np_route_neighbors();
 	while ( NULL != (tmp_node_key = sll_head(np_key_ptr, leafset)))
 	{
 		// send a piggy message to the the nodes in our routing table
@@ -408,7 +413,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args){");
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key,"np_waitref_obj");
+	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key, "np_waitref_obj");
 	np_network_t* ng = my_key->network;
 
 	np_tree_elem_t *jrb_ack_node = NULL;
@@ -429,20 +434,30 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				_np_node_update_stat(ackentry->dest_key->node, TRUE);
 
 				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
-
+			
 				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
 				free(jrb_ack_node->key.value.s);
 				free(jrb_ack_node);
 			}
 			else if (np_time_now() > ackentry->expires_at)
 			{
-				//TODO call msg timeout functions
-
 				//timeout
 				log_debug_msg(LOG_DEBUG, "not acknowledged (TIMEOUT at %"PRIu16"/%"PRIu16")", ackentry->received_ack, ackentry->expected_ack);
 				_np_node_update_stat(ackentry->dest_key->node, FALSE);
 
 				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
+
+
+				if (ackentry->msg != NULL && sll_size(ackentry->msg->on_timeout) > 0) {
+
+					sll_iterator(np_ackentry_on_t) iter_on = sll_first(ackentry->msg->on_timeout);
+					while (iter_on != NULL)
+					{
+						//TODO: call async
+						iter_on->val(ackentry);
+						sll_next(iter_on);
+					}
+				}
 
 				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
 				free(jrb_ack_node->key.value.s);

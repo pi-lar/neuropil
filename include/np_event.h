@@ -18,7 +18,7 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 void _np_events_read(np_jobargs_t* args);
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args);
 void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args);
-
+void* _np_event_run();
 double np_event_sleep(double time);
 #ifdef __cplusplus
 }

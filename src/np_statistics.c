@@ -138,8 +138,9 @@ void np_statistics_add_watch(char* subject) {
 }
 
 void np_statistics_add_watch_internals() {
+	
+	//FIXME: Seems to interrupt functionality
 	/*
-	FIXME: Seems to interrupt functionality
 	np_statistics_add_watch(_DEFAULT);
 	np_statistics_add_watch(_ROUTE_LOOKUP);
 

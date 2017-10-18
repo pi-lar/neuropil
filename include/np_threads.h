@@ -79,6 +79,14 @@ struct np_thread_s
 	np_obj_t* obj;
 
 	unsigned long id;
+	/**
+	this thread can only handle jobs up to the max_job_priority
+	*/
+	double max_job_priority;
+	/**
+	this thread can only handle jobs down to the min_job_priority
+	*/
+	double min_job_priority;
 #ifdef CHECK_THREADING
 	np_mutex_t locklists_lock;
 	np_sll_t(char_ptr, want_lock);
@@ -131,13 +139,13 @@ np_thread_t*_np_threads_get_self();
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
 
-#define __NP_THREADS_GET_MUTEX_DEFAULT_WAIT(NAME)															\
+#define __NP_THREADS_GET_MUTEX_DEFAULT_WAIT(NAME, ELAPSED_TIME)												\
 struct timespec NAME##_ts={0};																				\
 struct timeval NAME##_tv;																					\
 struct timespec* NAME=&NAME##_ts;																			\
 																											\
 gettimeofday(&NAME##_tv, NULL);																				\
-NAME##_ts.tv_sec = NAME##_tv.tv_sec + MUTEX_WAIT_SEC;													
+NAME##_ts.tv_sec = NAME##_tv.tv_sec + min(MUTEX_WAIT_MAX_SEC - ELAPSED_TIME, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC);													
 
 
 #define _LOCK_ACCESS(obj) np_mutex_t* TOKENPASTE2(lock, __LINE__) = obj; for(uint8_t _LOCK_ACCESS##__LINE__=0; (_LOCK_ACCESS##__LINE__ < 1) && !_np_threads_mutex_lock(TOKENPASTE2(lock, __LINE__)); _np_threads_mutex_unlock(TOKENPASTE2(lock, __LINE__)), _LOCK_ACCESS##__LINE__++)

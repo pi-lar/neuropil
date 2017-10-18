@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <float.h>
 #include <string.h>
 #include <unistd.h>
 #include <inttypes.h>
@@ -1076,43 +1077,25 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	// initialize job queue
 	if (FALSE == _np_job_queue_create())
 	{
-		log_msg(LOG_ERROR, "neuropil_init: job_queue_create failed: %s", strerror (errno));
+		log_msg(LOG_ERROR, "neuropil_init: _np_job_queue_create failed: %s", strerror (errno));
 		exit(EXIT_FAILURE);
 	}
 	// initialize message handling system
 	if (FALSE == _np_msgproperty_init())
 	{
-		log_msg(LOG_ERROR, "neuropil_init: job_queue_create failed: %s", strerror (errno));
+		log_msg(LOG_ERROR, "neuropil_init: _np_msgproperty_init failed: %s", strerror (errno));
 		exit(EXIT_FAILURE);
 	}
 
 	state->msg_tokens = np_tree_create();
 	state->msg_part_cache = np_tree_create();
-
-	// initialize cleanup layer last
-	np_job_submit_event_periodic(0, MISC_ACKENTRY_CLEANUP_INTERVAL_SEC, _np_cleanup_ack_jobexec,"_np_cleanup_ack_jobexec");
-	np_job_submit_event_periodic(0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_cleanup_keycache_jobexec,"_np_cleanup_keycache_jobexec");
-	np_job_submit_event_periodic(0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache,"_np_event_cleanup_msgpart_cache");
-
-	// start leafset checking jobs
-	np_job_submit_event_periodic(0, MISC_CHECK_ROUTES_SEC, _np_glia_check_neighbours,"_np_glia_check_neighbours");
-	np_job_submit_event_periodic(0, MISC_SEND_UPDATE_MSGS_SEC, _np_glia_check_routes,"_np_glia_check_routes");
-	np_job_submit_event_periodic(0, MISC_SEND_PIGGY_REQUESTS_SEC, _np_glia_send_piggy_requests,"_np_glia_send_piggy_requests");
-
+	
 #ifdef SKIP_EVLOOP
 	// intialize log file writing
 	np_job_submit_event(0.0, _np_write_log);
 	// np_job_submit_event(0.0, _np_events_read);
 #endif
 
-	// initialize retransmission of tokens
-	np_job_submit_event_periodic(0.0, MISC_RETRANSMIT_MSG_TOKENS_SEC, _np_retransmit_message_tokens_jobexec,"_np_retransmit_message_tokens_jobexec");
-	// initialize node token renewal
-	np_job_submit_event_periodic(0.0, MISC_RENEW_NODE_SEC, _np_renew_node_token_jobexec,"_np_renew_node_token_jobexec");
-	// initialize network/io reading and writing
-	np_job_submit_event_periodic(0.0, MISC_READ_EVENTS_SEC, _np_events_read,"_np_events_read");
-	log_debug_msg(LOG_DEBUG, "init _np_glia_send_pings");
-	np_job_submit_event_periodic(0.0, MISC_SEND_PINGS_SEC, _np_glia_send_pings,"_np_glia_send_pings");
 
 	np_unref_obj(np_key_t, state->my_node_key, "_np_keycache_find_or_create");
 	np_unref_obj(np_node_t, my_node, ref_obj_creation);
@@ -1123,68 +1106,6 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	_np_log_fflush(TRUE);
 
 	return (state);
-}
-
-void np_start_job_queue(uint8_t pool_size)
-{
-	log_msg(LOG_TRACE, "start: void np_start_job_queue(uint8_t pool_size){");
-	if (pthread_attr_init (&_np_state()->attr) != 0)
-	{
-		log_msg (LOG_ERROR, "pthread_attr_init: %s", strerror (errno));
-		return;
-	}
-
-	if (pthread_attr_setscope (&_np_state()->attr, PTHREAD_SCOPE_SYSTEM) != 0)
-	{
-		log_msg (LOG_ERROR, "pthread_attr_setscope: %s", strerror (errno));
-		return;
-	}
-
-	if (pthread_attr_setdetachstate (&_np_state()->attr, PTHREAD_CREATE_DETACHED) != 0)
-	{
-		log_msg (LOG_ERROR, "pthread_attr_setdetachstate: %s", strerror (errno));
-		return;
-	}
-
-	_np_state()->thread_count = pool_size;
-	_np_state()->thread_ids = (pthread_t *) malloc (sizeof (pthread_t) * pool_size);
-
-	CHECK_MALLOC(_np_state()->thread_ids);
-
-	/* create the thread pool */
-	for (uint8_t i = 0; i < pool_size; i++)
-	{
-		pthread_create (&_np_state()->thread_ids[i], &_np_state()->attr, _job_exec, (void *) _np_state());
-		np_thread_t * new_thread;
-		np_new_obj(np_thread_t, new_thread);
-		new_thread->id  = (unsigned long)_np_state()->thread_ids[i];
-		sll_append(np_thread_ptr, _np_state()->threads, new_thread);
-
-		// initialize additional events handeling
-		// if(i%2==0)
-		//		np_job_submit_event_periodic(0.0, MISC_READ_EVENTS_SEC, _np_events_read);
-
-		log_debug_msg(LOG_DEBUG, "neuropil worker thread started: %p", _np_state()->thread_ids[i]);
-	}
-	log_debug_msg(LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
-	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
-	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
-
-	fprintf(stdout, "\n");
-	fprintf(stdout, "%s initializiation successful\n", NEUROPIL_RELEASE);
-	fprintf(stdout, "%s event loop with %d worker threads started\n", NEUROPIL_RELEASE, pool_size);
-	fprintf(stdout, "your neuropil node will be addressable as:\n");
-	fprintf(stdout, "\n");
-
-	char* connection_str = np_get_connection_string();
-	fprintf(stdout, "\t%s\n",connection_str);
-	free(connection_str);
-
-	fprintf(stdout, "\n");
-	fprintf(stdout, "%s\n", NEUROPIL_COPYRIGHT);
-	fprintf(stdout, "%s\n", NEUROPIL_TRADEMARK);
-	fprintf(stdout, "\n");
-	fflush(stdout);
 }
 
 char* np_get_connection_string(){

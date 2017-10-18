@@ -114,41 +114,24 @@ np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* sub
 int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2)
 {
 	log_msg(LOG_TRACE, "start: int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2){");
-//	log_debug_msg(LOG_DEBUG, "%s %d (&) %s %d",
-//			prop1->msg_subject, prop1->mode_type,
-//			prop2->msg_subject, prop2->mode_type );
 
+	int16_t ret = -1;
 	// TODO: check how to use bitmasks with red-black-tree efficiently
 	int16_t i = 1;
+
 	if(prop1 == NULL || prop1->msg_subject == NULL || prop2 == NULL || prop2->msg_subject == NULL){
 		log_msg(LOG_ERROR,"Comparing properties where one is NULL");
 	}else{
 		i = strncmp(prop1->msg_subject, prop2->msg_subject, 255);
 	}
 
-	if (0 == i)
-	{
-//		log_debug_msg(LOG_DEBUG, "%d %d (&) %d",
-//				prop1->mode_type,
-//				prop2->mode_type,
-//				(prop1->mode_type & prop2->mode_type) );
+	if (0 != i) ret = i;
+	else if (prop1->mode_type == prop2->mode_type) ret =  (0);		// Is it the same bitmask ?
+	else if (0 < (prop1->mode_type & prop2->mode_type)) ret = (0);	// for searching: Are some test bits set ?
+	else if (prop1->mode_type > prop2->mode_type)  ret = ( 1);		// for sorting / inserting different entries
+	else if (prop1->mode_type < prop2->mode_type)  ret = (-1);		
 
-		// Is it the same bitmask ?
-		if (prop1->mode_type == prop2->mode_type) return  (0);
-
-		// for searching: Are some test bits set ?
-		if (0 < (prop1->mode_type & prop2->mode_type)) return (0);
-
-		// for sorting / inserting different entries
-		if (prop1->mode_type > prop2->mode_type)  return ( 1);
-		if (prop1->mode_type < prop2->mode_type)  return (-1);
-
-		return (-1);
-	}
-	else
-	{
-		return (i);
-	}
+	return ret;
 }
 
 void np_msgproperty_register(np_msgproperty_t* msgprops)
@@ -181,7 +164,7 @@ void _np_msgproperty_t_new(void* property)
 	prop->mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE;
 	prop->mep_type = DEFAULT_TYPE;
 	prop->ack_mode = ACK_EACHHOP;
-	prop->priority = 6;
+	prop->priority = PRIORITY_MOD_USER_DEFAULT;
 	prop->retry    = 5;
 	prop->msg_ttl      = 20.0;
 

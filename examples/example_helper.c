@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <inttypes.h>
 
 #include "neuropil.h"
 #include "np_types.h"
@@ -28,6 +29,7 @@ extern int optind;
 
 uint8_t enable_statistics = 1;
 double started_at = 0;
+double last_loop_run_at = 0;
 
 enum np_statistic_types_e  {
 	np_stat_all				= 0 ,
@@ -194,20 +196,19 @@ np_bool parse_program_args(
 	return ret;
 }
 
-void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
+void __np_example_helper_loop() {
 		if (started_at == 0) {
 			started_at = np_time_now();
 		}
-		double sec_since_start_iter = iteration * sec_per_iteration;
 
 		double sec_since_start = np_time_now() - started_at;
 		double ms_since_start = sec_since_start * 1000;
 
-		if (iteration == 0 || ((int)ms_since_start) % (int)(output_intervall_sec * 1000) == 0)
+		if ((sec_since_start - last_loop_run_at) > output_intervall_sec)
 		{
+			last_loop_run_at = sec_since_start;
 			char* memory_str;
 
-			// to output
 			if(statistic_types == np_stat_all || (statistic_types & np_stat_memory )== np_stat_memory){
 				if(enable_statistics == 1 || enable_statistics > 2) {
 					memory_str = np_mem_printpool(FALSE,TRUE);
@@ -265,15 +266,11 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 									
 					if (memory_str != NULL) printf("%s -\n%s", time, memory_str);
 					free(memory_str);
-					
-					printf("timediff: %f(now) => %f(real) - %f(should) = %f\n", np_time_now(), sec_since_start, sec_since_start_iter, sec_since_start - sec_since_start_iter);
 				}
 				if (enable_statistics >= 2) {
 					memory_str = np_statistics_print(TRUE);
 					if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 					free(memory_str);
-
-					if (memory_str != NULL) log_msg(LOG_INFO, "timediff: %f(now) => %f(real) - %f(should) = %f\n", np_time_now(), sec_since_start, sec_since_start_iter, sec_since_start - sec_since_start_iter);
 				}
 			}
 			
@@ -289,15 +286,14 @@ void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
 void __np_example_helper_run_loop() {
 	while (TRUE)
 	{
-		ev_sleep(0.01);
+		ev_sleep(output_intervall_sec);
 	}
 }
 void __np_example_helper_run_info_loop() {
-	uint32_t i = 0;
+
 	while (TRUE)
 	{
-		i += 1;
-		ev_sleep(0.01);
-		__np_example_helper_loop(i, 0.01);
+		__np_example_helper_loop();
+		ev_sleep(output_intervall_sec);
 	}
 }
