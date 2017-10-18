@@ -455,6 +455,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 				sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_prop->user_receive_clb);
 				while (result == TRUE && iter_usercallbacks != NULL)
 				{
+					// will always call all handlers, but will return false if any of the handlers returns false
 					result = iter_usercallbacks->val(msg_in, msg_in->properties, msg_in->body) && result;
 					sll_next(iter_usercallbacks);
 				}

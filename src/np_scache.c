@@ -42,12 +42,8 @@ np_simple_cache_table_t* np_cache_init(int size) {
 np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char* const key)
 {
 	log_msg(LOG_TRACE, "start: np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key){");
-	// Contract
-	if(NULL == key){
-		log_msg(LOG_ERROR, "cache key cannot be NULL!");
-		abort();
-	}
-	// Contract end
+	
+	assert(NULL != key);
 
 	np_cache_item_t* ret = NULL;
 	_LOCK_ACCESS(&table->lock) {

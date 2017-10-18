@@ -113,13 +113,6 @@ void _np_send(np_jobargs_t* args)
 		log_debug_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
 			_np_key_as_str(args->target));
 		return;
-	}	
-	// Call user handler for send msgs
-	sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_out->msg_property->user_send_clb);
-	while (iter_usercallbacks != NULL)
-	{
-		iter_usercallbacks->val(msg_out, msg_out->properties, msg_out->body);
-		sll_next(iter_usercallbacks);
 	}
 
 	// now we can try to send the msg
@@ -315,6 +308,16 @@ void _np_send(np_jobargs_t* args)
 			log_debug_msg(LOG_DEBUG, "Try sending message for subject \"%s\" (msg id: %s) to %s", prop->msg_subject, msg_out->uuid, _np_key_as_str(args->target));
 
 			_np_network_send_msg(args->target, msg_out);
+
+
+			// Call user handler for send msgs
+			sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_out->msg_property->user_send_clb);
+			while (iter_usercallbacks != NULL)
+			{
+				iter_usercallbacks->val(msg_out, msg_out->properties, msg_out->body);
+				sll_next(iter_usercallbacks);
+			}
+
 			np_unref_obj(np_network_t, my_network,"np_waitref_network");
 		}
 		np_unref_obj(np_key_t,my_key,"np_waitref_key");

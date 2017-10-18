@@ -63,6 +63,8 @@ int main(int argc, char **argv)
 	char* bootstrap_hostnode_default;
 	uint32_t required_nodes = NUM_HOST;
 
+	double started_at = np_time_now();
+
 	int no_threads = 8;
 	char *j_key = NULL;
 	char* proto = "udp4";
@@ -99,8 +101,9 @@ int main(int argc, char **argv)
 	if (required_nodes_opt != NULL) required_nodes = atoi(required_nodes_opt);
 	if (node_creation_speed_str != NULL) {
 		if (strcmp(node_creation_speed_str, "default") != 0) {
-			node_creation_speed = atof(required_nodes_opt);
+			node_creation_speed = atof(node_creation_speed_str);
 		}
+		free(node_creation_speed_str);
 	}
 	
 	if (j_key != NULL) {
@@ -188,9 +191,9 @@ int main(int argc, char **argv)
 			 */
 			}
 			// If you want to you can enable the statistics modulte to view the nodes statistics
+			np_statistics_add_watch_internals(); 
 			np_statistics_add_watch(_NP_SYSINFO_REQUEST);
-			np_statistics_add_watch(_NP_SYSINFO_REPLY);
-			np_statistics_add_watch_internals();
+			np_statistics_add_watch(_NP_SYSINFO_REPLY);			
 
 			/**
 			  And wait for incomming connections
@@ -327,7 +330,9 @@ int main(int argc, char **argv)
 					}
 				} while (FALSE == child_status->my_node_key->node->joined_network) ;
 
-				fprintf(stdout, "%s joined network!\n",port);
+				char time[50] = { 0 };
+				reltime_to_str(time, np_time_now() - started_at);
+				fprintf(stdout, "%s joined network after %s!\n",port, time);
 				/**
 				 \endcode
 				 */

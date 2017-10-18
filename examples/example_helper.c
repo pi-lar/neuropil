@@ -41,6 +41,20 @@ enum np_statistic_types_e  {
  
 np_statistic_types_e statistic_types = 0;
 
+
+
+void reltime_to_str(char*buffer,double time){
+	double time_s = time;
+	double time_d = (int)time / 216000;
+	time_s -= time_d * 216000;
+	double time_h = (int)time / 3600;
+	time_s -= time_h * 3600;
+	double time_m = (int)time / 60;
+	time_s -= time_m * 60;
+	snprintf(buffer, 49, "%2.0fd %2.0fh %2.0fmin %2.0fsec", time_d, time_h, time_m, time_s);
+}
+
+
 np_bool parse_program_args(
 	char* program,
 	int argc, 
@@ -251,15 +265,9 @@ void __np_example_helper_loop() {
 			}
 #endif
 			if (statistic_types == np_stat_all || (statistic_types & np_stat_general) == np_stat_general) {							
-				double time_s = sec_since_start;
-				double time_d = (int)sec_since_start / 216000;
-				time_s -= time_d * 216000;
-				double time_h = (int)sec_since_start / 3600;
-				time_s -= time_h * 3600;
-				double time_m = (int)sec_since_start / 60;
-				time_s -= time_m * 60;
+				
 				char time[50] = { 0 };
-				snprintf(time, 49, "%2.0fd %2.0fh %2.0fmin %2.0fsec", time_d, time_h, time_m, time_s);
+				reltime_to_str(time, sec_since_start);
 
 				if (enable_statistics == 1 || enable_statistics > 2) {
 					memory_str = np_statistics_print(FALSE);
