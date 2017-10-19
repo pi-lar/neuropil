@@ -31,6 +31,7 @@
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"
+#include "np_event.h"
 #include "np_glia.h"
 #include "np_jobqueue.h"
 #include "np_tree.h"
@@ -316,19 +317,18 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 		//  	IS_INVALID(auth_token->state))
 		// {
 		np_bool continue_sending = TRUE;
-		_LOCK_MODULE (np_handshake_t) {
-			if (_np_network_send_handshake(node_key) == TRUE || node_key->node->is_handshake_received == FALSE) {
-				continue_sending = FALSE;
-			}
-			if (auth_token == NULL ) {
-				log_msg(LOG_ERROR, "auth token not set, but handshake is done (key: %s)", _np_key_as_str(node_key));
-				continue_sending = FALSE;
-			}
-			if (node_key->node->session_key_is_set == FALSE) {
-				log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
-				continue_sending = FALSE;
-			}
+		if (_np_network_send_handshake(node_key) == TRUE || node_key->node->is_handshake_received == FALSE) {
+			continue_sending = FALSE;
 		}
+		else if (auth_token == NULL ) {
+			log_msg(LOG_ERROR, "auth token not set, but handshake is done (key: %s)", _np_key_as_str(node_key));
+			continue_sending = FALSE;
+		}
+		else if (node_key->node->session_key_is_set == FALSE) {
+			log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
+			continue_sending = FALSE;
+		}
+
 		if (FALSE == continue_sending) {
 			np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
 			return;
@@ -507,7 +507,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 	if(EV_ERROR & revents)
 	{
 		log_debug_msg(LOG_DEBUG,"got invalid tcp accept event");
-	  return;
+		return;
 	}
 	// calling address and port
 	char ipstr[255] = { 0 };
@@ -563,18 +563,17 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 					}
 
-					free(ng->ip);
-					ng->ip = strndup(ipstr, 255);
-
-					free(ng->port);
-					ng->port = strndup(port, 7);
+					// free(ng->ip);
+					// ng->ip = strndup(ipstr, 255);
+					// free(ng->port);
+					// ng->port = strndup(port, 7);
 				}
 
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 						"received connection request from %s:%s (client fd: %d)",
-						ng->ip, ng->port, client_fd);
+						ipstr, port, client_fd);
 			
-				np_dhkey_t search_key = np_dhkey_create_from_hostport(ng->ip, ng->port);
+				np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
 				np_key_t* alias_key = _np_keycache_find(search_key);
 				char* alias_key_reason = "_np_keycache_find";
 				np_network_t* old_network = NULL;
@@ -588,7 +587,9 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						alias_key_reason = "_np_keycache_create";
 						alias_key->parent = key;
 						np_ref_obj(np_key_t, key, ref_key_parent);
+						np_ref_obj(np_key_t, alias_key, alias_key_reason);
 					}
+
 					np_new_obj(np_network_t, alias_key->network);
 
 					_LOCK_ACCESS (&alias_key->network->lock) {
@@ -597,6 +598,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						alias_key->network->waiting = np_tree_create();
 						alias_key->network->seqend = 0LU;
 
+						// sll_init(void_ptr, alias_key->network->in_events);
 						// it could be a passive socket
 						sll_init(void_ptr, alias_key->network->out_events);
 
@@ -604,15 +606,14 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						int current_flags = fcntl(client_fd, F_GETFL);
 						current_flags |= O_NONBLOCK;
 						fcntl(client_fd, F_SETFL, current_flags);
-
-						alias_key->network->initialized = TRUE;
 					}
+
 				}
 
 				log_debug_msg(LOG_DEBUG,"suspend ev loop for tcp new socket network start");
 
 				alias_key->network->watcher.data = alias_key;
-				np_ref_obj(np_network_t, alias_key, ref_network_watcher);
+				np_ref_obj(np_network_t, alias_key->network, ref_network_watcher);
 
 				ev_io_init(
 						&alias_key->network->watcher,
@@ -620,7 +621,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						alias_key->network->socket,
 						EV_READ
 						);
-				_np_network_start(alias_key->network);
+				alias_key->network->initialized = TRUE;
 
 				if(old_network != NULL) {					
 					np_unref_obj(np_network_t, old_network, ref_key_network);					
@@ -629,6 +630,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 						"created network for key: %s and watching it.", _np_key_as_str(alias_key));
 
+				_np_network_start(alias_key->network);
 				np_unref_obj(np_key_t, alias_key, alias_key_reason);
 			}
 			np_unref_obj(np_network_t, ng, "np_tryref_obj_key_network");
@@ -657,7 +659,6 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	np_network_t* ng;
 	np_network_t* ng_tcp_host = NULL;
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
-
 
 	/* receive the new data */
 	int16_t last_recv_result = 0;
@@ -688,16 +689,21 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			last_recv_result = recvfrom(ng->socket, data + in_msg_len,
 				MSG_CHUNK_SIZE_1024 - in_msg_len, 0, (struct sockaddr*)&from, &fromlen);
 		}
+
+		if (last_recv_result < 0) {
+			break;
+		}
+
 		if (last_recv_result > 0) {
 			in_msg_len += last_recv_result;
 		}		
 
 		log_debug_msg(LOG_DEBUG | LOG_NETWORK, "in_msg_len %d bytes", in_msg_len);
 
-		if (in_msg_len >= 0) {
+		if (in_msg_len > 0) {
 			msgs_received++;
 			// deal with both IPv4 and IPv6:
-		//	if (ng->ip == NULL || ng->port == NULL )
+			//	if (ng->ip == NULL || ng->port == NULL )
 			{
 				if (from.ss_family == AF_INET)
 				{
@@ -716,28 +722,12 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 				}
 
-				free(ng->ip);
+				/* free(ng->ip);
 				ng->ip = strndup(ipstr, 255);
 
 				free(ng->port);
 				ng->port = strndup(port, 7);
-			}
-
-			if (0 == in_msg_len)
-			{
-				if(ng_tcp_host != NULL){
-					// tcp disconnect
-					log_msg(LOG_ERROR, "received disconnect from: %s:%s", ng->ip, ng->port);
-					// TODO handle cleanup of node structures ?
-					// maybe / probably the node received already a disjoin message before
-					//TODO: pruefen ob hier wirklich der host geschlossen werden muss
-					_np_network_stop(ng_tcp_host);
-					//_np_node_update_stat(key->node, 0);
-				
-					log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");				
-				}
-				free(data);
-				continue;
+				*/
 			}
 
 			if (in_msg_len != MSG_CHUNK_SIZE_1024 && in_msg_len != (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40 ))
@@ -753,9 +743,10 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			char* alias_key_ref_reason = "";
 
 			// we registered this token info before in the first handshake message
-			np_dhkey_t search_key = np_dhkey_create_from_hostport(ng->ip, ng->port);
+			np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
 			alias_key = _np_keycache_find(search_key);
 			alias_key_ref_reason = "_np_keycache_find";
+
 			if (NULL == alias_key) {
 				alias_key = _np_keycache_create(search_key);
 				alias_key_ref_reason = "_np_keycache_create";
@@ -764,7 +755,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			}
 
 			log_debug_msg(LOG_NETWORK |LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
-				ng->ip, ng->port, in_msg_len, _np_key_as_str(alias_key));
+				ipstr, port, in_msg_len, _np_key_as_str(alias_key));
 						
 			_LOCK_ACCESS(&ng->lock)
 			{
@@ -780,6 +771,24 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 
 			np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
 		}
+
+		if (0 == in_msg_len)
+		{
+			if(ng_tcp_host != NULL){
+				// tcp disconnect
+				log_msg(LOG_ERROR, "received disconnect from: %s:%s", ipstr, port);
+				// TODO handle cleanup of node structures ?
+				// maybe / probably the node received already a disjoin message before
+				//TODO: pruefen ob hier wirklich der host geschlossen werden muss
+				_np_network_stop(ng_tcp_host);
+				//_np_node_update_stat(key->node, 0);
+
+				log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
+			}
+			free(data);
+			continue;
+		}
+
 	} while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result >= 0); // there is maybe more then one msg in our socket pipeline
 
 	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
@@ -1125,7 +1134,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 					&ng->watcher, _np_network_send_from_events,
 					ng->socket, EV_WRITE);
 		}
-		_np_network_start(ng);
+		// _np_network_start(ng);
 
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 				": %d %p %p :", ng->socket, &ng->watcher,  &ng->watcher.data);

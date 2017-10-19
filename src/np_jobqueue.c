@@ -75,14 +75,15 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_
 
 	return (new_job);
 }
+
 int8_t _np_job_compare_job_scheduling(np_job_ptr job1, np_job_ptr job2)
 {
 	log_msg(LOG_TRACE, "start: int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2){");
 
 	int8_t ret = 0;
 	double now = ev_time();
-	double scheduling_job1 = (now - job1->exec_not_before_tstamp) / (1.0 +job1->priority);
-	double scheduling_job2 = (now - job2->exec_not_before_tstamp) / (1.0 +job2->priority);
+	double scheduling_job1 = (now - job1->exec_not_before_tstamp) / (1.0 + job1->priority); // old job
+	double scheduling_job2 = (now - job2->exec_not_before_tstamp) / (1.0 + job2->priority); // new job
 
 	if (scheduling_job1 == scheduling_job2)
 		ret = 0;
@@ -302,7 +303,6 @@ void _np_job_yield(const double delay)
 				struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
 				// wait for time x to be unlocked again			
 				_np_threads_module_condition_timedwait(&__cond_empty, np_jobqueue_t_lock, &waittime);
-
 			}
 			else
 			{
@@ -311,6 +311,7 @@ void _np_job_yield(const double delay)
 			}
 		}
 	}
+	log_msg(LOG_TRACE, "end  : void _np_job_yield(const double delay)}");
 }
 
 /** job_exec

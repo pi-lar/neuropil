@@ -1893,6 +1893,7 @@ void _np_in_handshake(np_jobargs_t* args)
 						{
 							np_ref_obj(np_key_t, msg_source_key, ref_network_watcher);
 							msg_source_key->network->watcher.data = msg_source_key;
+							_np_network_start(msg_source_key->network);
 						}
 						else
 						{
@@ -1974,7 +1975,6 @@ void _np_in_handshake(np_jobargs_t* args)
 			}
 			else
 			{
-
 				if (IS_INVALID(msg_source_key->aaa_token->state)) {
 					// new connection, setup alias key
 					alias_key->network = msg_source_key->network;

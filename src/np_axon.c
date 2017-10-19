@@ -464,6 +464,7 @@ void _np_send_handshake(np_jobargs_t* args)
 
 				np_ref_obj(np_key_t, args->target,ref_network_watcher);
 				args->target->network->watcher.data = args->target;
+				_np_network_start(args->target->network);
 			}
 			// construct target address and send it out
 			np_node_t* hs_node = args->target->node;
