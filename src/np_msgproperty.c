@@ -157,26 +157,30 @@ void _np_msgproperty_t_new(void* property)
 	prop->token_min_ttl = MSGPROPERTY_DEFAULT_MIN_TTL_SEC;
 	prop->token_max_ttl = MSGPROPERTY_DEFAULT_MAX_TTL_SEC;
 
-	prop->msg_audience = NULL;
-	prop->msg_subject = NULL;
-	prop->rep_subject = NULL;
+	prop->msg_audience	= NULL;
+	prop->msg_subject	= NULL;
+	prop->rep_subject	= NULL;
 
-	prop->mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE;
-	prop->mep_type = DEFAULT_TYPE;
-	prop->ack_mode = ACK_EACHHOP;
-	prop->priority = PRIORITY_MOD_USER_DEFAULT;
-	prop->retry    = 5;
-	prop->msg_ttl      = 20.0;
+	prop->mode_type = OUTBOUND | INBOUND | ROUTE | TRANSFORM;
+	prop->mep_type	= DEFAULT_TYPE;
+	prop->ack_mode	= ACK_NONE;
+	prop->priority	= PRIORITY_MOD_USER_DEFAULT;
+	prop->retry		= 5;
+	prop->msg_ttl	= 20.0;
 
 	prop->max_threshold = 10;
 	prop->msg_threshold =  0;
 
 	prop->last_update = np_time_now();
 
-	prop->clb_inbound = _np_never_called_jobexec_inbound;
-	prop->clb_outbound = _np_never_called_jobexec_outbound;
-	prop->clb_route = _np_route_lookup_jobexec;
-	prop->clb_transform = _np_never_called_jobexec_transform;
+	sll_init(np_callback_t, prop->clb_inbound);
+	sll_init(np_callback_t, prop->clb_transform);
+	sll_init(np_callback_t, prop->clb_outbound);
+	sll_init(np_callback_t, prop->clb_route);
+
+	sll_append(np_callback_t, prop->clb_outbound, _np_out);
+	sll_append(np_callback_t, prop->clb_route, _np_route_lookup_jobexec);	
+
 	sll_init(np_usercallback_t, prop->user_receive_clb);
 	sll_init(np_usercallback_t, prop->user_send_clb);
 
@@ -220,6 +224,12 @@ void _np_msgproperty_t_del(void* property)
 
 		sll_free(np_usercallback_t, prop->user_receive_clb);
 		sll_free(np_usercallback_t, prop->user_send_clb);
+
+		sll_free(np_callback_t, prop->clb_transform);
+		sll_free(np_callback_t, prop->clb_route);
+		sll_free(np_callback_t, prop->clb_outbound);
+		sll_free(np_callback_t, prop->clb_inbound);		
+
 	}
 	_np_threads_mutex_destroy(&prop->lock);
 	_np_threads_condition_destroy(&prop->msg_received);

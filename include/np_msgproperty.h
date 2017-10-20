@@ -19,6 +19,7 @@ A developer should be familiar with the main settings
 #include "np_memory.h"
 #include "np_util.h"
 #include "np_types.h"
+#include "np_list.h"
 #include "np_threads.h"
 
 #ifdef __cplusplus
@@ -259,14 +260,13 @@ struct np_msgproperty_s
 	// pthread_condattr_t cond_attr;
 
 	// callback function(s) to invoke when a message is received
-	np_callback_t clb_default; // internal neuropil supplied
-	np_callback_t clb_inbound; // internal neuropil supplied
-	np_callback_t clb_outbound; // internal neuropil supplied
-	np_callback_t clb_route; // internal neuropil supplied
-	np_callback_t clb_transform; // internal neuropil supplied
+	np_sll_t(np_callback_t, clb_inbound);			// internal neuropil supplied
+	np_sll_t(np_callback_t, clb_outbound);			// internal neuropil supplied
+	np_sll_t(np_callback_t, clb_route);				// internal neuropil supplied
+	np_sll_t(np_callback_t, clb_transform);			// internal neuropil supplied
 
-	np_sll_t(np_usercallback_t, user_receive_clb); // external user supplied for inbound
-	np_sll_t(np_usercallback_t, user_send_clb); // external user supplied for outnound
+	np_sll_t(np_usercallback_t, user_receive_clb);	// external user supplied for inbound
+	np_sll_t(np_usercallback_t, user_send_clb);		// external user supplied for outnound
 
 	// The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
 	uint32_t token_max_ttl;

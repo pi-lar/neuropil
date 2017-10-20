@@ -17,6 +17,8 @@
 #include "np_keycache.h"
 #include "np_message.h"
 #include "np_types.h"
+#include "np_constants.h"
+#include "np_settings.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,8 +65,8 @@ struct np_network_s
 
 	uint32_t seqend;
 
-	char * ip;
-	char * port;
+	char ip[CHAR_LENGTH_IP];
+	char port[CHAR_LENGTH_PORT];
 	np_mutex_t lock;
 } NP_API_INTERN;
 

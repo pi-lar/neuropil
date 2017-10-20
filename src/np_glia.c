@@ -179,39 +179,6 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 	np_unref_obj(np_key_t, my_key, "np_waitref_obj");
 }
 
-void _np_never_called_jobexec_transform(np_jobargs_t* args)
-{
-	_np_never_called_jobexec(args,"transform");
-}
-void _np_never_called_jobexec_route(np_jobargs_t* args)
-{
-	_np_never_called_jobexec(args,"route");
-}
-void _np_never_called_jobexec_inbound(np_jobargs_t* args)
-{
-	_np_never_called_jobexec(args,"inbound");
-}
-void _np_never_called_jobexec_outbound(np_jobargs_t* args)
-{
-	_np_never_called_jobexec(args,"outbound");
-}
-void _np_never_called_jobexec(np_jobargs_t* args,char* category)
-{
-	log_msg(LOG_TRACE, "start: void _np_never_called_jobexec(np_jobargs_t* args){");
-	log_msg(LOG_WARN, "!!!                               !!!");
-	log_msg(LOG_WARN, "!!! wrong job execution requested (%s) !!!",category);
-	if (NULL != args)
-	{
-		log_msg(LOG_WARN, "!!! a: %p m: %p p: %p t: %p", args, args->msg, args->properties, args->target);
-		if (args->properties)
-			log_msg(LOG_WARN, "!!! properties: %s ", args->properties->msg_subject);
-		if (args->target)
-			log_msg(LOG_WARN, "!!! target: %s ", _np_key_as_str(args->target));
-	}
-	log_msg(LOG_WARN, "!!!                               !!!");
-	log_msg(LOG_WARN, "!!!                               !!!");
-}
-
 void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_check_connections_handler fn) {
 
 	np_key_t *tmp_node_key = NULL;
@@ -360,16 +327,22 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		target = _np_keycache_find_or_create(target_dhkey);
 
 		msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
-		msg_prop->clb_transform = _np_send_sender_discovery;
-		// _np_send_sender_discovery(0.0, msg_prop, target, NULL);
+		if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, _np_util_cmp_ref)) {
+			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
+		}
+		// _np_out_sender_discovery(0.0, msg_prop, target, NULL);
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 
 		msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
-		msg_prop->clb_transform = _np_send_sender_discovery;
+		if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, _np_util_cmp_ref)) {
+			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
+		}
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 
 		msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_ACCOUNTING_REQUEST);
-		msg_prop->clb_transform = _np_send_sender_discovery;
+		if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, _np_util_cmp_ref)) {
+			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
+		}
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 
 		np_unref_obj(np_key_t, target,"_np_keycache_find_or_create");
@@ -688,7 +661,7 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 
 		np_msgproperty_t* msg_prop = np_msgproperty_get(mode_type, subject);
 		msg_prop->mode_type |= TRANSFORM;
-		msg_prop->clb_transform = _np_send_discovery_messages;
+		sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
 
 		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
 		np_key_t* target = NULL;

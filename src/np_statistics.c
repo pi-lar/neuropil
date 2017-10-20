@@ -139,23 +139,21 @@ void np_statistics_add_watch(char* subject) {
 }
 
 void np_statistics_add_watch_internals() {
-	
-	//FIXME: Seems to interrupt functionality
-	
-	//np_statistics_add_watch(_DEFAULT);
 	/*
+	np_statistics_add_watch(_DEFAULT);
+	
 	np_statistics_add_watch(_ROUTE_LOOKUP);
 	
 	
 	np_statistics_add_watch(_NP_MSG_ACK);
-	//np_statistics_add_watch(_NP_MSG_HANDSHAKE);
+	np_statistics_add_watch(_NP_MSG_HANDSHAKE);
 	
-	//np_statistics_add_watch(_NP_MSG_PING_REQUEST);
-	//np_statistics_add_watch(_NP_MSG_LEAVE_REQUEST);
-	//np_statistics_add_watch(_NP_MSG_JOIN);
-	//np_statistics_add_watch(_NP_MSG_JOIN_REQUEST);
-	//np_statistics_add_watch(_NP_MSG_JOIN_ACK);
-	//np_statistics_add_watch(_NP_MSG_JOIN_NACK);
+	np_statistics_add_watch(_NP_MSG_PING_REQUEST);
+	np_statistics_add_watch(_NP_MSG_LEAVE_REQUEST);
+	np_statistics_add_watch(_NP_MSG_JOIN);
+	np_statistics_add_watch(_NP_MSG_JOIN_REQUEST);
+	np_statistics_add_watch(_NP_MSG_JOIN_ACK);
+	np_statistics_add_watch(_NP_MSG_JOIN_NACK);
 	
 	np_statistics_add_watch(_NP_MSG_PIGGY_REQUEST);
 	np_statistics_add_watch(_NP_MSG_UPDATE_REQUEST);	

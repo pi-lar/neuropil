@@ -117,6 +117,7 @@ typedef void(*np_ackentry_on_t) (const np_ackentry_t const * entry);
 
 // internal callback functions
 typedef void (*np_callback_t) (np_jobargs_t*);
+typedef int(*_np_cmp_t)(void* a, void* b);
 
 // void f() __attribute__ ((weak, alias ("__f")));
 
@@ -134,6 +135,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_node_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_thread_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_usercallback_t);
+NP_SLL_GENERATE_PROTOTYPES(np_callback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_ackentry_on_t);
 
 

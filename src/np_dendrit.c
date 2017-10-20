@@ -939,7 +939,8 @@ void _np_in_update(np_jobargs_t* args)
 
 			log_debug_msg(LOG_DEBUG,
 			"Sending join %s:%s",
-			args->target->network->ip,update_key->node->port);
+			// np_network_get_ip(update_key), np_network_get_port(update_key); 
+				args->target->network->ip,update_key->node->port);
 			_np_send_simple_invoke_request(update_key, _NP_MSG_JOIN_REQUEST);
 		}
 	} else {

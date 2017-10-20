@@ -531,21 +531,20 @@ void __np_createThreadPool(uint8_t pool_size) {
 	{
 		np_thread_t* new_thread = __np_createThread(i, __np_jobqueue_run);
 
-		if (pool_size >= PRIORITY_MOD_LOWEST) {
-			new_thread->max_job_priority = max(i, PRIORITY_MOD_HIGHEST) * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
-			new_thread->min_job_priority = min(i, PRIORITY_MOD_MEDIUM)  * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
-		}
-		else if (pool_size > 3 && i < 3) {
-			new_thread->max_job_priority = PRIORITY_MOD_LEVEL_5  * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
-			new_thread->min_job_priority = 0;
-		}
-		else if (pool_size > 3 && i >= 3) {
-			new_thread->max_job_priority = PRIORITY_MOD_HIGHEST * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
-			new_thread->min_job_priority = PRIORITY_MOD_LEVEL_6  * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
+		if (FALSE && pool_size > PRIORITY_MOD_BEST_SINGLE_THREADED){
+
+			if(i <= PRIORITY_MOD_BEST_SINGLE_THREADED) {
+				new_thread->max_job_priority = i * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
+				new_thread->min_job_priority = i * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
+			}
+			else {
+				new_thread->max_job_priority = PRIORITY_MOD_LOWEST * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
+				new_thread->min_job_priority = PRIORITY_MOD_BEST_SINGLE_THREADED * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
+			}
 		}
 		else {
-			new_thread->max_job_priority = DBL_MAX;
-			new_thread->min_job_priority = 0;
+			new_thread->max_job_priority = PRIORITY_MOD_LOWEST  * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
+			new_thread->min_job_priority = PRIORITY_MOD_HIGHEST * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
 		}
 
 		sll_append(np_thread_ptr, _np_state()->threads, new_thread);

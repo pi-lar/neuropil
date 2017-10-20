@@ -14,19 +14,24 @@
 
 #include "event/ev.h"
 
+#include "neuropil.h"
+#include "np_types.h"
+
 #include "np_jobqueue.h"
 
 #include "dtime.h"
-#include "neuropil.h"
 #include "np_keycache.h"
 #include "np_key.h"
 #include "np_memory.h"
 #include "np_msgproperty.h"
 #include "np_message.h"
 #include "np_log.h"
+#include "np_list.h"
 #include "np_threads.h"
 #include "np_settings.h"
 #include "np_constants.h"
+
+
 
 /* job_queue np_job_t structure */
 struct np_job_s
@@ -35,7 +40,7 @@ struct np_job_s
     double exec_not_before_tstamp;
     double interval;
     np_bool is_periodic;
-    np_callback_t processorFunc;
+	sll_return(np_callback_t) processorFuncs;
     np_jobargs_t* args;
     double priority;
 #ifdef DEBUG
@@ -54,7 +59,7 @@ static np_jobqueue_t * __np_job_queue;
 
 static np_cond_t  __cond_empty;
 
-np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_modifier, np_callback_t callback, char* callback_ident)
+np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_modifier, np_sll_t(np_callback_t, callbacks), char* callbacks_ident)
 {
     log_msg(LOG_TRACE, "start: np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs){");
     // create job itself
@@ -67,14 +72,17 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_
     new_job->priority =  priority_modifier;
     new_job->interval = 0;
     new_job->is_periodic = FALSE;
-	new_job->processorFunc = callback;
+	new_job->processorFuncs = callbacks;
     
 #ifdef DEBUG
-    memset(new_job->ident,0,255);
+	memset(new_job->ident, 0, 255);
     if ( new_job->args != NULL && new_job->args->properties != NULL )
     {
-        snprintf(new_job->ident, 254, "msg handler for %-30s (fn: %p | %s)",  new_job->args->properties->msg_subject, callback, callback_ident);
-    }
+        snprintf(new_job->ident, 254, "msg handler for %-30s (fns: %p | %s)",  new_job->args->properties->msg_subject, callbacks, callbacks_ident);
+	}
+	else if(callbacks_ident != NULL) {
+		memcpy(new_job->ident, callbacks_ident, strnlen(callbacks_ident, 254));
+	}
 #endif
 
     if(jargs != NULL){
@@ -94,10 +102,10 @@ int8_t _np_job_compare_job_scheduling(np_job_ptr job1, np_job_ptr job2)
 
     int8_t ret = 0;
     if (job1->exec_not_before_tstamp > job2->exec_not_before_tstamp) {
-        ret = -1;
+        ret = 1;
     }
     else if (job1->exec_not_before_tstamp < job2->exec_not_before_tstamp) {
-        ret = 1;
+        ret = -1;
     }else{
         if (job1->priority == job2->priority)
             ret = 0;
@@ -274,13 +282,14 @@ void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t
 void np_job_submit_event_periodic(double priority, double first_delay, double interval, np_callback_t callback, char* ident)
 {
     log_debug_msg(LOG_DEBUG, "np_job_submit_event_periodic");
-    np_job_t* new_job = _np_job_create_job(first_delay, NULL, priority * JOBQUEUE_PRIORITY_MOD_BASE_STEP, callback, NULL);
+
+	np_sll_t(np_callback_t, callbacks);
+	sll_init(np_callback_t, callbacks);
+	sll_append(np_callback_t, callbacks, callback);
+
+    np_job_t* new_job = _np_job_create_job(first_delay, NULL, priority * JOBQUEUE_PRIORITY_MOD_BASE_STEP, callbacks, ident);
     new_job->type = 2;
-	
-#ifdef DEBUG
-    memcpy(new_job->ident, ident, strnlen(ident, 254));
-#endif
-    new_job->interval = interval;
+	new_job->interval = interval;
     new_job->is_periodic = TRUE;
 
     _np_job_queue_insert(new_job);
@@ -420,9 +429,22 @@ void* __np_jobqueue_run ()
 
         // sanity checks if the job list really returned an element
         if (NULL == job_to_execute) continue;
-        if (NULL == job_to_execute->processorFunc) continue;
+		if (NULL == job_to_execute->processorFuncs) continue;
+		if (NULL == ((job_to_execute->processorFuncs))) continue;
+		if (sll_size(((job_to_execute->processorFuncs))) <= 0) continue;
         
-		log_debug_msg(LOG_DEBUG, "thread-->%15"PRIu64" job-->%15p func-->%15p args-->%15p prio:%10.2f jobname: %s", _np_threads_get_self()->id, job_to_execute, job_to_execute->processorFunc, job_to_execute->args, job_to_execute->priority, job_to_execute->ident );
+		log_debug_msg(LOG_DEBUG, 
+			"thread-->%15"PRIu64" job-->%15p remaining jobs: %"PRIu32") func_count-->%"PRIu32" funcs-->%15p args-->%15p prio:%10.2f not before: %15.10f jobname: %s",
+			_np_threads_get_self()->id, 
+			job_to_execute,
+			pll_size(__np_job_queue->job_list),
+			sll_size((job_to_execute->processorFuncs)),
+			(job_to_execute->processorFuncs),
+			job_to_execute->args,
+			job_to_execute->priority,
+			job_to_execute->exec_not_before_tstamp,
+			job_to_execute->ident 
+		);
 
         
 #ifdef DEBUG
@@ -434,7 +456,7 @@ void* __np_jobqueue_run ()
 			// ignore _DEFAULT  property 
 			if (strcmp(job_to_execute->args->properties->msg_subject, _DEFAULT) != 0) 
 			{
-				log_debug_msg(LOG_DEBUG, "message handler called on subject: %50s msg: %-36s fn: %p", job_to_execute->args->properties->msg_subject, msg_uuid, job_to_execute->processorFunc);
+				log_debug_msg(LOG_DEBUG, "message handler called on subject: %50s msg: %-36s fns: %p", job_to_execute->args->properties->msg_subject, msg_uuid, (job_to_execute->processorFuncs));
 			}						
 		}
 #endif
@@ -443,13 +465,20 @@ void* __np_jobqueue_run ()
             
 #ifdef DEBUG_CALLBACKS			
             if (job_to_execute->ident[0] == 0) {
-                sprintf(job_to_execute->ident, "%p", job_to_execute->processorFunc);
+                sprintf(job_to_execute->ident, "%p", (job_to_execute->processorFuncs));
             }
 
             log_debug_msg(LOG_DEBUG, "start internal job callback function (@%f) %s",np_time_now(), job_to_execute->ident);
             double n1 = np_time_now();
 #endif			
-            job_to_execute->processorFunc(job_to_execute->args);
+
+
+			sll_iterator(np_callback_t) iter = sll_first((job_to_execute->processorFuncs));
+			while (iter != NULL)
+			{
+				iter->val(job_to_execute->args);
+				sll_next(iter);
+			}
 
 #ifdef DEBUG_CALLBACKS
             double n2 = np_time_now() - n1;						

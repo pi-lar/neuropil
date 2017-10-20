@@ -61,7 +61,7 @@
  **/
 void _np_out_ack(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_out_ack(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_send_ack(np_jobargs_t* args){");
 	//TODO: Was soll diese Methode machen?
 
 	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(args->msg->uuid));
@@ -82,9 +82,9 @@ void _np_out_ack(np_jobargs_t* args)
  ** _np_network_send_msg: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
-void _np_send(np_jobargs_t* args)
+void _np_out(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_send(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_out(np_jobargs_t* args){");
 
 	uint32_t seq = 0;
 	np_message_t* msg_out = args->msg;
@@ -324,9 +324,9 @@ void _np_send(np_jobargs_t* args)
 	}
 }
 
-void _np_send_handshake(np_jobargs_t* args)
+void _np_out_handshake(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_handshake(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_out_handshake(np_jobargs_t* args){");
 
 	_LOCK_MODULE(np_handshake_t) {
 		if (_np_node_check_address_validity(args->target->node))
@@ -495,9 +495,9 @@ void _np_send_handshake(np_jobargs_t* args)
 	}
 }
 
-void _np_send_discovery_messages(np_jobargs_t* args)
+void _np_out_discovery_messages(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_discovery_messages(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_out_discovery_messages(np_jobargs_t* args){");
 	np_aaatoken_t* msg_token = NULL;
 
 	double now = np_time_now();
@@ -520,7 +520,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 
 	if (0 < (args->properties->mode_type & INBOUND))
 	{
-		log_debug_msg(LOG_DEBUG, ".step ._np_send_discovery_messages.inbound");
+		log_debug_msg(LOG_DEBUG, ".step ._np_out_discovery_messages.inbound");
 
 		np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
 
@@ -547,7 +547,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 
 	if (0 < (args->properties->mode_type & OUTBOUND))
 	{
-		log_debug_msg(LOG_DEBUG, ".step ._np_send_discovery_messages.outbound");
+		log_debug_msg(LOG_DEBUG, ".step ._np_out_discovery_messages.outbound");
 
 		np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
 
@@ -580,9 +580,9 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 }
 
 // deprecated
-void _np_send_receiver_discovery(np_jobargs_t* args)
+void _np_out_receiver_discovery(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_receiver_discovery(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_out_receiver_discovery(np_jobargs_t* args){");
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
 
@@ -614,9 +614,9 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 }
 
 // deprecated
-void _np_send_sender_discovery(np_jobargs_t* args)
+void _np_out_sender_discovery(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_sender_discovery(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_out_sender_discovery(np_jobargs_t* args){");
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
 
@@ -648,9 +648,9 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 	np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_receiver");
 }
 
-void _np_send_authentication_request(np_jobargs_t* args)
+void _np_out_authentication_request(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_authentication_request(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_out_authentication_request(np_jobargs_t* args){");
 
 	np_state_t* state = _np_state();
 	np_dhkey_t target_dhkey;
@@ -695,16 +695,16 @@ void _np_send_authentication_request(np_jobargs_t* args)
 	{
 		log_debug_msg(LOG_DEBUG, "sending authentication discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
-		_np_send_receiver_discovery(&jargs);
+		_np_out_receiver_discovery(&jargs);
 	}
 	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 
 	np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
 }
 
-void _np_send_authentication_reply(np_jobargs_t* args)
+void _np_out_authentication_reply(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_authentication_reply(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_out_authentication_reply(np_jobargs_t* args){");
 
 	np_dhkey_t target_dhkey;
 
@@ -733,14 +733,14 @@ void _np_send_authentication_reply(np_jobargs_t* args)
 	{
 		log_debug_msg(LOG_DEBUG, "sending authentication reply discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
-		_np_send_receiver_discovery(&jargs);
+		_np_out_receiver_discovery(&jargs);
 	}
 	np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
 }
 
-void _np_send_authorization_request(np_jobargs_t* args)
+void _np_out_authorization_request(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_authorization_request(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_out_authorization_request(np_jobargs_t* args){");
 
 	np_state_t* state = _np_state();
 	np_dhkey_t target_dhkey;
@@ -777,15 +777,15 @@ void _np_send_authorization_request(np_jobargs_t* args)
 	if (FALSE == _np_send_msg(_NP_MSG_AUTHORIZATION_REQUEST, msg_out, aaa_props, NULL))
 	{
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
-		_np_send_receiver_discovery(&jargs);
+		_np_out_receiver_discovery(&jargs);
 	}
 	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 	np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
 }
 
-void _np_send_authorization_reply(np_jobargs_t* args)
+void _np_out_authorization_reply(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_authorization_reply(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_out_authorization_reply(np_jobargs_t* args){");
 
 	np_dhkey_t target_dhkey;
 
@@ -814,14 +814,14 @@ void _np_send_authorization_reply(np_jobargs_t* args)
 	{
 		log_debug_msg(LOG_DEBUG, "sending authorization reply discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
-		_np_send_receiver_discovery(&jargs);
+		_np_out_receiver_discovery(&jargs);
 	}
 	np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
 }
 
-void _np_send_accounting_request(np_jobargs_t* args)
+void _np_out_accounting_request(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_accounting_request(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_out_accounting_request(np_jobargs_t* args){");
 
 	np_state_t* state = _np_state();
 	np_dhkey_t target_dhkey;
@@ -853,28 +853,9 @@ void _np_send_accounting_request(np_jobargs_t* args)
 	if (FALSE == _np_send_msg(_NP_MSG_ACCOUNTING_REQUEST, msg_out, aaa_props, NULL))
 	{
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
-		_np_send_receiver_discovery(&jargs);
+		_np_out_receiver_discovery(&jargs);
 	}
 	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 
 	np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
-}
-
-void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
-	log_msg(LOG_TRACE, "start: void _np_send_simple_invoke_request(np_key_t* target, const char* type) {");
-
-	np_state_t* state = _np_state();
-
-	np_tree_t* jrb_me = np_tree_create();
-	np_aaatoken_encode(jrb_me, state->my_node_key->aaa_token);
-
-	np_message_t* msg_out = NULL;
-	np_new_obj(np_message_t, msg_out);
-	_np_message_create(msg_out, target, state->my_node_key, type , jrb_me);
-
-	log_debug_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(target));
-	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, type);
-	_np_job_submit_msgout_event(0.0, prop, target, msg_out);
-
-	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 }

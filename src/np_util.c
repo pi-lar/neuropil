@@ -599,5 +599,10 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 
 	return item;
 }
-
 #endif
+/*
+	compares pointers and returns 0 if both pointers are the same
+*/
+int _np_util_cmp_ref(void* a, void* b) {
+	return a == b ? 0 : -1;
+}

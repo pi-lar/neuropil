@@ -371,6 +371,10 @@ void _np_send_ack(np_message_t* in_msg);
 NP_API_INTERN
 double np_time_now();
 
+// send join request
+NP_API_INTERN
+void _np_send_simple_invoke_request(np_key_t* target, const char* type);
+
 #ifdef __cplusplus
 }
 #endif

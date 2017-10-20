@@ -355,7 +355,6 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 										memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
 										/* send data */
-										// _LOCK_ACCESS(_np_state()->my_node_key->network) {
 										_LOCK_ACCESS(&node_key->network->lock) {
 											if (NULL != node_key->network->out_events) {
 												// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
@@ -367,16 +366,6 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 												free(enc_buffer);
 											}
 										}
-
-										// if (ret < 0)
-										// {
-										// log_msg (LOG_ERROR, "send message error: %s", strerror (errno));
-										// return FALSE;
-										// }
-										// else
-										// {
-										// log_msg (LOG_NETWORKDEBUG, "sent message");
-										// }
 
 										np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
 										pll_next(iter);
@@ -457,31 +446,11 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 									log_debug_msg(LOG_DEBUG | LOG_NETWORK, "send delay %f", 0.001 * iter - 0.001);
 								}
 								free(data_to_send);
-							// ret is -1 or > 0 (bytes send)
-							// do not update the success, because UDP sending could result in
-							// false positives
-							// if (0 > ret)
-							// {
-							//     // _np_node_update_stat(key->node, 0);
-							//     // log_debug_msg(LOG_DEBUG, "node update reduce %d", ret);
-							// }
-							// else
-							// {
-							//     _np_node_update_stat(key->node, 1);
-							//     log_debug_msg(LOG_DEBUG, "node update increase %d", ret);
-							// }
 							}
-						}
-						else
-						{
-							// log_debug_msg(LOG_DEBUG, "no data to write to %s:%s ...", key->node->dns_name, key->node->port);
-							// log_debug_msg(LOG_DEBUG, "no data to write ...");
 						}
 					}
 				}
 				np_unref_obj(np_network_t, key_network, "np_tryref_obj_key_network");
-			}else{
-			//	_np_threads_unlock_module(np_network_t_lock);
 			}
 			np_unref_obj(np_key_t, key, "np_tryref_obj_key");
 		}
@@ -507,8 +476,8 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 	  return;
 	}
 	// calling address and port
-	char ipstr[255] = { 0 };
-	char port[7] = { 0 };
+	char ipstr[CHAR_LENGTH_IP] = { '\0' };
+	char port[CHAR_LENGTH_PORT] = { '\0' };
 
 	struct sockaddr_storage from;
 	socklen_t fromlen = sizeof(from);
@@ -548,7 +517,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
 						// AF_INET
 						struct sockaddr_in *s = (struct sockaddr_in *) &from;
-						snprintf(port, 6, "%d", ntohs(s->sin_port));
+						snprintf(port, CHAR_LENGTH_PORT, "%d", ntohs(s->sin_port));
 						inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
 					}
 					else
@@ -556,22 +525,19 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
 						// AF_INET6
 						struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-						snprintf(port, 6, "%d", ntohs(s->sin6_port));
+						snprintf(port, CHAR_LENGTH_PORT, "%d", ntohs(s->sin6_port));
 						inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 					}
 
-					free(ng->ip);
-					ng->ip = strndup(ipstr, 255);
-
-					free(ng->port);
-					ng->port = strndup(port, 7);
+					memcpy(ng->ip, ipstr, sizeof(char)*strnlen(ipstr, CHAR_LENGTH_IP-1));
+					memcpy(ng->port, port, sizeof(char)*strnlen(port, CHAR_LENGTH_PORT-1));
 				}
 
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 						"received connection request from %s:%s (client fd: %d)",
 						ng->ip, ng->port, client_fd);
 
-				np_dhkey_t search_key = np_dhkey_create_from_hostport(ng->ip, ng->port);
+				np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
 				np_key_t* alias_key = _np_keycache_find(search_key);
 				char* alias_key_reason = "_np_keycache_find";
 				np_network_t* old_network = NULL;
@@ -647,8 +613,8 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	struct sockaddr_storage from;
 	socklen_t fromlen = sizeof(from);
 	// calling address and port
-	char ipstr[255] = { 0 };
-	char port [7] = { 0 };
+	char ipstr[CHAR_LENGTH_IP];// = { '\0' };
+	char port[CHAR_LENGTH_PORT];// = { '\0' };
 
 	np_key_t* key;
 	np_network_t* ng;
@@ -661,6 +627,9 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	int msgs_received = 0;
 	void* data;
 	do {
+		memset(ipstr,'\0', sizeof(char)*CHAR_LENGTH_IP);
+		memset(port, '\0', sizeof(char)*CHAR_LENGTH_PORT);
+
 		key = (np_key_t*)event->data;
 		ng = key->network;
 
@@ -693,15 +662,15 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 
 		if (in_msg_len >= 0) {
 			msgs_received++;
+
 			// deal with both IPv4 and IPv6:
-		//	if (ng->ip == NULL || ng->port == NULL )
 			{
 				if (from.ss_family == AF_INET)
 				{
 					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
 					// AF_INET
 					struct sockaddr_in *s = (struct sockaddr_in *) &from;
-					snprintf(port, 6, "%d", ntohs(s->sin_port));
+					snprintf(port, CHAR_LENGTH_PORT-1, "%d", ntohs(s->sin_port));
 					inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
 				}
 				else
@@ -709,17 +678,13 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
 					// AF_INET6
 					struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-					snprintf(port, 6, "%d", ntohs(s->sin6_port));
+					snprintf(port, CHAR_LENGTH_PORT-1, "%d", ntohs(s->sin6_port));
 					inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 				}
+				
 
-				char * old = ng->ip;
-				ng->ip = strndup(ipstr, 255);
-				free(old);
-
-				old = ng->port;
-				ng->port = strndup(port, 7);
-				free(old);
+				memcpy(ng->ip,	 ipstr, sizeof(char) * strnlen(ipstr, CHAR_LENGTH_IP-1));
+				memcpy(ng->port, port,  sizeof(char) * strnlen(port, CHAR_LENGTH_PORT-1));
 			}
 
 			if (0 == in_msg_len)
@@ -729,7 +694,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					log_msg(LOG_ERROR, "received disconnect from: %s:%s", ng->ip, ng->port);
 					// TODO handle cleanup of node structures ?
 					// maybe / probably the node received already a disjoin message before
-					//TODO: pr�fen ob hier wirklich der host geschlossen werden muss
+					//TODO: prüfen ob hier wirklich der host geschlossen werden muss
 					_np_network_stop(ng_tcp_host);
 					//_np_node_update_stat(key->node, 0);
 
@@ -906,9 +871,6 @@ void _np_network_t_del(void* nw)
 
 			if (0 < network->socket) close (network->socket);
 
-			free(network->ip);
-			network->ip = NULL;
-
 			network->initialized = FALSE;
 		}
 		// finally destroy the mutex again
@@ -927,7 +889,6 @@ void _np_network_t_new(void* nw)
 	ng->in_events 	= NULL;
 	ng->out_events 	= NULL;
 	ng->initialized = FALSE;
-	ng->ip = NULL;
 	ng->watcher.data = NULL;
 
 	log_debug_msg(LOG_DEBUG, "try to pthread_mutex_init");
