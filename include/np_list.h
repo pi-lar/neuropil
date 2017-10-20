@@ -487,6 +487,7 @@ function like macros are:
 #define sll_free(TYPE, sll_list) { TYPE##_sll_free(sll_list); sll_list = NULL; }
 #define sll_clear(TYPE, sll_list) TYPE##_sll_clear(sll_list)
 #define sll_delete(TYPE, sll_list, iter) TYPE##_sll_delete(sll_list, iter)
+#define sll_contains(TYPE, sll_list, value, fn_cmp) TYPE##_sll_contains(sll_list, value, fn_cmp)
 #define sll_clone(TYPE, sll_list_source, sll_list_target)										\
 	np_sll_t(TYPE, sll_list_target);															\
 	sll_init(TYPE, sll_list_target);															\
@@ -518,13 +519,13 @@ real macros for convenience usage
 // general purpose definitions
 // #define sll_traverse(sll_list, iter_item, elem) for (iter_item = sll_list->first, elem = iter_item->val; iter_item != NULL; iter_item = iter_item->flink, elem = iter_item->val)
 // #define sll_rtraverse(sll_list, iter_item, elem) for (iter_item = sll_list->last,  elem = iter_item->val; iter_item != NULL; iter_item = iter_item->blink, elem = iter_item->val)
-#define sll_empty(sll_list) (NULL == sll_list->first)
-#define sll_size(sll_list) sll_list->size
-#define sll_first(sll_list) (sll_list->first)
-#define sll_last(sll_list) (sll_list->last)
-#define sll_next(sll_elem) (sll_elem = sll_next_select(sll_elem))
-#define sll_next_select(sll_elem) (((sll_elem == NULL || sll_elem->flink == sll_elem) ? NULL : sll_elem->flink))
-#define sll_get_next(sll_elem) (sll_elem->flink)
+#define sll_empty(sll_list) (NULL == (sll_list)->first)
+#define sll_size(sll_list) ((sll_list)->size)
+#define sll_first(sll_list) ((sll_list)->first)
+#define sll_last(sll_list) ((sll_list)->last)
+#define sll_next(sll_elem) ((sll_elem) = sll_next_select(sll_elem))
+#define sll_next_select(sll_elem) ((((sll_elem) == NULL || (sll_elem)->flink == (sll_elem)) ? NULL : (sll_elem)->flink))
+#define sll_get_next(sll_elem) ((sll_elem)->flink)
 // #define sll_previous(sll_elem) (sll_elem->blink)
 
 //
@@ -553,12 +554,26 @@ real macros for convenience usage
 	void TYPE##_sll_clear(TYPE##_sll_t* list);                    											\
 	void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);										\
 	void TYPE##_sll_clone(TYPE##_sll_t* sll_list_source, TYPE##_sll_t* sll_list_target);					\
+	np_bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, _np_cmp_t fn_cmp);						\
 																											\
 																											
 //
 // SLL (single linked list) implementation generator
 //
 #define NP_SLL_GENERATE_IMPLEMENTATION(TYPE)																\
+np_bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, _np_cmp_t fn_cmp) {							\
+	np_bool ret = FALSE;																					\
+	sll_iterator(TYPE) iter = sll_first(sll_list);															\
+	while (iter != NULL)																					\
+	{																										\
+		if (fn_cmp(iter->val, value) == 0) {																\
+			ret = TRUE;																						\
+			break;																							\
+		}																									\
+		sll_next(iter);																						\
+	}																										\
+	return ret;																								\
+}																											\
 void TYPE##_sll_clone(TYPE##_sll_t* sll_list_source, TYPE##_sll_t* sll_list_target) {						\
 	sll_iterator(TYPE) iter = sll_first(sll_list_source);													\
 	while (iter != NULL)																					\
