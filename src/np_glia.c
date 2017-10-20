@@ -247,8 +247,10 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 		
 		if(iter->val != _np_state()->my_node_key){
 			np_tryref_obj(np_node_t, iter->val->node, node_exists);
-			if(node_exists && iter->val->node->joined_network) {
-				_np_ping_send(iter->val);
+			if(node_exists){
+				if (iter->val->node->joined_network) {
+					_np_ping_send(iter->val);
+				}
 				np_unref_obj(np_node_t, iter->val->node, __func__);
 			}
 		}

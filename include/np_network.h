@@ -119,14 +119,12 @@ NP_API_INTERN
 void _network_destroy (np_network_t* network);
 
 /**
- ** _np_network_send_msg: host, data, size
- ** Sends a message to host, updating the measurement info.
- ** type are 1 or 2, 1 indicates that the data should be acknowledged by the
- ** receiver, and 2 indicates that no ack is necessary.
+ ** _np_network_send_msg:
+ ** Sends a message to host
  **
  **/
 NP_API_INTERN
-void _np_network_send_msg (np_key_t* node,  np_message_t* msg);
+np_bool _np_network_send_msg (np_key_t* node,  np_message_t* msg);
 
 /*
  * libev driven functions to send/receive messages over the wire

@@ -49,6 +49,27 @@
 #include "np_constants.h"
 #include "np_ackentry.h"
 
+
+/*
+will always call all handlers, but will return false if any of the handlers returns false
+*/
+np_bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_t* msg_prop) {
+	np_bool ret = TRUE;
+
+	if (msg_in->msg_property == NULL) {
+		np_ref_obj(np_msgproperty_t, msg_prop, ref_message_msg_property);
+		msg_in->msg_property = msg_prop;
+	}
+
+	sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_prop->user_receive_clb);
+	while (iter_usercallbacks != NULL)
+	{
+		ret = iter_usercallbacks->val(msg_in, msg_in->properties, msg_in->body) && ret;
+		sll_next(iter_usercallbacks);
+	}
+	return ret;
+}
+
 /**
  ** message_received:
  ** is called by network_activate and will be passed received data and size from socket
@@ -172,6 +193,7 @@ void _np_in_received(np_jobargs_t* args)
 				np_bool is_ack_msg = 0 == strncmp(msg_subject.value.s, _NP_MSG_ACK, strlen(_NP_MSG_ACK));
 				if (is_ack_msg) {
 					__np_in_ack_handle(msg_in);
+					_np_in_invoke_user_receive_callbacks(msg_in, np_msgproperty_get(INBOUND, _NP_MSG_ACK));
 				} else {
 
 					/* real receive part */
@@ -403,11 +425,18 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	log_msg(LOG_TRACE, "start: void _np_in_callback_wrapper(np_jobargs_t* args){");
 	np_aaatoken_t* sender_token = NULL;
 	np_message_t* msg_in = args->msg;
-	np_bool msg_has_expired = FALSE;
+	np_bool msg_has_expired = FALSE;	
 
-	if(NULL == msg_in){
-		// Eine msg wurde gelöscht obwohl sie in benutzung ist!
-		log_msg(LOG_ERROR, "message object null but in use!");
+	if (args->properties != NULL && args->properties->is_internal) {
+		_np_in_invoke_user_receive_callbacks(msg_in, args->properties);
+		goto __np_cleanup__;
+	}
+
+	if(NULL == msg_in) {
+		log_msg(LOG_ERROR, "message object null but in use! %s", 
+			((args->properties == NULL)? "" : args->properties->msg_subject)
+		);			
+		
 		goto __np_cleanup__;
 	}
 
@@ -418,14 +447,15 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
 	msg_has_expired = _np_message_is_expired(msg_in);
-	sender_token = _np_aaatoken_get_sender((char*) subject, msg_from.value.s);
+	sender_token = _np_aaatoken_get_sender((char*)subject, msg_from.value.s);
+
 
 	if (TRUE == msg_has_expired)
 	{
 		log_debug_msg(LOG_DEBUG, "discarding expired message %s / %s ...", msg_prop->msg_subject, msg_in->uuid);
 	}
-	else
-	{
+	else	
+	{	
 		if ( NULL == sender_token )
 		{
 			_np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
@@ -444,28 +474,19 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 			}
 			else
 			{
-				if (0 < (msg_ack_mode.value.ush & ACK_DESTINATION))
+				if (ACK_DESTINATION ==(msg_ack_mode.value.ush & ACK_DESTINATION))
 				{
 					_np_send_ack(args->msg);
 				}
 
-
-				np_bool result = TRUE;
-
-				sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_prop->user_receive_clb);
-				while (result == TRUE && iter_usercallbacks != NULL)
-				{
-					// will always call all handlers, but will return false if any of the handlers returns false
-					result = iter_usercallbacks->val(msg_in, msg_in->properties, msg_in->body) && result;
-					sll_next(iter_usercallbacks);
-				}
+				np_bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);				
 
 				msg_prop->msg_threshold--;
 
 				// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
 				// log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
 
-				if (0 < (msg_ack_mode.value.ush & ACK_CLIENT) && (TRUE == result))
+				if (ACK_CLIENT ==(msg_ack_mode.value.ush & ACK_CLIENT) && (TRUE == result))
 				{
 					_np_send_ack(args->msg);
 				}
@@ -478,7 +499,6 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 
 	return;
 }
-
 /** _np_in_leave_req:
  ** internal function that is called at the destination of a LEAVE message. This
  ** call encodes the leaf set of the current host and sends it to the joiner.
@@ -1017,7 +1037,6 @@ void _np_in_discover_sender(np_jobargs_t* args)
 		}
 		sll_free(np_aaatoken_ptr, available_list);
 	}
-
 	__np_cleanup__:
 	np_unref_obj(np_key_t, reply_to_key,"_np_keycache_find_or_create");
 	np_unref_obj(np_aaatoken_t, msg_token, ref_obj_creation);
@@ -1904,6 +1923,7 @@ void _np_in_handshake(np_jobargs_t* args)
 					_np_key_as_str(msg_source_key), _np_key_as_str(alias_key));
 			}
 		}
+
 	__np_cleanup__:
 		np_unref_obj(np_aaatoken_t, tmp_token, ref_obj_creation);
 

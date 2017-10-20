@@ -102,10 +102,10 @@ int8_t _np_job_compare_job_scheduling(np_job_ptr job1, np_job_ptr job2)
 
     int8_t ret = 0;
     if (job1->exec_not_before_tstamp > job2->exec_not_before_tstamp) {
-        ret = 1;
+        ret = -1;
     }
     else if (job1->exec_not_before_tstamp < job2->exec_not_before_tstamp) {
-        ret = -1;
+        ret = 1;
     }else{
         if (job1->priority == job2->priority)
             ret = 0;
@@ -178,6 +178,25 @@ void _np_job_queue_insert(np_job_t* new_job)
 
     _LOCK_MODULE(np_jobqueue_t) {
         pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_scheduling);
+		
+		while (pll_size(__np_job_queue->job_list) > JOBQUEUE_MAX_SIZE) {
+			
+			log_msg(LOG_WARN, "Discarding %"PRIu32" jobs. Increase JOBQUEUE_MAX_SIZE to prevent missing data.",
+				pll_size(__np_job_queue->job_list) - JOBQUEUE_MAX_SIZE);
+
+			pll_iterator(np_job_ptr) iter = pll_last(__np_job_queue->job_list);
+			do
+			{
+				if(iter->val->is_periodic == TRUE){
+					pll_previous(iter);
+				}
+				else {
+					pll_remove(np_job_ptr, __np_job_queue->job_list, iter->val, _np_util_cmp_ref);
+					break;
+				}
+			} while (iter != NULL);
+		}
+
     }
     //_np_threads_condition_signal(&__cond_empty);
 	_np_threads_condition_broadcast(&__cond_empty);	
@@ -382,7 +401,7 @@ np_job_t* _np_jobqueue_select_next()
 					// check time of job
 					if (now <= next_job->exec_not_before_tstamp) {
 
-						sleep_time = next_job->exec_not_before_tstamp - now;
+						sleep_time = min(sleep_time , next_job->exec_not_before_tstamp - now);
 					}
 					else {
 						job_to_execute = next_job;
@@ -398,8 +417,7 @@ np_job_t* _np_jobqueue_select_next()
 				pll_remove(np_job_ptr, __np_job_queue->job_list, job_to_execute, __np_job_cmp);
 			}
 			else {
-				sleep_time = min(sleep_time, NP_JOBQUEUE_MAX_SLEEPTIME_SEC);
-				struct timeval tv_sleep = dtotv(now + sleep_time);
+ 				struct timeval tv_sleep = dtotv(now + sleep_time);
 				struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
 
 				_np_threads_module_condition_timedwait(&__cond_empty, np_jobqueue_t_lock, &waittime);

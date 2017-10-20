@@ -55,6 +55,22 @@
  ** 	add garbage
  **/
 
+
+void __np_axon_ivoke_on_user_send_callbacks(np_message_t* msg_out, np_msgproperty_t* prop)
+{
+	if (msg_out->msg_property == NULL) {
+		np_ref_obj(np_msgproperty_t, prop, ref_message_msg_property);
+		msg_out->msg_property = prop;
+	}
+	// Call user handler for send msgs
+	sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(prop->user_send_clb);
+	while (iter_usercallbacks != NULL)
+	{
+		iter_usercallbacks->val(msg_out, ((msg_out == NULL) ? NULL : msg_out->properties), ((msg_out==NULL) ? NULL : msg_out->body));
+		sll_next(iter_usercallbacks);
+	}
+}
+
 /**
  ** _np_network_send_msg: host, data, size
  ** Sends a message to host, updating the measurement info.
@@ -62,7 +78,6 @@
 void _np_out_ack(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_send_ack(np_jobargs_t* args){");
-	//TODO: Was soll diese Methode machen?
 
 	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(args->msg->uuid));
 	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
@@ -74,9 +89,9 @@ void _np_out_ack(np_jobargs_t* args)
 	_np_message_serialize_chunked(chunk_args);
 	_np_job_free_args(chunk_args);
 
-	_np_network_send_msg(args->target, args->msg);
-	// send_ok is 1 or 0
-	// np_node_update_stat(args->target->node, send_ok);
+	if(_np_network_send_msg(args->target, args->msg)) {
+	__np_axon_ivoke_on_user_send_callbacks(args->msg, np_msgproperty_get(OUTBOUND, _NP_MSG_ACK));
+	}
 }
 /**
  ** _np_network_send_msg: host, data, size
@@ -101,11 +116,7 @@ void _np_out(np_jobargs_t* args)
 
 	// set msgproperty of msg 
 	if (msg_out != NULL && prop != NULL) {
-		if (msg_out->msg_property != NULL) {
-			np_unref_obj(np_msgproperty_t, prop, ref_message_msg_property);
-		}
-		msg_out->msg_property = prop;
-		np_ref_obj(np_msgproperty_t, prop, ref_message_msg_property);
+		np_ref_switch(np_msgproperty_t, msg_out->msg_property, ref_message_msg_property, prop);
 	}
 	// sanity check
 	if (!_np_node_check_address_validity(args->target->node))
@@ -123,7 +134,7 @@ void _np_out(np_jobargs_t* args)
 			// check ack indicator if this is a resend of a message
 			if (TRUE == is_resend)
 			{
-				uuid = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
+				uuid = msg_out->uuid;
 				np_bool skip = FALSE;
 				_LOCK_ACCESS(&my_network->lock)
 				{
@@ -149,19 +160,19 @@ void _np_out(np_jobargs_t* args)
 				}
 				// TODO: ref counting on ack may differ (ref_message_ack) / key may not be the same more
 				if (TRUE == skip) {
-					np_unref_obj(np_network_t, my_network,"np_waitref_network");
-					np_unref_obj(np_key_t,my_key,"np_waitref_key");
+					np_unref_obj(np_network_t, my_network, "np_waitref_network");
+					np_unref_obj(np_key_t, my_key, "np_waitref_key");
 					return;
 				}
 
 				double initial_tstamp = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
 				double now = np_time_now();
-				if (now > (initial_tstamp + args->properties->msg_ttl) )
+				if (now > (initial_tstamp + args->properties->msg_ttl))
 				{
 					log_debug_msg(LOG_DEBUG, "resend message %s (%s) expired, not resending ...", prop->msg_subject, uuid);
 
-					np_unref_obj(np_network_t, my_network,"np_waitref_network");
-					np_unref_obj(np_key_t,my_key,"np_waitref_key");
+					np_unref_obj(np_network_t, my_network, "np_waitref_network");
+					np_unref_obj(np_key_t, my_key, "np_waitref_key");
 					return;
 				}
 				// only redeliver if ack_to has been initialized correctly, so this must be TRUE for a resend
@@ -182,13 +193,13 @@ void _np_out(np_jobargs_t* args)
 
 			char* ack_to_str = _np_key_as_str(my_key);
 
-			if ( 0 < (ack_mode & ACK_EACHHOP) )
+			if (0 < (ack_mode & ACK_EACHHOP))
 			{
 				// we have to reset the existing ack_to field in case of forwarding and each-hop acknowledge
 				np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
 				ack_to_is_me = TRUE;
 			}
-			else if ( 0 < (ack_mode & ACK_DESTINATION) || 0 < (ack_mode & ACK_CLIENT) )
+			else if (0 < (ack_mode & ACK_DESTINATION) || 0 < (ack_mode & ACK_CLIENT))
 			{
 				// only set ack_to for these two ack mode values if not yet set !
 				np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
@@ -234,6 +245,8 @@ void _np_out(np_jobargs_t* args)
 				_np_message_calculate_chunking(msg_out);
 			}
 
+			np_bool reshedule_msg_transmission = FALSE;
+
 			if (TRUE == ack_to_is_me)
 			{
 				if (FALSE == is_resend)
@@ -253,15 +266,15 @@ void _np_out(np_jobargs_t* args)
 						else
 						{
 							np_new_obj(np_ackentry_t, ackentry, ref_ack_obj);
-						}						
+						}
 						ackentry->send_at = np_time_now();
 
 						ackentry->expires_at = ackentry->send_at + args->properties->msg_ttl + np_msgproperty_get(INBOUND, _NP_MSG_ACK)->msg_ttl;
 
-						if(ackentry->dest_key != args->target) {							
+						if (ackentry->dest_key != args->target) {
 							np_ref_switch(np_key_t, ackentry->dest_key, ref_ack_key, args->target);
-													
-							if( sll_size(args->msg->on_ack) > 0  || 
+
+							if (sll_size(args->msg->on_ack) > 0 ||
 								sll_size(args->msg->on_timeout) > 0) {
 								np_ref_switch(np_message_t, ackentry->msg, ref_ack_msg, args->msg);
 							}
@@ -281,18 +294,8 @@ void _np_out(np_jobargs_t* args)
 						np_tree_insert_str(my_network->waiting, uuid, np_treeval_new_v(ackentry));
 						log_debug_msg(LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", my_network->waiting, uuid);
 					}
-				}
-
-
-
-				// insert a record into the priority queue with the following information:
-				int retry = args->properties->retry;
-				if (retry  == 0) {
-					retry = 1;
-				}
-				double retransmit_interval = args->properties->msg_ttl / retry;
-				np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
-				_np_job_resubmit_route_event(retransmit_interval, out_prop, args->target, args->msg);
+				}				
+				reshedule_msg_transmission = TRUE;
 			}
 
 			np_jobargs_t chunk_args = { .msg = msg_out };
@@ -307,23 +310,21 @@ void _np_out(np_jobargs_t* args)
 			}
 			log_debug_msg(LOG_DEBUG, "Try sending message for subject \"%s\" (msg id: %s) to %s", prop->msg_subject, msg_out->uuid, _np_key_as_str(args->target));
 
-			_np_network_send_msg(args->target, msg_out);
+			np_bool send_completed = _np_network_send_msg(args->target, msg_out);
 
+			__np_axon_ivoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
 
-			// Call user handler for send msgs
-			sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_out->msg_property->user_send_clb);
-			while (iter_usercallbacks != NULL)
-			{
-				iter_usercallbacks->val(msg_out, msg_out->properties, msg_out->body);
-				sll_next(iter_usercallbacks);
-			}
+			if (send_completed == FALSE || (reshedule_msg_transmission == TRUE && args->properties->retry > 0)) {				
+				double retransmit_interval = args->properties->msg_ttl / (args->properties->retry+1);
+				np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
+				_np_job_resubmit_route_event(retransmit_interval, out_prop, args->target, args->msg); 
+			}			
 
 			np_unref_obj(np_network_t, my_network,"np_waitref_network");
 		}
 		np_unref_obj(np_key_t,my_key,"np_waitref_key");
 	}
 }
-
 void _np_out_handshake(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_out_handshake(np_jobargs_t* args){");
@@ -407,13 +408,13 @@ void _np_out_handshake(np_jobargs_t* args)
 			// create real handshake message ...
 			np_message_t* hs_message = NULL;
 			np_new_obj(np_message_t, hs_message);
-			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
+			np_msgproperty_t* hs_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
 
 			np_tree_insert_str(hs_message->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s(_NP_MSG_HANDSHAKE));
 			np_tree_insert_str(hs_message->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*)_np_key_as_str(_np_state()->my_node_key)));
 			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
-			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop->ack_mode));
-			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(prop->token_max_ttl + 0.0));
+			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(hs_prop->ack_mode));
+			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(hs_prop->token_max_ttl + 0.0));
 			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d((double)np_time_now()));
 
 
@@ -489,6 +490,7 @@ void _np_out_handshake(np_jobargs_t* args)
 						free(packet);
 					}
 				}
+				__np_axon_ivoke_on_user_send_callbacks(hs_message, hs_prop);
 			}
 			np_unref_obj(np_message_t, hs_message, ref_obj_creation);
 		}

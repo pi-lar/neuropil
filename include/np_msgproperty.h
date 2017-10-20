@@ -243,6 +243,7 @@ struct np_msgproperty_s
 	uint8_t          retry; // the # of retries when sending a message
 	uint16_t         msg_threshold; // current cache size
 	uint16_t         max_threshold; // local cache size
+	np_bool is_internal;
 
 	// timestamp for cleanup thread
 	double          last_update;
@@ -323,7 +324,6 @@ NP_API_EXPORT
 np_msgproperty_t* np_msgproperty_get(np_msg_mode_type msg_mode, const char* subject);
 
 static char _DEFAULT[]                       = "_NP.DEFAULT";
-static char _ROUTE_LOOKUP[]                  = "_NP.ROUTE.LOOKUP";
 
 static char _NP_MSG_ACK[]                    = "_NP.ACK";
 static char _NP_MSG_HANDSHAKE[]              = "_NP.HANDSHAKE";

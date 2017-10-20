@@ -17,7 +17,7 @@ extern "C" {
 
 
 #ifndef CEIL(a)
-#define CEIL(a) (((a-(int)a) > 0) ? a+1:a)
+#define CEIL(a) (((a-(int)a) > 0) ? ((int)a)+1:a)
 #endif
 #ifndef MIN(a,b)
 #define MIN(a,b) (((a)<(b))?(a):(b))

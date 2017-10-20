@@ -84,7 +84,7 @@ np_bool _np_msgproperty_init ()
 	while(__np_internal_messages != NULL)
 	{
 		np_msgproperty_t* property = __np_internal_messages->val;
-		
+		property->is_internal = TRUE;
 		if (strlen(property->msg_subject) > 0)
 		{
 			log_debug_msg(LOG_DEBUG, "register handler: %s", property->msg_subject);
@@ -171,6 +171,7 @@ void _np_msgproperty_t_new(void* property)
 	prop->max_threshold = 10;
 	prop->msg_threshold =  0;
 
+	prop->is_internal = FALSE;
 	prop->last_update = np_time_now();
 
 	sll_init(np_callback_t, prop->clb_inbound);

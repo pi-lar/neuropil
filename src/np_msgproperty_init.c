@@ -76,7 +76,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __ack_properties->clb_outbound, _np_out_ack);
 	//sll_append(np_callback_t, __ack_properties->clb_transform, _np_never_called_jobexec_transform);
 	//default: sll_append(np_callback_t, __ack_properties->clb_route, _np_route_lookup_jobexec);
-	__ack_properties->msg_ttl = 60.0;
+	__ack_properties->msg_ttl = 20.0;
 	__ack_properties->max_threshold = UINT16_MAX;
 	__ack_properties->token_max_ttl = 30;
 	__ack_properties->token_min_ttl = 20;
@@ -212,7 +212,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__update->mode_type = INBOUND | OUTBOUND | ROUTE;
 	__update->mep_type = ONE_WAY;
 	__update->priority = 0;
-	__update->ack_mode = ACK_EACHHOP;
+	__update->ack_mode = ACK_DESTINATION;
 	__update->retry = 5;
 	sll_append(np_callback_t, __update->clb_inbound, _np_in_update);
 	//default: sll_append(np_callback_t, __update->clb_outbound, _np_out);
@@ -232,8 +232,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__discover_receiver->mode_type = INBOUND | OUTBOUND | ROUTE;
 	__discover_receiver->mep_type = A2A_STICKY_REPLY;
 	__discover_receiver->priority = 0;
-	__discover_receiver->ack_mode = ACK_EACHHOP;
-	__discover_receiver->retry = 2;
+	__discover_receiver->ack_mode = ACK_DESTINATION;
+	__discover_receiver->retry = 0;
 	sll_append(np_callback_t, __discover_receiver->clb_inbound, _np_in_discover_receiver);
 	//default: 	sll_append(np_callback_t, __discover_receiver->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __discover_receiver->clb_transform, _np_never_called_jobexec_transform);
@@ -252,8 +252,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__discover_sender->mode_type = INBOUND | OUTBOUND | ROUTE;
 	__discover_sender->mep_type = A2A_STICKY_REPLY;
 	__discover_sender->priority = 0;
-	__discover_sender->ack_mode = ACK_EACHHOP;
-	__discover_sender->retry = 2;
+	__discover_sender->ack_mode = ACK_DESTINATION;
+	__discover_sender->retry = 0;
 	sll_append(np_callback_t, __discover_sender->clb_inbound, _np_in_discover_sender);
 	//default: 	sll_append(np_callback_t, __discover_sender->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __discover_sender->clb_transform, _np_never_called_jobexec_transform);
@@ -272,8 +272,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__available_receiver->mode_type = INBOUND | OUTBOUND | ROUTE;
 	__available_receiver->mep_type = ONE_WAY;
 	__available_receiver->priority = 0;
-	__available_receiver->ack_mode = ACK_EACHHOP;
-	__available_receiver->retry = 2;
+	__available_receiver->ack_mode = ACK_DESTINATION;
+	__available_receiver->retry = 0;
 	sll_append(np_callback_t, __available_receiver->clb_inbound, _np_in_available_receiver);
 	//default: 	sll_append(np_callback_t, __available_receiver->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __available_receiver->clb_transform, _np_never_called_jobexec_transform);
@@ -292,8 +292,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__available_sender->mode_type = INBOUND | OUTBOUND | ROUTE;
 	__available_sender->mep_type = ONE_WAY;
 	__available_sender->priority = 0;
-	__available_sender->ack_mode = ACK_EACHHOP;
-	__available_sender->retry = 2;
+	__available_sender->ack_mode = ACK_DESTINATION;
+	__available_sender->retry = 0;
 	sll_append(np_callback_t, __available_sender->clb_inbound, _np_in_available_sender);
 	//default: 	sll_append(np_callback_t, __available_sender->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __available_sender->clb_transform, _np_never_called_jobexec_transform);

@@ -1122,7 +1122,7 @@ void _np_send_ack(np_message_t* msg_to_ack)
 			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
 
 			// send the ack out
-			_np_job_submit_route_event(0.0, prop, ack_target, ack_msg);
+			_np_job_submit_msgout_event(0.0, prop, ack_target, ack_msg);
 
 			np_unref_obj(np_key_t, ack_target, "_np_keycache_find");
 			np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
