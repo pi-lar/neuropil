@@ -110,6 +110,7 @@ void _np_message_t_del(void* data)
 			{
 				np_messagepart_ptr current_part = iter->val;
 				np_unref_obj(np_messagepart_t, current_part,"ref_message_messagepart");
+				// if (NULL != current_part->msg_part) free(current_part->msg_part);
 				pll_next(iter);
 			}
 		}
@@ -548,7 +549,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 			if(FALSE == pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp)){
 				np_unref_obj(np_messagepart_t, part, ref_message_messagepart);
 				// new entry is rejected (already present)
-				log_msg(LOG_WARN,"Msg part was rejected in _np_message_serialize_chunked");
+				log_msg(LOG_WARN,"msg part was rejected in _np_message_serialize_chunked");
 			}
 		}
 		np_unref_obj(np_messagepart_t, part, ref_obj_creation);

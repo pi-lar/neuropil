@@ -755,6 +755,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		}
 
 		if (last_recv_result < 0) {
+			free(data);
 			break;
 		}
 

@@ -71,16 +71,12 @@ void _np_aaatoken_t_new(void* token)
 void _np_aaatoken_t_del (void* token)
 {
 	np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
+
 	// clean up extensions
-	if (NULL != aaa_token->extensions)
-	{
-		np_tree_free(aaa_token->extensions);
-	}
-	if (NULL != aaa_token->uuid)
-	{
-		free(aaa_token->uuid);
-	//	aaa_token->uuid= NULL;
-	}
+	if (NULL != aaa_token->extensions)	np_tree_free(aaa_token->extensions);
+	if (NULL != aaa_token->uuid) 		free(aaa_token->uuid);
+	if (NULL != aaa_token->signed_hash) free(aaa_token->signed_hash);
+
 }
 
 void _np_aaatoken_mark_as_core_token(np_aaatoken_t* token) {
@@ -195,6 +191,7 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	}
 	if (NULL !=(tmp = np_tree_find_str(data, "np.t.u")))
 	{
+		if (NULL != token->uuid) free(token->uuid);
 		token->uuid = strndup(tmp->val.value.s, UUID_SIZE);
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.nb")))
@@ -604,8 +601,9 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 		}
 	}
 
-	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
+	sll_free(np_aaatoken_ptr, to_remove);
 
+	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_sender_token");
 }
 /** np_get_sender_token
@@ -843,6 +841,7 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 		}
 	}
 
+	sll_free(np_aaatoken_ptr, to_remove);
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_receiver_token");
 }
@@ -1092,7 +1091,9 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 				}
 #endif
 			}
-		}		
+		} else {
+			free(hash);
+		}
 }
 
 
