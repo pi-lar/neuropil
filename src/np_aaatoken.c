@@ -51,6 +51,7 @@ void _np_aaatoken_t_new(void* token)
 
 	memset(aaa_token->signature, '\0', crypto_sign_BYTES*(sizeof(unsigned char)));	
 	aaa_token->signed_hash = NULL;
+	aaa_token->is_signature_verified = FALSE;
 	
 	aaa_token->is_core_token = FALSE;
 
@@ -118,6 +119,7 @@ void _np_aaatoken_upgrade_core_token(np_key_t* key_with_core_token, np_aaatoken_
 		np_aaatoken_decode(container, key_with_core_token->aaa_token);
 		np_tree_free(container);
 
+		key_with_core_token->aaa_token->is_signature_verified = FALSE;
 	}
 }
 
@@ -295,6 +297,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	}
 
 	// if (token->private_key == FALSE)
+	if (FALSE == token->is_signature_verified)
 	{
 		unsigned char* hash = _np_aaatoken_get_fingerprint(token, is_full_token);
 
@@ -334,6 +337,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 			token->state &= AAA_INVALID;			
 			return (FALSE);
 		}
+		token->is_signature_verified = TRUE;
 	}
 	
 	/*
