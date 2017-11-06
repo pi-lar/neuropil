@@ -151,10 +151,10 @@ NP_API_INTERN
 _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double value);
 NP_API_INTERN
 _np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key);
+#endif
 
 NP_API_INTERN
 int _np_util_cmp_ref(void* a, void* b);
-#endif
 #ifdef __cplusplus
 }
 #endif
