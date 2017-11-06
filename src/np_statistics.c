@@ -177,7 +177,7 @@ void np_statistics_add_watch_internals() {
 	np_statistics_add_watch(_NP_MSG_ACCOUNTING_REQUEST);
 	
 }
-char * np_statistics_print(char* asOneLine) {
+char * np_statistics_print(np_bool asOneLine) {
 	if (FALSE == _np_statistcs_initiated) {
 		return NULL;
 	}

@@ -438,7 +438,7 @@ void np_set_mx_property(char* subject, const char* key, np_treeval_t value)
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		
-		if(FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out,_np_util_cmp_ref)){
+		if(FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, _np_util_cmp_ref)){
 			sll_append(np_callback_t, msg_prop->clb_outbound, _np_out);
 		}
 
