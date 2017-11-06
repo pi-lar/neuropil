@@ -83,17 +83,11 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		is_a_join_request = TRUE;
 	}
 
-	np_dhkey_t search_key;
+	np_dhkey_t search_key = {0};
 	_np_dhkey_from_str(msg_target, &search_key);
-	np_key_t k_msg_address = { .dhkey = search_key };
-
-	char * k_msg_address_key = _np_key_as_str(&k_msg_address);
-	// first lookup call for target key
-	log_debug_msg(LOG_DEBUG, "message target is key %s", k_msg_address_key);
-
 
 	// 1 means: always send out message to another node first, even if it returns
-	tmp = _np_route_lookup(&k_msg_address, 1);
+	tmp = _np_route_lookup(search_key, 1);
 	if ( 0 < sll_size(tmp) )
 		log_debug_msg(LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
 
@@ -107,14 +101,12 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		np_unref_list(tmp, "_np_route_lookup"); 
 		sll_free(np_key_ptr, tmp);
 
-		tmp = _np_route_lookup(&k_msg_address, 2);
+		tmp = _np_route_lookup(search_key, 2);
 		if (0 < sll_size(tmp))
 			log_debug_msg(LOG_DEBUG, "route_lookup result 2 = %s", _np_key_as_str(sll_first(tmp)->val));
 
 		// TODO: increase count parameter again ?
 	}
-
-	free(k_msg_address_key);
 
 	if (NULL  != tmp           &&
 		0     <  sll_size(tmp) &&
@@ -130,6 +122,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 	{
 		// the message has to be handled by this node (e.g. msg interest messages)
 		log_debug_msg(LOG_DEBUG, "internal routing for subject '%s'", msg_subject);
+
 		np_message_t* msg_to_submit = NULL;
 
 		if (TRUE == args->msg->is_single_part)
@@ -181,6 +174,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 	sll_free(np_key_ptr, tmp);
 	np_unref_obj(np_key_t, my_key, "np_waitref_obj");
 }
+
 void _np_never_called_jobexec_transform(np_jobargs_t* args)
 {
 	_np_never_called_jobexec(args,"transform");
@@ -242,11 +236,17 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 			tmp_node_key->node->is_handshake_send == TRUE)
 		{
 			log_debug_msg(LOG_DEBUG, "deleting from neighbours: %s", _np_key_as_str(tmp_node_key));
+
 			// request a new handshake with the node
 			if (NULL != tmp_node_key->aaa_token)
 				tmp_node_key->aaa_token->state &= AAA_INVALID;
-			tmp_node_key->node->is_handshake_send = FALSE;
 
+			_LOCK_ACCESS(&(tmp_node_key->node->lock)){
+				tmp_node_key->node->joined_network        = FALSE;
+				// tmp_node_key->node->is_handshake_send     = FALSE;
+				tmp_node_key->node->is_handshake_received = FALSE;
+				// tmp_node_key->node->session_key_is_set    = FALSE;
+			}
 			np_key_t *added = NULL, *deleted = NULL;
 			_np_route_leafset_update(tmp_node_key, FALSE, &deleted, &added);
 			if (deleted != tmp_node_key)
@@ -254,7 +254,6 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 				log_msg(LOG_ERROR, "deleting from neighbours returned different key");
 				// log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _np_key_as_str(deleted));
 			}
-			//np_unref_obj(np_key_t, tmp_node_key,"?");
 		}
 		else
 		{
@@ -293,8 +292,12 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 				if (NULL != tmp_node_key->aaa_token)
 					tmp_node_key->aaa_token->state &= AAA_INVALID;
 
-				tmp_node_key->node->is_handshake_send = FALSE;
-
+				_LOCK_ACCESS(&(tmp_node_key->node->lock)){
+					tmp_node_key->node->joined_network        = FALSE;
+					// tmp_node_key->node->is_handshake_send     = FALSE;
+					tmp_node_key->node->is_handshake_received = FALSE;
+					// tmp_node_key->node->session_key_is_set    = FALSE;
+				}
 				np_key_t *added = NULL, *deleted = NULL;
 				_np_route_update(tmp_node_key, FALSE, &deleted, &added);
 				if (deleted != tmp_node_key)
@@ -302,7 +305,6 @@ void _np_route_check_leafset_jobexec(NP_UNUSED np_jobargs_t* args)
 					log_msg(LOG_WARN, "deleting from table returned different key");
 					// log_msg(LOG_WARN, "deleting from neighbours returned different key: %s", _np_key_as_str(deleted));
 				}
-				//np_unref_obj(np_key_t, tmp_node_key,"?");
 			}
 			else
 			{
@@ -414,7 +416,6 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 	np_job_submit_event(__token_retransmit_period, _np_retransmit_message_tokens_jobexec);
 }
 
-
 void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args){");
@@ -477,6 +478,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 
 				_np_node_update_latency(ackentry->dest_key->node, latency);
 				_np_node_update_stat(ackentry->dest_key->node, 1);
+				log_debug_msg(LOG_DEBUG, "expected %d ack, got %d", ackentry->expected_ack, ackentry->received_ack);
 
 				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
 				np_unref_obj(np_key_t, ackentry->dest_key, ref_message_ack);
@@ -488,6 +490,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 			else if (ev_time() > ackentry->expiration)
 			{
 				_np_node_update_stat(ackentry->dest_key->node, 0);
+				log_debug_msg(LOG_DEBUG, "expected %d ack, got %d", ackentry->expected_ack, ackentry->received_ack);
 
 				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
 				np_unref_obj(np_key_t, ackentry->dest_key,ref_message_ack);
@@ -672,8 +675,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	}
 
 	msg_token->uuid =  np_uuid_create(msg_uuid_subject, 0);
-
-	msg_token->not_before = ev_time();
+	// msg_token->not_before = ev_time();
 
 	// how to allow the possible transmit jitter ?
 	int expire_sec =  ((int)randombytes_uniform(msg_request->token_max_ttl - msg_request->token_min_ttl)+msg_request->token_min_ttl);

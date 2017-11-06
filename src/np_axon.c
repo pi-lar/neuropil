@@ -100,7 +100,7 @@ void _np_send(np_jobargs_t* args)
 
 	if (msg_out != NULL && prop != NULL) {
 		if (msg_out->msg_property != NULL) {
-			np_unref_obj(np_msgproperty_t, prop, ref_message_msg_property);
+			np_unref_obj(np_msgproperty_t, msg_out->msg_property, ref_message_msg_property);
 		}
 		msg_out->msg_property = prop;
 		np_ref_obj(np_msgproperty_t, prop, ref_message_msg_property);
@@ -112,6 +112,7 @@ void _np_send(np_jobargs_t* args)
 		iter_usercallbacks->val(msg_out, msg_out->properties, msg_out->body);
 		sll_next(iter_usercallbacks);
 	}
+
 
 	if (!_np_node_check_address_validity(args->target->node))
 	{
@@ -159,6 +160,7 @@ void _np_send(np_jobargs_t* args)
 						}
 					}
 				}
+
 				// TODO: ref counting on ack may differ (ref_message_ack) / key may not be the same more
 				if (TRUE == skip) {
 					np_unref_obj(np_network_t,network,"np_waitref_network");
@@ -295,9 +297,11 @@ void _np_send(np_jobargs_t* args)
 				}
 
 				// insert a record into the priority queue with the following information:
-				double retransmit_interval = args->properties->msg_ttl / args->properties->retry;
-				np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
-				_np_job_resubmit_route_event(retransmit_interval, out_prop, args->target, args->msg);
+				if (args->properties->retry > 0) {
+					double retransmit_interval = args->properties->msg_ttl / args->properties->retry;
+					np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
+					_np_job_resubmit_route_event(retransmit_interval, out_prop, args->target, args->msg);
+				}
 			}
 
 			// char* subj = np_tree_find_str(msg_out->header, NP_MSG_HEADER_SUBJECT)->val.value.s;
@@ -443,35 +447,38 @@ void _np_send_handshake(np_jobargs_t* args)
 
 	if (TRUE == serialize_ok)
 	{
+		// construct target address and send it out
+		np_key_t* hs_key = args->target;
+
 		_LOCK_MODULES(np_network_t, np_handshake_t)
 		{
-			if (NULL == args->target->network)
+			if (NULL == hs_key->network)
 			{
 				// initialize network
-				np_new_obj(np_network_t, args->target->network);
-				_np_network_init(args->target->network,
+				np_new_obj(np_network_t, hs_key->network);
+				np_bool init_ok =
+						_np_network_init(hs_key->network,
 							 FALSE,
-							 args->target->node->protocol,
-							 args->target->node->dns_name,
-							 args->target->node->port);
-				if (FALSE == args->target->network->initialized)
+							 hs_key->node->protocol,
+							 hs_key->node->dns_name,
+							 hs_key->node->port);
+
+				if (FALSE == init_ok || FALSE == hs_key->network->initialized)
 				{
-					np_unref_obj(np_message_t, hs_message, ref_obj_creation);
-					//log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
-					//args->target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
-					return;
+					// np_unref_obj(np_message_t, hs_message, ref_obj_creation);
+					// log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
+					// args->target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
+					break;
 				}
 
-				np_ref_obj(np_key_t, args->target,ref_network_watcher);
-				args->target->network->watcher.data = args->target;
-				_np_network_start(args->target->network);
+				np_ref_obj(np_key_t, hs_key,ref_network_watcher);
+				hs_key->network->watcher.data = args->target;
+				_np_network_start(hs_key->network);
 			}
-			// construct target address and send it out
-			np_node_t* hs_node = args->target->node;
 			/* send data if handshake status is still just initialized or less */
 			log_debug_msg(LOG_DEBUG,
 					"sending handshake message %s to (%s:%s)",
-					hs_message->uuid, hs_node->dns_name, hs_node->port);
+					hs_message->uuid, hs_key->node->dns_name, hs_key->node->port);
 
 			char* packet = (char*) malloc(1024);
 			CHECK_MALLOC(packet);
@@ -481,11 +488,13 @@ void _np_send_handshake(np_jobargs_t* args)
 				memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 			}
 
-			if(NULL != args->target->network->out_events) {
-				sll_append(
+			if(NULL != hs_key->network->out_events) {
+				_LOCK_ACCESS(&hs_key->network->lock) {
+					sll_append(
 						void_ptr,
-						args->target->network->out_events,
+						hs_key->network->out_events,
 						(void*) packet);
+				}
 			} else {
 				free (packet);
 			}
@@ -503,10 +512,10 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 	msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 
 	if ( ( NULL == msg_token ) ||
-		 ( /* = lifetime */ (now - msg_token->issued_at ) >=
-		   /* random time = */ (args->properties->token_min_ttl) ) )
+		 ( /* = left lifetime */ (msg_token->expiration - now) <=
+		   /* min token time = */ (args->properties->token_min_ttl) ) )
 	{
-		log_msg(LOG_INFO | LOG_AAATOKEN, "---------- refresh for subject token: %s ----------", args->properties->msg_subject);
+		log_msg(LOG_INFO, "refreshing subject token: %s ", args->properties->msg_subject);
 		log_debug_msg(LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 		np_aaatoken_t* msg_token_new  = _np_create_msg_token(args->properties);
 		_np_aaatoken_add_signature(msg_token_new);
@@ -516,7 +525,7 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 		ref_replace_reason(np_aaatoken_t, msg_token, ref_obj_creation,"_np_aaatoken_get_local_mx")
 	}
 
-	// args->target == Key of subject
+	// args->target == key of subject
 	if (0 < (args->properties->mode_type & INBOUND))
 	{
 		log_debug_msg(LOG_DEBUG, ".step ._np_send_discovery_messages.inbound");
@@ -538,9 +547,10 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 		);
 
 		// send message availability
-		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
-		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
-
+		if (TRUE == _np_route_my_key_has_connection()) {
+			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
+			_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+		}
 		np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 	}
 
@@ -565,13 +575,12 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 				_NP_MSG_DISCOVER_RECEIVER,
 				_data
 		);
+
 		// send message availability
-		np_msgproperty_t* prop_route =
-				np_msgproperty_get(
-						OUTBOUND,
-						_NP_MSG_DISCOVER_RECEIVER
-				);
-		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+		if (TRUE == _np_route_my_key_has_connection()) {
+			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
+			_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+		}
 		np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 	}
 
@@ -607,8 +616,8 @@ void _np_send_receiver_discovery(np_jobargs_t* args)
 	// send message availability
 	np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
 	_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
-	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 
+	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 	np_unref_obj(np_aaatoken_t, msg_token,"_np_aaatoken_get_sender");
 }
 
@@ -643,7 +652,6 @@ void _np_send_sender_discovery(np_jobargs_t* args)
 	_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
 
 	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
-
 	np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_receiver");
 }
 
@@ -696,8 +704,8 @@ void _np_send_authentication_request(np_jobargs_t* args)
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_send_receiver_discovery(&jargs);
 	}
-	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 
+	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 	np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
 }
 
@@ -854,8 +862,8 @@ void _np_send_accounting_request(np_jobargs_t* args)
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_send_receiver_discovery(&jargs);
 	}
-	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 
+	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 	np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
 }
 

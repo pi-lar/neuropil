@@ -645,7 +645,7 @@ void _np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 {
     log_msg(LOG_TRACE, "start: void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp){");
-	cmp_object_t obj;
+	cmp_object_t obj_key = {0}, obj_val = {0};
 
 	uint32_t size = 0;
 
@@ -657,8 +657,8 @@ void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 	{
 		// read key
 		np_treeval_t tmp_key = { .type = none_type, .size = 0 };
-		cmp_read_object(cmp, &obj);
-		__np_tree_serialize_read_type(&obj, cmp, &tmp_key);
+		cmp_read_object(cmp, &obj_key);
+		__np_tree_serialize_read_type(&obj_key, cmp, &tmp_key);
 		if (none_type == tmp_key.type) {
 			return;
 		}
@@ -671,8 +671,8 @@ void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 
 		// read value
 		np_treeval_t tmp_val = { .type = none_type, .size = 0 };
-		cmp_read_object(cmp, &obj);
-		__np_tree_serialize_read_type(&obj, cmp, &tmp_val);
+		cmp_read_object(cmp, &obj_val);
+		__np_tree_serialize_read_type(&obj_val, cmp, &tmp_val);
 		if (none_type == tmp_val.type) {
 			return;
 		}

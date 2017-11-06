@@ -67,6 +67,8 @@ void _np_message_t_new(void* msg)
 	msg_tmp->no_of_chunks = 1;
 	msg_tmp->is_single_part = FALSE;
 
+	msg_tmp->msg_property = NULL;
+
 	_np_threads_mutex_init(&msg_tmp->msg_chunks_lock);
 	pll_init(np_messagepart_ptr, msg_tmp->msg_chunks);
 }
@@ -259,6 +261,7 @@ np_bool _np_message_is_expired(const np_message_t* const msg_to_check)
 
 	 return ret;
 }
+
 np_bool _np_message_serialize(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_serialize(np_jobargs_t* args){");
@@ -266,24 +269,23 @@ np_bool _np_message_serialize(np_jobargs_t* args)
 	np_messagepart_ptr part = NULL;
 	_LOCK_ACCESS(&args->msg->msg_chunks_lock){
 		part = pll_first(args->msg->msg_chunks)->val;
+		// we simply override the header and instructions part for a single part message here
+		// the byte size should be the same as before
+		cmp_init(&cmp, part->msg_part, _np_buffer_reader, _np_buffer_writer);
+		cmp_write_array(&cmp, 5);
+
+		int i = cmp.buf-part->msg_part;
+		// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the header (size %hd)", msg->header->size);
+		_np_tree_serialize(args->msg->header, &cmp);
+		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
+				"serialized the header (size %llu / %ld)", args->msg->header->byte_size, (cmp.buf-part->msg_part-i));
+		i = cmp.buf-part->msg_part;
+
+		// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the instructions (size %hd)", msg->header->size);
+		_np_tree_serialize(args->msg->instructions, &cmp);
+		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serialized the instructions (size %llu / %ld)", args->msg->instructions->byte_size, (cmp.buf-part->msg_part-i));
+		// i = cmp.buf-part->msg_part;
 	}
-	// we simply override the header and instructions part for a single part message here
-	// the byte size should be the same as before
-	cmp_init(&cmp, part->msg_part, _np_buffer_reader, _np_buffer_writer);
-	cmp_write_array(&cmp, 5);
-
-	int i = cmp.buf-part->msg_part;
-	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the header (size %hd)", msg->header->size);
-	_np_tree_serialize(args->msg->header, &cmp);
-	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
-			"serialized the header (size %llu / %ld)", args->msg->header->byte_size, (cmp.buf-part->msg_part-i));
-	i = cmp.buf-part->msg_part;
-
-	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the instructions (size %hd)", msg->header->size);
-	_np_tree_serialize(args->msg->instructions, &cmp);
-	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serialized the instructions (size %llu / %ld)", args->msg->instructions->byte_size, (cmp.buf-part->msg_part-i));
-	// i = cmp.buf-part->msg_part;
-
 	return (TRUE);
 }
 
@@ -572,9 +574,9 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_deserialize(np_message_t* msg, void* buffer){");
 
-	np_tryref_obj(np_message_t, msg, msgExisits,"np_tryref_obj_msg");
+	np_tryref_obj(np_message_t, msg, msgExists,"np_tryref_obj_msg");
 
-	if(msgExisits) {
+	if(msgExists) {
 		cmp_ctx_t cmp;
 		_np_message_buffer_container_t buffer_container;
 		buffer_container.buffer = buffer;
@@ -642,7 +644,7 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 			if(FALSE == pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp)){
 				np_unref_obj(np_messagepart_t, part, ref_message_messagepart);
 				// new entry is rejected (already present)
-				log_debug_msg(LOG_DEBUG,"Msg part was rejected in _np_message_deserialize");
+				log_debug_msg(LOG_DEBUG,"msg part was rejected in _np_message_deserialize");
 			}
 		}
 		np_unref_obj(np_messagepart_t, part, ref_obj_creation);
@@ -654,6 +656,7 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", msg->uuid, msg_uuid.value.s);
 		free(msg->uuid);
 		msg->uuid = strdup(msg_uuid.value.s);
+
 		__np_cleanup__:
 
 		np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
@@ -824,6 +827,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			pll_clear(np_messagepart_ptr, msg->msg_chunks);
 		}
 	}
+
 	uint16_t fixed_size =
 			MSG_ARRAY_SIZE + MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
 			msg->header->byte_size + msg->instructions->byte_size;
@@ -1029,6 +1033,7 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	_np_messagepart_decrypt(msg->body, nonce, sym_key, NULL);
 	return (TRUE);
 }
+
 char* _np_message_get_subject(np_message_t* msg) {
 	char* ret = NULL;
 	if(msg->header != NULL){

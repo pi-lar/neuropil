@@ -288,7 +288,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	double now = ev_time();
 	if (now > (token->expiration))
 	{
-		log_msg(LOG_AAATOKEN | LOG_WARN, "token for subject \"%s\": expired. verification failed", token->subject);
+		log_msg(LOG_WARN, "token for subject \"%s\": expired", token->subject);
 		token->state &= AAA_INVALID;
 		log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 		return (FALSE);
@@ -378,7 +378,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		}
 		else
 		{
-			log_msg(LOG_AAATOKEN | LOG_WARN, "verification failed. token for subject \"%s\": %s was already used, 0<=%"PRIu16"<%"PRIu16, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
+			log_msg(LOG_WARN, "token for subject \"%s\": %s was already used, 0<=%"PRIu16"<%"PRIu16, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state &= AAA_INVALID;
 			return (FALSE);
@@ -574,6 +574,9 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 		}
 	}
 
+	np_sll_t(np_aaatoken_ptr, to_remove);
+	sll_init(np_aaatoken_ptr, to_remove);
+
 	// check for outdated token
 	_LOCK_ACCESS(&subject_key->send_property->lock)
 	{
@@ -588,10 +591,16 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 				FALSE == _np_aaatoken_is_valid(tmp_token) )
 			{
 				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid sender msg tokens %p", tmp_token);
-				pll_remove(np_aaatoken_ptr, subject_key->send_tokens, tmp_token, _np_aaatoken_cmp_exact);
-				np_unref_obj(np_aaatoken_t, tmp_token,"send_tokens");
+				sll_append(np_aaatoken_ptr, to_remove, tmp_token);
 				break;
 			}
+		}
+
+		sll_iterator(np_aaatoken_ptr) remove_iter = sll_first(to_remove);
+		while (NULL != remove_iter) {
+			pll_remove(np_aaatoken_ptr, subject_key->send_tokens, remove_iter->val, _np_aaatoken_cmp_exact);
+			np_unref_obj(np_aaatoken_t, remove_iter->val, "send_tokens");
+			sll_next(remove_iter);
 		}
 	}
 
@@ -802,9 +811,14 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
 					_np_key_as_str(subject_key) );
 		}
+	}
 
+	np_sll_t(np_aaatoken_ptr, to_remove);
+	sll_init(np_aaatoken_ptr, to_remove);
+
+	_LOCK_ACCESS(&subject_key->recv_property->lock)
+	{
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
-
 		while (NULL != iter)
 		{
 			np_aaatoken_t* tmp_token = iter->val;
@@ -816,10 +830,16 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 				FALSE == _np_aaatoken_is_valid(tmp_token) )
 			{
 				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid receiver msg tokens %p", tmp_token);
-				pll_remove(np_aaatoken_ptr, subject_key->recv_tokens, tmp_token, _np_aaatoken_cmp_exact);
-				np_unref_obj(np_aaatoken_t, tmp_token,"recv_tokens");
+				sll_append(np_aaatoken_ptr, to_remove, tmp_token);
 				break;
 			}
+		}
+
+		sll_iterator(np_aaatoken_ptr) remove_iter = sll_first(to_remove);
+		while (NULL != remove_iter) {
+			pll_remove(np_aaatoken_ptr, subject_key->recv_tokens, remove_iter->val, _np_aaatoken_cmp_exact);
+			np_unref_obj(np_aaatoken_t, remove_iter->val, "recv_tokens");
+			sll_next(remove_iter);
 		}
 	}
 

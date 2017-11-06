@@ -64,7 +64,7 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_
 	new_job->type = 1;
 	new_job->priority =  priority_modifier;
 
-	if(jargs != NULL){
+	if(jargs != NULL) {
 		if(jargs->properties != NULL) {
 			if(jargs->properties->priority < 1) {
 				jargs->properties->priority = 1;
@@ -78,21 +78,25 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_
 
 int8_t _np_job_compare_job_scheduling(np_job_ptr job1, np_job_ptr job2)
 {
-	log_msg(LOG_TRACE, "start: int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2){");
+	log_msg(LOG_TRACE, "start: int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2) {");
+    int8_t ret = 0;
+    if (job1->exec_not_before_tstamp > job2->exec_not_before_tstamp) {
+        ret = -1;
+    }
+    else if (job1->exec_not_before_tstamp < job2->exec_not_before_tstamp) {
+        ret = 1;
+    }else{
+        if (job1->priority == job2->priority)
+            ret = 0;
+        else if (job1->priority > job2->priority)
+            ret = 1;
+        else
+            ret = -1;
+    }
 
-	int8_t ret = 0;
-	double now = ev_time();
-	double scheduling_job1 = (now - job1->exec_not_before_tstamp) / (1.0 + job1->priority); // old job
-	double scheduling_job2 = (now - job2->exec_not_before_tstamp) / (1.0 + job2->priority); // new job
+    log_msg(LOG_TRACE, "end  : int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2) }");
+    return (ret);
 
-	if (scheduling_job1 == scheduling_job2)
-		ret = 0;
-	else if (scheduling_job1 > scheduling_job2)
-		ret = 1;
-	else
-		ret = -1;
-
-	return (ret);
 }
 
 NP_PLL_GENERATE_IMPLEMENTATION(np_job_ptr);
@@ -135,22 +139,18 @@ void _np_job_free_args(np_jobargs_t* args)
 	free(args);
 }
 
-
 void _np_job_queue_insert(double delay, np_job_t* new_job)
 {
 	log_msg(LOG_TRACE, "start: void _np_job_queue_insert(double delay, np_job_t* new_job){");
 	_LOCK_MODULE(np_jobqueue_t) {
-
 		pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_scheduling);
 	}
-	// if (0.0 == delay)
-	if (pll_size(__np_job_queue->job_list) >= 1 || delay == 0.0)
-	{
-		// restart all waiting jobs & yields
-		// _np_threads_module_condition_broadcast(&__cond_empty);
-		// restart single job or yield
-		_np_threads_condition_signal(&__cond_empty);
-	}
+
+	// restart all waiting jobs & yields
+	_np_threads_module_condition_broadcast(&__cond_empty);
+	// restart single job or yield
+	// _np_threads_condition_signal(&__cond_empty);
+
 }
 
 /** (re-)submit message event
@@ -208,7 +208,7 @@ void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t*
 {
 	if(msg != NULL && prop != NULL){
 		if (msg->msg_property != NULL) {
-			np_unref_obj(np_msgproperty_t, prop, ref_message_msg_property);
+			np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
 		}
 		msg->msg_property = prop;
 		np_ref_obj(np_msgproperty_t, prop, ref_message_msg_property);
@@ -338,11 +338,18 @@ void* _job_exec ()
 			while (0 == pll_size(__np_job_queue->job_list))
 			{
 				// log_debug_msg(LOG_DEBUG, "now %f: list empty, start sleeping", now);				
-				_np_threads_module_condition_wait(&__cond_empty, np_jobqueue_t_lock);			
+				_np_threads_module_condition_wait(&__cond_empty, np_jobqueue_t_lock);
 				// wake up, check first job in the queue to be executed by now
 			}
+		}
+
+		_LOCK_MODULE(np_jobqueue_t)
+		{
+			if (0 == pll_size(__np_job_queue->job_list)) continue;
 
 			np_job_ptr next_job = pll_first(__np_job_queue->job_list)->val;
+			now = ev_time();
+
 			if (now <= next_job->exec_not_before_tstamp)
 			{
 				double sleep_time = next_job->exec_not_before_tstamp - now;
@@ -355,7 +362,6 @@ void* _job_exec ()
 				_np_threads_module_condition_timedwait(&__cond_empty, np_jobqueue_t_lock, &waittime);				
 				// now = dtime();
 				// log_debug_msg(LOG_DEBUG, "now %f: woke up or interupted", now);
-			
 				continue;
 			}
 			else
@@ -376,6 +382,10 @@ void* _job_exec ()
 		}
 
 		tmp->processorFunc(tmp->args);
+
+//		static int job_count = 0;
+//		job_count++;
+//		log_msg(LOG_WARN, "after  execute: jobqueue size is now: %d / %d", pll_size(__np_job_queue->job_list), job_count);
 
 		if(tmp->args != NULL && tmp->args->msg != NULL) {
 			log_msg(LOG_DEBUG, "completed handeling function for msg %s for %s",tmp->args->msg ->uuid,_np_message_get_subject(tmp->args->msg));

@@ -167,6 +167,10 @@ np_key_t* _np_keycache_find_by_details(
 			}
 		}
 	}
+
+	if (ret) {
+		log_debug_msg(LOG_DEBUG, "searched for %s, found %s:%s", details_container, ret->node->dns_name, ret->node->port);
+	}
 	np_unref_obj(np_key_t, my_identity,"np_waitref_identity");
 	np_unref_obj(np_key_t, my_node_key,"np_waitref_key");
 
@@ -243,7 +247,7 @@ np_key_t* _np_keycache_add(np_key_t* subject_key)
 	{
 		np_new_obj(np_key_t, subject_key);
 	}
-	np_ref_obj(np_key_t, subject_key,ref_keycache);
+	np_ref_obj(np_key_t, subject_key, ref_keycache);
 
 	_LOCK_MODULE(np_keycache_t)
 	{

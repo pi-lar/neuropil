@@ -47,6 +47,8 @@
 #include "np_types.h"
 #include "np_constants.h"
 #include "np_settings.h"
+#include "np_route.h"
+
 
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
@@ -282,6 +284,61 @@ void _np_network_get_address (
 //    return (addr);
 }
 
+np_bool _np_network_decrypt(np_key_t* alias_key, void* raw_msg, np_message_t* msg_in) {
+
+	np_bool is_message_complete = FALSE;
+
+	if (NULL != alias_key &&
+		NULL != alias_key->aaa_token &&
+		IS_VALID (alias_key->aaa_token->state) &&
+		alias_key->node->session_key_is_set == TRUE &&
+		alias_key->network != NULL)
+	{
+		unsigned char nonce[crypto_secretbox_NONCEBYTES];
+		unsigned char dec_msg[1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES];
+		memcpy(nonce, raw_msg, crypto_secretbox_NONCEBYTES);
+		int ret = crypto_secretbox_open_easy(
+				dec_msg,
+				(const unsigned char*) raw_msg + crypto_secretbox_NONCEBYTES,
+				1024 - crypto_secretbox_NONCEBYTES,
+				nonce,
+				alias_key->node->session_key);
+
+		if (ret == 0) {
+			memset(raw_msg, 0, 1024);
+			memcpy(raw_msg, dec_msg, 1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
+			is_message_complete = _np_message_deserialize(msg_in, raw_msg);
+			if (FALSE == is_message_complete) {
+				log_msg(LOG_ERROR, "error deserializing message %s after successful decryption (source: \"%s:%s\")", msg_in->uuid,
+						_np_network_get_ip_in(alias_key), _np_network_get_port_in(alias_key));
+			}
+		} else {
+			/* msg_in->uuid, */
+			log_msg(LOG_WARN, "error decrypting message of sending node (source: \"%s:%s\")",
+			/* msg_in->uuid, */_np_network_get_ip_in(alias_key), _np_network_get_port_in(alias_key));
+			/*
+			 if (NULL != alias_key) {
+			 char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
+			 memset(nonce_hex, 0, crypto_secretbox_NONCEBYTES*2+1);
+			 sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
+			 log_msg(LOG_WARN, "%s:%s:%s nonce: %s",
+			 _np_key_as_str(alias_key->parent),
+			 (char*) alias_key->node->dns_name,
+			 alias_key->node->port, nonce_hex);
+			 }
+			 */
+		}
+	} else {
+		is_message_complete = _np_message_deserialize(msg_in, raw_msg);
+		if (FALSE == is_message_complete) {
+			/* msg_in->uuid, */
+			log_msg(LOG_WARN, "error deserializing message of unknown node (source: \"%s:%s\")",
+			/* msg_in->uuid, */_np_network_get_ip_in(alias_key), _np_network_get_port_in(alias_key));
+		}
+	}
+	return (is_message_complete);
+}
+
 np_bool _np_network_send_handshake(np_key_t* node_key)
 {
 	np_bool ret = FALSE;
@@ -292,10 +349,11 @@ np_bool _np_network_send_handshake(np_key_t* node_key)
 				log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake (current status: %d for %p) with %s:%s (%s)",
 					node_key->node->is_handshake_send, node_key->node->obj, node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
 
-				node_key->node->is_handshake_send = TRUE;
 				np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
 				_np_job_submit_transform_event(0.0, msg_prop, node_key, NULL);
 				log_debug_msg(LOG_DEBUG, "transform _NP_MSG_HANDSHAKE %s",_np_key_as_str(node_key));
+
+				node_key->node->is_handshake_send = TRUE;
 				ret = TRUE;
 			}
 		}
@@ -313,9 +371,6 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 		// get encryption details
 		np_aaatoken_t* auth_token = node_key->aaa_token;
 
-		// if (NULL == auth_token ||
-		//  	IS_INVALID(auth_token->state))
-		// {
 		np_bool continue_sending = TRUE;
 		if (_np_network_send_handshake(node_key) == TRUE || node_key->node->is_handshake_received == FALSE) {
 			continue_sending = FALSE;
@@ -344,41 +399,53 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 			do
 			{
 				np_tryref_obj(np_messagepart_t, iter->val, hasMsgPart, "np_tryref_obj_iter->val");
+
 				if(hasMsgPart) {
 					unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
+					memset(enc_buffer, 0, MSG_CHUNK_SIZE_1024);
+
 					CHECK_MALLOC(enc_buffer);
 
 					// add protection from replay attacks ...
 					unsigned char nonce[crypto_secretbox_NONCEBYTES];
-					// TODO: move nonce to np_node_t and re-use it with increments
+
+					// TODO: move nonce to np_node_t and re-use it with increments ?
 					// FIXME: doesnt sizeof(nonce) == sizeof(unsigned char)? if so the array will not be filled, only the first char
-					randombytes_buf(nonce, sizeof(nonce));
+					memset(nonce, 0, crypto_secretbox_NONCEBYTES);
+					randombytes_buf(nonce, crypto_secretbox_NONCEBYTES);
+
+//					char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
+//					memset(nonce_hex, 0, crypto_secretbox_NONCEBYTES*2+1);
+//					sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
+//					log_msg(LOG_WARN, "%s -> %s:%s:%s nonce: %s",
+//									  np_tree_find_str(msg->header, _NP_MSG_HEADER_SUBJECT)->val.value.s,
+//									  _np_key_as_str(node_key),
+//									  (char*) node_key->node->dns_name,
+//									  node_key->node->port, nonce_hex);
 
 					unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
-					int ecryption = crypto_secretbox_easy(enc_msg,
+					int encryption = crypto_secretbox_easy(enc_msg,
 							(const unsigned char*) iter->val->msg_part,
 							MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
 							nonce,
 							node_key->node->session_key);
 
-					if (ecryption != 0)
+					if (encryption != 0)
 					{
 						log_msg(LOG_NETWORK | LOG_WARN,
 								"incorrect encryption of message (not sending to %s:%s)",
 								node_key->node->dns_name, node_key->node->port);
 						free(enc_buffer);
-						np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
+						// np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
 						np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
-						return; //  FALSE;
+						break; //  FALSE;
 					}
-
 					uint64_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
 					memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
 					memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
-					/* send data */
-					// _LOCK_ACCESS(_np_state()->my_node_key->network) {
 					_LOCK_ACCESS(&node_key->network->lock) {
+						/* send data */
 						if(NULL != node_key->network->out_events) {
 							// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
 							// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
@@ -445,7 +512,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 								int iter = 0;
 								do {
 									iter++;
-									current_write = sendto(key_network->socket, data_to_send + written, MSG_CHUNK_SIZE_1024 - written, 0, NULL, 0);
+									current_write = send(key_network->socket, data_to_send + written, MSG_CHUNK_SIZE_1024 - written, 0);
 									if (current_write == -1) {
 										log_msg(LOG_WARN,
 											"cannot write to socket: %s (%d).",
@@ -483,8 +550,6 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 					}
 				}
 				np_unref_obj(np_network_t, key_network, "np_tryref_obj_key_network");
-			}else{
-			//	_np_threads_unlock_module(np_network_t_lock);
 			}
 			np_unref_obj(np_key_t, key, "np_tryref_obj_key");
 		}
@@ -563,10 +628,8 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 					}
 
-					// free(ng->ip);
-					// ng->ip = strndup(ipstr, 255);
-					// free(ng->port);
-					// ng->port = strndup(port, 7);
+					if (NULL == ng->ip_in) ng->ip_in = strndup(ipstr, 255);
+					if (NULL == ng->port_in) ng->port_in = strndup(port, 7);
 				}
 
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG,
@@ -649,7 +712,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents){");
 	// cast event data structure to np_state_t pointer
 	
-	struct sockaddr_storage from;
+	struct sockaddr_storage from = { 0 };
 	socklen_t fromlen = sizeof(from);
 	// calling address and port
 	char ipstr[255] = { 0 };
@@ -658,12 +721,12 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	np_key_t* key;
 	np_network_t* ng;
 	np_network_t* ng_tcp_host = NULL;
-	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
 
 	/* receive the new data */
 	int16_t last_recv_result = 0;
 	int msgs_received = 0;
-	void* data;
+	void* data = NULL;
+
 	do {
 		key = (np_key_t*)event->data;
 		ng = key->network;
@@ -681,6 +744,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					strerror(errno), errno);
 				return;
 			}
+
 			key = key->parent;
 			ng_tcp_host = ng;
 			ng = key->network;				
@@ -700,48 +764,30 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 
 		log_debug_msg(LOG_DEBUG | LOG_NETWORK, "in_msg_len %d bytes", in_msg_len);
 
-		if (in_msg_len > 0) {
-			msgs_received++;
-			// deal with both IPv4 and IPv6:
-			//	if (ng->ip == NULL || ng->port == NULL )
+		// deal with both IPv4 and IPv6:
+		{
+			if (from.ss_family == AF_INET)
 			{
-				if (from.ss_family == AF_INET)
-				{
-					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
-					// AF_INET
-					struct sockaddr_in *s = (struct sockaddr_in *) &from;
-					snprintf(port, 6, "%d", ntohs(s->sin_port));
-					inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
-				}
-				else
-				{
-					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
-					// AF_INET6
-					struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-					snprintf(port, 6, "%d", ntohs(s->sin6_port));
-					inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
-				}
-
-				/* free(ng->ip);
-				ng->ip = strndup(ipstr, 255);
-
-				free(ng->port);
-				ng->port = strndup(port, 7);
-				*/
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
+				// AF_INET
+				struct sockaddr_in *s = (struct sockaddr_in *) &from;
+				snprintf(port, 6, "%d", ntohs(s->sin_port));
+				inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
 			}
-
-			if (in_msg_len != MSG_CHUNK_SIZE_1024 && in_msg_len != (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40 ))
+			else
 			{
-				log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%hd)", in_msg_len);
-				// job_submit_event(state->jobq, 0.0, _np_network_read);
-				log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
-				free(data);
-				continue;
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
+				// AF_INET6
+				struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+				snprintf(port, 6, "%d", ntohs(s->sin6_port));
+				inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
 			}
+		}
 
-			np_key_t* alias_key = NULL;
-			char* alias_key_ref_reason = "";
+		np_key_t* alias_key = NULL;
+		char* alias_key_ref_reason = "";
 
+		{	// find correct alias key for ipstr and port and also correct key informations
 			// we registered this token info before in the first handshake message
 			np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
 			alias_key = _np_keycache_find(search_key);
@@ -752,44 +798,86 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				alias_key_ref_reason = "_np_keycache_create";
 				alias_key->parent = key;
 				np_ref_obj(np_key_t, key, ref_key_parent);
+				log_debug_msg(LOG_DEBUG, "received message from unknown node (%s:%s)", ipstr, port);
+
+			} else {
+				if (NULL != alias_key->network && NULL == alias_key->network->ip_in) alias_key->network->ip_in = strndup(ipstr, 255);
+				if (NULL != alias_key->network && NULL == alias_key->network->port_in) alias_key->network->port_in = strndup(port, 255);
+				log_debug_msg(LOG_DEBUG, "received message from   known node (%s:%s)", ipstr, port);
+				// log_msg(LOG_INFO, "%s:%s : %p:%p:%p", ipstr, port, alias_key, alias_key->parent, alias_key->node);
+			}
+		}
+
+		if (in_msg_len > 0) {
+			msgs_received++;
+
+			if (in_msg_len < MSG_CHUNK_SIZE_1024)
+			{
+				log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%hd)", in_msg_len);
+				log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
+				continue;
 			}
 
-			log_debug_msg(LOG_NETWORK |LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
-				ipstr, port, in_msg_len, _np_key_as_str(alias_key));
-						
-			_LOCK_ACCESS(&ng->lock)
-			{
-				if (NULL != ng->in_events)
-				{
-					sll_append(void_ptr, ng->in_events, data);
+			if (in_msg_len == MSG_CHUNK_SIZE_1024) {
+				log_debug_msg(LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
+					ipstr, port, in_msg_len, _np_key_as_str(alias_key));
+
+				np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
+
+				np_message_t* msg_in = NULL;
+				np_new_obj(np_message_t, msg_in);
+
+				np_bool is_message_complete = FALSE;
+				is_message_complete = _np_network_decrypt(alias_key, data, msg_in);
+
+				if (is_message_complete) {
+					_np_job_submit_msgin_event(0.0, msg_prop, alias_key, msg_in);
+					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to input work queue for %s",
+								  _np_key_as_str(key));
+
 				}
-			}			
 
-			_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL);
-			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
-				_np_key_as_str(key));
+	//			_LOCK_ACCESS(&ng->lock)
+	//			{
+	//				if (NULL != ng->in_events)
+	//				{
+	//					sll_append(void_ptr, ng->in_events, data);
+	// 					_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL);
+	//					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
+	//								  _np_key_as_str(key));
+	//				}
+	//			}
+	// 			free(data);
 
-			np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
+				np_unref_obj(np_message_t, msg_in, ref_obj_creation);
+			}
 		}
 
 		if (0 == in_msg_len)
 		{
 			if(ng_tcp_host != NULL){
 				// tcp disconnect
-				log_msg(LOG_ERROR, "received disconnect from: %s:%s", ipstr, port);
+				log_msg(LOG_INFO, "received tcp disconnect from: %s:%s", ipstr, port);
 				// TODO handle cleanup of node structures ?
 				// maybe / probably the node received already a disjoin message before
-				//TODO: pruefen ob hier wirklich der host geschlossen werden muss
+				// TODO: pruefen ob hier wirklich der host geschlossen werden muss
+				if (alias_key->node) {
+					alias_key->node->joined_network = FALSE;
+					alias_key->node->is_handshake_received = FALSE;
+					alias_key->node->is_handshake_send = FALSE;
+					np_key_t *added, *deleted;
+					_np_route_leafset_update(alias_key->parent, FALSE, &deleted, &added);
+					_np_route_update(alias_key->parent, FALSE, &deleted, &added);
+				}
 				_np_network_stop(ng_tcp_host);
-				//_np_node_update_stat(key->node, 0);
-
-				log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 			}
 			free(data);
-			continue;
+			break;
 		}
 
-	} while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result >= 0); // there is maybe more then one msg in our socket pipeline
+		np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
+
+	} while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result >= 0); // there is maybe more than one msg in our socket pipeline
 
 	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 }
@@ -817,7 +905,7 @@ void _np_network_stop(np_network_t* network) {
 
 	if (NULL == network) return;
 
-	_LOCK_ACCESS(&network->lock){
+	_LOCK_ACCESS(&network->lock) {
 		network->isWatching -= 1;
 		if(network->isWatching == 0) {
 			log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p",network);
@@ -934,6 +1022,12 @@ void _np_network_t_del(void* nw)
 
 			free(network->ip);
 			network->ip = NULL;
+			free(network->ip_in);
+			network->ip_in = NULL;
+			free(network->port);
+			network->port = NULL;
+			free(network->port_in);
+			network->port_in = NULL;
 
 			network->initialized = FALSE;
 		}
@@ -954,7 +1048,10 @@ void _np_network_t_new(void* nw)
 	ng->out_events 	= NULL;
 	ng->isWatching 	= 0;
 	ng->initialized = FALSE;	
-	ng->ip = NULL;
+	ng->ip      = NULL;
+	ng->port    = NULL;
+	ng->ip_in   = NULL;
+	ng->port_in = NULL;
 
 	log_debug_msg(LOG_DEBUG, "try to pthread_mutex_init");
 	int network_mutex_init = _np_threads_mutex_init (&ng->lock);
@@ -1108,6 +1205,8 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			log_debug_msg(LOG_NETWORK | LOG_DEBUG,"TRY CONNECT");
 			if(connection_status != 0){
 				ev_sleep(0.1);
+				log_msg(LOG_ERROR,
+						"could not connect: %s (%d)", strerror (errno), errno);
 			}
 		}while( 0 != connection_status && retry_connect-- > 0);
 
@@ -1147,7 +1246,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 	return TRUE;
 }
 
-char* np_network_get_ip(np_key_t * container) {
+char* _np_network_get_ip(np_key_t * container) {
 	char * ret = NULL;
 
 	if (container->network != NULL) {
@@ -1166,7 +1265,26 @@ char* np_network_get_ip(np_key_t * container) {
 	return ret;
 }
 
-char* np_network_get_port(np_key_t * container) {
+char* _np_network_get_ip_in(np_key_t * container) {
+	char * ret = NULL;
+
+	if (container->network != NULL) {
+		ret = container->network->ip_in;
+	}
+
+	if (ret == NULL && container->parent != NULL && container->parent->network != NULL) {
+		ret = container->parent->network->ip_in;
+	}
+
+	if (ret == NULL)
+	{
+		ret = "127.0.0.1";
+	}
+
+	return ret;
+}
+
+char* _np_network_get_port(np_key_t * container) {
 	char * ret = NULL;
 
 	if (container->network != NULL) {
@@ -1175,6 +1293,25 @@ char* np_network_get_port(np_key_t * container) {
 
 	if (ret == NULL && container->parent != NULL && container->parent->network != NULL) {
 		ret = container->parent->network->port;
+	}
+
+	if (ret == NULL)
+	{
+		ret = "3141";
+	}
+
+	return ret;
+}
+
+char* _np_network_get_port_in(np_key_t * container) {
+	char * ret = NULL;
+
+	if (container->network != NULL) {
+		ret = container->network->port_in;
+	}
+
+	if (ret == NULL && container->parent != NULL && container->parent->network != NULL) {
+		ret = container->parent->network->port_in;
 	}
 
 	if (ret == NULL)

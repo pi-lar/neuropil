@@ -68,12 +68,13 @@ void _np_node_t_new(void* node)
 	entry->is_handshake_received = FALSE;
 	entry->joined_network = FALSE;
 
-	for (uint8_t i = 0; i < SUCCESS_WINDOW / 2; i++)
-		entry->success_win[i] = 0;
-	for (uint8_t i = SUCCESS_WINDOW / 2; i < SUCCESS_WINDOW; i++)
-		entry->success_win[i] = 1;
 	for (uint8_t i = 0; i < SUCCESS_WINDOW; i++)
+	{
+		if (i%2) entry->success_win[i] = 0;
+		else 	 entry->success_win[i] = 1;
+
 		entry->latency_win[i] = 0.031415;
+	}
 	entry->latency = 0.031415;
 }
 

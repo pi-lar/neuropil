@@ -291,7 +291,7 @@ void _np_route_append_leafset_to_sll(np_key_ptr_pll_t* leafset, np_sll_t(np_key_
  ** returns an array of #count# keys that are acceptable next hops for a
  ** message being routed to #key#.
  */
-sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
+sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t dhkey, uint8_t count)
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_lookup");
 	uint32_t i, j, k, Lsize, Rsize;
@@ -309,18 +309,14 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 		np_sll_t(np_key_ptr, key_list);
 		sll_init(np_key_ptr, key_list);
 
-		log_debug_msg(
-		  LOG_ROUTING | LOG_DEBUG, "%s is looking for key %s !",
-		  _np_key_as_str(__routing_table->my_key), _np_key_as_str(key));
-
-		/*calculate the leafset and table size */
+		/* calculate the leafset and table size */
 		Lsize = pll_size(__routing_table->left_leafset);
 		Rsize = pll_size(__routing_table->right_leafset);
 
 		/* if the key is in the leafset range route through leafset */
 		/* the additional 2 neuropil nodes pointed by the #hosts# are to consider the node itself and NULL at the end */
 		if (count == 1 &&
-			_np_dhkey_between (&key->dhkey, &__routing_table->Lrange, &__routing_table->Rrange))
+			_np_dhkey_between (&dhkey, &__routing_table->Lrange, &__routing_table->Rrange))
 		{
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "routing through leafset");
 			sll_append(np_key_ptr, key_list, __routing_table->my_key);
@@ -330,7 +326,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 			_np_route_append_leafset_to_sll(__routing_table->left_leafset, key_list);
 			_np_route_append_leafset_to_sll(__routing_table->right_leafset, key_list);
 
-			min = _np_keycache_find_closest_key_to (key_list, &key->dhkey);
+			min = _np_keycache_find_closest_key_to (key_list, &dhkey);
 			if(NULL != min) {				
 				ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", __func__); 
 				sll_append(np_key_ptr, return_list, min);				
@@ -345,8 +341,8 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 		}
 
 		/* check to see if there is a matching next hop (for fast routing) */
-		i = _np_dhkey_index (&__routing_table->my_key->dhkey, &key->dhkey);
-		match_col = _np_dhkey_hexalpha_at (&key->dhkey, i);
+		i = _np_dhkey_index (&__routing_table->my_key->dhkey, &dhkey);
+		match_col = _np_dhkey_hexalpha_at (&dhkey, i);
 
 		int index = __MAX_ENTRY * (match_col + (__MAX_COL* (i)));
 		for (k = 0; k < __MAX_ENTRY; k++)
@@ -411,7 +407,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 		}
 
 		/* find the longest prefix match */
-		i = _np_dhkey_index (&__routing_table->my_key->dhkey, &key->dhkey);
+		i = _np_dhkey_index (&__routing_table->my_key->dhkey, &dhkey);
 		for (j = 0; j < __MAX_COL; j++)
 		{
 			int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
@@ -434,7 +430,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 		{
 			// printf ("route.c (%d): _np_route_lookup bounce count==1 ...\n", getpid());
 			// printTable(state);
-			min = _np_keycache_find_closest_key_to (key_list, &key->dhkey);
+			min = _np_keycache_find_closest_key_to (key_list, &dhkey);
 			
 			if (NULL != min) {
 				ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", __func__);
@@ -445,7 +441,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 		{
 			if (2 <= key_list->size)
 			{
-				_np_keycache_sort_keys_cpm (key_list, &key->dhkey);
+				_np_keycache_sort_keys_cpm (key_list, &dhkey);
 				/* find the best #count# entries that we looked at ... could be much better */
 				
 				/* removing duplicates from the list */				
@@ -482,8 +478,8 @@ sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
 	//	    log_debug_msg(LOG_DEBUG, "my own key: %s", _np_key_as_str(routes->my_key) );
 	//	    log_debug_msg(LOG_DEBUG, "lookup key: %s", _np_key_as_str(sll_first(return_list)->val) );
 
-			_np_dhkey_distance (&dif1, &key->dhkey, &sll_first(return_list)->val->dhkey);
-			_np_dhkey_distance (&dif2, &key->dhkey, &__routing_table->my_key->dhkey);
+			_np_dhkey_distance (&dif1, &dhkey, &sll_first(return_list)->val->dhkey);
+			_np_dhkey_distance (&dif2, &dhkey, &__routing_table->my_key->dhkey);
 
 			// printTable(rg);
 

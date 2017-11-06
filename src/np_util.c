@@ -516,16 +516,15 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
  * Returns a part copy of the original list. 
  * If amount is negative the part contains the last elements of the original list.
 */
-sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount) {
+sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), uint32_t amount) {
 	
 	sll_return(char_ptr) ret;
 	sll_init(char_ptr, ret);
 
 	int begin_copy_at = 0;
 
-	if (amount < 0) {
+	if (amount == 0) {
 		// get from tail
-		amount = amount * -1;
 		if (sll_size(target) <= amount) {
 			amount = sll_size(target);
 		}
