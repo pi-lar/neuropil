@@ -304,8 +304,9 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 	np_message_t* msg = args->msg;
 	np_tree_replace_str(msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(msg->uuid));
 
-	// clean up any old chunking
 	_LOCK_ACCESS(&msg->msg_chunks_lock){
+		// clean up any old chunking
+
 		if (0 < pll_size(msg->msg_chunks))
 		{
 			pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
@@ -355,7 +356,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 	// TODO: do this serialization in parallel in background
 	while (i < msg->no_of_chunks)
 	{
-		np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i+1;
+		np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i + 1;
 
 		np_messagepart_t* part;
 		np_new_obj(np_messagepart_t, part);
@@ -392,23 +393,28 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 		cmp.buf += msg->header->byte_size;
 		// current_chunk_size = cmp.buf-part->msg_part;
 
-		bin_instructions = malloc(msg->instructions->byte_size);
-		CHECK_MALLOC(bin_instructions);
+		// reserialize the instructions into every chunk (_NP_MSG_INST_PARTS has changed)
+		{
+			bin_instructions = malloc(msg->instructions->byte_size);
+			CHECK_MALLOC(bin_instructions);
 
-		memset(bin_instructions, 0, msg->instructions->byte_size);
-		// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serializing the instructions (size %hd)", msg->properties->size);
-		cmp_init(&cmp_instructions, bin_instructions, _np_buffer_reader, _np_buffer_writer);
-		// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serializing the instructions (size %hd)", msg->instructions->byte_size);
-		_np_tree_serialize(msg->instructions, &cmp_instructions);
+			memset(bin_instructions, 0, msg->instructions->byte_size);
+			// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serializing the instructions (size %hd)", msg->properties->size);
+			cmp_init(&cmp_instructions, bin_instructions, _np_buffer_reader, _np_buffer_writer);
+			// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serializing the instructions (size %hd)", msg->instructions->byte_size);
+			_np_tree_serialize(msg->instructions, &cmp_instructions);
 
-		// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "copying the instructions (size %hd)", msg->instructions->byte_size);
-		memcpy(cmp.buf, bin_instructions, msg->instructions->byte_size);
-		cmp.buf += msg->instructions->byte_size;
+			// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "copying the instructions (size %hd)", msg->instructions->byte_size);
+			memcpy(cmp.buf, bin_instructions, msg->instructions->byte_size);
+			cmp.buf += msg->instructions->byte_size;
 
-		free(bin_instructions);
-		bin_instructions = NULL;
+			free(bin_instructions);
+			bin_instructions = NULL;
 
-		current_chunk_size = cmp.buf - part->msg_part;
+			// update current chunk size
+			current_chunk_size = cmp.buf - part->msg_part;
+		}
+		
 
 		if (NULL == bin_properties)
 		{

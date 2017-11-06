@@ -57,9 +57,9 @@
  ** the message to its destination if it is the current host through the
  ** deliver upcall, otherwise it makes the route upcall
  **/
-void _np_route_lookup_jobexec(np_jobargs_t* args)
+void _np_glia_route_lookup(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_route_lookup_jobexec(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_glia_route_lookup(np_jobargs_t* args){");
 
 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key, "np_waitref_obj");
 
@@ -151,7 +151,7 @@ void _np_route_lookup_jobexec(np_jobargs_t* args)
 		np_msgproperty_t* prop = np_msgproperty_get(INBOUND, msg_subject);
 		if (prop != NULL)
 		{
-			_np_job_submit_msgin_event(0.0, prop, my_key, msg_to_submit);
+			_np_job_submit_msgin_event(0.0, prop, my_key, msg_to_submit, NULL);
 		}
 
 	} else {
@@ -663,7 +663,9 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 
 		np_msgproperty_t* msg_prop = np_msgproperty_get(mode_type, subject);
 		msg_prop->mode_type |= TRANSFORM;
-		sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
+		if(FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages, _np_util_cmp_ref)) {
+			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
+		}
 
 		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
 		np_key_t* target = NULL;

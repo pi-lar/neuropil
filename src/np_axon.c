@@ -193,13 +193,13 @@ void _np_out(np_jobargs_t* args)
 
 			char* ack_to_str = _np_key_as_str(my_key);
 
-			if (0 < (ack_mode & ACK_EACHHOP))
+			if (ACK_EACHHOP == (ack_mode & ACK_EACHHOP))
 			{
 				// we have to reset the existing ack_to field in case of forwarding and each-hop acknowledge
 				np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
 				ack_to_is_me = TRUE;
 			}
-			else if (0 < (ack_mode & ACK_DESTINATION) || 0 < (ack_mode & ACK_CLIENT))
+			else if (ACK_DESTINATION == (ack_mode & ACK_DESTINATION) || ACK_CLIENT == (ack_mode & ACK_CLIENT))
 			{
 				// only set ack_to for these two ack mode values if not yet set !
 				np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
@@ -312,8 +312,9 @@ void _np_out(np_jobargs_t* args)
 
 			np_bool send_completed = _np_network_send_msg(args->target, msg_out);
 
-			__np_axon_ivoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
-
+			if(send_completed == TRUE) {
+				__np_axon_ivoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
+			}
 			if (send_completed == FALSE || (reshedule_msg_transmission == TRUE && args->properties->retry > 0)) {				
 				double retransmit_interval = args->properties->msg_ttl / (args->properties->retry+1);
 				np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
@@ -502,83 +503,89 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 	log_msg(LOG_TRACE, "start: void _np_out_discovery_messages(np_jobargs_t* args){");
 	np_aaatoken_t* msg_token = NULL;
 
-	double now = np_time_now();
-	msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
+	if (_np_route_my_key_has_connection()) {
 
-	if ( ( NULL == msg_token ) ||
-		 ( /* = lifetime */ (now - msg_token->issued_at ) >=
-		   /* random time = */ (args->properties->token_min_ttl) ) )
-	{
-		log_msg(LOG_INFO | LOG_AAATOKEN, "---------- refresh for subject token: %s ----------", args->properties->msg_subject);
-		log_debug_msg(LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
-		np_aaatoken_t* msg_token_new  = _np_create_msg_token(args->properties);
-		np_unref_obj(np_aaatoken_t, msg_token,"_np_aaatoken_get_local_mx");
-		_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
-		msg_token = msg_token_new;
-		ref_replace_reason(np_aaatoken_t, msg_token, ref_obj_creation,"_np_aaatoken_get_local_mx")
-	}
+		double now = np_time_now();
+		msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 
-	// args->target == Key of subject
+		if ((NULL == msg_token) ||
+			( /* = lifetime */ (now - msg_token->issued_at) >=
+			/* random time = */ (args->properties->token_min_ttl)))
+		{
+			log_msg(LOG_INFO | LOG_AAATOKEN, "---------- refresh for subject token: %s ----------", args->properties->msg_subject);
+			log_debug_msg(LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
+			np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
+			np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
+			_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
+			msg_token = msg_token_new;
+			ref_replace_reason(np_aaatoken_t, msg_token, ref_obj_creation, "_np_aaatoken_get_local_mx")
+		}
 
-	if (0 < (args->properties->mode_type & INBOUND))
-	{
-		log_debug_msg(LOG_DEBUG, ".step ._np_out_discovery_messages.inbound");
+		// args->target == Key of subject
 
-		np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
+		if (INBOUND == (args->properties->mode_type & INBOUND))
+		{
+			log_debug_msg(LOG_DEBUG, ".step ._np_out_discovery_messages.inbound");
 
-		log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
-		np_tree_t* _data = np_tree_create();
-		np_aaatoken_encode(_data, msg_token);
+			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
 
-		np_message_t* msg_out = NULL;
-		np_new_obj(np_message_t, msg_out);
-		_np_message_create(
+			log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
+			np_tree_t* _data = np_tree_create();
+			np_aaatoken_encode(_data, msg_token);
+
+			np_message_t* msg_out = NULL;
+			np_new_obj(np_message_t, msg_out);
+			_np_message_create(
 				msg_out,
 				args->target,
 				_np_state()->my_node_key,
 				_NP_MSG_DISCOVER_SENDER,
 				_data
-		);
+			);
 
-		// send message availability
-		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
-		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+			// send message availability
+			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
+			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
+			_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
 
-		np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-	}
+			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+		}
 
-	if (0 < (args->properties->mode_type & OUTBOUND))
-	{
-		log_debug_msg(LOG_DEBUG, ".step ._np_out_discovery_messages.outbound");
+		if (OUTBOUND == (args->properties->mode_type & OUTBOUND))
+		{
+			log_debug_msg(LOG_DEBUG, ".step ._np_out_discovery_messages.outbound");
 
-		np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
+			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
 
-		log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
+			log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
 
-		np_tree_t* _data = np_tree_create();
-		np_aaatoken_encode(_data, msg_token);
+			np_tree_t* _data = np_tree_create();
+			np_aaatoken_encode(_data, msg_token);
 
-		np_message_t* msg_out = NULL;
-		np_new_obj(np_message_t, msg_out);
+			np_message_t* msg_out = NULL;
+			np_new_obj(np_message_t, msg_out);
 
-		_np_message_create(
+			_np_message_create(
 				msg_out,
 				args->target,
 				_np_state()->my_node_key,
 				_NP_MSG_DISCOVER_RECEIVER,
 				_data
-		);
-		// send message availability
-		np_msgproperty_t* prop_route =
+			);
+			// send message availability
+			np_msgproperty_t* prop_route =
 				np_msgproperty_get(
-						OUTBOUND,
-						_NP_MSG_DISCOVER_RECEIVER
+					OUTBOUND,
+					_NP_MSG_DISCOVER_RECEIVER
 				);
-		_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
-		np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-	}
+			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
 
-	np_unref_obj(np_aaatoken_t, msg_token,"_np_aaatoken_get_local_mx");
+			_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+		}
+		np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
+	}
+	
 }
 
 // deprecated
@@ -606,9 +613,12 @@ void _np_out_receiver_discovery(np_jobargs_t* args)
 
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
-	_np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_RECEIVER, _data);
-	// send message availability
+
 	np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
+	_np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_RECEIVER, _data);
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
+
+	// send message availability
 	_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
 	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 
@@ -640,9 +650,10 @@ void _np_out_sender_discovery(np_jobargs_t* args)
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 	_np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_SENDER, _data);
+	np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
+	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
 
 	// send message availability
-	np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
 	_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
 
 	np_unref_obj(np_message_t, msg_out,ref_obj_creation);

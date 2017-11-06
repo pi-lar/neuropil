@@ -31,7 +31,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __default_properties->clb_inbound, _np_in_received);
 	//default: 	sll_append(np_callback_t, __default_properties->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __default_properties->clb_transform, _np_never_called_jobexec_transform);
-	//default: sll_append(np_callback_t, __default_properties->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __default_properties->clb_route, _np_glia_route_lookup);
 	__default_properties->msg_ttl = 20.0;
 	__default_properties->max_threshold = UINT16_MAX;
 	__default_properties->token_max_ttl = 30;
@@ -75,7 +75,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_remove(np_callback_t, __ack_properties->clb_outbound, _np_out, _np_util_cmp_ref);
 	sll_append(np_callback_t, __ack_properties->clb_outbound, _np_out_ack);
 	//sll_append(np_callback_t, __ack_properties->clb_transform, _np_never_called_jobexec_transform);
-	//default: sll_append(np_callback_t, __ack_properties->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __ack_properties->clb_route, _np_glia_route_lookup);
 	__ack_properties->msg_ttl = 20.0;
 	__ack_properties->max_threshold = UINT16_MAX;
 	__ack_properties->token_max_ttl = 30;
@@ -92,7 +92,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__join_req->mep_type = REQ_REP;
 	__join_req->priority = 0;
 	__join_req->ack_mode = ACK_DESTINATION;
-	__join_req->retry = 6;	
+	__join_req->retry = 5;	
 	sll_append(np_callback_t, __join_req->clb_inbound, _np_in_join_req);
 	//default: sll_append(np_callback_t, __join_req->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __join_req->clb_transform, _np_never_called_jobexec_transform);
@@ -157,7 +157,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __leave_properties->clb_inbound, _np_in_leave_req);
 	//default: sll_append(np_callback_t, __leave_properties->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __leave_properties->clb_transform, _np_never_called_jobexec_transform);
-	//default: sll_append(np_callback_t, __leave_properties->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __leave_properties->clb_route, _np_glia_route_lookup);
 	__leave_properties->msg_ttl = 20.0;
 	__leave_properties->max_threshold = UINT16_MAX;
 	__leave_properties->token_max_ttl = 30;
@@ -177,7 +177,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __ping->clb_inbound, _np_in_ping);
 	//default: sll_append(np_callback_t, __ping->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __ping->clb_transform, _np_never_called_jobexec_transform);
-	//default: sll_append(np_callback_t, __ping->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __ping->clb_route, _np_glia_route_lookup);
 	__ping->msg_ttl = 2.0;
 	__ping->max_threshold = 1;
 	__ping->token_max_ttl = 30;
@@ -197,7 +197,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __piggy->clb_inbound, _np_in_piggy);
 	//default: sll_append(np_callback_t, __piggy->clb_outbound, _np_out);
 	sll_append(np_callback_t, __piggy->clb_transform, _np_send_rowinfo_jobexec);
-	//default: sll_append(np_callback_t, __piggy->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __piggy->clb_route, _np_glia_route_lookup);
 	__piggy->msg_ttl = 20.0;
 	__piggy->max_threshold = UINT16_MAX;
 	__piggy->token_max_ttl = 30;
@@ -217,7 +217,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __update->clb_inbound, _np_in_update);
 	//default: sll_append(np_callback_t, __update->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __update->clb_transform, _np_never_called_jobexec_transform);
-	//default: sll_append(np_callback_t, __update->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __update->clb_route, _np_glia_route_lookup);
 	__update->msg_ttl = 20.0;
 	__update->max_threshold = UINT16_MAX;
 	__update->token_max_ttl = 30;
@@ -237,7 +237,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __discover_receiver->clb_inbound, _np_in_discover_receiver);
 	//default: 	sll_append(np_callback_t, __discover_receiver->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __discover_receiver->clb_transform, _np_never_called_jobexec_transform);
-	//default: sll_append(np_callback_t, __discover_receiver->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __discover_receiver->clb_route, _np_glia_route_lookup);
 	__discover_receiver->msg_ttl = 20.0;
 	__discover_receiver->max_threshold = UINT16_MAX;
 	__discover_receiver->token_max_ttl = 30;
@@ -257,7 +257,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __discover_sender->clb_inbound, _np_in_discover_sender);
 	//default: 	sll_append(np_callback_t, __discover_sender->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __discover_sender->clb_transform, _np_never_called_jobexec_transform);
-	//default: sll_append(np_callback_t, __discover_sender->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __discover_sender->clb_route, _np_glia_route_lookup);
 	__discover_sender->msg_ttl = 20.0;
 	__discover_sender->max_threshold = UINT16_MAX;
 	__discover_sender->token_max_ttl = 30;
@@ -277,7 +277,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __available_receiver->clb_inbound, _np_in_available_receiver);
 	//default: 	sll_append(np_callback_t, __available_receiver->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __available_receiver->clb_transform, _np_never_called_jobexec_transform);
-	//default: sll_append(np_callback_t, __available_receiver->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __available_receiver->clb_route, _np_glia_route_lookup);
 	__available_receiver->msg_ttl = 20.0;
 	__available_receiver->max_threshold = UINT16_MAX;
 	__available_receiver->token_max_ttl = 30;
@@ -297,7 +297,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __available_sender->clb_inbound, _np_in_available_sender);
 	//default: 	sll_append(np_callback_t, __available_sender->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __available_sender->clb_transform, _np_never_called_jobexec_transform);
-	//default: sll_append(np_callback_t, __available_sender->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __available_sender->clb_route, _np_glia_route_lookup);
 	__available_sender->msg_ttl = 20.0;
 	__available_sender->max_threshold = UINT16_MAX;
 	__available_sender->token_max_ttl = 30;
@@ -317,7 +317,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __authenticate->clb_inbound, _np_in_authenticate);
 	//default: 	sll_append(np_callback_t, __authenticate->clb_outbound, _np_out);
 	sll_append(np_callback_t, __authenticate->clb_transform,_np_out_authentication_request);
-	//default: sll_append(np_callback_t, __authenticate->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __authenticate->clb_route, _np_glia_route_lookup);
 	__authenticate->cache_policy = FIFO | OVERFLOW_PURGE;
 	__authenticate->msg_ttl = 20.0;
 	__authenticate->max_threshold = UINT16_MAX;
@@ -338,7 +338,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __authenticate_reply->clb_inbound, _np_in_authenticate_reply);
 	//default: 	sll_append(np_callback_t, __authenticate_reply->clb_outbound, _np_out);
 	sll_append(np_callback_t, __authenticate_reply->clb_transform, _np_out_authentication_reply);
-	//default: sll_append(np_callback_t, __authenticate_reply->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __authenticate_reply->clb_route, _np_glia_route_lookup);
 	__authenticate_reply->msg_ttl = 20.0;
 	__authenticate_reply->max_threshold = UINT16_MAX;
 	__authenticate_reply->token_max_ttl = 30;
@@ -358,7 +358,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __authorize->clb_inbound, _np_in_authorize);
 	//default: 	sll_append(np_callback_t, __authorize->clb_outbound, _np_out);
 	sll_append(np_callback_t, __authorize->clb_transform, _np_out_authorization_request); 
-	//default: sll_append(np_callback_t, __authorize->clb_route, _np_route_lookup_jobexec);	
+	//default: sll_append(np_callback_t, __authorize->clb_route, _np_glia_route_lookup);	
 	__authorize->cache_policy = FIFO | OVERFLOW_PURGE;
 	__authorize->msg_ttl = 20.0;
 	__authorize->max_threshold = UINT16_MAX;
@@ -379,7 +379,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __authorize_reply->clb_inbound, _np_in_authorize_reply);
 	//default: 	sll_append(np_callback_t, __authorize_reply->clb_outbound, _np_out);
 	sll_append(np_callback_t, __authorize_reply->clb_transform, _np_out_authorization_reply);
-	//default: sll_append(np_callback_t, __authorize_reply->clb_route, _np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __authorize_reply->clb_route, _np_glia_route_lookup);
 	__authorize_reply->msg_ttl = 20.0;
 	__authorize_reply->max_threshold = UINT16_MAX;
 	__authorize_reply->token_max_ttl = 30;
@@ -399,7 +399,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	sll_append(np_callback_t, __account->clb_inbound,	_np_in_account);
 	//default: 	sll_append(np_callback_t, __account->clb_outbound,	_np_out);
 	sll_append(np_callback_t, __account->clb_transform,	_np_out_accounting_request);
-	//default: sll_append(np_callback_t, __account->clb_route,		_np_route_lookup_jobexec);
+	//default: sll_append(np_callback_t, __account->clb_route,		_np_glia_route_lookup);
 	__account->cache_policy = FIFO | OVERFLOW_PURGE;
 	__account->msg_ttl = 20.0;
 	__account->max_threshold = UINT16_MAX;

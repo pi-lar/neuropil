@@ -25,6 +25,7 @@ struct np_jobargs_s
 	np_msgproperty_t* properties;
 	uint8_t is_resend;
 	np_key_t* target;
+	void* custom_data;
 
 	np_error_t error_code;
 };
@@ -51,7 +52,7 @@ NP_API_INTERN
 void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
 
 NP_API_INTERN
-void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data);
 
 NP_API_INTERN
 void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);

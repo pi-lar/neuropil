@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-void _np_route_lookup_jobexec (np_jobargs_t* args);
+void _np_glia_route_lookup (np_jobargs_t* args);
 
 // critical self invoking functions
 void _np_retransmit_message_tokens_jobexec(np_jobargs_t* args);

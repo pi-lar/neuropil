@@ -141,7 +141,7 @@ np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproper
     jargs->msg = msg;
     jargs->target = key;
     jargs->properties = prop;
-
+	jargs->custom_data = NULL;
     return (jargs);
 }
 
@@ -250,17 +250,17 @@ void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t*
     _np_job_queue_insert( new_job);
 }
 
-void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
+void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data)
 {
 	// could be NULL if msg is not defined in this node
 	// assert(NULL != prop);
 
 	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop, __func__);
-
+	jargs->custom_data = custom_data;
     if(msg != NULL && prop != NULL) {
         if (msg->msg_property != NULL) {
-            np_unref_obj(np_msgproperty_t, prop, ref_message_msg_property);
+            np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
         }
 		np_ref_obj(np_msgproperty_t, prop, ref_message_msg_property);
         msg->msg_property = prop;

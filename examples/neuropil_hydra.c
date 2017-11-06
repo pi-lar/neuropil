@@ -157,39 +157,18 @@ int main(int argc, char **argv)
 			// start http endpoint
 
 
-			// get public / local network interface id		
-			if (http_domain == NULL) {
-				http_domain = calloc(1, sizeof(char) * 255);
-				CHECK_MALLOC(http_domain);
-				if (_np_get_local_ip(http_domain, 255) == FALSE) {
-					free(http_domain);
-					http_domain = NULL;
-				}
-			}
-
-			if (FALSE == _np_http_init(http_domain, NULL))
-			{
-				fprintf(stderr, "Node could not start HTTP interface\n");
-				log_msg(LOG_WARN, "Node could not start HTTP interface");
-				np_sysinfo_enable_slave();
-			}else{
-				fprintf(stderr, "HTTP interface set to %s\n" ,http_domain);
-				log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
-
+			// get public / local network interface id					
 			/**
 			 Enable the bootstrap node as master for our SysInfo subsystem
 
 			   .. code-block:: c
 
-			   \code
-			 */
-			np_sysinfo_enable_master();
+			   np_sysinfo_enable_master();			
 
-			/**
-
-			 \endcode
 			 */
-			}
+			example_http_server_init(http_domain); // np_sysinfo_enable_master() is included here
+
+			
 			// If you want to you can enable the statistics modulte to view the nodes statistics
 			np_statistics_add_watch_internals(); 
 			np_statistics_add_watch(_NP_SYSINFO_REQUEST);

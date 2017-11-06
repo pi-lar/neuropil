@@ -18,9 +18,10 @@
 
 #include "np_msgproperty.h"
 
+#include "neuropil.h"
+
 #include "dtime.h"
 #include "np_log.h"
-#include "neuropil.h"
 #include "np_aaatoken.h"
 #include "np_axon.h"
 #include "np_dendrit.h"
@@ -62,6 +63,24 @@ RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
 typedef struct rbt_msgproperty rbt_msgproperty_t;
 static rbt_msgproperty_t* __msgproperty_table;
 
+np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+{
+	if (msg->msg_property->is_internal == TRUE && 0 != strncmp(msg->msg_property->msg_subject, _DEFAULT,strlen(_DEFAULT))) {
+		CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
+
+		if (ACK_DESTINATION == (msg_ack_mode.value.ush & ACK_DESTINATION))
+		{
+			_np_send_ack(msg);
+		}
+
+		goto __np_return__;
+	__np_cleanup__:
+		log_msg(LOG_WARN, "cannot ack msg %s (%s)", msg->uuid, msg->msg_property->msg_subject);		
+	}
+__np_return__:
+	return TRUE;
+}
+
 /**
  ** _np_msgproperty_init
  ** Initialize message property subsystem.
@@ -84,12 +103,19 @@ np_bool _np_msgproperty_init ()
 	while(__np_internal_messages != NULL)
 	{
 		np_msgproperty_t* property = __np_internal_messages->val;
-		property->is_internal = TRUE;
+		property->is_internal = TRUE;		
+
 		if (strlen(property->msg_subject) > 0)
 		{
+			if ((property->mode_type & INBOUND) == INBOUND && (property->ack_mode & ACK_DESTINATION) == ACK_DESTINATION) {
+				_np_msgproperty_add_receive_listener(__np_msgproperty_internal_msgs_ack, property);
+			}
+
 			log_debug_msg(LOG_DEBUG, "register handler: %s", property->msg_subject);
 			RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
+
 		}
+
 		sll_next(__np_internal_messages);
 	}	
 
@@ -98,6 +124,16 @@ np_bool _np_msgproperty_init ()
 	return TRUE;
 }
 
+void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgproperty_t* msg_prop)
+{
+	// check whether an handler already exists
+
+	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, _np_util_cmp_ref)) {
+		sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
+	}
+	sll_append(np_usercallback_t, msg_prop->user_receive_clb, msg_handler);
+
+}
 /**
  ** registers the handler function #func# with the message type #type#,
  ** it also defines the acknowledgment requirement for this type
@@ -180,7 +216,7 @@ void _np_msgproperty_t_new(void* property)
 	sll_init(np_callback_t, prop->clb_route);
 
 	sll_append(np_callback_t, prop->clb_outbound, _np_out);
-	sll_append(np_callback_t, prop->clb_route, _np_route_lookup_jobexec);	
+	sll_append(np_callback_t, prop->clb_route, _np_glia_route_lookup);	
 
 	sll_init(np_usercallback_t, prop->user_receive_clb);
 	sll_init(np_usercallback_t, prop->user_send_clb);
@@ -314,7 +350,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 
 		if(NULL != msg_in) {
 			recv_prop->msg_threshold--;
-			_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in);
+			_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in, NULL);
 			np_unref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 		}
 	}

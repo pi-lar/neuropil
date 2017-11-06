@@ -34,6 +34,7 @@ int main(int argc, char **argv)
 	char* publish_domain = NULL;
 	int level = -2;
 	char* logpath = ".";
+	char* http_domain = NULL;
 
 	int opt;
 	if (parse_program_args(
@@ -47,8 +48,11 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-r realmname] [-c code]",
-		"r:c:"
+		"[-r realmname] [-c code] [-w http domain] ",
+		"r:c:w:",
+		&realm,
+		&code,
+		&http_domain
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
@@ -72,7 +76,13 @@ int main(int argc, char **argv)
 		}
 	}
 
-	np_sysinfo_enable_slave();
+	// starting the example http server to support the http://view.neuropil.io application
+	example_http_server_init(http_domain);
+
+	np_statistics_add_watch_internals();
+	np_statistics_add_watch(_NP_SYSINFO_REQUEST);
+	np_statistics_add_watch(_NP_SYSINFO_REPLY);
+
 
 	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
@@ -84,8 +94,5 @@ int main(int argc, char **argv)
 	np_waitforjoin();
 	fprintf(stdout, "Connected");
 
-	while (1) {
-		ev_sleep(1.0);
-		// dsleep(0.1);
-	}
+	__np_example_helper_run_info_loop();
 }

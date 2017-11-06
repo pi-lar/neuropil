@@ -60,7 +60,6 @@ struct np_network_s
 
 	np_tree_t* waiting;
 
-	np_sll_t(void_ptr, in_events);
 	np_sll_t(void_ptr, out_events);
 
 	uint32_t seqend;

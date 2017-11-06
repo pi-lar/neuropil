@@ -291,7 +291,7 @@ void _np_route_append_leafset_to_sll(np_key_ptr_pll_t* leafset, np_sll_t(np_key_
  ** returns an array of #count# keys that are acceptable next hops for a
  ** message being routed to #key#.
  */
-sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count)
+sll_return(np_key_ptr) _np_route_lookup(np_key_t* key, uint8_t count)
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_lookup");
 	uint32_t i, j, k, Lsize, Rsize;

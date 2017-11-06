@@ -626,37 +626,46 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	int16_t last_recv_result = 0;
 	int msgs_received = 0;
 	void* data;
+	
+	key = (np_key_t*)event->data;
+	ng = key->network;
+
+	// catch multiple msgs waiting in this pipe
 	do {
 		memset(ipstr,'\0', sizeof(char)*CHAR_LENGTH_IP);
 		memset(port, '\0', sizeof(char)*CHAR_LENGTH_PORT);
-
-		key = (np_key_t*)event->data;
-		ng = key->network;
+		
 
 		data = calloc(1, MSG_CHUNK_SIZE_1024 * sizeof(char));
 		CHECK_MALLOC(data);
 
 		int16_t in_msg_len = 0;
 
-		if ((ng->socket_type & TCP) == TCP) {
-			last_recv_result = recv(ng->socket, data + in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
-			if (0 != getpeername(ng->socket, (struct sockaddr*) &from, &fromlen))
-			{
-				log_msg(LOG_WARN, "could not receive socket peer: %s (%d)",
-					strerror(errno), errno);
-				return;
+		// catch a msg even if it was chunked into smaller byte parts by the underlying network
+		double timeout_start = np_time_now();
+		do {
+			if ((ng->socket_type & TCP) == TCP) {
+				last_recv_result = recv(ng->socket, data + in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
+				if (0 != getpeername(ng->socket, (struct sockaddr*) &from, &fromlen))
+				{
+					log_msg(LOG_WARN, "could not receive socket peer: %s (%d)",
+						strerror(errno), errno);
+					return;
+				}
+				key = key->parent;
+				ng_tcp_host = ng;
+				ng = key->network;
 			}
-			key = key->parent;
-			ng_tcp_host = ng;
-			ng = key->network;
-		}
-		else {
-			last_recv_result = recvfrom(ng->socket, data + in_msg_len,
-				MSG_CHUNK_SIZE_1024 - in_msg_len, 0, (struct sockaddr*)&from, &fromlen);
-		}
-		if (last_recv_result > 0) {
-			in_msg_len += last_recv_result;
-		}
+			else {
+				last_recv_result = recvfrom(ng->socket, data + in_msg_len,
+					MSG_CHUNK_SIZE_1024 - in_msg_len, 0, (struct sockaddr*) &from, &fromlen);
+			}
+
+			if (last_recv_result > 0) {
+				in_msg_len += last_recv_result;
+			}
+			// repeat if msg is not 1024 bytes in size and the timeout is not reached
+		} while (in_msg_len > 0 && in_msg_len < MSG_CHUNK_SIZE_1024 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
 
 		log_debug_msg(LOG_DEBUG | LOG_NETWORK, "in_msg_len %d bytes", in_msg_len);
 
@@ -691,7 +700,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			{
 				if(ng_tcp_host != NULL){
 					// tcp disconnect
-					log_msg(LOG_ERROR, "received disconnect from: %s:%s", ng->ip, ng->port);
+					log_msg(LOG_ERROR, "received disconnect from: %s:%s", ipstr, port);
 					// TODO handle cleanup of node structures ?
 					// maybe / probably the node received already a disjoin message before
 					//TODO: prüfen ob hier wirklich der host geschlossen werden muss
@@ -717,7 +726,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			char* alias_key_ref_reason = "";
 
 			// we registered this token info before in the first handshake message
-			np_dhkey_t search_key = np_dhkey_create_from_hostport(ng->ip, ng->port);
+			np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
 			alias_key = _np_keycache_find(search_key);
 			alias_key_ref_reason = "_np_keycache_find";
 			if (NULL == alias_key) {
@@ -728,17 +737,9 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			}
 
 			log_debug_msg(LOG_NETWORK |LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
-				ng->ip, ng->port, in_msg_len, _np_key_as_str(alias_key));
-
-			_LOCK_ACCESS(&ng->lock)
-			{
-				if (NULL != ng->in_events)
-				{
-					sll_append(void_ptr, ng->in_events, data);
-				}
-			}
-
-			_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL);
+				ipstr, port, in_msg_len, _np_key_as_str(alias_key));
+		
+			_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL, data);
 			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
 				_np_key_as_str(key));
 
@@ -843,19 +844,7 @@ void _np_network_t_del(void* nw)
 			network->watcher.data = NULL;
 
 			if (NULL != network->waiting)
-				np_tree_free(network->waiting);
-
-			if (NULL != network->in_events)
-			{
-				if (0 < sll_size(network->in_events))
-				{
-					do {
-						void* tmp = sll_head(void_ptr, network->in_events);
-						free(tmp);
-					} while (0 < sll_size(network->in_events));
-				}
-				sll_free(void_ptr, network->in_events);
-			}
+				np_tree_free(network->waiting);			
 
 			if (NULL != network->out_events)
 			{
@@ -886,7 +875,6 @@ void _np_network_t_new(void* nw)
 	np_network_t* ng = (np_network_t *) nw;
 	ng->addr_in 	= NULL;
 	ng->waiting 	= NULL;
-	ng->in_events 	= NULL;
 	ng->out_events 	= NULL;
 	ng->initialized = FALSE;
 	ng->watcher.data = NULL;
@@ -931,7 +919,6 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 		{
 			// create own retransmit structures
 			ng->waiting = np_tree_create();
-			sll_init(void_ptr, ng->in_events);
 			// own sequence number counter
 			ng->seqend = 0LU;
 		}

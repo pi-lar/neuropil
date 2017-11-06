@@ -353,10 +353,7 @@ void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
 		msg_prop->mode_type = INBOUND;
 		np_msgproperty_register(msg_prop);
 	} 
-	if( FALSE == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, _np_util_cmp_ref)) {
-		sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
-	}
-	sll_append(np_usercallback_t, msg_prop->user_receive_clb, msg_handler);
+	_np_msgproperty_add_receive_listener(msg_handler, msg_prop);
 
 }
 
@@ -684,7 +681,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	}
 
 	uint8_t ack_mode = np_tree_find_str(msg->instructions, _NP_MSG_INST_ACK)->val.value.ush;
-	if (0 < (ack_mode & ACK_DESTINATION))
+	if (ACK_DESTINATION == (ack_mode & ACK_DESTINATION))
 	{
 		_np_send_ack(msg);
 	}
@@ -777,7 +774,7 @@ uint32_t np_receive_text (char* subject, char **data)
 	*data = strndup(reply_data->val.value.s, strlen(reply_data->val.value.s));
 
 	uint8_t ack_mode = np_tree_find_str(msg->instructions, _NP_MSG_INST_ACK)->val.value.ush;
-	if (0 < (ack_mode & ACK_DESTINATION))
+	if (ACK_DESTINATION == (ack_mode & ACK_DESTINATION))
 	{
 		_np_send_ack(msg);
 	}
@@ -1126,6 +1123,8 @@ void _np_send_ack(np_message_t* msg_to_ack)
 
 			np_unref_obj(np_key_t, ack_target, "_np_keycache_find");
 			np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
+
+			log_debug_msg(LOG_DEBUG, "ACKED");
 		}
 		else {
 			log_debug_msg(LOG_DEBUG, "ACK Target not inititated");
