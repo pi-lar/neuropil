@@ -131,7 +131,7 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target));
 NP_API_INTERN
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len);
 NP_API_INTERN
-sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount);
+sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), uint32_t amount);
 
 
 #ifdef __cplusplus

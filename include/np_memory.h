@@ -116,6 +116,16 @@ struct np_obj_s
 char new_reason[strlen(reason)+20];
 #endif
 
+// ref key and required substructures
+#define np_ref_key(key, module_enum, reason)  												          \
+	_LOCK_MODULE(np_memory_t) {                 											 		  \													\
+		np_ref_obj(np_key_t, key, reason);  												          \
+		if (0 < (module_enum & np_node_t_e) )        np_ref_obj(np_node_t, key->node, reason);        \
+		if (0 < (module_enum & np_network_t_e) )     np_ref_obj(np_network_t, key->node, reason);     \
+		if (0 < (module_enum & np_aaatoken_t_e) )    np_ref_obj(np_aaatoken_t, key->node, reason);    \
+		if (0 < (module_enum & np_msgproperty_t_e) ) np_ref_obj(np_msgproperty_t, key->node, reason); \
+	}
+
 
 #ifndef MEMORY_CHECK
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)

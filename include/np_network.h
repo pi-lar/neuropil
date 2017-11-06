@@ -68,6 +68,10 @@ struct np_network_s
 
 	char * ip;
 	char * port;
+
+	char * ip_in;
+	char * port_in;
+
 	np_mutex_t lock;
 } NP_API_INTERN;
 
@@ -124,6 +128,9 @@ void _np_network_start(np_network_t* ng);
 NP_API_INTERN
 void _np_network_remap_network( np_key_t* new_target, np_key_t* old_target);
 
+NP_API_INTERN
+np_bool _np_network_decrypt(np_key_t* alias_key, void* raw_msg, np_message_t* msg_in);
+
 /** _np_network_init:
  ** initiates the networking layer by creating socket and bind it to #port#
  **
@@ -156,9 +163,13 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
 void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
-char* np_network_get_ip(np_key_t * container);
+char* _np_network_get_ip(np_key_t * container);
 NP_API_INTERN
-char* np_network_get_port(np_key_t * container);
+char* _np_network_get_ip_in(np_key_t * container);
+NP_API_INTERN
+char* _np_network_get_port(np_key_t * container);
+NP_API_INTERN
+char* _np_network_get_port_in(np_key_t * container);
 NP_API_INTERN
 np_bool _np_network_send_handshake(np_key_t* node_key);
 #ifdef __cplusplus
