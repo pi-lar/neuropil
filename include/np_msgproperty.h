@@ -200,10 +200,10 @@ typedef enum np_msgcache_policy_enum {
 
 */
 typedef enum np_msg_ack_enum {
-	ACK_NONE = 0x00, // 0000 0000  - don't ack at all
-	ACK_EACHHOP = 0x01, // 0000 0001 - each hop has to send a ack to the previous hop
+	ACK_NONE		= 0x00, // 0000 0000  - don't ack at all
+	ACK_EACHHOP		= 0x01, // 0000 0001 - each hop has to send a ack to the previous hop
 	ACK_DESTINATION = 0x02, // 0000 0010 - message destination ack to message sender across multiple nodes
-	ACK_CLIENT = 0x04,     // 0000 0100 - message to sender ack after/during processing the message on receiver side
+	ACK_CLIENT		= 0x04, // 0000 0100 - message to sender ack after/during processing the message on receiver side
 } NP_API_EXPORT np_msg_ack_type;
 
 /**
@@ -370,7 +370,10 @@ NP_API_INTERN
 void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
 NP_API_INTERN
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
-
+NP_API_INTERN
+np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
+NP_API_INTERN
+void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgproperty_t* msg_prop);
 #ifdef __cplusplus
 }
 #endif
