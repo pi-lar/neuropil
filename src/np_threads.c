@@ -297,9 +297,10 @@ int _np_threads_unlock_module(np_module_lock_type module_id) {
 }
 
 /** pthread mutex platform wrapper functions following this line **/
-int _np_threads_mutex_init(np_mutex_t* mutex)
+int _np_threads_mutex_init(np_mutex_t* mutex,char* desc)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_init(np_mutex_t* mutex){");
+	mutex->desc = strdup(desc);
 	pthread_mutexattr_init(&mutex->lock_attr);
 	pthread_mutexattr_settype(&mutex->lock_attr, PTHREAD_MUTEX_RECURSIVE);
 	return pthread_mutex_init(&mutex->lock, &mutex->lock_attr);
@@ -317,7 +318,7 @@ int _np_threads_mutex_lock(np_mutex_t* mutex) {
 #ifdef DEBUG
 		diff = np_time_now() - start;
 		if (diff > MUTEX_WAIT_MAX_SEC) {
-			log_msg(LOG_ERROR, "Thread %d waits too long for mutex %p (%f sec)", _np_threads_get_self()->id, mutex, diff);
+			log_msg(LOG_ERROR, "Thread %d waits too long for mutex %p / %s (%f sec)", _np_threads_get_self()->id, mutex, mutex->desc, diff);
 			abort();
 		}
 		if (diff > MUTEX_WAIT_SOFT_SEC) {
@@ -342,6 +343,7 @@ int _np_threads_mutex_unlock(np_mutex_t* mutex)
 void _np_threads_mutex_destroy(np_mutex_t* mutex)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: void _np_threads_mutex_destroy(np_mutex_t* mutex){");
+	free(mutex->desc);
 	pthread_mutex_destroy (&mutex->lock);
 }
 /** pthread condition platform wrapper functions following this line **/
@@ -467,7 +469,7 @@ void _np_thread_t_new(void* obj)
 	thread->min_job_priority = 0;
 
 #ifdef CHECK_THREADING
-	_np_threads_mutex_init(&thread->locklists_lock);
+	_np_threads_mutex_init(&thread->locklists_lock,"thread locklist");
 	sll_init(char_ptr, thread->has_lock);
 	sll_init(char_ptr, thread->want_lock);
 #endif

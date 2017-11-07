@@ -30,7 +30,7 @@ np_simple_cache_table_t* np_cache_init(int size) {
 		(np_simple_cache_table_t*)malloc(
 		sizeof(np_simple_cache_table_t));
 	CHECK_MALLOC(ret);
-	_np_threads_mutex_init(&ret->lock);
+	_np_threads_mutex_init(&ret->lock,"simple cache");
 
 	for (uint32_t i = 0; i < size; i++) {
 		sll_init(np_cache_item_ptr, ret->buckets[i]);

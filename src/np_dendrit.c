@@ -724,7 +724,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 	np_network_t* ng = my_key->network;
 
-	_LOCK_ACCESS(&ng->lock)
+	_LOCK_ACCESS(&ng->send_data_lock)
 	{
 		np_tree_elem_t *jrb_node = np_tree_find_str(ng->waiting, ack_uuid.value.s);
 		if (jrb_node != NULL)
@@ -833,7 +833,7 @@ void _np_in_join_nack(np_jobargs_t* args)
 
 	/*
 	//FIXME: Mixing of Transport ACK and BL ACK
-	_LOCK_ACCESS(&ng->lock)
+	_LOCK_ACCESS(&ng->send_data_lock)
 	{
 		np_tree_elem_t *jrb_node = np_tree_find_str(ng->waiting, ack_uuid.value.s);
 		if (jrb_node != NULL)
@@ -876,7 +876,7 @@ void __np_in_ack_handle(np_message_t * msg)
 	CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_ACKUUID, ack_uuid);
 
 	/* just an acknowledgement of own messages send out earlier */
-	_LOCK_ACCESS(&my_network->lock)
+	_LOCK_ACCESS(&my_network->send_data_lock)
 	{
 		np_tree_elem_t *jrb_node = np_tree_find_str(my_network->waiting, ack_uuid.value.s);
 		if (jrb_node != NULL)
@@ -1765,7 +1765,7 @@ void _np_in_handshake(np_jobargs_t* args)
 					np_network_t* old_network = hs_wildcard_key->network;
 					np_ref_obj(np_network_t, old_network, "usage_of_old_network");
 
-					_LOCK_ACCESS(&old_network->lock)
+					_LOCK_ACCESS(&old_network->send_data_lock)
 					{
 						_np_network_stop(old_network);
 						// Updating handshake key with already existing network

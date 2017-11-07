@@ -36,22 +36,14 @@
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
-static const char* NP_NODE_KEY          = "np.n.k";
-static const char* NP_NODE_PROTOCOL     = "np.n.pr";
-static const char* NP_NODE_DNS_NAME     = "np.n.d";
-static const char* NP_NODE_PORT         = "np.n.p";
-static const char* NP_NODE_CREATED_AT   = "np.n.c";
-static const char* NP_NODE_SUCCESS_AVG  = "np.n.sa";
-static const char* NP_NODE_LATENCY      = "np.n.l";
-static const char* NP_NODE_LAST_SUCCESS = "np.n.ls";
 
 void _np_node_t_new(void* node)
 {
 	log_msg(LOG_TRACE, "start: void _np_node_t_new(void* node){");
 	np_node_t* entry = (np_node_t *) node;
 
-	_np_threads_mutex_init(&entry->lock);
-	_np_threads_mutex_init(&entry->latency_lock);
+	_np_threads_mutex_init(&entry->lock,"node lock");
+	_np_threads_mutex_init(&entry->latency_lock,"node latency lock");
 
 	entry->dns_name = NULL;
 	entry->protocol = 0;
@@ -102,22 +94,22 @@ void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 } 
 void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, np_bool include_stats)
 {
-	np_tree_insert_str(data, NP_NODE_PROTOCOL, np_treeval_new_ush(node_key->node->protocol));
-	np_tree_insert_str(data, NP_NODE_DNS_NAME, np_treeval_new_s(node_key->node->dns_name));
-	np_tree_insert_str(data, NP_NODE_PORT, np_treeval_new_s(node_key->node->port));
+	np_tree_insert_str(data, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_ush(node_key->node->protocol));
+	np_tree_insert_str(data, NP_SERIALISATION_NODE_DNS_NAME, np_treeval_new_s(node_key->node->dns_name));
+	np_tree_insert_str(data, NP_SERIALISATION_NODE_PORT, np_treeval_new_s(node_key->node->port));
 
 	if (TRUE == include_stats)
 	{		
-		np_tree_insert_str(data, NP_NODE_CREATED_AT, np_treeval_new_d(node_key->created_at));
-		np_tree_insert_str(data, NP_NODE_KEY, np_treeval_new_s(_np_key_as_str(node_key)));
+		np_tree_insert_str(data, NP_SERIALISATION_NODE_CREATED_AT, np_treeval_new_d(node_key->created_at));
+		np_tree_insert_str(data, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(node_key)));
 
 		if(node_key->node != NULL){
 
-			np_tree_insert_str(data, NP_NODE_SUCCESS_AVG,
+			np_tree_insert_str(data, NP_SERIALISATION_NODE_SUCCESS_AVG,
 					np_treeval_new_f(node_key->node->success_avg));
-			np_tree_insert_str(data, NP_NODE_LATENCY,
+			np_tree_insert_str(data, NP_SERIALISATION_NODE_LATENCY,
 					np_treeval_new_d(node_key->node->latency));
-			np_tree_insert_str(data, NP_NODE_LAST_SUCCESS,
+			np_tree_insert_str(data, NP_SERIALISATION_NODE_LAST_SUCCESS,
 					np_treeval_new_d(node_key->node->last_success));
 		}
 	}
@@ -190,17 +182,17 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 	char* s_host_name;
 	char* s_host_port;
 	np_tree_elem_t* ele;
-	if (NULL != (ele = np_tree_find_str(data, NP_NODE_PROTOCOL))) {
+	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_PROTOCOL))) {
 		i_host_proto = ele->val.value.ush;
 	}
 	else { return NULL; }
 
-	if (NULL != (ele = np_tree_find_str(data, NP_NODE_DNS_NAME))) {
+	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_DNS_NAME))) {
 		s_host_name = ele->val.value.s;
 	}
 	else { return NULL; }
 
-	if (NULL != (ele = np_tree_find_str(data, NP_NODE_PORT))) {
+	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_PORT))) {
 		s_host_port = ele->val.value.s;
 	}
 	else { return NULL; }
@@ -237,7 +229,7 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, 
 			np_tree_t* node_jrb = np_tree_create();
 			// log_debug_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
 			_np_node_encode_to_jrb(node_jrb, current, include_stats);
-			np_tree_insert_str(node_jrb, NP_NODE_KEY, np_treeval_new_s(_np_key_as_str(current)));
+			np_tree_insert_str(node_jrb, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(current)));
 
 			np_tree_insert_int(data, j, np_treeval_new_tree(node_jrb));
 			j++;
@@ -260,7 +252,7 @@ sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 	{
 		np_tree_elem_t* node_data = np_tree_find_int(data, i);
 
-		char* s_key = np_tree_find_str(node_data->val.value.tree, NP_NODE_KEY)->val.value.s;
+		char* s_key = np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val.value.s;
 		np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
 		np_key_t* node_key    = _np_keycache_find_or_create(search_key);
 		if (NULL == node_key->node)
@@ -334,11 +326,11 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 	crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
 	node_token->private_key_is_set = TRUE;
 	/*
-	np_tree_insert_str(node_token->extensions, NP_NODE_DNS_NAME,
+	np_tree_insert_str(node_token->extensions, NP_SERIALISATION_NODE_DNS_NAME,
 			np_treeval_new_s(node->dns_name));
-	np_tree_insert_str(node_token->extensions, NP_NODE_PORT,
+	np_tree_insert_str(node_token->extensions, NP_SERIALISATION_NODE_PORT,
 			np_treeval_new_s(node->port));
-	np_tree_insert_str(node_token->extensions, NP_NODE_PROTOCOL,
+	np_tree_insert_str(node_token->extensions, NP_SERIALISATION_NODE_PROTOCOL,
 			np_treeval_new_ush(node->protocol));
 	*/
 	//_np_aaatoken_add_signature(node_token);

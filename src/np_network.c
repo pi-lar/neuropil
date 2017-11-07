@@ -247,20 +247,20 @@ void _np_network_get_address (
 //    inet_aton ("127.0.0.1", (struct in_addr *) &local);
 //#endif
 //
-//    // pthread_mutex_lock (&(ng->lock));
+//    // pthread_mutex_lock (&(ng->send_data_lock));
 //    if (is_addr) he = gethostbyaddr ((char *) &addr, sizeof (addr), AF_INET);
 //    else         he = gethostbyname (hostname);
 //
 //    if (he == NULL)
 //	{
-//	    // pthread_mutex_unlock (&(ng->lock));
+//	    // pthread_mutex_unlock (&(ng->send_data_lock));
 //	    return (0);
 //	}
 //    /* make sure the machine is not returning localhost */
 //    addr = *(unsigned long *) he->h_addr_list[0];
 //    for (i = 1; he->h_addr_list[i] != NULL && addr == local; i++)
 //    	addr = *(unsigned long *) he->h_addr_list[i];
-//    // pthread_mutex_unlock (&(ng->lock));
+//    // pthread_mutex_unlock (&(ng->send_data_lock));
 //
 //    return (addr);
 }
@@ -355,7 +355,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 
 											ret = TRUE;
 											/* send data */
-											_LOCK_ACCESS(&node_key->network->lock) {
+											_LOCK_ACCESS(&node_key->network->send_data_lock) {
 												if (NULL != node_key->network->out_events) {
 													// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, node_key->node->dns_name, node_key->node->port);
 													// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
@@ -414,7 +414,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 			if (TRUE == networkExists )
 			{
 				if(TRUE == key_network->initialized) {
-					_LOCK_ACCESS(&key_network->lock)
+					_LOCK_ACCESS(&key_network->send_data_lock)
 					{
 						if (NULL != key_network->out_events &&
 							0 < sll_size(key_network->out_events)
@@ -535,7 +535,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 						"received connection request from %s:%s (client fd: %d)",
-						ng->ip, ng->port, client_fd);
+					ipstr, port, client_fd);
 
 				np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
 				np_key_t* alias_key = _np_keycache_find(search_key);
@@ -554,7 +554,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 					}
 					np_new_obj(np_network_t, alias_key->network);
 
-					_LOCK_ACCESS (&alias_key->network->lock) {
+					_LOCK_ACCESS (&alias_key->network->send_data_lock) {
 						alias_key->network->socket = client_fd;
 						alias_key->network->socket_type = ng->socket_type;
 						alias_key->network->waiting = np_tree_create();
@@ -574,7 +574,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 
 				log_debug_msg(LOG_DEBUG,"suspend ev loop for tcp new socket network start");
 
-				np_ref_obj(np_network_t, alias_key, ref_network_watcher);
+				np_ref_obj(np_key_t, alias_key, ref_network_watcher);
 				alias_key->network->watcher.data = alias_key;
 
 				ev_io_init(
@@ -771,7 +771,7 @@ void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 void _np_network_stop(np_network_t* network) {
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_stop(np_network_t* network){");
 	if(NULL != network){
-		_LOCK_ACCESS(&network->lock){
+		_LOCK_ACCESS(&network->send_data_lock){
 			log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p",network);
 			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 			ev_io_stop(EV_A_ &network->watcher);
@@ -793,7 +793,7 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 	if (new_target->network != NULL) {
 		old_network = new_target->network;
 	}
-	_LOCK_ACCESS(&old_target->network->lock){
+	_LOCK_ACCESS(&old_target->network->send_data_lock) {
 		_np_network_stop(old_target->network); 			// stop network
 
 		new_target->network = old_target->network; 		// remap
@@ -817,7 +817,7 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 void _np_network_start(np_network_t* network){
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
 	if(NULL != network){
-		_LOCK_ACCESS(&network->lock){
+		_LOCK_ACCESS(&network->send_data_lock){
 			log_msg(LOG_NETWORK | LOG_INFO, "starting network %p",network);
 			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 			ev_io_start(EV_A_ &network->watcher);
@@ -836,7 +836,7 @@ void _np_network_t_del(void* nw)
 	// TODO: this may hold the potential for a deadlock
 	_LOCK_MODULE(np_network_t)
 	{
-		_LOCK_ACCESS(&network->lock)
+		_LOCK_ACCESS(&network->send_data_lock)
 		{
 			_np_network_stop(network);
 			np_key_t* old_key = (np_key_t*) network->watcher.data;
@@ -863,7 +863,7 @@ void _np_network_t_del(void* nw)
 			network->initialized = FALSE;
 		}
 		// finally destroy the mutex again
-		_np_threads_mutex_destroy (&network->lock);
+		_np_threads_mutex_destroy (&network->send_data_lock);
 
 	}
 }
@@ -880,7 +880,7 @@ void _np_network_t_new(void* nw)
 	ng->watcher.data = NULL;
 
 	log_debug_msg(LOG_DEBUG, "try to pthread_mutex_init");
-	int network_mutex_init = _np_threads_mutex_init (&ng->lock);
+	int network_mutex_init = _np_threads_mutex_init (&ng->send_data_lock,"network send_data_lock");
 	if (network_mutex_init != 0)
 	{
 		log_msg(LOG_ERROR, "pthread_mutex_init: %s (%d)",
@@ -915,7 +915,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 	{
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating receiving network");
 
-		_LOCK_ACCESS(&ng->lock)
+		_LOCK_ACCESS(&ng->send_data_lock)
 		{
 			// create own retransmit structures
 			ng->waiting = np_tree_create();

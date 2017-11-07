@@ -94,7 +94,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 	}
 	__np_obj_pool_ptr->current->lock = calloc(1, sizeof(np_mutex_t));
 	CHECK_MALLOC(__np_obj_pool_ptr->current->lock);
-	_np_threads_mutex_init(__np_obj_pool_ptr->current->lock);
+	_np_threads_mutex_init(__np_obj_pool_ptr->current->lock,"memory object lock");
 	__np_obj_pool_ptr->current->type = obj_type;
 	__np_obj_pool_ptr->current->ref_count = 0;
 	__np_obj_pool_ptr->current->next = NULL;
@@ -218,7 +218,10 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 #ifdef MEMORY_CHECK
 			summary[iter->type*100] = summary[iter->type * 100] > sll_size(iter->reasons) ? summary[iter->type * 100]: sll_size(iter->reasons);
 
-			if (iter->type == np_key_t_e && TRUE == extended) {
+			if (
+				TRUE == extended
+				//&& iter->type == np_key_t_e				
+				) {
 				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, iter->type, sll_size(iter->reasons), new_line);
 				sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
 				while (iter_reasons != NULL)

@@ -226,7 +226,7 @@ void _np_msgproperty_t_new(void* property)
 	sll_init(np_message_ptr, prop->msg_cache_in);
 	sll_init(np_message_ptr, prop->msg_cache_out);
 
-	_np_threads_mutex_init (&prop->lock);
+	_np_threads_mutex_init (&prop->lock,"property lock");
 	_np_threads_condition_init_shared(&prop->msg_received);
 }
 

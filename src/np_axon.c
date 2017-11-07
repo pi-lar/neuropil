@@ -136,7 +136,7 @@ void _np_out(np_jobargs_t* args)
 			{
 				uuid = msg_out->uuid;
 				np_bool skip = FALSE;
-				_LOCK_ACCESS(&my_network->lock)
+				_LOCK_ACCESS(&my_network->send_data_lock)
 				{
 					// first find the uuid
 					np_tree_elem_t* uuid_ele = np_tree_find_str(my_network->waiting, uuid);
@@ -213,7 +213,7 @@ void _np_out(np_jobargs_t* args)
 			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
 			if (TRUE == ack_to_is_me && FALSE == is_resend)
 			{
-				_LOCK_ACCESS(&my_network->lock)
+				_LOCK_ACCESS(&my_network->send_data_lock)
 				{
 					/* get/set sequence number to keep increasing sequence numbers per node */
 					seq = my_network->seqend;
@@ -253,7 +253,7 @@ void _np_out(np_jobargs_t* args)
 				{
 					uuid = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
 
-					_LOCK_ACCESS(&my_network->lock)
+					_LOCK_ACCESS(&my_network->send_data_lock)
 					{
 						/* get/set sequence number to initialize acknowledgement indicator correctly */
 						np_ackentry_t *ackentry = NULL;
@@ -479,7 +479,7 @@ void _np_out_handshake(np_jobargs_t* args)
 					memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 				}
 
-				_LOCK_ACCESS(&args->target->network->lock)
+				_LOCK_ACCESS(&args->target->network->send_data_lock)
 				{
 					if (NULL != args->target->network->out_events) {
 						sll_append(

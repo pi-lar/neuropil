@@ -27,29 +27,29 @@ np_bool _np_in_sysinfo(const np_message_t* const msg, np_tree_t* properties, np_
 NP_API_INTERN
 np_bool _np_in_sysinforeply(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) ;
 /**
-.. c:function:: void np_get_sysinfo(const char* const dhkey_of_node_target)
+.. c:function:: void np_sysinfo_get_info(const char* const dhkey_of_node_target)
 
    Tries to evaluate the sysinfo informations for the given target.
    Make sure to enable the target as sysinfo slave.
 
 */
 NP_API_EXPORT
-np_tree_t* np_get_sysinfo(const char* const dhkey_of_node_target);
+np_tree_t* np_sysinfo_get_info(const char* const dhkey_of_node_target);
 /**
-.. c:function:: np_get_my_sysinfo()
+.. c:function:: np_sysinfo_get_my_info()
 
    Evaluates the sysinfo information for the current node.
 
 */
 NP_API_EXPORT
-np_tree_t* np_get_my_sysinfo() ;
+np_tree_t* np_sysinfo_get_my_info() ;
 
 NP_API_INTERN
-void _np_request_others() ;
+void _np_sysinfo_request_others() ;
 NP_API_INTERN
-void _np_request_sysinfo(const char* dhkey_of_target) ;
+void _np_sysinfo_request(const char* dhkey_of_target) ;
 NP_API_INTERN
-np_tree_t* _np_get_sysinfo_from_cache(const char* hash_of_target, uint16_t max_cache_ttl) ;
+np_tree_t* _np_sysinfo_get_from_cache(const char* hash_of_target, uint16_t max_cache_ttl) ;
 
 /**
 .. c:function:: void np_sysinfo_enable_slave()
@@ -67,7 +67,8 @@ void np_sysinfo_enable_slave();
 */
 NP_API_EXPORT
 void np_sysinfo_enable_master();
-
+NP_API_EXPORT
+np_tree_t* np_sysinfo_get_all();
 #ifdef __cplusplus
 }
 #endif

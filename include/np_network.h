@@ -66,7 +66,7 @@ struct np_network_s
 
 	char ip[CHAR_LENGTH_IP];
 	char port[CHAR_LENGTH_PORT];
-	np_mutex_t lock;
+	np_mutex_t send_data_lock;
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);

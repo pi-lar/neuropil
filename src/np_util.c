@@ -583,7 +583,7 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 		item->max = 0;
 		item->avg = 0;
 		memcpy(item->key, key, strnlen(key, 254));
-		_np_threads_mutex_init(&item->lock);
+		_np_threads_mutex_init(&item->lock,"debug_statistics");
 
 		sll_append(void_ptr, __np_debug_statistics, (void_ptr)item);
 	}

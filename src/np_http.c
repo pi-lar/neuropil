@@ -329,8 +329,8 @@ void _np_http_dispatch( np_http_client_t* client) {
 				char* tmp_target_hash = strtok(path, "/");
 
 				if (NULL != tmp_target_hash) {
-					if (strlen(tmp_target_hash) == 64) {
-						sprintf(target_hash, "%s",tmp_target_hash);
+					if (strlen(tmp_target_hash) == 64) {						
+						snprintf(target_hash,65, "%s",tmp_target_hash);
 						usedefault = FALSE;
 					} else {
 						http_status = HTTP_CODE_BAD_REQUEST;
@@ -351,14 +351,16 @@ void _np_http_dispatch( np_http_client_t* client) {
 			np_tryref_obj(np_key_t, key,keyExists);
 			if(keyExists) {
 				char* my_key = _np_key_as_str(key);
+				np_tree_t* sysinfo = NULL;
 				if (usedefault) {
 					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "using own node as info system");
 					sprintf(target_hash, "%s",my_key);
-				}
-				target_hash[64] = '\0';
-				np_tree_t* sysinfo = NULL;
-				sysinfo = np_get_sysinfo(target_hash);
 
+					sysinfo = np_sysinfo_get_all();
+				}else{
+				
+					sysinfo = np_sysinfo_get_info(target_hash);
+				}
 				if (NULL == sysinfo) {
 					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Could not find system informations");
 					http_status = HTTP_CODE_ACCEPTED;

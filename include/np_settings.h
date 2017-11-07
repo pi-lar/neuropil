@@ -32,7 +32,7 @@ extern "C" {
  *	attempt to share its data.
  */
 #ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
-	#define SYSINFO_PROACTIVE_SEND_IN_SEC (5.0)
+	#define SYSINFO_PROACTIVE_SEND_IN_SEC (.5)
 #endif
 #ifndef SYSINFO_MAX_TTL
 	#define SYSINFO_MAX_TTL (30)
@@ -203,7 +203,11 @@ extern "C" {
 	#define NP_EVENT_IO_CHECK_PERIOD_SEC (0.0031415)
 #endif
 
-#define NP_NODE_SUCCESS_WINDOW 100
+/*
+	lower value => success avg more on realtime
+	higher value => more msgs need to be failed to regard this link as bad
+*/
+#define NP_NODE_SUCCESS_WINDOW 50
 
 #ifdef __cplusplus
 }

@@ -52,7 +52,7 @@ void _np_message_t_new(void* msg)
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_new(void* msg){");
 	np_message_t* msg_tmp = (np_message_t*) msg;
 
-	_np_threads_mutex_init(&msg_tmp->msg_chunks_lock);
+	_np_threads_mutex_init(&msg_tmp->msg_chunks_lock,"msg_chunks_lock");
 
 	msg_tmp->uuid = np_uuid_create("msg", 0);
 

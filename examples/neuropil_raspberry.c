@@ -84,7 +84,7 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 
 int main(int argc, char **argv)
 {
-	_np_threads_mutex_init(&gpio_lock);
+	_np_threads_mutex_init(&gpio_lock,"gpio_lock");
 
 	int no_threads = 8;
 	char *j_key = NULL;

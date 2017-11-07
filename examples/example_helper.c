@@ -35,11 +35,11 @@ double started_at = 0;
 double last_loop_run_at = 0;
 
 enum np_statistic_types_e  {
-	np_stat_all				= 0 ,
-	np_stat_general			= 1,
-	np_stat_locks			= 2,
-	np_stat_msgpartcache	= 4,
-	np_stat_memory			= 8,
+	np_stat_all				= 0x000,
+	np_stat_general			= 0x001,
+	np_stat_locks			= 0x002,
+	np_stat_msgpartcache	= 0x004,
+	np_stat_memory			= 0x008,
 } typedef np_statistic_types_e;
  
 np_statistic_types_e statistic_types = 0;

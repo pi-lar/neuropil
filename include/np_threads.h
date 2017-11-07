@@ -63,6 +63,7 @@ enum np_module_lock_e {
 /** platform mutex/condition wrapper structures are defined here **/
 /** mutex                                                        **/
 struct np_mutex_s {
+	char* desc;
 	pthread_mutex_t lock;
 	pthread_mutexattr_t lock_attr;
 };
@@ -109,7 +110,7 @@ NP_API_INTERN
 int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b);
 
 NP_API_INTERN
-int _np_threads_mutex_init(np_mutex_t* mutex);
+int _np_threads_mutex_init(np_mutex_t* mutex,char* desc);
 NP_API_INTERN
 int _np_threads_mutex_lock(np_mutex_t* mutex);
 NP_API_INTERN

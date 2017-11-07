@@ -440,9 +440,7 @@ void* __np_jobqueue_run ()
 
 
     while (1)
-    {
-        uint32_t job_count = 0;
-
+    {       
 		np_job_t* job_to_execute = _np_jobqueue_select_next();        
 
         // sanity checks if the job list really returned an element

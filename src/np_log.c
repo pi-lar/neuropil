@@ -213,6 +213,7 @@ void _np_log_fflush(np_bool force)
 
 	while(logger != NULL && lock_result == 0 && sll_size(logger->logentries_l) > 0)
 	{
+
 		if(force){
 			lock_result = pthread_mutex_lock(&__log_mutex);
 		} else {
@@ -220,16 +221,18 @@ void _np_log_fflush(np_bool force)
 		}
 		if(0 == lock_result) {
 			entry = sll_head(char_ptr, logger->logentries_l);
+			if (NULL != entry) {
+				logger->log_size += strlen(entry);
+			}
 			pthread_mutex_unlock(&__log_mutex);
 		}
 
 		if (NULL != entry)
 		{
 			int bytes_witten = 0;
-
 			while(bytes_witten  != strlen(entry))
 			{
-				int current_bytes_witten = write(logger->fp, entry, strlen(entry));
+				int current_bytes_witten = write(logger->fp, entry + bytes_witten, strlen(entry) - bytes_witten);
 				// if we write was not successful we reschedule the entry
 				// and break free from this iteration
 				if(current_bytes_witten < 0)
@@ -239,9 +242,9 @@ void _np_log_fflush(np_bool force)
 					 pthread_mutex_unlock(&__log_mutex);
 					 break;
 				}
-				bytes_witten += current_bytes_witten ;
+				bytes_witten += current_bytes_witten;
 			}
-			logger->log_size += bytes_witten;
+			
 
 			if(logger->log_rotate == TRUE)
 				log_rotation();

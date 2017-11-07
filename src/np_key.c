@@ -303,7 +303,7 @@ void np_key_renew_token() {
 
 
 		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Updating network");
-		_LOCK_ACCESS(&old_node_key->network->lock)
+		_LOCK_ACCESS(&old_node_key->network->send_data_lock)
 		{
 			// save old network setup
 			_np_network_remap_network(new_node_key, old_node_key);

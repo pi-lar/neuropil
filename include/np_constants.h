@@ -35,6 +35,14 @@ extern "C" {
 	#define ref_ack_msg						"ref_ack_msg"
 	#define ref_ack_key						"ref_ack_key"
 	
+	#define NP_SERIALISATION_NODE_KEY			"np.n.k"
+	#define NP_SERIALISATION_NODE_PROTOCOL		"np.n.pr"
+	#define NP_SERIALISATION_NODE_DNS_NAME		"np.n.d"
+	#define NP_SERIALISATION_NODE_PORT			"np.n.p"
+	#define NP_SERIALISATION_NODE_CREATED_AT	"np.n.c"
+	#define NP_SERIALISATION_NODE_SUCCESS_AVG	"np.n.sa"
+	#define NP_SERIALISATION_NODE_LATENCY		"np.n.l"
+	#define NP_SERIALISATION_NODE_LAST_SUCCESS	"np.n.ls"
 
 #define NP_AAATOKEN_MAX_SIZE_EXTENSIONS (1024)
 
