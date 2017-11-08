@@ -42,6 +42,7 @@
 #include "np_threads.h"
 
 
+NP_DLL_GENERATE_IMPLEMENTATION(char_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 

@@ -197,9 +197,10 @@ void _np_job_queue_insert(np_job_t* new_job)
 			} while (iter != NULL);
 		}
 
+		//_np_threads_condition_signal(&__cond_empty);
+		_np_threads_condition_broadcast(&__cond_empty);
     }
-    //_np_threads_condition_signal(&__cond_empty);
-	_np_threads_condition_broadcast(&__cond_empty);	
+	
 }
 
 /** (re-)submit message event

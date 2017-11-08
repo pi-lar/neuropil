@@ -221,12 +221,36 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 			if (
 				TRUE == extended
 				//&& iter->type == np_key_t_e				
+				&& sll_size(iter->reasons) > 5
 				) {
 				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, iter->type, sll_size(iter->reasons), new_line);
+
+				int display_first_X_reasons = 5;
+				int display_last_X_reasons = 5;
+
 				sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
+				int iter_reasons_counter = 0;
 				while (iter_reasons != NULL)
 				{
-					ret = _np_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+					if (iter_reasons_counter < display_first_X_reasons) {
+						ret = _np_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+					}				
+
+					if (
+						(display_first_X_reasons + display_last_X_reasons) < sll_size(iter->reasons)
+						&& display_first_X_reasons == iter_reasons_counter) 
+					{
+						ret = _np_concatAndFree(ret, "... Skipping %"PRIi32" reasons ...%s", sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons) ,new_line);
+					}
+
+					if (
+						iter_reasons_counter > display_first_X_reasons 
+						&& iter_reasons_counter >= display_first_X_reasons + sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons))
+					{
+						ret = _np_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+					}
+
+					iter_reasons_counter++;					
 					sll_next(iter_reasons);
 				}
 				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (%d) end  ---%s", iter->id, iter->type, new_line);

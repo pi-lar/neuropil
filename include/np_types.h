@@ -126,6 +126,8 @@ typedef int(*_np_cmp_t)(void* a, void* b);
 */
 NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 
+NP_DLL_GENERATE_PROTOTYPES(char_ptr);
+
 NP_SLL_GENERATE_PROTOTYPES(void_ptr);
 NP_SLL_GENERATE_PROTOTYPES(char_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);

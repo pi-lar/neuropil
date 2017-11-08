@@ -164,7 +164,7 @@ extern "C" {
 
 #ifndef LOG_ROTATE_ENABLE
 	#if defined(DEBUG) && DEBUG == 1
-		#define LOG_ROTATE_ENABLE FALSE
+		#define LOG_ROTATE_ENABLE TRUE
 	#else
 		#define LOG_ROTATE_ENABLE TRUE
 	#endif

@@ -188,7 +188,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		fprintf(stdout, new_log_entry);
 		fprintf(stdout, "/n");
 #endif
-		
+				
 		if(0 == pthread_mutex_lock(&__log_mutex)) 
 		{
 			sll_append(char_ptr, logger->logentries_l, new_log_entry);
@@ -210,10 +210,11 @@ void _np_log_fflush(np_bool force)
 	//log_msg(LOG_TRACE, "start: void _np_log_fflush(){");
 	char* entry = NULL;
 	int lock_result = 0;
-
-	while(logger != NULL && lock_result == 0 && sll_size(logger->logentries_l) > 0)
+	if (logger == NULL) {
+		return;
+	}
+	do
 	{
-
 		if(force){
 			lock_result = pthread_mutex_lock(&__log_mutex);
 		} else {
@@ -230,6 +231,7 @@ void _np_log_fflush(np_bool force)
 		if (NULL != entry)
 		{
 			int bytes_witten = 0;
+
 			while(bytes_witten  != strlen(entry))
 			{
 				int current_bytes_witten = write(logger->fp, entry + bytes_witten, strlen(entry) - bytes_witten);
@@ -243,8 +245,7 @@ void _np_log_fflush(np_bool force)
 					 break;
 				}
 				bytes_witten += current_bytes_witten;
-			}
-			
+			}			
 
 			if(logger->log_rotate == TRUE)
 				log_rotation();
@@ -255,7 +256,7 @@ void _np_log_fflush(np_bool force)
 				entry = NULL;
 			}
 		}
-	}
+	} while (lock_result == 0 && entry != NULL);
 }
 
 void np_log_setlevel(uint32_t level)
