@@ -205,6 +205,8 @@ programs = [
     'controller','node','receiver','sender','receiver_cb','pingpong','hydra','shared_hydra',
     'echo_server','echo_client','raspberry','demo_service'
     ]
+env.Append(LIBS = ['ncurses'])
+
 if build_program != False and build_program not in programs:
     if build_program != 'lib_only':
         print 'desired program %s does not exist' % build_program
