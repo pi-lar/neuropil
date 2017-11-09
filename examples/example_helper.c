@@ -8,10 +8,10 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <stdarg.h>
 #include <inttypes.h>
 
 #include <curses.h>
@@ -59,6 +59,9 @@ WINDOW * __np_stat_switchable_window;
 np_bool __np_ncurse_initiated = FALSE;
 np_bool __np_refresh_windows = TRUE;
 
+#define LOG_BUFFER_SIZE (3000)
+char log_buffer[LOG_BUFFER_SIZE] = { 0 };
+uint32_t log_buffer_pos = 0;
 
 void reltime_to_str(char*buffer,double time){
 	double time_s = time;
@@ -101,10 +104,14 @@ void np_example_print(FILE * stream, const char * format, ...) {
 		fflush(stream);
 	}
 	else {
-		vw_printw(__np_stat_log, format, args);
+		if (log_buffer_pos == 0) {
+			log_buffer_pos = 1;
+		}
+		int size = vsprintf(log_buffer[log_buffer_pos-1], format, args);		
+		log_buffer_pos = (log_buffer_pos + size) % LOG_BUFFER_SIZE;
+			
 	}	
 	va_end(args);
-
 }
 
 void np_print_startup() {
@@ -268,7 +275,20 @@ np_bool parse_program_args(
 
 	return ret;
 }
+void __np_example_deinti_ncurse() {
+	if (__np_ncurse_initiated == TRUE) {
+		__np_ncurse_initiated = FALSE;
 
+		delwin(__np_stat_general_win);
+		delwin(__np_stat_memory_ext);
+		delwin(__np_stat_log);
+		delwin(__np_stat_msgpartcache_win);
+		delwin(__np_stat_memory_win);
+		delwin(__np_stat_locks_win);
+		delwin(__np_help_win);
+		endwin();
+	}
+}
  void __np_example_inti_ncurse() {
 	 if (FALSE == __np_ncurse_initiated) {		 
 		if (enable_statistics == 1 || enable_statistics > 2) {
@@ -296,22 +316,22 @@ np_bool parse_program_args(
 			}
 
 			if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
-				__np_stat_memory_win = newwin(15, 43, 39, 0);
+				__np_stat_memory_win = newwin(15, 45, 39, 0);
 				wbkgd(__np_stat_memory_win, COLOR_PAIR(4));
 			}
 
 			// switchable windows
 			{
 				if (statistic_types == np_stat_all || (statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
-					__np_stat_msgpartcache_win = newwin(15, 102, 39, 43);
+					__np_stat_msgpartcache_win = newwin(15, 100, 39, 45);
 					wbkgd(__np_stat_msgpartcache_win, COLOR_PAIR(3));
 				}
 				if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
-					__np_stat_memory_ext = newwin(15, 102, 39, 43);
+					__np_stat_memory_ext = newwin(15, 100, 39, 45);
 					wbkgd(__np_stat_memory_ext, COLOR_PAIR(3));
 				}
 				if (TRUE) {
-					__np_stat_log = newwin(15, 102, 39, 43);
+					__np_stat_log = newwin(15, 100, 39, 45);
 					wbkgd(__np_stat_log, COLOR_PAIR(3));
 				}
 				__np_stat_switchable_window = __np_stat_log;
@@ -322,7 +342,7 @@ np_bool parse_program_args(
 			wbkgd(__np_help_win, COLOR_PAIR(5));
 			mvwprintw(__np_help_win, 0, 0, 
 				"Windows: Message(p)arts / Extended (M)emory / (L)og; "
-				"General: (S)top output / (R)esume output"
+				"General: (S)top output / (R)esume output / R(e)paint"
 			);
 
 
@@ -361,6 +381,11 @@ void __np_example_helper_loop() {
 	{
 		last_loop_run_at = sec_since_start;
 		char* memory_str;
+
+		if (__np_ncurse_initiated == TRUE) {
+			mvwprintw(__np_stat_log, 0, 0, "%s", log_buffer);
+		}
+
 
 		if(statistic_types == np_stat_all || (statistic_types & np_stat_memory )== np_stat_memory){
 			if(enable_statistics == 1 || enable_statistics > 2) {
@@ -441,21 +466,13 @@ void __np_example_helper_loop() {
 			wrefresh(__np_stat_memory_win);
 		}
 	}
-		
+	
 	if(__np_ncurse_initiated == TRUE) {
 		int key = getch();
 		switch (key) {
 			case KEY_RESIZE:
-				__np_ncurse_initiated = FALSE;
-				delwin(__np_stat_general_win);
-				delwin(__np_stat_memory_ext);
-				delwin(__np_stat_log);
-				delwin(__np_stat_msgpartcache_win);
-				delwin(__np_stat_memory_win);
-				delwin(__np_stat_locks_win);
-				delwin(__np_help_win);
-
-				endwin();
+			case 101:	// e
+				__np_example_deinti_ncurse();
 				break;
 			case 112:	// p
 			case 80:	// P
@@ -477,7 +494,7 @@ void __np_example_helper_loop() {
 			case 114:	// r
 			case 82:	// R
 				__np_refresh_windows = TRUE;
-				break;
+				break;				
 		}				
 	}		
 }

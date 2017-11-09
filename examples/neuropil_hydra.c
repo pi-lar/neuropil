@@ -59,8 +59,6 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
  */
 int main(int argc, char **argv)
 {
-	__np_example_inti_ncurse();
-
 	np_bool create_bootstrap = TRUE; 
 	char* bootstrap_hostnode_default;
 	uint32_t required_nodes = NUM_HOST;

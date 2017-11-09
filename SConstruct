@@ -48,7 +48,7 @@ if int(release):
     env.Append(CCFLAGS = release_flags)
 
 # add debug compilation options
-debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2']
+debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O0']
 if int(debug):
     env.Append(CCFLAGS = debug_flags)
     env.Append(CCFLAGS = ['-DDEBUG'])

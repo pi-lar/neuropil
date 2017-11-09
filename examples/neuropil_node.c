@@ -91,8 +91,12 @@ int main(int argc, char **argv)
 	{
 		fprintf(stdout, "try to join %s\n", j_key);
 		np_send_join(j_key);
+		fprintf(stdout, "wait for join acceptance...");
 	}
-	fprintf(stdout, "wait for join acceptance...");
+	else {
+		fprintf(stdout, "wait for nodes to join...");
+	}
+	
 	fflush(NULL);
 	np_waitforjoin();
 	fprintf(stdout, "Connected\n");
