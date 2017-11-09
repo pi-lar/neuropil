@@ -400,12 +400,34 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 		np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 	}
 }
+void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop) {
 
+	_LOCK_ACCESS(&msg_prop->lock)
+	{
+		sll_iterator(np_message_ptr) iter_prop_msg_cache_in = sll_first(msg_prop->msg_cache_in);
+		while (iter_prop_msg_cache_in != NULL)
+		{
+			sll_iterator(np_message_ptr) old_iter = iter_prop_msg_cache_in;
+			sll_next(iter_prop_msg_cache_in); // we need to iterate before we delete the old iter
+			np_message_t* old_msg = old_iter->val;
+			if (_np_message_is_expired(old_msg)) {				
+				sll_delete(np_message_ptr, msg_prop->msg_cache_in, old_iter);
+				np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
+				msg_prop->msg_threshold--;				
+			}			
+		}
+	}
+}
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
 	log_msg(LOG_TRACE, "start: void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in){");
 	_LOCK_ACCESS(&msg_prop->lock)
 	{
+		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
+		{
+			// cleanup of msgs in property receiver msg cache
+			_np_msgproperty_cleanup_receiver_cache(msg_prop);
+		}
 		// cache already full ?
 		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
 		{

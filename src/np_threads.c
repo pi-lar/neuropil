@@ -533,16 +533,17 @@ void __np_createThreadPool(uint8_t pool_size) {
 	{
 		np_thread_t* new_thread = __np_createThread(i, __np_jobqueue_run);
 
-		if (FALSE && pool_size > PRIORITY_MOD_BEST_SINGLE_THREADED) {
-
-			if(i <= PRIORITY_MOD_BEST_SINGLE_THREADED) {
-				new_thread->max_job_priority = i * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
-				new_thread->min_job_priority = i * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
-			}
-			else {
-				new_thread->max_job_priority = PRIORITY_MOD_LOWEST * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
-				new_thread->min_job_priority = PRIORITY_MOD_BEST_SINGLE_THREADED * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
-			}
+		if (
+			(PRIORITY_MOD_LEVEL_0_SHOULD_HAVE_OWN_THREAD && pool_size > 1 && i == 0) ||
+			(PRIORITY_MOD_LEVEL_1_SHOULD_HAVE_OWN_THREAD && pool_size > 2 && i == 1) ||
+			(PRIORITY_MOD_LEVEL_2_SHOULD_HAVE_OWN_THREAD && pool_size > 3 && i == 2) ||
+			(PRIORITY_MOD_LEVEL_3_SHOULD_HAVE_OWN_THREAD && pool_size > 4 && i == 3) ||
+			(PRIORITY_MOD_LEVEL_4_SHOULD_HAVE_OWN_THREAD && pool_size > 5 && i == 4) ||
+			(PRIORITY_MOD_LEVEL_5_SHOULD_HAVE_OWN_THREAD && pool_size > 6 && i == 5) ||
+			(PRIORITY_MOD_LEVEL_6_SHOULD_HAVE_OWN_THREAD && pool_size > 7 && i == 6)
+		) {
+			new_thread->max_job_priority = i * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
+			new_thread->min_job_priority = i * JOBQUEUE_PRIORITY_MOD_BASE_STEP;			
 		}
 		else {
 			new_thread->max_job_priority = PRIORITY_MOD_LOWEST  * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
@@ -613,25 +614,8 @@ void np_start_job_queue(uint8_t pool_size)
 	//np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_RENEW_NODE_SEC,					_np_renew_node_token_jobexec, "_np_renew_node_token_jobexec");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC,		_np_event_rejoin_if_necessary, "_np_event_rejoin_if_necessary");
 
-
-	// TODO: move output to example helpers
 	log_debug_msg(LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
 	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 
-	fprintf(stdout, "\n");
-	fprintf(stdout, "%s initializiation successful\n", NEUROPIL_RELEASE);
-	fprintf(stdout, "%s event loop with %d worker threads started\n", NEUROPIL_RELEASE, pool_size);
-	fprintf(stdout, "your neuropil node will be addressable as:\n");
-	fprintf(stdout, "\n");
-
-	char* connection_str = np_get_connection_string();
-	fprintf(stdout, "\t%s\n", connection_str);
-	free(connection_str);
-
-	fprintf(stdout, "\n");
-	fprintf(stdout, "%s\n", NEUROPIL_COPYRIGHT);
-	fprintf(stdout, "%s\n", NEUROPIL_TRADEMARK);
-	fprintf(stdout, "\n");
-	fflush(stdout);
 }

@@ -664,8 +664,9 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					MSG_CHUNK_SIZE_1024 - in_msg_len, 0, (struct sockaddr*) &from, &fromlen);
 			}
 
-			if (last_recv_result > 0) {
-				in_msg_len += last_recv_result;
+			in_msg_len += last_recv_result;
+			if (last_recv_result < 0) {
+				break;
 			}
 			// repeat if msg is not 1024 bytes in size and the timeout is not reached
 		} while (in_msg_len > 0 && in_msg_len < MSG_CHUNK_SIZE_1024 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
@@ -747,6 +748,9 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				_np_key_as_str(key));
 
 			np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
+		}
+		else {
+			free(data);
 		}
 	} while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result > 0); // there is maybe more then one msg in our socket pipeline
 

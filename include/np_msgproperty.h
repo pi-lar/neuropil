@@ -374,6 +374,8 @@ NP_API_INTERN
 np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
 NP_API_INTERN
 void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgproperty_t* msg_prop);
+NP_API_INTERN
+void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop);
 #ifdef __cplusplus
 }
 #endif

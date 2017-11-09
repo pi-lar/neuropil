@@ -47,6 +47,17 @@ enum np_statistic_types_e  {
 
 np_statistic_types_e statistic_types = 0;
 
+WINDOW * __np_stat_general_win;
+WINDOW * __np_stat_locks_win;
+WINDOW * __np_stat_memory_win;
+WINDOW * __np_help_win;
+
+WINDOW * __np_stat_msgpartcache_win;
+WINDOW * __np_stat_memory_ext;
+WINDOW * __np_stat_log;
+WINDOW * __np_stat_switchable_window;
+np_bool __np_ncurse_initiated = FALSE;
+np_bool __np_refresh_windows = TRUE;
 
 
 void reltime_to_str(char*buffer,double time){
@@ -60,6 +71,47 @@ void reltime_to_str(char*buffer,double time){
 	snprintf(buffer, 49, "%2.0fd %2.0fh %2.0fmin %2.0fsec", time_d, time_h, time_m, time_s);
 }
 
+char* np_get_startup_str() {
+	char* ret = NULL;
+	char* new_line = "\n";
+
+	ret = _np_concatAndFree(ret, new_line);
+	ret = _np_concatAndFree(ret, "%s initializiation successful%s", NEUROPIL_RELEASE, new_line);
+	ret = _np_concatAndFree(ret, "%s event loop with %d worker threads started%s", NEUROPIL_RELEASE, _np_state()->thread_count, new_line);
+	ret = _np_concatAndFree(ret, "your neuropil node will be addressable as:%s", new_line);
+	ret = _np_concatAndFree(ret, new_line);
+
+	char* connection_str = np_get_connection_string();
+	ret = _np_concatAndFree(ret, "\t%s%s", connection_str, new_line);
+	free(connection_str);
+
+	ret = _np_concatAndFree(ret, new_line);
+	ret = _np_concatAndFree(ret, "%s%s", NEUROPIL_COPYRIGHT, new_line);
+	ret = _np_concatAndFree(ret, "%s%s", NEUROPIL_TRADEMARK, new_line);
+	ret = _np_concatAndFree(ret, new_line);
+
+	return ret;
+}
+
+void np_example_print(FILE * stream, const char * format, ...) {
+	va_list args;
+	va_start(args, format);
+	if(__np_ncurse_initiated == FALSE){
+		vfprintf(stream, format, args);
+		fflush(stream);
+	}
+	else {
+		vw_printw(__np_stat_log, format, args);
+	}	
+	va_end(args);
+
+}
+
+void np_print_startup() {
+	char* ret = np_get_startup_str();
+	np_example_print(stdout, ret);
+	free(ret);
+}
 
 np_bool parse_program_args(
 	char* program,
@@ -217,18 +269,6 @@ np_bool parse_program_args(
 	return ret;
 }
 
-WINDOW * __np_stat_general_win;
-WINDOW * __np_stat_locks_win;
-WINDOW * __np_stat_memory_win;
-WINDOW * __np_help_win;
-
-WINDOW * __np_stat_msgpartcache_win;
-WINDOW * __np_stat_memory_ext;
-WINDOW * __np_stat_log;
-WINDOW * __np_stat_switchable_window;
-np_bool __np_ncurse_initiated = FALSE;
-np_bool __np_refresh_windows = TRUE;
-
  void __np_example_inti_ncurse() {
 	 if (FALSE == __np_ncurse_initiated) {		 
 		if (enable_statistics == 1 || enable_statistics > 2) {
@@ -261,29 +301,28 @@ np_bool __np_refresh_windows = TRUE;
 			}
 
 			// switchable windows
-			// 1
-			if (statistic_types == np_stat_all || (statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
-				__np_stat_msgpartcache_win = newwin(15, 102, 39, 43);
-				wbkgd(__np_stat_msgpartcache_win, COLOR_PAIR(3));
+			{
+				if (statistic_types == np_stat_all || (statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
+					__np_stat_msgpartcache_win = newwin(15, 102, 39, 43);
+					wbkgd(__np_stat_msgpartcache_win, COLOR_PAIR(3));
+				}
+				if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
+					__np_stat_memory_ext = newwin(15, 102, 39, 43);
+					wbkgd(__np_stat_memory_ext, COLOR_PAIR(3));
+				}
+				if (TRUE) {
+					__np_stat_log = newwin(15, 102, 39, 43);
+					wbkgd(__np_stat_log, COLOR_PAIR(3));
+				}
+				__np_stat_switchable_window = __np_stat_log;
 			}
-			//2
-			if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
-				__np_stat_memory_ext = newwin(15, 102, 39, 43);
-				wbkgd(__np_stat_memory_ext, COLOR_PAIR(3));
-			}
-			//3
-			if (TRUE) {
-				__np_stat_log = newwin(15, 102, 39, 43);
-				wbkgd(__np_stat_log, COLOR_PAIR(3));
-			}
-			__np_stat_switchable_window = __np_stat_msgpartcache_win;
 
 
 			__np_help_win = newwin(10, 102 + 43, 39+15, 0);
 			wbkgd(__np_help_win, COLOR_PAIR(5));
 			mvwprintw(__np_help_win, 0, 0, 
-				"Windows: Message(p)arts / Extended (M)emory / (L)og\n"
-				"(S)top output / (R)esume output"
+				"Windows: Message(p)arts / Extended (M)emory / (L)og; "
+				"General: (S)top output / (R)esume output"
 			);
 
 
@@ -306,10 +345,15 @@ np_bool __np_refresh_windows = TRUE;
 
 }
 void __np_example_helper_loop() {
-	if (started_at == 0) {
-		started_at = np_time_now();			
-	}
+
 	__np_example_inti_ncurse();
+
+	// Runs only once
+	if (started_at == 0) {
+		started_at = np_time_now();					
+		
+		np_print_startup();		
+	}	
 
 	double sec_since_start = np_time_now() - started_at;
 
@@ -475,3 +519,4 @@ void example_http_server_init(char* http_domain) {
 		np_sysinfo_enable_master();
 	}
 }
+

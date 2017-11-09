@@ -69,21 +69,6 @@ extern "C" {
 
 #define PRIORITY_MOD_LEVEL_6 (6.0)
 
-#ifndef PRIORITY_MOD_LOWEST
-#define PRIORITY_MOD_LOWEST (PRIORITY_MOD_LEVEL_6)
-#endif
-	/*
-	everything below PRIORITY_MOD_BEST_SINGLE_THREADED priority is assumed to handle in a thread of its own
-	everyt thread upwards may handle more then this priority
-
-	*/
-#ifndef PRIORITY_MOD_BEST_SINGLE_THREADED
-#define PRIORITY_MOD_BEST_SINGLE_THREADED (PRIORITY_MOD_LEVEL_3)
-#endif
-
-#ifndef PRIORITY_MOD_USER_DEFAULT
-#define PRIORITY_MOD_USER_DEFAULT (PRIORITY_MOD_LOWEST)
-#endif
 
 /*
 	Every CHAR_LENGTH_* may contain the final \0 char

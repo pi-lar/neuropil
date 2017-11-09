@@ -156,6 +156,7 @@ struct np_aaatoken_s
 
 	unsigned char* signed_hash;
 	unsigned char signature[crypto_sign_BYTES];
+	np_bool is_signature_verified;
 
 	// key/value extension list
 	np_tree_t* extensions;

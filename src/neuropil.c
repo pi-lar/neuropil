@@ -614,7 +614,8 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	np_bool msg_received = FALSE;
 
 	do
-	{	// first check or wait for available messages
+	{
+		// first check or wait for available messages
 		if (0 == sll_size(msg_prop->msg_cache_in))
 		{
 			_LOCK_ACCESS(&msg_prop->lock)
@@ -642,10 +643,11 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 
 	} while (FALSE == msg_received);
 
-	// in receive function, we can only receive one message per call, different for callback function
-	log_debug_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache_in));
-	msg = sll_head(np_message_ptr, msg_prop->msg_cache_in);
-
+	_LOCK_ACCESS(&msg_prop->lock){
+		// in receive function, we can only receive one message per call, different for callback function
+		log_debug_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache_in));
+		msg = sll_head(np_message_ptr, msg_prop->msg_cache_in);
+	}
 	log_debug_msg(LOG_DEBUG, "decrypting message ...");
 	np_bool decrypt_ok = _np_message_decrypt_payload(msg, sender_token);
 
@@ -751,9 +753,11 @@ uint32_t np_receive_text (char* subject, char **data)
 
 	} while (FALSE == msg_received);
 
-	// in receive function, we can only receive one message per call, different for callback function
-	log_debug_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache_in));
-	msg = sll_head(np_message_ptr, msg_prop->msg_cache_in);
+	_LOCK_ACCESS(&msg_prop->lock) {
+		// in receive function, we can only receive one message per call, different for callback function
+		log_debug_msg(LOG_DEBUG, "received message from cache %p ( cache-size: %d)", msg_prop, sll_size(msg_prop->msg_cache_in));
+		msg = sll_head(np_message_ptr, msg_prop->msg_cache_in);
+	}
 
 	log_debug_msg(LOG_DEBUG, "decrypting message ...");
 	np_bool decrypt_ok = _np_message_decrypt_payload(msg, sender_token);

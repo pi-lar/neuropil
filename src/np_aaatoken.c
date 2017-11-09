@@ -51,7 +51,8 @@ void _np_aaatoken_t_new(void* token)
 	aaa_token->public_key[0] = '\0';
 
 	memset(aaa_token->signature, '\0', crypto_sign_BYTES*(sizeof(unsigned char)));	
-	aaa_token->signed_hash = NULL;
+	aaa_token->signed_hash = NULL;	
+	aaa_token->is_signature_verified = FALSE;
 	
 	aaa_token->is_core_token = FALSE;
 
@@ -122,6 +123,9 @@ void _np_aaatoken_upgrade_core_token(np_key_t* key_with_core_token, np_aaatoken_
 		np_tree_replace_str(container, "np.t.si", np_treeval_new_bin(key_with_core_token->aaa_token->signature, crypto_sign_BYTES));
 		np_aaatoken_decode(container, key_with_core_token->aaa_token);
 		np_tree_free(container);
+
+		key_with_core_token->aaa_token->is_signature_verified = FALSE;
+
 
 	}
 }
@@ -298,7 +302,8 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token has not expired");
 	}
 
-	//if (token->private_key_is_set == FALSE)
+	if (token->private_key_is_set == FALSE ||
+		token->is_signature_verified == FALSE)
 	{
 		unsigned char* hash = _np_aaatoken_get_fingerprint(token, is_full_token);
 
@@ -338,7 +343,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 			token->state &= AAA_INVALID;			
 			return (FALSE);
 		}
-
+		token->is_signature_verified = TRUE;
 	}
 	
 	/*
@@ -1053,6 +1058,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 			{
 				log_msg(LOG_WARN,
 					"checksum creation for token failed, using unsigned token");
+				free(hash);
 			}
 			else
 			{
@@ -1076,7 +1082,10 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 				}
 #endif
 			}
-		}		
+		}
+		else {
+			free(hash);
+		}
 }
 
 

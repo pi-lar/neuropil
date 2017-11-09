@@ -59,6 +59,8 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
  */
 int main(int argc, char **argv)
 {
+	__np_example_inti_ncurse();
+
 	np_bool create_bootstrap = TRUE; 
 	char* bootstrap_hostnode_default;
 	uint32_t required_nodes = NUM_HOST;
@@ -124,13 +126,13 @@ int main(int argc, char **argv)
 
 		j_key = bootstrap_hostnode_default;
 
-		fprintf(stdout, "No bootstrap host specified.\n");
+		np_example_print(stdout, "No bootstrap host specified.\n");
 		current_pid = fork();
 
 		// Running bootstrap node in a different fork
 		if (0 == current_pid) {
 
-			fprintf(stdout, "Creating new bootstrap node...\n");
+			np_example_print(stdout, "Creating new bootstrap node...\n");
 			/**
 
 			 *.. _np_hydra_create_bootstrap_node:
@@ -145,7 +147,7 @@ int main(int argc, char **argv)
 			 */
 			char log_file_host[256];
 			sprintf(log_file_host, "%s%s_host_%s.log", logpath, "/neuropil_hydra", port);
-			fprintf(stdout, "logpath: %s\n", log_file_host);
+			np_example_print(stdout, "logpath: %s\n", log_file_host);
 
 			np_log_init(log_file_host, level);
 			// provide localhost as hostname to support development on local machines
@@ -189,9 +191,9 @@ int main(int argc, char **argv)
 			 \endcode
 			 */
 		}
-		fprintf(stdout, "Bootstrap host node: %s\n", j_key);
+		np_example_print(stdout, "Bootstrap host node: %s\n", j_key);
 		if (NULL == j_key) {
-			fprintf(stderr, "Bootstrap host node could not start ... exit\n");
+			np_example_print(stderr, "Bootstrap host node could not start ... exit\n");
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -252,7 +254,7 @@ int main(int argc, char **argv)
 			current_pid = fork();
 
 			if (0 == current_pid) {
-				fprintf(stdout, "started child process %d\n", current_pid);
+				np_example_print(stdout, "started child process %d\n", current_pid);
 				current_pid = getpid();
 
 				/**
@@ -293,7 +295,7 @@ int main(int argc, char **argv)
 				 */
 
 				do {
-					fprintf(stdout, "try to join bootstrap node\n");
+					np_example_print(stdout, "try to join bootstrap node\n");
 				 
 					np_send_join(j_key);
 
@@ -305,13 +307,13 @@ int main(int argc, char **argv)
 					}
 
 					if(FALSE == child_status->my_node_key->node->joined_network ) {
-						fprintf(stderr, "%s could not join network!\n",port);
+						np_example_print(stderr, "%s could not join network!\n",port);
 					}
 				} while (FALSE == child_status->my_node_key->node->joined_network) ;
 
 				char time[50] = { 0 };
 				reltime_to_str(time, np_time_now() - started_at);
-				fprintf(stdout, "%s joined network after %s!\n",port, time);
+				np_example_print(stdout, "%s joined network after %s!\n",port, time);
 				/**
 				 \endcode
 				 */
@@ -326,7 +328,7 @@ int main(int argc, char **argv)
 
 				 \code
 				 */
-				fprintf(stdout, "adding (%d) : child process %d \n",
+				np_example_print(stdout, "adding (%d) : child process %d \n",
 						sll_size(list_of_childs), current_pid);
 				array_of_pids[sll_size(list_of_childs)] = current_pid;
 				sll_append(int, list_of_childs,
@@ -354,21 +356,21 @@ int main(int argc, char **argv)
 			current_pid = waitpid(-1, &status, WNOHANG);
 			// check for stopped child processes
 			if (current_pid != 0) {
-				fprintf(stderr, "trying to find stopped child process %d\n",
+				np_example_print(stderr, "trying to find stopped child process %d\n",
 						current_pid);
 				sll_iterator(int) iter = NULL;
 				uint32_t i = 0;
 				for (iter = sll_first(list_of_childs); iter != NULL;
 						sll_next(iter)) {
 					if (current_pid == iter->val) {
-						fprintf(stderr, "removing stopped child process\n");
+						np_example_print(stderr, "removing stopped child process\n");
 						sll_delete(int, list_of_childs, iter);
 						for (; i < required_nodes; i++) {
 							array_of_pids[i] = array_of_pids[i + 1];
 						}
 						break;
 					} else {
-						fprintf(stderr, "not found\n");
+						np_example_print(stderr, "not found\n");
 					}
 					i++;
 				}

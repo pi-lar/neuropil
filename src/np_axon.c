@@ -527,6 +527,9 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 		{
 			log_debug_msg(LOG_DEBUG, ".step ._np_out_discovery_messages.inbound");
 
+			// cleanup of msgs in property receiver msg cache
+			_np_msgproperty_cleanup_receiver_cache(args->properties);
+
 			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
 
 			log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);

@@ -607,6 +607,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 		strncpy(msg_token->audience, (char*) msg_request->msg_audience, 255);
 	}
 
+	if (NULL != msg_token->uuid) free(msg_token->uuid);
 	msg_token->uuid =  np_uuid_create(msg_uuid_subject, 0);
 
 	msg_token->not_before = np_time_now();
