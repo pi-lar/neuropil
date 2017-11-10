@@ -75,7 +75,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
 
     // Do the serialsation
 	_np_message_calculate_chunking(write_msg);
-    np_bool write_ret = _np_message_serialize_chunked(write_args);
+    np_bool write_ret = _np_message_serialize_chunked(write_args->msg);
     cr_assert(TRUE == write_ret, "Expected positive result in serialisation");
 
     cr_expect(pll_size(write_msg->msg_chunks) == 1, "Expected 1 chunk for message");
@@ -157,7 +157,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 
     // Do the serialsation
 	_np_message_calculate_chunking(write_msg);
-	np_bool write_ret = _np_message_serialize_chunked(write_args);
+	np_bool write_ret = _np_message_serialize_chunked(write_args->msg);
     cr_assert(TRUE == write_ret, "Expected positive result in chunk serialisation");
 
     write_ret =_np_message_serialize(write_args);
@@ -260,9 +260,8 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 	np_tree_elem_t* body_node = np_tree_find_int(msg_out->body, 20);
 
 	_np_message_calculate_chunking(msg_out);
-
-	np_jobargs_t args = { .msg=msg_out };
-	_np_message_serialize_chunked(&args);
+	
+	_np_message_serialize_chunked(msg_out);
 
 	_np_message_deserialize_chunked(msg_out);
 

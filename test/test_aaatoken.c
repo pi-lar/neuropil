@@ -71,12 +71,12 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	void* buf_ptr = buffer;
 	memset(buf_ptr, 0, 65536);
 
-	cmp_init(&cmp_empty, buf_ptr, _np_buffer_reader, _np_buffer_writer);
+	cmp_init(&cmp_empty, buf_ptr, _np_buffer_reader, NULL, _np_buffer_writer);
 	_np_tree_serialize(aaa_tree, &cmp_empty);
 
 	np_tree_t* out_jrb = np_tree_create();
 	cmp_ctx_t cmp_out;
-	cmp_init(&cmp_out, buffer, _np_buffer_reader, _np_buffer_writer);
+	cmp_init(&cmp_out, buffer, _np_buffer_reader, NULL, _np_buffer_writer);
 
 	_np_tree_deserialize(out_jrb, &cmp_out);
 

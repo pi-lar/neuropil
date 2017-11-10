@@ -712,7 +712,7 @@ void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 uint8_t __np_tree_serialize_read_type_key(void* buffer_ptr, np_treeval_t* target) {
 	log_msg(LOG_TRACE, "start: uint8_t __np_tree_serialize_read_type_key(void* buffer_ptr, np_treeval_t* target) {");
 	cmp_ctx_t cmp_key;
-	cmp_init(&cmp_key, buffer_ptr, _np_buffer_reader, _np_buffer_writer);
+	cmp_init(&cmp_key, buffer_ptr, _np_buffer_reader, NULL, _np_buffer_writer);
 	np_dhkey_t new_key;
 
 	if (cmp_read_u64(&cmp_key, &(new_key.t[0])))
@@ -736,7 +736,7 @@ void __np_tree_serialize_write_type_key(np_dhkey_t source, cmp_ctx_t* target) {
 	cmp_ctx_t key_ctx;
 	char buffer[transport_size];
 	void* buf_ptr = buffer;
-	cmp_init(&key_ctx, buf_ptr, _np_buffer_reader, _np_buffer_writer);
+	cmp_init(&key_ctx, buf_ptr, _np_buffer_reader, NULL, _np_buffer_writer);
 
 	cmp_write_u64(&key_ctx, source.t[0]);
 	cmp_write_u64(&key_ctx, source.t[1]);
@@ -840,7 +840,7 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 		// log_debug_msg(LOG_DEBUG, "buffer size for subtree %u (%hd %llu)", val.size, val.value.tree->size, val.value.tree->byte_size);
 		// log_debug_msg(LOG_DEBUG, "buffer size for subtree %u", val.size);
 		void* buf_ptr = buffer;
-		cmp_init(&tree_cmp, buf_ptr, _np_buffer_reader, _np_buffer_writer);
+		cmp_init(&tree_cmp, buf_ptr, _np_buffer_reader, NULL, _np_buffer_writer);
 		_np_tree_serialize(val.value.tree, &tree_cmp);
 		uint32_t buf_size = tree_cmp.buf - buf_ptr;
 
@@ -955,7 +955,7 @@ void __np_tree_serialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval
 			// tree type
 			np_tree_t* subtree = np_tree_create();
 			cmp_ctx_t tree_cmp;
-			cmp_init(&tree_cmp, buf_ptr, _np_buffer_reader, _np_buffer_writer);
+			cmp_init(&tree_cmp, buf_ptr, _np_buffer_reader, NULL, _np_buffer_writer);
 			_np_tree_deserialize(subtree, &tree_cmp);
 			// TODO: check if the complete buffer was read (byte count match)
 

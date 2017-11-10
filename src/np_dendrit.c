@@ -1648,7 +1648,7 @@ void _np_in_handshake(np_jobargs_t* args)
 		np_dhkey_t search_alias_key = np_dhkey_create_from_hash(alias_dhkey.value.s);
 
 		cmp_ctx_t cmp;
-		cmp_init(&cmp, payload.value.bin, _np_buffer_reader, _np_buffer_writer);
+		cmp_init(&cmp, payload.value.bin, _np_buffer_reader, NULL, _np_buffer_writer);
 		np_tree_t* hs_payload = np_tree_create();
 
 		_np_tree_deserialize(hs_payload, &cmp);

@@ -85,9 +85,7 @@ void _np_out_ack(np_jobargs_t* args)
 	// chunking for 1024 bit message size
 	_np_message_calculate_chunking(args->msg);
 
-	np_jobargs_t* chunk_args = _np_job_create_args(args->msg, NULL, NULL, __func__);
-	_np_message_serialize_chunked(chunk_args);
-	_np_job_free_args(chunk_args);
+	_np_message_serialize_chunked(args->msg);
 
 	if(_np_network_send_msg(args->target, args->msg)) {
 	__np_axon_ivoke_on_user_send_callbacks(args->msg, np_msgproperty_get(OUTBOUND, _NP_MSG_ACK));
@@ -306,7 +304,7 @@ void _np_out(np_jobargs_t* args)
 			}
 			else
 			{
-				_np_message_serialize_chunked(&chunk_args);
+				_np_message_serialize_chunked(msg_out);
 			}
 			log_debug_msg(LOG_DEBUG, "Try sending message for subject \"%s\" (msg id: %s) to %s", prop->msg_subject, msg_out->uuid, _np_key_as_str(args->target));
 
@@ -374,7 +372,7 @@ void _np_out_handshake(np_jobargs_t* args)
 			unsigned char hs_payload[65536] = { 0 };
 			void* hs_buf_ptr = hs_payload;
 
-			cmp_init(&cmp, hs_buf_ptr, _np_buffer_reader, _np_buffer_writer);
+			cmp_init(&cmp, hs_buf_ptr, _np_buffer_reader, NULL, _np_buffer_writer);
 
 			_np_tree_serialize(hs_data, &cmp);
 			uint32_t hs_payload_len = cmp.buf - hs_buf_ptr;
@@ -426,11 +424,8 @@ void _np_out_handshake(np_jobargs_t* args)
 				np_treeval_new_bin(hs_payload, (uint32_t)hs_payload_len));
 
 			_np_message_calculate_chunking(hs_message);
-			np_jobargs_t* chunk_args = _np_job_create_args(hs_message, NULL, NULL, __func__);
-
-			np_bool serialize_ok = _np_message_serialize_chunked(chunk_args);
-
-			_np_job_free_args(chunk_args);
+		
+			np_bool serialize_ok = _np_message_serialize_chunked(hs_message);			
 
 			if (hs_message->no_of_chunks != 1) {
 				log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");

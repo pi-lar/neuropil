@@ -73,7 +73,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check);
 NP_API_INTERN
 np_bool _np_message_serialize(np_jobargs_t* args);
 NP_API_INTERN
-np_bool _np_message_serialize_chunked(np_jobargs_t* args);
+np_bool _np_message_serialize_chunked(np_message_t * msg);
 
 NP_API_INTERN
 np_bool _np_message_deserialize(np_message_t* msg, void* buffer);
