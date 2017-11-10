@@ -75,7 +75,7 @@ void _np_aaatoken_t_del (void* token)
 	np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
 
 	free(aaa_token->signed_hash);
-	aaa_token->signed_hash = NULL;
+	//aaa_token->signed_hash = NULL;
 
 	// clean up extensions
 	if (NULL != aaa_token->extensions)

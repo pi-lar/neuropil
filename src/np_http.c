@@ -374,9 +374,10 @@ void _np_http_dispatch( np_http_client_t* client) {
 
 					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Convert sysinfo to json");
 					json_obj = np_tree2json(sysinfo);
-					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "cleanup");
-					np_tree_free(sysinfo);
+					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "cleanup");					
 				}
+				np_tree_free(sysinfo);
+
 				np_unref_obj(np_key_t, key, __func__);
 			}else{
 				http_status = HTTP_CODE_SERVICE_UNAVAILABLE;

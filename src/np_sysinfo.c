@@ -486,8 +486,9 @@ np_tree_t* np_sysinfo_get_all() {
 	int16_t count = 0;
 
 	np_tree_t * tmp = np_sysinfo_get_my_info();
-
+	
 	np_tree_insert_int(ret, count++, np_treeval_new_tree(tmp));
+	np_tree_free(tmp);
 
 	np_sll_t(np_key_ptr, routing_table) = NULL;
 	np_sll_t(np_key_ptr, neighbours_table) = NULL;
@@ -525,6 +526,7 @@ np_tree_t* np_sysinfo_get_all() {
 			{
 				
 				np_tree_insert_int(ret, count++,np_treeval_new_tree(tmp));
+				np_tree_free(tmp);
 			}
 			np_unref_obj(np_key_t, current, "_np_route_get_table");
 		}

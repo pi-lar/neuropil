@@ -82,13 +82,14 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 #endif
 
 #ifdef CHECK_THREADING 
-	char * tmp;
-	asprintf(&tmp, "%d@%s", module_id, where);
-	CHECK_MALLOC(tmp);
+	char * tmp = NULL;
 
 	np_thread_t* self_thread = _np_threads_get_self();
 	if (self_thread != NULL)
 	{
+		asprintf(&tmp, "%d@%s", module_id, where);
+		CHECK_MALLOC(tmp);
+
 		_LOCK_ACCESS(&(self_thread->locklists_lock)) {
 			sll_prepend(char_ptr, self_thread->want_lock, tmp);
 		}

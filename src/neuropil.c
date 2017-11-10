@@ -804,6 +804,14 @@ void np_destroy()
 {
 	log_msg(LOG_TRACE, "start: void np_destroy(){");
 	// TODO: implement me ...
+	/*
+	_np_threads_init()
+	sodium_init()
+	np_mem_init
+	_np_dhkey_init
+
+	__global_state = state
+	*/
 }
 
 /**
