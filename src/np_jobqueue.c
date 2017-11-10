@@ -121,6 +121,9 @@ NP_PLL_GENERATE_IMPLEMENTATION(np_job_ptr);
 
 void _np_job_free (np_job_t * n)
 {
+	if(n->args != NULL) {
+		_np_job_free_args(n->args);
+	}
     free (n);
 }
 
@@ -155,6 +158,7 @@ void _np_job_free_args(np_jobargs_t* args)
         np_unref_obj(np_msgproperty_t, args->properties,"_np_job_create_args");
     }
     free(args);
+	args = NULL;
 }
 
 
@@ -192,6 +196,7 @@ void _np_job_queue_insert(np_job_t* new_job)
 				}
 				else {
 					pll_remove(np_job_ptr, __np_job_queue->job_list, iter->val, _np_util_cmp_ref);
+					_np_job_free(iter->val);
 					break;
 				}
 			} while (iter != NULL);
@@ -514,7 +519,6 @@ void* __np_jobqueue_run ()
         }
         else {
             // cleanup
-            _np_job_free_args(job_to_execute->args);
             _np_job_free(job_to_execute);
         }
         job_to_execute = NULL;

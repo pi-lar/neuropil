@@ -86,7 +86,6 @@ void _np_in_received(np_jobargs_t* args)
 	{
 		np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
 		{
-
 			np_message_t* msg_in = NULL;
 			np_key_t* target_key = NULL;
 
@@ -141,6 +140,7 @@ void _np_in_received(np_jobargs_t* args)
 			ret = _np_message_deserialize(msg_in, raw_msg);
 
 			if (FALSE == ret) {
+				free(raw_msg);
 				if(is_decryption_successful == TRUE){
 					log_msg(LOG_ERROR,
 						"error deserializing message %s after   successful decryption (source: \"%s:%s\")",
@@ -307,7 +307,7 @@ void _np_in_received(np_jobargs_t* args)
 				log_debug_msg(LOG_DEBUG, "Ignoring msg as it is not in protocoll to receive a %s msg now.", msg_subject.value.s);
 			}
 			// clean the mess up
-			__np_cleanup__:
+		__np_cleanup__:			
 			np_unref_obj(np_key_t, target_key,"_np_keycache_find_or_create");
 			np_unref_obj(np_message_t, msg_in, ref_obj_creation);
 
