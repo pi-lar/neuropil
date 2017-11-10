@@ -73,6 +73,10 @@ void _np_aaatoken_t_new(void* token)
 void _np_aaatoken_t_del (void* token)
 {
 	np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
+
+	free(aaa_token->signed_hash);
+	aaa_token->signed_hash = NULL;
+
 	// clean up extensions
 	if (NULL != aaa_token->extensions)
 	{
@@ -1063,7 +1067,6 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 			}
 			else
 			{
-				free(msg_token->signed_hash);
 				msg_token->signed_hash = hash;
 #ifdef DEBUG
 				if (strcmp(msg_token->subject, "_NP.SYSINFO.REPLY") == 0) {
