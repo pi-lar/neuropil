@@ -201,6 +201,7 @@ np_aaatoken_t* create_realm_identity()
 	realm_identity->expires_at = realm_identity->not_before + 7200.0;
 	realm_identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
+	free(realm_identity->uuid);
 	realm_identity->uuid = np_uuid_create("pi-lar realmmaster", 0);
 
 	// add some unique identification parameters

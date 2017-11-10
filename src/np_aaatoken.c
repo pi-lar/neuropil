@@ -56,7 +56,7 @@ void _np_aaatoken_t_new(void* token)
 	
 	aaa_token->is_core_token = FALSE;
 
-	aaa_token->uuid = np_uuid_create("generic_aaatoken", 0);;
+	aaa_token->uuid = np_uuid_create("generic_aaatoken", 0);
 
 	aaa_token->issued_at = np_time_now();
 	aaa_token->not_before = aaa_token->issued_at;
@@ -200,6 +200,7 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	}
 	if (NULL !=(tmp = np_tree_find_str(data, "np.t.u")))
 	{
+		free(token->uuid);
 		token->uuid = strndup(tmp->val.value.s, UUID_SIZE);
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.nb")))
@@ -1062,6 +1063,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 			}
 			else
 			{
+				free(msg_token->signed_hash);
 				msg_token->signed_hash = hash;
 #ifdef DEBUG
 				if (strcmp(msg_token->subject, "_NP.SYSINFO.REPLY") == 0) {

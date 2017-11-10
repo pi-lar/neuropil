@@ -110,7 +110,7 @@ void np_example_print(FILE * stream, const char * format, ...) {
 		}
 		int size = vsprintf(log_buffer[log_buffer_pos-1], format, args);		
 		log_buffer_pos = (log_buffer_pos + size) % LOG_BUFFER_SIZE;
-			*/
+		*/
 	}	
 	va_end(args);
 }

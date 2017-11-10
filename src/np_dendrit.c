@@ -356,9 +356,6 @@ void _np_in_piggy(np_jobargs_t* args)
 			// answer: only send join request !
 			// if (GRACEPERIOD > (ev_time() - tmp_ft))
 			// {
-			np_tree_t* jrb_me = np_tree_create();
-			np_aaatoken_encode(jrb_me, state->my_node_key->aaa_token);
-
 			log_debug_msg(LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(node_entry));
 			_np_send_simple_invoke_request(node_entry, _NP_MSG_JOIN_REQUEST);
 
