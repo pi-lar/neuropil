@@ -645,7 +645,8 @@ void _np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 {
 	log_msg(LOG_TRACE, "start: void _np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp){");
-	cmp_object_t obj_key = { 0 }, obj_val = { 0 };
+	cmp_object_t obj_key = { 0 };
+	cmp_object_t obj_val = { 0 };
 
 	uint32_t size = 0;
 

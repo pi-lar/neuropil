@@ -847,13 +847,13 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	np_new_obj(np_thread_t, new_main_thread);
 	new_main_thread->id = (unsigned long)getpid();
 	sll_append(np_thread_ptr, state->threads, new_main_thread);
-
+	state->thread_count = 1;
 
 	__global_state = state;
 
 	// splay tree initializing
-
 	_np_keycache_init();
+
 
 	//
 	// TODO: read my own identity from file, if a e.g. a password is given

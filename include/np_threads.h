@@ -61,19 +61,21 @@ enum np_module_lock_e {
 } NP_ENUM NP_API_INTERN;
 
 /** platform mutex/condition wrapper structures are defined here **/
-/** mutex                                                        **/
-struct np_mutex_s {
-	char* desc;
-	pthread_mutex_t lock;
-	pthread_mutexattr_t lock_attr;
-};
-
 /** condition                                                    **/
 struct np_cond_s {
 	pthread_cond_t     cond;
 	pthread_condattr_t cond_attr;
 };
 typedef struct np_cond_s np_cond_t;
+
+/** mutex                                                        **/
+struct np_mutex_s {
+	char* desc;
+	pthread_mutex_t lock;
+	pthread_mutexattr_t lock_attr;
+	np_cond_t  contition;
+};
+
 /** thread														**/
 struct np_thread_s
 {
@@ -117,6 +119,10 @@ NP_API_INTERN
 int _np_threads_mutex_unlock(np_mutex_t* mutex);
 NP_API_INTERN
 void _np_threads_mutex_destroy(np_mutex_t* mutex);
+NP_API_INTERN
+int _np_threads_mutex_condition_timedwait(np_mutex_t* mutex, struct timespec* waittime);
+NP_API_INTERN
+int _np_threads_mutex_timedlock(np_mutex_t * mutex, const double delay);
 
 NP_API_INTERN
 void _np_threads_condition_init(np_cond_t* condition);

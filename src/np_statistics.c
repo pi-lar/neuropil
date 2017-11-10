@@ -111,7 +111,7 @@ void np_statistics_add_watch(char* subject) {
 	sll_iterator(char_ptr) iter_subjects = sll_first(watched_subjects);
 	while (iter_subjects != NULL)
 	{
-		if (strncmp(iter_subjects->val, subject, strlen(subject) == 0)) {
+		if (strncmp(iter_subjects->val, subject, strlen(subject)) == 0) {
 			addtolist = FALSE;
 			break;
 		}

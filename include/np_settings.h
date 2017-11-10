@@ -240,6 +240,17 @@ extern "C" {
 */
 #define NP_NODE_SUCCESS_WINDOW 50
 
+
+
+
+
+#ifndef HAS_PTHREAD_MUTEX_TIMEDLOCK
+	#define HAS_PTHREAD_MUTEX_TIMEDLOCK (!defined(__APPLE__) || !defined(__MACH__ ) ) 
+#endif
+
+
+
+
 #ifdef __cplusplus
 }
 #endif

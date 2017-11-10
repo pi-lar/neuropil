@@ -10,6 +10,8 @@
 #include <inttypes.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <time.h>
+
 #include <unistd.h>
 #include <float.h>
 
@@ -18,6 +20,7 @@
 #include "event/ev.h"
 #include "pthread.h"
 
+#include "dtime.h"
 #include "neuropil.h"
 #include "np_types.h"
 #include "np_list.h"
@@ -105,9 +108,9 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 			if(diff >  MUTEX_WAIT_SOFT_SEC){
 				log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for module mutex %d (%f sec)", module_id, diff);
 			}
-#endif
-		__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait, diff);
-		ret = pthread_mutex_timedlock(&__mutexes[module_id].lock, __np_default_wait);
+#endif		
+		ret = _np_threads_mutex_timedlock(&__mutexes[module_id], min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
+
 		if(ret == ETIMEDOUT) {			
 			//continue;
 		}else if(ret != 0) {
@@ -127,6 +130,40 @@ int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 		}
 	}
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locked module mutex %d.", module_id);
+	return ret;
+}
+
+int _np_threads_mutex_timedlock(np_mutex_t * mutex, const double timeout)
+{
+	int ret = -1;
+#if HAS_PTHREAD_MUTEX_TIMEDLOCK
+	{
+		struct timeval tv_sleep = dtotv(np_time_now() + timeout);
+		struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
+
+		ret = pthread_mutex_timedlock(&mutex->lock, &waittime);
+	}
+#else
+	{
+		double start = np_time_now();
+		do
+		{
+			ret = pthread_mutex_trylock(&mutex->lock);
+			if (ret == EBUSY)
+			{
+				struct timespec ts;
+				ts.tv_sec = 0;
+				ts.tv_nsec= 20/*ms*/ * 1000000; // to nanoseconds
+				
+				int status = -1;
+				while (status == -1)
+					status = nanosleep(&ts, &ts);
+			}
+			else
+				break;
+		} while (ret != 0 && (np_time_now() - start) <= timeout);
+	}
+#endif
 	return ret;
 }
 
@@ -163,15 +200,13 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 #endif
 	double start = np_time_now();
 	double diff = 0;
-	while(ret != 0) {
-		__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait, diff);
-		ret = pthread_mutex_timedlock(lock_a, __np_default_wait);
+	while(ret != 0) {		
+		ret = _np_threads_mutex_timedlock(&__mutexes[module_id_a], min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
 #ifdef DEBUG
 		diff = np_time_now() - start;
 #endif
 		if (ret == 0) {
-			__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait2, diff);
-			ret = pthread_mutex_timedlock(lock_b, __np_default_wait2);			
+			ret = _np_threads_mutex_timedlock(&__mutexes[module_id_b], min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
 #ifdef DEBUG
 			diff = np_time_now() - start;
 #endif
@@ -303,6 +338,10 @@ int _np_threads_mutex_init(np_mutex_t* mutex,char* desc)
 	mutex->desc = strdup(desc);
 	pthread_mutexattr_init(&mutex->lock_attr);
 	pthread_mutexattr_settype(&mutex->lock_attr, PTHREAD_MUTEX_RECURSIVE);
+
+	_np_threads_condition_init(&mutex->contition);
+
+
 	return pthread_mutex_init(&mutex->lock, &mutex->lock_attr);
 }
 
@@ -312,8 +351,10 @@ int _np_threads_mutex_lock(np_mutex_t* mutex) {
 	double start = np_time_now();
 	double diff = 0;
 	while(ret != 0) {
-		__NP_THREADS_GET_MUTEX_DEFAULT_WAIT(__np_default_wait, diff);
-		ret = pthread_mutex_timedlock(&mutex->lock, __np_default_wait);
+		// TODO: review lock warn system
+		// ret = _np_threads_mutex_timedlock(mutex, min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
+		ret = pthread_mutex_lock(&mutex->lock);
+
 		
 #ifdef DEBUG
 		diff = np_time_now() - start;
@@ -344,6 +385,7 @@ void _np_threads_mutex_destroy(np_mutex_t* mutex)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: void _np_threads_mutex_destroy(np_mutex_t* mutex){");
 	free(mutex->desc);
+	_np_threads_condition_destroy(&mutex->contition);
 	pthread_mutex_destroy (&mutex->lock);
 }
 /** pthread condition platform wrapper functions following this line **/
@@ -374,6 +416,13 @@ int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime){");
 	return pthread_cond_timedwait(&condition->cond, &__mutexes[module_id].lock, waittime);
 }
+
+int _np_threads_mutex_condition_timedwait(np_mutex_t* mutex, struct timespec* waittime)
+{
+	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime){");
+	return pthread_cond_timedwait(&mutex->contition.cond, &mutex->lock, waittime);
+}
+
 int _np_threads_condition_broadcast(np_cond_t* condition)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_condition_broadcast(np_cond_t* condition)");
@@ -384,6 +433,12 @@ int _np_threads_module_condition_wait(np_cond_t* condition, np_module_lock_type 
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_module_condition_wait(np_cond_t* condition, np_module_lock_type module_id){");
 	return pthread_cond_wait(&condition->cond, &__mutexes[module_id].lock);
+}
+
+int _np_threads_mutex_condition_wait(np_mutex_t* mutex)
+{
+	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_module_condition_wait(np_cond_t* condition, np_module_lock_type module_id){");
+	return pthread_cond_wait(&mutex->contition.cond, &mutex->lock);
 }
 
 int _np_threads_condition_signal(np_cond_t* condition)
@@ -577,7 +632,7 @@ void np_start_job_queue(uint8_t pool_size)
 		return;
 	}
 
-	_np_state()->thread_count = pool_size;
+	_np_state()->thread_count += pool_size;
 	_np_state()->thread_ids = (pthread_t *)malloc(sizeof(pthread_t) * pool_size);
 
 	CHECK_MALLOC(_np_state()->thread_ids);
@@ -589,7 +644,6 @@ void np_start_job_queue(uint8_t pool_size)
 	}
 
 	__np_createThreadPool(pool_size);
-
 	//start jobs
 
 	if (create_own_event_thread) {
