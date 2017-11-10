@@ -496,6 +496,10 @@ void __np_example_helper_loop() {
 			case 82:	// R
 				__np_refresh_windows = TRUE;
 				break;				
+			case 113: // q
+				np_destroy();
+				exit(EXIT_SUCCESS);
+				break;
 		}				
 	}		
 }
