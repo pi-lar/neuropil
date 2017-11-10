@@ -120,10 +120,8 @@ int8_t _np_job_compare_job_scheduling(np_job_ptr job1, np_job_ptr job2)
 NP_PLL_GENERATE_IMPLEMENTATION(np_job_ptr);
 
 void _np_job_free (np_job_t * n)
-{
-	if(n->args != NULL) {
-		_np_job_free_args(n->args);
-	}
+{	
+	_np_job_free_args(n->args);	
     free (n);
 }
 
@@ -181,26 +179,30 @@ void _np_job_queue_insert(np_job_t* new_job)
 	);
 
     _LOCK_MODULE(np_jobqueue_t) {
-        pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_scheduling);
-		
-		while (pll_size(__np_job_queue->job_list) > JOBQUEUE_MAX_SIZE) {
-			
-			log_msg(LOG_WARN, "Discarding %"PRIu32" jobs. Increase JOBQUEUE_MAX_SIZE to prevent missing data.",
-				pll_size(__np_job_queue->job_list) - JOBQUEUE_MAX_SIZE);
 
-			pll_iterator(np_job_ptr) iter = pll_last(__np_job_queue->job_list);
-			do
-			{
-				if(iter->val->is_periodic == TRUE){
-					pll_previous(iter);
-				}
-				else {
-					pll_remove(np_job_ptr, __np_job_queue->job_list, iter->val, _np_util_cmp_ref);
-					_np_job_free(iter->val);
-					break;
-				}
-			} while (iter != NULL);
+		// remove overflowing items		
+		int overflow_count = (int)pll_size(__np_job_queue->job_list)  + 1 - JOBQUEUE_MAX_SIZE;
+
+		if(overflow_count > 0) {
+			log_msg(LOG_WARN, "Discarding %"PRIu32" jobs. Increase JOBQUEUE_MAX_SIZE to prevent missing data.", overflow_count);
+
+			while (overflow_count > 0) {
+				overflow_count--;
+				pll_iterator(np_job_ptr) iter = pll_last(__np_job_queue->job_list);
+				do
+				{
+					if(iter->val->is_periodic == TRUE){
+						pll_previous(iter);
+					}
+					else {				
+						_np_job_free(iter->val);
+						pll_remove(np_job_ptr, __np_job_queue->job_list, iter->val, _np_util_cmp_ref);
+						break;
+					}
+				} while (iter != NULL);
+			}
 		}
+		pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_scheduling);
 
 		//_np_threads_condition_signal(&__cond_empty);
 		_np_threads_condition_broadcast(&__cond_empty);
