@@ -636,16 +636,15 @@ NP_UNUSED int event_type) {
 	}
 }
 
-np_bool _np_http_init(char* domain, char* port) {
+np_bool _np_http_init(char* domain) {
 	log_msg(LOG_TRACE | LOG_HTTP, "start: np_bool _np_http_init() {");
 
 	if (domain == NULL) {
 		domain = strdup("localhost");
 	}
-	if (port == NULL) {
-		port = strdup("31415");
-	}
-
+	
+	char* port = "31415";
+	
 	__local_http = (np_http_t*) malloc(sizeof(np_http_t));
 	CHECK_MALLOC(__local_http);
 

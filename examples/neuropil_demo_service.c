@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
 
 
 
-	if (FALSE == _np_http_init(http_domain, NULL))
+	if (FALSE == _np_http_init(http_domain))
 	{
 		fprintf(stderr, "Node could not start HTTP interface\n");
 		log_msg(LOG_WARN, "Node could not start HTTP interface");

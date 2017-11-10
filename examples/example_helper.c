@@ -520,25 +520,27 @@ void __np_example_helper_run_info_loop() {
 }
 
 void example_http_server_init(char* http_domain) {
-	if (http_domain == NULL) {
-		http_domain = calloc(1, sizeof(char) * 255);
-		CHECK_MALLOC(http_domain);
-		if (_np_get_local_ip(http_domain, 255) == FALSE) {
-			free(http_domain);
-			http_domain = NULL;
+	if(http_domain == NULL || strncmp("none",http_domain,4) != 0){
+		if (http_domain == NULL) {
+			http_domain = calloc(1, sizeof(char) * 255);
+			CHECK_MALLOC(http_domain);
+			if (_np_get_local_ip(http_domain, 255) == FALSE) {
+				free(http_domain);
+				http_domain = NULL;
+			}
 		}
-	}
 
-	if (FALSE == _np_http_init(http_domain, NULL))
-	{
-		fprintf(stderr, "Node could not start HTTP interface\n");
-		log_msg(LOG_WARN, "Node could not start HTTP interface");
-		np_sysinfo_enable_slave();
-	}
-	else {
-		fprintf(stdout, "HTTP interface set to %s\n", http_domain);
-		log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
-		np_sysinfo_enable_master();
+		if (FALSE == _np_http_init(http_domain))
+		{
+			fprintf(stderr, "Node could not start HTTP interface\n");
+			log_msg(LOG_WARN, "Node could not start HTTP interface");
+			np_sysinfo_enable_slave();
+		}
+		else {
+			fprintf(stdout, "HTTP interface set to %s\n", http_domain);
+			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
+			np_sysinfo_enable_master();
+		}
 	}
 }
 
