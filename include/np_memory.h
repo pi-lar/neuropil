@@ -61,7 +61,7 @@ struct np_obj_s
 	np_obj_t* next;
 
 	np_bool persistent;
-#ifdef MEMORY_CHECK
+#ifdef NP_MEMORY_CHECK_MEMORY
 	np_sll_t(char_ptr, reasons);
 #endif
 };
@@ -105,7 +105,7 @@ struct np_obj_s
 #define _NP_REF_REASON_SEPERATOR_CHAR "___"
 #define _NP_REF_REASON_SEPERATOR_CHAR_LEN 3
 
-#ifdef MEMORY_CHECK
+#ifdef NP_MEMORY_CHECK_MEMORY
 #define _NP_REF_REASON(reason, reason_desc, new_reason)																							\
 	char new_reason[strlen(reason)+255];	/*255 chars for additional desc data*/																\
 	snprintf(new_reason,strlen(reason)+255,"%s%sline:%d_%s",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__, reason_desc == NULL ? "" : reason_desc);
@@ -115,7 +115,7 @@ struct np_obj_s
 #endif
 
 
-#ifndef MEMORY_CHECK
+#ifndef NP_MEMORY_CHECK_MEMORY
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)
 #else
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)																				\
@@ -276,7 +276,7 @@ TYPE* saveTo = NULL;																																\
 	np_unref_obj(TYPE, tmp_obj, old_reason);																										\
 }
 
-#ifndef MEMORY_CHECK
+#ifndef NP_MEMORY_CHECK_MEMORY
 #define ref_replace_reason_sll(TYPE, sll_list, old_reason, new_reason)
 #else
 #define ref_replace_reason_sll(TYPE, sll_list, old_reason, new_reason)																				\

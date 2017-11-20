@@ -131,6 +131,10 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 
 void* _np_event_run() {
 	
+	while (_np_threads_is_threadding_initiated() == FALSE) {
+		np_time_sleep(0.01);
+	}
+	
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
 	

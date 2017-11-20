@@ -49,6 +49,8 @@ enum np_module_lock_e {
 	/*11*/np_node_renewal_t_lock,
 	/*12*/np_statistics_t_lock,
 	/*13*/np_handshake_t_lock,
+	/*14*/np_threads_t_lock,
+	/*14*/np_utilstatistics_t_lock,
 	PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
 	PREDEFINED_DUMMY_1,
 	PREDEFINED_DUMMY_2,
@@ -73,7 +75,7 @@ struct np_mutex_s {
 	char* desc;
 	pthread_mutex_t lock;
 	pthread_mutexattr_t lock_attr;
-	np_cond_t  contition;
+	np_cond_t  condition;
 };
 
 /** thread														**/
@@ -90,7 +92,7 @@ struct np_thread_s
 	this thread can only handle jobs down to the min_job_priority
 	*/
 	double min_job_priority;
-#ifdef CHECK_THREADING
+#ifdef NP_THREADS_CHECK_THREADING
 	np_mutex_t locklists_lock;
 	np_sll_t(char_ptr, want_lock);
 	np_sll_t(char_ptr, has_lock);
@@ -110,6 +112,15 @@ NP_API_INTERN
 int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b, char* where);
 NP_API_INTERN
 int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b);
+NP_API_INTERN
+int _np_threads_module_condition_broadcast(np_module_lock_type module_id);
+NP_API_INTERN
+int _np_threads_module_condition_signal(np_module_lock_type module_id);
+NP_API_INTERN
+int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime);
+NP_API_INTERN
+int _np_threads_module_condition_wait(np_cond_t* condition, np_module_lock_type module_id);
+
 
 NP_API_INTERN
 int _np_threads_mutex_init(np_mutex_t* mutex,char* desc);
@@ -130,18 +141,18 @@ NP_API_INTERN
 void _np_threads_condition_init_shared(np_cond_t* condition);
 NP_API_INTERN
 int _np_threads_condition_wait(np_cond_t* condition, np_mutex_t* mutex);
-NP_API_INTERN
-int _np_threads_module_condition_wait(np_cond_t* condition, np_module_lock_type module_id);
+
 NP_API_INTERN
 int _np_threads_condition_signal(np_cond_t* condition);
 NP_API_INTERN
 void _np_threads_condition_destroy(np_cond_t* condition);
-NP_API_INTERN
-int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime);
+
 NP_API_INTERN
 int _np_threads_condition_broadcast(np_cond_t* condition);
 NP_API_INTERN
 np_thread_t*_np_threads_get_self();
+NP_API_INTERN
+np_bool _np_threads_is_threadding_initiated();
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)

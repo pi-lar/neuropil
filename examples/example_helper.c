@@ -23,6 +23,7 @@
 #include "np_threads.h"
 #include "np_http.h"
 #include "np_util.h"
+#include "np_list.h"
 #include "np_sysinfo.h"
 #include "np_log.h"
 #include "np_messagepart.h"
@@ -60,8 +61,8 @@ np_bool __np_ncurse_initiated = FALSE;
 np_bool __np_refresh_windows = TRUE;
 
 #define LOG_BUFFER_SIZE (3000)
-char log_buffer[LOG_BUFFER_SIZE] = { 0 };
-uint32_t log_buffer_pos = 0;
+np_sll_t(char_ptr, log_buffer);
+int log_user_cursor = -1;
 
 void reltime_to_str(char*buffer,double time){
 	double time_s = time;
@@ -104,14 +105,21 @@ void np_example_print(FILE * stream, const char * format, ...) {
 		fflush(stream);
 	}
 	else {
-		/*
-		if (log_buffer_pos == 0) {
-			log_buffer_pos = 1;
+		char* buffer = malloc(500 * sizeof(char));
+		vsnprintf(buffer, 500, format, args);
+
+		if (log_user_cursor != 0) {
+			log_user_cursor--;
 		}
-		int size = vsprintf(log_buffer[log_buffer_pos-1], format, args);		
-		log_buffer_pos = (log_buffer_pos + size) % LOG_BUFFER_SIZE;
-		*/
-	}	
+
+		sll_prepend(char_ptr, log_buffer, buffer);
+		 
+		if (sll_size(log_buffer) > 500) {
+			sll_iterator(char_ptr) last = sll_last(log_buffer);
+			free(last->val);
+			sll_delete(char_ptr, log_buffer, last);
+		}
+	}
 	va_end(args);
 }
 
@@ -293,6 +301,17 @@ void __np_example_deinti_ncurse() {
  void __np_example_inti_ncurse() {
 	 if (FALSE == __np_ncurse_initiated) {		 
 		if (enable_statistics == 1 || enable_statistics > 2) {
+			if (log_buffer != NULL) {
+
+				sll_iterator(char_ptr) iter_buffer = sll_first(log_buffer);
+				while (iter_buffer != NULL)
+				{
+					free(iter_buffer->val);
+					sll_next(iter_buffer);
+				}
+				sll_free(char_ptr, log_buffer);
+			}
+			sll_init(char_ptr, log_buffer);
 			__np_ncurse_initiated = TRUE;
 			initscr(); // Init ncurses mode
 			curs_set(0); // Hide cursor
@@ -302,9 +321,12 @@ void __np_example_deinti_ncurse() {
 			start_color();
 			init_pair(1, COLOR_YELLOW, COLOR_BLUE);
 			init_pair(2, COLOR_BLUE, COLOR_YELLOW);
-			init_pair(3, COLOR_MAGENTA, COLOR_WHITE);
-			init_pair(4, COLOR_WHITE, COLOR_MAGENTA);
-			init_pair(5, COLOR_WHITE, COLOR_BLACK);
+			init_pair(3, COLOR_WHITE, COLOR_MAGENTA);
+			init_pair(4, COLOR_WHITE, COLOR_BLACK);
+
+			init_pair(5, COLOR_CYAN, COLOR_BLACK);
+			init_pair(6, COLOR_GREEN, COLOR_BLACK);
+			init_pair(7, COLOR_RED, COLOR_BLACK);
 
 			if (statistic_types == np_stat_all || (statistic_types & np_stat_general) == np_stat_general) {
 				__np_stat_general_win = newwin(39, 102, 0, 0);
@@ -317,65 +339,68 @@ void __np_example_deinti_ncurse() {
 			}
 
 			if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
-				__np_stat_memory_win = newwin(15, 45, 39, 0);
-				wbkgd(__np_stat_memory_win, COLOR_PAIR(4));
+				__np_stat_memory_win = newwin(15, 42, 39, 0);
+				wbkgd(__np_stat_memory_win, COLOR_PAIR(3));
 			}
 
 			// switchable windows
 			{
+				int h = 15, w = 103, x = 39, y = 45;
 				if (statistic_types == np_stat_all || (statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
-					__np_stat_msgpartcache_win = newwin(15, 100, 39, 45);
-					wbkgd(__np_stat_msgpartcache_win, COLOR_PAIR(3));
+					__np_stat_msgpartcache_win = newwin(h,w,x,y);
+					wbkgd(__np_stat_msgpartcache_win, COLOR_PAIR(5));
 				}
 				if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
-					__np_stat_memory_ext = newwin(15, 100, 39, 45);
-					wbkgd(__np_stat_memory_ext, COLOR_PAIR(3));
+					__np_stat_memory_ext = newwin(h, w, x, y);
+					wbkgd(__np_stat_memory_ext, COLOR_PAIR(6));
 				}
-				if (TRUE) {
-					__np_stat_log = newwin(15, 100, 39, 45);
-					wbkgd(__np_stat_log, COLOR_PAIR(3));
-				}
+
+				__np_stat_log = newwin(h, w, x, y);
+				wbkgd(__np_stat_log, COLOR_PAIR(7));
+				
 				__np_stat_switchable_window = __np_stat_log;
 			}
 
 
 			__np_help_win = newwin(10, 102 + 43, 39+15, 0);
-			wbkgd(__np_help_win, COLOR_PAIR(5));
+			wbkgd(__np_help_win, COLOR_PAIR(4));
 			mvwprintw(__np_help_win, 0, 0, 
 				"Windows: Message(p)arts / Extended (M)emory / (L)og; "
-				"General: (S)top output / (R)esume output / R(e)paint"
+				"General: (S)top output / (R)esume output / R(e)paint "
+				"Log: (F)ollow; (U)p; dow(N); "
 			);
-
-
+			
 			wclear(__np_stat_general_win);
 			wclear(__np_stat_locks_win);
 			wclear(__np_stat_memory_ext);
 			wclear(__np_stat_log);
 			wclear(__np_stat_msgpartcache_win);
 			wclear(__np_stat_memory_win);
-
 		}
 	 }
 	 else {
+		 
 		 werase(__np_stat_general_win);
 		 werase(__np_stat_locks_win);
 		 werase(__np_stat_switchable_window);
 		 werase(__np_stat_memory_win);
+		 
 	 }
 
 
 }
+ int iteri = -1;
 void __np_example_helper_loop() {
 
 	__np_example_inti_ncurse();
 
 	// Runs only once
-	if (started_at == 0) {
-		started_at = np_time_now();					
-		
+	if (started_at == 0) {		
+		started_at = np_time_now();
 		np_print_startup();		
 	}	
 
+	np_example_print(stdout, "%d\n", iteri++);
 	double sec_since_start = np_time_now() - started_at;
 
 	if ((sec_since_start - last_loop_run_at) > output_intervall_sec)
@@ -383,12 +408,7 @@ void __np_example_helper_loop() {
 		last_loop_run_at = sec_since_start;
 		char* memory_str;
 
-		if (__np_ncurse_initiated == TRUE) {
-			mvwprintw(__np_stat_log, 0, 0, "%s", log_buffer);
-		}
-
-
-		if(statistic_types == np_stat_all || (statistic_types & np_stat_memory )== np_stat_memory){
+		if(statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory){
 			if(enable_statistics == 1 || enable_statistics > 2) {
 				memory_str = np_mem_printpool(FALSE, FALSE);
 				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
@@ -458,7 +478,37 @@ void __np_example_helper_loop() {
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
+			/*
+			if (__np_ncurse_initiated == TRUE &&  __np_stat_switchable_window == __np_stat_log) {
+
+				int y = 0;
+				int displayedRows = 0;
+				sll_iterator(char_ptr) iter_log = sll_first(log_buffer);
+				int showAfter = sll_size(log_buffer);
+				if(y > 15)
+				{
+					showAfter += log_user_cursor;
+				}
+				
+				while (iter_log != NULL)
+				{			
+
+					if(y >= showAfter) {
+						mvwprintw(__np_stat_log, y, 0, "%"PRIi32". %"PRIi32" - %s", y, showAfter, iter_log->val);
+					
+						if (displayedRows++ > 15) {
+							break;
+						}
+					}
+
+					sll_next(iter_log);
+					y++;
+				}
+				
+			}
+			*/
 		}
+		
 		if (__np_ncurse_initiated == TRUE && __np_refresh_windows == TRUE) {
 			wrefresh(__np_help_win);
 			wrefresh(__np_stat_locks_win);
@@ -470,6 +520,7 @@ void __np_example_helper_loop() {
 	
 	if(__np_ncurse_initiated == TRUE) {
 		int key = getch();
+		np_example_print(stdout, "keypress: %"PRIi32, key);
 		switch (key) {
 			case KEY_RESIZE:
 			case 101:	// e
@@ -495,7 +546,21 @@ void __np_example_helper_loop() {
 			case 114:	// r
 			case 82:	// R
 				__np_refresh_windows = TRUE;
-				break;				
+				break;
+			case 102:	// f
+			case 70:	// F
+				log_user_cursor = 0;
+				break;
+			case 117:	// u
+			case 85:	// U				
+				log_user_cursor++;
+				if (log_user_cursor > 0)
+					log_user_cursor = 0;
+				break;
+			case 110:	// n
+			case 78:	// N
+				log_user_cursor--;
+				break;
 			case 113: // q
 				np_destroy();
 				exit(EXIT_SUCCESS);
@@ -507,15 +572,15 @@ void __np_example_helper_loop() {
 void __np_example_helper_run_loop() {
 	while (TRUE)
 	{
-		ev_sleep(output_intervall_sec);
+		np_time_sleep(output_intervall_sec);
 	}
 }
 void __np_example_helper_run_info_loop() {
 
 	while (TRUE)
-	{
+	{		
 		__np_example_helper_loop();
-		ev_sleep(output_intervall_sec);
+		np_time_sleep(output_intervall_sec);
 	}
 }
 

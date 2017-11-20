@@ -1631,7 +1631,7 @@ void _np_in_handshake(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_in_handshake(np_jobargs_t* args){");
 
-	_LOCK_MODULE(np_handshake_t){
+	_LOCK_MODULE(np_handshake_t) {
 		np_key_t* msg_source_key = NULL;
 		np_key_t* hs_wildcard_key = NULL;
 		np_key_t* alias_key = NULL;

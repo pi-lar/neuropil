@@ -35,22 +35,31 @@ extern "C" {
 #define max(a,b) MAX(a,b)
 #endif
 
+#define NP_GENERATE_THREADSAFE_PROPERTY_PROTOTYPE(TYPE, PROPERTY_NAME)					\
+	TYPE PROPERTY_NAME##_get();															\
+	void PROPERTY_NAME##_set(TYPE obj);														
 
-#define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)    \
-static const char* PROP_NAME##_str = # PROP_NAME;             \
-inline void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value) {  \
-	obj->PROP_NAME = value;                                   \
+#define NP_GENERATE_THREADSAFE_PROPERTY_IMPL(TYPE, PROPERTY_NAME, PROPERTY)				\
+	TYPE PROPERTY_NAME##_get() {														\
 }
 
-#define _NP_GENERATE_PROPERTY_SETVALUE_IMPL(OBJ,PROP_NAME,TYPE)    \
+
+
+#define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)			\
+static const char* PROP_NAME##_str = # PROP_NAME;					\
+inline void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value) {		\
+	obj->PROP_NAME = value;											\
+}
+
+#define _NP_GENERATE_PROPERTY_SETVALUE_IMPL(OBJ,PROP_NAME,TYPE)		\
 void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value);
 
-#define _NP_GENERATE_PROPERTY_SETSTR(OBJ,PROP_NAME)              \
-inline void OBJ##_set_##PROP_NAME(OBJ* obj, const char* value) { \
-	obj->PROP_NAME = strndup(value, strlen(value));              \
+#define _NP_GENERATE_PROPERTY_SETSTR(OBJ,PROP_NAME)					\
+inline void OBJ##_set_##PROP_NAME(OBJ* obj, const char* value) {	\
+	obj->PROP_NAME = strndup(value, strlen(value));					\
 }
 
-#define _NP_GENERATE_MSGPROPERTY_SETVALUE(PROP_NAME,TYPE) \
+#define _NP_GENERATE_MSGPROPERTY_SETVALUE(PROP_NAME,TYPE)			\
 inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, TYPE value) { \
 	np_msgproperty_t* msg_prop = np_message_get_handler(state, mode_type, subject); \
 	if (NULL == msg_prop)                                 \

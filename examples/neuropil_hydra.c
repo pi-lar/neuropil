@@ -59,7 +59,10 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
  */
 int main(int argc, char **argv)
 {
+//	__np_example_inti_ncurse();
+
 	np_bool create_bootstrap = TRUE; 
+	np_bool has_a_node_started = FALSE;
 	char* bootstrap_hostnode_default;
 	uint32_t required_nodes = NUM_HOST;
 
@@ -125,6 +128,7 @@ int main(int argc, char **argv)
 		j_key = bootstrap_hostnode_default;
 
 		np_example_print(stdout, "No bootstrap host specified.\n");
+		has_a_node_started = TRUE;
 		current_pid = fork();
 
 		// Running bootstrap node in a different fork
@@ -248,9 +252,8 @@ int main(int argc, char **argv)
 			 */
 			
 			sprintf(port, "%d", atoi(port) + 1);
-
-			current_pid = fork();
-
+			
+			current_pid = fork();			
 			if (0 == current_pid) {
 				np_example_print(stdout, "started child process %d\n", current_pid);
 				current_pid = getpid();
@@ -284,14 +287,21 @@ int main(int argc, char **argv)
 				np_sysinfo_enable_slave();
 				/**
 				 \endcode
-
-				   and join our bootstrap node
-
-					.. code-block:: c
-
-				   \code
 				 */
+				// We enable the statistics watchers for debugging purposes
+				if(has_a_node_started == FALSE){ // <=> we are the first node started
+					np_statistics_add_watch_internals();
+					np_statistics_add_watch(_NP_SYSINFO_REQUEST);
+					np_statistics_add_watch(_NP_SYSINFO_REPLY);
+					__np_example_inti_ncurse();
+				}
+				/**
+				and join our bootstrap node
 
+				.. code-block:: c
+
+				\code
+				*/
 				do {
 					np_example_print(stdout, "try to join bootstrap node\n");
 				 
@@ -315,9 +325,16 @@ int main(int argc, char **argv)
 				/**
 				 \endcode
 				 */
-				__np_example_helper_run_loop();
+				if (has_a_node_started == FALSE) { // <=> we are the first node started
+
+					__np_example_helper_run_info_loop();
+				}
+				else {
+					__np_example_helper_run_loop();
+				}
 
 			} else {
+				has_a_node_started = TRUE;
 				/**
 				  While the fork process starts the new node,
 				  the main process needs to add the new process id to the list we created before.

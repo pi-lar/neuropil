@@ -359,6 +359,7 @@ void _np_job_yield(const double delay)
                 struct timeval tv_sleep = dtotv(np_time_now() + delay);
                 struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
                 // wait for time x to be unlocked again
+				
                 _np_threads_module_condition_timedwait(&__cond_empty, np_jobqueue_t_lock, &waittime);
             }
             else
@@ -439,36 +440,45 @@ np_job_t* _np_jobqueue_select_next()
  * after getting the first job out of queue it will execute the corresponding callback with
  * defined job arguments
  */
-void* __np_jobqueue_run ()
+void* __np_jobqueue_run()
 {
-    // np_state_t* state = _np_state();
-    np_job_t* job_to_execute = NULL;
+	while (_np_threads_is_threadding_initiated() == FALSE) {
+		np_time_sleep(0.01);
+	}
 
-    log_debug_msg(LOG_DEBUG, "job queue thread starting");
+	// np_state_t* state = _np_state();
+	np_job_t* job_to_execute = NULL;
+
+	log_debug_msg(LOG_DEBUG, "job queue thread starting");
 
 
-    while (1)
-    {       
-		np_job_t* job_to_execute = _np_jobqueue_select_next();        
+	while (1)
+	{
+		np_job_t* job_to_execute = _np_jobqueue_select_next();
 
-        // sanity checks if the job list really returned an element
-        if (NULL == job_to_execute) continue;
+		// sanity checks if the job list really returned an element
+		if (NULL == job_to_execute) continue;
 		if (NULL == job_to_execute->processorFuncs) continue;
 		if (NULL == ((job_to_execute->processorFuncs))) continue;
 		if (sll_size(((job_to_execute->processorFuncs))) <= 0) continue;
-        
-		log_debug_msg(LOG_DEBUG, 
-			"thread-->%15"PRIu64" job-->%15p remaining jobs: %"PRIu32") func_count-->%"PRIu32" funcs-->%15p args-->%15p prio:%10.2f not before: %15.10f jobname: %s",
-			_np_threads_get_self()->id, 
-			job_to_execute,
-			pll_size(__np_job_queue->job_list),
-			sll_size((job_to_execute->processorFuncs)),
-			(job_to_execute->processorFuncs),
-			job_to_execute->args,
-			job_to_execute->priority,
-			job_to_execute->exec_not_before_tstamp,
-			job_to_execute->ident 
-		);
+
+#ifdef NP_THREADS_CHECK_THREADING
+		_LOCK_MODULE(np_jobqueue_t) {
+			log_debug_msg(LOG_DEBUG,
+				"thread-->%15"PRIu64" job-->%15p remaining jobs: %"PRIu32") func_count-->%"PRIu32" funcs-->%15p args-->%15p prio:%10.2f not before: %15.10f jobname: %s",
+				_np_threads_get_self()->id,
+				job_to_execute,
+				pll_size(__np_job_queue->job_list),
+				sll_size((job_to_execute->processorFuncs)),
+				(job_to_execute->processorFuncs),
+				job_to_execute->args,
+				job_to_execute->priority,
+				job_to_execute->exec_not_before_tstamp,
+				job_to_execute->ident
+			);
+		}
+#endif
+
 
         
 #ifdef DEBUG

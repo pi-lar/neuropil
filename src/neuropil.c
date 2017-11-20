@@ -328,7 +328,7 @@ void np_waitforjoin()
 {
 	log_msg(LOG_TRACE, "start: void np_waitforjoin(){");
 	np_state_t* state = _np_state();
-	while (FALSE == state->my_node_key->node->joined_network)
+	while (FALSE == _np_route_my_key_has_connection())
 	{
 		ev_sleep(0.31415/2);
 	}

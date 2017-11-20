@@ -561,15 +561,17 @@ void __np_util_debug_statistics_init() {
 _np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key) {
 	__np_util_debug_statistics_init();
 	_np_util_debug_statistics_t* ret = NULL;
-	sll_iterator(void_ptr) iter = sll_first(__np_debug_statistics);
+	_LOCK_MODULE(np_utilstatistics_t) {
+		sll_iterator(void_ptr) iter = sll_first(__np_debug_statistics);
 
-	while (iter != NULL) {
-		_np_util_debug_statistics_t* item = (_np_util_debug_statistics_t*)iter->val;		
-		if (strncmp(item->key, key, 255) == 0) {
-			ret = item;
-			break;
-		}			
-		sll_next(iter);
+		while (iter != NULL) {
+			_np_util_debug_statistics_t* item = (_np_util_debug_statistics_t*)iter->val;
+			if (strncmp(item->key, key, 255) == 0) {
+				ret = item;
+				break;
+			}
+			sll_next(iter);
+		}
 	}
 	return ret;
 }
@@ -585,7 +587,9 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 		memcpy(item->key, key, strnlen(key, 254));
 		_np_threads_mutex_init(&item->lock,"debug_statistics");
 
-		sll_append(void_ptr, __np_debug_statistics, (void_ptr)item);
+		_LOCK_MODULE(np_utilstatistics_t) {
+			sll_append(void_ptr, __np_debug_statistics, (void_ptr)item);
+		}
 	}
 
 	_LOCK_ACCESS(&item->lock)

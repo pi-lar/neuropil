@@ -15,14 +15,14 @@ extern "C" {
 	
 /*
 	Possible compile switches:
-	 - MEMORY_CHECK
-	 - CHECK_THREADING
+	 - NP_MEMORY_CHECK_MEMORY
+	 - NP_THREADS_CHECK_THREADING
 	 - DEBUG_CALLBACKS
 */
 #ifdef DEBUG
 	#define DEBUG_CALLBACKS 1
-	#define MEMORY_CHECK 1
-	#define CHECK_THREADING 1
+	#define NP_MEMORY_CHECK_MEMORY 1
+	//#define NP_THREADS_CHECK_THREADING 1
 #endif // DEBUG
 
 
@@ -241,11 +241,8 @@ extern "C" {
 #define NP_NODE_SUCCESS_WINDOW 50
 
 
-
-
-
-#ifndef HAS_PTHREAD_MUTEX_TIMEDLOCK
-	#define HAS_PTHREAD_MUTEX_TIMEDLOCK (!defined(__APPLE__) || !defined(__MACH__ ) ) 
+#ifndef NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK
+	#define NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK (!defined(__APPLE__) || !defined(__MACH__ ) ) 
 #endif
 
 
