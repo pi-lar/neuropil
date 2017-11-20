@@ -40,7 +40,7 @@ void _test_struct_t_new(NP_UNUSED void* data_ptr)
 void setup_memory(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_MESSAGE;
-	np_log_init("test_jrb_impl.log", log_level);
+	np_log_init("test_memory.log", log_level);
 
 	_np_threads_init();
 	np_mem_init();
@@ -191,5 +191,5 @@ Test(np_memory_t, _memory_reasons, .description = "test the memory reasoning rou
 	cr_assert(1 == sll_size(t_obj1->obj->reasons), "expect reason count on object to be 1");
 	cr_assert(0 == strncmp("test___3", sll_first(t_obj1->obj->reasons)->val, 8), "expect 1. reason object to be test___3");
 
-	np_unref_obj(test_struct_t, t_obj1, "test___3");
+	// np_unref_obj(test_struct_t, t_obj1, "test___3");
 }

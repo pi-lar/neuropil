@@ -354,7 +354,6 @@ np_bool _np_network_send_handshake(np_key_t* node_key)
 				log_debug_msg(LOG_DEBUG, "transform _NP_MSG_HANDSHAKE %s",_np_key_as_str(node_key));
 
 				node_key->node->is_handshake_send = TRUE;
-				ret = TRUE;
 			}
 		}
 	}
@@ -402,9 +401,9 @@ void _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 
 				if(hasMsgPart) {
 					unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
-					memset(enc_buffer, 0, MSG_CHUNK_SIZE_1024);
-
 					CHECK_MALLOC(enc_buffer);
+
+					memset(enc_buffer, 0, MSG_CHUNK_SIZE_1024);
 
 					// add protection from replay attacks ...
 					unsigned char nonce[crypto_secretbox_NONCEBYTES];
@@ -495,6 +494,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 			if (TRUE == networkExists )
 			{
 				if(TRUE == key_network->initialized) {
+
 					_LOCK_ACCESS(&key_network->lock)
 					{
 						if (NULL != key_network->out_events &&
@@ -506,6 +506,10 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 										MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
 							}
 
+							// log_msg(LOG_ERROR, "%d out events for socket: %d", sll_size(key_network->out_events), event->fd);
+
+							// void* data_to_send = NULL;
+							// while (NULL != (data_to_send = sll_head(void_ptr, key_network->out_events)) ) {
 							void* data_to_send = sll_head(void_ptr, key_network->out_events);
 							if(NULL != data_to_send) {
 								ssize_t written = 0, current_write = 0;
@@ -836,6 +840,8 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to input work queue for %s",
 								  _np_key_as_str(key));
 
+				} else {
+					free(data);
 				}
 
 	//			_LOCK_ACCESS(&ng->lock)
@@ -1195,6 +1201,23 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 		// leads to unreliable delivery. The sending socket changes too often to be useful
 		// for finding the correct decryption shared secret. Especially true for ipv6 ...
 
+		// set non blocking
+		int current_flags = fcntl(ng->socket, F_GETFL);
+		current_flags |= O_NONBLOCK;
+		fcntl(ng->socket, F_SETFL, current_flags);
+
+		if (0 != (type & PASSIVE))
+		{
+			// not here and now, but after the handshake
+		}
+		else
+		{
+			ev_io_init(
+					&ng->watcher, _np_network_send_from_events,
+					ng->socket, EV_WRITE);
+		}
+		_np_network_start(ng);
+
 		// As we do have a async connection (and TCP may need longer due to
 		// handshake packages) we need to check the connection status for a moment
 		int retry_connect = 3;
@@ -1219,22 +1242,6 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 				return FALSE;
 			}
 		}
-		// set non blocking
-		int current_flags = fcntl(ng->socket, F_GETFL);
-		current_flags |= O_NONBLOCK;
-		fcntl(ng->socket, F_SETFL, current_flags);
-
-		if (0 != (type & PASSIVE))
-		{
-			// not here and now, but after the handshake
-		}
-		else
-		{
-			ev_io_init(
-					&ng->watcher, _np_network_send_from_events,
-					ng->socket, EV_WRITE);
-		}
-		// _np_network_start(ng);
 
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 				": %d %p %p :", ng->socket, &ng->watcher,  &ng->watcher.data);

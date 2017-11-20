@@ -2,12 +2,7 @@
 // neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-/*
- * np_sysinfo.c
- *
- *  Created on: 11.04.2017
- *      Author: sklampt
- */
+
 
 #include <stdlib.h>
 #include "inttypes.h"

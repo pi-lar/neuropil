@@ -4,7 +4,7 @@ CC=clang
 # CC=./checker-277/libexec/ccc-analyzer
 
 # CFLAGS=-c -Wall -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
-CFLAGS=-c -Wall -Wextra -g -gdwarf-2 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
+CFLAGS=-c -Wall -Wextra -g -gdwarf-2 -std=c99 -DDEBUG -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
 # CFLAGS+=--analyze -Xanalyzer -analyzer-config -analyzer-checker=alpha.secure -anaylyzer-checker=alpha.core -analyzer-output=html -o build/html
 # CFLAGS=-c -Wall -Wextra -pedantic -g -std=c99
 # CFLAGS=-c -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
@@ -33,9 +33,9 @@ endif
 endif
 
 # adjust these settings to your location of libsodium and libcriterion
-INCLUDES=-I ./include -I ./tpl/libsodium-master/src/libsodium/include -I ./tpl/criterion-v2.3.2/include
+INCLUDES=-I ./include -I /usr/local/include -I ./tpl/criterion-v2.3.2/include
 
-SODIUM_LIBRARIES=-L ./tpl/libsodium-master/src/libsodium/.libs -l sodium
+SODIUM_LIBRARIES=-L /usr/local/lib -l sodium
 CRITERION_LIBRARIES=-L ./tpl/criterion-v2.3.2/lib -l criterion
 
 TARGET=x86_64-apple-darwin-macho
@@ -67,54 +67,53 @@ prg: library neuropil_hydra neuropil_controller neuropil_node neuropil_sender ne
 
 
 neuropil_controller: $(PROGRAMS)
-	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil.$(TARGET) $< -o bin/$@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 neuropil_hydra: $(PROGRAMS)
-	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil.$(TARGET) $< -o bin/$@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 neuropil_node: $(PROGRAMS)
-	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil.$(TARGET) $< -o bin/$@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 neuropil_pingpong: $(PROGRAMS)
-	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil.$(TARGET) $< -o bin/$@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 neuropil_demo_service: $(PROGRAMS)
-	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil.$(TARGET) $< -o bin/$@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 neuropil_sender: $(PROGRAMS)
-	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil.$(TARGET) $< -o bin/$@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 neuropil_raspberry: $(PROGRAMS)
-	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil.$(TARGET) $< -o bin/$@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 neuropil_receiver: $(PROGRAMS)
-	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil.$(TARGET) $< -o bin/$@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 neuropil_receiver_cb: $(PROGRAMS)
-	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate  -Lbuild/lib -lneuropil.$(TARGET) $< -o bin/$@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate  -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 neuropil_test_suites: $(TESTS)
-	-rm test_*.log
-	$(CC) -g -target $(TARGET) $(LDFLAGS) $(CRITERION_LIBRARIES) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil.$(TARGET) $< -o bin/$@
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(CRITERION_LIBRARIES) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) -fprofile-instr-generate -Lbuild/lib -lneuropil $< -o bin/$@
 
 build/lib/libneuropil.dylib: $(OBJECTS)
-	$(CC) -g -target $(TARGET) $(LDFLAGS) $(CLANG_SANITIZER) -dynamiclib -fprofile-instr-generate -std=c99 $(SODIUM_LIBRARIES) $(OBJECTS) -o build/lib/libneuropil.$(TARGET).dylib
-	dsymutil build/lib/libneuropil.$(TARGET).dylib -o build/lib/libneuropil.$(TARGET).dylib.dSYM
+	$(CC) -g -target $(TARGET) $(LDFLAGS) $(CLANG_SANITIZER) -dynamiclib -fprofile-instr-generate -std=c99 $(SODIUM_LIBRARIES) $(OBJECTS) -o build/lib/libneuropil.dylib
+	dsymutil build/lib/libneuropil.$(TARGET).dylib -o build/lib/libneuropil.dylib.dSYM
 
 build/obj/%.o: src/%.c
-	@mkdir -p build/obj/src
+	@mkdir -p $(@D)
 	@mkdir -p build/lib
 	@mkdir -p bin
 	$(CC) -target $(TARGET) $(CFLAGS) -fprofile-instr-generate $(INCLUDES) $< -o $@
 
 build/obj/%.o: examples/%.c
-	@mkdir -p build/obj/src
+	@mkdir -p $(@D)
 	@mkdir -p build/lib
 	@mkdir -p bin
 	$(CC) -target $(TARGET) $(CFLAGS) -fprofile-instr-generate $(INCLUDES) $< -o $@
 
 build/obj/%.o: test/%.c
-	@mkdir -p build/obj/src
+	@mkdir -p $(@D)
 	@mkdir -p build/lib
 	@mkdir -p bin
 	$(CC) -target $(TARGET) -DDEBUG=1 $(CFLAGS) -fprofile-instr-generate $(INCLUDES) $< -o $@

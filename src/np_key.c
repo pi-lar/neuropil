@@ -215,7 +215,6 @@ void _np_key_t_del(void* key)
 
 	// unref and delete of other object pointers has to be done outside of this function
 	// otherwise double locking the memory pool will lead to a deadlock
-
 	np_unref_obj(np_msgproperty_t, 	old_key->recv_property,ref_key_recv_property);
 	np_unref_obj(np_msgproperty_t, 	old_key->send_property,ref_key_send_property);
 	np_unref_obj(np_aaatoken_t,		old_key->aaa_token,ref_key_aaa_token);

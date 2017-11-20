@@ -1,9 +1,7 @@
-/*
- * np_threads.c
- *
- *  Created on: 02.05.2017
- *      Author: sklampt
- */
+//
+// neuropil is copyright 2016-017 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -100,7 +98,7 @@ int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) 
 
 		ret = pthread_mutex_trylock(&__mutexes[module_id].lock);
 
-		if(ret == EBUSY){			
+		if(ret == EBUSY){
 			ev_sleep(MUTEX_WAIT_SEC);
 		}else if(ret != 0) {
 			log_msg(LOG_ERROR,"error at acquiring mutex for module %d. Error: %s (%d)", module_id, strerror(ret), ret);

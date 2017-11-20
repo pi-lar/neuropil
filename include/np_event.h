@@ -1,12 +1,10 @@
-/*
- * np_event.h
- *
- *  Created on: 09.05.2017
- *      Author: sklampt
- */
+//
+// neuropil is copyright 2016-017 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 
-#ifndef NP_EVENT_H_
-#define NP_EVENT_H_
+#ifndef _NP_EVENT_H_
+#define _NP_EVENT_H_
 
 #include "event/ev.h"
 
@@ -38,4 +36,4 @@ double np_event_sleep(double time);
 #endif
 
 
-#endif /* NP_EVENT_H_ */
+#endif /* _NP_EVENT_H_ */

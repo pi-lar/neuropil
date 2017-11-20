@@ -981,6 +981,8 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
 	np_state_t* state = _np_state();
 
+	// CHECK_STR_FIELD(msg->properties, NP_SYMKEY, encryption_details);
+
 	np_tree_t* encryption_details =
 			np_tree_find_str(msg->properties, NP_SYMKEY)->val.value.tree;
 	if(NULL == encryption_details  ) {

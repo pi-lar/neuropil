@@ -27,8 +27,6 @@ afterwards you can use the following function like macros in your source code li
 
 */
 
-// copyright 2015 pi-lar GmbH
-
 #ifndef _NP_LIST_H_
 #define _NP_LIST_H_
 

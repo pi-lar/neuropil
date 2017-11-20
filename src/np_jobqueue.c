@@ -331,7 +331,7 @@ void* _job_exec ()
 	while (1)
 	{
 		//_np_threads_lock_module(np_jobqueue_t_lock, __func__);
-		now = ev_time();
+		// now = ev_time();
 
 		_LOCK_MODULE(np_jobqueue_t)
 		{	

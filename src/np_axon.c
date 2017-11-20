@@ -473,7 +473,7 @@ void _np_send_handshake(np_jobargs_t* args)
 
 				np_ref_obj(np_key_t, hs_key,ref_network_watcher);
 				hs_key->network->watcher.data = args->target;
-				_np_network_start(hs_key->network);
+				// _np_network_start(hs_key->network);
 			}
 			/* send data if handshake status is still just initialized or less */
 			log_debug_msg(LOG_DEBUG,
@@ -529,6 +529,8 @@ void _np_send_discovery_messages(np_jobargs_t* args)
 	if (0 < (args->properties->mode_type & INBOUND))
 	{
 		log_debug_msg(LOG_DEBUG, ".step ._np_send_discovery_messages.inbound");
+
+		_np_msgproperty_cleanup_receiver_cache(args->properties);
 
 		np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
 

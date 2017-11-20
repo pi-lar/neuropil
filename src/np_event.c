@@ -1,9 +1,7 @@
-/*
- * np_event.c
- *
- *  Created on: 09.05.2017
- *      Author: sklampt
- */
+//
+// neuropil is copyright 2016-2017 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 
 #include <errno.h>
 #include <assert.h>
@@ -130,7 +128,7 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
 	// TODO: evaluate if 1 ore more threads are started and init appropriately
-	np_bool isMultiThreaded = TRUE;
+	np_bool isMultiThreaded = FALSE;
 
 	if(TRUE == isMultiThreaded) {
 

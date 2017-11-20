@@ -721,9 +721,10 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		log_debug_msg(LOG_DEBUG, "decryption of message failed, deleting message");
 		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 		msg_prop->max_threshold--;
+		msg_prop->msg_threshold--;
 
-		np_unref_obj(np_message_t, msg,"?");
-		np_unref_obj(np_aaatoken_t, sender_token,"?");
+		np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
+		np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
 		return (FALSE);
 	}
 
@@ -753,12 +754,12 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		_np_send_ack(msg);
 	}
 
+	np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
+	np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
+
 	// decrease threshold counter
 	msg_prop->msg_threshold--;
 	msg_prop->max_threshold--;
-
-	np_unref_obj(np_message_t, msg, "?");
-	np_unref_obj(np_aaatoken_t, sender_token,"?");
 
 	return (TRUE);
 }
@@ -831,8 +832,8 @@ uint32_t np_receive_text (char* subject, char **data)
 		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 		msg_prop->max_threshold--;
 
-		np_unref_obj(np_message_t, msg, "unknown");
-		np_unref_obj(np_aaatoken_t, sender_token, "unknown");
+		np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
+		np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
 		return (0);
 	}
 
@@ -850,10 +851,10 @@ uint32_t np_receive_text (char* subject, char **data)
 	msg_prop->msg_threshold--;
 	msg_prop->max_threshold--;
 
-	np_unref_obj(np_message_t, msg, "unknown");
-	np_unref_obj(np_aaatoken_t, sender_token, "unknown");
+	np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
+	np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
 
-	log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
+	log_debug_msg(LOG_DEBUG, "someone sending us messages %s !!!", *data);
 
 	return (received);
 }
@@ -1064,7 +1065,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 
 	np_ref_obj(np_key_t, state->my_node_key, ref_network_watcher);
 	my_network->watcher.data = state->my_node_key;
-	_np_network_start(my_network);
+	// _np_network_start(my_network);
 
 	// log_msg(LOG_WARN, "node_key %p", state->my_node_key);
 

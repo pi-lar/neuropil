@@ -2,14 +2,7 @@
 // neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-/*
- * np_scache.c
- *
- *  Created on: 12.04.2017
- *      Author: sklampt
- *
- *      Based upon http://stackoverflow.com/a/1234738
- */
+// Based upon http://stackoverflow.com/a/1234738
 
 #include <string.h>
 #include <stdlib.h>

@@ -27,7 +27,6 @@
    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
    THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 */
 
 #ifndef	_SYS_TREE_H_
@@ -58,7 +57,6 @@
  *
  * Every operation on a red-black tree is bounded as O(lg n).
  * The maximum height of a red-black tree is 2lg (n+1).
- *
  */
 
 #define SPLAY_HEAD(name, type)						\
@@ -90,7 +88,7 @@ struct {								\
 	SPLAY_RIGHT(tmp, field) = (head)->sph_root;			\
 	(head)->sph_root = tmp;						\
 } while (/*CONSTCOND*/ 0)
-
+	
 #define SPLAY_ROTATE_LEFT(head, tmp, field) do {			\
 	SPLAY_RIGHT((head)->sph_root, field) = SPLAY_LEFT(tmp, field);	\
 	SPLAY_LEFT(tmp, field) = (head)->sph_root;			\

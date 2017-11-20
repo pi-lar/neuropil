@@ -739,7 +739,7 @@ np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender)
 		}
 	}
 
-	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
+	np_unref_obj(np_key_t, subject_key, "_np_keycache_find_or_create");
 	return (return_token);
 }
 

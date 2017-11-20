@@ -54,7 +54,7 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	test_token_1->expiration = test_token_1->not_before + 9.0;
 
 	cr_expect (NULL != test_token_1, "expect the token to be not NULL");
-	cr_expect (TRUE == _np_aaatoken_is_valid(test_token_1), "expect that the token is not valid");
+	cr_expect (TRUE != _np_aaatoken_is_valid(test_token_1), "expect that the token is not valid");
 
 	np_tree_t* aaa_tree = np_tree_create();
 	np_aaatoken_encode(aaa_tree, test_token_1);
@@ -93,10 +93,10 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	cr_expect (FALSE == _np_aaatoken_is_valid(test_token_1), "expect that the token is not valid");
 	cr_expect (FALSE == _np_aaatoken_is_valid(test_token_3), "expect that the token is not valid");
 
-	np_unref_obj(np_key_t, test_key, ref_obj_creation);
-	np_unref_obj(np_aaatoken_t, test_token_1, ref_obj_creation);
-	np_unref_obj(np_aaatoken_t, test_token_2, ref_obj_creation);
-	np_unref_obj(np_aaatoken_t, test_token_3, ref_obj_creation);
+	// np_unref_obj(np_key_t, test_key, ref_obj_creation);
+	// np_unref_obj(np_aaatoken_t, test_token_1, ref_obj_creation);
+	// np_unref_obj(np_aaatoken_t, test_token_2, ref_obj_creation);
+	// np_unref_obj(np_aaatoken_t, test_token_3, ref_obj_creation);
 
 }
 
@@ -115,8 +115,10 @@ Test(np_aaatoken_t, encode_decode_loop, .description="test the encoding and deco
 
 	np_new_obj(np_key_t, test_key);
 	test_key->dhkey = _np_aaatoken_create_dhkey(ref);
+
 	test_key->node = test_node;
-	np_ref_obj(np_aaatoken_t, test_node, ref_key_node);
+	np_ref_obj(np_node_t, test_node, ref_key_node);
+
 	test_key->aaa_token = ref;
 	np_ref_obj(np_aaatoken_t, ref, ref_key_aaa_token);
 
@@ -136,13 +138,16 @@ Test(np_aaatoken_t, encode_decode_loop, .description="test the encoding and deco
 		cr_expect( 0 == strncmp(ref->realm, test_token_1->realm, 255), "test the realm to be equal");
 		cr_expect( 0 == strncmp(ref->issuer, test_token_1->issuer, 65), "test the issuer to be equal");
 		cr_expect( 0 == strncmp(ref->subject, test_token_1->subject, 255), "test the subject to be equal");
-		// cr_expect( 0 == strncmp((char*) ref->public_key, (char*) test_token_1->public_key, 255), "test the public_key to be equal");
+		cr_expect( 0 == memcmp((char*) ref->public_key, (char*) test_token_1->public_key, crypto_sign_PUBLICKEYBYTES), "test the public_key to be equal");
 		cr_expect( 0 == strncmp(ref->audience, test_token_1->audience, 255), "test the audience to be equal");
 		cr_expect( 0 == strncmp(ref->uuid, test_token_1->uuid, 255), "test the uuid to be equal");
+
+		cr_expect (TRUE == _np_aaatoken_is_valid(test_token_1), "expect that the token is valid");
 
 		// tree_find_str(test_token_1->extensions, NP_HS_SIGNATURE, new_val_bin(signature, crypto_sign_BYTES));
 	}
 
-	np_unref_obj(np_key_t, test_key, ref_obj_creation);
-	np_unref_obj(np_node_t, test_node, ref_obj_creation);
+	// np_unref_obj(np_key_t, test_key, ref_obj_creation);
+	// np_unref_obj(np_node_t, test_node, ref_obj_creation);
+	// np_unref_obj(np_aaatoken_t, ref, ref_key_aaa_token);
 }
