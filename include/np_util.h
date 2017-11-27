@@ -9,16 +9,39 @@
 #include "json/parson.h"
 
 #include "np_tree.h"
+#include "np_threads.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+
+#ifndef CEIL(a)
+#define CEIL(a) (((a-(int)a) > 0) ? ((int)a)+1:a)
+#endif
+#ifndef MIN(a,b)
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#endif
+#ifndef MAX(a,b)
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#endif
+#ifndef min(a,b)
+#define min(a,b) MIN(a,b)
+#endif
+#ifndef ceil(a)
+#define ceil(a) CEIL(a)
+#endif
+#ifndef max(a,b)
+#define max(a,b) MAX(a,b)
+#endif
+
 
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)    \
 static const char* PROP_NAME##_str = # PROP_NAME;             \
 inline void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value) {  \
 	obj->PROP_NAME = value;                                   \
 }
+// log_msg(LOG_INFO, "changed mx property %s to new value", PROP_NAME##_str);
 
 #define _NP_GENERATE_PROPERTY_SETVALUE_IMPL(OBJ,PROP_NAME,TYPE)    \
 void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value);
@@ -27,6 +50,7 @@ void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value);
 inline void OBJ##_set_##PROP_NAME(OBJ* obj, const char* value) { \
 	obj->PROP_NAME = strndup(value, strlen(value));              \
 }
+// log_msg(LOG_INFO, "changed mx property %s to new string %s", # PROP_NAME, value);
 
 #define _NP_GENERATE_MSGPROPERTY_SETVALUE(PROP_NAME,TYPE) \
 inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, TYPE value) { \
@@ -115,7 +139,24 @@ char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cm
 NP_API_INTERN
 sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount);
 
+#ifdef DEBUG_CALLBACKS
+typedef struct {
+	char key[255];
+	uint32_t count;
+	np_mutex_t lock;
+	double avg;
+	double min;
+	double max;
+} _np_util_debug_statistics_t;
 
+NP_API_INTERN
+_np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double value);
+NP_API_INTERN
+_np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key);
+#endif
+
+NP_API_INTERN
+int _np_util_cmp_ref(void* a, void* b);
 #ifdef __cplusplus
 }
 #endif

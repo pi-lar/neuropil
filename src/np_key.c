@@ -64,12 +64,12 @@ char* _np_key_as_str(np_key_t* key)
 	return key->dhkey_str;
 }
 
-void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason)
+void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc)
 {
 	sll_iterator(np_key_ptr) iter = sll_first(sll_list);
 	while (NULL != iter)
 	{
-		np_ref_obj(np_key_t, (iter->val), reason);
+		np_ref_obj(np_key_t, (iter->val), reason, reason_desc);
 		sll_next(iter);
 	}
 }
@@ -92,6 +92,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
 	np_tryref_obj(np_key_t, to_destroy, to_destroyExists,"np_tryref_key");
 	if(to_destroyExists) {
+		to_destroy->in_destroy = TRUE;
 
 		_LOCK_ACCESS(to_destroy->obj->lock) {
 
@@ -174,12 +175,13 @@ void _np_key_t_new(void* key)
 	log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
 	np_key_t* new_key = (np_key_t*) key;
 
-	new_key->last_update = ev_time();
+	new_key->in_destroy = FALSE;
+	new_key->last_update = np_time_now();
 
 	new_key->dhkey_str = NULL;
 	new_key->node = NULL;		  // link to a neuropil node if this key represents a node
 	new_key->network = NULL;      // link to a neuropil node if this key represents a node
-
+	
 	new_key->aaa_token = NULL;
 
 	// used internally only
@@ -192,7 +194,7 @@ void _np_key_t_new(void* key)
 	new_key->recv_tokens = NULL; // link to runtime interest data on which this node is interested in
 
 	new_key->parent = NULL;
-	new_key->created_at = ev_time();
+	new_key->created_at = np_time_now();
 	log_debug_msg(LOG_KEY | LOG_DEBUG, "Created new key");
 
 }
@@ -235,7 +237,7 @@ void np_key_renew_token() {
 		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Creating new node key");
 
 		np_aaatoken_t* new_token = _np_node_create_token(old_node_key->node);
-		new_node_key = _np_node_create_from_token(new_token);
+		new_node_key = _np_key_create_from_token(new_token);
 
 		np_ref_obj(np_aaatoken_t, new_token,ref_key_aaa_token);
 		new_node_key->aaa_token = new_token;
@@ -287,7 +289,7 @@ void np_key_renew_token() {
 		np_tree_free(jrb_old);
 
 		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.replacing identity");
-		// _np_job_yield(state->my_node_key->aaa_token->expiration - ev_time());
+		// _np_job_yield(state->my_node_key->aaa_token->expires_at - ev_time());
 		// exchange identity if required
 		if (state->my_identity == old_node_key)
 		{
@@ -301,7 +303,7 @@ void np_key_renew_token() {
 
 
 		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Updating network");
-		_LOCK_ACCESS(&old_node_key->network->lock)
+		_LOCK_ACCESS(&old_node_key->network->send_data_lock)
 		{
 			// save old network setup
 			_np_network_remap_network(new_node_key, old_node_key);

@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(new_uuid));
 	free(new_uuid);
 
-	double now = ev_time();
+	double now = np_time_now();
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
 	now += 20;
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(now));
@@ -87,8 +87,7 @@ int main(int argc, char **argv) {
 	np_tree_elem_t* properties_node = np_tree_find_int(msg_out->properties, 1);
 	np_tree_elem_t* body_node = np_tree_find_int(msg_out->body, 20);
 
-	np_jobargs_t args = { .msg=msg_out };
-
+ 
 	/** message split up maths
 	 ** message size = 1b (common header) + 40b (encryption) +
 	 **                msg (header + instructions) + msg (properties + body) + msg (footer)
@@ -103,7 +102,7 @@ int main(int argc, char **argv) {
 	 ** 	add garbage
 	 **/
 	_np_message_calculate_chunking(msg_out);
-	_np_message_serialize_chunked(NULL, &args);
+	_np_message_serialize_chunked(msg_out);
 	np_tree_elem_t* footer_node = np_tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
 	log_msg(LOG_DEBUG, "properties %s, body %s, garbage size %hd",
 			properties_node->val.value.s,

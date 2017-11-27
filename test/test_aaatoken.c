@@ -51,7 +51,7 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 
 	test_token_1 = _np_node_create_token(test_node);
 	// re-set the validity of this token for this test only
-	test_token_1->expiration = test_token_1->not_before + 9.0;
+	test_token_1->expires_at = test_token_1->not_before + 9.0;
 
 	cr_expect (NULL != test_token_1, "expect the token to be not NULL");
 	cr_expect (TRUE == _np_aaatoken_is_valid(test_token_1), "expect that the token is not valid");
@@ -71,12 +71,12 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	void* buf_ptr = buffer;
 	memset(buf_ptr, 0, 65536);
 
-	cmp_init(&cmp_empty, buf_ptr, _np_buffer_reader, _np_buffer_writer);
+	cmp_init(&cmp_empty, buf_ptr, _np_buffer_reader, NULL, _np_buffer_writer);
 	_np_tree_serialize(aaa_tree, &cmp_empty);
 
 	np_tree_t* out_jrb = np_tree_create();
 	cmp_ctx_t cmp_out;
-	cmp_init(&cmp_out, buffer, _np_buffer_reader, _np_buffer_writer);
+	cmp_init(&cmp_out, buffer, _np_buffer_reader, NULL, _np_buffer_writer);
 
 	_np_tree_deserialize(out_jrb, &cmp_out);
 
@@ -134,7 +134,7 @@ Test(np_aaatoken_t, encode_decode_loop, .description="test the encoding and deco
 
 		cr_expect( 1 == 1, "test the equality of 1");
 		cr_expect( 0 == strncmp(ref->realm, test_token_1->realm, 255), "test the realm to be equal");
-		cr_expect( 0 == strncmp(ref->issuer, test_token_1->issuer, 255), "test the issuer to be equal");
+		cr_expect( 0 == strncmp(ref->issuer, test_token_1->issuer, 65), "test the issuer to be equal");
 		cr_expect( 0 == strncmp(ref->subject, test_token_1->subject, 255), "test the subject to be equal");
 		// cr_expect( 0 == strncmp((char*) ref->public_key, (char*) test_token_1->public_key, 255), "test the public_key to be equal");
 		cr_expect( 0 == strncmp(ref->audience, test_token_1->audience, 255), "test the audience to be equal");

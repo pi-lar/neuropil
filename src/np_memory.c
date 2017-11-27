@@ -22,6 +22,8 @@
 #include "np_threads.h"
 #include "np_util.h"
 #include "np_list.h"
+#include "np_constants.h"
+#include "np_settings.h"
 
 
 
@@ -92,7 +94,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 	}
 	__np_obj_pool_ptr->current->lock = calloc(1, sizeof(np_mutex_t));
 	CHECK_MALLOC(__np_obj_pool_ptr->current->lock);
-	_np_threads_mutex_init(__np_obj_pool_ptr->current->lock);
+	_np_threads_mutex_init(__np_obj_pool_ptr->current->lock,"memory object lock");
 	__np_obj_pool_ptr->current->type = obj_type;
 	__np_obj_pool_ptr->current->ref_count = 0;
 	__np_obj_pool_ptr->current->next = NULL;
@@ -167,9 +169,9 @@ void np_mem_unrefobj(np_obj_t* obj, char* reason)
 	//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
 	if(obj->ref_count < 0){		
 #ifdef MEMORY_CHECK
-		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (%d) (left reasons(%d): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
+		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (left reasons(%d): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
 #else
-		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (%d)", obj, obj->type, obj->ref_count);
+		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! left reasons(%d)", obj, obj->type, obj->ref_count);
 #endif
 		abort();
 	}
@@ -203,7 +205,6 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 	if(asOneLine == TRUE){
 		new_line = "    ";
 	}
-	char* subject_list = NULL;
 
 	uint64_t summary[10000] = { 0 };
 	
@@ -217,22 +218,50 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 #ifdef MEMORY_CHECK
 			summary[iter->type*100] = summary[iter->type * 100] > sll_size(iter->reasons) ? summary[iter->type * 100]: sll_size(iter->reasons);
 
-			if (iter->type == np_key_t_e && TRUE == extended) {
+			if (
+				TRUE == extended
+				//&& iter->type == np_key_t_e				
+				&& sll_size(iter->reasons) > 5
+				) {
 				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, iter->type, sll_size(iter->reasons), new_line);
+
+				int display_first_X_reasons = 5;
+				int display_last_X_reasons = 5;
+
 				sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
+				int iter_reasons_counter = 0;
 				while (iter_reasons != NULL)
 				{
-					ret = _np_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+					if (iter_reasons_counter < display_first_X_reasons) {
+						ret = _np_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+					}				
+
+					if (
+						(display_first_X_reasons + display_last_X_reasons) < sll_size(iter->reasons)
+						&& display_first_X_reasons == iter_reasons_counter) 
+					{
+						ret = _np_concatAndFree(ret, "... Skipping %"PRIi32" reasons ...%s", sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons) ,new_line);
+					}
+
+					if (
+						iter_reasons_counter > display_first_X_reasons 
+						&& iter_reasons_counter >= display_first_X_reasons + sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons))
+					{
+						ret = _np_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+					}
+
+					iter_reasons_counter++;					
 					sll_next(iter_reasons);
 				}
 				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (%d) end  ---%s", iter->id, iter->type, new_line);
 			}		
-#else 
-			ret = _np_concatAndFree(ret, "NO DATA %s",new_line);
 #endif
 		}
-
+		
 		if (TRUE == extended) {
+#ifndef MEMORY_CHECK
+			ret = _np_concatAndFree(ret, "NO DATA. Compile with MEMORY_CHECK %s", new_line); 
+#endif
 			ret = _np_concatAndFree(ret, "--- extended reasons end  ---%s", new_line);
 		}
 		
@@ -254,10 +283,6 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 	ret = _np_concatAndFree(ret, "test_struct_t_e    count %4"PRIu64" max ref %3"PRIu64" %s", summary[test_struct_t_e],		summary[100 * test_struct_t_e],			new_line);
 
 	ret = _np_concatAndFree(ret, "--- memory end ---%s",new_line);
-
-	// ret = _np_concatAndFree(ret, "--- subject list start ---%s",new_line);
-	// ret = _np_concatAndFree(ret, "%s",subject_list);
-	// ret = _np_concatAndFree(ret, "--- subject list end   ---%s",new_line);
 
 	return (ret);
 }

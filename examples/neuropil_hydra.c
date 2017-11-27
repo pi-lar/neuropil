@@ -63,6 +63,8 @@ int main(int argc, char **argv)
 	char* bootstrap_hostnode_default;
 	uint32_t required_nodes = NUM_HOST;
 
+	double started_at = np_time_now();
+
 	int no_threads = 8;
 	char *j_key = NULL;
 	char* proto = "udp4";
@@ -71,6 +73,9 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 	char* required_nodes_opt = NULL;
+	char* http_domain = NULL;
+	char* node_creation_speed_str = NULL;
+	double node_creation_speed = 3.415;
 
 	int opt;
 	if (parse_program_args(
@@ -84,13 +89,22 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-n nr_of_nodes]",
-		"n:",
-		&required_nodes_opt
+		"[-n nr_of_nodes] [-w http domain] [-z (double|\"default\")speed of node creation]",
+		"n:w:z:",
+		&required_nodes_opt,
+		&http_domain,
+		&node_creation_speed_str
+
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
 	if (required_nodes_opt != NULL) required_nodes = atoi(required_nodes_opt);
+	if (node_creation_speed_str != NULL) {
+		if (strcmp(node_creation_speed_str, "default") != 0) {
+			node_creation_speed = atof(node_creation_speed_str);
+		}
+		free(node_creation_speed_str);
+	}
 	
 	if (j_key != NULL) {
 		create_bootstrap = FALSE;
@@ -110,13 +124,13 @@ int main(int argc, char **argv)
 
 		j_key = bootstrap_hostnode_default;
 
-		fprintf(stdout, "No bootstrap host specified.\n");
+		np_example_print(stdout, "No bootstrap host specified.\n");
 		current_pid = fork();
 
 		// Running bootstrap node in a different fork
 		if (0 == current_pid) {
 
-			fprintf(stdout, "Creating new bootstrap node...\n");
+			np_example_print(stdout, "Creating new bootstrap node...\n");
 			/**
 
 			 *.. _np_hydra_create_bootstrap_node:
@@ -131,7 +145,7 @@ int main(int argc, char **argv)
 			 */
 			char log_file_host[256];
 			sprintf(log_file_host, "%s%s_host_%s.log", logpath, "/neuropil_hydra", port);
-			fprintf(stdout, "logpath: %s\n", log_file_host);
+			np_example_print(stdout, "logpath: %s\n", log_file_host);
 
 			np_log_init(log_file_host, level);
 			// provide localhost as hostname to support development on local machines
@@ -142,23 +156,24 @@ int main(int argc, char **argv)
 
 			// start http endpoint
 
-			if(FALSE == _np_http_init(NULL, NULL)){
-				fprintf(stdout, "Node could not start HTTP interface");
-				log_msg(LOG_WARN, "Node could not start HTTP interface");
-			}
 
+			// get public / local network interface id					
 			/**
 			 Enable the bootstrap node as master for our SysInfo subsystem
 
 			   .. code-block:: c
 
-			   \code
-			 */
-			np_sysinfo_enable_master();
-			/**
+			   np_sysinfo_enable_master();			
 
-			 \endcode
 			 */
+			example_http_server_init(http_domain); // np_sysinfo_enable_master() is included here
+
+			
+			// If you want to you can enable the statistics modulte to view the nodes statistics
+			np_statistics_add_watch_internals(); 
+			np_statistics_add_watch(_NP_SYSINFO_REQUEST);
+			np_statistics_add_watch(_NP_SYSINFO_REPLY);			
+
 			/**
 			  And wait for incomming connections
 
@@ -174,9 +189,9 @@ int main(int argc, char **argv)
 			 \endcode
 			 */
 		}
-		fprintf(stdout, "Bootstrap host node: %s\n", j_key);
+		np_example_print(stdout, "Bootstrap host node: %s\n", j_key);
 		if (NULL == j_key) {
-			fprintf(stderr, "Bootstrap host node could not start ... exit\n");
+			np_example_print(stderr, "Bootstrap host node could not start ... exit\n");
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -226,25 +241,20 @@ int main(int argc, char **argv)
 			 \endcode
 			  To create unique names and to use a seperate port for every
 			  node we will start the nodes in forks of this thread and use the pid as unique id.
-
-			  As the pid may be greater then the port range we will shift it if necessary.
-
+			  
 				.. code-block:: c
 
 			   \code
 			 */
+			
+			sprintf(port, "%d", atoi(port) + 1);
+
 			current_pid = fork();
 
 			if (0 == current_pid) {
-				fprintf(stdout, "started child process %d\n", current_pid);
+				np_example_print(stdout, "started child process %d\n", current_pid);
 				current_pid = getpid();
 
-				char port[7];
-				if (current_pid > 65535) {
-					sprintf(port, "%d", (current_pid >> 1));
-				} else {
-					sprintf(port, "%d", current_pid);
-				}
 				/**
 				 \endcode
 
@@ -283,7 +293,7 @@ int main(int argc, char **argv)
 				 */
 
 				do {
-					fprintf(stdout, "try to join bootstrap node\n");
+					np_example_print(stdout, "try to join bootstrap node\n");
 				 
 					np_send_join(j_key);
 
@@ -295,11 +305,13 @@ int main(int argc, char **argv)
 					}
 
 					if(FALSE == child_status->my_node_key->node->joined_network ) {
-						fprintf(stderr, "%s could not join network!\n",port);
+						np_example_print(stderr, "%s could not join network!\n",port);
 					}
 				} while (FALSE == child_status->my_node_key->node->joined_network) ;
 
-				fprintf(stdout, "%s joined network!\n",port);
+				char time[50] = { 0 };
+				reltime_to_str(time, np_time_now() - started_at);
+				np_example_print(stdout, "%s joined network after %s!\n",port, time);
 				/**
 				 \endcode
 				 */
@@ -314,7 +326,7 @@ int main(int argc, char **argv)
 
 				 \code
 				 */
-				fprintf(stdout, "adding (%d) : child process %d \n",
+				np_example_print(stdout, "adding (%d) : child process %d \n",
 						sll_size(list_of_childs), current_pid);
 				array_of_pids[sll_size(list_of_childs)] = current_pid;
 				sll_append(int, list_of_childs,
@@ -323,6 +335,8 @@ int main(int argc, char **argv)
 				 \endcode
 				 */
 			}
+			if(node_creation_speed > 0)
+				ev_sleep(node_creation_speed);
 		} else {
 			/**
 			  .. _neuropil_hydra_step_check_nodes_still_present:
@@ -340,21 +354,21 @@ int main(int argc, char **argv)
 			current_pid = waitpid(-1, &status, WNOHANG);
 			// check for stopped child processes
 			if (current_pid != 0) {
-				fprintf(stderr, "trying to find stopped child process %d\n",
+				np_example_print(stderr, "trying to find stopped child process %d\n",
 						current_pid);
 				sll_iterator(int) iter = NULL;
 				uint32_t i = 0;
 				for (iter = sll_first(list_of_childs); iter != NULL;
 						sll_next(iter)) {
 					if (current_pid == iter->val) {
-						fprintf(stderr, "removing stopped child process\n");
+						np_example_print(stderr, "removing stopped child process\n");
 						sll_delete(int, list_of_childs, iter);
 						for (; i < required_nodes; i++) {
 							array_of_pids[i] = array_of_pids[i + 1];
 						}
 						break;
 					} else {
-						fprintf(stderr, "not found\n");
+						np_example_print(stderr, "not found\n");
 					}
 					i++;
 				}
@@ -363,8 +377,8 @@ int main(int argc, char **argv)
 			/**
 			 \endcode
 			 */
+			ev_sleep(3.415);
 		}
-		ev_sleep(3.415);
 
 	}
 }

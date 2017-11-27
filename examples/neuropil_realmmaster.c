@@ -68,8 +68,8 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	snprintf(time_entry+19, 6, ".%6d", token_time.tv_usec);
 	fprintf(stdout, "\tissued date       : %s\n", time_entry);
 
-	token_time.tv_sec = (long) token->expiration;
-	token_time.tv_usec = (long) ((token->expiration - (double) token_time.tv_sec) * 1000000.0);
+	token_time.tv_sec = (long) token->expires_at;
+	token_time.tv_usec = (long) ((token->expires_at - (double) token_time.tv_sec) * 1000000.0);
 	localtime_r(&token_time.tv_sec, &token_ts);
 	strftime(time_entry, 19, "%Y-%m-%d %H:%M:%S", &token_ts);
 	snprintf(time_entry+19, 6, ".%6d", token_time.tv_usec);
@@ -145,8 +145,8 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 	snprintf(time_entry+19,  6, ".%6d", token_time.tv_usec);
 	fprintf(stdout, "\tissued date       : %s\n", time_entry);
 
-	token_time.tv_sec = (long) token->expiration;
-	token_time.tv_usec = (long) ((token->expiration - (double) token_time.tv_sec) * 1000000.0);
+	token_time.tv_sec = (long) token->expires_at;
+	token_time.tv_usec = (long) ((token->expires_at - (double) token_time.tv_sec) * 1000000.0);
 	localtime_r(&token_time.tv_sec, &token_ts);
 	strftime(time_entry, 19, "%Y-%m-%d %H:%M:%S", &token_ts);
 	snprintf(time_entry+19, 6, ".%6d", token_time.tv_usec);
@@ -195,12 +195,13 @@ np_aaatoken_t* create_realm_identity()
 
 	strncpy(realm_identity->realm,   "pi-lar test realm",  255);
 	strncpy(realm_identity->subject, "pi-lar realmmaster", 255);
-	strncpy(realm_identity->issuer,  "pi-lar realmmaster", 255);
+	strncpy(realm_identity->issuer,  "pi-lar realmmaster", 64);
 
-	realm_identity->not_before = ev_time();
-	realm_identity->expiration = realm_identity->not_before + 7200.0;
+	realm_identity->not_before = np_time_now();
+	realm_identity->expires_at = realm_identity->not_before + 7200.0;
 	realm_identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
+	free(realm_identity->uuid);
 	realm_identity->uuid = np_uuid_create("pi-lar realmmaster", 0);
 
 	// add some unique identification parameters

@@ -22,7 +22,10 @@ extern "C" {
 		void np_statistics_add_watch(char* subject);
 
 	NP_API_EXPORT
-		char * np_statistics_print(char* asOneLine);
+		char * np_statistics_print(np_bool asOneLine);
+
+	NP_API_EXPORT
+		void np_statistics_add_watch_internals();
 
 #ifdef __cplusplus
 }

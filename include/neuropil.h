@@ -15,15 +15,12 @@ It should contain all required functions to send or receive messages.
 
 #include <pthread.h>
 
+#include "np_constants.h"
+#include "np_settings.h"
 #include "np_types.h"
 #include "np_list.h"
 
-#define NP_VERSION_MAJOR	"0"
-#define NP_VERSION_MINOR	"3"
-#define NP_VERSION_RELEASE	"0"
-
-#define NEUROPIL_VERSION	"neuropil " NP_VERSION_MAJOR "." NP_VERSION_MINOR
-#define NEUROPIL_RELEASE	NEUROPIL_VERSION "." NP_VERSION_RELEASE
+#define NEUROPIL_RELEASE	"neuropil_0.4.0"
 #define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2017 neuropil.org, Cologne, Germany"
 #define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2017 pi-lar GmbH, Cologne, Germany"
 
@@ -355,7 +352,7 @@ NP_API_EXPORT
 void np_start_job_queue(uint8_t pool_size);
 
 /**
-.. c:function:: void _np_ping(np_key_t* key)
+.. c:function:: void _np_ping_send(np_key_t* key)
 
    Sends a ping message to a key. Can be used to check the connectivity to a node
    The ping message is acknowledged in network layer. This function is mainly used by the neuropil subsystem.
@@ -366,11 +363,17 @@ void np_start_job_queue(uint8_t pool_size);
 
 */
 NP_API_INTERN
-void _np_ping(np_key_t* key);
+void _np_ping_send(np_key_t* key);
 
 NP_API_INTERN
 void _np_send_ack(np_message_t* in_msg);
 
+NP_API_INTERN
+double np_time_now();
+
+// send join request
+NP_API_INTERN
+void _np_send_simple_invoke_request(np_key_t* target, const char* type);
 
 #ifdef __cplusplus
 }

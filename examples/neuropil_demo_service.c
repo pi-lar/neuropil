@@ -36,14 +36,16 @@
 #include "np_msgproperty.h"
 #include "np_keycache.h"
 #include "np_tree.h"
+#include "np_route.h"
+#include "np_key.h"
+#include "np_sysinfo.h"
+
 
 #include "neuropil.h"
 #include "example_helper.c"
 
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
-
-#define DEBUG 0
 
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
@@ -60,6 +62,7 @@ int main(int argc, char **argv) {
 	char* publish_domain = NULL;
 	int level = -2;
 	char* logpath = ".";
+	char* http_domain = NULL;
 
 	int opt;
 	if (parse_program_args(
@@ -73,8 +76,9 @@ int main(int argc, char **argv) {
 		&publish_domain,
 		&level,
 		&logpath,
-		NULL,
-		NULL
+		"[-w]",
+		"w:",
+		&http_domain
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
@@ -85,15 +89,19 @@ int main(int argc, char **argv) {
 	np_log_init(log_file_host, level);
 	np_init(proto, port, publish_domain);
 
-	if (FALSE == _np_http_init(NULL,NULL))
+
+
+	if (FALSE == _np_http_init(http_domain))
 	{
-		log_msg(LOG_WARN, "neuropil_init: initialization of http interface failed");
-	}
+		fprintf(stderr, "Node could not start HTTP interface\n");
+		log_msg(LOG_WARN, "Node could not start HTTP interface");
+		np_sysinfo_enable_slave();
+	} else {
+		np_sysinfo_enable_master();
+	} 
 
 	np_start_job_queue(no_threads);
-
-	np_sysinfo_enable_master();
-
+ 
 	np_msgproperty_t* msg_props = NULL;
 	np_new_obj(np_msgproperty_t, msg_props);
 	msg_props->msg_subject =  strndup("echo", 255);
@@ -117,9 +125,34 @@ int main(int argc, char **argv) {
 	pong_props->msg_ttl = 20.0;
 	np_msgproperty_register(pong_props);
 	np_add_receive_listener(receive_pong, "pong");
+	
+	double lastping = np_time_now();
+	np_send_text("ping", "ping", _ping_count++, NULL);
+	uint32_t last_count_of_routes = 0;
+	uint32_t count_of_routes = 0;
 
 	while (TRUE) {
 		ev_sleep(0.1);
+
+		 double now = np_time_now();
+				// invoke a ping message every 10 seconds
+			if ((now - lastping) > 10.0)
+		{
+			lastping = np_time_now();
+			np_send_text("ping", "ping", _ping_count++, NULL);
+		}
+		// As long as we do not have the appropiate events (node_joined/node_left)
+		// we try to evaluate this via the routing table
+		sll_return(np_key_ptr) routes = _np_route_get_table();
+		count_of_routes = sll_size(routes);
+		np_unref_list(routes, "_np_route_get_table");
+		if (count_of_routes < last_count_of_routes) {
+			fprintf(stdout, "Node left network.\n");
+		}
+		else if (count_of_routes < last_count_of_routes) {
+			fprintf(stdout, "Node joined network.\n");
+		}
+		last_count_of_routes = count_of_routes;
 	}
 }
 

@@ -30,3 +30,7 @@ test/.DS_STORE
 
 doc/sphinxcontrib-cmtinc/
 doc/pyenv/
+*.pyc
+pyenv/
+.vs
+CppProperties.json

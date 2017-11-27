@@ -54,16 +54,16 @@ enum np_aaastate_e
 
 #define AAA_INVALID (~AAA_VALID)
 
-#define IS_VALID(x) (0 < (x & AAA_VALID))
+#define IS_VALID(x) (AAA_VALID == (AAA_VALID & x ))
 #define IS_INVALID(x) (!IS_VALID(x))
 
-#define IS_AUTHENTICATED(x) (0 < (AAA_AUTHENTICATED & x))
+#define IS_AUTHENTICATED(x) (AAA_AUTHENTICATED  == (AAA_AUTHENTICATED & x))
 #define IS_NOT_AUTHENTICATED(x) (!IS_AUTHENTICATED(x))
 
-#define IS_AUTHORIZED(x) (0 < (AAA_AUTHORIZED & x))
+#define IS_AUTHORIZED(x) (AAA_AUTHORIZED  == (AAA_AUTHORIZED & x))
 #define IS_NOT_AUTHORIZED(x) (!IS_AUTHORIZED(x))
 
-#define IS_ACCOUNTING(x) (0 < (AAA_ACCOUNTING & x))
+#define IS_ACCOUNTING(x) (AAA_ACCOUNTING  == (AAA_ACCOUNTING & x))
 #define IS_NOT_ACCOUNTING(x) (!IS_ACCOUNTING(x))
 
 /**
@@ -97,9 +97,9 @@ enum np_aaastate_e
 
    date when the token will start to be valid
 
-.. c:member:: double expiration
+.. c:member:: double expires_at
 
-   expiration date of the token
+   expires_at date of the token
 
 .. c:member:: aaastate_type state
 
@@ -138,25 +138,33 @@ struct np_aaatoken_s
 
 	char realm[255]; // owner or parent entity
 
-	char issuer[255]; // from (can be self signed)
+	char issuer[65]; // from (can be self signed)
 	char subject[255]; // about
 	char audience[255]; // to
 
 	double issued_at;
 	double not_before;
-	double expiration;
+	double expires_at;
 
 	aaastate_type state;
 
 	char* uuid;
 
 	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
-	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
 	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
+	np_bool private_key_is_set;
+
+	unsigned char* signed_hash;
+	unsigned char signature[crypto_sign_BYTES];
+	np_bool is_signature_verified;
 
 	// key/value extension list
 	np_tree_t* extensions;
-
+	/*
+	A core token only has a subset of defined en-/decoded  values and may only be used to 
+	instanciate a cryptographic safe communication
+	*/
+	np_bool is_core_token;
 } NP_API_EXPORT;
 
 #ifndef SWIG
@@ -166,6 +174,8 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
 // serialization of the np_aaatoken_t structure
 NP_API_INTERN
 void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token);
+NP_API_INTERN
+void np_aaatoken_core_encode(np_tree_t* data, np_aaatoken_t* token, np_bool standalone);
 NP_API_INTERN
 void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
 
@@ -207,6 +217,16 @@ NP_API_INTERN
 np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject);
 NP_API_INTERN
 void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token);
+NP_API_INTERN
+unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool full);
+NP_API_INTERN
+np_bool _np_aaatoken_is_core_token(np_aaatoken_t* token);
+NP_API_INTERN
+void _np_aaatoken_mark_as_core_token(np_aaatoken_t* token);
+NP_API_INTERN
+void _np_aaatoken_mark_as_full_token(np_aaatoken_t* token);
+NP_API_INTERN
+void _np_aaatoken_upgrade_core_token(np_key_t* key_with_core_token, np_aaatoken_t* full_token);
 
 #ifdef __cplusplus
 }

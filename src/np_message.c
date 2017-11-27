@@ -41,6 +41,7 @@
 #include "np_tree.h"
 #include "np_settings.h"
 #include "np_types.h"
+#include "np_ackentry.h"
 #include "np_constants.h"
 
 
@@ -50,6 +51,8 @@ void _np_message_t_new(void* msg)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_new(void* msg){");
 	np_message_t* msg_tmp = (np_message_t*) msg;
+
+	_np_threads_mutex_init(&msg_tmp->msg_chunks_lock,"msg_chunks_lock");
 
 	msg_tmp->uuid = np_uuid_create("msg", 0);
 
@@ -67,16 +70,21 @@ void _np_message_t_new(void* msg)
 
 	msg_tmp->no_of_chunks = 1;
 	msg_tmp->is_single_part = FALSE;
-
-	_np_threads_mutex_init(&msg_tmp->msg_chunks_lock);
+	
+	sll_init(np_ackentry_on_t, msg_tmp->on_ack);
+	sll_init(np_ackentry_on_t, msg_tmp->on_timeout);
+	
 	pll_init(np_messagepart_ptr, msg_tmp->msg_chunks);
 }
 
 // destructor of np_message_t
 void _np_message_t_del(void* data)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_del(void* data){");
+	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_del(void* data){");	
 	np_message_t* msg = (np_message_t*) data;
+
+	sll_free(np_ackentry_on_t, msg->on_ack);
+	sll_free(np_ackentry_on_t, msg->on_timeout);
 
 	np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
 
@@ -125,33 +133,20 @@ void _np_message_calculate_chunking(np_message_t* msg)
 
 	// TODO: message part split-up informations
 	uint16_t fixed_size =
-			MSG_ARRAY_SIZE + MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
-			msg->header->byte_size + msg->instructions->byte_size;
-	uint16_t payload_size = msg->properties->byte_size
-			+ msg->body->byte_size + msg->footer->byte_size;
+		MSG_ARRAY_SIZE + 
+		MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
+		(msg->header == NULL ? 0 : msg->header->byte_size) +
+		(msg->instructions == NULL ? 0 : msg->instructions->byte_size);
+
+	uint16_t payload_size = 
+		(msg->properties == NULL ? 0 : msg->properties->byte_size) +
+		(msg->body == NULL ? 0 : msg->body->byte_size) +
+		(msg->footer == NULL ? 0 : msg->footer->byte_size);
 
 	uint16_t chunks =
 			((uint16_t) (payload_size) / (MSG_CHUNK_SIZE_1024 - fixed_size)) + 1;
 
-//	uint16_t garbage_size = (chunks*MSG_CHUNK_SIZE_1024 - chunks*fixed_size) - payload_size;
-//
-//	if (garbage_size <= (strlen(NP_MSG_FOOTER_GARBAGE) + MSG_FOOTERBIN_SIZE) )
-//	{
-//		// TODO: check if this recalculation is working
-//		log_msg(LOG_INFO, "recalculating garbage size for %s", msg->uuid);
-//		chunks++;
-//		garbage_size = (chunks*MSG_CHUNK_SIZE_1024 - chunks*fixed_size) - payload_size;
-//	}
-//
-//	uint16_t real_garbage_size = garbage_size - strlen(NP_MSG_FOOTER_GARBAGE) - MSG_FOOTERBIN_SIZE - chunks*MSG_ARRAY_SIZE;
-//
-//	unsigned char garbage[real_garbage_size];
-//	randombytes_buf(garbage, real_garbage_size);
-//	np_tree_insert_str(msg->footer, NP_MSG_FOOTER_GARBAGE, np_treeval_new_bin(garbage, real_garbage_size));
-
 	msg->no_of_chunks = chunks;
-
-	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "Size of msg (%s) %"PRIu16" bytes. Size of garbage %"PRIu16" Size of fixed_size %"PRIu16" bytes. Chunking into %"PRIu16" parts", msg->uuid, payload_size, real_garbage_size, fixed_size, msg->no_of_chunks);
 }
 
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
@@ -209,7 +204,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 					{
 						log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
 							"message %s (%s) not complete yet (%d of %d), waiting for missing parts",
-							subject, msg_uuid, pll_size(msg_in_cache->msg_chunks), expected_msg_chunks);
+							subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
 
 						// nothing to return as we still wait for chunks
 						// ret = NULL;
@@ -225,7 +220,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 
 						log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
 							"message %s (%s) is complete now  (%d of %d)",
-							subject, msg_uuid, pll_size(msg_in_cache->msg_chunks), expected_msg_chunks);						
+							subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
 					}
 				}
 				else
@@ -256,7 +251,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 np_bool _np_message_is_expired(const np_message_t* const msg_to_check)
 {
 	np_bool ret = FALSE;
-	double now = ev_time();
+	double now = np_time_now();
 	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TTL, msg_ttl);
 	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
 
@@ -288,7 +283,7 @@ np_bool _np_message_serialize(np_jobargs_t* args)
 	}
 	// we simply override the header and instructions part for a single part message here
 	// the byte size should be the same as before
-	cmp_init(&cmp, part->msg_part, _np_buffer_reader, _np_buffer_writer);
+	cmp_init(&cmp, part->msg_part, _np_buffer_reader, NULL, _np_buffer_writer);
 	cmp_write_array(&cmp, 5);
 
 	int i = cmp.buf-part->msg_part;
@@ -306,16 +301,18 @@ np_bool _np_message_serialize(np_jobargs_t* args)
 	return (TRUE);
 }
 
-np_bool _np_message_serialize_chunked(np_jobargs_t* args)
+np_bool _np_message_serialize_chunked(np_message_t* msg)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_serialize_chunked(np_jobargs_t* args){");
 	np_bool ret_val = FALSE;
 
-	np_message_t* msg = args->msg;
-	np_tree_replace_str(msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(msg->uuid));
+	//_np_message_calculate_chunking(msg);
 
-	// clean up any old chunking
+ 	np_tree_insert_str(msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(msg->uuid));
+
 	_LOCK_ACCESS(&msg->msg_chunks_lock){
+		// clean up any old chunking
+
 		if (0 < pll_size(msg->msg_chunks))
 		{
 			pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
@@ -362,9 +359,10 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 
 	uint16_t current_chunk_size = 0;
 
+	// TODO: do this serialization in parallel in background
 	while (i < msg->no_of_chunks)
 	{
-		np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i+1;
+		np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1] = i + 1;
 
 		np_messagepart_t* part;
 		np_new_obj(np_messagepart_t, part);
@@ -379,7 +377,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 		// pre-fill some garbage
 		randombytes_buf(part->msg_part, max_chunk_size);
 
-		cmp_init(&cmp, part->msg_part, _np_buffer_reader, _np_buffer_writer);
+		cmp_init(&cmp, part->msg_part, _np_buffer_reader, NULL, _np_buffer_writer);
 		cmp_write_array(&cmp, 5);
 
 		// current_chunk_size = cmp.buf - part->msg_part;
@@ -391,7 +389,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 
 			memset(bin_header, 0, msg->header->byte_size);
 			// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the header (size %hd)", msg->properties->size);
-			cmp_init(&cmp_header, bin_header, _np_buffer_reader, _np_buffer_writer);
+			cmp_init(&cmp_header, bin_header, _np_buffer_reader, NULL, _np_buffer_writer);
 			// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the header (size %hd)", msg->header->byte_size);
 			_np_tree_serialize(msg->header, &cmp_header);
 		}
@@ -401,23 +399,28 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 		cmp.buf += msg->header->byte_size;
 		// current_chunk_size = cmp.buf-part->msg_part;
 
-		bin_instructions = malloc(msg->instructions->byte_size);
-		CHECK_MALLOC(bin_instructions);
+		// reserialize the instructions into every chunk (_NP_MSG_INST_PARTS has changed)
+		{
+			bin_instructions = malloc(msg->instructions->byte_size);
+			CHECK_MALLOC(bin_instructions);
 
-		memset(bin_instructions, 0, msg->instructions->byte_size);
-		// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serializing the instructions (size %hd)", msg->properties->size);
-		cmp_init(&cmp_instructions, bin_instructions, _np_buffer_reader, _np_buffer_writer);
-		// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serializing the instructions (size %hd)", msg->instructions->byte_size);
-		_np_tree_serialize(msg->instructions, &cmp_instructions);
+			memset(bin_instructions, 0, msg->instructions->byte_size);
+			// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serializing the instructions (size %hd)", msg->properties->size);
+			cmp_init(&cmp_instructions, bin_instructions, _np_buffer_reader, NULL, _np_buffer_writer);
+			// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serializing the instructions (size %hd)", msg->instructions->byte_size);
+			_np_tree_serialize(msg->instructions, &cmp_instructions);
 
-		// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "copying the instructions (size %hd)", msg->instructions->byte_size);
-		memcpy(cmp.buf, bin_instructions, msg->instructions->byte_size);
-		cmp.buf += msg->instructions->byte_size;
+			// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "copying the instructions (size %hd)", msg->instructions->byte_size);
+			memcpy(cmp.buf, bin_instructions, msg->instructions->byte_size);
+			cmp.buf += msg->instructions->byte_size;
 
-		free(bin_instructions);
-		bin_instructions = NULL;
+			free(bin_instructions);
+			bin_instructions = NULL;
 
-		current_chunk_size = cmp.buf - part->msg_part;
+			// update current chunk size
+			current_chunk_size = cmp.buf - part->msg_part;
+		}
+		
 
 		if (NULL == bin_properties)
 		{
@@ -428,7 +431,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 			bin_properties_ptr = bin_properties;
 			memset(bin_properties, 0, msg->properties->byte_size);
 			// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serializing the properties (size %hd)", msg->properties->size);
-			cmp_init(&cmp_properties, bin_properties, _np_buffer_reader, _np_buffer_writer);
+			cmp_init(&cmp_properties, bin_properties, _np_buffer_reader, NULL, _np_buffer_writer);
 			_np_tree_serialize(msg->properties, &cmp_properties);
 			// log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serializing the properties (size %hd)", msg->properties->byte_size);
 		}
@@ -473,7 +476,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 			bin_body_ptr = bin_body;
 			memset(bin_body, 0, msg->body->byte_size);
 			// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the body (size %hd)", msg->properties->size);
-			cmp_init(&cmp_body, bin_body, _np_buffer_reader, _np_buffer_writer);
+			cmp_init(&cmp_body, bin_body, _np_buffer_reader, NULL, _np_buffer_writer);
 			_np_tree_serialize(msg->body, &cmp_body);
 			// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the body (size %hd)", msg->body->byte_size);
 		}
@@ -520,7 +523,7 @@ np_bool _np_message_serialize_chunked(np_jobargs_t* args)
 
 			bin_footer_ptr = bin_footer;
 			memset(bin_footer, 0, msg->footer->byte_size);
-			cmp_init(&cmp_footer, bin_footer, _np_buffer_reader, _np_buffer_writer);
+			cmp_init(&cmp_footer, bin_footer, _np_buffer_reader, NULL, _np_buffer_writer);
 			_np_tree_serialize(msg->footer, &cmp_footer);
 			// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the footer (size %hd)", msg->footer->byte_size);
 		}
@@ -600,7 +603,7 @@ np_bool _np_message_deserialize(np_message_t* msg, void* buffer)
 		buffer_container.bufferMaxCount = MSG_CHUNK_SIZE_1024;
 		buffer_container.message = msg;
 
-		cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_writer);
+		cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, NULL, _np_buffer_container_writer);
 		//cmp_init(&cmp, buffer, _np_buffer_reader, _np_buffer_writer);
 
 		uint32_t array_size;
@@ -720,7 +723,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			buffer_container.bufferMaxCount = MSG_CHUNK_SIZE_1024;
 			buffer_container.message = msg;
 
-			cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_writer);
+			cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, NULL, _np_buffer_container_writer);
 			//cmp_init(&cmp, current_chunk->msg_part, _np_buffer_reader, _np_buffer_writer);
 
 			uint32_t array_size;
@@ -807,7 +810,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		if (NULL != bin_properties)
 		{
 			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg properties %u", msg->uuid, size_properties);
-			cmp_init(&cmp_properties, bin_properties, _np_buffer_reader, _np_buffer_writer);
+			cmp_init(&cmp_properties, bin_properties, _np_buffer_reader, NULL, _np_buffer_writer);
 			_np_tree_deserialize(msg->properties, &cmp_properties);
 			// TODO: check if the complete buffer was read (byte count match)
 
@@ -816,7 +819,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		if (NULL != bin_body)
 		{
 			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg body %u", msg->uuid, size_body);
-			cmp_init(&cmp_body, bin_body, _np_buffer_reader, _np_buffer_writer);
+			cmp_init(&cmp_body, bin_body, _np_buffer_reader, NULL, _np_buffer_writer);
 			_np_tree_deserialize(msg->body, &cmp_body);
 			// TODO: check if the complete buffer was read (byte count match)
 
@@ -825,7 +828,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		if (NULL != bin_footer)
 		{
 			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg footer %u", msg->uuid, size_footer);
-			cmp_init(&cmp_footer, bin_footer, _np_buffer_reader, _np_buffer_writer);
+			cmp_init(&cmp_footer, bin_footer, _np_buffer_reader, NULL, _np_buffer_writer);
 			_np_tree_deserialize(msg->footer, &cmp_footer);
 			// TODO: check if the complete buffer was read (byte count match)
 		}

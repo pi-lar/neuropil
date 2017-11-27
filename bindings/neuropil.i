@@ -6,6 +6,10 @@
 %module(package="neuropil") neuropil
 
 
+#define NP_API_INTERN
+#define NP_API_EXPORT
+#define NP_ENUM
+
 %include "stdint.i"
 
 %{
@@ -18,6 +22,7 @@
 %include "np_tree.i"
 %include "np_treeval.i"
 %include "np_message.i"
+%include "np_msgproperty.i"
 
 %rename(np_state) np_state_s;
 %rename(np_state) np_state_t;
@@ -28,23 +33,29 @@ static PyObject *py_authenticate_func = NULL;
 static PyObject *py_authorize_func = NULL;
 static PyObject *py_accounting_func = NULL;
 
-PyGILState_STATE gstate;
 
 static np_bool python_authenticate_callback(struct np_aaatoken_s* aaa_token)
 {
+    np_bool ret_val = FALSE;
     PyObject *arglist;
     PyObject *result;
 
+    PyGILState_STATE gstate;
     gstate = PyGILState_Ensure();
 
     PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
     arglist = Py_BuildValue("(O)", obj);
 
     result = PyObject_CallObject(py_authenticate_func, arglist);
-    np_bool ret_val = PyObject_IsTrue(result);
-
     Py_DECREF(arglist);
-    Py_XDECREF(result);
+
+    if (result != NULL) {
+       ret_val = PyObject_IsTrue(result);
+       Py_XDECREF(result);
+    } else {
+       log_msg(LOG_ERROR, "error calling authn python callback");
+       PyErr_Clear();
+    }
 
     PyGILState_Release(gstate);
 
@@ -53,19 +64,26 @@ static np_bool python_authenticate_callback(struct np_aaatoken_s* aaa_token)
 
 static np_bool python_authorize_callback(struct np_aaatoken_s* aaa_token)
 {
+   np_bool ret_val = FALSE;
    PyObject *arglist;
    PyObject *result;
 
+   PyGILState_STATE gstate;
    gstate = PyGILState_Ensure();
 
    PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
    arglist = Py_BuildValue("(O)", obj);
 
    result = PyEval_CallObject(py_authorize_func, arglist);
-   np_bool ret_val = PyObject_IsTrue(result);
-
    Py_DECREF(arglist);
-   Py_XDECREF(result);
+
+   if (result != NULL) {
+       ret_val = PyObject_IsTrue(result);
+       Py_XDECREF(result);
+   } else {
+       log_msg(LOG_ERROR, "error calling authz python callback");
+       PyErr_Clear();
+   }
 
    PyGILState_Release(gstate);
 
@@ -74,19 +92,26 @@ static np_bool python_authorize_callback(struct np_aaatoken_s* aaa_token)
 
 static np_bool python_accounting_callback(struct np_aaatoken_s* aaa_token)
 {
+   np_bool ret_val = FALSE;
    PyObject *arglist;
    PyObject *result;
 
+   PyGILState_STATE gstate;
    gstate = PyGILState_Ensure();
 
    PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
    arglist = Py_BuildValue("(O)", obj);
 
    result = PyEval_CallObject(py_accounting_func, arglist);
-   np_bool ret_val = PyObject_IsTrue(result);
-
    Py_DECREF(arglist);
-   Py_XDECREF(result);
+
+   if (result != NULL) {
+       ret_val = PyObject_IsTrue(result);
+       Py_XDECREF(result);
+   } else {
+       log_msg(LOG_ERROR, "error calling accounting python callback");
+       PyErr_Clear();
+   }
 
    PyGILState_Release(gstate);
 
@@ -103,9 +128,10 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
         log_msg(LOG_ERROR, "incoming message without subject, giving up");
         return FALSE;
     }
+
     if (NULL == callback_tree) {
-        log_msg(LOG_INFO, "no callback tree found ");
-        return FALSE;
+        log_msg(LOG_ERROR, "no callback tree found ");
+        abort();
     }
 
     log_msg(LOG_INFO, "lookup of python handler for message %s", msg_subject->val.value.s);
@@ -116,6 +142,7 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
         return FALSE;
     }
 
+    PyGILState_STATE gstate;
     gstate = PyGILState_Ensure();
 
     // use found functor, convert arguments to python args
@@ -140,8 +167,12 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
         if (ret_val == 1) {
             log_msg(LOG_ERROR, "callback function returned an success");
             cb_result = TRUE;
-        } else {
+        } else if (ret_val == 0) {
             log_msg(LOG_ERROR, "callback function returned an error");
+        } else {
+            log_msg(LOG_ERROR, "callback function result evaluation failed");
+            ret_val = PyBool_Check(result);
+            log_msg(LOG_ERROR, "return value is a bool: %d", ret_val);
         }
         Py_DECREF(result);
     }
@@ -149,6 +180,7 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
     {
         // PyErr_Print();
         log_msg(LOG_ERROR, "error calling python module");
+        PyErr_Clear();
     }
 
     PyGILState_Release(gstate);
@@ -180,7 +212,17 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
 
     %ignore authenticate_func; // authentication callback
     %ignore authorize_func;    // authorization callback
-    %ignore accounting_func;   // really needed ?
+    %ignore accounting_func;   // accounting callback ?
+
+
+    PyObject* get_connection_string()
+    {
+#if PY_VERSION_HEX >= 0x03000000
+        return PyUnicode_FromString(np_get_connection_string());
+#else
+        return PyString_FromString(np_get_connection_string());
+#endif
+    }
 
     void set_listener(PyObject* PyString, PyObject *PyFunc)
     {
@@ -188,6 +230,7 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
             callback_tree = np_tree_create();
         }
 
+        PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
 
         char* subject = PyString_AsString(PyString);
@@ -209,8 +252,77 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
         PyGILState_Release(gstate);
     }
 
+	np_msgproperty_t* get_inout_mx_property(PyObject* PyString)
+	{
+		PyGILState_STATE gstate;
+		gstate = PyGILState_Ensure();
+
+		char* subject = PyString_AsString(PyString);
+		log_msg(LOG_INFO, "searching for mx property with subject %s", subject);
+		np_msgproperty_t* prop = np_msgproperty_get(INBOUND | OUTBOUND, subject);
+
+		if (prop == NULL) {
+			np_new_obj(np_msgproperty_t, prop);
+			prop->msg_subject = strndup(subject, 255);
+			prop->mode_type = INBOUND | OUTBOUND;
+			np_msgproperty_register(prop);
+        } else {
+            log_msg(LOG_INFO, "found mx property with subject %s", prop->msg_subject);
+        }
+
+        PyGILState_Release(gstate);
+		return prop;
+	}
+
+	np_msgproperty_t* get_out_mx_property(PyObject* PyString)
+	{
+		PyGILState_STATE gstate;
+		gstate = PyGILState_Ensure();
+
+		char* subject = PyString_AsString(PyString);
+		log_msg(LOG_INFO, "searching for mx property with subject %s", subject);
+		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, subject);
+
+		if (prop == NULL) {
+			np_new_obj(np_msgproperty_t, prop);
+			prop->msg_subject = strndup(subject, 255);
+			prop->mode_type = OUTBOUND;
+			np_msgproperty_register(prop);
+            log_msg(LOG_INFO, "registered python subject %s (length: %lu)", subject, strlen(subject));
+        } else {
+            log_msg(LOG_INFO, "found mx property with subject %s", prop->msg_subject);
+        }
+
+        PyGILState_Release(gstate);
+		return prop;
+	}
+
+	np_msgproperty_t* get_in_mx_property(PyObject* PyString)
+	{
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+
+		char* subject = PyString_AsString(PyString);
+		log_msg(LOG_INFO, "searching for mx property with subject %s", subject);
+		np_msgproperty_t* prop = np_msgproperty_get(INBOUND, subject);
+		
+		if (prop == NULL) {
+			np_new_obj(np_msgproperty_t, prop);
+			prop->msg_subject = strndup(subject, 255);
+			prop->mode_type = INBOUND;
+			np_msgproperty_register(prop);
+            log_msg(LOG_INFO, "registered python subject %s (length: %lu)", subject, strlen(subject));
+		} else {
+		    log_msg(LOG_INFO, "found mx property with subject %s", prop->msg_subject);
+		}
+
+        PyGILState_Release(gstate);
+		return prop;
+	}
+
     void set_authn_func(PyObject *PyFunc)
     {
+        PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
 
         Py_XDECREF(py_authenticate_func); /* Dispose of previous callback */
@@ -223,6 +335,7 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
 
     void set_authz_func(PyObject *PyFunc)
     {
+        PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
 
         Py_XDECREF(py_authorize_func); /* Dispose of previous callback */
@@ -235,6 +348,7 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
 
     void set_acc_func(PyObject *PyFunc)
     {
+        PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
 
         Py_XDECREF(py_accounting_func); /* Dispose of previous callback */
@@ -259,5 +373,8 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
 %ignore _np_state;
 %ignore _np_ping;
 %ignore _np_send_ack;
+%ignore _np_ping_send;
+%ignore np_time_now;
+%ignore _np_send_simple_invoke_request;
 
 %include "../include/neuropil.h"

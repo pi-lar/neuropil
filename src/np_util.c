@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <float.h>
 #include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -38,10 +39,11 @@
 #include "np_route.h"
 #include "np_types.h"
 #include "np_list.h"
-#include "np_memory.h"
+#include "np_threads.h"
 
 
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
+NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
 char* np_uuid_create(const char* str, const uint16_t num)
 {
@@ -51,7 +53,7 @@ char* np_uuid_create(const char* str, const uint16_t num)
 	char* uuid_out = calloc(1,sizeof(char)*UUID_SIZE);
 	CHECK_MALLOC(uuid_out);
 
-	double now = ev_time();
+	double now = np_time_now();
 	snprintf (input, 255, "%s:%u:%16.16f", str, num, now);
 	// log_debug_msg(LOG_DEBUG, "created input uuid: %s", input);
 	crypto_generichash(out, 18, (unsigned char*) input, 256, NULL, 0);
@@ -354,7 +356,6 @@ char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
 		ret = (char*) malloc(json_size * sizeof(char));
 		CHECK_MALLOC(ret);
 		json_serialize_to_buffer_pretty(data, ret, json_size);
-
 	}else{
 		json_size = json_serialization_size(data);
 		ret = (char*) malloc(json_size * sizeof(char));
@@ -367,8 +368,6 @@ char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
 	}else{
 		ret = json_serialize_to_string(data);
 	}
-
-
 	return ret;
 }
 
@@ -382,6 +381,7 @@ void np_dump_tree2log(np_tree_t* tree){
 		json_free_serialized_string(tmp);
 	}
 }
+
 /*
  * cancats target with source and applys the variable arguments as a string format on source
  * frees target and reasigns it with the new string
@@ -414,7 +414,7 @@ char* _np_concatAndFree(char* target, char* source, ... ) {
 np_bool _np_get_local_ip(char* buffer,int buffer_size){
 
 	np_bool ret = FALSE;
-	
+
 	const char* ext_server = "37.97.143.153";//"neuropil.io";
 	int dns_port = 53;
 
@@ -427,12 +427,12 @@ np_bool _np_get_local_ip(char* buffer,int buffer_size){
 		ret = FALSE;
 		log_msg(LOG_ERROR,"Could not detect local ip. (1) Error: Socket could not be created");
 	} else {
-		
+
 		memset( &serv, 0, sizeof(serv) );
 		serv.sin_family = AF_INET;
 		serv.sin_addr.s_addr = inet_addr( ext_server );
 		serv.sin_port = htons( dns_port );
-		
+
 		int err = connect( sock , (const struct sockaddr*) &serv , sizeof(serv) );
 		if(err < 0 ){
 			ret = FALSE;
@@ -442,7 +442,7 @@ np_bool _np_get_local_ip(char* buffer,int buffer_size){
 			struct sockaddr_in name;
 			socklen_t namelen = sizeof(name);
 			err = getsockname(sock, (struct sockaddr*) &name, &namelen);
-			
+
 			if(err < 0 )
 			{
 				ret = FALSE;
@@ -461,16 +461,16 @@ np_bool _np_get_local_ip(char* buffer,int buffer_size){
 				}else{
 					ret = TRUE;
 				}
-				
+
 			}
-			
-			
+
+
 		}
-		
+
 		close(sock);
-		
+
 	}
-	
+
 	return ret;
 }
 
@@ -478,7 +478,7 @@ np_bool _np_get_local_ip(char* buffer,int buffer_size){
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len) {
 	char * ret = NULL;
 	char * tmp = NULL;
-	sll_iterator(char_ptr) iter = sll_first(target);		
+	sll_iterator(char_ptr) iter = sll_first(target);
 	while (iter != NULL)
 	{
 		tmp = (iter->val);
@@ -501,11 +501,11 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
 	sll_iterator(char_ptr) iter = sll_first(target);
 	int i = 0;
 	while (iter != NULL)
-	{				
+	{
 		ret = _np_concatAndFree(ret, "%d:\"%s\"->", i, iter->val);
 		i++;
 		sll_next(iter);
-	}			
+	}
 	if (sll_size(target) != i) {
 		log_msg(LOG_ERROR, "Size of original list (%d) does not equal the size of the flattend string (items flattend: %d).", sll_size(target),i);
 		abort();
@@ -513,12 +513,12 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
 	return ret;
 }
 
-/** 
- * Returns a part copy of the original list. 
+/**
+ * Returns a part copy of the original list.
  * If amount is negative the part contains the last elements of the original list.
 */
 sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount) {
-	
+
 	sll_return(char_ptr) ret;
 	sll_init(char_ptr, ret);
 
@@ -532,7 +532,7 @@ sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount) {
 		}
 		else {
 			begin_copy_at = sll_size(target) - amount;
-		}		
+		}
 	}
 
 	sll_iterator(char_ptr) iter = sll_first(target);
@@ -546,4 +546,61 @@ sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount) {
 		sll_next(iter);
 	}
 	return ret;
+}
+
+#ifdef DEBUG_CALLBACKS
+np_sll_t(void_ptr, __np_debug_statistics) = NULL;
+
+void __np_util_debug_statistics_init() {
+	if (__np_debug_statistics == NULL) {
+		sll_init(void_ptr, __np_debug_statistics);
+	}
+}
+_np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key) {
+	__np_util_debug_statistics_init();
+	_np_util_debug_statistics_t* ret = NULL;
+	sll_iterator(void_ptr) iter = sll_first(__np_debug_statistics);
+
+	while (iter != NULL) {
+		_np_util_debug_statistics_t* item = (_np_util_debug_statistics_t*)iter->val;
+		if (strncmp(item->key, key, 255) == 0) {
+			ret = item;
+			break;
+		}
+		sll_next(iter);
+	}
+	return ret;
+}
+_np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double value) {
+	__np_util_debug_statistics_init();
+
+	_np_util_debug_statistics_t* item = __np_util_debug_statistics_get(key);
+	if (item == NULL) {
+		item = (_np_util_debug_statistics_t*)calloc(1, sizeof(_np_util_debug_statistics_t));
+		item->min = DBL_MAX;
+		item->max = 0;
+		item->avg = 0;
+		memcpy(item->key, key, strnlen(key, 254));
+		_np_threads_mutex_init(&item->lock,"debug_statistics");
+
+		sll_append(void_ptr, __np_debug_statistics, (void_ptr)item);
+	}
+
+	_LOCK_ACCESS(&item->lock)
+	{
+		item->avg = (item->avg * item->count + value) / (item->count + 1);
+		item->count++;
+
+		item->max = max(value, item->max);
+		item->min = min(value, item->min);
+	}
+
+	return item;
+}
+#endif
+/*
+	compares pointers and returns 0 if both pointers are the same
+*/
+int _np_util_cmp_ref(void* a, void* b) {
+	return a == b ? 0 : -1;
 }

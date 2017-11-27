@@ -11,6 +11,7 @@
 #include "np_types.h"
 #include "np_messagepart.h"
 #include "np_threads.h"
+#include "np_list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,6 +37,9 @@ struct np_message_s
 
 	np_msgproperty_ptr msg_property;
 
+	np_sll_t(np_ackentry_on_t, on_ack);
+	np_sll_t(np_ackentry_on_t, on_timeout);
+
 } NP_API_INTERN;
 
 struct _np_message_buffer_container_s
@@ -46,7 +50,9 @@ struct _np_message_buffer_container_s
 	void* buffer;
 } NP_API_INTERN;
 
+#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
+#endif
 
 /** message_create / free:
  ** creates the message to the destination #dest# the message format would be like:
@@ -69,7 +75,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check);
 NP_API_INTERN
 np_bool _np_message_serialize(np_jobargs_t* args);
 NP_API_INTERN
-np_bool _np_message_serialize_chunked(np_jobargs_t* args);
+np_bool _np_message_serialize_chunked(np_message_t * msg);
 
 NP_API_INTERN
 np_bool _np_message_deserialize(np_message_t* msg, void* buffer);
@@ -110,6 +116,7 @@ NP_API_INTERN
 char* _np_message_get_subject(np_message_t* msg);
 NP_API_INTERN
 np_bool _np_message_is_expired(const np_message_t* const msg_to_check);
+
 // msg header constants
 static const char* _NP_MSG_HEADER_TARGET    = "_np.target";
 static const char* _NP_MSG_HEADER_SUBJECT   = "_np.subj";

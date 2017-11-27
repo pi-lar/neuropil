@@ -66,7 +66,7 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
     cr_log_info("buffer_ptr\t\t %p\n", buffer_ptr);
     memset(buffer_ptr, 0, 512);
     reset_buffer_counter();
-    cmp_init(&cmp_write, buffer_ptr, buffer_reader_counter, buffer_writer_counter);
+    cmp_init(&cmp_write, buffer_ptr, buffer_reader_counter, NULL, buffer_writer_counter);
 
     np_dhkey_t tst;
     tst.t[0] = 1;
@@ -90,7 +90,7 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
 
 
 	// Beginn reading section
-    cmp_init(&cmp_read, buffer_ptr, buffer_reader_counter, buffer_writer_counter);
+    cmp_init(&cmp_read, buffer_ptr, buffer_reader_counter, NULL, buffer_writer_counter);
     reset_buffer_counter();
 
 	cmp_object_t obj;
@@ -126,7 +126,7 @@ Test(test_serialization, serialize_np_dhkey_t_in_np_tree_t_, .description="test 
     cr_log_info("buffer_ptr\t\t %p\n", buffer_ptr);
     memset(buffer_ptr, 0, 1024);
     reset_buffer_counter();
-    cmp_init(&cmp_write, buffer_ptr, buffer_reader_counter, buffer_writer_counter);
+    cmp_init(&cmp_write, buffer_ptr, buffer_reader_counter, NULL, buffer_writer_counter);
 
     np_dhkey_t tst;
     tst.t[0] = 1;
@@ -155,7 +155,7 @@ Test(test_serialization, serialize_np_dhkey_t_in_np_tree_t_, .description="test 
 
 
 	// Beginn reading section
-    cmp_init(&cmp_read, buffer_ptr, buffer_reader_counter, buffer_writer_counter);
+    cmp_init(&cmp_read, buffer_ptr, buffer_reader_counter, NULL, buffer_writer_counter);
     reset_buffer_counter();
     np_tree_t* read_tree = np_tree_create();
 
@@ -193,7 +193,7 @@ Test(test_serialization, _np_tree_serialize, .description="test the serializatio
     void* empty_buf_ptr = empty_buffer;
     memset(empty_buf_ptr, 0, 65536);
 
-    cmp_init(&cmp_empty, empty_buf_ptr, _np_buffer_reader, _np_buffer_writer);
+    cmp_init(&cmp_empty, empty_buf_ptr, _np_buffer_reader, NULL, _np_buffer_writer);
 	_np_tree_serialize(test_jrb_1, &cmp_empty);
 
 	// np_jrb_t* node = NULL;
@@ -263,7 +263,7 @@ Test(test_serialization, _np_tree_serialize, .description="test the serializatio
     void* buffer = malloc(65536);
     memset(buffer, 0, 65536);
 
-    cmp_init(&cmp, buffer, _np_buffer_reader, _np_buffer_writer);
+    cmp_init(&cmp, buffer, _np_buffer_reader, NULL, _np_buffer_writer);
 	_np_tree_serialize(test_jrb_2, &cmp);
 
 	/*

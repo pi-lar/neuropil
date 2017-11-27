@@ -121,7 +121,7 @@ a echo message is received by the nodes that you are going to start
 np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
 /** \endcode */
 	np_tree_t* header = msg->header;
-	fprintf(stdout, "%f - RECEIVED", ev_time());
+	fprintf(stdout, "%f - RECEIVED", np_time_now());
 
 	/**
 	 we try to evaluate the source of the message

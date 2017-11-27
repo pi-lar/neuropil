@@ -23,7 +23,7 @@ np_simple_cache_table_t* np_cache_init(int size) {
 		(np_simple_cache_table_t*)malloc(
 		sizeof(np_simple_cache_table_t));
 	CHECK_MALLOC(ret);
-	_np_threads_mutex_init(&ret->lock);
+	_np_threads_mutex_init(&ret->lock,"simple cache");
 
 	for (uint32_t i = 0; i < size; i++) {
 		sll_init(np_cache_item_ptr, ret->buckets[i]);
@@ -35,12 +35,8 @@ np_simple_cache_table_t* np_cache_init(int size) {
 np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char* const key)
 {
 	log_msg(LOG_TRACE, "start: np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key){");
-	// Contract
-	if(NULL == key){
-		log_msg(LOG_ERROR, "cache key cannot be NULL!");
-		abort();
-	}
-	// Contract end
+	
+	assert(NULL != key);
 
 	np_cache_item_t* ret = NULL;
 	_LOCK_ACCESS(&table->lock) {
@@ -96,7 +92,7 @@ int np_simple_cache_insert(np_simple_cache_table_t *table, const char* const key
 			item = iter->val;
 		}
 		item->value = value;
-		item->insert_time = ev_time();
+		item->insert_time = np_time_now();
 	}
 	return 0;
 }

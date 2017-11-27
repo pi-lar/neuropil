@@ -22,6 +22,7 @@ debug = ARGUMENTS.get('debug', 0)
 release = ARGUMENTS.get('release', 0)
 console_log = ARGUMENTS.get('console', 0)
 strict = int(ARGUMENTS.get('strict', 0))
+build_program = ARGUMENTS.get('program', False)
 
 
 print '####'
@@ -47,7 +48,7 @@ if int(release):
     env.Append(CCFLAGS = release_flags)
 
 # add debug compilation options
-debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2']
+debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O0']
 if int(debug):
     env.Append(CCFLAGS = debug_flags)
     env.Append(CCFLAGS = ['-DDEBUG'])
@@ -63,8 +64,7 @@ if 'FreeBSD' in platform.system():
 if 'Darwin' in platform.system():
   env.Append(CCFLAGS = ['-Wno-deprecated'] )
   env.Append(CCFLAGS = ['-mmacosx-version-min=10.11'] )
-  env.Append(CCFLAGS = ['-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include'] )
-  tpl_library_target = 'ios'
+  env.Append(CCFLAGS = ['-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include'] )
 if 'Linux' in platform.system():
   env.Append(CCFLAGS = ['-D_GNU_SOURCE'])
   env.Append(LIBS = ['rt', 'pthread'] )
@@ -102,7 +102,7 @@ conf = Configure(env)
 # Checks for libraries, header files, etc.
 for lib in env['LIBS']:
     if not conf.CheckLib(lib):
-        print 'Did not find library %s. Please install the appropiate package' % (lib)
+        print 'Did not find library %s. Please install the appropiate package. (More information regarding this error may be in "config.log")' % (lib)
         Exit(1)
 
 if not conf.CheckLibWithHeader('sodium', 'sodium.h', 'c'):
@@ -173,11 +173,11 @@ if int(analyze) and scan_build_exe:
 #     env.Append(CCFLAGS='-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include')
 
 # sources for neuropil
-SOURCES =  ['build/obj/dtime.c','build/obj/neuropil.c','build/obj/np_aaatoken.c','build/obj/np_axon.c','build/obj/np_dendrit.c']
+SOURCES =  ['build/obj/dtime.c','build/obj/np_time.c','build/obj/neuropil.c','build/obj/np_aaatoken.c','build/obj/np_axon.c','build/obj/np_dendrit.c']
 SOURCES += ['build/obj/np_glia.c','build/obj/np_http.c','build/obj/np_jobqueue.c','build/obj/np_dhkey.c','build/obj/np_key.c','build/obj/np_keycache.c']
 SOURCES += ['build/obj/np_log.c','build/obj/np_memory.c','build/obj/np_message.c','build/obj/np_msgproperty.c','build/obj/np_network.c','build/obj/np_node.c']
-SOURCES += ['build/obj/np_route.c','build/obj/np_tree.c','build/obj/np_util.c','build/obj/np_treeval.c','build/obj/np_threads.c']
-SOURCES += ['build/obj/np_sysinfo.c','build/obj/np_scache.c','build/obj/np_event.c','build/obj/np_messagepart.c','build/obj/np_statistics.c']
+SOURCES += ['build/obj/np_route.c','build/obj/np_tree.c','build/obj/np_util.c','build/obj/np_treeval.c','build/obj/np_threads.c','build/obj/np_pinging.c']
+SOURCES += ['build/obj/np_sysinfo.c','build/obj/np_scache.c','build/obj/np_event.c','build/obj/np_messagepart.c','build/obj/np_statistics.c','build/obj/np_ackentry.c']
 # source code 3rd party libraries
 SOURCES += ['build/obj/event/ev.c', 'build/obj/json/parson.c','build/obj/msgpack/cmp.c','build/obj/gpio/bcm2835.c']
 
@@ -201,38 +201,23 @@ if int(build_tests):
     AlwaysBuild(test_suite)
 
 # build example programs
-prg_np_ctrl = env.Program('bin/neuropil_controller', 'examples/neuropil_controller.c')
-Depends(prg_np_ctrl, np_dylib)
+programs = [
+    'controller','node','receiver','sender','receiver_cb','pingpong','hydra','shared_hydra',
+    'echo_server','echo_client','raspberry','demo_service'
+    ]
+env.Append(LIBS = ['ncurses'])
 
-prg_np_node = env.Program('bin/neuropil_node', 'examples/neuropil_node.c')
-Depends(prg_np_node, np_dylib)
+if build_program != False and build_program not in programs:
+    if build_program != 'lib_only':
+        print 'desired program %s does not exist' % build_program
+        print 'please select from: %s, lib_only' % ', '.join(programs)
+else:
+    for program in programs:
+        if build_program == False or build_program == program:
+            print 'building neuropil_%s' %program
+            prg_np = env.Program('bin/neuropil_%s'%program, 'examples/neuropil_%s.c'%program)
+            Depends(prg_np, np_dylib)
 
-prg_np_recv = env.Program('bin/neuropil_receiver', 'examples/neuropil_receiver.c')
-Depends(prg_np_recv, np_dylib)
-
-prg_np_send = env.Program('bin/neuropil_sender', 'examples/neuropil_sender.c')
-Depends(prg_np_send, np_dylib)
-
-prg_np_rccb = env.Program('bin/neuropil_receiver_cb', 'examples/neuropil_receiver_cb.c')
-Depends(prg_np_rccb, np_dylib)
-
-prg_np_rccb = env.Program('bin/neuropil_pingpong', 'examples/neuropil_pingpong.c')
-Depends(prg_np_rccb, np_dylib)
-
-prg_np_hydra = env.Program('bin/neuropil_hydra', 'examples/neuropil_hydra.c')
-Depends(prg_np_hydra, np_dylib)
-
-prg_np_shared_hydra = env.Program('bin/neuropil_shared_hydra', 'examples/neuropil_shared_hydra.c')
-Depends(prg_np_shared_hydra, np_dylib)
-
-prg_np_echo_server = env.Program('bin/neuropil_echo_server', 'examples/neuropil_echo_server.c')
-Depends(prg_np_echo_server, np_dylib)
-
-prg_np_echo_client = env.Program('bin/neuropil_echo_client', 'examples/neuropil_echo_client.c')
-Depends(prg_np_echo_client, np_dylib)
-
-prg_np_raspberry = env.Program('bin/neuropil_raspberry', 'examples/neuropil_raspberry.c')
-Depends(prg_np_raspberry, np_dylib)
 
 # clean up
 Clean('.', 'build')

@@ -18,24 +18,30 @@
     %feature ("ref") np_aaatoken_s "np_mem_refobj($this->obj, NULL);"
     %feature ("unref") np_aaatoken_s "np_mem_unrefobj($this->obj, NULL);"
 
-    %ignore obj;
-    %ignore state;
-    %ignore private_key;
-
     %immutable version;
+    %immutable uuid;
+
 	%immutable realm;
 	%immutable issuer; // from (can be self signed)
 	%immutable subject; // about
 	%immutable audience; // to
+
 	%immutable issued_at;
 	%immutable not_before;
-	%immutable expiration;
-	%immutable uuid;
+	%immutable expires_at;
 
+    %immutable signed_hash;
+    %immutable signature;
     %immutable public_key;
-    %immutable session_key;
 
     %immutable extensions;
+
+    %ignore obj;
+    %ignore state;
+    %ignore private_key;
+    %ignore private_key_is_set;
+    %ignore is_signature_verified;
+    %ignore is_core_token;
 };
 
 %ignore np_aaastate_e;
@@ -45,6 +51,13 @@
 
 %ignore np_aaatoken_encode;
 %ignore np_aaatoken_decode;
+
+%ignore np_aaatoken_core_encode;
+%ignore _np_aaatoken_get_fingerprint;
+%ignore _np_aaatoken_is_core_token;
+%ignore _np_aaatoken_mark_as_core_token;
+%ignore _np_aaatoken_mark_as_full_token;
+%ignore _np_aaatoken_upgrade_core_token;
 
 %ignore _np_aaatoken_create_dhkey;
 
@@ -60,6 +73,5 @@
 %ignore _np_aaatoken_add_local_mx;
 %ignore _np_aaatoken_get_local_mx;
 
-%include "../include/np_memory.h"
 %include "../include/np_list.h"
 %include "../include/np_aaatoken.h"

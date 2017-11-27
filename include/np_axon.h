@@ -13,43 +13,39 @@ extern "C" {
 
 // sends a handshake message to the target node, assumes physical neighbourhood
 NP_API_INTERN
-void _np_send_handshake(np_jobargs_t* args);
+void _np_out_handshake(np_jobargs_t* args);
 // splits up message into parts and sends all parts to the next node
 NP_API_INTERN
-void _np_send (np_jobargs_t* args);
+void _np_out (np_jobargs_t* args);
 // send an acknowledgement to the target node
 NP_API_INTERN
 void _np_out_ack (np_jobargs_t* args);
 
-// void _np_send_sender_discovery(np_msgproperty_t* msg_prop, np_key_t* target);
+// void _np_out_sender_discovery(np_msgproperty_t* msg_prop, np_key_t* target);
 NP_API_INTERN
-void _np_send_sender_discovery(np_jobargs_t* args);
-// void _np_send_receiver_discovery(np_msgproperty_t* msg_prop, np_key_t* target);
+void _np_out_sender_discovery(np_jobargs_t* args);
+// void _np_out_receiver_discovery(np_msgproperty_t* msg_prop, np_key_t* target);
 NP_API_INTERN
-void _np_send_receiver_discovery(np_jobargs_t* args);
+void _np_out_receiver_discovery(np_jobargs_t* args);
 
 NP_API_INTERN
-void _np_send_discovery_messages(np_jobargs_t* args);
+void _np_out_discovery_messages(np_jobargs_t* args);
 
 // send an authentication request to the target
 NP_API_INTERN
-void _np_send_authentication_request(np_jobargs_t* args);
+void _np_out_authentication_request(np_jobargs_t* args);
 NP_API_INTERN
-void _np_send_authentication_reply(np_jobargs_t* args);
+void _np_out_authentication_reply(np_jobargs_t* args);
 
 // send an authorization request to the target
 NP_API_INTERN
-void _np_send_authorization_request(np_jobargs_t* args);
+void _np_out_authorization_request(np_jobargs_t* args);
 NP_API_INTERN
-void _np_send_authorization_reply(np_jobargs_t* args);
+void _np_out_authorization_reply(np_jobargs_t* args);
 
 // send an accounting request to the target
 NP_API_INTERN
-void _np_send_accounting_request(np_jobargs_t* args);
-
-// send join request
-NP_API_INTERN
-void _np_send_simple_invoke_request(np_key_t* target,const char* type);
+void _np_out_accounting_request(np_jobargs_t* args);
 
 #ifdef __cplusplus
 }

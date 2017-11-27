@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
 				asprintf(&s_out,"%s", message_to_send);
 			}
 
-			fprintf(stdout, "%f - SENDING:  \"%s\" to    %s\n", ev_time(), s_out, bootstrap_node);
+			fprintf(stdout, "%f - SENDING:  \"%s\" to    %s\n", np_time_now(), s_out, bootstrap_node);
 			log_msg(LOG_INFO, "SENDING:  \"%s\" to    %s", s_out, bootstrap_node);
 
 			// Send our message
@@ -221,7 +221,7 @@ np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np
 	} else {
 		text = "<NON TEXT MSG>";
 	}
-	fprintf(stdout, "%f - RECEIVED: \"%s\" from: %s \n", ev_time(), text, reply_to);
+	fprintf(stdout, "%f - RECEIVED: \"%s\" from: %s \n", np_time_now(), text, reply_to);
 	/**
 	 \endcode
 

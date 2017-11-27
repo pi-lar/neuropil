@@ -70,12 +70,12 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
     _np_message_create(write_msg, write_to, write_from, "serialize_np_message_t", write_tree);
 	np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
-    np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL);
+    np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL,"tst");
     cr_assert(NULL != write_args,"Expected to receive jobargs");
 
     // Do the serialsation
 	_np_message_calculate_chunking(write_msg);
-    np_bool write_ret = _np_message_serialize_chunked(write_args);
+    np_bool write_ret = _np_message_serialize_chunked(write_args->msg);
     cr_assert(TRUE == write_ret, "Expected positive result in serialisation");
 
     cr_expect(pll_size(write_msg->msg_chunks) == 1, "Expected 1 chunk for message");
@@ -152,12 +152,12 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
     _np_message_create(write_msg, write_to, write_from, "serialize_np_message_t", write_tree);
 	np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
-    np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL);
+    np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL,"tst");
     cr_assert(NULL != write_args,"Expected to receive jobargs");
 
     // Do the serialsation
 	_np_message_calculate_chunking(write_msg);
-	np_bool write_ret = _np_message_serialize_chunked(write_args);
+	np_bool write_ret = _np_message_serialize_chunked(write_args->msg);
     cr_assert(TRUE == write_ret, "Expected positive result in chunk serialisation");
 
     write_ret =_np_message_serialize(write_args);
@@ -228,7 +228,7 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(new_uuid));
 	free(new_uuid);
 
-	double now = ev_time();
+	double now = np_time_now();
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
 	now += 20;
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(now));
@@ -260,9 +260,8 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 	np_tree_elem_t* body_node = np_tree_find_int(msg_out->body, 20);
 
 	_np_message_calculate_chunking(msg_out);
-
-	np_jobargs_t args = { .msg=msg_out };
-	_np_message_serialize_chunked(&args);
+	
+	_np_message_serialize_chunked(msg_out);
 
 	_np_message_deserialize_chunked(msg_out);
 

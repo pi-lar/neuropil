@@ -25,6 +25,7 @@
 #include "np_key.h"
 #include "np_list.h"
 #include "np_constants.h"
+#include "np_util.h"
 
 
 // TODO: make this a better constant value
@@ -63,7 +64,7 @@ np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey)
 			np_ref_obj(np_key_t, subject_key);
 		}
 
-		subject_key->last_update = ev_time();
+		subject_key->last_update = np_time_now();
 	}
 	return (subject_key);
 }
@@ -75,7 +76,7 @@ np_key_t* _np_keycache_create(np_dhkey_t search_dhkey)
 
 	np_new_obj(np_key_t, subject_key);
 	subject_key->dhkey = search_dhkey;
-	subject_key->last_update = ev_time();
+	subject_key->last_update = np_time_now();
 
 	ref_replace_reason(np_key_t, subject_key, ref_obj_creation, __func__);
 	_np_keycache_add(subject_key);
@@ -95,7 +96,7 @@ np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey)
 		if (NULL != return_key)
 		{
 			np_ref_obj(np_key_t, return_key);
-			return_key->last_update = ev_time();
+			return_key->last_update = np_time_now();
 		}
 	}
 	return return_key;
@@ -104,18 +105,19 @@ np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey)
 np_key_t* _np_keycache_find_by_details(
 		char* details_container,
 		np_bool search_myself,
-		handshake_status_e handshake_status,
+		np_bool is_handshake_send,
+		np_bool is_handshake_received,
 		np_bool require_handshake_status,
 		np_bool require_dns,
 		np_bool require_port,
 		np_bool require_hash
 	){
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		np_bool search_myself,		handshake_status_e handshake_status,		np_bool require_handshake_status,		np_bool require_dns,		np_bool require_port,		np_bool require_hash	){");
+	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		np_bool search_myself,		handshake_status_e is_handshake_send,		np_bool require_handshake_status,		np_bool require_dns,		np_bool require_port,		np_bool require_hash	){");
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key,"np_waitref_key");
-	np_waitref_obj(np_key_t, _np_state()->my_identity, my_identity,"np_waitref_identity");
+	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "np_waitref_key");
+	np_waitref_obj(np_key_t, _np_state()->my_identity, my_identity, "np_waitref_identity");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -133,8 +135,11 @@ np_key_t* _np_keycache_find_by_details(
 			if (
 					(!require_handshake_status ||
 							(NULL != iter->node &&
-							iter->node->handshake_status == handshake_status
-							)
+								iter->node->is_handshake_send == is_handshake_send
+								&&
+								iter->node->is_handshake_received == is_handshake_received
+							) 
+
 					) &&
 					(!require_hash ||
 							(NULL != iter->dhkey_str &&
@@ -157,7 +162,7 @@ np_key_t* _np_keycache_find_by_details(
 			{
 				np_ref_obj(np_key_t, iter);
 				ret = iter;
-				ret->last_update = ev_time();
+				ret->last_update = np_time_now();
 				break;
 			}
 		}
@@ -184,7 +189,7 @@ np_key_t* _np_keycache_find_deprecated()
 				continue;
 			}
 
-			double now = ev_time();
+			double now = np_time_now();
 			if ((now - __keycache_deprecation_interval) > iter->last_update)
 			{
 				np_ref_obj(np_key_t, iter);
@@ -197,17 +202,32 @@ np_key_t* _np_keycache_find_deprecated()
 
 sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)
 {
-	np_sll_t(np_key_ptr,ret) = sll_init(np_key_ptr, ret);
+	np_sll_t(np_key_ptr, ret) = sll_init(np_key_ptr, ret);
 	np_key_t *iter = NULL;
 	_LOCK_MODULE(np_keycache_t)
 	{
 		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
 		{
-			if (_np_key_cmp(iter->parent,forKey)==0)
+			if (_np_key_cmp(iter->parent, forKey) == 0)
 			{
 				np_ref_obj(np_key_t, iter);
 				sll_append(np_key_ptr, ret, iter);
 			}
+		}
+	}
+	return (ret);
+}
+
+sll_return(np_key_ptr) _np_keycache_get_all()
+{
+	np_sll_t(np_key_ptr, ret) = sll_init(np_key_ptr, ret);
+	np_key_t *iter = NULL;
+	_LOCK_MODULE(np_keycache_t)
+	{
+		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
+		{
+			np_ref_obj(np_key_t, iter);
+			sll_append(np_key_ptr, ret, iter);
 		}
 	}
 	return (ret);
@@ -243,7 +263,7 @@ np_key_t* _np_keycache_add(np_key_t* subject_key)
 	_LOCK_MODULE(np_keycache_t)
 	{
 		SPLAY_INSERT(st_keycache_s, __key_cache, subject_key);
-		subject_key->last_update = ev_time();
+		subject_key->last_update = np_time_now();
 	}
 	return subject_key;
 }

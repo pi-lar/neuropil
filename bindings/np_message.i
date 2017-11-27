@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -14,7 +14,6 @@
 
 
 %extend np_message_s {
-    %ignore obj;
 
     %feature ("ref") np_message_s "np_mem_refobj($this->obj, NULL);"
     %feature ("unref") np_message_s "np_mem_unrefobj($this->obj, NULL);"
@@ -30,10 +29,13 @@
     %immutable msg_property;
 
 	// only used if the message has to be split up into chunks
+    %ignore obj;
 	%ignore is_single_part;
 	%ignore no_of_chunks;
 	%ignore msg_chunks;
 	%ignore msg_chunks_lock;
+	%ignore on_ack;
+    %ignore on_timeout;
 };
 
 %ignore _np_message_buffer_container_s;
@@ -48,7 +50,6 @@
 %ignore _np_message_del_property;
 %ignore _np_message_setfooter;
 %ignore _np_message_add_footerentry;
+%ignore _np_message_serialize_chunked;
 
-
-%include "../include/np_memory.h"
 %include "../include/np_message.h"

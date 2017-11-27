@@ -65,7 +65,14 @@ NP_API_INTERN
 void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhkey_t* key);
 
 NP_API_INTERN
-np_key_t* _np_keycache_find_by_details(char* details_container, np_bool search_myself, handshake_status_e handshake_status, np_bool require_handshake_status, np_bool require_dns,np_bool require_port,np_bool require_hash );
+np_key_t* _np_keycache_find_by_details(
+	char* details_container, np_bool search_myself, np_bool is_handshake_send, 
+	np_bool is_handshake_received, np_bool require_handshake_status, 
+	np_bool require_dns, np_bool require_port, np_bool require_hash );
+
+NP_API_INTERN
+sll_return(np_key_ptr) _np_keycache_get_all();
+
 
 #ifdef __cplusplus
 }

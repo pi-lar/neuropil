@@ -8,15 +8,22 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <stdarg.h>
+#include <inttypes.h>
+
+#include <curses.h>
+#include <ncurses.h>
 
 #include "neuropil.h"
 #include "np_types.h"
 #include "np_memory.h"
 #include "np_threads.h"
+#include "np_http.h"
+#include "np_util.h"
+#include "np_sysinfo.h"
 #include "np_log.h"
 #include "np_messagepart.h"
 #include "np_statistics.h"
@@ -26,9 +33,97 @@ const float output_intervall_sec = 0.5;
 extern char *optarg;
 extern int optind;
 
+uint8_t enable_statistics = 1;
+double started_at = 0;
+double last_loop_run_at = 0;
+
+enum np_statistic_types_e  {
+	np_stat_all				= 0x000,
+	np_stat_general			= 0x001,
+	np_stat_locks			= 0x002,
+	np_stat_msgpartcache	= 0x004,
+	np_stat_memory			= 0x008,
+} typedef np_statistic_types_e;
+
+np_statistic_types_e statistic_types = 0;
+
+WINDOW * __np_stat_general_win;
+WINDOW * __np_stat_locks_win;
+WINDOW * __np_stat_memory_win;
+WINDOW * __np_help_win;
+
+WINDOW * __np_stat_msgpartcache_win;
+WINDOW * __np_stat_memory_ext;
+WINDOW * __np_stat_log;
+WINDOW * __np_stat_switchable_window;
+np_bool __np_ncurse_initiated = FALSE;
+np_bool __np_refresh_windows = TRUE;
+
+#define LOG_BUFFER_SIZE (3000)
+char log_buffer[LOG_BUFFER_SIZE] = { 0 };
+uint32_t log_buffer_pos = 0;
+
+void reltime_to_str(char*buffer,double time){
+	double time_s = time;
+	double time_d = (int)time / 216000;
+	time_s -= time_d * 216000;
+	double time_h = (int)time / 3600;
+	time_s -= time_h * 3600;
+	double time_m = (int)time / 60;
+	time_s -= time_m * 60;
+	snprintf(buffer, 49, "%2.0fd %2.0fh %2.0fmin %2.0fsec", time_d, time_h, time_m, time_s);
+}
+
+char* np_get_startup_str() {
+	char* ret = NULL;
+	char* new_line = "\n";
+
+	ret = _np_concatAndFree(ret, new_line);
+	ret = _np_concatAndFree(ret, "%s initializiation successful%s", NEUROPIL_RELEASE, new_line);
+	ret = _np_concatAndFree(ret, "%s event loop with %d worker threads started%s", NEUROPIL_RELEASE, _np_state()->thread_count, new_line);
+	ret = _np_concatAndFree(ret, "your neuropil node will be addressable as:%s", new_line);
+	ret = _np_concatAndFree(ret, new_line);
+
+	char* connection_str = np_get_connection_string();
+	ret = _np_concatAndFree(ret, "\t%s%s", connection_str, new_line);
+	free(connection_str);
+
+	ret = _np_concatAndFree(ret, new_line);
+	ret = _np_concatAndFree(ret, "%s%s", NEUROPIL_COPYRIGHT, new_line);
+	ret = _np_concatAndFree(ret, "%s%s", NEUROPIL_TRADEMARK, new_line);
+	ret = _np_concatAndFree(ret, new_line);
+
+	return ret;
+}
+
+void np_example_print(FILE * stream, const char * format, ...) {
+	va_list args;
+	va_start(args, format);
+	if(__np_ncurse_initiated == FALSE){
+		vfprintf(stream, format, args);
+		fflush(stream);
+	}
+	else {
+		/*
+		if (log_buffer_pos == 0) {
+			log_buffer_pos = 1;
+		}
+		int size = vsprintf(log_buffer[log_buffer_pos-1], format, args);		
+		log_buffer_pos = (log_buffer_pos + size) % LOG_BUFFER_SIZE;
+		*/
+	}	
+	va_end(args);
+}
+
+void np_print_startup() {
+	char* ret = np_get_startup_str();
+	np_example_print(stdout, ret);
+	free(ret);
+}
+
 np_bool parse_program_args(
 	char* program,
-	int argc, 
+	int argc,
 	char **argv,
 	int* no_threads ,
 	char** j_key ,
@@ -44,18 +139,23 @@ np_bool parse_program_args(
 	np_bool ret = TRUE;
 	char* usage;
 	asprintf(&usage,
-		"./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] %s",
-		program, additional_fields_desc
+		"./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-s statistics 0=Off 1=Console 2=Log 3=1&2] [-c statistic types 0=All 1=general 2=locks ] %s",
+		program, additional_fields_desc == NULL ?"": additional_fields_desc
 	);
-	char* optstr; 
-	asprintf(&optstr, "j:p:b:t:u:d:g:%s", additional_fields_optstr);
+	char* optstr;
+	asprintf(&optstr, "j:p:b:t:u:d:s:c:%s", additional_fields_optstr);
 
 	char* additional_fields[32] = { 0 }; // max additional fields
 	va_list args;
 	va_start(args, additional_fields_optstr);
 	char* additional_field_char;
-	int additional_fields_count = strlen(additional_fields_optstr) / 2;
-	
+
+	int additional_fields_count = 0;
+
+	if(additional_fields_optstr != NULL){
+		additional_fields_count = strlen(additional_fields_optstr) / 2;
+	}
+
 	int additional_field_idx = 0 ;
 	int opt;
 	while ((opt = getopt(argc, argv, optstr)) != EOF)
@@ -66,7 +166,7 @@ np_bool parse_program_args(
 			*j_key = strdup(optarg);
 			break;
 		case 't':
-			(*no_threads) = atoi(optarg);			
+			(*no_threads) = atoi(optarg);
 			if ((*no_threads) <= 0) {
 				fprintf(stderr, "invalid option %c\n", (char)opt);
 				ret = FALSE;
@@ -74,12 +174,18 @@ np_bool parse_program_args(
 			break;
 		case 'p':
 			*proto = strdup(optarg);
-			break;		
+			break;
 		case 'u':
 			*publish_domain = strdup(optarg);
 			break;
 		case 'd':
-			(*level)= atoi(optarg);
+			(*level) = atoi(optarg);
+			break;
+		case 's':
+			enable_statistics = atoi(optarg);
+			break;
+		case 'c':
+			statistic_types = atoi(optarg);
 			break;
 		case 'b':
 			*port = strdup(optarg);
@@ -97,21 +203,20 @@ np_bool parse_program_args(
 			// check for custom parameter
 			additional_field_char = strchr(additional_fields_optstr, (char)opt);
 			if (additional_field_char != NULL) {
-				additional_field_idx = (additional_field_char - additional_fields_optstr) /2; // as every ident char is followed by an : symbol			
+				additional_field_idx = (additional_field_char - additional_fields_optstr) /2; // as every ident char is followed by an : symbol
 				additional_fields[additional_field_idx] = strdup(optarg);
 			}
-			else {		
+			else {
 				fprintf(stderr, "invalid option %c\n", (char)opt);
 				ret = FALSE;
 			}
 		}
 	}
 
-	free(usage);
 	free(optstr);
 
 	if (ret) {
-		for (additional_field_idx = 0; additional_field_idx < additional_fields_count; additional_field_idx++) {			
+		for (additional_field_idx = 0; additional_field_idx < additional_fields_count; additional_field_idx++) {
 			char** arg = va_arg(args, char**);
 			if(additional_fields[additional_field_idx] != NULL) {
 				(*arg) = additional_fields[additional_field_idx];
@@ -134,6 +239,7 @@ np_bool parse_program_args(
 				//| LOG_KEY
 				| LOG_NETWORK
 				| LOG_AAATOKEN
+				| LOG_SYSINFO
 				//| LOG_MESSAGE
 				//| LOG_MEMORY
 				;
@@ -152,7 +258,7 @@ np_bool parse_program_args(
 			int port_pid = getpid();
 
 			*port = calloc(1, sizeof(char) * 7);
-						
+
 			sprintf(*port, "%d", port_pid);
 			if (port_pid > 65535) {
 				sprintf(*port, "%d", (port_pid >> 1));
@@ -163,71 +269,278 @@ np_bool parse_program_args(
 		}
 		/** \endcode */
 	}
-	else {		
+	else {
 		fprintf(stderr, "usage: %s\n", usage);
 	}
+	free(usage);
 
 	return ret;
 }
+void __np_example_deinti_ncurse() {
+	if (__np_ncurse_initiated == TRUE) {
+		__np_ncurse_initiated = FALSE;
 
-void __np_example_helper_loop(uint32_t iteration, double sec_per_iteration) {
-		
-		double sec_since_start = iteration * sec_per_iteration ; 
-		double ms_since_start = sec_since_start  * 1000;	
-		if (iteration == 0 || ((int)ms_since_start) % (int)(output_intervall_sec * 1000) == 0)
-		{
-			char* memory_str;
+		delwin(__np_stat_general_win);
+		delwin(__np_stat_memory_ext);
+		delwin(__np_stat_log);
+		delwin(__np_stat_msgpartcache_win);
+		delwin(__np_stat_memory_win);
+		delwin(__np_stat_locks_win);
+		delwin(__np_help_win);
+		endwin();
+	}
+}
+ void __np_example_inti_ncurse() {
+	 if (FALSE == __np_ncurse_initiated) {		 
+		if (enable_statistics == 1 || enable_statistics > 2) {
+			__np_ncurse_initiated = TRUE;
+			initscr(); // Init ncurses mode
+			curs_set(0); // Hide cursor
+			noecho();
+			nocbreak();
+			timeout(0);
+			start_color();
+			init_pair(1, COLOR_YELLOW, COLOR_BLUE);
+			init_pair(2, COLOR_BLUE, COLOR_YELLOW);
+			init_pair(3, COLOR_MAGENTA, COLOR_WHITE);
+			init_pair(4, COLOR_WHITE, COLOR_MAGENTA);
+			init_pair(5, COLOR_WHITE, COLOR_BLACK);
 
-			// to output
-			memory_str = np_mem_printpool(FALSE,TRUE);
-			if(memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
-			free(memory_str);
-			memory_str = np_mem_printpool(TRUE,TRUE);
-			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
-			free(memory_str);
+			if (statistic_types == np_stat_all || (statistic_types & np_stat_general) == np_stat_general) {
+				__np_stat_general_win = newwin(39, 102, 0, 0);
+				wbkgd(__np_stat_general_win, COLOR_PAIR(1));
+			}
+
+			if (statistic_types == np_stat_all || (statistic_types & np_stat_locks) == np_stat_locks) {
+				__np_stat_locks_win = newwin(39, 43, 0, 102);
+				wbkgd(__np_stat_locks_win, COLOR_PAIR(2));
+			}
+
+			if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
+				__np_stat_memory_win = newwin(15, 45, 39, 0);
+				wbkgd(__np_stat_memory_win, COLOR_PAIR(4));
+			}
+
+			// switchable windows
+			{
+				if (statistic_types == np_stat_all || (statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
+					__np_stat_msgpartcache_win = newwin(15, 100, 39, 45);
+					wbkgd(__np_stat_msgpartcache_win, COLOR_PAIR(3));
+				}
+				if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
+					__np_stat_memory_ext = newwin(15, 100, 39, 45);
+					wbkgd(__np_stat_memory_ext, COLOR_PAIR(3));
+				}
+				if (TRUE) {
+					__np_stat_log = newwin(15, 100, 39, 45);
+					wbkgd(__np_stat_log, COLOR_PAIR(3));
+				}
+				__np_stat_switchable_window = __np_stat_log;
+			}
 
 
-			memory_str = np_messagepart_printcache(FALSE);
-			//if(memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
-			free(memory_str);
-			memory_str = np_messagepart_printcache(TRUE);
-			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
-			free(memory_str);
+			__np_help_win = newwin(10, 102 + 43, 39+15, 0);
+			wbkgd(__np_help_win, COLOR_PAIR(5));
+			mvwprintw(__np_help_win, 0, 0, 
+				"Windows: Message(p)arts / Extended (M)emory / (L)og; "
+				"General: (S)top output / (R)esume output / R(e)paint"
+			);
 
-			memory_str = np_threads_printpool(FALSE);
-			if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
-			free(memory_str);
-			memory_str = np_threads_printpool(TRUE);
-			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
-			free(memory_str);
 
-			memory_str = np_statistics_print(FALSE);			
-			if (memory_str != NULL) printf("%f -\n%s", sec_since_start, memory_str);
-			free(memory_str);
-			memory_str = np_statistics_print(TRUE);
-			if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
-			free(memory_str);
-			
+			wclear(__np_stat_general_win);
+			wclear(__np_stat_locks_win);
+			wclear(__np_stat_memory_ext);
+			wclear(__np_stat_log);
+			wclear(__np_stat_msgpartcache_win);
+			wclear(__np_stat_memory_win);
+
 		}
-		//if((i == (35/*sec*/ * 10))){
-		//	fprintf(stdout, "Renew bootstrap token");
-		//	np_key_renew_token();
-		//}
+	 }
+	 else {
+		 werase(__np_stat_general_win);
+		 werase(__np_stat_locks_win);
+		 werase(__np_stat_switchable_window);
+		 werase(__np_stat_memory_win);
+	 }
 
+
+}
+void __np_example_helper_loop() {
+
+	__np_example_inti_ncurse();
+
+	// Runs only once
+	if (started_at == 0) {
+		started_at = np_time_now();					
+		
+		np_print_startup();		
+	}	
+
+	double sec_since_start = np_time_now() - started_at;
+
+	if ((sec_since_start - last_loop_run_at) > output_intervall_sec)
+	{
+		last_loop_run_at = sec_since_start;
+		char* memory_str;
+
+		if (__np_ncurse_initiated == TRUE) {
+			mvwprintw(__np_stat_log, 0, 0, "%s", log_buffer);
+		}
+
+
+		if(statistic_types == np_stat_all || (statistic_types & np_stat_memory )== np_stat_memory){
+			if(enable_statistics == 1 || enable_statistics > 2) {
+				memory_str = np_mem_printpool(FALSE, FALSE);
+				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
+					mvwprintw(__np_stat_memory_win, 0, 0, "%s", memory_str);
+				}
+				free(memory_str);
+				memory_str = np_mem_printpool(FALSE, TRUE);
+				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
+					mvwprintw(__np_stat_memory_ext, 0, 0, "%s", memory_str);
+				}
+				free(memory_str);
+			}
+			if (enable_statistics >= 2) {
+				memory_str = np_mem_printpool(TRUE, TRUE);
+				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+				free(memory_str);
+			}
+		}
+
+#ifdef DEBUG
+		if (statistic_types == np_stat_all || (statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
+
+			if (enable_statistics == 1 || enable_statistics > 2) {
+				memory_str = np_messagepart_printcache(FALSE);
+				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
+					mvwprintw(__np_stat_msgpartcache_win,0,0, "%s", memory_str);
+				}
+				free(memory_str);
+			}
+			if (enable_statistics >= 2) {
+				memory_str = np_messagepart_printcache(TRUE);
+				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+				free(memory_str);
+			}
+		}
+		if (statistic_types == np_stat_all || (statistic_types & np_stat_locks) == np_stat_locks) {
+
+			if (enable_statistics == 1 || enable_statistics > 2) {
+				memory_str = np_threads_printpool(FALSE);
+				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
+					mvwprintw(__np_stat_locks_win,0,0, "%s", memory_str);
+				}
+				free(memory_str);
+			}
+			if (enable_statistics >= 2) {
+				memory_str = np_threads_printpool(TRUE);
+				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+				free(memory_str);
+			}
+		}
+#endif
+		if (statistic_types == np_stat_all || (statistic_types & np_stat_general) == np_stat_general) {
+
+			char time[50] = { 0 };
+			reltime_to_str(time, sec_since_start);
+
+			if (enable_statistics == 1 || enable_statistics > 2) {
+				memory_str = np_statistics_print(FALSE);
+
+				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
+					mvwprintw(__np_stat_general_win,0,0, "%s -\n%s", time, memory_str);
+				}
+				free(memory_str);
+			}
+			if (enable_statistics >= 2) {
+				memory_str = np_statistics_print(TRUE);
+				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+				free(memory_str);
+			}
+		}
+		if (__np_ncurse_initiated == TRUE && __np_refresh_windows == TRUE) {
+			wrefresh(__np_help_win);
+			wrefresh(__np_stat_locks_win);
+			wrefresh(__np_stat_general_win);
+			wrefresh(__np_stat_switchable_window);
+			wrefresh(__np_stat_memory_win);
+		}
+	}
+	
+	if(__np_ncurse_initiated == TRUE) {
+		int key = getch();
+		switch (key) {
+			case KEY_RESIZE:
+			case 101:	// e
+				__np_example_deinti_ncurse();
+				break;
+			case 112:	// p
+			case 80:	// P
+				__np_stat_switchable_window = __np_stat_msgpartcache_win;
+				break;
+			case 109:	// m
+			case 77:	// M
+				__np_stat_switchable_window = __np_stat_memory_ext;
+				break;
+			case 108:	// l
+			case 76:	// L
+				__np_stat_switchable_window = __np_stat_log;
+				break;
+			case 115:	// s
+			case 83:	// S
+				__np_refresh_windows = FALSE;
+				break;
+
+			case 114:	// r
+			case 82:	// R
+				__np_refresh_windows = TRUE;
+				break;				
+			case 113: // q
+				np_destroy();
+				exit(EXIT_SUCCESS);
+				break;
+		}				
+	}		
 }
 
 void __np_example_helper_run_loop() {
 	while (TRUE)
 	{
-		ev_sleep(0.01);
+		ev_sleep(output_intervall_sec);
 	}
 }
 void __np_example_helper_run_info_loop() {
-	uint32_t i = 0;
+
 	while (TRUE)
 	{
-		i += 1;
-		ev_sleep(0.01);
-		__np_example_helper_loop(i, 0.01);
+		__np_example_helper_loop();
+		ev_sleep(output_intervall_sec);
 	}
 }
+
+void example_http_server_init(char* http_domain) {
+	if(http_domain == NULL || strncmp("none",http_domain,4) != 0){
+		if (http_domain == NULL) {
+			http_domain = calloc(1, sizeof(char) * 255);
+			CHECK_MALLOC(http_domain);
+			if (_np_get_local_ip(http_domain, 255) == FALSE) {
+				free(http_domain);
+				http_domain = NULL;
+			}
+		}
+
+		if (FALSE == _np_http_init(http_domain))
+		{
+			fprintf(stderr, "Node could not start HTTP interface\n");
+			log_msg(LOG_WARN, "Node could not start HTTP interface");
+			np_sysinfo_enable_slave();
+		}
+		else {
+			fprintf(stdout, "HTTP interface set to %s\n", http_domain);
+			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
+			np_sysinfo_enable_master();
+		}
+	}
+}
+

@@ -188,7 +188,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		fprintf(stdout, new_log_entry);
 		fprintf(stdout, "/n");
 #endif
-		
+				
 		if(0 == pthread_mutex_lock(&__log_mutex)) 
 		{
 			sll_append(char_ptr, logger->logentries_l, new_log_entry);
@@ -210,8 +210,10 @@ void _np_log_fflush(np_bool force)
 	//log_msg(LOG_TRACE, "start: void _np_log_fflush(){");
 	char* entry = NULL;
 	int lock_result = 0;
-
-	while(logger != NULL && lock_result == 0 && sll_size(logger->logentries_l) > 0)
+	if (logger == NULL) {
+		return;
+	}
+	do
 	{
 		if(force){
 			lock_result = pthread_mutex_lock(&__log_mutex);
@@ -220,6 +222,9 @@ void _np_log_fflush(np_bool force)
 		}
 		if(0 == lock_result) {
 			entry = sll_head(char_ptr, logger->logentries_l);
+			if (NULL != entry) {
+				logger->log_size += strlen(entry);
+			}
 			pthread_mutex_unlock(&__log_mutex);
 		}
 
@@ -229,7 +234,7 @@ void _np_log_fflush(np_bool force)
 
 			while(bytes_witten  != strlen(entry))
 			{
-				int current_bytes_witten = write(logger->fp, entry, strlen(entry));
+				int current_bytes_witten = write(logger->fp, entry + bytes_witten, strlen(entry) - bytes_witten);
 				// if we write was not successful we reschedule the entry
 				// and break free from this iteration
 				if(current_bytes_witten < 0)
@@ -239,9 +244,8 @@ void _np_log_fflush(np_bool force)
 					 pthread_mutex_unlock(&__log_mutex);
 					 break;
 				}
-				bytes_witten += current_bytes_witten ;
-			}
-			logger->log_size += bytes_witten;
+				bytes_witten += current_bytes_witten;
+			}			
 
 			if(logger->log_rotate == TRUE)
 				log_rotation();
@@ -252,7 +256,7 @@ void _np_log_fflush(np_bool force)
 				entry = NULL;
 			}
 		}
-	}
+	} while (lock_result == 0 && entry != NULL);
 }
 
 void np_log_setlevel(uint32_t level)
@@ -292,7 +296,7 @@ void np_log_init(const char* filename, uint32_t level)
 		}
 	}
 
-	if(logger->filename_ext == NULL || strncmp(logger->filename_ext,"",1) == 0)
+	if(logger->filename_ext[0] == NULL || strncmp(logger->filename_ext,"",1) == 0)
 	{
 		snprintf (logger->filename_ext, 15, ".log");
 	}
