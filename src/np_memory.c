@@ -206,7 +206,7 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 		new_line = "    ";
 	}
 
-	uint64_t summary[10000] = { 0 };
+	uint32_t summary[10000] = { 0 };
 	
 	_LOCK_MODULE(np_memory_t) {		
 		if (TRUE == extended) {

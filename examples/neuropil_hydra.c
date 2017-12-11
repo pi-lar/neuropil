@@ -59,8 +59,6 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
  */
 int main(int argc, char **argv)
 {
-//	__np_example_inti_ncurse();
-
 	np_bool create_bootstrap = TRUE; 
 	np_bool has_a_node_started = FALSE;
 	char* bootstrap_hostnode_default;
@@ -78,7 +76,7 @@ int main(int argc, char **argv)
 	char* required_nodes_opt = NULL;
 	char* http_domain = NULL;
 	char* node_creation_speed_str = NULL;
-	double node_creation_speed = 3.415;
+	double default_node_creation_speed = 3.415;
 
 	int opt;
 	if (parse_program_args(
@@ -104,7 +102,7 @@ int main(int argc, char **argv)
 	if (required_nodes_opt != NULL) required_nodes = atoi(required_nodes_opt);
 	if (node_creation_speed_str != NULL) {
 		if (strcmp(node_creation_speed_str, "default") != 0) {
-			node_creation_speed = atof(node_creation_speed_str);
+			default_node_creation_speed = atof(node_creation_speed_str);
 		}
 		free(node_creation_speed_str);
 	}
@@ -352,8 +350,8 @@ int main(int argc, char **argv)
 				 \endcode
 				 */
 			}
-			if(node_creation_speed > 0)
-				ev_sleep(node_creation_speed);
+			if(default_node_creation_speed > 0)
+				ev_sleep(default_node_creation_speed);
 		} else {
 			/**
 			  .. _neuropil_hydra_step_check_nodes_still_present:

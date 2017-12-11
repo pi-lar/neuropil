@@ -39,11 +39,13 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 		to.value.l = from.value.l;
 		to.size = sizeof(int32_t);
 		break;
+#ifdef x64
 	case long_long_type:
 		to.type = long_long_type;
 		to.value.ll = from.value.ll;
 		to.size = sizeof(int64_t);
 		break;
+#endif
 	case float_type:
 		to.type = float_type;
 		to.value.f = from.value.f;
@@ -85,11 +87,13 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 		to.value.ul = from.value.ul;
 		to.size = sizeof(uint32_t);
 		break;
+#ifdef x64
 	case unsigned_long_long_type:
 		to.type = unsigned_long_long_type;
 		to.value.ull = from.value.ull;
 		to.size = sizeof(uint64_t);
 		break;
+#endif
 	case uint_array_2_type:
 		to.type = uint_array_2_type;
 		to.value.a2_ui[0] = from.value.a2_ui[0];
@@ -178,6 +182,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   				snprintf(result, len+1, "%d", val.value.l);
   			}
 			break;
+#ifdef x64
 		case long_long_type:
   			len = snprintf(NULL, 0, "%llu", val.value.ll);
   			if (0 < len) {
@@ -186,6 +191,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   				snprintf(result, len+1, "%llu", val.value.ll);
   			}
 			break;
+#endif
  		case float_type:
   			len = snprintf(NULL, 0, "%f", val.value.f);
   			if (0 < len) {
@@ -233,6 +239,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   				snprintf(result, len+1, "%u", val.value.ul);
   			}
 			break;
+#ifdef x64
 		case unsigned_long_long_type:
   			len = snprintf(NULL, 0, "%llu", val.value.ull);
   			if (0 < len) {
@@ -241,6 +248,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   				snprintf(result, len+1, "%llu", val.value.ull);
   			}
 			break;
+#endif
  		case uint_array_2_type:
   			len = snprintf(NULL, 0, "%u%u", val.value.a2_ui[0], val.value.a2_ui[1]);
   			if (0 < len) {
@@ -291,7 +299,7 @@ np_treeval_t np_treeval_new_l (int32_t l)
     j.size = sizeof(int32_t);
     return j;
 }
-
+#ifdef x64
 np_treeval_t np_treeval_new_ll (int64_t ll)
 {
     np_treeval_t j;
@@ -300,7 +308,7 @@ np_treeval_t np_treeval_new_ll (int64_t ll)
     j.size = sizeof(int64_t);
     return j;
 }
-
+#endif
 np_treeval_t np_treeval_new_f (float f)
 {
     np_treeval_t j;
@@ -390,6 +398,7 @@ np_treeval_t np_treeval_new_ul (uint32_t ul)
     return j;
 }
 
+#ifdef x64
 np_treeval_t np_treeval_new_ull (uint64_t ull)
 {
     np_treeval_t j;
@@ -398,6 +407,7 @@ np_treeval_t np_treeval_new_ull (uint64_t ull)
     j.size = sizeof(uint64_t);
     return j;
 }
+#endif
 
 np_treeval_t np_treeval_new_bin (void* data, uint32_t ul)
 {
@@ -539,12 +549,12 @@ int32_t jval_l (np_treeval_t j)
 {
     return j.value.l;
 }
-
+#ifdef x64
 int64_t jval_ll (np_treeval_t j)
 {
     return j.value.ll;
 }
-
+#endif
 float jval_f (np_treeval_t j)
 {
     return j.value.f;
@@ -595,10 +605,12 @@ uint32_t jval_ul (np_treeval_t j)
     return j.value.ul;
 }
 
+#ifdef x64
 uint64_t jval_ull (np_treeval_t j)
 {
     return j.value.ull;
 }
+#endif
 
 //int16_t* jval_iarray (np_treeval_t j)
 //{
@@ -614,17 +626,19 @@ char* jval_carray (np_treeval_t j)
 {
     return j.value.carray;
 }
-uint64_t np_treeval_get_byte_size(np_treeval_t ele)
+uint32_t np_treeval_get_byte_size(np_treeval_t ele)
 {
     log_msg(LOG_TRACE, "start: uint64_t np_treeval_get_byte_size(np_treeval_t ele){");
-	uint64_t byte_size = 0;
+	uint32_t byte_size = 0;
 
 	switch(ele.type)
 	{
 		case short_type: 		  byte_size += 1 + sizeof(int8_t); break;
 		case int_type: 			  byte_size += 1 + sizeof(int16_t); break;
 		case long_type: 		  byte_size += 1 + sizeof(int32_t); break;
+#ifdef x64
 		case long_long_type:	  byte_size += 1 + sizeof(int64_t); break;
+#endif
 		case float_type: 		  byte_size += 1 + sizeof(float); break;
 		case double_type: 		  byte_size += 1 + sizeof(double); break;
 		case char_ptr_type: 	  byte_size += 1 + sizeof(uint32_t) + ele.size; break;
@@ -633,7 +647,9 @@ uint64_t np_treeval_get_byte_size(np_treeval_t ele)
 		case unsigned_short_type: byte_size += 1 + sizeof(uint8_t); break;
 		case unsigned_int_type:   byte_size += 1 + sizeof(uint16_t); break;
 		case unsigned_long_type:  byte_size += 1 + sizeof(uint32_t); break;
+#ifdef x64
 		case unsigned_long_long_type:  byte_size += 1 + sizeof(uint64_t); break;
+#endif
 		case uint_array_2_type:   byte_size += 1 + 2*sizeof(uint16_t); break;
 		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
 		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;

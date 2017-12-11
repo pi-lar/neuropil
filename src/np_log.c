@@ -38,8 +38,8 @@ typedef struct np_log_s
 	uint32_t level;
 	np_sll_t(char_ptr, logentries_l);
 	ev_io watcher;
-	uint64_t log_size;
-	uint64_t log_count;
+	uint32_t log_size;
+	uint32_t log_count;
 	np_bool log_rotate;
 
 } np_log_t;
@@ -136,7 +136,7 @@ void log_rotation()
 			ev_io_start(EV_A_ &logger->watcher);
 		 }
 		 if(logger->log_count > LOG_ROTATE_COUNT) {
-			 log_msg(LOG_INFO, "Continuing log from file %s. This is the %dth iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
+			 log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
 		 }
 
 		 _np_log_fflush(TRUE);
@@ -280,7 +280,7 @@ void np_log_init(const char* filename, uint32_t level)
 	// init logsystem
 	logger->level = level;
 	logger->log_count = 0;
-	logger->log_size = UINT64_MAX; // for initial log_rotation start
+	logger->log_size = UINT32_MAX; // for initial log_rotation start
 	logger->log_rotate = LOG_ROTATE_ENABLE;
 
 	// detect filename_ext from filename (. symbol)

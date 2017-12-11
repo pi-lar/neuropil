@@ -88,7 +88,9 @@ typedef union val_type
     int8_t sh;
     int16_t i;
     int32_t l;
+#ifdef x64
     int64_t ll;
+#endif
     float f;
     double d;
     char* s;
@@ -97,7 +99,9 @@ typedef union val_type
     uint8_t ush;
     uint16_t ui;
     uint32_t ul;
+#ifdef x64
     uint64_t ull;
+#endif
     uint16_t a2_ui[2];
     float farray[2];
     char carray[8];
@@ -115,7 +119,9 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) ;
 np_treeval_t np_treeval_new_sh (int8_t sh);
 np_treeval_t np_treeval_new_i (int16_t i);
 np_treeval_t np_treeval_new_l (int32_t l);
+#ifdef x64
 np_treeval_t np_treeval_new_ll (int64_t ll);
+#endif
 np_treeval_t np_treeval_new_f (float f);
 np_treeval_t np_treeval_new_d (double d);
 np_treeval_t np_treeval_new_v (void* v);
@@ -126,7 +132,9 @@ np_treeval_t np_treeval_new_uc (unsigned char uc);
 np_treeval_t np_treeval_new_ush (uint8_t ush);
 np_treeval_t np_treeval_new_ui (uint16_t ui);
 np_treeval_t np_treeval_new_ul (uint32_t ul);
+#ifdef x64
 np_treeval_t np_treeval_new_ull (uint64_t ull);
+#endif
 np_treeval_t np_treeval_new_iarray (uint16_t i0, uint16_t i1);
 np_treeval_t np_treeval_new_farray (float f0, float f1);
 np_treeval_t np_treeval_new_carray_nt (char * carray);	/* Carray is null terminated */
@@ -137,7 +145,7 @@ np_treeval_t np_treeval_new_hash(char* h_val);
 np_treeval_t np_treeval_new_pwhash (char *pw_key);
 np_treeval_t np_treeval_new_key(np_dhkey_t key);
 np_treeval_t np_treeval_new_obj(np_obj_t* obj);
-uint64_t np_treeval_get_byte_size(np_treeval_t ele);
+uint32_t np_treeval_get_byte_size(np_treeval_t ele);
 
 np_treeval_t np_treeval_NULL;
 

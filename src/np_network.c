@@ -351,7 +351,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 											break;
 										}
 										else {
-											uint64_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
+											uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
 											memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
 											memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 

@@ -18,6 +18,7 @@ extern "C" {
 	 - NP_MEMORY_CHECK_MEMORY
 	 - NP_THREADS_CHECK_THREADING
 	 - DEBUG_CALLBACKS
+	 - x64 (enable 64 Bit support)
 */
 #ifdef DEBUG
 	#define DEBUG_CALLBACKS 1
@@ -32,7 +33,7 @@ extern "C" {
  *	attempt to share its data.
  */
 #ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
-	#define SYSINFO_PROACTIVE_SEND_IN_SEC (.5)
+	#define SYSINFO_PROACTIVE_SEND_IN_SEC (1.)
 #endif
 #ifndef SYSINFO_MAX_TTL
 	#define SYSINFO_MAX_TTL (30)
@@ -195,7 +196,7 @@ extern "C" {
 
 #ifndef LOG_ROTATE_ENABLE
 	#if defined(DEBUG) && DEBUG == 1
-		#define LOG_ROTATE_ENABLE TRUE
+		#define LOG_ROTATE_ENABLE FALSE
 	#else
 		#define LOG_ROTATE_ENABLE TRUE
 	#endif

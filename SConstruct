@@ -23,6 +23,14 @@ release = ARGUMENTS.get('release', 0)
 console_log = ARGUMENTS.get('console', 0)
 strict = int(ARGUMENTS.get('strict', 0))
 build_program = ARGUMENTS.get('program', False)
+build_x64 = int(ARGUMENTS.get('x64', -1))
+if build_x64 == -1:
+	build_x64  = "64" in str(platform.processor())
+else:
+	build_x64 = build_x64 == True  # normalize
+	if build_x64 == True and "64" not in str(platform.processor()):		
+		print 'ERROR: x64 build on x86 system!'
+
 
 
 print '####'
@@ -39,6 +47,8 @@ env.Append(CCFLAGS = ['-DHAVE_SELECT'])
 env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
 env.Append(CCFLAGS = ['-DHAVE_POLL'])
 
+if build_x64:
+	env.Append(CCFLAGS = ['-Dx64'])
 env.Append(CCFLAGS = ['-std=c99'])
 env.Append(LDFLAGS = ['-std=c99'])
 
@@ -217,7 +227,6 @@ else:
             print 'building neuropil_%s' %program
             prg_np = env.Program('bin/neuropil_%s'%program, 'examples/neuropil_%s.c'%program)
             Depends(prg_np, np_dylib)
-
 
 # clean up
 Clean('.', 'build')

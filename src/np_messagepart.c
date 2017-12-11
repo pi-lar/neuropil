@@ -110,9 +110,9 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 	cmp_init(&cmp, msg_part_buf_ptr, _np_buffer_reader, NULL, _np_buffer_writer);
 	_np_tree_serialize(msg_part, &cmp);
 
-	uint64_t msg_part_len = cmp.buf-msg_part_buf_ptr;
+	uint32_t msg_part_len = cmp.buf-msg_part_buf_ptr;
 
-	uint64_t enc_msg_part_len = msg_part_len + crypto_box_MACBYTES;
+	uint32_t enc_msg_part_len = msg_part_len + crypto_box_MACBYTES;
 
 	unsigned char enc_msg_part[enc_msg_part_len];
 	int16_t ret = crypto_secretbox_easy(enc_msg_part,

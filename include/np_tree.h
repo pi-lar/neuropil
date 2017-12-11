@@ -63,7 +63,7 @@ struct np_tree_s
 	struct np_tree_elem_s *rbh_root;
 
 	uint16_t size;
-	uint64_t byte_size;
+	uint32_t byte_size;
 } NP_API_EXPORT;
 
 typedef struct np_tree_elem_s np_tree_elem_t;
@@ -235,7 +235,7 @@ NP_API_INTERN
 void _np_print_tree (np_tree_t* n, uint8_t indent);
 
 NP_API_INTERN
-uint64_t np_tree_get_byte_size(np_tree_elem_t* node);
+uint32_t np_tree_get_byte_size(np_tree_elem_t* node);
 
 /**
 .. c:function:: np_tree_t* np_tree_copy(np_tree_t* source)

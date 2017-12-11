@@ -295,7 +295,7 @@ np_bool _np_message_serialize(np_jobargs_t* args)
 
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the instructions (size %hd)", msg->header->size);
 	_np_tree_serialize(args->msg->instructions, &cmp);
-	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serialized the instructions (size %llu / %ld)", args->msg->instructions->byte_size, (cmp.buf-part->msg_part-i));
+	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serialized the instructions (size %"PRIu32" / %ld)", args->msg->instructions->byte_size, (cmp.buf-part->msg_part-i));
 	// i = cmp.buf-part->msg_part;
 
 	return (TRUE);

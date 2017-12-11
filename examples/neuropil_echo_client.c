@@ -167,12 +167,12 @@ int main(int argc, char **argv) {
 	 .. code-block:: c
 	 \code
 	 */
-	uint64_t i = 0;
+	uint32_t i = 0;
 	while (TRUE == status->my_node_key->node->joined_network) {
 		if (i++ % 50 == 0) {
 			char * s_out;
 			if(add_id_to_msg) {
-				asprintf(&s_out, "%s %"PRIu64, message_to_send, i );
+				asprintf(&s_out, "%s %"PRIu32, message_to_send, i );
 			} else {
 				asprintf(&s_out,"%s", message_to_send);
 			}

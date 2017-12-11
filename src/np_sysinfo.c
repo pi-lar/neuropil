@@ -238,7 +238,7 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 	}
 	log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo reply (uuid: %s )",msg->uuid);
 
-	log_debug_msg(LOG_DEBUG | LOG_SYSINFO,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu64")",
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu32")",
 			source->val.value.s, body->size, body->byte_size);
 
 	// insert / replace cache item
@@ -427,7 +427,7 @@ np_tree_t* _np_sysinfo_get_from_cache(const char* const hash_of_target, uint16_t
 		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo reply data received: no");
 	} else {
 		log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-				"sysinfo reply data received: yes (size: %"PRIu16", byte_size: %"PRIu64")",
+				"sysinfo reply data received: yes (size: %"PRIu16", byte_size: %"PRIu32")",
 				ret->size, ret->byte_size);
 	}
 

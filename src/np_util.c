@@ -188,9 +188,11 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 	case long_type:
 		ret = json_value_init_number(val.value.l);
 		break;
+#ifdef x64
 	case long_long_type:
 		ret = json_value_init_number(val.value.ll);
 		break;
+#endif
 	case float_type:
 		ret = json_value_init_number(val.value.f);
 		break;
@@ -212,9 +214,11 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 	case unsigned_long_type:
 		ret = json_value_init_number(val.value.ul);
 		break;
+#ifdef x64
 	case unsigned_long_long_type:
 		ret = json_value_init_number(val.value.ull);
 		break;
+#endif
 	case uint_array_2_type:
 		ret = json_value_init_array();
 		json_array_append_number(json_array(ret), val.value.a2_ui[0]);

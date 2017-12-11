@@ -307,7 +307,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token has not expired");
 	}
 
-	if (token->private_key_is_set == FALSE ||
+	if (token->private_key_is_set == FALSE &&
 		token->is_signature_verified == FALSE)
 	{
 		unsigned char* hash = _np_aaatoken_get_fingerprint(token, is_full_token);

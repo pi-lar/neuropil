@@ -351,12 +351,12 @@ void _np_tree_replace_all_with_str(np_tree_t* n, const char* key, np_treeval_t v
 }
 
 
-uint64_t np_tree_get_byte_size(np_tree_elem_t* node)
+uint32_t np_tree_get_byte_size(np_tree_elem_t* node)
 {
-	log_msg(LOG_TRACE, "start: uint64_t np_tree_get_byte_size(np_tree_elem_t* node){");
+	log_msg(LOG_TRACE, "start: uint32_t np_tree_get_byte_size(np_tree_elem_t* node){");
 	assert(node != NULL);
 
-	uint64_t byte_size = np_treeval_get_byte_size(node->key) + np_treeval_get_byte_size(node->val);
+	uint32_t byte_size = np_treeval_get_byte_size(node->key) + np_treeval_get_byte_size(node->val);
 
 	return byte_size;
 }
@@ -763,9 +763,11 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 	case long_type:
 		cmp_write_s32(cmp, val.value.l);
 		break;
+#ifdef x64
 	case long_long_type:
 		cmp_write_s64(cmp, val.value.ll);
 		break;
+#endif
 		// characters
 	case char_ptr_type:
 		//log_debug_msg(LOG_DEBUG, "string size %u/%lu -> %s", val.size, strlen(val.value.s), val.value.s);
@@ -797,10 +799,11 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 	case unsigned_long_type:
 		cmp_write_u32(cmp, val.value.ul);
 		break;
+#ifdef x64
 	case unsigned_long_long_type:
 		cmp_write_u64(cmp, val.value.ull);
 		break;
-
+#endif
 	case uint_array_2_type:
 		cmp_write_fixarray(cmp, 2);
 		cmp->write(cmp, &val.value.a2_ui[0], sizeof(uint16_t));
@@ -1015,13 +1018,13 @@ void __np_tree_serialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval
 		value->value.ul = obj->as.u32;
 		value->type = unsigned_long_type;
 		break;
-
+#ifdef x64
 	case CMP_TYPE_UINT64:
 		value->value.ull = 0;
 		value->value.ull = obj->as.u64;
 		value->type = unsigned_long_long_type;
 		break;
-
+#endif
 	case CMP_TYPE_NEGATIVE_FIXNUM:
 	case CMP_TYPE_SINT8:
 		value->value.sh = obj->as.s8;
@@ -1038,12 +1041,13 @@ void __np_tree_serialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval
 		value->value.l = obj->as.s32;
 		value->type = long_type;
 		break;
-
+#ifdef x64
 	case CMP_TYPE_SINT64:
 		value->value.ll = 0;
 		value->value.ll = obj->as.s64;
 		value->type = long_long_type;
 		break;
+#endif
 	default:
 		value->type = none_type;
 		log_msg(LOG_WARN, "unknown deserialization for given type");

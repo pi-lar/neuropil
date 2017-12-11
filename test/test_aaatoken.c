@@ -54,7 +54,7 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	test_token_1->expires_at = test_token_1->not_before + 9.0;
 
 	cr_expect (NULL != test_token_1, "expect the token to be not NULL");
-	cr_expect (TRUE == _np_aaatoken_is_valid(test_token_1), "expect that the token is not valid");
+	cr_expect (TRUE == _np_aaatoken_is_valid(test_token_1), "expect that the token is valid");
 
 	np_tree_t* aaa_tree = np_tree_create();
 	np_aaatoken_encode(aaa_tree, test_token_1);
@@ -116,7 +116,7 @@ Test(np_aaatoken_t, encode_decode_loop, .description="test the encoding and deco
 	np_new_obj(np_key_t, test_key);
 	test_key->dhkey = _np_aaatoken_create_dhkey(ref);
 	test_key->node = test_node;
-	np_ref_obj(np_aaatoken_t, test_node, ref_key_node);
+	np_ref_obj(np_node_t, test_node, ref_key_node);
 	test_key->aaa_token = ref;
 	np_ref_obj(np_aaatoken_t, ref, ref_key_aaa_token);
 

@@ -5,6 +5,7 @@
 #include <uuid/uuid.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 #include "pthread.h"
 #include "event/ev.h"
@@ -104,7 +105,7 @@ int main(int argc, char **argv) {
 	_np_message_calculate_chunking(msg_out);
 	_np_message_serialize_chunked(msg_out);
 	np_tree_elem_t* footer_node = np_tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
-	log_msg(LOG_DEBUG, "properties %s, body %s, garbage size %hd",
+	log_msg(LOG_DEBUG, "properties %s, body %s, garbage size %"PRIu32,
 			properties_node->val.value.s,
 			body_node->val.value.s,
 			np_tree_get_byte_size(footer_node));

@@ -110,8 +110,10 @@ Test(np_tree_t, tree_node_insert_tree, .description="test the insertion of a tre
 	np_tree_insert_str(test_tree_2, mail, np_treeval_new_s(mail_t));
 	cr_expect(   5 == test_tree_2->size, "expect size of tree to be 5");
 
+#ifdef x64
 	np_tree_insert_str(test_tree_2, "ul", np_treeval_new_ull(4905283925042198132));
 	cr_expect(   6 == test_tree_2->size, "expect size of tree to be 6");
+#endif
 
 	np_tree_insert_str(test_tree_2, "tree_1", np_treeval_new_tree(test_tree_1));
 	cr_expect(   7 == test_tree_2->size, "expect size of tree to be 7");
@@ -163,7 +165,9 @@ Test(np_tree_t, tree_node_find_tree, .description="test lookup of data in a tree
 	np_tree_insert_str(test_tree_2, id,   np_treeval_new_i(18000));
 	np_tree_insert_str(test_tree_2, exp,  np_treeval_new_d(5.0));
 	np_tree_insert_str(test_tree_2, mail, np_treeval_new_s(mail_t));
+#ifdef x64
 	np_tree_insert_str(test_tree_2, "ul", np_treeval_new_ull(4905283925042198132));
+#endif
 	np_tree_insert_str(test_tree_2, "tree_1", np_treeval_new_tree(test_tree_1));
 
 	cr_expect(NULL == np_tree_find_str(test_tree_1, "dummy"),
@@ -225,7 +229,9 @@ Test(np_tree_t, tree_node_del_tree, .description="test deletion of data in a tre
 	np_tree_insert_str(test_tree_2, id,   np_treeval_new_i(18000));
 	np_tree_insert_str(test_tree_2, exp,  np_treeval_new_d(5.0));
 	np_tree_insert_str(test_tree_2, mail, np_treeval_new_s(mail_t));
+#ifdef x64
 	np_tree_insert_str(test_tree_2, "ul", np_treeval_new_ull(4905283925042198132));
+#endif
 	np_tree_insert_str(test_tree_2, "tree_1", np_treeval_new_tree(test_tree_1));
 
 	cr_expect(2 == test_tree_1->size, "expect the size of teh subtree to be 2");
