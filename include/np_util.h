@@ -19,6 +19,9 @@ extern "C" {
 #ifndef CEIL(a)
 #define CEIL(a) (((a-(int)a) > 0) ? ((int)a)+1:a)
 #endif
+#ifndef FLOOR(a)
+#define FLOOR(a) ((int)a)
+#endif
 #ifndef MIN(a,b)
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
@@ -30,6 +33,9 @@ extern "C" {
 #endif
 #ifndef ceil(a)
 #define ceil(a) CEIL(a)
+#endif
+#ifndef floor(a)
+#define floor(a) FLOOR(a)
 #endif
 #ifndef max(a,b)
 #define max(a,b) MAX(a,b)

@@ -64,15 +64,19 @@ np_bool __np_refresh_windows = TRUE;
 np_sll_t(char_ptr, log_buffer);
 int log_user_cursor = -1;
 
-void reltime_to_str(char*buffer,double time){
-	double time_s = time;
-	double time_d = (int)time / 216000;
-	time_s -= time_d * 216000;
-	double time_h = (int)time / 3600;
-	time_s -= time_h * 3600;
-	double time_m = (int)time / 60;
-	time_s -= time_m * 60;
-	snprintf(buffer, 49, "%2.0fd %2.0fh %2.0fmin %2.0fsec", time_d, time_h, time_m, time_s);
+void reltime_to_str(char*buffer, double time){
+	// totaltime format: seconds.milliseconds
+	// Now we need to format the seconds part to days:hours:seconds
+
+	uint32_t time_d = (time / 86400); // 60*60*24 = 86400	
+	uint32_t time_d_r = (uint32_t)time % 86400;
+	uint32_t time_h = time_d_r / 3600; // 60*60 = 3600	
+	uint32_t time_h_r = time_d_r % 3600;
+	uint32_t time_m = (time_h_r / 60);
+	uint32_t time_m_r = time_h_r % 60;
+	uint32_t time_s = time_m_r ;
+
+	snprintf(buffer, 49, "%02"PRIu32"d %02"PRIu32"h %02"PRIu32"min %02"PRIu32"sec", time_d, time_h, time_m, time_s);
 }
 
 char* np_get_startup_str() {
