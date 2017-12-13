@@ -13,7 +13,7 @@
 %include "stdint.i"
 
 %{
-#include "../include/neuropil.h"
+#include "neuropil.h"
 %}
 
 %include "np_types.i"
@@ -377,4 +377,4 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
 %ignore np_time_now;
 %ignore _np_send_simple_invoke_request;
 
-%include "../include/neuropil.h"
+%include "neuropil.h"

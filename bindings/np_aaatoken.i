@@ -6,7 +6,7 @@
 %module(package="neuropil") np_aaatoken
 
 %{
-#include "../include/np_aaatoken.h"
+#include "np_aaatoken.h"
 %}
 
 %rename(np_aaatoken) np_aaatoken_s;
@@ -73,5 +73,5 @@
 %ignore _np_aaatoken_add_local_mx;
 %ignore _np_aaatoken_get_local_mx;
 
-%include "../include/np_list.h"
-%include "../include/np_aaatoken.h"
+%include "np_list.h"
+%include "np_aaatoken.h"

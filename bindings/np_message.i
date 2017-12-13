@@ -6,7 +6,7 @@
 %module(package="neuropil") np_message
 
 %{
-#include "../include/np_message.h"
+#include "np_message.h"
 %}
 
 %rename(np_message) np_message_s;
@@ -52,4 +52,4 @@
 %ignore _np_message_add_footerentry;
 %ignore _np_message_serialize_chunked;
 
-%include "../include/np_message.h"
+%include "np_message.h"

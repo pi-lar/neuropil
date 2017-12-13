@@ -6,7 +6,7 @@
 %module(package="neuropil") np_tree
 
 %{
-#include "../include/np_tree.h"
+#include "np_tree.h"
 %}
 
 %rename(np_tree) np_tree_t;
@@ -136,4 +136,4 @@
 %ignore np_tree_del_double;
 %ignore np_tree_del_ulong;
 
-%include "../include/np_tree.h"
+%include "np_tree.h"

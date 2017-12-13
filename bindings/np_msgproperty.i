@@ -8,7 +8,7 @@
 #define RB_ENTRY(x) x
 
 %{
-#include "../include/np_msgproperty.h"
+#include "np_msgproperty.h"
 %}
 
 %rename(np_msgproperty) np_msgproperty_s;
@@ -55,4 +55,4 @@
 %ignore _np_msgproperty_cleanup_receiver_cache;
 
 
-%include "../include/np_msgproperty.h"
+%include "np_msgproperty.h"

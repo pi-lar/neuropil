@@ -6,7 +6,7 @@
 %module(package="neuropil") np_treeval
 
 %{
-#include "../include/np_treeval.h"
+#include "np_treeval.h"
 %}
 
 %rename(np_treeval) np_treeval_t;
@@ -144,4 +144,4 @@
 %ignore np_treeval_new_bin;
 %ignore np_treeval_new_tree;
 
-%include "../include/np_treeval.h"
+%include "np_treeval.h"

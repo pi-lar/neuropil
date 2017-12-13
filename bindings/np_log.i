@@ -6,10 +6,10 @@
 %module(package="neuropil") np_log
 
 %{
-#include "../include/np_log.h"
+#include "np_log.h"
 %}
 
 %ignore _np_log_fflush;
 %ignore np_log_message;
 
-%include "../include/np_log.h"
+%include "np_log.h"

@@ -6,7 +6,7 @@
 %module(package="neuropil") np_types
 
 %{
-#include "../include/np_types.h"
+#include "np_types.h"
 %}
 
 %ignore np_aaatoken_t;
@@ -35,4 +35,4 @@
 %ignore np_usercallback_t;
 %ignore np_ackentry_on_t;
 
-%include "../include/np_types.h"
+%include "np_types.h"

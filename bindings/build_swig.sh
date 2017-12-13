@@ -6,9 +6,10 @@ echo "building in: $work_dir"
 rm -r python
 mkdir python
 
-swig -python -outdir python -o neuropil_python.c neuropil.i
+swig -I$work_dir/../include -python -outdir python -o neuropil_python.c neuropil.i
 
 cp setup.py python/setup.py
+cp neuropil_python.c python/neuropil_python.c
 
 # python setup.py build
 # -stdlib=libc++ ??
