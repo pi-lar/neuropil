@@ -5,6 +5,8 @@
 #ifndef	_NP_UTIL_H_
 #define	_NP_UTIL_H_
 
+#include <assert.h>
+
 #include "msgpack/cmp.h"
 #include "json/parson.h"
 
@@ -14,6 +16,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 
 #ifndef CEIL(a)
@@ -39,6 +42,18 @@ extern "C" {
 #endif
 #ifndef max(a,b)
 #define max(a,b) MAX(a,b)
+#endif
+
+#ifdef DEBUG
+#define ASSERT(expression, onfail_msg, ...)												\
+	if(!(expression)){																	\
+		log_debug_msg(LOG_ERROR, onfail_msg , ##__VA_ARGS__);							\
+		fprintf(stderr, "Assert ERROR: "onfail_msg"\r\n", ##__VA_ARGS__);				\
+		fflush(NULL);																	\
+		assert((expression));															\
+	}																						 
+#else
+#define ASSERT(expression, onfail_msg, ...)
 #endif
 
 #define NP_GENERATE_THREADSAFE_PROPERTY_PROTOTYPE(TYPE, PROPERTY_NAME)					\
@@ -82,18 +97,6 @@ inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, 
 // create a sha156 uuid string, take the current date into account
 NP_API_EXPORT
 char* np_uuid_create(const char* str, const uint16_t num);
-
-// the following four are helper functions for c-message-pack to work on jtree structures
-NP_API_INTERN
-np_bool _np_buffer_reader(cmp_ctx_t *ctx, void *data, size_t count);
-
-NP_API_INTERN
-size_t _np_buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count);
-
-NP_API_INTERN
-np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit);
-NP_API_INTERN
-size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx,const void* data, size_t count);
 
 NP_API_INTERN
 void _np_tree2jsonobj(np_tree_t* jtree, JSON_Object* json_obj);

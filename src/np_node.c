@@ -179,8 +179,8 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 {
 	// MANDATORY paramter
 	uint8_t i_host_proto;
-	char* s_host_name;
-	char* s_host_port;
+	char* s_host_name = NULL;
+	char* s_host_port = NULL;
 	np_tree_elem_t* ele;
 	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_PROTOCOL))) {
 		i_host_proto = ele->val.value.ush;
@@ -188,12 +188,12 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 	else { return NULL; }
 
 	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_DNS_NAME))) {
-		s_host_name = ele->val.value.s;
+		s_host_name = np_treeval_to_str(ele->val);
 	}
 	else { return NULL; }
 
 	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_PORT))) {
-		s_host_port = ele->val.value.s;
+		s_host_port = np_treeval_to_str(ele->val);
 	}
 	else { return NULL; }
 
@@ -226,7 +226,7 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, 
 	{		
 		if (current->node)
 		{
-			np_tree_t* node_jrb = np_tree_create();
+			np_tree_t* node_jrb = np_tree_create(FALSE);
 			// log_debug_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
 			_np_node_encode_to_jrb(node_jrb, current, include_stats);
 			np_tree_insert_str(node_jrb, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(current)));
@@ -252,7 +252,7 @@ sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 	{
 		np_tree_elem_t* node_data = np_tree_find_int(data, i);
 
-		char* s_key = np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val.value.s;
+		char* s_key = np_treeval_to_str(np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val);
 		np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
 		np_key_t* node_key    = _np_keycache_find_or_create(search_key);
 		if (NULL == node_key->node)

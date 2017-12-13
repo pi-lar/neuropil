@@ -71,10 +71,11 @@ enum {
     void_type,
     bin_type,
 	jrb_tree_type,  // 20
-	key_type,
+	dhkey_type,
 	hash_type,
 	npobj_type,
-	npval_count
+	npval_count,
+	special_char_ptr_type,
 } np_treeval_type_t;
 
 /* The Jval -- a type that can hold any type */
@@ -83,7 +84,7 @@ typedef union val_type
     void* v;
     void* bin;
     np_tree_t* tree;
-    np_dhkey_t key;
+    np_dhkey_t dhkey;
     np_obj_t* obj;
     int8_t sh;
     int16_t i;
@@ -93,6 +94,9 @@ typedef union val_type
 #endif
     float f;
     double d;
+	/* To access the string value please use 
+		function:np_treeval_to_str()
+	*/
     char* s;
     char c;
     unsigned char uc;
@@ -127,6 +131,7 @@ np_treeval_t np_treeval_new_d (double d);
 np_treeval_t np_treeval_new_v (void* v);
 np_treeval_t np_treeval_new_bin (void* data, uint32_t size);
 np_treeval_t np_treeval_new_s (char * s);
+np_treeval_t np_treeval_new_ss(uint8_t idx);
 np_treeval_t np_treeval_new_c (char c);
 np_treeval_t np_treeval_new_uc (unsigned char uc);
 np_treeval_t np_treeval_new_ush (uint8_t ush);
@@ -143,7 +148,7 @@ np_treeval_t np_treeval_new_carray_nnt (char * carray);	/* Carray is not null te
 np_treeval_t np_treeval_new_tree(np_tree_t* tree);
 np_treeval_t np_treeval_new_hash(char* h_val);
 np_treeval_t np_treeval_new_pwhash (char *pw_key);
-np_treeval_t np_treeval_new_key(np_dhkey_t key);
+np_treeval_t np_treeval_new_key(np_dhkey_t dhkey);
 np_treeval_t np_treeval_new_obj(np_obj_t* obj);
 uint32_t np_treeval_get_byte_size(np_treeval_t ele);
 

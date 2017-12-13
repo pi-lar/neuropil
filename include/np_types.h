@@ -86,7 +86,7 @@ typedef np_message_t* np_message_ptr;
 typedef struct np_msgproperty_s np_msgproperty_t;
 typedef np_msgproperty_t* np_msgproperty_ptr;
 
-typedef struct _np_message_buffer_container_s _np_message_buffer_container_t;
+typedef struct _np_obj_buffer_container_s _np_obj_buffer_container_t;
 
 typedef struct np_network_s np_network_t;
 

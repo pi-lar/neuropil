@@ -67,8 +67,8 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 	np_key_t* target_key = NULL;
 	np_message_t* msg_in = args->msg;
 
-	char* msg_subject = np_tree_find_str(msg_in->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
-	char* msg_target = np_tree_find_str(msg_in->header, _NP_MSG_HEADER_TO)->val.value.s;
+	char* msg_subject = np_treeval_to_str(np_tree_find_str(msg_in->header, _NP_MSG_HEADER_SUBJECT)->val);
+	char* msg_target = np_treeval_to_str(np_tree_find_str(msg_in->header, _NP_MSG_HEADER_TO)->val);
 
 	np_bool is_a_join_request = FALSE;
 	if (0 == strncmp(msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) )
@@ -299,12 +299,22 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 	{
 		// double now = dtime();
 		// double last_update = iter->val.value.d;
-		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(iter->key.value.s, "0");
+
+		char* iter_key_value = NULL;
+		if (iter->key.type == char_ptr_type)
+			iter_key_value =  np_treeval_to_str(iter->key);
+		else if (iter->key.type == special_char_ptr_type)
+			iter_key_value = _np_tree_get_special_str(iter->key.value.ush);
+		else {
+			ASSERT(FALSE,"key type %"PRIu8" is not recognized.", iter->key.type)
+		}
+			
+		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(iter_key_value, "0");
 		np_key_t* target = NULL;
 
 		target = _np_keycache_find_or_create(target_dhkey);
 
-		msg_prop = np_msgproperty_get(TRANSFORM, iter->key.value.s);
+		msg_prop = np_msgproperty_get(TRANSFORM, iter_key_value);
 		if (NULL != msg_prop)
 		{
 			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
@@ -313,7 +323,7 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		else
 		{
 			// deleted = RB_REMOVE(np_tree_s, state->msg_tokens, iter);
-			// free(deleted->key.value.s);
+			// free( np_treeval_to_str(deleted->key));
 			// free(deleted);
 			np_unref_obj(np_key_t,target,"_np_keycache_find_or_create");
 			break;
@@ -411,7 +421,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
 			
 				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
-				free(jrb_ack_node->key.value.s);
+				free( np_treeval_to_str(jrb_ack_node->key));
 				free(jrb_ack_node);
 			}
 			else if (np_time_now() > ackentry->expires_at)
@@ -435,7 +445,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				}
 
 				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
-				free(jrb_ack_node->key.value.s);
+				free( np_treeval_to_str(jrb_ack_node->key));
 				free(jrb_ack_node);
 			}
 		}
@@ -568,7 +578,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 
 	if (sll_size(sll_of_keys) > 0)
 	{
-		np_tree_t* msg_body = np_tree_create();
+		np_tree_t* msg_body = np_tree_create(FALSE);
 		_np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, FALSE);
 		np_msgproperty_t* outprop = np_msgproperty_get(OUTBOUND, _NP_MSG_PIGGY_REQUEST);
 		log_debug_msg(LOG_DEBUG, "sending piggy msg (%"PRIu32" nodes) to %s", sll_size(sll_of_keys), _np_key_as_str(target_key));
@@ -700,7 +710,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions, "target_node");
 		if (NULL != tn_node)
 		{
-			target_node_str = tn_node->val.value.s;
+			target_node_str =  np_treeval_to_str(tn_node->val);
 		}
 		else
 		{

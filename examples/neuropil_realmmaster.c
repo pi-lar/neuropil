@@ -36,7 +36,7 @@ int joinComplete = 0;
 np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
-	if (NULL == authorized_tokens) authorized_tokens = np_tree_create();
+	if (NULL == authorized_tokens) authorized_tokens = np_tree_create(FALSE);
 
 	// if a token reaches this point, is has already been check for technical validity
 	np_bool ret_val = FALSE;
@@ -116,7 +116,7 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
 
-	if (NULL == authenticated_tokens) authenticated_tokens = np_tree_create();
+	if (NULL == authenticated_tokens) authenticated_tokens = np_tree_create(FALSE);
 	// if a token reaches this point, is has already been check for technical validity
 	np_bool ret_val = FALSE;
 

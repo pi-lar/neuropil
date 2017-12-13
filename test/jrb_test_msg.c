@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORK | LOG_KEY;
 	log_init(log_file, level);
 
-	np_tree_t* test_jrb_1 = np_tree_create();
+	np_tree_t* test_jrb_1 = np_tree_create(FALSE);
 
 	log_msg(LOG_INFO, "test jrb has size: %d %d", test_jrb_1->size, test_jrb_1->byte_size);
 	cmp_ctx_t cmp_empty;
@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
 	// node = test_jrb;
 	// log_msg(LOG_DEBUG, "for %p; %p!=%p; %p=%p", test_jrb->flink, node, test_jrb, node, node->flink);
 	//	jrb_traverse(node, test_jrb) {
-	//		log_msg(LOG_INFO, "serializing now: %s", node->key.value.s);
+	//		log_msg(LOG_INFO, "serializing now: %s",  np_treeval_to_str(node->key));
 	//		_np_tree_serialize(node, &cmp_empty);
 	//	}
 	// free (empty_buffer);
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 	jrb_insert_str(test_jrb_1, "halli", new_jval_s("galli"));
 	jrb_insert_str(test_jrb_1, "hallo", new_jval_s("gulli"));
 
-	np_tree_t* test_jrb_2 = np_tree_create();
+	np_tree_t* test_jrb_2 = np_tree_create(FALSE);
 	char* from = "from";
 	char* to = "to";
 	char* id = "id";
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
 	log_msg(LOG_INFO, "----------------------");
 	log_msg(LOG_INFO, "deserializing message:");
 
-	np_tree_t* out_jrb = np_tree_create();
+	np_tree_t* out_jrb = np_tree_create(FALSE);
 	cmp_ctx_t cmp_out;
 	// int cmp_err_out;
 	cmp_init(&cmp_out, buffer, _np_buffer_reader, _np_buffer_writer);

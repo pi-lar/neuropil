@@ -62,6 +62,11 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 		to.size = strlen(from.value.s);
 		// log_debug_msg(LOG_DEBUG, "copy str %s %hd", to.value.s, to.size);
 		break;
+	case special_char_ptr_type:
+		to.type = special_char_ptr_type;		
+		to.value.ush = from.value.ush;
+		to.size = sizeof(uint8_t);
+		break;
 	case char_type:
 		to.type = char_type;
 		to.value.c = from.value.c;
@@ -116,14 +121,18 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 	case jrb_tree_type:
 		to.type = jrb_tree_type;
 		to.size = from.size;
-		to.value.tree = np_tree_copy(from.value.tree);
+		to.value.tree = np_tree_clone(from.value.tree);
 		break;
-	case key_type:
-		to.type = key_type;
-		to.value.key.t[0] = from.value.key.t[0];
-		to.value.key.t[1] = from.value.key.t[1];
-		to.value.key.t[2] = from.value.key.t[2];
-		to.value.key.t[3] = from.value.key.t[3];
+	case dhkey_type:
+		to.type = dhkey_type;
+		to.value.dhkey.t[0] = from.value.dhkey.t[0];
+		to.value.dhkey.t[1] = from.value.dhkey.t[1];
+		to.value.dhkey.t[2] = from.value.dhkey.t[2];
+		to.value.dhkey.t[3] = from.value.dhkey.t[3];
+		to.value.dhkey.t[4] = from.value.dhkey.t[4];
+		to.value.dhkey.t[5] = from.value.dhkey.t[5];
+		to.value.dhkey.t[6] = from.value.dhkey.t[6];
+		to.value.dhkey.t[7] = from.value.dhkey.t[7];
 		to.size = sizeof(np_dhkey_t);
 		break;
 	case hash_type:
@@ -209,7 +218,10 @@ char* np_treeval_to_str(np_treeval_t val) {
   			}
 			break;
 		case char_ptr_type:
-  			return val.value.s;
+			return val.value.s;
+			break;
+		case special_char_ptr_type:
+  			return _np_tree_get_special_str(val.value.ush);
 			break;
 		case char_type:
 		case unsigned_char_type:
@@ -268,12 +280,12 @@ char* np_treeval_to_str(np_treeval_t val) {
  			return "--> binary content";
 			break;
  		case jrb_tree_type:
- 			return "--> subtree";
+			return "--> subtree";
 			break;
-		case key_type:
+		case dhkey_type:
 			result = malloc(64);
 			CHECK_MALLOC(result);
-			_np_dhkey_to_str((np_dhkey_t*) val.value.v, result);
+			_np_dhkey_to_str(&val.value.dhkey, result);
 			break;
 		default:
 			return "--> unknown";
@@ -335,13 +347,31 @@ np_treeval_t np_treeval_new_v (void *v)
     return j;
 }
 
-np_treeval_t np_treeval_new_s (char *s)
+np_treeval_t np_treeval_new_s(char *s)
 {
-    np_treeval_t j;
-    j.size = strlen(s);
-    j.value.s = s; // strndup(s, j.size);
-    j.type = char_ptr_type;
-    return j;
+	np_treeval_t j;
+	uint8_t idx = 0;
+	if (_np_tree_is_special_str(s, &idx)) {
+		np_treeval_t k = np_treeval_new_ss(idx);
+		memcpy(&j, &k, sizeof(np_treeval_t));
+	}
+	else {
+		j.size = strlen(s);
+		j.value.s = s; // strndup(s, j.size);
+		j.type = char_ptr_type;
+	}
+	return j;
+}
+
+np_treeval_t np_treeval_new_ss(uint8_t idx)
+{
+	np_treeval_t j;	
+	
+	j.size = sizeof(uint8_t);
+	j.value.ush = idx;
+	j.type = special_char_ptr_type;
+
+	return j;
 }
 
 np_treeval_t np_treeval_new_c (char c)
@@ -425,12 +455,12 @@ np_treeval_t np_treeval_new_bin (void* data, uint32_t ul)
     return j;
 }
 
-np_treeval_t np_treeval_new_key (np_dhkey_t key)
+np_treeval_t np_treeval_new_key (np_dhkey_t dhkey)
 {
     np_treeval_t j;
 
-    j.value.key = key;
-    j.type = key_type;
+    j.value.dhkey = dhkey;
+    j.type = dhkey_type;
     j.size = sizeof(np_dhkey_t);
 
     // j.size = sizeof(key);
@@ -628,37 +658,38 @@ char* jval_carray (np_treeval_t j)
 }
 uint32_t np_treeval_get_byte_size(np_treeval_t ele)
 {
-    log_msg(LOG_TRACE, "start: uint64_t np_treeval_get_byte_size(np_treeval_t ele){");
+    log_msg(LOG_TRACE, "start: uint32_t np_treeval_get_byte_size(np_treeval_t ele){");
 	uint32_t byte_size = 0;
 
 	switch(ele.type)
 	{
-		case short_type: 		  byte_size += 1 + sizeof(int8_t); break;
-		case int_type: 			  byte_size += 1 + sizeof(int16_t); break;
-		case long_type: 		  byte_size += 1 + sizeof(int32_t); break;
+		case short_type: 					byte_size += 1 + sizeof(int8_t); break;
+		case int_type: 						byte_size += 1 + sizeof(int16_t); break;
+		case long_type: 					byte_size += 1 + sizeof(int32_t); break;
 #ifdef x64
-		case long_long_type:	  byte_size += 1 + sizeof(int64_t); break;
+		case long_long_type:				byte_size += 1 + sizeof(int64_t); break;
 #endif
-		case float_type: 		  byte_size += 1 + sizeof(float); break;
-		case double_type: 		  byte_size += 1 + sizeof(double); break;
-		case char_ptr_type: 	  byte_size += 1 + sizeof(uint32_t) + ele.size; break;
-		case char_type: 		  byte_size += 1 + sizeof(char); break;
-		case unsigned_char_type:  byte_size += 1 + sizeof(unsigned char); break;
-		case unsigned_short_type: byte_size += 1 + sizeof(uint8_t); break;
-		case unsigned_int_type:   byte_size += 1 + sizeof(uint16_t); break;
-		case unsigned_long_type:  byte_size += 1 + sizeof(uint32_t); break;
+		case float_type: 					byte_size += 1 + sizeof(float); break;
+		case double_type: 					byte_size += 1 + sizeof(double); break;
+		case char_ptr_type: 				byte_size += sizeof(uint8_t)/*str marker*/ + sizeof(uint32_t)/*size of str*/ + ele.size /*string*/ + sizeof(char)/*terminator*/; break;
+		case char_type: 					byte_size += 1 + sizeof(char); break;
+		case unsigned_char_type:			byte_size += 1 + sizeof(unsigned char); break;
+		case unsigned_short_type:			byte_size += 1 + sizeof(uint8_t); break;
+		case unsigned_int_type:				byte_size += 1 + sizeof(uint16_t); break;
+		case unsigned_long_type:			byte_size += 1 + sizeof(uint32_t); break;
 #ifdef x64
-		case unsigned_long_long_type:  byte_size += 1 + sizeof(uint64_t); break;
+		case unsigned_long_long_type:		byte_size += 1 + sizeof(uint64_t); break;
 #endif
-		case uint_array_2_type:   byte_size += 1 + 2*sizeof(uint16_t); break;
-		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
-		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
-		case unsigned_char_array_8_type: byte_size += 1+8*sizeof(unsigned char); break;
-		case void_type: 		  byte_size += 1 + sizeof(void*); break;
-		case bin_type: 			  byte_size += 1 + sizeof(uint32_t) + ele.size; break;
-		case hash_type: 		  byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.size; break;
-		case jrb_tree_type:       byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.value.tree->byte_size; break;
-		case key_type:            byte_size += 1 + sizeof(int8_t) +  sizeof(uint32_t) + (4 * (sizeof(int8_t) +sizeof(uint64_t))); break; // marker ext32:key_type + size of ext32 + 4* (marker int 64 + wert int 64)
+		case uint_array_2_type:				byte_size += 1 + 2*sizeof(uint16_t); break;
+		case float_array_2_type:			byte_size += 1 + 2*sizeof(float); break;
+		case char_array_8_type:				byte_size += 1 + 8*sizeof(char); break;
+		case unsigned_char_array_8_type:	byte_size += 1+8*sizeof(unsigned char); break;
+		case void_type: 					byte_size += 1 + sizeof(void*); break;
+		case bin_type: 						byte_size += 1 + sizeof(uint32_t) + ele.size; break;
+		case hash_type: 					byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.size; break;
+		case jrb_tree_type:					byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.value.tree->byte_size; break;
+		case dhkey_type:					byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of dhkey*/8 * (sizeof(uint8_t) /*uint32 marker*/+ sizeof(uint32_t)/*uint32 value*/)); break;
+		case special_char_ptr_type:         byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of special string (1:1 replacement on target)*/ sizeof(uint8_t)/*uint8 marker*/ + sizeof(uint8_t)/*uint8 value*/); break; 
 		default:                  log_msg(LOG_ERROR, "unsupported length calculation for value / type %"PRIu8"", ele.type ); break;
 	}
 

@@ -227,10 +227,8 @@ np_dhkey_t np_dhkey_max()  {
 
 // TODO: the distance of two hash keys could be implemented much better
 void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_dhkey_t* const k2)
-{
-	log_msg (LOG_KEY | LOG_TRACE, ".start._dhkey_distance");
+{	
 	_np_dhkey_sub (diff, k1, k2);
-	log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_distance");
 }
 
 

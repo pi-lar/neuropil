@@ -560,7 +560,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 					_LOCK_ACCESS (&alias_key->network->send_data_lock) {
 						alias_key->network->socket = client_fd;
 						alias_key->network->socket_type = ng->socket_type;
-						alias_key->network->waiting = np_tree_create();
+						alias_key->network->waiting = np_tree_create(FALSE);
 						alias_key->network->seqend = 0LU;
 
 						// it could be a passive socket
@@ -924,7 +924,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 		_LOCK_ACCESS(&ng->send_data_lock)
 		{
 			// create own retransmit structures
-			ng->waiting = np_tree_create();
+			ng->waiting = np_tree_create(FALSE);
 			// own sequence number counter
 			ng->seqend = 0LU;
 		}

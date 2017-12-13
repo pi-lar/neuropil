@@ -253,9 +253,9 @@ void np_key_renew_token() {
 		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
 		np_message_t* msg_out_update = NULL;
 
-		np_tree_t* jrb_new = np_tree_create();
+		np_tree_t* jrb_new = np_tree_create(FALSE);
 		np_aaatoken_encode(jrb_new, new_node_key->aaa_token);
-		np_tree_t* jrb_old = np_tree_create();
+		np_tree_t* jrb_old = np_tree_create(FALSE);
 		np_aaatoken_encode(jrb_old, old_node_key->aaa_token);
 
 		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Sending new aaatoken to old known nodes");
@@ -267,7 +267,7 @@ void np_key_renew_token() {
 
 			// send join messages to entries of the routing	 table to re-arrange internal routing
 			/* request update from join with peer */
-			np_tree_t* jrb_new_me = np_tree_copy(jrb_new);
+			np_tree_t* jrb_new_me = np_tree_clone(jrb_new);
 			np_new_obj(np_message_t, msg_out_update);
 			log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.submitting update request to target key %s", _np_key_as_str(iterator->val));
 			_np_message_create(msg_out_update, iterator->val, old_node_key, _NP_MSG_UPDATE_REQUEST, jrb_new_me);
@@ -276,7 +276,7 @@ void np_key_renew_token() {
 			np_unref_obj(np_message_t, msg_out_update, ref_obj_creation);
 
 			/*
-			np_tree_t* jrb_old_me = np_tree_copy(jrb_old);
+			np_tree_t* jrb_old_me = np_tree_clone(jrb_old);
 			np_new_obj(np_message_t, msg_out_leave);
 			_np_message_create(msg_out_leave, iterator->val, new_node_key, _NP_MSG_LEAVE_REQUEST, jrb_old_me);
 			_np_job_submit_msgout_event(0.0, prop, iterator->val, msg_out_leave);

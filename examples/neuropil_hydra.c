@@ -253,7 +253,6 @@ int main(int argc, char **argv)
 			
 			current_pid = fork();			
 			if (0 == current_pid) {
-				np_example_print(stdout, "started child process %d\n", current_pid);
 				current_pid = getpid();
 
 				/**
@@ -301,7 +300,7 @@ int main(int argc, char **argv)
 				\code
 				*/
 				do {
-					np_example_print(stdout, "try to join bootstrap node\n");
+					np_example_print(stdout, "%s tries to join bootstrap node\n",port);
 				 
 					np_send_join(j_key);
 
@@ -341,8 +340,6 @@ int main(int argc, char **argv)
 
 				 \code
 				 */
-				np_example_print(stdout, "adding (%d) : child process %d \n",
-						sll_size(list_of_childs), current_pid);
 				array_of_pids[sll_size(list_of_childs)] = current_pid;
 				sll_append(int, list_of_childs,
 						array_of_pids[sll_size(list_of_childs)]);

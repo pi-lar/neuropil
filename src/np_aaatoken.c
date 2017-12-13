@@ -66,7 +66,7 @@ void _np_aaatoken_t_new(void* token)
 	aaa_token->expires_at = aaa_token->not_before + expire_sec;
 	log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "aaatoken expires in %d sec", expire_sec);
 
-	aaa_token->extensions = np_tree_create();
+	aaa_token->extensions = np_tree_create(FALSE);
 	aaa_token->state |= AAA_INVALID;
 }
 
@@ -121,7 +121,7 @@ void _np_aaatoken_upgrade_core_token(np_key_t* key_with_core_token, np_aaatoken_
 	{
 		log_debug_msg(LOG_DEBUG, "signature: upgrade token %p with data from %p", key_with_core_token->aaa_token,full_token);
 
-		np_tree_t* container = np_tree_create();
+		np_tree_t* container = np_tree_create(FALSE);
 		np_aaatoken_encode(container, full_token);
 		np_tree_del_str(container, "np.t.p");
 		np_tree_replace_str(container, "np.t.si", np_treeval_new_bin(key_with_core_token->aaa_token->signature, crypto_sign_BYTES));
@@ -188,24 +188,24 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.r")))
 	{
-		strncpy(token->realm, tmp->val.value.s, 255);
+		strncpy(token->realm,  np_treeval_to_str(tmp->val), 255);
 	} 
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.s")))
 	{
-		strncpy(token->subject, tmp->val.value.s, 255);
+		strncpy(token->subject,  np_treeval_to_str(tmp->val), 255);
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.i")))
 	{
-		strncpy(token->issuer, tmp->val.value.s, 64);
+		strncpy(token->issuer,  np_treeval_to_str(tmp->val), 64);
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.a")))
 	{
-		strncpy(token->audience, tmp->val.value.s, 255);
+		strncpy(token->audience,  np_treeval_to_str(tmp->val), 255);
 	}
 	if (NULL !=(tmp = np_tree_find_str(data, "np.t.u")))
 	{
 		free(token->uuid);
-		token->uuid = strndup(tmp->val.value.s, UUID_SIZE);
+		token->uuid = strndup( np_treeval_to_str(tmp->val), UUID_SIZE);
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.nb")))
 	{
@@ -230,17 +230,11 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	} 
 	// decode extensions
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.e")))
-	{
+	{		
+		ASSERT(tmp->val.type == jrb_tree_type, "type is %"PRIu8" instead of jrb_tree_type(%"PRIu8")", tmp->val.type, jrb_tree_type);
+
 		np_tree_clear(token->extensions);
-		np_tree_t* from = tmp->val.value.tree;
-		np_tree_elem_t* tmp = NULL;
-		RB_FOREACH(tmp, np_tree_s, from)
-		{
-			if (tmp->key.type == char_ptr_type)      np_tree_insert_str(token->extensions, tmp->key.value.s, tmp->val);
-			if (tmp->key.type == int_type)           np_tree_insert_int(token->extensions, tmp->key.value.i, tmp->val);
-			if (tmp->key.type == double_type)        np_tree_insert_dbl(token->extensions, tmp->key.value.d, tmp->val);
-			if (tmp->key.type == unsigned_long_type) np_tree_insert_ulong(token->extensions, tmp->key.value.ul, tmp->val);
-		}
+		np_tree_copy(tmp->val.value.tree, token->extensions);
 	}
 
 //	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);

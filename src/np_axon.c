@@ -40,6 +40,7 @@
 #include "np_constants.h"
 #include "np_list.h"
 #include "np_ackentry.h"
+#include "np_serialization.h"
 
 /** message split up maths
  ** message size = 1b (common header) + 40b (encryption) +
@@ -249,7 +250,7 @@ void _np_out(np_jobargs_t* args)
 			{
 				if (FALSE == is_resend)
 				{
-					uuid = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val.value.s;
+					uuid = np_treeval_to_str(np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val);
 
 					_LOCK_ACCESS(&my_network->send_data_lock)
 					{
@@ -300,7 +301,7 @@ void _np_out(np_jobargs_t* args)
 
 			if (TRUE == is_forward)
 			{
-				_np_message_serialize(&chunk_args);
+				_np_message_serialize_header_and_instructions(&chunk_args);
 			}
 			else
 			{
@@ -346,7 +347,7 @@ void _np_out_handshake(np_jobargs_t* args)
 			crypto_scalarmult_base(my_dh_sessionkey, curve25519_sk);
 
 			// create handshake data
-			np_tree_t* hs_data = np_tree_create();
+			np_tree_t* hs_data = np_tree_create(FALSE);
 
 			//	Required informations in this MSG
 			//	 protocol
@@ -372,9 +373,9 @@ void _np_out_handshake(np_jobargs_t* args)
 			unsigned char hs_payload[65536] = { 0 };
 			void* hs_buf_ptr = hs_payload;
 
-			cmp_init(&cmp, hs_buf_ptr, _np_buffer_reader, NULL, _np_buffer_writer);
+			cmp_init(&cmp, hs_buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 
-			_np_tree_serialize(hs_data, &cmp);
+			np_tree_serialize(hs_data, &cmp);
 			uint32_t hs_payload_len = cmp.buf - hs_buf_ptr;
 
 			np_tree_free(hs_data);
@@ -528,7 +529,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
 
 			log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
-			np_tree_t* _data = np_tree_create();
+			np_tree_t* _data = np_tree_create(FALSE);
 			np_aaatoken_encode(_data, msg_token);
 
 			np_message_t* msg_out = NULL;
@@ -557,7 +558,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 
 			log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
 
-			np_tree_t* _data = np_tree_create();
+			np_tree_t* _data = np_tree_create(FALSE);
 			np_aaatoken_encode(_data, msg_token);
 
 			np_message_t* msg_out = NULL;
@@ -606,7 +607,7 @@ void _np_out_receiver_discovery(np_jobargs_t* args)
 		ref_replace_reason(np_aaatoken_t, msg_token, ref_obj_creation,"_np_aaatoken_get_sender")
 	}
 
-	np_tree_t* _data = np_tree_create();
+	np_tree_t* _data = np_tree_create(FALSE);
 	np_aaatoken_encode(_data, msg_token);
 
 	np_message_t* msg_out = NULL;
@@ -642,7 +643,7 @@ void _np_out_sender_discovery(np_jobargs_t* args)
 	}
 
 	log_debug_msg(LOG_DEBUG, "encoding receiver token for subject %p / %s", msg_token, msg_token->uuid);
-	np_tree_t* _data = np_tree_create();
+	np_tree_t* _data = np_tree_create(FALSE);
 	np_aaatoken_encode(_data, msg_token);
 
 	np_message_t* msg_out = NULL;
@@ -692,7 +693,7 @@ void _np_out_authentication_request(np_jobargs_t* args)
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 
-	np_tree_t* auth_data = np_tree_create();
+	np_tree_t* auth_data = np_tree_create(FALSE);
 	np_aaatoken_encode(auth_data, args->target->aaa_token);
 
 //	log_debug_msg(LOG_DEBUG, "realm             : %s", args->target->aaa_token->realm);
@@ -775,7 +776,7 @@ void _np_out_authorization_request(np_jobargs_t* args)
 	// create and and send authorization request
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
-	np_tree_t* auth_data = np_tree_create();
+	np_tree_t* auth_data = np_tree_create(FALSE);
 	np_aaatoken_encode(auth_data, args->target->aaa_token);
 
 //	log_debug_msg(LOG_DEBUG, "realm             : %s", args->target->aaa_token->realm);
@@ -857,7 +858,7 @@ void _np_out_accounting_request(np_jobargs_t* args)
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 
-	np_tree_t* auth_data = np_tree_create();
+	np_tree_t* auth_data = np_tree_create(FALSE);
 	np_aaatoken_encode(auth_data, args->target->aaa_token);
 	_np_message_create(msg_out, aaa_target, state->my_node_key, _NP_MSG_ACCOUNTING_REQUEST, auth_data);
 

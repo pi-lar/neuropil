@@ -67,71 +67,6 @@ char* np_uuid_create(const char* str, const uint16_t num)
 	return uuid_out;
 }
 
-np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit)
-{
-	log_msg(LOG_TRACE, "start: np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit){");
-	memcpy(data, ctx->buf, limit);
-	ctx->buf += limit;
-	return TRUE;
-}
-
-np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit)
-{
-	log_msg(LOG_TRACE, "start: np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit){");
-	np_bool ret = FALSE;
-	_np_message_buffer_container_t* wrapper = ctx->buf;
-
-	size_t nextCount = wrapper->bufferCount + limit;
-	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
-			 "BUFFER CHECK Current size: %zu; Max size: %zu; Read size: %zu",
-			 wrapper->bufferCount, wrapper->bufferMaxCount, limit);
-
-	if(nextCount > wrapper->bufferMaxCount) {
-		 log_msg(LOG_WARN,
-				 "Read size exceeds buffer. May be invoked due to changed key (see: kb) Current size: %zu; Max size: %zu; Read size: %zu",
-				 wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
-	} else {
-		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "memcpy %p <- %p o %p",data, wrapper->buffer,wrapper);
-		memcpy(data, wrapper->buffer, limit);
-		wrapper->buffer += limit;
-		wrapper->bufferCount = nextCount;
-		ret = TRUE;
-	}
-	return ret;
-}
-
-size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size_t count)
-{
-	log_msg(LOG_TRACE, "start: size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size_t count){");
-	_np_message_buffer_container_t* wrapper = ctx->buf;
-
-	size_t nextCount = wrapper->bufferCount + count;
-	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
-			 "BUFFER CHECK Current size: %zu; Max size: %zu; Read size: %zu",
-			 wrapper->bufferCount, wrapper->bufferMaxCount, count);
-
-	if(nextCount > wrapper->bufferMaxCount) {
-		 log_msg(LOG_WARN,
-				 "Write size exceeds buffer. Current size: %zu; Max size: %zu; Read size: %zu",
-				 wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
-	}
-	memcpy(wrapper->buffer, data, count);
-	wrapper->buffer += count;
-	return count;
-}
-
-size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
-{
-	log_msg(LOG_TRACE, "start: size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count){");
-	// log_debug_msg(LOG_DEBUG, "-- writing cmp->buf: %p size: %hd", ctx->buf, count);
-	// printf( "-- writing cmp->buf: %p size: %hd\n", ctx->buf, count);
-
-	memcpy(ctx->buf, data, count);
-	ctx->buf += count;
-	return count;
-}
-
-
 // TODO: replace with function pointer, same for __np_tree_read_type
 // typedef void (*write_type_function)(const np_treeval_t* val, cmp_ctx_t* ctx);
 // write_type_function write_type_arr[npval_count] = {NULL};
@@ -200,7 +135,7 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 		ret = json_value_init_number(val.value.d);
 		break;
 	case char_ptr_type:
-		ret = json_value_init_string(val.value.s);
+		ret = json_value_init_string( np_treeval_to_str(val));
 		break;
 	case char_type:
 		ret = json_value_init_string(&val.value.c);
@@ -235,12 +170,12 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 	case jrb_tree_type:
 		ret = np_tree2json(val.value.tree);
 		break;
-	case key_type:
+	case dhkey_type:
 		ret = json_value_init_array();
-		json_array_append_number(json_array(ret), val.value.key.t[0]);
-		json_array_append_number(json_array(ret), val.value.key.t[1]);
-		json_array_append_number(json_array(ret), val.value.key.t[2]);
-		json_array_append_number(json_array(ret), val.value.key.t[3]);
+		json_array_append_number(json_array(ret), val.value.dhkey.t[0]);
+		json_array_append_number(json_array(ret), val.value.dhkey.t[1]);
+		json_array_append_number(json_array(ret), val.value.dhkey.t[2]);
+		json_array_append_number(json_array(ret), val.value.dhkey.t[3]);
 		break;
 	default:
 		log_msg(LOG_WARN, "please implement serialization for type %hhd",
@@ -302,7 +237,11 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 				}
 				else if (char_ptr_type == tmp->key.type)
 				{
-					name = strndup(tmp->key.value.s, strlen(tmp->key.value.s));
+					name = strndup( np_treeval_to_str(tmp->key), strlen( np_treeval_to_str(tmp->key)));
+				}
+				else if (special_char_ptr_type == tmp->key.type)
+				{
+					name = strdup(_np_tree_get_special_str(tmp->key.value.ush));
 				}
 				else
 				{
@@ -420,7 +359,7 @@ char* _np_concatAndFree(char* target, char* source, ... ) {
 np_bool _np_get_local_ip(char* buffer,int buffer_size){
 
 	np_bool ret = FALSE;
-	
+
 	const char* ext_server = "37.97.143.153";//"neuropil.io";
 	int dns_port = 53;
 
@@ -433,12 +372,12 @@ np_bool _np_get_local_ip(char* buffer,int buffer_size){
 		ret = FALSE;
 		log_msg(LOG_ERROR,"Could not detect local ip. (1) Error: Socket could not be created");
 	} else {
-		
+
 		memset( &serv, 0, sizeof(serv) );
 		serv.sin_family = AF_INET;
 		serv.sin_addr.s_addr = inet_addr( ext_server );
 		serv.sin_port = htons( dns_port );
-		
+
 		int err = connect( sock , (const struct sockaddr*) &serv , sizeof(serv) );
 		if(err < 0 ){
 			ret = FALSE;
@@ -448,7 +387,7 @@ np_bool _np_get_local_ip(char* buffer,int buffer_size){
 			struct sockaddr_in name;
 			socklen_t namelen = sizeof(name);
 			err = getsockname(sock, (struct sockaddr*) &name, &namelen);
-			
+
 			if(err < 0 )
 			{
 				ret = FALSE;
@@ -467,16 +406,16 @@ np_bool _np_get_local_ip(char* buffer,int buffer_size){
 				}else{
 					ret = TRUE;
 				}
-				
+
 			}
-			
-			
+
+
 		}
-		
+
 		close(sock);
-		
+
 	}
-	
+
 	return ret;
 }
 
@@ -484,7 +423,7 @@ np_bool _np_get_local_ip(char* buffer,int buffer_size){
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len) {
 	char * ret = NULL;
 	char * tmp = NULL;
-	sll_iterator(char_ptr) iter = sll_first(target);		
+	sll_iterator(char_ptr) iter = sll_first(target);
 	while (iter != NULL)
 	{
 		tmp = (iter->val);
@@ -507,11 +446,11 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
 	sll_iterator(char_ptr) iter = sll_first(target);
 	int i = 0;
 	while (iter != NULL)
-	{				
+	{
 		ret = _np_concatAndFree(ret, "%d:\"%s\"->", i, iter->val);
 		i++;
 		sll_next(iter);
-	}			
+	}
 	if (sll_size(target) != i) {
 		log_msg(LOG_ERROR, "Size of original list (%d) does not equal the size of the flattend string (items flattend: %d).", sll_size(target),i);
 		abort();
@@ -519,12 +458,12 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
 	return ret;
 }
 
-/** 
- * Returns a part copy of the original list. 
+/**
+ * Returns a part copy of the original list.
  * If amount is negative the part contains the last elements of the original list.
 */
 sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount) {
-	
+
 	sll_return(char_ptr) ret;
 	sll_init(char_ptr, ret);
 
@@ -538,7 +477,7 @@ sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount) {
 		}
 		else {
 			begin_copy_at = sll_size(target) - amount;
-		}		
+		}
 	}
 
 	sll_iterator(char_ptr) iter = sll_first(target);

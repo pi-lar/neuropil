@@ -19,7 +19,7 @@
 #include "np_msgproperty.h"
 #include "np_tree.h"
 #include "np_util.h"
-
+#include "np_serialization.h"
 #include "np_messagepart.h"
 
 NP_PLL_GENERATE_IMPLEMENTATION(np_messagepart_ptr);
@@ -77,8 +77,10 @@ np_bool _np_messagepart_decrypt(np_tree_t* msg_part,
 	}
 
 	cmp_ctx_t cmp;
-	cmp_init(&cmp, dec_part, _np_buffer_reader, NULL, _np_buffer_writer);
-	_np_tree_deserialize(msg_part, &cmp);
+	cmp_init(&cmp, dec_part, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+	if(np_tree_deserialize(msg_part, &cmp) == FALSE) {
+		return FALSE;
+	}
 	// TODO: check if the complete buffer was read (byte count match)
 
 	np_tree_del_str(msg_part, NP_ENCRYPTED);
@@ -107,8 +109,8 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 	unsigned char msg_part_buffer[65536];
 	void* msg_part_buf_ptr = msg_part_buffer;
 
-	cmp_init(&cmp, msg_part_buf_ptr, _np_buffer_reader, NULL, _np_buffer_writer);
-	_np_tree_serialize(msg_part, &cmp);
+	cmp_init(&cmp, msg_part_buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+	np_tree_serialize(msg_part, &cmp);
 
 	uint32_t msg_part_len = cmp.buf-msg_part_buf_ptr;
 
@@ -147,7 +149,7 @@ void _np_messagepart_t_del(void* nw)
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
 	np_messagepart_t* part = (np_messagepart_t*) nw;
 
-	if(part->msg_part != NULL) free(part->msg_part );
+	if(part->msg_part != NULL) free(part->msg_part);
 }
 void _np_messagepart_t_new(void* nw)
 {
