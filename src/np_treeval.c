@@ -441,14 +441,9 @@ np_treeval_t np_treeval_new_ull (uint64_t ull)
 
 np_treeval_t np_treeval_new_bin (void* data, uint32_t ul)
 {
-    np_treeval_t j;
+	np_treeval_t j;
 
-    j.value.bin = data; // malloc(ul);
-	// CHECK_MALLOC(j.value.bin);
-
-    // memset(j.value.bin, 0, ul);
-    // memcpy(j.value.bin, data, ul);
-
+    j.value.bin = data; 
     j.size = ul;
     j.type = bin_type;
 

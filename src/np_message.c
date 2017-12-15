@@ -873,7 +873,6 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 				return (FALSE);
 			}
 			// TODO: check if the complete buffer was read (byte count match)
-
 		}
 
 		if (NULL != msg->bin_footer)

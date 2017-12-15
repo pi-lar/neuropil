@@ -272,8 +272,8 @@ np_bool _np_network_send_handshake(np_key_t* node_key)
 		_LOCK_ACCESS(&(node_key->node->lock)){
 			if (node_key->node->is_handshake_send == FALSE)
 			{
-				log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake (current status: %d for %p) with %s:%s (%s)",
-					node_key->node->is_handshake_send, node_key->node->obj, node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
+				log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
+					node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
 
 				node_key->node->is_handshake_send = TRUE;
 				np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);

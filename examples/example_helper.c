@@ -306,7 +306,7 @@ void __np_example_deinti_ncurse() {
 }
  void __np_example_inti_ncurse() {
 	 if (FALSE == __np_ncurse_initiated) {		 
-		if (enable_statistics == 1 || enable_statistics > 2) {
+		if (enable_statistics == 1 || enable_statistics % 2 != 0) {
 			if (log_buffer != NULL) {
 
 				sll_iterator(char_ptr) iter_buffer = sll_first(log_buffer);

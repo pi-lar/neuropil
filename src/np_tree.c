@@ -333,8 +333,8 @@ void np_tree_cleanup_treeval(np_tree_t* tree, np_treeval_t toclean) {
 	if(tree->in_place == FALSE){
 		if (toclean.type == char_ptr_type) free(toclean.value.s);
 		if (toclean.type == bin_type) free(toclean.value.bin);
-		if (toclean.type == jrb_tree_type) np_tree_free(toclean.value.tree);
 	}
+	if (toclean.type == jrb_tree_type) { np_tree_free(toclean.value.tree); }
 }
 void np_tree_del_element(np_tree_t* tree, np_tree_elem_t* to_delete)
 {	
@@ -467,8 +467,7 @@ void np_tree_insert_str(np_tree_t* tree, const char *key, np_treeval_t val)
 			found = (np_tree_elem_t*)malloc(sizeof(np_tree_elem_t));
 			CHECK_MALLOC(found);
 
-
-			if (tree->in_place) {
+			if (tree->in_place == TRUE) {
 				found->key.value.s = key; 
 			}
 			else {
@@ -552,12 +551,16 @@ void np_tree_insert_dbl(np_tree_t* tree, double dkey, np_treeval_t val)
 	}
 }
 
+
 void np_tree_set_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t val) {
 
-	if (tree->in_place == FALSE)
+	if (tree->in_place == FALSE){
 		element->val = np_treeval_copy_of_val(val);
-	else
-		memmove(&element->val, &val, sizeof(np_treeval_t));
+	}
+	else{
+		//memmove(&element->val, &val, sizeof(np_treeval_t));
+		memset(&element->val, &val, sizeof(np_treeval_t));
+	}
 
 }
 void np_tree_replace_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t val) {
@@ -747,16 +750,20 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 
 	cmp_read_map(cmp, &size);
 
-	if ((size % 2) != 0) 
-		return FALSE;
-
-	if (size == 0) 
+	if (size == 0){
 		return TRUE;
+	}
+	else if ((size % 2) != 0) {
+		return FALSE;
+	}
+
 
 	for (uint32_t i = 0; i < (size / 2); i++)
 	{
 		// read key
-		np_treeval_t tmp_key = { .type = none_type,.size = 0 };
+		np_treeval_t tmp_key = { 0 };
+		tmp_key.type = none_type;
+		tmp_key.size = 0;
 		cmp_read_object(cmp, &obj_key);
 		__np_tree_deserialize_read_type(jtree, &obj_key, cmp, &tmp_key);
 
@@ -765,8 +772,11 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 			break;
 		}
 
+
 		// read value
-		np_treeval_t tmp_val = { .type = none_type,.size = 0 };
+		np_treeval_t tmp_val = { 0 };
+		tmp_val.type = none_type;
+		tmp_val.size = 0;
 		cmp_read_object(cmp, &obj_val);
 		__np_tree_deserialize_read_type(jtree, &obj_val, cmp, &tmp_val);
 
@@ -775,22 +785,19 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 			break;
 		}
 
+		// add key value pair to tree
 		switch (tmp_key.type)
 		{
 			case int_type:
-				// log_debug_msg(LOG_DEBUG, "read int key (%d)", tmp_key.value.i);
 				np_tree_insert_int(jtree, tmp_key.value.i, tmp_val);
 				break;
 			case unsigned_long_type:
-				// log_debug_msg(LOG_DEBUG, "read uint key (%ul)", tmp_key.value.ul);
 				np_tree_insert_ulong(jtree, tmp_key.value.ul, tmp_val);
 				break;
 			case double_type:
-				// log_debug_msg(LOG_DEBUG, "read double key (%f)", tmp_key.value.d);
 				np_tree_insert_dbl(jtree, tmp_key.value.d, tmp_val);
 				break;
 			case char_ptr_type:		
-				// log_debug_msg(LOG_DEBUG, "read str key (%s)", tmp_key.value.s);
 				np_tree_insert_str(jtree, tmp_key.value.s, tmp_val);				
 				break;
 			case special_char_ptr_type:
@@ -800,8 +807,10 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 				tmp_val.type = none_type;
 				break;
 		}
+		
 		np_tree_cleanup_treeval(jtree, tmp_key);
 		np_tree_cleanup_treeval(jtree, tmp_val);
+		
 	}
 	
 	if(cmp->error != 0) {
