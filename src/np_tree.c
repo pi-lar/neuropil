@@ -467,7 +467,14 @@ void np_tree_insert_str(np_tree_t* tree, const char *key, np_treeval_t val)
 			found = (np_tree_elem_t*)malloc(sizeof(np_tree_elem_t));
 			CHECK_MALLOC(found);
 
-			found->key.value.s = strndup(key, 255);
+
+			if (tree->in_place) {
+				found->key.value.s = key; 
+			}
+			else {
+				found->key.value.s = strndup(key, 255);
+			}
+
 			found->key.type = char_ptr_type;
 			found->key.size = strnlen(found->key.value.s,255);
 
