@@ -325,9 +325,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 								{
 									np_tryref_obj(np_messagepart_t, iter->val, hasMsgPart, "np_tryref_obj_iter->val");
 									if (hasMsgPart) {
-										unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
-										CHECK_MALLOC(enc_buffer);
-
+										
 										// add protection from replay attacks ...
 										unsigned char nonce[crypto_secretbox_NONCEBYTES];
 										// TODO: move nonce to np_node_t and re-use it with increments
@@ -346,11 +344,13 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 											log_msg(LOG_NETWORK | LOG_WARN,
 												"incorrect encryption of message (not sending to %s:%s)",
 												target_node->dns_name, target_node->port);
-											free(enc_buffer);
 											np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
 											break;
 										}
 										else {
+											unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
+											CHECK_MALLOC(enc_buffer);
+
 											uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
 											memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
 											memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
@@ -560,7 +560,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 					_LOCK_ACCESS (&alias_key->network->send_data_lock) {
 						alias_key->network->socket = client_fd;
 						alias_key->network->socket_type = ng->socket_type;
-						alias_key->network->waiting = np_tree_create(FALSE);
+						alias_key->network->waiting = np_tree_create();
 						alias_key->network->seqend = 0LU;
 
 						// it could be a passive socket
@@ -924,7 +924,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 		_LOCK_ACCESS(&ng->send_data_lock)
 		{
 			// create own retransmit structures
-			ng->waiting = np_tree_create(FALSE);
+			ng->waiting = np_tree_create();
 			// own sequence number counter
 			ng->seqend = 0LU;
 		}

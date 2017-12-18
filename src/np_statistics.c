@@ -301,11 +301,11 @@ char * np_statistics_print(np_bool asOneLine) {
 
 
 	int tenth = 1;
-	char* tmp_format[255] = { 0 };
-	int minimize[] = { routes, all_total_received, all_total_send, };
+	char* tmp_format[512] = { 0 };
+	int minimize[] = { routes, all_total_received+all_total_send, };
 	char s[32];
 
-	for (int i = 0; i < sizeof(minimize); i++) {
+	for (int i = 0; i < (sizeof(minimize)/sizeof(int)); i++) {
 		sprintf(s, "%d", minimize[i]);
 		tenth = max(tenth, strlen(s));
 	}
@@ -313,7 +313,11 @@ char * np_statistics_print(np_bool asOneLine) {
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "received total:", tenth);
 	ret = _np_concatAndFree(ret, tmp_format, all_total_received, new_line);
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "send     total:", tenth);
-	ret = _np_concatAndFree(ret, tmp_format, all_total_send, new_line);	
+	ret = _np_concatAndFree(ret, tmp_format, all_total_send, new_line);
+
+	ret = _np_concatAndFree(ret, "------------------------%s", new_line);
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "total:", tenth);
+	ret = _np_concatAndFree(ret, tmp_format, all_total_send+ all_total_received, new_line);
 	
 	ret = _np_concatAndFree(ret, "%s", new_line);
 

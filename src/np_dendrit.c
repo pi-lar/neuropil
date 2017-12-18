@@ -140,7 +140,7 @@ void _np_in_received(np_jobargs_t* args)
 
 			ret = _np_message_deserialize_header_and_instructions(msg_in, raw_msg);
 
-			if (FALSE == ret) {
+			if (ret == FALSE) {
 				free(raw_msg);
 				if(is_decryption_successful == TRUE){
 					log_msg(LOG_ERROR,
@@ -282,8 +282,7 @@ void _np_in_received(np_jobargs_t* args)
 							np_message_t* msg_to_submit = _np_message_check_chunks_complete(msg_in);
 
 							if (NULL != msg_to_submit)
-							{
-
+							{								
 								if (TRUE == my_key->node->joined_network ||
 									0 == strncmp(np_treeval_to_str(msg_subject), _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)))
 								{
@@ -609,7 +608,7 @@ void _np_in_join_req(np_jobargs_t* args)
 				"JOIN request approved, sending back join acknowledge for key %s",
 				_np_key_as_str(join_req_key));
 
-		np_tree_t* jrb_me = np_tree_create(FALSE);
+		np_tree_t* jrb_me = np_tree_create();
 		np_aaatoken_encode(jrb_me, state->my_node_key->aaa_token);
 
 		_np_message_create(msg_out, routing_key, my_key, _NP_MSG_JOIN_ACK, jrb_me);
@@ -766,7 +765,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 		// encode informations -> has to be done for each update message new
 		// otherwise there is a crash when deleting the message
-		np_tree_t* jrb_join_node = np_tree_create(FALSE);
+		np_tree_t* jrb_join_node = np_tree_create();
 		np_aaatoken_encode(jrb_join_node, join_token);
 
 		_np_message_create(msg_out, elem, my_key, _NP_MSG_UPDATE_REQUEST, jrb_join_node);
@@ -1015,7 +1014,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 		{
 			log_debug_msg(LOG_DEBUG,
 					"discovery success: sending back message sender token ...");
-			np_tree_t* available_data = np_tree_create(FALSE);
+			np_tree_t* available_data = np_tree_create();
 
 			np_aaatoken_encode(available_data, tmp_token);
 
@@ -1146,7 +1145,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 		while (NULL != (tmp_token = sll_head(np_aaatoken_ptr, receiver_list)))
 		{
 			log_debug_msg(LOG_DEBUG, "discovery success: sending back message receiver token ...");
-			np_tree_t* interest_data = np_tree_create(FALSE);
+			np_tree_t* interest_data = np_tree_create();
 
 			np_aaatoken_encode(interest_data, tmp_token);
 
@@ -1286,7 +1285,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	{
 		_np_aaatoken_add_receiver(_NP_MSG_AUTHENTICATION_REPLY, sender_token);
 
-		np_tree_t* token_data = np_tree_create(FALSE);
+		np_tree_t* token_data = np_tree_create();
 
 		np_aaatoken_encode(token_data, authentication_token);
 		np_message_t* msg_out = NULL;
@@ -1467,7 +1466,7 @@ void _np_in_authorize(np_jobargs_t* args)
 	{
 		_np_aaatoken_add_receiver(_NP_MSG_AUTHORIZATION_REPLY, sender_token);
 
-		np_tree_t* token_data = np_tree_create(FALSE);
+		np_tree_t* token_data = np_tree_create();
 		np_aaatoken_encode(token_data, authorization_token);
 
 		np_message_t* msg_out = NULL;
@@ -1653,7 +1652,8 @@ void _np_in_handshake(np_jobargs_t* args)
 
 		cmp_ctx_t cmp = { 0 };
 		cmp_init(&cmp, payload.value.bin, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
-		np_tree_t* hs_payload = np_tree_create(TRUE);
+		np_tree_t* hs_payload = np_tree_create();
+		hs_payload->attr.in_place = TRUE;
 
 		if(np_tree_deserialize(hs_payload, &cmp) == FALSE) {
 			goto __np_cleanup__;

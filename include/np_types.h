@@ -95,6 +95,8 @@ typedef np_node_t* np_node_ptr;
 
 typedef struct np_state_s np_state_t;
 
+
+typedef struct np_tree_conf_s np_tree_conf_t;
 typedef struct np_tree_s np_tree_t;
 
 typedef struct np_treeval_s np_treeval_t;

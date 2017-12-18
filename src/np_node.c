@@ -226,7 +226,7 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, 
 	{		
 		if (current->node)
 		{
-			np_tree_t* node_jrb = np_tree_create(FALSE);
+			np_tree_t* node_jrb = np_tree_create();
 			// log_debug_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
 			_np_node_encode_to_jrb(node_jrb, current, include_stats);
 			np_tree_insert_str(node_jrb, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(current)));
@@ -316,8 +316,9 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 	strncpy(node_token->subject, node_subject, 255);
 	// strncpy(node_token->audience, (char*) _np_key_as_str(state->my_identity->aaa_token->realm), 255);
 
-	free(node_token->uuid);
+	char* old = node_token->uuid;
 	node_token->uuid = np_uuid_create(node_subject, 0);
+	free(old);
 
 	node_token->not_before = np_time_now();
 

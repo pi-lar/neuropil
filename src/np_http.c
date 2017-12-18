@@ -137,7 +137,7 @@ void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 		_np_http_callback_func_t func) {
 	log_msg(LOG_TRACE | LOG_HTTP, "start: void _np_add_http_callback(const char* path, htp_method method, void* user_args,		_np_http_callback_func_t func) {");
 	if (NULL == __local_http->user_hooks)
-		__local_http->user_hooks = np_tree_create(FALSE);
+		__local_http->user_hooks = np_tree_create();
 
 	char key[32];
 	snprintf(key, 31, "%d:%s", method, path);
@@ -153,7 +153,7 @@ void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 void _np_rem_http_callback(const char* path, htp_method method) {
 	log_msg(LOG_TRACE | LOG_HTTP, "start: void _np_rem_http_callback(const char* path, htp_method method) {");
 	if (NULL == __local_http->user_hooks)
-		__local_http->user_hooks = np_tree_create(FALSE);
+		__local_http->user_hooks = np_tree_create();
 
 	char key[32];
 	snprintf(key, 31, "%d:%s", method, path);
@@ -186,7 +186,7 @@ int _np_http_query_args(htparser * parser, const char * data,
 	if (NULL != client->ht_request.ht_query_args)
 		np_tree_clear(client->ht_request.ht_query_args);
 	if (NULL == client->ht_request.ht_query_args)
-		client->ht_request.ht_query_args = np_tree_create(FALSE);
+		client->ht_request.ht_query_args = np_tree_create();
 
 	char* query_string = strndup(data, in_len);
 	char* kv_pair = strtok(query_string, "&=");
@@ -216,7 +216,7 @@ int _np_http_on_hdrs_begin(htparser* parser) {
 	if (NULL != client->ht_request.ht_header)
 		np_tree_clear(client->ht_request.ht_header);
 	if (NULL == client->ht_request.ht_header)
-		client->ht_request.ht_header = np_tree_create(FALSE);
+		client->ht_request.ht_header = np_tree_create();
 	return 0;
 }
 
@@ -284,7 +284,7 @@ void _np_http_dispatch( np_http_client_t* client) {
 	assert(PROCESSING == client->status);
 
 	if (NULL == __local_http->user_hooks)
-		__local_http->user_hooks = np_tree_create(FALSE);
+		__local_http->user_hooks = np_tree_create();
 
 	char key[32];
 	snprintf(key, 31, "%d:%s", client->ht_request.ht_method,
@@ -403,7 +403,7 @@ void _np_http_dispatch( np_http_client_t* client) {
 			client->ht_response.ht_status = http_status;
 			client->ht_response.ht_body = response; //strdup(response);;
 
-			client->ht_response.ht_header = np_tree_create(FALSE);
+			client->ht_response.ht_header = np_tree_create();
 			np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
 					np_treeval_new_s("application/json"));
 			np_tree_insert_str(client->ht_response.ht_header,
@@ -418,7 +418,7 @@ void _np_http_dispatch( np_http_client_t* client) {
 
 		default:
 			client->ht_response.ht_body = HTML_NOT_IMPLEMENTED;
-			client->ht_response.ht_header = np_tree_create(FALSE);
+			client->ht_response.ht_header = np_tree_create();
 			client->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
 			client->ht_response.cleanup_body = FALSE;
 			client->status = RESPONSE;

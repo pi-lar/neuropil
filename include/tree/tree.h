@@ -712,7 +712,7 @@ name##_RB_MINMAX(struct name *head, int val)				\
 {									\
 	struct type *tmp = RB_ROOT(head);				\
 	struct type *parent = NULL;					\
-	while (tmp) {							\
+	while (tmp != NULL) {							\
 		parent = tmp;						\
 		if (val < 0)						\
 			tmp = RB_LEFT(tmp, field);			\

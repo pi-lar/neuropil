@@ -37,13 +37,14 @@ int8_t _np_messagepart_cmp (const np_messagepart_ptr value1, const np_messagepar
 }
 
 
-np_bool _np_messagepart_decrypt(np_tree_t* msg_part,
+np_bool _np_messagepart_decrypt(np_tree_t* source,
 							unsigned char* enc_nonce,
 							unsigned char* public_key,
-							NP_UNUSED unsigned char* secret_key)
+							NP_UNUSED unsigned char* secret_key,
+							np_tree_t* target)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_decrypt(np_tree_t* msg_part,							unsigned char* enc_nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
-	np_tree_elem_t* enc_msg_part = np_tree_find_str(msg_part, NP_ENCRYPTED);
+	np_tree_elem_t* enc_msg_part = np_tree_find_str(source, NP_ENCRYPTED);
 	if (NULL == enc_msg_part)
 	{
 		log_msg(LOG_ERROR, "couldn't find encrypted msg part");
@@ -76,28 +77,18 @@ np_bool _np_messagepart_decrypt(np_tree_t* msg_part,
 		return (FALSE);
 	}
 
+	// Allow deserialisation as the encryption may 	
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, dec_part, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
-	if(np_tree_deserialize(msg_part, &cmp) == FALSE) {
+	if(np_tree_deserialize(target, &cmp) == FALSE) {
 		return FALSE;
 	}
 	// TODO: check if the complete buffer was read (byte count match)
 
-	np_tree_del_str(msg_part, NP_ENCRYPTED);
+	
 	return (TRUE);
 }
 
-//		if (-1 == _np_messagepart_encrypt(args->msg->header,
-//										  nonce,
-//										  target_token->session_key,
-//										  NULL))
-//		{
-//			log_msg(LOG_WARN,
-//				"incorrect encryption of message header (not sending to %s:%hd)",
-//				target_node->dns_name, target_node->port);
-//			return;
-//		}
-//
 np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 							unsigned char* nonce,
 							unsigned char* public_key,

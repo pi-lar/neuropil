@@ -66,7 +66,7 @@ void _np_aaatoken_t_new(void* token)
 	aaa_token->expires_at = aaa_token->not_before + expire_sec;
 	log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "aaatoken expires in %d sec", expire_sec);
 
-	aaa_token->extensions = np_tree_create(FALSE);
+	aaa_token->extensions = np_tree_create();
 	aaa_token->state |= AAA_INVALID;
 }
 
@@ -121,7 +121,7 @@ void _np_aaatoken_upgrade_core_token(np_key_t* key_with_core_token, np_aaatoken_
 	{
 		log_debug_msg(LOG_DEBUG, "signature: upgrade token %p with data from %p", key_with_core_token->aaa_token,full_token);
 
-		np_tree_t* container = np_tree_create(FALSE);
+		np_tree_t* container = np_tree_create();
 		np_aaatoken_encode(container, full_token);
 		np_tree_del_str(container, "np.t.p");
 		np_tree_replace_str(container, "np.t.si", np_treeval_new_bin(key_with_core_token->aaa_token->signature, crypto_sign_BYTES));

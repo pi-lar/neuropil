@@ -976,8 +976,8 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 		exit(EXIT_FAILURE);
 	}
 
-	state->msg_tokens = np_tree_create(FALSE);
-	state->msg_part_cache = np_tree_create(FALSE);
+	state->msg_tokens = np_tree_create();
+	state->msg_part_cache = np_tree_create();
 
 #ifdef SKIP_EVLOOP
 	// intialize log file writing
@@ -1042,7 +1042,7 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 
 	np_state_t* state = _np_state();
 
-	np_tree_t* jrb_me = np_tree_create(FALSE);
+	np_tree_t* jrb_me = np_tree_create();
 	np_aaatoken_encode(jrb_me, state->my_node_key->aaa_token);
 
 	np_message_t* msg_out = NULL;

@@ -59,11 +59,11 @@ void _np_message_t_new(void* msg)
 
 	log_debug_msg(LOG_MEMORY| LOG_DEBUG, "creating uuid %s for new msg", msg_tmp->uuid);
 	
-	msg_tmp->header       = np_tree_create(FALSE);
-	msg_tmp->properties   = np_tree_create(FALSE);
-	msg_tmp->instructions = np_tree_create(FALSE);
-	msg_tmp->body         = np_tree_create(FALSE);
-	msg_tmp->footer       = np_tree_create(FALSE);
+	msg_tmp->header       = np_tree_create();
+	msg_tmp->properties   = np_tree_create();
+	msg_tmp->instructions = np_tree_create();
+	msg_tmp->body         = np_tree_create();
+	msg_tmp->footer       = np_tree_create();
 
 	msg_tmp->no_of_chunks = 1;
 	msg_tmp->is_single_part = FALSE;
@@ -84,11 +84,11 @@ void _np_message_t_new(void* msg)
 */
 void _np_message_mark_as_incomming(np_message_t* msg) {
 
-	msg->header->in_place = TRUE;
-	msg->properties->in_place = TRUE;
-	msg->instructions->in_place = TRUE;
-	msg->body->in_place = TRUE;
-	msg->footer->in_place = TRUE;
+	msg->header->attr.in_place = TRUE;
+	msg->properties->attr.in_place = TRUE;
+	msg->instructions->attr.in_place = TRUE;
+	msg->body->attr.in_place = TRUE;
+	msg->footer->attr.in_place = TRUE;
 }
 
 // destructor of np_message_t
@@ -851,6 +851,9 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			}
 
 			// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-------------------------" );
+
+			iter->val = NULL;
+			np_unref_obj(np_messagepart_t, current_chunk, ref_message_messagepart);
 			pll_next(iter);
 		}
 
@@ -885,7 +888,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			// TODO: check if the complete buffer was read (byte count match)
 		}
 
-		if (0 < pll_size(msg->msg_chunks))
+		if (pll_size(msg->msg_chunks) > 0)
 		{
 			pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
 			while (NULL != iter)
@@ -1028,7 +1031,7 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	// int crypto_box_seal(unsigned char *c, const unsigned char *m,
 	// unsigned long long mlen, const unsigned char *pk);
 
-	np_tree_t* encryption_details = np_tree_create(FALSE);
+	np_tree_t* encryption_details = np_tree_create();
 	// insert the public-key encrypted encryption key for each receiver of the message
 	np_tree_insert_str(encryption_details, NP_NONCE,
 				   np_treeval_new_bin(nonce, crypto_box_NONCEBYTES));
@@ -1043,60 +1046,80 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
+	np_bool ret = TRUE;
 	np_state_t* state = _np_state();
 
 	np_tree_t* encryption_details =
 			np_tree_find_str(msg->properties, NP_SYMKEY)->val.value.tree;
 	if(NULL == encryption_details  ) {
-		log_msg(LOG_WARN, "no encryption_details!:");
-		//log_debug_msg(LOG_DEBUG, "msg->properties:");
-		//np_dump_tree2log(msg->properties);
+		log_msg(LOG_ERROR, "No encryption_details!");
+		ret = FALSE;
+	}else {
+
+		// insert the public-key encrypted encryption key for each receiver of the message
+		unsigned char nonce[crypto_box_NONCEBYTES];
+		memcpy(nonce, np_tree_find_str(encryption_details, NP_NONCE)->val.value.bin, crypto_box_NONCEBYTES);
+		unsigned char enc_sym_key[crypto_secretbox_KEYBYTES + crypto_box_MACBYTES];
+
+
+		np_tree_elem_t* encryption_details_elem = np_tree_find_str(encryption_details, (char*) _np_key_as_str(state->my_identity));
+		if(NULL == encryption_details_elem  ) {
+			log_msg(LOG_ERROR, "decryption of message payload failed. no identity information in encryption_details for %s", _np_key_as_str(state->my_identity));
+			ret = FALSE;
 		}
-	// insert the public-key encrypted encryption key for each receiver of the message
-	unsigned char nonce[crypto_box_NONCEBYTES];
-	memcpy(nonce, np_tree_find_str(encryption_details, NP_NONCE)->val.value.bin, crypto_box_NONCEBYTES);
-	unsigned char enc_sym_key[crypto_secretbox_KEYBYTES + crypto_box_MACBYTES];
+		else {
+			memcpy(enc_sym_key,
+				encryption_details_elem->val.value.bin,
+				crypto_secretbox_KEYBYTES + crypto_box_MACBYTES);
+
+			unsigned char sym_key[crypto_secretbox_KEYBYTES];
+
+			// convert own secret to encryption key
+			unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
+			crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
+				state->my_identity->aaa_token->private_key);
+
+			//	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "ciphertext: %s", enc_sym_key);
+			//	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "nonce:      %s", nonce);
+
+			// convert partner secret to encryption key
+			unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
+			crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
+
+			int crypto_ret = crypto_box_open_easy(sym_key, enc_sym_key, crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
+				nonce, partner_key, curve25519_sk);
 
 
-	np_tree_elem_t* encryption_details_elem = np_tree_find_str(encryption_details, (char*) _np_key_as_str(state->my_identity));
-	if(NULL == encryption_details_elem  ) {
-		log_msg(LOG_ERROR, "decryption of message payload failed. no identity information in encryption_details for %s", _np_key_as_str(state->my_identity));
-		//log_debug_msg(LOG_DEBUG, "msg->properties:");
-		//np_dump_tree2log(msg->properties);
-		//log_debug_msg(LOG_DEBUG, "encryption_details:");
-		//np_dump_tree2log(encryption_details);
-		return (FALSE);
+			if (0 > crypto_ret)
+			{
+				log_msg(LOG_ERROR, "decryption of message payload failed");
+				ret = FALSE;
+			}
+			else {
+
+				np_tree_t* encrypted_properties = np_tree_create();
+				if (_np_messagepart_decrypt(msg->properties, nonce, sym_key, NULL, encrypted_properties) == FALSE) {
+					log_msg(LOG_ERROR, "decryption of message payloads properties failed");
+					ret = FALSE;
+				}
+				else {
+					np_tree_free(msg->properties);
+					msg->properties = encrypted_properties;
+
+					np_tree_t* encrypted_body = np_tree_create();
+					if (_np_messagepart_decrypt(msg->body, nonce, sym_key, NULL, encrypted_body) == FALSE) {
+						log_msg(LOG_ERROR, "decryption of message payloads body failed");
+						ret = FALSE;
+					}
+					else {
+						np_tree_free(msg->body);
+						msg->body = encrypted_body;
+					}
+				}
+			}
+		}
 	}
-	memcpy(enc_sym_key,
-			encryption_details_elem->val.value.bin,
-			crypto_secretbox_KEYBYTES + crypto_box_MACBYTES);
-
-	unsigned char sym_key[crypto_secretbox_KEYBYTES];
-
-	// convert own secret to encryption key
-	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
-	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-										 state->my_identity->aaa_token->private_key);
-
-	//	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "ciphertext: %s", enc_sym_key);
-	//	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "nonce:      %s", nonce);
-
-	// convert partner secret to encryption key
-	unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-	crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
-
-	int ret = crypto_box_open_easy(sym_key, enc_sym_key, crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
-								   nonce, partner_key, curve25519_sk);
-	if (0 > ret)
-	{
-		log_msg(LOG_ERROR, "decryption of message payload failed");
-		return (FALSE);
-	}
-// 	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "sym_key:    %s", sym_key);
-
-	_np_messagepart_decrypt(msg->properties, nonce, sym_key, NULL);
-	_np_messagepart_decrypt(msg->body, nonce, sym_key, NULL);
-	return (TRUE);
+	return (ret);
 }
 char* _np_message_get_subject(np_message_t* msg) {
 	char* ret = NULL;

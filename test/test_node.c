@@ -75,7 +75,7 @@ Test(np_node_t, _node_list_serialize, .description="test the serialization of a 
 	np_node_update(node_list[3], "test4.pi-lar.net", 0);
 
     log_msg(LOG_DEBUG, "serializing");
-	np_tree_t* node_jrb = np_tree_create(FALSE);
+	np_tree_t* node_jrb = np_tree_create();
 	_np_encode_nodes_to_jrb(node_jrb, node_list, TRUE);
 
 	cmp_ctx_t cmp;

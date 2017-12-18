@@ -25,7 +25,7 @@ TestSuite(np_tree_t, .init=setup_tree, .fini=teardown_tree);
 
 Test(np_tree_t, tree_node_insert_str, .description="test the insertion into a tree (string key)")
 {
-	np_tree_t* test_tree_1 = np_tree_create(FALSE);
+	np_tree_t* test_tree_1 = np_tree_create();
 
 	cr_expect(NULL != test_tree_1, "expect test_tree_1 pointer to exists");
 	cr_expect(NULL == test_tree_1->rbh_root, "expect rbh_root to be NULL");
@@ -77,12 +77,12 @@ Test(np_tree_t, tree_node_insert_str, .description="test the insertion into a tr
 
 Test(np_tree_t, tree_node_insert_tree, .description="test the insertion of a tree into tree")
 {
-	np_tree_t* test_tree_1 = np_tree_create(FALSE);
+	np_tree_t* test_tree_1 = np_tree_create();
 	np_tree_insert_str(test_tree_1, "halli", np_treeval_new_s("galli"));
 	np_tree_insert_str(test_tree_1, "hallo", np_treeval_new_s("gulli"));
 	cr_expect(   2 == test_tree_1->size, "expect size of tree to be 2");
 
-	np_tree_t* test_tree_2 = np_tree_create(FALSE);
+	np_tree_t* test_tree_2 = np_tree_create();
 	cr_expect(   0 == test_tree_2->size, "expect size of tree to be 0");
 
 	char* from = "from";
@@ -144,11 +144,11 @@ Test(np_tree_t, tree_node_insert_tree, .description="test the insertion of a tre
 
 Test(np_tree_t, tree_node_find_tree, .description="test lookup of data in a tree")
 {
-	np_tree_t* test_tree_1 = np_tree_create(FALSE);
+	np_tree_t* test_tree_1 = np_tree_create();
 	np_tree_insert_str(test_tree_1, "halli", np_treeval_new_s("galli"));
 	np_tree_insert_str(test_tree_1, "hallo", np_treeval_new_s("gulli"));
 
-	np_tree_t* test_tree_2 = np_tree_create(FALSE);
+	np_tree_t* test_tree_2 = np_tree_create();
 
 	char* from = "from";
 	char* to = "to";
@@ -208,11 +208,11 @@ Test(np_tree_t, tree_node_find_tree, .description="test lookup of data in a tree
 
 Test(np_tree_t, tree_node_del_tree, .description="test deletion of data in a tree")
 {
-	np_tree_t* test_tree_1 = np_tree_create(FALSE);
+	np_tree_t* test_tree_1 = np_tree_create();
 	np_tree_insert_str(test_tree_1, "halli", np_treeval_new_s("galli"));
 	np_tree_insert_str(test_tree_1, "hallo", np_treeval_new_s("gulli"));
 
-	np_tree_t* test_tree_2 = np_tree_create(FALSE);
+	np_tree_t* test_tree_2 = np_tree_create();
 
 	char* from = "from";
 	char* to = "to";
@@ -258,7 +258,7 @@ Test(np_tree_t, tree_node_del_tree, .description="test deletion of data in a tre
 
 Test(np_tree_t, tree_node_repl_tree, .description="test replacement of data in a tree")
 {
-	np_tree_t* test_tree_1 = np_tree_create(FALSE);
+	np_tree_t* test_tree_1 = np_tree_create();
 	np_tree_insert_str(test_tree_1, "halli", np_treeval_new_s("galli"));
 	np_tree_insert_str(test_tree_1, "hallo", np_treeval_new_s("gulli"));
 

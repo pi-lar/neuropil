@@ -253,9 +253,9 @@ void np_key_renew_token() {
 		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
 		np_message_t* msg_out_update = NULL;
 
-		np_tree_t* jrb_new = np_tree_create(FALSE);
+		np_tree_t* jrb_new = np_tree_create();
 		np_aaatoken_encode(jrb_new, new_node_key->aaa_token);
-		np_tree_t* jrb_old = np_tree_create(FALSE);
+		np_tree_t* jrb_old = np_tree_create();
 		np_aaatoken_encode(jrb_old, old_node_key->aaa_token);
 
 		log_debug_msg(LOG_DEBUG, "step ._np_renew_node_token_jobexec.Sending new aaatoken to old known nodes");

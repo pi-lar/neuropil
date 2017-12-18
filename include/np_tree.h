@@ -44,6 +44,18 @@ if (NULL == np_tree_find_str(TREE, FIELD_NAME)){							\
 } 																			\
 else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
 
+ /**
+ .. c:type:: np_tree_conf_t
+
+	additional configuration attributes for a tree
+	
+	in_place:bool: true = allow the tree to use the original pointers instead of creating a copy every time. false = make a copy of every value
+
+*/
+struct np_tree_conf_s {
+	np_bool in_place;
+	np_bool immutable;
+}NP_API_EXPORT;
 
 /**
 .. c:type:: np_tree_t
@@ -66,7 +78,7 @@ struct np_tree_s
 
 	uint16_t size;
 	uint32_t byte_size;
-	np_bool in_place;
+	np_tree_conf_t attr;
 } NP_API_EXPORT;
 
 typedef struct np_tree_elem_s np_tree_elem_t;
@@ -87,13 +99,12 @@ RB_PROTOTYPE(np_tree_s, np_tree_elem_s, link, _val_cmp);
 .. c:function:: np_tree_create
 
    create a new instance of a np_tree_t structure
-
-   :param:in_place: bool param. true = allow the tree to use the original pointers instead of creating a copy every time
+   
    :return: the newly constructed np_tree_t
 
 */
 NP_API_EXPORT
-np_tree_t*   np_tree_create (np_bool in_place);
+np_tree_t*   np_tree_create ();
 
 /**
 .. c:function:: void np_free_tree(np_tree_t* root)

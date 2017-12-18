@@ -57,7 +57,7 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	cr_expect (NULL != test_token_1, "expect the token to be not NULL");
 	cr_expect (TRUE == _np_aaatoken_is_valid(test_token_1), "expect that the token is valid");
 
-	np_tree_t* aaa_tree = np_tree_create(FALSE);
+	np_tree_t* aaa_tree = np_tree_create();
 	np_aaatoken_encode(aaa_tree, test_token_1);
 
 	np_aaatoken_t* test_token_2 = NULL;
@@ -75,7 +75,7 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	cmp_init(&cmp_empty, buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 	np_tree_serialize(aaa_tree, &cmp_empty);
 
-	np_tree_t* out_jrb = np_tree_create(FALSE);
+	np_tree_t* out_jrb = np_tree_create();
 	cmp_ctx_t cmp_out;
 	cmp_init(&cmp_out, buffer, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 
@@ -124,7 +124,7 @@ Test(np_aaatoken_t, encode_decode_loop, .description="test the encoding and deco
 	test_token_1 = ref;
 	for (int i=0; i< 10; ++i)
 	{
-		np_tree_t* tmp = np_tree_create(FALSE);
+		np_tree_t* tmp = np_tree_create();
 		np_aaatoken_encode(tmp, test_token_1);
 
 		np_new_obj(np_aaatoken_t, test_token_2);

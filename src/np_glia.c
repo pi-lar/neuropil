@@ -578,7 +578,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 
 	if (sll_size(sll_of_keys) > 0)
 	{
-		np_tree_t* msg_body = np_tree_create(FALSE);
+		np_tree_t* msg_body = np_tree_create();
 		_np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, FALSE);
 		np_msgproperty_t* outprop = np_msgproperty_get(OUTBOUND, _NP_MSG_PIGGY_REQUEST);
 		log_debug_msg(LOG_DEBUG, "sending piggy msg (%"PRIu32" nodes) to %s", sll_size(sll_of_keys), _np_key_as_str(target_key));
