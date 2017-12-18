@@ -42,7 +42,7 @@ np_bool receive_this_is_a_test(const np_message_t* const msg, np_tree_t* propert
 	.. code-block:: c
 		\code
 	*/
-	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val);
+	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
 	/** \endcode */
 	log_msg(LOG_INFO, "RECEIVED: %s", text);
 

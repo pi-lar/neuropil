@@ -67,8 +67,8 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 	np_key_t* target_key = NULL;
 	np_message_t* msg_in = args->msg;
 
-	char* msg_subject = np_treeval_to_str(np_tree_find_str(msg_in->header, _NP_MSG_HEADER_SUBJECT)->val);
-	char* msg_target = np_treeval_to_str(np_tree_find_str(msg_in->header, _NP_MSG_HEADER_TO)->val);
+	char* msg_subject = np_treeval_to_str(np_tree_find_str(msg_in->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
+	char* msg_target = np_treeval_to_str(np_tree_find_str(msg_in->header, _NP_MSG_HEADER_TO)->val, NULL);
 
 	np_bool is_a_join_request = FALSE;
 	if (0 == strncmp(msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) )
@@ -302,7 +302,7 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 
 		char* iter_key_value = NULL;
 		if (iter->key.type == char_ptr_type)
-			iter_key_value =  np_treeval_to_str(iter->key);
+			iter_key_value =  np_treeval_to_str(iter->key, NULL);
 		else if (iter->key.type == special_char_ptr_type)
 			iter_key_value = _np_tree_get_special_str(iter->key.value.ush);
 		else {
@@ -421,7 +421,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
 			
 				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
-				free( np_treeval_to_str(jrb_ack_node->key));
+				free( jrb_ack_node->key.value.s);
 				free(jrb_ack_node);
 			}
 			else if (np_time_now() > ackentry->expires_at)
@@ -445,7 +445,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				}
 
 				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
-				free( np_treeval_to_str(jrb_ack_node->key));
+				free(jrb_ack_node->key.value.s);
 				free(jrb_ack_node);
 			}
 		}
@@ -705,12 +705,12 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		// first encrypt the relevant message part itself
 		_np_message_encrypt_payload(msg, tmp_token);
 
-		char* target_node_str = NULL;
-
+		np_bool free_target_node_str = FALSE;
+		char* target_node_str = NULL;		
 		np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions, "target_node");
 		if (NULL != tn_node)
 		{
-			target_node_str =  np_treeval_to_str(tn_node->val);
+			target_node_str =  np_treeval_to_str(tn_node->val, &free_target_node_str);
 		}
 		else
 		{
@@ -725,6 +725,10 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 
 
 		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_s(target_node_str));
+		if (free_target_node_str == TRUE && msg->header->attr.in_place == FALSE) {
+			free(target_node_str);
+		}
+
 		np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);
 		_np_job_submit_route_event(0.0, out_prop, receiver_key, msg);
 

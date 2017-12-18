@@ -462,9 +462,9 @@ NP_UNUSED ev_io* ev, int event_type) {
 				client->ht_response.ht_header);
 		while (NULL != iter) {
 			pos += snprintf(data + pos,
-					snprintf(NULL, 0, "%s: %s" HTTP_CRLF,  np_treeval_to_str(iter->key),
-							 np_treeval_to_str(iter->val)) + 1, "%s: %s" HTTP_CRLF,
-					 np_treeval_to_str(iter->key),  np_treeval_to_str(iter->val));
+					snprintf(NULL, 0, "%s: %s" HTTP_CRLF,  np_treeval_to_str(iter->key, NULL),
+							 np_treeval_to_str(iter->val, NULL)) + 1, "%s: %s" HTTP_CRLF,
+					 np_treeval_to_str(iter->key, NULL),  np_treeval_to_str(iter->val, NULL));
 			iter = RB_NEXT(np_tree_s, __local_http->ht_response.ht_header,
 					iter);
 		}

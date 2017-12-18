@@ -628,7 +628,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		msg = sll_first(msg_prop->msg_cache_in)->val;
 
 		// next check or wait for valid sender tokens
-		sender_id = np_treeval_to_str(np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val);
+		sender_id = np_treeval_to_str(np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val, NULL);
 		sender_token = _np_aaatoken_get_sender(subject, sender_id);
 		if (NULL == sender_token)
 		{
@@ -666,7 +666,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	np_tree_elem_t* tmp = NULL;
 	RB_FOREACH(tmp, np_tree_s, msg->properties)
 	{
-		if (tmp->key.type == char_ptr_type)      np_tree_insert_str(properties,  np_treeval_to_str(tmp->key), tmp->val);
+		if (tmp->key.type == char_ptr_type)      np_tree_insert_str(properties,  np_treeval_to_str(tmp->key, NULL), tmp->val);
 		if (tmp->key.type == int_type)           np_tree_insert_int(properties, tmp->key.value.i, tmp->val);
 		if (tmp->key.type == double_type)        np_tree_insert_dbl(properties, tmp->key.value.d, tmp->val);
 		if (tmp->key.type == unsigned_long_type) np_tree_insert_ulong(properties, tmp->key.value.ul, tmp->val);
@@ -676,7 +676,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	tmp = NULL;
 	RB_FOREACH(tmp, np_tree_s, msg->body)
 	{
-		if (tmp->key.type == char_ptr_type)      np_tree_insert_str(body,  np_treeval_to_str(tmp->key), tmp->val);
+		if (tmp->key.type == char_ptr_type)      np_tree_insert_str(body,  np_treeval_to_str(tmp->key, NULL), tmp->val);
 		if (tmp->key.type == int_type)           np_tree_insert_int(body, tmp->key.value.i, tmp->val);
 		if (tmp->key.type == double_type)        np_tree_insert_dbl(body, tmp->key.value.d, tmp->val);
 		if (tmp->key.type == unsigned_long_type) np_tree_insert_ulong(body, tmp->key.value.ul, tmp->val);
@@ -738,7 +738,7 @@ uint32_t np_receive_text (char* subject, char **data)
 		msg = sll_first(msg_prop->msg_cache_in)->val;
 
 		// next check or wait for valid sender tokens
-		sender_id = np_treeval_to_str(np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val);
+		sender_id = np_treeval_to_str(np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val, NULL);
 		sender_token = _np_aaatoken_get_sender(subject, sender_id);
 		if (NULL == sender_token)
 		{
@@ -775,7 +775,7 @@ uint32_t np_receive_text (char* subject, char **data)
 
 	uint32_t received = np_tree_find_str(msg->properties, _NP_MSG_INST_SEQ)->val.value.ul;
 	np_tree_elem_t* reply_data = np_tree_find_str(msg->body, NP_MSG_BODY_TEXT);
-	*data = strndup( np_treeval_to_str(reply_data->val), strlen( np_treeval_to_str(reply_data->val)));
+	*data = strndup( np_treeval_to_str(reply_data->val, NULL), strlen( np_treeval_to_str(reply_data->val, NULL)));
 
 	uint8_t ack_mode = np_tree_find_str(msg->instructions, _NP_MSG_INST_ACK)->val.value.ush;
 	if (ACK_DESTINATION == (ack_mode & ACK_DESTINATION))
@@ -1111,7 +1111,7 @@ void _np_send_ack(np_message_t* msg_to_ack)
 		// ack = np_tree_find_str(msg_to_ack->instructions, NP_MSG_INST_ACK)->val.value.ush;
 
 		// create new ack message & handlers
-		np_dhkey_t ack_key = np_dhkey_create_from_hash(np_treeval_to_str(target_key_str->val));
+		np_dhkey_t ack_key = np_dhkey_create_from_hash(np_treeval_to_str(target_key_str->val, NULL));
 		np_key_t* ack_target = _np_keycache_find(ack_key);
 
 		if (NULL != ack_target                       &&

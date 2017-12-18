@@ -107,7 +107,7 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
 	cr_expect(obj.as.ext.type == dhkey_type, "Expected obj to be of type EXT type dhkey_type. But is: %"PRIu8, read_tst.type);
 	cr_expect(obj.as.ext.size == expected_obj_size, "Expected obj to be of size %"PRIu32". But is: %"PRIu32, expected_obj_size, obj.as.ext.size);
 
-	__np_tree_deserialize_read_type(np_tree_create(), &obj, &cmp_read, &read_tst);
+	__np_tree_deserialize_read_type(np_tree_create(), &obj, &cmp_read, &read_tst,"test read");
 
 	cr_assert(cmp_read.error == ERROR_NONE, "Expected no error on val read. But is: %"PRIu8,cmp_read.error);
 	cr_expect(total_read_count == expected_read_count, "Expected read size is %"PRIu32" but is %"PRIu32, expected_read_count, total_read_count);
@@ -238,7 +238,7 @@ Test(test_serialization, _np_tree_special_str, .description = "test the implemen
 	cr_assert(ele->key.type == special_char_ptr_type, "Expect key of element to be from type special_char_ptr_type");
 	cr_assert(ele->key.value.ush == 0, "Expect type index to be 0");
 	cr_assert(ele->val.type == char_ptr_type, "Expect value of element to be from type char_ptr_type");
-	cr_assert(strcmp("1234",  np_treeval_to_str(ele->val)) == 0, "expecting special string to be 1234");
+	cr_assert(strcmp("1234",  np_treeval_to_str(ele->val, NULL)) == 0, "expecting special string to be 1234");
 
 	cr_expect(0 < np_tree_get_byte_size(tst->rbh_root), "expect byte size to be not 0");
 
@@ -360,7 +360,7 @@ Test(test_serialization, np_tree_serialize, .description="test the serialization
 	cr_expect((tmp8 = tmpEle->key.type) == special_char_ptr_type, "Expect element key to be of type special_char_ptr_type and not %"PRIu8, tmp8);
 	cr_expect(tmpEle->key.value.ush == 0, "Expect element key to be the same");
 	cr_expect(tmpEle->val.type == char_ptr_type, "Expect element value to be of type char_ptr_type");
-	cr_expect(strcmp( np_treeval_to_str(tmpEle->val), "test") ==0, "Expect element value to be the same");
+	cr_expect(strcmp( np_treeval_to_str(tmpEle->val, NULL), "test") ==0, "Expect element value to be the same");
 
 
 	/*

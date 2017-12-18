@@ -36,7 +36,7 @@ if (NULL == np_tree_find_str(TREE, FIELD_NAME)){							\
 	if (NULL != np_tree_find_str(TREE, _NP_MSG_HEADER_SUBJECT)){			\
 		log_msg(LOG_WARN,"Missing field \"%s\" in message for \"%s\"",		\
 			FIELD_NAME,														\
-			np_treeval_to_str(np_tree_find_str(TREE, _NP_MSG_HEADER_SUBJECT)->val));	\
+			np_treeval_to_str(np_tree_find_str(TREE, _NP_MSG_HEADER_SUBJECT)->val,NULL));	\
 	}else {																	\
 		log_msg(LOG_WARN,"Missing field \"%s\" in tree", FIELD_NAME);		\
 	}																		\
@@ -292,7 +292,7 @@ void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target);
 NP_API_INTERN
 void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp);
 NP_API_INTERN
-void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value);
+void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value,char* key_to_read_for);
 NP_API_INTERN
 void np_tree_insert_special_str(np_tree_t* tree, const uint8_t const key, np_treeval_t val);
 NP_API_INTERN

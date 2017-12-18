@@ -188,24 +188,24 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.r")))
 	{
-		strncpy(token->realm,  np_treeval_to_str(tmp->val), 255);
+		strncpy(token->realm,  np_treeval_to_str(tmp->val, NULL), 255);
 	} 
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.s")))
 	{
-		strncpy(token->subject,  np_treeval_to_str(tmp->val), 255);
+		strncpy(token->subject,  np_treeval_to_str(tmp->val, NULL), 255);
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.i")))
 	{
-		strncpy(token->issuer,  np_treeval_to_str(tmp->val), 64);
+		strncpy(token->issuer,  np_treeval_to_str(tmp->val, NULL), 64);
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.a")))
 	{
-		strncpy(token->audience,  np_treeval_to_str(tmp->val), 255);
+		strncpy(token->audience,  np_treeval_to_str(tmp->val, NULL), 255);
 	}
 	if (NULL !=(tmp = np_tree_find_str(data, "np.t.u")))
 	{
 		free(token->uuid);
-		token->uuid = strndup( np_treeval_to_str(tmp->val), UUID_SIZE);
+		token->uuid = strndup( np_treeval_to_str(tmp->val, NULL), UUID_SIZE);
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.nb")))
 	{

@@ -184,21 +184,38 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 
 	char* mynode_hash = _np_key_as_str(_np_state()->my_node_key);
 
-	if (NULL != target) {
-		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo request message is from %s for %s !",
-				 np_treeval_to_str(source->val),  np_treeval_to_str(target->val));
+	np_bool source_str_free = FALSE;
+	char* source_val = np_treeval_to_str(source->val, &source_str_free);
 
-		if(strcmp(mynode_hash,  np_treeval_to_str(target->val)) != 0) {
+	if (NULL != target) {
+
+		np_bool target_str_free = FALSE;
+		char* target_val = np_treeval_to_str(target->val, &target_str_free);
+	
+		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo request message is from %s for %s !",
+			source_val,  target_val);
+
+		if(strcmp(mynode_hash, target_val) != 0) {
 			// should not happen as it does mean a wrong routing
 			log_msg(LOG_WARN | LOG_SYSINFO,
 					"i am %s not %s . I cannot handle this sysinfo request",
-					mynode_hash,  np_treeval_to_str(target->val));
+					mynode_hash,  target_val);
+
+			if (target_str_free == TRUE) {
+				free(target_val);
+			}
 			return FALSE;
 		}
 	} else {
 		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo request message is from %s for anyone!",
-						 np_treeval_to_str(source->val));
+			source_val);
 	}
+
+	if (source_str_free == TRUE) {
+		free(source_val);
+	}
+
+
 	// checks completed. continue with reply building
 
 	// build body
@@ -238,13 +255,16 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 	}
 	log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo reply (uuid: %s )",msg->uuid);
 
+	np_bool source_str_free = FALSE;
+	char* source_val = np_treeval_to_str(source->val, &source_str_free);
+
 	log_debug_msg(LOG_DEBUG | LOG_SYSINFO,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu32")",
-			 np_treeval_to_str(source->val), body->size, body->byte_size);
+		source_val, body->size, body->byte_size);
 
 	// insert / replace cache item
 	_LOCK_MODULE(np_sysinfo_t)
 	{
-		np_cache_item_t* item = np_simple_cache_get(_cache, np_treeval_to_str(source->val));
+		np_cache_item_t* item = np_simple_cache_get(_cache, source_val);
 		// only insert if the data is newer
 		if(NULL != item) {
 			np_tree_elem_t* new_check = np_tree_find_str(body, _NP_SYSINFO_MY_NODE_TIMESTAMP);
@@ -254,15 +274,18 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 			&& new_check->val.value.d > old_check->val.value.d) {
 				log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Removing old SysInfo reply for newer data");
 				np_tree_free(item->value);
-				np_simple_cache_insert(_cache,  np_treeval_to_str(source->val), np_tree_clone(body));
+				np_simple_cache_insert(_cache, source_val, np_tree_clone(body));
 			}else{
 				log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Ignoring SysInfo reply due to newer data in cache");
 			}
 
 		} else {
 			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Got SysInfo reply for a new node");
-			np_simple_cache_insert(_cache,  np_treeval_to_str(source->val), np_tree_clone(body));
+			np_simple_cache_insert(_cache, source_val, np_tree_clone(body));
 		}
+	}
+	if (source_str_free == TRUE) {
+		free(source_val);
 	}
 
 	return TRUE;

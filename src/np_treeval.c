@@ -159,11 +159,12 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 	return to;
 }
 
-char* np_treeval_to_str(np_treeval_t val) {
+char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
     log_msg(LOG_TRACE, "start: char* np_treeval_to_str(np_treeval_t val) {");
 
 	int len = 0;
 	char* result = NULL;
+	if(freeable  != NULL) *freeable = FALSE;
 	switch(val.type) {
 		// length is always 1 (to identify the type) + the length of the type
   		case short_type:
@@ -171,7 +172,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
-
+				if (freeable != NULL) *freeable = TRUE;
   				snprintf(result, len+1, "%d", val.value.sh);
   			}
   			break;
@@ -180,6 +181,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
+				if (freeable != NULL) *freeable = TRUE;
   				snprintf(result, len+1, "%d", val.value.i);
   			}
 			break;
@@ -188,6 +190,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
+				if (freeable != NULL) *freeable = TRUE;
   				snprintf(result, len+1, "%d", val.value.l);
   			}
 			break;
@@ -197,6 +200,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
+				if (freeable != NULL) *freeable = TRUE;
   				snprintf(result, len+1, "%llu", val.value.ll);
   			}
 			break;
@@ -206,6 +210,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
+				if (freeable != NULL) *freeable = TRUE;
   				snprintf(result, len+1, "%f", val.value.f);
   			}
 			break;
@@ -214,6 +219,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
+				if (freeable != NULL) *freeable = TRUE;
   				snprintf(result, len+1, "%f", val.value.d);
   			}
 			break;
@@ -232,6 +238,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
+				if (freeable != NULL) *freeable = TRUE;
   				snprintf(result, len+1, "%u", val.value.ush);
   			}
  			break;
@@ -240,6 +247,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
+				if (freeable != NULL) *freeable = TRUE;
   				snprintf(result, len+1, "%u", val.value.ui);
   			}
 			break;
@@ -248,6 +256,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
+				if (freeable != NULL) *freeable = TRUE;
   				snprintf(result, len+1, "%u", val.value.ul);
   			}
 			break;
@@ -257,6 +266,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
+				if (freeable != NULL) 	*freeable = TRUE;
   				snprintf(result, len+1, "%llu", val.value.ull);
   			}
 			break;
@@ -266,6 +276,7 @@ char* np_treeval_to_str(np_treeval_t val) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
+				if (freeable != NULL) *freeable = TRUE;
   				snprintf(result, len+1, "%u%u", val.value.a2_ui[0], val.value.a2_ui[1]);
   			}
  			break;
@@ -285,6 +296,7 @@ char* np_treeval_to_str(np_treeval_t val) {
 		case dhkey_type:
 			result = malloc(64);
 			CHECK_MALLOC(result);
+			if (freeable != NULL) *freeable = TRUE;
 			_np_dhkey_to_str(&val.value.dhkey, result);
 			break;
 		default:

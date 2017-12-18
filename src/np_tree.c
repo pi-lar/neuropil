@@ -786,7 +786,7 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 		tmp_key.type = none_type;
 		tmp_key.size = 0;
 		cmp_read_object(cmp, &obj_key);
-		__np_tree_deserialize_read_type(jtree, &obj_key, cmp, &tmp_key);
+		__np_tree_deserialize_read_type(jtree, &obj_key, cmp, &tmp_key,"<<key read>>");
 
 		if (cmp->error != 0 || none_type == tmp_key.type) {
 			ret = FALSE;
@@ -799,7 +799,18 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 		tmp_val.type = none_type;
 		tmp_val.size = 0;
 		cmp_read_object(cmp, &obj_val);
-		__np_tree_deserialize_read_type(jtree, &obj_val, cmp, &tmp_val);
+
+#ifdef DEBUG
+		np_bool free_tmp_key_str = FALSE;
+		char * tmp_key_str = np_treeval_to_str(tmp_key, &free_tmp_key_str);
+		__np_tree_deserialize_read_type(jtree, &obj_val, cmp, &tmp_val, tmp_key_str);
+		if (free_tmp_key_str) {
+			free(tmp_key_str);
+		}
+#else
+		__np_tree_deserialize_read_type(jtree, &obj_val, cmp, &tmp_val, "<<unknown>>");
+#endif
+
 
 		if (cmp->error != 0 || none_type == tmp_val.type) {
 			ret = FALSE;
@@ -1070,7 +1081,7 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 	}
 }
 
-void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value)
+void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value, char* key_to_read_for)
 {
 	log_msg(LOG_TRACE, "start: void __np_tree_deserialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value){");
 	switch (obj->type)
@@ -1114,13 +1125,14 @@ void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx
 				value->value.s = _np_buffer_get_buffer(cmp);
 				cmp->skip(cmp, obj->as.str_size);
 			}else{
-				value->value.s = (char*)malloc(obj->as.str_size * sizeof(char));
+				value->value.s = (char*) malloc(obj->as.str_size * sizeof(char));
 				CHECK_MALLOC(value->value.s);				
 				cmp->read(cmp, value->value.s, obj->as.str_size);
 			}			
 		
 			// to prevent undefined lengths. but should already hava terminator
-			value->value.s[obj->as.str_size-1] = '\0';
+			char* term = value->value.s + obj->as.str_size - 1;
+			term  = '\0';
 
 			break;
 		}
@@ -1222,12 +1234,18 @@ void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx
 			}
 			else
 			{
+				log_debug_msg(LOG_DEBUG,
+					"Cannot deserialize ext type %"PRIi8" (size: %"PRIu32")",
+					obj->as.ext.type, obj->as.ext.size);
+
 				log_msg(LOG_WARN,
-					"unknown de-serialization for given extension type %"PRIi8, obj->as.ext.type);
+					"Unknown de-serialization for given extension type %"PRIi8, obj->as.ext.type);
+				_np_buffer_set_buffer(cmp, target_buffer);
 			}
+
 			ASSERT(_np_buffer_get_buffer(cmp) == target_buffer,
-				"buffer is not at expected position. actual: %p expected: %p",
-				_np_buffer_get_buffer(cmp) ,target_buffer
+				"buffer is not at expected position at \"%s\" (ext key type: %"PRIi8"). actual: %p expected: %p size: %"PRIu32,
+				key_to_read_for, obj->as.ext.type, _np_buffer_get_buffer(cmp) ,target_buffer, obj->as.ext.size
 			);
 		}
 		break;

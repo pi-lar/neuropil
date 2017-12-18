@@ -280,8 +280,8 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 	cr_assert(NULL != body_node_2 ,"Expected to find data in body");
 
 	log_msg(LOG_DEBUG, "properties %s, body %s",
-			 np_treeval_to_str(properties_node_2->val),
-			 np_treeval_to_str(body_node_2->val));
+			 np_treeval_to_str(properties_node_2->val, NULL),
+			 np_treeval_to_str(body_node_2->val,NULL));
 
 	log_msg(LOG_TRACE,"end test._message_chunk_and_serialize");
 }

@@ -250,7 +250,7 @@ void _np_out(np_jobargs_t* args)
 			{
 				if (FALSE == is_resend)
 				{
-					uuid = np_treeval_to_str(np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val);
+					uuid = np_treeval_to_str(np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val, NULL);
 
 					_LOCK_ACCESS(&my_network->send_data_lock)
 					{

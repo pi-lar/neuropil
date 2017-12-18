@@ -111,6 +111,8 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
 JSON_Value* np_treeval2json(np_treeval_t val) {
 	log_msg(LOG_TRACE, "start: JSON_Value* np_treeval2json(np_treeval_t val) {");
 	JSON_Value* ret = NULL;
+	np_bool free_string = FALSE;
+	char* tmp_str = NULL;
 	//log_debug_msg(LOG_DEBUG, "np_treeval2json type: %"PRIu8,val.type);
 	void* tmp;
 	switch (val.type) {
@@ -134,8 +136,12 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 	case double_type:
 		ret = json_value_init_number(val.value.d);
 		break;
-	case char_ptr_type:
-		ret = json_value_init_string( np_treeval_to_str(val));
+	case char_ptr_type:		
+		tmp_str = np_treeval_to_str(val, &free_string);
+		ret = json_value_init_string(tmp_str);
+		if (free_string == TRUE) {
+			free(tmp_str);
+		}
 		break;
 	case char_type:
 		ret = json_value_init_string(&val.value.c);
@@ -237,7 +243,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 				}
 				else if (char_ptr_type == tmp->key.type)
 				{
-					name = strndup( np_treeval_to_str(tmp->key), strlen( np_treeval_to_str(tmp->key)));
+					name = strndup( np_treeval_to_str(tmp->key,NULL), strlen( np_treeval_to_str(tmp->key, NULL)));
 				}
 				else if (special_char_ptr_type == tmp->key.type)
 				{

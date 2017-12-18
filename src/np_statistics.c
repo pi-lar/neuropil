@@ -315,14 +315,13 @@ char * np_statistics_print(np_bool asOneLine) {
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "send     total:", tenth);
 	ret = _np_concatAndFree(ret, tmp_format, all_total_send, new_line);
 
-	ret = _np_concatAndFree(ret, "------------------------%s", new_line);
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "total:", tenth);
 	ret = _np_concatAndFree(ret, tmp_format, all_total_send+ all_total_received, new_line);
 	
 	ret = _np_concatAndFree(ret, "%s", new_line);
 
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Reachable nodes:", tenth);
-	ret = _np_concatAndFree(ret, tmp_format, routes, new_line);
+	ret = _np_concatAndFree(ret, tmp_format, routes, /*new_line*/"  ");
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Neighbours nodes:", tenth);
 	ret = _np_concatAndFree(ret, tmp_format, _np_route_my_key_count_neighbours(), new_line);
 

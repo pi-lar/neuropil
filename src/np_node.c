@@ -188,12 +188,12 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 	else { return NULL; }
 
 	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_DNS_NAME))) {
-		s_host_name = np_treeval_to_str(ele->val);
+		s_host_name = np_treeval_to_str(ele->val,NULL);
 	}
 	else { return NULL; }
 
 	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_PORT))) {
-		s_host_port = np_treeval_to_str(ele->val);
+		s_host_port = np_treeval_to_str(ele->val, NULL);
 	}
 	else { return NULL; }
 
@@ -252,8 +252,12 @@ sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 	{
 		np_tree_elem_t* node_data = np_tree_find_int(data, i);
 
-		char* s_key = np_treeval_to_str(np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val);
+		np_bool free_s_key = FALSE;
+		char* s_key = np_treeval_to_str(np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val,&free_s_key);
 		np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
+		if (free_s_key == TRUE) {
+			free(s_key);
+		}
 		np_key_t* node_key    = _np_keycache_find_or_create(search_key);
 		if (NULL == node_key->node)
 		{

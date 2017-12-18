@@ -235,6 +235,8 @@ int main(int argc, char **argv)
 
 	   \code
 	 */
+	char bootstrap_port[10];
+	memcpy(bootstrap_port, port, strnlen(port,10));
 	while (TRUE) {
 		// (re-) start child processes
 		if (list_of_childs->size < required_nodes) {

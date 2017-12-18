@@ -181,8 +181,8 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 	np_message_t* ret= NULL;
 
 	
-		char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val);
-		char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val);
+		char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
+		char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
 
 		// Detect from instructions if this msg was orginally chunked
 		uint16_t expected_msg_chunks = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
@@ -702,9 +702,9 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 
 								CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_UUID, msg_uuid);
 								ASSERT(msg_uuid.type == char_ptr_type, " type is incorrectly set to: %"PRIu8, msg_uuid.type);
-								log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", msg->uuid, np_treeval_to_str(msg_uuid));
+								log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", msg->uuid, np_treeval_to_str(msg_uuid, NULL));
 								char* old = msg->uuid;
-								msg->uuid = strdup(np_treeval_to_str(msg_uuid));
+								msg->uuid = strdup(np_treeval_to_str(msg_uuid, NULL));
 								free(old);
 
 								ret = TRUE;
@@ -1126,7 +1126,7 @@ char* _np_message_get_subject(np_message_t* msg) {
 	if(msg->header != NULL){
 		np_tree_elem_t* ele = np_tree_find_str(msg->header, _NP_MSG_HEADER_SUBJECT);
 		if(ele != NULL){
-			ret =  np_treeval_to_str(ele->val);
+			ret =  np_treeval_to_str(ele->val, NULL);
 		}
 	}
 	return ret;
