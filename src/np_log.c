@@ -121,26 +121,29 @@ void log_rotation()
 
 		 if(logger->fp < 0) {
 			fprintf(stderr,"Could not create logfile at %s. Error: %s (%d)",logger->filename, strerror(errno), errno);
-		fprintf(stderr, "Log will no longer continue");
-		fflush(NULL);
+		    fprintf(stderr, "Log will no longer continue");
+		    fflush(NULL);
 
-		// discontinue new log msgs
-		free(logger);
-		logger = NULL;
-				}
-		else
-		{
-			//EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-			//ev_io_stop(EV_A_ &logger->watcher);
-			//ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
-			//ev_io_start(EV_A_ &logger->watcher);
-		}
-		if (logger->log_count > LOG_ROTATE_COUNT) {
-			log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
-		}
+		    // discontinue new log msgs
+		    free(logger);
+		    logger = NULL;
+		 }
+		 else
+		 {
+			 /*
+			 EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+			 ev_io_stop(EV_A_ &logger->watcher);
+			 ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
+			 ev_io_start(EV_A_ &logger->watcher);
+			 */
+		 }
 
-		_np_log_fflush(TRUE);
-		free(old_filename);
+		 if (logger->log_count > LOG_ROTATE_COUNT) {
+			 log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
+		 }
+
+		 _np_log_fflush(TRUE);
+		 free(old_filename);
 	 }
 	 pthread_mutex_unlock(&__log_mutex);
 }
@@ -231,10 +234,11 @@ void _np_log_fflush(np_bool force)
 		else {
 			lock_result = pthread_mutex_trylock(&__log_mutex);
 		}
+
 		if (0 == lock_result) {
 			if (flush_status < 1 ) {
 				if (flush_status < 0) {
-					flush_status = (force == TRUE || sll_size(logger->logentries_l) > 10000) ? 0 : 1;
+					flush_status = (force == TRUE || sll_size(logger->logentries_l) > 1000) ? 0 : 1;
 				}
 				if(flush_status == 0){
 					entry = sll_head(char_ptr, logger->logentries_l);

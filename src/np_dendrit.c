@@ -1777,7 +1777,7 @@ void _np_in_handshake(np_jobargs_t* args)
 
 					_LOCK_ACCESS(&old_network->send_data_lock)
 					{
-						_np_network_stop(old_network);
+						// _np_network_stop(old_network);
 						// Updating handshake key with already existing network
 						// structure of the wildcard key
 						log_debug_msg(LOG_DEBUG,
@@ -1905,6 +1905,7 @@ void _np_in_handshake(np_jobargs_t* args)
 					msg_source_key->network = alias_key->network;
 
 					_np_network_stop(msg_source_key->network);
+					// TODO: split up in two libev callbacks (read/write)
 					ev_io_init(
 						&msg_source_key->network->watcher,
 						_np_network_sendrecv,
@@ -1925,6 +1926,7 @@ void _np_in_handshake(np_jobargs_t* args)
 						//np_ref_obj(np_network_t, alias_key->network, ref_key_network);
 					}
 				}
+
 				// copy over session key
 				memcpy(msg_source_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
 				msg_source_key->node->session_key_is_set = TRUE;
