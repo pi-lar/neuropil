@@ -76,7 +76,7 @@ void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int
 	log_msg(LOG_TRACE, "start: void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents){");
 	if ((revents &  EV_WRITE) == EV_WRITE && (revents &  EV_ERROR) != EV_ERROR)
 	{
-		_np_log_fflush(FALSE);
+		_np_log_fflush(TRUE);
 	}
 }
 
@@ -121,27 +121,27 @@ void log_rotation()
 
 		 if(logger->fp < 0) {
 			fprintf(stderr,"Could not create logfile at %s. Error: %s (%d)",logger->filename, strerror(errno), errno);
-fprintf(stderr, "Log will no longer continue");
-fflush(NULL);
+		fprintf(stderr, "Log will no longer continue");
+		fflush(NULL);
 
-// discontinue new log msgs
-free(logger);
-logger = NULL;
-		 }
- else
- {
-	 EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+		// discontinue new log msgs
+		free(logger);
+		logger = NULL;
+				}
+		else
+		{
+			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
-	 ev_io_stop(EV_A_ &logger->watcher);
-	 ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
-	 ev_io_start(EV_A_ &logger->watcher);
- }
- if (logger->log_count > LOG_ROTATE_COUNT) {
-	 log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
- }
+			ev_io_stop(EV_A_ &logger->watcher);
+			ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
+			ev_io_start(EV_A_ &logger->watcher);
+		}
+		if (logger->log_count > LOG_ROTATE_COUNT) {
+			log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
+		}
 
- _np_log_fflush(TRUE);
- free(old_filename);
+		_np_log_fflush(TRUE);
+		free(old_filename);
 	 }
 	 pthread_mutex_unlock(&__log_mutex);
 }
@@ -198,7 +198,10 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		}
 
 		// instant writeout
+#ifdef DEBUG
 		_np_log_fflush(LOG_FORCE_INSTANT_WRITE);
+#endif // DEBUG
+		
 	}
 	else
 	{
@@ -232,7 +235,7 @@ void _np_log_fflush(np_bool force)
 		if (0 == lock_result) {
 			if (flush_status < 1 ) {
 				if (flush_status < 0) {
-					flush_status = (force == TRUE || sll_size(logger->logentries_l) > 100) ? 0 : 1;
+					flush_status = (force == TRUE || sll_size(logger->logentries_l) > 10000) ? 0 : 1;
 				}
 				if(flush_status == 0){
 					entry = sll_head(char_ptr, logger->logentries_l);
