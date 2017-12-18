@@ -239,6 +239,7 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 	
 	log_debug_msg(LOG_DEBUG, "leafset check for table started");
 
+	// TODO: do a dynamic selection of keys
 	np_sll_t(np_key_ptr, keys) = _np_keycache_get_all();
 
 	sll_iterator(np_key_ptr) iter = sll_first(keys);
@@ -247,7 +248,7 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 		
 		if(iter->val != _np_state()->my_node_key){
 			np_tryref_obj(np_node_t, iter->val->node, node_exists);
-			if(node_exists){
+			if(node_exists) {
 				if (iter->val->node->joined_network) {
 					_np_ping_send(iter->val);
 				}
@@ -261,6 +262,9 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 	sll_free(np_key_ptr, keys);
 }
 
+void _np_glia_log_flush(NP_UNUSED np_jobargs_t* args) {
+	_np_log_fflush(TRUE);
+}
 
 void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
 	

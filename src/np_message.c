@@ -400,6 +400,7 @@ np_bool _np_message_serialize_chunked(np_message_t* msg)
 		CHECK_MALLOC(part->msg_part);
 
 		// pre-fill some garbage
+		//TODO: optimize into memory_v2
 		randombytes_buf(part->msg_part, max_chunk_size);
 
 		cmp_init(&cmp, part->msg_part, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);

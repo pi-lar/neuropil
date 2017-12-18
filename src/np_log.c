@@ -130,11 +130,10 @@ void log_rotation()
 				}
 		else
 		{
-			EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-
-			ev_io_stop(EV_A_ &logger->watcher);
-			ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
-			ev_io_start(EV_A_ &logger->watcher);
+			//EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+			//ev_io_stop(EV_A_ &logger->watcher);
+			//ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
+			//ev_io_start(EV_A_ &logger->watcher);
 		}
 		if (logger->log_count > LOG_ROTATE_COUNT) {
 			log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
