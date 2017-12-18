@@ -787,7 +787,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 				return (FALSE);
 			}
 
-			if ( 0 == msg->header->size || 0 == msg->instructions->size)
+			if (msg->bin_static == NULL)
 			{
 				
 				void* orig_buffer = _np_buffer_get_buffer(&cmp);
