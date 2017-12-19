@@ -345,18 +345,26 @@ void _np_job_yield(const double delay)
     log_msg(LOG_TRACE, "start: void _np_job_yield(const double delay){");
     if (1 == _np_state()->thread_count)
     {
-        ev_sleep(delay);
+        np_time_sleep(delay);
     }
     else
     {
-        // unlock another thread
+		struct timeval tv_sleep;
+		if (0.0 != delay)
+		{
+			tv_sleep = dtotv(np_time_now() + delay);
+		}
+
+        // unlock another threads
         _LOCK_MODULE(np_jobqueue_t){
-            _np_threads_condition_signal(&__cond_empty);
+            //_np_threads_condition_signal(&__cond_empty);
+			_np_threads_condition_broadcast(&__cond_empty);
         }
+
         _LOCK_MODULE(np_jobqueue_t) {
             if (0.0 != delay)
             {
-                struct timeval tv_sleep = dtotv(np_time_now() + delay);
+                
                 struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
                 // wait for time x to be unlocked again
 				

@@ -37,9 +37,6 @@
 #include "np_settings.h"
 #include "np_constants.h"
 
-
-static np_bool __exit_libev_loop = FALSE;
-
 // the optimal libev run interval remains to be seen
 // if set too low, base cpu usage increases on no load
 // static uint8_t __suspended_libev_loop = 0;
@@ -60,7 +57,8 @@ void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watche
 
 	while (0 < suspend_loop)
 	{
-		_np_job_yield(NP_EVENT_IO_CHECK_PERIOD_SEC);
+		//_np_job_yield(NP_EVENT_IO_CHECK_PERIOD_SEC);
+		np_time_sleep(NP_EVENT_IO_CHECK_PERIOD_SEC);
 
 		_LOCK_MODULE(np_event_t) {
 			suspend_loop = __suspended_libev_loop;
@@ -120,13 +118,16 @@ void _np_events_read(NP_UNUSED np_jobargs_t* args)
 	log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
-	_LOCK_MODULE(np_event_t) {
-		if (0 == __suspended_libev_loop) {
-			ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
-		}
-	}
+	static int suspend_loop = 0;
 
-	if (TRUE == __exit_libev_loop) return;
+	_LOCK_MODULE(np_event_t) {
+		suspend_loop = __suspended_libev_loop;
+	}
+	
+	if (0 < suspend_loop) {
+		ev_run(EV_A_ (EVRUN_ONCE | EVRUN_NOWAIT));
+	}
+	
 }
 
 void* _np_event_run() {

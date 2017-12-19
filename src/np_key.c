@@ -106,7 +106,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
 			_np_route_leafset_update(to_destroy,FALSE,&deleted,&added);
 			_np_route_update(to_destroy,FALSE,&deleted,&added);
-			_np_network_stop(to_destroy->network);
+			_np_network_stop(to_destroy->network, TRUE);
 
 			_np_keycache_remove(to_destroy->dhkey);
 

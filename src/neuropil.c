@@ -911,13 +911,13 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 				hostname = strdup("localhost");
 			}
 		}
-	}
-	//--
+	}	
+
 	log_debug_msg(LOG_DEBUG, "initialise network");
 	_LOCK_MODULE(np_network_t)
 	{
 		_np_network_init(my_network, TRUE, np_proto, hostname, np_service);
-		_np_network_stop(my_network);
+		_np_network_stop(my_network, TRUE);
 	}
 	log_debug_msg(LOG_DEBUG, "check for initialised network");
 	if (FALSE == my_network->initialized)
