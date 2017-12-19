@@ -28,6 +28,7 @@
 #include "np_log.h"
 #include "np_settings.h"
 #include "np_constants.h"
+#include "np_memory_v2.h"
 
 
 #include "np_jobqueue.h"
@@ -335,15 +336,15 @@ int _np_threads_mutex_init(np_mutex_t* mutex,char* desc)
 
 int _np_threads_mutex_lock(np_mutex_t* mutex) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
-	int ret =  1;
+	int ret = 1;
 	double start = np_time_now();
 	double diff = 0;
-	while(ret != 0) {
+	while (ret != 0) {
 		// TODO: review lock warn system
 		// ret = _np_threads_mutex_timedlock(mutex, min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
 		ret = pthread_mutex_lock(&mutex->lock);
 
-		
+
 #ifdef DEBUG
 		diff = np_time_now() - start;
 		if (diff > MUTEX_WAIT_MAX_SEC) {
@@ -356,13 +357,42 @@ int _np_threads_mutex_lock(np_mutex_t* mutex) {
 #endif
 
 
-		if(ret != ETIMEDOUT && ret != 0) {
+		if (ret != ETIMEDOUT && ret != 0) {
 			log_msg(LOG_ERROR, "error at acquiring mutex. Error: %s (%d)", strerror(ret), ret);
 			abort();
 		}
 	}
 	return ret;
 }
+
+
+int _np_threads_mutex_trylock(np_mutex_t* mutex) {
+	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
+	int ret = 1;
+	double start = np_time_now();
+	double diff = 0;
+	while (ret != 0) {
+		// TODO: review lock warn system
+		// ret = _np_threads_mutex_timedlock(mutex, min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
+		ret = pthread_mutex_trylock(&mutex->lock);
+
+
+#ifdef DEBUG
+		diff = np_time_now() - start;
+		if (diff > MUTEX_WAIT_MAX_SEC) {
+			log_msg(LOG_ERROR, "Thread %d waits too long for mutex %p / %s (%f sec)", _np_threads_get_self()->id, mutex, mutex->desc, diff);
+			abort();
+		}
+		if (diff > MUTEX_WAIT_SOFT_SEC) {
+			log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for mutex %p (%f sec)", mutex, diff);
+		}
+#endif
+
+	}
+	return ret;
+}
+
+
 
 int _np_threads_mutex_unlock(np_mutex_t* mutex)
 {
@@ -662,7 +692,8 @@ void np_start_job_queue(uint8_t pool_size)
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_SEND_PIGGY_REQUESTS_SEC,			_np_glia_send_piggy_requests, "_np_glia_send_piggy_requests");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_RETRANSMIT_MSG_TOKENS_SEC,			_np_retransmit_message_tokens_jobexec, "_np_retransmit_message_tokens_jobexec");
 
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_ACKENTRY_CLEANUP_INTERVAL_SEC,		_np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_MEMORY_REFRESH_INTERVAL_SEC, _np_memory_job_refresh_spaces, "_np_memory_job_refresh_spaces");
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_ACKENTRY_CLEANUP_INTERVAL_SEC, _np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC,		_np_cleanup_keycache_jobexec, "_np_cleanup_keycache_jobexec");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_CHECK_ROUTES_SEC,					_np_glia_check_neighbours, "_np_glia_check_neighbours");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_SEND_UPDATE_MSGS_SEC,				_np_glia_check_routes, "_np_glia_check_routes");
@@ -671,7 +702,7 @@ void np_start_job_queue(uint8_t pool_size)
 	//np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_RENEW_NODE_SEC,					_np_renew_node_token_jobexec, "_np_renew_node_token_jobexec");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary, "_np_event_rejoin_if_necessary");
 
-	np_job_submit_event_periodic(PRIORITY_MOD_LOWEST, 0.0, MISC_LOG_FLUSH_INTERVAL_SEC, _np_glia_log_flush, "_np_glia_log_flush");
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_LOG_FLUSH_INTERVAL_SEC, _np_glia_log_flush, "_np_glia_log_flush");
 
 	
 	_LOCK_MODULE(np_threads_t){

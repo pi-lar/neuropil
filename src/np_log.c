@@ -336,8 +336,8 @@ void np_log_destroy()
 	log_msg(LOG_TRACE, "start: void np_log_destroy(){");
 	logger->level=LOG_NONE;
 
-	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-	ev_io_stop(EV_A_ &logger->watcher);
+	//EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+	//ev_io_stop(EV_A_ &logger->watcher);
 
 	_np_log_fflush(TRUE);
 

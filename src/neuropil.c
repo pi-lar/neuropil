@@ -836,6 +836,8 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 
 	// memory pool
 	np_mem_init();
+	//v2
+	np_memory_init();
 
 	// initialize key min max ranges
 	_np_dhkey_init();
