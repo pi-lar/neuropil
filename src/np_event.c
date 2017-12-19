@@ -137,14 +137,15 @@ void* _np_event_run() {
 	
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 
-	
-	//ev_async_init(&__libev_async_watcher, _np_events_async);
+	ev_async_init(&__libev_async_watcher, _np_events_async);
+    ev_async_start(EV_A_ &__libev_async_watcher);
 
 	ev_set_io_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
 	ev_set_timeout_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
 	
 	ev_run(EV_A_ (0));	
 }
+
 /**
  * Call this fucntion only in an event (as in async callback)
  */

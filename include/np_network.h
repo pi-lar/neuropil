@@ -54,6 +54,7 @@ struct np_network_s
 	np_bool initialized;
 	int socket;
 	ev_io watcher;
+	uint16_t ev_start_events;
 
 	uint8_t socket_type;
 	struct addrinfo* addr_in; // where a node receives messages

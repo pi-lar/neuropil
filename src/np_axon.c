@@ -478,6 +478,7 @@ void _np_out_handshake(np_jobargs_t* args)
 				_LOCK_ACCESS(&args->target->network->send_data_lock)
 				{
 					if (NULL != args->target->network->out_events) {
+						_np_network_start(args->target->network);
 						sll_append(
 							void_ptr,
 							args->target->network->out_events,
