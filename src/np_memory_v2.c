@@ -22,86 +22,118 @@
 #include "np_constants.h"
 #include "np_settings.h"
 
+/*
+	General workflow:
+	After you register a type with a known size a container will be created which contains multiple memory blocks.
+	Every block may contains exactly count_of_items_per_block items + the configuration for each item.
+	the configuration of each item is preceeding to the memory of the item itself.
+	
+*/
+typedef struct
+{	
+	uint32_t current_in_use;
+	uint32_t last_item;
+	np_mutex_t lock;
+	void* space;
+} np_memory_block_t;
+
+
 typedef struct
 {
 	uint8_t type;
 
-	void* space;
-	uint32_t max_count_of_items;
+	uint32_t count_of_items_per_block;
 	size_t size_per_item;
-	uint32_t current_in_use;
 
 	np_memory_on_new on_new;
 	np_memory_on_free on_free;
-	np_memory_on_container_init on_container_init;
 	np_memory_on_refresh_space on_refresh_space;
-
+	
+	uint32_t current_in_use;
 	uint32_t last_item;
 	np_mutex_t lock;
+	void* space;
 } np_memory_container_t;
 
 typedef struct {
 	np_memory_container_t* container;
 	np_bool in_use;
-	np_bool was_used;
+	np_bool needs_refresh;
 	np_mutex_t lock;
-} np_memory_item_t;
+} np_memory_itemconf_t;
 
-np_memory_container_t* np_memory_containers[END_TYPES];
+np_memory_container_t* np_memory_containers[np_memory_types_END_TYPES];
+
+
+#define NEXT_ITEMCONF(conf, skip) conf =(np_memory_itemconf_t*) (((char*)conf)+ ((skip)+1) * ((conf)->container->size_per_item + sizeof(np_memory_itemconf_t)));
 
 void np_memory_init() {
-	np_memory_register_type(BLOB_1024, 1024, 512, NULL, NULL, np_memory_clear_space, np_memory_clear_space);
-	np_memory_register_type(BLOB_984_RANDOMIZED, 984, 1024, NULL, NULL, np_memory_randomize_space, np_memory_randomize_space);
+	for (int i = 0; i < np_memory_types_END_TYPES; i++) {
+		np_memory_containers[i] = NULL;
+	}
+	np_memory_register_type(np_memory_types_BLOB_1024, 1024, 256, NULL, NULL, np_memory_clear_space);
+	np_memory_register_type(np_memory_types_BLOB_984_RANDOMIZED, 984, 256, NULL, NULL, np_memory_randomize_space);
+}
+
+void __np_memory_create_block(np_memory_container_t* container) {
+	size_t  whole_item_size = container->size_per_item + sizeof(np_memory_itemconf_t);
+	size_t container_size = container->count_of_items_per_block * whole_item_size;
+	
+	container->space = malloc(container_size);
+	CHECK_MALLOC(container->space);
+	container->current_in_use = 0;
+	container->last_item = 0;
+	
+
+	np_memory_itemconf_t* next_conf = container->space;
+
+	for (uint32_t j = 0; j < container->count_of_items_per_block; j++) {			
+		next_conf->container = container;
+		next_conf->in_use = FALSE;
+		next_conf->needs_refresh = FALSE; // handled the first time for the whole block
+		_np_threads_mutex_init(&(next_conf->lock), "MemoryV2 conf lock");
+		NEXT_ITEMCONF(next_conf, 0)
+	}
+	
+	// BLOCK refresh
+	if (container->on_refresh_space != NULL)
+		container->on_refresh_space(container->type, container_size, container->space);
 }
 
 void np_memory_register_type(
 	uint8_t type,
 	size_t size_per_item,
-	uint32_t max_count_of_items,
+	uint32_t count_of_items_per_block,
 	np_memory_on_new on_new,
 	np_memory_on_free on_free,
-	np_memory_on_container_init on_container_init,
 	np_memory_on_refresh_space on_refresh_space
 ) {
 	np_memory_container_t* container = calloc(1, sizeof(np_memory_container_t));
 	CHECK_MALLOC(container);
 
-	uint32_t container_size = max_count_of_items * (size_per_item + sizeof(np_memory_item_t));
-	container->space = malloc(container_size);
-	CHECK_MALLOC(container);
-
 	container->size_per_item = size_per_item;
-	container->max_count_of_items = max_count_of_items;
+	container->count_of_items_per_block = count_of_items_per_block;
 	container->on_new = on_new;
-	container->on_free = on_free;
-	container->on_container_init = on_container_init;
+	container->on_free = on_free;	
 	container->on_refresh_space = on_refresh_space;
-	
+	container->type = type;
 
-	_np_threads_mutex_init(&container->lock, "Memory container lock");
-	np_memory_item_t* item = container->space;
+	_np_threads_mutex_init(&container->lock, "MemoryV2 container lock");
 
-	for (uint32_t j = 0; j < container->max_count_of_items; j++) {
-		item += (container->size_per_item + sizeof(np_memory_item_t));
+	__np_memory_create_block(container);
 
-		_np_threads_mutex_init(&item->lock, "Memory item lock");
-	}
-
-	if (container->on_container_init != NULL)
-		container->on_container_init(container->type, container->size_per_item, container);
-
-	np_memory_containers[type] = container;
+	np_memory_containers[container->type] = container;
 }
 
-void __np_memory_refresh_space(np_memory_item_t* config) {
+void __np_memory_refresh_space(np_memory_itemconf_t* config) {
 	np_memory_container_t* container = config->container;
-	void* data = config + sizeof(np_memory_item_t);
+	void* data = config + sizeof(np_memory_itemconf_t);
 
 	_LOCK_ACCESS(&config->lock) {
-		if (config->was_used == TRUE) {
+		if (config->needs_refresh == TRUE) {
 			if (container->on_refresh_space != NULL)
 				container->on_refresh_space(container->type, container->size_per_item, data);
-			config->was_used = FALSE;
+			config->needs_refresh = FALSE;
 		}
 	}
 }
@@ -110,23 +142,27 @@ void* np_memory_new(uint8_t type) {
 	void* ret = NULL;
 	np_memory_container_t* container = np_memory_containers[type];
 
+	ASSERT(container!=NULL,"Memory container %"PRIu8" needs to be initialized first.",type)
 	// select next
-	np_memory_item_t* next_config = NULL;
+	np_memory_itemconf_t* next_config = NULL;
 
 	uint32_t i = 0;
 	
-	//TODO: deadlock on max_count_of_items set too low.
+	log_debug_msg(LOG_DEBUG | LOG_MEMORY, "Searching for next free block for type %"PRIu8, type);
+	//TODO: deadlock on max_count_of_items set too low. (implement memory blocks)
 	while (ret == NULL) {
-		_LOCK_ACCESS(&container->lock) {
-			i = container->last_item;
-		}
-		do
-		{
-			next_config = container->space;
-			i = i % container->max_count_of_items;
-			next_config += i * (container->size_per_item + sizeof(np_memory_item_t));
-			i++;
 
+		// get possible best position to get new unused item
+		_LOCK_ACCESS(&(container->lock)) {			
+			next_config = container->space;
+			//i = container->last_item + 1;
+			//printf("new mem %"PRIu32" %"PRIu32"\n", i, container->last_item);
+			//fflush(NULL);
+			//NEXT_ITEMCONF(next_config, container->last_item)
+		}
+
+		do
+		{	
 			if (_np_threads_mutex_trylock(&next_config->lock) == 0) {
 				
 				if (next_config->in_use == FALSE) {
@@ -137,30 +173,36 @@ void* np_memory_new(uint8_t type) {
 				}
 				_np_threads_mutex_unlock(&next_config->lock);
 			}
-		} while (i < container->max_count_of_items);
+			
+			NEXT_ITEMCONF(next_config, 0)
+			i++;						
+		} while (i < container->count_of_items_per_block);
+		if (ret == NULL) {			
+			np_time_sleep(0.005);
+		}
 		 
 	}
+	i = i % container->count_of_items_per_block;
 	
 	_LOCK_ACCESS(&container->lock) {
 		container->last_item = i;
 		container->current_in_use += 1;
 	}
 
-	ret = next_config + sizeof(np_memory_item_t);
+	ret = next_config + 1;
 
+	log_debug_msg(LOG_DEBUG | LOG_MEMORY, "Found free block for type %"PRIu8" at %p", type, ret);
 	__np_memory_refresh_space(next_config);
 
 	if (container->on_new != NULL)
 		container->on_new(container->type, container->size_per_item, ret);
 
-	next_config->was_used = TRUE;
-
 	return ret;
 }
 
 void np_memory_free(void* item) {
-	np_memory_item_t* config = item;
-	config -= sizeof(np_memory_item_t);
+	np_memory_itemconf_t* config = item;
+	config -= sizeof(np_memory_itemconf_t);
 
 	np_memory_container_t* container = config->container;
 
@@ -168,6 +210,7 @@ void np_memory_free(void* item) {
 		config->in_use = FALSE;
 		if (container->on_free != NULL)
 			container->on_free(container->type, container->size_per_item, item);
+		config->needs_refresh = TRUE;
 	}
 
 	_LOCK_ACCESS(&container->lock) {
@@ -175,27 +218,30 @@ void np_memory_free(void* item) {
 	}
 }
 
-void np_memory_clear_space(uint8_t type, size_t size, void* data) {
+void np_memory_clear_space(NP_UNUSED uint8_t type, size_t size, void* data) {
 	memset(data, 0, size);
 }
 
-void np_memory_randomize_space(uint8_t type, size_t size, void* data) {
+void np_memory_randomize_space(NP_UNUSED uint8_t type, size_t size, void* data) {
 	randombytes_buf(data, size);
 }
 
 void _np_memory_job_refresh_spaces(NP_UNUSED np_jobargs_t* args) {
-	for (uint8_t i = 0; i < END_RESERVED_TYPES; i++) {
+	for (uint8_t i = 0; i < np_memory_types_END_RESERVED_TYPES; i++) {
 		np_memory_container_t* container = np_memory_containers[i];
 		if (container->on_refresh_space != NULL) {
-			np_memory_item_t* next_config = container->space;
+			np_memory_itemconf_t* next_config = container->space;
 
-			for (uint32_t j = 0; j < container->max_count_of_items; j++) {
-				next_config += (container->size_per_item + sizeof(np_memory_item_t));
-
-				_LOCK_ACCESS(&next_config->lock) {
+			for (uint32_t j = 0; j < container->count_of_items_per_block; j++) {
+		
+				if(_np_threads_mutex_trylock(&next_config->lock) ==0)
+				 {
 					if (next_config->in_use == FALSE)
 						__np_memory_refresh_space(next_config);
+
+					_np_threads_mutex_unlock(&next_config->lock);
 				}
+				NEXT_ITEMCONF(next_config, 0)				
 			}
 		}
 	}

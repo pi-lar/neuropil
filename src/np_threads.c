@@ -321,7 +321,7 @@ int _np_threads_unlock_module(np_module_lock_type module_id) {
 }
 
 /** pthread mutex platform wrapper functions following this line **/
-int _np_threads_mutex_init(np_mutex_t* mutex,char* desc)
+int _np_threads_mutex_init(np_mutex_t* mutex, char* desc)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_init(np_mutex_t* mutex){");
 	mutex->desc = strdup(desc);

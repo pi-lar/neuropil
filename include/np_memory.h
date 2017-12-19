@@ -224,9 +224,9 @@ TYPE* saveTo = NULL;																																\
 #define CHECK_MALLOC(obj)		              																										\
 {                                             																										\
 	if(NULL == obj ) {																																\
-		log_msg(LOG_ERROR,"could not allocate memory");																								\
+		log_msg(LOG_ERROR,"Could not allocate memory. Program is now in undefined state and should be shut down.");									\
 	}																																				\
-	assert(NULL != obj);                               																								\
+	assert(NULL != obj);                               																	\
 }																																					\
 
 #define np_unref_obj(TYPE, np_obj, reason)                																							\

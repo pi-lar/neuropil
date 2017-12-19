@@ -31,6 +31,7 @@
 #include "np_jobqueue.h"
 #include "np_keycache.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_msgproperty.h"
 #include "np_network.h"
 #include "np_node.h"
@@ -377,7 +378,7 @@ np_bool _np_message_serialize_chunked(np_message_t* msg)
 	void* bin_footer_ptr = NULL;
 	np_bool footer_done = FALSE;
 
-	uint16_t max_chunk_size = (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40);
+	uint16_t max_chunk_size = (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40);	
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-----------------------------------------------------" );
 
 	np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0] = msg->no_of_chunks;
@@ -396,12 +397,7 @@ np_bool _np_message_serialize_chunked(np_message_t* msg)
 		// TODO: possible error ? have to pass the chunk number explicitly
 		part->instructions = msg->instructions;
 		part->part = i;
-		part->msg_part = malloc(max_chunk_size * sizeof(char));
-		CHECK_MALLOC(part->msg_part);
-
-		// pre-fill some garbage
-		//TODO: optimize into memory_v2
-		randombytes_buf(part->msg_part, max_chunk_size);
+		part->msg_part = np_memory_new(np_memory_types_BLOB_984_RANDOMIZED);
 
 		cmp_init(&cmp, part->msg_part, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 		cmp_write_array(&cmp, 5);
