@@ -324,14 +324,20 @@ int _np_threads_unlock_module(np_module_lock_type module_id) {
 int _np_threads_mutex_init(np_mutex_t* mutex, char* desc)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_init(np_mutex_t* mutex){");
+	int ret = 0;
 	mutex->desc = strdup(desc);
 	pthread_mutexattr_init(&mutex->lock_attr);
 	pthread_mutexattr_settype(&mutex->lock_attr, PTHREAD_MUTEX_RECURSIVE);
 
 	_np_threads_condition_init(&mutex->condition);
 
-
-	return pthread_mutex_init(&mutex->lock, &mutex->lock_attr);
+	ret = pthread_mutex_init(&mutex->lock, &mutex->lock_attr);
+	if (ret != 0)
+	{
+		log_msg(LOG_ERROR, "pthread_mutex_init: %s (%d)",
+			strerror(ret), ret);
+	}
+	return ret;
 }
 
 int _np_threads_mutex_lock(np_mutex_t* mutex) {

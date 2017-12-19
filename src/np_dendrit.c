@@ -1904,7 +1904,7 @@ void _np_in_handshake(np_jobargs_t* args)
 					np_unref_obj(np_network_t, msg_source_key->network, ref_key_network);
 					msg_source_key->network = alias_key->network;
 
-					_np_network_stop(msg_source_key->network);
+					_np_network_stop(msg_source_key->network, TRUE);
 					// TODO: split up in two libev callbacks (read/write)
 					ev_io_init(
 						&msg_source_key->network->watcher,

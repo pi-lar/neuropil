@@ -319,7 +319,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 
 							log_debug_msg(LOG_DEBUG, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
 
-							_np_network_start(node_key->network);
+							//_np_network_start(node_key->network);
 							_LOCK_ACCESS(&msg->msg_chunks_lock) {
 
 								pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
@@ -365,6 +365,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 													// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
 													// ret = send (target_node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
 													sll_append(void_ptr, node_key->network->out_events, (void*)enc_buffer);
+													_np_network_start(node_key->network);
 												}
 												else {
 													free(enc_buffer);
@@ -409,21 +410,12 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	}
 	else if (EV_WRITE == (revents & EV_WRITE))
 	{
-		np_key_t* key = event->data;
-		// np_tryref_obj(np_key_t, key, keyExists, "np_tryref_obj_key");
-
-		// if(keyExists)
-		// {
+		np_key_t* key = event->data;		
 		np_network_t* key_network = key->network ;
-			// np_tryref_obj(np_network_t, key_network, networkExists, "np_tryref_obj_key_network");
-
-			// if (TRUE == networkExists )
-			// {
-			// 	if(TRUE == key_network->initialized) {
-
+			
 		_LOCK_ACCESS(&key_network->send_data_lock)
 		{
-			if (NULL != key_network->out_events &&
+			if(NULL != key_network->out_events &&
 				0 < sll_size(key_network->out_events)
 				)
 			{
@@ -455,14 +447,12 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 					free(data_to_send);
 				}
 			}
+
+			// only stops the network if outgoing queue size is zero
+			_np_network_stop(key_network, FALSE);
 		}
-		// only stops the network if outgoing queue size is zero
-		_np_network_stop(key_network);
-				// }
-				// np_unref_obj(np_network_t, key_network, "np_tryref_obj_key_network");
-			// }
-			// np_unref_obj(np_key_t, key, "np_tryref_obj_key");
-		// }
+
+				
 	}
 	else if (EV_READ == (revents & EV_READ))
 	{
@@ -714,7 +704,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					// TODO handle cleanup of target_node structures ?
 					// maybe / probably the target_node received already a disjoin message before
 					//TODO: prüfen ob hier wirklich der host geschlossen werden muss
-					_np_network_stop(ng_tcp_host);
+					_np_network_stop(ng_tcp_host,TRUE);
 					//_np_node_update_stat(key->target_node, 0);
 
 					log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
@@ -781,17 +771,17 @@ void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 	}
 }
 
-void _np_network_stop(np_network_t* network) {
+void _np_network_stop(np_network_t* network, np_bool force) {
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_stop(np_network_t* network){");
 	if(NULL != network) {
 		_LOCK_ACCESS(&network->send_data_lock){
-			if (0 == sll_size(network->out_events) ) {
-				log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p", network);
-
+			if (network->is_running == TRUE && (force == TRUE || 0 == sll_size(network->out_events) )){
+				log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p", network);				
 				_np_suspend_event_loop();
 				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 				ev_io_stop(EV_A_ &network->watcher);
 				_np_resume_event_loop();
+				network->is_running = FALSE;
 			}
 		}
 	}
@@ -838,12 +828,13 @@ void _np_network_start(np_network_t* network){
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
 	if(NULL != network){
 		_LOCK_ACCESS(&network->send_data_lock){
-			if (0 == sll_size(network->out_events) ) {
-				log_msg(LOG_NETWORK | LOG_DEBUG, "starting network %p", network);
+			if (network->is_running == FALSE && ((network->type & np_network_type_server) == np_network_type_server || sll_size(network->out_events) > 0)) {
+				log_msg(LOG_NETWORK | LOG_INFO, "starting network %p", network);
 				_np_suspend_event_loop();
 				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 				ev_io_start(EV_A_ &network->watcher);
 				_np_resume_event_loop();
+				network->is_running = TRUE;
 			}
 		}
 	}
@@ -861,7 +852,7 @@ void _np_network_t_del(void* nw)
 	{
 		_LOCK_ACCESS(&network->send_data_lock)
 		{
-			_np_network_stop(network);
+			_np_network_stop(network, TRUE);
 			np_key_t* old_key = (np_key_t*) network->watcher.data;
 			np_unref_obj(np_key_t, old_key,ref_network_watcher);
 			network->watcher.data = NULL;
@@ -900,16 +891,12 @@ void _np_network_t_new(void* nw)
 	ng->waiting 	= NULL;
 	ng->out_events 	= NULL;
 	ng->initialized = FALSE;
+	ng->is_running = FALSE;
 	ng->watcher.data = NULL;
+	ng->type = np_network_type_none;
 
-	log_debug_msg(LOG_DEBUG, "try to pthread_mutex_init");
 	int network_mutex_init = _np_threads_mutex_init (&ng->send_data_lock,"network send_data_lock");
-	if (network_mutex_init != 0)
-	{
-		log_msg(LOG_ERROR, "pthread_mutex_init: %s (%d)",
-				strerror (network_mutex_init),network_mutex_init);
-	}
-	log_debug_msg(LOG_DEBUG, "done pthread_mutex_init");
+	
 
 }
 
@@ -938,11 +925,13 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 
 	// create an inbound socket - happens only once per target_node
 	if (TRUE == create_socket )
-	{
+	{		
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating receiving network");
-
+		
 		_LOCK_ACCESS(&ng->send_data_lock)
 		{
+			ng->type |= np_network_type_server;
+
 			// create own retransmit structures
 			ng->waiting = np_tree_create();
 			// own sequence number counter
@@ -1012,6 +1001,8 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 
 	} else {
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating sending network");
+
+		ng->type |= np_network_type_client;
 
 		// client socket - wait for writeable socket
 		ng->socket = socket (ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
