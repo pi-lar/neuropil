@@ -47,7 +47,6 @@ static ev_async    __libev_async_watcher;
 void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents)
 {
 	log_msg(LOG_TRACE, "start: void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents){");
-	log_debug_msg(LOG_DEBUG, ".start._np_events_async");
 
 	static int suspend_loop = 0;
 

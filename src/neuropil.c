@@ -1136,14 +1136,14 @@ void _np_send_ack(np_message_t* msg_to_ack)
 			np_unref_obj(np_key_t, ack_target, "_np_keycache_find");
 			np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
 
-			log_debug_msg(LOG_DEBUG, "ACKED");
+			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACKED");
 		}
 		else {
-			log_debug_msg(LOG_DEBUG, "ACK Target not inititated");
+			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACK Target not inititated");
 		}
 	}
 	else {
-		log_debug_msg(LOG_DEBUG, "ACK Target blank");
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACK Target blank");
 	}
 }
 /**

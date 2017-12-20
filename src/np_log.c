@@ -153,16 +153,12 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 	if (logger == NULL) {
 		return;
 	}
-
-	// filter if a module log entry is wanted
-	if (LOG_NONE < (level & LOG_MODUL_MASK))
-		// if a module log entry is wanted, is it in the configured log mask ?
-		if (LOG_NONE == (level & LOG_MODUL_MASK & logger->level))
-			// not found, nothing to do
-			return;
-
-	// next check if the log level (debug, error, ...) is set
-	if ((level & LOG_LEVEL_MASK & logger->level) > LOG_NONE)
+	// include msg if log level is included into selected levels
+	// and if the msg has acategory and is included into selected categories 
+	// or if no category is provided for msg
+	if ((level & LOG_LEVEL_MASK & logger->level) > LOG_NONE &&
+		((level & LOG_MODUL_MASK & logger->level) > LOG_NONE  || (level & LOG_MODUL_MASK) == LOG_NONE)
+	)
 	{
 		struct timeval tval;
 		struct tm local_time;

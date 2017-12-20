@@ -119,7 +119,7 @@ void _np_aaatoken_upgrade_core_token(np_key_t* key_with_core_token, np_aaatoken_
 	}
 	else if (_np_aaatoken_is_core_token(key_with_core_token->aaa_token))
 	{
-		log_debug_msg(LOG_DEBUG, "signature: upgrade token %p with data from %p", key_with_core_token->aaa_token,full_token);
+		log_debug_msg(LOG_AAATOKEN |LOG_DEBUG, "signature: upgrade token %p with data from %p", key_with_core_token->aaa_token,full_token);
 
 		np_tree_t* container = np_tree_create();
 		np_aaatoken_encode(container, full_token);
@@ -328,7 +328,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 			sodium_bin2hex(pk_hex, pk_len * 2 + 1,
 				token->public_key, pk_len);
 
-			log_debug_msg(LOG_DEBUG, "(token: %p) signature: is_valid (payload: %s) (pk: %s) %s = %"PRId32, token, hash_hex, pk_hex, signature_hex, ret);
+			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "(token: %p) signature: is_valid (payload: %s) (pk: %s) %s = %"PRId32, token, hash_hex, pk_hex, signature_hex, ret);
 			free(signature_hex);
 			free(pk_hex);
 		}
@@ -337,7 +337,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		free(hash);
 		if (ret < 0)
 		{
-			log_msg(LOG_WARN, "token for subject \"%s\": checksum verification failed", token->subject);
+			log_msg(LOG_AAATOKEN | LOG_WARN, "token for subject \"%s\": checksum verification failed", token->subject);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state &= AAA_INVALID;			
 			return (FALSE);
@@ -498,7 +498,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 
 		if (TRUE == create_new_prop && (NULL == subject_key->send_property || NULL == subject_key->recv_property))
 		{
-			log_debug_msg(LOG_DEBUG, "creating ledger property for %s", subject);
+			log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "creating ledger property for %s", subject);
 
 			if(send_prop != NULL) {
 				prop = send_prop;
@@ -539,7 +539,7 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 	// should never happen
 	if (NULL == subject_key) return;
 
-	log_debug_msg(LOG_DEBUG, "update on global sender msg token structures ... %p (size %d)",
+	log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "update on global sender msg token structures ... %p (size %d)",
 							 subject_key->send_property,
 							 pll_size(subject_key->send_tokens) );
 
@@ -760,7 +760,7 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 	// should never happen
 	if (NULL == subject_key) return;
 
-	log_debug_msg(LOG_DEBUG, "update on global receiving msg token structures ... %p (size %d)",
+	log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "update on global receiving msg token structures ... %p (size %d)",
 							 subject_key->recv_property,
 							 pll_size(subject_key->recv_tokens) );
 
@@ -974,18 +974,18 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 	crypto_generichash_state gh_state;
 	crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
 	
-	log_debug_msg(LOG_DEBUG, "fingerprint: use full: %s", full ? "yes":"no");
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: use full: %s", full ? "yes":"no");
 
 	// only use fields available in core tokens and during the initial node setup
 
 	crypto_generichash_update(&gh_state, (unsigned char*)msg_token->issuer, strnlen(msg_token->issuer, 65));
-	log_debug_msg(LOG_DEBUG, "fingerprint: issuer: %s", msg_token->issuer);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: issuer: %s", msg_token->issuer);
 
 	crypto_generichash_update(&gh_state, (unsigned char*)msg_token->subject, strnlen(msg_token->subject, 255));
-	log_debug_msg(LOG_DEBUG, "fingerprint: subject: %s", msg_token->subject);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: subject: %s", msg_token->subject);
 
 	crypto_generichash_update(&gh_state, (unsigned char*)msg_token->uuid, strnlen(msg_token->uuid, UUID_SIZE));
-	log_debug_msg(LOG_DEBUG, "fingerprint: uuid: %s", msg_token->uuid);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: uuid: %s", msg_token->uuid);
 
 	crypto_generichash_update(&gh_state, (unsigned char*)msg_token->public_key, crypto_sign_PUBLICKEYBYTES);
 
@@ -995,13 +995,13 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 		// may contain all other fields
 
 		crypto_generichash_update(&gh_state, (unsigned char*)&(msg_token->expires_at), sizeof(double));
-		log_debug_msg(LOG_DEBUG, "fingerprint: expiration: %f", msg_token->expires_at);
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: expiration: %f", msg_token->expires_at);
 
 		crypto_generichash_update(&gh_state, (unsigned char*)&(msg_token->issued_at), sizeof(double));
-		log_debug_msg(LOG_DEBUG, "fingerprint: issued_at: %f", msg_token->issued_at);
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: issued_at: %f", msg_token->issued_at);
 
 		crypto_generichash_update(&gh_state, (unsigned char*)&(msg_token->not_before), sizeof(double));
-		log_debug_msg(LOG_DEBUG, "fingerprint: not_before: %f", msg_token->not_before);
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: not_before: %f", msg_token->not_before);
 
 		
 		crypto_generichash_update(&gh_state, (unsigned char*)msg_token->audience, strnlen(msg_token->audience, 255));
@@ -1064,7 +1064,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 				msg_token->signed_hash = hash;
 #ifdef DEBUG
 				if (strcmp(msg_token->subject, "_NP.SYSINFO.REPLY") == 0) {
-					log_debug_msg(LOG_DEBUG, "signature has %"PRIu32" bytes", signature_len);
+					log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "signature has %"PRIu32" bytes", signature_len);
 					char* signature_hex = calloc(1, signature_len * 2 + 1);
 					sodium_bin2hex(signature_hex, signature_len * 2 + 1,
 						msg_token->signature, signature_len);
@@ -1074,7 +1074,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 					sodium_bin2hex(pk_hex, pk_len * 2 + 1,
 						msg_token->public_key, pk_len);
 
-					log_debug_msg(LOG_DEBUG, "signature: generate (payload hash: %s) (pk: %s) %s", hash_hex, pk_hex, signature_hex);
+					log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "signature: generate (payload hash: %s) (pk: %s) %s", hash_hex, pk_hex, signature_hex);
 
 					free(pk_hex);
 					free(signature_hex);

@@ -277,8 +277,7 @@ np_bool _np_network_send_handshake(np_key_t* node_key)
 
 				node_key->node->is_handshake_send = TRUE;
 				np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
-				_np_job_submit_transform_event(0.0, msg_prop, node_key, NULL);
-				log_debug_msg(LOG_DEBUG, "transform _NP_MSG_HANDSHAKE %s",_np_key_as_str(node_key));
+				_np_job_submit_transform_event(0.0, msg_prop, node_key, NULL);				
 				ret = TRUE;
 			}
 		}
@@ -317,7 +316,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 						else {
 							uint16_t i = 0;
 
-							log_debug_msg(LOG_DEBUG, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
+							log_debug_msg(LOG_NETWORK | LOG_DEBUG, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
 
 							//_np_network_start(node_key->network);
 							_LOCK_ACCESS(&msg->msg_chunks_lock) {
@@ -420,7 +419,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 				)
 			{
 				if (NULL != key->node) {
-					log_debug_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
+					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%d bytes) to %s:%s",
 							MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
 				}
 
@@ -471,7 +470,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 
 	if(EV_ERROR & revents)
 	{
-		log_debug_msg(LOG_DEBUG,"got invalid tcp accept event");
+		log_debug_msg(LOG_NETWORK | LOG_DEBUG,"got invalid tcp accept event");
 	  return;
 	}
 	// calling address and port
@@ -571,7 +570,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 					}
 				}
 
-				log_debug_msg(LOG_DEBUG,"suspend ev loop for tcp new socket network start");
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG,"suspend ev loop for tcp new socket network start");
 
 				np_ref_obj(np_key_t, alias_key, ref_network_watcher);
 				alias_key->network->watcher.data = alias_key;
@@ -789,7 +788,7 @@ void _np_network_stop(np_network_t* network, np_bool force) {
 
 void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 {
-	log_debug_msg(LOG_DEBUG,
+	log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 			"try to remap network of %s to network of %s",
 			_np_key_as_str(old_target),
 			_np_key_as_str(new_target)
@@ -817,7 +816,7 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 		np_unref_obj(np_network_t, old_network, ref_key_network);
 	}
 
-	log_debug_msg(LOG_DEBUG,
+	log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 				"remap network of %s to network of %s completed",
 				_np_key_as_str(old_target),
 				_np_key_as_str(new_target)

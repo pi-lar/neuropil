@@ -821,7 +821,7 @@ void _np_route_rejoin_bootstrap(np_bool force) {
 	np_bool rejoin = force
 			|| _np_route_my_key_has_connection() == FALSE;
 	
-		log_msg(LOG_DEBUG, "Check for rejoin result: %s%s necessary", (rejoin == TRUE ? "" : "not"), (force == TRUE ? "(f)" : ""));
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Check for rejoin result: %s%s necessary", (rejoin == TRUE ? "" : "not"), (force == TRUE ? "(f)" : ""));
 
 		if(TRUE == rejoin
 				// check for state availibility to prevent test issues. TODO: Make network objects mockable

@@ -616,7 +616,7 @@ void __np_createThreadPool(uint8_t pool_size) {
 
 		sll_append(np_thread_ptr, _np_state()->threads, new_thread);
 
-		log_debug_msg(LOG_DEBUG, "neuropil worker thread started: %p", _np_state()->thread_ids[i]);
+		log_debug_msg(LOG_THREADS |LOG_DEBUG, "neuropil worker thread started: %p", _np_state()->thread_ids[i]);
 	}
 }
 
@@ -683,7 +683,7 @@ void np_start_job_queue(uint8_t pool_size)
 	_LOCK_MODULE(np_threads_t){
 		_np_threads_threads_initiated = TRUE;
 	}
-	log_debug_msg(LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
+	log_debug_msg(LOG_THREADS | LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
 	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 

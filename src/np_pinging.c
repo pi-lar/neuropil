@@ -32,7 +32,6 @@ void _np_ping_send(np_key_t* key)
 	np_new_obj(np_message_t, out_msg);
 
 	_np_message_create(out_msg, key, state->my_node_key, _NP_MSG_PING_REQUEST, NULL);
-	log_debug_msg(LOG_DEBUG, "ping request to: %s", _np_key_as_str(key));
 
 	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REQUEST);
 	_np_job_submit_msgout_event(0.0, prop, key, out_msg);

@@ -45,7 +45,7 @@ Test(np_route_t, _leafset_update, .description="test the addition/removal of key
 		np_key_t *insert_key = NULL;
 		np_new_obj(np_key_t, insert_key);
 		insert_key->dhkey = my_dhkey;
-		log_msg(LOG_DEBUG, "created key %s", _np_key_as_str(insert_key));
+		log_debug_msg(LOG_DEBUG, "created key %s", _np_key_as_str(insert_key));
 
 		my_keys[i] = insert_key;
 		np_key_t *added = NULL, *deleted = NULL;
@@ -60,7 +60,7 @@ Test(np_route_t, _leafset_update, .description="test the addition/removal of key
 		{
 			cr_expect(NULL == added, "test whether no new key was added");
 			// cr_expect(NULL == deleted, "test whether no new key was deleted");
-			log_msg(LOG_DEBUG, "key %s not added to the leafset", _np_key_as_str(insert_key));
+			log_debug_msg(LOG_DEBUG, "key %s not added to the leafset", _np_key_as_str(insert_key));
 		}
 
 		if (NULL != deleted)
@@ -123,7 +123,7 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 		np_new_obj(np_node_t, insert_key->node);
 		insert_key->node->latency = ((double) rand()) / 1000;
 
-		log_msg(LOG_DEBUG, "created key %s", _np_key_as_str(insert_key));
+		log_debug_msg(LOG_DEBUG, "created key %s", _np_key_as_str(insert_key));
 
 		np_key_t *added=NULL, *deleted=NULL;
 		_np_route_update(insert_key, TRUE, &deleted, &added);
@@ -136,7 +136,7 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 		}
 		else
 		{
-			log_msg(LOG_DEBUG, "key %s not added to the leafset", _np_key_as_str(insert_key));
+			log_debug_msg(LOG_DEBUG, "key %s not added to the leafset", _np_key_as_str(insert_key));
 			np_unref_obj(np_node_t, insert_key->node, ref_obj_creation);
 			np_unref_obj(np_key_t, insert_key, ref_obj_creation);
 		}
@@ -160,7 +160,7 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 			np_unref_obj(np_node_t, deleted->node, ref_obj_creation);
 			np_unref_obj(np_key_t, deleted, ref_obj_creation);
 		}
-		log_msg(LOG_INFO, "routing table now contains %d entries / %lu inserted", current_size, i+1);
+		log_msg(LOG_ROUTING | LOG_INFO, "routing table now contains %d entries / %lu inserted", current_size, i+1);
 		i++;
 	}
 }

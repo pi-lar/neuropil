@@ -137,7 +137,7 @@ np_bool _np_tree_is_special_str(char* in_question, uint8_t* idx_on_found) {
 		char* special_str = np_special_strs[i];
 		if (strncmp(special_str, in_question, strlen(special_str)) == 0 && strlen(in_question) == strlen(special_str)) {
 			if(idx_on_found != NULL){
-				log_debug_msg(LOG_DEBUG, "idx detected for %15s at %3"PRIu8" saving into %p",in_question, i, idx_on_found);
+				log_debug_msg(LOG_TREE | LOG_DEBUG, "idx detected for %15s at %3"PRIu8" saving into %p",in_question, i, idx_on_found);
 				*idx_on_found = i;
 			}
 			ret = TRUE;
@@ -146,7 +146,7 @@ np_bool _np_tree_is_special_str(char* in_question, uint8_t* idx_on_found) {
 	}
 
 	if (!ret) {
-		log_debug_msg(LOG_DEBUG, "not in np_special_strs dictionary: \"%s\"", in_question);
+		log_debug_msg(LOG_TREE | LOG_DEBUG, "not in np_special_strs dictionary: \"%s\"", in_question);
 	}
 
 	return ret;
@@ -852,7 +852,7 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 	}
 
 	if (ret == FALSE) {
-		log_debug_msg(LOG_WARN | DEBUG, "Deserialization error: unspecified error");
+		log_debug_msg(LOG_SERIALIZATION | LOG_TREE | LOG_WARN, "Deserialization error: unspecified error");
 	}
 	else {
 		if (jtree->attr.in_place == TRUE) {
@@ -1234,11 +1234,11 @@ void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx
 			}
 			else
 			{
-				log_debug_msg(LOG_DEBUG,
+				log_debug_msg(LOG_TREE | LOG_SERIALIZATION | LOG_DEBUG,
 					"Cannot deserialize ext type %"PRIi8" (size: %"PRIu32")",
 					obj->as.ext.type, obj->as.ext.size);
 
-				log_msg(LOG_WARN,
+				log_msg(LOG_TREE | LOG_SERIALIZATION | LOG_WARN,
 					"Unknown de-serialization for given extension type %"PRIi8, obj->as.ext.type);
 				_np_buffer_set_buffer(cmp, target_buffer);
 			}

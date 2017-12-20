@@ -292,7 +292,7 @@ np_bool _np_message_is_expired(const np_message_t* const msg_to_check)
 	double remaining_ttl = (tstamp + msg_ttl.value.d) - now;
 	ret = remaining_ttl <= 0;
 
-	log_debug_msg(LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f",msg_to_check->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
+	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f",msg_to_check->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
 
 	__np_cleanup__:
 
@@ -662,7 +662,7 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 								chunk_id = np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1];
 							}
 							else {
-								log_debug_msg(LOG_DEBUG,
+								log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
 									"_NP_MSG_INST_PARTS not available in msgs instruction tree"
 								);
 							}
@@ -689,7 +689,7 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 									if (FALSE == pll_insert(np_messagepart_ptr, msg->msg_chunks, part, FALSE, _np_messagepart_cmp)) {
 										np_unref_obj(np_messagepart_t, part, ref_message_messagepart);
 										// new entry is rejected (already present)
-										log_debug_msg(LOG_DEBUG, "Msg part was rejected in _np_message_deserialize_header_and_instructions");
+										log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "Msg part was rejected in _np_message_deserialize_header_and_instructions");
 									}
 								}
 								if (msg->bin_static != NULL) {
