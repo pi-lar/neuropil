@@ -200,14 +200,16 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		}
 
 		// instant writeout
+
+		if ((level & LOG_ERROR) == LOG_ERROR) {
+			_np_log_fflush(TRUE);
+		}
 #ifdef DEBUG
-		_np_log_fflush(LOG_FORCE_INSTANT_WRITE);
+		else {
+			_np_log_fflush(LOG_FORCE_INSTANT_WRITE);
+		}
 #endif // DEBUG
 		
-	}
-	else
-	{
-		// printf("not logging to file(%p): %d & %d = %d\n", logger, level, logger->level, level & logger->level);
 	}
 }
 
@@ -278,7 +280,10 @@ void _np_log_fflush(np_bool force)
 				entry = NULL;
 			}
 		}
-	} while (lock_result == 0 && entry != NULL);
+		else {
+			flush_status = 1;
+		}
+	} while (flush_status == 0);
 }
 
 void np_log_setlevel(uint32_t level)
