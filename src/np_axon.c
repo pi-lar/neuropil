@@ -28,6 +28,7 @@
 #include "np_jobqueue.h"
 #include "np_tree.h"
 #include "np_message.h"
+#include "np_memory_v2.h"
 #include "np_msgproperty.h"
 #include "np_memory.h"
 #include "np_network.h"
@@ -467,8 +468,8 @@ void _np_out_handshake(np_jobargs_t* args)
 					"sending handshake message %s to %s (%s:%s)",
 					hs_message->uuid, _np_key_as_str(args->target), hs_node->dns_name, hs_node->port);
 
-				char* packet = (char*)malloc(1024);
-				CHECK_MALLOC(packet);
+				char* packet = np_memory_new(np_memory_types_BLOB_1024);// (char*)malloc(1024);
+				//CHECK_MALLOC(packet);
 
 				memset(packet, 0, 1024);
 				_LOCK_ACCESS(&hs_message->msg_chunks_lock) {
@@ -485,7 +486,7 @@ void _np_out_handshake(np_jobargs_t* args)
 						_np_network_start(args->target->network);
 					}
 					else {
-						free(packet);
+						np_memory_free(packet);
 					}
 				}
 				__np_axon_ivoke_on_user_send_callbacks(hs_message, hs_prop);

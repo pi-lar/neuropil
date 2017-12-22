@@ -377,27 +377,9 @@ int _np_threads_mutex_lock(np_mutex_t* mutex) {
 
 int _np_threads_mutex_trylock(np_mutex_t* mutex) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
-	int ret = 1;
-	double start = np_time_now();
-	double diff = 0;
-	while (ret != 0) {
-		// TODO: review lock warn system
-		// ret = _np_threads_mutex_timedlock(mutex, min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
-		ret = pthread_mutex_trylock(&mutex->lock);
+	
+	int ret = pthread_mutex_trylock(&mutex->lock);
 
-
-#ifdef DEBUG
-		diff = np_time_now() - start;
-		if (diff > MUTEX_WAIT_MAX_SEC) {
-			log_msg(LOG_ERROR, "Thread %d waits too long for mutex %p / %s (%f sec)", _np_threads_get_self()->id, mutex, mutex->desc, diff);
-			abort();
-		}
-		if (diff > MUTEX_WAIT_SOFT_SEC) {
-			log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for mutex %p (%f sec)", mutex, diff);
-		}
-#endif
-
-	}
 	return ret;
 }
 

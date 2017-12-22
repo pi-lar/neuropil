@@ -44,7 +44,6 @@ struct ev_loop * loop_in = NULL;
 
 void np_event_init() {
 	if (loop_io == NULL) {
-		//loop_io = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 		loop_io = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 		if (loop_io == FALSE) {
 			fprintf(stderr, "ERROR: cannot init IO event loop");
@@ -60,9 +59,10 @@ void np_event_init() {
 		}
 		ev_verify(loop_out);
 	}
-	if (loop_in == NULL) {
+	if (loop_in == NULL) {		
 		loop_in = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-		//loop_in = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK | ev_recommended_backends());
+		//also possible, but default loop is propably already initialized
+		//loop_in = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 		if (loop_in == FALSE) {
 			fprintf(stderr, "ERROR: cannot init IN event loop");
 			exit(EXIT_FAILURE);

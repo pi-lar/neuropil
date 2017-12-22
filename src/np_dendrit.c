@@ -141,7 +141,7 @@ void _np_in_received(np_jobargs_t* args)
 			ret = _np_message_deserialize_header_and_instructions(msg_in, raw_msg);
 
 			if (ret == FALSE) {
-				free(raw_msg);
+				np_memory_free(raw_msg);
 				if(is_decryption_successful == TRUE){
 					log_msg(LOG_ERROR,
 						"error deserializing message %s after   successful decryption (source: \"%s:%s\")",

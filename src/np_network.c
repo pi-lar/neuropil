@@ -42,6 +42,7 @@
 #include "np_message.h"
 #include "np_messagepart.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_node.h"
 #include "np_threads.h"
 #include "np_event.h"
@@ -349,7 +350,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 											break;
 										}
 										else {
-											unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
+											unsigned char* enc_buffer = np_memory_new(np_memory_types_BLOB_1024);//malloc (MSG_CHUNK_SIZE_1024);
 											CHECK_MALLOC(enc_buffer);
 
 											uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
@@ -367,7 +368,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 													_np_network_start(node_key->network);
 												}
 												else {
-													free(enc_buffer);
+													np_memory_free(enc_buffer);
 												}
 											}
 
@@ -443,7 +444,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 					if(iter > 1){
 						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "send delay %f", 0.001 * iter - 0.001);
 					}
-					free(data_to_send);
+					np_memory_free(data_to_send);
 				}
 			}
 
@@ -636,8 +637,9 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		memset(port, '\0', sizeof(char)*CHAR_LENGTH_PORT);
 		
 
-		data = calloc(1, MSG_CHUNK_SIZE_1024*sizeof(char*));
-		CHECK_MALLOC(data);
+		//data = calloc(1, MSG_CHUNK_SIZE_1024*sizeof(char*));
+		//CHECK_MALLOC(data);
+		data = np_memory_new(np_memory_types_BLOB_1024);
 
 		int16_t in_msg_len = 0;
 
@@ -712,7 +714,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				else {
 					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received empty package from: %s:%s", ipstr, port);
 				}
-				free(data);
+				np_memory_free(data);
 				continue;
 			}
 
@@ -721,7 +723,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%"PRIi16")", in_msg_len);
 				// job_submit_event(state->jobq, 0.0, _np_network_read);
 				log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
-				free(data);
+				np_memory_free(data);
 				continue;
 			}
 
@@ -749,7 +751,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
 		}
 		else {
-			free(data);
+			np_memory_free(data);
 		}
 	} while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result > 0); // there is maybe more then one msg in our socket pipeline
 
@@ -900,7 +902,7 @@ void _np_network_t_del(void* nw)
 				{
 					do {
 						void* tmp = sll_head(void_ptr, network->out_events);
-						free(tmp);
+						np_memory_free(tmp);
 					} while (0 < sll_size(network->out_events));
 				}
 				sll_free(void_ptr, network->out_events);
