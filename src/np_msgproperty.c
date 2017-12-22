@@ -74,10 +74,12 @@ np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, np_tre
 		}
 
 		goto __np_return__;
-	__np_cleanup__:
+
+		__np_cleanup__:
 		log_msg(LOG_WARN, "cannot ack msg %s (%s)", msg->uuid, msg->msg_property->msg_subject);		
 	}
-__np_return__:
+
+	__np_return__:
 	return TRUE;
 }
 

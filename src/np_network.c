@@ -290,114 +290,82 @@ np_bool _np_network_send_handshake(np_key_t* node_key)
 np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 {
 	np_bool ret = FALSE;
-	// np_tryref_obj(np_message_t, msg, hasMsg, "np_tryref_obj_msg");
-	// if(hasMsg) {
-		// np_tryref_obj(np_key_t, node_key, hasKey, "np_tryref_obj_key");
-		// if (hasKey) {
-			np_node_t* target_node = node_key->node;
-			// np_tryref_obj(np_node_t, target_node, hasNode, "np_tryref_obj_node");
-			// if (hasNode) {
-				// np_tryref_obj(np_network_t, node_key->network, hasNetwork, "np_tryref_obj_network");
+	np_node_t* target_node = node_key->node;
 
-				// Send handshake info if necessary
-				if (_np_network_send_handshake(node_key) == FALSE &&
-					target_node->is_handshake_received == TRUE &&
-					NULL != node_key->network)
+	// Send handshake info if necessary
+	if (_np_network_send_handshake(node_key) == FALSE &&
+		target_node->is_handshake_received == TRUE &&
+		NULL != node_key->network)
+	{
+		// get encryption details
+		np_aaatoken_t* auth_token = node_key->aaa_token;
+		if (target_node->session_key_is_set == FALSE) {
+			log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
+		}
+		else {
+			log_msg(LOG_INFO, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
+
+			_LOCK_ACCESS(&msg->msg_chunks_lock) {
+
+				pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
+				while (NULL != iter && iter->val != NULL)
 				{
-					// get encryption details
-					np_aaatoken_t* auth_token = node_key->aaa_token;
+					np_tryref_obj(np_messagepart_t, iter->val, hasMsgPart, "np_tryref_obj_iter->val");
+					if (hasMsgPart) {
 
-					// np_tryref_obj(np_aaatoken_t, auth_token, hasToken, "np_tryref_obj_token");
-					// if (hasToken) {
+						// add protection from replay attacks ...
+						unsigned char nonce[crypto_secretbox_NONCEBYTES];
+						// TODO: move nonce to np_node_t and re-use it with increments
+						// FIXME: doesnt sizeof(nonce) == sizeof(unsigned char)? if so the array will not be filled, only the first char
+						randombytes_buf(nonce, sizeof(nonce));
 
-						if (target_node->session_key_is_set == FALSE) {
-							log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
+						unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
+						int encryption = crypto_secretbox_easy(enc_msg,
+							(const unsigned char*)iter->val->msg_part,
+							MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
+							nonce,
+							target_node->session_key);
+
+						if (encryption != 0)
+						{
+							log_msg(LOG_WARN,
+								"incorrect encryption of message (not sending to %s:%s)",
+								target_node->dns_name, target_node->port);
+							np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
+							break;
 						}
 						else {
-							uint16_t i = 0;
+							unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
+							CHECK_MALLOC(enc_buffer);
 
-							log_debug_msg(LOG_NETWORK | LOG_DEBUG, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
+							uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
+							memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
+							memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
-							//_np_network_start(node_key->network);
-							_LOCK_ACCESS(&msg->msg_chunks_lock) {
-
-								pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
-								while (NULL != iter && iter->val != NULL)
-								{
-									np_tryref_obj(np_messagepart_t, iter->val, hasMsgPart, "np_tryref_obj_iter->val");
-									if (hasMsgPart) {
-										
-										// add protection from replay attacks ...
-										unsigned char nonce[crypto_secretbox_NONCEBYTES];
-										// TODO: move nonce to np_node_t and re-use it with increments
-										// FIXME: doesnt sizeof(nonce) == sizeof(unsigned char)? if so the array will not be filled, only the first char
-										randombytes_buf(nonce, sizeof(nonce));
-
-										unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
-										int ecryption = crypto_secretbox_easy(enc_msg,
-											(const unsigned char*)iter->val->msg_part,
-											MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
-											nonce,
-											target_node->session_key);
-
-										if (ecryption != 0)
-										{
-											log_msg(LOG_NETWORK | LOG_WARN,
-												"incorrect encryption of message (not sending to %s:%s)",
-												target_node->dns_name, target_node->port);
-											np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
-											break;
-										}
-										else {
-											unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
-											CHECK_MALLOC(enc_buffer);
-
-											uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
-											memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
-											memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
-
-											ret = TRUE;
-											/* send data */
-											_LOCK_ACCESS(&node_key->network->send_data_lock) {
-												if (NULL != node_key->network->out_events) {
-													// log_msg(LOG_NETWORKDEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
-													// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
-													// ret = send (target_node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
-													sll_append(void_ptr, node_key->network->out_events, (void*)enc_buffer);
-													_np_network_start(node_key->network);
-												}
-												else {
-													free(enc_buffer);
-												}
-											}
-
-											np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
-											pll_next(iter);
-										}
-									}
-									i++;
+							ret = TRUE;
+							/* send data */
+							_LOCK_ACCESS(&node_key->network->send_data_lock) {
+								if (NULL != node_key->network->out_events) {
+									log_msg(LOG_INFO, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
+									// log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
+									// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
+									// ret = send (target_node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
+									sll_append(void_ptr, node_key->network->out_events, (void*)enc_buffer);
+									_np_network_start(node_key->network);
 								}
-							} // _LOCK_ACCESS(&msg->msg_chunks_lock)
+								else {
+									free(enc_buffer);
+								}
+							}
 
+							np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
+							pll_next(iter);
 						}
-						// np_unref_obj(np_aaatoken_t, auth_token, "np_tryref_obj_token");
-					// }
-					// else { log_msg(LOG_ERROR, "auth token not set, but handshake is done (key: %s)", _np_key_as_str(node_key)); }
+					}
 				}
-				// if (hasNetwork){
-				// 	np_unref_obj(np_network_t, node_key->network, "np_tryref_obj_network");
-				// }
-
-				// np_unref_obj(np_node_t, target_node, "np_tryref_obj_node");
-			// }else { log_msg(LOG_NETWORK | LOG_WARN, "Cannot send msg. No target_node obj"); }
-
-			// np_unref_obj(np_key_t, node_key, "np_tryref_obj_key");
-		// }else { log_msg(LOG_NETWORK | LOG_WARN, "Cannot send msg. No key obj"); }
-
-		// np_unref_obj(np_message_t, msg, "np_tryref_obj_msg");
-	// }
-	// else { log_msg(LOG_NETWORK | LOG_WARN, "Cannot send msg. No msg obj"); }
-
+			}
+		}
+	}
 	return ret;
 }
 
@@ -419,7 +387,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 				)
 			{
 				if (NULL != key->node) {
-					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%d bytes) to %s:%s",
+					log_debug_msg(LOG_INFO, "sending message (%d bytes) to %s:%s",
 							MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
 				}
 
@@ -509,7 +477,6 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						err =  getpeername(client_fd, (struct sockaddr*) &from, &fromlen);
 					}while(0 != err && errno != ENOTCONN );
 
-
 					if (from.ss_family == AF_INET)
 					{
 						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
@@ -555,7 +522,6 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 					_LOCK_ACCESS (&alias_key->network->send_data_lock) {
 						alias_key->network->socket = client_fd;
 						alias_key->network->socket_type = ng->socket_type;
-						alias_key->network->waiting = np_tree_create();
 						alias_key->network->seqend = 0LU;
 
 						// it could be a passive socket
@@ -567,6 +533,9 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						fcntl(client_fd, F_SETFL, current_flags);
 
 						alias_key->network->initialized = TRUE;
+					}
+					_LOCK_ACCESS (&alias_key->network->ack_data_lock) {
+						alias_key->network->waiting = np_tree_create();
 					}
 				}
 
@@ -827,7 +796,11 @@ void _np_network_start(np_network_t* network){
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
 	if(NULL != network){
 		_LOCK_ACCESS(&network->send_data_lock){
-			if (network->is_running == FALSE && ((network->type & np_network_type_server) == np_network_type_server || sll_size(network->out_events) > 0)) {
+			if (network->is_running == FALSE &&
+					( (network->type & np_network_type_server) == np_network_type_server ||
+					   sll_size(network->out_events) > 0
+					)
+			   ) {
 				log_msg(LOG_NETWORK | LOG_INFO, "starting network %p", network);
 				_np_suspend_event_loop();
 				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
@@ -849,15 +822,13 @@ void _np_network_t_del(void* nw)
 
 	_LOCK_MODULE(np_network_t)
 	{
+		_np_network_stop(network, TRUE);
 		_LOCK_ACCESS(&network->send_data_lock)
 		{
-			_np_network_stop(network, TRUE);
 			np_key_t* old_key = (np_key_t*) network->watcher.data;
 			np_unref_obj(np_key_t, old_key,ref_network_watcher);
 			network->watcher.data = NULL;
 
-			if (NULL != network->waiting)
-				np_tree_free(network->waiting);			
 
 			if (NULL != network->out_events)
 			{
@@ -875,8 +846,15 @@ void _np_network_t_del(void* nw)
 
 			network->initialized = FALSE;
 		}
+
+		_LOCK_ACCESS(&network->ack_data_lock)
+		{
+			if (NULL != network->waiting)
+				np_tree_free(network->waiting);
+		}
 		// finally destroy the mutex again
 		_np_threads_mutex_destroy (&network->send_data_lock);
+		_np_threads_mutex_destroy (&network->ack_data_lock);
 
 	}
 }
@@ -894,9 +872,8 @@ void _np_network_t_new(void* nw)
 	ng->watcher.data = NULL;
 	ng->type = np_network_type_none;
 
-	int network_mutex_init = _np_threads_mutex_init (&ng->send_data_lock,"network send_data_lock");
-	
-
+	int network_send_mutex_init = _np_threads_mutex_init (&ng->send_data_lock,"network send_data_lock");
+	int network_acl_mutex_init  = _np_threads_mutex_init (&ng->ack_data_lock, "network ack_data_lock");
 }
 
 /** _np_network_init:
@@ -930,12 +907,16 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 		_LOCK_ACCESS(&ng->send_data_lock)
 		{
 			ng->type |= np_network_type_server;
-
-			// create own retransmit structures
-			ng->waiting = np_tree_create();
 			// own sequence number counter
 			ng->seqend = 0LU;
 		}
+
+		_LOCK_ACCESS(&ng->ack_data_lock)
+		{
+			// create own retransmit structures
+			ng->waiting = np_tree_create();
+		}
+
 		// nothing to do for passive nodes
 		if ((type & PASSIVE) != PASSIVE) {
 

@@ -236,7 +236,7 @@ void _np_log_fflush(np_bool force)
 		if (0 == lock_result) {
 			if (flush_status < 1 ) {
 				if (flush_status < 0) {
-					flush_status = (force == TRUE || sll_size(logger->logentries_l) > 1000) ? 0 : 1;
+					flush_status = (force == TRUE || sll_size(logger->logentries_l) > 100) ? 0 : 1;
 				}
 				if(flush_status == 0){
 					entry = sll_head(char_ptr, logger->logentries_l);
@@ -296,7 +296,6 @@ void np_log_init(const char* filename, uint32_t level)
 	pthread_mutexattr_settype(&__log_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&__log_mutex, &__log_mutex_attr);
 
-
 	logger = (np_log_t *) calloc(1,sizeof(np_log_t));
 	CHECK_MALLOC(logger);
 
@@ -329,13 +328,11 @@ void np_log_init(const char* filename, uint32_t level)
 	free(parsed_filename);
 
 	sll_init(char_ptr, logger->logentries_l);
-
 	log_rotation();
 
 	log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", logger, logger->filename, logger->level);
-
-
 }
+
 void np_log_destroy()
 {
 	log_msg(LOG_TRACE, "start: void np_log_destroy(){");
@@ -350,6 +347,5 @@ void np_log_destroy()
 	free(logger);
 	logger = NULL;
 	pthread_mutex_destroy(&__log_mutex);
-
 }
 

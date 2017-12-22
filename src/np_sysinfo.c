@@ -105,7 +105,7 @@ void np_sysinfo_enable_slave() {
 		np_new_obj(np_msgproperty_t, sysinfo_response_props);
 	}
 	sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
-	sysinfo_response_props->mep_type = BROADCAST;
+	sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 0;
 	sysinfo_response_props->priority -= 1;
@@ -124,8 +124,11 @@ void np_sysinfo_enable_slave() {
 
 	np_add_receive_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
 
-	np_job_submit_event_periodic(PRIORITY_MOD_USER_DEFAULT, 0, SYSINFO_PROACTIVE_SEND_IN_SEC, _np_sysinfo_slave_send_cb,"sysinfo_slave_send_cb");
-	
+	np_job_submit_event_periodic(PRIORITY_MOD_USER_DEFAULT,
+								 0,
+								 sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
+								 _np_sysinfo_slave_send_cb,
+								 "sysinfo_slave_send_cb");
 }
 
 void np_sysinfo_enable_master() {
@@ -148,7 +151,7 @@ void np_sysinfo_enable_master() {
 		np_new_obj(np_msgproperty_t, sysinfo_response_props);
 	}
 	sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
-	sysinfo_response_props->mep_type = BROADCAST;
+	sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 0;
 	sysinfo_response_props->msg_ttl  = 20.0;
@@ -160,7 +163,7 @@ void np_sysinfo_enable_master() {
 	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 5/*expected count of nodes */ * (60 /  SYSINFO_PROACTIVE_SEND_IN_SEC );
+	sysinfo_response_props->max_threshold = 5/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC );
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);

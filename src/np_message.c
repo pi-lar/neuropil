@@ -1106,16 +1106,16 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 				else {
 					np_tree_free(msg->properties);
 					msg->properties = encrypted_properties;
+				}
 
-					np_tree_t* encrypted_body = np_tree_create();
-					if (_np_messagepart_decrypt(msg->body, nonce, sym_key, NULL, encrypted_body) == FALSE) {
-						log_msg(LOG_ERROR, "decryption of message payloads body failed");
-						ret = FALSE;
-					}
-					else {
-						np_tree_free(msg->body);
-						msg->body = encrypted_body;
-					}
+				np_tree_t* encrypted_body = np_tree_create();
+				if (_np_messagepart_decrypt(msg->body, nonce, sym_key, NULL, encrypted_body) == FALSE) {
+					log_msg(LOG_ERROR, "decryption of message payloads body failed");
+					ret = FALSE;
+				}
+				else {
+					np_tree_free(msg->body);
+					msg->body = encrypted_body;
 				}
 			}
 		}

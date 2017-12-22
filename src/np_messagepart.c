@@ -50,8 +50,8 @@ np_bool _np_messagepart_decrypt(np_tree_t* source,
 		log_msg(LOG_ERROR, "couldn't find encrypted msg part");
 		return (FALSE);
 	}
-	unsigned char dec_part[enc_msg_part->val.size - crypto_box_MACBYTES];
 
+	unsigned char dec_part[enc_msg_part->val.size - crypto_box_MACBYTES];
 	int16_t ret = crypto_secretbox_open_easy(
 			dec_part,
 			enc_msg_part->val.value.bin,
@@ -73,7 +73,13 @@ np_bool _np_messagepart_decrypt(np_tree_t* source,
 //			public_key);
 	if (ret < 0)
 	{
-		log_msg(LOG_ERROR, "couldn't decrypt msg part with session key %s", public_key);
+#ifdef DEBUG
+		char[crypto_secretbox_KEYBYTES*2+1] public_key_hex;
+		sodium_bin2hex(public_key_hex, crypto_secretbox_KEYBYTES*2+1, public_key, crypto_secretbox_KEYBYTES);
+		log_debug_msg(LOG_DEBUG, "couldn't decrypt msg part with session key %s", public_key_hex);
+#endif
+
+		log_debug_msg(LOG_ERROR, "couldn't decrypt msg part with session key");
 		return (FALSE);
 	}
 
@@ -81,6 +87,7 @@ np_bool _np_messagepart_decrypt(np_tree_t* source,
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, dec_part, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 	if(np_tree_deserialize(target, &cmp) == FALSE) {
+		log_debug_msg(LOG_ERROR, "couldn't deserialize msg part after decryption");
 		return FALSE;
 	}
 	// TODO: check if the complete buffer was read (byte count match)

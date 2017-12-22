@@ -224,6 +224,14 @@ void _np_in_received(np_jobargs_t* args)
 						target_key = _np_keycache_find_or_create(target_dhkey);
 						log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "target of msg is %s", _np_key_as_str(target_key));
 
+						// check if an acknowledge has to be send
+						if (ACK_EACHHOP == (msg_ack.value.ush & ACK_EACHHOP))
+						{
+							/* acknowledge part, each hop has to acknowledge the message */
+							// ack after a) a message handler has been found or b) the message has been forwarded
+							_np_send_ack(msg_in);
+						}
+
 						// check if inbound subject handler exists
 						np_msgproperty_t* handler = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
 
@@ -245,7 +253,7 @@ void _np_in_received(np_jobargs_t* args)
 								sll_size(tmp) > 0 &&
 								(FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
 							{
-								log_msg(LOG_MESSAGE | LOG_ROUTING | LOG_INFO,
+								log_msg(LOG_DEBUG,
 									"forwarding message for subject: %s / uuid: %s", np_treeval_to_str(msg_subject, NULL), msg_in->uuid);
 								np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
 								_np_job_submit_route_event(0.0, prop, args->target, msg_in);
@@ -254,18 +262,9 @@ void _np_in_received(np_jobargs_t* args)
 								sll_free(np_key_ptr, tmp);
 								goto __np_cleanup__;
 							}
-
 							np_unref_list(tmp, "_np_route_lookup");
-							sll_free(np_key_ptr, tmp);
+							if (NULL != tmp) sll_free(np_key_ptr, tmp);
 							log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "internal routing for subject '%s'", np_treeval_to_str(msg_subject, NULL));
-					
-							// check if an acknowledge has to be send
-							if (ACK_EACHHOP == (msg_ack.value.ush & ACK_EACHHOP))
-							{
-								/* acknowledge part, each hop has to acknowledge the message */
-								// ack after a) a message handler has been found or b) the message has been forwarded
-								_np_send_ack(msg_in);
-							}
 						}
 
 						// if this message really has to be handled by this node, does a handler exists ?
@@ -276,13 +275,6 @@ void _np_in_received(np_jobargs_t* args)
 								np_treeval_to_str(msg_subject, NULL), msg_in->uuid);
 						}
 						else {
-							// check if an acknowledge has to be send
-							if (ACK_EACHHOP == (msg_ack.value.ush & ACK_EACHHOP))
-							{
-								/* acknowledge part, each hop has to acknowledge the message */
-								// ack after a) a message handler has been found or b) the message has been forwarded
-								_np_send_ack(msg_in);
-							}
 							// sum up message parts if the message is for this node
 							np_message_t* msg_to_submit = _np_message_check_chunks_complete(msg_in);
 
@@ -306,10 +298,9 @@ void _np_in_received(np_jobargs_t* args)
 						}
 					}
 				}
-
 			}
 			else {
-				log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "Ignoring msg as it is not in protocoll to receive a %s msg now.", np_treeval_to_str(msg_subject, NULL));
+				log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "ignoring msg as it is not in protocol to receive a %s msg now.", np_treeval_to_str(msg_subject, NULL));
 			}
 			// clean the mess up
 		__np_cleanup__:			
@@ -351,9 +342,6 @@ void _np_in_piggy(np_jobargs_t* args)
 		// tmp_ft = node_entry->node->failuretime;
 
 		// TODO: those new entries in the piggy message must be authenticated before sending join requests
-
-
-
 		if (FALSE == _np_dhkey_equal(&node_entry->dhkey, &my_key->dhkey) &&
 			FALSE == node_entry->node->joined_network)
 		{
@@ -363,7 +351,6 @@ void _np_in_piggy(np_jobargs_t* args)
 			// {
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(node_entry));
 			_np_send_simple_invoke_request(node_entry, _NP_MSG_JOIN_REQUEST);
-
 		}
 		else {
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is not qualified for a piggy join. (%s)", _np_key_as_str(node_entry), node_entry->node->joined_network ? "J":"NJ");
@@ -880,16 +867,37 @@ void __np_in_ack_handle(np_message_t * msg)
 
 	CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_ACKUUID, ack_uuid);
 
+	np_ackentry_t *entry = NULL;
 	/* just an acknowledgement of own messages send out earlier */
-	_LOCK_ACCESS(&my_network->send_data_lock)
+	_LOCK_ACCESS(&my_network->ack_data_lock)
 	{
 		np_tree_elem_t *jrb_node = np_tree_find_str(my_network->waiting,  np_treeval_to_str(ack_uuid, NULL));
 		if (jrb_node != NULL)
 		{
-			np_ackentry_t *entry = (np_ackentry_t *)jrb_node->val.value.v;
+			entry = (np_ackentry_t *)jrb_node->val.value.v;
 			_np_ackentry_set_acked(entry);
 			log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "received acknowledgment of uuid=%s",  np_treeval_to_str(ack_uuid, NULL));
 		}
+	}
+
+	if (entry != NULL && _np_ackentry_is_fully_acked(entry))
+	{
+		// has_received_ack
+		_np_node_update_stat(entry->dest_key->node, TRUE);
+
+		_LOCK_ACCESS(&my_network->ack_data_lock)
+		{
+			np_tree_del_str(my_network->waiting, ack_uuid.value.s);
+		}
+#ifdef DEBUG
+		log_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s/%s)     acknowledged (IN TIME %f/%f at %"PRIu16"/%"PRIu16")",
+					  my_network->waiting->size,
+					  ack_uuid.value.s,
+					  entry->msg_subject,
+					  np_time_now(), entry->expires_at,
+					  entry->received_ack, entry->expected_ack);
+#endif
+		np_unref_obj(np_ackentry_t, entry, ref_ack_obj);
 	}
 
 	__np_cleanup__:
@@ -1047,9 +1055,10 @@ void _np_in_discover_sender(np_jobargs_t* args)
 		}
 		sll_free(np_aaatoken_ptr, available_list);
 	}
-	__np_cleanup__:
 	np_unref_obj(np_key_t, reply_to_key,"_np_keycache_find_or_create");
-	np_unref_obj(np_aaatoken_t, msg_token, ref_obj_creation);
+
+	__np_cleanup__:
+		np_unref_obj(np_aaatoken_t, msg_token, ref_obj_creation);
 
 	// __np_return__:
 	return;

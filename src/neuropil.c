@@ -1099,7 +1099,7 @@ void _np_send_ack(np_message_t* msg_to_ack)
 
 	np_tree_elem_t* target_key_str;
 
-	if (NULL == (target_key_str = np_tree_find_str(msg_to_ack->header, _NP_MSG_INST_ACK_TO))) {
+	if (NULL == (target_key_str = np_tree_find_str(msg_to_ack->instructions, _NP_MSG_INST_ACK_TO))) {
 		target_key_str = np_tree_find_str(msg_to_ack->header, _NP_MSG_HEADER_FROM);
 	}
 
@@ -1136,10 +1136,10 @@ void _np_send_ack(np_message_t* msg_to_ack)
 			np_unref_obj(np_key_t, ack_target, "_np_keycache_find");
 			np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
 
-			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACKED");
+			log_debug_msg(LOG_DEBUG, "ACK_HANDLING send ack for message (%s)", msg_to_ack->uuid);
 		}
 		else {
-			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACK Target not inititated");
+			log_debug_msg(LOG_DEBUG, "ACK Target not inititated");
 		}
 	}
 	else {

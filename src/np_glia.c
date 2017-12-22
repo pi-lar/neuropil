@@ -187,8 +187,8 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
 	while (iter_keys != NULL)
 	{
 		tmp_node_key = iter_keys->val;
-		// send update of new node to all nodes in my routing/neighbor table
-		/* first check for bad link nodes */
+
+		// check for bad link nodes
 		if (NULL != tmp_node_key->node &&
 			tmp_node_key->node->success_avg < BAD_LINK &&
 			(np_time_now() - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
@@ -239,11 +239,15 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 	
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset check for table started");
 
-	// TODO: do a dynamic selection of keys
-	np_sll_t(np_key_ptr, keys) = _np_keycache_get_all();
+	// IMPORTANT: only select key from routing table and leafset
+	// REASON: alias_keys cannot be pinged, but are valid
+	static int toggle = 0;
+
+	np_sll_t(np_key_ptr, keys) = NULL;
+	if (toggle == 0) keys = _np_route_get_table();
+	if (toggle == 1) keys = _np_route_neighbors();
 
 	sll_iterator(np_key_ptr) iter = sll_first(keys);
-
 	while (iter != NULL) {
 		
 		if(iter->val != _np_state()->my_node_key){
@@ -260,6 +264,8 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 
 	np_unref_list(keys, "_np_keycache_get_all");
 	sll_free(np_key_ptr, keys);
+
+	toggle = (toggle > 0) ? 0 : 1;
 }
 
 void _np_glia_log_flush(NP_UNUSED np_jobargs_t* args) {
@@ -408,7 +414,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 	np_tree_elem_t *jrb_ack_node = NULL;
 
 	// wake up and check for acknowledged messages
-	_LOCK_ACCESS(&ng->send_data_lock)
+	_LOCK_ACCESS(&ng->ack_data_lock)
 	{
 		np_tree_elem_t* iter = RB_MIN(np_tree_s, ng->waiting);
 		while (iter != NULL)
@@ -417,25 +423,11 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 			iter = RB_NEXT(np_tree_s, ng->waiting, iter);
 
 			np_ackentry_t *ackentry = (np_ackentry_t *) jrb_ack_node->val.value.v;
-			if (_np_ackentry_is_fully_acked(ackentry))
+			if (np_time_now() > ackentry->expires_at)
 			{
-				// has_received_ack
-				_np_node_update_stat(ackentry->dest_key->node, TRUE);
-
-				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
-			
-				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
-				free( jrb_ack_node->key.value.s);
-				free(jrb_ack_node);
-			}
-			else if (np_time_now() > ackentry->expires_at)
-			{
-				//timeout
+				// timeout
 				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "not acknowledged (TIMEOUT at %"PRIu16"/%"PRIu16")", ackentry->received_ack, ackentry->expected_ack);
 				_np_node_update_stat(ackentry->dest_key->node, FALSE);
-
-				RB_REMOVE(np_tree_s, ng->waiting, jrb_ack_node);
-
 
 				if (ackentry->msg != NULL && sll_size(ackentry->msg->on_timeout) > 0) {
 
@@ -447,10 +439,18 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 						sll_next(iter_on);
 					}
 				}
+				log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s/%s) not acknowledged (IN TIME %f/%f at %"PRIu16"/%"PRIu16")",
+							  	  	  	  ng->waiting->size,
+										  jrb_ack_node->key.value.s,
+										  ackentry->msg_subject,
+										  np_time_now(), ackentry->expires_at,
+										  ackentry->received_ack, ackentry->expected_ack);
+				np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
 
 				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
-				free(jrb_ack_node->key.value.s);
-				free(jrb_ack_node);
+				// free(jrb_ack_node->key.value.s);
+				// free(jrb_ack_node);
+				break;
 			}
 		}
 	}

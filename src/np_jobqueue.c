@@ -396,23 +396,23 @@ np_job_t* _np_jobqueue_select_next()
 
 	/*
 		1. as long as we do not have a job we do not return
-		2. a job this fn returns may run immediantly 
+		2. a job this fn returns may run immediately
 		3. this function does only return a job for the calling threads priority filter
 
 	*/
 	while(job_to_execute == NULL)
 	{
+		now = np_time_now();
 		sleep_time = NP_JOBQUEUE_MAX_SLEEPTIME_SEC;
+
 		_LOCK_MODULE(np_jobqueue_t) {			
 			
-			now = np_time_now();
-
 			iter_jobs = pll_first(__np_job_queue->job_list);
 			while (iter_jobs != NULL)
 			{
 				np_job_ptr next_job = iter_jobs->val;
 
-				// check priority ob job to thread
+				// check priority of job to thread
 				if(my_thread->max_job_priority >= next_job->priority  && next_job->priority >= my_thread->min_job_priority ) {
 
 					// check time of job

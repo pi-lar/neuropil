@@ -373,7 +373,7 @@ void _np_node_update_stat (np_node_t* node, np_bool responded)
 			}
 			node->success_avg = total / NP_NODE_SUCCESS_WINDOW;
 
-			if (0 < responded) node->last_success = np_time_now();
+			if (TRUE == responded) node->last_success = np_time_now();
 		}
 		log_msg(LOG_INFO, "node %s:%s success rate now: %1.1f",
 				node->dns_name, node->port, node->success_avg);

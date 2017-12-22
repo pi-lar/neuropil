@@ -57,7 +57,7 @@
  **/
 
 
-void __np_axon_ivoke_on_user_send_callbacks(np_message_t* msg_out, np_msgproperty_t* prop)
+void __np_axon_invoke_on_user_send_callbacks(np_message_t* msg_out, np_msgproperty_t* prop)
 {
 	if (msg_out->msg_property == NULL) {
 		np_ref_obj(np_msgproperty_t, prop, ref_message_msg_property);
@@ -85,11 +85,10 @@ void _np_out_ack(np_jobargs_t* args)
 
 	// chunking for 1024 bit message size
 	_np_message_calculate_chunking(args->msg);
-
 	_np_message_serialize_chunked(args->msg);
 
 	if(_np_network_send_msg(args->target, args->msg)) {
-	__np_axon_ivoke_on_user_send_callbacks(args->msg, np_msgproperty_get(OUTBOUND, _NP_MSG_ACK));
+		__np_axon_invoke_on_user_send_callbacks(args->msg, np_msgproperty_get(OUTBOUND, _NP_MSG_ACK));
 	}
 }
 /**
@@ -117,8 +116,10 @@ void _np_out(np_jobargs_t* args)
 	if (msg_out != NULL && prop != NULL) {
 		np_ref_switch(np_msgproperty_t, msg_out->msg_property, ref_message_msg_property, prop);
 	}
+
 	// sanity check
-	if (!_np_node_check_address_validity(args->target->node))
+	if (!_np_node_check_address_validity(args->target->node) &&
+		 args->target->node->joined_network)
 	{
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
 			_np_key_as_str(args->target));
@@ -135,26 +136,33 @@ void _np_out(np_jobargs_t* args)
 			{
 				uuid = msg_out->uuid;
 				np_bool skip = FALSE;
-				_LOCK_ACCESS(&my_network->send_data_lock)
+
+				_LOCK_ACCESS(&my_network->ack_data_lock)
 				{
 					// first find the uuid
 					np_tree_elem_t* uuid_ele = np_tree_find_str(my_network->waiting, uuid);
 					if (NULL == uuid_ele)
 					{
 						// has been deleted already
-						log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "message %s (%s) assumed acknowledged, not resending ...", prop->msg_subject, uuid);
+						log_debug_msg(LOG_DEBUG, "ACK_HANDLING message %s (%s) assumed acknowledged, not resending ...", prop->msg_subject, uuid);
 						skip = TRUE;
 					}
 					else if (TRUE == ((np_ackentry_t*)uuid_ele->val.value.v)->has_received_ack)
 					{
 						// uuid has been acked
-						log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "message %s (%s) acknowledged (ACK), not resending ...", prop->msg_subject, uuid);
+						log_debug_msg(LOG_DEBUG, "ACK_HANDLING message %s (%s) acknowledged (ACK), not resending ...", prop->msg_subject, uuid);
 						skip = TRUE;
 					}
 					else
 					{
 						// ack indicator still there ! initiate resend ...
-						log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
+						np_ackentry_t* entry = uuid_ele->val.value.v;
+						if (entry->dest_key != args->target) {
+							// switch dest_key if routing is now pointing to a different key
+							np_ref_switch(np_key_t, entry->dest_key, ref_ack_key, args->target);
+							entry->dest_key = args->target;
+						}
+						log_debug_msg(LOG_DEBUG, "ACK_HANDLING message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
 					}
 				}
 				// TODO: ref counting on ack may differ (ref_message_ack) / key may not be the same more
@@ -252,48 +260,42 @@ void _np_out(np_jobargs_t* args)
 				{
 					uuid = np_treeval_to_str(np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val, NULL);
 
-					_LOCK_ACCESS(&my_network->send_data_lock)
-					{
-						/* get/set sequence number to initialize acknowledgement indicator correctly */
-						np_ackentry_t *ackentry = NULL;
+					np_ackentry_t *ackentry = NULL;
+					// get/set sequence number to initialize acknowledgement indicator correctly
+					np_new_obj(np_ackentry_t, ackentry, ref_ack_obj);
 
-						np_tree_elem_t* waiting_uuid;
-						if (NULL != (waiting_uuid = np_tree_find_str(my_network->waiting, uuid)))
-						{
-							ackentry = (np_ackentry_t*)waiting_uuid->val.value.v;
-						}
-						else
-						{
-							np_new_obj(np_ackentry_t, ackentry, ref_ack_obj);
-						}
-						ackentry->send_at = np_time_now();
+					ackentry->send_at = np_time_now();
+					ackentry->expires_at = ackentry->send_at + args->properties->msg_ttl + np_msgproperty_get(INBOUND, _NP_MSG_ACK)->msg_ttl;
+					ackentry->dest_key = args->target;
+					np_ref_obj(np_key_t, ackentry->dest_key, ref_ack_key);
 
-						ackentry->expires_at = ackentry->send_at + args->properties->msg_ttl + np_msgproperty_get(INBOUND, _NP_MSG_ACK)->msg_ttl;
-
-						if (ackentry->dest_key != args->target) {
-							np_ref_switch(np_key_t, ackentry->dest_key, ref_ack_key, args->target);
-
-							if (sll_size(args->msg->on_ack) > 0 ||
-								sll_size(args->msg->on_timeout) > 0) {
-								np_ref_switch(np_message_t, ackentry->msg, ref_ack_msg, args->msg);
-							}
-						}
-
-						if (TRUE == is_forward)
-						{
-							// single part message can only occur in intermediate hops
-							ackentry->expected_ack++;
-						}
-						else
-						{
-							// full message can only occur when sending the original message
-							ackentry->expected_ack = msg_out->no_of_chunks;
-						}
-
-						np_tree_insert_str(my_network->waiting, uuid, np_treeval_new_v(ackentry));
-						log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", my_network->waiting, uuid);
+					if (sll_size(args->msg->on_ack) > 0 ||
+						sll_size(args->msg->on_timeout) > 0) {
+						ackentry->msg = args->msg;
+						np_ref_obj(np_message_t, ackentry->msg, ref_ack_msg);
 					}
-				}				
+					ackentry->expected_ack = 1; // msg_out->no_of_chunks ?
+					log_debug_msg(LOG_DEBUG, "ACK_HANDLING initial sending of single message (%s/%s)",
+											 args->properties->msg_subject, args->msg->uuid);
+
+#ifdef DEBUG
+					CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_TO, msg_to);
+					{
+						log_debug_msg(LOG_DEBUG, "ACK_HANDLING                   message (%s/%s) %s < - > %s / %d:%s:%s",
+								uuid, args->properties->msg_subject,
+								args->target->dhkey_str, msg_to.value.s,
+								args->target->node->joined_network, args->target->node->dns_name, args->target->node->port);
+					}
+					__np_cleanup__:
+						{}
+#endif
+
+					_LOCK_ACCESS(&my_network->ack_data_lock)
+					{
+						np_tree_insert_str(my_network->waiting, uuid, np_treeval_new_v(ackentry));
+					}
+					log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", my_network->waiting, uuid);
+				}
 				reshedule_msg_transmission = TRUE;
 			}
 
@@ -307,17 +309,19 @@ void _np_out(np_jobargs_t* args)
 			{
 				_np_message_serialize_chunked(msg_out);
 			}
+
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Try sending message for subject \"%s\" (msg id: %s) to %s", prop->msg_subject, msg_out->uuid, _np_key_as_str(args->target));
 
 			np_bool send_completed = _np_network_send_msg(args->target, msg_out);
 
 			if(send_completed == TRUE) {
-				__np_axon_ivoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
+				__np_axon_invoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
 			}
 			if (send_completed == FALSE || (reshedule_msg_transmission == TRUE && args->properties->retry > 0)) {				
 				double retransmit_interval = args->properties->msg_ttl / (args->properties->retry+1);
 				np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
 				_np_job_resubmit_route_event(retransmit_interval, out_prop, args->target, args->msg); 
+				log_debug_msg(LOG_DEBUG, "ACK_HANDLING re-sending of message (%s) scheduled", args->msg->uuid);
 			}			
 
 			np_unref_obj(np_network_t, my_network,"np_waitref_network");
@@ -325,6 +329,7 @@ void _np_out(np_jobargs_t* args)
 		np_unref_obj(np_key_t,my_key,"np_waitref_key");
 	}
 }
+
 void _np_out_handshake(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_out_handshake(np_jobargs_t* args){");
@@ -335,7 +340,6 @@ void _np_out_handshake(np_jobargs_t* args)
 			// get our node identity from the cache
 			np_key_t* my_key = _np_state()->my_node_key;
 			np_aaatoken_t* my_token = my_key->aaa_token;
-			
 
 			// TODO: reffing of key, node token in function context
 
@@ -488,7 +492,7 @@ void _np_out_handshake(np_jobargs_t* args)
 						free(packet);
 					}
 				}
-				__np_axon_ivoke_on_user_send_callbacks(hs_message, hs_prop);
+				__np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);
 			}
 			np_unref_obj(np_message_t, hs_message, ref_obj_creation);
 		}

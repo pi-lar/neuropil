@@ -16,13 +16,13 @@ void np_time_sleep(double sleeptime) {
 	ev_sleep(sleeptime);
 	return;
 
+/*
 	struct timespec ts;
 	ts.tv_sec = (int)sleeptime;
-	ts.tv_nsec = (sleeptime - ((int)sleeptime))/*ms*/ * 1000000; // to nanoseconds
+	ts.tv_nsec = (sleeptime - ((int)sleeptime)) * 1000000; // to nanoseconds
 
 	int status = -1;
 	while (status == -1)
 		status = nanosleep(&ts, &ts);
-
-
+*/
 }
