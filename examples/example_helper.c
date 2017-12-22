@@ -257,6 +257,9 @@ np_bool parse_program_args(
 				//| LOG_SERIALIZATION
 				//| LOG_MEMORY
 				| LOG_MISC
+				| LOG_EVENT
+				| LOG_THREADS
+				//| LOG_GLOBAL
 				;
 		}
 

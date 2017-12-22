@@ -359,7 +359,7 @@ void _np_in_piggy(np_jobargs_t* args)
 		{
 			// just record nodes in the network or send an join request as well ?
 			// answer: only send join request !
-			// if (GRACEPERIOD > (ev_time() - tmp_ft))
+			// if (GRACEPERIOD > (np_time_now() - tmp_ft))
 			// {
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(node_entry));
 			_np_send_simple_invoke_request(node_entry, _NP_MSG_JOIN_REQUEST);

@@ -217,7 +217,7 @@ TYPE* saveTo = NULL;																																\
 				}																																	\
 			}																																		\
 		}																																			\
-		if(ret == FALSE) ev_sleep(0.005);																											\
+		if(ret == FALSE) np_time_sleep(0.005);																										\
 	}																																				\
 }
 

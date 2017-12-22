@@ -18,13 +18,9 @@ struct ev_loop * _np_event_get_loop_io();
 struct ev_loop * _np_event_get_loop_in();
 struct ev_loop * _np_event_get_loop_out();
 
-void _np_events_async_io(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents);
-void _np_events_async_out(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents);
-void _np_events_async_in(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents);
-
-void _np_events_read_in(np_jobargs_t* args);
-void _np_events_read_out(np_jobargs_t* args);
-void _np_events_read_io(np_jobargs_t* args);
+void _np_events_read_in(NP_UNUSED np_jobargs_t* args);
+void _np_events_read_out(NP_UNUSED np_jobargs_t* args);
+void _np_events_read_io(NP_UNUSED np_jobargs_t* args);
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args);
 void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args);
 void* _np_event_in_run();

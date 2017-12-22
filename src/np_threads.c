@@ -69,6 +69,9 @@ np_bool _np_threads_init()
 	return ret;
 }
 
+np_bool np_threads_is_init() {
+	return _np_threads_mutexes_initiated;
+}
 int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locking module mutex %d.", module_id);
@@ -623,6 +626,10 @@ void __np_createThreadPool(uint8_t pool_size) {
 void np_start_job_queue(uint8_t pool_size)
 {
 	log_msg(LOG_TRACE, "start: void np_start_job_queue(uint8_t pool_size){");
+
+	log_debug_msg(LOG_THREADS | LOG_DEBUG, "starting neuropil with %"PRIu8" threads", pool_size);
+
+
 	if (pthread_attr_init(&_np_state()->attr) != 0)
 	{
 		log_msg(LOG_ERROR, "pthread_attr_init: %s", strerror(errno));
@@ -672,20 +679,20 @@ void np_start_job_queue(uint8_t pool_size)
 		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
 	}
 
+	
 	if (create_own_event_out_thread) {
 		__np_createThread(pool_size, _np_event_out_run);
 	}
 	else {
 		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
 	}
-
 	if (create_own_event_io_thread) {
 		__np_createThread(pool_size, _np_event_io_run);
 	}
 	else {
 		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
 	}
-
+	
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_SEND_PINGS_SEC,					_np_glia_send_pings, "_np_glia_send_pings");
 
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC,	_np_event_cleanup_msgpart_cache, "_np_event_cleanup_msgpart_cache");
@@ -707,7 +714,8 @@ void np_start_job_queue(uint8_t pool_size)
 	_LOCK_MODULE(np_threads_t){
 		_np_threads_threads_initiated = TRUE;
 	}
-	log_debug_msg(LOG_THREADS | LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
+	log_debug_msg(LOG_THREADS | LOG_DEBUG, "jobqueue threads started: %"PRIu8, pool_size);
+	log_debug_msg(LOG_INFO, "%s", NEUROPIL_RELEASE);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
 	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 

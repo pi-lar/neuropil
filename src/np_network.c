@@ -636,7 +636,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		memset(port, '\0', sizeof(char)*CHAR_LENGTH_PORT);
 		
 
-		data = calloc(1, MSG_CHUNK_SIZE_1024);
+		data = calloc(1, MSG_CHUNK_SIZE_1024*sizeof(char*));
 		CHECK_MALLOC(data);
 
 		int16_t in_msg_len = 0;
@@ -645,7 +645,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		double timeout_start = np_time_now();
 		do {
 			if ((ng->socket_type & TCP) == TCP) {
-				last_recv_result = recv(ng->socket, ((char*)data) + in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
+				last_recv_result = recv(ng->socket, (data) + in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
 				if (0 != getpeername(ng->socket, (struct sockaddr*) &from, &fromlen))
 				{
 					log_msg(LOG_WARN, "could not receive socket peer: %s (%d)",
@@ -1104,7 +1104,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 
 			log_debug_msg(LOG_NETWORK | LOG_DEBUG,"TRY CONNECT");
 			if(connection_status != 0){
-				ev_sleep(0.1);
+				np_time_sleep(0.1);
 			}
 		} while( 0 != connection_status && retry_connect-- > 0);
 

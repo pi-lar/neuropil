@@ -103,7 +103,8 @@ struct np_thread_s
 
 NP_API_INTERN
 np_bool _np_threads_init();
-
+NP_API_INTERN
+np_bool np_threads_is_init();
 NP_API_INTERN
 int _np_threads_lock_module(np_module_lock_type module_id, char* where);
 NP_API_INTERN
