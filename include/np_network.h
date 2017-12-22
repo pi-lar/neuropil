@@ -66,6 +66,7 @@ struct np_network_s
 	uint8_t socket_type;
 	struct addrinfo* addr_in; // where a node receives messages
 
+	np_mutex_t waiting_lock;
 	np_tree_t* waiting;
 
 	np_sll_t(void_ptr, out_events);

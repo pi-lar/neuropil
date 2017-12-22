@@ -120,7 +120,7 @@ void _np_out(np_jobargs_t* args)
 	// sanity check
 	if (!_np_node_check_address_validity(args->target->node))
 	{
-		log_debug_msg(LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
 			_np_key_as_str(args->target));
 		return;
 	}
@@ -135,26 +135,26 @@ void _np_out(np_jobargs_t* args)
 			{
 				uuid = msg_out->uuid;
 				np_bool skip = FALSE;
-				_LOCK_ACCESS(&my_network->send_data_lock)
+				_LOCK_ACCESS(&my_network->waiting_lock)
 				{
 					// first find the uuid
 					np_tree_elem_t* uuid_ele = np_tree_find_str(my_network->waiting, uuid);
 					if (NULL == uuid_ele)
 					{
 						// has been deleted already
-						log_debug_msg(LOG_DEBUG, "message %s (%s) assumed acknowledged, not resending ...", prop->msg_subject, uuid);
+						log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "message %s (%s) assumed acknowledged, not resending ...", prop->msg_subject, uuid);
 						skip = TRUE;
 					}
 					else if (TRUE == ((np_ackentry_t*)uuid_ele->val.value.v)->has_received_ack)
 					{
 						// uuid has been acked
-						log_debug_msg(LOG_DEBUG, "message %s (%s) acknowledged (ACK), not resending ...", prop->msg_subject, uuid);
+						log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "message %s (%s) acknowledged (ACK), not resending ...", prop->msg_subject, uuid);
 						skip = TRUE;
 					}
 					else
 					{
 						// ack indicator still there ! initiate resend ...
-						log_debug_msg(LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
+						log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
 					}
 				}
 				// TODO: ref counting on ack may differ (ref_message_ack) / key may not be the same more
@@ -168,7 +168,7 @@ void _np_out(np_jobargs_t* args)
 				double now = np_time_now();
 				if (now > (initial_tstamp + args->properties->msg_ttl))
 				{
-					log_debug_msg(LOG_DEBUG, "resend message %s (%s) expired, not resending ...", prop->msg_subject, uuid);
+					log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "resend message %s (%s) expired, not resending ...", prop->msg_subject, uuid);
 
 					np_unref_obj(np_network_t, my_network, "np_waitref_network");
 					np_unref_obj(np_key_t, my_key, "np_waitref_key");
@@ -252,7 +252,7 @@ void _np_out(np_jobargs_t* args)
 				{
 					uuid = np_treeval_to_str(np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val, NULL);
 
-					_LOCK_ACCESS(&my_network->send_data_lock)
+					_LOCK_ACCESS(&my_network->waiting_lock)
 					{
 						/* get/set sequence number to initialize acknowledgement indicator correctly */
 						np_ackentry_t *ackentry = NULL;
@@ -291,7 +291,7 @@ void _np_out(np_jobargs_t* args)
 						}
 
 						np_tree_insert_str(my_network->waiting, uuid, np_treeval_new_v(ackentry));
-						log_debug_msg(LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", my_network->waiting, uuid);
+						log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", my_network->waiting, uuid);
 					}
 				}				
 				reshedule_msg_transmission = TRUE;
@@ -307,7 +307,7 @@ void _np_out(np_jobargs_t* args)
 			{
 				_np_message_serialize_chunked(msg_out);
 			}
-			log_debug_msg(LOG_DEBUG, "Try sending message for subject \"%s\" (msg id: %s) to %s", prop->msg_subject, msg_out->uuid, _np_key_as_str(args->target));
+			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Try sending message for subject \"%s\" (msg id: %s) to %s", prop->msg_subject, msg_out->uuid, _np_key_as_str(args->target));
 
 			np_bool send_completed = _np_network_send_msg(args->target, msg_out);
 
@@ -397,11 +397,11 @@ void _np_out_handshake(np_jobargs_t* args)
 				return;
 			}
 #ifdef DEBUG
-			log_debug_msg(LOG_DEBUG, "signature has %"PRIu32" bytes", crypto_sign_BYTES);
+			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "signature has %"PRIu32" bytes", crypto_sign_BYTES);
 			char* signature_hex = calloc(1, crypto_sign_BYTES * 2 + 1);
 			sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
 				signature, crypto_sign_BYTES);
-			log_debug_msg(LOG_DEBUG, "signature: (payload size: %5"PRIu32") %s", hs_payload_len, signature_hex);
+			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "signature: (payload size: %5"PRIu32") %s", hs_payload_len, signature_hex);
 			free(signature_hex);
 #endif
 
@@ -463,7 +463,7 @@ void _np_out_handshake(np_jobargs_t* args)
 				np_node_t* hs_node = args->target->node;
 
 				/* send data if handshake status is still just initialized or less */
-				log_debug_msg(LOG_DEBUG,
+				log_debug_msg(LOG_ROUTING | LOG_DEBUG,
 					"sending handshake message %s to %s (%s:%s)",
 					hs_message->uuid, _np_key_as_str(args->target), hs_node->dns_name, hs_node->port);
 
@@ -503,33 +503,33 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 	if (_np_route_my_key_has_connection()) {
 
 		double now = np_time_now();
+
 		msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 
 		if ((NULL == msg_token) ||
 			( /* = lifetime */ (now - msg_token->issued_at) >=
 			/* random time = */ (args->properties->token_min_ttl)))
 		{
-			log_msg(LOG_INFO | LOG_AAATOKEN, "---------- refresh for subject token: %s ----------", args->properties->msg_subject);
-			log_debug_msg(LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
+			log_msg(LOG_INFO | LOG_AAATOKEN, "--- refresh for subject token: %25s --------", args->properties->msg_subject);
+			log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 			np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
 			np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
 			_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
 			msg_token = msg_token_new;
 			ref_replace_reason(np_aaatoken_t, msg_token, ref_obj_creation, "_np_aaatoken_get_local_mx")
+			log_debug_msg(LOG_DEBUG| LOG_AAATOKEN, "--- done refresh for subject token: %25s new token has uuid %s", args->properties->msg_subject, msg_token_new->uuid);
 		}
-
+		
 		// args->target == Key of subject
 
 		if (INBOUND == (args->properties->mode_type & INBOUND))
 		{
-			log_debug_msg(LOG_DEBUG, ".step ._np_out_discovery_messages.inbound");
-
 			// cleanup of msgs in property receiver msg cache
 			_np_msgproperty_cleanup_receiver_cache(args->properties);
 
 			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
 
-			log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
+			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
 			np_tree_t* _data = np_tree_create();
 			np_aaatoken_encode(_data, msg_token);
 
@@ -553,11 +553,9 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 
 		if (OUTBOUND == (args->properties->mode_type & OUTBOUND))
 		{
-			log_debug_msg(LOG_DEBUG, ".step ._np_out_discovery_messages.outbound");
-
 			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
 
-			log_debug_msg(LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
+			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
 
 			np_tree_t* _data = np_tree_create();
 			np_aaatoken_encode(_data, msg_token);
@@ -600,7 +598,7 @@ void _np_out_receiver_discovery(np_jobargs_t* args)
 
 	if (NULL == msg_token)
 	{
-		log_debug_msg(LOG_DEBUG, "creating new sender token for subject %s", args->properties->msg_subject);
+		log_debug_msg(LOG_ROUTING | LOG_AAATOKEN | LOG_DEBUG, "creating new sender token for subject %s", args->properties->msg_subject);
 		np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
 		np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
 		_np_aaatoken_add_sender(msg_token_new->subject, msg_token_new);
@@ -636,14 +634,14 @@ void _np_out_sender_discovery(np_jobargs_t* args)
 
 	if (NULL == msg_token)
 	{
-		log_debug_msg(LOG_DEBUG, "creating new receiver token for subject %s", args->properties->msg_subject);
+		log_debug_msg(LOG_ROUTING | LOG_AAATOKEN | LOG_DEBUG, "creating new receiver token for subject %s", args->properties->msg_subject);
 		np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
 		np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
 		_np_aaatoken_add_receiver(msg_token_new->subject, msg_token_new);
 		msg_token = msg_token_new;
 	}
 
-	log_debug_msg(LOG_DEBUG, "encoding receiver token for subject %p / %s", msg_token, msg_token->uuid);
+	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding receiver token for subject %p / %s", msg_token, msg_token->uuid);
 	np_tree_t* _data = np_tree_create();
 	np_aaatoken_encode(_data, msg_token);
 
@@ -682,7 +680,7 @@ void _np_out_authentication_request(np_jobargs_t* args)
 		return;
 	}
 
-	log_debug_msg(LOG_DEBUG, "encoding and sending authentication token");
+	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding and sending authentication token");
 
 	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
@@ -706,7 +704,7 @@ void _np_out_authentication_request(np_jobargs_t* args)
 	_np_message_create(msg_out, aaa_target, state->my_node_key, _NP_MSG_AUTHENTICATION_REQUEST, auth_data);
 	if (FALSE == _np_send_msg(_NP_MSG_AUTHENTICATION_REQUEST, msg_out, aaa_props, NULL))
 	{
-		log_debug_msg(LOG_DEBUG, "sending authentication discovery");
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending authentication discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_out_receiver_discovery(&jargs);
 	}
@@ -733,7 +731,7 @@ void _np_out_authentication_reply(np_jobargs_t* args)
 		target_dhkey = np_dhkey_create_from_hash(args->target->aaa_token->issuer);
 	}
 
-	log_debug_msg(LOG_DEBUG, "encoding and sending authentication reply");
+	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding and sending authentication reply");
 
 	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
@@ -744,7 +742,7 @@ void _np_out_authentication_reply(np_jobargs_t* args)
 	// create and send authentication reply
 	if (FALSE == _np_send_msg(_NP_MSG_AUTHENTICATION_REPLY, args->msg, aaa_props, NULL))
 	{
-		log_debug_msg(LOG_DEBUG, "sending authentication reply discovery");
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending authentication reply discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_out_receiver_discovery(&jargs);
 	}
@@ -767,7 +765,7 @@ void _np_out_authorization_request(np_jobargs_t* args)
 		return;
 	}
 
-	log_debug_msg(LOG_DEBUG, "encoding and sending authorization token");
+	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding and sending authorization token");
 	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
 	aaa_target->dhkey = target_dhkey;
@@ -814,7 +812,7 @@ void _np_out_authorization_reply(np_jobargs_t* args)
 		target_dhkey = np_dhkey_create_from_hash(args->target->aaa_token->issuer);
 	}
 
-	log_debug_msg(LOG_DEBUG, "encoding and sending authorization reply");
+	log_debug_msg(LOG_SERIALIZATION| LOG_DEBUG, "encoding and sending authorization reply");
 
 	np_key_t* aaa_target = NULL;
 	np_new_obj(np_key_t, aaa_target);
@@ -825,7 +823,7 @@ void _np_out_authorization_reply(np_jobargs_t* args)
 	// create and send authentication reply
 	if (FALSE == _np_send_msg(_NP_MSG_AUTHORIZATION_REPLY, args->msg, aaa_props, NULL))
 	{
-		log_debug_msg(LOG_DEBUG, "sending authorization reply discovery");
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending authorization reply discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_out_receiver_discovery(&jargs);
 	}
@@ -848,7 +846,7 @@ void _np_out_accounting_request(np_jobargs_t* args)
 		return;
 	}
 
-	log_debug_msg(LOG_DEBUG, "encoding and sending accounting token");
+	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding and sending accounting token");
 	np_msgproperty_t* aaa_props = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
 
 	np_key_t* aaa_target = NULL;

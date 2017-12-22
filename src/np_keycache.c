@@ -123,47 +123,49 @@ np_key_t* _np_keycache_find_by_details(
 	{
 		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
 		{
-			if(TRUE == search_myself){
-				if (
-					TRUE == _np_dhkey_equal(&iter->dhkey, &my_node_key->dhkey) ||
-					TRUE == _np_dhkey_equal(&iter->dhkey, &my_identity->dhkey) )
-				{
-					continue;
+			if(iter->in_destroy == FALSE){
+				if(TRUE == search_myself){
+					if (
+						TRUE == _np_dhkey_equal(&iter->dhkey, &my_node_key->dhkey) ||
+						TRUE == _np_dhkey_equal(&iter->dhkey, &my_identity->dhkey) )
+					{
+						continue;
+					}
 				}
-			}
 
-			if (
-					(!require_handshake_status ||
-							(NULL != iter->node &&
-								iter->node->is_handshake_send == is_handshake_send
-								&&
-								iter->node->is_handshake_received == is_handshake_received
-							) 
+				if (
+						(!require_handshake_status ||
+								(NULL != iter->node &&
+									iter->node->is_handshake_send == is_handshake_send
+									&&
+									iter->node->is_handshake_received == is_handshake_received
+								) 
 
-					) &&
-					(!require_hash ||
-							(NULL != iter->dhkey_str &&
-							strstr(details_container, iter->dhkey_str) != NULL
-							)
-					) &&
-					(!require_dns ||
-							(NULL != iter->node &&
-							NULL != iter->node->dns_name &&
-							strstr(details_container, iter->node->dns_name) != NULL
-							)
-					) &&
-					(!require_port ||
-							(NULL != iter->node &&
-							NULL != iter->node->port &&
-							strstr(details_container, iter->node->port) != NULL
-							)
-					)
-			)
-			{
-				np_ref_obj(np_key_t, iter);
-				ret = iter;
-				ret->last_update = np_time_now();
-				break;
+						) &&
+						(!require_hash ||
+								(NULL != iter->dhkey_str &&
+								strstr(details_container, iter->dhkey_str) != NULL
+								)
+						) &&
+						(!require_dns ||
+								(NULL != iter->node &&
+								NULL != iter->node->dns_name &&
+								strstr(details_container, iter->node->dns_name) != NULL
+								)
+						) &&
+						(!require_port ||
+								(NULL != iter->node &&
+								NULL != iter->node->port &&
+								strstr(details_container, iter->node->port) != NULL
+								)
+						)
+				)
+				{
+					np_ref_obj(np_key_t, iter);
+					ret = iter;
+					ret->last_update = np_time_now();
+					break;
+				}
 			}
 		}
 	}
@@ -190,7 +192,7 @@ np_key_t* _np_keycache_find_deprecated()
 			}
 
 			double now = np_time_now();
-			if ((now - __keycache_deprecation_interval) > iter->last_update)
+			if ((now - __keycache_deprecation_interval) > iter->last_update && iter->in_destroy == FALSE)
 			{
 				np_ref_obj(np_key_t, iter);
 				break;
@@ -208,7 +210,7 @@ sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)
 	{
 		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
 		{
-			if (_np_key_cmp(iter->parent, forKey) == 0)
+			if (_np_key_cmp(iter->parent, forKey) == 0 && iter->in_destroy == FALSE)
 			{
 				np_ref_obj(np_key_t, iter);
 				sll_append(np_key_ptr, ret, iter);
@@ -281,18 +283,19 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_ptr, list_of_keys),
 	np_bool first_run = TRUE;
 	while (NULL != iter)
 	{
-		// calculate distance to the left and right
-		_np_dhkey_distance (&dif, key, &(iter->val->dhkey));
+		if(iter->val->in_destroy == FALSE){
+			// calculate distance to the left and right
+			_np_dhkey_distance (&dif, key, &(iter->val->dhkey));
 
-		// Set reference point at first iteration, then compare current iterations distance with shortest known distance
-		if (TRUE == first_run || _np_dhkey_comp (&dif, &minDif) < 0)
-		{
-			min = iter->val;
-			_np_dhkey_assign (&minDif, &dif);
+			// Set reference point at first iteration, then compare current iterations distance with shortest known distance
+			if (TRUE == first_run || _np_dhkey_comp (&dif, &minDif) < 0)
+			{
+				min = iter->val;
+				_np_dhkey_assign (&minDif, &dif);
+			}
+			first_run = FALSE;
 		}
-
-		sll_next(iter);
-		first_run = FALSE;
+		sll_next(iter);		
 	}
 
 	if (sll_size(list_of_keys) == 0)

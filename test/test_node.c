@@ -39,7 +39,7 @@ Test(np_node_t, _node_create, .description="test the creation of node structure"
 	np_node_t* new_node_1 = NULL;
 	np_new_obj(np_node_t, new_node_1);
 
-	log_msg(LOG_DEBUG, "creating 1st key/node");
+	log_debug_msg(LOG_DEBUG, "creating 1st key/node");
 	_np_node_update(new_node_1, IPv4 | UDP, "localhost", "1111");
 
 	np_aaatoken_t* node_token_1 = _np_node_create_token(new_node_1);

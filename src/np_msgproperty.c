@@ -270,6 +270,7 @@ void _np_msgproperty_t_del(void* property)
 	}
 	_np_threads_mutex_destroy(&prop->lock);
 	_np_threads_condition_destroy(&prop->msg_received);
+
 	prop = NULL;
 }
 
@@ -278,7 +279,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 	log_msg(LOG_TRACE, "start: void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop){");
 	// check if we are (one of the) sending node(s) of this kind of message
 	// should not return NULL
-	log_debug_msg(LOG_DEBUG,
+	log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 			"this node is one sender of messages, checking msgcache (%p / %u) ...",
 			send_prop->msg_cache_out, sll_size(send_prop->msg_cache_out));
 
@@ -311,7 +312,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 			sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop, NULL);
 			np_unref_obj(np_message_t, msg_out, ref_msgproperty_msgcache);
 
-			log_debug_msg(LOG_DEBUG,
+			log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 					"message in cache found and re-send initialized");
 		}
 	}
@@ -320,7 +321,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 {
 	log_msg(LOG_TRACE, "start: void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop){");
-	log_debug_msg(LOG_DEBUG,
+	log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 			"this node is the receiver of messages, checking msgcache (%p / %u) ...",
 			recv_prop->msg_cache_in, sll_size(recv_prop->msg_cache_in));
 
@@ -364,11 +365,11 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 		// cache already full ?
 		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_out))
 		{
-			log_debug_msg(LOG_DEBUG, "send msg cache full, checking overflow policy ...");
+			log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "send msg cache full, checking overflow policy ...");
 
 			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
 			{
-				log_debug_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding message in send msgcache for %s", msg_prop->msg_subject);
+				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "OVERFLOW_PURGE: discarding message in send msgcache for %s", msg_prop->msg_subject);
 				np_message_t* old_msg = NULL;
 
 				if ((msg_prop->cache_policy & FIFO) > 0)
@@ -395,7 +396,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 
 		sll_prepend(np_message_ptr, msg_prop->msg_cache_out, msg_in);
 
-		log_debug_msg(LOG_DEBUG, "added message to the sender msgcache (%p / %d) ...",
+		log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "added message to the sender msgcache (%p / %d) ...",
 				msg_prop->msg_cache_out, sll_size(msg_prop->msg_cache_out));
 		np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 	}
@@ -431,11 +432,11 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 		// cache already full ?
 		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
 		{
-			log_debug_msg(LOG_DEBUG, "recv msg cache full, checking overflow policy ...");
+			log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "recv msg cache full, checking overflow policy ...");
 
 			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
 			{
-				log_debug_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding message in recv msgcache for %s", msg_prop->msg_subject);
+				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "OVERFLOW_PURGE: discarding message in recv msgcache for %s", msg_prop->msg_subject);
 				np_message_t* old_msg = NULL;
 
 				if ((msg_prop->cache_policy & FIFO) > 0)
@@ -453,7 +454,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 
 			if (0 < (msg_prop->cache_policy & OVERFLOW_REJECT))
 			{
-				log_debug_msg(LOG_DEBUG,
+				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 						"rejecting new message because cache is full");
 				continue;
 			}
@@ -461,7 +462,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 
 		sll_prepend(np_message_ptr, msg_prop->msg_cache_in, msg_in);
 
-		log_debug_msg(LOG_DEBUG, "added message to the recv msgcache (%p / %d) ...",
+		log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "added message to the recv msgcache (%p / %d) ...",
 				msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
 		np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 	}

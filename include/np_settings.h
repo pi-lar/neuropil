@@ -15,15 +15,15 @@ extern "C" {
 	
 /*
 	Possible compile switches:
-	 - NP_MEMORY_CHECK_MEMORY
-	 - NP_THREADS_CHECK_THREADING
+	 - NP_MEMORY_CHECK_MEMORY		(NP_THREADS_CHECK_THREADING should be disabled if this switch is enabled)
+	 - NP_THREADS_CHECK_THREADING	(NP_MEMORY_CHECK_MEMORY should be disabled if this switch is enabled)
 	 - DEBUG_CALLBACKS
-	 - x64 (enable 64 Bit support)
+	 - x64 (enable 64 Bit support)	(is automaticly set by SConstruct file)
 */
 #ifdef DEBUG
 	#define DEBUG_CALLBACKS 1
 	#define NP_MEMORY_CHECK_MEMORY 1
-	#define NP_THREADS_CHECK_THREADING 1
+	//#define NP_THREADS_CHECK_THREADING 1
 #endif // DEBUG
 
 

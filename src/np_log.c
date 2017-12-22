@@ -131,7 +131,7 @@ void log_rotation()
 		 else
 		 {
 			 /*
-			 EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+			 EV_P = _np_event_get_loop_io();
 			 ev_io_stop(EV_A_ &logger->watcher);
 			 ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
 			 ev_io_start(EV_A_ &logger->watcher);
@@ -153,16 +153,16 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 	if (logger == NULL) {
 		return;
 	}
-
-	// filter if a module log entry is wanted
-	if (LOG_NONE < (level & LOG_MODUL_MASK))
-		// if a module log entry is wanted, is it in the configured log mask ?
-		if (LOG_NONE == (level & LOG_MODUL_MASK & logger->level))
-			// not found, nothing to do
-			return;
-
-	// next check if the log level (debug, error, ...) is set
-	if ((level & LOG_LEVEL_MASK & logger->level) > LOG_NONE)
+	// include msg if log level is included into selected levels
+	// and if the msg has acategory and is included into selected categories 
+	// or if no category is provided for msg or the log level contains the LOG_GLOBAL flag
+	if ((level & LOG_LEVEL_MASK & logger->level) > LOG_NONE && 
+		(
+			(logger->level & LOG_MODUL_MASK & LOG_GLOBAL) == LOG_GLOBAL ||
+			(level & LOG_MODUL_MASK & logger->level) > LOG_NONE  || 
+			(level & LOG_MODUL_MASK) == LOG_NONE
+		)
+	)
 	{
 		struct timeval tval;
 		struct tm local_time;
@@ -200,14 +200,16 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		}
 
 		// instant writeout
+
+		if ((level & LOG_ERROR) == LOG_ERROR) {
+			_np_log_fflush(TRUE);
+		}
 #ifdef DEBUG
-		_np_log_fflush(LOG_FORCE_INSTANT_WRITE);
+		else {
+			_np_log_fflush(LOG_FORCE_INSTANT_WRITE);
+		}
 #endif // DEBUG
 		
-	}
-	else
-	{
-		// printf("not logging to file(%p): %d & %d = %d\n", logger, level, logger->level, level & logger->level);
 	}
 }
 
@@ -278,7 +280,10 @@ void _np_log_fflush(np_bool force)
 				entry = NULL;
 			}
 		}
-	} while (lock_result == 0 && entry != NULL);
+		else {
+			flush_status = 1;
+		}
+	} while (flush_status == 0);
 }
 
 void np_log_setlevel(uint32_t level)
@@ -340,7 +345,7 @@ void np_log_destroy()
 	log_msg(LOG_TRACE, "start: void np_log_destroy(){");
 	logger->level=LOG_NONE;
 
-	//EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+	EV_P = _np_event_get_loop_io();
 	//ev_io_stop(EV_A_ &logger->watcher);
 
 	_np_log_fflush(TRUE);

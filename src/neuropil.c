@@ -330,7 +330,7 @@ void np_waitforjoin()
 	np_state_t* state = _np_state();
 	while (FALSE == _np_route_my_key_has_connection())
 	{
-		ev_sleep(0.31415/2);
+		np_time_sleep(0.31415/2);
 	}
 }
 
@@ -633,7 +633,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
-			ev_sleep(0.31415);
+			np_time_sleep(0.31415);
 			// dsleep(0.31415);
 			continue;
 		}
@@ -743,7 +743,7 @@ uint32_t np_receive_text (char* subject, char **data)
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
-			ev_sleep(0.31415);
+			np_time_sleep(0.31415);
 			// dsleep(0.31415);
 			continue;
 		}
@@ -832,7 +832,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	if(sodium_init() == -1){
 		log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
 		exit(EXIT_FAILURE);
-	}
+	}	
 
 	// memory pool
 	np_mem_init();
@@ -1138,14 +1138,14 @@ void _np_send_ack(np_message_t* msg_to_ack)
 			np_unref_obj(np_key_t, ack_target, "_np_keycache_find");
 			np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
 
-			log_debug_msg(LOG_DEBUG, "ACKED");
+			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACKED");
 		}
 		else {
-			log_debug_msg(LOG_DEBUG, "ACK Target not inititated");
+			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACK Target not inititated");
 		}
 	}
 	else {
-		log_debug_msg(LOG_DEBUG, "ACK Target blank");
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACK Target blank");
 	}
 }
 /**

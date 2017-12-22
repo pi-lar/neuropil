@@ -68,7 +68,7 @@ int main(int argc, char **argv)
 
 	while (1)
 	{
-		ev_sleep(0.9);
+		np_time_sleep(0.9);
 		char* testdata;
 
 		uint32_t real_seq = np_receive_text("this.is.a.test", &testdata);

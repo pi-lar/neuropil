@@ -132,7 +132,7 @@ JSON_Value* np_treeval2json(np_treeval_t val);
 
 */
 NP_API_EXPORT
-void np_dump_tree2log(np_tree_t* tree);
+void np_dump_tree2log(log_type category, np_tree_t* tree);
 /**
 .. c:function:: void np_dump_tree2log()
 

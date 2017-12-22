@@ -164,7 +164,7 @@ void _np_job_queue_insert(np_job_t* new_job)
 {
     log_msg(LOG_TRACE, "start: void _np_job_queue_insert(double delay, np_job_t* new_job){");
 
-	log_debug_msg(LOG_DEBUG, "insert job into jobqueue (%p | %-70s). (property: %45s) (msg: %-36s) (target: %s)", new_job, new_job->ident,		
+	log_debug_msg(LOG_JOBS | LOG_DEBUG, "insert job into jobqueue (%p | %-70s). (property: %45s) (msg: %-36s) (target: %s)", new_job, new_job->ident,
 		(new_job->args == NULL || new_job->args->properties == NULL)? "-" : new_job->args->properties->msg_subject,
 		(new_job->args == NULL || new_job->args->msg == NULL)		? "-" : new_job->args->msg->uuid,
 		(new_job->args == NULL || new_job->args->target == NULL)	? "-" :
@@ -308,7 +308,7 @@ void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t
 
 void np_job_submit_event_periodic(double priority, double first_delay, double interval, np_callback_t callback, char* ident)
 {
-    log_debug_msg(LOG_DEBUG, "np_job_submit_event_periodic");
+    log_debug_msg(LOG_JOBS | LOG_DEBUG, "np_job_submit_event_periodic");
 
 	np_sll_t(np_callback_t, callbacks);
 	sll_init(np_callback_t, callbacks);
@@ -349,13 +349,7 @@ void _np_job_yield(const double delay)
     }
     else
     {
-		struct timeval tv_sleep;
-		if (0.0 != delay)
-		{
-			tv_sleep = dtotv(np_time_now() + delay);
-		}
-
-        // unlock another threads
+		// unlock another threads
         _LOCK_MODULE(np_jobqueue_t){
             //_np_threads_condition_signal(&__cond_empty);
 			_np_threads_condition_broadcast(&__cond_empty);
@@ -364,7 +358,7 @@ void _np_job_yield(const double delay)
         _LOCK_MODULE(np_jobqueue_t) {
             if (0.0 != delay)
             {
-                
+				struct timeval tv_sleep = dtotv(np_time_now() + delay);
                 struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
                 // wait for time x to be unlocked again
 				
@@ -457,7 +451,7 @@ void* __np_jobqueue_run()
 	// np_state_t* state = _np_state();
 	np_job_t* job_to_execute = NULL;
 
-	log_debug_msg(LOG_DEBUG, "job queue thread starting");
+	log_debug_msg(LOG_JOBS | LOG_THREADS| LOG_DEBUG, "job queue thread starting");
 
 
 	while (1)
@@ -498,7 +492,7 @@ void* __np_jobqueue_run()
 			// ignore _DEFAULT  property 
 			if (strcmp(job_to_execute->args->properties->msg_subject, _DEFAULT) != 0) 
 			{
-				log_debug_msg(LOG_DEBUG, "message handler called on subject: %50s msg: %-36s fns: %p", job_to_execute->args->properties->msg_subject, msg_uuid, (job_to_execute->processorFuncs));
+				log_debug_msg(LOG_JOBS | LOG_DEBUG, "message handler called on subject: %50s msg: %-36s fns: %p", job_to_execute->args->properties->msg_subject, msg_uuid, (job_to_execute->processorFuncs));
 			}						
 		}
 #endif
@@ -510,7 +504,7 @@ void* __np_jobqueue_run()
                 sprintf(job_to_execute->ident, "%p", (job_to_execute->processorFuncs));
             }
 
-            log_debug_msg(LOG_DEBUG, "start internal job callback function (@%f) %s",np_time_now(), job_to_execute->ident);
+            log_debug_msg(LOG_JOBS | LOG_DEBUG, "start internal job callback function (@%f) %s",np_time_now(), job_to_execute->ident);
             double n1 = np_time_now();
 #endif			
 
@@ -526,12 +520,12 @@ void* __np_jobqueue_run()
             double n2 = np_time_now() - n1;						
             _np_util_debug_statistics_t* stat = _np_util_debug_statistics_add(job_to_execute->ident, n2);
             
-            log_debug_msg(LOG_DEBUG , "internal job callback function %-45s(%"PRIu8"), duration: %10f, c:%6"PRIu32", %10f / %10f / %10f", stat->key, job_to_execute->type, n2, stat->count, stat->max, stat->avg, stat->min);
+            log_debug_msg(LOG_JOBS | LOG_DEBUG , "internal job callback function %-45s(%"PRIu8"), duration: %10f, c:%6"PRIu32", %10f / %10f / %10f", stat->key, job_to_execute->type, n2, stat->count, stat->max, stat->avg, stat->min);
 #endif
         }			
 
         if(job_to_execute->args != NULL && job_to_execute->args->msg != NULL) {
-            log_debug_msg(LOG_DEBUG, "completed handeling function for msg %s for %s",job_to_execute->args->msg ->uuid,_np_message_get_subject(job_to_execute->args->msg));
+            log_debug_msg(LOG_JOBS | LOG_DEBUG, "completed handeling function for msg %s for %s",job_to_execute->args->msg ->uuid,_np_message_get_subject(job_to_execute->args->msg));
         }
         if (job_to_execute->is_periodic == TRUE) {
             job_to_execute->exec_not_before_tstamp = np_time_now() + job_to_execute->interval;						

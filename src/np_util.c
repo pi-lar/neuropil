@@ -323,13 +323,13 @@ char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
 	return ret;
 }
 
-void np_dump_tree2log(np_tree_t* tree){
+void np_dump_tree2log(log_type category, np_tree_t* tree){
 	log_msg(LOG_TRACE, "start: void np_dump_tree2log(np_tree_t* tree){");
 	if(NULL == tree){
-		log_debug_msg(LOG_DEBUG, "NULL");
+		log_debug_msg(LOG_DEBUG | category , "NULL");
 	}else{
 		char* tmp = np_dump_tree2char(tree);
-		log_debug_msg(LOG_DEBUG, "%s", tmp);
+		log_debug_msg(LOG_DEBUG | category , "%s", tmp);
 		json_free_serialized_string(tmp);
 	}
 }

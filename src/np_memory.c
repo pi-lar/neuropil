@@ -70,7 +70,7 @@ void np_mem_init()
 
 void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 {
-	log_msg(LOG_TRACE, "start: void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj){");
+	log_msg(LOG_MEMORY | LOG_TRACE, "start: void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj){");
 	if (NULL != __np_obj_pool_ptr->free_obj)
 	{
 		__np_obj_pool_ptr->current  = __np_obj_pool_ptr->free_obj;
@@ -104,7 +104,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 	}
 	__np_obj_pool_ptr->first = __np_obj_pool_ptr->current;
 	(*obj) = __np_obj_pool_ptr->current;
-	log_debug_msg(LOG_DEBUG, "Created new object on %p; t: %d", (*obj), (*obj)->type);
+	log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Created new object on %p; t: %d", (*obj), (*obj)->type);
 }
 
 // printf("new  obj %p (type %d ptr %p ref_count %d):(next -> %p)n", np_obj->obj, np_obj->obj->type, np_obj->obj->ptr, np_obj->obj->ref_count, np_obj->obj->next );
