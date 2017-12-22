@@ -56,6 +56,7 @@ enum np_log_e
 	LOG_THREADS			= 0x0100000, /* debugging the Threads subsystem     	*/
 	LOG_MSGPROPERTY		= 0x0200000, /* debugging the Messageproperties     	*/
 	LOG_JOBS			= 0x0400000, /* debugging the Jobqueue subsystem     	*/
+	LOG_MISC			= 0x0800000, /* debugging the undefined					*/
 							 
 	LOG_GLOBAL     		= 0x8000000, /* debugging the global system				*/
 							 

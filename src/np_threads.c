@@ -646,20 +646,44 @@ void np_start_job_queue(uint8_t pool_size)
 
 	CHECK_MALLOC(_np_state()->thread_ids);
 
-	np_bool create_own_event_thread = FALSE;
+	np_bool create_own_event_in_thread = FALSE;
 	if (pool_size >= 2) {
 		pool_size--;
-		create_own_event_thread = TRUE;
+		create_own_event_in_thread = TRUE;
+	}
+	np_bool create_own_event_out_thread = FALSE;
+	if (pool_size >= 2) {
+		pool_size--;
+		create_own_event_out_thread = TRUE;
+	}
+	np_bool create_own_event_io_thread = FALSE;
+	if (pool_size >= 2) {
+		pool_size--;
+		create_own_event_io_thread = TRUE;
 	}
 
 	__np_createThreadPool(pool_size);
 	//start jobs
 
-	if (create_own_event_thread) {
-		__np_createThread(pool_size, _np_event_run);
+	if (create_own_event_in_thread) {
+		__np_createThread(pool_size, _np_event_in_run);
 	}
 	else {
-		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC,				_np_events_read, "_np_events_read");
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
+	}
+
+	if (create_own_event_out_thread) {
+		__np_createThread(pool_size, _np_event_out_run);
+	}
+	else {
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
+	}
+
+	if (create_own_event_io_thread) {
+		__np_createThread(pool_size, _np_event_io_run);
+	}
+	else {
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
 	}
 
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_SEND_PINGS_SEC,					_np_glia_send_pings, "_np_glia_send_pings");

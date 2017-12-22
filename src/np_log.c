@@ -131,7 +131,7 @@ void log_rotation()
 		 else
 		 {
 			 /*
-			 EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+			 EV_P = _np_event_get_loop_io();
 			 ev_io_stop(EV_A_ &logger->watcher);
 			 ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
 			 ev_io_start(EV_A_ &logger->watcher);
@@ -341,7 +341,7 @@ void np_log_destroy()
 	log_msg(LOG_TRACE, "start: void np_log_destroy(){");
 	logger->level=LOG_NONE;
 
-	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+	EV_P = _np_event_get_loop_io();
 	ev_io_stop(EV_A_ &logger->watcher);
 
 	_np_log_fflush(TRUE);

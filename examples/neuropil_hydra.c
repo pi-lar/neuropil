@@ -184,7 +184,7 @@ int main(int argc, char **argv)
 
 			   \code
 			 */
-			np_start_job_queue(10);
+			np_start_job_queue(no_threads+3);
 
 			__np_example_helper_run_info_loop();
 			/**

@@ -212,17 +212,17 @@ void _np_in_received(np_jobargs_t* args)
 					// check time-to-live for message and expiry if neccessary
 					if (TRUE == _np_message_is_expired(msg_in))
 					{
-						log_msg(LOG_MESSAGE | LOG_INFO, "message ttl expired, dropping message (part) %s / %s",
+						log_msg(LOG_ROUTING | LOG_INFO, "message ttl expired, dropping message (part) %s / %s",
 							msg_in->uuid, np_treeval_to_str(msg_subject, NULL));
 					}
 					else {
-						log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) message ttl not expired", msg_in->uuid);
+						log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) message ttl not expired", msg_in->uuid);
 
 						np_dhkey_t target_dhkey;
 						_np_dhkey_from_str( np_treeval_to_str(msg_to, NULL), &target_dhkey);
 
 						target_key = _np_keycache_find_or_create(target_dhkey);
-						log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "target of msg is %s", _np_key_as_str(target_key));
+						log_debug_msg(LOG_ROUTING | LOG_DEBUG, "target of msg is %s", _np_key_as_str(target_key));
 
 						// check if inbound subject handler exists
 						np_msgproperty_t* handler = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
@@ -881,7 +881,7 @@ void __np_in_ack_handle(np_message_t * msg)
 	CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_ACKUUID, ack_uuid);
 
 	/* just an acknowledgement of own messages send out earlier */
-	_LOCK_ACCESS(&my_network->send_data_lock)
+	_LOCK_ACCESS(&my_network->waiting_lock)
 	{
 		np_tree_elem_t *jrb_node = np_tree_find_str(my_network->waiting,  np_treeval_to_str(ack_uuid, NULL));
 		if (jrb_node != NULL)

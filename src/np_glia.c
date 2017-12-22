@@ -408,7 +408,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 	np_tree_elem_t *jrb_ack_node = NULL;
 
 	// wake up and check for acknowledged messages
-	_LOCK_ACCESS(&ng->send_data_lock)
+	_LOCK_ACCESS(&ng->waiting_lock)
 	{
 		np_tree_elem_t* iter = RB_MIN(np_tree_s, ng->waiting);
 		while (iter != NULL)
@@ -427,6 +427,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
 				free( jrb_ack_node->key.value.s);
 				free(jrb_ack_node);
+				break;
 			}
 			else if (np_time_now() > ackentry->expires_at)
 			{
@@ -451,9 +452,12 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
 				free(jrb_ack_node->key.value.s);
 				free(jrb_ack_node);
+				break;
 			}
 		}
+
 	}
+
 	np_unref_obj(np_key_t, my_key,"np_waitref_obj");
 }
 

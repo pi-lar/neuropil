@@ -135,7 +135,7 @@ void _np_out(np_jobargs_t* args)
 			{
 				uuid = msg_out->uuid;
 				np_bool skip = FALSE;
-				_LOCK_ACCESS(&my_network->send_data_lock)
+				_LOCK_ACCESS(&my_network->waiting_lock)
 				{
 					// first find the uuid
 					np_tree_elem_t* uuid_ele = np_tree_find_str(my_network->waiting, uuid);
@@ -252,7 +252,7 @@ void _np_out(np_jobargs_t* args)
 				{
 					uuid = np_treeval_to_str(np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val, NULL);
 
-					_LOCK_ACCESS(&my_network->send_data_lock)
+					_LOCK_ACCESS(&my_network->waiting_lock)
 					{
 						/* get/set sequence number to initialize acknowledgement indicator correctly */
 						np_ackentry_t *ackentry = NULL;
@@ -503,21 +503,23 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 	if (_np_route_my_key_has_connection()) {
 
 		double now = np_time_now();
+
 		msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 
 		if ((NULL == msg_token) ||
 			( /* = lifetime */ (now - msg_token->issued_at) >=
 			/* random time = */ (args->properties->token_min_ttl)))
 		{
-			log_msg(LOG_INFO | LOG_AAATOKEN, "---------- refresh for subject token: %s ----------", args->properties->msg_subject);
+			log_msg(LOG_INFO | LOG_AAATOKEN, "--- refresh for subject token: %25s --------", args->properties->msg_subject);
 			log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 			np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
 			np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
 			_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
 			msg_token = msg_token_new;
 			ref_replace_reason(np_aaatoken_t, msg_token, ref_obj_creation, "_np_aaatoken_get_local_mx")
+			log_debug_msg(LOG_DEBUG| LOG_AAATOKEN, "--- done refresh for subject token: %25s new token has uuid %s", args->properties->msg_subject, msg_token_new->uuid);
 		}
-
+		
 		// args->target == Key of subject
 
 		if (INBOUND == (args->properties->mode_type & INBOUND))
