@@ -636,9 +636,6 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		memset(ipstr,'\0', sizeof(char)*CHAR_LENGTH_IP);
 		memset(port, '\0', sizeof(char)*CHAR_LENGTH_PORT);
 		
-
-		//data = calloc(1, MSG_CHUNK_SIZE_1024*sizeof(char*));
-		//CHECK_MALLOC(data);
 		data = np_memory_new(np_memory_types_BLOB_1024);
 
 		int16_t in_msg_len = 0;

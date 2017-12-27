@@ -27,12 +27,13 @@ extern "C" {
 		uint8_t type,
 		size_t size_per_item,
 		uint32_t count_of_items_per_block,
+		uint32_t min_count_of_items,
 		np_memory_on_new on_new,
 		np_memory_on_free on_free,
 		np_memory_on_refresh_space on_refresh_space
 	)NP_API_EXPORT;
-	NP_API_EXPORT
 
+	NP_API_EXPORT
 		void* np_memory_new(uint8_t  type);
 	NP_API_EXPORT
 		void np_memory_free(void* item);
@@ -44,7 +45,7 @@ extern "C" {
 		void np_memory_randomize_space(uint8_t type, size_t size, void* data);
 
 	NP_API_INTERN
-	void _np_memory_job_refresh_spaces(NP_UNUSED np_jobargs_t* args);
+	void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args);
 #ifdef __cplusplus
 }
 #endif

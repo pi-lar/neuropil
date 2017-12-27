@@ -23,11 +23,6 @@
 //#include "np_types.h"
 #include "np_settings.h"
 
-
-
-NP_SLL_GENERATE_PROTOTYPES(char);
-NP_SLL_GENERATE_IMPLEMENTATION(char);
-
 typedef struct np_log_s
 {
 	char filename_ext[16];
@@ -82,70 +77,72 @@ void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int
 
 void log_rotation()
 {
-	 pthread_mutex_lock(&__log_mutex);
-	 if(logger->log_size >= LOG_ROTATE_AFTER_BYTES)
-	 {
-		 logger->log_size = 0;
-		 logger->log_count += 1;
+	
+	pthread_mutex_lock(&__log_mutex);
+	if(logger->log_size >= LOG_ROTATE_AFTER_BYTES)
+	{
+		logger->log_size = 0;
+		logger->log_count += 1;
 
-		 int log_id = (logger->log_count % LOG_ROTATE_COUNT) ;
-		 if(log_id==0){
-			 log_id = LOG_ROTATE_COUNT;
-		 }
+		int log_id = (logger->log_count % LOG_ROTATE_COUNT) ;
+		if(log_id==0){
+			log_id = LOG_ROTATE_COUNT;
+		}
 
-		 char* old_filename = strdup(logger->filename);
+		char* old_filename = strdup(logger->filename);
 
-		 // create new filename
-		 if(logger->log_rotate){
-			 snprintf (logger->filename, 255, "%s_%d%s", logger->original_filename, log_id, logger->filename_ext );
-		 }else{
-			 snprintf (logger->filename, 255, "%s%s", logger->original_filename, logger->filename_ext );
-		 }
+		// create new filename
+		if(logger->log_rotate){
+			snprintf (logger->filename, 255, "%s_%d%s", logger->original_filename, log_id, logger->filename_ext );
+		}else{
+			snprintf (logger->filename, 255, "%s%s", logger->original_filename, logger->filename_ext );
+		}
 
 
-		 // Closing old file
-		 if(logger->log_count > 1) {
-			 log_msg(LOG_INFO, "Continuing log in file %s now.",logger->filename);
-			 _np_log_fflush(TRUE);
-			 if(close(logger->fp) != 0) {
-				fprintf(stderr,"Could not close old logfile %s. Error: %s (%d)", old_filename, strerror(errno), errno);
-				fflush(NULL);
-			 }
-		 }
+		// Closing old file
+		if(logger->log_count > 1) {
+			log_msg(LOG_INFO, "Continuing log in file %s now.",logger->filename);
+			_np_log_fflush(TRUE);
+			if(close(logger->fp) != 0) {
+			fprintf(stderr,"Could not close old logfile %s. Error: %s (%d)", old_filename, strerror(errno), errno);
+			fflush(NULL);
+			}
+		}
 
-		 // setting up new file
-		 if(logger->log_rotate){
-			 unlink(logger->filename);
-		 }
-		 logger->fp = open(logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
+		// setting up new file
+		if(logger->log_rotate){
+			unlink(logger->filename);
+		}
+		logger->fp = open(logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
 
-		 if(logger->fp < 0) {
-			fprintf(stderr,"Could not create logfile at %s. Error: %s (%d)",logger->filename, strerror(errno), errno);
-		    fprintf(stderr, "Log will no longer continue");
-		    fflush(NULL);
+		if(logger->fp < 0) {
+		fprintf(stderr,"Could not create logfile at %s. Error: %s (%d)",logger->filename, strerror(errno), errno);
+		fprintf(stderr, "Log will no longer continue");
+		fflush(NULL);
 
-		    // discontinue new log msgs
-		    free(logger);
-		    logger = NULL;
-		 }
-		 else
-		 {
-			 /*
-			 EV_P = _np_event_get_loop_io();
-			 ev_io_stop(EV_A_ &logger->watcher);
-			 ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
-			 ev_io_start(EV_A_ &logger->watcher);
-			 */
-		 }
+		// discontinue new log msgs
+		free(logger);
+		logger = NULL;
+		}
+		else
+		{
+			/*
+			EV_P = _np_event_get_loop_io();
+			ev_io_stop(EV_A_ &logger->watcher);
+			ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
+			ev_io_start(EV_A_ &logger->watcher);
+			*/
+		}
 
-		 if (logger->log_count > LOG_ROTATE_COUNT) {
-			 log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
-		 }
+		if (logger->log_count > LOG_ROTATE_COUNT) {
+			log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
+		}
 
-		 _np_log_fflush(TRUE);
-		 free(old_filename);
-	 }
-	 pthread_mutex_unlock(&__log_mutex);
+		_np_log_fflush(TRUE);
+		free(old_filename);
+	}
+	pthread_mutex_unlock(&__log_mutex);
+	
 }
 
 void np_log_message(uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
@@ -206,7 +203,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		}
 #ifdef DEBUG
 		else {
-			_np_log_fflush(LOG_FORCE_INSTANT_WRITE);
+			_np_log_fflush(TRUE);
 		}
 #endif // DEBUG
 		
@@ -269,9 +266,9 @@ void _np_log_fflush(np_bool force)
 					 break;
 				}
 				bytes_witten += current_bytes_witten;
-			}			
+			}	
 
-			if(logger->log_rotate == TRUE)
+			if (logger->log_rotate == TRUE) 
 				log_rotation();
 
 			if( bytes_witten  == strlen(entry))
@@ -335,6 +332,7 @@ void np_log_init(const char* filename, uint32_t level)
 	sll_init(char_ptr, logger->logentries_l);
 
 	log_rotation();
+
 
 	log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", logger, logger->filename, logger->level);
 
