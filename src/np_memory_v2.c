@@ -84,7 +84,7 @@ void np_memory_init() {
 		np_memory_containers[i] = NULL;
 	}
 	np_memory_register_type(np_memory_types_BLOB_1024, 1024, 4, 4, NULL, NULL, np_memory_clear_space);
-	np_memory_register_type(np_memory_types_BLOB_984_RANDOMIZED, 984, 4, 4, NULL, NULL, np_memory_randomize_space);
+	np_memory_register_type(np_memory_types_BLOB_984_RANDOMIZED, 984, 4, 200, NULL, NULL, np_memory_randomize_space);
 }
 
 void __np_memory_create_block(np_memory_container_t* container) {
@@ -249,7 +249,7 @@ void* np_memory_new(uint8_t type) {
 				{
 					// try to get item in block space
 					if (_np_threads_mutex_trylock(&next_config->access_lock) == 0) {
-						if (next_config->in_use == FALSE) {
+						if (next_config->in_use == FALSE && next_config->needs_refresh == FALSE) {
 							// take free space
 							found = TRUE;
 							next_config->in_use = TRUE;
@@ -322,7 +322,9 @@ void np_memory_free(void* item) {
 			config->in_use = FALSE;
 			if (container->on_free != NULL)
 				container->on_free(container->type, container->size_per_item, item);
-			config->needs_refresh = TRUE;
+
+			if(container->on_refresh_space != NULL)
+				config->needs_refresh = TRUE;
 		}
 
 		_LOCK_ACCESS(&container->attr_lock) {
@@ -347,7 +349,8 @@ void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 	for (uint8_t i = 0; i < np_memory_types_END_TYPES; i++) {
 		np_memory_container_t* container = np_memory_containers[i];
 		if (container != NULL && container->on_refresh_space != NULL) {
-			_LOCK_ACCESS(&container->blocks_lock) {
+			//_LOCK_ACCESS(&container->blocks_lock) 
+			{
 				//TODO: remove unused/unnecessary blocks
 
 				// refresh items

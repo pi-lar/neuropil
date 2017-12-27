@@ -240,7 +240,10 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset check for table started");
 
 	// TODO: do a dynamic selection of keys
-	np_sll_t(np_key_ptr, keys) = _np_keycache_get_all();
+	np_sll_t(np_key_ptr, routing_keys) = _np_route_get_table();
+	np_sll_t(np_key_ptr, neighbour_keys) = _np_route_neighbors();
+
+	np_sll_t(np_key_ptr, keys) = sll_merge(np_key_ptr, neighbour_keys, routing_keys, _np_key_cmp);
 
 	sll_iterator(np_key_ptr) iter = sll_first(keys);
 
@@ -257,9 +260,11 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 		}
 		sll_next(iter);
 	}
-
-	np_unref_list(keys, "_np_keycache_get_all");
-	sll_free(np_key_ptr, keys);
+	sll_free(np_key_ptr, keys); // no ref 
+	np_unref_list(routing_keys, "_np_route_get_table");
+	sll_free(np_key_ptr, routing_keys);
+	np_unref_list(neighbour_keys, "_np_route_neighbors");
+	sll_free(np_key_ptr, neighbour_keys);
 }
 
 void _np_glia_log_flush(NP_UNUSED np_jobargs_t* args) {

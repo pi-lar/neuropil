@@ -53,7 +53,7 @@ env.Append(CCFLAGS = ['-std=c99'])
 env.Append(LDFLAGS = ['-std=c99'])
 
 # add release compilation options
-release_flags = ['-O3',]
+release_flags = ['-O3','-DRELEASE']
 if int(release):
     env.Append(CCFLAGS = release_flags)
 
@@ -61,7 +61,9 @@ if int(release):
 debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O0']
 if int(debug):
     env.Append(CCFLAGS = debug_flags)
-    env.Append(CCFLAGS = ['-DDEBUG'])
+if int(debug) <= 1:
+	env.Append(CCFLAGS = ['-DDEBUG'])
+
 if int(console_log):
     env.Append(CCFLAGS = ['-DCONSOLE_LOG'])
 
