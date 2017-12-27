@@ -272,7 +272,7 @@ struct np_msgproperty_s
 	// The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
 	uint32_t token_max_ttl;
 	// The token created for this msgproperty will guaranteed live for token_min_ttl seconds
-	uint32_t token_min_ttl;
+	uint32_t token_min_ttl;	
 
 } NP_API_EXPORT;
 

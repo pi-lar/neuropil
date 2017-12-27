@@ -42,6 +42,7 @@
 #include "np_message.h"
 #include "np_messagepart.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_node.h"
 #include "np_threads.h"
 #include "np_event.h"
@@ -349,7 +350,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 											break;
 										}
 										else {
-											unsigned char* enc_buffer = malloc(MSG_CHUNK_SIZE_1024);
+											unsigned char* enc_buffer = np_memory_new(np_memory_types_BLOB_1024);//malloc (MSG_CHUNK_SIZE_1024);
 											CHECK_MALLOC(enc_buffer);
 
 											uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
@@ -367,7 +368,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 													_np_network_start(node_key->network);
 												}
 												else {
-													free(enc_buffer);
+													np_memory_free(enc_buffer);
 												}
 											}
 
@@ -443,7 +444,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 					if(iter > 1){
 						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "send delay %f", 0.001 * iter - 0.001);
 					}
-					free(data_to_send);
+					np_memory_free(data_to_send);
 				}
 			}
 
@@ -555,7 +556,9 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 					_LOCK_ACCESS (&alias_key->network->send_data_lock) {
 						alias_key->network->socket = client_fd;
 						alias_key->network->socket_type = ng->socket_type;
-						alias_key->network->waiting = np_tree_create();
+						_LOCK_ACCESS(&alias_key->network->waiting_lock) {
+							alias_key->network->waiting = np_tree_create();
+						}
 						alias_key->network->seqend = 0LU;
 
 						// it could be a passive socket
@@ -633,9 +636,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		memset(ipstr,'\0', sizeof(char)*CHAR_LENGTH_IP);
 		memset(port, '\0', sizeof(char)*CHAR_LENGTH_PORT);
 		
-
-		data = calloc(1, MSG_CHUNK_SIZE_1024 * sizeof(char));
-		CHECK_MALLOC(data);
+		data = np_memory_new(np_memory_types_BLOB_1024);
 
 		int16_t in_msg_len = 0;
 
@@ -643,7 +644,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		double timeout_start = np_time_now();
 		do {
 			if ((ng->socket_type & TCP) == TCP) {
-				last_recv_result = recv(ng->socket, data + in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
+				last_recv_result = recv(ng->socket, (data) + in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
 				if (0 != getpeername(ng->socket, (struct sockaddr*) &from, &fromlen))
 				{
 					log_msg(LOG_WARN, "could not receive socket peer: %s (%d)",
@@ -688,8 +689,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
 					snprintf(port, CHAR_LENGTH_PORT-1, "%d", ntohs(s->sin6_port));
 					inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
-				}
-				
+				}				
 
 				memcpy(ng->ip,	 ipstr, sizeof(char) * strnlen(ipstr, CHAR_LENGTH_IP-1));
 				memcpy(ng->port, port,  sizeof(char) * strnlen(port, CHAR_LENGTH_PORT-1));
@@ -699,7 +699,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			{
 				if(ng_tcp_host != NULL){
 					// tcp disconnect
-					log_msg(LOG_ERROR, "received disconnect from: %s:%s", ipstr, port);
+					log_msg(LOG_WARN, "received disconnect from: %s:%s", ipstr, port);
 					// TODO handle cleanup of target_node structures ?
 					// maybe / probably the target_node received already a disjoin message before
 					//TODO: prüfen ob hier wirklich der host geschlossen werden muss
@@ -708,7 +708,10 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 
 					log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 				}
-				free(data);
+				else {
+					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received empty package from: %s:%s", ipstr, port);
+				}
+				np_memory_free(data);
 				continue;
 			}
 
@@ -717,7 +720,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%"PRIi16")", in_msg_len);
 				// job_submit_event(state->jobq, 0.0, _np_network_read);
 				log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
-				free(data);
+				np_memory_free(data);
 				continue;
 			}
 
@@ -745,7 +748,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
 		}
 		else {
-			free(data);
+			np_memory_free(data);
 		}
 	} while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result > 0); // there is maybe more then one msg in our socket pipeline
 
@@ -776,10 +779,22 @@ void _np_network_stop(np_network_t* network, np_bool force) {
 		_LOCK_ACCESS(&network->send_data_lock){
 			if (network->is_running == TRUE && (force == TRUE || 0 == sll_size(network->out_events) )){
 				log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p", network);				
-				_np_suspend_event_loop();
-				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-				ev_io_stop(EV_A_ &network->watcher);
-				_np_resume_event_loop();
+				
+				EV_P;
+				if ((network->type & np_network_type_client) == np_network_type_client) {
+					_np_suspend_event_loop_out();
+					loop = _np_event_get_loop_out();
+					ev_io_stop(EV_A_ &network->watcher);
+					_np_resume_event_loop_out();
+				}
+
+				if ((network->type & np_network_type_server) == np_network_type_server) {
+					_np_suspend_event_loop_in();
+					loop = _np_event_get_loop_in();
+					ev_io_stop(EV_A_ &network->watcher);
+					_np_resume_event_loop_in();
+				}			
+				
 				network->is_running = FALSE;
 			}
 		}
@@ -801,7 +816,8 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 		old_network = new_target->network;
 	}
 
-	_np_suspend_event_loop();
+	_np_suspend_event_loop_in();
+	_np_suspend_event_loop_out();
 	_LOCK_ACCESS(&old_target->network->send_data_lock) {
 		// _np_network_stop(old_target->network); 			// stop network
 		new_target->network = old_target->network; 		// remap
@@ -809,7 +825,8 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 		old_target->network = NULL;						// remove from old structure
 		// _np_network_start(new_target->network); 		// restart network
 	}
-	_np_resume_event_loop();
+	_np_resume_event_loop_out();
+	_np_resume_event_loop_in();
 
 	// remove old network referrence (if any)
 	if (old_network != NULL) {
@@ -829,10 +846,22 @@ void _np_network_start(np_network_t* network){
 		_LOCK_ACCESS(&network->send_data_lock){
 			if (network->is_running == FALSE && ((network->type & np_network_type_server) == np_network_type_server || sll_size(network->out_events) > 0)) {
 				log_msg(LOG_NETWORK | LOG_INFO, "starting network %p", network);
-				_np_suspend_event_loop();
-				EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-				ev_io_start(EV_A_ &network->watcher);
-				_np_resume_event_loop();
+				
+				EV_P;
+				if ((network->type & np_network_type_client) == np_network_type_client) {
+					_np_suspend_event_loop_out();
+					loop = _np_event_get_loop_out();
+					ev_io_start(EV_A_ &network->watcher);
+					_np_resume_event_loop_out();
+				}
+
+				if ((network->type & np_network_type_server) == np_network_type_server) {
+					_np_suspend_event_loop_in();
+					loop = _np_event_get_loop_in();
+					ev_io_start(EV_A_ &network->watcher);
+					_np_resume_event_loop_in();
+				}
+				
 				network->is_running = TRUE;
 			}
 		}
@@ -856,8 +885,13 @@ void _np_network_t_del(void* nw)
 			np_unref_obj(np_key_t, old_key,ref_network_watcher);
 			network->watcher.data = NULL;
 
-			if (NULL != network->waiting)
-				np_tree_free(network->waiting);			
+			_LOCK_ACCESS(&network->waiting_lock) {
+				if (NULL != network->waiting) {
+					np_tree_free(network->waiting);
+					network->waiting = NULL;
+				}
+			}
+			_np_threads_mutex_destroy(&network->waiting_lock);
 
 			if (NULL != network->out_events)
 			{
@@ -865,7 +899,7 @@ void _np_network_t_del(void* nw)
 				{
 					do {
 						void* tmp = sll_head(void_ptr, network->out_events);
-						free(tmp);
+						np_memory_free(tmp);
 					} while (0 < sll_size(network->out_events));
 				}
 				sll_free(void_ptr, network->out_events);
@@ -876,7 +910,8 @@ void _np_network_t_del(void* nw)
 			network->initialized = FALSE;
 		}
 		// finally destroy the mutex again
-		_np_threads_mutex_destroy (&network->send_data_lock);
+		_np_threads_mutex_destroy(&network->send_data_lock);
+		
 
 	}
 }
@@ -894,7 +929,8 @@ void _np_network_t_new(void* nw)
 	ng->watcher.data = NULL;
 	ng->type = np_network_type_none;
 
-	int network_mutex_init = _np_threads_mutex_init (&ng->send_data_lock,"network send_data_lock");
+	_np_threads_mutex_init(&ng->send_data_lock, "network send_data_lock");
+	_np_threads_mutex_init(&ng->waiting_lock, "network waiting_lock");
 	
 
 }
@@ -932,7 +968,9 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			ng->type |= np_network_type_server;
 
 			// create own retransmit structures
-			ng->waiting = np_tree_create();
+			_LOCK_ACCESS(&ng->waiting_lock) {
+				ng->waiting = np_tree_create();
+			}
 			// own sequence number counter
 			ng->seqend = 0LU;
 		}
@@ -992,6 +1030,9 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			{
 				ev_io_init(&ng->watcher, _np_network_read, ng->socket, EV_READ);
 			}
+			else {
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "Dont know how to setup network of type %"PRIu8,type);
+			}
 			_np_network_start(ng);
 
 		}
@@ -1038,11 +1079,14 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 		{
 			// not here and now, but after the handshake
 		}
-		else
+		else if(TCP == (type & TCP) || UDP == (type & UDP))
 		{
 			ev_io_init(
 					&ng->watcher, _np_network_send_from_events,
 					ng->socket, EV_WRITE);
+		}
+		else {
+			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "Dont know how to setup network of type %"PRIu8, type);
 		}
 
 		// UDP note: not using a connected socket for sending messages to a different target_node
@@ -1059,7 +1103,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 
 			log_debug_msg(LOG_NETWORK | LOG_DEBUG,"TRY CONNECT");
 			if(connection_status != 0){
-				ev_sleep(0.1);
+				np_time_sleep(0.1);
 			}
 		} while( 0 != connection_status && retry_connect-- > 0);
 

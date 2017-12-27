@@ -361,7 +361,7 @@ void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 void _np_node_update_stat (np_node_t* node, np_bool responded)
 {
 	float total = 0;
-	np_ref_obj(np_node_t, node,"usage");
+	np_ref_obj(np_node_t, node, "usage");
 	 {
 		_LOCK_ACCESS(&node->lock) {
 

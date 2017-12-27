@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
 	uint32_t count_of_routes = 0;
 
 	while (TRUE) {
-		ev_sleep(0.1);
+		np_time_sleep(0.1);
 
 		 double now = np_time_now();
 				// invoke a ping message every 10 seconds

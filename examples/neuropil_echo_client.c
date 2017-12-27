@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
 		while (timeout > 0
 				&& FALSE == status->my_node_key->node->joined_network) {
 			// wait for join acceptance
-			ev_sleep(0.1);
+			np_time_sleep(0.1);
 			timeout--;
 		}
 
@@ -184,7 +184,7 @@ int main(int argc, char **argv) {
 			np_send_text("echo", s_out, 0, NULL);
 			free(s_out);
 		}
-		ev_sleep(0.1);
+		np_time_sleep(0.1);
 	}
 	/** \endcode */
 }

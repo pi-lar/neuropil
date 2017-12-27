@@ -28,6 +28,7 @@
 #include "np_log.h"
 #include "np_settings.h"
 #include "np_constants.h"
+#include "np_memory_v2.h"
 
 
 #include "np_jobqueue.h"
@@ -69,6 +70,9 @@ np_bool _np_threads_init()
 	return ret;
 }
 
+np_bool np_threads_is_init() {
+	return _np_threads_mutexes_initiated;
+}
 int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locking module mutex %d.", module_id);
@@ -320,7 +324,7 @@ int _np_threads_unlock_module(np_module_lock_type module_id) {
 }
 
 /** pthread mutex platform wrapper functions following this line **/
-int _np_threads_mutex_init(np_mutex_t* mutex,char* desc)
+int _np_threads_mutex_init(np_mutex_t* mutex, char* desc)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_init(np_mutex_t* mutex){");
 	int ret = 0;
@@ -341,15 +345,15 @@ int _np_threads_mutex_init(np_mutex_t* mutex,char* desc)
 
 int _np_threads_mutex_lock(np_mutex_t* mutex) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
-	int ret =  1;
+	int ret = 1;
 	double start = np_time_now();
 	double diff = 0;
-	while(ret != 0) {
+	while (ret != 0) {
 		// TODO: review lock warn system
 		// ret = _np_threads_mutex_timedlock(mutex, min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
 		ret = pthread_mutex_lock(&mutex->lock);
 
-		
+
 #ifdef DEBUG
 		diff = np_time_now() - start;
 		if (diff > MUTEX_WAIT_MAX_SEC) {
@@ -362,13 +366,24 @@ int _np_threads_mutex_lock(np_mutex_t* mutex) {
 #endif
 
 
-		if(ret != ETIMEDOUT && ret != 0) {
+		if (ret != ETIMEDOUT && ret != 0) {
 			log_msg(LOG_ERROR, "error at acquiring mutex. Error: %s (%d)", strerror(ret), ret);
 			abort();
 		}
 	}
 	return ret;
 }
+
+
+int _np_threads_mutex_trylock(np_mutex_t* mutex) {
+	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
+	
+	int ret = pthread_mutex_trylock(&mutex->lock);
+
+	return ret;
+}
+
+
 
 int _np_threads_mutex_unlock(np_mutex_t* mutex)
 {
@@ -623,6 +638,10 @@ void __np_createThreadPool(uint8_t pool_size) {
 void np_start_job_queue(uint8_t pool_size)
 {
 	log_msg(LOG_TRACE, "start: void np_start_job_queue(uint8_t pool_size){");
+
+	log_debug_msg(LOG_THREADS | LOG_DEBUG, "starting neuropil with %"PRIu8" threads", pool_size);
+
+
 	if (pthread_attr_init(&_np_state()->attr) != 0)
 	{
 		log_msg(LOG_ERROR, "pthread_attr_init: %s", strerror(errno));
@@ -646,29 +665,54 @@ void np_start_job_queue(uint8_t pool_size)
 
 	CHECK_MALLOC(_np_state()->thread_ids);
 
-	np_bool create_own_event_thread = FALSE;
+	np_bool create_own_event_in_thread = FALSE;
 	if (pool_size >= 2) {
 		pool_size--;
-		create_own_event_thread = TRUE;
+		create_own_event_in_thread = TRUE;
+	}
+	np_bool create_own_event_out_thread = FALSE;
+	if (pool_size >= 2) {
+		pool_size--;
+		create_own_event_out_thread = TRUE;
+	}
+	np_bool create_own_event_io_thread = FALSE;
+	if (pool_size >= 2) {
+		pool_size--;
+		create_own_event_io_thread = TRUE;
 	}
 
 	__np_createThreadPool(pool_size);
 	//start jobs
 
-	if (create_own_event_thread) {
-		__np_createThread(pool_size, _np_event_run);
+	if (create_own_event_in_thread) {
+		__np_createThread(pool_size, _np_event_in_run);
 	}
 	else {
-		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC,				_np_events_read, "_np_events_read");
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
 	}
 
+	
+	if (create_own_event_out_thread) {
+		__np_createThread(pool_size, _np_event_out_run);
+	}
+	else {
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
+	}
+	if (create_own_event_io_thread) {
+		__np_createThread(pool_size, _np_event_io_run);
+	}
+	else {
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
+	}
+	
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_SEND_PINGS_SEC,					_np_glia_send_pings, "_np_glia_send_pings");
 
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC,	_np_event_cleanup_msgpart_cache, "_np_event_cleanup_msgpart_cache");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_SEND_PIGGY_REQUESTS_SEC,			_np_glia_send_piggy_requests, "_np_glia_send_piggy_requests");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_RETRANSMIT_MSG_TOKENS_SEC,			_np_retransmit_message_tokens_jobexec, "_np_retransmit_message_tokens_jobexec");
 
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_ACKENTRY_CLEANUP_INTERVAL_SEC,		_np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_MEMORY_REFRESH_INTERVAL_SEC, _np_memory_job_memory_management, "_np_memory_job_memory_management");
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_ACKENTRY_CLEANUP_INTERVAL_SEC, _np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC,		_np_cleanup_keycache_jobexec, "_np_cleanup_keycache_jobexec");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_CHECK_ROUTES_SEC,					_np_glia_check_neighbours, "_np_glia_check_neighbours");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_SEND_UPDATE_MSGS_SEC,				_np_glia_check_routes, "_np_glia_check_routes");
@@ -683,7 +727,8 @@ void np_start_job_queue(uint8_t pool_size)
 	_LOCK_MODULE(np_threads_t){
 		_np_threads_threads_initiated = TRUE;
 	}
-	log_debug_msg(LOG_THREADS | LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
+	log_debug_msg(LOG_THREADS | LOG_DEBUG, "jobqueue threads started: %"PRIu8, pool_size);
+	log_debug_msg(LOG_INFO, "%s", NEUROPIL_RELEASE);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
 	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 

@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
 	/** \endcode */
 
 	while (TRUE) {
-		ev_sleep(0.1);
+		np_time_sleep(0.1);
 	}
 }
 

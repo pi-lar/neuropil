@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 				}
 				else
 				{
-					ev_sleep(3.1415);
+					np_time_sleep(3.1415);
 
 					char* data = shmat(shmid, (void *)0, SHM_RDONLY);
 
@@ -164,7 +164,7 @@ int main(int argc, char **argv)
 					int timeout = 200;
 					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {
 						// wait for join acceptance
-						ev_sleep(0.1);
+						np_time_sleep(0.1);
 						timeout--;
 					}
 					if(TRUE == child_status->my_node_key->node->joined_network ){
@@ -178,7 +178,7 @@ int main(int argc, char **argv)
 
 				while (1)
 				{
-					ev_sleep(0.1);
+					np_time_sleep(0.1);
 				}
 				// escape from the parent loop
 				break;
@@ -190,7 +190,7 @@ int main(int argc, char **argv)
 				array_of_pids[sll_size(list_of_childs)] = current_pid;
 				sll_append(int, list_of_childs, array_of_pids[sll_size(list_of_childs)]);
 			}
-			ev_sleep(3.1415);
+			np_time_sleep(3.1415);
 
 		} else {
 
@@ -224,7 +224,7 @@ int main(int argc, char **argv)
 			{
 				// fprintf(stdout, "all (%d) child processes running\n", sll_size(list_of_childs));
 			}
-			ev_sleep(3.1415);
+			np_time_sleep(3.1415);
 		}
 	}
 	fprintf(stdout, "stopped creating child processes\n");

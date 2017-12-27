@@ -103,7 +103,8 @@ struct np_thread_s
 
 NP_API_INTERN
 np_bool _np_threads_init();
-
+NP_API_INTERN
+np_bool np_threads_is_init();
 NP_API_INTERN
 int _np_threads_lock_module(np_module_lock_type module_id, char* where);
 NP_API_INTERN
@@ -126,6 +127,8 @@ NP_API_INTERN
 int _np_threads_mutex_init(np_mutex_t* mutex,char* desc);
 NP_API_INTERN
 int _np_threads_mutex_lock(np_mutex_t* mutex);
+NP_API_INTERN
+int _np_threads_mutex_trylock(np_mutex_t* mutex);
 NP_API_INTERN
 int _np_threads_mutex_unlock(np_mutex_t* mutex);
 NP_API_INTERN

@@ -14,15 +14,18 @@ extern "C" {
 #endif
 	
 /*
-	Possible compile switches:
-	 - NP_MEMORY_CHECK_MEMORY		(NP_THREADS_CHECK_THREADING should be disabled if this switch is enabled)
-	 - NP_THREADS_CHECK_THREADING	(NP_MEMORY_CHECK_MEMORY should be disabled if this switch is enabled)
-	 - DEBUG_CALLBACKS
-	 - x64 (enable 64 Bit support)	(is automaticly set by SConstruct file)
+	Additional compile switches:
+	 - NP_MEMORY_CHECK_MEMORY			(disables the memory blocks function (free actions cannot be executed))
+	 - NP_MEMORY_CHECK_MEMORY_REFFING	(NP_THREADS_CHECK_THREADING should be disabled if this switch is enabled)
+	 - NP_THREADS_CHECK_THREADING		(NP_MEMORY_CHECK_MEMORY_REFFING should be disabled if this switch is enabled)
+	 - DEBUG_CALLBACKS					(Allows the job system to collect statistics for job callbacks)
+	 - x64								(enable 64 Bit support)	(is automaticly set by SConstruct file)
+	 - CONSOLE_LOG						(prints the log in stdout)
 */
 #ifdef DEBUG
 	#define DEBUG_CALLBACKS 1
-	#define NP_MEMORY_CHECK_MEMORY 1
+	//#define NP_MEMORY_CHECK_MEMORY_REFFING 1
+	//#define	NP_MEMORY_CHECK_MEMORY 1
 	//#define NP_THREADS_CHECK_THREADING 1
 #endif // DEBUG
 
@@ -90,8 +93,14 @@ extern "C" {
 #ifndef MISC_KEYCACHE_CLEANUP_INTERVAL_SEC
 	#define MISC_KEYCACHE_CLEANUP_INTERVAL_SEC (3.1415)
 #endif
+
+	
+#ifndef MISC_MEMORY_REFRESH_INTERVAL_SEC
+#define MISC_MEMORY_REFRESH_INTERVAL_SEC (0.1415)
+#endif
+
 #ifndef MISC_ACKENTRY_CLEANUP_INTERVAL_SEC
-	#define MISC_ACKENTRY_CLEANUP_INTERVAL_SEC (3.1415)
+#define MISC_ACKENTRY_CLEANUP_INTERVAL_SEC (3.1415)
 #endif
 #ifndef MISC_CHECK_ROUTES_SEC
 	#define MISC_CHECK_ROUTES_SEC (3.1415)
@@ -203,13 +212,6 @@ extern "C" {
 		#define LOG_ROTATE_ENABLE FALSE
 	#else
 		#define LOG_ROTATE_ENABLE TRUE
-	#endif
-#endif
-#ifndef LOG_FORCE_INSTANT_WRITE
-	#if defined(DEBUG) && DEBUG == 1
-		#define LOG_FORCE_INSTANT_WRITE (TRUE)
-	#else
-		#define LOG_FORCE_INSTANT_WRITE (FALSE)
 	#endif
 #endif
 

@@ -110,7 +110,7 @@ int main(int argc, char **argv)
 	*.. code-block:: c
 	*
 	*   while (1) {
-	*       ev_sleep(1.0);
+	*       np_time_sleep(1.0);
 	*   }
 	*/
 
@@ -173,6 +173,6 @@ int main(int argc, char **argv)
 //		np_msgproperty_t* prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
 //		_np_job_submit_msg_event(0.0, prop, node_key, msg_out);
 
-		ev_sleep(1.0);
+		np_time_sleep(1.0);
 	}
 }
