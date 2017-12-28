@@ -304,8 +304,8 @@ Test(np_linked_lists, _test_sll, .description="test the implementation of a sing
 	cr_expect(NULL == sll_first(my_sll_list), "expect the first element to be NULL");
 	cr_expect(NULL == sll_last(my_sll_list),  "expect the last element to be NULL");
 	cr_expect(sll_first(my_sll_list) == sll_last(my_sll_list),  "expect the first and last element to be the same");
-	cr_expect(-1 == _np_dhkey_comp(NULL, tmp_1),  "expect returned element to the old last one");
-	cr_expect(-1 == _np_dhkey_comp(tmp_1, NULL),  "expect returned element to the old last one");
+	cr_expect(-1 == _np_dhkey_comp(NULL, tmp_1),  "expect returned element to be NULL and campare NULLs should return -1");
+	cr_expect(-1 == _np_dhkey_comp(tmp_1, NULL),  "expect returned element to be NULL and campare NULLs should return -1");
 
 	sll_append(np_dhkey_ptr, my_sll_list, &key_a);
 	sll_append(np_dhkey_ptr, my_sll_list, &key_b);
@@ -399,11 +399,11 @@ Test(np_linked_lists, _test_dll, .description="test the implementation of a doub
 Test(np_linked_lists, _test_sll_delete, .description = "test the delete implementation of a single linked list")
 {
 	np_dhkey_t key_a, key_b, key_c, key_d, key_e;
-	key_a.t[0] = 1; key_a.t[1] = 0; key_a.t[2] = 0; key_a.t[3] = 0;
-	key_b.t[0] = 1; key_b.t[1] = 1; key_b.t[2] = 0; key_b.t[3] = 0;
-	key_c.t[0] = 0; key_c.t[1] = 0; key_c.t[2] = 1; key_c.t[3] = 0;
-	key_d.t[0] = 0; key_d.t[1] = 0; key_d.t[2] = 1; key_d.t[3] = 1;
-	key_e.t[0] = 1; key_e.t[1] = 1; key_e.t[2] = 1; key_e.t[3] = 1;
+	key_a.t[0] = 1; key_a.t[1] = 0; key_a.t[2] = 0; key_a.t[3] = 0;	   key_a.t[4] = 0; key_a.t[5] = 0; key_a.t[6] = 0; key_a.t[7] = 0;
+	key_b.t[0] = 1; key_b.t[1] = 1; key_b.t[2] = 0; key_b.t[3] = 0;	   key_b.t[4] = 0; key_b.t[5] = 0; key_b.t[6] = 0; key_b.t[7] = 0;
+	key_c.t[0] = 0; key_c.t[1] = 0; key_c.t[2] = 1; key_c.t[3] = 0;	   key_c.t[4] = 0; key_c.t[5] = 0; key_c.t[6] = 0; key_c.t[7] = 0;
+	key_d.t[0] = 0; key_d.t[1] = 0; key_d.t[2] = 1; key_d.t[3] = 1;	   key_d.t[4] = 1; key_d.t[5] = 1; key_d.t[6] = 1; key_d.t[7] = 1;
+	key_e.t[0] = 1; key_e.t[1] = 1; key_e.t[2] = 1; key_e.t[3] = 1;	   key_e.t[4] = 1; key_e.t[5] = 1; key_e.t[6] = 1; key_e.t[7] = 1;
 
 	np_sll_t(np_dhkey_ptr, my_sll_list);
 	sll_init(np_dhkey_ptr, my_sll_list);
@@ -427,7 +427,5 @@ Test(np_linked_lists, _test_sll_delete, .description = "test the delete implemen
 
 	cr_assert(&key_a == sll_first(my_sll_list)->val, "expect the first element to be key a");
 	cr_assert(&key_c == sll_last(my_sll_list)->val, "expect the first element to be key c");
-	cr_assert(2 == sll_size(my_sll_list), "expect the size of my list to be 2");
-
-	// cr_assert(NULL == to_del, "expect the to delete element to be NULL");
+	cr_assert(2 == sll_size(my_sll_list), "expect the size of my list to be 2");	
 }

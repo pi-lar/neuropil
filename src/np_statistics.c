@@ -11,6 +11,7 @@
 #include "np_msgproperty.h"
 #include "np_scache.h"
 #include "np_list.h"
+#include "np_route.h"
 #include "np_util.h"
 
 #include "np_statistics.h"
@@ -48,18 +49,26 @@ static np_simple_cache_table_t* _cache = NULL;
 static np_sll_t(char_ptr, watched_subjects);
 static np_bool _np_statistcs_initiated = FALSE;
 
-np_bool _np_statistics_receive_msg_on_watched(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+np_bool _np_statistics_receive_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
 {
+	assert(_cache != NULL);
+	assert(msg != NULL);
+	assert(msg->msg_property != NULL);
+	assert(msg->msg_property->msg_subject != NULL);
+
 	np_cache_item_t* item = np_simple_cache_get(_cache, msg->msg_property->msg_subject);
 	if (item != NULL) {
 		((np_statistics_element_t*)item->value)->total_received += 1;
 	}
-
 	return TRUE;
 }
 
-np_bool _np_statistics_send_msg_on_watched(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+np_bool _np_statistics_send_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
 {
+	assert(_cache != NULL);
+	assert(msg != NULL);
+	assert(msg->msg_property != NULL);
+	assert(msg->msg_property->msg_subject != NULL);
 	np_cache_item_t* item = np_simple_cache_get(_cache, msg->msg_property->msg_subject);
 	if (item != NULL) {
 		((np_statistics_element_t*)item->value)->total_send += 1;
@@ -119,27 +128,55 @@ void np_statistics_add_watch(char* subject) {
 	np_statistics_element_t* container = np_simple_cache_get(_cache, key)->value;
 
 	if (addtolist == TRUE) {
+		CHECK_MALLOC(container);
 		container->last_sec_check =
 			container->last_min_check =
 			container->first_check =
-			ev_time();
+			np_time_now();
 	}
-	np_msgproperty_t* msg_prop;
 
-	msg_prop = np_msgproperty_get(INBOUND, key);
-
-	if (FALSE == container->watch_receive && msg_prop != NULL) {
+	if (FALSE == container->watch_receive && np_msgproperty_get(INBOUND, key) != NULL) {
 		container->watch_receive = TRUE;
 		np_add_receive_listener(_np_statistics_receive_msg_on_watched, key);
 	}
 
-	msg_prop = np_msgproperty_get(OUTBOUND, key);
-	if (FALSE == container->watch_send && msg_prop != NULL) {
+	if (FALSE == container->watch_send && np_msgproperty_get(OUTBOUND, key) != NULL) {
 		container->watch_send = TRUE;
 		np_add_send_listener(_np_statistics_send_msg_on_watched, key);
 	}
 }
 
+void np_statistics_add_watch_internals() {
+	
+	//np_statistics_add_watch(_DEFAULT);
+		
+	np_statistics_add_watch(_NP_MSG_ACK);
+	np_statistics_add_watch(_NP_MSG_HANDSHAKE);
+	
+	np_statistics_add_watch(_NP_MSG_PING_REQUEST);
+	np_statistics_add_watch(_NP_MSG_LEAVE_REQUEST);
+	np_statistics_add_watch(_NP_MSG_JOIN);
+	np_statistics_add_watch(_NP_MSG_JOIN_REQUEST);
+	np_statistics_add_watch(_NP_MSG_JOIN_ACK);
+	np_statistics_add_watch(_NP_MSG_JOIN_NACK);
+	
+	np_statistics_add_watch(_NP_MSG_PIGGY_REQUEST);
+	np_statistics_add_watch(_NP_MSG_UPDATE_REQUEST);	
+	
+	np_statistics_add_watch(_NP_MSG_DISCOVER_RECEIVER);
+	np_statistics_add_watch(_NP_MSG_DISCOVER_SENDER);
+	np_statistics_add_watch(_NP_MSG_AVAILABLE_RECEIVER);
+	np_statistics_add_watch(_NP_MSG_AVAILABLE_SENDER);
+	
+	if(_np_state()->enable_realm_master || _np_state()->enable_realm_slave){
+		np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REQUEST);
+		np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REPLY);
+		np_statistics_add_watch(_NP_MSG_AUTHORIZATION_REQUEST);
+		np_statistics_add_watch(_NP_MSG_AUTHORIZATION_REPLY);
+	}
+	np_statistics_add_watch(_NP_MSG_ACCOUNTING_REQUEST);
+	
+}
 char * np_statistics_print(np_bool asOneLine) {
 	if (FALSE == _np_statistcs_initiated) {
 		return NULL;
@@ -165,7 +202,13 @@ char * np_statistics_print(np_bool asOneLine) {
 	double current_sec_received;
 	double sec_since_last_print;
 
-	double now = ev_time();
+	double now = np_time_now();
+
+
+	uint32_t
+		all_total_send		= 0,
+		all_total_received	= 0;
+
 
 	while (iter_subjects != NULL)
 	{
@@ -225,8 +268,9 @@ char * np_statistics_print(np_bool asOneLine) {
 		// per Sec calc end
 
 		if (container->watch_receive) {
+			all_total_received += container->total_received;
 			ret = _np_concatAndFree(ret,
-				"received total: %5"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
+				"received total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
 				container->total_received,
 				current_sec_received, container->last_secdiff_received,
 				current_min_received, container->last_mindiff_received,
@@ -234,8 +278,9 @@ char * np_statistics_print(np_bool asOneLine) {
 		}
 
 		if (container->watch_send) {
+			all_total_send += container->total_send;
 			ret = _np_concatAndFree(ret,
-				"send     total: %5"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
+				"send     total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
 				container->total_send,
 				current_sec_send, container->last_secdiff_send,
 				current_min_send, container->last_mindiff_send,
@@ -248,6 +293,36 @@ char * np_statistics_print(np_bool asOneLine) {
 
 		sll_next(iter_subjects);
 	}
+
+	ret = _np_concatAndFree(ret, "%s", new_line);
+
+
+	uint32_t routes = _np_route_my_key_count_routes();	
+
+	uint32_t tenth = 1;
+	char tmp_format[512] = { 0 };
+	uint32_t minimize[] = { routes, all_total_received+all_total_send, };
+	char s[32];
+
+	for (uint32_t i = 0; i < ( sizeof(minimize)/sizeof(uint32_t) ); i++) {
+		sprintf(s, "%d", minimize[i]);
+		tenth = max(tenth, strlen(s));
+	}
+	
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "received total:", tenth);
+	ret = _np_concatAndFree(ret, tmp_format, all_total_received, new_line);
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "send     total:", tenth);
+	ret = _np_concatAndFree(ret, tmp_format, all_total_send, new_line);
+
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "total:", tenth);
+	ret = _np_concatAndFree(ret, tmp_format, all_total_send+ all_total_received, new_line);
+	
+	ret = _np_concatAndFree(ret, "%s", new_line);
+
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Reachable nodes:", tenth);
+	ret = _np_concatAndFree(ret, tmp_format, routes, /*new_line*/"  ");
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Neighbours nodes:", tenth);
+	ret = _np_concatAndFree(ret, tmp_format, _np_route_my_key_count_neighbours(), new_line);
 
 	ret = _np_concatAndFree(ret, "--- Statistics END  ---%s", new_line);
 

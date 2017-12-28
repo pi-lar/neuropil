@@ -329,8 +329,8 @@ void _np_http_dispatch( np_http_client_t* client) {
 				char* tmp_target_hash = strtok(path, "/");
 
 				if (NULL != tmp_target_hash) {
-					if (strlen(tmp_target_hash) == 64) {
-						sprintf(target_hash, "%s",tmp_target_hash);
+					if (strlen(tmp_target_hash) == 64) {						
+						snprintf(target_hash,65, "%s",tmp_target_hash);
 						usedefault = FALSE;
 					} else {
 						http_status = HTTP_CODE_BAD_REQUEST;
@@ -351,14 +351,16 @@ void _np_http_dispatch( np_http_client_t* client) {
 			np_tryref_obj(np_key_t, key,keyExists);
 			if(keyExists) {
 				char* my_key = _np_key_as_str(key);
+				np_tree_t* sysinfo = NULL;
 				if (usedefault) {
 					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "using own node as info system");
 					sprintf(target_hash, "%s",my_key);
-				}
-				target_hash[64] = '\0';
-				np_tree_t* sysinfo = NULL;
-				sysinfo = np_get_sysinfo(target_hash);
 
+					sysinfo = np_sysinfo_get_all();
+				}else{
+				
+					sysinfo = np_sysinfo_get_info(target_hash);
+				}
 				if (NULL == sysinfo) {
 					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Could not find system informations");
 					http_status = HTTP_CODE_ACCEPTED;
@@ -372,9 +374,10 @@ void _np_http_dispatch( np_http_client_t* client) {
 
 					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Convert sysinfo to json");
 					json_obj = np_tree2json(sysinfo);
-					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "cleanup");
-					np_tree_free(sysinfo);
+					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "cleanup");					
 				}
+				np_tree_free(sysinfo);
+
 				np_unref_obj(np_key_t, key, __func__);
 			}else{
 				http_status = HTTP_CODE_SERVICE_UNAVAILABLE;
@@ -459,9 +462,9 @@ NP_UNUSED ev_io* ev, int event_type) {
 				client->ht_response.ht_header);
 		while (NULL != iter) {
 			pos += snprintf(data + pos,
-					snprintf(NULL, 0, "%s: %s" HTTP_CRLF, iter->key.value.s,
-							iter->val.value.s) + 1, "%s: %s" HTTP_CRLF,
-					iter->key.value.s, iter->val.value.s);
+					snprintf(NULL, 0, "%s: %s" HTTP_CRLF,  np_treeval_to_str(iter->key, NULL),
+							 np_treeval_to_str(iter->val, NULL)) + 1, "%s: %s" HTTP_CRLF,
+					 np_treeval_to_str(iter->key, NULL),  np_treeval_to_str(iter->val, NULL));
 			iter = RB_NEXT(np_tree_s, __local_http->ht_response.ht_header,
 					iter);
 		}
@@ -633,16 +636,15 @@ NP_UNUSED int event_type) {
 	}
 }
 
-np_bool _np_http_init(char* domain, char* port) {
+np_bool _np_http_init(char* domain) {
 	log_msg(LOG_TRACE | LOG_HTTP, "start: np_bool _np_http_init() {");
 
 	if (domain == NULL) {
 		domain = strdup("localhost");
 	}
-	if (port == NULL) {
-		port = strdup("31415");
-	}
-
+	
+	char* port = "31415";
+	
 	__local_http = (np_http_t*) malloc(sizeof(np_http_t));
 	CHECK_MALLOC(__local_http);
 

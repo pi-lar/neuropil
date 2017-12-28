@@ -2,6 +2,8 @@
 // neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
+#define NP_MEMORY_CHECK_MEMORY
+
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
@@ -17,6 +19,7 @@
 #include "np_types.h"
 #include "np_constants.h"
 #include "np_threads.h"
+
 
 typedef struct test_struct
 {

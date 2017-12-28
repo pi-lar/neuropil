@@ -167,17 +167,17 @@ int main(int argc, char **argv) {
 	 .. code-block:: c
 	 \code
 	 */
-	uint64_t i = 0;
+	uint32_t i = 0;
 	while (TRUE == status->my_node_key->node->joined_network) {
 		if (i++ % 50 == 0) {
 			char * s_out;
 			if(add_id_to_msg) {
-				asprintf(&s_out, "%s %"PRIu64, message_to_send, i );
+				asprintf(&s_out, "%s %"PRIu32, message_to_send, i );
 			} else {
 				asprintf(&s_out,"%s", message_to_send);
 			}
 
-			fprintf(stdout, "%f - SENDING:  \"%s\" to    %s\n", ev_time(), s_out, bootstrap_node);
+			fprintf(stdout, "%f - SENDING:  \"%s\" to    %s\n", np_time_now(), s_out, bootstrap_node);
 			log_msg(LOG_INFO, "SENDING:  \"%s\" to    %s", s_out, bootstrap_node);
 
 			// Send our message
@@ -210,18 +210,18 @@ np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np
 	char* reply_to = NULL;
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
-		reply_to = repl_to->val.value.s;
+		reply_to = np_treeval_to_str(repl_to->val, NULL);
 	}
 
 	char* text;
 	np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
 	if (NULL != txt) {
-		text = txt->val.value.s;
+		text = np_treeval_to_str(txt->val, NULL);
 
 	} else {
 		text = "<NON TEXT MSG>";
 	}
-	fprintf(stdout, "%f - RECEIVED: \"%s\" from: %s \n", ev_time(), text, reply_to);
+	fprintf(stdout, "%f - RECEIVED: \"%s\" from: %s \n", np_time_now(), text, reply_to);
 	/**
 	 \endcode
 

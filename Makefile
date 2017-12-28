@@ -41,12 +41,12 @@ CRITERION_LIBRARIES=-L ./tpl/criterion-v2.3.2/lib -l criterion
 TARGET=x86_64-apple-darwin-macho
 # TARGET=x86_64-pc-gnu-elf
 
-SOURCES_LIB  = src/dtime.c src/neuropil.c src/np_aaatoken.c src/np_axon.c src/np_dendrit.c src/np_event.c   
-SOURCES_LIB += src/np_glia.c src/np_http.c src/np_jobqueue.c src/np_dhkey.c src/np_key.c src/np_keycache.c 
-SOURCES_LIB += src/np_log.c src/np_memory.c src/np_message.c src/np_msgproperty.c src/np_network.c
-SOURCES_LIB += src/np_messagepart.c src/np_scache.c src/np_statistics.c src/np_sysinfo.c src/np_node.c 
-SOURCES_LIB += src/np_route.c src/np_tree.c src/np_threads.c src/np_util.c src/np_treeval.c 
-SOURCES_LIB += src/event/ev.c src/json/parson.c src/msgpack/cmp.c src/gpio/bcm2835.c
+SOURCES  = src/dtime.c src/neuropil.c src/np_aaatoken.c src/np_ackentry.c src/np_axon.c src/np_dendrit.c    
+SOURCES += src/np_dhkey.c src/np_event.c src/np_glia.c src/np_http.c src/np_jobqueue.c src/np_key.c src/np_keycache.c 
+SOURCES += src/np_log.c src/np_memory.c src/np_message.c src/np_messagepart.c src/np_msgproperty.c src/np_network.c
+SOURCES += src/np_node.c src/np_pinging.c src/np_route.c src/np_scache.c src/np_serialization.c src/np_statistics.c 
+SOURCES += src/np_sysinfo.c src/np_threads.c src/np_time.c src/np_tree.c src/np_treeval.c src/np_util.c 
+SOURCES += src/event/ev.c src/gpio/bcm2835.c  src/json/parson.c src/msgpack/cmp.c 
 
 SOURCES_PRG = examples/neuropil_hydra.c examples/neuropil_controller.c examples/neuropil_node.c examples/neuropil_sender.c examples/neuropil_receiver.c examples/neuropil_receiver_cb.c examples/neuropil_demo_service.c examples/neuropil_pingpong.c examples/neuropil_raspberry.c
 

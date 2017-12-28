@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-017 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -23,6 +23,12 @@ void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args);
 
 NP_API_INTERN
 void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args);
+
+NP_API_INTERN
+void* _np_event_run();
+
+NP_API_INTERN
+double np_event_sleep(double time);
 
 NP_API_INTERN
 void _np_suspend_event_loop();

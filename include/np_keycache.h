@@ -70,6 +70,10 @@ np_key_t* _np_keycache_find_by_details(
 	np_bool is_handshake_received, np_bool require_handshake_status, 
 	np_bool require_dns, np_bool require_port, np_bool require_hash );
 
+NP_API_INTERN
+sll_return(np_key_ptr) _np_keycache_get_all();
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -36,11 +36,6 @@
 
 #include "example_helper.c"
 
-static uint32_t _ping_received_count = 0;
-static uint32_t _ping_send_count = 0;
-static uint32_t _pong_received_count = 0;
-static uint32_t _pong_send_count = 0;
-
 #define LED_GPIO_GREEN 23
 #define LED_GPIO_YELLOW 18
 
@@ -50,67 +45,46 @@ static double last_response_or_invokation = 0;
 
 const double ping_pong_intervall = 0.01;
 
-np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+void handle_ping_pong_receive(char * response, int first_low, int first_high, const np_message_t * const msg, np_tree_t * properties, np_tree_t * body)
 {
 	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
-
-	//fprintf(stdout, "\e[1ARECEIVED: %05d -> %s\n", seq, text);
+	
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
-	_ping_received_count++;
-	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_send_count++, "pong");
 
-	if(is_gpio_enabled == TRUE)
+	if (is_gpio_enabled == TRUE)
 	{
-		_LOCK_ACCESS(&gpio_lock){
-			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
-			bcm2835_gpio_write(LED_GPIO_GREEN,HIGH);
+		_LOCK_ACCESS(&gpio_lock) {
+			bcm2835_gpio_write(first_low, LOW);
+			bcm2835_gpio_write(first_high, HIGH);
 			ev_sleep(ping_pong_intervall);
-			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
-			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
+			bcm2835_gpio_write(first_low, LOW);
+			bcm2835_gpio_write(first_high, LOW);
 		}
-	} else
+	}
+	else
 	{
 		ev_sleep(ping_pong_intervall);
 	}
 
-	np_send_text("pong", "pong", _pong_send_count,NULL);
+	np_send_text(response, response, 0, NULL);
+}
 
+np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+{
+	handle_ping_pong_receive("pong", LED_GPIO_YELLOW, LED_GPIO_GREEN, msg, properties, body);
 	return TRUE;
 }
 
 np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
-	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
-	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
-	last_response_or_invokation = ev_time();
-
-	//fprintf(stdout, "\e[1ARECEIVED: %05d -> %s\n", seq, text);
-	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
-	_pong_received_count++;
-	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_send_count++, "ping");
-
-	if(is_gpio_enabled == TRUE)
-	{
-		_LOCK_ACCESS(&gpio_lock){
-			bcm2835_gpio_write(LED_GPIO_YELLOW,HIGH);
-			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
-			ev_sleep(ping_pong_intervall);
-			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
-			bcm2835_gpio_write(LED_GPIO_GREEN,LOW);
-		}
-	} else
-	{
-		ev_sleep(ping_pong_intervall);
-	}
-	np_send_text("ping", "ping", _ping_send_count,NULL);
-
+	handle_ping_pong_receive("ping", LED_GPIO_GREEN, LED_GPIO_YELLOW, msg, properties, body);
 	return TRUE;
 }
 
 int main(int argc, char **argv)
 {
-	_np_threads_mutex_init(&gpio_lock);
+	_np_threads_mutex_init(&gpio_lock,"gpio_lock");
 
 	int no_threads = 8;
 	char *j_key = NULL;
@@ -192,7 +166,7 @@ int main(int argc, char **argv)
 			http_domain = NULL;
 		}
 		
-		if(FALSE == _np_http_init(http_domain, NULL))
+		if(FALSE == _np_http_init(http_domain))
 		{
 			fprintf(stderr,   "Node could not start HTTP interface\n");
 			log_msg(LOG_WARN, "Node could not start HTTP interface");
@@ -267,21 +241,21 @@ int main(int argc, char **argv)
 	fprintf(stdout, "Sending initial ping.\n");
 	log_msg(LOG_INFO, "Sending initial ping");
 	// send an initial ping
-	np_send_text("ping", "ping", _ping_send_count++, NULL);
+	np_send_text("ping", "ping", 0, NULL);
 
 	//__np_example_helper_run_loop();
 	uint32_t i = 0;
-	double now = ev_time();
+	double now = np_time_now();
 	last_response_or_invokation  = now;
 
 	while (TRUE) {
 		i +=1;
 		ev_sleep(0.01);
-		now = ev_time() ;
+		now = np_time_now() ;
 		if ((now - last_response_or_invokation ) > ping_props->msg_ttl) {
 			
 			log_msg(LOG_INFO, "Invoking ping (last one was at %f (before %f sec))", last_response_or_invokation, now - last_response_or_invokation);
-			np_send_text("ping", "ping", _ping_send_count++, NULL);
+			np_send_text("ping", "ping", 0, NULL);
 			last_response_or_invokation = now;
 		}
 		__np_example_helper_loop(i, 0.01);

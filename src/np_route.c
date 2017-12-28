@@ -35,7 +35,6 @@ static const uint16_t __MAX_ENTRY =  3; // three alternatives for each key
 // TODO: change the size according to the number of entries in the routing table (min: 2/ max: 8)
 static const uint16_t __LEAFSET_SIZE = 8; /* (must be even) excluding node itself */
 
-
 typedef struct np_routeglobal_s np_routeglobal_t;
 struct np_routeglobal_s
 {
@@ -52,7 +51,6 @@ struct np_routeglobal_s
 };
 
 static np_routeglobal_t* __routing_table;
-
 
 void _np_route_append_leafset_to_sll(np_key_ptr_pll_t* left_leafset, np_sll_t(np_key_ptr, result));
 
@@ -84,6 +82,9 @@ np_bool _np_route_init (np_key_t* me)
 void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_key_t** added)
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.leafset_update");
+
+	if (node_key->in_destroy == TRUE)
+		return;
 
 	np_key_ptr update_key = (np_key_ptr) node_key;
 	*added = NULL;
@@ -234,7 +235,7 @@ sll_return(np_key_ptr) _np_route_get_table ()
 			}
 		}
 
-		np_ref_list(sll_of_keys, __func__);
+		np_ref_list(sll_of_keys, __func__,NULL);
 	}
 	return (sll_of_keys);
 }
@@ -267,8 +268,7 @@ sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key)
 		}
 
 		sll_append(np_key_ptr, sll_of_keys, __routing_table->my_key);
-
-		np_ref_list(sll_of_keys, __func__);
+		np_ref_list(sll_of_keys, __func__, NULL);
 	}
 
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_row_lookup");
@@ -291,7 +291,7 @@ void _np_route_append_leafset_to_sll(np_key_ptr_pll_t* leafset, np_sll_t(np_key_
  ** returns an array of #count# keys that are acceptable next hops for a
  ** message being routed to #key#.
  */
-sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t dhkey, uint8_t count)
+sll_return(np_key_ptr) _np_route_lookup(np_key_t* key, uint8_t count)
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_lookup");
 	uint32_t i, j, k, Lsize, Rsize;
@@ -309,14 +309,18 @@ sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t dhkey, uint8_t count)
 		np_sll_t(np_key_ptr, key_list);
 		sll_init(np_key_ptr, key_list);
 
-		/* calculate the leafset and table size */
+		log_debug_msg(
+		  LOG_ROUTING | LOG_DEBUG, "%s is looking for key %s !",
+		  _np_key_as_str(__routing_table->my_key), _np_key_as_str(key));
+
+		/*calculate the leafset and table size */
 		Lsize = pll_size(__routing_table->left_leafset);
 		Rsize = pll_size(__routing_table->right_leafset);
 
 		/* if the key is in the leafset range route through leafset */
 		/* the additional 2 neuropil nodes pointed by the #hosts# are to consider the node itself and NULL at the end */
 		if (count == 1 &&
-			_np_dhkey_between (&dhkey, &__routing_table->Lrange, &__routing_table->Rrange))
+			_np_dhkey_between (&key->dhkey, &__routing_table->Lrange, &__routing_table->Rrange))
 		{
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "routing through leafset");
 			sll_append(np_key_ptr, key_list, __routing_table->my_key);
@@ -326,7 +330,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t dhkey, uint8_t count)
 			_np_route_append_leafset_to_sll(__routing_table->left_leafset, key_list);
 			_np_route_append_leafset_to_sll(__routing_table->right_leafset, key_list);
 
-			min = _np_keycache_find_closest_key_to (key_list, &dhkey);
+			min = _np_keycache_find_closest_key_to (key_list, &key->dhkey);
 			if(NULL != min) {				
 				ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", __func__); 
 				sll_append(np_key_ptr, return_list, min);				
@@ -341,8 +345,8 @@ sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t dhkey, uint8_t count)
 		}
 
 		/* check to see if there is a matching next hop (for fast routing) */
-		i = _np_dhkey_index (&__routing_table->my_key->dhkey, &dhkey);
-		match_col = _np_dhkey_hexalpha_at (&dhkey, i);
+		i = _np_dhkey_index (&__routing_table->my_key->dhkey, &key->dhkey);
+		match_col = _np_dhkey_hexalpha_at (&key->dhkey, i);
 
 		int index = __MAX_ENTRY * (match_col + (__MAX_COL* (i)));
 		for (k = 0; k < __MAX_ENTRY; k++)
@@ -407,7 +411,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t dhkey, uint8_t count)
 		}
 
 		/* find the longest prefix match */
-		i = _np_dhkey_index (&__routing_table->my_key->dhkey, &dhkey);
+		i = _np_dhkey_index (&__routing_table->my_key->dhkey, &key->dhkey);
 		for (j = 0; j < __MAX_COL; j++)
 		{
 			int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
@@ -430,7 +434,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t dhkey, uint8_t count)
 		{
 			// printf ("route.c (%d): _np_route_lookup bounce count==1 ...\n", getpid());
 			// printTable(state);
-			min = _np_keycache_find_closest_key_to (key_list, &dhkey);
+			min = _np_keycache_find_closest_key_to (key_list, &key->dhkey);
 			
 			if (NULL != min) {
 				ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", __func__);
@@ -441,7 +445,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t dhkey, uint8_t count)
 		{
 			if (2 <= key_list->size)
 			{
-				_np_keycache_sort_keys_cpm (key_list, &dhkey);
+				_np_keycache_sort_keys_cpm (key_list, &key->dhkey);
 				/* find the best #count# entries that we looked at ... could be much better */
 				
 				/* removing duplicates from the list */				
@@ -478,8 +482,8 @@ sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t dhkey, uint8_t count)
 	//	    log_debug_msg(LOG_DEBUG, "my own key: %s", _np_key_as_str(routes->my_key) );
 	//	    log_debug_msg(LOG_DEBUG, "lookup key: %s", _np_key_as_str(sll_first(return_list)->val) );
 
-			_np_dhkey_distance (&dif1, &dhkey, &sll_first(return_list)->val->dhkey);
-			_np_dhkey_distance (&dif2, &dhkey, &__routing_table->my_key->dhkey);
+			_np_dhkey_distance (&dif1, &key->dhkey, &sll_first(return_list)->val->dhkey);
+			_np_dhkey_distance (&dif2, &key->dhkey, &__routing_table->my_key->dhkey);
 
 			// printTable(rg);
 
@@ -508,7 +512,6 @@ sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t dhkey, uint8_t count)
 	return (return_list);
 }
 
-
 /**
  ** _np_route_leafset_range_update:
  ** updates the leafset range whenever a node leaves or joins to the leafset
@@ -535,7 +538,6 @@ void _np_route_leafset_range_update ()
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_range_update");
 }
 
-
 /** _np_route_neighbors:
  ** returns an array of #count# neighbor nodes with priority to closer nodes
  **/
@@ -550,7 +552,7 @@ sll_return(np_key_ptr) _np_route_neighbors ()
 		_np_route_append_leafset_to_sll(__routing_table->left_leafset, node_keys);
 		_np_route_append_leafset_to_sll(__routing_table->right_leafset, node_keys);	
 
-		np_ref_list(node_keys, __func__);
+		np_ref_list(node_keys, __func__, NULL);
 	}
 	/* sort aux */
 	_np_keycache_sort_keys_kd(node_keys, &__routing_table->my_key->dhkey);
@@ -600,14 +602,11 @@ void _np_route_leafset_clear ()
 		np_key_t* added = NULL;
 
 		while(iter != NULL) {
-			// np_tryref_obj(np_key_t, iter->val, itemExists,"usage");
-			// if(itemExists){
 			_np_route_leafset_update(iter->val,FALSE,&deleted,&added);
 			assert (deleted == iter->val);
-			np_unref_obj(np_key_t, iter->val, "usage");
-			// }
 			sll_next(iter);
 		}
+		np_unref_list(neighbour_list, "_np_route_neighbors");
 		sll_free(np_key_ptr, neighbour_list);
 
 		if(__routing_table->left_leafset->size != 0){
@@ -628,6 +627,10 @@ void _np_route_leafset_clear ()
 void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added)
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_update");
+
+	if (key->in_destroy == TRUE)
+		return;
+
 	_LOCK_MODULE(np_routeglobal_t)
 	{
 
@@ -735,39 +738,53 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
 }
 
-np_bool _np_route_my_key_has_connection(){
-	np_bool ret = TRUE;
+uint32_t __np_route_my_key_count_routes(np_bool break_on_first) {
+	uint32_t ret = 0;
 
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		if(__routing_table->my_key->node->joined_network == TRUE) {
-			np_bool hasRoutingEntry = FALSE;
+		if (__routing_table->my_key->node->joined_network == TRUE) {
+			
 			uint16_t i, j, k;
-			for (i = 0; i < __MAX_ROW && hasRoutingEntry == FALSE; i++)
+			for (i = 0; i < __MAX_ROW; i++)
 			{
-				for (j = 0; j < __MAX_COL && hasRoutingEntry == FALSE; j++)
+				for (j = 0; j < __MAX_COL; j++)
 				{
 					int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
-					for (k = 0; k < __MAX_ENTRY && hasRoutingEntry == FALSE; k++)
+					for (k = 0; k < __MAX_ENTRY; k++)
 					{
 						if (NULL != __routing_table->table[index + k])
 						{
-							hasRoutingEntry = TRUE;
+							ret += 1;
+						}
+						if (ret > 0 && break_on_first) {
+							break;
 						}
 					}
+					if (ret > 0 && break_on_first) {
+						break;
+					}
 				}
-			}
-
-			if( FALSE == hasRoutingEntry
-			&& pll_size(__routing_table->left_leafset) == 0
-			&& pll_size(__routing_table->right_leafset) == 0
-			){
-				ret = FALSE;
+				if (ret > 0 && break_on_first) {
+					break;
+				}
 			}
 		}
 	}
 	return ret;
 }
+
+np_bool _np_route_my_key_has_connection() {
+	return (__np_route_my_key_count_routes(TRUE) + _np_route_my_key_count_neighbours()) > 0 ? TRUE: FALSE;
+}
+
+uint32_t _np_route_my_key_count_routes() {
+	return __np_route_my_key_count_routes(FALSE);
+}
+uint32_t _np_route_my_key_count_neighbours() {
+	return  pll_size(__routing_table->left_leafset) + pll_size(__routing_table->right_leafset);
+}
+
 void _np_route_check_for_joined_network()
 {
 	if( _np_route_my_key_has_connection() == FALSE)
@@ -784,33 +801,33 @@ char* np_route_get_bootstrap_connection_string() {
 
 void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {
 	log_msg(LOG_TRACE | LOG_ROUTING, "void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {");
-
-	if(NULL == __routing_table->bootstrap_key) {
-		_np_event_rejoin_if_necessary(NULL); // start intervall check
-	}
-
-	free(__routing_table->bootstrap_key);
+		
+	char* old = __routing_table->bootstrap_key;	
 	__routing_table->bootstrap_key = np_get_connection_string_from(bootstrap_key,FALSE);
+	free(old);
 }
 
 void _np_route_rejoin_bootstrap(np_bool force) {
 
+	if (__routing_table->bootstrap_key != NULL) {
+
 	np_bool rejoin = force
 			|| _np_route_my_key_has_connection() == FALSE;
+	
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Check for rejoin result: %s%s necessary", (rejoin == TRUE ? "" : "not"), (force == TRUE ? "(f)" : ""));
 
-	log_msg(LOG_DEBUG, "Check for rejoin result: %s necessary",(rejoin == TRUE ?"":"not"));
-
-	if(TRUE == rejoin
-			// check for state availibility to prevent test issues. TODO: Make network objects mockable
-			&& _np_state() != NULL) {
-		char* bootstrap = np_route_get_bootstrap_connection_string();
-		if(NULL != bootstrap)
-		{
-			if(force == FALSE)
+		if(TRUE == rejoin
+				// check for state availibility to prevent test issues. TODO: Make network objects mockable
+				&& _np_state() != NULL) {
+			char* bootstrap = np_route_get_bootstrap_connection_string();
+			if(NULL != bootstrap)
 			{
-				log_msg(LOG_WARN, "lost all connections. try to reconnect to bootstrap host");
+				if(force == FALSE)
+				{
+					log_msg(LOG_WARN, "lost all connections. try to reconnect to bootstrap host");
+				}
+				np_send_wildcard_join(bootstrap);
 			}
-			np_send_wildcard_join(bootstrap);
 		}
 	}
 }

@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
 	// node = test_jrb;
 	// log_msg(LOG_DEBUG, "for %p; %p!=%p; %p=%p", test_jrb->flink, node, test_jrb, node, node->flink);
 	//	jrb_traverse(node, test_jrb) {
-	//		log_msg(LOG_INFO, "serializing now: %s", node->key.value.s);
+	//		log_msg(LOG_INFO, "serializing now: %s",  np_treeval_to_str(node->key));
 	//		_np_tree_serialize(node, &cmp_empty);
 	//	}
 	// free (empty_buffer);

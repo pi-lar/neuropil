@@ -22,6 +22,8 @@
 #include "np_threads.h"
 #include "np_util.h"
 #include "np_list.h"
+#include "np_constants.h"
+#include "np_settings.h"
 
 
 
@@ -56,14 +58,14 @@ void np_mem_init()
 
 void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 {
-	log_msg(LOG_TRACE, "start: void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj){");
+	log_msg(LOG_MEMORY | LOG_TRACE, "start: void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj){");
 	if (NULL != __np_obj_pool_ptr->free_obj)
 	{
 		__np_obj_pool_ptr->current  = __np_obj_pool_ptr->free_obj;
 		__np_obj_pool_ptr->free_obj = __np_obj_pool_ptr->free_obj->next;
 		__np_obj_pool_ptr->available--;
 
-#ifdef MEMORY_CHECK
+#ifdef NP_MEMORY_CHECK_MEMORY
 		free(__np_obj_pool_ptr->current->id);
 		__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);		
 #endif
@@ -73,14 +75,14 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 		__np_obj_pool_ptr->current = (np_obj_t*) malloc (sizeof(np_obj_t) );
 		CHECK_MALLOC(__np_obj_pool_ptr->current);
 		__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);
-#ifdef MEMORY_CHECK
+#ifdef NP_MEMORY_CHECK_MEMORY
 		sll_init(char_ptr, (__np_obj_pool_ptr->current->reasons));
 #endif
 		__np_obj_pool_ptr->size++;
 	}
 	__np_obj_pool_ptr->current->lock = calloc(1, sizeof(np_mutex_t));
 	CHECK_MALLOC(__np_obj_pool_ptr->current->lock);
-	_np_threads_mutex_init(__np_obj_pool_ptr->current->lock);
+	_np_threads_mutex_init(__np_obj_pool_ptr->current->lock,"memory object lock");
 	__np_obj_pool_ptr->current->type = obj_type;
 	__np_obj_pool_ptr->current->ref_count = 0;
 	__np_obj_pool_ptr->current->next = NULL;
@@ -90,7 +92,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 	}
 	__np_obj_pool_ptr->first = __np_obj_pool_ptr->current;
 	(*obj) = __np_obj_pool_ptr->current;
-	log_msg(LOG_DEBUG, "Created new object on %p; t: %d", (*obj), (*obj)->type);
+	log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Created new object on %p; t: %d", (*obj), (*obj)->type);
 }
 
 // printf("new  obj %p (type %d ptr %p ref_count %d):(next -> %p)n", np_obj->obj, np_obj->obj->type, np_obj->obj->ptr, np_obj->obj->ref_count, np_obj->obj->next );
@@ -115,7 +117,7 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 		else __np_obj_pool_ptr->first = __np_obj_pool_ptr->first->next;
 		(*obj)->type = np_none_t_e;
 		(*obj)->next = __np_obj_pool_ptr->free_obj;
-#ifdef MEMORY_CHECK
+#ifdef NP_MEMORY_CHECK_MEMORY
 		// cleanup old reasoning (if any, should be none)
 		sll_iterator(char_ptr) iter_reasons = sll_first((*obj)->reasons);		
 		while (iter_reasons != NULL)
@@ -141,7 +143,7 @@ void np_mem_refobj(np_obj_t* obj, const char* reason)
 	log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
 	obj->ref_count++;
 	//log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
-#ifdef MEMORY_CHECK
+#ifdef NP_MEMORY_CHECK_MEMORY
 	assert(reason != NULL);
 	sll_prepend(char_ptr, obj->reasons, strdup(reason));
 #endif
@@ -154,14 +156,14 @@ void np_mem_unrefobj(np_obj_t* obj, const char* reason)
 	obj->ref_count--;
 	//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
 	if(obj->ref_count < 0){		
-#ifdef MEMORY_CHECK
+#ifdef NP_MEMORY_CHECK_MEMORY
 		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (left reasons(%d): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
 #else
 		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! left reasons(%d)", obj, obj->type, obj->ref_count);
 #endif
 		abort();
 	}
-#ifdef MEMORY_CHECK
+#ifdef NP_MEMORY_CHECK_MEMORY
 	sll_iterator(char_ptr) iter_reason = sll_first(obj->reasons);
 	np_bool foundReason = FALSE;
 	while (foundReason == FALSE && iter_reason != NULL)
@@ -192,7 +194,7 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 		new_line = "    ";
 	}
 
-	uint64_t summary[10000] = { 0 };
+	uint32_t summary[10000] = { 0 };
 	
 	_LOCK_MODULE(np_memory_t) {		
 		if (TRUE == extended) {
@@ -201,15 +203,42 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 		for (np_obj_t* iter = __np_obj_pool_ptr->first; iter != NULL; iter = iter->next)
 		{
 			summary[iter->type]++;
-#ifdef MEMORY_CHECK
+#ifdef NP_MEMORY_CHECK_MEMORY
 			summary[iter->type*100] = summary[iter->type * 100] > sll_size(iter->reasons) ? summary[iter->type * 100]: sll_size(iter->reasons);
 
-			if (iter->type == np_key_t_e && TRUE == extended) {
+			if (
+				TRUE == extended
+				//&& iter->type == np_key_t_e				
+				&& sll_size(iter->reasons) > 5
+				) {
 				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, iter->type, sll_size(iter->reasons), new_line);
+
+				int display_first_X_reasons = 5;
+				int display_last_X_reasons = 5;
+
 				sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
+				int iter_reasons_counter = 0;
 				while (iter_reasons != NULL)
 				{
-					ret = _np_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+					if (iter_reasons_counter < display_first_X_reasons) {
+						ret = _np_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+					}				
+
+					if (
+						(display_first_X_reasons + display_last_X_reasons) < sll_size(iter->reasons)
+						&& display_first_X_reasons == iter_reasons_counter) 
+					{
+						ret = _np_concatAndFree(ret, "... Skipping %"PRIi32" reasons ...%s", sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons) ,new_line);
+					}
+
+					if (
+						iter_reasons_counter > display_first_X_reasons 
+						&& iter_reasons_counter >= display_first_X_reasons + sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons))
+					{
+						ret = _np_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+					}
+
+					iter_reasons_counter++;					
 					sll_next(iter_reasons);
 				}
 				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (%d) end  ---%s", iter->id, iter->type, new_line);
@@ -218,8 +247,8 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 		}
 		
 		if (TRUE == extended) {
-#ifndef MEMORY_CHECK
-			ret = _np_concatAndFree(ret, "NO DATA. Compile with MEMORY_CHECK %s", new_line); 
+#ifndef NP_MEMORY_CHECK_MEMORY
+			ret = _np_concatAndFree(ret, "NO DATA. Compile with NP_MEMORY_CHECK_MEMORY %s", new_line); 
 #endif
 			ret = _np_concatAndFree(ret, "--- extended reasons end  ---%s", new_line);
 		}

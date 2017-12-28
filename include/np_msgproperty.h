@@ -18,6 +18,7 @@ A developer should be familiar with the main settings
 #include "np_memory.h"
 #include "np_util.h"
 #include "np_types.h"
+#include "np_list.h"
 #include "np_threads.h"
 
 #ifdef __cplusplus
@@ -198,10 +199,10 @@ typedef enum np_msgcache_policy_enum {
 
 */
 typedef enum np_msg_ack_enum {
-	ACK_NONE = 0x00, // 0000 0000  - don't ack at all
-	ACK_EACHHOP = 0x01, // 0000 0001 - each hop has to send a ack to the previous hop
+	ACK_NONE		= 0x00, // 0000 0000  - don't ack at all
+	ACK_EACHHOP		= 0x01, // 0000 0001 - each hop has to send a ack to the previous hop
 	ACK_DESTINATION = 0x02, // 0000 0010 - message destination ack to message sender across multiple nodes
-	ACK_CLIENT = 0x04,     // 0000 0100 - message to sender ack after/during processing the message on receiver side
+	ACK_CLIENT		= 0x04, // 0000 0100 - message to sender ack after/during processing the message on receiver side
 } NP_API_EXPORT np_msg_ack_type;
 
 /**
@@ -241,6 +242,7 @@ struct np_msgproperty_s
 	uint8_t          retry; // the # of retries when sending a message
 	uint16_t         msg_threshold; // current cache size
 	uint16_t         max_threshold; // local cache size
+	np_bool is_internal;
 
 	// timestamp for cleanup thread
 	double          last_update;
@@ -258,14 +260,13 @@ struct np_msgproperty_s
 	// pthread_condattr_t cond_attr;
 
 	// callback function(s) to invoke when a message is received
-	np_callback_t clb_default; // internal neuropil supplied
-	np_callback_t clb_inbound; // internal neuropil supplied
-	np_callback_t clb_outbound; // internal neuropil supplied
-	np_callback_t clb_route; // internal neuropil supplied
-	np_callback_t clb_transform; // internal neuropil supplied
+	np_sll_t(np_callback_t, clb_inbound);			// internal neuropil supplied
+	np_sll_t(np_callback_t, clb_outbound);			// internal neuropil supplied
+	np_sll_t(np_callback_t, clb_route);				// internal neuropil supplied
+	np_sll_t(np_callback_t, clb_transform);			// internal neuropil supplied
 
-	np_sll_t(np_usercallback_t, user_receive_clb); // external user supplied for inbound
-	np_sll_t(np_usercallback_t, user_send_clb); // external user supplied for outnound
+	np_sll_t(np_usercallback_t, user_receive_clb);	// external user supplied for inbound
+	np_sll_t(np_usercallback_t, user_send_clb);		// external user supplied for outnound
 
 	// The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
 	uint32_t token_max_ttl;
@@ -322,12 +323,10 @@ NP_API_EXPORT
 np_msgproperty_t* np_msgproperty_get(np_msg_mode_type msg_mode, const char* subject);
 
 static char _DEFAULT[]                       = "_NP.DEFAULT";
-static char _ROUTE_LOOKUP[]                  = "_NP.ROUTE.LOOKUP";
 
 static char _NP_MSG_ACK[]                    = "_NP.ACK";
 static char _NP_MSG_HANDSHAKE[]              = "_NP.HANDSHAKE";
 static char _NP_MSG_PING_REQUEST[]           = "_NP.PING.REQUEST";
-static char _NP_MSG_PING_REPLY[]             = "_NP.PING.REPLY";
 static char _NP_MSG_LEAVE_REQUEST[]          = "_NP.LEAVE.REQUEST";
 static char _NP_MSG_JOIN[]                   = "_NP.JOIN.";
 static char _NP_MSG_JOIN_REQUEST[]           = "_NP.JOIN.REQUEST";
@@ -370,10 +369,12 @@ NP_API_INTERN
 void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
 NP_API_INTERN
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
-
+NP_API_INTERN
+np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
+NP_API_INTERN
+void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgproperty_t* msg_prop);
 NP_API_INTERN
 void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop);
-
 #ifdef __cplusplus
 }
 #endif

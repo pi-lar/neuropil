@@ -5,6 +5,7 @@
 #include <uuid/uuid.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 #include "pthread.h"
 #include "event/ev.h"
@@ -46,7 +47,7 @@ int main(int argc, char **argv) {
 	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) msg_subject));
 	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(my_key)) );
 	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_REPLY_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
+	// np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_REPLY_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
 
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(0));
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
@@ -56,7 +57,7 @@ int main(int argc, char **argv) {
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(new_uuid));
 	free(new_uuid);
 
-	double now = ev_time();
+	double now = np_time_now();
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
 	now += 20;
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(now));
@@ -87,8 +88,7 @@ int main(int argc, char **argv) {
 	np_tree_elem_t* properties_node = np_tree_find_int(msg_out->properties, 1);
 	np_tree_elem_t* body_node = np_tree_find_int(msg_out->body, 20);
 
-	np_jobargs_t args = { .msg=msg_out };
-
+ 
 	/** message split up maths
 	 ** message size = 1b (common header) + 40b (encryption) +
 	 **                msg (header + instructions) + msg (properties + body) + msg (footer)
@@ -103,11 +103,11 @@ int main(int argc, char **argv) {
 	 ** 	add garbage
 	 **/
 	_np_message_calculate_chunking(msg_out);
-	_np_message_serialize_chunked(NULL, &args);
+	_np_message_serialize_chunked(msg_out);
 	np_tree_elem_t* footer_node = np_tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
-	log_msg(LOG_DEBUG, "properties %s, body %s, garbage size %hd",
-			properties_node->val.value.s,
-			body_node->val.value.s,
+	log_msg(LOG_DEBUG, "properties %s, body %s, garbage size %"PRIu32,
+			 np_treeval_to_str(properties_node->val, NULL),
+			 np_treeval_to_str(body_node->val, NULL),
 			np_tree_get_byte_size(footer_node));
 
 
@@ -117,8 +117,8 @@ int main(int argc, char **argv) {
 	np_tree_elem_t* body_node_2 = np_tree_find_int(msg_out->body, 20);
 	// np_tree_elem_t* footer_node_2 = np_tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
 	log_msg(LOG_DEBUG, "properties %s, body %s",
-			properties_node_2->val.value.s,
-			body_node_2->val.value.s);
+			 np_treeval_to_str(properties_node_2->val, NULL),
+			 np_treeval_to_str(body_node_2->val, NULL));
 
 	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 	ev_run(EV_A_ EVRUN_NOWAIT);

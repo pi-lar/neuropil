@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 
 
 
-	if (FALSE == _np_http_init(http_domain, NULL))
+	if (FALSE == _np_http_init(http_domain))
 	{
 		fprintf(stderr, "Node could not start HTTP interface\n");
 		log_msg(LOG_WARN, "Node could not start HTTP interface");
@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
 	np_msgproperty_register(pong_props);
 	np_add_receive_listener(receive_pong, "pong");
 	
-	double lastping = ev_time();
+	double lastping = np_time_now();
 	np_send_text("ping", "ping", _ping_count++, NULL);
 	uint32_t last_count_of_routes = 0;
 	uint32_t count_of_routes = 0;
@@ -131,11 +131,11 @@ int main(int argc, char **argv) {
 	while (TRUE) {
 		ev_sleep(0.1);
 
-		 double now = ev_time();
+		 double now = np_time_now();
 				// invoke a ping message every 10 seconds
 			if ((now - lastping) > 10.0)
 		{
-			lastping = ev_time();
+			lastping = np_time_now();
 			np_send_text("ping", "ping", _ping_count++, NULL);
 		}
 		// As long as we do not have the appropiate events (node_joined/node_left)
@@ -159,11 +159,11 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 	char* reply_to = NULL; // All
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
-		reply_to = repl_to->val.value.s;
+		reply_to = np_treeval_to_str(repl_to->val, NULL);
 		char* text;
 		np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
 		if (NULL != txt) {
-			text = txt->val.value.s;
+			text = np_treeval_to_str(txt->val, NULL);
 
 		} else {
 			text = "<NON TEXT MSG>";
@@ -175,7 +175,7 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
-	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
@@ -187,7 +187,7 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 
 np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
-	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);

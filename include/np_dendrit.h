@@ -19,14 +19,13 @@ NP_API_INTERN
 void _np_in_received (np_jobargs_t* args);
 
 NP_API_INTERN
-void _np_in_ping(np_jobargs_t* args);
-NP_API_INTERN
-void _np_in_pingreply(np_jobargs_t* args);
-
-NP_API_INTERN
 void _np_in_piggy (np_jobargs_t* args);
 NP_API_INTERN
 void _np_in_update (np_jobargs_t* args);
+NP_API_INTERN
+void _np_in_ack(np_jobargs_t* args);
+NP_API_INTERN
+void __np_in_ack_handle(np_message_t * msg);
 
 NP_API_INTERN
 void _np_in_join_req(np_jobargs_t* args);
@@ -34,8 +33,6 @@ NP_API_INTERN
 void _np_in_join_ack (np_jobargs_t* args);
 NP_API_INTERN
 void _np_in_join_nack (np_jobargs_t* args);
-NP_API_INTERN
-void _np_in_join_wildcard_req(np_jobargs_t* args);
 
 NP_API_INTERN
 void _np_in_leave_req(np_jobargs_t* args);

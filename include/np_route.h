@@ -89,6 +89,10 @@ NP_API_INTERN
 void _np_route_check_for_joined_network();
 NP_API_INTERN
 np_bool _np_route_my_key_has_connection();
+NP_API_INTERN
+uint32_t _np_route_my_key_count_routes();
+NP_API_INTERN
+uint32_t _np_route_my_key_count_neighbours();
 
 #ifdef __cplusplus
 }

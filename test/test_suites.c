@@ -11,7 +11,9 @@
 #include "test_jrb_serialization.c"
 #include "test_keycache.c"
 #include "test_list_impl.c"
+#ifdef NP_MEMORY_CHECK_MEMORY
 #include "test_memory.c"
+#endif
 #include "test_message.c"
 #include "test_node.c"
 #include "test_route.c"

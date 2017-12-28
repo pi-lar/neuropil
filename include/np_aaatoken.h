@@ -97,9 +97,9 @@ enum np_aaastate_e
 
    date when the token will start to be valid
 
-.. c:member:: double expiration
+.. c:member:: double expires_at
 
-   expiration date of the token
+   expires_at date of the token
 
 .. c:member:: aaastate_type state
 
@@ -144,7 +144,7 @@ struct np_aaatoken_s
 
 	double issued_at;
 	double not_before;
-	double expiration;
+	double expires_at;
 
 	aaastate_type state;
 
