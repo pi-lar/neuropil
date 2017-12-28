@@ -59,7 +59,7 @@ void _np_node_t_new(void* node)
 	entry->joined_network = FALSE;
 
 	for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
-		entry->success_win[i] = i%2 == 0;
+		entry->success_win[i] = i%2;
 	entry->success_avg = 0.5;
 	
 	for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
@@ -365,7 +365,11 @@ void _np_node_update_stat (np_node_t* node, np_bool responded)
 	 {
 		_LOCK_ACCESS(&node->lock) {
 
-			node->success_win[node->success_win_index++ % NP_NODE_SUCCESS_WINDOW] = responded;
+			node->success_win_index++;
+			if (node->success_win_index == NP_NODE_SUCCESS_WINDOW)
+				node->success_win_index = 0;
+
+			node->success_win[node->success_win_index % NP_NODE_SUCCESS_WINDOW] = responded;
 
 			for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
 			{
@@ -375,8 +379,7 @@ void _np_node_update_stat (np_node_t* node, np_bool responded)
 
 			if (TRUE == responded) node->last_success = np_time_now();
 		}
-		log_msg(LOG_INFO, "node %s:%s success rate now: %1.1f",
-				node->dns_name, node->port, node->success_avg);
+		log_msg(LOG_INFO, "connection to node %s:%s success rate now: %1.2f (%2u / %2u)", node->dns_name, node->port, node->success_avg, node->success_win_index, node->success_win[node->success_win_index]);
 
 		np_unref_obj(np_node_t, node,"usage");
 	}
@@ -389,7 +392,11 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
 		np_ref_obj(np_node_t, node, "usage");
 		{
 			_LOCK_ACCESS(&node->latency_lock) {
-				node->latency_win[node->latency_win_index++ % NP_NODE_SUCCESS_WINDOW] = new_latency;
+				node->latency_win_index++;
+				if (node->latency_win_index == NP_NODE_SUCCESS_WINDOW)
+					node->latency_win_index = 0;
+
+				node->latency_win[node->latency_win_index % NP_NODE_SUCCESS_WINDOW] = new_latency;
 				
 				double total = 0.0;
 				for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
@@ -398,7 +405,7 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
 					total += node->latency_win[i];
 				}
 				node->latency = total / NP_NODE_SUCCESS_WINDOW;
-				log_msg(LOG_INFO, "node %s:%s latency now: %1.3f",
+				log_msg(LOG_INFO, "connection to node node %s:%s latency      now: %1.3f",
 						node->dns_name, node->port, node->latency);					
 				
 			}

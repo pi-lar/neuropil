@@ -683,10 +683,6 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	}
 
 	uint8_t ack_mode = np_tree_find_str(msg->instructions, _NP_MSG_INST_ACK)->val.value.ush;
-	if (ACK_DESTINATION == (ack_mode & ACK_DESTINATION))
-	{
-		_np_send_ack(msg);
-	}
 
 	// decrease threshold counter
 	msg_prop->msg_threshold--;
@@ -778,10 +774,6 @@ uint32_t np_receive_text (char* subject, char **data)
 	*data = strndup( np_treeval_to_str(reply_data->val, NULL), strlen( np_treeval_to_str(reply_data->val, NULL)));
 
 	uint8_t ack_mode = np_tree_find_str(msg->instructions, _NP_MSG_INST_ACK)->val.value.ush;
-	if (ACK_DESTINATION == (ack_mode & ACK_DESTINATION))
-	{
-		_np_send_ack(msg);
-	}
 
 	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 	msg_prop->msg_threshold--;
@@ -824,7 +816,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	log_msg(LOG_TRACE, "start: np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname){");
 	log_debug_msg(LOG_DEBUG, "neuropil_init");
 
-	 if(_np_threads_init() == FALSE){
+	 if(_np_threads_init() == FALSE) {
 		log_msg(LOG_ERROR, "neuropil_init: could not init threding mutexes");
 		exit(EXIT_FAILURE);
 	}
@@ -1125,9 +1117,7 @@ void _np_send_ack(np_message_t* msg_to_ack)
 			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
 
 			_np_message_create(ack_msg, ack_target, state->my_node_key, _NP_MSG_ACK, NULL);
-			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop->ack_mode));
 			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACKUUID, np_treeval_new_s(msg_to_ack->uuid));
-			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(np_time_now()));
 			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
 
 			// send the ack out
@@ -1139,7 +1129,7 @@ void _np_send_ack(np_message_t* msg_to_ack)
 			log_debug_msg(LOG_DEBUG, "ACK_HANDLING send ack for message (%s)", msg_to_ack->uuid);
 		}
 		else {
-			log_debug_msg(LOG_DEBUG, "ACK Target not inititated");
+			log_debug_msg(LOG_ERROR, "ACK_HANDLING ack target not inititiated");
 		}
 	}
 	else {

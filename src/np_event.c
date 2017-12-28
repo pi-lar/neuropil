@@ -31,6 +31,7 @@
 #include "np_list.h"
 #include "np_route.h"
 #include "np_tree.h"
+#include "np_msgproperty.h"
 #include "np_message.h"
 #include "np_messagepart.h"
 #include "np_memory.h"
@@ -89,6 +90,8 @@ void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 		sll_iterator(np_message_ptr) iter = sll_first(to_del);
 		while (NULL != iter)
 		{
+			log_msg(LOG_INFO,
+				"removing (left-over) message part for uuid: %s", iter->val->uuid);
 			np_tree_del_str(state->msg_part_cache,iter->val->uuid);
 			np_unref_obj(np_message_t, iter->val, ref_msgpartcache);
 			sll_next(iter);

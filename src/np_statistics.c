@@ -270,7 +270,7 @@ char * np_statistics_print(np_bool asOneLine) {
 		if (container->watch_receive) {
 			all_total_received += container->total_received;
 			ret = _np_concatAndFree(ret,
-				"received total: %5"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
+				"received total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
 				container->total_received,
 				current_sec_received, container->last_secdiff_received,
 				current_min_received, container->last_mindiff_received,
@@ -280,7 +280,7 @@ char * np_statistics_print(np_bool asOneLine) {
 		if (container->watch_send) {
 			all_total_send += container->total_send;
 			ret = _np_concatAndFree(ret,
-				"send     total: %5"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
+				"send     total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
 				container->total_send,
 				current_sec_send, container->last_secdiff_send,
 				current_min_send, container->last_mindiff_send,

@@ -80,17 +80,30 @@ void _np_out_ack(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_send_ack(np_jobargs_t* args){");
 
+	np_tree_elem_t* target_uuid = np_tree_find_str(args->msg->instructions, _NP_MSG_INST_ACKUUID);
+
+	double now = np_time_now();
+	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(args->properties->ack_mode));
+	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args->properties->msg_ttl));
+	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
 	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(args->msg->uuid));
 	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
+	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_SEND_COUNTER, np_treeval_new_ush(0));
+	np_tree_elem_t* jrb_send_counter = np_tree_find_str(args->msg->instructions, _NP_MSG_INST_SEND_COUNTER);
+	jrb_send_counter->val.value.ush++;
 
 	// chunking for 1024 bit message size
 	_np_message_calculate_chunking(args->msg);
 	_np_message_serialize_chunked(args->msg);
-
-	if(_np_network_send_msg(args->target, args->msg)) {
+	np_bool send_ok = _np_network_send_msg(args->target, args->msg);
+	if(send_ok) {
 		__np_axon_invoke_on_user_send_callbacks(args->msg, np_msgproperty_get(OUTBOUND, _NP_MSG_ACK));
+	} else {
+		log_msg(LOG_ERROR, "ACK_HANDLING sending of ack message (%s) to %s:%s failed", target_uuid->val.value.s,
+				args->target->node->dns_name, args->target->node->port);
 	}
 }
+
 /**
  ** _np_network_send_msg: host, data, size
  ** Sends a message to host, updating the measurement info.
@@ -157,12 +170,12 @@ void _np_out(np_jobargs_t* args)
 					{
 						// ack indicator still there ! initiate resend ...
 						np_ackentry_t* entry = uuid_ele->val.value.v;
-						if (entry->dest_key != args->target) {
+						if (_np_dhkey_comp(&entry->dest_key->dhkey, &args->target->dhkey) != 0) {
 							// switch dest_key if routing is now pointing to a different key
 							np_ref_switch(np_key_t, entry->dest_key, ref_ack_key, args->target);
 							entry->dest_key = args->target;
 						}
-						log_debug_msg(LOG_DEBUG, "ACK_HANDLING message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
+						log_msg(LOG_INFO, "ACK_HANDLING message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
 					}
 				}
 				// TODO: ref counting on ack may differ (ref_message_ack) / key may not be the same more
@@ -173,8 +186,10 @@ void _np_out(np_jobargs_t* args)
 				}
 
 				double initial_tstamp = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
+				uint8_t msg_resendcounter = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER)->val.value.ush;
 				double now = np_time_now();
-				if (now > (initial_tstamp + args->properties->msg_ttl))
+
+				if (now > (initial_tstamp + args->properties->msg_ttl) || msg_resendcounter > 31)
 				{
 					log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "resend message %s (%s) expired, not resending ...", prop->msg_subject, uuid);
 
@@ -252,7 +267,7 @@ void _np_out(np_jobargs_t* args)
 				_np_message_calculate_chunking(msg_out);
 			}
 
-			np_bool reshedule_msg_transmission = FALSE;
+			np_bool reschedule_msg_transmission = FALSE;
 
 			if (TRUE == ack_to_is_me)
 			{
@@ -274,8 +289,8 @@ void _np_out(np_jobargs_t* args)
 						ackentry->msg = args->msg;
 						np_ref_obj(np_message_t, ackentry->msg, ref_ack_msg);
 					}
-					ackentry->expected_ack = 1; // msg_out->no_of_chunks ?
-					log_debug_msg(LOG_DEBUG, "ACK_HANDLING initial sending of single message (%s/%s)",
+					// ackentry->expected_ack = 1; // msg_out->no_of_chunks ?
+					log_debug_msg(LOG_DEBUG, "initial sending of message (%s/%s) with acknowledge",
 											 args->properties->msg_subject, args->msg->uuid);
 
 #ifdef DEBUG
@@ -294,9 +309,10 @@ void _np_out(np_jobargs_t* args)
 					{
 						np_tree_insert_str(my_network->waiting, uuid, np_treeval_new_v(ackentry));
 					}
+					// log_msg(LOG_ERROR, "ACK_HANDLING ack handling requested for msg uuid: %s/%s", uuid, args->properties->msg_subject);
 					log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", my_network->waiting, uuid);
 				}
-				reshedule_msg_transmission = TRUE;
+				reschedule_msg_transmission = TRUE;
 			}
 
 			np_jobargs_t chunk_args = { .msg = msg_out };
@@ -317,11 +333,19 @@ void _np_out(np_jobargs_t* args)
 			if(send_completed == TRUE) {
 				__np_axon_invoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
 			}
-			if (send_completed == FALSE || (reshedule_msg_transmission == TRUE && args->properties->retry > 0)) {				
+
+			if (send_completed == FALSE || (args->properties->retry > 0 && reschedule_msg_transmission == TRUE) ) {
 				double retransmit_interval = args->properties->msg_ttl / (args->properties->retry+1);
-				np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
-				_np_job_resubmit_route_event(retransmit_interval, out_prop, args->target, args->msg); 
-				log_debug_msg(LOG_DEBUG, "ACK_HANDLING re-sending of message (%s) scheduled", args->msg->uuid);
+				// np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
+				if (send_completed == FALSE && reschedule_msg_transmission == FALSE) {
+					log_msg(LOG_WARN, "np_network returned error, and no re-sending of message (%s) has been scheduled", args->msg->uuid);
+					// todo: define behaviour first
+					// _np_job_resubmit_msgout_event(retransmit_interval, out_prop, args->target, args->msg);
+				}
+				else {
+					_np_job_resubmit_route_event(retransmit_interval, args->properties, args->target, args->msg);
+					log_debug_msg(LOG_DEBUG, "ACK_HANDLING re-sending of message (%s) scheduled", args->msg->uuid);
+				}
 			}			
 
 			np_unref_obj(np_network_t, my_network,"np_waitref_network");

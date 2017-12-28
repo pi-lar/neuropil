@@ -99,6 +99,8 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->retry    = 0;
 	sysinfo_request_props->priority -= 1;
 	sysinfo_request_props->msg_ttl  = 20.0;
+	sysinfo_request_props->mode_type = INBOUND | ROUTE;
+	sysinfo_request_props->max_threshold = 3;
 
 	np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(OUTBOUND, _NP_SYSINFO_REPLY);
 	if(sysinfo_response_props == NULL){
@@ -110,14 +112,11 @@ void np_sysinfo_enable_slave() {
 	sysinfo_response_props->retry    = 0;
 	sysinfo_response_props->priority -= 1;
 	sysinfo_response_props->msg_ttl  = 20.0;
+	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
+	sysinfo_response_props->max_threshold = 3;
 
 	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
-
-	sysinfo_request_props->mode_type = INBOUND | ROUTE;
-	sysinfo_request_props->max_threshold = 3;
-	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 3;
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
@@ -521,11 +520,8 @@ np_tree_t* np_sysinfo_get_all() {
 
 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "usage");	
 
-	_LOCK_MODULE(np_routeglobal_t)
-	{
-		routing_table = _np_route_get_table();
-		neighbours_table = _np_route_neighbors();		
-	}
+	routing_table = _np_route_get_table();
+	neighbours_table = _np_route_neighbors();
 
 	// delete neighbours from routing_table to create distinct list (merge lists)
 	sll_iterator(np_key_ptr) iter_neighbour = sll_first(neighbours_table);

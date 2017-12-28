@@ -74,7 +74,7 @@ np_bool _np_messagepart_decrypt(np_tree_t* source,
 	if (ret < 0)
 	{
 #ifdef DEBUG
-		char[crypto_secretbox_KEYBYTES*2+1] public_key_hex;
+		char public_key_hex[crypto_secretbox_KEYBYTES*2+1];
 		sodium_bin2hex(public_key_hex, crypto_secretbox_KEYBYTES*2+1, public_key, crypto_secretbox_KEYBYTES);
 		log_debug_msg(LOG_DEBUG, "couldn't decrypt msg part with session key %s", public_key_hex);
 #endif

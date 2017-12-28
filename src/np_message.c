@@ -400,7 +400,7 @@ np_bool _np_message_serialize_chunked(np_message_t* msg)
 		CHECK_MALLOC(part->msg_part);
 
 		// pre-fill some garbage
-		//TODO: optimize into memory_v2
+		// TODO: optimize into memory_v2
 		randombytes_buf(part->msg_part, max_chunk_size);
 
 		cmp_init(&cmp, part->msg_part, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
@@ -447,7 +447,6 @@ np_bool _np_message_serialize_chunked(np_message_t* msg)
 			current_chunk_size = cmp.buf - part->msg_part;
 		}
 		
-
 		if (NULL == bin_properties)
 		{
 			// TODO: optimize memory handling and allocate memory during serialization
@@ -935,8 +934,6 @@ void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const c
 	else{
 		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(from)));
 	}
-	if (from != NULL)
-		np_tree_insert_str(msg->header, _NP_MSG_HEADER_REPLY_TO, np_treeval_new_s((char*) _np_key_as_str(from)));
 
 	if (the_data != NULL)
 	{

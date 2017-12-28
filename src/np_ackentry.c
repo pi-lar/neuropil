@@ -18,13 +18,13 @@ void _np_ackentry_set_acked(np_ackentry_t* entry)
 	np_ref_obj(np_ackentry_t, entry);
 	entry->received_at = np_time_now();
 	entry->has_received_ack = TRUE;
-	entry->received_ack++;
+	// entry->received_ack++;
 
 	double latency = (entry->received_at - entry->send_at)/2;
 	_np_node_update_latency(entry->dest_key->node, latency);
-	
-	if (entry->msg != NULL && sll_size(entry->msg->on_ack) > 0) {
+	_np_node_update_stat(entry->dest_key->node, TRUE);
 
+	if (entry->msg != NULL && sll_size(entry->msg->on_ack) > 0) {
 		sll_iterator(np_ackentry_on_t) iter_on = sll_first(entry->msg->on_ack);
 		while (iter_on != NULL)
 		{
@@ -39,7 +39,8 @@ void _np_ackentry_set_acked(np_ackentry_t* entry)
 
 np_bool _np_ackentry_is_fully_acked(np_ackentry_t* entry)
 {
-	return entry->expected_ack == entry->received_ack;
+	return entry->has_received_ack;
+	// return (entry->expected_ack == entry->received_ack);
 }
 
 void _np_ackentry_t_new(void* obj)
@@ -51,8 +52,8 @@ void _np_ackentry_t_new(void* obj)
 	entry->received_at = 0.0;
 	entry->send_at = 0.0;
 
-	entry->expected_ack = 0;
-	entry->received_ack = 0;
+	// entry->expected_ack = 0;
+	// entry->received_ack = 0;
 	entry->dest_key = NULL;
 	entry->msg = NULL;
 }

@@ -91,12 +91,12 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__join_req->mode_type = INBOUND | OUTBOUND;
 	__join_req->mep_type = REQ_REP;
 	__join_req->priority = 0;
-	__join_req->ack_mode = ACK_DESTINATION;
-	__join_req->retry = 5;	
+	__join_req->ack_mode = ACK_CLIENT;
+	__join_req->retry = 5;
 	sll_append(np_callback_t, __join_req->clb_inbound, _np_in_join_req);
 	//default: sll_append(np_callback_t, __join_req->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __join_req->clb_transform, _np_never_called_jobexec_transform);
-	sll_append(np_callback_t, __join_req->clb_route, _np_out);
+	//sll_append(np_callback_t, __join_req->clb_route, _np_out);
 	__join_req->msg_ttl = 30.0;
 	__join_req->max_threshold = UINT16_MAX;
 	__join_req->token_max_ttl = 30;
@@ -178,7 +178,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	//default: sll_append(np_callback_t, __ping->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __ping->clb_transform, _np_never_called_jobexec_transform);
 	//default: sll_append(np_callback_t, __ping->clb_route, _np_glia_route_lookup);
-	__ping->msg_ttl = 25.0;
+	__ping->msg_ttl = 5.0;
 	__ping->max_threshold = 1;
 	__ping->token_max_ttl = 30;
 	__ping->token_min_ttl = 20;
@@ -192,7 +192,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__piggy->mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE;
 	__piggy->mep_type = ONE_WAY;
 	__piggy->priority = 0;
-	__piggy->ack_mode = ACK_NONE;
+	__piggy->ack_mode = ACK_DESTINATION;
 	__piggy->retry = 0;
 	sll_append(np_callback_t, __piggy->clb_inbound, _np_in_piggy);
 	//default: sll_append(np_callback_t, __piggy->clb_outbound, _np_out);
@@ -213,7 +213,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__update->mep_type = ONE_WAY;
 	__update->priority = 0;
 	__update->ack_mode = ACK_DESTINATION;
-	__update->retry = 5;
+	__update->retry = 2;
 	sll_append(np_callback_t, __update->clb_inbound, _np_in_update);
 	//default: sll_append(np_callback_t, __update->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __update->clb_transform, _np_never_called_jobexec_transform);

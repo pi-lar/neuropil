@@ -159,7 +159,6 @@ void _np_job_free_args(np_jobargs_t* args)
 	args = NULL;
 }
 
-
 void _np_job_queue_insert(np_job_t* new_job)
 {
     log_msg(LOG_TRACE, "start: void _np_job_queue_insert(double delay, np_job_t* new_job){");
@@ -184,7 +183,7 @@ void _np_job_queue_insert(np_job_t* new_job)
 		int overflow_count = (int)pll_size(__np_job_queue->job_list)  + 1 - JOBQUEUE_MAX_SIZE;
 
 		if(overflow_count > 0) {
-			log_msg(LOG_WARN, "Discarding %"PRIu32" jobs. Increase JOBQUEUE_MAX_SIZE to prevent missing data.", overflow_count);
+			log_msg(LOG_ERROR, "Discarding %"PRIu32" jobs. Increase JOBQUEUE_MAX_SIZE to prevent missing data.", overflow_count);
 
 			while (overflow_count > 0) {
 				overflow_count--;
@@ -240,7 +239,7 @@ void _np_job_resubmit_route_event (double delay, np_msgproperty_t* prop, np_key_
     jargs->is_resend = TRUE;
 
     // create job itself
-    np_job_t* new_job = _np_job_create_job(delay, jargs,JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE, prop->clb_route,"clb_route");
+    np_job_t* new_job = _np_job_create_job(delay, jargs,JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE, prop->clb_route, "clb_route");
 
     _np_job_queue_insert(new_job);
 }
@@ -378,6 +377,7 @@ void _np_job_yield(const double delay)
         }
     }
 }
+
 static int8_t __np_job_cmp(np_job_ptr first, np_job_ptr second)
 {
 	int8_t ret = 1;
@@ -385,12 +385,12 @@ static int8_t __np_job_cmp(np_job_ptr first, np_job_ptr second)
 		ret = 0;
 	return ret;
 }
+
 np_job_t* _np_jobqueue_select_next()
 {
 	np_job_t* job_to_execute = NULL;
 
 	np_thread_t* my_thread = _np_threads_get_self();
-	pll_iterator(np_job_ptr) iter_jobs;
 	double sleep_time;
 	double now;
 
@@ -407,7 +407,7 @@ np_job_t* _np_jobqueue_select_next()
 
 		_LOCK_MODULE(np_jobqueue_t) {			
 			
-			iter_jobs = pll_first(__np_job_queue->job_list);
+			pll_iterator(np_job_ptr) iter_jobs = pll_first(__np_job_queue->job_list);
 			while (iter_jobs != NULL)
 			{
 				np_job_ptr next_job = iter_jobs->val;
@@ -418,7 +418,7 @@ np_job_t* _np_jobqueue_select_next()
 					// check time of job
 					if (now <= next_job->exec_not_before_tstamp) {
 
-						sleep_time = min(sleep_time , next_job->exec_not_before_tstamp - now);
+						sleep_time = min(sleep_time, next_job->exec_not_before_tstamp - now);
 					}
 					else {
 						job_to_execute = next_job;

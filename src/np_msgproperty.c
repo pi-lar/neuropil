@@ -68,7 +68,7 @@ np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, np_tre
 	if (msg->msg_property->is_internal == TRUE && 0 != strncmp(msg->msg_property->msg_subject, _DEFAULT,strlen(_DEFAULT))) {
 		CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
 
-		if (ACK_DESTINATION == (msg_ack_mode.value.ush & ACK_DESTINATION))
+		if (ACK_CLIENT == (msg_ack_mode.value.ush & ACK_CLIENT))
 		{
 			_np_send_ack(msg);
 		}
@@ -109,9 +109,9 @@ np_bool _np_msgproperty_init ()
 
 		if (strlen(property->msg_subject) > 0)
 		{
-			if ((property->mode_type & INBOUND) == INBOUND && (property->ack_mode & ACK_DESTINATION) == ACK_DESTINATION) {
-				_np_msgproperty_add_receive_listener(__np_msgproperty_internal_msgs_ack, property);
-			}
+//			if ((property->mode_type & INBOUND) == INBOUND && (property->ack_mode & ACK_DESTINATION) == ACK_DESTINATION) {
+//				_np_msgproperty_add_receive_listener(__np_msgproperty_internal_msgs_ack, property);
+//			}
 
 			log_debug_msg(LOG_DEBUG, "register handler: %s", property->msg_subject);
 			RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
@@ -134,8 +134,8 @@ void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgp
 		sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
 	}
 	sll_append(np_usercallback_t, msg_prop->user_receive_clb, msg_handler);
-
 }
+
 /**
  ** registers the handler function #func# with the message type #type#,
  ** it also defines the acknowledgment requirement for this type
@@ -368,7 +368,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 		{
 			log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "send msg cache full, checking overflow policy ...");
 
-			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
+			if (OVERFLOW_PURGE == (msg_prop->cache_policy & OVERFLOW_PURGE))
 			{
 				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "OVERFLOW_PURGE: discarding message in send msgcache for %s", msg_prop->msg_subject);
 				np_message_t* old_msg = NULL;
@@ -387,7 +387,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 				}
 			}
 
-			if (0 < (msg_prop->cache_policy & OVERFLOW_REJECT))
+			if (OVERFLOW_REJECT == (msg_prop->cache_policy & OVERFLOW_REJECT))
 			{
 				log_msg(LOG_WARN,
 						"rejecting new message because cache is full");
@@ -435,7 +435,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 		{
 			log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "recv msg cache full, checking overflow policy ...");
 
-			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
+			if (OVERFLOW_PURGE == (msg_prop->cache_policy & OVERFLOW_PURGE))
 			{
 				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "OVERFLOW_PURGE: discarding message in recv msgcache for %s", msg_prop->msg_subject);
 				np_message_t* old_msg = NULL;
@@ -453,7 +453,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 				}
 			}
 
-			if (0 < (msg_prop->cache_policy & OVERFLOW_REJECT))
+			if (OVERFLOW_REJECT == (msg_prop->cache_policy & OVERFLOW_REJECT))
 			{
 				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 						"rejecting new message because cache is full");

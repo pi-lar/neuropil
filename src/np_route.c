@@ -35,7 +35,6 @@ static const uint16_t __MAX_ENTRY =  3; // three alternatives for each key
 // TODO: change the size according to the number of entries in the routing table (min: 2/ max: 8)
 static const uint16_t __LEAFSET_SIZE = 8; /* (must be even) excluding node itself */
 
-
 typedef struct np_routeglobal_s np_routeglobal_t;
 struct np_routeglobal_s
 {
@@ -52,7 +51,6 @@ struct np_routeglobal_s
 };
 
 static np_routeglobal_t* __routing_table;
-
 
 void _np_route_append_leafset_to_sll(np_key_ptr_pll_t* left_leafset, np_sll_t(np_key_ptr, result));
 
@@ -270,7 +268,6 @@ sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key)
 		}
 
 		sll_append(np_key_ptr, sll_of_keys, __routing_table->my_key);
-
 		np_ref_list(sll_of_keys, __func__, NULL);
 	}
 
@@ -515,7 +512,6 @@ sll_return(np_key_ptr) _np_route_lookup(np_key_t* key, uint8_t count)
 	return (return_list);
 }
 
-
 /**
  ** _np_route_leafset_range_update:
  ** updates the leafset range whenever a node leaves or joins to the leafset
@@ -541,7 +537,6 @@ void _np_route_leafset_range_update ()
 	}
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_range_update");
 }
-
 
 /** _np_route_neighbors:
  ** returns an array of #count# neighbor nodes with priority to closer nodes
@@ -742,8 +737,6 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 	}
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
 }
-
-
 
 uint32_t __np_route_my_key_count_routes(np_bool break_on_first) {
 	uint32_t ret = 0;

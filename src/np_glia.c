@@ -195,7 +195,11 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
 			tmp_node_key->node->is_handshake_send == TRUE 
 			)
 		{
-			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "deleting from table: %s", _np_key_as_str(tmp_node_key));
+			log_debug_msg(LOG_INFO, "deleted from table/leafset: %s:%s:%s / %f / %1.2f",
+								_np_key_as_str(tmp_node_key),
+								tmp_node_key->node->dns_name, tmp_node_key->node->port,
+								tmp_node_key->node->last_success,
+								tmp_node_key->node->success_avg);
 
 			np_key_t *added = NULL, *deleted = NULL;
 			fn(tmp_node_key, FALSE, &deleted, &added);
@@ -241,13 +245,27 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 
 	// IMPORTANT: only select key from routing table and leafset
 	// REASON: alias_keys cannot be pinged, but are valid
-	static int toggle = 0;
 
-	np_sll_t(np_key_ptr, keys) = NULL;
-	if (toggle == 0) keys = _np_route_get_table();
-	if (toggle == 1) keys = _np_route_neighbors();
+	np_sll_t(np_key_ptr, table) = NULL;
+	np_sll_t(np_key_ptr, leafset) = NULL;
 
-	sll_iterator(np_key_ptr) iter = sll_first(keys);
+	table = _np_route_get_table();
+	leafset = _np_route_neighbors();
+
+	// delete neighbours from routing_table to create distinct list (merge lists)
+	sll_iterator(np_key_ptr) iter_neighbour = sll_first(leafset);
+	while (iter_neighbour != NULL)
+	{
+		np_bool is_already_in_list = sll_contains(np_key_ptr, table, iter_neighbour->val, _np_key_cmp);
+		if (is_already_in_list == FALSE) {
+			np_ref_obj(np_key_t, iter_neighbour->val, "_np_route_get_table");
+			sll_append(np_key_ptr, table, iter_neighbour->val);
+		}
+
+		sll_next(iter_neighbour);
+	}
+
+	sll_iterator(np_key_ptr) iter = sll_first(table);
 	while (iter != NULL) {
 		
 		if(iter->val != _np_state()->my_node_key){
@@ -262,10 +280,11 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 		sll_next(iter);
 	}
 
-	np_unref_list(keys, "_np_keycache_get_all");
-	sll_free(np_key_ptr, keys);
+	np_unref_list(table, "_np_route_neighbors");
+	sll_free(np_key_ptr, table);
 
-	toggle = (toggle > 0) ? 0 : 1;
+	np_unref_list(leafset, "_np_route_get_table");
+	sll_free(np_key_ptr, leafset);
 }
 
 void _np_glia_log_flush(NP_UNUSED np_jobargs_t* args) {
@@ -277,18 +296,25 @@ void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
 	/* send leafset exchange data every 3 times that pings the leafset */
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset exchange for neighbours started");
 
-	np_sll_t(np_key_ptr, leafset) = NULL;
-	np_key_t *tmp_node_key = NULL;
+	static int toggle = 0;
 
-	leafset = _np_route_neighbors();
-	while ( NULL != (tmp_node_key = sll_head(np_key_ptr, leafset)))
+	np_sll_t(np_key_ptr, keys) = NULL;
+
+	if (toggle == 0) keys = _np_route_get_table();
+	if (toggle == 1) keys = _np_route_neighbors();
+
+	int i=0;
+	np_key_t *tmp_node_key = NULL;
+	while ( NULL != (tmp_node_key = sll_head(np_key_ptr, keys)))
 	{
 		// send a piggy message to the the nodes in our routing table
 		np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-		_np_job_submit_transform_event(0, piggy_prop, tmp_node_key, NULL);		
+		_np_job_submit_transform_event(i*0.031415, piggy_prop, tmp_node_key, NULL);
 		np_unref_obj(np_key_t, tmp_node_key,"_np_route_neighbors");		
+		i++;
 	}
-	sll_free(np_key_ptr, leafset);
+	sll_free(np_key_ptr, keys);
+	toggle = (toggle > 0) ? 0 : 1;
 }
 
 /**
@@ -371,7 +397,6 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 	}
 }
 
-
 void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args){");
@@ -423,10 +448,10 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 			iter = RB_NEXT(np_tree_s, ng->waiting, iter);
 
 			np_ackentry_t *ackentry = (np_ackentry_t *) jrb_ack_node->val.value.v;
-			if (np_time_now() > ackentry->expires_at)
+			if (ackentry != NULL && np_time_now() > ackentry->expires_at)
 			{
 				// timeout
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "not acknowledged (TIMEOUT at %"PRIu16"/%"PRIu16")", ackentry->received_ack, ackentry->expected_ack);
+				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "not acknowledged (TIMEOUT at %f)", ackentry->expires_at);
 				_np_node_update_stat(ackentry->dest_key->node, FALSE);
 
 				if (ackentry->msg != NULL && sll_size(ackentry->msg->on_timeout) > 0) {
@@ -439,18 +464,38 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 						sll_next(iter_on);
 					}
 				}
-				log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s/%s) not acknowledged (IN TIME %f/%f at %"PRIu16"/%"PRIu16")",
+				log_msg(LOG_WARN, "ACK_HANDLING (table size: %3d) message (%s) not acknowledged (IN TIME %f/%f)",
 							  	  	  	  ng->waiting->size,
 										  jrb_ack_node->key.value.s,
-										  ackentry->msg_subject,
-										  np_time_now(), ackentry->expires_at,
-										  ackentry->received_ack, ackentry->expected_ack);
+										  np_time_now(), ackentry->expires_at /*,
+										  ackentry->received_ack, ackentry->expected_ack */);
 				np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
 
 				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
 				// free(jrb_ack_node->key.value.s);
 				// free(jrb_ack_node);
 				break;
+			}
+
+			if (ackentry != NULL && _np_ackentry_is_fully_acked(ackentry))
+			{
+				// has_received_ack
+#ifdef DEBUG
+				log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s)     acknowledged (IN TIME %f/%f)",
+							  ng->waiting->size,
+							  jrb_ack_node->key.value.s,
+							  np_time_now(), ackentry->expires_at/*,
+							  entry->received_ack, entry->expected_ack*/);
+#endif
+
+				np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
+				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
+				break;
+
+			} else {
+				log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
+						  ng->waiting->size,
+						  jrb_ack_node->key.value.s);
 			}
 		}
 	}
@@ -576,7 +621,6 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 		sll_of_keys = _np_route_neighbors();
 		source_sll_of_keys = "_np_route_neighbors";
 	}
-
 
 	if (sll_size(sll_of_keys) > 0)
 	{

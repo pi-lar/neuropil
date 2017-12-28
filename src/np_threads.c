@@ -36,45 +36,35 @@
 
 /** predefined module mutex array **/
 np_mutex_t __mutexes[PREDEFINED_DUMMY_START-1];
-np_bool _np_threads_mutexes_initiated = FALSE;
-np_bool _np_threads_threads_initiated = FALSE;
+np_bool    __np_threads_mutexes_initiated = FALSE;
+np_bool    __np_threads_threads_initiated = FALSE;
 
+static pthread_once_t __thread_init_once = PTHREAD_ONCE_INIT;
 
-np_bool __np_threads_create_module_mutex(np_module_lock_type module_id)
+void __np_threads_create_module_mutex()
 {
-	log_msg(LOG_TRACE | LOG_MUTEX, "start: np_bool __np_threads_create_module_mutex(np_module_lock_type module_id){");
-	pthread_mutexattr_init(&__mutexes[module_id].lock_attr);
-	pthread_mutexattr_settype(&__mutexes[module_id].lock_attr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&__mutexes[module_id].lock, &__mutexes[module_id].lock_attr);
-	
-	log_debug_msg(LOG_MUTEX | LOG_DEBUG, "created module mutex %d", module_id);
+	for(int module_id = 0; module_id < PREDEFINED_DUMMY_START; module_id++) {
+		pthread_mutexattr_init(&__mutexes[module_id].lock_attr);
+		pthread_mutexattr_settype(&__mutexes[module_id].lock_attr, PTHREAD_MUTEX_RECURSIVE);
+		pthread_mutex_init(&__mutexes[module_id].lock, &__mutexes[module_id].lock_attr);
 
-	return TRUE;
+		log_debug_msg(LOG_MUTEX | LOG_DEBUG, "created module mutex %d", module_id);
+	}
+	__np_threads_mutexes_initiated = TRUE;
 }
 
 np_bool _np_threads_init()
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: np_bool _np_threads_init(){");
-	np_bool ret = TRUE;
-	if(FALSE == _np_threads_mutexes_initiated ){
-		_np_threads_mutexes_initiated = TRUE;
-		for(int i = 0; i < PREDEFINED_DUMMY_START; i++){
-			ret = __np_threads_create_module_mutex(i);
-			if(FALSE == ret) {
-				log_msg(LOG_ERROR,"Cannot initialize mutex %d.", i);
-				break;
-			}
-		}
-	}
-	return ret;
+	pthread_once(&__thread_init_once, __np_threads_create_module_mutex);
+	return (__np_threads_mutexes_initiated);
 }
 
 int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locking module mutex %d.", module_id);
-	if(FALSE == _np_threads_mutexes_initiated ){
-		log_msg(LOG_WARN, "Indirect threads init");
-		_np_threads_init();
+	if(FALSE == __np_threads_mutexes_initiated ){
+		pthread_once(&__thread_init_once, __np_threads_create_module_mutex);
 	}
 	int ret =  1;
 
@@ -167,9 +157,8 @@ int _np_threads_mutex_timedlock(np_mutex_t * mutex, const double timeout)
 int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_type module_id_b, char* where)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
-	if(FALSE == _np_threads_mutexes_initiated ){
-		log_msg(LOG_WARN, "Indirect threads init");
-		_np_threads_init();
+	if(FALSE == __np_threads_mutexes_initiated ){
+		pthread_once(&__thread_init_once, __np_threads_create_module_mutex);
 	}
 	int ret = -1;
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG, "Locking module mutex %d and mutex %d.", module_id_a,module_id_b);
@@ -252,9 +241,8 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 
 int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
-	if(FALSE == _np_threads_mutexes_initiated ){
-		log_msg(LOG_WARN, "Indirect threads init");
-		_np_threads_init();
+	if(FALSE == __np_threads_mutexes_initiated ){
+		pthread_once(&__thread_init_once, __np_threads_create_module_mutex);
 	}
 	int ret = -1;
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locking module mutex %d and %d.", module_id_a,module_id_b);
@@ -295,9 +283,8 @@ int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_ty
 
 int _np_threads_unlock_module(np_module_lock_type module_id) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_unlock_module(np_module_lock_type module_id) {");
-	if(FALSE == _np_threads_mutexes_initiated ){
-		log_msg(LOG_WARN, "Indirect threads init");
-		_np_threads_init();
+	if(FALSE == __np_threads_mutexes_initiated ){
+		pthread_once(&__thread_init_once, __np_threads_create_module_mutex);
 	}
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Unlocking module mutex %d.", module_id);
 	int ret = pthread_mutex_unlock(&__mutexes[module_id].lock);
@@ -598,16 +585,16 @@ void __np_createThreadPool(uint8_t pool_size) {
 		np_thread_t* new_thread = __np_createThread(i, __np_jobqueue_run);
 
 		if (
-			(PRIORITY_MOD_LEVEL_0_SHOULD_HAVE_OWN_THREAD && pool_size > 1 && i == 0) ||
-			(PRIORITY_MOD_LEVEL_1_SHOULD_HAVE_OWN_THREAD && pool_size > 2 && i == 1) ||
-			(PRIORITY_MOD_LEVEL_2_SHOULD_HAVE_OWN_THREAD && pool_size > 3 && i == 2) ||
-			(PRIORITY_MOD_LEVEL_3_SHOULD_HAVE_OWN_THREAD && pool_size > 4 && i == 3) ||
-			(PRIORITY_MOD_LEVEL_4_SHOULD_HAVE_OWN_THREAD && pool_size > 5 && i == 4) ||
-			(PRIORITY_MOD_LEVEL_5_SHOULD_HAVE_OWN_THREAD && pool_size > 6 && i == 5) ||
-			(PRIORITY_MOD_LEVEL_6_SHOULD_HAVE_OWN_THREAD && pool_size > 7 && i == 6)
+			(PRIORITY_MOD_LEVEL_0_SHOULD_HAVE_OWN_THREAD && pool_size > 2 && i == 0) ||
+			(PRIORITY_MOD_LEVEL_1_SHOULD_HAVE_OWN_THREAD && pool_size > 3 && i == 1) ||
+			(PRIORITY_MOD_LEVEL_2_SHOULD_HAVE_OWN_THREAD && pool_size > 4 && i == 2) ||
+			(PRIORITY_MOD_LEVEL_3_SHOULD_HAVE_OWN_THREAD && pool_size > 5 && i == 3) ||
+			(PRIORITY_MOD_LEVEL_4_SHOULD_HAVE_OWN_THREAD && pool_size > 6 && i == 4) ||
+			(PRIORITY_MOD_LEVEL_5_SHOULD_HAVE_OWN_THREAD && pool_size > 7 && i == 5) ||
+			(PRIORITY_MOD_LEVEL_6_SHOULD_HAVE_OWN_THREAD && pool_size > 8 && i == 6)
 		) {
-			new_thread->max_job_priority = i * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
-			new_thread->min_job_priority = i * JOBQUEUE_PRIORITY_MOD_BASE_STEP;			
+			new_thread->max_job_priority = (i+1) * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
+			new_thread->min_job_priority = i     * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
 		}
 		else {
 			new_thread->max_job_priority = PRIORITY_MOD_LOWEST  * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
@@ -681,7 +668,7 @@ void np_start_job_queue(uint8_t pool_size)
 
 	
 	_LOCK_MODULE(np_threads_t){
-		_np_threads_threads_initiated = TRUE;
+		__np_threads_threads_initiated = TRUE;
 	}
 	log_debug_msg(LOG_THREADS | LOG_DEBUG, "%s event loop with %d threads started", NEUROPIL_RELEASE, pool_size);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
@@ -692,7 +679,7 @@ void np_start_job_queue(uint8_t pool_size)
 np_bool _np_threads_is_threadding_initiated() {
 	np_bool ret;
 	_LOCK_MODULE(np_threads_t) {
-		ret = _np_threads_threads_initiated;
+		ret = __np_threads_threads_initiated;
 	}
 	return ret;
 }

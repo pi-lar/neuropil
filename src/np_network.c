@@ -284,6 +284,7 @@ np_bool _np_network_send_handshake(np_key_t* node_key)
 	}
 	return ret;
 }
+
 /**
  ** sends a message to host
  **/
@@ -303,7 +304,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 			log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
 		}
 		else {
-			log_msg(LOG_INFO, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
+			log_msg(LOG_NETWORK | LOG_DEBUG, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
 
 			_LOCK_ACCESS(&msg->msg_chunks_lock) {
 
@@ -328,7 +329,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 
 						if (encryption != 0)
 						{
-							log_msg(LOG_WARN,
+							log_msg(LOG_ERROR,
 								"incorrect encryption of message (not sending to %s:%s)",
 								target_node->dns_name, target_node->port);
 							np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
@@ -342,11 +343,10 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 							memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
 							memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
-							ret = TRUE;
 							/* send data */
 							_LOCK_ACCESS(&node_key->network->send_data_lock) {
 								if (NULL != node_key->network->out_events) {
-									log_msg(LOG_INFO, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
+									log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
 									// log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
 									// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
 									// ret = send (target_node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
@@ -354,6 +354,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 									_np_network_start(node_key->network);
 								}
 								else {
+									log_debug_msg(LOG_WARN, "no out_event structure for target node (key: %s) found", _np_key_as_str(node_key));
 									free(enc_buffer);
 								}
 							}
@@ -363,8 +364,11 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 						}
 					}
 				}
+				ret = TRUE;
 			}
 		}
+	} else {
+		log_debug_msg(LOG_WARN, "network and handshake status of target is unclear (key: %s)", _np_key_as_str(node_key));
 	}
 	return ret;
 }
@@ -379,7 +383,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	{
 		np_key_t* key = event->data;		
 		np_network_t* key_network = key->network ;
-			
+
 		_LOCK_ACCESS(&key_network->send_data_lock)
 		{
 			if(NULL != key_network->out_events &&
@@ -413,13 +417,11 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 					}
 					free(data_to_send);
 				}
+			} else {
+				// only stops the network if outgoing queue size is zero
+				// _np_network_stop(key_network, FALSE);
 			}
-
-			// only stops the network if outgoing queue size is zero
-			_np_network_stop(key_network, FALSE);
 		}
-
-				
 	}
 	else if (EV_READ == (revents & EV_READ))
 	{

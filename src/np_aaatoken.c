@@ -129,10 +129,9 @@ void _np_aaatoken_upgrade_core_token(np_key_t* key_with_core_token, np_aaatoken_
 		np_tree_free(container);
 
 		key_with_core_token->aaa_token->is_signature_verified = FALSE;
-
-
 	}
 }
+
 void np_aaatoken_core_encode(np_tree_t* data, np_aaatoken_t* token, np_bool standalone)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token){");	
@@ -387,7 +386,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		}
 		else
 		{
-			log_msg(LOG_AAATOKEN | LOG_WARN, "verification failed. token for subject \"%s\": %s was already used, 0<=%"PRIu16"<%"PRIu16, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
+			log_msg(LOG_WARN, "verification failed. token for subject \"%s\": %s was already used, 0<=%"PRIu16"<%"PRIu16, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state &= AAA_INVALID;
 			return (FALSE);
@@ -397,7 +396,6 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	token->state |= AAA_VALID;
 	return (TRUE);
 }
-
 
 static int8_t _np_aaatoken_cmp (np_aaatoken_ptr first, np_aaatoken_ptr second)
 {
@@ -450,7 +448,6 @@ static int8_t _np_aaatoken_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr sec
 
 	return _np_aaatoken_cmp(first,second);
 }
-
 
 void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
 {
@@ -546,6 +543,7 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 	// insert new token
 	_LOCK_ACCESS(&subject_key->send_property->lock)
 	{
+		log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_add_sender %d / %s", pll_size(subject_key->send_tokens), subject);
 		// update #2 subject specific data
 		subject_key->send_property->mep_type |= (np_tree_find_str(token->extensions, "mep_type")->val.value.ul & SENDER_MASK);
 		subject_key->send_property->ack_mode = np_tree_find_str(token->extensions, "ack_mode")->val.value.ush;
@@ -588,6 +586,7 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 	// check for outdated token
 	_LOCK_ACCESS(&subject_key->send_property->lock)
 	{
+		log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_add_sender %d", pll_size(subject_key->send_tokens));
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->send_tokens);
 		while (NULL != iter)
 		{
@@ -604,12 +603,14 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 				break;
 			}
 		}
+		log_debug_msg(LOG_DEBUG, ".step3._np_aaatoken_add_sender %d", pll_size(subject_key->send_tokens));
 	}
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_sender_token");
 }
+
 /** np_get_sender_token
  ** retrieve a list of valid sender tokens from the cache
  ** TODO extend this function with a key and an amount of messages
@@ -641,6 +642,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(char* subject)
 
 	_LOCK_ACCESS(&(subject_key->send_property->lock))
 	{
+		log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_get_all_sender %d / %s", pll_size(subject_key->send_tokens), subject);
 		tmp = pll_first(subject_key->send_tokens);
 		while (NULL != tmp)
 		{
@@ -659,13 +661,13 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(char* subject)
 			}
 			pll_next(tmp);
 		}
+		log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_all_sender %d", pll_size(subject_key->send_tokens));
 	}
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 
 	return (return_list);
 }
-
 
 np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender)
 {
@@ -693,6 +695,7 @@ np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender)
 
 	_LOCK_ACCESS(&subject_key->send_property->lock)
 	{
+		log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_get_sender %d / %s", pll_size(subject_key->send_tokens), subject);
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->send_tokens);
 		while (NULL != iter &&
 			   FALSE == found_return_token)
@@ -737,6 +740,7 @@ np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender)
 			np_ref_obj(np_aaatoken_t, return_token);
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", return_token->issuer);
 		}
+		log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_sender %d", pll_size(subject_key->send_tokens));
 	}
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
@@ -767,6 +771,7 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 	// insert new token
 	_LOCK_ACCESS(&subject_key->recv_property->lock)
 	{
+		log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_add_receiver %d / %s", pll_size(subject_key->recv_tokens), subject);
 		// update #2 subject specific data
 //		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "receiver token %03x mask %03x",
 //										  subject_key->recv_property->mep_type, (RECEIVER_MASK | FILTER_MASK) );
@@ -813,9 +818,14 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
 					_np_key_as_str(subject_key) );
 		}
+	}
+
+	// check for outdated token
+	_LOCK_ACCESS(&subject_key->recv_property->lock)
+	{
+		log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_add_receiver %d", pll_size(subject_key->recv_tokens));
 
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
-
 		while (NULL != iter)
 		{
 			np_aaatoken_t* tmp_token = iter->val;
@@ -832,6 +842,7 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 				break;
 			}
 		}
+		log_debug_msg(LOG_DEBUG, ".step3._np_aaatoken_add_receiver %d", pll_size(subject_key->recv_tokens));
 	}
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
@@ -858,6 +869,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 
 	_LOCK_ACCESS(&subject_key->recv_property->lock)
 	{
+		log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_get_receiver %d / %s", pll_size(subject_key->recv_tokens), subject);
 		if(NULL != target) {
 			char targetnode_str[65];
 			_np_dhkey_to_str(target, targetnode_str);
@@ -910,6 +922,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 				break;
 			}
 		}
+		log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_receiver %d", pll_size(subject_key->recv_tokens));
 	}
 
 	if(NULL == return_token ) {
@@ -941,6 +954,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(char* subject)
 
 	_LOCK_ACCESS(&subject_key->recv_property->lock)
 	{
+		log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_get_all_receiver %d / %s", pll_size(subject_key->recv_tokens), subject);
 		tmp = pll_first(subject_key->recv_tokens);
 		while (NULL != tmp)
 		{
@@ -962,6 +976,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(char* subject)
 			pll_next(tmp);
 			// tmp = pll_head(np_aaatoken_ptr, subject_key->recv_tokens);
 		}
+		log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_all_receiver %d", pll_size(subject_key->recv_tokens));
 	}
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
@@ -1115,6 +1130,7 @@ np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject)
 
 	_LOCK_ACCESS(&subject_key->send_property->lock)
 	{
+		log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_get_local_mx %d / %s", pll_size(subject_key->local_mx_tokens), subject);
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->local_mx_tokens);
 		while (NULL != iter &&
 			   FALSE == found_return_token)
@@ -1131,6 +1147,7 @@ np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject)
 			np_ref_obj(np_aaatoken_t, return_token);
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid local mx token (%s)", return_token->issuer);
 		}
+		log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_local_mx %d", pll_size(subject_key->local_mx_tokens));
 	}
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
@@ -1163,6 +1180,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 	// insert new token
 	_LOCK_ACCESS(&subject_key->send_property->lock)
 	{
+		log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_add_local_mx %d / %s", pll_size(subject_key->local_mx_tokens), subject);
 		np_aaatoken_t *tmp_token = NULL;
 
 		// update #1 key specific data
@@ -1183,6 +1201,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 	// check for outdated token
 	_LOCK_ACCESS(&subject_key->send_property->lock)
 	{
+		log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_add_local_mx %d", pll_size(subject_key->local_mx_tokens));
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->local_mx_tokens);
 		while (NULL != iter)
 		{
@@ -1199,6 +1218,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 				break;
 			}
 		}
+		log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_add_local_mx %d", pll_size(subject_key->local_mx_tokens));
 	}
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");

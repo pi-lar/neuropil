@@ -159,11 +159,9 @@ void _np_in_received(np_jobargs_t* args)
 				"deserialized message %s (source: \"%s:%s\")",
 				msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
 
-
 			// now read decrypted (or handshake plain text) message
 			CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
 			CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
-
 
 			np_bool free_msg_from_str = TRUE;
 			char * msg_from_str = np_treeval_to_str(msg_from, &free_msg_from_str);
@@ -178,10 +176,8 @@ void _np_in_received(np_jobargs_t* args)
 
 			if (is_handshake_msg)
 			{
-				np_tree_insert_str(msg_in->footer, NP_MSG_FOOTER_ALIAS_KEY,
-									np_treeval_new_s(_np_key_as_str(alias_key)));
 				np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_HANDSHAKE);
-				_np_job_submit_msgin_event(0.0, msg_prop, my_key, msg_in, NULL);
+				_np_job_submit_msgin_event(0.0, msg_prop, alias_key, msg_in, NULL);
 			}
 			else if (is_decryption_successful == FALSE) {
 				log_msg(LOG_WARN,
@@ -197,104 +193,108 @@ void _np_in_received(np_jobargs_t* args)
 				0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN_NACK, strlen(_NP_MSG_JOIN_NACK)) ||
 				0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN_ACK, strlen(_NP_MSG_JOIN_ACK)))
 			{
-				np_bool is_ack_msg = 0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_ACK, strlen(_NP_MSG_ACK));
-				if (is_ack_msg) {
-					__np_in_ack_handle(msg_in);
-					_np_in_invoke_user_receive_callbacks(msg_in, np_msgproperty_get(INBOUND, _NP_MSG_ACK));
+				/* real receive part */
+				CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_to);
+				CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack);
+				CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TTL, msg_ttl);
+				CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+				CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_SEND_COUNTER, msg_resendcounter);
 
-				} else {
-					/* real receive part */
-					CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_to);
-					CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack);
-					CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TTL, msg_ttl);
-					CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+				// check time-to-live for message and expiry if neccessary
+				if (TRUE == _np_message_is_expired(msg_in))
+				{
+					log_msg(LOG_WARN, "message ttl expired, dropping message (part) %s / %s",
+						msg_in->uuid, np_treeval_to_str(msg_subject, NULL));
+				}
+				else if (msg_resendcounter.value.ush > 31) {
+					log_msg(LOG_WARN, "message resend count (%d) too high, dropping message (part) %s / %s",
+							msg_resendcounter.value.ush, msg_in->uuid, np_treeval_to_str(msg_subject, NULL));
+				}
+				else {
+					log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) message ttl not expired", msg_in->uuid);
 
-					// check time-to-live for message and expiry if neccessary
-					if (TRUE == _np_message_is_expired(msg_in))
+					np_dhkey_t target_dhkey;
+					_np_dhkey_from_str( np_treeval_to_str(msg_to, NULL), &target_dhkey);
+
+					target_key = _np_keycache_find_or_create(target_dhkey);
+					log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "target of msg is %s", _np_key_as_str(target_key));
+
+					np_bool is_ack_msg = (0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_ACK, strlen(_NP_MSG_ACK)) );
+
+					if (_np_key_cmp(target_key, my_key) == 0 && is_ack_msg) {
+						__np_in_ack_handle(msg_in);
+						goto __np_cleanup__;
+					}
+
+					// check if inbound subject handler exists
+					np_msgproperty_t* handler = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
+
+					// redirect message if
+					// msg is not for my dhkey
+					// no handler is present
+					if (_np_key_cmp(args->target, my_key) != 0 || handler == NULL)
 					{
-						log_msg(LOG_MESSAGE | LOG_INFO, "message ttl expired, dropping message (part) %s / %s",
-							msg_in->uuid, np_treeval_to_str(msg_subject, NULL));
+						// perform a route lookup
+						np_sll_t(np_key_ptr, tmp) = NULL;
+
+						// zero as "consider this node as final target"
+						tmp = _np_route_lookup(target_key, 0);
+
+						if (0 < sll_size(tmp))
+							log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
+
+						if (NULL != tmp &&
+							sll_size(tmp) > 0 &&
+							(FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
+						{
+							log_msg(LOG_DEBUG,
+								"forwarding message for subject: %s / uuid: %s", np_treeval_to_str(msg_subject, NULL), msg_in->uuid);
+							np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
+							// forwarding with a small penalty to prevent infinite loops
+							_np_job_submit_route_event(0.031415, prop, args->target, msg_in);
+
+							np_unref_list(tmp, "_np_route_lookup");
+							sll_free(np_key_ptr, tmp);
+							goto __np_cleanup__;
+						}
+						np_unref_list(tmp, "_np_route_lookup");
+						if (NULL != tmp) sll_free(np_key_ptr, tmp);
+						log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "internal routing for subject '%s'", np_treeval_to_str(msg_subject, NULL));
+					}
+
+					// if this message really has to be handled by this node, does a handler exists ?
+					if (NULL == handler)
+					{
+						log_msg(LOG_WARN,
+							"no incoming callback function was found for type %s, dropping message %s",
+							np_treeval_to_str(msg_subject, NULL), msg_in->uuid);
 					}
 					else {
-						log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) message ttl not expired", msg_in->uuid);
+						// sum up message parts if the message is for this node
+						np_message_t* msg_to_submit = _np_message_check_chunks_complete(msg_in);
 
-						np_dhkey_t target_dhkey;
-						_np_dhkey_from_str( np_treeval_to_str(msg_to, NULL), &target_dhkey);
-
-						target_key = _np_keycache_find_or_create(target_dhkey);
-						log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "target of msg is %s", _np_key_as_str(target_key));
-
-						// check if an acknowledge has to be send
-						if (ACK_EACHHOP == (msg_ack.value.ush & ACK_EACHHOP))
+						if (NULL != msg_to_submit)
 						{
-							/* acknowledge part, each hop has to acknowledge the message */
-							// ack after a) a message handler has been found or b) the message has been forwarded
-							_np_send_ack(msg_in);
-						}
-
-						// check if inbound subject handler exists
-						np_msgproperty_t* handler = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
-
-						// redirect message if
-						// msg is not for my dhkey
-						// no handler is present
-						if (_np_key_cmp(args->target, my_key) != 0 || handler == NULL)
-						{
-							// perform a route lookup
-							np_sll_t(np_key_ptr, tmp) = NULL;
-
-							// zero as "consider this node as final target"
-							tmp = _np_route_lookup(target_key, 0);
-
-							if (0 < sll_size(tmp))
-								log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
-
-							if (NULL != tmp &&
-								sll_size(tmp) > 0 &&
-								(FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
+							if (TRUE == my_key->node->joined_network ||
+								0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)))
 							{
-								log_msg(LOG_DEBUG,
-									"forwarding message for subject: %s / uuid: %s", np_treeval_to_str(msg_subject, NULL), msg_in->uuid);
-								np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
-								_np_job_submit_route_event(0.0, prop, args->target, msg_in);
+								log_msg(LOG_INFO,
+									"handling message for subject: %s / uuid: %s",
+									np_treeval_to_str(msg_subject, NULL), msg_to_submit->uuid);
 
-								np_unref_list(tmp, "_np_route_lookup");
-								sll_free(np_key_ptr, tmp);
-								goto __np_cleanup__;
-							}
-							np_unref_list(tmp, "_np_route_lookup");
-							if (NULL != tmp) sll_free(np_key_ptr, tmp);
-							log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "internal routing for subject '%s'", np_treeval_to_str(msg_subject, NULL));
-						}
-
-						// if this message really has to be handled by this node, does a handler exists ?
-						if (NULL == handler)
-						{
-							log_msg(LOG_WARN,
-								"no incoming callback function was found for type %s, dropping message %s",
-								np_treeval_to_str(msg_subject, NULL), msg_in->uuid);
-						}
-						else {
-							// sum up message parts if the message is for this node
-							np_message_t* msg_to_submit = _np_message_check_chunks_complete(msg_in);
-
-							if (NULL != msg_to_submit)
-							{								
-								if (TRUE == my_key->node->joined_network ||
-									0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)))
-								{
-									log_msg(LOG_INFO,
-										"handling message for subject: %s / uuid: %s",
-										np_treeval_to_str(msg_subject, NULL), msg_to_submit->uuid);
-									// finally submit msg job for later execution
-									if (!_np_message_deserialize_chunked(msg_to_submit)) {
-										log_msg(LOG_INFO,
-											"could not deserialize chunked msg (uuid: %s)", msg_to_submit->uuid);
-									}
+								// finally submit msg job for later execution
+								if (!_np_message_deserialize_chunked(msg_to_submit)) {
+									log_msg(LOG_WARN,
+										"could not deserialize chunked msg (uuid: %s)", msg_to_submit->uuid);
+								} else {
 									_np_job_submit_msgin_event(0.0, handler, my_key, msg_to_submit, NULL);
+									if (ACK_DESTINATION == (msg_ack.value.ush & ACK_DESTINATION)  )
+									{
+										_np_send_ack(msg_to_submit);
+									}
 								}
-								np_unref_obj(np_message_t, msg_to_submit, "_np_message_check_chunks_complete");
 							}
+							np_unref_obj(np_message_t, msg_to_submit, "_np_message_check_chunks_complete");
 						}
 					}
 				}
@@ -323,7 +323,7 @@ void _np_in_received(np_jobargs_t* args)
  **/
 void _np_in_piggy(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_piggy(np_jobargs_t* args){");
+	log_msg(LOG_TRACE, "start: void _np_in_piggy(np_jobargs_t* args) {");
 	np_state_t* state = _np_state();
 	np_key_t* node_entry = NULL;
 	// double tmp_ft;
@@ -352,7 +352,46 @@ void _np_in_piggy(np_jobargs_t* args)
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(node_entry));
 			_np_send_simple_invoke_request(node_entry, _NP_MSG_JOIN_REQUEST);
 		}
-		else {
+		else if (TRUE == node_entry->node->joined_network &&
+				node_entry->node->success_avg > BAD_LINK &&
+				(np_time_now() - node_entry->node->last_success) <= BAD_LINK_REMOVE_GRACETIME) {
+			// udpate table and leafset, as nodes could have left the network and we need to fill up entries
+			np_key_t *added = NULL, *deleted = NULL;
+			_np_route_leafset_update(node_entry, TRUE, &deleted, &added);
+
+#ifdef DEBUG
+			if (added !=NULL)
+				log_msg(LOG_ERROR, "STABILITY added   to   leafset: %s:%s:%s / %f / %1.2f",
+								_np_key_as_str(added),
+								added->node->dns_name, added->node->port,
+								added->node->last_success,
+								added->node->success_avg);
+			if (deleted !=NULL)
+				log_msg(LOG_ERROR, "STABILITY deleted from leafset: %s:%s:%s / %f / %1.2f",
+								_np_key_as_str(deleted),
+								deleted->node->dns_name, deleted->node->port,
+								deleted->node->last_success,
+								deleted->node->success_avg);
+#endif
+
+			added = NULL, deleted = NULL;
+			_np_route_update(node_entry, TRUE, &deleted, &added);
+
+#ifdef DEBUG
+			if (added !=NULL)
+				log_msg(LOG_ERROR, "STABILITY added   to   table  : %s:%s:%s / %f / %1.2f",
+								_np_key_as_str(added),
+								added->node->dns_name, added->node->port,
+								added->node->last_success,
+								added->node->success_avg);
+			if (deleted !=NULL)
+				log_msg(LOG_ERROR, "STABILITY deleted from table  : %s:%s:%s / %f / %1.2f",
+								_np_key_as_str(deleted),
+								deleted->node->dns_name, deleted->node->port,
+								deleted->node->last_success,
+								deleted->node->success_avg);
+#endif
+		} else {
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is not qualified for a piggy join. (%s)", _np_key_as_str(node_entry), node_entry->node->joined_network ? "J":"NJ");
 		}
 		np_unref_obj(np_key_t, node_entry,"_np_node_decode_multiple_from_jrb");
@@ -363,6 +402,7 @@ void _np_in_piggy(np_jobargs_t* args)
 	// __np_cleanup__:
 	// nothing to do
 	// __np_return__:
+	log_msg(LOG_TRACE, "end  : void _np_in_piggy(np_jobargs_t* args) }");
 	return;
 }
 
@@ -392,12 +432,6 @@ void _np_in_signal_np_receive (np_jobargs_t* args)
 	//		// signal the np_receive function that the message has arrived
 	//		log_debug_msg(LOG_DEBUG, "signaling via available %p", real_prop);
 	// }
-
-	// TODO: more detailed msg ack handling
-	if (ACK_DESTINATION == (msg_ack_mode.value.ush & ACK_DESTINATION))
-	{
-		_np_send_ack(args->msg);
-	}
 
 	__np_cleanup__:
 	// nothing to do
@@ -465,19 +499,13 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 			}
 			else
 			{
-				if (ACK_DESTINATION == (msg_ack_mode.value.ush & ACK_DESTINATION))
-				{
-					_np_send_ack(args->msg);
-				}
-
-				np_bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);				
-
+				np_bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
 				msg_prop->msg_threshold--;
 
 				// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
 				// log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
 
-				if (ACK_CLIENT ==(msg_ack_mode.value.ush & ACK_CLIENT) && (TRUE == result))
+				if (ACK_CLIENT == (msg_ack_mode.value.ush & ACK_CLIENT) && (TRUE == result))
 				{
 					_np_send_ack(args->msg);
 				}
@@ -631,12 +659,46 @@ void _np_in_join_req(np_jobargs_t* args)
 	// TODO: chicken egg problem, we have to insert the entry into the table to be able to send back the JOIN.NACK
 	np_key_t *added = NULL, *deleted = NULL;
 	_np_route_leafset_update(routing_key, TRUE, &deleted, &added);
+
+#ifdef DEBUG
+	if (added !=NULL)
+		log_debug_msg(LOG_INFO, "added   to   leafset: %s:%s:%s / %f / %1.2f",
+						_np_key_as_str(routing_key),
+						routing_key->node->dns_name, routing_key->node->port,
+						routing_key->node->last_success,
+						routing_key->node->success_avg);
+	if (deleted !=NULL)
+		log_debug_msg(LOG_INFO, "deleted from leafset: %s:%s:%s / %f / %1.2f",
+						_np_key_as_str(deleted),
+						deleted->node->dns_name, deleted->node->port,
+						deleted->node->last_success,
+						deleted->node->success_avg);
+#endif
+
+	added = NULL, deleted = NULL;
 	_np_route_update(routing_key, TRUE, &deleted, &added);
+
+#ifdef DEBUG
+	if (added !=NULL)
+		log_debug_msg(LOG_INFO, "added   to   table  : %s:%s:%s / %f / %1.2f",
+						_np_key_as_str(routing_key),
+						routing_key->node->dns_name, routing_key->node->port,
+						routing_key->node->last_success,
+						routing_key->node->success_avg);
+	if (deleted !=NULL)
+		log_debug_msg(LOG_INFO, "deleted from table  : %s:%s:%s / %f / %1.2f",
+						_np_key_as_str(deleted),
+						deleted->node->dns_name, deleted->node->port,
+						deleted->node->last_success,
+						deleted->node->success_avg);
+#endif
+
+	// TODO: what happens if node is not added to leafset or routing table ?
 
 	if (TRUE == send_reply)
 	{
 		_np_job_submit_msgout_event(0.0, msg_prop, routing_key, msg_out);
-		_np_send_ack(args->msg);
+		// _np_send_ack(args->msg);
 	}
 
 	__np_cleanup__:
@@ -677,11 +739,9 @@ void _np_in_join_ack(np_jobargs_t* args)
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(join_token);
 	join_key = _np_keycache_find_or_create(search_key);
 
-
 	if (NULL != join_key )
 	{
 		_np_aaatoken_upgrade_core_token(join_key, join_token);
-
 		// if a join ack is received here, then this node has send the join request
 		join_key->aaa_token->state |= AAA_AUTHENTICATED;
 	}
@@ -743,7 +803,6 @@ void _np_in_join_ack(np_jobargs_t* args)
 	np_sll_t(np_key_ptr, node_keys) = NULL;
 
 	node_keys = _np_route_get_table();
-
 	_np_keycache_sort_keys_cpm(node_keys, &routing_key->dhkey);
 
 	np_key_t* elem = NULL;
@@ -762,7 +821,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 		_np_message_create(msg_out, elem, my_key, _NP_MSG_UPDATE_REQUEST, jrb_join_node);
 		out_props = np_msgproperty_get(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
-		_np_job_submit_route_event(0.0, out_props, elem, msg_out);
+		_np_job_submit_route_event(i*0.1, out_props, elem, msg_out);
 
 		np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 		np_unref_obj(np_key_t, elem,"_np_route_get_table");
@@ -776,11 +835,38 @@ void _np_in_join_ack(np_jobargs_t* args)
 	np_key_t* added = NULL;
 	np_key_t* deleted = NULL;
 	_np_route_update(routing_key, TRUE, &deleted, &added);
+#ifdef DEBUG
+	if (added !=NULL)
+		log_debug_msg(LOG_INFO, "added   to   table  : %s:%s:%s / %f / %1.2f",
+						_np_key_as_str(routing_key),
+						routing_key->node->dns_name, routing_key->node->port,
+						routing_key->node->last_success,
+						routing_key->node->success_avg);
+	if (deleted !=NULL)
+		log_debug_msg(LOG_INFO, "deleted from table: %s:%s:%s / %f / %1.2f",
+						_np_key_as_str(deleted),
+						deleted->node->dns_name, deleted->node->port,
+						deleted->node->last_success,
+						deleted->node->success_avg);
+#endif
 
 	// update leafset
 	added = NULL, deleted = NULL;
 	_np_route_leafset_update(routing_key, TRUE, &deleted, &added);
-
+#ifdef DEBUG
+	if (added !=NULL)
+		log_debug_msg(LOG_INFO, "added   to   leafset: %s:%s:%s / %f / %1.2f",
+						_np_key_as_str(routing_key),
+						routing_key->node->dns_name, routing_key->node->port,
+						routing_key->node->last_success,
+						routing_key->node->success_avg);
+	if (deleted !=NULL)
+		log_debug_msg(LOG_INFO, "deleted from leafset: %s:%s:%s / %f / %1.2f",
+						_np_key_as_str(deleted),
+						deleted->node->dns_name, deleted->node->port,
+						deleted->node->last_success,
+						deleted->node->success_avg);
+#endif
 	// send an initial piggy message to the new node in our routing table
 	np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
 	_np_job_submit_transform_event(0.0, piggy_prop, routing_key, NULL);
@@ -847,6 +933,31 @@ void _np_in_join_nack(np_jobargs_t* args)
 
 	log_msg(LOG_ROUTING | LOG_INFO, "JOIN request rejected from key %s !", _np_key_as_str(nack_key));
 
+	// update table
+	np_key_t* added = NULL;
+	np_key_t* deleted = NULL;
+	_np_route_update(nack_key, FALSE, &deleted, &added);
+#ifdef DEBUG
+	if (deleted !=NULL)
+		log_debug_msg(LOG_INFO, "deleted from table  : %s:%s:%s / %f / %1.2f",
+						_np_key_as_str(deleted),
+						deleted->node->dns_name, deleted->node->port,
+						deleted->node->last_success,
+						deleted->node->success_avg);
+#endif
+
+	// update leafset
+	added = NULL, deleted = NULL;
+	_np_route_leafset_update(nack_key, FALSE, &deleted, &added);
+#ifdef DEBUG
+	if (deleted !=NULL)
+		log_debug_msg(LOG_INFO, "deleted from leafset: %s:%s:%s / %f / %1.2f",
+						_np_key_as_str(deleted),
+						deleted->node->dns_name, deleted->node->port,
+						deleted->node->last_success,
+						deleted->node->success_avg);
+#endif
+
 	nack_key->aaa_token->state &= AAA_INVALID;
 	nack_key->node->joined_network = FALSE;
 	nack_key->node->is_handshake_send = FALSE;
@@ -878,26 +989,6 @@ void __np_in_ack_handle(np_message_t * msg)
 			_np_ackentry_set_acked(entry);
 			log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "received acknowledgment of uuid=%s",  np_treeval_to_str(ack_uuid, NULL));
 		}
-	}
-
-	if (entry != NULL && _np_ackentry_is_fully_acked(entry))
-	{
-		// has_received_ack
-		_np_node_update_stat(entry->dest_key->node, TRUE);
-
-		_LOCK_ACCESS(&my_network->ack_data_lock)
-		{
-			np_tree_del_str(my_network->waiting, ack_uuid.value.s);
-		}
-#ifdef DEBUG
-		log_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s/%s)     acknowledged (IN TIME %f/%f at %"PRIu16"/%"PRIu16")",
-					  my_network->waiting->size,
-					  ack_uuid.value.s,
-					  entry->msg_subject,
-					  np_time_now(), entry->expires_at,
-					  entry->received_ack, entry->expected_ack);
-#endif
-		np_unref_obj(np_ackentry_t, entry, ref_ack_obj);
 	}
 
 	__np_cleanup__:
@@ -1002,7 +1093,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 	assert(args->msg != NULL);
 	assert(args->msg->header != NULL);
 
-	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
+	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_reply_to);
 
 	reply_to_key = _np_keycache_find_or_create(np_dhkey_create_from_hash( np_treeval_to_str(msg_reply_to, NULL)));
 
@@ -1131,7 +1222,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 	np_tryref_obj(np_message_t, msg_in, msg_exists);
 	if(msg_exists){
-		CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
+		CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_reply_to);
 
 		reply_to_key = _np_keycache_find_or_create(np_dhkey_create_from_hash( np_treeval_to_str(msg_reply_to, NULL)));
 
@@ -1257,10 +1348,9 @@ void _np_in_authenticate(np_jobargs_t* args)
 
 	args->properties->msg_threshold++;
 
-	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
-	reply_to_key = _np_keycache_find_or_create(np_dhkey_create_from_hash( np_treeval_to_str(msg_reply_to, NULL)));
+	reply_to_key = _np_keycache_find_or_create(np_dhkey_create_from_hash( np_treeval_to_str(msg_from, NULL)));
 
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", _np_key_as_str(reply_to_key) );
 
@@ -1438,10 +1528,9 @@ void _np_in_authorize(np_jobargs_t* args)
 
 	args->properties->msg_threshold++;
 
-	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_REPLY_TO, msg_reply_to);
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
-	reply_to_key = _np_keycache_find_or_create(np_dhkey_create_from_hash( np_treeval_to_str(msg_reply_to, NULL)));
+	reply_to_key = _np_keycache_find_or_create(np_dhkey_create_from_hash( np_treeval_to_str(msg_from, NULL)));
 
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", _np_key_as_str(reply_to_key) );
 
@@ -1649,18 +1738,15 @@ void _np_in_handshake(np_jobargs_t* args)
 	_LOCK_MODULE(np_handshake_t) {
 		np_key_t* msg_source_key = NULL;
 		np_key_t* hs_wildcard_key = NULL;
-		np_key_t* alias_key = NULL;
+		np_key_t* alias_key = args->target;
 
 		np_aaatoken_t* tmp_token = NULL;
 
 		_np_message_deserialize_chunked(args->msg);
 
 		// initial handshake message contains public encryption parameter
-		CHECK_STR_FIELD(args->msg->footer, NP_MSG_FOOTER_ALIAS_KEY, alias_dhkey);
 		CHECK_STR_FIELD(args->msg->body, NP_HS_SIGNATURE, signature);
 		CHECK_STR_FIELD(args->msg->body, NP_HS_PAYLOAD, payload);
-
-		np_dhkey_t search_alias_key = np_dhkey_create_from_hash( np_treeval_to_str(alias_dhkey, NULL));
 
 		cmp_ctx_t cmp = { 0 };
 		cmp_init(&cmp, payload.value.bin, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
@@ -1793,7 +1879,7 @@ void _np_in_handshake(np_jobargs_t* args)
 						msg_source_key->node->is_handshake_received |=
 							hs_wildcard_key->node->is_handshake_received;
 
-						msg_source_key->aaa_token = hs_wildcard_key->aaa_token;
+						// msg_source_key->aaa_token = hs_wildcard_key->aaa_token;
 						hs_wildcard_key->aaa_token = NULL;
 
 						if(msg_source_key->parent == NULL) {
@@ -1883,8 +1969,7 @@ void _np_in_handshake(np_jobargs_t* args)
 						"found valid authentication token for node %s (%p), overwriting...",
 						_np_key_as_str(msg_source_key), msg_source_key->node->obj);
 					old_token = msg_source_key->aaa_token;
-
-					msg_source_key->node->joined_network = FALSE;
+					// msg_source_key->node->joined_network = FALSE;
 				}
 
 				np_ref_obj(np_aaatoken_t, tmp_token, ref_key_aaa_token);
@@ -1892,7 +1977,6 @@ void _np_in_handshake(np_jobargs_t* args)
 				np_unref_obj(np_aaatoken_t, old_token, ref_key_aaa_token);
 
 				// handle alias key, also in case a new connection has been established
-				alias_key = _np_keycache_find_or_create(search_alias_key);
 				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for alias %s", _np_key_as_str(alias_key));
 
 				alias_key->aaa_token = msg_source_key->aaa_token;
@@ -1955,7 +2039,6 @@ void _np_in_handshake(np_jobargs_t* args)
 
 		// __np_return__:
 		np_unref_obj(np_key_t, msg_source_key,"_np_key_create_from_token");
-		np_unref_obj(np_key_t, alias_key,"_np_keycache_find_or_create");
 		np_tree_free(hs_payload);
 	}
 	return;

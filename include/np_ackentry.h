@@ -18,8 +18,8 @@ extern "C" {
 		double send_at; // this is the time the packet is transmitted (or retransmitted)
 		double expires_at;   // the time when the ackentry will expire and will be deleted
 		np_key_t* dest_key; // the destination key / next/final hop of the message
-		uint16_t expected_ack;
-		uint16_t received_ack;
+		// uint16_t expected_ack;
+		// uint16_t received_ack;
 		np_message_t* msg;
 	} NP_API_INTERN;
 
