@@ -14,7 +14,7 @@ extern "C" {
 
 struct np_dhkey_s
 {
-    uint64_t t[4];
+    uint32_t t[8];
 };
 
 /* key_comp: k1, k2
@@ -47,12 +47,6 @@ np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port);
  */
 NP_API_INTERN
 np_bool _np_dhkey_equal (np_dhkey_t* k1, np_dhkey_t* k2) NP_CONST;
-
-/* key_equal_ui: k1, ul
- * return 1 if the least significant 32 bits of #k1#==#ul# 0 otherwise
- */
-NP_API_INTERN
-np_bool _np_dhkey_equal_ui (np_dhkey_t* k, uint64_t ul) NP_CONST NP_DEPRECATED;
 
 NP_API_INTERN
 void _np_dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2);
@@ -102,11 +96,6 @@ void _dhkey_print (np_dhkey_t* k) NP_CONST;
  */
 NP_API_INTERN
 void _np_dhkey_assign (np_dhkey_t* k1, const np_dhkey_t* const k2);
-/* key_assign_ui: k1, ul
- * copies #ul# to the least significant 32 bits of #k#
- */
-NP_API_INTERN
-void _np_dhkey_assign_ui (np_dhkey_t * k, uint64_t ul);
 
 #ifdef __cplusplus
 }

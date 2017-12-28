@@ -14,6 +14,8 @@ Copyright 2002 Niels Provos <provos@citi.umich.edu>
 #ifndef	_NP_TREE_H_
 #define	_NP_TREE_H_
 
+#include <stdint.h>
+
 #include "tree/tree.h"
 #include "msgpack/cmp.h"
 
@@ -23,6 +25,37 @@ Copyright 2002 Niels Provos <provos@citi.umich.edu>
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/*
+ * convenience helper macros when messages are received
+ * check the existence of a field and extracts it, otherwise continues with a goto __cleanup__
+ */
+#define CHECK_STR_FIELD(TREE, FIELD_NAME, VAR_NAME) 						\
+np_treeval_t VAR_NAME = np_treeval_NULL; 									\
+if (NULL == np_tree_find_str(TREE, FIELD_NAME)){							\
+	if (NULL != np_tree_find_str(TREE, _NP_MSG_HEADER_SUBJECT)){			\
+		log_msg(LOG_WARN,"Missing field \"%s\" in message for \"%s\"",		\
+			FIELD_NAME,														\
+			np_treeval_to_str(np_tree_find_str(TREE, _NP_MSG_HEADER_SUBJECT)->val,NULL));	\
+	}else {																	\
+		log_msg(LOG_WARN,"Missing field \"%s\" in tree", FIELD_NAME);		\
+	}																		\
+	goto __np_cleanup__; 													\
+} 																			\
+else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
+
+ /**
+ .. c:type:: np_tree_conf_t
+
+	additional configuration attributes for a tree
+	
+	in_place:bool: true = allow the tree to use the original pointers instead of creating a copy every time. false = make a copy of every value
+
+*/
+struct np_tree_conf_s {
+	np_bool in_place;
+	np_bool immutable;
+}NP_API_EXPORT;
 
 /**
 .. c:type:: np_tree_t
@@ -44,7 +77,8 @@ struct np_tree_s
 	struct np_tree_elem_s *rbh_root;
 
 	uint16_t size;
-	uint64_t byte_size;
+	uint32_t byte_size;
+	np_tree_conf_t attr;
 } NP_API_EXPORT;
 
 typedef struct np_tree_elem_s np_tree_elem_t;
@@ -53,7 +87,7 @@ struct np_tree_elem_s
 	RB_ENTRY(np_tree_elem_s) link;
 
 	np_treeval_t key;
-    np_treeval_t val;
+	np_treeval_t val;
 } NP_API_INTERN;
 
 NP_API_INTERN
@@ -65,7 +99,7 @@ RB_PROTOTYPE(np_tree_s, np_tree_elem_s, link, _val_cmp);
 .. c:function:: np_tree_create
 
    create a new instance of a np_tree_t structure
-
+   
    :return: the newly constructed np_tree_t
 
 */
@@ -210,38 +244,69 @@ void np_tree_del_double (np_tree_t* tree, const double key);
 NP_API_EXPORT
 void np_tree_del_ulong (np_tree_t* tree, const uint32_t key);
 
-// print the contents of the tree to the log file,
-// TODO will leak memory right now
 NP_API_INTERN
-void _np_print_tree (np_tree_t* n, uint8_t indent);
-
-NP_API_INTERN
-uint64_t np_tree_get_byte_size(np_tree_elem_t* node);
+uint32_t np_tree_get_byte_size(np_tree_elem_t* node);
 
 /**
-.. c:function:: np_tree_t* np_tree_copy(np_tree_t* source)
+.. c:function:: np_tree_t* np_tree_clone(np_tree_t* source)
 
-   Convinience function to create a full copy of a given tree
+   Convinience function to create a full clone of a given tree
 
    :param tree: the np_tree_t structure to copy
 
   */
 NP_API_EXPORT
-np_tree_t* np_tree_copy(np_tree_t* source);
+np_tree_t* np_tree_clone(np_tree_t* source);
+
+/**
+.. c:function:: np_tree_t* np_tree_copy(np_tree_t* source, np_tree_t* target)
+
+Convinience function to copy data from a given tree into an other tree (may NOT override the source)
+
+:param tree: the np_tree_t structure to copy
+
+*/
+NP_API_EXPORT
+void np_tree_copy(np_tree_t* source, np_tree_t* target);
+
+/**
+.. c:function:: np_tree_t* np_tree_copy_inplace(np_tree_t* source, np_tree_t* target)
+
+Convinience function to copy data from a given tree into an other tree (may override the source)
+
+:param tree: the np_tree_t structure to copy
+
+*/
+NP_API_EXPORT
+void np_tree_copy_inplace(np_tree_t* source, np_tree_t* target);
 
 NP_API_INTERN
-void _np_tree_serialize(np_tree_t* jrb, cmp_ctx_t* cmp);
+void np_tree_serialize(np_tree_t* jrb, cmp_ctx_t* cmp);
 NP_API_INTERN
-void _np_tree_deserialize(np_tree_t* jrb, cmp_ctx_t* cmp);
+np_bool np_tree_deserialize(np_tree_t* jrb, cmp_ctx_t* cmp);
 
 NP_API_INTERN
-uint8_t __np_tree_serialize_read_type_key(void* buffer_ptr, np_treeval_t* target);
+uint8_t __np_tree_serialize_read_type_dhkey(void* buffer_ptr, np_treeval_t* target);
 NP_API_INTERN
-void __np_tree_serialize_write_type_key(np_dhkey_t source, cmp_ctx_t* target);
+void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target);
 NP_API_INTERN
 void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp);
 NP_API_INTERN
-void __np_tree_serialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value);
+void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value,char* key_to_read_for);
+NP_API_INTERN
+void np_tree_insert_special_str(np_tree_t* tree, const uint8_t key, np_treeval_t val);
+NP_API_INTERN
+np_bool _np_tree_is_special_str(const char* in_question, uint8_t* idx_on_found);
+NP_API_INTERN
+const char* _np_tree_get_special_str(uint8_t idx);
+NP_API_INTERN
+void np_tree_del_element(np_tree_t* tree, np_tree_elem_t* to_delete);
+NP_API_INTERN
+void np_tree_insert_element(np_tree_t* tree, np_tree_elem_t* ele);
+NP_API_INTERN
+void np_tree_replace_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t val);
+NP_API_INTERN
+void np_tree_set_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t val);
 
 
 #ifdef __cplusplus

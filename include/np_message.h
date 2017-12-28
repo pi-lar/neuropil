@@ -10,6 +10,8 @@
 #include "np_memory.h"
 #include "np_types.h"
 #include "np_messagepart.h"
+#include "np_threads.h"
+#include "np_list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,15 +33,20 @@ struct np_message_s
 	np_bool is_single_part;
 	uint16_t no_of_chunks;
 	np_pll_t(np_messagepart_ptr, msg_chunks);
+	np_mutex_t msg_chunks_lock;
+
+	np_msgproperty_ptr msg_property;
+
+	np_sll_t(np_ackentry_on_t, on_ack);
+	np_sll_t(np_ackentry_on_t, on_timeout);
+
+	void* bin_properties;
+	void* bin_body;
+	void* bin_footer;
+	np_messagepart_t* bin_static;
+
 } NP_API_INTERN;
 
-struct _np_message_buffer_container_s
-{
-	np_message_t * message;
-	size_t bufferCount;
-	size_t bufferMaxCount;
-	void* buffer;
-} NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
 
@@ -59,16 +66,15 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 // (de-) serialize a message to a binary stream using message pack (cmp.h)
 NP_API_INTERN
 void _np_message_calculate_chunking(np_message_t* msg);
-
 NP_API_INTERN
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check);
 NP_API_INTERN
-np_bool _np_message_serialize(np_jobargs_t* args);
+np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args);
 NP_API_INTERN
-np_bool _np_message_serialize_chunked(np_jobargs_t* args);
+np_bool _np_message_serialize_chunked(np_message_t * msg);
 
 NP_API_INTERN
-np_bool _np_message_deserialize(np_message_t* msg, void* buffer);
+np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void* buffer);
 NP_API_INTERN
 np_bool _np_message_deserialize_chunked(np_message_t* msg);
 
@@ -102,7 +108,12 @@ void _np_message_del_footerentry(np_message_t*, const char* key);
 
 NP_API_INTERN
 void _np_message_set_to(np_message_t* msg, np_key_t* target);
-
+NP_API_INTERN
+char* _np_message_get_subject(np_message_t* msg);
+NP_API_INTERN
+np_bool _np_message_is_expired(const np_message_t* const msg_to_check);
+NP_API_INTERN
+void _np_message_mark_as_incomming(np_message_t* msg);
 // msg header constants
 static const char* _NP_MSG_HEADER_TARGET    = "_np.target";
 static const char* _NP_MSG_HEADER_SUBJECT   = "_np.subj";

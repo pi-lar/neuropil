@@ -10,27 +10,33 @@ optional:
 criterion - test suite framework
 sphinx - python documentation building
 scons - python build tool
+clang - our preferred C compiler
 
 
 2) building the library and example programs
 
-preferred method of building is scons.
-build in debug mode: 
-	
+clone the repository from https://neuropil.org/repo/neuropil/ with mercurial.
+
+cd into the folder and build the code with scons.
+
+build in debug mode:
+
 	scons debug=1
 
-build in release mode: 
+build in release mode:
 
 	scons release=1
 
-build the documentation (sphinx installation required): 
-	
+build the documentation (sphinx installation required):
+
 	scons doc=1
+
+build the tests (criterion installation required):
 
 clean the project:
 
 	scons -c
-	
+
 there is also a Makefile available, but some path infos are hard coded, sorry.
 the Makefile is mainly used to run the llvm scan-build tooling for a static code analysis
 
@@ -40,6 +46,7 @@ no autoconf or cmake available until now, to be done
 
 input directories:
  - src - c source code
+ - examples - c source code for the example programs
  - test - c test source code
  - include - c header files
  - lib - used as a third party library directory
@@ -56,15 +63,13 @@ of each program:
 
 example 1: run the controller on port 1111
 
-	./bin/neuropil_controller -b 1111 
+	./bin/neuropil_controller -b 1111
 
 example 2: run a node on port 2222 and send a join message to another node:
 
-	./bin/neuropil_node -b 2222 -j b3b680a867849efe5886a5db751392e9d3079779e3f3c240ed849c11f4ba7d4a:udp6:test.local:3141 
+	./bin/neuropil_node -b 2222 -j b3b680a867849efe5886a5db751392e9d3079779e3f3c240ed849c11f4ba7d4a:udp6:test.local:3141
 
 to run the test suites please us the parameter "-j1" to limit parallel execution
 usually we use the following command:
 
 	./bin/neuropil_test_suite --tap -j1
-
-

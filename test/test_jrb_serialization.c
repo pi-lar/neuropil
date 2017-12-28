@@ -15,6 +15,7 @@
 #include "np_message.h"
 #include "np_util.h"
 #include "np_jobqueue.h"
+#include "np_serialization.h"
 
 #include "../src/msgpack/cmp.c"
 #include "../src/np_util.c"
@@ -66,22 +67,26 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
     cr_log_info("buffer_ptr\t\t %p\n", buffer_ptr);
     memset(buffer_ptr, 0, 512);
     reset_buffer_counter();
-    cmp_init(&cmp_write, buffer_ptr, buffer_reader_counter, buffer_writer_counter);
+    cmp_init(&cmp_write, buffer_ptr, buffer_reader_counter, NULL, buffer_writer_counter);
 
     np_dhkey_t tst;
     tst.t[0] = 1;
     tst.t[1] = 2;
     tst.t[2] = 3;
-    tst.t[3] = 4;
+	tst.t[3] = 4;
+	tst.t[4] = 5;
+	tst.t[5] = 6;
+	tst.t[6] = 7;
+	tst.t[7] = 8;
 
     np_treeval_t val = np_treeval_new_key(tst);
-	cr_expect(val.type == key_type, "Expected source val to be of type key_type. But is: %"PRIu8, val.type);
+	cr_expect(val.type == dhkey_type, "Expected source val to be of type dhkey_type. But is: %"PRIu8, val.type);
 	cr_expect(total_write_count == 0, "Expected empty buffer. But size is %"PRIu32, total_write_count);
     __np_tree_serialize_write_type(val, &cmp_write);
 	cr_assert(cmp_write.error == ERROR_NONE, "expect no error on write. But is: %"PRIu8, cmp_write.error);
 
-	                             //4 * (marker of uint64 + content of uint64)
-	uint32_t expected_obj_size =  (4 * (sizeof(uint8_t)  + sizeof(uint64_t)));
+	                             //8 * (marker of uint32 + content of uint32)
+	uint32_t expected_obj_size =  (8 * (sizeof(uint8_t)  + sizeof(uint32_t)));
 								  // marker EXT32    + size of EXT32    + type of EXT32
 	uint32_t expected_write_size =  (sizeof(uint8_t) + sizeof(uint32_t) + sizeof(uint8_t) + expected_obj_size);
 
@@ -90,7 +95,7 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
 
 
 	// Beginn reading section
-    cmp_init(&cmp_read, buffer_ptr, buffer_reader_counter, buffer_writer_counter);
+    cmp_init(&cmp_read, buffer_ptr, buffer_reader_counter, NULL, buffer_writer_counter);
     reset_buffer_counter();
 
 	cmp_object_t obj;
@@ -99,20 +104,24 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
 
 	cr_assert(cmp_read.error == ERROR_NONE, "Expected no error on object read. But is: %"PRIu8,cmp_read.error);
 	cr_assert(obj.type == CMP_TYPE_EXT32, "Expected obj to be of type CMP_TYPE_EXT32. But is: %"PRIu8, obj.type);
-	cr_expect(obj.as.ext.type == key_type, "Expected obj to be of type EXT type key_type. But is: %"PRIu8, read_tst.type);
+	cr_expect(obj.as.ext.type == dhkey_type, "Expected obj to be of type EXT type dhkey_type. But is: %"PRIu8, read_tst.type);
 	cr_expect(obj.as.ext.size == expected_obj_size, "Expected obj to be of size %"PRIu32". But is: %"PRIu32, expected_obj_size, obj.as.ext.size);
 
-	__np_tree_serialize_read_type(&obj, &cmp_read, &read_tst);
+	__np_tree_deserialize_read_type(np_tree_create(), &obj, &cmp_read, &read_tst,"test read");
 
 	cr_assert(cmp_read.error == ERROR_NONE, "Expected no error on val read. But is: %"PRIu8,cmp_read.error);
 	cr_expect(total_read_count == expected_read_count, "Expected read size is %"PRIu32" but is %"PRIu32, expected_read_count, total_read_count);
 
-	cr_expect(read_tst.type == key_type, "Expected read val to be of type key_type. But is: %"PRIu8, read_tst.type);
+	cr_expect(read_tst.type == dhkey_type, "Expected read val to be of type dhkey_type. But is: %"PRIu8, read_tst.type);
 	cr_expect(read_tst.size == sizeof(np_dhkey_t), "Expected val to be of dhkey size. But is: %"PRIu32, read_tst.size);
-	cr_expect(read_tst.value.key.t[0] == 1, "Expected read val value 0 to be the same as predefined, But is: %"PRIu64, read_tst.value.key.t[0]);
-	cr_expect(read_tst.value.key.t[1] == 2, "Expected read val value 1 to be the same as predefined, But is: %"PRIu64, read_tst.value.key.t[1]);
-	cr_expect(read_tst.value.key.t[2] == 3, "Expected read val value 2 to be the same as predefined, But is: %"PRIu64, read_tst.value.key.t[2]);
-	cr_expect(read_tst.value.key.t[3] == 4, "Expected read val value 3 to be the same as predefined, But is: %"PRIu64, read_tst.value.key.t[3]);
+	cr_expect(read_tst.value.dhkey.t[0] == 1, "Expected read val value 0 to be the same as predefined, But is: %"PRIu32, read_tst.value.dhkey.t[0]);
+	cr_expect(read_tst.value.dhkey.t[1] == 2, "Expected read val value 1 to be the same as predefined, But is: %"PRIu32, read_tst.value.dhkey.t[1]);
+	cr_expect(read_tst.value.dhkey.t[2] == 3, "Expected read val value 2 to be the same as predefined, But is: %"PRIu32, read_tst.value.dhkey.t[2]);
+	cr_expect(read_tst.value.dhkey.t[3] == 4, "Expected read val value 3 to be the same as predefined, But is: %"PRIu32, read_tst.value.dhkey.t[3]);
+	cr_expect(read_tst.value.dhkey.t[4] == 5, "Expected read val value 4 to be the same as predefined, But is: %"PRIu32, read_tst.value.dhkey.t[4]);
+	cr_expect(read_tst.value.dhkey.t[5] == 6, "Expected read val value 5 to be the same as predefined, But is: %"PRIu32, read_tst.value.dhkey.t[5]);
+	cr_expect(read_tst.value.dhkey.t[6] == 7, "Expected read val value 6 to be the same as predefined, But is: %"PRIu32, read_tst.value.dhkey.t[6]);
+	cr_expect(read_tst.value.dhkey.t[7] == 8, "Expected read val value 7 to be the same as predefined, But is: %"PRIu32, read_tst.value.dhkey.t[7]);
 }
 
 Test(test_serialization, serialize_np_dhkey_t_in_np_tree_t_, .description="test the serialization of a dhkey in a tree")
@@ -126,40 +135,48 @@ Test(test_serialization, serialize_np_dhkey_t_in_np_tree_t_, .description="test 
     cr_log_info("buffer_ptr\t\t %p\n", buffer_ptr);
     memset(buffer_ptr, 0, 1024);
     reset_buffer_counter();
-    cmp_init(&cmp_write, buffer_ptr, buffer_reader_counter, buffer_writer_counter);
+    cmp_init(&cmp_write, buffer_ptr, buffer_reader_counter, NULL, buffer_writer_counter);
 
     np_dhkey_t tst;
     tst.t[0] = 1;
     tst.t[1] = 2;
     tst.t[2] = 3;
-    tst.t[3] = 4;
+	tst.t[3] = 4;
+	tst.t[4] = 5;
+	tst.t[5] = 6;
+	tst.t[6] = 7;
+	tst.t[7] = 8;
     np_dhkey_t tst2;
     tst2.t[0] = 5;
     tst2.t[1] = 6;
     tst2.t[2] = 7;
-    tst2.t[3] = 8;
+	tst2.t[3] = 8;
+	tst2.t[4] = 9;
+	tst2.t[5] = 10;
+	tst2.t[6] = 11;
+	tst2.t[7] = 12;
 
     np_tree_t* write_tree = np_tree_create();
     np_tree_insert_str(write_tree,"TESTKEY", np_treeval_new_key(tst));
 
 	cr_expect(total_write_count == 0, "Expected empty buffer. But size is %"PRIu32, total_write_count);
 
-	_np_tree_serialize(write_tree,&cmp_write);
+	np_tree_serialize(write_tree,&cmp_write);
 
 	cr_assert(cmp_write.error == ERROR_NONE, "expect no error on write. But is: %"PRIu8, cmp_write.error);
 
-	uint32_t expected_write_size =  59;
+	uint32_t expected_write_size =  63;
 
 	cr_expect(total_write_count == expected_write_size, "Expected write size is %"PRIu32" but is %"PRIu32, expected_write_size, total_write_count);
 	uint32_t expected_read_count = total_write_count;
 
 
 	// Beginn reading section
-    cmp_init(&cmp_read, buffer_ptr, buffer_reader_counter, buffer_writer_counter);
+    cmp_init(&cmp_read, buffer_ptr, buffer_reader_counter, NULL, buffer_writer_counter);
     reset_buffer_counter();
     np_tree_t* read_tree = np_tree_create();
 
-    _np_tree_deserialize(read_tree, &cmp_read);
+    np_tree_deserialize(read_tree, &cmp_read);
 
 	cr_assert(cmp_read.error == ERROR_NONE, "Expected no error on val read. But is: %"PRIu8,cmp_read.error);
 	cr_expect(total_read_count == expected_read_count, "Expected read size is %"PRIu32" but is %"PRIu32, expected_read_count, total_read_count);
@@ -168,20 +185,73 @@ Test(test_serialization, serialize_np_dhkey_t_in_np_tree_t_, .description="test 
 
 	cr_assert(NULL != testkey_read, "Expected to find TESTKEY key value");
 
-	cr_expect(testkey_read->val.type == key_type, "Expected read val to be of type key_type. But is: %"PRIu8, testkey_read->val.type);
+	cr_expect(testkey_read->val.type == dhkey_type, "Expected read val to be of type dhkey_type. But is: %"PRIu8, testkey_read->val.type);
 	cr_expect(testkey_read->val.size == sizeof(np_dhkey_t), "Expected val to be of dhkey size. But is: %"PRIu32, testkey_read->val.size);
 
-	cr_expect(testkey_read->val.value.key.t[0] == 1, "Expected read val value 0 to be the same as predefined, But is: %"PRIu64, testkey_read->val.value.key.t[0]);
-	cr_expect(testkey_read->val.value.key.t[1] == 2, "Expected read val value 1 to be the same as predefined, But is: %"PRIu64, testkey_read->val.value.key.t[1]);
-	cr_expect(testkey_read->val.value.key.t[2] == 3, "Expected read val value 2 to be the same as predefined, But is: %"PRIu64, testkey_read->val.value.key.t[2]);
-	cr_expect(testkey_read->val.value.key.t[3] == 4, "Expected read val value 3 to be the same as predefined, But is: %"PRIu64, testkey_read->val.value.key.t[3]);
+	cr_expect(testkey_read->val.value.dhkey.t[0] == 1, "Expected read val value 0 to be the same as predefined, But is: %"PRIu32, testkey_read->val.value.dhkey.t[0]);
+	cr_expect(testkey_read->val.value.dhkey.t[1] == 2, "Expected read val value 1 to be the same as predefined, But is: %"PRIu32, testkey_read->val.value.dhkey.t[1]);
+	cr_expect(testkey_read->val.value.dhkey.t[2] == 3, "Expected read val value 2 to be the same as predefined, But is: %"PRIu32, testkey_read->val.value.dhkey.t[2]);
+	cr_expect(testkey_read->val.value.dhkey.t[3] == 4, "Expected read val value 3 to be the same as predefined, But is: %"PRIu32, testkey_read->val.value.dhkey.t[3]);
+	cr_expect(testkey_read->val.value.dhkey.t[4] == 5, "Expected read val value 4 to be the same as predefined, But is: %"PRIu32, testkey_read->val.value.dhkey.t[4]);
+	cr_expect(testkey_read->val.value.dhkey.t[5] == 6, "Expected read val value 5 to be the same as predefined, But is: %"PRIu32, testkey_read->val.value.dhkey.t[5]);
+	cr_expect(testkey_read->val.value.dhkey.t[6] == 7, "Expected read val value 6 to be the same as predefined, But is: %"PRIu32, testkey_read->val.value.dhkey.t[6]);
+	cr_expect(testkey_read->val.value.dhkey.t[7] == 8, "Expected read val value 7 to be the same as predefined, But is: %"PRIu32, testkey_read->val.value.dhkey.t[7]);
 }
 
 
+Test(test_serialization, _np_tree_special_str, .description = "test the implementation of special strings in the tree implementation")
+{
+	uint8_t idx = 254;	
+	char* tmp;
+	uint32_t tmp2;
 
-Test(test_serialization, _np_tree_serialize, .description="test the serialization of a  jtree")
+	cr_assert(_np_tree_is_special_str("np.test1", &idx) == FALSE, "expecting np.test1 to be no special string");
+	cr_assert(idx == 254, "expecting index to be the same");	
+
+	cr_assert(_np_tree_is_special_str("np.test2", &idx) == TRUE, "expecting np.test2 to be a special string");
+	cr_assert(idx == 0, "expecting np.test2 to be at position 0");
+	cr_assert(strcmp("np.test2", (tmp = _np_tree_get_special_str(0))) == 0, "expecting retunred special string to be np.test2 and not %s",tmp);
+
+
+	cr_assert(_np_tree_is_special_str("np.test3", &idx) == TRUE, "expecting np.test3 to be a special string");
+	cr_assert(idx == 2, "expecting np.test3 to be at position 2");
+	cr_assert(strcmp("np.test3", (tmp =  _np_tree_get_special_str(2))) == 0, "expecting retunred special string to be np.test3 and not %s",tmp);
+
+
+	np_tree_t* tst = np_tree_create();
+	np_tree_elem_t*  ele;
+
+	np_tree_insert_str(tst, "np.test3", np_treeval_new_s("np.test2"));
+	ele = np_tree_find_str(tst, "np.test3");
+	cr_assert(ele != NULL, "Expect to find a element");
+	cr_assert(ele->key.type == special_char_ptr_type, "Expect key of element to be from type special_char_ptr_type");
+	cr_assert(ele->key.value.ush == 2, "Expect type index to be 2");
+
+	cr_assert(ele->val.type == special_char_ptr_type, "Expect value of element to be from type special_char_ptr_type");
+	cr_assert(ele->val.value.ush == 0, "Expect type index to be 0 but is %"PRIu8, ele->val.value.ush);
+
+	cr_expect(1+1+1+1 < (tmp2 = np_tree_get_byte_size(tst->rbh_root)), "expect byte size to be 4 but is %"PRIu32, tmp2);
+
+	np_tree_insert_str(tst, "np.test2", np_treeval_new_s("1234"));
+	ele = np_tree_find_str(tst, "np.test2");
+	cr_assert(ele != NULL, "Expect to find a element");
+	cr_assert(ele->key.type == special_char_ptr_type, "Expect key of element to be from type special_char_ptr_type");
+	cr_assert(ele->key.value.ush == 0, "Expect type index to be 0");
+	cr_assert(ele->val.type == char_ptr_type, "Expect value of element to be from type char_ptr_type");
+	cr_assert(strcmp("1234",  np_treeval_to_str(ele->val, NULL)) == 0, "expecting special string to be 1234");
+
+	cr_expect(0 < np_tree_get_byte_size(tst->rbh_root), "expect byte size to be not 0");
+
+	np_tree_free(tst);
+}
+
+Test(test_serialization, np_tree_serialize, .description="test the serialization of a  jtree")
 {
 	np_tree_t* test_jrb_1 = np_tree_create();
+	uint32_t tmp32;
+	uint16_t tmp16;
+	uint8_t tmp8;
+	np_tree_elem_t* tmpEle;
 
 	cr_expect(NULL != test_jrb_1, "expect test_jrb_1 pointer to exists");
 	cr_expect(NULL == test_jrb_1->rbh_root, "expect rbh_root to be NULL");
@@ -193,8 +263,8 @@ Test(test_serialization, _np_tree_serialize, .description="test the serializatio
     void* empty_buf_ptr = empty_buffer;
     memset(empty_buf_ptr, 0, 65536);
 
-    cmp_init(&cmp_empty, empty_buf_ptr, _np_buffer_reader, _np_buffer_writer);
-	_np_tree_serialize(test_jrb_1, &cmp_empty);
+    cmp_init(&cmp_empty, empty_buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+	np_tree_serialize(test_jrb_1, &cmp_empty);
 
 	// np_jrb_t* node = NULL;
 	// cmp_write_array(&cmp_empty, 1);
@@ -202,7 +272,7 @@ Test(test_serialization, _np_tree_serialize, .description="test the serializatio
 	// node = test_jrb;
 	// log_msg(LOG_DEBUG, "for %p; %p!=%p; %p=%p", test_jrb->flink, node, test_jrb, node, node->flink);
 	//	jrb_traverse(node, test_jrb) {
-	//		log_msg(LOG_INFO, "serializing now: %s", node->key.value.s);
+	//		log_msg(LOG_INFO, "serializing now: %s",  np_treeval_to_str(node->key));
 	//		_np_tree_serialize(node, &cmp_empty);
 	//	}
 	// free (empty_buffer);
@@ -230,30 +300,39 @@ Test(test_serialization, _np_tree_serialize, .description="test the serializatio
 	char* you = "you";
 	char* mail_t = "signed.by.me@test.de";
 
-	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %lu", test_jrb_2->size, test_jrb_2->byte_size);
 	np_tree_insert_str(test_jrb_2, from, np_treeval_new_s(me));
 	cr_expect(   1 == test_jrb_2->size, "expect size of tree to be 1");
-	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %lu", test_jrb_2->size, test_jrb_2->byte_size);
 	np_tree_insert_str(test_jrb_2, to,   np_treeval_new_s(you));
 	cr_expect(   2 == test_jrb_2->size, "expect size of tree to be 2");
-	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %lu", test_jrb_2->size, test_jrb_2->byte_size);
 	np_tree_insert_str(test_jrb_2, id,   np_treeval_new_i(18000));
 	cr_expect(   3 == test_jrb_2->size, "expect size of tree to be 3");
-	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %lu", test_jrb_2->size, test_jrb_2->byte_size);
 	np_tree_insert_str(test_jrb_2, exp,  np_treeval_new_d(5.0));
 	cr_expect(   4 == test_jrb_2->size, "expect size of tree to be 4");
-	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
+	log_msg(LOG_INFO, "test jrb has size: %d %lu", test_jrb_2->size, test_jrb_2->byte_size);
 	np_tree_insert_str(test_jrb_2, mail, np_treeval_new_s(mail_t));
 	cr_expect(   5 == test_jrb_2->size, "expect size of tree to be 5");
-	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
-
+	log_msg(LOG_INFO, "test jrb has size: %d %lu", test_jrb_2->size, test_jrb_2->byte_size);
+#ifdef x64
 	np_tree_insert_str(test_jrb_2, "ul", np_treeval_new_ull(4905283925042198132));
 	cr_expect(   6 == test_jrb_2->size, "expect size of tree to be 6");
-	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
-
+	log_msg(LOG_INFO, "test jrb has size: %d %lu", test_jrb_2->size, test_jrb_2->byte_size);
+#else
+	np_tree_insert_str(test_jrb_2, mail, np_treeval_new_s(mail_t));
+	cr_expect(6 == test_jrb_2->size, "expect size of tree to be 6");
+	log_msg(LOG_INFO, "test jrb has size: %d %lu", test_jrb_2->size, test_jrb_2->byte_size);
+#endif
 	np_tree_insert_str(test_jrb_2, "tree_1", np_treeval_new_tree(test_jrb_1));
-	cr_expect(   7 == test_jrb_2->size, "expect size of tree to be 7");
-	log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb_2->size, test_jrb_2->byte_size);
+	cr_expect(7 == test_jrb_2->size, "expect size of tree to be 7");
+	log_msg(LOG_INFO, "test jrb has size: %d %lu", test_jrb_2->size, test_jrb_2->byte_size);
+	
+	np_tree_insert_str(test_jrb_2, "np.test2", np_treeval_new_s("test"));
+	cr_expect(8 == (tmp16 = test_jrb_2->size), "expect size of tree to be 8 but is %"PRIu16, tmp16);
+	log_msg(LOG_INFO, "test jrb has size: %d %lu", test_jrb_2->size, test_jrb_2->byte_size);
+
 
 	// log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb->size, test_jrb->byte_size);
 	log_msg(LOG_INFO, "----------------------");
@@ -263,25 +342,28 @@ Test(test_serialization, _np_tree_serialize, .description="test the serializatio
     void* buffer = malloc(65536);
     memset(buffer, 0, 65536);
 
-    cmp_init(&cmp, buffer, _np_buffer_reader, _np_buffer_writer);
-	_np_tree_serialize(test_jrb_2, &cmp);
-
-	/*
-	log_msg(LOG_INFO, "serialized message is: %p %s (size: %d)", buffer, buffer, cmp.buf-buffer);
-	log_msg(LOG_INFO, "----------------------");
-	log_msg(LOG_INFO, "deserializing message:");
+    cmp_init(&cmp, buffer, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+	np_tree_serialize(test_jrb_2, &cmp);
 
 	np_tree_t* out_jrb = np_tree_create();
 	cmp_ctx_t cmp_out;
 	// int cmp_err_out;
-	cmp_init(&cmp_out, buffer, _np_buffer_reader, _np_buffer_writer);
+	cmp_init(&cmp_out, buffer, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 
-	// unsigned int map_size = 0;
-	// cmp_err_out = cmp_read_map(&cmp_out, &map_size);
-	// if (!cmp_err_out) log_msg(LOG_WARN, cmp_strerror(&cmp_out));
-	// log_msg(LOG_INFO, "deserialized buffer contains %d elements", map_size);
-	_np_tree_deserialize(out_jrb, &cmp_out);
+	np_tree_deserialize(out_jrb, &cmp_out);
 
+	cr_assert((tmp8 = cmp_out.error )== 0, "Expect no error in deserialisation (error: %"PRIu8")",tmp8);
+
+	tmpEle = np_tree_find_str(out_jrb, "np.test2");
+	
+	cr_assert(tmpEle != NULL, "Expect to find element np.test2");
+	cr_expect((tmp8 = tmpEle->key.type) == special_char_ptr_type, "Expect element key to be of type special_char_ptr_type and not %"PRIu8, tmp8);
+	cr_expect(tmpEle->key.value.ush == 0, "Expect element key to be the same");
+	cr_expect(tmpEle->val.type == char_ptr_type, "Expect element value to be of type char_ptr_type");
+	cr_expect(strcmp( np_treeval_to_str(tmpEle->val, NULL), "test") ==0, "Expect element value to be the same");
+
+
+	/*
 	log_msg(LOG_INFO, "deserialized tree is: %p (size %d)", out_jrb, out_jrb->size);
 	log_msg(LOG_INFO, "id: %d", tree_find_str(out_jrb, "id")->val.value.i);
 	log_msg(LOG_INFO, "from: %s", tree_find_str(out_jrb, "from")->val.value.s);

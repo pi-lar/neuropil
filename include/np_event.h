@@ -15,10 +15,11 @@ extern "C" {
 void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents);
 void _np_events_read(np_jobargs_t* args);
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args);
-
+void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args);
+void* _np_event_run();
+double np_event_sleep(double time);
 void _np_suspend_event_loop();
 void _np_resume_event_loop();
-
 
 #ifdef __cplusplus
 }

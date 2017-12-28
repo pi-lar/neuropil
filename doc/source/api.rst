@@ -78,3 +78,15 @@ The master will then receive updates of the slave nodes and store this informati
 We have activated this feature in the :ref:`neuropil_hydra` as an example implementation.
 
 .. include-comment:: ../../include/np_sysinfo.h
+
+
+
+************
+Module Class Overview
+************
+
+If you like to view the current development class overview please look into the following pdf:
+
+https://www.lucidchart.com/publicSegments/view/0782cc3c-d0e6-43d7-86ac-27b601f28330
+
+

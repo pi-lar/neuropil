@@ -18,6 +18,8 @@ typedef np_messagepart_t* np_messagepart_ptr;
 
 struct np_messagepart_s
 {
+	np_obj_t* obj;
+
 	np_tree_t* header;
 	np_tree_t* instructions;
 	uint16_t part;
@@ -25,16 +27,18 @@ struct np_messagepart_s
 } NP_API_INTERN;
 
 NP_PLL_GENERATE_PROTOTYPES(np_messagepart_ptr);
+_NP_GENERATE_MEMORY_PROTOTYPES(np_messagepart_t);
 
 NP_API_INTERN
 int8_t _np_messagepart_cmp (const np_messagepart_ptr value1, const np_messagepart_ptr value2);
 
 // encrypt / decrypt parts of a message
 NP_API_INTERN
-np_bool _np_messagepart_decrypt(np_tree_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
+np_bool _np_messagepart_decrypt(np_tree_t* source, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key, np_tree_t* target);
 NP_API_INTERN
 np_bool _np_messagepart_encrypt(np_tree_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
-
+NP_API_INTERN
+char* np_messagepart_printcache(np_bool asOneLine);
 #ifdef __cplusplus
 }
 #endif

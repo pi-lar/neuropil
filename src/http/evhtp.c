@@ -1948,7 +1948,7 @@ _evhtp_connection_eventcb(evbev_t * bev, short events, void * arg) {
 #endif
 
     if (events == (BEV_EVENT_EOF | BEV_EVENT_READING)) {
-        if (errno == EAGAIN) {
+        if (errno == EWOULDBLOCK || errno == EAGAIN) {
             /* libevent will sometimes recv again when it's not actually ready,
              * this results in a 0 return value, and errno will be set to EAGAIN
              * (try again). This does not mean there is a hard socket error, but

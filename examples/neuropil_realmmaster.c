@@ -21,18 +21,8 @@
 #include "np_util.h"
 #include "np_treeval.h"
 
-
-/**
-.. highlight:: c
-*/
-
-#define USAGE "neuropil [ -j bootstrap:port ] [ -p protocol] [-b port] [-t worker_thread_count]"
-#define OPTSTR "j:p:b:t:"
-
-extern char *optarg;
-/**
-.. code-block:: c
-*/
+#include "example_helper.c"
+ 
 
 np_state_t* state = NULL;
 np_tree_t* authorized_tokens = NULL;
@@ -78,8 +68,8 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	snprintf(time_entry+19, 6, ".%6d", token_time.tv_usec);
 	fprintf(stdout, "\tissued date       : %s\n", time_entry);
 
-	token_time.tv_sec = (long) token->expiration;
-	token_time.tv_usec = (long) ((token->expiration - (double) token_time.tv_sec) * 1000000.0);
+	token_time.tv_sec = (long) token->expires_at;
+	token_time.tv_usec = (long) ((token->expires_at - (double) token_time.tv_sec) * 1000000.0);
 	localtime_r(&token_time.tv_sec, &token_ts);
 	strftime(time_entry, 19, "%Y-%m-%d %H:%M:%S", &token_ts);
 	snprintf(time_entry+19, 6, ".%6d", token_time.tv_usec);
@@ -106,7 +96,7 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	np_ref_obj(np_aaatoken_t, token);
 	np_tree_insert_str(authorized_tokens, token->issuer, np_treeval_new_v(token));
 /*
-	  	break;
+		break;
 	case 'o':
 		ret_val = TRUE;
 		break;
@@ -155,8 +145,8 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 	snprintf(time_entry+19,  6, ".%6d", token_time.tv_usec);
 	fprintf(stdout, "\tissued date       : %s\n", time_entry);
 
-	token_time.tv_sec = (long) token->expiration;
-	token_time.tv_usec = (long) ((token->expiration - (double) token_time.tv_sec) * 1000000.0);
+	token_time.tv_sec = (long) token->expires_at;
+	token_time.tv_usec = (long) ((token->expires_at - (double) token_time.tv_sec) * 1000000.0);
 	localtime_r(&token_time.tv_sec, &token_ts);
 	strftime(time_entry, 19, "%Y-%m-%d %H:%M:%S", &token_ts);
 	snprintf(time_entry+19, 6, ".%6d", token_time.tv_usec);
@@ -205,12 +195,13 @@ np_aaatoken_t* create_realm_identity()
 
 	strncpy(realm_identity->realm,   "pi-lar test realm",  255);
 	strncpy(realm_identity->subject, "pi-lar realmmaster", 255);
-	strncpy(realm_identity->issuer,  "pi-lar realmmaster", 255);
+	strncpy(realm_identity->issuer,  "pi-lar realmmaster", 64);
 
-	realm_identity->not_before = ev_time();
-	realm_identity->expiration = realm_identity->not_before + 7200.0;
+	realm_identity->not_before = np_time_now();
+	realm_identity->expires_at = realm_identity->not_before + 7200.0;
 	realm_identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
+	free(realm_identity->uuid);
 	realm_identity->uuid = np_uuid_create("pi-lar realmmaster", 0);
 
 	// add some unique identification parameters
@@ -223,36 +214,37 @@ np_aaatoken_t* create_realm_identity()
 
 int main(int argc, char **argv)
 {
-	int opt;
-	int no_threads = 4;
-	char* j_key = NULL;
-	char* proto = NULL;
+
+	int no_threads = 8;
+	char *j_key = NULL;
+	char* proto = "udp4";
 	char* port = NULL;
-
-	while ((opt = getopt(argc, argv, OPTSTR)) != EOF)
-	{
-		switch ((char) opt)
-		{
-		case 'j':
-			j_key = optarg;
-			break;
-		case 't':
-			no_threads = atoi(optarg);
-			if (no_threads <= 0) no_threads = 4;
-			break;
-		case 'p':
-			proto = optarg;
-			break;
-		case 'b':
-			port = optarg;
-			break;
-		default:
-			fprintf(stderr, "invalid option %c\n", (char) opt);
-			fprintf(stderr, "usage: %s\n", USAGE);
-			exit(1);
-		}
+	char* publish_domain = NULL;
+	int level = -2;
+	char* logpath = ".";
+ 
+	int opt;
+	if (parse_program_args(
+		__FILE__,
+		argc,
+		argv,
+		&no_threads,
+		&j_key,
+		&proto,
+		&port,
+		&publish_domain,
+		&level,
+		&logpath,
+		NULL,
+		NULL,		
+	) == FALSE) {
+		exit(EXIT_FAILURE);
 	}
-
+ 
+	/**
+	for the general initialisation of a node please look into the neuropil_node example
+	*/
+	
 	/**
 	in your main program, initialize the logging of neuopil
 
@@ -264,11 +256,7 @@ int main(int argc, char **argv)
 	   log_init(log_file, level);
 	*/
 	char log_file[256];
-	sprintf(log_file, "%s_%s.log", "./neuropil_realmmaster", "0");
-	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	// int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK | LOG_AAATOKEN;
-	// int level = LOG_ERROR | LOG_WARN | LOG_INFO;
+	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_realmmaster", port);
 	np_log_init(log_file, level);
 
 	/**
@@ -278,7 +266,7 @@ int main(int argc, char **argv)
 
 	   state = np_init(proto, port);
 	*/
-	state = np_init(proto, port, TRUE, NULL);
+	state = np_init(proto, port, publish_domain);
 
 	np_aaatoken_t* realm_identity = create_realm_identity();
 	np_set_identity(realm_identity);
@@ -296,7 +284,7 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-       2f96848a8c490e0f0f71c74caa900423bcf2d32882a9a0b3510c50085f7ec0e5:udp6:localhost:3333
+	   2f96848a8c490e0f0f71c74caa900423bcf2d32882a9a0b3510c50085f7ec0e5:udp6:localhost:3333
 	*/
 
 	/**
@@ -309,7 +297,7 @@ int main(int argc, char **argv)
 
 
 	// dsleep(50);
-	log_msg(LOG_DEBUG, "starting job queue");
+	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
 
 	if (NULL != j_key)
@@ -323,7 +311,7 @@ int main(int argc, char **argv)
 	.. code-block:: c
 
 	   while (1) {
-	       dsleep(1.0);
+		   dsleep(1.0);
 	   }
 	*/
 
@@ -335,7 +323,7 @@ int main(int argc, char **argv)
 	By default the authentication / authorization / accounting handler accept nodes/message request
 	from everybody.
 
-    .. note::
+	.. note::
 	   Make sure that you implement and register the appropiate aaa callback functions
 	   to control with which nodes you exchange messages. By default everybody is allowed to interact
 	   with your node

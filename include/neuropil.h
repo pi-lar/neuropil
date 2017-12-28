@@ -15,14 +15,12 @@ It should contain all required functions to send or receive messages.
 
 #include <pthread.h>
 
+#include "np_constants.h"
+#include "np_settings.h"
 #include "np_types.h"
+#include "np_list.h"
 
-#define NP_VERSION_MAJOR	"0"
-#define NP_VERSION_MINOR	"2"
-#define NP_VERSION_RELEASE	"0"
-
-#define NEUROPIL_VERSION	"neuropil " NP_VERSION_MAJOR "." NP_VERSION_MINOR
-#define NEUROPIL_RELEASE	NEUROPIL_VERSION "." NP_VERSION_RELEASE
+#define NEUROPIL_RELEASE	"neuropil_0.4.0"
 #define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2017 neuropil.org, Cologne, Germany"
 #define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2017 pi-lar GmbH, Cologne, Germany"
 
@@ -50,14 +48,17 @@ struct np_state_s
 	char* realm_name;
 
 	np_tree_t *msg_tokens;
-    np_tree_t* msg_part_cache;
+	np_tree_t* msg_part_cache;
 
-    pthread_attr_t attr;
-    pthread_t* thread_ids;
-    int thread_count;
+	pthread_attr_t attr;
+	pthread_t* thread_ids;
 
-    np_bool enable_realm_master; // act as a realm master for other nodes or not
-    np_bool enable_realm_slave; // act as a realm salve and ask master for aaatokens
+	np_sll_t(np_thread_ptr, threads);
+
+	int thread_count;
+
+	np_bool enable_realm_master; // act as a realm master for other nodes or not
+	np_bool enable_realm_slave; // act as a realm salve and ask master for aaatokens
 
 	np_aaa_func_t  authenticate_func; // authentication callback
 	np_aaa_func_t  authorize_func;    // authorization callback
@@ -73,13 +74,12 @@ struct np_state_s
 
    :param port: the port to listen on, default is 3141
    :param proto: the default value for the protocol "udp6", which is UDP | IPv6
-   :param start_http: if the http server on port 31415 should start (default: FALSE)
    :param hostname: (optional) The hostname to bind on. If not provided will be received via gethostname()
    :return: the np_state_t* which contains global state of different np sub modules or NULL on failure
 
 */
 NP_API_EXPORT
-np_state_t* np_init (char* proto, char* port, np_bool start_http, char* hostname);
+np_state_t* np_init (char* proto, char* port, char* hostname);
 
 /**
 .. c:function:: np_state_t* np_destroy()
@@ -205,7 +205,7 @@ NP_API_EXPORT
 void np_setaccounting_cb(np_aaa_func_t join_func);
 
 /**
-.. c:function:: void np_set_listener(np_usercallback_t msg_handler, char* subject)
+.. c:function:: void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
 
    register an message callback handler for a subject. The callback is called when a message arrives.
    The callback function should return TRUE if the message was processed successfully, FALSE otherwise.
@@ -216,7 +216,20 @@ void np_setaccounting_cb(np_aaa_func_t join_func);
 
 */
 NP_API_EXPORT
-void np_set_listener (np_usercallback_t msg_handler, char* subject);
+void np_add_receive_listener (np_usercallback_t msg_handler, char* subject);
+
+/**
+.. c:function:: void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
+
+register an message callback handler for a subject. The callback is called when a message will be send.
+The callback function should return TRUE if the message should be send, FALSE otherwise.
+
+:param msg_handler: a function pointer to a np_usercallback_t function
+:param subject: the message subject the handler should be called for
+
+*/
+NP_API_EXPORT
+void np_add_send_listener(np_usercallback_t msg_handler, char* subject);
 
 /**
 .. c:function:: void np_send_text(char* subject, char *data, uint32_t seqnum)
@@ -324,6 +337,9 @@ char* np_get_connection_string();
 NP_API_EXPORT
 char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash);
 
+NP_API_INTERN
+char* _np_build_connection_string(char* hash, char* protocol, char*dns_name, char* port, np_bool includeHash);
+
 /**
 .. c:function:: void np_start_job_queue(np_state_t* state, uint8_t pool_size)
 
@@ -336,7 +352,7 @@ NP_API_EXPORT
 void np_start_job_queue(uint8_t pool_size);
 
 /**
-.. c:function:: void _np_ping(np_key_t* key)
+.. c:function:: void _np_ping_send(np_key_t* key)
 
    Sends a ping message to a key. Can be used to check the connectivity to a node
    The ping message is acknowledged in network layer. This function is mainly used by the neuropil subsystem.
@@ -347,11 +363,18 @@ void np_start_job_queue(uint8_t pool_size);
 
 */
 NP_API_INTERN
-void _np_ping(np_key_t* key);
+void _np_ping_send(np_key_t* key);
 
 NP_API_INTERN
-void _np_send_ack(np_message_t* in_msg);
+void _np_send_ack(const np_message_t* const in_msg);
 
+NP_API_INTERN
+double np_time_now();
+NP_API_INTERN
+void np_time_sleep(double sleeptime);
+// send join request
+NP_API_INTERN
+void _np_send_simple_invoke_request(np_key_t* target, const char* type);
 
 #ifdef __cplusplus
 }

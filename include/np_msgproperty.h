@@ -19,6 +19,7 @@ A developer should be familiar with the main settings
 #include "np_memory.h"
 #include "np_util.h"
 #include "np_types.h"
+#include "np_list.h"
 #include "np_threads.h"
 
 #ifdef __cplusplus
@@ -199,10 +200,10 @@ typedef enum np_msgcache_policy_enum {
 
 */
 typedef enum np_msg_ack_enum {
-	ACK_NONE = 0x00, // 0000 0000  - don't ack at all
-	ACK_EACHHOP = 0x01, // 0000 0001 - each hop has to send a ack to the previous hop
+	ACK_NONE		= 0x00, // 0000 0000  - don't ack at all
+	ACK_EACHHOP		= 0x01, // 0000 0001 - each hop has to send a ack to the previous hop
 	ACK_DESTINATION = 0x02, // 0000 0010 - message destination ack to message sender across multiple nodes
-	ACK_CLIENT = 0x04,     // 0000 0100 - message to sender ack after/during processing the message on receiver side
+	ACK_CLIENT		= 0x04, // 0000 0100 - message to sender ack after/during processing the message on receiver side
 } NP_API_EXPORT np_msg_ack_type;
 
 /**
@@ -226,46 +227,53 @@ struct np_msgproperty_s
 	// link to memory management
 	np_obj_t* obj;
 
-    RB_ENTRY(np_msgproperty_s) link; // link for cache management
+	RB_ENTRY(np_msgproperty_s) link; // link for cache management
 
-    // link to node(s) which is/are interested in message exchange
-    np_dhkey_t partner_key;
+	// link to node(s) which is/are interested in message exchange
+	np_dhkey_t partner_key;
 
-    char*            msg_subject;
-    char*            rep_subject;
+	char*            msg_subject;
+	char*            rep_subject;
 	char*            msg_audience;
 	np_msg_mode_type mode_type;
 	np_msg_mep_type  mep_type;
 	np_msg_ack_type  ack_mode;
-	double           ttl;
+	double           msg_ttl;
 	uint8_t          priority;
 	uint8_t          retry; // the # of retries when sending a message
 	uint16_t         msg_threshold; // current cache size
 	uint16_t         max_threshold; // local cache size
+	np_bool is_internal;
 
 	// timestamp for cleanup thread
 	double          last_update;
 
 	// cache which will hold up to max_threshold messages
 	np_msgcache_policy_type cache_policy;
-	np_sll_t(np_message_t, msg_cache_in);
-	np_sll_t(np_message_t, msg_cache_out);
+	np_sll_t(np_message_ptr, msg_cache_in);
+	np_sll_t(np_message_ptr, msg_cache_out);
 
 	// only send/receive after opposite partner has been found
 	np_mutex_t lock;
 	np_cond_t  msg_received;
 
 	// pthread_cond_t     msg_received;
-    // pthread_condattr_t cond_attr;
+	// pthread_condattr_t cond_attr;
 
 	// callback function(s) to invoke when a message is received
-	np_callback_t clb_default; // internal neuropil supplied
-	np_callback_t clb_inbound; // internal neuropil supplied
-	np_callback_t clb_outbound; // internal neuropil supplied
-	np_callback_t clb_route; // internal neuropil supplied
-	np_callback_t clb_transform; // internal neuropil supplied
+	np_sll_t(np_callback_t, clb_inbound);			// internal neuropil supplied
+	np_sll_t(np_callback_t, clb_outbound);			// internal neuropil supplied
+	np_sll_t(np_callback_t, clb_route);				// internal neuropil supplied
+	np_sll_t(np_callback_t, clb_transform);			// internal neuropil supplied
 
-	np_usercallback_t user_clb; // external user supplied for inbound
+	np_sll_t(np_usercallback_t, user_receive_clb);	// external user supplied for inbound
+	np_sll_t(np_usercallback_t, user_send_clb);		// external user supplied for outnound
+
+	// The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
+	uint32_t token_max_ttl;
+	// The token created for this msgproperty will guaranteed live for token_min_ttl seconds
+	uint32_t token_min_ttl;
+
 } NP_API_EXPORT;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
@@ -274,7 +282,7 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mode_type, np_msg_mode_type);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mep_type, np_msg_mep_type);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, ack_mode, np_msg_ack_type);
-_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, ttl, double);
+_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, msg_ttl, double);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, retry, uint8_t);
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, max_threshold, uint16_t);
 
@@ -316,16 +324,13 @@ NP_API_EXPORT
 np_msgproperty_t* np_msgproperty_get(np_msg_mode_type msg_mode, const char* subject);
 
 static char _DEFAULT[]                       = "_NP.DEFAULT";
-static char _ROUTE_LOOKUP[]                  = "_NP.ROUTE.LOOKUP";
 
 static char _NP_MSG_ACK[]                    = "_NP.ACK";
 static char _NP_MSG_HANDSHAKE[]              = "_NP.HANDSHAKE";
 static char _NP_MSG_PING_REQUEST[]           = "_NP.PING.REQUEST";
-static char _NP_MSG_PING_REPLY[]             = "_NP.PING.REPLY";
 static char _NP_MSG_LEAVE_REQUEST[]          = "_NP.LEAVE.REQUEST";
 static char _NP_MSG_JOIN[]                   = "_NP.JOIN.";
 static char _NP_MSG_JOIN_REQUEST[]           = "_NP.JOIN.REQUEST";
-static char _NP_MSG_JOIN_REQUEST_WILDCARD[]  = "_NP_MSG_JOIN_REQUEST_WILDCARD";
 static char _NP_MSG_JOIN_ACK[]               = "_NP.JOIN.ACK";
 static char _NP_MSG_JOIN_NACK[]              = "_NP.JOIN.NACK";
 static char _NP_MSG_PIGGY_REQUEST[]          = "_NP.NODES.PIGGY";
@@ -365,7 +370,12 @@ NP_API_INTERN
 void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
 NP_API_INTERN
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
-
+NP_API_INTERN
+np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
+NP_API_INTERN
+void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgproperty_t* msg_prop);
+NP_API_INTERN
+void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop);
 #ifdef __cplusplus
 }
 #endif
