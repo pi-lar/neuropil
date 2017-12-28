@@ -47,6 +47,7 @@
 #include "np_constants.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_usercallback_t);
+
 NP_SLL_GENERATE_IMPLEMENTATION(np_callback_t);
 
 
@@ -327,7 +328,6 @@ void np_enable_realm_master()
 void np_waitforjoin()
 {
 	log_msg(LOG_TRACE, "start: void np_waitforjoin(){");
-	np_state_t* state = _np_state();
 	while (FALSE == _np_route_my_key_has_connection())
 	{
 		ev_sleep(0.31415/2);
@@ -438,7 +438,7 @@ void np_set_mx_property(char* subject, const char* key, np_treeval_t value)
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 
-		if(FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, _np_util_cmp_ref)){
+		if(FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)){
 			sll_append(np_callback_t, msg_prop->clb_outbound, _np_out);
 		}
 
@@ -506,7 +506,7 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 
 		np_msgproperty_register(msg_prop);
 	}
-	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, _np_util_cmp_ref)) {
+	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)) {
 		sll_append(np_callback_t, msg_prop->clb_outbound, _np_out);
 	}
 
@@ -564,7 +564,7 @@ void np_send_text(char* subject, char *data, uint32_t seqnum, char* targetDhkey)
 
 		np_msgproperty_register(msg_prop);
 	}
-	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, _np_util_cmp_ref)) {
+	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)) {
 		sll_append(np_callback_t, msg_prop->clb_outbound, _np_out);
 	}
 
@@ -682,8 +682,6 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		if (tmp->key.type == unsigned_long_type) np_tree_insert_ulong(body, tmp->key.value.ul, tmp->val);
 	}
 
-	uint8_t ack_mode = np_tree_find_str(msg->instructions, _NP_MSG_INST_ACK)->val.value.ush;
-
 	// decrease threshold counter
 	msg_prop->msg_threshold--;
 	msg_prop->max_threshold--;
@@ -772,8 +770,6 @@ uint32_t np_receive_text (char* subject, char **data)
 	uint32_t received = np_tree_find_str(msg->properties, _NP_MSG_INST_SEQ)->val.value.ul;
 	np_tree_elem_t* reply_data = np_tree_find_str(msg->body, NP_MSG_BODY_TEXT);
 	*data = strndup( np_treeval_to_str(reply_data->val, NULL), strlen( np_treeval_to_str(reply_data->val, NULL)));
-
-	uint8_t ack_mode = np_tree_find_str(msg->instructions, _NP_MSG_INST_ACK)->val.value.ush;
 
 	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
 	msg_prop->msg_threshold--;
@@ -1080,14 +1076,11 @@ void np_send_join(const char* node_string)
 * Sends a ACK msg for the given message.
 * @param msg_to_ack
 */
-void _np_send_ack(np_message_t* msg_to_ack)
+void _np_send_ack(const np_message_t* const msg_to_ack)
 {
 	log_msg(LOG_TRACE, "start: void _np_send_ack(np_message_t* msg_to_ack){");
 	np_state_t* state = _np_state();
-
-	// uint8_t ack = ACK_NONE;
 	uint32_t seq = 0;
-	char* uuid = NULL;
 
 	np_tree_elem_t* target_key_str;
 

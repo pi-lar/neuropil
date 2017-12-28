@@ -49,21 +49,21 @@ static np_simple_cache_table_t* _cache = NULL;
 static np_sll_t(char_ptr, watched_subjects);
 static np_bool _np_statistcs_initiated = FALSE;
 
-np_bool _np_statistics_receive_msg_on_watched(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+np_bool _np_statistics_receive_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
 {
 	assert(_cache != NULL);
 	assert(msg != NULL);
 	assert(msg->msg_property != NULL);
 	assert(msg->msg_property->msg_subject != NULL);
+
 	np_cache_item_t* item = np_simple_cache_get(_cache, msg->msg_property->msg_subject);
 	if (item != NULL) {
 		((np_statistics_element_t*)item->value)->total_received += 1;
 	}
-
 	return TRUE;
 }
 
-np_bool _np_statistics_send_msg_on_watched(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+np_bool _np_statistics_send_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
 {
 	assert(_cache != NULL);
 	assert(msg != NULL);
@@ -299,13 +299,12 @@ char * np_statistics_print(np_bool asOneLine) {
 
 	uint32_t routes = _np_route_my_key_count_routes();	
 
-
-	int tenth = 1;
-	char* tmp_format[512] = { 0 };
-	int minimize[] = { routes, all_total_received+all_total_send, };
+	uint32_t tenth = 1;
+	char tmp_format[512] = { 0 };
+	uint32_t minimize[] = { routes, all_total_received+all_total_send, };
 	char s[32];
 
-	for (int i = 0; i < (sizeof(minimize)/sizeof(int)); i++) {
+	for (uint32_t i = 0; i < ( sizeof(minimize)/sizeof(uint32_t) ); i++) {
 		sprintf(s, "%d", minimize[i]);
 		tenth = max(tenth, strlen(s));
 	}

@@ -336,7 +336,7 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		// double now = dtime();
 		// double last_update = iter->val.value.d;
 
-		char* iter_key_value = NULL;
+		const char* iter_key_value = NULL;
 		if (iter->key.type == char_ptr_type)
 			iter_key_value =  np_treeval_to_str(iter->key, NULL);
 		else if (iter->key.type == special_char_ptr_type)
@@ -375,20 +375,20 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		target = _np_keycache_find_or_create(target_dhkey);
 
 		msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
-		if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, _np_util_cmp_ref)) {
+		if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
 			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
 		}
 		// _np_out_sender_discovery(0.0, msg_prop, target, NULL);
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 
 		msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
-		if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, _np_util_cmp_ref)) {
+		if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
 			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
 		}
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 
 		msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_ACCOUNTING_REQUEST);
-		if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, _np_util_cmp_ref)) {
+		if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
 			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
 		}
 		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
@@ -720,7 +720,7 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 
 		np_msgproperty_t* msg_prop = np_msgproperty_get(mode_type, subject);
 		msg_prop->mode_type |= TRANSFORM;
-		if(FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages, _np_util_cmp_ref)) {
+		if(FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages, np_callback_t_sll_compare_type)) {
 			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
 		}
 

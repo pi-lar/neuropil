@@ -352,11 +352,11 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj);
 
 // increase ref count
 NP_API_EXPORT
-void np_mem_refobj(np_obj_t* obj,char* reason);
+void np_mem_refobj(np_obj_t* obj, const char* reason);
 
 // decrease ref count
 NP_API_EXPORT
-void np_mem_unrefobj(np_obj_t* obj,char* reason);
+void np_mem_unrefobj(np_obj_t* obj, const char* reason);
 
 // print the complete object list and statistics
 NP_API_INTERN

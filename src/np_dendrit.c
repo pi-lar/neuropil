@@ -900,7 +900,7 @@ void _np_in_join_nack(np_jobargs_t* args)
 	np_state_t* state = _np_state();
 	np_waitref_obj(np_key_t, state->my_node_key, my_key,"np_waitref_key");
 
-	np_network_t* ng = my_key->network;
+	// np_network_t* ng = my_key->network;
 	np_key_t* nack_key = NULL;
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
@@ -1748,7 +1748,7 @@ void _np_in_handshake(np_jobargs_t* args)
 		CHECK_STR_FIELD(args->msg->body, NP_HS_SIGNATURE, signature);
 		CHECK_STR_FIELD(args->msg->body, NP_HS_PAYLOAD, payload);
 
-		cmp_ctx_t cmp = { 0 };
+		cmp_ctx_t cmp = { 0,0,0,0,0 };
 		cmp_init(&cmp, payload.value.bin, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 		np_tree_t* hs_payload = np_tree_create();
 		hs_payload->attr.in_place = TRUE;

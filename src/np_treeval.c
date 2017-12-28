@@ -227,7 +227,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
 			return val.value.s;
 			break;
 		case special_char_ptr_type:
-  			return _np_tree_get_special_str(val.value.ush);
+  			return (char*) _np_tree_get_special_str(val.value.ush);
 			break;
 		case char_type:
 		case unsigned_char_type:

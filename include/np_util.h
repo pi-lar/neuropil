@@ -18,31 +18,31 @@ extern "C" {
 #endif
 
 
-
-#ifndef CEIL(a)
+#ifndef CEIL
 #define CEIL(a) (((a-(int)a) > 0) ? ((int)a)+1:a)
 #endif
-#ifndef FLOOR(a)
+#ifndef FLOOR
 #define FLOOR(a) ((int)a)
 #endif
-#ifndef MIN(a,b)
+#ifndef MIN
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
-#ifndef MAX(a,b)
+#ifndef MAX
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #endif
-#ifndef min(a,b)
+#ifndef min
 #define min(a,b) MIN(a,b)
 #endif
-#ifndef ceil(a)
+#ifndef ceil
 #define ceil(a) CEIL(a)
 #endif
-#ifndef floor(a)
+#ifndef floor
 #define floor(a) FLOOR(a)
 #endif
-#ifndef max(a,b)
+#ifndef max
 #define max(a,b) MAX(a,b)
 #endif
+
 
 #ifdef DEBUG
 #define ASSERT(expression, onfail_msg, ...)												\
@@ -153,7 +153,7 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target));
 NP_API_INTERN
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len);
 NP_API_INTERN
-sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount);
+sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int32_t amount);
 
 #ifdef DEBUG_CALLBACKS
 typedef struct {
@@ -171,8 +171,6 @@ NP_API_INTERN
 _np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key);
 #endif
 
-NP_API_INTERN
-int _np_util_cmp_ref(void* a, void* b);
 #ifdef __cplusplus
 }
 #endif

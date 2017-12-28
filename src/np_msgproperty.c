@@ -38,14 +38,15 @@
 #include "np_settings.h"
 #include "np_constants.h"
 #include "np_list.h"
+#include "np_types.h"
 
 
 #define NR_OF_ELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
-#include "np_msgproperty_init.c"
- 
 NP_SLL_GENERATE_IMPLEMENTATION(np_msgproperty_ptr);
 
+#include "np_msgproperty_init.c"
+ 
 // required to properly link inline in debug mode
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mode_type, np_msg_mode_type);
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mep_type, np_msg_mep_type);
@@ -63,7 +64,7 @@ RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
 typedef struct rbt_msgproperty rbt_msgproperty_t;
 static rbt_msgproperty_t* __msgproperty_table;
 
-np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
 {
 	if (msg->msg_property->is_internal == TRUE && 0 != strncmp(msg->msg_property->msg_subject, _DEFAULT,strlen(_DEFAULT))) {
 		CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
@@ -130,7 +131,7 @@ void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgp
 {
 	// check whether an handler already exists
 
-	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, _np_util_cmp_ref)) {
+	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_callback_t_sll_compare_type)) {
 		sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
 	}
 	sll_append(np_usercallback_t, msg_prop->user_receive_clb, msg_handler);

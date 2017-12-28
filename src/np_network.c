@@ -115,7 +115,7 @@ void _np_network_get_address (
 		char* service)
 {
 	int err;
-	struct addrinfo hints = (const struct addrinfo) { 0 };
+	struct addrinfo hints = { 0,0,0,0,0,0,0,0 };
 
 	if (TRUE == create_socket)
 		hints.ai_flags = AI_PASSIVE | AI_CANONNAME | AI_NUMERICSERV;
@@ -299,7 +299,6 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 		NULL != node_key->network)
 	{
 		// get encryption details
-		np_aaatoken_t* auth_token = node_key->aaa_token;
 		if (target_node->session_key_is_set == FALSE) {
 			log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
 		}
@@ -346,7 +345,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 							/* send data */
 							_LOCK_ACCESS(&node_key->network->send_data_lock) {
 								if (NULL != node_key->network->out_events) {
-									log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
+									log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%d bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
 									// log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
 									// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
 									// ret = send (target_node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
@@ -433,7 +432,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	}
 }
 
-void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
+void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int revents)
 {
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents){");
 	log_msg(LOG_NETWORK | LOG_TRACE, ".start.np_network_accept");
@@ -861,7 +860,6 @@ void _np_network_t_del(void* nw)
 	}
 }
 
-
 void _np_network_t_new(void* nw)
 {
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_new(void* nw){");
@@ -874,8 +872,8 @@ void _np_network_t_new(void* nw)
 	ng->watcher.data = NULL;
 	ng->type = np_network_type_none;
 
-	int network_send_mutex_init = _np_threads_mutex_init (&ng->send_data_lock,"network send_data_lock");
-	int network_acl_mutex_init  = _np_threads_mutex_init (&ng->ack_data_lock, "network ack_data_lock");
+	_np_threads_mutex_init (&ng->send_data_lock,"network send_data_lock");
+	_np_threads_mutex_init (&ng->ack_data_lock, "network ack_data_lock");
 }
 
 /** _np_network_init:

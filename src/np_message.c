@@ -180,96 +180,95 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 	np_state_t* state = _np_state();
 	np_message_t* ret= NULL;
 
-	
-		char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
-		char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
+	// char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
+	char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
 
-		// Detect from instructions if this msg was orginally chunked
-		uint16_t expected_msg_chunks = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
+	// Detect from instructions if this msg was orginally chunked
+	uint16_t expected_msg_chunks = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
 
-		if (1 < expected_msg_chunks)
+	if (1 < expected_msg_chunks)
+	{
+		_LOCK_MODULE(np_message_part_cache_t)
 		{
-			_LOCK_MODULE(np_message_part_cache_t)
+			// If there exists multiple chunks, check if we already have one in cache
+			np_tree_elem_t* tmp = np_tree_find_str(state->msg_part_cache, msg_uuid);
+			if (NULL != tmp)
 			{
-				// If there exists multiple chunks, check if we already have one in cache			
-				np_tree_elem_t* tmp = np_tree_find_str(state->msg_part_cache, msg_uuid);
-				if (NULL != tmp)
+				// there exists a msg(part) in our msgcache for this msg uuid
+				// lets add our msgpart to this msg
+
+				np_message_t* msg_in_cache = msg_in_cache = tmp->val.value.v;
+				np_messagepart_ptr to_add = NULL;
+				_LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
+					to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks); // get the messagepart we received
+					np_ref_obj(np_messagepart_t, to_add, "usage");
+					np_unref_obj(np_messagepart_t, to_add, ref_message_messagepart); // as we removed it from the list
+				}
+				log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+						"message (%s) %p / %p / %p", msg_uuid, msg_in_cache, msg_in_cache->msg_chunks, to_add);
+
+
+				uint32_t current_count_of_chunks = 0;
+				_LOCK_ACCESS(&msg_in_cache->msg_chunks_lock)
 				{
-					// there exists a msg(part) in our msgcache for this msg uuid
-					// lets add our msgpart to this msg
-
-					np_message_t* msg_in_cache = msg_in_cache = tmp->val.value.v;
-					np_messagepart_ptr to_add = NULL;
-					_LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
-						to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks); // get the messagepart we received
-						np_ref_obj(np_messagepart_t, to_add, "usage"); 
-						np_unref_obj(np_messagepart_t, to_add, ref_message_messagepart); // as we removed it from the list						
+					// try to add the new received messagepart to the msg in cache
+					np_ref_obj(np_messagepart_t, to_add, ref_message_messagepart);
+					if(FALSE == pll_insert(np_messagepart_ptr, msg_in_cache->msg_chunks, to_add, FALSE, _np_messagepart_cmp)) {
+						np_unref_obj(np_messagepart_t, to_add, ref_message_messagepart);
+						// new entry is rejected (already present)
 					}
+
+					np_unref_obj(np_messagepart_t, to_add, "usage");
+
+					// now we check if all chunks are complete for this msg
+					current_count_of_chunks = pll_size(msg_in_cache->msg_chunks);
+				}
+
+				if (current_count_of_chunks < expected_msg_chunks)
+				{
 					log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-							"message (%s) %p / %p / %p", msg_uuid, msg_in_cache, msg_in_cache->msg_chunks, to_add);
+						"message %s (%s) not complete yet (%d of %d), waiting for missing parts",
+						subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
 
-
-					uint32_t current_count_of_chunks = 0;
-					_LOCK_ACCESS(&msg_in_cache->msg_chunks_lock)
-					{
-						// try to add the new received messagepart to the msg in cache
-						np_ref_obj(np_messagepart_t, to_add, ref_message_messagepart);
-						if(FALSE == pll_insert(np_messagepart_ptr, msg_in_cache->msg_chunks, to_add, FALSE, _np_messagepart_cmp)) {
-							np_unref_obj(np_messagepart_t, to_add, ref_message_messagepart);
-							// new entry is rejected (already present)
-						}
-					
-						np_unref_obj(np_messagepart_t, to_add, "usage");
-
-						// now we check if all chunks are complete for this msg						
-						current_count_of_chunks = pll_size(msg_in_cache->msg_chunks);
-					}
-
-					if (current_count_of_chunks < expected_msg_chunks)
-					{
-						log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-							"message %s (%s) not complete yet (%d of %d), waiting for missing parts",
-							subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
-
-						// nothing to return as we still wait for chunks
-						// ret = NULL;
-					}
-					else
-					{
-						ret = msg_in_cache;
-						np_ref_obj(np_message_t, ret); // function ret ref
-
-						// removing the message from the cache system
-						np_tree_del_str(state->msg_part_cache, msg_uuid);						
-						np_unref_obj(np_message_t, msg_in_cache, ref_msgpartcache);
-
-						log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-							"message %s (%s) is complete now  (%d of %d)",
-							subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
-					}
+					// nothing to return as we still wait for chunks
+					// ret = NULL;
 				}
 				else
 				{
-					// there exists no msg(part) in our msgcache for this msg uuid
+					ret = msg_in_cache;
+					np_ref_obj(np_message_t, ret); // function ret ref
 
-					// TODO: limit msg_part_cache size
+					// removing the message from the cache system
+					np_tree_del_str(state->msg_part_cache, msg_uuid);
+					np_unref_obj(np_message_t, msg_in_cache, ref_msgpartcache);
 
-					// there is no chunk for this msg in cache,
-					// so we insert this message into out cache
-					// as a structure to accumulate further chunks into
-					np_ref_obj(np_message_t, msg_to_check, ref_msgpartcache); // we need to unref this after we finish the handeling of this msg
-					np_tree_insert_str(state->msg_part_cache, msg_uuid, np_treeval_new_v(msg_to_check));
-				}				
+					log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+						"message %s (%s) is complete now  (%d of %d)",
+						subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
+				}
+			}
+			else
+			{
+				// there exists no msg(part) in our msgcache for this msg uuid
+
+				// TODO: limit msg_part_cache size
+
+				// there is no chunk for this msg in cache,
+				// so we insert this message into out cache
+				// as a structure to accumulate further chunks into
+				np_ref_obj(np_message_t, msg_to_check, ref_msgpartcache); // we need to unref this after we finish the handeling of this msg
+				np_tree_insert_str(state->msg_part_cache, msg_uuid, np_treeval_new_v(msg_to_check));
 			}
 		}
-		else
-		{
-			// If this is the only chunk, then return it as is
-			log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-					"message %s (%s) is unchunked  ", subject, msg_uuid);
-			ret = msg_to_check;			
-			np_ref_obj(np_message_t, ret); // function ret ref
-		}
+	}
+	else
+	{
+		// If this is the only chunk, then return it as is
+		log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+				"message %s (%s) is unchunked  ", subject, msg_uuid);
+		ret = msg_to_check;
+		np_ref_obj(np_message_t, ret); // function ret ref
+	}
 	return ret;
 }
 
@@ -604,12 +603,12 @@ np_bool _np_message_serialize_chunked(np_message_t* msg)
 	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg: %s) chunked into %"PRIu32" parts (calculated no of chunks: %"PRIu16")"
 			,msg->uuid, pll_size(msg->msg_chunks),msg->no_of_chunks);
 
-	__np_cleanup__:
-		if (NULL != bin_footer) free(bin_footer);
-		if (NULL != bin_body) free(bin_body);
-		if (NULL != bin_properties) free(bin_properties);
-		if (NULL != bin_instructions) free(bin_instructions);
-		if (NULL != bin_header) free(bin_header);
+	// __np_cleanup__:
+	if (NULL != bin_footer) free(bin_footer);
+	if (NULL != bin_body) free(bin_body);
+	if (NULL != bin_properties) free(bin_properties);
+	if (NULL != bin_instructions) free(bin_instructions);
+	if (NULL != bin_header) free(bin_header);
 
 	return (ret_val);
 }
@@ -900,11 +899,11 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			pll_clear(np_messagepart_ptr, msg->msg_chunks);
 		}
 	}
-	uint16_t fixed_size =
-			MSG_ARRAY_SIZE + MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
-			msg->header->byte_size + msg->instructions->byte_size;
-	uint16_t payload_size = msg->properties->byte_size
-			+ msg->body->byte_size + msg->footer->byte_size;
+	// uint16_t fixed_size =
+	// 		MSG_ARRAY_SIZE + MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
+	//		msg->header->byte_size + msg->instructions->byte_size;
+	// uint16_t payload_size = msg->properties->byte_size
+	// 		+ msg->body->byte_size + msg->footer->byte_size;
 
 	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "msg (%s) Size of msg  %"PRIu16" bytes. Size of fixed_size %"PRIu16" bytes. Nr of chunks  %"PRIu16" parts", msg->uuid, payload_size, fixed_size, msg->no_of_chunks);
 

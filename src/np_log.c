@@ -181,7 +181,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		new_log_entry_length = strlen(new_log_entry);
 		vsnprintf(new_log_entry + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length - 1/*space for line ending*/ - 1 /*space for NULL terminator*/, msg, ap);
 		va_end(ap);
-		snprintf(new_log_entry + strlen(new_log_entry), 2, "\n\0");
+		snprintf(new_log_entry + strlen(new_log_entry), 2, "\n");
 
 #if defined(CONSOLE_LOG) && CONSOLE_LOG == 1
 		fprintf(stdout, new_log_entry);
@@ -250,7 +250,7 @@ void _np_log_fflush(np_bool force)
 
 		if (NULL != entry)
 		{
-			int bytes_witten = 0;
+			uint32_t bytes_witten = 0;
 
 			while(bytes_witten  != strlen(entry))
 			{

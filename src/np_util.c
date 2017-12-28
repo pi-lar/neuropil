@@ -450,25 +450,27 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
 	char* ret = NULL;
 
 	sll_iterator(char_ptr) iter = sll_first(target);
-	int i = 0;
+	int32_t i = 0;
 	while (iter != NULL)
 	{
 		ret = _np_concatAndFree(ret, "%d:\"%s\"->", i, iter->val);
 		i++;
 		sll_next(iter);
 	}
+#ifdef DEBUG
 	if (sll_size(target) != i) {
 		log_msg(LOG_ERROR, "Size of original list (%d) does not equal the size of the flattend string (items flattend: %d).", sll_size(target),i);
 		abort();
 	}
-	return ret;
+#endif
+	return (ret);
 }
 
 /**
  * Returns a part copy of the original list.
  * If amount is negative the part contains the last elements of the original list.
 */
-sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int amount) {
+sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int32_t amount) {
 
 	sll_return(char_ptr) ret;
 	sll_init(char_ptr, ret);
@@ -553,9 +555,3 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 	return item;
 }
 #endif
-/*
-	compares pointers and returns 0 if both pointers are the same
-*/
-int _np_util_cmp_ref(void* a, void* b) {
-	return a == b ? 0 : -1;
-}

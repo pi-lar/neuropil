@@ -40,7 +40,7 @@ void _np_aaatoken_t_new(void* token)
 
 	aaa_token->realm[0]      = '\0';
 
-	aaa_token->issuer;
+	// aaa_token->issuer;
 	memset(aaa_token->issuer, '\0', 65);
 
 	aaa_token->subject[0]    = '\0';
@@ -91,20 +91,20 @@ void _np_aaatoken_t_del (void* token)
 
 void _np_aaatoken_mark_as_core_token(np_aaatoken_t* token) {
 	token->is_core_token = TRUE;
-	unsigned long long sig_len = 0;
+	// unsigned long long sig_len = 0;
 	// set token->signature to signature of full token
-	if (token->private_key_is_set){
+	// if (token->private_key_is_set){
 	//	_np_aaatoken_add_signature(token);
-	}	
+	// }
 }
 
 void _np_aaatoken_mark_as_full_token(np_aaatoken_t* token) {
 	token->is_core_token = FALSE;
-	unsigned long long sig_len = 0;
+	// unsigned long long sig_len = 0;
 	// set token->signature to signature of full token
-	if (token->private_key_is_set){
-		//_np_aaatoken_add_signature(token);
-	}
+	// if (token->private_key_is_set){
+	//_np_aaatoken_add_signature(token);
+	// }
 }
 
 np_bool _np_aaatoken_is_core_token(np_aaatoken_t* token) {	
@@ -556,8 +556,8 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 		{
 			np_msg_mep_type sender_mep_type = subject_key->send_property->mep_type & SENDER_MASK;
 
-			np_aaatoken_ptr_cmp_func_t cmp_aaatoken_add     = _np_aaatoken_cmp;
-			np_aaatoken_ptr_cmp_func_t cmp_aaatoken_replace = _np_aaatoken_cmp_exact;
+			np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_add     = _np_aaatoken_cmp;
+			np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_replace = _np_aaatoken_cmp_exact;
 			np_bool allow_dups = TRUE;
 
 			if (SINGLE_SENDER == (SINGLE_SENDER & sender_mep_type))
@@ -793,8 +793,8 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 			np_msg_mep_type receiver_mep_type = (subject_key->recv_property->mep_type & RECEIVER_MASK);
 			np_aaatoken_t* tmp_token = NULL;
 
-			np_aaatoken_ptr_cmp_func_t cmp_aaatoken_add     = _np_aaatoken_cmp;
-			np_aaatoken_ptr_cmp_func_t cmp_aaatoken_replace = _np_aaatoken_cmp_exact;
+			np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_add     = _np_aaatoken_cmp;
+			np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_replace = _np_aaatoken_cmp_exact;
 			np_bool allow_dups = TRUE;
 
 			if (SINGLE_RECEIVER == (SINGLE_RECEIVER & receiver_mep_type))

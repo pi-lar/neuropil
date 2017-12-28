@@ -146,7 +146,9 @@ void* _np_event_run() {
 	ev_set_io_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
 	ev_set_timeout_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
 	
-	ev_run(EV_A_ (0));	
+	ev_run(EV_A_ (0));
+
+	return (NULL);
 }
 
 /**

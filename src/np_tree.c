@@ -128,13 +128,13 @@ np_tree_t* np_tree_create()
 	return new_tree;
 }
 
-np_bool _np_tree_is_special_str(char* in_question, uint8_t* idx_on_found) {
+np_bool _np_tree_is_special_str(const char* in_question, uint8_t* idx_on_found) {
 	np_bool ret = FALSE;
 	return ret;
 	uint8_t item_count = sizeof(np_special_strs) / sizeof(char*);
 
 	for (uint8_t i = 0; i < item_count; i++) {
-		char* special_str = np_special_strs[i];
+		const char* special_str = np_special_strs[i];
 		if (strncmp(special_str, in_question, strlen(special_str)) == 0 && strlen(in_question) == strlen(special_str)) {
 			if(idx_on_found != NULL){
 				log_debug_msg(LOG_TREE | LOG_DEBUG, "idx detected for %15s at %3"PRIu8" saving into %p",in_question, i, idx_on_found);
@@ -152,7 +152,7 @@ np_bool _np_tree_is_special_str(char* in_question, uint8_t* idx_on_found) {
 	return ret;
 }
 
-char* _np_tree_get_special_str(uint8_t idx) {
+const char* _np_tree_get_special_str(uint8_t idx) {
 	return np_special_strs[idx];
 }
 
@@ -327,7 +327,6 @@ np_tree_elem_t* np_tree_find_gte_dbl(np_tree_t* n, double dkey, uint8_t *fnd)
 	return (result);
 }
 
-
 np_tree_elem_t* np_tree_find_dbl(np_tree_t* n, double dkey)
 {
 	np_treeval_t search_key = { .type = double_type,.value.d = dkey };
@@ -343,6 +342,7 @@ void _np_tree_cleanup_treeval(np_tree_t* tree, np_treeval_t toclean) {
 	if (toclean.type == jrb_tree_type) { np_tree_free(toclean.value.tree); }
 	
 }
+
 void np_tree_del_element(np_tree_t* tree, np_tree_elem_t* to_delete)
 {	
 	if (to_delete != NULL)
@@ -359,9 +359,11 @@ void np_tree_del_element(np_tree_t* tree, np_tree_elem_t* to_delete)
 	}
 
 }
+
 void __np_tree_immutable_check(np_tree_t* tree) {
 	ASSERT(tree->attr.immutable == FALSE, "Tree is not in a state of modification");
 }
+
 void np_tree_del_special_str(np_tree_t* tree, const uint8_t idx)
 {
 	__np_tree_immutable_check(tree);
@@ -421,14 +423,12 @@ void np_tree_free(np_tree_t* n)
 	}
 }
 
-
 void _np_tree_replace_all_with_str(np_tree_t* n, const char* key, np_treeval_t val)
 {
 	log_msg(LOG_TRACE, "start: void _np_tree_replace_all_with_str(np_tree_t* n, const char* key, np_treeval_t val){");	
 	np_tree_clear(n);
 	np_tree_insert_str(n, key, val);
 }
-
 
 uint32_t np_tree_get_byte_size(np_tree_elem_t* node)
 {
@@ -447,7 +447,7 @@ void np_tree_insert_element(np_tree_t* tree, np_tree_elem_t* ele) {
 	tree->byte_size += np_tree_get_byte_size(ele);
 }
 
-void np_tree_insert_special_str(np_tree_t* tree, const uint8_t const idx, np_treeval_t val)
+void np_tree_insert_special_str(np_tree_t* tree, const uint8_t idx, np_treeval_t val)
 {
 	np_tree_elem_t* found = np_tree_find_special_str(tree, idx);
 
@@ -484,7 +484,7 @@ void np_tree_insert_str(np_tree_t* tree, const char *key, np_treeval_t val)
 			CHECK_MALLOC(found);
 
 			if (tree->attr.in_place == TRUE) {
-				found->key.value.s = key; 
+				found->key.value.s = (char*) key;
 			}
 			else {
 				found->key.value.s = strndup(key, 255);
@@ -567,7 +567,6 @@ void np_tree_insert_dbl(np_tree_t* tree, double dkey, np_treeval_t val)
 	}
 }
 
-
 void np_tree_set_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t val) {
 
 	if (tree->attr.in_place == FALSE){
@@ -580,6 +579,7 @@ void np_tree_set_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t 
 	}
 
 }
+
 void np_tree_replace_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t val) {
 
 	__np_tree_immutable_check(tree);
@@ -591,10 +591,10 @@ void np_tree_replace_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeva
 	tree->byte_size += np_tree_get_byte_size(element);
 
 }
+
 void np_tree_replace_special_str(np_tree_t* tree, const uint8_t key, np_treeval_t val)
 {
 	assert(tree != NULL);
-	assert(key != NULL);
 
 	np_tree_elem_t* found = np_tree_find_special_str(tree, key);
 
@@ -708,6 +708,7 @@ void np_tree_copy_inplace(np_tree_t* source, np_tree_t* target) {
 		else if (tmp->key.type == unsigned_long_type)		np_tree_replace_ulong(target, tmp->key.value.ul, tmp->val);
 	}
 }
+
 np_tree_t* np_tree_clone(np_tree_t* source) {
 	log_msg(LOG_TRACE, "start: np_tree_t* np_tree_clone(np_tree_t* source) {");
 
@@ -717,7 +718,6 @@ np_tree_t* np_tree_clone(np_tree_t* source) {
 	np_tree_copy(source, ret);
 	return ret;
 }
-
 
 void np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 {
@@ -755,7 +755,6 @@ void np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 	if (i != jtree->size * 2)
 		log_msg(LOG_ERROR, "serialized jrb size map size is %d, but should be %hd", jtree->size * 2, i);
 }
-
 
 np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 {
@@ -864,8 +863,10 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 
 uint8_t __np_tree_serialize_read_type_dhkey(void* buffer_ptr, np_treeval_t* target) {
 	log_msg(LOG_TRACE, "start: uint8_t __np_tree_serialize_read_type_dhkey(void* buffer_ptr, np_treeval_t* target) {");
+
 	cmp_ctx_t cmp_key;
 	cmp_init(&cmp_key, buffer_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+
 	np_dhkey_t empty_key = { 0 };
 	np_dhkey_t new_key;
 
@@ -920,7 +921,6 @@ void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target) 
 
 
 }
-
 
 uint8_t __np_tree_serialize_read_type_special_str(void* buffer_ptr, np_treeval_t* target) {
 	log_msg(LOG_TRACE, "start: uint8_t __np_tree_serialize_read_type_special_str(void* buffer_ptr, np_treeval_t* target) {");
@@ -1081,7 +1081,7 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 	}
 }
 
-void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value, char* key_to_read_for)
+void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value, NP_UNUSED char* key_to_read_for)
 {
 	log_msg(LOG_TRACE, "start: void __np_tree_deserialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value){");
 	switch (obj->type)
@@ -1119,7 +1119,7 @@ void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx
 		case CMP_TYPE_STR32:
 		{
 			value->type = char_ptr_type;
-			value->size = obj->as.str_size - 1/*terminator*/;
+			value->size = obj->as.str_size - 1 /*terminator*/;
 		
 			if ( tree->attr.in_place == TRUE) {
 				value->value.s = _np_buffer_get_buffer(cmp);
@@ -1132,7 +1132,7 @@ void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx
 		
 			// to prevent undefined lengths. but should already hava terminator
 			char* term = value->value.s + obj->as.str_size - 1;
-			term  = '\0';
+			term  = "\0";
 
 			break;
 		}

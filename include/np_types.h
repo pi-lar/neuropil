@@ -115,7 +115,7 @@ typedef np_thread_t* np_thread_ptr;
  */
 typedef np_bool (*np_aaa_func_t) (np_aaatoken_t* aaa_token );
 typedef np_bool(*np_usercallback_t) (const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
-typedef void(*np_ackentry_on_t) (const np_ackentry_t const * entry);
+typedef void(*np_ackentry_on_t) (const np_ackentry_t* const entry);
 
 // internal callback functions
 typedef void (*np_callback_t) (np_jobargs_t*);
@@ -139,6 +139,5 @@ NP_SLL_GENERATE_PROTOTYPES(np_thread_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_usercallback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_callback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_ackentry_on_t);
-
 
 #endif /* _INCLUDE_H_ */

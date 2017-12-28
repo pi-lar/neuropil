@@ -60,7 +60,7 @@ np_bool _np_threads_init()
 	return (__np_threads_mutexes_initiated);
 }
 
-int _np_threads_lock_module(np_module_lock_type module_id, char * where ) {
+int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locking module mutex %d.", module_id);
 	if(FALSE == __np_threads_mutexes_initiated ){
@@ -154,7 +154,7 @@ int _np_threads_mutex_timedlock(np_mutex_t * mutex, const double timeout)
 	return ret;
 }
 
-int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_type module_id_b, char* where)
+int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_type module_id_b, const char* where)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
 	if(FALSE == __np_threads_mutexes_initiated ){
@@ -307,7 +307,7 @@ int _np_threads_unlock_module(np_module_lock_type module_id) {
 }
 
 /** pthread mutex platform wrapper functions following this line **/
-int _np_threads_mutex_init(np_mutex_t* mutex,char* desc)
+int _np_threads_mutex_init(np_mutex_t* mutex, const char* desc)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_init(np_mutex_t* mutex){");
 	int ret = 0;
@@ -329,14 +329,15 @@ int _np_threads_mutex_init(np_mutex_t* mutex,char* desc)
 int _np_threads_mutex_lock(np_mutex_t* mutex) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
 	int ret =  1;
-	double start = np_time_now();
+#ifdef DEBUG
 	double diff = 0;
+	double start = np_time_now();
+#endif
 	while(ret != 0) {
 		// TODO: review lock warn system
 		// ret = _np_threads_mutex_timedlock(mutex, min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
 		ret = pthread_mutex_lock(&mutex->lock);
 
-		
 #ifdef DEBUG
 		diff = np_time_now() - start;
 		if (diff > MUTEX_WAIT_MAX_SEC) {
@@ -347,7 +348,6 @@ int _np_threads_mutex_lock(np_mutex_t* mutex) {
 			log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for mutex %p (%f sec)", mutex, diff);
 		}
 #endif
-
 
 		if(ret != ETIMEDOUT && ret != 0) {
 			log_msg(LOG_ERROR, "error at acquiring mutex. Error: %s (%d)", strerror(ret), ret);
@@ -487,6 +487,7 @@ void _np_thread_t_del(void* obj)
 	np_thread_t* thread = (np_thread_t*)obj;
 
 #ifdef NP_THREADS_CHECK_THREADING
+
 	_LOCK_ACCESS(&thread->locklists_lock){
 		sll_iterator(char_ptr) iter_has_lock = sll_first(thread->has_lock);
 		while (iter_has_lock != NULL)

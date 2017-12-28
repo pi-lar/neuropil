@@ -50,7 +50,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__handshake_properties->retry = 0;
 	
 	sll_append(np_callback_t, __handshake_properties->clb_inbound, _np_in_handshake);
-	sll_remove(np_callback_t, __handshake_properties->clb_outbound, _np_out, _np_util_cmp_ref);
+	sll_remove(np_callback_t, __handshake_properties->clb_outbound, _np_out, np_callback_t_sll_compare_type);
 	sll_append(np_callback_t, __handshake_properties->clb_outbound, _np_out_handshake);
 	sll_append(np_callback_t, __handshake_properties->clb_transform, _np_out_handshake);
 	//sll_append(np_callback_t, __handshake_properties->clb_route, _np_never_called_jobexec_route);
@@ -72,7 +72,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__ack_properties->ack_mode = ACK_NONE;
 	__ack_properties->retry = 0;
 	sll_append(np_callback_t, __ack_properties->clb_inbound, _np_in_ack);
-	sll_remove(np_callback_t, __ack_properties->clb_outbound, _np_out, _np_util_cmp_ref);
+	sll_remove(np_callback_t, __ack_properties->clb_outbound, _np_out, np_callback_t_sll_compare_type);
 	sll_append(np_callback_t, __ack_properties->clb_outbound, _np_out_ack);
 	//sll_append(np_callback_t, __ack_properties->clb_transform, _np_never_called_jobexec_transform);
 	//default: sll_append(np_callback_t, __ack_properties->clb_route, _np_glia_route_lookup);

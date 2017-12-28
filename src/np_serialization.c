@@ -37,19 +37,20 @@ void* _np_buffer_get_buffer(struct cmp_ctx_s *ctx) {
 	return ret;
 }
 
-np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit)
+bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit)
 {
 	log_msg(LOG_TRACE, "start: np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit){");
 	memmove(data, ctx->buf, limit);
 	ctx->buf += limit;
-	return TRUE;
+	return true;
 }
 
-np_bool _np_buffer_skipper(struct cmp_ctx_s *ctx, size_t limit)
+bool _np_buffer_skipper(struct cmp_ctx_s *ctx, size_t limit)
 {	
 	ctx->buf += limit;
-	return TRUE;
+	return true;
 }
+
 size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
 {
 	log_msg(LOG_TRACE, "start: size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count){");
@@ -61,10 +62,10 @@ size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
 	return count;
 }
 
-np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit)
+bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit)
 {
 	log_msg(LOG_TRACE, "start: np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit){");
-	np_bool ret = FALSE;
+	bool ret = false;
 	_np_obj_buffer_container_t* wrapper = ctx->buf;
 
 	size_t nextCount = wrapper->bufferCount + limit;
@@ -82,16 +83,16 @@ np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t li
 		memcpy(data, wrapper->buffer, limit);
 		wrapper->buffer += limit;
 		wrapper->bufferCount = nextCount;
-		ret = TRUE;
+		ret = true;
 	}
 	return ret;
 }
 
 
-np_bool _np_buffer_container_skipper(struct cmp_ctx_s* ctx, size_t limit)
+bool _np_buffer_container_skipper(struct cmp_ctx_s* ctx, size_t limit)
 {
 	log_msg(LOG_TRACE, "start: np_bool _np_buffer_container_skipper(struct cmp_ctx_s* ctx, size_t limit){");
-	np_bool ret = FALSE;
+	bool ret = false;
 	_np_obj_buffer_container_t* wrapper = ctx->buf;
 
 	size_t nextCount = wrapper->bufferCount + limit;
@@ -107,7 +108,7 @@ np_bool _np_buffer_container_skipper(struct cmp_ctx_s* ctx, size_t limit)
 	else {		
 		wrapper->buffer += limit;
 		wrapper->bufferCount = nextCount;
-		ret = TRUE;
+		ret = true;
 	}
 	return ret;
 }

@@ -43,7 +43,7 @@ void _np_ping_send(np_key_t* key)
 	np_unref_obj(np_message_t, out_msg, ref_obj_creation);
 }
 
-void _np_in_ping(np_jobargs_t* args)
+void _np_in_ping(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_in_ping(np_jobargs_t* args){");
 

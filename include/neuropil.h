@@ -366,7 +366,7 @@ NP_API_INTERN
 void _np_ping_send(np_key_t* key);
 
 NP_API_INTERN
-void _np_send_ack(np_message_t* in_msg);
+void _np_send_ack(const np_message_t* const in_msg);
 
 NP_API_INTERN
 double np_time_now();

@@ -59,7 +59,7 @@ static np_jobqueue_t * __np_job_queue;
 
 static np_cond_t  __cond_empty;
 
-np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_modifier, np_sll_t(np_callback_t, callbacks), char* callbacks_ident)
+np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_modifier, np_sll_t(np_callback_t, callbacks), const char* callbacks_ident)
 {
     log_msg(LOG_TRACE, "start: np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs){");
     // create job itself
@@ -125,7 +125,7 @@ void _np_job_free (np_job_t * n)
     free (n);
 }
 
-np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop, char* reason_desc)
+np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop, const char* reason_desc)
 {
     log_msg(LOG_TRACE, "start: np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop){");
 
@@ -195,7 +195,7 @@ void _np_job_queue_insert(np_job_t* new_job)
 					}
 					else {				
 						_np_job_free(iter->val);
-						pll_remove(np_job_ptr, __np_job_queue->job_list, iter->val, _np_util_cmp_ref);
+						pll_remove(np_job_ptr, __np_job_queue->job_list, iter->val, np_job_ptr_pll_compare_type);
 						break;
 					}
 				} while (iter != NULL);
@@ -305,7 +305,7 @@ void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t
     _np_job_queue_insert(new_job);
 }
 
-void np_job_submit_event_periodic(double priority, double first_delay, double interval, np_callback_t callback, char* ident)
+void np_job_submit_event_periodic(double priority, double first_delay, double interval, np_callback_t callback, const char* ident)
 {
     log_debug_msg(LOG_JOBS | LOG_DEBUG, "np_job_submit_event_periodic");
 
@@ -454,11 +454,7 @@ void* __np_jobqueue_run()
 		np_time_sleep(0.01);
 	}
 
-	// np_state_t* state = _np_state();
-	np_job_t* job_to_execute = NULL;
-
 	log_debug_msg(LOG_JOBS | LOG_THREADS| LOG_DEBUG, "job queue thread starting");
-
 
 	while (1)
 	{
