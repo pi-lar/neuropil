@@ -12,6 +12,7 @@
 #include <inttypes.h>
 #include <sys/time.h>
 #include <time.h>
+#include <inttypes.h>
 
 #include "event/ev.h"
 #include "pthread.h"

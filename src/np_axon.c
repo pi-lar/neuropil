@@ -488,7 +488,7 @@ void _np_out_handshake(np_jobargs_t* args)
 					}
 				}
 				// construct target address and send it out
-				// np_node_t* hs_node = args->target->node;
+				np_node_t* hs_node = args->target->node;
 
 				/* send data if handshake status is still just initialized or less */
 				log_debug_msg(LOG_ROUTING | LOG_DEBUG,

@@ -180,7 +180,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 	np_state_t* state = _np_state();
 	np_message_t* ret= NULL;
 
-	// char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
+	char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
 	char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
 
 	// Detect from instructions if this msg was orginally chunked
@@ -314,7 +314,7 @@ np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args)
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the header (size %hd)", msg->header->size);
 	np_tree_serialize(args->msg->header, &cmp);
 	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
-			"serialized the header (size %llu / %ld)", args->msg->header->byte_size, (cmp.buf-part->msg_part-i));
+			"serialized the header (size %"PRIu32" / %ld)", args->msg->header->byte_size, (cmp.buf-part->msg_part-i));
 	i = cmp.buf-part->msg_part;
 
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the instructions (size %hd)", msg->header->size);
@@ -899,13 +899,16 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			pll_clear(np_messagepart_ptr, msg->msg_chunks);
 		}
 	}
-	// uint16_t fixed_size =
-	// 		MSG_ARRAY_SIZE + MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
-	//		msg->header->byte_size + msg->instructions->byte_size;
-	// uint16_t payload_size = msg->properties->byte_size
-	// 		+ msg->body->byte_size + msg->footer->byte_size;
+
+#ifdef DEBUG
+	uint16_t fixed_size =
+	 		MSG_ARRAY_SIZE + MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
+			msg->header->byte_size + msg->instructions->byte_size;
+	uint16_t payload_size = msg->properties->byte_size
+	 		+ msg->body->byte_size + msg->footer->byte_size;
 
 	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "msg (%s) Size of msg  %"PRIu16" bytes. Size of fixed_size %"PRIu16" bytes. Nr of chunks  %"PRIu16" parts", msg->uuid, payload_size, fixed_size, msg->no_of_chunks);
+#endif
 
 	np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 	msg->is_single_part = FALSE;
