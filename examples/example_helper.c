@@ -290,6 +290,7 @@ np_bool parse_program_args(
 
 	return ret;
 }
+
 void __np_example_deinti_ncurse() {
 	if (__np_ncurse_initiated == TRUE) {
 		__np_ncurse_initiated = FALSE;
@@ -304,8 +305,9 @@ void __np_example_deinti_ncurse() {
 		endwin();
 	}
 }
- void __np_example_inti_ncurse() {
-	 if (FALSE == __np_ncurse_initiated) {		 
+
+void __np_example_inti_ncurse() {
+	if (FALSE == __np_ncurse_initiated) {
 		if (enable_statistics == 1 || enable_statistics % 2 != 0) {
 			if (log_buffer != NULL) {
 
@@ -383,25 +385,22 @@ void __np_example_deinti_ncurse() {
 			wclear(__np_stat_msgpartcache_win);
 			wclear(__np_stat_memory_win);
 		}
-	 }
-	 else {
-		 
-		 werase(__np_stat_general_win);
-		 werase(__np_stat_locks_win);
-		 werase(__np_stat_switchable_window);
-		 werase(__np_stat_memory_win);
-		 
-	 }
-
-
+		else {
+			werase(__np_stat_general_win);
+			werase(__np_stat_locks_win);
+			werase(__np_stat_switchable_window);
+			werase(__np_stat_memory_win);
+		}
+	}
 }
  
+void __np_example_reset_ncurse() {
+	__np_example_deinti_ncurse();
+	__np_example_inti_ncurse();
+}
 
- void __np_example_reset_ncurse() {
-	 __np_example_deinti_ncurse();
-	 __np_example_inti_ncurse();
- }
 int iteri = -1;
+
 void __np_example_helper_loop() {
 
 	__np_example_inti_ncurse();
@@ -588,6 +587,7 @@ void __np_example_helper_run_loop() {
 		np_time_sleep(output_intervall_sec);
 	}
 }
+
 void __np_example_helper_run_info_loop() {
 
 	while (TRUE)
