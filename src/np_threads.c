@@ -89,8 +89,8 @@ int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) 
 	while(ret != 0){
 		diff = np_time_now() - start;
 			if(diff >MUTEX_WAIT_MAX_SEC) {				
-				log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id, diff);
-				log_msg(LOG_ERROR, np_threads_printpool(FALSE));
+				log_msg(LOG_ERROR, "Thread %lu waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id, diff);
+				log_msg(LOG_ERROR, "%s", np_threads_printpool(FALSE));
 				abort();
 			}
 			if(diff >  MUTEX_WAIT_SOFT_SEC){
@@ -200,8 +200,8 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 
 			if(ret != 0) {
 				if (diff > MUTEX_WAIT_MAX_SEC) {					
-					log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id_b, diff);
-					log_msg(LOG_ERROR, np_threads_printpool(FALSE));
+					log_msg(LOG_ERROR, "Thread %lu waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id_b, diff);
+					log_msg(LOG_ERROR, "%s", np_threads_printpool(FALSE));
 					abort();
 				}
 				if (diff >  MUTEX_WAIT_SOFT_SEC) {
@@ -212,8 +212,8 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 			}
 		}else{
 			if (diff > MUTEX_WAIT_MAX_SEC) {				
-				log_msg(LOG_ERROR, "Thread %d waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id_a, diff);
-				log_msg(LOG_ERROR, np_threads_printpool(FALSE));
+				log_msg(LOG_ERROR, "Thread %lu waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id_a, diff);
+				log_msg(LOG_ERROR, "%s", np_threads_printpool(FALSE));
 				abort();
 			}
 			if (diff >  MUTEX_WAIT_SOFT_SEC) {
@@ -341,7 +341,7 @@ int _np_threads_mutex_lock(np_mutex_t* mutex) {
 #ifdef DEBUG
 		diff = np_time_now() - start;
 		if (diff > MUTEX_WAIT_MAX_SEC) {
-			log_msg(LOG_ERROR, "Thread %d waits too long for mutex %p / %s (%f sec)", _np_threads_get_self()->id, mutex, mutex->desc, diff);
+			log_msg(LOG_ERROR, "Thread %lu waits too long for mutex %p / %s (%f sec)", _np_threads_get_self()->id, mutex, mutex->desc, diff);
 			abort();
 		}
 		if (diff > MUTEX_WAIT_SOFT_SEC) {

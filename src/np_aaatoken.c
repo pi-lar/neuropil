@@ -17,6 +17,7 @@
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_tree.h"
+#include "np_treeval.h"
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_message.h"
@@ -1079,7 +1080,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 				msg_token->signed_hash = hash;
 #ifdef DEBUG
 				if (strcmp(msg_token->subject, "_NP.SYSINFO.REPLY") == 0) {
-					log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "signature has %"PRIu32" bytes", signature_len);
+					log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "signature has %"PRIu64" bytes", signature_len);
 					char* signature_hex = calloc(1, signature_len * 2 + 1);
 					sodium_bin2hex(signature_hex, signature_len * 2 + 1,
 						msg_token->signature, signature_len);
