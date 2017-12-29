@@ -417,7 +417,8 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 					free(data_to_send);
 				}
 			} else {
-				// only stops the network if outgoing queue size is zero
+				// only stops the network if outgoing queue size is zero - leads to loosing out events :-(
+				// TODO: place it somewhere else
 				// _np_network_stop(key_network, FALSE);
 			}
 		}

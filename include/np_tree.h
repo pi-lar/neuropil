@@ -87,7 +87,7 @@ struct np_tree_elem_s
 	RB_ENTRY(np_tree_elem_s) link;
 
 	np_treeval_t key;
-	np_treeval_t val;
+    np_treeval_t val;
 } NP_API_INTERN;
 
 NP_API_INTERN

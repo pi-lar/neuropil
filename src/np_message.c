@@ -21,7 +21,6 @@
 
 #include "np_message.h"
 
-#include "dtime.h"
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"

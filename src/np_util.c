@@ -29,7 +29,6 @@
 #include "np_log.h"
 #include "neuropil.h"
 
-#include "dtime.h"
 #include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_treeval.h"

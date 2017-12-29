@@ -118,6 +118,7 @@ struct np_treeval_s
 	uint32_t size;
 	val      value;
 };
+
 np_treeval_t np_treeval_copy_of_val(np_treeval_t from) ;
 
 np_treeval_t np_treeval_new_sh (int8_t sh);

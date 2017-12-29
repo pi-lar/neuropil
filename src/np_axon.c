@@ -19,7 +19,6 @@
 
 #include "np_axon.h"
 
-#include "dtime.h"
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"

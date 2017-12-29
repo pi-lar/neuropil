@@ -47,7 +47,7 @@ void _np_route_leafset_clear ();
  **
  **/
 NP_API_INTERN
-sll_return(np_key_ptr) _np_route_lookup (np_key_t* key, uint8_t count);
+sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t key, uint8_t count);
 // np_key_t** _np_route_lookup (np_state_t* state, np_key_t* key, int count, int is_safe);
 
 /** _np_route_neighbors:

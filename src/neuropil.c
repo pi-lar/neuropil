@@ -350,7 +350,7 @@ void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
 		// create a default set of properties for listening to messages
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->mode_type = INBOUND;
+		msg_prop->mode_type |= INBOUND;
 		np_msgproperty_register(msg_prop);
 	}
 	_np_msgproperty_add_receive_listener(msg_handler, msg_prop);
@@ -373,7 +373,7 @@ void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
 		// create a default set of properties for listening to messages
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->mode_type = OUTBOUND;
+		msg_prop->mode_type |= OUTBOUND;
 		np_msgproperty_register(msg_prop);
 	}
 
@@ -420,6 +420,8 @@ void np_set_identity(np_aaatoken_t* identity)
 	//_np_aaatoken_add_signature(identity);
 	np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 }
+
+
 /**
  * Sets the property key for the subject np_msgproperty_t to a given value.
  * If the subject does not have a np_msgproperty_t a new one will be created and registered.
@@ -560,7 +562,7 @@ void np_send_text(char* subject, char *data, uint32_t seqnum, char* targetDhkey)
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
-		msg_prop->mode_type = OUTBOUND;
+		msg_prop->mode_type |= OUTBOUND;
 
 		np_msgproperty_register(msg_prop);
 	}
@@ -595,7 +597,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
-		msg_prop->mode_type = INBOUND;
+		msg_prop->mode_type |= INBOUND;
 		sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_signal_np_receive);
 		// when creating, set to zero because callback function is not used
 		msg_prop->max_threshold = 0;
@@ -656,9 +658,10 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		log_debug_msg(LOG_DEBUG, "decryption of message failed, deleting message");
 		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 		msg_prop->max_threshold--;
+		msg_prop->msg_threshold--;
 
-		np_unref_obj(np_message_t, msg,"?");
-		np_unref_obj(np_aaatoken_t, sender_token,"?");
+		np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
+		np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
 		return (FALSE);
 	}
 
@@ -686,8 +689,8 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	msg_prop->msg_threshold--;
 	msg_prop->max_threshold--;
 
-	np_unref_obj(np_message_t, msg, "?");
-	np_unref_obj(np_aaatoken_t, sender_token,"?");
+	np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
+	np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
 
 	return (TRUE);
 }
@@ -701,7 +704,7 @@ uint32_t np_receive_text (char* subject, char **data)
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mep_type = ANY_TO_ANY;
-		msg_prop->mode_type = INBOUND;
+		msg_prop->mode_type |= INBOUND;
 		sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_signal_np_receive);
 		// when creating, set to zero because callback function is not used
 		msg_prop->max_threshold = 0;
@@ -762,8 +765,8 @@ uint32_t np_receive_text (char* subject, char **data)
 		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 		msg_prop->max_threshold--;
 
-		np_unref_obj(np_message_t, msg, "unknown");
-		np_unref_obj(np_aaatoken_t, sender_token, "unknown");
+		np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
+		np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
 		return (0);
 	}
 
@@ -775,10 +778,10 @@ uint32_t np_receive_text (char* subject, char **data)
 	msg_prop->msg_threshold--;
 	msg_prop->max_threshold--;
 
-	np_unref_obj(np_message_t, msg, "unknown");
-	np_unref_obj(np_aaatoken_t, sender_token, "unknown");
+	np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
+	np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
 
-	log_msg(LOG_INFO, "someone sending us messages %s !!!", *data);
+	log_debug_msg(LOG_DEBUG, "someone sending us messages %s !!!", *data);
 
 	return (received);
 }

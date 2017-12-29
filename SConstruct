@@ -32,7 +32,6 @@ else:
 		print 'ERROR: x64 build on x86 system!'
 
 
-
 print '####'
 print '#### adding compiler options and flags'
 print '####'

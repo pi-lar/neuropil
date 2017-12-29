@@ -22,7 +22,6 @@
 #include "np_dendrit.h"
 
 #include "np_axon.h"
-#include "dtime.h"
 #include "np_log.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"
@@ -238,7 +237,7 @@ void _np_in_received(np_jobargs_t* args)
 						np_sll_t(np_key_ptr, tmp) = NULL;
 
 						// zero as "consider this node as final target"
-						tmp = _np_route_lookup(target_key, 0);
+						tmp = _np_route_lookup(target_dhkey, 0);
 
 						if (0 < sll_size(tmp))
 							log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));

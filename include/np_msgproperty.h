@@ -10,7 +10,6 @@ It defines attributes like a re-send counter and the type of message exchange.
 A developer should be familiar with the main settings
 
 */
-//  copyright 2015 pi-lar GmbH
 #ifndef _NP_MSGPROPERTY_H_
 #define _NP_MSGPROPERTY_H_
 

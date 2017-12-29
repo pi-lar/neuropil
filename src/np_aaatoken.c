@@ -6,7 +6,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#include <inttypes.h>
+#include "inttypes.h"
 
 #include "event/ev.h"
 #include "sodium.h"
