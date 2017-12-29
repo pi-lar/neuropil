@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-r realmname] [-c code] [-w http domain] ",
+		"[-r realmname] [-c code] [-w http domain]",
 		"r:c:w:",
 		&realm,
 		&code,

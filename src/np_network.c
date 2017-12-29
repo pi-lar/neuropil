@@ -410,7 +410,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 							written += current_write;
 						}
 					} while (written < MSG_CHUNK_SIZE_1024 && iter <= (1 /*max delay sec*/ / 0.001) && np_event_sleep(0.001*iter) > 0 );
-					log_debug_msg(LOG_DEBUG | LOG_NETWORK, "out_msg_len %d bytes", written);
+					log_debug_msg(LOG_DEBUG | LOG_NETWORK, "out_msg_len %zd bytes", written);
 					if(iter > 1){
 						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "send delay %f", 0.001 * iter - 0.001);
 					}

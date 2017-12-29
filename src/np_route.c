@@ -309,9 +309,9 @@ sll_return(np_key_ptr) _np_route_lookup(np_dhkey_t key, uint8_t count)
 		np_sll_t(np_key_ptr, key_list);
 		sll_init(np_key_ptr, key_list);
 
-		log_debug_msg(
-		  LOG_ROUTING | LOG_DEBUG, "%s is looking for key %s !",
-		  _np_key_as_str(__routing_table->my_key), _np_key_as_str(key));
+		// log_debug_msg(
+		// LOG_ROUTING | LOG_DEBUG, "%s is looking for key %s !",
+		// _np_key_as_str(__routing_table->my_key), _np_key_as_str(key));
 
 		/*calculate the leafset and table size */
 		Lsize = pll_size(__routing_table->left_leafset);
