@@ -54,6 +54,18 @@ void np_mem_init()
 	__np_obj_pool_ptr->free_obj = NULL;
 	__np_obj_pool_ptr->size = 0;
 	__np_obj_pool_ptr->available = 0;
+
+	// init cache
+	/*
+	np_messagepart_t* tmp = NULL;
+	int i = 0;
+	for(; i < 500; i++){
+		np_new_obj(np_messagepart_t, tmp);
+		np_free_obj(np_messagepart_t, tmp);
+	}
+	log_msg(LOG_DEBUG, "Initiated cache with %d free spaces",i);
+	*/
+
 }
 
 void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
@@ -147,7 +159,7 @@ void np_mem_refobj(np_obj_t* obj, const char* reason)
 	assert(reason != NULL);
 	sll_prepend(char_ptr, obj->reasons, strdup(reason));
 #endif
-}
+	}
 
 // decrease ref count
 void np_mem_unrefobj(np_obj_t* obj, const char* reason)

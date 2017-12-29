@@ -77,15 +77,9 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 
 	np_dhkey_t search_key;
 	_np_dhkey_from_str(msg_target, &search_key);
-	np_key_t k_msg_address = { .dhkey = search_key };
-
-	char * k_msg_address_key = _np_key_as_str(&k_msg_address);
-	// first lookup call for target key
-	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "message target is key %s", k_msg_address_key);
-
 
 	// 1 means: always send out message to another node first, even if it returns
-	tmp = _np_route_lookup(&k_msg_address, 1);
+	tmp = _np_route_lookup(search_key, 1);
 	if ( 0 < sll_size(tmp) )
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
 
@@ -99,14 +93,12 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 		np_unref_list(tmp, "_np_route_lookup"); 
 		sll_free(np_key_ptr, tmp);
 
-		tmp = _np_route_lookup(&k_msg_address, 2);
+		tmp = _np_route_lookup(search_key, 2);
 		if (0 < sll_size(tmp))
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "route_lookup result 2 = %s", _np_key_as_str(sll_first(tmp)->val));
 
 		// TODO: increase count parameter again ?
 	}
-
-	free(k_msg_address_key);
 
 	if (NULL  != tmp           &&
 		0     <  sll_size(tmp) &&

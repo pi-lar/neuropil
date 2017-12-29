@@ -118,8 +118,6 @@ void _np_in_received(np_jobargs_t* args)
 				char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
 				sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
 
-				sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
-
 				int ret = crypto_secretbox_open_easy(dec_msg,
 						(const unsigned char *) raw_msg + crypto_secretbox_NONCEBYTES,
 						1024 - crypto_secretbox_NONCEBYTES,
@@ -156,8 +154,7 @@ void _np_in_received(np_jobargs_t* args)
 				goto __np_cleanup__;
 			}
 
-				msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
-
+			log_debug_msg(LOG_SERIALIZATION | LOG_MESSAGE | LOG_DEBUG,
 				"deserialized message %s (source: \"%s:%s\")",
 				msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
 
@@ -235,13 +232,12 @@ void _np_in_received(np_jobargs_t* args)
 					// msg is not for my dhkey
 					// no handler is present
 					if (_np_key_cmp(args->target, my_key) != 0 || handler == NULL)
-
+					{
 						// perform a route lookup
-						tmp = _np_route_lookup(target_key, 0);
-
+						np_sll_t(np_key_ptr, tmp) = NULL;
 
 						// zero as "consider this node as final target"
-						tmp = _np_route_lookup(target_key, 0);
+						tmp = _np_route_lookup(target_dhkey, 0);
 
 						if (0 < sll_size(tmp))
 							log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
@@ -303,9 +299,8 @@ void _np_in_received(np_jobargs_t* args)
 				}
 			}
 			else {
-			np_unref_obj(np_key_t, target_key,"_np_keycache_find_or_create");
-			np_unref_obj(np_message_t, msg_in, ref_obj_creation);
-
+				log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "ignoring msg as it is not in protocol to receive a %s msg now.", np_treeval_to_str(msg_subject, NULL));
+			}
 			// clean the mess up
 		__np_cleanup__:			
 			np_unref_obj(np_key_t, target_key,"_np_keycache_find_or_create");
@@ -1040,16 +1035,14 @@ void _np_in_update(np_jobargs_t* args)
 		NULL != update_key->node &&
 		FALSE == update_key->node->is_handshake_send &&
 		FALSE == update_key->node->joined_network)
-
+	{
 		// do not join myself
 		if(0 != _np_key_cmp(update_key,_np_state()->my_identity)
 		&& 0 != _np_key_cmp(update_key,_np_state()->my_node_key))
 		{
-					FALSE, TRUE, TRUE, FALSE);
 
 			char* connection_str = np_get_connection_string_from(
-			if(NULL != old_key)
-
+					update_key,FALSE);
 			np_key_t* old_key = _np_keycache_find_by_details(
 					connection_str, FALSE, FALSE,FALSE,
 					FALSE, TRUE, TRUE, FALSE);
@@ -1798,7 +1791,6 @@ void _np_in_handshake(np_jobargs_t* args)
 
 		np_node_t* tokens_node = _np_node_decode_from_jrb(hs_payload);
 		msg_source_key = _np_key_create_from_token(tmp_token);
-			log_msg(LOG_ERROR, "Handshake key is NULL!");
 
 
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for %s",_np_key_as_str(msg_source_key));
@@ -1845,10 +1837,10 @@ void _np_in_handshake(np_jobargs_t* args)
 				msg_source_key->node = tokens_node;				
 			}
 			else {
-
-		if (msg_source_key->node == NULL) {
-			log_msg(LOG_ERROR, "Handshake message does not contain necessary node data");
-			goto __np_cleanup__;
+				tokens_node->is_handshake_send |= msg_source_key->node->is_handshake_send;
+				tokens_node->is_handshake_received |= msg_source_key->node->is_handshake_received;
+				tokens_node->joined_network |= msg_source_key->node->joined_network;
+				np_node_t* old_node = msg_source_key->node;
 				msg_source_key->node = tokens_node;
 				np_unref_obj(np_node_t, old_node, ref_key_node);
 			}
@@ -1856,8 +1848,7 @@ void _np_in_handshake(np_jobargs_t* args)
 
 		if (msg_source_key->node == NULL) {
 			log_msg(LOG_ERROR, "Handshake message does not contain necessary node data");
-			_LOCK_MODULES (np_keycache_t, np_network_t)
-
+			goto __np_cleanup__;
 		}
 
 		if(msg_source_key->node->joined_network == FALSE) {
@@ -1889,7 +1880,7 @@ void _np_in_handshake(np_jobargs_t* args)
 
 						// msg_source_key->aaa_token = hs_wildcard_key->aaa_token;
 						hs_wildcard_key->aaa_token = NULL;
-				}
+
 						if(msg_source_key->parent == NULL) {
 							msg_source_key->parent = hs_wildcard_key->parent;
 							hs_wildcard_key->parent = NULL;
@@ -1901,8 +1892,7 @@ void _np_in_handshake(np_jobargs_t* args)
 				}
 
 				np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
-				_LOCK_MODULE(np_network_t)
-
+			}
 		}
 
 		_LOCK_ACCESS(&msg_source_key->node->lock) {
@@ -1935,7 +1925,7 @@ void _np_in_handshake(np_jobargs_t* args)
 							}
 							else
 							{
-				}
+								log_msg(LOG_ERROR, "could not initiate network to alias key for %s:%s", network->ip, network->port);
 
 								np_unref_obj(np_network_t, network, ref_key_network);
 								msg_source_key->network = NULL;
@@ -2025,8 +2015,7 @@ void _np_in_handshake(np_jobargs_t* args)
 
 				// copy over session key
 				memcpy(msg_source_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
-
-
+				msg_source_key->node->session_key_is_set = TRUE;
 
 				/* Implicit: as both keys share the same token
 				memcpy(alias_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
