@@ -267,7 +267,7 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 		
 		ret = _np_concatAndFree(ret, "--- memory summary---%s", new_line);
 		ret = _np_concatAndFree(ret, "first %12p, free %12p, current %12p%s", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current,new_line);
-		ret = _np_concatAndFree(ret, "size %4d, in use %4d,  available %4d%s", __np_obj_pool_ptr->size, __np_obj_pool_ptr->size - __np_obj_pool_ptr->available,__np_obj_pool_ptr->available,new_line);		
+		ret = _np_concatAndFree(ret, "size %4d, in use %4d,  available %4d%s", __np_obj_pool_ptr->size, __np_obj_pool_ptr->size - __np_obj_pool_ptr->available, __np_obj_pool_ptr->available,new_line);		
 	}
 
 	ret = _np_concatAndFree(ret, "np_none_t_e        count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_none_t_e],			summary[100 * np_none_t_e],				new_line);
@@ -280,8 +280,9 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 	//ret = _np_concatAndFree(ret, "np_http_t_e        count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_http_t_e],			summary[100 * np_http_t_e],				new_line);
 	ret = _np_concatAndFree(ret, "np_network_t_e     count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_network_t_e],		summary[100 * np_network_t_e],			new_line);
 	ret = _np_concatAndFree(ret, "np_thread_t_e      count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_thread_t_e],		summary[100 * np_thread_t_e],			new_line);
+	ret = _np_concatAndFree(ret, "np_ackentry_t      count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_ackentry_t_e],		summary[100 * np_ackentry_t_e],		new_line);
 	ret = _np_concatAndFree(ret, "test_struct_t_e    count %4"PRIu64" max ref %3"PRIu64" %s", summary[test_struct_t_e],		summary[100 * test_struct_t_e],			new_line);
-
+	
 	ret = _np_concatAndFree(ret, "--- memory end ---%s",new_line);
 
 	return (ret);

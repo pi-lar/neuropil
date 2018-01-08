@@ -394,6 +394,7 @@ void __np_example_inti_ncurse() {
 			werase(__np_stat_locks_win);
 			werase(__np_stat_switchable_window);
 			werase(__np_stat_memory_win);
+			werase(__np_stat_msgpartcache_win);
 		}
 	}
 }
@@ -422,16 +423,26 @@ void __np_example_helper_loop() {
 		last_loop_run_at = sec_since_start;
 		char* memory_str;
 
-		if(statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory){
+		if(statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
 			if(enable_statistics == 1 || enable_statistics > 2) {
 				memory_str = np_mem_printpool(FALSE, FALSE);
-				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
-					mvwprintw(__np_stat_memory_win, 0, 0, "%s", memory_str);
+				if(memory_str != NULL) {
+					if ( __np_ncurse_initiated == TRUE) {
+						mvwprintw(__np_stat_memory_win, 0, 0, "%s", memory_str);
+					}
+					else {
+						np_example_print(stdout, memory_str);
+					}
 				}
 				free(memory_str);
 				memory_str = np_mem_printpool(FALSE, TRUE);
-				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
-					mvwprintw(__np_stat_memory_ext, 0, 0, "%s", memory_str);
+				if (memory_str != NULL) {
+					if (__np_ncurse_initiated == TRUE) {
+						mvwprintw(__np_stat_memory_ext, 0, 0, "%s", memory_str);
+					}
+					else {
+						np_example_print(stdout, memory_str);
+					}
 				}
 				free(memory_str);
 			}
@@ -447,8 +458,13 @@ void __np_example_helper_loop() {
 
 			if (enable_statistics == 1 || enable_statistics > 2) {
 				memory_str = np_messagepart_printcache(FALSE);
-				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
-					mvwprintw(__np_stat_msgpartcache_win,0,0, "%s", memory_str);
+				if (memory_str != NULL) {
+					if (__np_ncurse_initiated == TRUE) {
+						mvwprintw(__np_stat_msgpartcache_win, 0, 0, "%s", memory_str);
+					}
+					else {
+						np_example_print(stdout, memory_str);
+					}
 				}
 				free(memory_str);
 			}
@@ -462,8 +478,13 @@ void __np_example_helper_loop() {
 
 			if (enable_statistics == 1 || enable_statistics > 2) {
 				memory_str = np_threads_printpool(FALSE);
-				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
-					mvwprintw(__np_stat_locks_win,0,0, "%s", memory_str);
+				if (memory_str != NULL) {
+					if (__np_ncurse_initiated == TRUE) {
+						mvwprintw(__np_stat_locks_win, 0, 0, "%s", memory_str);
+					}
+					else {
+						np_example_print(stdout, memory_str);
+					}
 				}
 				free(memory_str);
 			}
@@ -492,6 +513,9 @@ void __np_example_helper_loop() {
 					"NON DEBUG and NON RELEASE"
 #endif
 					"\n%s", time, memory_str);
+				}
+				else {
+					np_example_print(stdout, memory_str);
 				}
 				free(memory_str);
 			}
