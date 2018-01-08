@@ -419,61 +419,65 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 	_LOCK_ACCESS(&ng->ack_data_lock)
 	{
 		np_tree_elem_t* iter = RB_MIN(np_tree_s, ng->waiting);
+		int i = 0;
 		while (iter != NULL)
 		{
+			if (i >= 10) {
+				break;
+			}
+			i++;
 			jrb_ack_node = iter;
 			iter = RB_NEXT(np_tree_s, ng->waiting, iter);
 
-			np_ackentry_t *ackentry = (np_ackentry_t *) jrb_ack_node->val.value.v;
-			if (ackentry != NULL && np_time_now() > ackentry->expires_at)
-			{
-				break;
-				// timeout
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "not acknowledged (TIMEOUT at %f)", ackentry->expires_at);
-				_np_node_update_stat(ackentry->dest_key->node, FALSE);
+			np_ackentry_t *ackentry = (np_ackentry_t *)jrb_ack_node->val.value.v;
+			if (ackentry != NULL){
+				if (np_time_now() > ackentry->expires_at)
+				{
+					// timeout
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "not acknowledged (TIMEOUT at %f)", ackentry->expires_at);
+					_np_node_update_stat(ackentry->dest_key->node, FALSE);
 
-				if (ackentry->msg != NULL && sll_size(ackentry->msg->on_timeout) > 0) {
+					if (ackentry->msg != NULL && sll_size(ackentry->msg->on_timeout) > 0) {
 
-					sll_iterator(np_ackentry_on_t) iter_on = sll_first(ackentry->msg->on_timeout);
-					while (iter_on != NULL)
-					{
-						//TODO: call async
-						iter_on->val(ackentry);
-						sll_next(iter_on);
+						sll_iterator(np_ackentry_on_t) iter_on = sll_first(ackentry->msg->on_timeout);
+						while (iter_on != NULL)
+						{
+							//TODO: call async
+							iter_on->val(ackentry);
+							sll_next(iter_on);
+						}
 					}
+					log_msg(LOG_WARN, "ACK_HANDLING (table size: %3d) message (%s) not acknowledged (IN TIME %f/%f)",
+						ng->waiting->size,
+						jrb_ack_node->key.value.s,
+						np_time_now(), ackentry->expires_at /*,
+						ackentry->received_ack, ackentry->expected_ack */);
+					np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
+
+					np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
+					// free(jrb_ack_node->key.value.s);
+					// free(jrb_ack_node);
+				
+				} else if (_np_ackentry_is_fully_acked(ackentry))
+				{
+					// has_received_ack
+	#ifdef DEBUG
+					log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s)     acknowledged (IN TIME %f/%f)",
+						ng->waiting->size,
+						jrb_ack_node->key.value.s,
+						np_time_now(), ackentry->expires_at/*,
+						entry->received_ack, entry->expected_ack*/);
+	#endif
+
+					np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
+					np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);				
+
 				}
-				log_msg(LOG_WARN, "ACK_HANDLING (table size: %3d) message (%s) not acknowledged (IN TIME %f/%f)",
-							  	  	  	  ng->waiting->size,
-										  jrb_ack_node->key.value.s,
-										  np_time_now(), ackentry->expires_at /*,
-										  ackentry->received_ack, ackentry->expected_ack */);
-				np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
-
-				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
-				// free(jrb_ack_node->key.value.s);
-				// free(jrb_ack_node);
-				break;
-			}
-
-			if (ackentry != NULL && _np_ackentry_is_fully_acked(ackentry))
-			{
-				// has_received_ack
-#ifdef DEBUG
-				log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s)     acknowledged (IN TIME %f/%f)",
-							  ng->waiting->size,
-							  jrb_ack_node->key.value.s,
-							  np_time_now(), ackentry->expires_at/*,
-							  entry->received_ack, entry->expected_ack*/);
-#endif
-
-				np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
-				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
-				break;
-
-			} else {
-				log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
-						  ng->waiting->size,
-						  jrb_ack_node->key.value.s);
+				else {
+					log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
+						ng->waiting->size,
+						jrb_ack_node->key.value.s);
+				}
 			}
 		}
 

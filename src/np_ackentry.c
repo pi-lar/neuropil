@@ -57,6 +57,7 @@ void _np_ackentry_t_new(void* obj)
 	entry->dest_key = NULL;
 	entry->msg = NULL;
 }
+
 void _np_ackentry_t_del(void* obj)
 {
 	np_ackentry_t* entry = (np_ackentry_t *)obj;
