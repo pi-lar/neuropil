@@ -258,7 +258,6 @@ int main(int argc, char **argv)
 			np_send_text("ping", "ping", 0, NULL);
 			last_response_or_invokation = now;
 		}
-		__np_example_helper_loop(i, 0.01);
 	}
 
 }
