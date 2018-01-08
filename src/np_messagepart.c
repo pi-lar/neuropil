@@ -14,6 +14,7 @@
 #include "neuropil.h"
 #include "np_types.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_log.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
@@ -147,7 +148,7 @@ void _np_messagepart_t_del(void* nw)
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
 	np_messagepart_t* part = (np_messagepart_t*) nw;
 
-	if(part->msg_part != NULL) free(part->msg_part);
+	if(part->msg_part != NULL) np_memory_free(part->msg_part);
 }
 void _np_messagepart_t_new(void* nw)
 {

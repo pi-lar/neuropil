@@ -256,6 +256,10 @@ np_bool parse_program_args(
 				//| LOG_MESSAGE
 				//| LOG_SERIALIZATION
 				//| LOG_MEMORY
+				//| LOG_MISC
+				//| LOG_EVENT
+				//| LOG_THREADS
+				//| LOG_GLOBAL
 				;
 		}
 
@@ -335,12 +339,12 @@ void __np_example_deinti_ncurse() {
 			init_pair(7, COLOR_RED, COLOR_BLACK);
 
 			if (statistic_types == np_stat_all || (statistic_types & np_stat_general) == np_stat_general) {
-				__np_stat_general_win = newwin(39, 102, 0, 0);
+				__np_stat_general_win = newwin(39, 104, 0, 0);
 				wbkgd(__np_stat_general_win, COLOR_PAIR(1));
 			}
 
 			if (statistic_types == np_stat_all || (statistic_types & np_stat_locks) == np_stat_locks) {
-				__np_stat_locks_win = newwin(39, 43, 0, 102);
+				__np_stat_locks_win = newwin(39, 43, 0, 104);
 				wbkgd(__np_stat_locks_win, COLOR_PAIR(2));
 			}
 
@@ -368,7 +372,7 @@ void __np_example_deinti_ncurse() {
 			}
 
 
-			__np_help_win = newwin(10, 102 + 43, 39+15, 0);
+			__np_help_win = newwin(10, 104 + 43, 39+15, 0);
 			wbkgd(__np_help_win, COLOR_PAIR(4));
 			mvwprintw(__np_help_win, 0, 0, 
 				"Windows: Message(p)arts / Extended (M)emory / (L)og; "
@@ -480,7 +484,15 @@ void __np_example_helper_loop() {
 				memory_str = np_statistics_print(FALSE);
 
 				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
-					mvwprintw(__np_stat_general_win,0,0, "%s -\n%s", time, memory_str);
+					mvwprintw(__np_stat_general_win, 0, 0, "%s - BUILD IN "
+#if defined(DEBUG)
+					"DEBUG"
+#elif defined(RELEASE)
+					"RELEASE"
+#else
+					"NON DEBUG and NON RELEASE"
+#endif
+					"\n%s", time, memory_str);
 				}
 				free(memory_str);
 			}

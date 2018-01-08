@@ -199,7 +199,7 @@ void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t
 			pll_list->size--; \
 			break; \
 		} else { \
-			pll_current = pll_current->flink;                                                               \
+			pll_current = pll_current->flink; \
 		} \
 	} \
 } \
@@ -493,6 +493,7 @@ function like macros are:
 #define sll_delete(TYPE, sll_list, iter) TYPE##_sll_delete(sll_list, iter)
 #define sll_remove(TYPE, sll_list, value, fn_cmp) TYPE##_sll_remove(sll_list, value, fn_cmp)
 #define sll_contains(TYPE, sll_list, value, fn_cmp) TYPE##_sll_contains(sll_list, value, fn_cmp)
+#define sll_merge(TYPE, sll_list_a, sll_list_b, fn_cmp) TYPE##_sll_merge(sll_list_a,sll_list_b, fn_cmp)
 #define sll_clone(TYPE, sll_list_source, sll_list_target)										\
 	np_sll_t(TYPE, sll_list_target);															\
 	sll_init(TYPE, sll_list_target);															\
@@ -538,7 +539,7 @@ real macros for convenience usage
 //																  
 #define NP_SLL_GENERATE_PROTOTYPES(TYPE)                          											\
 	typedef int8_t (*TYPE##_sll_cmp_func_t) (TYPE const value_1, TYPE const value_2 );                      \
-	int8_t TYPE##_sll_compare_type(TYPE const a, TYPE const b);                                                \
+	int8_t TYPE##_sll_compare_type(TYPE const a, TYPE const b);                                             \
 	typedef struct TYPE##_sll_s TYPE##_sll_t;                     											\
 	typedef struct TYPE##_sll_node_s TYPE##_sll_node_t;           											\
 	struct TYPE##_sll_s                                           											\
@@ -562,17 +563,40 @@ real macros for convenience usage
 	void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);										\
 	void TYPE##_sll_clone(TYPE##_sll_t* sll_list_source, TYPE##_sll_t* sll_list_target);					\
 	np_bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp);	    	\
-	void TYPE##_sll_remove(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp);			    \
+	TYPE##_sll_t* TYPE##_sll_merge(TYPE##_sll_t* sll_list_a, TYPE##_sll_t* sll_list_b, TYPE##_sll_cmp_func_t  fn_cmp);	\
+	void TYPE##_sll_remove(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp);							\
 																											\
 																											
 //
 // SLL (single linked list) implementation generator
 //
 #define NP_SLL_GENERATE_IMPLEMENTATION(TYPE)																\
-int8_t TYPE##_sll_compare_type(TYPE const a, TYPE const b) {                                                   \
+int8_t TYPE##_sll_compare_type(TYPE const a, TYPE const b) {                                                \
 	return a == b ? 0 : -1;                                                                                 \
 }                                                                                                           \
-np_bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp) {				\
+TYPE##_sll_t* TYPE##_sll_merge(TYPE##_sll_t* sll_list_a, TYPE##_sll_t* sll_list_b, TYPE##_sll_cmp_func_t  fn_cmp) {		\
+	np_sll_t(TYPE,ret);																					    \
+	sll_init(TYPE,ret);																					    \
+	sll_iterator(TYPE) iter_b = sll_first(sll_list_b);													    \
+	while (iter_b != NULL)																				    \
+	{																									    \
+		if (sll_contains(TYPE, ret, iter_b->val, fn_cmp) == FALSE) {									    \
+			sll_append(TYPE, ret, iter_b->val);															    \
+		}																								    \
+		sll_next(iter_b);																				    \
+	}																									    \
+	sll_iterator(TYPE) iter_a = sll_first(sll_list_a);													    \
+	while (iter_a != NULL)																				    \
+	{																									    \
+		if (sll_contains(TYPE, ret, iter_a->val, fn_cmp) == FALSE) {									    \
+			sll_append(TYPE, ret, iter_a->val);															    \
+		}																								    \
+		sll_next(iter_a);																				    \
+	}																									    \
+	return ret;																							    \
+}																										    \
+																										    \
+np_bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp) {							\
 	np_bool ret = FALSE;																					\
 	sll_iterator(TYPE) iter = sll_first(sll_list);															\
 	while (iter != NULL)																					\

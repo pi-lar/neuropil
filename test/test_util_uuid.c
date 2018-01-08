@@ -4,6 +4,7 @@
 //
 #include <criterion/criterion.h>
 
+#include "np_event.h"
 #include "np_util.h"
 #include "np_log.h"
 
@@ -17,7 +18,7 @@ void setup_uuid(void)
 
 void teardown_uuid(void)
 {
-	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+	EV_P = _np_event_get_loop_io();
 	ev_run(EV_A_ EVRUN_NOWAIT);
 }
 

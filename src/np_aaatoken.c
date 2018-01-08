@@ -291,7 +291,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	double now = np_time_now();
 	if (now > (token->expires_at))
 	{
-		log_msg(LOG_AAATOKEN | LOG_WARN, "token for subject \"%s\": expired. verification failed", token->subject);
+		log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired. verification failed", token->uuid, token->subject);
 		token->state &= AAA_INVALID;
 		log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 		return (FALSE);
@@ -336,7 +336,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		free(hash);
 		if (ret < 0)
 		{
-			log_msg(LOG_AAATOKEN | LOG_WARN, "token for subject \"%s\": checksum verification failed", token->subject);
+			log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": checksum verification failed", token->uuid, token->subject);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state &= AAA_INVALID;			
 			return (FALSE);
@@ -386,7 +386,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 		}
 		else
 		{
-			log_msg(LOG_WARN, "verification failed. token for subject \"%s\": %s was already used, 0<=%"PRIu16"<%"PRIu16, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
+			log_msg(LOG_AAATOKEN | LOG_WARN, "verification failed. token (%s) for subject \"%s\": %s was already used, 0<=%"PRIu16"<%"PRIu16, token->uuid, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
 			log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 			token->state &= AAA_INVALID;
 			return (FALSE);

@@ -348,13 +348,7 @@ void _np_job_yield(const double delay)
     }
     else
     {
-		struct timeval tv_sleep;
-		if (0.0 != delay)
-		{
-			tv_sleep = dtotv(np_time_now() + delay);
-		}
-
-        // unlock another threads
+		// unlock another threads
         _LOCK_MODULE(np_jobqueue_t){
             //_np_threads_condition_signal(&__cond_empty);
 			_np_threads_condition_broadcast(&__cond_empty);
@@ -363,7 +357,7 @@ void _np_job_yield(const double delay)
         _LOCK_MODULE(np_jobqueue_t) {
             if (0.0 != delay)
             {
-                
+				struct timeval tv_sleep = dtotv(np_time_now() + delay);
                 struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
                 // wait for time x to be unlocked again
 				

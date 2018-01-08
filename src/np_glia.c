@@ -243,29 +243,14 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 	
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset check for table started");
 
-	// IMPORTANT: only select key from routing table and leafset
-	// REASON: alias_keys cannot be pinged, but are valid
+	// TODO: do a dynamic selection of keys
+	np_sll_t(np_key_ptr, routing_keys) = _np_route_get_table();
+	np_sll_t(np_key_ptr, neighbour_keys) = _np_route_neighbors();
 
-	np_sll_t(np_key_ptr, table) = NULL;
-	np_sll_t(np_key_ptr, leafset) = NULL;
+	np_sll_t(np_key_ptr, keys) = sll_merge(np_key_ptr, neighbour_keys, routing_keys, _np_key_cmp);
 
-	table = _np_route_get_table();
-	leafset = _np_route_neighbors();
+	sll_iterator(np_key_ptr) iter = sll_first(keys);
 
-	// delete neighbours from routing_table to create distinct list (merge lists)
-	sll_iterator(np_key_ptr) iter_neighbour = sll_first(leafset);
-	while (iter_neighbour != NULL)
-	{
-		np_bool is_already_in_list = sll_contains(np_key_ptr, table, iter_neighbour->val, _np_key_cmp);
-		if (is_already_in_list == FALSE) {
-			np_ref_obj(np_key_t, iter_neighbour->val, "_np_route_get_table");
-			sll_append(np_key_ptr, table, iter_neighbour->val);
-		}
-
-		sll_next(iter_neighbour);
-	}
-
-	sll_iterator(np_key_ptr) iter = sll_first(table);
 	while (iter != NULL) {
 		
 		if(iter->val != _np_state()->my_node_key){
@@ -279,12 +264,11 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 		}
 		sll_next(iter);
 	}
-
-	np_unref_list(table, "_np_route_neighbors");
-	sll_free(np_key_ptr, table);
-
-	np_unref_list(leafset, "_np_route_get_table");
-	sll_free(np_key_ptr, leafset);
+	sll_free(np_key_ptr, keys); // no ref 
+	np_unref_list(routing_keys, "_np_route_get_table");
+	sll_free(np_key_ptr, routing_keys);
+	np_unref_list(neighbour_keys, "_np_route_neighbors");
+	sll_free(np_key_ptr, neighbour_keys);
 }
 
 void _np_glia_log_flush(NP_UNUSED np_jobargs_t* args) {
@@ -450,6 +434,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 			np_ackentry_t *ackentry = (np_ackentry_t *) jrb_ack_node->val.value.v;
 			if (ackentry != NULL && np_time_now() > ackentry->expires_at)
 			{
+				break;
 				// timeout
 				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "not acknowledged (TIMEOUT at %f)", ackentry->expires_at);
 				_np_node_update_stat(ackentry->dest_key->node, FALSE);
@@ -498,7 +483,9 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 						  jrb_ack_node->key.value.s);
 			}
 		}
+
 	}
+
 	np_unref_obj(np_key_t, my_key,"np_waitref_obj");
 }
 
