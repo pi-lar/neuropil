@@ -24,11 +24,6 @@
 //#include "np_types.h"
 #include "np_settings.h"
 
-
-
-NP_SLL_GENERATE_PROTOTYPES(char);
-NP_SLL_GENERATE_IMPLEMENTATION(char);
-
 typedef struct np_log_s
 {
 	char filename_ext[16];
@@ -83,70 +78,72 @@ void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int
 
 void log_rotation()
 {
-	 pthread_mutex_lock(&__log_mutex);
+	
+	pthread_mutex_lock(&__log_mutex);
 	 if(__logger->log_size >= LOG_ROTATE_AFTER_BYTES)
-	 {
+	{
 		 __logger->log_size = 0;
 		 __logger->log_count += 1;
 
 		 int log_id = (__logger->log_count % LOG_ROTATE_COUNT) ;
-		 if(log_id==0){
-			 log_id = LOG_ROTATE_COUNT;
-		 }
+		if(log_id==0){
+			log_id = LOG_ROTATE_COUNT;
+		}
 
 		 char* old_filename = strdup(__logger->filename);
 
-		 // create new filename
+		// create new filename
 		 if(__logger->log_rotate){
 			 snprintf (__logger->filename, 255, "%s_%d%s", __logger->original_filename, log_id, __logger->filename_ext );
-		 }else{
+		}else{
 			 snprintf (__logger->filename, 255, "%s%s", __logger->original_filename, __logger->filename_ext );
-		 }
+		}
 
 
-		 // Closing old file
+		// Closing old file
 		 if(__logger->log_count > 1) {
 			 log_msg(LOG_INFO, "Continuing log in file %s now.",__logger->filename);
-			 _np_log_fflush(TRUE);
+			_np_log_fflush(TRUE);
 			 if(close(__logger->fp) != 0) {
-				fprintf(stderr,"Could not close old logfile %s. Error: %s (%d)", old_filename, strerror(errno), errno);
-				fflush(NULL);
-			 }
-		 }
+			fprintf(stderr,"Could not close old logfile %s. Error: %s (%d)", old_filename, strerror(errno), errno);
+			fflush(NULL);
+			}
+		}
 
-		 // setting up new file
+		// setting up new file
 		 if(__logger->log_rotate){
 			 unlink(__logger->filename);
-		 }
+		}
 		 __logger->fp = open(__logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
 
 		 if(__logger->fp < 0) {
 			fprintf(stderr,"Could not create logfile at %s. Error: %s (%d)",__logger->filename, strerror(errno), errno);
-		    fprintf(stderr, "Log will no longer continue");
-		    fflush(NULL);
+		fprintf(stderr, "Log will no longer continue");
+		fflush(NULL);
 
-		    // discontinue new log msgs
+		// discontinue new log msgs
 		    free(__logger);
 		    __logger = NULL;
-		 }
-		 else
-		 {
-			 /*
-			 EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-			 ev_io_stop(EV_A_ &logger->watcher);
-			 ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
-			 ev_io_start(EV_A_ &logger->watcher);
-			 */
-		 }
+		}
+		else
+		{
+			/*
+			EV_P = _np_event_get_loop_io();
+			ev_io_stop(EV_A_ &logger->watcher);
+			ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
+			ev_io_start(EV_A_ &logger->watcher);
+			*/
+		}
 
 		 if (__logger->log_count > LOG_ROTATE_COUNT) {
 			 log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, __logger->log_count / LOG_ROTATE_COUNT);
-		 }
+		}
 
-		 _np_log_fflush(TRUE);
-		 free(old_filename);
-	 }
-	 pthread_mutex_unlock(&__log_mutex);
+		_np_log_fflush(TRUE);
+		free(old_filename);
+	}
+	pthread_mutex_unlock(&__log_mutex);
+	
 }
 
 void np_log_message(uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
@@ -156,9 +153,13 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 	}
 	// include msg if log level is included into selected levels
 	// and if the msg has acategory and is included into selected categories
-	// or if no category is provided for msg
+	// or if no category is provided for msg or the log level contains the LOG_GLOBAL flag
 	if ((level & LOG_LEVEL_MASK & __logger->level) > LOG_NONE &&
-		((level & LOG_MODUL_MASK & __logger->level) > LOG_NONE  || (level & LOG_MODUL_MASK) == LOG_NONE)
+		(
+			(__logger->level & LOG_MODUL_MASK & LOG_GLOBAL) == LOG_GLOBAL ||
+			(level & LOG_MODUL_MASK & __logger->level) > LOG_NONE  || 
+			(level & LOG_MODUL_MASK) == LOG_NONE
+		)
 	)
 	{
 		struct timeval tval;
@@ -203,7 +204,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		}
 #ifdef DEBUG
 		else {
-			_np_log_fflush(LOG_FORCE_INSTANT_WRITE);
+			_np_log_fflush(TRUE);
 		}
 #endif // DEBUG
 		
@@ -266,7 +267,7 @@ void _np_log_fflush(np_bool force)
 					 break;
 				}
 				bytes_witten += current_bytes_witten;
-			}			
+			}	
 
 			if(__logger->log_rotate == TRUE)
 				log_rotation();
@@ -339,7 +340,7 @@ void np_log_destroy()
 	log_msg(LOG_TRACE, "start: void np_log_destroy(){");
 	__logger->level=LOG_NONE;
 
-	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+	EV_P = _np_event_get_loop_io();
 	ev_io_stop(EV_A_ &__logger->watcher);
 
 	_np_log_fflush(TRUE);

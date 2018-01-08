@@ -685,7 +685,7 @@ np_bool _np_http_init(char* domain) {
 	__local_http->hooks->body = _np_http_body;
 	__local_http->hooks->on_msg_complete = _np_http_on_msg_complete;
 
-	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+	EV_P = _np_event_get_loop_in();
 	ev_io_stop(EV_A_&__local_http->network->watcher);
 	ev_io_init(&__local_http->network->watcher, _np_http_accept,
 			__local_http->network->socket, EV_READ);
@@ -701,7 +701,7 @@ void _np_http_destroy() {
 	log_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_destroy() {");
 
 
-	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+	EV_P = _np_event_get_loop_in();
 
 	sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
 	while(iter != NULL){

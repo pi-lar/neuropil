@@ -273,6 +273,7 @@ void _np_msgproperty_t_del(void* property)
 	}
 	_np_threads_mutex_destroy(&prop->lock);
 	_np_threads_condition_destroy(&prop->msg_received);
+
 	prop = NULL;
 }
 

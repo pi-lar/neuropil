@@ -77,7 +77,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 		__np_obj_pool_ptr->free_obj = __np_obj_pool_ptr->free_obj->next;
 		__np_obj_pool_ptr->available--;
 
-#ifdef NP_MEMORY_CHECK_MEMORY
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING
 		free(__np_obj_pool_ptr->current->id);
 		__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);		
 #endif
@@ -87,7 +87,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 		__np_obj_pool_ptr->current = (np_obj_t*) malloc (sizeof(np_obj_t) );
 		CHECK_MALLOC(__np_obj_pool_ptr->current);
 		__np_obj_pool_ptr->current->id = np_uuid_create("MEMORY REF OBJ",0);
-#ifdef NP_MEMORY_CHECK_MEMORY
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING
 		sll_init(char_ptr, (__np_obj_pool_ptr->current->reasons));
 #endif
 		__np_obj_pool_ptr->size++;
@@ -129,7 +129,7 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 		else __np_obj_pool_ptr->first = __np_obj_pool_ptr->first->next;
 		(*obj)->type = np_none_t_e;
 		(*obj)->next = __np_obj_pool_ptr->free_obj;
-#ifdef NP_MEMORY_CHECK_MEMORY
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING
 		// cleanup old reasoning (if any, should be none)
 		sll_iterator(char_ptr) iter_reasons = sll_first((*obj)->reasons);		
 		while (iter_reasons != NULL)
@@ -155,7 +155,7 @@ void np_mem_refobj(np_obj_t* obj, const char* reason)
 	log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
 	obj->ref_count++;
 	//log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
-#ifdef NP_MEMORY_CHECK_MEMORY
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING
 	assert(reason != NULL);
 	sll_prepend(char_ptr, obj->reasons, strdup(reason));
 #endif
@@ -168,14 +168,14 @@ void np_mem_unrefobj(np_obj_t* obj, const char* reason)
 	obj->ref_count--;
 	//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
 	if(obj->ref_count < 0){		
-#ifdef NP_MEMORY_CHECK_MEMORY
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING
 		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (left reasons(%d): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
 #else
 		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! left reasons(%d)", obj, obj->type, obj->ref_count);
 #endif
 		abort();
 	}
-#ifdef NP_MEMORY_CHECK_MEMORY
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING
 	sll_iterator(char_ptr) iter_reason = sll_first(obj->reasons);
 	np_bool foundReason = FALSE;
 	while (foundReason == FALSE && iter_reason != NULL)
@@ -215,7 +215,7 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 		for (np_obj_t* iter = __np_obj_pool_ptr->first; iter != NULL; iter = iter->next)
 		{
 			summary[iter->type]++;
-#ifdef NP_MEMORY_CHECK_MEMORY
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING
 			summary[iter->type*100] = summary[iter->type * 100] > sll_size(iter->reasons) ? summary[iter->type * 100]: sll_size(iter->reasons);
 
 			if (
@@ -259,8 +259,8 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 		}
 		
 		if (TRUE == extended) {
-#ifndef NP_MEMORY_CHECK_MEMORY
-			ret = _np_concatAndFree(ret, "NO DATA. Compile with NP_MEMORY_CHECK_MEMORY %s", new_line); 
+#ifndef NP_MEMORY_CHECK_MEMORY_REFFING
+			ret = _np_concatAndFree(ret, "NO DATA. Compile with NP_MEMORY_CHECK_MEMORY_REFFING %s", new_line); 
 #endif
 			ret = _np_concatAndFree(ret, "--- extended reasons end  ---%s", new_line);
 		}

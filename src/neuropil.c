@@ -330,7 +330,7 @@ void np_waitforjoin()
 	log_msg(LOG_TRACE, "start: void np_waitforjoin(){");
 	while (FALSE == _np_route_my_key_has_connection())
 	{
-		ev_sleep(0.31415/2);
+		np_time_sleep(0.31415/2);
 	}
 }
 
@@ -635,7 +635,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
-			ev_sleep(0.31415);
+			np_time_sleep(0.31415);
 			// dsleep(0.31415);
 			continue;
 		}
@@ -740,7 +740,7 @@ uint32_t np_receive_text (char* subject, char **data)
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
-			ev_sleep(0.31415);
+			np_time_sleep(0.31415);
 			// dsleep(0.31415);
 			continue;
 		}
@@ -823,10 +823,12 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	if(sodium_init() == -1){
 		log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
 		exit(EXIT_FAILURE);
-	}
+	}	
 
 	// memory pool
 	np_mem_init();
+	//v2
+	np_memory_init();
 
 	// initialize key min max ranges
 	_np_dhkey_init();

@@ -184,7 +184,7 @@ int main(int argc, char **argv)
 
 			   \code
 			 */
-			np_start_job_queue(10);
+			np_start_job_queue(no_threads+3);
 
 			__np_example_helper_run_info_loop();
 			/**
@@ -310,7 +310,7 @@ int main(int argc, char **argv)
 					int timeout = 100;
 					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {
 						// wait for join acceptance
-						ev_sleep(0.1);
+						np_time_sleep(0.1);
 						timeout--;
 					}
 
@@ -351,7 +351,7 @@ int main(int argc, char **argv)
 				 */
 			}
 			if(default_node_creation_speed > 0)
-				ev_sleep(default_node_creation_speed);
+				np_time_sleep(default_node_creation_speed);
 		} else {
 			/**
 			  .. _neuropil_hydra_step_check_nodes_still_present:
@@ -392,7 +392,7 @@ int main(int argc, char **argv)
 			/**
 			 \endcode
 			 */
-			ev_sleep(3.415);
+			np_time_sleep(3.415);
 		}
 
 	}

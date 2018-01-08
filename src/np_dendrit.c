@@ -140,7 +140,7 @@ void _np_in_received(np_jobargs_t* args)
 			ret = _np_message_deserialize_header_and_instructions(msg_in, raw_msg);
 
 			if (ret == FALSE) {
-				free(raw_msg);
+				np_memory_free(raw_msg);
 				if(is_decryption_successful == TRUE){
 					log_msg(LOG_ERROR,
 						"error deserializing message %s after   successful decryption (source: \"%s:%s\")",
@@ -202,7 +202,7 @@ void _np_in_received(np_jobargs_t* args)
 				// check time-to-live for message and expiry if neccessary
 				if (TRUE == _np_message_is_expired(msg_in))
 				{
-					log_msg(LOG_WARN, "message ttl expired, dropping message (part) %s / %s",
+						log_msg(LOG_ROUTING | LOG_INFO, "message ttl expired, dropping message (part) %s / %s",
 						msg_in->uuid, np_treeval_to_str(msg_subject, NULL));
 				}
 				else if (msg_resendcounter.value.ush > 31) {
@@ -210,13 +210,13 @@ void _np_in_received(np_jobargs_t* args)
 							msg_resendcounter.value.ush, msg_in->uuid, np_treeval_to_str(msg_subject, NULL));
 				}
 				else {
-					log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) message ttl not expired", msg_in->uuid);
+						log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) message ttl not expired", msg_in->uuid);
 
 					np_dhkey_t target_dhkey;
 					_np_dhkey_from_str( np_treeval_to_str(msg_to, NULL), &target_dhkey);
 
 					target_key = _np_keycache_find_or_create(target_dhkey);
-					log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "target of msg is %s", _np_key_as_str(target_key));
+						log_debug_msg(LOG_ROUTING | LOG_DEBUG, "target of msg is %s", _np_key_as_str(target_key));
 
 					np_bool is_ack_msg = (0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_ACK, strlen(_NP_MSG_ACK)) );
 
@@ -346,7 +346,7 @@ void _np_in_piggy(np_jobargs_t* args)
 		{
 			// just record nodes in the network or send an join request as well ?
 			// answer: only send join request !
-			// if (GRACEPERIOD > (ev_time() - tmp_ft))
+			// if (GRACEPERIOD > (np_time_now() - tmp_ft))
 			// {
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(node_entry));
 			_np_send_simple_invoke_request(node_entry, _NP_MSG_JOIN_REQUEST);

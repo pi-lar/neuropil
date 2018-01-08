@@ -3,8 +3,8 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
-#ifndef _NP_EVENT_H_
-#define _NP_EVENT_H_
+#ifndef NP_EVENT_H_
+#define NP_EVENT_H_
 
 #include "event/ev.h"
 
@@ -12,34 +12,25 @@
 extern "C" {
 #endif
 
-NP_API_INTERN
-void _np_events_async(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents);
+struct ev_loop * _np_event_get_loop_io();
+struct ev_loop * _np_event_get_loop_in();
+struct ev_loop * _np_event_get_loop_out();
 
-NP_API_INTERN
-void _np_events_read(np_jobargs_t* args);
-
-NP_API_INTERN
+void _np_events_read_in(NP_UNUSED np_jobargs_t* args);
+void _np_events_read_out(NP_UNUSED np_jobargs_t* args);
+void _np_events_read_io(NP_UNUSED np_jobargs_t* args);
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args);
-
-NP_API_INTERN
 void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args);
-
-NP_API_INTERN
-void* _np_event_run();
-
-NP_API_INTERN
+void* _np_event_in_run();
+void* _np_event_out_run();
+void* _np_event_io_run();
 double np_event_sleep(double time);
-
-NP_API_INTERN
 void _np_suspend_event_loop();
-NP_API_INTERN
 void _np_resume_event_loop();
-
-double np_event_sleep(double time);
 
 #ifdef __cplusplus
 }
 #endif
 
 
-#endif /* _NP_EVENT_H_ */
+#endif /* NP_EVENT_H_ */

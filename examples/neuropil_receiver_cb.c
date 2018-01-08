@@ -164,7 +164,7 @@ int main(int argc, char **argv)
 	*/
 	while (1)
 	{
-		ev_sleep(0.9);
+		np_time_sleep(0.9);
 	}
 	/** \endcode */
 }
