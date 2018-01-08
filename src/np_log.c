@@ -226,6 +226,7 @@ void _np_log_fflush(np_bool force)
 		 1 = discontinue the flush 
 	*/
 	int flush_status= -1;
+	uint32_t i = 0;
 	do
 	{
 		if (force) {
@@ -281,7 +282,8 @@ void _np_log_fflush(np_bool force)
 		else {
 			flush_status = 1;
 		}
-	} while (flush_status == 0);
+		i++;
+	} while (flush_status == 0 && i <= MISC_LOG_FLUSH_MAX_ITEMS);
 }
 
 void np_log_setlevel(uint32_t level)

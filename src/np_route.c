@@ -700,10 +700,15 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 						pick = k;
 					}
 				}
-				*deleted = __routing_table->table[index + pick];
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%d]", index+pick);
-				__routing_table->table[index + pick] = key;
-				*added = __routing_table->table[index + pick];
+				np_key_t* check_to_del = __routing_table->table[index + pick];
+
+				// only replace if the new latency is a better one
+				if(check_to_del == NULL || check_to_del->node->latency > key->node->latency){
+					*deleted = __routing_table->table[index + pick];
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%d]", index+pick);
+					__routing_table->table[index + pick] = key;
+					*added = __routing_table->table[index + pick];
+				}
 			}
 		}
 		else

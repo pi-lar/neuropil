@@ -79,6 +79,7 @@ void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 NP_API_EXPORT
 void _np_rem_http_callback(const char* path, htp_method method);
 
+
 #ifdef __cplusplus
 }
 #endif

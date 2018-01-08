@@ -516,27 +516,15 @@ np_tree_t* np_sysinfo_get_all() {
 
 	routing_table = _np_route_get_table();
 	neighbours_table = _np_route_neighbors();
+	np_sll_t(np_key_ptr, merge_table) = sll_merge(np_key_ptr, routing_table, neighbours_table, _np_key_cmp);
 
-	// delete neighbours from routing_table to create distinct list (merge lists)
-	sll_iterator(np_key_ptr) iter_neighbour = sll_first(neighbours_table);
-	while (iter_neighbour != NULL)
-	{
-		np_bool is_already_in_list = sll_contains(np_key_ptr, routing_table, iter_neighbour->val, _np_key_cmp);
-		
-		if (is_already_in_list == FALSE) {
-			np_ref_obj(np_key_t, iter_neighbour->val, "_np_route_get_table");
-			sll_append(np_key_ptr, routing_table, iter_neighbour->val);
-		}
 
-		sll_next(iter_neighbour);
-	}
 	// now serialize both tables into np_tree
-
-	if (NULL != routing_table && 0 < routing_table->size) {
+	if (NULL != merge_table && 0 < merge_table->size) {
 		np_key_t* current;
-		while (NULL != sll_first(routing_table)) {
-			current = sll_head(np_key_ptr, routing_table);
-			if (NULL != current &&
+		while (NULL != sll_first(merge_table)) {
+			current = sll_head(np_key_ptr, merge_table);
+			if (
 				strcmp(_np_key_as_str(current), _np_key_as_str(my_node_key)) != 0 &&
 				NULL != (tmp = _np_sysinfo_get_from_cache(_np_key_as_str(current), -2)))
 			{
@@ -544,12 +532,13 @@ np_tree_t* np_sysinfo_get_all() {
 				np_tree_insert_int(ret, count++,np_treeval_new_tree(tmp));
 				np_tree_free(tmp);
 			}
-			np_unref_obj(np_key_t, current, "_np_route_get_table");
 		}
 	}
 
+	sll_free(np_key_ptr, merge_table);
+	np_unref_list(routing_table,"_np_route_get_table");
 	sll_free(np_key_ptr, routing_table);
-	np_unref_list(neighbours_table,"_np_route_neighbors");
+	np_unref_list(neighbours_table, "_np_route_neighbors");
 	sll_free(np_key_ptr, neighbours_table);
 	np_unref_obj(np_key_t, my_node_key, "usage");
 

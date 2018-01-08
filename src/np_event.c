@@ -37,6 +37,7 @@
 #include "np_settings.h"
 #include "np_constants.h"
 
+struct ev_loop * loop_http = NULL;
 struct ev_loop * loop_io = NULL;
 struct ev_loop * loop_out = NULL;
 struct ev_loop * loop_in = NULL;
@@ -58,6 +59,14 @@ void np_event_init() {
 		}
 		ev_verify(loop_out);
 	}
+	if (loop_http == NULL) {
+		loop_http = ev_loop_new(EVFLAG_AUTO);
+		if (loop_http == FALSE) {
+			fprintf(stderr, "ERROR: cannot init http event loop");
+			exit(EXIT_FAILURE);
+		}
+		ev_verify(loop_http);
+	}
 	if (loop_in == NULL) {		
 		loop_in = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 		//also possible, but default loop is propably already initialized
@@ -70,7 +79,12 @@ void np_event_init() {
 	}
 }
 
-struct ev_loop * _np_event_get_loop_io() {	
+struct ev_loop * _np_event_get_loop_http() {
+	np_event_init();
+	return loop_http;
+}
+
+struct ev_loop * _np_event_get_loop_io() {
 	np_event_init();
 	return loop_io;
 }
@@ -87,6 +101,8 @@ struct ev_loop * _np_event_get_loop_out() {
 
 // the optimal libev run interval remains to be seen
 // if set too low, base cpu usage increases on no load
+static int         __suspended_libev_loop_http = 0;
+static ev_async    __libev_async_watcher_http;
 static int         __suspended_libev_loop_io = 0;
 static ev_async    __libev_async_watcher_io;
 static int         __suspended_libev_loop_in = 0;
@@ -178,6 +194,24 @@ void _np_events_read_io(NP_UNUSED np_jobargs_t* args)
 	EV_P = _np_event_get_loop_io();
 	_LOCK_MODULE(np_event_t) {
 		suspend_loop = __suspended_libev_loop_io;
+	}
+
+	if (suspend_loop <= 0) {
+		ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));
+	}
+}
+
+
+void _np_events_read_http(NP_UNUSED np_jobargs_t* args)
+{
+	log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
+	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
+
+	static int suspend_loop = 0;
+
+	EV_P = _np_event_get_loop_http();
+	_LOCK_MODULE(np_event_t) {
+		suspend_loop = __suspended_libev_loop_http;
 	}
 
 	if (suspend_loop <= 0) {
@@ -294,6 +328,34 @@ void* _np_event_out_run() {
 	}
 }
 
+void* _np_event_http_run() {
+	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
+	while (_np_threads_is_threadding_initiated() == FALSE) {
+		np_time_sleep(0.01);
+	}
+
+	EV_P = _np_event_get_loop_http();
+
+	ev_async_init(&__libev_async_watcher_http, _np_events_async_break);
+	ev_async_start(EV_A_ &__libev_async_watcher_http);
+
+	ev_set_io_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
+	ev_set_timeout_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
+
+	int suspend_loop = 0;
+	while (1) {
+		_LOCK_MODULE(np_event_t) {
+			suspend_loop = __suspended_libev_loop_http;
+		}
+		if (suspend_loop <= 0) {
+			ev_run(EV_A_(0));
+		}
+		else {
+			np_time_sleep(NP_EVENT_IO_CHECK_PERIOD_SEC);
+		}
+	}
+}
+
 /**
  * Call this fucntion only in an event (as in async callback)
  */
@@ -313,6 +375,25 @@ void _np_resume_event_loop_io()
 	_LOCK_MODULE(np_event_t) {
 		__suspended_libev_loop_io--;
 		ASSERT(__suspended_libev_loop_io >= 0, "too many resumes for event loop io");
+	}
+}
+
+void _np_suspend_event_loop_http()
+{
+	log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
+
+	_LOCK_MODULE(np_event_t) {
+		__suspended_libev_loop_http++;
+	}
+	ev_async_send(_np_event_get_loop_http(), &__libev_async_watcher_http);
+}
+
+void _np_resume_event_loop_http()
+{
+	log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
+	_LOCK_MODULE(np_event_t) {
+		__suspended_libev_loop_http--;
+		ASSERT(__suspended_libev_loop_http >= 0, "too many resumes for event loop http");
 	}
 }
 

@@ -663,6 +663,11 @@ void np_start_job_queue(uint8_t pool_size)
 		pool_size--;
 		create_own_event_io_thread = TRUE;
 	}
+	np_bool create_own_event_http_thread = FALSE;
+	if (pool_size >= 2) {
+		pool_size--;
+		create_own_event_http_thread = TRUE;
+	}
 
 	__np_createThreadPool(pool_size);
 	//start jobs
@@ -681,11 +686,19 @@ void np_start_job_queue(uint8_t pool_size)
 	else {
 		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
 	}
+
 	if (create_own_event_io_thread) {
 		__np_createThread(pool_size, _np_event_io_run);
 	}
 	else {
 		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
+	}
+
+	if (create_own_event_http_thread) {
+		__np_createThread(pool_size, _np_event_http_run);
+	}
+	else {
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
 	}
 	
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_SEND_PINGS_SEC,					_np_glia_send_pings, "_np_glia_send_pings");

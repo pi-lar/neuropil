@@ -186,7 +186,7 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
 			tmp_node_key->node->is_handshake_send == TRUE 
 			)
 		{
-			log_debug_msg(LOG_INFO, "deleted from table/leafset: %s:%s:%s / %f / %1.2f",
+			log_msg(LOG_INFO, "deleted from table/leafset: %s:%s:%s / %f / %1.2f",
 								_np_key_as_str(tmp_node_key),
 								tmp_node_key->node->dns_name, tmp_node_key->node->port,
 								tmp_node_key->node->last_success,
@@ -271,25 +271,27 @@ void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
 	/* send leafset exchange data every 3 times that pings the leafset */
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset exchange for neighbours started");
 
-	static int toggle = 0;
+	np_sll_t(np_key_ptr, routing_keys) = _np_route_get_table();;
+	np_sll_t(np_key_ptr, neighbour_keys) = _np_route_neighbors();
+	np_sll_t(np_key_ptr, keys_merged) = sll_merge(np_key_ptr, routing_keys, neighbour_keys, _np_key_cmp);
 
-	np_sll_t(np_key_ptr, keys) = NULL;
-
-	if (toggle == 0) keys = _np_route_get_table();
-	if (toggle == 1) keys = _np_route_neighbors();
-
-	int i=0;
-	np_key_t *tmp_node_key = NULL;
-	while ( NULL != (tmp_node_key = sll_head(np_key_ptr, keys)))
+	int i = 0;	
+	sll_iterator(np_key_ptr) iter_keys = sll_first(keys_merged);
+	while (iter_keys != NULL)
 	{
 		// send a piggy message to the the nodes in our routing table
 		np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-		_np_job_submit_transform_event(i*0.031415, piggy_prop, tmp_node_key, NULL);
-		np_unref_obj(np_key_t, tmp_node_key,"_np_route_neighbors");		
+		_np_job_submit_transform_event(i*0.031415, piggy_prop, iter_keys->val, NULL);
+
 		i++;
+		sll_next(iter_keys);
 	}
-	sll_free(np_key_ptr, keys);
-	toggle = (toggle > 0) ? 0 : 1;
+
+	sll_free(np_key_ptr, keys_merged);
+	np_unref_list(routing_keys, "_np_route_get_table");
+	sll_free(np_key_ptr, routing_keys);
+	np_unref_list(neighbour_keys, "_np_route_neighbors");			
+	sll_free(np_key_ptr, neighbour_keys);
 }
 
 /**

@@ -208,7 +208,14 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "decoded node from jrb %d:%s:%s",
 				i_host_proto, s_host_name, s_host_port);
 	}
-
+	/*
+	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_LATENCY))) {
+		new_node->latency = ele->val.value.d;
+	}
+	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_SUCCESS_AVG))) {
+		new_node->success_avg = ele->val.value.f;
+	}
+	*/
 	ref_replace_reason(np_node_t, new_node, ref_obj_creation, __func__);
 
 	return (new_node);

@@ -359,36 +359,41 @@ void _np_in_piggy(np_jobargs_t* args)
 			_np_route_leafset_update(node_entry, TRUE, &deleted, &added);
 
 #ifdef DEBUG
-			if (added !=NULL)
+			//LOG_ROUTING | LOG_INFO
+			if (added !=NULL){
 				log_msg(LOG_ERROR, "STABILITY added   to   leafset: %s:%s:%s / %f / %1.2f",
 								_np_key_as_str(added),
 								added->node->dns_name, added->node->port,
 								added->node->last_success,
 								added->node->success_avg);
-			if (deleted !=NULL)
+			}
+			if (deleted !=NULL){
 				log_msg(LOG_ERROR, "STABILITY deleted from leafset: %s:%s:%s / %f / %1.2f",
 								_np_key_as_str(deleted),
 								deleted->node->dns_name, deleted->node->port,
 								deleted->node->last_success,
 								deleted->node->success_avg);
+			}
 #endif
 
 			added = NULL, deleted = NULL;
 			_np_route_update(node_entry, TRUE, &deleted, &added);
 
 #ifdef DEBUG
-			if (added !=NULL)
+			if (added !=NULL){
 				log_msg(LOG_ERROR, "STABILITY added   to   table  : %s:%s:%s / %f / %1.2f",
 								_np_key_as_str(added),
 								added->node->dns_name, added->node->port,
 								added->node->last_success,
 								added->node->success_avg);
-			if (deleted !=NULL)
+			}
+			if (deleted !=NULL){
 				log_msg(LOG_ERROR, "STABILITY deleted from table  : %s:%s:%s / %f / %1.2f",
 								_np_key_as_str(deleted),
 								deleted->node->dns_name, deleted->node->port,
 								deleted->node->last_success,
 								deleted->node->success_avg);
+			}
 #endif
 		} else {
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is not qualified for a piggy join. (%s)", _np_key_as_str(node_entry), node_entry->node->joined_network ? "J":"NJ");

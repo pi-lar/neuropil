@@ -38,6 +38,7 @@
 #include "np_list.h"
 
 
+
 JSON_Value* _np_generate_error_json(const char* error,const char* details);
 JSON_Value* _np_generate_error_json(const char* error,const char* details) {
 	log_msg(LOG_TRACE | LOG_HTTP, "start: JSON_Value* _np_generate_error_json(const char* error,const char* details) {");
@@ -132,6 +133,10 @@ typedef struct _np_http_callback_s {
 	_np_http_callback_func_t callback;
 	void* user_arg;
 } _np_http_callback_t;
+
+
+void _np_http_handle_sysinfo(np_http_client_t* client);
+
 
 void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 		_np_http_callback_func_t func) {
@@ -305,114 +310,7 @@ void _np_http_dispatch( np_http_client_t* client) {
 		switch (client->ht_request.ht_method) {
 		case (htp_method_GET): {
 
-			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Requesting sysinfo");
-
-			char target_hash[65];
-
-			np_bool usedefault = TRUE;
-			int http_status = HTTP_CODE_OK;
-			char* response;
-			JSON_Value* json_obj;
-			np_key_t*  key = NULL;
-
-			/**
-			 * Default behavior if no argument is given: display own node informations
-			 */
-			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "parse arguments of %s",
-					client->ht_request.ht_path);
-
-
-			if ( NULL != client->ht_request.ht_path) {
-				log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "request has arguments");
-
-				char* path = strdup(client->ht_request.ht_path);
-				char* tmp_target_hash = strtok(path, "/");
-
-				if (NULL != tmp_target_hash) {
-					if (strlen(tmp_target_hash) == 64) {						
-						snprintf(target_hash,65, "%s",tmp_target_hash);
-						usedefault = FALSE;
-					} else {
-						http_status = HTTP_CODE_BAD_REQUEST;
-						json_obj = _np_generate_error_json(
-								"provided key invalid.",
-								"length is not 64 characters");
-						free(path);
-						goto __json_return__;
-					}
-				}
-				free(path);
-
-			} else {
-				log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "no arguments provided");
-			}
-
-			key = _np_state()->my_node_key;
-			np_tryref_obj(np_key_t, key,keyExists);
-			if(keyExists) {
-				char* my_key = _np_key_as_str(key);
-				np_tree_t* sysinfo = NULL;
-				if (usedefault) {
-					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "using own node as info system");
-					sprintf(target_hash, "%s",my_key);
-
-					sysinfo = np_sysinfo_get_all();
-				}else{
-				
-					sysinfo = np_sysinfo_get_info(target_hash);
-				}
-				if (NULL == sysinfo) {
-					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Could not find system informations");
-					http_status = HTTP_CODE_ACCEPTED;
-					json_obj = _np_generate_error_json("key not found.",
-							"update request is send. please wait.");
-				} else {
-					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (byte_size: %"PRIu64,
-							sysinfo->byte_size);
-					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (size: %"PRIu16,
-							sysinfo->size);
-
-					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Convert sysinfo to json");
-					json_obj = np_tree2json(sysinfo);
-					log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "cleanup");					
-				}
-				np_tree_free(sysinfo);
-
-				np_unref_obj(np_key_t, key, __func__);
-			}else{
-				http_status = HTTP_CODE_SERVICE_UNAVAILABLE;
-				json_obj = _np_generate_error_json("refreshing own key",
-						"Refreshing own key. please wait.");
-			}
-			__json_return__:
-
-			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "serialise json response");
-			if (NULL == json_obj) {
-				log_msg(LOG_ERROR,
-						"HTTP return is not defined for this code path");
-				http_status = HTTP_CODE_INTERNAL_SERVER_ERROR;
-				json_obj = _np_generate_error_json("Unknown Error",
-						"no response defined");
-			}
-			response = np_json2char(json_obj, TRUE);
-			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response should be (strlen: %lu):",
-					strlen(response));
-			json_value_free(json_obj);
-
-			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "write to body");
-			client->ht_response.ht_status = http_status;
-			client->ht_response.ht_body = response; //strdup(response);;
-
-			client->ht_response.ht_header = np_tree_create();
-			np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
-					np_treeval_new_s("application/json"));
-			np_tree_insert_str(client->ht_response.ht_header,
-					"Access-Control-Allow-Origin", np_treeval_new_s("*"));
-			np_tree_insert_str(client->ht_response.ht_header,
-					"Access-Control-Allow-Methods", np_treeval_new_s("GET"));
-			client->ht_response.cleanup_body = TRUE;
-			client->status = RESPONSE;
-
+			_np_http_handle_sysinfo(client);
 			break;
 		}
 
@@ -424,6 +322,123 @@ void _np_http_dispatch( np_http_client_t* client) {
 			client->status = RESPONSE;
 		}
 	}
+}
+
+void _np_http_handle_sysinfo(np_http_client_t* client)
+{
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Requesting sysinfo");
+
+	char target_hash[65];
+
+	np_bool usedefault = TRUE;
+	int http_status = HTTP_CODE_OK;
+	char* response;
+	JSON_Value* json_obj;
+	np_key_t*  key = NULL;
+
+	/**
+	* Default behavior if no argument is given: display own node informations
+	*/
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "parse arguments of %s",
+		client->ht_request.ht_path);
+
+
+	if (NULL != client->ht_request.ht_path) {
+		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "request has arguments");
+
+		char* path = strdup(client->ht_request.ht_path);
+		char* tmp_target_hash = strtok(path, "/");
+
+		if (NULL != tmp_target_hash) {
+			if (strlen(tmp_target_hash) == 64) {
+				snprintf(target_hash, 65, "%s", tmp_target_hash);
+				usedefault = FALSE;
+			}
+			else {
+				http_status = HTTP_CODE_BAD_REQUEST;
+				json_obj = _np_generate_error_json(
+					"provided key invalid.",
+					"length is not 64 characters");
+				free(path);
+				goto __json_return__;
+			}
+		}
+		free(path);
+
+	}
+	else {
+		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "no arguments provided");
+	}
+
+	key = _np_state()->my_node_key;
+	np_tryref_obj(np_key_t, key, keyExists);
+	if (keyExists) {
+		char* my_key = _np_key_as_str(key);
+		np_tree_t* sysinfo = NULL;
+		if (usedefault) {
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "using own node as info system");
+			sprintf(target_hash, "%s", my_key);
+
+			sysinfo = np_sysinfo_get_all();
+		}
+		else {
+
+			sysinfo = np_sysinfo_get_info(target_hash);
+		}
+		if (NULL == sysinfo) {
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Could not find system informations");
+			http_status = HTTP_CODE_ACCEPTED;
+			json_obj = _np_generate_error_json("key not found.",
+				"update request is send. please wait.");
+		}
+		else {
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (byte_size: %"PRIu64,
+				sysinfo->byte_size);
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (size: %"PRIu16,
+				sysinfo->size);
+
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Convert sysinfo to json");
+			json_obj = np_tree2json(sysinfo);
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "cleanup");
+		}
+		np_tree_free(sysinfo);
+
+		np_unref_obj(np_key_t, key, __func__);
+	}
+	else {
+		http_status = HTTP_CODE_SERVICE_UNAVAILABLE;
+		json_obj = _np_generate_error_json("refreshing own key",
+			"Refreshing own key. please wait.");
+	}
+__json_return__:
+
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "serialise json response");
+	if (NULL == json_obj) {
+		log_msg(LOG_ERROR,
+			"HTTP return is not defined for this code path");
+		http_status = HTTP_CODE_INTERNAL_SERVER_ERROR;
+		json_obj = _np_generate_error_json("Unknown Error",
+			"no response defined");
+	}
+	response = np_json2char(json_obj, TRUE);
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response should be (strlen: %lu):",
+		strlen(response));
+	json_value_free(json_obj);
+
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "write to body");
+	client->ht_response.ht_status = http_status;
+	client->ht_response.ht_body = response; //strdup(response);;
+
+	client->ht_response.ht_header = np_tree_create();
+	np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
+		np_treeval_new_s("application/json"));
+	np_tree_insert_str(client->ht_response.ht_header,
+		"Access-Control-Allow-Origin", np_treeval_new_s("*"));
+	np_tree_insert_str(client->ht_response.ht_header,
+		"Access-Control-Allow-Methods", np_treeval_new_s("GET"));
+	client->ht_response.cleanup_body = TRUE;
+	client->status = RESPONSE;
+
 }
 
 void _np_http_write_callback(NP_UNUSED struct ev_loop* loop,
@@ -444,13 +459,13 @@ NP_UNUSED ev_io* ev, int event_type) {
 						http_return_codes[client->ht_response.ht_status].text);
 
 		// add content length header
-		size_t s_cl = strlen(client->ht_response.ht_body);
-		char body_length[snprintf(NULL, 0, "%lu", s_cl) + 1];
-		snprintf(body_length, s_cl, "%lu", s_cl);
+		size_t s_contentlength = strlen(client->ht_response.ht_body);
+		char body_length[255];
+		snprintf(body_length, s_contentlength, "%"PRIu64,s_contentlength);
 		np_tree_insert_str(client->ht_response.ht_header, "Content-Length",
 				np_treeval_new_s(body_length));
 		np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
-				np_treeval_new_s("text/html"));
+				np_treeval_new_s("application/json"));
 		// add keep alive header
 		np_tree_insert_str(client->ht_response.ht_header, "Connection",
 				np_treeval_new_s(
@@ -482,23 +497,44 @@ NP_UNUSED ev_io* ev, int event_type) {
 				+ 1;
 		int last_part_size = (strlen(client->ht_response.ht_body) % 2048);
 
-		pos = 0;
-		for (int i = 0; i < parts; i++) {
-			log_debug_msg(LOG_HTTP | LOG_DEBUG, "sending http body part (%d / %d)",
-					i + 1, parts);
-			if (i + 1 == parts) {
-				send(client->client_fd,
-						client->ht_response.ht_body + pos, last_part_size,
-						0);
-				log_debug_msg(LOG_HTTP | LOG_DEBUG,
-						"send http body end (%lu) success",
-						strlen(client->ht_response.ht_body) - pos);
-			} else {
-				send(client->client_fd,
-						client->ht_response.ht_body + pos, 2048, 0);
-				pos += 2048;
+
+		uint32_t bytes_send = 0;
+		double t1 = np_time_now();
+		int retry = 0;
+		while (bytes_send < s_contentlength)
+		{
+			if ((np_time_now() - t1) >= 30) {
+				log_debug_msg(LOG_HTTP | LOG_DEBUG, "http timeout");
+				break;
+			}
+			else if (retry > 3) {
+				log_debug_msg(LOG_HTTP | LOG_DEBUG, "http too many errors");
+				break;
+			}
+
+			int send_return = send(client->client_fd,
+				client->ht_response.ht_body + bytes_send,
+				min(2048, s_contentlength - bytes_send),
+				0
+			);
+			if (send_return >= 0) {
+				bytes_send += send_return;
 				log_debug_msg(LOG_HTTP | LOG_DEBUG, "send http body part success");
 			}
+			else {
+				// we may need to wait for the output buffer to be free
+				if(EAGAIN != errno){
+					log_msg(LOG_HTTP | LOG_WARN, "Sending http data error. %s", strerror(errno));
+					retry++;				
+				}
+			}
+		}
+
+		if(bytes_send == s_contentlength){
+			log_debug_msg(LOG_HTTP | LOG_DEBUG, "send http body success");		
+		}
+		else {
+			log_msg(LOG_HTTP | LOG_WARN, "send http body NO success (%"PRIu32"/%"PRIu32")", bytes_send, s_contentlength);
 		}
 
 		if (client->ht_response.cleanup_body) {
@@ -520,13 +556,14 @@ void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 		/* receive the new data */
 		int16_t in_msg_len = recv(client->client_fd, data, 2048, 0);
 
-		if (0 == in_msg_len) {
+		if (0 == in_msg_len) {			
 			// tcp disconnect
 			log_debug_msg(LOG_HTTP | LOG_DEBUG, "received disconnect");
 			close(client->client_fd);
 			ev_io_stop(EV_A_&client->client_watcher_in);
 			ev_io_stop(EV_A_&client->client_watcher_out);
 			client->status = UNUSED;
+			
 		}
 
 		if (0 > in_msg_len) {
@@ -573,7 +610,6 @@ NP_UNUSED int event_type) {
 	new_client->ht_request.current_key = NULL;
 	new_client->status = UNUSED;
 
-	sll_append(np_http_client_ptr, __local_http->clients, new_client);
 
 
 	/*
@@ -592,44 +628,55 @@ NP_UNUSED int event_type) {
 	if (UNUSED == new_client->status) {
 		new_client->client_fd = accept(__local_http->network->socket,
 				(struct sockaddr*) &from, &fromlen);
-		htparser_init(new_client->parser, htp_type_request);
-		htparser_set_userdata(new_client->parser, new_client);
 
-		// get calling address and port for logging
-		char ipstr[255];
-		char port[6];
+		if (new_client->client_fd < 0) {
+			free(new_client);
 
-		if (from.ss_family == AF_INET) {
-			struct sockaddr_in *s = (struct sockaddr_in *) &from;
-			getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
-		} else {
-			struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-			getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
+			log_msg(LOG_HTTP | LOG_WARN, "Could not accept http connection. %s", strerror(errno));
 		}
+		else {
+			sll_append(np_http_client_ptr, __local_http->clients, new_client);
 
-		log_debug_msg(LOG_HTTP | LOG_DEBUG,
+			htparser_init(new_client->parser, htp_type_request);
+			htparser_set_userdata(new_client->parser, new_client);
+
+			// get calling address and port for logging
+			char ipstr[255];
+			char port[6];
+
+			if (from.ss_family == AF_INET) {
+				struct sockaddr_in *s = (struct sockaddr_in *) &from;
+				getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
+			}
+			else {
+				struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+				getnameinfo((struct sockaddr*) s, sizeof s, ipstr, 255, port, 6, 0);
+			}
+
+			log_debug_msg(LOG_HTTP | LOG_DEBUG,
 				"received http request from %s:%s (client fd: %d)", ipstr, port,
 				new_client->client_fd);
 
-		new_client->status = CONNECTED;
+			new_client->status = CONNECTED;
 
-		// set non blocking
-		int current_flags = fcntl(new_client->client_fd, F_GETFL);
-		current_flags |= O_NONBLOCK;
-		fcntl(new_client->client_fd, F_SETFL, current_flags);
+			// set non blocking
+			int current_flags = fcntl(new_client->client_fd, F_GETFL);
+			current_flags |= O_NONBLOCK;
+			fcntl(new_client->client_fd, F_SETFL, current_flags);
 
-		// _np_suspend_event_loop();
-		ev_io_init(&new_client->client_watcher_in, _np_http_read_callback,
+			// _np_suspend_event_loop();
+			ev_io_init(&new_client->client_watcher_in, _np_http_read_callback,
 				new_client->client_fd, EV_READ);
-		ev_io_init(&new_client->client_watcher_out, _np_http_write_callback,
+			ev_io_init(&new_client->client_watcher_out, _np_http_write_callback,
 				new_client->client_fd, EV_WRITE);
 
-		new_client->client_watcher_in.data = new_client;
-		new_client->client_watcher_out.data = new_client;
+			new_client->client_watcher_in.data = new_client;
+			new_client->client_watcher_out.data = new_client;
 
-		ev_io_start(EV_A_&new_client->client_watcher_in);
-		ev_io_start(EV_A_&new_client->client_watcher_out);
-		// _np_resume_event_loop();
+			ev_io_start(EV_A_&new_client->client_watcher_in);
+			ev_io_start(EV_A_&new_client->client_watcher_out);
+			// _np_resume_event_loop();
+		}
 
 	} else {
 		log_debug_msg(LOG_HTTP | LOG_DEBUG, "http connection attempt not accepted");
@@ -685,13 +732,13 @@ np_bool _np_http_init(char* domain) {
 	__local_http->hooks->body = _np_http_body;
 	__local_http->hooks->on_msg_complete = _np_http_on_msg_complete;
 
-	EV_P = _np_event_get_loop_in();
-	ev_io_stop(EV_A_&__local_http->network->watcher);
+	EV_P = _np_event_get_loop_http();	
+	_np_suspend_event_loop_http();
 	ev_io_init(&__local_http->network->watcher, _np_http_accept,
 			__local_http->network->socket, EV_READ);
 	__local_http->network->watcher.data = __local_http;
 	ev_io_start(EV_A_&__local_http->network->watcher);
-
+	_np_resume_event_loop_http();
 	__local_http->user_hooks = NULL;
 
 	return TRUE;
@@ -701,8 +748,9 @@ void _np_http_destroy() {
 	log_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_destroy() {");
 
 
-	EV_P = _np_event_get_loop_in();
-
+	EV_P = _np_event_get_loop_http();
+	_np_suspend_event_loop_http();
+	ev_io_stop(EV_A_&__local_http->network->watcher);
 	sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
 	while(iter != NULL){
 		np_http_client_t* client = iter->val;
@@ -731,7 +779,6 @@ void _np_http_destroy() {
 		free(iter->val);
 		sll_next(iter);
 	}
-	ev_io_stop(EV_A_&__local_http->network->watcher);
 
 	if (__local_http->user_hooks)
 		np_tree_free(__local_http->user_hooks);

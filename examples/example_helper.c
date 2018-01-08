@@ -247,11 +247,11 @@ np_bool parse_program_args(
 			(*level) = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG
 				//| LOG_MUTEX
 				//| LOG_TRACE
-				//| LOG_ROUTING
-				//| LOG_HTTP
+				| LOG_ROUTING
+				| LOG_HTTP
 				//| LOG_KEY
 				//| LOG_NETWORK
-				| LOG_AAATOKEN
+				//| LOG_AAATOKEN
 				//| LOG_SYSINFO
 				//| LOG_MESSAGE
 				//| LOG_SERIALIZATION
