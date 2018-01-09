@@ -106,7 +106,7 @@ NP_API_EXPORT
 void np_enable_realm_master();
 
 /**
-.. c:function:: void np_enable_realm_salve()
+.. c:function:: void np_enable_realm_slave()
 
    Manually set the realm and enable this node to act as a slave in it.
    This will exchange the default callbacks (accept all) with callbacks that
