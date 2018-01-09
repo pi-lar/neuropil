@@ -27,7 +27,7 @@ np_bool _np_in_sysinforeply(const np_message_t* const msg, np_tree_t* properties
 /**
 .. c:function:: void np_sysinfo_get_info(const char* const dhkey_of_node_target)
 
-   Tries to evaluate the sysinfo informations for the given target.
+   Tries to evaluate the sysinfo information for the given target.
    Make sure to enable the target as sysinfo slave.
 
 */
