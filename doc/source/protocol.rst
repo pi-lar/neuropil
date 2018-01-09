@@ -18,6 +18,7 @@ After the first sending node has received the handshake message of the requested
 also calculate the shared secret.
 
 Each particpant now knows the aaatoken values of the partner, which are:
+
  * realm
  * subject
  * issuer
@@ -25,6 +26,7 @@ Each particpant now knows the aaatoken values of the partner, which are:
  * uuid of the token
  * expiration and not_before timestamps
  * additional extensions containing the physical node values:
+
    * hostname
    * port
 
