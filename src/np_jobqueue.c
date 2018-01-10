@@ -445,10 +445,6 @@ np_job_t* _np_jobqueue_select_next()
  */
 void* __np_jobqueue_run()
 {
-	while (_np_threads_is_threadding_initiated() == FALSE) {
-		np_time_sleep(0.1);
-	}
-
 	log_debug_msg(LOG_JOBS | LOG_THREADS| LOG_DEBUG, "job queue thread starting");
 
 	while (1)

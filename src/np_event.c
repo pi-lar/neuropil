@@ -60,7 +60,7 @@ void np_event_init() {
 		ev_verify(loop_out);
 	}
 	if (loop_http == NULL) {
-		loop_http = ev_loop_new(EVFLAG_AUTO);
+		loop_http = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);
 		if (loop_http == FALSE) {
 			fprintf(stderr, "ERROR: cannot init http event loop");
 			exit(EXIT_FAILURE);
@@ -242,9 +242,6 @@ void _np_events_read_in(NP_UNUSED np_jobargs_t* args)
 
 void* _np_event_in_run() {
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);	
-	while (_np_threads_is_threadding_initiated() == FALSE) {
-		np_time_sleep(0.01);
-	}	
 
 	EV_P = _np_event_get_loop_in();
 
@@ -272,9 +269,6 @@ void* _np_event_in_run() {
 
 void* _np_event_io_run() {
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
-	while (_np_threads_is_threadding_initiated() == FALSE) {
-		np_time_sleep(0.01);
-	}
 
 	EV_P = _np_event_get_loop_io();
 
@@ -302,9 +296,6 @@ void* _np_event_io_run() {
 
 void* _np_event_out_run() {
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
-	while (_np_threads_is_threadding_initiated() == FALSE) {
-		np_time_sleep(0.01);
-	}
 
 	EV_P = _np_event_get_loop_out();
 
@@ -330,9 +321,6 @@ void* _np_event_out_run() {
 
 void* _np_event_http_run() {
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
-	while (_np_threads_is_threadding_initiated() == FALSE) {
-		np_time_sleep(0.01);
-	}
 
 	EV_P = _np_event_get_loop_http();
 

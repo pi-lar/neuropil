@@ -586,6 +586,8 @@ np_thread_t * __np_createThread(uint8_t number, void *(fn)(void *)) {
 	np_new_obj(np_thread_t, new_thread);
 	new_thread->id = (unsigned long)_np_state()->thread_ids[number];
 
+	//pthread_setspecific()
+
 	return new_thread;
 }
 
@@ -718,17 +720,10 @@ void np_start_job_queue(uint8_t pool_size)
 
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary, "_np_event_rejoin_if_necessary");
 	np_job_submit_event_periodic(PRIORITY_MOD_LOWEST, 0.0, MISC_LOG_FLUSH_INTERVAL_SEC, _np_glia_log_flush, "_np_glia_log_flush");
-	
-	__np_threads_threads_initiated = TRUE;
-	
+		
 	log_debug_msg(LOG_THREADS | LOG_DEBUG, "jobqueue threads started: %"PRIu8, pool_size);
 	log_debug_msg(LOG_INFO, "%s", NEUROPIL_RELEASE);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
 	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 
-}
-
-np_bool _np_threads_is_threadding_initiated() {
-	np_bool ret = __np_threads_threads_initiated;	
-	return ret;
 }

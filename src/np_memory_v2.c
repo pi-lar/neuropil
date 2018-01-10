@@ -212,8 +212,8 @@ void* np_memory_new(uint8_t type) {
 	sll_iterator(np_memory_block_ptr) iter_blocks;
 
 	// check for space in container
-	_LOCK_ACCESS(&container->blocks_lock) {
-		_LOCK_ACCESS(&container->attr_lock) {
+	_LOCK_ACCESS(&container->attr_lock) {
+		_LOCK_ACCESS(&container->blocks_lock) {		
 			if (container->current_in_use == (sll_size(container->blocks) * container->count_of_items_per_block)) {
 				log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Adding new memory block due to missing runtime space (pre loop).");
 				__np_memory_create_block(container);

@@ -154,8 +154,6 @@ NP_API_INTERN
 int _np_threads_condition_broadcast(np_cond_t* condition);
 NP_API_INTERN
 np_thread_t*_np_threads_get_self();
-NP_API_INTERN
-np_bool _np_threads_is_threadding_initiated();
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)

@@ -254,7 +254,8 @@ np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const
 	}
 	else
 	{
-		if (comp_lt < 0 || comp_tr < 0) return (TRUE);
+		if (comp_lt > 0 || comp_tr < 0) return (TRUE);
+		
 		return (FALSE);
 	}
 	log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_between");
