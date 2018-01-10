@@ -64,7 +64,7 @@ void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_
  * around the ring to #right#.
  */
 NP_API_INTERN
-np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right) NP_CONST;
+np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const np_bool  const includeOuterBounds) NP_CONST;
 
 /* key_midpoint: mid, key
  * calculates the midpoint of the namespace from the #key#

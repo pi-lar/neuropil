@@ -313,21 +313,21 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		// double now = dtime();
 		// double last_update = iter->val.value.d;
 
-		const char* iter_key_value = NULL;
+		const char* subject = NULL;
 		if (iter->key.type == char_ptr_type)
-			iter_key_value =  np_treeval_to_str(iter->key, NULL);
+			subject =  np_treeval_to_str(iter->key, NULL);
 		else if (iter->key.type == special_char_ptr_type)
-			iter_key_value = _np_tree_get_special_str(iter->key.value.ush);
+			subject = _np_tree_get_special_str(iter->key.value.ush);
 		else {
 			ASSERT(FALSE,"key type %"PRIu8" is not recognized.", iter->key.type)
 		}
 			
-		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(iter_key_value, "0");
+		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
 		np_key_t* target = NULL;
 
 		target = _np_keycache_find_or_create(target_dhkey);
 
-		msg_prop = np_msgproperty_get(TRANSFORM, iter_key_value);
+		msg_prop = np_msgproperty_get(TRANSFORM, subject);
 		if (NULL != msg_prop)
 		{
 			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);

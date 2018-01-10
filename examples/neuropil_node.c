@@ -35,6 +35,8 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 	char* http_domain = NULL;
+	char* sysinfo_opt = NULL;
+	int sysinfo_Mode = 1;
 
 	int opt;
 	if (parse_program_args(
@@ -48,15 +50,19 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-r realmname] [-c code] [-w http domain]",
-		"r:c:w:",
+		"[-r realmname] [-c code] [-w http domain] [-i sysinfo 0=none,1=auto,2=master,3=slave]",
+		"r:c:w:i:",
 		&realm,
 		&code,
-		&http_domain
+		&http_domain,
+		&sysinfo_opt
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
 
+	if (sysinfo_opt != NULL) {
+		sysinfo_Mode = atoi(sysinfo_opt);
+	}
 	char log_file[256];
 	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_node", port);
 	fprintf(stdout, "logpath: %s\n", log_file);
@@ -76,8 +82,11 @@ int main(int argc, char **argv)
 		}
 	}
 
-	// starting the example http server to support the http://view.neuropil.io application
-	example_http_server_init(http_domain);
+	// starting the example http server to support the http://view.neuropil.io application	
+	example_http_server_init(http_domain, sysinfo_Mode);
+
+	np_sysinfo_enable_slave();
+
 
 	np_statistics_add_watch_internals();
 	np_statistics_add_watch(_NP_SYSINFO_REQUEST);

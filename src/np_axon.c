@@ -495,8 +495,7 @@ void _np_out_handshake(np_jobargs_t* args)
 					"sending handshake message %s to %s",// (%s:%s)",
 					hs_message->uuid, _np_key_as_str(args->target)/*, hs_node->dns_name, hs_node->port*/);
 
-				char* packet = np_memory_new(np_memory_types_BLOB_1024);// (char*)malloc(1024);
-				//CHECK_MALLOC(packet);
+				char* packet = np_memory_new(np_memory_types_BLOB_1024);
 
 				memset(packet, 0, 1024);
 				_LOCK_ACCESS(&hs_message->msg_chunks_lock) {
@@ -534,10 +533,11 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 
 		msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 
-		if ((NULL == msg_token) ||
-			( /* = lifetime */ (now - msg_token->issued_at) >=
-			/* random time = */ (args->properties->token_min_ttl)))
+		if (	NULL == msg_token
+			 || _np_aaatoken_is_valid(msg_token) == FALSE
+			)
 		{
+			// Create a new msg token
 			log_msg(LOG_INFO | LOG_AAATOKEN, "--- refresh for subject token: %25s --------", args->properties->msg_subject);
 			log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 			np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);

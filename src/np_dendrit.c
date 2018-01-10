@@ -220,13 +220,17 @@ void _np_in_received(np_jobargs_t* args)
 
 					np_bool is_ack_msg = (0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_ACK, strlen(_NP_MSG_ACK)) );
 
-					if (_np_key_cmp(target_key, my_key) == 0 && is_ack_msg) {
-						__np_in_ack_handle(msg_in);
-						goto __np_cleanup__;
-					}
-
 					// check if inbound subject handler exists
 					np_msgproperty_t* handler = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
+
+					if (_np_key_cmp(target_key, my_key) == 0 && is_ack_msg) {
+						// we shortcut the process here
+						// handle the actual ack
+						__np_in_ack_handle(msg_in);
+						// call the receive callbacks (statistics etc)
+						_np_in_invoke_user_receive_callbacks(msg_in, handler);						
+						goto __np_cleanup__;
+					}					
 
 					// redirect message if
 					// msg is not for my dhkey
@@ -260,6 +264,7 @@ void _np_in_received(np_jobargs_t* args)
 						if (NULL != tmp) sll_free(np_key_ptr, tmp);
 						log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "internal routing for subject '%s'", np_treeval_to_str(msg_subject, NULL));
 					}
+					// we know now: this node is the node nearest to the dhkey
 
 					// if this message really has to be handled by this node, does a handler exists ?
 					if (NULL == handler)
@@ -282,7 +287,7 @@ void _np_in_received(np_jobargs_t* args)
 									np_treeval_to_str(msg_subject, NULL), msg_to_submit->uuid);
 
 								// finally submit msg job for later execution
-								if (!_np_message_deserialize_chunked(msg_to_submit)) {
+								if (_np_message_deserialize_chunked(msg_to_submit) == FALSE) {
 									log_msg(LOG_WARN,
 										"could not deserialize chunked msg (uuid: %s)", msg_to_submit->uuid);
 								} else {
@@ -359,20 +364,33 @@ void _np_in_piggy(np_jobargs_t* args)
 			_np_route_leafset_update(node_entry, TRUE, &deleted, &added);
 
 #ifdef DEBUG
-			//LOG_ROUTING | LOG_INFO
-			if (added !=NULL){
-				log_msg(LOG_ERROR, "STABILITY added   to   leafset: %s:%s:%s / %f / %1.2f",
-								_np_key_as_str(added),
-								added->node->dns_name, added->node->port,
-								added->node->last_success,
-								added->node->success_avg);
+			
+			if (added != NULL && deleted != NULL) {
+				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   leafset: %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
+							_np_key_as_str(added),
+							added->node->dns_name, deleted->node->port,
+							added->node->last_success,
+							added->node->success_avg,
+
+							_np_key_as_str(deleted),
+							deleted->node->dns_name, deleted->node->port,
+							deleted->node->last_success,
+							deleted->node->success_avg
+				);
 			}
-			if (deleted !=NULL){
-				log_msg(LOG_ERROR, "STABILITY deleted from leafset: %s:%s:%s / %f / %1.2f",
-								_np_key_as_str(deleted),
-								deleted->node->dns_name, deleted->node->port,
-								deleted->node->last_success,
-								deleted->node->success_avg);
+			else if (added != NULL) {
+				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY added    to   leafset: %s:%s:%s / %f / %1.2f",
+							_np_key_as_str(added),
+							added->node->dns_name, added->node->port,
+							added->node->last_success,
+							added->node->success_avg);
+			}
+			else  if (deleted !=NULL){
+				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY deleted  from leafset: %s:%s:%s / %f / %1.2f",
+							_np_key_as_str(deleted),
+							deleted->node->dns_name, deleted->node->port,
+							deleted->node->last_success,
+							deleted->node->success_avg);
 			}
 #endif
 
@@ -380,19 +398,30 @@ void _np_in_piggy(np_jobargs_t* args)
 			_np_route_update(node_entry, TRUE, &deleted, &added);
 
 #ifdef DEBUG
-			if (added !=NULL){
-				log_msg(LOG_ERROR, "STABILITY added   to   table  : %s:%s:%s / %f / %1.2f",
-								_np_key_as_str(added),
-								added->node->dns_name, added->node->port,
-								added->node->last_success,
-								added->node->success_avg);
-			}
-			if (deleted !=NULL){
-				log_msg(LOG_ERROR, "STABILITY deleted from table  : %s:%s:%s / %f / %1.2f",
-								_np_key_as_str(deleted),
-								deleted->node->dns_name, deleted->node->port,
-								deleted->node->last_success,
-								deleted->node->success_avg);
+			if (added != NULL && deleted != NULL) {
+				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   table  : %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
+							_np_key_as_str(added),
+							added->node->dns_name, deleted->node->port,
+							added->node->last_success,
+							added->node->success_avg,
+
+							_np_key_as_str(deleted),
+							deleted->node->dns_name, deleted->node->port,
+							deleted->node->last_success,
+							deleted->node->success_avg
+					);
+			}else  if (added !=NULL){
+				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY added    to   table  : %s:%s:%s / %f / %1.2f",
+							_np_key_as_str(added),
+							added->node->dns_name, added->node->port,
+							added->node->last_success,
+							added->node->success_avg);
+			} else if (deleted !=NULL){
+				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY deleted  from table  : %s:%s:%s / %f / %1.2f",
+							_np_key_as_str(deleted),
+							deleted->node->dns_name, deleted->node->port,
+							deleted->node->last_success,
+							deleted->node->success_avg);
 			}
 #endif
 		} else {

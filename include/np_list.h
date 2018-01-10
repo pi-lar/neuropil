@@ -170,8 +170,11 @@ np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, T
 			pll_current->blink = new_pll_node; 																\
 			if (pll_current == pll_list->first) pll_list->first = new_pll_node; 							\
 			break; 																							\
-		} 																									\
-		if ( (cmp_res == 0) && !dups_ok) { free(new_pll_node); new_pll_node = NULL; return FALSE; } 		\
+		} else if ((cmp_res == 0) && dups_ok == FALSE) { 													\
+			free(new_pll_node); 																			\
+			new_pll_node = NULL; 																			\
+			return FALSE; 																					\
+		}																									\
 		if (pll_current == pll_list->last) { 																\
 			pll_current->flink = new_pll_node; 																\
 			new_pll_node->blink = pll_current; 																\
@@ -185,22 +188,22 @@ np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, T
 } 																											\
 void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t cmp_func) {                \
 	TYPE##_pll_node_t* pll_current = pll_list->first;                                                       \
-	while (NULL != pll_current) { \
-		int8_t cmp_res = cmp_func(pll_current->val, value); \
-		if (0 == cmp_res) { \
-			if (NULL != pll_current->flink) pll_current->flink->blink = pll_current->blink; \
-			if (NULL != pll_current->blink) pll_current->blink->flink = pll_current->flink; \
-			if (pll_list->first == pll_current) pll_list->first = pll_current->flink; \
-			if (pll_list->last == pll_current) pll_list->last = pll_current->blink; \
-			free(pll_current); \
-			pll_current = NULL;\
-			pll_list->size--; \
-			break; \
-		} else { \
-			pll_current = pll_current->flink; \
-		} \
-	} \
-} \
+	while (NULL != pll_current) {																			\
+		int8_t cmp_res = cmp_func(pll_current->val, value);													\
+		if (0 == cmp_res) {																					\
+			if (NULL != pll_current->flink) pll_current->flink->blink = pll_current->blink;					\
+			if (NULL != pll_current->blink) pll_current->blink->flink = pll_current->flink;					\
+			if (pll_list->first == pll_current) pll_list->first = pll_current->flink;						\
+			if (pll_list->last == pll_current) pll_list->last = pll_current->blink;							\
+			free(pll_current);																				\
+			pll_current = NULL;																				\
+			pll_list->size--;																				\
+			break;																							\
+		} else {																							\
+			pll_current = pll_current->flink;																\
+		}																									\
+	}																										\
+}																											\
 TYPE TYPE##_pll_replace(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t cmp_func) {               \
 	TYPE ret_val = 0;                                                 \
 	TYPE##_pll_node_t* pll_current = pll_list->first;                 \
@@ -250,17 +253,13 @@ TYPE TYPE##_pll_tail(TYPE##_pll_t* pll_list) {                        \
 		if (NULL != pll_list->last) pll_list->last->flink = NULL;     \
 		if (NULL == pll_list->last) pll_list->first = NULL;           \
 		free(tmp);                                                    \
+		tmp = NULL;                                                   \
 		pll_list->size--;                                             \
 	}                                                                 \
 	return (ret_val);                                                 \
 }                                                                     \
 void TYPE##_pll_free(TYPE##_pll_t* pll_list) {                        \
-	TYPE##_pll_node_t *tmp;                                           \
-	while (NULL != pll_list->first) {                                 \
-		tmp = pll_list->first;                                        \
-		pll_list->first = pll_list->first->flink;                     \
-		free(tmp);                                                    \
-	}                                                                 \
+	TYPE##_pll_clear(pll_list);                                       \
 	free(pll_list);                                                   \
 	pll_list = NULL;                                                  \
 }                                                                     \

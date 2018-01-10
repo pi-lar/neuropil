@@ -668,7 +668,7 @@ void np_start_job_queue(uint8_t pool_size)
 		pool_size--;
 		create_own_event_http_thread = TRUE;
 	}
-
+	
 	__np_createThreadPool(pool_size);
 	//start jobs
 
@@ -718,11 +718,9 @@ void np_start_job_queue(uint8_t pool_size)
 
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary, "_np_event_rejoin_if_necessary");
 	np_job_submit_event_periodic(PRIORITY_MOD_LOWEST, 0.0, MISC_LOG_FLUSH_INTERVAL_SEC, _np_glia_log_flush, "_np_glia_log_flush");
-
 	
-	_LOCK_MODULE(np_threads_t){
-		__np_threads_threads_initiated = TRUE;
-	}
+	__np_threads_threads_initiated = TRUE;
+	
 	log_debug_msg(LOG_THREADS | LOG_DEBUG, "jobqueue threads started: %"PRIu8, pool_size);
 	log_debug_msg(LOG_INFO, "%s", NEUROPIL_RELEASE);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
@@ -731,9 +729,6 @@ void np_start_job_queue(uint8_t pool_size)
 }
 
 np_bool _np_threads_is_threadding_initiated() {
-	np_bool ret;
-	_LOCK_MODULE(np_threads_t) {
-		ret = __np_threads_threads_initiated;
-	}
+	np_bool ret = __np_threads_threads_initiated;	
 	return ret;
 }

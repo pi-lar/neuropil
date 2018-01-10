@@ -169,7 +169,7 @@ int main(int argc, char **argv)
 			   np_sysinfo_enable_master();			
 
 			 */
-			example_http_server_init(http_domain); // np_sysinfo_enable_master() is included here
+			example_http_server_init(http_domain, np_sysinfo_opt_auto); // np_sysinfo_enable_master() is included here
 
 			
 			// If you want to you can enable the statistics modulte to view the nodes statistics
