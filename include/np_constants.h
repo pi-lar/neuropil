@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2017 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -13,6 +13,7 @@
 extern "C" {
 #endif
 
+	#define ref_message_bin_static			"ref_message_bin_static"
 	#define ref_msgpartcache				"ref_msgpartcache"
 	#define ref_state_identity				"ref_state_identity"
 	#define ref_obj_creation				"ref_obj_creation"

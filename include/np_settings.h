@@ -14,15 +14,19 @@ extern "C" {
 #endif
 	
 /*
-	Possible compile switches:
-	 - MEMORY_CHECK
-	 - CHECK_THREADING
-	 - DEBUG_CALLBACKS
+	Additional compile switches:
+	 - NP_MEMORY_CHECK_MEMORY			(disables the memory blocks function (free actions cannot be executed))
+	 - NP_MEMORY_CHECK_MEMORY_REFFING	(NP_THREADS_CHECK_THREADING should be disabled if this switch is enabled)
+	 - NP_THREADS_CHECK_THREADING		(NP_MEMORY_CHECK_MEMORY_REFFING should be disabled if this switch is enabled)
+	 - DEBUG_CALLBACKS					(Allows the job system to collect statistics for job callbacks)
+	 - x64								(enable 64 Bit support)	(is automaticly set by SConstruct file)
+	 - CONSOLE_LOG						(prints the log in stdout)
 */
 #ifdef DEBUG
 	#define DEBUG_CALLBACKS 1
-	#define MEMORY_CHECK 1
-	#define CHECK_THREADING 1
+	#define NP_MEMORY_CHECK_MEMORY_REFFING 1
+	//#define	NP_MEMORY_CHECK_MEMORY 1
+	//#define NP_THREADS_CHECK_THREADING 1
 #endif // DEBUG
 
 
@@ -32,7 +36,7 @@ extern "C" {
  *	attempt to share its data.
  */
 #ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
-	#define SYSINFO_PROACTIVE_SEND_IN_SEC (.5)
+	#define SYSINFO_PROACTIVE_SEND_IN_SEC (1.)
 #endif
 #ifndef SYSINFO_MAX_TTL
 	#define SYSINFO_MAX_TTL (30)
@@ -76,8 +80,15 @@ extern "C" {
 #define MSG_CHUNK_SIZE_1024 (1024)
 #define MSG_ENCRYPTION_BYTES_40 (40)
 
+
+#ifndef MISC_LOG_FLUSH_INTERVAL_SEC
+	#define MISC_LOG_FLUSH_INTERVAL_SEC (1.0)
+#endif
+#ifndef MISC_LOG_FLUSH_MAX_ITEMS
+	#define MISC_LOG_FLUSH_MAX_ITEMS (100000)
+#endif
 #ifndef MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC
-	#define MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC (5.0)
+	#define MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC (3.1415)
 #endif
 #ifndef MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC
 	#define MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC (3.1415)
@@ -85,14 +96,20 @@ extern "C" {
 #ifndef MISC_KEYCACHE_CLEANUP_INTERVAL_SEC
 	#define MISC_KEYCACHE_CLEANUP_INTERVAL_SEC (3.1415)
 #endif
+
+	
+#ifndef MISC_MEMORY_REFRESH_INTERVAL_SEC
+#define MISC_MEMORY_REFRESH_INTERVAL_SEC (3.1415)
+#endif
+
 #ifndef MISC_ACKENTRY_CLEANUP_INTERVAL_SEC
-	#define MISC_ACKENTRY_CLEANUP_INTERVAL_SEC (3.1415)
+#define MISC_ACKENTRY_CLEANUP_INTERVAL_SEC (3.1415)
 #endif
 #ifndef MISC_CHECK_ROUTES_SEC
 	#define MISC_CHECK_ROUTES_SEC (3.1415)
 #endif
 #ifndef MISC_SEND_PIGGY_REQUESTS_SEC
-	#define MISC_SEND_PIGGY_REQUESTS_SEC (3.1415)
+	#define MISC_SEND_PIGGY_REQUESTS_SEC (31.415/2)
 #endif
 #ifndef MISC_SEND_UPDATE_MSGS_SEC
 	#define MISC_SEND_UPDATE_MSGS_SEC (3.1415)
@@ -122,7 +139,7 @@ extern "C" {
  * remove the link from the leafset/routing table
  */
 #ifndef BAD_LINK_REMOVE_GRACETIME
-	#define BAD_LINK_REMOVE_GRACETIME 2.0
+	#define BAD_LINK_REMOVE_GRACETIME MISC_SEND_PINGS_SEC*2
 #endif
 
 #ifndef PRIORITY_MOD_LOWEST
@@ -195,16 +212,9 @@ extern "C" {
 
 #ifndef LOG_ROTATE_ENABLE
 	#if defined(DEBUG) && DEBUG == 1
-		#define LOG_ROTATE_ENABLE TRUE
+		#define LOG_ROTATE_ENABLE FALSE
 	#else
 		#define LOG_ROTATE_ENABLE TRUE
-	#endif
-#endif
-#ifndef LOG_FORCE_INSTANT_WRITE
-	#if defined(DEBUG) && DEBUG == 1
-		#define LOG_FORCE_INSTANT_WRITE (TRUE)
-	#else
-		#define LOG_FORCE_INSTANT_WRITE (FALSE)
 	#endif
 #endif
 
@@ -227,7 +237,7 @@ extern "C" {
 	#define MUTEX_WAIT_MAX_SEC  MUTEX_WAIT_SEC *10
 #endif
 #ifndef NP_JOBQUEUE_MAX_SLEEPTIME_SEC
-	#define NP_JOBQUEUE_MAX_SLEEPTIME_SEC (0.3)
+	#define NP_JOBQUEUE_MAX_SLEEPTIME_SEC (0.031415)
 #endif
 
 #ifndef NP_EVENT_IO_CHECK_PERIOD_SEC
@@ -241,11 +251,8 @@ extern "C" {
 #define NP_NODE_SUCCESS_WINDOW 50
 
 
-
-
-
-#ifndef HAS_PTHREAD_MUTEX_TIMEDLOCK
-	#define HAS_PTHREAD_MUTEX_TIMEDLOCK (!defined(__APPLE__) || !defined(__MACH__ ) ) 
+#ifndef NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK
+	#define NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK (!defined(__APPLE__) || !defined(__MACH__ ) ) 
 #endif
 
 

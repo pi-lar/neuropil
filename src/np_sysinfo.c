@@ -93,33 +93,35 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->retry    = 0;
 	sysinfo_request_props->priority -= 1;
 	sysinfo_request_props->msg_ttl  = 20.0;
+	sysinfo_request_props->mode_type = INBOUND | ROUTE;
+	sysinfo_request_props->max_threshold = 3;
 
 	np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(OUTBOUND, _NP_SYSINFO_REPLY);
 	if(sysinfo_response_props == NULL){
 		np_new_obj(np_msgproperty_t, sysinfo_response_props);
 	}
 	sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
-	sysinfo_response_props->mep_type = BROADCAST;
+	sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 0;
 	sysinfo_response_props->priority -= 1;
 	sysinfo_response_props->msg_ttl  = 20.0;
+	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
+	sysinfo_response_props->max_threshold = 3;
 
 	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
-
-	sysinfo_request_props->mode_type = INBOUND | ROUTE;
-	sysinfo_request_props->max_threshold = 3;
-	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 3;
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
 
 	np_add_receive_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
 
-	np_job_submit_event_periodic(PRIORITY_MOD_USER_DEFAULT, 0, SYSINFO_PROACTIVE_SEND_IN_SEC, _np_sysinfo_slave_send_cb,"sysinfo_slave_send_cb");
-	
+	np_job_submit_event_periodic(PRIORITY_MOD_USER_DEFAULT,
+								 0,
+								 sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
+								 _np_sysinfo_slave_send_cb,
+								 "sysinfo_slave_send_cb");
 }
 
 void np_sysinfo_enable_master() {
@@ -142,7 +144,7 @@ void np_sysinfo_enable_master() {
 		np_new_obj(np_msgproperty_t, sysinfo_response_props);
 	}
 	sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
-	sysinfo_response_props->mep_type = BROADCAST;
+	sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
 	sysinfo_response_props->retry    = 0;
 	sysinfo_response_props->msg_ttl  = 20.0;
@@ -154,7 +156,7 @@ void np_sysinfo_enable_master() {
 	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 5/*expected count of nodes */ * (60 /  SYSINFO_PROACTIVE_SEND_IN_SEC );
+	sysinfo_response_props->max_threshold = 5/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC );
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
@@ -178,21 +180,38 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 
 	char* mynode_hash = _np_key_as_str(_np_state()->my_node_key);
 
-	if (NULL != target) {
-		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo request message is from %s for %s !",
-				source->val.value.s, target->val.value.s);
+	np_bool source_str_free = FALSE;
+	char* source_val = np_treeval_to_str(source->val, &source_str_free);
 
-		if(strcmp(mynode_hash, target->val.value.s) != 0) {
+	if (NULL != target) {
+
+		np_bool target_str_free = FALSE;
+		char* target_val = np_treeval_to_str(target->val, &target_str_free);
+	
+		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo request message is from %s for %s !",
+			source_val,  target_val);
+
+		if(strcmp(mynode_hash, target_val) != 0) {
 			// should not happen as it does mean a wrong routing
 			log_msg(LOG_WARN | LOG_SYSINFO,
 					"i am %s not %s . I cannot handle this sysinfo request",
-					mynode_hash, target->val.value.s);
+					mynode_hash,  target_val);
+
+			if (target_str_free == TRUE) {
+				free(target_val);
+			}
 			return FALSE;
 		}
 	} else {
 		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo request message is from %s for anyone!",
-						source->val.value.s);
+			source_val);
 	}
+
+	if (source_str_free == TRUE) {
+		free(source_val);
+	}
+
+
 	// checks completed. continue with reply building
 
 	// build body
@@ -205,9 +224,9 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 
 // TODO: Reenable target after functional audience selection for messages is implemented
 //	np_tree_insert_str(reply_properties, _NP_SYSINFO_TARGET,
-//			np_treeval_new_s(source->val.value.s));
+//			np_treeval_new_s( np_treeval_to_str(source->val)));
 //	np_dhkey_t target_dhkey;
-//	_np_dhkey_from_str(source->val.value.s, &target_dhkey);
+//	_np_dhkey_from_str( np_treeval_to_str(source->val), &target_dhkey);
 
 	// send msg
 	log_msg(LOG_INFO | LOG_SYSINFO, "sending sysinfo reply (size: %"PRIu16")",
@@ -232,13 +251,16 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 	}
 	log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo reply (uuid: %s )",msg->uuid);
 
-	log_debug_msg(LOG_DEBUG | LOG_SYSINFO,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu64")",
-			source->val.value.s, body->size, body->byte_size);
+	np_bool source_str_free = FALSE;
+	char* source_val = np_treeval_to_str(source->val, &source_str_free);
+
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu32")",
+		source_val, body->size, body->byte_size);
 
 	// insert / replace cache item
 	_LOCK_MODULE(np_sysinfo_t)
 	{
-		np_cache_item_t* item = np_simple_cache_get(_cache,source->val.value.s);
+		np_cache_item_t* item = np_simple_cache_get(_cache, source_val);
 		// only insert if the data is newer
 		if(NULL != item) {
 			np_tree_elem_t* new_check = np_tree_find_str(body, _NP_SYSINFO_MY_NODE_TIMESTAMP);
@@ -248,15 +270,18 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 			&& new_check->val.value.d > old_check->val.value.d) {
 				log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Removing old SysInfo reply for newer data");
 				np_tree_free(item->value);
-				np_simple_cache_insert(_cache, source->val.value.s, np_tree_copy(body));
+				np_simple_cache_insert(_cache, source_val, np_tree_clone(body));
 			}else{
 				log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Ignoring SysInfo reply due to newer data in cache");
 			}
 
 		} else {
 			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Got SysInfo reply for a new node");
-			np_simple_cache_insert(_cache, source->val.value.s, np_tree_copy(body));
+			np_simple_cache_insert(_cache, source_val, np_tree_clone(body));
 		}
+	}
+	if (source_str_free == TRUE) {
+		free(source_val);
 	}
 
 	return TRUE;
@@ -350,7 +375,7 @@ void _np_sysinfo_request(const char* const hash_of_target) {
 			if(NULL ==  _np_sysinfo_get_from_cache(hash_of_target,-1)) {
 				np_tree_t* dummy = np_tree_create();
 				np_tree_insert_str(dummy, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_f(np_time_now()));
-				np_simple_cache_insert(_cache, hash_of_target, np_tree_copy(dummy));
+				np_simple_cache_insert(_cache, hash_of_target, np_tree_clone(dummy));
 			}
 		}
 		log_msg(LOG_INFO | LOG_SYSINFO, "sending sysinfo request to %s", hash_of_target);
@@ -405,7 +430,7 @@ np_tree_t* _np_sysinfo_get_from_cache(const char* const hash_of_target, uint16_t
 		if (NULL != item && item->value != NULL) {
 			if ((np_time_now() - item->insert_time) <= max_cache_ttl) {
 				np_tree_t* tmp = item->value;
-				ret = np_tree_copy(tmp);
+				ret = np_tree_clone(tmp);
 			}
 		}
 	}
@@ -421,7 +446,7 @@ np_tree_t* _np_sysinfo_get_from_cache(const char* const hash_of_target, uint16_t
 		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo reply data received: no");
 	} else {
 		log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-				"sysinfo reply data received: yes (size: %"PRIu16", byte_size: %"PRIu64")",
+				"sysinfo reply data received: yes (size: %"PRIu16", byte_size: %"PRIu32")",
 				ret->size, ret->byte_size);
 	}
 
@@ -489,32 +514,17 @@ np_tree_t* np_sysinfo_get_all() {
 
 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "usage");	
 
-	_LOCK_MODULE(np_routeglobal_t)
-	{
-		routing_table = _np_route_get_table();
-		neighbours_table = _np_route_neighbors();		
-	}
+	routing_table = _np_route_get_table();
+	neighbours_table = _np_route_neighbors();
+	np_sll_t(np_key_ptr, merge_table) = sll_merge(np_key_ptr, routing_table, neighbours_table, _np_key_cmp);
 
-	// delete neighbours from routing_table to create distinct list (merge lists)
-	sll_iterator(np_key_ptr) iter_neighbour = sll_first(neighbours_table);
-	while (iter_neighbour != NULL)
-	{
-		np_bool is_already_in_list = sll_contains(np_key_ptr, routing_table, iter_neighbour->val, _np_key_cmp);
-		
-		if (is_already_in_list == FALSE) {
-			np_ref_obj(np_key_t, iter_neighbour->val, "_np_route_get_table");
-			sll_append(np_key_ptr, routing_table, iter_neighbour->val);
-		}
 
-		sll_next(iter_neighbour);
-	}
 	// now serialize both tables into np_tree
-
-	if (NULL != routing_table && 0 < routing_table->size) {
+	if (NULL != merge_table && 0 < merge_table->size) {
 		np_key_t* current;
-		while (NULL != sll_first(routing_table)) {
-			current = sll_head(np_key_ptr, routing_table);
-			if (NULL != current &&
+		while (NULL != sll_first(merge_table)) {
+			current = sll_head(np_key_ptr, merge_table);
+			if (
 				strcmp(_np_key_as_str(current), _np_key_as_str(my_node_key)) != 0 &&
 				NULL != (tmp = _np_sysinfo_get_from_cache(_np_key_as_str(current), -2)))
 			{
@@ -522,12 +532,13 @@ np_tree_t* np_sysinfo_get_all() {
 				np_tree_insert_int(ret, count++,np_treeval_new_tree(tmp));
 				np_tree_free(tmp);
 			}
-			np_unref_obj(np_key_t, current, "_np_route_get_table");
 		}
 	}
 
+	sll_free(np_key_ptr, merge_table);
+	np_unref_list(routing_table,"_np_route_get_table");
 	sll_free(np_key_ptr, routing_table);
-	np_unref_list(neighbours_table,"_np_route_neighbors");
+	np_unref_list(neighbours_table, "_np_route_neighbors");
 	sll_free(np_key_ptr, neighbours_table);
 	np_unref_obj(np_key_t, my_node_key, "usage");
 

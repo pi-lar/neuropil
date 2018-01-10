@@ -31,7 +31,7 @@ struct np_jobargs_s
 };
 
 NP_API_INTERN
-np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop, char* reason_desc);
+np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop, const char* reason_desc);
 NP_API_INTERN
 void _np_job_free_args(np_jobargs_t* args);
 
@@ -46,7 +46,7 @@ NP_API_INTERN
 void _np_job_queue_insert(np_job_t* new_job);
 
 NP_API_EXPORT
-void np_job_submit_event_periodic(double priority, double first_delay, double interval, np_callback_t callback, char* ident);
+void np_job_submit_event_periodic(double priority, double first_delay, double interval, np_callback_t callback, const char* ident);
 
 NP_API_INTERN
 void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);

@@ -1,9 +1,10 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <criterion/criterion.h>
 
+#include "np_event.h"
 #include "np_util.h"
 #include "np_log.h"
 
@@ -17,7 +18,7 @@ void setup_uuid(void)
 
 void teardown_uuid(void)
 {
-	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+	EV_P = _np_event_get_loop_io();
 	ev_run(EV_A_ EVRUN_NOWAIT);
 }
 

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
@@ -57,14 +57,14 @@ void handle_ping_pong_receive(char * response, int first_low, int first_high, co
 		_LOCK_ACCESS(&gpio_lock) {
 			bcm2835_gpio_write(first_low, LOW);
 			bcm2835_gpio_write(first_high, HIGH);
-			ev_sleep(ping_pong_intervall);
+			np_time_sleep(ping_pong_intervall);
 			bcm2835_gpio_write(first_low, LOW);
 			bcm2835_gpio_write(first_high, LOW);
 		}
 	}
 	else
 	{
-		ev_sleep(ping_pong_intervall);
+		np_time_sleep(ping_pong_intervall);
 	}
 
 	np_send_text(response, response, 0, NULL);
@@ -144,10 +144,10 @@ int main(int argc, char **argv)
 			while(--i>0){
 				bcm2835_gpio_write(LED_GPIO_GREEN, LOW);
 				bcm2835_gpio_write(LED_GPIO_YELLOW,HIGH);
-				ev_sleep(0.1);
+				np_time_sleep(0.1);
 				bcm2835_gpio_write(LED_GPIO_GREEN, HIGH);
 				bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
-				ev_sleep(0.1);
+				np_time_sleep(0.1);
 			}
 			bcm2835_gpio_write(LED_GPIO_GREEN, LOW);
 			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
@@ -187,7 +187,7 @@ int main(int argc, char **argv)
 			int timeout = 100;
 			while (timeout > 0 && FALSE == state->my_node_key->node->joined_network) {
 				// wait for join acceptance
-				ev_sleep(0.1);
+				np_time_sleep(0.1);
 				timeout--;
 			}
 
@@ -250,7 +250,7 @@ int main(int argc, char **argv)
 
 	while (TRUE) {
 		i +=1;
-		ev_sleep(0.01);
+		np_time_sleep(0.01);
 		now = np_time_now() ;
 		if ((now - last_response_or_invokation ) > ping_props->msg_ttl) {
 			
@@ -258,7 +258,6 @@ int main(int argc, char **argv)
 			np_send_text("ping", "ping", 0, NULL);
 			last_response_or_invokation = now;
 		}
-		__np_example_helper_loop(i, 0.01);
 	}
 
 }

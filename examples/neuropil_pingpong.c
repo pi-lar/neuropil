@@ -42,7 +42,7 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 {
 	/** \endcode */
 
-	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 
 	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
@@ -61,7 +61,7 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
 	/** \endcode */
-	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 
 	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
@@ -217,7 +217,7 @@ int main(int argc, char **argv)
 	*/
 	while (1)
 	{
-		ev_sleep(0.9);
+		np_time_sleep(0.9);
 	}
 	/** \endcode */
 }

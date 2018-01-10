@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
 	/** \endcode */
 
 	while (TRUE) {
-		ev_sleep(0.1);
+		np_time_sleep(0.1);
 	}
 }
 
@@ -133,7 +133,7 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 	char* reply_to = NULL; // All
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
-		reply_to = repl_to->val.value.s;
+		reply_to = np_treeval_to_str(repl_to->val, NULL);
 
 		/**
 		 \endcode
@@ -149,7 +149,7 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 		char* text;
 		np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
 		if (NULL != txt) {
-			text = txt->val.value.s;
+			text = np_treeval_to_str(txt->val, NULL);
 
 		} else {
 			text = "<NON TEXT MSG>";

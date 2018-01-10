@@ -6,12 +6,9 @@
  * It is composed out of the examples for
  *  - pingpong
  *  - echo server
- *
- *  Created on: 09.06.2017
- *      Author: sklampt
- */
+ * */
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
@@ -132,7 +129,7 @@ int main(int argc, char **argv) {
 	uint32_t count_of_routes = 0;
 
 	while (TRUE) {
-		ev_sleep(0.1);
+		np_time_sleep(0.1);
 
 		 double now = np_time_now();
 				// invoke a ping message every 10 seconds
@@ -162,11 +159,11 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 	char* reply_to = NULL; // All
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
-		reply_to = repl_to->val.value.s;
+		reply_to = np_treeval_to_str(repl_to->val, NULL);
 		char* text;
 		np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
 		if (NULL != txt) {
-			text = txt->val.value.s;
+			text = np_treeval_to_str(txt->val, NULL);
 
 		} else {
 			text = "<NON TEXT MSG>";
@@ -178,7 +175,7 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 
 np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
-	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
@@ -190,7 +187,7 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 
 np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
-	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
+	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
 	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
 
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);

@@ -34,7 +34,7 @@ struct np_node_s
 	// state extension
 	np_bool is_handshake_send;
 	np_bool is_handshake_received;
-	np_bool joined_network;   // TRUE / FALSE
+	np_bool joined_network; 
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
 	np_bool session_key_is_set;
 

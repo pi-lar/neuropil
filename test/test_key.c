@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016 by pi-lar GmbH
+// neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <criterion/criterion.h>
@@ -42,14 +42,29 @@ Test(np_key_t, _key_cmp, .description="test compare function for np_keys")
 	a.t[1] = 2;
 	a.t[2] = 3;
 	a.t[3] = 4;
+	a.t[4] = 5;
+	a.t[5] = 6;
+	a.t[6] = 7;
+	a.t[7] = 8;
+
 	b.t[0] = 1;
 	b.t[1] = 2;
 	b.t[2] = 3;
 	b.t[3] = 4;
+	b.t[4] = 5;
+	b.t[5] = 6;
+	b.t[6] = 7;
+	b.t[7] = 8;
+
 	c.t[0] = 5;
 	c.t[1] = 6;
 	c.t[2] = 7;
 	c.t[3] = 8;
+	c.t[4] = 9;
+	c.t[5] = 10;
+	c.t[6] = 11;
+	c.t[7] = 12;
+
 	np_key_t* key_a = _np_keycache_create(a);
 	np_key_t* key_b = _np_keycache_create(b);
 	np_key_t* key_c = _np_keycache_create(c);

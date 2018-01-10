@@ -60,6 +60,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 int main(int argc, char **argv)
 {
 	np_bool create_bootstrap = TRUE; 
+	np_bool has_a_node_started = FALSE;
 	char* bootstrap_hostnode_default;
 	uint32_t required_nodes = NUM_HOST;
 
@@ -75,7 +76,7 @@ int main(int argc, char **argv)
 	char* required_nodes_opt = NULL;
 	char* http_domain = NULL;
 	char* node_creation_speed_str = NULL;
-	double node_creation_speed = 3.415;
+	double default_node_creation_speed = 3.415;
 
 	int opt;
 	if (parse_program_args(
@@ -101,7 +102,7 @@ int main(int argc, char **argv)
 	if (required_nodes_opt != NULL) required_nodes = atoi(required_nodes_opt);
 	if (node_creation_speed_str != NULL) {
 		if (strcmp(node_creation_speed_str, "default") != 0) {
-			node_creation_speed = atof(node_creation_speed_str);
+			default_node_creation_speed = atof(node_creation_speed_str);
 		}
 		free(node_creation_speed_str);
 	}
@@ -118,13 +119,15 @@ int main(int argc, char **argv)
 	if (TRUE == create_bootstrap) {
 		// Get the current pid and shift it to be a viable port.
 		// This way the application may be used for multiple instances on one system
-		free(publish_domain);
-		publish_domain = strdup("localhost");
+		if(publish_domain == NULL)
+			publish_domain = strdup("localhost");
+		
 		bootstrap_hostnode_default = _np_build_connection_string("*", proto, publish_domain, port, TRUE);
 
 		j_key = bootstrap_hostnode_default;
 
 		np_example_print(stdout, "No bootstrap host specified.\n");
+		has_a_node_started = TRUE;
 		current_pid = fork();
 
 		// Running bootstrap node in a different fork
@@ -181,7 +184,7 @@ int main(int argc, char **argv)
 
 			   \code
 			 */
-			np_start_job_queue(10);
+			np_start_job_queue(no_threads+3);
 
 			__np_example_helper_run_info_loop();
 			/**
@@ -233,6 +236,8 @@ int main(int argc, char **argv)
 
 	   \code
 	 */
+	char bootstrap_port[10];
+	memcpy(bootstrap_port, port, strnlen(port,10));
 	while (TRUE) {
 		// (re-) start child processes
 		if (list_of_childs->size < required_nodes) {
@@ -248,11 +253,9 @@ int main(int argc, char **argv)
 			 */
 			
 			sprintf(port, "%d", atoi(port) + 1);
-
-			current_pid = fork();
-
+			
+			current_pid = fork();			
 			if (0 == current_pid) {
-				np_example_print(stdout, "started child process %d\n", current_pid);
 				current_pid = getpid();
 
 				/**
@@ -284,23 +287,30 @@ int main(int argc, char **argv)
 				np_sysinfo_enable_slave();
 				/**
 				 \endcode
-
-				   and join our bootstrap node
-
-					.. code-block:: c
-
-				   \code
 				 */
+				// We enable the statistics watchers for debugging purposes
+				if(has_a_node_started == FALSE){ // <=> we are the first node started
+					np_statistics_add_watch_internals();
+					np_statistics_add_watch(_NP_SYSINFO_REQUEST);
+					np_statistics_add_watch(_NP_SYSINFO_REPLY);
+					__np_example_inti_ncurse();
+				}
+				/**
+				and join our bootstrap node
 
+				.. code-block:: c
+
+				\code
+				*/
 				do {
-					np_example_print(stdout, "try to join bootstrap node\n");
+					np_example_print(stdout, "%s tries to join bootstrap node\n",port);
 				 
 					np_send_join(j_key);
 
 					int timeout = 100;
 					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {
 						// wait for join acceptance
-						ev_sleep(0.1);
+						np_time_sleep(0.1);
 						timeout--;
 					}
 
@@ -315,9 +325,16 @@ int main(int argc, char **argv)
 				/**
 				 \endcode
 				 */
-				__np_example_helper_run_loop();
+				if (has_a_node_started == FALSE) { // <=> we are the first node started
+
+					__np_example_helper_run_info_loop();
+				}
+				else {
+					__np_example_helper_run_loop();
+				}
 
 			} else {
+				has_a_node_started = TRUE;
 				/**
 				  While the fork process starts the new node,
 				  the main process needs to add the new process id to the list we created before.
@@ -326,8 +343,6 @@ int main(int argc, char **argv)
 
 				 \code
 				 */
-				np_example_print(stdout, "adding (%d) : child process %d \n",
-						sll_size(list_of_childs), current_pid);
 				array_of_pids[sll_size(list_of_childs)] = current_pid;
 				sll_append(int, list_of_childs,
 						array_of_pids[sll_size(list_of_childs)]);
@@ -335,8 +350,8 @@ int main(int argc, char **argv)
 				 \endcode
 				 */
 			}
-			if(node_creation_speed > 0)
-				ev_sleep(node_creation_speed);
+			if(default_node_creation_speed > 0)
+				np_time_sleep(default_node_creation_speed);
 		} else {
 			/**
 			  .. _neuropil_hydra_step_check_nodes_still_present:
@@ -377,7 +392,7 @@ int main(int argc, char **argv)
 			/**
 			 \endcode
 			 */
-			ev_sleep(3.415);
+			np_time_sleep(3.415);
 		}
 
 	}

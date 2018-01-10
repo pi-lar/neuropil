@@ -47,6 +47,12 @@ enum socket_type {
 	PASSIVE 	  = 0x80  // TCP passive (like FTP passive) for nodes behind firewalls
 } NP_ENUM;
 
+typedef enum {
+	np_network_type_none	= 0x00,
+	np_network_type_client	= 0x01,
+	np_network_type_server	= 0x02,
+} np_network_type_e;
+
 struct np_network_s
 {
 	np_obj_t* obj;
@@ -54,10 +60,13 @@ struct np_network_s
 	np_bool initialized;
 	int socket;
 	ev_io watcher;
+	np_bool is_running;
+	np_network_type_e type;
 
 	uint8_t socket_type;
 	struct addrinfo* addr_in; // where a node receives messages
 
+	np_mutex_t waiting_lock;
 	np_tree_t* waiting;
 
 	np_sll_t(void_ptr, out_events);
@@ -67,6 +76,7 @@ struct np_network_s
 	char ip[CHAR_LENGTH_IP];
 	char port[CHAR_LENGTH_PORT];
 	np_mutex_t send_data_lock;
+	np_mutex_t ack_data_lock;
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
@@ -101,7 +111,7 @@ void _np_network_get_address (np_bool create_socket, struct addrinfo** ai, uint8
 NP_API_INTERN
 np_prioq_t* _np_network_get_new_pqentry();
 NP_API_INTERN
-void _np_network_stop(np_network_t* ng);
+void _np_network_stop(np_network_t* ng, np_bool force);
 NP_API_INTERN
 void _np_network_start(np_network_t* ng);
 NP_API_INTERN

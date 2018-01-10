@@ -38,14 +38,15 @@
 #include "np_settings.h"
 #include "np_constants.h"
 #include "np_list.h"
+#include "np_types.h"
 
 
 #define NR_OF_ELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
-#include "np_msgproperty_init.c"
- 
 NP_SLL_GENERATE_IMPLEMENTATION(np_msgproperty_ptr);
 
+#include "np_msgproperty_init.c"
+ 
 // required to properly link inline in debug mode
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mode_type, np_msg_mode_type);
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mep_type, np_msg_mep_type);
@@ -63,21 +64,23 @@ RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
 typedef struct rbt_msgproperty rbt_msgproperty_t;
 static rbt_msgproperty_t* __msgproperty_table;
 
-np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
 {
 	if (msg->msg_property->is_internal == TRUE && 0 != strncmp(msg->msg_property->msg_subject, _DEFAULT,strlen(_DEFAULT))) {
 		CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
 
-		if (ACK_DESTINATION == (msg_ack_mode.value.ush & ACK_DESTINATION))
+		if (ACK_CLIENT == (msg_ack_mode.value.ush & ACK_CLIENT))
 		{
 			_np_send_ack(msg);
 		}
 
 		goto __np_return__;
-	__np_cleanup__:
+
+		__np_cleanup__:
 		log_msg(LOG_WARN, "cannot ack msg %s (%s)", msg->uuid, msg->msg_property->msg_subject);		
 	}
-__np_return__:
+
+	__np_return__:
 	return TRUE;
 }
 
@@ -107,9 +110,9 @@ np_bool _np_msgproperty_init ()
 
 		if (strlen(property->msg_subject) > 0)
 		{
-			if ((property->mode_type & INBOUND) == INBOUND && (property->ack_mode & ACK_DESTINATION) == ACK_DESTINATION) {
-				_np_msgproperty_add_receive_listener(__np_msgproperty_internal_msgs_ack, property);
-			}
+//			if ((property->mode_type & INBOUND) == INBOUND && (property->ack_mode & ACK_DESTINATION) == ACK_DESTINATION) {
+//				_np_msgproperty_add_receive_listener(__np_msgproperty_internal_msgs_ack, property);
+//			}
 
 			log_debug_msg(LOG_DEBUG, "register handler: %s", property->msg_subject);
 			RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
@@ -128,12 +131,12 @@ void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgp
 {
 	// check whether an handler already exists
 
-	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, _np_util_cmp_ref)) {
+	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_callback_t_sll_compare_type)) {
 		sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
 	}
 	sll_append(np_usercallback_t, msg_prop->user_receive_clb, msg_handler);
-
 }
+
 /**
  ** registers the handler function #func# with the message type #type#,
  ** it also defines the acknowledgment requirement for this type
@@ -270,6 +273,7 @@ void _np_msgproperty_t_del(void* property)
 	}
 	_np_threads_mutex_destroy(&prop->lock);
 	_np_threads_condition_destroy(&prop->msg_received);
+
 	prop = NULL;
 }
 
@@ -278,7 +282,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 	log_msg(LOG_TRACE, "start: void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop){");
 	// check if we are (one of the) sending node(s) of this kind of message
 	// should not return NULL
-	log_debug_msg(LOG_DEBUG,
+	log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 			"this node is one sender of messages, checking msgcache (%p / %u) ...",
 			send_prop->msg_cache_out, sll_size(send_prop->msg_cache_out));
 
@@ -311,7 +315,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 			sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop, NULL);
 			np_unref_obj(np_message_t, msg_out, ref_msgproperty_msgcache);
 
-			log_debug_msg(LOG_DEBUG,
+			log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 					"message in cache found and re-send initialized");
 		}
 	}
@@ -320,7 +324,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 {
 	log_msg(LOG_TRACE, "start: void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop){");
-	log_debug_msg(LOG_DEBUG,
+	log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 			"this node is the receiver of messages, checking msgcache (%p / %u) ...",
 			recv_prop->msg_cache_in, sll_size(recv_prop->msg_cache_in));
 
@@ -364,11 +368,11 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 		// cache already full ?
 		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_out))
 		{
-			log_debug_msg(LOG_DEBUG, "send msg cache full, checking overflow policy ...");
+			log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "send msg cache full, checking overflow policy ...");
 
-			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
+			if (OVERFLOW_PURGE == (msg_prop->cache_policy & OVERFLOW_PURGE))
 			{
-				log_debug_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding message in send msgcache for %s", msg_prop->msg_subject);
+				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "OVERFLOW_PURGE: discarding message in send msgcache for %s", msg_prop->msg_subject);
 				np_message_t* old_msg = NULL;
 
 				if ((msg_prop->cache_policy & FIFO) > 0)
@@ -385,7 +389,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 				}
 			}
 
-			if (0 < (msg_prop->cache_policy & OVERFLOW_REJECT))
+			if (OVERFLOW_REJECT == (msg_prop->cache_policy & OVERFLOW_REJECT))
 			{
 				log_msg(LOG_WARN,
 						"rejecting new message because cache is full");
@@ -395,7 +399,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 
 		sll_prepend(np_message_ptr, msg_prop->msg_cache_out, msg_in);
 
-		log_debug_msg(LOG_DEBUG, "added message to the sender msgcache (%p / %d) ...",
+		log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "added message to the sender msgcache (%p / %d) ...",
 				msg_prop->msg_cache_out, sll_size(msg_prop->msg_cache_out));
 		np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 	}
@@ -431,11 +435,11 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 		// cache already full ?
 		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
 		{
-			log_debug_msg(LOG_DEBUG, "recv msg cache full, checking overflow policy ...");
+			log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "recv msg cache full, checking overflow policy ...");
 
-			if (0 < (msg_prop->cache_policy & OVERFLOW_PURGE))
+			if (OVERFLOW_PURGE == (msg_prop->cache_policy & OVERFLOW_PURGE))
 			{
-				log_debug_msg(LOG_DEBUG, "OVERFLOW_PURGE: discarding message in recv msgcache for %s", msg_prop->msg_subject);
+				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "OVERFLOW_PURGE: discarding message in recv msgcache for %s", msg_prop->msg_subject);
 				np_message_t* old_msg = NULL;
 
 				if ((msg_prop->cache_policy & FIFO) > 0)
@@ -451,9 +455,9 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 				}
 			}
 
-			if (0 < (msg_prop->cache_policy & OVERFLOW_REJECT))
+			if (OVERFLOW_REJECT == (msg_prop->cache_policy & OVERFLOW_REJECT))
 			{
-				log_debug_msg(LOG_DEBUG,
+				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 						"rejecting new message because cache is full");
 				continue;
 			}
@@ -461,7 +465,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 
 		sll_prepend(np_message_ptr, msg_prop->msg_cache_in, msg_in);
 
-		log_debug_msg(LOG_DEBUG, "added message to the recv msgcache (%p / %d) ...",
+		log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "added message to the recv msgcache (%p / %d) ...",
 				msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
 		np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 	}

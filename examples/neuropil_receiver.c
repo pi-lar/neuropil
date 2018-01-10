@@ -68,12 +68,12 @@ int main(int argc, char **argv)
 
 	while (1)
 	{
-		ev_sleep(0.9);
+		np_time_sleep(0.9);
 		char* testdata;
 
 		uint32_t real_seq = np_receive_text("this.is.a.test", &testdata);
 		if (0 < real_seq)
-			log_debug_msg(LOG_DEBUG, "received message %u: %s", real_seq, testdata);
+			log_msg(LOG_INFO, "received message %u: %s", real_seq, testdata);
 		else
 			log_debug_msg(LOG_DEBUG, "message receive failed ...");
 

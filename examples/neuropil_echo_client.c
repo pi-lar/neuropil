@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
 		while (timeout > 0
 				&& FALSE == status->my_node_key->node->joined_network) {
 			// wait for join acceptance
-			ev_sleep(0.1);
+			np_time_sleep(0.1);
 			timeout--;
 		}
 
@@ -167,12 +167,12 @@ int main(int argc, char **argv) {
 	 .. code-block:: c
 	 \code
 	 */
-	uint64_t i = 0;
+	uint32_t i = 0;
 	while (TRUE == status->my_node_key->node->joined_network) {
 		if (i++ % 50 == 0) {
 			char * s_out;
 			if(add_id_to_msg) {
-				asprintf(&s_out, "%s %"PRIu64, message_to_send, i );
+				asprintf(&s_out, "%s %"PRIu32, message_to_send, i );
 			} else {
 				asprintf(&s_out,"%s", message_to_send);
 			}
@@ -184,7 +184,7 @@ int main(int argc, char **argv) {
 			np_send_text("echo", s_out, 0, NULL);
 			free(s_out);
 		}
-		ev_sleep(0.1);
+		np_time_sleep(0.1);
 	}
 	/** \endcode */
 }
@@ -210,13 +210,13 @@ np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np
 	char* reply_to = NULL;
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
-		reply_to = repl_to->val.value.s;
+		reply_to = np_treeval_to_str(repl_to->val, NULL);
 	}
 
 	char* text;
 	np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
 	if (NULL != txt) {
-		text = txt->val.value.s;
+		text = np_treeval_to_str(txt->val, NULL);
 
 	} else {
 		text = "<NON TEXT MSG>";

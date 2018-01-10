@@ -17,7 +17,7 @@
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_cache_item_ptr);
 
-np_simple_cache_table_t* np_cache_init(int size) {
+np_simple_cache_table_t* np_cache_init(uint32_t size) {
 
 	np_simple_cache_table_t* ret = 
 		(np_simple_cache_table_t*)malloc(

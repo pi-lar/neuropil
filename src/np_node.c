@@ -59,7 +59,7 @@ void _np_node_t_new(void* node)
 	entry->joined_network = FALSE;
 
 	for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
-		entry->success_win[i] = i%2 == 0;
+		entry->success_win[i] = i%2;
 	entry->success_avg = 0.5;
 	
 	for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
@@ -150,7 +150,7 @@ np_key_t* _np_node_decode_from_str (const char *key)
 
 	// string encoded data contains key, eventually plus hostname and hostport
 	// key string is mandatory !
-	log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
+	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
 
 	np_dhkey_t search_key = np_dhkey_create_from_hash(s_hostkey);
 	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
@@ -179,8 +179,8 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 {
 	// MANDATORY paramter
 	uint8_t i_host_proto;
-	char* s_host_name;
-	char* s_host_port;
+	char* s_host_name = NULL;
+	char* s_host_port = NULL;
 	np_tree_elem_t* ele;
 	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_PROTOCOL))) {
 		i_host_proto = ele->val.value.ush;
@@ -188,12 +188,12 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 	else { return NULL; }
 
 	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_DNS_NAME))) {
-		s_host_name = ele->val.value.s;
+		s_host_name = np_treeval_to_str(ele->val,NULL);
 	}
 	else { return NULL; }
 
 	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_PORT))) {
-		s_host_port = ele->val.value.s;
+		s_host_port = np_treeval_to_str(ele->val, NULL);
 	}
 	else { return NULL; }
 
@@ -205,10 +205,17 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 	{
 		// uint8_t proto = _np_network_parse_protocol_string(s_host_proto);
 		_np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
-		log_debug_msg(LOG_DEBUG, "decoded node from jrb %d:%s:%s",
+		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "decoded node from jrb %d:%s:%s",
 				i_host_proto, s_host_name, s_host_port);
 	}
-
+	/*
+	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_LATENCY))) {
+		new_node->latency = ele->val.value.d;
+	}
+	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_SUCCESS_AVG))) {
+		new_node->success_avg = ele->val.value.f;
+	}
+	*/
 	ref_replace_reason(np_node_t, new_node, ref_obj_creation, __func__);
 
 	return (new_node);
@@ -252,8 +259,12 @@ sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 	{
 		np_tree_elem_t* node_data = np_tree_find_int(data, i);
 
-		char* s_key = np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val.value.s;
+		np_bool free_s_key = FALSE;
+		char* s_key = np_treeval_to_str(np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val,&free_s_key);
 		np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
+		if (free_s_key == TRUE) {
+			free(s_key);
+		}
 		np_key_t* node_key    = _np_keycache_find_or_create(search_key);
 		if (NULL == node_key->node)
 		{
@@ -316,8 +327,9 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 	strncpy(node_token->subject, node_subject, 255);
 	// strncpy(node_token->audience, (char*) _np_key_as_str(state->my_identity->aaa_token->realm), 255);
 
-	free(node_token->uuid);
+	char* old = node_token->uuid;
 	node_token->uuid = np_uuid_create(node_subject, 0);
+	free(old);
 
 	node_token->not_before = np_time_now();
 
@@ -356,11 +368,15 @@ void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 void _np_node_update_stat (np_node_t* node, np_bool responded)
 {
 	float total = 0;
-	np_ref_obj(np_node_t, node,"usage");
+	np_ref_obj(np_node_t, node, "usage");
 	 {
 		_LOCK_ACCESS(&node->lock) {
 
-			node->success_win[node->success_win_index++ % NP_NODE_SUCCESS_WINDOW] = responded;
+			node->success_win_index++;
+			if (node->success_win_index == NP_NODE_SUCCESS_WINDOW)
+				node->success_win_index = 0;
+
+			node->success_win[node->success_win_index % NP_NODE_SUCCESS_WINDOW] = responded;
 
 			for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
 			{
@@ -368,10 +384,9 @@ void _np_node_update_stat (np_node_t* node, np_bool responded)
 			}
 			node->success_avg = total / NP_NODE_SUCCESS_WINDOW;
 
-			if (0 < responded) node->last_success = np_time_now();
+			if (TRUE == responded) node->last_success = np_time_now();
 		}
-		log_msg(LOG_INFO, "node %s:%s success rate now: %1.1f",
-				node->dns_name, node->port, node->success_avg);
+		log_msg(LOG_INFO, "connection to node %s:%s success rate now: %1.2f (%2u / %2u)", node->dns_name, node->port, node->success_avg, node->success_win_index, node->success_win[node->success_win_index]);
 
 		np_unref_obj(np_node_t, node,"usage");
 	}
@@ -384,7 +399,11 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
 		np_ref_obj(np_node_t, node, "usage");
 		{
 			_LOCK_ACCESS(&node->latency_lock) {
-				node->latency_win[node->latency_win_index++ % NP_NODE_SUCCESS_WINDOW] = new_latency;
+				node->latency_win_index++;
+				if (node->latency_win_index == NP_NODE_SUCCESS_WINDOW)
+					node->latency_win_index = 0;
+
+				node->latency_win[node->latency_win_index % NP_NODE_SUCCESS_WINDOW] = new_latency;
 				
 				double total = 0.0;
 				for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
@@ -393,7 +412,7 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
 					total += node->latency_win[i];
 				}
 				node->latency = total / NP_NODE_SUCCESS_WINDOW;
-				log_msg(LOG_INFO, "node %s:%s latency now: %1.3f",
+				log_msg(LOG_INFO, "connection to node node %s:%s latency      now: %1.3f",
 						node->dns_name, node->port, node->latency);					
 				
 			}

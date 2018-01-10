@@ -88,7 +88,7 @@ typedef np_message_t* np_message_ptr;
 typedef struct np_msgproperty_s np_msgproperty_t;
 typedef np_msgproperty_t* np_msgproperty_ptr;
 
-typedef struct _np_message_buffer_container_s _np_message_buffer_container_t;
+typedef struct _np_obj_buffer_container_s _np_obj_buffer_container_t;
 
 typedef struct np_network_s np_network_t;
 
@@ -97,6 +97,8 @@ typedef np_node_t* np_node_ptr;
 
 typedef struct np_state_s np_state_t;
 
+
+typedef struct np_tree_conf_s np_tree_conf_t;
 typedef struct np_tree_s np_tree_t;
 
 typedef struct np_treeval_s np_treeval_t;
@@ -139,6 +141,5 @@ NP_SLL_GENERATE_PROTOTYPES(np_thread_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_usercallback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_callback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_ackentry_on_t);
-
 
 #endif /* _INCLUDE_H_ */

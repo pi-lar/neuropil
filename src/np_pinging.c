@@ -10,10 +10,12 @@
 #include <assert.h>
 
 #include "neuropil.h"
+#include "np_dhkey.h"
 #include "np_types.h"
 #include "np_msgproperty.h"
 #include "np_message.h"
 #include "np_memory.h"
+#include "np_node.h"
 #include "np_key.h"
 #include "np_log.h"
 #include "np_tree.h"
@@ -32,16 +34,18 @@ void _np_ping_send(np_key_t* key)
 	np_new_obj(np_message_t, out_msg);
 
 	_np_message_create(out_msg, key, state->my_node_key, _NP_MSG_PING_REQUEST, NULL);
-	log_debug_msg(LOG_DEBUG, "ping request to: %s", _np_key_as_str(key));
 
 	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_PING_REQUEST);
 	_np_job_submit_msgout_event(0.0, prop, key, out_msg);
 
+	log_debug_msg(LOG_INFO, "sending ping message (%s) to  %s:%s / %s", out_msg->uuid, key->node->dns_name, key->node->port, _np_key_as_str(key) );
+
 	np_unref_obj(np_message_t, out_msg, ref_obj_creation);
 }
 
-void _np_in_ping(np_jobargs_t* args)
+void _np_in_ping(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_in_ping(np_jobargs_t* args){");
-	// Nothing to do. Work is done only on the sending end (ack handeling)
+
+	// Nothing to do. Work is done only on the sending end (ack handling)
 }

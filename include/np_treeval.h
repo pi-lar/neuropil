@@ -71,10 +71,11 @@ typedef enum {
     void_type,
     bin_type,
 	jrb_tree_type,  // 20
-	key_type,
+	dhkey_type,
 	hash_type,
 	npobj_type,
-	npval_count
+	npval_count,
+	special_char_ptr_type,
 } np_val_type_t;
 
 /* The Jval -- a type that can hold any type */
@@ -83,21 +84,28 @@ typedef union np_val_u
     void* v;
     void* bin;
     np_tree_t* tree;
-    np_dhkey_t key;
+    np_dhkey_t dhkey;
     np_obj_t* obj;
     int8_t sh;
     int16_t i;
     int32_t l;
+#ifdef x64
     int64_t ll;
+#endif
     float f;
     double d;
+	/* To access the string value please use 
+		function:np_treeval_to_str()
+	*/
     char* s;
     char c;
     unsigned char uc;
     uint8_t ush;
     uint16_t ui;
     uint32_t ul;
+#ifdef x64
     uint64_t ull;
+#endif
     uint16_t a2_ui[2];
     float farray[2];
     char carray[8];
@@ -112,23 +120,28 @@ struct np_treeval_s
 	np_val_t      value;
 };
 
-np_treeval_t np_treeval_copy_of_val(np_treeval_t from);
+np_treeval_t np_treeval_copy_of_val(np_treeval_t from) ;
 
 np_treeval_t np_treeval_new_sh (int8_t sh);
 np_treeval_t np_treeval_new_i (int16_t i);
 np_treeval_t np_treeval_new_l (int32_t l);
+#ifdef x64
 np_treeval_t np_treeval_new_ll (int64_t ll);
+#endif
 np_treeval_t np_treeval_new_f (float f);
 np_treeval_t np_treeval_new_d (double d);
 np_treeval_t np_treeval_new_v (void* v);
 np_treeval_t np_treeval_new_bin (void* data, uint32_t size);
 np_treeval_t np_treeval_new_s (char * s);
+np_treeval_t np_treeval_new_ss(uint8_t idx);
 np_treeval_t np_treeval_new_c (char c);
 np_treeval_t np_treeval_new_uc (unsigned char uc);
 np_treeval_t np_treeval_new_ush (uint8_t ush);
 np_treeval_t np_treeval_new_ui (uint16_t ui);
 np_treeval_t np_treeval_new_ul (uint32_t ul);
+#ifdef x64
 np_treeval_t np_treeval_new_ull (uint64_t ull);
+#endif
 np_treeval_t np_treeval_new_iarray (uint16_t i0, uint16_t i1);
 np_treeval_t np_treeval_new_farray (float f0, float f1);
 np_treeval_t np_treeval_new_carray_nt (char * carray);	/* Carray is null terminated */
@@ -137,11 +150,9 @@ np_treeval_t np_treeval_new_carray_nnt (char * carray);	/* Carray is not null te
 np_treeval_t np_treeval_new_tree(np_tree_t* tree);
 np_treeval_t np_treeval_new_hash(char* h_val);
 np_treeval_t np_treeval_new_pwhash (char *pw_key);
-np_treeval_t np_treeval_new_key(np_dhkey_t key);
+np_treeval_t np_treeval_new_key(np_dhkey_t dhkey);
 np_treeval_t np_treeval_new_obj(np_obj_t* obj);
-
-
-uint64_t np_treeval_get_byte_size(np_treeval_t ele);
+uint32_t np_treeval_get_byte_size(np_treeval_t ele);
 
 NP_API_EXPORT
 np_treeval_t np_treeval_NULL;
@@ -186,7 +197,6 @@ NP_API_EXPORT
 float   * np_treeval_farray (np_treeval_t);
 NP_API_EXPORT
 char    * np_treeval_carray (np_treeval_t);
-NP_API_EXPORT
-char    * np_treeval_to_str(np_treeval_t val);
+char    * np_treeval_to_str(np_treeval_t val, np_bool* freeable);
 
 #endif // _NP_TREEVAL_H_
