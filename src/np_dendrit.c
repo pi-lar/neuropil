@@ -1902,7 +1902,7 @@ void _np_in_handshake(np_jobargs_t* args)
 					np_network_t* old_network = hs_wildcard_key->network;
 					np_ref_obj(np_network_t, old_network, "usage_of_old_network");
 
-					_LOCK_ACCESS(&old_network->send_data_lock)
+					_LOCK_ACCESS(&old_network->access_lock)
 					{
 						// _np_network_stop(old_network);
 						// Updating handshake key with already existing network
