@@ -273,6 +273,12 @@ struct np_msgproperty_s
 	// The token created for this msgproperty will guaranteed live for token_min_ttl seconds
 	uint32_t token_min_ttl;	
 
+	np_bool unique_uuids_check;
+	uint32_t unique_uuids_max;
+	np_mutex_t unique_uuids_lock;
+	np_sll_t(np_message_ptr, unique_uuids);
+
+
 } NP_API_EXPORT;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
@@ -309,18 +315,35 @@ void np_msgproperty_register(np_msgproperty_t* msgprops);
 /**
 .. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
 
-   users of neuropil should simply use the :c:func:`np_set_mx_property` functions which will
-   automatically create and set the values specified.
+users of neuropil should simply use the :c:func:`np_set_mx_property` functions which will
+automatically create and set the values specified.
 
-   return the np_msgproperty structure for a subject and :c:type:`np_msg_mode_type`
+return the np_msgproperty structure for a subject and :c:type:`np_msg_mode_type`
 
-   :param mode_type: either INBOUND or OUTBOUND (see :c:type:`np_msg_mode_type`)
-   :param subject: the subject of the messages that are send
-   :returns: np_msgproperty_t structure of NULL if none found
+:param mode_type: either INBOUND or OUTBOUND (see :c:type:`np_msg_mode_type`)
+:param subject: the subject of the messages that are send
+:returns: np_msgproperty_t structure of NULL if none found
 
 */
 NP_API_EXPORT
 np_msgproperty_t* np_msgproperty_get(np_msg_mode_type msg_mode, const char* subject);
+
+
+
+/**
+.. c:function:: void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self)
+.. c:function:: void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self, uint32_t remembered_uuids)
+
+enables or disables the functionality of the msg property to only receive unique msgs.
+
+:param self: the msgproperty to modify
+:param remembered_uuids: the maximum count of uuids remembered
+
+*/
+NP_API_EXPORT
+void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self);
+void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self, uint32_t remembered_uuids);
+
 
 static char _DEFAULT[]                       = "_NP.DEFAULT";
 

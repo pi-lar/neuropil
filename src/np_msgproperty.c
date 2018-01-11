@@ -231,6 +231,25 @@ void _np_msgproperty_t_new(void* property)
 
 	_np_threads_mutex_init (&prop->lock,"property lock");
 	_np_threads_condition_init_shared(&prop->msg_received);
+
+
+	prop->unique_uuids_check = TRUE;
+	prop->unique_uuids_max = 20;
+	_np_threads_mutex_init(&prop->unique_uuids_lock, "unique_uuids_lock");
+	sll_init(np_message_ptr, prop->unique_uuids);
+
+	np_sll_t(np_message_ptr, unique_uuids);
+}
+void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self) {
+	_LOCK_ACCESS(&self->unique_uuids_lock) {
+		self->unique_uuids_check = FALSE;
+	}
+}
+void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self, uint32_t remembered_uuids) {
+	_LOCK_ACCESS(&self->unique_uuids_lock){
+		self->unique_uuids_check = TRUE;
+		self->unique_uuids_max = remembered_uuids;
+	}
 }
 
 void _np_msgproperty_t_del(void* property)
