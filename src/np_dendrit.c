@@ -731,6 +731,11 @@ void _np_in_join_req(np_jobargs_t* args)
 	if (TRUE == send_reply)
 	{
 		_np_job_submit_msgout_event(0.0, msg_prop, routing_key, msg_out);
+
+		if (IS_AUTHENTICATED(join_req_key->aaa_token->state)){
+			np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
+			_np_job_submit_transform_event(0.0, piggy_prop, routing_key, NULL);
+		}
 		// _np_send_ack(args->msg);
 	}
 

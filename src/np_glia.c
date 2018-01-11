@@ -618,7 +618,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
 		_np_message_create(msg_out, target_key, state->my_node_key, _NP_MSG_PIGGY_REQUEST, msg_body);
-		_np_job_submit_route_event(0.0, outprop, target_key, msg_out);
+		_np_job_submit_msgout_event(0.0, outprop, target_key, msg_out);
 		np_unref_obj(np_message_t, msg_out, ref_obj_creation);		
 	}
 
