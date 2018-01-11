@@ -75,8 +75,6 @@ np_state_t* _np_state ()
  */
 np_bool _np_default_authorizefunc (np_aaatoken_t* token )
 {
-	log_msg(LOG_WARN, "authz: r: %s, i: %s, s: %s", token->realm, token->issuer, token->subject);
-
 #ifndef DEBUG
 	log_msg(LOG_WARN, "using default handler (authorize all) to authorize %s", token->subject );
 	// log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
@@ -117,8 +115,6 @@ np_bool _np_aaa_authorizefunc (np_aaatoken_t* token )
  */
 np_bool _np_default_authenticatefunc (np_aaatoken_t* token )
 {
-	log_msg(LOG_WARN, "authn: r: %s, i: %s, s: %s", token->realm, token->issuer, token->subject);
-
 #ifndef DEBUG
 	log_msg(LOG_WARN, "using default handler (auth all) to authenticate %s", token->subject);
 	// log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
@@ -354,12 +350,8 @@ void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
 		// create a default set of properties for listening to messages
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->mode_type = INBOUND;
-		np_msgproperty_register(msg_prop);
-	}
-	else
-	{
 		msg_prop->mode_type |= INBOUND;
+		np_msgproperty_register(msg_prop);
 	}
 	_np_msgproperty_add_receive_listener(msg_handler, msg_prop);
 
@@ -383,10 +375,6 @@ void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mode_type |= OUTBOUND;
 		np_msgproperty_register(msg_prop);
-	}
-	else
-	{
-		msg_prop->mode_type |= OUTBOUND;
 	}
 
 	sll_append(np_usercallback_t, msg_prop->user_send_clb, msg_handler);
@@ -446,7 +434,7 @@ void np_set_mx_property(char* subject, const char* key, np_treeval_t value)
 {
 	log_msg(LOG_TRACE, "start: void np_set_mx_property(char* subject, const char* key, np_treeval_t value){");
 	// TODO: rework key from char to enum
-	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND | OUTBOUND, subject);
+	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
 	{
 		np_new_obj(np_msgproperty_t, msg_prop);
@@ -515,16 +503,11 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 	{
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->mode_type = OUTBOUND;
 		msg_prop->mep_type = ANY_TO_ANY;
+		msg_prop->mode_type |= OUTBOUND;
 
 		np_msgproperty_register(msg_prop);
 	}
-	else
-	{
-		msg_prop->mode_type |= OUTBOUND;
-	}
-
 	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)) {
 		sll_append(np_callback_t, msg_prop->clb_outbound, _np_out);
 	}
@@ -578,15 +561,11 @@ void np_send_text(char* subject, char *data, uint32_t seqnum, char* targetDhkey)
 	{
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->mode_type = OUTBOUND;
 		msg_prop->mep_type = ANY_TO_ANY;
+		msg_prop->mode_type |= OUTBOUND;
+
 		np_msgproperty_register(msg_prop);
 	}
-	else
-	{
-		msg_prop->mode_type |= OUTBOUND;
-	}
-
 	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)) {
 		sll_append(np_callback_t, msg_prop->clb_outbound, _np_out);
 	}
@@ -617,8 +596,8 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	{
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->mep_type  = ANY_TO_ANY;
-		msg_prop->mode_type = INBOUND;
+		msg_prop->mep_type = ANY_TO_ANY;
+		msg_prop->mode_type |= INBOUND;
 		sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_signal_np_receive);
 		// when creating, set to zero because callback function is not used
 		msg_prop->max_threshold = 0;
@@ -626,11 +605,6 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		// register the handler so that message can be received
 		np_msgproperty_register(msg_prop);
 	}
-	else
-	{
-		msg_prop->mode_type |= INBOUND;
-	}
-
 	msg_prop->max_threshold++;
 
 	// _np_send_msg_interest(subject);
@@ -729,19 +703,15 @@ uint32_t np_receive_text (char* subject, char **data)
 	{
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
-		msg_prop->mep_type  = ANY_TO_ANY;
-		msg_prop->mode_type = INBOUND;
+		msg_prop->mep_type = ANY_TO_ANY;
+		msg_prop->mode_type |= INBOUND;
 		sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_signal_np_receive);
 		// when creating, set to zero because callback function is not used
 		msg_prop->max_threshold = 0;
+
 		// register the handler so that message can be received
 		np_msgproperty_register(msg_prop);
 	}
-	else
-	{
-		msg_prop->mode_type |= INBOUND;
-	}
-
 	msg_prop->max_threshold++;
 
 	_np_send_subject_discovery_messages(INBOUND, subject);

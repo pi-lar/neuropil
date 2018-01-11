@@ -71,7 +71,6 @@ static const char* PROP_NAME##_str = # PROP_NAME;					\
 inline void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value) {		\
 	obj->PROP_NAME = value;											\
 }
-// log_msg(LOG_INFO, "changed mx property %s to new value", PROP_NAME##_str);
 
 #define _NP_GENERATE_PROPERTY_SETVALUE_IMPL(OBJ,PROP_NAME,TYPE)		\
 void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value);
@@ -80,7 +79,6 @@ void _##OBJ##_set_##PROP_NAME(OBJ* obj, TYPE value);
 inline void OBJ##_set_##PROP_NAME(OBJ* obj, const char* value) {	\
 	obj->PROP_NAME = strndup(value, strlen(value));					\
 }
-// log_msg(LOG_INFO, "changed mx property %s to new string %s", # PROP_NAME, value);
 
 #define _NP_GENERATE_MSGPROPERTY_SETVALUE(PROP_NAME,TYPE)			\
 inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, TYPE value) { \

@@ -176,7 +176,7 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 void np_msgproperty_register(np_msgproperty_t* msgprops)
 {
 	log_msg(LOG_TRACE, "start: void np_msgproperty_register(np_msgproperty_t* msgprops){");
-	log_msg(LOG_INFO, "registering user property: %s", msgprops->msg_subject);
+	log_debug_msg(LOG_DEBUG, "registering user property: %s", msgprops->msg_subject);
 
 	np_ref_obj(np_msgproperty_t, msgprops, ref_system_msgproperty);
 	RB_INSERT(rbt_msgproperty, __msgproperty_table, msgprops);

@@ -92,6 +92,8 @@ void _np_in_received(np_jobargs_t* args)
 
 			// we registered this token info before in the first handshake message
 			np_key_t* alias_key = args->target;
+
+			
 			raw_msg = args->custom_data;
 
 			if (NULL == raw_msg)
@@ -816,11 +818,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 		{
 			np_ackentry_t *entry = (np_ackentry_t *) jrb_node->val.value.v;
 			_np_ackentry_set_acked(entry, TRUE);
-<<<<<<< HEAD
-			log_debug_msg(LOG_DEBUG, "received acknowledgment of JOIN uuid=%s", ack_uuid.value.s);
-=======
 			log_debug_msg(LOG_DEBUG, "received acknowledgment of JOIN uuid=%s",  np_treeval_to_str(ack_uuid));
->>>>>>> origin/develop
 		}
 	}
 	*/
@@ -893,7 +891,6 @@ void _np_in_join_ack(np_jobargs_t* args)
 	// update leafset
 	added = NULL, deleted = NULL;
 	_np_route_leafset_update(routing_key, TRUE, &deleted, &added);
-
 #ifdef DEBUG
 	if (added !=NULL)
 		log_debug_msg(LOG_INFO, "added   to   leafset: %s:%s:%s / %f / %1.2f",
@@ -908,7 +905,6 @@ void _np_in_join_ack(np_jobargs_t* args)
 						deleted->node->last_success,
 						deleted->node->success_avg);
 #endif
-
 	// send an initial piggy message to the new node in our routing table
 	np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
 	_np_job_submit_transform_event(0.0, piggy_prop, routing_key, NULL);
@@ -1022,7 +1018,7 @@ void __np_in_ack_handle(np_message_t * msg)
 
 	np_ackentry_t *entry = NULL;
 	/* just an acknowledgement of own messages send out earlier */
-	_LOCK_ACCESS(&my_network->waiting_lock)
+	_LOCK_ACCESS(&my_network->ack_data_lock)
 	{
 		np_tree_elem_t *jrb_node = np_tree_find_str(my_network->waiting,  np_treeval_to_str(ack_uuid, NULL));
 		if (jrb_node != NULL)
@@ -1281,6 +1277,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 		}
 
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "received new sender token %s for %s",msg_token->uuid, msg_token->subject);
+
 		_np_aaatoken_add_sender(msg_token->subject, msg_token);
 
 		np_aaatoken_t* tmp_token = NULL;
@@ -1296,6 +1293,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 			np_message_t *msg_out = NULL;
 			np_new_obj(np_message_t, msg_out);
 			_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AVAILABLE_RECEIVER, interest_data);
+			
 			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AVAILABLE_RECEIVER);
 
 			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));			

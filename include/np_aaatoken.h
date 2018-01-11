@@ -167,9 +167,8 @@ struct np_aaatoken_s
 	np_bool is_core_token;
 } NP_API_EXPORT;
 
-#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
-#endif
+
 
 // serialization of the np_aaatoken_t structure
 NP_API_INTERN
@@ -196,6 +195,7 @@ NP_API_INTERN
 np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* identity);
 
 // neuropil internal aaatoken storage and exchange functions
+
 NP_API_INTERN
 void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token);
 NP_API_INTERN

@@ -150,7 +150,7 @@ void _np_out(np_jobargs_t* args)
 				uuid = msg_out->uuid;
 				np_bool skip = FALSE;
 
-				_LOCK_ACCESS(&my_network->waiting_lock)
+				_LOCK_ACCESS(&my_network->ack_data_lock)
 				{
 					// first find the uuid
 					np_tree_elem_t* uuid_ele = np_tree_find_str(my_network->waiting, uuid);
@@ -305,7 +305,7 @@ void _np_out(np_jobargs_t* args)
 						{}
 #endif
 
-					_LOCK_ACCESS(&my_network->waiting_lock)
+					_LOCK_ACCESS(&my_network->ack_data_lock)
 					{
 						np_tree_insert_str(my_network->waiting, uuid, np_treeval_new_v(ackentry));
 					}
@@ -582,7 +582,6 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 			_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
 
 			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-			log_msg(LOG_INFO, "send  INBOUND discovery message for: %s", args->properties->msg_subject);
 		}
 
 		if (OUTBOUND == (args->properties->mode_type & OUTBOUND))
@@ -614,13 +613,10 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 
 			_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
 			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-
-			log_msg(LOG_INFO, "send OUTBOUND discovery message for: %s", args->properties->msg_subject);
 		}
 		np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
-	} else {
-		log_msg(LOG_INFO, "no connections, no discovery for: %s", args->properties->msg_subject);
 	}
+	
 }
 
 // deprecated

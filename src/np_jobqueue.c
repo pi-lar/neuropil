@@ -438,7 +438,6 @@ np_job_t* _np_jobqueue_select_next()
 	}
 	return job_to_execute;
 }
-
 /** job_exec
  * runs a thread which is competing for jobs in the job queue
  * after getting the first job out of queue it will execute the corresponding callback with
@@ -475,6 +474,7 @@ void* __np_jobqueue_run(void* np_thread_ptr)
 			);
 		}
 #endif
+
 
         
 #ifdef DEBUG

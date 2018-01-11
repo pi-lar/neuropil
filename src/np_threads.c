@@ -77,6 +77,7 @@ int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) 
 	ret = pthread_mutex_lock(&__mutexes[module_id].lock);
 #else
 	double start = np_time_now();
+
 	char * tmp = NULL;
 
 	np_thread_t* self_thread = _np_threads_get_self();
@@ -102,7 +103,7 @@ int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) 
 			}
 		ret = _np_threads_mutex_timedlock(&__mutexes[module_id], min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
 
-		if(ret == ETIMEDOUT) {
+		if(ret == ETIMEDOUT) {			
 			//continue;
 		}else if(ret != 0) {
 			log_msg(LOG_ERROR,"error at acquiring mutex for module %s. Error: %s (%d)", np_module_lock_str[module_id], strerror(ret), ret);
@@ -195,7 +196,7 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 
 	double start = np_time_now();
 	double diff = 0;
-	while(ret != 0) {
+	while(ret != 0) {		
 		ret = _np_threads_mutex_timedlock(&__mutexes[module_id_a], min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
 		diff = np_time_now() - start;
 		if (ret == 0) {
@@ -235,7 +236,7 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 				sll_prepend(char_ptr, self_thread->has_lock, tmp_b);
 				_sll_char_remove(self_thread->want_lock, tmp_a, strlen(tmp_a));
 				_sll_char_remove(self_thread->want_lock, tmp_b, strlen(tmp_b));
-
+				
 			}
 		}
 	}
@@ -605,7 +606,7 @@ void _np_thread_t_del(void* obj)
 	_np_threads_mutex_destroy(&thread->locklists_lock);
 
 #endif
-
+	
 }
 void _np_thread_t_new(void* obj)
 {

@@ -22,18 +22,18 @@
 
 NP_PLL_GENERATE_IMPLEMENTATION(np_messagepart_ptr);
 
-int8_t _np_messagepart_cmp(const np_messagepart_ptr value1, const np_messagepart_ptr value2) {
+int8_t _np_messagepart_cmp (const np_messagepart_ptr value1, const np_messagepart_ptr value2)
+{
 	uint16_t part_1 = value1->part; // np_tree_find_str(value1->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
 	uint16_t part_2 = value2->part; // np_tree_find_str(value2->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
 
 	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message part compare %d / %d / %d", part_1, part_2, part_1 - part_2);
 
-	if (part_2 > part_1)
-		return (1);
-	if (part_1 > part_2)
-		return (-1);
+	if (part_2 > part_1) return ( 1);
+	if (part_1 > part_2) return (-1);
 	return (0);
 }
+
 
 np_bool _np_messagepart_decrypt(np_tree_t* source,
 							unsigned char* enc_nonce,
@@ -113,43 +113,53 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 	uint32_t enc_msg_part_len = msg_part_len + crypto_box_MACBYTES;
 
 	unsigned char enc_msg_part[enc_msg_part_len];
-	int16_t ret = crypto_secretbox_easy(enc_msg_part, msg_part_buf_ptr, msg_part_len, nonce, public_key);
-	//	int16_t ret = crypto_box_easy(enc_msg_part,
-	//							  msg_part_buf_ptr,
-	//							  msg_part_len,
-	//							  nonce,
-	//							  public_key,
-	//							  secret_key);
-	//	int16_t ret = crypto_box_easy_afternm(enc_msg_part,
-	//								msg_part_buf_ptr,
-	//								msg_part_len,
-	//								nonce,
-	//								public_key);
-	if (ret < 0) {
+	int16_t ret = crypto_secretbox_easy(enc_msg_part,
+										msg_part_buf_ptr,
+										msg_part_len,
+										nonce,
+										public_key);
+//	int16_t ret = crypto_box_easy(enc_msg_part,
+//							  msg_part_buf_ptr,
+//							  msg_part_len,
+//							  nonce,
+//							  public_key,
+//							  secret_key);
+//	int16_t ret = crypto_box_easy_afternm(enc_msg_part,
+//								msg_part_buf_ptr,
+//								msg_part_len,
+//								nonce,
+//								public_key);
+	if (ret < 0)
+	{
 		return (FALSE);
 	}
 
-	_np_tree_replace_all_with_str(msg_part, NP_ENCRYPTED, np_treeval_new_bin(enc_msg_part, enc_msg_part_len));
+	_np_tree_replace_all_with_str(msg_part, NP_ENCRYPTED,
+			np_treeval_new_bin(enc_msg_part, enc_msg_part_len));
 	return (TRUE);
 }
 
-void _np_messagepart_t_del(void* nw) {
+
+void _np_messagepart_t_del(void* nw)
+{
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
 	np_messagepart_t* part = (np_messagepart_t*) nw;
 
 	if(part->msg_part != NULL) np_memory_free(part->msg_part);
 }
-void _np_messagepart_t_new(void* nw) {
+void _np_messagepart_t_new(void* nw)
+{
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
 	np_messagepart_t* part = (np_messagepart_t *) nw;
 
-	part->msg_part = NULL;
+	part->msg_part  = NULL;
 }
 
-char* np_messagepart_printcache(np_bool asOneLine) {
+char* np_messagepart_printcache(np_bool asOneLine)
+{
 	char* ret = NULL;
 	char* new_line = "\n";
-	if (asOneLine == TRUE) {
+	if(asOneLine == TRUE){
 		new_line = "    ";
 	}
 
@@ -157,12 +167,21 @@ char* np_messagepart_printcache(np_bool asOneLine) {
 	_LOCK_MODULE(np_message_part_cache_t)
 	{
 		np_tree_elem_t* tmp = NULL;
+		
 
 		RB_FOREACH(tmp, np_tree_s, _np_state()->msg_part_cache)
 		{
 			np_message_t* msg = tmp->val.value.v;
-			ret = _np_concatAndFree(ret, "%s received %"PRIu32" of %"PRIu16" expected parts. msg subject:%s%s", msg->uuid, pll_size(msg->msg_chunks), msg->no_of_chunks, _np_message_get_subject(msg), new_line);
-		}
+
+			ret = _np_concatAndFree(ret,
+					"%s   received %2"PRIu32" of %2"PRIu16" expected parts. msg subject:%s%s",
+					msg->uuid,
+					pll_size(msg->msg_chunks),
+					msg->no_of_chunks,
+					_np_message_get_subject(msg),
+					new_line
+					);
+		}		
 	}
 	ret = _np_concatAndFree(ret, "--- Messagepart cache end ---%s", new_line);
 

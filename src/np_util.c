@@ -304,6 +304,7 @@ char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
 		ret = (char*) malloc(json_size * sizeof(char));
 		CHECK_MALLOC(ret);
 		json_serialize_to_buffer_pretty(data, ret, json_size);
+
 	}else{
 		json_size = json_serialization_size(data);
 		ret = (char*) malloc(json_size * sizeof(char));
@@ -316,6 +317,8 @@ char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
 	}else{
 		ret = json_serialize_to_string(data);
 	}
+
+
 	return ret;
 }
 
@@ -329,7 +332,6 @@ void np_dump_tree2log(log_type category, np_tree_t* tree){
 		json_free_serialized_string(tmp);
 	}
 }
-
 /*
  * cancats target with source and applys the variable arguments as a string format on source
  * frees target and reasigns it with the new string

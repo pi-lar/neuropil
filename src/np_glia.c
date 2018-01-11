@@ -326,6 +326,7 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 			np_key_t* target = NULL;
 
 			target = _np_keycache_find_or_create(target_dhkey);
+
 			msg_prop = np_msgproperty_get(TRANSFORM, subject);
 			if (NULL != msg_prop)
 			{
@@ -417,7 +418,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 	np_tree_elem_t *jrb_ack_node = NULL;
 
 	// wake up and check for acknowledged messages
-	_LOCK_ACCESS(&ng->waiting_lock)
+	_LOCK_ACCESS(&ng->ack_data_lock)
 	{
 		np_tree_elem_t* iter = RB_MIN(np_tree_s, ng->waiting);
 		int i = 0;
@@ -697,7 +698,7 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 {
 	log_msg(LOG_TRACE, "start: void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject){");
 
-	// TODO: msg_tokens for either
+	//TODO: msg_tokens for either
 	// insert into msg token token renewal queue
 	_LOCK_MODULE(np_state_message_tokens_t) {
 		if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))

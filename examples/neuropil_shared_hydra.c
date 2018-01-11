@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
@@ -32,8 +31,8 @@
 
 #include "example_helper.c"
 
-NP_SLL_GENERATE_PROTOTYPES(int16_t);
-NP_SLL_GENERATE_IMPLEMENTATION(int16_t);
+ NP_SLL_GENERATE_PROTOTYPES(int);
+NP_SLL_GENERATE_IMPLEMENTATION(int);
 
  #define NUM_HOST 120
 
@@ -79,8 +78,8 @@ int main(int argc, char **argv)
 	*/
 	int current_pid = getpid();
 
-	np_sll_t(int16_t, list_of_childs) = sll_init(int16_t, list_of_childs);
-	int16_t array_of_pids[required_nodes + 1];
+	np_sll_t(int, list_of_childs) = sll_init(int, list_of_childs);
+	int array_of_pids[required_nodes + 1];
 
 	int status;
 
@@ -189,7 +188,7 @@ int main(int argc, char **argv)
 				// parent process keeps iterating
 				fprintf(stdout, "adding (%d) : child process %d \n", sll_size(list_of_childs), current_pid);
 				array_of_pids[sll_size(list_of_childs)] = current_pid;
-				sll_append(int16_t, list_of_childs, array_of_pids[sll_size(list_of_childs)]);
+				sll_append(int, list_of_childs, array_of_pids[sll_size(list_of_childs)]);
 			}
 			np_time_sleep(3.1415);
 
@@ -200,14 +199,14 @@ int main(int argc, char **argv)
 			if ( current_pid != 0 )
 			{
 				fprintf(stderr, "trying to find stopped child process %d\n", current_pid);
-				sll_iterator(int16_t) iter = NULL;
+				sll_iterator(int) iter = NULL;
 				uint32_t i = 0;
 				for (iter = sll_first(list_of_childs); iter != NULL; sll_next(iter))
 				{
 					if (current_pid == iter->val)
 					{
 						fprintf(stderr, "removing stopped child process\n");
-						sll_delete(int16_t, list_of_childs, iter);
+						sll_delete(int, list_of_childs, iter);
 						for (; i < required_nodes; i++)
 						{
 							array_of_pids[i] = array_of_pids[i+1];

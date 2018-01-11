@@ -26,7 +26,7 @@
 
 #include "example_helper.c"
 
-
+ 
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
 
@@ -48,7 +48,7 @@ np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tr
 	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
 	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
-	np_send_text("pong", "pong", _pong_count, NULL);
+	np_send_text("pong", "pong", _pong_count,NULL);
 
 	return TRUE;
 }
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 		"r:c:"
 	) == FALSE) {
 		exit(EXIT_FAILURE);
-	}
+	} 
 
 	/**
 	in your main program, initialize the logging of neuopil, but this time use the port for the filename
@@ -187,17 +187,15 @@ int main(int argc, char **argv)
 	np_msgproperty_t* ping_props = NULL;
 	np_new_obj(np_msgproperty_t, ping_props);
 	ping_props->msg_subject = strndup("ping", 255);
-	ping_props->mode_type = INBOUND | OUTBOUND;
 	ping_props->ack_mode = ACK_NONE;
 	ping_props->msg_ttl = 20.0;
 	np_msgproperty_register(ping_props);
-	// register the listener function to receive data from the sender
+//register the listener function to receive data from the sender
 	np_add_receive_listener(receive_ping, "ping");
 
 	np_msgproperty_t* pong_props = NULL;
 	np_new_obj(np_msgproperty_t, pong_props);
 	pong_props->msg_subject = strndup("pong", 255);
-	pong_props->mode_type = INBOUND | OUTBOUND;
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 20.0;
 	np_msgproperty_register(pong_props);
