@@ -126,6 +126,7 @@ void np_sysinfo_enable_slave() {
 
 void np_sysinfo_enable_master() {
 	log_msg(LOG_TRACE, "start: void np_sysinfo_enable_master(){");
+	
 	_np_sysinfo_init_cache();
 	np_msgproperty_t* sysinfo_request_props = np_msgproperty_get(OUTBOUND, _NP_SYSINFO_REQUEST);
 	if (sysinfo_request_props == NULL) {
@@ -149,7 +150,7 @@ void np_sysinfo_enable_master() {
 	sysinfo_response_props->retry    = 0;
 	sysinfo_response_props->msg_ttl  = 20.0;
 	sysinfo_response_props->priority -= 1;
-
+	
 	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
@@ -160,7 +161,7 @@ void np_sysinfo_enable_master() {
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
-
+	
 	np_add_receive_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
 }
 

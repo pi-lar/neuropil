@@ -1890,7 +1890,7 @@ void _np_in_handshake(np_jobargs_t* args)
 			np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str );
 			free(tmp_connection_str);
 
-			_LOCK_MODULES (np_keycache_t, np_network_t)
+			_LOCK_MODULE ( np_network_t)
 			{
 				hs_wildcard_key = _np_keycache_find(wildcard_dhkey);
 				if(NULL != hs_wildcard_key && NULL != hs_wildcard_key->network) {

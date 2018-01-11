@@ -382,7 +382,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 		np_key_t* key = event->data;		
 		np_network_t* key_network = key->network ;
 
-		_LOCK_ACCESS(&key_network->send_data_lock)
+		_TRYLOCK_ACCESS(&key_network->send_data_lock)
 		{
 			if(NULL != key_network->out_events &&
 				0 < sll_size(key_network->out_events)
@@ -788,11 +788,11 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 	_np_suspend_event_loop_in();
 	_np_suspend_event_loop_out();
 	_LOCK_ACCESS(&old_target->network->send_data_lock) {
-		// _np_network_stop(old_target->network); 			// stop network
+		//_np_network_stop(old_target->network); 			// stop network
 		new_target->network = old_target->network; 		// remap
 		np_ref_switch(np_key_t, new_target->network->watcher.data, ref_network_watcher, new_target); // remap network key
 		old_target->network = NULL;						// remove from old structure
-		// _np_network_start(new_target->network); 		// restart network
+		//_np_network_start(new_target->network); 		// restart network
 	}
 	_np_resume_event_loop_out();
 	_np_resume_event_loop_in();

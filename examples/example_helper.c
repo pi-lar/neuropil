@@ -250,6 +250,8 @@ np_bool parse_program_args(
 
 
 		uint32_t log_categories = 0
+			 //| LOG_TRACE
+
 			//| LOG_MUTEX
 			//| LOG_TRACE
 			| LOG_ROUTING
@@ -659,6 +661,7 @@ void __np_example_helper_run_info_loop() {
 }
 
 void example_http_server_init(char* http_domain, np_sysinfo_opt_e sysinfo_Mode) {
+	np_bool http_init = FALSE;
 	if (http_domain == NULL || strncmp("none", http_domain, 4) != 0) {
 		if (http_domain == NULL) {
 			http_domain = calloc(1, sizeof(char) * 255);
@@ -668,19 +671,21 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e sysinfo_Mode) 
 				http_domain = NULL;
 			}
 		}
-		np_bool http_init = _np_http_init(http_domain);
-		if (sysinfo_Mode != np_sysinfo_opt_disable) {
-			if ((http_init && sysinfo_Mode == np_sysinfo_opt_auto) || sysinfo_Mode == np_sysinfo_opt_force_master)
-			{
-				fprintf(stdout, "HTTP interface set to %s\n", http_domain);
-				log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
-				np_sysinfo_enable_master(); 
-			}
-			else {
-				fprintf(stderr, "Node could not start HTTP interface\n");
-				log_msg(LOG_WARN, "Node could not start HTTP interface");
-				np_sysinfo_enable_slave();
-			}
+		http_init = _np_http_init(http_domain);
+		if (http_init == FALSE) {
+			log_msg(LOG_WARN, "Node could not start HTTP interface");
+		}		
+	}
+	if (sysinfo_Mode != np_sysinfo_opt_disable) {
+		if ((http_init && sysinfo_Mode == np_sysinfo_opt_auto) || sysinfo_Mode == np_sysinfo_opt_force_master)
+		{
+			fprintf(stdout, "HTTP interface set to %s\n", http_domain);
+			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
+			np_sysinfo_enable_master();
+		}
+		else {
+			fprintf(stderr, "Node could not start HTTP interface\n");
+			np_sysinfo_enable_slave();
 		}
 	}
 }

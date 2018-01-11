@@ -443,10 +443,11 @@ np_job_t* _np_jobqueue_select_next()
  * after getting the first job out of queue it will execute the corresponding callback with
  * defined job arguments
  */
-void* __np_jobqueue_run()
+void* __np_jobqueue_run(void* np_thread_ptr)
 {
 	log_debug_msg(LOG_JOBS | LOG_THREADS| LOG_DEBUG, "job queue thread starting");
 
+	_np_threads_set_self(np_thread_ptr);
 	while (1)
 	{
 		np_job_t* job_to_execute = _np_jobqueue_select_next();

@@ -39,7 +39,8 @@ typedef struct np_routeglobal_s np_routeglobal_t;
 struct np_routeglobal_s
 {
 	np_key_t* my_key;
-	char* bootstrap_key;
+	
+	TSP(char*, bootstrap_key)
 
 	np_key_t* table[__MAX_ROW * __MAX_COL * __MAX_ENTRY];
 
@@ -62,7 +63,8 @@ np_bool _np_route_init (np_key_t* me)
 	__routing_table = (np_routeglobal_t *) calloc (1, sizeof (np_routeglobal_t));
 	CHECK_MALLOC(__routing_table);
 
-	__routing_table->bootstrap_key = NULL;
+	TSP_INITD(char*, __routing_table->bootstrap_key, NULL);
+
 	_np_route_set_key(me);
 	// np_ref_obj(np_key_t, __routing_table->my_key, ref_route_routingtable_mykey);
 
@@ -819,20 +821,23 @@ void _np_route_check_for_joined_network()
 
 char* np_route_get_bootstrap_connection_string() {
 	log_msg(LOG_TRACE | LOG_ROUTING, "start: np_key_t* np_route_get_bootstrap_key() {");
-	return __routing_table->bootstrap_key;
+	TSP_GET(char*, __routing_table->bootstrap_key, ret);
+	return ret;
 }
 
 void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {
 	log_msg(LOG_TRACE | LOG_ROUTING, "void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {");
 		
-	char* old = __routing_table->bootstrap_key;	
-	__routing_table->bootstrap_key = np_get_connection_string_from(bootstrap_key,FALSE);
+	TSP_GET(char*, __routing_table->bootstrap_key, old);
+	TSP_SET(char*, __routing_table->bootstrap_key, np_get_connection_string_from(bootstrap_key, FALSE));
 	free(old);
 }
 
 void _np_route_rejoin_bootstrap(np_bool force) {
 
-	if (__routing_table->bootstrap_key != NULL) {
+	TSP_GET(char*, __routing_table->bootstrap_key, bootstrap_key)
+
+	if (bootstrap_key != NULL) {
 
 	np_bool rejoin = force
 			|| _np_route_my_key_has_connection() == FALSE;

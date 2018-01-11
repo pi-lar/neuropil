@@ -358,7 +358,9 @@ void _np_out_handshake(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_out_handshake(np_jobargs_t* args){");
 
-	_LOCK_MODULE(np_handshake_t) {
+	_LOCK_MODULE(np_handshake_t) 
+	{
+		
 		if (_np_node_check_address_validity(args->target->node))
 		{
 			// get our node identity from the cache
@@ -422,6 +424,7 @@ void _np_out_handshake(np_jobargs_t* args)
 			if (ret < 0)
 			{
 				log_msg(LOG_WARN, "signature creation failed, not continuing with handshake");
+				_np_threads_unlock_module(np_handshake_t_lock);
 				return;
 			}
 #ifdef DEBUG
@@ -459,6 +462,7 @@ void _np_out_handshake(np_jobargs_t* args)
 			if (hs_message->no_of_chunks != 1) {
 				log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
 				np_unref_obj(np_message_t, hs_message, ref_obj_creation);
+				_np_threads_unlock_module(np_handshake_t_lock);
 				return;
 			}
 
@@ -480,6 +484,7 @@ void _np_out_handshake(np_jobargs_t* args)
 							np_unref_obj(np_message_t, hs_message, ref_obj_creation);
 							//log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
 							//args->target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
+							_np_threads_unlock_module(np_handshake_t_lock);
 							return;
 						}
 
