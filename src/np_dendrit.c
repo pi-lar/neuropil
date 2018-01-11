@@ -1018,7 +1018,7 @@ void __np_in_ack_handle(np_message_t * msg)
 
 	np_ackentry_t *entry = NULL;
 	/* just an acknowledgement of own messages send out earlier */
-	_LOCK_ACCESS(&my_network->ack_data_lock)
+	_LOCK_ACCESS(&my_network->waiting_lock)
 	{
 		np_tree_elem_t *jrb_node = np_tree_find_str(my_network->waiting,  np_treeval_to_str(ack_uuid, NULL));
 		if (jrb_node != NULL)

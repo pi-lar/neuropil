@@ -523,8 +523,6 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
 					_LOCK_ACCESS (&alias_key->network->send_data_lock) {
 						alias_key->network->socket = client_fd;
 						alias_key->network->socket_type = ng->socket_type;
-						_LOCK_ACCESS(&alias_key->network->waiting_lock) {
-						}
 						alias_key->network->seqend = 0LU;
 
 						// it could be a passive socket
@@ -537,7 +535,7 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
 
 						alias_key->network->initialized = TRUE;
 					}
-					_LOCK_ACCESS (&alias_key->network->ack_data_lock) {
+					_LOCK_ACCESS (&alias_key->network->waiting_lock) {
 						alias_key->network->waiting = np_tree_create();
 					}
 				}
@@ -858,13 +856,6 @@ void _np_network_t_del(void* nw)
 			np_unref_obj(np_key_t, old_key,ref_network_watcher);
 			network->watcher.data = NULL;
 
-			_LOCK_ACCESS(&network->waiting_lock) {
-				if (NULL != network->waiting) {
-					np_tree_free(network->waiting);
-					network->waiting = NULL;
-				}
-			}
-			_np_threads_mutex_destroy(&network->waiting_lock);
 
 			if (NULL != network->out_events)
 			{
@@ -883,15 +874,17 @@ void _np_network_t_del(void* nw)
 			network->initialized = FALSE;
 		}
 
-		_LOCK_ACCESS(&network->ack_data_lock)
+		_LOCK_ACCESS(&network->waiting_lock)
 		{
-			if (NULL != network->waiting)
+			if (NULL != network->waiting) {
 				np_tree_free(network->waiting);
+				network->waiting = NULL;
+			}
 		}
-		// finally destroy the mutex again
+
+		// finally destroy the mutex 
 		_np_threads_mutex_destroy(&network->send_data_lock);
-		_np_threads_mutex_destroy (&network->ack_data_lock);
-		
+		_np_threads_mutex_destroy(&network->waiting_lock);
 
 	}
 }
@@ -909,7 +902,7 @@ void _np_network_t_new(void* nw)
 	ng->type = np_network_type_none;
 
 	_np_threads_mutex_init (&ng->send_data_lock,"network send_data_lock");
-	_np_threads_mutex_init (&ng->ack_data_lock, "network ack_data_lock");
+	_np_threads_mutex_init (&ng->waiting_lock, "network waiting_lock");
 }
 
 /** _np_network_init:
@@ -947,13 +940,11 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			ng->seqend = 0LU;
 		}
 
-		_LOCK_ACCESS(&ng->ack_data_lock)
-		{
-			// create own retransmit structures
-			_LOCK_ACCESS(&ng->waiting_lock) {
-				ng->waiting = np_tree_create();
-			}
+		// create own retransmit structures
+		_LOCK_ACCESS(&ng->waiting_lock) {
+			ng->waiting = np_tree_create();
 		}
+		
 
 		// nothing to do for passive nodes
 		if ((type & PASSIVE) != PASSIVE) {
