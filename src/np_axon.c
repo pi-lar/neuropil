@@ -150,7 +150,7 @@ void _np_out(np_jobargs_t* args)
 				uuid = msg_out->uuid;
 				np_bool skip = FALSE;
 
-				_LOCK_ACCESS(&my_network->ack_data_lock)
+				_LOCK_ACCESS(&my_network->waiting_lock)
 				{
 					// first find the uuid
 					np_tree_elem_t* uuid_ele = np_tree_find_str(my_network->waiting, uuid);
@@ -305,7 +305,7 @@ void _np_out(np_jobargs_t* args)
 						{}
 #endif
 
-					_LOCK_ACCESS(&my_network->ack_data_lock)
+					_LOCK_ACCESS(&my_network->waiting_lock)
 					{
 						np_tree_insert_str(my_network->waiting, uuid, np_treeval_new_v(ackentry));
 					}
