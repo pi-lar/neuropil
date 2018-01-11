@@ -1000,6 +1000,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	}
 
 	state->msg_tokens = np_tree_create();
+
 	state->msg_part_cache = np_tree_create();
 
 #ifdef SKIP_EVLOOP

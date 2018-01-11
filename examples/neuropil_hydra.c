@@ -151,8 +151,11 @@ int main(int argc, char **argv)
 			np_example_print(stdout, "logpath: %s\n", log_file_host);
 
 			np_log_init(log_file_host, level);
+			printf("Log init ok\n");
+
 			// provide localhost as hostname to support development on local machines
 			np_init(proto, port, publish_domain);
+			printf("Neuropil init ok\n");
 			/**
 			 \endcode
 			 */
@@ -169,13 +172,14 @@ int main(int argc, char **argv)
 			   np_sysinfo_enable_master();			
 
 			 */
-			example_http_server_init(http_domain); // np_sysinfo_enable_master() is included here
-
+			example_http_server_init(http_domain, np_sysinfo_opt_auto); // np_sysinfo_enable_master() is included here
+			printf("HttpServer init ok\n");
 			
 			// If you want to you can enable the statistics modulte to view the nodes statistics
 			np_statistics_add_watch_internals(); 
 			np_statistics_add_watch(_NP_SYSINFO_REQUEST);
 			np_statistics_add_watch(_NP_SYSINFO_REPLY);			
+			printf("Statistics init ok\n");
 
 			/**
 			  And wait for incomming connections
@@ -185,6 +189,7 @@ int main(int argc, char **argv)
 			   \code
 			 */
 			np_start_job_queue(no_threads+3);
+			printf("Running Neuropil\n");
 
 			__np_example_helper_run_info_loop();
 			/**

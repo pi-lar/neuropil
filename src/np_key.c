@@ -49,6 +49,13 @@ int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
 	return -1 * _np_key_cmp(k1, k2);
 }
 
+int _np_key_distance_cmp(np_key_t* k1, np_key_t* k2) {
+	np_dhkey_t dist;
+	_np_dhkey_distance(&dist, &k1->dhkey, &k2->dhkey);
+
+
+}
+
 char* _np_key_as_str(np_key_t* key)
 {
 	log_msg(LOG_TRACE | LOG_KEY, "start: char* _np_key_as_str(np_key_t* key){");

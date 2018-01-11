@@ -74,7 +74,7 @@ void _np_job_yield(const double delay);
  ** else get the first job out of queue and execute it.
  **/
 NP_API_INTERN
-void* __np_jobqueue_run ();
+void* __np_jobqueue_run (void* np_thread_ptr);
 
 NP_PLL_GENERATE_PROTOTYPES(np_job_ptr);
 

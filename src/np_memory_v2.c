@@ -100,7 +100,7 @@ void __np_memory_create_block(np_memory_container_t* container) {
 	new_block->current_in_use = 0;
 	new_block->last_item = 0;
 
-	if (_np_threads_mutex_init(&(new_block->attr_lock), "MemoryV2 conf lock") != 0) {
+	if (_np_threads_mutex_init(&(new_block->attr_lock), "MemoryV2 block attr lock") != 0) {
 		log_msg(LOG_ERROR, "Could not create memory item lock for container type %"PRIu8, container->type);
 	}
 
@@ -212,8 +212,8 @@ void* np_memory_new(uint8_t type) {
 	sll_iterator(np_memory_block_ptr) iter_blocks;
 
 	// check for space in container
-	_LOCK_ACCESS(&container->blocks_lock) {
-		_LOCK_ACCESS(&container->attr_lock) {
+	_LOCK_ACCESS(&container->attr_lock) {
+		_LOCK_ACCESS(&container->blocks_lock) {		
 			if (container->current_in_use == (sll_size(container->blocks) * container->count_of_items_per_block)) {
 				log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Adding new memory block due to missing runtime space (pre loop).");
 				__np_memory_create_block(container);
@@ -229,7 +229,7 @@ void* np_memory_new(uint8_t type) {
 	do {
 		current_block = iter_blocks->val;
 
-		if (_np_threads_mutex_trylock(&current_block->attr_lock) == 0) 
+		if (_np_threads_mutex_trylock(&current_block->attr_lock, __func__) == 0)
 		{
 			// check itemcount to verify possible free space in block
 			if (current_block->current_in_use < current_block->container->count_of_items_per_block) {
@@ -248,7 +248,7 @@ void* np_memory_new(uint8_t type) {
 				for (; item_idx < container->count_of_items_per_block; item_idx++)
 				{
 					// try to get item in block space
-					if (_np_threads_mutex_trylock(&next_config->access_lock) == 0) {
+					if (_np_threads_mutex_trylock(&next_config->access_lock, __func__) == 0) {
 						if (next_config->in_use == FALSE && next_config->needs_refresh == FALSE) {
 							// take free space
 							found = TRUE;
@@ -360,7 +360,7 @@ void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 					np_memory_itemconf_t* next_config = iter_blocks->val->space;
 
 					for (uint32_t j = 0; j < container->count_of_items_per_block; j++) {
-						if (_np_threads_mutex_trylock(&next_config->access_lock) == 0)
+						if (_np_threads_mutex_trylock(&next_config->access_lock, __func__) == 0)
 						{
 							__np_memory_refresh_space(next_config);
 

@@ -353,7 +353,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 									_np_network_start(node_key->network);
 								}
 								else {
-													np_memory_free(enc_buffer);
+									np_memory_free(enc_buffer);
 								}
 							}
 
@@ -382,14 +382,14 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 		np_key_t* key = event->data;		
 		np_network_t* key_network = key->network ;
 
-		_LOCK_ACCESS(&key_network->send_data_lock)
+		_TRYLOCK_ACCESS(&key_network->send_data_lock)
 		{
 			if(NULL != key_network->out_events &&
 				0 < sll_size(key_network->out_events)
 				)
 			{
 				if (NULL != key->node) {
-					log_debug_msg(LOG_INFO, "sending message (%d bytes) to %s:%s",
+					log_debug_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
 							MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
 				}
 
@@ -537,7 +537,7 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
 
 						alias_key->network->initialized = TRUE;
 					}
-					_LOCK_ACCESS (&alias_key->network->ack_data_lock) {
+					_LOCK_ACCESS (&alias_key->network->waiting_lock) {
 						alias_key->network->waiting = np_tree_create();
 					}
 				}
@@ -788,11 +788,11 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 	_np_suspend_event_loop_in();
 	_np_suspend_event_loop_out();
 	_LOCK_ACCESS(&old_target->network->send_data_lock) {
-		// _np_network_stop(old_target->network); 			// stop network
+		//_np_network_stop(old_target->network); 			// stop network
 		new_target->network = old_target->network; 		// remap
 		np_ref_switch(np_key_t, new_target->network->watcher.data, ref_network_watcher, new_target); // remap network key
 		old_target->network = NULL;						// remove from old structure
-		// _np_network_start(new_target->network); 		// restart network
+		//_np_network_start(new_target->network); 		// restart network
 	}
 	_np_resume_event_loop_out();
 	_np_resume_event_loop_in();
@@ -883,14 +883,14 @@ void _np_network_t_del(void* nw)
 			network->initialized = FALSE;
 		}
 
-		_LOCK_ACCESS(&network->ack_data_lock)
+		_LOCK_ACCESS(&network->waiting_lock)
 		{
 			if (NULL != network->waiting)
 				np_tree_free(network->waiting);
 		}
 		// finally destroy the mutex again
 		_np_threads_mutex_destroy(&network->send_data_lock);
-		_np_threads_mutex_destroy (&network->ack_data_lock);
+		_np_threads_mutex_destroy (&network->waiting_lock);
 		
 
 	}
@@ -909,7 +909,7 @@ void _np_network_t_new(void* nw)
 	ng->type = np_network_type_none;
 
 	_np_threads_mutex_init (&ng->send_data_lock,"network send_data_lock");
-	_np_threads_mutex_init (&ng->ack_data_lock, "network ack_data_lock");
+	_np_threads_mutex_init (&ng->waiting_lock, "network waiting_lock");
 }
 
 /** _np_network_init:
@@ -947,12 +947,9 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			ng->seqend = 0LU;
 		}
 
-		_LOCK_ACCESS(&ng->ack_data_lock)
-		{
-			// create own retransmit structures
-			_LOCK_ACCESS(&ng->waiting_lock) {
-				ng->waiting = np_tree_create();
-			}
+		// create own retransmit structures
+		_LOCK_ACCESS(&ng->waiting_lock) {
+			ng->waiting = np_tree_create();
 		}
 
 		// nothing to do for passive nodes

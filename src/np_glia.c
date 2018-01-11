@@ -307,42 +307,41 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 
 	np_tree_elem_t *iter = NULL;
 	np_msgproperty_t* msg_prop = NULL;
+	_LOCK_MODULE(np_state_message_tokens_t){
+		RB_FOREACH(iter, np_tree_s, state->msg_tokens)
+		{
+			// double now = dtime();
+			// double last_update = iter->val.value.d;
 
-	RB_FOREACH(iter, np_tree_s, state->msg_tokens)
-	{
-		// double now = dtime();
-		// double last_update = iter->val.value.d;
-
-		const char* iter_key_value = NULL;
-		if (iter->key.type == char_ptr_type)
-			iter_key_value =  np_treeval_to_str(iter->key, NULL);
-		else if (iter->key.type == special_char_ptr_type)
-			iter_key_value = _np_tree_get_special_str(iter->key.value.ush);
-		else {
-			ASSERT(FALSE,"key type %"PRIu8" is not recognized.", iter->key.type)
-		}
+			const char* subject = NULL;
+			if (iter->key.type == char_ptr_type)
+				subject =  np_treeval_to_str(iter->key, NULL);
+			else if (iter->key.type == special_char_ptr_type)
+				subject = _np_tree_get_special_str(iter->key.value.ush);
+			else {
+				ASSERT(FALSE,"key type %"PRIu8" is not recognized.", iter->key.type)
+			}
 			
-		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(iter_key_value, "0");
-		np_key_t* target = NULL;
+			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
+			np_key_t* target = NULL;
 
-		target = _np_keycache_find_or_create(target_dhkey);
+			target = _np_keycache_find_or_create(target_dhkey);
+			msg_prop = np_msgproperty_get(TRANSFORM, subject);
+			if (NULL != msg_prop)
+			{
+				_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
+				np_unref_obj(np_key_t, target,"_np_keycache_find_or_create");
+			}
+			else
+			{
+				// deleted = RB_REMOVE(np_tree_s, state->msg_tokens, iter);
+				// free( np_treeval_to_str(deleted->key));
+				// free(deleted);
+				np_unref_obj(np_key_t,target,"_np_keycache_find_or_create");
+				break;
+			}
+		}
 
-		msg_prop = np_msgproperty_get(TRANSFORM, iter_key_value);
-		if (NULL != msg_prop)
-		{
-			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-			np_unref_obj(np_key_t, target,"_np_keycache_find_or_create");
-			log_msg(LOG_INFO, "submitting discovery event for: %s", iter->key.value.s);
-		}
-		else
-		{
-			// deleted = RB_REMOVE(np_tree_s, state->msg_tokens, iter);
-			// free( np_treeval_to_str(deleted->key));
-			// free(deleted);
-			np_unref_obj(np_key_t,target,"_np_keycache_find_or_create");
-			log_msg(LOG_INFO, "no msg property for %s found", iter->key.value.s);
-			break;
-		}
 	}
 
 	if (TRUE == state->enable_realm_master)
@@ -418,7 +417,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 	np_tree_elem_t *jrb_ack_node = NULL;
 
 	// wake up and check for acknowledged messages
-	_LOCK_ACCESS(&ng->ack_data_lock)
+	_LOCK_ACCESS(&ng->waiting_lock)
 	{
 		np_tree_elem_t* iter = RB_MIN(np_tree_s, ng->waiting);
 		int i = 0;
@@ -618,7 +617,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
 		_np_message_create(msg_out, target_key, state->my_node_key, _NP_MSG_PIGGY_REQUEST, msg_body);
-		_np_job_submit_route_event(0.0, outprop, target_key, msg_out);
+		_np_job_submit_msgout_event(0.0, outprop, target_key, msg_out);
 		np_unref_obj(np_message_t, msg_out, ref_obj_creation);		
 	}
 
@@ -700,23 +699,25 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 
 	// TODO: msg_tokens for either
 	// insert into msg token token renewal queue
-	if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))
-	{
-		np_tree_insert_str(_np_state()->msg_tokens, subject, np_treeval_new_v(NULL));
+	_LOCK_MODULE(np_state_message_tokens_t) {
+		if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))
+		{
+			np_tree_insert_str(_np_state()->msg_tokens, subject, np_treeval_new_v(NULL));
 
-		np_msgproperty_t* msg_prop = np_msgproperty_get(mode_type, subject);
-		msg_prop->mode_type |= TRANSFORM;
-		if(FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages, np_callback_t_sll_compare_type)) {
-			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
+			np_msgproperty_t* msg_prop = np_msgproperty_get(mode_type, subject);
+			msg_prop->mode_type |= TRANSFORM;
+			if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages, np_callback_t_sll_compare_type)) {
+				sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
+			}
+
+			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
+			np_key_t* target = NULL;
+			target = _np_keycache_find_or_create(target_dhkey);
+
+			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "registering for message discovery token handling (%s)", subject);
+			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
+			np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
 		}
-
-		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
-		np_key_t* target = NULL;
-		target = _np_keycache_find_or_create(target_dhkey);
-
-		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "registering for message discovery token handling (%s)", subject);
-		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-		np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
 	}
 }
 

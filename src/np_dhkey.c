@@ -232,7 +232,7 @@ void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_
 }
 
 
-np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right)
+np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const np_bool const includeBounds)
 {
 	log_msg (LOG_KEY | LOG_TRACE, ".start._dhkey_between");
 
@@ -241,7 +241,7 @@ np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const
 	int8_t comp_tr = _np_dhkey_comp (test, right);
 
 	/* it's on one of the edges */
-	if (comp_lt == 0 || comp_tr == 0) return (TRUE);
+	if (comp_lt == 0 || comp_tr == 0) return (includeBounds);
 
 	if (comp_lr < 0)
 	{
@@ -254,7 +254,8 @@ np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const
 	}
 	else
 	{
-		if (comp_lt < 0 || comp_tr < 0) return (TRUE);
+		if (comp_lt > 0 || comp_tr < 0) return (TRUE);
+		
 		return (FALSE);
 	}
 	log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_between");

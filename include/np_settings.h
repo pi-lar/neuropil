@@ -24,7 +24,7 @@ extern "C" {
 */
 #ifdef DEBUG
 	#define DEBUG_CALLBACKS 1
-	#define NP_MEMORY_CHECK_MEMORY_REFFING 1
+	//#define NP_MEMORY_CHECK_MEMORY_REFFING 1
 	//#define	NP_MEMORY_CHECK_MEMORY 1
 	//#define NP_THREADS_CHECK_THREADING 1
 #endif // DEBUG
@@ -241,6 +241,8 @@ extern "C" {
 #endif
 
 #ifndef NP_EVENT_IO_CHECK_PERIOD_SEC
+	// the optimal libev run interval remains to be seen
+	// if set too low, base cpu usage increases on no load
 	#define NP_EVENT_IO_CHECK_PERIOD_SEC (0.0031415)
 #endif
 
