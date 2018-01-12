@@ -217,21 +217,10 @@ void _np_in_received(np_jobargs_t* args)
 
 					target_key = _np_keycache_find_or_create(target_dhkey);
 						log_debug_msg(LOG_ROUTING | LOG_DEBUG, "target of msg is %s", _np_key_as_str(target_key));
-
-					np_bool is_ack_msg = (0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_ACK, strlen(_NP_MSG_ACK)) );
-
+					
 					// check if inbound subject handler exists
 					np_msgproperty_t* handler = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
-
-					if (_np_key_cmp(target_key, my_key) == 0 && is_ack_msg) {
-						// we shortcut the process here
-						// handle the actual ack
-						__np_in_ack_handle(msg_in);
-						// call the receive callbacks (statistics etc)
-						_np_in_invoke_user_receive_callbacks(msg_in, handler);						
-						goto __np_cleanup__;
-					}					
-
+				
 					// redirect message if
 					// msg is not for my dhkey
 					// no handler is present

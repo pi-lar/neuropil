@@ -94,7 +94,7 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->priority -= 1;
 	sysinfo_request_props->msg_ttl  = 20.0;
 	sysinfo_request_props->mode_type = INBOUND | ROUTE;
-	sysinfo_request_props->max_threshold = 3;
+	sysinfo_request_props->max_threshold = 32;
 
 	np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(OUTBOUND, _NP_SYSINFO_REPLY);
 	if(sysinfo_response_props == NULL){
@@ -107,7 +107,7 @@ void np_sysinfo_enable_slave() {
 	sysinfo_response_props->priority -= 1;
 	sysinfo_response_props->msg_ttl  = 20.0;
 	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 3;
+	sysinfo_response_props->max_threshold = 32;
 
 	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
@@ -119,7 +119,8 @@ void np_sysinfo_enable_slave() {
 
 	np_job_submit_event_periodic(PRIORITY_MOD_USER_DEFAULT,
 								 0,
-								 sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
+								 //sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
+								 SYSINFO_PROACTIVE_SEND_IN_SEC,
 								 _np_sysinfo_slave_send_cb,
 								 "sysinfo_slave_send_cb");
 }
@@ -157,7 +158,8 @@ void np_sysinfo_enable_master() {
 	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 5/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC );
+	sysinfo_response_props->max_threshold = 32/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC);
+	
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
