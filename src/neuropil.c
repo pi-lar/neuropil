@@ -352,9 +352,10 @@ void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mode_type |= INBOUND;
 		np_msgproperty_register(msg_prop);
+	} else {
+		msg_prop->mode_type |= INBOUND;
 	}
 	_np_msgproperty_add_receive_listener(msg_handler, msg_prop);
-
 }
 
 /**
@@ -1000,15 +1001,17 @@ char* np_get_connection_string(){
 char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash) {
 	log_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
 
-	return _np_build_connection_string(
-		includeHash == TRUE ? _np_key_as_str(node_key) : NULL,
-		_np_network_get_protocol_string(node_key->node->protocol),
-		node_key->node->dns_name,
-		node_key->node->port,
-		includeHash
-	);
+	return (
+			np_build_connection_string(
+					includeHash == TRUE ? _np_key_as_str(node_key) : NULL,
+					_np_network_get_protocol_string(node_key->node->protocol),
+					node_key->node->dns_name,
+					node_key->node->port,
+					includeHash)
+			);
 }
-char* _np_build_connection_string(char* hash, char* protocol, char*dns_name,char* port, np_bool includeHash) {
+
+char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char* port, np_bool includeHash) {
 	log_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
 	char* connection_str;
 

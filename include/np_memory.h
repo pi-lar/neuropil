@@ -359,7 +359,7 @@ NP_API_EXPORT
 void np_mem_unrefobj(np_obj_t* obj, const char* reason);
 
 // print the complete object list and statistics
-NP_API_INTERN
+NP_API_PROTEC
 char* np_mem_printpool(np_bool asOneLine, np_bool extended);
 
 #ifdef __cplusplus

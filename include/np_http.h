@@ -71,6 +71,7 @@ struct ht_response_s {
 
 typedef int (*_np_http_callback_func_t)(ht_request_t* request, ht_response_t* response, void* user_arg);
 
+NP_API_PROTEC
 np_bool _np_http_init(char* domain);
 
 NP_API_EXPORT

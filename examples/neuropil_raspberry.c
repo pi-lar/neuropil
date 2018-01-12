@@ -40,7 +40,7 @@
 #define LED_GPIO_YELLOW 18
 
 static np_bool is_gpio_enabled = FALSE;
-static np_mutex_t gpio_lock = { 0 };
+static pthread_mutex_t gpio_lock = PTHREAD_MUTEX_INITIALIZER;
 static double last_response_or_invokation = 0;
 
 const double ping_pong_intervall = 0.01;
@@ -54,13 +54,13 @@ void handle_ping_pong_receive(char * response, int first_low, int first_high, co
 
 	if (is_gpio_enabled == TRUE)
 	{
-		_LOCK_ACCESS(&gpio_lock) {
+		pthread_mutex_lock(&gpio_lock);
 			bcm2835_gpio_write(first_low, LOW);
 			bcm2835_gpio_write(first_high, HIGH);
 			np_time_sleep(ping_pong_intervall);
 			bcm2835_gpio_write(first_low, LOW);
 			bcm2835_gpio_write(first_high, LOW);
-		}
+		pthread_mutex_unlock(&gpio_lock);
 	}
 	else
 	{
@@ -84,8 +84,6 @@ np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tr
 
 int main(int argc, char **argv)
 {
-	_np_threads_mutex_init(&gpio_lock,"gpio_lock");
-
 	int no_threads = 8;
 	char *j_key = NULL;
 	char* proto = "udp4";
@@ -121,12 +119,10 @@ int main(int argc, char **argv)
 	np_log_init(log_file, level);	
 
 	np_state_t* state = np_init(proto, port, publish_domain);
-
-	port =  state->my_node_key->node->port;
+	port = state->my_node_key->node->port;
 
 	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
-
 
 	if(is_gpio_enabled == TRUE) {
 
@@ -181,8 +177,8 @@ int main(int argc, char **argv)
 	{
 
 		do {
-				fprintf(stdout, "try to join bootstrap node\n");
-				np_send_join(j_key);
+			fprintf(stdout, "try to join bootstrap node\n");
+			np_send_join(j_key);
 
 			int timeout = 100;
 			while (timeout > 0 && FALSE == state->my_node_key->node->joined_network) {
@@ -203,20 +199,20 @@ int main(int argc, char **argv)
 	}
 
 	np_msgproperty_t* ping_props = NULL;
-	np_new_obj(np_msgproperty_t, ping_props);
-	ping_props->msg_subject = strndup("ping", 255);
+	//register the listener function to receive data from the sender
+	np_add_receive_listener(receive_ping, "ping");
+	ping_props = np_msgproperty_get(INBOUND, "ping");
 	ping_props->ack_mode = ACK_NONE;
 	ping_props->msg_ttl = 5.0;
 	ping_props->retry = 1;
 	ping_props->max_threshold = 150;
 	ping_props->token_max_ttl = 60;
 	ping_props->token_min_ttl = 30;
-	np_msgproperty_register(ping_props);
-	//register the listener function to receive data from the sender
-	np_add_receive_listener(receive_ping, "ping");
 
 	np_msgproperty_t* pong_props = NULL;
-	np_new_obj(np_msgproperty_t, pong_props);
+	//register the listener function to receive data from the sender
+	np_add_receive_listener(receive_pong, "pong");
+	pong_props = np_msgproperty_get(INBOUND, "pong");
 	pong_props->msg_subject = strndup("pong", 255);
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 5.0;
@@ -224,9 +220,6 @@ int main(int argc, char **argv)
 	pong_props->max_threshold = 150;
 	pong_props->token_max_ttl = 60;
 	pong_props->token_min_ttl = 30;
-	np_msgproperty_register(pong_props);
-	//register the listener function to receive data from the sender
-	np_add_receive_listener(receive_pong, "pong");
 	
 	
 	np_statistics_add_watch("ping"); 

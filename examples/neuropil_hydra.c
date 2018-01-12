@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 		if(publish_domain == NULL)
 			publish_domain = strdup("localhost");
 		
-		bootstrap_hostnode_default = _np_build_connection_string("*", proto, publish_domain, port, TRUE);
+		bootstrap_hostnode_default = np_build_connection_string("*", proto, publish_domain, port, TRUE);
 
 		j_key = bootstrap_hostnode_default;
 

@@ -19,16 +19,14 @@
 #include "example_helper.c"
 
 /**
-first we have to define a global np_state_t variable
+first we have to define some global variables
 
  .. code-block:: c
  \code
 */
-np_state_t *state;
-/** \endcode */
-
 int seq = -1;
 int joinComplete = 0;
+/** \endcode */
 
 int main(int argc, char **argv)
 {
@@ -78,7 +76,7 @@ int main(int argc, char **argv)
 
 	\code
 	*/
-	state = np_init(proto, port, publish_domain);
+	np_init(proto, port, publish_domain);
 
 	/** \endcode */
 	// state->my_node_key->node->joined_network = 1;
