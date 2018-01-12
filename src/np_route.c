@@ -183,7 +183,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 						}
 					} 
 					
-					if (*deleted  != NULL && *deleted == *added) {
+					if (*deleted  != NULL && _np_key_cmp(*deleted , *added) == 0) {
 						// we added and deleted in one. so nothing changed
 						*deleted = NULL;
 						*added = NULL;
@@ -193,7 +193,6 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 		}
 	}
 
-	// TODO: handle it via add a new async update job instead ?
 	if (*deleted != NULL || *added != NULL)
 	{
 		_np_route_leafset_range_update();

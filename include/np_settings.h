@@ -15,7 +15,6 @@ extern "C" {
 	
 /*
 	Additional compile switches:
-	 - NP_MEMORY_CHECK_MEMORY			(disables the memory blocks function (free actions cannot be executed))
 	 - NP_MEMORY_CHECK_MEMORY_REFFING	(NP_THREADS_CHECK_THREADING should be disabled if this switch is enabled)
 	 - NP_THREADS_CHECK_THREADING		(NP_MEMORY_CHECK_MEMORY_REFFING should be disabled if this switch is enabled)
 	 - DEBUG_CALLBACKS					(Allows the job system to collect statistics for job callbacks)
@@ -24,8 +23,7 @@ extern "C" {
 */
 #ifdef DEBUG
 	#define DEBUG_CALLBACKS 1
-	//#define NP_MEMORY_CHECK_MEMORY_REFFING 1
-	//#define	NP_MEMORY_CHECK_MEMORY 1
+	#define NP_MEMORY_CHECK_MEMORY_REFFING 1
 	//#define NP_THREADS_CHECK_THREADING 1
 #endif // DEBUG
 
@@ -97,11 +95,9 @@ extern "C" {
 	#define MISC_KEYCACHE_CLEANUP_INTERVAL_SEC (3.1415)
 #endif
 
-	
 #ifndef MISC_MEMORY_REFRESH_INTERVAL_SEC
-#define MISC_MEMORY_REFRESH_INTERVAL_SEC (3.1415)
+	#define MISC_MEMORY_REFRESH_INTERVAL_SEC (3.1415)
 #endif
-
 #ifndef MISC_ACKENTRY_CLEANUP_INTERVAL_SEC
 #define MISC_ACKENTRY_CLEANUP_INTERVAL_SEC (3.1415)
 #endif
@@ -113,6 +109,9 @@ extern "C" {
 #endif
 #ifndef MISC_SEND_UPDATE_MSGS_SEC
 	#define MISC_SEND_UPDATE_MSGS_SEC (3.1415)
+#endif
+#ifndef MISC_MSGPROPERTY_MSG_UNIQUITY_CHECK_SEC
+	#define MISC_MSGPROPERTY_MSG_UNIQUITY_CHECK_SEC (1.0)
 #endif
 #ifndef MISC_RENEW_NODE_SEC
 	#define MISC_RENEW_NODE_SEC (3141.5)

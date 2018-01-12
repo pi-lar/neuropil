@@ -276,7 +276,7 @@ struct np_msgproperty_s
 	np_bool unique_uuids_check;
 	uint32_t unique_uuids_max;
 	np_mutex_t unique_uuids_lock;
-	np_sll_t(np_message_ptr, unique_uuids);
+	np_tree_t* unique_uuids;
 
 
 } NP_API_EXPORT;
@@ -342,8 +342,12 @@ enables or disables the functionality of the msg property to only receive unique
 */
 NP_API_EXPORT
 void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self);
-void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self, uint32_t remembered_uuids);
-
+NP_API_EXPORT
+void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self);
+NP_API_PROTEC
+void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args);
+NP_API_PROTEC
+np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check);
 
 static char _DEFAULT[]                       = "_NP.DEFAULT";
 

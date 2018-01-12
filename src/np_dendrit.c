@@ -279,25 +279,8 @@ void _np_in_received(np_jobargs_t* args)
 
 						if (NULL != msg_to_submit)
 						{
-							np_bool submit = TRUE;
-							_LOCK_ACCESS(&handler->unique_uuids_lock) {
-								if (handler->unique_uuids_check) {
-									if (sll_contains(char_ptr, handler->unique_uuids, msg_to_submit->uuid, strcmp) == FALSE) {
-										sll_prepend(char_ptr, handler->unique_uuids, strndup(msg_to_submit->uuid, UUID_SIZE))
-
-										if (sll_size(handler->unique_uuids) >= handler->unique_uuids_max) {
-											char* rm = sll_tail(char_ptr, handler->unique_uuids);
-											free(rm);
-										}
-									}
-									else {
-										submit = FALSE;
-									}
-
-								}
-							}
-
-							if (submit && (
+							if (_np_msgproperty_check_msg_uniquety(handler, msg_to_submit) 
+								&& (
 								TRUE == my_key->node->joined_network ||
 								0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN, strlen(_NP_MSG_JOIN))
 								)

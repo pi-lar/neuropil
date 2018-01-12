@@ -197,10 +197,6 @@ void* np_memory_new(uint8_t type) {
 	np_memory_container_t* container = np_memory_containers[type];
 	ASSERT(container != NULL, "Memory container %"PRIu8" needs to be initialized first.", type);
 
-#if defined(NP_MEMORY_CHECK_MEMORY) && NP_MEMORY_CHECK_MEMORY == 1
-	return _np_memory_new_raw(container);
-#endif
-
 	log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Searching for next free current_block for type %"PRIu8, type);
 
 	np_memory_itemconf_t* next_config = NULL;
@@ -309,9 +305,6 @@ void* np_memory_new(uint8_t type) {
 }
 
 void np_memory_free(void* item) {
-#if defined(NP_MEMORY_CHECK_MEMORY) && NP_MEMORY_CHECK_MEMORY == 1
-	return _np_memory_free_raw(item);
-#endif
 
 	if (item != NULL) {
 		np_memory_itemconf_t* config = GET_CONF(item);

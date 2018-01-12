@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "sodium.h"
 #include "msgpack/cmp.h"
@@ -233,22 +234,78 @@ void _np_msgproperty_t_new(void* property)
 	_np_threads_condition_init_shared(&prop->msg_received);
 
 
-	prop->unique_uuids_check = TRUE;
-	prop->unique_uuids_max = 20;
 	_np_threads_mutex_init(&prop->unique_uuids_lock, "unique_uuids_lock");
+	np_msgproperty_enable_check_for_unique_uuids(prop);
+	
 	sll_init(np_message_ptr, prop->unique_uuids);
 
 	np_sll_t(np_message_ptr, unique_uuids);
 }
 void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self) {
 	_LOCK_ACCESS(&self->unique_uuids_lock) {
+		np_tree_free(self->unique_uuids);
 		self->unique_uuids_check = FALSE;
 	}
 }
-void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self, uint32_t remembered_uuids) {
+void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self) {
 	_LOCK_ACCESS(&self->unique_uuids_lock){
+		self->unique_uuids = np_tree_create();
 		self->unique_uuids_check = TRUE;
-		self->unique_uuids_max = remembered_uuids;
+	}
+}
+
+np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self,  np_message_t* msg_to_check)
+{
+	np_bool ret = TRUE;
+	_LOCK_ACCESS(&self->unique_uuids_lock) {
+		if (self->unique_uuids_check) {
+			
+			if (np_tree_find_str(self->unique_uuids, msg_to_check->uuid) == NULL) {				
+				np_tree_insert_str(self->unique_uuids, msg_to_check->uuid, np_treeval_new_d(_np_message_get_expiery(msg_to_check)));					
+			}
+			else {
+				ret = FALSE;
+			}
+		}
+	}
+	return ret;
+}
+
+void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args) {
+	//TODO: iter over msgproeprties and remove expired msg uuid from unique_uuids
+
+	//RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
+	
+	np_msgproperty_t* iter_prop = NULL;
+	double now;
+	RB_FOREACH(iter_prop, rbt_msgproperty, __msgproperty_table)
+	{
+		_LOCK_ACCESS(&iter_prop->unique_uuids_lock) {
+			if (iter_prop->unique_uuids_check) {
+				
+				sll_init_full(char_ptr, to_remove);
+				np_tree_elem_t* iter_tree = NULL;
+				now = np_time_now();
+				RB_FOREACH(iter_tree, np_tree_s, iter_prop->unique_uuids)
+				{
+
+					if (iter_tree->val.value.d < now) {
+						sll_append(char_ptr, to_remove, iter_tree->key.value.s);
+					}
+				}
+					
+				sll_iterator(char_ptr) iter_to_rm = sll_first(to_remove);
+				if(iter_to_rm != NULL){
+					log_debug_msg(LOG_DEBUG | LOG_MSGPROPERTY ,"UNIQUITY removing %"PRIu32" from %"PRIu16" items from unique_uuids for %s", sll_size(to_remove), iter_prop->unique_uuids->size, iter_prop->msg_subject);
+				}
+				while (iter_to_rm != NULL)
+				{
+					np_tree_del_str(iter_prop->unique_uuids, iter_to_rm->val);
+					sll_next(iter_to_rm);
+				}
+				sll_free(char_ptr, to_remove);
+			}
+		}
 	}
 }
 
