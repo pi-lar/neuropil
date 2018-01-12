@@ -680,7 +680,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	np_tree_insert_str(msg_token->extensions, "max_threshold",
 			np_treeval_new_ui(msg_request->max_threshold));
 	np_tree_insert_str(msg_token->extensions, "msg_threshold",
-			np_treeval_new_ui( msg_request->msg_threshold ));
+			np_treeval_new_ui( msg_request->msg_threshold));
 
 	// TODO: insert value based on msg properties / respect (sticky) reply
 	np_tree_insert_str(msg_token->extensions, "target_node",
@@ -725,7 +725,7 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 // TODO: add a wrapper function which can be scheduled via jobargs
 np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
 {
-	msg_prop->msg_threshold++;
+	_np_msgproperty_threshold_increase(msg_prop);
 
 	// np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
 	np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, target);
@@ -767,7 +767,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		_np_job_submit_route_event(0.0, out_prop, receiver_key, msg);
 
 		// decrease threshold counters
-		msg_prop->msg_threshold--;
+		_np_msgproperty_threshold_decrease(msg_prop);
 
 		if (NULL != msg_prop->rep_subject &&
 			STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))

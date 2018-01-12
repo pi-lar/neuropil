@@ -209,7 +209,7 @@ void _np_msgproperty_t_new(void* property)
 	prop->msg_ttl	= 20.0;
 
 	prop->max_threshold = 10;
-	prop->msg_threshold =  0;
+	TSP_INITD(uint16_t, prop->msg_threshold, 0);
 
 	prop->is_internal = FALSE;
 	prop->last_update = np_time_now();
@@ -387,7 +387,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 		}
 
 		if(NULL != msg_out){
-			send_prop->msg_threshold--;
+			_np_msgproperty_threshold_decrease(send_prop);
 			sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop, NULL);
 			np_unref_obj(np_message_t, msg_out, ref_msgproperty_msgcache);
 
@@ -429,7 +429,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 		}
 
 		if(NULL != msg_in) {
-			recv_prop->msg_threshold--;
+			_np_msgproperty_threshold_decrease(recv_prop);
 			_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in, NULL);
 			np_unref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 		}
@@ -460,7 +460,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 				if (old_msg != NULL)
 				{
 					// TODO: add callback hook to allow user space handling of discarded message
-					msg_prop->msg_threshold--;
+					_np_msgproperty_threshold_decrease(msg_prop);
 					np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
 				}
 			}
@@ -493,7 +493,7 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop) {
 			if (_np_message_is_expired(old_msg)) {				
 				sll_delete(np_message_ptr, msg_prop->msg_cache_in, old_iter);
 				np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
-				msg_prop->msg_threshold--;				
+				_np_msgproperty_threshold_decrease(msg_prop);
 			}			
 		}
 	}
@@ -526,7 +526,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 				if (old_msg != NULL)
 				{
 					// TODO: add callback hook to allow user space handling of discarded message
-					msg_prop->msg_threshold--;
+					_np_msgproperty_threshold_decrease(msg_prop);
 					np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
 				}
 			}
@@ -544,5 +544,20 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 		log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "added message to the recv msgcache (%p / %d) ...",
 				msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
 		np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
+	}
+}
+
+void _np_msgproperty_threshold_increase(np_msgproperty_t* self) {
+	TSP_SCOPE(uint16_t, self->msg_threshold) {
+		if(self->msg_threshold < UINT16_MAX){
+			self->msg_threshold++;
+		}
+	}
+}
+void _np_msgproperty_threshold_decrease(np_msgproperty_t* self) {
+	TSP_SCOPE(uint16_t, self->msg_threshold){
+		if(self->msg_threshold > 0){
+			self->msg_threshold--;
+		}
 	}
 }

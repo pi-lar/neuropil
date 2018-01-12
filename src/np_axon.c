@@ -553,6 +553,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 			log_debug_msg(LOG_DEBUG| LOG_AAATOKEN, "--- done refresh for subject token: %25s new token has uuid %s", args->properties->msg_subject, msg_token_new->uuid);
 		}
 		
+		ASSERT(_np_aaatoken_is_valid(msg_token), "AAAToken needs to be valid")
 		// args->target == Key of subject
 
 		if (INBOUND == (args->properties->mode_type & INBOUND))

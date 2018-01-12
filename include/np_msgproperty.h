@@ -240,7 +240,8 @@ struct np_msgproperty_s
 	double           msg_ttl;
 	uint8_t          priority;
 	uint8_t          retry; // the # of retries when sending a message
-	uint16_t         msg_threshold; // current cache size
+	
+	TSP(uint16_t,    msg_threshold); // current cache size
 	uint16_t         max_threshold; // local cache size
 	np_bool is_internal;
 
@@ -402,6 +403,10 @@ NP_API_INTERN
 void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgproperty_t* msg_prop);
 NP_API_INTERN
 void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop);
+NP_API_INTERN
+void _np_msgproperty_threshold_increase(np_msgproperty_t* self);
+NP_API_INTERN
+void _np_msgproperty_threshold_decrease(np_msgproperty_t* self);
 #ifdef __cplusplus
 }
 #endif

@@ -457,7 +457,7 @@ void _np_in_signal_np_receive (np_jobargs_t* args)
 
 	np_msgproperty_t* real_prop = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
 
-	real_prop->msg_threshold++;
+	_np_msgproperty_threshold_increase(real_prop);
 	_np_msgproperty_add_msg_to_recv_cache(real_prop, msg_in);
 	_np_threads_condition_signal(&real_prop->msg_received);
 
@@ -504,7 +504,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 
 	char* subject = args->properties->msg_subject;
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
-	msg_prop->msg_threshold++;
+	_np_msgproperty_threshold_increase(msg_prop);
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
@@ -532,12 +532,12 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 			if (FALSE == decrypt_ok)
 			{
 				np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
-				msg_prop->msg_threshold--;
+				_np_msgproperty_threshold_decrease(msg_prop);
 			}
 			else
 			{
 				np_bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
-				msg_prop->msg_threshold--;
+				_np_msgproperty_threshold_decrease(msg_prop);
 
 				// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
 				// log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
@@ -1388,7 +1388,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	np_aaatoken_t* authentication_token = NULL;
 	np_message_t *msg_in = args->msg;
 
-	args->properties->msg_threshold++;
+	_np_msgproperty_threshold_increase(args->properties);
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
@@ -1458,7 +1458,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	np_unref_obj(np_aaatoken_t, authentication_token,ref_obj_creation);
 
 	// __np_return__:
-	args->properties->msg_threshold--;
+	_np_msgproperty_threshold_decrease(args->properties);
 	return;
 }
 
@@ -1568,7 +1568,7 @@ void _np_in_authorize(np_jobargs_t* args)
 
 	np_message_t *msg_in = args->msg;
 
-	args->properties->msg_threshold++;
+	_np_msgproperty_threshold_increase(args->properties);
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
@@ -1638,7 +1638,7 @@ void _np_in_authorize(np_jobargs_t* args)
 	np_unref_obj(np_aaatoken_t, authorization_token, ref_obj_creation);
 
 	// __np_return__:
-	args->properties->msg_threshold--;
+	_np_msgproperty_threshold_decrease(args->properties);
 	return;
 }
 
@@ -1741,7 +1741,7 @@ void _np_in_account(np_jobargs_t* args)
 	np_aaatoken_t* sender_token = NULL;
 	np_aaatoken_t* accounting_token = NULL;
 
-	args->properties->msg_threshold++;
+	_np_msgproperty_threshold_increase(args->properties);
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
@@ -1769,7 +1769,7 @@ void _np_in_account(np_jobargs_t* args)
 	np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
 
 	// __np_return__:
-	args->properties->msg_threshold--;
+	_np_msgproperty_threshold_decrease(args->properties);
 	return;
 }
 
