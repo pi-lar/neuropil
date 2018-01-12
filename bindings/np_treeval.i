@@ -12,7 +12,7 @@
 %rename(np_treeval) np_treeval_t;
 %rename(np_treeval) np_treeval_s;
 
-%extend np_val_u {
+%extend val_type {
     %immutable v;
     %immutable bin;
     %immutable tree;
@@ -57,11 +57,13 @@
         *treeval = np_treeval_new_l(val);
         return treeval;
     }
+#ifdef x64
     np_treeval_s(int64_t val) {
         np_treeval_t* treeval = malloc(sizeof (np_treeval_t) );
         *treeval = np_treeval_new_ll(val);
         return treeval;
     }
+#endif
     np_treeval_s(uint8_t val) {
         np_treeval_t* treeval = malloc(sizeof (np_treeval_t) );
         *treeval = np_treeval_new_ush(val);
@@ -77,11 +79,13 @@
         *treeval = np_treeval_new_ul(val);
         return treeval;
     }
+#ifdef x64
     np_treeval_s(uint64_t val) {
         np_treeval_t* treeval = malloc(sizeof (np_treeval_t) );
         *treeval = np_treeval_new_ull(val);
         return treeval;
     }
+#endif
     np_treeval_s(char* val) {
         np_treeval_t* treeval = malloc(sizeof (np_treeval_t) );
         *treeval = np_treeval_new_s(val);

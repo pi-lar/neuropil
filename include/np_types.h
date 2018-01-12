@@ -40,17 +40,26 @@ typedef enum
 
 #define NP_UNUSED     __attribute__ ((unused))
 
-#define NP_API_EXPORT __attribute__ ((visibility ("default")))
-
-//#ifndef TEST_COMPILE
-//  #define NP_API_HIDDEN __attribute__ ((visibility ("hidden")))
-//  #define NP_API_PROTEC __attribute__ ((visibility ("protected")))
-//  #define NP_API_INTERN __attribute__ ((visibility ("internal")))
-//#else
+#ifdef TEST_COMPILE
   #define NP_API_HIDDEN __attribute__ ((visibility ("default")))
   #define NP_API_PROTEC __attribute__ ((visibility ("default")))
   #define NP_API_INTERN __attribute__ ((visibility ("default")))
-// #endif
+#else
+  #ifndef NP_API_PROTEC
+    #define NP_API_PROTEC __attribute__ ((visibility ("protected")))
+  #endif
+  #ifndef NP_API_HIDDEN
+    #define NP_API_HIDDEN __attribute__ ((visibility ("hidden")))
+  #endif
+  #ifndef NP_API_INTERN
+	// #define NP_API_INTERN __attribute__ ((visibility ("internal")))
+    #define NP_API_INTERN __attribute__ ((visibility ("default")))
+  #endif
+#endif
+
+#ifndef NP_API_EXPORT
+  #define NP_API_PROTEC __attribute__ ((visibility ("default")))
+#endif
 
 
 /* np_obj_t

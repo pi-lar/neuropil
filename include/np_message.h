@@ -47,8 +47,9 @@ struct np_message_s
 
 } NP_API_INTERN;
 
-
+#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
+#endif
 
 /** message_create / free:
  ** creates the message to the destination #dest# the message format would be like:

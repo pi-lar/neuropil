@@ -360,7 +360,7 @@ int _np_threads_mutex_lock(np_mutex_t* mutex, const char* where) {
 
 	while(ret != 0) {		
 
-#ifdef DEBUG
+#ifdef DEBUG && not defined(__APPLE__)
 		ret = _np_threads_mutex_timedlock(mutex, min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
 
 		diff = np_time_now() - start;

@@ -275,7 +275,9 @@ struct np_msgproperty_s
 
 } NP_API_EXPORT;
 
+#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
+#endif
 
 // create setter methods
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mode_type, np_msg_mode_type);

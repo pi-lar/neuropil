@@ -167,8 +167,9 @@ struct np_aaatoken_s
 	np_bool is_core_token;
 } NP_API_EXPORT;
 
+#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
-
+#endif
 
 // serialization of the np_aaatoken_t structure
 NP_API_INTERN

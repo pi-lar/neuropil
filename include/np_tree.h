@@ -81,6 +81,7 @@ struct np_tree_s
 	np_tree_conf_t attr;
 } NP_API_EXPORT;
 
+#ifndef SWIG
 typedef struct np_tree_elem_s np_tree_elem_t;
 struct np_tree_elem_s
 {
@@ -89,6 +90,7 @@ struct np_tree_elem_s
 	np_treeval_t key;
     np_treeval_t val;
 } NP_API_INTERN;
+#endif
 
 NP_API_INTERN
 int16_t _np_tree_elem_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2);

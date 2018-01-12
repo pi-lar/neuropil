@@ -336,7 +336,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 							break;
 						}
 						else {
-											unsigned char* enc_buffer = np_memory_new(np_memory_types_BLOB_1024);//malloc (MSG_CHUNK_SIZE_1024);
+							unsigned char* enc_buffer = np_memory_new(np_memory_types_BLOB_1024); //malloc (MSG_CHUNK_SIZE_1024);
 							
 							uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
 							memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
@@ -353,7 +353,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 									_np_network_start(node_key->network);
 								}
 								else {
-													np_memory_free(enc_buffer);
+									np_memory_free(enc_buffer);
 								}
 							}
 
@@ -389,7 +389,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 				)
 			{
 				if (NULL != key->node) {
-					log_debug_msg(LOG_INFO, "sending message (%d bytes) to %s:%s",
+					log_debug_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
 							MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
 				}
 
@@ -417,8 +417,8 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 				}
 			} else {
 				// only stops the network if outgoing queue size is zero - leads to loosing out events :-(
-				// TODO: place it somewhere else
-				// _np_network_stop(key_network, FALSE);
+				// TODO: place it somewhere else ?
+				_np_network_stop(key_network, FALSE);
 			}
 		}
 	}
