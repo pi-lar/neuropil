@@ -271,16 +271,16 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 	}
 	return ret;
 }
-
-np_bool _np_message_is_expired(const np_message_t* const msg_to_check)
-{
-	np_bool ret = FALSE;
+double _np_message_get_expiery(const np_message_t* const self) {
 	double now = np_time_now();
-	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TTL, msg_ttl);
-	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+	double ret = now;
 
-	double tstamp = msg_tstamp.value.d ;
-	if(tstamp > now) {
+	CHECK_STR_FIELD(self->instructions, _NP_MSG_INST_TTL, msg_ttl);
+	CHECK_STR_FIELD(self->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+
+	double tstamp = msg_tstamp.value.d;
+
+	if (tstamp > now) {
 		// timestap of msg is in the future.
 		// this is not possible and may indecate
 		// a faulty date/time setup on the client
@@ -288,10 +288,26 @@ np_bool _np_message_is_expired(const np_message_t* const msg_to_check)
 		msg_tstamp.value.d = tstamp = now;
 	}
 
-	double remaining_ttl = (tstamp + msg_ttl.value.d) - now;
+	ret = (tstamp + msg_ttl.value.d);	
+
+__np_cleanup__:
+
+	return ret;
+}
+np_bool _np_message_is_expired(const np_message_t* const self)
+{
+	np_bool ret = FALSE;
+	double now = np_time_now();
+
+#ifdef DEBUG
+	CHECK_STR_FIELD(self->instructions, _NP_MSG_INST_TTL, msg_ttl);
+	CHECK_STR_FIELD(self->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+	double tstamp = msg_tstamp.value.d;
+#endif
+	double remaining_ttl = _np_message_get_expiery(self) - now;
 	ret = remaining_ttl <= 0;
 
-	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f",msg_to_check->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
+	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f", self->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
 
 	__np_cleanup__:
 

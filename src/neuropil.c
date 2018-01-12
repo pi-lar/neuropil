@@ -659,7 +659,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		log_debug_msg(LOG_DEBUG, "decryption of message failed, deleting message");
 		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 		msg_prop->max_threshold--;
-		msg_prop->msg_threshold--;
+		_np_msgproperty_threshold_decrease(msg_prop);
 
 		np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
 		np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
@@ -687,7 +687,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	}
 
 	// decrease threshold counter
-	msg_prop->msg_threshold--;
+	_np_msgproperty_threshold_decrease(msg_prop);
 	msg_prop->max_threshold--;
 
 	np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
@@ -776,7 +776,7 @@ uint32_t np_receive_text (char* subject, char **data)
 	*data = strndup( np_treeval_to_str(reply_data->val, NULL), strlen( np_treeval_to_str(reply_data->val, NULL)));
 
 	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
-	msg_prop->msg_threshold--;
+	_np_msgproperty_threshold_decrease(msg_prop);
 	msg_prop->max_threshold--;
 
 	np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);

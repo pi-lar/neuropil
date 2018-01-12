@@ -235,7 +235,7 @@ void _np_out(np_jobargs_t* args)
 			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
 			if (TRUE == ack_to_is_me && FALSE == is_resend)
 			{
-				_LOCK_ACCESS(&my_network->send_data_lock)
+				_LOCK_ACCESS(&my_network->access_lock)
 				{
 					/* get/set sequence number to keep increasing sequence numbers per node */
 					seq = my_network->seqend;
@@ -507,7 +507,7 @@ void _np_out_handshake(np_jobargs_t* args)
 					memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 				}
 
-				_LOCK_ACCESS(&args->target->network->send_data_lock)
+				_LOCK_ACCESS(&args->target->network->out_events_lock)
 				{
 					if (NULL != args->target->network->out_events) {						
 						sll_append(
@@ -553,6 +553,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 			log_debug_msg(LOG_DEBUG| LOG_AAATOKEN, "--- done refresh for subject token: %25s new token has uuid %s", args->properties->msg_subject, msg_token_new->uuid);
 		}
 		
+		ASSERT(_np_aaatoken_is_valid(msg_token), "AAAToken needs to be valid")
 		// args->target == Key of subject
 
 		if (INBOUND == (args->properties->mode_type & INBOUND))

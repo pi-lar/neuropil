@@ -217,21 +217,10 @@ void _np_in_received(np_jobargs_t* args)
 
 					target_key = _np_keycache_find_or_create(target_dhkey);
 						log_debug_msg(LOG_ROUTING | LOG_DEBUG, "target of msg is %s", _np_key_as_str(target_key));
-
-					np_bool is_ack_msg = (0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_ACK, strlen(_NP_MSG_ACK)) );
-
+					
 					// check if inbound subject handler exists
 					np_msgproperty_t* handler = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
-
-					if (_np_key_cmp(target_key, my_key) == 0 && is_ack_msg) {
-						// we shortcut the process here
-						// handle the actual ack
-						__np_in_ack_handle(msg_in);
-						// call the receive callbacks (statistics etc)
-						_np_in_invoke_user_receive_callbacks(msg_in, handler);						
-						goto __np_cleanup__;
-					}					
-
+				
 					// redirect message if
 					// msg is not for my dhkey
 					// no handler is present
@@ -279,8 +268,12 @@ void _np_in_received(np_jobargs_t* args)
 
 						if (NULL != msg_to_submit)
 						{
-							if (TRUE == my_key->node->joined_network ||
-								0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)))
+							if (_np_msgproperty_check_msg_uniquety(handler, msg_to_submit) 
+								&& (
+								TRUE == my_key->node->joined_network ||
+								0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN, strlen(_NP_MSG_JOIN))
+								)
+							)
 							{
 								log_msg(LOG_INFO,
 									"handling message for subject: %s / uuid: %s",
@@ -453,7 +446,7 @@ void _np_in_signal_np_receive (np_jobargs_t* args)
 
 	np_msgproperty_t* real_prop = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
 
-	real_prop->msg_threshold++;
+	_np_msgproperty_threshold_increase(real_prop);
 	_np_msgproperty_add_msg_to_recv_cache(real_prop, msg_in);
 	_np_threads_condition_signal(&real_prop->msg_received);
 
@@ -500,7 +493,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 
 	char* subject = args->properties->msg_subject;
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
-	msg_prop->msg_threshold++;
+	_np_msgproperty_threshold_increase(msg_prop);
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
@@ -528,12 +521,12 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 			if (FALSE == decrypt_ok)
 			{
 				np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
-				msg_prop->msg_threshold--;
+				_np_msgproperty_threshold_decrease(msg_prop);
 			}
 			else
 			{
 				np_bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
-				msg_prop->msg_threshold--;
+				_np_msgproperty_threshold_decrease(msg_prop);
 
 				// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
 				// log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
@@ -1384,7 +1377,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	np_aaatoken_t* authentication_token = NULL;
 	np_message_t *msg_in = args->msg;
 
-	args->properties->msg_threshold++;
+	_np_msgproperty_threshold_increase(args->properties);
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
@@ -1454,7 +1447,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	np_unref_obj(np_aaatoken_t, authentication_token,ref_obj_creation);
 
 	// __np_return__:
-	args->properties->msg_threshold--;
+	_np_msgproperty_threshold_decrease(args->properties);
 	return;
 }
 
@@ -1564,7 +1557,7 @@ void _np_in_authorize(np_jobargs_t* args)
 
 	np_message_t *msg_in = args->msg;
 
-	args->properties->msg_threshold++;
+	_np_msgproperty_threshold_increase(args->properties);
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
@@ -1634,7 +1627,7 @@ void _np_in_authorize(np_jobargs_t* args)
 	np_unref_obj(np_aaatoken_t, authorization_token, ref_obj_creation);
 
 	// __np_return__:
-	args->properties->msg_threshold--;
+	_np_msgproperty_threshold_decrease(args->properties);
 	return;
 }
 
@@ -1737,7 +1730,7 @@ void _np_in_account(np_jobargs_t* args)
 	np_aaatoken_t* sender_token = NULL;
 	np_aaatoken_t* accounting_token = NULL;
 
-	args->properties->msg_threshold++;
+	_np_msgproperty_threshold_increase(args->properties);
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
@@ -1765,7 +1758,7 @@ void _np_in_account(np_jobargs_t* args)
 	np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
 
 	// __np_return__:
-	args->properties->msg_threshold--;
+	_np_msgproperty_threshold_decrease(args->properties);
 	return;
 }
 
@@ -1902,7 +1895,7 @@ void _np_in_handshake(np_jobargs_t* args)
 					np_network_t* old_network = hs_wildcard_key->network;
 					np_ref_obj(np_network_t, old_network, "usage_of_old_network");
 
-					_LOCK_ACCESS(&old_network->send_data_lock)
+					_LOCK_ACCESS(&old_network->access_lock)
 					{
 						// _np_network_stop(old_network);
 						// Updating handshake key with already existing network

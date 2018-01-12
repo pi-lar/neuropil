@@ -53,15 +53,15 @@ env.Append(LDFLAGS = ['-std=c99'])
 
 # add release compilation options
 release_flags = ['-O3','-DRELEASE']
-if int(release):
+if int(release) >= 1:
     env.Append(CCFLAGS = release_flags)
 
 # add debug compilation options
 debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O0']
-if int(debug):
-    env.Append(CCFLAGS = debug_flags)
-if int(debug) <= 1:
-	env.Append(CCFLAGS = ['-DDEBUG'])
+if int(debug) >= 1:
+	env.Append(CCFLAGS = debug_flags)
+	if int(debug) <= 1:
+		env.Append(CCFLAGS = ['-DDEBUG'])
 
 if int(console_log):
     env.Append(CCFLAGS = ['-DCONSOLE_LOG'])
@@ -236,3 +236,14 @@ else:
 # clean up
 Clean('.', 'build')
 Clean('.', 'bin')
+print "build with:"
+
+print "analyze       =  %r" % analyze       
+print "build_tests   =  %r" % build_tests   
+print "build_doc     =  %r" % build_doc     
+print "debug         =  %r" % debug         
+print "release       =  %r" % release       
+print "console_log   =  %r" % console_log   
+print "strict        =  %r" % strict        
+print "build_program =  %r" % build_program 
+print "build_x64     =  %r" % build_x64     

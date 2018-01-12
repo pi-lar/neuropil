@@ -194,7 +194,9 @@ void _np_job_queue_insert(np_job_t* new_job)
 					}
 					else {				
 						overflow_count--;
-						log_debug_msg(LOG_ERROR, "Discarding job: %s", iter->val->ident);
+#ifdef DEBUG
+						log_msg(LOG_ERROR, "Discarding job: %s", iter->val->ident);
+#endif
 						_np_job_free(iter->val);
 						pll_remove(np_job_ptr, __np_job_queue->job_list, iter->val, np_job_ptr_pll_compare_type);
 						break;
