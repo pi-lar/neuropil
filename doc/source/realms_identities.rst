@@ -17,8 +17,7 @@ extended with a set of arbitrary, user-defined fields.
 
 A token can be unambiguously referred to by its *token hash*, which is derived
 from all of its contents. Referencing the hash of another token in one of its
-field values creates an unambiguous directed edge from one token node to
-another.
+field values creates an unambiguous directed edge from one token to another.
 
 XXX - embed diagram token.svg
 
@@ -30,17 +29,17 @@ Identity
 ********
 
 An *identity* is a globally unique entity which is denoted by a public key, to
-which the identity holds the paired private key. It is represented as a
-:ref:`token`, and as such can be tied to meta-data such as references to issuer
-identity and :ref:`realm` as well as restrictions on the duration of validity.
+which the identity holds the paired private key. In transit, an identity is
+represented as a :ref:`token`, and as such can be tied to meta-data such as
+references to issuer identity and :ref:`realm` as well as restrictions on the
+duration of validity. These tokens are called *identity tokens*.
 
-Signing the token hash of an identity and the token hash of the signing
-identity with the private key of a the signing identity creates a
-cryptographically verifiable, directed edge and establishes a trust dependency.
-Via this mechanism, arbitrary (non-)hierarchies of trust can be implemented.
-Effectively, any identity can have arbitrary quantities of super- and
-sub-identities. Consequently, an identity can *own* (i.e. be the
-super-identity) of any number of :ref:`node` identities.
+Signing the token hash of an identity token creates a cryptographically
+verifiable link from an identity to another (or itself, i.e. self-signing), and
+establishes a trust dependency. Via this mechanism, arbitrary (non-)hierarchies
+of trust can be implemented. Effectively, any identity can have arbitrary
+quantities of super- and sub-identities. Consequently, an identity can *own*
+(i.e. be the super-identity) of any number of :ref:`node` identities.
 
 Realm
 *****
