@@ -561,6 +561,7 @@ void _np_in_leave_req(np_jobargs_t* args)
 	{
 		leave_req_key = _np_key_create_from_token(node_token);
 	}
+
 	if(_np_key_cmp(_np_state()->my_node_key,leave_req_key ) != 0
 	&& _np_key_cmp(_np_state()->my_identity,leave_req_key ) != 0
 	){

@@ -439,14 +439,16 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "not acknowledged (TIMEOUT at %f)", ackentry->expires_at);
 					_np_node_update_stat(ackentry->dest_key->node, FALSE);
 
-					if (ackentry->msg != NULL && sll_size(ackentry->msg->on_timeout) > 0) {
-
-						sll_iterator(np_ackentry_on_t) iter_on = sll_first(ackentry->msg->on_timeout);
-						while (iter_on != NULL)
-						{
-							//TODO: call async
-							iter_on->val(ackentry);
-							sll_next(iter_on);
+					if (ackentry->msg != NULL ){
+						TSP_SET(np_bool, ackentry->msg->is_in_timeout, TRUE);
+						if (sll_size(ackentry->msg->on_timeout) > 0) {
+							sll_iterator(np_ackentry_on_t) iter_on = sll_first(ackentry->msg->on_timeout);
+							while (iter_on != NULL)
+							{
+								//TODO: call async
+								iter_on->val(ackentry);
+								sll_next(iter_on);
+							}
 						}
 					}
 					log_msg(LOG_WARN, "ACK_HANDLING (table size: %3d) message (%s) not acknowledged (IN TIME %f/%f)",

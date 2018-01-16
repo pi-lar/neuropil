@@ -30,13 +30,13 @@
 
 #include "np_scache.h"
 
-static const char* _NP_SYSINFO_MY_NODE = "node";
-static const char* _NP_SYSINFO_MY_NODE_TIMESTAMP = "timestamp";
-static const char* _NP_SYSINFO_MY_NEIGHBOURS = "neighbour_nodes";
-static const char* _NP_SYSINFO_MY_ROUTES = "routing_nodes";
+#define  _NP_SYSINFO_MY_NODE "node"
+#define  _NP_SYSINFO_MY_NODE_TIMESTAMP "timestamp"
+#define  _NP_SYSINFO_MY_NEIGHBOURS "neighbour_nodes"
+#define  _NP_SYSINFO_MY_ROUTES "routing_nodes"
 
-static const char* _NP_SYSINFO_SOURCE = "source_hash";
-static const char* _NP_SYSINFO_TARGET = "target_hash";
+#define  _NP_SYSINFO_SOURCE  "source_hash"
+#define  _NP_SYSINFO_TARGET  "target_hash"
 
 
 static np_simple_cache_table_t* _cache = NULL;
@@ -312,7 +312,7 @@ np_tree_t* np_sysinfo_get_my_info() {
 	np_sll_t(np_key_ptr, neighbours_table) = _np_route_neighbors();
 
 	np_tree_t* neighbours = np_tree_create();
-	int neighbour_counter = 0;
+	uint32_t neighbour_counter = 0;
 	if (NULL != neighbours_table && 0 < neighbours_table->size) {
 		np_key_t* current;
 		while (NULL != sll_first(neighbours_table)) {
@@ -328,9 +328,10 @@ np_tree_t* np_sysinfo_get_my_info() {
 			}
 		}
 	}
-	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %d neighbours",
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %"PRIu32" neighbours",
 			neighbour_counter);
 
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS"_count", np_treeval_new_ul(neighbour_counter));
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, np_treeval_new_tree(neighbours));
 	sll_free(np_key_ptr, neighbours_table);
 	np_tree_free(neighbours);
@@ -339,7 +340,7 @@ np_tree_t* np_sysinfo_get_my_info() {
 	np_sll_t(np_key_ptr, routing_table) = _np_route_get_table();
 
 	np_tree_t* routes = np_tree_create();
-	int routes_counter = 0;
+	uint32_t routes_counter = 0;
 	if (NULL != routing_table && 0 < routing_table->size) {
 		np_key_t* current;
 		while (NULL != sll_first(routing_table)) {
@@ -347,7 +348,11 @@ np_tree_t* np_sysinfo_get_my_info() {
 			if (current->node) {
 				np_tree_t* route = np_tree_create();
 				_np_node_encode_to_jrb(route, current, TRUE);
-				np_tree_replace_str(route, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_s(_np_network_get_protocol_string(current->node->protocol)));
+				np_tree_replace_str(
+					route, 
+					NP_SERIALISATION_NODE_PROTOCOL,
+					np_treeval_new_s(_np_network_get_protocol_string(current->node->protocol))
+				);
 				np_tree_insert_int(routes, routes_counter++, 
 					np_treeval_new_tree(route));
 				np_tree_free(route);
@@ -355,10 +360,11 @@ np_tree_t* np_sysinfo_get_my_info() {
 			}
 		}
 	}
-	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %d routing table entries",
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %"PRIu32" routing table entries",
 			routes_counter);
 
-	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES"_count", np_treeval_new_ul(routes_counter));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));	
 	sll_free(np_key_ptr, routing_table);
 	np_tree_free(routes);
 

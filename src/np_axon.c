@@ -215,13 +215,7 @@ void _np_out(np_jobargs_t* args)
 
 			char* ack_to_str = _np_key_as_str(my_key);
 
-			if (ACK_EACHHOP == (ack_mode & ACK_EACHHOP))
-			{
-				// we have to reset the existing ack_to field in case of forwarding and each-hop acknowledge
-				np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
-				ack_to_is_me = TRUE;
-			}
-			else if (ACK_DESTINATION == (ack_mode & ACK_DESTINATION) || ACK_CLIENT == (ack_mode & ACK_CLIENT))
+			if (ACK_DESTINATION == (ack_mode & ACK_DESTINATION) || ACK_CLIENT == (ack_mode & ACK_CLIENT))
 			{
 				// only set ack_to for these two ack mode values if not yet set !
 				np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
@@ -284,11 +278,9 @@ void _np_out(np_jobargs_t* args)
 					ackentry->dest_key = args->target;
 					np_ref_obj(np_key_t, ackentry->dest_key, ref_ack_key);
 
-					if (sll_size(args->msg->on_ack) > 0 ||
-						sll_size(args->msg->on_timeout) > 0) {
-						ackentry->msg = args->msg;
-						np_ref_obj(np_message_t, ackentry->msg, ref_ack_msg);
-					}
+					ackentry->msg = args->msg;
+					np_ref_obj(np_message_t, ackentry->msg, ref_ack_msg);
+					
 					// ackentry->expected_ack = 1; // msg_out->no_of_chunks ?
 					log_debug_msg(LOG_DEBUG, "initial sending of message (%s/%s) with acknowledge",
 											 args->properties->msg_subject, args->msg->uuid);

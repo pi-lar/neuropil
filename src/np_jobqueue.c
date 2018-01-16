@@ -493,7 +493,14 @@ void* __np_jobqueue_run(void* np_thread_ptr)
 		}
 #endif
         // do not process if the target is not available anymore (but do process if no target is required at all)
-        if (job_to_execute->args == NULL || job_to_execute->args->target == NULL || job_to_execute->args->target->in_destroy == FALSE) {
+		
+		np_bool exec_funcs = TRUE;
+		if (job_to_execute->args != NULL && job_to_execute->args->target != NULL) {
+			TSP_GET(np_bool, job_to_execute->args->target->in_destroy, in_destroy);
+			exec_funcs &= (in_destroy == FALSE);
+		}
+
+        if (exec_funcs) {
             
 #ifdef DEBUG_CALLBACKS			
             if (job_to_execute->ident[0] == 0) {

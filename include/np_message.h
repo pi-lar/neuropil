@@ -37,7 +37,9 @@ struct np_message_s
 
 	np_msgproperty_ptr msg_property;
 
+	TSP(np_bool, is_acked);
 	np_sll_t(np_ackentry_on_t, on_ack);
+	TSP(np_bool, is_in_timeout);
 	np_sll_t(np_ackentry_on_t, on_timeout);
 
 	void* bin_properties;

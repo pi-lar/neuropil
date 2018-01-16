@@ -701,16 +701,23 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			if (NULL == alias_key) {
 				alias_key = _np_keycache_create(search_key);
 				alias_key_ref_reason = "_np_keycache_create";
-				alias_key->parent = key;
 				np_ref_obj(np_key_t, key, ref_key_parent);
+				alias_key->parent = key;				
 			}
-
-			log_debug_msg(LOG_NETWORK |LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
-				ipstr, port, in_msg_len, _np_key_as_str(alias_key));
+			TSP_GET(np_bool, alias_key->in_destroy, in_destroy);
+			if(in_destroy == FALSE ) {
+				log_debug_msg(LOG_NETWORK |LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
+					ipstr, port, in_msg_len, _np_key_as_str(alias_key));
 		
-			_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL, data);
-			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
-				_np_key_as_str(key));
+				_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL, data);
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
+					_np_key_as_str(key));
+			}
+			else {
+				np_memory_free(data);
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (size: %hd), but alias is in destroy %s",
+					ipstr, port, in_msg_len, _np_key_as_str(alias_key));
+			}
 
 			np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
 		}
@@ -813,31 +820,34 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 void _np_network_start(np_network_t* network){
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
 	if (NULL != network) {
-		_LOCK_ACCESS(&network->out_events_lock) {
-			_LOCK_ACCESS(&network->access_lock) {
-				if (network->is_running == FALSE &&
-					((network->type & np_network_type_server) == np_network_type_server ||
-						sll_size(network->out_events) > 0
-						)
-					) {
-					log_msg(LOG_NETWORK | LOG_INFO, "starting network %p", network);
+		TSP_GET(np_bool, network->can_be_enabled, can_be_enabled);
+		if(can_be_enabled){
+			_LOCK_ACCESS(&network->out_events_lock) {
+				_LOCK_ACCESS(&network->access_lock) {
+					if (network->is_running == FALSE &&
+						((network->type & np_network_type_server) == np_network_type_server ||
+							sll_size(network->out_events) > 0
+							)
+						) {
+						log_msg(LOG_NETWORK | LOG_INFO, "starting network %p", network);
 
-					EV_P;
-					if ((network->type & np_network_type_client) == np_network_type_client) {
-						_np_suspend_event_loop_out();
-						loop = _np_event_get_loop_out();
-						ev_io_start(EV_A_ &network->watcher);
-						_np_resume_event_loop_out();
+						EV_P;
+						if ((network->type & np_network_type_client) == np_network_type_client) {
+							_np_suspend_event_loop_out();
+							loop = _np_event_get_loop_out();
+							ev_io_start(EV_A_ &network->watcher);
+							_np_resume_event_loop_out();
+						}
+
+						if ((network->type & np_network_type_server) == np_network_type_server) {
+							_np_suspend_event_loop_in();
+							loop = _np_event_get_loop_in();
+							ev_io_start(EV_A_ &network->watcher);
+							_np_resume_event_loop_in();
+						}
+
+						network->is_running = TRUE;
 					}
-
-					if ((network->type & np_network_type_server) == np_network_type_server) {
-						_np_suspend_event_loop_in();
-						loop = _np_event_get_loop_in();
-						ev_io_start(EV_A_ &network->watcher);
-						_np_resume_event_loop_in();
-					}
-
-					network->is_running = TRUE;
 				}
 			}
 		}
@@ -912,6 +922,8 @@ void _np_network_t_new(void* nw)
 	_np_threads_mutex_init(&ng->access_lock, "network access_lock");
 	_np_threads_mutex_init(&ng->out_events_lock, "network out_events_lock");
 	_np_threads_mutex_init (&ng->waiting_lock, "network waiting_lock");
+
+	TSP_INITD(np_bool, ng->can_be_enabled, TRUE);
 }
 
 /** _np_network_init:
@@ -1146,4 +1158,9 @@ char* np_network_get_port(np_key_t * container) {
 	}
 
 	return ret;
+}
+
+void _np_network_disable(np_network_t* self) {
+	TSP_SET(np_bool, self->can_be_enabled, FALSE);
+	_np_network_stop(self, TRUE);
 }

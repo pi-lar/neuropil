@@ -19,6 +19,7 @@
 #include "np_tree.h"
 #include "np_types.h"
 #include "np_treeval.h"
+#include "np_threads.h"
 #include "np_keycache.h"
 #include "np_aaatoken.h"
 #include "np_network.h"
@@ -97,11 +98,11 @@ void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
 void _np_key_destroy(np_key_t* to_destroy) {
 	log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_destroy(np_key_t* to_destroy) {");
 
-	np_tryref_obj(np_key_t, to_destroy, to_destroyExists,"np_tryref_key");
+	np_tryref_obj(np_key_t, to_destroy, to_destroyExists, __func__);
 	if(to_destroyExists) {
-		to_destroy->in_destroy = TRUE;
-
-		_LOCK_ACCESS(to_destroy->obj->lock) {
+		TSP_SCOPE(np_bool, to_destroy->in_destroy)
+		{
+			to_destroy->in_destroy = TRUE;
 
 			char* keyident = _np_key_as_str(to_destroy);
 			log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
@@ -113,7 +114,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
 			_np_route_leafset_update(to_destroy,FALSE,&deleted,&added);
 			_np_route_update(to_destroy,FALSE,&deleted,&added);
-			_np_network_stop(to_destroy->network, TRUE);
+			_np_network_disable(to_destroy->network);
 
 			_np_keycache_remove(to_destroy->dhkey);
 
@@ -169,7 +170,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 			to_destroy->parent = NULL;
 		}
 
-		np_unref_obj(np_key_t, to_destroy,"np_tryref_key");
+		np_unref_obj(np_key_t, to_destroy, __func__);
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
 	} else {
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "no key provided for cleanup");
@@ -182,7 +183,8 @@ void _np_key_t_new(void* key)
 	log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
 	np_key_t* new_key = (np_key_t*) key;
 
-	new_key->in_destroy = FALSE;
+	TSP_INITD(np_bool, new_key->in_destroy, FALSE);
+ 
 	new_key->last_update = np_time_now();
 
 	new_key->dhkey_str = NULL;
