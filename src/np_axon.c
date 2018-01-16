@@ -478,8 +478,7 @@ void _np_out_handshake(np_jobargs_t* args)
 							//args->target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
 							_np_threads_unlock_module(np_handshake_t_lock);
 							return;
-						}
-
+						}						
 						np_ref_obj(np_key_t, args->target, ref_network_watcher);
 						args->target->network->watcher.data = args->target;
 					}

@@ -16,6 +16,7 @@
 
 #include <curses.h>
 #include <ncurses.h>
+#include "sodium.h"
 
 #include "neuropil.h"
 #include "np_types.h"
@@ -23,7 +24,9 @@
 #include "np_threads.h"
 #include "np_http.h"
 #include "np_util.h"
+#include "np_key.h"
 #include "np_list.h"
+#include "np_identity.h"
 #include "np_sysinfo.h"
 #include "np_log.h"
 #include "np_messagepart.h"
@@ -145,6 +148,160 @@ void np_print_startup() {
 	free(ret);
 }
 
+enum np_example_load_identity_status {
+	np_example_load_identity_status_success = 1,
+	np_example_load_identity_status_not_found = 0,
+	np_example_load_identity_status_found_but_failed = -1,
+};
+np_bool identity_opt_is_set = FALSE;
+char identity_filename[255] = { 0 };
+char identity_passphrase[255] = { 0 };
+
+unsigned char salt[crypto_pwhash_SALTBYTES] = { 123 };
+unsigned char nonce[crypto_secretbox_NONCEBYTES] = { 123 };
+unsigned char key[crypto_secretstream_xchacha20poly1305_KEYBYTES];
+np_bool key_is_gen = FALSE;
+
+
+np_bool np_example_save_identity(char* passphrase, char* filename) {
+	np_bool  ret = FALSE;
+
+	unsigned char buffer[5000] = { 0 };
+	size_t token_size = np_identity_export_current(&buffer);
+
+	int tmp = 0;
+	if (!key_is_gen &&
+		(tmp = crypto_pwhash(
+			key,
+			sizeof key,
+			passphrase,
+			strlen(passphrase),
+			salt,
+			crypto_pwhash_OPSLIMIT_INTERACTIVE,
+			crypto_pwhash_MEMLIMIT_INTERACTIVE	,
+			crypto_pwhash_ALG_ARGON2ID13
+		)) != 0
+	) {			
+		log_debug_msg(LOG_DEBUG, "Error creating key! (%"PRIi32")",tmp);
+	} else {
+		key_is_gen = TRUE;
+	}
+
+	if(key_is_gen) {
+		unsigned char crypted_data[token_size + crypto_secretbox_MACBYTES];
+		memset(crypted_data, 0, sizeof crypted_data);
+
+		if (0 != crypto_secretbox_easy(
+			crypted_data,
+			buffer,
+			token_size,
+			nonce,
+			key)) {			
+			log_debug_msg(LOG_DEBUG, "Error encrypting file!");
+		}
+		else {
+			FILE *f = fopen(filename, "wb");
+			if (f != NULL) {
+				if (fwrite(crypted_data, sizeof crypted_data, 1, f) == 1) {
+					ret = TRUE;
+				}
+			}
+			fclose(f);
+		}
+		
+	}
+	return ret;
+}
+enum np_example_load_identity_status  np_example_load_identity(char* passphrase, char* filename) {
+	enum np_example_load_identity_status ret = np_example_load_identity_status_not_found;
+	FILE *f = fopen(filename, "rb");
+	if (f != NULL)
+	{
+		ret = np_example_load_identity_status_found_but_failed;
+		if (!key_is_gen &&
+			crypto_pwhash(
+				key,
+				sizeof key,
+				passphrase,
+				strlen(passphrase),
+				salt,
+				crypto_pwhash_OPSLIMIT_INTERACTIVE,
+				crypto_pwhash_MEMLIMIT_INTERACTIVE,
+				crypto_pwhash_ALG_ARGON2ID13
+			) != 0) {
+			log_debug_msg(LOG_DEBUG, "Error creating key!");
+		}
+		else {
+			key_is_gen = TRUE;
+		}
+		if(key_is_gen){
+			
+			struct stat info;
+			stat(filename, &info);
+			char* crypted_data = (char *)malloc(info.st_size);
+			fread(crypted_data, info.st_size, 1, f);
+
+			unsigned char buffer[info.st_size- crypto_secretbox_MACBYTES];
+
+			if (0 == crypto_secretbox_open_easy(
+				buffer,
+				crypted_data,
+				info.st_size,
+				nonce,
+				key)
+			) {				
+				np_aaatoken_t* token =  np_identity_import(&buffer, sizeof buffer);				
+				if (token == NULL) {
+					log_debug_msg(LOG_DEBUG, "Error deserializing aaatoken!");
+				}
+				else {
+					np_set_identity(token);
+				}
+
+				ret = np_example_load_identity_status_success;
+			}
+			free(crypted_data);
+		}
+		fclose(f);
+	}
+	return ret;
+}
+
+void np_example_save_or_load_identity() {
+
+	if (identity_opt_is_set) {
+		np_example_print(stdout, "Try to load ident file.\n");
+		enum np_example_load_identity_status load_status;
+		if ((load_status = np_example_load_identity(identity_passphrase, identity_filename)) == np_example_load_identity_status_not_found) {
+			
+			np_example_print(stdout, "Load detected no available token file. Try to save current ident to file.\n");
+			if (!np_example_save_identity(identity_passphrase, identity_filename)) {				
+				np_example_print(stderr, "Cannot load or save identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
+				exit(EXIT_FAILURE);
+			}
+			else {
+				np_example_print(stdout, "Saved current ident (%s) to file.\n", _np_key_as_str(_np_state()->my_identity));
+				/*
+				if (!np_example_load_identity(identity_passphrase, identity_filename)) {
+					np_example_print(stderr, "Cannot load after save of identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
+					exit(EXIT_FAILURE);
+				}
+				*/				
+			}			
+		}
+		else {
+			if (load_status == np_example_load_identity_status_success) {
+				np_example_print(stdout, "Loaded ident(%s) from file.\n", _np_key_as_str(_np_state()->my_identity));
+			}else if (load_status == np_example_load_identity_status_found_but_failed) {
+				np_example_print(stderr, "Could not load from file.\n");
+			}
+			else {
+				np_example_print(stderr, "Unknown np_example_load_identity_status\n");
+			}
+		}
+	}
+}
+
 np_bool parse_program_args(
 	char* program,
 	int argc,
@@ -163,11 +320,11 @@ np_bool parse_program_args(
 	np_bool ret = TRUE;
 	char* usage;
 	asprintf(&usage,
-		"./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-s statistics 0=Off 1=Console 2=Log 3=1&2] [-c statistic types 0=All 1=general 2=locks ] %s",
+		"./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s statistics 0=Off 1=Console 2=Log 3=1&2] [-c statistic types 0=All 1=general 2=locks ] [-i identity filename] [-w passphrase for identity file] %s",
 		program, additional_fields_desc == NULL ? "" : additional_fields_desc
 	);
 	char* optstr;
-	asprintf(&optstr, "j:p:b:t:u:d:s:c:%s", additional_fields_optstr);
+	asprintf(&optstr, "j:p:b:t:u:l:d:s:c:i:w:%s", additional_fields_optstr);
 
 	char* additional_fields[32] = { 0 }; // max additional fields
 	va_list args;
@@ -213,6 +370,13 @@ np_bool parse_program_args(
 			break;
 		case 'b':
 			*port = strdup(optarg);
+			break;
+		case 'i':
+			identity_opt_is_set = TRUE;
+			strncpy(identity_filename, optarg, strnlen(optarg,254));
+			break;
+		case 'w':
+			strncpy(identity_passphrase, optarg, strnlen(optarg, 254));
 			break;
 		case 'l':
 			if (optarg != NULL) {
@@ -432,6 +596,8 @@ void __np_example_helper_loop() {
 	if (started_at == 0) {
 		started_at = np_time_now();
 		np_print_startup();
+
+		np_example_save_or_load_identity();
 	}
 
 	double sec_since_start = np_time_now() - started_at;
@@ -688,14 +854,4 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e sysinfo_Mode) 
 			np_sysinfo_enable_slave();
 		}
 	}
-}
-
-
-
-void np_example_save_identity(char* passphrase, char* filename) {
-
-}
-
-void np_example_load_identity(char* passphrase, char* filename) {
-
 }

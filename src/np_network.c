@@ -1026,8 +1026,6 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			else {
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "Dont know how to setup network of type %"PRIu8,type);
 			}
-			_np_network_start(ng);
-
 		}
 		ng->initialized = TRUE;
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local listening socket");

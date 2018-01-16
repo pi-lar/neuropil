@@ -169,6 +169,31 @@ void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 	np_aaatoken_core_encode(data, token, FALSE);
 }
 
+void np_aaatoken_encode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
+	np_aaatoken_encode(data, token);
+
+	np_tree_insert_str(data, "np.t.private_key_is_set", np_treeval_new_ush(token->private_key_is_set));
+	if(token->private_key_is_set){
+		np_tree_insert_str(data, "np.t.private_key", np_treeval_new_bin(&token->private_key, crypto_sign_SECRETKEYBYTES));
+		np_tree_insert_str(data, "np.t.public_key", np_treeval_new_bin(&token->public_key, crypto_sign_PUBLICKEYBYTES));
+	}
+}
+void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
+	np_aaatoken_decode(data, token);
+
+	np_tree_elem_t* private_key_is_set = np_tree_find_str(data, "np.t.private_key_is_set");
+	np_tree_elem_t* private_key = np_tree_find_str(data, "np.t.private_key");
+	np_tree_elem_t* public_key = np_tree_find_str(data, "np.t.public_key");
+
+
+	if (NULL != private_key_is_set && NULL != private_key && NULL != public_key)
+	{
+		token->private_key_is_set = private_key_is_set->val.value.ush;
+		memcpy(&token->private_key, private_key->val.value.bin, min(private_key->val.size, crypto_sign_SECRETKEYBYTES));
+		memcpy(&token->public_key, public_key->val.value.bin, min(public_key->val.size, crypto_sign_PUBLICKEYBYTES));
+	}
+}
+
 void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token){");
@@ -1224,4 +1249,36 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  ._np_add_local_mx_token");
+}
+
+
+
+np_aaatoken_t* _np_aaatoken_new(char issuer[64], char node_subject[255], double expires_at)
+{
+	np_aaatoken_t* ret = NULL;
+	np_new_obj(np_aaatoken_t, ret);
+
+	np_state_t* state = _np_state();
+
+	// create token
+	if (NULL != state->realm_name)
+	{
+		strncpy(ret->realm, state->realm_name, 255);
+	}
+	strncpy(ret->issuer, issuer, 64);
+	strncpy(ret->subject, node_subject, 255);
+	// strncpy(ret->audience, (char*) _np_key_as_str(state->my_identity->aaa_token->realm), 255);
+
+	char* old = ret->uuid;
+	ret->uuid = np_uuid_create(node_subject, 0);
+	free(old);
+
+	ret->not_before = np_time_now();
+
+	ret->expires_at = expires_at;
+
+	crypto_sign_keypair(ret->public_key, ret->private_key);   // ed25519
+	ret->private_key_is_set = TRUE;
+
+	return ret;
 }

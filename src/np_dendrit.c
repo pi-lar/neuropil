@@ -635,6 +635,8 @@ void _np_in_join_req(np_jobargs_t* args)
 			TRUE == join_allowed)
 		{
 			join_req_key->aaa_token->state |= AAA_AUTHENTICATED;
+			ASSERT(routing_key != NULL, "routing key cannot be NULL");
+			ASSERT(routing_key->aaa_token != NULL, "routing_key->aaa_token cannot be NULL");
 			// required ?
 			routing_key->aaa_token->state |= AAA_AUTHENTICATED;
 		}

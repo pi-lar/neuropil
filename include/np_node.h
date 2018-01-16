@@ -118,6 +118,8 @@ float _np_node_get_latency (np_node_t* np_node);
 
 NP_API_INTERN
 uint8_t _np_node_check_address_validity (np_node_t* np_node);
+NP_API_INTERN
+int _np_node_cmp(np_node_t* a, np_node_t* b);
 
 #ifdef __cplusplus
 }
