@@ -37,7 +37,9 @@ struct np_message_s
 
 	np_msgproperty_ptr msg_property;
 
+	TSP(np_bool, is_acked);
 	np_sll_t(np_ackentry_on_t, on_ack);
+	TSP(np_bool, is_in_timeout);
 	np_sll_t(np_ackentry_on_t, on_timeout);
 
 	void* bin_properties;
@@ -110,6 +112,8 @@ NP_API_INTERN
 void _np_message_set_to(np_message_t* msg, np_key_t* target);
 NP_API_INTERN
 char* _np_message_get_subject(np_message_t* msg);
+NP_API_INTERN
+double _np_message_get_expiery(const np_message_t* const self);
 NP_API_INTERN
 np_bool _np_message_is_expired(const np_message_t* const msg_to_check);
 NP_API_INTERN

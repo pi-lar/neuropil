@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "sodium.h"
 #include "msgpack/cmp.h"
@@ -208,7 +209,7 @@ void _np_msgproperty_t_new(void* property)
 	prop->msg_ttl	= 20.0;
 
 	prop->max_threshold = 10;
-	prop->msg_threshold =  0;
+	TSP_INITD(uint16_t, prop->msg_threshold, 0);
 
 	prop->is_internal = FALSE;
 	prop->last_update = np_time_now();
@@ -231,6 +232,81 @@ void _np_msgproperty_t_new(void* property)
 
 	_np_threads_mutex_init (&prop->lock,"property lock");
 	_np_threads_condition_init_shared(&prop->msg_received);
+
+
+	_np_threads_mutex_init(&prop->unique_uuids_lock, "unique_uuids_lock");
+	np_msgproperty_enable_check_for_unique_uuids(prop);
+	
+	sll_init(np_message_ptr, prop->unique_uuids);
+
+	np_sll_t(np_message_ptr, unique_uuids);
+}
+void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self) {
+	_LOCK_ACCESS(&self->unique_uuids_lock) {
+		np_tree_free(self->unique_uuids);
+		self->unique_uuids_check = FALSE;
+	}
+}
+void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self) {
+	_LOCK_ACCESS(&self->unique_uuids_lock){
+		self->unique_uuids = np_tree_create();
+		self->unique_uuids_check = TRUE;
+	}
+}
+
+np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self,  np_message_t* msg_to_check)
+{
+	np_bool ret = TRUE;
+	_LOCK_ACCESS(&self->unique_uuids_lock) {
+		if (self->unique_uuids_check) {
+			
+			if (np_tree_find_str(self->unique_uuids, msg_to_check->uuid) == NULL) {				
+				np_tree_insert_str(self->unique_uuids, msg_to_check->uuid, np_treeval_new_d(_np_message_get_expiery(msg_to_check)));					
+			}
+			else {
+				ret = FALSE;
+			}
+		}
+	}
+	return ret;
+}
+
+void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args) {
+	//TODO: iter over msgproeprties and remove expired msg uuid from unique_uuids
+
+	//RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
+	
+	np_msgproperty_t* iter_prop = NULL;
+	double now;
+	RB_FOREACH(iter_prop, rbt_msgproperty, __msgproperty_table)
+	{
+		_LOCK_ACCESS(&iter_prop->unique_uuids_lock) {
+			if (iter_prop->unique_uuids_check) {
+				
+				sll_init_full(char_ptr, to_remove);
+				np_tree_elem_t* iter_tree = NULL;
+				now = np_time_now();
+				RB_FOREACH(iter_tree, np_tree_s, iter_prop->unique_uuids)
+				{
+
+					if (iter_tree->val.value.d < now) {
+						sll_append(char_ptr, to_remove, iter_tree->key.value.s);
+					}
+				}
+					
+				sll_iterator(char_ptr) iter_to_rm = sll_first(to_remove);
+				if(iter_to_rm != NULL){
+					log_debug_msg(LOG_DEBUG | LOG_MSGPROPERTY ,"UNIQUITY removing %"PRIu32" from %"PRIu16" items from unique_uuids for %s", sll_size(to_remove), iter_prop->unique_uuids->size, iter_prop->msg_subject);
+				}
+				while (iter_to_rm != NULL)
+				{
+					np_tree_del_str(iter_prop->unique_uuids, iter_to_rm->val);
+					sll_next(iter_to_rm);
+				}
+				sll_free(char_ptr, to_remove);
+			}
+		}
+	}
 }
 
 void _np_msgproperty_t_del(void* property)
@@ -311,7 +387,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 		}
 
 		if(NULL != msg_out){
-			send_prop->msg_threshold--;
+			_np_msgproperty_threshold_decrease(send_prop);
 			sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop, NULL);
 			np_unref_obj(np_message_t, msg_out, ref_msgproperty_msgcache);
 
@@ -353,7 +429,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 		}
 
 		if(NULL != msg_in) {
-			recv_prop->msg_threshold--;
+			_np_msgproperty_threshold_decrease(recv_prop);
 			_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in, NULL);
 			np_unref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 		}
@@ -384,7 +460,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 				if (old_msg != NULL)
 				{
 					// TODO: add callback hook to allow user space handling of discarded message
-					msg_prop->msg_threshold--;
+					_np_msgproperty_threshold_decrease(msg_prop);
 					np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
 				}
 			}
@@ -417,7 +493,7 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop) {
 			if (_np_message_is_expired(old_msg)) {				
 				sll_delete(np_message_ptr, msg_prop->msg_cache_in, old_iter);
 				np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
-				msg_prop->msg_threshold--;				
+				_np_msgproperty_threshold_decrease(msg_prop);
 			}			
 		}
 	}
@@ -450,7 +526,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 				if (old_msg != NULL)
 				{
 					// TODO: add callback hook to allow user space handling of discarded message
-					msg_prop->msg_threshold--;
+					_np_msgproperty_threshold_decrease(msg_prop);
 					np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
 				}
 			}
@@ -468,5 +544,20 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 		log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "added message to the recv msgcache (%p / %d) ...",
 				msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
 		np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
+	}
+}
+
+void _np_msgproperty_threshold_increase(np_msgproperty_t* self) {
+	TSP_SCOPE(uint16_t, self->msg_threshold) {
+		if(self->msg_threshold < UINT16_MAX){
+			self->msg_threshold++;
+		}
+	}
+}
+void _np_msgproperty_threshold_decrease(np_msgproperty_t* self) {
+	TSP_SCOPE(uint16_t, self->msg_threshold){
+		if(self->msg_threshold > 0){
+			self->msg_threshold--;
+		}
 	}
 }

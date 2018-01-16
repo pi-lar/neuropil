@@ -94,7 +94,7 @@ void np_log_message(uint32_t level,
 #ifdef DEBUG
 	#ifndef log_debug_msg
 		#define log_debug_msg(level, msg, ...) \
-		 np_log_message(level & LOG_DEBUG, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
+		 np_log_message(level | LOG_DEBUG, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
 	#endif
 #else
 	#ifndef log_debug_msg

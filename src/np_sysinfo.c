@@ -30,13 +30,13 @@
 
 #include "np_scache.h"
 
-static const char* _NP_SYSINFO_MY_NODE = "node";
-static const char* _NP_SYSINFO_MY_NODE_TIMESTAMP = "timestamp";
-static const char* _NP_SYSINFO_MY_NEIGHBOURS = "neighbour_nodes";
-static const char* _NP_SYSINFO_MY_ROUTES = "routing_nodes";
+#define  _NP_SYSINFO_MY_NODE "node"
+#define  _NP_SYSINFO_MY_NODE_TIMESTAMP "timestamp"
+#define  _NP_SYSINFO_MY_NEIGHBOURS "neighbour_nodes"
+#define  _NP_SYSINFO_MY_ROUTES "routing_nodes"
 
-static const char* _NP_SYSINFO_SOURCE = "source_hash";
-static const char* _NP_SYSINFO_TARGET = "target_hash";
+#define  _NP_SYSINFO_SOURCE  "source_hash"
+#define  _NP_SYSINFO_TARGET  "target_hash"
 
 
 static np_simple_cache_table_t* _cache = NULL;
@@ -94,7 +94,7 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->priority -= 1;
 	sysinfo_request_props->msg_ttl  = 20.0;
 	sysinfo_request_props->mode_type = INBOUND | ROUTE;
-	sysinfo_request_props->max_threshold = 3;
+	sysinfo_request_props->max_threshold = 32;
 
 	np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(OUTBOUND, _NP_SYSINFO_REPLY);
 	if(sysinfo_response_props == NULL){
@@ -107,7 +107,7 @@ void np_sysinfo_enable_slave() {
 	sysinfo_response_props->priority -= 1;
 	sysinfo_response_props->msg_ttl  = 20.0;
 	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 3;
+	sysinfo_response_props->max_threshold = 32;
 
 	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
@@ -119,13 +119,15 @@ void np_sysinfo_enable_slave() {
 
 	np_job_submit_event_periodic(PRIORITY_MOD_USER_DEFAULT,
 								 0,
-								 sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
+								 //sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
+								 SYSINFO_PROACTIVE_SEND_IN_SEC,
 								 _np_sysinfo_slave_send_cb,
 								 "sysinfo_slave_send_cb");
 }
 
 void np_sysinfo_enable_master() {
 	log_msg(LOG_TRACE, "start: void np_sysinfo_enable_master(){");
+	
 	_np_sysinfo_init_cache();
 	np_msgproperty_t* sysinfo_request_props = np_msgproperty_get(OUTBOUND, _NP_SYSINFO_REQUEST);
 	if (sysinfo_request_props == NULL) {
@@ -149,18 +151,19 @@ void np_sysinfo_enable_master() {
 	sysinfo_response_props->retry    = 0;
 	sysinfo_response_props->msg_ttl  = 20.0;
 	sysinfo_response_props->priority -= 1;
-
+	
 	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
 	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 5/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC );
+	sysinfo_response_props->max_threshold = 32/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC);
+	
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
-
+	
 	np_add_receive_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
 }
 
@@ -309,7 +312,7 @@ np_tree_t* np_sysinfo_get_my_info() {
 	np_sll_t(np_key_ptr, neighbours_table) = _np_route_neighbors();
 
 	np_tree_t* neighbours = np_tree_create();
-	int neighbour_counter = 0;
+	uint32_t neighbour_counter = 0;
 	if (NULL != neighbours_table && 0 < neighbours_table->size) {
 		np_key_t* current;
 		while (NULL != sll_first(neighbours_table)) {
@@ -325,9 +328,10 @@ np_tree_t* np_sysinfo_get_my_info() {
 			}
 		}
 	}
-	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %d neighbours",
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %"PRIu32" neighbours",
 			neighbour_counter);
 
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS"_count", np_treeval_new_ul(neighbour_counter));
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, np_treeval_new_tree(neighbours));
 	sll_free(np_key_ptr, neighbours_table);
 	np_tree_free(neighbours);
@@ -336,7 +340,7 @@ np_tree_t* np_sysinfo_get_my_info() {
 	np_sll_t(np_key_ptr, routing_table) = _np_route_get_table();
 
 	np_tree_t* routes = np_tree_create();
-	int routes_counter = 0;
+	uint32_t routes_counter = 0;
 	if (NULL != routing_table && 0 < routing_table->size) {
 		np_key_t* current;
 		while (NULL != sll_first(routing_table)) {
@@ -344,7 +348,11 @@ np_tree_t* np_sysinfo_get_my_info() {
 			if (current->node) {
 				np_tree_t* route = np_tree_create();
 				_np_node_encode_to_jrb(route, current, TRUE);
-				np_tree_replace_str(route, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_s(_np_network_get_protocol_string(current->node->protocol)));
+				np_tree_replace_str(
+					route, 
+					NP_SERIALISATION_NODE_PROTOCOL,
+					np_treeval_new_s(_np_network_get_protocol_string(current->node->protocol))
+				);
 				np_tree_insert_int(routes, routes_counter++, 
 					np_treeval_new_tree(route));
 				np_tree_free(route);
@@ -352,10 +360,11 @@ np_tree_t* np_sysinfo_get_my_info() {
 			}
 		}
 	}
-	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %d routing table entries",
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %"PRIu32" routing table entries",
 			routes_counter);
 
-	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES"_count", np_treeval_new_ul(routes_counter));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));	
 	sll_free(np_key_ptr, routing_table);
 	np_tree_free(routes);
 

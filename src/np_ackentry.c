@@ -24,13 +24,18 @@ void _np_ackentry_set_acked(np_ackentry_t* entry)
 	_np_node_update_latency(entry->dest_key->node, latency);
 	_np_node_update_stat(entry->dest_key->node, TRUE);
 
-	if (entry->msg != NULL && sll_size(entry->msg->on_ack) > 0) {
-		sll_iterator(np_ackentry_on_t) iter_on = sll_first(entry->msg->on_ack);
-		while (iter_on != NULL)
-		{
-			//TODO: call async
-			iter_on->val(entry);
-			sll_next(iter_on);
+	if (entry->msg != NULL ){
+		
+		TSP_SET(np_bool, entry->msg->is_acked, TRUE);		 
+		
+		if (sll_size(entry->msg->on_ack) > 0) {
+			sll_iterator(np_ackentry_on_t) iter_on = sll_first(entry->msg->on_ack);
+			while (iter_on != NULL)
+			{
+				//TODO: call async
+				iter_on->val(entry);
+				sll_next(iter_on);
+			}
 		}
 	}
 

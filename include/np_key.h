@@ -14,6 +14,7 @@
 #include "tree/tree.h"
 
 #include "np_dhkey.h"
+#include "np_threads.h"
 #include "np_memory.h"
 #include "np_types.h"
 #include "np_node.h"
@@ -25,7 +26,7 @@ extern "C" {
 struct np_key_s
 {
 	double created_at;
-	np_bool in_destroy;
+	TSP(np_bool, in_destroy);
 
 	np_obj_t* obj;              // link to memory management and ref counter
 	SPLAY_ENTRY(np_key_s) link; // link for cache management

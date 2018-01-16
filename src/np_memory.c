@@ -169,9 +169,9 @@ void np_mem_unrefobj(np_obj_t* obj, const char* reason)
 	//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
 	if(obj->ref_count < 0){		
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (left reasons(%d): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
+		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (left reasons(%"PRIi16"): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
 #else
-		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! left reasons(%d)", obj, obj->type, obj->ref_count);
+		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! left reasons(%"PRIi16")", obj, obj->type, obj->ref_count);
 #endif
 		abort();
 	}

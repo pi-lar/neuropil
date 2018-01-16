@@ -53,15 +53,15 @@ env.Append(LDFLAGS = ['-std=c99'])
 
 # add release compilation options
 release_flags = ['-O3','-DRELEASE']
-if int(release):
+if int(release) >= 1:
     env.Append(CCFLAGS = release_flags)
 
 # add debug compilation options
 debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O0']
-if int(debug):
-    env.Append(CCFLAGS = debug_flags)
-if int(debug) <= 1:
-	env.Append(CCFLAGS = ['-DDEBUG'])
+if int(debug) >= 1:
+	env.Append(CCFLAGS = debug_flags)
+	if int(debug) <= 1:
+		env.Append(CCFLAGS = ['-DDEBUG'])
 
 if int(console_log):
     env.Append(CCFLAGS = ['-DCONSOLE_LOG'])
@@ -190,7 +190,7 @@ SOURCES += ['build/obj/np_glia.c','build/obj/np_http.c','build/obj/np_jobqueue.c
 SOURCES += ['build/obj/np_log.c','build/obj/np_memory.c','build/obj/np_message.c','build/obj/np_msgproperty.c','build/obj/np_network.c','build/obj/np_node.c']
 SOURCES += ['build/obj/np_route.c','build/obj/np_tree.c','build/obj/np_util.c','build/obj/np_treeval.c','build/obj/np_threads.c','build/obj/np_pinging.c']
 SOURCES += ['build/obj/np_sysinfo.c','build/obj/np_scache.c','build/obj/np_event.c','build/obj/np_messagepart.c','build/obj/np_statistics.c','build/obj/np_ackentry.c']
-SOURCES += ['build/obj/np_serialization.c','build/obj/np_memory_v2.c']
+SOURCES += ['build/obj/np_serialization.c','build/obj/np_memory_v2.c','build/obj/np_shutdown.c']
 
 # source code 3rd party libraries
 SOURCES += ['build/obj/event/ev.c', 'build/obj/json/parson.c','build/obj/msgpack/cmp.c','build/obj/gpio/bcm2835.c']
@@ -235,3 +235,14 @@ else:
 # clean up
 Clean('.', 'build')
 Clean('.', 'bin')
+print "build with:"
+
+print "analyze       =  %r" % analyze       
+print "build_tests   =  %r" % build_tests   
+print "build_doc     =  %r" % build_doc     
+print "debug         =  %r" % debug         
+print "release       =  %r" % release       
+print "console_log   =  %r" % console_log   
+print "strict        =  %r" % strict        
+print "build_program =  %r" % build_program 
+print "build_x64     =  %r" % build_x64     

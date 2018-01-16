@@ -658,7 +658,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		log_debug_msg(LOG_DEBUG, "decryption of message failed, deleting message");
 		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
 		msg_prop->max_threshold--;
-		msg_prop->msg_threshold--;
+		_np_msgproperty_threshold_decrease(msg_prop);
 
 		np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
 		np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
@@ -686,7 +686,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	}
 
 	// decrease threshold counter
-	msg_prop->msg_threshold--;
+	_np_msgproperty_threshold_decrease(msg_prop);
 	msg_prop->max_threshold--;
 
 	np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
@@ -775,7 +775,7 @@ uint32_t np_receive_text (char* subject, char **data)
 	*data = strndup( np_treeval_to_str(reply_data->val, NULL), strlen( np_treeval_to_str(reply_data->val, NULL)));
 
 	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
-	msg_prop->msg_threshold--;
+	_np_msgproperty_threshold_decrease(msg_prop);
 	msg_prop->max_threshold--;
 
 	np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
@@ -794,6 +794,8 @@ uint32_t np_receive_text (char* subject, char **data)
 void np_destroy()
 {
 	log_msg(LOG_TRACE, "start: void np_destroy(){");
+
+	np_shutdown_notify_others();
 	// TODO: implement me ...
 	/*
 	_np_threads_init()
@@ -970,6 +972,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	}
 
 	state->msg_tokens = np_tree_create();
+
 	state->msg_part_cache = np_tree_create();
 
 #ifdef SKIP_EVLOOP
@@ -984,9 +987,11 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	np_unref_obj(np_network_t, my_network, ref_obj_creation);
 	np_unref_obj(np_aaatoken_t, auth_token, ref_obj_creation);
 
+	_np_shutdown_init_auto_notify_others();
+
 	log_msg(LOG_INFO, "neuropil successfully initialized: %s", _np_key_as_str(state->my_node_key));
 	_np_log_fflush(TRUE);
-
+	
 	return (state);
 }
 
@@ -1028,9 +1033,7 @@ char* _np_build_connection_string(char* hash, char* protocol, char*dns_name,char
 	return connection_str;
 }
 
-
-
-void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
+np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* type) {
 	log_msg(LOG_TRACE, "start: void _np_send_simple_invoke_request(np_key_t* target, const char* type) {");
 
 	np_state_t* state = _np_state();
@@ -1039,16 +1042,22 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 	np_aaatoken_encode(jrb_me, state->my_node_key->aaa_token);
 
 	np_message_t* msg_out = NULL;
-	np_new_obj(np_message_t, msg_out);
+	np_new_obj(np_message_t, msg_out, __func__);
 	_np_message_create(msg_out, target, state->my_node_key, type, jrb_me);
 
 	log_debug_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(target));
 	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, type);
-	_np_job_submit_msgout_event(0.0, prop, target, msg_out);
+	_np_job_submit_msgout_event(0.0, prop, target, msg_out);	
 
-	np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+	return msg_out;	
 }
 
+void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
+
+	np_message_t*  msg = _np_send_simple_invoke_request_msg(target, type);
+
+	np_unref_obj(np_message_t, msg, "_np_send_simple_invoke_request_msg");
+}
 /**
 * Sends a JOIN request to the given node string.
 * Please see @np_get_connection_string() for the node_string definition

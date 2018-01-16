@@ -217,17 +217,10 @@ void _np_in_received(np_jobargs_t* args)
 
 					target_key = _np_keycache_find_or_create(target_dhkey);
 						log_debug_msg(LOG_ROUTING | LOG_DEBUG, "target of msg is %s", _np_key_as_str(target_key));
-
-					np_bool is_ack_msg = (0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_ACK, strlen(_NP_MSG_ACK)) );
-
-					if (_np_key_cmp(target_key, my_key) == 0 && is_ack_msg) {
-						__np_in_ack_handle(msg_in);
-						goto __np_cleanup__;
-					}
-
+					
 					// check if inbound subject handler exists
 					np_msgproperty_t* handler = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
-
+				
 					// redirect message if
 					// msg is not for my dhkey
 					// no handler is present
@@ -260,6 +253,7 @@ void _np_in_received(np_jobargs_t* args)
 						if (NULL != tmp) sll_free(np_key_ptr, tmp);
 						log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "internal routing for subject '%s'", np_treeval_to_str(msg_subject, NULL));
 					}
+					// we know now: this node is the node nearest to the dhkey
 
 					// if this message really has to be handled by this node, does a handler exists ?
 					if (NULL == handler)
@@ -274,15 +268,19 @@ void _np_in_received(np_jobargs_t* args)
 
 						if (NULL != msg_to_submit)
 						{
-							if (TRUE == my_key->node->joined_network ||
-								0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)))
+							if (_np_msgproperty_check_msg_uniquety(handler, msg_to_submit) 
+								&& (
+								TRUE == my_key->node->joined_network ||
+								0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN, strlen(_NP_MSG_JOIN))
+								)
+							)
 							{
 								log_msg(LOG_INFO,
 									"handling message for subject: %s / uuid: %s",
 									np_treeval_to_str(msg_subject, NULL), msg_to_submit->uuid);
 
 								// finally submit msg job for later execution
-								if (!_np_message_deserialize_chunked(msg_to_submit)) {
+								if (_np_message_deserialize_chunked(msg_to_submit) == FALSE) {
 									log_msg(LOG_WARN,
 										"could not deserialize chunked msg (uuid: %s)", msg_to_submit->uuid);
 								} else {
@@ -359,20 +357,33 @@ void _np_in_piggy(np_jobargs_t* args)
 			_np_route_leafset_update(node_entry, TRUE, &deleted, &added);
 
 #ifdef DEBUG
-			//LOG_ROUTING | LOG_INFO
-			if (added !=NULL){
-				log_msg(LOG_ERROR, "STABILITY added   to   leafset: %s:%s:%s / %f / %1.2f",
-								_np_key_as_str(added),
-								added->node->dns_name, added->node->port,
-								added->node->last_success,
-								added->node->success_avg);
+			
+			if (added != NULL && deleted != NULL) {
+				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   leafset: %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
+							_np_key_as_str(added),
+							added->node->dns_name, deleted->node->port,
+							added->node->last_success,
+							added->node->success_avg,
+
+							_np_key_as_str(deleted),
+							deleted->node->dns_name, deleted->node->port,
+							deleted->node->last_success,
+							deleted->node->success_avg
+				);
 			}
-			if (deleted !=NULL){
-				log_msg(LOG_ERROR, "STABILITY deleted from leafset: %s:%s:%s / %f / %1.2f",
-								_np_key_as_str(deleted),
-								deleted->node->dns_name, deleted->node->port,
-								deleted->node->last_success,
-								deleted->node->success_avg);
+			else if (added != NULL) {
+				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY added    to   leafset: %s:%s:%s / %f / %1.2f",
+							_np_key_as_str(added),
+							added->node->dns_name, added->node->port,
+							added->node->last_success,
+							added->node->success_avg);
+			}
+			else  if (deleted !=NULL){
+				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY deleted  from leafset: %s:%s:%s / %f / %1.2f",
+							_np_key_as_str(deleted),
+							deleted->node->dns_name, deleted->node->port,
+							deleted->node->last_success,
+							deleted->node->success_avg);
 			}
 #endif
 
@@ -380,19 +391,30 @@ void _np_in_piggy(np_jobargs_t* args)
 			_np_route_update(node_entry, TRUE, &deleted, &added);
 
 #ifdef DEBUG
-			if (added !=NULL){
-				log_msg(LOG_ERROR, "STABILITY added   to   table  : %s:%s:%s / %f / %1.2f",
-								_np_key_as_str(added),
-								added->node->dns_name, added->node->port,
-								added->node->last_success,
-								added->node->success_avg);
-			}
-			if (deleted !=NULL){
-				log_msg(LOG_ERROR, "STABILITY deleted from table  : %s:%s:%s / %f / %1.2f",
-								_np_key_as_str(deleted),
-								deleted->node->dns_name, deleted->node->port,
-								deleted->node->last_success,
-								deleted->node->success_avg);
+			if (added != NULL && deleted != NULL) {
+				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   table  : %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
+							_np_key_as_str(added),
+							added->node->dns_name, deleted->node->port,
+							added->node->last_success,
+							added->node->success_avg,
+
+							_np_key_as_str(deleted),
+							deleted->node->dns_name, deleted->node->port,
+							deleted->node->last_success,
+							deleted->node->success_avg
+					);
+			}else  if (added !=NULL){
+				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY added    to   table  : %s:%s:%s / %f / %1.2f",
+							_np_key_as_str(added),
+							added->node->dns_name, added->node->port,
+							added->node->last_success,
+							added->node->success_avg);
+			} else if (deleted !=NULL){
+				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY deleted  from table  : %s:%s:%s / %f / %1.2f",
+							_np_key_as_str(deleted),
+							deleted->node->dns_name, deleted->node->port,
+							deleted->node->last_success,
+							deleted->node->success_avg);
 			}
 #endif
 		} else {
@@ -424,7 +446,7 @@ void _np_in_signal_np_receive (np_jobargs_t* args)
 
 	np_msgproperty_t* real_prop = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
 
-	real_prop->msg_threshold++;
+	_np_msgproperty_threshold_increase(real_prop);
 	_np_msgproperty_add_msg_to_recv_cache(real_prop, msg_in);
 	_np_threads_condition_signal(&real_prop->msg_received);
 
@@ -471,7 +493,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 
 	char* subject = args->properties->msg_subject;
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
-	msg_prop->msg_threshold++;
+	_np_msgproperty_threshold_increase(msg_prop);
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
@@ -499,12 +521,12 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 			if (FALSE == decrypt_ok)
 			{
 				np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
-				msg_prop->msg_threshold--;
+				_np_msgproperty_threshold_decrease(msg_prop);
 			}
 			else
 			{
 				np_bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
-				msg_prop->msg_threshold--;
+				_np_msgproperty_threshold_decrease(msg_prop);
 
 				// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
 				// log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
@@ -539,6 +561,7 @@ void _np_in_leave_req(np_jobargs_t* args)
 	{
 		leave_req_key = _np_key_create_from_token(node_token);
 	}
+
 	if(_np_key_cmp(_np_state()->my_node_key,leave_req_key ) != 0
 	&& _np_key_cmp(_np_state()->my_identity,leave_req_key ) != 0
 	){
@@ -702,6 +725,11 @@ void _np_in_join_req(np_jobargs_t* args)
 	if (TRUE == send_reply)
 	{
 		_np_job_submit_msgout_event(0.0, msg_prop, routing_key, msg_out);
+
+		if (IS_AUTHENTICATED(join_req_key->aaa_token->state)){
+			np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
+			_np_job_submit_transform_event(0.0, piggy_prop, routing_key, NULL);
+		}
 		// _np_send_ack(args->msg);
 	}
 
@@ -984,7 +1012,7 @@ void __np_in_ack_handle(np_message_t * msg)
 
 	np_ackentry_t *entry = NULL;
 	/* just an acknowledgement of own messages send out earlier */
-	_LOCK_ACCESS(&my_network->ack_data_lock)
+	_LOCK_ACCESS(&my_network->waiting_lock)
 	{
 		np_tree_elem_t *jrb_node = np_tree_find_str(my_network->waiting,  np_treeval_to_str(ack_uuid, NULL));
 		if (jrb_node != NULL)
@@ -1350,7 +1378,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	np_aaatoken_t* authentication_token = NULL;
 	np_message_t *msg_in = args->msg;
 
-	args->properties->msg_threshold++;
+	_np_msgproperty_threshold_increase(args->properties);
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
@@ -1420,7 +1448,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	np_unref_obj(np_aaatoken_t, authentication_token,ref_obj_creation);
 
 	// __np_return__:
-	args->properties->msg_threshold--;
+	_np_msgproperty_threshold_decrease(args->properties);
 	return;
 }
 
@@ -1530,7 +1558,7 @@ void _np_in_authorize(np_jobargs_t* args)
 
 	np_message_t *msg_in = args->msg;
 
-	args->properties->msg_threshold++;
+	_np_msgproperty_threshold_increase(args->properties);
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
@@ -1600,7 +1628,7 @@ void _np_in_authorize(np_jobargs_t* args)
 	np_unref_obj(np_aaatoken_t, authorization_token, ref_obj_creation);
 
 	// __np_return__:
-	args->properties->msg_threshold--;
+	_np_msgproperty_threshold_decrease(args->properties);
 	return;
 }
 
@@ -1703,7 +1731,7 @@ void _np_in_account(np_jobargs_t* args)
 	np_aaatoken_t* sender_token = NULL;
 	np_aaatoken_t* accounting_token = NULL;
 
-	args->properties->msg_threshold++;
+	_np_msgproperty_threshold_increase(args->properties);
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
@@ -1731,7 +1759,7 @@ void _np_in_account(np_jobargs_t* args)
 	np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
 
 	// __np_return__:
-	args->properties->msg_threshold--;
+	_np_msgproperty_threshold_decrease(args->properties);
 	return;
 }
 
@@ -1861,14 +1889,14 @@ void _np_in_handshake(np_jobargs_t* args)
 			np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str );
 			free(tmp_connection_str);
 
-			_LOCK_MODULES (np_keycache_t, np_network_t)
+			_LOCK_MODULE ( np_network_t)
 			{
 				hs_wildcard_key = _np_keycache_find(wildcard_dhkey);
 				if(NULL != hs_wildcard_key && NULL != hs_wildcard_key->network) {
 					np_network_t* old_network = hs_wildcard_key->network;
 					np_ref_obj(np_network_t, old_network, "usage_of_old_network");
 
-					_LOCK_ACCESS(&old_network->send_data_lock)
+					_LOCK_ACCESS(&old_network->access_lock)
 					{
 						// _np_network_stop(old_network);
 						// Updating handshake key with already existing network

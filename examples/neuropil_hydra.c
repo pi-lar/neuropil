@@ -18,16 +18,21 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "sodium.h"
+
 #include "neuropil.h"
 #include "np_log.h"
 #include "np_types.h"
 #include "np_tree.h"
+#include "np_shutdown.h"
 #include "np_sysinfo.h"
 #include "np_node.h"
 #include "np_keycache.h"
 #include "np_key.h"
 #include "np_memory.h"
 #include "np_http.h"
+#include "np_util.h"
+#include "np_list.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,7 +63,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 
  */
 int main(int argc, char **argv)
-{
+{	
 	np_bool create_bootstrap = TRUE; 
 	np_bool has_a_node_started = FALSE;
 	char* bootstrap_hostnode_default;
@@ -75,8 +80,10 @@ int main(int argc, char **argv)
 	char* logpath = ".";
 	char* required_nodes_opt = NULL;
 	char* http_domain = NULL;
-	char* node_creation_speed_str = NULL;
+	char* node_creation_speed_str = NULL;	
 	double default_node_creation_speed = 3.415;
+	char* opt_kill_node = NULL;	
+	uint16_t kill_node = 0;	
 
 	int opt;
 	if (parse_program_args(
@@ -90,15 +97,17 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-n nr_of_nodes] [-w http domain] [-z (double|\"default\")speed of node creation]",
-		"n:w:z:",
+		"[-n nr_of_nodes] [-w http domain] [-z (double|\"default\")speed of node creation] [-k kill a node every x sec]",
+		"n:w:z:k:",
 		&required_nodes_opt,
 		&http_domain,
-		&node_creation_speed_str
+		&node_creation_speed_str,
+		&opt_kill_node
 
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
+	if (opt_kill_node != NULL) kill_node = atoi(opt_kill_node);
 	if (required_nodes_opt != NULL) required_nodes = atoi(required_nodes_opt);
 	if (node_creation_speed_str != NULL) {
 		if (strcmp(node_creation_speed_str, "default") != 0) {
@@ -151,8 +160,11 @@ int main(int argc, char **argv)
 			np_example_print(stdout, "logpath: %s\n", log_file_host);
 
 			np_log_init(log_file_host, level);
+			printf("Log init ok\n");
+
 			// provide localhost as hostname to support development on local machines
 			np_init(proto, port, publish_domain);
+			printf("Neuropil init ok\n");
 			/**
 			 \endcode
 			 */
@@ -169,13 +181,14 @@ int main(int argc, char **argv)
 			   np_sysinfo_enable_master();			
 
 			 */
-			example_http_server_init(http_domain); // np_sysinfo_enable_master() is included here
-
+			example_http_server_init(http_domain, np_sysinfo_opt_auto); // np_sysinfo_enable_master() is included here
+			printf("HttpServer init ok\n");
 			
 			// If you want to you can enable the statistics modulte to view the nodes statistics
 			np_statistics_add_watch_internals(); 
 			np_statistics_add_watch(_NP_SYSINFO_REQUEST);
 			np_statistics_add_watch(_NP_SYSINFO_REPLY);			
+			printf("Statistics init ok\n");
 
 			/**
 			  And wait for incomming connections
@@ -185,6 +198,7 @@ int main(int argc, char **argv)
 			   \code
 			 */
 			np_start_job_queue(no_threads+3);
+			printf("Running Neuropil\n");
 
 			__np_example_helper_run_info_loop();
 			/**
@@ -223,7 +237,6 @@ int main(int argc, char **argv)
 
 	 and will later on add to this list.
 	 */
-	int array_of_pids[required_nodes + 1];
 
 	current_pid = 0;
 	int status;
@@ -238,9 +251,10 @@ int main(int argc, char **argv)
 	 */
 	char bootstrap_port[10];
 	memcpy(bootstrap_port, port, strnlen(port,10));
+	double last_process_kill_at = np_time_now();
 	while (TRUE) {
 		// (re-) start child processes
-		if (list_of_childs->size < required_nodes) {
+		if (sll_size(list_of_childs) < required_nodes) {
 
 			/**
 			 \endcode
@@ -324,17 +338,15 @@ int main(int argc, char **argv)
 				np_example_print(stdout, "%s joined network after %s!\n",port, time);
 				/**
 				 \endcode
-				 */
-				if (has_a_node_started == FALSE) { // <=> we are the first node started
+				 */	
 
+				if (has_a_node_started == FALSE)
 					__np_example_helper_run_info_loop();
-				}
-				else {
+				else
 					__np_example_helper_run_loop();
-				}
-
-			} else {
-				has_a_node_started = TRUE;
+				
+			} else {				
+				if (has_a_node_started == TRUE){
 				/**
 				  While the fork process starts the new node,
 				  the main process needs to add the new process id to the list we created before.
@@ -342,17 +354,35 @@ int main(int argc, char **argv)
 				 .. code-block:: c
 
 				 \code
-				 */
-				array_of_pids[sll_size(list_of_childs)] = current_pid;
-				sll_append(int, list_of_childs,
-						array_of_pids[sll_size(list_of_childs)]);
+				 */				
+				sll_append(int, list_of_childs, current_pid);				
 				/**
 				 \endcode
 				 */
+				}
+				has_a_node_started = TRUE;
 			}
 			if(default_node_creation_speed > 0)
 				np_time_sleep(default_node_creation_speed);
 		} else {
+
+			// LEAVE TEST
+			double now = np_time_now();
+			np_bool killed_a_node = FALSE;
+			if(opt_kill_node != NULL && (now - last_process_kill_at) > kill_node){
+				last_process_kill_at = now;
+			
+				int pid = sll_first(list_of_childs)->val;
+				char time[50];
+				reltime_to_str(time, now - started_at);
+				np_example_print(stdout, "%s killing process %"PRIi32"\n", time, pid);
+				
+				kill(pid, SIGTERM);
+				killed_a_node = TRUE;
+				sll_remove(int, list_of_childs, pid, int_sll_compare_type);
+			}
+			// END LEAVE TEST
+
 			/**
 			  .. _neuropil_hydra_step_check_nodes_still_present:
 
@@ -366,33 +396,43 @@ int main(int argc, char **argv)
 			 \code
 			 */
 
-			current_pid = waitpid(-1, &status, WNOHANG);
-			// check for stopped child processes
-			if (current_pid != 0) {
-				np_example_print(stderr, "trying to find stopped child process %d\n",
-						current_pid);
-				sll_iterator(int) iter = NULL;
-				uint32_t i = 0;
-				for (iter = sll_first(list_of_childs); iter != NULL;
-						sll_next(iter)) {
-					if (current_pid == iter->val) {
-						np_example_print(stderr, "removing stopped child process\n");
-						sll_delete(int, list_of_childs, iter);
-						for (; i < required_nodes; i++) {
-							array_of_pids[i] = array_of_pids[i + 1];
-						}
-						break;
-					} else {
-						np_example_print(stderr, "not found\n");
+			int child_pid = waitpid(-1, &status, WNOHANG);
+			// check for stopped child processesy
+			if (child_pid  > 0) {
+
+				if (WIFEXITED(status) || (WIFSIGNALED(status) && WTERMSIG(status) == SIGTERM))
+				{
+					if (opt_kill_node == NULL) 
+					{
+						np_example_print(
+							stderr, 
+							"trying to find stopped child process %d\n", 
+							child_pid
+						);
 					}
-					i++;
+
+					sll_iterator(int) iter = NULL;
+					uint32_t i = 0;
+					for (iter = sll_first(list_of_childs);
+						iter != NULL;
+						sll_next(iter))
+					{
+						if (child_pid == iter->val)
+						{
+							np_example_print(stderr, "removing stopped child process\n");
+							sll_delete(int, list_of_childs, iter);
+							break;
+						}
+
+						i++;
+					}
 				}
 			}
 
 			/**
 			 \endcode
 			 */
-			np_time_sleep(3.415);
+			np_time_sleep(0.5);
 		}
 
 	}

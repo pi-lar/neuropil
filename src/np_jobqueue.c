@@ -185,8 +185,7 @@ void _np_job_queue_insert(np_job_t* new_job)
 		if(overflow_count > 0) {
 			log_msg(LOG_ERROR, "Discarding %"PRIu32" jobs. Increase JOBQUEUE_MAX_SIZE to prevent missing data.", overflow_count);
 
-			while (overflow_count > 0) {
-				overflow_count--;
+			while (overflow_count > 0) {				
 				pll_iterator(np_job_ptr) iter = pll_last(__np_job_queue->job_list);
 				do
 				{
@@ -194,6 +193,10 @@ void _np_job_queue_insert(np_job_t* new_job)
 						pll_previous(iter);
 					}
 					else {				
+						overflow_count--;
+#ifdef DEBUG
+						log_msg(LOG_ERROR, "Discarding job: %s", iter->val->ident);
+#endif
 						_np_job_free(iter->val);
 						pll_remove(np_job_ptr, __np_job_queue->job_list, iter->val, np_job_ptr_pll_compare_type);
 						break;
@@ -442,14 +445,11 @@ np_job_t* _np_jobqueue_select_next()
  * after getting the first job out of queue it will execute the corresponding callback with
  * defined job arguments
  */
-void* __np_jobqueue_run()
+void* __np_jobqueue_run(void* np_thread_ptr)
 {
-	while (_np_threads_is_threadding_initiated() == FALSE) {
-		np_time_sleep(0.01);
-	}
-
 	log_debug_msg(LOG_JOBS | LOG_THREADS| LOG_DEBUG, "job queue thread starting");
 
+	_np_threads_set_self(np_thread_ptr);
 	while (1)
 	{
 		np_job_t* job_to_execute = _np_jobqueue_select_next();
@@ -493,7 +493,14 @@ void* __np_jobqueue_run()
 		}
 #endif
         // do not process if the target is not available anymore (but do process if no target is required at all)
-        if (job_to_execute->args == NULL || job_to_execute->args->target == NULL || job_to_execute->args->target->in_destroy == FALSE) {
+		
+		np_bool exec_funcs = TRUE;
+		if (job_to_execute->args != NULL && job_to_execute->args->target != NULL) {
+			TSP_GET(np_bool, job_to_execute->args->target->in_destroy, in_destroy);
+			exec_funcs &= (in_destroy == FALSE);
+		}
+
+        if (exec_funcs) {
             
 #ifdef DEBUG_CALLBACKS			
             if (job_to_execute->ident[0] == 0) {

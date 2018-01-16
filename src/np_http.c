@@ -751,6 +751,7 @@ void _np_http_destroy() {
 	EV_P = _np_event_get_loop_http();
 	_np_suspend_event_loop_http();
 	ev_io_stop(EV_A_&__local_http->network->watcher);
+	_np_resume_event_loop_http();
 	sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
 	while(iter != NULL){
 		np_http_client_t* client = iter->val;

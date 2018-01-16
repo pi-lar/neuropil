@@ -150,7 +150,7 @@ void _np_out(np_jobargs_t* args)
 				uuid = msg_out->uuid;
 				np_bool skip = FALSE;
 
-				_LOCK_ACCESS(&my_network->ack_data_lock)
+				_LOCK_ACCESS(&my_network->waiting_lock)
 				{
 					// first find the uuid
 					np_tree_elem_t* uuid_ele = np_tree_find_str(my_network->waiting, uuid);
@@ -215,13 +215,7 @@ void _np_out(np_jobargs_t* args)
 
 			char* ack_to_str = _np_key_as_str(my_key);
 
-			if (ACK_EACHHOP == (ack_mode & ACK_EACHHOP))
-			{
-				// we have to reset the existing ack_to field in case of forwarding and each-hop acknowledge
-				np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
-				ack_to_is_me = TRUE;
-			}
-			else if (ACK_DESTINATION == (ack_mode & ACK_DESTINATION) || ACK_CLIENT == (ack_mode & ACK_CLIENT))
+			if (ACK_DESTINATION == (ack_mode & ACK_DESTINATION) || ACK_CLIENT == (ack_mode & ACK_CLIENT))
 			{
 				// only set ack_to for these two ack mode values if not yet set !
 				np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
@@ -235,7 +229,7 @@ void _np_out(np_jobargs_t* args)
 			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
 			if (TRUE == ack_to_is_me && FALSE == is_resend)
 			{
-				_LOCK_ACCESS(&my_network->send_data_lock)
+				_LOCK_ACCESS(&my_network->access_lock)
 				{
 					/* get/set sequence number to keep increasing sequence numbers per node */
 					seq = my_network->seqend;
@@ -284,11 +278,9 @@ void _np_out(np_jobargs_t* args)
 					ackentry->dest_key = args->target;
 					np_ref_obj(np_key_t, ackentry->dest_key, ref_ack_key);
 
-					if (sll_size(args->msg->on_ack) > 0 ||
-						sll_size(args->msg->on_timeout) > 0) {
-						ackentry->msg = args->msg;
-						np_ref_obj(np_message_t, ackentry->msg, ref_ack_msg);
-					}
+					ackentry->msg = args->msg;
+					np_ref_obj(np_message_t, ackentry->msg, ref_ack_msg);
+					
 					// ackentry->expected_ack = 1; // msg_out->no_of_chunks ?
 					log_debug_msg(LOG_DEBUG, "initial sending of message (%s/%s) with acknowledge",
 											 args->properties->msg_subject, args->msg->uuid);
@@ -305,7 +297,7 @@ void _np_out(np_jobargs_t* args)
 						{}
 #endif
 
-					_LOCK_ACCESS(&my_network->ack_data_lock)
+					_LOCK_ACCESS(&my_network->waiting_lock)
 					{
 						np_tree_insert_str(my_network->waiting, uuid, np_treeval_new_v(ackentry));
 					}
@@ -358,7 +350,9 @@ void _np_out_handshake(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_out_handshake(np_jobargs_t* args){");
 
-	_LOCK_MODULE(np_handshake_t) {
+	_LOCK_MODULE(np_handshake_t) 
+	{
+		
 		if (_np_node_check_address_validity(args->target->node))
 		{
 			// get our node identity from the cache
@@ -422,6 +416,7 @@ void _np_out_handshake(np_jobargs_t* args)
 			if (ret < 0)
 			{
 				log_msg(LOG_WARN, "signature creation failed, not continuing with handshake");
+				_np_threads_unlock_module(np_handshake_t_lock);
 				return;
 			}
 #ifdef DEBUG
@@ -459,6 +454,7 @@ void _np_out_handshake(np_jobargs_t* args)
 			if (hs_message->no_of_chunks != 1) {
 				log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
 				np_unref_obj(np_message_t, hs_message, ref_obj_creation);
+				_np_threads_unlock_module(np_handshake_t_lock);
 				return;
 			}
 
@@ -480,6 +476,7 @@ void _np_out_handshake(np_jobargs_t* args)
 							np_unref_obj(np_message_t, hs_message, ref_obj_creation);
 							//log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
 							//args->target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
+							_np_threads_unlock_module(np_handshake_t_lock);
 							return;
 						}
 
@@ -495,15 +492,14 @@ void _np_out_handshake(np_jobargs_t* args)
 					"sending handshake message %s to %s",// (%s:%s)",
 					hs_message->uuid, _np_key_as_str(args->target)/*, hs_node->dns_name, hs_node->port*/);
 
-				char* packet = np_memory_new(np_memory_types_BLOB_1024);// (char*)malloc(1024);
-				//CHECK_MALLOC(packet);
+				char* packet = np_memory_new(np_memory_types_BLOB_1024);
 
 				memset(packet, 0, 1024);
 				_LOCK_ACCESS(&hs_message->msg_chunks_lock) {
 					memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 				}
 
-				_LOCK_ACCESS(&args->target->network->send_data_lock)
+				_LOCK_ACCESS(&args->target->network->out_events_lock)
 				{
 					if (NULL != args->target->network->out_events) {						
 						sll_append(
@@ -534,10 +530,11 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 
 		msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 
-		if ((NULL == msg_token) ||
-			( /* = lifetime */ (now - msg_token->issued_at) >=
-			/* random time = */ (args->properties->token_min_ttl)))
+		if (	NULL == msg_token
+			 || _np_aaatoken_is_valid(msg_token) == FALSE
+			)
 		{
+			// Create a new msg token
 			log_msg(LOG_INFO | LOG_AAATOKEN, "--- refresh for subject token: %25s --------", args->properties->msg_subject);
 			log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 			np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
@@ -548,6 +545,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 			log_debug_msg(LOG_DEBUG| LOG_AAATOKEN, "--- done refresh for subject token: %25s new token has uuid %s", args->properties->msg_subject, msg_token_new->uuid);
 		}
 		
+		ASSERT(_np_aaatoken_is_valid(msg_token), "AAAToken needs to be valid")
 		// args->target == Key of subject
 
 		if (INBOUND == (args->properties->mode_type & INBOUND))
