@@ -689,3 +689,13 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e sysinfo_Mode) 
 		}
 	}
 }
+
+
+
+void np_example_save_identity(char* passphrase, char* filename) {
+
+}
+
+void np_example_load_identity(char* passphrase, char* filename) {
+
+}

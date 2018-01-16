@@ -393,31 +393,19 @@ void np_set_identity(np_aaatoken_t* identity)
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(identity);
 	np_key_t* my_identity_key = _np_keycache_find_or_create(search_key);
 
-	if (NULL != state->my_identity)
-	{
-		np_ref_switch(np_key_t, state->my_identity, ref_state_identity, my_identity_key);
-	}
-	else
-	{
-		// cannot be null, but otherwise checker complains
-		np_ref_obj(np_key_t, my_identity_key, ref_state_identity);
-		state->my_identity = my_identity_key;
-
-		np_aaatoken_t* old_aaatoken = state->my_identity->aaa_token;
-		np_ref_obj(np_aaatoken_t, identity, ref_key_aaa_token);
-		state->my_identity->aaa_token = identity;
-
-		if (old_aaatoken != NULL) {
-			np_unref_obj(np_aaatoken_t, old_aaatoken, ref_key_aaa_token);
-		}
-	}
+	np_ref_switch(np_key_t, state->my_identity, ref_state_identity, my_identity_key);		
+	
+	np_ref_switch(np_aaatoken_t, state->my_identity->aaa_token, ref_key_aaa_token, identity);
+	
 	// set target node string for correct routing
 	np_tree_insert_str(identity->extensions, "target_node", np_treeval_new_s(_np_key_as_str(state->my_node_key)) );
 
 	// create encryption parameter
-	crypto_sign_keypair(identity->public_key, identity->private_key);
-	identity->private_key_is_set = TRUE;
-	//_np_aaatoken_add_signature(identity);
+	if(identity->private_key_is_set == FALSE){
+		crypto_sign_keypair(identity->public_key, identity->private_key);
+		identity->private_key_is_set = TRUE;
+	}
+
 	np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 }
 
@@ -949,8 +937,9 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 
 	//TODO: via np_setIdentity
 	// set and ref additional identity
-	state->my_identity = state->my_node_key;
-	np_ref_obj(np_key_t, state->my_identity, ref_state_identity);
+	np_set_identity(state->my_node_key->aaa_token);
+	//state->my_identity = state->my_node_key;
+	//np_ref_obj(np_key_t, state->my_identity, ref_state_identity);
 
 	// initialize routing table
 	if (FALSE == _np_route_init (state->my_node_key) )

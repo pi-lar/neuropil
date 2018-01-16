@@ -336,8 +336,10 @@ np_aaatoken_t* _np_node_create_token(np_node_t* node)
 	int rand_interval =  ((int)randombytes_uniform(NODE_MAX_TTL_SEC-NODE_MIN_TTL_SEC)+NODE_MIN_TTL_SEC);
 	node_token->expires_at = node_token->not_before + rand_interval ;
 
-	crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
-	node_token->private_key_is_set = TRUE;
+	if (node_token->private_key_is_set == FALSE) {
+		crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
+		node_token->private_key_is_set = TRUE;
+	}
 	/*
 	np_tree_insert_str(node_token->extensions, NP_SERIALISATION_NODE_DNS_NAME,
 			np_treeval_new_s(node->dns_name));
