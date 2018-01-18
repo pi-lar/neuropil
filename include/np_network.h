@@ -77,6 +77,8 @@ struct np_network_s
 	char ip[CHAR_LENGTH_IP];
 	char port[CHAR_LENGTH_PORT];
 	np_mutex_t access_lock;
+
+	TSP(np_bool, can_be_enabled);
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
@@ -152,6 +154,8 @@ NP_API_INTERN
 char* np_network_get_port(np_key_t * container);
 NP_API_INTERN
 np_bool _np_network_send_handshake(np_key_t* node_key);
+NP_API_INTERN
+void _np_network_disable(np_network_t* self);
 #ifdef __cplusplus
 }
 #endif

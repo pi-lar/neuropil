@@ -158,7 +158,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	//default: sll_append(np_callback_t, __leave_properties->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __leave_properties->clb_transform, _np_never_called_jobexec_transform);
 	//default: sll_append(np_callback_t, __leave_properties->clb_route, _np_glia_route_lookup);
-	__leave_properties->msg_ttl = 20.0;
+	__leave_properties->msg_ttl = 3.0;
 	__leave_properties->max_threshold = UINT16_MAX;
 	__leave_properties->token_max_ttl = 30;
 	__leave_properties->token_min_ttl = 20;

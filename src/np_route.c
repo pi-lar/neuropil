@@ -85,7 +85,8 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.leafset_update");
 
-	if (node_key->in_destroy == TRUE)
+	TSP_GET(np_bool, node_key->in_destroy, in_destroy);
+	if (in_destroy == TRUE && joined)
 		return;
 
 	*added = NULL;
@@ -646,8 +647,10 @@ void _np_route_leafset_clear ()
 void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added)
 {
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_update");
+	
+	TSP_GET(np_bool, key->in_destroy, in_destroy);
 
-	if (key->in_destroy == TRUE)
+	if (in_destroy == TRUE && joined)
 		return;
 
 	_LOCK_MODULE(np_routeglobal_t)

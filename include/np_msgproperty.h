@@ -240,7 +240,7 @@ struct np_msgproperty_s
 	double           msg_ttl;
 	uint8_t          priority;
 	uint8_t          retry; // the # of retries when sending a message
-	
+
 	TSP(uint16_t,    msg_threshold); // current cache size
 	uint16_t         max_threshold; // local cache size
 	np_bool is_internal;
@@ -272,7 +272,7 @@ struct np_msgproperty_s
 	// The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
 	uint32_t token_max_ttl;
 	// The token created for this msgproperty will guaranteed live for token_min_ttl seconds
-	uint32_t token_min_ttl;	
+	uint32_t token_min_ttl;
 
 	np_bool unique_uuids_check;
 	uint32_t unique_uuids_max;
@@ -282,9 +282,7 @@ struct np_msgproperty_s
 
 } NP_API_EXPORT;
 
-#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
-#endif
 
 // create setter methods
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mode_type, np_msg_mode_type);

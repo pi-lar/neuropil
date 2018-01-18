@@ -68,7 +68,9 @@ void _np_message_t_new(void* msg)
 	msg_tmp->no_of_chunks = 1;
 	msg_tmp->is_single_part = FALSE;
 	
+	TSP_INITD(np_bool,	msg_tmp->is_acked , FALSE);
 	sll_init(np_ackentry_on_t, msg_tmp->on_ack);
+	TSP_INITD(np_bool, msg_tmp->is_in_timeout, FALSE);
 	sll_init(np_ackentry_on_t, msg_tmp->on_timeout);
 	
 	pll_init(np_messagepart_ptr, msg_tmp->msg_chunks);	

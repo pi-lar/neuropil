@@ -93,7 +93,7 @@ void _np_in_received(np_jobargs_t* args)
 			// we registered this token info before in the first handshake message
 			np_key_t* alias_key = args->target;
 
-			
+
 			raw_msg = args->custom_data;
 
 			if (NULL == raw_msg)
@@ -217,10 +217,10 @@ void _np_in_received(np_jobargs_t* args)
 
 					target_key = _np_keycache_find_or_create(target_dhkey);
 						log_debug_msg(LOG_ROUTING | LOG_DEBUG, "target of msg is %s", _np_key_as_str(target_key));
-					
+
 					// check if inbound subject handler exists
 					np_msgproperty_t* handler = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
-				
+
 					// redirect message if
 					// msg is not for my dhkey
 					// no handler is present
@@ -268,7 +268,7 @@ void _np_in_received(np_jobargs_t* args)
 
 						if (NULL != msg_to_submit)
 						{
-							if (_np_msgproperty_check_msg_uniquety(handler, msg_to_submit) 
+							if (_np_msgproperty_check_msg_uniquety(handler, msg_to_submit)
 								&& (
 								TRUE == my_key->node->joined_network ||
 								0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN, strlen(_NP_MSG_JOIN))
@@ -300,7 +300,7 @@ void _np_in_received(np_jobargs_t* args)
 				log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "ignoring msg as it is not in protocol to receive a %s msg now.", np_treeval_to_str(msg_subject, NULL));
 			}
 			// clean the mess up
-		__np_cleanup__:			
+		__np_cleanup__:
 			np_unref_obj(np_key_t, target_key,"_np_keycache_find_or_create");
 			np_unref_obj(np_message_t, msg_in, ref_obj_creation);
 
@@ -357,7 +357,7 @@ void _np_in_piggy(np_jobargs_t* args)
 			_np_route_leafset_update(node_entry, TRUE, &deleted, &added);
 
 #ifdef DEBUG
-			
+
 			if (added != NULL && deleted != NULL) {
 				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   leafset: %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
 							_np_key_as_str(added),
@@ -476,18 +476,18 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	log_msg(LOG_TRACE, "start: void _np_in_callback_wrapper(np_jobargs_t* args){");
 	np_aaatoken_t* sender_token = NULL;
 	np_message_t* msg_in = args->msg;
-	np_bool msg_has_expired = FALSE;	
+	np_bool msg_has_expired = FALSE;
 
-	if (args->properties != NULL && args->properties->is_internal) {		
+	if (args->properties != NULL && args->properties->is_internal) {
 		_np_in_invoke_user_receive_callbacks(msg_in, args->properties);
 		goto __np_cleanup__;
 	}
 
 	if(NULL == msg_in) {
-		log_msg(LOG_ERROR, "message object null but in use! %s", 
+		log_msg(LOG_ERROR, "message object null but in use! %s",
 			((args->properties == NULL)? "" : args->properties->msg_subject)
-		);			
-		
+		);
+
 		goto __np_cleanup__;
 	}
 
@@ -505,8 +505,8 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	{
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "discarding expired message %s / %s ...", msg_prop->msg_subject, msg_in->uuid);
 	}
-	else	
-	{	
+	else
+	{
 		if ( NULL == sender_token )
 		{
 			_np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
@@ -561,6 +561,7 @@ void _np_in_leave_req(np_jobargs_t* args)
 	{
 		leave_req_key = _np_key_create_from_token(node_token);
 	}
+
 	if(_np_key_cmp(_np_state()->my_node_key,leave_req_key ) != 0
 	&& _np_key_cmp(_np_state()->my_identity,leave_req_key ) != 0
 	){
@@ -1097,7 +1098,7 @@ void _np_in_update(np_jobargs_t* args)
 
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG,
 			"Sending join %s:%s",
-			// np_network_get_ip(update_key), np_network_get_port(update_key); 
+			// np_network_get_ip(update_key), np_network_get_port(update_key);
 				args->target->node->dns_name, update_key->node->port);
 			_np_send_simple_invoke_request(update_key, _NP_MSG_JOIN_REQUEST);
 		}
@@ -1214,7 +1215,7 @@ void _np_in_available_sender(np_jobargs_t* args)
 		// only add the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
 		// TODO CHECK IF NESSECARY
 		// goto __np_cleanup__;
-	}	
+	}
 	_np_aaatoken_add_sender(msg_token->subject, msg_token);
 
 	np_dhkey_t to_key = np_dhkey_create_from_hash( np_treeval_to_str(msg_to, NULL));
@@ -1286,10 +1287,10 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 			np_message_t *msg_out = NULL;
 			np_new_obj(np_message_t, msg_out);
 			_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AVAILABLE_RECEIVER, interest_data);
-			
+
 			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AVAILABLE_RECEIVER);
 
-			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));			
+			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
 
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending back msg interest to %s", _np_key_as_str(reply_to_key));
 			_np_job_submit_route_event(0.0, prop_route, reply_to_key, msg_out);
@@ -1866,7 +1867,7 @@ void _np_in_handshake(np_jobargs_t* args)
 		if (tokens_node != NULL) {
 			ref_replace_reason(np_node_t, tokens_node, "_np_node_decode_from_jrb", ref_key_node);
 			if (msg_source_key->node == NULL) {
-				msg_source_key->node = tokens_node;				
+				msg_source_key->node = tokens_node;
 			}
 			else {
 				tokens_node->is_handshake_send |= msg_source_key->node->is_handshake_send;
@@ -1888,7 +1889,7 @@ void _np_in_handshake(np_jobargs_t* args)
 			np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str );
 			free(tmp_connection_str);
 
-			_LOCK_MODULE (np_network_t)
+			_LOCK_MODULE ( np_network_t)
 			{
 				hs_wildcard_key = _np_keycache_find(wildcard_dhkey);
 				if(NULL != hs_wildcard_key && NULL != hs_wildcard_key->network) {
