@@ -59,7 +59,6 @@ int main(int argc, char **argv) {
 	char* publish_domain = NULL;
 	int level = -2;
 	char* logpath = ".";
-	char* http_domain = NULL;
 
 	int opt;
 	if (parse_program_args(
@@ -73,9 +72,8 @@ int main(int argc, char **argv) {
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-w]",
-		"w:",
-		&http_domain
+		"",
+		""
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
@@ -85,17 +83,6 @@ int main(int argc, char **argv) {
 
 	np_log_init(log_file_host, level);
 	np_init(proto, port, publish_domain);
-
-
-
-	if (FALSE == _np_http_init(http_domain))
-	{
-		fprintf(stderr, "Node could not start HTTP interface\n");
-		log_msg(LOG_WARN, "Node could not start HTTP interface");
-		np_sysinfo_enable_slave();
-	} else {
-		np_sysinfo_enable_master();
-	} 
 
 	np_start_job_queue(no_threads);
  
@@ -129,6 +116,7 @@ int main(int argc, char **argv) {
 	uint32_t count_of_routes = 0;
 
 	while (TRUE) {
+		__np_example_helper_loop();
 		np_time_sleep(0.1);
 
 		 double now = np_time_now();

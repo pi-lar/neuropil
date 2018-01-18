@@ -79,7 +79,6 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 	char* required_nodes_opt = NULL;
-	char* http_domain = NULL;
 	char* node_creation_speed_str = NULL;	
 	double default_node_creation_speed = 3.415;
 	char* opt_kill_node = NULL;	
@@ -97,10 +96,9 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-n nr_of_nodes] [-w http domain] [-z (double|\"default\")speed of node creation] [-k kill a node every x sec]",
-		"n:w:z:k:",
+		"[-n nr_of_nodes] [-z (double|\"default\")speed of node creation] [-k kill a node every x sec]",
+		"n:z:k:",
 		&required_nodes_opt,
-		&http_domain,
 		&node_creation_speed_str,
 		&opt_kill_node
 
@@ -181,7 +179,6 @@ int main(int argc, char **argv)
 			   np_sysinfo_enable_master();			
 
 			 */
-			example_http_server_init(http_domain, np_sysinfo_opt_auto); // np_sysinfo_enable_master() is included here
 			printf("HttpServer init ok\n");
 			
 			// If you want to you can enable the statistics modulte to view the nodes statistics
@@ -270,6 +267,10 @@ int main(int argc, char **argv)
 			
 			current_pid = fork();			
 			if (0 == current_pid) {
+				// disable baster for slaves
+				if(has_a_node_started && opt_sysinfo_mode != np_sysinfo_opt_disable){
+					opt_sysinfo_mode = np_sysinfo_opt_force_slave;
+				}
 				current_pid = getpid();
 				np_example_print(stdout, "Starting process %"PRIi32" on port %s\n", current_pid, port);
 

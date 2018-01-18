@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <getopt.h>
 
 #include <curses.h>
 #include <ncurses.h>
@@ -73,6 +74,37 @@ np_bool __np_refresh_windows = TRUE;
 #define LOG_BUFFER_SIZE (3000)
 np_sll_t(char_ptr, log_buffer);
 int log_user_cursor = -1;
+
+
+void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
+	np_bool http_init = FALSE;
+	if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("FALSE", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
+		if (http_domain == NULL) {
+			http_domain = calloc(1, sizeof(char) * 255);
+			CHECK_MALLOC(http_domain);
+			if (_np_get_local_ip(http_domain, 255) == FALSE) {
+				free(http_domain);
+				http_domain = NULL;
+			}
+		}
+		http_init = _np_http_init(http_domain);
+		if (http_init == FALSE) {
+			log_msg(LOG_WARN, "Node could not start HTTP interface");
+		}
+	}
+	if (opt_sysinfo_mode != np_sysinfo_opt_disable) {
+		if ((http_init && opt_sysinfo_mode == np_sysinfo_opt_auto) || opt_sysinfo_mode == np_sysinfo_opt_force_master)
+		{
+			fprintf(stdout, "HTTP interface set to %s\n", http_domain);
+			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
+			np_sysinfo_enable_master();
+		}
+		else {
+			fprintf(stderr, "Node could not start HTTP interface\n");
+			np_sysinfo_enable_slave();
+		}
+	}
+}
 
 void reltime_to_str(char*buffer, double time) {
 	// totaltime format: seconds.milliseconds
@@ -302,6 +334,9 @@ void np_example_save_or_load_identity() {
 	}
 }
 
+char* opt_http_domain = NULL;
+int opt_sysinfo_mode = 1;
+
 np_bool parse_program_args(
 	char* program,
 	int argc,
@@ -320,11 +355,11 @@ np_bool parse_program_args(
 	np_bool ret = TRUE;
 	char* usage;
 	asprintf(&usage,
-		"./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s statistics 0=Off 1=Console 2=Log 3=1&2] [-c statistic types 0=All 1=general 2=locks ] [-i identity filename] [-w passphrase for identity file] %s",
+		"./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s statistics 0=Off 1=Console 2=Log 3=1&2] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-o sysinfo 0=none,1=auto,2=master,3=slave]%s",
 		program, additional_fields_desc == NULL ? "" : additional_fields_desc
 	);
 	char* optstr;
-	asprintf(&optstr, "j:p:b:t:u:l:d:s:c:i:w:%s", additional_fields_optstr);
+	asprintf(&optstr, "j:p:b:t:u:l:d:s:y:i:a:w:o:%s", additional_fields_optstr);
 
 	char* additional_fields[32] = { 0 }; // max additional fields
 	va_list args;
@@ -339,6 +374,7 @@ np_bool parse_program_args(
 
 	int additional_field_idx = 0;
 	int opt;
+	
 	while ((opt = getopt(argc, argv, optstr)) != EOF)
 	{
 		switch ((char)opt)
@@ -359,13 +395,19 @@ np_bool parse_program_args(
 		case 'u':
 			*publish_domain = strdup(optarg);
 			break;
+		case 'w':
+			opt_http_domain = strdup(optarg);
+			break;
+		case 'o':
+			opt_sysinfo_mode = atoi(optarg);
+			break;
 		case 'd':
 			(*level) = atoi(optarg);
 			break;
 		case 's':
 			enable_statistics = atoi(optarg);
 			break;
-		case 'c':
+		case 'y':
 			statistic_types = atoi(optarg);
 			break;
 		case 'b':
@@ -375,7 +417,7 @@ np_bool parse_program_args(
 			identity_opt_is_set = TRUE;
 			strncpy(identity_filename, optarg, strnlen(optarg,254));
 			break;
-		case 'w':
+		case 'a':
 			strncpy(identity_passphrase, optarg, strnlen(optarg, 254));
 			break;
 		case 'l':
@@ -400,7 +442,7 @@ np_bool parse_program_args(
 			}
 		}
 	}
-
+	 
 	free(optstr);
 
 	if (ret) {
@@ -596,6 +638,9 @@ void __np_example_helper_loop() {
 	if (started_at == 0) {
 		started_at = np_time_now();
 		np_print_startup();
+
+		// starting the example http server to support the http://view.neuropil.io application	
+		example_http_server_init(opt_http_domain, opt_sysinfo_mode);
 
 		np_example_save_or_load_identity();
 	}
@@ -823,35 +868,5 @@ void __np_example_helper_run_info_loop() {
 	{
 		__np_example_helper_loop();
 		np_time_sleep(output_intervall_sec);
-	}
-}
-
-void example_http_server_init(char* http_domain, np_sysinfo_opt_e sysinfo_Mode) {
-	np_bool http_init = FALSE;
-	if (http_domain == NULL || strncmp("none", http_domain, 4) != 0) {
-		if (http_domain == NULL) {
-			http_domain = calloc(1, sizeof(char) * 255);
-			CHECK_MALLOC(http_domain);
-			if (_np_get_local_ip(http_domain, 255) == FALSE) {
-				free(http_domain);
-				http_domain = NULL;
-			}
-		}
-		http_init = _np_http_init(http_domain);
-		if (http_init == FALSE) {
-			log_msg(LOG_WARN, "Node could not start HTTP interface");
-		}		
-	}
-	if (sysinfo_Mode != np_sysinfo_opt_disable) {
-		if ((http_init && sysinfo_Mode == np_sysinfo_opt_auto) || sysinfo_Mode == np_sysinfo_opt_force_master)
-		{
-			fprintf(stdout, "HTTP interface set to %s\n", http_domain);
-			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
-			np_sysinfo_enable_master();
-		}
-		else {
-			fprintf(stderr, "Node could not start HTTP interface\n");
-			np_sysinfo_enable_slave();
-		}
 	}
 }
