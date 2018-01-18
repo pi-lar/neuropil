@@ -1,20 +1,21 @@
 #!/usr/bin/env python
-
 """
-setup.py file for neuropil
+setup.py file for neuropil library
 """
-
 from distutils.core import setup, Extension
 
 neuropil_module = Extension('_neuropil',
-                    define_macros = [('MAJOR_VERSION', '0'),
-                                     ('MINOR_VERSION', '4')],
-                    libraries = ['neuropil', 'sodium'],
-                    sources=['neuropil_python.c',],
+                            sources = ['neuropil.i'],
+                            swig_opts=['-modern', '-I../include', '-Dx64'],
+                            define_macros = [('MAJOR_VERSION', '0'), ('MINOR_VERSION', '5'), ('x64', None)],
+                            extra_compile_args=['-O3', '-Wno-unsupported-visibility', '-std=c99'],
+                            libraries = ['neuropil', 'sodium'],
+                            include_dirs=['../include'],
+                            library_dirs=['../build/lib'],
                   )
 
 setup (name = 'neuropil',
-       version = '0.4.1',
+       version = '0.5.0',
        author      = "pi-lar GmbH",
        description = """experimental neuropil python bindings""",
        ext_modules = [neuropil_module],
