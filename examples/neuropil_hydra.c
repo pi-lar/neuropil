@@ -271,6 +271,8 @@ int main(int argc, char **argv)
 			current_pid = fork();			
 			if (0 == current_pid) {
 				current_pid = getpid();
+				np_example_print(stdout, "Starting process %"PRIi32" on port %s\n", current_pid, port);
+
 
 				/**
 				 \endcode

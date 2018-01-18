@@ -62,68 +62,33 @@ void _np_events_async_break(struct ev_loop *loop, NP_UNUSED ev_async *watcher, N
 	ev_break(loop, EVBREAK_ALL);
 }
 
-void np_event_init() {
-	if (loop_io == NULL) {
-		TSP_INIT(double, loop_http_suspend_wait);
-		TSP_INIT(double, loop_io_suspend_wait);
-		TSP_INIT(double, loop_out_suspend_wait);
-		TSP_INIT(double, loop_in_suspend_wait);
+#define LOOP_INIT(LOOPNAME)																		\
+	TSP_INITD(double, loop_##LOOPNAME##_suspend_wait, 0);										\
+	TSP_INIT(static ev_async, __libev_async_watcher_##LOOPNAME);								\
+	_np_threads_mutex_init(&loop_##LOOPNAME##_suspend, "loop_"#LOOPNAME"_suspend");				\
+	loop_##LOOPNAME = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);								\
+																								\
+	if (loop_##LOOPNAME == FALSE) {																\
+		fprintf(stderr, "ERROR: cannot init "#LOOPNAME" event loop");							\
+		exit(EXIT_FAILURE);														   				\
+	}																			   				\
+	ev_set_io_collect_interval(loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);					\
+	ev_set_timeout_collect_interval(loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);				\
+	ev_verify(loop_##LOOPNAME);																	\
+																				   				\
+	_LOCK_ACCESS_W_PREFIX(a,&__libev_async_watcher_##LOOPNAME##_mutex) {						\
+		ev_async_init(&__libev_async_watcher_##LOOPNAME, _np_events_async_break);				\
+		ev_async_start(loop_##LOOPNAME, &__libev_async_watcher_##LOOPNAME);						\
+	}																							\
+			
 
-		TSP_SET(double, loop_http_suspend_wait,	0);
-		TSP_SET(double, loop_io_suspend_wait,	0);
-		TSP_SET(double, loop_out_suspend_wait,	0);
-		TSP_SET(double, loop_in_suspend_wait,	0);
-
-	
-		TSP_INIT(static ev_async, __libev_async_watcher_io);		
-		_LOCK_ACCESS(&__libev_async_watcher_io_mutex) {			
-			ev_async_init(&__libev_async_watcher_io, _np_events_async_break);
-		}		
-		_np_threads_mutex_init(&loop_io_suspend,"loop_io_suspend");
-		loop_io = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-		if (loop_io == FALSE) {
-			fprintf(stderr, "ERROR: cannot init IO event loop");
-			exit(EXIT_FAILURE);
-		}
-		ev_verify(loop_io);
-
-		TSP_INIT(static ev_async, __libev_async_watcher_out);
-		_LOCK_ACCESS(&__libev_async_watcher_out_mutex) {
-			ev_async_init(&__libev_async_watcher_out, _np_events_async_break);
-		}
-		_np_threads_mutex_init(&loop_out_suspend,"loop_out_suspend");
-		loop_out = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-		if (loop_out == FALSE) {
-			fprintf(stderr, "ERROR: cannot init OUT event loop");
-			exit(EXIT_FAILURE);
-		}
-		ev_verify(loop_out);
-
-		TSP_INIT(static ev_async, __libev_async_watcher_http);
-		_LOCK_ACCESS(&__libev_async_watcher_http_mutex) {
-			ev_async_init(&__libev_async_watcher_http, _np_events_async_break);
-		}
-		_np_threads_mutex_init(&loop_http_suspend,"loop_http_suspend");
-		loop_http = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-		if (loop_http == FALSE) {
-			fprintf(stderr, "ERROR: cannot init http event loop");
-			exit(EXIT_FAILURE);
-		}
-		ev_verify(loop_http);
-
-		TSP_INIT(static ev_async, __libev_async_watcher_in);
-		_LOCK_ACCESS(&__libev_async_watcher_in_mutex) {
-			ev_async_init(&__libev_async_watcher_in, _np_events_async_break);
-		}
-		_np_threads_mutex_init(&loop_in_suspend,"loop_in_suspend");
-		loop_in = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-		//also possible, but default loop is propably already initialized
-		//loop_in = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-		if (loop_in == FALSE) {
-			fprintf(stderr, "ERROR: cannot init IN event loop");
-			exit(EXIT_FAILURE);
-		}
-		ev_verify(loop_in);
+void np_event_init() {	
+	if (loop_io == NULL)
+	{
+		LOOP_INIT(io);
+		LOOP_INIT(in);
+		LOOP_INIT(http);
+		LOOP_INIT(out);
 	}
 }
 
@@ -146,10 +111,6 @@ struct ev_loop * _np_event_get_loop_out() {
 	np_event_init();
 	return loop_out;
 }
-
-
-
-
 
 // TODO: move to glia
 void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
@@ -305,13 +266,6 @@ void* _np_event_in_run(void* np_thread_ptr) {
 	_np_threads_set_self(np_thread_ptr);
 
 	EV_P = _np_event_get_loop_in();
-	
-	_LOCK_ACCESS(&__libev_async_watcher_in_mutex) {
-		ev_async_start(EV_A_ &__libev_async_watcher_in);
-	}	
-
-	ev_set_io_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
-	ev_set_timeout_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);	
 
 	while (1) {
 		while (1) {
@@ -337,12 +291,6 @@ void* _np_event_io_run(void* np_thread_ptr) {
 
 	EV_P = _np_event_get_loop_io();
 
-	_LOCK_ACCESS(&__libev_async_watcher_io_mutex) {
-		ev_async_start(EV_A_ &__libev_async_watcher_io);
-	}
-	ev_set_io_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
-	ev_set_timeout_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
-
 	while (1) {
 
 		while (1) {
@@ -366,12 +314,6 @@ void* _np_event_out_run(void* np_thread_ptr) {
 	_np_threads_set_self(np_thread_ptr);
 
 	EV_P = _np_event_get_loop_out();
-
-	_LOCK_ACCESS(&__libev_async_watcher_out_mutex) {
-		ev_async_start(EV_A_ &__libev_async_watcher_out);
-	}
-	ev_set_io_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
-	ev_set_timeout_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
 
 	while (1) {
 
