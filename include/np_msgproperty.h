@@ -186,7 +186,7 @@ typedef enum np_msgcache_policy_enum {
 
    ACK_NONE        - never require a acknowledge
 
-   ACK_EACHHOP     - request the acknowledge between each hop a message is send
+   ACK_EACHHOP     - request the acknowledge between each hop a message is send - deprecated
 
    ACK_DESTINATION - request the sending of a acknowledge when the message has reached the
    final destination
@@ -282,7 +282,9 @@ struct np_msgproperty_s
 
 } NP_API_EXPORT;
 
+#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
+#endif
 
 // create setter methods
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mode_type, np_msg_mode_type);

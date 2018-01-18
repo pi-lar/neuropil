@@ -36,6 +36,9 @@
 	%ignore msg_chunks_lock;
 	%ignore on_ack;
     %ignore on_timeout;
+	%ignore TSP;
+	%ignore is_acked;
+	%ignore is_in_timeout;
 };
 
 %ignore _np_message_buffer_container_s;

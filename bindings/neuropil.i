@@ -5,9 +5,10 @@
 
 %module(package="neuropil") neuropil
 
-
 #define NP_API_INTERN
 #define NP_API_EXPORT
+#define NP_API_PROTEC
+#define NP_UNUSED
 #define NP_ENUM
 
 %include "stdint.i"
@@ -305,7 +306,7 @@ static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tre
 		char* subject = PyString_AsString(PyString);
 		log_msg(LOG_INFO, "searching for mx property with subject %s", subject);
 		np_msgproperty_t* prop = np_msgproperty_get(INBOUND, subject);
-		
+
 		if (prop == NULL) {
 			np_new_obj(np_msgproperty_t, prop);
 			prop->msg_subject = strndup(subject, 255);

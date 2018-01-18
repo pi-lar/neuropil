@@ -22,7 +22,7 @@
 	%immutable msg_subject;
 	%immutable last_update;
     %immutable mode_type; // potentially destroying dicovery sending -> read-only
-	
+
 	// internal fields, do not expose to python
 	%ignore obj;
 	%ignore link;
@@ -31,6 +31,10 @@
 	%ignore msg_cache_in;
 	%ignore msg_cache_out;
 	%ignore lock;
+
+	%ignore TSP;
+	%ignore msg_threshold;
+
 	%ignore msg_received;
 	%ignore clb_inbound;			// internal neuropil supplied
 	%ignore clb_outbound;			// internal neuropil supplied
@@ -53,6 +57,10 @@
 %ignore __np_msgproperty_internal_msgs_ack;
 %ignore _np_msgproperty_add_receive_listener;
 %ignore _np_msgproperty_cleanup_receiver_cache;
+%ignore np_msgproperty_disable_check_for_unique_uuids;
+%ignore np_msgproperty_enable_check_for_unique_uuids;
+%ignore _np_msgproperty_job_msg_uniquety;
+%ignore _np_msgproperty_check_msg_uniquety;
 
 
 %include "np_msgproperty.h"
