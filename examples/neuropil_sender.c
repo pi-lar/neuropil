@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 	\code
 	*/
 	while (1) {
-
+		__np_example_helper_loop(); // for the fancy ncurse display
 		np_time_sleep(1.0);
 
 		np_send_text(msg_subject, msg_data, k, NULL);

@@ -169,6 +169,7 @@ int main(int argc, char **argv) {
 	 */
 	uint32_t i = 0;
 	while (TRUE == status->my_node_key->node->joined_network) {
+		__np_example_helper_loop();
 		if (i++ % 50 == 0) {
 			char * s_out;
 			if(add_id_to_msg) {

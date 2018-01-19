@@ -300,7 +300,7 @@ void np_key_renew_token() {
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "step ._np_renew_node_token_jobexec.replacing identity");
 		// _np_job_yield(state->my_node_key->aaa_token->expires_at - ev_time());
 		// exchange identity if required
-		if (state->my_identity == old_node_key)
+		if (_np_key_cmp(state->my_identity,old_node_key) == 0)
 		{
 			np_ref_switch(np_key_t, state->my_identity, ref_state_identity, new_node_key);
 		}

@@ -33,6 +33,7 @@
 #include "np_util.h"
 #include "np_settings.h"
 #include "np_constants.h"
+#include "np_identity.h"
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
@@ -305,49 +306,49 @@ np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
 	
 	return (node_key);
 }
+int _np_node_cmp(np_node_t* a, np_node_t* b) {
+	int ret = a == NULL || b == NULL ;
+	
+	if (ret == 0) {
+		ret = strcmp(a->dns_name, b->dns_name);
+	}
+	else {
+		if (ret == 0) {
+			ret = strcmp(a->port, b->port);
+		}
+		else {
+			if (ret == 0) {
+				ret = a->protocol == b->protocol;
+			}
+		}
+	}
+	return ret;
+}
 
-np_aaatoken_t* _np_node_create_token(np_node_t* node)
+np_aaatoken_t* _np_node_create_token(np_node_t* source_node)
 {
-	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_node_create_token(np_node_t* node){");
-	np_state_t* state = _np_state();
+	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_node_create_token(np_node_t* source_node){");
 
-	np_aaatoken_t* node_token = NULL;
-	np_new_obj(np_aaatoken_t, node_token);
+	int rand_interval = ((int)randombytes_uniform(NODE_MAX_TTL_SEC - NODE_MIN_TTL_SEC) + NODE_MIN_TTL_SEC);
+	double expires_at = np_time_now() + rand_interval;
 
 	char node_subject[255];
 	snprintf(node_subject, 255, "urn:np:node:%s:%s:%s",
-			_np_network_get_protocol_string(node->protocol), node->dns_name, node->port);
+		_np_network_get_protocol_string(source_node->protocol), source_node->dns_name, source_node->port);
 
-	// create token
-	if (NULL != state->realm_name)
-	{
-		strncpy(node_token->realm, state->realm_name, 255);
+	char issuer[64] = { 0 };
+	if (_np_state() != NULL && _np_state()->my_identity != NULL && 
+		_np_node_cmp(_np_state()->my_identity->node , source_node) != 0) {
+
+		strncpy(issuer,_np_key_as_str(_np_state()->my_identity),64);
 	}
-	strncpy(node_token->issuer, node_subject, 64);
-	strncpy(node_token->subject, node_subject, 255);
-	// strncpy(node_token->audience, (char*) _np_key_as_str(state->my_identity->aaa_token->realm), 255);
+	else {
+		strncpy(issuer, node_subject, 64);
+	}
 
-	char* old = node_token->uuid;
-	node_token->uuid = np_uuid_create(node_subject, 0);
-	free(old);
+	np_aaatoken_t* ret = _np_aaatoken_new(issuer, node_subject, expires_at);
 
-	node_token->not_before = np_time_now();
-
-	int rand_interval =  ((int)randombytes_uniform(NODE_MAX_TTL_SEC-NODE_MIN_TTL_SEC)+NODE_MIN_TTL_SEC);
-	node_token->expires_at = node_token->not_before + rand_interval ;
-
-	crypto_sign_keypair(node_token->public_key, node_token->private_key);   // ed25519
-	node_token->private_key_is_set = TRUE;
-	/*
-	np_tree_insert_str(node_token->extensions, NP_SERIALISATION_NODE_DNS_NAME,
-			np_treeval_new_s(node->dns_name));
-	np_tree_insert_str(node_token->extensions, NP_SERIALISATION_NODE_PORT,
-			np_treeval_new_s(node->port));
-	np_tree_insert_str(node_token->extensions, NP_SERIALISATION_NODE_PROTOCOL,
-			np_treeval_new_ush(node->protocol));
-	*/
-	//_np_aaatoken_add_signature(node_token);
-	return (node_token);
+	return (ret);
 }
 
 void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)

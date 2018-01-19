@@ -256,7 +256,7 @@ void np_set_realm_name(const char* realm_name)
 
 	// set and ref additional identity
 	//TODO: use np_set_identity
-	if (_np_state()->my_identity == _np_state()->my_node_key)
+	if (_np_key_cmp(_np_state()->my_identity ,_np_state()->my_node_key)==0)
 	{
 		np_ref_switch(np_key_t, _np_state()->my_identity, ref_state_identity, new_node_key);
 	}
@@ -388,37 +388,22 @@ void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
 void np_set_identity(np_aaatoken_t* identity)
 {
 	log_msg(LOG_TRACE, "start: void np_set_identity(np_aaatoken_t* identity){");
+
 	np_state_t* state = _np_state();
 
 	// build a hash to find a place in the dhkey table, not for signing !
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(identity);
 	np_key_t* my_identity_key = _np_keycache_find_or_create(search_key);
+		
+	if(_np_key_cmp(my_identity_key, state->my_node_key) != 0) {
+		np_ref_switch(np_aaatoken_t, my_identity_key->aaa_token, ref_key_aaa_token, identity);
+		
 
-	if (NULL != state->my_identity)
-	{
-		np_ref_switch(np_key_t, state->my_identity, ref_state_identity, my_identity_key);
+		// set target node string for correct routing
+		np_tree_replace_str(identity->extensions, "target_node", np_treeval_new_s(_np_key_as_str(state->my_node_key)));
 	}
-	else
-	{
-		// cannot be null, but otherwise checker complains
-		np_ref_obj(np_key_t, my_identity_key, ref_state_identity);
-		state->my_identity = my_identity_key;
+	np_ref_switch(np_key_t, state->my_identity, ref_state_identity, my_identity_key);
 
-		np_aaatoken_t* old_aaatoken = state->my_identity->aaa_token;
-		np_ref_obj(np_aaatoken_t, identity, ref_key_aaa_token);
-		state->my_identity->aaa_token = identity;
-
-		if (old_aaatoken != NULL) {
-			np_unref_obj(np_aaatoken_t, old_aaatoken, ref_key_aaa_token);
-		}
-	}
-	// set target node string for correct routing
-	np_tree_insert_str(identity->extensions, "target_node", np_treeval_new_s(_np_key_as_str(state->my_node_key)) );
-
-	// create encryption parameter
-	crypto_sign_keypair(identity->public_key, identity->private_key);
-	identity->private_key_is_set = TRUE;
-	//_np_aaatoken_add_signature(identity);
 	np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 }
 
@@ -913,7 +898,6 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	_LOCK_MODULE(np_network_t)
 	{
 		_np_network_init(my_network, TRUE, np_proto, hostname, np_service);
-		_np_network_stop(my_network, TRUE);
 	}
 	log_debug_msg(LOG_DEBUG, "check for initialised network");
 	if (FALSE == my_network->initialized)
@@ -924,34 +908,34 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 
 	log_debug_msg(LOG_DEBUG, "update my node data");
 	_np_node_update(my_node, np_proto, hostname, np_service);
-
-	log_debug_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
-					   _np_network_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);
+	
+	log_debug_msg(LOG_DEBUG, "neuropil_init: create node token");
 	// create a new token for encryption each time neuropil starts
 	np_aaatoken_t* auth_token = _np_node_create_token(my_node);
 	auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
+	log_debug_msg(LOG_DEBUG, "neuropil_init: create node");
 	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // np_dhkey_create_from_hostport(my_node->dns_name, my_node->port);
 	state->my_node_key = _np_keycache_find_or_create(my_dhkey);
 
+	log_debug_msg(LOG_DEBUG, "neuropil_init: network_init for %s:%s:%s",
+		_np_network_get_protocol_string(my_node->protocol), my_node->dns_name, my_node->port);
 
 	np_ref_obj(np_key_t, state->my_node_key, ref_network_watcher);
 	my_network->watcher.data = state->my_node_key;
-	_np_network_start(my_network);
-
-	// log_msg(LOG_WARN, "node_key %p", state->my_node_key);
-
+	//_np_network_start(my_network); // network wir be started later (on run())
+	
 	np_ref_obj(np_node_t, my_node, ref_key_node);
 	state->my_node_key->node = my_node;
 	np_ref_obj(np_network_t, my_network, ref_key_network);
 	state->my_node_key->network = my_network;
 	np_ref_obj(np_aaatoken_t, auth_token, ref_key_aaa_token);
 	state->my_node_key->aaa_token = auth_token;
+	
 
-	//TODO: via np_setIdentity
-	// set and ref additional identity
-	state->my_identity = state->my_node_key;
-	np_ref_obj(np_key_t, state->my_identity, ref_state_identity);
+	np_set_identity(auth_token);
+	//state->my_identity = state->my_node_key;
+	//np_ref_obj(np_key_t, state->my_identity, ref_state_identity);
 
 	// initialize routing table
 	if (FALSE == _np_route_init (state->my_node_key) )

@@ -198,7 +198,8 @@ gettimeofday(&NAME##_tv, NULL);																				\
 NAME##_ts.tv_sec = NAME##_tv.tv_sec + min(MUTEX_WAIT_MAX_SEC - ELAPSED_TIME, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC);													
 
 
-#define _LOCK_ACCESS(obj) np_mutex_t* TOKENPASTE2(lock, __LINE__) = obj; for(uint8_t _LOCK_ACCESS##__LINE__=0; (_LOCK_ACCESS##__LINE__ < 1) && 0 == _np_threads_mutex_lock(TOKENPASTE2(lock, __LINE__),__func__); _np_threads_mutex_unlock(TOKENPASTE2(lock, __LINE__)), _LOCK_ACCESS##__LINE__++)
+#define _LOCK_ACCESS_W_PREFIX(prefix, obj) np_mutex_t* TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)) = obj; for(uint8_t _LOCK_ACCESS##prefix##__LINE__=0; (_LOCK_ACCESS##prefix##__LINE__ < 1) && 0 == _np_threads_mutex_lock(TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)),__func__); _np_threads_mutex_unlock(TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__))), _LOCK_ACCESS##prefix##__LINE__++)
+#define _LOCK_ACCESS(obj) _LOCK_ACCESS_W_PREFIX(d, obj)
 #define _TRYLOCK_ACCESS(obj) np_mutex_t* TOKENPASTE2(lock, __LINE__) = obj; for(uint8_t _TRYLOCK_ACCESS##__LINE__=0; (_TRYLOCK_ACCESS##__LINE__ < 1) && 0 == _np_threads_mutex_trylock(TOKENPASTE2(lock, __LINE__),__func__); _np_threads_mutex_unlock(TOKENPASTE2(lock, __LINE__)), _TRYLOCK_ACCESS##__LINE__++)
 // protect access to restricted area in the rest of your code like this
 /*
