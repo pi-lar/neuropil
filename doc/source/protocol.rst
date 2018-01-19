@@ -11,13 +11,14 @@ exchange public keys with another node. The handshake message is composed of
 the serialized node token and a signature of the serialized token created using
 the private key of the sending node.
 
-The node that receives the handshake message must verify the signature before
-responding with a handshake message of its own. Additionally, the receiving
-node calculates a shared secret using its own private key and the public key of
-its new peer via Diffie-Hellman key exchange.
+The node that receives the handshake message must verify the signature and
+contents of the received token before responding with a handshake message of
+its own. Additionally, the receiving node calculates a shared secret using its
+own private key and the public key of its new peer via Diffie-Hellman key
+exchange.
 
-When the initiating node receives an authentic, affirmative handshake response,
-it derives matching session keys. Any follow-up messages must be encrypted and
+When the initiating node receives a valid, authentic handshake response, it
+derives matching session keys. Any follow-up messages must be encrypted and
 authenticated using session keys derived from the shared secret, or else they
 will be discarded.
 
@@ -35,14 +36,6 @@ predefined fields are:
    * hostname
    * port
 
-In addition, the token structure can be extended to hold user defined data if
-required.
-
-Each node may terminate the session and destroy any session keys if it is not
-satisfied with the contents of the received token (e.g., if they deem the
-public key offered by their peer to insecure). If both nodes are satisfied,
-they proceed with the second phase of the protocol: joining the network.
-
 Note: the token exchanged during the handshake is **not** encrypted and can be
 read by anyone observing the network. It must not contain passwords or other
 secret data.
@@ -52,16 +45,16 @@ Phase 2: joining the network
 ****************************
 
 The initiating node transmits a *join message* to its peer. The join message
-contains an identity token issued by the identity that owns the node. The node
-and identity tokens may be identical. If they differ, then the identity also
-contains the token hash of the node token to identify the correct node (also
-used for routing purposes later).
+contains the identity of the entity that owns the node. This identity may be
+identical to the node identity. If they differ, then the identity also contains
+the token hash of the node token to identify the correct node (also used for
+routing purposes later).
 
 The receiving node can authenticate and authorize the identity requesting
 access to its network, either by providing the defined callback functions, or
 by forwarding the data to a different, authoritative node.
 
-If the identity token of the node requesting join access cannot be
+If the identity of the node requesting join access cannot be
 authenticated, the handshake protocol sends a *not-acknowledge message* back to
 the sender, and the identity and node data is marked as obsolete and deleted
 later (because sending the not-acknowledge still requires the established
@@ -95,7 +88,7 @@ latency).
 Phase 4: message exchange; communicating message availability and interest
 **************************************************************************
 
-Two nodes in the network would like to exchange information about a given
+Two nodes in the network that would like to exchange information about a given
 *subject* get in touch as follows. Each node communicates his special interest
 (sending or receiving) of a subject to the *subject coordinator*: the node
 whose node token hash is the closest to the subject hash at the time. The

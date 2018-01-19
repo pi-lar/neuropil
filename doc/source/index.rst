@@ -22,6 +22,7 @@ Contents:
    tutorial
    apps_tools
    api
+   realms_identities
    protocol
    license
    knowhow
