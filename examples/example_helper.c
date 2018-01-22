@@ -461,7 +461,7 @@ np_bool parse_program_args(
 
 
 		uint32_t log_categories = 0
-			| LOG_TRACE
+			//| LOG_TRACE
 
 			//| LOG_MUTEX
 			| LOG_ROUTING

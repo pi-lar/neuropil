@@ -41,7 +41,7 @@ np_bool    __np_threads_mutexes_initiated = FALSE;
 np_bool    __np_threads_threads_initiated = FALSE;
 
 static pthread_once_t __thread_init_once = PTHREAD_ONCE_INIT;
-
+ 
 pthread_key_t  pthread_thread_id_key ;
 
 void __np_threads_create_module_mutex()

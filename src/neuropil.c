@@ -483,8 +483,11 @@ void np_rem_mx_property(char* subject, const char* key)
 	}
 }
 
-void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key )
+np_message_t* _np_prepare_msg(char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key)
 {
+	np_message_t* ret = NULL;
+	np_new_obj(np_message_t, ret);
+
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
 	{
@@ -495,24 +498,43 @@ void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body, np_dhke
 
 		np_msgproperty_register(msg_prop);
 	}
+
+	np_ref_obj(np_msgproperty_t, msg_prop, ref_message_msg_property);
+	ret->msg_property = msg_prop;
+
 	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)) {
 		sll_append(np_callback_t, msg_prop->clb_outbound, _np_out);
 	}
 
-	np_message_t* msg = NULL;
-	np_new_obj(np_message_t, msg);
+	np_tree_insert_str(ret->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s((char*)subject));
+	np_tree_insert_str(ret->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*)_np_key_as_str(_np_state()->my_node_key)));
 
-	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s((char*) subject));
-	np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(_np_state()->my_node_key)));
+	_np_message_setbody(ret, body);
+	_np_message_setproperties(ret, properties);
 
-	_np_message_setbody(msg, body);
-	_np_message_setproperties(msg, properties);
+	return ret;
+}
 
-	_np_send_msg(subject, msg, msg_prop, target_key);
+void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key)
+{
+	np_message_t* msg = _np_prepare_msg(subject, properties, body, target_key);
+
+	_np_send_msg(subject, msg, msg->msg_property, target_key);
 
 	np_unref_obj(np_message_t, msg, ref_obj_creation);
 }
 
+void np_send_response_msg(np_message_t* original, np_tree_t *properties, np_tree_t *body) {
+
+	np_key_t* sender = _np_message_get_sender(original);
+	np_message_t* msg = _np_prepare_msg(original->msg_property->rep_subject, properties, body, &sender->dhkey);
+
+	np_tree_replace_str(msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(original->uuid));
+
+	_np_send_msg(msg->msg_property->msg_subject, msg, msg->msg_property, &sender->dhkey);
+
+	np_unref_obj(np_message_t, msg, ref_obj_creation);
+}
 np_key_t* _np_get_key_by_key_hash(char* targetDhkey)
 {
 	log_msg(LOG_TRACE, "start: np_key_t* _np_get_key_by_key_hash(char* targetDhkey){");
@@ -1163,3 +1185,4 @@ void np_send_wildcard_join(const char* node_string)
 	np_route_set_bootstrap_key(wildcard_node_key);
 	np_unref_obj(np_key_t, wildcard_node_key, "_np_node_decode_from_str");
 }
+

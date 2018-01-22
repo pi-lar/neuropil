@@ -377,6 +377,13 @@ NP_API_INTERN
 void _np_send_simple_invoke_request(np_key_t* target, const char* type);
 NP_API_INTERN
 np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* type);
+NP_API_EXPORT
+void np_send_response_msg(np_message_t* original, np_tree_t *properties, np_tree_t *body);
+NP_API_INTERN
+np_message_t* _np_prepare_msg(char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
+
+
+
 #ifdef __cplusplus
 }
 #endif

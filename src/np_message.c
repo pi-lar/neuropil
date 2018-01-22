@@ -1170,3 +1170,23 @@ void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_rep
 	}
 }
 
+np_key_t* _np_message_get_sender(np_message_t* self){
+
+	np_key_t* ret = NULL;
+	np_tree_elem_t* ele = np_tree_find_str(self->header, _NP_MSG_HEADER_FROM);
+
+	if (ele != NULL) {
+		np_bool freeable = FALSE;
+		char* dhkey_str  = np_treeval_to_str(ele->val, &freeable);
+		np_dhkey_t dhkey = { 0 };
+
+		_np_dhkey_from_str(dhkey_str, &dhkey);
+		
+		ret = _np_keycache_find_or_create(dhkey);
+
+		if (freeable) {
+			free(dhkey_str);
+		}
+	}
+	return ret;
+}
