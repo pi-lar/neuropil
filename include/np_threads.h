@@ -242,6 +242,9 @@ char* np_threads_printpool(np_bool asOneLine);
 #define TSP_INIT(TYPE, NAME)						\
 	_np_threads_mutex_init(&NAME##_mutex,#NAME);	
 
+#define TSP_DESTROY(TYPE, NAME)						\
+	_np_threads_mutex_destroy(&NAME##_mutex);	
+
 #define TSP_GET(TYPE, NAME, RESULT)					\
 	TYPE RESULT;									\
 	_LOCK_ACCESS(&NAME##_mutex){					\

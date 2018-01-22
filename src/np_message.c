@@ -41,12 +41,13 @@
 #include "np_tree.h"
 #include "np_settings.h"
 #include "np_types.h"
-#include "np_ackentry.h"
+#include "np_responsecontainer.h"
 #include "np_constants.h"
 #include "np_serialization.h"
 
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_ptr);
+NP_SLL_GENERATE_IMPLEMENTATION(np_message_on_reply_t);
 
 void _np_message_t_new(void* msg)
 {
@@ -69,10 +70,13 @@ void _np_message_t_new(void* msg)
 	msg_tmp->is_single_part = FALSE;
 	
 	TSP_INITD(np_bool,	msg_tmp->is_acked , FALSE);
-	sll_init(np_ackentry_on_t, msg_tmp->on_ack);
+	sll_init(np_responsecontainer_on_t, msg_tmp->on_ack);
 	TSP_INITD(np_bool, msg_tmp->is_in_timeout, FALSE);
-	sll_init(np_ackentry_on_t, msg_tmp->on_timeout);
+	sll_init(np_responsecontainer_on_t, msg_tmp->on_timeout);
 	
+	TSP_INITD(np_bool, msg_tmp->has_reply, FALSE);
+	sll_init(np_responsecontainer_on_t, msg_tmp->on_reply);
+
 	pll_init(np_messagepart_ptr, msg_tmp->msg_chunks);	
 	msg_tmp->bin_properties = NULL;
 	msg_tmp->bin_body = NULL;
@@ -80,6 +84,8 @@ void _np_message_t_new(void* msg)
 	msg_tmp->bin_static = NULL;
 
 }
+
+
 /*
 	May allow the system to use the incomming buffer directly
 	to populate the tree stuctures (header/body/...)
@@ -99,8 +105,13 @@ void _np_message_t_del(void* data)
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_del(void* data){");	
 	np_message_t* msg = (np_message_t*) data;
 
-	sll_free(np_ackentry_on_t, msg->on_ack);
-	sll_free(np_ackentry_on_t, msg->on_timeout);
+	sll_free(np_responsecontainer_on_t, msg->on_ack);
+	sll_free(np_responsecontainer_on_t, msg->on_timeout);
+	sll_free(np_responsecontainer_on_t, msg->on_reply);
+
+	TSP_DESTROY(np_bool, msg->is_acked);
+	TSP_DESTROY(np_bool, msg->is_in_timeout);
+	TSP_DESTROY(np_bool, msg->has_reply);
 
 	np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
 
@@ -1145,4 +1156,17 @@ char* _np_message_get_subject(np_message_t* msg) {
 	return ret;
 }
 
+void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply) {
+
+	TSP_SCOPE(np_bool, self->has_reply) {
+		sll_append(np_message_on_reply_t, self->on_reply, on_reply);
+	}
+}
+
+void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_reply_to_remove) {
+
+	TSP_SCOPE(np_bool, self->has_reply) {
+		sll_remove(np_message_on_reply_t, self->on_reply, on_reply_to_remove, np_message_on_reply_t_sll_compare_type);
+	}
+}
 

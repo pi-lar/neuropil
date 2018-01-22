@@ -33,6 +33,7 @@
 #include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_network.h"
@@ -42,6 +43,7 @@
 #include "np_event.h"
 #include "np_sysinfo.h"
 #include "np_util.h"
+#include "np_shutdown.h"
 
 #include "np_settings.h"
 #include "np_constants.h"
@@ -1108,7 +1110,7 @@ void _np_send_ack(const np_message_t* const msg_to_ack)
 			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
 
 			_np_message_create(ack_msg, ack_target, state->my_node_key, _NP_MSG_ACK, NULL);
-			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_ACKUUID, np_treeval_new_s(msg_to_ack->uuid));
+			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_to_ack->uuid));
 			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
 
 			// send the ack out

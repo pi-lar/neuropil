@@ -39,7 +39,7 @@
 #include "np_types.h"
 #include "np_constants.h"
 #include "np_list.h"
-#include "np_ackentry.h"
+#include "np_responsecontainer.h"
 #include "np_serialization.h"
 
 /** message split up maths
@@ -80,7 +80,7 @@ void _np_out_ack(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_send_ack(np_jobargs_t* args){");
 
-	np_tree_elem_t* target_uuid = np_tree_find_str(args->msg->instructions, _NP_MSG_INST_ACKUUID);
+	np_tree_elem_t* target_uuid = np_tree_find_str(args->msg->instructions, _NP_MSG_INST_RESPONSE_UUID);
 
 	double now = np_time_now();
 	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(args->properties->ack_mode));
@@ -160,22 +160,26 @@ void _np_out(np_jobargs_t* args)
 						log_debug_msg(LOG_DEBUG, "ACK_HANDLING message %s (%s) assumed acknowledged, not resending ...", prop->msg_subject, uuid);
 						skip = TRUE;
 					}
-					else if (TRUE == ((np_ackentry_t*)uuid_ele->val.value.v)->has_received_ack)
-					{
-						// uuid has been acked
-						log_debug_msg(LOG_DEBUG, "ACK_HANDLING message %s (%s) acknowledged (ACK), not resending ...", prop->msg_subject, uuid);
-						skip = TRUE;
-					}
-					else
-					{
-						// ack indicator still there ! initiate resend ...
-						np_ackentry_t* entry = uuid_ele->val.value.v;
-						if (_np_dhkey_comp(&entry->dest_key->dhkey, &args->target->dhkey) != 0) {
-							// switch dest_key if routing is now pointing to a different key
-							np_ref_switch(np_key_t, entry->dest_key, ref_ack_key, args->target);
-							entry->dest_key = args->target;
+					else {
+						TSP_GET(np_bool, ((np_responsecontainer_t*)uuid_ele->val.value.v)->msg->is_acked, is_acked);
+
+						if (TRUE == is_acked)
+						{
+							// uuid has been acked
+							log_debug_msg(LOG_DEBUG, "ACK_HANDLING message %s (%s) acknowledged (ACK), not resending ...", prop->msg_subject, uuid);
+							skip = TRUE;
 						}
-						log_msg(LOG_INFO, "ACK_HANDLING message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
+						else
+						{
+							// ack indicator still there ! initiate resend ...
+							np_responsecontainer_t* entry = uuid_ele->val.value.v;
+							if (_np_dhkey_comp(&entry->dest_key->dhkey, &args->target->dhkey) != 0) {
+								// switch dest_key if routing is now pointing to a different key
+								np_ref_switch(np_key_t, entry->dest_key, ref_ack_key, args->target);
+								entry->dest_key = args->target;
+							}
+							log_msg(LOG_INFO, "ACK_HANDLING message %s (%s) not acknowledged, resending ...", prop->msg_subject, uuid);
+						}
 					}
 				}
 				// TODO: ref counting on ack may differ (ref_message_ack) / key may not be the same more
@@ -263,32 +267,33 @@ void _np_out(np_jobargs_t* args)
 
 			np_bool reschedule_msg_transmission = FALSE;
 
-			if (TRUE == ack_to_is_me)
+
+			if (TRUE == ack_to_is_me || (!is_forward && sll_size(msg_out->on_reply) > 0))
 			{
 				if (FALSE == is_resend)
 				{
 					uuid = np_treeval_to_str(np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val, NULL);
 
-					np_ackentry_t *ackentry = NULL;
+					np_responsecontainer_t *responsecontainer = NULL;
 					// get/set sequence number to initialize acknowledgement indicator correctly
-					np_new_obj(np_ackentry_t, ackentry, ref_ack_obj);
+					np_new_obj(np_responsecontainer_t, responsecontainer, ref_ack_obj);
 
-					ackentry->send_at = np_time_now();
-					ackentry->expires_at = ackentry->send_at + args->properties->msg_ttl + np_msgproperty_get(INBOUND, _NP_MSG_ACK)->msg_ttl;
-					ackentry->dest_key = args->target;
-					np_ref_obj(np_key_t, ackentry->dest_key, ref_ack_key);
+					responsecontainer->send_at = np_time_now();
+					responsecontainer->expires_at = responsecontainer->send_at + args->properties->msg_ttl + np_msgproperty_get(INBOUND, _NP_MSG_ACK)->msg_ttl;
+					responsecontainer->dest_key = args->target;
+					np_ref_obj(np_key_t, responsecontainer->dest_key, ref_ack_key);
 
-					ackentry->msg = args->msg;
-					np_ref_obj(np_message_t, ackentry->msg, ref_ack_msg);
+					responsecontainer->msg = args->msg;
+					np_ref_obj(np_message_t, responsecontainer->msg, ref_ack_msg);
 					
-					// ackentry->expected_ack = 1; // msg_out->no_of_chunks ?
-					log_debug_msg(LOG_DEBUG, "initial sending of message (%s/%s) with acknowledge",
+					// responsecontainer->expected_ack = 1; // msg_out->no_of_chunks ?
+					log_debug_msg(LOG_DEBUG, "initial sending of message (%s/%s) with response",
 											 args->properties->msg_subject, args->msg->uuid);
 
 #ifdef DEBUG
 					CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_TO, msg_to);
 					{
-						log_debug_msg(LOG_DEBUG, "ACK_HANDLING                   message (%s/%s) %s < - > %s / %d:%s:%s",
+						log_debug_msg(LOG_DEBUG, "RESPONSE_HANDLING                   message (%s/%s) %s < - > %s / %d:%s:%s",
 								uuid, args->properties->msg_subject,
 								args->target->dhkey_str, msg_to.value.s,
 								args->target->node->joined_network, args->target->node->dns_name, args->target->node->port);
@@ -299,10 +304,10 @@ void _np_out(np_jobargs_t* args)
 
 					_LOCK_ACCESS(&my_network->waiting_lock)
 					{
-						np_tree_insert_str(my_network->waiting, uuid, np_treeval_new_v(ackentry));
+						np_tree_insert_str(my_network->waiting, uuid, np_treeval_new_v(responsecontainer));
 					}
 					// log_msg(LOG_ERROR, "ACK_HANDLING ack handling requested for msg uuid: %s/%s", uuid, args->properties->msg_subject);
-					log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "ack handling (%p) requested for msg uuid: %s", my_network->waiting, uuid);
+					log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "response handling (%p) requested for msg uuid: %s", my_network->waiting, uuid);
 				}
 				reschedule_msg_transmission = TRUE;
 			}

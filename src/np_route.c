@@ -99,7 +99,6 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 			np_key_ptr find_left = sll_find(np_key_ptr, __routing_table->left_leafset, node_key, _np_key_cmp, NULL);
 
 			if (FALSE == joined) {
-
 				if (NULL != find_right) {
 					*deleted = (np_key_t*)node_key;
 					sll_remove(np_key_ptr, __routing_table->right_leafset, node_key, _np_key_cmp_inv);
@@ -112,7 +111,6 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 				else {
 					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset did not change as key was not found");
 				}
-
 			}
 			else {
 
@@ -752,11 +750,13 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 
 		np_key_t* tmp = *added ;
 		if(tmp != NULL){
+			log_msg(LOG_ROUTING | LOG_INFO, "Added    %s to   routing table.", _np_key_as_str(tmp));
 			np_ref_obj(np_key_t, tmp, ref_route_inroute);
 		}
 
 		tmp = *deleted ;
 		if(tmp != NULL){
+			log_msg(LOG_ROUTING | LOG_INFO, "Removed %s from routing table.", _np_key_as_str(tmp));
 			np_unref_obj(np_key_t, tmp, ref_route_inroute);
 
 			_np_route_check_for_joined_network();

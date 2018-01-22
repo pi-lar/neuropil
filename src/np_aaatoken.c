@@ -317,7 +317,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	double now = np_time_now();
 	if (now > (token->expires_at))
 	{
-		log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired. verification failed", token->uuid, token->subject);
+		log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired (%d). verification failed", token->uuid, token->subject, token->expires_at - now);
 		token->state &= AAA_INVALID;
 		log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 		return (FALSE);

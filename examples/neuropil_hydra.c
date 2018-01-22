@@ -179,14 +179,7 @@ int main(int argc, char **argv)
 			   np_sysinfo_enable_master();			
 
 			 */
-			printf("HttpServer init ok\n");
-			
-			// If you want to you can enable the statistics modulte to view the nodes statistics
-			np_statistics_add_watch_internals(); 
-			np_statistics_add_watch(_NP_SYSINFO_REQUEST);
-			np_statistics_add_watch(_NP_SYSINFO_REPLY);			
-			printf("Statistics init ok\n");
-
+			printf("HttpServer init ok\n");					
 			/**
 			  And wait for incomming connections
 

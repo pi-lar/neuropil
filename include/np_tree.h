@@ -26,10 +26,10 @@ Copyright 2002 Niels Provos <provos@citi.umich.edu>
 extern "C" {
 #endif
 
-/*
- * convenience helper macros when messages are received
- * check the existence of a field and extracts it, otherwise continues with a goto __cleanup__
- */
+	/*
+	 * convenience helper macros when messages are received
+	 * check the existence of a field and extracts it, otherwise continues with a goto __cleanup__
+	 */
 #define CHECK_STR_FIELD(TREE, FIELD_NAME, VAR_NAME) 						\
 np_treeval_t VAR_NAME = np_treeval_NULL; 									\
 if (NULL == np_tree_find_str(TREE, FIELD_NAME)){							\
@@ -43,7 +43,6 @@ if (NULL == np_tree_find_str(TREE, FIELD_NAME)){							\
 	goto __np_cleanup__; 													\
 } 																			\
 else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
-
  /**
  .. c:type:: np_tree_conf_t
 

@@ -38,9 +38,11 @@ struct np_message_s
 	np_msgproperty_ptr msg_property;
 
 	TSP(np_bool, is_acked);
-	np_sll_t(np_ackentry_on_t, on_ack);
+	np_sll_t(np_responsecontainer_on_t, on_ack);
 	TSP(np_bool, is_in_timeout);
-	np_sll_t(np_ackentry_on_t, on_timeout);
+	np_sll_t(np_responsecontainer_on_t, on_timeout);
+	TSP(np_bool, has_reply);
+	np_sll_t(np_message_on_reply_t, on_reply);
 
 	void* bin_properties;
 	void* bin_body;
@@ -118,24 +120,30 @@ NP_API_INTERN
 np_bool _np_message_is_expired(const np_message_t* const msg_to_check);
 NP_API_INTERN
 void _np_message_mark_as_incomming(np_message_t* msg);
+
+NP_API_EXPORT
+void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply);
+NP_API_EXPORT
+void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_reply_to_remove);
+
 // msg header constants
-static const char* _NP_MSG_HEADER_TARGET    = "_np.target";
-static const char* _NP_MSG_HEADER_SUBJECT   = "_np.subj";
-static const char* _NP_MSG_HEADER_TO        = "_np.to";
-static const char* _NP_MSG_HEADER_FROM      = "_np.from";
-static const char* _NP_MSG_HEADER_REPLY_TO  = "_np.r_to";
+static const char* _NP_MSG_HEADER_TARGET		= "_np.target";
+static const char* _NP_MSG_HEADER_SUBJECT		= "_np.subj";
+static const char* _NP_MSG_HEADER_TO			= "_np.to";
+static const char* _NP_MSG_HEADER_FROM			= "_np.from";
+static const char* _NP_MSG_HEADER_REPLY_TO		= "_np.r_to";
 
 // msg instructions constants
-static const char* _NP_MSG_INST_SEND_COUNTER = "_np.sendnr";
-static const char* _NP_MSG_INST_PART         = "_np.part";
-static const char* _NP_MSG_INST_PARTS        = "_np.parts";
-static const char* _NP_MSG_INST_ACK          = "_np.ack";
-static const char* _NP_MSG_INST_ACK_TO       = "_np.ack_to";
-static const char* _NP_MSG_INST_SEQ          = "_np.seq";
-static const char* _NP_MSG_INST_UUID         = "_np.uuid";
-static const char* _NP_MSG_INST_ACKUUID      = "_np.ackuuid";
-static const char* _NP_MSG_INST_TTL          = "_np.ttl";
-static const char* _NP_MSG_INST_TSTAMP       = "_np.tstamp";
+static const char* _NP_MSG_INST_SEND_COUNTER	= "_np.sendnr";
+static const char* _NP_MSG_INST_PART			= "_np.part";
+static const char* _NP_MSG_INST_PARTS			= "_np.parts";
+static const char* _NP_MSG_INST_ACK				= "_np.ack";
+static const char* _NP_MSG_INST_ACK_TO			= "_np.ack_to";
+static const char* _NP_MSG_INST_SEQ				= "_np.seq";
+static const char* _NP_MSG_INST_UUID			= "_np.uuid";
+static const char* _NP_MSG_INST_RESPONSE_UUID	= "_np.response_uuid";
+static const char* _NP_MSG_INST_TTL				= "_np.ttl";
+static const char* _NP_MSG_INST_TSTAMP			= "_np.tstamp";
 
 // msg handshake constants
 static const char* NP_HS_PAYLOAD = "_np.payload";

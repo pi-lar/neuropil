@@ -42,7 +42,7 @@
 #include "np_util.h"
 #include "np_settings.h"
 #include "np_constants.h"
-#include "np_ackentry.h"
+#include "np_responsecontainer.h"
 
 // TODO: make these configurable (via struct np_config)
 /**
@@ -418,74 +418,50 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 	np_tree_elem_t *jrb_ack_node = NULL;
 
 	// wake up and check for acknowledged messages
-	_LOCK_ACCESS(&ng->waiting_lock)
-	{
-		np_tree_elem_t* iter = RB_MIN(np_tree_s, ng->waiting);
-		int i = 0;
-		while (iter != NULL)
-		{
-			if (i >= 10) {
-				break;
-			}
-			i++;
-			jrb_ack_node = iter;
-			iter = RB_NEXT(np_tree_s, ng->waiting, iter);
 
-			np_ackentry_t *ackentry = (np_ackentry_t *)jrb_ack_node->val.value.v;
-			if (ackentry != NULL){
-				if (np_time_now() > ackentry->expires_at)
-				{
-					// timeout
-					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "not acknowledged (TIMEOUT at %f)", ackentry->expires_at);
-					_np_node_update_stat(ackentry->dest_key->node, FALSE);
+	np_tree_elem_t* iter = NULL;
+	int c = 0;
+	do {
+		if (c++ > 10) {
+			break;
+		}
+		_LOCK_ACCESS(&ng->waiting_lock)
+		{		
+			iter = RB_MIN(np_tree_s, ng->waiting);
+			
+			while (iter != NULL)
+			{
+				jrb_ack_node = iter;
+				iter = RB_NEXT(np_tree_s, ng->waiting, iter);
 
-					if (ackentry->msg != NULL ){
-						TSP_SET(np_bool, ackentry->msg->is_in_timeout, TRUE);
-						if (sll_size(ackentry->msg->on_timeout) > 0) {
-							sll_iterator(np_ackentry_on_t) iter_on = sll_first(ackentry->msg->on_timeout);
-							while (iter_on != NULL)
-							{
-								//TODO: call async
-								iter_on->val(ackentry);
-								sll_next(iter_on);
-							}
+				np_responsecontainer_t *responsecontainer = (np_responsecontainer_t *)jrb_ack_node->val.value.v;
+				if (responsecontainer != NULL) {
+					if (np_time_now() > responsecontainer->expires_at || _np_responsecontainer_is_fully_acked(responsecontainer))
+					{
+						if (!_np_responsecontainer_is_fully_acked(responsecontainer)) {
+
+							_np_responsecontainer_set_timeout(responsecontainer);
+							log_msg(LOG_WARN, "ACK_HANDLING timeout (table size: %3d) message (%s) not acknowledged (IN TIME %f/%f)",
+								ng->waiting->size,
+								jrb_ack_node->key.value.s,
+								np_time_now(), responsecontainer->expires_at
+							);
 						}
+
+						np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
+						np_unref_obj(np_responsecontainer_t, responsecontainer, ref_ack_obj);
+						break;
 					}
-					log_msg(LOG_WARN, "ACK_HANDLING (table size: %3d) message (%s) not acknowledged (IN TIME %f/%f)",
-						ng->waiting->size,
-						jrb_ack_node->key.value.s,
-						np_time_now(), ackentry->expires_at /*,
-						ackentry->received_ack, ackentry->expected_ack */);
-					np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
-
-					np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
-					// free(jrb_ack_node->key.value.s);
-					// free(jrb_ack_node);
-				
-				} else if (_np_ackentry_is_fully_acked(ackentry))
-				{
-					// has_received_ack
-	#ifdef DEBUG
-					log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s)     acknowledged (IN TIME %f/%f)",
-						ng->waiting->size,
-						jrb_ack_node->key.value.s,
-						np_time_now(), ackentry->expires_at/*,
-						entry->received_ack, entry->expected_ack*/);
-	#endif
-
-					np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
-					np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);				
-
 				}
 				else {
 					log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
 						ng->waiting->size,
 						jrb_ack_node->key.value.s);
-				}
-			}
-		}
 
-	}
+				}
+			}		
+		}
+	} while (iter != NULL);
 
 	np_unref_obj(np_key_t, my_key,"np_waitref_obj");
 }
@@ -659,8 +635,10 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	// how to allow the possible transmit jitter ?
 	int expire_sec =  ((int)randombytes_uniform(msg_request->token_max_ttl - msg_request->token_min_ttl)+msg_request->token_min_ttl);
 
-	log_debug_msg(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG,"setting msg token EXPIRY to: %d",expire_sec);
+
 	msg_token->expires_at = msg_token->not_before + expire_sec;
+	log_debug_msg(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG,"setting msg token EXPIRY to: %d (now: %d diff: %d)", msg_token->expires_at, np_time_now(), msg_token->expires_at -  np_time_now() );
+
 	if(my_identity->aaa_token->expires_at < msg_token->expires_at ){
 		msg_token->expires_at = my_identity->aaa_token->expires_at ;
 	}

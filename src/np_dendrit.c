@@ -36,6 +36,7 @@
 #include "np_network.h"
 #include "np_node.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_list.h"
 #include "np_route.h"
 #include "np_util.h"
@@ -46,7 +47,7 @@
 #include "np_axon.h"
 #include "np_event.h"
 #include "np_constants.h"
-#include "np_ackentry.h"
+#include "np_responsecontainer.h"
 #include "np_serialization.h"
 
 /*
@@ -54,18 +55,40 @@ will always call all handlers, but will return false if any of the handlers retu
 */
 np_bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_t* msg_prop) {
 	np_bool ret = TRUE;
+	
+	ASSERT(msg_prop != NULL, "msg property cannot be null");
 
+	// set msg property if not already set
 	if (msg_in->msg_property == NULL) {
 		np_ref_obj(np_msgproperty_t, msg_prop, ref_message_msg_property);
 		msg_in->msg_property = msg_prop;
 	}
 
+	// call user callbacks
 	sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_prop->user_receive_clb);
 	while (iter_usercallbacks != NULL)
 	{
 		ret = iter_usercallbacks->val(msg_in, msg_in->properties, msg_in->body) && ret;
 		sll_next(iter_usercallbacks);
 	}
+
+
+	// call msg on_reply if applyable
+	np_tree_elem_t* response_uuid = np_tree_find_str(msg_in->instructions, _NP_MSG_INST_RESPONSE_UUID);
+	if(response_uuid != NULL) {
+		// is response to 
+		np_responsecontainer_t *entry = _np_responsecontainers_get_by_uuid(np_treeval_to_str(response_uuid->val, NULL));
+
+		/* just an acknowledgement of own messages send out earlier */
+		//TODO: add msgpropery cmp function to replace strcmp
+		if (entry != NULL && entry->msg != NULL && entry->msg->msg_property->rep_subject != NULL && strcmp(msg_prop->msg_subject, entry->msg->msg_property->rep_subject) == 0)
+		{
+			_np_responsecontainer_received_response(entry, msg_in);
+			log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "received response of uuid=%s", np_treeval_to_str(response_uuid->val, NULL));
+		}
+		np_unref_obj(np_responsecontainer_t, entry, "_np_responsecontainers_get_by_uuid");
+	}
+
 	return ret;
 }
 
@@ -661,7 +684,7 @@ void _np_in_join_req(np_jobargs_t* args)
 		np_aaatoken_encode(jrb_me, state->my_node_key->aaa_token);
 
 		_np_message_create(msg_out, routing_key, my_key, _NP_MSG_JOIN_ACK, jrb_me);
-		np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACKUUID, in_uuid);
+		np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_RESPONSE_UUID, in_uuid);
 
 		msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_ACK);
 		my_key->node->joined_network = TRUE;
@@ -678,7 +701,7 @@ void _np_in_join_req(np_jobargs_t* args)
 				_np_key_as_str(join_req_key) );
 
 		_np_message_create(msg_out, routing_key, my_key, _NP_MSG_JOIN_NACK, NULL );
-		np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACKUUID, in_uuid);
+		np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_RESPONSE_UUID, in_uuid);
 
 		msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_NACK);
 		send_reply = TRUE;
@@ -803,7 +826,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 	/* acknowledgement of join message send out earlier */
 	/*
 	//FIXME: Mixing of Transport ACK and BL ACK
-	CHECK_STR_FIELD(args->msg->instructions, _NP_MSG_INST_ACKUUID, ack_uuid);
+	CHECK_STR_FIELD(args->msg->instructions, _NP_MSG_INST_RESPONSE_UUID, ack_uuid);
 
 	np_network_t* ng = my_key->network;
 
@@ -812,8 +835,8 @@ void _np_in_join_ack(np_jobargs_t* args)
 		np_tree_elem_t *jrb_node = np_tree_find_str(ng->waiting,  np_treeval_to_str(ack_uuid));
 		if (jrb_node != NULL)
 		{
-			np_ackentry_t *entry = (np_ackentry_t *) jrb_node->val.value.v;
-			_np_ackentry_set_acked(entry, TRUE);
+			np_responsecontainer_t *entry = (np_responsecontainer_t *) jrb_node->val.value.v;
+			_np_responsecontainer_received_ack(entry, TRUE);
 			log_debug_msg(LOG_DEBUG, "received acknowledgment of JOIN uuid=%s",  np_treeval_to_str(ack_uuid));
 		}
 	}
@@ -938,7 +961,7 @@ void _np_in_join_nack(np_jobargs_t* args)
 	np_key_t* nack_key = NULL;
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
-	CHECK_STR_FIELD(args->msg->instructions, _NP_MSG_INST_ACKUUID, ack_uuid);
+	CHECK_STR_FIELD(args->msg->instructions, _NP_MSG_INST_RESPONSE_UUID, ack_uuid);
 
 	np_dhkey_t search_key = np_dhkey_create_from_hash( np_treeval_to_str(msg_from, NULL));
 	nack_key = _np_keycache_find(search_key);
@@ -950,7 +973,7 @@ void _np_in_join_nack(np_jobargs_t* args)
 		np_tree_elem_t *jrb_node = np_tree_find_str(ng->waiting,  np_treeval_to_str(ack_uuid));
 		if (jrb_node != NULL)
 		{
-			np_ackentry_t *entry = (np_ackentry_t *) jrb_node->val.value.v;
+			np_responsecontainer_t *entry = (np_responsecontainer_t *) jrb_node->val.value.v;
 			entry->has_received_nack = TRUE;
 			entry->received_at = np_time_now();
 			//todo handle ack
@@ -1010,20 +1033,18 @@ void __np_in_ack_handle(np_message_t * msg)
 	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key);
 	np_waitref_obj(np_network_t, my_key->network, my_network);
 
-	CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_ACKUUID, ack_uuid);
+	CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_RESPONSE_UUID, ack_uuid);
 
-	np_ackentry_t *entry = NULL;
+
+	np_responsecontainer_t *entry = _np_responsecontainers_get_by_uuid(np_treeval_to_str(ack_uuid, NULL));
+	
 	/* just an acknowledgement of own messages send out earlier */
-	_LOCK_ACCESS(&my_network->waiting_lock)
+	if(entry != NULL)
 	{
-		np_tree_elem_t *jrb_node = np_tree_find_str(my_network->waiting,  np_treeval_to_str(ack_uuid, NULL));
-		if (jrb_node != NULL)
-		{
-			entry = (np_ackentry_t *)jrb_node->val.value.v;
-			_np_ackentry_set_acked(entry);
-			log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "received acknowledgment of uuid=%s",  np_treeval_to_str(ack_uuid, NULL));
-		}
+		log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "received acknowledgment of uuid=%s", np_treeval_to_str(ack_uuid, NULL));
+		_np_responsecontainer_received_ack(entry);		
 	}
+	np_unref_obj(np_responsecontainer_t, entry, "_np_responsecontainers_get_by_uuid");
 
 	__np_cleanup__:
 	np_unref_obj(np_network_t, my_network,__func__);
