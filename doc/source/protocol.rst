@@ -19,8 +19,8 @@ key exchange.
 
 When the initiating node receives a valid, authentic handshake response, it
 derives matching session keys. Any follow-up messages must be encrypted and
-authenticated using session keys derived from the shared secret, or else they
-will be discarded.
+have their integrity protected using session keys derived from the shared
+secret, or else they will be discarded.
 
 Each participant is now aware of the node token values of their peer. The
 predefined fields are:
@@ -36,9 +36,10 @@ predefined fields are:
    * hostname
    * port
 
-Note: the token exchanged during the handshake is **not** encrypted and can be
-read by anyone observing the network. It must not contain passwords or other
-secret data.
+**Note**
+  The token exchanged during the handshake is **not** encrypted and can be read
+  by anyone observing the network. It must not contain passwords or other
+  secret data.
 
 
 Phase 2: joining the network
@@ -57,7 +58,7 @@ the identity cannot be authenticated, the handshake protocol sends a
 data is marked as obsolete and deleted later, because sending the
 not-acknowledged message still requires the established session key.
 
-Note:
+**Note**
   If the identity is in a realm but cannot be authenticated at this time, the
   receiving node might forward the incoming token to the realm leader in order
   to defer authentication. Depending on the response of the realm leader, the
@@ -104,4 +105,4 @@ other values as well, and are signed by their originating identity.
 
 Each node can once more authenticate and authorize the identified peer by
 verifying the exchanged token. Once the correct peer has been identified,
-message exchange happens independent of the coordinator.
+message exchange happens independently from the coordinator.
