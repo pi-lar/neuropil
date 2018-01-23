@@ -9,6 +9,7 @@
 #include "np_types.h"
 %}
 
+%ignore np_responsecontainer_t;
 %ignore np_aaatoken_t;
 %ignore np_aaatoken_ptr;
 %ignore np_dhkey_t;
@@ -33,6 +34,7 @@
 
 %ignore np_callback_t;
 %ignore np_usercallback_t;
-%ignore np_ackentry_on_t;
+%ignore np_responsecontainer_on_t;
+%ignore np_message_on_reply_t;
 
 %include "np_types.h"

@@ -1,14 +1,20 @@
 #!/usr/bin/env python
+#
+# neuropil is copyright 2016-2017 by pi-lar GmbH
+# Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+#
+
 """
 setup.py file for neuropil library
 """
+
 from distutils.core import setup, Extension
 
 neuropil_module = Extension('_neuropil',
                             sources = ['neuropil.i'],
-                            swig_opts=['-modern', '-I../include', '-Dx64'],
+                            swig_opts=['-modern', '-I../include'],
                             define_macros = [('MAJOR_VERSION', '0'), ('MINOR_VERSION', '5'), ('x64', None)],
-                            extra_compile_args=['-O3', '-Wno-unsupported-visibility', '-std=c99'],
+                            extra_compile_args=['-O3', '-Wno-unsupported-visibility', '-std=c99', '-Dx64'],
                             libraries = ['neuropil', 'sodium'],
                             include_dirs=['../include'],
                             library_dirs=['../build/lib'],

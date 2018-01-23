@@ -41,6 +41,7 @@ typedef enum
 
 
 #if defined(TEST_COMPILE) || defined(DEBUG)
+  #define NP_UNUSED     __attribute__ ((unused))
   #define NP_API_HIDDEN __attribute__ ((visibility ("default")))
   #define NP_API_PROTEC __attribute__ ((visibility ("default")))
   #define NP_API_INTERN __attribute__ ((visibility ("default")))

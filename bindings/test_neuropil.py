@@ -1,3 +1,11 @@
+#
+# neuropil is copyright 2016-2017 by pi-lar GmbH
+# Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+#
+
+import sys
+sys.path.append("build/lib.macosx-10.11-intel-2.7")
+
 from ctypes import c_uint8, c_int8, c_int16
 
 from time import sleep
@@ -114,7 +122,7 @@ np.np_start_job_queue(4)
 
 print "#\n# %s\n# %s\n" % (np.NEUROPIL_COPYRIGHT, np.NEUROPIL_TRADEMARK)
 
-np.np_send_join('*:udp4:192.168.178.21:3333')
+np.np_send_join('*:udp4:127.0.0.1:3333')
 
 while(True):
 	sleep(6)
