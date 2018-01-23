@@ -1,16 +1,26 @@
 Glossary
 ********
 
-identity
-  an identity along with meta data encoded as a token, see
+**fingerprint**
+  the canonical hash value of a token
+
+**identity**
+  a token that denotes a globally entity which controls the private part of a
+  key pair
   :ref:`realms_identities`
 
-node
+**message intent**
+  a token that denotes a message intent, see :ref:`protocol`
+
+**node**
   a Neuropil peer, see :ref:`protocol`
 
-node identity
-  an identity that denotes a node, see :ref:`protocol`
+**node token**
+  a token that denotes a node, see :ref:`protocol`
 
-token
+**signature**
+  a cryptographic signature over the fingerprint of a token
+
+**token**
   an extensible record type used to encode authentication, authorization, and
   accounting information, see :ref:`np_aaatoken_t`

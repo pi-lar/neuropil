@@ -9,9 +9,9 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="204.91455mm"
+   width="304.91455mm"
    height="107.80322mm"
-   viewBox="0 0 726.07518 381.97992"
+   viewBox="0 0 1080.4058 381.97992"
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
@@ -107,18 +107,18 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.75354284"
-     inkscape:cx="311.61369"
-     inkscape:cy="91.811903"
+     inkscape:cx="488.77902"
+     inkscape:cy="91.811916"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="1269"
-     inkscape:window-height="771"
-     inkscape:window-x="375"
-     inkscape:window-y="131"
-     inkscape:window-maximized="0"
-     fit-margin-left="10"
-     fit-margin-right="10"
+     inkscape:window-width="1920"
+     inkscape:window-height="1056"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     fit-margin-left="60"
+     fit-margin-right="60"
      fit-margin-bottom="10"
      fit-margin-top="10" />
   <metadata
@@ -137,7 +137,7 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-214.56741,-390.14694)">
+     transform="translate(-37.402085,-390.14694)">
     <rect
        style="opacity:1;fill:#f2f2f2;fill-opacity:1;fill-rule:evenodd;stroke:#e6e6e6;stroke-width:2.47047591;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        id="rect4136"
@@ -184,14 +184,16 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:300;font-stretch:normal;font-size:30px;line-height:125%;font-family:Lato;-inkscape-font-specification:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="378.15509"
+       x="416.15509"
        y="736.4538"
        id="text4169"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan4171"
-         x="378.15509"
-         y="736.4538"> token hash</tspan></text>
+         x="416.15509"
+         y="736.4538"> fingerprint <tspan
+   style="-inkscape-font-specification:'Lato Ultra-Light Italic';font-family:Lato;font-weight:200;font-style:italic;font-stretch:normal;font-variant:normal"
+   id="tspan4179">(hash)</tspan></tspan></text>
     <g
        id="g4255">
       <path

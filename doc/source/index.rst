@@ -24,6 +24,7 @@ Contents:
    api
    realms_identities
    protocol
+   glossary
    license
    knowhow
    trademark
