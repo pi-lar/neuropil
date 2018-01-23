@@ -230,6 +230,9 @@ void _np_key_t_del(void* key)
 	np_unref_obj(np_aaatoken_t,		old_key->aaa_token,ref_key_aaa_token);
 	np_unref_obj(np_node_t,     	old_key->node,ref_key_node);
 	np_unref_obj(np_network_t,  	old_key->network,ref_key_network);
+
+	TSP_DESTROY(np_bool, old_key->in_destroy);
+
 }
 
 void np_key_renew_token() {

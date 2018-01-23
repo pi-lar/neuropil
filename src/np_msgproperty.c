@@ -346,6 +346,9 @@ void _np_msgproperty_t_del(void* property)
 		sll_free(np_callback_t, prop->clb_outbound);
 		sll_free(np_callback_t, prop->clb_inbound);		
 
+		TSP_DESTROY(uint16_t, prop->msg_threshold);
+
+
 	}
 	_np_threads_mutex_destroy(&prop->lock);
 	_np_threads_condition_destroy(&prop->msg_received);

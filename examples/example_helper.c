@@ -98,6 +98,11 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mo
 			fprintf(stdout, "HTTP interface set to %s\n", http_domain);
 			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
 			np_sysinfo_enable_master();
+
+			// If you want to you can enable the statistics modulte to view the nodes statistics
+			np_statistics_add_watch_internals();
+			np_statistics_add_watch(_NP_SYSINFO_REQUEST);
+			np_statistics_add_watch(_NP_SYSINFO_REPLY);
 		}
 		else {
 			fprintf(stderr, "Node could not start HTTP interface\n");
@@ -456,10 +461,9 @@ np_bool parse_program_args(
 
 
 		uint32_t log_categories = 0
-			 //| LOG_TRACE
+			//| LOG_TRACE
 
 			//| LOG_MUTEX
-			//| LOG_TRACE
 			| LOG_ROUTING
 			//| LOG_HTTP
 			//| LOG_KEY

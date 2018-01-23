@@ -158,7 +158,9 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 	}
 	return to;
 }
-
+/*
+	@param:freeable: returns the information to free or not to free the result
+*/
 char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
     log_msg(LOG_TRACE, "start: char* np_treeval_to_str(np_treeval_t val) {");
 

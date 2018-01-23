@@ -904,6 +904,7 @@ void _np_network_t_del(void* nw)
 		_np_threads_mutex_destroy(&network->access_lock);
 		_np_threads_mutex_destroy(&network->waiting_lock);
 
+		TSP_DESTROY(np_bool, network->can_be_enabled);
 	}
 }
 
@@ -1159,6 +1160,8 @@ char* np_network_get_port(np_key_t * container) {
 }
 
 void _np_network_disable(np_network_t* self) {
-	TSP_SET(np_bool, self->can_be_enabled, FALSE);
-	_np_network_stop(self, TRUE);
+	if(self != NULL){
+		TSP_SET(np_bool, self->can_be_enabled, FALSE);
+		_np_network_stop(self, TRUE);
+	}
 }

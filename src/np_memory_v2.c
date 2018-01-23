@@ -76,7 +76,7 @@ typedef struct np_memory_itemconf_ts {
 np_memory_container_t* np_memory_containers[UINT8_MAX] = { 0 };
 
 #define NEXT_ITEMCONF(conf, skip) conf = (np_memory_itemconf_t*) (((char*)conf) + (((skip)+1) * ((conf)->block->container->size_per_item + sizeof(np_memory_itemconf_t))));
-#define GET_CONF(item) (((char*)item) - sizeof(np_memory_itemconf_t))
+#define GET_CONF(item) ((np_memory_itemconf_t*)(((char*)item) - sizeof(np_memory_itemconf_t)))
 #define GET_ITEM(config) (((char*)config) + sizeof(np_memory_itemconf_t))
 
 void np_memory_init() {

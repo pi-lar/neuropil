@@ -280,7 +280,7 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 	//ret = _np_concatAndFree(ret, "np_http_t_e        count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_http_t_e],			summary[100 * np_http_t_e],				new_line);
 	ret = _np_concatAndFree(ret, "np_network_t_e     count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_network_t_e],		summary[100 * np_network_t_e],			new_line);
 	ret = _np_concatAndFree(ret, "np_thread_t_e      count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_thread_t_e],		summary[100 * np_thread_t_e],			new_line);
-	ret = _np_concatAndFree(ret, "np_ackentry_t      count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_ackentry_t_e],		summary[100 * np_ackentry_t_e],		new_line);
+	ret = _np_concatAndFree(ret, "np_responsecontainer_t      count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_responsecontainer_t_e],		summary[100 * np_responsecontainer_t_e],		new_line);
 	ret = _np_concatAndFree(ret, "test_struct_t_e    count %4"PRIu64" max ref %3"PRIu64" %s", summary[test_struct_t_e],		summary[100 * test_struct_t_e],			new_line);
 	
 	ret = _np_concatAndFree(ret, "--- memory end ---%s",new_line);

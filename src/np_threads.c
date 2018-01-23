@@ -27,6 +27,7 @@
 #include "np_log.h"
 #include "np_settings.h"
 #include "np_constants.h"
+#include "np_network.h"
 #include "np_memory_v2.h"
 
 
@@ -40,7 +41,7 @@ np_bool    __np_threads_mutexes_initiated = FALSE;
 np_bool    __np_threads_threads_initiated = FALSE;
 
 static pthread_once_t __thread_init_once = PTHREAD_ONCE_INIT;
-
+ 
 pthread_key_t  pthread_thread_id_key ;
 
 void __np_threads_create_module_mutex()
@@ -68,7 +69,7 @@ np_bool _np_threads_init()
 
 int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
-	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locking module mutex %d.", module_id);
+	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locking module mutex %d/%s.", module_id, np_module_lock_str[module_id]);
 	if(FALSE == __np_threads_mutexes_initiated ){
 		pthread_once(&__thread_init_once, __np_threads_create_module_mutex);
 	}
@@ -122,7 +123,7 @@ int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) 
 	}
 #endif
 
-	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locked module mutex %d.", module_id);
+	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locked module mutex %d/%s.", module_id, np_module_lock_str[module_id]);
 	return ret;
 }
 
@@ -811,7 +812,7 @@ void np_start_job_queue(uint8_t pool_size)
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_RETRANSMIT_MSG_TOKENS_SEC,			_np_retransmit_message_tokens_jobexec, "_np_retransmit_message_tokens_jobexec");
 
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_MEMORY_REFRESH_INTERVAL_SEC, _np_memory_job_memory_management, "_np_memory_job_memory_management");
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_ACKENTRY_CLEANUP_INTERVAL_SEC, _np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
+	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_RESPONSECONTAINER_CLEANUP_INTERVAL_SEC, _np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC,		_np_cleanup_keycache_jobexec, "_np_cleanup_keycache_jobexec");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_CHECK_ROUTES_SEC,					_np_glia_check_neighbours, "_np_glia_check_neighbours");
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_SEND_UPDATE_MSGS_SEC, _np_glia_check_routes, "_np_glia_check_routes");

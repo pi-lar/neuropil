@@ -37,6 +37,8 @@
 #include "np_settings.h"
 #include "np_constants.h"
 
+static pthread_once_t __np_event_init_once = PTHREAD_ONCE_INIT;
+
 np_mutex_t loop_http_suspend;
 np_mutex_t loop_io_suspend;
 np_mutex_t loop_out_suspend; 
@@ -81,17 +83,18 @@ void _np_events_async_break(struct ev_loop *loop, NP_UNUSED ev_async *watcher, N
 		ev_async_start(loop_##LOOPNAME, &__libev_async_watcher_##LOOPNAME);						\
 	}																							\
 			
-
-void np_event_init() {	
-	if (loop_io == NULL)
-	{
-		LOOP_INIT(io);
-		LOOP_INIT(in);
-		LOOP_INIT(http);
-		LOOP_INIT(out);
-	}
+void __np_event_init_once_fn() {	
+	
+	LOOP_INIT(io);
+	LOOP_INIT(in);
+	LOOP_INIT(http);
+	LOOP_INIT(out);
+	
 }
 
+void np_event_init() {
+	pthread_once(&__np_event_init_once, __np_event_init_once_fn);
+}
 struct ev_loop * _np_event_get_loop_http() {
 	np_event_init();
 	return loop_http;

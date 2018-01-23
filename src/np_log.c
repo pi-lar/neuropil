@@ -21,6 +21,7 @@
 
 #include "np_list.h"
 #include "np_memory.h"
+#include "np_event.h"
 //#include "np_types.h"
 #include "np_settings.h"
 
