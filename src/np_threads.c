@@ -26,6 +26,7 @@
 #include "np_util.h"
 #include "np_log.h"
 #include "np_settings.h"
+#include "np_msgproperty.h"
 #include "np_constants.h"
 #include "np_network.h"
 #include "np_memory_v2.h"
