@@ -91,7 +91,7 @@ NP_API_EXPORT
 void np_destroy();
 
 // function to get the global state variable
-NP_API_PROTEC
+NP_API_INTERN
 np_state_t* _np_state();
 
 /**

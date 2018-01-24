@@ -347,9 +347,9 @@ NP_API_EXPORT
 void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self);
 NP_API_EXPORT
 void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self);
-NP_API_PROTEC
+NP_API_INTERN
 void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args);
-NP_API_PROTEC
+NP_API_INTERN
 np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check);
 
 static char _DEFAULT[]                       = "_NP.DEFAULT";
