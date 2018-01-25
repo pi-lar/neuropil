@@ -1,23 +1,23 @@
-Neuropil from the Bottom Up
-===========================
+Core Concepts
+=============
 
   *“All non-trivial abstractions, to some degree, are leaky.”*—Joel Spolsky
 
 This chapter describes the intrinsic building blocks that make up Neuropil. It
 is intended to help readers gain a deeper understanding of Neuropil internals
-and its design, and ultimately help them make better use of the library.
+and its design, and ultimately make better use of the library.
 
 The versatile concepts described in this chapter are primarily pervasive in the
 internals of the Neuropil messaging layer itself, but curious users of Neuropil
 will most likely be exposed to them, eventually. After all, Neuropil’s user
-facing abstractions, such as :ref:`realms_and_identities`, are implemented
-using these building blocks. By nature, primitive concepts escape the
-abstractions that contain them, and understanding them will demystify the
-real-world behavior Neuropil applications.
+facing abstractions, such as :ref:`realms`, are implemented using these
+building blocks. By nature, primitive concepts escape the abstractions that
+contain them, and understanding them will demystify the real-world behavior
+Neuropil applications.
 
 .. NOTE::
-  This introduction offers only informal coverage of the foundations upon which
-  Neuropil is built. For an in-depth discussion we refer to the following
+  This introduction offers only an informal coverage of the foundations upon
+  which Neuropil is built. For an in-depth discussion we refer to the following
   papers:
 
    - `Tapestry: A Resilient Global-scale Overlay for Service Deployment
@@ -111,31 +111,31 @@ Whenever two nodes talk to each other, they use the public keys noted in each
 others node tokens to secure the communications end-to-end.
 
 *Identity* tokens denote relatively long-lived key pairs used by the entities
-that sit on top of—or use—nodes. Identities are decoupled from nodes in a way
+that sit on top of—or *use*—nodes. Identities are decoupled from nodes in a way
 that allows them to communicate using multiple nodes, even at the same time.
 Identities are used to restrict who accesses a given application, and are
 possibly exchanged out of band. Messages from one identity to another are
 secured end-to-end, on top of the secure node-to-node channels, using the keys
 specified in their identity tokens.
 
-*Message intent* tokens link nodes and an identities together. They are signed
-by an identity so that receivers of a message intent can authenticate it after
+.. image:: message-intent.svg
+    :alt: Relationships between the various kinds of tokens
+
+*Message intent* tokens link nodes and identities together. They are signed by
+an identity so that receivers of a message intent can authenticate it after
 matching it to an identity they trust—i.e., the issuer of the message intent.
 They also include a *routing note* that contains the fingerprint of one of the
 nodes in use by the identity. This fingerprint is also the virtual address of
 the node to and from which messages will be sent. Finally, the *subject* field
 in a message intent is used to discover nodes to exchange messages with via the
-fuzzy routing mentioned before. It is mapped into the virtual address space of
-our overlay network, and signifies a channel over which identities will
-communicate.
+fuzzy routing technique described earlier. It is mapped into the virtual
+address space of our overlay network, and signifies a channel over which
+identities will communicate.
 
-.. image:: message-intent.svg
-    :alt: Relationships between the various kinds of tokens
-
-To summarize, users of Neuropil must deal with message intents in their
+To summarize, users of Neuropil must deal with message intent tokens in their
 respective AAA callbacks according to the policies they desire to implement.
 They do this by matching and verifying message intents with identities they
 know and trust, and subsequently must take care of identity management as well.
 Beyond that, Neuropil ensures that data produced and consumed by message
 handler callbacks remains authentic and confidential, and transparently
-abstracts message delivery and routing.
+abstracts message routing.

@@ -22,8 +22,8 @@ Contents:
    tutorial
    apps_tools
    api
-   realms_identities
-   bottom_up
+   core_concepts
+   realms
    protocol
    glossary
    license

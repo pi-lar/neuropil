@@ -2,15 +2,14 @@ Glossary
 ********
 
 **fingerprint**
-  the canonical hash value of a token
+  the canonical hash value of a token, see :ref:`core_concepts`
 
 **identity**
   a token that denotes a globally entity which controls the private part of a
-  key pair
-  :ref:`realms_identities`
+  key pair, see :ref:`core_concepts`
 
 **message intent**
-  a token that denotes a message intent, see :ref:`protocol`
+  a token that denotes a message intent, see :ref:`core_concepts`
 
 **node**
   a Neuropil peer, see :ref:`protocol`
