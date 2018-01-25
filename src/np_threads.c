@@ -551,11 +551,11 @@ np_thread_t*_np_threads_get_self()
 
 	np_thread_t* ret = pthread_getspecific(pthread_thread_id_key);
 
-	if (ret == NULL && _np_state() != NULL)
+	if (ret == NULL && np_state() != NULL)
 	{
 		unsigned long id_to_find = (unsigned long)pthread_self();
 
-		sll_iterator(np_thread_ptr) iter_threads = sll_first(_np_state()->threads);
+		sll_iterator(np_thread_ptr) iter_threads = sll_first(np_state()->threads);
 		while (iter_threads != NULL)
 		{
 			if (iter_threads->val->id == id_to_find) {
@@ -568,7 +568,7 @@ np_thread_t*_np_threads_get_self()
 		if (ret == NULL) {
 			id_to_find = (unsigned long)getpid();
 
-			iter_threads = sll_first(_np_state()->threads);
+			iter_threads = sll_first(np_state()->threads);
 			while (iter_threads != NULL)
 			{
 				if (iter_threads->val->id == id_to_find) {
@@ -633,8 +633,8 @@ char* np_threads_printpool(np_bool asOneLine) {
 		new_line = "    ";
 	}
 
-	sll_iterator(np_thread_ptr) iter_threads = sll_first(_np_state()->threads);
-	ret = _np_concatAndFree(ret, "--- Threadpool START ---%s", new_line);
+	sll_iterator(np_thread_ptr) iter_threads = sll_first(np_state()->threads);
+	ret = np_str_concatAndFree(ret, "--- Threadpool START ---%s", new_line);
 
 #ifdef NP_THREADS_CHECK_THREADING
 	np_sll_t(char_ptr, tmp);
@@ -645,13 +645,13 @@ char* np_threads_printpool(np_bool asOneLine) {
 			tmp = _sll_char_part(iter_threads->val->has_lock, -5);
 			tmp2 = _sll_char_make_flat(tmp);
 			sll_free(char_ptr, tmp);
-			ret = _np_concatAndFree(ret, "Thread %"PRIu32" LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
+			ret = np_str_concatAndFree(ret, "Thread %"PRIu32" LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
 			free(tmp2);
 
 			tmp = _sll_char_part(iter_threads->val->want_lock, -5);
 			tmp2 = _sll_char_make_flat(tmp);
 			sll_free(char_ptr, tmp);
-			ret = _np_concatAndFree(ret, "Thread %"PRIu32" WANTS LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
+			ret = np_str_concatAndFree(ret, "Thread %"PRIu32" WANTS LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
 			free(tmp2);
 
 		}
@@ -660,18 +660,18 @@ char* np_threads_printpool(np_bool asOneLine) {
 #else
 	while (iter_threads != NULL)
 	{
-		ret = _np_concatAndFree(ret, "Thread %"PRIu32" %s", iter_threads->val->id, new_line);
+		ret = np_str_concatAndFree(ret, "Thread %"PRIu32" %s", iter_threads->val->id, new_line);
 		sll_next(iter_threads);
 	}
 #endif
-	ret = _np_concatAndFree(ret, "--- Threadpool END   ---%s", new_line);
+	ret = np_str_concatAndFree(ret, "--- Threadpool END   ---%s", new_line);
 
 	return ret;
 }
 
 void _np_thread_run(np_thread_t * thread) {
-	pthread_create(&_np_state()->thread_ids[thread->idx], &_np_state()->attr, thread->fn, (void *)thread);
-	thread->id = (unsigned long)_np_state()->thread_ids[thread->idx];
+	pthread_create(&np_state()->thread_ids[thread->idx], &np_state()->attr, thread->fn, (void *)thread);
+	thread->id = (unsigned long)np_state()->thread_ids[thread->idx];
 }
 
 np_thread_t * __np_createThread(uint8_t number, void *(fn)(void *), np_bool auto_run) {
@@ -680,7 +680,7 @@ np_thread_t * __np_createThread(uint8_t number, void *(fn)(void *), np_bool auto
 	new_thread->idx = number;
 	new_thread->fn = fn;
 
-	sll_append(np_thread_ptr, _np_state()->threads, new_thread);
+	sll_append(np_thread_ptr, np_state()->threads, new_thread);
 
 	if(auto_run) {
 		_np_thread_run(new_thread);
@@ -714,7 +714,7 @@ void __np_createThreadPool(uint8_t pool_size) {
 
 		_np_thread_run(new_thread);
 
-		log_debug_msg(LOG_THREADS |LOG_DEBUG, "neuropil worker thread started: %p", _np_state()->thread_ids[i]);
+		log_debug_msg(LOG_THREADS |LOG_DEBUG, "neuropil worker thread started: %p", np_state()->thread_ids[i]);
 	}
 }
 
@@ -725,28 +725,28 @@ void np_start_job_queue(uint8_t pool_size)
 	log_debug_msg(LOG_THREADS | LOG_DEBUG, "starting neuropil with %"PRIu8" threads", pool_size);
 
 
-	if (pthread_attr_init(&_np_state()->attr) != 0)
+	if (pthread_attr_init(&np_state()->attr) != 0)
 	{
 		log_msg(LOG_ERROR, "pthread_attr_init: %s", strerror(errno));
 		return;
 	}
 
-	if (pthread_attr_setscope(&_np_state()->attr, PTHREAD_SCOPE_SYSTEM) != 0)
+	if (pthread_attr_setscope(&np_state()->attr, PTHREAD_SCOPE_SYSTEM) != 0)
 	{
 		log_msg(LOG_ERROR, "pthread_attr_setscope: %s", strerror(errno));
 		return;
 	}
 
-	if (pthread_attr_setdetachstate(&_np_state()->attr, PTHREAD_CREATE_DETACHED) != 0)
+	if (pthread_attr_setdetachstate(&np_state()->attr, PTHREAD_CREATE_DETACHED) != 0)
 	{
 		log_msg(LOG_ERROR, "pthread_attr_setdetachstate: %s", strerror(errno));
 		return;
 	}
 
-	_np_state()->thread_count += pool_size;
-	_np_state()->thread_ids = (pthread_t *)malloc(sizeof(pthread_t) * pool_size);
+	np_state()->thread_count += pool_size;
+	np_state()->thread_ids = (pthread_t *)malloc(sizeof(pthread_t) * pool_size);
 
-	CHECK_MALLOC(_np_state()->thread_ids);
+	CHECK_MALLOC(np_state()->thread_ids);
 
 	np_bool create_own_event_in_thread = FALSE;
 	if (pool_size >= 2) {
@@ -833,5 +833,5 @@ void np_start_job_queue(uint8_t pool_size)
 	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 
 
-	_np_network_start(_np_state()->my_node_key->network);
+	_np_network_start(np_state()->my_node_key->network);
 }

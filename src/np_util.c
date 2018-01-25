@@ -339,7 +339,7 @@ void np_dump_tree2log(log_type category, np_tree_t* tree){
  * @param source
  * @return
  */
-char* _np_concatAndFree(char* target, char* source, ... ) {
+char* np_str_concatAndFree(char* target, char* source, ... ) {
 
 	if(target== NULL){
 		asprintf(&target,"%s","");
@@ -452,7 +452,7 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
 	int32_t i = 0;
 	while (iter != NULL)
 	{
-		ret = _np_concatAndFree(ret, "%d:\"%s\"->", i, iter->val);
+		ret = np_str_concatAndFree(ret, "%d:\"%s\"->", i, iter->val);
 		i++;
 		sll_next(iter);
 	}

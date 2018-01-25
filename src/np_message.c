@@ -190,7 +190,7 @@ void _np_message_calculate_chunking(np_message_t* msg)
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check){");
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_message_t* ret= NULL;
 
 	char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
@@ -956,7 +956,7 @@ void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const c
 	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) subject));
 	np_tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(to)));
 	if (from == NULL)
-		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(_np_state()->my_node_key)));
+		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(np_state()->my_node_key)));
 	else{
 		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(from)));
 	}
@@ -1014,7 +1014,7 @@ inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
 void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	// first encrypt the relevant message part itself
 	unsigned char nonce[crypto_box_NONCEBYTES];
@@ -1071,7 +1071,7 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
 	np_bool ret = TRUE;
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	np_tree_t* encryption_details =
 			np_tree_find_str(msg->properties, NP_SYMKEY)->val.value.tree;

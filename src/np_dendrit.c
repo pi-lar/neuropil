@@ -102,7 +102,7 @@ void _np_in_received(np_jobargs_t* args)
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "received msg");
 	void* raw_msg = NULL;
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	np_waitref_obj(np_key_t, state->my_node_key, my_key,"np_waitref_key");
 	{
@@ -344,7 +344,7 @@ void _np_in_received(np_jobargs_t* args)
 void _np_in_piggy(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_in_piggy(np_jobargs_t* args) {");
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_key_t* node_entry = NULL;
 	// double tmp_ft;
 	np_sll_t(np_key_ptr, o_piggy_list) = NULL;
@@ -585,8 +585,8 @@ void _np_in_leave_req(np_jobargs_t* args)
 		leave_req_key = _np_key_create_from_token(node_token);
 	}
 
-	if(_np_key_cmp(_np_state()->my_node_key,leave_req_key ) != 0
-	&& _np_key_cmp(_np_state()->my_identity,leave_req_key ) != 0
+	if(_np_key_cmp(np_state()->my_node_key,leave_req_key ) != 0
+	&& _np_key_cmp(np_state()->my_identity,leave_req_key ) != 0
 	){
 		_np_key_destroy(leave_req_key);
 	}
@@ -645,7 +645,7 @@ void _np_in_join_req(np_jobargs_t* args)
 	}
 
 	// check for allowance of token by user defined function
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_bool send_reply = FALSE;
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request key %s", _np_key_as_str(join_req_key));
 
@@ -673,7 +673,7 @@ void _np_in_join_req(np_jobargs_t* args)
 
 	np_new_obj(np_message_t, msg_out);
 
-	np_waitref_obj(np_key_t,_np_state()->my_node_key, my_key,"np_waitref_key");
+	np_waitref_obj(np_key_t,np_state()->my_node_key, my_key,"np_waitref_key");
 	if (IS_AUTHENTICATED(join_req_key->aaa_token->state))
 	{
 		log_msg(LOG_ROUTING | LOG_INFO,
@@ -820,7 +820,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 		routing_key = join_key;
 	}
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_waitref_obj(np_key_t, state->my_node_key, my_key);
 
 	/* acknowledgement of join message send out earlier */
@@ -954,7 +954,7 @@ void _np_in_join_nack(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_in_join_nack(np_jobargs_t* args){");
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_waitref_obj(np_key_t, state->my_node_key, my_key,"np_waitref_key");
 
 	// np_network_t* ng = my_key->network;
@@ -1030,7 +1030,7 @@ void _np_in_join_nack(np_jobargs_t* args)
 
 void __np_in_ack_handle(np_message_t * msg)
 {
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key);
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key);
 	np_waitref_obj(np_network_t, my_key->network, my_network);
 
 	CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_RESPONSE_UUID, ack_uuid);
@@ -1093,8 +1093,8 @@ void _np_in_update(np_jobargs_t* args)
 		FALSE == update_key->node->joined_network)
 	{
 		// do not join myself
-		if(0 != _np_key_cmp(update_key,_np_state()->my_identity)
-		&& 0 != _np_key_cmp(update_key,_np_state()->my_node_key))
+		if(0 != _np_key_cmp(update_key,np_state()->my_identity)
+		&& 0 != _np_key_cmp(update_key,np_state()->my_node_key))
 		{
 
 			char* connection_str = np_get_connection_string_from(
@@ -1182,7 +1182,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 			_np_message_create (
 					msg_out,
 					reply_to_key,
-					_np_state()->my_node_key,
+					np_state()->my_node_key,
 					_NP_MSG_AVAILABLE_SENDER,
 					available_data
 			);
@@ -1230,7 +1230,7 @@ void _np_in_available_sender(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	np_dhkey_t sendtoken_issuer_key = np_dhkey_create_from_hash(msg_token->issuer);
 	if (_np_dhkey_equal(&sendtoken_issuer_key, &state->my_node_key->dhkey) )
@@ -1309,7 +1309,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 			np_message_t *msg_out = NULL;
 			np_new_obj(np_message_t, msg_out);
-			_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AVAILABLE_RECEIVER, interest_data);
+			_np_message_create(msg_out, reply_to_key, np_state()->my_node_key, _NP_MSG_AVAILABLE_RECEIVER, interest_data);
 
 			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AVAILABLE_RECEIVER);
 
@@ -1336,7 +1336,7 @@ void _np_in_available_receiver(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_in_available_receiver(np_jobargs_t* args){");
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_waitref_obj(np_key_t, state->my_node_key, my_key,"np_waitref_key");
 	np_waitref_obj(np_key_t, state->my_identity, my_identity,"np_waitref_identity");
 
@@ -1433,7 +1433,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	}
 
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking authentication of token");
-	if (TRUE == _np_state()->authenticate_func(authentication_token))
+	if (TRUE == np_state()->authenticate_func(authentication_token))
 	{
 		authentication_token->state |= AAA_AUTHENTICATED;
 	}
@@ -1447,7 +1447,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 		np_aaatoken_encode(token_data, authentication_token);
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
-		_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AUTHENTICATION_REPLY, token_data);
+		_np_message_create(msg_out, reply_to_key, np_state()->my_node_key, _NP_MSG_AUTHENTICATION_REPLY, token_data);
 		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REPLY);
 
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending back authenticated data to %s", _np_key_as_str(reply_to_key));
@@ -1613,7 +1613,7 @@ void _np_in_authorize(np_jobargs_t* args)
 	}
 
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking authorization of token");
-	if (TRUE == _np_state()->authorize_func(authorization_token))
+	if (TRUE == np_state()->authorize_func(authorization_token))
 	{
 		authorization_token->state |= AAA_AUTHORIZED;
 	}
@@ -1627,7 +1627,7 @@ void _np_in_authorize(np_jobargs_t* args)
 
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
-		_np_message_create(msg_out, reply_to_key, _np_state()->my_node_key, _NP_MSG_AUTHORIZATION_REPLY, token_data);
+		_np_message_create(msg_out, reply_to_key, np_state()->my_node_key, _NP_MSG_AUTHORIZATION_REPLY, token_data);
 		np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REPLY);
 
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending back authorized data to %s", _np_key_as_str(reply_to_key));
@@ -1775,7 +1775,7 @@ void _np_in_account(np_jobargs_t* args)
 	np_aaatoken_decode(args->msg->body, accounting_token);
 
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now handling accounting for token");
-	_np_state()->accounting_func(accounting_token);
+	np_state()->accounting_func(accounting_token);
 
 	__np_cleanup__:
 	np_unref_obj(np_aaatoken_t, accounting_token, ref_obj_creation);
@@ -1993,7 +1993,7 @@ void _np_in_handshake(np_jobargs_t* args)
 					}
 				}
 
-				np_state_t* state = _np_state();
+				np_state_t* state = np_state();
 				np_waitref_obj(np_aaatoken_t, state->my_node_key->aaa_token, my_id_token, "np_waitref_my_node_key->aaa_token");
 
 				// get our own identity from the cache and convert to curve key

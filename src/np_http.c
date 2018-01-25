@@ -370,7 +370,7 @@ void _np_http_handle_sysinfo(np_http_client_t* client)
 		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "no arguments provided");
 	}
 
-	key = _np_state()->my_node_key;
+	key = np_state()->my_node_key;
 	np_tryref_obj(np_key_t, key, keyExists);
 	if (keyExists) {
 		char* my_key = _np_key_as_str(key);

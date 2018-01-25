@@ -60,7 +60,7 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_glia_route_lookup(np_jobargs_t* args){");
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key, "np_waitref_obj");
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key, "np_waitref_obj");
 
 	np_sll_t(np_key_ptr, tmp) = NULL;
 	np_key_t* target_key = NULL;
@@ -244,7 +244,7 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 
 	while (iter != NULL) {
 		
-		if(iter->val != _np_state()->my_node_key){
+		if(iter->val != np_state()->my_node_key){
 			np_tryref_obj(np_node_t, iter->val->node, node_exists);
 			if(node_exists) {
 				if (iter->val->node->joined_network) {
@@ -303,7 +303,7 @@ void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
 void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args){");
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	np_tree_elem_t *iter = NULL;
 	np_msgproperty_t* msg_prop = NULL;
@@ -381,7 +381,7 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 	log_msg(LOG_TRACE, "start: void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args){");
 
 	_LOCK_MODULE(np_node_renewal_t) {
-		np_state_t* state = _np_state();
+		np_state_t* state = np_state();
 
 		// check an refresh my own identity + node tokens if required
 		double exp_ts = np_time_now() + NODE_RENEW_BEFORE_EOL_SEC;
@@ -412,7 +412,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args){");
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key, "np_waitref_obj");
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key, "np_waitref_obj");
 	np_network_t* ng = my_key->network;
 
 	np_tree_elem_t *jrb_ack_node = NULL;
@@ -564,7 +564,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_send_rowinfo_jobexec(np_jobargs_t* args){");
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_key_t* target_key = args->target;
 
 	// check for correct target
@@ -608,7 +608,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 {
 	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request){");
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	np_aaatoken_t* msg_token = NULL;
 	np_new_obj(np_aaatoken_t, msg_token);
@@ -681,9 +681,9 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 	//TODO: msg_tokens for either
 	// insert into msg token token renewal queue
 	_LOCK_MODULE(np_state_message_tokens_t) {
-		if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))
+		if (NULL == np_tree_find_str(np_state()->msg_tokens, subject))
 		{
-			np_tree_insert_str(_np_state()->msg_tokens, subject, np_treeval_new_v(NULL));
+			np_tree_insert_str(np_state()->msg_tokens, subject, np_treeval_new_v(NULL));
 
 			np_msgproperty_t* msg_prop = np_msgproperty_get(mode_type, subject);
 			msg_prop->mode_type |= TRANSFORM;

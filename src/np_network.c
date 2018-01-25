@@ -449,7 +449,7 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
 	struct sockaddr_storage from;
 	socklen_t fromlen = sizeof(from);
 
-	//np_state_t* state = _np_state();
+	//np_state_t* state = np_state();
 	//np_network_t* ng = state->my_node_key->network;
 	np_key_t* key = (np_key_t*) event->data; // state->my_node_key->network;
 	np_tryref_obj(np_key_t, key, keyExists, "np_tryref_obj_key");

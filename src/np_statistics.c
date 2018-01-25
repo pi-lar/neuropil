@@ -168,7 +168,7 @@ void np_statistics_add_watch_internals() {
 	np_statistics_add_watch(_NP_MSG_AVAILABLE_RECEIVER);
 	np_statistics_add_watch(_NP_MSG_AVAILABLE_SENDER);
 	
-	if(_np_state()->enable_realm_master || _np_state()->enable_realm_slave){
+	if(np_state()->enable_realm_master || np_state()->enable_realm_slave){
 		np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REQUEST);
 		np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REPLY);
 		np_statistics_add_watch(_NP_MSG_AUTHORIZATION_REQUEST);
@@ -188,7 +188,7 @@ char * np_statistics_print(np_bool asOneLine) {
 	if (asOneLine == TRUE) {
 		new_line = "    ";
 	}
-	ret = _np_concatAndFree(ret, "--- Statistics START ---%s", new_line);
+	ret = np_str_concatAndFree(ret, "--- Statistics START ---%s", new_line);
 
 	sll_iterator(char_ptr) iter_subjects = sll_first(watched_subjects);
 
@@ -269,7 +269,7 @@ char * np_statistics_print(np_bool asOneLine) {
 
 		if (container->watch_receive) {
 			all_total_received += container->total_received;
-			ret = _np_concatAndFree(ret,
+			ret = np_str_concatAndFree(ret,
 				"received total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
 				container->total_received,
 				current_sec_received, container->last_secdiff_received,
@@ -279,7 +279,7 @@ char * np_statistics_print(np_bool asOneLine) {
 
 		if (container->watch_send) {
 			all_total_send += container->total_send;
-			ret = _np_concatAndFree(ret,
+			ret = np_str_concatAndFree(ret,
 				"send     total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
 				container->total_send,
 				current_sec_send, container->last_secdiff_send,
@@ -294,7 +294,7 @@ char * np_statistics_print(np_bool asOneLine) {
 		sll_next(iter_subjects);
 	}
 
-	ret = _np_concatAndFree(ret, "%s", new_line);
+	ret = np_str_concatAndFree(ret, "%s", new_line);
 
 
 	uint32_t routes = _np_route_my_key_count_routes();	
@@ -310,21 +310,21 @@ char * np_statistics_print(np_bool asOneLine) {
 	}
 	
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "received total:", tenth);
-	ret = _np_concatAndFree(ret, tmp_format, all_total_received, new_line);
+	ret = np_str_concatAndFree(ret, tmp_format, all_total_received, new_line);
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "send     total:", tenth);
-	ret = _np_concatAndFree(ret, tmp_format, all_total_send, new_line);
+	ret = np_str_concatAndFree(ret, tmp_format, all_total_send, new_line);
 
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "total:", tenth);
-	ret = _np_concatAndFree(ret, tmp_format, all_total_send+ all_total_received, new_line);
+	ret = np_str_concatAndFree(ret, tmp_format, all_total_send+ all_total_received, new_line);
 	
-	ret = _np_concatAndFree(ret, "%s", new_line);
+	ret = np_str_concatAndFree(ret, "%s", new_line);
 
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Reachable nodes:", tenth);
-	ret = _np_concatAndFree(ret, tmp_format, routes, /*new_line*/"  ");
+	ret = np_str_concatAndFree(ret, tmp_format, routes, /*new_line*/"  ");
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Neighbours nodes:", tenth);
-	ret = _np_concatAndFree(ret, tmp_format, _np_route_my_key_count_neighbours(), new_line);
+	ret = np_str_concatAndFree(ret, tmp_format, _np_route_my_key_count_neighbours(), new_line);
 
-	ret = _np_concatAndFree(ret, "--- Statistics END  ---%s", new_line);
+	ret = np_str_concatAndFree(ret, "--- Statistics END  ---%s", new_line);
 
 	return ret;
 }

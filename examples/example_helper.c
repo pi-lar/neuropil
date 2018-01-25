@@ -130,20 +130,20 @@ char* np_get_startup_str() {
 	char* ret = NULL;
 	char* new_line = "\n";
 
-	ret = _np_concatAndFree(ret, new_line);
-	ret = _np_concatAndFree(ret, "%s initializiation successful%s", NEUROPIL_RELEASE, new_line);
-	ret = _np_concatAndFree(ret, "%s event loop with %d worker threads started%s", NEUROPIL_RELEASE, _np_state()->thread_count, new_line);
-	ret = _np_concatAndFree(ret, "your neuropil node will be addressable as:%s", new_line);
-	ret = _np_concatAndFree(ret, new_line);
+	ret = np_str_concatAndFree(ret, new_line);
+	ret = np_str_concatAndFree(ret, "%s initializiation successful%s", NEUROPIL_RELEASE, new_line);
+	ret = np_str_concatAndFree(ret, "%s event loop with %d worker threads started%s", NEUROPIL_RELEASE, np_state()->thread_count, new_line);
+	ret = np_str_concatAndFree(ret, "your neuropil node will be addressable as:%s", new_line);
+	ret = np_str_concatAndFree(ret, new_line);
 
 	char* connection_str = np_get_connection_string();
-	ret = _np_concatAndFree(ret, "\t%s%s", connection_str, new_line);
+	ret = np_str_concatAndFree(ret, "\t%s%s", connection_str, new_line);
 	free(connection_str);
 
-	ret = _np_concatAndFree(ret, new_line);
-	ret = _np_concatAndFree(ret, "%s%s", NEUROPIL_COPYRIGHT, new_line);
-	ret = _np_concatAndFree(ret, "%s%s", NEUROPIL_TRADEMARK, new_line);
-	ret = _np_concatAndFree(ret, new_line);
+	ret = np_str_concatAndFree(ret, new_line);
+	ret = np_str_concatAndFree(ret, "%s%s", NEUROPIL_COPYRIGHT, new_line);
+	ret = np_str_concatAndFree(ret, "%s%s", NEUROPIL_TRADEMARK, new_line);
+	ret = np_str_concatAndFree(ret, new_line);
 
 	return ret;
 }
@@ -317,7 +317,9 @@ void np_example_save_or_load_identity() {
 				exit(EXIT_FAILURE);
 			}
 			else {
-				np_example_print(stdout, "Saved current ident (%s) to file.\n", _np_key_as_str(_np_state()->my_identity));
+#ifdef  DEBUG
+				np_example_print(stdout, "Saved current ident (%s) to file.\n", _np_key_as_str(np_state()->my_identity));
+#endif //  DEBUG
 				/*
 				if (!np_example_load_identity(identity_passphrase, identity_filename)) {
 					np_example_print(stderr, "Cannot load after save of identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
@@ -328,7 +330,9 @@ void np_example_save_or_load_identity() {
 		}
 		else {
 			if (load_status == np_example_load_identity_status_success) {
-				np_example_print(stdout, "Loaded ident(%s) from file.\n", _np_key_as_str(_np_state()->my_identity));
+#ifdef  DEBUG
+				np_example_print(stdout, "Loaded ident(%s) from file.\n", _np_key_as_str(np_state()->my_identity));
+#endif
 			}else if (load_status == np_example_load_identity_status_found_but_failed) {
 				np_example_print(stderr, "Could not load from file.\n");
 			}

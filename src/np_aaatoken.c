@@ -918,7 +918,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 			}
 
 			np_dhkey_t recvtoken_issuer_key = np_dhkey_create_from_hash(return_token->issuer);
-			if (_np_dhkey_equal(&recvtoken_issuer_key, &_np_state()->my_node_key->dhkey))
+			if (_np_dhkey_equal(&recvtoken_issuer_key, &np_state()->my_node_key->dhkey))
 			{
 				// only use the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
 				pll_next(iter);
@@ -1258,7 +1258,7 @@ np_aaatoken_t* _np_aaatoken_new(char issuer[64], char node_subject[255], double 
 	np_aaatoken_t* ret = NULL;
 	np_new_obj(np_aaatoken_t, ret);
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	// create token
 	if (NULL != state->realm_name)

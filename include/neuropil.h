@@ -91,8 +91,8 @@ NP_API_EXPORT
 void np_destroy();
 
 // function to get the global state variable
-NP_API_INTERN
-np_state_t* _np_state();
+NP_API_PROTEC
+np_state_t* np_state();
 
 /**
 .. c:function:: void np_enable_realm_master()

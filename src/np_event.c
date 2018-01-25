@@ -123,7 +123,7 @@ void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 
 	_LOCK_MODULE(np_message_part_cache_t)
 	{
-		np_state_t* state = _np_state();
+		np_state_t* state = np_state();
 		np_tree_elem_t* tmp = NULL;
 
 		RB_FOREACH(tmp, np_tree_s, state->msg_part_cache)

@@ -116,8 +116,8 @@ np_key_t* _np_keycache_find_by_details(
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "np_waitref_key");
-	np_waitref_obj(np_key_t, _np_state()->my_identity, my_identity, "np_waitref_identity");
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_node_key, "np_waitref_key");
+	np_waitref_obj(np_key_t, np_state()->my_identity, my_identity, "np_waitref_identity");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -186,8 +186,8 @@ np_key_t* _np_keycache_find_deprecated()
 		{
 
 			// our own key / identity never deprecates
-			if (TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_node_key->dhkey) ||
-				TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_identity->dhkey) )
+			if (TRUE == _np_dhkey_equal(&iter->dhkey, &np_state()->my_node_key->dhkey) ||
+				TRUE == _np_dhkey_equal(&iter->dhkey, &np_state()->my_identity->dhkey) )
 			{
 				continue;
 			}

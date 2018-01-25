@@ -143,7 +143,7 @@ NP_API_EXPORT
 char* np_dump_tree2char(np_tree_t* tree);
 
 NP_API_PROTEC
-char* _np_concatAndFree(char* target, char* source, ... );
+char* np_str_concatAndFree(char* target, char* source, ... );
 
 NP_API_PROTEC
 np_bool np_get_local_ip(char* buffer, int buffer_size);

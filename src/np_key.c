@@ -239,7 +239,7 @@ void np_key_renew_token() {
 
 	_LOCK_MODULE(np_node_renewal_t) 
 	{
-		np_state_t* state = _np_state();
+		np_state_t* state = np_state();
 
 		np_key_t* new_node_key = NULL;
 		np_key_t* old_node_key = state->my_node_key;

@@ -414,7 +414,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 		msg_available = sll_size(recv_prop->msg_cache_in);
 	}
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	while (0 < msg_available)
 	{

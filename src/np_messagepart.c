@@ -163,17 +163,17 @@ char* np_messagepart_printcache(np_bool asOneLine)
 		new_line = "    ";
 	}
 
-	ret = _np_concatAndFree(ret, "--- Messagepart cache (%"PRIu16") ---%s", _np_state()->msg_part_cache->size, new_line);
+	ret = np_str_concatAndFree(ret, "--- Messagepart cache (%"PRIu16") ---%s", np_state()->msg_part_cache->size, new_line);
 	_LOCK_MODULE(np_message_part_cache_t)
 	{
 		np_tree_elem_t* tmp = NULL;
 		
 
-		RB_FOREACH(tmp, np_tree_s, _np_state()->msg_part_cache)
+		RB_FOREACH(tmp, np_tree_s, np_state()->msg_part_cache)
 		{
 			np_message_t* msg = tmp->val.value.v;
 
-			ret = _np_concatAndFree(ret,
+			ret = np_str_concatAndFree(ret,
 					"%s   received %2"PRIu32" of %2"PRIu16" expected parts. msg subject:%s%s",
 					msg->uuid,
 					pll_size(msg->msg_chunks),
@@ -183,7 +183,7 @@ char* np_messagepart_printcache(np_bool asOneLine)
 					);
 		}		
 	}
-	ret = _np_concatAndFree(ret, "--- Messagepart cache end ---%s", new_line);
+	ret = np_str_concatAndFree(ret, "--- Messagepart cache end ---%s", new_line);
 
 	return (ret);
 }
