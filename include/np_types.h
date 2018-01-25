@@ -50,7 +50,7 @@ typedef enum
     #define NP_UNUSED     __attribute__ ((unused))
   #endif
   #ifndef NP_API_PROTEC
-    #define NP_API_PROTEC __attribute__ ((visibility ("protected")))
+    #define NP_API_PROTEC __attribute__ ((visibility ("default")))
   #endif
   #ifndef NP_API_HIDDEN
     #define NP_API_HIDDEN __attribute__ ((visibility ("hidden")))
