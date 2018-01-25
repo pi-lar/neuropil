@@ -361,7 +361,7 @@ char* _np_concatAndFree(char* target, char* source, ... ) {
 }
 
 
-np_bool _np_get_local_ip(char* buffer,int buffer_size){
+np_bool np_get_local_ip(char* buffer,int buffer_size){
 
 	np_bool ret = FALSE;
 

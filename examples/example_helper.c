@@ -82,7 +82,7 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mo
 		if (http_domain == NULL) {
 			http_domain = calloc(1, sizeof(char) * 255);
 			CHECK_MALLOC(http_domain);
-			if (_np_get_local_ip(http_domain, 255) == FALSE) {
+			if (np_get_local_ip(http_domain, 255) == FALSE) {
 				free(http_domain);
 				http_domain = NULL;
 			}

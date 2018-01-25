@@ -146,7 +146,7 @@ NP_API_PROTEC
 char* _np_concatAndFree(char* target, char* source, ... );
 
 NP_API_PROTEC
-np_bool _np_get_local_ip(char buffer[], int buffer_size);
+np_bool np_get_local_ip(char* buffer, int buffer_size);
 
 NP_API_PROTEC
 char* _sll_char_make_flat(np_sll_t(char_ptr, target));
