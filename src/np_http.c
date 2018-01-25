@@ -392,7 +392,7 @@ void _np_http_handle_sysinfo(np_http_client_t* client)
 				"update request is send. please wait.");
 		}
 		else {
-			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (byte_size: %"PRIu64,
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (byte_size: %"PRIu32,
 				sysinfo->byte_size);
 			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (size: %"PRIu16,
 				sysinfo->size);
@@ -459,9 +459,9 @@ NP_UNUSED ev_io* ev, int event_type) {
 						http_return_codes[client->ht_response.ht_status].text);
 
 		// add content length header
-		size_t s_contentlength = strlen(client->ht_response.ht_body);
+		uint32_t s_contentlength = strlen(client->ht_response.ht_body);
 		char body_length[255];
-		snprintf(body_length, s_contentlength, "%"PRIu64, s_contentlength);
+		snprintf(body_length, s_contentlength, "%"PRIu32, s_contentlength);
 		np_tree_insert_str(client->ht_response.ht_header, "Content-Length",
 				np_treeval_new_s(body_length));
 		np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
@@ -492,11 +492,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 		log_debug_msg(LOG_HTTP | LOG_DEBUG, "send http header success");
 
 		// HTTP body
-		memset(data, 0, 2048);
-		int parts = ((int) (strlen(client->ht_response.ht_body) / 2048))
-				+ 1;
-		int last_part_size = (strlen(client->ht_response.ht_body) % 2048);
-
+		//memset(data, 0, 2048);
 
 		uint32_t bytes_send = 0;
 		double t1 = np_time_now();

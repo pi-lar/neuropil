@@ -2011,81 +2011,92 @@ void _np_in_handshake(np_jobargs_t* args)
 
 				// create shared secret
 				unsigned char shared_secret[crypto_scalarmult_BYTES];
-				crypto_scalarmult(
-					shared_secret, curve25519_sk, session_key->val.value.bin);
+				int crypto_scalarmult_ret =
+					crypto_scalarmult(
+						shared_secret,
+						curve25519_sk,
+						session_key->val.value.bin
+					);
+				if (crypto_scalarmult_ret != 0) {
+					log_msg(LOG_WARN, "Could not exchange session_key key");
 
-				np_aaatoken_t* old_token = NULL;
-				if (NULL != msg_source_key->aaa_token &&
-					IS_VALID(msg_source_key->aaa_token->state)
-					)
-				{
-					// print warning if overwrite happens
-					log_msg(LOG_WARN,
-						"found valid authentication token for node %s (%p), overwriting...",
-						_np_key_as_str(msg_source_key), msg_source_key->node->obj);
-					old_token = msg_source_key->aaa_token;
-					// msg_source_key->node->joined_network = FALSE;
-				}
+				}else{
 
-				np_ref_obj(np_aaatoken_t, tmp_token, ref_key_aaa_token);
-				msg_source_key->aaa_token = tmp_token;
-				np_unref_obj(np_aaatoken_t, old_token, ref_key_aaa_token);
 
-				// handle alias key, also in case a new connection has been established
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for alias %s", _np_key_as_str(alias_key));
-
-				alias_key->aaa_token = msg_source_key->aaa_token;
-				np_ref_obj(np_aaatoken_t, msg_source_key->aaa_token, ref_key_aaa_token);
-
-				alias_key->node = msg_source_key->node;
-				np_ref_obj(np_node_t, msg_source_key->node, ref_key_node);
-
-				if ((alias_key->node->protocol & PASSIVE) == PASSIVE)
-				{
-					np_ref_obj(np_network_t, alias_key->network, ref_key_network);
-					np_unref_obj(np_network_t, msg_source_key->network, ref_key_network);
-					msg_source_key->network = alias_key->network;
-
-					_np_network_stop(msg_source_key->network, TRUE);
-					// TODO: split up in two libev callbacks (read/write)
-					ev_io_init(
-						&msg_source_key->network->watcher,
-						_np_network_sendrecv,
-						msg_source_key->network->socket,
-						EV_WRITE | EV_READ);
-					_np_network_start(msg_source_key->network);
-				}
-				else if ((alias_key->node->protocol & TCP) == TCP)
-				{
-					// with tcp we accepted the connection already and have an incoming channel defined
-					// alias key and msg_source_key have different network_t structures, so there is nothing to do
-				}
-				else
-				{
-					if (IS_INVALID(msg_source_key->aaa_token->state)) {
-						// new connection, setup alias key
-						//alias_key->network = msg_source_key->network;
-						//np_ref_obj(np_network_t, alias_key->network, ref_key_network);
+					np_aaatoken_t* old_token = NULL;
+					if (
+						NULL != msg_source_key->aaa_token &&
+						IS_VALID(msg_source_key->aaa_token->state)
+						)
+					{
+						// print warning if overwrite happens
+						log_msg(LOG_WARN,
+							"found valid authentication token for node %s (%p), overwriting...",
+							_np_key_as_str(msg_source_key), msg_source_key->node->obj);
+						old_token = msg_source_key->aaa_token;
+						// msg_source_key->node->joined_network = FALSE;
 					}
+
+					np_ref_obj(np_aaatoken_t, tmp_token, ref_key_aaa_token);
+					msg_source_key->aaa_token = tmp_token;
+					np_unref_obj(np_aaatoken_t, old_token, ref_key_aaa_token);
+
+					// handle alias key, also in case a new connection has been established
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for alias %s", _np_key_as_str(alias_key));
+
+					alias_key->aaa_token = msg_source_key->aaa_token;
+					np_ref_obj(np_aaatoken_t, msg_source_key->aaa_token, ref_key_aaa_token);
+
+					alias_key->node = msg_source_key->node;
+					np_ref_obj(np_node_t, msg_source_key->node, ref_key_node);
+
+					if ((alias_key->node->protocol & PASSIVE) == PASSIVE)
+					{
+						np_ref_obj(np_network_t, alias_key->network, ref_key_network);
+						np_unref_obj(np_network_t, msg_source_key->network, ref_key_network);
+						msg_source_key->network = alias_key->network;
+
+						_np_network_stop(msg_source_key->network, TRUE);
+						// TODO: split up in two libev callbacks (read/write)
+						ev_io_init(
+							&msg_source_key->network->watcher,
+							_np_network_sendrecv,
+							msg_source_key->network->socket,
+							EV_WRITE | EV_READ);
+						_np_network_start(msg_source_key->network);
+					}
+					else if ((alias_key->node->protocol & TCP) == TCP)
+					{
+						// with tcp we accepted the connection already and have an incoming channel defined
+						// alias key and msg_source_key have different network_t structures, so there is nothing to do
+					}
+					else
+					{
+						if (IS_INVALID(msg_source_key->aaa_token->state)) {
+							// new connection, setup alias key
+							//alias_key->network = msg_source_key->network;
+							//np_ref_obj(np_network_t, alias_key->network, ref_key_network);
+						}
+					}
+
+					// copy over session key
+					memcpy(msg_source_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
+					msg_source_key->node->session_key_is_set = TRUE;
+
+					/* Implicit: as both keys share the same token
+					memcpy(alias_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
+					alias_key->node->session_key_is_set = TRUE;
+					*/
+
+					// mark as valid to identify existing connections
+					msg_source_key->aaa_token->state |= AAA_VALID;
+					msg_source_key->node->is_handshake_received = TRUE;
+
+					_np_network_send_handshake(msg_source_key);
+
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
+						_np_key_as_str(msg_source_key), _np_key_as_str(alias_key));
 				}
-
-				// copy over session key
-				memcpy(msg_source_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
-				msg_source_key->node->session_key_is_set = TRUE;
-
-				/* Implicit: as both keys share the same token
-				memcpy(alias_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
-				alias_key->node->session_key_is_set = TRUE;
-				*/
-
-				// mark as valid to identify existing connections
-				msg_source_key->aaa_token->state |= AAA_VALID;
-				msg_source_key->node->is_handshake_received = TRUE;
-
-				_np_network_send_handshake(msg_source_key);
-
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
-					_np_key_as_str(msg_source_key), _np_key_as_str(alias_key));
 			}
 		}
 

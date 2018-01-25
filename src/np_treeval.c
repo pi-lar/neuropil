@@ -264,12 +264,12 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
 			break;
 #ifdef x64
 		case unsigned_long_long_type:
-  			len = snprintf(NULL, 0, "%llu", val.value.ull);
+  			len = snprintf(NULL, 0, "%"PRIu64, val.value.ull);
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
 				if (freeable != NULL) 	*freeable = TRUE;
-  				snprintf(result, len+1, "%llu", val.value.ull);
+  				snprintf(result, len+1, "%"PRIu64, val.value.ull);
   			}
 			break;
 #endif

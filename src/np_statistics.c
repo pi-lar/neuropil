@@ -179,7 +179,7 @@ void np_statistics_add_watch_internals() {
 }
 char * np_statistics_print(np_bool asOneLine) {
 	if (FALSE == _np_statistcs_initiated) {
-		return NULL;
+		return strdup("statistics not initiated\n");
 	}
 
 	char * ret = NULL;

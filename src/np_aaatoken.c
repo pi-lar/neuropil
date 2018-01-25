@@ -229,8 +229,9 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	}
 	if (NULL !=(tmp = np_tree_find_str(data, "np.t.u")))
 	{
-		free(token->uuid);
+		char* old = token->uuid;
 		token->uuid = strndup( np_treeval_to_str(tmp->val, NULL), UUID_SIZE);
+		free(old);
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.nb")))
 	{
@@ -317,7 +318,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	double now = np_time_now();
 	if (now > (token->expires_at))
 	{
-		log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired (%d). verification failed", token->uuid, token->subject, token->expires_at - now);
+		log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired (%f). verification failed", token->uuid, token->subject, token->expires_at - now);
 		token->state &= AAA_INVALID;
 		log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 		return (FALSE);
@@ -1077,6 +1078,7 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_add_signature(np_aaatoken_t* msg_token){");
+	
 		unsigned long long signature_len = 0;
 				
 		unsigned char* hash = _np_aaatoken_get_fingerprint(msg_token, FALSE == _np_aaatoken_is_core_token(msg_token));
@@ -1090,7 +1092,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 				crypto_generichash_BYTES);
 			log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "token hash key fingerprint: %s",
 				hash_hex);
-
+			
 			int ret = crypto_sign_detached((unsigned char*)msg_token->signature, &signature_len,
 				(const unsigned char*)hash, crypto_generichash_BYTES,
 				msg_token->private_key);

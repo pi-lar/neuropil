@@ -637,7 +637,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 
 
 	msg_token->expires_at = msg_token->not_before + expire_sec;
-	log_debug_msg(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG,"setting msg token EXPIRY to: %d (now: %d diff: %d)", msg_token->expires_at, np_time_now(), msg_token->expires_at -  np_time_now() );
+	log_debug_msg(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG,"setting msg token EXPIRY to: %f (now: %f diff: %f)", msg_token->expires_at, np_time_now(), msg_token->expires_at -  np_time_now() );
 
 	if(my_identity->aaa_token->expires_at < msg_token->expires_at ){
 		msg_token->expires_at = my_identity->aaa_token->expires_at ;

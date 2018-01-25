@@ -584,7 +584,7 @@ np_thread_t*_np_threads_get_self()
 void _np_thread_t_del(void* obj)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
-	np_thread_t* thread = (np_thread_t*)obj;
+	np_thread_t* thread = (np_thread_t*)obj;	
 
 #ifdef NP_THREADS_CHECK_THREADING
 

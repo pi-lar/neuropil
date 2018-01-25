@@ -116,7 +116,8 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 	if (NULL != (*obj) &&
 		NULL != (*obj)->ptr &&
 		(*obj)->type == obj_type &&
-		(*obj)->ref_count <= 0 )
+		(*obj)->ref_count == 0 &&
+		(*obj)->persistent == FALSE)
 	{
 		np_obj_t* obj_tmp = NULL;
 		__np_obj_pool_ptr->current = __np_obj_pool_ptr->first;
@@ -153,47 +154,53 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 void np_mem_refobj(np_obj_t* obj, const char* reason)
 {
 	log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
-	obj->ref_count++;
+	if (obj->persistent == FALSE) {
+		obj->ref_count++;
+	}
 	//log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
 	assert(reason != NULL);
 	sll_prepend(char_ptr, obj->reasons, strdup(reason));
 #endif
-	}
+}
 
 // decrease ref count
 void np_mem_unrefobj(np_obj_t* obj, const char* reason)
 {
 	log_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
-	obj->ref_count--;
-	//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
-	if(obj->ref_count < 0){		
+
+	if (obj->persistent == FALSE) {
+		//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
+		if (obj->ref_count == 0) {
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (left reasons(%"PRIi16"): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
+			log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (left reasons(%"PRIu32"): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
 #else
-		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! left reasons(%"PRIi16")", obj, obj->type, obj->ref_count);
+			log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! left reasons(%"PRIu32")", obj, obj->type, obj->ref_count);
 #endif
-		abort();
+			abort();
+		}
+		obj->ref_count--;
 	}
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-	sll_iterator(char_ptr) iter_reason = sll_first(obj->reasons);
-	np_bool foundReason = FALSE;
-	while (foundReason == FALSE && iter_reason != NULL)
-	{
-		foundReason = (0 == strncmp(iter_reason->val, reason, strlen(reason)) 
-			&& 0 == strncmp(iter_reason->val + strlen(reason), _NP_REF_REASON_SEPERATOR_CHAR, _NP_REF_REASON_SEPERATOR_CHAR_LEN)) ? TRUE : FALSE;
-		if (foundReason == TRUE) {
-			free(iter_reason->val);
-			sll_delete(char_ptr, obj->reasons, iter_reason);
-			break;
+		sll_iterator(char_ptr) iter_reason = sll_first(obj->reasons);
+		np_bool foundReason = FALSE;
+		while (foundReason == FALSE && iter_reason != NULL)
+		{
+			foundReason = (0 == strncmp(iter_reason->val, reason, strlen(reason))
+				&& 0 == strncmp(iter_reason->val + strlen(reason), _NP_REF_REASON_SEPERATOR_CHAR, _NP_REF_REASON_SEPERATOR_CHAR_LEN)) ? TRUE : FALSE;
+			if (foundReason == TRUE) {
+				free(iter_reason->val);
+				sll_delete(char_ptr, obj->reasons, iter_reason);
+				break;
+			}
+			sll_next(iter_reason);
 		}
-		sll_next(iter_reason);
-	}
-	if (FALSE == foundReason) {
-		log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ",reason, obj->id, obj->type, sll_size(obj->reasons), _sll_char_make_flat(obj->reasons));
-		abort();
-	}	
+		if (FALSE == foundReason) {
+			log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ", reason, obj->id, obj->type, sll_size(obj->reasons), _sll_char_make_flat(obj->reasons));
+			abort();
+		}
 #endif
+	
 }
 
 // print the complete object list and statistics

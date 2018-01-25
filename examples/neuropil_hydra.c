@@ -312,10 +312,14 @@ int main(int argc, char **argv)
 
 				\code
 				*/
+				np_bool firstConnectionTry = TRUE;
 				do {
-					np_example_print(stdout, "%s tries to join bootstrap node\n",port);
-				 
+					if (!firstConnectionTry) {
+						np_example_print(stdout, "%s tries to join bootstrap node\n", port);
+					}
+				 					
 					np_send_join(j_key);
+					firstConnectionTry = FALSE;
 
 					int timeout = 100;
 					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {

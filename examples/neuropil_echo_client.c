@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
 
 	np_msgproperty_t* msg_props = NULL;
 	np_add_receive_listener(receive_message, "echo");
-	msg_props = np_msgproperty_get(INBOUND, msg_props);
+	msg_props = np_msgproperty_get(INBOUND, "echo");
 	msg_props->msg_subject = strndup("echo", 255);
 	msg_props->ack_mode = ACK_NONE;
 	msg_props->msg_ttl = 20.0;

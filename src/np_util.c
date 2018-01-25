@@ -449,16 +449,16 @@ char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
 	char* ret = NULL;
 
 	sll_iterator(char_ptr) iter = sll_first(target);
-	int32_t i = 0;
+	uint32_t i = 0;
 	while (iter != NULL)
 	{
-		ret = np_str_concatAndFree(ret, "%d:\"%s\"->", i, iter->val);
+		ret = np_str_concatAndFree(ret, "%"PRIu32":\"%s\"->", i, iter->val);
 		i++;
 		sll_next(iter);
 	}
 #ifdef DEBUG
 	if (sll_size(target) != i) {
-		log_msg(LOG_ERROR, "Size of original list (%d) does not equal the size of the flattend string (items flattend: %d).", sll_size(target),i);
+		log_msg(LOG_ERROR, "Size of original list (%"PRIu32") does not equal the size of the flattend string (items flattend: %"PRIu32").", sll_size(target),i);
 		abort();
 	}
 #endif
@@ -479,11 +479,11 @@ sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int32_t amount) 
 	if (amount < 0) {
 		// get from tail
 		amount = amount * -1;
-		if (sll_size(target) <= amount) {
-			amount = sll_size(target);
+		if (sll_size(target) <= (uint32_t)amount) {
+			amount = (int32_t)sll_size(target);
 		}
 		else {
-			begin_copy_at = sll_size(target) - amount;
+			begin_copy_at = (int32_t)sll_size(target) - amount;
 		}
 	}
 

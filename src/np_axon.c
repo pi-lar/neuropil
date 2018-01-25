@@ -345,7 +345,7 @@ void _np_out(np_jobargs_t* args)
 				}
 			}			
 
-			np_unref_obj(np_network_t, my_network,"np_waitref_network");
+			np_unref_obj(np_network_t, my_network, "np_waitref_network");
 		}
 		np_unref_obj(np_key_t,my_key,"np_waitref_key");
 	}
@@ -529,9 +529,6 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 	np_aaatoken_t* msg_token = NULL;
 
 	if (_np_route_my_key_has_connection()) {
-
-		double now = np_time_now();
-
 		msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 
 		if (	NULL == msg_token
