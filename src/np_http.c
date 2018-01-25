@@ -683,8 +683,8 @@ NP_UNUSED int event_type) {
 	}
 }
 
-np_bool _np_http_init(char* domain) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: np_bool _np_http_init() {");
+np_bool np_http_init(char* domain) {
+	log_msg(LOG_TRACE | LOG_HTTP, "start: np_bool np_http_init() {");
 
 	if (domain == NULL) {
 		domain = strdup("localhost");
@@ -787,6 +787,6 @@ void _np_http_destroy() {
 
 	free(__local_http->hooks);
 
-	np_unref_obj(np_network_t, __local_http->network,"_np_http_init");
+	np_unref_obj(np_network_t, __local_http->network,"np_http_init");
 }
 

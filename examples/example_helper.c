@@ -87,7 +87,7 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mo
 				http_domain = NULL;
 			}
 		}
-		http_init = _np_http_init(http_domain);
+		http_init = np_http_init(http_domain);
 		if (http_init == FALSE) {
 			log_msg(LOG_WARN, "Node could not start HTTP interface");
 		}
