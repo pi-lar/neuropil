@@ -1165,7 +1165,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 
 		// this node is the man in the middle - inform receiver of sender token
 		np_sll_t(np_aaatoken_ptr, available_list) =
-				_np_aaatoken_get_all_sender(msg_token->subject);
+				_np_aaatoken_get_all_sender(msg_token->subject, msg_token->audience);
 
 		np_aaatoken_t* tmp_token = NULL;
 
@@ -1298,7 +1298,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 		_np_aaatoken_add_sender(msg_token->subject, msg_token);
 
 		np_aaatoken_t* tmp_token = NULL;
-		np_sll_t(np_aaatoken_ptr, receiver_list) = _np_aaatoken_get_all_receiver(msg_token->subject);
+		np_sll_t(np_aaatoken_ptr, receiver_list) = _np_aaatoken_get_all_receiver(msg_token->subject, msg_token->audience);
 
 		while (NULL != (tmp_token = sll_head(np_aaatoken_ptr, receiver_list)))
 		{
