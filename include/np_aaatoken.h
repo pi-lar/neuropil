@@ -167,8 +167,9 @@ struct np_aaatoken_s
 	np_bool is_core_token;
 } NP_API_EXPORT;
 
+#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
-
+#endif
 
 // serialization of the np_aaatoken_t structure
 NP_API_INTERN
@@ -199,22 +200,22 @@ np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* identity);
 NP_API_INTERN
 void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(char* subject);
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(const char* const subject, const char* const audience);
 NP_API_INTERN
-np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender);
+np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const char* const sender);
 
 NP_API_INTERN
 void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(char* subject);
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(const char* const subject, const char* const audience);
 NP_API_INTERN
-np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target);
+np_aaatoken_t* _np_aaatoken_get_receiver(const char* const subject, np_dhkey_t* target);
 
 NP_API_INTERN
 void _np_aaatoken_add_signature(np_aaatoken_t* msg_token);
 
 NP_API_INTERN
-np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject);
+np_aaatoken_t* _np_aaatoken_get_local_mx(const char* const subject);
 NP_API_INTERN
 void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token);
 NP_API_INTERN

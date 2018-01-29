@@ -225,7 +225,8 @@ _LOCK_MODULE(np_keycache_t)
 }
 */
 // print the complete object list and statistics
-NP_API_INTERN
+
+NP_API_PROTEC
 char* np_threads_printpool(np_bool asOneLine);
 
 /*

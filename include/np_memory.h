@@ -6,6 +6,7 @@
 #define _NP_MEMORY_H
 
 #include <stdint.h>
+#include <inttypes.h>
 #include <assert.h>
 
 #include "np_types.h"
@@ -50,8 +51,8 @@ struct np_obj_s
 	char* id;
 
 	np_mutex_t*	lock;
-	np_obj_enum type;
-	int16_t ref_count;
+	np_obj_enum type;	
+	uint32_t ref_count;
 	void* ptr;
 
 	np_dealloc_t del_callback;
@@ -165,7 +166,7 @@ struct np_obj_s
 	assert (((TYPE*)np_obj)->obj != NULL);             																													\
 	if (((TYPE*)np_obj)->obj->type != TYPE##_e) log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",((TYPE*)np_obj)->obj->type, TYPE##_e);									\
 	assert (((TYPE*)np_obj)->obj->type == TYPE##_e);   																													\
-	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count,#TYPE, ((TYPE*)np_obj)->obj->id); 					\
+	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%"PRIu32") object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count,#TYPE, ((TYPE*)np_obj)->obj->id); 					\
 	_NP_REF_REASON(reason, reason_desc, reason2)																																		\
 	np_mem_refobj(((TYPE*)np_obj)->obj,reason2);             																											\
   }																																										\
@@ -183,7 +184,7 @@ struct np_obj_s
 					log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",((TYPE*)np_obj)->obj->type, TYPE##_e);   															\
 					assert (((TYPE*)np_obj)->obj->type == TYPE##_e);   																									\
 				} else {																																				\
-					log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count, #TYPE, ((TYPE*)np_obj)->obj->id); 	\
+					log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%"PRIu32") object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count, #TYPE, ((TYPE*)np_obj)->obj->id); 	\
 					_NP_REF_REASON(reason, reason_desc, reason2)																																		\
 					np_mem_refobj(((TYPE*)np_obj)->obj,reason2);             																							\
 					ret = TRUE;																																			\
@@ -208,7 +209,7 @@ TYPE* saveTo = NULL;																																\
 						log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",org->obj->type, TYPE##_e);   											    \
 						assert (org->obj->type == TYPE##_e);   																					    \
 					} else {																														\
-						log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%d) object of type \"%s\" on %s",org->obj->ref_count,#TYPE, org->obj->id); 	\
+						log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%"PRIu32") object of type \"%s\" on %s",org->obj->ref_count,#TYPE, org->obj->id); 	\
 						_NP_REF_REASON(reason, reason_desc, reason2)																				\
 						np_mem_refobj(org->obj, reason2);             																				\
 						ret = TRUE;																													\
@@ -241,9 +242,9 @@ TYPE* saveTo = NULL;																																\
 		assert (np_obj->obj->type == TYPE##_e);     																								\
 		if(!np_obj->obj->persistent && np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");										\
 		assert (np_obj->obj->persistent  || np_obj->obj->ptr != NULL);          																	\
-		log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Unref_ (%d) object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 			\
+		log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Unref_ (%"PRIu32") object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 			\
 		np_mem_unrefobj(np_obj->obj, reason);               																						\
-		if (NULL != np_obj->obj && np_obj->obj->ref_count <= 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) 					\
+		if (NULL != np_obj->obj && np_obj->obj->ref_count == 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) 					\
 		{ 																																			\
 		  if (np_obj->obj->type != np_none_t_e)     																								\
 		  { 																																		\
@@ -253,9 +254,9 @@ TYPE* saveTo = NULL;																																\
 			np_mem_freeobj(TYPE##_e, &np_obj->obj); 																								\
 			np_obj->obj->ptr = NULL;                																								\
 			np_obj->obj = NULL;                     																								\
-		 }	 																																		\
-	   }                                           																									\
-	 }                                             																									\
+		  }	 																																		\
+	    }                                           																									\
+	  }                                             																									\
 	} 																																				\
 	if (delete_obj == TRUE)																															\
 	{																																				\
@@ -359,7 +360,7 @@ NP_API_EXPORT
 void np_mem_unrefobj(np_obj_t* obj, const char* reason);
 
 // print the complete object list and statistics
-NP_API_INTERN
+NP_API_PROTEC
 char* np_mem_printpool(np_bool asOneLine, np_bool extended);
 
 #ifdef __cplusplus

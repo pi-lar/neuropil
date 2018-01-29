@@ -125,9 +125,8 @@ void _np_responsecontainer_t_del(void* obj)
 np_responsecontainer_t* _np_responsecontainers_get_by_uuid(char* uuid) {
 	
 	np_responsecontainer_t* ret = NULL;
-	np_waitref_obj(np_network_t, _np_state()->my_node_key->network, my_network);
+	np_waitref_obj(np_network_t, np_state()->my_node_key->network, my_network);
 
-	np_responsecontainer_t *entry = NULL;
 	/* just an acknowledgement of own messages send out earlier */
 	_LOCK_ACCESS(&my_network->waiting_lock)
 	{

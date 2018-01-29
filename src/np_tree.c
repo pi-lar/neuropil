@@ -762,8 +762,8 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 
 	ASSERT(jtree != NULL,"Tree do deserialize cannot be NULL")
 	np_bool ret = TRUE;
-	
-	cmp_object_t obj_key = { 0 };
+
+	cmp_object_t obj_key = { 0 };	
 	cmp_object_t obj_val = { 0 };
 
 	uint32_t size = 0;

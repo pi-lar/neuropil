@@ -168,9 +168,9 @@ void _np_job_queue_insert(np_job_t* new_job)
 		(new_job->args == NULL || new_job->args->msg == NULL)		? "-" : new_job->args->msg->uuid,
 		(new_job->args == NULL || new_job->args->target == NULL)	? "-" :
 		(
-			(0 == _np_key_cmp(new_job->args->target, _np_state()->my_identity))		? " == my identity" :
+			(0 == _np_key_cmp(new_job->args->target, np_state()->my_identity))		? " == my identity" :
 			(
-				(0 == _np_key_cmp(new_job->args->target, _np_state()->my_node_key)) ? "== my node"  :
+				(0 == _np_key_cmp(new_job->args->target, np_state()->my_node_key)) ? "== my node"  :
 																					 _np_key_as_str(new_job->args->target)
 				
 			)
@@ -345,7 +345,7 @@ np_bool _np_job_queue_create()
 void _np_job_yield(const double delay)
 {
     log_msg(LOG_TRACE, "start: void _np_job_yield(const double delay){");
-    if (1 == _np_state()->thread_count)
+    if (1 == np_state()->thread_count)
     {
         np_time_sleep(delay);
     }

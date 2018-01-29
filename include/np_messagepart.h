@@ -37,7 +37,8 @@ NP_API_INTERN
 np_bool _np_messagepart_decrypt(np_tree_t* source, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key, np_tree_t* target);
 NP_API_INTERN
 np_bool _np_messagepart_encrypt(np_tree_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
-NP_API_INTERN
+
+NP_API_PROTEC
 char* np_messagepart_printcache(np_bool asOneLine);
 #ifdef __cplusplus
 }

@@ -51,8 +51,9 @@ struct np_message_s
 
 } NP_API_INTERN;
 
-
+#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
+#endif
 
 /** message_create / free:
  ** creates the message to the destination #dest# the message format would be like:
@@ -133,7 +134,6 @@ static const char* _NP_MSG_HEADER_TARGET		= "_np.target";
 static const char* _NP_MSG_HEADER_SUBJECT		= "_np.subj";
 static const char* _NP_MSG_HEADER_TO			= "_np.to";
 static const char* _NP_MSG_HEADER_FROM			= "_np.from";
-static const char* _NP_MSG_HEADER_REPLY_TO		= "_np.r_to";
 
 // msg instructions constants
 static const char* _NP_MSG_INST_SEND_COUNTER	= "_np.sendnr";

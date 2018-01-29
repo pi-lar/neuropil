@@ -84,32 +84,28 @@ int main(int argc, char **argv) {
 	np_log_init(log_file_host, level);
 	np_init(proto, port, publish_domain);
 
-	np_start_job_queue(no_threads);
  
-	np_msgproperty_t* msg_props = NULL;
-	np_new_obj(np_msgproperty_t, msg_props);
-	msg_props->msg_subject =  strndup("echo", 255);
-	msg_props->ack_mode = ACK_NONE;
-	msg_props->msg_ttl = 20.0;
-	np_msgproperty_register(msg_props);
+	np_msgproperty_t* echo_props = NULL;
 	np_add_receive_listener(receive_echo_message, "echo");
+	echo_props = np_msgproperty_get(INBOUND, "echo");
+	echo_props->ack_mode = ACK_NONE;
+	echo_props->msg_ttl = 20.0;
 
 	np_msgproperty_t* ping_props = NULL;
-	np_new_obj(np_msgproperty_t, ping_props);
-	ping_props->msg_subject = strndup("ping", 255);
+	np_add_receive_listener(receive_ping, "ping");
+	ping_props = np_msgproperty_get(INBOUND, "ping");
 	ping_props->ack_mode = ACK_NONE;
 	ping_props->msg_ttl = 20.0;
 	np_msgproperty_register(ping_props);
-	np_add_receive_listener(receive_ping, "ping");
 
 	np_msgproperty_t* pong_props = NULL;
-	np_new_obj(np_msgproperty_t, pong_props);
-	pong_props->msg_subject = strndup("pong", 255);
+	np_add_receive_listener(receive_ping, "pong");
+	pong_props = np_msgproperty_get(INBOUND, "pong");
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 20.0;
-	np_msgproperty_register(pong_props);
-	np_add_receive_listener(receive_pong, "pong");
-	
+
+	np_start_job_queue(no_threads);
+
 	double lastping = np_time_now();
 	np_send_text("ping", "ping", _ping_count++, NULL);
 	uint32_t last_count_of_routes = 0;
@@ -119,25 +115,13 @@ int main(int argc, char **argv) {
 		__np_example_helper_loop();
 		np_time_sleep(0.1);
 
-		 double now = np_time_now();
-				// invoke a ping message every 10 seconds
+		double now = np_time_now();
+			// invoke a ping message every 10 seconds
 			if ((now - lastping) > 10.0)
 		{
 			lastping = np_time_now();
 			np_send_text("ping", "ping", _ping_count++, NULL);
 		}
-		// As long as we do not have the appropiate events (node_joined/node_left)
-		// we try to evaluate this via the routing table
-		sll_return(np_key_ptr) routes = _np_route_get_table();
-		count_of_routes = sll_size(routes);
-		np_unref_list(routes, "_np_route_get_table");
-		if (count_of_routes < last_count_of_routes) {
-			fprintf(stdout, "Node left network.\n");
-		}
-		else if (count_of_routes < last_count_of_routes) {
-			fprintf(stdout, "Node joined network.\n");
-		}
-		last_count_of_routes = count_of_routes;
 	}
 }
 

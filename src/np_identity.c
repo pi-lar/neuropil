@@ -30,9 +30,9 @@ np_aaatoken_t* np_identity_new(double expires_at)
 
 size_t np_identity_export_current(void* buffer) {
 	size_t ret = 0;
-	if( _np_state()->my_identity != NULL && 
-		_np_state()->my_identity->aaa_token != NULL) {
-		ret = np_identity_export(_np_state()->my_identity->aaa_token, buffer);		
+	if( np_state()->my_identity != NULL && 
+		np_state()->my_identity->aaa_token != NULL) {
+		ret = np_identity_export(np_state()->my_identity->aaa_token, buffer);		
 	}
 
 	return ret;

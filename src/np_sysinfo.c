@@ -59,7 +59,7 @@ void _np_sysinfo_init_cache()
 void _np_sysinfo_slave_send_cb(NP_UNUSED np_jobargs_t* args) {
 	
 	if(_np_route_my_key_has_connection() == TRUE) {
-		np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "usage");
+		np_waitref_obj(np_key_t, np_state()->my_node_key, my_node_key, "usage");
 		np_tree_t* reply_body = np_sysinfo_get_my_info();
 
 		// build properties
@@ -181,7 +181,7 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 
 	np_tree_elem_t* target = np_tree_find_str(properties, _NP_SYSINFO_TARGET);
 
-	char* mynode_hash = _np_key_as_str(_np_state()->my_node_key);
+	char* mynode_hash = _np_key_as_str(np_state()->my_node_key);
 
 	np_bool source_str_free = FALSE;
 	char* source_val = np_treeval_to_str(source->val, &source_str_free);
@@ -298,7 +298,7 @@ np_tree_t* np_sysinfo_get_my_info() {
 
 	// build local node
 	np_tree_t* local_node = np_tree_create();
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "usage");
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_node_key, "usage");
 	_np_node_encode_to_jrb(local_node, my_node_key, TRUE);
 	np_tree_replace_str(local_node, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_s(_np_network_get_protocol_string(my_node_key->node->protocol)));
 
@@ -392,7 +392,7 @@ void _np_sysinfo_request(const char* const hash_of_target) {
 		np_tree_t* body = np_tree_create();
 
 		np_tree_insert_str(properties, _NP_SYSINFO_SOURCE,
-				np_treeval_new_s(_np_key_as_str(_np_state()->my_node_key)));
+				np_treeval_new_s(_np_key_as_str(np_state()->my_node_key)));
 
 // TODO: Reenable target after functional audience selection for messages is implemented
 //		np_tree_insert_str(properties, _NP_SYSINFO_TARGET,
@@ -412,7 +412,7 @@ void _np_sysinfo_request(const char* const hash_of_target) {
 np_tree_t* np_sysinfo_get_info(const char* const hash_of_target) {
 	log_msg(LOG_TRACE, "start: np_tree_t* np_sysinfo_get_info(const char* const hash_of_target) {");
 
-	char* my_key = _np_key_as_str(_np_state()->my_node_key);
+	char* my_key = _np_key_as_str(np_state()->my_node_key);
 
 	np_tree_t* ret = NULL;
 	if (strncmp(hash_of_target, my_key, 64) == 0) {
@@ -469,7 +469,7 @@ void _np_sysinfo_request_others() {
 	np_sll_t(np_key_ptr, neighbours_table) = NULL;
 	np_tree_t * tmp = NULL;
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "usage");
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_node_key, "usage");
 
 	routing_table = _np_route_get_table();
 	if (NULL != routing_table && 0 < routing_table->size) {
@@ -521,7 +521,7 @@ np_tree_t* np_sysinfo_get_all() {
 	np_sll_t(np_key_ptr, routing_table) = NULL;
 	np_sll_t(np_key_ptr, neighbours_table) = NULL;
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "usage");	
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_node_key, "usage");	
 
 	routing_table = _np_route_get_table();
 	neighbours_table = _np_route_neighbors();

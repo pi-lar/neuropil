@@ -16,6 +16,7 @@
 #include "np_tree.h"
 #include "np_dhkey.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_message.h"
 #include "np_util.h"
 #include "np_threads.h"
@@ -29,6 +30,7 @@ void setup_message(void)
 	_np_threads_init();
 
 	np_mem_init();
+	np_memory_init();
 }
 
 void teardown_message(void)

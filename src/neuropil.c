@@ -66,7 +66,7 @@ static np_state_t* __global_state = NULL;
  * The current state/context variable for the whole neuropil process
  * @return
  */
-np_state_t* _np_state ()
+np_state_t* np_state ()
 {
 	return (__global_state);
 }
@@ -198,7 +198,7 @@ void np_setauthorizing_cb(np_aaa_func_t aaaFunc)
 {
 	log_msg(LOG_TRACE, "start: void np_setauthorizing_cb(np_aaa_func_t aaaFunc){");
 	log_msg(LOG_INFO, "setting user defined authorization handler, that's good ...");
-	_np_state()->authorize_func = aaaFunc;
+	np_state()->authorize_func = aaaFunc;
 }
 /**
  * Sets the callback for authentication requests against this node
@@ -208,7 +208,7 @@ void np_setauthenticate_cb(np_aaa_func_t aaaFunc)
 {
 	log_msg(LOG_TRACE, "start: void np_setauthenticate_cb(np_aaa_func_t aaaFunc){");
 	log_msg(LOG_INFO, "setting user defined authentication handler, that's good ...");
-	_np_state()->authenticate_func = aaaFunc;
+	np_state()->authenticate_func = aaaFunc;
 }
 /**
  * Sets the callback for accounting requests against this node
@@ -218,7 +218,7 @@ void np_setaccounting_cb(np_aaa_func_t aaaFunc)
 {
 	log_msg(LOG_TRACE, "start: void np_setaccounting_cb(np_aaa_func_t aaaFunc){");
 	log_msg(LOG_INFO, "setting user defined accounting handler, that's good ...");
-	_np_state()->accounting_func = aaaFunc;
+	np_state()->accounting_func = aaaFunc;
 }
 /**
  * Sets the realm name of the node.
@@ -228,27 +228,27 @@ void np_setaccounting_cb(np_aaa_func_t aaaFunc)
 void np_set_realm_name(const char* realm_name)
 {
 	log_msg(LOG_TRACE, "start: void np_set_realm_name(const char* realm_name){");
-	_np_state()->realm_name = strndup(realm_name, 255);
+	np_state()->realm_name = strndup(realm_name, 255);
 
 	// create a new token
-	np_aaatoken_t* auth_token = _np_node_create_token(_np_state()->my_node_key->node);
+	np_aaatoken_t* auth_token = _np_node_create_token(np_state()->my_node_key->node);
 	auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
 	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // np_dhkey_create_from_hostport(my_node->dns_name, my_node->port);
 	np_key_t* new_node_key = _np_keycache_find_or_create(my_dhkey);
 
-	new_node_key->network = _np_state()->my_node_key->network;
+	new_node_key->network = np_state()->my_node_key->network;
 	np_ref_obj(np_network_t, new_node_key->network, ref_key_network);
 
-	_np_state()->my_node_key->network = NULL;
+	np_state()->my_node_key->network = NULL;
 
 	np_ref_obj(np_key_t, new_node_key,ref_network_watcher);
 	new_node_key->network->watcher.data = new_node_key;
 
-	new_node_key->node = _np_state()->my_node_key->node;
+	new_node_key->node = np_state()->my_node_key->node;
 	np_ref_obj(np_node_t, new_node_key->node, ref_key_node);
 
-	_np_state()->my_node_key->node = NULL;
+	np_state()->my_node_key->node = NULL;
 
 	np_ref_obj(np_aaatoken_t, auth_token, ref_key_aaa_token);
 	new_node_key->aaa_token = auth_token;
@@ -258,18 +258,18 @@ void np_set_realm_name(const char* realm_name)
 
 	// set and ref additional identity
 	//TODO: use np_set_identity
-	if (_np_key_cmp(_np_state()->my_identity ,_np_state()->my_node_key)==0)
+	if (_np_key_cmp(np_state()->my_identity ,np_state()->my_node_key)==0)
 	{
-		np_ref_switch(np_key_t, _np_state()->my_identity, ref_state_identity, new_node_key);
+		np_ref_switch(np_key_t, np_state()->my_identity, ref_state_identity, new_node_key);
 	}
 	else
 	{
 		// set target node string for correct routing
-		np_tree_replace_str(_np_state()->my_identity->aaa_token->extensions, "target_node", np_treeval_new_s(_np_key_as_str(new_node_key)) );
+		np_tree_replace_str(np_state()->my_identity->aaa_token->extensions, "target_node", np_treeval_new_s(_np_key_as_str(new_node_key)) );
 	}
-	_np_state()->my_node_key = new_node_key;
+	np_state()->my_node_key = new_node_key;
 
-	log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _np_key_as_str(_np_state()->my_node_key));
+	log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _np_key_as_str(np_state()->my_node_key));
 
 	np_unref_obj(np_key_t, new_node_key,"_np_keycache_find_or_create");
 }
@@ -280,12 +280,12 @@ void np_set_realm_name(const char* realm_name)
 void np_enable_realm_slave()
 {
 	log_msg(LOG_TRACE, "start: void np_enable_realm_slave(){");
-	_np_state()->authorize_func    = _np_aaa_authorizefunc;
-	_np_state()->authenticate_func = _np_aaa_authenticatefunc;
-	_np_state()->accounting_func   = _np_aaa_accountingfunc;
+	np_state()->authorize_func    = _np_aaa_authorizefunc;
+	np_state()->authenticate_func = _np_aaa_authenticatefunc;
+	np_state()->accounting_func   = _np_aaa_accountingfunc;
 
-	_np_state()->enable_realm_master = FALSE;
-	_np_state()->enable_realm_slave = TRUE;
+	np_state()->enable_realm_master = FALSE;
+	np_state()->enable_realm_slave = TRUE;
 }
 /**
  * Enables this node as realm master.
@@ -293,7 +293,7 @@ void np_enable_realm_slave()
 void np_enable_realm_master()
 {
 	log_msg(LOG_TRACE, "start: void np_enable_realm_master(){");
-	if (NULL == _np_state()->realm_name)
+	if (NULL == np_state()->realm_name)
 	{
 		return;
 	}
@@ -304,23 +304,23 @@ void np_enable_realm_master()
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
 	if (NULL == prop->msg_audience)
 	{
-		prop->msg_audience = strndup(_np_state()->realm_name, 255);
+		prop->msg_audience = strndup(np_state()->realm_name, 255);
 	}
 
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
 	if (NULL == prop->msg_audience)
 	{
-		prop->msg_audience = strndup(_np_state()->realm_name, 255);
+		prop->msg_audience = strndup(np_state()->realm_name, 255);
 	}
 
 	prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
 	if (NULL == prop->msg_audience)
 	{
-		prop->msg_audience = strndup(_np_state()->realm_name, 255);
+		prop->msg_audience = strndup(np_state()->realm_name, 255);
 	}
 
-	_np_state()->enable_realm_master = TRUE;
-	_np_state()->enable_realm_slave = FALSE;
+	np_state()->enable_realm_master = TRUE;
+	np_state()->enable_realm_slave = FALSE;
 }
 
 /**
@@ -354,9 +354,10 @@ void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
 		msg_prop->msg_subject = strndup(subject, 255);
 		msg_prop->mode_type |= INBOUND;
 		np_msgproperty_register(msg_prop);
+	} else {
+		msg_prop->mode_type |= INBOUND;
 	}
 	_np_msgproperty_add_receive_listener(msg_handler, msg_prop);
-
 }
 
 /**
@@ -390,7 +391,7 @@ void np_set_identity(np_aaatoken_t* identity)
 {
 	log_msg(LOG_TRACE, "start: void np_set_identity(np_aaatoken_t* identity){");
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	// build a hash to find a place in the dhkey table, not for signing !
 	np_dhkey_t search_key = _np_aaatoken_create_dhkey(identity);
@@ -507,7 +508,7 @@ np_message_t* _np_prepare_msg(char* subject, np_tree_t *properties, np_tree_t *b
 	}
 
 	np_tree_insert_str(ret->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s((char*)subject));
-	np_tree_insert_str(ret->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*)_np_key_as_str(_np_state()->my_node_key)));
+	np_tree_insert_str(ret->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*)_np_key_as_str(np_state()->my_node_key)));
 
 	_np_message_setbody(ret, body);
 	_np_message_setproperties(ret, properties);
@@ -563,7 +564,7 @@ np_key_t* _np_get_key_by_key_hash(char* targetDhkey)
 
 void np_send_text(char* subject, char *data, uint32_t seqnum, char* targetDhkey)
 {
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
@@ -909,7 +910,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 		CHECK_MALLOC(hostname);
 		log_msg(LOG_INFO, "neuropil_init: resolve hostname");
 
-		if(_np_get_local_ip(hostname, 255) == FALSE) {
+		if(np_get_local_ip(hostname, 255) == FALSE) {
 			if( 0 != gethostname(hostname, 255)){
 				free(hostname);
 				hostname = strdup("localhost");
@@ -1006,21 +1007,23 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 char* np_get_connection_string(){
 	log_msg(LOG_TRACE, "start: char* np_get_connection_string(){");
 
-	return np_get_connection_string_from(_np_state()->my_node_key, TRUE);
+	return np_get_connection_string_from(np_state()->my_node_key, TRUE);
 }
 
 char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash) {
 	log_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
 
-	return _np_build_connection_string(
-		includeHash == TRUE ? _np_key_as_str(node_key) : NULL,
-		_np_network_get_protocol_string(node_key->node->protocol),
-		node_key->node->dns_name,
-		node_key->node->port,
-		includeHash
-	);
+	return (
+			np_build_connection_string(
+					includeHash == TRUE ? _np_key_as_str(node_key) : NULL,
+					_np_network_get_protocol_string(node_key->node->protocol),
+					node_key->node->dns_name,
+					node_key->node->port,
+					includeHash)
+			);
 }
-char* _np_build_connection_string(char* hash, char* protocol, char*dns_name,char* port, np_bool includeHash) {
+
+char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char* port, np_bool includeHash) {
 	log_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
 	char* connection_str;
 
@@ -1044,7 +1047,7 @@ char* _np_build_connection_string(char* hash, char* protocol, char*dns_name,char
 np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* type) {
 	log_msg(LOG_TRACE, "start: void _np_send_simple_invoke_request(np_key_t* target, const char* type) {");
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	np_tree_t* jrb_me = np_tree_create();
 	np_aaatoken_encode(jrb_me, state->my_node_key->aaa_token);
@@ -1101,7 +1104,7 @@ void np_send_join(const char* node_string)
 void _np_send_ack(const np_message_t* const msg_to_ack)
 {
 	log_msg(LOG_TRACE, "start: void _np_send_ack(np_message_t* msg_to_ack){");
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	uint32_t seq = 0;
 
 	np_tree_elem_t* target_key_str;

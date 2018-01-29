@@ -186,7 +186,7 @@ typedef enum np_msgcache_policy_enum {
 
    ACK_NONE        - never require a acknowledge
 
-   ACK_EACHHOP     - request the acknowledge between each hop a message is send
+   ACK_EACHHOP     - request the acknowledge between each hop a message is send - deprecated
 
    ACK_DESTINATION - request the sending of a acknowledge when the message has reached the
    final destination
@@ -240,7 +240,7 @@ struct np_msgproperty_s
 	double           msg_ttl;
 	uint8_t          priority;
 	uint8_t          retry; // the # of retries when sending a message
-	
+
 	TSP(uint16_t,    msg_threshold); // current cache size
 	uint16_t         max_threshold; // local cache size
 	np_bool is_internal;
@@ -272,7 +272,7 @@ struct np_msgproperty_s
 	// The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
 	uint32_t token_max_ttl;
 	// The token created for this msgproperty will guaranteed live for token_min_ttl seconds
-	uint32_t token_min_ttl;	
+	uint32_t token_min_ttl;
 
 	np_bool unique_uuids_check;
 	uint32_t unique_uuids_max;
@@ -282,7 +282,9 @@ struct np_msgproperty_s
 
 } NP_API_EXPORT;
 
+#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
+#endif
 
 // create setter methods
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mode_type, np_msg_mode_type);
@@ -345,9 +347,9 @@ NP_API_EXPORT
 void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self);
 NP_API_EXPORT
 void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self);
-NP_API_PROTEC
+NP_API_INTERN
 void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args);
-NP_API_PROTEC
+NP_API_INTERN
 np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check);
 
 static char _DEFAULT[]                       = "_NP.DEFAULT";

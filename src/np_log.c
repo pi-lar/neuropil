@@ -323,7 +323,7 @@ void np_log_init(const char* filename, uint32_t level)
 		}
 	}
 
-	if(__logger->filename_ext[0] == NULL || strncmp(__logger->filename_ext,"",1) == 0)
+	if(strncmp(__logger->filename_ext,"",1) == 0)
 	{
 		snprintf (__logger->filename_ext, 15, ".log");
 	}

@@ -370,7 +370,7 @@ void _np_http_handle_sysinfo(np_http_client_t* client)
 		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "no arguments provided");
 	}
 
-	key = _np_state()->my_node_key;
+	key = np_state()->my_node_key;
 	np_tryref_obj(np_key_t, key, keyExists);
 	if (keyExists) {
 		char* my_key = _np_key_as_str(key);
@@ -392,7 +392,7 @@ void _np_http_handle_sysinfo(np_http_client_t* client)
 				"update request is send. please wait.");
 		}
 		else {
-			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (byte_size: %"PRIu64,
+			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (byte_size: %"PRIu32,
 				sysinfo->byte_size);
 			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (size: %"PRIu16,
 				sysinfo->size);
@@ -459,9 +459,9 @@ NP_UNUSED ev_io* ev, int event_type) {
 						http_return_codes[client->ht_response.ht_status].text);
 
 		// add content length header
-		size_t s_contentlength = strlen(client->ht_response.ht_body);
+		uint32_t s_contentlength = strlen(client->ht_response.ht_body);
 		char body_length[255];
-		snprintf(body_length, s_contentlength, "%"PRIu64,s_contentlength);
+		snprintf(body_length, s_contentlength, "%"PRIu32, s_contentlength);
 		np_tree_insert_str(client->ht_response.ht_header, "Content-Length",
 				np_treeval_new_s(body_length));
 		np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
@@ -492,11 +492,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 		log_debug_msg(LOG_HTTP | LOG_DEBUG, "send http header success");
 
 		// HTTP body
-		memset(data, 0, 2048);
-		int parts = ((int) (strlen(client->ht_response.ht_body) / 2048))
-				+ 1;
-		int last_part_size = (strlen(client->ht_response.ht_body) % 2048);
-
+		//memset(data, 0, 2048);
 
 		uint32_t bytes_send = 0;
 		double t1 = np_time_now();
@@ -683,8 +679,8 @@ NP_UNUSED int event_type) {
 	}
 }
 
-np_bool _np_http_init(char* domain) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: np_bool _np_http_init() {");
+np_bool np_http_init(char* domain) {
+	log_msg(LOG_TRACE | LOG_HTTP, "start: np_bool np_http_init() {");
 
 	if (domain == NULL) {
 		domain = strdup("localhost");
@@ -787,6 +783,6 @@ void _np_http_destroy() {
 
 	free(__local_http->hooks);
 
-	np_unref_obj(np_network_t, __local_http->network,"_np_http_init");
+	np_unref_obj(np_network_t, __local_http->network,"np_http_init");
 }
 

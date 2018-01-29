@@ -75,7 +75,7 @@ void _np_message_t_new(void* msg)
 	sll_init(np_responsecontainer_on_t, msg_tmp->on_timeout);
 	
 	TSP_INITD(np_bool, msg_tmp->has_reply, FALSE);
-	sll_init(np_responsecontainer_on_t, msg_tmp->on_reply);
+	sll_init(np_message_on_reply_t, msg_tmp->on_reply);
 
 	pll_init(np_messagepart_ptr, msg_tmp->msg_chunks);	
 	msg_tmp->bin_properties = NULL;
@@ -107,7 +107,7 @@ void _np_message_t_del(void* data)
 
 	sll_free(np_responsecontainer_on_t, msg->on_ack);
 	sll_free(np_responsecontainer_on_t, msg->on_timeout);
-	sll_free(np_responsecontainer_on_t, msg->on_reply);
+	sll_free(np_message_on_reply_t, msg->on_reply);
 
 	TSP_DESTROY(np_bool, msg->is_acked);
 	TSP_DESTROY(np_bool, msg->is_in_timeout);
@@ -190,7 +190,7 @@ void _np_message_calculate_chunking(np_message_t* msg)
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check){");
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_message_t* ret= NULL;
 
 	char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
@@ -924,6 +924,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		}
 	}
 
+/*
 #ifdef DEBUG
 	uint16_t fixed_size =
 	 		MSG_ARRAY_SIZE + MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
@@ -931,9 +932,9 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 	uint16_t payload_size = msg->properties->byte_size
 	 		+ msg->body->byte_size + msg->footer->byte_size;
 
-	//log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "msg (%s) Size of msg  %"PRIu16" bytes. Size of fixed_size %"PRIu16" bytes. Nr of chunks  %"PRIu16" parts", msg->uuid, payload_size, fixed_size, msg->no_of_chunks);
+	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "msg (%s) Size of msg  %"PRIu16" bytes. Size of fixed_size %"PRIu16" bytes. Nr of chunks  %"PRIu16" parts", msg->uuid, payload_size, fixed_size, msg->no_of_chunks);
 #endif
-
+*/
 	np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 	msg->is_single_part = FALSE;
 
@@ -956,7 +957,7 @@ void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const c
 	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) subject));
 	np_tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(to)));
 	if (from == NULL)
-		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(_np_state()->my_node_key)));
+		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(np_state()->my_node_key)));
 	else{
 		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(from)));
 	}
@@ -1014,7 +1015,7 @@ inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
 void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	// first encrypt the relevant message part itself
 	unsigned char nonce[crypto_box_NONCEBYTES];
@@ -1023,6 +1024,7 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	randombytes_buf((void*) nonce, crypto_box_NONCEBYTES);
 	randombytes_buf((void*) sym_key, crypto_secretbox_KEYBYTES);
 
+	int crypto = 0;
 	_np_messagepart_encrypt(msg->properties, nonce, sym_key, NULL);
 	_np_messagepart_encrypt(msg->body, nonce, sym_key, NULL);
 
@@ -1031,16 +1033,16 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	unsigned char ciphertext[crypto_box_MACBYTES + crypto_secretbox_KEYBYTES];
 
 	// convert our own sign key to an encryption key
-	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
+	crypto += crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
 										 state->my_identity->aaa_token->private_key);
 	// convert our partner key to an encryption key
 	unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-	crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
+	crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
 
 	// finally encrypt
-	int ret = crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
+	crypto += crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
 							  partner_key, curve25519_sk);
-	if (0 > ret)
+	if (0 > crypto)
 	{
 		log_msg(LOG_ERROR, "encryption of message payload failed");
 		return;
@@ -1071,7 +1073,7 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
 	np_bool ret = TRUE;
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	np_tree_t* encryption_details =
 			np_tree_find_str(msg->properties, NP_SYMKEY)->val.value.tree;

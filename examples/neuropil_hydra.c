@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 		if(publish_domain == NULL)
 			publish_domain = strdup("localhost");
 		
-		bootstrap_hostnode_default = _np_build_connection_string("*", proto, publish_domain, port, TRUE);
+		bootstrap_hostnode_default = np_build_connection_string("*", proto, publish_domain, port, TRUE);
 
 		j_key = bootstrap_hostnode_default;
 
@@ -312,10 +312,14 @@ int main(int argc, char **argv)
 
 				\code
 				*/
+				np_bool firstConnectionTry = TRUE;
 				do {
-					np_example_print(stdout, "%s tries to join bootstrap node\n",port);
-				 
+					if (!firstConnectionTry) {
+						np_example_print(stdout, "%s tries to join bootstrap node\n", port);
+					}
+				 					
 					np_send_join(j_key);
+					firstConnectionTry = FALSE;
 
 					int timeout = 100;
 					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {

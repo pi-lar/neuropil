@@ -95,7 +95,6 @@ int main(int argc, char **argv) {
  */
 	np_log_init(log_file_host, level);
 	np_state_t* status = np_init(proto, port, publish_domain);
-	np_start_job_queue(no_threads);
 /**
  \endcode
  
@@ -145,24 +144,25 @@ int main(int argc, char **argv) {
 	*/
 
 	np_msgproperty_t* msg_props = NULL;
-	np_new_obj(np_msgproperty_t, msg_props);
+	np_add_receive_listener(receive_message, "echo");
+	msg_props = np_msgproperty_get(INBOUND, "echo");
 	msg_props->msg_subject = strndup("echo", 255);
 	msg_props->ack_mode = ACK_NONE;
 	msg_props->msg_ttl = 20.0;
-	np_msgproperty_register(msg_props);
 	/**
 	 \endcode
 
-	and add a listener to receive a callback every time a "echo" message is received
+	to add a listener to receive a callback every time a "echo" message is received.
+	finally start the jobqueue to start processing messages.
 
 	.. code-block:: c
 	\code
 	*/
-	np_add_receive_listener(receive_message, "echo");
+	np_start_job_queue(no_threads);
 	/**
 	 \endcode
 
-	  And now we can send, periodically, our message to our bootstrap node
+	  And now we can send, periodically, our message to our bootstrap node.
 
 	 .. code-block:: c
 	 \code

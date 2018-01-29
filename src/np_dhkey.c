@@ -232,7 +232,7 @@ void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_
 }
 
 
-np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const np_bool const includeBounds)
+np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const np_bool includeBounds)
 {
 	log_msg (LOG_KEY | LOG_TRACE, ".start._dhkey_between");
 
@@ -272,7 +272,7 @@ void _np_dhkey_midpoint (np_dhkey_t* mid, const np_dhkey_t* key)
 }
 
 /*
- * Gibt an, an welcher Stelle ander routing Tabelle der Key hinzugefügt werden muss.
+ * Gibt an, an welcher Stelle ander routing Tabelle der Key hinzugefï¿½gt werden muss.
  */
 uint16_t _np_dhkey_index (const np_dhkey_t* mykey, const np_dhkey_t* otherkey)
 {

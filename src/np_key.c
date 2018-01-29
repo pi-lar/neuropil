@@ -50,13 +50,6 @@ int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
 	return -1 * _np_key_cmp(k1, k2);
 }
 
-int _np_key_distance_cmp(np_key_t* k1, np_key_t* k2) {
-	np_dhkey_t dist;
-	_np_dhkey_distance(&dist, &k1->dhkey, &k2->dhkey);
-
-
-}
-
 char* _np_key_as_str(np_key_t* key)
 {
 	log_msg(LOG_TRACE | LOG_KEY, "start: char* _np_key_as_str(np_key_t* key){");
@@ -107,7 +100,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 			char* keyident = _np_key_as_str(to_destroy);
 			log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
 		
-			log_debug_msg(LOG_KEY | LOG_DEBUG, "refcount of key %s at destroy: %d", keyident, to_destroy->obj == NULL ? 0 : to_destroy->obj->ref_count);
+			log_debug_msg(LOG_KEY | LOG_DEBUG, "refcount of key %s at destroy: %"PRIu32, keyident, to_destroy->obj == NULL ? 0 : to_destroy->obj->ref_count);
 			
 			np_key_t* deleted;
 			np_key_t* added;
@@ -239,7 +232,7 @@ void np_key_renew_token() {
 
 	_LOCK_MODULE(np_node_renewal_t) 
 	{
-		np_state_t* state = _np_state();
+		np_state_t* state = np_state();
 
 		np_key_t* new_node_key = NULL;
 		np_key_t* old_node_key = state->my_node_key;

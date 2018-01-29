@@ -76,7 +76,6 @@ int main(int argc, char **argv) {
 
 	np_log_init(log_file, level);
 	np_init(proto, port, publish_domain);
-	np_start_job_queue(no_threads);
 
 	/**
 	in your main program, initialize the message property for the echo service
@@ -87,22 +86,22 @@ int main(int argc, char **argv) {
 	*/
 
 	np_msgproperty_t* msg_props = NULL;
-	np_new_obj(np_msgproperty_t, msg_props);
+	np_add_receive_listener(receive_echo_message, "echo");
+	msg_props = np_msgproperty_get(INBOUND, "echo");
 	msg_props->msg_subject = strndup("echo", 255);
 	msg_props->ack_mode = ACK_NONE;
 	msg_props->msg_ttl = 20.0;
-	np_msgproperty_register(msg_props);
 	/**
 	 \endcode
 
-	and add a listener to receive a callback everytime a "echo" message is received
+	and add a listener to receive a callback everytime a "echo" message is received.
+	finally start the job queue to start processing messages.
 
 	.. code-block:: c
 
-  \code
+     \code
 	*/
-	np_add_receive_listener(receive_echo_message, "echo");
-
+	np_start_job_queue(no_threads);
 	/** \endcode */
 
 	while (TRUE) {

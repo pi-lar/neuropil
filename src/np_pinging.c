@@ -28,7 +28,7 @@
 **/
 void _np_ping_send(np_key_t* key)
 {
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	np_message_t* out_msg = NULL;
 	np_new_obj(np_message_t, out_msg);

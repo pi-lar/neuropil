@@ -337,10 +337,10 @@ np_aaatoken_t* _np_node_create_token(np_node_t* source_node)
 		_np_network_get_protocol_string(source_node->protocol), source_node->dns_name, source_node->port);
 
 	char issuer[64] = { 0 };
-	if (_np_state() != NULL && _np_state()->my_identity != NULL && 
-		_np_node_cmp(_np_state()->my_identity->node , source_node) != 0) {
+	if (np_state() != NULL && np_state()->my_identity != NULL && 
+		_np_node_cmp(np_state()->my_identity->node , source_node) != 0) {
 
-		strncpy(issuer,_np_key_as_str(_np_state()->my_identity),64);
+		strncpy(issuer,_np_key_as_str(np_state()->my_identity),64);
 	}
 	else {
 		strncpy(issuer, node_subject, 64);

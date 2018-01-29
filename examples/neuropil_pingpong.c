@@ -133,6 +133,27 @@ int main(int argc, char **argv)
 	*/
 	port =  state->my_node_key->node->port;
 	/** \endcode */
+
+	/**
+	 Now we need to register this node as interested in "ping" and "pong" messages.
+	 For this we will configure two message properties with the appropiate callbacks to our handlers.
+
+	 .. code-block:: c
+	 \code
+	 */
+	np_msgproperty_t* ping_props = NULL;
+	np_add_receive_listener(receive_ping, "ping");
+	ping_props = np_msgproperty_get(INBOUND, "ping");
+	ping_props->ack_mode = ACK_NONE;
+	ping_props->msg_ttl = 20.0;
+	//register the listener function to receive data from the sender
+	np_msgproperty_t* pong_props = NULL;
+	np_add_receive_listener(receive_ping, "pong");
+	pong_props = np_msgproperty_get(INBOUND, "pong");
+	pong_props->ack_mode = ACK_NONE;
+	pong_props->msg_ttl = 20.0;
+	/** \endcode */
+
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
 	you should start at least 2 threads (network io is non-blocking).
@@ -145,8 +166,8 @@ int main(int argc, char **argv)
 	/** \endcode */
 
 	/**
-	If this is your first start of the program copy the connections tring from stout and
-	start a second instance of the program and provide the connection string via the -j parameter.
+	If this is your first start of the program copy the connections string from stdout and
+	start a second instance of the program. provide the connection string via the -j parameter.
 
 	the next step in the  program is to check if the j_key was provided. if so we will try to join the node.
 	If not we will print out the connection string of this node and wait for a node to join this network.
@@ -176,32 +197,6 @@ int main(int argc, char **argv)
 	*   to control with which nodes you exchange messages. By default everybody is allowed to interact
 	*   with your node
 	 */
-
-	/**
-	 Now we need to register this node as interested in "ping" and "pong" messages.
-	 For this we will configure two message properties with the appropiate callbacks to our handlers.
-
-	 .. code-block:: c
-	 \code
-	 */
-	np_msgproperty_t* ping_props = NULL;
-	np_new_obj(np_msgproperty_t, ping_props);
-	ping_props->msg_subject = strndup("ping", 255);
-	ping_props->ack_mode = ACK_NONE;
-	ping_props->msg_ttl = 20.0;
-	np_msgproperty_register(ping_props);
-//register the listener function to receive data from the sender
-	np_add_receive_listener(receive_ping, "ping");
-
-	np_msgproperty_t* pong_props = NULL;
-	np_new_obj(np_msgproperty_t, pong_props);
-	pong_props->msg_subject = strndup("pong", 255);
-	pong_props->ack_mode = ACK_NONE;
-	pong_props->msg_ttl = 20.0;
-	np_msgproperty_register(pong_props);
-	//register the listener function to receive data from the sender
-	np_add_receive_listener(receive_pong, "pong");
-	/** \endcode */
 
 	log_msg(LOG_INFO, "Sending initial ping");
 	// send an initial ping

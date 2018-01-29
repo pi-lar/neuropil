@@ -848,7 +848,7 @@ void _np_route_rejoin_bootstrap(np_bool force) {
 
 		if(TRUE == rejoin
 				// check for state availibility to prevent test issues. TODO: Make network objects mockable
-				&& _np_state() != NULL) {
+				&& np_state() != NULL) {
 			char* bootstrap = np_route_get_bootstrap_connection_string();
 			if(NULL != bootstrap)
 			{

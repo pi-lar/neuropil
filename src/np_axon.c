@@ -140,7 +140,7 @@ void _np_out(np_jobargs_t* args)
 	}
 
 	// now we can try to send the msg
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key,"np_waitref_key");
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key,"np_waitref_key");
 	{
 		np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
 		{
@@ -345,7 +345,7 @@ void _np_out(np_jobargs_t* args)
 				}
 			}			
 
-			np_unref_obj(np_network_t, my_network,"np_waitref_network");
+			np_unref_obj(np_network_t, my_network, "np_waitref_network");
 		}
 		np_unref_obj(np_key_t,my_key,"np_waitref_key");
 	}
@@ -361,7 +361,7 @@ void _np_out_handshake(np_jobargs_t* args)
 		if (_np_node_check_address_validity(args->target->node))
 		{
 			// get our node identity from the cache
-			np_key_t* my_key = _np_state()->my_node_key;
+			np_key_t* my_key = np_state()->my_node_key;
 			np_aaatoken_t* my_token = my_key->aaa_token;
 
 			// TODO: reffing of key, node token in function context
@@ -439,7 +439,7 @@ void _np_out_handshake(np_jobargs_t* args)
 			np_msgproperty_t* hs_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
 
 			np_tree_insert_str(hs_message->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s(_NP_MSG_HANDSHAKE));
-			np_tree_insert_str(hs_message->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*)_np_key_as_str(_np_state()->my_node_key)));
+			np_tree_insert_str(hs_message->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*)_np_key_as_str(np_state()->my_node_key)));
 			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
 			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(hs_prop->ack_mode));
 			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(hs_prop->token_max_ttl + 0.0));
@@ -529,9 +529,6 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 	np_aaatoken_t* msg_token = NULL;
 
 	if (_np_route_my_key_has_connection()) {
-
-		double now = np_time_now();
-
 		msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 
 		if (	NULL == msg_token
@@ -568,7 +565,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 			_np_message_create(
 				msg_out,
 				args->target,
-				_np_state()->my_node_key,
+				np_state()->my_node_key,
 				_NP_MSG_DISCOVER_SENDER,
 				_data
 			);
@@ -596,7 +593,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 			_np_message_create(
 				msg_out,
 				args->target,
-				_np_state()->my_node_key,
+				np_state()->my_node_key,
 				_NP_MSG_DISCOVER_RECEIVER,
 				_data
 			);
@@ -624,7 +621,7 @@ void _np_out_receiver_discovery(np_jobargs_t* args)
 	np_aaatoken_t* msg_token = NULL;
 
 	msg_token = _np_aaatoken_get_sender(args->properties->msg_subject,
-									 _np_key_as_str(_np_state()->my_node_key));
+									 _np_key_as_str(np_state()->my_node_key));
 
 	if (NULL == msg_token)
 	{
@@ -643,7 +640,7 @@ void _np_out_receiver_discovery(np_jobargs_t* args)
 	np_new_obj(np_message_t, msg_out);
 
 	np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
-	_np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_RECEIVER, _data);
+	_np_message_create(msg_out, args->target, np_state()->my_node_key, _NP_MSG_DISCOVER_RECEIVER, _data);
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
 
 	// send message availability
@@ -677,7 +674,7 @@ void _np_out_sender_discovery(np_jobargs_t* args)
 
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
-	_np_message_create(msg_out, args->target, _np_state()->my_node_key, _NP_MSG_DISCOVER_SENDER, _data);
+	_np_message_create(msg_out, args->target, np_state()->my_node_key, _NP_MSG_DISCOVER_SENDER, _data);
 	np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
 
@@ -693,7 +690,7 @@ void _np_out_authentication_request(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_out_authentication_request(np_jobargs_t* args){");
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_dhkey_t target_dhkey;
 
 	if (0 < strlen(args->target->aaa_token->realm))
@@ -783,7 +780,7 @@ void _np_out_authorization_request(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_out_authorization_request(np_jobargs_t* args){");
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_dhkey_t target_dhkey;
 
 	if (0 < strlen(state->my_identity->aaa_token->realm) )
@@ -864,7 +861,7 @@ void _np_out_accounting_request(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_out_accounting_request(np_jobargs_t* args){");
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_dhkey_t target_dhkey;
 
 	if (0 < strlen(state->my_identity->aaa_token->realm) )

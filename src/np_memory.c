@@ -116,7 +116,8 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 	if (NULL != (*obj) &&
 		NULL != (*obj)->ptr &&
 		(*obj)->type == obj_type &&
-		(*obj)->ref_count <= 0 )
+		(*obj)->ref_count == 0 &&
+		(*obj)->persistent == FALSE)
 	{
 		np_obj_t* obj_tmp = NULL;
 		__np_obj_pool_ptr->current = __np_obj_pool_ptr->first;
@@ -153,47 +154,53 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 void np_mem_refobj(np_obj_t* obj, const char* reason)
 {
 	log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
-	obj->ref_count++;
+	if (obj->persistent == FALSE) {
+		obj->ref_count++;
+	}
 	//log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
 	assert(reason != NULL);
 	sll_prepend(char_ptr, obj->reasons, strdup(reason));
 #endif
-	}
+}
 
 // decrease ref count
 void np_mem_unrefobj(np_obj_t* obj, const char* reason)
 {
 	log_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
-	obj->ref_count--;
-	//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
-	if(obj->ref_count < 0){		
+
+	if (obj->persistent == FALSE) {
+		//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
+		if (obj->ref_count == 0) {
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (left reasons(%"PRIi16"): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
+			log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (left reasons(%"PRIu32"): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
 #else
-		log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! left reasons(%"PRIi16")", obj, obj->type, obj->ref_count);
+			log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! left reasons(%"PRIu32")", obj, obj->type, obj->ref_count);
 #endif
-		abort();
+			abort();
+		}
+		obj->ref_count--;
 	}
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-	sll_iterator(char_ptr) iter_reason = sll_first(obj->reasons);
-	np_bool foundReason = FALSE;
-	while (foundReason == FALSE && iter_reason != NULL)
-	{
-		foundReason = (0 == strncmp(iter_reason->val, reason, strlen(reason)) 
-			&& 0 == strncmp(iter_reason->val + strlen(reason), _NP_REF_REASON_SEPERATOR_CHAR, _NP_REF_REASON_SEPERATOR_CHAR_LEN)) ? TRUE : FALSE;
-		if (foundReason == TRUE) {
-			free(iter_reason->val);
-			sll_delete(char_ptr, obj->reasons, iter_reason);
-			break;
+		sll_iterator(char_ptr) iter_reason = sll_first(obj->reasons);
+		np_bool foundReason = FALSE;
+		while (foundReason == FALSE && iter_reason != NULL)
+		{
+			foundReason = (0 == strncmp(iter_reason->val, reason, strlen(reason))
+				&& 0 == strncmp(iter_reason->val + strlen(reason), _NP_REF_REASON_SEPERATOR_CHAR, _NP_REF_REASON_SEPERATOR_CHAR_LEN)) ? TRUE : FALSE;
+			if (foundReason == TRUE) {
+				free(iter_reason->val);
+				sll_delete(char_ptr, obj->reasons, iter_reason);
+				break;
+			}
+			sll_next(iter_reason);
 		}
-		sll_next(iter_reason);
-	}
-	if (FALSE == foundReason) {
-		log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ",reason, obj->id, obj->type, sll_size(obj->reasons), _sll_char_make_flat(obj->reasons));
-		abort();
-	}	
+		if (FALSE == foundReason) {
+			log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ", reason, obj->id, obj->type, sll_size(obj->reasons), _sll_char_make_flat(obj->reasons));
+			abort();
+		}
 #endif
+	
 }
 
 // print the complete object list and statistics
@@ -210,7 +217,7 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 	
 	_LOCK_MODULE(np_memory_t) {		
 		if (TRUE == extended) {
-			ret = _np_concatAndFree(ret, "--- extended reasons start ---%s", new_line);
+			ret = np_str_concatAndFree(ret, "--- extended reasons start ---%s", new_line);
 		}
 		for (np_obj_t* iter = __np_obj_pool_ptr->first; iter != NULL; iter = iter->next)
 		{
@@ -223,7 +230,7 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 				//&& iter->type == np_key_t_e				
 				&& sll_size(iter->reasons) > 5
 				) {
-				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, iter->type, sll_size(iter->reasons), new_line);
+				ret = np_str_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, iter->type, sll_size(iter->reasons), new_line);
 
 				int display_first_X_reasons = 5;
 				int display_last_X_reasons = 5;
@@ -233,57 +240,57 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 				while (iter_reasons != NULL)
 				{
 					if (iter_reasons_counter < display_first_X_reasons) {
-						ret = _np_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+						ret = np_str_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
 					}				
 
 					if (
 						(display_first_X_reasons + display_last_X_reasons) < sll_size(iter->reasons)
 						&& display_first_X_reasons == iter_reasons_counter) 
 					{
-						ret = _np_concatAndFree(ret, "... Skipping %"PRIi32" reasons ...%s", sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons) ,new_line);
+						ret = np_str_concatAndFree(ret, "... Skipping %"PRIi32" reasons ...%s", sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons) ,new_line);
 					}
 
 					if (
 						iter_reasons_counter > display_first_X_reasons 
 						&& iter_reasons_counter >= display_first_X_reasons + sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons))
 					{
-						ret = _np_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+						ret = np_str_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
 					}
 
 					iter_reasons_counter++;					
 					sll_next(iter_reasons);
 				}
-				ret = _np_concatAndFree(ret, "--- remaining reasons for %s (%d) end  ---%s", iter->id, iter->type, new_line);
+				ret = np_str_concatAndFree(ret, "--- remaining reasons for %s (%d) end  ---%s", iter->id, iter->type, new_line);
 			}		
 #endif
 		}
 		
 		if (TRUE == extended) {
 #ifndef NP_MEMORY_CHECK_MEMORY_REFFING
-			ret = _np_concatAndFree(ret, "NO DATA. Compile with NP_MEMORY_CHECK_MEMORY_REFFING %s", new_line); 
+			ret = np_str_concatAndFree(ret, "NO DATA. Compile with NP_MEMORY_CHECK_MEMORY_REFFING %s", new_line); 
 #endif
-			ret = _np_concatAndFree(ret, "--- extended reasons end  ---%s", new_line);
+			ret = np_str_concatAndFree(ret, "--- extended reasons end  ---%s", new_line);
 		}
 		
-		ret = _np_concatAndFree(ret, "--- memory summary---%s", new_line);
-		ret = _np_concatAndFree(ret, "first %12p, free %12p, current %12p%s", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current,new_line);
-		ret = _np_concatAndFree(ret, "size %4d, in use %4d,  available %4d%s", __np_obj_pool_ptr->size, __np_obj_pool_ptr->size - __np_obj_pool_ptr->available, __np_obj_pool_ptr->available,new_line);		
+		ret = np_str_concatAndFree(ret, "--- memory summary---%s", new_line);
+		ret = np_str_concatAndFree(ret, "first %12p, free %12p, current %12p%s", __np_obj_pool_ptr->first, __np_obj_pool_ptr->free_obj, __np_obj_pool_ptr->current,new_line);
+		ret = np_str_concatAndFree(ret, "size %4d, in use %4d,  available %4d%s", __np_obj_pool_ptr->size, __np_obj_pool_ptr->size - __np_obj_pool_ptr->available, __np_obj_pool_ptr->available,new_line);		
 	}
 
-	ret = _np_concatAndFree(ret, "np_none_t_e        count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_none_t_e],			summary[100 * np_none_t_e],				new_line);
-	ret = _np_concatAndFree(ret, "np_message_t_e     count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_message_t_e],		summary[100 * np_message_t_e],			new_line);
-	ret = _np_concatAndFree(ret, "np_messagepart_t_e count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_messagepart_t_e],	summary[100 * np_messagepart_t_e],		new_line);
-	ret = _np_concatAndFree(ret, "np_node_t_e        count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_node_t_e],			summary[100 * np_node_t_e],				new_line);
-	ret = _np_concatAndFree(ret, "np_key_t_e         count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_key_t_e],			summary[100 * np_key_t_e],				new_line);
-	ret = _np_concatAndFree(ret, "np_aaatoken_t_e    count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_aaatoken_t_e],		summary[100 * np_aaatoken_t_e],			new_line);
-	ret = _np_concatAndFree(ret, "np_msgproperty_t_e count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_msgproperty_t_e],	summary[100 * np_msgproperty_t_e],		new_line);
-	//ret = _np_concatAndFree(ret, "np_http_t_e        count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_http_t_e],			summary[100 * np_http_t_e],				new_line);
-	ret = _np_concatAndFree(ret, "np_network_t_e     count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_network_t_e],		summary[100 * np_network_t_e],			new_line);
-	ret = _np_concatAndFree(ret, "np_thread_t_e      count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_thread_t_e],		summary[100 * np_thread_t_e],			new_line);
-	ret = _np_concatAndFree(ret, "np_responsecontainer_t      count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_responsecontainer_t_e],		summary[100 * np_responsecontainer_t_e],		new_line);
-	ret = _np_concatAndFree(ret, "test_struct_t_e    count %4"PRIu64" max ref %3"PRIu64" %s", summary[test_struct_t_e],		summary[100 * test_struct_t_e],			new_line);
+	ret = np_str_concatAndFree(ret, "np_none_t_e        count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_none_t_e],			summary[100 * np_none_t_e],				new_line);
+	ret = np_str_concatAndFree(ret, "np_message_t_e     count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_message_t_e],		summary[100 * np_message_t_e],			new_line);
+	ret = np_str_concatAndFree(ret, "np_messagepart_t_e count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_messagepart_t_e],	summary[100 * np_messagepart_t_e],		new_line);
+	ret = np_str_concatAndFree(ret, "np_node_t_e        count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_node_t_e],			summary[100 * np_node_t_e],				new_line);
+	ret = np_str_concatAndFree(ret, "np_key_t_e         count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_key_t_e],			summary[100 * np_key_t_e],				new_line);
+	ret = np_str_concatAndFree(ret, "np_aaatoken_t_e    count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_aaatoken_t_e],		summary[100 * np_aaatoken_t_e],			new_line);
+	ret = np_str_concatAndFree(ret, "np_msgproperty_t_e count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_msgproperty_t_e],	summary[100 * np_msgproperty_t_e],		new_line);
+	//ret = np_str_concatAndFree(ret, "np_http_t_e        count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_http_t_e],			summary[100 * np_http_t_e],				new_line);
+	ret = np_str_concatAndFree(ret, "np_network_t_e     count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_network_t_e],		summary[100 * np_network_t_e],			new_line);
+	ret = np_str_concatAndFree(ret, "np_thread_t_e      count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_thread_t_e],		summary[100 * np_thread_t_e],			new_line);
+	ret = np_str_concatAndFree(ret, "np_responsecontainer_t      count %4"PRIu64" max ref %3"PRIu64" %s", summary[np_responsecontainer_t_e],		summary[100 * np_responsecontainer_t_e],		new_line);
+	ret = np_str_concatAndFree(ret, "test_struct_t_e    count %4"PRIu64" max ref %3"PRIu64" %s", summary[test_struct_t_e],		summary[100 * test_struct_t_e],			new_line);
 	
-	ret = _np_concatAndFree(ret, "--- memory end ---%s",new_line);
+	ret = np_str_concatAndFree(ret, "--- memory end ---%s",new_line);
 
 	return (ret);
 }
