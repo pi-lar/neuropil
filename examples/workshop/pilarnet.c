@@ -13,9 +13,6 @@
 #include "np_types.h"
 #include "np_aaatoken.h"
 
-int seq = -1;
-int joinComplete = 0;
-
 np_bool auth_callback(np_aaatoken_t *token)
 {
   char key[65] = {0};
@@ -26,7 +23,7 @@ np_bool auth_callback(np_aaatoken_t *token)
 
 int main(int argc, char **argv)
 {
-  char *usage = "netnode [port] [jkey]\n";
+  char *usage = "pilarnet [port] [jkey]\n";
   char *jkey = NULL;
   char *port = NULL;
   if (argc > 3) { fprintf(stderr, usage); exit(1); }
