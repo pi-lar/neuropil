@@ -30,13 +30,13 @@
 
 #include "np_scache.h"
 
-static const char* _NP_SYSINFO_MY_NODE = "node";
-static const char* _NP_SYSINFO_MY_NODE_TIMESTAMP = "timestamp";
-static const char* _NP_SYSINFO_MY_NEIGHBOURS = "neighbour_nodes";
-static const char* _NP_SYSINFO_MY_ROUTES = "routing_nodes";
+#define  _NP_SYSINFO_MY_NODE "node"
+#define  _NP_SYSINFO_MY_NODE_TIMESTAMP "timestamp"
+#define  _NP_SYSINFO_MY_NEIGHBOURS "neighbour_nodes"
+#define  _NP_SYSINFO_MY_ROUTES "routing_nodes"
 
-static const char* _NP_SYSINFO_SOURCE = "source_hash";
-static const char* _NP_SYSINFO_TARGET = "target_hash";
+#define  _NP_SYSINFO_SOURCE  "source_hash"
+#define  _NP_SYSINFO_TARGET  "target_hash"
 
 
 static np_simple_cache_table_t* _cache = NULL;
@@ -59,7 +59,7 @@ void _np_sysinfo_init_cache()
 void _np_sysinfo_slave_send_cb(NP_UNUSED np_jobargs_t* args) {
 	
 	if(_np_route_my_key_has_connection() == TRUE) {
-		np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "usage");
+		np_waitref_obj(np_key_t, np_state()->my_node_key, my_node_key, "usage");
 		np_tree_t* reply_body = np_sysinfo_get_my_info();
 
 		// build properties
@@ -94,7 +94,7 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->priority -= 1;
 	sysinfo_request_props->msg_ttl  = 20.0;
 	sysinfo_request_props->mode_type = INBOUND | ROUTE;
-	sysinfo_request_props->max_threshold = 3;
+	sysinfo_request_props->max_threshold = 32;
 
 	np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(OUTBOUND, _NP_SYSINFO_REPLY);
 	if(sysinfo_response_props == NULL){
@@ -107,7 +107,7 @@ void np_sysinfo_enable_slave() {
 	sysinfo_response_props->priority -= 1;
 	sysinfo_response_props->msg_ttl  = 20.0;
 	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 3;
+	sysinfo_response_props->max_threshold = 32;
 
 	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
@@ -119,13 +119,15 @@ void np_sysinfo_enable_slave() {
 
 	np_job_submit_event_periodic(PRIORITY_MOD_USER_DEFAULT,
 								 0,
-								 sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
+								 //sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
+								 SYSINFO_PROACTIVE_SEND_IN_SEC,
 								 _np_sysinfo_slave_send_cb,
 								 "sysinfo_slave_send_cb");
 }
 
 void np_sysinfo_enable_master() {
 	log_msg(LOG_TRACE, "start: void np_sysinfo_enable_master(){");
+	
 	_np_sysinfo_init_cache();
 	np_msgproperty_t* sysinfo_request_props = np_msgproperty_get(OUTBOUND, _NP_SYSINFO_REQUEST);
 	if (sysinfo_request_props == NULL) {
@@ -149,18 +151,19 @@ void np_sysinfo_enable_master() {
 	sysinfo_response_props->retry    = 0;
 	sysinfo_response_props->msg_ttl  = 20.0;
 	sysinfo_response_props->priority -= 1;
-
+	
 	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
 	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
 	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 5/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC );
+	sysinfo_response_props->max_threshold = 32/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC);
+	
 
 	np_msgproperty_register(sysinfo_response_props);
 	np_msgproperty_register(sysinfo_request_props);
-
+	
 	np_add_receive_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
 }
 
@@ -178,7 +181,7 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 
 	np_tree_elem_t* target = np_tree_find_str(properties, _NP_SYSINFO_TARGET);
 
-	char* mynode_hash = _np_key_as_str(_np_state()->my_node_key);
+	char* mynode_hash = _np_key_as_str(np_state()->my_node_key);
 
 	np_bool source_str_free = FALSE;
 	char* source_val = np_treeval_to_str(source->val, &source_str_free);
@@ -295,7 +298,7 @@ np_tree_t* np_sysinfo_get_my_info() {
 
 	// build local node
 	np_tree_t* local_node = np_tree_create();
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "usage");
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_node_key, "usage");
 	_np_node_encode_to_jrb(local_node, my_node_key, TRUE);
 	np_tree_replace_str(local_node, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_s(_np_network_get_protocol_string(my_node_key->node->protocol)));
 
@@ -309,7 +312,7 @@ np_tree_t* np_sysinfo_get_my_info() {
 	np_sll_t(np_key_ptr, neighbours_table) = _np_route_neighbors();
 
 	np_tree_t* neighbours = np_tree_create();
-	int neighbour_counter = 0;
+	uint32_t neighbour_counter = 0;
 	if (NULL != neighbours_table && 0 < neighbours_table->size) {
 		np_key_t* current;
 		while (NULL != sll_first(neighbours_table)) {
@@ -325,9 +328,10 @@ np_tree_t* np_sysinfo_get_my_info() {
 			}
 		}
 	}
-	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %d neighbours",
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %"PRIu32" neighbours",
 			neighbour_counter);
 
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS"_count", np_treeval_new_ul(neighbour_counter));
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NEIGHBOURS, np_treeval_new_tree(neighbours));
 	sll_free(np_key_ptr, neighbours_table);
 	np_tree_free(neighbours);
@@ -336,7 +340,7 @@ np_tree_t* np_sysinfo_get_my_info() {
 	np_sll_t(np_key_ptr, routing_table) = _np_route_get_table();
 
 	np_tree_t* routes = np_tree_create();
-	int routes_counter = 0;
+	uint32_t routes_counter = 0;
 	if (NULL != routing_table && 0 < routing_table->size) {
 		np_key_t* current;
 		while (NULL != sll_first(routing_table)) {
@@ -344,7 +348,11 @@ np_tree_t* np_sysinfo_get_my_info() {
 			if (current->node) {
 				np_tree_t* route = np_tree_create();
 				_np_node_encode_to_jrb(route, current, TRUE);
-				np_tree_replace_str(route, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_s(_np_network_get_protocol_string(current->node->protocol)));
+				np_tree_replace_str(
+					route, 
+					NP_SERIALISATION_NODE_PROTOCOL,
+					np_treeval_new_s(_np_network_get_protocol_string(current->node->protocol))
+				);
 				np_tree_insert_int(routes, routes_counter++, 
 					np_treeval_new_tree(route));
 				np_tree_free(route);
@@ -352,10 +360,11 @@ np_tree_t* np_sysinfo_get_my_info() {
 			}
 		}
 	}
-	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %d routing table entries",
+	log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %"PRIu32" routing table entries",
 			routes_counter);
 
-	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES"_count", np_treeval_new_ul(routes_counter));
+	np_tree_insert_str(ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));	
 	sll_free(np_key_ptr, routing_table);
 	np_tree_free(routes);
 
@@ -383,7 +392,7 @@ void _np_sysinfo_request(const char* const hash_of_target) {
 		np_tree_t* body = np_tree_create();
 
 		np_tree_insert_str(properties, _NP_SYSINFO_SOURCE,
-				np_treeval_new_s(_np_key_as_str(_np_state()->my_node_key)));
+				np_treeval_new_s(_np_key_as_str(np_state()->my_node_key)));
 
 // TODO: Reenable target after functional audience selection for messages is implemented
 //		np_tree_insert_str(properties, _NP_SYSINFO_TARGET,
@@ -403,7 +412,7 @@ void _np_sysinfo_request(const char* const hash_of_target) {
 np_tree_t* np_sysinfo_get_info(const char* const hash_of_target) {
 	log_msg(LOG_TRACE, "start: np_tree_t* np_sysinfo_get_info(const char* const hash_of_target) {");
 
-	char* my_key = _np_key_as_str(_np_state()->my_node_key);
+	char* my_key = _np_key_as_str(np_state()->my_node_key);
 
 	np_tree_t* ret = NULL;
 	if (strncmp(hash_of_target, my_key, 64) == 0) {
@@ -460,7 +469,7 @@ void _np_sysinfo_request_others() {
 	np_sll_t(np_key_ptr, neighbours_table) = NULL;
 	np_tree_t * tmp = NULL;
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "usage");
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_node_key, "usage");
 
 	routing_table = _np_route_get_table();
 	if (NULL != routing_table && 0 < routing_table->size) {
@@ -512,31 +521,19 @@ np_tree_t* np_sysinfo_get_all() {
 	np_sll_t(np_key_ptr, routing_table) = NULL;
 	np_sll_t(np_key_ptr, neighbours_table) = NULL;
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "usage");	
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_node_key, "usage");	
 
 	routing_table = _np_route_get_table();
 	neighbours_table = _np_route_neighbors();
+	np_sll_t(np_key_ptr, merge_table) = sll_merge(np_key_ptr, routing_table, neighbours_table, _np_key_cmp);
 
-	// delete neighbours from routing_table to create distinct list (merge lists)
-	sll_iterator(np_key_ptr) iter_neighbour = sll_first(neighbours_table);
-	while (iter_neighbour != NULL)
-	{
-		np_bool is_already_in_list = sll_contains(np_key_ptr, routing_table, iter_neighbour->val, _np_key_cmp);
-		
-		if (is_already_in_list == FALSE) {
-			np_ref_obj(np_key_t, iter_neighbour->val, "_np_route_get_table");
-			sll_append(np_key_ptr, routing_table, iter_neighbour->val);
-		}
 
-		sll_next(iter_neighbour);
-	}
 	// now serialize both tables into np_tree
-
-	if (NULL != routing_table && 0 < routing_table->size) {
+	if (NULL != merge_table && 0 < merge_table->size) {
 		np_key_t* current;
-		while (NULL != sll_first(routing_table)) {
-			current = sll_head(np_key_ptr, routing_table);
-			if (NULL != current &&
+		while (NULL != sll_first(merge_table)) {
+			current = sll_head(np_key_ptr, merge_table);
+			if (
 				strcmp(_np_key_as_str(current), _np_key_as_str(my_node_key)) != 0 &&
 				NULL != (tmp = _np_sysinfo_get_from_cache(_np_key_as_str(current), -2)))
 			{
@@ -544,12 +541,13 @@ np_tree_t* np_sysinfo_get_all() {
 				np_tree_insert_int(ret, count++,np_treeval_new_tree(tmp));
 				np_tree_free(tmp);
 			}
-			np_unref_obj(np_key_t, current, "_np_route_get_table");
 		}
 	}
 
+	sll_free(np_key_ptr, merge_table);
+	np_unref_list(routing_table,"_np_route_get_table");
 	sll_free(np_key_ptr, routing_table);
-	np_unref_list(neighbours_table,"_np_route_neighbors");
+	np_unref_list(neighbours_table, "_np_route_neighbors");
 	sll_free(np_key_ptr, neighbours_table);
 	np_unref_obj(np_key_t, my_node_key, "usage");
 

@@ -19,6 +19,7 @@
 #include "np_tree.h"
 #include "np_types.h"
 #include "np_treeval.h"
+#include "np_threads.h"
 #include "np_keycache.h"
 #include "np_aaatoken.h"
 #include "np_network.h"
@@ -90,23 +91,23 @@ void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
 void _np_key_destroy(np_key_t* to_destroy) {
 	log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_destroy(np_key_t* to_destroy) {");
 
-	np_tryref_obj(np_key_t, to_destroy, to_destroyExists,"np_tryref_key");
+	np_tryref_obj(np_key_t, to_destroy, to_destroyExists, __func__);
 	if(to_destroyExists) {
-		to_destroy->in_destroy = TRUE;
-
-		_LOCK_ACCESS(to_destroy->obj->lock) {
+		TSP_SCOPE(np_bool, to_destroy->in_destroy)
+		{
+			to_destroy->in_destroy = TRUE;
 
 			char* keyident = _np_key_as_str(to_destroy);
 			log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
 		
-			log_debug_msg(LOG_KEY | LOG_DEBUG, "refcount of key %s at destroy: %d", keyident, to_destroy->obj == NULL ? 0 : to_destroy->obj->ref_count);
+			log_debug_msg(LOG_KEY | LOG_DEBUG, "refcount of key %s at destroy: %"PRIu32, keyident, to_destroy->obj == NULL ? 0 : to_destroy->obj->ref_count);
 			
 			np_key_t* deleted;
 			np_key_t* added;
 
 			_np_route_leafset_update(to_destroy,FALSE,&deleted,&added);
 			_np_route_update(to_destroy,FALSE,&deleted,&added);
-			_np_network_stop(to_destroy->network, TRUE);
+			_np_network_disable(to_destroy->network);
 
 			_np_keycache_remove(to_destroy->dhkey);
 
@@ -162,7 +163,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 			to_destroy->parent = NULL;
 		}
 
-		np_unref_obj(np_key_t, to_destroy,"np_tryref_key");
+		np_unref_obj(np_key_t, to_destroy, __func__);
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
 	} else {
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "no key provided for cleanup");
@@ -175,7 +176,8 @@ void _np_key_t_new(void* key)
 	log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
 	np_key_t* new_key = (np_key_t*) key;
 
-	new_key->in_destroy = FALSE;
+	TSP_INITD(np_bool, new_key->in_destroy, FALSE);
+ 
 	new_key->last_update = np_time_now();
 
 	new_key->dhkey_str = NULL;
@@ -221,13 +223,16 @@ void _np_key_t_del(void* key)
 	np_unref_obj(np_aaatoken_t,		old_key->aaa_token,ref_key_aaa_token);
 	np_unref_obj(np_node_t,     	old_key->node,ref_key_node);
 	np_unref_obj(np_network_t,  	old_key->network,ref_key_network);
+
+	TSP_DESTROY(np_bool, old_key->in_destroy);
+
 }
 
 void np_key_renew_token() {
 
 	_LOCK_MODULE(np_node_renewal_t) 
 	{
-		np_state_t* state = _np_state();
+		np_state_t* state = np_state();
 
 		np_key_t* new_node_key = NULL;
 		np_key_t* old_node_key = state->my_node_key;
@@ -291,7 +296,7 @@ void np_key_renew_token() {
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "step ._np_renew_node_token_jobexec.replacing identity");
 		// _np_job_yield(state->my_node_key->aaa_token->expires_at - ev_time());
 		// exchange identity if required
-		if (state->my_identity == old_node_key)
+		if (_np_key_cmp(state->my_identity,old_node_key) == 0)
 		{
 			np_ref_switch(np_key_t, state->my_identity, ref_state_identity, new_node_key);
 		}
@@ -303,7 +308,7 @@ void np_key_renew_token() {
 
 
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "step ._np_renew_node_token_jobexec.Updating network");
-		_LOCK_ACCESS(&old_node_key->network->send_data_lock)
+		_LOCK_ACCESS(&old_node_key->network->access_lock)
 		{
 			// save old network setup
 			_np_network_remap_network(new_node_key, old_node_key);

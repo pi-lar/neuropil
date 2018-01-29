@@ -37,40 +37,70 @@
 #include "np_settings.h"
 #include "np_constants.h"
 
+static pthread_once_t __np_event_init_once = PTHREAD_ONCE_INIT;
+
+np_mutex_t loop_http_suspend;
+np_mutex_t loop_io_suspend;
+np_mutex_t loop_out_suspend; 
+np_mutex_t loop_in_suspend;
+
+struct ev_loop * loop_http = NULL;
 struct ev_loop * loop_io = NULL;
 struct ev_loop * loop_out = NULL;
 struct ev_loop * loop_in = NULL;
 
-void np_event_init() {
-	if (loop_io == NULL) {
-		loop_io = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-		if (loop_io == FALSE) {
-			fprintf(stderr, "ERROR: cannot init IO event loop");
-			exit(EXIT_FAILURE);
-		}
-		ev_verify(loop_io);
-	}
-	if (loop_out == NULL) {
-		loop_out = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-		if (loop_out == FALSE) {
-			fprintf(stderr, "ERROR: cannot init OUT event loop");
-			exit(EXIT_FAILURE);
-		}
-		ev_verify(loop_out);
-	}
-	if (loop_in == NULL) {		
-		loop_in = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-		//also possible, but default loop is propably already initialized
-		//loop_in = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-		if (loop_in == FALSE) {
-			fprintf(stderr, "ERROR: cannot init IN event loop");
-			exit(EXIT_FAILURE);
-		}
-		ev_verify(loop_in);
-	}
+TSP(double, loop_http_suspend_wait);
+TSP(double, loop_io_suspend_wait);
+TSP(double, loop_out_suspend_wait);
+TSP(double, loop_in_suspend_wait);
+
+TSP(static ev_async, __libev_async_watcher_http);
+TSP(static ev_async, __libev_async_watcher_io);
+TSP(static ev_async, __libev_async_watcher_out);
+TSP(static ev_async, __libev_async_watcher_in);
+
+void _np_events_async_break(struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents)
+{
+	ev_break(loop, EVBREAK_ALL);
 }
 
-struct ev_loop * _np_event_get_loop_io() {	
+#define LOOP_INIT(LOOPNAME)																		\
+	TSP_INITD(double, loop_##LOOPNAME##_suspend_wait, 0);										\
+	TSP_INIT(static ev_async, __libev_async_watcher_##LOOPNAME);								\
+	_np_threads_mutex_init(&loop_##LOOPNAME##_suspend, "loop_"#LOOPNAME"_suspend");				\
+	loop_##LOOPNAME = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);								\
+																								\
+	if (loop_##LOOPNAME == FALSE) {																\
+		fprintf(stderr, "ERROR: cannot init "#LOOPNAME" event loop");							\
+		exit(EXIT_FAILURE);														   				\
+	}																			   				\
+	ev_set_io_collect_interval(loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);					\
+	ev_set_timeout_collect_interval(loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);				\
+	ev_verify(loop_##LOOPNAME);																	\
+																				   				\
+	_LOCK_ACCESS_W_PREFIX(a,&__libev_async_watcher_##LOOPNAME##_mutex) {						\
+		ev_async_init(&__libev_async_watcher_##LOOPNAME, _np_events_async_break);				\
+		ev_async_start(loop_##LOOPNAME, &__libev_async_watcher_##LOOPNAME);						\
+	}																							\
+			
+void __np_event_init_once_fn() {	
+	
+	LOOP_INIT(io);
+	LOOP_INIT(in);
+	LOOP_INIT(http);
+	LOOP_INIT(out);
+	
+}
+
+void np_event_init() {
+	pthread_once(&__np_event_init_once, __np_event_init_once_fn);
+}
+struct ev_loop * _np_event_get_loop_http() {
+	np_event_init();
+	return loop_http;
+}
+
+struct ev_loop * _np_event_get_loop_io() {
 	np_event_init();
 	return loop_io;
 }
@@ -85,20 +115,6 @@ struct ev_loop * _np_event_get_loop_out() {
 	return loop_out;
 }
 
-// the optimal libev run interval remains to be seen
-// if set too low, base cpu usage increases on no load
-static int         __suspended_libev_loop_io = 0;
-static ev_async    __libev_async_watcher_io;
-static int         __suspended_libev_loop_in = 0;
-static ev_async    __libev_async_watcher_in;
-static int         __suspended_libev_loop_out = 0;
-static ev_async    __libev_async_watcher_out;
-
-void _np_events_async_break(struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents)
-{
-	ev_break(loop, EVBREAK_ALL);
-}
-
 // TODO: move to glia
 void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 {
@@ -107,7 +123,7 @@ void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 
 	_LOCK_MODULE(np_message_part_cache_t)
 	{
-		np_state_t* state = _np_state();
+		np_state_t* state = np_state();
 		np_tree_elem_t* tmp = NULL;
 
 		RB_FOREACH(tmp, np_tree_s, state->msg_part_cache)
@@ -152,15 +168,22 @@ void _np_events_read_out(NP_UNUSED np_jobargs_t* args)
 	log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
 
-	static int suspend_loop = 0;
+	np_event_init();
 
 	EV_P = _np_event_get_loop_out();
-	_LOCK_MODULE(np_event_t) {
-		suspend_loop = __suspended_libev_loop_out;
+
+	while (1) {
+		TSP_GET(double, loop_out_suspend_wait, onhold)
+			if (onhold > 0)
+				np_time_sleep(0.0001);
+			else
+				break;
 	}
 
-	if (suspend_loop <= 0) {
-		ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));
+	_TRYLOCK_ACCESS(&loop_out_suspend) {
+		TSP_GET(double, loop_out_suspend_wait, onhold);
+		if (onhold == 0)
+			ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));
 	}
 }
 
@@ -172,16 +195,45 @@ void _np_events_read_io(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
-
-	static int suspend_loop = 0;
+	np_event_init();
 
 	EV_P = _np_event_get_loop_io();
-	_LOCK_MODULE(np_event_t) {
-		suspend_loop = __suspended_libev_loop_io;
+
+	while (1) {
+		TSP_GET(double, loop_io_suspend_wait, onhold)
+			if (onhold > 0)
+				np_time_sleep(0.0001);
+			else
+				break;
+	}
+	_TRYLOCK_ACCESS(&loop_io_suspend) {
+		TSP_GET(double, loop_io_suspend_wait, onhold);
+		if (onhold == 0)
+			ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));
+	}
+}
+
+
+void _np_events_read_http(NP_UNUSED np_jobargs_t* args)
+{
+	log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
+	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
+	np_event_init();
+
+	EV_P = _np_event_get_loop_http();
+
+	while (1) {
+		TSP_GET(double, loop_http_suspend_wait, onhold)
+			if (onhold > 0)
+				np_time_sleep(0.0001);
+			else
+				break;
 	}
 
-	if (suspend_loop <= 0) {
-		ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));
+	_TRYLOCK_ACCESS(&loop_http_suspend) {
+		TSP_GET(double, loop_http_suspend_wait, onhold);
+		if (onhold == 0)
+			ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));
 	}
 }
 
@@ -193,103 +245,123 @@ void _np_events_read_in(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
-
-	static int suspend_loop = 0;
+	np_event_init();
 
 	EV_P = _np_event_get_loop_in();
-	_LOCK_MODULE(np_event_t) {
-		suspend_loop = __suspended_libev_loop_in;
+
+	while (1) {
+		TSP_GET(double, loop_in_suspend_wait, onhold)
+			if (onhold > 0)
+				np_time_sleep(0.0001);
+			else
+				break;
 	}
 
-	if (suspend_loop <= 0) {
-		ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));
+	_TRYLOCK_ACCESS(&loop_in_suspend) {
+		TSP_GET(double, loop_in_suspend_wait, onhold);
+		if (onhold == 0)
+			ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));
 	}
 }
 
-void* _np_event_in_run() {
+void* _np_event_in_run(void* np_thread_ptr) {
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);	
-	while (_np_threads_is_threadding_initiated() == FALSE) {
-		np_time_sleep(0.01);
-	}	
+	_np_threads_set_self(np_thread_ptr);
 
 	EV_P = _np_event_get_loop_in();
 
-	ev_async_init(&__libev_async_watcher_in, _np_events_async_break);
-	ev_async_start(EV_A_ &__libev_async_watcher_in);
-
-	ev_set_io_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
-	ev_set_timeout_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);	
-
-	int suspend_loop = 0;
-
-	while (1) {				
-		_LOCK_MODULE(np_event_t) {
-			suspend_loop = __suspended_libev_loop_in;
+	while (1) {
+		while (1) {
+			TSP_GET(double, loop_in_suspend_wait, onhold)
+				if (onhold > 0)
+					np_time_sleep(0.0001);
+				else
+					break;
 		}
-		
-		if (suspend_loop <= 0) {			
+
+		_LOCK_ACCESS(&loop_in_suspend) {
+			TSP_GET(double, loop_in_suspend_wait, onhold);
+			if (onhold == 0)
+
 			ev_run(EV_A_(0));
 		}
-		else {
-			np_time_sleep(NP_EVENT_IO_CHECK_PERIOD_SEC);
-		}
 	}
 }
 
-void* _np_event_io_run() {
+void* _np_event_io_run(void* np_thread_ptr) {
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
-	while (_np_threads_is_threadding_initiated() == FALSE) {
-		np_time_sleep(0.01);
-	}
+	_np_threads_set_self(np_thread_ptr);
 
 	EV_P = _np_event_get_loop_io();
 
-	ev_async_init(&__libev_async_watcher_io, _np_events_async_break);
-	ev_async_start(EV_A_ &__libev_async_watcher_io);
-
-	ev_set_io_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
-	ev_set_timeout_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
-
-	int suspend_loop = 0;
 	while (1) {
-		_LOCK_MODULE(np_event_t) {
-			suspend_loop = __suspended_libev_loop_io;
-		}
-		if (suspend_loop <= 0) {
-			ev_run(EV_A_(0));
 
-	return (NULL);
-		}
-		else {
-			np_time_sleep(NP_EVENT_IO_CHECK_PERIOD_SEC);
+		while (1) {
+			TSP_GET(double, loop_io_suspend_wait, onhold)
+				if (onhold > 0)
+					np_time_sleep(0.0001);
+				else
+					break;
+		}	
+
+		_LOCK_ACCESS(&loop_io_suspend) {
+			TSP_GET(double, loop_io_suspend_wait, onhold);
+			if (onhold == 0)
+			ev_run(EV_A_(0));
 		}
 	}
 }
 
-void* _np_event_out_run() {
+void* _np_event_out_run(void* np_thread_ptr) {
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
-	while (_np_threads_is_threadding_initiated() == FALSE) {
-		np_time_sleep(0.01);
-	}
+	_np_threads_set_self(np_thread_ptr);
 
 	EV_P = _np_event_get_loop_out();
 
-	ev_async_init(&__libev_async_watcher_out, _np_events_async_break);
-	ev_async_start(EV_A_ &__libev_async_watcher_out);
+	while (1) {
 
+		while (1) {
+			TSP_GET(double, loop_out_suspend_wait, onhold)
+				if (onhold > 0)
+					np_time_sleep(0.0001);
+				else
+					break;
+		}
+
+		_LOCK_ACCESS(&loop_out_suspend) {
+			TSP_GET(double, loop_out_suspend_wait, onhold);
+			if (onhold == 0) 
+				ev_run(EV_A_(0));
+		}
+	}
+}
+
+void* _np_event_http_run(void* np_thread_ptr) {
+	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
+	_np_threads_set_self(np_thread_ptr);
+
+	EV_P = _np_event_get_loop_http();
+
+	_LOCK_ACCESS(&__libev_async_watcher_http_mutex) {
+		ev_async_start(EV_A_ &__libev_async_watcher_http);
+	}
 	ev_set_io_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
 	ev_set_timeout_collect_interval(EV_A_ NP_EVENT_IO_CHECK_PERIOD_SEC);
 
-	int suspend_loop = 0;
 	while (1) {
-		_LOCK_MODULE(np_event_t) {
-			suspend_loop = __suspended_libev_loop_out;
+
+		while (1) {
+			TSP_GET(double, loop_http_suspend_wait, onhold);
+			if (onhold > 0)
+				np_time_sleep(0.0001);
+			else
+				break;
 		}
-		if (suspend_loop <= 0) {
-			ev_run(EV_A_(0));
-		}
-		else {
-			np_time_sleep(NP_EVENT_IO_CHECK_PERIOD_SEC);
+		_LOCK_ACCESS(&loop_http_suspend) {
+			TSP_GET(double, loop_http_suspend_wait, onhold);
+			if (onhold == 0){
+				ev_run(EV_A_(0));
+			}
 		}
 	}
 }
@@ -300,58 +372,89 @@ void* _np_event_out_run() {
 void _np_suspend_event_loop_io()
 {
 	log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
+	np_event_init();
 
-	_LOCK_MODULE(np_event_t) {
-		__suspended_libev_loop_io++;
-	}
-	ev_async_send(_np_event_get_loop_io(), &__libev_async_watcher_io);
+	TSP_SCOPE(double, loop_io_suspend_wait)
+		loop_io_suspend_wait++;
+
+	TSP_SCOPE(static ev_async, __libev_async_watcher_io)
+		ev_async_send(_np_event_get_loop_io(), &__libev_async_watcher_io);
+
+	_LOCK_ACCESS(&loop_io_suspend) {/*wait for loop to break*/; }
 }
 
 void _np_resume_event_loop_io()
 {
 	log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
-	_LOCK_MODULE(np_event_t) {
-		__suspended_libev_loop_io--;
-		ASSERT(__suspended_libev_loop_io >= 0, "too many resumes for event loop io");
-	}
+	TSP_SCOPE(double, loop_io_suspend_wait)
+		loop_io_suspend_wait--;
+
+}
+
+void _np_suspend_event_loop_http()
+{
+	log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
+	np_event_init();
+
+	TSP_SCOPE(double, loop_http_suspend_wait)
+		loop_http_suspend_wait++;
+
+	TSP_SCOPE(static ev_async, __libev_async_watcher_http)
+		ev_async_send(_np_event_get_loop_http(), &__libev_async_watcher_http);
+
+	_LOCK_ACCESS(&loop_http_suspend) {/*wait for loop to break*/; }
+}
+
+void _np_resume_event_loop_http()
+{
+	log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
+	TSP_SCOPE(double, loop_http_suspend_wait)
+		loop_http_suspend_wait--;
 }
 
 void _np_suspend_event_loop_in()
 {
 	log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
-	_LOCK_MODULE(np_event_t) {
-		__suspended_libev_loop_in++;
-	}
-	ev_async_send(_np_event_get_loop_in(), &__libev_async_watcher_in);
+	np_event_init();
+
+	TSP_SCOPE(double, loop_in_suspend_wait)
+		loop_in_suspend_wait++;
+
+	TSP_SCOPE(static ev_async, __libev_async_watcher_in)
+		ev_async_send(_np_event_get_loop_in(), &__libev_async_watcher_in);
+
+	_LOCK_ACCESS(&loop_in_suspend) {/*wait for loop to break*/; }
 }
 
 void _np_resume_event_loop_in()
 {
 	log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
-	_LOCK_MODULE(np_event_t) {
-		__suspended_libev_loop_in--;
-		ASSERT(__suspended_libev_loop_in >= 0, "too many resumes for event loop in");
-	}
+	TSP_SCOPE(double, loop_in_suspend_wait)
+		loop_in_suspend_wait--;
 }
 
 void _np_suspend_event_loop_out()
 {
 	log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
-	_LOCK_MODULE(np_event_t) {
-		__suspended_libev_loop_out++;
-	}
-	ev_async_send(_np_event_get_loop_out(), &__libev_async_watcher_out);
+	np_event_init();
+
+	TSP_SCOPE(double, loop_out_suspend_wait)
+		loop_out_suspend_wait++;
+
+	TSP_SCOPE(static ev_async, __libev_async_watcher_out)
+		ev_async_send(_np_event_get_loop_out(), &__libev_async_watcher_out);
+
+	_LOCK_ACCESS(&loop_out_suspend) {/*wait for loop to break*/; }
 }
 
 void _np_resume_event_loop_out()
 {
 	log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
-	_LOCK_MODULE(np_event_t) {
-		__suspended_libev_loop_out--;
 
-		ASSERT(__suspended_libev_loop_out >= 0, "too many resumes for event loop out");
-	}
+	TSP_SCOPE(double, loop_out_suspend_wait)
+		loop_out_suspend_wait--;
 }
+
 
 double np_event_sleep(double time) {
 	ev_sleep(time);

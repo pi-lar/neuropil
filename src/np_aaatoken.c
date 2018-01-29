@@ -169,6 +169,31 @@ void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 	np_aaatoken_core_encode(data, token, FALSE);
 }
 
+void np_aaatoken_encode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
+	np_aaatoken_encode(data, token);
+
+	np_tree_insert_str(data, "np.t.private_key_is_set", np_treeval_new_ush(token->private_key_is_set));
+	if(token->private_key_is_set){
+		np_tree_insert_str(data, "np.t.private_key", np_treeval_new_bin(&token->private_key, crypto_sign_SECRETKEYBYTES));
+		np_tree_insert_str(data, "np.t.public_key", np_treeval_new_bin(&token->public_key, crypto_sign_PUBLICKEYBYTES));
+	}
+}
+void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
+	np_aaatoken_decode(data, token);
+
+	np_tree_elem_t* private_key_is_set = np_tree_find_str(data, "np.t.private_key_is_set");
+	np_tree_elem_t* private_key = np_tree_find_str(data, "np.t.private_key");
+	np_tree_elem_t* public_key = np_tree_find_str(data, "np.t.public_key");
+
+
+	if (NULL != private_key_is_set && NULL != private_key && NULL != public_key)
+	{
+		token->private_key_is_set = private_key_is_set->val.value.ush;
+		memcpy(&token->private_key, private_key->val.value.bin, min(private_key->val.size, crypto_sign_SECRETKEYBYTES));
+		memcpy(&token->public_key, public_key->val.value.bin, min(public_key->val.size, crypto_sign_PUBLICKEYBYTES));
+	}
+}
+
 void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token){");
@@ -204,8 +229,9 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	}
 	if (NULL !=(tmp = np_tree_find_str(data, "np.t.u")))
 	{
-		free(token->uuid);
+		char* old = token->uuid;
 		token->uuid = strndup( np_treeval_to_str(tmp->val, NULL), UUID_SIZE);
+		free(old);
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.nb")))
 	{
@@ -292,7 +318,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	double now = np_time_now();
 	if (now > (token->expires_at))
 	{
-		log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired. verification failed", token->uuid, token->subject);
+		log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired (%f). verification failed", token->uuid, token->subject, token->expires_at - now);
 		token->state &= AAA_INVALID;
 		log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 		return (FALSE);
@@ -450,7 +476,7 @@ static int8_t _np_aaatoken_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr sec
 	return _np_aaatoken_cmp(first,second);
 }
 
-void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject)
+void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject){");
 	np_msgproperty_t* prop = NULL;
@@ -617,7 +643,7 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
  ** TODO extend this function with a key and an amount of messages
  ** TODO use a different function for mitm and leaf nodes ?
  **/
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(char* subject)
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(const char* const subject, const char* const audience)
 {
 	np_sll_t(np_aaatoken_ptr, return_list) = NULL;
 	sll_init(np_aaatoken_ptr, return_list);
@@ -653,12 +679,21 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(char* subject)
 			}
 			else
 			{
-				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", tmp->val->issuer );
-				// only pick key from a list if the subject msg_treshold is bigger than zero
-				// and the sending threshold is bigger than zero as well
-				// and we actually have a receiver node in the list
-				np_ref_obj(np_aaatoken_t, tmp->val);
-				sll_append(np_aaatoken_ptr, return_list, tmp->val);
+				np_bool include_token = TRUE;
+				if (audience != NULL && strlen(audience) > 0) {
+					include_token =
+							(strncmp(audience, tmp->val->issuer, strlen(tmp->val->issuer)) == 0) |
+							(strncmp(audience, tmp->val->realm, strlen(tmp->val->realm)) == 0) ;
+				}
+
+				if (include_token==TRUE) {
+					log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", tmp->val->issuer );
+					// only pick key from a list if the subject msg_treshold is bigger than zero
+					// and the sending threshold is bigger than zero as well
+					// and we actually have a receiver node in the list
+					np_ref_obj(np_aaatoken_t, tmp->val);
+					sll_append(np_aaatoken_ptr, return_list, tmp->val);
+				}
 			}
 			pll_next(tmp);
 		}
@@ -670,7 +705,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(char* subject)
 	return (return_list);
 }
 
-np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender)
+np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const char* const sender)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender){");
 	np_key_t* subject_key = NULL;
@@ -850,7 +885,7 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_receiver_token");
 }
 
-np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
+np_aaatoken_t* _np_aaatoken_get_receiver(const char* const subject, np_dhkey_t* target)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target){");
 	np_key_t* subject_key = NULL;
@@ -893,7 +928,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 			}
 
 			np_dhkey_t recvtoken_issuer_key = np_dhkey_create_from_hash(return_token->issuer);
-			if (_np_dhkey_equal(&recvtoken_issuer_key, &_np_state()->my_node_key->dhkey))
+			if (_np_dhkey_equal(&recvtoken_issuer_key, &np_state()->my_node_key->dhkey))
 			{
 				// only use the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
 				pll_next(iter);
@@ -934,7 +969,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target)
 	return (return_token);
 }
 
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(char* subject)
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(const char* const subject, const char* const audience)
 {
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
@@ -965,14 +1000,21 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(char* subject)
 			}
 			else
 			{
-				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-						"found valid receiver token (%s)", tmp->val->issuer );
-				np_ref_obj(np_aaatoken_t, tmp->val);
+				np_bool include_token = TRUE;
+				if (audience != NULL && strlen(audience) > 0) {
+					include_token =
+							(strncmp(audience, tmp->val->issuer, strlen(tmp->val->issuer)) == 0) |
+							(strncmp(audience, tmp->val->realm, strlen(tmp->val->realm)) == 0) ;
+				}
 
-				// only pick key from a list if the subject msg_treshold is bigger than zero
-				// and the sending threshold is bigger than zero as well
-				// and we actually have a receiver node in the list
-				sll_append(np_aaatoken_ptr, return_list, tmp->val);
+				if (include_token==TRUE) {
+					log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid receiver token (%s)", tmp->val->issuer );
+					np_ref_obj(np_aaatoken_t, tmp->val);
+					// only pick key from a list if the subject msg_treshold is bigger than zero
+					// and the sending threshold is bigger than zero as well
+					// and we actually have a receiver node in the list
+					sll_append(np_aaatoken_ptr, return_list, tmp->val);
+				}
 			}
 			pll_next(tmp);
 			// tmp = pll_head(np_aaatoken_ptr, subject_key->recv_tokens);
@@ -1052,6 +1094,7 @@ unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool fu
 void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_add_signature(np_aaatoken_t* msg_token){");
+	
 		unsigned long long signature_len = 0;
 				
 		unsigned char* hash = _np_aaatoken_get_fingerprint(msg_token, FALSE == _np_aaatoken_is_core_token(msg_token));
@@ -1065,7 +1108,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 				crypto_generichash_BYTES);
 			log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "token hash key fingerprint: %s",
 				hash_hex);
-
+			
 			int ret = crypto_sign_detached((unsigned char*)msg_token->signature, &signature_len,
 				(const unsigned char*)hash, crypto_generichash_BYTES,
 				msg_token->private_key);
@@ -1104,7 +1147,7 @@ void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 }
 
 
-np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject)
+np_aaatoken_t* _np_aaatoken_get_local_mx(const char* const subject)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject){");
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".start._np_get_local_mx_token");
@@ -1224,4 +1267,34 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  ._np_add_local_mx_token");
+}
+
+np_aaatoken_t* _np_aaatoken_new(char issuer[64], char node_subject[255], double expires_at)
+{
+	np_aaatoken_t* ret = NULL;
+	np_new_obj(np_aaatoken_t, ret);
+
+	np_state_t* state = np_state();
+
+	// create token
+	if (NULL != state->realm_name)
+	{
+		strncpy(ret->realm, state->realm_name, 255);
+	}
+	strncpy(ret->issuer, issuer, 64);
+	strncpy(ret->subject, node_subject, 255);
+	// strncpy(ret->audience, (char*) _np_key_as_str(state->my_identity->aaa_token->realm), 255);
+
+	char* old = ret->uuid;
+	ret->uuid = np_uuid_create(node_subject, 0);
+	free(old);
+
+	ret->not_before = np_time_now();
+
+	ret->expires_at = expires_at;
+
+	crypto_sign_keypair(ret->public_key, ret->private_key);   // ed25519
+	ret->private_key_is_set = TRUE;
+
+	return ret;
 }

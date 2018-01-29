@@ -1,8 +1,7 @@
+*.o
+bin/*
+build/*
+config.log
 .sconf_temp/
 .sconsign.dblite
-build_info.pyc
-bin/
-build/
-doc/build/
-**.log
-**.o
+warn.log

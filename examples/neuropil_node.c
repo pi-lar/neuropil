@@ -34,7 +34,6 @@ int main(int argc, char **argv)
 	char* publish_domain = NULL;
 	int level = -2;
 	char* logpath = ".";
-	char* http_domain = NULL;
 
 	int opt;
 	if (parse_program_args(
@@ -48,11 +47,10 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-r realmname] [-c code] [-w http domain]",
-		"r:c:w:",
+		"[-r realmname] [-c code]",
+		"r:c:",
 		&realm,
-		&code,
-		&http_domain
+		&code
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
@@ -75,9 +73,6 @@ int main(int argc, char **argv)
 							np_treeval_new_hash(code));
 		}
 	}
-
-	// starting the example http server to support the http://view.neuropil.io application
-	example_http_server_init(http_domain);
 
 	np_statistics_add_watch_internals();
 	np_statistics_add_watch(_NP_SYSINFO_REQUEST);

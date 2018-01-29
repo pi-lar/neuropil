@@ -142,13 +142,13 @@ void np_dump_tree2log(log_type category, np_tree_t* tree);
 NP_API_EXPORT
 char* np_dump_tree2char(np_tree_t* tree);
 
-NP_API_INTERN
-char* _np_concatAndFree(char* target, char* source, ... );
+NP_API_PROTEC
+char* np_str_concatAndFree(char* target, char* source, ... );
 
-NP_API_INTERN
-np_bool _np_get_local_ip(char buffer[], int buffer_size);
+NP_API_PROTEC
+np_bool np_get_local_ip(char* buffer, int buffer_size);
 
-NP_API_INTERN
+NP_API_PROTEC
 char* _sll_char_make_flat(np_sll_t(char_ptr, target));
 NP_API_INTERN
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len);

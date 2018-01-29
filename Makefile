@@ -1,6 +1,6 @@
 PLATFORM ?= $(shell uname -s)
 
-CC=clang 
+CC=clang
 # CC=./checker-277/libexec/ccc-analyzer
 
 # CFLAGS=-c -Wall -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
@@ -41,12 +41,12 @@ CRITERION_LIBRARIES=-L ./tpl/criterion-v2.3.2/lib -l criterion
 TARGET=x86_64-apple-darwin-macho
 # TARGET=x86_64-pc-gnu-elf
 
-SOURCES  = src/dtime.c src/neuropil.c src/np_aaatoken.c src/np_ackentry.c src/np_axon.c src/np_dendrit.c    
-SOURCES += src/np_dhkey.c src/np_event.c src/np_glia.c src/np_http.c src/np_jobqueue.c src/np_key.c src/np_keycache.c 
+SOURCES  = src/dtime.c src/neuropil.c src/np_aaatoken.c src/np_ackentry.c src/np_axon.c src/np_dendrit.c
+SOURCES += src/np_dhkey.c src/np_event.c src/np_glia.c src/np_http.c src/np_jobqueue.c src/np_key.c src/np_keycache.c
 SOURCES += src/np_log.c src/np_memory.c src/np_message.c src/np_messagepart.c src/np_msgproperty.c src/np_network.c
-SOURCES += src/np_node.c src/np_pinging.c src/np_route.c src/np_scache.c src/np_serialization.c src/np_statistics.c 
-SOURCES += src/np_sysinfo.c src/np_threads.c src/np_time.c src/np_tree.c src/np_treeval.c src/np_util.c 
-SOURCES += src/event/ev.c src/gpio/bcm2835.c  src/json/parson.c src/msgpack/cmp.c 
+SOURCES += src/np_node.c src/np_pinging.c src/np_route.c src/np_scache.c src/np_serialization.c src/np_statistics.c
+SOURCES += src/np_sysinfo.c src/np_threads.c src/np_time.c src/np_tree.c src/np_treeval.c src/np_util.c
+SOURCES += src/event/ev.c src/gpio/bcm2835.c  src/json/parson.c src/msgpack/cmp.c src/np_shutdown.c
 
 SOURCES_PRG = examples/neuropil_hydra.c examples/neuropil_controller.c examples/neuropil_node.c examples/neuropil_sender.c examples/neuropil_receiver.c examples/neuropil_receiver_cb.c examples/neuropil_demo_service.c examples/neuropil_pingpong.c examples/neuropil_raspberry.c
 
@@ -57,7 +57,7 @@ PROGRAMS=$(subst examples/,build/obj/,$(subst .c,.o,$(SOURCES_PRG)))
 TESTS=$(subst test/,build/obj/,$(subst .c,.o,$(SOURCES_TST)))
 
 
-all: library test prg 
+all: library test prg
 
 # build/lib/libneuropil.dylib neuropil_hydra neuropil_controller neuropil_node neuropil_sender neuropil_receiver neuropil_receiver_cb neuropil_demo_service neuropil_pingpong neuropil_raspberry
 
@@ -119,7 +119,7 @@ build/obj/%.o: test/%.c
 	$(CC) -target $(TARGET) -DDEBUG=1 $(CFLAGS) -fprofile-instr-generate $(INCLUDES) $< -o $@
 
 clean:
-	-rm -r ./bin/* ./build/obj/*.o ./build/lib/* 
+	-rm -r ./bin/* ./build/obj/*.o ./build/lib/*
 	-rm examples/*.o
 	-rm ./neuropil_*.log ./test_*.log
 

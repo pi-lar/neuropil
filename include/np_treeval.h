@@ -165,12 +165,12 @@ double np_treeval_d (np_treeval_t);
 
 void * np_treeval_v (np_treeval_t);
 
-char * np_treeval_s (np_treeval_t);
+char * np_treeval_str (np_treeval_t);
 char  np_treeval_c (np_treeval_t);
 char * np_treeval_h (np_treeval_t);
 unsigned char np_treeval_uc (np_treeval_t);
 
-int16_t * np_treeval_iarray (np_treeval_t);
+// int16_t * np_treeval_iarray (np_treeval_t);
 float   * np_treeval_farray (np_treeval_t);
 char    * np_treeval_carray (np_treeval_t);
 char    * np_treeval_to_str(np_treeval_t val, np_bool* freeable);

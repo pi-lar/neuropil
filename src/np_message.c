@@ -41,12 +41,13 @@
 #include "np_tree.h"
 #include "np_settings.h"
 #include "np_types.h"
-#include "np_ackentry.h"
+#include "np_responsecontainer.h"
 #include "np_constants.h"
 #include "np_serialization.h"
 
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_ptr);
+NP_SLL_GENERATE_IMPLEMENTATION(np_message_on_reply_t);
 
 void _np_message_t_new(void* msg)
 {
@@ -68,9 +69,14 @@ void _np_message_t_new(void* msg)
 	msg_tmp->no_of_chunks = 1;
 	msg_tmp->is_single_part = FALSE;
 	
-	sll_init(np_ackentry_on_t, msg_tmp->on_ack);
-	sll_init(np_ackentry_on_t, msg_tmp->on_timeout);
+	TSP_INITD(np_bool,	msg_tmp->is_acked , FALSE);
+	sll_init(np_responsecontainer_on_t, msg_tmp->on_ack);
+	TSP_INITD(np_bool, msg_tmp->is_in_timeout, FALSE);
+	sll_init(np_responsecontainer_on_t, msg_tmp->on_timeout);
 	
+	TSP_INITD(np_bool, msg_tmp->has_reply, FALSE);
+	sll_init(np_message_on_reply_t, msg_tmp->on_reply);
+
 	pll_init(np_messagepart_ptr, msg_tmp->msg_chunks);	
 	msg_tmp->bin_properties = NULL;
 	msg_tmp->bin_body = NULL;
@@ -78,6 +84,8 @@ void _np_message_t_new(void* msg)
 	msg_tmp->bin_static = NULL;
 
 }
+
+
 /*
 	May allow the system to use the incomming buffer directly
 	to populate the tree stuctures (header/body/...)
@@ -97,8 +105,13 @@ void _np_message_t_del(void* data)
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_del(void* data){");	
 	np_message_t* msg = (np_message_t*) data;
 
-	sll_free(np_ackentry_on_t, msg->on_ack);
-	sll_free(np_ackentry_on_t, msg->on_timeout);
+	sll_free(np_responsecontainer_on_t, msg->on_ack);
+	sll_free(np_responsecontainer_on_t, msg->on_timeout);
+	sll_free(np_message_on_reply_t, msg->on_reply);
+
+	TSP_DESTROY(np_bool, msg->is_acked);
+	TSP_DESTROY(np_bool, msg->is_in_timeout);
+	TSP_DESTROY(np_bool, msg->has_reply);
 
 	np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
 
@@ -177,7 +190,7 @@ void _np_message_calculate_chunking(np_message_t* msg)
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check){");
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_message_t* ret= NULL;
 
 	char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
@@ -271,16 +284,16 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 	}
 	return ret;
 }
-
-np_bool _np_message_is_expired(const np_message_t* const msg_to_check)
-{
-	np_bool ret = FALSE;
+double _np_message_get_expiery(const np_message_t* const self) {
 	double now = np_time_now();
-	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TTL, msg_ttl);
-	CHECK_STR_FIELD(msg_to_check->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+	double ret = now;
 
-	double tstamp = msg_tstamp.value.d ;
-	if(tstamp > now) {
+	CHECK_STR_FIELD(self->instructions, _NP_MSG_INST_TTL, msg_ttl);
+	CHECK_STR_FIELD(self->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+
+	double tstamp = msg_tstamp.value.d;
+
+	if (tstamp > now) {
 		// timestap of msg is in the future.
 		// this is not possible and may indecate
 		// a faulty date/time setup on the client
@@ -288,10 +301,26 @@ np_bool _np_message_is_expired(const np_message_t* const msg_to_check)
 		msg_tstamp.value.d = tstamp = now;
 	}
 
-	double remaining_ttl = (tstamp + msg_ttl.value.d) - now;
+	ret = (tstamp + msg_ttl.value.d);	
+
+__np_cleanup__:
+
+	return ret;
+}
+np_bool _np_message_is_expired(const np_message_t* const self)
+{
+	np_bool ret = FALSE;
+	double now = np_time_now();
+
+#ifdef DEBUG
+	CHECK_STR_FIELD(self->instructions, _NP_MSG_INST_TTL, msg_ttl);
+	CHECK_STR_FIELD(self->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
+	double tstamp = msg_tstamp.value.d;
+#endif
+	double remaining_ttl = _np_message_get_expiery(self) - now;
 	ret = remaining_ttl <= 0;
 
-	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f",msg_to_check->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
+	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f", self->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
 
 	__np_cleanup__:
 
@@ -895,6 +924,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 		}
 	}
 
+/*
 #ifdef DEBUG
 	uint16_t fixed_size =
 	 		MSG_ARRAY_SIZE + MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
@@ -902,9 +932,9 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 	uint16_t payload_size = msg->properties->byte_size
 	 		+ msg->body->byte_size + msg->footer->byte_size;
 
-	//log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "msg (%s) Size of msg  %"PRIu16" bytes. Size of fixed_size %"PRIu16" bytes. Nr of chunks  %"PRIu16" parts", msg->uuid, payload_size, fixed_size, msg->no_of_chunks);
+	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "msg (%s) Size of msg  %"PRIu16" bytes. Size of fixed_size %"PRIu16" bytes. Nr of chunks  %"PRIu16" parts", msg->uuid, payload_size, fixed_size, msg->no_of_chunks);
 #endif
-
+*/
 	np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 	msg->is_single_part = FALSE;
 
@@ -927,7 +957,7 @@ void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const c
 	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) subject));
 	np_tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(to)));
 	if (from == NULL)
-		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(_np_state()->my_node_key)));
+		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(np_state()->my_node_key)));
 	else{
 		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(from)));
 	}
@@ -985,7 +1015,7 @@ inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
 void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	// first encrypt the relevant message part itself
 	unsigned char nonce[crypto_box_NONCEBYTES];
@@ -994,6 +1024,7 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	randombytes_buf((void*) nonce, crypto_box_NONCEBYTES);
 	randombytes_buf((void*) sym_key, crypto_secretbox_KEYBYTES);
 
+	int crypto = 0;
 	_np_messagepart_encrypt(msg->properties, nonce, sym_key, NULL);
 	_np_messagepart_encrypt(msg->body, nonce, sym_key, NULL);
 
@@ -1002,16 +1033,16 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	unsigned char ciphertext[crypto_box_MACBYTES + crypto_secretbox_KEYBYTES];
 
 	// convert our own sign key to an encryption key
-	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
+	crypto += crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
 										 state->my_identity->aaa_token->private_key);
 	// convert our partner key to an encryption key
 	unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-	crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
+	crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
 
 	// finally encrypt
-	int ret = crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
+	crypto += crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
 							  partner_key, curve25519_sk);
-	if (0 > ret)
+	if (0 > crypto)
 	{
 		log_msg(LOG_ERROR, "encryption of message payload failed");
 		return;
@@ -1042,7 +1073,7 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
 	np_bool ret = TRUE;
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	np_tree_t* encryption_details =
 			np_tree_find_str(msg->properties, NP_SYMKEY)->val.value.tree;
@@ -1127,4 +1158,37 @@ char* _np_message_get_subject(np_message_t* msg) {
 	return ret;
 }
 
+void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply) {
 
+	TSP_SCOPE(np_bool, self->has_reply) {
+		sll_append(np_message_on_reply_t, self->on_reply, on_reply);
+	}
+}
+
+void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_reply_to_remove) {
+
+	TSP_SCOPE(np_bool, self->has_reply) {
+		sll_remove(np_message_on_reply_t, self->on_reply, on_reply_to_remove, np_message_on_reply_t_sll_compare_type);
+	}
+}
+
+np_key_t* _np_message_get_sender(np_message_t* self){
+
+	np_key_t* ret = NULL;
+	np_tree_elem_t* ele = np_tree_find_str(self->header, _NP_MSG_HEADER_FROM);
+
+	if (ele != NULL) {
+		np_bool freeable = FALSE;
+		char* dhkey_str  = np_treeval_to_str(ele->val, &freeable);
+		np_dhkey_t dhkey = { 0 };
+
+		_np_dhkey_from_str(dhkey_str, &dhkey);
+		
+		ret = _np_keycache_find_or_create(dhkey);
+
+		if (freeable) {
+			free(dhkey_str);
+		}
+	}
+	return ret;
+}

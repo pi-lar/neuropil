@@ -91,8 +91,8 @@ NP_API_EXPORT
 void np_destroy();
 
 // function to get the global state variable
-NP_API_INTERN
-np_state_t* _np_state();
+NP_API_PROTEC
+np_state_t* np_state();
 
 /**
 .. c:function:: void np_enable_realm_master()
@@ -337,8 +337,8 @@ char* np_get_connection_string();
 NP_API_EXPORT
 char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash);
 
-NP_API_INTERN
-char* _np_build_connection_string(char* hash, char* protocol, char*dns_name, char* port, np_bool includeHash);
+NP_API_EXPORT
+char* np_build_connection_string(char* hash, char* protocol, char*dns_name, char* port, np_bool includeHash);
 
 /**
 .. c:function:: void np_start_job_queue(np_state_t* state, uint8_t pool_size)
@@ -368,13 +368,23 @@ void _np_ping_send(np_key_t* key);
 NP_API_INTERN
 void _np_send_ack(const np_message_t* const in_msg);
 
-NP_API_INTERN
+NP_API_PROTEC
 double np_time_now();
-NP_API_INTERN
+
+NP_API_PROTEC
 void np_time_sleep(double sleeptime);
+
 // send join request
 NP_API_INTERN
 void _np_send_simple_invoke_request(np_key_t* target, const char* type);
+NP_API_INTERN
+np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* type);
+NP_API_EXPORT
+void np_send_response_msg(np_message_t* original, np_tree_t *properties, np_tree_t *body);
+NP_API_INTERN
+np_message_t* _np_prepare_msg(char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
+
+
 
 #ifdef __cplusplus
 }

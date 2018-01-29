@@ -38,19 +38,31 @@ typedef enum
 #define NP_PACKED(x)  __attribute__ ((packed(x)))
 #define NP_DEPRECATED __attribute__ ((deprecated("!!! DEPRECATED !!!")))
 
-#define NP_UNUSED     __attribute__ ((unused))
 
-#define NP_API_EXPORT __attribute__ ((visibility ("default")))
 
-//#ifndef TEST_COMPILE
-//  #define NP_API_HIDDEN __attribute__ ((visibility ("hidden")))
-//  #define NP_API_PROTEC __attribute__ ((visibility ("protected")))
-//  #define NP_API_INTERN __attribute__ ((visibility ("internal")))
-//#else
+#if defined(TEST_COMPILE) || defined(DEBUG)
+  #define NP_UNUSED     __attribute__ ((unused))
   #define NP_API_HIDDEN __attribute__ ((visibility ("default")))
   #define NP_API_PROTEC __attribute__ ((visibility ("default")))
   #define NP_API_INTERN __attribute__ ((visibility ("default")))
-// #endif
+#else
+  #ifndef NP_UNUSED
+    #define NP_UNUSED     __attribute__ ((unused))
+  #endif
+  #ifndef NP_API_PROTEC
+    #define NP_API_PROTEC __attribute__ ((visibility ("default")))
+  #endif
+  #ifndef NP_API_HIDDEN
+    #define NP_API_HIDDEN __attribute__ ((visibility ("hidden")))
+  #endif
+  #ifndef NP_API_INTERN
+	#define NP_API_INTERN __attribute__ ((visibility ("internal")))
+  #endif
+#endif
+
+#ifndef NP_API_EXPORT
+  #define NP_API_EXPORT __attribute__ ((visibility ("default")))
+#endif
 
 
 /* np_obj_t
@@ -67,7 +79,7 @@ typedef struct np_obj_s np_obj_t;
 /*
  *  simple types / typedefs
  */
-typedef struct np_ackentry_s np_ackentry_t;
+typedef struct np_responsecontainer_s np_responsecontainer_t;
 
 typedef struct np_aaatoken_s np_aaatoken_t;
 typedef np_aaatoken_t* np_aaatoken_ptr;
@@ -115,7 +127,8 @@ typedef np_thread_t* np_thread_ptr;
  */
 typedef np_bool (*np_aaa_func_t) (np_aaatoken_t* aaa_token );
 typedef np_bool(*np_usercallback_t) (const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
-typedef void(*np_ackentry_on_t) (const np_ackentry_t* const entry);
+typedef void(*np_responsecontainer_on_t) (const np_responsecontainer_t* const entry);
+typedef void(*np_message_on_reply_t) (const np_responsecontainer_t* const entry, const np_message_t* const reply_msg);
 
 // internal callback functions
 typedef void (*np_callback_t) (np_jobargs_t*);
@@ -138,6 +151,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_node_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_thread_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_usercallback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_callback_t);
-NP_SLL_GENERATE_PROTOTYPES(np_ackentry_on_t);
+NP_SLL_GENERATE_PROTOTYPES(np_responsecontainer_on_t);
+NP_SLL_GENERATE_PROTOTYPES(np_message_on_reply_t);
 
 #endif /* _INCLUDE_H_ */

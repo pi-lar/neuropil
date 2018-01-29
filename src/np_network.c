@@ -336,14 +336,14 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 							break;
 						}
 						else {
-											unsigned char* enc_buffer = np_memory_new(np_memory_types_BLOB_1024);//malloc (MSG_CHUNK_SIZE_1024);
+							unsigned char* enc_buffer = np_memory_new(np_memory_types_BLOB_1024); //malloc (MSG_CHUNK_SIZE_1024);
 							
 							uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
 							memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
 							memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
 							/* send data */
-							_LOCK_ACCESS(&node_key->network->send_data_lock) {
+							_LOCK_ACCESS(&node_key->network->out_events_lock) {
 								if (NULL != node_key->network->out_events) {
 									log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%d bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
 									// log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
@@ -353,7 +353,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 									_np_network_start(node_key->network);
 								}
 								else {
-													np_memory_free(enc_buffer);
+									np_memory_free(enc_buffer);
 								}
 							}
 
@@ -382,14 +382,14 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 		np_key_t* key = event->data;		
 		np_network_t* key_network = key->network ;
 
-		_LOCK_ACCESS(&key_network->send_data_lock)
+		_TRYLOCK_ACCESS(&key_network->out_events_lock)
 		{
 			if(NULL != key_network->out_events &&
 				0 < sll_size(key_network->out_events)
 				)
 			{
 				if (NULL != key->node) {
-					log_debug_msg(LOG_INFO, "sending message (%d bytes) to %s:%s",
+					log_debug_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
 							MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
 				}
 
@@ -417,8 +417,8 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 				}
 			} else {
 				// only stops the network if outgoing queue size is zero - leads to loosing out events :-(
-				// TODO: place it somewhere else
-				// _np_network_stop(key_network, FALSE);
+				// TODO: place it somewhere else ?
+				_np_network_stop(key_network, FALSE);
 			}
 		}
 	}
@@ -449,7 +449,7 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
 	struct sockaddr_storage from;
 	socklen_t fromlen = sizeof(from);
 
-	//np_state_t* state = _np_state();
+	//np_state_t* state = np_state();
 	//np_network_t* ng = state->my_node_key->network;
 	np_key_t* key = (np_key_t*) event->data; // state->my_node_key->network;
 	np_tryref_obj(np_key_t, key, keyExists, "np_tryref_obj_key");
@@ -520,11 +520,9 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
 					}
 					np_new_obj(np_network_t, alias_key->network);
 
-					_LOCK_ACCESS (&alias_key->network->send_data_lock) {
+					_LOCK_ACCESS (&alias_key->network->access_lock) {
 						alias_key->network->socket = client_fd;
 						alias_key->network->socket_type = ng->socket_type;
-						_LOCK_ACCESS(&alias_key->network->waiting_lock) {
-						}
 						alias_key->network->seqend = 0LU;
 
 						// it could be a passive socket
@@ -537,7 +535,7 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
 
 						alias_key->network->initialized = TRUE;
 					}
-					_LOCK_ACCESS (&alias_key->network->ack_data_lock) {
+					_LOCK_ACCESS (&alias_key->network->waiting_lock) {
 						alias_key->network->waiting = np_tree_create();
 					}
 				}
@@ -703,16 +701,23 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			if (NULL == alias_key) {
 				alias_key = _np_keycache_create(search_key);
 				alias_key_ref_reason = "_np_keycache_create";
-				alias_key->parent = key;
 				np_ref_obj(np_key_t, key, ref_key_parent);
+				alias_key->parent = key;				
 			}
-
-			log_debug_msg(LOG_NETWORK |LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
-				ipstr, port, in_msg_len, _np_key_as_str(alias_key));
+			TSP_GET(np_bool, alias_key->in_destroy, in_destroy);
+			if(in_destroy == FALSE ) {
+				log_debug_msg(LOG_NETWORK |LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
+					ipstr, port, in_msg_len, _np_key_as_str(alias_key));
 		
-			_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL, data);
-			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
-				_np_key_as_str(key));
+				_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL, data);
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
+					_np_key_as_str(key));
+			}
+			else {
+				np_memory_free(data);
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (size: %hd), but alias is in destroy %s",
+					ipstr, port, in_msg_len, _np_key_as_str(alias_key));
+			}
 
 			np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
 		}
@@ -745,26 +750,29 @@ void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 void _np_network_stop(np_network_t* network, np_bool force) {
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_stop(np_network_t* network){");
 	if(NULL != network) {
-		_LOCK_ACCESS(&network->send_data_lock){
-			if (network->is_running == TRUE && (force == TRUE || 0 == sll_size(network->out_events) )){
-				log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p", network);				
-				
-				EV_P;
-				if ((network->type & np_network_type_client) == np_network_type_client) {
-					_np_suspend_event_loop_out();
-					loop = _np_event_get_loop_out();
-					ev_io_stop(EV_A_ &network->watcher);
-					_np_resume_event_loop_out();
-				}
+		_LOCK_ACCESS(&network->out_events_lock) {
+			_LOCK_ACCESS(&network->access_lock) {
 
-				if ((network->type & np_network_type_server) == np_network_type_server) {
-					_np_suspend_event_loop_in();
-					loop = _np_event_get_loop_in();
-					ev_io_stop(EV_A_ &network->watcher);
-					_np_resume_event_loop_in();
-				}			
-				
-				network->is_running = FALSE;
+				if (network->is_running == TRUE && (force == TRUE || 0 == sll_size(network->out_events))) {
+					log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p", network);
+
+					EV_P;
+					if ((network->type & np_network_type_client) == np_network_type_client) {
+						_np_suspend_event_loop_out();
+						loop = _np_event_get_loop_out();
+						ev_io_stop(EV_A_ &network->watcher);
+						_np_resume_event_loop_out();
+					}
+
+					if ((network->type & np_network_type_server) == np_network_type_server) {
+						_np_suspend_event_loop_in();
+						loop = _np_event_get_loop_in();
+						ev_io_stop(EV_A_ &network->watcher);
+						_np_resume_event_loop_in();
+					}
+
+					network->is_running = FALSE;
+				}
 			}
 		}
 	}
@@ -787,12 +795,12 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 
 	_np_suspend_event_loop_in();
 	_np_suspend_event_loop_out();
-	_LOCK_ACCESS(&old_target->network->send_data_lock) {
-		// _np_network_stop(old_target->network); 			// stop network
+	_LOCK_ACCESS(&old_target->network->access_lock) {
+		//_np_network_stop(old_target->network); 			// stop network
 		new_target->network = old_target->network; 		// remap
 		np_ref_switch(np_key_t, new_target->network->watcher.data, ref_network_watcher, new_target); // remap network key
 		old_target->network = NULL;						// remove from old structure
-		// _np_network_start(new_target->network); 		// restart network
+		//_np_network_start(new_target->network); 		// restart network
 	}
 	_np_resume_event_loop_out();
 	_np_resume_event_loop_in();
@@ -811,31 +819,36 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 
 void _np_network_start(np_network_t* network){
 	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
-	if(NULL != network){
-		_LOCK_ACCESS(&network->send_data_lock){
-			if (network->is_running == FALSE &&
-					( (network->type & np_network_type_server) == np_network_type_server ||
-					   sll_size(network->out_events) > 0
-					)
-			   ) {
-				log_msg(LOG_NETWORK | LOG_INFO, "starting network %p", network);
-				
-				EV_P;
-				if ((network->type & np_network_type_client) == np_network_type_client) {
-					_np_suspend_event_loop_out();
-					loop = _np_event_get_loop_out();
-					ev_io_start(EV_A_ &network->watcher);
-					_np_resume_event_loop_out();
-				}
+	if (NULL != network) {
+		TSP_GET(np_bool, network->can_be_enabled, can_be_enabled);
+		if(can_be_enabled){
+			_LOCK_ACCESS(&network->out_events_lock) {
+				_LOCK_ACCESS(&network->access_lock) {
+					if (network->is_running == FALSE &&
+						((network->type & np_network_type_server) == np_network_type_server ||
+							sll_size(network->out_events) > 0
+							)
+						) {
+						log_msg(LOG_NETWORK | LOG_INFO, "starting network %p", network);
 
-				if ((network->type & np_network_type_server) == np_network_type_server) {
-					_np_suspend_event_loop_in();
-					loop = _np_event_get_loop_in();
-					ev_io_start(EV_A_ &network->watcher);
-					_np_resume_event_loop_in();
+						EV_P;
+						if ((network->type & np_network_type_client) == np_network_type_client) {
+							_np_suspend_event_loop_out();
+							loop = _np_event_get_loop_out();
+							ev_io_start(EV_A_ &network->watcher);
+							_np_resume_event_loop_out();
+						}
+
+						if ((network->type & np_network_type_server) == np_network_type_server) {
+							_np_suspend_event_loop_in();
+							loop = _np_event_get_loop_in();
+							ev_io_start(EV_A_ &network->watcher);
+							_np_resume_event_loop_in();
+						}
+
+						network->is_running = TRUE;
+					}
 				}
-				
-				network->is_running = TRUE;
 			}
 		}
 	}
@@ -851,48 +864,47 @@ void _np_network_t_del(void* nw)
 
 	_LOCK_MODULE(np_network_t)
 	{
-		_LOCK_ACCESS(&network->send_data_lock)
+		_LOCK_ACCESS(&network->access_lock)
 		{
 			_np_network_stop(network, TRUE);
 			np_key_t* old_key = (np_key_t*) network->watcher.data;
 			np_unref_obj(np_key_t, old_key,ref_network_watcher);
 			network->watcher.data = NULL;
 
-			_LOCK_ACCESS(&network->waiting_lock) {
-				if (NULL != network->waiting) {
-					np_tree_free(network->waiting);
-					network->waiting = NULL;
-				}
-			}
-			_np_threads_mutex_destroy(&network->waiting_lock);
-
-			if (NULL != network->out_events)
+			_LOCK_ACCESS(&network->out_events_lock)
 			{
-				if (0 < sll_size(network->out_events))
-				{
-					do {
-						void* tmp = sll_head(void_ptr, network->out_events);
-						np_memory_free(tmp);
-					} while (0 < sll_size(network->out_events));
-				}
-				sll_free(void_ptr, network->out_events);
-			}
 
+				if (NULL != network->out_events)
+				{
+					if (0 < sll_size(network->out_events))
+					{
+						do {
+							void* tmp = sll_head(void_ptr, network->out_events);
+							np_memory_free(tmp);
+						} while (0 < sll_size(network->out_events));
+					}
+					sll_free(void_ptr, network->out_events);
+				}
+			}
 			if (0 < network->socket) close (network->socket);
 
 			network->initialized = FALSE;
 		}
 
-		_LOCK_ACCESS(&network->ack_data_lock)
+		_LOCK_ACCESS(&network->waiting_lock)
 		{
-			if (NULL != network->waiting)
+			if (NULL != network->waiting) {
 				np_tree_free(network->waiting);
+				network->waiting = NULL;
+			}
 		}
-		// finally destroy the mutex again
-		_np_threads_mutex_destroy(&network->send_data_lock);
-		_np_threads_mutex_destroy (&network->ack_data_lock);
-		
 
+		// finally destroy the mutex 
+		_np_threads_mutex_destroy(&network->out_events_lock);
+		_np_threads_mutex_destroy(&network->access_lock);
+		_np_threads_mutex_destroy(&network->waiting_lock);
+
+		TSP_DESTROY(np_bool, network->can_be_enabled);
 	}
 }
 
@@ -908,8 +920,11 @@ void _np_network_t_new(void* nw)
 	ng->watcher.data = NULL;
 	ng->type = np_network_type_none;
 
-	_np_threads_mutex_init (&ng->send_data_lock,"network send_data_lock");
-	_np_threads_mutex_init (&ng->ack_data_lock, "network ack_data_lock");
+	_np_threads_mutex_init(&ng->access_lock, "network access_lock");
+	_np_threads_mutex_init(&ng->out_events_lock, "network out_events_lock");
+	_np_threads_mutex_init (&ng->waiting_lock, "network waiting_lock");
+
+	TSP_INITD(np_bool, ng->can_be_enabled, TRUE);
 }
 
 /** _np_network_init:
@@ -940,20 +955,18 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 	{		
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating receiving network");
 		
-		_LOCK_ACCESS(&ng->send_data_lock)
+		_LOCK_ACCESS(&ng->access_lock)
 		{
 			ng->type |= np_network_type_server;
 			// own sequence number counter
 			ng->seqend = 0LU;
 		}
 
-		_LOCK_ACCESS(&ng->ack_data_lock)
-		{
-			// create own retransmit structures
-			_LOCK_ACCESS(&ng->waiting_lock) {
-				ng->waiting = np_tree_create();
-			}
+		// create own retransmit structures
+		_LOCK_ACCESS(&ng->waiting_lock) {
+			ng->waiting = np_tree_create();
 		}
+		
 
 		// nothing to do for passive nodes
 		if ((type & PASSIVE) != PASSIVE) {
@@ -1014,8 +1027,6 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			else {
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "Dont know how to setup network of type %"PRIu8,type);
 			}
-			_np_network_start(ng);
-
 		}
 		ng->initialized = TRUE;
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local listening socket");
@@ -1146,4 +1157,11 @@ char* np_network_get_port(np_key_t * container) {
 	}
 
 	return ret;
+}
+
+void _np_network_disable(np_network_t* self) {
+	if(self != NULL){
+		TSP_SET(np_bool, self->can_be_enabled, FALSE);
+		_np_network_stop(self, TRUE);
+	}
 }

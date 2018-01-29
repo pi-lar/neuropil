@@ -42,7 +42,7 @@
 #include "np_util.h"
 #include "np_settings.h"
 #include "np_constants.h"
-#include "np_ackentry.h"
+#include "np_responsecontainer.h"
 
 // TODO: make these configurable (via struct np_config)
 /**
@@ -60,7 +60,7 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_glia_route_lookup(np_jobargs_t* args){");
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key, "np_waitref_obj");
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key, "np_waitref_obj");
 
 	np_sll_t(np_key_ptr, tmp) = NULL;
 	np_key_t* target_key = NULL;
@@ -186,7 +186,7 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
 			tmp_node_key->node->is_handshake_send == TRUE 
 			)
 		{
-			log_debug_msg(LOG_INFO, "deleted from table/leafset: %s:%s:%s / %f / %1.2f",
+			log_msg(LOG_INFO, "deleted from table/leafset: %s:%s:%s / %f / %1.2f",
 								_np_key_as_str(tmp_node_key),
 								tmp_node_key->node->dns_name, tmp_node_key->node->port,
 								tmp_node_key->node->last_success,
@@ -244,7 +244,7 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 
 	while (iter != NULL) {
 		
-		if(iter->val != _np_state()->my_node_key){
+		if(iter->val != np_state()->my_node_key){
 			np_tryref_obj(np_node_t, iter->val->node, node_exists);
 			if(node_exists) {
 				if (iter->val->node->joined_network) {
@@ -271,25 +271,27 @@ void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
 	/* send leafset exchange data every 3 times that pings the leafset */
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset exchange for neighbours started");
 
-	static int toggle = 0;
+	np_sll_t(np_key_ptr, routing_keys) = _np_route_get_table();;
+	np_sll_t(np_key_ptr, neighbour_keys) = _np_route_neighbors();
+	np_sll_t(np_key_ptr, keys_merged) = sll_merge(np_key_ptr, routing_keys, neighbour_keys, _np_key_cmp);
 
-	np_sll_t(np_key_ptr, keys) = NULL;
-
-	if (toggle == 0) keys = _np_route_get_table();
-	if (toggle == 1) keys = _np_route_neighbors();
-
-	int i=0;
-	np_key_t *tmp_node_key = NULL;
-	while ( NULL != (tmp_node_key = sll_head(np_key_ptr, keys)))
+	int i = 0;	
+	sll_iterator(np_key_ptr) iter_keys = sll_first(keys_merged);
+	while (iter_keys != NULL)
 	{
 		// send a piggy message to the the nodes in our routing table
 		np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-		_np_job_submit_transform_event(i*0.031415, piggy_prop, tmp_node_key, NULL);
-		np_unref_obj(np_key_t, tmp_node_key,"_np_route_neighbors");		
+		_np_job_submit_transform_event(i*0.031415, piggy_prop, iter_keys->val, NULL);
+
 		i++;
+		sll_next(iter_keys);
 	}
-	sll_free(np_key_ptr, keys);
-	toggle = (toggle > 0) ? 0 : 1;
+
+	sll_free(np_key_ptr, keys_merged);
+	np_unref_list(routing_keys, "_np_route_get_table");
+	sll_free(np_key_ptr, routing_keys);
+	np_unref_list(neighbour_keys, "_np_route_neighbors");			
+	sll_free(np_key_ptr, neighbour_keys);
 }
 
 /**
@@ -301,44 +303,46 @@ void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
 void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args){");
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	np_tree_elem_t *iter = NULL;
 	np_msgproperty_t* msg_prop = NULL;
+	_LOCK_MODULE(np_state_message_tokens_t){
+		RB_FOREACH(iter, np_tree_s, state->msg_tokens)
+		{
+			// double now = dtime();
+			// double last_update = iter->val.value.d;
 
-	RB_FOREACH(iter, np_tree_s, state->msg_tokens)
-	{
-		// double now = dtime();
-		// double last_update = iter->val.value.d;
-
-		const char* iter_key_value = NULL;
-		if (iter->key.type == char_ptr_type)
-			iter_key_value =  np_treeval_to_str(iter->key, NULL);
-		else if (iter->key.type == special_char_ptr_type)
-			iter_key_value = _np_tree_get_special_str(iter->key.value.ush);
-		else {
-			ASSERT(FALSE,"key type %"PRIu8" is not recognized.", iter->key.type)
-		}
+			const char* subject = NULL;
+			if (iter->key.type == char_ptr_type)
+				subject =  np_treeval_to_str(iter->key, NULL);
+			else if (iter->key.type == special_char_ptr_type)
+				subject = _np_tree_get_special_str(iter->key.value.ush);
+			else {
+				ASSERT(FALSE,"key type %"PRIu8" is not recognized.", iter->key.type)
+			}
 			
-		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(iter_key_value, "0");
-		np_key_t* target = NULL;
+			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
+			np_key_t* target = NULL;
 
-		target = _np_keycache_find_or_create(target_dhkey);
+			target = _np_keycache_find_or_create(target_dhkey);
 
-		msg_prop = np_msgproperty_get(TRANSFORM, iter_key_value);
-		if (NULL != msg_prop)
-		{
-			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-			np_unref_obj(np_key_t, target,"_np_keycache_find_or_create");
+			msg_prop = np_msgproperty_get(TRANSFORM, subject);
+			if (NULL != msg_prop)
+			{
+				_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
+				np_unref_obj(np_key_t, target,"_np_keycache_find_or_create");
+			}
+			else
+			{
+				// deleted = RB_REMOVE(np_tree_s, state->msg_tokens, iter);
+				// free( np_treeval_to_str(deleted->key));
+				// free(deleted);
+				np_unref_obj(np_key_t,target,"_np_keycache_find_or_create");
+				break;
+			}
 		}
-		else
-		{
-			// deleted = RB_REMOVE(np_tree_s, state->msg_tokens, iter);
-			// free( np_treeval_to_str(deleted->key));
-			// free(deleted);
-			np_unref_obj(np_key_t,target,"_np_keycache_find_or_create");
-			break;
-		}
+
 	}
 
 	if (TRUE == state->enable_realm_master)
@@ -377,7 +381,7 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 	log_msg(LOG_TRACE, "start: void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args){");
 
 	_LOCK_MODULE(np_node_renewal_t) {
-		np_state_t* state = _np_state();
+		np_state_t* state = np_state();
 
 		// check an refresh my own identity + node tokens if required
 		double exp_ts = np_time_now() + NODE_RENEW_BEFORE_EOL_SEC;
@@ -408,74 +412,56 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args){");
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_key, "np_waitref_obj");
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key, "np_waitref_obj");
 	np_network_t* ng = my_key->network;
 
 	np_tree_elem_t *jrb_ack_node = NULL;
 
 	// wake up and check for acknowledged messages
-	_LOCK_ACCESS(&ng->ack_data_lock)
-	{
-		np_tree_elem_t* iter = RB_MIN(np_tree_s, ng->waiting);
-		while (iter != NULL)
-		{
-			jrb_ack_node = iter;
-			iter = RB_NEXT(np_tree_s, ng->waiting, iter);
 
-			np_ackentry_t *ackentry = (np_ackentry_t *) jrb_ack_node->val.value.v;
-			if (ackentry != NULL && np_time_now() > ackentry->expires_at)
+	np_tree_elem_t* iter = NULL;
+	int c = 0;
+	do {
+		if (c++ > 10) {
+			break;
+		}
+		_LOCK_ACCESS(&ng->waiting_lock)
+		{		
+			iter = RB_MIN(np_tree_s, ng->waiting);
+			
+			while (iter != NULL)
 			{
-				break;
-				// timeout
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "not acknowledged (TIMEOUT at %f)", ackentry->expires_at);
-				_np_node_update_stat(ackentry->dest_key->node, FALSE);
+				jrb_ack_node = iter;
+				iter = RB_NEXT(np_tree_s, ng->waiting, iter);
 
-				if (ackentry->msg != NULL && sll_size(ackentry->msg->on_timeout) > 0) {
-
-					sll_iterator(np_ackentry_on_t) iter_on = sll_first(ackentry->msg->on_timeout);
-					while (iter_on != NULL)
+				np_responsecontainer_t *responsecontainer = (np_responsecontainer_t *)jrb_ack_node->val.value.v;
+				if (responsecontainer != NULL) {
+					if (np_time_now() > responsecontainer->expires_at || _np_responsecontainer_is_fully_acked(responsecontainer))
 					{
-						//TODO: call async
-						iter_on->val(ackentry);
-						sll_next(iter_on);
+						if (!_np_responsecontainer_is_fully_acked(responsecontainer)) {
+
+							_np_responsecontainer_set_timeout(responsecontainer);
+							log_msg(LOG_WARN, "ACK_HANDLING timeout (table size: %3d) message (%s) not acknowledged (IN TIME %f/%f)",
+								ng->waiting->size,
+								jrb_ack_node->key.value.s,
+								np_time_now(), responsecontainer->expires_at
+							);
+						}
+
+						np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
+						np_unref_obj(np_responsecontainer_t, responsecontainer, ref_ack_obj);
+						break;
 					}
 				}
-				log_msg(LOG_WARN, "ACK_HANDLING (table size: %3d) message (%s) not acknowledged (IN TIME %f/%f)",
-							  	  	  	  ng->waiting->size,
-										  jrb_ack_node->key.value.s,
-										  np_time_now(), ackentry->expires_at /*,
-										  ackentry->received_ack, ackentry->expected_ack */);
-				np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
+				else {
+					log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
+						ng->waiting->size,
+						jrb_ack_node->key.value.s);
 
-				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
-				// free(jrb_ack_node->key.value.s);
-				// free(jrb_ack_node);
-				break;
-			}
-
-			if (ackentry != NULL && _np_ackentry_is_fully_acked(ackentry))
-			{
-				// has_received_ack
-#ifdef DEBUG
-				log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s)     acknowledged (IN TIME %f/%f)",
-							  ng->waiting->size,
-							  jrb_ack_node->key.value.s,
-							  np_time_now(), ackentry->expires_at/*,
-							  entry->received_ack, entry->expected_ack*/);
-#endif
-
-				np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
-				np_unref_obj(np_ackentry_t, ackentry, ref_ack_obj);
-				break;
-
-			} else {
-				log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
-						  ng->waiting->size,
-						  jrb_ack_node->key.value.s);
-			}
+				}
+			}		
 		}
-
-	}
+	} while (iter != NULL);
 
 	np_unref_obj(np_key_t, my_key,"np_waitref_obj");
 }
@@ -578,7 +564,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_send_rowinfo_jobexec(np_jobargs_t* args){");
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 	np_key_t* target_key = args->target;
 
 	// check for correct target
@@ -610,7 +596,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
 		_np_message_create(msg_out, target_key, state->my_node_key, _NP_MSG_PIGGY_REQUEST, msg_body);
-		_np_job_submit_route_event(0.0, outprop, target_key, msg_out);
+		_np_job_submit_msgout_event(0.0, outprop, target_key, msg_out);
 		np_unref_obj(np_message_t, msg_out, ref_obj_creation);		
 	}
 
@@ -622,7 +608,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 {
 	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request){");
 
-	np_state_t* state = _np_state();
+	np_state_t* state = np_state();
 
 	np_aaatoken_t* msg_token = NULL;
 	np_new_obj(np_aaatoken_t, msg_token);
@@ -649,8 +635,10 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	// how to allow the possible transmit jitter ?
 	int expire_sec =  ((int)randombytes_uniform(msg_request->token_max_ttl - msg_request->token_min_ttl)+msg_request->token_min_ttl);
 
-	log_debug_msg(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG,"setting msg token EXPIRY to: %d",expire_sec);
+
 	msg_token->expires_at = msg_token->not_before + expire_sec;
+	log_debug_msg(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG,"setting msg token EXPIRY to: %f (now: %f diff: %f)", msg_token->expires_at, np_time_now(), msg_token->expires_at -  np_time_now() );
+
 	if(my_identity->aaa_token->expires_at < msg_token->expires_at ){
 		msg_token->expires_at = my_identity->aaa_token->expires_at ;
 	}
@@ -672,7 +660,7 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	np_tree_insert_str(msg_token->extensions, "max_threshold",
 			np_treeval_new_ui(msg_request->max_threshold));
 	np_tree_insert_str(msg_token->extensions, "msg_threshold",
-			np_treeval_new_ui( msg_request->msg_threshold ));
+			np_treeval_new_ui( msg_request->msg_threshold));
 
 	// TODO: insert value based on msg properties / respect (sticky) reply
 	np_tree_insert_str(msg_token->extensions, "target_node",
@@ -692,30 +680,32 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 
 	//TODO: msg_tokens for either
 	// insert into msg token token renewal queue
-	if (NULL == np_tree_find_str(_np_state()->msg_tokens, subject))
-	{
-		np_tree_insert_str(_np_state()->msg_tokens, subject, np_treeval_new_v(NULL));
+	_LOCK_MODULE(np_state_message_tokens_t) {
+		if (NULL == np_tree_find_str(np_state()->msg_tokens, subject))
+		{
+			np_tree_insert_str(np_state()->msg_tokens, subject, np_treeval_new_v(NULL));
 
-		np_msgproperty_t* msg_prop = np_msgproperty_get(mode_type, subject);
-		msg_prop->mode_type |= TRANSFORM;
-		if(FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages, np_callback_t_sll_compare_type)) {
-			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
+			np_msgproperty_t* msg_prop = np_msgproperty_get(mode_type, subject);
+			msg_prop->mode_type |= TRANSFORM;
+			if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages, np_callback_t_sll_compare_type)) {
+				sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
+			}
+
+			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
+			np_key_t* target = NULL;
+			target = _np_keycache_find_or_create(target_dhkey);
+
+			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "registering for message discovery token handling (%s)", subject);
+			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
+			np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
 		}
-
-		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
-		np_key_t* target = NULL;
-		target = _np_keycache_find_or_create(target_dhkey);
-
-		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "registering for message discovery token handling (%s)", subject);
-		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-		np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
 	}
 }
 
 // TODO: add a wrapper function which can be scheduled via jobargs
 np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
 {
-	msg_prop->msg_threshold++;
+	_np_msgproperty_threshold_increase(msg_prop);
 
 	// np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
 	np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, target);
@@ -757,7 +747,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		_np_job_submit_route_event(0.0, out_prop, receiver_key, msg);
 
 		// decrease threshold counters
-		msg_prop->msg_threshold--;
+		_np_msgproperty_threshold_decrease(msg_prop);
 
 		if (NULL != msg_prop->rep_subject &&
 			STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))

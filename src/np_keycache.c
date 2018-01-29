@@ -116,14 +116,15 @@ np_key_t* _np_keycache_find_by_details(
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
 
-	np_waitref_obj(np_key_t, _np_state()->my_node_key, my_node_key, "np_waitref_key");
-	np_waitref_obj(np_key_t, _np_state()->my_identity, my_identity, "np_waitref_identity");
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_node_key, "np_waitref_key");
+	np_waitref_obj(np_key_t, np_state()->my_identity, my_identity, "np_waitref_identity");
 
 	_LOCK_MODULE(np_keycache_t)
 	{
 		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
 		{
-			if(iter->in_destroy == FALSE){
+			TSP_GET(np_bool, iter->in_destroy, in_destroy);
+			if(in_destroy == FALSE){
 				if(TRUE == search_myself){
 					if (
 						TRUE == _np_dhkey_equal(&iter->dhkey, &my_node_key->dhkey) ||
@@ -185,14 +186,16 @@ np_key_t* _np_keycache_find_deprecated()
 		{
 
 			// our own key / identity never deprecates
-			if (TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_node_key->dhkey) ||
-				TRUE == _np_dhkey_equal(&iter->dhkey, &_np_state()->my_identity->dhkey) )
+			if (TRUE == _np_dhkey_equal(&iter->dhkey, &np_state()->my_node_key->dhkey) ||
+				TRUE == _np_dhkey_equal(&iter->dhkey, &np_state()->my_identity->dhkey) )
 			{
 				continue;
 			}
 
 			double now = np_time_now();
-			if ((now - __keycache_deprecation_interval) > iter->last_update && iter->in_destroy == FALSE)
+			TSP_GET(np_bool, iter->in_destroy, in_destroy);
+
+			if ((now - __keycache_deprecation_interval) > iter->last_update && in_destroy == FALSE)
 			{
 				np_ref_obj(np_key_t, iter);
 				break;
@@ -210,7 +213,9 @@ sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)
 	{
 		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
 		{
-			if (_np_key_cmp(iter->parent, forKey) == 0 && iter->in_destroy == FALSE)
+			TSP_GET(np_bool, iter->in_destroy, in_destroy);
+
+			if (_np_key_cmp(iter->parent, forKey) == 0 && in_destroy == FALSE)
 			{
 				np_ref_obj(np_key_t, iter);
 				sll_append(np_key_ptr, ret, iter);
@@ -283,7 +288,9 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_ptr, list_of_keys),
 	np_bool first_run = TRUE;
 	while (NULL != iter)
 	{
-		if(iter->val->in_destroy == FALSE){
+		TSP_GET(np_bool, iter->val->in_destroy, in_destroy);
+
+		if(in_destroy == FALSE){
 			// calculate distance to the left and right
 			_np_dhkey_distance (&dif, key, &(iter->val->dhkey));
 

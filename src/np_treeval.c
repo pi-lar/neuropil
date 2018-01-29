@@ -152,13 +152,15 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 		break;
 	default:
 		to.type = none_type;
-		log_msg(LOG_WARN, "unsupported copy operation for jval type %hhd",
+		log_msg(LOG_WARN, "unsupported copy operation for np_treeval type %hhd",
 				from.type);
 		break;
 	}
 	return to;
 }
-
+/*
+	@param:freeable: returns the information to free or not to free the result
+*/
 char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
     log_msg(LOG_TRACE, "start: char* np_treeval_to_str(np_treeval_t val) {");
 
@@ -262,12 +264,12 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
 			break;
 #ifdef x64
 		case unsigned_long_long_type:
-  			len = snprintf(NULL, 0, "%llu", val.value.ull);
+  			len = snprintf(NULL, 0, "%"PRIu64, val.value.ull);
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
 				if (freeable != NULL) 	*freeable = TRUE;
-  				snprintf(result, len+1, "%llu", val.value.ull);
+  				snprintf(result, len+1, "%"PRIu64, val.value.ull);
   			}
 			break;
 #endif
@@ -577,92 +579,99 @@ np_treeval_t np_treeval_new_obj(np_obj_t* obj)
 	return j;
 }
 
-int16_t jval_i (np_treeval_t j)
+int16_t np_treeval_i (np_treeval_t j)
 {
     return j.value.i;
 }
 
-int32_t jval_l (np_treeval_t j)
+int32_t np_treeval_l (np_treeval_t j)
 {
     return j.value.l;
 }
 #ifdef x64
-int64_t jval_ll (np_treeval_t j)
+int64_t np_treeval_ll (np_treeval_t j)
 {
     return j.value.ll;
 }
 #endif
-float jval_f (np_treeval_t j)
+float np_treeval_f (np_treeval_t j)
 {
     return j.value.f;
 }
 
-double jval_d (np_treeval_t j)
+double np_treeval_d (np_treeval_t j)
 {
     return j.value.d;
 }
 
-void *jval_v (np_treeval_t j)
+void *np_treeval_v (np_treeval_t j)
 {
     return j.value.v;
 }
 
-char *jval_s (np_treeval_t j)
+char *np_treeval_str (np_treeval_t j)
 {
     return j.value.s;
 }
 
-char jval_c (np_treeval_t j)
+char np_treeval_c (np_treeval_t j)
 {
     return j.value.c;
 }
 
-unsigned char jval_uc (np_treeval_t j)
+unsigned char np_treeval_uc (np_treeval_t j)
 {
     return j.value.uc;
 }
 
-int8_t jval_sh (np_treeval_t j)
+int8_t np_treeval_sh (np_treeval_t j)
 {
     return j.value.sh;
 }
 
-uint8_t jval_ush (np_treeval_t j)
+uint8_t np_treeval_ush (np_treeval_t j)
 {
     return j.value.ush;
 }
 
-uint16_t jval_ui (np_treeval_t j)
+uint16_t np_treeval_ui (np_treeval_t j)
 {
     return j.value.ui;
 }
 
-uint32_t jval_ul (np_treeval_t j)
+uint32_t np_treeval_ul (np_treeval_t j)
 {
     return j.value.ul;
 }
 
 #ifdef x64
-uint64_t jval_ull (np_treeval_t j)
+uint64_t np_treeval_ull (np_treeval_t j)
 {
     return j.value.ull;
 }
 #endif
 
-//int16_t* jval_iarray (np_treeval_t j)
+// int16_t* np_treeval_iarray (np_treeval_t j)
 //{
 //    return j.value.a2_ui;
 //}
 
-float* jval_farray (np_treeval_t j)
+float* np_treeval_farray (np_treeval_t j)
 {
     return j.value.farray;
 }
 
-char* jval_carray (np_treeval_t j)
+char* np_treeval_carray (np_treeval_t j)
 {
     return j.value.carray;
 }
+
+char* np_treeval_h (np_treeval_t j)
+{
+    return j.value.bin;
+}
+
+
 uint32_t np_treeval_get_byte_size(np_treeval_t ele)
 {
     log_msg(LOG_TRACE, "start: uint32_t np_treeval_get_byte_size(np_treeval_t ele){");

@@ -147,3 +147,86 @@ Test(np_aaatoken_t, encode_decode_loop, .description="test the encoding and deco
 	np_unref_obj(np_key_t, test_key, ref_obj_creation);
 	np_unref_obj(np_node_t, test_node, ref_obj_creation);
 }
+
+Test(np_aaatoken_t, test_audience_filtering, .description="test the filtering based on audience/issuer/realm field")
+{
+	// set a realm name that will be copied into the tokens
+	np_set_realm_name("test_realm");
+
+	// create a send msgproerty to create message intent token
+	np_msgproperty_t* test_send_prop_1 = NULL;
+	np_new_obj(np_msgproperty_t, test_send_prop_1);
+	test_send_prop_1->msg_subject = strndup("test_subject", 255);
+	test_send_prop_1->mep_type =  REQ_REP;
+	test_send_prop_1->ack_mode = ACK_NONE;
+	test_send_prop_1->retry    = 0;
+	test_send_prop_1->msg_ttl  = 20.0;
+	test_send_prop_1->priority -= 1;
+	test_send_prop_1->mode_type = OUTBOUND | ROUTE;
+	test_send_prop_1->max_threshold = 20;
+
+	// create a recv msgproerty to create message intent token
+	np_msgproperty_t* test_recv_prop_1 = NULL;
+	np_new_obj(np_msgproperty_t, test_recv_prop_1);
+	test_recv_prop_1->msg_subject = strndup("test_subject", 255);
+	test_recv_prop_1->mep_type =  REQ_REP;
+	test_recv_prop_1->ack_mode = ACK_NONE;
+	test_recv_prop_1->retry    = 0;
+	test_recv_prop_1->msg_ttl  = 20.0;
+	test_recv_prop_1->priority -= 1;
+	test_recv_prop_1->mode_type = INBOUND | ROUTE;
+	test_recv_prop_1->max_threshold = 20;
+
+	// create message token
+	np_aaatoken_t* test_send_token_1 = _np_create_msg_token(test_send_prop_1);
+	np_aaatoken_t* test_recv_token_1 = _np_create_msg_token(test_recv_prop_1);
+
+	// add token to our internal ledger
+	_np_aaatoken_add_sender("test_subject", test_send_token_1);
+	_np_aaatoken_add_receiver("test_subject", test_recv_token_1);
+
+	np_sll_t(np_aaatoken_ptr, result);
+
+	// test sender selection filtering
+	result = _np_aaatoken_get_all_sender("test_subject", NULL);
+	cr_expect( 1 == sll_size(result), "expecting one token as a search result");
+	sll_free(np_aaatoken_ptr, result);
+
+	result = _np_aaatoken_get_all_sender("test_subject", "");
+	cr_expect( 1 == sll_size(result), "expecting one token as a search result");
+	sll_free(np_aaatoken_ptr, result);
+
+	result = _np_aaatoken_get_all_sender("test_subject", test_send_token_1->issuer);
+	cr_expect( 1 == sll_size(result), "expecting one token as a search result");
+	sll_free(np_aaatoken_ptr, result);
+
+	result = _np_aaatoken_get_all_sender("test_subject", "test_realm");
+	cr_expect( 1 == sll_size(result), "expecting one token as a search result");
+	sll_free(np_aaatoken_ptr, result);
+
+	result =  _np_aaatoken_get_all_sender("test_subject", "other realm");
+	cr_expect( 0 == sll_size(result), "expecting no token as a search result");
+	sll_free(np_aaatoken_ptr, result);
+
+	// test receiver selection filtering
+	result =  _np_aaatoken_get_all_receiver("test_subject", NULL);
+	cr_expect( 1 == sll_size(result), "expecting one token as a search result");
+	sll_free(np_aaatoken_ptr, result);
+
+	result =  _np_aaatoken_get_all_receiver("test_subject", test_recv_token_1->issuer);
+	cr_expect( 1 == sll_size(result), "expecting one token as a search result");
+	sll_free(np_aaatoken_ptr, result);
+
+	result =  _np_aaatoken_get_all_receiver("test_subject", "");
+	cr_expect( 1 == sll_size(result), "expecting one token as a search result");
+	sll_free(np_aaatoken_ptr, result);
+
+	result =  _np_aaatoken_get_all_receiver("test_subject", "test_realm");
+	cr_expect( 1 == sll_size(result), "expecting one token as a search result");
+	sll_free(np_aaatoken_ptr, result);
+
+	result =  _np_aaatoken_get_all_receiver("test_subject", "other realm");
+	cr_expect( 0 == sll_size(result), "expecting no token as a search result");
+	sll_free(np_aaatoken_ptr, result);
+
+}

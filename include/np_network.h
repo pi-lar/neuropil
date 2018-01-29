@@ -47,7 +47,7 @@ enum socket_type {
 	PASSIVE 	  = 0x80  // TCP passive (like FTP passive) for nodes behind firewalls
 } NP_ENUM;
 
-typedef enum {
+typedef enum np_network_type_e {
 	np_network_type_none	= 0x00,
 	np_network_type_client	= 0x01,
 	np_network_type_server	= 0x02,
@@ -69,14 +69,16 @@ struct np_network_s
 	np_mutex_t waiting_lock;
 	np_tree_t* waiting;
 
+	np_mutex_t out_events_lock;
 	np_sll_t(void_ptr, out_events);
 
 	uint32_t seqend;
 
 	char ip[CHAR_LENGTH_IP];
 	char port[CHAR_LENGTH_PORT];
-	np_mutex_t send_data_lock;
-	np_mutex_t ack_data_lock;
+	np_mutex_t access_lock;
+
+	TSP(np_bool, can_be_enabled);
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
@@ -152,6 +154,8 @@ NP_API_INTERN
 char* np_network_get_port(np_key_t * container);
 NP_API_INTERN
 np_bool _np_network_send_handshake(np_key_t* node_key);
+NP_API_INTERN
+void _np_network_disable(np_network_t* self);
 #ifdef __cplusplus
 }
 #endif
