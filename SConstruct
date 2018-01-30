@@ -1,6 +1,6 @@
 
 import platform
-
+import glob
 
 print '####'
 print '#### starting neuropil build'
@@ -232,6 +232,10 @@ else:
             print 'building neuropil_%s' %program
             prg_np = env.Program('bin/neuropil_%s'%program, 'examples/neuropil_%s.c'%program)
             Depends(prg_np, np_dylib)
+
+
+prg_np = env.Program('bin/pilarnet', 'examples/workshop/pilarnet.c')
+Depends(prg_np, np_dylib)
 
 # clean up
 Clean('.', 'build')

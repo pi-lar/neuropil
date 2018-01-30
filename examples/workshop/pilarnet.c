@@ -38,13 +38,15 @@ int main(int argc, char **argv)
   //np_setauthenticate_cb(auth_callback);
 
   np_state_t *np = np_init("udp4", port, NULL);
+  //np_setauthenticate_cb(auth_callback); <- move after init 
+
   np_start_job_queue(4);
 
   // print connect string
-  printf("%s\n", np_get_connection_string());
+  printf("start a new node with: ./pilarnet %d %s\n", atoi(port)+1, np_get_connection_string());
 
 
-  if (jkey) {
+  if (jkey != NULL) {
     printf("join %s\n", jkey);
     np_send_join(jkey);
   }

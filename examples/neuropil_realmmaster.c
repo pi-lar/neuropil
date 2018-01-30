@@ -200,10 +200,7 @@ np_aaatoken_t* create_realm_identity()
 	realm_identity->not_before = np_time_now();
 	realm_identity->expires_at = realm_identity->not_before + 7200.0;
 	realm_identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
-
-	free(realm_identity->uuid);
-	realm_identity->uuid = np_uuid_create("pi-lar realmmaster", 0);
-
+	
 	// add some unique identification parameters
 	// a far better approach is to follow the "zero-knowledge" paradigm (use the source, luke)
 	// also check libsodium password hahsing functionality
