@@ -234,6 +234,8 @@ NP_API_INTERN
 void np_aaatoken_encode_with_secrets(np_tree_t* data, np_aaatoken_t* token);
 NP_API_INTERN
 np_aaatoken_t* _np_aaatoken_new(char issuer[64], char node_subject[255], double expires_at);
+NP_API_INTERN
+int __np_aaatoken_generate_signature(unsigned char* hash, unsigned char* private_key, unsigned char* save_to);
 #ifdef __cplusplus
 }
 #endif
