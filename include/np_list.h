@@ -299,6 +299,7 @@ function like macros are:
 // convenience wrapper definitions
 #define dll_init(TYPE, dll_list) dll_list = TYPE##_dll_init();
 #define dll_append(TYPE, dll_list, value) TYPE##_dll_append(dll_list, value);
+#define dll_remove(TYPE, dll_list, value) TYPE##_dll_remove(dll_list, value);
 #define dll_prepend(TYPE, dll_list, value) TYPE##_dll_prepend(dll_list, value);
 #define	dll_head(TYPE, dll_list) TYPE##_dll_head(dll_list);
 #define dll_tail(TYPE, dll_list) TYPE##_dll_tail(dll_list);
@@ -368,6 +369,7 @@ real macros for convenience usage
 	TYPE TYPE##_dll_tail(TYPE##_dll_t* list);\
 	void TYPE##_dll_free(TYPE##_dll_t* list);\
 	void TYPE##_dll_clear(TYPE##_dll_t* list);\
+	void TYPE##_dll_remove(TYPE##_dll_t* dll_list, TYPE value); \
 
 
 //
@@ -412,7 +414,7 @@ void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE value) {\
 	dll_list->size++;\
 }\
 TYPE TYPE##_dll_head(TYPE##_dll_t* dll_list) {\
-	TYPE* ret_val = 0;\
+	TYPE ret_val = 0;\
 	if (NULL != dll_list->first) {\
 		TYPE##_dll_node_t* tmp = dll_list->first;\
 		ret_val = tmp->val;\
@@ -457,6 +459,22 @@ void TYPE##_dll_clear(TYPE##_dll_t* dll_list) {\
 	dll_list->last = NULL;  \
 	dll_list->size = 0;     \
 }\
+void TYPE##_dll_remove(TYPE##_dll_t* dll_list, TYPE value) {                \
+	TYPE##_dll_node_t* dll_current = dll_list->first;                                                       \
+	while (NULL != dll_current) {																			\
+		if (value == dll_current->val) {																	\
+			if (NULL != dll_current->flink) dll_current->flink->blink = dll_current->blink;					\
+			if (NULL != dll_current->blink) dll_current->blink->flink = dll_current->flink;					\
+			if (dll_list->first == dll_current) dll_list->first = dll_current->flink;						\
+			if (dll_list->last == dll_current) dll_list->last = dll_current->blink;							\
+			free(dll_current);																				\
+			dll_list->size--;																				\
+			break;																							\
+		} else {																							\
+			dll_current = dll_current->flink;																\
+		}																									\
+	}																										\
+}																											\
 
 
 /**
