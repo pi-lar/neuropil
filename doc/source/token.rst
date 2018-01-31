@@ -14,7 +14,7 @@ is composed before diving into the details:
    // who is the owner
    char realm[64];
    // who issued this token 
-   char issuer[65];
+   char issuer[64];
    // what is this token about
    char subject[255];
    // who is the intended audience
@@ -78,7 +78,7 @@ and imported and are available in the userspace.
 
    realm      := <empty> | <fingerprint(realm)>                               64
    issuer     := <empty> | <fingerprint(issuer)>                              64
-   subject    := 'urn:np:id:'<hash(userdata)>'                               255
+   subject    := 'urn:np:id:'<hash(userdata)>                                255
    audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>       64
    extensions := { target_node: nfp, <?user supplied data> }              min 64
    public_key := <pk(identity)>                                               32
@@ -114,8 +114,8 @@ If an identity would like to exchange informations with another identity in the 
 intents, where we use token again.:
 
    realm      := <empty> | <fingerprint(realm)>
-   issuer     := <empty> | <ifp> | <fingerprint(issuer)>
-   subject    := 'urn:np:subject:'<hash(subject)>'
+   issuer     := <ifp>
+   subject    := 'urn:np:subject:'<hash(subject)>
    audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
    extensions := { target_node: nfp, <mx properties>, <?user supplied data> }
    public_key := <pk(identity)>
@@ -124,8 +124,8 @@ intents, where we use token again.:
 Please note that a message intent is somehow different, as you may get a message intent of an identity that your node
 may not have any connection to. So first you need to authenticate the issuer of this message intent. you can
 accomplish this by doing one of the three steps:
-   - you implement a callback that is able to properly authenticate peers (using MerkleTree / Secure Remote Passowrd /
-     shamirs shared secret schems / ...)
+   - you implement a callback that is able to properly authenticate peers (e.g. using MerkleTree / Secure Remote
+     Password / Shamirs shared secret schemes / ...)
    - you forward the recieved token to do the authn work for your node: either to your own realm, or to the realm set 
      in the message intent, or you ask the target_node contained in the token whether the identity is really known 
    - you do some sort of out-of-band deployment for know public idenity tokens. you could even use neuropil itself to 
@@ -151,6 +151,46 @@ pre-issuing and deploying public tokens. A fingerprint of an identity token is e
 to find a third party (realm) who is willing to proove the authenticity of a device, application or person.
 In a similar way you can remote control your devices, because for authorization requests each device, application or
 person is able to contact your realm for allowance. 
+
+4: the missing accounting tokens
+********************************
+the chapters above have described the measures how you can authenticate and authorize token, but we have not yet
+covered how you can use tokens for accounting purposes. But basically it is very easy.
+
+An identity e.g. could create and send an accounting token for the messages and message intents it has recieved, just
+by copying its own message intent
+
+   realm      := <empty> | <fingerprint(realm)>
+   issuer     := <ifp>
+   subject    := 'urn:np:subject:'<hash(subject)>
+   audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
+   extensions := { target_node: nfp, <mx properties>, <?user supplied data> }
+   public_key := <pk(identity)>
+   signature  := <signature of all above fields>
+
+Under 'user supplied data' you can add any content, for example the message intents that you have received from your
+peers, plus the actual usage of your/their token (it's a json structure). The main difference towards your initial
+message intent token is the address that you're sending this token to. 
+
+Similar each node on the network can record received messages and 
+
+   realm      := <empty> | <fingerprint(realm)>
+   issuer     := <nfp>
+   subject    := 'urn:np:subject:'<hash(subject)>
+   audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
+   extensions := { target_node: nfp, <mx properties>, <?user supplied data> }
+   public_key := <pk(identity)>
+   signature  := <signature of all above fields>
+
+in this case the section 'user supplied data' would contain the uuid of each message(part) that a single node has 
+received and forwarded. Most important are the nodes which do the message intent matching ! These nodes act as a 
+technical attesting notary that confirms the exchange of message intents. plus it could also confirm the abuse of
+message intents. 
+
+Once an accounting token is ready it will be send to your own accounting realm (and this could be a different one 
+than your authn/authz realm), the token and it's contents can be analyzed and store in a database i.e. for 
+monitoring purposes. Once you put all distributed accounting tokens together, you will be able to see how your 
+messages have travelled through the DHT (via the uuid).
 
 
 4: conclusion
