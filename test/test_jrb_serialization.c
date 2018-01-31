@@ -81,7 +81,7 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
 	tst.t[6] = 7;
 	tst.t[7] = 8;
 
-    np_treeval_t val = np_treeval_new_key(tst);
+    np_treeval_t val = np_treeval_new_dhkey(tst);
 	cr_expect(val.type == dhkey_type, "Expected source val to be of type dhkey_type. But is: %"PRIu8, val.type);
 	cr_expect(total_write_count == 0, "Expected empty buffer. But size is %"PRIu32, total_write_count);
     __np_tree_serialize_write_type(val, &cmp_write);
@@ -159,7 +159,7 @@ Test(test_serialization, serialize_np_dhkey_t_in_np_tree_t_, .description="test 
 	tst2.t[7] = 12;
 
     np_tree_t* write_tree = np_tree_create();
-    np_tree_insert_str(write_tree,"TESTKEY", np_treeval_new_key(tst));
+    np_tree_insert_str(write_tree,"TESTKEY", np_treeval_new_dhkey(tst));
 
 	cr_expect(total_write_count == 0, "Expected empty buffer. But size is %"PRIu32, total_write_count);
 

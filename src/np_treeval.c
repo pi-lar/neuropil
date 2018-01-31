@@ -464,7 +464,7 @@ np_treeval_t np_treeval_new_bin (void* data, uint32_t ul)
     return j;
 }
 
-np_treeval_t np_treeval_new_key (np_dhkey_t dhkey)
+np_treeval_t np_treeval_new_dhkey (np_dhkey_t dhkey)
 {
     np_treeval_t j;
 

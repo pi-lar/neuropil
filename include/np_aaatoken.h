@@ -66,6 +66,19 @@ enum np_aaastate_e
 #define IS_ACCOUNTING(x) (AAA_ACCOUNTING  == (AAA_ACCOUNTING & x))
 #define IS_NOT_ACCOUNTING(x) (!IS_ACCOUNTING(x))
 
+enum np_aaatoken_type {
+	np_aaatoken_type_undefined		= 0,
+	np_aaatoken_type_identity		= 1,
+	np_aaatoken_type_node			= 2,
+	np_aaatoken_type_message_intent = 4,
+};
+
+enum np_aaatoken_scope {
+	np_aaatoken_scope_private = 0,
+	np_aaatoken_scope_public,
+	np_aaatoken_scope_undefined,
+};
+
 /**
 .. c:type:: np_aaatoken_t
 
@@ -145,11 +158,16 @@ struct np_aaatoken_s
 	double issued_at;
 	double not_before;
 	double expires_at;
-
+	
 	aaastate_type state;
+
+	np_dhkey_t partner_fp;
+	np_bool has_partner_fp;
 
 	char* uuid;
 
+	enum np_aaatoken_type type;
+	enum np_aaatoken_scope scope;
 	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
 	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
 	np_bool private_key_is_set;
@@ -219,7 +237,7 @@ np_aaatoken_t* _np_aaatoken_get_local_mx(const char* const subject);
 NP_API_INTERN
 void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
-unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool full);
+unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* msg_token, np_bool full);
 NP_API_INTERN
 np_bool _np_aaatoken_is_core_token(np_aaatoken_t* token);
 NP_API_INTERN
@@ -232,8 +250,6 @@ NP_API_INTERN
 void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token);
 NP_API_INTERN
 void np_aaatoken_encode_with_secrets(np_tree_t* data, np_aaatoken_t* token);
-NP_API_INTERN
-np_aaatoken_t* _np_aaatoken_new(char issuer[64], char node_subject[255], double expires_at);
 NP_API_INTERN
 int __np_aaatoken_generate_signature(unsigned char* hash, unsigned char* private_key, unsigned char* save_to);
 #ifdef __cplusplus

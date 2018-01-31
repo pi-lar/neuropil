@@ -149,7 +149,7 @@ np_treeval_t np_treeval_new_carray_nnt (char * carray);	/* Carray is not null te
 np_treeval_t np_treeval_new_tree(np_tree_t* tree);
 np_treeval_t np_treeval_new_hash(char* h_val);
 np_treeval_t np_treeval_new_pwhash (char *pw_key);
-np_treeval_t np_treeval_new_key(np_dhkey_t dhkey);
+np_treeval_t np_treeval_new_dhkey(np_dhkey_t dhkey);
 np_treeval_t np_treeval_new_obj(np_obj_t* obj);
 uint32_t np_treeval_get_byte_size(np_treeval_t ele);
 

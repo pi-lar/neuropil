@@ -72,8 +72,8 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
 	write_to->dhkey = write_dhkey_to;
 
 	np_tree_t* write_tree = np_tree_create();
-    np_tree_insert_str(write_tree,"TESTKEY_FROM", np_treeval_new_key(write_dhkey_from));
-    np_tree_insert_str(write_tree,"TESTKEY_TO", np_treeval_new_key(write_dhkey_to));
+    np_tree_insert_str(write_tree,"TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
+    np_tree_insert_str(write_tree,"TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
 
     np_message_t* write_msg = NULL;
     np_new_obj(np_message_t, write_msg);
@@ -153,11 +153,11 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
     np_new_obj(np_message_t, write_msg);
 
     np_tree_t* write_tree = np_tree_create();
-    np_tree_insert_str(write_tree, "TESTKEY_FROM", np_treeval_new_key(write_dhkey_from));
-    np_tree_insert_str(write_tree, "TESTKEY_TO", np_treeval_new_key(write_dhkey_to));
+    np_tree_insert_str(write_tree, "TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
+    np_tree_insert_str(write_tree, "TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
 
-    np_tree_insert_str(write_msg->instructions, "TESTKEY_FROM", np_treeval_new_key(write_dhkey_from));
-    np_tree_insert_str(write_msg->instructions, "TESTKEY_TO", np_treeval_new_key(write_dhkey_to));
+    np_tree_insert_str(write_msg->instructions, "TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
+    np_tree_insert_str(write_msg->instructions, "TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
 
     _np_message_create(write_msg, write_to, write_from, "serialize_np_message_t", write_tree);
 	np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));

@@ -44,6 +44,8 @@ extern "C" {
 #endif
 
 
+#define FLAG_CMP(data,flag) ((data & flag) == flag)
+
 #ifdef DEBUG
 #define ASSERT(expression, onfail_msg, ...)												\
 	if(!(expression)){																	\

@@ -644,11 +644,13 @@ np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
 	memcpy((char*) msg_token->public_key,
 		   (char*) my_identity->aaa_token->public_key,
 		   crypto_sign_PUBLICKEYBYTES);
+
 	// private key is only required for signing later, will not be send over the wire
 	memcpy((char*) msg_token->private_key,
 		   (char*) my_identity->aaa_token->private_key,
 		   crypto_sign_SECRETKEYBYTES);
 	msg_token->private_key_is_set = TRUE;
+	msg_token->scope = np_aaatoken_scope_private;
 
 	np_tree_insert_str(msg_token->extensions, "mep_type",
 			np_treeval_new_ul(msg_request->mep_type));

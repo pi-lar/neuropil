@@ -14,8 +14,6 @@ extern "C" {
 #endif
 
 NP_API_EXPORT
-np_aaatoken_t* np_identity_new(double expires_at);
-NP_API_EXPORT
 size_t np_identity_export_current(void* buffer);
 NP_API_EXPORT
 size_t np_identity_export(np_aaatoken_t* token, void* buffer);
