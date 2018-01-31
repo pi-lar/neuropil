@@ -231,7 +231,7 @@ void np_set_realm_name(const char* realm_name)
 	np_state()->realm_name = strndup(realm_name, 255);
 
 	// create a new token
-	np_aaatoken_t* auth_token = _np_node_create_token(np_state()->my_node_key->node);
+	np_aaatoken_t* auth_token = _np_token_factory_new_node_token(np_state()->my_node_key->node);
 	auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
 	np_dhkey_t my_dhkey = _np_aaatoken_create_dhkey(auth_token); // np_dhkey_create_from_hostport(my_node->dns_name, my_node->port);
@@ -935,7 +935,7 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	
 	log_debug_msg(LOG_DEBUG, "neuropil_init: create node token");
 	// create a new token for encryption each time neuropil starts
-	np_aaatoken_t* auth_token = _np_node_create_token(my_node);
+	np_aaatoken_t* auth_token = _np_token_factory_new_node_token(my_node);
 	auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
 	log_debug_msg(LOG_DEBUG, "neuropil_init: create node");

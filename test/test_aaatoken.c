@@ -50,7 +50,7 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	_np_node_update(test_node, IPv4 | UDP, "localhost", "1111");
 	test_key->node = test_node;
 
-	test_token_1 = _np_node_create_token(test_node);
+	test_token_1 = _np_token_factory_new_node_token(test_node);
 	// re-set the validity of this token for this test only
 	test_token_1->expires_at = test_token_1->not_before + 9.0;
 
@@ -112,7 +112,7 @@ Test(np_aaatoken_t, encode_decode_loop, .description="test the encoding and deco
 	np_new_obj(np_node_t, test_node);
 	_np_node_update(test_node, IPv4 | UDP, "localhost", "1111");
 
-	ref = _np_node_create_token(test_node);
+	ref = _np_token_factory_new_node_token(test_node);
 
 	np_new_obj(np_key_t, test_key);
 	test_key->dhkey = _np_aaatoken_create_dhkey(ref);

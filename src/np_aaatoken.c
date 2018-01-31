@@ -69,6 +69,9 @@ void _np_aaatoken_t_new(void* token)
 
 	aaa_token->extensions = np_tree_create();
 	aaa_token->state |= AAA_INVALID;
+
+	aaa_token->scope = np_aaatoken_scope_undefined;
+	aaa_token->has_partner_fp = FALSE;
 }
 
 void _np_aaatoken_t_del (void* token)
@@ -147,6 +150,10 @@ void np_aaatoken_core_encode(np_tree_t* data, np_aaatoken_t* token, np_bool stan
 	np_tree_insert_str(data, "np.t.i", np_treeval_new_s(token->issuer));
 	np_tree_insert_str(data, "np.t.ex", np_treeval_new_d(token->expires_at));
 	np_tree_insert_str(data, "np.t.p", np_treeval_new_bin(token->public_key, crypto_sign_PUBLICKEYBYTES));
+
+	if (token->has_partner_fp) {
+		np_tree_insert_str(data, "np.t.partner", np_treeval_new_dhkey(token->partner_fp));
+	}
 	
 	if (token->private_key_is_set == TRUE) {
 		_np_aaatoken_add_signature(token);
@@ -191,6 +198,7 @@ void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
 		token->private_key_is_set = private_key_is_set->val.value.ush;
 		memcpy(&token->private_key, private_key->val.value.bin, min(private_key->val.size, crypto_sign_SECRETKEYBYTES));
 		memcpy(&token->public_key, public_key->val.value.bin, min(public_key->val.size, crypto_sign_PUBLICKEYBYTES));
+		token->scope = np_aaatoken_scope_private;
 	}
 }
 
@@ -248,6 +256,7 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.p")))
 	{
 		memcpy(token->public_key, tmp->val.value.bin, min(tmp->val.size, crypto_sign_PUBLICKEYBYTES));
+		token->scope = np_aaatoken_scope_public;
 		
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.si")))
@@ -293,16 +302,24 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	// log_debug_msg(LOG_DEBUG, "extensions        : %s");
 }
 
-np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* identity)
+/**
+Alias function to np_aaatoken_get_fingerprint()
+*/
+np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* token)
 {
-	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* identity){");
+	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* token){");
 	// build a hash to find a place in the dhkey table, not for signing !
-	unsigned char* hash = _np_aaatoken_get_fingerprint(identity, FALSE);	
+	unsigned char* hash = _np_aaatoken_get_hash(token, FALSE);
 	char key[crypto_generichash_BYTES * 2 + 1];
-	sodium_bin2hex(key, crypto_generichash_BYTES*2+1, hash, crypto_generichash_BYTES);
+	sodium_bin2hex(key, crypto_generichash_BYTES * 2 + 1, hash, crypto_generichash_BYTES);
 	np_dhkey_t search_key = np_dhkey_create_from_hash(key);
 	free(hash);
 	return (search_key);
+}
+
+np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* token, enum np_aaatoken_type type, enum np_aaatoken_type scope)
+{
+	
 }
 
 np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
@@ -330,7 +347,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token)
 	if (token->private_key_is_set == FALSE &&
 		token->is_signature_verified == FALSE)
 	{
-		unsigned char* hash = _np_aaatoken_get_fingerprint(token, is_full_token);
+		unsigned char* hash = _np_aaatoken_get_hash(token, is_full_token);
 
 		char hash_hex[crypto_generichash_BYTES * 2 + 1] = { 0 };
 		sodium_bin2hex(hash_hex, crypto_generichash_BYTES * 2 + 1, hash, crypto_generichash_BYTES);
@@ -1028,7 +1045,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(const char* const subj
 	return (return_list);
 }
 
-unsigned char* _np_aaatoken_get_fingerprint(np_aaatoken_t* msg_token, np_bool full) {
+unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* msg_token, np_bool full) {
 	int sizeof_hash = crypto_generichash_BYTES * sizeof(unsigned char);
 	unsigned char* hash = calloc(1, sizeof_hash);
 	crypto_generichash_state gh_state;
@@ -1118,7 +1135,7 @@ int __np_aaatoken_generate_signature(unsigned char* hash, unsigned char* private
 void _np_aaatoken_add_signature(np_aaatoken_t* msg_token)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_add_signature(np_aaatoken_t* msg_token){");
-	unsigned char* hash = _np_aaatoken_get_fingerprint(msg_token, !_np_aaatoken_is_core_token(msg_token));	
+	unsigned char* hash = _np_aaatoken_get_hash(msg_token, !_np_aaatoken_is_core_token(msg_token));	
 
 	if (msg_token->signed_hash == NULL || memcmp(hash, msg_token->signed_hash, crypto_generichash_BYTES * sizeof(unsigned char)) != 0) {
 		free(msg_token->signed_hash);
@@ -1253,30 +1270,4 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 	log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  ._np_add_local_mx_token");
-}
-
-np_aaatoken_t* _np_aaatoken_new(char issuer[64], char node_subject[255], double expires_at)
-{
-	np_aaatoken_t* ret = NULL;
-	np_new_obj(np_aaatoken_t, ret);
-
-	np_state_t* state = np_state();
-
-	// create token
-	if (NULL != state->realm_name)
-	{
-		strncpy(ret->realm, state->realm_name, 255);
-	}
-	strncpy(ret->issuer, issuer, 64);
-	strncpy(ret->subject, node_subject, 255);
-	// strncpy(ret->audience, (char*) _np_key_as_str(state->my_identity->aaa_token->realm), 255);
-
-	ret->not_before = np_time_now();
-
-	ret->expires_at = expires_at;
-
-	crypto_sign_keypair(ret->public_key, ret->private_key);   // ed25519
-	ret->private_key_is_set = TRUE;
-
-	return ret;
 }

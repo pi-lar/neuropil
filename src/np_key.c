@@ -241,7 +241,7 @@ void np_key_renew_token() {
 
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "step ._np_renew_node_token_jobexec.Creating new node key");
 
-		np_aaatoken_t* new_token = _np_node_create_token(old_node_key->node);
+		np_aaatoken_t* new_token = _np_token_factory_new_node_token(old_node_key->node);
 		new_node_key = _np_key_create_from_token(new_token);
 
 		np_ref_obj(np_aaatoken_t, new_token,ref_key_aaa_token);

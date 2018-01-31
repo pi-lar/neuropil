@@ -95,11 +95,6 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, 
 NP_API_INTERN
 void _np_node_encode_to_jrb  (np_tree_t* data, np_key_t* node_key, np_bool include_stats);
 
-/** np_node aaa_token routines
- **/
-NP_API_INTERN
-np_aaatoken_t* _np_node_create_token(np_node_t* node);
-
 NP_API_INTERN
 np_key_t* _np_key_create_from_token(np_aaatoken_t* token);
 

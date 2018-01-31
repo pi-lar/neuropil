@@ -325,31 +325,6 @@ int _np_node_cmp(np_node_t* a, np_node_t* b) {
 	return ret;
 }
 
-np_aaatoken_t* _np_node_create_token(np_node_t* source_node)
-{
-	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_node_create_token(np_node_t* source_node){");
-
-	int rand_interval = ((int)randombytes_uniform(NODE_MAX_TTL_SEC - NODE_MIN_TTL_SEC) + NODE_MIN_TTL_SEC);
-	double expires_at = np_time_now() + rand_interval;
-
-	char node_subject[255];
-	snprintf(node_subject, 255, "urn:np:node:%s:%s:%s",
-		_np_network_get_protocol_string(source_node->protocol), source_node->dns_name, source_node->port);
-
-	char issuer[64] = { 0 };
-	if (np_state() != NULL && np_state()->my_identity != NULL && 
-		_np_node_cmp(np_state()->my_identity->node , source_node) != 0) {
-
-		strncpy(issuer,_np_key_as_str(np_state()->my_identity),64);
-	}
-	else {
-		strncpy(issuer, node_subject, 64);
-	}
-
-	np_aaatoken_t* ret = _np_aaatoken_new(issuer, node_subject, expires_at);
-
-	return (ret);
-}
 
 void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 {

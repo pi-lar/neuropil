@@ -15,18 +15,6 @@
 #include "np_serialization.h"
 #include "np_util.h"
 
-np_aaatoken_t* np_identity_new(double expires_at)
-{
-	char node_subject[255];
-	snprintf(node_subject, 255, "urn:np:identity:%s", np_uuid_create("urn:np:identity", 0));
-
-	char issuer[64] = { 0 };
-
-	np_aaatoken_t* ret = _np_aaatoken_new(issuer, node_subject, expires_at);
-
-
-	return ret;
-}
 
 size_t np_identity_export_current(void* buffer) {
 	size_t ret = 0;
