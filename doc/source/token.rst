@@ -46,6 +46,7 @@ One of the most important aspects is the use of the realm, issuer, subject and a
 each other and reference each other as the library build up its network structure. Therefore we will concentrate 
 on these four for the following chapter.
 
+
 1: handshaking
 **************
 For the handshake we need to send some core informations to the other node, so the fields will contain:
@@ -108,6 +109,7 @@ containing the required identity fingerprint:
 The second transmit of the node token is only there to certify that this identity is really running on this specific
 node.
 
+
 2: sending message intents
 **************************
 If an identity would like to exchange informations with another identity in the network, it sends out its message
@@ -115,7 +117,7 @@ intents, where we use token again.:
 
    realm      := <empty> | <fingerprint(realm)>
    issuer     := <ifp>
-   subject    := 'urn:np:subject:'<hash(subject)>
+   subject    := 'urn:np:sub:'<hash(subject)>
    audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
    extensions := { target_node: nfp, <mx properties>, <?user supplied data> }
    public_key := <pk(identity)>
@@ -152,6 +154,7 @@ to find a third party (realm) who is willing to proove the authenticity of a dev
 In a similar way you can remote control your devices, because for authorization requests each device, application or
 person is able to contact your realm for allowance. 
 
+
 4: the missing accounting tokens
 ********************************
 the chapters above have described the measures how you can authenticate and authorize token, but we have not yet
@@ -162,7 +165,7 @@ by copying its own message intent
 
    realm      := <empty> | <fingerprint(realm)>
    issuer     := <ifp>
-   subject    := 'urn:np:subject:'<hash(subject)>
+   subject    := 'urn:np:sub:'<hash(subject)>
    audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
    extensions := { target_node: nfp, <mx properties>, <?user supplied data> }
    public_key := <pk(identity)>
@@ -176,7 +179,7 @@ Similar each node on the network can record received messages and
 
    realm      := <empty> | <fingerprint(realm)>
    issuer     := <nfp>
-   subject    := 'urn:np:subject:'<hash(subject)>
+   subject    := 'urn:np:sub:'<hash(subject)>
    audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
    extensions := { target_node: nfp, <mx properties>, <?user supplied data> }
    public_key := <pk(identity)>
