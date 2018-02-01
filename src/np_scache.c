@@ -6,30 +6,29 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <inttypes.h>
+
 #include "np_scache.h"
+
 #include "np_list.h"
-
-#include "np_scache.h"
-
-#include "np_threads.h"
 #include "np_log.h"
-#include "inttypes.h"
+#include "np_threads.h"
+#include "xxhash/xxhash.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_cache_item_ptr);
 
 np_simple_cache_table_t* np_cache_init(uint32_t size) {
 
-	np_simple_cache_table_t* ret = 
-		(np_simple_cache_table_t*)malloc(
-		sizeof(np_simple_cache_table_t));
+	np_simple_cache_table_t* ret = (np_simple_cache_table_t*)malloc(sizeof(np_simple_cache_table_t));
 	CHECK_MALLOC(ret);
+
 	_np_threads_mutex_init(&ret->lock,"simple cache");
 
 	for (uint32_t i = 0; i < size; i++) {
 		sll_init(np_cache_item_ptr, ret->buckets[i]);
 	}
 
-	return ret; 
+	return (ret);
 }
 
 np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char* const key)
@@ -98,9 +97,14 @@ int np_simple_cache_insert(np_simple_cache_table_t *table, const char* const key
 }
 
 uint32_t _np_simple_cache_strhash(const char* const str) {
-	uint32_t hash = 0;
+
+	static const unsigned long long seed = 31415;
+	return (XXH32(str, strlen(str), seed) );
+
+/*    uint32_t hash = 0;
 	const char* str_ptr = str;
 	for (; *str_ptr; str_ptr++)
 		hash = 31 * hash + *str_ptr;
 	return hash;
+*/
 }
