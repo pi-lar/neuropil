@@ -98,7 +98,7 @@ int np_simple_cache_insert(np_simple_cache_table_t *table, const char* const key
 
 uint32_t _np_simple_cache_strhash(const char* const str) {
 
-	static const unsigned long long seed = 31415;
+	static const uint32_t seed = 0; // 3141592653;
 	return (XXH32(str, strlen(str), seed) );
 
 /*    uint32_t hash = 0;
