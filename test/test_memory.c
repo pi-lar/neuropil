@@ -2,7 +2,6 @@
 // neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-#define NP_MEMORY_CHECK_MEMORY_REFFING
 
 #include <stdlib.h>
 #include <assert.h>
@@ -10,16 +9,21 @@
 #include <inttypes.h>
 
 #include "pthread.h"
+#include "time.h"
+
 #include <criterion/criterion.h>
 
-#include "np_memory.h"
-#include "np_log.h"
 #include "neuropil.h"
-#include "np_message.h"
-#include "np_types.h"
 #include "np_constants.h"
+#include "np_log.h"
+#include "np_memory.h"
+#include "np_message.h"
+#include "np_memory_v2.h"
+#include "np_settings.h"
 #include "np_threads.h"
+#include "np_types.h"
 
+#include "test_macros.c"
 
 typedef struct test_struct
 {
@@ -42,7 +46,8 @@ void _test_struct_t_new(NP_UNUSED void* data_ptr)
 
 void setup_memory(void)
 {
-	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_MESSAGE;
+	// int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_MEMORY;
+	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
 	np_log_init("test_memory.log", log_level);
 
 	_np_threads_init();
@@ -195,4 +200,56 @@ Test(np_memory_t, _memory_reasons, .description = "test the memory reasoning rou
 	cr_assert(0 == strncmp("test___3", sll_first(t_obj1->obj->reasons)->val, 8), "expect 1. reason object to be test___3");
 
 	// np_unref_obj(test_struct_t, t_obj1, "test___3");
+}
+
+
+Test(np_memory_t, _memory_v2_perf, .description = "test the memory_v2 performance to implement improvements")
+{
+	np_memory_init();
+
+	uint16_t max_count = 16284;
+	// np_memory_types_BLOB_1024
+	// np_memory_types_BLOB_984_RANDOMIZED
+	double new_time[16284];
+	double free_time[16284];
+	double clean_time[16284];
+	uint16_t clean_index = 0;
+
+	void* memory_blobs[16284] = { 0 };
+
+	for (uint16_t i=0; i < max_count; i++)
+	{
+		// random number
+		uint16_t random = randombytes_uniform(max_count);
+
+		if (memory_blobs[random] != NULL)
+		{
+			MEASURE_TIME(free_time, i, np_memory_free(memory_blobs[random]) );
+
+			memory_blobs[random] = NULL;
+		}
+
+		if (random % 2)
+		{
+			MEASURE_TIME(new_time, i, memory_blobs[random] = np_memory_new(np_memory_types_BLOB_1024) );
+		}
+		else
+		{
+			MEASURE_TIME(new_time, i, memory_blobs[random] = np_memory_new(np_memory_types_BLOB_984_RANDOMIZED) );
+		}
+
+		if (0 == (i % 99))
+		{
+			log_debug_msg(LOG_DEBUG | LOG_MEMORY, "Cleanup of memory block requested");
+			MEASURE_TIME(clean_time, clean_index, _np_memory_job_memory_management(NULL) );
+			clean_index++;
+		}
+	}
+
+	fprintf(stdout, "###########\n");
+	CALC_STATISTICS("new_time  :", new_time, max_count);
+	CALC_STATISTICS("free_time :", free_time, max_count);
+	CALC_STATISTICS("clean_time:", clean_time, clean_index);
+	fprintf(stdout, "###########\n");
+
 }

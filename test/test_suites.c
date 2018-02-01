@@ -21,6 +21,7 @@
 #include "test_route.c"
 #include "test_util_uuid.c"
 #include "test_sodium_crypt.c"
+#include "test_scache.c"
 
 // NON Criterion Tests
 /*
