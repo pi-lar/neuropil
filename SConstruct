@@ -1,6 +1,6 @@
 
 import platform
-import glob
+
 
 print '####'
 print '#### starting neuropil build'
@@ -90,7 +90,6 @@ if 'CYGWIN' in platform.system():
 if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
     env.Append(LIBS = ['rt'] )
     env.Append(CCFLAGS = ['-x c'])
-
 
 # env.Append(CCFLAGS = '-march='+platform.processor())
 # env.Append(CCFLAGS = '-arch='+platform.machine())
@@ -194,7 +193,7 @@ SOURCES += ['build/obj/np_sysinfo.c','build/obj/np_scache.c','build/obj/np_event
 SOURCES += ['build/obj/np_serialization.c','build/obj/np_memory_v2.c','build/obj/np_shutdown.c','build/obj/np_identity.c']
 
 # source code 3rd party libraries
-SOURCES += ['build/obj/event/ev.c', 'build/obj/json/parson.c','build/obj/msgpack/cmp.c','build/obj/gpio/bcm2835.c']
+SOURCES += ['build/obj/event/ev.c', 'build/obj/json/parson.c','build/obj/msgpack/cmp.c','build/obj/gpio/bcm2835.c', 'build/obj/xxhash/xxhash.c']
 
 # test cases for neuropil
 TESTS =  ['test/test_suites.c']
@@ -232,10 +231,6 @@ else:
             print 'building neuropil_%s' %program
             prg_np = env.Program('bin/neuropil_%s'%program, 'examples/neuropil_%s.c'%program)
             Depends(prg_np, np_dylib)
-
-
-prg_np = env.Program('bin/pilarnet', 'examples/workshop/pilarnet.c')
-Depends(prg_np, np_dylib)
 
 # clean up
 Clean('.', 'build')
