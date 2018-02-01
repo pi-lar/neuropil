@@ -51,25 +51,32 @@ on these four for the following chapter.
 **************
 For the handshake we need to send some core informations to the other node, so the fields will contain:
 
-   realm      := <empty> | <fingerprint(realm)>                              64
-   issuer     := <empty> | <fingerprint(issuer)>                             64
-   subject    := 'urn:np:node:<protocol>:<hostname>:<port>'                 255
-   audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>      64
-   extensions := { <session key for DHKE> }                                  64
-   public_key := <pk(node)>                                                  32
-   signature  := <signature of above fields>                                 64
-                                                                           -----
-                                                                       max  602  bytes
+   realm         := <empty> | <fingerprint(realm)>                              64
+   issuer        := <empty> | <fingerprint(issuer)>                             64
+   subject       := 'urn:np:node:<protocol>:<hostname>:<port>'                 255
+   audience      := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>      64
+   extensions    := { <session key for DHKE> }                                  64
+   public_key    := <pk(node)>                                                  32
+   signature     := <signature of above fields excluding extensions>            64
+   signature_ext := <signature of all above fields>                             64
+                                                                              -----
+                                                                          max  666  bytes
 
 Please remember that the main purpose here is to establish a secure conversation channel between any two nodes.
-The cleartext hostname and port could also be found by doing a network scan.
+The cleartext hostname and port could also be found by doing a network scan. Furthermore we have to keep the token 
+size small to fit into the 1024 bytes bounds of our selected paket size. Only one paket as an initial handshake message
+is allowed.
+
 From the above structure you can create a node fingerprint (nfp), which is unique to this specific token.
 This fingerprint again is used as the visible part of the DHT, which can be addressed.
  
    nfp = hash(nodetoken, signature)
 
-If a node hosts more than one idenity (currently not possible), then the issuer field should be blank. A separate 
-node token will be supplied in the join message.
+similar we could create a handshake fingerprint (which we do not need, it is just here to complete the picture):
+
+   hfp = hash(nodetoken, signature_ext)
+
+A separate node token will be supplied in the join message to verify the use of a potential identity.
 
 
 2: joining the network
@@ -77,37 +84,46 @@ node token will be supplied in the join message.
 The join message contains the token of the identity which is using a node. Identity token can be exported 
 and imported and are available in the userspace.
 
-   realm      := <empty> | <fingerprint(realm)>                               64
-   issuer     := <empty> | <fingerprint(issuer)>                              64
-   subject    := 'urn:np:id:'<hash(userdata)>                                255
-   audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>       64
-   extensions := { target_node: nfp, <?user supplied data> }              min 64
-   public_key := <pk(identity)>                                               32
-   signature  := <signature of all above fields>                              64
-                                                                             ----
-                                                                         min 602
+   realm         := <empty> | <fingerprint(realm)>                             64
+   issuer        := <empty> | <fingerprint(issuer)>                            64
+   subject       := 'urn:np:id:'<hash(userdata)>                              255
+   audience      := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>     64
+   extensions    := { target_node: nfp, <?user supplied data> }            min 64
+   public_key    := <pk(identity)>                                             32
+   signature     := <signature of above fields excluding extensions>           64
+   signature_ext := <signature of all above fields>                            64
+                                                                              ----
+                                                                          min 666
 
 Again we can create a fingerprint of this token ('infp'). This fingerprint is not the same as the fingeprint of a 
 pure identity (ifp), as we do not know in advance which 'nfp' this idenity will use. A pure identity token of does
 not contain the 'nfp'. But we can still calculate the fingeprint afterwards, because:
 
    ifp = hash(idtoken, signature)
-   infp = hash(idtoken, signature, nfp)
+   infp = hash(idtoken, signature_ext, nfp)
 
-'nfp' potentially contains the idtoken fingerprint in the issuer field again. But if a technical node hosts more 
+all signatures can be validated using the public keys of tokens that have been received.
+
+'nfp' potentially contains the issuing fingerprint in the issuer field again. But if a technical node hosts more 
 than one identity, then the join message will also contain again the node token, this time in full length and 
 containing the required identity fingerprint:
 
-   realm      := <empty> | <fingerprint(realm)>
-   issuer     := <empty> | <fingerprint(issuer)>
-   subject    := 'urn:np:node:<protocol>:<hostname>:<port>'
-   audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
-   extensions := { identity: ifp, <?user supplied data> }
-   public_key := <pk(node)>
-   signature  := <signature of all above fields>
+   realm         := <empty> | <fingerprint(realm)>
+   issuer        := <empty> | <fingerprint(issuer)>
+   subject       := 'urn:np:node:<protocol>:<hostname>:<port>'
+   audience      := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
+   extensions    := { <?identity: ifp>, <?user supplied data> }
+   public_key    := <pk(node)>
+   signature     := <signature of above fields excluding extensions>           
+   signature_ext := <signature of all above fields>                            
 
-The second transmit of the node token is only there to certify that this identity is really running on this specific
-node.
+The second transmit of the node token is needed to certify that this identity is really running on this specific
+node, a kind of automated cross-signing between node and identity. We could add the handshake fingerprint to this
+token to make it really foolproof, but currently we do not think that it would be neccessary.
+
+Please note that in the case of a pure technical node that should support the network we will only transmit the node
+token again in the join message. The reason for doing so is the authentication callback, which is only triggered when
+sending a join message.
 
 
 2: sending message intents
@@ -115,13 +131,14 @@ node.
 If an identity would like to exchange informations with another identity in the network, it sends out its message
 intents, where we use token again.:
 
-   realm      := <empty> | <fingerprint(realm)>
-   issuer     := <ifp>
-   subject    := 'urn:np:sub:'<hash(subject)>
-   audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
-   extensions := { target_node: nfp, <mx properties>, <?user supplied data> }
-   public_key := <pk(identity)>
-   signature  := <signature of all above fields>
+   realm         := <empty> | <fingerprint(realm)>
+   issuer        := <ifp>
+   subject       := 'urn:np:sub:'<hash(subject)>
+   audience      := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
+   extensions    := { target_node: nfp, <mx properties>, <?user supplied data> }
+   public_key    := <pk(identity)>
+   signature     := <signature of above fields excluding extensions>           
+   signature_ext := <signature of all above fields>                            
 
 Please note that a message intent is somehow different, as you may get a message intent of an identity that your node
 may not have any connection to. So first you need to authenticate the issuer of this message intent. you can
@@ -137,8 +154,8 @@ Again you have the three options above with the follwoing restriction to the sec
    - you forward the recieved token to do the authz work for your node to your own realm 
 
 
-3: pki setups
-*************
+3: pki / web of trust / zero knowledge setups
+*********************************************
 Sometimes it is desirable to choose a pki setup for the tokens that you use. For this case the issuer field of the 
 token strutcure can be used. It indicates whether a token has been signed by another party. There is no pre-defined
 setup for this kind of , but the usual setup as you know it from certificates is required. Especially you will have 
@@ -163,13 +180,14 @@ covered how you can use tokens for accounting purposes. But basically it is very
 An identity e.g. could create and send an accounting token for the messages and message intents it has recieved, just
 by copying its own message intent
 
-   realm      := <empty> | <fingerprint(realm)>
-   issuer     := <ifp>
-   subject    := 'urn:np:sub:'<hash(subject)>
-   audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
-   extensions := { target_node: nfp, <mx properties>, <?user supplied data> }
-   public_key := <pk(identity)>
-   signature  := <signature of all above fields>
+   realm         := <empty> | <fingerprint(realm)>
+   issuer        := <ifp>
+   subject       := 'urn:np:sub:'<hash(subject)>
+   audience      := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
+   extensions    := { target_node: nfp, <mx properties>, <?user supplied data> }
+   public_key    := <pk(identity)>
+   signature     := <signature of above fields excluding extensions>           
+   signature_ext := <signature of all above fields>                            
 
 Under 'user supplied data' you can add any content, for example the message intents that you have received from your
 peers, plus the actual usage of your/their token (it's a json structure). The main difference towards your initial
@@ -177,13 +195,14 @@ message intent token is the address that you're sending this token to.
 
 Similar each node on the network can record received messages and 
 
-   realm      := <empty> | <fingerprint(realm)>
-   issuer     := <nfp>
-   subject    := 'urn:np:sub:'<hash(subject)>
-   audience   := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
-   extensions := { target_node: nfp, <mx properties>, <?user supplied data> }
-   public_key := <pk(identity)>
-   signature  := <signature of all above fields>
+   realm         := <empty> | <fingerprint(realm)>
+   issuer        := <nfp>
+   subject       := 'urn:np:sub:'<hash(subject)>
+   audience      := <empty> | <fingerprint(realm)> | <fingerprint(issuer)>
+   extensions    := { target_node: nfp, <mx properties>, <?user supplied data> }
+   public_key    := <pk(identity)>
+   signature     := <signature of above fields excluding extensions>           
+   signature_ext := <signature of all above fields>                            
 
 in this case the section 'user supplied data' would contain the uuid of each message(part) that a single node has 
 received and forwarded. Most important are the nodes which do the message intent matching ! These nodes act as a 
