@@ -247,9 +247,8 @@ Test(np_memory_t, _memory_v2_perf, .description = "test the memory_v2 performanc
 	}
 
 	fprintf(stdout, "###########\n");
-	CALC_STATISTICS("new_time  :", new_time, max_count);
-	CALC_STATISTICS("free_time :", free_time, max_count);
-	CALC_STATISTICS("clean_time:", clean_time, clean_index);
-	fprintf(stdout, "###########\n");
+	CALC_STATISTICS("memory new_time  :", new_time, max_count);
+	CALC_STATISTICS("memory free_time :", free_time, max_count);
+	CALC_STATISTICS("memory clean_time:", clean_time, clean_index);
 
 }

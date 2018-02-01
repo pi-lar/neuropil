@@ -41,7 +41,7 @@ Test(np_scache_t, _np_cache_init, .description="test the initialization of a sca
 	}
 }
 
-Test(np_scache_t, np_simple_cache_insert, .description="test the addition/removal of items to the scache")
+Test(np_scache_t, np_simple_cache_insert, .description="test the addition/retrieval of items to the scache")
 {
 	uint32_t cache_size = 32;
 	np_simple_cache_table_t* cache_table = np_cache_init(cache_size);
@@ -73,7 +73,45 @@ Test(np_scache_t, np_simple_cache_insert, .description="test the addition/remova
 		log_msg(LOG_DEBUG, "cache entry list size: %d", sll_size(cache_table->buckets[i]) );
 	}
 
+	for (uint16_t j = 0; j < max_entries; j++) {
+		char *key = malloc(sizeof(char)*32);
+		snprintf(key, 32, "%d", j);
 
-
+		np_cache_item_t* item = np_simple_cache_get(cache_table, key);
+		cr_expect(0 == strcmp(item->key, key), "test whether the retrieved key matches the requested key");
+		cr_expect(0 == strcmp((char*)item->value, key), "test whether the retrieved value matches the expected value");
+	}
 }
+
+Test(np_scache_t, np_simple_cache_performance, .description="test the performance of the simple cache")
+{
+	uint32_t cache_size = 32;
+	np_simple_cache_table_t* cache_table = np_cache_init(cache_size);
+
+	uint32_t num_entries = 0;
+	uint32_t max_entries = 256;
+
+	double insert_arr[max_entries];
+	double retrieve_arr[max_entries];
+
+	for (uint16_t j = 0; j < max_entries; j++) {
+		char *key = malloc(sizeof(char)*1024);
+		snprintf(key, 32, "%d", j);
+		MEASURE_TIME(insert_arr, j, np_simple_cache_insert(cache_table, key, key) );
+	}
+
+	for (uint16_t j = 0; j < max_entries; j++) {
+		char *key = malloc(sizeof(char)*1024);
+		snprintf(key, 32, "%d", j);
+
+		np_cache_item_t* item;
+
+		MEASURE_TIME(retrieve_arr, j, item = np_simple_cache_get(cache_table, key) );
+	}
+
+	fprintf(stdout, "###########\n");
+	CALC_STATISTICS("scache insert  : ", insert_arr, max_entries);
+	CALC_STATISTICS("scache retrieve: ", retrieve_arr, max_entries);
+}
+
 
