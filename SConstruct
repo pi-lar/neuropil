@@ -91,6 +91,8 @@ if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
     env.Append(LIBS = ['rt'] )
     env.Append(CCFLAGS = ['-x c'])
 
+
+
 # env.Append(CCFLAGS = '-march='+platform.processor())
 # env.Append(CCFLAGS = '-arch='+platform.machine())
 #env.Append(CCFLAGS = '-target ' + platform.machine() + '-' + platform.system().lower() )
