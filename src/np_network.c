@@ -700,7 +700,8 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			alias_key_ref_reason = "_np_keycache_find";
 			if (NULL == alias_key) {
 				alias_key = _np_keycache_create(search_key);
-				alias_key_ref_reason = "_np_keycache_create";
+				alias_key_ref_reason = "_np_keycache_create"; 
+				alias_key->type |= np_key_type_alias;				
 				np_ref_obj(np_key_t, key, ref_key_parent);
 				alias_key->parent = key;				
 			}

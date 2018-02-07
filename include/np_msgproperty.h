@@ -231,6 +231,10 @@ struct np_msgproperty_s
 	// link to node(s) which is/are interested in message exchange
 	np_dhkey_t partner_key;
 
+	/*
+	should not become longer than 242 characters
+		255 - 13 (urn:np:...)
+	*/
 	char*            msg_subject;
 	char*            rep_subject;
 	char*            msg_audience;
@@ -352,27 +356,31 @@ void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args);
 NP_API_INTERN
 np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check);
 
-static char _DEFAULT[]                       = "_NP.DEFAULT";
+#define _NP_URN_PREFIX						"urn:np:"
+#define _NP_URN_MSG_PREFIX					""
+#define _NP_URN_NODE_PREFIX					_NP_URN_PREFIX"node:"
+#define _NP_URN_IDENTITY_PREFIX				_NP_URN_PREFIX"id:"
+#define _DEFAULT							"_NP.DEFAULT"
 
-static char _NP_MSG_ACK[]                    = "_NP.ACK";
-static char _NP_MSG_HANDSHAKE[]              = "_NP.HANDSHAKE";
-static char _NP_MSG_PING_REQUEST[]           = "_NP.PING.REQUEST";
-static char _NP_MSG_LEAVE_REQUEST[]          = "_NP.LEAVE.REQUEST";
-static char _NP_MSG_JOIN[]                   = "_NP.JOIN.";
-static char _NP_MSG_JOIN_REQUEST[]           = "_NP.JOIN.REQUEST";
-static char _NP_MSG_JOIN_ACK[]               = "_NP.JOIN.ACK";
-static char _NP_MSG_JOIN_NACK[]              = "_NP.JOIN.NACK";
-static char _NP_MSG_PIGGY_REQUEST[]          = "_NP.NODES.PIGGY";
-static char _NP_MSG_UPDATE_REQUEST[]         = "_NP.NODES.UPDATE";
-static char _NP_MSG_DISCOVER_RECEIVER[]      = "_NP.MESSAGE.DISCOVER.RECEIVER";
-static char _NP_MSG_DISCOVER_SENDER[]        = "_NP.MESSAGE.DISCOVER.SENDER";
-static char _NP_MSG_AVAILABLE_RECEIVER[]     = "_NP.MESSAGE.RECEIVER.LIST";
-static char _NP_MSG_AVAILABLE_SENDER[]       = "_NP.MESSAGE.SENDER.LIST";
-static char _NP_MSG_AUTHENTICATION_REQUEST[] = "_NP.MESSAGE.AUTHENTICATE";
-static char _NP_MSG_AUTHENTICATION_REPLY[]   = "_NP.MESSAGE.AUTHENICATION.REPLY";
-static char _NP_MSG_AUTHORIZATION_REQUEST[]  = "_NP.MESSAGE.AUTHORIZE";
-static char _NP_MSG_AUTHORIZATION_REPLY[]    = "_NP.MESSAGE.AUTHORIZATION.REPLY";
-static char _NP_MSG_ACCOUNTING_REQUEST[]     = "_NP.MESSAGE.ACCOUNT";
+#define _NP_MSG_ACK							"_NP.ACK"
+#define _NP_MSG_HANDSHAKE					"_NP.HANDSHAKE"
+#define _NP_MSG_PING_REQUEST				"_NP.PING.REQUEST"
+#define _NP_MSG_LEAVE_REQUEST				"_NP.LEAVE.REQUEST"
+#define _NP_MSG_JOIN						"_NP.JOIN."
+#define _NP_MSG_JOIN_REQUEST				"_NP.JOIN.REQUEST"
+#define _NP_MSG_JOIN_ACK					"_NP.JOIN.ACK"
+#define _NP_MSG_JOIN_NACK					"_NP.JOIN.NACK"
+#define _NP_MSG_PIGGY_REQUEST				"_NP.NODES.PIGGY"
+#define _NP_MSG_UPDATE_REQUEST				"_NP.NODES.UPDATE"
+#define _NP_MSG_DISCOVER_RECEIVER			"_NP.MESSAGE.DISCOVER.RECEIVER"
+#define _NP_MSG_DISCOVER_SENDER				"_NP.MESSAGE.DISCOVER.SENDER"
+#define _NP_MSG_AVAILABLE_RECEIVER			"_NP.MESSAGE.RECEIVER.LIST"
+#define _NP_MSG_AVAILABLE_SENDER			"_NP.MESSAGE.SENDER.LIST"
+#define _NP_MSG_AUTHENTICATION_REQUEST		"_NP.MESSAGE.AUTHENTICATE"
+#define _NP_MSG_AUTHENTICATION_REPLY		"_NP.MESSAGE.AUTHENICATION.REPLY"
+#define _NP_MSG_AUTHORIZATION_REQUEST		"_NP.MESSAGE.AUTHORIZE"
+#define _NP_MSG_AUTHORIZATION_REPLY			"_NP.MESSAGE.AUTHORIZATION.REPLY"
+#define _NP_MSG_ACCOUNTING_REQUEST			"_NP.MESSAGE.ACCOUNT"
 
 /**
  ** message_init

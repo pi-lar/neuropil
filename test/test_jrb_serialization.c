@@ -82,7 +82,7 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
 	tst.t[7] = 8;
 
     np_treeval_t val = np_treeval_new_dhkey(tst);
-	cr_expect(val.type == dhkey_type, "Expected source val to be of type dhkey_type. But is: %"PRIu8, val.type);
+	cr_expect(val.type == np_treeval_type_dhkey, "Expected source val to be of type np_treeval_type_dhkey. But is: %"PRIu8, val.type);
 	cr_expect(total_write_count == 0, "Expected empty buffer. But size is %"PRIu32, total_write_count);
     __np_tree_serialize_write_type(val, &cmp_write);
 	cr_assert(cmp_write.error == ERROR_NONE, "expect no error on write. But is: %"PRIu8, cmp_write.error);
@@ -101,12 +101,12 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
     reset_buffer_counter();
 
 	cmp_object_t obj;
-	np_treeval_t read_tst = { .type = none_type, .size = 0 };
+	np_treeval_t read_tst = { .type = np_treeval_type_undefined, .size = 0 };
 	cmp_read_object(&cmp_read, &obj);
 
 	cr_assert(cmp_read.error == ERROR_NONE, "Expected no error on object read. But is: %"PRIu8,cmp_read.error);
 	cr_assert(obj.type == CMP_TYPE_EXT32, "Expected obj to be of type CMP_TYPE_EXT32. But is: %"PRIu8, obj.type);
-	cr_expect(obj.as.ext.type == dhkey_type, "Expected obj to be of type EXT type dhkey_type. But is: %"PRIu8, read_tst.type);
+	cr_expect(obj.as.ext.type == np_treeval_type_dhkey, "Expected obj to be of type EXT type np_treeval_type_dhkey. But is: %"PRIu8, read_tst.type);
 	cr_expect(obj.as.ext.size == expected_obj_size, "Expected obj to be of size %"PRIu32". But is: %"PRIu32, expected_obj_size, obj.as.ext.size);
 
 	__np_tree_deserialize_read_type(np_tree_create(), &obj, &cmp_read, &read_tst,"test read");
@@ -114,7 +114,7 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
 	cr_assert(cmp_read.error == ERROR_NONE, "Expected no error on val read. But is: %"PRIu8,cmp_read.error);
 	cr_expect(total_read_count == expected_read_count, "Expected read size is %"PRIu32" but is %"PRIu32, expected_read_count, total_read_count);
 
-	cr_expect(read_tst.type == dhkey_type, "Expected read val to be of type dhkey_type. But is: %"PRIu8, read_tst.type);
+	cr_expect(read_tst.type == np_treeval_type_dhkey, "Expected read val to be of type np_treeval_type_dhkey. But is: %"PRIu8, read_tst.type);
 	cr_expect(read_tst.size == sizeof(np_dhkey_t), "Expected val to be of dhkey size. But is: %"PRIu32, read_tst.size);
 	cr_expect(read_tst.value.dhkey.t[0] == 1, "Expected read val value 0 to be the same as predefined, But is: %"PRIu32, read_tst.value.dhkey.t[0]);
 	cr_expect(read_tst.value.dhkey.t[1] == 2, "Expected read val value 1 to be the same as predefined, But is: %"PRIu32, read_tst.value.dhkey.t[1]);
@@ -187,7 +187,7 @@ Test(test_serialization, serialize_np_dhkey_t_in_np_tree_t_, .description="test 
 
 	cr_assert(NULL != testkey_read, "Expected to find TESTKEY key value");
 
-	cr_expect(testkey_read->val.type == dhkey_type, "Expected read val to be of type dhkey_type. But is: %"PRIu8, testkey_read->val.type);
+	cr_expect(testkey_read->val.type == np_treeval_type_dhkey, "Expected read val to be of type np_treeval_type_dhkey. But is: %"PRIu8, testkey_read->val.type);
 	cr_expect(testkey_read->val.size == sizeof(np_dhkey_t), "Expected val to be of dhkey size. But is: %"PRIu32, testkey_read->val.size);
 
 	cr_expect(testkey_read->val.value.dhkey.t[0] == 1, "Expected read val value 0 to be the same as predefined, But is: %"PRIu32, testkey_read->val.value.dhkey.t[0]);
@@ -226,10 +226,10 @@ Test(test_serialization, _np_tree_special_str, .description = "test the implemen
 	np_tree_insert_str(tst, "np.test3", np_treeval_new_s("np.test2"));
 	ele = np_tree_find_str(tst, "np.test3");
 	cr_assert(ele != NULL, "Expect to find a element");
-	cr_assert(ele->key.type == special_char_ptr_type, "Expect key of element to be from type special_char_ptr_type");
+	cr_assert(ele->key.type == np_treeval_type_special_char_ptr, "Expect key of element to be from type np_treeval_type_special_char_ptr");
 	cr_assert(ele->key.value.ush == 2, "Expect type index to be 2");
 
-	cr_assert(ele->val.type == special_char_ptr_type, "Expect value of element to be from type special_char_ptr_type");
+	cr_assert(ele->val.type == np_treeval_type_special_char_ptr, "Expect value of element to be from type np_treeval_type_special_char_ptr");
 	cr_assert(ele->val.value.ush == 0, "Expect type index to be 0 but is %"PRIu8, ele->val.value.ush);
 
 	cr_expect(1+1+1+1 < (tmp2 = np_tree_get_byte_size(tst->rbh_root)), "expect byte size to be 4 but is %"PRIu32, tmp2);
@@ -237,9 +237,9 @@ Test(test_serialization, _np_tree_special_str, .description = "test the implemen
 	np_tree_insert_str(tst, "np.test2", np_treeval_new_s("1234"));
 	ele = np_tree_find_str(tst, "np.test2");
 	cr_assert(ele != NULL, "Expect to find a element");
-	cr_assert(ele->key.type == special_char_ptr_type, "Expect key of element to be from type special_char_ptr_type");
+	cr_assert(ele->key.type == np_treeval_type_special_char_ptr, "Expect key of element to be from type np_treeval_type_special_char_ptr");
 	cr_assert(ele->key.value.ush == 0, "Expect type index to be 0");
-	cr_assert(ele->val.type == char_ptr_type, "Expect value of element to be from type char_ptr_type");
+	cr_assert(ele->val.type == np_treeval_type_char_ptr, "Expect value of element to be from type np_treeval_type_char_ptr");
 	cr_assert(strcmp("1234",  np_treeval_to_str(ele->val, NULL)) == 0, "expecting special string to be 1234");
 
 	cr_expect(0 < np_tree_get_byte_size(tst->rbh_root), "expect byte size to be not 0");
@@ -359,9 +359,9 @@ Test(test_serialization, np_tree_serialize, .description="test the serialization
 	tmpEle = np_tree_find_str(out_jrb, "np.test2");
 	
 	cr_assert(tmpEle != NULL, "Expect to find element np.test2");
-	cr_expect((tmp8 = tmpEle->key.type) == special_char_ptr_type, "Expect element key to be of type special_char_ptr_type and not %"PRIu8, tmp8);
+	cr_expect((tmp8 = tmpEle->key.type) == np_treeval_type_special_char_ptr, "Expect element key to be of type np_treeval_type_special_char_ptr and not %"PRIu8, tmp8);
 	cr_expect(tmpEle->key.value.ush == 0, "Expect element key to be the same");
-	cr_expect(tmpEle->val.type == char_ptr_type, "Expect element value to be of type char_ptr_type");
+	cr_expect(tmpEle->val.type == np_treeval_type_char_ptr, "Expect element value to be of type np_treeval_type_char_ptr");
 	cr_expect(strcmp( np_treeval_to_str(tmpEle->val, NULL), "test") ==0, "Expect element value to be the same");
 
 

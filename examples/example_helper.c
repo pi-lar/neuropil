@@ -133,14 +133,18 @@ char* np_get_startup_str() {
 	ret = np_str_concatAndFree(ret, new_line);
 	ret = np_str_concatAndFree(ret, "%s initializiation successful%s", NEUROPIL_RELEASE, new_line);
 	ret = np_str_concatAndFree(ret, "%s event loop with %d worker threads started%s", NEUROPIL_RELEASE, np_state()->thread_count, new_line);
-	ret = np_str_concatAndFree(ret, "your neuropil node will be addressable as:%s", new_line);
+	ret = np_str_concatAndFree(ret, "your neuropil node will be addressable as:%s", new_line);	
 	ret = np_str_concatAndFree(ret, new_line);
-
 	char* connection_str = np_get_connection_string();
 	ret = np_str_concatAndFree(ret, "\t%s%s", connection_str, new_line);
 	free(connection_str);
-
 	ret = np_str_concatAndFree(ret, new_line);
+	if(_np_key_cmp(np_state()->my_node_key, np_state()->my_identity) != 0){	
+		ret = np_str_concatAndFree(ret, "your neuropil id is addressable via:%s", new_line);
+		ret = np_str_concatAndFree(ret, "\t%s%s", _np_key_as_str(np_state()->my_identity), new_line);	
+		ret = np_str_concatAndFree(ret, new_line);
+	}
+	
 	ret = np_str_concatAndFree(ret, "%s%s", NEUROPIL_COPYRIGHT, new_line);
 	ret = np_str_concatAndFree(ret, "%s%s", NEUROPIL_TRADEMARK, new_line);
 	ret = np_str_concatAndFree(ret, new_line);
@@ -182,6 +186,7 @@ void np_example_print(FILE * stream, const char * format, ...) {
 void np_print_startup() {
 	char* ret = np_get_startup_str();
 	np_example_print(stdout, ret);
+	//log_msg(LOG_INFO, ret);
 	free(ret);
 }
 
@@ -471,7 +476,7 @@ np_bool parse_program_args(
 			| LOG_ROUTING
 			//| LOG_HTTP
 			//| LOG_KEY
-			//| LOG_NETWORK
+			| LOG_NETWORK
 			| LOG_AAATOKEN
 			//| LOG_SYSINFO
 			//| LOG_MESSAGE
@@ -479,7 +484,7 @@ np_bool parse_program_args(
 			//| LOG_MEMORY
 			//| LOG_MISC
 			//| LOG_EVENT
-			| LOG_THREADS
+			//| LOG_THREADS
 			//| LOG_GLOBAL
 			;
 
@@ -709,7 +714,7 @@ void __np_example_helper_loop() {
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
-		}
+		}		
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_locks) == np_stat_locks) {
 			if (enable_statistics == 1 || enable_statistics > 2) {
 				memory_str = np_threads_printpool(FALSE);

@@ -93,7 +93,8 @@ NP_API_INTERN
 uint32_t _np_route_my_key_count_routes();
 NP_API_INTERN
 uint32_t _np_route_my_key_count_neighbours();
-
+NP_API_INTERN
+np_key_t* _np_route_get_key();
 #ifdef __cplusplus
 }
 #endif

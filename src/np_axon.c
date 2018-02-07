@@ -37,6 +37,7 @@
 #include "np_route.h"
 #include "np_settings.h"
 #include "np_types.h"
+#include "np_token_factory.h"
 #include "np_constants.h"
 #include "np_list.h"
 #include "np_responsecontainer.h"
@@ -173,7 +174,7 @@ void _np_out(np_jobargs_t* args)
 						{
 							// ack indicator still there ! initiate resend ...
 							np_responsecontainer_t* entry = uuid_ele->val.value.v;
-							if (_np_dhkey_comp(&entry->dest_key->dhkey, &args->target->dhkey) != 0) {
+							if (_np_dhkey_cmp(&entry->dest_key->dhkey, &args->target->dhkey) != 0) {
 								// switch dest_key if routing is now pointing to a different key
 								np_ref_switch(np_key_t, entry->dest_key, ref_ack_key, args->target);
 								entry->dest_key = args->target;
@@ -362,37 +363,12 @@ void _np_out_handshake(np_jobargs_t* args)
 		{
 			// get our node identity from the cache
 			np_key_t* my_key = np_state()->my_node_key;
-			np_aaatoken_t* my_token = my_key->aaa_token;
+			np_aaatoken_t* my_token = _np_token_factory_new_handshake_token();
 
 			// TODO: reffing of key, node token in function context
-
-			// convert to curve key
-			unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
-			crypto_sign_ed25519_sk_to_curve25519(curve25519_sk, my_token->private_key);
-			// calculate session key for dh key exchange
-			unsigned char my_dh_sessionkey[crypto_scalarmult_BYTES] = { 0 };
-			crypto_scalarmult_base(my_dh_sessionkey, curve25519_sk);
-
-			// create handshake data
 			np_tree_t* hs_data = np_tree_create();
 
-			//	Required informations in this MSG
-			//	 protocol
-			//	 protocol-connection informations
-			//		currently:
-			//		- dns_name
-			//		- port
-			//	 expires_at
-			//	 issued_at
-			//	 session key
-			//	 public key
-			//	 signature(fingerprint?) of full aaatoken
-			//
-			// -> will be hashed and this then signed
-
-			np_tree_insert_str(hs_data, "_np.session", np_treeval_new_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
-
-			np_aaatoken_core_encode(hs_data, my_token, TRUE);
+			np_aaatoken_encode(hs_data, my_token);
 			_np_node_encode_to_jrb(hs_data, my_key, FALSE);
 
 			// pre-serialize handshake data
@@ -420,17 +396,23 @@ void _np_out_handshake(np_jobargs_t* args)
 			);
 			if (ret < 0)
 			{
-				log_msg(LOG_WARN, "signature creation failed, not continuing with handshake");
+				log_msg(LOG_WARN, "handshake signature creation failed, not continuing with handshake");
 				_np_threads_unlock_module(np_handshake_t_lock);
 				return;
 			}
 #ifdef DEBUG
-			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "signature has %"PRIu32" bytes", crypto_sign_BYTES);
+			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "handshake signature has %"PRIu32" bytes", crypto_sign_BYTES);
 			char* signature_hex = calloc(1, crypto_sign_BYTES * 2 + 1);
 			sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
 				signature, crypto_sign_BYTES);
-			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "signature: (payload size: %5"PRIu32") %s", hs_payload_len, signature_hex);
+			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "handshake signature: (payload size: %5"PRIu32") %s", hs_payload_len, signature_hex);
 			free(signature_hex);
+
+			char* pub_key_hex = calloc(1, crypto_sign_PUBLICKEYBYTES * 2 + 1);
+			sodium_bin2hex(pub_key_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
+				my_token->public_key, crypto_sign_PUBLICKEYBYTES);
+			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "handshake public key:%s", pub_key_hex);
+			free(pub_key_hex);
 #endif
 
 			// create real handshake message ...
@@ -532,21 +514,21 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 		msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 
 		if (	NULL == msg_token
-			 || _np_aaatoken_is_valid(msg_token) == FALSE
+			 || _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent) == FALSE
 			)
 		{
 			// Create a new msg token
 			log_msg(LOG_INFO | LOG_AAATOKEN, "--- refresh for subject token: %25s --------", args->properties->msg_subject);
 			log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
-			np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
+			np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(args->properties);
 			np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
 			_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
 			msg_token = msg_token_new;
-			ref_replace_reason(np_aaatoken_t, msg_token, ref_obj_creation, "_np_aaatoken_get_local_mx")
+			ref_replace_reason(np_aaatoken_t, msg_token_new, "_np_token_factory_new_message_intent_token", "_np_aaatoken_get_local_mx");
 			log_debug_msg(LOG_DEBUG| LOG_AAATOKEN, "--- done refresh for subject token: %25s new token has uuid %s", args->properties->msg_subject, msg_token_new->uuid);
 		}
 		
-		ASSERT(_np_aaatoken_is_valid(msg_token), "AAAToken needs to be valid")
+		ASSERT(_np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent), "AAAToken needs to be valid")
 		// args->target == Key of subject
 
 		if (INBOUND == (args->properties->mode_type & INBOUND))
@@ -626,7 +608,7 @@ void _np_out_receiver_discovery(np_jobargs_t* args)
 	if (NULL == msg_token)
 	{
 		log_debug_msg(LOG_ROUTING | LOG_AAATOKEN | LOG_DEBUG, "creating new sender token for subject %s", args->properties->msg_subject);
-		np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
+		np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(args->properties);
 		np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
 		_np_aaatoken_add_sender(msg_token_new->subject, msg_token_new);
 		msg_token = msg_token_new;
@@ -662,7 +644,7 @@ void _np_out_sender_discovery(np_jobargs_t* args)
 	if (NULL == msg_token)
 	{
 		log_debug_msg(LOG_ROUTING | LOG_AAATOKEN | LOG_DEBUG, "creating new receiver token for subject %s", args->properties->msg_subject);
-		np_aaatoken_t* msg_token_new = _np_create_msg_token(args->properties);
+		np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(args->properties);
 		np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
 		_np_aaatoken_add_receiver(msg_token_new->subject, msg_token_new);
 		msg_token = msg_token_new;

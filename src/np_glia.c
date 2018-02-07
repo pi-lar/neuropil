@@ -314,9 +314,9 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 			// double last_update = iter->val.value.d;
 
 			const char* subject = NULL;
-			if (iter->key.type == char_ptr_type)
+			if (iter->key.type == np_treeval_type_char_ptr)
 				subject =  np_treeval_to_str(iter->key, NULL);
-			else if (iter->key.type == special_char_ptr_type)
+			else if (iter->key.type == np_treeval_type_special_char_ptr)
 				subject = _np_tree_get_special_str(iter->key.value.ush);
 			else {
 				ASSERT(FALSE,"key type %"PRIu8" is not recognized.", iter->key.type)
@@ -493,7 +493,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 
 		np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists,"np_tryref_old->aaa_token");
 		if(tokenExists) {
-			if (TRUE == _np_aaatoken_is_valid(old->aaa_token) )
+			if (TRUE == _np_aaatoken_is_valid(old->aaa_token, np_aaatoken_type_undefined))
 			{
 				log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _np_key_as_str(old));
 				delete_key &= FALSE;
@@ -510,7 +510,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 				while (NULL != iter)
 				{					
 					np_aaatoken_t* tmp_token = iter->val;
-					if (TRUE == _np_aaatoken_is_valid(tmp_token))
+					if (TRUE == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
 					{
 						log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _np_key_as_str(old));
 						delete_key &= FALSE;
@@ -530,7 +530,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 				while (NULL != iter)
 				{
 					np_aaatoken_t* tmp_token = iter->val;
-					if (TRUE == _np_aaatoken_is_valid(tmp_token))
+					if (TRUE == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
 					{
 						log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _np_key_as_str(old));
 						delete_key &= FALSE;
@@ -604,75 +604,6 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 	sll_free(np_key_ptr, sll_of_keys);
 }
 
-np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
-{
-	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request){");
-
-	np_state_t* state = np_state();
-
-	np_aaatoken_t* msg_token = NULL;
-	np_new_obj(np_aaatoken_t, msg_token);
-
-	char msg_uuid_subject[255];
-	snprintf(msg_uuid_subject, 255, "urn:np:msg:%s", msg_request->msg_subject);
-
-	np_waitref_obj(np_key_t, state->my_identity, my_identity,"np_waitref_obj");
-
-	// create token
-	strncpy(msg_token->realm, my_identity->aaa_token->realm, 255);
-	strncpy(msg_token->issuer, (char*) _np_key_as_str(my_identity), 64);
-	strncpy(msg_token->subject, msg_request->msg_subject, 255);
-	if (NULL != msg_request->msg_audience)
-	{
-		strncpy(msg_token->audience, (char*) msg_request->msg_audience, 255);
-	}
-	
-	msg_token->not_before = np_time_now();
-
-	// how to allow the possible transmit jitter ?
-	int expire_sec =  ((int)randombytes_uniform(msg_request->token_max_ttl - msg_request->token_min_ttl)+msg_request->token_min_ttl);
-
-
-	msg_token->expires_at = msg_token->not_before + expire_sec;
-	log_debug_msg(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG,"setting msg token EXPIRY to: %f (now: %f diff: %f)", msg_token->expires_at, np_time_now(), msg_token->expires_at -  np_time_now() );
-
-	if(my_identity->aaa_token->expires_at < msg_token->expires_at ){
-		msg_token->expires_at = my_identity->aaa_token->expires_at ;
-	}
-
-	// add e2e encryption details for sender
-	memcpy((char*) msg_token->public_key,
-		   (char*) my_identity->aaa_token->public_key,
-		   crypto_sign_PUBLICKEYBYTES);
-
-	// private key is only required for signing later, will not be send over the wire
-	memcpy((char*) msg_token->private_key,
-		   (char*) my_identity->aaa_token->private_key,
-		   crypto_sign_SECRETKEYBYTES);
-	msg_token->private_key_is_set = TRUE;
-	msg_token->scope = np_aaatoken_scope_private;
-
-	np_tree_insert_str(msg_token->extensions, "mep_type",
-			np_treeval_new_ul(msg_request->mep_type));
-	np_tree_insert_str(msg_token->extensions, "ack_mode",
-			np_treeval_new_ush(msg_request->ack_mode));
-	np_tree_insert_str(msg_token->extensions, "max_threshold",
-			np_treeval_new_ui(msg_request->max_threshold));
-	np_tree_insert_str(msg_token->extensions, "msg_threshold",
-			np_treeval_new_ui( msg_request->msg_threshold));
-
-	// TODO: insert value based on msg properties / respect (sticky) reply
-	np_tree_insert_str(msg_token->extensions, "target_node",
-			np_treeval_new_s((char*) _np_key_as_str(my_identity)));
-
-	// fingerprinting and signing the token
-	//_np_aaatoken_add_signature(msg_token);
-
-	msg_token->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
-	np_unref_obj(np_key_t, my_identity, "np_waitref_obj");
-	return (msg_token);
-}
-
 void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject)
 {
 	log_msg(LOG_TRACE, "start: void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject){");
@@ -707,10 +638,9 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 	_np_msgproperty_threshold_increase(msg_prop);
 
 	// np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
-	np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, target);
+	np_message_intent_public_token_t* tmp_token = _np_aaatoken_get_receiver(subject, target);
 
-	if (NULL != tmp_token)
-	{
+	if (NULL != tmp_token && _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent)) {
 		log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);
 
 		np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
@@ -720,7 +650,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 
 		np_bool free_target_node_str = FALSE;
 		char* target_node_str = NULL;		
-		np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions, "target_node");
+		np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions,  "target_node");
 		if (NULL != tn_node)
 		{
 			target_node_str =  np_treeval_to_str(tn_node->val, &free_target_node_str);

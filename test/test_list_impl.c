@@ -208,16 +208,16 @@ Test(np_linked_lists, _test_sll, .description="test the implementation of a sing
 	cr_expect(1 == sll_size(my_sll_list), "expect the size of the list to be 1");
 	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
 	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
-	cr_expect(0 == _np_dhkey_comp(&key_a, sll_first(my_sll_list)->val),  "expect the first element to have the inserted value");
-	cr_expect(0 == _np_dhkey_comp(&key_a, sll_last(my_sll_list)->val),  "expect the first element to have the inserted value");
+	cr_expect(0 == _np_dhkey_cmp(&key_a, sll_first(my_sll_list)->val),  "expect the first element to have the inserted value");
+	cr_expect(0 == _np_dhkey_cmp(&key_a, sll_last(my_sll_list)->val),  "expect the first element to have the inserted value");
 	cr_expect(sll_first(my_sll_list) == sll_last(my_sll_list),  "expect the first and last element to be the same");
 
 	sll_prepend(np_dhkey_ptr, my_sll_list, &key_b);
 	cr_expect(2 == sll_size(my_sll_list), "expect the size of the list to be 2");
 	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
 	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
-	cr_expect(0 == _np_dhkey_comp(&key_b, sll_first(my_sll_list)->val),  "expect the first element to have the inserted value");
-	cr_expect(0 == _np_dhkey_comp(&key_a, sll_last(my_sll_list)->val),  "expect the last element to have the old value");
+	cr_expect(0 == _np_dhkey_cmp(&key_b, sll_first(my_sll_list)->val),  "expect the first element to have the inserted value");
+	cr_expect(0 == _np_dhkey_cmp(&key_a, sll_last(my_sll_list)->val),  "expect the last element to have the old value");
 	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
 
 	sll_append(np_dhkey_ptr, my_sll_list, &key_c);
@@ -225,24 +225,24 @@ Test(np_linked_lists, _test_sll, .description="test the implementation of a sing
 	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
 	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
 	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
-	cr_expect(0 == _np_dhkey_comp(&key_b, sll_first(my_sll_list)->val),  "expect the first element to have the old value");
-	cr_expect(0 == _np_dhkey_comp(&key_c, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
+	cr_expect(0 == _np_dhkey_cmp(&key_b, sll_first(my_sll_list)->val),  "expect the first element to have the old value");
+	cr_expect(0 == _np_dhkey_cmp(&key_c, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
 
 	sll_prepend(np_dhkey_ptr, my_sll_list, &key_d);
 	cr_expect(4 == sll_size(my_sll_list), "expect the size of the list to be 4");
 	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
 	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
 	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
-	cr_expect(0 == _np_dhkey_comp(&key_d, sll_first(my_sll_list)->val),  "expect the first element to have the inserted value");
-	cr_expect(0 == _np_dhkey_comp(&key_c, sll_last(my_sll_list)->val),  "expect the last element to have the old value");
+	cr_expect(0 == _np_dhkey_cmp(&key_d, sll_first(my_sll_list)->val),  "expect the first element to have the inserted value");
+	cr_expect(0 == _np_dhkey_cmp(&key_c, sll_last(my_sll_list)->val),  "expect the last element to have the old value");
 
 	sll_append(np_dhkey_ptr, my_sll_list, &key_e);
 	cr_expect(5 == sll_size(my_sll_list), "expect the size of the list to be 5");
 	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
 	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
 	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
-	cr_expect(0 == _np_dhkey_comp(&key_d, sll_first(my_sll_list)->val),  "expect the first element to have the old value");
-	cr_expect(0 == _np_dhkey_comp(&key_e, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
+	cr_expect(0 == _np_dhkey_cmp(&key_d, sll_first(my_sll_list)->val),  "expect the first element to have the old value");
+	cr_expect(0 == _np_dhkey_cmp(&key_e, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
 
 
 	np_dhkey_t* tmp_1;
@@ -261,51 +261,51 @@ Test(np_linked_lists, _test_sll, .description="test the implementation of a sing
 	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
 	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
 	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
-	cr_expect(0 == _np_dhkey_comp(&key_b, sll_first(my_sll_list)->val),  "expect the first element to have the next value");
-	cr_expect(0 == _np_dhkey_comp(&key_e, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
-	cr_expect(0 == _np_dhkey_comp(&key_d, tmp_1),  "expect returned element to the old first one");
+	cr_expect(0 == _np_dhkey_cmp(&key_b, sll_first(my_sll_list)->val),  "expect the first element to have the next value");
+	cr_expect(0 == _np_dhkey_cmp(&key_e, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
+	cr_expect(0 == _np_dhkey_cmp(&key_d, tmp_1),  "expect returned element to the old first one");
 
 	tmp_1 = sll_head(np_dhkey_ptr, my_sll_list);
 	cr_expect(3 == sll_size(my_sll_list), "expect the size of the list to be 3");
 	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
 	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
 	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
-	cr_expect(0 == _np_dhkey_comp(&key_a, sll_first(my_sll_list)->val),  "expect the first element to have the next value");
-	cr_expect(0 == _np_dhkey_comp(&key_e, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
-	cr_expect(0 == _np_dhkey_comp(&key_b, tmp_1),  "expect returned element to the old first one");
+	cr_expect(0 == _np_dhkey_cmp(&key_a, sll_first(my_sll_list)->val),  "expect the first element to have the next value");
+	cr_expect(0 == _np_dhkey_cmp(&key_e, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
+	cr_expect(0 == _np_dhkey_cmp(&key_b, tmp_1),  "expect returned element to the old first one");
 
 	tmp_1 = sll_tail(np_dhkey_ptr, my_sll_list);
 	cr_expect(2 == sll_size(my_sll_list), "expect the size of the list to be 2");
 	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
 	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
 	cr_expect(sll_first(my_sll_list) != sll_last(my_sll_list),  "expect the first and last element to be different");
-	cr_expect(0 == _np_dhkey_comp(&key_a, sll_first(my_sll_list)->val),  "expect the first element to have the next value");
-	cr_expect(0 == _np_dhkey_comp(&key_c, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
-	cr_expect(0 == _np_dhkey_comp(&key_e, tmp_1),  "expect returned element to the old last one");
+	cr_expect(0 == _np_dhkey_cmp(&key_a, sll_first(my_sll_list)->val),  "expect the first element to have the next value");
+	cr_expect(0 == _np_dhkey_cmp(&key_c, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
+	cr_expect(0 == _np_dhkey_cmp(&key_e, tmp_1),  "expect returned element to the old last one");
 
 	tmp_1 = sll_tail(np_dhkey_ptr, my_sll_list);
 	cr_expect(1 == sll_size(my_sll_list), "expect the size of the list to be 1");
 	cr_expect(NULL != sll_first(my_sll_list), "expect the first element to exists");
 	cr_expect(NULL != sll_last(my_sll_list),  "expect the last element to exists");
 	cr_expect(sll_first(my_sll_list) == sll_last(my_sll_list),  "expect the first and last element to be the same");
-	cr_expect(0 == _np_dhkey_comp(&key_a, sll_first(my_sll_list)->val),  "expect the first element to have the next value");
-	cr_expect(0 == _np_dhkey_comp(&key_a, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
-	cr_expect(0 == _np_dhkey_comp(&key_c, tmp_1),  "expect returned element to the old last one");
+	cr_expect(0 == _np_dhkey_cmp(&key_a, sll_first(my_sll_list)->val),  "expect the first element to have the next value");
+	cr_expect(0 == _np_dhkey_cmp(&key_a, sll_last(my_sll_list)->val),  "expect the last element to have the inserted value");
+	cr_expect(0 == _np_dhkey_cmp(&key_c, tmp_1),  "expect returned element to the old last one");
 
 	tmp_1 = sll_head(np_dhkey_ptr, my_sll_list);
 	cr_expect(0 == sll_size(my_sll_list), "expect the size of the list to be 0");
 	cr_expect(NULL == sll_first(my_sll_list), "expect the first element to be NULL");
 	cr_expect(NULL == sll_last(my_sll_list),  "expect the last element to be NULL");
 	cr_expect(sll_first(my_sll_list) == sll_last(my_sll_list),  "expect the first and last element to be the same");
-	cr_expect( 0 == _np_dhkey_comp(&key_a, tmp_1),  "expect returned element to the old last one");
+	cr_expect( 0 == _np_dhkey_cmp(&key_a, tmp_1),  "expect returned element to the old last one");
 
 	tmp_1 = sll_head(np_dhkey_ptr, my_sll_list);
 	cr_expect(0 == sll_size(my_sll_list), "expect the size of the list to be 0");
 	cr_expect(NULL == sll_first(my_sll_list), "expect the first element to be NULL");
 	cr_expect(NULL == sll_last(my_sll_list),  "expect the last element to be NULL");
 	cr_expect(sll_first(my_sll_list) == sll_last(my_sll_list),  "expect the first and last element to be the same");
-	cr_expect(-1 == _np_dhkey_comp(NULL, tmp_1),  "expect returned element to be NULL and campare NULLs should return -1");
-	cr_expect(-1 == _np_dhkey_comp(tmp_1, NULL),  "expect returned element to be NULL and campare NULLs should return -1");
+	cr_expect(-1 == _np_dhkey_cmp(NULL, tmp_1),  "expect returned element to be NULL and campare NULLs should return -1");
+	cr_expect(-1 == _np_dhkey_cmp(tmp_1, NULL),  "expect returned element to be NULL and campare NULLs should return -1");
 
 	sll_append(np_dhkey_ptr, my_sll_list, &key_a);
 	sll_append(np_dhkey_ptr, my_sll_list, &key_b);

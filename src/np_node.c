@@ -284,7 +284,7 @@ np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
 {
 	log_msg(LOG_TRACE, "start: np_key_t* _np_key_create_from_token(np_aaatoken_t* token){");
 	// TODO: check whether metadata is used as a hash key in general
-	np_dhkey_t search_key = _np_aaatoken_create_dhkey(token);
+	np_dhkey_t search_key = np_aaatoken_get_fingerprint(token);
 	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
 	
 	if (NULL == node_key->node && token->extensions != NULL && token->extensions->size > 0){

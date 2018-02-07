@@ -51,7 +51,7 @@ struct np_routeglobal_s
 	np_dhkey_t Lrange;
 };
 
-static np_routeglobal_t* __routing_table;
+static np_routeglobal_t* __routing_table = NULL;
 
 void _np_route_append_leafset_to_sll(np_key_ptr_sll_t* left_leafset, np_sll_t(np_key_ptr, result));
 
@@ -86,26 +86,29 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 	log_msg(LOG_ROUTING | LOG_TRACE, ".start.leafset_update");
 
 	TSP_GET(np_bool, node_key->in_destroy, in_destroy);
-	if (in_destroy == TRUE && joined)
+	if (__routing_table == NULL || __routing_table->my_key == NULL || (in_destroy == TRUE && joined))
 		return;
 
-	*added = NULL;
-	*deleted = NULL;	
+	if(added != NULL) *added = NULL;
+	if (deleted != NULL) *deleted = NULL;
+	np_key_t* add_to = NULL;
+	np_key_t* deleted_from = NULL;
+
 	_LOCK_MODULE(np_routeglobal_t)
 	{
 		if (_np_key_cmp(node_key, __routing_table->my_key) != 0)
-		{			
+		{
 			np_key_ptr find_right = sll_find(np_key_ptr, __routing_table->right_leafset, node_key, _np_key_cmp_inv, NULL);
 			np_key_ptr find_left = sll_find(np_key_ptr, __routing_table->left_leafset, node_key, _np_key_cmp, NULL);
 
 			if (FALSE == joined) {
 				if (NULL != find_right) {
-					*deleted = (np_key_t*)node_key;
+					deleted_from = (np_key_t*)node_key;
 					sll_remove(np_key_ptr, __routing_table->right_leafset, node_key, _np_key_cmp_inv);
 
 				}
 				else if (NULL != find_left) {
-					*deleted = (np_key_t*)node_key;
+					deleted_from = (np_key_t*)node_key;
 					sll_remove(np_key_ptr, __routing_table->left_leafset, node_key, _np_key_cmp);
 				}
 				else {
@@ -132,7 +135,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 
 					sll_iterator(np_key_ptr) right_outer = sll_last(__routing_table->right_leafset);
 					sll_iterator(np_key_ptr) left_outer = sll_last(__routing_table->left_leafset);
-				
+
 					np_dhkey_t my_inverse_dhkey = { 0 };
 					np_dhkey_t dhkey_half_o = np_dhkey_half();
 					_np_dhkey_add(&my_inverse_dhkey, &__routing_table->my_key->dhkey, &dhkey_half_o);
@@ -147,16 +150,16 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 								&right_outer->val->dhkey,
 								FALSE
 							)
-						)
+							)
 						{
-							*added = node_key;
+							add_to = node_key;
 							sll_append(np_key_ptr, __routing_table->right_leafset, node_key);
 							_np_keycache_sort_keys_kd(__routing_table->right_leafset, &__routing_table->my_key->dhkey);
 						}
-						
+
 						// Cleanup of leafset / resize leafsets to max size if necessary
 						if (sll_size(__routing_table->right_leafset) > __LEAFSET_SIZE) {
-							*deleted = sll_tail(np_key_ptr, __routing_table->right_leafset);
+							deleted_from = sll_tail(np_key_ptr, __routing_table->right_leafset);
 						}
 					}
 					else //if (_np_dhkey_between(&node_key->dhkey, &my_inverse_dhkey, &__routing_table->my_key->dhkey, TRUE))
@@ -169,60 +172,75 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 								&__routing_table->my_key->dhkey,
 								FALSE
 							)
-						)
+							)
 						{
-							*added = node_key;
+							add_to = node_key;
 							sll_append(np_key_ptr, __routing_table->left_leafset, node_key);
 							_np_keycache_sort_keys_kd(__routing_table->left_leafset, &__routing_table->my_key->dhkey);
 						}
 
 						// Cleanup of leafset / resize leafsets to max size if necessary
 						if (sll_size(__routing_table->left_leafset) > __LEAFSET_SIZE) {
-							*deleted = sll_head(np_key_ptr, __routing_table->left_leafset);
+							deleted_from = sll_head(np_key_ptr, __routing_table->left_leafset);
 						}
-					} 
-					
-					if (*deleted  != NULL && _np_key_cmp(*deleted , *added) == 0) {
+					}
+
+					if (deleted_from != NULL && _np_key_cmp(deleted_from, add_to) == 0) {
 						// we added and deleted in one. so nothing changed
-						*deleted = NULL;
-						*added = NULL;
+						deleted_from = NULL;
+						add_to = NULL;
 					}
 				}
 			}
 		}
-	}
 
-	if (*deleted != NULL || *added != NULL)
+
+		if (deleted_from != NULL || add_to != NULL)
+		{
+			_np_route_leafset_range_update();
+		}
+
+		if (add_to != NULL) {
+			if (added != NULL) *added = add_to;
+			np_ref_obj(np_key_t, add_to, ref_route_inleafset);
+		}
+
+		if (deleted_from != NULL) {
+			if (deleted != NULL) *deleted = deleted_from;
+			np_unref_obj(np_key_t, deleted_from, ref_route_inleafset);
+			_np_route_check_for_joined_network();
+		}
+	}
+	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_update");
+}
+
+np_key_t* _np_route_get_key() {
+	np_key_t* ret = NULL;
+	_LOCK_MODULE(np_routeglobal_t)
 	{
-		_np_route_leafset_range_update();
-	}
-
-	np_key_t* tmp = *added ;
-	if(tmp != NULL){
-		np_ref_obj(np_key_t, tmp, ref_route_inleafset);
-	}
-
-	tmp = *deleted ;
-	if(tmp != NULL){
-		np_unref_obj(np_key_t, tmp, ref_route_inleafset);
-		_np_route_check_for_joined_network();
+		if (__routing_table != NULL) {
+			ret = __routing_table->my_key;
+			np_ref_obj(np_key_t, ret, __func__);
+		}			
 	}
 	
-	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_update");
+	return ret;
 }
 
 void _np_route_set_key (np_key_t* new_node_key)
 {
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		np_ref_switch(np_key_t, __routing_table->my_key, ref_route_routingtable_mykey, new_node_key);
+		if(__routing_table != NULL){
+			np_ref_switch(np_key_t, __routing_table->my_key, ref_route_routingtable_mykey, new_node_key);
 
-		np_dhkey_t half = np_dhkey_half();
-		_np_dhkey_add(&__routing_table->Rrange, &__routing_table->my_key->dhkey, &half);
-		_np_dhkey_sub(&__routing_table->Lrange, &__routing_table->my_key->dhkey, &half);
+			np_dhkey_t half = np_dhkey_half();
+			_np_dhkey_add(&__routing_table->Rrange, &__routing_table->my_key->dhkey, &half);
+			_np_dhkey_sub(&__routing_table->Lrange, &__routing_table->my_key->dhkey, &half);
 
-		// TODO: re-order table entries and leafset table maybe ?
-		// for now: hope that the routing table does it on its own as new keys arrive ...
+			// TODO: re-order table entries and leafset table maybe ?
+			// for now: hope that the routing table does it on its own as new keys arrive ...
+		}
 	}
 }
 
@@ -247,7 +265,6 @@ sll_return(np_key_ptr) _np_route_get_table ()
 					if (NULL != __routing_table->table[index + k])
 					{
 						sll_append(np_key_ptr, sll_of_keys, __routing_table->table[index + k]);
-						log_debug_msg(LOG_ROUTING | LOG_DEBUG, "added to routes->table[%d]", index+k);
 					}
 				}
 			}
@@ -507,7 +524,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_dhkey_t key, uint8_t count)
 
 			// if (key_equal (dif1, dif2)) ret[0] = rg->me;
 			// changed on 03.06.2014 STSW choose the closest neighbour
-			if (_np_dhkey_comp(&dif1, &dif2) <= 0) {
+			if (_np_dhkey_cmp(&dif1, &dif2) <= 0) {
 				sll_iterator(np_key_ptr) first = sll_first(return_list);
 				np_unref_obj(np_key_t, first->val, __func__);
 				first->val = __routing_table->my_key;
@@ -648,7 +665,7 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 	
 	TSP_GET(np_bool, key->in_destroy, in_destroy);
 
-	if (in_destroy == TRUE && joined)
+	if (__routing_table == NULL || __routing_table->my_key == NULL || (in_destroy == TRUE && joined))
 		return;
 
 	_LOCK_MODULE(np_routeglobal_t)
@@ -662,8 +679,11 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 			_np_threads_unlock_module(np_routeglobal_t_lock);
 			return;
 		}
-		*added = NULL;
-		*deleted = NULL;
+		if (added != NULL) *added = NULL;
+		if (deleted != NULL) *deleted = NULL;
+		np_key_t* add_to = NULL;
+		np_key_t* deleted_from = NULL;
+
 
 		uint16_t i, j, k, found, pick;
 
@@ -689,8 +709,8 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 				{
 					__routing_table->table[index + k] = key;
 					found = 0;
-					*added   = key;
-					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "added to routes->table[%d]", index+k);
+					add_to = key;
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "%s added to routes->table[%d]",_np_key_as_str(key), index+k);
 					break;
 				}
 				else if (__routing_table->table[index + k] != NULL &&
@@ -715,7 +735,7 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d: t..%f > p..%f ?",
 							index, tmp_node->node->latency, pick_node->node->latency);
 
-					if (tmp_node->node->latency > pick_node->node->latency  )
+					if (tmp_node->node->latency > pick_node->node->latency)
 					{
 						pick = k;
 					}
@@ -724,10 +744,10 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 
 				// only replace if the new latency is a better one
 				if(check_to_del == NULL || check_to_del->node->latency > key->node->latency){
-					*deleted = __routing_table->table[index + pick];
+					deleted_from = __routing_table->table[index + pick];
 					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%d]", index+pick);
 					__routing_table->table[index + pick] = key;
-					*added = __routing_table->table[index + pick];
+					add_to = __routing_table->table[index + pick];
 				}
 			}
 		}
@@ -739,7 +759,7 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 				if (__routing_table->table[index + k] != NULL &&
 					_np_dhkey_equal (&__routing_table->table[index + k]->dhkey, &key->dhkey) )
 				{
-					*deleted = key;
+					deleted_from = key;
 					__routing_table->table[index + k] = NULL;
 
 					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "deleted to routes->table[%d]", index+k);
@@ -748,17 +768,16 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 			}
 		}
 
-		np_key_t* tmp = *added ;
-		if(tmp != NULL){
-			log_msg(LOG_ROUTING | LOG_INFO, "Added    %s to   routing table.", _np_key_as_str(tmp));
-			np_ref_obj(np_key_t, tmp, ref_route_inroute);
+ 		if(add_to != NULL){
+			log_msg(LOG_ROUTING | LOG_INFO, "Added    %s to   routing table.", _np_key_as_str(add_to));
+			np_ref_obj(np_key_t, add_to, ref_route_inroute);
+			if (added != NULL) *added = add_to;
 		}
-
-		tmp = *deleted ;
-		if(tmp != NULL){
-			log_msg(LOG_ROUTING | LOG_INFO, "Removed %s from routing table.", _np_key_as_str(tmp));
-			np_unref_obj(np_key_t, tmp, ref_route_inroute);
-
+		
+		if(deleted_from != NULL){
+			log_msg(LOG_ROUTING | LOG_INFO, "Removed %s from routing table.", _np_key_as_str(deleted_from));
+			np_unref_obj(np_key_t, deleted_from, ref_route_inroute);
+			if (deleted != NULL) *deleted = deleted_from;
 			_np_route_check_for_joined_network();
 		}
 	}
