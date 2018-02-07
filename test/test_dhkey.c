@@ -51,19 +51,19 @@ Test(np_dhkey_t, _dhkey_add_sub, .description="test the addition/substraction of
 	cr_expect_arr_eq(result.t, key_2.t, 4 * sizeof (uint64_t));
 }
 
-Test(np_dhkey_t,_np_dhkey_comp, .description="test the comparison of dhkeys returning -1 / 0 / 1")
+Test(np_dhkey_t,_np_dhkey_cmp, .description="test the comparison of dhkeys returning -1 / 0 / 1")
 {
 	char subject[] = "this.is.a.test";
 
 	np_dhkey_t key_1 = np_dhkey_create_from_hostport(subject, "1");
 	np_dhkey_t key_2 = np_dhkey_create_from_hostport(subject, "2");
 
-	cr_expect(-1  == _np_dhkey_comp(NULL, &key_1), "expected comparison with NULL is -1" );
-	cr_expect( 1  == _np_dhkey_comp(&key_1, NULL), "expected comparison with NULL is  1" );
-	cr_expect( 0  == _np_dhkey_comp(&key_1, &key_1), "expected comparison of same key is zero" );
-	cr_expect( 0  == _np_dhkey_comp(&key_2, &key_2), "expected comparison of same key is zero" );
-	cr_expect(-1  == _np_dhkey_comp(&key_1, &key_2), "expected comparison of lower key to be -1" );
-	cr_expect( 1  == _np_dhkey_comp(&key_2, &key_1), "expected comparison of higher key to be 1" );
+	cr_expect(-1  == _np_dhkey_cmp(NULL, &key_1), "expected comparison with NULL is -1" );
+	cr_expect( 1  == _np_dhkey_cmp(&key_1, NULL), "expected comparison with NULL is  1" );
+	cr_expect( 0  == _np_dhkey_cmp(&key_1, &key_1), "expected comparison of same key is zero" );
+	cr_expect( 0  == _np_dhkey_cmp(&key_2, &key_2), "expected comparison of same key is zero" );
+	cr_expect(-1  == _np_dhkey_cmp(&key_1, &key_2), "expected comparison of lower key to be -1" );
+	cr_expect( 1  == _np_dhkey_cmp(&key_2, &key_1), "expected comparison of higher key to be 1" );
 }
 
 Test(np_dhkey_t, _dhkey_globals, .description="test the global dhkeys max & half & min")
@@ -72,24 +72,24 @@ Test(np_dhkey_t, _dhkey_globals, .description="test the global dhkeys max & half
 	np_dhkey_t max  = np_dhkey_max();
 	np_dhkey_t min  = np_dhkey_min();
 
-	cr_expect(-1  == _np_dhkey_comp(&half, &max), "expected dhkey_half to be less than dhkey_max" );
-	cr_expect( 1  == _np_dhkey_comp(&max, &half), "expected dhkey_half to be less than dhkey_max" );
-	cr_expect( 0  == _np_dhkey_comp(&half, &half), "expected dhkey_half to be equal to dhkey_half" );
+	cr_expect(-1  == _np_dhkey_cmp(&half, &max), "expected dhkey_half to be less than dhkey_max" );
+	cr_expect( 1  == _np_dhkey_cmp(&max, &half), "expected dhkey_half to be less than dhkey_max" );
+	cr_expect( 0  == _np_dhkey_cmp(&half, &half), "expected dhkey_half to be equal to dhkey_half" );
 	cr_expect( TRUE  == _np_dhkey_equal(&max, &max), "expected dhkey_max to be equal to dhkey_max" );
 
 	np_dhkey_t result;
 
 	_np_dhkey_add(&result, &half, &half);
-	cr_expect( 0  == _np_dhkey_comp(&result, &min), "expected 2*dhkey_half to be dhkey_min" );
+	cr_expect( 0  == _np_dhkey_cmp(&result, &min), "expected 2*dhkey_half to be dhkey_min" );
 
 	_np_dhkey_sub(&result, &half, &half);
-	cr_expect( 0  == _np_dhkey_comp(&result, &min), "expected dhkey_half-dhkey_half to be dhkey_min" );
+	cr_expect( 0  == _np_dhkey_cmp(&result, &min), "expected dhkey_half-dhkey_half to be dhkey_min" );
 
 	_np_dhkey_sub(&result, &half, &min);
-	cr_expect( 0  == _np_dhkey_comp(&result, &half), "expected dhkey_half-dhkey_min to be dhkey_half" );
+	cr_expect( 0  == _np_dhkey_cmp(&result, &half), "expected dhkey_half-dhkey_min to be dhkey_half" );
 
 	_np_dhkey_sub(&result, &max, &half);
-	cr_expect( -1  == _np_dhkey_comp(&result, &half), "expected dhkey_max-dhkey_half to less than dhkey_half" );
+	cr_expect( -1  == _np_dhkey_cmp(&result, &half), "expected dhkey_max-dhkey_half to less than dhkey_half" );
 }
 
 Test(np_dhkey_t, _dhkey_equals, .description="test for equal dhkey's")
@@ -180,5 +180,5 @@ Test(np_dhkey_t, _dhkey_distance, .description="test the between length of two k
 
 	np_dhkey_t result;
 	_np_dhkey_distance(&result, &key_3, &key_2);
-	cr_expect(0 == _np_dhkey_comp(&result, &key_1), "expected the result to be key_1");
+	cr_expect(0 == _np_dhkey_cmp(&result, &key_1), "expected the result to be key_1");
 }

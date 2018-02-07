@@ -66,11 +66,16 @@ enum np_aaastate_e
 #define IS_ACCOUNTING(x) (AAA_ACCOUNTING  == (AAA_ACCOUNTING & x))
 #define IS_NOT_ACCOUNTING(x) (!IS_ACCOUNTING(x))
 
+/*
+	Type enum for np_aaatoken_t objects, has impact on serialization and usage
+FLAG
+*/
 enum np_aaatoken_type {
-	np_aaatoken_type_undefined		= 0,
-	np_aaatoken_type_identity		= 1,
-	np_aaatoken_type_node			= 2,
-	np_aaatoken_type_message_intent = 4,
+	np_aaatoken_type_undefined		= 0x00,
+	np_aaatoken_type_identity		= 0x01,
+	np_aaatoken_type_node			= 0x02,
+	np_aaatoken_type_message_intent = 0x04,
+	np_aaatoken_type_handshake		= 0x08,
 };
 
 enum np_aaatoken_scope {
@@ -147,42 +152,41 @@ struct np_aaatoken_s
 	// link to memory management
 	np_obj_t* obj;
 
-	double version;
+	// attributes to exchange
+	char* uuid;
+	// owner or parent entity
+	char realm[255]; 
 
-	char realm[255]; // owner or parent entity
-
-	char issuer[65]; // from (can be self signed)
-	char subject[255]; // about
-	char audience[255]; // to
+	// from (if self signed empty)
+	char issuer[65]; 
+	// about
+	char subject[255]; 
+	// to
+	char audience[255]; 
 
 	double issued_at;
 	double not_before;
-	double expires_at;
+	double expires_at;		
 	
+	// key/value extension list
+	np_tree_t* extensions;
+	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
+	unsigned char private_key[crypto_sign_SECRETKEYBYTES];	
+	// attributes to exchange END
+
+	// internal attributes
 	aaastate_type state;
-
-	np_dhkey_t partner_fp;
-	np_bool has_partner_fp;
-
-	char* uuid;
-
+	/*
+	FLAG
+	*/
 	enum np_aaatoken_type type;
 	enum np_aaatoken_scope scope;
-	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
-	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
 	np_bool private_key_is_set;
 
 	unsigned char* signed_hash;
 	unsigned char signature[crypto_sign_BYTES];
 	np_bool is_signature_verified;
-
-	// key/value extension list
-	np_tree_t* extensions;
-	/*
-	A core token only has a subset of defined en-/decoded  values and may only be used to 
-	instanciate a cryptographic safe communication
-	*/
-	np_bool is_core_token;
+	
 } NP_API_EXPORT;
 
 #ifndef SWIG
@@ -192,8 +196,6 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
 // serialization of the np_aaatoken_t structure
 NP_API_INTERN
 void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token);
-NP_API_INTERN
-void np_aaatoken_core_encode(np_tree_t* data, np_aaatoken_t* token, np_bool standalone);
 NP_API_INTERN
 void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
 
@@ -208,10 +210,10 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
 
 */
 NP_API_EXPORT
-np_bool _np_aaatoken_is_valid(np_aaatoken_t* token);
+np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_type);
 
 NP_API_INTERN
-np_dhkey_t _np_aaatoken_create_dhkey(np_aaatoken_t* identity);
+np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* token);
 
 // neuropil internal aaatoken storage and exchange functions
 
@@ -230,28 +232,28 @@ NP_API_INTERN
 np_aaatoken_t* _np_aaatoken_get_receiver(const char* const subject, np_dhkey_t* target);
 
 NP_API_INTERN
-void _np_aaatoken_add_signature(np_aaatoken_t* msg_token);
-
-NP_API_INTERN
 np_aaatoken_t* _np_aaatoken_get_local_mx(const char* const subject);
 NP_API_INTERN
 void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
-unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* msg_token, np_bool full);
+unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* msg_token);
 NP_API_INTERN
-np_bool _np_aaatoken_is_core_token(np_aaatoken_t* token);
-NP_API_INTERN
-void _np_aaatoken_mark_as_core_token(np_aaatoken_t* token);
-NP_API_INTERN
-void _np_aaatoken_mark_as_full_token(np_aaatoken_t* token);
-NP_API_INTERN
-void _np_aaatoken_upgrade_core_token(np_key_t* key_with_core_token, np_aaatoken_t* full_token);
+void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node_public_token_t* full_token);
 NP_API_INTERN
 void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token);
 NP_API_INTERN
 void np_aaatoken_encode_with_secrets(np_tree_t* data, np_aaatoken_t* token);
 NP_API_INTERN
 int __np_aaatoken_generate_signature(unsigned char* hash, unsigned char* private_key, unsigned char* save_to);
+NP_API_INTERN
+void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self);
+NP_API_INTERN
+void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp);
+NP_API_INTERN
+np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self);
+NP_API_INTERN
+void _np_aaatoken_set_signature(np_aaatoken_t* self);
+
 #ifdef __cplusplus
 }
 #endif

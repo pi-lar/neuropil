@@ -49,39 +49,39 @@ void _np_keycache_init()
 np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey)
 {
 	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey){");
-	np_key_t* subject_key = NULL;
+	np_key_t* key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		subject_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
-		if (NULL == subject_key)
+		key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
+		if (NULL == key)
 		{
-			subject_key = _np_keycache_create(search_dhkey);
-			ref_replace_reason(np_key_t, subject_key, "_np_keycache_create", __func__);
+			key = _np_keycache_create(search_dhkey);
+			ref_replace_reason(np_key_t, key, "_np_keycache_create", __func__);
 		}
 		else {
-			np_ref_obj(np_key_t, subject_key);
+			np_ref_obj(np_key_t, key);
 		}
 
-		subject_key->last_update = np_time_now();
+		key->last_update = np_time_now();
 	}
-	return (subject_key);
+	return (key);
 }
 
 np_key_t* _np_keycache_create(np_dhkey_t search_dhkey)
 {
 	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_create(np_dhkey_t search_dhkey){");
-	np_key_t* subject_key = NULL;
+	np_key_t* key = NULL;
 
-	np_new_obj(np_key_t, subject_key);
-	subject_key->dhkey = search_dhkey;
-	subject_key->last_update = np_time_now();
+	np_new_obj(np_key_t, key);
+	key->dhkey = search_dhkey;
+	key->last_update = np_time_now();
 
-	ref_replace_reason(np_key_t, subject_key, ref_obj_creation, __func__);
-	_np_keycache_add(subject_key);
+	ref_replace_reason(np_key_t, key, ref_obj_creation, __func__);
+	_np_keycache_add(key);
 	
-	return subject_key;
+	return key;
 }
 
 np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey)
@@ -259,7 +259,7 @@ np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey)
 
 np_key_t* _np_keycache_add(np_key_t* subject_key)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* subject_key){");
+	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* key){");
 	//TODO: ist das notwendig? warum einen leeren key hinzufügen?
 	if (NULL == subject_key)
 	{
@@ -295,7 +295,7 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_ptr, list_of_keys),
 			_np_dhkey_distance (&dif, key, &(iter->val->dhkey));
 
 			// Set reference point at first iteration, then compare current iterations distance with shortest known distance
-			if (TRUE == first_run || _np_dhkey_comp (&dif, &minDif) < 0)
+			if (TRUE == first_run || _np_dhkey_cmp (&dif, &minDif) < 0)
 			{
 				min = iter->val;
 				_np_dhkey_assign (&minDif, &dif);
@@ -351,7 +351,7 @@ void _np_keycache_sort_keys_cpm (np_sll_t(np_key_ptr, node_keys), const np_dhkey
 			{
 				_np_dhkey_distance (&dif1, &iter1->val->dhkey, key);
 				_np_dhkey_distance (&dif2, &iter2->val->dhkey, key);
-				if (_np_dhkey_comp (&dif2, &dif1) < 0)
+				if (_np_dhkey_cmp (&dif2, &dif1) < 0)
 				{
 					tmp = iter1->val;
 					iter1->val = iter2->val;
@@ -383,7 +383,7 @@ void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhk
 			// Swap if items in wrong order.
 			_np_dhkey_distance (&dif1, &curr->val->dhkey, key);
 			_np_dhkey_distance (&dif2, &next->val->dhkey, key);
-			if (_np_dhkey_comp (&dif2, &dif1) < 0)
+			if (_np_dhkey_cmp (&dif2, &dif1) < 0)
 			{
 				np_key_t* tmp = curr->val;
 				curr->val = next->val;

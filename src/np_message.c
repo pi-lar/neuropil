@@ -724,7 +724,7 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 
 
 								CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_UUID, msg_uuid);
-								ASSERT(msg_uuid.type == char_ptr_type, " type is incorrectly set to: %"PRIu8, msg_uuid.type);
+								ASSERT(msg_uuid.type == np_treeval_type_char_ptr, " type is incorrectly set to: %"PRIu8, msg_uuid.type);
 								log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", msg->uuid, np_treeval_to_str(msg_uuid, NULL));
 								char* old = msg->uuid;
 								msg->uuid = strdup(np_treeval_to_str(msg_uuid, NULL));
@@ -1104,17 +1104,15 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 			unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
 			crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
 				state->my_identity->aaa_token->private_key);
-
-			//	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "ciphertext: %s", enc_sym_key);
-			//	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "nonce:      %s", nonce);
-
+			
 			// convert partner secret to encryption key
 			unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-			crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
+			int crypto_ret = 0;
 
-			int crypto_ret = crypto_box_open_easy(sym_key, enc_sym_key, crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
+			crypto_ret += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
+
+			crypto_ret += crypto_box_open_easy(sym_key, enc_sym_key, crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
 				nonce, partner_key, curve25519_sk);
-
 
 			if (0 > crypto_ret)
 			{

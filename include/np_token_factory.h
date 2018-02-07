@@ -14,19 +14,17 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-	typedef np_aaatoken_t np_ident_public_token_t;
-	typedef np_aaatoken_t np_ident_private_token_t;
-	typedef np_aaatoken_t np_message_intent_public_token_t;
-	typedef np_aaatoken_t np_node_public_token_t;
-	typedef np_aaatoken_t np_node_private_token_t;
-
+#endif	
 	NP_API_INTERN
-		np_aaatoken_t* _np_token_factory_new_node_token(np_node_t* node);
+		np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* node);	
+	NP_API_INTERN
+		np_handshake_token_t* _np_token_factory_new_handshake_token();
+	NP_API_INTERN		
+		np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_msgproperty_t* msg_request);
 	NP_API_EXPORT
-		np_aaatoken_t* np_token_factory_new_identity_token(double expires_at);
-
+		np_ident_private_token_t* np_token_factory_new_identity_token(double expires_at);
+	NP_API_EXPORT
+		np_aaatoken_t* np_token_factory_read_from_tree(np_tree_t* tree);
 
 
 #ifdef __cplusplus

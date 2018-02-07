@@ -637,8 +637,8 @@ NP_UNUSED int event_type) {
 			htparser_set_userdata(new_client->parser, new_client);
 
 			// get calling address and port for logging
-			char ipstr[255];
-			char port[6];
+			char ipstr[255] = { 0 };
+			char port[6] = { 0 };
 
 			if (from.ss_family == AF_INET) {
 				struct sockaddr_in *s = (struct sockaddr_in *) &from;
@@ -650,7 +650,7 @@ NP_UNUSED int event_type) {
 			}
 
 			log_debug_msg(LOG_HTTP | LOG_DEBUG,
-				"received http request from %s:%s (client fd: %d)", ipstr, port,
+				"received http request from %s:%s (client fd: %"PRIi32")", ipstr, port,
 				new_client->client_fd);
 
 			new_client->status = CONNECTED;

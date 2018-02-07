@@ -240,6 +240,8 @@ Depends(prg_np, np_dylib)
 # clean up
 Clean('.', 'build')
 Clean('.', 'bin')
+Clean('.', 'warn.log')
+Clean('.', 'warn_clean.log')
 print "build with:"
 
 print "analyze       =  %r" % analyze       

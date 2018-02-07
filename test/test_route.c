@@ -53,7 +53,7 @@ Test(np_route_t, _leafset_update, .description="test the addition/removal of key
 
 		if (NULL != added)
 		{
-			cr_expect(0 == _np_dhkey_comp(&insert_key->dhkey, &added->dhkey), "test whether the new key was added");
+			cr_expect(0 == _np_dhkey_cmp(&insert_key->dhkey, &added->dhkey), "test whether the new key was added");
 			keys_in_leafset++;
 		}
 		else
@@ -65,7 +65,7 @@ Test(np_route_t, _leafset_update, .description="test the addition/removal of key
 
 		if (NULL != deleted)
 		{
-			// cr_expect(0 != _np_dhkey_comp(&insert_key->dhkey, &deleted->dhkey), "test whether a different key was deleted");
+			// cr_expect(0 != _np_dhkey_cmp(&insert_key->dhkey, &deleted->dhkey), "test whether a different key was deleted");
 			keys_in_leafset--;
 		}
 	}
@@ -77,7 +77,7 @@ Test(np_route_t, _leafset_update, .description="test the addition/removal of key
 		_np_route_leafset_update(my_keys[i], FALSE, &deleted, &added);
 		if (NULL != deleted)
 		{
-			cr_expect(0 == _np_dhkey_comp(&my_keys[i]->dhkey, &deleted->dhkey), "test whether the same key was removed");
+			cr_expect(0 == _np_dhkey_cmp(&my_keys[i]->dhkey, &deleted->dhkey), "test whether the same key was removed");
 			keys_in_leafset--;
 		}
 	}
@@ -130,7 +130,7 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 
 		if (NULL != added)
 		{
-			cr_expect(0 == _np_dhkey_comp(&insert_key->dhkey, &added->dhkey), "test whether the new key was added");
+			cr_expect(0 == _np_dhkey_cmp(&insert_key->dhkey, &added->dhkey), "test whether the new key was added");
 			current_size++;
 			sll_append(np_key_ptr, my_keys, insert_key);
 		}
@@ -143,13 +143,13 @@ Test(np_route_t, _route_create, .description="test the insert of keys into the r
 
 		if (NULL != deleted)
 		{
-			cr_expect(0 != _np_dhkey_comp(&insert_key->dhkey, &deleted->dhkey), "test whether a different key was deleted");
+			cr_expect(0 != _np_dhkey_cmp(&insert_key->dhkey, &deleted->dhkey), "test whether a different key was deleted");
 			current_size--;
 
 			sll_iterator(np_key_ptr) iter = sll_first(my_keys);
 			while (NULL != iter)
 			{
-				if (0 == _np_dhkey_comp(&iter->val->dhkey, &deleted->dhkey))
+				if (0 == _np_dhkey_cmp(&iter->val->dhkey, &deleted->dhkey))
 				{
 					sll_delete(np_key_ptr, my_keys, iter);
 					break;

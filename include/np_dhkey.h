@@ -21,7 +21,7 @@ struct np_dhkey_s
  * returns > 0 if k1>k2, < 0 if k1<k2, and 0 if k1==k2
  */
 NP_API_INTERN
-int8_t _np_dhkey_comp (const np_dhkey_t* const k1, const np_dhkey_t* const k2);
+int8_t _np_dhkey_cmp (const np_dhkey_t* const k1, const np_dhkey_t* const k2);
 
 /* some global variables !! that are set in key_init function */
 NP_API_INTERN

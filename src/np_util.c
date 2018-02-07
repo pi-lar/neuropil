@@ -47,9 +47,9 @@ NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 char* np_uuid_create(const char* str, const uint16_t num)
 {
 	log_msg(LOG_TRACE, "start: char* np_uuid_create(const char* str, const uint16_t num){");
-	char input[256] ="";
-	unsigned char out[18]="";
-	char* uuid_out = calloc(1,sizeof(char)*UUID_SIZE);
+	char input[256] = { '\0' };
+	unsigned char out[18] = { '\0' };
+	char* uuid_out = calloc(1, UUID_SIZE);
 	CHECK_MALLOC(uuid_out);
 
 	double now = np_time_now();
@@ -68,9 +68,9 @@ char* np_uuid_create(const char* str, const uint16_t num)
 
 // TODO: replace with function pointer, same for __np_tree_read_type
 // typedef void (*write_type_function)(const np_treeval_t* val, cmp_ctx_t* ctx);
-// write_type_function write_type_arr[npval_count] = {NULL};
-// write_type_arr[npval_count] = &write_short_type;
-// write_type_arr[npval_count] = NULL;
+// write_type_function write_type_arr[np_treeval_type_npval_count] = {NULL};
+// write_type_arr[np_treeval_type_npval_count] = &write_short_type;
+// write_type_arr[np_treeval_type_npval_count] = NULL;
 
 
 void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
@@ -86,7 +86,7 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
 
 		do
 		{
-			if (0 == _np_dhkey_comp(&iter1->val->dhkey,
+			if (0 == _np_dhkey_cmp(&iter1->val->dhkey,
 								 &iter2->val->dhkey))
 			{
 				tmp = iter2;
@@ -115,56 +115,56 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 	//log_debug_msg(LOG_DEBUG, "np_treeval2json type: %"PRIu8,val.type);
 	void* tmp;
 	switch (val.type) {
-	case short_type:
+	case np_treeval_type_short:
 		ret = json_value_init_number(val.value.sh);
 		break;
-	case int_type:
+	case np_treeval_type_int:
 		ret = json_value_init_number(val.value.i);
 		break;
-	case long_type:
+	case np_treeval_type_long:
 		ret = json_value_init_number(val.value.l);
 		break;
 #ifdef x64
-	case long_long_type:
+	case np_treeval_type_long_long:
 		ret = json_value_init_number(val.value.ll);
 		break;
 #endif
-	case float_type:
+	case np_treeval_type_float:
 		ret = json_value_init_number(val.value.f);
 		break;
-	case double_type:
+	case np_treeval_type_double:
 		ret = json_value_init_number(val.value.d);
 		break;
-	case char_ptr_type:		
+	case np_treeval_type_char_ptr:		
 		tmp_str = np_treeval_to_str(val, &free_string);
 		ret = json_value_init_string(tmp_str);
 		if (free_string == TRUE) {
 			free(tmp_str);
 		}
 		break;
-	case char_type:
+	case np_treeval_type_char:
 		ret = json_value_init_string(&val.value.c);
 		break;
-	case unsigned_short_type:
+	case np_treeval_type_unsigned_short:
 		ret = json_value_init_number(val.value.ush);
 		break;
-	case unsigned_int_type:
+	case np_treeval_type_unsigned_int:
 		ret = json_value_init_number(val.value.ui);
 		break;
-	case unsigned_long_type:
+	case np_treeval_type_unsigned_long:
 		ret = json_value_init_number(val.value.ul);
 		break;
 #ifdef x64
-	case unsigned_long_long_type:
+	case np_treeval_type_unsigned_long_long:
 		ret = json_value_init_number(val.value.ull);
 		break;
 #endif
-	case uint_array_2_type:
+	case np_treeval_type_uint_array_2:
 		ret = json_value_init_array();
 		json_array_append_number(json_array(ret), val.value.a2_ui[0]);
 		json_array_append_number(json_array(ret), val.value.a2_ui[1]);
 		break;
-	case bin_type:
+	case np_treeval_type_bin:
 		tmp =  malloc(sizeof(char)*64);
 		CHECK_MALLOC(tmp);
 
@@ -172,10 +172,10 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 		ret = json_value_init_string((char*)tmp);
 		free(tmp);
 		break;
-	case jrb_tree_type:
+	case np_treeval_type_jrb_tree:
 		ret = np_tree2json(val.value.tree);
 		break;
-	case dhkey_type:
+	case np_treeval_type_dhkey:
 		ret = json_value_init_array();
 		json_array_append_number(json_array(ret), val.value.dhkey.t[0]);
 		json_array_append_number(json_array(ret), val.value.dhkey.t[1]);
@@ -215,7 +215,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 			RB_FOREACH(tmp, np_tree_s, tree)
 			{
 				char* name = NULL;
-				if (int_type == tmp->key.type)
+				if (np_treeval_type_int == tmp->key.type)
 				{
 					useArray = TRUE;
 					int size = snprintf(NULL, 0, "%d", tmp->key.value.i);
@@ -224,7 +224,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 
 					snprintf(name, size + 1, "%d", tmp->key.value.i);
 				}
-				else if (double_type == tmp->key.type)
+				else if (np_treeval_type_double == tmp->key.type)
 				{
 					int size = snprintf(NULL, 0, "%f", tmp->key.value.d);
 					name = malloc(size + 1);
@@ -232,7 +232,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 
 					snprintf(name, size + 1, "%f", tmp->key.value.d);
 				}
-				else if (unsigned_long_type == tmp->key.type)
+				else if (np_treeval_type_unsigned_long == tmp->key.type)
 				{
 					int size = snprintf(NULL, 0, "%u", tmp->key.value.ul);
 					name = malloc(size + 1);
@@ -240,11 +240,11 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 
 					snprintf(name, size + 1, "%u", tmp->key.value.ul);
 				}
-				else if (char_ptr_type == tmp->key.type)
+				else if (np_treeval_type_char_ptr == tmp->key.type)
 				{
 					name = strndup( np_treeval_to_str(tmp->key,NULL), strlen( np_treeval_to_str(tmp->key, NULL)));
 				}
-				else if (special_char_ptr_type == tmp->key.type)
+				else if (np_treeval_type_special_char_ptr == tmp->key.type)
 				{
 					name = strdup(_np_tree_get_special_str(tmp->key.value.ush));
 				}

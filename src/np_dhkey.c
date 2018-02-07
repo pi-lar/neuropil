@@ -162,7 +162,7 @@ np_bool _np_dhkey_equal (np_dhkey_t* k1, np_dhkey_t* k2)
 	return TRUE;
 }
 
-int8_t _np_dhkey_comp (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
+int8_t _np_dhkey_cmp (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 {	
 	if (k1 == NULL) return -1;
 	if (k2 == NULL) return  1;
@@ -236,9 +236,9 @@ np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const
 {
 	log_msg (LOG_KEY | LOG_TRACE, ".start._dhkey_between");
 
-	int8_t comp_lr = _np_dhkey_comp (left, right);
-	int8_t comp_lt = _np_dhkey_comp (left, test);
-	int8_t comp_tr = _np_dhkey_comp (test, right);
+	int8_t comp_lr = _np_dhkey_cmp (left, right);
+	int8_t comp_lt = _np_dhkey_cmp (left, test);
+	int8_t comp_tr = _np_dhkey_cmp (test, right);
 
 	/* it's on one of the edges */
 	if (comp_lt == 0 || comp_tr == 0) return (includeBounds);
@@ -265,7 +265,7 @@ np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const
 void _np_dhkey_midpoint (np_dhkey_t* mid, const np_dhkey_t* key)
 {
 	log_msg (LOG_KEY | LOG_TRACE, ".start._dhkey_midpoint");
-	if   (_np_dhkey_comp (key, &__dhkey_half) < 0) _np_dhkey_add (mid, key, &__dhkey_half);
+	if   (_np_dhkey_cmp (key, &__dhkey_half) < 0) _np_dhkey_add (mid, key, &__dhkey_half);
 	else  	                                    _np_dhkey_sub (mid, key, &__dhkey_half);
 	// mid->valid = FALSE;
 	log_msg (LOG_KEY | LOG_TRACE, ".end  ._dhkey_midpoint");

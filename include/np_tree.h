@@ -287,7 +287,7 @@ NP_API_INTERN
 np_bool np_tree_deserialize(np_tree_t* jrb, cmp_ctx_t* cmp);
 
 NP_API_INTERN
-uint8_t __np_tree_serialize_read_type_dhkey(void* buffer_ptr, np_treeval_t* target);
+uint8_t __np_tree_serialize_read_type_dhkey(cmp_ctx_t* cmp_key, np_treeval_t* target);
 NP_API_INTERN
 void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target);
 NP_API_INTERN

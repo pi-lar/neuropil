@@ -23,20 +23,46 @@
 extern "C" {
 #endif
 
+enum np_key_type {
+	np_key_type_unknown			= 0x000,
+	np_key_type_alias			= 0x001,
+	np_key_type_node			= 0x002,
+
+	//DETECTION NOT IMPLEMENTED
+	np_key_type_ident			= 0x004,	
+	//DETECTION NOT IMPLEMENTED
+	np_key_type_subject			= 0x008,	
+};
 struct np_key_s
 {
+	np_obj_t* obj;              // link to memory management and ref counter
+
 	double created_at;
 	TSP(np_bool, in_destroy);
-
-	np_obj_t* obj;              // link to memory management and ref counter
+	
 	SPLAY_ENTRY(np_key_s) link; // link for cache management
 
+	/*
+	only available for subject key
+	use _np_key_get_dhkey() 
+	*/
 	np_dhkey_t dhkey;
 	double last_update;
 	char*      dhkey_str;
-
+	
+	/*
+	only available for node key
+	*/
 	np_node_t*    node;		    // link to a neuropil node if this key represents a node
+	/*
+	only available for node key
+	*/
 	np_network_t* network;	    // link to a neuropil network if this key represents a node
+
+	/*
+	only available for node and ident key
+	*/
+	np_aaatoken_t* aaa_token; // link to aaatoken for this key (if it exists)
 
 	np_pll_t(np_aaatoken_ptr, local_mx_tokens); // link to runtime interest data on which this node is interested in
 
@@ -47,7 +73,7 @@ struct np_key_s
 	np_pll_t(np_aaatoken_ptr, recv_tokens); // link to runtime interest data on which this node is interested in
 	np_pll_t(np_aaatoken_ptr, send_tokens); // link to runtime interest data on which this node is interested in
 
-	np_aaatoken_t* aaa_token; // link to aaatoken for this key (if it exists)
+	enum np_key_type type;
 
 	/*
 	 * Holds a reference to the parent if the key is an alias key.
@@ -74,12 +100,14 @@ char* _np_key_as_str(np_key_t * key);
 NP_API_EXPORT
 void np_key_renew_token();
 
-
 NP_API_INTERN
 void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc);
 
 NP_API_INTERN
 void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);
+
+NP_API_INTERN
+np_key_t* _np_key_get_by_key_hash(char* targetDhkey);
 
 #ifdef __cplusplus
 }

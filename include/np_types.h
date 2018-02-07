@@ -82,6 +82,13 @@ typedef struct np_obj_s np_obj_t;
 typedef struct np_responsecontainer_s np_responsecontainer_t;
 
 typedef struct np_aaatoken_s np_aaatoken_t;
+typedef np_aaatoken_t np_ident_public_token_t;
+typedef np_aaatoken_t np_ident_private_token_t;
+typedef np_aaatoken_t np_message_intent_public_token_t;
+typedef np_aaatoken_t np_node_public_token_t;
+typedef np_aaatoken_t np_node_private_token_t;
+typedef np_aaatoken_t np_handshake_token_t;
+
 typedef np_aaatoken_t* np_aaatoken_ptr;
 
 typedef struct np_dhkey_s np_dhkey_t;
