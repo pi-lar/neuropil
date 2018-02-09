@@ -365,60 +365,10 @@ void _np_out_handshake(np_jobargs_t* args)
 			np_key_t* my_key = np_state()->my_node_key;
 			np_aaatoken_t* my_token = _np_token_factory_new_handshake_token();
 
-			// TODO: reffing of key, node token in function context
-			np_tree_t* hs_data = np_tree_create();
-
-			np_aaatoken_encode(hs_data, my_token);
-			_np_node_encode_to_jrb(hs_data, my_key, FALSE);
-
-			// pre-serialize handshake data
-			cmp_ctx_t cmp;
-			unsigned char hs_payload[65536] = { 0 };
-			void* hs_buf_ptr = hs_payload;
-
-			cmp_init(&cmp, hs_buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
-
-			np_tree_serialize(hs_data, &cmp);
-			uint32_t hs_payload_len = cmp.buf - hs_buf_ptr;
-
-			np_tree_free(hs_data);
-
-			// sign the handshake payload with our private key
-			unsigned char signature[crypto_sign_BYTES] = { 0 };
-			unsigned long long siglen = 0;
-			// uint32_t signature_len;
-			int16_t ret = crypto_sign_detached(
-				(unsigned char*)signature,
-				&siglen,
-				(const unsigned char*)hs_payload,
-				hs_payload_len,
-				my_token->private_key
-			);
-			if (ret < 0)
-			{
-				log_msg(LOG_WARN, "handshake signature creation failed, not continuing with handshake");
-				_np_threads_unlock_module(np_handshake_t_lock);
-				return;
-			}
-#ifdef DEBUG
-			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "handshake signature has %"PRIu32" bytes", crypto_sign_BYTES);
-			char* signature_hex = calloc(1, crypto_sign_BYTES * 2 + 1);
-			sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
-				signature, crypto_sign_BYTES);
-			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "handshake signature: (payload size: %5"PRIu32") %s", hs_payload_len, signature_hex);
-			free(signature_hex);
-
-			char* pub_key_hex = calloc(1, crypto_sign_PUBLICKEYBYTES * 2 + 1);
-			sodium_bin2hex(pub_key_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
-				my_token->public_key, crypto_sign_PUBLICKEYBYTES);
-			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "handshake public key:%s", pub_key_hex);
-			free(pub_key_hex);
-#endif
-
 			// create real handshake message ...
 			np_message_t* hs_message = NULL;
-			np_new_obj(np_message_t, hs_message);
 			np_msgproperty_t* hs_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
+			np_new_obj(np_message_t, hs_message);
 
 			np_tree_insert_str(hs_message->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s(_NP_MSG_HANDSHAKE));
 			np_tree_insert_str(hs_message->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*)_np_key_as_str(np_state()->my_node_key)));
@@ -427,13 +377,8 @@ void _np_out_handshake(np_jobargs_t* args)
 			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(hs_prop->token_max_ttl + 0.0));
 			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d((double)np_time_now()));
 
-
-			// ... add signature and payload to this message
-			np_tree_insert_str(hs_message->body, NP_HS_SIGNATURE,
-				np_treeval_new_bin(signature, siglen));
-			np_tree_insert_str(hs_message->body, NP_HS_PAYLOAD,
-				np_treeval_new_bin(hs_payload, (uint32_t)hs_payload_len));
-
+			np_aaatoken_encode(hs_message->body, my_token);
+					
 			_np_message_calculate_chunking(hs_message);
 		
 			np_bool serialize_ok = _np_message_serialize_chunked(hs_message);			

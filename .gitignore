@@ -6,3 +6,4 @@ config.log
 .sconsign.dblite
 warn.log
 *.orig
+*.log

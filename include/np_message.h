@@ -31,7 +31,7 @@ struct np_message_s
 
 	// only used if the message has to be split up into chunks
 	np_bool is_single_part;
-	uint16_t no_of_chunks;
+	uint32_t no_of_chunks;
 	np_pll_t(np_messagepart_ptr, msg_chunks);
 	np_mutex_t msg_chunks_lock;
 

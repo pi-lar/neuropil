@@ -153,7 +153,7 @@ np_treeval_t np_treeval_new_dhkey(np_dhkey_t dhkey);
 np_treeval_t np_treeval_new_obj(np_obj_t* obj);
 uint32_t np_treeval_get_byte_size(np_treeval_t ele);
 
-np_treeval_t np_treeval_NULL;
+extern np_treeval_t np_treeval_NULL;
 
 int16_t  np_treeval_i (np_treeval_t);
 int32_t  np_treeval_l (np_treeval_t);

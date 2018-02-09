@@ -17,6 +17,9 @@
 #include <pthread.h>
 #include <inttypes.h>
 
+#include "sodium.h"
+
+
 #include "np_tree.h"
 #include "np_treeval.h"
 
@@ -68,6 +71,7 @@ const char* const np_special_strs[] = {
 	"np.t.si",
 	"np.t.u",
 	"np.t.partner",
+	"np.t.signature_extensions",
 	"_np.token.ident",
 	"_np.token.node",
 
@@ -1032,29 +1036,21 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 	case np_treeval_type_float_array_2:
 	case np_treeval_type_char_array_8:
 	case np_treeval_type_unsigned_char_array_8:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		log_msg(LOG_WARN, "please implement serialization for type %"PRIu8, val.type);
 		break;
 
 	case np_treeval_type_void:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		log_msg(LOG_WARN, "please implement serialization for type %"PRIu8, val.type);
 		break;
-
 	case np_treeval_type_bin:
-		cmp_write_bin32(cmp, val.value.bin, val.size);
-		//log_debug_msg(LOG_DEBUG, "BIN size %"PRIu32, val.size);
+		cmp_write_bin32(cmp, val.value.bin, val.size);		
 		break;
-
-	case np_treeval_type_dhkey:
-	{
+	case np_treeval_type_dhkey:	
 		__np_tree_serialize_write_type_dhkey(val.value.dhkey, cmp);
-		break;
-	}
-	case np_treeval_type_special_char_ptr:
-	{
+		break;	
+	case np_treeval_type_special_char_ptr:	
 		__np_tree_serialize_write_type_special_str(val.value.ush, cmp);
 		break;
-	}
-
 	case np_treeval_type_hash:
 		// log_debug_msg(LOG_DEBUG, "adding hash value %s to serialization", val.value.s);
 		cmp_write_ext32(cmp, np_treeval_type_hash, val.size, val.value.bin);
@@ -1321,4 +1317,51 @@ void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx
 			log_msg(LOG_WARN, "unknown deserialization for given type");
 			break;
 	}
+}
+
+unsigned char* np_tree_get_hash(np_tree_t* self) {
+	unsigned char* hash = calloc(1, crypto_generichash_BYTES);
+	crypto_generichash_state gh_state;
+	crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
+	
+	if (self != NULL && self->size > 0) {
+		np_tree_elem_t* iter_tree = NULL;
+		char* tmp;
+		unsigned char* tmp2;
+		np_bool free_tmp;
+		unsigned char* ptr;
+		RB_FOREACH(iter_tree, np_tree_s, self)
+		{
+			tmp = np_treeval_to_str(iter_tree->key, &free_tmp);
+			crypto_generichash_update(&gh_state, (unsigned char*)tmp, strlen(tmp));
+			if (free_tmp) free(tmp);
+
+			if (iter_tree->val.type == np_treeval_type_jrb_tree) {
+				tmp2 = np_tree_get_hash(iter_tree->val.value.tree);
+				crypto_generichash_update(&gh_state, tmp2, crypto_generichash_BYTES);
+				free(tmp2);
+			}
+			else {
+				if (/*Pointer types*/
+					iter_tree->val.type == np_treeval_type_void ||
+					iter_tree->val.type == np_treeval_type_bin ||
+					iter_tree->val.type == np_treeval_type_char_ptr ||
+					iter_tree->val.type == np_treeval_type_char_array_8 ||
+					iter_tree->val.type == np_treeval_type_float_array_2 ||
+					iter_tree->val.type == np_treeval_type_uint_array_2 ||
+					iter_tree->val.type == np_treeval_type_npobj ||
+					iter_tree->val.type == np_treeval_type_unsigned_char_array_8
+					) {
+					ptr = iter_tree->val.value.bin;
+				}
+				else {
+					ptr = &iter_tree->val.value.uc;
+				}
+				crypto_generichash_update(&gh_state, ptr, iter_tree->val.size);
+			}
+		}
+	}
+
+	crypto_generichash_final(&gh_state, hash, crypto_generichash_BYTES);
+	return hash;
 }

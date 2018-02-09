@@ -109,12 +109,9 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 		// 		case np_treeval_type_char_array_8:   byte_size += 1 + 8*sizeof(char); break;
 		// 		case np_treeval_type_unsigned_char_array_8: byte_size += 1 +8*sizeof(unsigned char); break;
 	case np_treeval_type_bin:
-		// if (0 < to.size && np_treeval_type_bin == to.type) free (to.value.bin);
 		to.type = np_treeval_type_bin;
 		to.value.bin = malloc(from.size);
-		CHECK_MALLOC(to.value.bin)
-		;
-		memset(to.value.bin, 0, from.size);
+		CHECK_MALLOC(to.value.bin);
 		memcpy(to.value.bin, from.value.bin, from.size);
 		to.size = from.size;
 		break;
@@ -125,23 +122,14 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 		break;
 	case np_treeval_type_dhkey:
 		to.type = np_treeval_type_dhkey;
-		to.value.dhkey.t[0] = from.value.dhkey.t[0];
-		to.value.dhkey.t[1] = from.value.dhkey.t[1];
-		to.value.dhkey.t[2] = from.value.dhkey.t[2];
-		to.value.dhkey.t[3] = from.value.dhkey.t[3];
-		to.value.dhkey.t[4] = from.value.dhkey.t[4];
-		to.value.dhkey.t[5] = from.value.dhkey.t[5];
-		to.value.dhkey.t[6] = from.value.dhkey.t[6];
-		to.value.dhkey.t[7] = from.value.dhkey.t[7];
+		memcpy(&to.value.dhkey, &from.value.dhkey, sizeof(np_dhkey_t));
 		to.size = sizeof(np_dhkey_t);
 		break;
 	case np_treeval_type_hash:
-		to.type = np_treeval_type_bin;
+		to.type = np_treeval_type_hash;
 		to.value.bin = malloc(from.size);
 		CHECK_MALLOC(to.value.bin)
-		;
-
-		memset(to.value.bin, 0, from.size);
+		
 		memcpy(to.value.bin, from.value.bin, from.size);
 		to.size = from.size;
 		break;
@@ -681,31 +669,31 @@ uint32_t np_treeval_get_byte_size(np_treeval_t ele)
 	{
 		case np_treeval_type_short: 					byte_size += 1 + sizeof(int8_t); break;
 		case np_treeval_type_int: 						byte_size += 1 + sizeof(int16_t); break;
-		case np_treeval_type_long: 					byte_size += 1 + sizeof(int32_t); break;
+		case np_treeval_type_long: 						byte_size += 1 + sizeof(int32_t); break;
 #ifdef x64
-		case np_treeval_type_long_long:				byte_size += 1 + sizeof(int64_t); break;
+		case np_treeval_type_long_long:					byte_size += 1 + sizeof(int64_t); break;
 #endif
 		case np_treeval_type_float: 					byte_size += 1 + sizeof(float); break;
 		case np_treeval_type_double: 					byte_size += 1 + sizeof(double); break;
-		case np_treeval_type_char_ptr: 				byte_size += sizeof(uint8_t)/*str marker*/ + sizeof(uint32_t)/*size of str*/ + ele.size /*string*/ + sizeof(char)/*terminator*/; break;
-		case np_treeval_type_char: 					byte_size += 1 + sizeof(char); break;
-		case np_treeval_type_unsigned_char:			byte_size += 1 + sizeof(unsigned char); break;
+		case np_treeval_type_char_ptr: 					byte_size += sizeof(uint8_t)/*str marker*/ + sizeof(uint32_t)/*size of str*/ + ele.size /*string*/ + sizeof(char)/*terminator*/; break;
+		case np_treeval_type_char: 						byte_size += 1 + sizeof(char); break;
+		case np_treeval_type_unsigned_char:				byte_size += 1 + sizeof(unsigned char); break;
 		case np_treeval_type_unsigned_short:			byte_size += 1 + sizeof(uint8_t); break;
 		case np_treeval_type_unsigned_int:				byte_size += 1 + sizeof(uint16_t); break;
-		case np_treeval_type_unsigned_long:			byte_size += 1 + sizeof(uint32_t); break;
+		case np_treeval_type_unsigned_long:				byte_size += 1 + sizeof(uint32_t); break;
 #ifdef x64
 		case np_treeval_type_unsigned_long_long:		byte_size += 1 + sizeof(uint64_t); break;
 #endif
-		case np_treeval_type_uint_array_2:				byte_size += 1 + 2*sizeof(uint16_t); break;
-		case np_treeval_type_float_array_2:			byte_size += 1 + 2*sizeof(float); break;
-		case np_treeval_type_char_array_8:				byte_size += 1 + 8*sizeof(char); break;
-		case np_treeval_type_unsigned_char_array_8:	byte_size += 1+8*sizeof(unsigned char); break;
-		case np_treeval_type_void: 					byte_size += 1 + sizeof(void*); break;
+		case np_treeval_type_uint_array_2:				byte_size += 1 + 2 * sizeof(uint16_t); break;
+		case np_treeval_type_float_array_2:				byte_size += 1 + 2 * sizeof(float); break;
+		case np_treeval_type_char_array_8:				byte_size += 1 + 8 * sizeof(char); break;
+		case np_treeval_type_unsigned_char_array_8:		byte_size += 1 + 8 * sizeof(unsigned char); break;
+		case np_treeval_type_void: 						byte_size += 1 + sizeof(void*); break;
 		case np_treeval_type_bin: 						byte_size += 1 + sizeof(uint32_t) + ele.size; break;
-		case np_treeval_type_hash: 					byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.size; break;
+		case np_treeval_type_hash: 						byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.size; break;
 		case np_treeval_type_jrb_tree:					byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.value.tree->byte_size; break;
-		case np_treeval_type_dhkey:					byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of dhkey*/8 * (sizeof(uint8_t) /*uint32 marker*/+ sizeof(uint32_t)/*uint32 value*/)); break;
-		case np_treeval_type_special_char_ptr:         byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of special string (1:1 replacement on target)*/ sizeof(uint8_t)/*uint8 marker*/ + sizeof(uint8_t)/*uint8 value*/); break; 
+		case np_treeval_type_dhkey:						byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of dhkey*/8 * (sizeof(uint8_t) /*uint32 marker*/+ sizeof(uint32_t)/*uint32 value*/)); break;
+		case np_treeval_type_special_char_ptr:			byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of special string (1:1 replacement on target)*/ sizeof(uint8_t)/*uint8 marker*/ + sizeof(uint8_t)/*uint8 value*/); break; 
 		default:                  log_msg(LOG_ERROR, "unsupported length calculation for value / type %"PRIu8"", ele.type ); break;
 	}
 
