@@ -308,8 +308,8 @@ NP_API_INTERN
 void np_tree_replace_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t val);
 NP_API_INTERN
 void np_tree_set_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t val);
-
-
+NP_API_EXPORT
+unsigned char* np_tree_get_hash(np_tree_t* self);
 #ifdef __cplusplus
 }
 #endif

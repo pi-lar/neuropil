@@ -55,7 +55,7 @@ extern "C" {
 		assert((expression));															\
 	}																						 
 #else
-#define ASSERT(expression, onfail_msg, ...)
+#define ASSERT(expression, onfail_msg, ...)												\
 	if (!(expression)) {																\
 			log_debug_msg(LOG_ERROR, onfail_msg, ##__VA_ARGS__);						\
 	}

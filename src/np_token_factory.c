@@ -119,7 +119,6 @@ np_aaatoken_t* __np_token_factory_new(char issuer[64], char node_subject[255], d
 	ret->expires_at = expires_at;
 
 	crypto_sign_keypair(ret->public_key, ret->private_key);   // ed25519
-	ret->private_key_is_set = TRUE;
 	ret->scope = np_aaatoken_scope_private;
 
 	return ret;
@@ -171,7 +170,6 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 	memcpy((char*)ret->private_key,
 		(char*)my_identity->aaa_token->private_key,
 		crypto_sign_SECRETKEYBYTES);
-	ret->private_key_is_set = TRUE;
 	ret->scope = np_aaatoken_scope_private;
 
 	np_tree_replace_str(ret->extensions, "mep_type",

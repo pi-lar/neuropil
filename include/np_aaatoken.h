@@ -30,6 +30,7 @@ AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizi
 
 #include "np_dhkey.h"
 #include "np_list.h"
+#include "np_threads.h"
 #include "np_memory.h"
 #include "np_types.h"
 
@@ -79,7 +80,7 @@ enum np_aaatoken_type {
 };
 
 enum np_aaatoken_scope {
-	np_aaatoken_scope_private = 0,
+	np_aaatoken_scope_private = 1,
 	np_aaatoken_scope_public,
 	np_aaatoken_scope_undefined,
 };
@@ -172,6 +173,8 @@ struct np_aaatoken_s
 	np_tree_t* extensions;
 	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
 	unsigned char private_key[crypto_sign_SECRETKEYBYTES];	
+	unsigned char signature[crypto_sign_BYTES];
+	unsigned char signature_extensions[crypto_sign_BYTES];
 	// attributes to exchange END
 
 	// internal attributes
@@ -183,10 +186,9 @@ struct np_aaatoken_s
 	enum np_aaatoken_scope scope;
 	np_bool private_key_is_set;
 
-	unsigned char* signed_hash;
-	unsigned char signature[crypto_sign_BYTES];
 	np_bool is_signature_verified;
-	
+	np_bool is_signature_extensions_verified;
+
 } NP_API_EXPORT;
 
 #ifndef SWIG
@@ -253,6 +255,10 @@ NP_API_INTERN
 np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self);
 NP_API_INTERN
 void _np_aaatoken_set_signature(np_aaatoken_t* self);
+NP_API_INTERN
+void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self);
+NP_API_INTERN
+unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self);
 
 #ifdef __cplusplus
 }

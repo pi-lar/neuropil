@@ -53,10 +53,10 @@ typedef enum
     #define NP_API_PROTEC __attribute__ ((visibility ("default")))
   #endif
   #ifndef NP_API_HIDDEN
-    #define NP_API_HIDDEN __attribute__ ((visibility ("hidden")))
+    #define NP_API_HIDDEN __attribute__ ((visibility ("default")))
   #endif
   #ifndef NP_API_INTERN
-	#define NP_API_INTERN __attribute__ ((visibility ("internal")))
+	#define NP_API_INTERN __attribute__ ((visibility ("default")))
   #endif
 #endif
 

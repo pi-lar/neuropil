@@ -170,19 +170,27 @@ void _np_message_calculate_chunking(np_message_t* msg)
 	// np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 
 	// TODO: message part split-up informations
-	uint16_t fixed_size =
+	uint32_t header_size = (msg->header == NULL ? 0 : msg->header->byte_size);
+	uint32_t instructions_size = (msg->instructions == NULL ? 0 : msg->instructions->byte_size);
+	uint32_t fixed_size =
 		MSG_ARRAY_SIZE + 
 		MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
-		(msg->header == NULL ? 0 : msg->header->byte_size) +
-		(msg->instructions == NULL ? 0 : msg->instructions->byte_size);
+		header_size + instructions_size;
 
-	uint16_t payload_size = 
-		(msg->properties == NULL ? 0 : msg->properties->byte_size) +
-		(msg->body == NULL ? 0 : msg->body->byte_size) +
-		(msg->footer == NULL ? 0 : msg->footer->byte_size);
+	uint32_t properties_size = (msg->properties == NULL ? 0 : msg->properties->byte_size);
+	uint32_t body_size = (msg->body == NULL ? 0 : msg->body->byte_size);
+	uint32_t footer_size = (msg->footer == NULL ? 0 : msg->footer->byte_size);
+	uint32_t payload_size = properties_size + body_size + footer_size;
 
-	uint16_t chunks =
-			((uint16_t) (payload_size) / (MSG_CHUNK_SIZE_1024 - fixed_size)) + 1;
+	uint32_t chunks =
+			((uint32_t) (payload_size) / (MSG_CHUNK_SIZE_1024 - fixed_size)) + 1;
+
+	log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION, "Message has payload of %"PRIu32"(%"PRIu32"/%"PRIu32"/%"PRIu32") and %"PRIu32"(%"PRIu32"/%"PRIu32") header data, so we send %"PRIu32" chunks for %"PRIu32" bytes"
+		, payload_size, properties_size, body_size, footer_size, 
+		fixed_size, header_size, instructions_size, 
+		chunks, 
+		(payload_size+ fixed_size)*chunks);
+
 
 	msg->no_of_chunks = chunks;
 }
@@ -778,8 +786,6 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 	cmp_ctx_t cmp_footer;
 	uint32_t size_footer = 0;
 
-	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-----------------------------------------------------" );
-
 	_LOCK_ACCESS(&msg->msg_chunks_lock)
 	{
 		pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
@@ -837,11 +843,6 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 				bin_properties_ptr = msg->bin_properties + (size_properties - size_properties_add);
 				cmp.read(&cmp, bin_properties_ptr, size_properties_add);
 			}
-			else
-			{
-				// buffer_container.buffer += size_properties_add;
-				// buffer_container.bufferCount += size_properties_add;
-			}
 
 			cmp_read_bin_size(&cmp, &size_body_add);
 			if (0 < size_body_add)
@@ -851,11 +852,6 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 				msg->bin_body = realloc(msg->bin_body, size_body);
 				bin_body_ptr = msg->bin_body + (size_body - size_body_add);
 				cmp.read(&cmp, bin_body_ptr, size_body_add);
-			}
-			else
-			{
-				// buffer_container.buffer += size_body_add;
-				// buffer_container.bufferCount += size_body_add;
 			}
 
 			cmp_read_bin_size(&cmp, &size_footer_add);
@@ -867,13 +863,6 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 				bin_footer_ptr = msg->bin_footer + (size_footer - size_footer_add);
 				cmp.read(&cmp, bin_footer_ptr, size_footer_add);
 			}
-			else
-			{
-				// buffer_container.buffer += size_footer_add;
-				// buffer_container.bufferCount += size_footer_add;
-			}
-
-			// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-------------------------" );
 
 			iter->val = NULL;
 			np_unref_obj(np_messagepart_t, current_chunk, ref_message_messagepart);

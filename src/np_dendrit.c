@@ -1817,46 +1817,12 @@ void _np_in_handshake(np_jobargs_t* args)
 		np_handshake_token_t* handshake_token = NULL;
 
 		_np_message_deserialize_chunked(args->msg);
-
-		// initial handshake message contains public encryption parameter
-		CHECK_STR_FIELD(args->msg->body, NP_HS_SIGNATURE, signature);
-		CHECK_STR_FIELD(args->msg->body, NP_HS_PAYLOAD, payload);
-
-		cmp_ctx_t cmp = { 0,0,0,0,0 };
-		cmp_init(&cmp, payload.value.bin, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
-		np_tree_t* hs_payload = np_tree_create();
-		hs_payload->attr.in_place = TRUE;
-
-		if(np_tree_deserialize(hs_payload, &cmp) == FALSE) {
-			goto __np_cleanup__;
-		}
+				
 		// TODO: check if the complete buffer was read (byte count match)
-		handshake_token = np_token_factory_read_from_tree(hs_payload);
+		handshake_token = np_token_factory_read_from_tree(args->msg->body);
 
-		// TODO: check decoded content
-
-		if (0 != crypto_sign_verify_detached(
-				(const unsigned char*) signature.value.bin,
-				(const unsigned char*) payload.value.bin,
-				payload.size,
-				handshake_token->public_key))
-		{
+		if (!_np_aaatoken_is_valid(handshake_token, np_aaatoken_type_handshake)) {
 			log_msg(LOG_ERROR, "incorrect handshake signature in message");
-
-	#ifdef DEBUG
-			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "signature has %"PRIu32" bytes", signature.size);
-			char* signature_hex = calloc(1, signature.size * 2 + 1);
-			sodium_bin2hex(signature_hex, signature.size * 2 + 1,
-				signature.value.bin, signature.size);
-			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "handshake signature: (payload size: %5"PRIu32") %s", payload.size, signature_hex);
-			free(signature_hex);
-
-			char* pub_key_hex = calloc(1, crypto_sign_PUBLICKEYBYTES *2 + 1);
-			sodium_bin2hex(pub_key_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
-				handshake_token->public_key, crypto_sign_PUBLICKEYBYTES);
-			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "handshake public key:%s", pub_key_hex);
-			free(pub_key_hex);
-#endif
 			goto __np_cleanup__;
 		}
 
@@ -1869,7 +1835,7 @@ void _np_in_handshake(np_jobargs_t* args)
 		// key could be changed later,
 		// but we need a way to lookup the handshake data later
 
-		np_node_t* tokens_node = _np_node_decode_from_jrb(hs_payload);
+		np_node_t* tokens_node = _np_node_from_token(handshake_token);
 		msg_source_key = _np_key_create_from_token(handshake_token);
 		msg_source_key->type |= np_key_type_node;
 
@@ -2129,8 +2095,7 @@ void _np_in_handshake(np_jobargs_t* args)
 		np_unref_obj(np_aaatoken_t, handshake_token, "np_token_factory_read_from_tree");
 
 		// __np_return__:
-		np_unref_obj(np_key_t, msg_source_key,"_np_key_create_from_token");
-		np_tree_free(hs_payload);
+		np_unref_obj(np_key_t, msg_source_key,"_np_key_create_from_token");		
 	}
 	return;
 }
