@@ -223,26 +223,30 @@ np_node_t* _np_node_decode_from_jrb(np_tree_t* data)
 	return (new_node);
 }
 
-np_node_t* _np_node_from_token(np_handshake_token_t* token)
+np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e expected_type)
 {
-	if (FLAG_CMP(token->type, np_aaatoken_type_handshake | np_aaatoken_type_node) == FALSE) {
+	if (FLAG_CMP(token->type, expected_type) == FALSE) {
+		log_debug_msg(LOG_DEBUG, "## decoding node from token str: %s", token->subject);
 		return NULL;
 	}
-	// MANDATORY paramter
-	uint8_t i_host_proto = UNKNOWN_PROTO;
-	char* s_host_proto = NULL;
-	char* s_host_name = NULL;
-	char* s_host_port = NULL;
+
 	//snprintf(node_subject, 255, _NP_URN_NODE_PREFIX "%s:%s:%s",
 	//	_np_network_get_protocol_string(source_node->protocol), source_node->dns_name, source_node->port);
-
 	char* details = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)], sizeof(token->subject) - strlen(_NP_URN_NODE_PREFIX));
 	char* detail_data = details;
-	s_host_proto = strtok(detail_data, ":");
+
+	log_debug_msg(LOG_DEBUG, "#  decoding node from token str: %s", details);
+
+	// MANDATORY paramter
+	uint8_t i_host_proto = UNKNOWN_PROTO;
+	char* s_host_proto = strtok(details, ":");
+	char* s_host_name  = strtok(NULL,    ":");
+	char* s_host_port  = strtok(NULL,    ":");
+
 	if (s_host_proto != NULL) {
 		i_host_proto = _np_network_parse_protocol_string(s_host_proto);
 	} 
-	if (i_host_proto == UNKNOWN_PROTO || (s_host_name = strtok(NULL, ":")) == NULL || (s_host_port = strtok(NULL, ":")) == NULL) {
+	if (i_host_proto == UNKNOWN_PROTO || s_host_name == NULL || s_host_port == NULL) {
 		free(details);
 		return NULL;
 	}
@@ -251,8 +255,8 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token)
 	np_new_obj(np_node_t, new_node);
 	 
 	_np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
-	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "decoded node from token %d:%s:%s",
-		i_host_proto, s_host_name, s_host_port);
+	log_debug_msg(LOG_DEBUG, "decoded node from token %d:%s:%s",
+				  i_host_proto, s_host_name, s_host_port);
 	  
 	ref_replace_reason(np_node_t, new_node, ref_obj_creation, __func__);
 	free(details);
@@ -345,7 +349,8 @@ np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
 	return (node_key);
 }
 int _np_node_cmp(np_node_t* a, np_node_t* b) {
-	int ret = a == NULL || b == NULL ;
+
+	int ret = ( (a == NULL) || (b == NULL) );
 	
 	if (ret == 0) {
 		ret = strcmp(a->dns_name, b->dns_name);

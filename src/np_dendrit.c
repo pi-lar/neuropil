@@ -1831,15 +1831,9 @@ void _np_in_handshake(np_jobargs_t* args)
 				handshake_token->subject, handshake_token->issued_at, handshake_token->expires_at);
 
 		// store the handshake data in the node cache,
-		// use hostname/port for key generation
-		// key could be changed later,
-		// but we need a way to lookup the handshake data later
-
-		np_node_t* tokens_node = _np_node_from_token(handshake_token);
-		msg_source_key = _np_key_create_from_token(handshake_token);
-		msg_source_key->type |= np_key_type_node;
-
-		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for %s",_np_key_as_str(msg_source_key));
+		np_dhkey_t search_key = { 0 };
+		_np_dhkey_from_str(handshake_token->issuer, &search_key);
+		msg_source_key    = _np_keycache_find_or_create(search_key);
 
 		// should never happen
 		if (NULL == msg_source_key)
@@ -1847,6 +1841,17 @@ void _np_in_handshake(np_jobargs_t* args)
 			log_msg(LOG_ERROR, "Handshake key is NULL!");
 			goto __np_cleanup__;
 		}
+
+		// extract node data from handshake messages
+		np_node_t* tokens_node = _np_node_from_token(handshake_token, np_aaatoken_type_handshake);
+		if (NULL == tokens_node) {
+			log_msg(LOG_ERROR, "Handshake token data is NULL!");
+			_np_keycache_remove(search_key);
+			goto __np_cleanup__;
+		}
+
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for %s",_np_key_as_str(msg_source_key));
+		msg_source_key->type |= np_key_type_node;
 
 		/*
 			Handshake/Join worklfow:
@@ -1873,24 +1878,26 @@ void _np_in_handshake(np_jobargs_t* args)
 		*/
 		if (msg_source_key->node != NULL &&  msg_source_key->node->is_handshake_received == TRUE) {
 			log_msg(LOG_ROUTING | LOG_INFO, "Handshake message already completed");
-			np_unref_obj(np_node_t, tokens_node, "_np_node_decode_from_jrb");
+			np_unref_obj(np_node_t, tokens_node, "_np_node_from_token");
 			goto __np_cleanup__;
 		}
 
-		if (tokens_node != NULL) {
-			ref_replace_reason(np_node_t, tokens_node, "_np_node_decode_from_jrb", ref_key_node);
-			if (msg_source_key->node == NULL) {
-				msg_source_key->node = tokens_node;
-			}
-			else {
-				tokens_node->is_handshake_send |= msg_source_key->node->is_handshake_send;
-				tokens_node->is_handshake_received |= msg_source_key->node->is_handshake_received;
-				tokens_node->joined_network |= msg_source_key->node->joined_network;
-				np_node_t* old_node = msg_source_key->node;
-				msg_source_key->node = tokens_node;
-				np_unref_obj(np_node_t, old_node, ref_key_node);
-			}
+		// if (tokens_node != NULL) {
+		ref_replace_reason(np_node_t, tokens_node, "_np_node_from_token", ref_key_node);
+		if (msg_source_key->node == NULL) {
+			msg_source_key->node = tokens_node;
 		}
+		else
+		{
+			tokens_node->is_handshake_send     |= msg_source_key->node->is_handshake_send;
+			tokens_node->is_handshake_received |= msg_source_key->node->is_handshake_received;
+			tokens_node->joined_network        |= msg_source_key->node->joined_network;
+
+			np_node_t* old_node  = msg_source_key->node;
+			msg_source_key->node = tokens_node;
+			np_unref_obj(np_node_t, old_node, ref_key_node);
+		}
+		// }
 
 		if (msg_source_key->node == NULL) {
 			log_msg(LOG_ERROR, "Handshake message does not contain necessary node data");
@@ -2029,11 +2036,10 @@ void _np_in_handshake(np_jobargs_t* args)
 
 					// handle alias key, also in case a new connection has been established
 					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for alias %s", _np_key_as_str(alias_key));
+
 					np_ref_switch(np_aaatoken_t, alias_key->aaa_token, ref_key_aaa_token, handshake_token);
-
 					np_ref_switch(np_aaatoken_t, msg_source_key->aaa_token, ref_key_aaa_token, handshake_token);
-
-					//np_unref_obj(np_aaatoken_t, old_token, ref_key_aaa_token);
+					// np_unref_obj(np_aaatoken_t, old_token, ref_key_aaa_token);
 				
 					alias_key->node = msg_source_key->node;
 					np_ref_obj(np_node_t, msg_source_key->node, ref_key_node);
@@ -2093,9 +2099,7 @@ void _np_in_handshake(np_jobargs_t* args)
 
 	__np_cleanup__:
 		np_unref_obj(np_aaatoken_t, handshake_token, "np_token_factory_read_from_tree");
-
-		// __np_return__:
-		np_unref_obj(np_key_t, msg_source_key,"_np_key_create_from_token");		
+		np_unref_obj(np_key_t, msg_source_key,"_np_keycache_find_or_create");
 	}
 	return;
 }
