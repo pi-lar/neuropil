@@ -90,6 +90,7 @@ typedef np_aaatoken_t np_node_private_token_t;
 typedef np_aaatoken_t np_handshake_token_t;
 
 typedef np_aaatoken_t* np_aaatoken_ptr;
+typedef enum np_aaatoken_type np_aaatoken_type_e;
 
 typedef struct np_dhkey_s np_dhkey_t;
 

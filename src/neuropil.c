@@ -116,7 +116,6 @@ np_bool _np_default_authenticatefunc (np_aaatoken_t* token )
 #endif
 	return (TRUE);
 }
-
 /**
  * The default realm slave authenticate function. Forwards the authenticate request to the realm master
  * @param token
@@ -142,6 +141,7 @@ np_bool _np_aaa_authenticatefunc (np_aaatoken_t* token)
 
 	return (FALSE);
 }
+
 /**
  * The default accounting function, allows all authorizations and generates warnings
  * @param token
@@ -155,7 +155,6 @@ np_bool _np_default_accountingfunc (np_aaatoken_t* token )
 #endif
 	return (TRUE);
 }
-
 /**
  * The default realm slave accounting function. Forwards the accounting request to the realm master
  * @param token
@@ -181,6 +180,7 @@ np_bool _np_aaa_accountingfunc (np_aaatoken_t* token)
 	np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
 	return (FALSE);
 }
+
 /**
  * Sets the callback for authorization requests against this node
  * @param aaaFunc
@@ -211,6 +211,7 @@ void np_setaccounting_cb(np_aaa_func_t aaaFunc)
 	log_msg(LOG_INFO, "setting user defined accounting handler, that's good ...");
 	np_state()->accounting_func = aaaFunc;
 }
+
 /**
  * Sets the realm name of the node.
  * RECONFIGURES THE NODE HASH! The old node hash will be forgotten.
@@ -408,7 +409,6 @@ void np_set_identity(np_aaatoken_t* identity)
 	
 	np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 }
-
 
 /**
  * Sets the property key for the subject np_msgproperty_t to a given value.
@@ -774,7 +774,6 @@ uint32_t np_receive_text (char* subject, char **data)
 	return (received);
 }
 
-
 /**
  ** np_destroy:
  ** destroys the neuropil data structures and cleans memory that has been used
@@ -962,7 +961,6 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	
 	return (state);
 }
-
 
 void np_context_create_new_nodekey(np_node_t* custom_base) {
 	// create a new token for encryption each time neuropil starts

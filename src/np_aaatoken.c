@@ -40,12 +40,13 @@ void _np_aaatoken_t_new(void* token)
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_t_new(void* token){");
 	np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
 
-	aaa_token->realm[0]      = '\0';
+	aaa_token->version = 0.60;
 
 	// aaa_token->issuer;
-	memset(aaa_token->issuer, '\0', 65);	
-	memset(aaa_token->subject, '\0', 255);
-	memset(aaa_token->audience, '\0', 255);
+	memset(aaa_token->realm,    0, 255);
+	memset(aaa_token->issuer,   0,  65);
+	memset(aaa_token->subject,  0, 255);
+	memset(aaa_token->audience, 0, 255);
 
 	aaa_token->private_key_is_set = FALSE;
 
@@ -139,17 +140,16 @@ void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 	np_tree_insert_str(data, "np.t.s", np_treeval_new_s(token->subject));
 	np_tree_insert_str(data, "np.t.a", np_treeval_new_s(token->audience));	
 	np_tree_insert_str(data, "np.t.p", np_treeval_new_bin(token->public_key, crypto_sign_PUBLICKEYBYTES));
-	np_tree_insert_str(data, "np.t.e", np_treeval_new_tree(token->extensions));
 
-	if (FLAG_CMP(token->type, np_aaatoken_type_handshake) == FALSE) {
-		np_tree_insert_str(data, "np.t.ex", np_treeval_new_d(token->expires_at));
-		np_tree_insert_str(data, "np.t.ia", np_treeval_new_d(token->issued_at));
-		np_tree_insert_str(data, "np.t.nb", np_treeval_new_d(token->not_before));			
-		
-	}
+	// if (FLAG_CMP(token->type, np_aaatoken_type_handshake) == FALSE) {
+	np_tree_insert_str(data, "np.t.ex", np_treeval_new_d(token->expires_at));
+	np_tree_insert_str(data, "np.t.ia", np_treeval_new_d(token->issued_at));
+	np_tree_insert_str(data, "np.t.nb", np_treeval_new_d(token->not_before));
+	// }
 	np_tree_insert_str(data, "np.t.si", np_treeval_new_bin(token->signature, crypto_sign_BYTES));
 
-	_np_aaatoken_update_extensions_signature(token);
+	np_tree_insert_str(data, "np.t.e", np_treeval_new_tree(token->extensions));
+	// _np_aaatoken_update_extensions_signature(token, token);
 	np_tree_insert_str(data, "np.t.signature_extensions", np_treeval_new_bin(token->signature_extensions, crypto_sign_BYTES));	
 }
 
@@ -168,12 +168,14 @@ void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
 	np_tree_elem_t* private_key_is_set = np_tree_find_str(data, "np.t.private_key_is_set");
 	np_tree_elem_t* private_key = np_tree_find_str(data, "np.t.private_key");
 
-
 	if (NULL != private_key_is_set && NULL != private_key )
 	{
 		token->private_key_is_set = private_key_is_set->val.value.ush;
-		memcpy(&token->private_key, private_key->val.value.bin, min(private_key->val.size, crypto_sign_SECRETKEYBYTES));
+		memcpy(&token->private_key, private_key->val.value.bin, crypto_sign_SECRETKEYBYTES);
 		token->scope = np_aaatoken_scope_private;
+
+		np_tree_del_str(data, "np.t.private_key_is_set");
+		np_tree_del_str(data, "np.t.private_key");
 	}
 }
 
@@ -188,34 +190,32 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	token->scope = np_aaatoken_scope_undefined;
 	token->type = np_aaatoken_type_undefined;
 
-
+	if (NULL !=(tmp = np_tree_find_str(data, "np.t.u")))
+	{
+		free(token->uuid);
+		token->uuid = strndup( np_treeval_to_str(tmp->val, NULL), UUID_SIZE);
+	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.r")))
 	{
 		strncpy(token->realm,  np_treeval_to_str(tmp->val, NULL), 255);
 	} 
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.s")))
-	{
-		strncpy(token->subject,  np_treeval_to_str(tmp->val, NULL), 255);				
-	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.i")))
 	{
 		strncpy(token->issuer,  np_treeval_to_str(tmp->val, NULL), 64);
-
+	}
+	if (NULL != (tmp = np_tree_find_str(data, "np.t.s")))
+	{
+		strncpy(token->subject,  np_treeval_to_str(tmp->val, NULL), 255);				
 	}
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.a")))
 	{
 		strncpy(token->audience,  np_treeval_to_str(tmp->val, NULL), 255);
 	}
-	if (NULL !=(tmp = np_tree_find_str(data, "np.t.u")))
+	if (NULL != (tmp = np_tree_find_str(data, "np.t.p")))
 	{
-		char* old = token->uuid;
-		token->uuid = strndup( np_treeval_to_str(tmp->val, NULL), UUID_SIZE);
-		free(old);
+		memcpy(token->public_key, tmp->val.value.bin, crypto_sign_PUBLICKEYBYTES);
 	}
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.nb")))
-	{
-		token->not_before = tmp->val.value.d;
-	}
+
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.ex")))
 	{
 		token->expires_at = tmp->val.value.d;
@@ -224,18 +224,16 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	{
 		token->issued_at = tmp->val.value.d;
 	}
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.p")))
+	if (NULL != (tmp = np_tree_find_str(data, "np.t.nb")))
 	{
-		memcpy(token->public_key, tmp->val.value.bin, min(tmp->val.size, crypto_sign_PUBLICKEYBYTES));
+		token->not_before = tmp->val.value.d;
 	}
+
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.si")))
 	{
-		memcpy(token->signature, tmp->val.value.bin, min(tmp->val.size, crypto_sign_BYTES));
+		memcpy(token->signature, tmp->val.value.bin, crypto_sign_BYTES);
 	}
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.signature_extensions")))
-	{
-		memcpy(token->signature_extensions, tmp->val.value.bin, min(tmp->val.size, crypto_sign_BYTES));
-	}	
+
 	// decode extensions
 	if (NULL != (tmp = np_tree_find_str(data, "np.t.e")))
 	{		
@@ -244,6 +242,10 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 		np_tree_clear(token->extensions);
 		np_tree_copy(tmp->val.value.tree, token->extensions);
 	} 
+	if (NULL != (tmp = np_tree_find_str(data, "np.t.signature_extensions")))
+	{
+		memcpy(token->signature_extensions, tmp->val.value.bin, min(tmp->val.size, crypto_sign_BYTES));
+	}
 
 	_np_aaatoken_update_type_and_scope(token);
 }
@@ -274,23 +276,23 @@ void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self) {
 		self->type |= np_aaatoken_type_message_intent;
 	}
 
-	if (strncmp("", self->issuer, 1) == 0) {
-		self->type |= np_aaatoken_type_identity;
-	}
+//	if (strncmp("", self->issuer, 1) == 0) {
+//		self->type |= np_aaatoken_type_identity;
+//	}
 }
+
 np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self)
 {
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self){");
 
  	np_dhkey_t ret;
 
-	if (FLAG_CMP(self->type, np_aaatoken_type_handshake)) {
-		_np_dhkey_from_str(self->issuer, &ret);
-	}else{
+	// if (FLAG_CMP(self->type, np_aaatoken_type_handshake)) {
+	// 	_np_dhkey_from_str(self->issuer, &ret);
+	// }else{
 
 		// build a hash to find a place in the dhkey table, not for signing !
 		unsigned char* hash_attributes = _np_aaatoken_get_hash(self);
-		
 		ASSERT(hash_attributes != NULL, "cannot sign NULL hash");
 		
 		unsigned char* hash = calloc(1, crypto_generichash_BYTES);
@@ -305,7 +307,7 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self)
 		ret = np_dhkey_create_from_hash(key);
 
 		free(hash);
-	}
+	// }
 	return ret;
 }
 
@@ -1099,38 +1101,40 @@ unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* self) {
 	
 	ASSERT(self->uuid != NULL, "cannot get token hash of uuid NULL");	
 	crypto_generichash_update(&gh_state, (unsigned char*)self->uuid, strnlen(self->uuid, UUID_SIZE));
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: uuid: %s", self->uuid);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting uuid      : %s", self->uuid);
 
 	crypto_generichash_update(&gh_state, (unsigned char*)self->realm, strnlen(self->realm, 255));
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: realm: %s", self->realm);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting realm     : %s", self->realm);
 
 	crypto_generichash_update(&gh_state, (unsigned char*)self->issuer, strnlen(self->issuer, 65));
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: issuer: %s", self->issuer);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting issuer    : %s", self->issuer);
 
 	crypto_generichash_update(&gh_state, (unsigned char*)self->subject, strnlen(self->subject, 255));
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: subject: %s", self->subject);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting subject   : %s", self->subject);
 
 	crypto_generichash_update(&gh_state, (unsigned char*)self->audience, strnlen(self->audience, 255));
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: audience: %s", self->audience);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting audience  : %s", self->audience);
 	
 	crypto_generichash_update(&gh_state, (unsigned char*)self->public_key, crypto_sign_PUBLICKEYBYTES);
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: public_key: <...>");	
+#ifdef DEBUG
+	unsigned long long pk_len = crypto_sign_PUBLICKEYBYTES;
+	char* pk_hex = calloc(1, pk_len * 2 + 1);
+	sodium_bin2hex(pk_hex, pk_len * 2 + 1,
+		self->public_key, pk_len);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting public_key: %s", pk_hex);
+#else
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting public_key: <...>");
+#endif
 
-	if(FLAG_CMP(self->type, np_aaatoken_type_handshake) == FALSE) {
-		//TODO: include partner link in hash		
-
-		//TODO: expires_at in handshake?
-		crypto_generichash_update(&gh_state, (unsigned char*)&(self->expires_at), sizeof(double));
-		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: expiration: %f", self->expires_at);
-
-		crypto_generichash_update(&gh_state, (unsigned char*)&(self->issued_at), sizeof(double));
-		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: issued_at: %f", self->issued_at);
-
-		crypto_generichash_update(&gh_state, (unsigned char*)&(self->not_before), sizeof(double));
-		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprint: not_before: %f", self->not_before);
-
-
-	}
+	// if(FLAG_CMP(self->type, np_aaatoken_type_handshake) == FALSE) {
+	// TODO: expires_at in handshake?
+	crypto_generichash_update(&gh_state, (unsigned char*)&(self->expires_at), sizeof(double));
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting expiration: %f", self->expires_at);
+	crypto_generichash_update(&gh_state, (unsigned char*)&(self->issued_at), sizeof(double));
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting issued_at : %f", self->issued_at);
+	crypto_generichash_update(&gh_state, (unsigned char*)&(self->not_before), sizeof(double));
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting not_before: %f", self->not_before);
+	// }
 	crypto_generichash_final(&gh_state, ret, crypto_generichash_BYTES);
 	
 #ifdef DEBUG
@@ -1138,22 +1142,30 @@ unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* self) {
 	sodium_bin2hex(hash_str, crypto_generichash_BYTES * 2 + 1, ret, crypto_generichash_BYTES);
 	log_debug_msg(LOG_DEBUG, "token hash for %s is %s", self->uuid, hash_str);
 #endif
-	ASSERT(ret != NULL, "generatred hash cannot be NULL");
+	ASSERT(ret != NULL, "generated hash cannot be NULL");
 	return ret;
 }
 
 int __np_aaatoken_generate_signature(unsigned char* hash, unsigned char* private_key, unsigned char* save_to) {
+
 	unsigned long long signature_len = 0;
 
+#ifdef DEBUG
 	char hash_hex[crypto_generichash_BYTES * 2 + 1];
 	sodium_bin2hex(hash_hex, crypto_generichash_BYTES * 2 + 1, hash,
 		crypto_generichash_BYTES);
 	log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "token hash key fingerprint: %s",
 		hash_hex);
+#endif
 
-	int ret = crypto_sign_detached(save_to, &signature_len,
-		(const unsigned char*)hash, crypto_generichash_BYTES,
-		private_key);
+#ifdef DEBUG
+	char sk_hex[crypto_sign_SECRETKEYBYTES * 2 + 1];
+	sodium_bin2hex(sk_hex, crypto_sign_SECRETKEYBYTES * 2 + 1, private_key, crypto_sign_SECRETKEYBYTES);
+	log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "token signature private key: %s", sk_hex);
+#endif
+
+	int ret = crypto_sign_detached(save_to, NULL,
+				(const unsigned char*)hash, crypto_generichash_BYTES, private_key);
 
 	ASSERT(ret == 0,  "checksum creation for token failed, using unsigned token");
 	return ret;
@@ -1301,16 +1313,42 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
 	return ret;
 }
 
-void _np_aaatoken_set_signature(np_aaatoken_t* self) {
+void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
+
+	// update public key and issuer fingerprint with data take from signee
+	memcpy((char*)self->public_key, (char*)signee->public_key, crypto_sign_PUBLICKEYBYTES);
+
+	if (self != signee) {
+		// prevent fingerprint recursion
+		char my_token_fp_s[65];
+		np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee);
+		_np_dhkey_to_str(&my_token_fp, my_token_fp_s);
+		strncpy(self->issuer, my_token_fp_s, 65);
+	}
+
+	// create the hash of the core token data
 	unsigned char* hash = _np_aaatoken_get_hash(self);
-	int ret = __np_aaatoken_generate_signature(hash, self->private_key, self->signature);
+	// sign the core token
+	int ret = __np_aaatoken_generate_signature(hash, signee->private_key, self->signature);
+
+#ifdef DEBUG
+	char sign_hex[crypto_sign_BYTES * 2 + 1];
+	sodium_bin2hex(sign_hex, crypto_sign_BYTES * 2 + 1, self->signature, crypto_sign_BYTES);
+	log_debug_msg(LOG_DEBUG, "signature hash for %s is %s", self->uuid, sign_hex);
+#endif
+
 	ASSERT(ret == 0, "Error in token signature creation");
 }
 
-void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self) {
+void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 
 	unsigned char* hash = __np_aaatoken_get_extensions_hash(self);
-	int ret = __np_aaatoken_generate_signature(hash, self->private_key, self->signature_extensions);
+	int ret = __np_aaatoken_generate_signature(hash, signee->private_key, self->signature_extensions);
+#ifdef DEBUG
+	char sign_hex[crypto_sign_BYTES * 2 + 1];
+	sodium_bin2hex(sign_hex, crypto_sign_BYTES * 2 + 1, self->signature_extensions, crypto_sign_BYTES);
+	log_debug_msg(LOG_DEBUG, "signature ext hash for %s is %s", self->uuid, sign_hex);
+#endif
 	ASSERT(ret == 0, "Error in extended token signature creation");	
 	free(hash);
 }

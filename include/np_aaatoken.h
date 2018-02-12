@@ -153,6 +153,9 @@ struct np_aaatoken_s
 	// link to memory management
 	np_obj_t* obj;
 
+	// protocol version
+	double version;
+
 	// attributes to exchange
 	char* uuid;
 	// owner or parent entity
@@ -254,9 +257,9 @@ void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp);
 NP_API_INTERN
 np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self);
 NP_API_INTERN
-void _np_aaatoken_set_signature(np_aaatoken_t* self);
+void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee);
 NP_API_INTERN
-void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self);
+void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t* signee);
 NP_API_INTERN
 unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self);
 
