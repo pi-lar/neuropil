@@ -4,16 +4,16 @@ Core Concepts
   *“All non-trivial abstractions, to some degree, are leaky.”*—Joel Spolsky
 
 This chapter describes the intrinsic building blocks that make up Neuropil. It
-is intended to help readers gain a deeper understanding of Neuropil internals
+is intended to help readers gain a deeper understanding of Neuropil’s internals
 and its design, and ultimately make better use of the library.
 
 The versatile concepts described in this chapter are primarily pervasive in the
-internals of the Neuropil messaging layer itself, but curious users of Neuropil
-will most likely be exposed to them, eventually. After all, Neuropil’s user
-facing abstractions, such as :ref:`realms`, are implemented using these
-building blocks. By nature, primitive concepts escape the abstractions that
-contain them, and understanding them will demystify the real-world behavior
-Neuropil applications.
+implementation of the Neuropil messaging layer itself, but curious users of
+Neuropil will most likely be exposed to them, eventually. After all, Neuropil’s
+user facing abstractions, such as :ref:`realms`, are constructed on top of
+these building blocks. By nature, primitive concepts escape the abstractions
+that contain them, and understanding them will demystify the real-world
+behavior of Neuropil applications.
 
 .. NOTE::
   This introduction offers only an informal coverage of the foundations upon
@@ -34,8 +34,8 @@ The Overlay Network
 Neuropil decouples routing from the physical network by implementing a
 so-called *overlay network*. In this logical network, the physical network
 addresses of nodes are mapped to randomly chosen, *virtual addresses* in a
-256‑bit *address space*. This virtual address space is large enough so that
-most of it will never be used, and address collision is virtually impossible.
+256‑bit *address space*. This virtual address space is large enough that most
+of it will never be used, and address collision is virtually impossible.
 
 .. image:: overlay.svg
     :alt: Overlay network
@@ -43,12 +43,12 @@ most of it will never be used, and address collision is virtually impossible.
 Any two addresses in the overlay network have a logical, relative *distance*,
 taken into account by nodes to coordinate routing. Specifically, a node will
 maintain connectivity to many nodes with virtual addresses close to itself, and
-to fewer nodes whose virtual addresses are far from itself. Because it is
-possible to tell which one of any two nodes is closer to a particular virtual
-address, scalable, distributed routing can be achieved by forwarding messages
-to the address closest to the destination. The node at that intermediary
-address will either pass on the message to its destination, or again forward it
-to the next closest node it knows, if any.
+to fewer nodes whose virtual addresses are far from it. Because it is possible
+to tell which one of any two nodes is closer to a particular virtual address,
+scalable, distributed routing can be achieved by forwarding messages to the
+address closest to the destination. The node at that intermediary address will
+either pass on the message to its destination, or again forward it to the next
+closest node it knows, if any.
 
 .. NOTE::
   As an additional property, latency is taken into account for routing
@@ -59,24 +59,24 @@ A different, useful routing variant involves intentionally sending messages to
 destination addresses that may not be occupied by any node at all. In this
 variant, messages are not routed to their final destination, but to the node
 that occupies the virtual address closest to the destination address. This
-works because within the network the node that is closest to any given address
-is unambiguous.
+works because the node that is closest to any given address is unambiguous
+across the overlay network .
 
 .. image:: discover.svg
     :alt: Node discovery
 
 Neuropil uses this type of routing to allow nodes to automatically discover
-each others addresses. Using a cryptographic hash function, a *subject* string
-is mapped into the 256‑bit address space. The nodes then “meet” at whichever
-node is currently the closest to this address, and exchange their contact
-details by proxy. As a result, Neuropil nodes need not know the addresses of the nodes with which
-they will communicate in advance, but can instead discover them dynamically on
-demand.
+each others virtual and physical addresses. Using a cryptographic hash
+function, a *subject* string is mapped into the 256‑bit address space. The
+nodes then “meet” at whichever node is currently the closest to this address,
+and exchange their contact details by proxy. As a result, Neuropil nodes need
+not know the addresses of the nodes with which they will communicate in
+advance, but can instead discover them dynamically on demand.
 
 .. NOTE::
   Neuropil employs multiple layers of end-to-end encryption so that they can
-  participate in cooperative routing without risk of confidential messages
-  being compromised.
+  participate in cooperative routing without risk of confidentiality or
+  integrity being compromised.
 
 Tokens
 ******
@@ -132,10 +132,10 @@ fuzzy routing technique described earlier. It is mapped into the virtual
 address space of our overlay network, and signifies a channel over which
 identities will communicate.
 
-To summarize, users of Neuropil must deal with message intent tokens in their
-respective AAA callbacks according to the policies they desire to implement.
-They do this by matching and verifying message intents with identities they
-know and trust, and subsequently must take care of identity management as well.
-Beyond that, Neuropil ensures that data produced and consumed by message
-handler callbacks remains authentic and confidential, and transparently
-abstracts message routing.
+To summarize, users of Neuropil must validate identity and message intent
+tokens in their respective AAA callbacks according to the policies they desire
+to implement. They do this by matching identity and message intent tokens with
+identities they know and trust. Subsequently, they must take care of identity
+management as well. Beyond that, Neuropil ensures that data produced and
+consumed by message handler callbacks remains authentic and confidential, and
+transparently abstracts message routing.
