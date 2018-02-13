@@ -613,128 +613,157 @@ void _np_in_join_req(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_in_join_req(np_jobargs_t* args){");
 
-	np_msgproperty_t *msg_prop = NULL;
-	np_key_t* join_req_key = NULL;
-	np_key_t* routing_key = NULL;
 	np_message_t* msg_out = NULL;
 
-	np_tree_elem_t* node_token_ele = np_tree_find_str(args->msg->body, "_np.token.node");
+	np_dhkey_t join_node_dhkey = { 0 };
+	np_node_public_token_t* join_node_token = NULL;
 
-	if (node_token_ele == NULL)
-	{
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "check if node token is valid");
+	np_tree_elem_t* node_token_ele = np_tree_find_str(args->msg->body, "_np.token.node");
+	if (node_token_ele == NULL)	{
 		// silently exit join protocol for invalid msg syntax
 		goto __np_cleanup__;
 	}
-	np_tree_elem_t* ident_token_ele = np_tree_find_str(args->msg->body, "_np.token.ident");
 
-	np_node_public_token_t* join_node_token = np_token_factory_read_from_tree(node_token_ele->val.value.tree);
-	np_ident_public_token_t* join_ident_token = NULL;
-	if (ident_token_ele != NULL) {
-		np_token_factory_read_from_tree(ident_token_ele->val.value.tree);
-	}
-
-	log_debug_msg(LOG_AAATOKEN| LOG_DEBUG, "check token is valid");
-	if (FALSE == _np_aaatoken_is_valid(join_node_token, np_aaatoken_type_node))
-	{
+	join_node_token = np_token_factory_read_from_tree(node_token_ele->val.value.tree);
+	if (FALSE == _np_aaatoken_is_valid(join_node_token, np_aaatoken_type_node)) {
 		// silently exit join protocol for invalid tokens
 		goto __np_cleanup__;
 	}
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "node token is valid");
+	// build a hash to find a place in the dhkey table, not for signing !
+	join_node_dhkey = np_aaatoken_get_fingerprint(join_node_token);
 
-	if (join_ident_token == NULL) {
-		join_ident_token = join_node_token;
-	}else{
-		if (FALSE == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity))
+	np_dhkey_t partner_dhkey = { 0 };
+	np_tree_elem_t* partner_fp = np_tree_find_str(join_node_token->extensions, "_np.partner_fp");
+	if (partner_fp != NULL) {
+		// check if a identity exists in join
+		partner_dhkey = partner_fp->val.value.dhkey;
+	}
+
+	np_dhkey_t join_ident_dhkey = { 0 };
+	np_ident_public_token_t* join_ident_token = NULL;
+	np_key_t* join_ident_key = NULL;
+
+	np_tree_elem_t* ident_token_ele = np_tree_find_str(args->msg->body, "_np.token.ident");
+	if (ident_token_ele != NULL) {
+		join_ident_token = np_token_factory_read_from_tree(ident_token_ele->val.value.tree);
+		if (join_ident_token != NULL &&
+			FALSE == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity))
 		{
-			// silently exit join protocol for invalid tokens
 			goto __np_cleanup__;
 		}
+		join_ident_dhkey = np_aaatoken_get_fingerprint(join_ident_token);
+		if (FALSE == _np_dhkey_equal(&join_ident_dhkey, &partner_dhkey)) {
+			// ident fingerprint must match partner fp from node token
+			goto __np_cleanup__;
+		}
+		np_tree_elem_t* partner_fp = np_tree_find_str(join_ident_token->extensions, "_np.partner_fp");
+		if (partner_fp != NULL) {
+			goto __np_cleanup__;
+		}
+		partner_dhkey = partner_fp->val.value.dhkey;
+		if (FALSE == _np_dhkey_equal(&join_node_dhkey, &partner_dhkey)) {
+			// node fingerprint must match partner fp from identity token
+			goto __np_cleanup__;
+		}
+		join_ident_key = _np_keycache_find_or_create(join_ident_dhkey);
+		join_ident_key->aaa_token = join_ident_token;
+		np_ref_obj(np_aaatoken_t, join_ident_key->aaa_token);
 	}
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ident token is valid");
 
-	// build a hash to find a place in the dhkey table, not for signing !
-	np_dhkey_t search_key = np_aaatoken_get_fingerprint(join_node_token);
-
-	join_req_key = _np_keycache_find_or_create(search_key);
-
-	if (join_req_key->node != NULL &&  TRUE == join_req_key->node->joined_network)
+	np_key_t* join_node_key = _np_keycache_find(join_node_dhkey);
+	if (join_node_key == NULL) {
+		// no handshake before join ? exit ...
+		goto __np_cleanup__;
+	} else if (
+		join_node_key->node != NULL &&
+		join_node_key->node->joined_network == TRUE)
 	{
 		// silently exit join protocol as we already joined this key
 		goto __np_cleanup__;
 	}
 
-	_np_aaatoken_upgrade_handshake_token(join_req_key, join_node_token);
+	_np_aaatoken_upgrade_handshake_token(join_node_key, join_node_token);
 
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "find target node");
-	np_tree_elem_t* target_node_ele;
-	if (NULL != (target_node_ele = np_tree_find_str(join_node_token->extensions,  "target_node")))
-	{
-		np_dhkey_t search_key = np_dhkey_create_from_hash(np_treeval_to_str(target_node_ele->val, NULL));
-		routing_key = _np_keycache_find_or_create(search_key);
-	}
-	else
-	{
-		routing_key = join_req_key;
-	}
-	ASSERT(routing_key != NULL, "routing key (aka grid key, aka technical node key) cannot be NULL");
-	ASSERT(routing_key->aaa_token != NULL, "routing_key->aaa_token cannot be NULL. key: %s", _np_key_as_str(routing_key));
-	ASSERT(routing_key->node != NULL,"A routing key(%s) always needs a node.", _np_key_as_str(routing_key));
+//	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "find target node");
+//	np_tree_elem_t* target_node_ele;
+//	if (NULL != (target_node_ele = np_tree_find_str(join_node_token->extensions,  "target_node")))
+//	{
+//		np_dhkey_t search_key = np_dhkey_create_from_hash(np_treeval_to_str(target_node_ele->val, NULL));
+//		routing_key = _np_keycache_find_or_create(search_key);
+//	}
+//	else
+//	{
+//		routing_key = join_node_key;
+//	}
+//	ASSERT(routing_key != NULL, "routing key (aka grid key, aka technical node key) cannot be NULL");
+//	ASSERT(routing_key->aaa_token != NULL, "routing_key->aaa_token cannot be NULL. key: %s", _np_key_as_str(routing_key));
+//	ASSERT(routing_key->node != NULL,"A routing key(%s) always needs a node.", _np_key_as_str(routing_key));
 
 	// check for allowance of token by user defined function
 	np_state_t* state = np_state();
 	np_bool send_reply = FALSE;
-	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request key %s", _np_key_as_str(join_req_key));
+	if (join_ident_key)
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request: ident key %s", _np_key_as_str(join_ident_key));
+	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request:  node key %s", _np_key_as_str(join_node_key));
 
-	if (NULL != join_req_key &&
+	if (NULL != join_ident_key &&
 		NULL != state->authenticate_func)
 	{
-		np_bool join_allowed = state->authenticate_func(join_req_key->aaa_token);
-
+		np_bool join_allowed = state->authenticate_func(join_ident_key->aaa_token);
 		if (FALSE == state->enable_realm_slave &&
 			TRUE == join_allowed)
 		{
-			join_req_key->aaa_token->state |= AAA_AUTHENTICATED;
-			// required ?
-			routing_key->aaa_token->state |= AAA_AUTHENTICATED;
+			join_ident_key->aaa_token->state |= AAA_AUTHENTICATED;
+			join_node_key->aaa_token->state  |= AAA_AUTHENTICATED;
+		}
+	} else {
+		np_bool join_allowed = state->authenticate_func(join_node_key->aaa_token);
+		if (FALSE == state->enable_realm_slave &&
+			TRUE == join_allowed)
+		{
+			join_node_key->aaa_token->state |= AAA_AUTHENTICATED;
 		}
 	}
 
 	CHECK_STR_FIELD(args->msg->instructions, _NP_MSG_INST_UUID, in_uuid);
 
-	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", args->msg->uuid,  np_treeval_to_str(in_uuid, NULL));
-	free(args->msg->uuid );
-	args->msg->uuid = strdup( np_treeval_to_str(in_uuid, NULL));
+//	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", args->msg->uuid,  np_treeval_to_str(in_uuid, NULL));
+//	free(args->msg->uuid );
+//	args->msg->uuid = strdup( np_treeval_to_str(in_uuid, NULL));
 
+	np_msgproperty_t *msg_prop = NULL;
 	np_new_obj(np_message_t, msg_out);
 
-	np_waitref_obj(np_key_t,np_state()->my_node_key, my_key,"np_waitref_key");
-	if (IS_AUTHENTICATED(join_req_key->aaa_token->state))
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key,"np_waitref_key");
+	if (IS_AUTHENTICATED(join_node_key->aaa_token->state))
 	{
 		log_msg(LOG_ROUTING | LOG_INFO,
 				"JOIN request approved, sending back join acknowledge for key %s",
-				_np_key_as_str(join_req_key));
+				_np_key_as_str(join_node_key));
 
 		np_tree_t* jrb_me = np_tree_create();
 		np_aaatoken_encode(jrb_me, state->my_node_key->aaa_token);
 
-		_np_message_create(msg_out, routing_key, my_key, _NP_MSG_JOIN_ACK, jrb_me);
+		_np_message_create(msg_out, join_node_key, my_key, _NP_MSG_JOIN_ACK, jrb_me);
 		np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_RESPONSE_UUID, in_uuid);
 
 		msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_ACK);
 		my_key->node->joined_network = TRUE;
-		routing_key->node->joined_network = TRUE;
+		join_node_key->node->joined_network = TRUE;
 
 		send_reply = TRUE;
 	}
 
 	if (FALSE == state->enable_realm_slave &&
-		IS_NOT_AUTHENTICATED(join_req_key->aaa_token->state))
+		IS_NOT_AUTHENTICATED(join_node_key->aaa_token->state))
 	{
 		log_msg(LOG_ROUTING | LOG_INFO,
 				"JOIN request denied by user implementation, rejected key %s",
-				_np_key_as_str(join_req_key) );
+				_np_key_as_str(join_node_key) );
 
-		_np_message_create(msg_out, routing_key, my_key, _NP_MSG_JOIN_NACK, NULL );
+		_np_message_create(msg_out, join_node_key, my_key, _NP_MSG_JOIN_NACK, NULL );
 		np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_RESPONSE_UUID, in_uuid);
 
 		msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_JOIN_NACK);
@@ -744,15 +773,15 @@ void _np_in_join_req(np_jobargs_t* args)
 
 	// TODO: chicken egg problem, we have to insert the entry into the table to be able to send back the JOIN.NACK
 	np_key_t *added = NULL, *deleted = NULL;
-	_np_route_leafset_update(routing_key, TRUE, &deleted, &added);
+	_np_route_leafset_update(join_node_key, TRUE, &deleted, &added);
 
 #ifdef DEBUG
 	if (added !=NULL)
 		log_debug_msg(LOG_INFO, "added   to   leafset: %s:%s:%s / %f / %1.2f",
-						_np_key_as_str(routing_key),
-						routing_key->node->dns_name, routing_key->node->port,
-						routing_key->node->last_success,
-						routing_key->node->success_avg);
+						_np_key_as_str(added),
+						added->node->dns_name, added->node->port,
+						added->node->last_success,
+						added->node->success_avg);
 	if (deleted !=NULL)
 		log_debug_msg(LOG_INFO, "deleted from leafset: %s:%s:%s / %f / %1.2f",
 						_np_key_as_str(deleted),
@@ -762,15 +791,15 @@ void _np_in_join_req(np_jobargs_t* args)
 #endif
 
 	added = NULL, deleted = NULL;
-	_np_route_update(routing_key, TRUE, &deleted, &added);
+	_np_route_update(join_node_key, TRUE, &deleted, &added);
 
 #ifdef DEBUG
 	if (added !=NULL)
 		log_debug_msg(LOG_INFO, "added   to   table  : %s:%s:%s / %f / %1.2f",
-						_np_key_as_str(routing_key),
-						routing_key->node->dns_name, routing_key->node->port,
-						routing_key->node->last_success,
-						routing_key->node->success_avg);
+						_np_key_as_str(added),
+						added->node->dns_name, added->node->port,
+						added->node->last_success,
+						added->node->success_avg);
 	if (deleted !=NULL)
 		log_debug_msg(LOG_INFO, "deleted from table  : %s:%s:%s / %f / %1.2f",
 						_np_key_as_str(deleted),
@@ -780,29 +809,25 @@ void _np_in_join_req(np_jobargs_t* args)
 #endif
 
 	// TODO: what happens if node is not added to leafset or routing table ?
-
 	if (TRUE == send_reply)
 	{
-		_np_job_submit_msgout_event(0.0, msg_prop, routing_key, msg_out);
+		_np_job_submit_msgout_event(0.0, msg_prop, join_node_key, msg_out);
 
-		if (IS_AUTHENTICATED(join_req_key->aaa_token->state)){
+		if (IS_AUTHENTICATED(join_node_key->aaa_token->state)){
 			np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-			_np_job_submit_transform_event(0.0, piggy_prop, routing_key, NULL);
+			_np_job_submit_transform_event(0.0, piggy_prop, join_node_key, NULL);
 		}
 		// _np_send_ack(args->msg);
 	}
 
 __np_cleanup__:
 	np_unref_obj(np_aaatoken_t, join_node_token, "np_token_factory_read_from_tree");
-	if(ident_token_ele != NULL) 
+	if(join_ident_key != NULL) {
 		np_unref_obj(np_aaatoken_t, join_ident_token, "np_token_factory_read_from_tree");
-
-	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
-
-	// __np_return__:
-	if (routing_key != join_req_key)
-		np_unref_obj(np_key_t, routing_key,"_np_keycache_find_or_create");
-	np_unref_obj(np_key_t, join_req_key,"_np_keycache_find_or_create");
+		np_unref_obj(np_key_t, join_ident_key,"_np_keycache_find_or_create");
+	}
+	np_unref_obj(np_key_t, join_node_key,"_np_keycache_find");
+	np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 
 	return;
 }
@@ -831,7 +856,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 	}
 
 	np_dhkey_t search_key = np_aaatoken_get_fingerprint(join_token);
-	join_key = _np_keycache_find_or_create(search_key);
+	join_key = _np_keycache_find(search_key);
 
 	if (NULL != join_key )
 	{
@@ -929,10 +954,10 @@ void _np_in_join_ack(np_jobargs_t* args)
 #ifdef DEBUG
 	if (added !=NULL)
 		log_debug_msg(LOG_INFO, "added   to   table  : %s:%s:%s / %f / %1.2f",
-						_np_key_as_str(routing_key),
-						routing_key->node->dns_name, routing_key->node->port,
-						routing_key->node->last_success,
-						routing_key->node->success_avg);
+						_np_key_as_str(added),
+						added->node->dns_name, added->node->port,
+						added->node->last_success,
+						added->node->success_avg);
 	if (deleted !=NULL)
 		log_debug_msg(LOG_INFO, "deleted from table: %s:%s:%s / %f / %1.2f",
 						_np_key_as_str(deleted),
@@ -947,10 +972,10 @@ void _np_in_join_ack(np_jobargs_t* args)
 #ifdef DEBUG
 	if (added !=NULL)
 		log_debug_msg(LOG_INFO, "added   to   leafset: %s:%s:%s / %f / %1.2f",
-						_np_key_as_str(routing_key),
-						routing_key->node->dns_name, routing_key->node->port,
-						routing_key->node->last_success,
-						routing_key->node->success_avg);
+						_np_key_as_str(added),
+						added->node->dns_name, added->node->port,
+						added->node->last_success,
+						added->node->success_avg);
 	if (deleted !=NULL)
 		log_debug_msg(LOG_INFO, "deleted from leafset: %s:%s:%s / %f / %1.2f",
 						_np_key_as_str(deleted),
@@ -973,7 +998,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 	// __np_return__:
 	if (routing_key != join_key)
 		np_unref_obj(np_key_t, routing_key,"_np_keycache_find");
-	np_unref_obj(np_key_t, join_key,"_np_keycache_find_or_create");
+	np_unref_obj(np_key_t, join_key,"_np_keycache_find");
 
 	return;
 }
