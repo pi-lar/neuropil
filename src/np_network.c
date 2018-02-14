@@ -336,7 +336,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 							break;
 						}
 						else {
-							unsigned char* enc_buffer = np_memory_new(np_memory_types_BLOB_1024); //malloc (MSG_CHUNK_SIZE_1024);
+							unsigned char* enc_buffer = np_memory_new(np_memory_types_BLOB_1024);
 							
 							uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
 							memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);

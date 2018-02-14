@@ -70,6 +70,7 @@ void _np_aaatoken_t_new(void* token)
 
 	aaa_token->type = np_aaatoken_type_undefined;
 	aaa_token->scope = np_aaatoken_scope_undefined;
+	aaa_token->issuer_token = aaa_token;
 }
 
 void _np_aaatoken_t_del (void* token)
@@ -113,14 +114,15 @@ void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node
 #endif // DEBUG
 
 		
+		
 
+		np_tree_clear(key_with_core_token->aaa_token->extensions); // remove "_np.session" etc
 		np_tree_t* container = np_tree_create();
 		np_aaatoken_encode(container, full_token);		
-		
 		np_aaatoken_decode(container, key_with_core_token->aaa_token);
 		np_tree_free(container);
-		np_tree_del_str(key_with_core_token->aaa_token->extensions, "_np.session");
-		key_with_core_token->aaa_token->is_signature_verified = FALSE;		
+		key_with_core_token->aaa_token->is_signature_verified = FALSE;
+		key_with_core_token->aaa_token->is_signature_extensions_verified = FALSE;
 		_np_aaatoken_update_type_and_scope(key_with_core_token->aaa_token);
 	}
 	else {
@@ -134,22 +136,24 @@ void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token){");	
 
 	// included into np_token_handshake
-	np_tree_insert_str(data, "np.t.u", np_treeval_new_s(token->uuid)); 
+	np_tree_insert_str(data, "np.t.u", np_treeval_new_s(token->uuid));
 	np_tree_insert_str(data, "np.t.r", np_treeval_new_s(token->realm));
-	np_tree_insert_str(data, "np.t.i", np_treeval_new_s(token->issuer));	
+	np_tree_insert_str(data, "np.t.i", np_treeval_new_s(token->issuer));
 	np_tree_insert_str(data, "np.t.s", np_treeval_new_s(token->subject));
-	np_tree_insert_str(data, "np.t.a", np_treeval_new_s(token->audience));	
+	np_tree_insert_str(data, "np.t.a", np_treeval_new_s(token->audience));
 	np_tree_insert_str(data, "np.t.p", np_treeval_new_bin(token->public_key, crypto_sign_PUBLICKEYBYTES));
-
-	// if (FLAG_CMP(token->type, np_aaatoken_type_handshake) == FALSE) {
+	
 	np_tree_insert_str(data, "np.t.ex", np_treeval_new_d(token->expires_at));
 	np_tree_insert_str(data, "np.t.ia", np_treeval_new_d(token->issued_at));
-	np_tree_insert_str(data, "np.t.nb", np_treeval_new_d(token->not_before));
-	// }
+	np_tree_insert_str(data, "np.t.nb", np_treeval_new_d(token->not_before));	
 	np_tree_insert_str(data, "np.t.si", np_treeval_new_bin(token->signature, crypto_sign_BYTES));
 
-	np_tree_insert_str(data, "np.t.e", np_treeval_new_tree(token->extensions));
-	// _np_aaatoken_update_extensions_signature(token, token);
+	np_tree_insert_str(data, "np.t.e", np_treeval_new_tree(token->extensions));	
+	
+	if(token->scope <= np_aaatoken_scope_privately){
+		_np_aaatoken_update_extensions_signature(token, token->issuer_token);
+	}
+	
 	np_tree_insert_str(data, "np.t.signature_extensions", np_treeval_new_bin(token->signature_extensions, crypto_sign_BYTES));	
 }
 
@@ -350,7 +354,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token has not expired");
 	}
 
-	if (token->private_key_is_set == FALSE)
+	if (token->scope > np_aaatoken_scope_privately)
 	{
 		if (token->is_signature_verified == FALSE) {
 			unsigned char* hash = _np_aaatoken_get_hash(token);
@@ -388,6 +392,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 				token->state &= AAA_INVALID;
 				return (FALSE);
 			}
+			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token (%s) for subject \"%s\": checksum verification success", token->uuid, token->subject);
 			token->is_signature_verified = TRUE;
 		}
 
@@ -396,7 +401,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 
 			char hash_hex[crypto_generichash_BYTES * 2 + 1] = { 0 };
 			sodium_bin2hex(hash_hex, crypto_generichash_BYTES * 2 + 1, hash, crypto_generichash_BYTES);
-			log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "token extension hash key fingerprint: %s", hash_hex);
+			log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "token extensions hash: %s", hash_hex);
 
 			// verify inserted signature first
 			unsigned char* signature = token->signature_extensions;
@@ -405,7 +410,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 			int ret = crypto_sign_verify_detached((unsigned char*)signature, hash, crypto_generichash_BYTES, token->public_key);
 
 #ifdef DEBUG
-			if (ret != 0)// || (FLAG_CMP(token->type, np_aaatoken_type_message_intent) && ( strcmp(token->subject[strlen("urn:np:msg:")], "_NP.SYSINFO.REPLY") == 0 || strcmp(token->subject[strlen("urn:np:msg:")], "_NP.SYSINFO.REQUEST") == 0 ))) 
+			if (ret != 0)
 			{
 				unsigned long long signature_len = crypto_sign_BYTES;
 				char* signature_hex = calloc(1, signature_len * 2 + 1);
@@ -417,7 +422,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 				sodium_bin2hex(pk_hex, pk_len * 2 + 1,
 					token->public_key, pk_len);
 
-				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "(token: %p) extension signature: is_valid (payload: %s) (pk: %s) %s = %"PRId32, token, hash_hex, pk_hex, signature_hex, ret);
+				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "(token: %s) extension signature: is_valid (payload: %s) (pk: %s) %s = %"PRId32, token->uuid, hash_hex, pk_hex, signature_hex, ret);
 				free(signature_hex);
 				free(pk_hex);
 			}
@@ -425,11 +430,12 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 			free(hash);
 			if (ret < 0)
 			{
-				log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": extension checksum verification failed", token->uuid, token->subject);
+				log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": extension signature checksum verification failed", token->uuid, token->subject);
 				log_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
 				token->state &= AAA_INVALID;
 				return (FALSE);
 			}
+			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token (%s) for subject \"%s\": extension signature checksum verification success", token->uuid, token->subject);
 			token->is_signature_extensions_verified = TRUE;
 		}
 	}
@@ -1324,6 +1330,10 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 		np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee);
 		_np_dhkey_to_str(&my_token_fp, my_token_fp_s);
 		strncpy(self->issuer, my_token_fp_s, 65);
+		self->issuer_token = signee;
+	}
+	else {
+		self->issuer_token = self;
 	}
 
 	// create the hash of the core token data
@@ -1341,13 +1351,15 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 }
 
 void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
+	
+	ASSERT(signee != NULL, "Cannot sign extensions with empty signee");
 
 	unsigned char* hash = __np_aaatoken_get_extensions_hash(self);
 	int ret = __np_aaatoken_generate_signature(hash, signee->private_key, self->signature_extensions);
 #ifdef DEBUG
 	char sign_hex[crypto_sign_BYTES * 2 + 1];
 	sodium_bin2hex(sign_hex, crypto_sign_BYTES * 2 + 1, self->signature_extensions, crypto_sign_BYTES);
-	log_debug_msg(LOG_DEBUG, "signature ext hash for %s is %s", self->uuid, sign_hex);
+	log_debug_msg(LOG_DEBUG, "extension signature hash for %s is %s", self->uuid, sign_hex);
 #endif
 	ASSERT(ret == 0, "Error in extended token signature creation");	
 	free(hash);

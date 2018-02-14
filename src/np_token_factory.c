@@ -188,7 +188,8 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 	// memcpy((char*)ret->private_key,
 	//	(char*)my_identity->aaa_token->private_key,
 	//	crypto_sign_SECRETKEYBYTES);
-	// ret->scope = np_aaatoken_scope_private;
+	//ret->scope = np_aaatoken_scope_private;
+	ret->scope = np_aaatoken_scope_privately;
 
 	np_tree_replace_str(ret->extensions, "mep_type",
 		np_treeval_new_ul(msg_request->mep_type));
@@ -203,17 +204,15 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 	np_tree_replace_str(ret->extensions,  "target_node",
 		np_treeval_new_s((char*)_np_key_as_str(my_node_key)));
 
-
 	ret->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
-	np_unref_obj(np_key_t, my_identity, "np_waitref_obj");
-	np_unref_obj(np_key_t, my_node_key, "np_waitref_obj");
-
+	
 	ret->type = np_aaatoken_type_message_intent;
-	ret->scope = np_aaatoken_scope_public;
 
 	// fingerprinting and signing the token
 	_np_aaatoken_set_signature(ret, my_identity->aaa_token);
-	_np_aaatoken_update_extensions_signature(ret, my_identity->aaa_token);
+
+	np_unref_obj(np_key_t, my_identity, "np_waitref_obj");
+	np_unref_obj(np_key_t, my_node_key, "np_waitref_obj");
 
 	return (ret);
 }
@@ -252,7 +251,6 @@ np_handshake_token_t* _np_token_factory_new_handshake_token() {
 	np_tree_insert_str(ret->extensions, "_np.session", np_treeval_new_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
 
 	_np_aaatoken_set_signature(ret, my_node_key->aaa_token);
-	_np_aaatoken_update_extensions_signature(ret, my_node_key->aaa_token);
 	
 #ifdef DEBUG
 	char my_token_fp_s[255] = { 0 };
