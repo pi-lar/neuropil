@@ -29,9 +29,9 @@ enum np_key_type {
 	np_key_type_node			= 0x002,
 
 	//DETECTION NOT IMPLEMENTED
-	np_key_type_ident			= 0x004,	
+	np_key_type_ident			= 0x004,
 	//DETECTION NOT IMPLEMENTED
-	np_key_type_subject			= 0x008,	
+	np_key_type_subject			= 0x008,
 };
 struct np_key_s
 {
@@ -39,17 +39,17 @@ struct np_key_s
 
 	double created_at;
 	TSP(np_bool, in_destroy);
-	
+
 	SPLAY_ENTRY(np_key_s) link; // link for cache management
 
 	/*
 	only available for subject key
-	use _np_key_get_dhkey() 
+	use _np_key_get_dhkey()
 	*/
 	np_dhkey_t dhkey;
 	double last_update;
 	char*      dhkey_str;
-	
+
 	/*
 	only available for node key
 	*/
@@ -108,6 +108,11 @@ void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);
 
 NP_API_INTERN
 np_key_t* _np_key_get_by_key_hash(char* targetDhkey);
+
+NP_API_INTERN
+void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop);
+NP_API_INTERN
+void _np_key_set_send_property(np_key_t* self, np_msgproperty_t* prop);
 
 #ifdef __cplusplus
 }

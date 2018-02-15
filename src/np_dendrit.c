@@ -56,7 +56,7 @@ will always call all handlers, but will return false if any of the handlers retu
 */
 np_bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_t* msg_prop) {
 	np_bool ret = TRUE;
-	
+
 	ASSERT(msg_prop != NULL, "msg property cannot be null");
 
 	// set msg property if not already set
@@ -77,7 +77,7 @@ np_bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproper
 	// call msg on_reply if applyable
 	np_tree_elem_t* response_uuid = np_tree_find_str(msg_in->instructions, _NP_MSG_INST_RESPONSE_UUID);
 	if(response_uuid != NULL) {
-		// is response to 
+		// is response to
 		np_responsecontainer_t *entry = _np_responsecontainers_get_by_uuid(np_treeval_to_str(response_uuid->val, NULL));
 
 		/* just an acknowledgement of own messages send out earlier */
@@ -140,7 +140,7 @@ void _np_in_received(np_jobargs_t* args)
 				memcpy(nonce, raw_msg, crypto_secretbox_NONCEBYTES);
 
 				char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
-				sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);				
+				sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
 
 				int ret = crypto_secretbox_open_easy(dec_msg,
 						(const unsigned char *) raw_msg + crypto_secretbox_NONCEBYTES,
@@ -221,6 +221,8 @@ void _np_in_received(np_jobargs_t* args)
 				0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN_NACK, strlen(_NP_MSG_JOIN_NACK)) ||
 				0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN_ACK, strlen(_NP_MSG_JOIN_ACK)))
 			{
+
+
 				/* real receive part */
 				CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_to);
 				CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack);
@@ -267,6 +269,10 @@ void _np_in_received(np_jobargs_t* args)
 						if (0 < sll_size(tmp))
 							log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
 
+						/* forward the message if
+							a) we do have a list of possible forwards
+							b) we are not the best possible forward
+						*/
 						if (NULL != tmp &&
 							sll_size(tmp) > 0 &&
 							(FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
@@ -279,7 +285,19 @@ void _np_in_received(np_jobargs_t* args)
 
 							np_unref_list(tmp, "_np_route_lookup");
 							sll_free(np_key_ptr, tmp);
-							goto __np_cleanup__;
+
+							// if we do not have a handler or the handler has no receive tokens and no send tokens
+							// we may cancel further handeling
+							if(handler == NULL ||
+								(
+									(handler->recv_key == NULL || pll_size(handler->recv_key->recv_tokens) <= 0)
+									&&
+									(handler->send_key == NULL || pll_size(handler->send_key->send_tokens) <= 0)
+								)
+							) {
+								goto __np_cleanup__;
+							}
+
 						}
 						np_unref_list(tmp, "_np_route_lookup");
 						if (NULL != tmp) sll_free(np_key_ptr, tmp);
@@ -880,7 +898,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 	else
 	{
 		routing_key = join_key;
-	}	
+	}
 
 	/* acknowledgement of join message send out earlier */
 	/*
@@ -1096,12 +1114,12 @@ void __np_in_ack_handle(np_message_t * msg)
 
 
 	np_responsecontainer_t *entry = _np_responsecontainers_get_by_uuid(np_treeval_to_str(ack_uuid, NULL));
-	
+
 	/* just an acknowledgement of own messages send out earlier */
 	if(entry != NULL)
 	{
 		log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "received acknowledgment of uuid=%s", np_treeval_to_str(ack_uuid, NULL));
-		_np_responsecontainer_received_ack(entry);		
+		_np_responsecontainer_received_ack(entry);
 	}
 	np_unref_obj(np_responsecontainer_t, entry, "_np_responsecontainers_get_by_uuid");
 
@@ -1842,7 +1860,7 @@ void _np_in_handshake(np_jobargs_t* args)
 		np_handshake_token_t* handshake_token = NULL;
 
 		_np_message_deserialize_chunked(args->msg);
-				
+
 		// TODO: check if the complete buffer was read (byte count match)
 		handshake_token = np_token_factory_read_from_tree(args->msg->body);
 
@@ -2065,7 +2083,7 @@ void _np_in_handshake(np_jobargs_t* args)
 					np_ref_switch(np_aaatoken_t, alias_key->aaa_token, ref_key_aaa_token, handshake_token);
 					np_ref_switch(np_aaatoken_t, msg_source_key->aaa_token, ref_key_aaa_token, handshake_token);
 					// np_unref_obj(np_aaatoken_t, old_token, ref_key_aaa_token);
-				
+
 					alias_key->node = msg_source_key->node;
 					np_ref_obj(np_node_t, msg_source_key->node, ref_key_node);
 
@@ -2099,7 +2117,7 @@ void _np_in_handshake(np_jobargs_t* args)
 					}
 
 					// copy over session key
-					log_debug_msg(LOG_DEBUG, "HANDSHAKE SECRET: setting shared secret on %s and alias %s on system %s", 
+					log_debug_msg(LOG_DEBUG, "HANDSHAKE SECRET: setting shared secret on %s and alias %s on system %s",
 						_np_key_as_str(msg_source_key), _np_key_as_str(alias_key), _np_key_as_str(np_state()->my_node_key));
 
 					memcpy(msg_source_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));

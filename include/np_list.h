@@ -299,6 +299,7 @@ function like macros are:
 // convenience wrapper definitions
 #define dll_init(TYPE, dll_list) dll_list = TYPE##_dll_init();
 #define dll_append(TYPE, dll_list, value) TYPE##_dll_append(dll_list, value);
+#define dll_remove(TYPE, dll_list, value) TYPE##_dll_remove(dll_list, value);
 #define dll_prepend(TYPE, dll_list, value) TYPE##_dll_prepend(dll_list, value);
 #define	dll_head(TYPE, dll_list) TYPE##_dll_head(dll_list);
 #define dll_tail(TYPE, dll_list) TYPE##_dll_tail(dll_list);
@@ -368,6 +369,7 @@ real macros for convenience usage
 	TYPE TYPE##_dll_tail(TYPE##_dll_t* list);\
 	void TYPE##_dll_free(TYPE##_dll_t* list);\
 	void TYPE##_dll_clear(TYPE##_dll_t* list);\
+	void TYPE##_dll_remove(TYPE##_dll_t* dll_list, TYPE value); \
 
 
 //
@@ -412,7 +414,7 @@ void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE value) {\
 	dll_list->size++;\
 }\
 TYPE TYPE##_dll_head(TYPE##_dll_t* dll_list) {\
-	TYPE* ret_val = 0;\
+	TYPE ret_val = 0;\
 	if (NULL != dll_list->first) {\
 		TYPE##_dll_node_t* tmp = dll_list->first;\
 		ret_val = tmp->val;\
@@ -457,6 +459,22 @@ void TYPE##_dll_clear(TYPE##_dll_t* dll_list) {\
 	dll_list->last = NULL;  \
 	dll_list->size = 0;     \
 }\
+void TYPE##_dll_remove(TYPE##_dll_t* dll_list, TYPE value) {                \
+	TYPE##_dll_node_t* dll_current = dll_list->first;                                                       \
+	while (NULL != dll_current) {																			\
+		if (value == dll_current->val) {																	\
+			if (NULL != dll_current->flink) dll_current->flink->blink = dll_current->blink;					\
+			if (NULL != dll_current->blink) dll_current->blink->flink = dll_current->flink;					\
+			if (dll_list->first == dll_current) dll_list->first = dll_current->flink;						\
+			if (dll_list->last == dll_current) dll_list->last = dll_current->blink;							\
+			free(dll_current);																				\
+			dll_list->size--;																				\
+			break;																							\
+		} else {																							\
+			dll_current = dll_current->flink;																\
+		}																									\
+	}																										\
+}																											\
 
 
 /**
@@ -482,6 +500,7 @@ function like macros are:
 // convenience wrapper definitions
 #define sll_init_full(TYPE, sll_list) TYPE##_sll_t* sll_list = TYPE##_sll_init();
 #define sll_init(TYPE, sll_list) sll_list = TYPE##_sll_init();
+#define sll_insert(TYPE, sll_list, value, after) TYPE##_sll_insert(sll_list, value, after);
 #define sll_append(TYPE, sll_list, value) TYPE##_sll_append(sll_list, value);
 #define sll_prepend(TYPE, sll_list, value) TYPE##_sll_prepend(sll_list, value);
 #define	sll_head(TYPE, sll_list) TYPE##_sll_head(sll_list)
@@ -553,8 +572,9 @@ real macros for convenience usage
 		TYPE val;                                                											\
 	};                                                            											\
 	TYPE##_sll_t* TYPE##_sll_init();                              											\
-	void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value);  											\
-	void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value); 											\
+	TYPE##_sll_node_t* TYPE##_sll_insert(TYPE##_sll_t* sll_list, TYPE value,TYPE##_sll_node_t* after);  					\
+	TYPE##_sll_node_t* TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value);  								\
+	TYPE##_sll_node_t* TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value); 								\
 	TYPE TYPE##_sll_head(TYPE##_sll_t* list);                    											\
 	TYPE TYPE##_sll_tail(TYPE##_sll_t* list);                    											\
 	void TYPE##_sll_free(TYPE##_sll_t* list);                     											\
@@ -648,7 +668,19 @@ TYPE##_sll_t* TYPE##_sll_init() {																			\
 	sll_list->last = NULL;																					\
 	return (sll_list);																						\
 }																											\
-void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {												\
+TYPE##_sll_node_t* TYPE##_sll_insert(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_node_t* after) {		\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
+	CHECK_MALLOC(sll_node);																					\
+	sll_node->val = value;																					\
+	sll_node->flink = after->flink;																			\
+	after->flink = sll_node;																				\
+	sll_list->size++;																						\
+	if (after == sll_list->last) {																			\
+		sll_list->last = sll_node;																			\
+	}																										\
+	return sll_node;																						\
+}																											\
+TYPE##_sll_node_t* TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {									\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
 	CHECK_MALLOC(sll_node);																					\
 	sll_node->val = value;																					\
@@ -660,14 +692,16 @@ void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {												\
 	}																										\
 	sll_list->last = sll_node;																				\
 	sll_list->size++;																						\
+	return sll_node;																						\
 }																											\
-void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value) {												\
+TYPE##_sll_node_t* TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value) {												\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
 	sll_node->val = value;																					\
 	sll_node->flink = sll_list->first;																		\
 	if (sll_list->last == NULL) { sll_list->last = sll_node; }												\
 	sll_list->first = sll_node;																				\
 	sll_list->size++;																						\
+	return sll_node;																						\
 }																											\
 TYPE TYPE##_sll_head(TYPE##_sll_t* sll_list) {																\
 	TYPE ret_val = 0;																						\

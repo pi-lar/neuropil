@@ -35,7 +35,7 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
 	np_aaatoken_t* ret = NULL;
 
 	/// contract begin
-	ASSERT(source != NULL, "source token cannot be NULL");	
+	ASSERT(source != NULL, "source token cannot be NULL");
 
 	switch (scope)
 	{
@@ -91,7 +91,7 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
 	// np_aaatoken_decode(copy, ret);
 	// }
 	ret->scope = scope;
-	
+
 	return (ret);
 }
 
@@ -102,7 +102,7 @@ np_ident_public_token_t* np_token_factory_get_public_ident_token(np_aaatoken_t* 
 
 	ret = __np_token_factory_derive(source, np_aaatoken_scope_public);
 	ret->type = np_aaatoken_type_identity;
-	
+
 	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", __func__);
 	return ret;
 }
@@ -145,11 +145,11 @@ np_aaatoken_t* __np_token_factory_new(char issuer[64], char node_subject[255], d
 }
 
 np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_msgproperty_t* msg_request) {
-	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_token_factory_new_message_intent_token(np_msgproperty_t* msg_request){"); 	
+	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_token_factory_new_message_intent_token(np_msgproperty_t* msg_request){");
 	np_message_intent_public_token_t* ret = NULL;
-		
+
 	ASSERT(msg_request != NULL, "source messageproperty cannot be NULL");
-	
+
 	np_state_t* state = np_state();
 	np_new_obj(np_aaatoken_t, ret, __func__);
 
@@ -188,7 +188,8 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 	// memcpy((char*)ret->private_key,
 	//	(char*)my_identity->aaa_token->private_key,
 	//	crypto_sign_SECRETKEYBYTES);
-	// ret->scope = np_aaatoken_scope_private;
+	//ret->scope = np_aaatoken_scope_private;
+	ret->scope = np_aaatoken_scope_private_available;
 
 	np_tree_replace_str(ret->extensions, "mep_type",
 		np_treeval_new_ul(msg_request->mep_type));
@@ -203,17 +204,15 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 	np_tree_replace_str(ret->extensions,  "target_node",
 		np_treeval_new_s((char*)_np_key_as_str(my_node_key)));
 
-
 	ret->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
-	np_unref_obj(np_key_t, my_identity, "np_waitref_obj");
-	np_unref_obj(np_key_t, my_node_key, "np_waitref_obj");
 
 	ret->type = np_aaatoken_type_message_intent;
-	ret->scope = np_aaatoken_scope_public;
 
 	// fingerprinting and signing the token
 	_np_aaatoken_set_signature(ret, my_identity->aaa_token);
-	_np_aaatoken_update_extensions_signature(ret, my_identity->aaa_token);
+
+	np_unref_obj(np_key_t, my_identity, "np_waitref_obj");
+	np_unref_obj(np_key_t, my_node_key, "np_waitref_obj");
 
 	return (ret);
 }
@@ -252,8 +251,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token() {
 	np_tree_insert_str(ret->extensions, "_np.session", np_treeval_new_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
 
 	_np_aaatoken_set_signature(ret, my_node_key->aaa_token);
-	_np_aaatoken_update_extensions_signature(ret, my_node_key->aaa_token);
-	
+
 #ifdef DEBUG
 	char my_token_fp_s[255] = { 0 };
 	np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(ret);
@@ -273,7 +271,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token() {
 np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* source_node)
 {
 	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_token_factory_new_node_token(np_node_t* source_node){");
-	
+
 
 	int rand_interval = ((int)randombytes_uniform(NODE_MAX_TTL_SEC - NODE_MIN_TTL_SEC) + NODE_MIN_TTL_SEC);
 	double expires_at = np_time_now() + rand_interval;
@@ -301,7 +299,7 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* source_node
 	sodium_bin2hex(sk_hex, crypto_sign_SECRETKEYBYTES * 2 + 1, ret->private_key, crypto_sign_SECRETKEYBYTES);
 	log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "n_token signature private key: %s", sk_hex);
 #endif
-	
+
 	return (ret);
 }
 

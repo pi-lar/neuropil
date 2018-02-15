@@ -11,13 +11,16 @@
 #include "test_jrb_serialization.c"
 #include "test_keycache.c"
 #include "test_list_impl.c"
+
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
 #include "test_memory.c"
 #endif
+
 #include "test_message.c"
 #include "test_node.c"
 #include "test_route.c"
 #include "test_util_uuid.c"
+#include "test_sodium_crypt.c"
 
 // NON Criterion Tests
 /*

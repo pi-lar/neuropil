@@ -126,7 +126,7 @@ void _np_out(np_jobargs_t* args)
 
 	np_msgproperty_t* prop = args->properties;
 
-	// set msgproperty of msg 
+	// set msgproperty of msg
 	if (msg_out != NULL && prop != NULL) {
 		np_ref_switch(np_msgproperty_t, msg_out->msg_property, ref_message_msg_property, prop);
 	}
@@ -286,7 +286,7 @@ void _np_out(np_jobargs_t* args)
 
 					responsecontainer->msg = args->msg;
 					np_ref_obj(np_message_t, responsecontainer->msg, ref_ack_msg);
-					
+
 					// responsecontainer->expected_ack = 1; // msg_out->no_of_chunks ?
 					log_debug_msg(LOG_DEBUG, "initial sending of message (%s/%s) with response",
 											 args->properties->msg_subject, args->msg->uuid);
@@ -344,7 +344,7 @@ void _np_out(np_jobargs_t* args)
 					_np_job_resubmit_route_event(retransmit_interval, args->properties, args->target, args->msg);
 					log_debug_msg(LOG_DEBUG, "ACK_HANDLING re-sending of message (%s) scheduled", args->msg->uuid);
 				}
-			}			
+			}
 
 			np_unref_obj(np_network_t, my_network, "np_waitref_network");
 		}
@@ -356,9 +356,9 @@ void _np_out_handshake(np_jobargs_t* args)
 {
 	log_msg(LOG_TRACE, "start: void _np_out_handshake(np_jobargs_t* args){");
 
-	_LOCK_MODULE(np_handshake_t) 
+	_LOCK_MODULE(np_handshake_t)
 	{
-		
+
 		if (_np_node_check_address_validity(args->target->node))
 		{
 			// get our node identity from the cache
@@ -378,10 +378,10 @@ void _np_out_handshake(np_jobargs_t* args)
 			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d((double)np_time_now()));
 
 			np_aaatoken_encode(hs_message->body, my_token);
-					
+
 			_np_message_calculate_chunking(hs_message);
-		
-			np_bool serialize_ok = _np_message_serialize_chunked(hs_message);			
+
+			np_bool serialize_ok = _np_message_serialize_chunked(hs_message);
 
 			if (hs_message->no_of_chunks != 1) {
 				log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
@@ -410,7 +410,7 @@ void _np_out_handshake(np_jobargs_t* args)
 							//args->target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
 							_np_threads_unlock_module(np_handshake_t_lock);
 							return;
-						}						
+						}
 						np_ref_obj(np_key_t, args->target, ref_network_watcher);
 						args->target->network->watcher.data = args->target;
 					}
@@ -432,7 +432,7 @@ void _np_out_handshake(np_jobargs_t* args)
 
 				_LOCK_ACCESS(&args->target->network->out_events_lock)
 				{
-					if (NULL != args->target->network->out_events) {						
+					if (NULL != args->target->network->out_events) {
 						sll_append(
 							void_ptr,
 							args->target->network->out_events,
@@ -464,15 +464,15 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 		{
 			// Create a new msg token
 			log_msg(LOG_INFO | LOG_AAATOKEN, "--- refresh for subject token: %25s --------", args->properties->msg_subject);
-			log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
 			np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(args->properties);
+			log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s (%s replaces %s) ", args->properties->msg_subject, msg_token_new->uuid, msg_token == NULL ? "-" : msg_token->uuid);
 			np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
 			_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
 			msg_token = msg_token_new;
 			ref_replace_reason(np_aaatoken_t, msg_token_new, "_np_token_factory_new_message_intent_token", "_np_aaatoken_get_local_mx");
 			log_debug_msg(LOG_DEBUG| LOG_AAATOKEN, "--- done refresh for subject token: %25s new token has uuid %s", args->properties->msg_subject, msg_token_new->uuid);
 		}
-		
+
 		ASSERT(_np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent), "AAAToken needs to be valid")
 		// args->target == Key of subject
 
@@ -537,7 +537,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 		}
 		np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
 	}
-	
+
 }
 
 // deprecated

@@ -3,7 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /** \toggle_keepwhitespaces  */
-/** 
+/**
 The structure np_aaatoken_t is used for authorization, authentication and accounting purposes.
 Add-on information can be stored in a nested jtree structure. Several analogies have been used as a baseline for this structure:
 json web token, kerberos and diameter. Tokens do get integrity protected by adding an additional signature based on
@@ -81,6 +81,8 @@ enum np_aaatoken_type {
 
 enum np_aaatoken_scope {
 	np_aaatoken_scope_private = 1,
+	// np_aaatoken_scope_private_available defines a state where the token does not hold the privatekey itself but we do have the privekey available (ex.: creation of a message intent token)
+	np_aaatoken_scope_private_available,
 	np_aaatoken_scope_public,
 	np_aaatoken_scope_undefined,
 };
@@ -159,23 +161,23 @@ struct np_aaatoken_s
 	// attributes to exchange
 	char* uuid;
 	// owner or parent entity
-	char realm[255]; 
+	char realm[255];
 
 	// from (if self signed empty)
-	char issuer[65]; 
+	char issuer[65];
 	// about
-	char subject[255]; 
+	char subject[255];
 	// to
-	char audience[255]; 
+	char audience[255];
 
 	double issued_at;
 	double not_before;
-	double expires_at;		
-	
+	double expires_at;
+
 	// key/value extension list
 	np_tree_t* extensions;
 	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
-	unsigned char private_key[crypto_sign_SECRETKEYBYTES];	
+	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
 	unsigned char signature[crypto_sign_BYTES];
 	unsigned char signature_extensions[crypto_sign_BYTES];
 	// attributes to exchange END
@@ -188,6 +190,7 @@ struct np_aaatoken_s
 	enum np_aaatoken_type type;
 	enum np_aaatoken_scope scope;
 	np_bool private_key_is_set;
+	np_aaatoken_t* issuer_token;
 
 	np_bool is_signature_verified;
 	np_bool is_signature_extensions_verified;

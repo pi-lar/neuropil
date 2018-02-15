@@ -235,6 +235,8 @@ void _np_msgproperty_t_new(void* property)
 
 	_np_threads_mutex_init(&prop->unique_uuids_lock, "unique_uuids_lock");
 	np_msgproperty_enable_check_for_unique_uuids(prop);	
+	prop->recv_key = NULL;
+	prop->send_key = NULL;
 }
 void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self) {
 	_LOCK_ACCESS(&self->unique_uuids_lock) {
