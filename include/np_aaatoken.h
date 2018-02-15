@@ -81,8 +81,8 @@ enum np_aaatoken_type {
 
 enum np_aaatoken_scope {
 	np_aaatoken_scope_private = 1,
-	// np_aaatoken_scope_privately defines a state where the token does not hold the privatekey itself but we do have the privekey available (ex.: creation of a message intent token)
-	np_aaatoken_scope_privately,
+	// np_aaatoken_scope_private_available defines a state where the token does not hold the privatekey itself but we do have the privekey available (ex.: creation of a message intent token)
+	np_aaatoken_scope_private_available,
 	np_aaatoken_scope_public,
 	np_aaatoken_scope_undefined,
 };

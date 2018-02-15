@@ -189,7 +189,7 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 	//	(char*)my_identity->aaa_token->private_key,
 	//	crypto_sign_SECRETKEYBYTES);
 	//ret->scope = np_aaatoken_scope_private;
-	ret->scope = np_aaatoken_scope_privately;
+	ret->scope = np_aaatoken_scope_private_available;
 
 	np_tree_replace_str(ret->extensions, "mep_type",
 		np_treeval_new_ul(msg_request->mep_type));

@@ -150,7 +150,7 @@ void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 
 	np_tree_insert_str(data, "np.t.e", np_treeval_new_tree(token->extensions));	
 	
-	if(token->scope <= np_aaatoken_scope_privately) {
+	if(token->scope <= np_aaatoken_scope_private_available) {
 		_np_aaatoken_update_extensions_signature(token, token->issuer_token);
 	}
 	
@@ -354,7 +354,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token has not expired");
 	}
 
-	if (token->scope > np_aaatoken_scope_privately)
+	if (token->scope > np_aaatoken_scope_private_available)
 	{
 		if (token->is_signature_verified == FALSE) {
 			unsigned char* hash = _np_aaatoken_get_hash(token);
