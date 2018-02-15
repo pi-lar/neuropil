@@ -170,19 +170,27 @@ void _np_message_calculate_chunking(np_message_t* msg)
 	// np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 
 	// TODO: message part split-up informations
-	uint16_t fixed_size =
+	uint32_t header_size = (msg->header == NULL ? 0 : msg->header->byte_size);
+	uint32_t instructions_size = (msg->instructions == NULL ? 0 : msg->instructions->byte_size);
+	uint32_t fixed_size =
 		MSG_ARRAY_SIZE + 
 		MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
-		(msg->header == NULL ? 0 : msg->header->byte_size) +
-		(msg->instructions == NULL ? 0 : msg->instructions->byte_size);
+		header_size + instructions_size;
 
-	uint16_t payload_size = 
-		(msg->properties == NULL ? 0 : msg->properties->byte_size) +
-		(msg->body == NULL ? 0 : msg->body->byte_size) +
-		(msg->footer == NULL ? 0 : msg->footer->byte_size);
+	uint32_t properties_size = (msg->properties == NULL ? 0 : msg->properties->byte_size);
+	uint32_t body_size = (msg->body == NULL ? 0 : msg->body->byte_size);
+	uint32_t footer_size = (msg->footer == NULL ? 0 : msg->footer->byte_size);
+	uint32_t payload_size = properties_size + body_size + footer_size;
 
-	uint16_t chunks =
-			((uint16_t) (payload_size) / (MSG_CHUNK_SIZE_1024 - fixed_size)) + 1;
+	uint32_t chunks =
+			((uint32_t) (payload_size) / (MSG_CHUNK_SIZE_1024 - fixed_size)) + 1;
+
+	log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION, "Message has payload of %"PRIu32"(%"PRIu32"/%"PRIu32"/%"PRIu32") and %"PRIu32"(%"PRIu32"/%"PRIu32") header data, so we send %"PRIu32" chunks for %"PRIu32" bytes"
+		, payload_size, properties_size, body_size, footer_size, 
+		fixed_size, header_size, instructions_size, 
+		chunks, 
+		(payload_size+ fixed_size)*chunks);
+
 
 	msg->no_of_chunks = chunks;
 }
@@ -724,7 +732,7 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 
 
 								CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_UUID, msg_uuid);
-								ASSERT(msg_uuid.type == char_ptr_type, " type is incorrectly set to: %"PRIu8, msg_uuid.type);
+								ASSERT(msg_uuid.type == np_treeval_type_char_ptr, " type is incorrectly set to: %"PRIu8, msg_uuid.type);
 								log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", msg->uuid, np_treeval_to_str(msg_uuid, NULL));
 								char* old = msg->uuid;
 								msg->uuid = strdup(np_treeval_to_str(msg_uuid, NULL));
@@ -777,8 +785,6 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 	void* bin_footer_ptr = NULL;
 	cmp_ctx_t cmp_footer;
 	uint32_t size_footer = 0;
-
-	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-----------------------------------------------------" );
 
 	_LOCK_ACCESS(&msg->msg_chunks_lock)
 	{
@@ -837,11 +843,6 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 				bin_properties_ptr = msg->bin_properties + (size_properties - size_properties_add);
 				cmp.read(&cmp, bin_properties_ptr, size_properties_add);
 			}
-			else
-			{
-				// buffer_container.buffer += size_properties_add;
-				// buffer_container.bufferCount += size_properties_add;
-			}
 
 			cmp_read_bin_size(&cmp, &size_body_add);
 			if (0 < size_body_add)
@@ -851,11 +852,6 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 				msg->bin_body = realloc(msg->bin_body, size_body);
 				bin_body_ptr = msg->bin_body + (size_body - size_body_add);
 				cmp.read(&cmp, bin_body_ptr, size_body_add);
-			}
-			else
-			{
-				// buffer_container.buffer += size_body_add;
-				// buffer_container.bufferCount += size_body_add;
 			}
 
 			cmp_read_bin_size(&cmp, &size_footer_add);
@@ -867,13 +863,6 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 				bin_footer_ptr = msg->bin_footer + (size_footer - size_footer_add);
 				cmp.read(&cmp, bin_footer_ptr, size_footer_add);
 			}
-			else
-			{
-				// buffer_container.buffer += size_footer_add;
-				// buffer_container.bufferCount += size_footer_add;
-			}
-
-			// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-------------------------" );
 
 			iter->val = NULL;
 			np_unref_obj(np_messagepart_t, current_chunk, ref_message_messagepart);
@@ -1104,17 +1093,15 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 			unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
 			crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
 				state->my_identity->aaa_token->private_key);
-
-			//	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "ciphertext: %s", enc_sym_key);
-			//	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "nonce:      %s", nonce);
-
+			
 			// convert partner secret to encryption key
 			unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-			crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
+			int crypto_ret = 0;
 
-			int crypto_ret = crypto_box_open_easy(sym_key, enc_sym_key, crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
+			crypto_ret += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
+
+			crypto_ret += crypto_box_open_easy(sym_key, enc_sym_key, crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
 				nonce, partner_key, curve25519_sk);
-
 
 			if (0 > crypto_ret)
 			{

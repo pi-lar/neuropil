@@ -90,7 +90,7 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 		 (_np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)) )
 	{
 		// the result returned the sending node, try again with a higher count parameter
-		np_unref_list(tmp, "_np_route_lookup"); 
+		np_unref_list(tmp, "_np_route_lookup");
 		sll_free(np_key_ptr, tmp);
 
 		tmp = _np_route_lookup(search_key, 2);
@@ -111,7 +111,7 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "route_lookup result   = myself");
 	}
 
-	/* if I am the only host or the closest host is me, deliver the message */	
+	/* if I am the only host or the closest host is me, deliver the message */
 	if (NULL == target_key && FALSE == is_a_join_request)
 	{
 		// the message has to be handled by this node (e.g. msg interest messages)
@@ -183,7 +183,7 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
 		if (NULL != tmp_node_key->node &&
 			tmp_node_key->node->success_avg < BAD_LINK &&
 			(np_time_now() - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
-			tmp_node_key->node->is_handshake_send == TRUE 
+			tmp_node_key->node->is_handshake_send == TRUE
 			)
 		{
 			log_msg(LOG_INFO, "deleted from table/leafset: %s:%s:%s / %f / %1.2f",
@@ -231,7 +231,7 @@ void _np_glia_check_routes(NP_UNUSED np_jobargs_t* args) {
 }
 
 void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
-	
+
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset check for table started");
 
 	// TODO: do a dynamic selection of keys
@@ -243,7 +243,7 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 	sll_iterator(np_key_ptr) iter = sll_first(keys);
 
 	while (iter != NULL) {
-		
+
 		if(iter->val != np_state()->my_node_key){
 			np_tryref_obj(np_node_t, iter->val->node, node_exists);
 			if(node_exists) {
@@ -255,7 +255,7 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 		}
 		sll_next(iter);
 	}
-	sll_free(np_key_ptr, keys); // no ref 
+	sll_free(np_key_ptr, keys); // no ref
 	np_unref_list(routing_keys, "_np_route_get_table");
 	sll_free(np_key_ptr, routing_keys);
 	np_unref_list(neighbour_keys, "_np_route_neighbors");
@@ -267,7 +267,7 @@ void _np_glia_log_flush(NP_UNUSED np_jobargs_t* args) {
 }
 
 void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
-	
+
 	/* send leafset exchange data every 3 times that pings the leafset */
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset exchange for neighbours started");
 
@@ -275,7 +275,7 @@ void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
 	np_sll_t(np_key_ptr, neighbour_keys) = _np_route_neighbors();
 	np_sll_t(np_key_ptr, keys_merged) = sll_merge(np_key_ptr, routing_keys, neighbour_keys, _np_key_cmp);
 
-	int i = 0;	
+	int i = 0;
 	sll_iterator(np_key_ptr) iter_keys = sll_first(keys_merged);
 	while (iter_keys != NULL)
 	{
@@ -290,7 +290,7 @@ void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
 	sll_free(np_key_ptr, keys_merged);
 	np_unref_list(routing_keys, "_np_route_get_table");
 	sll_free(np_key_ptr, routing_keys);
-	np_unref_list(neighbour_keys, "_np_route_neighbors");			
+	np_unref_list(neighbour_keys, "_np_route_neighbors");
 	sll_free(np_key_ptr, neighbour_keys);
 }
 
@@ -314,14 +314,14 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 			// double last_update = iter->val.value.d;
 
 			const char* subject = NULL;
-			if (iter->key.type == char_ptr_type)
+			if (iter->key.type == np_treeval_type_char_ptr)
 				subject =  np_treeval_to_str(iter->key, NULL);
-			else if (iter->key.type == special_char_ptr_type)
+			else if (iter->key.type == np_treeval_type_special_char_ptr)
 				subject = _np_tree_get_special_str(iter->key.value.ush);
 			else {
 				ASSERT(FALSE,"key type %"PRIu8" is not recognized.", iter->key.type)
 			}
-			
+
 			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
 			np_key_t* target = NULL;
 
@@ -426,9 +426,9 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 			break;
 		}
 		_LOCK_ACCESS(&ng->waiting_lock)
-		{		
+		{
 			iter = RB_MIN(np_tree_s, ng->waiting);
-			
+
 			while (iter != NULL)
 			{
 				jrb_ack_node = iter;
@@ -459,7 +459,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 						jrb_ack_node->key.value.s);
 
 				}
-			}		
+			}
 		}
 	} while (iter != NULL);
 
@@ -482,10 +482,10 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 
 		if (NULL != old->node)
 		{
-			// found a node key, check last_success value			
+			// found a node key, check last_success value
 			if ((np_time_now() - old->node->last_success) < 60. )
 			{
-				// 60 sec no success full msg received 
+				// 60 sec no success full msg received
 				log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid node last_success value: %s", _np_key_as_str(old));
 				delete_key &= FALSE;
 			}
@@ -493,7 +493,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 
 		np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists,"np_tryref_old->aaa_token");
 		if(tokenExists) {
-			if (TRUE == _np_aaatoken_is_valid(old->aaa_token) )
+			if (TRUE == _np_aaatoken_is_valid(old->aaa_token, np_aaatoken_type_undefined))
 			{
 				log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _np_key_as_str(old));
 				delete_key &= FALSE;
@@ -508,9 +508,9 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 				// check old receiver token structure
 				pll_iterator(np_aaatoken_ptr) iter = pll_first(old->recv_tokens);
 				while (NULL != iter)
-				{					
+				{
 					np_aaatoken_t* tmp_token = iter->val;
-					if (TRUE == _np_aaatoken_is_valid(tmp_token))
+					if (TRUE == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
 					{
 						log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _np_key_as_str(old));
 						delete_key &= FALSE;
@@ -530,7 +530,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 				while (NULL != iter)
 				{
 					np_aaatoken_t* tmp_token = iter->val;
-					if (TRUE == _np_aaatoken_is_valid(tmp_token))
+					if (TRUE == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
 					{
 						log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _np_key_as_str(old));
 						delete_key &= FALSE;
@@ -597,78 +597,11 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 		np_new_obj(np_message_t, msg_out);
 		_np_message_create(msg_out, target_key, state->my_node_key, _NP_MSG_PIGGY_REQUEST, msg_body);
 		_np_job_submit_msgout_event(0.0, outprop, target_key, msg_out);
-		np_unref_obj(np_message_t, msg_out, ref_obj_creation);		
+		np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 	}
 
 	np_unref_list(sll_of_keys, source_sll_of_keys);
 	sll_free(np_key_ptr, sll_of_keys);
-}
-
-np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request)
-{
-	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request){");
-
-	np_state_t* state = np_state();
-
-	np_aaatoken_t* msg_token = NULL;
-	np_new_obj(np_aaatoken_t, msg_token);
-
-	char msg_uuid_subject[255];
-	snprintf(msg_uuid_subject, 255, "urn:np:msg:%s", msg_request->msg_subject);
-
-	np_waitref_obj(np_key_t, state->my_identity, my_identity,"np_waitref_obj");
-
-	// create token
-	strncpy(msg_token->realm, my_identity->aaa_token->realm, 255);
-	strncpy(msg_token->issuer, (char*) _np_key_as_str(my_identity), 64);
-	strncpy(msg_token->subject, msg_request->msg_subject, 255);
-	if (NULL != msg_request->msg_audience)
-	{
-		strncpy(msg_token->audience, (char*) msg_request->msg_audience, 255);
-	}
-	
-	msg_token->not_before = np_time_now();
-
-	// how to allow the possible transmit jitter ?
-	int expire_sec =  ((int)randombytes_uniform(msg_request->token_max_ttl - msg_request->token_min_ttl)+msg_request->token_min_ttl);
-
-
-	msg_token->expires_at = msg_token->not_before + expire_sec;
-	log_debug_msg(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG,"setting msg token EXPIRY to: %f (now: %f diff: %f)", msg_token->expires_at, np_time_now(), msg_token->expires_at -  np_time_now() );
-
-	if(my_identity->aaa_token->expires_at < msg_token->expires_at ){
-		msg_token->expires_at = my_identity->aaa_token->expires_at ;
-	}
-
-	// add e2e encryption details for sender
-	memcpy((char*) msg_token->public_key,
-		   (char*) my_identity->aaa_token->public_key,
-		   crypto_sign_PUBLICKEYBYTES);
-	// private key is only required for signing later, will not be send over the wire
-	memcpy((char*) msg_token->private_key,
-		   (char*) my_identity->aaa_token->private_key,
-		   crypto_sign_SECRETKEYBYTES);
-	msg_token->private_key_is_set = TRUE;
-
-	np_tree_insert_str(msg_token->extensions, "mep_type",
-			np_treeval_new_ul(msg_request->mep_type));
-	np_tree_insert_str(msg_token->extensions, "ack_mode",
-			np_treeval_new_ush(msg_request->ack_mode));
-	np_tree_insert_str(msg_token->extensions, "max_threshold",
-			np_treeval_new_ui(msg_request->max_threshold));
-	np_tree_insert_str(msg_token->extensions, "msg_threshold",
-			np_treeval_new_ui( msg_request->msg_threshold));
-
-	// TODO: insert value based on msg properties / respect (sticky) reply
-	np_tree_insert_str(msg_token->extensions, "target_node",
-			np_treeval_new_s((char*) _np_key_as_str(my_identity)));
-
-	// fingerprinting and signing the token
-	//_np_aaatoken_add_signature(msg_token);
-
-	msg_token->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
-	np_unref_obj(np_key_t, my_identity, "np_waitref_obj");
-	return (msg_token);
 }
 
 void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject)
@@ -705,10 +638,9 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 	_np_msgproperty_threshold_increase(msg_prop);
 
 	// np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
-	np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, target);
+	np_message_intent_public_token_t* tmp_token = _np_aaatoken_get_receiver(subject, target);
 
-	if (NULL != tmp_token)
-	{
+	if (NULL != tmp_token && _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent)) {
 		log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);
 
 		np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
@@ -717,8 +649,8 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		_np_message_encrypt_payload(msg, tmp_token);
 
 		np_bool free_target_node_str = FALSE;
-		char* target_node_str = NULL;		
-		np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions, "target_node");
+		char* target_node_str = NULL;
+		np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions,  "target_node");
 		if (NULL != tn_node)
 		{
 			target_node_str =  np_treeval_to_str(tn_node->val, &free_target_node_str);

@@ -70,7 +70,8 @@ NP_API_INTERN
 void _np_node_update_stat (np_node_t* np_node, np_bool responded);
 NP_API_INTERN
 void _np_node_update_latency (np_node_t* node, double new_latency);
-
+NP_API_INTERN
+np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e expected_type);
 /** np_node_decode routines
  ** decodes a string into a neuropil np_node structure, including lookup to the global key tree
  **
@@ -94,11 +95,6 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, 
 
 NP_API_INTERN
 void _np_node_encode_to_jrb  (np_tree_t* data, np_key_t* node_key, np_bool include_stats);
-
-/** np_node aaa_token routines
- **/
-NP_API_INTERN
-np_aaatoken_t* _np_node_create_token(np_node_t* node);
 
 NP_API_INTERN
 np_key_t* _np_key_create_from_token(np_aaatoken_t* token);

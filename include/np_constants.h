@@ -15,7 +15,8 @@ extern "C" {
 
 	#define ref_message_bin_static			"ref_message_bin_static"
 	#define ref_msgpartcache				"ref_msgpartcache"
-	#define ref_state_identity				"ref_state_identity"
+	#define ref_state_nodekey					"ref_state_nodekey"
+	#define ref_state_identitykey				"ref_state_identitykey"
 	#define ref_obj_creation				"ref_obj_creation"
 	#define ref_network_watcher				"ref_network_watcher"
 	#define ref_keycache					"ref_keycache"
@@ -35,7 +36,7 @@ extern "C" {
 	#define ref_ack_obj						"ref_ack_obj"
 	#define ref_ack_msg						"ref_ack_msg"
 	#define ref_ack_key						"ref_ack_key"
-	
+
 	#define NP_SERIALISATION_NODE_KEY			"np.n.k"
 	#define NP_SERIALISATION_NODE_PROTOCOL		"np.n.pr"
 	#define NP_SERIALISATION_NODE_DNS_NAME		"np.n.d"

@@ -12,6 +12,7 @@
 #include "np_glia.h"
 #include "np_keycache.h"
 #include "np_log.h"
+#include "np_token_factory.h"
 #include "np_memory.h"
 #include "np_msgproperty.h"
 #include "np_network.h"
@@ -50,12 +51,12 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	_np_node_update(test_node, IPv4 | UDP, "localhost", "1111");
 	test_key->node = test_node;
 
-	test_token_1 = _np_node_create_token(test_node);
+	test_token_1 = _np_token_factory_new_node_token(test_node);
 	// re-set the validity of this token for this test only
 	test_token_1->expires_at = test_token_1->not_before + 9.0;
 
 	cr_expect (NULL != test_token_1, "expect the token to be not NULL");
-	cr_expect (TRUE == _np_aaatoken_is_valid(test_token_1), "expect that the token is valid");
+	cr_expect (TRUE == _np_aaatoken_is_valid(test_token_1, np_aaatoken_type_node), "expect that the token is valid");
 
 	np_tree_t* aaa_tree = np_tree_create();
 	np_aaatoken_encode(aaa_tree, test_token_1);
@@ -64,8 +65,8 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	np_new_obj(np_aaatoken_t, test_token_2);
 	np_aaatoken_decode(aaa_tree, test_token_2);
 
-	cr_assert (TRUE == _np_aaatoken_is_valid(test_token_1), "expect that the 1.token is valid");
-	cr_assert (TRUE == _np_aaatoken_is_valid(test_token_2), "expect that the 2.token is valid");
+	cr_assert (TRUE == _np_aaatoken_is_valid(test_token_1, np_aaatoken_type_node), "expect that the 1.token is valid");
+	cr_assert (TRUE == _np_aaatoken_is_valid(test_token_2, np_aaatoken_type_node), "expect that the 2.token is valid");
 
 	cmp_ctx_t cmp_empty;
 	char buffer[65536];
@@ -85,14 +86,14 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	np_new_obj(np_aaatoken_t, test_token_3);
 	np_aaatoken_decode(out_jrb, test_token_3);
 
-	cr_assert(TRUE == _np_aaatoken_is_valid(test_token_1), "expect that the 1.token is valid");
-	cr_assert(TRUE == _np_aaatoken_is_valid(test_token_2), "expect that the 2.token is valid");
-	cr_assert(TRUE == _np_aaatoken_is_valid(test_token_3), "expect that the 3.token is valid");
+	cr_assert(TRUE == _np_aaatoken_is_valid(test_token_1, np_aaatoken_type_node), "expect that the 1.token is valid");
+	cr_assert(TRUE == _np_aaatoken_is_valid(test_token_2, np_aaatoken_type_node), "expect that the 2.token is valid");
+	cr_assert(TRUE == _np_aaatoken_is_valid(test_token_3, np_aaatoken_type_node), "expect that the 3.token is valid");
 
 	ev_sleep(10.0);
 
-	cr_assert(FALSE == _np_aaatoken_is_valid(test_token_1), "expect that the 1.token is not valid");
-	cr_assert(FALSE == _np_aaatoken_is_valid(test_token_3), "expect that the 3.token is not valid");
+	cr_assert(FALSE == _np_aaatoken_is_valid(test_token_1, np_aaatoken_type_node), "expect that the 1.token is not valid");
+	cr_assert(FALSE == _np_aaatoken_is_valid(test_token_3, np_aaatoken_type_node), "expect that the 3.token is not valid");
 
 	np_unref_obj(np_key_t, test_key, ref_obj_creation);
 	np_unref_obj(np_aaatoken_t, test_token_1, ref_obj_creation);
@@ -112,10 +113,10 @@ Test(np_aaatoken_t, encode_decode_loop, .description="test the encoding and deco
 	np_new_obj(np_node_t, test_node);
 	_np_node_update(test_node, IPv4 | UDP, "localhost", "1111");
 
-	ref = _np_node_create_token(test_node);
+	ref = _np_token_factory_new_node_token(test_node);
 
 	np_new_obj(np_key_t, test_key);
-	test_key->dhkey = _np_aaatoken_create_dhkey(ref);
+	test_key->dhkey = np_aaatoken_get_fingerprint(ref);
 	test_key->node = test_node;
 	np_ref_obj(np_node_t, test_node, ref_key_node);
 	test_key->aaa_token = ref;
@@ -178,8 +179,8 @@ Test(np_aaatoken_t, test_audience_filtering, .description="test the filtering ba
 	test_recv_prop_1->max_threshold = 20;
 
 	// create message token
-	np_aaatoken_t* test_send_token_1 = _np_create_msg_token(test_send_prop_1);
-	np_aaatoken_t* test_recv_token_1 = _np_create_msg_token(test_recv_prop_1);
+	np_aaatoken_t* test_send_token_1 = _np_token_factory_new_message_intent_token(test_send_prop_1);
+	np_aaatoken_t* test_recv_token_1 = _np_token_factory_new_message_intent_token(test_recv_prop_1);
 
 	// add token to our internal ledger
 	_np_aaatoken_add_sender("test_subject", test_send_token_1);

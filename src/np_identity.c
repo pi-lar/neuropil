@@ -15,24 +15,12 @@
 #include "np_serialization.h"
 #include "np_util.h"
 
-np_aaatoken_t* np_identity_new(double expires_at)
-{
-	char node_subject[255];
-	snprintf(node_subject, 255, "urn:np:identity:%s", np_uuid_create("urn:np:identity", 0));
-
-	char issuer[64] = { 0 };
-
-	np_aaatoken_t* ret = _np_aaatoken_new(issuer, node_subject, expires_at);
-
-
-	return ret;
-}
 
 size_t np_identity_export_current(void* buffer) {
 	size_t ret = 0;
-	if( np_state()->my_identity != NULL && 
+	if( np_state()->my_identity != NULL &&
 		np_state()->my_identity->aaa_token != NULL) {
-		ret = np_identity_export(np_state()->my_identity->aaa_token, buffer);		
+		ret = np_identity_export(np_state()->my_identity->aaa_token, buffer);
 	}
 
 	return ret;
@@ -58,7 +46,7 @@ size_t np_identity_export(np_aaatoken_t* token, void* buffer) {
 }
 
 np_aaatoken_t* np_identity_import(void* buffer, size_t size) {
-	np_aaatoken_t* ret = NULL;	
+	np_aaatoken_t* ret = NULL;
 
 	np_tree_t* serialization_tree = np_tree_create();
 
@@ -74,7 +62,7 @@ np_aaatoken_t* np_identity_import(void* buffer, size_t size) {
 	if (np_tree_deserialize(serialization_tree, &cmp)) {
 		np_new_obj(np_aaatoken_t, ret, __func__);
 		np_aaatoken_decode_with_secrets(serialization_tree, ret);
-	}	
+	}
 
 	return ret;
 }

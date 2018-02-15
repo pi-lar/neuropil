@@ -232,8 +232,8 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 				) {
 				ret = np_str_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, iter->type, sll_size(iter->reasons), new_line);
 
-				int display_first_X_reasons = 5;
-				int display_last_X_reasons = 5;
+				static const uint32_t display_first_X_reasons = 5;
+				static const uint32_t display_last_X_reasons = 5;
 
 				sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
 				int iter_reasons_counter = 0;

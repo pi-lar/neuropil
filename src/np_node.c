@@ -26,6 +26,7 @@
 #include "np_aaatoken.h"
 #include "np_memory.h"
 #include "np_tree.h"
+#include "np_msgproperty.h"
 #include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_network.h"
@@ -176,7 +177,7 @@ np_key_t* _np_node_decode_from_str (const char *key)
 	return (node_key);
 }
 
-np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
+np_node_t* _np_node_decode_from_jrb(np_tree_t* data)
 {
 	// MANDATORY paramter
 	uint8_t i_host_proto;
@@ -189,7 +190,7 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 	else { return NULL; }
 
 	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_DNS_NAME))) {
-		s_host_name = np_treeval_to_str(ele->val,NULL);
+		s_host_name = np_treeval_to_str(ele->val, NULL);
 	}
 	else { return NULL; }
 
@@ -207,17 +208,58 @@ np_node_t* _np_node_decode_from_jrb (np_tree_t* data)
 		// uint8_t proto = _np_network_parse_protocol_string(s_host_proto);
 		_np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
 		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "decoded node from jrb %d:%s:%s",
-				i_host_proto, s_host_name, s_host_port);
+			i_host_proto, s_host_name, s_host_port);
 	}
 	/*
 	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_LATENCY))) {
-		new_node->latency = ele->val.value.d;
+	new_node->latency = ele->val.value.d;
 	}
 	if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_SUCCESS_AVG))) {
-		new_node->success_avg = ele->val.value.f;
+	new_node->success_avg = ele->val.value.f;
 	}
 	*/
 	ref_replace_reason(np_node_t, new_node, ref_obj_creation, __func__);
+
+	return (new_node);
+}
+
+np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e expected_type)
+{
+	if (FLAG_CMP(token->type, expected_type) == FALSE) {
+		log_debug_msg(LOG_DEBUG, "## decoding node from token str: %s", token->subject);
+		return NULL;
+	}
+
+	//snprintf(node_subject, 255, _NP_URN_NODE_PREFIX "%s:%s:%s",
+	//	_np_network_get_protocol_string(source_node->protocol), source_node->dns_name, source_node->port);
+	char* details = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)], sizeof(token->subject) - strlen(_NP_URN_NODE_PREFIX));
+	char* detail_data = details;
+
+	log_debug_msg(LOG_DEBUG, "#  decoding node from token str: %s", details);
+
+	// MANDATORY paramter
+	uint8_t i_host_proto = UNKNOWN_PROTO;
+	char* s_host_proto = strtok(details, ":");
+	char* s_host_name  = strtok(NULL,    ":");
+	char* s_host_port  = strtok(NULL,    ":");
+
+	if (s_host_proto != NULL) {
+		i_host_proto = _np_network_parse_protocol_string(s_host_proto);
+	} 
+	if (i_host_proto == UNKNOWN_PROTO || s_host_name == NULL || s_host_port == NULL) {
+		free(details);
+		return NULL;
+	}
+	
+	np_node_t* new_node = NULL;
+	np_new_obj(np_node_t, new_node);
+	 
+	_np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
+	log_debug_msg(LOG_DEBUG, "decoded node from token %d:%s:%s",
+				  i_host_proto, s_host_name, s_host_port);
+	  
+	ref_replace_reason(np_node_t, new_node, ref_obj_creation, __func__);
+	free(details);
 
 	return (new_node);
 }
@@ -284,7 +326,7 @@ np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
 {
 	log_msg(LOG_TRACE, "start: np_key_t* _np_key_create_from_token(np_aaatoken_t* token){");
 	// TODO: check whether metadata is used as a hash key in general
-	np_dhkey_t search_key = _np_aaatoken_create_dhkey(token);
+	np_dhkey_t search_key = np_aaatoken_get_fingerprint(token);
 	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
 	
 	if (NULL == node_key->node && token->extensions != NULL && token->extensions->size > 0){
@@ -307,7 +349,8 @@ np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
 	return (node_key);
 }
 int _np_node_cmp(np_node_t* a, np_node_t* b) {
-	int ret = a == NULL || b == NULL ;
+
+	int ret = ( (a == NULL) || (b == NULL) );
 	
 	if (ret == 0) {
 		ret = strcmp(a->dns_name, b->dns_name);
@@ -325,31 +368,6 @@ int _np_node_cmp(np_node_t* a, np_node_t* b) {
 	return ret;
 }
 
-np_aaatoken_t* _np_node_create_token(np_node_t* source_node)
-{
-	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_node_create_token(np_node_t* source_node){");
-
-	int rand_interval = ((int)randombytes_uniform(NODE_MAX_TTL_SEC - NODE_MIN_TTL_SEC) + NODE_MIN_TTL_SEC);
-	double expires_at = np_time_now() + rand_interval;
-
-	char node_subject[255];
-	snprintf(node_subject, 255, "urn:np:node:%s:%s:%s",
-		_np_network_get_protocol_string(source_node->protocol), source_node->dns_name, source_node->port);
-
-	char issuer[64] = { 0 };
-	if (np_state() != NULL && np_state()->my_identity != NULL && 
-		_np_node_cmp(np_state()->my_identity->node , source_node) != 0) {
-
-		strncpy(issuer,_np_key_as_str(np_state()->my_identity),64);
-	}
-	else {
-		strncpy(issuer, node_subject, 64);
-	}
-
-	np_aaatoken_t* ret = _np_aaatoken_new(issuer, node_subject, expires_at);
-
-	return (ret);
-}
 
 void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 {

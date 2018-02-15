@@ -10,10 +10,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 // sends a handshake message to the target node, assumes physical neighbourhood
 NP_API_INTERN
-void _np_out_handshake(np_jobargs_t* args);
+void _np_out_handshake(np_jobargs_t* args); 
 // splits up message into parts and sends all parts to the next node
 NP_API_INTERN
 void _np_out (np_jobargs_t* args);

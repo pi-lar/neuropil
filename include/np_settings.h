@@ -12,7 +12,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-	
+
 /*
 	Additional compile switches:
 	 - NP_MEMORY_CHECK_MEMORY_REFFING	(NP_THREADS_CHECK_THREADING should be disabled if this switch is enabled)
@@ -23,7 +23,7 @@ extern "C" {
 */
 #ifdef DEBUG
 	#define DEBUG_CALLBACKS 1
-	//#define NP_MEMORY_CHECK_MEMORY_REFFING 1
+	#define NP_MEMORY_CHECK_MEMORY_REFFING 1
 	//#define NP_THREADS_CHECK_THREADING 1
 #endif // DEBUG
 
@@ -125,7 +125,7 @@ extern "C" {
 #ifndef MISC_SEND_PINGS_SEC
 	#define MISC_SEND_PINGS_SEC (13.1415)
 #endif
-	
+
 
 #ifndef GOOD_LINK
 	#define GOOD_LINK 0.7
@@ -148,22 +148,22 @@ extern "C" {
 
 #ifndef PRIORITY_MOD_LEVEL_0_SHOULD_HAVE_OWN_THREAD
 #define PRIORITY_MOD_LEVEL_0_SHOULD_HAVE_OWN_THREAD (TRUE)
-#endif													
+#endif
 #ifndef PRIORITY_MOD_LEVEL_1_SHOULD_HAVE_OWN_THREAD
 #define PRIORITY_MOD_LEVEL_1_SHOULD_HAVE_OWN_THREAD (TRUE)
-#endif						
+#endif
 #ifndef PRIORITY_MOD_LEVEL_2_SHOULD_HAVE_OWN_THREAD
 #define PRIORITY_MOD_LEVEL_2_SHOULD_HAVE_OWN_THREAD (TRUE)
-#endif													
+#endif
 #ifndef PRIORITY_MOD_LEVEL_3_SHOULD_HAVE_OWN_THREAD
 #define PRIORITY_MOD_LEVEL_3_SHOULD_HAVE_OWN_THREAD (TRUE)
-#endif													
+#endif
 #ifndef PRIORITY_MOD_LEVEL_4_SHOULD_HAVE_OWN_THREAD
 #define PRIORITY_MOD_LEVEL_4_SHOULD_HAVE_OWN_THREAD (TRUE)
-#endif													
+#endif
 #ifndef PRIORITY_MOD_LEVEL_5_SHOULD_HAVE_OWN_THREAD
 #define PRIORITY_MOD_LEVEL_5_SHOULD_HAVE_OWN_THREAD (TRUE)
-#endif													
+#endif
 #ifndef PRIORITY_MOD_LEVEL_6_SHOULD_HAVE_OWN_THREAD
 #define PRIORITY_MOD_LEVEL_6_SHOULD_HAVE_OWN_THREAD (TRUE)
 #endif
@@ -205,7 +205,7 @@ extern "C" {
 		#define LOG_ROW_SIZE (5000)
 #endif
 
-#ifndef LOG_ROTATE_AFTER_BYTES	
+#ifndef LOG_ROTATE_AFTER_BYTES
 		#define LOG_ROTATE_AFTER_BYTES (1000000	/* 10 MB */)
 #endif
 
@@ -218,11 +218,11 @@ extern "C" {
 #endif
 
 #ifndef NP_NETWORK_MAX_MSGS_PER_SCAN
-	#define NP_NETWORK_MAX_MSGS_PER_SCAN (10) 
+	#define NP_NETWORK_MAX_MSGS_PER_SCAN (10)
 #endif
- // indirect #define NP_NETWORK_MAX_BYTES_PER_SCAN (NP_NETWORK_MAX_MSGS_PER_SCAN*1024) 
-#ifndef NETWORK_RECEIVING_TIMEOUT_SEC 
-	#define NETWORK_RECEIVING_TIMEOUT_SEC (0.031415) 
+ // indirect #define NP_NETWORK_MAX_BYTES_PER_SCAN (NP_NETWORK_MAX_MSGS_PER_SCAN*1024)
+#ifndef NETWORK_RECEIVING_TIMEOUT_SEC
+	#define NETWORK_RECEIVING_TIMEOUT_SEC (0.031415)
 #endif
 
 
@@ -253,7 +253,7 @@ extern "C" {
 
 
 #ifndef NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK
-	#define NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK (!defined(__APPLE__) || !defined(__MACH__ ) ) 
+	#define NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK (!defined(__APPLE__) || !defined(__MACH__ ) )
 #endif
 
 

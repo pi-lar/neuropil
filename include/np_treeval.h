@@ -49,33 +49,33 @@ Fax: 865-974-4404
 #include "np_memory.h"
 #include "np_types.h"
 
-enum {
-	none_type = 0,
-    short_type,
-	int_type,
-	long_type,
-	long_long_type,
-	float_type, // 5
-	double_type, //
-	char_ptr_type,
-    char_type,
-	unsigned_char_type,
-    unsigned_short_type, // 10
-    unsigned_int_type,
-    unsigned_long_type, //
-    unsigned_long_long_type,
-    uint_array_2_type,
-    float_array_2_type, // 15
-    char_array_8_type,
-    unsigned_char_array_8_type, //
-    void_type,
-    bin_type,
-	jrb_tree_type,  // 20
-	dhkey_type,
-	hash_type,
-	npobj_type,
-	npval_count,
-	special_char_ptr_type,
+enum np_treeval_type_t {
+	np_treeval_type_undefined = 0,
+    np_treeval_type_short,
+	np_treeval_type_int,
+	np_treeval_type_long,
+	np_treeval_type_long_long,
+	np_treeval_type_float, // 5
+	np_treeval_type_double, //
+	np_treeval_type_char_ptr,
+    np_treeval_type_char,
+	np_treeval_type_unsigned_char,
+    np_treeval_type_unsigned_short, // 10
+    np_treeval_type_unsigned_int,
+    np_treeval_type_unsigned_long, //
+    np_treeval_type_unsigned_long_long,
+    np_treeval_type_uint_array_2,
+    np_treeval_type_float_array_2, // 15
+    np_treeval_type_char_array_8,
+    np_treeval_type_unsigned_char_array_8, //
+    np_treeval_type_void,
+    np_treeval_type_bin,
+	np_treeval_type_jrb_tree,  // 20
+	np_treeval_type_dhkey,
+	np_treeval_type_hash,
+	np_treeval_type_npobj,
+	np_treeval_type_npval_count,
+	np_treeval_type_special_char_ptr,
 } np_treeval_type_t;
 
 /* The Jval -- a type that can hold any type */
@@ -149,11 +149,11 @@ np_treeval_t np_treeval_new_carray_nnt (char * carray);	/* Carray is not null te
 np_treeval_t np_treeval_new_tree(np_tree_t* tree);
 np_treeval_t np_treeval_new_hash(char* h_val);
 np_treeval_t np_treeval_new_pwhash (char *pw_key);
-np_treeval_t np_treeval_new_key(np_dhkey_t dhkey);
+np_treeval_t np_treeval_new_dhkey(np_dhkey_t dhkey);
 np_treeval_t np_treeval_new_obj(np_obj_t* obj);
 uint32_t np_treeval_get_byte_size(np_treeval_t ele);
 
-np_treeval_t np_treeval_NULL;
+extern np_treeval_t np_treeval_NULL;
 
 int16_t  np_treeval_i (np_treeval_t);
 int32_t  np_treeval_l (np_treeval_t);

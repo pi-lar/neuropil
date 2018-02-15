@@ -336,7 +336,7 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 							break;
 						}
 						else {
-							unsigned char* enc_buffer = np_memory_new(np_memory_types_BLOB_1024); //malloc (MSG_CHUNK_SIZE_1024);
+							unsigned char* enc_buffer = np_memory_new(np_memory_types_BLOB_1024);
 							
 							uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
 							memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
@@ -700,7 +700,8 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			alias_key_ref_reason = "_np_keycache_find";
 			if (NULL == alias_key) {
 				alias_key = _np_keycache_create(search_key);
-				alias_key_ref_reason = "_np_keycache_create";
+				alias_key_ref_reason = "_np_keycache_create"; 
+				alias_key->type |= np_key_type_alias;				
 				np_ref_obj(np_key_t, key, ref_key_parent);
 				alias_key->parent = key;				
 			}

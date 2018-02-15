@@ -47,7 +47,7 @@
 NP_SLL_GENERATE_IMPLEMENTATION(np_msgproperty_ptr);
 
 #include "np_msgproperty_init.c"
- 
+
 // required to properly link inline in debug mode
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mode_type, np_msg_mode_type);
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mep_type, np_msg_mep_type);
@@ -78,7 +78,7 @@ np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, NP_UNU
 		goto __np_return__;
 
 		__np_cleanup__:
-		log_msg(LOG_WARN, "cannot ack msg %s (%s)", msg->uuid, msg->msg_property->msg_subject);		
+		log_msg(LOG_WARN, "cannot ack msg %s (%s)", msg->uuid, msg->msg_property->msg_subject);
 	}
 
 	__np_return__:
@@ -99,7 +99,7 @@ np_bool _np_msgproperty_init ()
 	RB_INIT(__msgproperty_table);
 
 	// NEUROPIL_INTERN_MESSAGES
-	
+
 	np_sll_t(np_msgproperty_ptr, msgproperties);
 	msgproperties  = default_msgproperties();
 	sll_iterator(np_msgproperty_ptr) __np_internal_messages =  sll_first(msgproperties);
@@ -107,7 +107,7 @@ np_bool _np_msgproperty_init ()
 	while(__np_internal_messages != NULL)
 	{
 		np_msgproperty_t* property = __np_internal_messages->val;
-		property->is_internal = TRUE;		
+		property->is_internal = TRUE;
 
 		if (strlen(property->msg_subject) > 0)
 		{
@@ -121,10 +121,10 @@ np_bool _np_msgproperty_init ()
 		}
 
 		sll_next(__np_internal_messages);
-	}	
+	}
 
 	sll_free(np_msgproperty_ptr, msgproperties);
-	
+
 	return TRUE;
 }
 
@@ -169,7 +169,7 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 	else if (prop1->mode_type == prop2->mode_type) ret =  (0);		// Is it the same bitmask ?
 	else if (0 < (prop1->mode_type & prop2->mode_type)) ret = (0);	// for searching: Are some test bits set ?
 	else if (prop1->mode_type > prop2->mode_type)  ret = ( 1);		// for sorting / inserting different entries
-	else if (prop1->mode_type < prop2->mode_type)  ret = (-1);		
+	else if (prop1->mode_type < prop2->mode_type)  ret = (-1);
 
 	return ret;
 }
@@ -186,7 +186,7 @@ void np_msgproperty_register(np_msgproperty_t* msgprops)
 		_np_send_subject_discovery_messages(OUTBOUND, msgprops->msg_subject);
 	}else if ((msgprops->mode_type & INBOUND) == INBOUND) {
 		_np_send_subject_discovery_messages(INBOUND, msgprops->msg_subject);
-	}	
+	}
 }
 
 void _np_msgproperty_t_new(void* property)
@@ -220,7 +220,7 @@ void _np_msgproperty_t_new(void* property)
 	sll_init(np_callback_t, prop->clb_route);
 
 	sll_append(np_callback_t, prop->clb_outbound, _np_out);
-	sll_append(np_callback_t, prop->clb_route, _np_glia_route_lookup);	
+	sll_append(np_callback_t, prop->clb_route, _np_glia_route_lookup);
 
 	sll_init(np_usercallback_t, prop->user_receive_clb);
 	sll_init(np_usercallback_t, prop->user_send_clb);
@@ -234,7 +234,9 @@ void _np_msgproperty_t_new(void* property)
 	_np_threads_condition_init_shared(&prop->msg_received);
 
 	_np_threads_mutex_init(&prop->unique_uuids_lock, "unique_uuids_lock");
-	np_msgproperty_enable_check_for_unique_uuids(prop);	
+	np_msgproperty_enable_check_for_unique_uuids(prop);
+	prop->recv_key = NULL;
+	prop->send_key = NULL;
 }
 void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self) {
 	_LOCK_ACCESS(&self->unique_uuids_lock) {
@@ -254,9 +256,9 @@ np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self,  np_message_t
 	np_bool ret = TRUE;
 	_LOCK_ACCESS(&self->unique_uuids_lock) {
 		if (self->unique_uuids_check) {
-			
-			if (np_tree_find_str(self->unique_uuids, msg_to_check->uuid) == NULL) {				
-				np_tree_insert_str(self->unique_uuids, msg_to_check->uuid, np_treeval_new_d(_np_message_get_expiery(msg_to_check)));					
+
+			if (np_tree_find_str(self->unique_uuids, msg_to_check->uuid) == NULL) {
+				np_tree_insert_str(self->unique_uuids, msg_to_check->uuid, np_treeval_new_d(_np_message_get_expiery(msg_to_check)));
 			}
 			else {
 				ret = FALSE;
@@ -270,14 +272,14 @@ void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args) {
 	//TODO: iter over msgproeprties and remove expired msg uuid from unique_uuids
 
 	//RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
-	
+
 	np_msgproperty_t* iter_prop = NULL;
 	double now;
 	RB_FOREACH(iter_prop, rbt_msgproperty, __msgproperty_table)
 	{
 		_LOCK_ACCESS(&iter_prop->unique_uuids_lock) {
 			if (iter_prop->unique_uuids_check) {
-				
+
 				sll_init_full(char_ptr, to_remove);
 				np_tree_elem_t* iter_tree = NULL;
 				now = np_time_now();
@@ -288,7 +290,7 @@ void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args) {
 						sll_append(char_ptr, to_remove, iter_tree->key.value.s);
 					}
 				}
-					
+
 				sll_iterator(char_ptr) iter_to_rm = sll_first(to_remove);
 				if(iter_to_rm != NULL){
 					log_debug_msg(LOG_DEBUG | LOG_MSGPROPERTY ,"UNIQUITY removing %"PRIu32" from %"PRIu16" items from unique_uuids for %s", sll_size(to_remove), iter_prop->unique_uuids->size, iter_prop->msg_subject);
@@ -339,7 +341,7 @@ void _np_msgproperty_t_del(void* property)
 		sll_free(np_callback_t, prop->clb_transform);
 		sll_free(np_callback_t, prop->clb_route);
 		sll_free(np_callback_t, prop->clb_outbound);
-		sll_free(np_callback_t, prop->clb_inbound);		
+		sll_free(np_callback_t, prop->clb_inbound);
 
 		TSP_DESTROY(uint16_t, prop->msg_threshold);
 
@@ -488,11 +490,11 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop) {
 			sll_iterator(np_message_ptr) old_iter = iter_prop_msg_cache_in;
 			sll_next(iter_prop_msg_cache_in); // we need to iterate before we delete the old iter
 			np_message_t* old_msg = old_iter->val;
-			if (_np_message_is_expired(old_msg)) {				
+			if (_np_message_is_expired(old_msg)) {
 				sll_delete(np_message_ptr, msg_prop->msg_cache_in, old_iter);
 				np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
 				_np_msgproperty_threshold_decrease(msg_prop);
-			}			
+			}
 		}
 	}
 }

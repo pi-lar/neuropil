@@ -44,6 +44,8 @@ extern "C" {
 #endif
 
 
+#define FLAG_CMP(data,flag) (((data) & (flag)) == (flag))
+
 #ifdef DEBUG
 #define ASSERT(expression, onfail_msg, ...)												\
 	if(!(expression)){																	\
@@ -53,7 +55,10 @@ extern "C" {
 		assert((expression));															\
 	}																						 
 #else
-#define ASSERT(expression, onfail_msg, ...)
+#define ASSERT(expression, onfail_msg, ...)												\
+	if (!(expression)) {																\
+			log_debug_msg(LOG_ERROR, onfail_msg, ##__VA_ARGS__);						\
+	}
 #endif
 
 #define NP_GENERATE_THREADSAFE_PROPERTY_PROTOTYPE(TYPE, PROPERTY_NAME)					\

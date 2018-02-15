@@ -25,8 +25,6 @@ void _np_cleanup_keycache_jobexec(np_jobargs_t* args);
 // other helper functions
 void _np_send_rowinfo_jobexec (np_jobargs_t* args);
 
-np_aaatoken_t* _np_create_msg_token(np_msgproperty_t* msg_request);
-
 void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject);
 void _np_send_msg_interest(const char* subject);
 void _np_send_msg_availability(const char* subject);

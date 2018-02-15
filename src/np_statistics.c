@@ -13,6 +13,7 @@
 #include "np_list.h"
 #include "np_route.h"
 #include "np_util.h"
+#include "np_key.h"
 
 #include "np_statistics.h"
 
@@ -286,8 +287,7 @@ char * np_statistics_print(np_bool asOneLine) {
 				current_min_send, container->last_mindiff_send,
 				iter_subjects->val, new_line
 			);
-		}
-
+		}		
 		container->last_total_received = container->total_received;
 		container->last_total_send = container->total_send;
 
@@ -307,12 +307,12 @@ char * np_statistics_print(np_bool asOneLine) {
 	for (uint32_t i = 0; i < ( sizeof(minimize)/sizeof(uint32_t) ); i++) {
 		sprintf(s, "%d", minimize[i]);
 		tenth = max(tenth, strlen(s));
-	}
-	
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "received total:", tenth);
-	ret = np_str_concatAndFree(ret, tmp_format, all_total_received, new_line);
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "send     total:", tenth);
-	ret = np_str_concatAndFree(ret, tmp_format, all_total_send, new_line);
+	}	
+
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Node:     %%s%%s", "received total:", tenth);
+	ret = np_str_concatAndFree(ret, tmp_format, all_total_received, _np_key_as_str(np_state()->my_node_key), new_line);
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Identity: %%s%%s", "send     total:", tenth);
+	ret = np_str_concatAndFree(ret, tmp_format, all_total_send, ((np_state()->my_identity == NULL) ? "-" :_np_key_as_str(np_state()->my_identity)), new_line);
 
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "total:", tenth);
 	ret = np_str_concatAndFree(ret, tmp_format, all_total_send+ all_total_received, new_line);

@@ -74,11 +74,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	np_statistics_add_watch_internals();
-	np_statistics_add_watch(_NP_SYSINFO_REQUEST);
-	np_statistics_add_watch(_NP_SYSINFO_REPLY);
-
-
 	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
 
@@ -86,15 +81,15 @@ int main(int argc, char **argv)
 	{
 		fprintf(stdout, "try to join %s\n", j_key);
 		np_send_join(j_key);
-		fprintf(stdout, "wait for join acceptance...");
+		//fprintf(stdout, "wait for join acceptance...");
 	}
 	else {
-		fprintf(stdout, "wait for nodes to join...");
+		//fprintf(stdout, "wait for nodes to join...");
 	}
-	
+
 	fflush(NULL);
-	np_waitforjoin();
-	fprintf(stdout, "Connected\n");
+	//np_waitforjoin();
+	//fprintf(stdout, "Connected\n");
 
 	__np_example_helper_run_info_loop();
 }

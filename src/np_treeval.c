@@ -17,141 +17,129 @@
 #include "np_dhkey.h"
 #include "np_tree.h"
 
-np_treeval_t np_treeval_NULL = { .type = none_type, .size=0 };
+np_treeval_t np_treeval_NULL = { .type = np_treeval_type_undefined, .size=0 };
 
 np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
     log_msg(LOG_TRACE, "start: np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {");
 	np_treeval_t to;
 	switch (from.type) {
 	// length is always 1 (to identify the type) + the length of the type
-	case short_type:
-		to.type = short_type;
+	case np_treeval_type_short:
+		to.type = np_treeval_type_short;
 		to.value.sh = from.value.sh;
 		to.size = sizeof(int8_t);
 		break;
-	case int_type:
-		to.type = int_type;
+	case np_treeval_type_int:
+		to.type = np_treeval_type_int;
 		to.value.i = from.value.i;
 		to.size = sizeof(int16_t);
 		break;
-	case long_type:
-		to.type = long_type;
+	case np_treeval_type_long:
+		to.type = np_treeval_type_long;
 		to.value.l = from.value.l;
 		to.size = sizeof(int32_t);
 		break;
 #ifdef x64
-	case long_long_type:
-		to.type = long_long_type;
+	case np_treeval_type_long_long:
+		to.type = np_treeval_type_long_long;
 		to.value.ll = from.value.ll;
 		to.size = sizeof(int64_t);
 		break;
 #endif
-	case float_type:
-		to.type = float_type;
+	case np_treeval_type_float:
+		to.type = np_treeval_type_float;
 		to.value.f = from.value.f;
 		to.size = sizeof(float);
 		break;
-	case double_type:
-		to.type = double_type;
+	case np_treeval_type_double:
+		to.type = np_treeval_type_double;
 		to.value.d = from.value.d;
 		to.size = sizeof(double);
 		break;
-	case char_ptr_type:
-		to.type = char_ptr_type;
+	case np_treeval_type_char_ptr:
+		to.type = np_treeval_type_char_ptr;
 		to.value.s = strndup(from.value.s, strlen(from.value.s));
 		to.size = strlen(from.value.s);
 		// log_debug_msg(LOG_DEBUG, "copy str %s %hd", to.value.s, to.size);
 		break;
-	case special_char_ptr_type:
-		to.type = special_char_ptr_type;		
+	case np_treeval_type_special_char_ptr:
+		to.type = np_treeval_type_special_char_ptr;		
 		to.value.ush = from.value.ush;
 		to.size = sizeof(uint8_t);
 		break;
-	case char_type:
-		to.type = char_type;
+	case np_treeval_type_char:
+		to.type = np_treeval_type_char;
 		to.value.c = from.value.c;
 		to.size = sizeof(char);
 		break;
-	case unsigned_char_type:
-		to.type = unsigned_char_type;
+	case np_treeval_type_unsigned_char:
+		to.type = np_treeval_type_unsigned_char;
 		to.value.uc = from.value.uc;
 		to.size = sizeof(unsigned char);
 		break;
-	case unsigned_short_type:
-		to.type = unsigned_short_type;
+	case np_treeval_type_unsigned_short:
+		to.type = np_treeval_type_unsigned_short;
 		to.value.ush = from.value.ush;
 		to.size = sizeof(uint8_t);
 		break;
-	case unsigned_int_type:
-		to.type = unsigned_int_type;
+	case np_treeval_type_unsigned_int:
+		to.type = np_treeval_type_unsigned_int;
 		to.value.ui = from.value.ui;
 		to.size = sizeof(uint16_t);
 		break;
-	case unsigned_long_type:
-		to.type = unsigned_long_type;
+	case np_treeval_type_unsigned_long:
+		to.type = np_treeval_type_unsigned_long;
 		to.value.ul = from.value.ul;
 		to.size = sizeof(uint32_t);
 		break;
 #ifdef x64
-	case unsigned_long_long_type:
-		to.type = unsigned_long_long_type;
+	case np_treeval_type_unsigned_long_long:
+		to.type = np_treeval_type_unsigned_long_long;
 		to.value.ull = from.value.ull;
 		to.size = sizeof(uint64_t);
 		break;
 #endif
-	case uint_array_2_type:
-		to.type = uint_array_2_type;
+	case np_treeval_type_uint_array_2:
+		to.type = np_treeval_type_uint_array_2;
 		to.value.a2_ui[0] = from.value.a2_ui[0];
 		to.value.a2_ui[1] = from.value.a2_ui[1];
 		to.size = 2 * sizeof(uint16_t);
 		break;
-		// 		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
-		// 		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
-		// 		case unsigned_char_array_8_type: byte_size += 1 +8*sizeof(unsigned char); break;
-	case bin_type:
-		// if (0 < to.size && bin_type == to.type) free (to.value.bin);
-		to.type = bin_type;
+		// 		case np_treeval_type_float_array_2:  byte_size += 1 + 2*sizeof(float); break;
+		// 		case np_treeval_type_char_array_8:   byte_size += 1 + 8*sizeof(char); break;
+		// 		case np_treeval_type_unsigned_char_array_8: byte_size += 1 +8*sizeof(unsigned char); break;
+	case np_treeval_type_bin:
+		to.type = np_treeval_type_bin;
 		to.value.bin = malloc(from.size);
-		CHECK_MALLOC(to.value.bin)
-		;
-		memset(to.value.bin, 0, from.size);
+		CHECK_MALLOC(to.value.bin);
 		memcpy(to.value.bin, from.value.bin, from.size);
 		to.size = from.size;
 		break;
-	case jrb_tree_type:
-		to.type = jrb_tree_type;
+	case np_treeval_type_jrb_tree:
+		to.type = np_treeval_type_jrb_tree;
 		to.size = from.size;
 		to.value.tree = np_tree_clone(from.value.tree);
 		break;
-	case dhkey_type:
-		to.type = dhkey_type;
-		to.value.dhkey.t[0] = from.value.dhkey.t[0];
-		to.value.dhkey.t[1] = from.value.dhkey.t[1];
-		to.value.dhkey.t[2] = from.value.dhkey.t[2];
-		to.value.dhkey.t[3] = from.value.dhkey.t[3];
-		to.value.dhkey.t[4] = from.value.dhkey.t[4];
-		to.value.dhkey.t[5] = from.value.dhkey.t[5];
-		to.value.dhkey.t[6] = from.value.dhkey.t[6];
-		to.value.dhkey.t[7] = from.value.dhkey.t[7];
+	case np_treeval_type_dhkey:
+		to.type = np_treeval_type_dhkey;
+		memcpy(&to.value.dhkey, &from.value.dhkey, sizeof(np_dhkey_t));
 		to.size = sizeof(np_dhkey_t);
 		break;
-	case hash_type:
-		to.type = bin_type;
+	case np_treeval_type_hash:
+		to.type = np_treeval_type_hash;
 		to.value.bin = malloc(from.size);
 		CHECK_MALLOC(to.value.bin)
-		;
-
-		memset(to.value.bin, 0, from.size);
+		
 		memcpy(to.value.bin, from.value.bin, from.size);
 		to.size = from.size;
 		break;
-	case void_type:
-		to.type = void_type;
+	case np_treeval_type_void:
+		to.type = np_treeval_type_void;
 		to.value.v = from.value.v;
 		to.size = from.size;
 		break;
 	default:
-		to.type = none_type;
+		to.type = np_treeval_type_undefined;
 		log_msg(LOG_WARN, "unsupported copy operation for np_treeval type %hhd",
 				from.type);
 		break;
@@ -169,7 +157,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
 	if(freeable  != NULL) *freeable = FALSE;
 	switch(val.type) {
 		// length is always 1 (to identify the type) + the length of the type
-  		case short_type:
+  		case np_treeval_type_short:
   			len = snprintf(NULL, 0, "%d", val.value.sh);
   			if (0 < len) {
   				result = malloc(len+1);
@@ -178,7 +166,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   				snprintf(result, len+1, "%d", val.value.sh);
   			}
   			break;
-		case int_type:
+		case np_treeval_type_int:
   			len = snprintf(NULL, 0, "%d", val.value.i);
   			if (0 < len) {
   				result = malloc(len+1);
@@ -187,7 +175,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   				snprintf(result, len+1, "%d", val.value.i);
   			}
 			break;
-		case long_type:
+		case np_treeval_type_long:
   			len = snprintf(NULL, 0, "%d", val.value.l);
   			if (0 < len) {
   				result = malloc(len+1);
@@ -197,7 +185,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			}
 			break;
 #ifdef x64
-		case long_long_type:
+		case np_treeval_type_long_long:
   			len = snprintf(NULL, 0, "%llu", val.value.ll);
   			if (0 < len) {
   				result = malloc(len+1);
@@ -207,7 +195,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			}
 			break;
 #endif
- 		case float_type:
+ 		case np_treeval_type_float:
   			len = snprintf(NULL, 0, "%f", val.value.f);
   			if (0 < len) {
   				result = malloc(len+1);
@@ -216,7 +204,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   				snprintf(result, len+1, "%f", val.value.f);
   			}
 			break;
-		case double_type:
+		case np_treeval_type_double:
   			len = snprintf(NULL, 0, "%f", val.value.d);
   			if (0 < len) {
   				result = malloc(len+1);
@@ -225,17 +213,17 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   				snprintf(result, len+1, "%f", val.value.d);
   			}
 			break;
-		case char_ptr_type:
+		case np_treeval_type_char_ptr:
 			return val.value.s;
 			break;
-		case special_char_ptr_type:
+		case np_treeval_type_special_char_ptr:
   			return (char*) _np_tree_get_special_str(val.value.ush);
 			break;
-		case char_type:
-		case unsigned_char_type:
+		case np_treeval_type_char:
+		case np_treeval_type_unsigned_char:
   			return &val.value.c;
 			break;
- 		case unsigned_short_type:
+ 		case np_treeval_type_unsigned_short:
   			len = snprintf(NULL, 0, "%u", val.value.ush);
   			if (0 < len) {
   				result = malloc(len+1);
@@ -244,7 +232,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   				snprintf(result, len+1, "%u", val.value.ush);
   			}
  			break;
- 		case unsigned_int_type:
+ 		case np_treeval_type_unsigned_int:
   			len = snprintf(NULL, 0, "%u", val.value.ui);
   			if (0 < len) {
   				result = malloc(len+1);
@@ -253,7 +241,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   				snprintf(result, len+1, "%u", val.value.ui);
   			}
 			break;
-		case unsigned_long_type:
+		case np_treeval_type_unsigned_long:
   			len = snprintf(NULL, 0, "%u", val.value.ul);
   			if (0 < len) {
   				result = malloc(len+1);
@@ -263,7 +251,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			}
 			break;
 #ifdef x64
-		case unsigned_long_long_type:
+		case np_treeval_type_unsigned_long_long:
   			len = snprintf(NULL, 0, "%"PRIu64, val.value.ull);
   			if (0 < len) {
   				result = malloc(len+1);
@@ -273,7 +261,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			}
 			break;
 #endif
- 		case uint_array_2_type:
+ 		case np_treeval_type_uint_array_2:
   			len = snprintf(NULL, 0, "%u%u", val.value.a2_ui[0], val.value.a2_ui[1]);
   			if (0 < len) {
   				result = malloc(len+1);
@@ -282,20 +270,20 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   				snprintf(result, len+1, "%u%u", val.value.a2_ui[0], val.value.a2_ui[1]);
   			}
  			break;
-// 		case float_array_2_type:  byte_size += 1 + 2*sizeof(float); break;
-// 		case char_array_8_type:   byte_size += 1 + 8*sizeof(char); break;
-// 		case unsigned_char_array_8_type: byte_size += 1 +8*sizeof(unsigned char); break;
- 		case void_type:
+// 		case np_treeval_type_float_array_2:  byte_size += 1 + 2*sizeof(float); break;
+// 		case np_treeval_type_char_array_8:   byte_size += 1 + 8*sizeof(char); break;
+// 		case np_treeval_type_unsigned_char_array_8: byte_size += 1 +8*sizeof(unsigned char); break;
+ 		case np_treeval_type_void:
  			return "--> pointer";
 			break;
- 		case hash_type:
- 		case bin_type:
+ 		case np_treeval_type_hash:
+ 		case np_treeval_type_bin:
  			return "--> binary content";
 			break;
- 		case jrb_tree_type:
+ 		case np_treeval_type_jrb_tree:
 			return "--> subtree";
 			break;
-		case dhkey_type:
+		case np_treeval_type_dhkey:
 			result = malloc(64);
 			CHECK_MALLOC(result);
 			if (freeable != NULL) *freeable = TRUE;
@@ -312,7 +300,7 @@ np_treeval_t np_treeval_new_i (int16_t i)
 {
     np_treeval_t j;
     j.value.i = i;
-    j.type = int_type;
+    j.type = np_treeval_type_int;
     j.size = sizeof(int16_t);
     return j;
 }
@@ -321,7 +309,7 @@ np_treeval_t np_treeval_new_l (int32_t l)
 {
     np_treeval_t j;
     j.value.l = l;
-    j.type = long_type;
+    j.type = np_treeval_type_long;
     j.size = sizeof(int32_t);
     return j;
 }
@@ -330,7 +318,7 @@ np_treeval_t np_treeval_new_ll (int64_t ll)
 {
     np_treeval_t j;
     j.value.ll = ll;
-    j.type = long_long_type;
+    j.type = np_treeval_type_long_long;
     j.size = sizeof(int64_t);
     return j;
 }
@@ -339,7 +327,7 @@ np_treeval_t np_treeval_new_f (float f)
 {
     np_treeval_t j;
     j.value.f = f;
-    j.type = float_type;
+    j.type = np_treeval_type_float;
     j.size = sizeof(float);
     return j;
 }
@@ -348,7 +336,7 @@ np_treeval_t np_treeval_new_d (double d)
 {
     np_treeval_t j;
     j.value.d = d;
-    j.type = double_type;
+    j.type = np_treeval_type_double;
     j.size = sizeof(double);
     return j;
 }
@@ -357,7 +345,7 @@ np_treeval_t np_treeval_new_v (void *v)
 {
     np_treeval_t j;
     j.value.v = v;
-    j.type = void_type;
+    j.type = np_treeval_type_void;
     return j;
 }
 
@@ -372,7 +360,7 @@ np_treeval_t np_treeval_new_s(char *s)
 	else {
 		j.size = strlen(s);
 		j.value.s = s; // strndup(s, j.size);
-		j.type = char_ptr_type;
+		j.type = np_treeval_type_char_ptr;
 	}
 	return j;
 }
@@ -383,7 +371,7 @@ np_treeval_t np_treeval_new_ss(uint8_t idx)
 	
 	j.size = sizeof(uint8_t);
 	j.value.ush = idx;
-	j.type = special_char_ptr_type;
+	j.type = np_treeval_type_special_char_ptr;
 
 	return j;
 }
@@ -392,7 +380,7 @@ np_treeval_t np_treeval_new_c (char c)
 {
     np_treeval_t j;
     j.value.c = c;
-    j.type = char_type;
+    j.type = np_treeval_type_char;
     j.size = sizeof(char);
     return j;
 }
@@ -401,7 +389,7 @@ np_treeval_t np_treeval_new_uc (unsigned char uc)
 {
     np_treeval_t j;
     j.value.uc = uc;
-    j.type = unsigned_char_type;
+    j.type = np_treeval_type_unsigned_char;
     j.size = sizeof(unsigned char);
     return j;
 }
@@ -410,7 +398,7 @@ np_treeval_t np_treeval_new_sh (int8_t sh)
 {
     np_treeval_t j;
     j.value.sh = sh;
-    j.type = short_type;
+    j.type = np_treeval_type_short;
     j.size = sizeof(int8_t);
     return j;
 }
@@ -419,7 +407,7 @@ np_treeval_t np_treeval_new_ush (uint8_t ush)
 {
     np_treeval_t j;
     j.value.ush = ush;
-    j.type = unsigned_short_type;
+    j.type = np_treeval_type_unsigned_short;
     j.size = sizeof(uint8_t);
     return j;
 }
@@ -428,7 +416,7 @@ np_treeval_t np_treeval_new_ui (uint16_t i)
 {
     np_treeval_t j;
     j.value.ui = i;
-    j.type = unsigned_int_type;
+    j.type = np_treeval_type_unsigned_int;
     j.size = sizeof(uint16_t);
     return j;
 }
@@ -437,7 +425,7 @@ np_treeval_t np_treeval_new_ul (uint32_t ul)
 {
     np_treeval_t j;
     j.value.ul = ul;
-    j.type = unsigned_long_type;
+    j.type = np_treeval_type_unsigned_long;
     j.size = sizeof(uint32_t);
     return j;
 }
@@ -447,7 +435,7 @@ np_treeval_t np_treeval_new_ull (uint64_t ull)
 {
     np_treeval_t j;
     j.value.ull = ull;
-    j.type = unsigned_long_long_type;
+    j.type = np_treeval_type_unsigned_long_long;
     j.size = sizeof(uint64_t);
     return j;
 }
@@ -459,17 +447,17 @@ np_treeval_t np_treeval_new_bin (void* data, uint32_t ul)
 
     j.value.bin = data; 
     j.size = ul;
-    j.type = bin_type;
+    j.type = np_treeval_type_bin;
 
     return j;
 }
 
-np_treeval_t np_treeval_new_key (np_dhkey_t dhkey)
+np_treeval_t np_treeval_new_dhkey (np_dhkey_t dhkey)
 {
     np_treeval_t j;
 
     j.value.dhkey = dhkey;
-    j.type = dhkey_type;
+    j.type = np_treeval_type_dhkey;
     j.size = sizeof(np_dhkey_t);
 
     // j.size = sizeof(key);
@@ -482,7 +470,7 @@ np_treeval_t np_treeval_new_iarray (uint16_t i0, uint16_t i1)
     np_treeval_t j;
     j.value.a2_ui[0] = i0;
     j.value.a2_ui[1] = i1;
-    j.type = uint_array_2_type;
+    j.type = np_treeval_type_uint_array_2;
     j.size = 2*sizeof(uint16_t);
     return j;
 }
@@ -492,7 +480,7 @@ np_treeval_t np_treeval_new_farray (float f0, float f1)
     np_treeval_t j;
     j.value.farray[0] = f0;
     j.value.farray[1] = f1;
-    j.type = float_array_2_type;
+    j.type = np_treeval_type_float_array_2;
     j.size = 2*sizeof(float);
     return j;
 }
@@ -509,7 +497,7 @@ np_treeval_t np_treeval_new_carray_nt (char *carray)
 
     if (i < 8) j.value.carray[i] = carray[i];
 
-    j.type = char_array_8_type;
+    j.type = np_treeval_type_char_array_8;
 
     return j;
 }
@@ -518,7 +506,7 @@ np_treeval_t np_treeval_new_carray_nnt (char *carray)
 {
     np_treeval_t j;
     memcpy (j.value.carray, carray, 8);
-    j.type = unsigned_char_array_8_type;
+    j.type = np_treeval_type_unsigned_char_array_8;
 	return j;
 }
 
@@ -528,7 +516,7 @@ np_treeval_t np_treeval_new_tree(np_tree_t* tree)
 	np_treeval_t j;
     j.value.tree = tree;
     j.size = tree->byte_size;
-    j.type = jrb_tree_type;
+    j.type = np_treeval_type_jrb_tree;
 	return j;
 }
 
@@ -546,7 +534,7 @@ np_treeval_t np_treeval_new_hash (char *s)
 
     j.size = crypto_generichash_BYTES; // strlen(hex_hash);
     j.value.bin = hash; // strndup(hex_hash, j.size);
-    j.type = hash_type;
+    j.type = np_treeval_type_hash;
 
     return j;
 }
@@ -575,7 +563,7 @@ np_treeval_t np_treeval_new_obj(np_obj_t* obj)
 	np_treeval_t j;
 	j.value.obj = obj;
 	j.size = 0;
-	j.type = npobj_type;
+	j.type = np_treeval_type_npobj;
 	return j;
 }
 
@@ -679,33 +667,33 @@ uint32_t np_treeval_get_byte_size(np_treeval_t ele)
 
 	switch(ele.type)
 	{
-		case short_type: 					byte_size += 1 + sizeof(int8_t); break;
-		case int_type: 						byte_size += 1 + sizeof(int16_t); break;
-		case long_type: 					byte_size += 1 + sizeof(int32_t); break;
+		case np_treeval_type_short: 					byte_size += 1 + sizeof(int8_t); break;
+		case np_treeval_type_int: 						byte_size += 1 + sizeof(int16_t); break;
+		case np_treeval_type_long: 						byte_size += 1 + sizeof(int32_t); break;
 #ifdef x64
-		case long_long_type:				byte_size += 1 + sizeof(int64_t); break;
+		case np_treeval_type_long_long:					byte_size += 1 + sizeof(int64_t); break;
 #endif
-		case float_type: 					byte_size += 1 + sizeof(float); break;
-		case double_type: 					byte_size += 1 + sizeof(double); break;
-		case char_ptr_type: 				byte_size += sizeof(uint8_t)/*str marker*/ + sizeof(uint32_t)/*size of str*/ + ele.size /*string*/ + sizeof(char)/*terminator*/; break;
-		case char_type: 					byte_size += 1 + sizeof(char); break;
-		case unsigned_char_type:			byte_size += 1 + sizeof(unsigned char); break;
-		case unsigned_short_type:			byte_size += 1 + sizeof(uint8_t); break;
-		case unsigned_int_type:				byte_size += 1 + sizeof(uint16_t); break;
-		case unsigned_long_type:			byte_size += 1 + sizeof(uint32_t); break;
+		case np_treeval_type_float: 					byte_size += 1 + sizeof(float); break;
+		case np_treeval_type_double: 					byte_size += 1 + sizeof(double); break;
+		case np_treeval_type_char_ptr: 					byte_size += sizeof(uint8_t)/*str marker*/ + sizeof(uint32_t)/*size of str*/ + ele.size /*string*/ + sizeof(char)/*terminator*/; break;
+		case np_treeval_type_char: 						byte_size += 1 + sizeof(char); break;
+		case np_treeval_type_unsigned_char:				byte_size += 1 + sizeof(unsigned char); break;
+		case np_treeval_type_unsigned_short:			byte_size += 1 + sizeof(uint8_t); break;
+		case np_treeval_type_unsigned_int:				byte_size += 1 + sizeof(uint16_t); break;
+		case np_treeval_type_unsigned_long:				byte_size += 1 + sizeof(uint32_t); break;
 #ifdef x64
-		case unsigned_long_long_type:		byte_size += 1 + sizeof(uint64_t); break;
+		case np_treeval_type_unsigned_long_long:		byte_size += 1 + sizeof(uint64_t); break;
 #endif
-		case uint_array_2_type:				byte_size += 1 + 2*sizeof(uint16_t); break;
-		case float_array_2_type:			byte_size += 1 + 2*sizeof(float); break;
-		case char_array_8_type:				byte_size += 1 + 8*sizeof(char); break;
-		case unsigned_char_array_8_type:	byte_size += 1+8*sizeof(unsigned char); break;
-		case void_type: 					byte_size += 1 + sizeof(void*); break;
-		case bin_type: 						byte_size += 1 + sizeof(uint32_t) + ele.size; break;
-		case hash_type: 					byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.size; break;
-		case jrb_tree_type:					byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.value.tree->byte_size; break;
-		case dhkey_type:					byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of dhkey*/8 * (sizeof(uint8_t) /*uint32 marker*/+ sizeof(uint32_t)/*uint32 value*/)); break;
-		case special_char_ptr_type:         byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of special string (1:1 replacement on target)*/ sizeof(uint8_t)/*uint8 marker*/ + sizeof(uint8_t)/*uint8 value*/); break; 
+		case np_treeval_type_uint_array_2:				byte_size += 1 + 2 * sizeof(uint16_t); break;
+		case np_treeval_type_float_array_2:				byte_size += 1 + 2 * sizeof(float); break;
+		case np_treeval_type_char_array_8:				byte_size += 1 + 8 * sizeof(char); break;
+		case np_treeval_type_unsigned_char_array_8:		byte_size += 1 + 8 * sizeof(unsigned char); break;
+		case np_treeval_type_void: 						byte_size += 1 + sizeof(void*); break;
+		case np_treeval_type_bin: 						byte_size += 1 + sizeof(uint32_t) + ele.size; break;
+		case np_treeval_type_hash: 						byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.size; break;
+		case np_treeval_type_jrb_tree:					byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.value.tree->byte_size; break;
+		case np_treeval_type_dhkey:						byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of dhkey*/8 * (sizeof(uint8_t) /*uint32 marker*/+ sizeof(uint32_t)/*uint32 value*/)); break;
+		case np_treeval_type_special_char_ptr:			byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of special string (1:1 replacement on target)*/ sizeof(uint8_t)/*uint8 marker*/ + sizeof(uint8_t)/*uint8 value*/); break; 
 		default:                  log_msg(LOG_ERROR, "unsupported length calculation for value / type %"PRIu8"", ele.type ); break;
 	}
 

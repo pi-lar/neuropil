@@ -254,12 +254,12 @@ Test(np_keycache_t, _np_keycache_sort_keys_cpm, .description="sort a list of key
 	}
 
 	_np_keycache_sort_keys_cpm(key_list, &dummy_key);
-	cr_expect(0 == _np_dhkey_comp(&dummy_key, &sll_first(key_list)->val->dhkey), "expect the first key to be the dummy key");
+	cr_expect(0 == _np_dhkey_cmp(&dummy_key, &sll_first(key_list)->val->dhkey), "expect the first key to be the dummy key");
 
 	for (int i=0; i < 199; i++)
 	{
 		np_dhkey_t key = { .t[0] = i, .t[1] = i, .t[2] = i, .t[3] = i};
-		cr_expect(0 == _np_dhkey_comp(&new_keys[i]->dhkey, &key), "expect the original key to have the same value");
+		cr_expect(0 == _np_dhkey_cmp(&new_keys[i]->dhkey, &key), "expect the original key to have the same value");
 	}
 }
 
@@ -281,12 +281,12 @@ Test(np_keycache_t, _np_keycache_sort_keys_kd, .description="sort a list of key 
 	}
 
 	_np_keycache_sort_keys_kd(key_list, &dummy_key);
-	cr_expect(0 == _np_dhkey_comp(&dummy_key, &sll_first(key_list)->val->dhkey), "expect the first key to be the dummy key");
+	cr_expect(0 == _np_dhkey_cmp(&dummy_key, &sll_first(key_list)->val->dhkey), "expect the first key to be the dummy key");
 
 	for (int i=0; i < 199; i++)
 	{
 		np_dhkey_t key = { .t[0] = i, .t[1] = i, .t[2] = i, .t[3] = i};
-		cr_expect(0 == _np_dhkey_comp(&new_keys[i]->dhkey, &key), "expect the original key to have the same value");
+		cr_expect(0 == _np_dhkey_cmp(&new_keys[i]->dhkey, &key), "expect the original key to have the same value");
 	}
 }
 

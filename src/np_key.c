@@ -22,6 +22,7 @@
 #include "np_threads.h"
 #include "np_keycache.h"
 #include "np_aaatoken.h"
+#include "np_token_factory.h"
 #include "np_network.h"
 #include "np_node.h"
 #include "np_msgproperty.h"
@@ -41,7 +42,7 @@ int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 	if (k1 == NULL) return -1;
 	if (k2 == NULL) return  1;
 
-	return _np_dhkey_comp(&k1->dhkey,&k2->dhkey);
+	return _np_dhkey_cmp(&k1->dhkey,&k2->dhkey);
 }
 
 int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
@@ -53,11 +54,13 @@ int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
 char* _np_key_as_str(np_key_t* key)
 {
 	log_msg(LOG_TRACE | LOG_KEY, "start: char* _np_key_as_str(np_key_t* key){");
-	if (NULL == key->dhkey_str)
+	//if (NULL == key->dhkey_str)
 	{
-		key->dhkey_str = (char*) malloc(65);
-		CHECK_MALLOC(key->dhkey_str);
 
+		if (NULL == key->dhkey_str){
+			key->dhkey_str = (char*) malloc(65);
+			CHECK_MALLOC(key->dhkey_str);
+		}
 		_np_dhkey_to_str(&key->dhkey, key->dhkey_str);
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
 	}
@@ -99,9 +102,9 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
 			char* keyident = _np_key_as_str(to_destroy);
 			log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
-		
+
 			log_debug_msg(LOG_KEY | LOG_DEBUG, "refcount of key %s at destroy: %"PRIu32, keyident, to_destroy->obj == NULL ? 0 : to_destroy->obj->ref_count);
-			
+
 			np_key_t* deleted;
 			np_key_t* added;
 
@@ -176,14 +179,15 @@ void _np_key_t_new(void* key)
 	log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
 	np_key_t* new_key = (np_key_t*) key;
 
+	new_key->type = np_key_type_unknown;
 	TSP_INITD(np_bool, new_key->in_destroy, FALSE);
- 
+
 	new_key->last_update = np_time_now();
 
 	new_key->dhkey_str = NULL;
 	new_key->node = NULL;		  // link to a neuropil node if this key represents a node
 	new_key->network = NULL;      // link to a neuropil node if this key represents a node
-	
+
 	new_key->aaa_token = NULL;
 
 	// used internally only
@@ -230,7 +234,7 @@ void _np_key_t_del(void* key)
 
 void np_key_renew_token() {
 
-	_LOCK_MODULE(np_node_renewal_t) 
+	_LOCK_MODULE(np_node_renewal_t)
 	{
 		np_state_t* state = np_state();
 
@@ -241,11 +245,10 @@ void np_key_renew_token() {
 
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "step ._np_renew_node_token_jobexec.Creating new node key");
 
-		np_aaatoken_t* new_token = _np_node_create_token(old_node_key->node);
+		np_aaatoken_t* new_token = _np_token_factory_new_node_token(old_node_key->node);
 		new_node_key = _np_key_create_from_token(new_token);
 
-		np_ref_obj(np_aaatoken_t, new_token,ref_key_aaa_token);
-		new_node_key->aaa_token = new_token;
+		np_ref_switch(np_aaatoken_t, new_node_key->aaa_token, ref_key_aaa_token, new_token);
 
 		// find closest member according to old routing table
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "step ._np_renew_node_token_jobexec.get routing table");
@@ -298,11 +301,11 @@ void np_key_renew_token() {
 		// exchange identity if required
 		if (_np_key_cmp(state->my_identity,old_node_key) == 0)
 		{
-			np_ref_switch(np_key_t, state->my_identity, ref_state_identity, new_node_key);
+			np_ref_switch(np_key_t, state->my_identity, ref_state_identitykey, new_node_key);
 		}
 		else
 		{
-			np_tree_replace_str(state->my_identity->aaa_token->extensions, "target_node", np_treeval_new_s(_np_key_as_str(new_node_key)) );
+			np_tree_replace_str(state->my_identity->aaa_token->extensions,  "target_node", np_treeval_new_s(_np_key_as_str(new_node_key)) );
 		}
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "step ._np_renew_node_token_jobexec.replacing key");
 
@@ -356,4 +359,48 @@ void np_key_renew_token() {
 
 		np_unref_obj(np_key_t, old_node_key,"np_key_renew_token");
 	}
+}
+/**
+* Gets a np_key_t or a NULL pointer for the given hash value.
+* Generates warnings and aborts the process if a misschief configuration is found.
+* @param targetDhkey hash value of a node
+* @return
+*/
+np_key_t* _np_key_get_by_key_hash(char* targetDhkey)
+{
+	log_msg(LOG_TRACE, "start: np_key_t* _np_key_get_by_key_hash(char* targetDhkey){");
+	np_key_t* target = NULL;
+
+	if (NULL != targetDhkey) {
+
+		target = _np_keycache_find_by_details(targetDhkey, FALSE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE);
+
+		if (NULL == target) {
+			log_msg(LOG_WARN,
+				"could not find the specific target %s for message. broadcasting msg", targetDhkey);
+		}
+		else {
+			log_debug_msg(LOG_DEBUG, "could find the specific target %s for message.", targetDhkey);
+		}
+
+		if (NULL != target && strcmp(_np_key_as_str(target), targetDhkey) != 0) {
+			log_msg(LOG_ERROR,
+				"Found target key (%s) does not match requested target key (%s)! Aborting",
+				_np_key_as_str(target), targetDhkey);
+			exit(EXIT_FAILURE);
+		}
+	}
+	return target;
+}
+
+
+void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop) {
+	np_ref_switch(np_msgproperty_t, self->recv_property, ref_key_recv_property, prop);
+	prop->recv_key = self;
+
+}
+
+void _np_key_set_send_property(np_key_t* self, np_msgproperty_t* prop) {
+	np_ref_switch(np_msgproperty_t, self->send_property, ref_key_send_property, prop);
+	prop->send_key = self;
 }

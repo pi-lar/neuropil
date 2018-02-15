@@ -28,11 +28,11 @@ extern "C" {
 
 	// the following four are helper functions for c-message-pack to work on jtree structures
 	NP_API_INTERN
-		bool _np_buffer_reader(cmp_ctx_t *ctx, void *data, size_t count);
+		bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit);
 	NP_API_INTERN
 		bool _np_buffer_skipper(struct cmp_ctx_s *ctx, size_t limit);
 	NP_API_INTERN
-		size_t _np_buffer_writer(cmp_ctx_t *ctx, const void *data, size_t count);
+		size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count);
 
 	NP_API_INTERN
 		bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit);

@@ -53,10 +53,10 @@ typedef enum
     #define NP_API_PROTEC __attribute__ ((visibility ("default")))
   #endif
   #ifndef NP_API_HIDDEN
-    #define NP_API_HIDDEN __attribute__ ((visibility ("hidden")))
+    #define NP_API_HIDDEN __attribute__ ((visibility ("default")))
   #endif
   #ifndef NP_API_INTERN
-	#define NP_API_INTERN __attribute__ ((visibility ("internal")))
+	#define NP_API_INTERN __attribute__ ((visibility ("default")))
   #endif
 #endif
 
@@ -82,7 +82,15 @@ typedef struct np_obj_s np_obj_t;
 typedef struct np_responsecontainer_s np_responsecontainer_t;
 
 typedef struct np_aaatoken_s np_aaatoken_t;
+typedef np_aaatoken_t np_ident_public_token_t;
+typedef np_aaatoken_t np_ident_private_token_t;
+typedef np_aaatoken_t np_message_intent_public_token_t;
+typedef np_aaatoken_t np_node_public_token_t;
+typedef np_aaatoken_t np_node_private_token_t;
+typedef np_aaatoken_t np_handshake_token_t;
+
 typedef np_aaatoken_t* np_aaatoken_ptr;
+typedef enum np_aaatoken_type np_aaatoken_type_e;
 
 typedef struct np_dhkey_s np_dhkey_t;
 

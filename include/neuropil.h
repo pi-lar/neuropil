@@ -383,7 +383,8 @@ NP_API_EXPORT
 void np_send_response_msg(np_message_t* original, np_tree_t *properties, np_tree_t *body);
 NP_API_INTERN
 np_message_t* _np_prepare_msg(char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
-
+NP_API_EXPORT
+void np_context_create_new_nodekey(np_node_t* base);
 
 
 #ifdef __cplusplus

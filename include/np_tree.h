@@ -47,7 +47,7 @@ else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
  .. c:type:: np_tree_conf_t
 
 	additional configuration attributes for a tree
-	
+
 	in_place:bool: true = allow the tree to use the original pointers instead of creating a copy every time. false = make a copy of every value
 
 */
@@ -100,7 +100,7 @@ RB_PROTOTYPE(np_tree_s, np_tree_elem_s, link, _val_cmp);
 .. c:function:: np_tree_create
 
    create a new instance of a np_tree_t structure
-   
+
    :return: the newly constructed np_tree_t
 
 */
@@ -287,7 +287,7 @@ NP_API_INTERN
 np_bool np_tree_deserialize(np_tree_t* jrb, cmp_ctx_t* cmp);
 
 NP_API_INTERN
-uint8_t __np_tree_serialize_read_type_dhkey(void* buffer_ptr, np_treeval_t* target);
+uint8_t __np_tree_serialize_read_type_dhkey(cmp_ctx_t* cmp_key, np_treeval_t* target);
 NP_API_INTERN
 void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target);
 NP_API_INTERN
@@ -308,8 +308,8 @@ NP_API_INTERN
 void np_tree_replace_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t val);
 NP_API_INTERN
 void np_tree_set_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t val);
-
-
+NP_API_EXPORT
+unsigned char* np_tree_get_hash(np_tree_t* self);
 #ifdef __cplusplus
 }
 #endif
