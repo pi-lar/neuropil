@@ -73,7 +73,7 @@ np_bool __np_refresh_windows = TRUE;
 
 #define LOG_BUFFER_SIZE (3000)
 np_sll_t(char_ptr, log_buffer);
-int log_user_cursor = -1;
+int log_user_cursor = 0;
 
 
 void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
@@ -97,17 +97,18 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mo
 		{
 			fprintf(stdout, "HTTP interface set to %s\n", http_domain);
 			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
+			fprintf(stderr, "Enable sysinfo master option\n");
 			np_sysinfo_enable_master();
-
-			// If you want to you can enable the statistics modulte to view the nodes statistics
-			np_statistics_add_watch_internals();
-			np_statistics_add_watch(_NP_SYSINFO_REQUEST);
-			np_statistics_add_watch(_NP_SYSINFO_REPLY);
 		}
 		else {
 			fprintf(stderr, "Node could not start HTTP interface\n");
+			fprintf(stderr, "Enable sysinfo slave option\n");
 			np_sysinfo_enable_slave();
 		}
+		// If you want to you can enable the statistics modulte to view the nodes statistics
+		np_statistics_add_watch(_NP_SYSINFO_REQUEST);
+		np_statistics_add_watch(_NP_SYSINFO_REPLY);
+
 	}
 }
 
@@ -164,16 +165,24 @@ void np_example_print(FILE * stream, const char * format, ...) {
 		vsnprintf(buffer, 500, format, args);
 
 		if (buffer[0] != 0) {
-			sll_prepend(char_ptr, log_buffer, buffer);
+			int added_items = 1;
+			char* tmp_buff_part =  strtok(buffer, "\n");
 
-			if (sll_size(log_buffer) > LOG_BUFFER_SIZE) {
+			char_ptr_sll_node_t* item = sll_prepend(char_ptr, log_buffer, tmp_buff_part);
+			while ((tmp_buff_part = strtok(NULL, "\n")) != NULL) {
+				added_items++;				
+				item = sll_insert(char_ptr, log_buffer, tmp_buff_part, item);
+			}
+
+			while (sll_size(log_buffer) > LOG_BUFFER_SIZE) {
+				added_items--;
 				sll_iterator(char_ptr) last = sll_last(log_buffer);
 				char* tmp = last->val;
 				sll_delete(char_ptr, log_buffer, last);
 				free(tmp);
 			}
-			if (log_user_cursor == 0) {
-				wscrl(__np_stat_log, 1);
+			if (log_user_cursor != 0) {
+				log_user_cursor += added_items;
 			}
 		}
 		else {
@@ -548,16 +557,9 @@ void __np_example_deinti_ncurse() {
 void __np_example_inti_ncurse() {
 	if (FALSE == __np_ncurse_initiated) {
 		if (enable_statistics == 1 || enable_statistics % 2 != 0) {
-			if (log_buffer != NULL) {
-				sll_iterator(char_ptr) iter_buffer = sll_first(log_buffer);
-				while (iter_buffer != NULL)
-				{
-					free(iter_buffer->val);
-					sll_next(iter_buffer);
-				}
-				sll_free(char_ptr, log_buffer);
-			}
-			sll_init(char_ptr, log_buffer);
+			if (log_buffer == NULL) {
+				sll_init(char_ptr, log_buffer);
+			}			
 			__np_ncurse_initiated = TRUE;
 			initscr(); // Init ncurses mode
 			curs_set(0); // Hide cursor
@@ -649,6 +651,8 @@ void __np_example_helper_loop() {
 
 	// Runs only once
 	if (started_at == 0) {
+		np_statistics_add_watch_internals();
+
 		started_at = np_time_now();
 		np_print_startup();
 
@@ -765,16 +769,8 @@ void __np_example_helper_loop() {
 			}
 
 			if (__np_ncurse_initiated == TRUE && __np_stat_switchable_window == __np_stat_log) {
-				static int old_log_user_cursor;
-
-				if(old_log_user_cursor != log_user_cursor){
-					char* b = _sll_char_make_flat(log_buffer);
-					mvwprintw(__np_stat_log, 0, 0, "%s", b);
-					free(b);
-					old_log_user_cursor = log_user_cursor;
-				}
-
-				/*
+			
+				
 				int y = 0;
 				int displayedRows = 0;
 				sll_iterator(char_ptr) iter_log = sll_first(log_buffer);
@@ -799,7 +795,7 @@ void __np_example_helper_loop() {
 					sll_next(iter_log);
 					y++;
 				}
-				*/
+				
 				mvwprintw(__np_stat_log, 16, 0, "%"PRIu32"items in log", sll_size(log_buffer));
 			}
 		}
@@ -846,20 +842,17 @@ void __np_example_helper_loop() {
 			break;
 		case 102:	// f
 		case 70:	// F
-			wscrl(__np_stat_switchable_window, log_user_cursor);
 			log_user_cursor = 0;
 			break;
 		case 117:	// u
 		case 85:	// U
 		case KEY_UP:
 			log_user_cursor = max(0, log_user_cursor - 1);
-			wscrl(__np_stat_switchable_window, 1);
 			break;
 		case 110:	// n
 		case 78:	// N
 		case KEY_DOWN:
-			log_user_cursor = min(log_user_cursor + 1, sll_size(log_buffer));
-			wscrl(__np_stat_switchable_window, -1);
+			log_user_cursor = min(max(0, log_user_cursor + 1), sll_size(log_buffer)-1);
 			break;
 		case 113: // q
 			np_destroy();

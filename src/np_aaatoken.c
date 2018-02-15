@@ -150,11 +150,11 @@ void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 
 	np_tree_insert_str(data, "np.t.e", np_treeval_new_tree(token->extensions));	
 	
-	if(token->scope <= np_aaatoken_scope_privately){
+	if(token->scope <= np_aaatoken_scope_privately) {
 		_np_aaatoken_update_extensions_signature(token, token->issuer_token);
 	}
 	
-	np_tree_insert_str(data, "np.t.signature_extensions", np_treeval_new_bin(token->signature_extensions, crypto_sign_BYTES));	
+	np_tree_insert_str(data, "np.t.signature_extensions", np_treeval_new_bin(token->signature_extensions, crypto_sign_BYTES));
 }
 
 void np_aaatoken_encode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
@@ -320,7 +320,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 	log_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_bool _np_aaatoken_is_valid(np_aaatoken_t* token){");
 	assert (NULL != token);
 
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking token validity for token of type %"PRIu32" and scope %"PRIu32, token->type, token->scope);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking token (%s) validity for token of type %"PRIu32" and scope %"PRIu32, token->uuid, token->type, token->scope);
 
 
 	if (FLAG_CMP(token->type, expected_type) == FALSE)
@@ -490,8 +490,8 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 			return (FALSE);
 		}
 	}
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token for subject \"%s\": verification valid", token->subject);
-	token->state |= AAA_VALID;
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token validity for subject \"%s\": verification valid", token->subject);
+	token->state |= AAA_VALID;	
 	return (TRUE);
 }
 
@@ -568,8 +568,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
 		{
 			if(NULL == subject_key->send_property)
 			{
-				np_ref_obj(np_msgproperty_t, send_prop, ref_key_send_property);
-				subject_key->send_property = send_prop;
+				_np_key_set_send_property(subject_key, send_prop);
 			}
 		}
 		else
@@ -582,8 +581,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
 		{
 			if(NULL == subject_key->recv_property)
 			{
-				np_ref_obj(np_msgproperty_t, recv_prop, ref_key_recv_property);
-				subject_key->recv_property = recv_prop;
+				_np_key_set_recv_property(subject_key, recv_prop);
 			}
 		}
 		else
@@ -608,12 +606,10 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
 			}
 
 			if (NULL == subject_key->send_property) {
-				np_ref_obj(np_msgproperty_t, prop, ref_key_send_property);
-				subject_key->send_property = prop;
+				_np_key_set_send_property(subject_key, prop);				
 			}
 			if (NULL == subject_key->recv_property) {
-				np_ref_obj(np_msgproperty_t, prop,ref_key_recv_property);
-				subject_key->recv_property = prop;
+				_np_key_set_recv_property(subject_key, prop);
 			}
 		}
 	}

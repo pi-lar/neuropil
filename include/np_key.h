@@ -109,6 +109,11 @@ void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);
 NP_API_INTERN
 np_key_t* _np_key_get_by_key_hash(char* targetDhkey);
 
+NP_API_INTERN
+void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop);
+NP_API_INTERN
+void _np_key_set_send_property(np_key_t* self, np_msgproperty_t* prop);
+
 #ifdef __cplusplus
 }
 #endif

@@ -283,6 +283,11 @@ struct np_msgproperty_s
 	np_mutex_t unique_uuids_lock;
 	np_tree_t* unique_uuids;
 
+	// weak link (no reffing)
+	np_key_t* send_key;
+	// weak link (no reffing)
+	np_key_t* recv_key;
+
 
 } NP_API_EXPORT;
 

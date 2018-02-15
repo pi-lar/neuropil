@@ -81,6 +81,8 @@ enum np_aaatoken_type {
 
 enum np_aaatoken_scope {
 	np_aaatoken_scope_private = 1,
+	// np_aaatoken_scope_privately defines a state where the token does not hold the privatekey itself but we do have the privekey available (ex.: creation of a message intent token)
+	np_aaatoken_scope_privately,
 	np_aaatoken_scope_public,
 	np_aaatoken_scope_undefined,
 };
@@ -188,6 +190,7 @@ struct np_aaatoken_s
 	enum np_aaatoken_type type;
 	enum np_aaatoken_scope scope;
 	np_bool private_key_is_set;
+	np_aaatoken_t* issuer_token;
 
 	np_bool is_signature_verified;
 	np_bool is_signature_extensions_verified;

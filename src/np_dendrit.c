@@ -221,6 +221,8 @@ void _np_in_received(np_jobargs_t* args)
 				0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN_NACK, strlen(_NP_MSG_JOIN_NACK)) ||
 				0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN_ACK, strlen(_NP_MSG_JOIN_ACK)))
 			{
+
+
 				/* real receive part */
 				CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_to);
 				CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack);
@@ -267,6 +269,10 @@ void _np_in_received(np_jobargs_t* args)
 						if (0 < sll_size(tmp))
 							log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
 
+						/* forward the message if
+							a) we do have a list of possible forwards
+							b) we are not the best possible forward
+						*/
 						if (NULL != tmp &&
 							sll_size(tmp) > 0 &&
 							(FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
@@ -279,7 +285,19 @@ void _np_in_received(np_jobargs_t* args)
 
 							np_unref_list(tmp, "_np_route_lookup");
 							sll_free(np_key_ptr, tmp);
-							goto __np_cleanup__;
+
+							// if we do not have a handler or the handler has no receive tokens and no send tokens
+							// we may cancel further handeling
+							if(handler == NULL ||
+								(
+									(handler->recv_key == NULL || pll_size(handler->recv_key->recv_tokens) <= 0)
+									&&
+									(handler->send_key == NULL || pll_size(handler->send_key->send_tokens) <= 0)
+								)
+							) {
+								goto __np_cleanup__;
+							}
+
 						}
 						np_unref_list(tmp, "_np_route_lookup");
 						if (NULL != tmp) sll_free(np_key_ptr, tmp);

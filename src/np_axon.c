@@ -463,9 +463,9 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 			)
 		{
 			// Create a new msg token
-			log_msg(LOG_INFO | LOG_AAATOKEN, "--- refresh for subject token: %25s --------", args->properties->msg_subject);
-			log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s", args->properties->msg_subject);
+			log_msg(LOG_INFO | LOG_AAATOKEN, "--- refresh for subject token: %25s --------", args->properties->msg_subject);			
 			np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(args->properties);
+			log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s (%s replaces %s) ", args->properties->msg_subject, msg_token_new->uuid, msg_token == NULL ? "-" : msg_token->uuid);
 			np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
 			_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
 			msg_token = msg_token_new;

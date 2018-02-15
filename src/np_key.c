@@ -392,4 +392,15 @@ np_key_t* _np_key_get_by_key_hash(char* targetDhkey)
 	}
 	return target;
 } 
- 
+
+
+void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop) {
+	np_ref_switch(np_msgproperty_t, self->recv_property, ref_key_recv_property, prop);
+	prop->recv_key = self;
+
+}
+
+void _np_key_set_send_property(np_key_t* self, np_msgproperty_t* prop) {
+	np_ref_switch(np_msgproperty_t, self->send_property, ref_key_send_property, prop);	
+	prop->send_key = self;
+}
