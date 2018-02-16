@@ -43,6 +43,12 @@ extern "C" {
 #define max(a,b) MAX(a,b)
 #endif
 
+#ifdef DEBUG
+#define debugf(s, ...) printf(s, ##__VA_ARGS__);fflush(stdout)
+#else
+#define debugf(s, ...)
+#endif
+	
 
 #ifdef DEBUG
 #define ASSERT(expression, onfail_msg, ...)												\

@@ -66,7 +66,6 @@ if int(debug) >= 1:
 if int(console_log):
     env.Append(CCFLAGS = ['-DCONSOLE_LOG'])
 
-
 # platform specific compiler options
 if 'FreeBSD' in platform.system():
   env.Append(LIBS = ['util','m'] )
@@ -221,7 +220,7 @@ programs = [
     'controller','node','receiver','sender','receiver_cb','pingpong','hydra','shared_hydra',
     'echo_server','echo_client','raspberry','demo_service'
     ]
-env.Append(LIBS = ['ncurses'])
+env.Append(LIBS = ['ncurses','m'])
 
 if build_program != False and build_program not in programs:
     if build_program != 'lib_only':
