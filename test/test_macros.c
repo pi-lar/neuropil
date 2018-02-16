@@ -1,3 +1,7 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <time.h>
+#include <math.h>
 
 #define MEASURE_TIME(array, pos, func)  {                    \
 		clock_t begin = clock();                             \

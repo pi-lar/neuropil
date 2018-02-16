@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#include "sodium.h"
 #include "pthread.h"
 #include "time.h"
 
@@ -23,7 +24,6 @@
 #include "np_threads.h"
 #include "np_types.h"
 
-#include "test_macros.c"
 
 typedef struct test_struct
 {

@@ -10,6 +10,7 @@
 
 #include "np_scache.h"
 #include "np_log.h"
+#include "test_macros.c"
 
 
 void setup_scache(void)
