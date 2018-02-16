@@ -66,7 +66,7 @@ if int(debug) >= 1:
 if int(console_log):
     env.Append(CCFLAGS = ['-DCONSOLE_LOG'])
 
-
+env.Append(LIBS = ['m'])
 # platform specific compiler options
 if 'FreeBSD' in platform.system():
   env.Append(LIBS = ['util','m'] )
@@ -90,6 +90,7 @@ if 'CYGWIN' in platform.system():
 if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
     env.Append(LIBS = ['rt'] )
     env.Append(CCFLAGS = ['-x c'])
+
 
 
 # env.Append(CCFLAGS = '-march='+platform.processor())

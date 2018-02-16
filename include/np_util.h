@@ -6,6 +6,7 @@
 #define	_NP_UTIL_H_
 
 #include <assert.h>
+#include <math.h>
 
 #include "msgpack/cmp.h"
 #include "json/parson.h"
@@ -43,6 +44,12 @@ extern "C" {
 #define max(a,b) MAX(a,b)
 #endif
 
+#ifdef DEBUG
+#define debugf(s, ...) printf(s, ##__VA_ARGS__);fflush(stdout)
+#else
+#define debugf(s, ...)
+#endif
+	
 
 #define FLAG_CMP(data,flag) (((data) & (flag)) == (flag))
 
@@ -61,13 +68,22 @@ extern "C" {
 	}
 #endif
 
-#define NP_GENERATE_THREADSAFE_PROPERTY_PROTOTYPE(TYPE, PROPERTY_NAME)					\
-	TYPE PROPERTY_NAME##_get();															\
-	void PROPERTY_NAME##_set(TYPE obj);														
+#define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)		\
+		double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;               \
+		for (uint16_t j = 0; j < max_size; j++)                                         \
+		{                                                                               \
+			min_v = min(min_v,(array[j]accessor));										\
+			max_v = max(max_v,(array[j]accessor));										\
+			/*avg = (avg * max_size + array[j]accessor) / (max_size + 1);*/             \
+			avg_v += array[j]accessor;                                                  \
+		}                                                                               \
+		avg_v = avg_v / max_size;                                                       \
+		for (uint16_t j = 0; j < max_size; j++) {                                       \
+		    stddev_v += pow((array[j]accessor) - avg_v, 2);                             \
+		}                                                                               \
+		stddev_v = sqrt(stddev_v/(max_size-1));                                         \
+		
 
-#define NP_GENERATE_THREADSAFE_PROPERTY_IMPL(TYPE, PROPERTY_NAME, PROPERTY)				\
-	TYPE PROPERTY_NAME##_get() {														\
-}
 
 
 

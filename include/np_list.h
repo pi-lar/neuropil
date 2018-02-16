@@ -548,6 +548,7 @@ real macros for convenience usage
 #define sll_first(sll_list) ((sll_list)->first)
 #define sll_last(sll_list) ((sll_list)->last)
 #define sll_next(sll_elem) ((sll_elem) = sll_next_select(sll_elem))
+#define sll_next_loop(sll, sll_elem) ((sll_elem) = ((sll_elem)->flink == NULL ? (sll)->first : sll_next_select(sll_elem)))
 #define sll_next_select(sll_elem) ((((sll_elem) == NULL || (sll_elem)->flink == (sll_elem)) ? NULL : (sll_elem)->flink))
 #define sll_get_next(sll_elem) ((sll_elem)->flink)
 // #define sll_previous(sll_elem) (sll_elem->blink)

@@ -9,7 +9,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <float.h>
 #include <inttypes.h>
+#include <math.h>
 
 #include "sodium.h"
 
@@ -30,23 +32,19 @@
 	the configuration of each item is preceeding to the memory of the item itself.
 
 */
-typedef struct np_memory_container_s np_memory_container_t;
 
-typedef struct np_memory_block_s
-{
-	np_memory_container_t* container;
-	uint32_t current_in_use;
-	uint32_t last_item;
-	np_mutex_t attr_lock;
-	void* space;
-} np_memory_block_t;
+typedef struct np_memory_itemconf_s np_memory_itemconf_t;
+typedef np_memory_itemconf_t* np_memory_itemconf_ptr;
 
-typedef np_memory_block_t*  np_memory_block_ptr;
+NP_SLL_GENERATE_PROTOTYPES(np_memory_itemconf_ptr);
+NP_SLL_GENERATE_IMPLEMENTATION(np_memory_itemconf_ptr);
 
-NP_SLL_GENERATE_PROTOTYPES(np_memory_block_ptr);
-NP_SLL_GENERATE_IMPLEMENTATION(np_memory_block_ptr);
+struct np_memory_itemstat_s {
+	double time;
+	uint32_t itemcount;
+};
 
-struct np_memory_container_s
+typedef struct np_memory_container_s
 {
 	uint8_t type;
 
@@ -58,20 +56,26 @@ struct np_memory_container_s
 	np_memory_on_free on_free;
 	np_memory_on_refresh_space on_refresh_space;
 
-	np_mutex_t attr_lock;
+	np_mutex_t free_items_lock;
+	np_sll_t(np_memory_itemconf_ptr, free_items);
+	np_mutex_t refreshed_items_lock;
+	np_sll_t(np_memory_itemconf_ptr, refreshed_items);
+
+	np_mutex_t current_in_use_lock;
 	uint32_t current_in_use;
 
-	np_mutex_t blocks_lock;
-	np_sll_t(np_memory_block_ptr, blocks);
-};
+	np_bool itemstats_full;
+	uint32_t itemstats_idx;
+	struct np_memory_itemstat_s itemstats[10];
+} np_memory_container_t;
 
-typedef struct np_memory_itemconf_ts {
-	np_memory_block_t* block;
+struct np_memory_itemconf_s {
+	np_memory_container_t* container;
 
 	np_bool in_use;
 	np_bool needs_refresh;
 	np_mutex_t access_lock;
-} np_memory_itemconf_t;
+};
 
 np_memory_container_t* np_memory_containers[UINT8_MAX] = { 0 };
 
@@ -85,43 +89,27 @@ void np_memory_init() {
 	}
 	np_memory_register_type(np_memory_types_BLOB_1024, 1024, 4, 4, NULL, NULL, np_memory_clear_space);
 	np_memory_register_type(np_memory_types_BLOB_984_RANDOMIZED, 984, 4, 200, NULL, NULL, np_memory_randomize_space);
+	_np_memory_job_memory_management(NULL);
 }
 
-void __np_memory_create_block(np_memory_container_t* container) {
-	np_memory_block_t* new_block = calloc(1, sizeof(np_memory_block_t));
-	CHECK_MALLOC(new_block);
-	new_block->container = container;
+void __np_memory_space_increase(np_memory_container_t* container, uint32_t block_size) {
+	for (uint32_t j = 0; j < block_size; j++) {
+		size_t  whole_item_size = container->size_per_item + sizeof(np_memory_itemconf_t);
 
-	size_t  whole_item_size = container->size_per_item + sizeof(np_memory_itemconf_t);
-	size_t container_size = container->count_of_items_per_block * whole_item_size;
+		np_memory_itemconf_t* conf = malloc(whole_item_size);
+		CHECK_MALLOC(conf);
 
-	new_block->space = malloc(container_size);
-	CHECK_MALLOC(new_block->space);
-	new_block->current_in_use = 0;
-	new_block->last_item = 0;
-
-	if (_np_threads_mutex_init(&(new_block->attr_lock), "MemoryV2 block attr lock") != 0) {
-		log_msg(LOG_ERROR, "Could not create memory item lock for container type %"PRIu8, container->type);
-	}
-
-	// BLOCK refresh
-	if (container->on_refresh_space != NULL)
-		container->on_refresh_space(container->type, container_size, new_block->space);
-
-	np_memory_itemconf_t* next_conf = new_block->space;
-
-	for (uint32_t j = 0; j < container->count_of_items_per_block; j++) {
 		// item init
-		next_conf->block = new_block;
-		next_conf->in_use = FALSE;
-		next_conf->needs_refresh = FALSE; // handled the first time for the whole block
-		if (_np_threads_mutex_init(&(next_conf->access_lock), "MemoryV2 conf lock") != 0) {
+		conf->container = container;
+		conf->in_use = FALSE;
+		conf->needs_refresh = TRUE;
+		if (_np_threads_mutex_init(&(conf->access_lock), "MemoryV2 conf lock") != 0) {
 			log_msg(LOG_ERROR, "Could not create memory item lock for container type %"PRIu8, container->type);
 		}
-		NEXT_ITEMCONF(next_conf, 0)
-	}
-	_LOCK_ACCESS(&container->blocks_lock) {
-		sll_append(np_memory_block_ptr, container->blocks, new_block);
+
+		_LOCK_ACCESS(&container->free_items_lock) {
+			sll_append(np_memory_itemconf_ptr, container->free_items, conf);
+		}
 	}
 }
 
@@ -138,6 +126,9 @@ void np_memory_register_type(
 		np_memory_container_t* container = calloc(1, sizeof(np_memory_container_t));
 		CHECK_MALLOC(container);
 
+		container->itemstats_idx = 0;
+		container->itemstats_full = FALSE;
+		memset(container->itemstats, 0, sizeof(container->itemstats));
 		container->size_per_item = size_per_item;
 		container->count_of_items_per_block = count_of_items_per_block;
 		container->min_count_of_items = min_count_of_items;
@@ -145,13 +136,23 @@ void np_memory_register_type(
 		container->on_free = on_free;
 		container->on_refresh_space = on_refresh_space;
 		container->type = type;
-		sll_init(np_memory_block_ptr, container->blocks);
 
-		if (_np_threads_mutex_init(&(container->attr_lock), "MemoryV2 container attr_lock") == 0 &&
-			_np_threads_mutex_init(&(container->blocks_lock), "MemoryV2 container blocks_lock") == 0) {
-			while ((container->count_of_items_per_block * sll_size(container->blocks)) < container->min_count_of_items)
+		sll_init(np_memory_itemconf_ptr, container->free_items);
+		if (_np_threads_mutex_init(&(container->free_items_lock), "MemoryV2 container free_items_lock lock") != 0) {
+			log_msg(LOG_ERROR, "Could not create free_items_lock for container type %"PRIu8, container->type);
+		}
+		sll_init(np_memory_itemconf_ptr, container->refreshed_items);
+		if (_np_threads_mutex_init(&(container->refreshed_items_lock), "MemoryV2 container refreshed_items lock") != 0) {
+			log_msg(LOG_ERROR, "Could not create refreshed_items for container type %"PRIu8, container->type);
+		}
+
+		if (_np_threads_mutex_init(&(container->current_in_use_lock), "MemoryV2 container attr_lock") == 0)
+		{
+			int i = 0;
+			while ((container->count_of_items_per_block * i) < container->min_count_of_items)
 			{
-				__np_memory_create_block(container);
+				i++;
+				__np_memory_space_increase(container, container->count_of_items_per_block);
 			}
 
 			np_memory_containers[container->type] = container;
@@ -162,8 +163,9 @@ void np_memory_register_type(
 		}
 	}
 }
-void __np_memory_refresh_space(np_memory_itemconf_t* config) {
-	np_memory_container_t* container = config->block->container;
+np_bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
+	np_bool refreshed = FALSE;
+	np_memory_container_t* container = config->container;
 	void* data = GET_ITEM(config);
 
 	_LOCK_ACCESS(&config->access_lock) {
@@ -172,8 +174,10 @@ void __np_memory_refresh_space(np_memory_itemconf_t* config) {
 				container->on_refresh_space(container->type, container->size_per_item, data);
 			}
 			config->needs_refresh = FALSE;
+			refreshed = TRUE;
 		}
 	}
+	return refreshed;
 }
 
 void* _np_memory_new_raw(np_memory_container_t* container) {
@@ -192,6 +196,137 @@ void _np_memory_free_raw(void* item) {
 	free(item);
 }
 
+void __np_memory_itemstats_update(np_memory_container_t* container) {
+	_LOCK_ACCESS(&container->current_in_use_lock) {
+		struct np_memory_itemstat_s * itemstat = &container->itemstats[container->itemstats_idx];
+		itemstat->itemcount = container->current_in_use;
+		itemstat->time = np_time_now();
+
+		container->itemstats_full = container->itemstats_full || (container->itemstats_idx + 1) == (sizeof(container->itemstats) / sizeof(container->itemstats[0]));
+		container->itemstats_idx = ((1 + container->itemstats_idx) % (sizeof(container->itemstats) / sizeof(container->itemstats[0])));
+	}
+}
+
+double __np_memory_itemstats_get_growth(np_memory_container_t* container) {
+	double growth = 0;
+	double min_time = DBL_MAX;
+	double max_time = 0;
+	for (uint32_t i = 0; i < container->itemstats_idx; i++) {
+		struct np_memory_itemstat_s itemstat = container->itemstats[container->itemstats_idx];
+		min_time = min(min_time, itemstat.time);
+		max_time = max(max_time, itemstat.time);
+	}
+	if (container->itemstats_full) {
+		
+		CALC_STATISTICS(container->itemstats, .itemcount,
+			(sizeof(container->itemstats)/sizeof(container->itemstats[0])),
+			itemstats_min, itemstats_max, itemstats_avg, itemstats_stddev);		
+
+		
+		_LOCK_ACCESS(&container->current_in_use_lock) {		
+			//debugf("itemstats_avg %f %"PRIu32"\n", itemstats_avg, container->current_in_use);
+			growth = (container->current_in_use - itemstats_avg) / (max_time == min_time ? 1 : max_time - min_time);
+		}
+	}
+	debugf("growth: %f \n", growth);
+	return growth;
+}
+
+np_bool __np_memory_space_decrease_nessecary(np_memory_container_t* container) {
+	np_bool ret = FALSE;
+
+
+	_LOCK_ACCESS(&container->current_in_use_lock) {
+		_LOCK_ACCESS(&container->refreshed_items_lock) {
+			_LOCK_ACCESS(&container->free_items_lock) {
+				double growth = __np_memory_itemstats_get_growth(container);
+
+				uint32_t total_free_space = sll_size(container->free_items) + sll_size(container->refreshed_items);
+				uint32_t total_space_available = total_free_space + container->current_in_use;
+
+				ret =
+					/*decrease only if we have more then the min threshhold (failsafe)*/
+					total_space_available >= (container->min_count_of_items + container->count_of_items_per_block) &&
+					(
+						/*decrease if the growth of items is negative for the mesured period, the grows is min as great as a block, and the growth size is free*/
+					(0 > growth &&
+						fabs(growth) > container->count_of_items_per_block &&
+						total_free_space > fabs(growth)
+						)
+
+						||
+
+						/*decrease if we only consume 50% or less of our space*/
+						//container->current_in_use <= (total_space_available * 0.5)
+						FALSE
+						)
+					;
+			}
+		}
+	}
+	return ret;
+}
+
+np_bool __np_memory_space_increase_nessecary(np_memory_container_t* container) {
+	np_bool ret = FALSE;
+
+	_LOCK_ACCESS(&container->current_in_use_lock) {
+		_LOCK_ACCESS(&container->refreshed_items_lock) {
+			_LOCK_ACCESS(&container->free_items_lock) {
+				double growth = __np_memory_itemstats_get_growth(container);
+
+				uint32_t total_free_space = sll_size(container->free_items) + sll_size(container->refreshed_items);
+				uint32_t total_space_available = total_free_space + container->current_in_use;
+
+				ret = /*increase only if we have less then 50% free space (failsafe)*/
+					total_free_space < (total_space_available * 0.5) &&
+					(
+						/* increase if we already consumed more then 90% of the available space */
+						//container->current_in_use >= (total_space_available * 0.9) ||
+
+						/*increase if the growth of items is positive for the mesured period,
+						and the growth is greater then our free space*/
+					(0 < growth &&  growth > total_free_space)
+
+						)
+					;
+			}
+		}
+	}
+	return ret;
+}
+
+void __np_memory_space_decrease(np_memory_container_t* container) {
+	np_memory_itemconf_t* item_config;
+
+	for (uint32_t j = 0; j < container->count_of_items_per_block; j++) {
+		// best pick: a free container (not refreshed)
+		_LOCK_ACCESS(&container->free_items_lock) {
+			item_config = sll_head(np_memory_itemconf_ptr, container->free_items);
+		}
+
+		if (item_config == NULL) {
+			_LOCK_ACCESS(&container->refreshed_items_lock) {
+				// second best pick: an refreshed container
+				item_config = sll_head(np_memory_itemconf_ptr, container->refreshed_items);
+			}
+		}
+		if (item_config != NULL) {
+			np_bool del = FALSE;
+			_LOCK_ACCESS(&item_config->access_lock) {
+				del = item_config->in_use == FALSE;
+			}
+			if (del) {
+				_np_threads_mutex_destroy(&item_config->access_lock);
+				free(item_config);
+			}
+		}
+		else {
+			break;
+		}
+	}
+}
+
 void* np_memory_new(uint8_t type) {
 	void* ret = NULL;
 	np_memory_container_t* container = np_memory_containers[type];
@@ -199,104 +334,51 @@ void* np_memory_new(uint8_t type) {
 
 	log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Searching for next free current_block for type %"PRIu8, type);
 
-	np_memory_itemconf_t* next_config = NULL;
-
-	uint32_t item_idx;
+	np_memory_itemconf_t* next_config;
 	np_bool found = FALSE;
-	uint32_t search_iter_counter = 0;
-	np_memory_block_t* current_block;
-	sll_iterator(np_memory_block_ptr) iter_blocks;
 
-	// check for space in container
-	_LOCK_ACCESS(&container->attr_lock) {
-		_LOCK_ACCESS(&container->blocks_lock) {		
-			if (container->current_in_use == (sll_size(container->blocks) * container->count_of_items_per_block)) {
-				log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Adding new memory block due to missing runtime space (pre loop).");
-				__np_memory_create_block(container);
-			}
-		}
-
-		// get last block (as he has likely some free space)
-		iter_blocks = sll_last(container->blocks);
-	}
-
-	// get free space in block
-	// iterate over blocks
 	do {
-		current_block = iter_blocks->val;
+		next_config = NULL; // init loop condition
 
-		if (_np_threads_mutex_trylock(&current_block->attr_lock, __func__) == 0)
-		{
-			// check itemcount to verify possible free space in block
-			if (current_block->current_in_use < current_block->container->count_of_items_per_block) {
-				// get best position in block
-				_LOCK_ACCESS(&(current_block->attr_lock)) {
-					item_idx = 0;
-					next_config = current_block->space;
-					if (current_block->current_in_use != 0) {
-						item_idx = current_block->last_item % container->count_of_items_per_block;
-						if(item_idx > 0)
-							NEXT_ITEMCONF(next_config, item_idx-1);
-					}
-				}
+		while (next_config == NULL) {
+			_LOCK_ACCESS(&container->refreshed_items_lock) {
+				// best pick: an already refreshed container
+				next_config = sll_head(np_memory_itemconf_ptr, container->refreshed_items);
 
-				// iterate over space in block
-				for (; item_idx < container->count_of_items_per_block; item_idx++)
-				{
-					// try to get item in block space
-					if (_np_threads_mutex_trylock(&next_config->access_lock, __func__) == 0) {
-						if (next_config->in_use == FALSE && next_config->needs_refresh == FALSE) {
-							// take free space
-							found = TRUE;
-							next_config->in_use = TRUE;
+				if (next_config == NULL) {
+					// second best pick: a free container
+					_TRYLOCK_ACCESS(&container->free_items_lock) {
+						next_config = sll_head(np_memory_itemconf_ptr, container->free_items);
 
-							_np_threads_mutex_unlock(&next_config->access_lock);
-							break;
+						if (next_config == NULL) {
+							// worst case: create a new block
+							__np_memory_space_increase(container, 1);
 						}
-						_np_threads_mutex_unlock(&next_config->access_lock);
-					}
-					NEXT_ITEMCONF(next_config, 0)
-				}
-				search_iter_counter++;
-			}
-
-			_np_threads_mutex_unlock(&current_block->attr_lock);
-		}
-		if (found == FALSE) {
-			
-			_LOCK_ACCESS(&container->attr_lock) {
-				if (search_iter_counter > sll_size(container->blocks) ||  //TODO: Check usage. Maybe remove this condition, may result in massive memory consumption.
-					container->current_in_use == (sll_size(container->blocks)*container->count_of_items_per_block)) {
-					log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Adding new memory block due to missing runtime space.");
-					_LOCK_ACCESS(&container->blocks_lock) {
-						iter_blocks = sll_last(container->blocks);
-						__np_memory_create_block(container);
+						else {
+							// second bast as we need to refresh the item
+							__np_memory_refresh_space(next_config);
+						}
 					}
 				}
 			}
-			_LOCK_ACCESS(&container->blocks_lock) {			
-				// select next block
-				if (iter_blocks == NULL || iter_blocks->flink == NULL) {
-					iter_blocks = sll_first(container->blocks);
-				}
-				else {
-					sll_next(iter_blocks);
-				}
+		}
+		// now we do have a item space. we need to check if the space is already in use (should not but better play safe)
+		_LOCK_ACCESS(&next_config->access_lock) {
+			if (next_config->in_use == FALSE) {
+				// take free space
+				found = TRUE;
+				next_config->in_use = TRUE;
 			}
 		}
-	} while (found == FALSE);	
+	} while (found == FALSE);
 
-	_LOCK_ACCESS(&current_block->attr_lock) {
-		current_block->last_item = item_idx;
-		current_block->current_in_use += 1;
-	}
-	_LOCK_ACCESS(&container->attr_lock) {
+	_LOCK_ACCESS(&container->current_in_use_lock) {
 		container->current_in_use += 1;
 	}
-	ret = GET_ITEM(next_config);
 
-	//log_debug_msg(LOG_DEBUG | LOG_MEMORY, "Found free current_block for type %"PRIu8" at %p", type, ret);
-	__np_memory_refresh_space(next_config);
+	//debugf("%"PRIu8": %5"PRIu32" / %5"PRIu32"  \n", container->type, container->current_in_use, sll_size(container->blocks)*container->count_of_items_per_block);
+
+	ret = GET_ITEM(next_config);
 
 	if (container->on_new != NULL)
 		container->on_new(container->type, container->size_per_item, ret);
@@ -305,27 +387,34 @@ void* np_memory_new(uint8_t type) {
 }
 
 void np_memory_free(void* item) {
-
 	if (item != NULL) {
 		np_memory_itemconf_t* config = GET_CONF(item);
-
-		np_memory_container_t* container = config->block->container;
+		np_memory_container_t* container = config->container;
 
 		_LOCK_ACCESS(&config->access_lock) {
 			config->in_use = FALSE;
+
 			if (container->on_free != NULL)
 				container->on_free(container->type, container->size_per_item, item);
 
-			if(container->on_refresh_space != NULL)
+			if (container->on_refresh_space != NULL) {
 				config->needs_refresh = TRUE;
+			}
+
+			if (config->needs_refresh) {
+				_LOCK_ACCESS(&container->free_items_lock) {
+					sll_append(np_memory_itemconf_ptr, container->free_items, config);
+				}
+			}
+			else {
+				_LOCK_ACCESS(&container->refreshed_items_lock) {
+					sll_append(np_memory_itemconf_ptr, container->refreshed_items, config);
+				}
+			}
 		}
 
-		_LOCK_ACCESS(&container->attr_lock) {
+		_LOCK_ACCESS(&container->current_in_use_lock) {
 			container->current_in_use -= 1;
-		}
-
-		_LOCK_ACCESS(&config->block->attr_lock) {
-			config->block->current_in_use -= 1;
 		}
 	}
 }
@@ -342,26 +431,51 @@ void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 	for (uint8_t i = 0; i < np_memory_types_END_TYPES; i++) {
 		np_memory_container_t* container = np_memory_containers[i];
 		if (container != NULL && container->on_refresh_space != NULL) {
-			//_LOCK_ACCESS(&container->blocks_lock) 
+			debugf("_np_memory_job_memory_management for %"PRIu8"\n", container->type);
+
+			__np_memory_itemstats_update(container);
+
+			/*
+			while (__np_memory_space_decrease_nessecary(container)) {
+				debugf("\t__np_memory_space_decrease\n");
+				__np_memory_space_decrease(container);
+			}
+			*/
+			while (__np_memory_space_increase_nessecary(container))
 			{
-				//TODO: remove unused/unnecessary blocks
+				debugf("__np_memory_space_increase\n");
+				__np_memory_space_increase(container, container->count_of_items_per_block);
+			}
 
-				// refresh items
-				sll_iterator(np_memory_block_ptr) iter_blocks = sll_first(container->blocks);
-				while (iter_blocks != NULL)
+			// refresh items
+			np_memory_itemconf_ptr * list_as_array;
+			uint32_t i = 0;
+			_LOCK_ACCESS(&container->free_items_lock)
+			{
+				list_as_array = calloc(sll_size(container->free_items), sizeof(np_memory_itemconf_ptr));
+
+				sll_iterator(np_memory_itemconf_ptr) iter_refreshable = sll_first(container->free_items);
+
+				while (iter_refreshable != NULL)
 				{
-					np_memory_itemconf_t* next_config = iter_blocks->val->space;
+					list_as_array[i] = iter_refreshable->val;
+					i++;
+					sll_next(iter_refreshable);
+				}
+				sll_clear(np_memory_itemconf_ptr, container->free_items);
+			}
 
-					for (uint32_t j = 0; j < container->count_of_items_per_block; j++) {
-						if (_np_threads_mutex_trylock(&next_config->access_lock, __func__) == 0)
-						{
-							__np_memory_refresh_space(next_config);
+			for (i--; i != UINT32_MAX; i--)
+			{
+				np_memory_itemconf_t* item_config = list_as_array[i];
 
-							_np_threads_mutex_unlock(&next_config->access_lock);
-						}
-						NEXT_ITEMCONF(next_config, 0)
+				_LOCK_ACCESS(&item_config->access_lock)
+				{
+					__np_memory_refresh_space(item_config);
+					_LOCK_ACCESS(&container->refreshed_items_lock)
+					{
+						sll_append(np_memory_itemconf_ptr, container->refreshed_items, item_config);
 					}
-					sll_next(iter_blocks);
 				}
 			}
 		}
