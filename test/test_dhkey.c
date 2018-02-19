@@ -10,6 +10,7 @@
 
 #include "np_dhkey.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_log.h"
 
 void setup_dhkey(void)

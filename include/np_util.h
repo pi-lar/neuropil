@@ -6,6 +6,7 @@
 #define	_NP_UTIL_H_
 
 #include <assert.h>
+#include <math.h>
 
 #include "msgpack/cmp.h"
 #include "json/parson.h"
@@ -43,6 +44,12 @@ extern "C" {
 #define max(a,b) MAX(a,b)
 #endif
 
+#ifdef DEBUG
+#define debugf(s, ...) printf(s, ##__VA_ARGS__);fflush(stdout)
+#else
+#define debugf(s, ...)
+#endif
+	
 
 #define FLAG_CMP(data,flag) (((data) & (flag)) == (flag))
 
@@ -61,15 +68,82 @@ extern "C" {
 	}
 #endif
 
-#define NP_GENERATE_THREADSAFE_PROPERTY_PROTOTYPE(TYPE, PROPERTY_NAME)					\
-	TYPE PROPERTY_NAME##_get();															\
-	void PROPERTY_NAME##_set(TYPE obj);														
+#define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)		\
+		double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;               \
+		for (uint16_t j = 0; j < max_size; j++)                                         \
+		{                                                                               \
+			min_v = min(min_v,(array[j]accessor));										\
+			max_v = max(max_v,(array[j]accessor));										\
+			/*avg = (avg * max_size + array[j]accessor) / (max_size + 1);*/             \
+			avg_v += array[j]accessor;                                                  \
+		}                                                                               \
+		avg_v = avg_v / max_size;                                                       \
+		for (uint16_t j = 0; j < max_size; j++) {                                       \
+		    stddev_v += pow((array[j]accessor) - avg_v, 2);                             \
+		}                                                                               \
+		stddev_v = sqrt(stddev_v/(max_size-1));                                         \
+		
+#ifdef NP_BENCHMARKING
+enum np_util_performance_point_e{
+	np_util_performance_point_memory_new = 1,
+	np_util_performance_point_memory_free,
+	np_util_performance_point_memory_management,
+	np_util_performance_point_END
+};
+struct np_util_performance_point {
+	char* name;
+	double durations[NP_BENCHMARKING];
+	uint16_t durations_idx;
+	uint32_t durations_count;
+	np_mutex_t access;
+};
+extern struct np_util_performance_point* __np_util_performance_points[np_util_performance_point_END];
 
-#define NP_GENERATE_THREADSAFE_PROPERTY_IMPL(TYPE, PROPERTY_NAME, PROPERTY)				\
-	TYPE PROPERTY_NAME##_get() {														\
+#define NP_PERFORMANCE_POINT_START(NAME) 																					\
+double t1_##NAME;																											\
+{																															\
+	struct np_util_performance_point* container = __np_util_performance_points[np_util_performance_point_##NAME];			\
+	if (container == NULL) {																								\
+		container = malloc(sizeof(struct np_util_performance_point));														\
+		container->name = #NAME;																							\
+		container->durations_idx = 0;																						\
+		container->durations_count = 0;																						\
+		_np_threads_mutex_init(&container->access, "performance point "#NAME" access");										\
+		__np_util_performance_points[np_util_performance_point_##NAME] = container;											\
+	}																														\
+	t1_##NAME = (double)clock()/CLOCKS_PER_SEC;																				\
 }
-
-
+#define NP_PERFORMANCE_POINT_END(NAME) {																					\
+	double t2 = (double)clock()/CLOCKS_PER_SEC;																				\
+	struct np_util_performance_point* container = __np_util_performance_points[np_util_performance_point_##NAME];			\
+	_LOCK_ACCESS(&container->access) {																						\
+		container->durations[container->durations_idx] = t2 - t1_##NAME;													\
+		container->durations_idx = (container->durations_idx + 1)  % NP_BENCHMARKING;										\
+		container->durations_count++;																						\
+	}																														\
+}
+#define NP_PERFORMANCE_GET_POINTS_STR(STR) 																					\
+char* STR = NULL;																											\
+{																															\
+	STR = np_str_concatAndFree(STR, "%20s --> %8s / %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "stddev", "hits");\
+	for (int i = 0; i < np_util_performance_point_END; i++) {																\
+		struct np_util_performance_point* container = __np_util_performance_points[i];										\
+		if (container != NULL) {																							\
+			_LOCK_ACCESS(&container->access) {																				\
+				CALC_STATISTICS(container->durations, , 																	\
+					(container->durations_count > NP_BENCHMARKING ? NP_BENCHMARKING : container->durations_idx), 			\
+					min_v, max_v, avg_v, stddev_v);																			\
+				STR = np_str_concatAndFree(STR, "%20s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",					\
+				container->name, min_v, avg_v, max_v, stddev_v, container->durations_count);								\
+			}																												\
+		}																													\
+	}																														\
+}																															
+#else
+#define NP_PERFORMANCE_POINT_START(name)
+#define NP_PERFORMANCE_POINT_END(name)
+#define PERFORMANCE_PRINT_POINTS()
+#endif
 
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)			\
 static const char* PROP_NAME##_str = # PROP_NAME;					\

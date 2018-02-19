@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <float.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <inttypes.h>
@@ -55,6 +56,7 @@ enum np_statistic_types_e {
 	np_stat_locks = 0x002,
 	np_stat_msgpartcache = 0x004,
 	np_stat_memory = 0x008,
+	np_stat_performance = 0x010,
 } typedef np_statistic_types_e;
 
 np_statistic_types_e statistic_types = 0;
@@ -68,6 +70,7 @@ WINDOW * __np_stat_msgpartcache_win;
 WINDOW * __np_stat_memory_ext;
 WINDOW * __np_stat_log;
 WINDOW * __np_stat_switchable_window;
+WINDOW * __np_stat_performance_win;
 np_bool __np_ncurse_initiated = FALSE;
 np_bool __np_refresh_windows = TRUE;
 
@@ -489,7 +492,7 @@ np_bool parse_program_args(
 			| LOG_AAATOKEN
 			//| LOG_SYSINFO
 			//| LOG_MESSAGE
-			| LOG_SERIALIZATION
+			//| LOG_SERIALIZATION
 			//| LOG_MEMORY
 			//| LOG_MISC
 			//| LOG_EVENT
@@ -549,6 +552,7 @@ void __np_example_deinti_ncurse() {
 		delwin(__np_stat_msgpartcache_win);
 		delwin(__np_stat_memory_win);
 		delwin(__np_stat_locks_win);
+		delwin(__np_stat_performance_win);		
 		delwin(__np_help_win);
 		endwin();
 	}
@@ -605,7 +609,12 @@ void __np_example_inti_ncurse() {
 					wbkgd(__np_stat_memory_ext, COLOR_PAIR(6));
 					scrollok(__np_stat_memory_ext, TRUE);
 				}
-
+				if (statistic_types == np_stat_all || (statistic_types & np_stat_performance) == np_stat_performance) {
+					__np_stat_performance_win = newwin(h, w, x, y);
+					wbkgd(__np_stat_performance_win, COLOR_PAIR(6));
+					scrollok(__np_stat_performance_win, TRUE);
+				}
+				
 				__np_stat_log = newwin(h, w, x, y);
 				wbkgd(__np_stat_log, COLOR_PAIR(7));
 				scrollok(__np_stat_log, TRUE);
@@ -616,13 +625,14 @@ void __np_example_inti_ncurse() {
 			__np_help_win = newwin(10, 104 + 43, 39 + 15, 0);
 			wbkgd(__np_help_win, COLOR_PAIR(4));
 			mvwprintw(__np_help_win, 0, 0,
-				"Windows: Message(p)arts / Extended (M)emory / (L)og; "
-				"General: (S)top output / (R)esume output / R(e)paint "
-				"Log: (F)ollow; (U)p; dow(N); "
+				"(P)erformance/ Message(c)ache / Extended (M)emory / (L)og; "
+				"| (S)top output / (R)esume output / R(e)paint "
+				"| Log: (F)ollow; (U)p; dow(N); "
 			);
 
 			wclear(__np_stat_general_win);
 			wclear(__np_stat_locks_win);
+			wclear(__np_stat_performance_win);
 			wclear(__np_stat_memory_ext);
 			wclear(__np_stat_log);
 			wclear(__np_stat_msgpartcache_win);
@@ -696,6 +706,26 @@ void __np_example_helper_loop() {
 				memory_str = np_mem_printpool(TRUE, TRUE);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
+			}
+		}
+		if (statistic_types == np_stat_all || (statistic_types & np_stat_performance) == np_stat_performance) {
+			if (enable_statistics == 1 || enable_statistics > 2) {
+				NP_PERFORMANCE_GET_POINTS_STR(memory);
+
+				if (memory != NULL) {
+					if (__np_ncurse_initiated == TRUE) {
+						mvwprintw(__np_stat_performance_win, 0, 0, "%s", memory);
+					}
+					else {
+						np_example_print(stdout, memory);
+					}
+				}
+				free(memory);
+			}
+			if (enable_statistics >= 2) {
+				NP_PERFORMANCE_GET_POINTS_STR(memory);
+				if (memory != NULL) log_msg(LOG_INFO, "%s", memory);
+				free(memory);
 			}
 		}
 
@@ -816,11 +846,16 @@ void __np_example_helper_loop() {
 		case 101:	// e
 			__np_example_reset_ncurse();
 			break;
-		case 112:	// p
-		case 80:	// P
+		case 63:	// c
+		case 43:	// C
 			__np_stat_switchable_window = __np_stat_msgpartcache_win;
 			log_user_cursor = 0;
 			break;
+		case 112:	// p
+		case 80:	// P
+			__np_stat_switchable_window = __np_stat_performance_win;
+			log_user_cursor = 0;
+			break;			
 		case 109:	// m
 		case 77:	// M
 			__np_stat_switchable_window = __np_stat_memory_ext;

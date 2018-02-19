@@ -18,6 +18,7 @@
 #include "np_list.h"
 #include "np_log.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_node.h"
 #include "np_threads.h"
 #include "np_types.h"

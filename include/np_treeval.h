@@ -47,6 +47,7 @@ Fax: 865-974-4404
 
 #include "np_dhkey.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_types.h"
 
 enum np_treeval_type_t {

@@ -40,6 +40,9 @@
 #include "np_list.h"
 #include "np_threads.h"
 
+#ifdef NP_BENCHMARKING
+struct np_util_performance_point* __np_util_performance_points[np_util_performance_point_END] = { 0 };
+#endif
 
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);

@@ -1,63 +1,3 @@
-<<<<<<< HEAD
-//
-// neuropil is copyright 2016-2017 by pi-lar GmbH
-// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
-//
-#include <arpa/inet.h>
-#include <assert.h>
-#include <errno.h>
-#include <pthread.h>
-#include <netinet/in.h>
-#include <sys/select.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <stdio.h>
-#include <inttypes.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "sodium.h"
-#include "event/ev.h"
-#include "msgpack/cmp.h"
-
-#include "np_dendrit.h"
-
-#include "np_axon.h"
-#include "np_log.h"
-#include "neuropil.h"
-#include "np_aaatoken.h"
-#include "np_glia.h"
-#include "np_jobqueue.h"
-#include "np_tree.h"
-#include "np_dhkey.h"
-#include "np_key.h"
-#include "np_keycache.h"
-#include "np_message.h"
-#include "np_msgproperty.h"
-#include "np_network.h"
-#include "np_node.h"
-#include "np_memory.h"
-#include "np_memory_v2.h"
-#include "np_list.h"
-#include "np_route.h"
-#include "np_util.h"
-#include "np_types.h"
-#include "np_threads.h"
-#include "np_tree.h"
-#include "np_treeval.h"
-#include "np_axon.h"
-#include "np_event.h"
-#include "np_constants.h"
-#include "np_responsecontainer.h"
-#include "np_serialization.h"
-
-/*
-will always call all handlers, but will return false if any of the handlers returns false
-*/
-np_bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_t* msg_prop) {
-	np_bool ret = TRUE;
-
-=======
 //
 // neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
@@ -117,7 +57,6 @@ will always call all handlers, but will return false if any of the handlers retu
 np_bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_t* msg_prop) {
 	np_bool ret = TRUE;
 
->>>>>>> fb_TokenRework
 	ASSERT(msg_prop != NULL, "msg property cannot be null");
 
 	// set msg property if not already set
@@ -726,10 +665,11 @@ void _np_in_join_req(np_jobargs_t* args)
 
 	np_tree_elem_t* ident_token_ele = np_tree_find_str(args->msg->body, "_np.token.ident");
 	if (ident_token_ele != NULL) {
-		join_ident_token = np_token_factory_read_from_tree(ident_token_ele->val.value.tree);
+		join_ident_token = np_token_factory_read_from_tree(ident_token_ele->val.value.tree);		
 		if (join_ident_token != NULL &&
 			FALSE == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity))
 		{
+			// join token needs to be a valid ident token
 			goto __np_cleanup__;
 		}
 		join_ident_dhkey = np_aaatoken_get_fingerprint(join_ident_token);
@@ -739,11 +679,12 @@ void _np_in_join_req(np_jobargs_t* args)
 		}
 		np_tree_elem_t* partner_fp = np_tree_find_str(join_ident_token->extensions, "_np.partner_fp");
 		if (partner_fp != NULL) {
+			// node fingerprint has to be available
 			goto __np_cleanup__;
 		}
 		partner_dhkey = partner_fp->val.value.dhkey;
 		if (FALSE == _np_dhkey_equal(&join_node_dhkey, &partner_dhkey)) {
-			// node fingerprint must match partner fp from identity token
+			// node fingerprint has to match partner fp from identity token
 			goto __np_cleanup__;
 		}
 		join_ident_key = _np_keycache_find_or_create(join_ident_dhkey);

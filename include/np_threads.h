@@ -10,6 +10,7 @@
 #include <sys/time.h>
 
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_list.h"
 #include "np_log.h"
 #include "np_types.h"

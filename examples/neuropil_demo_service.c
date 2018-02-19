@@ -29,6 +29,7 @@
 #include "np_util.h"
 #include "np_http.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_keycache.h"

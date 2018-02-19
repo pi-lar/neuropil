@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <assert.h>
+#include "np_memory_v2.h"
 
 #include "np_types.h"
 #include "np_list.h"
@@ -262,7 +263,7 @@ TYPE* saveTo = NULL;																																\
 	{																																				\
 		if (del_callback != NULL)   																												\
 			del_callback(np_obj);    																												\
-		free(np_obj);                           																									\
+		np_memory_free(np_obj);                           																									\
 		np_obj = NULL;                          																									\
 	}																																				\
 }
@@ -299,7 +300,7 @@ TYPE* saveTo = NULL;																																\
 #define np_new_obj4(TYPE, np_obj, reason, reason_desc)                																				\
 {                                               																									\
   _LOCK_MODULE(np_memory_t) {                   																									\
-	np_obj = (TYPE*) calloc(1,sizeof(TYPE));											      														\
+	np_obj = np_memory_new(np_memory_types_##TYPE);											      														\
 	CHECK_MALLOC(np_obj);																															\
 	np_mem_newobj(TYPE##_e, &np_obj->obj);      																									\
 	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"Creating_ object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 											\
