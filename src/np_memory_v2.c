@@ -470,35 +470,30 @@ void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 				__np_memory_space_increase(container, container->count_of_items_per_block);
 			}
 
-			// refresh items
-			np_memory_itemconf_ptr * list_as_array;
-			uint32_t i = 0;
+			uint32_t list_size = 0;
+			_LOCK_ACCESS(&container->free_items_lock) {
+				list_size = sll_size(container->free_items);
+			}
+			np_memory_itemconf_ptr list_as_array[ list_size ];
+
 			_LOCK_ACCESS(&container->free_items_lock)
 			{
-				list_as_array = malloc(sll_size(container->free_items) * sizeof(np_memory_itemconf_ptr));
-
-				sll_iterator(np_memory_itemconf_ptr) iter_refreshable = sll_first(container->free_items);
-
-				while (iter_refreshable != NULL)
-				{
-					list_as_array[i] = iter_refreshable->val;
-					i++;
-					sll_next(iter_refreshable);
+				for (uint32_t k = list_size; k > 0; k--) {
+					list_as_array[k-1] = sll_head(np_memory_itemconf_ptr, container->free_items);
 				}
-				sll_clear(np_memory_itemconf_ptr, container->free_items);
 			}
-			
-			if (i/*count_of_array_size */ > 0) {				
-				for (i--; i > 0; i--) // i as index, not as count
-				{
-					np_memory_itemconf_t* item_config = list_as_array[i];
 
+			for (uint32_t k = list_size; k > 0 && k <= list_size; k--)
+			{
+				np_memory_itemconf_t* item_config = list_as_array[k-1];
+				if (item_config != NULL)
+				{
 					_LOCK_ACCESS(&item_config->access_lock)
 					{
 						__np_memory_refresh_space(item_config);
 						_LOCK_ACCESS(&container->refreshed_items_lock)
 						{
-							sll_append(np_memory_itemconf_ptr, container->refreshed_items, item_config);
+						sll_append(np_memory_itemconf_ptr, container->refreshed_items, item_config);
 						}
 					}
 				}

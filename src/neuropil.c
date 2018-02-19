@@ -1040,6 +1040,7 @@ np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* su
 	np_aaatoken_encode(jrb_my_node, state->my_node_key->aaa_token);
 	np_tree_insert_str(jrb_data, "_np.token.node", np_treeval_new_tree(jrb_my_node));
 
+
 	if(_np_key_cmp(np_state()->my_identity, np_state()->my_node_key) != 0){
 		np_tree_t* jrb_my_ident = np_tree_create();
 		np_aaatoken_encode(jrb_my_ident, state->my_identity->aaa_token);
@@ -1053,6 +1054,8 @@ np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* su
 	log_debug_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(target));
 	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, subject);
 	_np_job_submit_msgout_event(0.0, prop, target, msg_out);	
+
+	np_tree_free(jrb_my_node);
 
 	return msg_out;	
 }

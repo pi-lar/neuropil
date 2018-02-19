@@ -307,6 +307,7 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self)
 		sodium_bin2hex(key, crypto_generichash_BYTES * 2 + 1, hash, crypto_generichash_BYTES);
 		ret = np_dhkey_create_from_hash(key);
 
+		free(hash_attributes);
 		free(hash);
 	// }
 	return ret;
@@ -1116,11 +1117,11 @@ unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* self) {
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting audience  : %s", self->audience);
 
 	crypto_generichash_update(&gh_state, (unsigned char*)self->public_key, crypto_sign_PUBLICKEYBYTES);
-#ifdef DEBUG
-	unsigned long long pk_len = crypto_sign_PUBLICKEYBYTES;
-	char* pk_hex = calloc(1, pk_len * 2 + 1);
-	sodium_bin2hex(pk_hex, pk_len * 2 + 1,
-		self->public_key, pk_len);
+
+	#ifdef DEBUG
+	char pk_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1];
+	sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
+		self->public_key, crypto_sign_PUBLICKEYBYTES);
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting public_key: %s", pk_hex);
 #else
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting public_key: <...>");
@@ -1335,6 +1336,8 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 	// sign the core token
 	int ret = __np_aaatoken_generate_signature(hash, signee->private_key, self->signature);
 
+	free(hash);
+
 #ifdef DEBUG
 	char sign_hex[crypto_sign_BYTES * 2 + 1];
 	sodium_bin2hex(sign_hex, crypto_sign_BYTES * 2 + 1, self->signature, crypto_sign_BYTES);
@@ -1367,11 +1370,13 @@ unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self) {
 
 	unsigned char* hash = np_tree_get_hash(self->extensions);
 	ASSERT(hash != NULL, "cannot sign NULL hash");
-	crypto_generichash_update(&gh_state, hash, crypto_generichash_BYTES);
 
+	crypto_generichash_update(&gh_state, hash, crypto_generichash_BYTES);
  	crypto_generichash_update(&gh_state, self->signature, crypto_sign_BYTES);
 
-	crypto_generichash_final(&gh_state, ret, crypto_generichash_BYTES);
+ 	crypto_generichash_final(&gh_state, ret, crypto_generichash_BYTES);
+
+	free(hash);
 
 	return ret;
 }
