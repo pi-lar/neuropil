@@ -22,6 +22,18 @@
 #include "np_threads.h"
 #include "np_util.h"
 #include "np_list.h"
+#include "np_types.h"
+#include "np_message.h"
+#include "np_msgproperty.h"
+#include "np_key.h"
+#include "np_aaatoken.h"
+#include "np_threads.h"
+#include "np_node.h"
+#include "np_network.h"
+#include "np_responsecontainer.h"
+#include "np_messagepart.h"
+
+
 #include "np_constants.h"
 #include "np_settings.h"
 
@@ -87,6 +99,17 @@ void np_memory_init() {
 	for (int i = 0; i < np_memory_types_END_TYPES; i++) {
 		np_memory_containers[i] = NULL;
 	}
+	np_memory_register_type(np_memory_types_np_message_t, sizeof(np_message_t), 4, 4, NULL, NULL, np_memory_clear_space);
+	np_memory_register_type(np_memory_types_np_key_t, sizeof(np_key_t), 4, 4, NULL, NULL, np_memory_clear_space);
+	np_memory_register_type(np_memory_types_np_msgproperty_t, sizeof(np_msgproperty_t), 4, 4, NULL, NULL, np_memory_clear_space);
+	np_memory_register_type(np_memory_types_np_thread_t, sizeof(np_thread_t), 4, 4, NULL, NULL, np_memory_clear_space);
+	np_memory_register_type(np_memory_types_np_node_t, sizeof(np_node_t), 4, 4, NULL, NULL, np_memory_clear_space);
+	np_memory_register_type(np_memory_types_np_network_t, sizeof(np_network_t), 4, 4, NULL, NULL, np_memory_clear_space);
+	np_memory_register_type(np_memory_types_np_responsecontainer_t, sizeof(np_responsecontainer_t), 4, 4, NULL, NULL, np_memory_clear_space);
+	np_memory_register_type(np_memory_types_np_messagepart_t, sizeof(np_messagepart_t), 4, 4, NULL, NULL, np_memory_clear_space);
+	np_memory_register_type(np_memory_types_np_aaatoken_t, sizeof(np_aaatoken_t), 4, 4, NULL, NULL, np_memory_clear_space);
+	
+	
 	np_memory_register_type(np_memory_types_BLOB_1024, 1024, 4, 4, NULL, NULL, np_memory_clear_space);
 	np_memory_register_type(np_memory_types_BLOB_984_RANDOMIZED, 984, 4, 200, NULL, NULL, np_memory_randomize_space);
 	_np_memory_job_memory_management(NULL);

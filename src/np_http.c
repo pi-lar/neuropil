@@ -20,6 +20,7 @@
 
 #include "np_log.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "neuropil.h"
 #include "np_glia.h"
 #include "np_tree.h"

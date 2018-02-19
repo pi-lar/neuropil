@@ -25,6 +25,7 @@
 #include "neuropil.h"
 #include "np_aaatoken.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_tree.h"
 #include "np_msgproperty.h"
 #include "np_dhkey.h"

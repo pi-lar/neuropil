@@ -13,6 +13,7 @@ extern "C" {
 #include "neuropil.h"
 #include "np_list.h"
 #include "np_memory.h"
+#include "np_memory_v2.h"
 #include "np_threads.h"
 
 #define SIMPLE_CACHE_NR_BUCKETS 32

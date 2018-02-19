@@ -56,6 +56,8 @@ void setup_memory(void)
 
 	_np_threads_init();
 	np_mem_init();
+	np_memory_register_type(np_memory_types_test_struct_t, sizeof(struct test_struct), 4, 4, NULL, NULL, np_memory_clear_space);
+
 }
 
 void teardown_memory(void)

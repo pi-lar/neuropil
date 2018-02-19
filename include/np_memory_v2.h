@@ -13,6 +13,17 @@ extern "C" {
 	enum np_memory_types_e {
 		np_memory_types_BLOB_1024,
 		np_memory_types_BLOB_984_RANDOMIZED,
+		np_memory_types_np_message_t,
+		np_memory_types_np_msgproperty_t,
+		np_memory_types_np_thread_t,
+		np_memory_types_np_node_t,
+		np_memory_types_np_network_t,
+		np_memory_types_np_key_t,
+		np_memory_types_np_responsecontainer_t,
+		np_memory_types_np_messagepart_t,
+		np_memory_types_np_aaatoken_t,		
+		
+		np_memory_types_test_struct_t,
 		np_memory_types_END_RESERVED_TYPES,
 		np_memory_types_END_TYPES = 254,
 	};
