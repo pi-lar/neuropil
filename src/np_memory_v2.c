@@ -247,11 +247,9 @@ double __np_memory_itemstats_get_growth(np_memory_container_t* container) {
 
 		
 		_LOCK_ACCESS(&container->current_in_use_lock) {		
-			//debugf("itemstats_avg %f %"PRIu32"\n", itemstats_avg, container->current_in_use);
 			growth = (container->current_in_use - itemstats_avg) / (max_time == min_time ? 1 : max_time - min_time);
 		}
 	}
-	//debugf("growth: %f \n", growth);
 	return growth;
 }
 
@@ -377,11 +375,11 @@ void* np_memory_new(uint8_t type) {
 						if (next_config == NULL) {
 							// worst case: create a new block
 							__np_memory_space_increase(container, 1);
+							next_config = sll_head(np_memory_itemconf_ptr, container->free_items);
 						}
-						else {
-							// second bast as we need to refresh the item
-							__np_memory_refresh_space(next_config);
-						}
+
+						// second bast as we need to refresh the item
+						__np_memory_refresh_space(next_config);													
 					}
 				}
 			}
@@ -456,20 +454,17 @@ void np_memory_randomize_space(NP_UNUSED uint8_t type, size_t size, void* data) 
 
 void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 	NP_PERFORMANCE_POINT_START(memory_cleanup);
-	for (uint8_t i = 0; i < np_memory_types_END_TYPES; i++) {
-		np_memory_container_t* container = np_memory_containers[i];
+	for (uint8_t memory_type = 0; memory_type < np_memory_types_END_TYPES; memory_type++) {
+		np_memory_container_t* container = np_memory_containers[memory_type];
 		if (container != NULL && container->on_refresh_space != NULL) {
-			//debugf("_np_memory_job_memory_management for %"PRIu8"\n", container->type);
-
 			__np_memory_itemstats_update(container);
-
 			
-			while (__np_memory_space_decrease_nessecary(container)) {
+			if (__np_memory_space_decrease_nessecary(container)) {
 				//debugf("\t__np_memory_space_decrease\n");
 				__np_memory_space_decrease(container);
 			}
 			
-			while (__np_memory_space_increase_nessecary(container))
+			if (__np_memory_space_increase_nessecary(container))
 			{
 				//debugf("__np_memory_space_increase\n");
 				__np_memory_space_increase(container, container->count_of_items_per_block);
@@ -492,17 +487,19 @@ void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 				}
 				sll_clear(np_memory_itemconf_ptr, container->free_items);
 			}
-
-			for (i--; i != UINT32_MAX; i--)
-			{
-				np_memory_itemconf_t* item_config = list_as_array[i];
-
-				_LOCK_ACCESS(&item_config->access_lock)
+			
+			if (i/*count_of_array_size */ > 0) {				
+				for (i--; i > 0; i--) // i as index, not as count
 				{
-					__np_memory_refresh_space(item_config);
-					_LOCK_ACCESS(&container->refreshed_items_lock)
+					np_memory_itemconf_t* item_config = list_as_array[i];
+
+					_LOCK_ACCESS(&item_config->access_lock)
 					{
-						sll_append(np_memory_itemconf_ptr, container->refreshed_items, item_config);
+						__np_memory_refresh_space(item_config);
+						_LOCK_ACCESS(&container->refreshed_items_lock)
+						{
+							sll_append(np_memory_itemconf_ptr, container->refreshed_items, item_config);
+						}
 					}
 				}
 			}
