@@ -83,9 +83,62 @@ extern "C" {
 		}                                                                               \
 		stddev_v = sqrt(stddev_v/(max_size-1));                                         \
 		
+#ifdef NP_BENCHMARKING
+enum np_util_performance_point_e{
+	np_util_performance_point_memory_new = 1,
+	np_util_performance_point_memory_free,
+	np_util_performance_point_memory_cleanup,
+	np_util_performance_point_END
+};
+struct np_util_performance_point {
+	char* name;
+	double durations[UINT16_MAX];
+	uint16_t durations_count;
+	np_mutex_t access;
+};
+extern struct np_util_performance_point* __np_util_performance_points[np_util_performance_point_END];
 
-
-
+#define NP_PERFORMANCE_POINT_START(NAME) 																					\
+double t1_##NAME;																											\
+{																															\
+	struct np_util_performance_point* container = __np_util_performance_points[np_util_performance_point_##NAME];			\
+	if (container == NULL) {																								\
+		container = malloc(sizeof(struct np_util_performance_point));														\
+		container->name = #NAME;																							\
+		container->durations_count = 0;																						\
+		_np_threads_mutex_init(&container->access, "performance point "#NAME" access");										\
+		__np_util_performance_points[np_util_performance_point_##NAME] = container;											\
+	}																														\
+	t1_##NAME = (double)clock()/CLOCKS_PER_SEC;																				\
+}
+#define NP_PERFORMANCE_POINT_END(NAME) {																					\
+	double t2 = (double)clock()/CLOCKS_PER_SEC;																				\
+	struct np_util_performance_point* container = __np_util_performance_points[np_util_performance_point_##NAME];			\
+	_LOCK_ACCESS(&container->access) {																						\
+		container->durations[container->durations_count] = t2 - t1_##NAME;													\
+		container->durations_count++;																						\
+	}																														\
+}
+#define NP_PERFORMANCE_GET_POINTS_STR(STR) 																					\
+char* STR = NULL;																											\
+{																															\
+	STR = np_str_concatAndFree(STR, "%20s --> %8s / %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "stddev", "hits");\
+	for (int i = 0; i < np_util_performance_point_END; i++) {																\
+		struct np_util_performance_point* container = __np_util_performance_points[i];										\
+		if (container != NULL) {																							\
+			_LOCK_ACCESS(&container->access) {																				\
+				CALC_STATISTICS(container->durations, , container->durations_count, min_v, max_v, avg_v, stddev_v);			\
+				STR = np_str_concatAndFree(STR, "%20s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu16"\n",					\
+				container->name, min_v, avg_v, max_v, stddev_v, container->durations_count);								\
+			}																												\
+		}																													\
+	}																														\
+}																															
+#else
+#define NP_PERFORMANCE_POINT_START(name)
+#define NP_PERFORMANCE_POINT_END(name)
+#define PERFORMANCE_PRINT_POINTS()
+#endif
 
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)			\
 static const char* PROP_NAME##_str = # PROP_NAME;					\

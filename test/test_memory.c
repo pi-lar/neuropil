@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
+#include <float.h>
 #include <inttypes.h>
 
 #include "sodium.h"
@@ -14,15 +15,18 @@
 
 #include <criterion/criterion.h>
 
-#include "neuropil.h"
 #include "np_constants.h"
+#include "np_settings.h"
+#undef NP_BENCHMARKING
+#include "neuropil.h"
 #include "np_log.h"
 #include "np_memory.h"
 #include "np_message.h"
 #include "np_memory_v2.h"
-#include "np_settings.h"
+
 #include "np_threads.h"
 #include "np_types.h"
+#include "np_util.h"
 
 
 typedef struct test_struct
@@ -221,17 +225,18 @@ Test(np_memory_t, _memory_v2_perf, .description = "test the memory_v2 performanc
 	for (uint16_t i=0; i < max_count; i++)
 	{
 		// random number
-		uint16_t random = randombytes_uniform(max_count);
+		uint32_t random = randombytes_uniform(max_count);
 
 		if (memory_blobs[random] != NULL)
 		{
 			del++;
+
 			MEASURE_TIME(free_time, i, np_memory_free(memory_blobs[random]) );
 
 			memory_blobs[random] = NULL;
 		}
 
-		add++;
+		add++;		
 		if (random % 2)
 		{
 			MEASURE_TIME(new_time, i, memory_blobs[random] = np_memory_new(np_memory_types_BLOB_1024) );
@@ -240,11 +245,13 @@ Test(np_memory_t, _memory_v2_perf, .description = "test the memory_v2 performanc
 		{
 			MEASURE_TIME(new_time, i, memory_blobs[random] = np_memory_new(np_memory_types_BLOB_984_RANDOMIZED) );
 		}
+		
 
 		if (0 == (i % 99))
 		{
 			log_debug_msg(LOG_DEBUG | LOG_MEMORY, "Cleanup of memory block requested");
 			MEASURE_TIME(clean_time, clean_index, _np_memory_job_memory_management(NULL) );
+
 			clean_index++;
 		}
 	}
@@ -255,5 +262,4 @@ Test(np_memory_t, _memory_v2_perf, .description = "test the memory_v2 performanc
 	CALC_AND_PRINT_STATISTICS("memory new_time  :", new_time, max_count);
 	CALC_AND_PRINT_STATISTICS("memory free_time :", free_time, max_count);
 	CALC_AND_PRINT_STATISTICS("memory clean_time:", clean_time, clean_index);
-
 }

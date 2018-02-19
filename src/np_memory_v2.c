@@ -228,7 +228,7 @@ double __np_memory_itemstats_get_growth(np_memory_container_t* container) {
 			growth = (container->current_in_use - itemstats_avg) / (max_time == min_time ? 1 : max_time - min_time);
 		}
 	}
-	debugf("growth: %f \n", growth);
+	//debugf("growth: %f \n", growth);
 	return growth;
 }
 
@@ -328,6 +328,7 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
 }
 
 void* np_memory_new(uint8_t type) {
+	NP_PERFORMANCE_POINT_START(memory_new);
 	void* ret = NULL;
 	np_memory_container_t* container = np_memory_containers[type];
 	ASSERT(container != NULL, "Memory container %"PRIu8" needs to be initialized first.", type);
@@ -383,11 +384,13 @@ void* np_memory_new(uint8_t type) {
 	if (container->on_new != NULL)
 		container->on_new(container->type, container->size_per_item, ret);
 
+	NP_PERFORMANCE_POINT_END(memory_new);
 	return ret;
 }
 
-void np_memory_free(void* item) {
+void np_memory_free(void* item) {	
 	if (item != NULL) {
+		NP_PERFORMANCE_POINT_START(memory_free);
 		np_memory_itemconf_t* config = GET_CONF(item);
 		np_memory_container_t* container = config->container;
 
@@ -416,7 +419,8 @@ void np_memory_free(void* item) {
 		_LOCK_ACCESS(&container->current_in_use_lock) {
 			container->current_in_use -= 1;
 		}
-	}
+		NP_PERFORMANCE_POINT_END(memory_free);
+	}	
 }
 
 void np_memory_clear_space(NP_UNUSED uint8_t type, size_t size, void* data) {
@@ -428,22 +432,23 @@ void np_memory_randomize_space(NP_UNUSED uint8_t type, size_t size, void* data) 
 }
 
 void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
+	NP_PERFORMANCE_POINT_START(memory_cleanup);
 	for (uint8_t i = 0; i < np_memory_types_END_TYPES; i++) {
 		np_memory_container_t* container = np_memory_containers[i];
 		if (container != NULL && container->on_refresh_space != NULL) {
-			debugf("_np_memory_job_memory_management for %"PRIu8"\n", container->type);
+			//debugf("_np_memory_job_memory_management for %"PRIu8"\n", container->type);
 
 			__np_memory_itemstats_update(container);
 
-			/*
+			
 			while (__np_memory_space_decrease_nessecary(container)) {
-				debugf("\t__np_memory_space_decrease\n");
+				//debugf("\t__np_memory_space_decrease\n");
 				__np_memory_space_decrease(container);
 			}
-			*/
+			
 			while (__np_memory_space_increase_nessecary(container))
 			{
-				debugf("__np_memory_space_increase\n");
+				//debugf("__np_memory_space_increase\n");
 				__np_memory_space_increase(container, container->count_of_items_per_block);
 			}
 
@@ -480,4 +485,5 @@ void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 			}
 		}
 	}
+	NP_PERFORMANCE_POINT_END(memory_cleanup);
 }
