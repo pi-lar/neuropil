@@ -113,9 +113,6 @@ void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node
 
 #endif // DEBUG
 
-
-
-
 		np_tree_clear(key_with_core_token->aaa_token->extensions); // remove "_np.session" etc
 		np_tree_t* container = np_tree_create();
 		np_aaatoken_encode(container, full_token);
@@ -396,13 +393,14 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 			token->is_signature_verified = TRUE;
 		}
 
-		if (token->is_signature_extensions_verified== FALSE) {
+		if (token->is_signature_extensions_verified == FALSE) {
 			unsigned char* hash = __np_aaatoken_get_extensions_hash(token);
 
+#ifdef DEBUG
 			char hash_hex[crypto_generichash_BYTES * 2 + 1] = { 0 };
 			sodium_bin2hex(hash_hex, crypto_generichash_BYTES * 2 + 1, hash, crypto_generichash_BYTES);
-			log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "token extensions hash: %s", hash_hex);
-
+			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token (%s) extensions hash: %s", token->uuid, hash_hex);
+#endif
 			// verify inserted signature first
 			unsigned char* signature = token->signature_extensions;
 
@@ -457,7 +455,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 			if (memcmp(handshake_token_key->aaa_token->public_key, token->public_key, crypto_sign_PUBLICKEYBYTES *(sizeof(unsigned char))) != 0) {
 
 				np_unref_obj(np_key_t, handshake_token_key, "_np_keycache_find");
-				log_msg(LOG_WARN, "Someone tried to impersonate a token. verification failed");
+				log_msg(LOG_WARN, "Someone tried to impersonate a token (%s). verification failed", token->uuid);
 				return (FALSE);
 			}
 
@@ -490,7 +488,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 			return (FALSE);
 		}
 	}
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token validity for subject \"%s\": verification valid", token->subject);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token (%s) validity for subject \"%s\": verification valid", token->uuid, token->subject);
 	token->state |= AAA_VALID;
 	return (TRUE);
 }
@@ -816,7 +814,7 @@ np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const char* co
 			// and we actually have the correct sender node in the list
 			if (0 != strncmp(return_token->issuer, sender, 64))
 			{
-				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring sender token for issuer %s / send_hk: %s",
+				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring sender token for issuer %s / send_hk: %s (issuer does not match)",
 						return_token->issuer, sender);
 				pll_next(iter);
 				return_token = NULL;

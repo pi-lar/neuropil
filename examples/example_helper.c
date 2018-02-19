@@ -492,7 +492,7 @@ np_bool parse_program_args(
 			| LOG_AAATOKEN
 			//| LOG_SYSINFO
 			//| LOG_MESSAGE
-			| LOG_SERIALIZATION
+			//| LOG_SERIALIZATION
 			//| LOG_MEMORY
 			//| LOG_MISC
 			//| LOG_EVENT

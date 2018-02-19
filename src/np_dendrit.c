@@ -665,10 +665,11 @@ void _np_in_join_req(np_jobargs_t* args)
 
 	np_tree_elem_t* ident_token_ele = np_tree_find_str(args->msg->body, "_np.token.ident");
 	if (ident_token_ele != NULL) {
-		join_ident_token = np_token_factory_read_from_tree(ident_token_ele->val.value.tree);
+		join_ident_token = np_token_factory_read_from_tree(ident_token_ele->val.value.tree);		
 		if (join_ident_token != NULL &&
 			FALSE == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity))
 		{
+			// join token needs to be a valid ident token
 			goto __np_cleanup__;
 		}
 		join_ident_dhkey = np_aaatoken_get_fingerprint(join_ident_token);
@@ -678,11 +679,12 @@ void _np_in_join_req(np_jobargs_t* args)
 		}
 		np_tree_elem_t* partner_fp = np_tree_find_str(join_ident_token->extensions, "_np.partner_fp");
 		if (partner_fp != NULL) {
+			// node fingerprint has to be available
 			goto __np_cleanup__;
 		}
 		partner_dhkey = partner_fp->val.value.dhkey;
 		if (FALSE == _np_dhkey_equal(&join_node_dhkey, &partner_dhkey)) {
-			// node fingerprint must match partner fp from identity token
+			// node fingerprint has to match partner fp from identity token
 			goto __np_cleanup__;
 		}
 		join_ident_key = _np_keycache_find_or_create(join_ident_dhkey);
