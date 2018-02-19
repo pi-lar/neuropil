@@ -87,13 +87,14 @@ extern "C" {
 enum np_util_performance_point_e{
 	np_util_performance_point_memory_new = 1,
 	np_util_performance_point_memory_free,
-	np_util_performance_point_memory_cleanup,
+	np_util_performance_point_memory_management,
 	np_util_performance_point_END
 };
 struct np_util_performance_point {
 	char* name;
-	double durations[UINT16_MAX];
-	uint16_t durations_count;
+	double durations[NP_BENCHMARKING];
+	uint16_t durations_idx;
+	uint32_t durations_count;
 	np_mutex_t access;
 };
 extern struct np_util_performance_point* __np_util_performance_points[np_util_performance_point_END];
@@ -105,6 +106,7 @@ double t1_##NAME;																											\
 	if (container == NULL) {																								\
 		container = malloc(sizeof(struct np_util_performance_point));														\
 		container->name = #NAME;																							\
+		container->durations_idx = 0;																						\
 		container->durations_count = 0;																						\
 		_np_threads_mutex_init(&container->access, "performance point "#NAME" access");										\
 		__np_util_performance_points[np_util_performance_point_##NAME] = container;											\
@@ -115,7 +117,8 @@ double t1_##NAME;																											\
 	double t2 = (double)clock()/CLOCKS_PER_SEC;																				\
 	struct np_util_performance_point* container = __np_util_performance_points[np_util_performance_point_##NAME];			\
 	_LOCK_ACCESS(&container->access) {																						\
-		container->durations[container->durations_count] = t2 - t1_##NAME;													\
+		container->durations[container->durations_idx] = t2 - t1_##NAME;													\
+		container->durations_idx = (container->durations_idx + 1)  % NP_BENCHMARKING;										\
 		container->durations_count++;																						\
 	}																														\
 }
@@ -127,8 +130,8 @@ char* STR = NULL;																											\
 		struct np_util_performance_point* container = __np_util_performance_points[i];										\
 		if (container != NULL) {																							\
 			_LOCK_ACCESS(&container->access) {																				\
-				CALC_STATISTICS(container->durations, , container->durations_count, min_v, max_v, avg_v, stddev_v);			\
-				STR = np_str_concatAndFree(STR, "%20s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu16"\n",					\
+				CALC_STATISTICS(container->durations, , container->durations_idx, min_v, max_v, avg_v, stddev_v);			\
+				STR = np_str_concatAndFree(STR, "%20s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",					\
 				container->name, min_v, avg_v, max_v, stddev_v, container->durations_count);								\
 			}																												\
 		}																													\

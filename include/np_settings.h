@@ -20,13 +20,13 @@ extern "C" {
 	 - DEBUG_CALLBACKS					(Allows the job system to collect statistics for job callbacks)
 	 - x64								(enable 64 Bit support)	(is automaticly set by SConstruct file)
 	 - CONSOLE_LOG						(prints the log in stdout)
-	 - NP_BENCHMARKING
+	 - NP_BENCHMARKING					if defined enables the performance point macros and sets the size of the calucations array
 */
 #ifdef DEBUG
 	#define DEBUG_CALLBACKS 1
 	#define NP_MEMORY_CHECK_MEMORY_REFFING 1
 	//#define NP_THREADS_CHECK_THREADING 1
-	#define NP_BENCHMARKING
+	#define NP_BENCHMARKING 1024
 #endif // DEBUG
 
 

@@ -453,7 +453,7 @@ void np_memory_randomize_space(NP_UNUSED uint8_t type, size_t size, void* data) 
 }
 
 void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
-	NP_PERFORMANCE_POINT_START(memory_cleanup);
+	NP_PERFORMANCE_POINT_START(memory_management);
 	for (uint8_t memory_type = 0; memory_type < np_memory_types_END_TYPES; memory_type++) {
 		np_memory_container_t* container = np_memory_containers[memory_type];
 		if (container != NULL && container->on_refresh_space != NULL) {
@@ -475,7 +475,7 @@ void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 			uint32_t i = 0;
 			_LOCK_ACCESS(&container->free_items_lock)
 			{
-				list_as_array = calloc(sll_size(container->free_items), sizeof(np_memory_itemconf_ptr));
+				list_as_array = malloc(sll_size(container->free_items) * sizeof(np_memory_itemconf_ptr));
 
 				sll_iterator(np_memory_itemconf_ptr) iter_refreshable = sll_first(container->free_items);
 
@@ -505,5 +505,5 @@ void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 			}
 		}
 	}
-	NP_PERFORMANCE_POINT_END(memory_cleanup);
+	NP_PERFORMANCE_POINT_END(memory_management);
 }
