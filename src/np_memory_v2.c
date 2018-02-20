@@ -334,8 +334,7 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
 			}
 		}
 		if (item_config != NULL) {
-			debugf("removing obj %p \n", item_config);
-
+			//debugf("removing obj %p \n", item_config);
 			_LOCK_ACCESS(&item_config->access_lock) {
 				ASSERT(item_config->in_use == FALSE, "can only delete unused memory objects");
 			}

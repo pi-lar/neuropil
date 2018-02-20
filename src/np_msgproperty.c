@@ -232,7 +232,7 @@ void _np_msgproperty_t_new(void* property)
 	sll_init(np_message_ptr, prop->msg_cache_out);
 
 	_np_threads_mutex_init (&prop->lock,"property lock");
-	_np_threads_condition_init_shared(&prop->msg_received);
+	_np_threads_condition_init(&prop->msg_received);
 
 	_np_threads_mutex_init(&prop->unique_uuids_lock, "unique_uuids_lock");
 	np_msgproperty_enable_check_for_unique_uuids(prop);

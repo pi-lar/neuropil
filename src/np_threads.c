@@ -463,26 +463,35 @@ void _np_threads_mutex_destroy(np_mutex_t* mutex)
 void _np_threads_condition_init(np_cond_t* condition)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: void _np_threads_condition_init(np_cond_t* condition){");
-	int ret = pthread_cond_init (&condition->cond, &condition->cond_attr);
-	ASSERT(ret == 0, "cannot init cond");
+	int result = pthread_condattr_init(&condition->cond_attr);
+	ASSERT(result == 0, "cannot init cond shared");
+	result = pthread_cond_init (&condition->cond, &condition->cond_attr);
+	ASSERT(result == 0, "cannot init cond");
 }
 void _np_threads_condition_init_shared(np_cond_t* condition)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: void _np_threads_condition_init_shared(np_cond_t* condition){");
-	int ret;
-	ret = pthread_cond_init (&condition->cond, &condition->cond_attr);
-	ASSERT(ret == 0, "cannot init cond shared");
-	ret = pthread_condattr_setpshared(&condition->cond_attr, PTHREAD_PROCESS_PRIVATE);
-	ASSERT(ret == 0, "cannot setpshared cond");
+	int result; 
+
+	result = pthread_condattr_init(&condition->cond_attr);
+	ASSERT(result == 0, "cannot init cond shared");
+
+	result = pthread_condattr_setpshared(&condition->cond_attr, PTHREAD_PROCESS_SHARED);
+	ASSERT(result == 0, "cannot setpshared cond");	
+
+	result = pthread_cond_init (&condition->cond, &condition->cond_attr);
+	ASSERT(result == 0, "cannot init cond shared");
+	
 }
 void _np_threads_condition_destroy(np_cond_t* condition)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: void _np_threads_condition_destroy(np_cond_t* condition){");
-	int ret ;		
-	ret = pthread_condattr_destroy(&condition->cond_attr);
-	ASSERT(ret == 0, "cannot destroy condattr");
-	ret = pthread_cond_destroy(&condition->cond);
-	ASSERT(ret == 0, "cannot destroy cond");
+	int result;		
+	result = pthread_condattr_destroy(&condition->cond_attr);
+	ASSERT(result == 0, "cannot destroy condattr");
+	result = pthread_cond_destroy(&condition->cond);
+	ASSERT(result == 0, "cannot destroy cond");
+	//memset(condition, 0, sizeof(np_cond_t));
 }
 int _np_threads_condition_wait(np_cond_t* condition, np_mutex_t* mutex)
 {
