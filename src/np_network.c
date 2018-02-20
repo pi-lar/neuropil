@@ -989,12 +989,14 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 				close (ng->socket);
 				return FALSE;
 			}
-			if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
-			{
-				// enable ipv4 mapping
-				log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
-			}
 
+			if(FLAG_CMP(type, IPv6)) {
+				if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
+				{
+					// enable ipv4 mapping
+					log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
+				}
+			}
 			// set non blocking
 			int current_flags = fcntl(ng->socket, F_GETFL);
 			current_flags |= O_NONBLOCK;
@@ -1050,12 +1052,13 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			close (ng->socket);
 			return FALSE;
 		}
-		if (-1 == setsockopt( ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof( v6_only) ) )
-		{
-			// enable ipv4 mapping
-			log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror (errno));
+		if (FLAG_CMP(type, IPv6)) {
+			if (-1 == setsockopt(ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof(v6_only)))
+			{
+				// enable ipv4 mapping
+				log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror(errno));
+			}
 		}
-
 
 #ifdef SKIP_EVLOOP
 		// TODO: write normal threading receiver

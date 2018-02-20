@@ -233,6 +233,8 @@ void _np_msgproperty_t_new(void* property)
 
 	_np_threads_mutex_init (&prop->lock,"property lock");
 	_np_threads_condition_init(&prop->msg_received);
+	
+	_np_threads_mutex_init(&prop->send_discovery_msgs_lock, "send_discovery_msgs_lock");
 
 	_np_threads_mutex_init(&prop->unique_uuids_lock, "unique_uuids_lock");
 	np_msgproperty_enable_check_for_unique_uuids(prop);
@@ -350,6 +352,7 @@ void _np_msgproperty_t_del(void* property)
 	}
 	_np_threads_mutex_destroy(&prop->lock);
 	_np_threads_condition_destroy(&prop->msg_received);
+	_np_threads_mutex_destroy(&prop->send_discovery_msgs_lock);
 
 	prop = NULL;
 }
@@ -421,10 +424,12 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 		_LOCK_ACCESS(&recv_prop->lock)
 		{
 			// if messages are available in cache, try to decode them !
-			if (recv_prop->cache_policy & FIFO)
+			if (FLAG_CMP(recv_prop->cache_policy, FIFO)){
 				msg_in = sll_head(np_message_ptr, recv_prop->msg_cache_in);
-			if (recv_prop->cache_policy & FILO)
+			}
+			else if (FLAG_CMP(recv_prop->cache_policy , FILO)){
 				msg_in = sll_tail(np_message_ptr, recv_prop->msg_cache_in);
+			}
 
 			msg_available = sll_size(recv_prop->msg_cache_in);
 		}
@@ -466,14 +471,14 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 				}
 			}
 
-			if (OVERFLOW_REJECT == (msg_prop->cache_policy & OVERFLOW_REJECT))
+			if (FLAG_CMP(msg_prop->cache_policy, OVERFLOW_REJECT))
 			{
 				log_msg(LOG_WARN,
 						"rejecting new message because cache is full");
 				break;
 			}
 		}
-
+		_np_msgproperty_threshold_increase(msg_prop);
 		sll_prepend(np_message_ptr, msg_prop->msg_cache_out, msg_in);
 
 		log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "added message to the sender msgcache (%p / %d) ...",
@@ -504,6 +509,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 	log_msg(LOG_TRACE, "start: void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in){");
 	_LOCK_ACCESS(&msg_prop->lock)
 	{
+
 		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
 		{
 			// cleanup of msgs in property receiver msg cache
@@ -519,9 +525,9 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "OVERFLOW_PURGE: discarding message in recv msgcache for %s", msg_prop->msg_subject);
 				np_message_t* old_msg = NULL;
 
-				if ((msg_prop->cache_policy & FIFO) > 0)
+				if (FLAG_CMP(msg_prop->cache_policy, FIFO))
 					old_msg = sll_head(np_message_ptr, msg_prop->msg_cache_in);
-				if ((msg_prop->cache_policy & FILO) > 0)
+				else if (FLAG_CMP(msg_prop->cache_policy, FILO) )
 					old_msg = sll_tail(np_message_ptr, msg_prop->msg_cache_in);
 
 				if (old_msg != NULL)
@@ -532,14 +538,14 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 				}
 			}
 
-			if (OVERFLOW_REJECT == (msg_prop->cache_policy & OVERFLOW_REJECT))
+			if (FLAG_CMP(msg_prop->cache_policy , OVERFLOW_REJECT))
 			{
 				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 						"rejecting new message because cache is full");
 				continue;
 			}
 		}
-
+		_np_msgproperty_threshold_increase(msg_prop);
 		sll_prepend(np_message_ptr, msg_prop->msg_cache_in, msg_in);
 
 		log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "added message to the recv msgcache (%p / %d) ...",

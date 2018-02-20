@@ -629,7 +629,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		}
 
 		msg_received = TRUE;
-		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+		np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 
 	} while (FALSE == msg_received);
 
@@ -644,7 +644,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	if (FALSE == decrypt_ok)
 	{
 		log_debug_msg(LOG_DEBUG, "decryption of message failed, deleting message");
-		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
+		np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui--;
 		msg_prop->max_threshold--;
 		_np_msgproperty_threshold_decrease(msg_prop);
 
@@ -733,7 +733,7 @@ uint32_t np_receive_text (char* subject, char **data)
 			continue;
 		}
 
-		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+		np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 		msg_received = TRUE;
 
 	} while (FALSE == msg_received);
@@ -750,7 +750,7 @@ uint32_t np_receive_text (char* subject, char **data)
 	if (FALSE == decrypt_ok)
 	{
 		log_debug_msg(LOG_DEBUG, "decryption of message failed, deleting message");
-		np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
+		np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui--;
 		msg_prop->max_threshold--;
 
 		np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
@@ -762,7 +762,7 @@ uint32_t np_receive_text (char* subject, char **data)
 	np_tree_elem_t* reply_data = np_tree_find_str(msg->body, NP_MSG_BODY_TEXT);
 	*data = strndup( np_treeval_to_str(reply_data->val, NULL), strlen( np_treeval_to_str(reply_data->val, NULL)));
 
-	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 	_np_msgproperty_threshold_decrease(msg_prop);
 	msg_prop->max_threshold--;
 

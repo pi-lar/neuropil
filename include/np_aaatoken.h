@@ -177,6 +177,7 @@ struct np_aaatoken_s
 
 	// key/value extension list
 	np_tree_t* extensions;
+	np_tree_t* extensions_local;
 	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
 	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
 	unsigned char signature[crypto_sign_BYTES];
@@ -195,6 +196,7 @@ struct np_aaatoken_s
 
 	np_bool is_signature_verified;
 	np_bool is_signature_extensions_verified;
+
 
 } NP_API_EXPORT;
 

@@ -241,14 +241,14 @@ void _np_in_received(np_jobargs_t* args)
 							msg_resendcounter.value.ush, msg_in->uuid, np_treeval_to_str(msg_subject, NULL));
 				}
 				else {
-						log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) message ttl not expired", msg_in->uuid);
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) message ttl not expired", msg_in->uuid);
 
 					np_dhkey_t target_dhkey;
 					_np_dhkey_from_str( np_treeval_to_str(msg_to, NULL), &target_dhkey);
 
 					target_key = _np_keycache_find_or_create(target_dhkey);
 
-					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "target of msg is %s i am %s", _np_key_as_str(target_key), _np_key_as_str(np_state()->my_node_key));
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "target of msg (%s) is %s i am %s",msg_in->uuid, _np_key_as_str(target_key), _np_key_as_str(np_state()->my_node_key));
 
 
 
@@ -335,7 +335,7 @@ void _np_in_received(np_jobargs_t* args)
 										"could not deserialize chunked msg (uuid: %s)", msg_to_submit->uuid);
 								} else {
 									_np_job_submit_msgin_event(0.0, handler, my_key, msg_to_submit, NULL);
-									if (ACK_DESTINATION == (msg_ack.value.ush & ACK_DESTINATION)  )
+									if (FLAG_CMP(msg_ack.value.ush, ACK_DESTINATION))
 									{
 										_np_send_ack(msg_to_submit);
 									}
@@ -496,7 +496,6 @@ void _np_in_signal_np_receive (np_jobargs_t* args)
 
 	np_msgproperty_t* real_prop = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
 
-	_np_msgproperty_threshold_increase(real_prop);
 	_np_msgproperty_add_msg_to_recv_cache(real_prop, msg_in);
 	_np_threads_condition_signal(&real_prop->msg_received);
 
@@ -543,10 +542,10 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 
 	char* subject = args->properties->msg_subject;
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, subject);
-	_np_msgproperty_threshold_increase(msg_prop);
 
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 	CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
+	
 	msg_has_expired = _np_message_is_expired(msg_in);
 	sender_token = _np_aaatoken_get_sender((char*)subject,  np_treeval_to_str(msg_from, NULL));
 
@@ -557,39 +556,44 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 	}
 	else
 	{
-		if ( NULL == sender_token )
+		if ( NULL == sender_token)
 		{
 			_np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
 			log_msg(LOG_ROUTING | LOG_INFO,"No token to decrypt msg. Retrying later");
 		}
 		else
 		{
-			log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "decrypting message ...");
-			np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+			_np_msgproperty_threshold_increase(msg_prop);
 
-			np_bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
-			if (FALSE == decrypt_ok)
-			{
-				np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui--;
-				_np_msgproperty_threshold_decrease(msg_prop);
-			}
-			else
-			{
-				np_bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
-				_np_msgproperty_threshold_decrease(msg_prop);
+			if(_np_aaatoken_is_valid(sender_token, np_aaatoken_type_message_intent)) {
+				log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "decrypting message ...");
+				np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 
-				// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
-				// log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
-
-				if (ACK_CLIENT == (msg_ack_mode.value.ush & ACK_CLIENT) && (TRUE == result))
+				np_bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
+				if (FALSE == decrypt_ok)
 				{
-					_np_send_ack(args->msg);
+					np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui--;
+				}
+				else
+				{
+					np_bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
+
+					// CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
+					// log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
+
+					if (ACK_CLIENT == (msg_ack_mode.value.ush & ACK_CLIENT) && (TRUE == result))
+					{
+						_np_send_ack(args->msg);
+					}
 				}
 			}
+			_np_msgproperty_threshold_decrease(msg_prop);
+
 		}
 	}
 
-	__np_cleanup__:
+__np_cleanup__:
+
 	np_unref_obj(np_aaatoken_t, sender_token,"_np_aaatoken_get_sender"); // _np_aaatoken_get_sender
 
 	return;
@@ -705,21 +709,6 @@ void _np_in_join_req(np_jobargs_t* args)
 	}
 
 	_np_aaatoken_upgrade_handshake_token(join_node_key, join_node_token);
-
-//	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "find target node");
-//	np_tree_elem_t* target_node_ele;
-//	if (NULL != (target_node_ele = np_tree_find_str(join_node_token->extensions,  "target_node")))
-//	{
-//		np_dhkey_t search_key = np_dhkey_create_from_hash(np_treeval_to_str(target_node_ele->val, NULL));
-//		routing_key = _np_keycache_find_or_create(search_key);
-//	}
-//	else
-//	{
-//		routing_key = join_node_key;
-//	}
-//	ASSERT(routing_key != NULL, "routing key (aka grid key, aka technical node key) cannot be NULL");
-//	ASSERT(routing_key->aaa_token != NULL, "routing_key->aaa_token cannot be NULL. key: %s", _np_key_as_str(routing_key));
-//	ASSERT(routing_key->node != NULL,"A routing key(%s) always needs a node.", _np_key_as_str(routing_key));
 
 	// check for allowance of token by user defined function
 	np_state_t* state = np_state();
@@ -1274,6 +1263,9 @@ void _np_in_discover_sender(np_jobargs_t* args)
 		}
 		sll_free(np_aaatoken_ptr, available_list);
 	}
+	else {
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token %s will not receive the available senders.", msg_token->uuid);
+	}
 	np_unref_obj(np_key_t, reply_to_key,"_np_keycache_find_or_create");
 
 	__np_cleanup__:
@@ -1293,11 +1285,12 @@ void _np_in_available_sender(np_jobargs_t* args)
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_TO, msg_to);
 
-	np_aaatoken_t* msg_token = np_token_factory_read_from_tree(msg_in->body);
+	np_message_intent_public_token_t* msg_token = np_token_factory_read_from_tree(msg_in->body);
 
 	// always?: just store the available tokens in memory and update them if new data arrives
 	if (FALSE == _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent))
 	{
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token %s will not be added to the available senders.", msg_token->uuid);
 		goto __np_cleanup__;
 	}
 
@@ -1360,6 +1353,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 		// always?: just store the available messages in memory and update if new data arrives
 		if (FALSE == _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent))
 		{
+			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token %s will not receive the available receivers.", msg_token->uuid);
 			goto __np_cleanup__;
 		}
 
@@ -1411,7 +1405,6 @@ void _np_in_available_receiver(np_jobargs_t* args)
 	np_waitref_obj(np_key_t, state->my_identity, my_identity,"np_waitref_identity");
 
 	// extract e2e encryption details for sender
-	NULL;
 
 	CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_TO, msg_to);
 	np_dhkey_t to_key = np_dhkey_create_from_hash( np_treeval_to_str(msg_to, NULL));
@@ -1420,6 +1413,7 @@ void _np_in_available_receiver(np_jobargs_t* args)
 
 	if (FALSE == _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent))
 	{
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token %s will not be added to the available receivers.", msg_token->uuid);
 		goto __np_cleanup__;
 	}
 
@@ -1489,7 +1483,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 	{
 		goto __np_cleanup__;
 	}
-	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 
 	// extract e2e encryption details for sender
 	authentication_token = np_token_factory_read_from_tree(msg_in->body);
@@ -1568,7 +1562,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "decryption of authentication reply failed");
 		goto __np_cleanup__;
 	}
-	 np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	 np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 
 	// extract e2e encryption details for sender
 	 authentication_token = np_token_factory_read_from_tree(args->msg->body);
@@ -1668,7 +1662,7 @@ void _np_in_authorize(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 	// extract e2e encryption details for sender
 	authorization_token = np_token_factory_read_from_tree(msg_in->body);
 
@@ -1743,7 +1737,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	 np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	 np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 
 	// extract e2e encryption details for sender
 	authorization_token = np_token_factory_read_from_tree(args->msg->body);
@@ -1829,7 +1823,7 @@ void _np_in_account(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	np_tree_find_str(sender_token->extensions, "msg_threshold")->val.value.ui++;
+	np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 	np_bool decrypt_ok = _np_message_decrypt_payload(args->msg, sender_token);
 	if (FALSE == decrypt_ok)
 	{

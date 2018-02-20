@@ -456,88 +456,93 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 	np_aaatoken_t* msg_token = NULL;
 
 	if (_np_route_my_key_has_connection()) {
-		msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 
-		if (	NULL == msg_token
-			 || _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent) == FALSE
-			)
-		{
-			// Create a new msg token
-			log_msg(LOG_INFO | LOG_AAATOKEN, "--- refresh for subject token: %25s --------", args->properties->msg_subject);
-			np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(args->properties);
-			log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s (%s replaces %s) ", args->properties->msg_subject, msg_token_new->uuid, msg_token == NULL ? "-" : msg_token->uuid);
-			np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
-			_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
-			msg_token = msg_token_new;
-			ref_replace_reason(np_aaatoken_t, msg_token_new, "_np_token_factory_new_message_intent_token", "_np_aaatoken_get_local_mx");
-			log_debug_msg(LOG_DEBUG| LOG_AAATOKEN, "--- done refresh for subject token: %25s new token has uuid %s", args->properties->msg_subject, msg_token_new->uuid);
-		}
+		_TRYLOCK_ACCESS(&args->properties->send_discovery_msgs_lock) {
 
-		ASSERT(_np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent), "AAAToken needs to be valid")
-		// args->target == Key of subject
+			msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
 
-		if (INBOUND == (args->properties->mode_type & INBOUND))
-		{
-			// cleanup of msgs in property receiver msg cache
-			_np_msgproperty_cleanup_receiver_cache(args->properties);
+			double now = np_time_now();
+			if (NULL == msg_token
+				|| _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent) == FALSE
+				|| (msg_token->expires_at - now) <= args->properties->token_min_ttl
+				)
+			{
+				// Create a new msg token
+				log_msg(LOG_INFO | LOG_AAATOKEN, "--- refresh for subject token: %25s --------", args->properties->msg_subject);
+				np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(args->properties);
+				log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s (%s replaces %s) ", args->properties->msg_subject, msg_token_new->uuid, msg_token == NULL ? "-" : msg_token->uuid);
+				np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
+				_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
+				msg_token = msg_token_new;
+				ref_replace_reason(np_aaatoken_t, msg_token_new, "_np_token_factory_new_message_intent_token", "_np_aaatoken_get_local_mx");
+				log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "--- done refresh for subject token: %25s new token has uuid %s", args->properties->msg_subject, msg_token_new->uuid);
+			}
 
-			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
+			ASSERT(_np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent), "AAAToken needs to be valid")
+				// args->target == Key of subject
 
-			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
-			np_tree_t* _data = np_tree_create();
-			np_aaatoken_encode(_data, msg_token);
+			if (INBOUND == (args->properties->mode_type & INBOUND))
+			{
+				// cleanup of msgs in property receiver msg cache
+				_np_msgproperty_cleanup_receiver_cache(args->properties);
 
-			np_message_t* msg_out = NULL;
-			np_new_obj(np_message_t, msg_out);
-			_np_message_create(
-				msg_out,
-				args->target,
-				np_state()->my_node_key,
-				_NP_MSG_DISCOVER_SENDER,
-				_data
-			);
+				np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
 
-			// send message availability
-			np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
-			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
-			_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+				log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
+				np_tree_t* _data = np_tree_create();
+				np_aaatoken_encode(_data, msg_token);
 
-			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-		}
-
-		if (OUTBOUND == (args->properties->mode_type & OUTBOUND))
-		{
-			np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
-
-			log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
-
-			np_tree_t* _data = np_tree_create();
-			np_aaatoken_encode(_data, msg_token);
-
-			np_message_t* msg_out = NULL;
-			np_new_obj(np_message_t, msg_out);
-
-			_np_message_create(
-				msg_out,
-				args->target,
-				np_state()->my_node_key,
-				_NP_MSG_DISCOVER_RECEIVER,
-				_data
-			);
-			// send message availability
-			np_msgproperty_t* prop_route =
-				np_msgproperty_get(
-					OUTBOUND,
-					_NP_MSG_DISCOVER_RECEIVER
+				np_message_t* msg_out = NULL;
+				np_new_obj(np_message_t, msg_out);
+				_np_message_create(
+					msg_out,
+					args->target,
+					np_state()->my_node_key,
+					_NP_MSG_DISCOVER_SENDER,
+					_data
 				);
-			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
 
-			_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
-			np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+				// send message availability
+				np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
+				np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
+				_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+
+				np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+			}
+
+			if (OUTBOUND == (args->properties->mode_type & OUTBOUND))
+			{
+				np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
+
+				log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
+
+				np_tree_t* _data = np_tree_create();
+				np_aaatoken_encode(_data, msg_token);
+
+				np_message_t* msg_out = NULL;
+				np_new_obj(np_message_t, msg_out);
+
+				_np_message_create(
+					msg_out,
+					args->target,
+					np_state()->my_node_key,
+					_NP_MSG_DISCOVER_RECEIVER,
+					_data
+				);
+				// send message availability
+				np_msgproperty_t* prop_route =
+					np_msgproperty_get(
+						OUTBOUND,
+						_NP_MSG_DISCOVER_RECEIVER
+					);
+				np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
+
+				_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
+				np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+			}
+			np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
 		}
-		np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
 	}
-
 }
 
 // deprecated

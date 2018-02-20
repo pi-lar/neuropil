@@ -142,7 +142,8 @@ char* STR = NULL;																											\
 #else
 #define NP_PERFORMANCE_POINT_START(name)
 #define NP_PERFORMANCE_POINT_END(name)
-#define PERFORMANCE_PRINT_POINTS()
+#define NP_PERFORMANCE_GET_POINTS_STR(STR)																					\
+	char* STR = NULL;	
 #endif
 
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)			\

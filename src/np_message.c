@@ -58,7 +58,7 @@ void _np_message_t_new(void* msg)
 
 	msg_tmp->uuid = np_uuid_create("msg", 0);
 
-	log_debug_msg(LOG_MEMORY| LOG_DEBUG, "creating uuid %s for new msg", msg_tmp->uuid);
+	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "creating uuid %s for new msg", msg_tmp->uuid);
 	
 	msg_tmp->header       = np_tree_create();
 	msg_tmp->properties   = np_tree_create();

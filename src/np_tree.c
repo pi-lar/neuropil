@@ -722,7 +722,10 @@ np_tree_t* np_tree_clone(np_tree_t* source) {
 	np_tree_t* ret = np_tree_create();
 	memcpy(&ret->attr, &source->attr, sizeof(np_tree_conf_t));
 	ret->attr.in_place = FALSE;
+	np_bool old = ret->attr.immutable;
+	ret->attr.immutable = FALSE;
 	np_tree_copy(source, ret);
+	ret->attr.immutable = old;
 	return ret;
 }
 

@@ -6,7 +6,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#include "inttypes.h"
+#include <inttypes.h>
 
 #include "event/ev.h"
 #include "sodium.h"
@@ -298,7 +298,7 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* source_node
 	#ifdef DEBUG
 	char sk_hex[crypto_sign_SECRETKEYBYTES * 2 + 1];
 	sodium_bin2hex(sk_hex, crypto_sign_SECRETKEYBYTES * 2 + 1, ret->private_key, crypto_sign_SECRETKEYBYTES);
-	log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "n_token signature private key: %s", sk_hex);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG , "n_token signature private key: %s", sk_hex);
 #endif
 
 	return (ret);
@@ -324,11 +324,17 @@ np_ident_private_token_t* np_token_factory_new_identity_token(double expires_at)
 	return ret;
 }
 
+
 np_aaatoken_t* np_token_factory_read_from_tree(np_tree_t* tree) {
 	np_aaatoken_t* ret = NULL;
 
 	np_new_obj(np_aaatoken_t, ret, __func__);
 	np_aaatoken_decode(tree, ret);
+	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "imported token %s (type: %"PRIu8") from tree %p", ret->uuid, ret->type, tree);
 
+	_np_aaatoken_is_valid(ret, np_aaatoken_type_undefined);
+
+	ASSERT(strncmp(ret->subject, "",1) != 0, "Empty string in subject?");
+	
 	return ret;
 }

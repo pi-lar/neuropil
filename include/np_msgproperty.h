@@ -172,6 +172,7 @@ typedef enum np_msg_mep_enum {
 
 */
 typedef enum np_msgcache_policy_enum {
+	UNKNOWN = 0x00,
 	FIFO = 0x01,
 	FILO = 0x02,
 	OVERFLOW_REJECT = 0x10,
@@ -260,6 +261,7 @@ struct np_msgproperty_s
 
 	// only send/receive after opposite partner has been found
 	np_mutex_t lock;
+	np_mutex_t send_discovery_msgs_lock;
 	np_cond_t  msg_received;
 
 	// pthread_cond_t     msg_received;

@@ -111,7 +111,7 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 	else {
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "route_lookup result   = myself");
 	}
-
+	
 	/* if I am the only host or the closest host is me, deliver the message */
 	if (NULL == target_key && FALSE == is_a_join_request)
 	{
@@ -139,12 +139,11 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 		*/
 			msg_to_submit = args->msg;
 		//}
-
 		np_msgproperty_t* prop = np_msgproperty_get(INBOUND, msg_subject);
-		if (prop != NULL)
-		{
+		if(prop != NULL) {
 			_np_job_submit_msgin_event(0.0, prop, my_key, msg_to_submit, NULL);
 		}
+		 
 
 	} else {
 		/* hand it over to the np_axon sending unit */
@@ -636,15 +635,16 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 // TODO: add a wrapper function which can be scheduled via jobargs
 np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
 {
-	_np_msgproperty_threshold_increase(msg_prop);
 
 	// np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
 	np_message_intent_public_token_t* tmp_token = _np_aaatoken_get_receiver(subject, target);
 
 	if (NULL != tmp_token && _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent)) {
 		log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);
+		_np_msgproperty_threshold_increase(msg_prop);
 
-		np_tree_find_str(tmp_token->extensions, "msg_threshold")->val.value.ui++;
+		//TODO: instead of token threshold a local copy of the value should be increased
+		np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
 
 		// first encrypt the relevant message part itself
 		_np_message_encrypt_payload(msg, tmp_token);
