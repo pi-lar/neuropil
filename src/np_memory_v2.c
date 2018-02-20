@@ -121,8 +121,9 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
 
 		np_memory_itemconf_t* conf = malloc(whole_item_size);
 		CHECK_MALLOC(conf);
+		//debugf("adding obj %p \n", conf);
 
-		// item init
+		// conf init
 		conf->container = container;
 		conf->in_use = FALSE;
 		conf->needs_refresh = TRUE;
@@ -333,16 +334,19 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
 			}
 		}
 		if (item_config != NULL) {
-			np_bool del = FALSE;
+			debugf("removing obj %p \n", item_config);
+
 			_LOCK_ACCESS(&item_config->access_lock) {
-				del = item_config->in_use == FALSE;
+				ASSERT(item_config->in_use == FALSE, "can only delete unused memory objects");
 			}
-			if (del) {
-				_np_threads_mutex_destroy(&item_config->access_lock);
-				free(item_config);
-			}
+
+			_np_threads_mutex_destroy(&item_config->access_lock);
+			free(item_config);
+			item_config = NULL;
+			
 		}
 		else {
+			// removed everything, lists are now empty
 			break;
 		}
 	}
@@ -369,18 +373,18 @@ void* np_memory_new(uint8_t type) {
 
 				if (next_config == NULL) {
 					// second best pick: a free container
-					_TRYLOCK_ACCESS(&container->free_items_lock) {
+					_LOCK_ACCESS(&container->free_items_lock) {
 						next_config = sll_head(np_memory_itemconf_ptr, container->free_items);
 
 						if (next_config == NULL) {
-							// worst case: create a new block
+							// worst case: create a new item
 							__np_memory_space_increase(container, 1);
 							next_config = sll_head(np_memory_itemconf_ptr, container->free_items);
 						}
-
-						// second bast as we need to refresh the item
-						__np_memory_refresh_space(next_config);													
 					}
+					// second bast as we need to refresh the item
+					__np_memory_refresh_space(next_config);													
+					
 				}
 			}
 		}
@@ -449,7 +453,7 @@ void np_memory_clear_space(NP_UNUSED uint8_t type, size_t size, void* data) {
 }
 
 void np_memory_randomize_space(NP_UNUSED uint8_t type, size_t size, void* data) {
-	randombytes_buf(data, size);
+	randombytes_buf(data, size);	
 }
 
 void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
@@ -462,9 +466,7 @@ void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 			if (__np_memory_space_decrease_nessecary(container)) {
 				//debugf("\t__np_memory_space_decrease\n");
 				__np_memory_space_decrease(container);
-			}
-			
-			if (__np_memory_space_increase_nessecary(container))
+			}else if (__np_memory_space_increase_nessecary(container))
 			{
 				//debugf("__np_memory_space_increase\n");
 				__np_memory_space_increase(container, container->count_of_items_per_block);

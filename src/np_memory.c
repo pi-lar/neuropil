@@ -236,7 +236,7 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 				static const uint32_t display_last_X_reasons = 5;
 
 				sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
-				int iter_reasons_counter = 0;
+				uint32_t iter_reasons_counter = 0;
 				while (iter_reasons != NULL)
 				{
 					if (iter_reasons_counter < display_first_X_reasons) {
