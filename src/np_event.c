@@ -175,10 +175,10 @@ void _np_events_read_out(NP_UNUSED np_jobargs_t* args)
 
 	while (1) {
 		TSP_GET(double, loop_out_suspend_wait, onhold)
-			if (onhold > 0)
-				np_time_sleep(0.0001);
-			else
-				break;
+		if (onhold > 0)
+			np_time_sleep(0.0001);
+		else
+			break;
 	}
 
 	_TRYLOCK_ACCESS(&loop_out_suspend) {
@@ -202,10 +202,10 @@ void _np_events_read_io(NP_UNUSED np_jobargs_t* args)
 
 	while (1) {
 		TSP_GET(double, loop_io_suspend_wait, onhold)
-			if (onhold > 0)
-				np_time_sleep(0.0001);
-			else
-				break;
+		if (onhold > 0)
+			np_time_sleep(0.0001);
+		else
+			break;
 	}
 	_TRYLOCK_ACCESS(&loop_io_suspend) {
 		TSP_GET(double, loop_io_suspend_wait, onhold);
@@ -225,10 +225,10 @@ void _np_events_read_http(NP_UNUSED np_jobargs_t* args)
 
 	while (1) {
 		TSP_GET(double, loop_http_suspend_wait, onhold)
-			if (onhold > 0)
-				np_time_sleep(0.0001);
-			else
-				break;
+		if (onhold > 0)
+			np_time_sleep(0.0001);
+		else
+			break;
 	}
 
 	_TRYLOCK_ACCESS(&loop_http_suspend) {
@@ -274,10 +274,10 @@ void* _np_event_in_run(void* np_thread_ptr) {
 	while (1) {
 		while (1) {
 			TSP_GET(double, loop_in_suspend_wait, onhold)
-				if (onhold > 0)
-					np_time_sleep(0.0001);
-				else
-					break;
+			if (onhold > 0)
+				np_time_sleep(0.0001);
+			else
+				break;
 		}
 
 		_LOCK_ACCESS(&loop_in_suspend) {
@@ -299,10 +299,10 @@ void* _np_event_io_run(void* np_thread_ptr) {
 
 		while (1) {
 			TSP_GET(double, loop_io_suspend_wait, onhold)
-				if (onhold > 0)
-					np_time_sleep(0.0001);
-				else
-					break;
+			if (onhold > 0)
+				np_time_sleep(0.0001);
+			else
+				break;
 		}	
 
 		_LOCK_ACCESS(&loop_io_suspend) {
@@ -323,10 +323,10 @@ void* _np_event_out_run(void* np_thread_ptr) {
 
 		while (1) {
 			TSP_GET(double, loop_out_suspend_wait, onhold)
-				if (onhold > 0)
-					np_time_sleep(0.0001);
-				else
-					break;
+			if (onhold > 0)
+				np_time_sleep(0.0001);
+			else
+				break;
 		}
 
 		_LOCK_ACCESS(&loop_out_suspend) {

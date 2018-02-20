@@ -636,9 +636,13 @@ void _np_in_join_req(np_jobargs_t* args)
 	log_msg(LOG_TRACE, "start: void _np_in_join_req(np_jobargs_t* args){");
 
 	np_message_t* msg_out = NULL;
+	np_key_t* join_ident_key = NULL;
 
 	np_dhkey_t join_node_dhkey = { 0 };
-	np_node_public_token_t* join_node_token = NULL;
+	np_node_public_token_t* join_node_token = NULL; 
+	np_dhkey_t join_ident_dhkey = { 0 };
+	np_ident_public_token_t* join_ident_token = NULL;	
+	np_key_t* join_node_key = NULL;
 
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "check if node token is valid");
 	np_tree_elem_t* node_token_ele = np_tree_find_str(args->msg->body, "_np.token.node");
@@ -662,11 +666,7 @@ void _np_in_join_req(np_jobargs_t* args)
 		// check if a identity exists in join
 		partner_dhkey = partner_fp->val.value.dhkey;
 	}
-
-	np_dhkey_t join_ident_dhkey = { 0 };
-	np_ident_public_token_t* join_ident_token = NULL;
-	np_key_t* join_ident_key = NULL;
-
+	
 	np_tree_elem_t* ident_token_ele = np_tree_find_str(args->msg->body, "_np.token.ident");
 	if (ident_token_ele != NULL) {
 		join_ident_token = np_token_factory_read_from_tree(ident_token_ele->val.value.tree);		
@@ -696,7 +696,7 @@ void _np_in_join_req(np_jobargs_t* args)
 		np_ref_obj(np_aaatoken_t, join_ident_key->aaa_token);
 	}
 
-	np_key_t* join_node_key = _np_keycache_find(join_node_dhkey);
+	 join_node_key = _np_keycache_find(join_node_dhkey);
 	if (join_node_key == NULL) {
 		// no handshake before join ? exit ...
 		goto __np_cleanup__;
@@ -713,7 +713,7 @@ void _np_in_join_req(np_jobargs_t* args)
 	// check for allowance of token by user defined function
 	np_state_t* state = np_state();
 	np_bool send_reply = FALSE;
-	if (join_ident_key)
+	if (join_ident_key != NULL)
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request: ident key %s", _np_key_as_str(join_ident_key));
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request:  node key %s", _np_key_as_str(join_node_key));
 
@@ -855,6 +855,8 @@ void _np_in_join_ack(np_jobargs_t* args)
 
 	np_message_t* msg_out = NULL;
 	np_key_t* join_key = NULL;
+	np_key_t* routing_key = NULL;
+
 	np_msgproperty_t* out_props = NULL;
 	np_node_public_token_t* join_token = np_token_factory_read_from_tree(args->msg->body);
 
@@ -879,7 +881,6 @@ void _np_in_join_ack(np_jobargs_t* args)
 		goto __np_cleanup__;
 	}
 
-	np_key_t* routing_key = NULL;
 	if (NULL != np_tree_find_str(join_token->extensions,  "target_node"))
 	{
 		np_dhkey_t search_key = np_dhkey_create_from_hash(np_treeval_to_str(np_tree_find_str(join_token->extensions,  "target_node")->val, NULL));
@@ -1160,7 +1161,7 @@ void _np_in_update(np_jobargs_t* args)
 		if(0 != _np_key_cmp(update_key,np_state()->my_identity)
 		&& 0 != _np_key_cmp(update_key,np_state()->my_node_key))
 		{
-
+			/*
 			char* connection_str = np_get_connection_string_from(
 					update_key,FALSE);
 			np_key_t* old_key = _np_keycache_find_by_details(
@@ -1182,7 +1183,7 @@ void _np_in_update(np_jobargs_t* args)
 				}
 				np_unref_obj(np_key_t, old_key,"_np_keycache_find_by_details");
 			}
-
+			*/
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG,
 			"Sending join %s:%s",
 			// np_network_get_ip(update_key), np_network_get_port(update_key);

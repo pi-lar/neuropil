@@ -379,8 +379,8 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	}
 	else if (EV_WRITE == (revents & EV_WRITE))
 	{
-		np_key_t* key = event->data;		
-		np_network_t* key_network = key->network ;
+		np_waitref_obj(np_key_t, event->data, key);
+		np_waitref_obj(np_network_t, key->network, key_network);		
 
 		_TRYLOCK_ACCESS(&key_network->out_events_lock)
 		{
@@ -421,6 +421,9 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 				_np_network_stop(key_network, FALSE);
 			}
 		}
+
+		np_unref_obj(np_key_t, key, __func__);
+		np_unref_obj(np_network_t,  key_network, __func__);
 	}
 	else if (EV_READ == (revents & EV_READ))
 	{
@@ -797,7 +800,7 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 	_np_suspend_event_loop_in();
 	_np_suspend_event_loop_out();
 	_LOCK_ACCESS(&old_target->network->access_lock) {
-		//_np_network_stop(old_target->network); 			// stop network
+		//_np_network_stop(old_target->network); 		// stop network
 		new_target->network = old_target->network; 		// remap
 		np_ref_switch(np_key_t, new_target->network->watcher.data, ref_network_watcher, new_target); // remap network key
 		old_target->network = NULL;						// remove from old structure
