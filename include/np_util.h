@@ -88,6 +88,8 @@ enum np_util_performance_point_e{
 	np_util_performance_point_memory_new = 1,
 	np_util_performance_point_memory_free,
 	np_util_performance_point_memory_management,
+
+	np_util_performance_point_jobs_management_select,
 	np_util_performance_point_END
 };
 struct np_util_performance_point {

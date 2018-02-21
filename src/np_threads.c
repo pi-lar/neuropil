@@ -69,8 +69,10 @@ np_bool _np_threads_init()
 }
 
 int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) {
-	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
-	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locking module mutex %d/%s.", module_id, np_module_lock_str[module_id]);
+	//log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
+#ifdef NP_THREADS_CHECK_THREADING
+	log_debug_msg(LOG_MUTEX | LOG_DEBUG, "Locking module mutex %d/%s.", module_id, np_module_lock_str[module_id]);
+#endif
 	if(FALSE == __np_threads_mutexes_initiated ){
 		pthread_once(&__thread_init_once, __np_threads_create_module_mutex);
 	}
@@ -122,9 +124,10 @@ int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) 
 			}
 		}
 	}
+	log_debug_msg(LOG_MUTEX | LOG_DEBUG, "Locked module mutex %d/%s.", module_id, np_module_lock_str[module_id]);
 #endif
 
-	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Locked module mutex %d/%s.", module_id, np_module_lock_str[module_id]);
+	
 	return ret;
 }
 
@@ -290,11 +293,13 @@ int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_ty
 }
 
 int _np_threads_unlock_module(np_module_lock_type module_id) {
-	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_unlock_module(np_module_lock_type module_id) {");
+	//log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_unlock_module(np_module_lock_type module_id) {");
 	if(FALSE == __np_threads_mutexes_initiated ){
 		pthread_once(&__thread_init_once, __np_threads_create_module_mutex);
 	}
+#ifdef NP_THREADS_CHECK_THREADING
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG,"Unlocking module mutex %s.", np_module_lock_str[module_id]);
+#endif
 	int ret = pthread_mutex_unlock(&__mutexes[module_id].lock);
 #ifdef NP_THREADS_CHECK_THREADING
 	char * tmp = NULL;

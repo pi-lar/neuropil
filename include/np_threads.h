@@ -175,7 +175,9 @@ int _np_threads_mutex_unlock(np_mutex_t* mutex);
 NP_API_INTERN
 void _np_threads_mutex_destroy(np_mutex_t* mutex);
 NP_API_INTERN
-int _np_threads_mutex_condition_timedwait(np_mutex_t* mutex, struct timespec* waittime);
+int _np_threads_mutex_condition_timedwait(np_mutex_t* mutex, struct timespec* waittime); 
+NP_API_INTERN
+int _np_threads_mutex_condition_wait(np_mutex_t* mutex);
 NP_API_INTERN
 int _np_threads_mutex_timedlock(np_mutex_t * mutex, const double delay);
 

@@ -158,8 +158,8 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 	// or if no category is provided for msg or the log level contains the LOG_GLOBAL flag
 	if ((level & LOG_LEVEL_MASK & __logger->level) > LOG_NONE &&
 		(
-			(__logger->level & LOG_MODUL_MASK & LOG_GLOBAL) == LOG_GLOBAL ||
-			(level & LOG_MODUL_MASK & __logger->level) > LOG_NONE  || 
+			(level & LOG_MODUL_MASK & __logger->level) > LOG_NONE || 
+			(__logger->level & LOG_MODUL_MASK & LOG_GLOBAL) == LOG_GLOBAL ||			
 			(level & LOG_MODUL_MASK) == LOG_NONE
 		)
 	)

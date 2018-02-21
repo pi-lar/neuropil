@@ -386,28 +386,15 @@ np_job_t* _np_jobqueue_select_next()
 	np_job_t* job_to_execute = NULL;
 
 	np_thread_t* my_thread = _np_threads_get_self();
-	double sleep_time;
-	double now;
 
-	/*
-		1. as long as we do not have a job we do not return
-		2. a job this fn returns may run immediately
-		3. this function does only return a job for the calling threads priority filter
+	_LOCK_ACCESS(&my_thread->job_lock) {
 
-	*/
-	while (job_to_execute == NULL)
-	{
-		now = np_time_now();
-		sleep_time = NP_JOBQUEUE_MAX_SLEEPTIME_SEC;
-
-		_LOCK_ACCESS(&my_thread->job_lock) {
+		while (job_to_execute == NULL)
+		{
 			job_to_execute = my_thread->job;
 
 			if (job_to_execute == NULL) {
-				struct timeval tv_sleep = dtotv(now + sleep_time);
-				struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
-
-				_np_threads_mutex_condition_timedwait(&my_thread->job_lock, &waittime);
+				_np_threads_mutex_condition_wait(&my_thread->job_lock);
 			}
 		}
 	}
@@ -464,10 +451,13 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 	double now;
 	np_bool job_is_run = FALSE;
 	np_bool any_thread_is_open = FALSE;
+	uint32_t timer = 0;
 	while (1) {
 		_LOCK_MODULE(np_jobqueue_t)
 		{
-			now = np_time_now();
+			if ((timer++ % 2000) == 0) {
+				now = np_time_now();
+			}
 			sleep_time = NP_JOBQUEUE_MAX_SLEEPTIME_SEC;
 
 			pll_iterator(np_job_ptr) iter_jobs = pll_first(__np_job_queue->job_list);
@@ -481,27 +471,27 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 				}
 				else
 				{
-					_LOCK_ACCESS(np_state()->threads_lock)
+					//_LOCK_ACCESS(np_state()->threads_lock)
 					{
+						NP_PERFORMANCE_POINT_START(jobs_management_select);
 						any_thread_is_open = FALSE;
 						sll_iterator(np_thread_ptr) iter_threads = sll_first(np_state()->threads);
-						job_is_run = FALSE;
+						job_is_run = FALSE;						
+
 						while (iter_threads != NULL && iter_threads->val != NULL) {
 							if (iter_threads->val->thread_type == np_thread_type_worker) {
 								target = iter_threads->val;
 								_LOCK_ACCESS(&target->job_lock)
 								{
-									any_thread_is_open |= target->job == NULL;
+									any_thread_is_open = any_thread_is_open || target->job == NULL;
 
-									if (target->max_job_priority >= next_job->priority  && next_job->priority >= target->min_job_priority) {
+									if (target->job == NULL && target->max_job_priority >= next_job->priority  && next_job->priority >= target->min_job_priority) {
 
-										if (target->job == NULL) {
-											pll_next(iter_jobs);
+										pll_next(iter_jobs);
 
-											pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, __np_job_cmp);
-											target->job = next_job;
-											job_is_run = TRUE;
-										}
+										pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, __np_job_cmp);
+										target->job = next_job;
+										job_is_run = TRUE;										
 									}
 								}
 								if (job_is_run) {
@@ -515,6 +505,7 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 							}
 							sll_next(iter_threads);
 						}
+						NP_PERFORMANCE_POINT_END(jobs_management_select);
 					}
 				}
 				if (job_is_run == FALSE && any_thread_is_open) {
@@ -527,7 +518,7 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 				struct timeval tv_sleep = dtotv(now + sleep_time);
 				struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
 
-				_np_threads_module_condition_timedwait(&__cond_empty, np_jobqueue_t_lock, &waittime);
+				_np_threads_module_condition_timedwait(&__cond_empty, np_jobqueue_t_lock, &waittime);				
 			}
 		}
 	}
