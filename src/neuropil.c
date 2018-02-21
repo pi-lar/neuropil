@@ -831,11 +831,14 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 		exit(EXIT_FAILURE);
 	}
 
+	state->threads_lock = malloc(sizeof(np_mutex_t));
+	_np_threads_mutex_init(state->threads_lock, "state->threads_lock ");
 	sll_init(np_thread_ptr, state->threads);
 
 	np_thread_t * new_main_thread;
 	np_new_obj(np_thread_t, new_main_thread);
 	new_main_thread->id = (unsigned long)getpid();
+	new_main_thread->thread_type = np_thread_type_main;
 	sll_append(np_thread_ptr, state->threads, new_main_thread);
 	state->thread_count = 1;
 

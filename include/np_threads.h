@@ -101,13 +101,19 @@ struct np_mutex_s {
 };
 
 
+enum np_thread_type_e {
+	np_thread_type_other = 0,
+	np_thread_type_main,
+	np_thread_type_worker,
+	np_thread_type_manager,
+};
 
 /** thread														**/
 struct np_thread_s
 {
 	np_obj_t* obj;
 
-	void * fn;
+	void * run_fn;
 	uint8_t idx;
 
 	unsigned long id;
@@ -121,6 +127,11 @@ struct np_thread_s
 	double min_job_priority;
 
 	void * custom_data;
+
+	np_mutex_t job_lock;
+	np_job_t* job;
+	enum np_thread_type_e thread_type;
+
 
 #ifdef NP_THREADS_CHECK_THREADING
 	np_mutex_t locklists_lock;

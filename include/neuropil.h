@@ -22,7 +22,7 @@ It should contain all required functions to send or receive messages.
 
 #define NEUROPIL_RELEASE	"neuropil_0.4.0"
 #ifndef NEUROPIL_RELEASE_BUILD
-#define NEUROPIL_RELEASE_BUILD ".00000"
+#define NEUROPIL_RELEASE_BUILD 0
 #endif //NEUROPIL_RELEASE_BUILD
 
 #define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2017 neuropil.org, Cologne, Germany"
@@ -31,6 +31,7 @@ It should contain all required functions to send or receive messages.
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 /** \toggle_keepwhitespaces  */
 
@@ -57,6 +58,7 @@ struct np_state_s
 	pthread_attr_t attr;
 	pthread_t* thread_ids;
 
+	np_mutex_t* threads_lock;
 	np_sll_t(np_thread_ptr, threads);
 
 	int thread_count;

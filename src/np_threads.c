@@ -43,7 +43,7 @@ np_bool    __np_threads_threads_initiated = FALSE;
 
 static pthread_once_t __thread_init_once = PTHREAD_ONCE_INIT;
  
-pthread_key_t  pthread_thread_id_key ;
+pthread_key_t  pthread_thread_ptr_key ;
 
 void __np_threads_create_module_mutex()
 {
@@ -61,7 +61,7 @@ np_bool _np_threads_init()
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: np_bool _np_threads_init(){");
 
-	pthread_key_create(&pthread_thread_id_key, NULL);
+	pthread_key_create(&pthread_thread_ptr_key, NULL);
 
 	pthread_once(&__thread_init_once, __np_threads_create_module_mutex);
 
@@ -534,7 +534,6 @@ int _np_threads_module_condition_wait(np_cond_t* condition, np_module_lock_type 
 	return pthread_cond_wait(&condition->cond, &__mutexes[module_id].lock);
 }
 
-
 int _np_threads_mutex_condition_wait(np_mutex_t* mutex)
 {
 	log_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_module_condition_wait(np_cond_t* condition, np_module_lock_type module_id){");
@@ -555,7 +554,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_thread_ptr);
 
 void _np_threads_set_self(np_thread_t * myThread) {
 
-	int ret = pthread_setspecific(pthread_thread_id_key, myThread);
+	int ret = pthread_setspecific(pthread_thread_ptr_key, myThread);
 	log_debug_msg(LOG_DEBUG | LOG_THREADS, "Setting thread data to %p. Result:: %"PRIi32, myThread, ret);
 
 	if (ret != 0) {
@@ -567,26 +566,14 @@ void _np_threads_set_self(np_thread_t * myThread) {
 np_thread_t*_np_threads_get_self()
 {
 
-	np_thread_t* ret = pthread_getspecific(pthread_thread_id_key);
+	np_thread_t* ret = pthread_getspecific(pthread_thread_ptr_key);
 
 	if (ret == NULL && np_state() != NULL)
 	{
 		unsigned long id_to_find = (unsigned long)pthread_self();
+		_LOCK_ACCESS(np_state()->threads_lock) {
 
-		sll_iterator(np_thread_ptr) iter_threads = sll_first(np_state()->threads);
-		while (iter_threads != NULL)
-		{
-			if (iter_threads->val->id == id_to_find) {
-				ret = iter_threads->val;
-				break;
-			}
-			sll_next(iter_threads);
-		}
-
-		if (ret == NULL) {
-			id_to_find = (unsigned long)getpid();
-
-			iter_threads = sll_first(np_state()->threads);
+			sll_iterator(np_thread_ptr) iter_threads = sll_first(np_state()->threads);
 			while (iter_threads != NULL)
 			{
 				if (iter_threads->val->id == id_to_find) {
@@ -594,6 +581,20 @@ np_thread_t*_np_threads_get_self()
 					break;
 				}
 				sll_next(iter_threads);
+			}
+
+			if (ret == NULL) {
+				id_to_find = (unsigned long)getpid();
+
+				iter_threads = sll_first(np_state()->threads);
+				while (iter_threads != NULL)
+				{
+					if (iter_threads->val->id == id_to_find) {
+						ret = iter_threads->val;
+						break;
+					}
+					sll_next(iter_threads);
+				}
 			}
 		}
 	}
@@ -637,6 +638,12 @@ void _np_thread_t_new(void* obj)
 	thread->max_job_priority = DBL_MAX;
 	thread->min_job_priority = 0;
 	thread->custom_data = NULL;
+
+	_np_threads_mutex_init(&thread->job_lock, "job_lock");
+	thread->run_fn = NULL;
+	thread->job = NULL;
+	thread->thread_type = np_thread_type_other;
+
 #ifdef NP_THREADS_CHECK_THREADING
 	_np_threads_mutex_init(&thread->locklists_lock,"thread locklist");
 	sll_init(char_ptr, thread->has_lock);
@@ -650,56 +657,60 @@ char* np_threads_printpool(np_bool asOneLine) {
 	if (asOneLine == TRUE) {
 		new_line = "    ";
 	}
+	_LOCK_ACCESS(np_state()->threads_lock) {
 
-	sll_iterator(np_thread_ptr) iter_threads = sll_first(np_state()->threads);
-	ret = np_str_concatAndFree(ret, "--- Threadpool START ---%s", new_line);
+		sll_iterator(np_thread_ptr) iter_threads = sll_first(np_state()->threads);
+		ret = np_str_concatAndFree(ret, "--- Threadpool START ---%s", new_line);
 
 #ifdef NP_THREADS_CHECK_THREADING
-	np_sll_t(char_ptr, tmp);
-	char * tmp2;
-	while (iter_threads != NULL)
-	{
-		_LOCK_ACCESS(&(iter_threads->val->locklists_lock)) {
-			tmp = _sll_char_part(iter_threads->val->has_lock, -5);
-			tmp2 = _sll_char_make_flat(tmp);
-			sll_free(char_ptr, tmp);
-			ret = np_str_concatAndFree(ret, "Thread %"PRIu32" LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
-			free(tmp2);
+		np_sll_t(char_ptr, tmp);
+		char * tmp2;
+		while (iter_threads != NULL)
+		{
+			_LOCK_ACCESS(&(iter_threads->val->locklists_lock)) {
+				tmp = _sll_char_part(iter_threads->val->has_lock, -5);
+				tmp2 = _sll_char_make_flat(tmp);
+				sll_free(char_ptr, tmp);
+				ret = np_str_concatAndFree(ret, "Thread %"PRIu32" LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
+				free(tmp2);
 
-			tmp = _sll_char_part(iter_threads->val->want_lock, -5);
-			tmp2 = _sll_char_make_flat(tmp);
-			sll_free(char_ptr, tmp);
-			ret = np_str_concatAndFree(ret, "Thread %"PRIu32" WANTS LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
-			free(tmp2);
+				tmp = _sll_char_part(iter_threads->val->want_lock, -5);
+				tmp2 = _sll_char_make_flat(tmp);
+				sll_free(char_ptr, tmp);
+				ret = np_str_concatAndFree(ret, "Thread %"PRIu32" WANTS LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
+				free(tmp2);
 
+			}
+			sll_next(iter_threads);
 		}
-		sll_next(iter_threads);
-	}
 #else
-	while (iter_threads != NULL)
-	{
-		ret = np_str_concatAndFree(ret, "Thread %"PRIu32" %s", iter_threads->val->id, new_line);
-		sll_next(iter_threads);
-	}
+		while (iter_threads != NULL)
+		{
+			ret = np_str_concatAndFree(ret, "Thread %"PRIu32" %s", iter_threads->val->id, new_line);
+			sll_next(iter_threads);
+		}
 #endif
+	}
 	ret = np_str_concatAndFree(ret, "--- Threadpool END   ---%s", new_line);
 
 	return ret;
 }
 
 void _np_thread_run(np_thread_t * thread) {
-	pthread_create(&np_state()->thread_ids[thread->idx], &np_state()->attr, thread->fn, (void *)thread);
+	pthread_create(&np_state()->thread_ids[thread->idx], &np_state()->attr, thread->run_fn, (void *)thread);
 	thread->id = (unsigned long)np_state()->thread_ids[thread->idx];
 }
 
-np_thread_t * __np_createThread(uint8_t number, void *(fn)(void *), np_bool auto_run) {
+np_thread_t * __np_createThread(uint8_t number, void *(fn)(void *), np_bool auto_run, enum np_thread_type_e type) {
 	np_thread_t * new_thread;
 	np_new_obj(np_thread_t, new_thread);
 	new_thread->idx = number;
-	new_thread->fn = fn;
+	new_thread->run_fn = fn;
+	new_thread->thread_type = type;
 
-	sll_append(np_thread_ptr, np_state()->threads, new_thread);
-
+	_LOCK_ACCESS(np_state()->threads_lock) {
+		sll_append(np_thread_ptr, np_state()->threads, new_thread);
+	}
 	if(auto_run) {
 		_np_thread_run(new_thread);
 	}
@@ -707,11 +718,11 @@ np_thread_t * __np_createThread(uint8_t number, void *(fn)(void *), np_bool auto
 	return new_thread;
 }
 
-void __np_createThreadPool(uint8_t pool_size) {
+void __np_createWorkerPool(uint8_t pool_size) {
 	/* create the thread pool */
 	for (uint8_t i = 0; i < pool_size; i++)
 	{
-		np_thread_t* new_thread = __np_createThread(i, __np_jobqueue_run, FALSE);
+		np_thread_t* new_thread = __np_createThread(i, __np_jobqueue_run_worker, FALSE, np_thread_type_worker );
 
 		if (
 			(PRIORITY_MOD_LEVEL_0_SHOULD_HAVE_OWN_THREAD && pool_size > 2 && i == 0) ||
@@ -736,6 +747,9 @@ void __np_createThreadPool(uint8_t pool_size) {
 	}
 }
 
+/*
+	min pool_size is 2
+*/
 void np_start_job_queue(uint8_t pool_size)
 {
 	log_msg(LOG_TRACE, "start: void np_start_job_queue(uint8_t pool_size){");
@@ -766,6 +780,12 @@ void np_start_job_queue(uint8_t pool_size)
 
 	CHECK_MALLOC(np_state()->thread_ids);
 
+	np_bool create_job_manager_thread = FALSE;
+	if (pool_size >= 2) {
+		pool_size--;
+		create_job_manager_thread = TRUE;
+	}
+
 	np_bool create_own_event_in_thread = FALSE;
 	if (pool_size >= 2) {
 		pool_size--;
@@ -786,21 +806,19 @@ void np_start_job_queue(uint8_t pool_size)
 		pool_size--;
 		create_own_event_http_thread = TRUE;
 	}
-	_LOCK_MODULE(np_jobqueue_t) {
-		__np_createThreadPool(pool_size);
+	_LOCK_MODULE(np_jobqueue_t) {		
 		//start jobs
 		np_thread_t* special_thread;
 		if (create_own_event_in_thread) {
-			special_thread = __np_createThread(pool_size, _np_event_in_run, TRUE);
+			special_thread = __np_createThread(pool_size, _np_event_in_run, TRUE, np_thread_type_other);
 			special_thread->custom_data = _np_event_get_loop_in();
 		}
 		else {
 			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
 		}
 
-
 		if (create_own_event_out_thread) {
-			special_thread = __np_createThread(pool_size, _np_event_out_run, TRUE);
+			special_thread = __np_createThread(pool_size, _np_event_out_run, TRUE, np_thread_type_other);
 			special_thread->custom_data = _np_event_get_loop_out();
 		}
 		else {
@@ -808,7 +826,7 @@ void np_start_job_queue(uint8_t pool_size)
 		}
 
 		if (create_own_event_io_thread) {
-			special_thread = __np_createThread(pool_size, _np_event_io_run, TRUE);
+			special_thread = __np_createThread(pool_size, _np_event_io_run, TRUE, np_thread_type_other);
 			special_thread->custom_data = _np_event_get_loop_io();
 		}
 		else {
@@ -816,11 +834,19 @@ void np_start_job_queue(uint8_t pool_size)
 		}
 
 		if (create_own_event_http_thread) {
-			special_thread = __np_createThread(pool_size, _np_event_http_run, TRUE);
+			special_thread = __np_createThread(pool_size, _np_event_http_run, TRUE, np_thread_type_other);
 			special_thread->custom_data = _np_event_get_loop_http();
 		}
 		else {
 			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
+		}
+
+		if (create_job_manager_thread) {			
+			__np_createWorkerPool(pool_size);
+			special_thread = __np_createThread(pool_size, __np_jobqueue_run_manager, TRUE, np_thread_type_manager);
+		}
+		else {
+			special_thread = __np_createThread(pool_size, __np_jobqueue_run_jobs, TRUE, np_thread_type_manager);
 		}
 	}
 
@@ -845,8 +871,8 @@ void np_start_job_queue(uint8_t pool_size)
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary, "_np_event_rejoin_if_necessary");
 	np_job_submit_event_periodic(PRIORITY_MOD_LOWEST, 0.0, MISC_LOG_FLUSH_INTERVAL_SEC, _np_glia_log_flush, "_np_glia_log_flush");
 
-	log_debug_msg(LOG_THREADS | LOG_DEBUG, "jobqueue threads started: %"PRIu8, pool_size);
-	log_msg(LOG_INFO, "%s%s", NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD);
+	log_debug_msg(LOG_DEBUG, "jobqueue threads started: %"PRIu8" + %"PRIu8, pool_size, create_job_manager_thread + create_own_event_in_thread + create_own_event_out_thread + create_own_event_io_thread + create_own_event_http_thread);
+	log_msg(LOG_INFO, "%s.%05d", NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
 	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 

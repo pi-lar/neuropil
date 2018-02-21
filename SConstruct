@@ -77,7 +77,7 @@ if int(debug) >= 1:
 	if int(debug) <= 1:
 		env.Append(CCFLAGS = ['-DDEBUG'])
 
-env.Append(CCFLAGS = ['-DNEUROPIL_RELEASE_BUILD=\".{:05}\"'.format(buildNo())])
+env.Append(CCFLAGS = ['-DNEUROPIL_RELEASE_BUILD=\"{}\"'.format(buildNo())])
 		
 if int(console_log):
     env.Append(CCFLAGS = ['-DCONSOLE_LOG'])

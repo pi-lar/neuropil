@@ -70,13 +70,18 @@ void _np_job_resubmit_route_event (double delay, np_msgproperty_t* prop, np_key_
 NP_API_INTERN
 void _np_job_yield(const double delay);
 
-/** __np_jobqueue_run
+/** __np_jobqueue_run_worker
  ** if the queue,"job_q" is empty it would go to sleep and release the mutex
  ** else get the first job out of queue and execute it.
  **/
 NP_API_INTERN
-void* __np_jobqueue_run (void* np_thread_ptr);
-
+void* __np_jobqueue_run_worker (void* np_thread_ptr);
+NP_API_INTERN
+void* __np_jobqueue_run_manager(void* np_thread_ptr_self);
+NP_API_INTERN
+void* __np_jobqueue_run_jobs(void* np_thread_ptr_self);
+NP_API_INTERN
+void __np_jobqueue_run_once(np_job_t* job_to_execute);
 NP_PLL_GENERATE_PROTOTYPES(np_job_ptr);
 
 #ifdef __cplusplus

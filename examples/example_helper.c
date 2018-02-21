@@ -785,7 +785,7 @@ void __np_example_helper_loop() {
 #else
 						"NON DEBUG and NON RELEASE"
 #endif
-						" (%s%s)\n%s ", time, NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD, memory_str);
+						" (%s.%05d)\n%s ", time, NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD, memory_str);
 				}
 				else {
 					np_example_print(stdout, memory_str);
