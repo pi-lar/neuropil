@@ -199,6 +199,8 @@ NP_API_INTERN
 np_thread_t*_np_threads_get_self();
 NP_API_INTERN
 void _np_threads_set_self(np_thread_t * myThread);
+NP_API_INTERN
+np_job_t* _np_thread_get_job_or_wait(np_thread_t* self);
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)

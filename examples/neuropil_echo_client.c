@@ -128,9 +128,9 @@ int main(int argc, char **argv) {
 			fprintf(stdout, "%s joined network!\n", port);
 			break;
 		} else {
-			fprintf(stderr, "%s could not join network!\n", port);
+			fprintf(stdout, "%s could not join network!\n", port);
 			if(retry_connection-- < 0){
-				fprintf(stderr, "abort\n");
+				fprintf(stdout, "abort\n");
 				break;
 			}
 		}

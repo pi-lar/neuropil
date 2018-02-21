@@ -127,7 +127,7 @@ double t1_##NAME;																											\
 #define NP_PERFORMANCE_GET_POINTS_STR(STR) 																					\
 char* STR = NULL;																											\
 {																															\
-	STR = np_str_concatAndFree(STR, "%20s --> %8s / %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "stddev", "hits");\
+	STR = np_str_concatAndFree(STR, "%30s --> %8s / %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "stddev", "hits");\
 	for (int i = 0; i < np_util_performance_point_END; i++) {																\
 		struct np_util_performance_point* container = __np_util_performance_points[i];										\
 		if (container != NULL) {																							\
@@ -135,7 +135,7 @@ char* STR = NULL;																											\
 				CALC_STATISTICS(container->durations, , 																	\
 					(container->durations_count > NP_BENCHMARKING ? NP_BENCHMARKING : container->durations_idx), 			\
 					min_v, max_v, avg_v, stddev_v);																			\
-				STR = np_str_concatAndFree(STR, "%20s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",					\
+				STR = np_str_concatAndFree(STR, "%30s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",					\
 				container->name, min_v, avg_v, max_v, stddev_v, container->durations_count);								\
 			}																												\
 		}																													\

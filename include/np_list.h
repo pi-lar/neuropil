@@ -297,6 +297,7 @@ function like macros are:
 #define np_dll_t(TYPE, NAME) TYPE##_dll_t* NAME
 
 // convenience wrapper definitions
+#define dll_init_full(TYPE, dll_list) TYPE##_dll_t* dll_list = TYPE##_dll_init();
 #define dll_init(TYPE, dll_list) dll_list = TYPE##_dll_init();
 #define dll_append(TYPE, dll_list, value) TYPE##_dll_append(dll_list, value);
 #define dll_remove(TYPE, dll_list, value) TYPE##_dll_remove(dll_list, value);

@@ -100,12 +100,12 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mo
 		{
 			fprintf(stdout, "HTTP interface set to %s\n", http_domain);
 			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
-			fprintf(stderr, "Enable sysinfo master option\n");
+			fprintf(stdout, "Enable sysinfo master option\n");
 			np_sysinfo_enable_master();
 		}
 		else {
-			fprintf(stderr, "Node could not start HTTP interface\n");
-			fprintf(stderr, "Enable sysinfo slave option\n");
+			fprintf(stdout, "Node could not start HTTP interface\n");
+			fprintf(stdout, "Enable sysinfo slave option\n");
 			np_sysinfo_enable_slave();
 		}
 		// If you want to you can enable the statistics modulte to view the nodes statistics
@@ -330,7 +330,7 @@ void np_example_save_or_load_identity() {
 			
 			np_example_print(stdout, "Load detected no available token file. Try to save current ident to file.\n");
 			if (!np_example_save_identity(identity_passphrase, identity_filename)) {				
-				np_example_print(stderr, "Cannot load or save identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
+				np_example_print(stdout, "Cannot load or save identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
 				exit(EXIT_FAILURE);
 			}
 			else {
@@ -339,7 +339,7 @@ void np_example_save_or_load_identity() {
 #endif //  DEBUG
 				/*
 				if (!np_example_load_identity(identity_passphrase, identity_filename)) {
-					np_example_print(stderr, "Cannot load after save of identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
+					np_example_print(stdout, "Cannot load after save of identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
 					exit(EXIT_FAILURE);
 				}
 				*/				
@@ -351,10 +351,10 @@ void np_example_save_or_load_identity() {
 				np_example_print(stdout, "Loaded ident(%s) from file.\n", _np_key_as_str(np_state()->my_identity));
 #endif
 			}else if (load_status == np_example_load_identity_status_found_but_failed) {
-				np_example_print(stderr, "Could not load from file.\n");
+				np_example_print(stdout, "Could not load from file.\n");
 			}
 			else {
-				np_example_print(stderr, "Unknown np_example_load_identity_status\n");
+				np_example_print(stdout, "Unknown np_example_load_identity_status\n");
 			}
 		}
 	}
@@ -565,7 +565,16 @@ void __np_example_inti_ncurse() {
 				sll_init(char_ptr, log_buffer);
 			}			
 			__np_ncurse_initiated = TRUE;
-			initscr(); // Init ncurses mode
+			
+			/* Start curses mode          */
+			//initscr(); // Init ncurses mode
+			// other:
+			newterm(NULL, stderr, stdin);    
+			FILE *f = fopen("/dev/tty", "r+");
+			SCREEN *screen = newterm(NULL, f, f);
+			set_term(screen);
+
+			// setup ncurse config
 			curs_set(0); // Hide cursor
 			noecho();
 			nocbreak();
@@ -836,6 +845,7 @@ void __np_example_helper_loop() {
 			wrefresh(__np_stat_general_win);
 			wrefresh(__np_stat_switchable_window);
 			wrefresh(__np_stat_memory_win);
+			refresh();
 		}
 	}
 

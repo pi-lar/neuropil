@@ -162,4 +162,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_callback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_responsecontainer_on_t);
 NP_SLL_GENERATE_PROTOTYPES(np_message_on_reply_t);
 
+NP_DLL_GENERATE_PROTOTYPES(np_thread_ptr);
+
+
 #endif /* _INCLUDE_H_ */
