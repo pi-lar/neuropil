@@ -7,3 +7,4 @@ config.log
 warn.log
 *.orig
 *.log
+.buildno

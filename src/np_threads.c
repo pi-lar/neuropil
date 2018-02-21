@@ -846,7 +846,7 @@ void np_start_job_queue(uint8_t pool_size)
 	np_job_submit_event_periodic(PRIORITY_MOD_LOWEST, 0.0, MISC_LOG_FLUSH_INTERVAL_SEC, _np_glia_log_flush, "_np_glia_log_flush");
 
 	log_debug_msg(LOG_THREADS | LOG_DEBUG, "jobqueue threads started: %"PRIu8, pool_size);
-	log_msg(LOG_INFO, "%s", NEUROPIL_RELEASE);
+	log_msg(LOG_INFO, "%s%s", NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
 	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 

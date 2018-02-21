@@ -1,6 +1,20 @@
 
 import platform
 import glob
+import io
+
+def buildNo():
+	f = open('.buildno', 'w+')
+	buildno = f.readline()
+	if buildno == "":
+		buildno = 1;
+	else:
+		buildno = int(buildno)
+	f.seek(0);
+	f.write(str(buildno+1))
+	f.close()
+	return buildno
+
 
 print '####'
 print '#### starting neuropil build'
@@ -63,6 +77,8 @@ if int(debug) >= 1:
 	if int(debug) <= 1:
 		env.Append(CCFLAGS = ['-DDEBUG'])
 
+env.Append(CCFLAGS = ['-DNEUROPIL_RELEASE_BUILD=\".{:05}\"'.format(buildNo())])
+		
 if int(console_log):
     env.Append(CCFLAGS = ['-DCONSOLE_LOG'])
 
@@ -254,3 +270,4 @@ print "console_log   =  %r" % console_log
 print "strict        =  %r" % strict
 print "build_program =  %r" % build_program
 print "build_x64     =  %r" % build_x64
+
