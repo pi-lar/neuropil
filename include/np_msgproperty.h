@@ -291,7 +291,6 @@ struct np_msgproperty_s
 	// weak link (no reffing)
 	np_key_t* recv_key;
 
-
 } NP_API_EXPORT;
 
 #ifndef SWIG

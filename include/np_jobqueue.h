@@ -82,6 +82,12 @@ NP_API_INTERN
 void* __np_jobqueue_run_jobs(void* np_thread_ptr_self);
 NP_API_INTERN
 void __np_jobqueue_run_once(np_job_t* job_to_execute);
+NP_API_INTERN
+void _np_jobqueue_check();
+NP_API_EXPORT
+uint32_t np_jobqueue_count();
+NP_API_INTERN
+np_job_t* _np_jobqueue_get_job_or_wait(np_thread_t* self);
 NP_PLL_GENERATE_PROTOTYPES(np_job_ptr);
 
 #ifdef __cplusplus

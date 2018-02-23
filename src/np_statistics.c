@@ -3,6 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
+#include <stdint.h>
 #include <inttypes.h>
 
 #include "neuropil.h"
@@ -14,6 +15,7 @@
 #include "np_route.h"
 #include "np_util.h"
 #include "np_key.h"
+#include "np_jobqueue.h"
 
 #include "np_statistics.h"
 
@@ -314,8 +316,8 @@ char * np_statistics_print(np_bool asOneLine) {
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Identity: %%s%%s", "send     total:", tenth);
 	ret = np_str_concatAndFree(ret, tmp_format, all_total_send, ((np_state()->my_identity == NULL) ? "-" :_np_key_as_str(np_state()->my_identity)), new_line);
 
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "total:", tenth);
-	ret = np_str_concatAndFree(ret, tmp_format, all_total_send+ all_total_received, new_line);
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Jobs:     %%"PRIu32"%%s", "total:", tenth);
+	ret = np_str_concatAndFree(ret, tmp_format, all_total_send+ all_total_received, np_jobqueue_count(), new_line);
 	
 	ret = np_str_concatAndFree(ret, "%s", new_line);
 

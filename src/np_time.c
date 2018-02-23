@@ -8,7 +8,7 @@
 #include "neuropil.h"
 
 double np_time_now() {
-	return ev_time();
+	return  ev_time();
 }
 
 void np_time_sleep(double sleeptime) {

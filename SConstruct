@@ -4,15 +4,16 @@ import glob
 import io
 
 def buildNo():
-	f = open('.buildno', 'w+')
-	buildno = f.readline()
-	if buildno == "":
-		buildno = 1;
-	else:
-		buildno = int(buildno)
-	f.seek(0);
-	f.write(str(buildno+1))
-	f.close()
+	with open('.buildno', 'r+') as f:
+		buildno = f.read()
+		if buildno == "":
+			buildno = 1;
+		else:
+			buildno = int(buildno) + 1
+		f.seek(0)
+		f.write(str(buildno))
+		f.truncate()
+
 	return buildno
 
 
@@ -59,6 +60,8 @@ env.Append(CCFLAGS = ['-DEV_PERIODIC_ENABLE'])
 env.Append(CCFLAGS = ['-DHAVE_SELECT'])
 env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
 env.Append(CCFLAGS = ['-DHAVE_POLL'])
+env.Append(CCFLAGS = ['-DEV_NO_THREADS'])
+
 
 if build_x64:
 	env.Append(CCFLAGS = ['-Dx64'])

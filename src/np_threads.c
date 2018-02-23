@@ -368,7 +368,7 @@ int _np_threads_mutex_lock(np_mutex_t* mutex, const char* where) {
 
 	while(ret != 0) {
 
-#if defined(DEBUG) && !defined(__APPLE__)
+#if defined(NP_THREADS_CHECK_THREADING) && !defined(__APPLE__)
 		ret = _np_threads_mutex_timedlock(mutex, min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
 
 		diff = np_time_now() - start;
@@ -812,7 +812,8 @@ void np_start_job_queue(uint8_t pool_size)
 		pool_size--;
 		create_own_event_http_thread = TRUE;
 	}
-	_LOCK_MODULE(np_jobqueue_t) {		
+	_LOCK_MODULE(np_jobqueue_t)
+	{
 		//start jobs
 		np_thread_t* special_thread;
 		if (create_own_event_in_thread) {
@@ -820,7 +821,7 @@ void np_start_job_queue(uint8_t pool_size)
 			special_thread->custom_data = _np_event_get_loop_in();
 		}
 		else {
-			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
+			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
 		}
 
 		if (create_own_event_out_thread) {
@@ -828,7 +829,7 @@ void np_start_job_queue(uint8_t pool_size)
 			special_thread->custom_data = _np_event_get_loop_out();
 		}
 		else {
-			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
+			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
 		}
 
 		if (create_own_event_io_thread) {
@@ -844,32 +845,36 @@ void np_start_job_queue(uint8_t pool_size)
 			special_thread->custom_data = _np_event_get_loop_http();
 		}
 		else {
-			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
+			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_6, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
 		}
 
-		if (create_job_manager_thread) {			
+		if (create_job_manager_thread) {
 			__np_createWorkerPool(pool_size);
 			special_thread = __np_createThread(pool_size, __np_jobqueue_run_manager, TRUE, np_thread_type_manager);
 		}
 		else {
 			special_thread = __np_createThread(pool_size, __np_jobqueue_run_jobs, TRUE, np_thread_type_manager);
 		}
+
+
+
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_MEMORY_REFRESH_INTERVAL_SEC, _np_memory_job_memory_management, "_np_memory_job_memory_management");
+
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_1, 0.0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache, "_np_event_cleanup_msgpart_cache");
+
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_RESPONSECONTAINER_CLEANUP_INTERVAL_SEC, _np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_MSGPROPERTY_MSG_UNIQUITY_CHECK_SEC, _np_msgproperty_job_msg_uniquety, "_np_msgproperty_job_msg_uniquety");
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_cleanup_keycache_jobexec, "_np_cleanup_keycache_jobexec");
+
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_SEND_PINGS_SEC, _np_glia_send_pings, "_np_glia_send_pings");
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_CHECK_ROUTES_SEC, _np_glia_check_neighbours, "_np_glia_check_neighbours");
+
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_SEND_PIGGY_REQUESTS_SEC, _np_glia_send_piggy_requests, "_np_glia_send_piggy_requests");
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_RETRANSMIT_MSG_TOKENS_SEC, _np_retransmit_message_tokens_jobexec, "_np_retransmit_message_tokens_jobexec");
+
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_5, 0.0, MISC_SEND_UPDATE_MSGS_SEC, _np_glia_check_routes, "_np_glia_check_routes");
+
 	}
-
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_SEND_PINGS_SEC,					_np_glia_send_pings, "_np_glia_send_pings");
-
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC,	_np_event_cleanup_msgpart_cache, "_np_event_cleanup_msgpart_cache");
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_SEND_PIGGY_REQUESTS_SEC,			_np_glia_send_piggy_requests, "_np_glia_send_piggy_requests");
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_RETRANSMIT_MSG_TOKENS_SEC,			_np_retransmit_message_tokens_jobexec, "_np_retransmit_message_tokens_jobexec");
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_2, 0.0, MISC_MEMORY_REFRESH_INTERVAL_SEC, _np_memory_job_memory_management, "_np_memory_job_memory_management");
-
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_RESPONSECONTAINER_CLEANUP_INTERVAL_SEC, _np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC,		_np_cleanup_keycache_jobexec, "_np_cleanup_keycache_jobexec");
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_CHECK_ROUTES_SEC,					_np_glia_check_neighbours, "_np_glia_check_neighbours");
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_SEND_UPDATE_MSGS_SEC, _np_glia_check_routes, "_np_glia_check_routes");
-
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_MSGPROPERTY_MSG_UNIQUITY_CHECK_SEC, _np_msgproperty_job_msg_uniquety, "_np_msgproperty_job_msg_uniquety");
-
 
 	//TODO: re-enable _np_renew_node_token_jobexec
 	//np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_RENEW_NODE_SEC,					_np_renew_node_token_jobexec, "_np_renew_node_token_jobexec");
@@ -886,22 +891,3 @@ void np_start_job_queue(uint8_t pool_size)
 	_np_network_start(np_state()->my_node_key->network);
 }
 
-
-np_job_t* _np_thread_get_job_or_wait(np_thread_t* self)
-{
-	np_job_t* job_to_execute = NULL;
-
-
-	_LOCK_ACCESS(&self->job_lock) {
-
-		while (job_to_execute == NULL)
-		{
-			job_to_execute = self->job;
-
-			if (job_to_execute == NULL) {
-				_np_threads_mutex_condition_wait(&self->job_lock);
-			}
-		}
-	}
-	return job_to_execute;
-}
