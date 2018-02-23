@@ -742,9 +742,8 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 					}
 				}
 				np_key_t* check_to_del = __routing_table->table[index + pick];
-
-				// only replace if the new latency is a better one
-				if(check_to_del == NULL || check_to_del->node->latency > key->node->latency){
+				
+				if(check_to_del == NULL) {
 					deleted_from = __routing_table->table[index + pick];
 					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%d]", index+pick);
 					__routing_table->table[index + pick] = key;
@@ -822,14 +821,23 @@ uint32_t __np_route_my_key_count_routes(np_bool break_on_first) {
 }
 
 np_bool _np_route_my_key_has_connection() {
-	return (__np_route_my_key_count_routes(TRUE) + _np_route_my_key_count_neighbours()) > 0 ? TRUE: FALSE;
+	return (__np_route_my_key_count_routes(TRUE) + _np_route_my_key_count_neighbours(NULL,NULL)) > 0 ? TRUE: FALSE;
 }
 
 uint32_t _np_route_my_key_count_routes() {
 	return __np_route_my_key_count_routes(FALSE);
 }
-uint32_t _np_route_my_key_count_neighbours() {
-	return  sll_size(__routing_table->left_leafset) + sll_size(__routing_table->right_leafset);
+uint32_t _np_route_my_key_count_neighbours(uint32_t* left, uint32_t* right) {
+	uint32_t 
+		l = sll_size(__routing_table->left_leafset), 
+		r = sll_size(__routing_table->right_leafset);
+
+	if(left != NULL)
+	*left = l;
+	if (right!= NULL)
+	*right = r;
+
+	return l + r;
 }
 
 void _np_route_check_for_joined_network()

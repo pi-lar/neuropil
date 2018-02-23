@@ -606,6 +606,7 @@ np_thread_t*_np_threads_get_self()
 	}
 	return ret;
 }
+
 void _np_thread_t_del(void* obj)
 {
 	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
@@ -753,11 +754,13 @@ void __np_createWorkerPool(uint8_t pool_size) {
 	}
 }
 
+
+np_bool _job_queue_is_started = FALSE;
 /*
 	min pool_size is 2
 */
 void np_start_job_queue(uint8_t pool_size)
-{
+{	
 	log_msg(LOG_TRACE, "start: void np_start_job_queue(uint8_t pool_size){");
 
 	log_debug_msg(LOG_THREADS | LOG_DEBUG, "starting neuropil with %"PRIu8" threads", pool_size);
@@ -853,10 +856,11 @@ void np_start_job_queue(uint8_t pool_size)
 			special_thread = __np_createThread(pool_size, __np_jobqueue_run_manager, TRUE, np_thread_type_manager);
 		}
 		else {
-			special_thread = __np_createThread(pool_size, __np_jobqueue_run_jobs, TRUE, np_thread_type_manager);
+			if(pool_size >=1)
+			{
+				special_thread = __np_createThread(pool_size, __np_jobqueue_run_jobs, TRUE, np_thread_type_manager);
+			}
 		}
-
-
 
 		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_MEMORY_REFRESH_INTERVAL_SEC, _np_memory_job_memory_management, "_np_memory_job_memory_management");
 
@@ -889,5 +893,18 @@ void np_start_job_queue(uint8_t pool_size)
 
 
 	_np_network_start(np_state()->my_node_key->network);
+	_job_queue_is_started = TRUE;
 }
 
+
+void np_start(np_bool once) {
+	
+	if (!_job_queue_is_started) 
+		np_start_job_queue(0);
+
+	np_thread_t* main_worker = _np_threads_get_self();
+	do	
+	{
+		__np_jobqueue_run_jobs(main_worker);
+	} while (!once);
+}

@@ -28,7 +28,7 @@ struct sigaction sigact;
 TSP(np_bool, is_in_shutdown);
 
 static void __np_shutdown_signal_handler(int sig) {
-	if (sig == SIGTERM) {
+	if (sig == SIGINT) {
 
 		TSP_SCOPE(np_bool, is_in_shutdown);
 		if (!is_in_shutdown) {
@@ -49,7 +49,8 @@ void _np_shutdown_init_auto_notify_others() {
 	sigemptyset(&sigact.sa_mask);
 	sigact.sa_flags = 0;
 	//sigaction(SIGABRT, &sigact, (struct sigaction *)NULL);
-	sigaction(SIGTERM, &sigact, (struct sigaction *)NULL);
+	sigaction(SIGINT, &sigact, (struct sigaction *)NULL);
+	//sigaction(SIGTERM, &sigact, (struct sigaction *)NULL);
 }
 
 void _np_shutdown_deinit() {

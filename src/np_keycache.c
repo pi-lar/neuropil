@@ -330,10 +330,10 @@ void _np_keycache_sort_keys_cpm (np_sll_t(np_key_ptr, node_keys), const np_dhkey
 
 	np_key_t* tmp;
 	sll_iterator(np_key_ptr) iter1 = sll_first(node_keys);
-
+	sll_iterator(np_key_ptr) iter2;
 	do
 	{
-		sll_iterator(np_key_ptr) iter2 = sll_get_next(iter1);
+		iter2 = sll_get_next(iter1);
 
 		if (NULL == iter2) break;
 

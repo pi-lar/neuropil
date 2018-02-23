@@ -185,13 +185,13 @@ void _np_job_queue_insert(np_job_t* new_job)
 			)
 	);
 
-	_LOCK_MODULE(np_jobqueue_t) 
+	_LOCK_MODULE(np_jobqueue_t)
 	{
 		// remove overflowing items
-		int overflow_count = (int)pll_size(__np_job_queue->job_list) + 1 - JOBQUEUE_MAX_SIZE;
+		double overflow_count = pll_size(__np_job_queue->job_list) + 1.0 - JOBQUEUE_MAX_SIZE;
 
 		if (overflow_count > 0) {
-			log_msg(LOG_ERROR, "Discarding %"PRIu32" jobs. Increase JOBQUEUE_MAX_SIZE to prevent missing data.", overflow_count);
+			log_msg(LOG_ERROR, "Discarding %f job(s). Increase JOBQUEUE_MAX_SIZE to prevent missing data.", overflow_count);
 
 			while (overflow_count > 0) {
 				pll_iterator(np_job_ptr) iter = pll_last(__np_job_queue->job_list);
@@ -212,9 +212,9 @@ void _np_job_queue_insert(np_job_t* new_job)
 				} while (iter != NULL);
 			}
 		}
-		pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_scheduling);				
+		pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_scheduling);
 	}
-	_np_jobqueue_check();
+	_np_jobqueue_check();	
 	
 }
 
@@ -366,8 +366,7 @@ void _np_job_yield(const double delay)
 	{
 		// unlock another threads
 		_LOCK_MODULE(np_jobqueue_t) {
-			//_np_threads_condition_signal(&__cond_job_queue);
-			_np_threads_condition_broadcast(&__cond_job_queue);
+			_np_jobqueue_check();
 		}
 
 		_LOCK_MODULE(np_jobqueue_t) {
@@ -454,11 +453,13 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 {
 	_np_threads_set_self(np_thread_ptr_self);
 
-	double now;	
+	double now, sleep = 0.0001;
 	dll_iterator(np_thread_ptr) iter_workers;
+	np_job_t search_key = { 0 };
 	
 	while (1)
 	{				
+		now = np_time_now();
 		_LOCK_ACCESS(&__np_job_queue->available_workers_lock)
 		{			
 			iter_workers = dll_first(__np_job_queue->available_workers);
@@ -470,29 +471,40 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 				_TRYLOCK_ACCESS(&worker->job_lock)
 				{
 					if (worker->job == NULL) {
-						now = np_time_now();
-						np_job_t search_key = 
-						{
-							.search_min_priority = worker->min_job_priority,
-							.search_max_priority = worker->max_job_priority,
-							.search_max_exec_not_before_tstamp = now
-						};
+						
+						search_key.search_min_priority = worker->min_job_priority;
+						search_key.search_max_priority = worker->max_job_priority;
+						search_key.search_max_exec_not_before_tstamp = now;
 
 						_LOCK_MODULE(np_jobqueue_t)
 						{
 							np_job_t * next_job = pll_find(np_job_ptr, __np_job_queue->job_list, &search_key, __np_jobqueue_find_job_by_priority);
 							
-							if (next_job != NULL && next_job->exec_not_before_tstamp <= now) {												
-								pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, np_job_ptr_pll_compare_type);
-								worker->job = next_job;
-								_np_threads_condition_signal(&worker->job_lock.condition);
+							if (next_job != NULL) {
+								if (next_job->exec_not_before_tstamp <= now) {
+									pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, np_job_ptr_pll_compare_type);
+									worker->job = next_job;
+									_np_threads_condition_signal(&worker->job_lock.condition);
+								}
+								else {
+									sleep = min(sleep, now - next_job->exec_not_before_tstamp);
+								}
 							}
 						}
 					}
 				}
 			}
 		}
-		np_time_sleep(0.00001);
+		np_time_sleep(max(0.0003, sleep));
+		/*
+		struct timeval tv_sleep = dtotv(np_time_now() + max(0.001, sleep));
+		struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
+		// wait for time x to be unlocked again
+		_LOCK_MODULE(np_jobqueue_t)
+		{
+			_np_threads_module_condition_timedwait(&__cond_job_queue, np_jobqueue_t_lock, &waittime);
+		}
+		*/
 	}
 }
 
@@ -511,7 +523,6 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 	// sanity checks if the job list really returned an element
 	if (NULL == job_to_execute) return;
 	if (NULL == job_to_execute->processorFuncs) return;
-	if (NULL == ((job_to_execute->processorFuncs))) return;
 	if (sll_size(((job_to_execute->processorFuncs))) <= 0) return;	
 	
 #ifdef NP_THREADS_CHECK_THREADING	
@@ -615,18 +626,29 @@ void* __np_jobqueue_run_worker(void* np_thread_ptr)
 		_LOCK_ACCESS(&my_thread->job_lock)
 		{
 			my_thread->job = NULL;
-			_LOCK_MODULE(np_jobqueue_t)
+			/*
+			struct timeval tv_sleep = dtotv(np_time_now() + 0.0001);
+			struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
+			// wait for time x to be unlocked again			
+
+			_np_threads_mutex_condition_timedwait(&my_thread->job_lock, &waittime);
+
+			if (my_thread->job == NULL) 
+			*/
 			{
-				double now = np_time_now();
-				search_key.search_max_exec_not_before_tstamp = now;
-
-				np_job_t * next_job = pll_find(np_job_ptr, __np_job_queue->job_list, &search_key, __np_jobqueue_find_job_by_priority);
-
-				if (next_job != NULL && next_job->exec_not_before_tstamp <= now)
+				_LOCK_MODULE(np_jobqueue_t)
 				{
-					pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, np_job_ptr_pll_compare_type);
-					has_next_job = TRUE;
-					my_thread->job = next_job;
+					double now = np_time_now();
+					search_key.search_max_exec_not_before_tstamp = now;
+
+					np_job_t * next_job = pll_find(np_job_ptr, __np_job_queue->job_list, &search_key, __np_jobqueue_find_job_by_priority);
+
+					if (next_job != NULL && next_job->exec_not_before_tstamp <= now)
+					{
+						pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, np_job_ptr_pll_compare_type);
+						has_next_job = TRUE;
+						my_thread->job = next_job;
+					}
 				}
 			}
 		}

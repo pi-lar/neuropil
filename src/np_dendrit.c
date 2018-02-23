@@ -282,7 +282,9 @@ void _np_in_received(np_jobargs_t* args)
 							np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
 							//TODO: is it necessary to forwarding with a small penalty to prevent infinite loops?
 							_np_job_submit_route_event(0.031415, prop, args->target, msg_in);
-
+#ifdef DEBUG
+							_np_increment_forwarding_counter();
+#endif
 							np_unref_list(tmp, "_np_route_lookup");
 							sll_free(np_key_ptr, tmp);
 

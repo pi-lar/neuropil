@@ -12,6 +12,7 @@
 #include "np_msgproperty.h"
 #include "np_scache.h"
 #include "np_list.h"
+#include "np_threads.h"
 #include "np_route.h"
 #include "np_util.h"
 #include "np_key.h"
@@ -52,6 +53,8 @@ static np_simple_cache_table_t* _cache = NULL;
 static np_sll_t(char_ptr, watched_subjects);
 static np_bool _np_statistcs_initiated = FALSE;
 
+TSP(double, __fw_counter)
+
 np_bool _np_statistics_receive_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
 {
 	assert(_cache != NULL);
@@ -84,6 +87,10 @@ np_bool np_statistics_init() {
 	_np_statistcs_initiated = TRUE;
 	_cache = np_cache_init(SIMPLE_CACHE_NR_BUCKETS);
 	sll_init(char_ptr, watched_subjects);
+
+	TSP_INITD(double, __fw_counter, 0);
+	
+
 	return _np_statistcs_initiated;
 }
 
@@ -316,17 +323,28 @@ char * np_statistics_print(np_bool asOneLine) {
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Identity: %%s%%s", "send     total:", tenth);
 	ret = np_str_concatAndFree(ret, tmp_format, all_total_send, ((np_state()->my_identity == NULL) ? "-" :_np_key_as_str(np_state()->my_identity)), new_line);
 
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Jobs:     %%"PRIu32"%%s", "total:", tenth);
-	ret = np_str_concatAndFree(ret, tmp_format, all_total_send+ all_total_received, np_jobqueue_count(), new_line);
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Jobs:     %%"PRIu32" Forwarded Msgs: %%8.0f%%s", "total:", tenth);
+	TSP_GET(double, __fw_counter, __fw_counter_r)
+	ret = np_str_concatAndFree(ret, tmp_format, all_total_send+ all_total_received, np_jobqueue_count(), __fw_counter_r, new_line);
 	
 	ret = np_str_concatAndFree(ret, "%s", new_line);
 
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Reachable nodes:", tenth);
+	sprintf(tmp_format, "%-17s %%"PRIu32"%%s", "Reachable nodes:");
 	ret = np_str_concatAndFree(ret, tmp_format, routes, /*new_line*/"  ");
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Neighbours nodes:", tenth);
-	ret = np_str_concatAndFree(ret, tmp_format, _np_route_my_key_count_neighbours(), new_line);
+	sprintf(tmp_format, "%-17s %%"PRIu32" (:= %%"PRIu32"|%%"PRIu32")%%s", "Neighbours nodes:");
+	uint32_t l, r;
+	uint32_t c = _np_route_my_key_count_neighbours(&l, &r);
+	ret = np_str_concatAndFree(ret, tmp_format, c, l, r, new_line);
 
 	ret = np_str_concatAndFree(ret, "--- Statistics END  ---%s", new_line);
 
 	return ret;
 }
+
+
+#ifdef DEBUG
+void _np_increment_forwarding_counter() {
+	TSP_SCOPE(double, __fw_counter)
+		__fw_counter++;
+}
+#endif

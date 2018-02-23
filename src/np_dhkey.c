@@ -191,7 +191,6 @@ void _np_dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dh
 {
 	log_msg (LOG_KEY | LOG_TRACE, ".start.key_sub");
 
-
 	for (uint8_t i = 0; i < 8; i++)
 	{
 		result->t[i] = op1->t[i] - op2->t[i];
