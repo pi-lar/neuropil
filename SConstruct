@@ -2,17 +2,23 @@
 import platform
 import glob
 import io
+import os
 
 def buildNo():
-	with open('.buildno', 'r+') as f:
-		buildno = f.read()
-		if buildno == "":
-			buildno = 1;
-		else:
-			buildno = int(buildno) + 1
-		f.seek(0)
-		f.write(str(buildno))
-		f.truncate()
+	try:
+	  f = open('.buildno', 'r+')
+	except:
+	  f = open('.buildno', 'w+')
+
+	buildno = f.read()
+	if buildno == "":
+		buildno = 1;
+	else:
+		buildno = int(buildno) + 1
+	f.seek(0)
+	f.write(str(buildno))
+	f.truncate()
+	f.close()
 
 	return buildno
 
@@ -56,11 +62,15 @@ if strict:
 
 # add libev flags to the compilation
 env.Append(CCFLAGS = ['-DEV_STANDALONE'])
-env.Append(CCFLAGS = ['-DEV_PERIODIC_ENABLE'])
+#env.Append(CCFLAGS = ['-DEV_PERIODIC_ENABLE'])
 env.Append(CCFLAGS = ['-DHAVE_SELECT'])
 env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
 env.Append(CCFLAGS = ['-DHAVE_POLL'])
-env.Append(CCFLAGS = ['-DEV_NO_THREADS'])
+env.Append(CCFLAGS = ['-DEV_COMPAT3=0'])
+env.Append(CCFLAGS = ['-DEV_USE_FLOOR=1'])
+env.Append(CCFLAGS = ['-DEV_USE_4HEAP=1'])
+#env.Append(CCFLAGS = ['-DEV_NO_THREADS'])
+
 
 
 if build_x64:

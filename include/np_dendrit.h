@@ -63,7 +63,8 @@ NP_API_INTERN
 void _np_in_signal_np_receive (np_jobargs_t* args);
 NP_API_INTERN
 void _np_in_callback_wrapper(np_jobargs_t* args);
-
+NP_API_INTERN
+void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* handler);
 #ifdef __cplusplus
 }
 #endif

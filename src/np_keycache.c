@@ -39,7 +39,7 @@ static st_keycache_t* __key_cache;
 
 void _np_keycache_init()
 {
-	log_msg(LOG_TRACE, "start: void _np_keycache_init(){");
+	log_trace_msg(LOG_TRACE, "start: void _np_keycache_init(){");
 	__key_cache = (st_keycache_t*) malloc(sizeof(st_keycache_t));
 	CHECK_MALLOC(__key_cache);
 
@@ -48,7 +48,7 @@ void _np_keycache_init()
 
 np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey){");
 	np_key_t* key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
 
@@ -71,7 +71,7 @@ np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey)
 
 np_key_t* _np_keycache_create(np_dhkey_t search_dhkey)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_create(np_dhkey_t search_dhkey){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_create(np_dhkey_t search_dhkey){");
 	np_key_t* key = NULL;
 
 	np_new_obj(np_key_t, key);
@@ -86,7 +86,7 @@ np_key_t* _np_keycache_create(np_dhkey_t search_dhkey)
 
 np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey){");
 	np_key_t* return_key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
 
@@ -112,7 +112,7 @@ np_key_t* _np_keycache_find_by_details(
 		np_bool require_port,
 		np_bool require_hash
 	){
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		np_bool search_myself,		handshake_status_e is_handshake_send,		np_bool require_handshake_status,		np_bool require_dns,		np_bool require_port,		np_bool require_hash	){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		np_bool search_myself,		handshake_status_e is_handshake_send,		np_bool require_handshake_status,		np_bool require_dns,		np_bool require_port,		np_bool require_hash	){");
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
 
@@ -178,7 +178,7 @@ np_key_t* _np_keycache_find_by_details(
 
 np_key_t* _np_keycache_find_deprecated()
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_deprecated(){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_deprecated(){");
 	np_key_t *iter = NULL;
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -242,7 +242,7 @@ sll_return(np_key_ptr) _np_keycache_get_all()
 
 np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey){");
 	np_key_t* rem_key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
 
@@ -259,7 +259,7 @@ np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey)
 
 np_key_t* _np_keycache_add(np_key_t* subject_key)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* key){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* key){");
 	//TODO: ist das notwendig? warum einen leeren key hinzufügen?
 	if (NULL == subject_key)
 	{

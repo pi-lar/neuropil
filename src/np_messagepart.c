@@ -41,7 +41,7 @@ np_bool _np_messagepart_decrypt(np_tree_t* source,
 							NP_UNUSED unsigned char* secret_key,
 							np_tree_t* target)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_decrypt(np_tree_t* msg_part,							unsigned char* enc_nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_decrypt(np_tree_t* msg_part,							unsigned char* enc_nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
 	np_tree_elem_t* enc_msg_part = np_tree_find_str(source, NP_ENCRYPTED);
 	if (NULL == enc_msg_part)
 	{
@@ -99,7 +99,7 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 							unsigned char* public_key,
 							NP_UNUSED unsigned char* secret_key)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_encrypt(np_tree_t* msg_part,							unsigned char* nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_encrypt(np_tree_t* msg_part,							unsigned char* nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
 	cmp_ctx_t cmp;
 
 	unsigned char msg_part_buffer[65536];
@@ -142,14 +142,14 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 
 void _np_messagepart_t_del(void* nw)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
 	np_messagepart_t* part = (np_messagepart_t*) nw;
 
 	if(part->msg_part != NULL) np_memory_free(part->msg_part);
 }
 void _np_messagepart_t_new(void* nw)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
 	np_messagepart_t* part = (np_messagepart_t *) nw;
 
 	part->msg_part  = NULL;

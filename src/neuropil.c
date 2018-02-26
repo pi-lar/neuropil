@@ -187,7 +187,7 @@ np_bool _np_aaa_accountingfunc (np_aaatoken_t* token)
  */
 void np_setauthorizing_cb(np_aaa_func_t aaaFunc)
 {
-	log_msg(LOG_TRACE, "start: void np_setauthorizing_cb(np_aaa_func_t aaaFunc){");
+	log_trace_msg(LOG_TRACE, "start: void np_setauthorizing_cb(np_aaa_func_t aaaFunc){");
 	log_msg(LOG_INFO, "setting user defined authorization handler, that's good ...");
 	np_state()->authorize_func = aaaFunc;
 }
@@ -197,7 +197,7 @@ void np_setauthorizing_cb(np_aaa_func_t aaaFunc)
  */
 void np_setauthenticate_cb(np_aaa_func_t aaaFunc)
 {
-	log_msg(LOG_TRACE, "start: void np_setauthenticate_cb(np_aaa_func_t aaaFunc){");
+	log_trace_msg(LOG_TRACE, "start: void np_setauthenticate_cb(np_aaa_func_t aaaFunc){");
 	log_msg(LOG_INFO, "setting user defined authentication handler, that's good ...");
 	np_state()->authenticate_func = aaaFunc;
 }
@@ -207,7 +207,7 @@ void np_setauthenticate_cb(np_aaa_func_t aaaFunc)
  */
 void np_setaccounting_cb(np_aaa_func_t aaaFunc)
 {
-	log_msg(LOG_TRACE, "start: void np_setaccounting_cb(np_aaa_func_t aaaFunc){");
+	log_trace_msg(LOG_TRACE, "start: void np_setaccounting_cb(np_aaa_func_t aaaFunc){");
 	log_msg(LOG_INFO, "setting user defined accounting handler, that's good ...");
 	np_state()->accounting_func = aaaFunc;
 }
@@ -219,7 +219,7 @@ void np_setaccounting_cb(np_aaa_func_t aaaFunc)
  */
 void np_set_realm_name(const char* realm_name)
 {
-	log_msg(LOG_TRACE, "start: void np_set_realm_name(const char* realm_name){");
+	log_trace_msg(LOG_TRACE, "start: void np_set_realm_name(const char* realm_name){");
 	np_state()->realm_name = strndup(realm_name, 255);
 
 	// create a new token
@@ -271,7 +271,7 @@ void np_set_realm_name(const char* realm_name)
  */
 void np_enable_realm_slave()
 {
-	log_msg(LOG_TRACE, "start: void np_enable_realm_slave(){");
+	log_trace_msg(LOG_TRACE, "start: void np_enable_realm_slave(){");
 	np_state()->authorize_func    = _np_aaa_authorizefunc;
 	np_state()->authenticate_func = _np_aaa_authenticatefunc;
 	np_state()->accounting_func   = _np_aaa_accountingfunc;
@@ -284,7 +284,7 @@ void np_enable_realm_slave()
  */
 void np_enable_realm_master()
 {
-	log_msg(LOG_TRACE, "start: void np_enable_realm_master(){");
+	log_trace_msg(LOG_TRACE, "start: void np_enable_realm_master(){");
 	if (NULL == np_state()->realm_name)
 	{
 		return;
@@ -321,7 +321,7 @@ void np_enable_realm_master()
  */
 void np_waitforjoin()
 {
-	log_msg(LOG_TRACE, "start: void np_waitforjoin(){");
+	log_trace_msg(LOG_TRACE, "start: void np_waitforjoin(){");
 	while (FALSE == _np_route_my_key_has_connection())
 	{
 		np_time_sleep(0.31415/2);
@@ -381,7 +381,7 @@ void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
  */
 void np_set_identity(np_aaatoken_t* identity)
 {
-	log_msg(LOG_TRACE, "start: void np_set_identity(np_aaatoken_t* identity){");
+	log_trace_msg(LOG_TRACE, "start: void np_set_identity(np_aaatoken_t* identity){");
 
 	np_state_t* state = np_state();
 
@@ -420,7 +420,7 @@ void np_set_identity(np_aaatoken_t* identity)
  */
 void np_set_mx_property(char* subject, const char* key, np_treeval_t value)
 {
-	log_msg(LOG_TRACE, "start: void np_set_mx_property(char* subject, const char* key, np_treeval_t value){");
+	log_trace_msg(LOG_TRACE, "start: void np_set_mx_property(char* subject, const char* key, np_treeval_t value){");
 	// TODO: rework key from char to enum
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
@@ -467,7 +467,7 @@ void np_set_mx_property(char* subject, const char* key, np_treeval_t value)
 
 void np_rem_mx_property(char* subject, const char* key)
 {
-	log_msg(LOG_TRACE, "start: void np_rem_mx_property(char* subject, const char* key){");
+	log_trace_msg(LOG_TRACE, "start: void np_rem_mx_property(char* subject, const char* key){");
 	np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, subject);
 	if (NULL == msg_prop)
 	{
@@ -780,7 +780,7 @@ uint32_t np_receive_text (char* subject, char **data)
  **/
 void np_destroy()
 {
-	log_msg(LOG_TRACE, "start: void np_destroy(){");
+	log_trace_msg(LOG_TRACE, "start: void np_destroy(){");
 
 	np_shutdown_notify_others();
 	// TODO: implement me ...
@@ -801,7 +801,7 @@ void np_destroy()
  **/
 np_state_t* np_init(char* proto, char* port, char* hostname)
 {
-	log_msg(LOG_TRACE, "start: np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname){");
+	log_trace_msg(LOG_TRACE, "start: np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname){");
 	log_debug_msg(LOG_DEBUG, "neuropil_init");
 
 	 if(_np_threads_init() == FALSE) {
@@ -994,13 +994,13 @@ void np_context_create_new_nodekey(np_node_t* custom_base) {
 }
 
 char* np_get_connection_string(){
-	log_msg(LOG_TRACE, "start: char* np_get_connection_string(){");
+	log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string(){");
 
 	return np_get_connection_string_from(np_state()->my_node_key, TRUE);
 }
 
 char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash) {
-	log_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
+	log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
 
 	return (
 			np_build_connection_string(
@@ -1013,7 +1013,7 @@ char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash) {
 }
 
 char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char* port, np_bool includeHash) {
-	log_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
+	log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
 	char* connection_str;
 
 	if (TRUE == includeHash) {
@@ -1034,7 +1034,7 @@ char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char*
 }
 
 np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* subject) {
-	log_msg(LOG_TRACE, "start: void _np_send_simple_invoke_request(np_key_t* target, const char* subject) {");
+	log_trace_msg(LOG_TRACE, "start: void _np_send_simple_invoke_request(np_key_t* target, const char* subject) {");
 
 	np_state_t* state = np_state();
 
@@ -1076,7 +1076,7 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 */
 void np_send_join(const char* node_string)
 {
-	log_msg(LOG_TRACE, "start: void np_send_join(const char* node_string){");
+	log_trace_msg(LOG_TRACE, "start: void np_send_join(const char* node_string){");
 
 	if (node_string[0] == '*') {
 		const char* node_string_2 = node_string + 2;
@@ -1103,7 +1103,7 @@ void np_send_join(const char* node_string)
 */
 void _np_send_ack(const np_message_t* const msg_to_ack)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_ack(np_message_t* msg_to_ack){");
+	log_trace_msg(LOG_TRACE, "start: void _np_send_ack(np_message_t* msg_to_ack){");
 	np_state_t* state = np_state();
 	uint32_t seq = 0;
 
@@ -1161,7 +1161,7 @@ void _np_send_ack(const np_message_t* const msg_to_ack)
 */
 void np_send_wildcard_join(const char* node_string)
 {
-	log_msg(LOG_TRACE, "start: void np_send_wildcard_join(const char* node_string){");
+	log_trace_msg(LOG_TRACE, "start: void np_send_wildcard_join(const char* node_string){");
 	/**
 	* Wir erzeugen einen festen hash key der als wildcard fungiert.
 	* Anschließend wird diesem der node_string mit allen anderen informationen (dns/port/etc) hinzugefügt.

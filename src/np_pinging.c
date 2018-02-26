@@ -46,7 +46,7 @@ void _np_ping_send(np_key_t* key)
 
 void _np_in_ping(NP_UNUSED np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_ping(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_ping(np_jobargs_t* args){");
 
 	// Nothing to do. Work is done only on the sending end (ack handling)
 }

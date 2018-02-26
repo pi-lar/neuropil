@@ -84,7 +84,7 @@ np_bool _np_route_init (np_key_t* me)
  **/
 void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_key_t** added)
 {
-	log_msg(LOG_ROUTING | LOG_TRACE, ".start.leafset_update");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.leafset_update");
 
 	TSP_GET(np_bool, node_key->in_destroy, in_destroy);
 	if (__routing_table == NULL || __routing_table->my_key == NULL || (in_destroy == TRUE && joined))
@@ -212,7 +212,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 			_np_route_check_for_joined_network();
 		}
 	}
-	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_update");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .leafset_update");
 }
 
 np_key_t* _np_route_get_key() {
@@ -281,7 +281,7 @@ sll_return(np_key_ptr) _np_route_get_table ()
  **/
 sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key)
 {
-	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_row_lookup");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.route_row_lookup");
 
 	np_sll_t(np_key_ptr, sll_of_keys);
 	sll_init(np_key_ptr, sll_of_keys);
@@ -307,7 +307,7 @@ sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key)
 		np_ref_list(sll_of_keys, __func__, NULL);
 	}
 
-	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_row_lookup");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_row_lookup");
 	return (sll_of_keys);
 }
 
@@ -317,7 +317,7 @@ void _np_route_append_leafset_to_sll(np_key_ptr_sll_t* leafset, np_sll_t(np_key_
 
 	while(iter != NULL) {
 		if(iter->val != NULL) {
-			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Leafset: (%s)", _np_key_as_str (iter->val));
+			//log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Leafset: (%s)", _np_key_as_str (iter->val));
 			sll_append(np_key_ptr, result, iter->val);
 		}
 		sll_next(iter);
@@ -329,7 +329,7 @@ void _np_route_append_leafset_to_sll(np_key_ptr_sll_t* leafset, np_sll_t(np_key_
  */
 sll_return(np_key_ptr) _np_route_lookup(np_dhkey_t key, uint8_t count)
 {
-	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_lookup");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.route_lookup");
 	uint32_t i, j, k, Lsize, Rsize;
 	uint8_t match_col = 0;
 	np_bool next_hop = FALSE;
@@ -376,7 +376,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_dhkey_t key, uint8_t count)
 
 			sll_free (np_key_ptr, key_list);
 			_np_threads_unlock_module(np_routeglobal_t_lock);
-			log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_lookup");
+			log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_lookup");
 			return (return_list);
 		}
 
@@ -426,7 +426,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_dhkey_t key, uint8_t count)
 
 			sll_free (np_key_ptr, key_list);
 			_np_threads_unlock_module(np_routeglobal_t_lock);
-			log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_lookup");
+			log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_lookup");
 			return (return_list);
 		}
 
@@ -459,8 +459,12 @@ sll_return(np_key_ptr) _np_route_lookup(np_dhkey_t key, uint8_t count)
 					if (NULL != tmp_1->node && tmp_1->node->success_avg > BAD_LINK)
 					{
 						sll_append(np_key_ptr, key_list, tmp_1);
-						log_debug_msg(LOG_ROUTING | LOG_DEBUG, "+Table[%ul][%ul][%ul]: (%s)",
-											  i, j, k, /* leaf->dns_name, leaf->port, */ _np_key_as_str (tmp_1));
+						
+						//log_debug_msg(
+						//	LOG_ROUTING | LOG_DEBUG, "+Table[%ul][%ul][%ul]: (%s)", 
+						//	i, j, k, /* leaf->dns_name, leaf->port, */ _np_key_as_str (tmp_1)
+						//);
+						
 					}
 				}
 			}
@@ -544,7 +548,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_dhkey_t key, uint8_t count)
 		
 		sll_free(np_key_ptr, key_list);
 	}	
-	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_lookup");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_lookup");
 	return (return_list);
 }
 
@@ -556,7 +560,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_dhkey_t key, uint8_t count)
  */
 void _np_route_leafset_range_update ()
 {
-	log_msg(LOG_ROUTING | LOG_TRACE, ".start.leafset_range_update");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.leafset_range_update");
 	sll_iterator(np_key_ptr) item = sll_last(__routing_table->right_leafset);
 
 	if(item != NULL) {
@@ -571,7 +575,7 @@ void _np_route_leafset_range_update ()
 	} else {
 		_np_dhkey_assign (&__routing_table->Lrange, &__routing_table->my_key->dhkey);
 	}
-	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .leafset_range_update");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .leafset_range_update");
 }
 
 /** _np_route_neighbors:
@@ -579,7 +583,7 @@ void _np_route_leafset_range_update ()
  **/
 sll_return(np_key_ptr) _np_route_neighbors ()
 {
-	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_neighbors");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.route_neighbors");
 
 	np_sll_t(np_key_ptr, node_keys);
 	sll_init(np_key_ptr, node_keys);
@@ -593,7 +597,7 @@ sll_return(np_key_ptr) _np_route_neighbors ()
 	/* sort aux */
 	_np_keycache_sort_keys_kd(node_keys, &__routing_table->my_key->dhkey);
 
-	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_neighbors");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_neighbors");
 	return node_keys;
 }
 
@@ -662,7 +666,7 @@ void _np_route_leafset_clear ()
  **/
 void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added)
 {
-	log_msg(LOG_ROUTING | LOG_TRACE, ".start.route_update");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.route_update");
 	
 	TSP_GET(np_bool, key->in_destroy, in_destroy);
 
@@ -676,7 +680,7 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 
 		if (_np_dhkey_equal (&__routing_table->my_key->dhkey, &key->dhkey))
 		{
-			log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
+			log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_update");
 			_np_threads_unlock_module(np_routeglobal_t_lock);
 			return;
 		}
@@ -787,7 +791,7 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 		}
 #endif
 	}
-	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_update");
 }
 
 uint32_t __np_route_my_key_count_routes(np_bool break_on_first) {
@@ -856,13 +860,13 @@ void _np_route_check_for_joined_network()
 }
 
 char* np_route_get_bootstrap_connection_string() {
-	log_msg(LOG_TRACE | LOG_ROUTING, "start: np_key_t* np_route_get_bootstrap_key() {");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING, "start: np_key_t* np_route_get_bootstrap_key() {");
 	TSP_GET(char*, __routing_table->bootstrap_key, ret);
 	return ret;
 }
 
 void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {
-	log_msg(LOG_TRACE | LOG_ROUTING, "void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {");
+	log_trace_msg(LOG_TRACE | LOG_ROUTING, "void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {");
 		
 	TSP_GET(char*, __routing_table->bootstrap_key, old);
 	TSP_SET(char*, __routing_table->bootstrap_key, np_get_connection_string_from(bootstrap_key, FALSE));

@@ -165,7 +165,7 @@ const char* _np_tree_get_special_str(uint8_t idx) {
 
 int16_t _np_tree_elem_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2)
 {
-	log_msg(LOG_TRACE, "start: int16_t _np_tree_elem_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2){");
+	log_trace_msg(LOG_TRACE, "start: int16_t _np_tree_elem_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2){");
 	assert(NULL != j1);
 	assert(NULL != j2);
 
@@ -432,14 +432,14 @@ void np_tree_free(np_tree_t* n)
 
 void _np_tree_replace_all_with_str(np_tree_t* n, const char* key, np_treeval_t val)
 {
-	log_msg(LOG_TRACE, "start: void _np_tree_replace_all_with_str(np_tree_t* n, const char* key, np_treeval_t val){");
+	log_trace_msg(LOG_TRACE, "start: void _np_tree_replace_all_with_str(np_tree_t* n, const char* key, np_treeval_t val){");
 	np_tree_clear(n);
 	np_tree_insert_str(n, key, val);
 }
 
 uint32_t np_tree_get_byte_size(np_tree_elem_t* node)
 {
-	log_msg(LOG_TRACE, "start: uint32_t np_tree_get_byte_size(np_tree_elem_t* node){");
+	log_trace_msg(LOG_TRACE, "start: uint32_t np_tree_get_byte_size(np_tree_elem_t* node){");
 	assert(node != NULL);
 
 	uint32_t byte_size = np_treeval_get_byte_size(node->key) + np_treeval_get_byte_size(node->val);
@@ -717,7 +717,7 @@ void np_tree_copy_inplace(np_tree_t* source, np_tree_t* target) {
 }
 
 np_tree_t* np_tree_clone(np_tree_t* source) {
-	log_msg(LOG_TRACE, "start: np_tree_t* np_tree_clone(np_tree_t* source) {");
+	log_trace_msg(LOG_TRACE, "start: np_tree_t* np_tree_clone(np_tree_t* source) {");
 
 	np_tree_t* ret = np_tree_create();
 	memcpy(&ret->attr, &source->attr, sizeof(np_tree_conf_t));
@@ -731,7 +731,7 @@ np_tree_t* np_tree_clone(np_tree_t* source) {
 
 void np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 {
-	log_msg(LOG_TRACE, "start: void np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp){");
+	log_trace_msg(LOG_TRACE, "start: void np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp){");
 	uint16_t i = 0;
 	// first assume a size based on jrb size
 
@@ -768,7 +768,7 @@ void np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 
 np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 {
-	log_msg(LOG_TRACE, "start: void np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp){");
+	log_trace_msg(LOG_TRACE, "start: void np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp){");
 
 	ASSERT(jtree != NULL,"Tree do deserialize cannot be NULL")
 	np_bool ret = TRUE;
@@ -872,7 +872,7 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 }
 
 uint8_t __np_tree_serialize_read_type_dhkey(cmp_ctx_t* cmp_key, np_treeval_t* target) {
-	log_msg(LOG_TRACE, "start: uint8_t __np_tree_serialize_read_type_dhkey(void* buffer_ptr, np_treeval_t* target) {");
+	log_trace_msg(LOG_TRACE, "start: uint8_t __np_tree_serialize_read_type_dhkey(void* buffer_ptr, np_treeval_t* target) {");
 
 	//cmp_ctx_t cmp_key;
 	//cmp_init(&cmp_key, buffer_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
@@ -908,7 +908,7 @@ uint8_t __np_tree_serialize_read_type_dhkey(cmp_ctx_t* cmp_key, np_treeval_t* ta
 }
 
 void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target) {
-	log_msg(LOG_TRACE, "start: void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target) {");
+	log_trace_msg(LOG_TRACE, "start: void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target) {");
 	// source->size is not relevant here as the transport size includes marker sizes etc..
 	//                        8 * (size of uint32 marker + size of key element)
 	uint32_t transport_size = 8 * (sizeof(uint8_t) + sizeof(uint32_t));
@@ -939,7 +939,7 @@ void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target) 
 }
 
 uint8_t __np_tree_serialize_read_type_special_str(void* buffer_ptr, np_treeval_t* target) {
-	log_msg(LOG_TRACE, "start: uint8_t __np_tree_serialize_read_type_special_str(void* buffer_ptr, np_treeval_t* target) {");
+	log_trace_msg(LOG_TRACE, "start: uint8_t __np_tree_serialize_read_type_special_str(void* buffer_ptr, np_treeval_t* target) {");
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 	uint8_t idx = 0;
@@ -974,7 +974,7 @@ void __np_tree_serialize_write_type_special_str(uint8_t idx, cmp_ctx_t* target) 
 
 void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 {
-	log_msg(LOG_TRACE, "start: void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp){");
+	log_trace_msg(LOG_TRACE, "start: void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp){");
 	// void* count_buf_start = cmp->buf;
 	// log_debug_msg(LOG_DEBUG, "writing jrb (%p) value: %s", jrb, jrb->key.value.s);
 	switch (val.type)
@@ -1091,7 +1091,7 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 
 void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value, NP_UNUSED char* key_to_read_for)
 {
-	log_msg(LOG_TRACE, "start: void __np_tree_deserialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value){");
+	log_trace_msg(LOG_TRACE, "start: void __np_tree_deserialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value){");
 	switch (obj->type)
 	{
 		case CMP_TYPE_FIXMAP:

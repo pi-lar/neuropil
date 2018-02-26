@@ -71,7 +71,7 @@ static pthread_mutexattr_t __log_mutex_attr;
 
 void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
 {
-	log_msg(LOG_TRACE, "start: void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents){");
+	log_trace_msg(LOG_TRACE, "start: void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents){");
 	if ((revents &  EV_WRITE) == EV_WRITE && (revents &  EV_ERROR) != EV_ERROR)
 	{
 		_np_log_fflush(TRUE);
@@ -215,7 +215,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 
 void _np_log_fflush(np_bool force)
 {
-	//log_msg(LOG_TRACE, "start: void _np_log_fflush(){");
+	//log_trace_msg(LOG_TRACE, "start: void _np_log_fflush(){");
 	char* entry = NULL;
 	int lock_result = 0;
 	if (__logger == NULL) {
@@ -290,13 +290,13 @@ void _np_log_fflush(np_bool force)
 
 void np_log_setlevel(uint32_t level)
 {
-	log_msg(LOG_TRACE, "start: void np_log_setlevel(uint32_t level){");
+	log_trace_msg(LOG_TRACE, "start: void np_log_setlevel(uint32_t level){");
 	__logger->level = level;
 }
 
 void np_log_init(const char* filename, uint32_t level)
 {
-	log_msg(LOG_TRACE, "start: void np_log_init(const char* filename, uint32_t level){");
+	log_trace_msg(LOG_TRACE, "start: void np_log_init(const char* filename, uint32_t level){");
 
 	pthread_mutexattr_init(&__log_mutex_attr);
 	pthread_mutexattr_settype(&__log_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
@@ -341,7 +341,7 @@ void np_log_init(const char* filename, uint32_t level)
 
 void np_log_destroy()
 {
-	log_msg(LOG_TRACE, "start: void np_log_destroy(){");
+	log_trace_msg(LOG_TRACE, "start: void np_log_destroy(){");
 	__logger->level=LOG_NONE;
 
 	EV_P = _np_event_get_loop_io();

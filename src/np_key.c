@@ -38,7 +38,7 @@ NP_PLL_GENERATE_IMPLEMENTATION(np_key_ptr);
 
 int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 {
-	log_msg(LOG_TRACE | LOG_KEY, "start: int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2){");
+	log_trace_msg(LOG_TRACE | LOG_KEY, "start: int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2){");
 	if (k1 == NULL) return -1;
 	if (k2 == NULL) return  1;
 
@@ -47,13 +47,13 @@ int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 
 int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
 {
-	log_msg(LOG_TRACE | LOG_KEY, "start: int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2){");
+	log_trace_msg(LOG_TRACE | LOG_KEY, "start: int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2){");
 	return -1 * _np_key_cmp(k1, k2);
 }
 
 char* _np_key_as_str(np_key_t* key)
 {
-	log_msg(LOG_TRACE | LOG_KEY, "start: char* _np_key_as_str(np_key_t* key){");
+	log_trace_msg(LOG_TRACE | LOG_KEY, "start: char* _np_key_as_str(np_key_t* key){");
 	//if (NULL == key->dhkey_str)
 	{
 
@@ -92,7 +92,7 @@ void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
  * Destroys a key with all resources
  */
 void _np_key_destroy(np_key_t* to_destroy) {
-	log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_destroy(np_key_t* to_destroy) {");
+	log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_destroy(np_key_t* to_destroy) {");
 
 	np_tryref_obj(np_key_t, to_destroy, to_destroyExists, __func__);
 	if(to_destroyExists) {
@@ -176,7 +176,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
 void _np_key_t_new(void* key)
 {
-	log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
+	log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
 	np_key_t* new_key = (np_key_t*) key;
 
 	new_key->type = np_key_type_unknown;
@@ -207,7 +207,7 @@ void _np_key_t_new(void* key)
 
 void _np_key_t_del(void* key)
 {
-	log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_del(void* key){");
+	log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_del(void* key){");
 	np_key_t* old_key = (np_key_t*) key;
 
 	_np_key_destroy(old_key);
@@ -368,7 +368,7 @@ void np_key_renew_token() {
 */
 np_key_t* _np_key_get_by_key_hash(char* targetDhkey)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_key_get_by_key_hash(char* targetDhkey){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_key_get_by_key_hash(char* targetDhkey){");
 	np_key_t* target = NULL;
 
 	if (NULL != targetDhkey) {

@@ -51,7 +51,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_message_on_reply_t);
 
 void _np_message_t_new(void* msg)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_new(void* msg){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_new(void* msg){");
 	np_message_t* msg_tmp = (np_message_t*) msg;
 
 	_np_threads_mutex_init(&msg_tmp->msg_chunks_lock,"msg_chunks_lock");
@@ -102,7 +102,7 @@ void _np_message_mark_as_incomming(np_message_t* msg) {
 // destructor of np_message_t
 void _np_message_t_del(void* data)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_del(void* data){");	
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_del(void* data){");	
 	np_message_t* msg = (np_message_t*) data;
 
 	sll_free(np_responsecontainer_on_t, msg->on_ack);
@@ -166,7 +166,7 @@ void _np_message_t_del(void* data)
 
 void _np_message_calculate_chunking(np_message_t* msg)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_calculate_chunking(np_message_t* msg){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_calculate_chunking(np_message_t* msg){");
 	// np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 
 	// TODO: message part split-up informations
@@ -197,7 +197,7 @@ void _np_message_calculate_chunking(np_message_t* msg)
 
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check){");
 	np_state_t* state = np_state();
 	np_message_t* ret= NULL;
 
@@ -336,7 +336,7 @@ np_bool _np_message_is_expired(const np_message_t* const self)
 }
 np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args){");
 	cmp_ctx_t cmp;
 	np_messagepart_ptr part = NULL;
 	_LOCK_ACCESS(&args->msg->msg_chunks_lock){
@@ -364,7 +364,7 @@ np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args)
 
 np_bool _np_message_serialize_chunked(np_message_t* msg)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_serialize_chunked(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_serialize_chunked(np_jobargs_t* args){");
 	np_bool ret_val = FALSE;
 
 	//_np_message_calculate_chunking(msg);
@@ -647,7 +647,7 @@ np_bool _np_message_serialize_chunked(np_message_t* msg)
 
 np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void* buffer)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void* buffer){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void* buffer){");
 	np_bool ret = FALSE;
 	np_tryref_obj(np_message_t, msg, msgExisits,"np_tryref_obj_msg");
 
@@ -758,7 +758,7 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 
 np_bool _np_message_deserialize_chunked(np_message_t* msg)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_deserialize_chunked(np_message_t* msg){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_deserialize_chunked(np_message_t* msg){");
 	np_bool ret = TRUE;
 
 	if (msg->bin_properties != NULL) {
@@ -939,7 +939,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
  */
 void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data){");
 	// np_message_t* new_msg;
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
@@ -1003,7 +1003,7 @@ inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
 
 void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
 	np_state_t* state = np_state();
 
 	// first encrypt the relevant message part itself
@@ -1060,7 +1060,7 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 
 np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token){");
 	np_bool ret = TRUE;
 	np_state_t* state = np_state();
 

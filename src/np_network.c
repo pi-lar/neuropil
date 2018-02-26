@@ -55,7 +55,7 @@
 // allocate a new pointer and return it
 np_prioq_t* _np_network_get_new_pqentry()
 {
-	log_msg(LOG_TRACE | LOG_NETWORK, "start: np_prioq_t* _np_network_get_new_pqentry(){");
+	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: np_prioq_t* _np_network_get_new_pqentry(){");
 	np_prioq_t* entry = (np_prioq_t *) malloc(sizeof(np_prioq_t));
 	CHECK_MALLOC(entry);
 
@@ -441,8 +441,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 
 void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int revents)
 {
-	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents){");
-	log_msg(LOG_NETWORK | LOG_TRACE, ".start.np_network_accept");
+	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents){");	
 
 	if(EV_ERROR & revents)
 	{
@@ -582,7 +581,7 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
  **/
 void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 {
-	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents){");
+	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents){");
 	// cast event data structure to np_state_t pointer
 
 	struct sockaddr_storage from;
@@ -680,7 +679,6 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					_np_network_stop(ng_tcp_host,TRUE);
 					//_np_node_update_stat(key->target_node, 0);
 
-					log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 				}
 				else {
 					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received empty package from: %s:%s", ipstr, port);
@@ -693,7 +691,6 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			{
 				log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%"PRIi16")", in_msg_len);
 				// job_submit_event(state->jobq, 0.0, _np_network_read);
-				log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 				np_memory_free(data);
 				continue;
 			}
@@ -733,13 +730,11 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			np_memory_free(data);
 		}
 	} while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result > 0); // there is maybe more then one msg in our socket pipeline
-
-	log_msg(LOG_NETWORK | LOG_TRACE, ".end  .np_network_read");
 }
 
 void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 {
-	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents){");
+	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents){");
 
 	if((revents &  EV_ERROR) != EV_ERROR)
 	{
@@ -756,7 +751,7 @@ void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 }
 
 void _np_network_stop(np_network_t* network, np_bool force) {
-	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_stop(np_network_t* network){");
+	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_stop(np_network_t* network){");
 	if(NULL != network) {
 		_LOCK_ACCESS(&network->out_events_lock) {
 			_LOCK_ACCESS(&network->access_lock) {
@@ -826,7 +821,7 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 }
 
 void _np_network_start(np_network_t* network){
-	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
+	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
 	if (NULL != network) {
 		TSP_GET(np_bool, network->can_be_enabled, can_be_enabled);
 		if(can_be_enabled){
@@ -867,7 +862,7 @@ void _np_network_start(np_network_t* network){
  */
 void _np_network_t_del(void* nw)
 {
-	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_del(void* nw){");
+	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_del(void* nw){");
 	np_network_t* network = (np_network_t*) nw;
 
 	_LOCK_MODULE(np_network_t)
@@ -918,7 +913,7 @@ void _np_network_t_del(void* nw)
 
 void _np_network_t_new(void* nw)
 {
-	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_new(void* nw){");
+	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_new(void* nw){");
 	np_network_t* ng = (np_network_t *) nw;
 	ng->addr_in 	= NULL;
 	ng->waiting 	= NULL;

@@ -49,7 +49,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
 char* np_uuid_create(const char* str, const uint16_t num)
 {
-	log_msg(LOG_TRACE, "start: char* np_uuid_create(const char* str, const uint16_t num){");
+	log_trace_msg(LOG_TRACE, "start: char* np_uuid_create(const char* str, const uint16_t num){");
 	char input[256] = { '\0' };
 	unsigned char out[18] = { '\0' };
 	char* uuid_out = calloc(1, UUID_SIZE);
@@ -111,7 +111,7 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
 
 
 JSON_Value* np_treeval2json(np_treeval_t val) {
-	log_msg(LOG_TRACE, "start: JSON_Value* np_treeval2json(np_treeval_t val) {");
+	log_trace_msg(LOG_TRACE, "start: JSON_Value* np_treeval2json(np_treeval_t val) {");
 	JSON_Value* ret = NULL;
 	np_bool free_string = FALSE;
 	char* tmp_str = NULL;
@@ -195,14 +195,14 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 }
 
 char* np_dump_tree2char(np_tree_t* tree) {
-	log_msg(LOG_TRACE, "start: char* np_dump_tree2char(np_tree_t* tree) {");
+	log_trace_msg(LOG_TRACE, "start: char* np_dump_tree2char(np_tree_t* tree) {");
 	JSON_Value * tmp = np_tree2json(tree);
 	char* tmp2 = np_json2char(tmp,TRUE);
 	free(tmp);
 	return tmp2;
 }
 JSON_Value* np_tree2json(np_tree_t* tree) {
-	log_msg(LOG_TRACE, "start: JSON_Value* np_tree2json(np_tree_t* tree) {");
+	log_trace_msg(LOG_TRACE, "start: JSON_Value* np_tree2json(np_tree_t* tree) {");
 	JSON_Value* ret = json_value_init_object();
 	JSON_Value* arr = NULL;
 
@@ -298,7 +298,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 }
 
 char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
-	log_msg(LOG_TRACE, "start: char* np_json2char(JSON_Value* data, np_bool prettyPrint) {");
+	log_trace_msg(LOG_TRACE, "start: char* np_json2char(JSON_Value* data, np_bool prettyPrint) {");
 	char* ret;
 	/*
 	size_t json_size ;
@@ -326,7 +326,7 @@ char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
 }
 
 void np_dump_tree2log(log_type category, np_tree_t* tree){
-	log_msg(LOG_TRACE, "start: void np_dump_tree2log(np_tree_t* tree){");
+	log_trace_msg(LOG_TRACE, "start: void np_dump_tree2log(np_tree_t* tree){");
 	if(NULL == tree){
 		log_debug_msg(LOG_DEBUG | category , "NULL");
 	}else{

@@ -79,7 +79,7 @@ void __np_axon_invoke_on_user_send_callbacks(np_message_t* msg_out, np_msgproper
  **/
 void _np_out_ack(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_ack(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_send_ack(np_jobargs_t* args){");
 
 	np_tree_elem_t* target_uuid = np_tree_find_str(args->msg->instructions, _NP_MSG_INST_RESPONSE_UUID);
 
@@ -111,7 +111,7 @@ void _np_out_ack(np_jobargs_t* args)
  **/
 void _np_out(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_out(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_out(np_jobargs_t* args){");
 
 	uint32_t seq = 0;
 	np_message_t* msg_out = args->msg;
@@ -354,7 +354,7 @@ void _np_out(np_jobargs_t* args)
 
 void _np_out_handshake(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_out_handshake(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_out_handshake(np_jobargs_t* args){");
 
 	_LOCK_MODULE(np_handshake_t)
 	{
@@ -452,7 +452,7 @@ void _np_out_handshake(np_jobargs_t* args)
 
 void _np_out_discovery_messages(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_out_discovery_messages(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_out_discovery_messages(np_jobargs_t* args){");
 	np_aaatoken_t* msg_token = NULL;
 
 	if (_np_route_my_key_has_connection()) {
@@ -464,7 +464,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 			double now = np_time_now();
 			if (NULL == msg_token
 				|| _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent) == FALSE
-				|| (msg_token->expires_at - now) <= args->properties->token_min_ttl
+				|| (msg_token->expires_at - now) <= min(args->properties->token_min_ttl, MISC_RETRANSMIT_MSG_TOKENS_SEC)
 				)
 			{
 				// Create a new msg token
@@ -548,7 +548,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 // deprecated
 void _np_out_receiver_discovery(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_out_receiver_discovery(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_out_receiver_discovery(np_jobargs_t* args){");
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
 
@@ -585,7 +585,7 @@ void _np_out_receiver_discovery(np_jobargs_t* args)
 // deprecated
 void _np_out_sender_discovery(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_out_sender_discovery(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_out_sender_discovery(np_jobargs_t* args){");
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
 
@@ -620,7 +620,7 @@ void _np_out_sender_discovery(np_jobargs_t* args)
 
 void _np_out_authentication_request(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_out_authentication_request(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_out_authentication_request(np_jobargs_t* args){");
 
 	np_state_t* state = np_state();
 	np_dhkey_t target_dhkey;
@@ -674,7 +674,7 @@ void _np_out_authentication_request(np_jobargs_t* args)
 
 void _np_out_authentication_reply(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_out_authentication_reply(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_out_authentication_reply(np_jobargs_t* args){");
 
 	np_dhkey_t target_dhkey;
 
@@ -710,7 +710,7 @@ void _np_out_authentication_reply(np_jobargs_t* args)
 
 void _np_out_authorization_request(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_out_authorization_request(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_out_authorization_request(np_jobargs_t* args){");
 
 	np_state_t* state = np_state();
 	np_dhkey_t target_dhkey;
@@ -755,7 +755,7 @@ void _np_out_authorization_request(np_jobargs_t* args)
 
 void _np_out_authorization_reply(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_out_authorization_reply(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_out_authorization_reply(np_jobargs_t* args){");
 
 	np_dhkey_t target_dhkey;
 
@@ -791,7 +791,7 @@ void _np_out_authorization_reply(np_jobargs_t* args)
 
 void _np_out_accounting_request(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_out_accounting_request(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_out_accounting_request(np_jobargs_t* args){");
 
 	np_state_t* state = np_state();
 	np_dhkey_t target_dhkey;

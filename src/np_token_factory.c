@@ -146,7 +146,7 @@ np_aaatoken_t* __np_token_factory_new(char issuer[64], char node_subject[255], d
 }
 
 np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_msgproperty_t* msg_request) {
-	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_token_factory_new_message_intent_token(np_msgproperty_t* msg_request){");
+	log_trace_msg(LOG_TRACE, "start: np_aaatoken_t* _np_token_factory_new_message_intent_token(np_msgproperty_t* msg_request){");
 	np_message_intent_public_token_t* ret = NULL;
 
 	ASSERT(msg_request != NULL, "source messageproperty cannot be NULL");
@@ -199,7 +199,7 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 	np_tree_replace_str(ret->extensions, "max_threshold",
 		np_treeval_new_ui(msg_request->max_threshold));
 	np_tree_replace_str(ret->extensions, "msg_threshold",
-		np_treeval_new_ui(msg_request->msg_threshold));
+		np_treeval_new_ui(0));//TODO: correct?@Stephan msg_request->msg_threshold));
 
 	// TODO: insert value based on msg properties / respect (sticky) reply
 	np_tree_replace_str(ret->extensions,  "target_node",
@@ -271,7 +271,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token() {
 
 np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* source_node)
 {
-	log_msg(LOG_TRACE, "start: np_aaatoken_t* _np_token_factory_new_node_token(np_node_t* source_node){");
+	log_trace_msg(LOG_TRACE, "start: np_aaatoken_t* _np_token_factory_new_node_token(np_node_t* source_node){");
 
 
 	int rand_interval = ((int)randombytes_uniform(NODE_MAX_TTL_SEC - NODE_MIN_TTL_SEC) + NODE_MIN_TTL_SEC);

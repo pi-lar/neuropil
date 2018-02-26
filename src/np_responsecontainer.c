@@ -102,7 +102,7 @@ np_bool _np_responsecontainer_is_fully_acked(np_responsecontainer_t* entry)
 
 void _np_responsecontainer_t_new(void* obj)
 {
-	log_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_new(void* nw){");
+	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_new(void* nw){");
 	np_responsecontainer_t* entry = (np_responsecontainer_t *)obj;
 
 	entry->received_at = 0.0;

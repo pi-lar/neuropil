@@ -43,7 +43,7 @@ TestSuite(np_message_t, .init=setup_message, .fini=teardown_message);
 
 Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the serialization of a message object with dhkey in body")
 {
-	log_msg(LOG_TRACE,"start test.serialize_np_message_t_with_dhkey");
+	log_trace_msg(LOG_TRACE,"start test.serialize_np_message_t_with_dhkey");
     // Build source message and necessary data
     np_dhkey_t write_dhkey_from;
     write_dhkey_from.t[0] = 1;
@@ -121,14 +121,14 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
 	cr_expect(testkey_read_to->val.value.dhkey.t[2] == 7, "Expected read testkey_read_to value 2 to be the same as predefined, But is: %"PRIu64, testkey_read_to->val.value.dhkey.t[2]);
 	cr_expect(testkey_read_to->val.value.dhkey.t[3] == 8, "Expected read testkey_read_to value 3 to be the same as predefined, But is: %"PRIu64, testkey_read_to->val.value.dhkey.t[3]);
 
-	log_msg(LOG_TRACE,"end test.serialize_np_message_t_with_dhkey");
+	log_trace_msg(LOG_TRACE,"end test.serialize_np_message_t_with_dhkey");
 }
 
 
 Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .description="test the serialization of a message object with dhkey in body")
 {
 
-	log_msg(LOG_TRACE,"start test.serialize_np_message_t_with_dhkey_unchunked_instructions");
+	log_trace_msg(LOG_TRACE,"start test.serialize_np_message_t_with_dhkey_unchunked_instructions");
 
     // Build source message and necessary data
     np_dhkey_t write_dhkey_from;
@@ -205,7 +205,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 	cr_expect(testkey_read_to->val.value.dhkey.t[2] == 7, "Expected read testkey_read_to value 2 to be the same as predefined, But is: %"PRIu64, testkey_read_to->val.value.dhkey.t[2]);
 	cr_expect(testkey_read_to->val.value.dhkey.t[3] == 8, "Expected read testkey_read_to value 3 to be the same as predefined, But is: %"PRIu64, testkey_read_to->val.value.dhkey.t[3]);
 
-	log_msg(LOG_TRACE,"end test.serialize_np_message_t_with_dhkey_unchunked_instructions");
+	log_trace_msg(LOG_TRACE,"end test.serialize_np_message_t_with_dhkey_unchunked_instructions");
 }
 
 
@@ -213,7 +213,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 // TODO: add the appropiate cr_expect() statements to really test the message chunking
 Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking of messages")
 {
-	log_msg(LOG_TRACE,"start test._message_chunk_and_serialize");
+	log_trace_msg(LOG_TRACE,"start test._message_chunk_and_serialize");
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 	char* msg_subject = "this.is.a.test";
@@ -285,5 +285,5 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 			 np_treeval_to_str(properties_node_2->val, NULL),
 			 np_treeval_to_str(body_node_2->val,NULL));
 
-	log_msg(LOG_TRACE,"end test._message_chunk_and_serialize");
+	log_trace_msg(LOG_TRACE,"end test._message_chunk_and_serialize");
 }

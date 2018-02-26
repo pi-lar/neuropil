@@ -67,7 +67,7 @@ static np_cond_t  __cond_job_queue;
 
 np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_modifier, np_sll_t(np_callback_t, callbacks), const char* callbacks_ident)
 {
-	log_msg(LOG_TRACE, "start: np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs){");
+	log_trace_msg(LOG_TRACE, "start: np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs){");
 	// create job itself
 	np_job_t* new_job = (np_job_t*)malloc(sizeof(np_job_t));
 	CHECK_MALLOC(new_job);
@@ -104,7 +104,7 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_
 }
 int8_t _np_job_compare_job_scheduling(np_job_ptr job1, np_job_ptr job2)
 {
-	log_msg(LOG_TRACE, "start: int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2){");
+	log_trace_msg(LOG_TRACE, "start: int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2){");
 
 	int8_t ret = 0;
 	if (job1->exec_not_before_tstamp > job2->exec_not_before_tstamp) {
@@ -135,7 +135,7 @@ void _np_job_free(np_job_t * n)
 
 np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop, const char* reason_desc)
 {
-	log_msg(LOG_TRACE, "start: np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop){");
+	log_trace_msg(LOG_TRACE, "start: np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop){");
 
 	// optional parameters
 	if (NULL != msg)  np_ref_obj(np_message_t, msg, __func__, reason_desc);
@@ -156,7 +156,7 @@ np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproper
 
 void _np_job_free_args(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void* _np_job_free_args(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void* _np_job_free_args(np_jobargs_t* args){");
 
 	if (args != NULL) {
 		np_unref_obj(np_message_t, args->msg, "_np_job_create_args");
@@ -169,7 +169,7 @@ void _np_job_free_args(np_jobargs_t* args)
 
 void _np_job_queue_insert(np_job_t* new_job)
 {
-	log_msg(LOG_TRACE, "start: void _np_job_queue_insert(double delay, np_job_t* new_job){");
+	log_trace_msg(LOG_TRACE, "start: void _np_job_queue_insert(double delay, np_job_t* new_job){");
 
 	log_debug_msg(LOG_JOBS | LOG_DEBUG, "insert job into jobqueue (%p | %-70s). (property: %45s) (msg: %-36s) (target: %s)", new_job, new_job->ident,
 		(new_job->args == NULL || new_job->args->properties == NULL) ? "-" : new_job->args->properties->msg_subject,
@@ -340,7 +340,7 @@ void np_job_submit_event_periodic(double priority, double first_delay, double in
  **/
 np_bool _np_job_queue_create()
 {
-	log_msg(LOG_TRACE, "start: np_bool _np_job_queue_create(){");
+	log_trace_msg(LOG_TRACE, "start: np_bool _np_job_queue_create(){");
 	__np_job_queue = (np_jobqueue_t *)malloc(sizeof(np_jobqueue_t));
 	CHECK_MALLOC(__np_job_queue);
 
@@ -357,7 +357,7 @@ np_bool _np_job_queue_create()
 
 void _np_job_yield(const double delay)
 {
-	log_msg(LOG_TRACE, "start: void _np_job_yield(const double delay){");
+	log_trace_msg(LOG_TRACE, "start: void _np_job_yield(const double delay){");
 	if (1 == np_state()->thread_count)
 	{
 		np_time_sleep(delay);

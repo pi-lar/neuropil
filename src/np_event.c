@@ -155,7 +155,7 @@ void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 // TODO: move to glia
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args){");
 
 	_np_route_rejoin_bootstrap(FALSE);
 }
@@ -166,7 +166,7 @@ void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args)
 **/
 void _np_events_read_out(NP_UNUSED np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
 
 	np_event_init();
@@ -194,7 +194,7 @@ void _np_events_read_out(NP_UNUSED np_jobargs_t* args)
 **/
 void _np_events_read_io(NP_UNUSED np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
 	np_event_init();
 
@@ -217,7 +217,7 @@ void _np_events_read_io(NP_UNUSED np_jobargs_t* args)
 
 void _np_events_read_http(NP_UNUSED np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
 	np_event_init();
 
@@ -244,7 +244,7 @@ void _np_events_read_http(NP_UNUSED np_jobargs_t* args)
 **/
 void _np_events_read_in(NP_UNUSED np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_events_read(NP_UNUSED np_jobargs_t* args){");
 	log_debug_msg(LOG_EVENT | LOG_DEBUG, " start %s", __func__);
 	np_event_init();
 
@@ -283,8 +283,10 @@ void* _np_event_in_run(void* np_thread_ptr) {
 		_LOCK_ACCESS(&loop_in_suspend) {
 			TSP_GET(double, loop_in_suspend_wait, onhold);
 			if (onhold == 0)
-
-			ev_run(EV_A_(0));
+			{
+				ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));
+				np_time_sleep(NP_EVENT_IO_CHECK_PERIOD_SEC);
+			}
 		}
 	}
 }
@@ -308,7 +310,10 @@ void* _np_event_io_run(void* np_thread_ptr) {
 		_LOCK_ACCESS(&loop_io_suspend) {
 			TSP_GET(double, loop_io_suspend_wait, onhold);
 			if (onhold == 0)
-			ev_run(EV_A_(0));
+			{
+				ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));
+				np_time_sleep(NP_EVENT_IO_CHECK_PERIOD_SEC);
+			}
 		}
 	}
 }
@@ -332,7 +337,10 @@ void* _np_event_out_run(void* np_thread_ptr) {
 		_LOCK_ACCESS(&loop_out_suspend) {
 			TSP_GET(double, loop_out_suspend_wait, onhold);
 			if (onhold == 0) 
-				ev_run(EV_A_(0));
+			{
+				ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));
+				np_time_sleep(NP_EVENT_IO_CHECK_PERIOD_SEC);
+			}
 		}
 	}
 }
@@ -361,7 +369,10 @@ void* _np_event_http_run(void* np_thread_ptr) {
 		_LOCK_ACCESS(&loop_http_suspend) {
 			TSP_GET(double, loop_http_suspend_wait, onhold);
 			if (onhold == 0){
-				ev_run(EV_A_(0));
+				{
+					ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));
+					np_time_sleep(NP_EVENT_IO_CHECK_PERIOD_SEC);
+				}
 			}
 		}
 	}
@@ -372,7 +383,7 @@ void* _np_event_http_run(void* np_thread_ptr) {
  */
 void _np_suspend_event_loop_io()
 {
-	log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
+	log_trace_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
 	np_event_init();
 
 	TSP_SCOPE(double, loop_io_suspend_wait)
@@ -386,7 +397,7 @@ void _np_suspend_event_loop_io()
 
 void _np_resume_event_loop_io()
 {
-	log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
+	log_trace_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
 	TSP_SCOPE(double, loop_io_suspend_wait)
 		loop_io_suspend_wait--;
 
@@ -394,7 +405,7 @@ void _np_resume_event_loop_io()
 
 void _np_suspend_event_loop_http()
 {
-	log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
+	log_trace_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
 	np_event_init();
 
 	TSP_SCOPE(double, loop_http_suspend_wait)
@@ -408,14 +419,14 @@ void _np_suspend_event_loop_http()
 
 void _np_resume_event_loop_http()
 {
-	log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
+	log_trace_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
 	TSP_SCOPE(double, loop_http_suspend_wait)
 		loop_http_suspend_wait--;
 }
 
 void _np_suspend_event_loop_in()
 {
-	log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
+	log_trace_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
 	np_event_init();
 
 	TSP_SCOPE(double, loop_in_suspend_wait)
@@ -429,14 +440,14 @@ void _np_suspend_event_loop_in()
 
 void _np_resume_event_loop_in()
 {
-	log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
+	log_trace_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
 	TSP_SCOPE(double, loop_in_suspend_wait)
 		loop_in_suspend_wait--;
 }
 
 void _np_suspend_event_loop_out()
 {
-	log_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
+	log_trace_msg(LOG_TRACE, "start: void _np_suspend_event_loop(){");
 	np_event_init();
 
 	TSP_SCOPE(double, loop_out_suspend_wait)
@@ -450,7 +461,7 @@ void _np_suspend_event_loop_out()
 
 void _np_resume_event_loop_out()
 {
-	log_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
+	log_trace_msg(LOG_TRACE, "start: void _np_resume_event_loop(){");
 
 	TSP_SCOPE(double, loop_out_suspend_wait)
 		loop_out_suspend_wait--;

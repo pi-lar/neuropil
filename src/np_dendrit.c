@@ -21,6 +21,7 @@
 
 #include "np_dendrit.h"
 
+#include "np_statistics.h"
 #include "np_axon.h"
 #include "np_log.h"
 #include "neuropil.h"
@@ -99,7 +100,7 @@ np_bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproper
  */
 void _np_in_received(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_received(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_received(np_jobargs_t* args){");
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "received msg");
 	void* raw_msg = NULL;
 
@@ -225,7 +226,6 @@ void _np_in_received(np_jobargs_t* args)
 
 				/* real receive part */
 				CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_to);
-				CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack);
 				CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TTL, msg_ttl);
 				CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
 				CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_SEND_COUNTER, msg_resendcounter);
@@ -258,7 +258,7 @@ void _np_in_received(np_jobargs_t* args)
 					// redirect message if
 					// msg is not for my dhkey
 					// no handler is present
-					if (_np_key_cmp(args->target, my_key) != 0)// || handler == NULL)
+					if (_np_key_cmp(target_key, my_key) != 0)// || handler == NULL)
 					{
 						// perform a route lookup
 						np_sll_t(np_key_ptr, tmp) = NULL;
@@ -277,14 +277,15 @@ void _np_in_received(np_jobargs_t* args)
 							sll_size(tmp) > 0 &&
 							(FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
 						{
-							log_msg(LOG_DEBUG,
+							log_debug_msg(LOG_DEBUG | LOG_ROUTING,
 								"forwarding message for subject: %s / uuid: %s", np_treeval_to_str(msg_subject, NULL), msg_in->uuid);
-							np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
-							//TODO: is it necessary to forwarding with a small penalty to prevent infinite loops?
-							_np_job_submit_route_event(0.031415, prop, args->target, msg_in);
 #ifdef DEBUG
 							_np_increment_forwarding_counter();
 #endif
+							np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
+							//TODO: is it necessary to forwarding with a small penalty to prevent infinite loops?
+							_np_job_submit_route_event(0.031415, prop, args->target, msg_in);
+
 							np_unref_list(tmp, "_np_route_lookup");
 							sll_free(np_key_ptr, tmp);
 
@@ -315,34 +316,12 @@ void _np_in_received(np_jobargs_t* args)
 							np_treeval_to_str(msg_subject, NULL), msg_in->uuid);
 					}
 					else {
+
 						// sum up message parts if the message is for this node
 						np_message_t* msg_to_submit = _np_message_check_chunks_complete(msg_in);
-
 						if (NULL != msg_to_submit)
 						{
-							if (_np_msgproperty_check_msg_uniquety(handler, msg_to_submit)
-								&& (
-								TRUE == my_key->node->joined_network ||
-								0 == strncmp(np_treeval_to_str(msg_subject, NULL), _NP_MSG_JOIN, strlen(_NP_MSG_JOIN))
-								)
-							)
-							{
-								log_msg(LOG_INFO,
-									"handling message for subject: %s / uuid: %s",
-									np_treeval_to_str(msg_subject, NULL), msg_to_submit->uuid);
-
-								// finally submit msg job for later execution
-								if (_np_message_deserialize_chunked(msg_to_submit) == FALSE) {
-									log_msg(LOG_WARN,
-										"could not deserialize chunked msg (uuid: %s)", msg_to_submit->uuid);
-								} else {
-									_np_job_submit_msgin_event(0.0, handler, my_key, msg_to_submit, NULL);
-									if (FLAG_CMP(msg_ack.value.ush, ACK_DESTINATION))
-									{
-										_np_send_ack(msg_to_submit);
-									}
-								}
-							}
+							_np_in_new_msg_received(msg_to_submit, handler);
 							np_unref_obj(np_message_t, msg_to_submit, "_np_message_check_chunks_complete");
 						}
 					}
@@ -363,6 +342,41 @@ void _np_in_received(np_jobargs_t* args)
 	// __np_return__:
 	return;
 }
+void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* handler) {
+
+	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key, "np_waitref_key");
+
+	CHECK_STR_FIELD(msg_to_submit->instructions, _NP_MSG_INST_ACK, msg_ack);
+
+	if (_np_msgproperty_check_msg_uniquety(handler, msg_to_submit)
+		&& (
+			TRUE == my_key->node->joined_network ||
+			0 == strncmp(handler->msg_subject, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN))
+			)
+		)
+	{
+		log_msg(LOG_INFO,
+			"handling message for subject: %s / uuid: %s",
+			handler->msg_subject, msg_to_submit->uuid);
+
+		// finally submit msg job for later execution
+		if (_np_message_deserialize_chunked(msg_to_submit) == FALSE) {
+			log_msg(LOG_WARN,
+				"could not deserialize chunked msg (uuid: %s)", msg_to_submit->uuid);
+		}
+		else {
+			_np_job_submit_msgin_event(0.0, handler, my_key, msg_to_submit, NULL);
+			if (FLAG_CMP(msg_ack.value.ush, ACK_DESTINATION))
+			{
+				_np_send_ack(msg_to_submit);
+			}
+		}
+	}
+__np_cleanup__:
+	np_unref_obj(np_key_t, my_key, "np_waitref_key");
+
+
+}
 
 /**
  ** neuropil_piggy_message:
@@ -372,7 +386,7 @@ void _np_in_received(np_jobargs_t* args)
  **/
 void _np_in_piggy(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_piggy(np_jobargs_t* args) {");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_piggy(np_jobargs_t* args) {");
 	np_state_t* state = np_state();
 	np_key_t* node_entry = NULL;
 	// double tmp_ft;
@@ -480,7 +494,7 @@ void _np_in_piggy(np_jobargs_t* args)
 	// __np_cleanup__:
 	// nothing to do
 	// __np_return__:
-	log_msg(LOG_TRACE, "end  : void _np_in_piggy(np_jobargs_t* args) }");
+	log_trace_msg(LOG_TRACE, "end  : void _np_in_piggy(np_jobargs_t* args) }");
 	return;
 }
 
@@ -524,7 +538,7 @@ void _np_in_signal_np_receive (np_jobargs_t* args)
  **/
 void _np_in_callback_wrapper(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_callback_wrapper(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_callback_wrapper(np_jobargs_t* args){");
 	np_aaatoken_t* sender_token = NULL;
 	np_message_t* msg_in = args->msg;
 	np_bool msg_has_expired = FALSE;
@@ -606,7 +620,7 @@ __np_cleanup__:
  **/
 void _np_in_leave_req(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_leave_req(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_leave_req(np_jobargs_t* args){");
 	np_key_t* leave_req_key = NULL;
 
 	np_tree_elem_t* node_token_ele = np_tree_find_str(args->msg->body, "_np.token.node");
@@ -635,7 +649,7 @@ void _np_in_leave_req(np_jobargs_t* args)
  **/
 void _np_in_join_req(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_join_req(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_join_req(np_jobargs_t* args){");
 
 	np_message_t* msg_out = NULL;
 	np_key_t* join_ident_key = NULL;
@@ -850,7 +864,7 @@ __np_cleanup__:
  **/
 void _np_in_join_ack(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_join_ack(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_join_ack(np_jobargs_t* args){");
 
 	np_state_t* state = np_state();
 	np_waitref_obj(np_key_t, state->my_node_key, my_key);
@@ -1023,7 +1037,7 @@ void _np_in_join_ack(np_jobargs_t* args)
  **/
 void _np_in_join_nack(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_join_nack(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_join_nack(np_jobargs_t* args){");
 
 	np_state_t* state = np_state();
 	np_waitref_obj(np_key_t, state->my_node_key, my_key,"np_waitref_key");
@@ -1134,7 +1148,7 @@ void _np_in_ack(np_jobargs_t* args)
 // receive information about new nodes in the network and try to contact new nodes
 void _np_in_update(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_update(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_update(np_jobargs_t* args){");
 
 	np_key_t *update_key = NULL;
 	np_aaatoken_t* update_token = np_token_factory_read_from_tree(args->msg->body);
@@ -1208,7 +1222,7 @@ void _np_in_update(np_jobargs_t* args)
 
 void _np_in_discover_sender(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_discover_sender(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_discover_sender(np_jobargs_t* args){");
 	np_key_t *reply_to_key = NULL;
 
 	assert(args != NULL);
@@ -1280,7 +1294,7 @@ void _np_in_discover_sender(np_jobargs_t* args)
 
 void _np_in_available_sender(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_available_sender(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_available_sender(np_jobargs_t* args){");
 
 	np_message_t *msg_in = args->msg;
 
@@ -1336,7 +1350,7 @@ void _np_in_available_sender(np_jobargs_t* args)
 
 void _np_in_discover_receiver(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_discover_receiver(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_discover_receiver(np_jobargs_t* args){");
 
 	np_key_t *reply_to_key = NULL;
 	np_message_intent_public_token_t* msg_token = NULL;
@@ -1401,7 +1415,7 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 void _np_in_available_receiver(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_available_receiver(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_available_receiver(np_jobargs_t* args){");
 
 	np_state_t* state = np_state();
 	np_waitref_obj(np_key_t, state->my_node_key, my_key,"np_waitref_key");
@@ -1461,7 +1475,7 @@ void _np_in_available_receiver(np_jobargs_t* args)
 
 void _np_in_authenticate(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_authenticate(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_authenticate(np_jobargs_t* args){");
 	np_key_t *reply_to_key = NULL;
 	np_aaatoken_t* sender_token = NULL;
 	np_aaatoken_t* authentication_token = NULL;
@@ -1542,7 +1556,7 @@ void _np_in_authenticate(np_jobargs_t* args)
 
 void _np_in_authenticate_reply(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_authenticate_reply(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_authenticate_reply(np_jobargs_t* args){");
 	np_aaatoken_t* authentication_token = NULL;
 	np_aaatoken_t* sender_token = NULL;
 	np_key_t* subject_key = NULL;
@@ -1638,7 +1652,7 @@ void _np_in_authenticate_reply(np_jobargs_t* args)
 
 void _np_in_authorize(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_authorize(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_authorize(np_jobargs_t* args){");
 	np_key_t *reply_to_key = NULL;
 	np_aaatoken_t* sender_token = NULL;
 	np_aaatoken_t* authorization_token = NULL;
@@ -1720,7 +1734,7 @@ void _np_in_authorize(np_jobargs_t* args)
 
 void _np_in_authorize_reply(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_authorize_reply(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_authorize_reply(np_jobargs_t* args){");
 	np_aaatoken_t* authorization_token = NULL;
 	np_aaatoken_t* sender_token = NULL;
 
@@ -1812,7 +1826,7 @@ void _np_in_authorize_reply(np_jobargs_t* args)
 
 void _np_in_account(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_account(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_account(np_jobargs_t* args){");
 	np_aaatoken_t* sender_token = NULL;
 	np_aaatoken_t* accounting_token = NULL;
 
@@ -1849,7 +1863,7 @@ void _np_in_account(np_jobargs_t* args)
 
 void _np_in_handshake(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_in_handshake(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_in_handshake(np_jobargs_t* args){");
 
 	_LOCK_MODULE(np_handshake_t) {
 		np_key_t* msg_source_key = NULL;

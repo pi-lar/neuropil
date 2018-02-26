@@ -22,6 +22,7 @@
 
 #include "np_aaatoken.h"
 #include "np_axon.h"
+#include "np_dendrit.h"
 #include "np_dhkey.h"
 #include "np_event.h"
 #include "np_jobqueue.h"
@@ -59,7 +60,7 @@
  **/
 void _np_glia_route_lookup(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_glia_route_lookup(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_glia_route_lookup(np_jobargs_t* args){");
 
 	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key, "np_waitref_obj");
 
@@ -302,7 +303,7 @@ void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
  **/
 void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args){");
 	np_state_t* state = np_state();
 
 	np_tree_elem_t *iter = NULL;
@@ -378,7 +379,7 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 
 void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args){");
 
 	_LOCK_MODULE(np_node_renewal_t) {
 		np_state_t* state = np_state();
@@ -410,7 +411,7 @@ void _np_renew_node_token_jobexec(NP_UNUSED np_jobargs_t* args)
  **/
 void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args){");
 
 	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key, "np_waitref_obj");
 	np_network_t* ng = my_key->network;
@@ -468,7 +469,7 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 
 void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args){");
 
 	np_key_t* old = NULL;
 	double now = np_time_now();
@@ -562,7 +563,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
  **/
 void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_rowinfo_jobexec(np_jobargs_t* args){");
+	log_trace_msg(LOG_TRACE, "start: void _np_send_rowinfo_jobexec(np_jobargs_t* args){");
 
 	np_state_t* state = np_state();
 	np_key_t* target_key = args->target;
@@ -606,7 +607,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 
 void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject)
 {
-	log_msg(LOG_TRACE, "start: void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject){");
+	log_trace_msg(LOG_TRACE, "start: void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char* subject){");
 
 	//TODO: msg_tokens for either
 	// insert into msg token token renewal queue
@@ -645,9 +646,6 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		//TODO: instead of token threshold a local copy of the value should be increased
 		np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
 
-		// first encrypt the relevant message part itself
-		_np_message_encrypt_payload(msg, tmp_token);
-
 		np_bool free_target_node_str = FALSE;
 		char* target_node_str = NULL;
 		np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions,  "target_node");
@@ -666,26 +664,39 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		_np_dhkey_from_str(target_node_str, &receiver_dhkey);
 		receiver_key = _np_keycache_find_or_create(receiver_dhkey);
 
+		if (_np_key_cmp(np_state()->my_node_key, receiver_key) == 0) {
+			
+			np_msgproperty_t* handler = np_msgproperty_get(INBOUND, msg->msg_property);
+			if(handler != NULL){
+				_np_in_new_msg_received(msg, handler);
+			}
+		}
+		else {
 
-		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_s(target_node_str));
-		if (free_target_node_str == TRUE && msg->header->attr.in_place == FALSE) {
-			free(target_node_str);
+			// encrypt the relevant message part itself
+			_np_message_encrypt_payload(msg, tmp_token);
+
+			np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_s(target_node_str));
+			if (free_target_node_str == TRUE && msg->header->attr.in_place == FALSE) {
+				free(target_node_str);
+			}
+
+			np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);
+			_np_job_submit_route_event(0.0, out_prop, receiver_key, msg);
+
+			// decrease threshold counters
+			_np_msgproperty_threshold_decrease(msg_prop);
+
+			if (NULL != msg_prop->rep_subject &&
+				STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))
+			{
+				_np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
+			}
 		}
 
-		np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);
-		_np_job_submit_route_event(0.0, out_prop, receiver_key, msg);
-
-		// decrease threshold counters
-		_np_msgproperty_threshold_decrease(msg_prop);
-
-		if (NULL != msg_prop->rep_subject &&
-			STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))
-		{
-			_np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
-		}
 		np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_receiver");
 		np_unref_obj(np_key_t, receiver_key,"_np_keycache_find_or_create");
-
+		
 		return (TRUE);
 	}
 	else

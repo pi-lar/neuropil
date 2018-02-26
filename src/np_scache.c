@@ -34,7 +34,7 @@ np_simple_cache_table_t* np_cache_init(uint32_t size) {
 
 np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char* const key)
 {
-	log_msg(LOG_TRACE, "start: np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key){");
+	log_trace_msg(LOG_TRACE, "start: np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key){");
 	
 	assert(NULL != key);
 
@@ -57,7 +57,7 @@ np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char*
 }
 
 int np_simple_cache_insert(np_simple_cache_table_t *table, const char* const key, void *value) {
-	log_msg(LOG_TRACE, "start: int np_simple_cache_insert(np_simple_cache_table_t *table, char *key, void *value) {");
+	log_trace_msg(LOG_TRACE, "start: int np_simple_cache_insert(np_simple_cache_table_t *table, char *key, void *value) {");
 	// Contract
 	if(NULL == key){
 		log_msg(LOG_ERROR, "cache key cannot be NULL!");
