@@ -373,49 +373,51 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 
 void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents)
 {
-	if (EV_ERROR == (revents & EV_ERROR))
-	{
-		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "error event received");
-	}
-	else if (EV_WRITE == (revents & EV_WRITE))
+	if (EV_ERROR != (revents & EV_ERROR) && EV_WRITE == (revents & EV_WRITE))
 	{
 		np_waitref_obj(np_key_t, event->data, key);
 		np_waitref_obj(np_network_t, key->network, key_network);		
 
 		_TRYLOCK_ACCESS(&key_network->out_events_lock)
 		{
-			if(NULL != key_network->out_events &&
-				0 < sll_size(key_network->out_events)
-				)
+			if (key_network->out_events != NULL)
 			{
 				if (NULL != key->node) {
 					log_debug_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
 							MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
 				}
-
-				void* data_to_send = sll_head(void_ptr, key_network->out_events);
-				if(NULL != data_to_send) {
-					ssize_t written = 0, current_write = 0;
-					int iter = 0;
-					do {
-						iter++;
-						current_write = send(key_network->socket, data_to_send + written, MSG_CHUNK_SIZE_1024 - written, 0);
-						if (current_write == -1) {
-							log_msg(LOG_WARN,
-								"cannot write to socket: %s (%d).",
-								strerror(errno),errno);
+				void* data_to_send = NULL;
+				int data_counter = 0;
+				ssize_t written_per_data, current_write_per_data;
+				do {
+					data_to_send = sll_head(void_ptr, key_network->out_events);
+					written_per_data = 0, current_write_per_data = 0;
+					if (NULL != data_to_send) {
+						data_counter++;						
+						int write_counter = 0;
+						do {
+							write_counter++;
+							current_write_per_data = send(key_network->socket, data_to_send + written_per_data, MSG_CHUNK_SIZE_1024 - written_per_data, 0);
+							if (current_write_per_data == -1) {
+								log_msg(LOG_WARN,
+									"cannot write to socket: %s (%d).",
+									strerror(errno), errno);
+							}
+							if (current_write_per_data > 0) {
+								written_per_data += current_write_per_data;
+							}
+						} while (written_per_data < MSG_CHUNK_SIZE_1024 && write_counter <= (1 /*max delay sec*/ / 0.001) && np_event_sleep(0.001*write_counter) > 0);
+						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "out_msg_len %zd bytes", written_per_data);
+						if (write_counter > 1) {
+							log_debug_msg(LOG_DEBUG | LOG_NETWORK, "send delay %f", 0.001 * write_counter - 0.001);
 						}
-						if (current_write > 0) {
-							written += current_write;
-						}
-					} while (written < MSG_CHUNK_SIZE_1024 && iter <= (1 /*max delay sec*/ / 0.001) && np_event_sleep(0.001*iter) > 0 );
-					log_debug_msg(LOG_DEBUG | LOG_NETWORK, "out_msg_len %zd bytes", written);
-					if(iter > 1){
-						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "send delay %f", 0.001 * iter - 0.001);
+						np_memory_free(data_to_send);
 					}
-					np_memory_free(data_to_send);
-				}
-			} else {
+				} while (written_per_data > 0 && data_counter < NP_NETWORK_MAX_MSGS_PER_SCAN);
+			} 
+
+			if(key_network->out_events == NULL ||
+				sll_size(key_network->out_events) <= 0){
 				// only stops the network if outgoing queue size is zero - leads to loosing out events :-(
 				// TODO: place it somewhere else ?
 				_np_network_stop(key_network, FALSE);
@@ -425,6 +427,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 		np_unref_obj(np_key_t, key, __func__);
 		np_unref_obj(np_network_t,  key_network, __func__);
 	}
+	/*
 	else if (EV_READ == (revents & EV_READ))
 	{
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "unexpected event type");
@@ -433,6 +436,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	{
 		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "should never happen");
 	}
+	*/
 }
 
 void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int revents)
@@ -761,14 +765,14 @@ void _np_network_stop(np_network_t* network, np_bool force) {
 					log_msg(LOG_NETWORK | LOG_INFO, "stopping network %p", network);
 
 					EV_P;
-					if ((network->type & np_network_type_client) == np_network_type_client) {
+					if (FLAG_CMP(network->type , np_network_type_client)) {
 						_np_suspend_event_loop_out();
 						loop = _np_event_get_loop_out();
 						ev_io_stop(EV_A_ &network->watcher);
 						_np_resume_event_loop_out();
 					}
 
-					if ((network->type & np_network_type_server) == np_network_type_server) {
+					if (FLAG_CMP(network->type , np_network_type_server)) {
 						_np_suspend_event_loop_in();
 						loop = _np_event_get_loop_in();
 						ev_io_stop(EV_A_ &network->watcher);

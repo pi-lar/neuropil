@@ -638,10 +638,9 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 
 	// np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
 	np_message_intent_public_token_t* tmp_token = _np_aaatoken_get_receiver(subject, target);
-
+	_np_msgproperty_threshold_increase(msg_prop);
 	if (NULL != tmp_token && _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent)) {
-		log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);
-		_np_msgproperty_threshold_increase(msg_prop);
+		log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);	
 
 		//TODO: instead of token threshold a local copy of the value should be increased
 		np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;

@@ -768,7 +768,7 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 			}
 		}
 
- 		if(add_to != NULL){
+ 		if(add_to != NULL) {
 			log_msg(LOG_ROUTING | LOG_INFO, "Added    %s to   routing table.", _np_key_as_str(add_to));
 			np_ref_obj(np_key_t, add_to, ref_route_inroute);
 			if (added != NULL) *added = add_to;
@@ -780,6 +780,12 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 			if (deleted != NULL) *deleted = deleted_from;
 			_np_route_check_for_joined_network();
 		}
+
+#ifdef DEBUG
+		if (add_to != NULL && deleted_from != NULL) {
+			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "%s is already in routing table.", _np_key_as_str(key));
+		}
+#endif
 	}
 	log_msg(LOG_ROUTING | LOG_TRACE, ".end  .route_update");
 }
