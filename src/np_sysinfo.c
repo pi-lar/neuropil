@@ -59,7 +59,7 @@ void _np_sysinfo_init_cache()
 uint32_t test = 0;
 void _np_sysinfo_slave_send_cb(NP_UNUSED np_jobargs_t* args) {	
 
-	if(_np_route_my_key_has_connection() == TRUE) {
+	if(np_has_receiver_for(_NP_SYSINFO_REPLY)) {
 		np_waitref_obj(np_key_t, np_state()->my_node_key, my_node_key, "usage");
 		np_tree_t* reply_body = np_sysinfo_get_my_info();
 

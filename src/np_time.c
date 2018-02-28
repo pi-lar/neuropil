@@ -11,10 +11,9 @@ double np_time_now() {
 	return  ev_time();
 }
 
-void np_time_sleep(double sleeptime) {
+double np_time_sleep(double sleeptime) {
 
 	ev_sleep(sleeptime);
-	return;
 
 /*
 	struct timespec ts;
@@ -25,4 +24,5 @@ void np_time_sleep(double sleeptime) {
 	while (status == -1)
 		status = nanosleep(&ts, &ts);
 */
+	return sleeptime;
 }

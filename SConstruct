@@ -68,6 +68,7 @@ env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
 env.Append(CCFLAGS = ['-DHAVE_POLL'])
 env.Append(CCFLAGS = ['-DEV_COMPAT3=0'])
 env.Append(CCFLAGS = ['-DEV_USE_FLOOR=1'])
+env.Append(CCFLAGS = ['-DEV_USE_REALTIME=0'])
 env.Append(CCFLAGS = ['-DEV_USE_4HEAP=1'])
 #env.Append(CCFLAGS = ['-DEV_NO_THREADS'])
 

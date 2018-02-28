@@ -289,7 +289,7 @@ np_bool _np_network_send_handshake(np_key_t* node_key)
 /**
  ** sends a message to host
  **/
-np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
+np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
 {
 	np_bool ret = FALSE;
 	np_node_t* target_node = node_key->node;
@@ -333,6 +333,8 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 								"incorrect encryption of message (not sending to %s:%s)",
 								target_node->dns_name, target_node->port);
 							np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
+
+							ret = FALSE;
 							break;
 						}
 						else {
@@ -351,9 +353,12 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 									// ret = send (target_node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
 									sll_append(void_ptr, node_key->network->out_events, (void*)enc_buffer);
 									_np_network_start(node_key->network);
+									ret = TRUE;
 								}
 								else {
+									ret = FALSE;
 									np_memory_free(enc_buffer);
+									break;
 								}
 							}
 
@@ -362,7 +367,6 @@ np_bool _np_network_send_msg (np_key_t *node_key, np_message_t* msg)
 						}
 					}
 				}
-				ret = TRUE;
 			}
 		}
 	} else {
@@ -406,7 +410,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 							if (current_write_per_data > 0) {
 								written_per_data += current_write_per_data;
 							}
-						} while (written_per_data < MSG_CHUNK_SIZE_1024 && write_counter <= (1 /*max delay sec*/ / 0.001) && np_event_sleep(0.001*write_counter) > 0);
+						} while (written_per_data < MSG_CHUNK_SIZE_1024 && write_counter <= (1 /*max delay sec*/ / 0.001) && np_time_sleep(0.001*write_counter) > 0);
 						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "out_msg_len %zd bytes", written_per_data);
 						if (write_counter > 1) {
 							log_debug_msg(LOG_DEBUG | LOG_NETWORK, "send delay %f", 0.001 * write_counter - 0.001);

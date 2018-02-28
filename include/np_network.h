@@ -131,12 +131,12 @@ NP_API_INTERN
 void _network_destroy (np_network_t* network);
 
 /**
- ** _np_network_send_msg:
+ ** _np_network_append_msg_to_out_queue:
  ** Sends a message to host
  **
  **/
 NP_API_INTERN
-np_bool _np_network_send_msg (np_key_t* node,  np_message_t* msg);
+np_bool _np_network_append_msg_to_out_queue (np_key_t* node,  np_message_t* msg);
 
 /*
  * libev driven functions to send/receive messages over the wire

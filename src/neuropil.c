@@ -1188,3 +1188,17 @@ void np_send_wildcard_join(const char* node_string)
 	np_route_set_bootstrap_key(wildcard_node_key);
 	np_unref_obj(np_key_t, wildcard_node_key, "_np_node_decode_from_str");
 }
+
+
+np_bool np_has_receiver_for(char * subject) {
+	np_bool ret = FALSE;
+	if (_np_route_my_key_has_connection()) {
+		np_aaatoken_t * token = _np_aaatoken_get_receiver(subject, NULL);
+
+		if (token != NULL){
+			ret = TRUE;
+		}
+		np_unref_obj(np_aaatoken_t, token, "_np_aaatoken_get_receiver");
+	}
+	return ret;
+}

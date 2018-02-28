@@ -638,10 +638,10 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 {
 
 	// np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
-	np_message_intent_public_token_t* tmp_token = _np_aaatoken_get_receiver(subject, target);
-	_np_msgproperty_threshold_increase(msg_prop);
+	np_message_intent_public_token_t* tmp_token = _np_aaatoken_get_receiver(subject, target);	
 	if (NULL != tmp_token && _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent)) {
-		log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);	
+		_np_msgproperty_threshold_increase(msg_prop);
+		log_msg(LOG_INFO | LOG_ROUTING, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);	
 
 		//TODO: instead of token threshold a local copy of the value should be increased
 		np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
@@ -670,9 +670,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 			if(handler != NULL){
 				_np_in_new_msg_received(msg, handler);
 			}
-		}
-		else {
-
+		} else {
 			// encrypt the relevant message part itself
 			_np_message_encrypt_payload(msg, tmp_token);
 
@@ -684,15 +682,15 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 			np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);
 			_np_job_submit_route_event(0.0, out_prop, receiver_key, msg);
 
-			// decrease threshold counters
-			_np_msgproperty_threshold_decrease(msg_prop);
-
 			if (NULL != msg_prop->rep_subject &&
 				STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))
 			{
 				_np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
 			}
 		}
+
+		// decrease threshold counters
+		_np_msgproperty_threshold_decrease(msg_prop);
 
 		np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_receiver");
 		np_unref_obj(np_key_t, receiver_key,"_np_keycache_find_or_create");

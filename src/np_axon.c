@@ -74,7 +74,7 @@ void __np_axon_invoke_on_user_send_callbacks(np_message_t* msg_out, np_msgproper
 }
 
 /**
- ** _np_network_send_msg: host, data, size
+ ** _np_network_append_msg_to_out_queue: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
 void _np_out_ack(np_jobargs_t* args)
@@ -96,7 +96,7 @@ void _np_out_ack(np_jobargs_t* args)
 	// chunking for 1024 bit message size
 	_np_message_calculate_chunking(args->msg);
 	_np_message_serialize_chunked(args->msg);
-	np_bool send_ok = _np_network_send_msg(args->target, args->msg);
+	np_bool send_ok = _np_network_append_msg_to_out_queue(args->target, args->msg);
 	if(send_ok) {
 		__np_axon_invoke_on_user_send_callbacks(args->msg, np_msgproperty_get(OUTBOUND, _NP_MSG_ACK));
 	} else {
@@ -106,7 +106,7 @@ void _np_out_ack(np_jobargs_t* args)
 }
 
 /**
- ** _np_network_send_msg: host, data, size
+ ** _np_network_append_msg_to_out_queue: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
 void _np_out(np_jobargs_t* args)
@@ -326,7 +326,7 @@ void _np_out(np_jobargs_t* args)
 
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Try sending message for subject \"%s\" (msg id: %s) to %s", prop->msg_subject, msg_out->uuid, _np_key_as_str(args->target));
 
-			np_bool send_completed = _np_network_send_msg(args->target, msg_out);
+			np_bool send_completed = _np_network_append_msg_to_out_queue(args->target, msg_out);
 
 			if(send_completed == TRUE) {
 				__np_axon_invoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
@@ -341,6 +341,7 @@ void _np_out(np_jobargs_t* args)
 					// _np_job_resubmit_msgout_event(retransmit_interval, out_prop, args->target, args->msg);
 				}
 				else {
+					//_np_job_resubmit_msgout_event(retransmit_interval, args->properties, args->target, args->msg);
 					_np_job_resubmit_route_event(retransmit_interval, args->properties, args->target, args->msg);
 					log_debug_msg(LOG_DEBUG, "ACK_HANDLING re-sending of message (%s) scheduled", args->msg->uuid);
 				}

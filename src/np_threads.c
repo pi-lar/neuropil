@@ -644,7 +644,6 @@ void _np_thread_t_new(void* obj)
 
 	thread->max_job_priority = DBL_MAX;
 	thread->min_job_priority = 0;
-	thread->custom_data = NULL;
 
 	_np_threads_mutex_init(&thread->job_lock, "job_lock");
 	thread->run_fn = NULL;
@@ -821,7 +820,6 @@ void np_start_job_queue(uint8_t pool_size)
 		np_thread_t* special_thread;
 		if (create_own_event_in_thread) {
 			special_thread = __np_createThread(pool_size, _np_event_in_run, TRUE, np_thread_type_other);
-			special_thread->custom_data = _np_event_get_loop_in();
 		}
 		else {
 			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
@@ -829,7 +827,6 @@ void np_start_job_queue(uint8_t pool_size)
 
 		if (create_own_event_out_thread) {
 			special_thread = __np_createThread(pool_size, _np_event_out_run, TRUE, np_thread_type_other);
-			special_thread->custom_data = _np_event_get_loop_out();
 		}
 		else {
 			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
@@ -837,7 +834,6 @@ void np_start_job_queue(uint8_t pool_size)
 
 		if (create_own_event_io_thread) {
 			special_thread = __np_createThread(pool_size, _np_event_io_run, TRUE, np_thread_type_other);
-			special_thread->custom_data = _np_event_get_loop_io();
 		}
 		else {
 			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
@@ -845,7 +841,6 @@ void np_start_job_queue(uint8_t pool_size)
 
 		if (create_own_event_http_thread) {
 			special_thread = __np_createThread(pool_size, _np_event_http_run, TRUE, np_thread_type_other);
-			special_thread->custom_data = _np_event_get_loop_http();
 		}
 		else {
 			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_6, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");

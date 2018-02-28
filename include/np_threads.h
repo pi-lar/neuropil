@@ -126,8 +126,6 @@ struct np_thread_s
 	*/
 	double min_job_priority;
 
-	void * custom_data;
-
 	np_mutex_t job_lock;
 	np_job_t* job;
 	enum np_thread_type_e thread_type;
@@ -212,9 +210,14 @@ gettimeofday(&NAME##_tv, NULL);																				\
 NAME##_ts.tv_sec = NAME##_tv.tv_sec + min(MUTEX_WAIT_MAX_SEC - ELAPSED_TIME, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC);													
 
 
-#define _LOCK_ACCESS_W_PREFIX(prefix, obj) np_mutex_t* TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)) = obj; for(uint8_t _LOCK_ACCESS##prefix##__LINE__=0; (_LOCK_ACCESS##prefix##__LINE__ < 1) && 0 == _np_threads_mutex_lock(TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)),__func__); _np_threads_mutex_unlock(TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__))), _LOCK_ACCESS##prefix##__LINE__++)
-#define _LOCK_ACCESS(obj) _LOCK_ACCESS_W_PREFIX(d, obj)
-#define _TRYLOCK_ACCESS(obj) np_mutex_t* TOKENPASTE2(lock, __LINE__) = obj; for(uint8_t _TRYLOCK_ACCESS##__LINE__=0; (_TRYLOCK_ACCESS##__LINE__ < 1) && 0 == _np_threads_mutex_trylock(TOKENPASTE2(lock, __LINE__),__func__); _np_threads_mutex_unlock(TOKENPASTE2(lock, __LINE__)), _TRYLOCK_ACCESS##__LINE__++)
+#define __LOCK_ACCESS_W_PREFIX(prefix, obj, lock_type)																						\
+	np_mutex_t* TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)) = obj;																		\
+	for(uint8_t TOKENPASTE2(prefix,__LINE__)=0; 																										\
+		(TOKENPASTE2(prefix,__LINE__) < 1) && 0 == _np_threads_mutex_##lock_type##lock(TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)),__func__);		\
+		_np_threads_mutex_unlock(TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__))), TOKENPASTE2(prefix,__LINE__)++										\
+		)
+#define _LOCK_ACCESS(obj) __LOCK_ACCESS_W_PREFIX(TOKENPASTE2(default_prefix_, __COUNTER__), obj,)
+#define _TRYLOCK_ACCESS(obj) __LOCK_ACCESS_W_PREFIX(TOKENPASTE2(default_try_prefix_, __COUNTER__), obj,try)
 // protect access to restricted area in the rest of your code like this
 /*
 struct obj {
@@ -251,8 +254,8 @@ char* np_threads_printpool(np_bool asOneLine);
 	np_mutex_t NAME##_mutex;		
 
 #define TSP_INITD(TYPE, NAME, DEFAULT_VALUE)		\
-	NAME = DEFAULT_VALUE;							\
-	_np_threads_mutex_init(&NAME##_mutex,#NAME);	
+	_np_threads_mutex_init(&NAME##_mutex,#NAME);	\
+	TSP_SET(TYPE, NAME, DEFAULT_VALUE)
 
 #define TSP_INIT(TYPE, NAME)						\
 	_np_threads_mutex_init(&NAME##_mutex,#NAME);	

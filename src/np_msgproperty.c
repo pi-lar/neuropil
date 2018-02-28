@@ -568,3 +568,5 @@ void _np_msgproperty_threshold_decrease(np_msgproperty_t* self) {
 		}
 	}
 }
+
+

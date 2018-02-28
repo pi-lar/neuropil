@@ -345,10 +345,13 @@ sll_return(np_key_ptr) _np_route_lookup(np_dhkey_t key, uint8_t count)
 		np_sll_t(np_key_ptr, key_list);
 		sll_init(np_key_ptr, key_list);
 
-		// log_debug_msg(
-		// LOG_ROUTING | LOG_DEBUG, "%s is looking for key %s !",
-		// _np_key_as_str(__routing_table->my_key), _np_key_as_str(key));
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ME:    (%s)", _np_key_as_str(__routing_table->my_key));
 
+#ifdef DEBUG
+		char key_as_str[255] = { 0 };
+		_np_dhkey_to_str(&key, key_as_str);
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "TARGET:", key_as_str);
+#endif
 		/*calculate the leafset and table size */
 		Lsize = sll_size(__routing_table->left_leafset);
 		Rsize = sll_size(__routing_table->right_leafset);
@@ -360,8 +363,6 @@ sll_return(np_key_ptr) _np_route_lookup(np_dhkey_t key, uint8_t count)
 		{
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "routing through leafset");
 			sll_append(np_key_ptr, key_list, __routing_table->my_key);
-
-			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ME: (%s)", _np_key_as_str (__routing_table->my_key));
 
 			_np_route_append_leafset_to_sll(__routing_table->left_leafset, key_list);
 			_np_route_append_leafset_to_sll(__routing_table->right_leafset, key_list);

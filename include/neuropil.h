@@ -378,7 +378,7 @@ NP_API_PROTEC
 double np_time_now();
 
 NP_API_PROTEC
-void np_time_sleep(double sleeptime);
+double np_time_sleep(double sleeptime);
 
 // send join request
 NP_API_INTERN
@@ -391,7 +391,8 @@ NP_API_INTERN
 np_message_t* _np_prepare_msg(char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
 NP_API_EXPORT
 void np_context_create_new_nodekey(np_node_t* base);
-
+NP_API_EXPORT
+np_bool np_has_receiver_for(char * subject);
 
 #ifdef __cplusplus
 }

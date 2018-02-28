@@ -148,7 +148,7 @@ void _np_in_received(np_jobargs_t* args)
 						1024 - crypto_secretbox_NONCEBYTES,
 						nonce,
 						alias_key->node->session_key);
-				log_debug_msg(LOG_DEBUG, "HANDSHAKE SECRET: using shared secret from %s (%s) = %"PRIi32,
+				log_debug_msg(LOG_DEBUG |LOG_SERIALIZATION, "HANDSHAKE SECRET: using shared secret from %s (%s) = %"PRIi32,
 					_np_key_as_str(alias_key), alias_key->obj->id, ret);
 
 				if (ret == 0)
@@ -161,7 +161,7 @@ void _np_in_received(np_jobargs_t* args)
 				}
 			}
 			else {
-				log_debug_msg(LOG_DEBUG, "HANDSHAKE SECRET: using no shared secret (%s)", alias_key->obj->id);
+				log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION, "HANDSHAKE SECRET: using no shared secret (%s)", alias_key->obj->id);
 			}
 
 			np_new_obj(np_message_t, msg_in);
@@ -937,7 +937,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 	{
 		// node cannot be NULL, but checker complains otherwise
 		log_msg(LOG_ROUTING | LOG_INFO,
-				"received join acknowledgement for node key %s", _np_key_as_str(routing_key));
+				"received join acknowledgement from node key %s", _np_key_as_str(routing_key));
 	}
 
 	/* announce arrival of new node to the nodes in my routing table */
@@ -968,6 +968,7 @@ void _np_in_join_ack(np_jobargs_t* args)
 		np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 		np_unref_obj(np_key_t, elem,"_np_route_get_table");
 	}
+	np_unref_list(node_keys, "_np_route_get_table");
 	sll_free(np_key_ptr, node_keys);
 
 	// remember key for routing table update
@@ -2130,7 +2131,7 @@ void _np_in_handshake(np_jobargs_t* args)
 					}
 
 					// copy over session key
-					log_debug_msg(LOG_DEBUG, "HANDSHAKE SECRET: setting shared secret on %s and alias %s on system %s",
+					log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION, "HANDSHAKE SECRET: setting shared secret on %s and alias %s on system %s",
 						_np_key_as_str(msg_source_key), _np_key_as_str(alias_key), _np_key_as_str(np_state()->my_node_key));
 
 					memcpy(msg_source_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));

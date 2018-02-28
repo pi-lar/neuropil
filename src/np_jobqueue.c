@@ -72,7 +72,7 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_
 	np_job_t* new_job = (np_job_t*)malloc(sizeof(np_job_t));
 	CHECK_MALLOC(new_job);
 
-	new_job->exec_not_before_tstamp = np_time_now() + delay;
+	new_job->exec_not_before_tstamp = np_time_now() + (delay == 0 ? 0: max(0.0001, delay));
 	new_job->args = jargs;
 	new_job->type = 1;
 	new_job->priority = priority_modifier;
@@ -106,7 +106,7 @@ int8_t _np_job_compare_job_scheduling(np_job_ptr job1, np_job_ptr job2)
 {
 	log_trace_msg(LOG_TRACE, "start: int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2){");
 
-	int8_t ret = 0;
+	int8_t ret = 0;	
 	if (job1->exec_not_before_tstamp > job2->exec_not_before_tstamp) {
 		ret = -1;
 	}
@@ -114,12 +114,10 @@ int8_t _np_job_compare_job_scheduling(np_job_ptr job1, np_job_ptr job2)
 		ret = 1;
 	}
 	else {
-		if (job1->priority == job2->priority)
-			ret = 0;
+		if (job1->priority < job2->priority)
+			ret = -1;
 		else if (job1->priority > job2->priority)
 			ret = 1;
-		else
-			ret = -1;
 	}
 	
 	return (ret);
@@ -458,8 +456,7 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 	np_job_t search_key = { 0 };
 	
 	while (1)
-	{				
-		now = np_time_now();
+	{						
 		_LOCK_ACCESS(&__np_job_queue->available_workers_lock)
 		{			
 			iter_workers = dll_first(__np_job_queue->available_workers);
@@ -474,13 +471,14 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 						
 						search_key.search_min_priority = worker->min_job_priority;
 						search_key.search_max_priority = worker->max_job_priority;
-						search_key.search_max_exec_not_before_tstamp = now;
+						search_key.search_max_exec_not_before_tstamp = np_time_now();
 
 						_LOCK_MODULE(np_jobqueue_t)
 						{
 							np_job_t * next_job = pll_find(np_job_ptr, __np_job_queue->job_list, &search_key, __np_jobqueue_find_job_by_priority);
-							
-							if (next_job != NULL) {
+														
+							if (next_job != NULL) {								
+								now = np_time_now();
 								if (next_job->exec_not_before_tstamp <= now) {
 									pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, np_job_ptr_pll_compare_type);
 									worker->job = next_job;
@@ -626,29 +624,19 @@ void* __np_jobqueue_run_worker(void* np_thread_ptr)
 		_LOCK_ACCESS(&my_thread->job_lock)
 		{
 			my_thread->job = NULL;
-			/*
-			struct timeval tv_sleep = dtotv(np_time_now() + 0.0001);
-			struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
-			// wait for time x to be unlocked again			
 
-			_np_threads_mutex_condition_timedwait(&my_thread->job_lock, &waittime);
-
-			if (my_thread->job == NULL) 
-			*/
+			_LOCK_MODULE(np_jobqueue_t)
 			{
-				_LOCK_MODULE(np_jobqueue_t)
+				double now = np_time_now();
+				search_key.search_max_exec_not_before_tstamp = now;
+
+				np_job_t * next_job = pll_find(np_job_ptr, __np_job_queue->job_list, &search_key, __np_jobqueue_find_job_by_priority);
+
+				if (next_job != NULL && next_job->exec_not_before_tstamp <= now)
 				{
-					double now = np_time_now();
-					search_key.search_max_exec_not_before_tstamp = now;
-
-					np_job_t * next_job = pll_find(np_job_ptr, __np_job_queue->job_list, &search_key, __np_jobqueue_find_job_by_priority);
-
-					if (next_job != NULL && next_job->exec_not_before_tstamp <= now)
-					{
-						pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, np_job_ptr_pll_compare_type);
-						has_next_job = TRUE;
-						my_thread->job = next_job;
-					}
+					pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, np_job_ptr_pll_compare_type);
+					has_next_job = TRUE;
+					my_thread->job = next_job;
 				}
 			}
 		}
@@ -659,6 +647,7 @@ void* __np_jobqueue_run_worker(void* np_thread_ptr)
 np_job_t* _np_jobqueue_get_job_or_wait(np_thread_t* self)
 {
 	np_job_t* job_to_execute = NULL;
+	np_bool worker_is_available = FALSE;
 
 	do
 	{
@@ -666,8 +655,7 @@ np_job_t* _np_jobqueue_get_job_or_wait(np_thread_t* self)
 		{
 			_LOCK_ACCESS(&self->job_lock)
 			{
-				np_bool worker_is_available = FALSE;
-
+			
 				job_to_execute = self->job;
 
 				if (job_to_execute == NULL)
