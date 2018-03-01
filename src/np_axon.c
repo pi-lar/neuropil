@@ -189,12 +189,19 @@ void _np_out(np_jobargs_t* args)
 					np_unref_obj(np_key_t, my_key, "np_waitref_key");
 					return;
 				}
-
-				double initial_tstamp = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
+				
 				uint8_t msg_resendcounter = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER)->val.value.ush;
-				double now = np_time_now();
+				
+				if (msg_resendcounter > 31)
+				{
+					log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "resend message %s (%s) sendcounter too high, not resending ...", prop->msg_subject, uuid);
 
-				if (now > (initial_tstamp + args->properties->msg_ttl) || msg_resendcounter > 31)
+					np_unref_obj(np_network_t, my_network, "np_waitref_network");
+					np_unref_obj(np_key_t, my_key, "np_waitref_key");
+					return;
+				}
+
+				if (_np_message_is_expired(msg_out))
 				{
 					log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "resend message %s (%s) expired, not resending ...", prop->msg_subject, uuid);
 

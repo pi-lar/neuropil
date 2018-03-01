@@ -50,6 +50,7 @@
 #include "np_constants.h"
 #include "np_settings.h"
 #include "np_util.h"
+#include "np_statistics.h"
 
 
 // allocate a new pointer and return it
@@ -409,6 +410,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 							}
 							if (current_write_per_data > 0) {
 								written_per_data += current_write_per_data;
+								_np_statistics_add_send_bytes(current_write_per_data);
 							}
 						} while (written_per_data < MSG_CHUNK_SIZE_1024 && write_counter <= (1 /*max delay sec*/ / 0.001) && np_time_sleep(0.001*write_counter) > 0);
 						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "out_msg_len %zd bytes", written_per_data);
@@ -544,13 +546,12 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
 						fcntl(client_fd, F_SETFL, current_flags);
 
 						alias_key->network->initialized = TRUE;
+						alias_key->network->type = np_network_type_server;
 					}
 					_LOCK_ACCESS (&alias_key->network->waiting_lock) {
 						alias_key->network->waiting = np_tree_create();
 					}
-				}
-
-				log_debug_msg(LOG_NETWORK | LOG_DEBUG,"suspend ev loop for tcp new socket network start");
+				}				
 
 				np_ref_obj(np_key_t, alias_key, ref_network_watcher);
 				alias_key->network->watcher.data = alias_key;
@@ -636,11 +637,12 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				last_recv_result = recvfrom(ng->socket, data + in_msg_len,
 					MSG_CHUNK_SIZE_1024 - in_msg_len, 0, (struct sockaddr*) &from, &fromlen);
 			}
-
+			
 			in_msg_len += last_recv_result;
 			if (last_recv_result < 0) {
 				break;
 			}
+			_np_statistics_add_received_bytes(last_recv_result);
 			// repeat if msg is not 1024 bytes in size and the timeout is not reached
 		} while (in_msg_len > 0 && in_msg_len < MSG_CHUNK_SIZE_1024 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
 
@@ -1103,7 +1105,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			connection_status = connect(
 					ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen);
 
-			log_debug_msg(LOG_NETWORK | LOG_DEBUG,"TRY CONNECT");
+			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "TRY CONNECT: %"PRIi32, connection_status);
 			if(connection_status != 0){
 				np_time_sleep(0.1);
 			}

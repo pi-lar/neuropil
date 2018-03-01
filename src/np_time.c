@@ -6,6 +6,7 @@
 #include <time.h>
 
 #include "neuropil.h"
+#include "np_util.h"
 
 double np_time_now() {
 	return  ev_time();
@@ -13,6 +14,7 @@ double np_time_now() {
 
 double np_time_sleep(double sleeptime) {
 
+	sleeptime = max(sleeptime, NP_SLEEP_MIN);
 	ev_sleep(sleeptime);
 
 /*

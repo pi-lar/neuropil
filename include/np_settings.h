@@ -261,7 +261,7 @@ extern "C" {
 #endif
 
 
-
+#define NP_SLEEP_MIN (NP_PI/100)
 
 #ifdef __cplusplus
 }

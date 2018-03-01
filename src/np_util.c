@@ -557,3 +557,55 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 	return item;
 }
 #endif
+
+
+char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]) {
+	
+	if (type == np_util_stringify_bytes_per_sec)
+	{
+		double bytes = *((double*)data);
+		double to_format;
+		double divisor = 1;
+		char* f = "b/s";
+		if (bytes < (100 * (divisor = 1024))) {
+			f = "kB/s";
+		}
+		else if (bytes < (100 * (divisor = 1024 * 1024))) {
+			f = "MB/s";
+		}
+		else if (bytes < (100 * (divisor = 1024 * 1024 * 1024))) {
+			f = "GB/s";
+		}
+		else if (bytes < (100 * (divisor = 1024 * 1024 * 1024 * 1024))) {
+			f = "TB/s";
+		}
+		to_format = bytes / divisor;
+		sprintf(buffer, "%5.2f %s", to_format, f);
+	}
+	else if (type == np_util_stringify_bytes)
+	{
+		uint32_t bytes = *((uint32_t*)data);
+		double to_format;
+		double divisor = 1;
+		char* f = "b";
+		if (bytes < (100 * (divisor = 1024))) {
+			f = "kB";
+		}
+		else if (bytes < (100 * (divisor = 1024 * 1024))) {
+			f = "MB";
+		}
+		else if (bytes < (100 * (divisor = 1024 * 1024 * 1024))) {
+			f = "GB";
+		}
+		else if (bytes < (100 * (divisor = 1024 * 1024 * 1024 * 1024))) {
+			f = "TB";
+		}
+		to_format = bytes / divisor;
+		sprintf(buffer, "%5.2f %s", to_format, f);
+	}
+	else {
+		strcpy(buffer, "<unknown type>");
+	}
+
+	return buffer;
+}

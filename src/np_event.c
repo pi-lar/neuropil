@@ -78,14 +78,6 @@ void _np_events_async_break(struct ev_loop *loop, NP_UNUSED ev_async *watcher, N
 																									\
 		np_event_init();																			\
 																									\
-		while (1) {																					\
-			TSP_GET(double, loop_##LOOPNAME##_suspend_wait, onhold)									\
-				if (onhold > 0)																		\
-					np_time_sleep(0.0001);															\
-				else																				\
-					break;																			\
-		}																							\
-																									\
 		_LOCK_ACCESS(&loop_##LOOPNAME##_suspend) {													\
 			EV_P = _np_event_get_loop_##LOOPNAME();													\
 			TSP_GET(double, loop_##LOOPNAME##_suspend_wait, onhold);								\
@@ -99,13 +91,9 @@ void _np_events_async_break(struct ev_loop *loop, NP_UNUSED ev_async *watcher, N
 		np_event_init();																			\
 																									\
 		while (1) {																					\
-			while (1) {																				\
-				TSP_GET(double, loop_##LOOPNAME##_suspend_wait, onhold)								\
-				if (onhold > 0)																		\
-					np_time_sleep(0.0001);															\
-				else																				\
-					break;																			\
-			}																						\
+			TSP_GET(double, loop_##LOOPNAME##_suspend_wait, onhold)									\
+			if (onhold > 0)																			\
+				np_time_sleep(NP_SLEEP_MIN);														\
 																									\
 			_LOCK_ACCESS(&loop_##LOOPNAME##_suspend) {												\
 				TSP_GET(double, loop_##LOOPNAME##_suspend_wait, onhold);							\

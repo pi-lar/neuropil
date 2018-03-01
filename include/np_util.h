@@ -6,13 +6,17 @@
 #define	_NP_UTIL_H_
 
 #include <assert.h>
-#include <math.h>
 
 #include "msgpack/cmp.h"
 #include "json/parson.h"
 
 #include "np_tree.h"
 #include "np_threads.h"
+#include "np_settings.h"
+
+#ifdef NP_BENCHMARKING
+#include <math.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,6 +72,7 @@ extern "C" {
 	}
 #endif
 
+#ifdef NP_BENCHMARKING
 #define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)		\
 		double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;               \
 		for (uint16_t j = 0; j < max_size; j++)                                         \
@@ -83,7 +88,7 @@ extern "C" {
 		}                                                                               \
 		stddev_v = sqrt(stddev_v/(max_size-1));                                         \
 		
-#ifdef NP_BENCHMARKING
+
 enum np_util_performance_point_e{
 	np_util_performance_point_memory_new = 1,
 	np_util_performance_point_memory_free,
@@ -146,6 +151,8 @@ char* STR = NULL;																											\
 #define NP_PERFORMANCE_POINT_END(name)
 #define NP_PERFORMANCE_GET_POINTS_STR(STR)																					\
 	char* STR = NULL;	
+#define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)		\
+		double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;               
 #endif
 
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)			\
@@ -252,6 +259,13 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 NP_API_INTERN
 _np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key);
 #endif
+
+enum np_util_stringify_e {
+	np_util_stringify_bytes,
+	np_util_stringify_bytes_per_sec
+};
+char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]);
+
 
 #ifdef __cplusplus
 }

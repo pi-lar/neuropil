@@ -118,33 +118,12 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 	{
 		// the message has to be handled by this node (e.g. msg interest messages)
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "internal routing for subject '%s'", msg_subject);
-		np_message_t* msg_to_submit = NULL;
-		/*
-		TODO: Purpose? de-chunking is done in _np_in_received
-		if (args->msg->no_of_chunks > 0)
-		{
-			// sum up message parts if the message is for this node
-			msg_to_submit = _np_message_check_chunks_complete(args->msg);
-			if (NULL == msg_to_submit)
-			{
-				np_unref_list(tmp, "_np_route_lookup");
-				sll_free(np_key_ptr, tmp);
-				np_unref_obj(np_key_t, my_key, "np_waitref_obj");
-				return;
-			}
-			_np_message_deserialize_chunked(msg_to_submit);
-			np_unref_obj(np_message_t, msg_to_submit, "_np_message_check_chunks_complete");
-		}
-		else
-		{
-		*/
-			msg_to_submit = args->msg;
-		//}
+				
 		np_msgproperty_t* prop = np_msgproperty_get(INBOUND, msg_subject);
 		if(prop != NULL) {
-			_np_job_submit_msgin_event(0.0, prop, my_key, msg_to_submit, NULL);
-		}
-		 
+			_np_job_submit_msgin_event(0.0, prop, my_key, args->msg, NULL);
+		}	
+
 
 	} else {
 		/* hand it over to the np_axon sending unit */
@@ -160,7 +139,7 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 			prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
 		}
 
-		if (TRUE == args->is_resend) {
+		if (args->is_resend == TRUE) {
 			_np_job_resubmit_msgout_event(0.0, prop, target_key, args->msg);
 		} else {
 			_np_job_submit_msgout_event(0.0, prop, target_key, args->msg);
@@ -666,7 +645,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 
 		if (_np_key_cmp(np_state()->my_node_key, receiver_key) == 0) {
 			
-			np_msgproperty_t* handler = np_msgproperty_get(INBOUND, msg->msg_property);
+			np_msgproperty_t* handler = np_msgproperty_get(INBOUND, msg->msg_property->msg_subject);
 			if(handler != NULL){
 				_np_in_new_msg_received(msg, handler);
 			}

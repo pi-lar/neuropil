@@ -291,16 +291,17 @@ void _np_in_received(np_jobargs_t* args)
 
 							// if we do not have a handler or the handler has no receive tokens and no send tokens
 							// we may cancel further handeling
+							//FIXME: Only further work on this msg if we are one of the handeling ones
+							goto __np_cleanup__;
 							if(handler == NULL ||
 								(
-									(handler->recv_key == NULL || pll_size(handler->recv_key->recv_tokens) <= 0)
+									( /*msg->subj*/handler->recv_key == NULL || pll_size(handler->recv_key->recv_tokens) <= 0)
 									&&
 									(handler->send_key == NULL || pll_size(handler->send_key->send_tokens) <= 0)
 								)
 							) {
 								goto __np_cleanup__;
 							}
-
 						}
 						np_unref_list(tmp, "_np_route_lookup");
 						if (NULL != tmp) sll_free(np_key_ptr, tmp);

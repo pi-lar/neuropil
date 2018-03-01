@@ -66,26 +66,6 @@ RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
 typedef struct rbt_msgproperty rbt_msgproperty_t;
 static rbt_msgproperty_t* __msgproperty_table;
 
-np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
-{
-	if (msg->msg_property->is_internal == TRUE && 0 != strncmp(msg->msg_property->msg_subject, _DEFAULT,strlen(_DEFAULT))) {
-		CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
-
-		if (ACK_CLIENT == (msg_ack_mode.value.ush & ACK_CLIENT))
-		{
-			_np_send_ack(msg);
-		}
-
-		goto __np_return__;
-
-		__np_cleanup__:
-		log_msg(LOG_WARN, "cannot ack msg %s (%s)", msg->uuid, msg->msg_property->msg_subject);
-	}
-
-	__np_return__:
-	return TRUE;
-}
-
 /**
  ** _np_msgproperty_init
  ** Initialize message property subsystem.
@@ -112,13 +92,8 @@ np_bool _np_msgproperty_init ()
 
 		if (strlen(property->msg_subject) > 0)
 		{
-//			if ((property->mode_type & INBOUND) == INBOUND && (property->ack_mode & ACK_DESTINATION) == ACK_DESTINATION) {
-//				_np_msgproperty_add_receive_listener(__np_msgproperty_internal_msgs_ack, property);
-//			}
-
 			log_debug_msg(LOG_DEBUG, "register handler: %s", property->msg_subject);
 			RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
-
 		}
 
 		sll_next(__np_internal_messages);

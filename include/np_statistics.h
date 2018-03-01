@@ -29,7 +29,19 @@ extern "C" {
 
 #ifdef DEBUG
 	NP_API_INTERN
-		void _np_increment_forwarding_counter();
+		void __np_increment_forwarding_counter();
+	NP_API_INTERN
+		void __np_statistics_add_send_bytes(uint32_t add);
+	NP_API_INTERN
+		void __np_statistics_add_received_bytes(uint32_t add);
+
+	#define _np_increment_forwarding_counter() __np_increment_forwarding_counter()
+	#define _np_statistics_add_send_bytes(add) __np_statistics_add_send_bytes(add)
+	#define _np_statistics_add_received_bytes(add) __np_statistics_add_received_bytes(add)
+#else
+	#define _np_increment_forwarding_counter() 
+	#define _np_statistics_add_send_bytes(add) 
+	#define _np_statistics_add_received_bytes(add) 
 #endif // DEBUG
 
 	

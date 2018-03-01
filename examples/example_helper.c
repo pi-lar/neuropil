@@ -488,7 +488,7 @@ np_bool parse_program_args(
 			| LOG_ROUTING
 			//| LOG_HTTP
 			//| LOG_KEY
-			//| LOG_NETWORK
+			| LOG_NETWORK
 			//| LOG_AAATOKEN
 			//| LOG_SYSINFO
 			//| LOG_MESSAGE
