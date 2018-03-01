@@ -27,80 +27,64 @@ extern "C" {
 	#define NP_PUBLIC_BYTES (999)
 	#define NP_FINGERPRINT_BYTES (64)
 
-	enum np_error_code {
-		np_error_code_none = 0,
-		np_error_code_invalid_input,
-		np_error_code_invalid_input_size,
+	enum np_error {
+		np_ok = 0,
+		np_invalid_input,
+		np_invalid_input_size,
+		// ...
 	};
 
-	typedef void np_application_context;
+	typedef void np_context;
 	typedef uint8_t np_id[NP_FINGERPRINT_BYTES];
 
-	np_application_context* np_build_application_context(uint8_t prefered_no_of_threads);
-	void np_get_id(np_id* out, unsigned char* data, uint32_t data_size);
+	np_context* np_new_context (uint8_t n_threads);
+	void np_get_id (np_id* out, char* in, uint32_t length);
 
-	enum np_ip_port_type {
-		np_ip_port_type_udp,
-		np_ip_port_type_tcp
-	};
-	enum np_connection_type {
-		np_connection_type_ip4,
-		np_connection_type_ip6
-	};
-	typedef struct np_connection {
-		np_id hash;
-		uint8_t ip_v4[4];
-		uint8_t ip_v6[16];
-		uint16_t ip_port;
-		enum ip_port_type ip_port_type;
-		enum np_connection_type connection_type;
-	} np_connection;
+	enum np_error np_send (np_context* ac, uint8_t* data, uint32_t length, np_id* subject);
 
-	enum np_error_code  np_send_data(np_application_context* ac, void* data, uint32_t size, char* subject);
+	// Get “connect string”. Signals error if connect string is unavailable (i.e.,
+	// no listening interface is configured.)
+	enum np_error np_get_address (void *ac, char *out, uint32_t max);
 
-	enum np_error_code np_connect(np_application_context* ac, struct np_connection c);
-	enum np_error_code np_connect_to(np_application_context* ac, char* connection_str);
+	enum np_error np_join (np_context* ac, char* address);
 
-	enum np_error_code np_listen(np_application_context* ac, struct np_connection on);
-	enum np_error_code np_listen_on(np_application_context* ac, char* on);
+	enum np_error np_listen (np_context* ac, char* protocol, char* address, uint16_t port);
 
-	typedef struct np_token {
+	struct np_token {
 		np_id realm, issuer, subject, audience;		
 		double issued_at, not_before, expires_at;
-		uint8_t extension_bytes[NP_EXTENSION_BYTES], 			
-			public_key[NP_PUBLIC_BYTES],
-			secret_key[NP_SECRET_BYTES];
-		uint32_t extension_length;
-	} np_token;
-
-	enum np_error_code  np_set_identity(np_application_context* ac, struct np_token ident);	
-	
-	// duration == 0 => run infinite
-	enum np_error_code  np_run(np_application_context* ac, uint32_t duration);
-
-	typedef bool(*np_receive_callback) (void* data, uint32_t data_size);
-	enum np_error_code  np_add_on_receive(np_application_context* ac, np_receive_callback clb);
-	uint32_t np_pull_data(np_application_context* ac, char * subject, void* buffer, uint32_t buffer_size);
-
-	enum np_message_exchange_ackmode {
-		np_message_exchange_ackmode_none = 0
+		uint8_t extensions[NP_EXTENSION_BYTES];
+		uint32_t extension_length;			
+		uint8_t public_key[NP_PUBLIC_BYTES],
+                        secret_key[NP_SECRET_BYTES];
 	};
 
-	typedef struct np_message_exchange {
-		enum np_message_exchange_ackmode ackmode;
+	// secret_key is nullable
+	struct np_token *np_new_identity (void *ac, double expires_at, uint8_t *(secret_key[SECRET_KEY_BYTES]));
+
+	enum np_error np_set_identity (np_context* ac, struct np_token identity);
+	
+	// duration == 0 => process pending events and exit
+	enum np_error np_run (np_context* ac, double duration);
+
+	typedef bool (*np_receive_callback) (uint8_t* data, uint32_t length);
+	enum np_error np_receive (np_context* ac, np_receive_callback callback);
+
+	enum np_mx_ackmode {
+		np_mx_ackmode_none = 0
+	};
+
+	struct np_mx_properties {
+		enum np_mx_ackmode ackmode;
 		uint16_t max_parallel; // ex threshold
 		//...
-	} np_message_exchange;
+	};
 
-	enum np_error_code  np_register_subject(np_application_context* c, np_id subject, struct np_message_exchange exchange_config);
+	enum np_error  np_set_mx_properties (np_context* ac, np_id subject, struct np_mx_properties properties);
 
-	typedef bool(*np_authenticate_callback) (struct np_token token);
-	enum np_error_code  np_authenticate(np_application_context* ac, np_authenticate_callback clb);
-	struct np_token np_pull_authenticate(np_application_context* ac);
-
-	typedef bool(*np_authorize_callback) (struct np_token token);
-	enum np_error_code  np_authorize(np_application_context* ac, np_id subject, np_authorize_callback clb);	
-	struct np_token np_pull_authorize(np_application_context* ac, np_id subject);
+	typedef bool (*np_aaa_callback) (struct np_token *aaa_token);
+	enum np_error np_authenticate (np_context* ac, np_aaa_callback callback);
+	enum np_error np_authorize (np_context* ac, np_id subject, np_aaa_callback callback);
 	
 #ifdef __cplusplus
 }
