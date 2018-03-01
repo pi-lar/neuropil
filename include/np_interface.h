@@ -31,6 +31,7 @@ extern "C" {
 		np_error_code_none = 0,
 		np_error_code_invalid_input,
 		np_error_code_invalid_input_size,
+		np_error_code_wrong_process_order,
 	};
 
 	typedef void np_application_context;
@@ -38,7 +39,8 @@ extern "C" {
 
 	np_application_context* np_build_application_context(uint8_t prefered_no_of_threads);
 	void np_get_id(np_id* out, unsigned char* data, uint32_t data_size);
-
+	enum np_error_code np_get_address (np_application_context* ac, unsigned char* buffer, uint32_t buffer_size);
+	
 	enum np_ip_port_type {
 		np_ip_port_type_udp,
 		np_ip_port_type_tcp
@@ -101,7 +103,7 @@ extern "C" {
 	typedef bool(*np_authorize_callback) (struct np_token token);
 	enum np_error_code  np_authorize(np_application_context* ac, np_id subject, np_authorize_callback clb);	
 	struct np_token np_pull_authorize(np_application_context* ac, np_id subject);
-	
+
 #ifdef __cplusplus
 }
 #endif
