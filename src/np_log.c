@@ -46,22 +46,24 @@ typedef struct log_str_t { const char* text; int log_code; } log_str_t;
 // TODO: ugly, but works. clean it up
 log_str_t __level_str[] = {
 		{NULL   , 0x00000 },
-		{"ERROR", 0x00001 },            /* error messages     */
-		{"WARN_", 0x00002 },			/* warning messages   */
-		{NULL   , 0x00003 },			/* none messages      */
-		{"INFO_", 0x00004 },			/* info messages      */
-		{NULL   , 0x00005 },			/* none messages      */
-		{NULL   , 0x00006 },			/* none messages      */
-		{NULL   , 0x00007 },			/* none messages      */
-		{"DEBUG", 0x00008 },			/* debugging messages */
-		{NULL   , 0x00009 },			/* none messages      */
-		{NULL   , 0x0000a },			/* none messages      */
-		{NULL   , 0x0000b },			/* none messages      */
-		{NULL   , 0x0000c },			/* none messages      */
-		{NULL   , 0x0000d },			/* none messages      */
-		{NULL   , 0x0000e },			/* none messages      */
-		{NULL   , 0x0000f },			/* none messages      */
-		{"TRACE", 0x00010 }			    /* trace messages   */
+		{"ERROR", LOG_ERROR },					/* error messages				*/
+		{"WARN", LOG_WARN	},					/* warning messages				*/
+		{NULL   , 0x00003	},					/* none messages				*/
+		{"INFO", 0x00004	},					/* info messages				*/
+		{NULL   , 0x00005	},					/* none messages				*/
+		{NULL   , 0x00006	},					/* none messages				*/
+		{NULL   , 0x00007	},					/* none messages				*/
+		{"DEBUG", LOG_DEBUG },					/* debugging messages			*/
+		{"ERROR_D", LOG_ERROR | LOG_DEBUG },	/* debugging error messages		*/
+		{"WARN_D",  LOG_WARN  | LOG_DEBUG },	/* debugging warning messages	*/
+		{NULL   , 0x0000b	},					/* none messages				*/
+		{"INFO_D",  LOG_INFO  | LOG_DEBUG },	/* debugging info messages		*/
+		{NULL   , 0x0000d	},					/* none messages				*/
+		{NULL   , 0x0000e	},					/* none messages				*/
+		{NULL   , 0x0000f	},					/* none messages				*/
+		{"TRACE", LOG_TRACE },					/* trace messages				*/
+		
+		
 };
 
 static np_log_t* __logger = NULL;

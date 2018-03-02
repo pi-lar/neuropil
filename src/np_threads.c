@@ -70,15 +70,15 @@ np_bool _np_threads_init()
 
 int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) {
 	//log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
-#if !defined(NP_THREADS_CHECK_THREADING) || defined(__APPLE__)
+
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG, "Locking module mutex %d/%s.", module_id, np_module_lock_str[module_id]);
-#endif
+
 	if(FALSE == __np_threads_mutexes_initiated ){
 		pthread_once(&__thread_init_once, __np_threads_create_module_mutex);
 	}
 	int ret =  1;
 
-#if !defined(NP_THREADS_CHECK_THREADING) || defined(__APPLE__)
+#if !defined(NP_THREADS_CHECK_THREADING) || !NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK
 	ret = pthread_mutex_lock(&__mutexes[module_id].lock);
 #else
 	double start = np_time_now();
@@ -160,91 +160,6 @@ int _np_threads_mutex_timedlock(np_mutex_t * mutex, const double timeout)
 			else
 				break;
 		} while (ret != 0 && (np_time_now() - start) <= timeout);
-	}
-#endif
-	return ret;
-}
-
-int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_type module_id_b, const char* where)
-{
-	log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
-	if(FALSE == __np_threads_mutexes_initiated ){
-		pthread_once(&__thread_init_once, __np_threads_create_module_mutex);
-	}
-	int ret = -1;
-	log_debug_msg(LOG_MUTEX | LOG_DEBUG, "Locking module mutex %s and mutex %s.", np_module_lock_str[module_id_a], np_module_lock_str[module_id_b]);
-
-	pthread_mutex_t* lock_a = &__mutexes[module_id_a].lock;
-	pthread_mutex_t* lock_b = &__mutexes[module_id_b].lock;
-
-#if !defined(NP_THREADS_CHECK_THREADING) || defined(__APPLE__)
-	ret = pthread_mutex_lock(lock_a);
-	if (ret == 0) {
-		ret = pthread_mutex_lock(lock_b);
-	}
-#else
-	char * tmp_a = NULL;
-	asprintf(&tmp_a, "%s@%s", np_module_lock_str[module_id_a], where);
-	CHECK_MALLOC(tmp_a);
-	char * tmp_b = NULL;
-	asprintf(&tmp_b, "%s@%s", np_module_lock_str[module_id_b], where);
-	CHECK_MALLOC(tmp_b);
-	np_thread_t* self_thread = _np_threads_get_self();
-
-	if (self_thread != NULL)
-	{
-		_LOCK_ACCESS(&(self_thread ->locklists_lock)) {
-
-			sll_prepend(char_ptr, self_thread->want_lock, tmp_a);
-			sll_prepend(char_ptr, self_thread->want_lock, tmp_b);
-		}
-	}
-
-	double start = np_time_now();
-	double diff = 0;
-	while(ret != 0) {
-		ret = _np_threads_mutex_timedlock(&__mutexes[module_id_a], min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
-		diff = np_time_now() - start;
-		if (ret == 0) {
-			ret = _np_threads_mutex_timedlock(&__mutexes[module_id_b], min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
-			diff = np_time_now() - start;
-
-			if(ret != 0) {
-				if (diff > MUTEX_WAIT_MAX_SEC) {
-					log_msg(LOG_ERROR, "Thread %lu waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id_b, diff);
-					log_msg(LOG_ERROR, "%s", np_threads_printpool(FALSE));
-					abort();
-				}
-				if (diff >  MUTEX_WAIT_SOFT_SEC) {
-					log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for module mutex %d (%f sec)", module_id_b, diff);
-				}
-				ret = pthread_mutex_unlock(lock_a);
-				ret = ret -100;
-			}
-		}else{
-			if (diff > MUTEX_WAIT_MAX_SEC) {
-				log_msg(LOG_ERROR, "Thread %lu waits too long for module mutex %"PRIu32" (%f sec)", self_thread->id, module_id_a, diff);
-				log_msg(LOG_ERROR, "%s", np_threads_printpool(FALSE));
-				abort();
-			}
-			if (diff >  MUTEX_WAIT_SOFT_SEC) {
-				log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for module mutex %d (%f sec)", module_id_a, diff);
-			}
-		}
-	}
-	log_debug_msg(LOG_MUTEX | LOG_DEBUG, "got module mutexes %d and %d.", module_id_a,module_id_b);
-	if (ret == 0) {
-		np_thread_t* self_thread = _np_threads_get_self();
-		if (self_thread != NULL)	{
-			_LOCK_ACCESS(&(self_thread->locklists_lock))
-			{
-				sll_prepend(char_ptr, self_thread->has_lock, tmp_a);
-				sll_prepend(char_ptr, self_thread->has_lock, tmp_b);
-				_sll_char_remove(self_thread->want_lock, tmp_a, strlen(tmp_a));
-				_sll_char_remove(self_thread->want_lock, tmp_b, strlen(tmp_b));
-
-			}
-		}
 	}
 #endif
 	return ret;
@@ -368,7 +283,7 @@ int _np_threads_mutex_lock(np_mutex_t* mutex, const char* where) {
 
 	while(ret != 0) {
 
-#if defined(NP_THREADS_CHECK_THREADING) && !defined(__APPLE__)
+#if defined(NP_THREADS_CHECK_THREADING) && NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK
 		ret = _np_threads_mutex_timedlock(mutex, min(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
 
 		diff = np_time_now() - start;
@@ -577,8 +492,9 @@ np_thread_t*_np_threads_get_self()
 	if (ret == NULL && np_state() != NULL)
 	{
 		unsigned long id_to_find = (unsigned long)pthread_self();
-		_LOCK_ACCESS(np_state()->threads_lock) {
 
+		pthread_mutex_lock(&np_state()->threads_lock->lock);
+		{
 			sll_iterator(np_thread_ptr) iter_threads = sll_first(np_state()->threads);
 			while (iter_threads != NULL)
 			{
@@ -603,6 +519,7 @@ np_thread_t*_np_threads_get_self()
 				}
 			}
 		}
+		pthread_mutex_unlock(&np_state()->threads_lock->lock);
 	}
 	return ret;
 }

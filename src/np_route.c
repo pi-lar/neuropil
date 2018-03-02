@@ -676,7 +676,6 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-
 		log_msg(LOG_ROUTING | LOG_INFO, "update in routing: %u %s", joined, _np_key_as_str(key));
 
 		if (_np_dhkey_equal (&__routing_table->my_key->dhkey, &key->dhkey))
@@ -779,7 +778,7 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 			if (added != NULL) *added = add_to;
 		}
 		
-		if(deleted_from != NULL){
+		if(deleted_from != NULL) {
 			log_msg(LOG_ROUTING | LOG_INFO, "Removed %s from routing table.", _np_key_as_str(deleted_from));
 			np_unref_obj(np_key_t, deleted_from, ref_route_inroute);
 			if (deleted != NULL) *deleted = deleted_from;
@@ -792,7 +791,6 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 		}
 #endif
 	}
-	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_update");
 }
 
 uint32_t __np_route_my_key_count_routes(np_bool break_on_first) {
@@ -832,7 +830,7 @@ uint32_t __np_route_my_key_count_routes(np_bool break_on_first) {
 }
 
 np_bool _np_route_my_key_has_connection() {
-	return (__np_route_my_key_count_routes(TRUE) + _np_route_my_key_count_neighbours(NULL,NULL)) > 0 ? TRUE: FALSE;
+	return (__np_route_my_key_count_routes(TRUE) + _np_route_my_key_count_neighbours(NULL, NULL)) > 0 ? TRUE: FALSE;
 }
 
 uint32_t _np_route_my_key_count_routes() {

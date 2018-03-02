@@ -20,9 +20,9 @@ extern "C" {
 
 struct np_message_s
 {
-	char* uuid;
-
 	np_obj_t* obj; // link to memory pool
+
+	char* uuid;	
 
 	np_tree_t* header;
 	np_tree_t* instructions;

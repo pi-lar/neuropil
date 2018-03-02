@@ -139,17 +139,12 @@ struct np_thread_s
 } NP_API_INTERN;
 
 
-
 NP_API_INTERN
 np_bool _np_threads_init();
-NP_API_INTERN
-np_bool np_threads_is_init();
 NP_API_INTERN
 int _np_threads_lock_module(np_module_lock_type module_id, const char* where);
 NP_API_INTERN
 int _np_threads_unlock_module(np_module_lock_type module_id);
-NP_API_INTERN
-int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b, const char* where);
 NP_API_INTERN
 int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b);
 NP_API_INTERN
@@ -233,7 +228,6 @@ _LOCK_ACCESS(&object->lock)
 */
 
 #define _LOCK_MODULE(TYPE) for(uint8_t _LOCK_MODULE_i##__LINE__=0; (_LOCK_MODULE_i##__LINE__ < 1) && 0 == _np_threads_lock_module(TYPE##_lock,__func__); _np_threads_unlock_module(TYPE##_lock), _LOCK_MODULE_i##__LINE__++)
-#define _LOCK_MODULES(TYPE_A,TYPE_B) for(uint8_t _LOCK_MODULES_i##__LINE__=0; (_LOCK_MODULES_i##__LINE__ < 1) && 0 == _np_threads_lock_modules(TYPE_A##_lock,TYPE_B##_lock,__func__); _np_threads_unlock_modules(TYPE_A##_lock,TYPE_B##_lock), _LOCK_MODULES_i##__LINE__++)
 // protect access to a module in the rest of your code like this
 /*
 _LOCK_MODULE(np_keycache_t)

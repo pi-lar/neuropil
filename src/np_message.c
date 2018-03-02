@@ -948,7 +948,9 @@ void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const c
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
 	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) subject));
-	np_tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(to)));
+	if(to != NULL){
+		np_tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(to)));
+	}
 	if (from == NULL)
 		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(np_state()->my_node_key)));
 	else{

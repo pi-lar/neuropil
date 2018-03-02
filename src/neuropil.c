@@ -1121,34 +1121,33 @@ void _np_send_ack(const np_message_t* const msg_to_ack)
 		// ack = np_tree_find_str(msg_to_ack->instructions, NP_MSG_INST_ACK)->val.value.ush;
 
 		// create new ack message & handlers
-		np_dhkey_t ack_key = np_dhkey_create_from_hash(np_treeval_to_str(target_key_str->val, NULL));
+		np_bool free_dhkey_as_str = FALSE;
+		char * dhkey_as_str = np_treeval_to_str(target_key_str->val, &free_dhkey_as_str);
+		np_dhkey_t ack_key = np_dhkey_create_from_hash(dhkey_as_str);
 		np_key_t* ack_target = _np_keycache_find(ack_key);
+		
+		np_message_t* ack_msg = NULL;
+		np_new_obj(np_message_t, ack_msg);
 
-		if (NULL != ack_target                       &&
-			NULL != ack_target->node                 &&
-			TRUE == ack_target->node->joined_network &&
-			_np_node_check_address_validity(ack_target->node))
-		{
-			np_message_t* ack_msg = NULL;
-			np_new_obj(np_message_t, ack_msg);
+		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
 
-			np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
-
-			_np_message_create(ack_msg, ack_target, state->my_node_key, _NP_MSG_ACK, NULL);
-			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_to_ack->uuid));
-			np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
-
-			// send the ack out
-			_np_job_submit_msgout_event(0.0, prop, ack_target, ack_msg);
-
-			np_unref_obj(np_key_t, ack_target, "_np_keycache_find");
-			np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
-
-			log_debug_msg(LOG_DEBUG, "ACK_HANDLING send ack for message (%s)", msg_to_ack->uuid);
+		_np_message_create(ack_msg, ack_target, state->my_node_key, _NP_MSG_ACK, NULL);
+		if (ack_target == NULL) {
+			np_tree_insert_str(ack_msg->header, _NP_MSG_HEADER_TO, np_treeval_new_s(dhkey_as_str));
 		}
-		else {
-			log_debug_msg(LOG_ERROR, "ACK_HANDLING ack target not inititiated");
+		if (free_dhkey_as_str) {
+			free(dhkey_as_str);
 		}
+		np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_to_ack->uuid));
+		np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
+
+		// send the ack out
+		_np_job_submit_route_event(0.0, prop, ack_target, ack_msg);
+
+		np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
+
+		log_debug_msg(LOG_DEBUG, "ACK_HANDLING send ack for message (%s)", msg_to_ack->uuid);
+		
 	}
 	else {
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACK Target blank");

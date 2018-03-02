@@ -729,9 +729,9 @@ np_bool np_http_init(char* domain) {
 	__local_http->hooks->on_chunks_complete = NULL; /* called after all parsed chunks processed */
 	__local_http->hooks->body = _np_http_body;
 	__local_http->hooks->on_msg_complete = _np_http_on_msg_complete;
-
-	EV_P = _np_event_get_loop_http();	
+	
 	_np_suspend_event_loop_http();
+	EV_P = _np_event_get_loop_http();
 	ev_io_init(&__local_http->network->watcher, _np_http_accept,
 			__local_http->network->socket, EV_READ);
 	__local_http->network->watcher.data = __local_http;

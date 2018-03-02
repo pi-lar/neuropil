@@ -63,7 +63,7 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 	log_trace_msg(LOG_TRACE, "start: void _np_glia_route_lookup(np_jobargs_t* args){");
 
 	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key, "np_waitref_obj");
-
+	
 	np_sll_t(np_key_ptr, tmp) = NULL;
 	np_key_t* target_key = NULL;
 	np_message_t* msg_in = args->msg;
@@ -123,8 +123,6 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 		if(prop != NULL) {
 			_np_job_submit_msgin_event(0.0, prop, my_key, args->msg, NULL);
 		}	
-
-
 	} else {
 		/* hand it over to the np_axon sending unit */
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "forward routing for subject '%s'", msg_subject);
@@ -615,7 +613,6 @@ void _np_send_subject_discovery_messages(np_msg_mode_type mode_type, const char*
 // TODO: add a wrapper function which can be scheduled via jobargs
 np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
 {
-
 	// np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
 	np_message_intent_public_token_t* tmp_token = _np_aaatoken_get_receiver(subject, target);	
 	if (NULL != tmp_token && _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent)) {
