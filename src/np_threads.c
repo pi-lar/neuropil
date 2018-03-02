@@ -70,7 +70,7 @@ np_bool _np_threads_init()
 
 int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) {
 	//log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
-#ifdef NP_THREADS_CHECK_THREADING
+#if !defined(NP_THREADS_CHECK_THREADING) || defined(__APPLE__)
 	log_debug_msg(LOG_MUTEX | LOG_DEBUG, "Locking module mutex %d/%s.", module_id, np_module_lock_str[module_id]);
 #endif
 	if(FALSE == __np_threads_mutexes_initiated ){
@@ -78,7 +78,7 @@ int _np_threads_lock_module(np_module_lock_type module_id, const char * where ) 
 	}
 	int ret =  1;
 
-#ifndef NP_THREADS_CHECK_THREADING
+#if !defined(NP_THREADS_CHECK_THREADING) || defined(__APPLE__)
 	ret = pthread_mutex_lock(&__mutexes[module_id].lock);
 #else
 	double start = np_time_now();
@@ -177,7 +177,7 @@ int _np_threads_lock_modules(np_module_lock_type module_id_a, np_module_lock_typ
 	pthread_mutex_t* lock_a = &__mutexes[module_id_a].lock;
 	pthread_mutex_t* lock_b = &__mutexes[module_id_b].lock;
 
-#ifndef NP_THREADS_CHECK_THREADING
+#if !defined(NP_THREADS_CHECK_THREADING) || defined(__APPLE__)
 	ret = pthread_mutex_lock(lock_a);
 	if (ret == 0) {
 		ret = pthread_mutex_lock(lock_b);

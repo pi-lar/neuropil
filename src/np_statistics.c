@@ -53,19 +53,18 @@ static np_simple_cache_table_t* _cache = NULL;
 static np_sll_t(char_ptr, watched_subjects);
 static np_bool _np_statistcs_initiated = FALSE;
 
+
 TSP(double, __forwarding_counter)
 
 TSP(uint32_t, __network_send_bytes)
-TSP(uint32_t, __network_received_bytes)
-
 double __network_send_bytes_per_sec_r = 0;
 double __network_send_bytes_per_sec_last = 0;
 uint32_t __network_send_bytes_per_sec_remember = 0;
 
+TSP(uint32_t, __network_received_bytes)
 double __network_received_bytes_per_sec_r = 0;
 double __network_received_bytes_per_sec_last = 0;
 uint32_t __network_received_bytes_per_sec_remember = 0;
-
 
 
 
@@ -102,12 +101,13 @@ np_bool np_statistics_init() {
 	_cache = np_cache_init(SIMPLE_CACHE_NR_BUCKETS);
 	sll_init(char_ptr, watched_subjects);
 
+#ifdef NP_STATISTICS_COUNTER
 	TSP_INITD(double, __forwarding_counter, 0);
 
 	TSP_INITD(uint32_t, __network_send_bytes, 0);
 	TSP_INITD(uint32_t, __network_received_bytes, 0);	
 	__network_received_bytes_per_sec_last = __network_send_bytes_per_sec_last = np_time_now();
-
+#endif
 
 	return _np_statistcs_initiated;
 }
@@ -398,7 +398,7 @@ char * np_statistics_print(np_bool asOneLine) {
 	return ret;
 }
 
-#ifdef DEBUG
+#ifdef NP_STATISTICS_COUNTER
 void __np_increment_forwarding_counter() {
 	TSP_SCOPE(double, __forwarding_counter)
 		__forwarding_counter++;

@@ -27,7 +27,7 @@ extern "C" {
 	NP_API_EXPORT
 		void np_statistics_add_watch_internals();
 
-#ifdef DEBUG
+#ifdef NP_STATISTICS_COUNTER
 	NP_API_INTERN
 		void __np_increment_forwarding_counter();
 	NP_API_INTERN
