@@ -365,6 +365,9 @@ np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args)
 np_bool _np_message_serialize_chunked(np_message_t* msg)
 {
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_serialize_chunked(np_jobargs_t* args){");
+
+	np_ref_obj(np_message_t, msg);
+
 	np_bool ret_val = FALSE;
 
 	//_np_message_calculate_chunking(msg);
@@ -641,6 +644,7 @@ np_bool _np_message_serialize_chunked(np_message_t* msg)
 	if (NULL != bin_properties) free(bin_properties);
 	if (NULL != bin_instructions) free(bin_instructions);
 	if (NULL != bin_header) free(bin_header);
+	np_unref_obj(np_message_t, msg, __func__);
 
 	return (ret_val);
 }

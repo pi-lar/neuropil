@@ -1884,6 +1884,12 @@ void _np_in_handshake(np_jobargs_t* args)
 			goto __np_cleanup__;
 		}
 
+		np_dhkey_t  handshake_token_dhkey = np_aaatoken_get_fingerprint(handshake_token);
+		if (_np_dhkey_cmp(&np_state()->my_node_key->dhkey, &handshake_token_dhkey) == 0) {
+			log_msg(LOG_ERROR, "Cannot perform a handshake with myself!");
+			goto __np_cleanup__;
+		}
+
 		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
 				"decoding of handshake message from %s (i:%f/e:%f) complete",
 				handshake_token->subject, handshake_token->issued_at, handshake_token->expires_at);

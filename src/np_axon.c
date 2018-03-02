@@ -369,9 +369,8 @@ void _np_out_handshake(np_jobargs_t* args)
 
 		if (_np_node_check_address_validity(args->target->node))
 		{
-			// get our node identity from the cache
-			np_key_t* my_key = np_state()->my_node_key;
-			np_aaatoken_t* my_token = _np_token_factory_new_handshake_token();
+			// get our node identity from the cache			
+			np_handshake_token_t* my_token = _np_token_factory_new_handshake_token();
 
 			// create real handshake message ...
 			np_message_t* hs_message = NULL;
@@ -386,6 +385,7 @@ void _np_out_handshake(np_jobargs_t* args)
 			np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d((double)np_time_now()));
 
 			np_aaatoken_encode(hs_message->body, my_token);
+			np_unref_obj(np_aaatoken_t, my_token, "_np_token_factory_new_handshake_token");
 
 			_np_message_calculate_chunking(hs_message);
 
