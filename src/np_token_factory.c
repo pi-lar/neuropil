@@ -334,7 +334,7 @@ np_aaatoken_t* np_token_factory_read_from_tree(np_tree_t* tree) {
 
 	_np_aaatoken_is_valid(ret, np_aaatoken_type_undefined);
 
-	ASSERT(strncmp(ret->subject, "",1) != 0, "Empty string in subject?");
+	ASSERT(strncmp(ret->subject, "",1) != 0, "Empty string in subject? \"%s\"", ret->subject);
 	
 	return ret;
 }

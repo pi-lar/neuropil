@@ -72,7 +72,6 @@ WINDOW * __np_stat_log;
 WINDOW * __np_stat_switchable_window;
 WINDOW * __np_stat_performance_win;
 np_bool __np_ncurse_initiated = FALSE;
-np_bool __np_refresh_windows = TRUE;
 
 #define LOG_BUFFER_SIZE (3000)
 np_sll_t(char_ptr, log_buffer);
@@ -480,10 +479,8 @@ np_bool parse_program_args(
 		}
 		va_end(args);
 
-
 		uint32_t log_categories = 0
 			//| LOG_TRACE
-
 			//| LOG_MUTEX
 			| LOG_ROUTING
 			//| LOG_HTTP
@@ -669,7 +666,7 @@ void __np_example_helper_loop() {
 	__np_example_inti_ncurse();
 
 	// Runs only once
-	if (started_at == 0) {
+	if (started_at == 0) {		
 		np_statistics_add_watch_internals();
 
 		started_at = np_time_now();
@@ -838,15 +835,16 @@ void __np_example_helper_loop() {
 				mvwprintw(__np_stat_log, 16, 0, "%"PRIu32"items in log", sll_size(log_buffer));
 			}
 		}
-
-		if (__np_ncurse_initiated == TRUE && __np_refresh_windows == TRUE) {
+		
+		if (__np_ncurse_initiated == TRUE) {
+			refresh(); 
 			wrefresh(__np_help_win);
 			wrefresh(__np_stat_locks_win);
 			wrefresh(__np_stat_general_win);
 			wrefresh(__np_stat_switchable_window);
-			wrefresh(__np_stat_memory_win);
-			refresh();
+			wrefresh(__np_stat_memory_win);			
 		}
+		
 	}
 
 	if (__np_ncurse_initiated == TRUE) {
@@ -875,15 +873,6 @@ void __np_example_helper_loop() {
 		case 76:	// L
 			__np_stat_switchable_window = __np_stat_log;
 			log_user_cursor = 0;
-			break;
-		case 115:	// s
-		case 83:	// S
-			__np_refresh_windows = FALSE;
-			break;
-
-		case 114:	// r
-		case 82:	// R
-			__np_refresh_windows = TRUE;
 			break;
 		case 102:	// f
 		case 70:	// F

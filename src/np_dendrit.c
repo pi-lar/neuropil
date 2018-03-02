@@ -291,7 +291,7 @@ void _np_in_received(np_jobargs_t* args)
 
 							// if we do not have a handler or the handler has no receive tokens and no send tokens
 							// we may cancel further handeling
-							//FIXME: Only further work on this msg if we are one of the handeling ones
+							//FIXME: Only further work on this msg if we are one of the (few) nodes handeling this type of msg
 							goto __np_cleanup__;
 							if(handler == NULL ||
 								(
