@@ -400,37 +400,37 @@ void* __np_jobqueue_run_jobs(void* np_thread_ptr_self)
 	np_thread_t* target = np_thread_ptr_self;
 	double sleep_time;
 	double now;
-	np_bool job_is_run = FALSE;
+
+	np_bool run_next_job = FALSE;
+	np_job_ptr next_job = NULL;
+
 	while (1) {
+
 		_LOCK_MODULE(np_jobqueue_t)
 		{
 			now = np_time_now();
 			sleep_time = NP_JOBQUEUE_MAX_SLEEPTIME_SEC;
+			run_next_job = FALSE;
 
 			pll_iterator(np_job_ptr) iter_jobs = pll_first(__np_job_queue->job_list);
-			while (iter_jobs != NULL)
-			{
-				np_job_ptr next_job = iter_jobs->val;
-
-				// check time of job
-				if (now <= next_job->exec_not_before_tstamp) {
-					sleep_time = min(sleep_time, next_job->exec_not_before_tstamp - now);
-				}
-				else {
-					pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, __np_job_cmp);
-					target->job = next_job;
-					__np_jobqueue_run_once(next_job);
-					job_is_run = TRUE;
-					break;
-				}
-				pll_next(iter_jobs);
+			np_job_ptr next_job = iter_jobs->val;
+			// check time of job
+			if (now <= next_job->exec_not_before_tstamp) {
+				sleep_time = min(sleep_time, next_job->exec_not_before_tstamp - now);
+			} else {
+				pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, __np_job_cmp);
+				target->job = next_job;
+				run_next_job = TRUE;
 			}
-			if (job_is_run == FALSE) {
-				struct timeval tv_sleep = dtotv(now + sleep_time);
-				struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
+		}
 
-				_np_threads_module_condition_timedwait(&__cond_job_queue, np_jobqueue_t_lock, &waittime);
-			}
+		if (run_next_job == TRUE) {
+			__np_jobqueue_run_once(next_job);
+		} else {
+			struct timeval tv_sleep = dtotv(now + sleep_time);
+			struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
+
+			_np_threads_module_condition_timedwait(&__cond_job_queue, np_jobqueue_t_lock, &waittime);
 		}
 	}
 }
