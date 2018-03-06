@@ -89,15 +89,15 @@ struct np_memory_itemconf_s {
 	np_mutex_t access_lock;
 };
 
-np_memory_container_t* np_memory_containers[UINT8_MAX] = { 0 };
+static np_memory_container_t* __np_memory_container[np_memory_types_MAX_TYPE] = { 0 };
 
 #define NEXT_ITEMCONF(conf, skip) conf = (np_memory_itemconf_t*) (((char*)conf) + (((skip)+1) * ((conf)->block->container->size_per_item + sizeof(np_memory_itemconf_t))));
 #define GET_CONF(item) ((np_memory_itemconf_t*)(((char*)item) - sizeof(np_memory_itemconf_t)))
 #define GET_ITEM(config) (((char*)config) + sizeof(np_memory_itemconf_t))
 
 void np_memory_init() {
-	for (int i = 0; i < np_memory_types_END_TYPES; i++) {
-		np_memory_containers[i] = NULL;
+	for (int i = 0; i < np_memory_types_MAX_TYPE; i++) {
+		__np_memory_container[i] = NULL;
 	}
 	np_memory_register_type(np_memory_types_np_message_t, sizeof(np_message_t), 4, 4, NULL, NULL, np_memory_clear_space);
 	np_memory_register_type(np_memory_types_np_key_t, sizeof(np_key_t), 4, 4, NULL, NULL, np_memory_clear_space);
@@ -146,7 +146,7 @@ void np_memory_register_type(
 	np_memory_on_free on_free,
 	np_memory_on_refresh_space on_refresh_space
 ) {
-	if (np_memory_containers[type] == NULL) {
+	if (__np_memory_container[type] == NULL) {
 		np_memory_container_t* container = calloc(1, sizeof(np_memory_container_t));
 		CHECK_MALLOC(container);
 
@@ -179,14 +179,15 @@ void np_memory_register_type(
 				__np_memory_space_increase(container, container->count_of_items_per_block);
 			}
 
-			np_memory_containers[container->type] = container;
-			log_msg(LOG_MEMORY | LOG_INFO, "Created memory container (%p) for type %"PRIu8" at %p", container, type, np_memory_containers[container->type]);
+			__np_memory_container[container->type] = container;
+			log_msg(LOG_MEMORY | LOG_INFO, "Created memory container (%p) for type %"PRIu8" at %p", container, type, __np_memory_container[container->type]);
 		}
 		else {
 			log_msg(LOG_ERROR, "Could not create memory container lock");
 		}
 	}
 }
+
 np_bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
 	np_bool refreshed = FALSE;
 	np_memory_container_t* container = config->container;
@@ -216,6 +217,7 @@ void* _np_memory_new_raw(np_memory_container_t* container) {
 	}
 	return ret;
 }
+
 void _np_memory_free_raw(void* item) {
 	free(item);
 }
@@ -354,7 +356,7 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
 void* np_memory_new(uint8_t type) {
 	NP_PERFORMANCE_POINT_START(memory_new);
 	void* ret = NULL;
-	np_memory_container_t* container = np_memory_containers[type];
+	np_memory_container_t* container = __np_memory_container[type];
 	ASSERT(container != NULL, "Memory container %"PRIu8" needs to be initialized first.", type);
 
 	log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Searching for next free current_block for type %"PRIu8, type);
@@ -382,8 +384,7 @@ void* np_memory_new(uint8_t type) {
 						}
 					}
 					// second bast as we need to refresh the item
-					__np_memory_refresh_space(next_config);													
-					
+					__np_memory_refresh_space(next_config);
 				}
 			}
 		}
@@ -457,8 +458,8 @@ void np_memory_randomize_space(NP_UNUSED uint8_t type, size_t size, void* data) 
 
 void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 	NP_PERFORMANCE_POINT_START(memory_management);
-	for (uint8_t memory_type = 0; memory_type < np_memory_types_END_TYPES; memory_type++) {
-		np_memory_container_t* container = np_memory_containers[memory_type];
+	for (uint8_t memory_type = 0; memory_type < np_memory_types_MAX_TYPE; memory_type++) {
+		np_memory_container_t* container = __np_memory_container[memory_type];
 		if (container != NULL && container->on_refresh_space != NULL) {
 			__np_memory_itemstats_update(container);
 			

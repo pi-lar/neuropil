@@ -37,13 +37,11 @@
 #include "np_event.h"
 
 /** predefined module mutex array **/
-np_mutex_t __mutexes[PREDEFINED_DUMMY_START];
-np_bool    __np_threads_mutexes_initiated = FALSE;
-np_bool    __np_threads_threads_initiated = FALSE;
-
+static np_mutex_t __mutexes[PREDEFINED_DUMMY_START];
+static np_bool    __np_threads_mutexes_initiated = FALSE;
+static np_bool    __np_threads_threads_initiated = FALSE;
 static pthread_once_t __thread_init_once = PTHREAD_ONCE_INIT;
- 
-pthread_key_t  pthread_thread_ptr_key ;
+static pthread_key_t  __pthread_thread_ptr_key;
 
 void __np_threads_create_module_mutex()
 {
@@ -61,7 +59,7 @@ np_bool _np_threads_init()
 {
 	log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: np_bool _np_threads_init(){");
 
-	pthread_key_create(&pthread_thread_ptr_key, NULL);
+	pthread_key_create(&__pthread_thread_ptr_key, NULL);
 
 	pthread_once(&__thread_init_once, __np_threads_create_module_mutex);
 
@@ -342,8 +340,6 @@ int _np_threads_mutex_trylock(np_mutex_t* mutex, const char* where) {
 	return ret;
 }
 
-
-
 int _np_threads_mutex_unlock(np_mutex_t* mutex)
 {
 	log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_unlock(np_mutex_t* mutex){");
@@ -369,6 +365,7 @@ int _np_threads_mutex_unlock(np_mutex_t* mutex)
 
 	return pthread_mutex_unlock(&mutex->lock);
 }
+
 void _np_threads_mutex_destroy(np_mutex_t* mutex)
 {
 	log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: void _np_threads_mutex_destroy(np_mutex_t* mutex){");	
@@ -388,6 +385,7 @@ void _np_threads_condition_init(np_cond_t* condition)
 	result = pthread_cond_init (&condition->cond, &condition->cond_attr);
 	ASSERT(result == 0, "cannot init cond");
 }
+
 void _np_threads_condition_init_shared(np_cond_t* condition)
 {
 	log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: void _np_threads_condition_init_shared(np_cond_t* condition){");
@@ -403,6 +401,7 @@ void _np_threads_condition_init_shared(np_cond_t* condition)
 	ASSERT(result == 0, "cannot init cond shared");
 	
 }
+
 void _np_threads_condition_destroy(np_cond_t* condition)
 {
 	log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: void _np_threads_condition_destroy(np_cond_t* condition){");
@@ -413,11 +412,13 @@ void _np_threads_condition_destroy(np_cond_t* condition)
 	ASSERT(result == 0, "cannot destroy cond");
 	//memset(condition, 0, sizeof(np_cond_t));
 }
+
 int _np_threads_condition_wait(np_cond_t* condition, np_mutex_t* mutex)
 {
 	log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_condition_wait(np_cond_t* condition, np_mutex_t* mutex){");
 	return pthread_cond_wait(&condition->cond, &mutex->lock);
 }
+
 int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime)
 {
 	log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime){");
@@ -469,13 +470,12 @@ int _np_threads_condition_signal(np_cond_t* condition)
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_thread_t);
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_thread_ptr);
+
 NP_DLL_GENERATE_IMPLEMENTATION(np_thread_ptr);
-
-
 
 void _np_threads_set_self(np_thread_t * myThread) {
 
-	int ret = pthread_setspecific(pthread_thread_ptr_key, myThread);
+	int ret = pthread_setspecific(__pthread_thread_ptr_key, myThread);
 	log_debug_msg(LOG_DEBUG | LOG_THREADS, "Setting thread data to %p. Result:: %"PRIi32, myThread, ret);
 
 	if (ret != 0) {
@@ -487,7 +487,7 @@ void _np_threads_set_self(np_thread_t * myThread) {
 np_thread_t*_np_threads_get_self()
 {
 
-	np_thread_t* ret = pthread_getspecific(pthread_thread_ptr_key);
+	np_thread_t* ret = pthread_getspecific(__pthread_thread_ptr_key);
 
 	if (ret == NULL && np_state() != NULL)
 	{
@@ -554,6 +554,7 @@ void _np_thread_t_del(void* obj)
 #endif
 
 }
+
 void _np_thread_t_new(void* obj)
 {
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
@@ -656,7 +657,7 @@ void __np_createWorkerPool(uint8_t pool_size) {
 			(PRIORITY_MOD_LEVEL_5_SHOULD_HAVE_OWN_THREAD && pool_size > 7 && i == 5) ||
 			(PRIORITY_MOD_LEVEL_6_SHOULD_HAVE_OWN_THREAD && pool_size > 8 && i == 6)
 		) {
-			new_thread->max_job_priority = (i+1) * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
+			new_thread->max_job_priority = (i+2) * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
 			new_thread->min_job_priority = i     * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
 		}
 		else {
@@ -665,7 +666,6 @@ void __np_createWorkerPool(uint8_t pool_size) {
 		}
 
 		_np_thread_run(new_thread);
-
 		log_debug_msg(LOG_THREADS |LOG_DEBUG, "neuropil worker thread started: %p", np_state()->thread_ids[i]);
 	}
 }
@@ -731,7 +731,8 @@ void np_start_job_queue(uint8_t pool_size)
 		pool_size--;
 		create_own_event_http_thread = TRUE;
 	}
-	_LOCK_MODULE(np_jobqueue_t)
+
+ 	_LOCK_MODULE(np_jobqueue_t)
 	{
 		//start jobs
 		np_thread_t* special_thread;

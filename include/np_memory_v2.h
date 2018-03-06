@@ -22,7 +22,8 @@ extern "C" {
 		np_memory_types_np_responsecontainer_t,
 		np_memory_types_np_messagepart_t,
 		np_memory_types_np_aaatoken_t,		
-		
+		np_memory_types_MAX_TYPE,
+
 		np_memory_types_test_struct_t,		
 		np_memory_types_END_TYPES = 254,
 	};

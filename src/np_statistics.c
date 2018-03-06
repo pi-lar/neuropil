@@ -49,33 +49,35 @@ struct np_statistics_element_s {
 };
 typedef struct np_statistics_element_s np_statistics_element_t;
 
-static np_simple_cache_table_t* _cache = NULL;
-static np_sll_t(char_ptr, watched_subjects);
-static np_bool _np_statistcs_initiated = FALSE;
+static np_simple_cache_table_t* __cache = NULL;
+static np_sll_t(char_ptr, __watched_subjects);
+static np_bool __np_statistcs_initiated = FALSE;
 
 
-TSP(double, __forwarding_counter)
+TSP(static double, __forwarding_counter);
 
-TSP(uint32_t, __network_send_bytes)
-double __network_send_bytes_per_sec_r = 0;
-double __network_send_bytes_per_sec_last = 0;
-uint32_t __network_send_bytes_per_sec_remember = 0;
+TSP(static  uint32_t, __network_send_bytes);
 
-TSP(uint32_t, __network_received_bytes)
-double __network_received_bytes_per_sec_r = 0;
-double __network_received_bytes_per_sec_last = 0;
-uint32_t __network_received_bytes_per_sec_remember = 0;
+static double __network_send_bytes_per_sec_r = 0;
+static double __network_send_bytes_per_sec_last = 0;
+static uint32_t __network_send_bytes_per_sec_remember = 0;
+
+TSP(static  uint32_t, __network_received_bytes);
+
+static double __network_received_bytes_per_sec_r = 0;
+static double __network_received_bytes_per_sec_last = 0;
+static uint32_t __network_received_bytes_per_sec_remember = 0;
 
 
 
 np_bool _np_statistics_receive_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
 {
-	assert(_cache != NULL);
+	assert(__cache != NULL);
 	assert(msg != NULL);
 	assert(msg->msg_property != NULL);
 	assert(msg->msg_property->msg_subject != NULL);
 
-	np_cache_item_t* item = np_simple_cache_get(_cache, msg->msg_property->msg_subject);
+	np_cache_item_t* item = np_simple_cache_get(__cache, msg->msg_property->msg_subject);
 	if (item != NULL) {
 		((np_statistics_element_t*)item->value)->total_received += 1;
 	}
@@ -84,11 +86,11 @@ np_bool _np_statistics_receive_msg_on_watched(const np_message_t* const msg, NP_
 
 np_bool _np_statistics_send_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
 {
-	assert(_cache != NULL);
+	assert(__cache != NULL);
 	assert(msg != NULL);
 	assert(msg->msg_property != NULL);
 	assert(msg->msg_property->msg_subject != NULL);
-	np_cache_item_t* item = np_simple_cache_get(_cache, msg->msg_property->msg_subject);
+	np_cache_item_t* item = np_simple_cache_get(__cache, msg->msg_property->msg_subject);
 	if (item != NULL) {
 		((np_statistics_element_t*)item->value)->total_send += 1;
 	}
@@ -97,46 +99,46 @@ np_bool _np_statistics_send_msg_on_watched(const np_message_t* const msg, NP_UNU
 }
 
 np_bool np_statistics_init() {
-	_np_statistcs_initiated = TRUE;
-	_cache = np_cache_init(SIMPLE_CACHE_NR_BUCKETS);
-	sll_init(char_ptr, watched_subjects);
+	__cache = np_cache_init(SIMPLE_CACHE_NR_BUCKETS);
+	sll_init(char_ptr, __watched_subjects);
 
 #ifdef NP_STATISTICS_COUNTER
 	TSP_INITD(double, __forwarding_counter, 0);
-
 	TSP_INITD(uint32_t, __network_send_bytes, 0);
 	TSP_INITD(uint32_t, __network_received_bytes, 0);	
 	__network_received_bytes_per_sec_last = __network_send_bytes_per_sec_last = np_time_now();
 #endif
 
-	return _np_statistcs_initiated;
+	__np_statistcs_initiated = TRUE;
+
+	return __np_statistcs_initiated;
 }
 
 np_bool np_statistics_destroy() {
-	_np_statistcs_initiated = TRUE;
+	__np_statistcs_initiated = TRUE;
 
-	sll_iterator(char_ptr) iter = sll_first(watched_subjects);
+	sll_iterator(char_ptr) iter = sll_first(__watched_subjects);
 	while (iter != NULL)
 	{
-		free(np_simple_cache_get(_cache, iter->val)->value);
+		free(np_simple_cache_get(__cache, iter->val)->value);
 		free(iter->val);
 		sll_next(iter);
 	}
 
-	sll_free(char_ptr, watched_subjects);
-	free(_cache);
+	sll_free(char_ptr, __watched_subjects);
+	free(__cache);
 
-	_np_statistcs_initiated = FALSE;
-	return _np_statistcs_initiated == FALSE;
+	__np_statistcs_initiated = FALSE;
+	return __np_statistcs_initiated == FALSE;
 }
 
 void np_statistics_add_watch(char* subject) {
-	if (FALSE == _np_statistcs_initiated) {
+	if (FALSE == __np_statistcs_initiated) {
 		np_statistics_init();
 	}
 
 	np_bool addtolist = TRUE;
-	sll_iterator(char_ptr) iter_subjects = sll_first(watched_subjects);
+	sll_iterator(char_ptr) iter_subjects = sll_first(__watched_subjects);
 	while (iter_subjects != NULL)
 	{
 		if (strncmp(iter_subjects->val, subject, strlen(subject)) == 0) {
@@ -149,11 +151,11 @@ void np_statistics_add_watch(char* subject) {
 	char* key = subject;
 	if (addtolist == TRUE) {
 		key = strdup(subject);
-		sll_append(char_ptr, watched_subjects, key);
-		np_simple_cache_insert(_cache, key, calloc(1, sizeof(np_statistics_element_t)));
+		sll_append(char_ptr, __watched_subjects, key);
+		np_simple_cache_insert(__cache, key, calloc(1, sizeof(np_statistics_element_t)));
 	}
 
-	np_statistics_element_t* container = np_simple_cache_get(_cache, key)->value;
+	np_statistics_element_t* container = np_simple_cache_get(__cache, key)->value;
 
 	if (addtolist == TRUE) {
 		CHECK_MALLOC(container);
@@ -205,8 +207,9 @@ void np_statistics_add_watch_internals() {
 	np_statistics_add_watch(_NP_MSG_ACCOUNTING_REQUEST);
 	
 }
+
 char * np_statistics_print(np_bool asOneLine) {
-	if (FALSE == _np_statistcs_initiated) {
+	if (FALSE == __np_statistcs_initiated) {
 		return strdup("statistics not initiated\n");
 	}
 
@@ -218,7 +221,7 @@ char * np_statistics_print(np_bool asOneLine) {
 	}
 	ret = np_str_concatAndFree(ret, "-%s", new_line);
 
-	sll_iterator(char_ptr) iter_subjects = sll_first(watched_subjects);
+	sll_iterator(char_ptr) iter_subjects = sll_first(__watched_subjects);
 
 	double sec_since_start;
 
@@ -240,7 +243,7 @@ char * np_statistics_print(np_bool asOneLine) {
 
 	while (iter_subjects != NULL)
 	{
-		np_statistics_element_t* container = np_simple_cache_get(_cache, iter_subjects->val)->value;
+		np_statistics_element_t* container = np_simple_cache_get(__cache, iter_subjects->val)->value;
 
 		sec_since_start = (now - container->first_check);
 
@@ -400,8 +403,9 @@ char * np_statistics_print(np_bool asOneLine) {
 
 #ifdef NP_STATISTICS_COUNTER
 void __np_increment_forwarding_counter() {
-	TSP_SCOPE(double, __forwarding_counter)
+	TSP_SCOPE(double, __forwarding_counter) {
 		__forwarding_counter++;
+	}
 }
 
 void __np_statistics_add_send_bytes(uint32_t add) {
