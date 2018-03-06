@@ -302,7 +302,6 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 
 			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
 			np_key_t* target = NULL;
-
 			target = _np_keycache_find_or_create(target_dhkey);
 
 			msg_prop = np_msgproperty_get(TRANSFORM, subject);
@@ -619,9 +618,6 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		_np_msgproperty_threshold_increase(msg_prop);
 		log_msg(LOG_INFO | LOG_ROUTING, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);	
 
-		//TODO: instead of token threshold a local copy of the value should be increased
-		np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
-
 		np_bool free_target_node_str = FALSE;
 		char* target_node_str = NULL;
 		np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions,  "target_node");
@@ -634,18 +630,21 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 			target_node_str = tmp_token->issuer;
 		}
 
-		np_key_t* receiver_key = NULL;
+		//TODO: instead of token threshold a local copy of the value should be increased
+		np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
 
+		np_key_t*  receiver_key = NULL;
 		np_dhkey_t receiver_dhkey;
+
 		_np_dhkey_from_str(target_node_str, &receiver_dhkey);
 		receiver_key = _np_keycache_find_or_create(receiver_dhkey);
 
 		if (_np_key_cmp(np_state()->my_node_key, receiver_key) == 0) {
-			
 			np_msgproperty_t* handler = np_msgproperty_get(INBOUND, msg->msg_property->msg_subject);
-			if(handler != NULL){
+			if(handler != NULL) {
 				_np_in_new_msg_received(msg, handler);
 			}
+
 		} else {
 			// encrypt the relevant message part itself
 			_np_message_encrypt_payload(msg, tmp_token);

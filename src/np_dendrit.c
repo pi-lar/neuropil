@@ -245,12 +245,7 @@ void _np_in_received(np_jobargs_t* args)
 
 					np_dhkey_t target_dhkey;
 					_np_dhkey_from_str( np_treeval_to_str(msg_to, NULL), &target_dhkey);
-
-					target_key = _np_keycache_find_or_create(target_dhkey);
-
-					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "target of msg (%s) is %s i am %s",msg_in->uuid, _np_key_as_str(target_key), _np_key_as_str(np_state()->my_node_key));
-
-
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "target of msg (%s) is %s i am %s",msg_in->uuid, msg_to, _np_key_as_str(np_state()->my_node_key));
 
 					// check if inbound subject handler exists
 					np_msgproperty_t* handler = np_msgproperty_get(INBOUND, np_treeval_to_str(msg_subject, NULL));
@@ -258,7 +253,7 @@ void _np_in_received(np_jobargs_t* args)
 					// redirect message if
 					// msg is not for my dhkey
 					// no handler is present
-					if (_np_key_cmp(target_key, my_key) != 0)// || handler == NULL)
+					if (_np_dhkey_cmp(&target_dhkey, &my_key->dhkey) != 0)// || handler == NULL)
 					{
 						// perform a route lookup
 						np_sll_t(np_key_ptr, tmp) = NULL;
@@ -280,7 +275,7 @@ void _np_in_received(np_jobargs_t* args)
 							log_debug_msg(LOG_DEBUG | LOG_ROUTING,
 								"forwarding message for subject: %s / uuid: %s", np_treeval_to_str(msg_subject, NULL), msg_in->uuid);
 #ifdef DEBUG
-							_np_increment_forwarding_counter();
+							// _np_increment_forwarding_counter();
 #endif
 							np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
 							//TODO: is it necessary to forwarding with a small penalty to prevent infinite loops?
