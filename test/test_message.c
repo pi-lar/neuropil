@@ -77,7 +77,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
 
     np_message_t* write_msg = NULL;
     np_new_obj(np_message_t, write_msg);
-    _np_message_create(write_msg, write_to, write_from, "serialize_np_message_t", write_tree);
+    _np_message_create(write_msg, write_to->dhkey, write_from->dhkey, "serialize_np_message_t", write_tree);
 	np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
     np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL,"tst");
@@ -96,7 +96,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
     read_msg->msg_chunks = write_msg->msg_chunks;
 
     np_bool read_ret = _np_message_deserialize_chunked(read_msg);
-    cr_assert(TRUE == read_ret, "Expected positive result in deserialisation");
+    cr_assert(TRUE == read_ret, "Expected positive result in de-serialisation");
 
 	// Compare deserialized content with expected
     np_tree_elem_t* testkey_read_from =  np_tree_find_str(read_msg->body,"TESTKEY_FROM");
@@ -159,7 +159,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
     np_tree_insert_str(write_msg->instructions, "TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
     np_tree_insert_str(write_msg->instructions, "TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
 
-    _np_message_create(write_msg, write_to, write_from, "serialize_np_message_t", write_tree);
+    _np_message_create(write_msg, write_to->dhkey, write_from->dhkey, "serialize_np_message_t", write_tree);
 	np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
     np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL,"tst");
@@ -226,9 +226,8 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 
 	uint16_t parts = 0;
 	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) msg_subject));
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(my_key)) );
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
-	// np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_REPLY_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(my_key->dhkey) );
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(my_key->dhkey) );
 
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(0));
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
