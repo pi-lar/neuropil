@@ -69,16 +69,14 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 	np_message_t* msg_in = args->msg;
 
 	char* msg_subject = np_treeval_to_str(np_tree_find_str(msg_in->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
-	char* msg_target = np_treeval_to_str(np_tree_find_str(msg_in->header, _NP_MSG_HEADER_TO)->val, NULL);
+	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_target);
 
 	np_bool is_a_join_request = FALSE;
 	if (0 == strncmp(msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) )
 	{
 		is_a_join_request = TRUE;
 	}
-
-	np_dhkey_t search_key;
-	_np_dhkey_from_str(msg_target, &search_key);
+	np_dhkey_t search_key = msg_target.value.dhkey;
 
 	// 1 means: always send out message to another node first, even if it returns
 	tmp = _np_route_lookup(search_key, 1);
@@ -146,6 +144,11 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 	np_unref_list(tmp, "_np_route_lookup");
 	sll_free(np_key_ptr, tmp);
 	np_unref_obj(np_key_t, my_key, "np_waitref_obj");
+
+	return;
+
+	__np_cleanup__:
+		{ /* empty */ }
 }
 
 void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_check_connections_handler fn) {
@@ -326,7 +329,9 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 	{
 		np_msgproperty_t* msg_prop = NULL;
 
-		np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(state->my_identity->aaa_token->realm, "0");
+		np_dhkey_t target_dhkey = { 0 };
+		_np_dhkey_from_str(state->my_identity->aaa_token->realm, &target_dhkey);
+
 		np_key_t* target = NULL;
 		target = _np_keycache_find_or_create(target_dhkey);
 
@@ -572,7 +577,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 
 		np_message_t* msg_out = NULL;
 		np_new_obj(np_message_t, msg_out);
-		_np_message_create(msg_out, target_key, state->my_node_key, _NP_MSG_PIGGY_REQUEST, msg_body);
+		_np_message_create(msg_out, target_key->dhkey, state->my_node_key->dhkey, _NP_MSG_PIGGY_REQUEST, msg_body);
 		_np_job_submit_msgout_event(0.0, outprop, target_key, msg_out);
 		np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 	}
@@ -614,48 +619,46 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 {
 	// np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
 	np_message_intent_public_token_t* tmp_token = _np_aaatoken_get_receiver(subject, target);	
-	if (NULL != tmp_token && _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent)) {
+	if (NULL != tmp_token)
+	{
 		_np_msgproperty_threshold_increase(msg_prop);
 		log_msg(LOG_INFO | LOG_ROUTING, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);	
 
-		np_bool free_target_node_str = FALSE;
+		//TODO: instead of token threshold a local copy of the value should be increased
+		np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
+
 		char* target_node_str = NULL;
+		np_dhkey_t receiver_dhkey = { 0 };
 		np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions,  "target_node");
 		if (NULL != tn_node)
 		{
-			target_node_str =  np_treeval_to_str(tn_node->val, &free_target_node_str);
+			target_node_str =  tn_node->val.value.s;
 		}
 		else
 		{
 			target_node_str = tmp_token->issuer;
 		}
-
-		//TODO: instead of token threshold a local copy of the value should be increased
-		np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
-
-		np_key_t*  receiver_key = NULL;
-		np_dhkey_t receiver_dhkey;
-
 		_np_dhkey_from_str(target_node_str, &receiver_dhkey);
-		receiver_key = _np_keycache_find_or_create(receiver_dhkey);
 
-		if (_np_key_cmp(np_state()->my_node_key, receiver_key) == 0) {
+		if (_np_dhkey_cmp(&np_state()->my_node_key->dhkey, &receiver_dhkey) == 0)
+		{
 			np_msgproperty_t* handler = np_msgproperty_get(INBOUND, msg->msg_property->msg_subject);
-			if(handler != NULL) {
+			if(handler != NULL)
+			{
 				_np_in_new_msg_received(msg, handler);
 			}
+		}
+		else
+		{
+			log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s) with receiver token %s ...", msg->uuid, tmp_token->uuid);
 
-		} else {
 			// encrypt the relevant message part itself
 			_np_message_encrypt_payload(msg, tmp_token);
 
-			np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_s(target_node_str));
-			if (free_target_node_str == TRUE && msg->header->attr.in_place == FALSE) {
-				free(target_node_str);
-			}
+			np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
 
 			np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);
-			_np_job_submit_route_event(0.0, out_prop, receiver_key, msg);
+			_np_job_submit_route_event(0.0, out_prop, NULL, msg);
 
 			if (NULL != msg_prop->rep_subject &&
 				STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))
@@ -663,13 +666,10 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 				_np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
 			}
 		}
-
 		// decrease threshold counters
 		_np_msgproperty_threshold_decrease(msg_prop);
 
 		np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_receiver");
-		np_unref_obj(np_key_t, receiver_key,"_np_keycache_find_or_create");
-		
 		return (TRUE);
 	}
 	else

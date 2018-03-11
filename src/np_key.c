@@ -54,18 +54,15 @@ int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
 char* _np_key_as_str(np_key_t* key)
 {
 	log_trace_msg(LOG_TRACE | LOG_KEY, "start: char* _np_key_as_str(np_key_t* key){");
-	//if (NULL == key->dhkey_str)
-	{
 
-		if (NULL == key->dhkey_str){
-			key->dhkey_str = (char*) malloc(65);
-			CHECK_MALLOC(key->dhkey_str);
-		}
-		_np_dhkey_to_str(&key->dhkey, key->dhkey_str);
-		log_debug_msg(LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
+	if (NULL == key->dhkey_str){
+		key->dhkey_str = (char*) malloc(65);
+		CHECK_MALLOC(key->dhkey_str);
 	}
+	_np_dhkey_to_str(&key->dhkey, key->dhkey_str);
+	log_debug_msg(LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
 
-	return key->dhkey_str;
+	return (key->dhkey_str);
 }
 
 void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc)
@@ -278,7 +275,7 @@ void np_key_renew_token() {
 			np_tree_t* jrb_new_me = np_tree_clone(jrb_new);
 			np_new_obj(np_message_t, msg_out_update);
 			log_debug_msg(LOG_KEY | LOG_DEBUG, "step ._np_renew_node_token_jobexec.submitting update request to target key %s", _np_key_as_str(iterator->val));
-			_np_message_create(msg_out_update, iterator->val, old_node_key, _NP_MSG_UPDATE_REQUEST, jrb_new_me);
+			_np_message_create(msg_out_update, iterator->val->dhkey, old_node_key->dhkey, _NP_MSG_UPDATE_REQUEST, jrb_new_me);
 
 			_np_job_submit_msgout_event(0.0, prop, iterator->val, msg_out_update);
 			np_unref_obj(np_message_t, msg_out_update, ref_obj_creation);

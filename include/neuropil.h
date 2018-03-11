@@ -249,7 +249,7 @@ void np_add_send_listener(np_usercallback_t msg_handler, char* subject);
 
 */
 NP_API_EXPORT
-void np_send_text    (char* subject, char *data, uint32_t seqnum, char* targetDhkey);
+void np_send_text    (char* subject, char *data, uint32_t seqnum, np_dhkey_t* target_dhkey);
 
 /**
 .. c:function:: void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body)

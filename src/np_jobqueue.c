@@ -156,9 +156,9 @@ void _np_job_free_args(np_jobargs_t* args)
 	log_trace_msg(LOG_TRACE, "start: void* _np_job_free_args(np_jobargs_t* args){");
 
 	if (args != NULL) {
-		np_unref_obj(np_message_t, args->msg, "_np_job_create_args");
-		np_unref_obj(np_key_t, args->target, "_np_job_create_args");
-		np_unref_obj(np_msgproperty_t, args->properties, "_np_job_create_args");
+		if (args->target)     np_unref_obj(np_key_t, args->target, "_np_job_create_args");
+		if (args->msg)        np_unref_obj(np_message_t, args->msg, "_np_job_create_args");
+		if (args->properties) np_unref_obj(np_msgproperty_t, args->properties, "_np_job_create_args");
 	}
 	free(args);
 	args = NULL;

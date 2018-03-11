@@ -217,6 +217,7 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 
 	return (ret);
 }
+
 np_handshake_token_t* _np_token_factory_new_handshake_token() {
 
 	np_handshake_token_t* ret = NULL;
@@ -334,7 +335,7 @@ np_aaatoken_t* np_token_factory_read_from_tree(np_tree_t* tree) {
 
 	_np_aaatoken_is_valid(ret, np_aaatoken_type_undefined);
 
-	ASSERT(strncmp(ret->subject, "",1) != 0, "Empty string in subject? \"%s\"", ret->subject);
+	ASSERT(strlen(ret->subject) > 1, "subject string has incorrect size ? \"%s\"", ret->subject);
 	
 	return ret;
 }

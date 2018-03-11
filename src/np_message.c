@@ -85,7 +85,6 @@ void _np_message_t_new(void* msg)
 
 }
 
-
 /*
 	May allow the system to use the incomming buffer directly
 	to populate the tree stuctures (header/body/...)
@@ -292,6 +291,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 	}
 	return ret;
 }
+
 double _np_message_get_expiery(const np_message_t* const self) {
 	double now = np_time_now();
 	double ret = now;
@@ -315,6 +315,7 @@ __np_cleanup__:
 
 	return ret;
 }
+
 np_bool _np_message_is_expired(const np_message_t* const self)
 {
 	np_bool ret = FALSE;
@@ -334,6 +335,7 @@ np_bool _np_message_is_expired(const np_message_t* const self)
 
 	 return ret;
 }
+
 np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args)
 {
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args){");
@@ -636,7 +638,7 @@ np_bool _np_message_serialize_chunked(np_message_t* msg)
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-----------------------------------------------------" );
 
 	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg: %s) chunked into %"PRIu32" parts (calculated no of chunks: %"PRIu16")"
-			,msg->uuid, pll_size(msg->msg_chunks),msg->no_of_chunks);
+			,msg->uuid, pll_size(msg->msg_chunks), msg->no_of_chunks);
 
 	// __np_cleanup__:
 	if (NULL != bin_footer) free(bin_footer);
@@ -733,7 +735,6 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 								msg->bin_static = part;
 
 								log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "received message part (%d / %d)", chunk_id, msg->no_of_chunks);
-
 
 								CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_UUID, msg_uuid);
 								ASSERT(msg_uuid.type == np_treeval_type_char_ptr, " type is incorrectly set to: %"PRIu8, msg_uuid.type);
@@ -869,7 +870,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			}
 
 			iter->val = NULL;
-			np_unref_obj(np_messagepart_t, current_chunk, ref_message_messagepart);
+			// np_unref_obj(np_messagepart_t, current_chunk, ref_message_messagepart);
 			pll_next(iter);
 		}
 
@@ -941,21 +942,15 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
  ** creates the message to the destination #dest# the message format would be like:
  **  [ type ] [ size ] [ key ] [ data ]. It return the created message structure.
  */
-void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data)
+void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const char* subject, np_tree_t* the_data)
 {
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data){");
 	// np_message_t* new_msg;
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
 	np_tree_insert_str(msg->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) subject));
-	if(to != NULL){
-		np_tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(to)));
-	}
-	if (from == NULL)
-		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(np_state()->my_node_key)));
-	else{
-		np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(from)));
-	}
+	np_tree_insert_str(msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(to));
+	np_tree_insert_str(msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(from));
 
 	if (the_data != NULL)
 	{
@@ -983,10 +978,10 @@ inline void _np_message_setbody(np_message_t* msg, np_tree_t* body)
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
 };
 
-inline void _np_message_set_to(np_message_t* msg, np_key_t* target)
+inline void _np_message_set_to(np_message_t* msg, np_dhkey_t target)
 {
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
-	np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(target)));
+	np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(target));
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
 };
 
@@ -1029,7 +1024,8 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 
 	// convert our own sign key to an encryption key
 	crypto += crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-										 state->my_identity->aaa_token->private_key);
+										 	 	   state->my_identity->aaa_token->private_key);
+
 	// convert our partner key to an encryption key
 	unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
 	crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
@@ -1070,25 +1066,27 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	np_bool ret = TRUE;
 	np_state_t* state = np_state();
 
-	np_tree_t* encryption_details =
-			np_tree_find_str(msg->properties, NP_SYMKEY)->val.value.tree;
-	if(NULL == encryption_details  ) {
+	np_tree_t* encryption_details = np_tree_find_str(msg->properties, NP_SYMKEY)->val.value.tree;
+	if(NULL == encryption_details)
+	{
 		log_msg(LOG_ERROR, "No encryption_details!");
 		ret = FALSE;
-	}else {
-
+	}
+	else
+	{
 		// insert the public-key encrypted encryption key for each receiver of the message
 		unsigned char nonce[crypto_box_NONCEBYTES];
 		memcpy(nonce, np_tree_find_str(encryption_details, NP_NONCE)->val.value.bin, crypto_box_NONCEBYTES);
 		unsigned char enc_sym_key[crypto_secretbox_KEYBYTES + crypto_box_MACBYTES];
 
-
 		np_tree_elem_t* encryption_details_elem = np_tree_find_str(encryption_details, (char*) _np_key_as_str(state->my_identity));
-		if(NULL == encryption_details_elem  ) {
+		if(NULL == encryption_details_elem  )
+		{
 			log_msg(LOG_ERROR, "decryption of message payload failed. no identity information in encryption_details for %s", _np_key_as_str(state->my_identity));
 			ret = FALSE;
 		}
-		else {
+		else
+		{
 			memcpy(enc_sym_key,
 				encryption_details_elem->val.value.bin,
 				crypto_secretbox_KEYBYTES + crypto_box_MACBYTES);
@@ -1100,38 +1098,47 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 			crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
 				state->my_identity->aaa_token->private_key);
 			
-			// convert partner secret to encryption key
+			// convert partner public key to signature key
 			unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
 			int crypto_ret = 0;
 
 			crypto_ret += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
-
-			crypto_ret += crypto_box_open_easy(sym_key, enc_sym_key, crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
-				nonce, partner_key, curve25519_sk);
-
 			if (0 > crypto_ret)
 			{
-				log_msg(LOG_ERROR, "decryption of message payload failed");
+				log_msg(LOG_ERROR, "decryption of message payload (%s) failed", msg->uuid);
 				ret = FALSE;
 			}
-			else {
 
+			crypto_ret += crypto_box_open_easy(sym_key, enc_sym_key,
+											   crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
+											   nonce, partner_key, curve25519_sk);
+			if (0 > crypto_ret)
+			{
+				log_msg(LOG_ERROR, "decryption of message sym_key (%s) failed", msg->uuid);
+				ret = FALSE;
+			}
+			else
+			{
 				np_tree_t* encrypted_properties = np_tree_create();
-				if (_np_messagepart_decrypt(msg->properties, nonce, sym_key, NULL, encrypted_properties) == FALSE) {
+				if (_np_messagepart_decrypt(msg->properties, nonce, sym_key, NULL, encrypted_properties) == FALSE)
+				{
 					log_msg(LOG_ERROR, "decryption of message payloads properties failed");
 					ret = FALSE;
 				}
-				else {
+				else
+				{
 					np_tree_free(msg->properties);
 					msg->properties = encrypted_properties;
 				}
 
 				np_tree_t* encrypted_body = np_tree_create();
-				if (_np_messagepart_decrypt(msg->body, nonce, sym_key, NULL, encrypted_body) == FALSE) {
+				if (_np_messagepart_decrypt(msg->body, nonce, sym_key, NULL, encrypted_body) == FALSE)
+				{
 					log_msg(LOG_ERROR, "decryption of message payloads body failed");
 					ret = FALSE;
 				}
-				else {
+				else
+				{
 					np_tree_free(msg->body);
 					msg->body = encrypted_body;
 				}
@@ -1140,6 +1147,7 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	}
 	return (ret);
 }
+
 char* _np_message_get_subject(np_message_t* msg) {
 	char* ret = NULL;
 	if(msg->header != NULL){
@@ -1165,23 +1173,13 @@ void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_rep
 	}
 }
 
-np_key_t* _np_message_get_sender(np_message_t* self){
+np_dhkey_t* _np_message_get_sender(np_message_t* self){
 
-	np_key_t* ret = NULL;
+	np_dhkey_t* ret = NULL;
+
 	np_tree_elem_t* ele = np_tree_find_str(self->header, _NP_MSG_HEADER_FROM);
-
 	if (ele != NULL) {
-		np_bool freeable = FALSE;
-		char* dhkey_str  = np_treeval_to_str(ele->val, &freeable);
-		np_dhkey_t dhkey = { 0 };
-
-		_np_dhkey_from_str(dhkey_str, &dhkey);
-		
-		ret = _np_keycache_find_or_create(dhkey);
-
-		if (freeable) {
-			free(dhkey_str);
-		}
+		ret = &ele->val.value.dhkey;
 	}
 	return ret;
 }
