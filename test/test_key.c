@@ -17,6 +17,7 @@ void setup_key(void)
 
 	np_log_init("test_key.log", log_level);
 	_np_threads_init();
+	np_memory_init();
 	np_mem_init();
 	_np_keycache_init ();
 }

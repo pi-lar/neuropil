@@ -21,6 +21,7 @@ void setup_keycache(void)
 
 	np_log_init("test_keycache.log", log_level);
 	_np_threads_init();
+	np_memory_init();
 	np_mem_init();
 
 	_np_keycache_init ();
