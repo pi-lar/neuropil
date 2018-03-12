@@ -774,7 +774,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(const char* const subjec
 	return (return_list);
 }
 
-np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const char* const sender)
+np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const np_dhkey_t* const sender_dhkey)
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender){");
 	np_key_t* subject_key = NULL;
@@ -800,7 +800,12 @@ np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const char* co
 
 	_LOCK_ACCESS(&subject_key->send_property->lock)
 	{
-		log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_get_sender %d / %s", pll_size(subject_key->send_tokens), subject);
+#ifdef DEBUG
+		char sender_dhkey_as_str[64];
+		_np_dhkey_to_str(sender_dhkey, sender_dhkey_as_str);
+#endif
+
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step1._np_aaatoken_get_sender %d / %s", pll_size(subject_key->send_tokens), subject);
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->send_tokens);
 		while (NULL != iter &&
 			   FALSE == found_return_token)
@@ -809,35 +814,56 @@ np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const char* co
 			if (FALSE == _np_aaatoken_is_valid(return_token, np_aaatoken_type_message_intent))
 			{
 				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid sender token for issuer %s", return_token->issuer);
-				pll_next(iter);
 				return_token = NULL;
+				pll_next(iter);
 				continue;
+			}
+
+			np_dhkey_t return_token_dhkey = { 0 };
+			np_tree_elem_t* target_node_elem = np_tree_find_str(return_token->extensions, "target_node");
+			if (target_node_elem != NULL)
+			{
+				return_token_dhkey = np_dhkey_create_from_hash(target_node_elem->val.value.s);
+				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
+							  "comparing sender token (%s) for %s with send_dhkey: %s (target node match)",
+							  return_token->uuid, target_node_elem->val.value.s, sender_dhkey_as_str);
+			}
+			else
+			{
+				return_token_dhkey = np_dhkey_create_from_hash(return_token->issuer);
+				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
+							  "comparing sender token (%s) for %s with send_dhkey: %s (issuer match)",
+							  return_token->uuid, return_token->issuer, sender_dhkey_as_str);
 			}
 
 			// only pick key from a list if the subject msg_treshold is bigger than zero
 			// and we actually have the correct sender node in the list
-			if (0 != strncmp(return_token->issuer, sender, 64))
+			if (FALSE == _np_dhkey_equal(&return_token_dhkey, sender_dhkey))
 			{
-				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring sender token for issuer %s / send_hk: %s (issuer does not match)",
-						return_token->issuer, sender);
-				pll_next(iter);
+				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
+							  "ignoring sender token for issuer %s / send_hk: %s (issuer does not match)",
+							  return_token->issuer, sender_dhkey_as_str);
 				return_token = NULL;
+				pll_next(iter);
+				continue;
+			}
+
+			if (! (IS_AUTHENTICATED(return_token->state)) )
+			{
+				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
+						      "ignoring sender token for issuer %s / send_hk: %s as it is not authenticated",
+							  return_token->issuer, sender_dhkey_as_str);
+				return_token = NULL;
+				pll_next(iter);
 				continue;
 			}
 			if (! (IS_AUTHORIZED(return_token->state)))
 			{
-				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring sender token for issuer %s / send_hk: %s as it is not authorized",
-						return_token->issuer, sender);
-				pll_next(iter);
+				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
+							  "ignoring sender token for issuer %s / send_hk: %s as it is not authorized",
+							  return_token->issuer, sender_dhkey_as_str);
 				return_token = NULL;
-				continue;
-			}
-			if (! (IS_AUTHENTICATED(return_token->state)) )
-			{
-				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring sender token for issuer %s / send_hk: %s as it is not authenticated",
-						return_token->issuer, sender);
 				pll_next(iter);
-				return_token = NULL;
 				continue;
 			}
 
@@ -845,7 +871,7 @@ np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const char* co
 			np_ref_obj(np_aaatoken_t, return_token);
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", return_token->issuer);
 		}
-		log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_sender %d", pll_size(subject_key->send_tokens));
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step2._np_aaatoken_get_sender %d", pll_size(subject_key->send_tokens));
 	}
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");

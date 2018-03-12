@@ -233,7 +233,7 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
 sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(const char* const subject, const char* const audience);
 NP_API_INTERN
-np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const char* const sender);
+np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const np_dhkey_t* const sender_dhkey);
 
 NP_API_INTERN
 void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token);

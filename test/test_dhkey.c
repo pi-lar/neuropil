@@ -16,6 +16,7 @@
 void setup_dhkey(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_KEY;
+	np_memory_init();
 	np_mem_init();
 	np_log_init("test_key.log", log_level);
 

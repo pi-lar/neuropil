@@ -947,15 +947,15 @@ uint8_t __np_tree_serialize_read_type_special_str(void* buffer_ptr, np_treeval_t
 }
 
 void __np_tree_serialize_write_type_special_str(uint8_t idx, cmp_ctx_t* target) {
+
 	//                        size of uint8 marker + size uint8 for index
 	uint32_t transport_size = (sizeof(uint8_t) + sizeof(uint8_t));
 
 	cmp_ctx_t cmp;
-	char buffer[255];
-
+	char buffer[transport_size];
 	void* buf_ptr = buffer;
-	cmp_init(&cmp, buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 
+	cmp_init(&cmp, buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 	cmp_write_u8(&cmp, idx);
 
 	if(cmp.error == 0){
@@ -1133,7 +1133,7 @@ void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx
 				cmp->read(cmp, value->value.s, obj->as.str_size);
 			}
 
-			// to prevent undefined lengths. but should already hava terminator
+			// to prevent undefined lengths. but should already have a terminator
 			char* term = value->value.s + obj->as.str_size - 1;
 			term  = "\0";
 

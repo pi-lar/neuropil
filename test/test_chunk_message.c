@@ -32,6 +32,7 @@ int main(int argc, char **argv) {
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_MESSAGE;
 	log_init(log_file, level);
 
+	np_memory_init();
 	np_mem_init();
 
 	np_message_t* msg_out = NULL;
@@ -46,9 +47,8 @@ int main(int argc, char **argv) {
 
 	uint16_t parts = 0;
 	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) msg_subject));
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(my_key)) );
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
-	// np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_REPLY_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(my_key->dhkey) );
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(my_key->dhkey) );
 
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(0));
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );

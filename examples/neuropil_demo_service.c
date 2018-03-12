@@ -129,10 +129,10 @@ int main(int argc, char **argv) {
 np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
 	np_tree_t* header = msg->header;
 
-	char* reply_to = NULL; // All
+	np_dhkey_t reply_to = { 0 };
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
-		reply_to = np_treeval_to_str(repl_to->val, NULL);
+		reply_to = repl_to->val.value.dhkey;
 		char* text;
 		np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
 		if (NULL != txt) {
@@ -141,7 +141,7 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 		} else {
 			text = "<NON TEXT MSG>";
 		}
-		np_send_text("echo", text, 0, reply_to);
+		np_send_text("echo", text, 0, &reply_to);
 	}
 	return TRUE;
 }

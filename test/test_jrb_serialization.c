@@ -81,18 +81,25 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
 	tst.t[6] = 7;
 	tst.t[7] = 8;
 
-    np_treeval_t val = np_treeval_new_dhkey(tst);
-	cr_expect(val.type == np_treeval_type_dhkey, "Expected source val to be of type np_treeval_type_dhkey. But is: %"PRIu8, val.type);
 	cr_expect(total_write_count == 0, "Expected empty buffer. But size is %"PRIu32, total_write_count);
-    __np_tree_serialize_write_type(val, &cmp_write);
+
+	np_treeval_t val = np_treeval_new_dhkey(tst);
+	cr_expect(val.type == np_treeval_type_dhkey, "Expected source val to be of type np_treeval_type_dhkey. But is: %"PRIu8, val.type);
+
+	__np_tree_serialize_write_type(val, &cmp_write);
+
 	cr_assert(cmp_write.error == ERROR_NONE, "expect no error on write. But is: %"PRIu8, cmp_write.error);
 
-	                             //8 * (marker of uint32 + content of uint32)
-	uint32_t expected_obj_size =  (8 * (sizeof(uint8_t)  + sizeof(uint32_t)));
-								  // marker EXT32    + size of EXT32    + type of EXT32
+	                                // 8 * (marker of uint32 + content of uint32)
+	uint32_t expected_obj_size   =  (  8 * (sizeof(uint8_t)  + sizeof(uint32_t)) );
+
+								    // marker EXT32  + size of EXT32    + type of EXT32
 	uint32_t expected_write_size =  (sizeof(uint8_t) + sizeof(uint32_t) + sizeof(uint8_t) + expected_obj_size);
 
-	cr_expect(total_write_count == expected_write_size, "Expected write size is %"PRIu32" but is %"PRIu32, expected_write_size, total_write_count);
+	fprintf(stdout, "expected obj size: %d / write size: %d\n", expected_obj_size, expected_write_size);
+	fprintf(stdout, "expected obj size: %d / wrote size: %d\n", expected_obj_size, total_write_count);
+
+	cr_expect(total_write_count == expected_write_size, "Expected write size is %d but is %d", expected_write_size, total_write_count);
 	uint32_t expected_read_count = total_write_count;
 
 
@@ -167,7 +174,7 @@ Test(test_serialization, serialize_np_dhkey_t_in_np_tree_t_, .description="test 
 
 	cr_assert(cmp_write.error == ERROR_NONE, "expect no error on write. But is: %"PRIu8, cmp_write.error);
 
-	uint32_t expected_write_size =  63;
+	uint32_t expected_write_size =  64;
 
 	cr_expect(total_write_count == expected_write_size, "Expected write size is %"PRIu32" but is %"PRIu32, expected_write_size, total_write_count);
 	uint32_t expected_read_count = total_write_count;
@@ -359,10 +366,10 @@ Test(test_serialization, np_tree_serialize, .description="test the serialization
 	tmpEle = np_tree_find_str(out_jrb, "np.test2");
 	
 	cr_assert(tmpEle != NULL, "Expect to find element np.test2");
-	cr_expect((tmp8 = tmpEle->key.type) == np_treeval_type_special_char_ptr, "Expect element key to be of type np_treeval_type_special_char_ptr and not %"PRIu8, tmp8);
-	cr_expect(tmpEle->key.value.ush == 0, "Expect element key to be the same");
+	cr_expect(tmpEle->key.type == np_treeval_type_special_char_ptr, "Expect element key to be of type np_treeval_type_special_char_ptr" );
+	cr_expect(tmpEle->key.value.ush  == 0, "Expect element key to be the same");
 	cr_expect(tmpEle->val.type == np_treeval_type_char_ptr, "Expect element value to be of type np_treeval_type_char_ptr");
-	cr_expect(strcmp( np_treeval_to_str(tmpEle->val, NULL), "test") ==0, "Expect element value to be the same");
+	cr_expect(strcmp( np_treeval_to_str(tmpEle->val, NULL), "test") == 0, "Expect element value to be the same");
 
 
 	/*
