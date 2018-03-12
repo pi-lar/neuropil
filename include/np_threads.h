@@ -247,14 +247,14 @@ char* np_threads_printpool(np_bool asOneLine);
 	TYPE NAME;										\
 	np_mutex_t NAME##_mutex;		
 
-#define TSP_INITD(TYPE, NAME, DEFAULT_VALUE)		\
+#define TSP_INITD(NAME, DEFAULT_VALUE)				\
 	_np_threads_mutex_init(&NAME##_mutex,#NAME);	\
-	TSP_SET(TYPE, NAME, DEFAULT_VALUE)
+	TSP_SET(NAME, DEFAULT_VALUE)
 
-#define TSP_INIT(TYPE, NAME)						\
+#define TSP_INIT(NAME)								\
 	_np_threads_mutex_init(&NAME##_mutex,#NAME);	
 
-#define TSP_DESTROY(TYPE, NAME)						\
+#define TSP_DESTROY(NAME)							\
 	_np_threads_mutex_destroy(&NAME##_mutex);	
 
 #define TSP_GET(TYPE, NAME, RESULT)					\
@@ -262,11 +262,11 @@ char* np_threads_printpool(np_bool asOneLine);
 	_LOCK_ACCESS(&NAME##_mutex){					\
 		RESULT = NAME;								\
 	}
-#define TSP_SET(TYPE, NAME, VALUE)					\
+#define TSP_SET(NAME, VALUE)						\
 	_LOCK_ACCESS(&NAME##_mutex){					\
 		NAME = VALUE;								\
 	}
-#define TSP_SCOPE(TYPE, NAME)						\
+#define TSP_SCOPE(NAME)								\
 	_LOCK_ACCESS(&NAME##_mutex)
 
 

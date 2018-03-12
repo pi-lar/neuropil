@@ -185,7 +185,7 @@ void _np_msgproperty_t_new(void* property)
 	prop->msg_ttl	= 20.0;
 
 	prop->max_threshold = 10;
-	TSP_INITD(uint16_t, prop->msg_threshold, 0);
+	TSP_INITD(prop->msg_threshold, 0);
 
 	prop->is_internal = FALSE;
 	prop->last_update = np_time_now();
@@ -321,7 +321,7 @@ void _np_msgproperty_t_del(void* property)
 		sll_free(np_callback_t, prop->clb_outbound);
 		sll_free(np_callback_t, prop->clb_inbound);
 
-		TSP_DESTROY(uint16_t, prop->msg_threshold);
+		TSP_DESTROY( prop->msg_threshold);
 
 
 	}
@@ -530,14 +530,14 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 }
 
 void _np_msgproperty_threshold_increase(np_msgproperty_t* self) {
-	TSP_SCOPE(uint16_t, self->msg_threshold) {
+	TSP_SCOPE(self->msg_threshold) {
 		if(self->msg_threshold < UINT16_MAX){
 			self->msg_threshold++;
 		}
 	}
 }
 void _np_msgproperty_threshold_decrease(np_msgproperty_t* self) {
-	TSP_SCOPE(uint16_t, self->msg_threshold){
+	TSP_SCOPE(self->msg_threshold){
 		if(self->msg_threshold > 0){
 			self->msg_threshold--;
 		}

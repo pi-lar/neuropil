@@ -21,7 +21,7 @@ extern "C" {
 	 - x64								(enable 64 Bit support)	(is automaticly set by SConstruct file)
 	 - CONSOLE_LOG						(prints the log in stdout)
 	 - NP_BENCHMARKING					if defined enables the performance point macros and sets the size of the calucations array
-	 - NP_STATISTICS_COUNTER
+	 - NP_STATISTICS_COUNTER			enables the statistics (in/out bytes, forwarding counter) statistics
 */
 #ifdef DEBUG
 	//#define DEBUG_CALLBACKS 1

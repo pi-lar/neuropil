@@ -96,7 +96,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
 	np_tryref_obj(np_key_t, to_destroy, to_destroyExists, __func__);
 	if(to_destroyExists) {
-		TSP_SCOPE(np_bool, to_destroy->in_destroy)
+		TSP_SCOPE(to_destroy->in_destroy)
 		{
 			to_destroy->in_destroy = TRUE;
 
@@ -180,7 +180,7 @@ void _np_key_t_new(void* key)
 	np_key_t* new_key = (np_key_t*) key;
 
 	new_key->type = np_key_type_unknown;
-	TSP_INITD(np_bool, new_key->in_destroy, FALSE);
+	TSP_INITD(new_key->in_destroy, FALSE);
 
 	new_key->last_update = np_time_now();
 
@@ -228,7 +228,7 @@ void _np_key_t_del(void* key)
 	np_unref_obj(np_node_t,     	old_key->node,ref_key_node);
 	np_unref_obj(np_network_t,  	old_key->network,ref_key_network);
 
-	TSP_DESTROY(np_bool, old_key->in_destroy);
+	TSP_DESTROY(old_key->in_destroy);
 
 }
 

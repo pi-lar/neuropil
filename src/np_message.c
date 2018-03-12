@@ -69,12 +69,12 @@ void _np_message_t_new(void* msg)
 	msg_tmp->no_of_chunks = 1;
 	msg_tmp->is_single_part = FALSE;
 	
-	TSP_INITD(np_bool,	msg_tmp->is_acked , FALSE);
+	TSP_INITD(msg_tmp->is_acked , FALSE);
 	sll_init(np_responsecontainer_on_t, msg_tmp->on_ack);
-	TSP_INITD(np_bool, msg_tmp->is_in_timeout, FALSE);
+	TSP_INITD(msg_tmp->is_in_timeout, FALSE);
 	sll_init(np_responsecontainer_on_t, msg_tmp->on_timeout);
 	
-	TSP_INITD(np_bool, msg_tmp->has_reply, FALSE);
+	TSP_INITD(msg_tmp->has_reply, FALSE);
 	sll_init(np_message_on_reply_t, msg_tmp->on_reply);
 
 	pll_init(np_messagepart_ptr, msg_tmp->msg_chunks);	
@@ -109,9 +109,9 @@ void _np_message_t_del(void* data)
 	sll_free(np_responsecontainer_on_t, msg->on_timeout);
 	sll_free(np_message_on_reply_t, msg->on_reply);
 
-	TSP_DESTROY(np_bool, msg->is_acked);
-	TSP_DESTROY(np_bool, msg->is_in_timeout);
-	TSP_DESTROY(np_bool, msg->has_reply);
+	TSP_DESTROY(msg->is_acked);
+	TSP_DESTROY(msg->is_in_timeout);
+	TSP_DESTROY(msg->has_reply);
 
 	np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
 
@@ -1153,14 +1153,14 @@ char* _np_message_get_subject(np_message_t* msg) {
 
 void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply) {
 
-	TSP_SCOPE(np_bool, self->has_reply) {
+	TSP_SCOPE(self->has_reply) {
 		sll_append(np_message_on_reply_t, self->on_reply, on_reply);
 	}
 }
 
 void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_reply_to_remove) {
 
-	TSP_SCOPE(np_bool, self->has_reply) {
+	TSP_SCOPE(self->has_reply) {
 		sll_remove(np_message_on_reply_t, self->on_reply, on_reply_to_remove, np_message_on_reply_t_sll_compare_type);
 	}
 }

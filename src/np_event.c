@@ -60,8 +60,8 @@ void _np_events_idle(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher
 
 
 #define __NP_EVENT_EVLOOP_INIT(LOOPNAME)															\
-	TSP_INITD(double, __loop_##LOOPNAME##_suspend_wait, 0);											\
-	TSP_INIT(ev_async, __libev_async_watcher_##LOOPNAME);											\
+	TSP_INITD(__loop_##LOOPNAME##_suspend_wait, 0);											\
+	TSP_INIT(__libev_async_watcher_##LOOPNAME);											\
 	_np_threads_mutex_init(&__loop_##LOOPNAME##_suspend, "loop_"#LOOPNAME"_suspend");				\
 	__loop_##LOOPNAME = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);								\
 	if (__loop_##LOOPNAME == FALSE) {																\
@@ -106,17 +106,17 @@ void _np_events_idle(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher
 	void _np_suspend_event_loop_##LOOPNAME()														\
 	{																								\
 		np_event_init();																			\
-		TSP_SCOPE(double, __loop_##LOOPNAME##_suspend_wait) {										\
+		TSP_SCOPE(__loop_##LOOPNAME##_suspend_wait) {										\
 			__loop_##LOOPNAME##_suspend_wait++;														\
 		}																							\
-		TSP_SCOPE(static ev_async, __libev_async_watcher_##LOOPNAME) {								\
+		TSP_SCOPE(__libev_async_watcher_##LOOPNAME) {								\
 			ev_async_send(_np_event_get_loop_##LOOPNAME(), &__libev_async_watcher_##LOOPNAME);   	\
 		}																							\
 		_LOCK_ACCESS(&__loop_##LOOPNAME##_suspend) {/* wait for loop to break*/; } 					\
 	}																								\
 	void _np_resume_event_loop_##LOOPNAME()															\
 	{																								\
-		TSP_SCOPE(double, __loop_##LOOPNAME##_suspend_wait) {										\
+		TSP_SCOPE( __loop_##LOOPNAME##_suspend_wait) {										\
 			__loop_##LOOPNAME##_suspend_wait--;														\
 		}																							\
 	}																								\

@@ -103,9 +103,9 @@ np_bool np_statistics_init() {
 	sll_init(char_ptr, __watched_subjects);
 
 #ifdef NP_STATISTICS_COUNTER
-	TSP_INITD(double, __forwarding_counter, 0);
-	TSP_INITD(uint32_t, __network_send_bytes, 0);
-	TSP_INITD(uint32_t, __network_received_bytes, 0);	
+	TSP_INITD(__forwarding_counter, 0);
+	TSP_INITD(__network_send_bytes, 0);
+	TSP_INITD(__network_received_bytes, 0);	
 	__network_received_bytes_per_sec_last = __network_send_bytes_per_sec_last = np_time_now();
 #endif
 
@@ -366,7 +366,7 @@ char * np_statistics_print(np_bool asOneLine) {
 	uint32_t __network_send_bytes_r, __network_received_bytes_r;
 	double timediff;
 	static const double timediff_threshhold = 1;
-	TSP_SCOPE(uint32_t, __network_send_bytes)
+	TSP_SCOPE(__network_send_bytes)
 	{
 		__network_send_bytes_r = __network_send_bytes;
 
@@ -377,7 +377,7 @@ char * np_statistics_print(np_bool asOneLine) {
 			__network_send_bytes_per_sec_remember = __network_send_bytes;
 		}
 	}
-	TSP_SCOPE(uint32_t, __network_received_bytes)
+	TSP_SCOPE(__network_received_bytes)
 	{
 		__network_received_bytes_r = __network_received_bytes;
 		timediff = now - __network_received_bytes_per_sec_last;
@@ -403,20 +403,20 @@ char * np_statistics_print(np_bool asOneLine) {
 
 #ifdef NP_STATISTICS_COUNTER
 void __np_increment_forwarding_counter() {
-	TSP_SCOPE(double, __forwarding_counter) {
+	TSP_SCOPE(__forwarding_counter) {
 		__forwarding_counter++;
 	}
 }
 
 void __np_statistics_add_send_bytes(uint32_t add) {
-	TSP_SCOPE(uint32_t, __network_send_bytes)
+	TSP_SCOPE(__network_send_bytes)
 	{
 		__network_send_bytes += add;		
 	}
 }
 
 void __np_statistics_add_received_bytes(uint32_t add) {	
-	TSP_SCOPE(uint32_t, __network_received_bytes)
+	TSP_SCOPE(__network_received_bytes)
 	{		
 		__network_received_bytes += add;
 	}

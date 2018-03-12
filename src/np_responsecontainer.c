@@ -33,7 +33,7 @@ void _np_responsecontainer_received_ack(np_responsecontainer_t* entry)
 
 	if (entry->msg != NULL) {
 
-		TSP_SET(np_bool, entry->msg->is_acked, TRUE);
+		TSP_SET(entry->msg->is_acked, TRUE);
 		
 		{
 			if (sll_size(entry->msg->on_ack) > 0) {
@@ -57,7 +57,7 @@ void _np_responsecontainer_set_timeout(np_responsecontainer_t* entry)
 	_np_node_update_stat(entry->dest_key->node, FALSE);
 
 	if (entry->msg != NULL) {
-		TSP_SET(np_bool, entry->msg->is_in_timeout, TRUE);
+		TSP_SET(entry->msg->is_in_timeout, TRUE);
 		if (sll_size(entry->msg->on_timeout) > 0) {
 			sll_iterator(np_responsecontainer_on_t) iter_on = sll_first(entry->msg->on_timeout);
 			while (iter_on != NULL)
@@ -77,7 +77,7 @@ void _np_responsecontainer_received_response(np_responsecontainer_t* entry, np_m
 
 	if (entry->msg != NULL) {
 
-		TSP_SET(np_bool, entry->msg->has_reply, TRUE);
+		TSP_SET(entry->msg->has_reply, TRUE);
 
 		if (sll_size(entry->msg->on_reply) > 0) {
 			sll_iterator(np_message_on_reply_t) iter_on = sll_first(entry->msg->on_reply);

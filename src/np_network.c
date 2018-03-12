@@ -412,7 +412,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 							}
 							if (current_write_per_data > 0) {
 								written_per_data += current_write_per_data;
-								// _np_statistics_add_send_bytes(current_write_per_data);
+								 _np_statistics_add_send_bytes(current_write_per_data);
 							}
 						} while (written_per_data < MSG_CHUNK_SIZE_1024);
 						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "out_msg_len %zd bytes", written_per_data);
@@ -718,7 +718,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL, data);
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
 					_np_key_as_str(key));
-				// _np_statistics_add_received_bytes(in_msg_len);
+				 _np_statistics_add_received_bytes(in_msg_len);
 			}
 			else {
 				np_memory_free(data);
@@ -907,7 +907,7 @@ void _np_network_t_del(void* nw)
 		_np_threads_mutex_destroy(&network->access_lock);
 		_np_threads_mutex_destroy(&network->waiting_lock);
 
-		TSP_DESTROY(np_bool, network->can_be_enabled);
+		TSP_DESTROY( network->can_be_enabled);
 	}
 }
 
@@ -928,7 +928,7 @@ void _np_network_t_new(void* nw)
 	_np_threads_mutex_init(&ng->out_events_lock, "network out_events_lock");
 	_np_threads_mutex_init (&ng->waiting_lock, "network waiting_lock");
 
-	TSP_INITD(np_bool, ng->can_be_enabled, TRUE);
+	TSP_INITD( ng->can_be_enabled, TRUE);
 }
 
 /** _np_network_init:
@@ -1168,7 +1168,7 @@ char* np_network_get_port(np_key_t * container) {
 
 void _np_network_disable(np_network_t* self) {
 	if(self != NULL){
-		TSP_SET(np_bool, self->can_be_enabled, FALSE);
+		TSP_SET(self->can_be_enabled, FALSE);
 		_np_network_stop(self, TRUE);
 	}
 }

@@ -64,7 +64,7 @@ np_bool _np_route_init (np_key_t* me)
 	__routing_table = (np_routeglobal_t *) calloc (1, sizeof (np_routeglobal_t));
 	CHECK_MALLOC(__routing_table);
 
-	TSP_INITD(char*, __routing_table->bootstrap_key, NULL);
+	TSP_INITD(__routing_table->bootstrap_key, NULL);
 
 	_np_route_set_key(me);
 	// np_ref_obj(np_key_t, __routing_table->my_key, ref_route_routingtable_mykey);
@@ -868,7 +868,7 @@ void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {
 	log_trace_msg(LOG_TRACE | LOG_ROUTING, "void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {");
 		
 	TSP_GET(char*, __routing_table->bootstrap_key, old);
-	TSP_SET(char*, __routing_table->bootstrap_key, np_get_connection_string_from(bootstrap_key, FALSE));
+	TSP_SET(__routing_table->bootstrap_key, np_get_connection_string_from(bootstrap_key, FALSE));
 	free(old);
 }
 
