@@ -20,6 +20,7 @@ parser.add_argument('-oh', nargs='?', type=int, default=1, help='Host sysinfo co
 parser.add_argument('-oc', nargs='?', type=int, default=1, help='Clients sysinfo config')
 parser.add_argument('-p', nargs='?', default="udp4", help='port type')
 parser.add_argument('-s', nargs='?', default=1, help='Statistics View')
+parser.add_argument('--path', nargs='?', default="./", help='Path to bin folder (ex.: "./bin/")')
 
 args = parser.parse_args()
 
@@ -48,7 +49,7 @@ else:
     session= server.new_session("np", True)
 
     nb = session.new_window(attach=True, window_name="neuropil bootstraper")
-    nb.attached_pane.send_keys('./neuropil_node -b 3000 -t {} -p {}  -d {} -u {} -o {} -s {} {}'.format(
+    nb.attached_pane.send_keys(args.path + 'neuropil_node -b 3000 -t {} -p {}  -d {} -u {} -o {} -s {} {}'.format(
     threads, port_type, loglevel, publish_domain, sysinfo, statistics, autoclose))
 
     for i in range(count):
@@ -58,7 +59,7 @@ else:
       nn = session.new_window(attach=False, window_name="neuropil node {0:02d}".format(i))
       prefix = ''
       #prefix += 'perf record --call-graph dwarf -a --timestamp-filename '
-      nn.attached_pane.send_keys(prefix + './neuropil_node -b {} -t {} -p {} -o {} -j *:udp4:{}:3000 -d {} -s {} {}'.format(
+      nn.attached_pane.send_keys(prefix + args.path + 'neuropil_node -b {} -t {} -p {} -o {} -j *:udp4:{}:3000 -d {} -s {} {}'.format(
       3000+i, threads, port_type, sysinfo_client, publish_domain, loglevel, statistics, autoclose))
 
   if not args.k:

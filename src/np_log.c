@@ -172,22 +172,29 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		int32_t millis = tval.tv_usec;
 		localtime_r(&tval.tv_sec, &local_time);
 
-		char* new_log_entry = malloc(sizeof(char)*LOG_ROW_SIZE);
-		CHECK_MALLOC(new_log_entry);
+		char* prefix = malloc(sizeof(char)*LOG_ROW_SIZE);
+		CHECK_MALLOC(prefix);
 
-		strftime(new_log_entry, 80, "%Y-%m-%d %H:%M:%S", &local_time);
-		int new_log_entry_length = strlen(new_log_entry);
-		snprintf(new_log_entry + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length,
+		strftime(prefix, 80, "%Y-%m-%d %H:%M:%S", &local_time);
+		int new_log_entry_length = strlen(prefix);
+		snprintf(prefix + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length,
 			".%06d %-15lu %15.15s:%-5hd %-25.25s _%5s_ ",
 			millis, (unsigned long)pthread_self(),
 			srcFile, lineno, funcName,
 			__level_str[level & LOG_LEVEL_MASK].text);
+
+		static const char* suffix = "\n";
+
+		char* log_msg;
 		va_list ap;
 		va_start(ap, msg);
-		new_log_entry_length = strlen(new_log_entry);
-		vsnprintf(new_log_entry + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length - 1/*space for line ending*/ - 1 /*space for NULL terminator*/, msg, ap);
+		vasprintf(&log_msg, msg, ap);
 		va_end(ap);
-		snprintf(new_log_entry + strlen(new_log_entry), 2, "\n");
+		char* new_log_entry;
+		asprintf(&new_log_entry, "%s %s%s", prefix, log_msg, suffix);
+		free(prefix);
+		free(log_msg);
+
 
 #if defined(CONSOLE_LOG) && CONSOLE_LOG == 1
 		fprintf(stdout, new_log_entry);
@@ -195,7 +202,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 #endif
 
 		if (0 == pthread_mutex_lock(&__log_mutex))
-		{
+		{			
 			sll_append(char_ptr, __logger->logentries_l, new_log_entry);
 
 			pthread_mutex_unlock(&__log_mutex);

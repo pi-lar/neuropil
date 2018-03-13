@@ -242,7 +242,9 @@ void _np_job_resubmit_msgout_event(double delay, np_msgproperty_t* prop, np_key_
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_RESUBMIT_MSG_OUT, prop->clb_outbound, "clb_outbound");
 
-	_np_job_queue_insert(new_job);
+	if (!_np_job_queue_insert(new_job)) {
+		_np_job_free(new_job);
+	}
 }
 
 void _np_job_resubmit_route_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
@@ -256,7 +258,10 @@ void _np_job_resubmit_route_event(double delay, np_msgproperty_t* prop, np_key_t
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE, prop->clb_route, "clb_route");
 
-	_np_job_queue_insert(new_job);
+
+	if (!_np_job_queue_insert(new_job)) {
+		_np_job_free(new_job);
+	}
 }
 
 void _np_job_submit_route_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
@@ -269,7 +274,10 @@ void _np_job_submit_route_event(double delay, np_msgproperty_t* prop, np_key_t* 
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE, prop->clb_route, "clb_route");
 
-	_np_job_queue_insert(new_job);
+
+	if (!_np_job_queue_insert(new_job)) {
+		_np_job_free(new_job);
+	}
 }
 
 np_bool _np_job_submit_msgin_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data)
@@ -303,7 +311,10 @@ void _np_job_submit_transform_event(double delay, np_msgproperty_t* prop, np_key
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG, prop->clb_transform, "clb_transform");
 
-	_np_job_queue_insert(new_job);
+
+	if (!_np_job_queue_insert(new_job)) {
+		_np_job_free(new_job);
+	}
 }
 
 void _np_job_submit_msgout_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
@@ -317,7 +328,10 @@ void _np_job_submit_msgout_event(double delay, np_msgproperty_t* prop, np_key_t*
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_OUT, prop->clb_outbound, "clb_outbound");
 
-	_np_job_queue_insert(new_job);
+
+	if (!_np_job_queue_insert(new_job)) {
+		_np_job_free(new_job);
+	}
 }
 
 void np_job_submit_event_periodic(double priority, double first_delay, double interval, np_callback_t callback, const char* ident)
@@ -333,7 +347,9 @@ void np_job_submit_event_periodic(double priority, double first_delay, double in
 	new_job->interval = interval;
 	new_job->is_periodic = TRUE;
 
-	_np_job_queue_insert(new_job);
+	if (!_np_job_queue_insert(new_job)) {
+		_np_job_free(new_job);
+	}
 }
 
 /** job_queue_create
@@ -603,7 +619,10 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 
 	if (job_to_execute->is_periodic == TRUE) {
 		job_to_execute->exec_not_before_tstamp = np_time_now() + job_to_execute->interval;
-		_np_job_queue_insert(job_to_execute);
+
+		if (!_np_job_queue_insert(job_to_execute)) {
+			_np_job_free(job_to_execute);
+		}
 	}
 	else {
 		// cleanup

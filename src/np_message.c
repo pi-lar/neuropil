@@ -870,7 +870,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			}
 
 			iter->val = NULL;
-			// np_unref_obj(np_messagepart_t, current_chunk, ref_message_messagepart);
+			np_unref_obj(np_messagepart_t, current_chunk, ref_message_messagepart);
 			pll_next(iter);
 		}
 
