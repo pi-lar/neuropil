@@ -47,6 +47,9 @@ NP_API_INTERN
 NP_API_INTERN
 	np_bool _np_job_queue_insert(np_job_t* new_job);
 
+NP_API_INTERN
+	void _np_job_resubmit_msgin_event(double delay, np_jobargs_t* jargs_org);
+
 NP_API_EXPORT
 	void np_job_submit_event_periodic(double priority, double first_delay, double interval, np_callback_t callback, const char* ident);
 

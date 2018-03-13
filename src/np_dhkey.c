@@ -41,7 +41,7 @@ void _np_dhkey_to_str (const np_dhkey_t* k, char* key_string)
 	// TODO: use sodium bin2hex function
 	memset  (key_string, 0, 64);
 
-	sprintf ((char*) key_string,
+	sprintf (key_string,
 		"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32,
 		k->t[0], k->t[1], k->t[2], k->t[3], k->t[4], k->t[5], k->t[6], k->t[7]
 	);

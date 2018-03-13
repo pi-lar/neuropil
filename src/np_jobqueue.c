@@ -247,6 +247,21 @@ void _np_job_resubmit_msgout_event(double delay, np_msgproperty_t* prop, np_key_
 	}
 }
 
+void _np_job_resubmit_msgin_event(double delay, np_jobargs_t* jargs_org)
+{
+	// create runtime arguments
+	np_jobargs_t* jargs = _np_job_create_args(jargs_org->msg, jargs_org->target, jargs_org->properties, __func__);
+	jargs->is_resend = TRUE;
+	jargs->custom_data =  jargs_org->custom_data;
+	
+	// create job itself
+	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_RESUBMIT_MSG_IN, jargs_org->properties->clb_inbound, "clb_inbound");
+
+	if (!_np_job_queue_insert(new_job)) {
+		_np_job_free(new_job);
+	}
+}
+
 void _np_job_resubmit_route_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
 	assert(NULL != prop);
@@ -299,7 +314,11 @@ np_bool _np_job_submit_msgin_event(double delay, np_msgproperty_t* prop, np_key_
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_IN, prop->clb_inbound, "clb_inbound");
 
-	return _np_job_queue_insert(new_job);
+	if (!_np_job_queue_insert(new_job)) {
+		_np_job_free(new_job);
+		new_job = NULL;
+	}
+	return (new_job != NULL);
 }
 
 void _np_job_submit_transform_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)

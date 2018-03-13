@@ -77,6 +77,45 @@ np_bool __np_ncurse_initiated = FALSE;
 np_sll_t(char_ptr, log_buffer);
 int log_user_cursor = 0;
 
+void np_example_print(FILE * stream, const char * format, ...) {
+	va_list args;
+	va_start(args, format);
+	if (__np_ncurse_initiated == FALSE) {
+		vfprintf(stream, format, args);
+		fflush(stream);
+	}
+	else {
+		char* buffer = calloc(1, 500);
+		vsnprintf(buffer, 500, format, args);
+
+		if (buffer[0] != 0) {
+			int added_items = 1;
+			char* tmp_buff_part = strtok(buffer, "\n");
+
+			char_ptr_sll_node_t* item = sll_prepend(char_ptr, log_buffer, tmp_buff_part);
+			while ((tmp_buff_part = strtok(NULL, "\n")) != NULL) {
+				added_items++;
+				item = sll_insert(char_ptr, log_buffer, tmp_buff_part, item);
+			}
+
+			while (sll_size(log_buffer) > LOG_BUFFER_SIZE) {
+				added_items--;
+				sll_iterator(char_ptr) last = sll_last(log_buffer);
+				char* tmp = last->val;
+				sll_delete(char_ptr, log_buffer, last);
+				free(tmp);
+			}
+			if (log_user_cursor != 0) {
+				log_user_cursor += added_items;
+			}
+		}
+		else {
+			free(buffer);
+		}
+	}
+	va_end(args);
+}
+
 
 void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
 	np_bool http_init = FALSE;
@@ -97,14 +136,14 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mo
 	if (opt_sysinfo_mode != np_sysinfo_opt_disable) {
 		if ((http_init && opt_sysinfo_mode == np_sysinfo_opt_auto) || opt_sysinfo_mode == np_sysinfo_opt_force_master)
 		{
-			fprintf(stdout, "HTTP interface set to %s\n", http_domain);
+			np_example_print(stdout, "HTTP interface set to %s\n", http_domain);
 			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
-			fprintf(stdout, "Enable sysinfo master option\n");
+			np_example_print(stdout, "Enable sysinfo master option\n");
 			np_sysinfo_enable_master();
 		}
 		else {
 			fprintf(stdout, "Node could not start HTTP interface\n");
-			fprintf(stdout, "Enable sysinfo slave option\n");
+			np_example_print(stdout, "Enable sysinfo slave option\n");
 			np_sysinfo_enable_slave();
 		}
 		// If you want to you can enable the statistics modulte to view the nodes statistics
@@ -153,45 +192,6 @@ char* np_get_startup_str() {
 	ret = np_str_concatAndFree(ret, new_line);
 
 	return ret;
-}
-
-void np_example_print(FILE * stream, const char * format, ...) {
-	va_list args;
-	va_start(args, format);
-	if (__np_ncurse_initiated == FALSE) {
-		vfprintf(stream, format, args);
-		fflush(stream);
-	}
-	else {
-		char* buffer = calloc(1, 500);
-		vsnprintf(buffer, 500, format, args);
-
-		if (buffer[0] != 0) {
-			int added_items = 1;
-			char* tmp_buff_part =  strtok(buffer, "\n");
-
-			char_ptr_sll_node_t* item = sll_prepend(char_ptr, log_buffer, tmp_buff_part);
-			while ((tmp_buff_part = strtok(NULL, "\n")) != NULL) {
-				added_items++;				
-				item = sll_insert(char_ptr, log_buffer, tmp_buff_part, item);
-			}
-
-			while (sll_size(log_buffer) > LOG_BUFFER_SIZE) {
-				added_items--;
-				sll_iterator(char_ptr) last = sll_last(log_buffer);
-				char* tmp = last->val;
-				sll_delete(char_ptr, log_buffer, last);
-				free(tmp);
-			}
-			if (log_user_cursor != 0) {
-				log_user_cursor += added_items;
-			}
-		}
-		else {
-			free(buffer);
-		}
-	}
-	va_end(args);
 }
 
 void np_print_startup() {

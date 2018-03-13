@@ -68,9 +68,21 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 	np_key_t* target_key = NULL;
 	np_message_t* msg_in = args->msg;
 
-	char* msg_subject = np_treeval_to_str(np_tree_find_str(msg_in->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_target);
 
+	char* msg_subject;
+	np_bool free_msg_subject = FALSE;
+	np_tree_elem_t* ele_subject = np_tree_find_str(msg_in->header, _NP_MSG_HEADER_SUBJECT);
+	if(ele_subject != NULL){
+		msg_subject = np_treeval_to_str(ele_subject->val, &free_msg_subject);
+	}
+	else if(args->properties != NULL){
+		msg_subject = args->properties->msg_subject;
+	}
+	else {
+		ASSERT(FALSE, "A msg subject to route for is required");
+	}
+	
 	np_bool is_a_join_request = FALSE;
 	if (0 == strncmp(msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) )
 	{
@@ -142,13 +154,11 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 		}
 	}
 	np_unref_list(tmp, "_np_route_lookup");
-	sll_free(np_key_ptr, tmp);
-	np_unref_obj(np_key_t, my_key, "np_waitref_obj");
-
-	return;
+	sll_free(np_key_ptr, tmp);	
+	if (free_msg_subject) free(msg_subject);	
 
 	__np_cleanup__:
-		{ /* empty */ }
+		np_unref_obj(np_key_t, my_key, "np_waitref_obj");
 }
 
 void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_check_connections_handler fn) {

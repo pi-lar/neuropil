@@ -284,7 +284,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
 			return "--> subtree";
 			break;
 		case np_treeval_type_dhkey:
-			result = malloc(64);
+			result = malloc(65);
 			CHECK_MALLOC(result);
 			if (freeable != NULL) *freeable = TRUE;
 			_np_dhkey_to_str(&val.value.dhkey, result);

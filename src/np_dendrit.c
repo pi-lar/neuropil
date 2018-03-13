@@ -322,7 +322,9 @@ void _np_in_received(np_jobargs_t* args)
 				}
 			}
 			else {
-				log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "ignoring msg as it is not in protocol to receive a %s msg now.", np_treeval_to_str(msg_subject, NULL));
+				log_debug_msg(LOG_MESSAGE | LOG_ROUTING | LOG_DEBUG, "requeue msg as it is not in protocol to receive a %s msg now.", np_treeval_to_str(msg_subject, NULL));
+			
+				_np_job_resubmit_msgin_event(0.01, args);
 			}
 			// clean the mess up
 		__np_cleanup__:
