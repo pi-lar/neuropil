@@ -298,13 +298,18 @@ void _np_out(np_jobargs_t* args)
 					log_debug_msg(LOG_DEBUG, "initial sending of message (%s/%s) with response",
 											 args->properties->msg_subject, args->msg->uuid);
 
-#ifdef DEBUG
+#ifdef DEBUG					
 					CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_TO, msg_to);
 					{
-						log_debug_msg(LOG_DEBUG, "RESPONSE_HANDLING                   message (%s/%s) %s < - > %s / %d:%s:%s",
+						np_bool freeable = FALSE;
+						char* dhkey_to = np_treeval_to_str(msg_to, &freeable);
+
+						log_debug_msg(LOG_DEBUG, "RESPONSE_HANDLING                   message (%s/%s) %s < - > %s / %"PRIu8":%s:%s",
 								uuid, args->properties->msg_subject,
-								args->target->dhkey_str, msg_to.value.s,
+								 _np_key_as_str(args->target), dhkey_to,
 								args->target->node->joined_network, args->target->node->dns_name, args->target->node->port);
+
+						if (freeable) free(dhkey_to);
 					}
 					__np_cleanup__:
 						{}

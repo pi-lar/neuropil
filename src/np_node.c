@@ -58,6 +58,7 @@ void _np_node_t_new(void* node)
 	entry->last_success = np_time_now();
 	entry->success_win_index = 0;
 	entry->is_handshake_send = FALSE;
+	entry->handshake_send_at = 0;
 	entry->is_handshake_received = FALSE;
 	entry->joined_network = FALSE;
 

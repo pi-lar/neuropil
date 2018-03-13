@@ -221,7 +221,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 				np_messagepart_ptr to_add = NULL;
 				_LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
 					to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks); // get the messagepart we received
-					np_ref_obj(np_messagepart_t, to_add, "usage");
+					np_ref_obj(np_messagepart_t, to_add, __func__);
 					np_unref_obj(np_messagepart_t, to_add, ref_message_messagepart); // as we removed it from the list
 				}
 				log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
@@ -238,7 +238,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 						// new entry is rejected (already present)
 					}
 
-					np_unref_obj(np_messagepart_t, to_add, "usage");
+					np_unref_obj(np_messagepart_t, to_add, __func__);
 
 					// now we check if all chunks are complete for this msg
 					current_count_of_chunks = pll_size(msg_in_cache->msg_chunks);

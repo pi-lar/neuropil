@@ -577,6 +577,8 @@ void _np_thread_t_new(void* obj)
 
 char* np_threads_printpool(np_bool asOneLine) {
 	char* ret = NULL;
+#ifdef NP_THREADS_CHECK_THREADING
+
 	char* new_line = "\n";
 	if (asOneLine == TRUE) {
 		new_line = "    ";
@@ -586,7 +588,6 @@ char* np_threads_printpool(np_bool asOneLine) {
 		sll_iterator(np_thread_ptr) iter_threads = sll_first(np_state()->threads);
 		ret = np_str_concatAndFree(ret, "--- Threadpool START ---%s", new_line);
 
-#ifdef NP_THREADS_CHECK_THREADING
 		np_sll_t(char_ptr, tmp);
 		char * tmp2;
 		while (iter_threads != NULL)
@@ -607,15 +608,16 @@ char* np_threads_printpool(np_bool asOneLine) {
 			}
 			sll_next(iter_threads);
 		}
-#else
-		while (iter_threads != NULL)
-		{
-			ret = np_str_concatAndFree(ret, "Thread %"PRIu32" %s", iter_threads->val->id, new_line);
-			sll_next(iter_threads);
-		}
-#endif
+//#else
+//		while (iter_threads != NULL)
+//		{
+//			ret = np_str_concatAndFree(ret, "Thread %"PRIu32" %s", iter_threads->val->id, new_line);
+//			sll_next(iter_threads);
+//		}
+//#endif
 	}
 	ret = np_str_concatAndFree(ret, "--- Threadpool END   ---%s", new_line);
+#endif
 
 	return ret;
 }

@@ -350,7 +350,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_dhkey_t key, uint8_t count)
 #ifdef DEBUG
 		char key_as_str[255] = { 0 };
 		_np_dhkey_to_str(&key, key_as_str);
-		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "TARGET:", key_as_str);
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "TARGET: %s", key_as_str);
 #endif
 		/*calculate the leafset and table size */
 		Lsize = sll_size(__routing_table->left_leafset);
@@ -891,7 +891,7 @@ void _np_route_rejoin_bootstrap(np_bool force) {
 			{
 				if(force == FALSE)
 				{
-					log_msg(LOG_WARN, "lost all connections. try to reconnect to bootstrap host");
+					log_msg(LOG_WARN, "lost all connections. try to reconnect to bootstrap host \"%s\"", bootstrap);
 				}
 				np_send_wildcard_join(bootstrap);
 			}

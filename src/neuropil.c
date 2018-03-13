@@ -1180,5 +1180,6 @@ np_bool np_has_receiver_for(char * subject) {
 		}
 		np_unref_obj(np_aaatoken_t, token, "_np_aaatoken_get_receiver");
 	}
+
 	return ret;
 }

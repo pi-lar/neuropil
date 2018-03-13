@@ -128,9 +128,6 @@ void _np_network_remap_network( np_key_t* new_target, np_key_t* old_target);
 NP_API_INTERN
 np_bool _np_network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);
 
-NP_API_INTERN
-void _network_destroy (np_network_t* network);
-
 /**
  ** _np_network_append_msg_to_out_queue:
  ** Sends a message to host
@@ -145,11 +142,11 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t* node,  np_message_t* msg)
 NP_API_INTERN
 void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
-void _np_network_send_from_events(struct ev_loop *loop, ev_io *event, int revents);
+void _np_network_send_from_events(NP_UNUSED struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
-void _np_network_read(struct ev_loop *loop, ev_io *event, int revents);
+void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED int revents);
 NP_API_INTERN
-void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents);
+void _np_network_accept(NP_UNUSED struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
 char* np_network_get_ip(np_key_t * container);
 NP_API_INTERN

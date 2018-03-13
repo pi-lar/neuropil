@@ -45,7 +45,7 @@ NP_API_INTERN
 	np_bool _np_job_queue_create();
 
 NP_API_INTERN
-	void _np_job_queue_insert(np_job_t* new_job);
+	np_bool _np_job_queue_insert(np_job_t* new_job);
 
 NP_API_EXPORT
 	void np_job_submit_event_periodic(double priority, double first_delay, double interval, np_callback_t callback, const char* ident);
@@ -54,7 +54,7 @@ NP_API_INTERN
 	void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
 
 NP_API_INTERN
-	void _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data);
+	np_bool _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data);
 
 NP_API_INTERN
 	void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);

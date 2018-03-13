@@ -48,7 +48,7 @@ void _np_events_async_break(struct ev_loop *loop, NP_UNUSED ev_async *watcher, N
 
 void _np_events_idle(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents)
 {
-	ev_sleep(NP_PI/1000);
+	np_time_sleep(NP_EVENT_IO_CHECK_PERIOD_SEC);
 }
 
 #define __NP_EVENT_EVLOOP_STRUCTS(LOOPNAME)															\
@@ -60,8 +60,8 @@ void _np_events_idle(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher
 
 
 #define __NP_EVENT_EVLOOP_INIT(LOOPNAME)															\
-	TSP_INITD(__loop_##LOOPNAME##_suspend_wait, 0);											\
-	TSP_INIT(__libev_async_watcher_##LOOPNAME);											\
+	TSP_INITD(__loop_##LOOPNAME##_suspend_wait, 0);													\
+	TSP_INIT(__libev_async_watcher_##LOOPNAME);														\
 	_np_threads_mutex_init(&__loop_##LOOPNAME##_suspend, "loop_"#LOOPNAME"_suspend");				\
 	__loop_##LOOPNAME = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);								\
 	if (__loop_##LOOPNAME == FALSE) {																\
@@ -72,8 +72,8 @@ void _np_events_idle(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher
 	ev_set_timeout_collect_interval(__loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);				\
 	ev_async_init(&__libev_async_watcher_##LOOPNAME, _np_events_async_break);						\
 	ev_async_start(__loop_##LOOPNAME, &__libev_async_watcher_##LOOPNAME);							\
-    ev_idle_init(&__loop_##LOOPNAME##_idle_watcher, _np_events_idle); 								\
-    ev_idle_start(__loop_##LOOPNAME, &__loop_##LOOPNAME##_idle_watcher); 							\
+    /*ev_idle_init(&__loop_##LOOPNAME##_idle_watcher, _np_events_idle); 							\
+    ev_idle_start(__loop_##LOOPNAME, &__loop_##LOOPNAME##_idle_watcher); 							*/\
 	ev_verify(__loop_##LOOPNAME);																	\
 
 
@@ -100,16 +100,16 @@ void _np_events_idle(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher
 					ev_run( EV_A_(0) );													            \
 				}																					\
 			}																						\
-			ev_sleep(NP_PI/1000); 																	\
+			np_time_sleep(NP_SLEEP_MIN);															\
 		}																							\
 	}																								\
 	void _np_suspend_event_loop_##LOOPNAME()														\
 	{																								\
 		np_event_init();																			\
-		TSP_SCOPE(__loop_##LOOPNAME##_suspend_wait) {										\
+		TSP_SCOPE(__loop_##LOOPNAME##_suspend_wait) {												\
 			__loop_##LOOPNAME##_suspend_wait++;														\
 		}																							\
-		TSP_SCOPE(__libev_async_watcher_##LOOPNAME) {								\
+		TSP_SCOPE(__libev_async_watcher_##LOOPNAME) {												\
 			ev_async_send(_np_event_get_loop_##LOOPNAME(), &__libev_async_watcher_##LOOPNAME);   	\
 		}																							\
 		_LOCK_ACCESS(&__loop_##LOOPNAME##_suspend) {/* wait for loop to break*/; } 					\

@@ -164,9 +164,10 @@ void _np_job_free_args(np_jobargs_t* args)
 	args = NULL;
 }
 
-void _np_job_queue_insert(np_job_t* new_job)
+np_bool _np_job_queue_insert(np_job_t* new_job)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_job_queue_insert(double delay, np_job_t* new_job){");
+	np_bool ret = FALSE;
 
 	log_debug_msg(LOG_JOBS | LOG_DEBUG, "insert job into jobqueue (%p | %-70s). (property: %45s) (msg: %-36s) (target: %s)", new_job, new_job->ident,
 		(new_job->args == NULL || new_job->args->properties == NULL) ? "-" : new_job->args->properties->msg_subject,
@@ -191,6 +192,7 @@ void _np_job_queue_insert(np_job_t* new_job)
 		} else {
 			// log_debug_msg(LOG_DEBUG, "insert  worker thread (%p) to job (%p) %s", NULL, new_job, new_job->ident);
 			pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_scheduling);
+			ret = TRUE;
 		}
 
 //		while (overflow_count > 0) {
@@ -214,6 +216,7 @@ void _np_job_queue_insert(np_job_t* new_job)
 //		}
 	}
 	_np_jobqueue_check();
+	return ret;
 }
 
 void _np_jobqueue_check() {
@@ -269,7 +272,7 @@ void _np_job_submit_route_event(double delay, np_msgproperty_t* prop, np_key_t* 
 	_np_job_queue_insert(new_job);
 }
 
-void _np_job_submit_msgin_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data)
+np_bool _np_job_submit_msgin_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data)
 {
 	// could be NULL if msg is not defined in this node
 	// assert(NULL != prop);
@@ -288,7 +291,7 @@ void _np_job_submit_msgin_event(double delay, np_msgproperty_t* prop, np_key_t* 
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_IN, prop->clb_inbound, "clb_inbound");
 
-	_np_job_queue_insert(new_job);
+	return _np_job_queue_insert(new_job);
 }
 
 void _np_job_submit_transform_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)

@@ -76,6 +76,9 @@ void _np_sysinfo_slave_send_cb(NP_UNUSED np_jobargs_t* args) {
 
 		np_unref_obj(np_key_t, my_node_key, "usage");
 	}
+	else {
+		log_debug_msg(LOG_DEBUG| LOG_SYSINFO, "no receiver token for \""_NP_SYSINFO_REPLY"\"");
+	}
 
 }
 

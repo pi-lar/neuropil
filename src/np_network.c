@@ -272,13 +272,18 @@ np_bool _np_network_send_handshake(np_key_t* node_key)
 	np_bool ret = FALSE;
 	if(node_key != NULL && node_key->node != NULL) {
 		_LOCK_ACCESS(&(node_key->node->lock)){
-			if (node_key->node->is_handshake_send == FALSE)
+			double now = np_time_now();
+			np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
+			
+			if (node_key->node->is_handshake_send == FALSE || 
+				(node_key->node->is_handshake_received == FALSE && now > (node_key->node->handshake_send_at + msg_prop->msg_ttl)))
 			{
 				log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
 					node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
 
 				node_key->node->is_handshake_send = TRUE;
-				np_msgproperty_t* msg_prop = np_msgproperty_get(OUTBOUND, _NP_MSG_HANDSHAKE);
+				node_key->node->handshake_send_at = now;
+				
 				_np_job_submit_transform_event(0.0, msg_prop, node_key, NULL);				
 				ret = TRUE;
 			}
@@ -641,7 +646,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			// repeat if msg is not 1024 bytes in size and the timeout is not reached
 		} while (in_msg_len > 0 && in_msg_len < MSG_CHUNK_SIZE_1024 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
 
-		log_debug_msg(LOG_DEBUG | LOG_NETWORK, "in_msg_len %d bytes", in_msg_len);
+		log_debug_msg(LOG_DEBUG | LOG_NETWORK, "in_msg_len %"PRIi16" bytes", in_msg_len);
 
 		if (in_msg_len >= 0) {
 			msgs_received++;
@@ -827,6 +832,7 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 void _np_network_start(np_network_t* network){
 	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
 	if (NULL != network) {
+		np_ref_obj(np_network_t, network, __func__);
 		TSP_GET(np_bool, network->can_be_enabled, can_be_enabled);
 		if(can_be_enabled){
 			_LOCK_ACCESS(&network->out_events_lock) {
@@ -837,7 +843,7 @@ void _np_network_start(np_network_t* network){
 						if (FLAG_CMP(network->type , np_network_type_client)) {
 							log_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
 							_np_suspend_event_loop_out();
-							loop = _np_event_get_loop_out();
+							EV_A = _np_event_get_loop_out();
 							ev_io_start(EV_A_ &network->watcher);
 							_np_resume_event_loop_out();
 						}
@@ -845,7 +851,7 @@ void _np_network_start(np_network_t* network){
 						if (FLAG_CMP(network->type , np_network_type_server)) {
 							log_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
 							_np_suspend_event_loop_in();
-							loop = _np_event_get_loop_in();
+							EV_A = _np_event_get_loop_in();
 							ev_io_start(EV_A_ &network->watcher);
 							_np_resume_event_loop_in();
 						}
@@ -854,6 +860,7 @@ void _np_network_start(np_network_t* network){
 				}
 			}
 		}
+		np_unref_obj(np_network_t, network, __func__);
 	}
 }
 

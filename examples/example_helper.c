@@ -854,8 +854,8 @@ void __np_example_helper_loop() {
 		case 101:	// e
 			__np_example_reset_ncurse();
 			break;
-		case 63:	// c
-		case 43:	// C
+		case 99:	// c
+		case 67:	// C
 			__np_stat_switchable_window = __np_stat_msgpartcache_win;
 			log_user_cursor = 0;
 			break;

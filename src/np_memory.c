@@ -228,7 +228,8 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 			if (
 				TRUE == extended
 				//&& iter->type == np_key_t_e				
-				&& sll_size(iter->reasons) > 5
+				&& iter->type == np_messagepart_t_e
+				//&& sll_size(iter->reasons) > 5
 				) {
 				ret = np_str_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, iter->type, sll_size(iter->reasons), new_line);
 

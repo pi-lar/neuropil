@@ -228,13 +228,17 @@ void _np_in_received(np_jobargs_t* args)
 
 				// check time-to-live for message and expiry if neccessary
 				if (TRUE == _np_message_is_expired(msg_in))
-				{
-						log_msg(LOG_ROUTING | LOG_INFO, "message ttl expired, dropping message (part) %s / %s",
-						msg_in->uuid, np_treeval_to_str(msg_subject, NULL));
+				{					
+					np_bool free_msg_to_str;
+					char* msg_to_str = np_treeval_to_str(msg_to, &free_msg_to_str);
+					log_msg(LOG_ROUTING | LOG_INFO, "message ttl expired, dropping message (part) %s / %s target: %s",
+						msg_in->uuid, np_treeval_to_str(msg_subject, NULL), msg_to_str);
 				}
 				else if (msg_resendcounter.value.ush > 31) {
-					log_msg(LOG_WARN, "message resend count (%d) too high, dropping message (part) %s / %s",
-							msg_resendcounter.value.ush, msg_in->uuid, np_treeval_to_str(msg_subject, NULL));
+					np_bool free_msg_to_str;
+					char* msg_to_str = np_treeval_to_str(msg_to, &free_msg_to_str);
+					log_msg(LOG_WARN, "message resend count (%d) too high, dropping message (part) %s / %s target: %s",
+							msg_resendcounter.value.ush, msg_in->uuid, np_treeval_to_str(msg_subject, NULL), msg_to_str);
 				}
 				else {
 					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) message ttl not expired", msg_in->uuid);
@@ -269,9 +273,8 @@ void _np_in_received(np_jobargs_t* args)
 						{
 							log_debug_msg(LOG_DEBUG | LOG_ROUTING,
 								"forwarding message for subject: %s / uuid: %s", np_treeval_to_str(msg_subject, NULL), msg_in->uuid);
-#ifdef DEBUG
-							// _np_increment_forwarding_counter();
-#endif
+					
+							_np_increment_forwarding_counter();
 							np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
 							//TODO: is it necessary to forwarding with a small penalty to prevent infinite loops?
 							_np_job_submit_route_event(0.031415, prop, args->target, msg_in);
@@ -282,7 +285,7 @@ void _np_in_received(np_jobargs_t* args)
 							// if we do not have a handler or the handler has no receive tokens and no send tokens
 							// we may cancel further handeling
 							//FIXME: Only further work on this msg if we are one of the (few) nodes handeling this type of msg
-							goto __np_cleanup__;
+							//goto __np_cleanup__;
 							if(handler == NULL ||
 								(
 									( /*msg->subj*/handler->recv_key == NULL || pll_size(handler->recv_key->recv_tokens) <= 0)
@@ -355,8 +358,8 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
 				"could not deserialize chunked msg (uuid: %s)", msg_to_submit->uuid);
 		}
 		else {
-			_np_job_submit_msgin_event(0.0, handler, my_key, msg_to_submit, NULL);
-			if (FLAG_CMP(msg_ack.value.ush, ACK_DESTINATION))
+			np_bool event_added = _np_job_submit_msgin_event(0.0, handler, my_key, msg_to_submit, NULL);
+			if (event_added  && FLAG_CMP(msg_ack.value.ush, ACK_DESTINATION))
 			{
 				_np_send_ack(msg_to_submit);
 			}
