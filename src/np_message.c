@@ -18,6 +18,7 @@
 #include "event/ev.h"
 #include "sodium.h"
 #include "msgpack/cmp.h"
+#include "tree/tree.h"
 
 #include "np_message.h"
 
@@ -38,7 +39,6 @@
 #include "np_util.h"
 #include "np_tree.h"
 #include "np_treeval.h"
-#include "np_tree.h"
 #include "np_settings.h"
 #include "np_types.h"
 #include "np_responsecontainer.h"
@@ -1182,4 +1182,38 @@ np_dhkey_t* _np_message_get_sender(np_message_t* self){
 		ret = &ele->val.value.dhkey;
 	}
 	return ret;
+}
+
+void _np_message_trace_info(char* desc, np_message_t * msg_in) {
+
+	char * info_str;
+	asprintf(&info_str, "MessageTrace_%s",desc);
+	np_tree_elem_t* tmp = NULL;
+	np_bool free_key, free_value;
+	char *key, *value;
+	info_str = np_str_concatAndFree(info_str, " Header (");
+	if(msg_in->header != NULL){
+		RB_FOREACH(tmp, np_tree_s, (msg_in->header))
+		{
+			key = np_treeval_to_str(tmp->key, &free_key);			
+			value = np_treeval_to_str(tmp->val, &free_value);
+			info_str = np_str_concatAndFree(info_str, "%s:%s |", key, value);
+			if (free_value) free(value);
+			if (free_key) free(key);
+		}
+	}
+	info_str = np_str_concatAndFree(info_str, ") Instructions (");
+	if (msg_in->instructions != NULL) {
+		RB_FOREACH(tmp, np_tree_s, (msg_in->instructions))
+		{
+			key = np_treeval_to_str(tmp->key, &free_key);
+			value = np_treeval_to_str(tmp->val, &free_value);
+			info_str = np_str_concatAndFree(info_str, "%s:%s |", key, value);
+			if (free_value) free(value);
+			if (free_key) free(key);
+		}
+	}
+	info_str = np_str_concatAndFree(info_str, ")");
+
+	log_msg(LOG_ROUTING | LOG_INFO, info_str);	
 }

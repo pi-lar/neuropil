@@ -262,12 +262,12 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
 			break;
 #endif
  		case np_treeval_type_uint_array_2:
-  			len = snprintf(NULL, 0, "%u%u", val.value.a2_ui[0], val.value.a2_ui[1]);
+  			len = snprintf(NULL, 0, "%u,%u", val.value.a2_ui[0], val.value.a2_ui[1]);
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
 				if (freeable != NULL) *freeable = TRUE;
-  				snprintf(result, len+1, "%u%u", val.value.a2_ui[0], val.value.a2_ui[1]);
+  				snprintf(result, len+1, "%u,%u", val.value.a2_ui[0], val.value.a2_ui[1]);
   			}
  			break;
 // 		case np_treeval_type_float_array_2:  byte_size += 1 + 2*sizeof(float); break;

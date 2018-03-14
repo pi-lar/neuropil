@@ -336,7 +336,7 @@ void _np_out(np_jobargs_t* args)
 				_np_message_serialize_chunked(msg_out);
 			}
 
-			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Try sending message for subject \"%s\" (msg id: %s) to %s", prop->msg_subject, msg_out->uuid, _np_key_as_str(args->target));
+			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Try sending message for subject \"%s\" (msg id: %s chunks: %"PRIu32") to %s", prop->msg_subject, msg_out->uuid, msg_out->no_of_chunks, _np_key_as_str(args->target));
 
 			np_bool send_completed = _np_network_append_msg_to_out_queue(args->target, msg_out);
 
@@ -456,6 +456,7 @@ void _np_out_handshake(np_jobargs_t* args)
 						np_memory_free(packet);
 					}
 				}
+				_np_message_trace_info("out", hs_message);
 				__np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);
 			}
 			np_unref_obj(np_message_t, hs_message, ref_obj_creation);

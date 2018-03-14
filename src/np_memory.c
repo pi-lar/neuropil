@@ -222,9 +222,8 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 		for (np_obj_t* iter = __np_obj_pool_ptr->first; iter != NULL; iter = iter->next)
 		{
 			summary[iter->type]++;
-#ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-			summary[iter->type*100] = summary[iter->type * 100] > sll_size(iter->reasons) ? summary[iter->type * 100]: sll_size(iter->reasons);
-
+			summary[iter->type * 100] = max(summary[iter->type * 100], iter->ref_count);
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING		
 			if (
 				TRUE == extended
 				&& (

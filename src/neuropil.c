@@ -1126,9 +1126,9 @@ void _np_send_ack(const np_message_t* const msg_to_ack)
 	// send the ack out
 	_np_job_submit_route_event(0.0, prop, NULL, ack_msg);
 
-	np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
+	log_debug_msg(LOG_DEBUG, "ACK_HANDLING send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
 
-	log_debug_msg(LOG_DEBUG, "ACK_HANDLING send ack for message (%s)", msg_to_ack->uuid);
+	np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
 	return;
 
 	__np_cleanup__:

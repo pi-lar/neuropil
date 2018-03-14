@@ -291,7 +291,11 @@ np_bool _np_network_send_handshake(np_key_t* node_key)
 	}
 	return ret;
 }
+np_bool _np_network_append_msg_to_out_queue_force(np_key_t *node_key, np_message_t* msg)
+{
+	np_bool ret = FALSE;
 
+}
 /**
  ** sends a message to host
  **/
@@ -310,6 +314,7 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 			log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
 		}
 		else {
+			
 			log_msg(LOG_NETWORK | LOG_DEBUG, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
 
 			_LOCK_ACCESS(&msg->msg_chunks_lock) {
@@ -323,7 +328,6 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 						// add protection from replay attacks ...
 						unsigned char nonce[crypto_secretbox_NONCEBYTES];
 						// TODO: move nonce to np_node_t and re-use it with increments
-						// FIXME: doesnt sizeof(nonce) == sizeof(unsigned char)? if so the array will not be filled, only the first char
 						randombytes_buf(nonce, sizeof(nonce));
 
 						unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
@@ -336,14 +340,12 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 						if (encryption != 0)
 						{
 							log_msg(LOG_ERROR,
-								"incorrect encryption of message (not sending to %s:%s)",
-								target_node->dns_name, target_node->port);
+								"incorrect encryption of message (%s) (not sending to %s:%s)",
+								msg->uuid, target_node->dns_name, target_node->port);
 							np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
 
 							ret = FALSE;
-							break;
-						}
-						else {
+						} else {
 							unsigned char* enc_buffer = np_memory_new(np_memory_types_BLOB_1024);
 							
 							uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
@@ -365,19 +367,26 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 								else {
 									ret = FALSE;
 									np_memory_free(enc_buffer);
-									break;
 								}
 							}
 
-							np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
-							pll_next(iter);
 						}
+
+						np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
+						if (ret == FALSE) {
+							break;
+						}
+						pll_next(iter);
+
 					}
 				}
 			}
 		}
 	} else {
 		log_debug_msg(LOG_WARN, "network and handshake status of target is unclear (key: %s)", _np_key_as_str(node_key));
+	}
+	if (ret) {
+		_np_message_trace_info("out", msg);
 	}
 	return ret;
 }
@@ -394,43 +403,56 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 		{
 			if (key_network->out_events != NULL)
 			{
+				/*
+					a) Wenn daten vorhanden sind versuche diese wegzusenden bis
+						a.1) ein timeout erreicht ist
+						a.2) der retry für das datenpaket erreicht ist
+						a.3) das gesamte datenpaket verschickt wurde 
+				*/
 				void* data_to_send = NULL;
 				int data_counter = 0;
 				ssize_t written_per_data, current_write_per_data;
+				double timeout = np_time_now() + 1.;
 				do {
 					data_to_send = sll_head(void_ptr, key_network->out_events);
-					written_per_data = 0, current_write_per_data = 0;
-					if (NULL != data_to_send) {
-						if (NULL != key->node) {
-							log_debug_msg(LOG_DEBUG, "sending message (%d bytes) to %s:%s",
-									MSG_CHUNK_SIZE_1024, key->node->dns_name, key->node->port);
-						}
-						data_counter++;						
-						int write_counter = 0;
-						do {
-							write_counter++;
-							current_write_per_data = send(key_network->socket, data_to_send + written_per_data, MSG_CHUNK_SIZE_1024 - written_per_data, 0);
-							if (current_write_per_data == -1) {
-								log_msg(LOG_WARN,
-									"cannot write to socket: %s (%d).",
-									strerror(errno), errno);
-							}
-							if (current_write_per_data > 0) {
-								written_per_data += current_write_per_data;
-								 _np_statistics_add_send_bytes(current_write_per_data);
-							}
-						} while (written_per_data < MSG_CHUNK_SIZE_1024);
-						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "out_msg_len %zd bytes", written_per_data);
-						np_memory_free(data_to_send);
-						key_network->last_send_date = np_time_now();
-					}
-				} while (written_per_data > 0 && data_counter < NP_NETWORK_MAX_MSGS_PER_SCAN);
-			} 
-		}
+					written_per_data = 0;
 
-		// only stops the network if outgoing queue size is zero - leads to loosing out events :-(
-		// TODO: place it somewhere else ?
-		_np_network_stop(key_network, FALSE);
+					if (data_to_send != NULL)
+					{
+						int retry = 10;
+						do {
+							current_write_per_data = send(
+								key_network->socket, 
+								(((char*)data_to_send) + written_per_data), 
+								MSG_CHUNK_SIZE_1024 - written_per_data, 
+								0);
+
+							if (current_write_per_data < 0) {
+								np_time_sleep(NP_SLEEP_MIN);
+							}else if (current_write_per_data > 0) {
+								written_per_data += current_write_per_data;
+								_np_statistics_add_send_bytes(current_write_per_data);
+							}
+						} while (retry-- > 0 && written_per_data < MSG_CHUNK_SIZE_1024);
+
+						if (written_per_data != MSG_CHUNK_SIZE_1024) {
+							log_msg(LOG_WARN,
+								"Could not send package fully (%"PRIu32"/%"PRIu32") %s (%d)",
+								written_per_data, MSG_CHUNK_SIZE_1024,
+								strerror(errno), errno);
+						}
+					}
+				} while (written_per_data > 0 && data_counter++ < NP_NETWORK_MAX_MSGS_PER_SCAN && np_time_now() < timeout);
+			 
+
+
+				if(sll_size(key_network->out_events) <=0 ){
+					// only stops the network if outgoing queue size is zero - leads to loosing out events :-(
+					// TODO: place it somewhere else ?
+					_np_network_stop(key_network, FALSE);
+				}
+			}
+		}
 
 		np_unref_obj(np_key_t, key, __func__);
 		np_unref_obj(np_network_t,  key_network, __func__);
@@ -536,7 +558,7 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
 					_LOCK_ACCESS (&alias_key->network->access_lock) {
 						alias_key->network->socket = client_fd;
 						alias_key->network->socket_type = ng->socket_type;
-						alias_key->network->seqend = 0LU;
+						alias_key->network->seqend = 0;
 
 						// it could be a passive socket
 						sll_init(void_ptr, alias_key->network->out_events);
@@ -622,7 +644,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 		// catch a msg even if it was chunked into smaller byte parts by the underlying network
 		double timeout_start = np_time_now();
 		do {
-			if ((ng->socket_type & TCP) == TCP) {
+			if (FLAG_CMP(ng->socket_type, TCP)) {
 				last_recv_result = recv(ng->socket, (data) + in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
 				if (0 != getpeername(ng->socket, (struct sockaddr*) &from, &fromlen))
 				{
@@ -643,6 +665,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			if (last_recv_result < 0) {
 				break;
 			}
+			_np_statistics_add_received_bytes(last_recv_result);
 			// repeat if msg is not 1024 bytes in size and the timeout is not reached
 		} while (in_msg_len > 0 && in_msg_len < MSG_CHUNK_SIZE_1024 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
 
@@ -720,10 +743,15 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				log_debug_msg(LOG_NETWORK |LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
 					ipstr, port, in_msg_len, _np_key_as_str(alias_key));
 		
-				_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL, data);
-				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
-					_np_key_as_str(key));
-				 _np_statistics_add_received_bytes(in_msg_len);
+				if (_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL, data)) {
+					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
+						_np_key_as_str(key));
+				}
+				else {
+					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "could not submit msg to list for %s (jobqueue overflow)",
+						_np_key_as_str(key));
+				}
+				 
 			}
 			else {
 				np_memory_free(data);
@@ -930,6 +958,7 @@ void _np_network_t_new(void* nw)
 	ng->watcher.data = NULL;
 	ng->type = np_network_type_none;
 	ng->last_send_date = 0.0;
+	ng->seqend = 0;
 
 	_np_threads_mutex_init(&ng->access_lock, "network access_lock");
 	_np_threads_mutex_init(&ng->out_events_lock, "network out_events_lock");
@@ -970,7 +999,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 		{
 			ng->type |= np_network_type_server;
 			// own sequence number counter
-			ng->seqend = 0LU;
+			ng->seqend = 0;
 		}
 
 		// create own retransmit structures
@@ -1015,7 +1044,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 			/* attach socket to #port#. */
 			if (0 > bind (ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
 			{
-				log_msg(LOG_ERROR, "bind failed: %s:", strerror (errno));
+				log_msg(LOG_ERROR, "bind failed for %s:%s: %s",hostname, service, strerror (errno));
 				close (ng->socket);
 				// listening port could not be opened
 				return FALSE;

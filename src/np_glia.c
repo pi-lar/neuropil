@@ -15,6 +15,7 @@
 
 #include "sodium.h"
 #include "event/ev.h"
+#include "tree/tree.h"
 
 #include "np_glia.h"
 
@@ -294,77 +295,80 @@ void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
 void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args){");
-	np_state_t* state = np_state();
 
-	np_tree_elem_t *iter = NULL;
-	np_msgproperty_t* msg_prop = NULL;
-	_LOCK_MODULE(np_state_message_tokens_t){
-		RB_FOREACH(iter, np_tree_s, state->msg_tokens)
-		{
-			// double now = dtime();
-			// double last_update = iter->val.value.d;
+	if (_np_route_my_key_has_connection()) {
+		np_state_t* state = np_state();
 
-			const char* subject = NULL;
-			if (iter->key.type == np_treeval_type_char_ptr)
-				subject =  np_treeval_to_str(iter->key, NULL);
-			else if (iter->key.type == np_treeval_type_special_char_ptr)
-				subject = _np_tree_get_special_str(iter->key.value.ush);
-			else {
-				ASSERT(FALSE,"key type %"PRIu8" is not recognized.", iter->key.type)
+		np_tree_elem_t *iter = NULL;
+		np_msgproperty_t* msg_prop = NULL;
+		_LOCK_MODULE(np_state_message_tokens_t) {
+			RB_FOREACH(iter, np_tree_s, state->msg_tokens)
+			{
+				// double now = dtime();
+				// double last_update = iter->val.value.d;
+
+				const char* subject = NULL;
+				if (iter->key.type == np_treeval_type_char_ptr)
+					subject = np_treeval_to_str(iter->key, NULL);
+				else if (iter->key.type == np_treeval_type_special_char_ptr)
+					subject = _np_tree_get_special_str(iter->key.value.ush);
+				else {
+					ASSERT(FALSE, "key type %"PRIu8" is not recognized.", iter->key.type)
+				}
+
+				np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
+				np_key_t* target = NULL;
+				target = _np_keycache_find_or_create(target_dhkey);
+
+				msg_prop = np_msgproperty_get(TRANSFORM, subject);
+				if (NULL != msg_prop)
+				{
+					_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
+					np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
+				}
+				else
+				{
+					// deleted = RB_REMOVE(np_tree_s, state->msg_tokens, iter);
+					// free( np_treeval_to_str(deleted->key));
+					// free(deleted);
+					np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
+					break;
+				}
 			}
 
-			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
+		}
+
+		if (TRUE == state->enable_realm_master)
+		{
+			np_msgproperty_t* msg_prop = NULL;
+
+			np_dhkey_t target_dhkey = { 0 };
+			_np_dhkey_from_str(state->my_identity->aaa_token->realm, &target_dhkey);
+
 			np_key_t* target = NULL;
 			target = _np_keycache_find_or_create(target_dhkey);
 
-			msg_prop = np_msgproperty_get(TRANSFORM, subject);
-			if (NULL != msg_prop)
-			{
-				_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-				np_unref_obj(np_key_t, target,"_np_keycache_find_or_create");
+			msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
+			if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
+				sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
 			}
-			else
-			{
-				// deleted = RB_REMOVE(np_tree_s, state->msg_tokens, iter);
-				// free( np_treeval_to_str(deleted->key));
-				// free(deleted);
-				np_unref_obj(np_key_t,target,"_np_keycache_find_or_create");
-				break;
+			// _np_out_sender_discovery(0.0, msg_prop, target, NULL);
+			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
+
+			msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
+			if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
+				sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
 			}
+			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
+
+			msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_ACCOUNTING_REQUEST);
+			if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
+				sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
+			}
+			_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
+
+			np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
 		}
-
-	}
-
-	if (TRUE == state->enable_realm_master)
-	{
-		np_msgproperty_t* msg_prop = NULL;
-
-		np_dhkey_t target_dhkey = { 0 };
-		_np_dhkey_from_str(state->my_identity->aaa_token->realm, &target_dhkey);
-
-		np_key_t* target = NULL;
-		target = _np_keycache_find_or_create(target_dhkey);
-
-		msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
-		if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
-			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
-		}
-		// _np_out_sender_discovery(0.0, msg_prop, target, NULL);
-		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-
-		msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
-		if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
-			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
-		}
-		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-
-		msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_ACCOUNTING_REQUEST);
-		if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
-			sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
-		}
-		_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
-
-		np_unref_obj(np_key_t, target,"_np_keycache_find_or_create");
 	}
 }
 

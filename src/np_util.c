@@ -16,12 +16,13 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "sodium.h"
 #include "event/ev.h"
 #include "json/parson.h"
 #include "msgpack/cmp.h"
-#include "inttypes.h"
+#include "tree/tree.h"
 
 #include "np_util.h"
 

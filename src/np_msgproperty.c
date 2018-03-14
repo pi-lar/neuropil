@@ -229,7 +229,7 @@ void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self) {
 	}
 }
 
-np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self,  np_message_t* msg_to_check)
+np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check)
 {
 	np_bool ret = TRUE;
 	_LOCK_ACCESS(&self->unique_uuids_lock) {
@@ -244,6 +244,14 @@ np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self,  np_message_t
 		}
 	}
 	return ret;
+}
+void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_message_t* msg_to_remove)
+{	
+	_LOCK_ACCESS(&self->unique_uuids_lock) {
+		if (self->unique_uuids_check) {
+			np_tree_del_str(self->unique_uuids, msg_to_remove->uuid);
+		}
+	}
 }
 
 void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args) {
