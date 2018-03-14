@@ -463,7 +463,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 		// add content length header
 		uint32_t s_contentlength = strlen(ht_body);
 		char body_length[255];
-		snprintf(body_length, s_contentlength, "%"PRIu32, s_contentlength);
+		snprintf(body_length, 254, "%"PRIu32, s_contentlength);
 		np_tree_insert_str(client->ht_response.ht_header, "Content-Length",
 				np_treeval_new_s(body_length));
 		np_tree_insert_str(client->ht_response.ht_header, "Content-Type",

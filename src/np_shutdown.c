@@ -25,7 +25,7 @@
 #include "np_constants.h"
 
 struct sigaction sigact;
-TSP(static np_bool, __is_in_shutdown);
+STATIC_TSP(np_bool, __is_in_shutdown);
 
 static void __np_shutdown_signal_handler(int sig) {
 	if (sig == SIGINT) {

@@ -245,17 +245,21 @@ char* np_threads_printpool(np_bool asOneLine);
 */
 #define TSP(TYPE, NAME)								\
 	TYPE NAME;										\
-	np_mutex_t NAME##_mutex;		
+	np_mutex_t NAME##_mutex;
 
-#define TSP_INITD(NAME, DEFAULT_VALUE)				\
-	_np_threads_mutex_init(&NAME##_mutex,#NAME);	\
+#define STATIC_TSP(TYPE, NAME)								\
+	static TYPE NAME;										\
+	static np_mutex_t NAME##_mutex;
+
+#define TSP_INITD(NAME, DEFAULT_VALUE)						 \
+	_np_threads_mutex_init(&NAME##_mutex, #NAME);			 \
 	TSP_SET(NAME, DEFAULT_VALUE)
 
-#define TSP_INIT(NAME)								\
-	_np_threads_mutex_init(&NAME##_mutex,#NAME);	
+#define TSP_INIT(NAME)										 \
+	_np_threads_mutex_init(&NAME##_mutex, #NAME);
 
 #define TSP_DESTROY(NAME)							\
-	_np_threads_mutex_destroy(&NAME##_mutex);	
+	_np_threads_mutex_destroy(&NAME##_mutex);
 
 #define TSP_GET(TYPE, NAME, RESULT)					\
 	TYPE RESULT;									\
