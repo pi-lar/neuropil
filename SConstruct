@@ -249,7 +249,7 @@ if int(build_tests):
 # build example programs
 programs = [
     'controller','node','receiver','sender','receiver_cb','pingpong','hydra','shared_hydra',
-    'echo_server','echo_client','raspberry','demo_service'
+    'echo_server','echo_client','raspberry','demo_service','test'
     ]
 env.Append(LIBS = ['ncurses'])
 
