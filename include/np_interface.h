@@ -50,8 +50,15 @@ extern "C" {
                         secret_key[NP_SECRET_KEY_BYTES];
 	};
 
+	// New incarnation of np_settings.h
+	struct np_settings {
+		uint32_t n_threads;
+		// ...
+	};
+	void np_default_settings (struct np_settings *settings);
+
 	typedef void np_context;
-	np_context* np_new_context(uint8_t n_threads);
+	np_context* np_new_context(struct np_settings *settings);
 
 	enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
 
@@ -88,7 +95,7 @@ extern "C" {
 		enum np_mx_ackmode ackmode;
 		enum np_mx_pattern pattern;
 		enum np_mx_cache_policy cache_policy;
-		unsigned int max_parallel, max_retry, max_ttl, min_ttl;
+		uint32_t max_parallel, max_retry, max_ttl, min_ttl;
 		bool unique_uuids_check;
 	};
 
