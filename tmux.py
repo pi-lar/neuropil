@@ -20,19 +20,34 @@ parser.add_argument('-oh', nargs='?', type=int, default=1, help='Host sysinfo co
 parser.add_argument('-oc', nargs='?', type=int, default=1, help='Clients sysinfo config')
 parser.add_argument('-p', nargs='?', default="udp4", help='port type')
 parser.add_argument('-s', nargs='?', default=1, help='Statistics View')
+parser.add_argument('-b', nargs='?', default=3000, help='Port to start from')
+parser.add_argument('-j', nargs='?', default="", help='Join to ')
 parser.add_argument('--path', nargs='?', default="./", help='Path to bin folder (ex.: "./bin/")')
+parser.add_argument('--httpdomain_client', nargs='?', default="", help='Http domain specifier for client nodes')
 
 args = parser.parse_args()
 
 
+port = int(args.b)
 port_type = args.p
 loglevel = args.l
 publish_domain = args.pd
-count = args.n -1
 threads = args.t
 sysinfo = args.oh
 sysinfo_client = args.oc
 statistics = args.s
+httpdomain_client = ""
+if args.httpdomain_client != "":
+  httpdomain_client = " -w " + args.httpdomain_client +" "
+
+start_bootstrapper = True
+join_client = " -j *:udp4:{}:{}".format(publish_domain , port)
+if args.j != "":
+  join_client  = " -j {} ".format(args.j)
+  start_bootstrapper = False
+  args.r = True
+
+count = args.n - start_bootstrapper
 
 autoclose = ""
 if args.c :
@@ -40,27 +55,32 @@ if args.c :
 
 server = libtmux.Server()
 
+session = server.find_where({ "session_name": "np" })
 if args.k:
   if server.has_session("np"):
-    server.find_where({ "session_name": "np" }).kill_session()
+    session.kill_session()
 
 else:
-  if not args.r or not server.has_session("np"):
-    session= server.new_session("np", True)
+    if not args.r or not server.has_session("np"):
+        session = server.new_session("np", True)
 
-    nb = session.new_window(attach=True, window_name="neuropil bootstraper")
-    nb.attached_pane.send_keys(args.path + 'neuropil_node -b 3000 -t {} -p {}  -d {} -u {} -o {} -s {} {}'.format(
-    threads, port_type, loglevel, publish_domain, sysinfo, statistics, autoclose))
+    windowName  = "neuropil bootstraper"
+    if start_bootstrapper and not server.find_where({ "window_name": windowName }):
+        nb = session.new_window(attach=True, window_name=windowName)
+        nb.attached_pane.send_keys(args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} -s {} {}'.format(
+            port, threads, port_type, loglevel, publish_domain, sysinfo, statistics, autoclose))
 
     for i in range(count):
-      print('start node {:3d}/{}'.format(i,count), end='\r')
-      sys.stdout.flush()
-      time.sleep(random.random())
-      nn = session.new_window(attach=False, window_name="neuropil node {0:02d}".format(i))
-      prefix = ''
-      #prefix += 'perf record --call-graph dwarf -a --timestamp-filename '
-      nn.attached_pane.send_keys(prefix + args.path + 'neuropil_node -b {} -t {} -p {} -o {} -j *:udp4:{}:3000 -d {} -s {} {}'.format(
-      3000+i, threads, port_type, sysinfo_client, publish_domain, loglevel, statistics, autoclose))
+        windowName  = "neuropil node {0:05d}".format(i+port+start_bootstrapper)
+        if not server.find_where({ "window_name": windowName }):
+            print('start node {:3d}/{}'.format(i,count), end='\r')
+            sys.stdout.flush()
+            time.sleep(random.random())
+            nn = session.new_window(attach=False, window_name=windowName )
+            prefix = ''
+            #prefix += 'perf record --call-graph dwarf -a --timestamp-filename '
+            nn.attached_pane.send_keys(prefix + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
+            port+i+start_bootstrapper,publish_domain, threads, port_type, sysinfo_client, loglevel, join_client, httpdomain_client, statistics, autoclose))
 
-  if not args.k:
-    os.system('tmux attach -t np')
+    if not args.k:
+        os.system('tmux attach -t np')

@@ -291,6 +291,9 @@ struct np_msgproperty_s
 	// weak link (no reffing)
 	np_key_t* recv_key;
 
+	np_message_intent_public_token_t* current_sender_token;
+	np_message_intent_public_token_t* current_receive_token;
+
 } NP_API_EXPORT;
 
 #ifndef SWIG
@@ -360,6 +363,8 @@ NP_API_EXPORT
 void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self);
 NP_API_INTERN
 void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args);
+NP_API_INTERN
+void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_message_t* msg_to_remove);
 NP_API_INTERN
 np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check);
 

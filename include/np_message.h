@@ -130,6 +130,9 @@ void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply)
 NP_API_EXPORT
 void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_reply_to_remove);
 
+NP_API_INTERN
+void _np_message_trace_info(char* desc, np_message_t * msg_in);
+
 // msg header constants
 static const char* _NP_MSG_HEADER_TARGET		= "_np.target";
 static const char* _NP_MSG_HEADER_SUBJECT		= "_np.subj";
