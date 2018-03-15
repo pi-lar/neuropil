@@ -233,7 +233,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__discover_receiver->mode_type = INBOUND | OUTBOUND | ROUTE;
 	__discover_receiver->mep_type = A2A_STICKY_REPLY;
 	__discover_receiver->priority = 0;
-	__discover_receiver->ack_mode = ACK_NONE;
+	__discover_receiver->ack_mode = ACK_DESTINATION;
 	__discover_receiver->retry = 0;
 	sll_append(np_callback_t, __discover_receiver->clb_inbound, _np_in_discover_receiver);
 	//default: 	sll_append(np_callback_t, __discover_receiver->clb_outbound, _np_out);
@@ -253,7 +253,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__discover_sender->mode_type = INBOUND | OUTBOUND | ROUTE;
 	__discover_sender->mep_type = A2A_STICKY_REPLY;
 	__discover_sender->priority = 0;
-	__discover_sender->ack_mode = ACK_NONE;
+	__discover_sender->ack_mode = ACK_DESTINATION;
 	__discover_sender->retry = 0;
 	sll_append(np_callback_t, __discover_sender->clb_inbound, _np_in_discover_sender);
 	//default: 	sll_append(np_callback_t, __discover_sender->clb_outbound, _np_out);

@@ -659,7 +659,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 			np_msgproperty_t* handler = np_msgproperty_get(INBOUND, msg->msg_property->msg_subject);
 			if(handler != NULL)
 			{
-				_np_in_new_msg_received(msg, handler);
+				_np_in_new_msg_received(msg, handler, TRUE);
 			}
 		}
 		else

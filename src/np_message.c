@@ -91,9 +91,10 @@ void _np_message_t_new(void* msg)
 */
 void _np_message_mark_as_incomming(np_message_t* msg) {
 
-	msg->header->attr.in_place = TRUE;
-	msg->properties->attr.in_place = TRUE;
-	msg->instructions->attr.in_place = TRUE;
+	msg->header->attr.in_place = FALSE;
+	msg->instructions->attr.in_place = FALSE; 
+	
+	msg->properties->attr.in_place = TRUE;	
 	msg->body->attr.in_place = TRUE;
 	msg->footer->attr.in_place = TRUE;
 }
@@ -681,11 +682,13 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 				}else{
 					
 					if (np_tree_deserialize(msg->header, &cmp) == TRUE) {
+						msg->header->attr.immutable = FALSE;
 
 						// TODO: check if the complete buffer was read (byte count match)
 
 						// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg instructions");
 						if (np_tree_deserialize(msg->instructions, &cmp) == TRUE) {
+							msg->instructions->attr.immutable = FALSE;
 
 							// TODO: check if the complete buffer was read (byte count match)
 

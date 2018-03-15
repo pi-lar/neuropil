@@ -259,7 +259,7 @@ void _np_in_received(np_jobargs_t* args)
 
 					// check if inbound subject handler exists
 					np_msgproperty_t* handler = np_msgproperty_get(INBOUND, str_msg_subject);
-
+					np_bool forwarded_msg = FALSE;
 					// redirect message if
 					// msg is not for my dhkey
 					// no handler is present
@@ -287,6 +287,7 @@ void _np_in_received(np_jobargs_t* args)
 					
 							_np_increment_forwarding_counter();
 							np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
+							forwarded_msg = TRUE;
 							//TODO: is it necessary to forwarding with a small penalty to prevent infinite loops?
 							_np_job_submit_route_event(0.031415, prop, args->target, msg_in);
 
@@ -327,7 +328,7 @@ void _np_in_received(np_jobargs_t* args)
 						if (NULL != msg_to_submit)
 						{
 							log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) is now complete", msg_in->uuid);
-							_np_in_new_msg_received(msg_to_submit, handler);
+							_np_in_new_msg_received(msg_to_submit, handler, !forwarded_msg);
 							np_unref_obj(np_message_t, msg_to_submit, "_np_message_check_chunks_complete");
 						}
 						else {
@@ -356,7 +357,7 @@ void _np_in_received(np_jobargs_t* args)
 	// __np_return__:
 	return;
 }
-void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* handler) {
+void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* handler, np_bool allow_destination_ack) {
 
 	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key, "np_waitref_key");
 
@@ -380,7 +381,7 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
 		}
 		else {
 			np_bool event_added = _np_job_submit_msgin_event(0.0, handler, my_key, msg_to_submit, NULL);
-			if (event_added  && FLAG_CMP(msg_ack.value.ush, ACK_DESTINATION))
+			if (allow_destination_ack && event_added  && FLAG_CMP(msg_ack.value.ush, ACK_DESTINATION))
 			{
 				_np_send_ack(msg_to_submit);
 			}
