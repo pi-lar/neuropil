@@ -774,9 +774,15 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(const char* const subjec
 	return (return_list);
 }
 
-np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const np_dhkey_t* const sender_dhkey)
+np_dhkey_t _np_aaatoken_get_issuer(np_aaatoken_t* self){
+	np_dhkey_t ret =
+		np_dhkey_create_from_hash(self->issuer);
+	return ret;
+}
+
+np_aaatoken_t* _np_aaatoken_get_sender_token(const char* const subject, const np_dhkey_t* const sender_dhkey)
 {
-	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_sender(char* subject, char* sender){");
+	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_sender_token(char* subject, char* sender){");
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
 
@@ -805,7 +811,7 @@ np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const np_dhkey
 		_np_dhkey_to_str(sender_dhkey, sender_dhkey_as_str);
 #endif
 
-		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step1._np_aaatoken_get_sender %d / %s", pll_size(subject_key->send_tokens), subject);
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step1._np_aaatoken_get_sender_token %d / %s", pll_size(subject_key->send_tokens), subject);
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->send_tokens);
 		while (NULL != iter &&
 			   FALSE == found_return_token)
@@ -871,7 +877,7 @@ np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const np_dhkey
 			np_ref_obj(np_aaatoken_t, return_token);
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", return_token->issuer);
 		}
-		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step2._np_aaatoken_get_sender %d", pll_size(subject_key->send_tokens));
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step2._np_aaatoken_get_sender_token %d", pll_size(subject_key->send_tokens));
 	}
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
@@ -1073,9 +1079,8 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(const char* const subj
 
 //	log_debug_msg(LOG_DEBUG, "available %hd interests %hd",
 //			subject_key->send_property->max_threshold, subject_key->recv_property->max_threshold );
-	// look up sources to see whether a sender already exists
-	np_sll_t(np_aaatoken_ptr, return_list) = NULL;
-	sll_init(np_aaatoken_ptr, return_list);
+	// look up sources to see whether a sender already exists	
+	sll_init_full(np_aaatoken_ptr, return_list);
 
 	// should never happen
 	if (NULL == subject_key) return (return_list);
@@ -1398,4 +1403,24 @@ unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self) {
 	free(hash);
 
 	return ret;
+}
+
+void np_aaatoken_ref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* reason, const char* reason_desc)
+{
+	sll_iterator(np_aaatoken_ptr) iter = sll_first(sll_list);
+	while (NULL != iter)
+	{
+		np_ref_obj(np_aaatoken_t, (iter->val), reason, reason_desc);
+		sll_next(iter);
+	}
+}
+ 
+void np_aaatoken_unref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* reason)
+{
+	sll_iterator(np_aaatoken_ptr) iter = sll_first(sll_list);
+	while (NULL != iter)
+	{
+		np_unref_obj(np_aaatoken_t, (iter->val), reason);
+		sll_next(iter);
+	}
 }

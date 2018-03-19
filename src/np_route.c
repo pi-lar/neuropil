@@ -271,7 +271,7 @@ sll_return(np_key_ptr) _np_route_get_table ()
 			}
 		}
 
-		np_ref_list(sll_of_keys, __func__,NULL);
+		np_key_ref_list(sll_of_keys, __func__,NULL);
 	}
 	return (sll_of_keys);
 }
@@ -304,7 +304,7 @@ sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key)
 		}
 
 		sll_append(np_key_ptr, sll_of_keys, __routing_table->my_key);
-		np_ref_list(sll_of_keys, __func__, NULL);
+		np_key_ref_list(sll_of_keys, __func__, NULL);
 	}
 
 	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_row_lookup");
@@ -593,7 +593,7 @@ sll_return(np_key_ptr) _np_route_neighbors ()
 		_np_route_append_leafset_to_sll(__routing_table->left_leafset, node_keys);
 		_np_route_append_leafset_to_sll(__routing_table->right_leafset, node_keys);	
 
-		np_ref_list(node_keys, __func__, NULL);
+		np_key_ref_list(node_keys, __func__, NULL);
 	}
 	/* sort aux */
 	_np_keycache_sort_keys_kd(node_keys, &__routing_table->my_key->dhkey);
@@ -647,7 +647,7 @@ void _np_route_leafset_clear ()
 			assert (deleted == iter->val);
 			sll_next(iter);
 		}
-		np_unref_list(neighbour_list, "_np_route_neighbors");
+		np_key_unref_list(neighbour_list, "_np_route_neighbors");
 		sll_free(np_key_ptr, neighbour_list);
 
 		if(__routing_table->left_leafset->size != 0){

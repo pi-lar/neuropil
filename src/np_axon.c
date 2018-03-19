@@ -100,7 +100,9 @@ void _np_out_ack(np_jobargs_t* args)
 	if(send_ok) {
 		__np_axon_invoke_on_user_send_callbacks(args->msg, np_msgproperty_get(OUTBOUND, _NP_MSG_ACK));
 	} else {
-		log_msg(LOG_ERROR, "ACK_HANDLING sending of ack message (%s) to %s:%s failed", target_uuid->val.value.s,
+		log_msg(LOG_ERROR, "msg (%s) ACK_HANDLING sending of ack message (%s) to %s:%s failed",
+				args->msg->uuid,
+				target_uuid->val.value.s,
 				args->target->node->dns_name, args->target->node->port);
 	}
 }
@@ -145,10 +147,11 @@ void _np_out(np_jobargs_t* args)
 	{
 		np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
 		{
+			uuid = msg_out->uuid;
+
 			// check ack indicator if this is a resend of a message
 			if (TRUE == is_resend)
 			{
-				uuid = msg_out->uuid;
 				np_bool skip = FALSE;
 
 				_LOCK_ACCESS(&my_network->waiting_lock)
@@ -346,7 +349,7 @@ void _np_out(np_jobargs_t* args)
 			}
 
 			if (send_completed == FALSE || (args->properties->retry > 0 && reschedule_msg_transmission == TRUE) ) {
-				double retransmit_interval = args->properties->msg_ttl / (args->properties->retry+1);
+				double retransmit_interval = args->properties->msg_ttl / (args->properties->retry + 1);
 				// np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, args->properties->msg_subject);
 				if (send_completed == FALSE && reschedule_msg_transmission == FALSE) {
 					log_msg(LOG_WARN, "np_network returned error, and no re-sending of message (%s) has been scheduled", args->msg->uuid);
@@ -468,39 +471,19 @@ void _np_out_handshake(np_jobargs_t* args)
 void _np_out_discovery_messages(np_jobargs_t* args)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_out_discovery_messages(np_jobargs_t* args){");
-	np_aaatoken_t* msg_token = NULL;
+	np_message_intent_public_token_t* msg_token = NULL;
 
+	msg_token = _np_msgproperty_upsert_token(args->properties);
 	if (_np_route_my_key_has_connection()) {
 
-		_TRYLOCK_ACCESS(&args->properties->send_discovery_msgs_lock) {
+		_TRYLOCK_ACCESS(&args->properties->send_discovery_msgs_lock) {			
 
-			msg_token = _np_aaatoken_get_local_mx(args->properties->msg_subject);
-
-			double now = np_time_now();
-			if (NULL == msg_token
-				|| _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent) == FALSE
-				|| (msg_token->expires_at - now) <= min(args->properties->token_min_ttl, MISC_RETRANSMIT_MSG_TOKENS_SEC)
-				)
-			{
-				// Create a new msg token
-				log_msg(LOG_INFO | LOG_AAATOKEN, "--- refresh for subject token: %25s --------", args->properties->msg_subject);
-				np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(args->properties);
-				log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s (%s replaces %s) ", args->properties->msg_subject, msg_token_new->uuid, msg_token == NULL ? "-" : msg_token->uuid);
-				np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
-				_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
-				msg_token = msg_token_new;
-				ref_replace_reason(np_aaatoken_t, msg_token_new, "_np_token_factory_new_message_intent_token", "_np_aaatoken_get_local_mx");
-				log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "--- done refresh for subject token: %25s new token has uuid %s", args->properties->msg_subject, msg_token_new->uuid);
-			}
-
-			ASSERT(_np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent), "AAAToken needs to be valid");
-			
 			// args->target == Key of subject
 			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(args->properties->msg_subject, "0");
 
 			if (INBOUND == (args->properties->mode_type & INBOUND))
 			{
-				if (args->properties->current_receive_token != msg_token) 
+				//if (args->properties->current_receive_token != msg_token) 
 				{
 					np_ref_switch(np_aaatoken_t, args->properties->current_receive_token, ref_msgproperty_current_recieve_token, msg_token);
 					// cleanup of msgs in property receiver msg cache
@@ -536,7 +519,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 
 			if (OUTBOUND == (args->properties->mode_type & OUTBOUND))
 			{
-				if (args->properties->current_sender_token != msg_token) 
+				//if (args->properties->current_sender_token != msg_token) 
 				{
 					np_ref_switch(np_aaatoken_t, args->properties->current_sender_token, ref_msgproperty_current_sender_token, msg_token);
 
@@ -571,9 +554,11 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 					np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 				}
 			}
-			np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_local_mx");
 		}
 	}
+
+	np_unref_obj(np_aaatoken_t, msg_token, "_np_msgproperty_upsert_token");
+
 }
 
 // deprecated
@@ -583,7 +568,7 @@ void _np_out_receiver_discovery(np_jobargs_t* args)
 	// create message interest in authentication request
 	np_aaatoken_t* msg_token = NULL;
 
-	msg_token = _np_aaatoken_get_sender(args->properties->msg_subject,
+	msg_token = _np_aaatoken_get_sender_token(args->properties->msg_subject,
 									 	&np_state()->my_node_key->dhkey);
 
 	if (NULL == msg_token)
@@ -593,7 +578,7 @@ void _np_out_receiver_discovery(np_jobargs_t* args)
 		np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
 		_np_aaatoken_add_sender(msg_token_new->subject, msg_token_new);
 		msg_token = msg_token_new;
-		ref_replace_reason(np_aaatoken_t, msg_token, ref_obj_creation,"_np_aaatoken_get_sender")
+		ref_replace_reason(np_aaatoken_t, msg_token, ref_obj_creation,"_np_aaatoken_get_sender_token")
 	}
 
 	np_tree_t* _data = np_tree_create();
@@ -610,7 +595,7 @@ void _np_out_receiver_discovery(np_jobargs_t* args)
 	_np_job_submit_route_event(0.0, prop_route, args->target, msg_out);
 	np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 
-	np_unref_obj(np_aaatoken_t, msg_token,"_np_aaatoken_get_sender");
+	np_unref_obj(np_aaatoken_t, msg_token,"_np_aaatoken_get_sender_token");
 }
 
 // deprecated

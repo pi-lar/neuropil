@@ -94,7 +94,7 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 	// 1 means: always send out message to another node first, even if it returns
 	tmp = _np_route_lookup(search_key, 1);
 	if ( 0 < sll_size(tmp) )
-		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "route_lookup result 1 = %s", _np_key_as_str(sll_first(tmp)->val));
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) route_lookup result 1 = %s", msg_in->uuid, _np_key_as_str(sll_first(tmp)->val));
 
 
 	if ( NULL != tmp                &&
@@ -103,12 +103,12 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 		 (_np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)) )
 	{
 		// the result returned the sending node, try again with a higher count parameter
-		np_unref_list(tmp, "_np_route_lookup");
+		np_key_unref_list(tmp, "_np_route_lookup");
 		sll_free(np_key_ptr, tmp);
 
 		tmp = _np_route_lookup(search_key, 2);
 		if (0 < sll_size(tmp))
-			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "route_lookup result 2 = %s", _np_key_as_str(sll_first(tmp)->val));
+			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) route_lookup result 2 = %s", msg_in->uuid, _np_key_as_str(sll_first(tmp)->val));
 
 		// TODO: increase count parameter again ?
 	}
@@ -118,17 +118,17 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 		FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey))
 	{
 		target_key = sll_first(tmp)->val;
-		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "route_lookup result   = %s", _np_key_as_str(target_key));
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) route_lookup result   = %s", msg_in->uuid, _np_key_as_str(target_key));
 	}
 	else {
-		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "route_lookup result   = myself");
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) route_lookup result   = myself (listsize: %"PRIu32")", msg_in->uuid, (NULL == tmp ?0 : sll_size(tmp)));
 	}
 	
 	/* if I am the only host or the closest host is me, deliver the message */
 	if (NULL == target_key && FALSE == is_a_join_request)
 	{
 		// the message has to be handled by this node (e.g. msg interest messages)
-		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "internal routing for subject '%s'", msg_subject);
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) internal routing for subject '%s'", msg_in->uuid, msg_subject);
 				
 		np_msgproperty_t* prop = np_msgproperty_get(INBOUND, msg_subject);
 		if(prop != NULL) {
@@ -136,7 +136,7 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 		}	
 	} else {
 		/* hand it over to the np_axon sending unit */
-		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "forward routing for subject '%s'", msg_subject);
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) forward routing for subject '%s'", msg_in->uuid, msg_subject);
 
 		if (NULL == target_key || TRUE == is_a_join_request)
 		{
@@ -154,7 +154,7 @@ void _np_glia_route_lookup(np_jobargs_t* args)
 			_np_job_submit_msgout_event(0.0, prop, target_key, args->msg);
 		}
 	}
-	np_unref_list(tmp, "_np_route_lookup");
+	np_key_unref_list(tmp, "_np_route_lookup");
 	sll_free(np_key_ptr, tmp);	
 	if (free_msg_subject) free(msg_subject);	
 
@@ -208,7 +208,7 @@ void _np_glia_check_neighbours(NP_UNUSED np_jobargs_t* args) {
 	np_sll_t(np_key_ptr, table) = NULL;
 	table = _np_route_neighbors();
 	__np_glia_check_connections(table, _np_route_leafset_update);
-	np_unref_list(table, "_np_route_neighbors");
+	np_key_unref_list(table, "_np_route_neighbors");
 	sll_free(np_key_ptr, table);
 }
 
@@ -218,7 +218,7 @@ void _np_glia_check_routes(NP_UNUSED np_jobargs_t* args) {
 	np_sll_t(np_key_ptr, table) = NULL;
 	table = _np_route_get_table();
 	__np_glia_check_connections(table, _np_route_update);
-	np_unref_list(table, "_np_route_get_table");
+	np_key_unref_list(table, "_np_route_get_table");
 	sll_free(np_key_ptr, table);
 }
 
@@ -248,9 +248,9 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 		sll_next(iter);
 	}
 	sll_free(np_key_ptr, keys); // no ref
-	np_unref_list(routing_keys, "_np_route_get_table");
+	np_key_unref_list(routing_keys, "_np_route_get_table");
 	sll_free(np_key_ptr, routing_keys);
-	np_unref_list(neighbour_keys, "_np_route_neighbors");
+	np_key_unref_list(neighbour_keys, "_np_route_neighbors");
 	sll_free(np_key_ptr, neighbour_keys);
 }
 
@@ -280,9 +280,9 @@ void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
 	}
 
 	sll_free(np_key_ptr, keys_merged);
-	np_unref_list(routing_keys, "_np_route_get_table");
+	np_key_unref_list(routing_keys, "_np_route_get_table");
 	sll_free(np_key_ptr, routing_keys);
-	np_unref_list(neighbour_keys, "_np_route_neighbors");
+	np_key_unref_list(neighbour_keys, "_np_route_neighbors");
 	sll_free(np_key_ptr, neighbour_keys);
 }
 
@@ -304,23 +304,17 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		_LOCK_MODULE(np_state_message_tokens_t) {
 			RB_FOREACH(iter, np_tree_s, state->msg_tokens)
 			{
-				// double now = dtime();
-				// double last_update = iter->val.value.d;
-
+				np_bool free_subject;
 				const char* subject = NULL;
-				if (iter->key.type == np_treeval_type_char_ptr)
-					subject = np_treeval_to_str(iter->key, NULL);
-				else if (iter->key.type == np_treeval_type_special_char_ptr)
-					subject = _np_tree_get_special_str(iter->key.value.ush);
-				else {
-					ASSERT(FALSE, "key type %"PRIu8" is not recognized.", iter->key.type)
-				}
-
+				subject = np_treeval_to_str(iter->key, &free_subject);
+				
 				np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
 				np_key_t* target = NULL;
 				target = _np_keycache_find_or_create(target_dhkey);
 
 				msg_prop = np_msgproperty_get(TRANSFORM, subject);
+				if (free_subject) free(subject);
+
 				if (NULL != msg_prop)
 				{
 					_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
@@ -576,7 +570,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 	{
 		// nothing found, send leafset to exchange some data at least
 		// prevents small clusters from not exchanging all data
-		np_unref_list(sll_of_keys, "_np_route_row_lookup"); // only for completion
+		np_key_unref_list(sll_of_keys, "_np_route_row_lookup"); // only for completion
 		sll_free(np_key_ptr, sll_of_keys);
 		sll_of_keys = _np_route_neighbors();
 		source_sll_of_keys = "_np_route_neighbors";
@@ -596,7 +590,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 		np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 	}
 
-	np_unref_list(sll_of_keys, source_sll_of_keys);
+	np_key_unref_list(sll_of_keys, source_sll_of_keys);
 	sll_free(np_key_ptr, sll_of_keys);
 }
 

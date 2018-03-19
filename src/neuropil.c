@@ -617,7 +617,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 
 		// next check or wait for valid sender tokens
 		sender_dhkey = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.dhkey;
-		sender_token = _np_aaatoken_get_sender(subject, &sender_dhkey);
+		sender_token = _np_aaatoken_get_sender_token(subject, &sender_dhkey);
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
@@ -647,7 +647,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		_np_msgproperty_threshold_decrease(msg_prop);
 
 		np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
-		np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
+		np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender_token");
 		return (FALSE);
 	}
 
@@ -676,7 +676,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 	msg_prop->max_threshold--;
 
 	np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
-	np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
+	np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender_token");
 
 	return (TRUE);
 }
@@ -722,7 +722,7 @@ uint32_t np_receive_text (char* subject, char **data)
 
 		// next check or wait for valid sender tokens
 		sender_dhkey = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.dhkey;
-		sender_token = _np_aaatoken_get_sender(subject, &sender_dhkey);
+		sender_token = _np_aaatoken_get_sender_token(subject, &sender_dhkey);
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
@@ -752,7 +752,7 @@ uint32_t np_receive_text (char* subject, char **data)
 		msg_prop->max_threshold--;
 
 		np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
-		np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
+		np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender_token");
 		return (0);
 	}
 
@@ -765,7 +765,7 @@ uint32_t np_receive_text (char* subject, char **data)
 	msg_prop->max_threshold--;
 
 	np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
-	np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender");
+	np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender_token");
 
 	log_debug_msg(LOG_DEBUG, "someone sending us messages %s !!!", *data);
 

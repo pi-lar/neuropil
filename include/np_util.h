@@ -49,7 +49,7 @@ extern "C" {
 #endif
 
 #ifdef DEBUG
-#define debugf(s, ...) printf(s, ##__VA_ARGS__);fflush(stdout)
+#define debugf(s, ...) fprintf(stdout, s, ##__VA_ARGS__);fflush(stdout)
 #else
 #define debugf(s, ...)
 #endif

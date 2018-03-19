@@ -281,7 +281,7 @@ np_key_t* _np_keycache_add(np_key_t* subject_key)
  */
 np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_ptr, list_of_keys), const np_dhkey_t* const key)
 {
-	np_dhkey_t  dif, minDif;
+	np_dhkey_t  dif, minDif = { 0 };
 	np_key_t *min = NULL;
 
 	sll_iterator(np_key_ptr) iter = sll_first(list_of_keys);
@@ -291,15 +291,28 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_ptr, list_of_keys),
 		TSP_GET(np_bool, iter->val->in_destroy, in_destroy);
 
 		if(in_destroy == FALSE){
+
+			int cmp = _np_dhkey_cmp(key, &(iter->val->dhkey));
 			// calculate distance to the left and right
-			_np_dhkey_distance (&dif, key, &(iter->val->dhkey));
+			if(cmp > 0){
+				_np_dhkey_distance (&dif, key, &(iter->val->dhkey));
+			}
+			else if(cmp < 0) {
+				_np_dhkey_distance(&dif, &(iter->val->dhkey), key);
+			}
+			else {
+				min = iter->val; // we have a perfect match
+				break;
+			}
 
 			// Set reference point at first iteration, then compare current iterations distance with shortest known distance
-			if (TRUE == first_run || _np_dhkey_cmp (&dif, &minDif) < 0)
+			cmp = _np_dhkey_cmp(&dif, &minDif);
+			if (TRUE == first_run || cmp  < 0)
 			{
 				min = iter->val;
 				_np_dhkey_assign (&minDif, &dif);
 			}
+
 			first_run = FALSE;
 		}
 		sll_next(iter);		

@@ -71,14 +71,14 @@ Fore.YELLOW  + Style.BRIGHT + Back.BLUE   ,
 #Fore.MAGENTA + Style.BRIGHT + Back.BLUE   ,
 #Fore.CYAN    + Style.BRIGHT + Back.BLUE   ,
 #Fore.WHITE   + Style.BRIGHT + Back.BLUE   ,
-Fore.RED                    + Back.MAGENTA,
-Fore.GREEN                  + Back.MAGENTA,
+#Fore.RED                    + Back.MAGENTA,
+#Fore.GREEN                  + Back.MAGENTA,
 Fore.YELLOW                 + Back.MAGENTA,
 Fore.BLUE                   + Back.MAGENTA,
 Fore.CYAN                   + Back.MAGENTA,
 Fore.WHITE                  + Back.MAGENTA,
-Fore.RED     + Style.BRIGHT + Back.MAGENTA,
-Fore.GREEN   + Style.BRIGHT + Back.MAGENTA,
+#Fore.RED     + Style.BRIGHT + Back.MAGENTA,
+#Fore.GREEN   + Style.BRIGHT + Back.MAGENTA,
 Fore.YELLOW  + Style.BRIGHT + Back.MAGENTA,
 Fore.BLUE    + Style.BRIGHT + Back.MAGENTA,
 Fore.CYAN    + Style.BRIGHT + Back.MAGENTA,
@@ -112,7 +112,7 @@ Fore.CYAN    + Style.BRIGHT + Back.WHITE
 threads  = {'index':0}
 files    = {'index':0}
 uuids    = {'index':0}
-subjects = {'index':30}
+subjects = {'index':40}
 dhkeys   = {'index':70}
 level    = {'index':7, 'ERROR':Fore.RED,'WARN':Fore.YELLOW,'INFO':Fore.WHITE,'DEBUG':Fore.CYAN}
 
@@ -127,20 +127,22 @@ def colorize(arr, key):
 
 def msgColorizer(msg):
     ret = msg
-    for match in re.findall("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", ret):
+    for match in re.findall("[0-9a-f-]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", ret):
         ret = ret.replace(match,colorize(uuids,match))
     for match in re.findall("[0-9a-f]{64}", ret):
         ret = ret.replace(match,colorize(dhkeys,match))
-    for match in re.findall("_np.subj:[A-Z\._]+", ret):
+    for match in re.findall("subj:[A-Z\._]+", ret):
         ret = ret.replace(match,colorize(subjects,match))
 
     return ret
 
+i = -1
 for line in sys.stdin:
+    i += 1
     data = line.split(None, 6)
     #pprint(data)
     #continue;
-    print(colorize(files, data[0]), end=' ') #neuropil_node_3000.log:2018-02-28
+    print("{:04d}: ".format(i) + colorize(files, data[0]), end=' ') #neuropil_node_3000.log:2018-02-28
     print(data[1], end=' ') #09:17:42.124759
     print(colorize(threads,data[2]), end=' ') #140538018199296
     print(data[3], end=' ') #src/np_dendrit.:241

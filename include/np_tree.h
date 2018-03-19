@@ -293,7 +293,7 @@ void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target);
 NP_API_INTERN
 void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp);
 NP_API_INTERN
-void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value,char* key_to_read_for);
+void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value, NP_UNUSED char* key_to_read_for);
 NP_API_INTERN
 void np_tree_insert_special_str(np_tree_t* tree, const uint8_t key, np_treeval_t val);
 NP_API_INTERN

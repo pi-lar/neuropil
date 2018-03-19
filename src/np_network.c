@@ -291,11 +291,7 @@ np_bool _np_network_send_handshake(np_key_t* node_key)
 	}
 	return ret;
 }
-np_bool _np_network_append_msg_to_out_queue_force(np_key_t *node_key, np_message_t* msg)
-{
-	np_bool ret = FALSE;
 
-}
 /**
  ** sends a message to host
  **/
@@ -315,7 +311,7 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 		}
 		else {
 			
-			log_msg(LOG_NETWORK | LOG_DEBUG, "sending msg %s for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
+			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "msg (%s) sending for \"%s\" over key %s", msg->uuid, _np_message_get_subject(msg), _np_key_as_str(node_key));
 
 			_LOCK_ACCESS(&msg->msg_chunks_lock) {
 
@@ -355,14 +351,16 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 							/* send data */
 							_LOCK_ACCESS(&node_key->network->out_events_lock) {
 								if (NULL != node_key->network->out_events) {
-									log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%d bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
-									// log_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%llu bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
-									// ret = sendto (state->my_node_key->node->network->socket, enc_buffer, enc_buffer_len, 0, to, to_size);
-									// ret = send (target_node->network->socket, enc_buffer, MSG_CHUNK_SIZE_1024, 0);
+									log_debug_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%d bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
 									sll_append(void_ptr, node_key->network->out_events, (void*)enc_buffer);
 									node_key->network->last_send_date = np_time_now();
 									ret = TRUE;
 									_np_network_start(node_key->network);
+#ifdef DEBUG
+									if(!node_key->network->is_running){
+										log_debug_msg(LOG_NETWORK | LOG_DEBUG, "msg (%s) cannot be send (now) as network is not running", msg->uuid);
+									}
+#endif
 								}
 								else {
 									ret = FALSE;
@@ -394,7 +392,7 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents)
 {
 	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents){");
-	if (FLAG_CMP(revents , EV_WRITE ))
+	if (FLAG_CMP(revents , EV_WRITE ) && FLAG_CMP(revents, EV_ERROR) == FALSE)
 	{
 		np_waitref_obj(np_key_t, event->data, key);
 		np_waitref_obj(np_network_t, key->network, key_network);		

@@ -95,8 +95,8 @@ void np_shutdown_notify_others() {
 
 	sll_free(np_message_ptr, msgs);
 	sll_free(np_key_ptr, merge_table);
-	np_unref_list(routing_table, "_np_route_get_table");
+	np_key_unref_list(routing_table, "_np_route_get_table");
 	sll_free(np_key_ptr, routing_table);
-	np_unref_list(neighbours_table, "_np_route_neighbors");
+	np_key_unref_list(neighbours_table, "_np_route_neighbors");
 	sll_free(np_key_ptr, neighbours_table);
 }

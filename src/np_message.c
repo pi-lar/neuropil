@@ -817,7 +817,10 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
 
 			uint32_t array_size;
-			if (!cmp_read_array(&cmp, &array_size)) return (0);
+			if (!cmp_read_array(&cmp, &array_size)) {
+				log_debug_msg(LOG_WARN, "(msg:%s) wrong format (no array) for deserializing message", msg->uuid);
+				return FALSE;
+			}
 			if (array_size != 5)
 			{
 				log_msg(LOG_WARN, "(msg:%s) unrecognized message length while deserializing message", msg->uuid);
@@ -828,7 +831,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			{
 				
 				void* orig_buffer = _np_buffer_get_buffer(&cmp);
-				if (FALSE == _np_message_deserialize_header_and_instructions(msg, _np_buffer_get_buffer(&cmp))) {
+				if (FALSE == _np_message_deserialize_header_and_instructions(msg, current_chunk->msg_part)) {
 					return (FALSE);
 				}
 				_np_buffer_set_buffer(&cmp, orig_buffer);
@@ -1191,6 +1194,7 @@ void _np_message_trace_info(char* desc, np_message_t * msg_in) {
 
 	char * info_str;
 	asprintf(&info_str, "MessageTrace_%s",desc);
+#ifdef DEBUG
 	np_tree_elem_t* tmp = NULL;
 	np_bool free_key, free_value;
 	char *key, *value;
@@ -1217,6 +1221,9 @@ void _np_message_trace_info(char* desc, np_message_t * msg_in) {
 		}
 	}
 	info_str = np_str_concatAndFree(info_str, ")");
+#else
+	info_str = np_str_concatAndFree(info_str, ": %s", info_str, msg_in->uuid);	
+#endif
 
 	log_msg(LOG_ROUTING | LOG_INFO, info_str);	
 }

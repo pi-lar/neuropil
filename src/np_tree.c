@@ -136,13 +136,12 @@ np_tree_t* np_tree_create()
 }
 
 np_bool _np_tree_is_special_str(const char* in_question, uint8_t* idx_on_found) {
-	np_bool ret = FALSE;
-	return ret;
-	uint8_t item_count = sizeof(np_special_strs) / sizeof(char*);
-
+	np_bool ret = FALSE;	
+	uint8_t item_count = sizeof(np_special_strs) / sizeof(np_special_strs[0]);
 	for (uint8_t i = 0; i < item_count; i++) {
 		const char* special_str = np_special_strs[i];
-		if (strncmp(special_str, in_question, strlen(special_str)) == 0 && strlen(in_question) == strlen(special_str)) {
+	
+		if (strncmp(special_str, in_question, strlen(special_str)+1/*+ NULL Terminator*/) == 0) {
 			if(idx_on_found != NULL){
 				log_debug_msg(LOG_TREE | LOG_DEBUG, "idx detected for %15s at %3"PRIu8" saving into %p",in_question, i, idx_on_found);
 				*idx_on_found = i;
@@ -175,7 +174,7 @@ int16_t _np_tree_elem_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2)
 	if (jv1.type == jv2.type)
 	{
 		if (jv1.type == np_treeval_type_char_ptr) {
-			return strncmp(jv1.value.s, jv2.value.s, 64);
+			return strncmp(jv1.value.s, jv2.value.s, strlen(jv1.value.s)+1);
 		}
 		else if (jv1.type == np_treeval_type_special_char_ptr){
 			int res = (int)jv1.value.ush - (int)jv2.value.ush;
@@ -933,17 +932,16 @@ void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target) 
 
 }
 
-uint8_t __np_tree_serialize_read_type_special_str(void* buffer_ptr, np_treeval_t* target) {
-	log_trace_msg(LOG_TRACE, "start: uint8_t __np_tree_serialize_read_type_special_str(void* buffer_ptr, np_treeval_t* target) {");
-	cmp_ctx_t cmp;
-	cmp_init(&cmp, buffer_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+uint8_t __np_tree_serialize_read_type_special_str(cmp_ctx_t* cmp, np_treeval_t* target) {
+	log_trace_msg(LOG_TRACE, "start: uint8_t __np_tree_serialize_read_type_special_str(void* buffer_ptr, np_treeval_t* target) {");	
+
 	uint8_t idx = 0;
-	cmp_read_u8(&cmp, &idx);
+	cmp_read_u8(cmp, &idx);
 	target->value.ush = idx;
 	target->type = np_treeval_type_special_char_ptr;
 	target->size = sizeof(uint8_t);
 
-	return cmp.error;
+	return cmp->error;
 }
 
 void __np_tree_serialize_write_type_special_str(uint8_t idx, cmp_ctx_t* target) {
@@ -1214,7 +1212,7 @@ void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx
 			}
 			else if (obj->as.ext.type == np_treeval_type_special_char_ptr)
 			{
-				cmp->error = __np_tree_serialize_read_type_special_str(buffer, value);
+				cmp->error = __np_tree_serialize_read_type_special_str(cmp, value);
 			}
 			else if (obj->as.ext.type == np_treeval_type_hash)
 			{

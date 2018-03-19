@@ -71,7 +71,7 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_
 	np_job_t* new_job = (np_job_t*)malloc(sizeof(np_job_t));
 	CHECK_MALLOC(new_job);
 
-	new_job->exec_not_before_tstamp = np_time_now() + (delay == 0 ? 0: max(0.0001, delay));
+	new_job->exec_not_before_tstamp = np_time_now() + (delay == 0 ? 0: max(0.001, delay));
 	new_job->args = jargs;
 	new_job->type = 1;
 	new_job->priority = priority_modifier;
@@ -272,7 +272,6 @@ void _np_job_resubmit_route_event(double delay, np_msgproperty_t* prop, np_key_t
 
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE, prop->clb_route, "clb_route");
-
 
 	if (!_np_job_queue_insert(new_job)) {
 		_np_job_free(new_job);

@@ -80,19 +80,16 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
     _np_message_create(write_msg, write_to->dhkey, write_from->dhkey, "serialize_np_message_t", write_tree);
 	np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
-    np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL,"tst");
-    cr_assert(NULL != write_args,"Expected to receive jobargs");
-
     // Do the serialsation
 	_np_message_calculate_chunking(write_msg);
-    np_bool write_ret = _np_message_serialize_chunked(write_args->msg);
+    np_bool write_ret = _np_message_serialize_chunked(write_msg);
     cr_assert(TRUE == write_ret, "Expected positive result in serialisation");
 
     cr_expect(pll_size(write_msg->msg_chunks) == 1, "Expected 1 chunk for message");
 
 	// Do the deserialisation
     np_message_t* read_msg = NULL;
-    np_new_obj(np_message_t,read_msg);
+    np_new_obj(np_message_t, read_msg);
     read_msg->msg_chunks = write_msg->msg_chunks;
 
     np_bool read_ret = _np_message_deserialize_chunked(read_msg);

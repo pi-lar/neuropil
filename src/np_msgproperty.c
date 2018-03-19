@@ -41,6 +41,7 @@
 #include "np_constants.h"
 #include "np_list.h"
 #include "np_types.h"
+#include "np_token_factory.h"
 
 
 #define NR_OF_ELEMS(x)  (sizeof(x) / sizeof(x[0]))
@@ -158,11 +159,19 @@ void np_msgproperty_register(np_msgproperty_t* msgprops)
 	np_ref_obj(np_msgproperty_t, msgprops, ref_system_msgproperty);
 	RB_INSERT(rbt_msgproperty, __msgproperty_table, msgprops);
 
+	np_message_intent_public_token_t* token =  _np_msgproperty_upsert_token(msgprops);
 	if ((msgprops->mode_type & OUTBOUND) == OUTBOUND) {
-		_np_send_subject_discovery_messages(OUTBOUND, msgprops->msg_subject);
-	}else if ((msgprops->mode_type & INBOUND) == INBOUND) {
-		_np_send_subject_discovery_messages(INBOUND, msgprops->msg_subject);
+		_np_aaatoken_add_sender(msgprops->msg_subject, token);
+		_np_send_subject_discovery_messages(OUTBOUND, msgprops->msg_subject);		
+
+	}	
+
+	if ((msgprops->mode_type & INBOUND) == INBOUND) {
+		_np_aaatoken_add_receiver(msgprops->msg_subject, token);
+		_np_send_subject_discovery_messages(INBOUND, msgprops->msg_subject);		
+
 	}
+	np_unref_obj(np_aaatoken_t, token, "_np_msgproperty_upsert_token");
 }
 
 void _np_msgproperty_t_new(void* property)
@@ -556,3 +565,33 @@ void _np_msgproperty_threshold_decrease(np_msgproperty_t* self) {
 }
 
 
+np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t* prop) {
+
+	ASSERT(prop != NULL, "We need a msgproperty to update the token for");
+	np_message_intent_public_token_t* ret = _np_aaatoken_get_local_mx(prop->msg_subject);
+
+	double now = np_time_now();
+	if (NULL == ret
+		|| _np_aaatoken_is_valid(ret, np_aaatoken_type_message_intent) == FALSE
+		|| (ret->expires_at - now) <= min(prop->token_min_ttl, MISC_RETRANSMIT_MSG_TOKENS_SEC)
+		)
+	{
+		// Create a new msg token
+		log_msg(LOG_INFO | LOG_AAATOKEN, "--- refresh for subject token: %25s --------", prop->msg_subject);
+		np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(prop);
+		log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s (%s replaces %s) ", prop->msg_subject, msg_token_new->uuid, ret == NULL ? "-" : ret->uuid);		
+		_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
+		np_unref_obj(np_aaatoken_t, ret, "_np_aaatoken_get_local_mx");
+		ret = msg_token_new;		
+		log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "--- done refresh for subject token: %25s new token has uuid %s", prop->msg_subject, msg_token_new->uuid);
+
+		ref_replace_reason(np_aaatoken_t, ret, "_np_token_factory_new_message_intent_token", __func__);
+	
+	} else {
+		ref_replace_reason(np_aaatoken_t, ret, "_np_aaatoken_get_local_mx", __func__);
+	}
+
+	ASSERT(_np_aaatoken_is_valid(ret, np_aaatoken_type_message_intent), "AAAToken needs to be valid");
+	
+	return ret;
+}

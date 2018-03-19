@@ -65,7 +65,7 @@ char* _np_key_as_str(np_key_t* key)
 	return (key->dhkey_str);
 }
 
-void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc)
+void np_key_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc)
 {
 	sll_iterator(np_key_ptr) iter = sll_first(sll_list);
 	while (NULL != iter)
@@ -75,7 +75,7 @@ void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char*
 	}
 }
 
-void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
+void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
 {
 	sll_iterator(np_key_ptr) iter = sll_first(sll_list);
 	while (NULL != iter)
@@ -349,7 +349,7 @@ void np_key_renew_token() {
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "step ._np_renew_node_token_jobexec.Completed node renewal. cleaning up now");
 
 		// clean up
-		np_unref_list(table,"_np_route_get_table");
+		np_key_unref_list(table,"_np_route_get_table");
 		sll_free(np_key_ptr, table);
 
 		_np_key_destroy(old_node_key);

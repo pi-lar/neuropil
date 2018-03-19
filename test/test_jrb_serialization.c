@@ -44,7 +44,7 @@ void reset_buffer_counter(){
 
 void setup_serialization(void)
 {
-	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE;
+	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_TREE;
 	np_mem_init();
 	np_memory_init();
 	np_log_init("test_jrb_serialization.log", log_level);
@@ -96,8 +96,6 @@ Test(test_serialization, serialize_np_dhkey_t, .description="test the serializat
 								    // marker EXT32  + size of EXT32    + type of EXT32
 	uint32_t expected_write_size =  (sizeof(uint8_t) + sizeof(uint32_t) + sizeof(uint8_t) + expected_obj_size);
 
-	fprintf(stdout, "expected obj size: %d / write size: %d\n", expected_obj_size, expected_write_size);
-	fprintf(stdout, "expected obj size: %d / wrote size: %d\n", expected_obj_size, total_write_count);
 
 	cr_expect(total_write_count == expected_write_size, "Expected write size is %d but is %d", expected_write_size, total_write_count);
 	uint32_t expected_read_count = total_write_count;
@@ -214,17 +212,17 @@ Test(test_serialization, _np_tree_special_str, .description = "test the implemen
 	char* tmp;
 	uint32_t tmp2;
 
-	cr_assert(_np_tree_is_special_str("np.test1", &idx) == FALSE, "expecting np.test1 to be no special string");
-	cr_assert(idx == 254, "expecting index to be the same");	
+	cr_expect(_np_tree_is_special_str("np.test1", &idx) == FALSE, "expecting np.test1 to be no special string");
+	cr_expect(idx == 254, "expecting index to be the same");
 
-	cr_assert(_np_tree_is_special_str("np.test2", &idx) == TRUE, "expecting np.test2 to be a special string");
-	cr_assert(idx == 0, "expecting np.test2 to be at position 0");
-	cr_assert(strcmp("np.test2", (tmp = _np_tree_get_special_str(0))) == 0, "expecting retunred special string to be np.test2 and not %s",tmp);
+	cr_expect(_np_tree_is_special_str("np.test2", &idx) == TRUE, "expecting np.test2 to be a special string");
+	cr_expect(idx == 0, "expecting np.test2 to be at position 0 and not %"PRIu8, idx);
+	cr_expect(strcmp("np.test2", (tmp = _np_tree_get_special_str(idx))) == 0, "expecting retunred special string to be np.test2 and not %s",tmp);
 
 
-	cr_assert(_np_tree_is_special_str("np.test3", &idx) == TRUE, "expecting np.test3 to be a special string");
-	cr_assert(idx == 2, "expecting np.test3 to be at position 2");
-	cr_assert(strcmp("np.test3", (tmp =  _np_tree_get_special_str(2))) == 0, "expecting retunred special string to be np.test3 and not %s",tmp);
+	cr_expect(_np_tree_is_special_str("np.test3", &idx) == TRUE, "expecting np.test3 to be a special string");
+	cr_expect(idx == 2, "expecting np.test3 to be at position 2");
+	cr_expect(strcmp("np.test3", (tmp =  _np_tree_get_special_str(idx))) == 0, "expecting retunred special string to be np.test3 and not %s",tmp);
 
 
 	np_tree_t* tst = np_tree_create();
@@ -233,21 +231,21 @@ Test(test_serialization, _np_tree_special_str, .description = "test the implemen
 	np_tree_insert_str(tst, "np.test3", np_treeval_new_s("np.test2"));
 	ele = np_tree_find_str(tst, "np.test3");
 	cr_assert(ele != NULL, "Expect to find a element");
-	cr_assert(ele->key.type == np_treeval_type_special_char_ptr, "Expect key of element to be from type np_treeval_type_special_char_ptr");
-	cr_assert(ele->key.value.ush == 2, "Expect type index to be 2");
+	cr_expect(ele->key.type == np_treeval_type_special_char_ptr, "Expect key of element to be from type np_treeval_type_special_char_ptr");
+	cr_expect(ele->key.value.ush == 2, "Expect type index to be 2");
 
-	cr_assert(ele->val.type == np_treeval_type_special_char_ptr, "Expect value of element to be from type np_treeval_type_special_char_ptr");
-	cr_assert(ele->val.value.ush == 0, "Expect type index to be 0 but is %"PRIu8, ele->val.value.ush);
+	cr_expect(ele->val.type == np_treeval_type_special_char_ptr, "Expect value of element to be from type np_treeval_type_special_char_ptr");
+	cr_expect(ele->val.value.ush == 0, "Expect type index to be 0 but is %"PRIu8, ele->val.value.ush);
 
-	cr_expect(1+1+1+1 < (tmp2 = np_tree_get_byte_size(tst->rbh_root)), "expect byte size to be 4 but is %"PRIu32, tmp2);
+	cr_expect(4 < (tmp2 = np_tree_get_byte_size(tst->rbh_root)), "expect byte size to be 4 but is %"PRIu32, tmp2);
 
 	np_tree_insert_str(tst, "np.test2", np_treeval_new_s("1234"));
 	ele = np_tree_find_str(tst, "np.test2");
 	cr_assert(ele != NULL, "Expect to find a element");
-	cr_assert(ele->key.type == np_treeval_type_special_char_ptr, "Expect key of element to be from type np_treeval_type_special_char_ptr");
-	cr_assert(ele->key.value.ush == 0, "Expect type index to be 0");
-	cr_assert(ele->val.type == np_treeval_type_char_ptr, "Expect value of element to be from type np_treeval_type_char_ptr");
-	cr_assert(strcmp("1234",  np_treeval_to_str(ele->val, NULL)) == 0, "expecting special string to be 1234");
+	cr_expect(ele->key.type == np_treeval_type_special_char_ptr, "Expect key of element to be from type np_treeval_type_special_char_ptr");
+	cr_expect(ele->key.value.ush == 0, "Expect type index to be 0");
+	cr_expect(ele->val.type == np_treeval_type_char_ptr, "Expect value of element to be from type np_treeval_type_char_ptr");
+	cr_expect(strcmp("1234",  np_treeval_to_str(ele->val, NULL)) == 0, "expecting special string to be 1234");
 
 	cr_expect(0 < np_tree_get_byte_size(tst->rbh_root), "expect byte size to be not 0");
 
@@ -288,13 +286,13 @@ Test(test_serialization, np_tree_serialize, .description="test the serialization
 	// np_free_tree(test_jrb_1);
 	np_tree_insert_str(test_jrb_1, "halli", np_treeval_new_s("galli"));
 	cr_expect(   1 == test_jrb_1->size, "expect size of tree to be 1");
-	cr_expect(  20 == np_tree_get_byte_size(test_jrb_1->rbh_root), "expect byte size to be 20");
-	cr_expect(  25 == test_jrb_1->byte_size, "expect byte size to be 25");
+	cr_expect(  22 == np_tree_get_byte_size(test_jrb_1->rbh_root), "expect byte size to be 22");
+	cr_expect(  27 == test_jrb_1->byte_size, "expect byte size to be 27");
 
 	np_tree_insert_str(test_jrb_1, "hallo", np_treeval_new_s("gulli"));
 	cr_expect(  2 == test_jrb_1->size, "expect size of tree to be 2");
-	cr_expect( 20 == np_tree_get_byte_size(test_jrb_1->rbh_root), "expect byte size to be 20");
-	cr_expect( 45 == test_jrb_1->byte_size, "expect byte size to be 45");
+	cr_expect( 22 == np_tree_get_byte_size(test_jrb_1->rbh_root), "expect byte size to be 22");
+	cr_expect( 49 == test_jrb_1->byte_size, "expect byte size to be 49");
 
 	np_tree_t* test_jrb_2 = np_tree_create();
 	cr_expect(   0 == test_jrb_2->size, "expect size of tree to be 0");

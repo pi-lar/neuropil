@@ -427,6 +427,8 @@ NP_API_INTERN
 void _np_msgproperty_threshold_increase(np_msgproperty_t* self);
 NP_API_INTERN
 void _np_msgproperty_threshold_decrease(np_msgproperty_t* self);
+NP_API_INTERN
+np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t* prop);
 #ifdef __cplusplus
 }
 #endif
