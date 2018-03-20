@@ -29,8 +29,7 @@ extern "C" {
 
 	enum np_error {
 		np_ok = 0,
-		np_invalid_input,
-		np_invalid_input_size,
+		np_invalid_argument,
 		np_invalid_operation,
 		// ...
 	};
@@ -55,17 +54,17 @@ extern "C" {
 		uint32_t n_threads;
 		// ...
 	};
-	void np_default_settings (struct np_settings *settings);
+	void np_default_settings(struct np_settings *settings);
 
 	typedef void np_context;
 	np_context* np_new_context(struct np_settings *settings);
-
-	enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
 
 	// secret_key is nullable
 	struct np_token *np_new_identity(void* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]));
 
 	enum np_error np_set_identity(np_context* ac, struct np_token identity);
+
+	enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
 
 	// Get “connect string”. Signals error if connect string is unavailable (i.e.,
 	// no listening interface is configured.)
@@ -73,15 +72,15 @@ extern "C" {
 
 	enum np_error np_join(np_context* ac, char* address);
 
-	enum np_error np_send(np_context* ac, uint8_t* message, size_t length, np_id* subject);
+	enum np_error np_send(np_context* ac, np_id* subject, uint8_t* message, size_t length);
 
 	typedef bool (*np_receive_callback)(uint8_t* message, size_t length);
 	// There can be more than one receive callback, hence "add".
-	enum np_error np_add_receive_cb(np_context* ac, np_receive_callback callback);
+	enum np_error np_add_receive_cb(np_context* ac, np_id* subject, np_receive_callback callback);
 
 	typedef bool (*np_aaa_callback)(struct np_token* aaa_token);
 	enum np_error np_set_authenticate_cb(np_context* ac, np_aaa_callback callback);
-	enum np_error np_set_authorize_cb(np_context* ac, np_id subject, np_aaa_callback callback);
+	enum np_error np_set_authorize_cb(np_context* ac, np_aaa_callback callback);
 
 	// duration: 0 => process pending events and return
 	//           N => process events for up to N seconds and return
@@ -99,7 +98,7 @@ extern "C" {
 		bool unique_uuids_check;
 	};
 
-	enum np_error np_set_mx_properties(np_context* ac, np_id subject, struct np_mx_properties properties);
+	enum np_error np_set_mx_properties(np_context* ac, np_id* subject, struct np_mx_properties properties);
 	
 #ifdef __cplusplus
 }
