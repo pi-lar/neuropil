@@ -21,12 +21,17 @@ It should contain all required functions to send or receive messages.
 #include "np_list.h"
 
 #define NEUROPIL_RELEASE	"neuropil_0.4.0"
+#ifndef NEUROPIL_RELEASE_BUILD
+#define NEUROPIL_RELEASE_BUILD 0
+#endif //NEUROPIL_RELEASE_BUILD
+
 #define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2017 neuropil.org, Cologne, Germany"
 #define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2017 pi-lar GmbH, Cologne, Germany"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 /** \toggle_keepwhitespaces  */
 
@@ -53,6 +58,7 @@ struct np_state_s
 	pthread_attr_t attr;
 	pthread_t* thread_ids;
 
+	np_mutex_t* threads_lock;
 	np_sll_t(np_thread_ptr, threads);
 
 	int thread_count;
@@ -243,7 +249,7 @@ void np_add_send_listener(np_usercallback_t msg_handler, char* subject);
 
 */
 NP_API_EXPORT
-void np_send_text    (char* subject, char *data, uint32_t seqnum, char* targetDhkey);
+void np_send_text    (char* subject, char *data, uint32_t seqnum, np_dhkey_t* target_dhkey);
 
 /**
 .. c:function:: void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body)
@@ -372,7 +378,7 @@ NP_API_PROTEC
 double np_time_now();
 
 NP_API_PROTEC
-void np_time_sleep(double sleeptime);
+double np_time_sleep(double sleeptime);
 
 // send join request
 NP_API_INTERN
@@ -385,7 +391,8 @@ NP_API_INTERN
 np_message_t* _np_prepare_msg(char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
 NP_API_EXPORT
 void np_context_create_new_nodekey(np_node_t* base);
-
+NP_API_EXPORT
+np_bool np_has_receiver_for(char * subject);
 
 #ifdef __cplusplus
 }

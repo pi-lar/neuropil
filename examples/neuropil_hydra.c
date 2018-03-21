@@ -199,7 +199,7 @@ int main(int argc, char **argv)
 		}
 		np_example_print(stdout, "Bootstrap host node: %s\n", j_key);
 		if (NULL == j_key) {
-			np_example_print(stderr, "Bootstrap host node could not start ... exit\n");
+			np_example_print(stdout, "Bootstrap host node could not start ... exit\n");
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -241,7 +241,8 @@ int main(int argc, char **argv)
 	   \code
 	 */
 	char bootstrap_port[10];
-	memcpy(bootstrap_port, port, strnlen(port,10));
+	int bootstrap_port_i = atoi(port);
+	memcpy(bootstrap_port, port, strnlen(port,10));	
 	double last_process_kill_at = np_time_now();
 	while (TRUE) {
 		// (re-) start child processes
@@ -258,7 +259,7 @@ int main(int argc, char **argv)
 			 */
 			
 			sprintf(port, "%d", atoi(port) + 1);
-			
+			int port_i = atoi(port);
 			current_pid = fork();			
 			if (0 == current_pid) {
 				// disable baster for slaves
@@ -316,7 +317,7 @@ int main(int argc, char **argv)
 				np_bool firstConnectionTry = TRUE;
 				do {
 					if (!firstConnectionTry) {
-						np_example_print(stdout, "%s tries to join bootstrap node\n", port);
+						np_example_print(stdout, "%s (%d/%"PRIu32") tries to join bootstrap node\n", port, port_i-bootstrap_port_i, required_nodes);
 					}
 				 					
 					np_send_join(j_key);
@@ -330,13 +331,13 @@ int main(int argc, char **argv)
 					}
 
 					if(FALSE == child_status->my_node_key->node->joined_network ) {
-						np_example_print(stderr, "%s could not join network!\n",port);
+						np_example_print(stdout, "%s (%d/%"PRIu32") could not join network\n", port, port_i - bootstrap_port_i, required_nodes);
 					}
 				} while (FALSE == child_status->my_node_key->node->joined_network) ;
 
 				char time[50] = { 0 };
-				reltime_to_str(time, np_time_now() - started_at);
-				np_example_print(stdout, "%s joined network after %s!\n",port, time);
+				reltime_to_str(time, np_time_now() - started_at);				
+				np_example_print(stdout, "%s (%d/%"PRIu32") joined network after %s!\n", port, port_i - bootstrap_port_i, required_nodes, time);
 				/**
 				 \endcode
 				 */	
@@ -406,7 +407,7 @@ int main(int argc, char **argv)
 					if (opt_kill_node == NULL) 
 					{
 						np_example_print(
-							stderr, 
+							stdout,
 							"trying to find stopped child process %d\n", 
 							child_pid
 						);
@@ -420,7 +421,7 @@ int main(int argc, char **argv)
 					{
 						if (child_pid == iter->val)
 						{
-							np_example_print(stderr, "removing stopped child process\n");
+							np_example_print(stdout, "removing stopped child process\n");
 							sll_delete(int, list_of_childs, iter);
 							break;
 						}

@@ -128,9 +128,9 @@ int main(int argc, char **argv) {
 			fprintf(stdout, "%s joined network!\n", port);
 			break;
 		} else {
-			fprintf(stderr, "%s could not join network!\n", port);
+			fprintf(stdout, "%s could not join network!\n", port);
 			if(retry_connection-- < 0){
-				fprintf(stderr, "abort\n");
+				fprintf(stdout, "abort\n");
 				break;
 			}
 		}
@@ -209,12 +209,6 @@ np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np
 	 */
 	 np_tree_t* header = msg->header;
 
-	char* reply_to = NULL;
-	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
-	if (NULL != repl_to) {
-		reply_to = np_treeval_to_str(repl_to->val, NULL);
-	}
-
 	char* text;
 	np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
 	if (NULL != txt) {
@@ -223,7 +217,7 @@ np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np
 	} else {
 		text = "<NON TEXT MSG>";
 	}
-	fprintf(stdout, "%f - RECEIVED: \"%s\" from: %s \n", np_time_now(), text, reply_to);
+	fprintf(stdout, "%f - RECEIVED: \"%s\" \n", np_time_now(), text);
 	/**
 	 \endcode
 

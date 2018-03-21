@@ -172,6 +172,7 @@ typedef enum np_msg_mep_enum {
 
 */
 typedef enum np_msgcache_policy_enum {
+	UNKNOWN = 0x00,
 	FIFO = 0x01,
 	FILO = 0x02,
 	OVERFLOW_REJECT = 0x10,
@@ -260,6 +261,7 @@ struct np_msgproperty_s
 
 	// only send/receive after opposite partner has been found
 	np_mutex_t lock;
+	np_mutex_t send_discovery_msgs_lock;
 	np_cond_t  msg_received;
 
 	// pthread_cond_t     msg_received;
@@ -289,6 +291,8 @@ struct np_msgproperty_s
 	// weak link (no reffing)
 	np_key_t* recv_key;
 
+	np_message_intent_public_token_t* current_sender_token;
+	np_message_intent_public_token_t* current_receive_token;
 
 } NP_API_EXPORT;
 
@@ -360,6 +364,8 @@ void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self);
 NP_API_INTERN
 void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args);
 NP_API_INTERN
+void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_message_t* msg_to_remove);
+NP_API_INTERN
 np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check);
 
 #define _NP_URN_PREFIX						"urn:np:"
@@ -414,8 +420,6 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 NP_API_INTERN
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
 NP_API_INTERN
-np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
-NP_API_INTERN
 void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgproperty_t* msg_prop);
 NP_API_INTERN
 void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop);
@@ -423,6 +427,8 @@ NP_API_INTERN
 void _np_msgproperty_threshold_increase(np_msgproperty_t* self);
 NP_API_INTERN
 void _np_msgproperty_threshold_decrease(np_msgproperty_t* self);
+NP_API_INTERN
+np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t* prop);
 #ifdef __cplusplus
 }
 #endif

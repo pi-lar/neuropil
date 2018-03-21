@@ -89,15 +89,15 @@ struct np_memory_itemconf_s {
 	np_mutex_t access_lock;
 };
 
-np_memory_container_t* np_memory_containers[UINT8_MAX] = { 0 };
+static np_memory_container_t* __np_memory_container[np_memory_types_MAX_TYPE] = { 0 };
 
 #define NEXT_ITEMCONF(conf, skip) conf = (np_memory_itemconf_t*) (((char*)conf) + (((skip)+1) * ((conf)->block->container->size_per_item + sizeof(np_memory_itemconf_t))));
 #define GET_CONF(item) ((np_memory_itemconf_t*)(((char*)item) - sizeof(np_memory_itemconf_t)))
 #define GET_ITEM(config) (((char*)config) + sizeof(np_memory_itemconf_t))
 
 void np_memory_init() {
-	for (int i = 0; i < np_memory_types_END_TYPES; i++) {
-		np_memory_containers[i] = NULL;
+	for (int i = 0; i < np_memory_types_MAX_TYPE; i++) {
+		__np_memory_container[i] = NULL;
 	}
 	np_memory_register_type(np_memory_types_np_message_t, sizeof(np_message_t), 4, 4, NULL, NULL, np_memory_clear_space);
 	np_memory_register_type(np_memory_types_np_key_t, sizeof(np_key_t), 4, 4, NULL, NULL, np_memory_clear_space);
@@ -121,8 +121,9 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
 
 		np_memory_itemconf_t* conf = malloc(whole_item_size);
 		CHECK_MALLOC(conf);
+		//debugf("adding obj %p \n", conf);
 
-		// item init
+		// conf init
 		conf->container = container;
 		conf->in_use = FALSE;
 		conf->needs_refresh = TRUE;
@@ -145,7 +146,7 @@ void np_memory_register_type(
 	np_memory_on_free on_free,
 	np_memory_on_refresh_space on_refresh_space
 ) {
-	if (np_memory_containers[type] == NULL) {
+	if (__np_memory_container[type] == NULL) {
 		np_memory_container_t* container = calloc(1, sizeof(np_memory_container_t));
 		CHECK_MALLOC(container);
 
@@ -178,14 +179,15 @@ void np_memory_register_type(
 				__np_memory_space_increase(container, container->count_of_items_per_block);
 			}
 
-			np_memory_containers[container->type] = container;
-			log_msg(LOG_MEMORY | LOG_INFO, "Created memory container (%p) for type %"PRIu8" at %p", container, type, np_memory_containers[container->type]);
+			__np_memory_container[container->type] = container;
+			log_msg(LOG_MEMORY | LOG_INFO, "Created memory container (%p) for type %"PRIu8" at %p", container, type, __np_memory_container[container->type]);
 		}
 		else {
 			log_msg(LOG_ERROR, "Could not create memory container lock");
 		}
 	}
 }
+
 np_bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
 	np_bool refreshed = FALSE;
 	np_memory_container_t* container = config->container;
@@ -215,6 +217,7 @@ void* _np_memory_new_raw(np_memory_container_t* container) {
 	}
 	return ret;
 }
+
 void _np_memory_free_raw(void* item) {
 	free(item);
 }
@@ -333,16 +336,18 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
 			}
 		}
 		if (item_config != NULL) {
-			np_bool del = FALSE;
+			//debugf("removing obj %p \n", item_config);
 			_LOCK_ACCESS(&item_config->access_lock) {
-				del = item_config->in_use == FALSE;
+				ASSERT(item_config->in_use == FALSE, "can only delete unused memory objects");
 			}
-			if (del) {
-				_np_threads_mutex_destroy(&item_config->access_lock);
-				free(item_config);
-			}
+
+			_np_threads_mutex_destroy(&item_config->access_lock);
+			free(item_config);
+			item_config = NULL;
+			
 		}
 		else {
+			// removed everything, lists are now empty
 			break;
 		}
 	}
@@ -351,7 +356,7 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
 void* np_memory_new(uint8_t type) {
 	NP_PERFORMANCE_POINT_START(memory_new);
 	void* ret = NULL;
-	np_memory_container_t* container = np_memory_containers[type];
+	np_memory_container_t* container = __np_memory_container[type];
 	ASSERT(container != NULL, "Memory container %"PRIu8" needs to be initialized first.", type);
 
 	log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Searching for next free current_block for type %"PRIu8, type);
@@ -369,18 +374,17 @@ void* np_memory_new(uint8_t type) {
 
 				if (next_config == NULL) {
 					// second best pick: a free container
-					_TRYLOCK_ACCESS(&container->free_items_lock) {
+					_LOCK_ACCESS(&container->free_items_lock) {
 						next_config = sll_head(np_memory_itemconf_ptr, container->free_items);
 
 						if (next_config == NULL) {
-							// worst case: create a new block
+							// worst case: create a new item
 							__np_memory_space_increase(container, 1);
 							next_config = sll_head(np_memory_itemconf_ptr, container->free_items);
 						}
-
-						// second bast as we need to refresh the item
-						__np_memory_refresh_space(next_config);													
 					}
+					// second bast as we need to refresh the item
+					__np_memory_refresh_space(next_config);
 				}
 			}
 		}
@@ -449,56 +453,49 @@ void np_memory_clear_space(NP_UNUSED uint8_t type, size_t size, void* data) {
 }
 
 void np_memory_randomize_space(NP_UNUSED uint8_t type, size_t size, void* data) {
-	randombytes_buf(data, size);
+	randombytes_buf(data, size);	
 }
 
 void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 	NP_PERFORMANCE_POINT_START(memory_management);
-	for (uint8_t memory_type = 0; memory_type < np_memory_types_END_TYPES; memory_type++) {
-		np_memory_container_t* container = np_memory_containers[memory_type];
+	for (uint8_t memory_type = 0; memory_type < np_memory_types_MAX_TYPE; memory_type++) {
+		np_memory_container_t* container = __np_memory_container[memory_type];
 		if (container != NULL && container->on_refresh_space != NULL) {
 			__np_memory_itemstats_update(container);
 			
 			if (__np_memory_space_decrease_nessecary(container)) {
 				//debugf("\t__np_memory_space_decrease\n");
 				__np_memory_space_decrease(container);
-			}
-			
-			if (__np_memory_space_increase_nessecary(container))
+			}else if (__np_memory_space_increase_nessecary(container))
 			{
 				//debugf("__np_memory_space_increase\n");
 				__np_memory_space_increase(container, container->count_of_items_per_block);
 			}
 
-			// refresh items
-			np_memory_itemconf_ptr * list_as_array;
-			uint32_t i = 0;
+			uint32_t list_size = 0;
+			_LOCK_ACCESS(&container->free_items_lock) {
+				list_size = sll_size(container->free_items);
+			}
+			np_memory_itemconf_ptr list_as_array[ list_size ];
+
 			_LOCK_ACCESS(&container->free_items_lock)
 			{
-				list_as_array = malloc(sll_size(container->free_items) * sizeof(np_memory_itemconf_ptr));
-
-				sll_iterator(np_memory_itemconf_ptr) iter_refreshable = sll_first(container->free_items);
-
-				while (iter_refreshable != NULL)
-				{
-					list_as_array[i] = iter_refreshable->val;
-					i++;
-					sll_next(iter_refreshable);
+				for (uint32_t k = list_size; k > 0; k--) {
+					list_as_array[k-1] = sll_head(np_memory_itemconf_ptr, container->free_items);
 				}
-				sll_clear(np_memory_itemconf_ptr, container->free_items);
 			}
-			
-			if (i/*count_of_array_size */ > 0) {				
-				for (i--; i > 0; i--) // i as index, not as count
-				{
-					np_memory_itemconf_t* item_config = list_as_array[i];
 
+			for (uint32_t k = list_size; k > 0 && k <= list_size; k--)
+			{
+				np_memory_itemconf_t* item_config = list_as_array[k-1];
+				if (item_config != NULL)
+				{
 					_LOCK_ACCESS(&item_config->access_lock)
 					{
 						__np_memory_refresh_space(item_config);
 						_LOCK_ACCESS(&container->refreshed_items_lock)
 						{
-							sll_append(np_memory_itemconf_ptr, container->refreshed_items, item_config);
+						sll_append(np_memory_itemconf_ptr, container->refreshed_items, item_config);
 						}
 					}
 				}

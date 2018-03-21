@@ -21,6 +21,7 @@ void setup_keycache(void)
 
 	np_log_init("test_keycache.log", log_level);
 	_np_threads_init();
+	np_memory_init();
 	np_mem_init();
 
 	_np_keycache_init ();
@@ -206,35 +207,75 @@ Test(np_keycache_t, _np_key_as_str, .description="test the creation of a string 
 // np_key_t* _np_keycache_find_closest_key_to (np_sll_t(np_key_ptr, list_of_keys), np_dhkey_t* key);
 Test(np_keycache_t, _np_keycache_find_closest_key_to, .description="test the finding of the closest key")
 {
-	const int count_of_keys = 10; // should be lower than 99
-	np_key_t* new_keys[count_of_keys];
+	const int count_of_keys = 10;	//should be below 244
 	np_sll_t(np_key_ptr, key_list);
 	sll_init(np_key_ptr, key_list);
 
-	np_dhkey_t dummy_key = { .t[0] = 99, .t[1] = 99, .t[2] = 99, .t[3] = 99};
+	np_dhkey_t dummy_key = { 
+		.t[0] = count_of_keys + 10,
+		.t[1] = count_of_keys + 10,
+		.t[2] = count_of_keys + 10,
+		.t[3] = count_of_keys + 10,
+		.t[4] = count_of_keys + 10,
+		.t[5] = count_of_keys + 10,
+		.t[6] = count_of_keys + 10,
+		.t[7] = count_of_keys+1
+	};
+	np_dhkey_t nearest_dummy_key = { 
+		.t[0] = count_of_keys,
+		.t[1] = count_of_keys,
+		.t[2] = count_of_keys,
+		.t[3] = count_of_keys,
+		.t[4] = count_of_keys,
+		.t[5] = count_of_keys,
+		.t[6] = count_of_keys,
+		.t[7] = count_of_keys 
+	};
 
 	np_key_t* found = _np_keycache_find_closest_key_to(key_list, &dummy_key);
 	cr_expect(NULL == found, "expecting a NULL result for searching an empty list");
 
-	for (int i=0; i < count_of_keys; i++)
+	int i;
+	// add keys from up and down to add a litte shuffle
+	for (i = 0; i < floor(count_of_keys / 2.); i++)
 	{
-		np_dhkey_t key = { .t[0] = i, .t[1] = i, .t[2] = i, .t[3] = i};
+		np_dhkey_t key = { 
+			.t[0] = i,
+			.t[1] = i,
+			.t[2] = i,
+			.t[3] = i,
+			.t[4] = i,
+			.t[5] = i,
+			.t[6] = i,
+			.t[7] = i,
+		};
+		
+		sll_append(np_key_ptr, key_list, _np_keycache_find_or_create(key));
+	} 
+	for (i = count_of_keys;  i >= floor(count_of_keys / 2.); i--)
+	{
+		np_dhkey_t key = {
+			.t[0] = i,
+			.t[1] = i,
+			.t[2] = i,
+			.t[3] = i,
+			.t[4] = i,
+			.t[5] = i,
+			.t[6] = i,
+			.t[7] = i,
+		};
 
-		new_keys[i] = _np_keycache_find_or_create(key);
-		sll_append(np_key_ptr, key_list, new_keys[i]);
+		sll_append(np_key_ptr, key_list, _np_keycache_find_or_create(key));
 	}
 
-	uint32_t i = 0;
-	found = _np_keycache_find_closest_key_to(key_list, &new_keys[1]->dhkey);
-	cr_expect(NULL != found, "expecting to find the new key in list");
-
-	for(i=1;(i-1) < count_of_keys && _np_key_cmp(found, new_keys[i-1]) != 0 ; i++);
-	cr_expect(0 == _np_key_cmp(found, new_keys[1]), "expecting the closest key to be the first in the array, But was at idx:  %d",(i == sll_size(key_list) ? 666 : (i-1)));
-
 	found = _np_keycache_find_closest_key_to(key_list, &dummy_key);
-	cr_expect(NULL != found, "expecting to find the dummy_key in list");
-	for(i=1; (i-1) < count_of_keys && _np_key_cmp(found, new_keys[i-1]) != 0; i++);
-	cr_expect(0 == _np_key_cmp(found, new_keys[count_of_keys-1]), "expecting the closest key to be the last in the array, But was at idx: %d ", (i == sll_size(key_list) ? 666 : (i-1)));
+
+	cr_assert(NULL != found, "expecting to find the closest dhkey");
+	
+	cr_expect(0 == _np_dhkey_cmp(&found->dhkey, &nearest_dummy_key), "expecting to receive the closest key but not %s", _np_key_as_str(found));
+
+	
+	
 }
 
 // void _np_keycache_sort_keys_cpm (np_sll_t(np_key_ptr, node_keys), np_dhkey_t* key);

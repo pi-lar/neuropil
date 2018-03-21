@@ -46,22 +46,24 @@ typedef struct log_str_t { const char* text; int log_code; } log_str_t;
 // TODO: ugly, but works. clean it up
 log_str_t __level_str[] = {
 		{NULL   , 0x00000 },
-		{"ERROR", 0x00001 },            /* error messages     */
-		{"WARN_", 0x00002 },			/* warning messages   */
-		{NULL   , 0x00003 },			/* none messages      */
-		{"INFO_", 0x00004 },			/* info messages      */
-		{NULL   , 0x00005 },			/* none messages      */
-		{NULL   , 0x00006 },			/* none messages      */
-		{NULL   , 0x00007 },			/* none messages      */
-		{"DEBUG", 0x00008 },			/* debugging messages */
-		{NULL   , 0x00009 },			/* none messages      */
-		{NULL   , 0x0000a },			/* none messages      */
-		{NULL   , 0x0000b },			/* none messages      */
-		{NULL   , 0x0000c },			/* none messages      */
-		{NULL   , 0x0000d },			/* none messages      */
-		{NULL   , 0x0000e },			/* none messages      */
-		{NULL   , 0x0000f },			/* none messages      */
-		{"TRACE", 0x00010 }			    /* trace messages   */
+		{"ERROR", LOG_ERROR },					/* error messages				*/
+		{"WARN", LOG_WARN	},					/* warning messages				*/
+		{NULL   , 0x00003	},					/* none messages				*/
+		{"INFO", 0x00004	},					/* info messages				*/
+		{NULL   , 0x00005	},					/* none messages				*/
+		{NULL   , 0x00006	},					/* none messages				*/
+		{NULL   , 0x00007	},					/* none messages				*/
+		{"DEBUG", LOG_DEBUG },					/* debugging messages			*/
+		{"ERROR_D", LOG_ERROR | LOG_DEBUG },	/* debugging error messages		*/
+		{"WARN_D",  LOG_WARN  | LOG_DEBUG },	/* debugging warning messages	*/
+		{NULL   , 0x0000b	},					/* none messages				*/
+		{"INFO_D",  LOG_INFO  | LOG_DEBUG },	/* debugging info messages		*/
+		{NULL   , 0x0000d	},					/* none messages				*/
+		{NULL   , 0x0000e	},					/* none messages				*/
+		{NULL   , 0x0000f	},					/* none messages				*/
+		{"TRACE", LOG_TRACE },					/* trace messages				*/
+		
+		
 };
 
 static np_log_t* __logger = NULL;
@@ -71,7 +73,7 @@ static pthread_mutexattr_t __log_mutex_attr;
 
 void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
 {
-	log_msg(LOG_TRACE, "start: void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents){");
+	log_trace_msg(LOG_TRACE, "start: void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents){");
 	if ((revents &  EV_WRITE) == EV_WRITE && (revents &  EV_ERROR) != EV_ERROR)
 	{
 		_np_log_fflush(TRUE);
@@ -158,8 +160,8 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 	// or if no category is provided for msg or the log level contains the LOG_GLOBAL flag
 	if ((level & LOG_LEVEL_MASK & __logger->level) > LOG_NONE &&
 		(
-			(__logger->level & LOG_MODUL_MASK & LOG_GLOBAL) == LOG_GLOBAL ||
-			(level & LOG_MODUL_MASK & __logger->level) > LOG_NONE  || 
+			(level & LOG_MODUL_MASK & __logger->level) > LOG_NONE || 
+			(__logger->level & LOG_MODUL_MASK & LOG_GLOBAL) == LOG_GLOBAL ||			
 			(level & LOG_MODUL_MASK) == LOG_NONE
 		)
 	)
@@ -170,22 +172,29 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		int32_t millis = tval.tv_usec;
 		localtime_r(&tval.tv_sec, &local_time);
 
-		char* new_log_entry = malloc(sizeof(char)*LOG_ROW_SIZE);
-		CHECK_MALLOC(new_log_entry);
+		char* prefix = malloc(sizeof(char)*LOG_ROW_SIZE);
+		CHECK_MALLOC(prefix);
 
-		strftime(new_log_entry, 80, "%Y-%m-%d %H:%M:%S", &local_time);
-		int new_log_entry_length = strlen(new_log_entry);
-		snprintf(new_log_entry + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length,
+		strftime(prefix, 80, "%Y-%m-%d %H:%M:%S", &local_time);
+		int new_log_entry_length = strlen(prefix);
+		snprintf(prefix + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length,
 			".%06d %-15lu %15.15s:%-5hd %-25.25s _%5s_ ",
 			millis, (unsigned long)pthread_self(),
 			srcFile, lineno, funcName,
 			__level_str[level & LOG_LEVEL_MASK].text);
+
+		static const char* suffix = "\n";
+
+		char* log_msg;
 		va_list ap;
 		va_start(ap, msg);
-		new_log_entry_length = strlen(new_log_entry);
-		vsnprintf(new_log_entry + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length - 1/*space for line ending*/ - 1 /*space for NULL terminator*/, msg, ap);
+		vasprintf(&log_msg, msg, ap);
 		va_end(ap);
-		snprintf(new_log_entry + strlen(new_log_entry), 2, "\n");
+		char* new_log_entry;
+		asprintf(&new_log_entry, "%s %s%s", prefix, log_msg, suffix);
+		free(prefix);
+		free(log_msg);
+
 
 #if defined(CONSOLE_LOG) && CONSOLE_LOG == 1
 		fprintf(stdout, new_log_entry);
@@ -193,7 +202,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 #endif
 
 		if (0 == pthread_mutex_lock(&__log_mutex))
-		{
+		{			
 			sll_append(char_ptr, __logger->logentries_l, new_log_entry);
 
 			pthread_mutex_unlock(&__log_mutex);
@@ -215,7 +224,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 
 void _np_log_fflush(np_bool force)
 {
-	//log_msg(LOG_TRACE, "start: void _np_log_fflush(){");
+	//log_trace_msg(LOG_TRACE, "start: void _np_log_fflush(){");
 	char* entry = NULL;
 	int lock_result = 0;
 	if (__logger == NULL) {
@@ -290,13 +299,13 @@ void _np_log_fflush(np_bool force)
 
 void np_log_setlevel(uint32_t level)
 {
-	log_msg(LOG_TRACE, "start: void np_log_setlevel(uint32_t level){");
+	log_trace_msg(LOG_TRACE, "start: void np_log_setlevel(uint32_t level){");
 	__logger->level = level;
 }
 
 void np_log_init(const char* filename, uint32_t level)
 {
-	log_msg(LOG_TRACE, "start: void np_log_init(const char* filename, uint32_t level){");
+	log_trace_msg(LOG_TRACE, "start: void np_log_init(const char* filename, uint32_t level){");
 
 	pthread_mutexattr_init(&__log_mutex_attr);
 	pthread_mutexattr_settype(&__log_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
@@ -341,7 +350,7 @@ void np_log_init(const char* filename, uint32_t level)
 
 void np_log_destroy()
 {
-	log_msg(LOG_TRACE, "start: void np_log_destroy(){");
+	log_trace_msg(LOG_TRACE, "start: void np_log_destroy(){");
 	__logger->level=LOG_NONE;
 
 	EV_P = _np_event_get_loop_io();

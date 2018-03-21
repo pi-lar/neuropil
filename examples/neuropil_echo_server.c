@@ -130,10 +130,10 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 
 	 \code
 	 */
-	char* reply_to = NULL; // All
+	np_dhkey_t reply_to = { 0 }; // All
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
-		reply_to = np_treeval_to_str(repl_to->val, NULL);
+		reply_to = repl_to->val.value.dhkey;
 
 		/**
 		 \endcode
@@ -154,9 +154,9 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 		} else {
 			text = "<NON TEXT MSG>";
 		}
-		fprintf(stdout, ": \"%s\" from: %s \n", text, reply_to);
+		fprintf(stdout, ": \"%s\"\n", text);
 		// send the message back
-		np_send_text("echo", text, 0, reply_to);
+		np_send_text("echo", text, 0, &reply_to);
 		/** \endcode */
 	}
 	return TRUE;
