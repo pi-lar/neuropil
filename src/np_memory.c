@@ -45,7 +45,7 @@ static np_obj_pool_t* __np_obj_pool_ptr;
 
 void np_mem_init()
 {
-	log_msg(LOG_TRACE, "start: void np_mem_init(){");
+	log_trace_msg(LOG_TRACE, "start: void np_mem_init(){");
 	__np_obj_pool_ptr = (np_obj_pool_t*) malloc(sizeof(np_obj_pool_t));
 	CHECK_MALLOC(__np_obj_pool_ptr);
 
@@ -70,7 +70,7 @@ void np_mem_init()
 
 void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 {
-	log_msg(LOG_MEMORY | LOG_TRACE, "start: void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj){");
+	log_trace_msg(LOG_TRACE | LOG_MEMORY , "start: void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj){");
 	if (NULL != __np_obj_pool_ptr->free_obj)
 	{
 		__np_obj_pool_ptr->current  = __np_obj_pool_ptr->free_obj;
@@ -111,7 +111,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 
 void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 {
-	log_msg(LOG_TRACE, "start: void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj){");
+	log_trace_msg(LOG_TRACE, "start: void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj){");
 
 	if (NULL != (*obj) &&
 		NULL != (*obj)->ptr &&
@@ -153,7 +153,7 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 // increase ref count
 void np_mem_refobj(np_obj_t* obj, const char* reason)
 {
-	log_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
+	log_trace_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
 	if (obj->persistent == FALSE) {
 		obj->ref_count++;
 	}
@@ -167,7 +167,7 @@ void np_mem_refobj(np_obj_t* obj, const char* reason)
 // decrease ref count
 void np_mem_unrefobj(np_obj_t* obj, const char* reason)
 {
-	log_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
+	log_trace_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
 
 	if (obj->persistent == FALSE) {
 		//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
@@ -206,7 +206,7 @@ void np_mem_unrefobj(np_obj_t* obj, const char* reason)
 // print the complete object list and statistics
 char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 {
-	log_msg(LOG_TRACE, "start: void np_mem_printpool(){");
+	log_trace_msg(LOG_TRACE, "start: void np_mem_printpool(){");
 	char* ret = NULL;
 	char* new_line = "\n";
 	if(asOneLine == TRUE){
@@ -222,13 +222,15 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 		for (np_obj_t* iter = __np_obj_pool_ptr->first; iter != NULL; iter = iter->next)
 		{
 			summary[iter->type]++;
-#ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-			summary[iter->type*100] = summary[iter->type * 100] > sll_size(iter->reasons) ? summary[iter->type * 100]: sll_size(iter->reasons);
-
+			summary[iter->type * 100] = max(summary[iter->type * 100], iter->ref_count);
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING		
 			if (
 				TRUE == extended
-				//&& iter->type == np_key_t_e				
-				&& sll_size(iter->reasons) > 5
+				&& (
+					iter->type == np_key_t_e				 
+					//|| iter->type == np_msgproperty_t_e
+					)
+				&& sll_size(iter->reasons) > 105
 				) {
 				ret = np_str_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, iter->type, sll_size(iter->reasons), new_line);
 
@@ -236,7 +238,7 @@ char* np_mem_printpool(np_bool asOneLine, np_bool extended)
 				static const uint32_t display_last_X_reasons = 5;
 
 				sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
-				int iter_reasons_counter = 0;
+				uint32_t iter_reasons_counter = 0;
 				while (iter_reasons != NULL)
 				{
 					if (iter_reasons_counter < display_first_X_reasons) {

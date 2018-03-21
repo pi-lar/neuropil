@@ -3,7 +3,9 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <stdlib.h>
+#include <inttypes.h>
 
+#include <criterion/criterion.h>
 #include "sodium.h"
 
 #define MESSAGE ((const unsigned char *) "test")
@@ -66,11 +68,8 @@ Test(sodium_crypt, _sodium_crypto_routines, .description="test cryptobox easy us
 	crypto_secretbox_easy(ciphertext, MESSAGE, MESSAGE_LEN, nonce, node_1_shared);
 
 	unsigned char decrypted[MESSAGE_LEN];
-	if (crypto_secretbox_open_easy(decrypted, ciphertext, CIPHERTEXT_LEN, nonce, node_2_shared) != 0) {
-	    printf("not decrypted");/* message forged! */
-	} else {
-	    printf("decrypted");/* message forged! */
-	}
+	cr_expect(0 == crypto_secretbox_open_easy(decrypted, ciphertext, CIPHERTEXT_LEN, nonce, node_2_shared), "could not decrypt");
+	    
 }
 
 

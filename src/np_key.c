@@ -38,7 +38,7 @@ NP_PLL_GENERATE_IMPLEMENTATION(np_key_ptr);
 
 int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 {
-	log_msg(LOG_TRACE | LOG_KEY, "start: int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2){");
+	log_trace_msg(LOG_TRACE | LOG_KEY, "start: int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2){");
 	if (k1 == NULL) return -1;
 	if (k2 == NULL) return  1;
 
@@ -47,28 +47,25 @@ int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 
 int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
 {
-	log_msg(LOG_TRACE | LOG_KEY, "start: int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2){");
+	log_trace_msg(LOG_TRACE | LOG_KEY, "start: int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2){");
 	return -1 * _np_key_cmp(k1, k2);
 }
 
 char* _np_key_as_str(np_key_t* key)
 {
-	log_msg(LOG_TRACE | LOG_KEY, "start: char* _np_key_as_str(np_key_t* key){");
-	//if (NULL == key->dhkey_str)
-	{
+	log_trace_msg(LOG_TRACE | LOG_KEY, "start: char* _np_key_as_str(np_key_t* key){");
 
-		if (NULL == key->dhkey_str){
-			key->dhkey_str = (char*) malloc(65);
-			CHECK_MALLOC(key->dhkey_str);
-		}
-		_np_dhkey_to_str(&key->dhkey, key->dhkey_str);
-		log_debug_msg(LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
+	if (NULL == key->dhkey_str){
+		key->dhkey_str = (char*) malloc(65);
+		CHECK_MALLOC(key->dhkey_str);
 	}
+	_np_dhkey_to_str(&key->dhkey, key->dhkey_str);
+	log_debug_msg(LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
 
-	return key->dhkey_str;
+	return (key->dhkey_str);
 }
 
-void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc)
+void np_key_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc)
 {
 	sll_iterator(np_key_ptr) iter = sll_first(sll_list);
 	while (NULL != iter)
@@ -78,7 +75,7 @@ void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char*
 	}
 }
 
-void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
+void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
 {
 	sll_iterator(np_key_ptr) iter = sll_first(sll_list);
 	while (NULL != iter)
@@ -92,11 +89,11 @@ void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
  * Destroys a key with all resources
  */
 void _np_key_destroy(np_key_t* to_destroy) {
-	log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_destroy(np_key_t* to_destroy) {");
+	log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_destroy(np_key_t* to_destroy) {");
 
 	np_tryref_obj(np_key_t, to_destroy, to_destroyExists, __func__);
 	if(to_destroyExists) {
-		TSP_SCOPE(np_bool, to_destroy->in_destroy)
+		TSP_SCOPE(to_destroy->in_destroy)
 		{
 			to_destroy->in_destroy = TRUE;
 
@@ -176,11 +173,11 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
 void _np_key_t_new(void* key)
 {
-	log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
+	log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
 	np_key_t* new_key = (np_key_t*) key;
 
 	new_key->type = np_key_type_unknown;
-	TSP_INITD(np_bool, new_key->in_destroy, FALSE);
+	TSP_INITD(new_key->in_destroy, FALSE);
 
 	new_key->last_update = np_time_now();
 
@@ -207,7 +204,7 @@ void _np_key_t_new(void* key)
 
 void _np_key_t_del(void* key)
 {
-	log_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_del(void* key){");
+	log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_del(void* key){");
 	np_key_t* old_key = (np_key_t*) key;
 
 	_np_key_destroy(old_key);
@@ -228,7 +225,7 @@ void _np_key_t_del(void* key)
 	np_unref_obj(np_node_t,     	old_key->node,ref_key_node);
 	np_unref_obj(np_network_t,  	old_key->network,ref_key_network);
 
-	TSP_DESTROY(np_bool, old_key->in_destroy);
+	TSP_DESTROY(old_key->in_destroy);
 
 }
 
@@ -278,7 +275,7 @@ void np_key_renew_token() {
 			np_tree_t* jrb_new_me = np_tree_clone(jrb_new);
 			np_new_obj(np_message_t, msg_out_update);
 			log_debug_msg(LOG_KEY | LOG_DEBUG, "step ._np_renew_node_token_jobexec.submitting update request to target key %s", _np_key_as_str(iterator->val));
-			_np_message_create(msg_out_update, iterator->val, old_node_key, _NP_MSG_UPDATE_REQUEST, jrb_new_me);
+			_np_message_create(msg_out_update, iterator->val->dhkey, old_node_key->dhkey, _NP_MSG_UPDATE_REQUEST, jrb_new_me);
 
 			_np_job_submit_msgout_event(0.0, prop, iterator->val, msg_out_update);
 			np_unref_obj(np_message_t, msg_out_update, ref_obj_creation);
@@ -352,7 +349,7 @@ void np_key_renew_token() {
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "step ._np_renew_node_token_jobexec.Completed node renewal. cleaning up now");
 
 		// clean up
-		np_unref_list(table,"_np_route_get_table");
+		np_key_unref_list(table,"_np_route_get_table");
 		sll_free(np_key_ptr, table);
 
 		_np_key_destroy(old_node_key);
@@ -368,7 +365,7 @@ void np_key_renew_token() {
 */
 np_key_t* _np_key_get_by_key_hash(char* targetDhkey)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_key_get_by_key_hash(char* targetDhkey){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_key_get_by_key_hash(char* targetDhkey){");
 	np_key_t* target = NULL;
 
 	if (NULL != targetDhkey) {

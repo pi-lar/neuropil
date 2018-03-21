@@ -21,52 +21,74 @@ void teardown_tree(void)
 	ev_run(EV_A_ EVRUN_NOWAIT);
 }
 
-TestSuite(np_tree_t, .init=setup_tree, .fini=teardown_tree);
+TestSuite(np_tree_t, .init = setup_tree, .fini = teardown_tree);
+
+
+#define cr_expect_np_tree_bytesize(tree, ele, expected_size_parts, expected_size_total)		\
+	cr_expect(  expected_size_parts == (tmp_ui32 = np_tree_get_byte_size(ele)), "expect byte size of element to be "#expected_size_parts" but is %"PRIu32, tmp_ui32); \
+	cr_expect(  expected_size_total == (tmp_ui32 = test_tree_1->byte_size), "expect byte size to be "#expected_size_total" but is %"PRIu32, tmp_ui32)
 
 Test(np_tree_t, tree_node_insert_str, .description="test the insertion into a tree (string key)")
 {
 	np_tree_t* test_tree_1 = np_tree_create();
-
+	uint32_t tmp_ui32;
+	
+	// check empty tree
 	cr_expect(NULL != test_tree_1, "expect test_tree_1 pointer to exists");
 	cr_expect(NULL == test_tree_1->rbh_root, "expect rbh_root to be NULL");
 	cr_expect(   0 == test_tree_1->size, "expect size of tree to be 0");
 	cr_expect(   5 == test_tree_1->byte_size, "expect minimum byte size to be 5");
 
+	// add the first kev value pair
 	np_tree_insert_str(test_tree_1, "halli", np_treeval_new_s("galli"));
-
 	cr_expect(   1 == test_tree_1->size, "expect size of tree to be 1");
-	cr_expect(  20 == np_tree_get_byte_size(test_tree_1->rbh_root), "expect byte size to be 20");
-	cr_expect(  25 == test_tree_1->byte_size, "expect byte size to be 25");
-	cr_expect(NULL != test_tree_1->rbh_root, "expect rbh_root to be not NULL");
-
+	cr_assert(NULL != test_tree_1->rbh_root, "expect rbh_root to be not NULL");
+	cr_expect_np_tree_bytesize(test_tree_1, test_tree_1->rbh_root, 22, 27);
 	np_tree_elem_t* tmp = test_tree_1->rbh_root;
 	cr_expect(np_treeval_type_char_ptr == tmp->key.type, "expect the key to be of the type char_ptr");
 	cr_expect(0 == strncmp("halli",  np_treeval_to_str(tmp->key, NULL), 10), "expect the key to be the string 'halli'");
 	cr_expect(np_treeval_type_char_ptr == tmp->val.type, "expect the value to be of the type char_ptr");
 	cr_expect(0 == strncmp("galli",  np_treeval_to_str(tmp->val, NULL), 10), "expect the value to be the string 'galli'");
 
+	// try to add a key value pair without success
 	np_tree_insert_str(test_tree_1, "halli", np_treeval_new_s("galligallo"));
 	cr_expect(tmp == test_tree_1->rbh_root, "expect the key to not change (insert will not replace");
 	cr_expect(np_treeval_type_char_ptr == tmp->key.type, "expect the key to be of the type char_ptr");
 	cr_expect(0 == strncmp("halli",  np_treeval_to_str(tmp->key, NULL), 10), "expect the key to be the string 'halli'");
 	cr_expect(np_treeval_type_char_ptr == tmp->val.type, "expect the value to be of the type char_ptr");
 	cr_expect(0 == strncmp("galli",  np_treeval_to_str(tmp->val, NULL), 10), "expect the value to be the string 'galli'");
+	cr_expect_np_tree_bytesize(test_tree_1, test_tree_1->rbh_root, 22, 27);
 
-	np_tree_replace_str(test_tree_1, "halli", np_treeval_new_s("galligallo"));
+	// replace the key value pair 
+	np_tree_replace_str(test_tree_1, "halli", np_treeval_new_s("gallogalli"));
 	cr_expect(tmp == test_tree_1->rbh_root, "expect the key to not change (replace only replaces value)");
-	cr_expect(  1 == test_tree_1->size, "expect size of tree to be 1");
-	cr_expect( 25 == np_tree_get_byte_size(test_tree_1->rbh_root), "expect byte size to be 25");
-	cr_expect( 30 == test_tree_1->byte_size, "expect byte size to be 30");
+	cr_expect(  1 == test_tree_1->size, "expect size of tree to be 1");	
+	cr_expect_np_tree_bytesize(test_tree_1, test_tree_1->rbh_root, 27, 32);
 	cr_expect(np_treeval_type_char_ptr == tmp->key.type, "expect the key to be of the type char_ptr");
 	cr_expect(0 == strncmp("halli",  np_treeval_to_str(tmp->key, NULL), 10), "expect the key to be the string 'halli'");
 	cr_expect(np_treeval_type_char_ptr == tmp->val.type, "expect the value to be of the type char_ptr");
-	cr_expect(0 == strncmp("galligallo",  np_treeval_to_str(tmp->val, NULL), 12), "expect the value to be the string 'galli'");
+	cr_expect(0 == strncmp("gallogalli",  np_treeval_to_str(tmp->val, NULL), 12), "expect the value to be the string 'galli'");
 
+	// add an additional key value pair
 	np_tree_insert_str(test_tree_1, "hallo", np_treeval_new_s("gulli"));
-	cr_expect(  2 == test_tree_1->size, "expect size of tree to be 2");
-	cr_expect( 25 == np_tree_get_byte_size(test_tree_1->rbh_root), "expect byte size to be 25");
-	cr_expect( 50 == test_tree_1->byte_size, "expect byte size to be 50");
-
+	// verify new key value
+	cr_expect(2 == test_tree_1->size, "expect size of tree to be 2");	
+	tmp = np_tree_find_str(test_tree_1, "hallo");
+	cr_assert(tmp != NULL, "require key \"hallo\" to be present");
+	cr_expect_np_tree_bytesize(test_tree_1, tmp, 22, 54);			
+	cr_expect(np_treeval_type_char_ptr == tmp->key.type, "expect the key to be of the type char_ptr");
+	cr_expect(0 == strncmp("hallo", np_treeval_to_str(tmp->key, NULL), 10), "expect the key to be the string 'hallo'");
+	cr_expect(np_treeval_type_char_ptr == tmp->val.type, "expect the value to be of the type char_ptr");
+	cr_expect(0 == strncmp("gulli", np_treeval_to_str(tmp->val, NULL), 10), "expect the value to be the string 'gulli'");
+	// verify old key value
+	tmp = np_tree_find_str(test_tree_1, "halli");
+	cr_assert(tmp != NULL, "require key \"halli\" to be present");
+	cr_expect(np_treeval_type_char_ptr == tmp->key.type, "expect the key to be of the type char_ptr");
+	cr_expect(0 == strncmp("halli", np_treeval_to_str(tmp->key, NULL), 10), "expect the key to be the string 'halli'");
+	cr_expect(np_treeval_type_char_ptr == tmp->val.type, "expect the value to be of the type char_ptr");
+	cr_expect(0 == strncmp("gallogalli", np_treeval_to_str(tmp->val, NULL), 10), "expect the value to be the string 'gallogalli'");
+	
+	// remove all entries
 	np_tree_clear (test_tree_1);
 	cr_expect(NULL == test_tree_1->rbh_root, "expect rbh_root to be NULL");
 	cr_expect(   0 == test_tree_1->size, "expect size of tree to be 0");
@@ -263,7 +285,8 @@ Test(np_tree_t, tree_node_repl_tree, .description="test replacement of data in a
 	np_tree_insert_str(test_tree_1, "hallo", np_treeval_new_s("gulli"));
 
 	cr_expect(2 == test_tree_1->size, "expect the size of the subtree to be 2");
-	cr_expect(45 == test_tree_1->byte_size, "expect the byte size of the tree to be 45");
+	cr_expect(49 == test_tree_1->byte_size, "expect the byte size of the tree to be 49");
+
 	cr_expect(NULL != np_tree_find_str(test_tree_1, "halli"), "expect element to be present");
 	cr_expect(0 == strncmp("galli", np_tree_find_str(test_tree_1, "halli")->val.value.s, 5),
 				"expect element to be the same string");
@@ -271,11 +294,11 @@ Test(np_tree_t, tree_node_repl_tree, .description="test replacement of data in a
 	np_tree_replace_str(test_tree_1, "halli", np_treeval_new_s("other_galli"));
 
 	cr_expect(2 == test_tree_1->size, "expect the size of the subtree to be 2");
-	cr_expect(51 == test_tree_1->byte_size, "expect the byte size of the tree to be 51");
+	cr_expect(55 == test_tree_1->byte_size, "expect the byte size of the tree to be 55");
 	cr_expect(NULL != np_tree_find_str(test_tree_1, "halli"), "expect element to be present");
-	cr_expect(0 != strncmp("galli", np_tree_find_str(test_tree_1, "halli")->val.value.s, 5),
+	cr_expect(0 != strncmp("galli", np_tree_find_str(test_tree_1, "halli")->val.value.s, 10),
 				"expect element to be not the same string");
-	cr_expect(0 == strncmp("other_galli", np_tree_find_str(test_tree_1, "halli")->val.value.s, 11),
+	cr_expect(0 == strncmp("other_galli", np_tree_find_str(test_tree_1, "halli")->val.value.s, 20),
 				"expect element to be changed");
 
 }

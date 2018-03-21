@@ -16,7 +16,7 @@ extern "C" {
 void _np_glia_route_lookup (np_jobargs_t* args);
 
 // critical self invoking functions
-void _np_retransmit_message_tokens_jobexec(np_jobargs_t* args);
+void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args);
 void _np_renew_node_token_jobexec(np_jobargs_t* args);
 
 void _np_cleanup_ack_jobexec(np_jobargs_t* args);

@@ -1,6 +1,27 @@
 
 import platform
 import glob
+import io
+import os
+
+def buildNo():
+	try:
+	  f = open('.buildno', 'r+')
+	except:
+	  f = open('.buildno', 'w+')
+
+	buildno = f.read()
+	if buildno == "":
+		buildno = 1;
+	else:
+		buildno = int(buildno) + 1
+	f.seek(0)
+	f.write(str(buildno))
+	f.truncate()
+	f.close()
+
+	return buildno
+
 
 print '####'
 print '#### starting neuropil build'
@@ -41,10 +62,17 @@ if strict:
 
 # add libev flags to the compilation
 env.Append(CCFLAGS = ['-DEV_STANDALONE'])
-env.Append(CCFLAGS = ['-DEV_PERIODIC_ENABLE'])
+# env.Append(CCFLAGS = ['-DEV_PERIODIC_ENABLE'])
 env.Append(CCFLAGS = ['-DHAVE_SELECT'])
 env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
 env.Append(CCFLAGS = ['-DHAVE_POLL'])
+env.Append(CCFLAGS = ['-DEV_COMPAT3=0'])
+env.Append(CCFLAGS = ['-DEV_USE_FLOOR=1'])
+# env.Append(CCFLAGS = ['-DEV_USE_REALTIME=0'])
+env.Append(CCFLAGS = ['-DEV_USE_4HEAP=1'])
+# env.Append(CCFLAGS = ['-DEV_NO_THREADS'])
+
+
 
 if build_x64:
 	env.Append(CCFLAGS = ['-Dx64'])
@@ -63,6 +91,8 @@ if int(debug) >= 1:
 	if int(debug) <= 1:
 		env.Append(CCFLAGS = ['-DDEBUG'])
 
+env.Append(CCFLAGS = ['-DNEUROPIL_RELEASE_BUILD=\"{}\"'.format(buildNo())])
+		
 if int(console_log):
     env.Append(CCFLAGS = ['-DCONSOLE_LOG'])
 
@@ -219,7 +249,7 @@ if int(build_tests):
 # build example programs
 programs = [
     'controller','node','receiver','sender','receiver_cb','pingpong','hydra','shared_hydra',
-    'echo_server','echo_client','raspberry','demo_service'
+    'echo_server','echo_client','raspberry','demo_service','test'
     ]
 env.Append(LIBS = ['ncurses'])
 
@@ -254,3 +284,4 @@ print "console_log   =  %r" % console_log
 print "strict        =  %r" % strict
 print "build_program =  %r" % build_program
 print "build_x64     =  %r" % build_x64
+

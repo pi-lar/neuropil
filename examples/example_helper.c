@@ -72,11 +72,49 @@ WINDOW * __np_stat_log;
 WINDOW * __np_stat_switchable_window;
 WINDOW * __np_stat_performance_win;
 np_bool __np_ncurse_initiated = FALSE;
-np_bool __np_refresh_windows = TRUE;
 
 #define LOG_BUFFER_SIZE (3000)
 np_sll_t(char_ptr, log_buffer);
 int log_user_cursor = 0;
+
+void np_example_print(FILE * stream, const char * format, ...) {
+	va_list args;
+	va_start(args, format);
+	if (__np_ncurse_initiated == FALSE) {
+		vfprintf(stream, format, args);
+		fflush(stream);
+	}
+	else {
+		char* buffer = calloc(1, 500);
+		vsnprintf(buffer, 500, format, args);
+
+		if (buffer[0] != 0) {
+			int added_items = 1;
+			char* tmp_buff_part = strtok(buffer, "\n");
+
+			char_ptr_sll_node_t* item = sll_prepend(char_ptr, log_buffer, tmp_buff_part);
+			while ((tmp_buff_part = strtok(NULL, "\n")) != NULL) {
+				added_items++;
+				item = sll_insert(char_ptr, log_buffer, tmp_buff_part, item);
+			}
+
+			while (sll_size(log_buffer) > LOG_BUFFER_SIZE) {
+				added_items--;
+				sll_iterator(char_ptr) last = sll_last(log_buffer);
+				char* tmp = last->val;
+				sll_delete(char_ptr, log_buffer, last);
+				free(tmp);
+			}
+			if (log_user_cursor != 0) {
+				log_user_cursor += added_items;
+			}
+		}
+		else {
+			free(buffer);
+		}
+	}
+	va_end(args);
+}
 
 
 void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
@@ -98,14 +136,14 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mo
 	if (opt_sysinfo_mode != np_sysinfo_opt_disable) {
 		if ((http_init && opt_sysinfo_mode == np_sysinfo_opt_auto) || opt_sysinfo_mode == np_sysinfo_opt_force_master)
 		{
-			fprintf(stdout, "HTTP interface set to %s\n", http_domain);
+			np_example_print(stdout, "HTTP interface set to %s\n", http_domain);
 			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
-			fprintf(stderr, "Enable sysinfo master option\n");
+			np_example_print(stdout, "Enable sysinfo master option\n");
 			np_sysinfo_enable_master();
 		}
 		else {
-			fprintf(stderr, "Node could not start HTTP interface\n");
-			fprintf(stderr, "Enable sysinfo slave option\n");
+			fprintf(stdout, "Node could not start HTTP interface\n");
+			np_example_print(stdout, "Enable sysinfo slave option\n");
 			np_sysinfo_enable_slave();
 		}
 		// If you want to you can enable the statistics modulte to view the nodes statistics
@@ -154,45 +192,6 @@ char* np_get_startup_str() {
 	ret = np_str_concatAndFree(ret, new_line);
 
 	return ret;
-}
-
-void np_example_print(FILE * stream, const char * format, ...) {
-	va_list args;
-	va_start(args, format);
-	if (__np_ncurse_initiated == FALSE) {
-		vfprintf(stream, format, args);
-		fflush(stream);
-	}
-	else {
-		char* buffer = calloc(1, 500);
-		vsnprintf(buffer, 500, format, args);
-
-		if (buffer[0] != 0) {
-			int added_items = 1;
-			char* tmp_buff_part =  strtok(buffer, "\n");
-
-			char_ptr_sll_node_t* item = sll_prepend(char_ptr, log_buffer, tmp_buff_part);
-			while ((tmp_buff_part = strtok(NULL, "\n")) != NULL) {
-				added_items++;				
-				item = sll_insert(char_ptr, log_buffer, tmp_buff_part, item);
-			}
-
-			while (sll_size(log_buffer) > LOG_BUFFER_SIZE) {
-				added_items--;
-				sll_iterator(char_ptr) last = sll_last(log_buffer);
-				char* tmp = last->val;
-				sll_delete(char_ptr, log_buffer, last);
-				free(tmp);
-			}
-			if (log_user_cursor != 0) {
-				log_user_cursor += added_items;
-			}
-		}
-		else {
-			free(buffer);
-		}
-	}
-	va_end(args);
 }
 
 void np_print_startup() {
@@ -330,7 +329,7 @@ void np_example_save_or_load_identity() {
 			
 			np_example_print(stdout, "Load detected no available token file. Try to save current ident to file.\n");
 			if (!np_example_save_identity(identity_passphrase, identity_filename)) {				
-				np_example_print(stderr, "Cannot load or save identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
+				np_example_print(stdout, "Cannot load or save identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
 				exit(EXIT_FAILURE);
 			}
 			else {
@@ -339,7 +338,7 @@ void np_example_save_or_load_identity() {
 #endif //  DEBUG
 				/*
 				if (!np_example_load_identity(identity_passphrase, identity_filename)) {
-					np_example_print(stderr, "Cannot load after save of identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
+					np_example_print(stdout, "Cannot load after save of identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
 					exit(EXIT_FAILURE);
 				}
 				*/				
@@ -351,10 +350,10 @@ void np_example_save_or_load_identity() {
 				np_example_print(stdout, "Loaded ident(%s) from file.\n", _np_key_as_str(np_state()->my_identity));
 #endif
 			}else if (load_status == np_example_load_identity_status_found_but_failed) {
-				np_example_print(stderr, "Could not load from file.\n");
+				np_example_print(stdout, "Could not load from file.\n");
 			}
 			else {
-				np_example_print(stderr, "Unknown np_example_load_identity_status\n");
+				np_example_print(stdout, "Unknown np_example_load_identity_status\n");
 			}
 		}
 	}
@@ -381,7 +380,7 @@ np_bool parse_program_args(
 	np_bool ret = TRUE;
 	char* usage;
 	asprintf(&usage,
-		"./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s statistics 0=Off 1=Console 2=Log 3=1&2] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-o sysinfo 0=none,1=auto,2=master,3=slave]%s",
+		"./%s [ p-j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s statistics 0=Off 1=Console 2=Log 3=1&2] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-o sysinfo 0=none,1=auto,2=master,3=slave]%s",
 		program, additional_fields_desc == NULL ? "" : additional_fields_desc
 	);
 	char* optstr;
@@ -480,16 +479,14 @@ np_bool parse_program_args(
 		}
 		va_end(args);
 
-
 		uint32_t log_categories = 0
 			//| LOG_TRACE
-
 			//| LOG_MUTEX
 			| LOG_ROUTING
 			//| LOG_HTTP
 			//| LOG_KEY
 			| LOG_NETWORK
-			| LOG_AAATOKEN
+			//| LOG_AAATOKEN
 			//| LOG_SYSINFO
 			//| LOG_MESSAGE
 			//| LOG_SERIALIZATION
@@ -565,7 +562,16 @@ void __np_example_inti_ncurse() {
 				sll_init(char_ptr, log_buffer);
 			}			
 			__np_ncurse_initiated = TRUE;
-			initscr(); // Init ncurses mode
+			
+			/* Start curses mode          */
+			//initscr(); // Init ncurses mode
+			// other:
+			newterm(NULL, stderr, stdin);    
+			FILE *f = fopen("/dev/tty", "r+");
+			SCREEN *screen = newterm(NULL, f, f);
+			set_term(screen);
+
+			// setup ncurse config
 			curs_set(0); // Hide cursor
 			noecho();
 			nocbreak();
@@ -660,7 +666,7 @@ void __np_example_helper_loop() {
 	__np_example_inti_ncurse();
 
 	// Runs only once
-	if (started_at == 0) {
+	if (started_at == 0) {		
 		np_statistics_add_watch_internals();
 
 		started_at = np_time_now();
@@ -785,7 +791,7 @@ void __np_example_helper_loop() {
 #else
 						"NON DEBUG and NON RELEASE"
 #endif
-						"\n%s", time, memory_str);
+						" (%s.%05d)\n%s ", time, NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD, memory_str);
 				}
 				else {
 					np_example_print(stdout, memory_str);
@@ -829,14 +835,16 @@ void __np_example_helper_loop() {
 				mvwprintw(__np_stat_log, 16, 0, "%"PRIu32"items in log", sll_size(log_buffer));
 			}
 		}
-
-		if (__np_ncurse_initiated == TRUE && __np_refresh_windows == TRUE) {
+		
+		if (__np_ncurse_initiated == TRUE) {
+			refresh(); 
 			wrefresh(__np_help_win);
 			wrefresh(__np_stat_locks_win);
 			wrefresh(__np_stat_general_win);
 			wrefresh(__np_stat_switchable_window);
-			wrefresh(__np_stat_memory_win);
+			wrefresh(__np_stat_memory_win);			
 		}
+		
 	}
 
 	if (__np_ncurse_initiated == TRUE) {
@@ -846,8 +854,8 @@ void __np_example_helper_loop() {
 		case 101:	// e
 			__np_example_reset_ncurse();
 			break;
-		case 63:	// c
-		case 43:	// C
+		case 99:	// c
+		case 67:	// C
 			__np_stat_switchable_window = __np_stat_msgpartcache_win;
 			log_user_cursor = 0;
 			break;
@@ -865,15 +873,6 @@ void __np_example_helper_loop() {
 		case 76:	// L
 			__np_stat_switchable_window = __np_stat_log;
 			log_user_cursor = 0;
-			break;
-		case 115:	// s
-		case 83:	// S
-			__np_refresh_windows = FALSE;
-			break;
-
-		case 114:	// r
-		case 82:	// R
-			__np_refresh_windows = TRUE;
 			break;
 		case 102:	// f
 		case 70:	// F

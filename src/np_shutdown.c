@@ -25,31 +25,33 @@
 #include "np_constants.h"
 
 struct sigaction sigact;
-TSP(np_bool, is_in_shutdown);
+STATIC_TSP(np_bool, __is_in_shutdown);
 
 static void __np_shutdown_signal_handler(int sig) {
-	if (sig == SIGTERM) {
+	if (sig == SIGINT) {
 
-		TSP_SCOPE(np_bool, is_in_shutdown);
-		if (!is_in_shutdown) {
-			log_msg(LOG_WARN, "Received terminating process signal (%"PRIi32"). Shutdown in progress.", sig);
-			is_in_shutdown = TRUE;			
-			np_destroy();
-			//log_msg(LOG_INFO, "Shutdown completed.");					
-			exit(EXIT_SUCCESS);
+		TSP_SCOPE(__is_in_shutdown) {
+			if (!__is_in_shutdown) {
+				log_msg(LOG_WARN, "Received terminating process signal (%"PRIi32"). Shutdown in progress.", sig);
+				__is_in_shutdown = TRUE;
+				np_destroy();
+				//log_msg(LOG_INFO, "Shutdown completed.");
+				exit(EXIT_SUCCESS);
+			}
 		}
 	}
 }
 
 void _np_shutdown_init_auto_notify_others() {
 
-	TSP_INITD(np_bool, is_in_shutdown, FALSE);
+	TSP_INITD(__is_in_shutdown, FALSE);
 
 	sigact.sa_handler = __np_shutdown_signal_handler;
 	sigemptyset(&sigact.sa_mask);
 	sigact.sa_flags = 0;
 	//sigaction(SIGABRT, &sigact, (struct sigaction *)NULL);
-	sigaction(SIGTERM, &sigact, (struct sigaction *)NULL);
+	sigaction(SIGINT, &sigact, (struct sigaction *)NULL);
+	//sigaction(SIGTERM, &sigact, (struct sigaction *)NULL);
 }
 
 void _np_shutdown_deinit() {
@@ -93,8 +95,8 @@ void np_shutdown_notify_others() {
 
 	sll_free(np_message_ptr, msgs);
 	sll_free(np_key_ptr, merge_table);
-	np_unref_list(routing_table, "_np_route_get_table");
+	np_key_unref_list(routing_table, "_np_route_get_table");
 	sll_free(np_key_ptr, routing_table);
-	np_unref_list(neighbours_table, "_np_route_neighbors");
+	np_key_unref_list(neighbours_table, "_np_route_neighbors");
 	sll_free(np_key_ptr, neighbours_table);
 }

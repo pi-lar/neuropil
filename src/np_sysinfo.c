@@ -46,7 +46,7 @@ void _np_sysinfo_slave_send_cb(NP_UNUSED np_jobargs_t* args);
 
 void _np_sysinfo_init_cache()
 {
-	log_msg(LOG_TRACE, "start: void _np_sysinfo_init_cache(){");
+	log_trace_msg(LOG_TRACE, "start: void _np_sysinfo_init_cache(){");
 
 	_LOCK_MODULE(np_sysinfo_t)
 	{
@@ -56,10 +56,10 @@ void _np_sysinfo_init_cache()
 		}
 	}
 }
+uint32_t test = 0;
+void _np_sysinfo_slave_send_cb(NP_UNUSED np_jobargs_t* args) {	
 
-void _np_sysinfo_slave_send_cb(NP_UNUSED np_jobargs_t* args) {
-	
-	if(_np_route_my_key_has_connection() == TRUE) {
+	if(np_has_receiver_for(_NP_SYSINFO_REPLY)) {
 		np_waitref_obj(np_key_t, np_state()->my_node_key, my_node_key, "usage");
 		np_tree_t* reply_body = np_sysinfo_get_my_info();
 
@@ -76,13 +76,17 @@ void _np_sysinfo_slave_send_cb(NP_UNUSED np_jobargs_t* args) {
 
 		np_unref_obj(np_key_t, my_node_key, "usage");
 	}
+	else {
+		log_debug_msg(LOG_DEBUG| LOG_SYSINFO, "no receiver token for \""_NP_SYSINFO_REPLY"\"");
+	}
 
 }
 
 void np_sysinfo_enable_slave() {
-	log_msg(LOG_TRACE, "start: void np_sysinfo_enable_slave() {");
+	log_trace_msg(LOG_TRACE, "start: void np_sysinfo_enable_slave() {");
 	// the slave does not need the cache
 	//_np_sysinfo_init_cache();
+	/*
 	np_msgproperty_t* sysinfo_request_props = np_msgproperty_get(INBOUND, _NP_SYSINFO_REQUEST);
 	if(sysinfo_request_props == NULL) {
 		np_new_obj(np_msgproperty_t, sysinfo_request_props);
@@ -96,11 +100,13 @@ void np_sysinfo_enable_slave() {
 	sysinfo_request_props->msg_ttl  = 20.0;
 	sysinfo_request_props->mode_type = INBOUND | ROUTE;
 	sysinfo_request_props->max_threshold = 32;
+	*/
 
 	np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(OUTBOUND, _NP_SYSINFO_REPLY);
 	if(sysinfo_response_props == NULL){
 		np_new_obj(np_msgproperty_t, sysinfo_response_props);
 	}
+	
 	sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
 	sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
@@ -110,13 +116,15 @@ void np_sysinfo_enable_slave() {
 	sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
 	sysinfo_response_props->max_threshold = 32;
 
-	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
-	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
+	//sysinfo_request_props->token_max_ttl = 
+		sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
+	//sysinfo_request_props->token_min_ttl = 
+		sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
 	np_msgproperty_register(sysinfo_response_props);
-	np_msgproperty_register(sysinfo_request_props);
+	//np_msgproperty_register(sysinfo_request_props);
 
-	np_add_receive_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
+	//np_add_receive_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
 
 	np_job_submit_event_periodic(PRIORITY_MOD_USER_DEFAULT,
 								 0,
@@ -127,9 +135,10 @@ void np_sysinfo_enable_slave() {
 }
 
 void np_sysinfo_enable_master() {
-	log_msg(LOG_TRACE, "start: void np_sysinfo_enable_master(){");
+	log_trace_msg(LOG_TRACE, "start: void np_sysinfo_enable_master(){");
 	
 	_np_sysinfo_init_cache();
+	/*
 	np_msgproperty_t* sysinfo_request_props = np_msgproperty_get(OUTBOUND, _NP_SYSINFO_REQUEST);
 	if (sysinfo_request_props == NULL) {
 		np_new_obj(np_msgproperty_t, sysinfo_request_props);
@@ -141,11 +150,12 @@ void np_sysinfo_enable_master() {
 	sysinfo_request_props->retry    = 0;
 	sysinfo_request_props->msg_ttl  = 20.0;
 	sysinfo_request_props->priority -= 1;
-
+	*/
 	np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(INBOUND, _NP_SYSINFO_REPLY);
 	if(sysinfo_response_props == NULL){
 		np_new_obj(np_msgproperty_t, sysinfo_response_props);
 	}
+	
 	sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
 	sysinfo_response_props->mep_type = ONE_WAY;
 	sysinfo_response_props->ack_mode = ACK_NONE;
@@ -153,23 +163,24 @@ void np_sysinfo_enable_master() {
 	sysinfo_response_props->msg_ttl  = 20.0;
 	sysinfo_response_props->priority -= 1;
 	
-	sysinfo_request_props->token_max_ttl = sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
-	sysinfo_request_props->token_min_ttl = sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
-
-	sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
-	sysinfo_request_props->max_threshold = 20;
+	//sysinfo_request_props->token_max_ttl = 
+		sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
+	//sysinfo_request_props->token_min_ttl = 
+		sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
+	//sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
+	//sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
 	sysinfo_response_props->max_threshold = 32/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC);
 	
 
 	np_msgproperty_register(sysinfo_response_props);
-	np_msgproperty_register(sysinfo_request_props);
+	//np_msgproperty_register(sysinfo_request_props);
 	
 	np_add_receive_listener(_np_in_sysinforeply, _NP_SYSINFO_REPLY);
 }
 
 np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {
-	log_msg(LOG_TRACE, "start: np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {");
+	log_trace_msg(LOG_TRACE, "start: np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {");
 	log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo request");
 
 	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
@@ -243,7 +254,7 @@ np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* prope
 }
 
 np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
-	log_msg(LOG_TRACE, "start: np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {");
+	log_trace_msg(LOG_TRACE, "start: np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {");
 	_np_sysinfo_init_cache();
 
 	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
@@ -292,8 +303,9 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 }
 
 np_tree_t* np_sysinfo_get_my_info() {
-	log_msg(LOG_TRACE, "start: np_tree_t* np_sysinfo_get_my_info() {");
-	np_tree_t* ret = np_tree_create();
+	log_trace_msg(LOG_TRACE, "start: np_tree_t* np_sysinfo_get_my_info() {");
+	np_tree_t* ret = np_tree_create();	
+	ret->attr.disable_special_str = TRUE;
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_d(np_time_now()));
 
@@ -373,7 +385,7 @@ np_tree_t* np_sysinfo_get_my_info() {
 }
 
 void _np_sysinfo_request(const char* const hash_of_target) {
-	log_msg(LOG_TRACE, "start: void _np_sysinfo_request(const char* const hash_of_target) {");
+	log_trace_msg(LOG_TRACE, "start: void _np_sysinfo_request(const char* const hash_of_target) {");
 
 	_np_sysinfo_init_cache();
 
@@ -401,7 +413,7 @@ void _np_sysinfo_request(const char* const hash_of_target) {
 
 		np_dhkey_t target_dhkey = np_dhkey_create_from_hash(hash_of_target);
 
-		np_send_msg(_NP_SYSINFO_REQUEST, properties, body, &target_dhkey);
+		//np_send_msg(_NP_SYSINFO_REQUEST, properties, body, &target_dhkey);
 
 	} else {
 		log_msg(LOG_WARN | LOG_SYSINFO,
@@ -411,7 +423,7 @@ void _np_sysinfo_request(const char* const hash_of_target) {
 }
 
 np_tree_t* np_sysinfo_get_info(const char* const hash_of_target) {
-	log_msg(LOG_TRACE, "start: np_tree_t* np_sysinfo_get_info(const char* const hash_of_target) {");
+	log_trace_msg(LOG_TRACE, "start: np_tree_t* np_sysinfo_get_info(const char* const hash_of_target) {");
 
 	char* my_key = _np_key_as_str(np_state()->my_node_key);
 
@@ -431,7 +443,7 @@ np_tree_t* np_sysinfo_get_info(const char* const hash_of_target) {
 }
 
 np_tree_t* _np_sysinfo_get_from_cache(const char* const hash_of_target, uint16_t max_cache_ttl) {
-	log_msg(LOG_TRACE, "start: np_tree_t* _np_sysinfo_get_from_cache(const char* const hash_of_target, uint16_t max_cache_ttl) {");
+	log_trace_msg(LOG_TRACE, "start: np_tree_t* _np_sysinfo_get_from_cache(const char* const hash_of_target, uint16_t max_cache_ttl) {");
 	_np_sysinfo_init_cache();
 	np_tree_t* ret = NULL;
 	_LOCK_MODULE(np_sysinfo_t)
@@ -464,7 +476,7 @@ np_tree_t* _np_sysinfo_get_from_cache(const char* const hash_of_target, uint16_t
 }
 
 void _np_sysinfo_request_others() {
-	log_msg(LOG_TRACE, "start: void _np_sysinfo_request_others() {");
+	log_trace_msg(LOG_TRACE, "start: void _np_sysinfo_request_others() {");
 
 	np_sll_t(np_key_ptr, routing_table) = NULL;
 	np_sll_t(np_key_ptr, neighbours_table) = NULL;
@@ -509,7 +521,7 @@ void _np_sysinfo_request_others() {
 
 
 np_tree_t* np_sysinfo_get_all() {
-	log_msg(LOG_TRACE, "start: void _np_sysinfo_request_others() {");
+	log_trace_msg(LOG_TRACE, "start: void _np_sysinfo_request_others() {");
 
 	np_tree_t* ret = np_tree_create();
 	int16_t count = 0;
@@ -546,9 +558,9 @@ np_tree_t* np_sysinfo_get_all() {
 	}
 
 	sll_free(np_key_ptr, merge_table);
-	np_unref_list(routing_table,"_np_route_get_table");
+	np_key_unref_list(routing_table,"_np_route_get_table");
 	sll_free(np_key_ptr, routing_table);
-	np_unref_list(neighbours_table, "_np_route_neighbors");
+	np_key_unref_list(neighbours_table, "_np_route_neighbors");
 	sll_free(np_key_ptr, neighbours_table);
 	np_unref_obj(np_key_t, my_node_key, "usage");
 

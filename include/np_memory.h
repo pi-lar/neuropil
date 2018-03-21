@@ -315,7 +315,7 @@ TYPE* saveTo = NULL;																																\
 }
 
 
-//#define np_ref_list(...) VFUNC(np_ref_list, __VA_ARGS__)
+//#define np_key_ref_list(...) VFUNC(np_key_ref_list, __VA_ARGS__)
 //#define np_ref_list2(TYPE, sll_list) np_ref_list3(TYPE, sll_list, __func__)
 //#define np_ref_list3(TYPE, sll_list, reason)               		\
 //{																\
@@ -327,7 +327,7 @@ TYPE* saveTo = NULL;																																\
 //	}															\
 //}
 //
-//#define np_unref_list(TYPE, sll_list, reason)               	\
+//#define np_key_unref_list(TYPE, sll_list, reason)               	\
 //{																\
 //	sll_iterator(TYPE) iter##__LINE__  = sll_first(sll_list);	\
 //	while (NULL != iter##__LINE__ )								\

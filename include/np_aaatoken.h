@@ -177,6 +177,7 @@ struct np_aaatoken_s
 
 	// key/value extension list
 	np_tree_t* extensions;
+	np_tree_t* extensions_local;
 	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
 	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
 	unsigned char signature[crypto_sign_BYTES];
@@ -196,6 +197,7 @@ struct np_aaatoken_s
 	np_bool is_signature_verified;
 	np_bool is_signature_extensions_verified;
 
+
 } NP_API_EXPORT;
 
 #ifndef SWIG
@@ -206,7 +208,7 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
 NP_API_INTERN
 void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token);
 NP_API_INTERN
-void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
+np_bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
 
 /**
 .. c:function::np_bool token_is_valid(np_aaatoken_t* token)
@@ -227,14 +229,14 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* token);
 // neuropil internal aaatoken storage and exchange functions
 
 NP_API_INTERN
-void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token);
+np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
 sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(const char* const subject, const char* const audience);
 NP_API_INTERN
-np_aaatoken_t* _np_aaatoken_get_sender(const char* const subject, const char* const sender);
+np_aaatoken_t* _np_aaatoken_get_sender_token(const char* const subject, const np_dhkey_t* const sender_dhkey);
 
 NP_API_INTERN
-void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token);
+np_aaatoken_t * _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
 sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(const char* const subject, const char* const audience);
 NP_API_INTERN
@@ -266,7 +268,14 @@ NP_API_INTERN
 void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t* signee);
 NP_API_INTERN
 unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self);
-
+NP_API_INTERN
+void np_aaatoken_ref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* reason, const char* reason_desc);
+NP_API_INTERN
+void np_aaatoken_unref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* reason);
+NP_API_INTERN
+np_dhkey_t _np_aaatoken_get_issuer(np_aaatoken_t* self);
+NP_API_INTERN
+void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* token);
 #ifdef __cplusplus
 }
 #endif
