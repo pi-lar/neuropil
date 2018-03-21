@@ -105,6 +105,8 @@ void _np_message_t_del(void* data)
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_del(void* data){");	
 	np_message_t* msg = (np_message_t*) data;
 
+	log_debug_msg(LOG_MEMORY | LOG_DEBUG, "msg (%s) freeing memory", msg->uuid);
+
 	sll_free(np_responsecontainer_on_t, msg->on_ack);
 	sll_free(np_responsecontainer_on_t, msg->on_timeout);
 	sll_free(np_message_on_reply_t, msg->on_reply);
@@ -120,22 +122,13 @@ void _np_message_t_del(void* data)
 //		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting msg (%s) %p / %p", msg_uuid, msg, msg->msg_chunks);
 //	}
 
-	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free header",msg->uuid);
+	
 	np_tree_free(msg->header);
-	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting instructions %p", msg->instructions);
-	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free instructions",msg->uuid);
 	np_tree_free(msg->instructions);
-	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting properties %p", msg->properties);
-	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free properties",msg->uuid);
 	np_tree_free(msg->properties);
-	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting body %p", msg->body);
-	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free body",msg->uuid);
 	np_tree_free(msg->body);
-	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting footer %p", msg->footer);
-	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free footer",msg->uuid);
 	np_tree_free(msg->footer);
 
-	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "msg (%s) delete free msg_chunks",msg->uuid);
 	_LOCK_ACCESS(&msg->msg_chunks_lock){
 		if (0 < pll_size(msg->msg_chunks))
 		{
@@ -658,7 +651,7 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 	np_bool ret = FALSE;
 	np_tryref_obj(np_message_t, msg, msgExisits,"np_tryref_obj_msg");
 
-	if(msgExisits) {
+	if(msgExisits) {		
 		if(msg->bin_static == NULL){
 			cmp_ctx_t cmp;
 			_np_obj_buffer_container_t buffer_container;

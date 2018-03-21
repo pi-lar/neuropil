@@ -304,7 +304,8 @@ np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* 
 
 np_tree_t* np_sysinfo_get_my_info() {
 	log_trace_msg(LOG_TRACE, "start: np_tree_t* np_sysinfo_get_my_info() {");
-	np_tree_t* ret = np_tree_create();
+	np_tree_t* ret = np_tree_create();	
+	ret->attr.disable_special_str = TRUE;
 
 	np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_d(np_time_now()));
 

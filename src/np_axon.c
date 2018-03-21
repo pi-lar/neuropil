@@ -576,7 +576,8 @@ void _np_out_receiver_discovery(np_jobargs_t* args)
 		log_debug_msg(LOG_ROUTING | LOG_AAATOKEN | LOG_DEBUG, "creating new sender token for subject %s", args->properties->msg_subject);
 		np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(args->properties);
 		np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
-		_np_aaatoken_add_sender(msg_token_new->subject, msg_token_new);
+		msg_token  = _np_aaatoken_add_sender(msg_token_new->subject, msg_token_new);
+		np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_add_sender");
 		msg_token = msg_token_new;
 		ref_replace_reason(np_aaatoken_t, msg_token, ref_obj_creation,"_np_aaatoken_get_sender_token")
 	}
@@ -612,7 +613,8 @@ void _np_out_sender_discovery(np_jobargs_t* args)
 		log_debug_msg(LOG_ROUTING | LOG_AAATOKEN | LOG_DEBUG, "creating new receiver token for subject %s", args->properties->msg_subject);
 		np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(args->properties);
 		np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
-		_np_aaatoken_add_receiver(msg_token_new->subject, msg_token_new);
+		msg_token = _np_aaatoken_add_receiver(msg_token_new->subject, msg_token_new);
+		np_unref_obj(np_aaatoken_t, msg_token_new, "_np_aaatoken_add_receiver");
 		msg_token = msg_token_new;
 	}
 

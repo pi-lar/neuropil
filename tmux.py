@@ -72,7 +72,7 @@ else:
 
     for i in range(count):
         windowName  = "neuropil node {0:05d}".format(i+port+start_bootstrapper)
-        if not server.find_where({ "window_name": windowName }):
+        if not session.find_where({ "window_name": windowName }):
             print('start node {:3d}/{}'.format(i,count), end='\r')
             sys.stdout.flush()
             time.sleep(random.random())

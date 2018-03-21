@@ -72,7 +72,7 @@ void _np_aaatoken_t_new(void* token)
 	aaa_token->type = np_aaatoken_type_undefined;
 	aaa_token->scope = np_aaatoken_scope_undefined;
 	aaa_token->issuer_token = aaa_token;
-	
+	_np_aaatoken_trace_info("new", aaa_token);
 }
 
 void _np_aaatoken_t_del (void* token)
@@ -133,10 +133,11 @@ void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node
 }
 
 
-void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
+void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, np_bool trace)
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token){");
 
+	if(trace) _np_aaatoken_trace_info("encode", token);
 	// included into np_token_handshake
 	np_tree_replace_str(data, "np.t.u", np_treeval_new_s(token->uuid));
 	np_tree_replace_str(data, "np.t.r", np_treeval_new_s(token->realm));
@@ -159,6 +160,10 @@ void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 	np_tree_replace_str(data, "np.t.signature_extensions", np_treeval_new_bin(token->signature_extensions, crypto_sign_BYTES));
 }
 
+void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
+{
+	_np_aaatoken_encode(data, token, TRUE);
+}
 void np_aaatoken_encode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
 	np_aaatoken_encode(data, token);
 
@@ -184,68 +189,81 @@ void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
 		np_tree_del_str(data, "np.t.private_key");
 	}
 }
-
-void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
+/*
+	@return: True if all medatory filds are present
+*/
+np_bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token){");
 	assert (NULL != data);
 	assert (NULL != token);
+	np_bool ret = TRUE;
+
 	// get e2e encryption details of sending entity
 
 	np_tree_elem_t* tmp;
 	token->scope = np_aaatoken_scope_undefined;
 	token->type = np_aaatoken_type_undefined;
 
-	if (NULL !=(tmp = np_tree_find_str(data, "np.t.u")))
+	if (ret && NULL !=(tmp = np_tree_find_str(data, "np.t.u")))
 	{
 		free(token->uuid);
 		token->uuid = strndup( np_treeval_to_str(tmp->val, NULL), UUID_SIZE);
 	}
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.r")))
+	else { ret = FALSE;/*Mendatory field*/ }
+	
+	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.r")))
 	{
 		strncpy(token->realm,  np_treeval_to_str(tmp->val, NULL), 255);
 	}
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.i")))
+	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.i")))
 	{
 		strncpy(token->issuer,  np_treeval_to_str(tmp->val, NULL), 64);
 	}
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.s")))
+	else { ret = FALSE;/*Mendatory field*/ }
+	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.s")))
 	{
 		strncpy(token->subject,  np_treeval_to_str(tmp->val, NULL), 255);
 	}
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.a")))
+	else { ret = FALSE;/*Mendatory field*/ }
+	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.a")))
 	{
 		strncpy(token->audience,  np_treeval_to_str(tmp->val, NULL), 255);
 	}
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.p")))
+	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.p")))
 	{
 		memcpy(token->public_key, tmp->val.value.bin, crypto_sign_PUBLICKEYBYTES);
 	}
+	else { ret = FALSE;/*Mendatory field*/ }
 
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.ex")))
+	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.ex")))
 	{
 		token->expires_at = tmp->val.value.d;
 	}
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.ia")))
+	else { ret = FALSE;/*Mendatory field*/ }
+	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.ia")))
 	{
 		token->issued_at = tmp->val.value.d;
 	}
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.nb")))
+	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.nb")))
 	{
 		token->not_before = tmp->val.value.d;
 	}
 
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.si")))
+	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.si")))
 	{
 		memcpy(token->signature, tmp->val.value.bin, crypto_sign_BYTES);
 		token->is_signature_verified = FALSE;
-
 	}
+	else { ret = FALSE;/*Mendatory field*/ }
 
 	// decode extensions
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.e")))
+	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.e")))
 	{
-		ASSERT(tmp->val.type == np_treeval_type_jrb_tree, "type is %"PRIu8" instead of np_treeval_type_jrb_tree(%"PRIu8")", tmp->val.type, np_treeval_type_jrb_tree);
+		ASSERT(tmp->val.type == np_treeval_type_jrb_tree, 
+			"token (%s) type is %"PRIu8" instead of np_treeval_type_jrb_tree(%"PRIu8")",
+			token->uuid, tmp->val.type, np_treeval_type_jrb_tree
+		);
 
 		if (token->extensions == token->extensions_local) {
 			token->extensions_local = np_tree_clone(tmp->val.value.tree);
@@ -255,16 +273,20 @@ void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 			np_tree_copy_inplace(tmp->val.value.tree, token->extensions_local);
 		}
 		np_tree_clear(token->extensions);
-		np_tree_copy(tmp->val.value.tree, token->extensions);		
-		
-	}
-	if (NULL != (tmp = np_tree_find_str(data, "np.t.signature_extensions")))
-	{
-		memcpy(token->signature_extensions, tmp->val.value.bin, min(tmp->val.size, crypto_sign_BYTES));
-		token->is_signature_extensions_verified = FALSE;
+		np_tree_copy(tmp->val.value.tree, token->extensions);
+
+
+		if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.signature_extensions")))
+		{
+			memcpy(token->signature_extensions, tmp->val.value.bin, min(tmp->val.size, crypto_sign_BYTES));
+			token->is_signature_extensions_verified = FALSE;
+		}
+		else { ret = FALSE;/*Mendatory field if extensions provided*/ }
 	}
 
 	_np_aaatoken_update_type_and_scope(token);
+
+	return ret;
 }
 
 void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self) {
@@ -331,7 +353,7 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self)
 np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_type)
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_bool _np_aaatoken_is_valid(np_aaatoken_t* token){");
-	assert (NULL != token);
+	if (NULL == token) return FALSE;
 
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking token (%s) validity for token of type %"PRIu32" and scope %"PRIu32, token->uuid, token->type, token->scope);
 
@@ -622,11 +644,11 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
 }
 
 // update internal structure and return a interest if a matching pair has been found
-void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
+np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token){");
 	log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".start.np_add_sender_token");
-
+	np_aaatoken_t * ret = NULL;
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
 
@@ -634,7 +656,7 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 	_np_aaatoken_create_ledger(subject_key, subject);
 
 	// should never happen
-	if (NULL == subject_key) return;
+	if (NULL == subject_key) return ret;
 
 	log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "update on global sender msg token structures ... %p (size %d)",
 							 subject_key->send_property,
@@ -649,7 +671,6 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 		subject_key->send_property->last_update = np_time_now();
 
 		uint16_t max_threshold = np_tree_find_str(token->extensions_local, "max_threshold")->val.value.ui;
-		np_aaatoken_t *tmp_token = NULL;
 
 		if (max_threshold > 0)
 		{
@@ -667,15 +688,16 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 
 			// update #1 key specific data
 			np_ref_obj(np_aaatoken_t, token,"send_tokens");
-			tmp_token = pll_replace(np_aaatoken_ptr, subject_key->send_tokens, token, cmp_aaatoken_replace);
-			if (NULL == tmp_token)
+			ret = pll_replace(np_aaatoken_ptr, subject_key->send_tokens, token, cmp_aaatoken_replace);
+			if (NULL == ret)
 			{
 				pll_insert(np_aaatoken_ptr, subject_key->send_tokens, token, allow_dups, cmp_aaatoken_add);
 			}
 			else
 			{
-				token->state = tmp_token->state;
-				np_unref_obj(np_aaatoken_t, tmp_token,"send_tokens");
+				token->state = ret->state;
+				np_ref_obj(np_aaatoken_t, ret, __func__);
+				np_unref_obj(np_aaatoken_t, ret,"send_tokens");
 			}
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
 					_np_key_as_str(subject_key) );
@@ -705,6 +727,8 @@ void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 	}
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
+
+	return ret;
 }
 
 /** np_get_sender_token
@@ -885,10 +909,11 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(const char* const subject, const np
 }
 
 // update internal structure and clean invalid tokens
-void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
+np_aaatoken_t *_np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token){");
 
+	np_aaatoken_t* ret = NULL;
 	assert(token != NULL);
 	log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".start.np_add_receiver_token");
 
@@ -899,7 +924,7 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 	_np_aaatoken_create_ledger(subject_key, subject);
 
 	// should never happen
-	if (NULL == subject_key) return;
+	if (NULL == subject_key) return ret;
 
 	log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "update on global receiving msg token structures ... %p (size %d)",
 							 subject_key->recv_property,
@@ -928,7 +953,7 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 		if (max_threshold > 0)
 		{	// only add if there are messages to receive
 			np_msg_mep_type receiver_mep_type = (subject_key->recv_property->mep_type & RECEIVER_MASK);
-			np_aaatoken_t* tmp_token = NULL;
+			
 
 			np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_add     = _np_aaatoken_cmp;
 			np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_replace = _np_aaatoken_cmp_exact;
@@ -942,15 +967,16 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 
 			// update #1 key specific data
 			np_ref_obj(np_aaatoken_t, token,"recv_tokens");
-			tmp_token = pll_replace(np_aaatoken_ptr, subject_key->recv_tokens, token, cmp_aaatoken_replace);
-			if (NULL == tmp_token)
+			ret = pll_replace(np_aaatoken_ptr, subject_key->recv_tokens, token, cmp_aaatoken_replace);
+			if (NULL == ret)
 			{
 				pll_insert(np_aaatoken_ptr, subject_key->recv_tokens, token, allow_dups, cmp_aaatoken_add);
 			}
 			else
 			{
-				token->state = tmp_token->state;
-				np_unref_obj(np_aaatoken_t, tmp_token,"recv_tokens");
+				token->state = ret->state;
+				np_ref_obj(np_aaatoken_t, ret, __func__);
+				np_unref_obj(np_aaatoken_t, ret,"recv_tokens");
 			}
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
 					_np_key_as_str(subject_key) );
@@ -984,6 +1010,8 @@ void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 
 	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 	log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_receiver_token");
+
+	return ret;
 }
 
 np_aaatoken_t* _np_aaatoken_get_receiver(const char* const subject, np_dhkey_t* target)
@@ -1423,4 +1451,34 @@ void np_aaatoken_unref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* rea
 		np_unref_obj(np_aaatoken_t, (iter->val), reason);
 		sll_next(iter);
 	}
+}
+
+
+
+void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* token) {
+
+	char * info_str ;
+	asprintf(&info_str, "AAATokenTrace_%s", desc);	
+#ifdef DEBUG
+	np_tree_t* data = np_tree_create();
+	_np_aaatoken_encode(data, token, FALSE);
+	np_tree_elem_t* tmp = NULL;
+	np_bool free_key, free_value;
+	char *key, *value;
+	
+	info_str = np_str_concatAndFree(info_str, " ");
+ 	RB_FOREACH(tmp, np_tree_s, (data))
+	{
+		key = np_treeval_to_str(tmp->key, &free_key);
+		value = np_treeval_to_str(tmp->val, &free_value);
+		info_str = np_str_concatAndFree(info_str, "%s:%s |", key, value);
+		if (free_value) free(value);
+		if (free_key) free(key);
+	}	
+	np_tree_free(data);
+#else
+	info_str = np_str_concatAndFree(info_str, ": %s", info_str, token->uuid);
+#endif
+
+	log_msg(LOG_ROUTING | LOG_INFO, info_str);
 }

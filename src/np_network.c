@@ -746,7 +746,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 						_np_key_as_str(key));
 				}
 				else {
-					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "could not submit msg to list for %s (jobqueue overflow)",
+					log_debug_msg(LOG_ERROR, "could not submit msg to list for %s (jobqueue overflow)",
 						_np_key_as_str(key));
 				}
 				 

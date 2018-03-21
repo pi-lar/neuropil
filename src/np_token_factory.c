@@ -215,6 +215,8 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 	np_unref_obj(np_key_t, my_identity, "np_waitref_obj");
 	np_unref_obj(np_key_t, my_node_key, "np_waitref_obj");
 
+	_np_aaatoken_trace_info("build_intent", ret);
+
 	return (ret);
 }
 
@@ -267,6 +269,9 @@ np_handshake_token_t* _np_token_factory_new_handshake_token() {
 	np_unref_obj(np_aaatoken_t, my_node_token, __func__);
 	np_unref_obj(np_key_t, my_node_key, __func__);
 	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", __func__);
+
+	_np_aaatoken_trace_info("build_handshake", ret);
+
 	return ret;
 }
 
@@ -302,6 +307,7 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* source_node
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG , "n_token signature private key: %s", sk_hex);
 #endif
 
+	_np_aaatoken_trace_info("build_node", ret);
 	return (ret);
 }
 
@@ -322,20 +328,31 @@ np_ident_private_token_t* np_token_factory_new_identity_token(double expires_at)
 	_np_aaatoken_update_extensions_signature(ret, ret);
 
 	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", __func__);
+
+	_np_aaatoken_trace_info("build_ident", ret);
+
 	return ret;
 }
 
-
 np_aaatoken_t* np_token_factory_read_from_tree(np_tree_t* tree) {
 	np_aaatoken_t* ret = NULL;
-
+	np_bool ok = FALSE;
 	np_new_obj(np_aaatoken_t, ret, __func__);
-	np_aaatoken_decode(tree, ret);
-	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "imported token %s (type: %"PRIu8") from tree %p", ret->uuid, ret->type, tree);
+	if (np_aaatoken_decode(tree, ret)) {
+		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "imported token %s (type: %"PRIu8") from tree %p", ret->uuid, ret->type, tree);
 
-	_np_aaatoken_is_valid(ret, np_aaatoken_type_undefined);
-
-	ASSERT(strlen(ret->subject) > 1, "tokens (%s) subject string (\"%s\") has incorrect size", ret->uuid, ret->subject);
-	
+		if (_np_aaatoken_is_valid(ret, np_aaatoken_type_undefined)) {
+			
+			ASSERT(strlen(ret->subject) > 1, "tokens (%s) subject string (\"%s\") has incorrect size", ret->uuid, ret->subject);
+			ok = TRUE;
+		}
+	}
+	if (ok) {
+		_np_aaatoken_trace_info("in_OK", ret);
+	}else{
+		_np_aaatoken_trace_info("in_NOK", ret);
+		np_unref_obj(np_aaatoken_t, ret, __func__);
+		ret = NULL;
+	}
 	return ret;
 }

@@ -54,6 +54,7 @@ else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
 struct np_tree_conf_s {
 	np_bool in_place;
 	np_bool immutable;
+	np_bool disable_special_str;
 }NP_API_EXPORT;
 
 /**

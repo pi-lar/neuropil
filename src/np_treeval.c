@@ -15,6 +15,7 @@
 
 #include "np_log.h"
 #include "np_dhkey.h"
+#include "np_util.h"
 #include "np_tree.h"
 
 np_treeval_t np_treeval_NULL = { .type = np_treeval_type_undefined, .size=0 };
@@ -281,7 +282,23 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
  			return "--> binary content";
 			break;
  		case np_treeval_type_jrb_tree:
-			return "--> subtree";
+			if (freeable != NULL) * freeable = TRUE;
+			char * info_str = NULL;
+			np_tree_elem_t * tmp = NULL;
+			np_bool free_key, free_value;
+			char *key, *value;			
+			RB_FOREACH(tmp, np_tree_s, (val.value.tree))
+			{
+				key = np_treeval_to_str(tmp->key, &free_key);
+				value = np_treeval_to_str(tmp->val, &free_value);
+				info_str = np_str_concatAndFree(info_str, "%s:%s |", key, value);
+				if (free_value) free(value);
+				if (free_key) free(key);
+			}
+			char * t = info_str;
+			asprintf(&info_str, "--> SUBTREE (%s)", t);
+			free(t);
+			return info_str ;
 			break;
 		case np_treeval_type_dhkey:
 			result = malloc(65);

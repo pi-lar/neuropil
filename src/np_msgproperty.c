@@ -160,14 +160,16 @@ void np_msgproperty_register(np_msgproperty_t* msgprops)
 	RB_INSERT(rbt_msgproperty, __msgproperty_table, msgprops);
 
 	np_message_intent_public_token_t* token =  _np_msgproperty_upsert_token(msgprops);
-	if ((msgprops->mode_type & OUTBOUND) == OUTBOUND) {
-		_np_aaatoken_add_sender(msgprops->msg_subject, token);
+	if ((msgprops->mode_type & OUTBOUND) == OUTBOUND) {		
+		np_aaatoken_t* old_token = _np_aaatoken_add_sender(msgprops->msg_subject, token);
+		np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
 		_np_send_subject_discovery_messages(OUTBOUND, msgprops->msg_subject);		
 
 	}	
 
-	if ((msgprops->mode_type & INBOUND) == INBOUND) {
-		_np_aaatoken_add_receiver(msgprops->msg_subject, token);
+	if ((msgprops->mode_type & INBOUND) == INBOUND) {		
+		np_aaatoken_t* old_token = _np_aaatoken_add_receiver(msgprops->msg_subject, token);
+		np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_receiver");
 		_np_send_subject_discovery_messages(INBOUND, msgprops->msg_subject);		
 
 	}

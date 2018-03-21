@@ -127,7 +127,7 @@ np_tree_t* np_tree_create()
 	CHECK_MALLOC(new_tree);
 
 	memset(&new_tree->attr, 0, sizeof(np_tree_conf_t));
-
+	
 	new_tree->size = 0;
 	new_tree->rbh_root = NULL;
 	new_tree->byte_size = 5;
@@ -136,7 +136,8 @@ np_tree_t* np_tree_create()
 }
 
 np_bool _np_tree_is_special_str(const char* in_question, uint8_t* idx_on_found) {
-	np_bool ret = FALSE;	
+	np_bool ret = FALSE;		
+	return ret; //FIXME: special strings!
 	uint8_t item_count = sizeof(np_special_strs) / sizeof(np_special_strs[0]);
 	for (uint8_t i = 0; i < item_count; i++) {
 		const char* special_str = np_special_strs[i];
@@ -242,7 +243,9 @@ np_tree_elem_t* np_tree_find_str(np_tree_t* n, const char *key)
 	uint8_t idx = 0;
 	if (_np_tree_is_special_str(key, &idx)) {
 		ret = np_tree_find_special_str(n, idx);
-	} else {
+	} 
+	if(ret == NULL) 
+	{
 		np_treeval_t search_key = { .type = np_treeval_type_char_ptr, .value.s = (char*)key };
 		np_tree_elem_t search_elem = { .key = search_key };
 		ret = RB_FIND(np_tree_s, n, &search_elem);
@@ -473,7 +476,7 @@ void np_tree_insert_str(np_tree_t* tree, const char *key, np_treeval_t val)
 	assert(key != NULL);
 
 	uint8_t idx = 0;
-	if (_np_tree_is_special_str(key, &idx)) {
+	if (tree->attr.disable_special_str == FALSE && _np_tree_is_special_str(key, &idx)) {
 		np_tree_insert_special_str(tree, idx, val);
 	} else {
 		np_tree_elem_t* found = np_tree_find_str(tree, key);
@@ -590,7 +593,6 @@ void np_tree_replace_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeva
 	_np_tree_cleanup_treeval(tree, element->val);
 	np_tree_set_treeval(tree, element, val);
 	tree->byte_size += np_tree_get_byte_size(element);
-
 }
 
 void np_tree_replace_special_str(np_tree_t* tree, const uint8_t key, np_treeval_t val)
@@ -928,8 +930,6 @@ void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target) 
 	else {
 		target->error = key_ctx.error;
 	}
-
-
 }
 
 uint8_t __np_tree_serialize_read_type_special_str(cmp_ctx_t* cmp, np_treeval_t* target) {
@@ -956,7 +956,7 @@ void __np_tree_serialize_write_type_special_str(uint8_t idx, cmp_ctx_t* target) 
 	cmp_init(&cmp, buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 	cmp_write_u8(&cmp, idx);
 
-	if(cmp.error == 0){
+	if(cmp.error == 0) {
 		cmp_write_ext32(target, np_treeval_type_special_char_ptr, transport_size, buf_ptr);
 	}
 	else {

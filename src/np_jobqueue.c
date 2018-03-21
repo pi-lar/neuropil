@@ -294,13 +294,13 @@ void _np_job_submit_route_event(double delay, np_msgproperty_t* prop, np_key_t* 
 	}
 }
 
-np_bool _np_job_submit_msgin_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data)
+np_bool __np_job_submit_msgin_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, char* tmp)
 {
 	// could be NULL if msg is not defined in this node
 	// assert(NULL != prop);
 
 	// create runtime arguments
-	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop, __func__);
+	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop, tmp);
 	jargs->custom_data = custom_data;
 	if (msg != NULL && prop != NULL) {
 		if (msg->msg_property != NULL) {
@@ -617,8 +617,17 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 #endif
 
 		sll_iterator(np_callback_t) iter = sll_first((job_to_execute->processorFuncs));
+		
+		// create a readonly pcy of args to prevent pointer manipulation in callbacks
+		np_jobargs_t cpy = { 0 };
 		while (iter != NULL)
-		{
+		{			
+			cpy.custom_data = job_to_execute->args->custom_data;			
+			cpy.is_resend = job_to_execute->args->is_resend;
+			cpy.msg = job_to_execute->args->msg;
+			cpy.properties = job_to_execute->args->properties;
+			cpy.target = job_to_execute->args->target;
+
 			iter->val(job_to_execute->args);
 			sll_next(iter);
 		}

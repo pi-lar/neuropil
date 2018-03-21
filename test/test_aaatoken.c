@@ -66,7 +66,7 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	np_aaatoken_t* test_token_2 = np_token_factory_read_from_tree(aaa_tree);
 	//np_new_obj(np_aaatoken_t, test_token_2);
 	//np_aaatoken_decode(aaa_tree, test_token_2);	
-
+	cr_assert(test_token_2 != NULL, "expect a token");
 	cr_assert (TRUE == _np_aaatoken_is_valid(test_token_1, np_aaatoken_type_node), "expect that the 1.token (%s) is valid",test_token_1->uuid);
 	cr_assert (TRUE == _np_aaatoken_is_valid(test_token_2, np_aaatoken_type_node), "expect that the 2.token (%s) is valid", test_token_2->uuid);
 

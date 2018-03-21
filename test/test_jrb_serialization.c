@@ -215,7 +215,7 @@ Test(test_serialization, _np_tree_special_str, .description = "test the implemen
 	cr_expect(_np_tree_is_special_str("np.test1", &idx) == FALSE, "expecting np.test1 to be no special string");
 	cr_expect(idx == 254, "expecting index to be the same");
 
-	cr_expect(_np_tree_is_special_str("np.test2", &idx) == TRUE, "expecting np.test2 to be a special string");
+	cr_assert(_np_tree_is_special_str("np.test2", &idx) == TRUE, "expecting np.test2 to be a special string");
 	cr_expect(idx == 0, "expecting np.test2 to be at position 0 and not %"PRIu8, idx);
 	cr_expect(strcmp("np.test2", (tmp = _np_tree_get_special_str(idx))) == 0, "expecting retunred special string to be np.test2 and not %s",tmp);
 
@@ -364,7 +364,7 @@ Test(test_serialization, np_tree_serialize, .description="test the serialization
 	tmpEle = np_tree_find_str(out_jrb, "np.test2");
 	
 	cr_assert(tmpEle != NULL, "Expect to find element np.test2");
-	cr_expect(tmpEle->key.type == np_treeval_type_special_char_ptr, "Expect element key to be of type np_treeval_type_special_char_ptr" );
+	cr_assert(tmpEle->key.type == np_treeval_type_special_char_ptr, "Expect element key to be of type np_treeval_type_special_char_ptr" );
 	cr_expect(tmpEle->key.value.ush  == 0, "Expect element key to be the same");
 	cr_expect(tmpEle->val.type == np_treeval_type_char_ptr, "Expect element value to be of type np_treeval_type_char_ptr");
 	cr_expect(strcmp( np_treeval_to_str(tmpEle->val, NULL), "test") == 0, "Expect element value to be the same");

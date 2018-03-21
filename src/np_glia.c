@@ -671,7 +671,9 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 			if (NULL != msg_prop->rep_subject &&
 				STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))
 			{
-				_np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
+				
+				np_aaatoken_t* old_token = _np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
+				np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
 			}
 		}
 		// decrease threshold counters

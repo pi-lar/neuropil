@@ -123,7 +123,7 @@ extern "C" {
 	#define MISC_RENEW_NODE_SEC (NP_PI*1000)
 #endif
 #ifndef MISC_RETRANSMIT_MSG_TOKENS_SEC
-	#define MISC_RETRANSMIT_MSG_TOKENS_SEC (NP_PI/2)
+	#define MISC_RETRANSMIT_MSG_TOKENS_SEC (NP_PI*2)
 #endif
 #ifndef MISC_READ_EVENTS_SEC
 	#define MISC_READ_EVENTS_SEC (NP_PI/1000)
@@ -258,7 +258,7 @@ extern "C" {
 	lower value => success avg more on realtime
 	higher value => more msgs need to be failed to regard this link as bad
 */
-#define NP_NODE_SUCCESS_WINDOW 50
+#define NP_NODE_SUCCESS_WINDOW 20
 
 
 #ifndef NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK

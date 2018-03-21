@@ -139,16 +139,6 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 	case np_treeval_type_double:
 		ret = json_value_init_number(val.value.d);
 		break;
-	case np_treeval_type_char_ptr:		
-		tmp_str = np_treeval_to_str(val, &free_string);
-		ret = json_value_init_string(tmp_str);
-		if (free_string == TRUE) {
-			free(tmp_str);
-		}
-		break;
-	case np_treeval_type_char:
-		ret = json_value_init_string(&val.value.c);
-		break;
 	case np_treeval_type_unsigned_short:
 		ret = json_value_init_number(val.value.ush);
 		break;
@@ -168,28 +158,28 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 		json_array_append_number(json_array(ret), val.value.a2_ui[0]);
 		json_array_append_number(json_array(ret), val.value.a2_ui[1]);
 		break;
-	case np_treeval_type_bin:
-		tmp =  malloc(sizeof(char)*64);
-		CHECK_MALLOC(tmp);
-
-		sprintf(tmp, "<binaray data (size: %"PRIu32")>", val.size);
-		ret = json_value_init_string((char*)tmp);
-		free(tmp);
-		break;
 	case np_treeval_type_jrb_tree:
 		ret = np_tree2json(val.value.tree);
 		break;
+		/*
 	case np_treeval_type_dhkey:
 		ret = json_value_init_array();
 		json_array_append_number(json_array(ret), val.value.dhkey.t[0]);
 		json_array_append_number(json_array(ret), val.value.dhkey.t[1]);
 		json_array_append_number(json_array(ret), val.value.dhkey.t[2]);
 		json_array_append_number(json_array(ret), val.value.dhkey.t[3]);
+		json_array_append_number(json_array(ret), val.value.dhkey.t[4]);
+		json_array_append_number(json_array(ret), val.value.dhkey.t[5]);
+		json_array_append_number(json_array(ret), val.value.dhkey.t[6]);
+		json_array_append_number(json_array(ret), val.value.dhkey.t[7]);
 		break;
+		*/
 	default:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd",
-				val.type);
-
+		tmp_str = np_treeval_to_str(val, &free_string);
+		ret = json_value_init_string(tmp_str);
+		if (free_string == TRUE) {
+			free(tmp_str);
+		}
 		break;
 	}
 	return ret;

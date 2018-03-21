@@ -18,7 +18,6 @@ extern "C" {
 
 /* jobargs structure used to pass type safe structs into the thread context */
 typedef np_job_t* np_job_ptr;
-typedef int np_error_t;
 
 struct np_jobargs_s
 {
@@ -27,8 +26,6 @@ struct np_jobargs_s
 	uint8_t is_resend;
 	np_key_t* target;
 	void* custom_data;
-
-	np_error_t error_code;
 };
 
 NP_API_INTERN
@@ -56,8 +53,9 @@ NP_API_EXPORT
 NP_API_INTERN
 	void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
 
+#define _np_job_submit_msgin_event(delay, prop, key, msg, custom_data) __np_job_submit_msgin_event(delay, prop, key, msg, custom_data, __func__)
 NP_API_INTERN
-	np_bool _np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data);
+	np_bool __np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, char* tmp);
 
 NP_API_INTERN
 	void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
