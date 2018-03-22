@@ -390,6 +390,19 @@ np_bool _np_job_queue_create()
 	return (TRUE);
 }
 
+void _np_job_queue_destroy()
+{
+	log_trace_msg(LOG_TRACE, "start: np_bool _np_job_queue_destroy(){");
+
+	pll_free(np_job_ptr, __np_job_queue->job_list);
+	dll_free(np_thread_ptr, __np_job_queue->available_workers);
+
+	_np_threads_condition_destroy(&__cond_job_queue);
+	_np_threads_mutex_destroy(&__np_job_queue->available_workers_lock);
+
+	free(__np_job_queue);
+}
+
 void _np_job_yield(const double delay)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_job_yield(const double delay){");
@@ -618,16 +631,8 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 
 		sll_iterator(np_callback_t) iter = sll_first((job_to_execute->processorFuncs));
 		
-		// create a readonly pcy of args to prevent pointer manipulation in callbacks
-		np_jobargs_t cpy = { 0 };
 		while (iter != NULL)
 		{			
-			cpy.custom_data = job_to_execute->args->custom_data;			
-			cpy.is_resend = job_to_execute->args->is_resend;
-			cpy.msg = job_to_execute->args->msg;
-			cpy.properties = job_to_execute->args->properties;
-			cpy.target = job_to_execute->args->target;
-
 			iter->val(job_to_execute->args);
 			sll_next(iter);
 		}

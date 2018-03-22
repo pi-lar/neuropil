@@ -1219,4 +1219,5 @@ void _np_message_trace_info(char* desc, np_message_t * msg_in) {
 #endif
 
 	log_msg(LOG_ROUTING | LOG_INFO, info_str);	
+	free(info_str);
 }
