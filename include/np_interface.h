@@ -29,9 +29,12 @@ extern "C" {
 
 	enum np_error {
 		np_ok = 0,
+		np_network_error,
 		np_invalid_input,
 		np_invalid_input_size,
 		np_invalid_operation,
+		np_insufficient_memory,
+		np_startup
 		// ...
 	};
 
@@ -63,13 +66,13 @@ extern "C" {
 	enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
 
 	// secret_key is nullable
-	struct np_token *np_new_identity(void* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]));
+	struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]));
 
 	enum np_error np_set_identity(np_context* ac, struct np_token identity);
 
 	// Get “connect string”. Signals error if connect string is unavailable (i.e.,
 	// no listening interface is configured.)
-	enum np_error np_get_address(void* ac, char* address, uint32_t max);
+	enum np_error np_get_address(np_context* ac, char* address, uint32_t max);
 
 	enum np_error np_join(np_context* ac, char* address);
 
@@ -87,7 +90,7 @@ extern "C" {
 	//           N => process events for up to N seconds and return
 	enum np_error np_run(np_context* ac, double duration);
 
-	enum np_mx_pattern      { NP_MX_ONEWAY, REQ_REP, /* ... */ };
+	enum np_mx_pattern      { NP_MX_ONEWAY, NP_MX_REQ_REP, /* ... */ };
 	enum np_mx_cache_policy { NP_MX_FIFO_REJECT, NP_MX_FIFO_PURGE, NP_MX_LIFO_REJECT, NP_MX_LIFO_PURGE };
 	enum np_mx_ackmode      { NP_MX_ACK_NONE, NP_MX_ACK_DESTINATION, NP_MX_ACK_CLIENT };
 	struct np_mx_properties {
