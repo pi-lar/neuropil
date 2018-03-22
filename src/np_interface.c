@@ -249,19 +249,19 @@ enum np_error np_join(np_context* ac, char* address) {
 	return ret;
 }
 
-enum np_error np_send(np_context* ac, uint8_t* message, size_t length, np_id* subject) {
+enum np_error np_send(np_context* ac, np_id* subject, uint8_t* message, size_t length) {
 	enum np_error ret = np_ok;
 	
 	return ret;
 }
 
-enum np_error np_add_receive_cb(np_context* ac, np_receive_callback callback) {
+enum np_error np_add_receive_cb(np_context* ac, np_id* subject, np_receive_callback callback) {
 }
 
 enum np_error np_set_authenticate_cb(np_context* ac, np_aaa_callback callback) {
 }
 
-enum np_error np_set_authorize_cb(np_context* ac, np_id subject, np_aaa_callback callback) {
+enum np_error np_set_authorize_cb(np_context* ac, np_aaa_callback callback) {
 }
 
 enum np_error np_run(np_context* ac, double duration) {
@@ -271,5 +271,6 @@ enum np_error np_run(np_context* ac, double duration) {
 
 }
 
-enum np_error np_set_mx_properties(np_context* ac, np_id subject, struct np_mx_properties properties) {
+
+enum np_error np_set_mx_properties(np_context* ac, np_id* subject, struct np_mx_properties properties) {
 }
