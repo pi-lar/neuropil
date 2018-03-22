@@ -41,12 +41,12 @@ extern "C" {
 	void np_get_id(np_id* id, char* string, size_t length);
 
 	struct np_token {
-		np_id realm, issuer, subject, audience;		
+		np_id realm, issuer, subject, audience;
 		double issued_at, not_before, expires_at;
 		uint8_t extensions[NP_EXTENSION_BYTES];
-		size_t extension_length;			
+		size_t extension_length;
 		uint8_t public_key[NP_PUBLIC_KEY_BYTES],
-                        secret_key[NP_SECRET_KEY_BYTES];
+			secret_key[NP_SECRET_KEY_BYTES];
 	};
 
 	// New incarnation of np_settings.h
