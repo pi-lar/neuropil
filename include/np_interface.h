@@ -94,8 +94,10 @@ extern "C" {
 		enum np_mx_ackmode ackmode;
 		enum np_mx_pattern pattern;
 		enum np_mx_cache_policy cache_policy;
-		uint32_t max_parallel, max_retry, max_ttl, min_ttl;
-		bool unique_uuids_check;
+		uint32_t max_parallel, max_retry;
+		double intent_ttl, intent_update_after;
+		double message_ttl;
+		bool once_only;
 	};
 
 	enum np_error np_set_mx_properties(np_context* ac, np_id* subject, struct np_mx_properties properties);
