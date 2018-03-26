@@ -553,7 +553,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 
 void _np_msgproperty_threshold_increase(np_msgproperty_t* self) {
 	TSP_SCOPE(self->msg_threshold) {
-		if(self->msg_threshold < UINT16_MAX){
+		if(self->msg_threshold < self->max_threshold){
 			self->msg_threshold++;
 		}
 	}
@@ -574,7 +574,7 @@ np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t*
 
 	double now = np_time_now();
 	if (NULL == ret
-		|| _np_aaatoken_is_valid(ret, np_aaatoken_type_message_intent) == FALSE
+// 		|| _np_aaatoken_is_valid(ret, np_aaatoken_type_message_intent) == FALSE
 		|| (ret->expires_at - now) <= min(prop->token_min_ttl, MISC_RETRANSMIT_MSG_TOKENS_SEC)
 		)
 	{
