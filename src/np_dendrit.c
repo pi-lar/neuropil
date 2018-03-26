@@ -106,9 +106,9 @@ void _np_in_received(np_jobargs_t* args)
 	np_bool free_str_msg_subject = FALSE;
 	np_bool free_str_msg_from = FALSE;
 	np_bool free_str_msg_to = FALSE;
-	char* str_msg_subject ;
-	char* str_msg_to;
-	char* str_msg_from;
+	char* str_msg_subject;
+	char str_msg_to[65];
+	char str_msg_from[65];
 
 	np_state_t* state = np_state();
 
@@ -209,10 +209,8 @@ void _np_in_received(np_jobargs_t* args)
 			CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
 			CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 			
-
-			str_msg_from = np_treeval_to_str(msg_from, &free_str_msg_from);
-			
-			str_msg_subject = np_treeval_to_str(msg_subject, &free_str_msg_subject);
+			_np_dhkey_to_str(&msg_from.value.dhkey, str_msg_from);
+			str_msg_subject = msg_subject.value.s;
 			
 			_np_message_trace_info("in", msg_in);
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
@@ -251,21 +249,21 @@ void _np_in_received(np_jobargs_t* args)
 				CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
 				CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_SEND_COUNTER, msg_resendcounter);
 
-				str_msg_to = np_treeval_to_str(msg_to, &free_str_msg_to);
+				_np_dhkey_to_str(&msg_to.value.dhkey, str_msg_to);
 
-				log_msg(LOG_ROUTING | LOG_INFO, 
+				log_msg(LOG_ROUTING | LOG_DEBUG,
 					"msg (%s) target of message for subject: %s from: %s is: %s",
 					msg_in->uuid, str_msg_subject, str_msg_from, str_msg_to);
 
 				// check time-to-live for message and expiry if neccessary
 				if (TRUE == _np_message_is_expired(msg_in))
 				{					
-					log_msg(LOG_ROUTING | LOG_WARN,
+					log_msg(LOG_INFO,
 						"msg (%s) ttl expired, dropping message (part) %s target: %s",
 						msg_in->uuid, str_msg_subject, str_msg_to);
 				}
 				else if (msg_resendcounter.value.ush > 31) {
-					log_msg(LOG_ROUTING | LOG_WARN,
+					log_msg(LOG_WARN,
 						"msg (%s) resend count (%d) too high, dropping message (part) %s target: %s",
 						msg_in->uuid, msg_resendcounter.value.ush, str_msg_subject, str_msg_to);
 				}
@@ -315,7 +313,7 @@ void _np_in_received(np_jobargs_t* args)
 							np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
 							forwarded_msg = TRUE;
 							//TODO: is it necessary to forwarding with a small penalty to prevent infinite loops?
-							_np_job_submit_route_event(0.031415, prop, alias_key, msg_in);
+							_np_job_submit_route_event(NP_PI/1000, prop, alias_key, msg_in);
 
 							np_key_unref_list(tmp, "_np_route_lookup");
 							sll_free(np_key_ptr, tmp);
@@ -370,19 +368,16 @@ void _np_in_received(np_jobargs_t* args)
 				}
 			}
 			else {
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG, 
-					"msg (%s) requeue msg as it is not in protocol to receive a %s msg now.", 
-					msg_in->uuid, str_msg_subject
-				);
-			
-				_np_job_resubmit_msgin_event(0.01, args);
+// 				not yet
+//				log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+//					"msg (%s) requeue msg as it is not in protocol to receive a %s msg now.",
+//					msg_in->uuid, str_msg_subject
+//				);
+// 				_np_job_resubmit_msgin_event(NP_PI/100, args);
 			}
 
 			// clean the mess up
 		__np_cleanup__:
-			if (free_str_msg_subject) free(str_msg_subject);
-			if (free_str_msg_from) free(str_msg_from);
-			if (free_str_msg_to) free(str_msg_to);
 			np_unref_obj(np_message_t, msg_in, ref_obj_creation);
 
 		}
@@ -392,6 +387,7 @@ void _np_in_received(np_jobargs_t* args)
 	// __np_return__:
 	return;
 }
+
 void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* handler, np_bool allow_destination_ack) {
 
 	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key, __func__);
@@ -672,7 +668,7 @@ void _np_in_callback_wrapper(np_jobargs_t* args)
 		if (NULL == sender_token)
 		{
 			_np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
-			log_msg(LOG_ROUTING | LOG_INFO,"No token to decrypt msg. Retrying later");
+			log_msg(LOG_ROUTING | LOG_INFO,"no token to decrypt msg (%s). Retrying later", msg_in->uuid);
 		}
 		else
 		{
@@ -938,7 +934,8 @@ void _np_in_join_req(np_jobargs_t* args)
 
 		if (IS_AUTHENTICATED(join_node_key->aaa_token->state)){
 			np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-			_np_job_submit_transform_event(0.0, piggy_prop, join_node_key, NULL);
+			// add a small delay to prevent the arrival of the piggy message before the join ack
+			_np_job_submit_transform_event(NP_PI/300, piggy_prop, join_node_key, NULL);
 		}
 		// _np_send_ack(args->msg);
 	}
@@ -1364,6 +1361,7 @@ void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_mes
 }
 
 void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* receiver_msg_token, np_bool inform_counterparts) {
+
 	np_sll_t(np_aaatoken_ptr, available_list) =
 		_np_aaatoken_get_all_sender(receiver_msg_token->subject, receiver_msg_token->audience);
 
@@ -1444,6 +1442,7 @@ void _np_dendrit_propagate_list(np_msgproperty_t* subject_property, np_dhkey_t t
 		}
 	}
 }
+
 void _np_in_discover_sender(np_jobargs_t* args)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_in_discover_sender(np_jobargs_t* args){");
@@ -1467,14 +1466,13 @@ void _np_in_discover_sender(np_jobargs_t* args)
 		np_aaatoken_t* old_token = _np_aaatoken_add_receiver(msg_token->subject, msg_token);
 		
 		// this node is the man in the middle - inform receiver of sender token
-		_np_dendrit_propagate_senders(reply_to_key, msg_token, old_token == NULL || strncmp(msg_token->uuid, old_token->uuid, UUID_SIZE)!=0);
+		_np_dendrit_propagate_senders(reply_to_key, msg_token, FALSE);
+		// _np_dendrit_propagate_senders(reply_to_key, msg_token, old_token == NULL || strncmp(msg_token->uuid, old_token->uuid, UUID_SIZE)!=0);
 		np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_receiver");
 
-		
 	}
-	else if(msg_token!=NULL){
+	else if(msg_token!=NULL) {
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token %s will not receive the available senders.", msg_token->uuid);
-
 	}
 
 	__np_cleanup__:
@@ -1574,12 +1572,11 @@ void _np_in_discover_receiver(np_jobargs_t* args)
 
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "discovery: received new sender token %s for %s",msg_token->uuid, msg_token->subject);
 
-
 		np_aaatoken_t* old_token = _np_aaatoken_add_sender(msg_token->subject, msg_token);
 				
-		_np_dendrit_propagate_receivers(reply_to_key, msg_token, old_token == NULL || strncmp(msg_token->uuid,old_token->uuid,UUID_SIZE) != 0);
+		_np_dendrit_propagate_receivers(reply_to_key, msg_token, FALSE);
+		// _np_dendrit_propagate_receivers(reply_to_key, msg_token, old_token == NULL || strncmp(msg_token->uuid,old_token->uuid,UUID_SIZE) != 0);
 		np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
-
 
 	__np_cleanup__:
 		np_unref_obj(np_message_t, msg_in, __func__);
