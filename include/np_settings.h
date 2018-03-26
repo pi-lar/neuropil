@@ -28,7 +28,7 @@ extern "C" {
 	#define NP_MEMORY_CHECK_MEMORY_REFFING 1
 	// #define NP_THREADS_CHECK_THREADING 1
 	// #define NP_BENCHMARKING 4096
-	#define NP_STATISTICS_COUNTER
+	// #define NP_STATISTICS_COUNTER
 #endif // DEBUG
 
 

@@ -483,6 +483,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 
 			if (INBOUND == (args->properties->mode_type & INBOUND))
 			{
+				log_msg(LOG_DEBUG | LOG_AAATOKEN, "--- cont refresh for inbound subject token: %25s new token", args->properties->msg_subject);
 				//if (args->properties->current_receive_token != msg_token) 
 				{
 					np_ref_switch(np_aaatoken_t, args->properties->current_receive_token, ref_msgproperty_current_recieve_token, msg_token);
@@ -519,6 +520,7 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 
 			if (OUTBOUND == (args->properties->mode_type & OUTBOUND))
 			{
+				log_msg(LOG_DEBUG | LOG_AAATOKEN, "--- cont refresh for outbound subject token: %25s new token", args->properties->msg_subject);
 				//if (args->properties->current_sender_token != msg_token) 
 				{
 					np_ref_switch(np_aaatoken_t, args->properties->current_sender_token, ref_msgproperty_current_sender_token, msg_token);

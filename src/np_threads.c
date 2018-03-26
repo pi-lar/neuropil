@@ -237,7 +237,7 @@ int _np_threads_mutex_init(np_mutex_t* mutex, const char* desc)
 {
 	log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_init(np_mutex_t* mutex){");
 	int ret = 0;
-	mutex->desc = strdup(desc);
+	mutex->desc = strndup(desc, 32);
 	pthread_mutexattr_init(&mutex->lock_attr);
 	pthread_mutexattr_settype(&mutex->lock_attr, PTHREAD_MUTEX_RECURSIVE);
 

@@ -273,7 +273,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__available_receiver->mode_type = INBOUND | OUTBOUND | ROUTE;
 	__available_receiver->mep_type = ONE_WAY;
 	__available_receiver->priority = 0;
-	__available_receiver->ack_mode = ACK_DESTINATION;
+	__available_receiver->ack_mode = ACK_NONE;
 	__available_receiver->retry = 0;
 	sll_append(np_callback_t, __available_receiver->clb_inbound, _np_in_available_receiver);
 	//default: 	sll_append(np_callback_t, __available_receiver->clb_outbound, _np_out);
@@ -293,7 +293,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__available_sender->mode_type = INBOUND | OUTBOUND | ROUTE;
 	__available_sender->mep_type = ONE_WAY;
 	__available_sender->priority = 0;
-	__available_sender->ack_mode = ACK_DESTINATION;
+	__available_sender->ack_mode = ACK_NONE;
 	__available_sender->retry = 0;
 	sll_append(np_callback_t, __available_sender->clb_inbound, _np_in_available_sender);
 	//default: 	sll_append(np_callback_t, __available_sender->clb_outbound, _np_out);

@@ -304,19 +304,18 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 		_LOCK_MODULE(np_state_message_tokens_t) {
 			RB_FOREACH(iter, np_tree_s, state->msg_tokens)
 			{
-				np_bool free_subject;
-				const char* subject = NULL;
-				subject = np_treeval_to_str(iter->key, &free_subject);
+				// np_bool free_subject;
+				const char* subject = iter->key.value.s;
 				
 				np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(subject, "0");
 				np_key_t* target = NULL;
-				target = _np_keycache_find_or_create(target_dhkey);
 
+				target = _np_keycache_find_or_create(target_dhkey);
 				msg_prop = np_msgproperty_get(TRANSFORM, subject);
-				if (free_subject) free(subject);
 
 				if (NULL != msg_prop)
 				{
+					log_msg(LOG_DEBUG | LOG_AAATOKEN, "--- start refresh for subject token: %25s new token", msg_prop->msg_subject);
 					_np_job_submit_transform_event(0.0, msg_prop, target, NULL);
 					np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
 				}
@@ -326,10 +325,9 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 					// free( np_treeval_to_str(deleted->key));
 					// free(deleted);
 					np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
-					break;
+					// break;
 				}
 			}
-
 		}
 
 		if (TRUE == state->enable_realm_master)

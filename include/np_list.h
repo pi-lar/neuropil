@@ -702,7 +702,7 @@ TYPE##_sll_node_t* TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {						
 	sll_list->size++;																						\
 	return sll_node;																						\
 }																											\
-TYPE##_sll_node_t* TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value) {												\
+TYPE##_sll_node_t* TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value) {									\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
 	sll_node->val = value;																					\
 	sll_node->flink = sll_list->first;																		\
