@@ -212,6 +212,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 				// lets add our msgpart to this msg
 
 				np_message_t* msg_in_cache = msg_in_cache = tmp->val.value.v;
+
 				np_messagepart_ptr to_add = NULL;
 				_LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
 					to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks); // get the messagepart we received
@@ -837,7 +838,6 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 			((_np_obj_buffer_container_t*)cmp.buf)->bufferCount += msg->instructions->byte_size;
 
 
-
 			cmp_read_bin_size(&cmp, &size_properties_add);
 			if (0 < size_properties_add)
 			{
@@ -928,7 +928,6 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
 	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "msg (%s) Size of msg  %"PRIu16" bytes. Size of fixed_size %"PRIu16" bytes. Nr of chunks  %"PRIu16" parts", msg->uuid, payload_size, fixed_size, msg->no_of_chunks);
 #endif
 */
-	np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 	msg->is_single_part = FALSE;
 
 	// log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "-----------------------------------------------------" );
@@ -1185,9 +1184,9 @@ np_dhkey_t* _np_message_get_sender(np_message_t* self){
 
 void _np_message_trace_info(char* desc, np_message_t * msg_in) {
 
+#ifdef DEBUG
 	char * info_str;
 	asprintf(&info_str, "MessageTrace_%s",desc);
-#ifdef DEBUG
 	np_tree_elem_t* tmp = NULL;
 	np_bool free_key, free_value;
 	char *key, *value;
@@ -1214,10 +1213,9 @@ void _np_message_trace_info(char* desc, np_message_t * msg_in) {
 		}
 	}
 	info_str = np_str_concatAndFree(info_str, ")");
-#else
 	info_str = np_str_concatAndFree(info_str, ": %s", info_str, msg_in->uuid);	
-#endif
 
 	log_msg(LOG_ROUTING | LOG_INFO, info_str);	
 	free(info_str);
+#endif
 }
