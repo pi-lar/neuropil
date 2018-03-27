@@ -346,7 +346,6 @@ void _np_job_submit_msgout_event(double delay, np_msgproperty_t* prop, np_key_t*
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_OUT, prop->clb_outbound, "clb_outbound");
 
-
 	if (!_np_job_queue_insert(new_job)) {
 		_np_job_free(new_job);
 	}
@@ -501,30 +500,23 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 
 	double now, sleep = NP_PI/100;
 	dll_iterator(np_thread_ptr) iter_workers;
-	np_dll_t(np_thread_ptr, workers_copy);
-	dll_init(np_thread_ptr, workers_copy);
 
 	np_job_t search_key = { 0 };
 	np_thread_ptr current_worker = NULL;
 
+	_LOCK_ACCESS(&__np_job_queue->available_workers_lock)
+	{
+		iter_workers = dll_first(__np_job_queue->available_workers);
+	}
+
 	while (1)
 	{
-		_LOCK_ACCESS(&__np_job_queue->available_workers_lock)
-		{
-			iter_workers = dll_first(__np_job_queue->available_workers);
-			while (iter_workers != NULL) {
-				// log_debug_msg(LOG_DEBUG, "add     worker thread (%p) to worker list", iter_workers->val);
-				dll_append(np_thread_ptr, workers_copy, iter_workers->val);
-				dll_next(iter_workers);
-			}
-		}
-
 		sleep = NP_PI/100;
-
 		np_bool new_worker_job = FALSE;
-		current_worker = dll_head(np_thread_ptr, workers_copy);
-		while (NULL != current_worker)
+
+		if (NULL != iter_workers)
 		{
+			current_worker = iter_workers->val;
 			new_worker_job = FALSE;
 			_TRYLOCK_ACCESS(&current_worker->job_lock)
 			{
@@ -549,18 +541,30 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 					}
 				}
 			}
+
 			if (new_worker_job == TRUE && current_worker->job) {
 				// log_debug_msg(LOG_DEBUG, "start   worker thread (%p) job (%p)", current_worker, current_worker->job);
 				_np_threads_condition_signal(&current_worker->job_lock.condition);
 			}
-			current_worker = dll_head(np_thread_ptr, workers_copy);
+
+			_LOCK_ACCESS(&__np_job_queue->available_workers_lock)
+			{
+				dll_next(iter_workers);
+			}
 		}
-		// wait for time x to be unlocked again
-		_LOCK_MODULE(np_jobqueue_t)
-		{
-			struct timeval tv_sleep = dtotv(np_time_now() + MAX(NP_PI/1000, sleep));
-			struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec = tv_sleep.tv_usec * 1000 };
-			_np_threads_module_condition_timedwait(&__cond_job_queue, np_jobqueue_t_lock, &waittime);
+		else
+		{	// wait for time x to be unlocked again
+			_LOCK_MODULE(np_jobqueue_t)
+			{
+				struct timeval tv_sleep = dtotv(np_time_now() + MAX(NP_PI/1000, sleep));
+				struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec = tv_sleep.tv_usec * 1000 };
+				_np_threads_module_condition_timedwait(&__cond_job_queue, np_jobqueue_t_lock, &waittime);
+			}
+
+			_LOCK_ACCESS(&__np_job_queue->available_workers_lock)
+			{
+				iter_workers = dll_first(__np_job_queue->available_workers);
+			}
 		}
 	}
 }
@@ -683,8 +687,6 @@ void* __np_jobqueue_run_worker(void* np_thread_ptr)
 
 	_np_threads_set_self(np_thread_ptr);
 	np_thread_t* my_thread = np_thread_ptr;
-
-	_np_jobqueue_add_worker_thread(my_thread);
 	
 	while (1)
 	{

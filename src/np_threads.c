@@ -667,7 +667,9 @@ void __np_createWorkerPool(uint8_t pool_size) {
 			new_thread->min_job_priority = PRIORITY_MOD_HIGHEST * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
 		}
 
+		_np_jobqueue_add_worker_thread(new_thread);
 		_np_thread_run(new_thread);
+
 		log_debug_msg(LOG_THREADS |LOG_DEBUG, "neuropil worker thread started: %p", np_state()->thread_ids[i]);
 	}
 }

@@ -142,7 +142,7 @@ int8_t TYPE##_pll_compare_type(TYPE const a, TYPE const b) {     \
 }                                                                \
 TYPE##_pll_t* TYPE##_pll_init()                                  \
 { \
-	TYPE##_pll_t* pll_list = (TYPE##_pll_t*) calloc(1,sizeof(TYPE##_pll_t)); \
+	TYPE##_pll_t* pll_list = (TYPE##_pll_t*) malloc(sizeof(TYPE##_pll_t)); \
 	pll_list->size = 0; \
 	pll_list->first = NULL; \
 	pll_list->last = NULL; \
@@ -150,7 +150,7 @@ TYPE##_pll_t* TYPE##_pll_init()                                  \
 } \
 np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, TYPE##_pll_cmp_func_t cmp_func) 	\
 { 																											\
-	TYPE##_pll_node_t* new_pll_node = (TYPE##_pll_node_t*) calloc(1,sizeof(TYPE##_pll_node_t)); 				\
+	TYPE##_pll_node_t* new_pll_node = (TYPE##_pll_node_t*) malloc(sizeof(TYPE##_pll_node_t)); 				\
 	new_pll_node->val = value; 																				\
 	new_pll_node->flink = NULL; 																			\
 	new_pll_node->blink = NULL; 																			\
@@ -381,14 +381,14 @@ real macros for convenience usage
 //
 #define NP_DLL_GENERATE_IMPLEMENTATION(TYPE)\
 TYPE##_dll_t* TYPE##_dll_init() {\
-	TYPE##_dll_t* dll_list = (TYPE##_dll_t*) calloc(1,sizeof(TYPE##_dll_t));\
+	TYPE##_dll_t* dll_list = (TYPE##_dll_t*) malloc(sizeof(TYPE##_dll_t));\
 	dll_list->size = 0;\
 	dll_list->first = NULL;\
 	dll_list->last = NULL;\
 	return (dll_list);\
 }\
 void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE value) {\
-	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) calloc(1,sizeof(TYPE##_dll_node_t));\
+	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) malloc(sizeof(TYPE##_dll_node_t));\
 	dll_node->val = value;\
 	dll_node->flink = NULL;\
 	dll_node->blink = NULL;\
@@ -403,7 +403,7 @@ void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE value) {\
 	dll_list->size++;\
 }\
 void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE value) {\
-	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) calloc(1,sizeof(TYPE##_dll_node_t));\
+	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) malloc(sizeof(TYPE##_dll_node_t));\
 	dll_node->val = value;  \
 	dll_node->flink = NULL; \
 	dll_node->blink = NULL; \
@@ -670,14 +670,14 @@ void TYPE##_sll_clone(TYPE##_sll_t* sll_list_source, TYPE##_sll_t* sll_list_targ
 	}																										\
 }																											\
 TYPE##_sll_t* TYPE##_sll_init() {																			\
-	TYPE##_sll_t* sll_list = (TYPE##_sll_t*) calloc(1,sizeof(TYPE##_sll_t));								\
+	TYPE##_sll_t* sll_list = (TYPE##_sll_t*) malloc(sizeof(TYPE##_sll_t));								\
 	sll_list->size = 0;																						\
 	sll_list->first = NULL;																					\
 	sll_list->last = NULL;																					\
 	return (sll_list);																						\
 }																											\
 TYPE##_sll_node_t* TYPE##_sll_insert(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_node_t* after) {		\
-	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) malloc(sizeof(TYPE##_sll_node_t));					\
 	CHECK_MALLOC(sll_node);																					\
 	sll_node->val = value;																					\
 	sll_node->flink = after->flink;																			\
@@ -689,7 +689,7 @@ TYPE##_sll_node_t* TYPE##_sll_insert(TYPE##_sll_t* sll_list, TYPE value, TYPE##_
 	return sll_node;																						\
 }																											\
 TYPE##_sll_node_t* TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {									\
-	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) malloc(sizeof(TYPE##_sll_node_t));					\
 	CHECK_MALLOC(sll_node);																					\
 	sll_node->val = value;																					\
 	sll_node->flink = NULL;																					\
@@ -703,7 +703,7 @@ TYPE##_sll_node_t* TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {						
 	return sll_node;																						\
 }																											\
 TYPE##_sll_node_t* TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value) {									\
-	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) malloc(sizeof(TYPE##_sll_node_t));					\
 	sll_node->val = value;																					\
 	sll_node->flink = sll_list->first;																		\
 	if (sll_list->last == NULL) { sll_list->last = sll_node; }												\
