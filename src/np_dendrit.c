@@ -392,31 +392,30 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
 
 	np_waitref_obj(np_key_t, np_state()->my_node_key, my_key, __func__);
 
-	CHECK_STR_FIELD(msg_to_submit->instructions, _NP_MSG_INST_ACK, msg_ack);
+ 	CHECK_STR_FIELD(msg_to_submit->instructions, _NP_MSG_INST_ACK, msg_ack);
 
-	np_key_t* sender_key = NULL;
-	np_dhkey_t * sender_dhkey = _np_message_get_sender(msg_to_submit);
-	if (sender_dhkey != NULL) {
-		sender_key = _np_keycache_find(*sender_dhkey);
-	}
-
-	if (
-		// accept every msg if the sender is joined into our network
-		(sender_key != NULL && sender_key->node != NULL && TRUE == sender_key->node->joined_network) ||
-
-		// TODO: is it correct to accept DISCOVERY and AVAILABLE msgs from everyone?
-		0 == strncmp(handler->msg_subject, _NP_MSG_DISCOVER_RECEIVER, strlen(_NP_MSG_DISCOVER_RECEIVER)) ||
-		0 == strncmp(handler->msg_subject, _NP_MSG_DISCOVER_SENDER, strlen(_NP_MSG_DISCOVER_SENDER)) ||
-		0 == strncmp(handler->msg_subject, _NP_MSG_AVAILABLE_RECEIVER, strlen(_NP_MSG_AVAILABLE_RECEIVER)) ||
-		0 == strncmp(handler->msg_subject, _NP_MSG_AVAILABLE_SENDER, strlen(_NP_MSG_AVAILABLE_SENDER)) ||
-
-		// accept a join request or join N/ACK from everyone
-		0 == strncmp(handler->msg_subject, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) ||
-		0 == strncmp(handler->msg_subject, _NP_MSG_JOIN_ACK, strlen(_NP_MSG_JOIN_ACK)) ||
-		0 == strncmp(handler->msg_subject, _NP_MSG_JOIN_ACK, strlen(_NP_MSG_JOIN_NACK))
-		)
-	{
-		np_bool event_accepted = FALSE;
+//	np_key_t* sender_key = NULL;
+//	np_dhkey_t * sender_dhkey = _np_message_get_sender(msg_to_submit);
+//	if (sender_dhkey != NULL) {
+//		sender_key = _np_keycache_find(*sender_dhkey);
+//	}
+//
+//	if (
+//		// accept every msg if the sender is joined into our network
+//		(sender_key != NULL && sender_key->node != NULL && TRUE == sender_key->node->joined_network) ||
+//
+//		// TODO: is it correct to accept DISCOVERY and AVAILABLE msgs from everyone?
+//		0 == strncmp(handler->msg_subject, _NP_MSG_DISCOVER_RECEIVER, strlen(_NP_MSG_DISCOVER_RECEIVER)) ||
+//		0 == strncmp(handler->msg_subject, _NP_MSG_DISCOVER_SENDER, strlen(_NP_MSG_DISCOVER_SENDER)) ||
+//		0 == strncmp(handler->msg_subject, _NP_MSG_AVAILABLE_RECEIVER, strlen(_NP_MSG_AVAILABLE_RECEIVER)) ||
+//		0 == strncmp(handler->msg_subject, _NP_MSG_AVAILABLE_SENDER, strlen(_NP_MSG_AVAILABLE_SENDER)) ||
+//		// accept a join request or join N/ACK from everyone
+//		0 == strncmp(handler->msg_subject, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) ||
+//		0 == strncmp(handler->msg_subject, _NP_MSG_JOIN_ACK, strlen(_NP_MSG_JOIN_ACK)) ||
+//		0 == strncmp(handler->msg_subject, _NP_MSG_JOIN_ACK, strlen(_NP_MSG_JOIN_NACK))
+//		)
+//	{
+ 		np_bool event_accepted = FALSE;
 
 
 		if (_np_message_deserialize_chunked(msg_to_submit) == FALSE) {
@@ -452,17 +451,16 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
 				}
 			}
 		}		
-	}
-	else {
-		log_msg(LOG_INFO,
-			"msg (%s) ignored as node is not joined, msg is no join and no discovery msg",
-			msg_to_submit->uuid);
-
-	}
-	np_unref_obj(np_key_t, sender_key, "_np_keycache_find");
+// 	}
+//	else {
+//		log_msg(LOG_INFO,
+//			"msg (%s) ignored as node is not joined, msg is no join and no discovery msg",
+//			msg_to_submit->uuid);
+//
+//	}
+//	np_unref_obj(np_key_t, sender_key, "_np_keycache_find");
 
 __np_cleanup__:
-	
 	np_unref_obj(np_key_t, my_key, __func__);
 
 
