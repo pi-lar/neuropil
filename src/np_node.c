@@ -433,8 +433,8 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
 					total += node->latency_win[i];
 				}
 				node->latency = total / NP_NODE_SUCCESS_WINDOW;
-				log_msg(LOG_INFO, "connection to node node %s:%s latency      now: %1.3f",
-						node->dns_name, node->port, node->latency);					
+				log_msg(LOG_INFO, "connection to node node %s:%s latency      now: %1.3f (update with: %1.3f)",
+						node->dns_name, node->port, node->latency, new_latency);
 				
 			}
 			np_unref_obj(np_node_t, node,"usage");
