@@ -427,7 +427,9 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 
 							if (current_write_per_data < 0) {
 								np_time_sleep(NP_SLEEP_MIN);
-							}else if (current_write_per_data > 0) {
+							}
+							else if (current_write_per_data > 0)
+							{
 								written_per_data += current_write_per_data;
 								_np_statistics_add_send_bytes(current_write_per_data);
 							}
@@ -1136,7 +1138,7 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 
 			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "TRY CONNECT: %"PRIi32, connection_status);
 			if(connection_status != 0){
-				np_time_sleep(0.1);
+				np_time_sleep(NP_PI/10);
 			}
 		} while( 0 != connection_status && retry_connect-- > 0);
 

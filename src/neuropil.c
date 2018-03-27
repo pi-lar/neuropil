@@ -324,7 +324,7 @@ void np_waitforjoin()
 	log_trace_msg(LOG_TRACE, "start: void np_waitforjoin(){");
 	while (FALSE == _np_route_my_key_has_connection())
 	{
-		np_time_sleep(0.31415/2);
+		np_time_sleep(0.0);
 	}
 }
 
@@ -621,8 +621,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body)
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
-			np_time_sleep(0.31415);
-			// dsleep(0.31415);
+			np_time_sleep(0.0);
 			continue;
 		}
 
@@ -726,8 +725,7 @@ uint32_t np_receive_text (char* subject, char **data)
 		if (NULL == sender_token)
 		{
 			// sleep for a while, token may need some time to arrive
-			np_time_sleep(0.31415);
-			// dsleep(0.31415);
+			np_time_sleep(0.0);
 			continue;
 		}
 

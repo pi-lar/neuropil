@@ -129,7 +129,7 @@ extern "C" {
 	#define MISC_READ_EVENTS_SEC (NP_PI/1000)
 #endif
 #ifndef MISC_SEND_PINGS_SEC
-	#define MISC_SEND_PINGS_SEC (NP_PI*10)
+	#define MISC_SEND_PINGS_SEC (NP_PI*5)
 #endif
 
 
@@ -266,7 +266,7 @@ extern "C" {
 #endif
 
 
-#define NP_SLEEP_MIN (NP_PI/100)
+#define NP_SLEEP_MIN (NP_PI/1000)
 
 #ifdef __cplusplus
 }

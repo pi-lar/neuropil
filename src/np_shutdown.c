@@ -86,7 +86,7 @@ void np_shutdown_notify_others() {
 				msgs_is_out = TRUE;
 			}
 			else {
-				np_time_sleep(0.01);
+				np_time_sleep(NP_PI/300);
 			}
 		}
 
