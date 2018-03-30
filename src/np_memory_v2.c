@@ -285,7 +285,7 @@ np_bool __np_memory_space_decrease_nessecary(np_memory_container_t* container) {
 				//		)
 				//		||
 						/* decrease if we only consume 50% or less of our space */
-						total_free_space < (total_space_available * 0.6);
+						total_free_space < (total_space_available * 0.8);
 				//		FALSE
 				//		)
 				//	;
@@ -307,7 +307,7 @@ np_bool __np_memory_space_increase_nessecary(np_memory_container_t* container) {
 				uint32_t total_space_available = total_free_space + container->current_in_use;
 
 				ret = /* increase only if we have less then 80% free space (failsafe) */
-					total_free_space < (total_space_available * 0.1); // &&
+					total_free_space < (total_space_available * 0.05); // &&
 				// &&
 				// (
 				/* increase if we already consumed more then 90% of the available space */
@@ -328,14 +328,14 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
 
 	for (uint32_t j = 0; j < container->count_of_items_per_block; j++)
 	{	// best pick: a free container (not refreshed)
-		_LOCK_ACCESS(&container->refreshed_items_lock)
-		{	// second best pick: an refreshed container
-			item_config = sll_head(np_memory_itemconf_ptr, container->refreshed_items);
+		_LOCK_ACCESS(&container->free_items_lock) {
+			item_config = sll_head(np_memory_itemconf_ptr, container->free_items);
 		}
 
 		if (item_config == NULL) {
-			_LOCK_ACCESS(&container->free_items_lock) {
-				item_config = sll_head(np_memory_itemconf_ptr, container->free_items);
+			_LOCK_ACCESS(&container->refreshed_items_lock)
+			{	// second best pick: an refreshed container
+				item_config = sll_head(np_memory_itemconf_ptr, container->refreshed_items);
 			}
 		}
 

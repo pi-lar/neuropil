@@ -365,6 +365,7 @@ void np_job_submit_event_periodic(double priority, double first_delay, double in
 	new_job->is_periodic = TRUE;
 
 	if (!_np_job_queue_insert(new_job)) {
+		sll_free(np_callback_t, callbacks);
 		_np_job_free(new_job);
 	}
 }

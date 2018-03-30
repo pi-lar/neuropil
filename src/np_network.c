@@ -441,6 +441,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 								written_per_data, MSG_CHUNK_SIZE_1024,
 								strerror(errno), errno);
 						}
+						np_memory_free(data_to_send);
 					}
 				} while (written_per_data > 0 && data_counter++ < NP_NETWORK_MAX_MSGS_PER_SCAN && np_time_now() < timeout);
 			 
