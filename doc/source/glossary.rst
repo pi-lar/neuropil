@@ -22,4 +22,4 @@ Glossary
 
 **token**
   an extensible record type used to encode authentication, authorization, and
-  accounting information, see :ref:`np_aaatoken_t`
+  accounting information, see :c:data:`np_aaatoken_t`
