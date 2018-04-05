@@ -23,7 +23,6 @@ Contents:
    apps_tools
    api
    core_concepts
-   realms
    protocol
    glossary
    license
