@@ -145,9 +145,9 @@ enum np_aaatoken_scope {
 
 .. c:member:: np_tree_t* extensions
 
-   a key-value jtree structure to add arbitrary informations to the token
+   a key-value jtree structure to add arbitrary information to the token
 
-   neuropil nodes can use the realm and issuer hash key informations to request authentication and authorization of a subject
+   neuropil nodes can use the realm and issuer hash key information to request authentication and authorization of a subject
    token can then be send to gather accounting information about message exchange
 
 */

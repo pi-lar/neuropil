@@ -1,89 +1,110 @@
+.. _protocol:
+
 Protocol
 ========
 
-The following chapter describes the protocol of the neuropil messaging layer.
+The following chapter describes the protocol of the Neuropil messaging layer.
 
-1st step: handshake, DH key exchange
-************************************
+Phase 1: handshake and Diffie-Hellman (DH) key exchange
+*******************************************************
 
-the first message send to another node is used to exchange the public keys of the node's.
-The message is composed of the serialized token of the node (not the identity).
-This serialized token is then signed with the private key of the sending node.
+The first message sent to another node is a *handshake message*. Its purpose is
+to exchange public and session keys with another node. The handshake message is
+composed of the node token and a self-signature using the private key of the
+node token.
 
-After receiving a handshake message the receiving node also sends his own data to the new
-participant in the same way. Additionally the receiver calculates a shared secret with the
-public key of the new partner and expects follow-up message to be encrypted with the shared secret.
+The node that receives the handshake message must verify the signature and
+contents of the received node token before responding with a handshake
+message of its own. Additionally, the receiving node calculates a shared secret
+using its own private key and the public key of its new peer via Diffie-Hellman
+key exchange.
 
-After the first sending node has received the handshake message of the requested node, it can
-also calculate the shared secret.
+When the initiating node receives a valid, authentic handshake response, it
+derives matching session keys. Any follow-up messages must be encrypted and
+have their integrity protected using session keys derived from the shared
+secret, or else they will be discarded.
 
-Each particpant now knows the aaatoken values of the partner, which are:
+Each participant is now aware of the node token values of their peer. The
+predefined fields are:
+
  * realm
  * subject
  * issuer
  * audience
  * uuid of the token
  * expiration and not_before timestamps
- * additional extensions containing the physical node values:
+ * additional extensions containing physical node attributes:
+
    * hostname
    * port
 
-The token structure could be extended with user supplied data if required. Each node could already
-stop (re-)acting if this data is not as expected.
-The token data structure can also be read by anyone on the network, so no password or other data should be
-supplied on the node handshake level.
-
-All communication following this point must be send encrypted by using the shared secret or will be discarded.
-The nodes now proceed with the second step of the protocol, joining the network.
+**Note**
+  The token exchanged during the handshake is **not** encrypted and can be read
+  by anyone observing the network. It must not contain passwords or other
+  secret data.
 
 
-2nd step: handshake, joining the network
-****************************************
+Phase 2: joining the network
+****************************
 
-The sending node now transmits a join message to the other node, which contains the identity using the node.
-The node token can be the same as the identity, but doesn't have to be. If the differ, then the identity also contains
-the hash value of the node to identify the correct node (also used for routing purposes later).
+The initiating node transmits a *join message* to its peer. The join message
+contains the identity that uses the node. This identity may or may not be
+identical to the node token. If they differ, then the identity must also
+contain the fingerprint of the node token in an extension field. Later on, this
+reference is used for routing purposes.
 
-The receiving node now can authenticate / authorize the identity requesting access to its network, either by using the
-defined callback functions, or by forwarding the data to a different node (assuming that this node is somehow smarter).
+The receiving node can now authenticate and authorize the identity that is
+requesting access to its network in the callbacks defined for this purpose. If
+the identity cannot be authenticated, the handshake protocol sends a
+*not-acknowledged message* back to the initiator, and the identity and node
+data is marked as obsolete and deleted later, because sending the
+not-acknowledged message still requires the established session key.
 
-If the node requesting join access cannot be verified, the handshake protocol sends not-acknowledge back to the
-sender, the identity and node data is marked as obsolete and deleted later (because sending the not-acknowledge still
-requires the established session key).
+**Note**
+  If the identity is in a realm but cannot be authenticated at this time, the
+  receiving node might forward the incoming token to the realm leader in order
+  to defer authentication. Depending on the response of the realm leader, the
+  receiving node might authorize the identity on its next attempt to join the
+  network.
 
-Else, if the node has been authenticated and authorized, the node is added to the routing table.
-Additionally the join request is acknowledged and send back to the initiator. Already existing partner nodes in the
-network will receive an update that a new node has joined the network.
+If the initiating node has been authenticated and authorized, it is added to
+the routing table of the receiving node, and the join message is acknowledged
+to the initiator. Additionally, existing peers of the network will receive an
+*update message* which notifies them of the newly joined node.
 
-After receiving the acknowledge the initial node can now start to exchange update and piggy messages. These messages
-will give the node additional information about the network it has joined. It can then decide whether it would like to
-join other nodes on the network as well.
+After receiving the acknowledgment, the initiating node may begin to exchange
+further messages with the nodes in the network.
 
 
-3rd step: growing the peer-to-peer network
+Phase 3: growing the peer-to-peer network
 ******************************************
 
-Authenticated and authorized nodes exchange update and piggy messages to share their knowledge about existing nodes.
-After receiving an update or piggy message, a node decides whether it would like to join the new nodes or whether it
-will simply pass an the knowledge of the new nodes. The decision to join a new node is based on the distance of the
-two node hash values and the routing table. Each node is using either his local callback functions to verify peer
-nodes, or uses other sources to authenticate and authorize peer nodes.
+Authenticated and authorized nodes exchange update and *piggy messages* in
+order to exchange information about other peers known to them. After receiving
+an update or piggy message, a node decides whether it would like to join the
+new nodes, or whether it will merely forward the information.
+
+The decision to join a new node is based on the distance between the node’s own
+fingerprint and the fingerprint of the peer’s node token, as well as the soft
+state of its routing table (i.e., occupancy and individual route health
+inferred from latency).
 
 
-4th step: message exchange, sending message availablity / interest
-******************************************************************
+Phase 4: message exchange; communicating message availability and interest
+**************************************************************************
 
-Two nodes in the network would like to exchange information about a given "subject".
-Each node sends his special interest (sending or receiving) of the subject to the subjects hash value.
-The node with the hash value closest to the subject hash value then collects both requests, and sends the information
-on to the identified partners. Filtering of tokens bases on the field "audience" of the token will be applied here.
+Two nodes in the network that would like to exchange information about a given
+*subject* get in touch as follows. Each node communicates their special
+interest (sending or receiving) of a subject to the *subject coordinator*: the
+node whose node token fingerprint is the closest to the subject hash at the
+time. The subject coordinator then collects both requests, and passes on the
+information to the peers involved. Filtering of tokens based on the *audience*
+field will be applied here.
 
-The message interest / availability is encoded as a aaatoken, but contains additional information about the type
-of message exchange, the current threshold and some other values as well. These tokens are again signed by the
-sending/receiving identity.
+Message interest and availability are encoded as tokens that contain additional
+information about the type of message exchange, the current threshold and some
+other values as well, and are signed by their originating identity.
 
-Each partner can now again authenticate or authorize if the identified partner is the correct one by inspecting the
-token. Once the correct partner has been identified, data exchange will happen "directly" between the two nodes.
-
-The routing to the hash value of the subject has nothing to do with the routing of the message exchange after the 
-handshake is complete.
+Each node can once more authenticate and authorize the identified peer by
+verifying the exchanged token. Once the correct peer has been identified,
+message exchange happens independently from the coordinator.

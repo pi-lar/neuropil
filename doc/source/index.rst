@@ -22,7 +22,9 @@ Contents:
    tutorial
    apps_tools
    api
+   core_concepts
    protocol
+   glossary
    license
    knowhow
    trademark
