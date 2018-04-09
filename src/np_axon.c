@@ -442,7 +442,6 @@ void _np_out_handshake(np_jobargs_t* args)
 
 				char* packet = np_memory_new(np_memory_types_BLOB_1024);
 
-				memset(packet, 0, 1024);
 				_LOCK_ACCESS(&hs_message->msg_chunks_lock) {
 					memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 				}

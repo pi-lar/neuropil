@@ -132,8 +132,7 @@ void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_rep
 
 NP_API_INTERN
 void _np_message_trace_info(char* desc, np_message_t * msg_in);
-NP_API_INTERN
-np_bool _np_message_verify(np_message_t* msg);
+
 // msg header constants
 static const char* _NP_MSG_HEADER_TARGET		= "_np.target";
 static const char* _NP_MSG_HEADER_SUBJECT		= "_np.subj";
