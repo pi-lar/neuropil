@@ -19,12 +19,12 @@ void setup_keycache(void)
 	// int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_KEY;
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_KEY;
 
-	np_log_init("test_keycache.log", log_level);
-	_np_threads_init();
-	np_memory_init();
-	np_mem_init();
+	np_log_init(context,"test_keycache.log", log_level);
+	_np_threads_init(context);
+	np_memory_init(context);
+	np_mem_init(context);
 
-	_np_keycache_init ();
+	_np_keycache_init (context);
 }
 
 void teardown_keycache(void)

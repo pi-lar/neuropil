@@ -22,6 +22,8 @@ extern "C" {
 		np_memory_types_np_responsecontainer_t,
 		np_memory_types_np_messagepart_t,
 		np_memory_types_np_aaatoken_t,		
+		np_memory_types_np_job_t,
+		np_memory_types_np_jobargs_t,		
 		np_memory_types_MAX_TYPE,
 
 		np_memory_types_test_struct_t,		
@@ -32,10 +34,11 @@ extern "C" {
 	typedef void(*np_memory_on_free) (uint8_t type, size_t size, void* data);
 	typedef void(*np_memory_on_refresh_space) (uint8_t type, size_t size, void* data);
 
-	void np_memory_init();
+	void np_memory_init(np_state_t* context);
 
 	NP_API_EXPORT
 		void np_memory_register_type(
+			np_state_t* context,
 			uint8_t type,
 			size_t size_per_item,
 			uint32_t count_of_items_per_block,
@@ -46,7 +49,7 @@ extern "C" {
 		);
 
 	NP_API_EXPORT
-		void* np_memory_new(uint8_t  type);
+		void* np_memory_new(np_state_t* context, enum np_memory_types_e  type);
 	NP_API_EXPORT
 		void np_memory_free(void* item);
 
@@ -57,7 +60,23 @@ extern "C" {
 		void np_memory_randomize_space(NP_UNUSED uint8_t type, size_t size, void* data);
 
 	NP_API_INTERN
-	void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args);
+	void _np_memory_job_memory_management(np_state_t* context, np_jobargs_t* args);
+
+
+	/*
+		Returns the context of a memory managed object
+	*/
+	NP_API_INTERN
+		np_state_t* np_memory_get_context(void* item);
+
+#define np_ctx(c)				\
+		np_memory_get_context(c)			
+#define np_ctx_decl(b)				\
+		np_state_t* context = (b)
+#define np_ctx_full(a)				\
+		np_ctx_decl(np_ctx(a))
+
+
 #ifdef __cplusplus
 }
 #endif

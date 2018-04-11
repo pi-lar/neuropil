@@ -63,7 +63,7 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	np_tree_t* aaa_tree = np_tree_create();
 	np_aaatoken_encode(aaa_tree, test_token_1);
 
-	np_aaatoken_t* test_token_2 = np_token_factory_read_from_tree(aaa_tree);
+	np_aaatoken_t* test_token_2 = np_token_factory_read_from_tree(context, aaa_tree);
 	//np_new_obj(np_aaatoken_t, test_token_2);
 	//np_aaatoken_decode(aaa_tree, test_token_2);	
 	cr_assert(test_token_2 != NULL, "expect a token");
@@ -76,13 +76,13 @@ Test(np_aaatoken_t, create_node_token, .description="test the creation of a node
 	memset(buf_ptr, 0, 65536);
 
 	cmp_init(&cmp_empty, buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
-	np_tree_serialize(aaa_tree, &cmp_empty);
+	np_tree_serialize(context, aaa_tree, &cmp_empty);
 
 	np_tree_t* out_jrb = np_tree_create();
 	cmp_ctx_t cmp_out;
 	cmp_init(&cmp_out, buffer, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 
-	np_tree_deserialize(out_jrb, &cmp_out);
+	np_tree_deserialize( context, out_jrb, &cmp_out);
 
 	np_aaatoken_t* test_token_3 = NULL;
 	np_new_obj(np_aaatoken_t, test_token_3);
@@ -134,7 +134,7 @@ Test(np_aaatoken_t, encode_decode_loop, .description="test the encoding and deco
 		np_aaatoken_decode(tmp, test_token_2);
 		test_token_1 = test_token_2;
 
-		np_tree_free(tmp);
+		np_tree_free( tmp);
 
 		cr_expect( 1 == 1, "test the equality of 1");
 		cr_expect( 0 == strncmp(ref->realm, test_token_1->realm, 255), "test the realm to be equal");

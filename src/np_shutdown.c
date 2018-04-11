@@ -25,42 +25,51 @@
 #include "np_constants.h"
 
 struct sigaction sigact;
-STATIC_TSP(np_bool, __is_in_shutdown);
+np_sll_t(void_ptr, __running_instances) = NULL;
 
 static void __np_shutdown_signal_handler(int sig) {
 	if (sig == SIGINT) {
 
-		TSP_SCOPE(__is_in_shutdown) {
-			if (!__is_in_shutdown) {
-				log_msg(LOG_WARN, "Received terminating process signal (%"PRIi32"). Shutdown in progress.", sig);
-				__is_in_shutdown = TRUE;
-				np_destroy();
-				//log_msg(LOG_INFO, "Shutdown completed.");
-				exit(EXIT_SUCCESS);
+		sll_iterator(void_ptr) iter_context = sll_first(__running_instances);
+		while (iter_context != NULL)
+		{
+			sll_iterator(void_ptr) iter_context_old = iter_context;
+			np_ctx_decl(iter_context->val);
+			sll_next(iter_context);
+			sll_delete(void_ptr, __running_instances, iter_context_old);
+
+			TSP_SCOPE(context->__is_in_shutdown) {
+				context->__is_in_shutdown = TRUE;
 			}
+			log_msg(LOG_WARN, "Received terminating process signal (%"PRIi32"). Shutdown in progress.", sig);
+			np_destroy(context);			
 		}
+		exit(EXIT_SUCCESS);
 	}
 }
 
-void _np_shutdown_init_auto_notify_others() {
+void _np_shutdown_init_auto_notify_others(np_state_t* context) {
+	
+	if (__running_instances == NULL) {
+		sll_init(void_ptr, __running_instances);
 
-	TSP_INITD(__is_in_shutdown, FALSE);
-
-	sigact.sa_handler = __np_shutdown_signal_handler;
-	sigemptyset(&sigact.sa_mask);
-	sigact.sa_flags = 0;
-	//sigaction(SIGABRT, &sigact, (struct sigaction *)NULL);
-	sigaction(SIGINT, &sigact, (struct sigaction *)NULL);
-	//sigaction(SIGTERM, &sigact, (struct sigaction *)NULL);
+		sigact.sa_handler = __np_shutdown_signal_handler;
+		sigemptyset(&sigact.sa_mask);
+		sigact.sa_flags = 0;
+		//sigaction(SIGABRT, &sigact, (struct sigaction *)NULL);
+		sigaction(SIGINT, &sigact, (struct sigaction *)NULL);
+		//sigaction(SIGTERM, &sigact, (struct sigaction *)NULL);
+	}
+	sll_append(void_ptr, __running_instances, context);
 }
 
 void _np_shutdown_deinit() {
 	sigemptyset(&sigact.sa_mask);
 }
 
-void np_shutdown_notify_others() {	
-	np_sll_t(np_key_ptr, routing_table)  = _np_route_get_table();
-	np_sll_t(np_key_ptr, neighbours_table) = _np_route_neighbors();
+void np_shutdown_notify_others(np_state_t* context) {
+	np_sll_t(np_key_ptr, routing_table)  = _np_route_get_table(context);
+	np_sll_t(np_key_ptr, neighbours_table) = _np_route_neighbors(context);
 	np_sll_t(np_key_ptr, merge_table) = sll_merge(np_key_ptr, routing_table, neighbours_table, _np_key_cmp);
 
 	sll_init_full(np_message_ptr, msgs);

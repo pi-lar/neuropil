@@ -14,11 +14,11 @@ extern "C" {
 #endif
 
 NP_API_EXPORT
-size_t np_identity_export_current(void* buffer);
+size_t np_identity_export_current(np_context* ac, void* buffer);
 NP_API_EXPORT
-size_t np_identity_export(np_aaatoken_t* token, void* buffer);
+size_t np_identity_export(np_context* ac, np_aaatoken_t* token, void* buffer);
 NP_API_EXPORT
-np_aaatoken_t* np_identity_import(void* buffer, size_t size);
+np_aaatoken_t* np_identity_import(np_context* ac, void* buffer, size_t size);
 
 
 #ifdef __cplusplus

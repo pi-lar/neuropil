@@ -115,7 +115,7 @@ double t1_##NAME;																											\
 		container->name = #NAME;																							\
 		container->durations_idx = 0;																						\
 		container->durations_count = 0;																						\
-		_np_threads_mutex_init(&container->access, "performance point "#NAME" access");										\
+		_np_threads_mutex_init(context, &container->access, "performance point "#NAME" access");										\
 		__np_util_performance_points[np_util_performance_point_##NAME] = container;											\
 	}																														\
 	t1_##NAME = (double)clock()/CLOCKS_PER_SEC;																				\
@@ -194,13 +194,13 @@ NP_API_INTERN
 void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys));
 
 /**
-.. c:function:: void np_tree2json()
+.. c:function:: void np_tree2json(context, )
 
   Create a json object from a given tree
 
 */
 NP_API_EXPORT
-JSON_Value* np_tree2json(np_tree_t* tree) ;
+JSON_Value* np_tree2json(np_state_t* context, np_tree_t* tree) ;
  /**
 .. c:function:: void np_json2char()
 
@@ -213,32 +213,32 @@ char* np_json2char(JSON_Value* data,np_bool prettyPrint) ;
  * convert np_treeval_t to JSON_Value
  */
 NP_API_EXPORT
-JSON_Value* np_treeval2json(np_treeval_t val);
+JSON_Value* np_treeval2json(np_state_t* context, np_treeval_t val);
 /**
-.. c:function:: void np_dump_tree2log()
+.. c:function:: void np_dump_tree2log(context, )
 
    Dumps the given tree as json string into the debug log
 
 */
 NP_API_EXPORT
-void np_dump_tree2log(log_type category, np_tree_t* tree);
+void np_dump_tree2log(np_state_t* context, log_type category, np_tree_t* tree);
 /**
-.. c:function:: void np_dump_tree2log()
+.. c:function:: void np_dump_tree2log(context, )
 
    Dumps the given tree as json string into a char array
 
 */
 NP_API_EXPORT
-char* np_dump_tree2char(np_tree_t* tree);
+char* np_dump_tree2char(np_state_t* context, np_tree_t* tree);
 
 NP_API_PROTEC
 char* np_str_concatAndFree(char* target, char* source, ... );
 
 NP_API_PROTEC
-np_bool np_get_local_ip(char* buffer, int buffer_size);
+np_bool np_get_local_ip(np_state_t* context, char* buffer, int buffer_size);
 
 NP_API_PROTEC
-char* _sll_char_make_flat(np_sll_t(char_ptr, target));
+char* _sll_char_make_flat(np_state_t* context, np_sll_t(char_ptr, target));
 NP_API_INTERN
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len);
 NP_API_INTERN

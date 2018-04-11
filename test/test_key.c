@@ -15,11 +15,11 @@ void setup_key(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_KEY;
 
-	np_log_init("test_key.log", log_level);
-	_np_threads_init();
-	np_memory_init();
-	np_mem_init();
-	_np_keycache_init ();
+	np_log_init(context, "test_key.log", log_level);
+	_np_threads_init(context);
+	np_memory_init(context);
+	np_mem_init(context);
+	_np_keycache_init (context);
 }
 
 void teardown_key(void)

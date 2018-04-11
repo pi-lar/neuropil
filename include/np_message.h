@@ -75,7 +75,7 @@ void _np_message_calculate_chunking(np_message_t* msg);
 NP_API_INTERN
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check);
 NP_API_INTERN
-np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args);
+np_bool _np_message_serialize_header_and_instructions(np_state_t* context, np_jobargs_t* args);
 NP_API_INTERN
 np_bool _np_message_serialize_chunked(np_message_t * msg);
 

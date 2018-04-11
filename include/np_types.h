@@ -9,6 +9,7 @@
 
 #include "event/ev.h"
 
+#include "np_interface.h"
 #include "np_list.h"
 
 /* just in case NULL is not defined */
@@ -16,11 +17,15 @@
 #define NULL (void*)0
 #endif
 
+#undef TRUE
+#undef FALSE
 typedef enum
 {
     FALSE=0,
     TRUE=1
 } np_bool;
+#define TRUE 1
+#define FALSE 0
 
 //
 // int __attribute__((overloadable)) square(int);
@@ -133,13 +138,13 @@ typedef np_thread_t* np_thread_ptr;
 /*
  *  user callback functions
  */
-typedef np_bool (*np_aaa_func_t) (np_aaatoken_t* aaa_token );
-typedef np_bool(*np_usercallback_t) (const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
+typedef np_bool (*np_aaa_func_t) (np_context* ac, np_aaatoken_t* aaa_token );
+typedef np_bool(*np_usercallback_t) (np_context* ac, const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
 typedef void(*np_responsecontainer_on_t) (const np_responsecontainer_t* const entry);
 typedef void(*np_message_on_reply_t) (const np_responsecontainer_t* const entry, const np_message_t* const reply_msg);
 
 // internal callback functions
-typedef void (*np_callback_t) (np_jobargs_t*);
+typedef void (*np_callback_t) (np_state_t* context, np_jobargs_t*);
 typedef int(*_np_cmp_t)(void* a, void* b);
 
 // void f() __attribute__ ((weak, alias ("__f")));

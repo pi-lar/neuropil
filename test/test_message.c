@@ -72,13 +72,13 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
 	write_to->dhkey = write_dhkey_to;
 
 	np_tree_t* write_tree = np_tree_create();
-    np_tree_insert_str(write_tree,"TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
-    np_tree_insert_str(write_tree,"TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
+    np_tree_insert_str( write_tree,"TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
+    np_tree_insert_str( write_tree,"TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
 
     np_message_t* write_msg = NULL;
     np_new_obj(np_message_t, write_msg);
     _np_message_create(write_msg, write_to->dhkey, write_from->dhkey, "serialize_np_message_t", write_tree);
-	np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
+	np_tree_insert_str( write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
     // Do the serialsation
 	_np_message_calculate_chunking(write_msg);
@@ -150,16 +150,16 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
     np_new_obj(np_message_t, write_msg);
 
     np_tree_t* write_tree = np_tree_create();
-    np_tree_insert_str(write_tree, "TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
-    np_tree_insert_str(write_tree, "TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
+    np_tree_insert_str( write_tree, "TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
+    np_tree_insert_str( write_tree, "TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
 
-    np_tree_insert_str(write_msg->instructions, "TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
-    np_tree_insert_str(write_msg->instructions, "TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
+    np_tree_insert_str( write_msg->instructions, "TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
+    np_tree_insert_str( write_msg->instructions, "TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
 
     _np_message_create(write_msg, write_to->dhkey, write_from->dhkey, "serialize_np_message_t", write_tree);
-	np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
+	np_tree_insert_str( write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
-    np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL,"tst");
+    np_jobargs_t* write_args = _np_job_create_args(context, write_msg, NULL, NULL,"tst");
     cr_assert(NULL != write_args,"Expected to receive jobargs");
 
     // Do the serialsation
@@ -215,34 +215,34 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 	np_new_obj(np_message_t, msg_out);
 	char* msg_subject = "this.is.a.test";
 
-	np_dhkey_t my_dhkey = np_dhkey_create_from_hostport("me", "two");
+	np_dhkey_t my_dhkey = np_dhkey_create_from_hostport(context, "me", "two");
 
 	np_key_t* my_key = NULL;
 	np_new_obj(np_key_t, my_key);
 	my_key->dhkey = my_dhkey;
 
 	uint16_t parts = 0;
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) msg_subject));
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(my_key->dhkey) );
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(my_key->dhkey) );
+	np_tree_insert_str( msg_out->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) msg_subject));
+	np_tree_insert_str( msg_out->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(my_key->dhkey) );
+	np_tree_insert_str( msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(my_key->dhkey) );
 
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(0));
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
+	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(0));
+	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
+	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
 
 	char* new_uuid = np_uuid_create(msg_subject, 1);
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(new_uuid));
+	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(new_uuid));
 	free(new_uuid);
 
 	double now = np_time_now();
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
 	now += 20;
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(now));
+	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(now));
 
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, np_treeval_new_ush(0));
+	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, np_treeval_new_ush(0));
 
 	// TODO: message part split-up informations
-	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(parts, parts));
+	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(parts, parts));
 
 	char prop_payload[30]; //  = (char*) malloc(25 * sizeof(char));
 	memset (prop_payload, 'a', 29);
@@ -250,7 +250,7 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 
 	for (int16_t i = 0; i < 9; i++)
 	{
-		np_tree_insert_int(msg_out->properties, i, np_treeval_new_s(prop_payload));
+		np_tree_insert_int( msg_out->properties, i, np_treeval_new_s(prop_payload));
 	}
 
 	char body_payload[51]; //  = (char*) malloc(50 * sizeof(char));
@@ -259,7 +259,7 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 
 	for (int16_t i = 0; i < 60; i++)
 	{
-		np_tree_insert_int(msg_out->body, i, np_treeval_new_s(body_payload));
+		np_tree_insert_int( msg_out->body, i, np_treeval_new_s(body_payload));
 	}
 
 	np_tree_elem_t* properties_node = np_tree_find_int(msg_out->properties, 1);

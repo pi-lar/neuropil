@@ -344,9 +344,9 @@ real macros for convenience usage
 #define dll_first(dll_list)    (dll_list->first)
 #define dll_last(dll_list)     (dll_list->last)
 #define dll_next(dll_elem)     (dll_elem = dll_elem->flink)
-#define dll_get_next(sll_elem) (dll_elem->flink)
+#define dll_get_next(dll_elem) (dll_elem->flink)
 #define dll_previous(dll_elem) (dll_elem = dll_elem->blink)
-#define dll_get_previous(sll_elem) (dll_elem->blink)
+#define dll_get_previous(dll_elem) (dll_elem->blink)
 
 //
 // DLL (double linked list) prototype generator
@@ -678,7 +678,7 @@ TYPE##_sll_t* TYPE##_sll_init() {																			\
 }																											\
 TYPE##_sll_node_t* TYPE##_sll_insert(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_node_t* after) {		\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
-	CHECK_MALLOC(sll_node);																					\
+	assert( NULL != sll_node);																					\
 	sll_node->val = value;																					\
 	sll_node->flink = after->flink;																			\
 	after->flink = sll_node;																				\
@@ -690,7 +690,7 @@ TYPE##_sll_node_t* TYPE##_sll_insert(TYPE##_sll_t* sll_list, TYPE value, TYPE##_
 }																											\
 TYPE##_sll_node_t* TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {									\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
-	CHECK_MALLOC(sll_node);																					\
+	assert( NULL != sll_node);																					\
 	sll_node->val = value;																					\
 	sll_node->flink = NULL;																					\
 	if (sll_list->first == NULL) { 																			\

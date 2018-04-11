@@ -111,8 +111,8 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
 }
 
 
-JSON_Value* np_treeval2json(np_treeval_t val) {
-	log_trace_msg(LOG_TRACE, "start: JSON_Value* np_treeval2json(np_treeval_t val) {");
+JSON_Value* np_treeval2json(np_state_t* context, np_treeval_t val) {
+	log_trace_msg(LOG_TRACE, "start: JSON_Value* np_treeval2json(context, np_treeval_t val) {");
 	JSON_Value* ret = NULL;
 	np_bool free_string = FALSE;
 	char* tmp_str = NULL;
@@ -159,7 +159,7 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 		json_array_append_number(json_array(ret), val.value.a2_ui[1]);
 		break;
 	case np_treeval_type_jrb_tree:
-		ret = np_tree2json(val.value.tree);
+		ret = np_tree2json(context, val.value.tree);
 		break;
 		/*
 	case np_treeval_type_dhkey:
@@ -185,15 +185,15 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 	return ret;
 }
 
-char* np_dump_tree2char(np_tree_t* tree) {
-	log_trace_msg(LOG_TRACE, "start: char* np_dump_tree2char(np_tree_t* tree) {");
-	JSON_Value * tmp = np_tree2json(tree);
+char* np_dump_tree2char(np_state_t* context, np_tree_t* tree) {
+	log_trace_msg(LOG_TRACE, "start: char* np_dump_tree2char(context, np_tree_t* tree) {");
+	JSON_Value * tmp = np_tree2json(context, tree);
 	char* tmp2 = np_json2char(tmp,TRUE);
 	free(tmp);
 	return tmp2;
 }
-JSON_Value* np_tree2json(np_tree_t* tree) {
-	log_trace_msg(LOG_TRACE, "start: JSON_Value* np_tree2json(np_tree_t* tree) {");
+JSON_Value* np_tree2json(np_state_t* context, np_tree_t* tree) {
+	log_trace_msg(LOG_TRACE, "start: JSON_Value* np_tree2json(context, np_tree_t* tree) {");
 	JSON_Value* ret = json_value_init_object();
 	JSON_Value* arr = NULL;
 
@@ -240,7 +240,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 				}
 				else if (np_treeval_type_special_char_ptr == tmp->key.type)
 				{
-					name = strdup(_np_tree_get_special_str(tmp->key.value.ush));
+					name = strdup(_np_tree_get_special_str( tmp->key.value.ush));
 				}
 				else
 				{
@@ -249,7 +249,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 				}
 
 				//log_debug_msg(LOG_DEBUG, "np_tree2json set key %s:", name);
-				JSON_Value* value = np_treeval2json(tmp->val);
+				JSON_Value* value = np_treeval2json(context, tmp->val);
 
 				if(useArray == TRUE) {
 					if(NULL == arr) {
@@ -316,12 +316,12 @@ char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
 	return ret;
 }
 
-void np_dump_tree2log(log_type category, np_tree_t* tree){
-	log_trace_msg(LOG_TRACE, "start: void np_dump_tree2log(np_tree_t* tree){");
+void np_dump_tree2log(np_state_t* context, log_type category, np_tree_t* tree){
+	log_trace_msg(LOG_TRACE, "start: void np_dump_tree2log(context, np_tree_t* tree){");
 	if(NULL == tree){
 		log_debug_msg(LOG_DEBUG | category , "NULL");
 	}else{
-		char* tmp = np_dump_tree2char(tree);
+		char* tmp = np_dump_tree2char(context, tree);
 		log_debug_msg(LOG_DEBUG | category , "%s", tmp);
 		json_free_serialized_string(tmp);
 	}
@@ -355,7 +355,7 @@ char* np_str_concatAndFree(char* target, char* source, ... ) {
 }
 
 
-np_bool np_get_local_ip(char* buffer,int buffer_size){
+np_bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
 
 	np_bool ret = FALSE;
 
@@ -439,7 +439,7 @@ char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cm
 /*
  * Takes a char pointer list and concatinates it to one string
  */
-char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
+char* _sll_char_make_flat(np_state_t* context, np_sll_t(char_ptr, target)) {
 	char* ret = NULL;
 
 	sll_iterator(char_ptr) iter = sll_first(target);
@@ -529,7 +529,7 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 		item->max = 0;
 		item->avg = 0;
 		memcpy(item->key, key, strnlen(key, 254));
-		_np_threads_mutex_init(&item->lock,"debug_statistics");
+		_np_threads_mutex_init(context, &item->lock,"debug_statistics");
 
 		_LOCK_MODULE(np_utilstatistics_t) {
 			sll_append(void_ptr, __np_debug_statistics, (void_ptr)item);

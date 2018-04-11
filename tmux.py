@@ -65,7 +65,7 @@ else:
         session = server.new_session("np", True)
 
     windowName  = "neuropil bootstraper"
-    if start_bootstrapper and not server.find_where({ "window_name": windowName }):
+    if start_bootstrapper and not session.find_where({ "window_name": windowName }):
         nb = session.new_window(attach=True, window_name=windowName)
         nb.attached_pane.send_keys(args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} -s {} {}'.format(
             port, threads, port_type, loglevel, publish_domain, sysinfo, statistics, autoclose))

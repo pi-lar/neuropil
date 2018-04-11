@@ -144,17 +144,18 @@ np_bool _np_tree_is_special_str(const char* in_question, uint8_t* idx_on_found) 
 	
 		if (strncmp(special_str, in_question, strlen(special_str)+1/*+ NULL Terminator*/) == 0) {
 			if(idx_on_found != NULL){
-				log_debug_msg(LOG_TREE | LOG_DEBUG, "idx detected for %15s at %3"PRIu8" saving into %p",in_question, i, idx_on_found);
+				//log_debug_msg(LOG_TREE | LOG_DEBUG, "idx detected for %15s at %3"PRIu8" saving into %p",in_question, i, idx_on_found);
 				*idx_on_found = i;
 			}
 			ret = TRUE;
 			break;
 		}
 	}
-
+	/*
 	if (!ret) {
 		log_debug_msg(LOG_TREE | LOG_DEBUG, "not in np_special_strs dictionary: \"%s\"", in_question);
 	}
+	*/
 
 	return ret;
 }
@@ -370,7 +371,7 @@ void np_tree_del_element(np_tree_t* tree, np_tree_elem_t* to_delete)
 }
 
 void __np_tree_immutable_check(np_tree_t* tree) {
-	ASSERT(tree->attr.immutable == FALSE, "Tree is not in a state of modification");
+	assert(tree->attr.immutable == FALSE && "Tree is not in a state of modification");
 }
 
 void np_tree_del_special_str(np_tree_t* tree, const uint8_t idx)
@@ -431,7 +432,7 @@ void _np_tree_replace_all_with_str(np_tree_t* n, const char* key, np_treeval_t v
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_tree_replace_all_with_str(np_tree_t* n, const char* key, np_treeval_t val){");
 	np_tree_clear(n);
-	np_tree_insert_str(n, key, val);
+	np_tree_insert_str( n, key, val);
 }
 
 uint32_t np_tree_get_byte_size(np_tree_elem_t* node)
@@ -622,7 +623,7 @@ void np_tree_replace_str(np_tree_t* tree, const char *key, np_treeval_t val)
 	if (found == NULL)
 	{
 		// insert new value
-		np_tree_insert_str(tree, key, val);
+		np_tree_insert_str( tree, key, val);
 	}
 	else
 	{
@@ -672,7 +673,7 @@ void np_tree_replace_dbl(np_tree_t* tree, double dkey, np_treeval_t val)
 	if (found == NULL)
 	{
 		// insert new value
-		np_tree_insert_dbl(tree, dkey, val);
+		np_tree_insert_dbl( tree, dkey, val);
 	}
 	else
 	{
@@ -688,10 +689,10 @@ void np_tree_copy(np_tree_t* source, np_tree_t* target) {
 
 	RB_FOREACH(tmp, np_tree_s, source)
 	{
-		if (tmp->key.type == np_treeval_type_char_ptr)					np_tree_insert_str(target, tmp->key.value.s, tmp->val);
+		if (tmp->key.type == np_treeval_type_char_ptr)					np_tree_insert_str( target, tmp->key.value.s, tmp->val);
 		else if (tmp->key.type == np_treeval_type_special_char_ptr)	np_tree_insert_special_str(target, tmp->key.value.ush, tmp->val);
 		else if (tmp->key.type == np_treeval_type_int)					np_tree_insert_int(target, tmp->key.value.i, tmp->val);
-		else if (tmp->key.type == np_treeval_type_double)				np_tree_insert_dbl(target, tmp->key.value.d, tmp->val);
+		else if (tmp->key.type == np_treeval_type_double)				np_tree_insert_dbl( target, tmp->key.value.d, tmp->val);
 		else if (tmp->key.type == np_treeval_type_unsigned_long)		np_tree_insert_ulong(target, tmp->key.value.ul, tmp->val);
 	}
 }
@@ -707,7 +708,7 @@ void np_tree_copy_inplace(np_tree_t* source, np_tree_t* target) {
 		if (tmp->key.type == np_treeval_type_char_ptr)					np_tree_replace_str(target, tmp->key.value.s, tmp->val);
 		else if (tmp->key.type == np_treeval_type_special_char_ptr)	np_tree_replace_special_str(target, tmp->key.value.ush, tmp->val);
 		else if (tmp->key.type == np_treeval_type_int)					np_tree_replace_int(target, tmp->key.value.i, tmp->val);
-		else if (tmp->key.type == np_treeval_type_double)				np_tree_replace_dbl(target, tmp->key.value.d, tmp->val);
+		else if (tmp->key.type == np_treeval_type_double)				np_tree_replace_dbl( target, tmp->key.value.d, tmp->val);
 		else if (tmp->key.type == np_treeval_type_unsigned_long)		np_tree_replace_ulong(target, tmp->key.value.ul, tmp->val);
 	}
 }
@@ -725,9 +726,9 @@ np_tree_t* np_tree_clone(np_tree_t* source) {
 	return ret;
 }
 
-void np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp)
+void np_tree_serialize(np_state_t* context, np_tree_t* jtree, cmp_ctx_t* cmp)
 {
-	log_trace_msg(LOG_TRACE, "start: void np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp){");
+	log_trace_msg(LOG_TRACE, "start: void np_tree_serialize(context, np_tree_t* jtree, cmp_ctx_t* cmp){");
 	uint16_t i = 0;
 	// first assume a size based on jrb size
 
@@ -748,8 +749,8 @@ void np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 				np_treeval_type_special_char_ptr== tmp->key.type)
 			{
 				// log_debug_msg(LOG_DEBUG, "for (%p; %p!=%p; %p=%p) ", tmp->flink, tmp, msg->header, node, node->flink);
-				__np_tree_serialize_write_type(tmp->key, cmp); i++;
-				__np_tree_serialize_write_type(tmp->val, cmp); i++;
+				__np_tree_serialize_write_type(context,tmp->key, cmp); i++;
+				__np_tree_serialize_write_type(context, tmp->val, cmp); i++;
 			}
 			else
 			{
@@ -762,9 +763,9 @@ void np_tree_serialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 		log_msg(LOG_ERROR, "serialized jrb size map size is %d, but should be %hd", jtree->size * 2, i);
 }
 
-np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
+np_bool np_tree_deserialize( np_state_t* context, np_tree_t* jtree, cmp_ctx_t* cmp)
 {
-	log_trace_msg(LOG_TRACE, "start: void np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp){");
+	log_trace_msg(LOG_TRACE, "start: void np_tree_deserialize( context, np_tree_t* jtree, cmp_ctx_t* cmp){");
 
 	ASSERT(jtree != NULL,"Tree do deserialize cannot be NULL")
 	np_bool ret = TRUE;
@@ -791,7 +792,7 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 		tmp_key.type = np_treeval_type_undefined;
 		tmp_key.size = 0;
 		cmp_read_object(cmp, &obj_key);
-		__np_tree_deserialize_read_type(jtree, &obj_key, cmp, &tmp_key,"<<key read>>");
+		__np_tree_deserialize_read_type(context, jtree, &obj_key, cmp, &tmp_key,"<<key read>>");
 
 		if (cmp->error != 0 || np_treeval_type_undefined == tmp_key.type) {
 			ret = FALSE;
@@ -808,12 +809,12 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 #ifdef DEBUG
 		np_bool free_tmp_key_str = FALSE;
 		char * tmp_key_str = np_treeval_to_str(tmp_key, &free_tmp_key_str);
-		__np_tree_deserialize_read_type(jtree, &obj_val, cmp, &tmp_val, tmp_key_str);
+		__np_tree_deserialize_read_type(context, jtree, &obj_val, cmp, &tmp_val, tmp_key_str);
 		if (free_tmp_key_str) {
 			free(tmp_key_str);
 		}
 #else
-		__np_tree_deserialize_read_type(jtree, &obj_val, cmp, &tmp_val, "<<unknown>>");
+		__np_tree_deserialize_read_type(context, jtree, &obj_val, cmp, &tmp_val, "<<unknown>>");
 #endif
 
 
@@ -832,10 +833,10 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 				np_tree_insert_ulong(jtree, tmp_key.value.ul, tmp_val);
 				break;
 			case np_treeval_type_double:
-				np_tree_insert_dbl(jtree, tmp_key.value.d, tmp_val);
+				np_tree_insert_dbl( jtree, tmp_key.value.d, tmp_val);
 				break;
 			case np_treeval_type_char_ptr:
-				np_tree_insert_str(jtree, tmp_key.value.s, tmp_val);
+				np_tree_insert_str( jtree, tmp_key.value.s, tmp_val);
 				break;
 			case np_treeval_type_special_char_ptr:
 				np_tree_insert_special_str(jtree, tmp_key.value.ush, tmp_val);
@@ -965,7 +966,7 @@ void __np_tree_serialize_write_type_special_str(uint8_t idx, cmp_ctx_t* target) 
 
 }
 
-void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
+void __np_tree_serialize_write_type(np_state_t* context, np_treeval_t val, cmp_ctx_t* cmp)
 {
 	log_trace_msg(LOG_TRACE, "start: void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp){");
 	// void* count_buf_start = cmp->buf;
@@ -1060,7 +1061,7 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 		// log_debug_msg(LOG_DEBUG, "buffer size for subtree %u", val.size);
 		void* buf_ptr = buffer;
 		cmp_init(&tree_cmp, buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
-		np_tree_serialize(val.value.tree, &tree_cmp);
+		np_tree_serialize(context, val.value.tree, &tree_cmp);
 		uint32_t buf_size = tree_cmp.buf - buf_ptr;
 
 		// void* top_buf_ptr = cmp->buf;
@@ -1082,7 +1083,7 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 	}
 }
 
-void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value, NP_UNUSED char* key_to_read_for)
+void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value, NP_UNUSED char* key_to_read_for)
 {
 	log_trace_msg(LOG_TRACE, "start: void __np_tree_deserialize_read_type(cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value){");
 	switch (obj->type)
@@ -1185,7 +1186,7 @@ void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx
 				// tree type
 				np_tree_t* subtree = np_tree_create();
 				subtree->attr.in_place = tree->attr.in_place;
-				if(np_tree_deserialize(subtree, cmp) == FALSE) {
+				if(np_tree_deserialize( context, subtree, cmp) == FALSE) {
 					//TODO: further error handeling
 					break;
 				}

@@ -108,7 +108,7 @@ NP_API_INTERN
 void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);
 
 NP_API_INTERN
-np_key_t* _np_key_get_by_key_hash(char* targetDhkey);
+np_key_t* _np_key_get_by_key_hash(np_state_t* context,	char* targetDhkey);
 
 NP_API_INTERN
 void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop);

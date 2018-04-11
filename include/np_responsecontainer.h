@@ -33,7 +33,7 @@ extern "C" {
 	NP_API_INTERN
 		void _np_responsecontainer_set_timeout(np_responsecontainer_t* entry);
 	NP_API_INTERN
-		np_responsecontainer_t* _np_responsecontainers_get_by_uuid(char* uuid);
+		np_responsecontainer_t* _np_responsecontainers_get_by_uuid(np_state_t* context, char* uuid);
 	NP_API_INTERN
 		void _np_responsecontainer_received_response(np_responsecontainer_t* entry, np_message_t* response);
 

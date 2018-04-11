@@ -54,12 +54,12 @@ void setup_memory(void)
 {
 	// int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_MEMORY;
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG;
-	np_log_init("test_memory.log", log_level);
+	np_log_init(context, "test_memory.log", log_level);
 
-	_np_threads_init();
-	np_memory_init();
-	np_mem_init();
-	np_memory_register_type(np_memory_types_test_struct_t, sizeof(struct test_struct), 4, 4, NULL, NULL, np_memory_clear_space);
+	_np_threads_init(context);
+	np_memory_init(context);
+	np_mem_init(context);
+	np_memory_register_type(context, np_memory_types_test_struct_t, sizeof(struct test_struct), 4, 4, NULL, NULL, np_memory_clear_space);
 
 }
 
@@ -214,8 +214,9 @@ Test(np_memory_t, _memory_reasons, .description = "test the memory reasoning rou
 
 Test(np_memory_t, _memory_v2_perf, .description = "test the memory_v2 performance to implement improvements")
 {
-	np_memory_init();
-
+	np_state_t* context = np_new_context(NULL);
+	np_memory_init(context);
+	
 	uint16_t max_count = 16284;
 	// np_memory_types_BLOB_1024
 	// np_memory_types_BLOB_984_RANDOMIZED
@@ -244,11 +245,11 @@ Test(np_memory_t, _memory_v2_perf, .description = "test the memory_v2 performanc
 		add++;		
 		if (random % 2)
 		{
-			MEASURE_TIME(new_time, i, memory_blobs[random] = np_memory_new(np_memory_types_BLOB_1024) );
+			MEASURE_TIME(new_time, i, memory_blobs[random] = np_memory_new(context, np_memory_types_BLOB_1024) );
 		}
 		else
 		{
-			MEASURE_TIME(new_time, i, memory_blobs[random] = np_memory_new(np_memory_types_BLOB_984_RANDOMIZED) );
+			MEASURE_TIME(new_time, i, memory_blobs[random] = np_memory_new(context, np_memory_types_BLOB_984_RANDOMIZED) );
 		}
 		
 

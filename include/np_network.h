@@ -8,6 +8,10 @@
 
 #include "sys/socket.h"
 #include "netdb.h"
+#include <netdb.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
 
 #include "event/ev.h"
 
@@ -109,11 +113,9 @@ char* _np_network_get_protocol_string (uint8_t protocol);
  **
  **/
 NP_API_INTERN
-void _np_network_get_address (np_bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
+void _np_network_get_address (np_state_t* context, np_bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
 // struct addrinfo _np_network_get_address (char *hostname);
 
-NP_API_INTERN
-np_prioq_t* _np_network_get_new_pqentry();
 NP_API_INTERN
 void _np_network_stop(np_network_t* ng, np_bool force);
 NP_API_INTERN
@@ -142,11 +144,11 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t* node,  np_message_t* msg)
 NP_API_INTERN
 void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
-void _np_network_send_from_events(NP_UNUSED struct ev_loop *loop, ev_io *event, int revents);
+void _np_network_send_from_events(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
-void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED int revents);
+void _np_network_read(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
-void _np_network_accept(NP_UNUSED struct ev_loop *loop, ev_io *event, int revents);
+void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
 char* np_network_get_ip(np_key_t * container);
 NP_API_INTERN
@@ -155,6 +157,8 @@ NP_API_INTERN
 np_bool _np_network_send_handshake(np_key_t* node_key);
 NP_API_INTERN
 void _np_network_disable(np_network_t* self);
+NP_API_INTERN
+char* _np_network_as_string(np_network_t* self);
 #ifdef __cplusplus
 }
 #endif

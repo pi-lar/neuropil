@@ -35,7 +35,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_aaatoken_ptr);
 
 NP_PLL_GENERATE_IMPLEMENTATION(np_aaatoken_ptr);
 
-void _np_aaatoken_t_new(void* token)
+void _np_aaatoken_t_new(np_state_t *context, void* token)
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_t_new(void* token){");
 	np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
@@ -75,15 +75,15 @@ void _np_aaatoken_t_new(void* token)
 	_np_aaatoken_trace_info("new", aaa_token);
 }
 
-void _np_aaatoken_t_del (void* token)
+void _np_aaatoken_t_del (np_state_t* context, void* token)
 {
 	np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
 
 	// clean up extensions
 	if (aaa_token->extensions != aaa_token->extensions_local) {
-		np_tree_free(aaa_token->extensions_local);
+		np_tree_free( aaa_token->extensions_local);
 	}
-	np_tree_free(aaa_token->extensions);
+	np_tree_free( aaa_token->extensions);
 	
 	if (NULL != aaa_token->uuid)
 	{
@@ -94,6 +94,8 @@ void _np_aaatoken_t_del (void* token)
 
 void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node_public_token_t* full_token)
 {
+	np_state_t *context = np_ctx(key_with_core_token);
+
 	ASSERT(FLAG_CMP(full_token->type ,np_aaatoken_type_node), "full_token needs to be a public node token");
 
 	np_ref_switch(np_aaatoken_t, key_with_core_token->aaa_token, ref_key_aaa_token, full_token);
@@ -118,11 +120,11 @@ void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node
 
 #endif // DEBUG
 
-		np_tree_clear(key_with_core_token->aaa_token->extensions); // remove "_np.session" etc
+		np_tree_clear( key_with_core_token->aaa_token->extensions); // remove "_np.session" etc
 		np_tree_t* container = np_tree_create();
 		np_aaatoken_encode(container, full_token);		
 		np_aaatoken_decode(container, key_with_core_token->aaa_token);
-		np_tree_free(container);
+		np_tree_free( container);
 		//key_with_core_token->aaa_token->is_signature_verified = FALSE;
 		//key_with_core_token->aaa_token->is_signature_extensions_verified = FALSE;
 		_np_aaatoken_update_type_and_scope(key_with_core_token->aaa_token);
@@ -139,25 +141,25 @@ void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, np_bool trace)
 
 	if(trace) _np_aaatoken_trace_info("encode", token);
 	// included into np_token_handshake
-	np_tree_replace_str(data, "np.t.u", np_treeval_new_s(token->uuid));
-	np_tree_replace_str(data, "np.t.r", np_treeval_new_s(token->realm));
-	np_tree_replace_str(data, "np.t.i", np_treeval_new_s(token->issuer));
-	np_tree_replace_str(data, "np.t.s", np_treeval_new_s(token->subject));
-	np_tree_replace_str(data, "np.t.a", np_treeval_new_s(token->audience));
-	np_tree_replace_str(data, "np.t.p", np_treeval_new_bin(token->public_key, crypto_sign_PUBLICKEYBYTES));
+	np_tree_replace_str( data, "np.t.u", np_treeval_new_s(token->uuid));
+	np_tree_replace_str( data, "np.t.r", np_treeval_new_s(token->realm));
+	np_tree_replace_str( data, "np.t.i", np_treeval_new_s(token->issuer));
+	np_tree_replace_str( data, "np.t.s", np_treeval_new_s(token->subject));
+	np_tree_replace_str( data, "np.t.a", np_treeval_new_s(token->audience));
+	np_tree_replace_str( data, "np.t.p", np_treeval_new_bin(token->public_key, crypto_sign_PUBLICKEYBYTES));
 
-	np_tree_replace_str(data, "np.t.ex", np_treeval_new_d(token->expires_at));
-	np_tree_replace_str(data, "np.t.ia", np_treeval_new_d(token->issued_at));
-	np_tree_replace_str(data, "np.t.nb", np_treeval_new_d(token->not_before));
-	np_tree_replace_str(data, "np.t.si", np_treeval_new_bin(token->signature, crypto_sign_BYTES));
+	np_tree_replace_str( data, "np.t.ex", np_treeval_new_d(token->expires_at));
+	np_tree_replace_str( data, "np.t.ia", np_treeval_new_d(token->issued_at));
+	np_tree_replace_str( data, "np.t.nb", np_treeval_new_d(token->not_before));
+	np_tree_replace_str( data, "np.t.si", np_treeval_new_bin(token->signature, crypto_sign_BYTES));
 
-	np_tree_replace_str(data, "np.t.e", np_treeval_new_tree(token->extensions));
+	np_tree_replace_str( data, "np.t.e", np_treeval_new_tree(token->extensions));
 
 	if(token->scope <= np_aaatoken_scope_private_available) {
 		_np_aaatoken_update_extensions_signature(token, token->issuer_token);
 	}
 
-	np_tree_replace_str(data, "np.t.signature_extensions", np_treeval_new_bin(token->signature_extensions, crypto_sign_BYTES));
+	np_tree_replace_str( data, "np.t.signature_extensions", np_treeval_new_bin(token->signature_extensions, crypto_sign_BYTES));
 }
 
 void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
@@ -167,9 +169,9 @@ void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token)
 void np_aaatoken_encode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
 	np_aaatoken_encode(data, token);
 
-	np_tree_replace_str(data, "np.t.private_key_is_set", np_treeval_new_ush(token->private_key_is_set));
+	np_tree_replace_str( data, "np.t.private_key_is_set", np_treeval_new_ush(token->private_key_is_set));
 	if(token->private_key_is_set){
-		np_tree_replace_str(data, "np.t.private_key", np_treeval_new_bin(&token->private_key, crypto_sign_SECRETKEYBYTES));
+		np_tree_replace_str( data, "np.t.private_key", np_treeval_new_bin(&token->private_key, crypto_sign_SECRETKEYBYTES));
 	}
 }
 
@@ -194,7 +196,7 @@ void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
 */
 np_bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 {
-	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token){");
+	np_ctx_full(token);
 	assert (NULL != data);
 	assert (NULL != token);
 	np_bool ret = TRUE;
@@ -266,14 +268,14 @@ np_bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 		);
 
 		if (token->extensions == token->extensions_local) {
-			token->extensions_local = np_tree_clone(tmp->val.value.tree);
+			token->extensions_local = np_tree_clone( tmp->val.value.tree);
 			token->extensions_local->attr.immutable = FALSE;
 		}
 		else {
 			np_tree_copy_inplace(tmp->val.value.tree, token->extensions_local);
 		}
-		np_tree_clear(token->extensions);
-		np_tree_copy(tmp->val.value.tree, token->extensions);
+		np_tree_clear( token->extensions);
+		np_tree_copy( tmp->val.value.tree, token->extensions);
 
 
 		if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.signature_extensions")))
@@ -322,12 +324,11 @@ void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self) {
 
 np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self)
 {
-	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self){");
-
+	np_ctx_full(self);
  	np_dhkey_t ret;
 
 	// if (FLAG_CMP(self->type, np_aaatoken_type_handshake)) {
-	// 	_np_dhkey_from_str(self->issuer, &ret);
+	// 	_np_dhkey_from_str( self->issuer, &ret);
 	// }else{
 
 		// build a hash to find a place in the dhkey table, not for signing !
@@ -354,6 +355,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_bool _np_aaatoken_is_valid(np_aaatoken_t* token){");
 	if (NULL == token) return FALSE;
+	np_state_t* context = np_ctx(token);
 
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking token (%s) validity for token of type %"PRIu32" and scope %"PRIu32, token->uuid, token->type, token->scope);
 
@@ -477,7 +479,7 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 		// check for already received handshaketoken
 		np_dhkey_t handshake_token_dhkey = np_aaatoken_get_fingerprint(token);
 
-		np_key_t* handshake_token_key = _np_keycache_find(handshake_token_dhkey);
+		np_key_t* handshake_token_key = _np_keycache_find(context, handshake_token_dhkey);
 		if (handshake_token_key != NULL && handshake_token_key->aaa_token != NULL && handshake_token_key->aaa_token != token /*reference compare!*/ &&
 			FLAG_CMP(handshake_token_key->aaa_token->type, np_aaatoken_type_handshake) /*&& _np_aaatoken_is_valid(handshake_token_key ->aaa_token)*/) {
 
@@ -577,10 +579,12 @@ static int8_t _np_aaatoken_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr sec
 
 void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject)
 {
-	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_create_ledger(np_key_t* subject_key, char* subject){");
+	assert(NULL != subject_key);
+	np_state_t* context = np_ctx(subject_key);
+
 	np_msgproperty_t* prop = NULL;
 	np_bool create_new_prop = FALSE;
-
+	
 	_LOCK_MODULE(np_aaatoken_t)
 	{
 
@@ -591,7 +595,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
 			pll_init(np_aaatoken_ptr, subject_key->send_tokens);
 
 
-		np_msgproperty_t* send_prop = np_msgproperty_get(OUTBOUND, subject);
+		np_msgproperty_t* send_prop = np_msgproperty_get(context, OUTBOUND, subject);
 		if (NULL != send_prop)
 		{
 			if(NULL == subject_key->send_property)
@@ -604,7 +608,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
 			create_new_prop |= TRUE;
 		}
 
-		np_msgproperty_t* recv_prop = np_msgproperty_get(INBOUND, subject);
+		np_msgproperty_t* recv_prop = np_msgproperty_get(context, INBOUND, subject);
 		if (NULL != recv_prop)
 		{
 			if(NULL == subject_key->recv_property)
@@ -646,13 +650,13 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
 // update internal structure and return a interest if a matching pair has been found
 np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 {
-	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token){");
-	log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".start.np_add_sender_token");
+	assert(token != NULL);
+	np_state_t* context = np_ctx(token);
 	np_aaatoken_t * ret = NULL;
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
 
-	subject_key = _np_keycache_find_or_create(search_key);
+	subject_key = _np_keycache_find_or_create(context, search_key);
 	_np_aaatoken_create_ledger(subject_key, subject);
 
 	// should never happen
@@ -736,15 +740,15 @@ np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
  ** TODO extend this function with a key and an amount of messages
  ** TODO use a different function for mitm and leaf nodes ?
  **/
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(const char* const subject, const char* const audience)
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(np_state_t* context, const char* const subject, const char* const audience)
 {
 	np_sll_t(np_aaatoken_ptr, return_list) = NULL;
 	sll_init(np_aaatoken_ptr, return_list);
 
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
 
-	subject_key = _np_keycache_find_or_create(search_key);
+	subject_key = _np_keycache_find_or_create(context, search_key);
 	// look up target structures or create them
 	_np_aaatoken_create_ledger(subject_key, subject);
 
@@ -804,13 +808,13 @@ np_dhkey_t _np_aaatoken_get_issuer(np_aaatoken_t* self){
 	return ret;
 }
 
-np_aaatoken_t* _np_aaatoken_get_sender_token(const char* const subject, const np_dhkey_t* const sender_dhkey)
+np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* const subject, const np_dhkey_t* const sender_dhkey)
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_sender_token(char* subject, char* sender){");
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
 
-	subject_key = _np_keycache_find_or_create(search_key);
+	subject_key = _np_keycache_find_or_create(context, search_key);
 	// look up target structures or create them
 	_np_aaatoken_create_ledger(subject_key, subject);
 
@@ -911,16 +915,15 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(const char* const subject, const np
 // update internal structure and clean invalid tokens
 np_aaatoken_t *_np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 {
-	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token){");
-
-	np_aaatoken_t* ret = NULL;
 	assert(token != NULL);
-	log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".start.np_add_receiver_token");
+	np_state_t* context = np_ctx(token);
+
+	np_aaatoken_t* ret = NULL;	
 
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
 
-	subject_key = _np_keycache_find_or_create(search_key);
+	subject_key = _np_keycache_find_or_create(context, search_key);
 	_np_aaatoken_create_ledger(subject_key, subject);
 
 	// should never happen
@@ -1014,13 +1017,13 @@ np_aaatoken_t *_np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 	return ret;
 }
 
-np_aaatoken_t* _np_aaatoken_get_receiver(const char* const subject, np_dhkey_t* target)
+np_aaatoken_t* _np_aaatoken_get_receiver(np_state_t* context, const char* const subject, np_dhkey_t* target)
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target){");
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
 
-	subject_key = _np_keycache_find_or_create(search_key);
+	subject_key = _np_keycache_find_or_create(context, search_key);
 	_np_aaatoken_create_ledger(subject_key, subject);
 
 	// should never happen
@@ -1057,7 +1060,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(const char* const subject, np_dhkey_t* 
 
 			np_dhkey_t recvtoken_issuer_key = np_dhkey_create_from_hash(return_token->issuer);
 
-			if (_np_dhkey_equal(&recvtoken_issuer_key, &np_state()->my_node_key->dhkey))
+			if (_np_dhkey_equal(&recvtoken_issuer_key, &context->my_node_key->dhkey))
 			{
 				// only use the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
 				pll_next(iter);
@@ -1097,12 +1100,12 @@ np_aaatoken_t* _np_aaatoken_get_receiver(const char* const subject, np_dhkey_t* 
 	return (return_token);
 }
 
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(const char* const subject, const char* const audience)
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(np_state_t* context, const char* const subject, const char* const audience)
 {
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
 
-	subject_key = _np_keycache_find_or_create(search_key);
+	subject_key = _np_keycache_find_or_create(context, search_key);
 	_np_aaatoken_create_ledger(subject_key, subject);
 
 //	log_debug_msg(LOG_DEBUG, "available %hd interests %hd",
@@ -1153,7 +1156,8 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(const char* const subj
 
 unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* self) {
 
-	ASSERT(self != NULL, "cannot get token hash of NULL");
+	assert(self != NULL);// "cannot get token hash of NULL
+	np_ctx_full(self);
 	unsigned char* ret = calloc(1, crypto_generichash_BYTES);
 	crypto_generichash_state gh_state;
 	crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
@@ -1205,7 +1209,7 @@ unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* self) {
 	return ret;
 }
 
-int __np_aaatoken_generate_signature(unsigned char* hash, unsigned char* private_key, unsigned char* save_to) {
+int __np_aaatoken_generate_signature(np_state_t* context, unsigned char* hash, unsigned char* private_key, unsigned char* save_to) {
 
 	unsigned long long signature_len = 0;
 
@@ -1230,14 +1234,14 @@ int __np_aaatoken_generate_signature(unsigned char* hash, unsigned char* private
 	return ret;
 }
 
-np_aaatoken_t* _np_aaatoken_get_local_mx(const char* const subject)
+np_aaatoken_t* _np_aaatoken_get_local_mx(np_state_t* context, const char* const subject)
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject){");
 
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
 
-	subject_key = _np_keycache_find_or_create(search_key);
+	subject_key = _np_keycache_find_or_create(context, search_key);
 	// look up target structures or create them
 	_np_aaatoken_create_ledger(subject_key, subject);
 
@@ -1282,13 +1286,13 @@ np_aaatoken_t* _np_aaatoken_get_local_mx(const char* const subject)
 // update internal structure and return a interest if a matching pair has been found
 void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 {
-	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token){");
-	log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".start._np_add_local_mx_token");
+	np_ctx_full(token);
+	assert(token != NULL);	
 
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
 
-	subject_key = _np_keycache_find_or_create(search_key);
+	subject_key = _np_keycache_find_or_create(context, search_key);
 	_np_aaatoken_create_ledger(subject_key, subject);
 
 	// should never happen
@@ -1348,11 +1352,16 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 
 
 void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
+	assert(self != NULL);
+	np_state_t* context = np_ctx(self);
 
-	np_tree_replace_str(self->extensions, "_np.partner_fp", np_treeval_new_dhkey(partner_fp));
+	np_tree_replace_str( self->extensions, "_np.partner_fp", np_treeval_new_dhkey(partner_fp));
 }
 
 np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
+	assert(self != NULL);
+	np_state_t* context = np_ctx(self);
+	
 	np_dhkey_t ret = { 0 };
 
 	np_tree_elem_t* ele = np_tree_find_str(self->extensions, "_np.partner_fp");
@@ -1360,13 +1369,15 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
 		ret = ele->val.value.dhkey;
 	}
 	else {
-		_np_dhkey_from_str(self->issuer, &ret);
+		_np_dhkey_from_str( self->issuer, &ret);
 	}
 
 	return ret;
 }
 
 void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
+	assert(self != NULL);
+	np_state_t* context = np_ctx(self);
 
 	// update public key and issuer fingerprint with data take from signee
 	memcpy((char*)self->public_key, (char*)signee->public_key, crypto_sign_PUBLICKEYBYTES);
@@ -1386,7 +1397,7 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 	// create the hash of the core token data
 	unsigned char* hash = _np_aaatoken_get_hash(self);
 	// sign the core token
-	int ret = __np_aaatoken_generate_signature(hash, signee->private_key, self->signature);
+	int ret = __np_aaatoken_generate_signature(context, hash, signee->private_key, self->signature);
 
 	free(hash);
 
@@ -1401,10 +1412,11 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 
 void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 
+	np_ctx_full(self);
 	ASSERT(signee != NULL, "Cannot sign extensions with empty signee");
 
 	unsigned char* hash = __np_aaatoken_get_extensions_hash(self);
-	int ret = __np_aaatoken_generate_signature(hash, signee->private_key, self->signature_extensions);
+	int ret = __np_aaatoken_generate_signature(context, hash, signee->private_key, self->signature_extensions);
 #ifdef DEBUG
 	char sign_hex[crypto_sign_BYTES * 2 + 1];
 	sodium_bin2hex(sign_hex, crypto_sign_BYTES * 2 + 1, self->signature_extensions, crypto_sign_BYTES);
@@ -1415,6 +1427,9 @@ void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t
 }
 
 unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self) {
+	assert(self != NULL);
+	np_state_t* context = np_ctx(self);
+
 	unsigned char* ret = calloc(1, crypto_generichash_BYTES);
 
 	crypto_generichash_state gh_state;
@@ -1435,19 +1450,25 @@ unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self) {
 
 void np_aaatoken_ref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* reason, const char* reason_desc)
 {
+	np_state_t* context = NULL;
+
 	sll_iterator(np_aaatoken_ptr) iter = sll_first(sll_list);
 	while (NULL != iter)
 	{
+		if (context == NULL && iter->val != NULL) context = np_ctx(iter->val);
 		np_ref_obj(np_aaatoken_t, (iter->val), reason, reason_desc);
 		sll_next(iter);
 	}
 }
  
 void np_aaatoken_unref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* reason)
-{
+{	
+	np_state_t* context = NULL;
+
 	sll_iterator(np_aaatoken_ptr) iter = sll_first(sll_list);
 	while (NULL != iter)
 	{
+		if (context == NULL && iter->val!=NULL) context = np_ctx(iter->val);
 		np_unref_obj(np_aaatoken_t, (iter->val), reason);
 		sll_next(iter);
 	}
@@ -1455,13 +1476,16 @@ void np_aaatoken_unref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* rea
 
 
 
-void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* token) {
+void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
+
+	assert(self != NULL);
+	np_ctx_full(self);
 
 	char * info_str ;
 	asprintf(&info_str, "AAATokenTrace_%s", desc);	
 #ifdef DEBUG
 	np_tree_t* data = np_tree_create();
-	_np_aaatoken_encode(data, token, FALSE);
+	_np_aaatoken_encode(data, self, FALSE);
 	np_tree_elem_t* tmp = NULL;
 	np_bool free_key, free_value;
 	char *key, *value;
@@ -1475,10 +1499,11 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* token) {
 		if (free_value) free(value);
 		if (free_key) free(key);
 	}	
-	np_tree_free(data);
+	np_tree_free( data);
 #else
-	info_str = np_str_concatAndFree(info_str, ": %s", info_str, token->uuid);
+	info_str = np_str_concatAndFree(info_str, ": %s", info_str, self->uuid);
 #endif
 
 	log_msg(LOG_ROUTING | LOG_INFO, info_str);
+	free(info_str);
 }

@@ -32,7 +32,7 @@ TestSuite(np_scache_t, .init=setup_scache, .fini=teardown_scache);
 Test(np_scache_t, np_simple_cache_insert, .description="test the addition/retrieval of items to the scache")
 {
 	uint32_t cache_size = SIMPLE_CACHE_NR_BUCKETS;
-	np_simple_cache_table_t* cache_table = np_cache_init();
+	np_simple_cache_table_t* cache_table = np_cache_init(context );
 
 	// cr_expect(cache_size == (sizeof(cache_table->buckets) / sizeof(np_cache_item_ptr_sll_t)), "expect the size of the bucket list to be %d", cache_size);
 	for (int i = 0; i < cache_size; i++) {
@@ -45,7 +45,7 @@ Test(np_scache_t, np_simple_cache_insert, .description="test the addition/retrie
 	for (uint16_t j = 0; j < max_entries; j++) {
 		char *key = malloc(sizeof(char)*32);
 		snprintf(key, 32, "%d", j);
-		np_simple_cache_insert(cache_table, key, key);
+		np_simple_cache_insert(context, cache_table, key, key);
 		log_msg(LOG_DEBUG, "added new cache entry #%d: %s", j, key);
 
 		for (uint32_t i = 0; i < cache_size; i++) {
@@ -65,7 +65,7 @@ Test(np_scache_t, np_simple_cache_insert, .description="test the addition/retrie
 		char *key = malloc(sizeof(char)*32);
 		snprintf(key, 32, "%d", j);
 
-		np_cache_item_t* item = np_simple_cache_get(cache_table, key);
+		np_cache_item_t* item = np_simple_cache_get(context, cache_table, key);
 		cr_expect(0 == strcmp(item->key, key), "test whether the retrieved key matches the requested key");
 		cr_expect(0 == strcmp((char*)item->value, key), "test whether the retrieved value matches the expected value");
 	}
@@ -74,7 +74,7 @@ Test(np_scache_t, np_simple_cache_insert, .description="test the addition/retrie
 Test(np_scache_t, np_simple_cache_performance, .description="test the performance of the simple cache")
 {
 	uint32_t cache_size = SIMPLE_CACHE_NR_BUCKETS;
-	np_simple_cache_table_t* cache_table = np_cache_init();
+	np_simple_cache_table_t* cache_table = np_cache_init(context);
 
 	uint32_t num_entries = 0;
 	uint32_t max_entries = 256;
@@ -85,7 +85,7 @@ Test(np_scache_t, np_simple_cache_performance, .description="test the performanc
 	for (uint16_t j = 0; j < max_entries; j++) {
 		char *key = malloc(sizeof(char)*1024);
 		snprintf(key, 32, "%d", j);
-		MEASURE_TIME(insert_arr, j, np_simple_cache_insert(cache_table, key, key) );
+		MEASURE_TIME(insert_arr, j, np_simple_cache_insert(context, cache_table, key, key) );
 	}
 
 	for (uint16_t j = 0; j < max_entries; j++) {
@@ -94,7 +94,7 @@ Test(np_scache_t, np_simple_cache_performance, .description="test the performanc
 
 		np_cache_item_t* item;
 
-		MEASURE_TIME(retrieve_arr, j, item = np_simple_cache_get(cache_table, key) );
+		MEASURE_TIME(retrieve_arr, j, item = np_simple_cache_get(context, cache_table, key) );
 	}
 
 	fprintf(stdout, "###########\n");

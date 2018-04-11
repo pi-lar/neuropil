@@ -330,7 +330,7 @@ NP_API_EXPORT
 void np_msgproperty_register(np_msgproperty_t* msgprops);
 
 /**
-.. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
+.. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
 
 users of neuropil should simply use the :c:func:`np_set_mx_property` functions which will
 automatically create and set the values specified.
@@ -343,7 +343,7 @@ return the np_msgproperty structure for a subject and :c:type:`np_msg_mode_type`
 
 */
 NP_API_EXPORT
-np_msgproperty_t* np_msgproperty_get(np_msg_mode_type msg_mode, const char* subject);
+np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_msg_mode_type msg_mode, const char* subject);
 
 
 
@@ -362,7 +362,7 @@ void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self);
 NP_API_EXPORT
 void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self);
 NP_API_INTERN
-void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args);
+void _np_msgproperty_job_msg_uniquety(np_state_t* context, np_jobargs_t* args);
 NP_API_INTERN
 void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_message_t* msg_to_remove);
 NP_API_INTERN
@@ -401,7 +401,7 @@ np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t*
  **
  **/
 NP_API_INTERN
-np_bool _np_msgproperty_init ();
+np_bool _np_msgproperty_init (np_state_t* context);
 
 /**
  ** compare two msg properties for rb cache management

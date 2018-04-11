@@ -9,6 +9,9 @@
 #include <stddef.h>
 #include <inttypes.h>
 
+#include <unistd.h>
+
+
 #include "np_interface.h"
 
 #include "neuropil.h"
@@ -17,16 +20,22 @@
 
 void np_get_id(np_id* id, char* string, size_t length) {
 	assert(length >= 64);
-	_np_dhkey_from_str(string, id);
+	_np_dhkey_from_str(string, (np_dhkey_t*) id);
 }
 
-void np_default_settings(struct np_settings *settings) {
+struct np_settings * np_default_settings(struct np_settings ** settings) {
+	struct np_settings * ret;
 	if (settings == NULL) {
-		settings = malloc(sizeof(struct np_settings));
+		ret = malloc(sizeof(struct np_settings));
+	}
+	else {
+		ret = *settings;
 	}
 
-	settings->n_threads = 9;
+	ret->n_threads = 9;
 	//TODO: init other settings
+
+	return ret;
 }
 
 np_context* np_new_context(struct np_settings *settings) {
@@ -34,18 +43,23 @@ np_context* np_new_context(struct np_settings *settings) {
 	np_state_t* context= NULL;
 
 	if (settings == NULL) {
-		np_default_settings(settings);
+		np_default_settings(&settings);
 	}
+	
+
 	//TODO: check settings for bad configuration
 
 	context= (np_state_t *)calloc(1, sizeof(np_state_t));	
 	if (context== NULL)
 	{
-		log_msg(LOG_ERROR, "neuropil_init: state module not created: %s", strerror(errno));
+		debugf("neuropil_init: state module not created: %s", strerror(errno));
 		status = np_insufficient_memory;
 	}
 	else {
+		TSP_INITD(context->__is_in_shutdown, FALSE);
+
 		context->settings = settings;
+		np_log_init(context, settings->log_file, settings->log_level);
 
 		log_trace_msg(LOG_TRACE, "start: np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname){");
 		log_debug_msg(LOG_DEBUG, "neuropil_init");
@@ -62,15 +76,17 @@ np_context* np_new_context(struct np_settings *settings) {
 			}
 			else {
 				// memory pool
-				np_mem_init();
+				np_mem_init(context);
 				//v2
-				np_memory_init();
+				np_memory_init(context);
+				
+				np_event_init(context);
 
 				// initialize key min max ranges
-				_np_dhkey_init();
+				_np_dhkey_init(context);
 
 				context->threads_lock = malloc(sizeof(np_mutex_t));
-				_np_threads_mutex_init(context->threads_lock, "context->threads_lock ");
+				_np_threads_mutex_init(context, context->threads_lock, "context->threads_lock ");
 				sll_init(np_thread_ptr, context->threads);
 
 				np_thread_t * new_main_thread;
@@ -81,7 +97,7 @@ np_context* np_new_context(struct np_settings *settings) {
 				context->thread_count = 1;
 
 				// splay tree initializing
-				_np_keycache_init();
+				_np_keycache_init(context);
 
 				//
 				// TODO: read my own identity from file, if a e.g. a password is given
@@ -104,21 +120,21 @@ np_context* np_new_context(struct np_settings *settings) {
 				np_set_identity_v1(context, context->my_node_key->aaa_token);
 
 				// initialize routing table
-				if (FALSE == _np_route_init(context->my_node_key))
+				if (FALSE == _np_route_init(context, context->my_node_key))
 				{
 					log_msg(LOG_ERROR, "neuropil_init: route_init failed: %s", strerror(errno));
 					status = np_startup;
 				}
 				else {
 					// initialize job queue
-					if (FALSE == _np_job_queue_create())
+					if (FALSE == _np_job_queue_create(context))
 					{
 						log_msg(LOG_ERROR, "neuropil_init: _np_job_queue_create failed: %s", strerror(errno));
 						status = np_startup;
 					}
 					else {
 						// initialize message handling system
-						if (FALSE == _np_msgproperty_init())
+						if (FALSE == _np_msgproperty_init(context))
 						{
 							log_msg(LOG_ERROR, "neuropil_init: _np_msgproperty_init failed: %s", strerror(errno));
 							status = np_startup;
@@ -131,11 +147,11 @@ np_context* np_new_context(struct np_settings *settings) {
 
 							np_unref_obj(np_node_t, my_node, ref_obj_creation);
 
-							_np_shutdown_init_auto_notify_others();
+							_np_shutdown_init_auto_notify_others(context);
 
 							log_msg(LOG_INFO, "neuropil successfully initialized: id:   %s", _np_key_as_str(context->my_identity));
 							log_msg(LOG_INFO, "neuropil successfully initialized: node: %s", _np_key_as_str(context->my_node_key));
-							_np_log_fflush(TRUE);
+							_np_log_fflush(context, TRUE);
 						}
 					}
 				}
@@ -148,7 +164,7 @@ np_context* np_new_context(struct np_settings *settings) {
 
 enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port) {
 	enum np_error ret = np_ok;
-	context(ac);
+	np_ctx_cast(ac);
 
 	if (context->my_node_key->network != NULL) {
 		log_msg(LOG_ERROR, "node listens already on %s", _np_network_as_string(context->my_node_key->network));
@@ -180,7 +196,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 			CHECK_MALLOC(host);
 			log_msg(LOG_INFO, "neuropil_init: resolve hostname");
 
-			if (np_get_local_ip(host, 255) == FALSE) {
+			if (np_get_local_ip(context, host, 255) == FALSE) {
 				if (0 != gethostname(host, 255)) {
 					free(host);
 					host = strdup("localhost");
@@ -201,7 +217,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 		}
 		else {
 			log_debug_msg(LOG_DEBUG, "update my node data");
-			_np_node_update(context->my_node_key, np_proto, host, np_service);
+			_np_node_update(context->my_node_key->node, np_proto, host, np_service);
 
 			np_ref_obj(np_network_t, my_network, ref_key_network);
 			context->my_node_key->network = my_network;
@@ -214,23 +230,23 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 }
 
 struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES])) {
-	context(ac);	
+	np_ctx_cast(ac);	
 }
 
 enum np_error np_set_identity(np_context* ac, struct np_token identity) {
 	enum np_error ret = np_ok;
-	context(ac);
+	np_ctx_cast(ac);
 
 	return ret;
 }
 
 enum np_error np_get_address(np_context* ac, char* address, uint32_t max) {
 	enum np_error ret = np_ok;
-	context(ac);
+	np_ctx_cast(ac);
 
 	char* str = np_get_connection_string_from(context->my_node_key, TRUE);
 	if (strlen(str) > max) {
-		ret = np_invalid_input_size;
+		ret = np_invalid_argument;
 	}
 	else {
 		strncpy(address, str, max);
@@ -241,8 +257,8 @@ enum np_error np_get_address(np_context* ac, char* address, uint32_t max) {
 }
 
 enum np_error np_join(np_context* ac, char* address) {
-	enum np_error ret = np_ok;
-	context(ac);
+	enum np_error ret = np_not_implemented;
+	np_ctx_cast(ac);
 	
 //	np_send_join(context, address);
 
@@ -256,21 +272,24 @@ enum np_error np_send(np_context* ac, np_id* subject, uint8_t* message, size_t l
 }
 
 enum np_error np_add_receive_cb(np_context* ac, np_id* subject, np_receive_callback callback) {
+	return np_not_implemented;
 }
 
 enum np_error np_set_authenticate_cb(np_context* ac, np_aaa_callback callback) {
+	return np_not_implemented;
 }
 
 enum np_error np_set_authorize_cb(np_context* ac, np_aaa_callback callback) {
+	return np_not_implemented;
 }
 
 enum np_error np_run(np_context* ac, double duration) {
-	context(ac);
+	np_ctx_cast(ac);
 
 	_np_start_job_queue(context, context->settings->n_threads);
 
 }
 
-
 enum np_error np_set_mx_properties(np_context* ac, np_id* subject, struct np_mx_properties properties) {
+	return np_not_implemented;
 }

@@ -134,7 +134,7 @@ void np_tree_clear(np_tree_t* root);
 .. c:function:: void tree_insert_str(np_tree_t *tree, const char *key, np_treeval_t val)
 .. c:function:: void np_tree_insert_int(np_tree_t *tree, int16_t ikey, np_treeval_t val)
 .. c:function:: void np_tree_insert_ulong(np_tree_t *tree, uint32_t ulkey, np_treeval_t val)
-.. c:function:: void np_tree_insert_dbl(np_tree_t *tree, double dkey, np_treeval_t val)
+.. c:function:: void np_tree_insert_dbl( np_tree_t *tree, double dkey, np_treeval_t val)
 
    insert a value into the np_tree_t with the given key. mixing key types in one np_tree_t
    is not prohibited, but useless since then there is no ordering of elements and lookup of keys
@@ -148,19 +148,19 @@ void np_tree_clear(np_tree_t* root);
 
 */
 NP_API_EXPORT
-void np_tree_insert_str (np_tree_t *tree, const char *key, np_treeval_t val);
+void np_tree_insert_str(np_tree_t *tree, const char *key, np_treeval_t val);
 NP_API_EXPORT
-void np_tree_insert_int (np_tree_t *tree, int16_t ikey, np_treeval_t val);
+void np_tree_insert_int(np_tree_t *tree, int16_t ikey, np_treeval_t val);
 NP_API_EXPORT
-void np_tree_insert_ulong (np_tree_t *tree, uint32_t ulkey, np_treeval_t val);
+void np_tree_insert_ulong(np_tree_t *tree, uint32_t ulkey, np_treeval_t val);
 NP_API_EXPORT
-void np_tree_insert_dbl (np_tree_t *tree, double dkey, np_treeval_t val);
+void np_tree_insert_dbl( np_tree_t *tree, double dkey, np_treeval_t val);
 
 /**
 .. c:function:: void np_tree_replace_str(np_tree_t *tree, const char *key, np_treeval_t val)
 .. c:function:: void np_tree_replace_int(np_tree_t *tree, int16_t ikey, np_treeval_t val)
 .. c:function:: void np_tree_replace_ulong(np_tree_t *tree, uint32_t ulkey, np_treeval_t val)
-.. c:function:: void np_tree_replace_dbl(np_tree_t *tree, double dkey, np_treeval_t val)
+.. c:function:: void np_tree_replace_dbl( np_tree_t *tree, double dkey, np_treeval_t val)
 
    Replace a value into the np_tree_t with the given key, and insert if it not already existed.
    Otherwise the same rules as for jrb_insert_[str|int|ulong|dbl] functions apply.
@@ -171,19 +171,19 @@ void np_tree_insert_dbl (np_tree_t *tree, double dkey, np_treeval_t val);
 
 */
 NP_API_EXPORT
-void np_tree_replace_str (np_tree_t *tree, const char *key, np_treeval_t val);
+void np_tree_replace_str(np_tree_t *tree, const char *key, np_treeval_t val);
 NP_API_EXPORT
-void np_tree_replace_int (np_tree_t *tree, int16_t ikey, np_treeval_t val);
+void np_tree_replace_int(np_tree_t *tree, int16_t ikey, np_treeval_t val);
 NP_API_EXPORT
-void np_tree_replace_ulong (np_tree_t *tree, uint32_t ulkey, np_treeval_t val);
+void np_tree_replace_ulong(np_tree_t *tree, uint32_t ulkey, np_treeval_t val);
 NP_API_EXPORT
-void np_tree_replace_dbl (np_tree_t *tree, double dkey, np_treeval_t val);
+void np_tree_replace_dbl( np_tree_t *tree, double dkey, np_treeval_t val);
 
 /**
 .. c:function:: np_tree_elem_t* np_tree_find_str(np_tree_t *tree, const char *key)
 .. c:function:: np_tree_elem_t* np_tree_replace_int(np_tree_t *tree, int16_t ikey)
 .. c:function:: np_tree_elem_t* np_tree_replace_ulong(np_tree_t *tree, uint32_t ulkey)
-.. c:function:: np_tree_elem_t* np_tree_replace_dbl(np_tree_t *tree, double dkey)
+.. c:function:: np_tree_elem_t* np_tree_replace_dbl( np_tree_t *tree, double dkey)
 
    Lookup a value in the tree structure for a given key. You have to check the return value
    for NULL before accessing the np_treeval_t structure.
@@ -208,7 +208,7 @@ np_tree_elem_t* np_tree_find_dbl (np_tree_t* root, double dkey);
 .. c:function:: np_tree_elem_t* np_tree_find_str(np_tree_t *tree, const char *key, uint8_t *found)
 .. c:function:: np_tree_elem_t* np_tree_replace_int(np_tree_t *tree, int16_t ikey, uint8_t *found)
 .. c:function:: np_tree_elem_t* np_tree_replace_ulong(np_tree_t *tree, uint32_t ulkey, uint8_t *found)
-.. c:function:: np_tree_elem_t* np_tree_replace_dbl(np_tree_t *tree, double dkey, uint8_t *found)
+.. c:function:: np_tree_elem_t* np_tree_replace_dbl( np_tree_t *tree, double dkey, uint8_t *found)
 
    Lookup a value in the tree structure for a given key. Returns an external node in the np_tree_t
    whose value is equal k or whose value is the smallest value greater than k. Sets found to
@@ -283,18 +283,18 @@ NP_API_EXPORT
 void np_tree_copy_inplace(np_tree_t* source, np_tree_t* target);
 
 NP_API_INTERN
-void np_tree_serialize(np_tree_t* jrb, cmp_ctx_t* cmp);
+void np_tree_serialize(np_state_t* context, np_tree_t* jrb, cmp_ctx_t* cmp);
 NP_API_INTERN
-np_bool np_tree_deserialize(np_tree_t* jrb, cmp_ctx_t* cmp);
+np_bool np_tree_deserialize( np_state_t* context, np_tree_t* jrb, cmp_ctx_t* cmp);
 
 NP_API_INTERN
 uint8_t __np_tree_serialize_read_type_dhkey(cmp_ctx_t* cmp_key, np_treeval_t* target);
 NP_API_INTERN
 void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target);
 NP_API_INTERN
-void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp);
+void __np_tree_serialize_write_type(np_state_t* context, np_treeval_t val, cmp_ctx_t* cmp);
 NP_API_INTERN
-void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value, NP_UNUSED char* key_to_read_for);
+void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value, NP_UNUSED char* key_to_read_for);
 NP_API_INTERN
 void np_tree_insert_special_str(np_tree_t* tree, const uint8_t key, np_treeval_t val);
 NP_API_INTERN

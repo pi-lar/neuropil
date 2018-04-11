@@ -29,6 +29,7 @@ extern "C" {
 
 	enum np_error {
 		np_ok = 0,
+		np_not_implemented,
 		np_network_error,
 		np_invalid_argument,
 		np_invalid_operation,
@@ -55,9 +56,11 @@ extern "C" {
 	// New incarnation of np_settings.h
 	struct np_settings {
 		uint32_t n_threads;
+		char log_file[256];
+		uint32_t log_level;
 		// ...
 	};
-	void np_default_settings(struct np_settings *settings);
+	struct np_settings * np_default_settings(struct np_settings **settings);
 
 	typedef void np_context;
 	np_context* np_new_context(struct np_settings *settings);

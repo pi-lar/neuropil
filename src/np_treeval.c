@@ -119,7 +119,7 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 	case np_treeval_type_jrb_tree:
 		to.type = np_treeval_type_jrb_tree;
 		to.size = from.size;
-		to.value.tree = np_tree_clone(from.value.tree);
+		to.value.tree = np_tree_clone( from.value.tree);
 		break;
 	case np_treeval_type_dhkey:
 		to.type = np_treeval_type_dhkey;
@@ -141,8 +141,7 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 		break;
 	default:
 		to.type = np_treeval_type_undefined;
-		log_msg(LOG_WARN, "unsupported copy operation for np_treeval type %hhd",
-				from.type);
+		//log_msg(LOG_WARN,"unsupported copy operation for np_treeval type %"PRIu8,from.type);
 		break;
 	}
 	return to;
@@ -218,7 +217,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
 			return val.value.s;
 			break;
 		case np_treeval_type_special_char_ptr:
-  			return (char*) _np_tree_get_special_str(val.value.ush);
+  			return (char*) _np_tree_get_special_str( val.value.ush);
 			break;
 		case np_treeval_type_char:
 		case np_treeval_type_unsigned_char:
@@ -370,7 +369,7 @@ np_treeval_t np_treeval_new_s(char *s)
 {
 	np_treeval_t j;
 	uint8_t idx = 0;
-	if (_np_tree_is_special_str(s, &idx)) {
+	if (_np_tree_is_special_str( s, &idx)) {
 		np_treeval_t k = np_treeval_new_ss(idx);
 		memcpy(&j, &k, sizeof(np_treeval_t));
 	}
@@ -711,7 +710,7 @@ uint32_t np_treeval_get_byte_size(np_treeval_t ele)
 		case np_treeval_type_jrb_tree:					byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.value.tree->byte_size; break;
 		case np_treeval_type_dhkey:						byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of dhkey*/8 * (sizeof(uint8_t) /*uint32 marker*/+ sizeof(uint32_t)/*uint32 value*/)); break;
 		case np_treeval_type_special_char_ptr:			byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of special string (1:1 replacement on target)*/ sizeof(uint8_t)/*uint8 marker*/ + sizeof(uint8_t)/*uint8 value*/); break; 
-		default:                  log_msg(LOG_ERROR, "unsupported length calculation for value / type %"PRIu8"", ele.type ); break;
+		//default:                  log_msg(LOG_ERROR, "unsupported length calculation for value / type %"PRIu8"", ele.type ); break;
 	}
 
 	return byte_size;

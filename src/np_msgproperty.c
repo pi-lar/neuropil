@@ -65,43 +65,49 @@ RB_HEAD(rbt_msgproperty, np_msgproperty_s);
 RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
 
 typedef struct rbt_msgproperty rbt_msgproperty_t;
-static rbt_msgproperty_t* __msgproperty_table;
+
+np_module_struct(msgproperties) {
+	np_state_t * context;
+	rbt_msgproperty_t* __msgproperty_table;
+};
 
 /**
  ** _np_msgproperty_init
  ** Initialize message property subsystem.
  **/
-np_bool _np_msgproperty_init ()
+np_bool _np_msgproperty_init (np_state_t* context)
 {
-	__msgproperty_table = (rbt_msgproperty_t*) malloc(sizeof(rbt_msgproperty_t));
-	CHECK_MALLOC(__msgproperty_table);
+	if (!np_module_initiated(msgproperties)) {
+		np_module_malloc(msgproperties);
+		_module->__msgproperty_table = (rbt_msgproperty_t*)malloc(sizeof(rbt_msgproperty_t));
+		CHECK_MALLOC(_module->__msgproperty_table);
 
-	if (NULL == __msgproperty_table) return FALSE;
+		if (NULL == _module->__msgproperty_table) return FALSE;
 
-	RB_INIT(__msgproperty_table);
+		RB_INIT(_module->__msgproperty_table);
 
-	// NEUROPIL_INTERN_MESSAGES
+		// NEUROPIL_INTERN_MESSAGES
 
-	np_sll_t(np_msgproperty_ptr, msgproperties);
-	msgproperties  = default_msgproperties();
-	sll_iterator(np_msgproperty_ptr) __np_internal_messages =  sll_first(msgproperties);
+		np_sll_t(np_msgproperty_ptr, msgproperties);
+		msgproperties = default_msgproperties(context);
+		sll_iterator(np_msgproperty_ptr) __np_internal_messages = sll_first(msgproperties);
 
-	while(__np_internal_messages != NULL)
-	{
-		np_msgproperty_t* property = __np_internal_messages->val;
-		property->is_internal = TRUE;
-
-		if (strlen(property->msg_subject) > 0)
+		while (__np_internal_messages != NULL)
 		{
-			log_debug_msg(LOG_DEBUG, "register handler: %s", property->msg_subject);
-			RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
+			np_msgproperty_t* property = __np_internal_messages->val;
+			property->is_internal = TRUE;
+
+			if (strlen(property->msg_subject) > 0)
+			{
+				log_debug_msg(LOG_DEBUG, "register handler: %s", property->msg_subject);
+				RB_INSERT(rbt_msgproperty, _module->__msgproperty_table, property);
+			}
+
+			sll_next(__np_internal_messages);
 		}
 
-		sll_next(__np_internal_messages);
+		sll_free(np_msgproperty_ptr, msgproperties);
 	}
-
-	sll_free(np_msgproperty_ptr, msgproperties);
-
 	return TRUE;
 }
 
@@ -119,29 +125,24 @@ void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgp
  ** registers the handler function #func# with the message type #type#,
  ** it also defines the acknowledgment requirement for this type
  **/
-np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* subject)
+np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_msg_mode_type mode_type, const char* subject)
 {
-	log_trace_msg(LOG_TRACE, "start: np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* subject){");
+	log_trace_msg(LOG_TRACE, "start: np_msgproperty_t* np_msgproperty_get(context, np_msg_mode_type mode_type, const char* subject){");
 	assert(subject != NULL);
 
 	np_msgproperty_t prop = { .msg_subject=(char*) subject, .mode_type=mode_type };
-	return RB_FIND(rbt_msgproperty, __msgproperty_table, &prop);
+	return RB_FIND(rbt_msgproperty,np_module(msgproperties)->__msgproperty_table, &prop);
 }
 
 int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2)
 {
-	log_trace_msg(LOG_TRACE, "start: int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2){");
-
 	int16_t ret = -1;
-	// TODO: check how to use bitmasks with red-black-tree efficiently
-	int16_t i = 1;
+	// TODO: check how to use bitmasks with red-black-tree efficiently	
 
-	if(prop1 == NULL || prop1->msg_subject == NULL || prop2 == NULL || prop2->msg_subject == NULL){
-		log_msg(LOG_ERROR,"Comparing properties where one is NULL");
-	}else{
-		i = strncmp(prop1->msg_subject, prop2->msg_subject, 255);
-	}
+	assert(!(prop1 == NULL || prop1->msg_subject == NULL || prop2 == NULL || prop2->msg_subject == NULL)); //"Comparing properties where one is NULL");	
 
+	int16_t i = strncmp(prop1->msg_subject, prop2->msg_subject, 255);
+	
 	if (0 != i) ret = i;
 	else if (prop1->mode_type == prop2->mode_type) ret =  (0);		// Is it the same bitmask ?
 	else if (0 < (prop1->mode_type & prop2->mode_type)) ret = (0);	// for searching: Are some test bits set ?
@@ -153,30 +154,31 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 
 void np_msgproperty_register(np_msgproperty_t* msgprops)
 {
+	np_ctx_full(msgprops);
 	log_trace_msg(LOG_TRACE, "start: void np_msgproperty_register(np_msgproperty_t* msgprops){");
 	log_debug_msg(LOG_DEBUG, "registering user property: %s", msgprops->msg_subject);
-
+	
 	np_ref_obj(np_msgproperty_t, msgprops, ref_system_msgproperty);
-	RB_INSERT(rbt_msgproperty, __msgproperty_table, msgprops);
+	RB_INSERT(rbt_msgproperty, np_module(msgproperties)->__msgproperty_table, msgprops);
 
 	np_message_intent_public_token_t* token =  _np_msgproperty_upsert_token(msgprops);
 	if ((msgprops->mode_type & OUTBOUND) == OUTBOUND) {		
 		np_aaatoken_t* old_token = _np_aaatoken_add_sender(msgprops->msg_subject, token);
 		np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
-		_np_send_subject_discovery_messages(OUTBOUND, msgprops->msg_subject);		
+		_np_send_subject_discovery_messages(context, OUTBOUND, msgprops->msg_subject);
 
 	}	
 
 	if ((msgprops->mode_type & INBOUND) == INBOUND) {		
 		np_aaatoken_t* old_token = _np_aaatoken_add_receiver(msgprops->msg_subject, token);
 		np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_receiver");
-		_np_send_subject_discovery_messages(INBOUND, msgprops->msg_subject);		
+		_np_send_subject_discovery_messages(context, INBOUND, msgprops->msg_subject);
 
 	}
 	np_unref_obj(np_aaatoken_t, token, "_np_msgproperty_upsert_token");
 }
 
-void _np_msgproperty_t_new(void* property)
+void _np_msgproperty_t_new(np_state_t *context, void* property)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_msgproperty_t_new(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
@@ -217,12 +219,12 @@ void _np_msgproperty_t_new(void* property)
 	sll_init(np_message_ptr, prop->msg_cache_in);
 	sll_init(np_message_ptr, prop->msg_cache_out);
 
-	_np_threads_mutex_init (&prop->lock,"property lock");
-	_np_threads_condition_init(&prop->msg_received);
+	_np_threads_mutex_init(context, &prop->lock,"property lock");
+	_np_threads_condition_init(context, &prop->msg_received);
 	
-	_np_threads_mutex_init(&prop->send_discovery_msgs_lock, "send_discovery_msgs_lock");
+	_np_threads_mutex_init(context, &prop->send_discovery_msgs_lock, "send_discovery_msgs_lock");
 
-	_np_threads_mutex_init(&prop->unique_uuids_lock, "unique_uuids_lock");
+	_np_threads_mutex_init(context, &prop->unique_uuids_lock, "unique_uuids_lock");
 	np_msgproperty_enable_check_for_unique_uuids(prop);
 	prop->recv_key = NULL;
 	prop->send_key = NULL;
@@ -231,12 +233,14 @@ void _np_msgproperty_t_new(void* property)
 	prop->current_receive_token = NULL;
 }
 void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self) {
+	np_ctx_full(self);
 	_LOCK_ACCESS(&self->unique_uuids_lock) {
-		np_tree_free(self->unique_uuids);
+		np_tree_free( self->unique_uuids);
 		self->unique_uuids_check = FALSE;
 	}
 }
 void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self) {
+	np_ctx_full(self);
 	_LOCK_ACCESS(&self->unique_uuids_lock){
 		self->unique_uuids = np_tree_create();
 		self->unique_uuids_check = TRUE;
@@ -245,12 +249,13 @@ void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self) {
 
 np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check)
 {
+	np_ctx_full(self);
 	np_bool ret = TRUE;
 	_LOCK_ACCESS(&self->unique_uuids_lock) {
 		if (self->unique_uuids_check) {
 
 			if (np_tree_find_str(self->unique_uuids, msg_to_check->uuid) == NULL) {
-				np_tree_insert_str(self->unique_uuids, msg_to_check->uuid, np_treeval_new_d(_np_message_get_expiery(msg_to_check)));
+				np_tree_insert_str( self->unique_uuids, msg_to_check->uuid, np_treeval_new_d(_np_message_get_expiery(msg_to_check)));
 			}
 			else {
 				ret = FALSE;
@@ -261,6 +266,7 @@ np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t*
 }
 void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_message_t* msg_to_remove)
 {	
+	np_ctx_full(self);
 	_LOCK_ACCESS(&self->unique_uuids_lock) {
 		if (self->unique_uuids_check) {
 			np_tree_del_str(self->unique_uuids, msg_to_remove->uuid);
@@ -268,14 +274,15 @@ void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_me
 	}
 }
 
-void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args) {
+void _np_msgproperty_job_msg_uniquety(np_state_t* context, np_jobargs_t* args) {
+	
 	//TODO: iter over msgproeprties and remove expired msg uuid from unique_uuids
 
 	//RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
 
 	np_msgproperty_t* iter_prop = NULL;
 	double now;
-	RB_FOREACH(iter_prop, rbt_msgproperty, __msgproperty_table)
+	RB_FOREACH(iter_prop, rbt_msgproperty, np_module(msgproperties)->__msgproperty_table)
 	{
 		_LOCK_ACCESS(&iter_prop->unique_uuids_lock) {
 			if (iter_prop->unique_uuids_check) {
@@ -306,7 +313,7 @@ void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args) {
 	}
 }
 
-void _np_msgproperty_t_del(void* property)
+void _np_msgproperty_t_del(np_state_t *context, void* property)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_msgproperty_t_del(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
@@ -347,16 +354,16 @@ void _np_msgproperty_t_del(void* property)
 
 
 	}
-	_np_threads_mutex_destroy(&prop->lock);
-	_np_threads_condition_destroy(&prop->msg_received);
-	_np_threads_mutex_destroy(&prop->send_discovery_msgs_lock);
+	_np_threads_mutex_destroy(context, &prop->lock);
+	_np_threads_condition_destroy(context, &prop->msg_received);
+	_np_threads_mutex_destroy(context, &prop->send_discovery_msgs_lock);
 
 	prop = NULL;
 }
 
 void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 {
-	log_trace_msg(LOG_TRACE, "start: void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop){");
+	np_ctx_full(send_prop);
 	// check if we are (one of the) sending node(s) of this kind of message
 	// should not return NULL
 	log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
@@ -400,19 +407,16 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 
 void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 {
-	log_trace_msg(LOG_TRACE, "start: void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop){");
+	np_ctx_full(recv_prop);
 	log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 			"this node is the receiver of messages, checking msgcache (%p / %u) ...",
 			recv_prop->msg_cache_in, sll_size(recv_prop->msg_cache_in));
-
 	// get message from cache (maybe only for one way mep ?!)
 	uint16_t msg_available = 0;
 	_LOCK_ACCESS(&recv_prop->lock)
 	{
 		msg_available = sll_size(recv_prop->msg_cache_in);
 	}
-
-	np_state_t* state = np_state();
 
 	while (0 < msg_available)
 	{
@@ -433,7 +437,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 
 		if(NULL != msg_in) {
 			_np_msgproperty_threshold_decrease(recv_prop);
-			_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in, NULL);
+			_np_job_submit_msgin_event(0.0, recv_prop, context->my_node_key, msg_in, NULL);
 			np_unref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 		}
 	}
@@ -441,7 +445,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 
 void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
-	log_trace_msg(LOG_TRACE, "start: void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in){");
+	np_ctx_full(msg_prop);
 	_LOCK_ACCESS(&msg_prop->lock)
 	{
 		// cache already full ?
@@ -484,7 +488,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 	}
 }
 void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop) {
-
+	np_ctx_full(msg_prop);
 	_LOCK_ACCESS(&msg_prop->lock)
 	{
 		sll_iterator(np_message_ptr) iter_prop_msg_cache_in = sll_first(msg_prop->msg_cache_in);
@@ -503,7 +507,7 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop) {
 }
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
-	log_trace_msg(LOG_TRACE, "start: void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in){");
+	np_ctx_full(msg_prop);
 	_LOCK_ACCESS(&msg_prop->lock)
 	{
 
@@ -552,6 +556,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 }
 
 void _np_msgproperty_threshold_increase(np_msgproperty_t* self) {
+	np_ctx_full(self);
 	TSP_SCOPE(self->msg_threshold) {
 		if(self->msg_threshold < UINT16_MAX){
 			self->msg_threshold++;
@@ -559,6 +564,7 @@ void _np_msgproperty_threshold_increase(np_msgproperty_t* self) {
 	}
 }
 void _np_msgproperty_threshold_decrease(np_msgproperty_t* self) {
+	np_ctx_full(self);
 	TSP_SCOPE(self->msg_threshold){
 		if(self->msg_threshold > 0){
 			self->msg_threshold--;
@@ -568,9 +574,9 @@ void _np_msgproperty_threshold_decrease(np_msgproperty_t* self) {
 
 
 np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t* prop) {
-
-	ASSERT(prop != NULL, "We need a msgproperty to update the token for");
-	np_message_intent_public_token_t* ret = _np_aaatoken_get_local_mx(prop->msg_subject);
+	
+	np_ctx_full(prop);
+	np_message_intent_public_token_t* ret = _np_aaatoken_get_local_mx(context, prop->msg_subject);
 
 	double now = np_time_now();
 	if (NULL == ret

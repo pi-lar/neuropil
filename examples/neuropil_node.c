@@ -55,41 +55,48 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	char log_file[256];
-	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_node", port);
-	fprintf(stdout, "logpath: %s\n", log_file);
-	np_log_init(log_file, level);
+	struct np_settings *settings = np_default_settings(NULL);
+	settings->n_threads = no_threads;
 
-	np_state_t* state = np_init(proto, port, publish_domain);
+	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_node", port);
+	fprintf(stdout, "logpath: %s\n", settings->log_file);
+	settings->log_level = level;
 
+	context = np_new_context(settings); // use default settings
+
+	
 	if (NULL != realm)
 	{
-		np_set_realm_name(realm);
-		np_enable_realm_slave();
+		np_set_realm_name(context, realm);
+		np_enable_realm_slave(context);
 		if (NULL != code)
 		{
-			np_tree_insert_str(state->my_node_key->aaa_token->extensions,
-							"passcode",
-							np_treeval_new_hash(code));
+			np_tree_insert_str(context->my_node_key->aaa_token->extensions,
+				"passcode",
+				np_treeval_new_hash(code));
 		}
 	}
-
-	log_debug_msg(LOG_DEBUG, "starting job queue");
-	np_start_job_queue(no_threads);
-
-	if (NULL != j_key)
-	{
-		fprintf(stdout, "try to join %s\n", j_key);
-		np_send_join(j_key);
-		//fprintf(stdout, "wait for join acceptance...");
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		printf("ERROR: Node could not listen");
 	}
 	else {
-		//fprintf(stdout, "wait for nodes to join...");
+
+		if (NULL != j_key)
+		{
+			fprintf(stdout, "try to join %s\n", j_key);
+			// join previous node			
+			if (np_ok != np_join(context, j_key)) {
+				printf("ERROR: Node could not join");
+			}
+		}
+
+		log_debug_msg(LOG_DEBUG, "starting job queue");
+
+		if (np_ok != np_run(context, 0.001)) {
+			printf("ERROR: Node could not run");
+		}
+		else {
+			__np_example_helper_run_info_loop();
+		}
 	}
-
-	fflush(NULL);
-	//np_waitforjoin();
-	//fprintf(stdout, "Connected\n");
-
-	__np_example_helper_run_info_loop();
 }

@@ -71,16 +71,17 @@ static pthread_mutex_t __log_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutexattr_t __log_mutex_attr;
 
 
-void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
+void _np_log_evflush(struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
 {
-	log_trace_msg(LOG_TRACE, "start: void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents){");
+	np_state_t* context = ev_userdata(loop);
+
 	if ((revents &  EV_WRITE) == EV_WRITE && (revents &  EV_ERROR) != EV_ERROR)
 	{
-		_np_log_fflush(TRUE);
+		_np_log_fflush(context, TRUE);
 	}
 }
 
-void log_rotation()
+void log_rotation(np_state_t* context)
 {
 	
 	pthread_mutex_lock(&__log_mutex);
@@ -107,7 +108,7 @@ void log_rotation()
 		// Closing old file
 		 if(__logger->log_count > 1) {
 			 log_msg(LOG_INFO, "Continuing log in file %s now.",__logger->filename);
-			_np_log_fflush(TRUE);
+			_np_log_fflush(context, TRUE);
 			 if(close(__logger->fp) != 0) {
 			fprintf(stderr,"Could not close old logfile %s. Error: %s (%d)", old_filename, strerror(errno), errno);
 			fflush(NULL);
@@ -143,14 +144,14 @@ void log_rotation()
 			 log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, __logger->log_count / LOG_ROTATE_COUNT);
 		}
 
-		_np_log_fflush(TRUE);
+		_np_log_fflush(context, TRUE);
 		free(old_filename);
 	}
 	pthread_mutex_unlock(&__log_mutex);
 	
 }
 
-void np_log_message(uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
+void np_log_message(np_state_t* context, uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
 {
 	if (__logger == NULL) {
 		return;
@@ -211,18 +212,18 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		// instant writeout
 
 		if ((level & LOG_ERROR) == LOG_ERROR) {
-			_np_log_fflush(TRUE);
+			_np_log_fflush(context, TRUE);
 		}
 #ifdef DEBUG
 		else {
-			_np_log_fflush(TRUE);
+			_np_log_fflush(context, TRUE);
 		}
 #endif // DEBUG
 		
 	}
 }
 
-void _np_log_fflush(np_bool force)
+void _np_log_fflush(np_state_t* context, np_bool force)
 {
 	//log_trace_msg(LOG_TRACE, "start: void _np_log_fflush(){");
 	char* entry = NULL;
@@ -282,7 +283,7 @@ void _np_log_fflush(np_bool force)
 			}	
 
 			if(__logger->log_rotate == TRUE)
-				log_rotation();
+				log_rotation(context);
 
 			if( bytes_witten  == strlen(entry))
 			{
@@ -297,13 +298,13 @@ void _np_log_fflush(np_bool force)
 	} while (flush_status == 0 && i <= MISC_LOG_FLUSH_MAX_ITEMS);
 }
 
-void np_log_setlevel(uint32_t level)
+void np_log_setlevel(np_state_t* context, uint32_t level)
 {
 	log_trace_msg(LOG_TRACE, "start: void np_log_setlevel(uint32_t level){");
 	__logger->level = level;
 }
 
-void np_log_init(const char* filename, uint32_t level)
+void np_log_init(np_state_t* context, const char* filename, uint32_t level)
 {
 	log_trace_msg(LOG_TRACE, "start: void np_log_init(const char* filename, uint32_t level){");
 
@@ -343,20 +344,20 @@ void np_log_init(const char* filename, uint32_t level)
 	free(parsed_filename);
 
 	sll_init(char_ptr, __logger->logentries_l);
-	log_rotation();
+	log_rotation(context);
 
 	log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", __logger, __logger->filename, __logger->level);
 }
 
-void np_log_destroy()
+void np_log_destroy(np_state_t* context)
 {
 	log_trace_msg(LOG_TRACE, "start: void np_log_destroy(){");
 	__logger->level=LOG_NONE;
 
-	EV_P = _np_event_get_loop_io();
+	EV_P = _np_event_get_loop_io(context);
 	ev_io_stop(EV_A_ &__logger->watcher);
 
-	_np_log_fflush(TRUE);
+	_np_log_fflush(context, TRUE);
 
 	close(__logger->fp);
 	free(__logger);

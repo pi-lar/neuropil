@@ -17,6 +17,7 @@
 NP_SLL_GENERATE_IMPLEMENTATION(np_responsecontainer_on_t);
 
 void _np_responsecontainer_received(np_responsecontainer_t* entry){
+	np_ctx_full(entry);
 	if (entry->received_at == 0) {
 		entry->received_at = np_time_now();
 	}
@@ -28,6 +29,7 @@ void _np_responsecontainer_received(np_responsecontainer_t* entry){
 }
 void _np_responsecontainer_received_ack(np_responsecontainer_t* entry)
 {
+	np_ctx_full(entry);
 	np_ref_obj(np_responsecontainer_t, entry);
 	_np_responsecontainer_received(entry);	
 
@@ -52,6 +54,7 @@ void _np_responsecontainer_received_ack(np_responsecontainer_t* entry)
 
 void _np_responsecontainer_set_timeout(np_responsecontainer_t* entry)
 {
+	np_ctx_full(entry);
 	// timeout
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "not acknowledged (TIMEOUT at %f)", entry->expires_at);
 	_np_node_update_stat(entry->dest_key->node, FALSE);
@@ -72,6 +75,8 @@ void _np_responsecontainer_set_timeout(np_responsecontainer_t* entry)
 
 void _np_responsecontainer_received_response(np_responsecontainer_t* entry, np_message_t* response)
 {
+	np_ctx_full(entry);
+
 	np_ref_obj(np_responsecontainer_t, entry);
 	_np_responsecontainer_received(entry);
 
@@ -95,12 +100,13 @@ void _np_responsecontainer_received_response(np_responsecontainer_t* entry, np_m
 
 np_bool _np_responsecontainer_is_fully_acked(np_responsecontainer_t* entry)
 {
+	np_ctx_full(entry);
 	TSP_GET(np_bool, entry->msg->is_acked, is_acked);
 	return is_acked;
 	// return (entry->expected_ack == entry->received_ack);
 }
 
-void _np_responsecontainer_t_new(void* obj)
+void _np_responsecontainer_t_new(np_state_t *context, void* obj)
 {
 	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_new(void* nw){");
 	np_responsecontainer_t* entry = (np_responsecontainer_t *)obj;
@@ -114,7 +120,7 @@ void _np_responsecontainer_t_new(void* obj)
 	entry->msg = NULL;
 }
 
-void _np_responsecontainer_t_del(void* obj)
+void _np_responsecontainer_t_del(np_state_t *context, void* obj)
 {
 	np_responsecontainer_t* entry = (np_responsecontainer_t *)obj;
 
@@ -123,10 +129,10 @@ void _np_responsecontainer_t_del(void* obj)
 
 }
 
-np_responsecontainer_t* _np_responsecontainers_get_by_uuid(char* uuid) {
+np_responsecontainer_t* _np_responsecontainers_get_by_uuid(np_state_t* context, char* uuid) {
 	
 	np_responsecontainer_t* ret = NULL;
-	np_waitref_obj(np_network_t, np_state()->my_node_key->network, my_network);
+	np_waitref_obj(np_network_t, context->my_node_key->network, my_network);
 	
 	/* just an acknowledgement of own messages send out earlier */
 	_LOCK_ACCESS(&my_network->waiting_lock)

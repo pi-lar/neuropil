@@ -15,6 +15,8 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <getopt.h>
+#include <sys/stat.h>
+
 
 #include <curses.h>
 #include <ncurses.h>
@@ -31,8 +33,11 @@
 #include "np_identity.h"
 #include "np_sysinfo.h"
 #include "np_log.h"
+#include "np_interface.h"
 #include "np_messagepart.h"
 #include "np_statistics.h"
+
+np_state_t* context = NULL;
 
 const float output_intervall_sec = 0.5;
 
@@ -123,12 +128,12 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mo
 		if (http_domain == NULL) {
 			http_domain = calloc(1, sizeof(char) * 255);
 			CHECK_MALLOC(http_domain);
-			if (np_get_local_ip(http_domain, 255) == FALSE) {
+			if (np_get_local_ip(context, http_domain, 255) == FALSE) {
 				free(http_domain);
 				http_domain = NULL;
 			}
 		}
-		http_init = np_http_init(http_domain);
+		http_init = np_http_init(context, http_domain);
 		if (http_init == FALSE) {
 			log_msg(LOG_WARN, "Node could not start HTTP interface");
 		}
@@ -139,16 +144,16 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mo
 			np_example_print(stdout, "HTTP interface set to %s\n", http_domain);
 			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
 			np_example_print(stdout, "Enable sysinfo master option\n");
-			np_sysinfo_enable_master();
+			np_sysinfo_enable_master(context);
 		}
 		else {
 			fprintf(stdout, "Node could not start HTTP interface\n");
 			np_example_print(stdout, "Enable sysinfo slave option\n");
-			np_sysinfo_enable_slave();
+			np_sysinfo_enable_slave(context);
 		}
 		// If you want to you can enable the statistics modulte to view the nodes statistics
-		np_statistics_add_watch(_NP_SYSINFO_REQUEST);
-		np_statistics_add_watch(_NP_SYSINFO_REPLY);
+		np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
+		np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
 
 	}
 }
@@ -174,16 +179,16 @@ char* np_get_startup_str() {
 
 	ret = np_str_concatAndFree(ret, new_line);
 	ret = np_str_concatAndFree(ret, "%s initializiation successful%s", NEUROPIL_RELEASE, new_line);
-	ret = np_str_concatAndFree(ret, "%s event loop with %d worker threads started%s", NEUROPIL_RELEASE, np_state()->thread_count, new_line);
+	ret = np_str_concatAndFree(ret, "%s event loop with %d worker threads started%s", NEUROPIL_RELEASE, context->thread_count, new_line);
 	ret = np_str_concatAndFree(ret, "your neuropil node will be addressable as:%s", new_line);	
 	ret = np_str_concatAndFree(ret, new_line);
-	char* connection_str = np_get_connection_string();
+	char* connection_str = np_get_connection_string(context);
 	ret = np_str_concatAndFree(ret, "\t%s%s", connection_str, new_line);
 	free(connection_str);
 	ret = np_str_concatAndFree(ret, new_line);
-	if(_np_key_cmp(np_state()->my_node_key, np_state()->my_identity) != 0){	
+	if(_np_key_cmp(context->my_node_key, context->my_identity) != 0){	
 		ret = np_str_concatAndFree(ret, "your neuropil id is addressable via:%s", new_line);
-		ret = np_str_concatAndFree(ret, "\t%s%s", _np_key_as_str(np_state()->my_identity), new_line);	
+		ret = np_str_concatAndFree(ret, "\t%s%s", _np_key_as_str(context->my_identity), new_line);	
 		ret = np_str_concatAndFree(ret, new_line);
 	}
 	
@@ -220,7 +225,7 @@ np_bool np_example_save_identity(char* passphrase, char* filename) {
 	np_bool  ret = FALSE;
 
 	unsigned char buffer[5000] = { 0 };
-	size_t token_size = np_identity_export_current(&buffer);
+	size_t token_size = np_identity_export_current(context, &buffer);
 
 	int tmp = 0;
 	if (!key_is_gen &&
@@ -291,7 +296,7 @@ enum np_example_load_identity_status  np_example_load_identity(char* passphrase,
 			
 			struct stat info;
 			stat(filename, &info);
-			char* crypted_data = (char *)malloc(info.st_size);
+			unsigned char* crypted_data = malloc(info.st_size);
 			fread(crypted_data, info.st_size, 1, f);
 
 			unsigned char buffer[info.st_size- crypto_secretbox_MACBYTES];
@@ -303,12 +308,12 @@ enum np_example_load_identity_status  np_example_load_identity(char* passphrase,
 				nonce,
 				key)
 			) {				
-				np_aaatoken_t* token =  np_identity_import(&buffer, sizeof buffer);				
+				np_aaatoken_t* token =  np_identity_import(context, &buffer, sizeof buffer);				
 				if (token == NULL) {
 					log_debug_msg(LOG_DEBUG, "Error deserializing aaatoken!");
 				}
 				else {
-					np_set_identity(token);
+					np_set_identity_v1(context, token);
 				}
 
 				ret = np_example_load_identity_status_success;
@@ -334,7 +339,7 @@ void np_example_save_or_load_identity() {
 			}
 			else {
 #ifdef  DEBUG
-				np_example_print(stdout, "Saved current ident (%s) to file.\n", _np_key_as_str(np_state()->my_identity));
+				np_example_print(stdout, "Saved current ident (%s) to file.\n", _np_key_as_str(context->my_identity));
 #endif //  DEBUG
 				/*
 				if (!np_example_load_identity(identity_passphrase, identity_filename)) {
@@ -347,7 +352,7 @@ void np_example_save_or_load_identity() {
 		else {
 			if (load_status == np_example_load_identity_status_success) {
 #ifdef  DEBUG
-				np_example_print(stdout, "Loaded ident(%s) from file.\n", _np_key_as_str(np_state()->my_identity));
+				np_example_print(stdout, "Loaded ident(%s) from file.\n", _np_key_as_str(context->my_identity));
 #endif
 			}else if (load_status == np_example_load_identity_status_found_but_failed) {
 				np_example_print(stdout, "Could not load from file.\n");
@@ -667,7 +672,7 @@ void __np_example_helper_loop() {
 
 	// Runs only once
 	if (started_at == 0) {		
-		np_statistics_add_watch_internals();
+		np_statistics_add_watch_internals(context);
 
 		started_at = np_time_now();
 		np_print_startup();
@@ -687,7 +692,7 @@ void __np_example_helper_loop() {
 
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
 			if (enable_statistics == 1 || enable_statistics > 2) {
-				memory_str = np_mem_printpool(FALSE, FALSE);
+				memory_str = np_mem_printpool(context, FALSE, FALSE);
 				if (memory_str != NULL) {
 					if (__np_ncurse_initiated == TRUE) {
 						mvwprintw(__np_stat_memory_win, 0, 0, "%s", memory_str);
@@ -697,7 +702,7 @@ void __np_example_helper_loop() {
 					}
 				}
 				free(memory_str);
-				memory_str = np_mem_printpool(FALSE, TRUE);
+				memory_str = np_mem_printpool(context, FALSE, TRUE);
 				if (memory_str != NULL) {
 					if (__np_ncurse_initiated == TRUE) {
 						mvwprintw(__np_stat_memory_ext, 0, 0, "%s", memory_str);
@@ -709,7 +714,7 @@ void __np_example_helper_loop() {
 				free(memory_str);
 			}
 			if (enable_statistics >= 2) {
-				memory_str = np_mem_printpool(TRUE, TRUE);
+				memory_str = np_mem_printpool(context, TRUE, TRUE);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
@@ -738,7 +743,7 @@ void __np_example_helper_loop() {
 #ifdef DEBUG
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
 			if (enable_statistics == 1 || enable_statistics > 2) {
-				memory_str = np_messagepart_printcache(FALSE);
+				memory_str = np_messagepart_printcache(context, FALSE);
 				if (memory_str != NULL) {
 					if (__np_ncurse_initiated == TRUE) {
 						mvwprintw(__np_stat_msgpartcache_win, 0, 0, "%s", memory_str);
@@ -750,7 +755,7 @@ void __np_example_helper_loop() {
 				free(memory_str);
 			}
 			if (enable_statistics >= 2) {
-				memory_str = np_messagepart_printcache(TRUE);
+				memory_str = np_messagepart_printcache(context, TRUE);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
@@ -780,7 +785,7 @@ void __np_example_helper_loop() {
 			reltime_to_str(time, sec_since_start);
 
 			if (enable_statistics == 1 || enable_statistics > 2) {
-				memory_str = np_statistics_print(FALSE);
+				memory_str = np_statistics_print(context, FALSE);
 
 				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
 					mvwprintw(__np_stat_general_win, 0, 0, "%s - BUILD IN "
@@ -799,14 +804,13 @@ void __np_example_helper_loop() {
 				free(memory_str);
 			}
 			if (enable_statistics >= 2) {
-				memory_str = np_statistics_print(TRUE);
+				memory_str = np_statistics_print(context, TRUE);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
 
 			if (__np_ncurse_initiated == TRUE && __np_stat_switchable_window == __np_stat_log) {
-			
-				
+							
 				int y = 0;
 				int displayedRows = 0;
 				sll_iterator(char_ptr) iter_log = sll_first(log_buffer);
@@ -889,7 +893,7 @@ void __np_example_helper_loop() {
 			log_user_cursor = min(max(0, log_user_cursor + 1), sll_size(log_buffer)-1);
 			break;
 		case 113: // q
-			np_destroy();
+			np_destroy(context);
 			exit(EXIT_SUCCESS);
 			break;
 		}

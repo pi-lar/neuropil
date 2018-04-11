@@ -9,7 +9,7 @@ Add-on information can be stored in a nested jtree structure. Several analogies 
 json web token, kerberos and diameter. Tokens do get integrity protected by adding an additional signature based on
 the issuers public/private key pair
 
-The structure is described here to allow users the proper use of the :c:func:`np_set_identity` function and to implement the
+The structure is described here to allow users the proper use of the :c:func:`np_set_identity_v1` function and to implement the
 AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizing_cb` and :c:func:`np_setaccounting_cb`.
 
 */
@@ -231,19 +231,19 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* token);
 NP_API_INTERN
 np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(const char* const subject, const char* const audience);
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(np_state_t* context, const char* const subject, const char* const audience);
 NP_API_INTERN
-np_aaatoken_t* _np_aaatoken_get_sender_token(const char* const subject, const np_dhkey_t* const sender_dhkey);
+np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* const subject, const np_dhkey_t* const sender_dhkey);
 
 NP_API_INTERN
 np_aaatoken_t * _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(const char* const subject, const char* const audience);
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(np_state_t* context, const char* const subject, const char* const audience);
 NP_API_INTERN
-np_aaatoken_t* _np_aaatoken_get_receiver(const char* const subject, np_dhkey_t* target);
+np_aaatoken_t* _np_aaatoken_get_receiver(np_state_t* context, const char* const subject, np_dhkey_t* target);
 
 NP_API_INTERN
-np_aaatoken_t* _np_aaatoken_get_local_mx(const char* const subject);
+np_aaatoken_t* _np_aaatoken_get_local_mx(np_state_t* context, const char* const subject);
 NP_API_INTERN
 void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
@@ -255,7 +255,7 @@ void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token);
 NP_API_INTERN
 void np_aaatoken_encode_with_secrets(np_tree_t* data, np_aaatoken_t* token);
 NP_API_INTERN
-int __np_aaatoken_generate_signature(unsigned char* hash, unsigned char* private_key, unsigned char* save_to);
+int __np_aaatoken_generate_signature(np_state_t* context, unsigned char* hash, unsigned char* private_key, unsigned char* save_to);
 NP_API_INTERN
 void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self);
 NP_API_INTERN

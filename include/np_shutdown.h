@@ -14,11 +14,11 @@
 extern "C" {
 #endif
 	NP_API_INTERN
-	void _np_shutdown_init_auto_notify_others();
+	void _np_shutdown_init_auto_notify_others(np_state_t* context);
 	NP_API_INTERN
 	void _np_shutdown_deinit();
 	NP_API_PROTEC
-	void np_shutdown_notify_others();
+	void np_shutdown_notify_others(np_state_t* context);
 
 
 #ifdef __cplusplus

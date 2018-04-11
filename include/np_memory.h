@@ -21,8 +21,8 @@ extern "C" {
 
 // macro definitions to generate header prototype definitions
 #define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE) \
-void _##TYPE##_new(void*); \
-void _##TYPE##_del(void*); \
+void _##TYPE##_new(np_state_t *context, void*); \
+void _##TYPE##_del(np_state_t *context, void*); \
 
 // macro definitions to generate implementation of prototypes
 // empty by design, forces developers to write new and delete callback functions for np_obj_* types
@@ -44,8 +44,8 @@ typedef enum np_obj_type
 	test_struct_t_e = 99
 } np_obj_enum;
 
-typedef void (*np_dealloc_t) (void* data);
-typedef void (*np_alloc_t) (void* data);
+typedef void (*np_dealloc_t) (np_state_t* context, void* data);
+typedef void (*np_alloc_t) (np_state_t* context, void* data);
 
 struct np_obj_s
 {	
@@ -144,7 +144,7 @@ struct np_obj_s
 			{																																	\
 				log_msg(LOG_ERROR, 																												\
 					"Reason switch on object (%p; t: %d) \"%s\" to \"%s\" not possible! Reason not found. (left reasons(%d): %s)",				\
-					obj, obj->type,old_reason, new_reason, obj->ref_count, _sll_char_make_flat(obj->reasons));									\
+					obj, obj->type,old_reason, new_reason, obj->ref_count, _sll_char_make_flat(context, obj->reasons));									\
 				abort();																														\
 			}																																	\
 			else {																																\
@@ -160,15 +160,15 @@ struct np_obj_s
 #define np_ref_obj(...) VFUNC(np_ref_obj, __VA_ARGS__)
 #define np_ref_obj2(TYPE, np_obj) np_ref_obj3(TYPE, np_obj, __func__)
 #define np_ref_obj3(TYPE, np_obj, reason) np_ref_obj4(TYPE, np_obj, reason,"")
-#define np_ref_obj4(TYPE, np_obj, reason, reason_desc)              																													\
+#define np_ref_obj4(TYPE, np_obj, reason, reason_desc)              																									\
 {                                             																															\
   _LOCK_MODULE(np_memory_t) {                 																															\
-	assert (((TYPE*)np_obj) != NULL);      		      																													\
+	assert (((TYPE*)np_obj) != NULL);      																																\
 	assert (((TYPE*)np_obj)->obj != NULL);             																													\
 	if (((TYPE*)np_obj)->obj->type != TYPE##_e) log_msg(LOG_ERROR,"np_obj->obj->type = %d != %d",((TYPE*)np_obj)->obj->type, TYPE##_e);									\
 	assert (((TYPE*)np_obj)->obj->type == TYPE##_e);   																													\
-	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%"PRIu32") object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count,#TYPE, ((TYPE*)np_obj)->obj->id); 					\
-	_NP_REF_REASON(reason, reason_desc, reason2)																																		\
+	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Ref_ (%"PRIu32") object of type \"%s\" on %s",((TYPE*)np_obj)->obj->ref_count,#TYPE, ((TYPE*)np_obj)->obj->id); 				\
+	_NP_REF_REASON(reason, reason_desc, reason2)																														\
 	np_mem_refobj(((TYPE*)np_obj)->obj,reason2);             																											\
   }																																										\
 }
@@ -176,7 +176,7 @@ struct np_obj_s
 #define np_tryref_obj(...) VFUNC(np_tryref_obj, __VA_ARGS__)
 #define np_tryref_obj3(TYPE, np_obj, ret) np_tryref_obj4(TYPE, np_obj, ret,__func__)
 #define np_tryref_obj4(TYPE, np_obj, ret, reason) np_tryref_obj5(TYPE, np_obj, ret, reason,"")
-#define np_tryref_obj5(TYPE, np_obj, ret, reason, reason_desc)      																													\
+#define np_tryref_obj5(TYPE, np_obj, ret, reason, reason_desc)      																									\
 	np_bool ret = FALSE;																																				\
 	_LOCK_MODULE(np_memory_t) {                 																														\
 		if(np_obj != NULL) {      		      																															\
@@ -223,12 +223,9 @@ TYPE* saveTo = NULL;																																\
 	}																																				\
 }
 
-#define CHECK_MALLOC(obj)		              																										\
-{                                             																										\
-	if(NULL == obj ) {																																\
-		log_msg(LOG_ERROR,"Could not allocate memory. Program is now in undefined state and should be shut down.");									\
-	}																																				\
-	assert(NULL != obj);                               																	\
+#define CHECK_MALLOC(obj)		              																			\
+{                                             																			\
+	assert(NULL != obj && "Could not allocate memory. Program is now in undefined state and should be shut down.");                               																	\
 }																																					\
 
 #define np_unref_obj(TYPE, np_obj, reason)                																							\
@@ -262,7 +259,7 @@ TYPE* saveTo = NULL;																																\
 	if (delete_obj == TRUE)																															\
 	{																																				\
 		if (del_callback != NULL)   																												\
-			del_callback(np_obj);    																												\
+			del_callback(context, np_obj);    																												\
 		np_memory_free(np_obj);                           																									\
 		np_obj = NULL;                          																									\
 	}																																				\
@@ -300,13 +297,12 @@ TYPE* saveTo = NULL;																																\
 #define np_new_obj4(TYPE, np_obj, reason, reason_desc)                																				\
 {                                               																									\
   _LOCK_MODULE(np_memory_t) {                   																									\
-	np_obj = np_memory_new(np_memory_types_##TYPE);											      														\
-	CHECK_MALLOC(np_obj);																															\
-	np_mem_newobj(TYPE##_e, &np_obj->obj);      																									\
+	np_obj = np_memory_new(context, np_memory_types_##TYPE);											      										\
+	np_mem_newobj(context, TYPE##_e, &np_obj->obj);      																									\
 	log_debug_msg(LOG_MEMORY | LOG_DEBUG,"Creating_ object of type \"%s\" on %s",#TYPE, np_obj->obj->id); 											\
 	np_obj->obj->new_callback = _##TYPE##_new;  																									\
 	np_obj->obj->del_callback = _##TYPE##_del;  																									\
-	np_obj->obj->new_callback(np_obj);          																									\
+	np_obj->obj->new_callback(context, np_obj);          																									\
 	np_obj->obj->ptr = np_obj;																														\
 	np_obj->obj->persistent = FALSE;			            																						\
 	_NP_REF_REASON(reason, reason_desc, reason2)																									\
@@ -342,10 +338,10 @@ TYPE* saveTo = NULL;																																\
  **
  **/
 NP_API_INTERN
-void np_mem_init();
+void np_mem_init(np_state_t* context);
 
 NP_API_EXPORT
-void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj);
+void np_mem_newobj(np_state_t* context, np_obj_enum obj_type, np_obj_t** obj);
 
 // np_free - free resources (but not object wrapper) if ref_count is <= 0
 // in case of doubt, call np_free. it will not harm ;-)
@@ -362,7 +358,7 @@ void np_mem_unrefobj(np_obj_t* obj, const char* reason);
 
 // print the complete object list and statistics
 NP_API_PROTEC
-char* np_mem_printpool(np_bool asOneLine, np_bool extended);
+char* np_mem_printpool(np_state_t* context, np_bool asOneLine, np_bool extended);
 
 #ifdef __cplusplus
 }

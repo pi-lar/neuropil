@@ -43,7 +43,7 @@ typedef struct np_obj_pool_s
 
 static np_obj_pool_t* __np_obj_pool_ptr;
 
-void np_mem_init()
+void np_mem_init(np_state_t* context)
 {
 	log_trace_msg(LOG_TRACE, "start: void np_mem_init(){");
 	__np_obj_pool_ptr = (np_obj_pool_t*) malloc(sizeof(np_obj_pool_t));
@@ -68,7 +68,7 @@ void np_mem_init()
 
 }
 
-void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
+void np_mem_newobj(np_state_t* context, np_obj_enum obj_type, np_obj_t** obj)
 {
 	log_trace_msg(LOG_TRACE | LOG_MEMORY , "start: void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj){");
 	if (NULL != __np_obj_pool_ptr->free_obj)
@@ -94,7 +94,7 @@ void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj)
 	}
 	__np_obj_pool_ptr->current->lock = calloc(1, sizeof(np_mutex_t));
 	CHECK_MALLOC(__np_obj_pool_ptr->current->lock);
-	_np_threads_mutex_init(__np_obj_pool_ptr->current->lock,"memory object lock");
+	_np_threads_mutex_init(context, __np_obj_pool_ptr->current->lock,"memory object lock");
 	__np_obj_pool_ptr->current->type = obj_type;
 	__np_obj_pool_ptr->current->ref_count = 0;
 	__np_obj_pool_ptr->current->next = NULL;
@@ -119,6 +119,7 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 		(*obj)->ref_count == 0 &&
 		(*obj)->persistent == FALSE)
 	{
+		np_ctx_full((*obj)->ptr);
 		np_obj_t* obj_tmp = NULL;
 		__np_obj_pool_ptr->current = __np_obj_pool_ptr->first;
 		while ((*obj) != __np_obj_pool_ptr->current && NULL != __np_obj_pool_ptr->current)
@@ -140,7 +141,7 @@ void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj)
 		}
 		sll_clear(char_ptr, (*obj)->reasons);
 #endif
-		_np_threads_mutex_destroy((*obj)->lock);
+		_np_threads_mutex_destroy(context, (*obj)->lock);
 		free((*obj)->lock);
 		__np_obj_pool_ptr->free_obj = (*obj);
 		__np_obj_pool_ptr->available++;
@@ -167,13 +168,12 @@ void np_mem_refobj(np_obj_t* obj, const char* reason)
 // decrease ref count
 void np_mem_unrefobj(np_obj_t* obj, const char* reason)
 {
-	log_trace_msg(LOG_TRACE, "start: void np_mem_unrefobj(np_obj_t* obj){");
-
+	np_ctx_full(obj->ptr);
 	if (obj->persistent == FALSE) {
 		//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
 		if (obj->ref_count == 0) {
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-			log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (left reasons(%"PRIu32"): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(obj->reasons));
+			log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! (left reasons(%"PRIu32"): %s)", obj, obj->type, obj->ref_count, _sll_char_make_flat(context, obj->reasons));
 #else
 			log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! left reasons(%"PRIu32")", obj, obj->type, obj->ref_count);
 #endif
@@ -196,7 +196,7 @@ void np_mem_unrefobj(np_obj_t* obj, const char* reason)
 			sll_next(iter_reason);
 		}
 		if (FALSE == foundReason) {
-			log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ", reason, obj->id, obj->type, sll_size(obj->reasons), _sll_char_make_flat(obj->reasons));
+			log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ", reason, obj->id, obj->type, sll_size(obj->reasons), _sll_char_make_flat(context, obj->reasons));
 			abort();
 		}
 #endif
@@ -204,7 +204,7 @@ void np_mem_unrefobj(np_obj_t* obj, const char* reason)
 }
 
 // print the complete object list and statistics
-char* np_mem_printpool(np_bool asOneLine, np_bool extended)
+char* np_mem_printpool(np_state_t* context, np_bool asOneLine, np_bool extended)
 {
 	log_trace_msg(LOG_TRACE, "start: void np_mem_printpool(){");
 	char* ret = NULL;

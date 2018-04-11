@@ -69,17 +69,23 @@ bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit
 	_np_obj_buffer_container_t* wrapper = ctx->buf;
 
 	size_t nextCount = wrapper->bufferCount + limit;
+	/*
 	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
 		"BUFFER CHECK Current size: %zu; Max size: %zu; Read size: %zu",
 		wrapper->bufferCount, wrapper->bufferMaxCount, limit);
+		*/
 
 	if (nextCount > wrapper->bufferMaxCount) {
+		
+		ctx->error = 14;// LENGTH_READING_ERROR
+						/*
 		log_msg(LOG_WARN,
 			"Read size exceeds buffer. May be invoked due to changed key (see: kb) Current size: %zu; Max size: %zu; Read size: %zu",
 			wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
+			*/
 	}
 	else {
-		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "memcpy %p <- %p o %p", data, wrapper->buffer, wrapper);
+		//log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "memcpy %p <- %p o %p", data, wrapper->buffer, wrapper);
 		memcpy(data, wrapper->buffer, limit);
 		wrapper->buffer += limit;
 		wrapper->bufferCount = nextCount;
@@ -96,14 +102,17 @@ bool _np_buffer_container_skipper(struct cmp_ctx_s* ctx, size_t limit)
 	_np_obj_buffer_container_t* wrapper = ctx->buf;
 
 	size_t nextCount = wrapper->bufferCount + limit;
-	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
+	/*log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
 		"BUFFER CHECK Current size: %zu; Max size: %zu; Skip size: %zu",
 		wrapper->bufferCount, wrapper->bufferMaxCount, limit);
-
-	if (nextCount > wrapper->bufferMaxCount) {
+		*/
+	if (nextCount > wrapper->bufferMaxCount) {		
+		ctx->error = 14;// LENGTH_READING_ERROR
+						/*
 		log_msg(LOG_WARN,
 			"Read size exceeds buffer. May be invoked due to changed key (see: kb) Current size: %zu; Max size: %zu; Skip size: %zu",
 			wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
+			*/
 	}
 	else {		
 		wrapper->buffer += limit;
@@ -119,16 +128,23 @@ size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size
 	_np_obj_buffer_container_t* wrapper = ctx->buf;
 
 	size_t nextCount = wrapper->bufferCount + count;
-	log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
+	/*log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
 		"BUFFER CHECK Current size: %zu; Max size: %zu; Read size: %zu",
 		wrapper->bufferCount, wrapper->bufferMaxCount, count);
-
+		*/
 	if (nextCount > wrapper->bufferMaxCount) {
-		log_msg(LOG_WARN,
+
+		count = 0;
+		ctx->error = 15;// LENGTH_WRITING_ERROR
+		/*
+		log_debug_msg(LOG_WARN,
 			"Write size exceeds buffer. Current size: %zu; Max size: %zu; Read size: %zu",
 			wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
+			*/
 	}
-	memcpy(wrapper->buffer, data, count);
-	wrapper->buffer += count;
+	else {
+		memcpy(wrapper->buffer, data, count);
+		wrapper->buffer += count;
+	}
 	return count;
 }
