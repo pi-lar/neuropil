@@ -339,8 +339,8 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 								"incorrect encryption of message (%s) (not sending to %s:%s)",
 								msg->uuid, target_node->dns_name, target_node->port);
 							np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
-
 							ret = FALSE;
+
 						} else {
 							unsigned char* enc_buffer = np_memory_new(np_memory_types_BLOB_1024);
 							
@@ -361,13 +361,11 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 										log_debug_msg(LOG_NETWORK | LOG_DEBUG, "msg (%s) cannot be send (now) as network is not running", msg->uuid);
 									}
 #endif
-								}
-								else {
+								} else {
 									ret = FALSE;
 									np_memory_free(enc_buffer);
 								}
 							}
-
 						}
 
 						np_unref_obj(np_messagepart_t, iter->val, "np_tryref_obj_iter->val");
@@ -383,6 +381,7 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 	} else {
 		log_debug_msg(LOG_WARN, "network and handshake status of target is unclear (key: %s)", _np_key_as_str(node_key));
 	}
+
 	if (ret) {
 		_np_message_trace_info("out", msg);
 	}
@@ -392,20 +391,20 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents)
 {
 	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event, int revents){");
+	np_waitref_obj(np_key_t, event->data, key);
+	np_waitref_obj(np_network_t, key->network, key_network);
+
 	if (FLAG_CMP(revents , EV_WRITE ) && FLAG_CMP(revents, EV_ERROR) == FALSE)
 	{
-		np_waitref_obj(np_key_t, event->data, key);
-		np_waitref_obj(np_network_t, key->network, key_network);		
-
 		_LOCK_ACCESS(&key_network->out_events_lock)
 		{
 			if (key_network->out_events != NULL)
 			{
 				/*
-					a) Wenn daten vorhanden sind versuche diese wegzusenden bis
-						a.1) ein timeout erreicht ist
-						a.2) der retry für das datenpaket erreicht ist
-						a.3) das gesamte datenpaket verschickt wurde 
+					a) if a data packet is available, try to send it until
+						a.1) timeout has been reached
+						a.2) the retry for a paket has been reached
+						a.3) the whole paket has been send
 				*/
 				void* data_to_send = NULL;
 				int data_counter = 0;
@@ -444,19 +443,8 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 						np_memory_free(data_to_send);
 					}
 				} while (written_per_data > 0 && data_counter++ < NP_NETWORK_MAX_MSGS_PER_SCAN && np_time_now() < timeout);
-			 
-
-
-				if(sll_size(key_network->out_events) <=0 ){
-					// only stops the network if outgoing queue size is zero - leads to loosing out events :-(
-					// TODO: place it somewhere else ?
-					_np_network_stop(key_network, FALSE);
-				}
 			}
 		}
-
-		np_unref_obj(np_key_t, key, __func__);
-		np_unref_obj(np_network_t,  key_network, __func__);
 	}
 	/*
 	else if (EV_READ == (revents & EV_READ))
@@ -467,6 +455,12 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	{
 		log_debug_msg(LOG_DEBUG, "should never happen");
 	}*/
+
+	// will only stop if queue is empty and a specific time has been lapsed
+	_np_network_stop(key_network, FALSE);
+
+	np_unref_obj(np_key_t, key, __func__);
+	np_unref_obj(np_network_t,  key_network, __func__);
 }
 
 void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int revents)
@@ -793,7 +787,7 @@ void _np_network_stop(np_network_t* network, np_bool force) {
 			_LOCK_ACCESS(&network->access_lock) {
 
 				double last_send_diff = np_time_now() - network->last_send_date;
-				if ( (network->is_running == TRUE && last_send_diff >= NP_PI/500   ) &&
+				if ( (network->is_running == TRUE && last_send_diff >= NP_PI/100   ) &&
 					 (force == TRUE || 0 == sll_size(network->out_events)) )
 				{
 					EV_P;
