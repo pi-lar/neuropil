@@ -1034,11 +1034,14 @@ np_aaatoken_t* _np_aaatoken_get_receiver(const char* const subject, np_dhkey_t* 
 
 	_LOCK_ACCESS(&subject_key->recv_property->lock)
 	{
+
+#ifdef DEBUG
 		if(NULL != target) {
 			char targetnode_str[65];
 			_np_dhkey_to_str(target, targetnode_str);
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "searching token for %s ", targetnode_str);
 		}
+#endif
 
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
 		while (NULL != iter &&

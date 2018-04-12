@@ -294,7 +294,7 @@ void _np_job_submit_route_event(double delay, np_msgproperty_t* prop, np_key_t* 
 	}
 }
 
-np_bool __np_job_submit_msgin_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, char* tmp)
+np_bool __np_job_submit_msgin_event(double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, const char* tmp)
 {
 	// could be NULL if msg is not defined in this node
 	// assert(NULL != prop);
@@ -302,6 +302,7 @@ np_bool __np_job_submit_msgin_event(double delay, np_msgproperty_t* prop, np_key
 	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(msg, key, prop, tmp);
 	jargs->custom_data = custom_data;
+
 	if (msg != NULL && prop != NULL) {
 		if (msg->msg_property != NULL) {
 			np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);

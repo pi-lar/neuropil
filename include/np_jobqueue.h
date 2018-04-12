@@ -55,7 +55,7 @@ NP_API_INTERN
 
 #define _np_job_submit_msgin_event(delay, prop, key, msg, custom_data) __np_job_submit_msgin_event(delay, prop, key, msg, custom_data, __func__)
 NP_API_INTERN
-	np_bool __np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, char* tmp);
+	np_bool __np_job_submit_msgin_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, const char* tmp);
 
 NP_API_INTERN
 	void _np_job_submit_route_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
