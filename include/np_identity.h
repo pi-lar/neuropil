@@ -16,10 +16,13 @@ extern "C" {
 NP_API_EXPORT
 size_t np_identity_export_current(void* buffer);
 NP_API_EXPORT
+char* np_identity_fingerprint_current();
+NP_API_EXPORT
 size_t np_identity_export(np_aaatoken_t* token, void* buffer);
 NP_API_EXPORT
+char* np_identity_fingerprint(np_aaatoken_t* token);
+NP_API_EXPORT
 np_aaatoken_t* np_identity_import(void* buffer, size_t size);
-
 
 #ifdef __cplusplus
 }

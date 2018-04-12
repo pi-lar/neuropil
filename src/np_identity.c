@@ -27,6 +27,17 @@ size_t np_identity_export_current(void* buffer) {
 	return ret;
 }
 
+char* np_identity_fingerprint_current() {
+	char* fp_str = malloc(64);
+	memset(fp_str, 0, 64);
+	if( np_state()->my_identity != NULL &&
+		np_state()->my_identity->aaa_token != NULL) {
+		np_dhkey_t fp_dhkey = np_aaatoken_get_fingerprint(np_state()->my_identity);
+		_np_dhkey_to_str(&fp_dhkey, fp_str);
+	}
+	return (fp_str);
+}
+
 size_t np_identity_export(np_aaatoken_t* token, void* buffer) {
 	np_tree_t* serialization_tree = np_tree_create();
 
@@ -44,6 +55,13 @@ size_t np_identity_export(np_aaatoken_t* token, void* buffer) {
 	np_tree_serialize(serialization_tree, &cmp);
 
 	return serialization_tree->byte_size;
+}
+
+char* np_identity_fingerprint(np_aaatoken_t* token) {
+	char* fp_str = malloc(64);
+	np_dhkey_t fp_dhkey = np_aaatoken_get_fingerprint(token);
+	_np_dhkey_to_str(&fp_dhkey, fp_str);
+	return (fp_str);
 }
 
 np_aaatoken_t* np_identity_import(void* buffer, size_t size) {
@@ -67,3 +85,4 @@ np_aaatoken_t* np_identity_import(void* buffer, size_t size) {
 
 	return ret;
 }
+
