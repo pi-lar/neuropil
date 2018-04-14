@@ -297,13 +297,12 @@ double _np_message_get_expiery(const np_message_t* const self) {
 	double tstamp = msg_tstamp.value.d;
 
 	if (tstamp > now) {
-		// timestap of msg is in the future.
-		// this is not possible and may indecate
+		// timestamp of msg is in the future.
+		// this is not possible and may indicate
 		// a faulty date/time setup on the client
 		log_msg(LOG_WARN, "Detected faulty timestamp for message. Setting to now. (timestamp: %f, now: %f, diff: %f sec)", tstamp, now, tstamp - now);
 		msg_tstamp.value.d = tstamp = now;
 	}
-
 	ret = (tstamp + msg_ttl.value.d);	
 
 __np_cleanup__:

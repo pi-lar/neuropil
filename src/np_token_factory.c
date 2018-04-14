@@ -199,7 +199,7 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 	np_tree_replace_str(ret->extensions, "max_threshold",
 		np_treeval_new_ui(msg_request->max_threshold));
 	np_tree_replace_str(ret->extensions, "msg_threshold",
-		np_treeval_new_ui(0));//TODO: correct?@Stephan msg_request->msg_threshold));
+		np_treeval_new_ui(0)); //TODO: correct ?
 
 	// TODO: insert value based on msg properties / respect (sticky) reply
 	np_tree_replace_str(ret->extensions,  "target_node",

@@ -48,10 +48,6 @@
 #include "np_responsecontainer.h"
 
 // TODO: make these configurable (via struct np_config)
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- */
-
 
 /**
  ** np_route:

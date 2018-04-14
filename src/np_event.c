@@ -72,10 +72,12 @@ void _np_events_idle(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher
 	ev_set_timeout_collect_interval(__loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);				\
 	ev_async_init(&__libev_async_watcher_##LOOPNAME, _np_events_async_break);						\
 	ev_async_start(__loop_##LOOPNAME, &__libev_async_watcher_##LOOPNAME);							\
-    /*ev_idle_init(&__loop_##LOOPNAME##_idle_watcher, _np_events_idle); 							\
-    ev_idle_start(__loop_##LOOPNAME, &__loop_##LOOPNAME##_idle_watcher); 							*/\
 	ev_verify(__loop_##LOOPNAME);																	\
 
+/*
+    ev_idle_init(&__loop_##LOOPNAME##_idle_watcher, _np_events_idle); 							    \
+    ev_idle_start(__loop_##LOOPNAME, &__loop_##LOOPNAME##_idle_watcher); 							\
+*/
 
 #define __NP_EVENT_LOOP_FNs(LOOPNAME)																\
 	void _np_events_read_##LOOPNAME (NP_UNUSED np_jobargs_t* args)									\

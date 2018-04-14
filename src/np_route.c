@@ -841,10 +841,8 @@ uint32_t _np_route_my_key_count_neighbours(uint32_t* left, uint32_t* right) {
 		l = sll_size(__routing_table->left_leafset), 
 		r = sll_size(__routing_table->right_leafset);
 
-	if(left != NULL)
-	*left = l;
-	if (right!= NULL)
-	*right = r;
+	if (left != NULL) *left = l;
+	if (right!= NULL) *right = r;
 
 	return l + r;
 }

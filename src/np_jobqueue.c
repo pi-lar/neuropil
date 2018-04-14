@@ -490,7 +490,8 @@ int8_t __np_jobqueue_find_job_by_priority(np_job_ptr const a, np_job_ptr const s
 
 	int8_t ret = a->exec_not_before_tstamp < search_key->search_max_exec_not_before_tstamp ? -1 : 1;
 
-	if (search_key->search_max_priority >= a->priority && a->priority >= search_key->search_min_priority)
+	if (search_key->search_max_priority >= a->priority &&
+		search_key->search_min_priority < a->priority   )
 		ret = 0;
 
 	return ret;
