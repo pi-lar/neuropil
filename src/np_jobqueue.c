@@ -188,7 +188,7 @@ np_bool _np_job_queue_insert(np_job_t* new_job)
 		// do not add job items that would overflow internal queue size
 		double overflow_count = pll_size(__np_job_queue->job_list) + 1.0 - JOBQUEUE_MAX_SIZE;
 		if (overflow_count > 0 && FALSE == new_job->is_periodic) {
-			log_msg(LOG_WARN, "Discarding new job(s). Increase JOBQUEUE_MAX_SIZE to prevent missing data.");
+			log_msg(LOG_WARN, "Discarding new job(s). Increase JOBQUEUE_MAX_SIZE to prevent missing data");
 		} else {
 			// log_debug_msg(LOG_DEBUG, "insert  worker thread (%p) to job (%p) %s", NULL, new_job, new_job->ident);
 			pll_insert(np_job_ptr, __np_job_queue->job_list, new_job, TRUE, _np_job_compare_job_scheduling);
@@ -559,9 +559,12 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 		{	// wait for time x to be unlocked again
 			_LOCK_MODULE(np_jobqueue_t)
 			{
-				struct timeval tv_sleep = dtotv(np_time_now() + MAX(NP_PI/1000, sleep));
-				struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec = tv_sleep.tv_usec * 1000 };
-				_np_threads_module_condition_timedwait(&__cond_job_queue, np_jobqueue_t_lock, &waittime);
+				if (pll_size(__np_job_queue->job_list) < NP_PI*10) {
+					// only sleep when there is not much to do (around a dozen periodic jobs could be ok)
+					struct timeval tv_sleep = dtotv(np_time_now() + MAX(NP_PI/1000, sleep));
+					struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec = tv_sleep.tv_usec * 1000 };
+					_np_threads_module_condition_timedwait(&__cond_job_queue, np_jobqueue_t_lock, &waittime);
+				}
 			}
 
 			_LOCK_ACCESS(&__np_job_queue->available_workers_lock)
@@ -618,8 +621,8 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 		}
 	}
 #endif
-	// do not process if the target is not available anymore (but do process if no target is required at all)
 
+	// do not process if the target is not available anymore (but do process if no target is required at all)
 	np_bool exec_funcs = TRUE;
 	if (job_to_execute->args != NULL && job_to_execute->args->target != NULL) {
 		TSP_GET(np_bool, job_to_execute->args->target->in_destroy, in_destroy);
@@ -637,9 +640,8 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 #endif
 
 		sll_iterator(np_callback_t) iter = sll_first((job_to_execute->processorFuncs));
-		
 		while (iter != NULL)
-		{			
+		{
 			iter->val(job_to_execute->args);
 			sll_next(iter);
 		}
@@ -661,6 +663,7 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 
 		if (!_np_job_queue_insert(job_to_execute)) {
 			_np_job_free(job_to_execute);
+			abort();
 		}
 	}
 	else {
