@@ -831,18 +831,18 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	_np_threads_mutex_init(state->threads_lock, "state->threads_lock ");
 	sll_init(np_thread_ptr, state->threads);
 
-	np_thread_t * new_main_thread;
+/*	np_thread_t * new_main_thread;
 	np_new_obj(np_thread_t, new_main_thread);
-	new_main_thread->id = (unsigned long)getpid();
+	new_main_thread->id = (unsigned long) getpid();
 	new_main_thread->thread_type = np_thread_type_main;
 	sll_append(np_thread_ptr, state->threads, new_main_thread);
-	state->thread_count = 1;
+*/
+	state->thread_count = 0;
 
 	__global_state = state;
 
 	// splay tree initializing
 	_np_keycache_init();
-
 
 	//
 	// TODO: read my own identity from file, if a e.g. a password is given
@@ -1029,7 +1029,7 @@ char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char*
 	return connection_str;
 }
 
-np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* subject) {
+np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* subject) {
 	log_trace_msg(LOG_TRACE, "start: void _np_send_simple_invoke_request(np_key_t* target, const char* subject) {");
 
 	np_state_t* state = np_state();
@@ -1050,7 +1050,7 @@ np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* su
 	np_new_obj(np_message_t, msg_out, __func__);
 	_np_message_create(msg_out, target->dhkey, state->my_node_key->dhkey, subject, jrb_data);
 
-	log_debug_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(target));
+	log_debug_msg(LOG_DEBUG, "submitting request to target key %s", _np_key_as_str(target));
 	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, subject);
 	_np_job_submit_msgout_event(0.0, prop, target, msg_out);	
 
@@ -1065,11 +1065,12 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 
 	np_unref_obj(np_message_t, msg, "_np_send_simple_invoke_request_msg");
 }
+
 /**
-* Sends a JOIN request to the given node string.
-* Please see @np_get_connection_string() for the node_string definition
-* @param node_string
-*/
+ * Sends a JOIN request to the given node string.
+ * Please see @np_get_connection_string() for the node_string definition
+ * @param node_string
+ */
 void np_send_join(const char* node_string)
 {
 	log_trace_msg(LOG_TRACE, "start: void np_send_join(const char* node_string){");
@@ -1106,25 +1107,29 @@ void _np_send_ack(const np_message_t* const msg_to_ack)
 	CHECK_STR_FIELD(msg_to_ack->header, _NP_MSG_HEADER_FROM, ack_to);
 	np_dhkey_t ack_dhkey = ack_to.value.dhkey;
 
-	// extract data from incoming message
-	np_tree_elem_t* tmp;
-	if ((tmp = np_tree_find_str(msg_to_ack->instructions, _NP_MSG_INST_SEQ)) != NULL)
-		seq = tmp->val.value.ul;
+	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
 
 	// create new ack message & handlers
 	np_message_t* ack_msg = NULL;
 	np_new_obj(np_message_t, ack_msg);
 
-	np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, _NP_MSG_ACK);
-
 	_np_message_create(ack_msg, ack_dhkey, state->my_node_key->dhkey, _NP_MSG_ACK, NULL);
 	np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_to_ack->uuid));
-	np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
 
 	// send the ack out
-	_np_job_submit_route_event(0.0, prop, NULL, ack_msg);
-
-	log_debug_msg(LOG_DEBUG, "ACK_HANDLING send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
+	np_key_t* direct_ack_target = _np_keycache_find(ack_dhkey);
+	if (direct_ack_target != NULL &&
+		direct_ack_target->node != NULL &&
+		direct_ack_target->node->joined_network == TRUE)
+	{   // direct ack possible without involvement of the routing table
+		_np_job_submit_msgout_event(0.0, prop, direct_ack_target, ack_msg);
+		np_unref_obj(np_key_t, direct_ack_target, "_np_keycache_find");
+		log_msg(LOG_INFO, "ACK_HANDLING direct send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
+	} else {
+		// no direct connection possible, route through the dht
+		_np_job_submit_route_event(0.0, prop, NULL, ack_msg);
+		log_msg(LOG_INFO, "ACK_HANDLING route  send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
+	}
 
 	np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
 	return;
@@ -1132,6 +1137,7 @@ void _np_send_ack(const np_message_t* const msg_to_ack)
 	__np_cleanup__:
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACK target missing");
 }
+
 /**
 * Takes a node connection string and tries to connect to any node available on the other end.
 * node_string should not contain a hash value (nor the trailing: character).
@@ -1166,7 +1172,6 @@ void np_send_wildcard_join(const char* node_string)
 	np_route_set_bootstrap_key(wildcard_node_key);
 	np_unref_obj(np_key_t, wildcard_node_key, "_np_node_decode_from_str");
 }
-
 
 np_bool np_has_receiver_for(char * subject) {
 	np_bool ret = FALSE;
