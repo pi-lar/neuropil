@@ -112,7 +112,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__join_ack->mode_type = INBOUND | OUTBOUND | ROUTE;
 	__join_ack->mep_type = ONE_WAY;
 	__join_ack->priority = 0;
-	__join_ack->ack_mode = ACK_CLIENT;
+	__join_ack->ack_mode = ACK_NONE;
 	__join_ack->retry = 5;
 	sll_append(np_callback_t, __join_ack->clb_inbound, _np_in_join_ack);
 	//default: sll_append(np_callback_t, __join_ack->clb_outbound, _np_out);

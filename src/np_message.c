@@ -222,7 +222,6 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 				log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
 						"message (%s) %p / %p / %p", msg_uuid, msg_in_cache, msg_in_cache->msg_chunks, to_add);
 
-
 				uint32_t current_count_of_chunks = 0;
 				_LOCK_ACCESS(&msg_in_cache->msg_chunks_lock)
 				{
@@ -320,8 +319,9 @@ np_bool _np_message_is_expired(const np_message_t* const self)
 	CHECK_STR_FIELD(self->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
 	double tstamp = msg_tstamp.value.d;
 #endif
+
 	double remaining_ttl = _np_message_get_expiery(self) - now;
-	ret = remaining_ttl <= 0;
+	ret = (remaining_ttl <= 0);
 
 	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f", self->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
 
@@ -662,12 +662,12 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 
 			cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
 
-			uint32_t array_size;
+			uint32_t array_size = 0;
 
 			if (!cmp_read_array(&cmp, &array_size))
 			{
 				log_msg(LOG_WARN, "unrecognized first array element while deserializing message. error: %"PRIu8, cmp.error);											
-			}else{
+			} else {
 
 				if (array_size != 5)
 				{

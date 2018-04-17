@@ -20,7 +20,6 @@ void _np_responsecontainer_received(np_responsecontainer_t* entry){
 	if (entry->received_at == 0) {
 		entry->received_at = np_time_now();
 	}
-	// entry->received_ack++;
 
 	double latency = (entry->received_at - entry->send_at) / 2;
 	_np_node_update_latency(entry->dest_key->node, latency);

@@ -56,7 +56,7 @@ void _np_sysinfo_init_cache()
 		}
 	}
 }
-uint32_t test = 0;
+
 void _np_sysinfo_slave_send_cb(NP_UNUSED np_jobargs_t* args) {	
 
 	if(np_has_receiver_for(_NP_SYSINFO_REPLY)) {
@@ -79,7 +79,6 @@ void _np_sysinfo_slave_send_cb(NP_UNUSED np_jobargs_t* args) {
 	else {
 		log_debug_msg(LOG_DEBUG| LOG_SYSINFO, "no receiver token for \""_NP_SYSINFO_REPLY"\"");
 	}
-
 }
 
 void np_sysinfo_enable_slave() {
@@ -172,7 +171,6 @@ void np_sysinfo_enable_master() {
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
 	sysinfo_response_props->max_threshold = 32/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC);
 	
-
 	np_msgproperty_register(sysinfo_response_props);
 	//np_msgproperty_register(sysinfo_request_props);
 	
@@ -518,7 +516,6 @@ void _np_sysinfo_request_others() {
 	sll_free(np_key_ptr, neighbours_table);
 	np_unref_obj(np_key_t, my_node_key, "usage");
 }
-
 
 np_tree_t* np_sysinfo_get_all() {
 	log_trace_msg(LOG_TRACE, "start: void _np_sysinfo_request_others() {");

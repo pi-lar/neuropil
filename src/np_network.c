@@ -655,7 +655,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 				last_recv_result = recvfrom(ng->socket, data + in_msg_len,
 					MSG_CHUNK_SIZE_1024 - in_msg_len, 0, (struct sockaddr*) &from, &fromlen);
 			}
-			
+
 			in_msg_len += last_recv_result;
 			if (last_recv_result < 0) {
 				break;
@@ -713,7 +713,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 
 			if (in_msg_len != MSG_CHUNK_SIZE_1024 && in_msg_len != (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40 ))
 			{
-				log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%"PRIi16")", in_msg_len);
+				log_msg(LOG_NETWORK |LOG_WARN, "received wrong message size (%"PRIi16")", in_msg_len);
 				// job_submit_event(state->jobq, 0.0, _np_network_read);
 				np_memory_free(data);
 				continue;

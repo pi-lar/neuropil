@@ -170,7 +170,6 @@ void _np_key_destroy(np_key_t* to_destroy) {
 	}
 }
 
-
 void _np_key_t_new(void* key)
 {
 	log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
@@ -389,7 +388,6 @@ np_key_t* _np_key_get_by_key_hash(char* targetDhkey)
 	}
 	return target;
 }
-
 
 void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop) {
 	np_ref_switch(np_msgproperty_t, self->recv_property, ref_key_recv_property, prop);

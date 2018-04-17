@@ -53,11 +53,11 @@ void _np_events_idle(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher
 
 #define __NP_EVENT_EVLOOP_STRUCTS(LOOPNAME)															\
 	static struct ev_loop * __loop_##LOOPNAME = NULL;												\
-	static ev_idle __loop_##LOOPNAME##_idle_watcher;												\
 	static np_mutex_t __loop_##LOOPNAME##_suspend;													\
 	STATIC_TSP(double, __loop_##LOOPNAME##_suspend_wait);											\
 	STATIC_TSP(ev_async, __libev_async_watcher_##LOOPNAME);
 
+// static ev_idle __loop_##LOOPNAME##_idle_watcher;												\
 
 #define __NP_EVENT_EVLOOP_INIT(LOOPNAME)															\
 	TSP_INITD(__loop_##LOOPNAME##_suspend_wait, 0);													\
