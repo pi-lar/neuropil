@@ -425,9 +425,9 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 						if (!_np_responsecontainer_is_fully_acked(responsecontainer)) {
 
 							_np_responsecontainer_set_timeout(responsecontainer);
-							log_msg(LOG_WARN, "ACK_HANDLING timeout (table size: %3d) message (%s) not acknowledged (IN TIME %f/%f)",
+							log_msg(LOG_WARN, "ACK_HANDLING timeout (table size: %3d) message (%s / %s) not acknowledged (IN TIME %f/%f)",
 								ng->waiting->size,
-								jrb_ack_node->key.value.s,
+								jrb_ack_node->key.value.s,  responsecontainer->msg->msg_property->msg_subject,
 								np_time_now(), responsecontainer->expires_at
 							);
 						}
@@ -560,7 +560,7 @@ void _np_send_rowinfo_jobexec(np_jobargs_t* args)
 
 	sll_of_keys = _np_route_row_lookup(target_key);
 	char* source_sll_of_keys = "_np_route_row_lookup";
-	if (sll_size(sll_of_keys) <= 1)
+	if (sll_size(sll_of_keys) <= 2)
 	{
 		// nothing found, send leafset to exchange some data at least
 		// prevents small clusters from not exchanging all data
