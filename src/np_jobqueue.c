@@ -79,6 +79,7 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_
 	new_job->is_periodic = FALSE;
 	new_job->processorFuncs = callbacks;
 
+
 #ifdef DEBUG
 	memset(new_job->ident, 0, 255);
 	if (new_job->args != NULL && new_job->args->properties != NULL)
@@ -221,7 +222,7 @@ np_bool _np_job_queue_insert(np_job_t* new_job)
 
 void _np_jobqueue_check() {
 	_np_threads_condition_signal(&__cond_job_queue);
-	//_np_threads_condition_broadcast(&__cond_job_queue);
+	// _np_threads_condition_broadcast(&__cond_job_queue);
 }
 
 /** (re-)submit message event
@@ -453,35 +454,40 @@ void* __np_jobqueue_run_jobs(void* np_thread_ptr_self)
 	double now;
 
 	np_bool run_next_job = FALSE;
-	np_job_ptr next_job = NULL;
 
 	while (1) {
 
+		sleep_time = NP_JOBQUEUE_MAX_SLEEPTIME_SEC;
+		run_next_job = FALSE;
+
 		_LOCK_MODULE(np_jobqueue_t)
 		{
-			now = np_time_now();
-			sleep_time = NP_JOBQUEUE_MAX_SLEEPTIME_SEC;
-			run_next_job = FALSE;
-
 			pll_iterator(np_job_ptr) iter_jobs = pll_first(__np_job_queue->job_list);
-			np_job_ptr next_job = iter_jobs->val;
-			// check time of job
-			if (now <= next_job->exec_not_before_tstamp) {
-				sleep_time = min(sleep_time, next_job->exec_not_before_tstamp - now);
-			} else {
-				pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, __np_job_cmp);
-				target->job = next_job;
-				run_next_job = TRUE;
+			if (iter_jobs != NULL) {
+				np_job_ptr next_job = iter_jobs->val;
+				// check time of job
+				now = np_time_now();
+				if (now <= next_job->exec_not_before_tstamp) {
+					sleep_time = min(sleep_time, next_job->exec_not_before_tstamp - now);
+				} else {
+					target->job = pll_head(np_job_ptr, __np_job_queue->job_list);
+					run_next_job = TRUE;
+				}
 			}
 		}
 
 		if (run_next_job == TRUE) {
-			__np_jobqueue_run_once(next_job);
+			__np_jobqueue_run_once(target->job);
+			target->job = NULL;
 		} else {
-			struct timeval tv_sleep = dtotv(now + sleep_time);
-			struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
+			_LOCK_MODULE(np_jobqueue_t) {
+				sleep_time = max(sleep_time, NP_SLEEP_MIN);
+				now = np_time_now();
+				struct timeval tv_sleep = dtotv(now + sleep_time);
+				struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
 
-			_np_threads_module_condition_timedwait(&__cond_job_queue, np_jobqueue_t_lock, &waittime);
+				_np_threads_module_condition_timedwait(&__cond_job_queue, np_jobqueue_t_lock, &waittime);
+			}
 		}
 	}
 }
@@ -560,7 +566,7 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 			_LOCK_MODULE(np_jobqueue_t)
 			{
 				if (pll_size(__np_job_queue->job_list) < NP_PI*10) {
-					// only sleep when there is not much to do (around a dozen periodic jobs could be ok)
+					// only sleep if there is not much to do (around a dozen periodic jobs could be ok)
 					struct timeval tv_sleep = dtotv(np_time_now() + MAX(NP_PI/1000, sleep));
 					struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec = tv_sleep.tv_usec * 1000 };
 					_np_threads_module_condition_timedwait(&__cond_job_queue, np_jobqueue_t_lock, &waittime);
@@ -655,11 +661,15 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 	}
 
 	if (job_to_execute->args != NULL && job_to_execute->args->msg != NULL) {
-		log_debug_msg(LOG_JOBS | LOG_DEBUG, "completed handeling function for msg %s for %s", job_to_execute->args->msg->uuid, _np_message_get_subject(job_to_execute->args->msg));
+		log_debug_msg(LOG_JOBS | LOG_DEBUG, "completed handling function for msg %s for %s", job_to_execute->args->msg->uuid, _np_message_get_subject(job_to_execute->args->msg));
 	}	
 
 	if (job_to_execute->is_periodic == TRUE) {
-		job_to_execute->exec_not_before_tstamp = np_time_now() + job_to_execute->interval;
+
+		job_to_execute->exec_not_before_tstamp += job_to_execute->interval;
+		double now = np_time_now();
+		if (job_to_execute->exec_not_before_tstamp < now)
+			job_to_execute->exec_not_before_tstamp = now;
 
 		if (!_np_job_queue_insert(job_to_execute)) {
 			_np_job_free(job_to_execute);
@@ -706,7 +716,6 @@ void* __np_jobqueue_run_worker(void* np_thread_ptr)
 			__np_jobqueue_run_once(my_thread->job);
 			my_thread->job = NULL;
 		}
-
 	}
 	return (NULL);
 }
