@@ -18,7 +18,7 @@
 #include "np_util.h"
 #include "np_tree.h"
 
-np_treeval_t np_treeval_NULL = { .type = np_treeval_type_undefined, .size=0 };
+// np_treeval_t np_treeval_NULL = { .type = np_treeval_type_undefined, .size=0 };
 
 np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
     log_trace_msg(LOG_TRACE, "start: np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {");
