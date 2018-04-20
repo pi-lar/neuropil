@@ -102,21 +102,21 @@ np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs, double priority_
 
 	return (new_job);
 }
-int8_t _np_job_compare_job_scheduling(np_job_ptr job1, np_job_ptr job2)
+int8_t _np_job_compare_job_scheduling(np_job_ptr job1, np_job_ptr new_job)
 {
 	log_trace_msg(LOG_TRACE, "start: int8_t _np_job_compare_job_tstamp(np_job_ptr job1, np_job_ptr job2){");
 
 	int8_t ret = 0;	
-	if (job1->exec_not_before_tstamp > job2->exec_not_before_tstamp) {
+	if (job1->exec_not_before_tstamp > new_job->exec_not_before_tstamp) {
 		ret = -1;
 	}
-	else if (job1->exec_not_before_tstamp < job2->exec_not_before_tstamp) {
+	else if (job1->exec_not_before_tstamp < new_job->exec_not_before_tstamp) {
 		ret = 1;
 	}
 	else {
-		if (job1->priority < job2->priority)
+		if (job1->priority > new_job->priority)
 			ret = -1;
-		else if (job1->priority > job2->priority)
+		else if (job1->priority < new_job->priority)
 			ret = 1;
 	}
 	
@@ -496,11 +496,18 @@ int8_t __np_jobqueue_find_job_by_priority(np_job_ptr const a, np_job_ptr const s
 
 	int8_t ret = a->exec_not_before_tstamp < search_key->search_max_exec_not_before_tstamp ? -1 : 1;
 
-	if (search_key->search_max_priority >= a->priority &&
-		search_key->search_min_priority < a->priority   )
+	double select_priority =
+		(a->exec_not_before_tstamp - search_key->search_max_exec_not_before_tstamp) * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
+	select_priority += a->priority;
+	select_priority = (select_priority < 0.0) ? 0.0 : select_priority;
+
+	if (search_key->search_max_priority > select_priority &&
+		search_key->search_min_priority <= select_priority   )
 		ret = 0;
 
-	return ret;
+//	log_msg(LOG_INFO, "smin prio: %6.2f <= %6.2f < %6.2f smax prio / modifi: %6.2f",
+//			search_key->search_min_priority, a->priority, search_key->search_max_priority, select_priority);
+	return (ret);
 }
 
 void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
@@ -527,25 +534,28 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 		{
 			current_worker = iter_workers->val;
 			new_worker_job = FALSE;
+
 			_TRYLOCK_ACCESS(&current_worker->job_lock)
 			{
-				search_key.search_min_priority = current_worker->min_job_priority;
-				search_key.search_max_priority = current_worker->max_job_priority;
-				search_key.search_max_exec_not_before_tstamp = np_time_now();
+				if (current_worker->job == NULL) {
+					search_key.search_min_priority = current_worker->min_job_priority;
+					search_key.search_max_priority = current_worker->max_job_priority;
+					search_key.search_max_exec_not_before_tstamp = np_time_now();
 
-				_LOCK_MODULE(np_jobqueue_t)
-				{
-					np_job_t * next_job = pll_find(np_job_ptr, __np_job_queue->job_list, &search_key, __np_jobqueue_find_job_by_priority);
-					if (next_job != NULL) {
-						now = np_time_now();
-						if (next_job->exec_not_before_tstamp <= now) {
-							pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, np_job_ptr_pll_compare_type);
-							current_worker->job = next_job;
-							new_worker_job = TRUE;
-							// log_debug_msg(LOG_DEBUG, "assign  worker thread (%p) to job (%p)", current_worker, next_job);
-						}
-						else {
-							sleep = min(sleep, now - next_job->exec_not_before_tstamp);
+					_LOCK_MODULE(np_jobqueue_t)
+					{
+						np_job_t * next_job = pll_find(np_job_ptr, __np_job_queue->job_list, &search_key, __np_jobqueue_find_job_by_priority);
+						if (next_job != NULL) {
+							now = np_time_now();
+							if (next_job->exec_not_before_tstamp <= now) {
+								pll_remove(np_job_ptr, __np_job_queue->job_list, next_job, np_job_ptr_pll_compare_type);
+								current_worker->job = next_job;
+								new_worker_job = TRUE;
+								// log_debug_msg(LOG_DEBUG, "assign  worker thread (%p) to job (%p)", current_worker, next_job);
+							}
+							else {
+								sleep = min(sleep, now - next_job->exec_not_before_tstamp);
+							}
 						}
 					}
 				}
@@ -597,7 +607,7 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 	// sanity checks if the job list really returned an element
 	if (NULL == job_to_execute) return;
 	if (NULL == job_to_execute->processorFuncs) return;
-	if (sll_size(((job_to_execute->processorFuncs))) <= 0) return;	
+	if (sll_size(((job_to_execute->processorFuncs))) < 1) return;
 	
 #ifdef NP_THREADS_CHECK_THREADING	
 		log_debug_msg(LOG_DEBUG,
