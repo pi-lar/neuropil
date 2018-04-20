@@ -116,6 +116,8 @@ void _np_out_ack(np_jobargs_t* args)
 				target_uuid->val.value.s,
 				args->target->node->dns_name, args->target->node->port);
 	}
+	np_unref_obj(np_key_t, my_key,"np_waitref_key");
+	np_unref_obj(np_network_t, my_network,"np_waitref_network");
 }
 
 /**
@@ -292,7 +294,7 @@ void _np_out(np_jobargs_t* args)
 
 			if (TRUE == ack_to_is_me || (!is_forward && sll_size(msg_out->on_reply) > 0))
 			{
-				if (FALSE == is_resend)
+				if (FALSE == is_resend && FALSE == is_forward)
 				{
 					uuid = np_treeval_to_str(np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val, NULL);
 
