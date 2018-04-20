@@ -27,26 +27,20 @@ void _np_responsecontainer_received(np_responsecontainer_t* entry){
 }
 void _np_responsecontainer_received_ack(np_responsecontainer_t* entry)
 {
-	np_ref_obj(np_responsecontainer_t, entry);
 	_np_responsecontainer_received(entry);	
 
 	if (entry->msg != NULL) {
-
 		TSP_SET(entry->msg->is_acked, TRUE);
-		
-		{
-			if (sll_size(entry->msg->on_ack) > 0) {
-				sll_iterator(np_responsecontainer_on_t) iter_on = sll_first(entry->msg->on_ack);
-				while (iter_on != NULL)
-				{
-					//TODO: call async
-					iter_on->val(entry);
-					sll_next(iter_on);
-				}
+		if (sll_size(entry->msg->on_ack) > 0) {
+			sll_iterator(np_responsecontainer_on_t) iter_on = sll_first(entry->msg->on_ack);
+			while (iter_on != NULL)
+			{
+				// TODO: call async
+				iter_on->val(entry);
+				sll_next(iter_on);
 			}
 		}
 	}
-	np_unref_obj(np_responsecontainer_t, entry, __func__);
 }
 
 void _np_responsecontainer_set_timeout(np_responsecontainer_t* entry)
@@ -135,7 +129,6 @@ np_responsecontainer_t* _np_responsecontainers_get_by_uuid(char* uuid) {
 		{
 			ret = (np_responsecontainer_t *)jrb_node->val.value.v;
 			np_ref_obj(np_responsecontainer_t, ret, __func__);
-			
 		}
 	}
 	np_unref_obj(np_network_t, my_network, __func__);
