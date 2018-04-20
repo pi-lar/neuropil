@@ -650,7 +650,7 @@ void __np_createWorkerPool(uint8_t pool_size) {
 	{
 		np_thread_t* new_thread = __np_createThread(i, __np_jobqueue_run_worker, FALSE, np_thread_type_worker );
 
-/*		if (
+		if (
 			(PRIORITY_MOD_LEVEL_0_SHOULD_HAVE_OWN_THREAD && pool_size > 2 && i == 0) ||
 			(PRIORITY_MOD_LEVEL_1_SHOULD_HAVE_OWN_THREAD && pool_size > 3 && i == 1) ||
 			(PRIORITY_MOD_LEVEL_2_SHOULD_HAVE_OWN_THREAD && pool_size > 4 && i == 2) ||
@@ -661,11 +661,10 @@ void __np_createWorkerPool(uint8_t pool_size) {
 		) {
 			new_thread->max_job_priority = (i+2) * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
 			new_thread->min_job_priority =  i    * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
-		}
-		else { */
+		} else {
 			new_thread->max_job_priority = PRIORITY_MOD_LOWEST  * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
 			new_thread->min_job_priority = PRIORITY_MOD_HIGHEST * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
-//  		}
+  		}
 
 		_np_jobqueue_add_worker_thread(new_thread);
 		_np_thread_run(new_thread);
@@ -729,8 +728,8 @@ void np_start_job_queue(uint8_t pool_size)
 		}
 
 		if (pool_size > worker_threads) {
-			pool_size--;
-			special_thread = __np_createThread(pool_size, _np_event_io_run, TRUE, np_thread_type_other);
+ 			pool_size--;
+ 			special_thread = __np_createThread(pool_size, _np_event_io_run, TRUE, np_thread_type_other);
 		} else {
 			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
 		}
