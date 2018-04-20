@@ -286,7 +286,6 @@ int main(int argc, char **argv)
 				// provide localhost as hostname to support development on local machines
 				np_state_t* child_status = np_init(proto, port, publish_domain);
 				log_debug_msg(LOG_DEBUG, "starting job queue");
-				np_start_job_queue(no_threads);
 				/**
 				 \endcode
 
@@ -314,6 +313,7 @@ int main(int argc, char **argv)
 
 				\code
 				*/
+				np_start_job_queue(no_threads);
 				np_bool firstConnectionTry = TRUE;
 				do {
 					if (!firstConnectionTry) {

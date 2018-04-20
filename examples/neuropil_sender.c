@@ -93,6 +93,8 @@ int main(int argc, char **argv)
 		}
 	}
 
+	__np_example_helper_loop(); // for the fancy ncurse display
+
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
 	you should start at least 2 threads, because network reading currently is blocking.

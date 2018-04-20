@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 20.0;
 
+	__np_example_helper_loop();
 	np_start_job_queue(no_threads);
 
 	double lastping = np_time_now();

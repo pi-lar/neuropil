@@ -159,6 +159,7 @@ int main(int argc, char **argv) {
 	.. code-block:: c
 	\code
 	*/
+	__np_example_helper_loop();
 	np_start_job_queue(no_threads);
 	/**
 	 \endcode

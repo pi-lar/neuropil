@@ -69,11 +69,12 @@ int main(int argc, char **argv)
 		if (NULL != code)
 		{
 			np_tree_insert_str(state->my_node_key->aaa_token->extensions,
-							"passcode",
-							np_treeval_new_hash(code));
+							   "passcode",
+							   np_treeval_new_hash(code));
 		}
 	}
 
+	__np_example_helper_loop(); // for the fancy ncurse display
 	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
 

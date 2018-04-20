@@ -154,6 +154,8 @@ int main(int argc, char **argv)
 	pong_props->msg_ttl = 20.0;
 	/** \endcode */
 
+	__np_example_helper_loop();
+
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
 	you should start at least 2 threads (network io is non-blocking).
