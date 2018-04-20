@@ -171,6 +171,10 @@ void _np_in_received(np_jobargs_t* args)
 							"correct decryption of message (send from %s)", _np_key_as_str(alias_key));
 					memset(raw_msg, 0, 1024);
 					memcpy(raw_msg, dec_msg, 1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
+				} else {
+					log_msg(LOG_WARN,
+						"error on decryption of message (source: \"%s:%s\")",
+						np_network_get_ip(alias_key), np_network_get_port(alias_key));
 				}
 			}
 			else {
@@ -187,12 +191,11 @@ void _np_in_received(np_jobargs_t* args)
 
 			if (ret == FALSE) {
 				np_memory_free(raw_msg);
-				if(is_decryption_successful == TRUE){
+				if(is_decryption_successful == TRUE) {
 					log_msg(LOG_ERROR,
 						"error deserializing message %s after   successful decryption (source: \"%s:%s\")",
 						msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
-				}
-				else {
+				} else {
 					log_msg(LOG_WARN,
 						"error deserializing message %s after unsuccessful decryption (source: \"%s:%s\")",
 						msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
@@ -220,6 +223,12 @@ void _np_in_received(np_jobargs_t* args)
 				strlen(_NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE)
 			);
 
+			np_bool is_direct_msg =
+					( 0 == strncmp(str_msg_subject, _NP_MSG_ACK, strlen(_NP_MSG_ACK)) ||
+					  0 == strncmp(str_msg_subject, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) ||
+					  0 == strncmp(str_msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_LEAVE_REQUEST))
+					);
+
 			if (is_handshake_msg)
 			{
 				np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _NP_MSG_HANDSHAKE);
@@ -234,13 +243,7 @@ void _np_in_received(np_jobargs_t* args)
 					str_msg_from
 				);
 			}
-			else if(
-				TRUE == alias_key->node->joined_network ||
-				0 == strncmp(str_msg_subject, _NP_MSG_ACK, strlen(_NP_MSG_ACK)) ||
-				0 == strncmp(str_msg_subject, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) ||
-				0 == strncmp(str_msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) ||
-				0 == strncmp(str_msg_subject, _NP_MSG_JOIN_NACK, strlen(_NP_MSG_JOIN_NACK)) ||
-				0 == strncmp(str_msg_subject, _NP_MSG_JOIN_ACK, strlen(_NP_MSG_JOIN_ACK)))
+			else if(TRUE == alias_key->node->joined_network || is_direct_msg)
 			{				
 				/* real receive part */
 				CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_to);
@@ -280,17 +283,14 @@ void _np_in_received(np_jobargs_t* args)
 					// check if inbound subject handler exists
 					np_msgproperty_t* handler = np_msgproperty_get(INBOUND, str_msg_subject);
 					np_bool forwarded_msg = FALSE;
-					// redirect message if
-					// msg is not for my dhkey
-					// no handler is present
+					// forward the message if
+					// a) msg is not for my dhkey
 					if (_np_dhkey_cmp(&target_dhkey, &my_key->dhkey) != 0)// || handler == NULL)
 					{
 						// perform a route lookup
 						np_sll_t(np_key_ptr, tmp) = NULL;
-
 						// zero as "consider this node as final target"
 						tmp = _np_route_lookup(target_dhkey, 0);
-
 						if (0 < sll_size(tmp))
 							log_debug_msg(LOG_ROUTING | LOG_DEBUG, 
 								"msg (%s) route_lookup result 1 = %s", 
@@ -298,26 +298,36 @@ void _np_in_received(np_jobargs_t* args)
 							);
 
 						/* forward the message if
-							a) we do have a list of possible forwards
-							b) we are not the best possible forward
+							b) we do have a list of possible forwards
+							c) we are not the best possible forward
 						*/
 						if (NULL != tmp &&
 							sll_size(tmp) > 0 &&
 							(FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
 						{
-							log_msg(LOG_INFO,
-								"msg (%s) forwarding message for subject: %s", msg_in->uuid, str_msg_subject);
+							forwarded_msg = TRUE;
+						}
+						/* try forwarding the message if
+						   d) it is a direct message (ack / join / ...)
+						   e) we do have a handler (but we are not the target!)
+						*/
+						if (handler != NULL && is_direct_msg)
+						{
+							forwarded_msg = TRUE;
+						}
 
-							_np_increment_forwarding_counter();
+						if (forwarded_msg)
+						{
+							log_msg(LOG_INFO,
+									"msg (%s) forwarding message for subject: %s", msg_in->uuid, str_msg_subject);
 
 							np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, str_msg_subject);
 							if (NULL == prop) {
 								prop = np_msgproperty_get(OUTBOUND, _DEFAULT);
 							}
-							forwarded_msg = TRUE;
-
 							// TODO: is it necessary to forward with a small penalty to prevent infinite loops?
 							_np_job_submit_route_event(NP_PI/1000, prop, alias_key, msg_in);
+							_np_increment_forwarding_counter();
 
 							np_key_unref_list(tmp, "_np_route_lookup");
 							sll_free(np_key_ptr, tmp);
@@ -336,13 +346,13 @@ void _np_in_received(np_jobargs_t* args)
 							{
 								goto __np_cleanup__;
 							}
+						} else {
+							np_key_unref_list(tmp, "_np_route_lookup");
+							if (NULL != tmp) sll_free(np_key_ptr, tmp);
+							log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+										  "msg (%s) internal routing for subject '%s'",
+										  msg_in->uuid, str_msg_subject);
 						}
-						np_key_unref_list(tmp, "_np_route_lookup");
-						if (NULL != tmp) sll_free(np_key_ptr, tmp);
-						log_debug_msg(LOG_ROUTING | LOG_DEBUG, 
-							"msg (%s) internal routing for subject '%s'",
-							msg_in->uuid, str_msg_subject
-						);
 					}
 					// we know now: this node is the node nearest to the dhkey
 
@@ -690,6 +700,12 @@ void _np_in_leave_req(np_jobargs_t* args)
 			if (_np_key_cmp(np_state()->my_node_key, leave_req_key) != 0 &&
 				_np_key_cmp(np_state()->my_identity, leave_req_key) != 0 )
 			{
+				// update node flags
+				leave_req_key->node->joined_network = FALSE;
+				leave_req_key->node->is_handshake_received = FALSE;
+				leave_req_key->node->is_handshake_send = FALSE;
+				leave_req_key->node->session_key_is_set = FALSE;
+
 				_np_key_destroy(leave_req_key);
 			}
 			np_unref_obj(np_key_t, leave_req_key, "_np_key_create_from_token");
@@ -1187,17 +1203,18 @@ void __np_in_ack_handle(np_message_t * msg)
 	np_waitref_obj(np_network_t, my_key->network, my_network);
 
 	CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_RESPONSE_UUID, ack_uuid);
-
-	np_responsecontainer_t *entry = _np_responsecontainers_get_by_uuid(np_treeval_to_str(ack_uuid, NULL));
+	np_responsecontainer_t *entry = _np_responsecontainers_get_by_uuid(ack_uuid.value.s);
 
 	/* just an acknowledgement of own messages send out earlier */
 	if(entry != NULL)
 	{
-		log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "msg (%s) is acknowledgment of uuid=%s", msg->uuid, np_treeval_to_str(ack_uuid, NULL));
+		log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "msg (%s) is acknowledgment of uuid=%s",
+															  msg->uuid, np_treeval_to_str(ack_uuid, NULL));
 		_np_responsecontainer_received_ack(entry);
 	}
 	else {
-		log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "msg (%s) is acknowledgment of uuid=%s but we do not know of this msg", msg->uuid, np_treeval_to_str(ack_uuid, NULL));
+		log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "msg (%s) is acknowledgment of uuid=%s but we do not know of this msg",
+															  msg->uuid, np_treeval_to_str(ack_uuid, NULL));
 	}
 	np_unref_obj(np_responsecontainer_t, entry, "_np_responsecontainers_get_by_uuid");
 
