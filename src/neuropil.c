@@ -1117,19 +1117,9 @@ void _np_send_ack(const np_message_t* const msg_to_ack)
 	np_tree_insert_str(ack_msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_to_ack->uuid));
 
 	// send the ack out
-	np_key_t* direct_ack_target = _np_keycache_find(ack_dhkey);
-	if (direct_ack_target != NULL &&
-		direct_ack_target->node != NULL &&
-		direct_ack_target->node->joined_network == TRUE)
-	{   // direct ack possible without involvement of the routing table
-		_np_job_submit_msgout_event(0.0, prop, direct_ack_target, ack_msg);
-		np_unref_obj(np_key_t, direct_ack_target, "_np_keycache_find");
-		log_msg(LOG_INFO, "ACK_HANDLING direct send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
-	} else {
-		// no direct connection possible, route through the dht
-		_np_job_submit_route_event(0.0, prop, NULL, ack_msg);
-		log_msg(LOG_INFO, "ACK_HANDLING route  send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
-	}
+	// no direct connection possible, route through the dht
+	_np_job_submit_route_event(0.0, prop, NULL, ack_msg);
+	log_msg(LOG_INFO, "ACK_HANDLING route  send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
 
 	np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
 	return;
