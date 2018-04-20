@@ -47,8 +47,12 @@ NP_API_INTERN
 NP_API_INTERN
 	void _np_job_resubmit_msgin_event(double delay, np_jobargs_t* jargs_org);
 
-NP_API_EXPORT
+NP_API_INTERN
 	void np_job_submit_event_periodic(double priority, double first_delay, double interval, np_callback_t callback, const char* ident);
+
+NP_API_INTERN
+void np_job_submit_event(double priority, double delay, np_callback_t callback, void* data, const char* ident);
+
 
 NP_API_INTERN
 	void _np_job_submit_msgout_event (double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
@@ -93,8 +97,14 @@ NP_API_INTERN
 	void _np_jobqueue_check();
 
 NP_API_EXPORT
-	uint32_t np_jobqueue_count();
+uint32_t np_jobqueue_count();
 
+NP_API_EXPORT
+	char* np_jobqueue_print(np_bool asOneLine);
+NP_API_EXPORT
+void np_jobqueue_run_jobs_for(double duration);
+NP_API_EXPORT
+double __np_jobqueue_run_jobs_once();
 NP_PLL_GENERATE_PROTOTYPES(np_job_ptr);
 
 #ifdef __cplusplus

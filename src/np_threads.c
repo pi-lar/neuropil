@@ -682,6 +682,7 @@ np_bool _job_queue_is_started = FALSE;
 void np_start_job_queue(uint8_t pool_size)
 {	
 	log_trace_msg(LOG_TRACE, "start: void np_start_job_queue(uint8_t pool_size){");
+	uint8_t total_pool_size = pool_size;
 
 	log_debug_msg(LOG_THREADS | LOG_DEBUG, "starting neuropil with %"PRIu8" threads", pool_size);
 
@@ -738,45 +739,45 @@ void np_start_job_queue(uint8_t pool_size)
 
  	_LOCK_MODULE(np_jobqueue_t)
 	{
+		uint8_t thread_idx = 0;
 		//start jobs
 		np_thread_t* special_thread;
+
+		if (create_job_manager_thread) {			
+			__np_createWorkerPool(pool_size);
+			thread_idx = pool_size;
+			special_thread = __np_createThread(thread_idx++, __np_jobqueue_run_manager, TRUE, np_thread_type_manager);
+		} else if(pool_size == 1) // == is a duo thread application (main and np-worker)
+		{
+			special_thread = __np_createThread(thread_idx++, __np_jobqueue_run_jobs, TRUE, np_thread_type_manager);
+		}
+
 		if (create_own_event_in_thread) {
-			special_thread = __np_createThread(pool_size, _np_event_in_run, TRUE, np_thread_type_other);
+			special_thread = __np_createThread(thread_idx++, _np_event_in_run, TRUE, np_thread_type_other);
 		}
 		else {
 			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
 		}
 
 		if (create_own_event_out_thread) {
-			special_thread = __np_createThread(pool_size, _np_event_out_run, TRUE, np_thread_type_other);
+			special_thread = __np_createThread(thread_idx++, _np_event_out_run, TRUE, np_thread_type_other);
 		}
 		else {
 			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
 		}
 
 		if (create_own_event_io_thread) {
-			special_thread = __np_createThread(pool_size, _np_event_io_run, TRUE, np_thread_type_other);
+			special_thread = __np_createThread(thread_idx++, _np_event_io_run, TRUE, np_thread_type_other);
 		}
 		else {
 			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
 		}
 
 		if (create_own_event_http_thread) {
-			special_thread = __np_createThread(pool_size, _np_event_http_run, TRUE, np_thread_type_other);
+			special_thread = __np_createThread(thread_idx++, _np_event_http_run, TRUE, np_thread_type_other);
 		}
 		else {
 			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_6, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
-		}
-
-		if (create_job_manager_thread) {
-			__np_createWorkerPool(pool_size);
-			special_thread = __np_createThread(pool_size, __np_jobqueue_run_manager, TRUE, np_thread_type_manager);
-		}
-		else {
-			if(pool_size >=1)
-			{
-				special_thread = __np_createThread(pool_size, __np_jobqueue_run_jobs, TRUE, np_thread_type_manager);
-			}
 		}
 
 		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_MEMORY_REFRESH_INTERVAL_SEC, _np_memory_job_memory_management, "_np_memory_job_memory_management");
@@ -795,6 +796,8 @@ void np_start_job_queue(uint8_t pool_size)
 
 		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_5, 0.0, MISC_SEND_UPDATE_MSGS_SEC, _np_glia_check_routes, "_np_glia_check_routes");
 
+		
+
 	}
 
 	//TODO: re-enable _np_renew_node_token_jobexec
@@ -803,7 +806,7 @@ void np_start_job_queue(uint8_t pool_size)
 	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary, "_np_event_rejoin_if_necessary");
 	np_job_submit_event_periodic(PRIORITY_MOD_LOWEST, 0.0, MISC_LOG_FLUSH_INTERVAL_SEC, _np_glia_log_flush, "_np_glia_log_flush");
 
-	log_debug_msg(LOG_DEBUG, "jobqueue threads started: %"PRIu8" + %"PRIu8, pool_size, create_job_manager_thread + create_own_event_in_thread + create_own_event_out_thread + create_own_event_io_thread + create_own_event_http_thread);
+	log_debug_msg(LOG_DEBUG, "jobqueue threads started: %"PRIu8, total_pool_size);
 	log_msg(LOG_INFO, "%s.%05d", NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
 	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);

@@ -204,6 +204,8 @@ void _np_in_received(np_jobargs_t* args)
 			log_debug_msg(LOG_SERIALIZATION | LOG_MESSAGE | LOG_DEBUG,
 				"deserialized message %s (source: \"%s:%s\")",
 				msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
+			
+			_np_message_trace_info("in", msg_in);
 
 			// now read decrypted (or handshake plain text) message
 			CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
@@ -211,8 +213,7 @@ void _np_in_received(np_jobargs_t* args)
 			
 			_np_dhkey_to_str(&msg_from.value.dhkey, str_msg_from);
 			str_msg_subject = msg_subject.value.s;
-			
-			_np_message_trace_info("in", msg_in);
+						
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
 
 			np_bool is_handshake_msg = 0 == strncmp(
@@ -251,7 +252,7 @@ void _np_in_received(np_jobargs_t* args)
 
 				_np_dhkey_to_str(&msg_to.value.dhkey, str_msg_to);
 
-				log_msg(LOG_ROUTING | LOG_DEBUG,
+				log_debug_msg(LOG_ROUTING | LOG_DEBUG,
 					"msg (%s) target of message for subject: %s from: %s is: %s",
 					msg_in->uuid, str_msg_subject, str_msg_from, str_msg_to);
 

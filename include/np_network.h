@@ -155,6 +155,8 @@ NP_API_INTERN
 np_bool _np_network_send_handshake(np_key_t* node_key);
 NP_API_INTERN
 void _np_network_disable(np_network_t* self);
+NP_API_INTERN
+void _np_network_handle_incomming_data(np_jobargs_t* args);
 #ifdef __cplusplus
 }
 #endif

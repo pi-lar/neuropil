@@ -267,9 +267,18 @@ void _np_out(np_jobargs_t* args)
 
 			// insert timestamp and time-to-live
 			double now = np_time_now();
-			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
-			// now += args->properties->ttl;
-			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args->properties->msg_ttl));
+			
+			double ttl_of_msg_via_property = now + args->properties->msg_ttl;
+
+			// calculate ttl or take the one already present if it expieres earlier
+			np_tree_elem_t *tmp1, *tmp2;
+			if ((tmp1 = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TTL)) == NULL ||
+				(tmp2 = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)) == NULL ||
+				((tmp1->val.value.d + tmp2->val.value.d) > ttl_of_msg_via_property/*compare expiers_at values*/)
+			) {
+				np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+				np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args->properties->msg_ttl));
+			}
 
 			np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
 			if (FALSE == msg_out->is_single_part)
@@ -282,7 +291,7 @@ void _np_out(np_jobargs_t* args)
 
 			if (TRUE == ack_to_is_me || (!is_forward && sll_size(msg_out->on_reply) > 0))
 			{
-				if (FALSE == is_resend)
+				if (FALSE == is_resend && FALSE == is_forward)
 				{
 					uuid = np_treeval_to_str(np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val, NULL);
 
@@ -344,7 +353,7 @@ void _np_out(np_jobargs_t* args)
 
 			np_bool send_completed = _np_network_append_msg_to_out_queue(args->target, msg_out);
 
-			if(send_completed == TRUE) {
+			if(FALSE == is_forward && send_completed == TRUE) {
 				__np_axon_invoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
 			}
 
@@ -456,6 +465,7 @@ void _np_out_handshake(np_jobargs_t* args)
 						_np_network_start(args->target->network);
 					}
 					else {
+						log_debug_msg(LOG_INFO, "Dropping data package due to not initialized out_events");
 						np_memory_free(packet);
 					}
 				}
@@ -476,6 +486,8 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 	if (_np_route_my_key_has_connection()) {
 
 		_TRYLOCK_ACCESS(&args->properties->send_discovery_msgs_lock) {			
+
+			NP_PERFORMANCE_POINT_START(msg_discovery_out);
 
 			// args->target == Key of subject
 			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(args->properties->msg_subject, "0");
@@ -504,6 +516,9 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 						_NP_MSG_DISCOVER_SENDER,
 						_data
 					);
+					double now = np_time_now(); 
+					np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+					np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(msg_token->expires_at-now));
 
 					// send message availability
 					np_msgproperty_t* prop_route = np_msgproperty_get(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
@@ -547,6 +562,10 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 							OUTBOUND,
 							_NP_MSG_DISCOVER_RECEIVER
 						);
+					double now = np_time_now();
+					np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+					np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(msg_token->expires_at - now));
+					
 					np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
 #ifdef DEBUG
 					np_tree_insert_str(msg_out->header, "_np.debug.discovery.subj", np_treeval_new_s(args->properties->msg_subject));
@@ -555,6 +574,8 @@ void _np_out_discovery_messages(np_jobargs_t* args)
 					np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 				}
 			}
+
+			NP_PERFORMANCE_POINT_END(msg_discovery_out);
 		}
 	}
 
