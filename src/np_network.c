@@ -394,7 +394,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	np_waitref_obj(np_key_t, event->data, key);
 	np_waitref_obj(np_network_t, key->network, key_network);
 
-	if (FLAG_CMP(revents , EV_WRITE ) && FLAG_CMP(revents, EV_ERROR) == FALSE)
+	if (FLAG_CMP(revents, EV_WRITE))
 	{
 		_LOCK_ACCESS(&key_network->out_events_lock)
 		{
@@ -408,7 +408,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 				*/
 				void* data_to_send = NULL;
 				int data_counter = 0;
-				ssize_t written_per_data, current_write_per_data;
+				ssize_t written_per_data = 0, current_write_per_data = 0;
 				double timeout = np_time_now() + 1.;
 				do {
 					data_to_send = sll_head(void_ptr, key_network->out_events);
@@ -473,10 +473,10 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
 	  return;
 	}
 	// calling address and port
-	char ipstr[CHAR_LENGTH_IP] = { '\0' };
-	char port[CHAR_LENGTH_PORT] = { '\0' };
+	char ipstr[CHAR_LENGTH_IP] = { 0 };
+	char port[CHAR_LENGTH_PORT] = { 0 };
 
-	struct sockaddr_storage from;
+	struct sockaddr_storage from = { 0 };
 	socklen_t fromlen = sizeof(from);
 
 	//np_state_t* state = np_state();
@@ -618,7 +618,6 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	np_network_t* ng_tcp_host = NULL;
 	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
 
-
 	/* receive the new data */
 	int16_t last_recv_result = 0;
 	int msgs_received = 0;
@@ -699,7 +698,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 					log_msg(LOG_WARN, "received disconnect from: %s:%s", ipstr, port);
 					// TODO handle cleanup of target_node structures ?
 					// maybe / probably the target_node received already a disjoin message before
-					//TODO: prüfen ob hier wirklich der host geschlossen werden muss
+					// TODO: prüfen ob hier wirklich der host geschlossen werden muss
 					_np_network_stop(ng_tcp_host,TRUE);
 					//_np_node_update_stat(key->target_node, 0);
 
@@ -735,7 +734,7 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 			}
 			TSP_GET(np_bool, alias_key->in_destroy, in_destroy);
 			if(in_destroy == FALSE ) {
-				log_debug_msg(LOG_NETWORK |LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
 					ipstr, port, in_msg_len, _np_key_as_str(alias_key));
 		
 				if (_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL, data)) {
