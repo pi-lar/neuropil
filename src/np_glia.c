@@ -405,47 +405,54 @@ void _np_cleanup_ack_jobexec(NP_UNUSED np_jobargs_t* args)
 
 	np_tree_elem_t* iter = NULL;
 	int c = 0;
-	do {
-		if (c++ > 10) {
-			break;
-		}
-		_LOCK_ACCESS(&ng->waiting_lock)
-		{
-			iter = RB_MIN(np_tree_s, ng->waiting);
 
-			while (iter != NULL)
-			{
-				jrb_ack_node = iter;
-				iter = RB_NEXT(np_tree_s, ng->waiting, iter);
+	sll_init_full(char_ptr, to_remove);
 
-				np_responsecontainer_t *responsecontainer = (np_responsecontainer_t *)jrb_ack_node->val.value.v;
-				if (responsecontainer != NULL) {
-					if (np_time_now() > responsecontainer->expires_at || _np_responsecontainer_is_fully_acked(responsecontainer))
-					{
-						if (!_np_responsecontainer_is_fully_acked(responsecontainer)) {
+	_LOCK_ACCESS(&ng->waiting_lock)
+	{
+		log_debug_msg(LOG_WARN ,"ACK_HANDLING removing from ack table (size: %d)", ng->waiting->size);
+		iter = RB_MIN(np_tree_s, ng->waiting);
+		while (iter != NULL) {
+			jrb_ack_node = iter;
 
-							_np_responsecontainer_set_timeout(responsecontainer);
-							log_msg(LOG_WARN, "ACK_HANDLING timeout (table size: %3d) message (%s / %s) not acknowledged (IN TIME %f/%f)",
-								ng->waiting->size,
-								jrb_ack_node->key.value.s,  responsecontainer->msg->msg_property->msg_subject,
-								np_time_now(), responsecontainer->expires_at
-							);
-						}
-
-						np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
-						np_unref_obj(np_responsecontainer_t, responsecontainer, ref_ack_obj);
-						break;
+			np_responsecontainer_t *responsecontainer = (np_responsecontainer_t *)jrb_ack_node->val.value.v;
+			if (responsecontainer != NULL) {
+				if (np_time_now() > responsecontainer->expires_at || _np_responsecontainer_is_fully_acked(responsecontainer))
+				{
+					if (!_np_responsecontainer_is_fully_acked(responsecontainer)) {
+						_np_responsecontainer_set_timeout(responsecontainer);
+						log_msg(LOG_WARN, "ACK_HANDLING timeout (table size: %3d) message (%s / %s) not acknowledged (IN TIME %f/%f)",
+							ng->waiting->size,
+							jrb_ack_node->key.value.s,  responsecontainer->msg->msg_property->msg_subject,
+							np_time_now(), responsecontainer->expires_at
+						);
 					}
+					sll_append(char_ptr, to_remove, jrb_ack_node->key.value.s);
 				}
-				else {
-					log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
-						ng->waiting->size,
-						jrb_ack_node->key.value.s);
-
-				}
+			} else {
+				log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
+					ng->waiting->size,
+					jrb_ack_node->key.value.s);
 			}
+			c++;
+			iter = RB_NEXT(np_tree_s, ng->waiting, iter);
+		};
+	}
+
+	sll_iterator(char_ptr) iter_to_rm = sll_first(to_remove);
+	log_debug_msg(LOG_WARN ,"ACK_HANDLING removing %"PRIu32" (of %d) from ack table", sll_size(to_remove), c);
+	while (iter_to_rm != NULL)
+	{
+		np_responsecontainer_t *responsecontainer = _np_responsecontainers_get_by_uuid(iter_to_rm->val);
+		_LOCK_ACCESS(&ng->waiting_lock) {
+			np_tree_del_str(ng->waiting, iter_to_rm->val);
 		}
-	} while (iter != NULL);
+		np_unref_obj(np_responsecontainer_t, responsecontainer, "_np_responsecontainers_get_by_uuid");
+		np_unref_obj(np_responsecontainer_t, responsecontainer, ref_ack_obj);
+
+		sll_next(iter_to_rm);
+	}
+	sll_free(char_ptr, to_remove);
 
 	np_unref_obj(np_key_t, my_key,"np_waitref_obj");
 }
