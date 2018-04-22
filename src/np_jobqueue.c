@@ -575,7 +575,7 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 		{	// wait for time x to be unlocked again
 			_LOCK_MODULE(np_jobqueue_t)
 			{
-				if (pll_size(__np_job_queue->job_list) < NP_PI*10) {
+				if (pll_size(__np_job_queue->job_list) <= dll_size(__np_job_queue->available_workers)*2 ) {
 					// only sleep if there is not much to do (around a dozen periodic jobs could be ok)
 					struct timeval tv_sleep = dtotv(np_time_now() + MAX(NP_PI/1000, sleep));
 					struct timespec waittime = { .tv_sec = tv_sleep.tv_sec, .tv_nsec = tv_sleep.tv_usec * 1000 };
