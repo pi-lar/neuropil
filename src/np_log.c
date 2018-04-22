@@ -77,12 +77,6 @@ void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int
 	if ((revents &  EV_WRITE) == EV_WRITE && (revents &  EV_ERROR) != EV_ERROR)
 	{
 		_np_log_fflush(FALSE);
-		pthread_mutex_lock(&__log_mutex);
-		if (sll_size(__logger->logentries_l) < 10) {
-			// currently this is the only io event
-			np_time_sleep(NP_PI/100);
-		}
-		pthread_mutex_unlock(&__log_mutex);
 	}
 }
 
