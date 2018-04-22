@@ -702,7 +702,7 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 
 							if (0 == msg->no_of_chunks || 0 == chunk_id) {
 								log_msg(LOG_WARN, 
-									"no_of_chunks (%"PRIu16") or chunk_id (%"PRIu16") zero while deserializing message.", 
+									"no_of_chunks (%"PRIu32") or chunk_id (%"PRIu16") zero while deserializing message.",
 									msg->no_of_chunks, chunk_id);								
 							}
 							else {
