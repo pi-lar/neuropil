@@ -476,7 +476,7 @@ void* __np_jobqueue_run_jobs(void* np_thread_ptr_self)
 			}
 		}
 
-		if (run_next_job == TRUE) {
+		if (run_next_job == TRUE && target->job != NULL) {
 			__np_jobqueue_run_once(target->job);
 			target->job = NULL;
 		} else {
