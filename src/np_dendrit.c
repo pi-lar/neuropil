@@ -319,7 +319,7 @@ void _np_in_received(np_jobargs_t* args)
 						if (forwarded_msg)
 						{
 							log_msg(LOG_INFO,
-									"msg (%s) forwarding message for subject: %s", msg_in->uuid, str_msg_subject);
+									"forwarding message (%s) for subject: %s", msg_in->uuid, str_msg_subject);
 
 							np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, str_msg_subject);
 							if (NULL == prop) {
@@ -422,7 +422,7 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
 		}
 
 		if (event_accepted) {
-			log_msg(LOG_INFO, "msg (%s) handling message for subject: %s (%d)",
+			log_msg(LOG_INFO, "handling   message (%s) for subject: %s (%d)",
 					msg_to_submit->uuid, handler->msg_subject, allow_destination_ack);
 
 			_np_message_trace_info("accepted", msg_to_submit);
@@ -481,9 +481,7 @@ void _np_in_piggy(np_jobargs_t* args)
 				node_entry->node->success_avg > BAD_LINK &&
 				(np_time_now() - node_entry->node->last_success) <= BAD_LINK_REMOVE_GRACETIME) {
 
-			// _np_node_update_stat(node_entry->node, 1);
-
-/*			// udpate table and leafset, as nodes could have left the network and we need to fill up entries
+			// udpate and leafset, as nodes could have left the network and we need to fill up entries
 			np_key_t *added = NULL, *deleted = NULL;
 			_np_route_leafset_update(node_entry, TRUE, &deleted, &added);
 
@@ -517,9 +515,8 @@ void _np_in_piggy(np_jobargs_t* args)
 			}
 #endif
 
-			added = NULL, deleted = NULL;
-			_np_route_update(node_entry, TRUE, &deleted, &added);
-
+// 			added = NULL, deleted = NULL;
+// 			_np_route_update(node_entry, TRUE, &deleted, &added);
 #ifdef DEBUG
 			if (added != NULL && deleted != NULL) {
 				log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   table  : %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
@@ -546,7 +543,7 @@ void _np_in_piggy(np_jobargs_t* args)
 							deleted->node->last_success,
 							deleted->node->success_avg);
 			}
-#endif */
+#endif
 		} else {
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is not qualified for a piggy join. (%s)", _np_key_as_str(node_entry), node_entry->node->joined_network ? "J":"NJ");
 		}
