@@ -1119,7 +1119,7 @@ void _np_send_ack(const np_message_t* const msg_to_ack)
 	// send the ack out
 	// no direct connection possible, route through the dht
 	_np_job_submit_route_event(0.0, prop, NULL, ack_msg);
-	log_msg(LOG_INFO, "ACK_HANDLING route  send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
+	log_debug_msg(LOG_INFO, "ACK_HANDLING route  send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
 
 	np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
 	return;

@@ -204,12 +204,14 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 		if (add_to != NULL) {
 			if (added != NULL) *added = add_to;
 			np_ref_obj(np_key_t, add_to, ref_route_inleafset);
+			log_msg(LOG_ROUTING | LOG_INFO, "added   %s to   leafset table.", _np_key_as_str(add_to));
 		}
 
 		if (deleted_from != NULL) {
 			if (deleted != NULL) *deleted = deleted_from;
 			np_unref_obj(np_key_t, deleted_from, ref_route_inleafset);
 			_np_route_check_for_joined_network();
+			log_msg(LOG_ROUTING | LOG_INFO, "removed %s from leafset table.", _np_key_as_str(add_to));
 		}
 	}
 	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .leafset_update");
@@ -676,7 +678,7 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		log_msg(LOG_ROUTING | LOG_INFO, "update in routing: %u %s", joined, _np_key_as_str(key));
+		log_debug_msg(LOG_ROUTING | LOG_INFO, "update in routing: %u %s", joined, _np_key_as_str(key));
 
 		if (_np_dhkey_equal (&__routing_table->my_key->dhkey, &key->dhkey))
 		{
@@ -773,13 +775,13 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 		}
 
  		if(add_to != NULL) {
-			log_msg(LOG_ROUTING | LOG_INFO, "Added    %s to   routing table.", _np_key_as_str(add_to));
+			log_msg(LOG_ROUTING | LOG_INFO, "added   %s to   routing table.", _np_key_as_str(add_to));
 			np_ref_obj(np_key_t, add_to, ref_route_inroute);
 			if (added != NULL) *added = add_to;
 		}
 		
 		if(deleted_from != NULL) {
-			log_msg(LOG_ROUTING | LOG_INFO, "Removed %s from routing table.", _np_key_as_str(deleted_from));
+			log_msg(LOG_ROUTING | LOG_INFO, "removed %s from routing table.", _np_key_as_str(deleted_from));
 			np_unref_obj(np_key_t, deleted_from, ref_route_inroute);
 			if (deleted != NULL) *deleted = deleted_from;
 			_np_route_check_for_joined_network();
