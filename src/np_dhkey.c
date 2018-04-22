@@ -155,7 +155,7 @@ void _np_dhkey_assign (np_dhkey_t* k1, const np_dhkey_t* const k2)
 		k1->t[i] = k2->t[i];
 }
 
-np_bool _np_dhkey_equal (np_dhkey_t* k1, np_dhkey_t* k2)
+np_bool _np_dhkey_equal (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 {
 	for (uint8_t i = 0; i < 8; i++)
 		if (k1->t[i] != k2->t[i])
