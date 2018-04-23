@@ -136,6 +136,7 @@ int main(int argc, char **argv)
 
 		np_example_print(stdout, "No bootstrap host specified.\n");
 		has_a_node_started = TRUE;
+
 		current_pid = fork();
 
 		// Running bootstrap node in a different fork
@@ -188,6 +189,7 @@ int main(int argc, char **argv)
 
 			   \code
 			 */
+			__np_example_helper_loop();
 			np_start_job_queue(no_threads+3);
 			printf("Running Neuropil\n");
 
@@ -305,6 +307,7 @@ int main(int argc, char **argv)
 					np_statistics_add_watch(_NP_SYSINFO_REQUEST);
 					np_statistics_add_watch(_NP_SYSINFO_REPLY);
 					__np_example_inti_ncurse();
+					__np_example_helper_run_loop();
 				}
 				/**
 				and join our bootstrap node
@@ -348,19 +351,19 @@ int main(int argc, char **argv)
 					__np_example_helper_run_loop();
 				
 			} else {				
-				if (has_a_node_started == TRUE){
-				/**
-				  While the fork process starts the new node,
-				  the main process needs to add the new process id to the list we created before.
+				if (has_a_node_started == TRUE) {
+					/**
+					  While the fork process starts the new node,
+					  the main process needs to add the new process id to the list we created before.
 
-				 .. code-block:: c
+					 .. code-block:: c
 
-				 \code
-				 */				
-				sll_append(int, list_of_childs, current_pid);				
-				/**
-				 \endcode
-				 */
+					 \code
+					 */
+					sll_append(int, list_of_childs, current_pid);
+					/**
+					 \endcode
+					 */
 				}
 				has_a_node_started = TRUE;
 			}
