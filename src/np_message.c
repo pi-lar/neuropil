@@ -194,10 +194,10 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 	np_state_t* state = np_state();
 	np_message_t* ret= NULL;
 
-	char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
-	char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
+	// char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
 
-	// Detect from instructions if this msg was orginally chunked
+	// detect from instructions if this msg was orginally chunked
+	char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
 	uint16_t expected_msg_chunks = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
 
 	if (1 < expected_msg_chunks)
@@ -325,9 +325,11 @@ np_bool _np_message_is_expired(const np_message_t* const self)
 
 	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f", self->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
 
-	__np_cleanup__:
+#ifdef DEBUG
+	__np_cleanup__: {}
+#endif
 
-	 return ret;
+	return ret;
 }
 
 np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args)
@@ -1181,11 +1183,15 @@ np_dhkey_t* _np_message_get_sender(np_message_t* self){
 	return ret;
 }
 
+#ifdef DEBUG
 void _np_message_trace_info(char* desc, np_message_t * msg_in) {
+#else
+void _np_message_trace_info(NP_UNUSED char* desc, NP_UNUSED np_message_t * msg_in) {
+#endif
 
 #ifdef DEBUG
 	char * info_str;
-	asprintf(&info_str, "MessageTrace_%s",desc);
+	asprintf(&info_str, "MessageTrace_%s", desc);
 	np_tree_elem_t* tmp = NULL;
 	np_bool free_key, free_value;
 	char *key, *value;
