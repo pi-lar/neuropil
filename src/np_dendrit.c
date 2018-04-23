@@ -103,9 +103,6 @@ void _np_in_received(np_jobargs_t* args)
 	log_trace_msg(LOG_TRACE, "start: void _np_in_received(np_jobargs_t* args){");
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "received msg");
 	void* raw_msg = NULL;
-	np_bool free_str_msg_subject = FALSE;
-	np_bool free_str_msg_from = FALSE;
-	np_bool free_str_msg_to = FALSE;
 	char* str_msg_subject;
 	char str_msg_to[65];
 	char str_msg_from[65];
@@ -117,9 +114,7 @@ void _np_in_received(np_jobargs_t* args)
 		np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
 		{
 			np_message_t* msg_in = NULL;
-			np_key_t* target_key = NULL;
-
-			int ret;
+			int ret = 0;
 
 			// we registered this token info before in the first handshake message
 			np_key_t* alias_key = args->target;
@@ -154,11 +149,11 @@ void _np_in_received(np_jobargs_t* args)
 				char nonce_hex[crypto_secretbox_NONCEBYTES*2+1];
 				sodium_bin2hex(nonce_hex, crypto_secretbox_NONCEBYTES*2+1, nonce, crypto_secretbox_NONCEBYTES);
 
-				int ret = crypto_secretbox_open_easy(dec_msg,
-						(const unsigned char *) raw_msg + crypto_secretbox_NONCEBYTES,
-						1024 - crypto_secretbox_NONCEBYTES,
-						nonce,
-						alias_key->node->session_key);
+				ret = crypto_secretbox_open_easy(dec_msg,
+							(const unsigned char *) raw_msg + crypto_secretbox_NONCEBYTES,
+							1024 - crypto_secretbox_NONCEBYTES,
+							nonce,
+							alias_key->node->session_key);
 				log_debug_msg(LOG_DEBUG |LOG_SERIALIZATION, 
 					"HANDSHAKE SECRET: using shared secret from %s (%s) = %"PRIi32,
 					_np_key_as_str(alias_key), alias_key->obj->id, ret
