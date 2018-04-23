@@ -1054,15 +1054,15 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 
 	case np_treeval_type_jrb_tree:
 	{
-		cmp_ctx_t tree_cmp;
+		cmp_ctx_t tree_cmp = { 0 };
 		char buffer[val.size];
 		// log_debug_msg(LOG_DEBUG, "buffer size for subtree %u (%hd %llu)", val.size, val.value.tree->size, val.value.tree->byte_size);
 		// log_debug_msg(LOG_DEBUG, "buffer size for subtree %u", val.size);
 		void* buf_ptr = buffer;
 		cmp_init(&tree_cmp, buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 		np_tree_serialize(val.value.tree, &tree_cmp);
-		uint32_t buf_size = tree_cmp.buf - buf_ptr;
-
+		int32_t buf_size = tree_cmp.buf - buf_ptr;
+		buf_size = (buf_size < 0) ? 0 : buf_size;
 		// void* top_buf_ptr = cmp->buf;
 		// write the serialized tree to the upper level buffer
 		if (!cmp_write_ext32(cmp, np_treeval_type_jrb_tree, buf_size, buf_ptr))
