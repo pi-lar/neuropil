@@ -237,6 +237,7 @@ void _np_glia_send_pings(NP_UNUSED np_jobargs_t* args) {
 			if(node_exists) {
 				if (iter->val->node->joined_network) {
 					_np_ping_send(iter->val);
+					np_time_sleep(NP_PI/1000);
 				}
 				np_unref_obj(np_node_t, iter->val->node, __func__);
 			}
@@ -269,7 +270,7 @@ void _np_glia_send_piggy_requests(NP_UNUSED np_jobargs_t* args) {
 	{
 		// send a piggy message to the the nodes in our routing table
 		np_msgproperty_t* piggy_prop = np_msgproperty_get(TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-		_np_job_submit_transform_event(i*0.031415, piggy_prop, iter_keys->val, NULL);
+		_np_job_submit_transform_event(i*NP_PI/10, piggy_prop, iter_keys->val, NULL);
 
 		i++;
 		sll_next(iter_keys);
@@ -482,7 +483,7 @@ void _np_cleanup_keycache_jobexec(NP_UNUSED np_jobargs_t* args)
 			}
 		}
 
-		np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists,"np_tryref_old->aaa_token");
+		np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists, "np_tryref_old->aaa_token");
 		if(tokenExists) {
 			if (TRUE == _np_aaatoken_is_valid(old->aaa_token, np_aaatoken_type_undefined))
 			{
