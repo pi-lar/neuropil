@@ -211,7 +211,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 			if (deleted != NULL) *deleted = deleted_from;
 			np_unref_obj(np_key_t, deleted_from, ref_route_inleafset);
 			_np_route_check_for_joined_network();
-			log_msg(LOG_ROUTING | LOG_INFO, "removed %s from leafset table.", _np_key_as_str(add_to));
+			log_msg(LOG_ROUTING | LOG_INFO, "removed %s from leafset table.", _np_key_as_str(deleted_from));
 		}
 	}
 	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .leafset_update");
