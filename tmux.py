@@ -80,6 +80,7 @@ else:
             #prefix += 'perf record --call-graph dwarf -a --timestamp-filename '
             nn.attached_pane.send_keys(prefix + args.path + './bin/neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
             port+i+start_bootstrapper,publish_domain, threads, port_type, sysinfo_client, loglevel, join_client, httpdomain_client, statistics, autoclose))
-
-    if not args.k:
-        os.system('tmux attach -t np')
+    os.system('tmux attach -t np')    
+  
+  if args.r:
+    os.system('tmux attach -t np')
