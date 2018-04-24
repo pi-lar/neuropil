@@ -768,9 +768,8 @@ void np_start_job_queue(uint8_t pool_size)
 			special_thread = __np_createThread(pool_size, __np_jobqueue_run_manager, TRUE, np_thread_type_manager);
 		} else {
 			// just a bunch of threads trying to get the first element from a priority queue
-			for (int8_t i=pool_size; i >= 0; i--)
+			for (int8_t i=0; i < pool_size; i++)
 			{
-				pool_size--;
 				special_thread = __np_createThread(pool_size, __np_jobqueue_run_jobs, TRUE, np_thread_type_manager);
 			}
 		}
