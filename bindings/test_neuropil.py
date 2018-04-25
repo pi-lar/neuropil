@@ -17,17 +17,21 @@ def my_python_authn_callback(token):
     print "authn: r:" + token.realm + " i: " + token.issuer + " s:" + token.subject
 
     # export a received identity (public token) to a file to load it later
-    identity_fingerprint = np.np_identity_fingerprint(token)
-    filename = "./{fingerprint}_id.pub".format( fingerprint=identity_fingerprint )
-    if not os.path.isfile(filename):
-        with open(filename, 'wb') as f:
-            np_id = np.identity_bytes(1024)
-            np_id_size = np.np_identity_export(token, np_id)
-            # print (np_id, np_id_size)
-            if np_id_size > 0:
-                f.write( np.cdata_identity_bytes(np_id, np_id_size) );
-            f.close()
-	return True
+    try:
+        identity_fingerprint = np.np_identity_fingerprint(token)
+        filename = "./{fingerprint}_id.pub".format( fingerprint=identity_fingerprint )
+        if not os.path.isfile(filename):
+            with open(filename, 'wb') as f:
+                np_id = np.identity_bytes(1024)
+                np_id_size = np.np_identity_export(token, np_id)
+                # print (np_id, np_id_size)
+                if np_id_size > 0:
+                    f.write( np.cdata_identity_bytes(np_id, np_id_size) );
+                f.close()
+    except e:
+        print e
+    
+    return True
 
 def my_python_authz_callback(token):
     print "authz: r:" + token.realm + " i: " + token.issuer + " s:" + token.subject
