@@ -76,7 +76,7 @@ np_bool _np_default_authorizefunc (np_aaatoken_t* token )
 	return (TRUE);
 }
 /**
- * The default realm slave authorize function. Forwards the authorization request to the realm master
+ * The default realm client authorize function. Forwards the authorization request to the realm master
  * @param token
  * @return
  */
@@ -266,25 +266,26 @@ void np_set_realm_name(const char* realm_name)
 	np_unref_obj(np_key_t, new_node_key,"_np_keycache_find_or_create");
 }
 /**
- * Enables this node as realm slave.
- * The node will forward all aaa requests to the realm master
+ * Enables this node as realm client.
+ * The node will forward all aaa requests to the realm server
  */
-void np_enable_realm_slave()
+void np_enable_realm_client()
 {
-	log_trace_msg(LOG_TRACE, "start: void np_enable_realm_slave(){");
+	log_trace_msg(LOG_TRACE, "start: void np_enable_realm_client(){");
 	np_state()->authorize_func    = _np_aaa_authorizefunc;
 	np_state()->authenticate_func = _np_aaa_authenticatefunc;
 	np_state()->accounting_func   = _np_aaa_accountingfunc;
 
-	np_state()->enable_realm_master = FALSE;
-	np_state()->enable_realm_slave = TRUE;
+	np_state()->enable_realm_server = FALSE;
+	np_state()->enable_realm_client = TRUE;
 }
+
 /**
- * Enables this node as realm master.
+ * Enables this node as realm server.
  */
-void np_enable_realm_master()
+void np_enable_realm_server()
 {
-	log_trace_msg(LOG_TRACE, "start: void np_enable_realm_master(){");
+	log_trace_msg(LOG_TRACE, "start: void np_enable_realm_server(){");
 	if (NULL == np_state()->realm_name)
 	{
 		return;
@@ -311,8 +312,8 @@ void np_enable_realm_master()
 		prop->msg_audience = strndup(np_state()->realm_name, 255);
 	}
 
-	np_state()->enable_realm_master = TRUE;
-	np_state()->enable_realm_slave = FALSE;
+	np_state()->enable_realm_server = TRUE;
+	np_state()->enable_realm_client = FALSE;
 }
 
 /**
@@ -852,8 +853,8 @@ np_state_t* np_init(char* proto, char* port, char* hostname)
 	state->authenticate_func = _np_default_authenticatefunc;
 	state->accounting_func   = _np_default_accountingfunc;
 
-	state->enable_realm_slave = FALSE;
-	state->enable_realm_master = FALSE;
+	state->enable_realm_client = FALSE;
+	state->enable_realm_server = FALSE;
 
 	char* np_service = "3141";
 	uint8_t np_proto = UDP | IPv6;

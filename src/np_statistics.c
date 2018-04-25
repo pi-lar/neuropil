@@ -196,7 +196,7 @@ void np_statistics_add_watch_internals() {
 	np_statistics_add_watch(_NP_MSG_AVAILABLE_RECEIVER);
 	np_statistics_add_watch(_NP_MSG_AVAILABLE_SENDER);
 	
-	if(np_state()->enable_realm_master || np_state()->enable_realm_slave){
+	if(np_state()->enable_realm_server || np_state()->enable_realm_client){
 		np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REQUEST);
 		np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REPLY);
 		np_statistics_add_watch(_NP_MSG_AUTHORIZATION_REQUEST);

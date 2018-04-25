@@ -801,7 +801,7 @@ void _np_in_join_req(np_jobargs_t* args)
 		NULL != state->authenticate_func)
 	{
 		np_bool join_allowed = state->authenticate_func(join_ident_key->aaa_token);
-		if (FALSE == state->enable_realm_slave &&
+		if (FALSE == state->enable_realm_client &&
 			TRUE == join_allowed)
 		{
 			join_ident_key->aaa_token->state |= AAA_AUTHENTICATED;
@@ -809,7 +809,7 @@ void _np_in_join_req(np_jobargs_t* args)
 		}
 	} else {
 		np_bool join_allowed = state->authenticate_func(join_node_key->aaa_token);
-		if (FALSE == state->enable_realm_slave &&
+		if (FALSE == state->enable_realm_client &&
 			TRUE == join_allowed)
 		{
 			join_node_key->aaa_token->state |= AAA_AUTHENTICATED;
@@ -847,7 +847,7 @@ void _np_in_join_req(np_jobargs_t* args)
 		send_reply = TRUE;
 	}
 
-	if (FALSE == state->enable_realm_slave &&
+	if (FALSE == state->enable_realm_client &&
 		IS_NOT_AUTHENTICATED(join_node_key->aaa_token->state))
 	{
 		log_msg(LOG_ROUTING | LOG_INFO,

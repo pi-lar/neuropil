@@ -327,7 +327,7 @@ void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args)
 			}
 		}
 
-		if (TRUE == state->enable_realm_master)
+		if (TRUE == state->enable_realm_server)
 		{
 			np_msgproperty_t* msg_prop = NULL;
 
