@@ -3,8 +3,6 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
-/** \toggle_keepwhitespaces  */
-
 #ifndef NP_SYSINFO_H_
 #define NP_SYSINFO_H_
 

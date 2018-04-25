@@ -2,7 +2,7 @@
 // neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-/** \toggle_keepwhitespaces  */
+
 /**
 The structure np_msgproperty_t is used to describe properties of the message exchange itself.
 It is setup by sender and receiver independent of each other.
@@ -188,16 +188,13 @@ typedef enum np_msgcache_policy_enum {
 
    ACK_NONE        - never require a acknowledge
 
-   ACK_EACHHOP     - request the acknowledge between each hop a message is send - deprecated
-
-   ACK_DESTINATION - request the sending of a acknowledge when the message has reached the
-   final destination
+   ACK_DESTINATION - request the sending of a acknowledge when the message has reached the final destination
 
    ACK_CLIENT      - request the sending of a acknowledge when the message has reached the
    final destination and has been processed correctly (e.g. callback function returning TRUE, see :c:func:`np_set_listener`)
 
-   Please note: acknowledge types can be ORed (|), so you can request the acknowledge between each hop and the acknowledge
-   when the message receives the final destination. We recommend against it because it will flood your network with acknowledges
+   Please note: acknowledge types can be ORed (|), so you can request the acknowledge when the message receives the final destination
+   and when the message has been consumed. We recommend against it because it will flood your network with acknowledges
 
 */
 typedef enum np_msg_ack_enum {

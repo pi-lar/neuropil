@@ -7,7 +7,7 @@
    :http-equiv=Content-Type: text/html; charset=ISO-8859-1
 
 Welcome to neuropil !
-====================================
+=====================
 
 neuropil is a small messaging library which by default adds two layers of encryption.
 It allows you to address devices, applications, persons worldwide without compromise for
@@ -19,16 +19,17 @@ Contents:
    :maxdepth: 2
 
    intro
-   tutorial
-   apps_tools
-   api
    core_concepts
+   tutorial
+   api
+   apps_tools
    protocol
-   glossary
+   token
    license
    knowhow
    trademark
    faq
+   glossary
 
 
 Indices and tables

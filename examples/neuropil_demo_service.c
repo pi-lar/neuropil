@@ -1,19 +1,19 @@
-/*
- * neuropil_demo_service.c
- *
- * This service is available via http://demo.neuropil.io
- *
- * It is composed out of the examples for
- *  - pingpong
- *  - echo server
- * */
 //
 // neuropil is copyright 2016-2017 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
+/*
+ * neuropil_demo_service.c
+ *
+ * This service is also available via *:udp4:demo.neuropil.io:31415
+ *
+ * It is composed out of the examples for
+ *  - pingpong
+ *  - echo server
+ */
+
 /**
  *.. NOTE::
- *
  *   If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
  */
 

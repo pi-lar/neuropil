@@ -29,33 +29,42 @@ first, let's define a callback function that will be called each time
 a message is received by the node that you are currently starting
 
 .. code-block:: c
-\code
-*/
 
+   \code
+*/
 np_bool receive_this_is_a_test(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
 {
-/** \endcode */
-	/**
-	for this message exchange the message is send as a text element (if you used np_send_text)
-	otherwise inspect the properties and payload np_tree_t structures ...
+/**
+\endcode
+*/
 
-	.. code-block:: c
-		\code
-	*/
-	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
-	/** \endcode */
-	log_msg(LOG_INFO, "RECEIVED: %s", text);
+/**
+for this message exchange the message is send as a text element (if you used np_send_text)
+otherwise inspect the properties and payload np_tree_t structures ...
 
-	/**
-	return TRUE to indicate successfull handling of the message. if you return FALSE
-	the message may get delivered a second time
+.. code-block:: c
 
-	.. code-block:: c
-	\code
-	*/
-	return TRUE;
-	/** \endcode */
+\code
+*/
+    char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
+/**
+\endcode
+*/
+    log_msg(LOG_INFO, "RECEIVED: %s", text);
+
+/**
+return TRUE to indicate successfull handling of the message. if you return FALSE
+the message may get delivered a second time
+
+.. code-block:: c
+
+\code
+*/
+    return TRUE;
 }
+/**
+   \endcode
+*/
 
 
 int main(int argc, char **argv)
@@ -90,48 +99,59 @@ int main(int argc, char **argv)
 	in your main program, initialize the logging of neuopil, but this time use the port for the filename
 
 	.. code-block:: c
-	\code
+
+	   \code
 	*/
 	char log_file[256];
 	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_receiver_cb", port);
 	np_log_init(log_file, level);
-	/** \endcode */
+	/**
+	   \endcode
+	*/
 
 	/**
 	initialize the neuropil subsystem with the np_init function
 
 	.. code-block:: c
-	\code
+
+	   \code
 	*/
 	np_init(proto, port, publish_domain);
-	/** \endcode */
+	/**
+	   \endcode
+	*/
 
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
 	you should start at least 2 threads (network io is non-blocking).
 
 	.. code-block:: c
-		\code
+
+	   \code
 	*/
 	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
-	/** \endcode */
-
+	/**
+	   \endcode
+	*/
 
 	if (NULL != j_key)
 	{
 		np_send_join(j_key);
 	}
 
-		/**
-		use the connect string that is printed to stdout and pass it to the np_controller to send a join message.
-		wait until the node has received a join message before proceeding
+	/**
+	use the connect string that is printed to stdout and pass it to the np_controller to send a join message.
+	wait until the node has received a join message before proceeding
 
-		.. code-block:: c
-		\code
-		*/
+	.. code-block:: c
+
+	   \code
+	*/
 	np_waitforjoin();
-	/** \endcode */
+	/**
+	   \endcode
+	*/
 
 	/**
 	*.. note::
@@ -144,10 +164,13 @@ int main(int argc, char **argv)
 	register the listener function to receive data from the sender
 
 	.. code-block:: c
-		\code
+
+	   \code
 	*/
 	np_add_receive_listener(receive_this_is_a_test, "this.is.a.test");
-	/** \endcode */
+	/**
+	   \endcode
+	*/
 
 
 	/**
@@ -160,11 +183,14 @@ int main(int argc, char **argv)
 	loop (almost) forever, you're done :-)
 
 	.. code-block:: c
-	\code
+
+	   \code
 	*/
 	while (1)
 	{
 		np_time_sleep(0.9);
 	}
-	/** \endcode */
+	/**
+	   \endcode
+	*/
 }

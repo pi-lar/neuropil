@@ -65,7 +65,7 @@ int main(int argc, char **argv)
 	if (NULL != realm)
 	{
 		np_set_realm_name(realm);
-		np_enable_realm_slave();
+		np_enable_realm_client();
 		if (NULL != code)
 		{
 			np_tree_insert_str(state->my_node_key->aaa_token->extensions,
