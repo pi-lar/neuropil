@@ -303,22 +303,24 @@ sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 	for (uint16_t i = 0; i < nodenum; i++)
 	{
 		np_tree_elem_t* node_data = np_tree_find_int(data, i);
-
-		CHECK_STR_FIELD(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY, key_val);
-		np_dhkey_t search_key = np_dhkey_create_from_hash(key_val.value.s);
-
-		np_key_t* node_key    = _np_keycache_find_or_create(search_key);
-		if (NULL == node_key->node)
+		if (node_data != NULL)
 		{
-			node_key->node = _np_node_decode_from_jrb(node_data->val.value.tree);
-			ref_replace_reason(np_node_t, node_key->node, "_np_node_decode_from_jrb", ref_key_node);
-		} 
-		
-		ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", __func__);
-		sll_append(np_key_ptr, node_list, node_key);
+			CHECK_STR_FIELD(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY, key_val);
+			np_dhkey_t search_key = np_dhkey_create_from_hash(key_val.value.s);
 
-		__np_cleanup__:
-			{}
+			np_key_t* node_key    = _np_keycache_find_or_create(search_key);
+			if (NULL == node_key->node)
+			{
+				node_key->node = _np_node_decode_from_jrb(node_data->val.value.tree);
+				ref_replace_reason(np_node_t, node_key->node, "_np_node_decode_from_jrb", ref_key_node);
+			}
+
+			ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", __func__);
+			sll_append(np_key_ptr, node_list, node_key);
+
+			__np_cleanup__:
+				{}
+			}
 	}
 	return (node_list);
 }

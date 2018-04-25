@@ -85,9 +85,9 @@ if int(release) >= 1:
 # add debug compilation options
 debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O3']
 if int(debug) >= 1:
-	env.Append(CCFLAGS = debug_flags)
-# 	if int(debug) <= 1:
-#		env.Append(CCFLAGS = ['-DDEBUG'])
+    env.Append(CCFLAGS = debug_flags)
+    if int(debug) <= 1:
+        env.Append(CCFLAGS = ['-DDEBUG'])
 
 env.Append(CCFLAGS = ['-DNEUROPIL_RELEASE_BUILD=\"{}\"'.format(buildNo())])
 		
