@@ -64,7 +64,7 @@ if __name__ == "__main__":
     action = False
     if args.build:
         if not args.pw:
-            print "missing parameter -pw in build"
+            print ("missing parameter -pw in build")
             action = False
         else:
             action = True        
@@ -79,9 +79,9 @@ if __name__ == "__main__":
             sign_file(tarfilepath,args.pw)
     if args.version:
         action = True
-        print get_version()
+        print ("{version}".format(version=get_version()) )
     if args.versiontag:
         action = True
-        print get_version_tag()
+        print ("{version_tag}".format(version_tag=get_version_tag()) )
     if action != True:
         parser.print_help()
