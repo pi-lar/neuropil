@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -1054,26 +1054,17 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 
 	case np_treeval_type_jrb_tree:
 	{
-		cmp_ctx_t tree_cmp;
+		cmp_ctx_t tree_cmp = { 0 };
 		char buffer[val.size];
 		// log_debug_msg(LOG_DEBUG, "buffer size for subtree %u (%hd %llu)", val.size, val.value.tree->size, val.value.tree->byte_size);
-		// log_debug_msg(LOG_DEBUG, "buffer size for subtree %u", val.size);
 		void* buf_ptr = buffer;
 		cmp_init(&tree_cmp, buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 		np_tree_serialize(val.value.tree, &tree_cmp);
-		uint32_t buf_size = tree_cmp.buf - buf_ptr;
-
-		// void* top_buf_ptr = cmp->buf;
 		// write the serialized tree to the upper level buffer
-		if (!cmp_write_ext32(cmp, np_treeval_type_jrb_tree, buf_size, buf_ptr))
+		if (!cmp_write_ext32(cmp, np_treeval_type_jrb_tree, val.size, buf_ptr))
 		{
 			log_msg(LOG_WARN, "couldn't write tree data -- ignoring for now");
 		}
-		// uint32_t top_buf_size = cmp->buf-top_buf_ptr;
-
-		//			else {
-		// log_debug_msg(LOG_DEBUG, "wrote tree structure size pre: %hu/%hu post: %hu %hu", val.size, val.value.tree->byte_size, buf_size, top_buf_size);
-		//			}
 	}
 	break;
 	default:

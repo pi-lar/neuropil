@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /*
@@ -154,7 +154,7 @@ np_treeval_t np_treeval_new_dhkey(np_dhkey_t dhkey);
 np_treeval_t np_treeval_new_obj(np_obj_t* obj);
 uint32_t np_treeval_get_byte_size(np_treeval_t ele);
 
-extern np_treeval_t np_treeval_NULL;
+static np_treeval_t np_treeval_NULL = { 0 };
 
 int16_t  np_treeval_i (np_treeval_t);
 int32_t  np_treeval_l (np_treeval_t);

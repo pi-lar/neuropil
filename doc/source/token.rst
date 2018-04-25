@@ -1,5 +1,12 @@
-Protocol
-========
+.. _protocol_token:
+
+Protocol token
+==============
+
+The following chapter describes the protocol token structures of the neuropil messaging layer.
+
+token in general
+****************
    
 Within the neuropil library we us the aaatokne structure to fulfil authentication, authorization and accounting 
 purposes. The usage and meaning of each token for/in each sepcific case is ambigously and somethime s confusing (even
@@ -7,6 +14,8 @@ for us).
 
 This chapter will try to add the neccessary details how tokens are used. Let us recall first how the token structure 
 is composed before diving into the details:
+
+.. code-block:: c
 
    // depicts the protocol version used by a node / identity
    double version; 
@@ -42,14 +51,18 @@ is composed before diving into the details:
    // key/value extension list
    np_tree_t* extensions;
 
+
 One of the most important aspects is the use of the realm, issuer, subject and audience fields that interact with 
 each other and reference each other as the library build up its network structure. Therefore we will concentrate 
 on these four for the following chapter.
 
 
-1: handshaking
-**************
-For the handshake we need to send some core informations to the other node, so the fields will contain:
+1: handshaking token
+********************
+For the handshake we need to send some core informations to the other node, so the above mentioned fields will 
+contain:
+
+.. code-block:: c
 
    realm         := <empty> | <fingerprint(realm)>                              64
    issuer        := <empty> | <fingerprint(issuer)>                             64
@@ -62,27 +75,30 @@ For the handshake we need to send some core informations to the other node, so t
                                                                               -----
                                                                           max  666  bytes
 
+
 Please remember that the main purpose here is to establish a secure conversation channel between any two nodes.
 The cleartext hostname and port could also be found by doing a network scan. Furthermore we have to keep the token 
 size small to fit into the 1024 bytes bounds of our selected paket size. Only one paket as an initial handshake message
 is allowed.
 
 From the above structure you can create a node fingerprint (nfp), which is unique to this specific token.
-This fingerprint again is used as the visible part of the DHT, which can be addressed.
+This fingerprint again is used as the visible part of the :term:`DHT` which can be addressed.
  
-   nfp = hash(nodetoken, signature)
+  nfp = hash(nodetoken, signature)
 
 similar we could create a handshake fingerprint (which we do not need, it is just here to complete the picture):
 
-   hfp = hash(nodetoken, signature_ext)
+  hfp = hash(nodetoken, signature_ext)
 
 A separate node token will be supplied in the join message to verify the use of a potential identity.
 
 
-2: joining the network
-**********************
+2: join token
+*************
 The join message contains the token of the identity which is using a node. Identity token can be exported 
 and imported and are available in the userspace.
+
+.. code-block:: c
 
    realm         := <empty> | <fingerprint(realm)>                             64
    issuer        := <empty> | <fingerprint(issuer)>                            64
@@ -95,18 +111,21 @@ and imported and are available in the userspace.
                                                                               ----
                                                                           min 666
 
+
 Again we can create a fingerprint of this token ('infp'). This fingerprint is not the same as the fingeprint of a 
 pure identity (ifp), as we do not know in advance which 'nfp' this idenity will use. A pure identity token of does
 not contain the 'nfp'. But we can still calculate the fingeprint afterwards, because:
 
-   ifp = hash(idtoken, signature)
-   infp = hash(idtoken, signature_ext, nfp)
+  ifp = hash(idtoken, signature)
+  infp = hash(idtoken, signature_ext, nfp)
 
 all signatures can be validated using the public keys of tokens that have been received.
 
 'nfp' potentially contains the issuing fingerprint in the issuer field again. But if a technical node hosts more 
 than one identity, then the join message will also contain again the node token, this time in full length and 
 containing the required identity fingerprint:
+
+.. code-block:: c
 
    realm         := <empty> | <fingerprint(realm)>
    issuer        := <empty> | <fingerprint(issuer)>
@@ -117,6 +136,7 @@ containing the required identity fingerprint:
    signature     := <signature of above fields excluding extensions>           
    signature_ext := <signature of all above fields>                            
 
+
 The second transmit of the node token is needed to certify that this identity is really running on this specific
 node, a kind of automated cross-signing between node and identity. We could add the handshake fingerprint to this
 token to make it really foolproof, but currently we do not think that it would be neccessary.
@@ -126,10 +146,12 @@ token again in the join message. The reason for doing so is the authentication c
 sending a join message.
 
 
-2: sending message intents
-**************************
+2: message intent token
+***********************
 If an identity would like to exchange informations with another identity in the network, it sends out its message
 intents, where we use token again.:
+
+.. code-block:: c
 
    realm         := <empty> | <fingerprint(realm)>
    issuer        := <ifp>
@@ -140,19 +162,23 @@ intents, where we use token again.:
    signature     := <signature of above fields excluding extensions>           
    signature_ext := <signature of all above fields>                            
 
+
 Please note that a message intent is somehow different, as you may get a message intent of an identity that your node
 may not have any connection to. So first you need to authenticate the issuer of this message intent. you can
 accomplish this by doing one of the three steps:
+
    - you implement a callback that is able to properly authenticate peers (e.g. using MerkleTree / Secure Remote
      Password / Shamirs shared secret schemes / ...)
    - you forward the recieved token to do the authn work for your node: either to your own realm, or to the realm set 
      in the message intent, or you ask the target_node contained in the token whether the identity is really known 
    - you do some sort of out-of-band deployment for know public idenity tokens. you could even use neuropil itself to 
      inject a trusted public identity token into a device.
-Once you know, that the recieved peer is the vorrect one, you do the second step and authorize the message exchange.
-Again you have the three options above with the follwoing restriction to the second choice:
-   - you forward the recieved token to do the authz work for your node to your own realm 
 
+Once you know, that the recieved peer is the correct one, you do the second step and authorize the message exchange.
+Again you have the three options above with the follwoing restriction to the second choice:
+
+   - you forward the recieved token to do the authz work for your node to your own realm 
+ 
 
 3: pki / web of trust / zero knowledge setups
 *********************************************
@@ -180,6 +206,8 @@ covered how you can use tokens for accounting purposes. But basically it is very
 An identity e.g. could create and send an accounting token for the messages and message intents it has recieved, just
 by copying its own message intent
 
+.. code-block:: c
+
    realm         := <empty> | <fingerprint(realm)>
    issuer        := <ifp>
    subject       := 'urn:np:sub:'<hash(subject)>
@@ -189,11 +217,14 @@ by copying its own message intent
    signature     := <signature of above fields excluding extensions>           
    signature_ext := <signature of all above fields>                            
 
+
 Under 'user supplied data' you can add any content, for example the message intents that you have received from your
 peers, plus the actual usage of your/their token (it's a json structure). The main difference towards your initial
 message intent token is the address that you're sending this token to. 
 
 Similar each node on the network can record received messages and 
+
+.. code-block:: c
 
    realm         := <empty> | <fingerprint(realm)>
    issuer        := <nfp>
@@ -204,6 +235,7 @@ Similar each node on the network can record received messages and
    signature     := <signature of above fields excluding extensions>           
    signature_ext := <signature of all above fields>                            
 
+
 in this case the section 'user supplied data' would contain the uuid of each message(part) that a single node has 
 received and forwarded. Most important are the nodes which do the message intent matching ! These nodes act as a 
 technical attesting notary that confirms the exchange of message intents. plus it could also confirm the abuse of
@@ -212,7 +244,7 @@ message intents.
 Once an accounting token is ready it will be send to your own accounting realm (and this could be a different one 
 than your authn/authz realm), the token and it's contents can be analyzed and store in a database i.e. for 
 monitoring purposes. Once you put all distributed accounting tokens together, you will be able to see how your 
-messages have travelled through the DHT (via the uuid).
+messages have travelled through the :term:`DHT` (via the uuid).
 
 
 4: conclusion

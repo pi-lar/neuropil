@@ -67,6 +67,9 @@ tree.h
 
    <hr width=200>
 
+
+.. _neuropil_sysinfo:
+
 ************
 np_sysinfo.h
 ************
@@ -75,15 +78,14 @@ The sysinfo subsystem can be used to exchange the current connections of a node 
 To activate the subsystem you may either call :c:func:`np_sysinfo_enable_slave` or :c:func:`np_sysinfo_enable_master`.
 The master will then receive updates of the slave nodes and store this information locally. 
 
-We have activated this feature in the :ref:`neuropil_hydra` as an example implementation.
+We have activated this feature in the :ref:`(App) Network support <neuropil_hydra>` as an example implementation.
 
 .. include-comment:: ../../include/np_sysinfo.h
 
 
-
-************
+*********************
 Module Class Overview
-************
+*********************
 
 If you like to view the current development class overview please look into the following pdf:
 

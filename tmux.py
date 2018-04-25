@@ -15,7 +15,7 @@ parser.add_argument('-pd', nargs='?', default="localhost", help='PublishDomain')
 parser.add_argument('-c', action='store_true', help='Autoclose tmux window if node fails')
 parser.add_argument('-r', action='store_true', help='Reconnect only')
 parser.add_argument('-k', action='store_true', help='Kill all only')
-parser.add_argument('-t', nargs='?', type=int, default=18, help='Count of threads to start for each node')
+parser.add_argument('-t', nargs='?', type=int, default=12, help='Count of threads to start for each node')
 parser.add_argument('-oh', nargs='?', type=int, default=1, help='Host sysinfo config')
 parser.add_argument('-oc', nargs='?', type=int, default=1, help='Clients sysinfo config')
 parser.add_argument('-p', nargs='?', default="udp4", help='port type')
@@ -55,19 +55,18 @@ if args.c :
 
 server = libtmux.Server()
 
-session = server.find_where({ "session_name": "np" })
 if args.k:
+  session = server.find_where({ "session_name": "np" })
   if server.has_session("np"):
     session.kill_session()
-
 else:
-    if not args.r or not server.has_session("np"):
-        session = server.new_session("np", True)
+  if not args.r or not server.has_session("np"):
+    session = server.new_session("np", True)
 
     windowName  = "neuropil bootstraper"
     if start_bootstrapper and not server.find_where({ "window_name": windowName }):
         nb = session.new_window(attach=True, window_name=windowName)
-        nb.attached_pane.send_keys(args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} -s {} {}'.format(
+        nb.attached_pane.send_keys(args.path + './bin/neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} -s {} {}'.format(
             port, threads, port_type, loglevel, publish_domain, sysinfo, statistics, autoclose))
 
     for i in range(count):
@@ -79,8 +78,9 @@ else:
             nn = session.new_window(attach=False, window_name=windowName )
             prefix = ''
             #prefix += 'perf record --call-graph dwarf -a --timestamp-filename '
-            nn.attached_pane.send_keys(prefix + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
+            nn.attached_pane.send_keys(prefix + args.path + './bin/neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
             port+i+start_bootstrapper,publish_domain, threads, port_type, sysinfo_client, loglevel, join_client, httpdomain_client, statistics, autoclose))
-
-    if not args.k:
-        os.system('tmux attach -t np')
+    os.system('tmux attach -t np')    
+  
+  if args.r:
+    os.system('tmux attach -t np')

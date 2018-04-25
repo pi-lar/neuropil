@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -196,7 +196,7 @@ void np_statistics_add_watch_internals() {
 	np_statistics_add_watch(_NP_MSG_AVAILABLE_RECEIVER);
 	np_statistics_add_watch(_NP_MSG_AVAILABLE_SENDER);
 	
-	if(np_state()->enable_realm_master || np_state()->enable_realm_slave){
+	if(np_state()->enable_realm_server || np_state()->enable_realm_client){
 		np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REQUEST);
 		np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REPLY);
 		np_statistics_add_watch(_NP_MSG_AUTHORIZATION_REQUEST);

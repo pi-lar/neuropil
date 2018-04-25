@@ -1,19 +1,19 @@
+//
+// neuropil is copyright 2016-2018 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 /*
  * neuropil_demo_service.c
  *
- * This service is available via http://demo.neuropil.io
+ * This service is also available via *:udp4:demo.neuropil.io:31415
  *
  * It is composed out of the examples for
  *  - pingpong
  *  - echo server
- * */
-//
-// neuropil is copyright 2016-2017 by pi-lar GmbH
-// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
-//
+ */
+
 /**
  *.. NOTE::
- *
  *   If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
  */
 
@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 20.0;
 
+	__np_example_helper_loop();
 	np_start_job_queue(no_threads);
 
 	double lastping = np_time_now();

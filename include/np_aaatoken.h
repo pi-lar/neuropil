@@ -1,8 +1,8 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-/** \toggle_keepwhitespaces  */
+
 /**
 The structure np_aaatoken_t is used for authorization, authentication and accounting purposes.
 Add-on information can be stored in a nested jtree structure. Several analogies have been used as a baseline for this structure:
@@ -69,7 +69,7 @@ enum np_aaastate_e
 #define IS_NOT_ACCOUNTING(x) (!IS_ACCOUNTING(x))
 
 /*
-	Type enum for np_aaatoken_t objects, has impact on serialization and usage
+Type enum for np_aaatoken_t objects, has impact on serialization and usage
 FLAG
 */
 enum np_aaatoken_type {

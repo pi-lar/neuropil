@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -65,15 +65,16 @@ int main(int argc, char **argv)
 	if (NULL != realm)
 	{
 		np_set_realm_name(realm);
-		np_enable_realm_slave();
+		np_enable_realm_client();
 		if (NULL != code)
 		{
 			np_tree_insert_str(state->my_node_key->aaa_token->extensions,
-							"passcode",
-							np_treeval_new_hash(code));
+							   "passcode",
+							   np_treeval_new_hash(code));
 		}
 	}
 
+	__np_example_helper_loop(); // for the fancy ncurse display
 	log_debug_msg(LOG_DEBUG, "starting job queue");
 	np_start_job_queue(no_threads);
 

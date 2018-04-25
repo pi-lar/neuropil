@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <stdio.h>
@@ -660,12 +660,11 @@ void __np_createWorkerPool(uint8_t pool_size) {
 			(PRIORITY_MOD_LEVEL_6_SHOULD_HAVE_OWN_THREAD && pool_size > 8 && i == 6)
 		) {
 			new_thread->max_job_priority = (i+2) * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
-			new_thread->min_job_priority = i     * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
-		}
-		else {
+			new_thread->min_job_priority =  i    * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
+		} else {
 			new_thread->max_job_priority = PRIORITY_MOD_LOWEST  * JOBQUEUE_PRIORITY_MOD_BASE_STEP + (JOBQUEUE_PRIORITY_MOD_BASE_STEP - 1);
 			new_thread->min_job_priority = PRIORITY_MOD_HIGHEST * JOBQUEUE_PRIORITY_MOD_BASE_STEP;
-		}
+  		}
 
 		_np_jobqueue_add_worker_thread(new_thread);
 		_np_thread_run(new_thread);
@@ -682,7 +681,6 @@ np_bool _job_queue_is_started = FALSE;
 void np_start_job_queue(uint8_t pool_size)
 {	
 	log_trace_msg(LOG_TRACE, "start: void np_start_job_queue(uint8_t pool_size){");
-
 	log_debug_msg(LOG_THREADS | LOG_DEBUG, "starting neuropil with %"PRIu8" threads", pool_size);
 
 
@@ -705,78 +703,42 @@ void np_start_job_queue(uint8_t pool_size)
 	}
 
 	np_state()->thread_count += pool_size;
-	np_state()->thread_ids = (pthread_t *)malloc(sizeof(pthread_t) * pool_size);
+	uint8_t worker_threads = ((int)pool_size/2) + 1;
 
+	np_state()->thread_ids = (pthread_t *)malloc(sizeof(pthread_t) * np_state()->thread_count);
 	CHECK_MALLOC(np_state()->thread_ids);
-
-	np_bool create_job_manager_thread = FALSE;
-	if (pool_size >= 2) {
-		pool_size--;
-		create_job_manager_thread = TRUE;
-	}
-
-	np_bool create_own_event_in_thread = FALSE;
-	if (pool_size >= 2) {
-		pool_size--;
-		create_own_event_in_thread = TRUE;
-	}
-	np_bool create_own_event_out_thread = FALSE;
-	if (pool_size >= 2) {
-		pool_size--;
-		create_own_event_out_thread = TRUE;
-	}
-	np_bool create_own_event_io_thread = FALSE;
-	if (pool_size >= 2) {
-		pool_size--;
-		create_own_event_io_thread = TRUE;
-	}
-	np_bool create_own_event_http_thread = FALSE;
-	if (pool_size >= 2) {
-		pool_size--;
-		create_own_event_http_thread = TRUE;
-	}
 
  	_LOCK_MODULE(np_jobqueue_t)
 	{
-		//start jobs
+		// start jobs
 		np_thread_t* special_thread;
-		if (create_own_event_in_thread) {
+
+		if (pool_size > worker_threads) {
+			pool_size--;
 			special_thread = __np_createThread(pool_size, _np_event_in_run, TRUE, np_thread_type_other);
-		}
-		else {
-			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
+		} else {
+			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
 		}
 
-		if (create_own_event_out_thread) {
+		if (pool_size > worker_threads) {
+			pool_size--;
 			special_thread = __np_createThread(pool_size, _np_event_out_run, TRUE, np_thread_type_other);
-		}
-		else {
-			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
-		}
-
-		if (create_own_event_io_thread) {
-			special_thread = __np_createThread(pool_size, _np_event_io_run, TRUE, np_thread_type_other);
-		}
-		else {
-			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
+		} else {
+			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
 		}
 
-		if (create_own_event_http_thread) {
+		if (pool_size > worker_threads) {
+ 			pool_size--;
+ 			special_thread = __np_createThread(pool_size, _np_event_io_run, TRUE, np_thread_type_other);
+		} else {
+			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
+		}
+
+		if (pool_size > worker_threads) {
+			pool_size--;
 			special_thread = __np_createThread(pool_size, _np_event_http_run, TRUE, np_thread_type_other);
-		}
-		else {
-			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_6, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
-		}
-
-		if (create_job_manager_thread) {
-			__np_createWorkerPool(pool_size);
-			special_thread = __np_createThread(pool_size, __np_jobqueue_run_manager, TRUE, np_thread_type_manager);
-		}
-		else {
-			if(pool_size >=1)
-			{
-				special_thread = __np_createThread(pool_size, __np_jobqueue_run_jobs, TRUE, np_thread_type_manager);
-			}
+		} else {
+			np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_5, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
 		}
 
 		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_0, 0.0, MISC_MEMORY_REFRESH_INTERVAL_SEC, _np_memory_job_memory_management, "_np_memory_job_memory_management");
@@ -795,19 +757,28 @@ void np_start_job_queue(uint8_t pool_size)
 
 		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_5, 0.0, MISC_SEND_UPDATE_MSGS_SEC, _np_glia_check_routes, "_np_glia_check_routes");
 
+		np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_6, 0.0, MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary, "_np_event_rejoin_if_necessary");
+		// TODO: re-enable _np_renew_node_token_jobexec
+		// np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_RENEW_NODE_SEC,					_np_renew_node_token_jobexec, "_np_renew_node_token_jobexec");
+
+		if (pool_size > worker_threads) {
+			// a bunch of threads plus a coordinator
+			pool_size--;
+			__np_createWorkerPool(pool_size-1);
+			special_thread = __np_createThread(pool_size, __np_jobqueue_run_manager, TRUE, np_thread_type_manager);
+		} else {
+			// just a bunch of threads trying to get the first element from a priority queue
+			for (int8_t i=0; i < pool_size; i++)
+			{
+				special_thread = __np_createThread(pool_size, __np_jobqueue_run_jobs, TRUE, np_thread_type_manager);
+			}
+		}
 	}
 
-	//TODO: re-enable _np_renew_node_token_jobexec
-	//np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_RENEW_NODE_SEC,					_np_renew_node_token_jobexec, "_np_renew_node_token_jobexec");
-
-	np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary, "_np_event_rejoin_if_necessary");
-	np_job_submit_event_periodic(PRIORITY_MOD_LOWEST, 0.0, MISC_LOG_FLUSH_INTERVAL_SEC, _np_glia_log_flush, "_np_glia_log_flush");
-
-	log_debug_msg(LOG_DEBUG, "jobqueue threads started: %"PRIu8" + %"PRIu8, pool_size, create_job_manager_thread + create_own_event_in_thread + create_own_event_out_thread + create_own_event_io_thread + create_own_event_http_thread);
+	log_debug_msg(LOG_DEBUG, "jobqueue threads started: pool %"PRIu8", worker %"PRIu8, pool_size, worker_threads);
 	log_msg(LOG_INFO, "%s.%05d", NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD);
 	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
 	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
-
 
 	_np_network_start(np_state()->my_node_key->network);
 	_job_queue_is_started = TRUE;

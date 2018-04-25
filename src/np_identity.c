@@ -32,7 +32,7 @@ char* np_identity_fingerprint_current() {
 	memset(fp_str, 0, 64);
 	if( np_state()->my_identity != NULL &&
 		np_state()->my_identity->aaa_token != NULL) {
-		np_dhkey_t fp_dhkey = np_aaatoken_get_fingerprint(np_state()->my_identity);
+		np_dhkey_t fp_dhkey = np_aaatoken_get_fingerprint(np_state()->my_identity->aaa_token);
 		_np_dhkey_to_str(&fp_dhkey, fp_str);
 	}
 	return (fp_str);

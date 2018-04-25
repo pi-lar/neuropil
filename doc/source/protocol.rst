@@ -1,12 +1,12 @@
-.. _protocol:
+.. _protocol_steps:
 
-Protocol
-========
+Protocol steps
+==============
 
-The following chapter describes the protocol of the Neuropil messaging layer.
+The following chapter describes the protocol phases of the neuropil messaging layer.
 
-Phase 1: handshake and Diffie-Hellman (DH) key exchange
-*******************************************************
+Step 1: handshake and Diffie-Hellman (DH) key exchange
+******************************************************
 
 The first message sent to another node is a *handshake message*. Its purpose is
 to exchange public and session keys with another node. The handshake message is
@@ -38,14 +38,14 @@ predefined fields are:
    * hostname
    * port
 
-**Note**
-  The token exchanged during the handshake is **not** encrypted and can be read
-  by anyone observing the network. It must not contain passwords or other
-  secret data.
+.. NOTE:
+   The token exchanged during the handshake is **not** encrypted and can be read
+   by anyone observing the network. It must not contain passwords or other
+   secret data.
 
 
-Phase 2: joining the network
-****************************
+Step 2: joining the network
+***************************
 
 The initiating node transmits a *join message* to its peer. The join message
 contains the identity that uses the node. This identity may or may not be
@@ -60,12 +60,12 @@ the identity cannot be authenticated, the handshake protocol sends a
 data is marked as obsolete and deleted later, because sending the
 not-acknowledged message still requires the established session key.
 
-**Note**
-  If the identity is in a realm but cannot be authenticated at this time, the
-  receiving node might forward the incoming token to the realm leader in order
-  to defer authentication. Depending on the response of the realm leader, the
-  receiving node might authorize the identity on its next attempt to join the
-  network.
+.. NOTE::
+   If the identity is in a realm but cannot be authenticated at this time, the
+   receiving node might forward the incoming token to the realm leader in order
+   to defer authentication. Depending on the response of the realm leader, the
+   receiving node might authorize the identity on its next attempt to join the
+   network.
 
 If the initiating node has been authenticated and authorized, it is added to
 the routing table of the receiving node, and the join message is acknowledged
@@ -76,8 +76,8 @@ After receiving the acknowledgment, the initiating node may begin to exchange
 further messages with the nodes in the network.
 
 
-Phase 3: growing the peer-to-peer network
-******************************************
+Step 3: growing the peer-to-peer network
+****************************************
 
 Authenticated and authorized nodes exchange update and *piggy messages* in
 order to exchange information about other peers known to them. After receiving
@@ -90,8 +90,8 @@ state of its routing table (i.e., occupancy and individual route health
 inferred from latency).
 
 
-Phase 4: message exchange; communicating message availability and interest
-**************************************************************************
+Step 4: message exchange; communicating message availability and interest
+*************************************************************************
 
 Two nodes in the network that would like to exchange information about a given
 *subject* get in touch as follows. Each node communicates their special

@@ -1,3 +1,4 @@
+#! /usr/bin/env python3
 
 import platform
 import glob
@@ -23,13 +24,10 @@ def buildNo():
 	return buildno
 
 
-print '####'
-print '#### starting neuropil build'
-print '####'
-print 'building on : ' + str(platform.machine()) + '/' + str(platform.processor()) + '/' + str(platform.system())
-
-# building on : x86_64/i386/Darwin
-# TARGET=x86_64-apple-darwin-macho
+print ('####')
+print ('#### starting neuropil build')
+print ('####')
+print ('building on: {platform} / {processor} / {system}'.format(platform=str(platform.machine()), processor=str(platform.processor()), system=str(platform.system())) )
 
 # use clang to compile the source code
 env = Environment(CC = 'clang')
@@ -50,12 +48,12 @@ if build_x64 == -1:
 else:
 	build_x64 = build_x64 == True  # normalize
 	if build_x64 == True and "64" not in str(platform.processor()):
-		print 'ERROR: x64 build on x86 system!'
+		print ('ERROR: x64 build on x86 system!')
 
 
-print '####'
-print '#### adding compiler options and flags'
-print '####'
+print ('####')
+print ('#### adding compiler options and flags')
+print ('####')
 
 if strict:
     env.Append(CCFLAGS = ['-DSTRICT'])
@@ -85,11 +83,11 @@ if int(release) >= 1:
     env.Append(CCFLAGS = release_flags)
 
 # add debug compilation options
-debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O0']
+debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O3']
 if int(debug) >= 1:
 	env.Append(CCFLAGS = debug_flags)
-	if int(debug) <= 1:
-		env.Append(CCFLAGS = ['-DDEBUG'])
+# 	if int(debug) <= 1:
+#		env.Append(CCFLAGS = ['-DDEBUG'])
 
 env.Append(CCFLAGS = ['-DNEUROPIL_RELEASE_BUILD=\"{}\"'.format(buildNo())])
 		
@@ -105,6 +103,8 @@ if 'FreeBSD' in platform.system():
 if 'Darwin' in platform.system():
   env.Append(CCFLAGS = ['-Wno-deprecated'] )
   env.Append(CCFLAGS = ['-Wno-nullability-completeness'] )
+  env.Append(CCFLAGS = ['-Wno-missing-field-initializers'])
+  env.Append(CCFLAGS = ['-Wno-missing-braces'])
   env.Append(CCFLAGS = ['-Wno-unsupported-visibility'] )
   env.Append(CCFLAGS = ['-mmacosx-version-min=10.11'] )
   env.Append(CCFLAGS = ['-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include'] )
@@ -128,12 +128,12 @@ if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
 #env.Append(CCFLAGS = '-target ' + platform.machine() + '-' + platform.system().lower() )
 # env.Append(CCFLAGS = '-target ' + platform.machine())
 
-print 'continuing with CCFLAGS set to: ' + env.Dump(key='CCFLAGS')
-print 'continuing with LDFLAGS set to: ' + env.Dump(key='LDFLAGS')
+print ("continuing with CCFLAGS set to: {dump}".format(dump=env.Dump(key='CCFLAGS')) )
+print ("continuing with LDFLAGS set to: {dump}".format(dump=env.Dump(key='LDFLAGS')) )
 
-print '####'
-print '#### detecting 3rd party libraries'
-print '####'
+print ('####')
+print ('#### detecting 3rd party libraries')
+print ('####')
 
 env.Append(LINKFLAGS = ['-v']) # shows linker invokation
 
@@ -146,24 +146,24 @@ conf = Configure(env)
 # Checks for libraries, header files, etc.
 for lib in env['LIBS']:
     if not conf.CheckLib(lib):
-        print 'Did not find library %s. Please install the appropiate package. (More information regarding this error may be in "config.log")' % (lib)
+        print ('Did not find library {lib}. Please install the appropiate package. (More information regarding this error may be in "config.log")'.format(lib=lib))
         Exit(1)
 
 if not conf.CheckLibWithHeader('sodium', 'sodium.h', 'c'):
-    print 'Did not find libsodium.a or sodium.lib ...'
+    print ('Did not find libsodium.a or sodium.lib ...')
     Exit(1)
 
 if int(release) < 1 and int(build_tests) > 0 and conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c'):
-    print 'Test cases included'
+    print ('Test cases included')
     tpl_library_list += ['criterion']
     env.Append(LIBS = tpl_library_list)
 else:
-    print 'Test cases not included'
+    print ('Test cases not included')
     build_tests = 0
 
-print '####'
-print '#### adding neuropil specific build path informations'
-print '####'
+print ('####')
+print ('#### adding neuropil specific build path informations')
+print ('####')
 
 # include the neuropil build path library infos
 np_library     = ['neuropil']
@@ -176,17 +176,17 @@ env.Append(LIBS = np_library)
 
 scan_build_exe = env.WhereIs('scan-build')
 if int(analyze) and not scan_build_exe:
-    print '---'
-    print 'did not find clang checker executable in the path, skipping build of static code analysis'
-    print 'please consider to install the additional clang static code analysis tool checker (version 278 as of this writing)'
-    print '---'
+    print ('---')
+    print ('did not find clang checker executable in the path, skipping build of static code analysis')
+    print ('please consider to install the additional clang static code analysis tool checker (version 278 as of this writing)')
+    print ('---')
     Exit(1)
 
 sphinx_exe = env.WhereIs('sphinx-build')
 if int(build_doc) and not sphinx_exe:
-    print '---'
-    print 'did not find sphinx executable in the path, skipping build of documentation'
-    print '---'
+    print ('---')
+    print ('did not find sphinx executable in the path, skipping build of documentation')
+    print ('---')
     Exit(1)
 
 env = conf.Finish()
@@ -230,11 +230,11 @@ SOURCES += ['build/obj/event/ev.c', 'build/obj/json/parson.c','build/obj/msgpack
 # test cases for neuropil
 TESTS =  ['test/test_suites.c']
 
-print '####'
-print '#### building neuropil libraries/testsuite/example programs:'
-print '####'
-# build the neuropil library as static and shared library
+print ('####')
+print ('#### building neuropil libraries/testsuite/example programs:')
+print ('####')
 
+# build the neuropil library as static and shared library
 np_stlib = env.Library('build/lib/neuropil', SOURCES, LIBS=tpl_library_list)
 np_dylib = env.SharedLibrary('build/lib/neuropil', SOURCES, LIBS=tpl_library_list)
 AlwaysBuild(np_dylib)
@@ -255,12 +255,12 @@ env.Append(LIBS = ['ncurses'])
 
 if build_program != False and build_program not in programs:
     if build_program != 'lib_only':
-        print 'desired program %s does not exist' % build_program
-        print 'please select from: %s, lib_only' % ', '.join(programs)
+        print ('desired program {program} does not exist'.format(program=build_program) )
+        print ('please select from: {programs}, lib_only'.format(programs=join(programs)) )
 else:
     for program in programs:
         if build_program == False or build_program == program:
-            print 'building neuropil_%s' %program
+            print ('building neuropil_{program_name}'.format(program_name=program))
             prg_np = env.Program('bin/neuropil_%s'%program, 'examples/neuropil_%s.c'%program)
             Depends(prg_np, np_dylib)
 
@@ -273,15 +273,15 @@ Clean('.', 'build')
 Clean('.', 'bin')
 Clean('.', 'warn.log')
 Clean('.', 'warn_clean.log')
-print "build with:"
 
-print "analyze       =  %r" % analyze
-print "build_tests   =  %r" % build_tests
-print "build_doc     =  %r" % build_doc
-print "debug         =  %r" % debug
-print "release       =  %r" % release
-print "console_log   =  %r" % console_log
-print "strict        =  %r" % strict
-print "build_program =  %r" % build_program
-print "build_x64     =  %r" % build_x64
+print ("build with:")
+print ("analyze       =  %r" % analyze)
+print ("build_tests   =  %r" % build_tests)
+print ("build_doc     =  %r" % build_doc)
+print ("debug         =  %r" % debug)
+print ("release       =  %r" % release)
+print ("console_log   =  %r" % console_log)
+print ("strict        =  %r" % strict)
+print ("build_program =  %r" % build_program)
+print ("build_x64     =  %r" % build_x64)
 
