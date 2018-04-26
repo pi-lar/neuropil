@@ -228,7 +228,7 @@ TYPE* saveTo = NULL;																																\
 	if(NULL == obj ) {																																\
 		log_msg(LOG_ERROR,"Could not allocate memory. Program is now in undefined state and should be shut down.");									\
 	}																																				\
-	assert(NULL != obj);                               																	\
+	assert(NULL != obj);                               																								\
 }																																					\
 
 #define np_unref_obj(TYPE, np_obj, reason)                																							\
@@ -243,7 +243,7 @@ TYPE* saveTo = NULL;																																\
 		assert (np_obj->obj->type == TYPE##_e);     																								\
 		if(!np_obj->obj->persistent && np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");										\
 		assert (np_obj->obj->persistent  || np_obj->obj->ptr != NULL);          																	\
-		log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Unref_ (%"PRIu32") object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 			\
+		log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Unref_ (%"PRIu32") object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 	\
 		np_mem_unrefobj(np_obj->obj, reason);               																						\
 		if (NULL != np_obj->obj && np_obj->obj->ref_count == 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) 					\
 		{ 																																			\
@@ -256,8 +256,8 @@ TYPE* saveTo = NULL;																																\
 			np_obj->obj->ptr = NULL;                																								\
 			np_obj->obj = NULL;                     																								\
 		  }	 																																		\
-	    }                                           																									\
-	  }                                             																									\
+	    }                                           																								\
+	  }                                             																								\
 	} 																																				\
 	if (delete_obj == TRUE)																															\
 	{																																				\
