@@ -261,7 +261,7 @@ np_bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.e")))
 	{
 		ASSERT(tmp->val.type == np_treeval_type_jrb_tree, 
-			"token (%s) type is %"PRIu8" instead of np_treeval_type_jrb_tree(%"PRIu8")",
+			"token (%s) type is %"PRIu32" instead of np_treeval_type_jrb_tree(%"PRIu32")",
 			token->uuid, tmp->val.type, np_treeval_type_jrb_tree
 		);
 
@@ -360,10 +360,10 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 
 	if (FLAG_CMP(token->type, expected_type) == FALSE)
 	{
-		log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": is not from correct type (%"PRIu8" != (expected:=)%"PRIu8"). verification failed",
+		log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": is not from correct type (%"PRIu32" != (expected:=)%"PRIu32"). verification failed",
 			token->uuid, token->subject, token->type, expected_type);
 #ifdef DEBUG
-		ASSERT(FALSE, "token (%s) for subject \"%s\": is not from correct type (%"PRIu8" != (expected:=)%"PRIu8"). verification failed",
+		ASSERT(FALSE, "token (%s) for subject \"%s\": is not from correct type (%"PRIu32" != (expected:=)%"PRIu32"). verification failed",
 			token->uuid, token->subject, token->type, expected_type);
 #endif // DEBUG
 
@@ -831,7 +831,7 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(const char* const subject, const np
 	_LOCK_ACCESS(&subject_key->send_property->lock)
 	{
 #ifdef DEBUG
-		char sender_dhkey_as_str[64];
+		char sender_dhkey_as_str[65];
 		_np_dhkey_to_str(sender_dhkey, sender_dhkey_as_str);
 #endif
 
@@ -868,7 +868,7 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(const char* const subject, const np
 
 			// only pick key from a list if the subject msg_treshold is bigger than zero
 			// and we actually have the correct sender node in the list
-			if (FALSE == _np_dhkey_equal(&return_token_dhkey, sender_dhkey))
+			if (FALSE == _np_dhkey_equal(&return_token_dhkey, &sender_dhkey))
 			{
 				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
 							  "ignoring sender token for issuer %s / send_hk: %s (issuer does not match)",
@@ -904,7 +904,7 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(const char* const subject, const np
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step2._np_aaatoken_get_sender_token %d", pll_size(subject_key->send_tokens));
 	}
 
-	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
+	np_unref_obj(np_key_t, subject_key, "_np_keycache_find_or_create");
 	return (return_token);
 }
 
@@ -1461,7 +1461,7 @@ void np_aaatoken_unref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* rea
 void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* token) {
 
 #ifdef DEBUG
-	char* info_str ;
+	char* info_str;
 	asprintf(&info_str, "AAATokenTrace_%s", desc);	
 
 	np_tree_t* data = np_tree_create();
@@ -1482,7 +1482,7 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* token) {
 	np_tree_free(data);
 	info_str = np_str_concatAndFree(info_str, ": %s", info_str, token->uuid);
 
-	log_msg(LOG_ROUTING | LOG_INFO, info_str);
+	log_msg(LOG_ROUTING | LOG_INFO, "%s", info_str);
 	free(info_str);
 #endif
 }
