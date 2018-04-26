@@ -194,7 +194,9 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 	np_state_t* state = np_state();
 	np_message_t* ret= NULL;
 
-	// char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
+#ifdef DEBUG
+	char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
+#endif
 
 	// detect from instructions if this msg was orginally chunked
 	char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
