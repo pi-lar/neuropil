@@ -38,7 +38,7 @@
 #include "np_network.h"
 #include "np_node.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_list.h"
 #include "np_route.h"
 #include "np_util.h"
@@ -163,11 +163,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
 						(const unsigned char *) raw_msg + crypto_secretbox_NONCEBYTES,
 						1024 - crypto_secretbox_NONCEBYTES,
 						nonce,
-						alias_key->node->session_key);
-				log_debug_msg(LOG_DEBUG |LOG_SERIALIZATION, 
-					"HANDSHAKE SECRET: using shared secret from %s (%s) = %"PRIi32,
-					_np_key_as_str(alias_key), alias_key->obj->id, ret
-				);
+						alias_key->node->session_key);				
 
 				if (ret == 0)
 				{
@@ -177,12 +173,6 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
 					memset(raw_msg, 0, 1024);
 					memcpy(raw_msg, dec_msg, 1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
 				}
-			}
-			else {
-				log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION,
-					"HANDSHAKE SECRET: using no shared secret (%s)", 
-					alias_key->obj->id
-				);
 			}
 
 			np_new_obj(np_message_t, msg_in);
@@ -2241,7 +2231,7 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t* args)
 						// print warning if overwrite happens
 						log_msg(LOG_WARN,
 							"found valid authentication token for node %s (%p), overwriting...",
-							_np_key_as_str(msg_source_key), msg_source_key->node->obj);
+							_np_key_as_str(msg_source_key), msg_source_key->node);
 						//old_token = msg_source_key->aaa_token;
 						// msg_source_key->node->joined_network = FALSE;
 					}

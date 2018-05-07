@@ -104,25 +104,24 @@ struct np_util_performance_point {
 	uint32_t durations_count;
 	np_mutex_t access;
 };
-extern struct np_util_performance_point* __np_util_performance_points[np_util_performance_point_END];
 
 #define NP_PERFORMANCE_POINT_START(NAME) 																					\
 double t1_##NAME;																											\
 {																															\
-	struct np_util_performance_point* container = __np_util_performance_points[np_util_performance_point_##NAME];			\
+	struct np_util_performance_point* container = np_module(statistics)->__np_util_performance_points[np_util_performance_point_##NAME];			\
 	if (container == NULL) {																								\
 		container = malloc(sizeof(struct np_util_performance_point));														\
 		container->name = #NAME;																							\
 		container->durations_idx = 0;																						\
 		container->durations_count = 0;																						\
 		_np_threads_mutex_init(context, &container->access, "performance point "#NAME" access");										\
-		__np_util_performance_points[np_util_performance_point_##NAME] = container;											\
+		np_module(statistics)->__np_util_performance_points[np_util_performance_point_##NAME] = container;											\
 	}																														\
 	t1_##NAME = (double)clock()/CLOCKS_PER_SEC;																				\
 }
 #define NP_PERFORMANCE_POINT_END(NAME) {																					\
 	double t2 = (double)clock()/CLOCKS_PER_SEC;																				\
-	struct np_util_performance_point* container = __np_util_performance_points[np_util_performance_point_##NAME];			\
+	struct np_util_performance_point* container = np_module(statistics)->__np_util_performance_points[np_util_performance_point_##NAME];			\
 	_LOCK_ACCESS(&container->access) {																						\
 		container->durations[container->durations_idx] = t2 - t1_##NAME;													\
 		container->durations_idx = (container->durations_idx + 1)  % NP_BENCHMARKING;										\
@@ -134,7 +133,7 @@ char* STR = NULL;																											\
 {																															\
 	STR = np_str_concatAndFree(STR, "%30s --> %8s / %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "stddev", "hits");\
 	for (int i = 0; i < np_util_performance_point_END; i++) {																\
-		struct np_util_performance_point* container = __np_util_performance_points[i];										\
+		struct np_util_performance_point* container = np_module(statistics)->__np_util_performance_points[i];										\
 		if (container != NULL) {																							\
 			_LOCK_ACCESS(&container->access) {																				\
 				CALC_STATISTICS(container->durations, , 																	\

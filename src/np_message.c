@@ -31,7 +31,7 @@
 #include "np_jobqueue.h"
 #include "np_keycache.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_msgproperty.h"
 #include "np_network.h"
 #include "np_node.h"
@@ -49,7 +49,7 @@
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_on_reply_t);
 
-void _np_message_t_new(np_state_t *context, void* msg)
+void _np_message_t_new(np_state_t *context, uint8_t type, size_t size, void* msg)
 {
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_new(void* msg){");
 	np_message_t* msg_tmp = (np_message_t*) msg;
@@ -100,7 +100,7 @@ void _np_message_mark_as_incomming(np_message_t* msg) {
 }
 
 // destructor of np_message_t
-void _np_message_t_del(np_state_t *context, void* data)
+void _np_message_t_del(np_state_t *context, uint8_t type, size_t size, void* data)
 {
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_del(void* data){");	
 	np_message_t* msg = (np_message_t*) data;

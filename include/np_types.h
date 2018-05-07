@@ -69,18 +69,6 @@ typedef enum
   #define NP_API_EXPORT __attribute__ ((visibility ("default")))
 #endif
 
-
-/* np_obj_t
-*
-* void* like wrapper around structures to allow ref counting and null pointer checking
-* each np_new_obj needs a corresponding np_unref_obj
-* if other methods would like to claim ownership, they should call np_ref_obj, np_unref_obj
-* will release the object again (and possible delete it)
-*
-*/
-typedef struct np_obj_s np_obj_t;
-
-
 /*
  *  simple types / typedefs
  */

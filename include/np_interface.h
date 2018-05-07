@@ -37,6 +37,15 @@ extern "C" {
 		np_startup
 		// ...
 	};
+	static const char* np_error_str[] = {
+		"",
+		"operation is not implemented",
+		"could not init network",
+		"argument is invalid",
+		"operation is currently invalid",
+		"insufficient memory",
+		"startup error. See log for more details"
+	};
 
 	typedef uint8_t np_id[NP_FINGERPRINT_BYTES];
 	// If length is 0 then string is expected to be null-terminated.

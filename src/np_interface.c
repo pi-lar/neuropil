@@ -33,19 +33,26 @@ struct np_settings * np_default_settings(struct np_settings ** settings) {
 	}
 
 	ret->n_threads = 9;
-	//TODO: init other settings
-
+	sprintf(ret->log_file, "%.0f_neuropil.log",np_time_now()*100);
+	ret->log_level = LOG_ERROR;
+	ret->log_level |= LOG_WARN;
+#ifdef DEBUG
+	ret->log_level |= LOG_INFO;
+	ret->log_level |= LOG_DEBUG;
+#endif
+	
 	return ret;
 }
 
-np_context* np_new_context(struct np_settings *settings) {
+np_context* np_new_context(struct np_settings * settings_in) {
 	enum np_error status = np_ok;
 	np_state_t* context= NULL;
-
-	if (settings == NULL) {
-		np_default_settings(&settings);
-	}
 	
+	struct np_settings * settings = settings_in;
+	
+	if (settings_in == NULL) {
+		settings = np_default_settings(NULL);
+	}
 
 	//TODO: check settings for bad configuration
 
@@ -59,9 +66,12 @@ np_context* np_new_context(struct np_settings *settings) {
 		TSP_INITD(context->__is_in_shutdown, FALSE);
 
 		context->settings = settings;
+		
 		np_log_init(context, settings->log_file, settings->log_level);
 
-		log_trace_msg(LOG_TRACE, "start: np_state_t* np_init(char* proto, char* port, np_bool start_http, char* hostname){");
+		// memory pool
+		np_memory_init(context);
+
 		log_debug_msg(LOG_DEBUG, "neuropil_init");
 
 		if (_np_threads_init(context) == FALSE) {
@@ -74,27 +84,12 @@ np_context* np_new_context(struct np_settings *settings) {
 				log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
 				status = np_startup;
 			}
-			else {
-				// memory pool
-				np_mem_init(context);
-				//v2
-				np_memory_init(context);
+			else {				
 				
 				np_event_init(context);
 
 				// initialize key min max ranges
 				_np_dhkey_init(context);
-
-				context->threads_lock = malloc(sizeof(np_mutex_t));
-				_np_threads_mutex_init(context, context->threads_lock, "context->threads_lock ");
-				sll_init(np_thread_ptr, context->threads);
-
-				np_thread_t * new_main_thread;
-				np_new_obj(np_thread_t, new_main_thread);
-				new_main_thread->id = (unsigned long)getpid();
-				new_main_thread->thread_type = np_thread_type_main;
-				sll_append(np_thread_ptr, context->threads, new_main_thread);
-				context->thread_count = 1;
 
 				// splay tree initializing
 				_np_keycache_init(context);
@@ -179,52 +174,59 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 		if (NULL != protocol)
 		{
 			np_proto = _np_network_parse_protocol_string(protocol);
-			log_debug_msg(LOG_DEBUG, "now initializing networking for %s:%s", protocol, np_service);
+			if (np_proto == UNKNOWN_PROTO) {
+				ret = np_invalid_argument;
+			}
+			else {
+				log_debug_msg(LOG_DEBUG, "now initializing networking for %s:%s", protocol, np_service);
+			}
 		}
 		else
 		{
 			log_debug_msg(LOG_DEBUG, "now initializing networking for udp6://%s", np_service);
 		}
 
-		log_debug_msg(LOG_DEBUG, "building network base structure");
-		np_network_t* my_network = NULL;
-		np_new_obj(np_network_t, my_network);
+		if (ret == np_ok) {
+			log_debug_msg(LOG_DEBUG, "building network base structure");
+			np_network_t* my_network = NULL;
+			np_new_obj(np_network_t, my_network);
 
-		// get public / local network interface id
-		if (NULL == host) {
-			host = calloc(1, sizeof(char) * 255);
-			CHECK_MALLOC(host);
-			log_msg(LOG_INFO, "neuropil_init: resolve hostname");
+			// get public / local network interface id
+			if (NULL == host) {
+				host = calloc(1, sizeof(char) * 255);
+				CHECK_MALLOC(host);
+				log_msg(LOG_INFO, "neuropil_init: resolve hostname");
 
-			if (np_get_local_ip(context, host, 255) == FALSE) {
-				if (0 != gethostname(host, 255)) {
-					free(host);
-					host = strdup("localhost");
+				if (np_get_local_ip(context, host, 255) == FALSE) {
+					if (0 != gethostname(host, 255)) {
+						free(host);
+						host = strdup("localhost");
+					}
 				}
 			}
-		}
 
-		log_debug_msg(LOG_DEBUG, "initialise network");
-		_LOCK_MODULE(np_network_t)
-		{
-			_np_network_init(my_network, TRUE, np_proto, host, np_service);
-		}
-		log_debug_msg(LOG_DEBUG, "check for initialised network");
-		if (FALSE == my_network->initialized)
-		{
-			log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
-			ret = np_network_error;
-		}
-		else {
-			log_debug_msg(LOG_DEBUG, "update my node data");
-			_np_node_update(context->my_node_key->node, np_proto, host, np_service);
+			log_debug_msg(LOG_DEBUG, "initialise network");
+			_LOCK_MODULE(np_network_t)
+			{
+				_np_network_init(my_network, TRUE, np_proto, host, np_service);
+			}
+			log_debug_msg(LOG_DEBUG, "check for initialised network");
+			if (FALSE == my_network->initialized)
+			{
+				log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
+				ret = np_network_error;
+			}
+			else {
+				log_debug_msg(LOG_DEBUG, "update my node data");
+				_np_node_update(context->my_node_key->node, np_proto, host, np_service);
 
-			np_ref_obj(np_network_t, my_network, ref_key_network);
-			context->my_node_key->network = my_network;
-			my_network->watcher.data = context->my_node_key;
-			np_ref_obj(np_key_t, context->my_node_key, ref_network_watcher);
+				np_ref_obj(np_network_t, my_network, ref_key_network);
+				context->my_node_key->network = my_network;
+				my_network->watcher.data = context->my_node_key;
+				np_ref_obj(np_key_t, context->my_node_key, ref_network_watcher);
+			}
+			np_unref_obj(np_network_t, my_network, ref_obj_creation);
 		}
-		np_unref_obj(np_network_t, my_network, ref_obj_creation);
 	}
 	return ret;
 }
@@ -257,10 +259,10 @@ enum np_error np_get_address(np_context* ac, char* address, uint32_t max) {
 }
 
 enum np_error np_join(np_context* ac, char* address) {
-	enum np_error ret = np_not_implemented;
+	enum np_error ret = np_ok;
 	np_ctx_cast(ac);
 	
-//	np_send_join(context, address);
+	np_send_join(context, address);
 
 	return ret;
 }
@@ -284,10 +286,13 @@ enum np_error np_set_authorize_cb(np_context* ac, np_aaa_callback callback) {
 }
 
 enum np_error np_run(np_context* ac, double duration) {
-	np_ctx_cast(ac);
-
+	np_ctx_cast(ac); 
+	enum np_error ret = np_ok;
+	
 	_np_start_job_queue(context, context->settings->n_threads);
+	np_time_sleep(duration);
 
+	return ret;
 }
 
 enum np_error np_set_mx_properties(np_context* ac, np_id* subject, struct np_mx_properties properties) {

@@ -18,7 +18,7 @@
 #include "np_util.h"
 #include "np_tree.h"
 
-np_treeval_t np_treeval_NULL = { .type = np_treeval_type_undefined, .size=0 };
+
 
 np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
     log_trace_msg(LOG_TRACE, "start: np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {");
@@ -553,34 +553,6 @@ np_treeval_t np_treeval_new_hash (char *s)
     j.type = np_treeval_type_hash;
 
     return j;
-}
-
-np_treeval_t np_treeval_new_pwhash (NP_UNUSED char *s)
-{
-	// TODO: implement password hashing function / update of libsodium required ?
-    np_treeval_t j = np_treeval_NULL;
-
-//    char pw_hash[crypto_pwhash_STRBYTES];
-//    if (crypto_pwhash_str
-//        (hashed_password, s, strlen(s),
-//         crypto_pwhash_OPSLIMIT_SENSITIVE, crypto_pwhash_MEMLIMIT_SENSITIVE) != 0)
-//    {}
-//
-//    j.size = strlen(pw_hash);
-//    j.value.s = strndup(pw_hash, j.size);
-//    j.type = pwhash_type;
-
-    return j;
-}
-
-np_treeval_t np_treeval_new_obj(np_obj_t* obj)
-{
-    log_trace_msg(LOG_TRACE, "start: np_treeval_t np_treeval_new_obj(np_obj_t* obj){");
-	np_treeval_t j;
-	j.value.obj = obj;
-	j.size = 0;
-	j.type = np_treeval_type_npobj;
-	return j;
 }
 
 int16_t np_treeval_i (np_treeval_t j)

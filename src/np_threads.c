@@ -29,7 +29,7 @@
 #include "np_msgproperty.h"
 #include "np_constants.h"
 #include "np_network.h"
-#include "np_memory_v2.h"
+
 
 
 #include "np_jobqueue.h"
@@ -39,32 +39,62 @@
 /** predefined module mutex array **/
 np_module_struct(threads) {
 	np_state_t* context;
-	np_mutex_t __mutexes[PREDEFINED_DUMMY_START];
-	np_bool    __np_threads_mutexes_initiated;
+	np_mutex_t __mutexes[PREDEFINED_DUMMY_START];	
 	np_bool    __np_threads_threads_initiated;
 	pthread_once_t __thread_init_once;
 	pthread_key_t  __pthread_thread_ptr_key;	
+
+	pthread_attr_t attr;
+	pthread_t* thread_ids;
+
+	np_mutex_t* threads_lock;
+	np_sll_t(np_thread_ptr, threads);
+
 };
 
 np_bool _np_threads_init(np_state_t* context)
 {
-	np_module_malloc(threads);
-	_module->__np_threads_mutexes_initiated = FALSE;
-	_module->__np_threads_threads_initiated = FALSE;
-	_module->__pthread_thread_ptr_key;
+	np_bool ret = TRUE;
+	if (!np_module_initiated(threads)) {
+		np_module_malloc(threads);		
+		_module->__np_threads_threads_initiated = FALSE;
+		_module->__pthread_thread_ptr_key;
 
-	pthread_key_create(&_module->__pthread_thread_ptr_key, NULL);
+		pthread_key_create(&_module->__pthread_thread_ptr_key, NULL);
 
-	for (int module_id = 0; module_id < PREDEFINED_DUMMY_START; module_id++) {
-		pthread_mutexattr_init(&_module->__mutexes[module_id].lock_attr);
-		pthread_mutexattr_settype(&_module->__mutexes[module_id].lock_attr, PTHREAD_MUTEX_RECURSIVE);
-		pthread_mutex_init(&_module->__mutexes[module_id].lock, &_module->__mutexes[module_id].lock_attr);
-		_module->__mutexes[module_id].desc = np_module_lock_str[module_id];
-		log_debug_msg(LOG_MUTEX | LOG_DEBUG, "created module mutex %d", module_id);
+		for (int module_id = 0; module_id < PREDEFINED_DUMMY_START; module_id++) {
+			ret = ret && 0 == pthread_mutexattr_init(&_module->__mutexes[module_id].lock_attr);
+			ret = ret && 0 == pthread_mutexattr_settype(&_module->__mutexes[module_id].lock_attr, PTHREAD_MUTEX_RECURSIVE);
+			ret = ret && 0 == pthread_mutex_init(&_module->__mutexes[module_id].lock, &_module->__mutexes[module_id].lock_attr);
+			_module->__mutexes[module_id].desc = np_module_lock_str[module_id];
+			log_debug_msg(LOG_MUTEX | LOG_DEBUG, "created module mutex %d", module_id);
+		}
+
+		ret = ret && 0 == pthread_attr_init(&_module->attr);
+		ret = ret && 0 == pthread_attr_setscope(&_module->attr, PTHREAD_SCOPE_SYSTEM);
+		ret = ret && 0 == pthread_attr_setdetachstate(&_module->attr, PTHREAD_CREATE_DETACHED);
+		
+		if(!ret)
+			log_msg(LOG_ERROR, "pthread_attr_init: %s", strerror(errno));
+		else {
+			_module->thread_ids = (pthread_t *)malloc(sizeof(pthread_t) * context->settings->n_threads);
+			ret = ret && _module->thread_ids != NULL;
+
+			_module->threads_lock = malloc(sizeof(np_mutex_t));
+			ret = ret && _module->threads_lock != NULL;
+			ret = ret && 0 == _np_threads_mutex_init(context, _module->threads_lock, "context->threads_lock ");
+			sll_init(np_thread_ptr, _module->threads);
+
+
+			np_thread_t * new_main_thread;
+			np_new_obj(np_thread_t, new_main_thread);
+			new_main_thread->id = (unsigned long)getpid();
+			new_main_thread->thread_type = np_thread_type_main;
+			sll_append(np_thread_ptr, _module->threads, new_main_thread);
+			context->thread_count = 1;
+		}
 	}
-	_module->__np_threads_mutexes_initiated = TRUE;
-
-	return (_module->__np_threads_mutexes_initiated);
+	return (ret);
 }
 
 int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, const char * where ) {
@@ -487,9 +517,9 @@ np_thread_t*_np_threads_get_self(np_state_t* context)
 	{
 		unsigned long id_to_find = (unsigned long)pthread_self();
 
-		pthread_mutex_lock(&context->threads_lock->lock);
+		pthread_mutex_lock(&np_module(threads)->threads_lock->lock);
 		{
-			sll_iterator(np_thread_ptr) iter_threads = sll_first(context->threads);
+			sll_iterator(np_thread_ptr) iter_threads = sll_first(np_module(threads)->threads);
 			while (iter_threads != NULL)
 			{
 				if (iter_threads->val->id == id_to_find) {
@@ -502,7 +532,7 @@ np_thread_t*_np_threads_get_self(np_state_t* context)
 			if (ret == NULL) {
 				id_to_find = (unsigned long)getpid();
 
-				iter_threads = sll_first(context->threads);
+				iter_threads = sll_first(np_module(threads)->threads);
 				while (iter_threads != NULL)
 				{
 					if (iter_threads->val->id == id_to_find) {
@@ -513,12 +543,12 @@ np_thread_t*_np_threads_get_self(np_state_t* context)
 				}
 			}
 		}
-		pthread_mutex_unlock(&context->threads_lock->lock);
+		pthread_mutex_unlock(&np_module(threads)->threads_lock->lock);
 	}
 	return ret;
 }
 
-void _np_thread_t_del(np_state_t *context, void* obj)
+void _np_thread_t_del(np_state_t *context, uint8_t type, size_t size, void* obj)
 {
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
 	np_thread_t* thread = (np_thread_t*)obj;	
@@ -549,7 +579,7 @@ void _np_thread_t_del(np_state_t *context, void* obj)
 
 }
 
-void _np_thread_t_new(np_state_t *context, void* obj)
+void _np_thread_t_new(np_state_t *context, uint8_t type, size_t size, void* obj)
 {
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
 	np_thread_t* thread = (np_thread_t*)obj;
@@ -617,8 +647,8 @@ char* np_threads_printpool(np_bool asOneLine) {
 }
 
 void _np_thread_run(np_state_t*context, np_thread_t * thread) {
-	pthread_create(&context->thread_ids[thread->idx], &context->attr, thread->run_fn, (void *)thread);
-	thread->id = (unsigned long)context->thread_ids[thread->idx];
+	pthread_create(&np_module(threads)->thread_ids[thread->idx], &np_module(threads)->attr, thread->run_fn, (void *)thread);
+	thread->id = (unsigned long)np_module(threads)->thread_ids[thread->idx];
 }
 
 np_thread_t * __np_createThread(np_state_t*context, uint8_t number, void *(fn)(void *), np_bool auto_run, enum np_thread_type_e type) {
@@ -628,8 +658,8 @@ np_thread_t * __np_createThread(np_state_t*context, uint8_t number, void *(fn)(v
 	new_thread->run_fn = fn;
 	new_thread->thread_type = type;
 
-	_LOCK_ACCESS(context->threads_lock) {
-		sll_append(np_thread_ptr, context->threads, new_thread);
+	_LOCK_ACCESS(np_module(threads)->threads_lock) {
+		sll_append(np_thread_ptr, np_module(threads)->threads, new_thread);
 	}
 	if(auto_run) {
 		_np_thread_run(context, new_thread);
@@ -662,145 +692,120 @@ void __np_createWorkerPool(np_state_t* context, uint8_t pool_size) {
 		}
 
 		_np_thread_run(context, new_thread);
-		log_debug_msg(LOG_THREADS |LOG_DEBUG, "neuropil worker thread started: %p", context->thread_ids[i]);
+		log_debug_msg(LOG_THREADS |LOG_DEBUG, "neuropil worker thread started: %p", np_module(threads)->thread_ids[i]);
 	}
 }
 
-
-np_bool _job_queue_is_started = FALSE;
 /*
 	min pool_size is 2
 */
 void _np_start_job_queue(np_state_t* context, uint8_t pool_size)
-{	
-	log_trace_msg(LOG_TRACE, "start: void _np_start_job_queue(uint8_t pool_size){");
-
+{
 	log_debug_msg(LOG_THREADS | LOG_DEBUG, "starting neuropil with %"PRIu8" threads", pool_size);
 
+	if (context->thread_count <= 1) {
+		context->thread_count += pool_size;
 
-	if (pthread_attr_init(&context->attr) != 0)
-	{
-		log_msg(LOG_ERROR, "pthread_attr_init: %s", strerror(errno));
-		return;
-	}
-
-	if (pthread_attr_setscope(&context->attr, PTHREAD_SCOPE_SYSTEM) != 0)
-	{
-		log_msg(LOG_ERROR, "pthread_attr_setscope: %s", strerror(errno));
-		return;
-	}
-
-	if (pthread_attr_setdetachstate(&context->attr, PTHREAD_CREATE_DETACHED) != 0)
-	{
-		log_msg(LOG_ERROR, "pthread_attr_setdetachstate: %s", strerror(errno));
-		return;
-	}
-
-	context->thread_count += pool_size;
-	context->thread_ids = (pthread_t *)malloc(sizeof(pthread_t) * pool_size);
-
-	CHECK_MALLOC(context->thread_ids);
-
-	np_bool create_job_manager_thread = FALSE;
-	if (pool_size >= 2) {
-		pool_size--;
-		create_job_manager_thread = TRUE;
-	}
-
-	np_bool create_own_event_in_thread = FALSE;
-	if (pool_size >= 2) {
-		pool_size--;
-		create_own_event_in_thread = TRUE;
-	}
-	np_bool create_own_event_out_thread = FALSE;
-	if (pool_size >= 2) {
-		pool_size--;
-		create_own_event_out_thread = TRUE;
-	}
-	np_bool create_own_event_io_thread = FALSE;
-	if (pool_size >= 2) {
-		pool_size--;
-		create_own_event_io_thread = TRUE;
-	}
-	np_bool create_own_event_http_thread = FALSE;
-	if (pool_size >= 2) {
-		pool_size--;
-		create_own_event_http_thread = TRUE;
-	}
-
- 	_LOCK_MODULE(np_jobqueue_t)
-	{
-		//start jobs
-		np_thread_t* special_thread;
-		if (create_own_event_in_thread) {
-			special_thread = __np_createThread(context, pool_size, _np_event_in_run, TRUE, np_thread_type_other);
-		}
-		else {
-			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
+		np_bool create_job_manager_thread = FALSE;
+		if (pool_size >= 2) {
+			pool_size--;
+			create_job_manager_thread = TRUE;
 		}
 
-		if (create_own_event_out_thread) {
-			special_thread = __np_createThread(context, pool_size, _np_event_out_run, TRUE, np_thread_type_other);
+		np_bool create_own_event_in_thread = FALSE;
+		if (pool_size >= 2) {
+			pool_size--;
+			create_own_event_in_thread = TRUE;
 		}
-		else {
-			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_4, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
+		np_bool create_own_event_out_thread = FALSE;
+		if (pool_size >= 2) {
+			pool_size--;
+			create_own_event_out_thread = TRUE;
+		}
+		np_bool create_own_event_io_thread = FALSE;
+		if (pool_size >= 2) {
+			pool_size--;
+			create_own_event_io_thread = TRUE;
+		}
+		np_bool create_own_event_http_thread = FALSE;
+		if (pool_size >= 2) {
+			pool_size--;
+			create_own_event_http_thread = TRUE;
 		}
 
-		if (create_own_event_io_thread) {
-			special_thread = __np_createThread(context, pool_size, _np_event_io_run, TRUE, np_thread_type_other);
-		}
-		else {
-			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
-		}
-
-		if (create_own_event_http_thread) {
-			special_thread = __np_createThread(context, pool_size, _np_event_http_run, TRUE, np_thread_type_other);
-		}
-		else {
-			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_6, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
-		}
-
-		if (create_job_manager_thread) {
-			__np_createWorkerPool(context, pool_size);
-			special_thread = __np_createThread(context, pool_size, __np_jobqueue_run_manager, TRUE, np_thread_type_manager);
-		}
-		else {
-			if(pool_size >=1)
-			{
-				special_thread = __np_createThread(context, pool_size, __np_jobqueue_run_jobs, TRUE, np_thread_type_manager);
+		_LOCK_MODULE(np_jobqueue_t)
+		{
+			//start jobs
+			np_thread_t* special_thread;
+			if (create_own_event_in_thread) {
+				special_thread = __np_createThread(context, pool_size, _np_event_in_run, TRUE, np_thread_type_other);
 			}
+			else {
+				np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
+			}
+
+			if (create_own_event_out_thread) {
+				special_thread = __np_createThread(context, pool_size, _np_event_out_run, TRUE, np_thread_type_other);
+			}
+			else {
+				np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_4, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
+			}
+
+			if (create_own_event_io_thread) {
+				special_thread = __np_createThread(context, pool_size, _np_event_io_run, TRUE, np_thread_type_other);
+			}
+			else {
+				np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
+			}
+
+			if (create_own_event_http_thread) {
+				special_thread = __np_createThread(context, pool_size, _np_event_http_run, TRUE, np_thread_type_other);
+			}
+			else {
+				np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_6, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
+			}
+
+			if (create_job_manager_thread) {
+				__np_createWorkerPool(context, pool_size);
+				special_thread = __np_createThread(context, pool_size, __np_jobqueue_run_manager, TRUE, np_thread_type_manager);
+			}
+			else {
+				if (pool_size >= 1)
+				{
+					special_thread = __np_createThread(context, pool_size, __np_jobqueue_run_jobs, TRUE, np_thread_type_manager);
+				}
+			}
+
+			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, 0.0, MISC_MEMORY_REFRESH_INTERVAL_SEC, _np_memory_job_memory_management, "_np_memory_job_memory_management");
+
+			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache, "_np_event_cleanup_msgpart_cache");
+
+			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_RESPONSECONTAINER_CLEANUP_INTERVAL_SEC, _np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
+			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_MSGPROPERTY_MSG_UNIQUITY_CHECK_SEC, _np_msgproperty_job_msg_uniquety, "_np_msgproperty_job_msg_uniquety");
+			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_cleanup_keycache_jobexec, "_np_cleanup_keycache_jobexec");
+
+			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_SEND_PINGS_SEC, _np_glia_send_pings, "_np_glia_send_pings");
+			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_CHECK_ROUTES_SEC, _np_glia_check_neighbours, "_np_glia_check_neighbours");
+
+			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_4, 0.0, MISC_SEND_PIGGY_REQUESTS_SEC, _np_glia_send_piggy_requests, "_np_glia_send_piggy_requests");
+			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_4, 0.0, MISC_RETRANSMIT_MSG_TOKENS_SEC, _np_retransmit_message_tokens_jobexec, "_np_retransmit_message_tokens_jobexec");
+
+			np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_5, 0.0, MISC_SEND_UPDATE_MSGS_SEC, _np_glia_check_routes, "_np_glia_check_routes");
+
 		}
 
-		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, 0.0, MISC_MEMORY_REFRESH_INTERVAL_SEC, _np_memory_job_memory_management, "_np_memory_job_memory_management");
+		//TODO: re-enable _np_renew_node_token_jobexec
+		//np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_RENEW_NODE_SEC,					_np_renew_node_token_jobexec, "_np_renew_node_token_jobexec");
 
-		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache, "_np_event_cleanup_msgpart_cache");
+		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_4, 0.0, MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary, "_np_event_rejoin_if_necessary");
+		np_job_submit_event_periodic(context, PRIORITY_MOD_LOWEST, 0.0, MISC_LOG_FLUSH_INTERVAL_SEC, _np_glia_log_flush, "_np_glia_log_flush");
 
-		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_RESPONSECONTAINER_CLEANUP_INTERVAL_SEC, _np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
-		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_MSGPROPERTY_MSG_UNIQUITY_CHECK_SEC, _np_msgproperty_job_msg_uniquety, "_np_msgproperty_job_msg_uniquety");
-		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_cleanup_keycache_jobexec, "_np_cleanup_keycache_jobexec");
+		log_debug_msg(LOG_DEBUG, "jobqueue threads started: %"PRIu8" + %"PRIu8, pool_size, create_job_manager_thread + create_own_event_in_thread + create_own_event_out_thread + create_own_event_io_thread + create_own_event_http_thread);
+		log_msg(LOG_INFO, "%s.%05d", NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD);
+		log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
+		log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 
-		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_SEND_PINGS_SEC, _np_glia_send_pings, "_np_glia_send_pings");
-		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_CHECK_ROUTES_SEC, _np_glia_check_neighbours, "_np_glia_check_neighbours");
 
-		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_4, 0.0, MISC_SEND_PIGGY_REQUESTS_SEC, _np_glia_send_piggy_requests, "_np_glia_send_piggy_requests");
-		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_4, 0.0, MISC_RETRANSMIT_MSG_TOKENS_SEC, _np_retransmit_message_tokens_jobexec, "_np_retransmit_message_tokens_jobexec");
-
-		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_5, 0.0, MISC_SEND_UPDATE_MSGS_SEC, _np_glia_check_routes, "_np_glia_check_routes");
-
+		_np_network_start(context->my_node_key->network);		
 	}
-
-	//TODO: re-enable _np_renew_node_token_jobexec
-	//np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_RENEW_NODE_SEC,					_np_renew_node_token_jobexec, "_np_renew_node_token_jobexec");
-
-	np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_4, 0.0, MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC, _np_event_rejoin_if_necessary, "_np_event_rejoin_if_necessary");
-	np_job_submit_event_periodic(context, PRIORITY_MOD_LOWEST, 0.0, MISC_LOG_FLUSH_INTERVAL_SEC, _np_glia_log_flush, "_np_glia_log_flush");
-
-	log_debug_msg(LOG_DEBUG, "jobqueue threads started: %"PRIu8" + %"PRIu8, pool_size, create_job_manager_thread + create_own_event_in_thread + create_own_event_out_thread + create_own_event_io_thread + create_own_event_http_thread);
-	log_msg(LOG_INFO, "%s.%05d", NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD);
-	log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
-	log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
-
-
-	_np_network_start(context->my_node_key->network);
-	_job_queue_is_started = TRUE;
 }

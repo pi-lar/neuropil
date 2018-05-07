@@ -16,7 +16,7 @@ A developer should be familiar with the main settings
 #include <stdarg.h>
 
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_util.h"
 #include "np_types.h"
 #include "np_list.h"
@@ -226,7 +226,7 @@ typedef enum np_msg_ack_enum {
 struct np_msgproperty_s
 {
 	// link to memory management
-	np_obj_t* obj;
+	
 
 	RB_ENTRY(np_msgproperty_s) link; // link for cache management
 

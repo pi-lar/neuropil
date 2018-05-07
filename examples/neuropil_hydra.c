@@ -16,33 +16,52 @@
 
 int main(int argc, char **argv)
 {
-	np_context* nodes[10] = { 0 };
+	np_context* nodes[2] = { 0 };
 
 	char addr[500];
+	uint16_t tmp;
 	for (int i=0; i < SIZE(nodes); i++) {
 
-		nodes[i] = np_new_context(NULL); // use default settings
+		printf("INFO: Starting Node %d\n", i);
+		fflush(NULL);
+
+
+		int port = 3000 + i;
+		struct np_settings * settings = np_default_settings(NULL);		
+		sprintf(settings->log_file, "%d_neuropil.log", port);
+
+		nodes[i] = np_new_context(settings); // use default settings
 		
-		if (np_ok != np_listen(nodes[i], "udp3", "localhost", 3000 + i)) {
-			printf("ERROR: Node %d could not listen", i);
+		if (np_ok != (tmp = np_listen(nodes[i], "udp4", "localhost", port))) {
+			printf("ERROR: Node %d could not listen. %s\n", i, np_error_str[tmp]);
 		}
-		if (i > 0) {
-			// get connection str of previous node
-			if (np_ok != np_get_address(nodes[i - 1], addr, SIZE(addr))) {
-				printf("ERROR: Could not get address of node %d", i);
+		else {
+			if (np_ok != (tmp = np_get_address(nodes[i], addr, SIZE(addr)))) {
+				printf("ERROR: Could not get address of node %d. %s\n", i, np_error_str[tmp]);
 			}
-			// join previous node			
-			if (np_ok != np_join(nodes[i], addr)) {
-				printf("ERROR: Node %d could not join", i);
+			printf("INFO: Node %d aka  (%s) listens\n", i, addr);
+
+			if (i > 0) {
+				// get connection str of previous node
+				if (np_ok != (tmp = np_get_address(nodes[i - 1], addr, SIZE(addr)))) {
+					printf("ERROR: Could not get address of node %d. %s\n", i, np_error_str[tmp]);
+				}
+				// join previous node			
+				if (np_ok != (tmp=np_join(nodes[i], addr)) ){
+					printf("ERROR: Node %d could not join. %s\n", i, np_error_str[tmp]);
+				}
+				else {
+					printf("INFO: Node %d joins %s\n", i, addr);
+				}
 			}
-		}		
+		}
 	}
 
 	while (true)
 	{		
 		for (int i = 0; i < SIZE(nodes); i++) {			
-			if (np_ok != np_run(nodes[i], 0.001)) {
-				printf("ERROR: Node %d could not run", i);
+			if (np_ok != (tmp = np_run(nodes[i], 0.001))) {
+				printf("ERROR: Node %d could not run. %s\n", i, np_error_str[tmp]);
 			}
 		}
 	}

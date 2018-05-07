@@ -30,7 +30,7 @@
 #include "np_jobqueue.h"
 #include "np_tree.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_message.h"
 #include "np_network.h"
 #include "np_node.h"
@@ -178,7 +178,7 @@ void np_msgproperty_register(np_msgproperty_t* msgprops)
 	np_unref_obj(np_aaatoken_t, token, "_np_msgproperty_upsert_token");
 }
 
-void _np_msgproperty_t_new(np_state_t *context, void* property)
+void _np_msgproperty_t_new(np_state_t *context, uint8_t type, size_t size, void* property)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_msgproperty_t_new(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
@@ -313,7 +313,7 @@ void _np_msgproperty_job_msg_uniquety(np_state_t* context, np_jobargs_t* args) {
 	}
 }
 
-void _np_msgproperty_t_del(np_state_t *context, void* property)
+void _np_msgproperty_t_del(np_state_t *context, uint8_t type, size_t size, void* property)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_msgproperty_t_del(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;

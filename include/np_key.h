@@ -16,7 +16,7 @@
 #include "np_dhkey.h"
 #include "np_threads.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
 #include "np_node.h"
 
@@ -36,7 +36,7 @@ enum np_key_type {
 };
 struct np_key_s
 {
-	np_obj_t* obj;              // link to memory management and ref counter
+	              // link to memory management and ref counter
 
 	double created_at;
 	TSP(np_bool, in_destroy);

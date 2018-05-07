@@ -23,7 +23,7 @@ It should contain all required functions to send or receive messages.
 #include "np_types.h"
 #include "np_list.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_network.h"
 #include "np_aaatoken.h"
 #include "np_axon.h"
@@ -69,8 +69,15 @@ It should contain all required functions to send or receive messages.
 #ifdef __cplusplus
 extern "C" {
 #endif
+#define np_ctx(c)				\
+		np_memory_get_context(c)			
+#define np_ctx_decl(b)				\
+		np_state_t* context = (b)
+#define np_ctx_full(a)				\
+		np_ctx_decl(np_ctx(a))
 
-#define NP_CTX_MODULES memory, threads, events, statistics, msgproperties
+
+#define NP_CTX_MODULES route, memory, threads, events, statistics, msgproperties, keycache, sysinfo, log, jobqueue
 
 #define np_module_struct(m) struct CONCAT(np_, CONCAT(m, _module_s))
 #define np_module_type(m) CONCAT(np_, CONCAT(m, _module_t))
@@ -121,12 +128,6 @@ struct np_state_s
 
 	np_tree_t *msg_tokens;
 	np_tree_t* msg_part_cache;
-
-	pthread_attr_t attr;
-	pthread_t* thread_ids;
-
-	np_mutex_t* threads_lock;
-	np_sll_t(np_thread_ptr, threads);
 
 	int thread_count;
 

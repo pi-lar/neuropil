@@ -8,7 +8,7 @@
 #include <stdarg.h>
 
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
 #include "np_messagepart.h"
 #include "np_threads.h"
@@ -20,7 +20,7 @@ extern "C" {
 
 struct np_message_s
 {
-	np_obj_t* obj; // link to memory pool
+	 // link to memory pool
 
 	char* uuid;	
 

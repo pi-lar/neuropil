@@ -33,7 +33,7 @@
 #include "np_log.h"
 #include "np_message.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_msgproperty.h"
 #include "np_network.h"
 #include "np_node.h"
@@ -378,10 +378,8 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t* ar
  **/
 void _np_cleanup_ack_jobexec(np_state_t* context, np_jobargs_t* args)
 {
-	
-
-	np_waitref_obj(np_key_t, context->my_node_key, my_key, "np_waitref_obj");
-	np_network_t* ng = my_key->network;
+	np_waitref_obj(np_key_t, context->my_node_key, my_key);
+	np_waitref_obj(np_network_t, my_key->network, my_network);	
 
 	np_tree_elem_t *jrb_ack_node = NULL;
 
@@ -393,14 +391,14 @@ void _np_cleanup_ack_jobexec(np_state_t* context, np_jobargs_t* args)
 		if (c++ > 10) {
 			break;
 		}
-		_LOCK_ACCESS(&ng->waiting_lock)
+		_LOCK_ACCESS(&my_network->waiting_lock)
 		{
-			iter = RB_MIN(np_tree_s, ng->waiting);
+			iter = RB_MIN(np_tree_s, my_network->waiting);
 
 			while (iter != NULL)
 			{
 				jrb_ack_node = iter;
-				iter = RB_NEXT(np_tree_s, ng->waiting, iter);
+				iter = RB_NEXT(np_tree_s, my_network->waiting, iter);
 
 				np_responsecontainer_t *responsecontainer = (np_responsecontainer_t *)jrb_ack_node->val.value.v;
 				if (responsecontainer != NULL) {
@@ -410,20 +408,20 @@ void _np_cleanup_ack_jobexec(np_state_t* context, np_jobargs_t* args)
 
 							_np_responsecontainer_set_timeout(responsecontainer);
 							log_msg(LOG_WARN, "ACK_HANDLING timeout (table size: %3d) message (%s) not acknowledged (IN TIME %f/%f)",
-								ng->waiting->size,
+								my_network->waiting->size,
 								jrb_ack_node->key.value.s,
 								np_time_now(), responsecontainer->expires_at
 							);
 						}
 
-						np_tree_del_str(ng->waiting, jrb_ack_node->key.value.s);
+						np_tree_del_str(my_network->waiting, jrb_ack_node->key.value.s);
 						np_unref_obj(np_responsecontainer_t, responsecontainer, ref_ack_obj);
 						break;
 					}
 				}
 				else {
 					log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
-						ng->waiting->size,
+						my_network->waiting->size,
 						jrb_ack_node->key.value.s);
 
 				}
@@ -431,7 +429,8 @@ void _np_cleanup_ack_jobexec(np_state_t* context, np_jobargs_t* args)
 		}
 	} while (iter != NULL);
 
-	np_unref_obj(np_key_t, my_key,"np_waitref_obj");
+	np_unref_obj(np_key_t, my_key, __func__);
+	np_unref_obj(np_network_t, my_network, __func__);
 }
 
 void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t* args)

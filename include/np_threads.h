@@ -14,7 +14,7 @@
 #endif
 
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_list.h"
 #include "np_log.h"
 #include "np_types.h"
@@ -115,7 +115,7 @@ enum np_thread_type_e {
 /** thread														**/
 struct np_thread_s
 {
-	np_obj_t* obj;
+	
 
 	void * run_fn;
 	uint8_t idx;

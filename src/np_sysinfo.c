@@ -14,7 +14,7 @@
 #include "np_msgproperty.h"
 #include "np_message.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_node.h"
 #include "np_route.h"
 #include "np_dhkey.h"
@@ -40,23 +40,23 @@
 #define  _NP_SYSINFO_TARGET  "target_hash"
 
 
-static np_simple_cache_table_t* _cache = NULL;
-
+np_module_struct(sysinfo) {
+	np_state_t* context;
+	np_simple_cache_table_t* _cache;
+};
 void _np_sysinfo_slave_send_cb(np_state_t* context, np_jobargs_t* args);
 
 void _np_sysinfo_init_cache(np_state_t* context)
 {
-	log_trace_msg(LOG_TRACE, "start: void _np_sysinfo_init_cache(){");
-
 	_LOCK_MODULE(np_sysinfo_t)
 	{
-		if(NULL == _cache) {
-
-			_cache = np_cache_init(context);
+		if (!np_module_initiated(sysinfo)) {
+			np_module_malloc(sysinfo);
+			_module->_cache = np_cache_init(context);
 		}
 	}
 }
-uint32_t test = 0;
+
 void _np_sysinfo_slave_send_cb(np_state_t* context, np_jobargs_t* args) {	
 	
 
@@ -281,7 +281,7 @@ np_bool _np_in_sysinforeply(const np_message_t* const msg, np_tree_t* properties
 	// insert / replace cache item
 	_LOCK_MODULE(np_sysinfo_t)
 	{
-		np_cache_item_t* item = np_simple_cache_get(context, _cache, source_val);
+		np_cache_item_t* item = np_simple_cache_get(context, np_module(sysinfo)->_cache, source_val);
 		// only insert if the data is newer
 		if(NULL != item) {
 			np_tree_elem_t* new_check = np_tree_find_str(body, _NP_SYSINFO_MY_NODE_TIMESTAMP);
@@ -291,14 +291,14 @@ np_bool _np_in_sysinforeply(const np_message_t* const msg, np_tree_t* properties
 			&& new_check->val.value.d > old_check->val.value.d) {
 				log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Removing old SysInfo reply for newer data");
 				np_tree_free( item->value);
-				np_simple_cache_insert(context, _cache, source_val, np_tree_clone( body));
+				np_simple_cache_insert(context, np_module(sysinfo)->_cache, source_val, np_tree_clone( body));
 			}else{
 				log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Ignoring SysInfo reply due to newer data in cache");
 			}
 
 		} else {
 			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Got SysInfo reply for a new node");
-			np_simple_cache_insert(context, _cache, source_val, np_tree_clone( body));
+			np_simple_cache_insert(context, np_module(sysinfo)->_cache, source_val, np_tree_clone( body));
 		}
 	}
 	if (source_str_free == TRUE) {
@@ -403,7 +403,7 @@ void _np_sysinfo_request(np_state_t* context, const char* const hash_of_target) 
 			if(NULL ==  _np_sysinfo_get_from_cache(context, hash_of_target,-1)) {
 				np_tree_t* dummy = np_tree_create();
 				np_tree_insert_str( dummy, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_f(np_time_now()));
-				np_simple_cache_insert(context, _cache, hash_of_target, np_tree_clone( dummy));
+				np_simple_cache_insert(context, np_module(sysinfo)->_cache, hash_of_target, np_tree_clone( dummy));
 			}
 		}
 		log_msg(LOG_INFO | LOG_SYSINFO, "sending sysinfo request to %s", hash_of_target);
@@ -454,7 +454,7 @@ np_tree_t* _np_sysinfo_get_from_cache(np_state_t* context, const char* const has
 	np_tree_t* ret = NULL;
 	_LOCK_MODULE(np_sysinfo_t)
 	{
-		np_cache_item_t* item = np_simple_cache_get(context, _cache, hash_of_target);
+		np_cache_item_t* item = np_simple_cache_get(context, np_module(sysinfo)->_cache, hash_of_target);
 		if (NULL != item && item->value != NULL) {
 			if ((np_time_now() - item->insert_time) <= max_cache_ttl) {
 				np_tree_t* tmp = item->value;

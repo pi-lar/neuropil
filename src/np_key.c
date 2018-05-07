@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "neuropil.h"
 
@@ -99,87 +100,81 @@ void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
 void _np_key_destroy(np_key_t* to_destroy) {
 	np_ctx_full(to_destroy);
 
-	np_tryref_obj(np_key_t, to_destroy, to_destroyExists, __func__);
-	if(to_destroyExists) {
-		TSP_SCOPE(to_destroy->in_destroy)
+	TSP_SCOPE(to_destroy->in_destroy)
+	{
+		to_destroy->in_destroy = TRUE;
+
+		char* keyident = _np_key_as_str(to_destroy);
+		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
+
+		log_debug_msg(LOG_KEY | LOG_DEBUG, "refcount of key %s at destroy: %"PRIu32, keyident, np_memory_get_refcount(to_destroy));
+
+		np_key_t* deleted;
+		np_key_t* added;
+
+		_np_route_leafset_update(to_destroy, FALSE, &deleted, &added);
+		_np_route_update(to_destroy, FALSE, &deleted, &added);
+		_np_network_disable(to_destroy->network);
+
+		_np_keycache_remove(context, to_destroy->dhkey);
+
+		// delete old receive tokens
+		if (NULL != to_destroy->recv_tokens)
 		{
-			to_destroy->in_destroy = TRUE;
-
-			char* keyident = _np_key_as_str(to_destroy);
-			log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
-
-			log_debug_msg(LOG_KEY | LOG_DEBUG, "refcount of key %s at destroy: %"PRIu32, keyident, to_destroy->obj == NULL ? 0 : to_destroy->obj->ref_count);
-
-			np_key_t* deleted;
-			np_key_t* added;
-
-			_np_route_leafset_update(to_destroy,FALSE,&deleted,&added);
-			_np_route_update(to_destroy,FALSE,&deleted,&added);
-			_np_network_disable(to_destroy->network);
-
-			_np_keycache_remove(context, to_destroy->dhkey);
-
-			// delete old receive tokens
-			if (NULL != to_destroy->recv_tokens)
-			{
-				if(to_destroy->recv_property != NULL) {
-					_LOCK_ACCESS(&to_destroy->recv_property->lock)
+			if (to_destroy->recv_property != NULL) {
+				_LOCK_ACCESS(&to_destroy->recv_property->lock)
+				{
+					pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->recv_tokens);
+					while (NULL != iter)
 					{
-						pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->recv_tokens);
-						while (NULL != iter)
-						{
-							np_unref_obj(np_aaatoken_t, iter->val,"recv_tokens");
-							pll_next(iter);
-						}
-						pll_free(np_aaatoken_ptr, to_destroy->recv_tokens);
-						to_destroy->recv_tokens = NULL;
+						np_unref_obj(np_aaatoken_t, iter->val, "recv_tokens");
+						pll_next(iter);
 					}
-				}
-			}
-
-			// delete send tokens
-			if (NULL != to_destroy->send_tokens)
-			{
-				if(to_destroy->send_property != NULL) {
-					_LOCK_ACCESS(&to_destroy->send_property->lock)
-					{
-						pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->send_tokens);
-						while (NULL != iter)
-						{
-							np_unref_obj(np_aaatoken_t, iter->val,"send_tokens");
-							pll_next(iter);
-						}
-						pll_free(np_aaatoken_ptr, to_destroy->send_tokens);
-						to_destroy->send_tokens = NULL;
-					}
+					pll_free(np_aaatoken_ptr, to_destroy->recv_tokens);
+					to_destroy->recv_tokens = NULL;
 				}
 			}
 		}
 
-		np_sll_t(np_key_ptr, aliasse)  = _np_keycache_find_aliase(to_destroy);
-		sll_iterator(np_key_ptr) iter = sll_first(aliasse);
-
-		while(iter != NULL) {
-			_np_key_destroy(iter->val);
-			np_unref_obj(np_key_t, iter->val,"_np_keycache_find_aliase");
-			sll_next(iter);
+		// delete send tokens
+		if (NULL != to_destroy->send_tokens)
+		{
+			if (to_destroy->send_property != NULL) {
+				_LOCK_ACCESS(&to_destroy->send_property->lock)
+				{
+					pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->send_tokens);
+					while (NULL != iter)
+					{
+						np_unref_obj(np_aaatoken_t, iter->val, "send_tokens");
+						pll_next(iter);
+					}
+					pll_free(np_aaatoken_ptr, to_destroy->send_tokens);
+					to_destroy->send_tokens = NULL;
+				}
+			}
 		}
-		sll_free(np_key_ptr, aliasse);
-
-		if(to_destroy->parent != NULL){
-			np_unref_obj(np_key_t, to_destroy->parent, ref_key_parent);
-			to_destroy->parent = NULL;
-		}
-
-		np_unref_obj(np_key_t, to_destroy, __func__);
-		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
-	} else {
-		log_debug_msg(LOG_KEY | LOG_DEBUG, "no key provided for cleanup");
 	}
+
+	np_sll_t(np_key_ptr, aliasse) = _np_keycache_find_aliase(to_destroy);
+	sll_iterator(np_key_ptr) iter = sll_first(aliasse);
+
+	while (iter != NULL) {
+		_np_key_destroy(iter->val);
+		np_unref_obj(np_key_t, iter->val, "_np_keycache_find_aliase");
+		sll_next(iter);
+	}
+	sll_free(np_key_ptr, aliasse);
+
+	if (to_destroy->parent != NULL) {
+		np_unref_obj(np_key_t, to_destroy->parent, ref_key_parent);
+		to_destroy->parent = NULL;
+	}
+
+	log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
 }
 
 
-void _np_key_t_new(np_state_t *context, void* key)
+void _np_key_t_new(np_state_t *context, uint8_t type, size_t size, void* key)
 {
 	log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
 	np_key_t* new_key = (np_key_t*) key;
@@ -210,7 +205,7 @@ void _np_key_t_new(np_state_t *context, void* key)
 
 }
 
-void _np_key_t_del(np_state_t * context, void* key)
+void _np_key_t_del(np_state_t *context, uint8_t type, size_t size, void* key)
 {
 	log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_del(void* key){");
 	np_key_t* old_key = (np_key_t*) key;

@@ -20,7 +20,7 @@
 
 #include "np_log.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "neuropil.h"
 #include "np_glia.h"
 #include "np_tree.h"
@@ -88,7 +88,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_http_client_ptr);
 typedef struct np_http_s np_http_t;
 struct np_http_s {
     // memory management
-    np_obj_t* obj;
+    
 
     // network io handling
     np_network_t* network;

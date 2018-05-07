@@ -35,7 +35,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_aaatoken_ptr);
 
 NP_PLL_GENERATE_IMPLEMENTATION(np_aaatoken_ptr);
 
-void _np_aaatoken_t_new(np_state_t *context, void* token)
+void _np_aaatoken_t_new(np_state_t *context, uint8_t type, size_t size, void* token)
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_t_new(void* token){");
 	np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
@@ -75,7 +75,7 @@ void _np_aaatoken_t_new(np_state_t *context, void* token)
 	_np_aaatoken_trace_info("new", aaa_token);
 }
 
-void _np_aaatoken_t_del (np_state_t* context, void* token)
+void _np_aaatoken_t_del (np_state_t *context, uint8_t type, size_t size, void* token)
 {
 	np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
 

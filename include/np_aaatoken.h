@@ -32,7 +32,7 @@ AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizi
 #include "np_list.h"
 #include "np_threads.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
 
 #ifdef __cplusplus
@@ -154,7 +154,7 @@ enum np_aaatoken_scope {
 struct np_aaatoken_s
 {
 	// link to memory management
-	np_obj_t* obj;
+	
 
 	// protocol version
 	double version;

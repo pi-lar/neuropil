@@ -16,7 +16,7 @@
 #include "np_tree.h"
 #include "np_dhkey.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_message.h"
 #include "np_util.h"
 #include "np_threads.h"
@@ -27,10 +27,10 @@ void setup_message(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_MESSAGE;
 	np_log_init("test_message.log", log_level);
-	_np_threads_init();
+	_np_threads_init(context);
 
-	np_mem_init();
-	np_memory_init();
+	
+	np_memory_init(context);
 }
 
 void teardown_message(void)

@@ -32,7 +32,7 @@
 #include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_network.h"

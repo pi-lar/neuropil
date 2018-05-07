@@ -46,6 +46,10 @@ struct np_statistics_element_s {
 	double last_sec_check;
 
 	double first_check;
+
+#ifdef NP_BENCHMARKING
+	struct np_util_performance_point* __np_util_performance_points[np_util_performance_point_END] = { 0 };
+#endif
 };
 typedef struct np_statistics_element_s np_statistics_element_t;
 
@@ -137,7 +141,7 @@ np_bool np_statistics_destroy(np_state_t* context) {
 
 void np_statistics_add_watch(np_state_t* context, char* subject) {
 	
-		np_statistics_init(context);
+	np_statistics_init(context);
 	
 
 	np_bool addtolist = TRUE;
@@ -406,22 +410,29 @@ char * np_statistics_print(np_state_t* context, np_bool asOneLine) {
 
 #ifdef NP_STATISTICS_COUNTER
 void __np_increment_forwarding_counter(np_state_t* context) {
-	TSP_SCOPE(np_module(statistics)->__forwarding_counter) {
-		np_module(statistics)->__forwarding_counter++;
+	if (np_module_initiated(statistics)) {
+
+		TSP_SCOPE(np_module(statistics)->__forwarding_counter) {
+			np_module(statistics)->__forwarding_counter++;
+		}
 	}
 }
 
 void __np_statistics_add_send_bytes(np_state_t* context, uint32_t add) {
-	TSP_SCOPE(np_module(statistics)->__network_send_bytes)
-	{
-		np_module(statistics)->__network_send_bytes += add;
+	if (np_module_initiated(statistics)) {
+		TSP_SCOPE(np_module(statistics)->__network_send_bytes)
+		{
+			np_module(statistics)->__network_send_bytes += add;
+		}
 	}
 }
 
 void __np_statistics_add_received_bytes(np_state_t* context, uint32_t add) {
-	TSP_SCOPE(np_module(statistics)->__network_received_bytes)
-	{		
-		np_module(statistics)->__network_received_bytes += add;
+	if (np_module_initiated(statistics)) {
+		TSP_SCOPE(np_module(statistics)->__network_received_bytes)
+		{
+			np_module(statistics)->__network_received_bytes += add;
+		}
 	}
 }
 #endif

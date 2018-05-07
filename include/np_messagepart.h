@@ -7,7 +7,7 @@
 #define NP_MESSAGEPART_H_
 
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
 
 #ifdef __cplusplus
@@ -19,7 +19,7 @@ typedef np_messagepart_t* np_messagepart_ptr;
 
 struct np_messagepart_s
 {
-	np_obj_t* obj;
+	
 
 	np_tree_t* header;
 	np_tree_t* instructions;

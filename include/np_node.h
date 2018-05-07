@@ -11,7 +11,7 @@
 #include "sodium.h"
 
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
 #include "np_threads.h"
 #include "np_settings.h"
@@ -24,7 +24,7 @@ extern "C" {
 struct np_node_s
 {
 	// link to memory management
-	np_obj_t* obj;
+	
 	np_mutex_t lock;
 	np_mutex_t latency_lock;
 

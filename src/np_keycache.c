@@ -27,23 +27,23 @@
 #include "np_constants.h"
 #include "np_util.h"
 
-
-// TODO: make this a better constant value
-static double __keycache_deprecation_interval = 31.415;
-
-
+typedef struct st_keycache_s st_keycache_t;
 SPLAY_GENERATE(st_keycache_s, np_key_s, link, _np_key_cmp);
 
-typedef struct st_keycache_s st_keycache_t;
-static st_keycache_t* __key_cache;
+np_module_struct(keycache) {
+	np_state_t* context;	
+	st_keycache_t* __key_cache;
+};
 
 void _np_keycache_init(np_state_t* context)
 {
-	log_trace_msg(LOG_TRACE, "start: void _np_keycache_init(){");
-	__key_cache = (st_keycache_t*) malloc(sizeof(st_keycache_t));
-	CHECK_MALLOC(__key_cache);
+	if (!np_module_initiated(keycache)) {
+		np_module_malloc(keycache);
+		_module->__key_cache = (st_keycache_t*)malloc(sizeof(st_keycache_t));
+		CHECK_MALLOC(_module->__key_cache);
 
-	SPLAY_INIT(__key_cache);
+		SPLAY_INIT(_module->__key_cache);
+	}
 }
 
 np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhkey)
@@ -54,7 +54,7 @@ np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhk
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
+		key = SPLAY_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
 		if (NULL == key)
 		{
 			key = _np_keycache_create(context, search_dhkey);
@@ -92,7 +92,7 @@ np_key_t* _np_keycache_find(np_state_t* context, const np_dhkey_t search_dhkey)
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		return_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
+		return_key = SPLAY_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
 		if (NULL != return_key)
 		{
 			np_ref_obj(np_key_t, return_key);
@@ -122,7 +122,7 @@ np_key_t* _np_keycache_find_by_details(
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
+		SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
 		{
 			TSP_GET(np_bool, iter->in_destroy, in_destroy);
 			if(in_destroy == FALSE){
@@ -183,7 +183,7 @@ np_key_t* _np_keycache_find_deprecated(np_state_t* context)
 	np_key_t *iter = NULL;
 	_LOCK_MODULE(np_keycache_t)
 	{
-		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
+		SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
 		{
 
 			// our own key / identity never deprecates
@@ -196,7 +196,7 @@ np_key_t* _np_keycache_find_deprecated(np_state_t* context)
 			double now = np_time_now();
 			TSP_GET(np_bool, iter->in_destroy, in_destroy);
 
-			if ((now - __keycache_deprecation_interval) > iter->last_update && in_destroy == FALSE)
+			if ((now - NP_KEYCACHE_DEPRECATION_INTERVAL) > iter->last_update && in_destroy == FALSE)
 			{
 				np_ref_obj(np_key_t, iter);
 				break;
@@ -213,7 +213,7 @@ sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)
 	np_key_t *iter = NULL;
 	_LOCK_MODULE(np_keycache_t)
 	{
-		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
+		SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
 		{
 			TSP_GET(np_bool, iter->in_destroy, in_destroy);
 
@@ -233,7 +233,7 @@ sll_return(np_key_ptr) _np_keycache_get_all(np_state_t* context)
 	np_key_t *iter = NULL;
 	_LOCK_MODULE(np_keycache_t)
 	{
-		SPLAY_FOREACH(iter, st_keycache_s, __key_cache)
+		SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
 		{
 			np_ref_obj(np_key_t, iter);
 			sll_append(np_key_ptr, ret, iter);
@@ -250,9 +250,9 @@ np_key_t* _np_keycache_remove(np_state_t* context, np_dhkey_t search_dhkey)
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		rem_key = SPLAY_FIND(st_keycache_s, __key_cache, &search_key);
+		rem_key = SPLAY_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
 		if (NULL != rem_key) {
-			SPLAY_REMOVE(st_keycache_s, __key_cache, rem_key);
+			SPLAY_REMOVE(st_keycache_s, np_module(keycache)->__key_cache, rem_key);
 			np_unref_obj(np_key_t, rem_key, ref_keycache);
 		}
 	}
@@ -272,7 +272,7 @@ np_key_t* _np_keycache_add(np_key_t* subject_key)
 
 	_LOCK_MODULE(np_keycache_t)
 	{
-		SPLAY_INSERT(st_keycache_s, __key_cache, subject_key);
+		SPLAY_INSERT(st_keycache_s, np_module(keycache)->__key_cache, subject_key);
 		subject_key->last_update = np_time_now();
 	}
 	return subject_key;

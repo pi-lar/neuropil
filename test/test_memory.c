@@ -24,7 +24,7 @@
 #include "np_log.h"
 #include "np_memory.h"
 #include "np_message.h"
-#include "np_memory_v2.h"
+
 
 #include "np_threads.h"
 #include "np_types.h"
@@ -33,19 +33,19 @@
 
 typedef struct test_struct
 {
-	np_obj_t* obj;
+	
 
 	unsigned int i_test;
 	char* s_test;
 } test_struct_t;
 
 
-void _test_struct_t_del(NP_UNUSED void* data_ptr)
+void _test_struct_t_del(np_state_t *context, uint8_t type, size_t size, void* obj)
 {
 	// printf("destructor test_struct_t_del called");
 }
 
-void _test_struct_t_new(NP_UNUSED void* data_ptr)
+void _test_struct_t_new(np_state_t *context, uint8_t type, size_t size, void* obj)
 {
 	// printf("constructor test_struct_t_new called");
 }
@@ -58,7 +58,7 @@ void setup_memory(void)
 
 	_np_threads_init(context);
 	np_memory_init(context);
-	np_mem_init(context);
+	
 	np_memory_register_type(context, np_memory_types_test_struct_t, sizeof(struct test_struct), 4, 4, NULL, NULL, np_memory_clear_space);
 
 }

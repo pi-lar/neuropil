@@ -6,15 +6,13 @@
 
 #include "np_list.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 	struct np_responsecontainer_s {
-		np_obj_t* obj;
-
 		double received_at;      // the time when the msg received a response (ack or reply)
 		double send_at; // this is the time the packet is transmitted (or retransmitted)
 		double expires_at;   // the time when the responsecontainer will expire and will be deleted

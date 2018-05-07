@@ -34,6 +34,11 @@ extern "C" {
 
 #define NP_PI 3.1415
 
+
+#ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
+#define NP_KEYCACHE_DEPRECATION_INTERVAL (31.415)
+#endif	
+
 /*
  *	if the sysinfo subsystem in enabled and the node is a slave
  *	this is the intervall it may send his own data in a proactive

@@ -42,7 +42,7 @@
 #include "np_message.h"
 #include "np_messagepart.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_node.h"
 #include "np_threads.h"
 #include "np_event.h"
@@ -881,7 +881,7 @@ void _np_network_start(np_network_t* network){
 /**
  * network_destroy
  */
-void _np_network_t_del(np_state_t *context, void* nw)
+void _np_network_t_del(np_state_t *context, uint8_t type, size_t size, void* nw)
 {
 	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_del(void* nw){");
 	np_network_t* network = (np_network_t*) nw;
@@ -932,7 +932,7 @@ void _np_network_t_del(np_state_t *context, void* nw)
 	}
 }
 
-void _np_network_t_new(np_state_t *context, void* nw)
+void _np_network_t_new(np_state_t *context, uint8_t type, size_t size, void* nw)
 {
 	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_new(void* nw){");
 	np_network_t* ng = (np_network_t *) nw;

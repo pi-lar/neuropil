@@ -25,7 +25,7 @@
 #include "neuropil.h"
 #include "np_aaatoken.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_tree.h"
 #include "np_msgproperty.h"
 #include "np_dhkey.h"
@@ -40,7 +40,7 @@
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
 
-void _np_node_t_new(np_state_t *context, void* node)
+void _np_node_t_new(np_state_t *context, uint8_t type, size_t size, void*  node)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_node_t_new(void* node){");
 	np_node_t* entry = (np_node_t *) node;
@@ -71,7 +71,7 @@ void _np_node_t_new(np_state_t *context, void* node)
 	entry->latency = 0.031415;
 }
 
-void _np_node_t_del(np_state_t *context, void* node)
+void _np_node_t_del(np_state_t *context, uint8_t type, size_t size, void* node)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_node_t_del(void* node){");
 	np_node_t* entry = (np_node_t *) node;

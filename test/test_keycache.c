@@ -10,7 +10,7 @@
 #include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_log.h"
 #include "np_threads.h"
 
@@ -22,7 +22,7 @@ void setup_keycache(void)
 	np_log_init(context,"test_keycache.log", log_level);
 	_np_threads_init(context);
 	np_memory_init(context);
-	np_mem_init(context);
+	
 
 	_np_keycache_init (context);
 }
