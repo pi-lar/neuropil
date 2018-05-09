@@ -45,7 +45,7 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
 		ASSERT(source->scope == np_aaatoken_scope_private, "Can only derive a private token from another private token. current token scope: %"PRIu8,source->scope);
 		ASSERT(
 			FLAG_CMP(source->type, np_aaatoken_type_identity) && FLAG_CMP(source->type, np_aaatoken_type_node),
-			"Can only derive a private token from a node or identity token.");
+			"Can only derive a private token from a node or identity token. current token type: %"PRIu8, source->type);
 		break;
 	case np_aaatoken_scope_public:
 		ASSERT(source->scope <= np_aaatoken_scope_public, "Can only derive a public token from a private or public token. current token scope: %"PRIu8, source->scope);
@@ -120,6 +120,7 @@ np_node_public_token_t* np_token_factory_get_public_node_token(np_aaatoken_t* so
 	ret->type = np_aaatoken_type_node;
 
 	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", __func__);
+	_np_aaatoken_trace_info("build_node", ret);
 	return ret;
 }
 
@@ -316,7 +317,7 @@ np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* contex
 {
 	char issuer[64] = { 0 };
 	char node_subject[255];
-	snprintf(node_subject, 255,  _NP_URN_IDENTITY_PREFIX"%s", np_uuid_create("gererated identy", 0));
+	snprintf(node_subject, 255,  _NP_URN_IDENTITY_PREFIX"%s", np_uuid_create("gererated identy", 0, NULL));
 
 
 	np_aaatoken_t* ret = __np_token_factory_new(context,issuer, node_subject, expires_at);

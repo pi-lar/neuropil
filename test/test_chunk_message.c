@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
 	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
 	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
 
-	char* new_uuid = np_uuid_create(msg_subject, 1);
+	char* new_uuid = np_uuid_create(msg_subject, 1, NULL);
 	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(new_uuid));
 	free(new_uuid);
 

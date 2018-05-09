@@ -17,7 +17,6 @@ It should contain all required functions to send or receive messages.
 
 #include "np_constants.h"
 
-#include "np_interface.h"
 
 #include "np_settings.h"
 #include "np_types.h"
@@ -57,6 +56,8 @@ It should contain all required functions to send or receive messages.
 #include "np_treeval.h"
 #include "np_util.h"
 #include "map.h"
+
+#include "np_interface.h"
 
 #define NEUROPIL_RELEASE	"neuropil_0.4.0"
 #ifndef NEUROPIL_RELEASE_BUILD

@@ -256,13 +256,12 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
 	}
 	
 	np_node_t* new_node = NULL;
-	np_new_obj(np_node_t, new_node);
+	np_new_obj(np_node_t, new_node, __func__);
 	 
 	_np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
-	log_debug_msg(LOG_DEBUG, "decoded node from token %d:%s:%s",
-				  i_host_proto, s_host_name, s_host_port);
-	  
-	ref_replace_reason(np_node_t, new_node, ref_obj_creation, __func__);
+	log_debug_msg(LOG_DEBUG, "decodeded node from token: %d/%s:%s",
+				   i_host_proto, s_host_name, s_host_port);
+	   
 	free(details);
 
 	return (new_node);

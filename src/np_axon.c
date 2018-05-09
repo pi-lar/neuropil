@@ -421,7 +421,7 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 					if (NULL == args->target->network)
 					{
 						// initialize network
-						np_new_obj(np_network_t, args->target->network);
+						np_new_obj(np_network_t, args->target->network, ref_key_network);
 						_np_network_init(args->target->network,
 							FALSE,
 							args->target->node->protocol,
@@ -430,13 +430,18 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 						if (FALSE == args->target->network->initialized)
 						{
 							np_unref_obj(np_message_t, hs_message, ref_obj_creation);
+							np_unref_obj(np_network_t, args->target->network, ref_key_network);
+							args->target->network = NULL;
 							//log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
 							//args->target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
 							_np_threads_unlock_module(context, np_handshake_t_lock);
 							return;
 						}
-						np_ref_obj(np_key_t, args->target, ref_network_watcher);
-						args->target->network->watcher.data = args->target;
+						else {
+							np_ref_obj(np_key_t, args->target, ref_network_watcher);
+							args->target->network->watcher.data = args->target;
+							_np_network_enable(args->target->network);
+						}
 					}
 				}
 				// construct target address and send it out

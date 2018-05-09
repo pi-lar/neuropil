@@ -56,7 +56,7 @@ void _np_message_t_new(np_state_t *context, uint8_t type, size_t size, void* msg
 
 	_np_threads_mutex_init(context, &msg_tmp->msg_chunks_lock,"msg_chunks_lock");
 
-	msg_tmp->uuid = np_uuid_create("msg", 0);
+	msg_tmp->uuid = np_uuid_create("msg", 0, NULL);
 
 	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "creating uuid %s for new msg", msg_tmp->uuid);
 	

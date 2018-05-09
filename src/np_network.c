@@ -438,9 +438,9 @@ void _np_network_send_from_events (struct ev_loop *loop, ev_io *event, int reven
 				}
 			}
 		}
-
-		np_unref_obj(np_key_t, key, __func__);
+		
 		np_unref_obj(np_network_t,  key_network, __func__);
+		np_unref_obj(np_key_t, key, __func__);
 	}
 	/*
 	else if (EV_READ == (revents & EV_READ))
@@ -681,7 +681,7 @@ void _np_network_read( struct ev_loop *loop, ev_io *event,  int revents)
 				memcpy(ng->ip,	 ipstr, sizeof(char) * strnlen(ipstr, CHAR_LENGTH_IP-1));
 				memcpy(ng->port, port,  sizeof(char) * strnlen(port, CHAR_LENGTH_PORT-1));
 			}
-
+			log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s received data (%"PRIi16" bytes)", np_memory_get_id(ng), in_msg_len);
 			if (0 == in_msg_len)
 			{
 				if(ng_tcp_host != NULL){
@@ -700,6 +700,7 @@ void _np_network_read( struct ev_loop *loop, ev_io *event,  int revents)
 				np_memory_free(data);
 				continue;
 			}
+			
 
 			if (in_msg_len != MSG_CHUNK_SIZE_1024 && in_msg_len != (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40 ))
 			{
@@ -814,11 +815,8 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 
 	assert(old_target->network != NULL);
 
-	np_network_t * old_network = NULL;
-	if (new_target->network != NULL) {
-		old_network = new_target->network;
-	}
-
+	np_network_t * old_network = new_target->network;
+	
 	_np_event_suspend_loop_in(context);
 	_np_event_suspend_loop_out(context);
 	_LOCK_ACCESS(&old_target->network->access_lock) {
@@ -832,10 +830,8 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
 	_np_event_resume_loop_in(context);
 
 	// remove old network referrence (if any)
-	if (old_network != NULL) {
-		np_unref_obj(np_network_t, old_network, ref_key_network);
-	}
-
+	np_unref_obj(np_network_t, old_network, ref_key_network);
+	
 	log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 				"remap network of %s to network of %s completed",
 				_np_key_as_str(old_target),
@@ -961,6 +957,7 @@ void _np_network_t_new(np_state_t *context, uint8_t type, size_t size, void* nw)
 np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type, char* hostname, char* service)
 {
 	np_ctx_full(ng);
+	_np_network_disable(ng);
 	int one = 1;
 	int v6_only = 0;
 
@@ -973,6 +970,9 @@ np_bool _np_network_init (np_network_t* ng, np_bool create_socket, uint8_t type,
 		return FALSE;
 	}
 	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "done get_network_address");
+
+	log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s Init is server:%"PRIu8" type:%"PRIu8" on: %s:%s ", np_memory_get_id(ng), create_socket, type, hostname,  service);
+
 
 	// only need for client setup, but initialize to have zero size of list
 	sll_init(void_ptr, ng->out_events);
@@ -1190,10 +1190,19 @@ char* np_network_get_port(np_key_t * container) {
 }
 
 void _np_network_disable(np_network_t* self) {
-	if(self != NULL){
+	if (self != NULL) {
 		np_ctx_full(self);
 		TSP_SET(self->can_be_enabled, FALSE);
 		_np_network_stop(self, TRUE);
+		log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s is disabled", np_memory_get_id(self));
+	}
+}
+void _np_network_enable(np_network_t* self) {
+	if (self != NULL) {
+		np_ctx_full(self);
+		TSP_SET(self->can_be_enabled, TRUE);
+		_np_network_start(self);
+		log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s is enabled", np_memory_get_id(self));
 	}
 }
 

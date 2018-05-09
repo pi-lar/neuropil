@@ -55,7 +55,7 @@ void _np_aaatoken_t_new(np_state_t *context, uint8_t type, size_t size, void* to
 	memset(aaa_token->signature, 0, crypto_sign_BYTES*(sizeof(unsigned char)));
 	aaa_token->is_signature_verified = FALSE;
 
-	aaa_token->uuid = np_uuid_create("generic_aaatoken", 0);
+	aaa_token->uuid = np_uuid_create("generic_aaatoken", 0, NULL);
 
 	aaa_token->issued_at = np_time_now();
 	aaa_token->not_before = aaa_token->issued_at;

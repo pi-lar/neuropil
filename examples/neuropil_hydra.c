@@ -11,6 +11,7 @@
 #include <stdio.h>
 
 #include "np_interface.h"
+#include "np_log.h"
 
 #define SIZE(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
 
@@ -21,14 +22,15 @@ int main(int argc, char **argv)
 	char addr[500];
 	uint16_t tmp;
 	for (int i=0; i < SIZE(nodes); i++) {
-
 		printf("INFO: Starting Node %d\n", i);
 		fflush(NULL);
 
-
 		int port = 3000 + i;
 		struct np_settings * settings = np_default_settings(NULL);		
-		sprintf(settings->log_file, "%d_neuropil.log", port);
+		sprintf(settings->log_file, "neuropil_hydra_%d.log", port);
+		settings->log_level |= LOG_MESSAGE;
+		settings->log_level |= LOG_ROUTING;
+		settings->log_level |= LOG_NETWORK;
 
 		nodes[i] = np_new_context(settings); // use default settings
 		

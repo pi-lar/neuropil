@@ -81,11 +81,34 @@ extern "C" {
 	NP_API_INTERN
 		void _np_memory_job_memory_management(np_state_t* context, np_jobargs_t* args);
 
+	NP_API_INTERN
+	void np_memory_ref_obj(void* item, char* reason, char* reason_desc);
+
+	NP_API_INTERN
+	np_bool np_memory_tryref_obj(void* item, char* reason, char* reason_desc);
+
+	NP_API_INTERN
+	void* np_memory_waitref_obj(void* item, char* reason, char* reason_desc);
 	/*
 	Returns the context of a memory managed object
 	*/
 	NP_API_INTERN
 		np_state_t* np_memory_get_context(void* item);
+	NP_API_INTERN
+	void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason);
+	NP_API_INTERN
+	void np_memory_unref_obj(void* item, char* reason);
+	NP_API_INTERN
+	void np_mem_refobj(void * item, const char* reason);
+
+	// print the complete object list and statistics
+	NP_API_EXPORT
+		char* np_mem_printpool(np_state_t* context, np_bool asOneLine, np_bool extended);
+	NP_API_INTERN
+		uint32_t np_memory_get_refcount(void * item);
+	NP_API_INTERN
+		char* np_memory_get_id(void * item);
+
 
 	// macro definitions to generate header prototype definitions
 #define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE)												\
@@ -142,7 +165,7 @@ void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);
 	char new_reason[strlen(reason)+255];	/*255 chars for additional desc data*/																\
 	snprintf(new_reason,strlen(reason)+255,"%s%sline:%d_%s",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__, reason_desc == NULL ? "" : reason_desc);
 
-void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason);
+
 
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason) \
 	np_memory_ref_replace_reason(np_obj, old_reason, new_reason);
@@ -154,16 +177,23 @@ void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason
 	char new_reason[0];																										
 #endif
 
-void np_memory_ref_obj(void* item, char* reason, char* reason_desc);
+
+#define np_new_obj(...) VFUNC(np_new_obj, __VA_ARGS__)
+#define np_new_obj2(TYPE, np_obj) np_new_obj3(TYPE, np_obj, "ref_obj_creation")
+#define np_new_obj3(TYPE, np_obj, reason) np_new_obj4(TYPE, np_obj, reason,"")
+#define np_new_obj4(TYPE, np_obj, reason, reason_desc)                																				\
+{                                               																									\
+	np_obj = np_memory_new(context, np_memory_types_##TYPE);																						\
+	np_ref_obj4(TYPE, np_obj, reason, reason_desc);             																									\
+}
+
 	// convenience function like wrappers
 #define np_ref_obj(...) VFUNC(np_ref_obj, __VA_ARGS__)
 #define np_ref_obj2(TYPE, np_obj) np_ref_obj3(TYPE, np_obj, __func__)
 #define np_ref_obj3(TYPE, np_obj, reason) np_ref_obj4(TYPE, np_obj, reason,"")
-#define np_ref_obj4(TYPE, np_obj, reason, reason_desc)              																									\	
+#define np_ref_obj4(TYPE, np_obj, reason, reason_desc)              																									\
 	np_memory_ref_obj(np_obj, reason, reason_desc) 
-
-
-	np_bool np_memory_tryref_obj(void* item, char* reason, char* reason_desc);
+	
 #define np_tryref_obj(...) VFUNC(np_tryref_obj, __VA_ARGS__)
 #define np_tryref_obj3(TYPE, np_obj, ret) np_tryref_obj4(TYPE, np_obj, ret,__func__)
 #define np_tryref_obj4(TYPE, np_obj, ret, reason) np_tryref_obj5(TYPE, np_obj, ret, reason,"")
@@ -174,29 +204,14 @@ np_bool ret = np_memory_tryref_obj(np_obj, reason, reason_desc);
 #define np_waitref_obj3(TYPE, np_obj, saveTo) np_waitref_obj4(TYPE, np_obj, saveTo, __func__)
 #define np_waitref_obj4(TYPE, np_obj, saveTo, reason) np_waitref_obj5(TYPE, np_obj, saveTo, reason,"")
 #define np_waitref_obj5(TYPE, np_obj, saveTo, reason, reason_desc)    																				\
-TYPE* saveTo = NULL;																																\
-{																																				    \
-	TYPE* org = (TYPE* )np_obj ;																												    \
-	np_bool ret = FALSE;																															\
-	while(ret == FALSE) {                          																									\
-		_LOCK_MODULE(np_memory_t) {                 																								\
-			if(np_obj != NULL) {      		      																									\
-				_NP_REF_REASON(reason, reason_desc, reason2)																						\
-				np_mem_refobj(org, reason2);             																						\
-				ret = TRUE;																															\
-				saveTo = org;						   																								\
-			}																																		\
-		}																																			\
-		if(ret == FALSE) np_time_sleep(NP_SLEEP_MIN);																								\
-	}																																				\
-}
+	TYPE* saveTo = (TYPE*) np_memory_waitref_obj(np_obj, reason, reason_desc);																		
+
 
 #define CHECK_MALLOC(obj)		              																			\
 {                                             																			\
 	assert(NULL != obj &&"Could not allocate memory. Program is now in undefined state and should be shut down.");		\
 }
 
-	void np_memory_unref_obj(void* item, char* reason);
 #define np_unref_obj(TYPE, np_obj, reason)                																							\
 	np_memory_unref_obj(np_obj, reason)
 
@@ -227,24 +242,7 @@ TYPE* saveTo = NULL;																																\
 }
 #endif
 
-	void np_mem_refobj(void * item, const char* reason);
 
-#define np_new_obj(...) VFUNC(np_new_obj, __VA_ARGS__)
-#define np_new_obj2(TYPE, np_obj) np_new_obj3(TYPE, np_obj, "ref_obj_creation")
-#define np_new_obj3(TYPE, np_obj, reason) np_new_obj4(TYPE, np_obj, reason,"")
-#define np_new_obj4(TYPE, np_obj, reason, reason_desc)                																				\
-{                                               																									\
-	np_obj = np_memory_new(context, np_memory_types_##TYPE);																						\
-	_NP_REF_REASON(reason, reason_desc, reason2)																									\
-	np_mem_refobj(np_obj, reason2);             																									\
-}
-
-
-	// print the complete object list and statistics
-	NP_API_EXPORT
-		char* np_mem_printpool(np_state_t* context, np_bool asOneLine, np_bool extended);
-	NP_API_INTERN
-		uint32_t np_memory_get_refcount(void * item);
 
 #ifdef __cplusplus
 }

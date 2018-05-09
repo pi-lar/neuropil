@@ -39,6 +39,7 @@ struct np_settings * np_default_settings(struct np_settings ** settings) {
 #ifdef DEBUG
 	ret->log_level |= LOG_INFO;
 	ret->log_level |= LOG_DEBUG;
+	ret->log_level |= LOG_TRACE;
 #endif
 	
 	return ret;
@@ -84,8 +85,8 @@ np_context* np_new_context(struct np_settings * settings_in) {
 				log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
 				status = np_startup;
 			}
-			else {				
-				
+			else {
+
 				np_event_init(context);
 
 				// initialize key min max ranges
@@ -105,50 +106,10 @@ np_context* np_new_context(struct np_settings * settings_in) {
 				context->enable_realm_slave = FALSE;
 				context->enable_realm_master = FALSE;
 
-				log_debug_msg(LOG_DEBUG, "building node base structure");
-				np_node_t* my_node = NULL;
-				np_new_obj(np_node_t, my_node);
-
-				np_ref_obj(np_node_t, my_node, ref_key_node);
-				np_context_create_new_nodekey(context, my_node);
-
-				np_set_identity_v1(context, context->my_node_key->aaa_token);
-
-				// initialize routing table
-				if (FALSE == _np_route_init(context, context->my_node_key))
+				if (FALSE == _np_msgproperty_init(context))
 				{
-					log_msg(LOG_ERROR, "neuropil_init: route_init failed: %s", strerror(errno));
+					log_msg(LOG_ERROR, "neuropil_init: _np_msgproperty_init failed: %s", strerror(errno));
 					status = np_startup;
-				}
-				else {
-					// initialize job queue
-					if (FALSE == _np_job_queue_create(context))
-					{
-						log_msg(LOG_ERROR, "neuropil_init: _np_job_queue_create failed: %s", strerror(errno));
-						status = np_startup;
-					}
-					else {
-						// initialize message handling system
-						if (FALSE == _np_msgproperty_init(context))
-						{
-							log_msg(LOG_ERROR, "neuropil_init: _np_msgproperty_init failed: %s", strerror(errno));
-							status = np_startup;
-						}
-						else {
-
-							context->msg_tokens = np_tree_create();
-
-							context->msg_part_cache = np_tree_create();
-
-							np_unref_obj(np_node_t, my_node, ref_obj_creation);
-
-							_np_shutdown_init_auto_notify_others(context);
-
-							log_msg(LOG_INFO, "neuropil successfully initialized: id:   %s", _np_key_as_str(context->my_identity));
-							log_msg(LOG_INFO, "neuropil successfully initialized: node: %s", _np_key_as_str(context->my_node_key));
-							_np_log_fflush(context, TRUE);
-						}
-					}
 				}
 			}
 		}
@@ -161,7 +122,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 	enum np_error ret = np_ok;
 	np_ctx_cast(ac);
 
-	if (context->my_node_key->network != NULL) {
+	if (context->my_node_key != NULL && context->my_node_key->network != NULL) {
 		log_msg(LOG_ERROR, "node listens already on %s", _np_network_as_string(context->my_node_key->network));
 		ret = np_invalid_operation;
 	}
@@ -217,15 +178,54 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 				ret = np_network_error;
 			}
 			else {
-				log_debug_msg(LOG_DEBUG, "update my node data");
-				_np_node_update(context->my_node_key->node, np_proto, host, np_service);
+
+				log_debug_msg(LOG_DEBUG, "building node base structure");
+				np_node_t* my_node = NULL;
+				np_new_obj(np_node_t, my_node, ref_key_node);
+				_np_node_update(my_node, np_proto, host, np_service);
+				np_context_create_new_nodekey(context, my_node);
+				if (context->my_identity == NULL)
+					np_set_identity_v1(context, context->my_node_key->aaa_token);
 
 				np_ref_obj(np_network_t, my_network, ref_key_network);
 				context->my_node_key->network = my_network;
-				my_network->watcher.data = context->my_node_key;
-				np_ref_obj(np_key_t, context->my_node_key, ref_network_watcher);
+				np_ref_obj(np_key_t, context->my_node_key, ref_network_watcher); 
+				my_network->watcher.data = context->my_node_key;				
+
+				// initialize routing table
+				if (FALSE == _np_route_init(context, context->my_node_key))
+				{
+					log_msg(LOG_ERROR, "neuropil_init: route_init failed: %s", strerror(errno));
+					ret = np_startup;
+				}
+				else {
+					// initialize job queue
+					if (FALSE == _np_job_queue_create(context))
+					{
+						log_msg(LOG_ERROR, "neuropil_init: _np_job_queue_create failed: %s", strerror(errno));
+						ret = np_startup;
+					}
+					// initialize message handling system				
+					else {
+
+						context->msg_tokens = np_tree_create();
+
+						context->msg_part_cache = np_tree_create();
+
+						_np_shutdown_init_auto_notify_others(context);
+
+						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s is the main receiving network", np_memory_get_id(my_network));
+
+						_np_network_enable(my_network);
+						log_msg(LOG_INFO, "neuropil successfully initialized: id:   %s", _np_key_as_str(context->my_identity));
+						log_msg(LOG_INFO, "neuropil successfully initialized: node: %s", _np_key_as_str(context->my_node_key));
+						_np_log_fflush(context, TRUE);
+
+					}
+
+				}
 			}
-			np_unref_obj(np_network_t, my_network, ref_obj_creation);
+			np_unref_obj(np_network_t, my_network, ref_obj_creation);		
 		}
 	}
 	return ret;

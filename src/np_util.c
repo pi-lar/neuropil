@@ -44,13 +44,18 @@
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
-char* np_uuid_create(const char* str, const uint16_t num)
-{
-	log_trace_msg(LOG_TRACE, "start: char* np_uuid_create(const char* str, const uint16_t num){");
+char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
+{	
+	char* uuid_out;
+	if (buffer == NULL) {
+		uuid_out = calloc(1, UUID_SIZE);
+		CHECK_MALLOC(uuid_out);
+	}
+	else {
+		uuid_out = *buffer;
+	}
 	char input[256] = { '\0' };
 	unsigned char out[18] = { '\0' };
-	char* uuid_out = calloc(1, UUID_SIZE);
-	CHECK_MALLOC(uuid_out);
 
 	double now = np_time_now();
 	snprintf (input, 255, "%s:%u:%16.16f", str, num, now);
