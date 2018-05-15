@@ -9,11 +9,20 @@
  */
 
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "np_interface.h"
 #include "np_log.h"
 
 #define SIZE(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
+
+void make_wildcard(char* s) {
+	s[0] = '*';
+	
+	for (int i = 64; i <= strlen(s); i++) {
+		s[i - 63] = s[i];
+	}
+}
 
 int main(int argc, char **argv)
 {
@@ -41,29 +50,35 @@ int main(int argc, char **argv)
 			if (np_ok != (tmp = np_get_address(nodes[i], addr, SIZE(addr)))) {
 				printf("ERROR: Could not get address of node %d. %s\n", i, np_error_str[tmp]);
 			}
-			printf("INFO: Node %d aka  (%s) listens\n", i, addr);
-
-			if (i > 0) {
-				// get connection str of previous node
-				if (np_ok != (tmp = np_get_address(nodes[i - 1], addr, SIZE(addr)))) {
-					printf("ERROR: Could not get address of node %d. %s\n", i, np_error_str[tmp]);
-				}
-				// join previous node			
-				if (np_ok != (tmp=np_join(nodes[i], addr)) ){
-					printf("ERROR: Node %d could not join. %s\n", i, np_error_str[tmp]);
-				}
-				else {
-					printf("INFO: Node %d joins %s\n", i, addr);
-				}
-			}
+			printf("INFO: Node %d aka  (%s) listens\n", i, addr);			
 		}
 	}
 
-	while (true)
-	{		
-		for (int i = 0; i < SIZE(nodes); i++) {			
+	uint16_t iteration = 0;
+	while (++iteration > 0)
+	{
+		for (int i = 0; i < SIZE(nodes); i++) {
 			if (np_ok != (tmp = np_run(nodes[i], 0.001))) {
 				printf("ERROR: Node %d could not run. %s\n", i, np_error_str[tmp]);
+			}
+			else {
+				if (i > 0 && iteration < SIZE(nodes)) {
+					// get connection str of previous node
+					if (np_ok != (tmp = np_get_address(nodes[i - 1], addr, SIZE(addr)))) {
+						printf("ERROR: Could not get address of node %d. %s\n", i, np_error_str[tmp]);
+					}
+					// for fun and testing make every second join a wildcard join			
+					if (i % 2 == 0) {
+						make_wildcard(addr);
+					}
+					// join previous node			
+					if (np_ok != (tmp = np_join(nodes[i], addr))) {
+						printf("ERROR: Node %d could not join. %s\n", i, np_error_str[tmp]);
+					}
+					else {
+						printf("INFO: Node %d joins %s\n", i, addr);
+					}
+				}
 			}
 		}
 	}

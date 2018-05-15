@@ -26,23 +26,25 @@
 
 struct sigaction sigact;
 np_sll_t(void_ptr, __running_instances) = NULL;
-
+static int calcelations = 0;
 static void __np_shutdown_signal_handler(int sig) {
 	if (sig == SIGINT) {
+		calcelations++;
+		if (calcelations < 10) {
+			sll_iterator(void_ptr) iter_context = sll_first(__running_instances);
+			while (iter_context != NULL)
+			{
+				sll_iterator(void_ptr) iter_context_old = iter_context;
+				np_ctx_decl(iter_context->val);
+				sll_next(iter_context);
+				sll_delete(void_ptr, __running_instances, iter_context_old);
 
-		sll_iterator(void_ptr) iter_context = sll_first(__running_instances);
-		while (iter_context != NULL)
-		{
-			sll_iterator(void_ptr) iter_context_old = iter_context;
-			np_ctx_decl(iter_context->val);
-			sll_next(iter_context);
-			sll_delete(void_ptr, __running_instances, iter_context_old);
-
-			TSP_SCOPE(context->__is_in_shutdown) {
-				context->__is_in_shutdown = TRUE;
+				TSP_SCOPE(context->__is_in_shutdown) {
+					context->__is_in_shutdown = TRUE;
+				}
+				log_msg(LOG_WARN, "Received terminating process signal (%"PRIi32"). Shutdown in progress.", sig);
+				np_destroy(context);
 			}
-			log_msg(LOG_WARN, "Received terminating process signal (%"PRIi32"). Shutdown in progress.", sig);
-			np_destroy(context);			
 		}
 		exit(EXIT_SUCCESS);
 	}
