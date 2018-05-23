@@ -464,9 +464,7 @@ void np_example_save_or_load_identity() {
 				exit(EXIT_FAILURE);
 			}
 			else {
-#ifdef  DEBUG
 				np_example_print(stdout, "Saved current ident (%s) to file.\n", _np_key_as_str(np_state()->my_identity));
-#endif //  DEBUG
 				/*
 				if (!np_example_load_identity(identity_passphrase, identity_filename)) {
 					np_example_print(stdout, "Cannot load after save of identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
@@ -477,9 +475,7 @@ void np_example_save_or_load_identity() {
 		}
 		else {
 			if (load_status == np_example_load_identity_status_success) {
-#ifdef  DEBUG
 				np_example_print(stdout, "Loaded ident(%s) from file.\n", _np_key_as_str(np_state()->my_identity));
-#endif
 			}else if (load_status == np_example_load_identity_status_found_but_failed) {
 				np_example_print(stdout, "Could not load from file.\n");
 			}
