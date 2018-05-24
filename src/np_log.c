@@ -62,8 +62,8 @@ log_str_t __level_str[] = {
 		{NULL   , 0x0000e	},					/* none messages				*/
 		{NULL   , 0x0000f	},					/* none messages				*/
 		{"TRACE", LOG_TRACE },					/* trace messages				*/
-		
-		
+
+
 };
 
 static np_log_t* __logger = NULL;
@@ -155,8 +155,8 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 	// or if no category is provided for msg or the log level contains the LOG_GLOBAL flag
 	if ((level & LOG_LEVEL_MASK & __logger->level) > LOG_NONE &&
 		(
-			(level & LOG_MODUL_MASK & __logger->level) > LOG_NONE || 
-			(__logger->level & LOG_MODUL_MASK & LOG_GLOBAL) == LOG_GLOBAL ||			
+			(level & LOG_MODUL_MASK & __logger->level) > LOG_NONE ||
+			(__logger->level & LOG_MODUL_MASK & LOG_GLOBAL) == LOG_GLOBAL ||
 			(level & LOG_MODUL_MASK) == LOG_NONE
 		)
 	)
@@ -198,7 +198,7 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 #endif
 
 		if (0 == pthread_mutex_lock(&__log_mutex))
-		{			
+		{
 			sll_append(char_ptr, __logger->logentries_l, new_log_entry);
 			pthread_mutex_unlock(&__log_mutex);
 		}
@@ -227,7 +227,7 @@ void _np_log_fflush(np_bool force)
 	/*
 		-1 = evaluate the status on first lock
 		 0 = log till no entries are available anymore
-		 1 = discontinue the flush 
+		 1 = discontinue the flush
 	*/
 	int flush_status= -1;
 	uint32_t i = 0;
@@ -249,7 +249,7 @@ void _np_log_fflush(np_bool force)
 				// if status is zero, get the topmost entry
 				if(flush_status == 0){
 					entry = sll_head(char_ptr, __logger->logentries_l);
-				}				
+				}
 			}
 			pthread_mutex_unlock(&__log_mutex);
 		}
@@ -302,13 +302,11 @@ void np_log_setlevel(uint32_t level)
 
 void np_log_init(const char* filename, uint32_t level)
 {
-	log_trace_msg(LOG_TRACE, "start: void np_log_init(const char* filename, uint32_t level){");
-
 	pthread_mutexattr_init(&__log_mutex_attr);
 	pthread_mutexattr_settype(&__log_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&__log_mutex, &__log_mutex_attr);
 
-	__logger = (np_log_t *) calloc(1,sizeof(np_log_t));
+	__logger = (np_log_t *) calloc(1, sizeof(np_log_t));
 	CHECK_MALLOC(__logger);
 
 	// init logsystem
@@ -361,4 +359,3 @@ void np_log_destroy()
 
 	pthread_mutex_destroy(&__log_mutex);
 }
-

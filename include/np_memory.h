@@ -48,11 +48,11 @@ typedef void (*np_dealloc_t) (void* data);
 typedef void (*np_alloc_t) (void* data);
 
 struct np_obj_s
-{	
+{
 	char* id;
 
 	np_mutex_t*	lock;
-	np_obj_enum type;	
+	np_obj_enum type;
 	uint32_t ref_count;
 	void* ptr;
 
@@ -113,7 +113,7 @@ struct np_obj_s
 	snprintf(new_reason,strlen(reason)+255,"%s%sline:%d_%s",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__, reason_desc == NULL ? "" : reason_desc);
 #else
 #define _NP_REF_REASON(reason, reason_desc, new_reason)																							\
-	char new_reason[0];																										
+	char new_reason[0];
 #endif
 
 
@@ -225,10 +225,7 @@ TYPE* saveTo = NULL;																																\
 
 #define CHECK_MALLOC(obj)		              																										\
 {                                             																										\
-	if(NULL == obj ) {																																\
-		log_msg(LOG_ERROR,"Could not allocate memory. Program is now in undefined state and should be shut down.");									\
-	}																																				\
-	assert(NULL != obj);                               																								\
+	assert(NULL != obj && "Could not allocate memory. Program is now in undefined state and should be shut down.");         \
 }																																					\
 
 #define np_unref_obj(TYPE, np_obj, reason)                																							\
