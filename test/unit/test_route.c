@@ -97,7 +97,7 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 		uint64_t i = 0;
 		uint64_t unique_keys = 0;
 
-		for(; i < 4000000
+		for(; i < 400000//0
 			; i++)
 		{
 			char tmp_1[33];
