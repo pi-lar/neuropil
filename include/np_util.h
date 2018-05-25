@@ -6,13 +6,17 @@
 #define	_NP_UTIL_H_
 
 #include <assert.h>
-#include <math.h>
 
 #include "msgpack/cmp.h"
 #include "json/parson.h"
 
 #include "np_tree.h"
 #include "np_threads.h"
+#include "np_settings.h"
+
+#ifdef NP_BENCHMARKING
+#include <math.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,7 +49,7 @@ extern "C" {
 #endif
 
 #ifdef DEBUG
-#define debugf(s, ...) printf(s, ##__VA_ARGS__);fflush(stdout)
+#define debugf(s, ...) fprintf(stdout, s, ##__VA_ARGS__);fflush(stdout)
 #else
 #define debugf(s, ...)
 #endif
@@ -68,6 +72,7 @@ extern "C" {
 	}
 #endif
 
+#ifdef NP_BENCHMARKING
 #define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)		\
 		double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;               \
 		for (uint16_t j = 0; j < max_size; j++)                                         \
@@ -83,11 +88,13 @@ extern "C" {
 		}                                                                               \
 		stddev_v = sqrt(stddev_v/(max_size-1));                                         \
 		
-#ifdef NP_BENCHMARKING
+
 enum np_util_performance_point_e{
 	np_util_performance_point_memory_new = 1,
 	np_util_performance_point_memory_free,
 	np_util_performance_point_memory_management,
+
+	np_util_performance_point_jobs_management_select,
 	np_util_performance_point_END
 };
 struct np_util_performance_point {
@@ -97,25 +104,24 @@ struct np_util_performance_point {
 	uint32_t durations_count;
 	np_mutex_t access;
 };
-extern struct np_util_performance_point* __np_util_performance_points[np_util_performance_point_END];
 
 #define NP_PERFORMANCE_POINT_START(NAME) 																					\
 double t1_##NAME;																											\
 {																															\
-	struct np_util_performance_point* container = __np_util_performance_points[np_util_performance_point_##NAME];			\
+	struct np_util_performance_point* container = np_module(statistics)->__np_util_performance_points[np_util_performance_point_##NAME];			\
 	if (container == NULL) {																								\
 		container = malloc(sizeof(struct np_util_performance_point));														\
 		container->name = #NAME;																							\
 		container->durations_idx = 0;																						\
 		container->durations_count = 0;																						\
-		_np_threads_mutex_init(&container->access, "performance point "#NAME" access");										\
-		__np_util_performance_points[np_util_performance_point_##NAME] = container;											\
+		_np_threads_mutex_init(context, &container->access, "performance point "#NAME" access");										\
+		np_module(statistics)->__np_util_performance_points[np_util_performance_point_##NAME] = container;											\
 	}																														\
 	t1_##NAME = (double)clock()/CLOCKS_PER_SEC;																				\
 }
 #define NP_PERFORMANCE_POINT_END(NAME) {																					\
 	double t2 = (double)clock()/CLOCKS_PER_SEC;																				\
-	struct np_util_performance_point* container = __np_util_performance_points[np_util_performance_point_##NAME];			\
+	struct np_util_performance_point* container = np_module(statistics)->__np_util_performance_points[np_util_performance_point_##NAME];			\
 	_LOCK_ACCESS(&container->access) {																						\
 		container->durations[container->durations_idx] = t2 - t1_##NAME;													\
 		container->durations_idx = (container->durations_idx + 1)  % NP_BENCHMARKING;										\
@@ -125,15 +131,15 @@ double t1_##NAME;																											\
 #define NP_PERFORMANCE_GET_POINTS_STR(STR) 																					\
 char* STR = NULL;																											\
 {																															\
-	STR = np_str_concatAndFree(STR, "%20s --> %8s / %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "stddev", "hits");\
+	STR = np_str_concatAndFree(STR, "%30s --> %8s / %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "stddev", "hits");\
 	for (int i = 0; i < np_util_performance_point_END; i++) {																\
-		struct np_util_performance_point* container = __np_util_performance_points[i];										\
+		struct np_util_performance_point* container = np_module(statistics)->__np_util_performance_points[i];										\
 		if (container != NULL) {																							\
 			_LOCK_ACCESS(&container->access) {																				\
 				CALC_STATISTICS(container->durations, , 																	\
 					(container->durations_count > NP_BENCHMARKING ? NP_BENCHMARKING : container->durations_idx), 			\
 					min_v, max_v, avg_v, stddev_v);																			\
-				STR = np_str_concatAndFree(STR, "%20s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",					\
+				STR = np_str_concatAndFree(STR, "%30s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",					\
 				container->name, min_v, avg_v, max_v, stddev_v, container->durations_count);								\
 			}																												\
 		}																													\
@@ -142,7 +148,10 @@ char* STR = NULL;																											\
 #else
 #define NP_PERFORMANCE_POINT_START(name)
 #define NP_PERFORMANCE_POINT_END(name)
-#define PERFORMANCE_PRINT_POINTS()
+#define NP_PERFORMANCE_GET_POINTS_STR(STR)																					\
+	char* STR = NULL;	
+#define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)		\
+		double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;               
 #endif
 
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)			\
@@ -175,7 +184,7 @@ inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, 
 #define UUID_SIZE 37
 // create a sha156 uuid string, take the current date into account
 NP_API_EXPORT
-char* np_uuid_create(const char* str, const uint16_t num);
+char* np_uuid_create(const char* str, const uint16_t num, char** buffer);
 
 NP_API_INTERN
 void _np_tree2jsonobj(np_tree_t* jtree, JSON_Object* json_obj);
@@ -184,13 +193,13 @@ NP_API_INTERN
 void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys));
 
 /**
-.. c:function:: void np_tree2json()
+.. c:function:: void np_tree2json(context, )
 
   Create a json object from a given tree
 
 */
 NP_API_EXPORT
-JSON_Value* np_tree2json(np_tree_t* tree) ;
+JSON_Value* np_tree2json(np_state_t* context, np_tree_t* tree) ;
  /**
 .. c:function:: void np_json2char()
 
@@ -203,32 +212,32 @@ char* np_json2char(JSON_Value* data,np_bool prettyPrint) ;
  * convert np_treeval_t to JSON_Value
  */
 NP_API_EXPORT
-JSON_Value* np_treeval2json(np_treeval_t val);
+JSON_Value* np_treeval2json(np_state_t* context, np_treeval_t val);
 /**
-.. c:function:: void np_dump_tree2log()
+.. c:function:: void np_dump_tree2log(context, )
 
    Dumps the given tree as json string into the debug log
 
 */
 NP_API_EXPORT
-void np_dump_tree2log(log_type category, np_tree_t* tree);
+void np_dump_tree2log(np_state_t* context, log_type category, np_tree_t* tree);
 /**
-.. c:function:: void np_dump_tree2log()
+.. c:function:: void np_dump_tree2log(context, )
 
    Dumps the given tree as json string into a char array
 
 */
 NP_API_EXPORT
-char* np_dump_tree2char(np_tree_t* tree);
+char* np_dump_tree2char(np_state_t* context, np_tree_t* tree);
 
 NP_API_PROTEC
 char* np_str_concatAndFree(char* target, char* source, ... );
 
 NP_API_PROTEC
-np_bool np_get_local_ip(char* buffer, int buffer_size);
+np_bool np_get_local_ip(np_state_t* context, char* buffer, int buffer_size);
 
 NP_API_PROTEC
-char* _sll_char_make_flat(np_sll_t(char_ptr, target));
+char* _sll_char_make_flat(np_state_t* context, np_sll_t(char_ptr, target));
 NP_API_INTERN
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len);
 NP_API_INTERN
@@ -249,6 +258,13 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 NP_API_INTERN
 _np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key);
 #endif
+
+enum np_util_stringify_e {
+	np_util_stringify_bytes,
+	np_util_stringify_bytes_per_sec
+};
+char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]);
+
 
 #ifdef __cplusplus
 }

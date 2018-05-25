@@ -19,6 +19,7 @@
 #include "np_node.h"
 #include "np_types.h"
 #include "np_util.h"
+#include "np_tree.h"
 #include "np_treeval.h"
 
 #include "example_helper.c"
@@ -94,7 +95,7 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 		ret_val = TRUE;
 		*/
 	np_ref_obj(np_aaatoken_t, token);
-	np_tree_insert_str(authorized_tokens, token->issuer, np_treeval_new_v(token));
+	np_tree_insert_str( authorized_tokens, token->issuer, np_treeval_new_v(token));
 /*
 		break;
 	case 'o':
@@ -123,7 +124,7 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 	char pub_key[2*crypto_sign_PUBLICKEYBYTES+1];
 	sodium_bin2hex(pub_key, 2*crypto_sign_PUBLICKEYBYTES+1, token->public_key, crypto_sign_PUBLICKEYBYTES);
 
-	if (NULL != tree_find_str(authenticated_tokens, token->issuer))
+	if (NULL != np_tree_find_str(authenticated_tokens, token->issuer))
 	{
 		pthread_mutex_unlock(&_aaa_mutex);
 		return (TRUE);
@@ -170,7 +171,7 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 		ret_val = TRUE;
 		*/
 	np_ref_obj(np_aaatoken_t, token);
-	tree_insert_str(authenticated_tokens, token->issuer, np_treeval_new_v(token));
+	np_tree_insert_str( authenticated_tokens, token->issuer, np_treeval_new_v(token));
 /*		break;
 	case 'N':
 	default:
@@ -204,7 +205,7 @@ np_aaatoken_t* create_realm_identity()
 	// add some unique identification parameters
 	// a far better approach is to follow the "zero-knowledge" paradigm (use the source, luke)
 	// also check libsodium password hahsing functionality
-	tree_insert_str(realm_identity->extensions, "passcode", np_treeval_new_hash("test"));
+	np_tree_insert_str( realm_identity->extensions, "passcode", np_treeval_new_hash("test"));
 
 	return (realm_identity);
 }
@@ -233,7 +234,7 @@ int main(int argc, char **argv)
 		&level,
 		&logpath,
 		NULL,
-		NULL,		
+		NULL
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
@@ -266,7 +267,7 @@ int main(int argc, char **argv)
 	state = np_init(proto, port, publish_domain);
 
 	np_aaatoken_t* realm_identity = create_realm_identity();
-	np_set_identity(realm_identity);
+	np_set_identity_v1(realm_identity);
 	np_set_realm_name("pi-lar test realm");
 	np_enable_realm_master();
 
@@ -289,13 +290,13 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-	   np_start_job_queue(8);
+	   _np_start_job_queue(8);
 	*/
 
 
 	// dsleep(50);
 	log_debug_msg(LOG_DEBUG, "starting job queue");
-	np_start_job_queue(no_threads);
+	_np_start_job_queue(no_threads);
 
 	if (NULL != j_key)
 	{

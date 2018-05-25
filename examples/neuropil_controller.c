@@ -65,7 +65,7 @@ int main(int argc, char **argv)
 	*/
 	char log_file[256];	
 	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
-	np_log_init(log_file, level);
+	np_log_init(context, log_file, level);
 	/** \endcode */
 
 
@@ -90,7 +90,7 @@ int main(int argc, char **argv)
 	\code
 	*/
 	log_debug_msg(LOG_DEBUG, "starting job queue");
-	np_start_job_queue(no_threads);
+	_np_start_job_queue(context, no_threads);
 	/** \endcode */
 
 	/**
@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 	*/
 
 	if(j_key != NULL){
-		np_send_join(j_key);
+		np_send_join(context, j_key);
 	}
 	while (1)
 	{
@@ -160,7 +160,7 @@ int main(int argc, char **argv)
 	*      np_sendjoin(state, node_key);
 		*/
 		log_debug_msg(LOG_DEBUG, "creating welcome message");
-		np_send_join(node_string);
+		np_send_join(context, node_string);
 
 //		np_new_obj(np_message_t, msg_out);
 //		np_tree_t* jrb_me = np_tree_create();
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
 //		np_message_create(msg_out, node_key, state->my_node_key, NP_MSG_JOIN_REQUEST, jrb_me);
 //
 //		log_msg(LOG_DEBUG, "submitting welcome message");
-//		np_msgproperty_t* prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
+//		np_msgproperty_t* prop = np_msgproperty_get(context, state, OUTBOUND, NP_MSG_JOIN_REQUEST);
 //		_np_job_submit_msg_event(0.0, prop, node_key, msg_out);
 
 		np_time_sleep(1.0);

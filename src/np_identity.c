@@ -9,7 +9,7 @@
 #include "np_threads.h"
 #include "np_aaatoken.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_log.h"
 #include "np_key.h"
 #include "np_tree.h"
@@ -17,17 +17,20 @@
 #include "np_util.h"
 
 
-size_t np_identity_export_current(void* buffer) {
+size_t np_identity_export_current(np_context* ac, void* buffer) {
+	np_ctx_cast(ac);
 	size_t ret = 0;
-	if( np_state()->my_identity != NULL &&
-		np_state()->my_identity->aaa_token != NULL) {
-		ret = np_identity_export(np_state()->my_identity->aaa_token, buffer);
+	if( context->my_identity != NULL &&
+		context->my_identity->aaa_token != NULL) {
+		ret = np_identity_export(context, context->my_identity->aaa_token, buffer);
 	}
 
 	return ret;
 }
 
-size_t np_identity_export(np_aaatoken_t* token, void* buffer) {
+size_t np_identity_export(np_context* ac, np_aaatoken_t* token, void* buffer) {	
+	np_ctx_full(token);
+	assert(ac == context && "You cannot export a token from one context with another context");
 	np_tree_t* serialization_tree = np_tree_create();
 
 	np_aaatoken_encode_with_secrets(serialization_tree, token);
@@ -41,12 +44,14 @@ size_t np_identity_export(np_aaatoken_t* token, void* buffer) {
 
 	cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
 
-	np_tree_serialize(serialization_tree, &cmp);
+	np_tree_serialize(context, serialization_tree, &cmp);
 
 	return serialization_tree->byte_size;
 }
 
-np_aaatoken_t* np_identity_import(void* buffer, size_t size) {
+np_aaatoken_t* np_identity_import(np_context* ac, void* buffer, size_t size) {
+	np_ctx_cast(ac);
+
 	np_aaatoken_t* ret = NULL;
 
 	np_tree_t* serialization_tree = np_tree_create();
@@ -60,7 +65,7 @@ np_aaatoken_t* np_identity_import(void* buffer, size_t size) {
 
 	cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
 
-	if (np_tree_deserialize(serialization_tree, &cmp)) {
+	if (np_tree_deserialize( context, serialization_tree, &cmp)) {
 		np_new_obj(np_aaatoken_t, ret, __func__);
 		np_aaatoken_decode_with_secrets(serialization_tree, ret);
 	}

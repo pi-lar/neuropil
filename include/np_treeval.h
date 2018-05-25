@@ -47,7 +47,7 @@ Fax: 865-974-4404
 
 #include "np_dhkey.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
 
 enum np_treeval_type_t {
@@ -86,7 +86,7 @@ typedef union val_type
     void* bin;
     np_tree_t* tree;
     np_dhkey_t dhkey;
-    np_obj_t* obj;
+    
     int8_t sh;
     int16_t i;
     int32_t l;
@@ -149,12 +149,10 @@ np_treeval_t np_treeval_new_carray_nnt (char * carray);	/* Carray is not null te
        /* For ucarray -- use carray, because it uses memcpy */
 np_treeval_t np_treeval_new_tree(np_tree_t* tree);
 np_treeval_t np_treeval_new_hash(char* h_val);
-np_treeval_t np_treeval_new_pwhash (char *pw_key);
 np_treeval_t np_treeval_new_dhkey(np_dhkey_t dhkey);
-np_treeval_t np_treeval_new_obj(np_obj_t* obj);
 uint32_t np_treeval_get_byte_size(np_treeval_t ele);
 
-extern np_treeval_t np_treeval_NULL;
+static const np_treeval_t np_treeval_NULL = { .type = np_treeval_type_undefined,.size = 0 };
 
 int16_t  np_treeval_i (np_treeval_t);
 int32_t  np_treeval_l (np_treeval_t);

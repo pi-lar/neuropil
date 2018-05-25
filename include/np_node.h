@@ -11,7 +11,7 @@
 #include "sodium.h"
 
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
 #include "np_threads.h"
 #include "np_settings.h"
@@ -24,7 +24,7 @@ extern "C" {
 struct np_node_s
 {
 	// link to memory management
-	np_obj_t* obj;
+	
 	np_mutex_t lock;
 	np_mutex_t latency_lock;
 
@@ -34,6 +34,7 @@ struct np_node_s
 
 	// state extension
 	np_bool is_handshake_send;
+	double handshake_send_at;
 	np_bool is_handshake_received;
 	np_bool joined_network; 
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
@@ -78,13 +79,13 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
  **
  **/
 NP_API_INTERN
-np_key_t* _np_node_decode_from_str (const char *key);
+np_key_t* _np_node_decode_from_str (np_state_t* context, const char *key);
 
 NP_API_INTERN
-sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_tree_t* data);
+sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, np_tree_t* data);
 
 NP_API_INTERN
-np_node_t*  _np_node_decode_from_jrb (np_tree_t* data);
+np_node_t*  _np_node_decode_from_jrb (np_state_t* context, np_tree_t* data);
 
 /** np_node_encode routines
  **/

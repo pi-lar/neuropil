@@ -8,13 +8,17 @@
 
 #include "sys/socket.h"
 #include "netdb.h"
+#include <netdb.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
 
 #include "event/ev.h"
 
 #include "np_list.h"
 #include "np_util.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_keycache.h"
 #include "np_message.h"
 #include "np_types.h"
@@ -56,7 +60,7 @@ typedef enum np_network_type_e {
 
 struct np_network_s
 {
-	np_obj_t* obj;
+	
 
 	np_bool initialized;
 	int socket;
@@ -71,6 +75,7 @@ struct np_network_s
 	np_tree_t* waiting;
 
 	np_mutex_t out_events_lock;
+	double last_send_date;
 	np_sll_t(void_ptr, out_events);
 
 	uint32_t seqend;
@@ -108,11 +113,9 @@ char* _np_network_get_protocol_string (uint8_t protocol);
  **
  **/
 NP_API_INTERN
-void _np_network_get_address (np_bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
+void _np_network_get_address (np_state_t* context, np_bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
 // struct addrinfo _np_network_get_address (char *hostname);
 
-NP_API_INTERN
-np_prioq_t* _np_network_get_new_pqentry();
 NP_API_INTERN
 void _np_network_stop(np_network_t* ng, np_bool force);
 NP_API_INTERN
@@ -127,16 +130,13 @@ void _np_network_remap_network( np_key_t* new_target, np_key_t* old_target);
 NP_API_INTERN
 np_bool _np_network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);
 
-NP_API_INTERN
-void _network_destroy (np_network_t* network);
-
 /**
- ** _np_network_send_msg:
+ ** _np_network_append_msg_to_out_queue:
  ** Sends a message to host
  **
  **/
 NP_API_INTERN
-np_bool _np_network_send_msg (np_key_t* node,  np_message_t* msg);
+np_bool _np_network_append_msg_to_out_queue (np_key_t* node,  np_message_t* msg);
 
 /*
  * libev driven functions to send/receive messages over the wire
@@ -157,6 +157,10 @@ NP_API_INTERN
 np_bool _np_network_send_handshake(np_key_t* node_key);
 NP_API_INTERN
 void _np_network_disable(np_network_t* self);
+NP_API_INTERN
+void _np_network_enable(np_network_t* self);
+NP_API_INTERN
+char* _np_network_as_string(np_network_t* self);
 #ifdef __cplusplus
 }
 #endif

@@ -18,10 +18,11 @@
 #include "pthread.h"
 
 #include "np_log.h"
+#include "neuropil.h"
 
 #include "np_list.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_event.h"
 //#include "np_types.h"
 #include "np_settings.h"
@@ -46,86 +47,92 @@ typedef struct log_str_t { const char* text; int log_code; } log_str_t;
 // TODO: ugly, but works. clean it up
 log_str_t __level_str[] = {
 		{NULL   , 0x00000 },
-		{"ERROR", 0x00001 },            /* error messages     */
-		{"WARN_", 0x00002 },			/* warning messages   */
-		{NULL   , 0x00003 },			/* none messages      */
-		{"INFO_", 0x00004 },			/* info messages      */
-		{NULL   , 0x00005 },			/* none messages      */
-		{NULL   , 0x00006 },			/* none messages      */
-		{NULL   , 0x00007 },			/* none messages      */
-		{"DEBUG", 0x00008 },			/* debugging messages */
-		{NULL   , 0x00009 },			/* none messages      */
-		{NULL   , 0x0000a },			/* none messages      */
-		{NULL   , 0x0000b },			/* none messages      */
-		{NULL   , 0x0000c },			/* none messages      */
-		{NULL   , 0x0000d },			/* none messages      */
-		{NULL   , 0x0000e },			/* none messages      */
-		{NULL   , 0x0000f },			/* none messages      */
-		{"TRACE", 0x00010 }			    /* trace messages   */
+		{"ERROR", LOG_ERROR },					/* error messages				*/
+		{"WARN", LOG_WARN	},					/* warning messages				*/
+		{NULL   , 0x00003	},					/* none messages				*/
+		{"INFO", 0x00004	},					/* info messages				*/
+		{NULL   , 0x00005	},					/* none messages				*/
+		{NULL   , 0x00006	},					/* none messages				*/
+		{NULL   , 0x00007	},					/* none messages				*/
+		{"DEBUG", LOG_DEBUG },					/* debugging messages			*/
+		{"ERROR_D", LOG_ERROR | LOG_DEBUG },	/* debugging error messages		*/
+		{"WARN_D",  LOG_WARN  | LOG_DEBUG },	/* debugging warning messages	*/
+		{NULL   , 0x0000b	},					/* none messages				*/
+		{"INFO_D",  LOG_INFO  | LOG_DEBUG },	/* debugging info messages		*/
+		{NULL   , 0x0000d	},					/* none messages				*/
+		{NULL   , 0x0000e	},					/* none messages				*/
+		{NULL   , 0x0000f	},					/* none messages				*/
+		{"TRACE", LOG_TRACE },					/* trace messages				*/
+		
+		
 };
 
-static np_log_t* __logger = NULL;
-static pthread_mutex_t __log_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutexattr_t __log_mutex_attr;
+np_module_struct(log) {
+	np_state_t* context;
+	np_log_t* __logger;
+	pthread_mutex_t __log_mutex;
+	pthread_mutexattr_t __log_mutex_attr;
+};
 
 
-void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
+void _np_log_evflush(struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
 {
-	log_msg(LOG_TRACE, "start: void _np_log_evflush(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_io *event, int revents){");
+	np_state_t* context = ev_userdata(loop);
+
 	if ((revents &  EV_WRITE) == EV_WRITE && (revents &  EV_ERROR) != EV_ERROR)
 	{
-		_np_log_fflush(TRUE);
+		_np_log_fflush(context, TRUE);
 	}
 }
 
-void log_rotation()
+void log_rotation(np_state_t* context)
 {
 	
-	pthread_mutex_lock(&__log_mutex);
-	 if(__logger->log_size >= LOG_ROTATE_AFTER_BYTES)
+	pthread_mutex_lock(&np_module(log)->__log_mutex);
+	 if(np_module(log)->__logger->log_size >= LOG_ROTATE_AFTER_BYTES)
 	{
-		 __logger->log_size = 0;
-		 __logger->log_count += 1;
+		 np_module(log)->__logger->log_size = 0;
+		 np_module(log)->__logger->log_count += 1;
 
-		 int log_id = (__logger->log_count % LOG_ROTATE_COUNT) ;
+		 int log_id = (np_module(log)->__logger->log_count % LOG_ROTATE_COUNT) ;
 		if(log_id==0){
 			log_id = LOG_ROTATE_COUNT;
 		}
 
-		 char* old_filename = strdup(__logger->filename);
+		 char* old_filename = strdup(np_module(log)->__logger->filename);
 
 		// create new filename
-		 if(__logger->log_rotate){
-			 snprintf (__logger->filename, 255, "%s_%d%s", __logger->original_filename, log_id, __logger->filename_ext );
+		 if(np_module(log)->__logger->log_rotate){
+			 snprintf (np_module(log)->__logger->filename, 255, "%s_%d%s", np_module(log)->__logger->original_filename, log_id, np_module(log)->__logger->filename_ext );
 		}else{
-			 snprintf (__logger->filename, 255, "%s%s", __logger->original_filename, __logger->filename_ext );
+			 snprintf (np_module(log)->__logger->filename, 255, "%s%s", np_module(log)->__logger->original_filename, np_module(log)->__logger->filename_ext );
 		}
 
 
 		// Closing old file
-		 if(__logger->log_count > 1) {
-			 log_msg(LOG_INFO, "Continuing log in file %s now.",__logger->filename);
-			_np_log_fflush(TRUE);
-			 if(close(__logger->fp) != 0) {
+		 if(np_module(log)->__logger->log_count > 1) {
+			 log_msg(LOG_INFO, "Continuing log in file %s now.", np_module(log)->__logger->filename);
+			_np_log_fflush(context, TRUE);
+			 if(close(np_module(log)->__logger->fp) != 0) {
 			fprintf(stderr,"Could not close old logfile %s. Error: %s (%d)", old_filename, strerror(errno), errno);
 			fflush(NULL);
 			}
 		}
 
 		// setting up new file
-		 if(__logger->log_rotate){
-			 unlink(__logger->filename);
+		 if(np_module(log)->__logger->log_rotate){
+			 unlink(np_module(log)->__logger->filename);
 		}
-		 __logger->fp = open(__logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
+		 np_module(log)->__logger->fp = open(np_module(log)->__logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
 
-		 if(__logger->fp < 0) {
-			fprintf(stderr,"Could not create logfile at %s. Error: %s (%d)",__logger->filename, strerror(errno), errno);
+		 if(np_module(log)->__logger->fp < 0) {
+			fprintf(stderr,"Could not create logfile at %s. Error: %s (%d)", np_module(log)->__logger->filename, strerror(errno), errno);
 		fprintf(stderr, "Log will no longer continue");
 		fflush(NULL);
 
 		// discontinue new log msgs
-		    free(__logger);
-		    __logger = NULL;
+			free(np_module(log)->__logger);
+			np_module(log)->__logger = NULL;
 		}
 		else
 		{
@@ -137,29 +144,29 @@ void log_rotation()
 			*/
 		}
 
-		 if (__logger->log_count > LOG_ROTATE_COUNT) {
-			 log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, __logger->log_count / LOG_ROTATE_COUNT);
+		 if (np_module(log)->__logger->log_count > LOG_ROTATE_COUNT) {
+			 log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, np_module(log)->__logger->log_count / LOG_ROTATE_COUNT);
 		}
 
-		_np_log_fflush(TRUE);
+		_np_log_fflush(context, TRUE);
 		free(old_filename);
 	}
-	pthread_mutex_unlock(&__log_mutex);
+	pthread_mutex_unlock(&np_module(log)->__log_mutex);
 	
 }
 
-void np_log_message(uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
+void np_log_message(np_state_t* context, uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
 {
-	if (__logger == NULL) {
+	if (np_module(log)->__logger == NULL) {
 		return;
 	}
 	// include msg if log level is included into selected levels
 	// and if the msg has acategory and is included into selected categories
 	// or if no category is provided for msg or the log level contains the LOG_GLOBAL flag
-	if ((level & LOG_LEVEL_MASK & __logger->level) > LOG_NONE &&
+	if ((level & LOG_LEVEL_MASK & np_module(log)->__logger->level) > LOG_NONE &&
 		(
-			(__logger->level & LOG_MODUL_MASK & LOG_GLOBAL) == LOG_GLOBAL ||
-			(level & LOG_MODUL_MASK & __logger->level) > LOG_NONE  || 
+			(level & LOG_MODUL_MASK & np_module(log)->__logger->level) > LOG_NONE ||
+			(np_module(log)->__logger->level & LOG_MODUL_MASK & LOG_GLOBAL) == LOG_GLOBAL ||
 			(level & LOG_MODUL_MASK) == LOG_NONE
 		)
 	)
@@ -170,55 +177,62 @@ void np_log_message(uint32_t level, const char* srcFile, const char* funcName, u
 		int32_t millis = tval.tv_usec;
 		localtime_r(&tval.tv_sec, &local_time);
 
-		char* new_log_entry = malloc(sizeof(char)*LOG_ROW_SIZE);
-		CHECK_MALLOC(new_log_entry);
+		char* prefix = malloc(sizeof(char)*LOG_ROW_SIZE);
+		CHECK_MALLOC(prefix);
 
-		strftime(new_log_entry, 80, "%Y-%m-%d %H:%M:%S", &local_time);
-		int new_log_entry_length = strlen(new_log_entry);
-		snprintf(new_log_entry + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length,
+		strftime(prefix, 80, "%Y-%m-%d %H:%M:%S", &local_time);
+		int new_log_entry_length = strlen(prefix);
+		snprintf(prefix + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length,
 			".%06d %-15lu %15.15s:%-5hd %-25.25s _%5s_ ",
 			millis, (unsigned long)pthread_self(),
 			srcFile, lineno, funcName,
 			__level_str[level & LOG_LEVEL_MASK].text);
+
+		static const char* suffix = "\n";
+
+		char* log_msg;
 		va_list ap;
 		va_start(ap, msg);
-		new_log_entry_length = strlen(new_log_entry);
-		vsnprintf(new_log_entry + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length - 1/*space for line ending*/ - 1 /*space for NULL terminator*/, msg, ap);
+		vasprintf(&log_msg, msg, ap);
 		va_end(ap);
-		snprintf(new_log_entry + strlen(new_log_entry), 2, "\n");
+		char* new_log_entry;
+		asprintf(&new_log_entry, "%s %s%s", prefix, log_msg, suffix);
+		free(prefix);
+		free(log_msg);
+
 
 #if defined(CONSOLE_LOG) && CONSOLE_LOG == 1
 		fprintf(stdout, new_log_entry);
 		fprintf(stdout, "/n");
 #endif
 
-		if (0 == pthread_mutex_lock(&__log_mutex))
-		{
-			sll_append(char_ptr, __logger->logentries_l, new_log_entry);
+		if (0 == pthread_mutex_lock(&np_module(log)->__log_mutex))
+		{			
+			sll_append(char_ptr, np_module(log)->__logger->logentries_l, new_log_entry);
 
-			pthread_mutex_unlock(&__log_mutex);
+			pthread_mutex_unlock(&np_module(log)->__log_mutex);
 		}
 
 		// instant writeout
 
 		if ((level & LOG_ERROR) == LOG_ERROR) {
-			_np_log_fflush(TRUE);
+			_np_log_fflush(context, TRUE);
 		}
 #ifdef DEBUG
 		else {
-			_np_log_fflush(TRUE);
+			_np_log_fflush(context, TRUE);
 		}
 #endif // DEBUG
 		
 	}
 }
 
-void _np_log_fflush(np_bool force)
+void _np_log_fflush(np_state_t* context, np_bool force)
 {
-	//log_msg(LOG_TRACE, "start: void _np_log_fflush(){");
+	//log_trace_msg(LOG_TRACE, "start: void _np_log_fflush(){");
 	char* entry = NULL;
 	int lock_result = 0;
-	if (__logger == NULL) {
+	if (np_module(log)->__logger == NULL) {
 		return;
 	}
 
@@ -232,25 +246,25 @@ void _np_log_fflush(np_bool force)
 	do
 	{
 		if (force) {
-			lock_result = pthread_mutex_lock(&__log_mutex);
+			lock_result = pthread_mutex_lock(&np_module(log)->__log_mutex);
 		}
 		else {
-			lock_result = pthread_mutex_trylock(&__log_mutex);
+			lock_result = pthread_mutex_trylock(&np_module(log)->__log_mutex);
 		}
 
 		if (0 == lock_result) {
 			if (flush_status < 1 ) {
 				if (flush_status < 0) {
-					flush_status = (force == TRUE || sll_size(__logger->logentries_l) > 100) ? 0 : 1;
+					flush_status = (force == TRUE || sll_size(np_module(log)->__logger->logentries_l) > 100) ? 0 : 1;
 				}
 				if(flush_status == 0){
-					entry = sll_head(char_ptr, __logger->logentries_l);
+					entry = sll_head(char_ptr, np_module(log)->__logger->logentries_l);
 					if (NULL != entry) {
-						__logger->log_size += strlen(entry);
+						np_module(log)->__logger->log_size += strlen(entry);
 					}
 				}				
 			}
-			pthread_mutex_unlock(&__log_mutex);
+			pthread_mutex_unlock(&np_module(log)->__log_mutex);
 		}
 
 		if (NULL != entry)
@@ -259,21 +273,21 @@ void _np_log_fflush(np_bool force)
 
 			while(bytes_witten  != strlen(entry))
 			{
-				int current_bytes_witten = write(__logger->fp, entry + bytes_witten, strlen(entry) - bytes_witten);
+				int current_bytes_witten = write(np_module(log)->__logger->fp, entry + bytes_witten, strlen(entry) - bytes_witten);
 				// if we write was not successful we reschedule the entry
 				// and break free from this iteration
 				if(current_bytes_witten < 0)
 				{
-					 pthread_mutex_lock(&__log_mutex);
-					 sll_append(char_ptr, __logger->logentries_l, entry);
-					 pthread_mutex_unlock(&__log_mutex);
+					 pthread_mutex_lock(&np_module(log)->__log_mutex);
+					 sll_append(char_ptr, np_module(log)->__logger->logentries_l, entry);
+					 pthread_mutex_unlock(&np_module(log)->__log_mutex);
 					 break;
 				}
 				bytes_witten += current_bytes_witten;
 			}	
 
-			if(__logger->log_rotate == TRUE)
-				log_rotation();
+			if(np_module(log)->__logger->log_rotate == TRUE)
+				log_rotation(context);
 
 			if( bytes_witten  == strlen(entry))
 			{
@@ -288,70 +302,73 @@ void _np_log_fflush(np_bool force)
 	} while (flush_status == 0 && i <= MISC_LOG_FLUSH_MAX_ITEMS);
 }
 
-void np_log_setlevel(uint32_t level)
+void np_log_setlevel(np_state_t* context, uint32_t level)
 {
-	log_msg(LOG_TRACE, "start: void np_log_setlevel(uint32_t level){");
-	__logger->level = level;
+	log_trace_msg(LOG_TRACE, "start: void np_log_setlevel(uint32_t level){");
+	np_module(log)->__logger->level = level;
 }
 
-void np_log_init(const char* filename, uint32_t level)
+void np_log_init(np_state_t* context, const char* filename, uint32_t level)
 {
-	log_msg(LOG_TRACE, "start: void np_log_init(const char* filename, uint32_t level){");
+	if (!np_module_initiated(log)) {
+		np_module_malloc(log);		 
+		pthread_mutex_init(&_module->__log_mutex, NULL);
 
-	pthread_mutexattr_init(&__log_mutex_attr);
-	pthread_mutexattr_settype(&__log_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&__log_mutex, &__log_mutex_attr);
+		pthread_mutexattr_init(&_module->__log_mutex_attr);
+		pthread_mutexattr_settype(&_module->__log_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+		pthread_mutex_init(&_module->__log_mutex, &_module->__log_mutex_attr);
 
-	__logger = (np_log_t *) calloc(1,sizeof(np_log_t));
-	CHECK_MALLOC(__logger);
+		_module->__logger = (np_log_t *)calloc(1, sizeof(np_log_t));
+		CHECK_MALLOC(_module->__logger);
 
-	// init logsystem
-	__logger->level = level;
-	__logger->log_count = 0;
-	__logger->log_size = UINT32_MAX; // for initial log_rotation start
-	__logger->log_rotate = LOG_ROTATE_ENABLE;
+		// init logsystem
+		_module->__logger->level = level;
+		_module->__logger->log_count = 0;
+		_module->__logger->log_size = UINT32_MAX; // for initial log_rotation start
+		_module->__logger->log_rotate = LOG_ROTATE_ENABLE;
 
-	// detect filename_ext from filename (. symbol)
-	char* parsed_filename = filename;
-	int len_f = strlen(parsed_filename);
-	for(int i= len_f; i >= 0;i--){
-		if(strncmp((parsed_filename + i) ,".",1) == 0)
-		{
-			// found extension
-			snprintf (__logger->filename_ext, len_f-i+1, "%s",parsed_filename+i);
-			parsed_filename = strndup(parsed_filename, i);
-			break;
+		// detect filename_ext from filename (. symbol)
+		char* parsed_filename = filename;
+		int len_f = strlen(parsed_filename);
+		for (int i = len_f; i >= 0; i--) {
+			if (strncmp((parsed_filename + i), ".", 1) == 0)
+			{
+				// found extension
+				snprintf(_module->__logger->filename_ext, len_f - i + 1, "%s", parsed_filename + i);
+				parsed_filename = strndup(parsed_filename, i);
+				break;
+			}
 		}
+
+		if (strncmp(_module->__logger->filename_ext, "", 1) == 0)
+		{
+			snprintf(_module->__logger->filename_ext, 15, ".log");
+		}
+
+		snprintf(_module->__logger->original_filename, 255, "%s", parsed_filename);
+		snprintf(_module->__logger->filename, 255, "%s%s", parsed_filename, _module->__logger->filename_ext);
+		free(parsed_filename);
+
+		sll_init(char_ptr, _module->__logger->logentries_l);
+		log_rotation(context);
+
+		log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", _module->__logger, _module->__logger->filename, _module->__logger->level);
 	}
-
-	if(strncmp(__logger->filename_ext,"",1) == 0)
-	{
-		snprintf (__logger->filename_ext, 15, ".log");
-	}
-
-	snprintf (__logger->original_filename, 255, "%s", parsed_filename );
-	snprintf (__logger->filename, 255, "%s%s", parsed_filename,__logger->filename_ext );
-	free(parsed_filename);
-
-	sll_init(char_ptr, __logger->logentries_l);
-	log_rotation();
-
-	log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", __logger, __logger->filename, __logger->level);
 }
 
-void np_log_destroy()
+void np_log_destroy(np_state_t* context)
 {
-	log_msg(LOG_TRACE, "start: void np_log_destroy(){");
-	__logger->level=LOG_NONE;
+	log_trace_msg(LOG_TRACE, "start: void np_log_destroy(){");
+	np_module(log)->__logger->level=LOG_NONE;
 
-	EV_P = _np_event_get_loop_io();
-	ev_io_stop(EV_A_ &__logger->watcher);
+	EV_P = _np_event_get_loop_io(context);
+	ev_io_stop(EV_A_ &np_module(log)->__logger->watcher);
 
-	_np_log_fflush(TRUE);
+	_np_log_fflush(context, TRUE);
 
-	close(__logger->fp);
-	free(__logger);
-	__logger = NULL;
-	pthread_mutex_destroy(&__log_mutex);
+	close(np_module(log)->__logger->fp);
+	free(np_module(log)->__logger);
+	np_module(log)->__logger = NULL;
+	pthread_mutex_destroy(&np_module(log)->__log_mutex);
 }
 

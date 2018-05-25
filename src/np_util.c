@@ -16,12 +16,13 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "sodium.h"
 #include "event/ev.h"
 #include "json/parson.h"
 #include "msgpack/cmp.h"
-#include "inttypes.h"
+#include "tree/tree.h"
 
 #include "np_util.h"
 
@@ -40,20 +41,21 @@
 #include "np_list.h"
 #include "np_threads.h"
 
-#ifdef NP_BENCHMARKING
-struct np_util_performance_point* __np_util_performance_points[np_util_performance_point_END] = { 0 };
-#endif
-
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
-char* np_uuid_create(const char* str, const uint16_t num)
-{
-	log_msg(LOG_TRACE, "start: char* np_uuid_create(const char* str, const uint16_t num){");
+char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
+{	
+	char* uuid_out;
+	if (buffer == NULL) {
+		uuid_out = calloc(1, UUID_SIZE);
+		CHECK_MALLOC(uuid_out);
+	}
+	else {
+		uuid_out = *buffer;
+	}
 	char input[256] = { '\0' };
 	unsigned char out[18] = { '\0' };
-	char* uuid_out = calloc(1, UUID_SIZE);
-	CHECK_MALLOC(uuid_out);
 
 	double now = np_time_now();
 	snprintf (input, 255, "%s:%u:%16.16f", str, num, now);
@@ -110,8 +112,8 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
 }
 
 
-JSON_Value* np_treeval2json(np_treeval_t val) {
-	log_msg(LOG_TRACE, "start: JSON_Value* np_treeval2json(np_treeval_t val) {");
+JSON_Value* np_treeval2json(np_state_t* context, np_treeval_t val) {
+	log_trace_msg(LOG_TRACE, "start: JSON_Value* np_treeval2json(context, np_treeval_t val) {");
 	JSON_Value* ret = NULL;
 	np_bool free_string = FALSE;
 	char* tmp_str = NULL;
@@ -138,16 +140,6 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 	case np_treeval_type_double:
 		ret = json_value_init_number(val.value.d);
 		break;
-	case np_treeval_type_char_ptr:		
-		tmp_str = np_treeval_to_str(val, &free_string);
-		ret = json_value_init_string(tmp_str);
-		if (free_string == TRUE) {
-			free(tmp_str);
-		}
-		break;
-	case np_treeval_type_char:
-		ret = json_value_init_string(&val.value.c);
-		break;
 	case np_treeval_type_unsigned_short:
 		ret = json_value_init_number(val.value.ush);
 		break;
@@ -167,42 +159,42 @@ JSON_Value* np_treeval2json(np_treeval_t val) {
 		json_array_append_number(json_array(ret), val.value.a2_ui[0]);
 		json_array_append_number(json_array(ret), val.value.a2_ui[1]);
 		break;
-	case np_treeval_type_bin:
-		tmp =  malloc(sizeof(char)*64);
-		CHECK_MALLOC(tmp);
-
-		sprintf(tmp, "<binaray data (size: %"PRIu32")>", val.size);
-		ret = json_value_init_string((char*)tmp);
-		free(tmp);
-		break;
 	case np_treeval_type_jrb_tree:
-		ret = np_tree2json(val.value.tree);
+		ret = np_tree2json(context, val.value.tree);
 		break;
+		/*
 	case np_treeval_type_dhkey:
 		ret = json_value_init_array();
 		json_array_append_number(json_array(ret), val.value.dhkey.t[0]);
 		json_array_append_number(json_array(ret), val.value.dhkey.t[1]);
 		json_array_append_number(json_array(ret), val.value.dhkey.t[2]);
 		json_array_append_number(json_array(ret), val.value.dhkey.t[3]);
+		json_array_append_number(json_array(ret), val.value.dhkey.t[4]);
+		json_array_append_number(json_array(ret), val.value.dhkey.t[5]);
+		json_array_append_number(json_array(ret), val.value.dhkey.t[6]);
+		json_array_append_number(json_array(ret), val.value.dhkey.t[7]);
 		break;
+		*/
 	default:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd",
-				val.type);
-
+		tmp_str = np_treeval_to_str(val, &free_string);
+		ret = json_value_init_string(tmp_str);
+		if (free_string == TRUE) {
+			free(tmp_str);
+		}
 		break;
 	}
 	return ret;
 }
 
-char* np_dump_tree2char(np_tree_t* tree) {
-	log_msg(LOG_TRACE, "start: char* np_dump_tree2char(np_tree_t* tree) {");
-	JSON_Value * tmp = np_tree2json(tree);
+char* np_dump_tree2char(np_state_t* context, np_tree_t* tree) {
+	log_trace_msg(LOG_TRACE, "start: char* np_dump_tree2char(context, np_tree_t* tree) {");
+	JSON_Value * tmp = np_tree2json(context, tree);
 	char* tmp2 = np_json2char(tmp,TRUE);
 	free(tmp);
 	return tmp2;
 }
-JSON_Value* np_tree2json(np_tree_t* tree) {
-	log_msg(LOG_TRACE, "start: JSON_Value* np_tree2json(np_tree_t* tree) {");
+JSON_Value* np_tree2json(np_state_t* context, np_tree_t* tree) {
+	log_trace_msg(LOG_TRACE, "start: JSON_Value* np_tree2json(context, np_tree_t* tree) {");
 	JSON_Value* ret = json_value_init_object();
 	JSON_Value* arr = NULL;
 
@@ -249,7 +241,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 				}
 				else if (np_treeval_type_special_char_ptr == tmp->key.type)
 				{
-					name = strdup(_np_tree_get_special_str(tmp->key.value.ush));
+					name = strdup(_np_tree_get_special_str( tmp->key.value.ush));
 				}
 				else
 				{
@@ -258,7 +250,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 				}
 
 				//log_debug_msg(LOG_DEBUG, "np_tree2json set key %s:", name);
-				JSON_Value* value = np_treeval2json(tmp->val);
+				JSON_Value* value = np_treeval2json(context, tmp->val);
 
 				if(useArray == TRUE) {
 					if(NULL == arr) {
@@ -298,7 +290,7 @@ JSON_Value* np_tree2json(np_tree_t* tree) {
 }
 
 char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
-	log_msg(LOG_TRACE, "start: char* np_json2char(JSON_Value* data, np_bool prettyPrint) {");
+	log_trace_msg(LOG_TRACE, "start: char* np_json2char(JSON_Value* data, np_bool prettyPrint) {");
 	char* ret;
 	/*
 	size_t json_size ;
@@ -325,12 +317,12 @@ char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
 	return ret;
 }
 
-void np_dump_tree2log(log_type category, np_tree_t* tree){
-	log_msg(LOG_TRACE, "start: void np_dump_tree2log(np_tree_t* tree){");
+void np_dump_tree2log(np_state_t* context, log_type category, np_tree_t* tree){
+	log_trace_msg(LOG_TRACE, "start: void np_dump_tree2log(context, np_tree_t* tree){");
 	if(NULL == tree){
 		log_debug_msg(LOG_DEBUG | category , "NULL");
 	}else{
-		char* tmp = np_dump_tree2char(tree);
+		char* tmp = np_dump_tree2char(context, tree);
 		log_debug_msg(LOG_DEBUG | category , "%s", tmp);
 		json_free_serialized_string(tmp);
 	}
@@ -364,7 +356,7 @@ char* np_str_concatAndFree(char* target, char* source, ... ) {
 }
 
 
-np_bool np_get_local_ip(char* buffer,int buffer_size){
+np_bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
 
 	np_bool ret = FALSE;
 
@@ -448,7 +440,7 @@ char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cm
 /*
  * Takes a char pointer list and concatinates it to one string
  */
-char* _sll_char_make_flat(np_sll_t(char_ptr, target)) {
+char* _sll_char_make_flat(np_state_t* context, np_sll_t(char_ptr, target)) {
 	char* ret = NULL;
 
 	sll_iterator(char_ptr) iter = sll_first(target);
@@ -538,7 +530,7 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 		item->max = 0;
 		item->avg = 0;
 		memcpy(item->key, key, strnlen(key, 254));
-		_np_threads_mutex_init(&item->lock,"debug_statistics");
+		_np_threads_mutex_init(context, &item->lock,"debug_statistics");
 
 		_LOCK_MODULE(np_utilstatistics_t) {
 			sll_append(void_ptr, __np_debug_statistics, (void_ptr)item);
@@ -557,3 +549,55 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 	return item;
 }
 #endif
+
+
+char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]) {
+	
+	if (type == np_util_stringify_bytes_per_sec)
+	{
+		double bytes = *((double*)data);
+		double to_format;
+		double divisor = 1;
+		char* f = "b/s";
+		if (bytes < (100 * (divisor = 1024))) {
+			f = "kB/s";
+		}
+		else if (bytes < (100 * (divisor = 1024 * 1024))) {
+			f = "MB/s";
+		}
+		else if (bytes < (100 * (divisor = 1024 * 1024 * 1024))) {
+			f = "GB/s";
+		}
+		else if (bytes < (100 * (divisor = 1024 * 1024 * 1024 * 1024))) {
+			f = "TB/s";
+		}
+		to_format = bytes / divisor;
+		sprintf(buffer, "%5.2f %s", to_format, f);
+	}
+	else if (type == np_util_stringify_bytes)
+	{
+		uint32_t bytes = *((uint32_t*)data);
+		double to_format;
+		double divisor = 1;
+		char* f = "b";
+		if (bytes < (100 * (divisor = 1024))) {
+			f = "kB";
+		}
+		else if (bytes < (100 * (divisor = 1024 * 1024))) {
+			f = "MB";
+		}
+		else if (bytes < (100 * (divisor = 1024 * 1024 * 1024))) {
+			f = "GB";
+		}
+		else if (bytes < (100 * (divisor = 1024 * 1024 * 1024 * 1024))) {
+			f = "TB";
+		}
+		to_format = bytes / divisor;
+		sprintf(buffer, "%5.2f %s", to_format, f);
+	}
+	else {
+		strcpy(buffer, "<unknown type>");
+	}
+
+	return buffer;
+}

@@ -16,7 +16,7 @@
 #include "np_dhkey.h"
 #include "np_threads.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
 #include "np_node.h"
 
@@ -36,7 +36,7 @@ enum np_key_type {
 };
 struct np_key_s
 {
-	np_obj_t* obj;              // link to memory management and ref counter
+	              // link to memory management and ref counter
 
 	double created_at;
 	TSP(np_bool, in_destroy);
@@ -102,13 +102,13 @@ NP_API_EXPORT
 void np_key_renew_token();
 
 NP_API_INTERN
-void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc);
+void np_key_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc);
 
 NP_API_INTERN
-void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);
+void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);
 
 NP_API_INTERN
-np_key_t* _np_key_get_by_key_hash(char* targetDhkey);
+np_key_t* _np_key_get_by_key_hash(np_state_t* context,	char* targetDhkey);
 
 NP_API_INTERN
 void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop);

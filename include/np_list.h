@@ -225,7 +225,9 @@ TYPE TYPE##_pll_find(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t c
 		int8_t cmp_res = cmp_func(pll_current->val, value);           \
 		if (0 == cmp_res) {                                           \
 			return (pll_current->val);                                \
-		}                                                             \
+		}else if(1 == cmp_res) {									  \
+			break;													  \
+		}															  \
 		pll_next(pll_current);                                        \
 	}                                                                 \
 	return (ret_val);                                                 \
@@ -297,9 +299,11 @@ function like macros are:
 #define np_dll_t(TYPE, NAME) TYPE##_dll_t* NAME
 
 // convenience wrapper definitions
+#define dll_init_full(TYPE, dll_list) TYPE##_dll_t* dll_list = TYPE##_dll_init();
 #define dll_init(TYPE, dll_list) dll_list = TYPE##_dll_init();
 #define dll_append(TYPE, dll_list, value) TYPE##_dll_append(dll_list, value);
 #define dll_remove(TYPE, dll_list, value) TYPE##_dll_remove(dll_list, value);
+#define dll_delete(TYPE, dll_list, iter) TYPE##_dll_delete(dll_list, iter);
 #define dll_prepend(TYPE, dll_list, value) TYPE##_dll_prepend(dll_list, value);
 #define	dll_head(TYPE, dll_list) TYPE##_dll_head(dll_list);
 #define dll_tail(TYPE, dll_list) TYPE##_dll_tail(dll_list);
@@ -340,9 +344,9 @@ real macros for convenience usage
 #define dll_first(dll_list)    (dll_list->first)
 #define dll_last(dll_list)     (dll_list->last)
 #define dll_next(dll_elem)     (dll_elem = dll_elem->flink)
-#define dll_get_next(sll_elem) (dll_elem->flink)
+#define dll_get_next(dll_elem) (dll_elem->flink)
 #define dll_previous(dll_elem) (dll_elem = dll_elem->blink)
-#define dll_get_previous(sll_elem) (dll_elem->blink)
+#define dll_get_previous(dll_elem) (dll_elem->blink)
 
 //
 // DLL (double linked list) prototype generator
@@ -370,7 +374,7 @@ real macros for convenience usage
 	void TYPE##_dll_free(TYPE##_dll_t* list);\
 	void TYPE##_dll_clear(TYPE##_dll_t* list);\
 	void TYPE##_dll_remove(TYPE##_dll_t* dll_list, TYPE value); \
-
+	void TYPE##_dll_delete(TYPE##_dll_t* dll_list, dll_iterator(TYPE) dll_to_del); \
 
 //
 // DLL (double linked list) implementation generator
@@ -459,16 +463,19 @@ void TYPE##_dll_clear(TYPE##_dll_t* dll_list) {\
 	dll_list->last = NULL;  \
 	dll_list->size = 0;     \
 }\
-void TYPE##_dll_remove(TYPE##_dll_t* dll_list, TYPE value) {                \
+void TYPE##_dll_delete(TYPE##_dll_t* dll_list, dll_iterator(TYPE) dll_to_del) {								\
+	if (NULL != dll_to_del->flink) dll_to_del->flink->blink = dll_to_del->blink;							\
+	if (NULL != dll_to_del->blink) dll_to_del->blink->flink = dll_to_del->flink;							\
+	if (dll_list->first == dll_to_del) dll_list->first = dll_to_del->flink;									\
+	if (dll_list->last == dll_to_del) dll_list->last = dll_to_del->blink;									\
+	free(dll_to_del);																						\
+	dll_list->size--;																						\
+}																											\
+void TYPE##_dll_remove(TYPE##_dll_t* dll_list, TYPE value) {												\
 	TYPE##_dll_node_t* dll_current = dll_list->first;                                                       \
 	while (NULL != dll_current) {																			\
 		if (value == dll_current->val) {																	\
-			if (NULL != dll_current->flink) dll_current->flink->blink = dll_current->blink;					\
-			if (NULL != dll_current->blink) dll_current->blink->flink = dll_current->flink;					\
-			if (dll_list->first == dll_current) dll_list->first = dll_current->flink;						\
-			if (dll_list->last == dll_current) dll_list->last = dll_current->blink;							\
-			free(dll_current);																				\
-			dll_list->size--;																				\
+			dll_delete(TYPE,dll_list,dll_current);															\
 			break;																							\
 		} else {																							\
 			dll_current = dll_current->flink;																\
@@ -671,7 +678,7 @@ TYPE##_sll_t* TYPE##_sll_init() {																			\
 }																											\
 TYPE##_sll_node_t* TYPE##_sll_insert(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_node_t* after) {		\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
-	CHECK_MALLOC(sll_node);																					\
+	assert( NULL != sll_node);																					\
 	sll_node->val = value;																					\
 	sll_node->flink = after->flink;																			\
 	after->flink = sll_node;																				\
@@ -683,7 +690,7 @@ TYPE##_sll_node_t* TYPE##_sll_insert(TYPE##_sll_t* sll_list, TYPE value, TYPE##_
 }																											\
 TYPE##_sll_node_t* TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {									\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
-	CHECK_MALLOC(sll_node);																					\
+	assert( NULL != sll_node);																					\
 	sll_node->val = value;																					\
 	sll_node->flink = NULL;																					\
 	if (sll_list->first == NULL) { 																			\

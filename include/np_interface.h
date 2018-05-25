@@ -29,9 +29,22 @@ extern "C" {
 
 	enum np_error {
 		np_ok = 0,
+		np_not_implemented,
+		np_network_error,
 		np_invalid_argument,
 		np_invalid_operation,
+		np_insufficient_memory,
+		np_startup
 		// ...
+	};
+	static const char* np_error_str[] = {
+		"",
+		"operation is not implemented",
+		"could not init network",
+		"argument is invalid",
+		"operation is currently invalid",
+		"insufficient memory",
+		"startup error. See log for more details"
 	};
 
 	typedef uint8_t np_id[NP_FINGERPRINT_BYTES];
@@ -52,9 +65,11 @@ extern "C" {
 	// New incarnation of np_settings.h
 	struct np_settings {
 		uint32_t n_threads;
+		char log_file[256];
+		uint32_t log_level;
 		// ...
 	};
-	void np_default_settings(struct np_settings *settings);
+	struct np_settings * np_new_settings(struct np_settings **settings);
 
 	typedef void np_context;
 	np_context* np_new_context(struct np_settings *settings);

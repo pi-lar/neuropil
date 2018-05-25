@@ -18,7 +18,7 @@ extern "C" {
  **
  **/
 NP_API_INTERN
-np_bool _np_route_init (np_key_t* me);
+np_bool _np_route_init (np_state_t* context, np_key_t* me);
 
 NP_API_INTERN
 void _np_route_set_key (np_key_t* new_node_key);
@@ -37,9 +37,9 @@ NP_API_INTERN
 void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added);
 
 NP_API_INTERN
-void _np_route_clear ();
+void _np_route_clear (np_state_t* context);
 NP_API_INTERN
-void _np_route_leafset_clear ();
+void _np_route_leafset_clear (np_state_t* context);
 
 
 /** _np_route_lookup:
@@ -47,7 +47,7 @@ void _np_route_leafset_clear ();
  **
  **/
 NP_API_INTERN
-sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t key, uint8_t count);
+sll_return(np_key_ptr) _np_route_lookup (np_state_t* context, np_dhkey_t key, uint8_t count);
 // np_key_t** _np_route_lookup (np_state_t* state, np_key_t* key, int count, int is_safe);
 
 /** _np_route_neighbors:
@@ -55,7 +55,7 @@ sll_return(np_key_ptr) _np_route_lookup (np_dhkey_t key, uint8_t count);
  **
  **/
 NP_API_INTERN
-sll_return(np_key_ptr) _np_route_neighbors ();
+sll_return(np_key_ptr) _np_route_neighbors (np_state_t* context);
 
 /** _np_route_row_lookup:
  ** return the row in the routing table that matches the longest prefix with key.
@@ -69,32 +69,32 @@ sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key);
  **
  **/
 NP_API_INTERN
-sll_return(np_key_ptr) _np_route_get_table ();
+sll_return(np_key_ptr) _np_route_get_table (np_state_t* context);
 
 NP_API_INTERN
 void _np_route_leafset_insert (np_key_t* host, uint8_t right_or_left, np_key_t** deleted, np_key_t** added);
 NP_API_INTERN
 void _np_route_leafset_delete (np_key_t* host, uint8_t right_or_left, np_key_t** deleted);
 NP_API_INTERN
-void _np_route_leafset_range_update ();
+void _np_route_leafset_range_update (np_state_t* context);
 
 NP_API_EXPORT
-char* np_route_get_bootstrap_connection_string();
+char* np_route_get_bootstrap_connection_string(np_state_t* context);
 NP_API_EXPORT
 void np_route_set_bootstrap_key(np_key_t* bootstrapKey);
 
 NP_API_INTERN
-void _np_route_rejoin_bootstrap(np_bool force);
+void _np_route_rejoin_bootstrap(np_state_t* context, np_bool force);
 NP_API_INTERN
-void _np_route_check_for_joined_network();
+void _np_route_check_for_joined_network(np_state_t* context);
 NP_API_INTERN
-np_bool _np_route_my_key_has_connection();
+np_bool _np_route_my_key_has_connection(np_state_t* context);
 NP_API_INTERN
-uint32_t _np_route_my_key_count_routes();
+uint32_t _np_route_my_key_count_routes(np_state_t* context);
 NP_API_INTERN
-uint32_t _np_route_my_key_count_neighbours();
+uint32_t _np_route_my_key_count_neighbours(np_state_t* context, uint32_t* left, uint32_t* right);
 NP_API_INTERN
-np_key_t* _np_route_get_key();
+np_key_t* _np_route_get_key(np_state_t* context);
 #ifdef __cplusplus
 }
 #endif

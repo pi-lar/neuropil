@@ -8,7 +8,7 @@
 #include <stdarg.h>
 
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
 #include "np_messagepart.h"
 #include "np_threads.h"
@@ -20,13 +20,12 @@ extern "C" {
 
 struct np_message_s
 {
-	char* uuid;
+	 // link to memory pool
 
-	np_obj_t* obj; // link to memory pool
+	char* uuid;	
 
 	np_tree_t* header;
 	np_tree_t* instructions;
-	np_tree_t* properties;
 	np_tree_t* body;
 	np_tree_t* footer;
 
@@ -45,7 +44,6 @@ struct np_message_s
 	TSP(np_bool, has_reply);
 	np_sll_t(np_message_on_reply_t, on_reply);
 
-	void* bin_properties;
 	void* bin_body;
 	void* bin_footer;
 	np_messagepart_t* bin_static;
@@ -62,7 +60,7 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
  **
  **/
 NP_API_INTERN
-void _np_message_create(np_message_t* msg, np_key_t* to, np_key_t* from, const char* subject, np_tree_t* the_data);
+void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const char* subject, np_tree_t* the_data);
 
 NP_API_INTERN
 void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token);
@@ -75,7 +73,7 @@ void _np_message_calculate_chunking(np_message_t* msg);
 NP_API_INTERN
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check);
 NP_API_INTERN
-np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args);
+np_bool _np_message_serialize_header_and_instructions(np_state_t* context, np_jobargs_t* args);
 NP_API_INTERN
 np_bool _np_message_serialize_chunked(np_message_t * msg);
 
@@ -113,7 +111,7 @@ NP_API_INTERN
 void _np_message_del_footerentry(np_message_t*, const char* key);
 
 NP_API_INTERN
-void _np_message_set_to(np_message_t* msg, np_key_t* target);
+void _np_message_set_to(np_message_t* msg, np_dhkey_t target);
 NP_API_INTERN
 char* _np_message_get_subject(np_message_t* msg);
 NP_API_INTERN
@@ -123,13 +121,17 @@ np_bool _np_message_is_expired(const np_message_t* const msg_to_check);
 NP_API_INTERN
 void _np_message_mark_as_incomming(np_message_t* msg);
 NP_API_INTERN
-np_key_t* _np_message_get_sender(np_message_t* self);
+np_dhkey_t* _np_message_get_sender(np_message_t* self);
 
 NP_API_EXPORT
 void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply);
 NP_API_EXPORT
 void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_reply_to_remove);
 
+NP_API_INTERN
+void _np_message_trace_info(char* desc, np_message_t * msg_in);
+NP_API_INTERN
+np_bool _np_message_verify(np_message_t* msg);
 // msg header constants
 static const char* _NP_MSG_HEADER_TARGET		= "_np.target";
 static const char* _NP_MSG_HEADER_SUBJECT		= "_np.subj";

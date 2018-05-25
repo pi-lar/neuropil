@@ -3,6 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
+#include <stdint.h>
 #include <inttypes.h>
 
 #include "neuropil.h"
@@ -11,9 +12,11 @@
 #include "np_msgproperty.h"
 #include "np_scache.h"
 #include "np_list.h"
+#include "np_threads.h"
 #include "np_route.h"
 #include "np_util.h"
 #include "np_key.h"
+#include "np_jobqueue.h"
 
 #include "np_statistics.h"
 
@@ -43,34 +46,49 @@ struct np_statistics_element_s {
 	double last_sec_check;
 
 	double first_check;
+
+#ifdef NP_BENCHMARKING
+	struct np_util_performance_point* __np_util_performance_points[np_util_performance_point_END] = { 0 };
+#endif
 };
 typedef struct np_statistics_element_s np_statistics_element_t;
 
-static np_simple_cache_table_t* _cache = NULL;
-static np_sll_t(char_ptr, watched_subjects);
-static np_bool _np_statistcs_initiated = FALSE;
+np_module_struct(statistics) {
+	np_state_t* context;
+	np_simple_cache_table_t* __cache;
+	np_sll_t(char_ptr, __watched_subjects);
 
-np_bool _np_statistics_receive_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
-{
-	assert(_cache != NULL);
+	TSP(double, __forwarding_counter);
+
+	TSP(uint32_t, __network_send_bytes);
+
+	double __network_send_bytes_per_sec_r ;
+	double __network_send_bytes_per_sec_last;
+	uint32_t __network_send_bytes_per_sec_remember;
+
+	TSP(uint32_t, __network_received_bytes);
+
+	double __network_received_bytes_per_sec_r ;
+	double __network_received_bytes_per_sec_last ;
+	uint32_t __network_received_bytes_per_sec_remember ;
+};
+
+np_bool _np_statistics_receive_msg_on_watched(np_state_t* context, const np_message_t* const msg, NP_UNUSED np_tree_t* body)
+{	
 	assert(msg != NULL);
-	assert(msg->msg_property != NULL);
-	assert(msg->msg_property->msg_subject != NULL);
 
-	np_cache_item_t* item = np_simple_cache_get(_cache, msg->msg_property->msg_subject);
+	np_cache_item_t* item = np_simple_cache_get(context, np_module(statistics)->__cache, _np_message_get_subject(msg));
 	if (item != NULL) {
 		((np_statistics_element_t*)item->value)->total_received += 1;
 	}
 	return TRUE;
 }
 
-np_bool _np_statistics_send_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
+np_bool _np_statistics_send_msg_on_watched(np_state_t* context, const np_message_t* const msg, NP_UNUSED np_tree_t* body)
 {
-	assert(_cache != NULL);
-	assert(msg != NULL);
-	assert(msg->msg_property != NULL);
-	assert(msg->msg_property->msg_subject != NULL);
-	np_cache_item_t* item = np_simple_cache_get(_cache, msg->msg_property->msg_subject);
+	assert(msg != NULL);	
+
+	np_cache_item_t* item = np_simple_cache_get(context, np_module(statistics)->__cache, _np_message_get_subject(msg));
 	if (item != NULL) {
 		((np_statistics_element_t*)item->value)->total_send += 1;
 	}
@@ -78,38 +96,48 @@ np_bool _np_statistics_send_msg_on_watched(const np_message_t* const msg, NP_UNU
 	return TRUE;
 }
 
-np_bool np_statistics_init() {
-	_np_statistcs_initiated = TRUE;
-	_cache = np_cache_init(SIMPLE_CACHE_NR_BUCKETS);
-	sll_init(char_ptr, watched_subjects);
-	return _np_statistcs_initiated;
+np_bool np_statistics_init(np_state_t* context) {
+
+	if (!np_module_initiated(statistics)) {
+		np_module_malloc(statistics);
+
+		np_module(statistics)->__cache = np_cache_init(context);
+		sll_init(char_ptr, np_module(statistics)->__watched_subjects);
+
+		TSP_INITD(np_module(statistics)->__forwarding_counter, 0);
+		TSP_INITD(np_module(statistics)->__network_send_bytes, 0);
+		TSP_INITD(np_module(statistics)->__network_received_bytes, 0);
+
+		np_module(statistics)->__network_received_bytes_per_sec_last = 
+			np_module(statistics)->__network_send_bytes_per_sec_last = np_time_now();
+	}
+	return TRUE;
 }
 
-np_bool np_statistics_destroy() {
-	_np_statistcs_initiated = TRUE;
+np_bool np_statistics_destroy(np_state_t* context) {
+	if (np_module_initiated(statistics)) {
+		sll_iterator(char_ptr) iter = sll_first(np_module(statistics)->__watched_subjects);
+		while (iter != NULL)
+		{
+			free(np_simple_cache_get(context, np_module(statistics)->__cache, iter->val)->value);
+			free(iter->val);
+			sll_next(iter);
+		}
 
-	sll_iterator(char_ptr) iter = sll_first(watched_subjects);
-	while (iter != NULL)
-	{
-		free(np_simple_cache_get(_cache, iter->val)->value);
-		free(iter->val);
-		sll_next(iter);
+		sll_free(char_ptr, np_module(statistics)->__watched_subjects);
+		free(np_module(statistics)->__cache);
+
 	}
-
-	sll_free(char_ptr, watched_subjects);
-	free(_cache);
-
-	_np_statistcs_initiated = FALSE;
-	return _np_statistcs_initiated == FALSE;
+	return TRUE;
 }
 
-void np_statistics_add_watch(char* subject) {
-	if (FALSE == _np_statistcs_initiated) {
-		np_statistics_init();
-	}
+void np_statistics_add_watch(np_state_t* context, char* subject) {
+	
+	np_statistics_init(context);
+	
 
 	np_bool addtolist = TRUE;
-	sll_iterator(char_ptr) iter_subjects = sll_first(watched_subjects);
+	sll_iterator(char_ptr) iter_subjects = sll_first(np_module(statistics)->__watched_subjects);
 	while (iter_subjects != NULL)
 	{
 		if (strncmp(iter_subjects->val, subject, strlen(subject)) == 0) {
@@ -122,11 +150,11 @@ void np_statistics_add_watch(char* subject) {
 	char* key = subject;
 	if (addtolist == TRUE) {
 		key = strdup(subject);
-		sll_append(char_ptr, watched_subjects, key);
-		np_simple_cache_insert(_cache, key, calloc(1, sizeof(np_statistics_element_t)));
+		sll_append(char_ptr, np_module(statistics)->__watched_subjects, key);
+		np_simple_cache_insert(context, np_module(statistics)->__cache, key, calloc(1, sizeof(np_statistics_element_t)));
 	}
 
-	np_statistics_element_t* container = np_simple_cache_get(_cache, key)->value;
+	np_statistics_element_t* container = np_simple_cache_get(context, np_module(statistics)->__cache, key)->value;
 
 	if (addtolist == TRUE) {
 		CHECK_MALLOC(container);
@@ -136,50 +164,51 @@ void np_statistics_add_watch(char* subject) {
 			np_time_now();
 	}
 
-	if (FALSE == container->watch_receive && np_msgproperty_get(INBOUND, key) != NULL) {
+	if (FALSE == container->watch_receive && np_msgproperty_get(context, INBOUND, key) != NULL) {
 		container->watch_receive = TRUE;
-		np_add_receive_listener(_np_statistics_receive_msg_on_watched, key);
+		np_add_receive_listener(context, _np_statistics_receive_msg_on_watched, key);
 	}
 
-	if (FALSE == container->watch_send && np_msgproperty_get(OUTBOUND, key) != NULL) {
+	if (FALSE == container->watch_send && np_msgproperty_get(context, OUTBOUND, key) != NULL) {
 		container->watch_send = TRUE;
-		np_add_send_listener(_np_statistics_send_msg_on_watched, key);
+		np_add_send_listener(context, _np_statistics_send_msg_on_watched, key);
 	}
 }
 
-void np_statistics_add_watch_internals() {
+void np_statistics_add_watch_internals(np_state_t* context) {
 	
-	//np_statistics_add_watch(_DEFAULT);
+	//np_statistics_add_watch(context, _DEFAULT);
 		
-	np_statistics_add_watch(_NP_MSG_ACK);
-	np_statistics_add_watch(_NP_MSG_HANDSHAKE);
+	np_statistics_add_watch(context, _NP_MSG_ACK);
+	np_statistics_add_watch(context, _NP_MSG_HANDSHAKE);
 	
-	np_statistics_add_watch(_NP_MSG_PING_REQUEST);
-	np_statistics_add_watch(_NP_MSG_LEAVE_REQUEST);
-	np_statistics_add_watch(_NP_MSG_JOIN);
-	np_statistics_add_watch(_NP_MSG_JOIN_REQUEST);
-	np_statistics_add_watch(_NP_MSG_JOIN_ACK);
-	np_statistics_add_watch(_NP_MSG_JOIN_NACK);
+	np_statistics_add_watch(context, _NP_MSG_PING_REQUEST);
+	np_statistics_add_watch(context, _NP_MSG_LEAVE_REQUEST);
+	np_statistics_add_watch(context, _NP_MSG_JOIN);
+	np_statistics_add_watch(context, _NP_MSG_JOIN_REQUEST);
+	np_statistics_add_watch(context, _NP_MSG_JOIN_ACK);
+	np_statistics_add_watch(context, _NP_MSG_JOIN_NACK);
 	
-	np_statistics_add_watch(_NP_MSG_PIGGY_REQUEST);
-	np_statistics_add_watch(_NP_MSG_UPDATE_REQUEST);	
+	np_statistics_add_watch(context, _NP_MSG_PIGGY_REQUEST);
+	np_statistics_add_watch(context, _NP_MSG_UPDATE_REQUEST);	
 	
-	np_statistics_add_watch(_NP_MSG_DISCOVER_RECEIVER);
-	np_statistics_add_watch(_NP_MSG_DISCOVER_SENDER);
-	np_statistics_add_watch(_NP_MSG_AVAILABLE_RECEIVER);
-	np_statistics_add_watch(_NP_MSG_AVAILABLE_SENDER);
+	np_statistics_add_watch(context, _NP_MSG_DISCOVER_RECEIVER);
+	np_statistics_add_watch(context, _NP_MSG_DISCOVER_SENDER);
+	np_statistics_add_watch(context, _NP_MSG_AVAILABLE_RECEIVER);
+	np_statistics_add_watch(context, _NP_MSG_AVAILABLE_SENDER);
 	
-	if(np_state()->enable_realm_master || np_state()->enable_realm_slave){
-		np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REQUEST);
-		np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REPLY);
-		np_statistics_add_watch(_NP_MSG_AUTHORIZATION_REQUEST);
-		np_statistics_add_watch(_NP_MSG_AUTHORIZATION_REPLY);
+	if(context->enable_realm_master || context->enable_realm_slave){
+		np_statistics_add_watch(context, _NP_MSG_AUTHENTICATION_REQUEST);
+		np_statistics_add_watch(context, _NP_MSG_AUTHENTICATION_REPLY);
+		np_statistics_add_watch(context, _NP_MSG_AUTHORIZATION_REQUEST);
+		np_statistics_add_watch(context, _NP_MSG_AUTHORIZATION_REPLY);
 	}
-	np_statistics_add_watch(_NP_MSG_ACCOUNTING_REQUEST);
+	np_statistics_add_watch(context, _NP_MSG_ACCOUNTING_REQUEST);
 	
 }
-char * np_statistics_print(np_bool asOneLine) {
-	if (FALSE == _np_statistcs_initiated) {
+
+char * np_statistics_print(np_state_t* context, np_bool asOneLine) {
+	if (!np_module_initiated(statistics)) {
 		return strdup("statistics not initiated\n");
 	}
 
@@ -189,9 +218,9 @@ char * np_statistics_print(np_bool asOneLine) {
 	if (asOneLine == TRUE) {
 		new_line = "    ";
 	}
-	ret = np_str_concatAndFree(ret, "--- Statistics START ---%s", new_line);
+	ret = np_str_concatAndFree(ret, "-%s", new_line);
 
-	sll_iterator(char_ptr) iter_subjects = sll_first(watched_subjects);
+	sll_iterator(char_ptr) iter_subjects = sll_first(np_module(statistics)->__watched_subjects);
 
 	double sec_since_start;
 
@@ -207,13 +236,13 @@ char * np_statistics_print(np_bool asOneLine) {
 
 
 	uint32_t
-		all_total_send		= 0,
-		all_total_received	= 0;
+		all_total_send = 0,
+		all_total_received = 0;
 
 
 	while (iter_subjects != NULL)
 	{
-		np_statistics_element_t* container = np_simple_cache_get(_cache, iter_subjects->val)->value;
+		np_statistics_element_t* container = np_simple_cache_get(context, np_module(statistics)->__cache, iter_subjects->val)->value;
 
 		sec_since_start = (now - container->first_check);
 
@@ -287,7 +316,7 @@ char * np_statistics_print(np_bool asOneLine) {
 				current_min_send, container->last_mindiff_send,
 				iter_subjects->val, new_line
 			);
-		}		
+		}
 		container->last_total_received = container->total_received;
 		container->last_total_send = container->total_send;
 
@@ -297,34 +326,105 @@ char * np_statistics_print(np_bool asOneLine) {
 	ret = np_str_concatAndFree(ret, "%s", new_line);
 
 
-	uint32_t routes = _np_route_my_key_count_routes();	
+	uint32_t routes = _np_route_my_key_count_routes(context);
 
 	uint32_t tenth = 1;
 	char tmp_format[512] = { 0 };
-	uint32_t minimize[] = { routes, all_total_received+all_total_send, };
+	uint32_t minimize[] = { routes, all_total_received + all_total_send, };
 	char s[32];
 
-	for (uint32_t i = 0; i < ( sizeof(minimize)/sizeof(uint32_t) ); i++) {
+	for (uint32_t i = 0; i < (sizeof(minimize) / sizeof(uint32_t)); i++) {
 		sprintf(s, "%d", minimize[i]);
 		tenth = max(tenth, strlen(s));
-	}	
+	}
 
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Node:     %%s%%s", "received total:", tenth);
-	ret = np_str_concatAndFree(ret, tmp_format, all_total_received, _np_key_as_str(np_state()->my_node_key), new_line);
+	ret = np_str_concatAndFree(ret, tmp_format, all_total_received, _np_key_as_str(context->my_node_key), new_line);
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Identity: %%s%%s", "send     total:", tenth);
-	ret = np_str_concatAndFree(ret, tmp_format, all_total_send, ((np_state()->my_identity == NULL) ? "-" :_np_key_as_str(np_state()->my_identity)), new_line);
+	ret = np_str_concatAndFree(ret, tmp_format, all_total_send, ((context->my_identity == NULL) ? "-" : _np_key_as_str(context->my_identity)), new_line);
 
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "total:", tenth);
-	ret = np_str_concatAndFree(ret, tmp_format, all_total_send+ all_total_received, new_line);
-	
-	ret = np_str_concatAndFree(ret, "%s", new_line);
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Jobs:     %%"PRIu32" Forwarded Msgs: %%8.0f%%s", "total:", tenth);
+	TSP_GET(double, np_module(statistics)->__forwarding_counter, __fw_counter_r);
+	ret = np_str_concatAndFree(ret,
+		tmp_format,
+		all_total_send + all_total_received,
+		np_jobqueue_count(context),
+		__fw_counter_r,
+		new_line);
 
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Reachable nodes:", tenth);
+
+	sprintf(tmp_format, "%-17s %%"PRIu32"%%s", "Reachable nodes:");
 	ret = np_str_concatAndFree(ret, tmp_format, routes, /*new_line*/"  ");
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Neighbours nodes:", tenth);
-	ret = np_str_concatAndFree(ret, tmp_format, _np_route_my_key_count_neighbours(), new_line);
+	sprintf(tmp_format, "%-17s %%"PRIu32" (:= %%"PRIu32"|%%"PRIu32") ", "Neighbours nodes:");
+	uint32_t l, r;
+	uint32_t c = _np_route_my_key_count_neighbours(context, &l, &r);
+	ret = np_str_concatAndFree(ret, tmp_format, c, l, r);
 
-	ret = np_str_concatAndFree(ret, "--- Statistics END  ---%s", new_line);
+
+	sprintf(tmp_format, "In: %8%s(%5%s) Out: %8%s(%5%s)%%s");
+	uint32_t __network_send_bytes_r, __network_received_bytes_r;
+	double timediff;
+	static const double timediff_threshhold = 1;
+	TSP_SCOPE(np_module(statistics)->__network_send_bytes)
+	{
+		__network_send_bytes_r = np_module(statistics)->__network_send_bytes;
+
+		timediff = now - np_module(statistics)->__network_send_bytes_per_sec_last;
+		if (timediff >= timediff_threshhold) {
+			np_module(statistics)->__network_send_bytes_per_sec_r = (np_module(statistics)->__network_send_bytes - np_module(statistics)->__network_send_bytes_per_sec_remember) / timediff;
+			np_module(statistics)->__network_send_bytes_per_sec_last = now;
+			np_module(statistics)->__network_send_bytes_per_sec_remember = np_module(statistics)->__network_send_bytes;
+		}
+	}
+	TSP_SCOPE(np_module(statistics)->__network_received_bytes)
+	{
+		__network_received_bytes_r = np_module(statistics)->__network_received_bytes;
+		timediff = now - np_module(statistics)->__network_received_bytes_per_sec_last;
+		if (timediff >= timediff_threshhold) {
+			np_module(statistics)->__network_received_bytes_per_sec_r = (np_module(statistics)->__network_received_bytes - np_module(statistics)->__network_received_bytes_per_sec_remember) / timediff;
+			np_module(statistics)->__network_received_bytes_per_sec_last = now;
+			np_module(statistics)->__network_received_bytes_per_sec_remember = np_module(statistics)->__network_received_bytes;
+		}
+	}
+	char b1[255], b2[255], b3[255], b4[255];
+	ret = np_str_concatAndFree(ret,
+		tmp_format,
+		np_util_stringify_pretty(np_util_stringify_bytes, &__network_received_bytes_r, b1),
+		np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &(np_module(statistics)->__network_received_bytes_per_sec_r), b3),
+		np_util_stringify_pretty(np_util_stringify_bytes, &__network_send_bytes_r, b2),
+		np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &(np_module(statistics)->__network_send_bytes_per_sec_r), b4),
+		new_line);
+
+	ret = np_str_concatAndFree(ret, "-%s", new_line);
 
 	return ret;
 }
+
+#ifdef NP_STATISTICS_COUNTER
+void __np_increment_forwarding_counter(np_state_t* context) {
+	if (np_module_initiated(statistics)) {
+
+		TSP_SCOPE(np_module(statistics)->__forwarding_counter) {
+			np_module(statistics)->__forwarding_counter++;
+		}
+	}
+}
+
+void __np_statistics_add_send_bytes(np_state_t* context, uint32_t add) {
+	if (np_module_initiated(statistics)) {
+		TSP_SCOPE(np_module(statistics)->__network_send_bytes)
+		{
+			np_module(statistics)->__network_send_bytes += add;
+		}
+	}
+}
+
+void __np_statistics_add_received_bytes(np_state_t* context, uint32_t add) {
+	if (np_module_initiated(statistics)) {
+		TSP_SCOPE(np_module(statistics)->__network_received_bytes)
+		{
+			np_module(statistics)->__network_received_bytes += add;
+		}
+	}
+}
+#endif

@@ -19,11 +19,11 @@ extern "C" {
 	#define _NP_SYSINFO_REPLY "_NP.SYSINFO.REPLY"
 
 NP_API_INTERN
-void _np_sysinfo_init_cache();
+void _np_sysinfo_init_cache(np_state_t* context);
 NP_API_INTERN
-np_bool _np_in_sysinfo(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) ;
+np_bool _np_in_sysinfo(np_state_t* context, const np_message_t* const msg, np_tree_t* body) ;
 NP_API_INTERN
-np_bool _np_in_sysinforeply(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) ;
+np_bool _np_in_sysinforeply(np_state_t* context, const np_message_t* const msg, np_tree_t* body) ;
 /**
 .. c:function:: void np_sysinfo_get_info(const char* const dhkey_of_node_target)
 
@@ -32,7 +32,7 @@ np_bool _np_in_sysinforeply(const np_message_t* const msg, np_tree_t* properties
 
 */
 NP_API_EXPORT
-np_tree_t* np_sysinfo_get_info(const char* const dhkey_of_node_target);
+np_tree_t* np_sysinfo_get_info(np_state_t* context, const char* const dhkey_of_node_target);
 /**
 .. c:function:: np_sysinfo_get_my_info()
 
@@ -40,14 +40,14 @@ np_tree_t* np_sysinfo_get_info(const char* const dhkey_of_node_target);
 
 */
 NP_API_EXPORT
-np_tree_t* np_sysinfo_get_my_info() ;
+np_tree_t* np_sysinfo_get_my_info(np_state_t* context) ;
 
 NP_API_INTERN
-void _np_sysinfo_request_others() ;
+void _np_sysinfo_request_others(np_state_t* context) ;
 NP_API_INTERN
-void _np_sysinfo_request(const char* dhkey_of_target) ;
+void _np_sysinfo_request(np_state_t* context,const char* dhkey_of_target) ;
 NP_API_INTERN
-np_tree_t* _np_sysinfo_get_from_cache(const char* hash_of_target, uint16_t max_cache_ttl) ;
+np_tree_t* _np_sysinfo_get_from_cache(np_state_t* context, const char* hash_of_target, uint16_t max_cache_ttl) ;
 
 /**
 .. c:function:: void np_sysinfo_enable_slave()
@@ -56,7 +56,7 @@ np_tree_t* _np_sysinfo_get_from_cache(const char* hash_of_target, uint16_t max_c
 
 */
 NP_API_EXPORT
-void np_sysinfo_enable_slave();
+void np_sysinfo_enable_slave(np_state_t* context);
 /**
 .. c:function:: void np_sysinfo_enable_master()
 
@@ -64,9 +64,9 @@ void np_sysinfo_enable_slave();
 
 */
 NP_API_EXPORT
-void np_sysinfo_enable_master();
+void np_sysinfo_enable_master(np_state_t* context);
 NP_API_EXPORT
-np_tree_t* np_sysinfo_get_all();
+np_tree_t* np_sysinfo_get_all(np_state_t* context);
 #ifdef __cplusplus
 }
 #endif
