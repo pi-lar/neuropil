@@ -93,7 +93,11 @@ struct np_memory_container_s
 	struct np_memory_itemstat_s itemstats[10];
 };
 
+#define NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO 3223967591
 struct np_memory_itemconf_s {
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING
+	uint32_t magic_no;
+#endif
 	np_memory_container_t* container;
 
 	np_bool in_use;
@@ -112,6 +116,14 @@ struct np_memory_itemconf_s {
 #define NEXT_ITEMCONF(conf, skip) conf = (np_memory_itemconf_t*) (((char*)conf) + (((skip)+1) * ((conf)->block->container->size_per_item + sizeof(np_memory_itemconf_t))));
 #define GET_CONF(item) ((np_memory_itemconf_t*)(((char*)item) - sizeof(np_memory_itemconf_t)))
 #define GET_ITEM(config) (((char*)config) + sizeof(np_memory_itemconf_t))
+
+#ifndef NP_MEMORY_CHECK_MEMORY_REFFING
+#define np_check_magic_no(item)
+#else
+void np_check_magic_no(void * item) {
+	assert(GET_CONF(item)->magic_no == NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO);
+}
+#endif
 
 
 
@@ -162,6 +174,7 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
 		conf->ref_count = 0;		
 		char* tmp  = conf->id;
 		np_uuid_create(__func__, 0, &tmp);
+		log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_Inc_    (%"PRIu32") object of type \"%s\" on %s", conf->ref_count, np_memory_types_str[container->type], conf->id);
 
 		conf->persistent = FALSE;
 		if (_np_threads_mutex_init(context, &(conf->access_lock), "MemoryV2 conf lock") != 0) {
@@ -178,6 +191,7 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
 
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING		
 		sll_init(char_ptr, conf->reasons);
+		conf->magic_no = NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO;
 #endif
 
 	}
@@ -185,7 +199,7 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
 
 void np_memory_register_type(
 	np_state_t* context,
-	uint8_t type,
+	enum np_memory_types_e type,
 	size_t size_per_item,
 	uint32_t count_of_items_per_block,
 	uint32_t min_count_of_items,
@@ -252,8 +266,10 @@ np_bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
 			config->persistent = FALSE;
 
 #if NP_MEMORY_CHECK_MEMORY_REFFING
-			char* tmp = config->id;
+			char* old;
+			char* tmp = old =  config->id;
 			np_uuid_create(__func__, 0, &tmp);
+			log_debug_msg(LOG_DEBUG | LOG_MEMORY, "Memory obj %s is now refreshed and changed id to %s", old, tmp);
 			sll_clear(char_ptr, config->reasons);
 #endif 
 			if (container->on_refresh_space != NULL) {
@@ -487,13 +503,20 @@ np_state_t* np_memory_get_context(void* item) {
 	assert(item != NULL);
 	np_state_t* ret = NULL;
 	if (item != NULL) {
+		np_check_magic_no(item);
+
 		np_memory_itemconf_t* config = GET_CONF(item);
+		assert(config != NULL);
+		assert(config->container != NULL);
+		assert(config->container->module != NULL);
+		assert(config->container->module->context != NULL);
 		ret = config->container->module->context;
 	}
 	return ret;
 }
-void np_memory_free(void* item) {
+void np_memory_free(void* item) {	
 	if (item != NULL) {
+		np_check_magic_no(item);
 		np_memory_itemconf_t* config = GET_CONF(item);
 		np_memory_container_t* container = config->container;
 		np_ctx_decl(container->module->context);
@@ -592,6 +615,7 @@ void _np_memory_job_memory_management(np_state_t* context, np_jobargs_t* args) {
 void np_mem_refobj(void * item, const char* reason)
 {
 	assert(item != NULL);
+	np_check_magic_no(item);
 	np_memory_itemconf_t * config = GET_CONF(item);
 	np_ctx_decl(config->container->module->context);
 
@@ -610,22 +634,21 @@ void np_mem_refobj(void * item, const char* reason)
 
 // decrease ref count
 void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
-{
+{	
 	np_ctx_decl(config->container->module->context);
 
 	_LOCK_ACCESS(&config->access_lock) {
 		if (config->persistent == FALSE) {
-			//log_msg(LOG_DEBUG,"Unreferencing object (%p; t: %d)", obj, obj->type);
-			if (config->ref_count == 0) {
+ 			if (config->ref_count == 0) {
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
 				log_msg(LOG_ERROR, 
-					"Unreferencing object (%p; t: %d) too often! (left reasons(%"PRIu32"): %s)",
-					config, config->container->type, config->ref_count, 
+					"Unreferencing object (%s; t: %d) too often! try to unref for \"%s\". (left reasons(%"PRIu32"): %s)",
+					config->id, config->container->type, reason, config->ref_count,
 					_sll_char_make_flat(context, config->reasons)
 				);
 #else
-				log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! left reasons(%"PRIu32")", 
-					config, config->container->type, config->ref_count);
+				log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! try to unref for \"%s\". left reasons(%"PRIu32")", 
+					config, config->container->type, reason, config->ref_count);
 #endif
 				abort();
 			}
@@ -801,6 +824,7 @@ void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason
 
 void np_memory_ref_obj(void* item, char* reason, char* reason_desc) {
 	assert(item != NULL);
+	np_check_magic_no(item);
 	np_memory_itemconf_t* config = GET_CONF(item);
 	np_ctx_decl(config->container->module->context);
 	_NP_REF_REASON(reason, reason_desc, reason2);
@@ -849,19 +873,22 @@ np_bool np_memory_tryref_obj(void* item, char* reason, char* reason_desc) {
 	return ret;
 }
 
-void np_memory_unref_obj(void* item, char* reason) {
-
+uint32_t np_memory_unref_obj(void* item, char* reason) {
+	uint32_t ret = 0;	
 	if (item != NULL) {
+		np_check_magic_no(item);
 		np_memory_itemconf_t* config = GET_CONF(item);
 		np_ctx_decl(config->container->module->context);
 
 		_LOCK_ACCESS(&config->access_lock) {
 			np_mem_unrefobj(config, reason);
+			ret = config->ref_count; 
 			if (config->persistent == FALSE && config->ref_count == 0) {
 				np_memory_free(item);
-			}
+			}			
 		}
 	}
+	return ret;
 }
 char* np_memory_get_id(void * item)
 {

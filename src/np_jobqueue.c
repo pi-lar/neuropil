@@ -601,15 +601,9 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 
 		sll_iterator(np_callback_t) iter = sll_first((job_to_execute->processorFuncs));
 		
-		// create a readonly copy of args to prevent pointer manipulation in callbacks
-		np_jobargs_t cpy = { 0 };
 		while (iter != NULL)
-		{
-			if (job_to_execute->args != NULL) {
-				memmove(&cpy, job_to_execute->args, sizeof(cpy));
-			}
-
-			iter->val(context, job_to_execute->args == NULL ? NULL : &cpy);
+		{			
+			iter->val(context, job_to_execute->args);
 			sll_next(iter);
 		}
 

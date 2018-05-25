@@ -5,6 +5,7 @@
 // original version is based on the chimera project
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -28,13 +29,6 @@
 #include "np_constants.h"
 
 
-static const uint16_t __MAX_ROW   = 64; // length of key
-static const uint16_t __MAX_COL   = 16; // 16 different characters
-static const uint16_t __MAX_ENTRY =  3; // three alternatives for each key
-
-// TODO: change size to match the possible log10(hash key max value)
-// TODO: change the size according to the number of entries in the routing table (min: 2/ max: 8)
-static const uint16_t __LEAFSET_SIZE = 8; /* (must be even) excluding node itself */
 
 
 np_module_struct(route)
@@ -44,7 +38,7 @@ np_module_struct(route)
 	
 	TSP(char*, bootstrap_key)
 
-	np_key_t* table[__MAX_ROW * __MAX_COL * __MAX_ENTRY];
+	np_key_t* table[NP_ROUTES_TABLE_SIZE];
 
 	np_sll_t(np_key_ptr, left_leafset);
 	np_sll_t(np_key_ptr, right_leafset);
@@ -64,7 +58,9 @@ np_bool _np_route_init (np_state_t* context, np_key_t* me)
 		np_module_malloc(route);
 		
 		TSP_INITD(_module->bootstrap_key, NULL);
-		memset(_module->table, 0, sizeof(_module->table));
+		for (int i = 0; i < NP_ROUTES_TABLE_SIZE; i++) {
+			_module->table[i] = NULL;
+		}
 		_module->my_key = NULL;
 
 		_np_route_set_key(me);
@@ -146,7 +142,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 					if (_np_dhkey_between(&node_key->dhkey, &np_module(route)->my_key->dhkey, &my_inverse_dhkey, TRUE))
 					{
 						if (
-							sll_size(np_module(route)->right_leafset) < __LEAFSET_SIZE ||
+							sll_size(np_module(route)->right_leafset) < NP_ROUTE_LEAFSET_SIZE ||
 							_np_dhkey_between(
 								&node_key->dhkey,
 								&np_module(route)->my_key->dhkey,
@@ -161,14 +157,14 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 						}
 
 						// Cleanup of leafset / resize leafsets to max size if necessary
-						if (sll_size(np_module(route)->right_leafset) > __LEAFSET_SIZE) {
+						if (sll_size(np_module(route)->right_leafset) > NP_ROUTE_LEAFSET_SIZE) {
 							deleted_from = sll_tail(np_key_ptr, np_module(route)->right_leafset);
 						}
 					}
 					else //if (_np_dhkey_between(&node_key->dhkey, &my_inverse_dhkey, &np_module(route)->my_key->dhkey, TRUE))
 					{
 						if (
-							sll_size(np_module(route)->left_leafset) < __LEAFSET_SIZE ||
+							sll_size(np_module(route)->left_leafset) < NP_ROUTE_LEAFSET_SIZE ||
 							_np_dhkey_between(
 								&node_key->dhkey,
 								&left_outer->val->dhkey,
@@ -183,7 +179,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 						}
 
 						// Cleanup of leafset / resize leafsets to max size if necessary
-						if (sll_size(np_module(route)->left_leafset) > __LEAFSET_SIZE) {
+						if (sll_size(np_module(route)->left_leafset) > NP_ROUTE_LEAFSET_SIZE) {
 							deleted_from = sll_head(np_key_ptr, np_module(route)->left_leafset);
 						}
 					}
@@ -733,28 +729,36 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 			if (found)
 			{
 				pick = 0;
+				np_key_t *k_node;
+				np_key_t *pick_node;
 				for (k = 1; k < __MAX_ENTRY; k++)
-				{
-					np_key_t *pick_node, *tmp_node;
-
+				{					
 					pick_node = np_module(route)->table[index + pick];
-					tmp_node  = np_module(route)->table[index + k];
+					if (pick_node == NULL || pick_node->node == NULL)
+						break;
+					k_node  = np_module(route)->table[index + k];
 
-					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d: t..%f > p..%f ?",
-							index, tmp_node->node->latency, pick_node->node->latency);
-
-					if (tmp_node->node->latency > pick_node->node->latency)
-					{
+					if (k_node == NULL || k_node->node == NULL) {
 						pick = k;
+						pick_node = np_module(route)->table[index + pick];
+						break;
+					}
+					else {
+						log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d: t..%f > p..%f ?",
+							index, k_node->node->latency, pick_node->node->latency);
+
+						if (k_node->node->latency > pick_node->node->latency)
+						{							
+							pick = k;
+						}
 					}
 				}
-				np_key_t* check_to_del = np_module(route)->table[index + pick];
 				
-				if(check_to_del == NULL) {
-					deleted_from = np_module(route)->table[index + pick];
-					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%d]", index+pick);
+				if(pick_node == NULL) {
+					deleted_from = pick_node;
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%"PRId32"]", index + pick);
 					np_module(route)->table[index + pick] = key;
-					add_to = np_module(route)->table[index + pick];
+					add_to = key;
 				}
 			}
 		}

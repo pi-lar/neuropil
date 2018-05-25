@@ -65,15 +65,14 @@ void _np_sysinfo_slave_send_cb(np_state_t* context, np_jobargs_t* args) {
 		np_tree_t* reply_body = np_sysinfo_get_my_info(context);
 
 		// build properties
-		np_tree_t* reply_properties = np_tree_create();
-		np_tree_insert_str( reply_properties, _NP_SYSINFO_SOURCE,
+ 		np_tree_insert_str(reply_body, _NP_SYSINFO_SOURCE,
 				np_treeval_new_s(_np_key_as_str(my_node_key)));
 
 		// send msg
 		log_msg(LOG_INFO | LOG_SYSINFO, "sending sysinfo proactive (size: %"PRIu16")",
 				reply_body->size);
 		
-		np_send_msg(context, _NP_SYSINFO_REPLY, reply_properties, reply_body, NULL);
+		np_send_msg(context, _NP_SYSINFO_REPLY, reply_body, NULL);
 
 		np_unref_obj(np_key_t, my_node_key, "usage");
 	}
@@ -180,14 +179,12 @@ void np_sysinfo_enable_master(np_state_t* context) {
 	np_add_receive_listener(context, _np_in_sysinforeply, _NP_SYSINFO_REPLY);
 }
 
-np_bool _np_in_sysinfo(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
-
-	np_ctx_full(msg);
+np_bool _np_in_sysinfo(np_state_t* context, const np_message_t* const msg, np_tree_t* body) {
 
 	log_trace_msg(LOG_TRACE, "start: np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {");
 	log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo request");
 
-	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
+	np_tree_elem_t* source = np_tree_find_str(body, _NP_SYSINFO_SOURCE);
 
 	if (NULL == source) {
 		log_msg(LOG_WARN | LOG_SYSINFO,
@@ -195,7 +192,7 @@ np_bool _np_in_sysinfo(const np_message_t* const msg, np_tree_t* properties, np_
 		return FALSE;
 	}
 
-	np_tree_elem_t* target = np_tree_find_str(properties, _NP_SYSINFO_TARGET);
+	np_tree_elem_t* target = np_tree_find_str(body, _NP_SYSINFO_TARGET);
 
 	char* mynode_hash = _np_key_as_str(context->my_node_key);
 
@@ -237,8 +234,8 @@ np_bool _np_in_sysinfo(const np_message_t* const msg, np_tree_t* properties, np_
 	np_tree_t* reply_body = np_sysinfo_get_my_info(context);
 
 	// build properties
-	np_tree_t* reply_properties = np_tree_create();
-	np_tree_insert_str( reply_properties, _NP_SYSINFO_SOURCE,
+
+	np_tree_insert_str(reply_body, _NP_SYSINFO_SOURCE,
 			np_treeval_new_s(mynode_hash));
 
 // TODO: Reenable target after functional audience selection for messages is implemented
@@ -251,19 +248,18 @@ np_bool _np_in_sysinfo(const np_message_t* const msg, np_tree_t* properties, np_
 	log_msg(LOG_INFO | LOG_SYSINFO, "sending sysinfo reply (size: %"PRIu16")",
 			reply_body->size);
 
-	np_send_msg(context, _NP_SYSINFO_REPLY, reply_properties, reply_body, NULL /* &target_dhkey */);
-
+	np_send_msg(context, _NP_SYSINFO_REPLY, reply_body, NULL /* &target_dhkey */);
 
 	return TRUE;
 }
 
-np_bool _np_in_sysinforeply(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
-	np_ctx_full(msg);
+np_bool _np_in_sysinforeply(np_state_t* context, const np_message_t* const msg, np_tree_t* body) {
+
 
 	log_trace_msg(LOG_TRACE, "start: np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {");
 	_np_sysinfo_init_cache(context);
 
-	np_tree_elem_t* source = np_tree_find_str(properties, _NP_SYSINFO_SOURCE);
+	np_tree_elem_t* source = np_tree_find_str(body, _NP_SYSINFO_SOURCE);
 
 	if (NULL == source) {
 		log_msg(LOG_WARN | LOG_SYSINFO,
@@ -407,10 +403,9 @@ void _np_sysinfo_request(np_state_t* context, const char* const hash_of_target) 
 			}
 		}
 		log_msg(LOG_INFO | LOG_SYSINFO, "sending sysinfo request to %s", hash_of_target);
-		np_tree_t* properties = np_tree_create();
-		np_tree_t* body = np_tree_create();
+ 		np_tree_t* body = np_tree_create();
 
-		np_tree_insert_str( properties, _NP_SYSINFO_SOURCE,
+		np_tree_insert_str(body, _NP_SYSINFO_SOURCE,
 				np_treeval_new_s(_np_key_as_str(context->my_node_key)));
 
 // TODO: Reenable target after functional audience selection for messages is implemented

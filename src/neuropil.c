@@ -493,7 +493,7 @@ void np_rem_mx_property(np_context*ac, char* subject, const char* key)
 	}
 }
 
-np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key)
+np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *body, np_dhkey_t* target_key)
 { 
 	np_message_t* ret = NULL;
 	np_new_obj(np_message_t, ret);
@@ -523,25 +523,24 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *pro
 	np_tree_insert_str( ret->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(context->my_node_key->dhkey) );
 
 	_np_message_setbody(ret, body);
-	_np_message_setproperties(ret, properties);
 
 	return ret;
 }
 
-void np_send_msg(np_context*ac, char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key)
+void np_send_msg(np_context*ac, char* subject, np_tree_t *body, np_dhkey_t* target_key)
 {
 	np_ctx_cast(ac);
-	np_message_t* msg = _np_prepare_msg(context, subject, properties, body, target_key);
+	np_message_t* msg = _np_prepare_msg(context, subject, body, target_key);
 
 	_np_send_msg(subject, msg, msg->msg_property, target_key);
 
 	np_unref_obj(np_message_t, msg, ref_obj_creation);
 }
 
-void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *properties, np_tree_t *body) {
+void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body) {
 	np_ctx_cast(ac);
 	np_dhkey_t* sender = _np_message_get_sender(original);
-	np_message_t* msg = _np_prepare_msg(context, original->msg_property->rep_subject, properties, body, sender);
+	np_message_t* msg = _np_prepare_msg(context, original->msg_property->rep_subject, body, sender);
 
 	np_tree_replace_str( msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(original->uuid));
 
@@ -554,12 +553,13 @@ void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *prop
  ** np_destroy:
  ** destroys the neuropil data structures and cleans memory that has been used
  **/
-void np_destroy(np_context*ac)
+void np_destroy(np_context*ac, bool gracefully)
 {
 	np_ctx_cast(ac);
 	log_trace_msg(LOG_TRACE, "start: void np_destroy(){");
 
-	np_shutdown_notify_others(context);
+	if(gracefully)
+		np_shutdown_notify_others(context);
 	// TODO: implement me ...
 	/*
 	_np_threads_init()

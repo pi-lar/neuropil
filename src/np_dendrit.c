@@ -73,7 +73,7 @@ np_bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproper
 	sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_prop->user_receive_clb);
 	while (iter_usercallbacks != NULL)
 	{
-		ret = iter_usercallbacks->val(context, msg_in, NULL, msg_in->body) && ret;
+		ret = iter_usercallbacks->val(context, msg_in, msg_in->body) && ret;
 		sll_next(iter_usercallbacks);
 	}
 
@@ -1442,9 +1442,10 @@ void _np_in_discover_sender(np_state_t* context, np_jobargs_t* args)
 
 	}
 
-	__np_cleanup__:
-		np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
+	np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
 
+	__np_cleanup__:
+	
 	// __np_return__:
 	return;
 }

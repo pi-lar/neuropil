@@ -13,6 +13,8 @@
 #include "np_log.h"
 #include "np_types.h"
 
+#include "../test_macros.c"
+
 // typedef double* double_ptr;
 NP_PLL_GENERATE_PROTOTYPES(double);
 NP_PLL_GENERATE_IMPLEMENTATION(double);
@@ -24,19 +26,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_dhkey_ptr);
 
 NP_DLL_GENERATE_PROTOTYPES(np_dhkey_ptr);
 NP_DLL_GENERATE_IMPLEMENTATION(np_dhkey_ptr);
-
-void setup_list(void)
-{
-	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE;
-	np_log_init("test_list_impl.log", log_level);
-}
-
-void teardown_list(void)
-{
-	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-	ev_run(EV_A_ EVRUN_NOWAIT);
-}
-
+ 
 int8_t compare_double(double d1, double d2)
 {
 	if (d2 > d1) return 1;
@@ -44,7 +34,7 @@ int8_t compare_double(double d1, double d2)
 	return 0;
 }
 
-TestSuite(np_linked_lists, .init=setup_list, .fini=teardown_list);
+TestSuite(np_linked_lists );
 
 Test(np_linked_lists, _test_pll, .description="test the implementation of a priority list")
 {

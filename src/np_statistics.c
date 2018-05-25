@@ -73,30 +73,22 @@ np_module_struct(statistics) {
 	uint32_t __network_received_bytes_per_sec_remember ;
 };
 
-np_bool _np_statistics_receive_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
+np_bool _np_statistics_receive_msg_on_watched(np_state_t* context, const np_message_t* const msg, NP_UNUSED np_tree_t* body)
 {	
 	assert(msg != NULL);
-	assert(msg->msg_property != NULL);
-	assert(msg->msg_property->msg_subject != NULL);
 
-	np_ctx_full(msg);
-
-	np_cache_item_t* item = np_simple_cache_get(context, np_module(statistics)->__cache, msg->msg_property->msg_subject);
+	np_cache_item_t* item = np_simple_cache_get(context, np_module(statistics)->__cache, _np_message_get_subject(msg));
 	if (item != NULL) {
 		((np_statistics_element_t*)item->value)->total_received += 1;
 	}
 	return TRUE;
 }
 
-np_bool _np_statistics_send_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
+np_bool _np_statistics_send_msg_on_watched(np_state_t* context, const np_message_t* const msg, NP_UNUSED np_tree_t* body)
 {
-	assert(msg != NULL);
-	assert(msg->msg_property != NULL);
-	assert(msg->msg_property->msg_subject != NULL);
+	assert(msg != NULL);	
 
-	np_ctx_full(msg);
-
-	np_cache_item_t* item = np_simple_cache_get(context, np_module(statistics)->__cache, msg->msg_property->msg_subject);
+	np_cache_item_t* item = np_simple_cache_get(context, np_module(statistics)->__cache, _np_message_get_subject(msg));
 	if (item != NULL) {
 		((np_statistics_element_t*)item->value)->total_send += 1;
 	}
@@ -398,9 +390,9 @@ char * np_statistics_print(np_state_t* context, np_bool asOneLine) {
 	ret = np_str_concatAndFree(ret,
 		tmp_format,
 		np_util_stringify_pretty(np_util_stringify_bytes, &__network_received_bytes_r, b1),
-		np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &np_module(statistics)->__network_received_bytes_per_sec_r, b3),
+		np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &(np_module(statistics)->__network_received_bytes_per_sec_r), b3),
 		np_util_stringify_pretty(np_util_stringify_bytes, &__network_send_bytes_r, b2),
-		np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &np_module(statistics)->__network_send_bytes_per_sec_r, b4),
+		np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &(np_module(statistics)->__network_send_bytes_per_sec_r), b4),
 		new_line);
 
 	ret = np_str_concatAndFree(ret, "-%s", new_line);

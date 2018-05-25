@@ -23,7 +23,7 @@ void np_get_id(np_id* id, char* string, size_t length) {
 	_np_dhkey_from_str(string, (np_dhkey_t*) id);
 }
 
-struct np_settings * np_default_settings(struct np_settings ** settings) {
+struct np_settings * np_new_settings(struct np_settings ** settings) {
 	struct np_settings * ret;
 	if (settings == NULL) {
 		ret = malloc(sizeof(struct np_settings));
@@ -52,7 +52,7 @@ np_context* np_new_context(struct np_settings * settings_in) {
 	struct np_settings * settings = settings_in;
 	
 	if (settings_in == NULL) {
-		settings = np_default_settings(NULL);
+		settings = np_new_settings(NULL);
 	}
 
 	//TODO: check settings for bad configuration

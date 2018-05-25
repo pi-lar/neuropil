@@ -8,24 +8,14 @@
 #include <criterion/criterion.h>
 #include "sodium.h"
 
+
+#include "../test_macros.c"
+
 #define MESSAGE ((const unsigned char *) "test")
 #define MESSAGE_LEN 4
 #define CIPHERTEXT_LEN (crypto_secretbox_MACBYTES + MESSAGE_LEN)
-
-void setup_sodium_crypt(void)
-{
-	np_key_t* me = NULL;
-
-	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING;
-	np_log_init("test_sodium_crypt.log", log_level);
-}
-
-void teardown_sodium_crypt(void)
-{
-	np_log_destroy();
-}
-
-TestSuite(sodium_crypt, .init=setup_sodium_crypt, .fini=teardown_sodium_crypt);
+ 
+TestSuite(sodium_crypt );
 
 
 Test(sodium_crypt, _sodium_crypto_routines, .description="test cryptobox easy usage and creation of ed25519 key/signpairs")

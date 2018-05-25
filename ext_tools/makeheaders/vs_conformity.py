@@ -7,12 +7,21 @@ global my_file_loc
 
 def repl_line(match):
 
-    ret = my_file_loc + match.group("file").replace("/","\\")
+    if "/mnt/c" in match.group("file")[:10]:
+        ret = match.group("file").replace("/mnt/c","C:")
+    elif "/mnt/d" in match.group("file")[:10]:
+        ret = match.group("file").replace("/mnt/d","D:")
+    else:
+        ret = my_file_loc + match.group("file")
+
+   # ret = ret .replace("/","\\")
     line_no1 = match.group("line_no")
     line_no2 = match.group("line_no2")
 
     if line_no1:
-        ret += "(%s,%s)"%(line_no1,line_no2)
+        ret += "(%s,%s)"%(line_no1,line_no2 if line_no2 else "0")
+    else:
+        ret += "(0,0)"
 
     return ret
 
@@ -30,14 +39,14 @@ if __name__ == "__main__":
                                 help='prefix for file replacements')
 
     args = parser.parse_args()
-    pprint(args.file_loc)
-    my_file_loc = args.file_loc#.replace("\\","\\\\")[:-1]
-    pprint(my_file_loc)
-
+    my_file_loc = args.file_loc
+    
     content = args.source.read()
 
-    content = content.replace("\\","/")
-    regex = re.compile("((?P<file>[a-zA-Z0-9_\-\/]*\.[ch]):(?P<line_no>\d+):(?P<line_no2>\d*))", re.MULTILINE)
+    #content = content.replace("\\","/")
+    regex = re.compile("((?P<file>[a-zA-Z0-9_\-\/\\.]*\.[ch]):(?P<line_no>\d+):(?P<line_no2>\d*))", re.MULTILINE)
     content = re.sub(regex, repl_line, content)
 
     print(content)
+    #1>/mnt/c/Users/simon/Repos/neuropil_v0.2_win/neuropil_v02/neuropil/examples/neuropil_test.c:40: undefined reference to `cr_expect'
+    #1>C:\Users\simon\Repos\neuropil_v0.2_win\neuropil_v02\neuropil\\mnt\c\Users\simon\Repos\neuropil_v0.2_win\neuropil_v02\neuropil\examples\neuropil_test.c(53,0) undefined reference to `cr_expect'

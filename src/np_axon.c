@@ -71,7 +71,7 @@ void __np_axon_invoke_on_user_send_callbacks(np_message_t* msg_out, np_msgproper
 	sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(prop->user_send_clb);
 	while (iter_usercallbacks != NULL)
 	{
-		iter_usercallbacks->val(context, msg_out, NULL, ((msg_out==NULL) ? NULL : msg_out->body));
+		iter_usercallbacks->val(context, msg_out, msg_out ?: msg_out->body);
 		sll_next(iter_usercallbacks);
 	}
 }
@@ -378,11 +378,8 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 
 void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 {
-	
-	
 	_LOCK_MODULE(np_handshake_t)
 	{
-
 		if (_np_node_check_address_validity(args->target->node))
 		{
 			// get our node identity from the cache			

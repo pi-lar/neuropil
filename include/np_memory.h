@@ -27,10 +27,7 @@ extern "C" {
 		np_memory_types_np_aaatoken_t,
 		np_memory_types_np_job_t,
 		np_memory_types_np_jobargs_t,
-		np_memory_types_MAX_TYPE,
-
-		np_memory_types_test_struct_t,
-		np_memory_types_END_TYPES = 254,
+		np_memory_types_MAX_TYPE
 	};
 
 	static const char* np_memory_types_str[] = {
@@ -58,7 +55,7 @@ extern "C" {
 	NP_API_EXPORT
 		void np_memory_register_type(
 			np_state_t* context,
-			uint8_t type,
+			enum np_memory_types_e type,
 			size_t size_per_item,
 			uint32_t count_of_items_per_block,
 			uint32_t min_count_of_items,
@@ -97,7 +94,7 @@ extern "C" {
 	NP_API_INTERN
 	void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason);
 	NP_API_INTERN
-	void np_memory_unref_obj(void* item, char* reason);
+	uint32_t np_memory_unref_obj(void* item, char* reason);
 	NP_API_INTERN
 	void np_mem_refobj(void * item, const char* reason);
 
@@ -118,43 +115,6 @@ void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);
 	// macro definitions to generate implementation of prototypes
 	// empty by design, forces developers to write new and delete callback functions for memory types
 #define _NP_GENERATE_MEMORY_IMPLEMENTATION(TYPE)
-
-
-#define _CONCAT(a, b) a##b
-#define CONCAT(a, b) _CONCAT(a, b)
-
-	/* Macro for overloading macros
-	* Use like this if you want to overload foo(a,b) with foo(a,b,c)
-	* #define foo(...) VFUNC(foo, __VA_ARGS__)
-	* #define foo2(a, b) foo3(a, b, default_c)
-	* #define foo3(a, b, c)  <insert_foo_fn>
-	*
-	* the number after foo in the function has to match the count of function arguments.
-	* It is not possible to overload with the same number of arguments
-	*
-	*/
-#define __NARG__(...)  __NARG_I_(__VA_ARGS__,__RSEQ_N())
-#define __NARG_I_(...) __ARG_N(__VA_ARGS__)
-#define __ARG_N( \
-	  _1, _2, _3, _4, _5, _6, _7, _8, _9,_10, \
-	 _11,_12,_13,_14,_15,_16,_17,_18,_19,_20, \
-	 _21,_22,_23,_24,_25,_26,_27,_28,_29,_30, \
-	 _31,_32,_33,_34,_35,_36,_37,_38,_39,_40, \
-	 _41,_42,_43,_44,_45,_46,_47,_48,_49,_50, \
-	 _51,_52,_53,_54,_55,_56,_57,_58,_59,_60, \
-	 _61,_62,_63,N,...) N
-#define __RSEQ_N() \
-	 63,62,61,60,                   \
-	 59,58,57,56,55,54,53,52,51,50, \
-	 49,48,47,46,45,44,43,42,41,40, \
-	 39,38,37,36,35,34,33,32,31,30, \
-	 29,28,27,26,25,24,23,22,21,20, \
-	 19,18,17,16,15,14,13,12,11,10, \
-	 9,8,7,6,5,4,3,2,1,0
-
-	// general definition for any function name
-#define VFUNC(func, ...) CONCAT(func, __NARG__(__VA_ARGS__)) (__VA_ARGS__)
-	// Macro overloading macros END
 
 #define _NP_REF_REASON_SEPERATOR_CHAR "___"
 #define _NP_REF_REASON_SEPERATOR_CHAR_LEN 3
@@ -179,7 +139,7 @@ void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);
 
 
 #define np_new_obj(...) VFUNC(np_new_obj, __VA_ARGS__)
-#define np_new_obj2(TYPE, np_obj) np_new_obj3(TYPE, np_obj, "ref_obj_creation")
+#define np_new_obj2(TYPE, np_obj) np_new_obj3(TYPE, np_obj, ref_obj_creation)
 #define np_new_obj3(TYPE, np_obj, reason) np_new_obj4(TYPE, np_obj, reason,"")
 #define np_new_obj4(TYPE, np_obj, reason, reason_desc)                																				\
 {                                               																									\
@@ -193,7 +153,7 @@ void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);
 #define np_ref_obj3(TYPE, np_obj, reason) np_ref_obj4(TYPE, np_obj, reason,"")
 #define np_ref_obj4(TYPE, np_obj, reason, reason_desc)              																									\
 	np_memory_ref_obj(np_obj, reason, reason_desc) 
-	
+
 #define np_tryref_obj(...) VFUNC(np_tryref_obj, __VA_ARGS__)
 #define np_tryref_obj3(TYPE, np_obj, ret) np_tryref_obj4(TYPE, np_obj, ret,__func__)
 #define np_tryref_obj4(TYPE, np_obj, ret, reason) np_tryref_obj5(TYPE, np_obj, ret, reason,"")
@@ -213,7 +173,7 @@ np_bool ret = np_memory_tryref_obj(np_obj, reason, reason_desc);
 }
 
 #define np_unref_obj(TYPE, np_obj, reason)                																							\
-	np_memory_unref_obj(np_obj, reason)
+	if(np_memory_unref_obj(np_obj, reason) <= 0) np_obj = NULL
 
 
 #define np_ref_switch(...) VFUNC(np_ref_switch, __VA_ARGS__)

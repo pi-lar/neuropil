@@ -69,7 +69,7 @@ extern "C" {
 		uint32_t log_level;
 		// ...
 	};
-	struct np_settings * np_default_settings(struct np_settings **settings);
+	struct np_settings * np_new_settings(struct np_settings **settings);
 
 	typedef void np_context;
 	np_context* np_new_context(struct np_settings *settings);

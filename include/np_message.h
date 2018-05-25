@@ -26,7 +26,6 @@ struct np_message_s
 
 	np_tree_t* header;
 	np_tree_t* instructions;
-	np_tree_t* properties;
 	np_tree_t* body;
 	np_tree_t* footer;
 
@@ -45,7 +44,6 @@ struct np_message_s
 	TSP(np_bool, has_reply);
 	np_sll_t(np_message_on_reply_t, on_reply);
 
-	void* bin_properties;
 	void* bin_body;
 	void* bin_footer;
 	np_messagepart_t* bin_static;

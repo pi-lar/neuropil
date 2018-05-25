@@ -7,22 +7,8 @@
 #include "np_event.h"
 #include "np_util.h"
 #include "np_log.h"
-
-void setup_uuid(void)
-{
-	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE;
-	np_log_init("test_uuid.log", log_level);
-
-	_np_dhkey_init ();
-}
-
-void teardown_uuid(void)
-{
-	EV_P = _np_event_get_loop_io();
-	ev_run(EV_A_ EVRUN_NOWAIT);
-}
-
-TestSuite(np_uuid_t, .init=setup_uuid, .fini=teardown_uuid);
+ 
+TestSuite(np_uuid_t );
 
 Test(np_uuid_t, _uuid_create, .description="test the creation of unique uuid's")
 {

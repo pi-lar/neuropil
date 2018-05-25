@@ -89,7 +89,7 @@ extern "C" {
 #define np_module_member(m) np_module_type(m) * np_module_member_name(m);
 
 #define np_module_malloc(m) 														\
-		np_module_struct(m) * _module = malloc(sizeof(np_module_struct(m)));		\
+		np_module_struct(m) * _module = calloc(1, sizeof(np_module_struct(m)));		\
 		_module->context = context;													\
 		context->np_module_member_name(m) = _module
 
@@ -148,7 +148,7 @@ struct np_state_s
 
 */
 NP_API_EXPORT
-void np_destroy(np_context*ac);
+void np_destroy(np_context*ac, bool gracefully);
 
 /**
 .. c:function:: void np_enable_realm_master()
@@ -294,13 +294,12 @@ void np_add_send_listener(np_context*ac, np_usercallback_t msg_handler, char* su
    Passed in properties and body data structures will be freed when the message has been send.
 
    :param subject: the subject the data should be send to
-   :param properties: a tree (np_tree_t) structure containing the properties of a message
    :param body: a tree (np_tree_t) structure containing the body of a message
    :param target_key: (optional/nullable) a dhkey to define a specific receiver node
 
 */
 NP_API_EXPORT
-void np_send_msg    (np_context*ac, char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
+void np_send_msg    (np_context*ac, char* subject, np_tree_t *body, np_dhkey_t* target_key);
  
 /**
 .. c:function:: void np_set_mx_properties(char* subject, const char* key, np_treeval_t value)
@@ -395,9 +394,9 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type);
 NP_API_INTERN
 np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* type);
 NP_API_EXPORT
-void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *properties, np_tree_t *body);
+void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body);
 NP_API_INTERN
-np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
+np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *body, np_dhkey_t* target_key);
 NP_API_EXPORT
 void np_context_create_new_nodekey(np_context* ac, np_node_t* base);
 NP_API_EXPORT

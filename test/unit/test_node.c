@@ -18,40 +18,32 @@
 #include "np_types.h"
 #include "np_util.h"
 
-void setup_node(void)
+#include "../test_macros.c"
+
+
+TestSuite(np_node_t);
+
+
+Test(np_node_t, _node_create, .description = "test the creation of node structure")
 {
-	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_MESSAGE;
-	np_log_init("test_node.log", log_level);
+	CTX() {
+		np_node_t* new_node_1 = NULL;
+		np_new_obj(np_node_t, new_node_1);
 
-	np_init("udp4", "31415", "localhost");
-}
+		log_debug_msg(LOG_DEBUG, "creating 1st key/node");
+		_np_node_update(new_node_1, IPv4 | UDP, "localhost", "1111");
 
-void teardown_node(void)
-{
-	np_log_destroy();
-}
-
-
-TestSuite(np_node_t, .init=setup_node, .fini=teardown_node);
-
-
-Test(np_node_t, _node_create, .description="test the creation of node structure")
-{
-	np_node_t* new_node_1 = NULL;
-	np_new_obj(np_node_t, new_node_1);
-
-	log_debug_msg(LOG_DEBUG, "creating 1st key/node");
-	_np_node_update(new_node_1, IPv4 | UDP, "localhost", "1111");
-
-	np_aaatoken_t* node_token_1 = _np_token_factory_new_node_token(new_node_1);
-	np_key_t* node_key_1 = _np_key_create_from_token(node_token_1);
-	np_key_t* node_key_2 = _np_node_decode_from_str (context, "e596f97cec7761a0a228451b4fa69b1f0cf7409ad5b830b173c2f264c97a0522:udp4:localhost:2222");
+		np_aaatoken_t* node_token_1 = _np_token_factory_new_node_token(new_node_1);
+		np_key_t* node_key_1 = _np_key_create_from_token(node_token_1);
+		np_key_t* node_key_2 = _np_node_decode_from_str(context, "e596f97cec7761a0a228451b4fa69b1f0cf7409ad5b830b173c2f264c97a0522:udp4:localhost:2222");
+	}
 }
 
 
 Test(np_node_t, _node_list_serialize, .description="test the serialization of a node list")
 {
-/*	// _np_node_encode_to_str
+/*	CTX() {
+	// _np_node_encode_to_str
 	np_sll_t(np_node_ptr, node_list);
 	sll_init(np_node_ptr, node_list);
 
@@ -92,5 +84,6 @@ Test(np_node_t, _node_list_serialize, .description="test the serialization of a 
 	cmp_init(&out_cmp, buffer, buffer_reader, buffer_writer);
 	deserialize_jrb_node_t(out_tree, &out_cmp);
 	np_decode_nodes_from_jrb(out_nc, node_jrb);
+	}
 */
 }

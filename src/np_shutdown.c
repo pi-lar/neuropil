@@ -43,7 +43,7 @@ static void __np_shutdown_signal_handler(int sig) {
 					context->__is_in_shutdown = TRUE;
 				}
 				log_msg(LOG_WARN, "Received terminating process signal (%"PRIi32"). Shutdown in progress.", sig);
-				np_destroy(context);
+				np_destroy(context, true);
 			}
 		}
 		exit(EXIT_SUCCESS);

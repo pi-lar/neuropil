@@ -493,8 +493,8 @@ np_bool parse_program_args(
 			| LOG_NETWORK
 			//| LOG_AAATOKEN
 			//| LOG_SYSINFO
-			//| LOG_MESSAGE
-			//| LOG_SERIALIZATION
+			| LOG_MESSAGE
+			| LOG_SERIALIZATION
 			//| LOG_MEMORY
 			//| LOG_MISC
 			//| LOG_EVENT
@@ -893,7 +893,7 @@ void __np_example_helper_loop() {
 			log_user_cursor = min(max(0, log_user_cursor + 1), sll_size(log_buffer)-1);
 			break;
 		case 113: // q
-			np_destroy(context);
+			np_destroy(context, true);
 			exit(EXIT_SUCCESS);
 			break;
 		}
