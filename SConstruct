@@ -145,7 +145,7 @@ default_env.Append(LIBPATH = np_library_dir)
 neuropil_env = default_env.Clone()
 
 # add 3rd party library path info here
-tpl_library_list = ['sodium']
+tpl_library_list = ['sodium','m']
 neuropil_env.Append(LIBS = tpl_library_list)
 
 conf = Configure(neuropil_env)
@@ -223,7 +223,7 @@ print ('#### building neuropil libraries/testsuite/example programs:')
 print ('####')
 
 # build the neuropil library as static and shared library
-np_stlib = neuropil_env.Library('build/lib/neuropil', SOURCES, LIBS=tpl_library_list)
+np_stlib = neuropil_env.Library('build/lib/neuropil', SOURCES,		 LIBS=tpl_library_list)
 np_dylib = neuropil_env.SharedLibrary('build/lib/neuropil', SOURCES, LIBS=tpl_library_list)
 #AlwaysBuild(np_dylib)
 #AlwaysBuild(np_stlib)
@@ -233,7 +233,7 @@ if int(release) < 1 and int(build_tests) > 0 and criterion_is_available:
     print ('Test cases included')
     # include the neuropil build path library infos
     test_env = default_env.Clone()
-    test_env.Append(LIBS = ['criterion','neuropil'])
+    test_env.Append(LIBS = ['criterion','neuropil']+tpl_library_list)
     test_suite = test_env.Program('bin/neuropil_test_suite', TESTS)
     Depends(test_suite, np_dylib)
 else:

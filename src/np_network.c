@@ -315,9 +315,11 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 
 			_LOCK_ACCESS(&msg->msg_chunks_lock) {
 
+				int part = 0;
 				pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
-				while (NULL != iter && iter->val != NULL)
+				while (NULL != iter )
 				{
+					part++;
 					np_tryref_obj(np_messagepart_t, iter->val, hasMsgPart, "np_tryref_obj_iter->val");
 					if (hasMsgPart) {
 
@@ -351,7 +353,7 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 							/* send data */
 							_LOCK_ACCESS(&node_key->network->out_events_lock) {
 								if (NULL != node_key->network->out_events) {
-									log_debug_msg(LOG_NETWORK | LOG_DEBUG, "sending message (%d bytes) to %s:%s", MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
+									log_debug_msg(LOG_NETWORK | LOG_DEBUG, "appending message (%s part: %d) %p (%d bytes) to queue for %s:%s", msg->uuid, part, enc_buffer, MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
 									sll_append(void_ptr, node_key->network->out_events, (void*)enc_buffer);
 									node_key->network->last_send_date = np_time_now();
 									ret = TRUE;
@@ -363,6 +365,7 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* m
 #endif
 								} else {
 									ret = FALSE;
+									log_debug_msg(LOG_INFO, "Dropping data package for msg %s due to not initialized out_events", msg->uuid);
 									np_memory_free(enc_buffer);
 								}
 							}
@@ -421,8 +424,8 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 							current_write_per_data = send(
 								key_network->socket, 
 								(((char*)data_to_send) + written_per_data), 
-								MSG_CHUNK_SIZE_1024 - written_per_data, 
-								0);
+								MSG_CHUNK_SIZE_1024 - written_per_data
+								,0 );
 
 							if (current_write_per_data < 0) {
 								np_time_sleep(NP_SLEEP_MIN);
@@ -432,17 +435,31 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 								written_per_data += current_write_per_data;
 								_np_statistics_add_send_bytes(current_write_per_data);
 							}
-						} while (retry-- > 0 && written_per_data < MSG_CHUNK_SIZE_1024);
+						} while ( written_per_data < MSG_CHUNK_SIZE_1024 && retry-- > 0);
+#ifdef DEBUG 
+						if (retry != 10) {
+							log_debug_msg(LOG_NETWORK, "send package in %"PRId32" parts", 10 - retry);
+						}
+#endif
 
 						if (written_per_data != MSG_CHUNK_SIZE_1024) {
 							log_msg(LOG_WARN,
-								"Could not send package fully (%"PRIu32"/%"PRIu32") %s (%d)",
+								"Could not send package %p fully (%"PRIu32"/%"PRIu32") %s (%d)",
+								data_to_send,
 								written_per_data, MSG_CHUNK_SIZE_1024,
 								strerror(errno), errno);
+						}
+						else {
+							log_debug_msg(LOG_NETWORK, "Did send package %p", data_to_send);
 						}
 						np_memory_free(data_to_send);
 					}
 				} while (written_per_data > 0 && data_counter++ < NP_NETWORK_MAX_MSGS_PER_SCAN && np_time_now() < timeout);
+			
+#ifdef DEBUG 
+				if(sll_size(key_network->out_events) > 0)
+					log_debug_msg(LOG_NETWORK, "%"PRIu32" packages still in delivery", sll_size( key_network->out_events));
+#endif
 			}
 		}
 	}
@@ -597,6 +614,16 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
 	}
 }
 
+struct __np_network_data {
+	struct sockaddr_storage from;
+	char ipstr[CHAR_LENGTH_IP];
+	char port[CHAR_LENGTH_PORT];
+	void* data;
+	int16_t in_msg_len;
+	np_network_t* ng_tcp_host;
+	np_key_t* key;
+};
+
 /**
  ** _np_network_read:
  ** reads the network layer in listen mode.
@@ -607,58 +634,53 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents){");
 	// cast event data structure to np_state_t pointer
 
-	struct sockaddr_storage from;
-	socklen_t fromlen = sizeof(from);
+	socklen_t fromlen = sizeof(struct sockaddr_storage);
 	// calling address and port
-	char ipstr[CHAR_LENGTH_IP];// = { '\0' };
-	char port[CHAR_LENGTH_PORT];// = { '\0' };
 
 	np_key_t* key;
-	np_network_t* ng;
-	np_network_t* ng_tcp_host = NULL;
-	np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
-
 	/* receive the new data */
-	int16_t last_recv_result = 0;
+	int last_recv_result = 0;
 	int msgs_received = 0;
-	void* data;
-	
-	key = (np_key_t*)event->data;
-	ng = key->network;
 
 	// catch multiple msgs waiting in this pipe
+	double timeout_start = np_time_now();
+
 	do {
-		memset(ipstr,'\0', sizeof(char)*CHAR_LENGTH_IP);
-		memset(port, '\0', sizeof(char)*CHAR_LENGTH_PORT);
-		
-		data = np_memory_new(np_memory_types_BLOB_1024);
+		struct __np_network_data * data_container = calloc(1, sizeof(struct __np_network_data));
+
+		data_container->key = key = (np_key_t*)event->data;
+
+		np_network_t* ng = key->network;
+
+		//memset(ipstr, '\0', sizeof(char)*CHAR_LENGTH_IP);
+		//memset(port, '\0', sizeof(char)*CHAR_LENGTH_PORT);
+
+		data_container->data = np_memory_new(np_memory_types_BLOB_1024);
 
 		int16_t in_msg_len = 0;
 
 		// catch a msg even if it was chunked into smaller byte parts by the underlying network
-		double timeout_start = np_time_now();
 		do {
 			if (FLAG_CMP(ng->socket_type, TCP)) {
-				last_recv_result = recv(ng->socket, (data) + in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
-				if (0 != getpeername(ng->socket, (struct sockaddr*) &from, &fromlen))
+				last_recv_result = recv(event->fd, ((char*)data_container->data)+in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
+				if (0 != getpeername(event->fd, (struct sockaddr*) &data_container->from, &fromlen))
 				{
 					log_msg(LOG_WARN, "could not receive socket peer: %s (%d)",
 						strerror(errno), errno);
 					return;
 				}
 				key = key->parent;
-				ng_tcp_host = ng;
-				ng = key->network;
-			}
-			else {
-				last_recv_result = recvfrom(ng->socket, data + in_msg_len,
-					MSG_CHUNK_SIZE_1024 - in_msg_len, 0, (struct sockaddr*) &from, &fromlen);
+				data_container->ng_tcp_host = ng;
+				if(key != NULL) ng = key->network;
+			} else {
+				last_recv_result = recvfrom(event->fd, ((char*)data_container->data) + in_msg_len,
+					MSG_CHUNK_SIZE_1024 - in_msg_len, 0, (struct sockaddr*) &data_container->from, &fromlen);
 			}
 
-			in_msg_len += last_recv_result;
 			if (last_recv_result < 0) {
 				break;
 			}
+			in_msg_len += last_recv_result;
 			_np_statistics_add_received_bytes(last_recv_result);
 			// repeat if msg is not 1024 bytes in size and the timeout is not reached
 		} while (in_msg_len > 0 && in_msg_len < MSG_CHUNK_SIZE_1024 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
@@ -667,98 +689,118 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 
 		if (in_msg_len >= 0) {
 			msgs_received++;
+			
+			data_container->in_msg_len = in_msg_len;
+			np_job_submit_event(PRIORITY_MOD_LEVEL_2, 0, _np_network_handle_incomming_data, data_container, "_np_network_handle_incomming_data");
+		}
+		else {
+			log_debug_msg(LOG_INFO, "Dropping data package due to invalid package size (%"PRIu16")", in_msg_len);
+			np_memory_free(data_container->data);
+			free(data_container);
+		}
 
-			// deal with both IPv4 and IPv6:
-			{
-				if (from.ss_family == AF_INET)
-				{
-					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
-					// AF_INET
-					struct sockaddr_in *s = (struct sockaddr_in *) &from;
-					snprintf(port, CHAR_LENGTH_PORT-1, "%d", ntohs(s->sin_port));
-					inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
-				}
-				else
-				{
-					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
-					// AF_INET6
-					struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-					snprintf(port, CHAR_LENGTH_PORT-1, "%d", ntohs(s->sin6_port));
-					inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
-				}				
+	// there may be more then one msg in our socket pipeline
+	} while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result > 0 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC); 
+	
+}
+	
 
-				memcpy(ng->ip,	 ipstr, sizeof(char) * strnlen(ipstr, CHAR_LENGTH_IP-1));
-				memcpy(ng->port, port,  sizeof(char) * strnlen(port, CHAR_LENGTH_PORT-1));
-			}
+void _np_network_handle_incomming_data(np_jobargs_t* args) {
+	log_debug_msg(LOG_DEBUG , "_np_network_handle_incomming_data");
 
-			if (0 == in_msg_len)
-			{
-				if(ng_tcp_host != NULL){
-					// tcp disconnect
-					log_msg(LOG_WARN, "received disconnect from: %s:%s", ipstr, port);
-					// TODO handle cleanup of target_node structures ?
-					// maybe / probably the target_node received already a disjoin message before
-					// TODO: prüfen ob hier wirklich der host geschlossen werden muss
-					_np_network_stop(ng_tcp_host,TRUE);
-					//_np_node_update_stat(key->target_node, 0);
+	struct __np_network_data * data_container = args->custom_data;
+	np_network_t* ng = data_container->key->network;
+	// deal with both IPv4 and IPv6:
+	{
+		if (data_container->from.ss_family == AF_INET)
+		{
+			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
+			// AF_INET
+			struct sockaddr_in *s = (struct sockaddr_in *) &data_container->from;
+			snprintf(data_container->port, CHAR_LENGTH_PORT-1, "%d", ntohs(s->sin_port));
+			inet_ntop(AF_INET, &s->sin_addr, data_container->ipstr, sizeof data_container->ipstr);
+		}
+		else
+		{
+			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
+			// AF_INET6
+			struct sockaddr_in6 *s = (struct sockaddr_in6 *) &data_container->from;
+			snprintf(data_container->port, CHAR_LENGTH_PORT-1, "%d", ntohs(s->sin6_port));
+			inet_ntop(AF_INET6, &s->sin6_addr, data_container->ipstr, sizeof data_container->ipstr);
+		}				
 
-				}
-				else {
-					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received empty package from: %s:%s", ipstr, port);
-				}
-				np_memory_free(data);
-				continue;
-			}
+		memcpy(ng->ip, data_container->ipstr, sizeof(char) * strnlen(data_container->ipstr, CHAR_LENGTH_IP-1));
+		memcpy(ng->port, data_container->port,  sizeof(char) * strnlen(data_container->port, CHAR_LENGTH_PORT-1));
+	}
 
-			if (in_msg_len != MSG_CHUNK_SIZE_1024 && in_msg_len != (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40 ))
-			{
-				log_msg(LOG_NETWORK |LOG_WARN, "received wrong message size (%"PRIi16")", in_msg_len);
-				// job_submit_event(state->jobq, 0.0, _np_network_read);
-				np_memory_free(data);
-				continue;
-			}
+	if (0 == data_container->in_msg_len)
+	{
+		if(data_container->ng_tcp_host != NULL){
+			// tcp disconnect
+			log_msg(LOG_WARN, "received disconnect from: %s:%s", data_container->ipstr, data_container->port);
+			// TODO handle cleanup of target_node structures ?
+			// maybe / probably the target_node received already a disjoin message before
+			//TODO: prüfen ob hier wirklich der host geschlossen werden muss
+			_np_network_stop(data_container->ng_tcp_host,TRUE);
+			//_np_node_update_stat(data_container->key->target_node, 0);
+
+		}
+		else {
+			log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received empty package from: %s:%s", data_container->ipstr, data_container->port);
+		}
+		np_memory_free(data_container->data);
+	}
+	else {
+
+		if (data_container->in_msg_len != MSG_CHUNK_SIZE_1024 && data_container->in_msg_len != (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40))
+		{
+			log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%"PRIi16")", data_container->in_msg_len);
+			// job_submit_event(state->jobq, 0.0, _np_network_read);
+			log_debug_msg(LOG_INFO, "Dropping data package due to invalid package size (%"PRIi16")", data_container->in_msg_len);
+			np_memory_free(data_container->data);
+		}
+		else {
 
 			np_key_t* alias_key = NULL;
 			char* alias_key_ref_reason = "";
 
 			// we registered this token info before in the first handshake message
-			np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
+			np_dhkey_t search_key = np_dhkey_create_from_hostport(data_container->ipstr, data_container->port);
 			alias_key = _np_keycache_find(search_key);
 			alias_key_ref_reason = "_np_keycache_find";
 			if (NULL == alias_key) {
 				alias_key = _np_keycache_create(search_key);
-				alias_key_ref_reason = "_np_keycache_create"; 
-				alias_key->type |= np_key_type_alias;				
-				np_ref_obj(np_key_t, key, ref_key_parent);
-				alias_key->parent = key;				
+				alias_key_ref_reason = "_np_keycache_create";
+				alias_key->type |= np_key_type_alias;
+				np_ref_obj(np_key_t, data_container->key, ref_key_parent);
+				alias_key->parent = data_container->key;
 			}
 			TSP_GET(np_bool, alias_key->in_destroy, in_destroy);
-			if(in_destroy == FALSE ) {
+			if (in_destroy == FALSE) {
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (size: %hd), insert into alias %s",
-					ipstr, port, in_msg_len, _np_key_as_str(alias_key));
-		
-				if (_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL, data)) {
+					data_container->ipstr, data_container->port, data_container->in_msg_len, _np_key_as_str(alias_key));
+			
+				np_msgproperty_t* msg_prop = np_msgproperty_get(INBOUND, _DEFAULT);
+
+				if (_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL, data_container->data)) {
 					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
-						_np_key_as_str(key));
+						_np_key_as_str(data_container->key));
 				}
 				else {
 					log_debug_msg(LOG_ERROR, "could not submit msg to list for %s (jobqueue overflow)",
-						_np_key_as_str(key));
+						_np_key_as_str(data_container->key));
 				}
-				 
 			}
 			else {
-				np_memory_free(data);
+				np_memory_free(data_container->data);
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (size: %hd), but alias is in destroy %s",
-					ipstr, port, in_msg_len, _np_key_as_str(alias_key));
+					data_container->ipstr, data_container->port, data_container->in_msg_len, _np_key_as_str(alias_key));
 			}
 
 			np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
 		}
-		else {
-			np_memory_free(data);
-		}
-	} while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result > 0); // there is maybe more then one msg in our socket pipeline
+	}
+	free(data_container);
 }
 
 void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
@@ -781,6 +823,7 @@ void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents)
 
 void _np_network_stop(np_network_t* network, np_bool force) {
 	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_stop(np_network_t* network){");
+	
 	if(NULL != network) {
 		_LOCK_ACCESS(&network->out_events_lock) {
 			_LOCK_ACCESS(&network->access_lock) {
@@ -791,7 +834,7 @@ void _np_network_stop(np_network_t* network, np_bool force) {
 				{
 					EV_P;
 					if (FLAG_CMP(network->type , np_network_type_client)) {
-						log_msg(LOG_NETWORK | LOG_DEBUG, "stopping client network %p", network);
+						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping client network %p", network);
 						_np_suspend_event_loop_out();
 						loop = _np_event_get_loop_out();
 						ev_io_stop(EV_A_ &network->watcher);
@@ -799,7 +842,7 @@ void _np_network_stop(np_network_t* network, np_bool force) {
 					}
 
 					if (FLAG_CMP(network->type , np_network_type_server)) {
-						log_msg(LOG_NETWORK | LOG_DEBUG, "stopping server network %p", network);
+						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping server network %p", network);
 						_np_suspend_event_loop_in();
 						loop = _np_event_get_loop_in();
 						ev_io_stop(EV_A_ &network->watcher);
@@ -863,7 +906,7 @@ void _np_network_start(np_network_t* network){
 					{
 						EV_P;
 						if (FLAG_CMP(network->type , np_network_type_client)) {
-							log_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
+							log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
 							_np_suspend_event_loop_out();
 							EV_A = _np_event_get_loop_out();
 							ev_io_start(EV_A_ &network->watcher);
@@ -871,7 +914,7 @@ void _np_network_start(np_network_t* network){
 						}
 
 						if (FLAG_CMP(network->type , np_network_type_server)) {
-							log_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
+							log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
 							_np_suspend_event_loop_in();
 							EV_A = _np_event_get_loop_in();
 							ev_io_start(EV_A_ &network->watcher);
@@ -912,6 +955,7 @@ void _np_network_t_del(void* nw)
 					{
 						do {
 							void* tmp = sll_head(void_ptr, network->out_events);
+							log_debug_msg(LOG_INFO, "Dropping data package due to network cleanup");
 							np_memory_free(tmp);
 						} while (0 < sll_size(network->out_events));
 					}

@@ -169,7 +169,7 @@ void np_sysinfo_enable_master() {
 	//sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 	//sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 32/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC);
+	sysinfo_response_props->max_threshold = 64;// 32/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC);
 	
 	np_msgproperty_register(sysinfo_response_props);
 	//np_msgproperty_register(sysinfo_request_props);

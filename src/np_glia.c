@@ -650,34 +650,24 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		}
 		_np_dhkey_from_str(target_node_str, &receiver_dhkey);
 
-		if (_np_dhkey_cmp(&np_state()->my_node_key->dhkey, &receiver_dhkey) == 0)
+		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s) with receiver token %s ...", msg->uuid, tmp_token->uuid);
+
+		// encrypt the relevant message part itself
+		_np_message_encrypt_payload(msg, tmp_token);
+
+		np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
+		
+		np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);
+		_np_job_submit_route_event(0.0, out_prop, NULL, msg);
+
+		if (NULL != msg_prop->rep_subject &&
+			STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))
 		{
-			np_msgproperty_t* handler = np_msgproperty_get(INBOUND, msg->msg_property->msg_subject);
-			if(handler != NULL)
-			{
-				_np_in_new_msg_received(msg, handler, TRUE);
-			}
-		}
-		else
-		{
-			log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s) with receiver token %s ...", msg->uuid, tmp_token->uuid);
-
-			// encrypt the relevant message part itself
-			_np_message_encrypt_payload(msg, tmp_token);
-
-			np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
-
-			np_msgproperty_t* out_prop = np_msgproperty_get(OUTBOUND, subject);
-			_np_job_submit_route_event(0.0, out_prop, NULL, msg);
-
-			if (NULL != msg_prop->rep_subject &&
-				STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))
-			{
 				
-				np_aaatoken_t* old_token = _np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
-				np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
-			}
+			np_aaatoken_t* old_token = _np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
+			np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
 		}
+		 
 		// decrease threshold counters
 		_np_msgproperty_threshold_decrease(msg_prop);
 

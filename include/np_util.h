@@ -94,6 +94,8 @@ enum np_util_performance_point_e{
 	np_util_performance_point_memory_free,
 	np_util_performance_point_memory_management,
 
+	np_util_performance_point_msg_discovery_out,
+
 	np_util_performance_point_jobs_management_select,
 	np_util_performance_point_END
 };
@@ -101,22 +103,30 @@ struct np_util_performance_point {
 	char* name;
 	double durations[NP_BENCHMARKING];
 	uint16_t durations_idx;
+	uint32_t hit_count;
 	uint32_t durations_count;
 	np_mutex_t access;
 };
 extern struct np_util_performance_point* __np_util_performance_points[np_util_performance_point_END];
 
-#define NP_PERFORMANCE_POINT_START(NAME) 																					\
-double t1_##NAME;																											\
-{																															\
-	struct np_util_performance_point* container = __np_util_performance_points[np_util_performance_point_##NAME];			\
+#define __NP_PERFORMANCE_POINT_INIT_CONTAINER(container, NAME)																\
 	if (container == NULL) {																								\
 		container = malloc(sizeof(struct np_util_performance_point));														\
 		container->name = #NAME;																							\
 		container->durations_idx = 0;																						\
 		container->durations_count = 0;																						\
+		container->hit_count = 0;																						\
 		_np_threads_mutex_init(&container->access, "performance point "#NAME" access");										\
-		__np_util_performance_points[np_util_performance_point_##NAME] = container;											\
+	}																														
+
+#define NP_PERFORMANCE_POINT_START(NAME) 																					\
+double t1_##NAME;																											\
+{																															\
+	struct np_util_performance_point* container = __np_util_performance_points[np_util_performance_point_##NAME];			\
+	__NP_PERFORMANCE_POINT_INIT_CONTAINER(container, NAME)																	\
+	__np_util_performance_points[np_util_performance_point_##NAME] = container;												\
+	_LOCK_ACCESS(&container->access) {																						\
+		container->hit_count++;																								\
 	}																														\
 	t1_##NAME = (double)clock()/CLOCKS_PER_SEC;																				\
 }
@@ -129,26 +139,33 @@ double t1_##NAME;																											\
 		container->durations_count++;																						\
 	}																														\
 }
+#define __NP_PERFORMANCE_GET_POINTS_STR_CONTAINER(STR, container) 															\
+	if (container != NULL) {																								\
+		_LOCK_ACCESS(&container->access) {																					\
+			CALC_STATISTICS(container->durations, ,																			\
+			(container->durations_count > NP_BENCHMARKING ? NP_BENCHMARKING : container->durations_idx),					\
+				min_v, max_v, avg_v, stddev_v);																				\
+			STR = np_str_concatAndFree(STR, "%30s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu32" / %10"PRIu32"\n",			\
+				container->name, min_v, avg_v, max_v, stddev_v, container->hit_count,container->durations_count);								\
+		}																													\
+	}																													
 #define NP_PERFORMANCE_GET_POINTS_STR(STR) 																					\
 char* STR = NULL;																											\
 {																															\
-	STR = np_str_concatAndFree(STR, "%30s --> %8s / %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "stddev", "hits");\
+	STR = np_str_concatAndFree(STR, "%30s --> %8s / %8s / %8s / %8s / %10s / %10s \n", "name", "min", "avg", "max", "stddev", "hits", "completed");\
 	for (int i = 0; i < np_util_performance_point_END; i++) {																\
 		struct np_util_performance_point* container = __np_util_performance_points[i];										\
-		if (container != NULL) {																							\
-			_LOCK_ACCESS(&container->access) {																				\
-				CALC_STATISTICS(container->durations, , 																	\
-					(container->durations_count > NP_BENCHMARKING ? NP_BENCHMARKING : container->durations_idx), 			\
-					min_v, max_v, avg_v, stddev_v);																			\
-				STR = np_str_concatAndFree(STR, "%30s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",					\
-				container->name, min_v, avg_v, max_v, stddev_v, container->durations_count);								\
-			}																												\
-		}																													\
+		__NP_PERFORMANCE_GET_POINTS_STR_CONTAINER(STR,container);															\
 	}																														\
+	char * stats = __np_util_debug_statistics_print();																		\
+	STR = np_str_concatAndFree(STR, stats);																					\
+	free(stats);																											\
 }																															
-#else
+#else																														
 #define NP_PERFORMANCE_POINT_START(name)
 #define NP_PERFORMANCE_POINT_END(name)
+#define NP_PERFORMANCE_POINT_START_DYN(name, ident)
+#define NP_PERFORMANCE_POINT_END_DYN(name)
 #define NP_PERFORMANCE_GET_POINTS_STR(STR)																					\
 	char* STR = NULL;	
 #define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)		\
@@ -258,13 +275,19 @@ NP_API_INTERN
 _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double value);
 NP_API_INTERN
 _np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key);
+NP_API_INTERN
+char* __np_util_debug_statistics_print();
 #endif
 
 enum np_util_stringify_e {
+	np_util_stringify_time_ms,
 	np_util_stringify_bytes,
 	np_util_stringify_bytes_per_sec
-};
+}NP_API_EXPORT;
+NP_API_EXPORT
 char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]);
+NP_API_EXPORT
+char* np_util_string_trim_left(char* target);
 
 
 #ifdef __cplusplus

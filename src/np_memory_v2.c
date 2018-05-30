@@ -485,13 +485,11 @@ void _np_memory_job_memory_management(NP_UNUSED np_jobargs_t* args) {
 		if (container != NULL && container->on_refresh_space != NULL)
 		{
 			uint32_t list_size = 0;
-			_LOCK_ACCESS(&container->free_items_lock) {
-				list_size = sll_size(container->free_items);
-			}
-			np_memory_itemconf_ptr list_as_array[ list_size ];
+			np_memory_itemconf_ptr list_as_array[1024];
 
-			_LOCK_ACCESS(&container->free_items_lock)
-			{
+			_LOCK_ACCESS(&container->free_items_lock) {
+				list_size = min(1024, sll_size(container->free_items));
+			
 				for (uint32_t k = 0; k < list_size; k++) {
 					list_as_array[k] = sll_head(np_memory_itemconf_ptr, container->free_items);
 				}

@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 
 	if (NULL != j_key)
 	{
-		fprintf(stdout, "try to join %s\n", j_key);
+		np_example_print(stdout, "try to join %s\n", j_key);
 		np_send_join(j_key);
 		//fprintf(stdout, "wait for join acceptance...");
 	}

@@ -1059,6 +1059,12 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 	// add encryption details to the message
 	np_tree_insert_str(msg->properties, NP_SYMKEY, np_treeval_new_tree(encryption_details));
 	np_tree_free(encryption_details);
+
+
+	// max ttl of msg
+	double now = np_time_now();
+	np_tree_insert_str(msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+	np_tree_insert_str(msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(tmp_token->expires_at - now));
 }
 
 np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
@@ -1220,7 +1226,7 @@ void _np_message_trace_info(NP_UNUSED char* desc, NP_UNUSED np_message_t * msg_i
 		}
 	}
 	info_str = np_str_concatAndFree(info_str, ")");
-	info_str = np_str_concatAndFree(info_str, ": %s", info_str, msg_in->uuid);	
+	info_str = np_str_concatAndFree(info_str, ": %s", msg_in->uuid);	
 
 	log_msg(LOG_ROUTING | LOG_INFO, info_str);	
 	free(info_str);

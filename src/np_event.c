@@ -75,8 +75,8 @@ void _np_events_idle(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher
 	ev_verify(__loop_##LOOPNAME);																	\
 
 /*
-    ev_idle_init(&__loop_##LOOPNAME##_idle_watcher, _np_events_idle); 							    \
-    ev_idle_start(__loop_##LOOPNAME, &__loop_##LOOPNAME##_idle_watcher); 							\
+	ev_idle_init(&__loop_##LOOPNAME##_idle_watcher, _np_events_idle); 							    \
+	ev_idle_start(__loop_##LOOPNAME, &__loop_##LOOPNAME##_idle_watcher); 							\
 */
 
 #define __NP_EVENT_LOOP_FNs(LOOPNAME)																\
@@ -118,8 +118,9 @@ void _np_events_idle(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher
 	}																								\
 	void _np_resume_event_loop_##LOOPNAME()															\
 	{																								\
-		TSP_SCOPE( __loop_##LOOPNAME##_suspend_wait) {										\
+		TSP_SCOPE( __loop_##LOOPNAME##_suspend_wait) {												\
 			__loop_##LOOPNAME##_suspend_wait--;														\
+			ASSERT(__loop_##LOOPNAME##_suspend_wait >= 0, "Loop "#LOOPNAME" is too often resumed.");\
 		}																							\
 	}																								\
 	struct ev_loop * _np_event_get_loop_##LOOPNAME() {												\
