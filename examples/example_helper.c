@@ -37,7 +37,7 @@
 #include "np_messagepart.h"
 #include "np_statistics.h"
 
-np_state_t* context = NULL;
+#include "np_conversion.c"
 
 const float output_intervall_sec = 0.5;
 
@@ -47,6 +47,7 @@ extern int optind;
 uint8_t enable_statistics = 1;
 double started_at = 0;
 double last_loop_run_at = 0;
+int max_run_duration = 0;
 
 enum np_sysinfo_opt_e {
 	np_sysinfo_opt_disable = 0,
@@ -122,9 +123,11 @@ void np_example_print(FILE * stream, const char * format, ...) {
 }
 
 
-void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
+void example_http_server_init(np_context* context, char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
 	np_bool http_init = FALSE;
-	if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("FALSE", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
+	if (
+		(opt_sysinfo_mode == np_sysinfo_opt_auto || opt_sysinfo_mode == np_sysinfo_opt_force_master) &&
+		(http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("FALSE", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0))) {
 		if (http_domain == NULL) {
 			http_domain = calloc(1, sizeof(char) * 255);
 			CHECK_MALLOC(http_domain);
@@ -147,7 +150,6 @@ void example_http_server_init(char* http_domain, np_sysinfo_opt_e opt_sysinfo_mo
 			np_sysinfo_enable_master(context);
 		}
 		else {
-			fprintf(stdout, "Node could not start HTTP interface\n");
 			np_example_print(stdout, "Enable sysinfo slave option\n");
 			np_sysinfo_enable_slave(context);
 		}
@@ -173,7 +175,8 @@ void reltime_to_str(char*buffer, double time) {
 	snprintf(buffer, 49, "%02"PRIu32"d %02"PRIu32"h %02"PRIu32"min %02"PRIu32"sec", time_d, time_h, time_m, time_s);
 }
 
-char* np_get_startup_str() {
+char* np_get_startup_str(np_context* ac) {
+	np_ctx_cast(ac);
 	char* ret = NULL;
 	char* new_line = "\n";
 
@@ -199,8 +202,8 @@ char* np_get_startup_str() {
 	return ret;
 }
 
-void np_print_startup() {
-	char* ret = np_get_startup_str();
+void np_print_startup(np_context* context) {
+	char* ret = np_get_startup_str(context);
 	np_example_print(stdout, ret);
 	//log_msg(LOG_INFO, ret);
 	free(ret);
@@ -221,7 +224,7 @@ unsigned char key[crypto_secretstream_xchacha20poly1305_KEYBYTES];
 np_bool key_is_gen = FALSE;
 
 
-np_bool np_example_save_identity(char* passphrase, char* filename) {
+np_bool np_example_save_identity(np_context* context, char* passphrase, char* filename) {
 	np_bool  ret = FALSE;
 
 	unsigned char buffer[5000] = { 0 };
@@ -270,7 +273,7 @@ np_bool np_example_save_identity(char* passphrase, char* filename) {
 	}
 	return ret;
 }
-enum np_example_load_identity_status  np_example_load_identity(char* passphrase, char* filename) {
+enum np_example_load_identity_status  np_example_load_identity(np_context* context, char* passphrase, char* filename) {
 	enum np_example_load_identity_status ret = np_example_load_identity_status_not_found;
 	FILE *f = fopen(filename, "rb");
 	if (f != NULL)
@@ -325,15 +328,16 @@ enum np_example_load_identity_status  np_example_load_identity(char* passphrase,
 	return ret;
 }
 
-void np_example_save_or_load_identity() {
+void np_example_save_or_load_identity(np_context* ac) {
+	np_ctx_cast(ac);
 
 	if (identity_opt_is_set) {
 		np_example_print(stdout, "Try to load ident file.\n");
 		enum np_example_load_identity_status load_status;
-		if ((load_status = np_example_load_identity(identity_passphrase, identity_filename)) == np_example_load_identity_status_not_found) {
+		if ((load_status = np_example_load_identity(context, identity_passphrase, identity_filename)) == np_example_load_identity_status_not_found) {
 			
 			np_example_print(stdout, "Load detected no available token file. Try to save current ident to file.\n");
-			if (!np_example_save_identity(identity_passphrase, identity_filename)) {				
+			if (!np_example_save_identity(context, identity_passphrase, identity_filename)) {
 				np_example_print(stdout, "Cannot load or save identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
 				exit(EXIT_FAILURE);
 			}
@@ -490,11 +494,11 @@ np_bool parse_program_args(
 			| LOG_ROUTING
 			//| LOG_HTTP
 			//| LOG_KEY
-			| LOG_NETWORK
+			//| LOG_NETWORK
 			//| LOG_AAATOKEN
 			//| LOG_SYSINFO
-			| LOG_MESSAGE
-			| LOG_SERIALIZATION
+			//| LOG_MESSAGE
+			//| LOG_SERIALIZATION
 			//| LOG_MEMORY
 			//| LOG_MISC
 			//| LOG_EVENT
@@ -544,7 +548,7 @@ np_bool parse_program_args(
 	return ret;
 }
 
-void __np_example_deinti_ncurse() {
+void __np_example_deinti_ncurse(np_context* context) {
 	if (__np_ncurse_initiated == TRUE) {
 		__np_ncurse_initiated = FALSE;
 
@@ -560,7 +564,7 @@ void __np_example_deinti_ncurse() {
 	}
 }
 
-void __np_example_inti_ncurse() {
+void __np_example_inti_ncurse(np_context*context) {
 	if (FALSE == __np_ncurse_initiated) {
 		if (enable_statistics == 1 || enable_statistics % 2 != 0) {
 			if (log_buffer == NULL) {
@@ -640,6 +644,7 @@ void __np_example_inti_ncurse() {
 				"| (S)top output / (R)esume output / R(e)paint "
 				"| Log: (F)ollow; (U)p; dow(N); "
 			);
+			np_shutdown_add_callback(context, __np_example_deinti_ncurse);
 
 			wclear(__np_stat_general_win);
 			wclear(__np_stat_locks_win);
@@ -660,27 +665,27 @@ void __np_example_inti_ncurse() {
 	
 }
 
-void __np_example_reset_ncurse() {
-	__np_example_deinti_ncurse();
-	__np_example_inti_ncurse();
+void __np_example_reset_ncurse(np_context*context) {
+	__np_example_deinti_ncurse(context);
+	__np_example_inti_ncurse(context);
 }
 
 int iteri = -1;
 
-void __np_example_helper_loop() {
-	__np_example_inti_ncurse();
+void __np_example_helper_loop(np_context* context) {
+	__np_example_inti_ncurse(context);
 
 	// Runs only once
 	if (started_at == 0) {		
 		np_statistics_add_watch_internals(context);
 
 		started_at = np_time_now();
-		np_print_startup();
+		np_print_startup(context);
 
 		// starting the example http server to support the http://view.neuropil.io application	
-		example_http_server_init(opt_http_domain, opt_sysinfo_mode);
+		example_http_server_init(context, opt_http_domain, opt_sysinfo_mode);
 
-		np_example_save_or_load_identity();
+		np_example_save_or_load_identity(context);
 	}
 
 	double sec_since_start = np_time_now() - started_at;
@@ -856,7 +861,7 @@ void __np_example_helper_loop() {
 		switch (key) {
 		case KEY_RESIZE:
 		case 101:	// e
-			__np_example_reset_ncurse();
+			__np_example_reset_ncurse(context);
 			break;
 		case 99:	// c
 		case 67:	// C
@@ -901,16 +906,20 @@ void __np_example_helper_loop() {
 }
 
 void __np_example_helper_run_loop() {
+	if(started_at == 0)
+		started_at = np_time_now();
 	while (TRUE)
 	{
 		np_time_sleep(output_intervall_sec);
+		if (max_run_duration > 0 && (started_at + max_run_duration) <= np_time_now()) break;
 	}
 }
 
-void __np_example_helper_run_info_loop() {
+void __np_example_helper_run_info_loop(np_context* context) {
 	while (TRUE)
 	{
-		__np_example_helper_loop();
+		__np_example_helper_loop(context);
 		np_time_sleep(output_intervall_sec);
+		if (max_run_duration > 0 && (started_at + max_run_duration) <= np_time_now()) break;
 	}
 }

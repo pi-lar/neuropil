@@ -122,11 +122,11 @@ typedef void* void_ptr;
 typedef struct np_thread_s np_thread_t;
 typedef np_thread_t* np_thread_ptr;
 
-
 /*
  *  user callback functions
  */
 typedef np_bool (*np_aaa_func_t) (np_context* ac, np_aaatoken_t* aaa_token );
+typedef void(*np_destroycallback_t) (np_context* ac);
 typedef np_bool(*np_usercallback_t) (np_context* ac, const np_message_t* const msg, np_tree_t* body);
 typedef void(*np_responsecontainer_on_t) (const np_responsecontainer_t* const entry);
 typedef void(*np_message_on_reply_t) (const np_responsecontainer_t* const entry, const np_message_t* const reply_msg);
@@ -152,6 +152,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_node_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_thread_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_usercallback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_callback_t);
+NP_SLL_GENERATE_PROTOTYPES(np_destroycallback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_responsecontainer_on_t);
 NP_SLL_GENERATE_PROTOTYPES(np_message_on_reply_t);
 

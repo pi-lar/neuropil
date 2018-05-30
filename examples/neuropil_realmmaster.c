@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -19,7 +19,6 @@
 #include "np_node.h"
 #include "np_types.h"
 #include "np_util.h"
-#include "np_tree.h"
 #include "np_treeval.h"
 
 #include "example_helper.c"
@@ -95,7 +94,7 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 		ret_val = TRUE;
 		*/
 	np_ref_obj(np_aaatoken_t, token);
-	np_tree_insert_str( authorized_tokens, token->issuer, np_treeval_new_v(token));
+	np_tree_insert_str(authorized_tokens, token->issuer, np_treeval_new_v(token));
 /*
 		break;
 	case 'o':
@@ -124,7 +123,7 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 	char pub_key[2*crypto_sign_PUBLICKEYBYTES+1];
 	sodium_bin2hex(pub_key, 2*crypto_sign_PUBLICKEYBYTES+1, token->public_key, crypto_sign_PUBLICKEYBYTES);
 
-	if (NULL != np_tree_find_str(authenticated_tokens, token->issuer))
+	if (NULL != tree_find_str(authenticated_tokens, token->issuer))
 	{
 		pthread_mutex_unlock(&_aaa_mutex);
 		return (TRUE);
@@ -171,7 +170,7 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 		ret_val = TRUE;
 		*/
 	np_ref_obj(np_aaatoken_t, token);
-	np_tree_insert_str( authenticated_tokens, token->issuer, np_treeval_new_v(token));
+	tree_insert_str(authenticated_tokens, token->issuer, np_treeval_new_v(token));
 /*		break;
 	case 'N':
 	default:
@@ -205,7 +204,7 @@ np_aaatoken_t* create_realm_identity()
 	// add some unique identification parameters
 	// a far better approach is to follow the "zero-knowledge" paradigm (use the source, luke)
 	// also check libsodium password hahsing functionality
-	np_tree_insert_str( realm_identity->extensions, "passcode", np_treeval_new_hash("test"));
+	tree_insert_str(realm_identity->extensions, "passcode", np_treeval_new_hash("test"));
 
 	return (realm_identity);
 }
@@ -234,7 +233,7 @@ int main(int argc, char **argv)
 		&level,
 		&logpath,
 		NULL,
-		NULL
+		NULL,		
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
@@ -243,33 +242,25 @@ int main(int argc, char **argv)
 	for the general initialisation of a node please look into the neuropil_node example
 	*/
 	
-	/**
-	in your main program, initialize the logging of neuopil
+	struct np_settings *settings = np_new_settings(NULL);
+	settings->n_threads = no_threads;
 
-	.. code-block:: c
+	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	fprintf(stdout, "logpath: %s\n", settings->log_file);
+	settings->log_level = level;
 
-	   char log_file[256];
-	   sprintf(log_file, "%s_%d.log", "./neuropil_controller", getpid());
-	   int level = LOG_ERROR | LOG_WARN | LOG_INFO;
-	   log_init(log_file, level);
-	*/
-	char log_file[256];
-	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_realmmaster", port);
-	np_log_init(log_file, level);
+	np_context * context = np_new_context(settings);
 
-	/**
-	initialize the global variable with the np_init function
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		printf("ERROR: Node could not listen");
+		exit(EXIT_FAILURE);
+	}
 
-	.. code-block:: c
-
-	   state = np_init(proto, port);
-	*/
-	state = np_init(proto, port, publish_domain);
 
 	np_aaatoken_t* realm_identity = create_realm_identity();
-	np_set_identity_v1(realm_identity);
+	np_set_identity(realm_identity);
 	np_set_realm_name("pi-lar test realm");
-	np_enable_realm_master();
+	np_enable_realm_server();
 
 	np_setauthenticate_cb(check_authenticate_token);
 	np_setauthorizing_cb(check_authorize_token);
@@ -290,13 +281,15 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-	   _np_start_job_queue(8);
+	   np_start_job_queue(8);
 	*/
 
 
 	// dsleep(50);
-	log_debug_msg(LOG_DEBUG, "starting job queue");
-	_np_start_job_queue(no_threads);
+	if (np_ok != np_run(context, 0)) {
+		printf("ERROR: Node could not start");
+		exit(EXIT_FAILURE);
+	}
 
 	if (NULL != j_key)
 	{

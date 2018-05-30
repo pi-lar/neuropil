@@ -78,7 +78,7 @@ extern "C" {
 		np_ctx_decl(np_ctx(a))
 
 
-#define NP_CTX_MODULES route, memory, threads, events, statistics, msgproperties, keycache, sysinfo, log, jobqueue
+#define NP_CTX_MODULES route, memory, threads, events, statistics, msgproperties, keycache, sysinfo, log, jobqueue, shutdown
 
 #define np_module_struct(m) struct CONCAT(np_, CONCAT(m, _module_s))
 #define np_module_type(m) CONCAT(np_, CONCAT(m, _module_t))
@@ -138,6 +138,8 @@ struct np_state_s
 	np_aaa_func_t  authenticate_func; // authentication callback
 	np_aaa_func_t  authorize_func;    // authorization callback
 	np_aaa_func_t  accounting_func;   // really needed ?
+
+	void* userdata;
 } NP_API_INTERN;
 
 
@@ -391,21 +393,29 @@ double np_time_sleep(double sleeptime);
 // send join request
 NP_API_INTERN
 void _np_send_simple_invoke_request(np_key_t* target, const char* type);
+
 NP_API_INTERN
 np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* type);
+
 NP_API_EXPORT
 void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body);
+
 NP_API_INTERN
 np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *body, np_dhkey_t* target_key);
+
 NP_API_EXPORT
 void np_context_create_new_nodekey(np_context* ac, np_node_t* base);
+
 NP_API_EXPORT
 np_bool np_has_receiver_for(np_context*ac, char * subject);
-NP_API_INTERN;
+
+NP_API_INTERN
 np_bool _np_default_authorizefunc(np_context*ac, np_aaatoken_t* token);
-NP_API_INTERN;
+
+NP_API_INTERN
 np_bool _np_default_authenticatefunc(np_context*ac, np_aaatoken_t* token);
-NP_API_INTERN;
+
+NP_API_INTERN
 np_bool _np_default_accountingfunc(np_context*ac, np_aaatoken_t* token);
 
 #ifdef __cplusplus

@@ -118,7 +118,6 @@ JSON_Value* np_treeval2json(np_state_t* context, np_treeval_t val) {
 	np_bool free_string = FALSE;
 	char* tmp_str = NULL;
 	//log_debug_msg(LOG_DEBUG, "np_treeval2json type: %"PRIu8,val.type);
-	void* tmp;
 	switch (val.type) {
 	case np_treeval_type_short:
 		ret = json_value_init_number(val.value.sh);

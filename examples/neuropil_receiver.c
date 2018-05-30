@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -13,22 +13,13 @@
 
 #include "np_log.h"
 #include "neuropil.h"
-#include "np_aaatoken.h"
-#include "np_keycache.h"
-#include "np_tree.h"
 #include "np_types.h"
-#include "np_sysinfo.h"
 
 #include "example_helper.c"
 
-
+ 
 int main(int argc, char **argv)
 {
-	int ret = 0;
-
-	char* realm = NULL;
-	char* code = NULL;
-
 	int no_threads = 8;
 	char *j_key = NULL;
 	char* proto = "udp4";
@@ -48,13 +39,16 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-r realmname] [-c code]",
-		"r:c:",
-		&realm,
-		&code
+		NULL,
+		NULL
 	) == FALSE) {
 		exit(EXIT_FAILURE);
 	}
+
+	/**
+	for the general initialisation of a node please look into the neuropil_node example
+	*/
+	
 
 	struct np_settings *settings = np_new_settings(NULL);
 	settings->n_threads = no_threads;
@@ -63,44 +57,38 @@ int main(int argc, char **argv)
 	fprintf(stdout, "logpath: %s\n", settings->log_file);
 	settings->log_level = level;
 
-	np_context * ac = np_new_context(settings);
-	np_ctx_cast(ac);
-	
-	if (NULL != realm)
-	{
-		np_set_realm_name(context, realm);
-		np_enable_realm_slave(context);
-		if (NULL != code)
-		{
-			np_tree_insert_str(context->my_node_key->aaa_token->extensions,
-				"passcode",
-				np_treeval_new_hash(code));
-		}
-	}
+	np_context * context = np_new_context(settings);
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
 		printf("ERROR: Node could not listen");
+		exit(EXIT_FAILURE);
 	}
-	else {
-
-		if (NULL != j_key)
-		{
-			fprintf(stdout, "try to join %s\n", j_key);
-			// join previous node			
-			if (np_ok != np_join(context, j_key)) {
-				printf("ERROR: Node could not join");
-			}
-		}
-
-		log_debug_msg(LOG_DEBUG, "starting job queue");
-
-		if (np_ok != np_run(context, 0.001)) {
-			printf("ERROR: Node could not run");
-		}
-		else {
-			__np_example_helper_run_info_loop(context);
-		}
+	if (np_ok != np_run(context, 0)) {
+		printf("ERROR: Node could not start");
+		exit(EXIT_FAILURE);
 	}
 
-	return ret;
+	/**
+	\endcode
+	*/
+
+	if (NULL != j_key)
+	{
+		np_join(context, j_key);
+	}
+	np_waitforjoin(context);
+
+	while (1)
+	{
+		np_time_sleep(0.9);
+		char* testdata;
+
+		uint32_t real_seq = np_receive_text(context, "this.is.a.test", &testdata);
+		if (0 < real_seq)
+			log_msg(LOG_INFO, "received message %u: %s", real_seq, testdata);
+		else
+			log_debug_msg(LOG_DEBUG, "message receive failed ...");
+
+		free(testdata);
+	}
 }

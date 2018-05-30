@@ -10,77 +10,119 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "np_interface.h" 
+#include "np_constants.h" 
 #include "np_log.h"
 
-#define SIZE(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
+#include "example_helper.c"
 
 void make_wildcard(char* s) {
 	s[0] = '*';
 	
-	for (int i = 64; i <= strlen(s); i++) {
+	for (size_t i = 64; i <= strlen(s); i++) {
 		s[i - 63] = s[i];
 	}
 }
 
 int main(int argc, char **argv)
 {
-	np_context* nodes[200] = { 0 };
+
+	int no_threads = 8;
+	char *j_key = NULL;
+	char* proto = "udp4";
+	char* port = NULL;
+	char* publish_domain = NULL;
+	int level = -2;
+	char* ccloud_size = "32";	
+	char* logpath = ".";
+
+	if (parse_program_args(
+		__FILE__,
+		argc,
+		argv,
+		&no_threads,
+		&j_key,
+		&proto,
+		&port,
+		&publish_domain,
+		&level,
+		&logpath,
+		"c:",
+		ccloud_size
+	) == FALSE) {
+		exit(EXIT_FAILURE);
+	}
+
+	int cloud_size = atoi(ccloud_size);
+
+	np_context** nodes = calloc(cloud_size,sizeof(np_context*));
 
 	char addr[500];
 	uint16_t tmp;
-	for (int i=0; i < SIZE(nodes); i++) {
-		printf("INFO: Starting Node %d\n", i);
-		fflush(NULL);
+	for (size_t i=0; i < cloud_size; i++) {
+		np_example_print(stdout, "INFO: Starting Node %"PRIsizet"\n", i);		
 
 		int port = 3000 + i;
 		struct np_settings * settings = np_new_settings(NULL);		
+		settings->n_threads = no_threads;
+
 		sprintf(settings->log_file, "neuropil_cloud_%d.log", port);
-		settings->log_level |= LOG_MESSAGE;
-		settings->log_level |= LOG_ROUTING;
-		settings->log_level |= LOG_NETWORK;
+		settings->log_level = level;
 
 		nodes[i] = np_new_context(settings); // use default settings
 		
 		if (np_ok != (tmp = np_listen(nodes[i], "udp4", "localhost", port))) {
-			printf("ERROR: Node %d could not listen. %s\n", i, np_error_str[tmp]);
+			np_example_print(stderr, "ERROR: Node %"PRIsizet" could not listen. %s\n", i, np_error_str[tmp]);
 		}
 		else {
 			if (np_ok != (tmp = np_get_address(nodes[i], addr, SIZE(addr)))) {
-				printf("ERROR: Could not get address of node %d. %s\n", i, np_error_str[tmp]);
+				np_example_print(stderr, "ERROR: Could not get address of node %"PRIsizet". %s\n", i, np_error_str[tmp]);
 			}
-			printf("INFO: Node %d aka  (%s) listens\n", i, addr);			
+			np_example_print(stdout, "INFO: Node %"PRIsizet" aka  (%s) listens\n", i, addr);
+		}
+
+		if (i == 0) {
+			__np_example_helper_loop(nodes[i]);			
+		}
+		else {
+			example_http_server_init(nodes[i], NULL, np_sysinfo_opt_force_slave);
 		}
 	}
 
 	uint16_t iteration = 0;
 	while (++iteration > 0)
 	{
-		for (int i = 0; i < SIZE(nodes); i++) {
-			if (np_ok != (tmp = np_run(nodes[i], 0.001))) {
-				printf("ERROR: Node %d could not run. %s\n", i, np_error_str[tmp]);
+		for (size_t i = 0; i < cloud_size; i++) {
+			if (np_ok != (tmp = np_run(nodes[i], 0))) {
+				np_example_print(stderr, "ERROR: Node %"PRIsizet" could not run. %s\n", i, np_error_str[tmp]);
 			}
 			else {
-				if (i > 0 && iteration < SIZE(nodes)) {
+				if (i == 0) __np_example_helper_loop(nodes[i]);
+				if (i > 0 && iteration < cloud_size && !np_has_joined(nodes[i - 1])) {
 					// get connection str of previous node
 					if (np_ok != (tmp = np_get_address(nodes[i - 1], addr, SIZE(addr)))) {
-						printf("ERROR: Could not get address of node %d. %s\n", i, np_error_str[tmp]);
+						np_example_print(stderr, "ERROR: Could not get address of node %"PRIsizet". %s\n", i, np_error_str[tmp]);
 					}
-					// for fun and testing make every second join a wildcard join			
+					// for fun and testing make every second join a wildcard join
+					// currently all via wildcard as of bug "hash join"
 					//if (i % 2 == 0) 
 					{
 						make_wildcard(addr);
 					}
 					// join previous node			
 					if (np_ok != (tmp = np_join(nodes[i], addr))) {
-						printf("ERROR: Node %d could not join. %s\n", i, np_error_str[tmp]);
+						np_example_print(stderr, "ERROR: Node %"PRIsizet" could not join. %s\n", i, np_error_str[tmp]);
 					}
 					else {
-						printf("INFO: Node %d joins %s\n", i, addr);
+						np_example_print(stdout, "INFO: Node %"PRIsizet" joins %s\n", i, addr);
 					}
 				}
 			}
 		}
 	}
+
+	np_example_print(stderr, "!!! DONE WITH EVERYTHING !!!");
+
 }

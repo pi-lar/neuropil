@@ -505,8 +505,9 @@ function like macros are:
 #define np_sll_t(TYPE, NAME) TYPE##_sll_t* NAME
 
 // convenience wrapper definitions
-#define sll_init_full(TYPE, sll_list) TYPE##_sll_t* sll_list = TYPE##_sll_init();
-#define sll_init(TYPE, sll_list) sll_list = TYPE##_sll_init();
+#define sll_init_part(TYPE) TYPE##_sll_init()
+#define sll_init(TYPE, sll_list) sll_list = sll_init_part(TYPE);
+#define sll_init_full(TYPE, sll_list) TYPE##_sll_t* sll_init(TYPE, sll_list)
 #define sll_insert(TYPE, sll_list, value, after) TYPE##_sll_insert(sll_list, value, after);
 #define sll_append(TYPE, sll_list, value) TYPE##_sll_append(sll_list, value);
 #define sll_prepend(TYPE, sll_list, value) TYPE##_sll_prepend(sll_list, value);

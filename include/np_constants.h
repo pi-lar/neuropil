@@ -117,6 +117,14 @@ extern "C" {
 // general definition for any function name
 #define VFUNC(func, ...) CONCAT(func, __NARG__(__VA_ARGS__)) (__VA_ARGS__)
 
+#define DEPRECATED __attribute__((deprecated))
+
+#define SIZE(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
+
+
+#ifndef PRIsizet
+#define PRIsizet "zu"
+#endif
 #ifdef __cplusplus
 }
 #endif

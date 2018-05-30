@@ -771,7 +771,7 @@ np_bool np_tree_deserialize( np_state_t* context, np_tree_t* jtree, cmp_ctx_t* c
 	np_bool ret = TRUE;
 
 	cmp_object_t obj_key = { 0 };
-	cmp_object_t obj_val = { 0 };
+	cmp_object_t obj_val = { 0 };	
 
 	uint32_t size = 0;
 

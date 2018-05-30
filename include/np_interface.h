@@ -89,7 +89,7 @@ extern "C" {
 
 	enum np_error np_send(np_context* ac, np_id* subject, uint8_t* message, size_t length);
 
-	typedef bool (*np_receive_callback)(uint8_t* message, size_t length);
+	typedef bool (*np_receive_callback)(np_context* ac, np_id subject_dhkey, uint8_t* message, size_t length);
 	// There can be more than one receive callback, hence "add".
 	enum np_error np_add_receive_cb(np_context* ac, np_id* subject, np_receive_callback callback);
 
@@ -117,6 +117,9 @@ extern "C" {
 
 	enum np_error np_set_mx_properties(np_context* ac, np_id* subject, struct np_mx_properties properties);
 	
+	bool np_has_joined(np_context * ac);
+	void np_set_userdata(np_context * ac, void* userdata);
+	void* np_get_userdata(np_context * ac);
 #ifdef __cplusplus
 }
 #endif

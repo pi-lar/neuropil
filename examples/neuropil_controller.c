@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -21,12 +21,15 @@
 /**
 first we have to define some global variables
 
- .. code-block:: c
- \code
+.. code-block:: c
+
+   \code
 */
 int seq = -1;
 int joinComplete = 0;
-/** \endcode */
+/**
+   \endcode
+*/
 
 int main(int argc, char **argv)
 {
@@ -38,7 +41,6 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 
-	int opt;
 	if (parse_program_args(
 		__FILE__,
 		argc,
@@ -57,59 +59,75 @@ int main(int argc, char **argv)
 	}
 
 	/**
-	in your main program, initialize the logging of neuropil
+	in your main program, initialize the settings for neuropil 
+	(if you want to use the defaults you may skip this and provide NULL instead)
 
 	.. code-block:: c
 
-	\code
+	   \code
 	*/
-	char log_file[256];	
-	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
-	np_log_init(context, log_file, level);
-	/** \endcode */
+
+	struct np_settings *settings = np_new_settings(NULL);
+	settings->n_threads = no_threads;
+
+	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	fprintf(stdout, "logpath: %s\n", settings->log_file);
+	settings->log_level = level;
+
+	/**
+	   \endcode
+	*/
 
 
 	/**
-	initialize the global variable with the np_init function
+	initialize the context with the np_new_context function 
+	and start the network to listen on
 
 	.. code-block:: c
 
-	\code
+	   \code
 	*/
-	np_init(proto, port, publish_domain);
+	np_context * context = np_new_context(settings);
 
-	/** \endcode */
-	// state->my_node_key->node->joined_network = 1;
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		printf("ERROR: Node could not listen");
+		exit(EXIT_FAILURE);
+	}
 
 	/**
-	start up the job queue with 8 concurrent threads competing for job execution.
-	you should start at least 2 threads, because network reading currently is blocking.
+	   \endcode
+	*/
+
+
+	/**
+	start up the job processing
 
 	.. code-block:: c
 
-	\code
+	   \code
 	*/
 	log_debug_msg(LOG_DEBUG, "starting job queue");
-	_np_start_job_queue(context, no_threads);
-	/** \endcode */
+	np_run(context, 0);
+	/**
+	   \endcode
+	*/
 
 	/**
 	  check stdout and the log file because it will contain this nodes hashvalue / connect string, e.g.
 
-   *.. code-block:: c
-   *
-   *    2f96848a8c490e0f0f71c74caa900423bcf2d32882a9a0b3510c50085f7ec0e5:udp6:localhost:3333
+    .. code-block:: c
 
+       2f96848a8c490e0f0f71c74caa900423bcf2d32882a9a0b3510c50085f7ec0e5:udp6:localhost:3333
 	*/
 
 	/**
 	and finally loop (almost) forever
 
-	*.. code-block:: c
-	*
-	*   while (1) {
-	*       np_time_sleep(1.0);
-	*   }
+	.. code-block:: c
+
+	   while (1) {
+	       np_time_sleep(1.0);
+	   }
 	*/
 
 	/**
@@ -119,15 +137,13 @@ int main(int argc, char **argv)
 	By default the authentication / authorization / accounting handler accept nodes/message request
 	from everybody.
 
-   *.. note::
-	 *
-	 *  Make sure that you implement and register the appropiate aaa callback functions
-	 *  to control with which nodes you exchange messages. By default everybody is allowed to interact
-	 *  with your node
+    .. NOTE::
+	   Make sure that you implement and register your own aaa callback functions to control with which
+	   nodes you exchange messages. By default everybody is allowed to interact with your node !
 	*/
 
 	if(j_key != NULL){
-		np_send_join(context, j_key);
+		np_join(context, j_key);
 	}
 	while (1)
 	{
@@ -149,18 +165,18 @@ int main(int argc, char **argv)
 		you can use it to send join request to other nodes.
 		In the example below the 'node_string' must contain exactly this string:
 
-	  *.. code-block:: c
-		*
-		*   _LOCK_ACCESS(state)
-		*  {
-		*       node_key = np_node_decode_from_str(state, node_string);
-		*  }
-		*
-		*  log_msg(LOG_DEBUG, "sending join message");
-	*      np_sendjoin(state, node_key);
+	    .. code-block:: c
+
+		   _LOCK_ACCESS(state)
+		   {
+		       node_key = np_node_decode_from_str(state, node_string);
+		   }
+
+		   log_msg(LOG_DEBUG, "sending join message");
+	       np_sendjoin(state, node_key);
 		*/
 		log_debug_msg(LOG_DEBUG, "creating welcome message");
-		np_send_join(context, node_string);
+		np_join(context, node_string);
 
 //		np_new_obj(np_message_t, msg_out);
 //		np_tree_t* jrb_me = np_tree_create();
@@ -168,7 +184,7 @@ int main(int argc, char **argv)
 //		np_message_create(msg_out, node_key, state->my_node_key, NP_MSG_JOIN_REQUEST, jrb_me);
 //
 //		log_msg(LOG_DEBUG, "submitting welcome message");
-//		np_msgproperty_t* prop = np_msgproperty_get(context, state, OUTBOUND, NP_MSG_JOIN_REQUEST);
+//		np_msgproperty_t* prop = np_msgproperty_get(state, OUTBOUND, NP_MSG_JOIN_REQUEST);
 //		_np_job_submit_msg_event(0.0, prop, node_key, msg_out);
 
 		np_time_sleep(1.0);

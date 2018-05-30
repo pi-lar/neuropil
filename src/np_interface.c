@@ -20,7 +20,16 @@
 
 void np_get_id(np_id* id, char* string, size_t length) {
 	assert(length >= 64);
-	_np_dhkey_from_str(string, (np_dhkey_t*) id);
+	np_dhkey_t dh;
+	_np_dhkey_from_str(string, &dh);
+	
+	// due to possible alignements and paddings from compilers
+	// we need to convert it this way 
+	char* it = id;
+	for(int i=0;i < sizeof(dh.t) / sizeof(dh.t[0]);i++){
+		memcpy(it, &dh.t[0], sizeof(dh.t[0]));
+		it += sizeof(dh.t[0]);
+	}
 }
 
 struct np_settings * np_new_settings(struct np_settings ** settings) {
@@ -258,6 +267,16 @@ enum np_error np_get_address(np_context* ac, char* address, uint32_t max) {
 	return ret;
 }
 
+bool np_has_joined(np_context* ac) {	
+	bool ret = false; 
+	np_ctx_cast(ac);	
+
+	if (context!= NULL && context->my_node_key != NULL && context->my_node_key->node != NULL) {
+		ret = context->my_node_key->node->joined_network;
+	}
+
+	return ret;
+}
 enum np_error np_join(np_context* ac, char* address) {
 	enum np_error ret = np_ok;
 	np_ctx_cast(ac);
@@ -290,11 +309,21 @@ enum np_error np_run(np_context* ac, double duration) {
 	enum np_error ret = np_ok;
 	
 	_np_start_job_queue(context, context->settings->n_threads);
-	np_time_sleep(duration);
+	if(duration > NP_SLEEP_MIN) np_time_sleep(duration);
 
 	return ret;
 }
 
 enum np_error np_set_mx_properties(np_context* ac, np_id* subject, struct np_mx_properties properties) {
 	return np_not_implemented;
+}
+
+void np_set_userdata(np_context *ac, void* userdata) {
+	np_ctx_cast(ac);
+	context->userdata = userdata;
+}
+
+void* np_get_userdata(np_context *ac) {
+	np_ctx_cast(ac);
+	return context->userdata;
 }

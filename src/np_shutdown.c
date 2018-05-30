@@ -24,6 +24,8 @@
 #include "np_settings.h"
 #include "np_constants.h"
 
+NP_SLL_GENERATE_IMPLEMENTATION(np_destroycallback_t);
+
 struct sigaction sigact;
 np_sll_t(void_ptr, __running_instances) = NULL;
 static int calcelations = 0;
@@ -31,14 +33,9 @@ static void __np_shutdown_signal_handler(int sig) {
 	if (sig == SIGINT) {
 		calcelations++;
 		if (calcelations < 10) {
-			sll_iterator(void_ptr) iter_context = sll_first(__running_instances);
-			while (iter_context != NULL)
+			np_state_t* context;
+			while ((context = sll_head(void_ptr,__running_instances))!= NULL)
 			{
-				sll_iterator(void_ptr) iter_context_old = iter_context;
-				np_ctx_decl(iter_context->val);
-				sll_next(iter_context);
-				sll_delete(void_ptr, __running_instances, iter_context_old);
-
 				TSP_SCOPE(context->__is_in_shutdown) {
 					context->__is_in_shutdown = TRUE;
 				}
@@ -50,8 +47,18 @@ static void __np_shutdown_signal_handler(int sig) {
 	}
 }
 
+np_module_struct(shutdown) {
+	np_state_t* context;
+	TSP(sll_return(np_destroycallback_t), on_destroy);
+};
+
 void _np_shutdown_init_auto_notify_others(np_state_t* context) {
 	
+	if (!np_module_initiated(shutdown)) {
+		np_module_malloc(shutdown);
+		TSP_INITD(_module->on_destroy, sll_init_part(np_destroycallback_t));		
+	}
+
 	if (__running_instances == NULL) {
 		sll_init(void_ptr, __running_instances);
 
@@ -63,6 +70,26 @@ void _np_shutdown_init_auto_notify_others(np_state_t* context) {
 		//sigaction(SIGTERM, &sigact, (struct sigaction *)NULL);
 	}
 	sll_append(void_ptr, __running_instances, context);
+}
+
+void np_shutdown_add_callback(np_context*ac, np_destroycallback_t clb) {
+	np_ctx_cast(ac);
+
+	TSP_SCOPE(np_module(shutdown)->on_destroy) {
+		sll_append(np_destroycallback_t, np_module(shutdown)->on_destroy, clb);
+	}
+}
+
+void _np_shutdown_run_callbacks(np_context*ac) {
+	np_ctx_cast(ac);
+
+	np_destroycallback_t clb;
+	TSP_SCOPE(np_module(shutdown)->on_destroy) {
+		while ((clb = sll_head(np_destroycallback_t, np_module(shutdown)->on_destroy)) != NULL)
+		{
+			clb(context);
+		}
+	}
 }
 
 void _np_shutdown_deinit() {

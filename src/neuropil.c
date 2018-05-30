@@ -332,6 +332,7 @@ void np_waitforjoin(np_context*ac)
 	}
 }
 
+
 /**
 * Sets a callback for a given msg subject.
 * Each msg for the given subject may invoke this handler.
@@ -556,7 +557,8 @@ void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body
 void np_destroy(np_context*ac, bool gracefully)
 {
 	np_ctx_cast(ac);
-	log_trace_msg(LOG_TRACE, "start: void np_destroy(){");
+
+	_np_shutdown_run_callbacks(context);
 
 	if(gracefully)
 		np_shutdown_notify_others(context);

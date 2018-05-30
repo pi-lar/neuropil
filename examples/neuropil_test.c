@@ -6,12 +6,14 @@ typedef struct test_struct
 	char* s_test;
 } test_struct_t;
 
+
+#undef cr_expect
 #define cr_expect(A,B) assert((A) && B)
-int main(int argc, char **argv)
+int main()
 {
 	CTX() {
-		int routing_table_size = 64 * 16 * 3; // keysize * hex * alternatives
-		int current_size = 0;
+		uint32_t routing_table_size = 64 * 16 * 3; // keysize * hex * alternatives
+		uint32_t current_size = 0;
 
 		np_sll_t(np_key_ptr, my_keys);
 		sll_init(np_key_ptr, my_keys);
