@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -23,11 +23,14 @@
 /**
 first we have to define a global np_state_t variable
 
- .. code-block:: c
- \code
+.. code-block:: c
+
+   \code
 */
 np_state_t *state;
-/** \endcode */
+/**
+   \endcode
+*/
 
 int main(int argc, char **argv)
 {
@@ -64,27 +67,33 @@ int main(int argc, char **argv)
 	in your main program, initialize the logging of neuopil, use the port for the filename
 
 	.. code-block:: c
-	\code
+
+	   \code
 	*/
 	char log_file[256];
 	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_sender", port);
 	np_log_init(log_file, level);
-	/** \endcode */
+	/**
+	   \endcode
+	*/
 
 	/**
 	initialize the global variable with the np_init function. the last argument
 	defines if you would like to have simplistic http interface on port 31415
 
 	.. code-block:: c
-	\code
+
+	   \code
 	*/
 	state = np_init(proto, port, publish_domain);
-	/** \endcode */
+	/**
+	   \endcode
+	*/
 
 	if (NULL != realm)
 	{
 		np_set_realm_name(realm);
-		np_enable_realm_slave();
+		np_enable_realm_client();
 		if (NULL != code)
 		{
 			np_tree_insert_str(state->my_node_key->aaa_token->extensions,
@@ -93,15 +102,20 @@ int main(int argc, char **argv)
 		}
 	}
 
+	__np_example_helper_loop(); // for the fancy ncurse display
+
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
 	you should start at least 2 threads, because network reading currently is blocking.
 
 	.. code-block:: c
-	\code
+
+	   \code
 	*/
 	np_start_job_queue(no_threads);
-	/** \endcode */
+	/**
+	   \endcode
+	*/
 
 	if (NULL != j_key)
 	{
@@ -113,34 +127,41 @@ int main(int argc, char **argv)
 	wait until the node has received a join message before actually proceeding
 
 	.. code-block:: c
-	\code
+
+	   \code
 	*/
 	np_waitforjoin();
-	/** \endcode */
+	/**
+	   \endcode
+	*/
 
 	/**
-	 *.. note::
-	 *  Make sure that you implement and register the appropiate aaa callback functions
-	 *  to control with which nodes you exchange messages. By default everybody is allowed to interact
-	 *  with your node
-	 */
+	 .. NOTE::
+	    Make sure that you implement and register the appropiate aaa callback functions
+	    to control with which nodes you exchange messages. By default everybody is allowed to interact
+	    with your node
+	*/
 
 	/**
 	create the message that you would like to send across (now or in the loop later)
 
 	.. code-block:: c
-	\code
+
+	   \code
 	*/
 	char* msg_subject = "this.is.a.test";
 	char* msg_data = "testdata";
 	unsigned long k = 1;
-	/** \endcode */
+	/**
+	   \endcode
+	*/
 
 	/**
 	loop (almost) forever and send your messages to the receiver :-)
 	 
 	.. code-block:: c
-	\code
+
+	   \code
 	*/
 	while (1) {
 		__np_example_helper_loop(); // for the fancy ncurse display
@@ -151,5 +172,7 @@ int main(int argc, char **argv)
 
 		k++;
 	}
-	/** \endcode */
+	/**
+	   \endcode
+    */
 }

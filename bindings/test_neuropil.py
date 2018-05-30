@@ -15,17 +15,23 @@ import neuropil as np
 
 def my_python_authn_callback(token):
     print "authn: r:" + token.realm + " i: " + token.issuer + " s:" + token.subject
+
     # export a received identity (public token) to a file to load it later
-    filename = "./{subject}_id.pub".format( subject=token.subject )
-    if not os.path.isfile(filename):
-        with open(filename, 'wb') as f:
-            np_id = np.identity_bytes(1024)
-            np_id_size = np.np_identity_export(token, np_id)
-            print (np_id, np_id_size)
-            if np_id_size > 0:
-                f.write( np.cdata_identity_bytes(np_id, np_id_size) );
-            f.close()
-	return True
+    try:
+        identity_fingerprint = np.np_identity_fingerprint(token)
+        filename = "./{fingerprint}_id.pub".format( fingerprint=identity_fingerprint )
+        if not os.path.isfile(filename):
+            with open(filename, 'wb') as f:
+                np_id = np.identity_bytes(1024)
+                np_id_size = np.np_identity_export(token, np_id)
+                # print (np_id, np_id_size)
+                if np_id_size > 0:
+                    f.write( np.cdata_identity_bytes(np_id, np_id_size) );
+                f.close()
+    except e:
+        print e
+    
+    return True
 
 def my_python_authz_callback(token):
     print "authz: r:" + token.realm + " i: " + token.issuer + " s:" + token.subject
@@ -95,9 +101,9 @@ print some_value.type, some_value.size, some_value.value.s
 print ""
 print "#### starting a test neuropil node"
 print "#"
-print "# log file      : ../../neuropil_python_test.log"
+print "# log file      : ../neuropil_python_test.log"
 
-np.np_log_init('../../neuropil_python_test.log', np.LOG_ERROR | np.LOG_WARN | np.LOG_INFO)
+np.np_log_init('../neuropil_python_test.log', np.LOG_ERROR | np.LOG_WARN | np.LOG_INFO | np.LOG_DEBUG)
 state = np.np_init('udp4', '4444', None)
 
 print "# node address  : %s " % (state.get_connection_string(), )
@@ -133,17 +139,21 @@ if os.path.isfile('./test_id'):
         id_bytes = bytearray( f.read() )
         np_id = np.identity_bytes(len(id_bytes))
         np.memmove(np_id, bytes(id_bytes))
-        print (np_id, len(id_bytes))
+        # print (np_id, len(id_bytes))
         my_np_identity = np.np_identity_import( np_id, len(id_bytes) )
-        print (my_np_identity, my_np_identity.subject)
+        # print (my_np_identity, my_np_identity.subject)
         np.np_set_identity(my_np_identity)
         f.close()
+
+# you could use the fingerprint as the filename for your own id
+# identity_fingerprint = np.np_identity_fingerprint_current()
+# filename = "./{fingerprint}_id.pub".format( fingerprint=identity_fingerprint )
 
 if not os.path.isfile('./test_id'):
     with open('./test_id', 'wb') as f:
         np_id = np.identity_bytes(1024)
         np_id_size = np.np_identity_export_current(np_id)
-        print (np_id, np_id_size)
+        # print (np_id, np_id_size)
         if np_id_size > 0:
             f.write( np.cdata_identity_bytes(np_id, np_id_size) );
         f.close()

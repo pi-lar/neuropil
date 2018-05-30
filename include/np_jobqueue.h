@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -76,11 +76,6 @@ NP_API_INTERN
 NP_API_INTERN
 	void _np_job_yield(const double delay);
 
-/** __np_jobqueue_run_worker
- ** if the queue,"job_q" is empty it would go to sleep and release the mutex
- ** else get the first job out of queue and execute it.
- **/
-
 NP_API_INTERN
 	void* __np_jobqueue_run_worker (void* np_thread_ptr);
 
@@ -95,6 +90,9 @@ NP_API_INTERN
 
 NP_API_INTERN
 	void _np_jobqueue_check();
+
+NP_API_INTERN
+	void _np_jobqueue_add_worker_thread(np_thread_t* self);
 
 NP_API_EXPORT
 uint32_t np_jobqueue_count();

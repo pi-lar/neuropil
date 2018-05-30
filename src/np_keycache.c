@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -179,6 +179,8 @@ np_key_t* _np_keycache_find_by_details(
 np_key_t* _np_keycache_find_deprecated()
 {
 	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_deprecated(){");
+
+	np_key_t* return_key = NULL;
 	np_key_t *iter = NULL;
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -198,11 +200,12 @@ np_key_t* _np_keycache_find_deprecated()
 			if ((now - __keycache_deprecation_interval) > iter->last_update && in_destroy == FALSE)
 			{
 				np_ref_obj(np_key_t, iter);
+				return_key = iter;
 				break;
 			}
 		}
 	}
-	return (iter);
+	return (return_key);
 }
 
 sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)

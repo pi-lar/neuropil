@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -303,23 +303,24 @@ sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 	for (uint16_t i = 0; i < nodenum; i++)
 	{
 		np_tree_elem_t* node_data = np_tree_find_int(data, i);
-
-		np_bool free_s_key = FALSE;
-		char* s_key = np_treeval_to_str(np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val,&free_s_key);
-		np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
-		if (free_s_key == TRUE) {
-			free(s_key);
-		}
-		np_key_t* node_key    = _np_keycache_find_or_create(search_key);
-		if (NULL == node_key->node)
+		if (node_data != NULL)
 		{
-			node_key->node = _np_node_decode_from_jrb(node_data->val.value.tree);
-			ref_replace_reason(np_node_t, node_key->node, "_np_node_decode_from_jrb", ref_key_node);
-		} 
-		
-		ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", __func__);
-		
-		sll_append(np_key_ptr, node_list, node_key);
+			CHECK_STR_FIELD(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY, key_val);
+			np_dhkey_t search_key = np_dhkey_create_from_hash(key_val.value.s);
+
+			np_key_t* node_key    = _np_keycache_find_or_create(search_key);
+			if (NULL == node_key->node)
+			{
+				node_key->node = _np_node_decode_from_jrb(node_data->val.value.tree);
+				ref_replace_reason(np_node_t, node_key->node, "_np_node_decode_from_jrb", ref_key_node);
+			}
+
+			ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", __func__);
+			sll_append(np_key_ptr, node_list, node_key);
+
+			__np_cleanup__:
+				{}
+			}
 	}
 	return (node_list);
 }

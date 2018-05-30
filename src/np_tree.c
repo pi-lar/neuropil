@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -816,7 +816,6 @@ np_bool np_tree_deserialize(np_tree_t* jtree, cmp_ctx_t* cmp)
 		__np_tree_deserialize_read_type(jtree, &obj_val, cmp, &tmp_val, "<<unknown>>");
 #endif
 
-
 		if (cmp->error != 0 || np_treeval_type_undefined == tmp_val.type) {
 			ret = FALSE;
 			break;
@@ -1054,26 +1053,18 @@ void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp)
 
 	case np_treeval_type_jrb_tree:
 	{
-		cmp_ctx_t tree_cmp;
-		char buffer[val.size];
-		// log_debug_msg(LOG_DEBUG, "buffer size for subtree %u (%hd %llu)", val.size, val.value.tree->size, val.value.tree->byte_size);
-		// log_debug_msg(LOG_DEBUG, "buffer size for subtree %u", val.size);
+		cmp_ctx_t tree_cmp = { 0 };
+		uint32_t buf_size = val.value.tree->byte_size;
+		char buffer[buf_size];
+		log_debug_msg(LOG_DEBUG, "write: buffer size for subtree %u (%hd %u) %u", val.size, val.value.tree->size, val.value.tree->byte_size, buf_size);
 		void* buf_ptr = buffer;
 		cmp_init(&tree_cmp, buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 		np_tree_serialize(val.value.tree, &tree_cmp);
-		uint32_t buf_size = tree_cmp.buf - buf_ptr;
-
-		// void* top_buf_ptr = cmp->buf;
 		// write the serialized tree to the upper level buffer
 		if (!cmp_write_ext32(cmp, np_treeval_type_jrb_tree, buf_size, buf_ptr))
 		{
 			log_msg(LOG_WARN, "couldn't write tree data -- ignoring for now");
 		}
-		// uint32_t top_buf_size = cmp->buf-top_buf_ptr;
-
-		//			else {
-		// log_debug_msg(LOG_DEBUG, "wrote tree structure size pre: %hu/%hu post: %hu %hu", val.size, val.value.tree->byte_size, buf_size, top_buf_size);
-		//			}
 	}
 	break;
 	default:
@@ -1176,35 +1167,35 @@ void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx
 		case CMP_TYPE_FIXEXT8:
 		case CMP_TYPE_FIXEXT16:
 		{
-
 			void* buffer = _np_buffer_get_buffer(cmp);
 			void* target_buffer = buffer + obj->as.ext.size;
 
 			if (obj->as.ext.type == np_treeval_type_jrb_tree)
 			{
 				// tree type
+				value->type = np_treeval_type_jrb_tree;
+
 				np_tree_t* subtree = np_tree_create();
 				subtree->attr.in_place = tree->attr.in_place;
 				if(np_tree_deserialize(subtree, cmp) == FALSE) {
-					//TODO: further error handeling
+					//TODO: further error handling
 					break;
 				}
 
-				//if (subtree->rbh_root == NULL) {
-				//	ASSERT(0 == subtree->size, "Size of tree does not match 0 size is: %"PRIu16, subtree->size);
-				//	ASSERT(5/*the empty byte size (set in tree_create())*/ == obj->as.ext.size, "Bytesize of tree does not match , size is: %"PRIu32, obj->as.ext.size);
-				//}else{
-				//	ASSERT(
+				// if (subtree->rbh_root == NULL) {
+				//	 ASSERT(0 == subtree->size, "Size of tree does not match 0 size is: %"PRIu16, subtree->size);
+				//	 ASSERT(5/*the empty byte size (set in tree_create())*/ == obj->as.ext.size, "Bytesize of tree does not match , size is: %"PRIu32, obj->as.ext.size);
+				// }else{
+				//	 ASSERT(
 				//		np_tree_get_byte_size(subtree->rbh_root) == obj->as.ext.size,
 				//		"Bytesize of tree does not match. actual: %"PRIu32" expected: %"PRIu32,
 				//		np_tree_get_byte_size(subtree->rbh_root), obj->as.ext.size
 				//	);
 				//}
 				// TODO: check if the complete buffer was read (byte count match)
-
 				value->value.tree = subtree;
-				value->type = np_treeval_type_jrb_tree;
-				value->size = subtree->size;
+				value->size = subtree->byte_size;
+				log_debug_msg(LOG_DEBUG, "read:  buffer size for subtree %u (%hd %u)", value->size, value->value.tree->size, subtree->byte_size);
 			}
 			else if (obj->as.ext.type == np_treeval_type_dhkey)
 			{
@@ -1214,6 +1205,7 @@ void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx
 			{
 				cmp->error = __np_tree_serialize_read_type_special_str(cmp, value);
 			}
+
 			else if (obj->as.ext.type == np_treeval_type_hash)
 			{
 				value->type = np_treeval_type_hash;
@@ -1245,10 +1237,11 @@ void __np_tree_deserialize_read_type(np_tree_t* tree, cmp_object_t* obj, cmp_ctx
 			}
 
 			ASSERT(_np_buffer_get_buffer(cmp) == target_buffer,
-				"buffer is not at expected position at \"%s\" (ext key type: %"PRIi8"). actual: %p expected: %p diff byte count: %"PRIi32" size: %"PRIu32" cmp error: %"PRIu8,
+				"buffer is not at expected position at \"%s\" (ext key type: %"PRIi32"). actual: %p expected: %p diff byte count: %"PRIi32" size: %"PRIu32" cmp error: %"PRIu8,
 				key_to_read_for, obj->as.ext.type, _np_buffer_get_buffer(cmp), target_buffer, _np_buffer_get_buffer(cmp) - target_buffer, obj->as.ext.size, cmp->error
 			);
-
+			// skip forward in case of error ?
+			// cmp->skip(cmp,  (_np_buffer_get_buffer(cmp) - target_buffer) );
 		}
 		break;
 		case CMP_TYPE_FLOAT:

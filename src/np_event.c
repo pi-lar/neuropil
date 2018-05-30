@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -53,11 +53,11 @@ void _np_events_idle(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher
 
 #define __NP_EVENT_EVLOOP_STRUCTS(LOOPNAME)															\
 	static struct ev_loop * __loop_##LOOPNAME = NULL;												\
-	static ev_idle __loop_##LOOPNAME##_idle_watcher;												\
 	static np_mutex_t __loop_##LOOPNAME##_suspend;													\
 	STATIC_TSP(double, __loop_##LOOPNAME##_suspend_wait);											\
 	STATIC_TSP(ev_async, __libev_async_watcher_##LOOPNAME);
 
+// static ev_idle __loop_##LOOPNAME##_idle_watcher;												\
 
 #define __NP_EVENT_EVLOOP_INIT(LOOPNAME)															\
 	TSP_INITD(__loop_##LOOPNAME##_suspend_wait, 0);													\
@@ -154,37 +154,44 @@ void np_event_init() {
 // TODO: move to glia
 void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args)
 {
+	np_state_t* state = np_state();
+
 	np_sll_t(np_message_ptr, to_del);
 	sll_init(np_message_ptr, to_del);
 
 	_LOCK_MODULE(np_message_part_cache_t)
 	{
-		np_state_t* state = np_state();
-		np_tree_elem_t* tmp = NULL;
+		log_debug_msg(LOG_INFO,
+			"MSG_PART_TABLE removing (left-over) message parts (size: %d)", state->msg_part_cache->size);
 
+		np_tree_elem_t* tmp = NULL;
 		RB_FOREACH(tmp, np_tree_s, state->msg_part_cache)
 		{
 			np_message_t* msg = tmp->val.value.v;
-			// np_tryref_obj(np_message_t,msg, msgExists);
-
 			if (TRUE == _np_message_is_expired(msg)) {
 				sll_append(np_message_ptr, to_del, msg);
 			}
 		}
+	}
 
-		sll_iterator(np_message_ptr) iter = sll_first(to_del);
-		while (NULL != iter)
+	sll_iterator(np_message_ptr) iter = sll_first(to_del);
+	while (NULL != iter)
+	{
+		log_debug_msg(LOG_INFO, "MSG_PART_TABLE removing (left-over) message part for uuid: %s", iter->val->uuid);
+		_LOCK_MODULE(np_message_part_cache_t)
 		{
-			log_msg(LOG_INFO,
-				"removing (left-over) message part for uuid: %s", iter->val->uuid);
 			np_tree_del_str(state->msg_part_cache, iter->val->uuid);
-			np_unref_obj(np_message_t, iter->val, ref_msgpartcache);
-			sll_next(iter);
 		}
+		np_unref_obj(np_message_t, iter->val, ref_msgpartcache);
+		sll_next(iter);
 	}
 	sll_free(np_message_ptr, to_del);
 
-	// np_key_unref_list(np_message_ptr, to_del, ref_msgpartcache); // cleanup
+	_LOCK_MODULE(np_message_part_cache_t)
+	{
+		log_debug_msg(LOG_INFO,
+				"MSG_PART_TABLE done removing (left-over) message parts (size: %d)", state->msg_part_cache->size);
+	}
 }
 
 // TODO: move to glia

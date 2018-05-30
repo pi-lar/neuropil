@@ -15,8 +15,7 @@ As a starting point we need a node which will serve as a bootstrap node for all 
 This bootstrap node will not neccessarily be engaged with messaging later on, but it is required
 as a starting point.
 
-.. NOTE::
-   source code of this example is available at examples/np_controller.c
+.. NOTE:: source code of this example is available at examples/np_controller.c
 
 .. include-comment:: ../../examples/neuropil_controller.c
 
@@ -39,8 +38,7 @@ in the step before, but will communicate with other nodes in the network as well
 and configuration of devices is done via the subject of a message. subjects are a form of abstraction and
 help to reduce configuration efforts for IP addresses etc.
 
-.. NOTE::
-   source code of this example is available at examples/np_receiver_cb.c
+.. NOTE:: source code of this example is available at examples/np_receiver_cb.c
 
 .. include-comment:: ../../examples/neuropil_receiver_cb.c
 
@@ -61,8 +59,7 @@ Setting up a sender
 As the last step we will implement the sender node. Again we send a join message to the bootstrap node.
 We have to know the subject of the listener, otherwise we will not be able to push the data over.
 
-.. NOTE::
-   source code of this example is available at examples/np_sender.c
+.. NOTE:: source code of this example is available at examples/np_sender.c
 
 .. include-comment:: ../../examples/neuropil_sender.c
 

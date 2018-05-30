@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -397,7 +397,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 	np_waitref_obj(np_key_t, event->data, key);
 	np_waitref_obj(np_network_t, key->network, key_network);
 
-	if (FLAG_CMP(revents , EV_WRITE ) && FLAG_CMP(revents, EV_ERROR) == FALSE)
+	if (FLAG_CMP(revents, EV_WRITE))
 	{
 		_LOCK_ACCESS(&key_network->out_events_lock)
 		{
@@ -411,7 +411,7 @@ void _np_network_send_from_events (NP_UNUSED struct ev_loop *loop, ev_io *event,
 				*/
 				void* data_to_send = NULL;
 				int data_counter = 0;
-				ssize_t written_per_data, current_write_per_data;
+				ssize_t written_per_data = 0, current_write_per_data = 0;
 				double timeout = np_time_now() + 1.;
 				do {
 					data_to_send = sll_head(void_ptr, key_network->out_events);
@@ -490,10 +490,10 @@ void _np_network_accept(NP_UNUSED struct ev_loop *loop,  ev_io *event, int reven
 	  return;
 	}
 	// calling address and port
-	char ipstr[CHAR_LENGTH_IP] = { '\0' };
-	char port[CHAR_LENGTH_PORT] = { '\0' };
+	char ipstr[CHAR_LENGTH_IP] = { 0 };
+	char port[CHAR_LENGTH_PORT] = { 0 };
 
-	struct sockaddr_storage from;
+	struct sockaddr_storage from = { 0 };
 	socklen_t fromlen = sizeof(from);
 
 	//np_state_t* state = np_state();
@@ -638,7 +638,6 @@ void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED in
 	// calling address and port
 
 	np_key_t* key;
-
 	/* receive the new data */
 	int last_recv_result = 0;
 	int msgs_received = 0;

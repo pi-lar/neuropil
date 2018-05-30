@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_MEMORY_H
@@ -48,11 +48,11 @@ typedef void (*np_dealloc_t) (void* data);
 typedef void (*np_alloc_t) (void* data);
 
 struct np_obj_s
-{	
+{
 	char* id;
 
 	np_mutex_t*	lock;
-	np_obj_enum type;	
+	np_obj_enum type;
 	uint32_t ref_count;
 	void* ptr;
 
@@ -113,7 +113,7 @@ struct np_obj_s
 	snprintf(new_reason,strlen(reason)+255,"%s%sline:%d_%s",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__, reason_desc == NULL ? "" : reason_desc);
 #else
 #define _NP_REF_REASON(reason, reason_desc, new_reason)																							\
-	char new_reason[0];																										
+	char new_reason[0];
 #endif
 
 
@@ -225,10 +225,7 @@ TYPE* saveTo = NULL;																																\
 
 #define CHECK_MALLOC(obj)		              																										\
 {                                             																										\
-	if(NULL == obj ) {																																\
-		log_msg(LOG_ERROR,"Could not allocate memory. Program is now in undefined state and should be shut down.");									\
-	}																																				\
-	assert(NULL != obj);                               																	\
+	assert(NULL != obj && "Could not allocate memory. Program is now in undefined state and should be shut down.");         \
 }																																					\
 
 #define np_unref_obj(TYPE, np_obj, reason)                																							\
@@ -243,7 +240,7 @@ TYPE* saveTo = NULL;																																\
 		assert (np_obj->obj->type == TYPE##_e);     																								\
 		if(!np_obj->obj->persistent && np_obj->obj->ptr == NULL) log_msg(LOG_ERROR,"ref obj pointer is null");										\
 		assert (np_obj->obj->persistent  || np_obj->obj->ptr != NULL);          																	\
-		log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Unref_ (%"PRIu32") object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 			\
+		log_debug_msg(LOG_MEMORY | LOG_DEBUG,"_Unref_ (%"PRIu32") object of type \"%s\" on %s",np_obj->obj->ref_count, #TYPE, np_obj->obj->id); 	\
 		np_mem_unrefobj(np_obj->obj, reason);               																						\
 		if (NULL != np_obj->obj && np_obj->obj->ref_count == 0 && np_obj->obj->persistent == FALSE && np_obj->obj->ptr == np_obj) 					\
 		{ 																																			\
@@ -256,8 +253,8 @@ TYPE* saveTo = NULL;																																\
 			np_obj->obj->ptr = NULL;                																								\
 			np_obj->obj = NULL;                     																								\
 		  }	 																																		\
-	    }                                           																									\
-	  }                                             																									\
+	    }                                           																								\
+	  }                                             																								\
 	} 																																				\
 	if (delete_obj == TRUE)																															\
 	{																																				\

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -169,7 +169,6 @@ void _np_key_destroy(np_key_t* to_destroy) {
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "no key provided for cleanup");
 	}
 }
-
 
 void _np_key_t_new(void* key)
 {
@@ -389,7 +388,6 @@ np_key_t* _np_key_get_by_key_hash(char* targetDhkey)
 	}
 	return target;
 }
-
 
 void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop) {
 	np_ref_switch(np_msgproperty_t, self->recv_property, ref_key_recv_property, prop);
