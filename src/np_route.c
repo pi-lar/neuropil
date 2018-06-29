@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -82,7 +82,7 @@ np_bool _np_route_init (np_state_t* context, np_key_t* me)
 void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_key_t** added)
 {
 	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.leafset_update");
-	np_ctx_full(node_key);
+	np_ctx_memory(node_key);
 
 	TSP_GET(np_bool, node_key->in_destroy, in_destroy);
 	if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (in_destroy == TRUE && joined))
@@ -202,12 +202,14 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 		if (add_to != NULL) {
 			if (added != NULL) *added = add_to;
 			np_ref_obj(np_key_t, add_to, ref_route_inleafset);
+			log_msg(LOG_ROUTING | LOG_INFO, "added   %s to   leafset table.", _np_key_as_str(add_to));
 		}
 
 		if (deleted_from != NULL) {
 			if (deleted != NULL) *deleted = deleted_from;
 			np_unref_obj(np_key_t, deleted_from, ref_route_inleafset);
 			_np_route_check_for_joined_network(context);
+			log_msg(LOG_ROUTING | LOG_INFO, "removed %s from leafset table.", _np_key_as_str(deleted_from));
 		}
 	}
 	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .leafset_update");
@@ -228,7 +230,7 @@ np_key_t* _np_route_get_key(np_state_t* context) {
 
 void _np_route_set_key (np_key_t* new_node_key)
 {
-	np_ctx_full(new_node_key);
+	np_ctx_memory(new_node_key);
 	_LOCK_MODULE(np_routeglobal_t)
 	{
 		if(np_module_initiated(route)){
@@ -280,7 +282,7 @@ sll_return(np_key_ptr) _np_route_get_table (np_state_t* context)
  **/
 sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key)
 {
-	np_ctx_full(key);
+	np_ctx_memory(key);
 
 	np_sll_t(np_key_ptr, sll_of_keys);
 	sll_init(np_key_ptr, sll_of_keys);
@@ -666,7 +668,7 @@ void _np_route_leafset_clear (np_state_t* context)
  **/
 void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added)
 {
-	np_ctx_full(key);
+	np_ctx_memory(key);
 
 	TSP_GET(np_bool, key->in_destroy, in_destroy);
 
@@ -675,7 +677,7 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		log_msg(LOG_ROUTING | LOG_INFO, "update in routing: %u %s", joined, _np_key_as_str(key));
+		log_debug_msg(LOG_ROUTING | LOG_INFO, "update in routing: %u %s", joined, _np_key_as_str(key));
 
 		if (_np_dhkey_equal (&np_module(route)->my_key->dhkey, &key->dhkey))
 		{
@@ -780,13 +782,13 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 		}
 
  		if(add_to != NULL) {
-			log_msg(LOG_ROUTING | LOG_INFO, "Added    %s to   routing table.", _np_key_as_str(add_to));
+			log_msg(LOG_ROUTING | LOG_INFO, "added   %s to   routing table.", _np_key_as_str(add_to));
 			np_ref_obj(np_key_t, add_to, ref_route_inroute);
 			if (added != NULL) *added = add_to;
 		}
 		
 		if(deleted_from != NULL) {
-			log_msg(LOG_ROUTING | LOG_INFO, "Removed %s from routing table.", _np_key_as_str(deleted_from));
+			log_msg(LOG_ROUTING | LOG_INFO, "removed %s from routing table.", _np_key_as_str(deleted_from));
 			np_unref_obj(np_key_t, deleted_from, ref_route_inroute);
 			if (deleted != NULL) *deleted = deleted_from;
 			_np_route_check_for_joined_network(context);
@@ -848,10 +850,8 @@ uint32_t _np_route_my_key_count_neighbours(np_state_t* context, uint32_t* left, 
 		l = sll_size(np_module(route)->left_leafset), 
 		r = sll_size(np_module(route)->right_leafset);
 
-	if(left != NULL)
-	*left = l;
-	if (right!= NULL)
-	*right = r;
+	if (left != NULL) *left = l;
+	if (right!= NULL) *right = r;
 
 	return l + r;
 }
@@ -872,7 +872,7 @@ char* np_route_get_bootstrap_connection_string(np_state_t* context) {
 }
 
 void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {
-	np_ctx_full(bootstrap_key);
+	np_ctx_memory(bootstrap_key);
 		
 	TSP_GET(char*, np_module(route)->bootstrap_key, old);
 	TSP_SET(np_module(route)->bootstrap_key, np_get_connection_string_from(bootstrap_key, FALSE));

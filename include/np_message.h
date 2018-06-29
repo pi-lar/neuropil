@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_MESSAGE_H_
@@ -130,8 +130,7 @@ void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_rep
 
 NP_API_INTERN
 void _np_message_trace_info(char* desc, np_message_t * msg_in);
-NP_API_INTERN
-np_bool _np_message_verify(np_message_t* msg);
+
 // msg header constants
 static const char* _NP_MSG_HEADER_TARGET		= "_np.target";
 static const char* _NP_MSG_HEADER_SUBJECT		= "_np.subj";

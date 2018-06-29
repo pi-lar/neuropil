@@ -3,47 +3,65 @@
 # Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 #
 
+import os
 import sys
+
 sys.path.append("build/lib.macosx-10.11-intel-2.7")
 
-from ctypes import c_uint8, c_int8, c_int16
+from ctypes import *
 
 from time import sleep
 import neuropil as np
 
 def my_python_authn_callback(token):
-	print "authn: r:" + token.realm + " i: " + token.issuer + " s:" + token.subject
-	return True
+    print "authn: r:" + token.realm + " i: " + token.issuer + " s:" + token.subject
+
+    # export a received identity (public token) to a file to load it later
+    try:
+        identity_fingerprint = np.np_identity_fingerprint(token)
+        filename = "./{fingerprint}_id.pub".format( fingerprint=identity_fingerprint )
+        if not os.path.isfile(filename):
+            with open(filename, 'wb') as f:
+                np_id = np.identity_bytes(1024)
+                np_id_size = np.np_identity_export(token, np_id)
+                # print (np_id, np_id_size)
+                if np_id_size > 0:
+                    f.write( np.cdata_identity_bytes(np_id, np_id_size) );
+                f.close()
+    except e:
+        print e
+    
+    return True
 
 def my_python_authz_callback(token):
-	print "authz: r:" + token.realm + " i: " + token.issuer + " s:" + token.subject
-	return True
+    print "authz: r:" + token.realm + " i: " + token.issuer + " s:" + token.subject
+    return True
 
 def my_python_data_callback_handle(msg, properties, body):
-	msg_subject = msg.header.find_str('_np.subj')
-	if msg_subject is None:
-		print "no subject in header found"
-	else:
-		print msg_subject.type, msg_subject.size, msg_subject.value, msg_subject.value.s
-	# print my_python_data_callback_handle.ping_count + '/' + my_python_data_callback_handle.pong_count
+    msg_subject = msg.header.find_str('_np.subj')
+    if msg_subject is None:
+        print "no subject in header found"
+    else:
+        print msg_subject.type, msg_subject.size, msg_subject.value, msg_subject.value.s
+    # print my_python_data_callback_handle.ping_count + '/' + my_python_data_callback_handle.pong_count
 
-	try:
-		if 'pong' == msg_subject.value.s:
-			my_python_data_callback_handle.ping_count += 1
-			print ("pong message received, sending ping #%d " % (my_python_data_callback_handle.ping_count))
-			np.np_send_text('ping', 'ping', my_python_data_callback_handle.ping_count, None);
-		elif 'ping' == msg_subject.value.s:
-			my_python_data_callback_handle.pong_count += 1
-			print ("ping message received, sending pong #%d" % (my_python_data_callback_handle.pong_count))
-			np.np_send_text('pong', 'pong', my_python_data_callback_handle.pong_count, None);
-		else:
-			print "uncrecognized message subject"
+    try:
+        if 'pong' == msg_subject.value.s:
+            my_python_data_callback_handle.ping_count += 1
+            print ("pong message received, sending ping #%d " % (my_python_data_callback_handle.ping_count))
+            np.np_send_text('ping', 'ping', my_python_data_callback_handle.ping_count, None);
+        elif 'ping' == msg_subject.value.s:
+            my_python_data_callback_handle.pong_count += 1
+            print ("ping message received, sending pong #%d" % (my_python_data_callback_handle.pong_count))
+            np.np_send_text('pong', 'pong', my_python_data_callback_handle.pong_count, None);
+        else:
+            print "uncrecognized message subject"
 
-	except Exception as e:
-		print e
+    except Exception as e:
+	   print e
 
     # return True to acknowldege the message
-	return True
+    return True
 
 my_python_data_callback_handle.ping_count = 0
 my_python_data_callback_handle.pong_count = 0
@@ -56,7 +74,7 @@ print some_value, some_value.type, some_value.size
 print int_value, int_value.type, int_value.size
 print other_value, other_value.type, other_value.size
 
-print np.none_type
+print np.np_treeval_type_undefined
 
 tree = np.np_tree()
 tree.insert_str('test1', np.np_treeval(27) )
@@ -83,9 +101,9 @@ print some_value.type, some_value.size, some_value.value.s
 print ""
 print "#### starting a test neuropil node"
 print "#"
-print "# log file      : ../../neuropil_python_test.log"
+print "# log file      : ../neuropil_python_test.log"
 
-np.np_log_init('../../neuropil_python_test.log', np.LOG_ERROR | np.LOG_WARN | np.LOG_INFO)
+np.np_log_init('../neuropil_python_test.log', np.LOG_ERROR | np.LOG_WARN | np.LOG_INFO | np.LOG_DEBUG)
 state = np.np_init('udp4', '4444', None)
 
 print "# node address  : %s " % (state.get_connection_string(), )
@@ -116,6 +134,29 @@ print '# mx properties for \"%s\"' % (pong_mx_prop.msg_subject,)
 print "#   %f msg_ttl / %i max_threshold / %i mep_type / %i ack_mode" %(pong_mx_prop.msg_ttl, pong_mx_prop.max_threshold, pong_mx_prop.mep_type, pong_mx_prop.ack_mode)
 
 
+if os.path.isfile('./test_id'):
+    with open('./test_id', 'rb') as f:
+        id_bytes = bytearray( f.read() )
+        np_id = np.identity_bytes(len(id_bytes))
+        np.memmove(np_id, bytes(id_bytes))
+        # print (np_id, len(id_bytes))
+        my_np_identity = np.np_identity_import( np_id, len(id_bytes) )
+        # print (my_np_identity, my_np_identity.subject)
+        np.np_set_identity(my_np_identity)
+        f.close()
+
+# you could use the fingerprint as the filename for your own id
+# identity_fingerprint = np.np_identity_fingerprint_current()
+# filename = "./{fingerprint}_id.pub".format( fingerprint=identity_fingerprint )
+
+if not os.path.isfile('./test_id'):
+    with open('./test_id', 'wb') as f:
+        np_id = np.identity_bytes(1024)
+        np_id_size = np.np_identity_export_current(np_id)
+        # print (np_id, np_id_size)
+        if np_id_size > 0:
+            f.write( np.cdata_identity_bytes(np_id, np_id_size) );
+        f.close()
 
 print "# jobqueue uses : 4 threads"
 np.np_start_job_queue(4)
@@ -124,6 +165,7 @@ print "#\n# %s\n# %s\n" % (np.NEUROPIL_COPYRIGHT, np.NEUROPIL_TRADEMARK)
 
 np.np_send_join('*:udp4:127.0.0.1:3333')
 
+
 while(True):
 	sleep(6)
 	np.np_send_text('pong', 'pong', my_python_data_callback_handle.pong_count, None);
@@ -131,3 +173,5 @@ while(True):
 	sleep(3)
 	np.np_send_text('ping', 'ping', my_python_data_callback_handle.ping_count, None);
 	print "send a ping message"
+
+np.np_destroy()

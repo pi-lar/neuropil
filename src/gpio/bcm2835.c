@@ -617,7 +617,7 @@ uint8_t bcm2835_spi_transfer(uint8_t value)
     while (!(bcm2835_peri_read_nb(paddr) & BCM2835_SPI0_CS_DONE))
 	;
 
-    /* Read any byte that was sent back by the slave while we sere sending to it */
+    /* Read any byte that was sent back by the client while we sere sending to it */
     ret = bcm2835_peri_read_nb(fifo);
 
     /* Set TA = 0, and also set the barrier */
@@ -1356,7 +1356,7 @@ int bcm2835_init(void)
     ok = 0;
     if (geteuid() == 0)
     {
-      /* Open the master /dev/mem device */
+      /* Open the server /dev/mem device */
       if ((memfd = open("/dev/mem", O_RDWR | O_SYNC) ) < 0) 
 	{
 	  fprintf(stderr, "bcm2835_init: Unable to open /dev/mem: %s\n",
@@ -1386,7 +1386,7 @@ int bcm2835_init(void)
     else
     {
       /* Not root, try /dev/gpiomem */
-      /* Open the master /dev/mem device */
+      /* Open the server /dev/mem device */
       if ((memfd = open("/dev/gpiomem", O_RDWR | O_SYNC) ) < 0) 
 	{
 	  fprintf(stderr, "bcm2835_init: Unable to open /dev/gpiomem: %s\n",

@@ -6,15 +6,54 @@
 #ifndef NP_STATISTICS_H_
 #define NP_STATISTICS_H_
 
+#include <stdint.h>
+#include <inttypes.h>
 #include <stdlib.h>
+#include <float.h>
+
 
 #include "neuropil.h"
 #include "np_types.h"
+#include "np_util.h"
+#include "np_list.h"
+#include "np_scache.h"
+#include "np_threads.h"
+#include "np_settings.h"
+#include "np_performance.h"
 
 
 #ifdef __cplusplus
 extern "C" {
+#endif 
+
+	np_module_struct(statistics) {
+		np_state_t* context;
+		np_simple_cache_table_t* __cache;
+		np_sll_t(char_ptr, __watched_subjects);
+
+		TSP(double, __forwarding_counter);
+
+		TSP(uint32_t, __network_send_bytes);
+
+		double __network_send_bytes_per_sec_r;
+		double __network_send_bytes_per_sec_last;
+		uint32_t __network_send_bytes_per_sec_remember;
+
+		TSP(uint32_t, __network_received_bytes);
+
+		double __network_received_bytes_per_sec_r;
+		double __network_received_bytes_per_sec_last;
+		uint32_t __network_received_bytes_per_sec_remember;
+
+#ifdef NP_BENCHMARKING
+		np_statistics_performance_point_t * performance_points[np_statistics_performance_point_END];
 #endif
+
+#ifdef DEBUG_CALLBACKS
+		np_sll_t(void_ptr, __np_debug_statistics);
+#endif
+	};
+
 	NP_API_INTERN
 		np_bool np_statistics_init(np_state_t* context);
 
@@ -44,7 +83,7 @@ extern "C" {
 	#define _np_statistics_add_received_bytes(add) 
 #endif // DEBUG
 
-	
+	 
 
 #ifdef __cplusplus
 }

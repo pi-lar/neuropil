@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -39,153 +39,138 @@
 #include "np_constants.h"
 
 
-#define __NP_EVENT_EVLOOP_STRUCTS(LOOPNAME)													\
-	struct ev_loop * __loop_##LOOPNAME;														\
-	ev_idle __loop_##LOOPNAME##_idle_watcher;												\
-	np_mutex_t __loop_##LOOPNAME##_suspend;													\
-	TSP(double, __loop_##LOOPNAME##_suspend_wait);											\
-	TSP(ev_async, __libev_async_watcher_##LOOPNAME);
+#define __NP_EVENT_EVLOOP_STRUCTS(LOOPNAME)					\
+    struct ev_loop * __loop_##LOOPNAME;						\
+    ev_async __loop_##LOOPNAME##_async_w;					\
+    np_mutex_t __loop_##LOOPNAME##_process_protector;
 
 
-#define __NP_EVENT_EVLOOP_INIT(LOOPNAME)																		 \
-	TSP_INITD(np_module(events)->__loop_##LOOPNAME##_suspend_wait, 0);											 \
-	TSP_INIT(np_module(events)->__libev_async_watcher_##LOOPNAME);												 \
-	_np_threads_mutex_init(context, &np_module(events)->__loop_##LOOPNAME##_suspend, "loop_"#LOOPNAME"_suspend");\
-	np_module(events)->__loop_##LOOPNAME = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);							 \
-	if (np_module(events)->__loop_##LOOPNAME == FALSE) {											 			 \
-		fprintf(stderr, "ERROR: cannot init "#LOOPNAME" event loop");								 			 \
-		exit(EXIT_FAILURE);														   					 			 \
-	}																			   					 			 \
-	ev_set_userdata (np_module(events)->__loop_##LOOPNAME, context);											 \
-	ev_set_io_collect_interval(np_module(events)->__loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);				 \
-	ev_set_timeout_collect_interval(np_module(events)->__loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);		 \
-	ev_async_init(&np_module(events)->__libev_async_watcher_##LOOPNAME, _np_events_async_break);				 \
-	ev_async_start(np_module(events)->__loop_##LOOPNAME, &np_module(events)->__libev_async_watcher_##LOOPNAME);	 \
-    /*ev_idle_init(&np_module(events)->__loop_##LOOPNAME##_idle_watcher, _np_events_idle); 						 \
-    ev_idle_start(np_module(events)->__loop_##LOOPNAME, &np_module(events)->__loop_##LOOPNAME##_idle_watcher);*/ \
-	ev_verify(np_module(events)->__loop_##LOOPNAME);															 \
-																												 
+#define __NP_EVENT_EVLOOP_INIT(LOOPNAME)																		\
+    _np_threads_mutex_init(context, &np_module(events)->__loop_##LOOPNAME##_process_protector, "__loop_"#LOOPNAME"_process_protector");\
+    np_module(events)->__loop_##LOOPNAME = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);							\
+    if (np_module(events)->__loop_##LOOPNAME == FALSE) {											 			\
+        fprintf(stderr, "ERROR: cannot init "#LOOPNAME" event loop");								 			\
+        exit(EXIT_FAILURE);														   					 			\
+    }																			   					 			\
+    ev_set_userdata (np_module(events)->__loop_##LOOPNAME, context);											\
+    ev_set_io_collect_interval(np_module(events)->__loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);				\
+    ev_set_timeout_collect_interval(np_module(events)->__loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);		\
+    ev_set_loop_release_cb(np_module(events)->__loop_##LOOPNAME, l_release##LOOPNAME,l_acquire##LOOPNAME);		\
+    ev_async_init (&np_module(events)->__loop_##LOOPNAME##_async_w, async_cb);									\
+	ev_async_start(np_module(events)->__loop_##LOOPNAME, &np_module(events)->__loop_##LOOPNAME##_async_w);										\
+    ev_verify(np_module(events)->__loop_##LOOPNAME);															 
 
 #define __NP_EVENT_LOOP_FNs(LOOPNAME)																					\
-	void _np_events_read_##LOOPNAME (np_state_t* context, np_jobargs_t* args)																\
-	{																													\
-																								\
-		_LOCK_ACCESS(&np_module(events)->__loop_##LOOPNAME##_suspend) {													\
-			EV_P = _np_event_get_loop_##LOOPNAME(context);																\
-			TSP_GET(double, np_module(events)->__loop_##LOOPNAME##_suspend_wait, onhold);								\
-			if (onhold == 0)																							\
-				ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));																\
-		}																												\
-	}																													\
-	void* _np_event_##LOOPNAME##_run(void* thread_pt) {																	\
-		np_ctx_full(thread_pt);																							\
-		_np_threads_set_self(thread_pt);																				\
-		while (1) {																										\
-			_LOCK_ACCESS(&np_module(events)->__loop_##LOOPNAME##_suspend) {												\
-				TSP_GET(double, np_module(events)->__loop_##LOOPNAME##_suspend_wait, onhold);							\
-				if (onhold == 0)																						\
-				{																										\
-					EV_P = _np_event_get_loop_##LOOPNAME(context);														\
-					ev_run( EV_A_(0) );																					\
-				}																										\
-			}																											\
-			np_time_sleep(NP_SLEEP_MIN);																				\
-		}																												\
-	}																													\
-	void _np_event_suspend_loop_##LOOPNAME(np_state_t* context)															\
-	{																													\
-		TSP_SCOPE(np_module(events)->__loop_##LOOPNAME##_suspend_wait) {												\
-			np_module(events)->__loop_##LOOPNAME##_suspend_wait++;														\
-		}																												\
-		TSP_SCOPE(np_module(events)->__libev_async_watcher_##LOOPNAME) {												\
-			ev_async_send(_np_event_get_loop_##LOOPNAME(context), &np_module(events)->__libev_async_watcher_##LOOPNAME);\
-		}																												\
-		_LOCK_ACCESS(&np_module(events)->__loop_##LOOPNAME##_suspend) {/* wait for loop to break*/; } 					\
-	}																													\
-	void _np_event_resume_loop_##LOOPNAME(np_state_t *context)															\
-	{																													\
-		TSP_SCOPE( np_module(events)->__loop_##LOOPNAME##_suspend_wait) {												\
-			np_module(events)->__loop_##LOOPNAME##_suspend_wait--;														\
-		}																												\
-	}																													\
-	struct ev_loop * _np_event_get_loop_##LOOPNAME(np_state_t *context) {												\
-		return (np_module(events)->__loop_##LOOPNAME);																	\
-	}																								   					\
+    void _np_events_read_##LOOPNAME (np_state_t* context, np_jobargs_t* args)											\
+    {																													\
+            EV_P = _np_event_get_loop_##LOOPNAME(context);																\
+			_np_event_suspend_loop_##LOOPNAME(context);																	\
+            ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));																	\
+			_np_event_resume_loop_##LOOPNAME(context);																	\
+    }																													\
+    void* _np_event_##LOOPNAME##_run(void* thread_pt) {																	\
+        np_ctx_memory(thread_pt);																						\
+        _np_threads_set_self(thread_pt);																				\
+        while (1) {																										\
+            EV_P = _np_event_get_loop_##LOOPNAME(context);																\
+			_np_event_suspend_loop_##LOOPNAME(context);																	\
+            ev_run( EV_A_(0));																							\
+			_np_event_resume_loop_##LOOPNAME(context);																	\
+        }																												\
+    }																													\
+    void l_acquire##LOOPNAME(EV_P)																						\
+    {																													\
+        np_state_t * context = ev_userdata(EV_A);																		\
+        _np_event_suspend_loop_##LOOPNAME(context);																		\
+    }																													\
+   void l_release##LOOPNAME(EV_P)																						\
+    {																													\
+        np_state_t * context = ev_userdata(EV_A);																		\
+        _np_threads_mutex_unlock(context, &np_module(events)->__loop_##LOOPNAME##_process_protector);					\
+    }																													\
+                                                                                                                        \
+    void _np_event_suspend_loop_##LOOPNAME(np_state_t* context)															\
+    {																													\
+        _np_threads_mutex_lock(context, &np_module(events)->__loop_##LOOPNAME##_process_protector, __func__);			\
+    }																													\
+    void _np_event_resume_loop_##LOOPNAME(np_state_t *context)															\
+    {																													\
+		ev_async_send(_np_event_get_loop_##LOOPNAME(context), &np_module(events)->__loop_##LOOPNAME##_async_w);											\
+        _np_threads_mutex_unlock(context, &np_module(events)->__loop_##LOOPNAME##_process_protector);					\
+    }																													\
+    struct ev_loop * _np_event_get_loop_##LOOPNAME(np_state_t *context) {												\
+        return (np_module(events)->__loop_##LOOPNAME);																	\
+    }																								   					\
 
 np_module_struct(events) {
-	np_state_t* context;	
-	__NP_EVENT_EVLOOP_STRUCTS(io);
-	__NP_EVENT_EVLOOP_STRUCTS(in);
-	__NP_EVENT_EVLOOP_STRUCTS(out);
-	__NP_EVENT_EVLOOP_STRUCTS(http);
+    np_state_t* context;	
+    __NP_EVENT_EVLOOP_STRUCTS(io);
+    __NP_EVENT_EVLOOP_STRUCTS(in);
+    __NP_EVENT_EVLOOP_STRUCTS(out);
+    __NP_EVENT_EVLOOP_STRUCTS(http);
 };
-
-void _np_events_async_break(struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents)
-{
-	ev_break(loop, EVBREAK_ALL);
-}
-
-void _np_events_idle(NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_async *watcher, NP_UNUSED int revents)
-{
-	np_time_sleep(NP_EVENT_IO_CHECK_PERIOD_SEC);
-}
 
 __NP_EVENT_LOOP_FNs(in);
 __NP_EVENT_LOOP_FNs(out);
 __NP_EVENT_LOOP_FNs(io);
 __NP_EVENT_LOOP_FNs(http);
 
+void async_cb(EV_P_ ev_async *w, int revents)																
+{																												
+	/* just used for the side effects */																		
+}
 void np_event_init(np_state_t* context) {
-	if (!np_module_initiated(events)) {
-		np_module_malloc(events);
-		__NP_EVENT_EVLOOP_INIT(in);
-		__NP_EVENT_EVLOOP_INIT(out);
-		__NP_EVENT_EVLOOP_INIT(io);
-		__NP_EVENT_EVLOOP_INIT(http);
-	}
+    if (!np_module_initiated(events)) {
+        np_module_malloc(events);
+        __NP_EVENT_EVLOOP_INIT(in);
+        __NP_EVENT_EVLOOP_INIT(out);
+        __NP_EVENT_EVLOOP_INIT(io);
+        __NP_EVENT_EVLOOP_INIT(http);
+    }
 }
 
 // TODO: move to glia
 void _np_event_cleanup_msgpart_cache(np_state_t* context, np_jobargs_t* args)
 {
-	
-	np_sll_t(np_message_ptr, to_del);
-	sll_init(np_message_ptr, to_del);
+    np_sll_t(np_message_ptr, to_del);
+    sll_init(np_message_ptr, to_del);
+    
+    _LOCK_MODULE(np_message_part_cache_t)
+    {
+        log_debug_msg(LOG_INFO, "MSG_PART_TABLE removing (left-over) message parts (size: %d)", context->msg_part_cache->size);
 
-	_LOCK_MODULE(np_message_part_cache_t)
-	{
-		np_state_t* state = context;
-		np_tree_elem_t* tmp = NULL;
+        np_tree_elem_t* tmp = NULL;
+        RB_FOREACH(tmp, np_tree_s, context->msg_part_cache)
+        {
+            np_message_t* msg = tmp->val.value.v;
+            if (TRUE == _np_message_is_expired(msg)) {
+                sll_append(np_message_ptr, to_del, msg);
+            }
+        }
+    }
 
-		RB_FOREACH(tmp, np_tree_s, state->msg_part_cache)
-		{
-			np_message_t* msg = tmp->val.value.v;
-			// np_tryref_obj(np_message_t,msg, msgExists);
+    sll_iterator(np_message_ptr) iter = sll_first(to_del);
+    while (NULL != iter)
+    {
+        log_debug_msg(LOG_INFO, "MSG_PART_TABLE removing (left-over) message part for uuid: %s", iter->val->uuid);
+        _LOCK_MODULE(np_message_part_cache_t)
+        {
+            np_tree_del_str(context->msg_part_cache, iter->val->uuid);
+        }
+        np_unref_obj(np_message_t, iter->val, ref_msgpartcache);
+        sll_next(iter);
+    }
+    sll_free(np_message_ptr, to_del);
 
-			if (TRUE == _np_message_is_expired(msg)) {
-				sll_append(np_message_ptr, to_del, msg);
-			}
-		}
-
-		sll_iterator(np_message_ptr) iter = sll_first(to_del);
-		while (NULL != iter)
-		{
-			log_msg(LOG_INFO,
-				"removing (left-over) message part for uuid: %s", iter->val->uuid);
-			np_tree_del_str(state->msg_part_cache, iter->val->uuid);
-			np_unref_obj(np_message_t, iter->val, ref_msgpartcache);
-			sll_next(iter);
-		}
-	}
-	sll_free(np_message_ptr, to_del);
-
-	// np_key_unref_list(np_message_ptr, to_del, ref_msgpartcache); // cleanup
+    _LOCK_MODULE(np_message_part_cache_t)
+    {
+        log_debug_msg(LOG_INFO,
+                "MSG_PART_TABLE done removing (left-over) message parts (size: %d)", context->msg_part_cache->size);
+    }
 }
 
 // TODO: move to glia
 void _np_event_rejoin_if_necessary(np_state_t* context, np_jobargs_t* args)
 {
-	
-
-	_np_route_rejoin_bootstrap(context, FALSE);
+    _np_route_rejoin_bootstrap(context, FALSE);
 }

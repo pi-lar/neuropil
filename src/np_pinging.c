@@ -44,7 +44,6 @@ void _np_ping_send(np_state_t *context, np_key_t* key)
 
 void _np_in_ping(np_state_t* context, np_jobargs_t* args)
 {
-	log_trace_msg(LOG_TRACE, "start: void _np_in_ping(np_state_t* context, np_jobargs_t* args){");
-
-	// Nothing to do. Work is done only on the sending end (ack handling)
+	log_debug_msg(LOG_DEBUG, "_np_in_ping for message uuid %s", args->msg->uuid);
+	// nothing to do. work is done only on the sending end (ack handling)
 }

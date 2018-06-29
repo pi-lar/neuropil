@@ -30,7 +30,6 @@
 #include "np_key.h"
 #include "np_memory.h"
 
-#include "np_http.h"
 #include "np_util.h"
 #include "np_list.h"
 
@@ -133,7 +132,7 @@ int main(int argc, char **argv)
 
 		j_key = bootstrap_hostnode_default;
 
-		np_example_print(stdout, "No bootstrap host specified.\n");
+		np_example_print(context, stdout, "No bootstrap host specified.\n");
 		has_a_node_started = TRUE;
 
 		current_pid = fork();
@@ -141,7 +140,7 @@ int main(int argc, char **argv)
 		// Running bootstrap node in a different fork
 		if (0 == current_pid) {
 
-			np_example_print(stdout, "Creating new bootstrap node...\n");
+			np_example_print(context, stdout, "Creating new bootstrap node...\n");
 			/**
 
 			.. _np_hydra_create_bootstrap_node:
@@ -177,11 +176,11 @@ int main(int argc, char **argv)
 			// get public / local network interface id
 
 			/**
-			Enable the bootstrap node as master for our SysInfo subsystem
+			Enable the bootstrap node as server for our SysInfo subsystem
 
 			.. code-block:: c
 
-			   np_sysinfo_enable_master();
+			   np_sysinfo_enable_server();
 
 			*/
 			printf("HttpServer init ok\n");					
@@ -205,9 +204,9 @@ int main(int argc, char **argv)
 			   \endcode
 			*/
 		}
-		np_example_print(stdout, "Bootstrap host node: %s\n", j_key);
+		np_example_print(context, stdout, "Bootstrap host node: %s\n", j_key);
 		if (NULL == j_key) {
-			np_example_print(stdout, "Bootstrap host node could not start ... exit\n");
+			np_example_print(context, stdout, "Bootstrap host node could not start ... exit\n");
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -274,12 +273,12 @@ int main(int argc, char **argv)
 			int port_i = atoi(port);
 			current_pid = fork();			
 			if (0 == current_pid) {
-				// disable master for slaves
+				// disable server for clients
 				if(has_a_node_started && opt_sysinfo_mode != np_sysinfo_opt_disable){
-					opt_sysinfo_mode = np_sysinfo_opt_force_slave;
+					opt_sysinfo_mode = np_sysinfo_opt_force_client;
 				}
 				current_pid = getpid();
-				np_example_print(stdout, "Starting process %"PRIi32" on port %s\n", current_pid, port);
+				np_example_print(context, stdout, "Starting process %"PRIi32" on port %s\n", current_pid, port);
 			/**
 			   \endcode
 			*/
@@ -311,13 +310,13 @@ int main(int argc, char **argv)
 				*/
 
 				/**
-				and enable the nodes as slaves in our sysinfo subsystem
+				and enable the nodes as clients in our sysinfo subsystem
 
 				.. code-block:: c
 
 				   \code
 				*/
-				np_sysinfo_enable_slave();
+				np_sysinfo_enable_client();
 				/**
 				   \endcode
 				*/
@@ -344,7 +343,7 @@ int main(int argc, char **argv)
 				np_bool firstConnectionTry = TRUE;
 				do {
 					if (!firstConnectionTry) {
-						np_example_print(stdout, "%s (%d/%"PRIu32") tries to join bootstrap node\n", port, port_i-bootstrap_port_i, required_nodes);
+						np_example_print(context, stdout, "%s (%d/%"PRIu32") tries to join bootstrap node\n", port, port_i-bootstrap_port_i, required_nodes);
 					}
 				 					
 					np_send_join(j_key);
@@ -358,13 +357,13 @@ int main(int argc, char **argv)
 					}
 
 					if(FALSE == child_status->my_node_key->node->joined_network ) {
-						np_example_print(stdout, "%s (%d/%"PRIu32") could not join network\n", port, port_i - bootstrap_port_i, required_nodes);
+						np_example_print(context, stdout, "%s (%d/%"PRIu32") could not join network\n", port, port_i - bootstrap_port_i, required_nodes);
 					}
 				} while (FALSE == child_status->my_node_key->node->joined_network) ;
 
 				char time[50] = { 0 };
 				reltime_to_str(time, np_time_now() - started_at);				
-				np_example_print(stdout, "%s (%d/%"PRIu32") joined network after %s!\n", port, port_i - bootstrap_port_i, required_nodes, time);
+				np_example_print(context, stdout, "%s (%d/%"PRIu32") joined network after %s!\n", port, port_i - bootstrap_port_i, required_nodes, time);
 				/**
 				   \endcode
 				*/
@@ -404,7 +403,7 @@ int main(int argc, char **argv)
 				int pid = sll_first(list_of_childs)->val;
 				char time[50];
 				reltime_to_str(time, now - started_at);
-				np_example_print(stdout, "%s killing process %"PRIi32"\n", time, pid);
+				np_example_print(context, stdout, "%s killing process %"PRIi32"\n", time, pid);
 				
 				kill(pid, SIGTERM);
 				killed_a_node = TRUE;
@@ -433,7 +432,7 @@ int main(int argc, char **argv)
 				{
 					if (opt_kill_node == NULL) 
 					{
-						np_example_print(
+						np_example_print(context, 
 							stdout,
 							"trying to find stopped child process %d\n", 
 							child_pid
@@ -448,7 +447,7 @@ int main(int argc, char **argv)
 					{
 						if (child_pid == iter->val)
 						{
-							np_example_print(stdout, "removing stopped child process\n");
+							np_example_print(context, stdout, "removing stopped child process\n");
 							sll_delete(int, list_of_childs, iter);
 							break;
 						}

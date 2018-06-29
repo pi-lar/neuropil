@@ -1,9 +1,9 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // Original version taken from chimera project, copyright (C) 2001 James S. Plank
-/** \toggle_keepwhitespaces  */
+
 /*
 Published under the GNU Lesser General Public License as published by the Free Software Foundation; either
 version 2.1 of the License, or (at your option) any later version
@@ -26,10 +26,10 @@ Copyright 2002 Niels Provos <provos@citi.umich.edu>
 extern "C" {
 #endif
 
-	/*
-	 * convenience helper macros when messages are received
-	 * check the existence of a field and extracts it, otherwise continues with a goto __cleanup__
-	 */
+/*
+ * convenience helper macros when messages are received
+ * check the existence of a field and extracts it, otherwise continues with a goto __cleanup__
+ */
 #define CHECK_STR_FIELD(TREE, FIELD_NAME, VAR_NAME) 						\
 np_treeval_t VAR_NAME = np_treeval_NULL; 									\
 if (NULL == np_tree_find_str(TREE, FIELD_NAME)){							\
@@ -43,12 +43,14 @@ if (NULL == np_tree_find_str(TREE, FIELD_NAME)){							\
 	goto __np_cleanup__; 													\
 } 																			\
 else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
- /**
- .. c:type:: np_tree_conf_t
 
-	additional configuration attributes for a tree
+/**
+.. c:type:: np_tree_conf_t
 
-	in_place:bool: true = allow the tree to use the original pointers instead of creating a copy every time. false = make a copy of every value
+   additional configuration attributes for a tree
+
+   in_place:bool: true = allow the tree to use the original pointers instead of creating a copy every time. false = make a copy of every value
+   immutable:bool: true = dont't allow the tree to be modified. false = allow modifications
 
 */
 struct np_tree_conf_s {
@@ -252,7 +254,7 @@ uint32_t np_tree_get_byte_size(np_tree_elem_t* node);
 /**
 .. c:function:: np_tree_t* np_tree_clone(np_tree_t* source)
 
-   Convinience function to create a full clone of a given tree
+   convenience function to create a full clone of a given tree
 
    :param tree: the np_tree_t structure to copy
 
@@ -263,9 +265,9 @@ np_tree_t* np_tree_clone(np_tree_t* source);
 /**
 .. c:function:: np_tree_t* np_tree_copy(np_tree_t* source, np_tree_t* target)
 
-Convinience function to copy data from a given tree into an other tree (may NOT override the source)
+   convenience function to copy data from a given tree into an other tree (may NOT override the source)
 
-:param tree: the np_tree_t structure to copy
+   :param tree: the np_tree_t structure to copy
 
 */
 NP_API_EXPORT
@@ -274,9 +276,9 @@ void np_tree_copy(np_tree_t* source, np_tree_t* target);
 /**
 .. c:function:: np_tree_t* np_tree_copy_inplace(np_tree_t* source, np_tree_t* target)
 
-Convinience function to copy data from a given tree into an other tree (may override the source)
+   convenience function to copy data from a given tree into an other tree (may override the source)
 
-:param tree: the np_tree_t structure to copy
+   :param tree: the np_tree_t structure to copy
 
 */
 NP_API_EXPORT

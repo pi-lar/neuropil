@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -46,7 +46,7 @@ np_dhkey_t np_dhkey_create_from_hostport(np_state_t* context, const char* strOri
  * return 1 if #k1#==#k2# 0 otherwise
  */
 NP_API_INTERN
-np_bool _np_dhkey_equal (np_dhkey_t* k1, np_dhkey_t* k2) NP_CONST;
+np_bool _np_dhkey_equal (const np_dhkey_t* const k1, const np_dhkey_t* const k2);
 
 NP_API_INTERN
 void _np_dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2);

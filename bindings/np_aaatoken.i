@@ -5,13 +5,15 @@
 
 %module(package="neuropil") np_aaatoken
 
+%include "carrays.i"
+%include "cdata.i"
+
 %{
 #include "np_aaatoken.h"
 %}
 
 %rename(np_aaatoken) np_aaatoken_s;
 %rename(np_aaatoken) np_aaatoken_t;
-
 
 %extend np_aaatoken_s {
 
@@ -43,6 +45,10 @@
     %ignore is_signature_verified;
     %ignore is_core_token;
 };
+
+%array_class(char, extensions_bytes);
+%cdata(char, extensions_bytes) 
+
 
 %ignore np_aaastate_e;
 

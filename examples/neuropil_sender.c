@@ -71,6 +71,9 @@ int main(int argc, char **argv)
 	*/
 	struct np_settings *settings = np_new_settings(NULL);
 	settings->n_threads = no_threads;
+	/**
+	   \endcode
+	*/
 
 	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
 	fprintf(stdout, "logpath: %s\n", settings->log_file);
@@ -89,7 +92,7 @@ int main(int argc, char **argv)
 	if (NULL != realm)
 	{
 		np_set_realm_name(context, realm);
-		//np_enable_realm_client();
+		np_enable_realm_client(context);
 		if (NULL != code)
 		{
 			np_tree_insert_str(state->my_node_key->aaa_token->extensions,

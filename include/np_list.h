@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
@@ -502,8 +502,8 @@ function like macros are:
 
 */
 // definition
-#define np_sll_t(TYPE, NAME) TYPE##_sll_t* NAME
-
+#define np_sll_type(TYPE) TYPE##_sll_t*
+#define np_sll_t(TYPE, NAME) np_sll_type(TYPE) NAME
 // convenience wrapper definitions
 #define sll_init_part(TYPE) TYPE##_sll_init()
 #define sll_init(TYPE, sll_list) sll_list = sll_init_part(TYPE);

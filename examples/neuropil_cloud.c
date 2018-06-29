@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <assert.h>
 
 #include "np_interface.h" 
 #include "np_constants.h" 
@@ -62,7 +63,6 @@ int main(int argc, char **argv)
 	char addr[500];
 	uint16_t tmp;
 	for (size_t i=0; i < cloud_size; i++) {
-		np_example_print(stdout, "INFO: Starting Node %"PRIsizet"\n", i);		
 
 		int port = 3000 + i;
 		struct np_settings * settings = np_new_settings(NULL);		
@@ -72,38 +72,41 @@ int main(int argc, char **argv)
 		settings->log_level = level;
 
 		nodes[i] = np_new_context(settings); // use default settings
-		
+			
+		np_example_print(nodes[0], stdout, "INFO: Starting Node %"PRIsizet"\n", i);
+
 		if (np_ok != (tmp = np_listen(nodes[i], "udp4", "localhost", port))) {
-			np_example_print(stderr, "ERROR: Node %"PRIsizet" could not listen. %s\n", i, np_error_str[tmp]);
+			np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not listen. %s\n", i, np_error_str[tmp]);
 		}
 		else {
 			if (np_ok != (tmp = np_get_address(nodes[i], addr, SIZE(addr)))) {
-				np_example_print(stderr, "ERROR: Could not get address of node %"PRIsizet". %s\n", i, np_error_str[tmp]);
+				np_example_print(nodes[0], stderr, "ERROR: Could not get address of node %"PRIsizet". %s\n", i, np_error_str[tmp]);
 			}
-			np_example_print(stdout, "INFO: Node %"PRIsizet" aka  (%s) listens\n", i, addr);
+			np_example_print(nodes[0], stdout, "INFO: Node %"PRIsizet" aka  (%s) listens\n", i, addr);
 		}
 
 		if (i == 0) {
 			__np_example_helper_loop(nodes[i]);			
 		}
 		else {
-			example_http_server_init(nodes[i], NULL, np_sysinfo_opt_force_slave);
+			example_http_server_init(nodes[i], NULL, np_sysinfo_opt_force_client);
 		}
 	}
 
-	uint16_t iteration = 0;
-	while (++iteration > 0)
+	uint64_t iteration = 0;
+	while (TRUE)
 	{
+		iteration++;
 		for (size_t i = 0; i < cloud_size; i++) {
 			if (np_ok != (tmp = np_run(nodes[i], 0))) {
-				np_example_print(stderr, "ERROR: Node %"PRIsizet" could not run. %s\n", i, np_error_str[tmp]);
+				np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not run. %s\n", i, np_error_str[tmp]);
 			}
 			else {
 				if (i == 0) __np_example_helper_loop(nodes[i]);
 				if (i > 0 && iteration < cloud_size && !np_has_joined(nodes[i - 1])) {
 					// get connection str of previous node
 					if (np_ok != (tmp = np_get_address(nodes[i - 1], addr, SIZE(addr)))) {
-						np_example_print(stderr, "ERROR: Could not get address of node %"PRIsizet". %s\n", i, np_error_str[tmp]);
+						np_example_print(nodes[0], stderr, "ERROR: Could not get address of node %"PRIsizet". %s\n", i, np_error_str[tmp]);
 					}
 					// for fun and testing make every second join a wildcard join
 					// currently all via wildcard as of bug "hash join"
@@ -113,16 +116,16 @@ int main(int argc, char **argv)
 					}
 					// join previous node			
 					if (np_ok != (tmp = np_join(nodes[i], addr))) {
-						np_example_print(stderr, "ERROR: Node %"PRIsizet" could not join. %s\n", i, np_error_str[tmp]);
+						np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not join. %s\n", i, np_error_str[tmp]);
 					}
 					else {
-						np_example_print(stdout, "INFO: Node %"PRIsizet" joins %s\n", i, addr);
+						np_example_print(nodes[0], stdout, "INFO: Node %"PRIsizet" joins %s\n", i, addr);
 					}
 				}
 			}
 		}
 	}
 
-	np_example_print(stderr, "!!! DONE WITH EVERYTHING !!!");
+	np_example_print(nodes[0], stderr, "!!! DONE WITH EVERYTHING !!!");
 
 }

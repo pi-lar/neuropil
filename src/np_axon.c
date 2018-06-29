@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <assert.h>
@@ -39,7 +39,9 @@
 #include "np_types.h"
 #include "np_token_factory.h"
 #include "np_constants.h"
+#include "np_statistics.h"
 #include "np_list.h"
+#include "np_util.h"
 #include "np_responsecontainer.h"
 #include "np_serialization.h"
 
@@ -61,7 +63,7 @@
 void __np_axon_invoke_on_user_send_callbacks(np_message_t* msg_out, np_msgproperty_t* prop)
 {
 	assert(msg_out != NULL);
-	np_state_t* context = np_ctx(msg_out);
+	np_state_t* context = np_ctx_by_memory(msg_out);
 
 	if (msg_out->msg_property == NULL) {
 		np_ref_obj(np_msgproperty_t, prop, ref_message_msg_property);
@@ -85,13 +87,23 @@ void _np_out_ack(np_state_t* context, np_jobargs_t* args)
 	
 
 	log_trace_msg(LOG_TRACE, "start: void _np_send_ack(np_state_t* context, np_jobargs_t* args){");
+	np_waitref_obj(np_key_t, context->my_node_key, my_key,"np_waitref_key");
+	np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
 
-	np_tree_elem_t* target_uuid = np_tree_find_str(args->msg->instructions, _NP_MSG_INST_RESPONSE_UUID);
-
+	uint32_t seq = 0;
+	_LOCK_ACCESS(&my_network->access_lock)
+	{
+		/* get/set sequence number to keep increasing sequence numbers per node */
+		seq = my_network->seqend;
+		np_tree_replace_str(args->msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
+		my_network->seqend++;
+	}
 	double now = np_time_now();
 	np_tree_insert_str( args->msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(args->properties->ack_mode));
 	np_tree_insert_str( args->msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args->properties->msg_ttl));
 	np_tree_insert_str( args->msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+
+	np_tree_insert_str(args->msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(args->properties->ack_mode));
 	np_tree_insert_str( args->msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(args->msg->uuid));
 	np_tree_insert_str( args->msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
 	np_tree_insert_str( args->msg->instructions, _NP_MSG_INST_SEND_COUNTER, np_treeval_new_ush(0));
@@ -105,11 +117,14 @@ void _np_out_ack(np_state_t* context, np_jobargs_t* args)
 	if(send_ok) {
 		__np_axon_invoke_on_user_send_callbacks(args->msg, np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK));
 	} else {
+		np_tree_elem_t* target_uuid = np_tree_find_str(args->msg->instructions, _NP_MSG_INST_RESPONSE_UUID);
 		log_msg(LOG_ERROR, "msg (%s) ACK_HANDLING sending of ack message (%s) to %s:%s failed",
 				args->msg->uuid,
 				target_uuid->val.value.s,
 				args->target->node->dns_name, args->target->node->port);
 	}
+	np_unref_obj(np_key_t, my_key,"np_waitref_key");
+	np_unref_obj(np_network_t, my_network,"np_waitref_network");
 }
 
 /**
@@ -250,11 +265,10 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 			}
 
 			np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
-			if (TRUE == ack_to_is_me && FALSE == is_resend)
+			if (FALSE == is_resend)
 			{
 				_LOCK_ACCESS(&my_network->access_lock)
-				{
-					/* get/set sequence number to keep increasing sequence numbers per node */
+				{	/* get/set sequence number to keep increasing sequence numbers per node */
 					seq = my_network->seqend;
 					np_tree_replace_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
 					my_network->seqend++;
@@ -275,8 +289,17 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 			// insert timestamp and time-to-live
 			double now = np_time_now();
 			np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
-			// now += args->properties->ttl;
+			double ttl_of_msg_via_property = now + args->properties->msg_ttl;
 			np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args->properties->msg_ttl));
+			// calculate ttl or take the one already present if it expieres earlier
+			np_tree_elem_t *tmp1, *tmp2;
+			if ((tmp1 = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TTL)) == NULL ||
+				(tmp2 = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)) == NULL ||
+				((tmp1->val.value.d + tmp2->val.value.d) > ttl_of_msg_via_property/*compare expiers_at values*/)
+			) {
+				np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+				np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args->properties->msg_ttl));
+			}
 
 			np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
 			if (FALSE == msg_out->is_single_part)
@@ -289,7 +312,7 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 
 			if (TRUE == ack_to_is_me || (!is_forward && sll_size(msg_out->on_reply) > 0))
 			{
-				if (FALSE == is_resend)
+				if (FALSE == is_resend && FALSE == is_forward)
 				{
 					uuid = np_treeval_to_str(np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val, NULL);
 
@@ -351,7 +374,7 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 
 			np_bool send_completed = _np_network_append_msg_to_out_queue(args->target, msg_out);
 
-			if(send_completed == TRUE) {
+			if(is_forward == FALSE && send_completed == TRUE) {
 				__np_axon_invoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
 			}
 
@@ -451,7 +474,6 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 
 				char* packet = np_memory_new(context, np_memory_types_BLOB_1024);
 
-				memset(packet, 0, 1024);
 				_LOCK_ACCESS(&hs_message->msg_chunks_lock) {
 					memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 				}
@@ -466,6 +488,7 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 						_np_network_start(args->target->network);
 					}
 					else {
+						log_debug_msg(LOG_INFO, "Dropping data package due to not initialized out_events");
 						np_memory_free(packet);
 					}
 				}
@@ -483,24 +506,25 @@ void _np_out_discovery_messages(np_state_t* context, np_jobargs_t* args)
 	log_trace_msg(LOG_TRACE, "start: void _np_out_discovery_messages(np_state_t* context, np_jobargs_t* args){");
 	np_message_intent_public_token_t* msg_token = NULL;
 
-	msg_token = _np_msgproperty_upsert_token(args->properties);
-	if (_np_route_my_key_has_connection(context)) {
+	if (_np_route_my_key_has_connection(context))
+	{
+		// cleanup of msgs in property receiver msg cache
+		_np_msgproperty_cleanup_receiver_cache(args->properties);
+		// upsert message intent token
+		msg_token = _np_msgproperty_upsert_token(args->properties);
 
 		_TRYLOCK_ACCESS(&args->properties->send_discovery_msgs_lock) {			
+			NP_PERFORMANCE_POINT_START(msg_discovery_out);
 
 			// args->target == Key of subject
 			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(context, args->properties->msg_subject, "0");
 
-			if (INBOUND == (args->properties->mode_type & INBOUND))
+			if (FLAG_CMP(args->properties->mode_type, INBOUND))
 			{
+				log_msg(LOG_INFO, "refresh of inbound  subject token, subject: %25s uuid: %s", args->properties->msg_subject, msg_token->uuid);
 				//if (args->properties->current_receive_token != msg_token) 
 				{
 					np_ref_switch(np_aaatoken_t, args->properties->current_receive_token, ref_msgproperty_current_recieve_token, msg_token);
-					// cleanup of msgs in property receiver msg cache
-					_np_msgproperty_cleanup_receiver_cache(args->properties);
-
-					np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args->properties->msg_threshold;
-
 					log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
 					np_tree_t* _data = np_tree_create();
 					np_aaatoken_encode(_data, msg_token);
@@ -514,6 +538,9 @@ void _np_out_discovery_messages(np_state_t* context, np_jobargs_t* args)
 						_NP_MSG_DISCOVER_SENDER,
 						_data
 					);
+					double now = np_time_now(); 
+					np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+					np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(msg_token->expires_at-now));
 
 					// send message availability
 					np_msgproperty_t* prop_route = np_msgproperty_get(context, OUTBOUND, _NP_MSG_DISCOVER_SENDER);
@@ -527,8 +554,9 @@ void _np_out_discovery_messages(np_state_t* context, np_jobargs_t* args)
 				}
 			}
 
-			if (OUTBOUND == (args->properties->mode_type & OUTBOUND))
+			if (FLAG_CMP(args->properties->mode_type, OUTBOUND) )
 			{
+				log_msg(LOG_INFO, "refresh of outbound subject token, subject: %25s uuid: %s", args->properties->msg_subject, msg_token->uuid);
 				//if (args->properties->current_sender_token != msg_token) 
 				{
 					np_ref_switch(np_aaatoken_t, args->properties->current_sender_token, ref_msgproperty_current_sender_token, msg_token);
@@ -556,6 +584,10 @@ void _np_out_discovery_messages(np_state_t* context, np_jobargs_t* args)
 							OUTBOUND,
 							_NP_MSG_DISCOVER_RECEIVER
 						);
+					double now = np_time_now();
+					np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+					np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(msg_token->expires_at - now));
+					
 					np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
 #ifdef DEBUG
 					np_tree_insert_str( msg_out->header, "_np.debug.discovery.subj", np_treeval_new_s(args->properties->msg_subject));
@@ -564,11 +596,14 @@ void _np_out_discovery_messages(np_state_t* context, np_jobargs_t* args)
 					np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 				}
 			}
+
+			NP_PERFORMANCE_POINT_END(msg_discovery_out);
 		}
+
+		np_unref_obj(np_aaatoken_t, msg_token, "_np_msgproperty_upsert_token");
+	} else {
+		log_msg(LOG_AAATOKEN | LOG_DEBUG, "--- cont refresh: but no connections left ...");
 	}
-
-	np_unref_obj(np_aaatoken_t, msg_token, "_np_msgproperty_upsert_token");
-
 }
 
 // deprecated

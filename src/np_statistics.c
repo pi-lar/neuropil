@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -46,32 +46,8 @@ struct np_statistics_element_s {
 	double last_sec_check;
 
 	double first_check;
-
-#ifdef NP_BENCHMARKING
-	struct np_util_performance_point* __np_util_performance_points[np_util_performance_point_END] = { 0 };
-#endif
 };
 typedef struct np_statistics_element_s np_statistics_element_t;
-
-np_module_struct(statistics) {
-	np_state_t* context;
-	np_simple_cache_table_t* __cache;
-	np_sll_t(char_ptr, __watched_subjects);
-
-	TSP(double, __forwarding_counter);
-
-	TSP(uint32_t, __network_send_bytes);
-
-	double __network_send_bytes_per_sec_r ;
-	double __network_send_bytes_per_sec_last;
-	uint32_t __network_send_bytes_per_sec_remember;
-
-	TSP(uint32_t, __network_received_bytes);
-
-	double __network_received_bytes_per_sec_r ;
-	double __network_received_bytes_per_sec_last ;
-	uint32_t __network_received_bytes_per_sec_remember ;
-};
 
 np_bool _np_statistics_receive_msg_on_watched(np_state_t* context, const np_message_t* const msg, NP_UNUSED np_tree_t* body)
 {	
@@ -93,7 +69,7 @@ np_bool _np_statistics_send_msg_on_watched(np_state_t* context, const np_message
 		((np_statistics_element_t*)item->value)->total_send += 1;
 	}
 
-	return TRUE;
+	return TRUE; 
 }
 
 np_bool np_statistics_init(np_state_t* context) {
@@ -110,6 +86,10 @@ np_bool np_statistics_init(np_state_t* context) {
 
 		np_module(statistics)->__network_received_bytes_per_sec_last = 
 			np_module(statistics)->__network_send_bytes_per_sec_last = np_time_now();
+
+#ifdef DEBUG_CALLBACKS
+		sll_init(void_ptr, np_module(statistics)->__np_debug_statistics);
+#endif
 	}
 	return TRUE;
 }
@@ -131,10 +111,7 @@ np_bool np_statistics_destroy(np_state_t* context) {
 	return TRUE;
 }
 
-void np_statistics_add_watch(np_state_t* context, char* subject) {
-	
-	np_statistics_init(context);
-	
+void np_statistics_add_watch(np_state_t* context, char* subject) {	
 
 	np_bool addtolist = TRUE;
 	sll_iterator(char_ptr) iter_subjects = sll_first(np_module(statistics)->__watched_subjects);
@@ -197,7 +174,7 @@ void np_statistics_add_watch_internals(np_state_t* context) {
 	np_statistics_add_watch(context, _NP_MSG_AVAILABLE_RECEIVER);
 	np_statistics_add_watch(context, _NP_MSG_AVAILABLE_SENDER);
 	
-	if(context->enable_realm_master || context->enable_realm_slave){
+	if(context->enable_realm_server || context->enable_realm_client){
 		np_statistics_add_watch(context, _NP_MSG_AUTHENTICATION_REQUEST);
 		np_statistics_add_watch(context, _NP_MSG_AUTHENTICATION_REPLY);
 		np_statistics_add_watch(context, _NP_MSG_AUTHORIZATION_REQUEST);

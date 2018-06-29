@@ -103,6 +103,9 @@ int main(int argc, char **argv)
 	*/
 	struct np_settings *settings = np_new_settings(NULL);
 	settings->n_threads = no_threads;
+	/**
+	   \endcode
+	*/
 
 	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
 	fprintf(stdout, "logpath: %s\n", settings->log_file);
@@ -118,6 +121,7 @@ int main(int argc, char **argv)
 	/**
 	   \endcode
 	*/
+	   
 
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.

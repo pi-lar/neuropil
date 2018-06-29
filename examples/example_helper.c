@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -15,8 +15,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <getopt.h>
-#include <sys/stat.h>
-
+#include <assert.h>
 
 #include <curses.h>
 #include <ncurses.h>
@@ -24,141 +23,58 @@
 
 #include "neuropil.h"
 #include "np_types.h"
+#include "np_statistics.h"
 #include "np_memory.h"
 #include "np_threads.h"
-#include "np_http.h"
 #include "np_util.h"
 #include "np_key.h"
 #include "np_list.h"
 #include "np_identity.h"
 #include "np_sysinfo.h"
+#include "np_threads.h"
 #include "np_log.h"
-#include "np_interface.h"
 #include "np_messagepart.h"
+#include "np_jobqueue.h"
+#include "np_performance.h"
+#include "web/np_http.h"
 #include "np_statistics.h"
 
 #include "np_conversion.c"
+const char* logo =
+"MMWKkxxdoollcdKMMMMMMMMMMMMWOollolloOWMM\n"
+"MMNxccccccccccdKWMMMMMMMMMMWkccccccckWMM\n"
+"MMNxcccccccccccoKWMMMMMMMMMWkccccccckWMM\n"
+"MMNxccccloxxolcco0WMMMMMMMMWkccccccckWMM\n"
+"MMNxcccd0NWWN0occo0WMMMMMMMWkccccccckWMM\n"
+"MMNxcccOWMMMMWkccclONWMMMMMWkccccccckWMM\n"
+"MMNxcccdKNWMW0occccldONMMMMWkccccccckWMM\n"
+"MMNxcccclokXKdccccccclkNMMMWOccccccckWMM\n"
+"MMNxccccccl0W0occccccclkNMMWOlcccccckWMM\n"
+"MMNxcccccclOWWKdccccccccxNMM0lcccccckWMM\n"
+"MMNxcccccccOWMMKdccccccccxXM0lcccccckWMM\n"
+"MMNxcccccccOWMMMXxccccccccxXKocccccckWMM\n"
+"MMNxcccccccOWMMMMXxccccccco0NKOxlccckWMM\n"
+"MMNxcccccccOWMMMMMNkllccco0WMMMW0lcckWMM\n"
+"MMNxcccccccOWMMMMMMNKklccoKMMMMMKo:ckWMM\n"
+"MMNxcccccccOWMMMMMMMMNOlccdOKXKOoccckWMM\n"
+"MMNxcccccccOWMMMMMMMMMWOlcccclcccccckWMM\n"
+"MMNxcccccccOWMMMMMMMMMMW0occc:cccccckWMM\n"
+"MMNxcccccccOWMMMMMMMMMMMW0occccccccckWMM\n"
+"MMNxcccccclOWMMMMMMMMMMMMWOlcccccccckWMM";
 
+np_bool __np_ncurse_initiated = FALSE;
 const float output_intervall_sec = 0.5;
+uint8_t enable_statistics = 1;
 
 extern char *optarg;
 extern int optind;
+WINDOW * __np_top_left_win;
+WINDOW * __np_top_right_win;
+WINDOW * __np_top_logo_win;
+WINDOW * __np_bottom_win_help;
 
-uint8_t enable_statistics = 1;
 double started_at = 0;
 double last_loop_run_at = 0;
-int max_run_duration = 0;
-
-enum np_sysinfo_opt_e {
-	np_sysinfo_opt_disable = 0,
-	np_sysinfo_opt_auto = 1,
-	np_sysinfo_opt_force_master = 2,
-	np_sysinfo_opt_force_slave = 3
-} typedef np_sysinfo_opt_e;
-
-enum np_statistic_types_e {
-	np_stat_all = 0x000,
-	np_stat_general = 0x001,
-	np_stat_locks = 0x002,
-	np_stat_msgpartcache = 0x004,
-	np_stat_memory = 0x008,
-	np_stat_performance = 0x010,
-} typedef np_statistic_types_e;
-
-np_statistic_types_e statistic_types = 0;
-
-WINDOW * __np_stat_general_win;
-WINDOW * __np_stat_locks_win;
-WINDOW * __np_stat_memory_win;
-WINDOW * __np_help_win;
-
-WINDOW * __np_stat_msgpartcache_win;
-WINDOW * __np_stat_memory_ext;
-WINDOW * __np_stat_log;
-WINDOW * __np_stat_switchable_window;
-WINDOW * __np_stat_performance_win;
-np_bool __np_ncurse_initiated = FALSE;
-
-#define LOG_BUFFER_SIZE (3000)
-np_sll_t(char_ptr, log_buffer);
-int log_user_cursor = 0;
-
-void np_example_print(FILE * stream, const char * format, ...) {
-	va_list args;
-	va_start(args, format);
-	if (__np_ncurse_initiated == FALSE) {
-		vfprintf(stream, format, args);
-		fflush(stream);
-	}
-	else {
-		char* buffer = calloc(1, 500);
-		vsnprintf(buffer, 500, format, args);
-
-		if (buffer[0] != 0) {
-			int added_items = 1;
-			char* tmp_buff_part = strtok(buffer, "\n");
-
-			char_ptr_sll_node_t* item = sll_prepend(char_ptr, log_buffer, tmp_buff_part);
-			while ((tmp_buff_part = strtok(NULL, "\n")) != NULL) {
-				added_items++;
-				item = sll_insert(char_ptr, log_buffer, tmp_buff_part, item);
-			}
-
-			while (sll_size(log_buffer) > LOG_BUFFER_SIZE) {
-				added_items--;
-				sll_iterator(char_ptr) last = sll_last(log_buffer);
-				char* tmp = last->val;
-				sll_delete(char_ptr, log_buffer, last);
-				free(tmp);
-			}
-			if (log_user_cursor != 0) {
-				log_user_cursor += added_items;
-			}
-		}
-		else {
-			free(buffer);
-		}
-	}
-	va_end(args);
-}
-
-
-void example_http_server_init(np_context* context, char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
-	np_bool http_init = FALSE;
-	if (
-		(opt_sysinfo_mode == np_sysinfo_opt_auto || opt_sysinfo_mode == np_sysinfo_opt_force_master) &&
-		(http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("FALSE", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0))) {
-		if (http_domain == NULL) {
-			http_domain = calloc(1, sizeof(char) * 255);
-			CHECK_MALLOC(http_domain);
-			if (np_get_local_ip(context, http_domain, 255) == FALSE) {
-				free(http_domain);
-				http_domain = NULL;
-			}
-		}
-		http_init = np_http_init(context, http_domain);
-		if (http_init == FALSE) {
-			log_msg(LOG_WARN, "Node could not start HTTP interface");
-		}
-	}
-	if (opt_sysinfo_mode != np_sysinfo_opt_disable) {
-		if ((http_init && opt_sysinfo_mode == np_sysinfo_opt_auto) || opt_sysinfo_mode == np_sysinfo_opt_force_master)
-		{
-			np_example_print(stdout, "HTTP interface set to %s\n", http_domain);
-			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
-			np_example_print(stdout, "Enable sysinfo master option\n");
-			np_sysinfo_enable_master(context);
-		}
-		else {
-			np_example_print(stdout, "Enable sysinfo slave option\n");
-			np_sysinfo_enable_slave(context);
-		}
-		// If you want to you can enable the statistics modulte to view the nodes statistics
-		np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
-		np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
-
-	}
-}
 
 void reltime_to_str(char*buffer, double time) {
 	// totaltime format: seconds.milliseconds
@@ -175,38 +91,247 @@ void reltime_to_str(char*buffer, double time) {
 	snprintf(buffer, 49, "%02"PRIu32"d %02"PRIu32"h %02"PRIu32"min %02"PRIu32"sec", time_d, time_h, time_m, time_s);
 }
 
-char* np_get_startup_str(np_context* ac) {
-	np_ctx_cast(ac);
+enum np_statistic_types_e {
+	np_stat_all = 0x000,
+	np_stat_general = 0x001,
+	np_stat_locks = 0x002,
+	np_stat_msgpartcache = 0x004,
+	np_stat_memory = 0x008,
+	np_stat_performance = 0x010,
+	np_stat_jobs = 0x020,
+} typedef np_statistic_types_e;
+
+np_statistic_types_e statistic_types = 0;
+
+int term_height_bottom = 15;
+
+struct __np_switchwindow_scrollable {
+	np_mutex_t access;
+	WINDOW * win;
+	char * buffer;
+	int cursor;
+};
+const int rows_in_switchable = 15;
+
+
+struct __np_switchwindow_scrollable * _current = NULL;
+
+void __np_switchwindow_draw(np_context* context) {
+
+
+	if (__np_ncurse_initiated == TRUE && _current != NULL) {
+		_LOCK_ACCESS(&_current->access) {
+			int displayedRows = 0;
+
+			char * buffer = strdup(_current->buffer);
+			char* line = strtok(buffer, "\n");
+			int y = 0;
+			//werase(_current->win);
+			if (line != NULL) {
+				do {
+					// clean line from escapes
+					for (int c = 0; c < strlen(line); c++)
+						if (line[c] < 32 || line[c] > 126) line[c] = ' ';
+
+					if (y >= _current->cursor) {
+						mvwprintw(_current->win, displayedRows, 0, line);
+						displayedRows++;
+					}
+					y++;
+				} while ((line = strtok(NULL, "\n")) != NULL && displayedRows <= term_height_bottom);
+			}
+
+			wrefresh(_current->win);
+			free(buffer);
+		}
+	}
+}
+
+
+void __np_switchwindow_show(np_context* context, struct __np_switchwindow_scrollable *target) {
+	if (_current == NULL)
+	{
+		_current = target;
+	}
+	else {
+		_LOCK_ACCESS(&_current->access) {
+			_current = target;
+		}
+	}
+}
+void __np_switchwindow_scroll_check_bounds(struct __np_switchwindow_scrollable *target) {
+	int lines = 0;
+	for (uint32_t c = 0; c < strlen(target->buffer); c++) {
+		if (target->buffer[c] == '\n') lines++;
+	}
+	int max_scroll = lines - rows_in_switchable;
+
+	if (max_scroll <= 0)
+	{
+		target->cursor = 0;
+	}
+	else {
+		if (target->cursor > max_scroll)
+			target->cursor = max_scroll;
+		else
+			target->cursor = max(0, target->cursor);
+	}
+}
+
+void __np_switchwindow_scroll(np_context* context, struct __np_switchwindow_scrollable *target, int relative) {
+
+	_LOCK_ACCESS(&target->access) {
+		target->cursor += relative;
+		__np_switchwindow_scroll_check_bounds(target);
+	}
+	if (_current == target)__np_switchwindow_draw(context);
+}
+
+void __np_switchwindow_update_buffer(np_context* context, struct __np_switchwindow_scrollable * target, char* buffer, int scroll_relative) {
+
+	_LOCK_ACCESS(&target->access) {
+		free(target->buffer);
+		target->buffer = strdup(buffer);
+		__np_switchwindow_scroll(context, target, scroll_relative);
+	}
+
+}
+
+struct __np_switchwindow_scrollable * __np_switchwindow_new(np_context* context, chtype color_pair, int width, int y) {
+	struct __np_switchwindow_scrollable * ret = calloc(1, sizeof(struct __np_switchwindow_scrollable));
+
+	_np_threads_mutex_init(context, &ret->access, "__np_switchwindow_scrollable->access");
+
+	int h = term_height_bottom, w = width/*140*/, x = 0/*, y = 39*/;
+	ret->win = newwin(h, w, y, x);
+	wbkgd(ret->win, color_pair);
+	scrollok(ret->win, TRUE);
+
+	__np_switchwindow_update_buffer(context, ret, "initiated", 0);
+
+	return ret;
+}
+
+void __np_switchwindow_del(np_context* context, struct __np_switchwindow_scrollable * self) {
+	_LOCK_ACCESS(&self->access) {
+		if (_current == self) _current = NULL;
+		delwin(self->win);
+	}
+	_np_threads_mutex_destroy(context, &self->access);
+	free(self);
+}
+WINDOW * __np_stat_general_win;
+WINDOW * __np_stat_locks_win;
+WINDOW * __np_stat_memory_win;
+WINDOW * __np_help_win;
+
+
+
+struct __np_switchwindow_scrollable * __np_switch_msgpartcache;
+struct __np_switchwindow_scrollable * __np_switch_memory_ext;
+struct __np_switchwindow_scrollable * __np_switch_log;
+struct __np_switchwindow_scrollable * __np_switch_performance;
+struct __np_switchwindow_scrollable * __np_switch_jobs;
+
+
+#define LOG_BUFFER_SIZE (3000)
+char * __log_buffer = NULL;
+char * __log_buffer_cursor = 0;
+np_mutex_t* __log_mutex = NULL;
+
+void np_print_startup(np_context*context);
+
+void np_example_print(np_context * context, FILE * stream, const char * format_in, ...) {
+	np_print_startup(context);
+	va_list args, args2;
+	va_start(args, format_in);
+	va_start(args2, format_in);
+
+	char tmp_time[255];
+	reltime_to_str(tmp_time, np_time_now() - started_at);
+	char format[500];
+	sprintf(format, "%s - %s", tmp_time, format_in);
+
+	char* buffer = calloc(1, 500);
+	int to_add_size = vsnprintf(buffer, 500, format, args);
+
+	if (to_add_size > 0) {
+		to_add_size = min(500 - 1, to_add_size);
+		if (__log_mutex == NULL) {
+			__log_mutex = malloc(sizeof(np_mutex_t));
+			_np_threads_mutex_init(context, __log_mutex, "Example logger mutex");
+		}
+		_LOCK_ACCESS(__log_mutex)
+		{
+			if (__log_buffer == NULL) __log_buffer = calloc(1, LOG_BUFFER_SIZE); // TODO: move to an init
+
+			int total_to_add_size = to_add_size + 1; // '\n' append
+			int rescued_buffer_size = LOG_BUFFER_SIZE - total_to_add_size - 1/*NULL Term*/;
+
+			// move existing memory		
+			memmove(&__log_buffer[total_to_add_size], __log_buffer, rescued_buffer_size);
+			// copy new 
+			memcpy(__log_buffer, buffer, to_add_size);
+			// append \n
+			memset(&__log_buffer[to_add_size], '\n', 1);
+			// always terminate string
+			memset(&__log_buffer[LOG_BUFFER_SIZE - 1], '\0', 1);
+
+			// count lines to scroll accordingly
+			int lines = 0;
+			for (int c = 0; c < to_add_size; c++) {
+				if (buffer[c] == '\n') lines++;
+			}
+			if (__np_ncurse_initiated) {
+				__np_switchwindow_update_buffer(context, __np_switch_log, __log_buffer, -1 * lines);
+			}
+			else {
+				vfprintf(stream, format, args2);
+				fflush(stream);
+			}
+		}
+	}
+	free(buffer);
+
+	va_end(args);
+	va_end(args2);
+}
+
+
+char* np_get_startup_str(np_state_t* context) {
 	char* ret = NULL;
 	char* new_line = "\n";
 
 	ret = np_str_concatAndFree(ret, new_line);
 	ret = np_str_concatAndFree(ret, "%s initializiation successful%s", NEUROPIL_RELEASE, new_line);
 	ret = np_str_concatAndFree(ret, "%s event loop with %d worker threads started%s", NEUROPIL_RELEASE, context->thread_count, new_line);
-	ret = np_str_concatAndFree(ret, "your neuropil node will be addressable as:%s", new_line);	
+	ret = np_str_concatAndFree(ret, "your neuropil node will be addressable as:%s", new_line);
 	ret = np_str_concatAndFree(ret, new_line);
 	char* connection_str = np_get_connection_string(context);
 	ret = np_str_concatAndFree(ret, "\t%s%s", connection_str, new_line);
 	free(connection_str);
 	ret = np_str_concatAndFree(ret, new_line);
-	if(_np_key_cmp(context->my_node_key, context->my_identity) != 0){	
+	if (_np_key_cmp(context->my_node_key, context->my_identity) != 0) {
 		ret = np_str_concatAndFree(ret, "your neuropil id is addressable via:%s", new_line);
-		ret = np_str_concatAndFree(ret, "\t%s%s", _np_key_as_str(context->my_identity), new_line);	
+		ret = np_str_concatAndFree(ret, "\t%s%s", _np_key_as_str(context->my_identity), new_line);
 		ret = np_str_concatAndFree(ret, new_line);
 	}
-	
+
 	ret = np_str_concatAndFree(ret, "%s%s", NEUROPIL_COPYRIGHT, new_line);
 	ret = np_str_concatAndFree(ret, "%s%s", NEUROPIL_TRADEMARK, new_line);
 	ret = np_str_concatAndFree(ret, new_line);
 
 	return ret;
 }
-
-void np_print_startup(np_context* context) {
-	char* ret = np_get_startup_str(context);
-	np_example_print(stdout, ret);
-	//log_msg(LOG_INFO, ret);
-	free(ret);
+bool _printed_startup = false;
+void np_print_startup(np_context * context) {
+	if (_printed_startup == false && np_get_status(context) == np_running) {
+		_printed_startup = true;
+		char* ret = np_get_startup_str(context);
+		np_example_print(context, stdout, ret);
+		//log_msg(LOG_INFO, ret);
+		free(ret);
+	}
 }
 
 enum np_example_load_identity_status {
@@ -239,16 +364,17 @@ np_bool np_example_save_identity(np_context* context, char* passphrase, char* fi
 			strlen(passphrase),
 			salt,
 			crypto_pwhash_OPSLIMIT_INTERACTIVE,
-			crypto_pwhash_MEMLIMIT_INTERACTIVE	,
+			crypto_pwhash_MEMLIMIT_INTERACTIVE,
 			crypto_pwhash_ALG_ARGON2ID13
 		)) != 0
-	) {			
-		log_debug_msg(LOG_DEBUG, "Error creating key! (%"PRIi32")",tmp);
-	} else {
+		) {
+		log_debug_msg(LOG_DEBUG, "Error creating key! (%"PRIi32")", tmp);
+	}
+	else {
 		key_is_gen = TRUE;
 	}
 
-	if(key_is_gen) {
+	if (key_is_gen) {
 		unsigned char crypted_data[token_size + crypto_secretbox_MACBYTES];
 		memset(crypted_data, 0, sizeof crypted_data);
 
@@ -257,7 +383,7 @@ np_bool np_example_save_identity(np_context* context, char* passphrase, char* fi
 			buffer,
 			token_size,
 			nonce,
-			key)) {			
+			key)) {
 			log_debug_msg(LOG_DEBUG, "Error encrypting file!");
 		}
 		else {
@@ -269,11 +395,11 @@ np_bool np_example_save_identity(np_context* context, char* passphrase, char* fi
 			}
 			fclose(f);
 		}
-		
+
 	}
 	return ret;
 }
-enum np_example_load_identity_status  np_example_load_identity(np_context* context, char* passphrase, char* filename) {
+enum np_example_load_identity_status  np_example_load_identity(np_context *context, char* passphrase, char* filename) {
 	enum np_example_load_identity_status ret = np_example_load_identity_status_not_found;
 	FILE *f = fopen(filename, "rb");
 	if (f != NULL)
@@ -295,14 +421,14 @@ enum np_example_load_identity_status  np_example_load_identity(np_context* conte
 		else {
 			key_is_gen = TRUE;
 		}
-		if(key_is_gen){
-			
+		if (key_is_gen) {
+
 			struct stat info;
 			stat(filename, &info);
-			unsigned char* crypted_data = malloc(info.st_size);
+			char* crypted_data = (char *)malloc(info.st_size);
 			fread(crypted_data, info.st_size, 1, f);
 
-			unsigned char buffer[info.st_size- crypto_secretbox_MACBYTES];
+			unsigned char buffer[info.st_size - crypto_secretbox_MACBYTES];
 
 			if (0 == crypto_secretbox_open_easy(
 				buffer,
@@ -310,8 +436,8 @@ enum np_example_load_identity_status  np_example_load_identity(np_context* conte
 				info.st_size,
 				nonce,
 				key)
-			) {				
-				np_aaatoken_t* token =  np_identity_import(context, &buffer, sizeof buffer);				
+				) {
+				np_aaatoken_t* token = np_identity_import(context, &buffer, sizeof buffer);
 				if (token == NULL) {
 					log_debug_msg(LOG_DEBUG, "Error deserializing aaatoken!");
 				}
@@ -328,41 +454,37 @@ enum np_example_load_identity_status  np_example_load_identity(np_context* conte
 	return ret;
 }
 
-void np_example_save_or_load_identity(np_context* ac) {
-	np_ctx_cast(ac);
+void np_example_save_or_load_identity(np_state_t* context) {
 
 	if (identity_opt_is_set) {
-		np_example_print(stdout, "Try to load ident file.\n");
+		np_example_print(context, stdout, "Try to load ident file.\n");
 		enum np_example_load_identity_status load_status;
 		if ((load_status = np_example_load_identity(context, identity_passphrase, identity_filename)) == np_example_load_identity_status_not_found) {
-			
-			np_example_print(stdout, "Load detected no available token file. Try to save current ident to file.\n");
+
+			np_example_print(context, stdout, "Load detected no available token file. Try to save current ident to file.\n");
 			if (!np_example_save_identity(context, identity_passphrase, identity_filename)) {
-				np_example_print(stdout, "Cannot load or save identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
+				np_example_print(context, stdout, "Cannot load or save identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
 				exit(EXIT_FAILURE);
 			}
 			else {
-#ifdef  DEBUG
-				np_example_print(stdout, "Saved current ident (%s) to file.\n", _np_key_as_str(context->my_identity));
-#endif //  DEBUG
+				np_example_print(context, stdout, "Saved current ident (%s) to file.\n", _np_key_as_str(context->my_identity));
 				/*
 				if (!np_example_load_identity(identity_passphrase, identity_filename)) {
-					np_example_print(stdout, "Cannot load after save of identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
-					exit(EXIT_FAILURE);
+				np_example_print(context, stdout, "Cannot load after save of identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), identity_filename);
+				exit(EXIT_FAILURE);
 				}
-				*/				
-			}			
+				*/
+			}
 		}
 		else {
 			if (load_status == np_example_load_identity_status_success) {
-#ifdef  DEBUG
-				np_example_print(stdout, "Loaded ident(%s) from file.\n", _np_key_as_str(context->my_identity));
-#endif
-			}else if (load_status == np_example_load_identity_status_found_but_failed) {
-				np_example_print(stdout, "Could not load from file.\n");
+				np_example_print(context, stdout, "Loaded ident(%s) from file.\n", _np_key_as_str(context->my_identity));
+			}
+			else if (load_status == np_example_load_identity_status_found_but_failed) {
+				np_example_print(context, stdout, "Could not load from file.\n");
 			}
 			else {
-				np_example_print(stdout, "Unknown np_example_load_identity_status\n");
+				np_example_print(context, stdout, "Unknown np_example_load_identity_status\n");
 			}
 		}
 	}
@@ -389,7 +511,7 @@ np_bool parse_program_args(
 	np_bool ret = TRUE;
 	char* usage;
 	asprintf(&usage,
-		"./%s [ p-j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s statistics 0=Off 1=Console 2=Log 3=1&2] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-o sysinfo 0=none,1=auto,2=master,3=slave]%s",
+		"./%s [ p-j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s statistics 0=Off 1=Console 2=Log 3=1&2] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-o sysinfo 0=none,1=auto,2=server,3=client]%s",
 		program, additional_fields_desc == NULL ? "" : additional_fields_desc
 	);
 	char* optstr;
@@ -408,7 +530,7 @@ np_bool parse_program_args(
 
 	int additional_field_idx = 0;
 	int opt;
-	
+
 	while ((opt = getopt(argc, argv, optstr)) != EOF)
 	{
 		switch ((char)opt)
@@ -418,7 +540,7 @@ np_bool parse_program_args(
 			break;
 		case 't':
 			(*no_threads) = atoi(optarg);
-			if ((*no_threads) <= 0) {
+			if ((*no_threads) < 0) {
 				fprintf(stderr, "invalid option %c\n", (char)opt);
 				ret = FALSE;
 			}
@@ -449,7 +571,7 @@ np_bool parse_program_args(
 			break;
 		case 'i':
 			identity_opt_is_set = TRUE;
-			strncpy(identity_filename, optarg, strnlen(optarg,254));
+			strncpy(identity_filename, optarg, strnlen(optarg, 254));
 			break;
 		case 'a':
 			strncpy(identity_passphrase, optarg, strnlen(optarg, 254));
@@ -476,7 +598,7 @@ np_bool parse_program_args(
 			}
 		}
 	}
-	 
+
 	free(optstr);
 
 	if (ret) {
@@ -494,7 +616,7 @@ np_bool parse_program_args(
 			| LOG_ROUTING
 			//| LOG_HTTP
 			//| LOG_KEY
-			//| LOG_NETWORK
+			| LOG_NETWORK
 			//| LOG_AAATOKEN
 			//| LOG_SYSINFO
 			//| LOG_MESSAGE
@@ -503,7 +625,9 @@ np_bool parse_program_args(
 			//| LOG_MISC
 			//| LOG_EVENT
 			//| LOG_THREADS
+			//| LOG_JOBS
 			//| LOG_GLOBAL
+
 			;
 
 		if ((*level) == -1) {	   // production client
@@ -548,37 +672,56 @@ np_bool parse_program_args(
 	return ret;
 }
 
-void __np_example_deinti_ncurse(np_context* context) {
+void __np_example_deinti_ncurse(np_context * context) {
 	if (__np_ncurse_initiated == TRUE) {
 		__np_ncurse_initiated = FALSE;
 
 		delwin(__np_stat_general_win);
-		delwin(__np_stat_memory_ext);
-		delwin(__np_stat_log);
-		delwin(__np_stat_msgpartcache_win);
 		delwin(__np_stat_memory_win);
 		delwin(__np_stat_locks_win);
-		delwin(__np_stat_performance_win);		
 		delwin(__np_help_win);
+
+		__np_switchwindow_del(context, __np_switch_memory_ext);
+		__np_switchwindow_del(context, __np_switch_log);
+		__np_switchwindow_del(context, __np_switch_msgpartcache);
+		__np_switchwindow_del(context, __np_switch_performance);
+
 		endwin();
 	}
 }
+double ncurse_init_at = 0;
 
-void __np_example_inti_ncurse(np_context*context) {
+void __np_example_inti_ncurse(np_context* context) {
 	if (FALSE == __np_ncurse_initiated) {
 		if (enable_statistics == 1 || enable_statistics % 2 != 0) {
-			if (log_buffer == NULL) {
-				sll_init(char_ptr, log_buffer);
-			}			
+			ncurse_init_at = np_time_now();
+
 			__np_ncurse_initiated = TRUE;
-			
+
 			/* Start curses mode          */
 			//initscr(); // Init ncurses mode
 			// other:
-			newterm(NULL, stderr, stdin);    
+			newterm(NULL, stderr, stdin);
 			FILE *f = fopen("/dev/tty", "r+");
 			SCREEN *screen = newterm(NULL, f, f);
 			set_term(screen);
+
+			int term_current_height, term_current_width;
+			getmaxyx(stdscr, term_current_height, term_current_width);  /* get the new screen size */
+
+			int term_width_top_left;
+			int term_width_top_rigth = 43;
+			int term_height_top_left;
+			// term_height_bottom = 15
+			int term_height_help = 1;
+
+			int term_height_logo = 20;
+
+			term_width_top_left = min(term_current_width, max(100, term_current_width - term_width_top_rigth));
+			term_width_top_rigth = term_current_width - term_width_top_left;
+
+			term_height_top_left = term_current_height - term_height_bottom - term_height_help;
+			int term_height__top_right = term_height_top_left - term_height_logo;
 
 			// setup ncurse config
 			curs_set(0); // Hide cursor
@@ -596,73 +739,74 @@ void __np_example_inti_ncurse(np_context*context) {
 			init_pair(7, COLOR_RED, COLOR_BLACK);
 
 			if (statistic_types == np_stat_all || (statistic_types & np_stat_general) == np_stat_general) {
-				__np_stat_general_win = newwin(39, 104, 0, 0);
-				wbkgd(__np_stat_general_win, COLOR_PAIR(1));
+				__np_top_left_win = newwin(term_height_top_left, term_width_top_left, 0, 0);
+				wbkgd(__np_top_left_win, COLOR_PAIR(1));
 			}
 
+
+			__np_top_logo_win = newwin(term_height_logo, term_width_top_rigth, 0, term_width_top_left);
+			wbkgd(__np_top_logo_win, COLOR_PAIR(4));
+
+#ifdef NP_THREADS_CHECK_THREADING
 			if (statistic_types == np_stat_all || (statistic_types & np_stat_locks) == np_stat_locks) {
-				__np_stat_locks_win = newwin(39, 43, 0, 104);
-				wbkgd(__np_stat_locks_win, COLOR_PAIR(2));
+				__np_top_right_win = newwin(term_height__top_right, term_width_top_rigth, term_height_logo, term_width_top_left);
+				wbkgd(__np_top_right_win, COLOR_PAIR(2));
 			}
-
+#else
 			if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
-				__np_stat_memory_win = newwin(15, 43, 39, 0);
-				wbkgd(__np_stat_memory_win, COLOR_PAIR(3));
+				__np_top_right_win = newwin(term_height__top_right, term_width_top_rigth, term_height_logo, term_width_top_left);
+				wbkgd(__np_top_right_win, COLOR_PAIR(2));
 			}
-
+#endif
 			// switchable windows
 			{
-				int h = 15, w = 103, x = 39, y = 45;
+
 				if (statistic_types == np_stat_all || (statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
-					__np_stat_msgpartcache_win = newwin(h, w, x, y);
-					wbkgd(__np_stat_msgpartcache_win, COLOR_PAIR(5));
-					scrollok(__np_stat_msgpartcache_win, TRUE);
+
+					__np_switch_msgpartcache = __np_switchwindow_new(context, COLOR_PAIR(5), term_current_width, term_height_top_left);
 
 				}
 				if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
-					__np_stat_memory_ext = newwin(h, w, x, y);
-					wbkgd(__np_stat_memory_ext, COLOR_PAIR(6));
-					scrollok(__np_stat_memory_ext, TRUE);
+					__np_switch_memory_ext = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);
 				}
 				if (statistic_types == np_stat_all || (statistic_types & np_stat_performance) == np_stat_performance) {
-					__np_stat_performance_win = newwin(h, w, x, y);
-					wbkgd(__np_stat_performance_win, COLOR_PAIR(6));
-					scrollok(__np_stat_performance_win, TRUE);
+					__np_switch_performance = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);
 				}
-				
-				__np_stat_log = newwin(h, w, x, y);
-				wbkgd(__np_stat_log, COLOR_PAIR(7));
-				scrollok(__np_stat_log, TRUE);
-
-				__np_stat_switchable_window = __np_stat_log;
+				if (statistic_types == np_stat_all || (statistic_types & np_stat_jobs) == np_stat_jobs) {
+					__np_switch_jobs = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);
+				}
+				__np_switch_log = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);
+				__np_switchwindow_show(context, __np_switch_log);
+				if (__log_buffer != NULL)
+					__np_switchwindow_update_buffer(context, __np_switch_log, __log_buffer, -999999);
 			}
 
-			__np_help_win = newwin(10, 104 + 43, 39 + 15, 0);
-			wbkgd(__np_help_win, COLOR_PAIR(4));
-			mvwprintw(__np_help_win, 0, 0,
-				"(P)erformance/ Message(c)ache / Extended (M)emory / (L)og; "
-				"| (S)top output / (R)esume output / R(e)paint "
-				"| Log: (F)ollow; (U)p; dow(N); "
-			);
-			np_shutdown_add_callback(context, __np_example_deinti_ncurse);
-
-			wclear(__np_stat_general_win);
-			wclear(__np_stat_locks_win);
-			wclear(__np_stat_performance_win);
-			wclear(__np_stat_memory_ext);
-			wclear(__np_stat_log);
-			wclear(__np_stat_msgpartcache_win);
-			wclear(__np_stat_memory_win);
+			__np_bottom_win_help = newwin(term_height_help, term_current_width, term_current_height - term_height_help, 0);
+			wbkgd(__np_bottom_win_help, COLOR_PAIR(4));
 		}
 	}
 	else {
-		werase(__np_stat_general_win);
-		werase(__np_stat_locks_win);
-		werase(__np_stat_switchable_window);
-		werase(__np_stat_memory_win);
-		werase(__np_stat_msgpartcache_win);
+		werase(__np_top_left_win);
+		werase(__np_top_right_win);
+		if (_current != NULL) werase(_current->win);
+
 	}
-	
+	if (__np_ncurse_initiated) {
+		mvwprintw(__np_bottom_win_help, 0, 0,
+			"(P)erformance / Message(c)ache / Extended (M)emory / (L)og / (J)obs "
+			"| R(e)paint "
+			"| Log: (F)ollow / (U)p / dow(N) "
+			"| (Q)uit"
+		);
+		int pos = -1;
+		if (_current == __np_switch_performance) pos = 1;
+		else if (_current == __np_switch_msgpartcache) pos = 24;
+		else if (_current == __np_switch_memory_ext) pos = 43;
+		else if (_current == __np_switch_log) pos = 54;
+		else if (_current == __np_switch_jobs) pos = 62;
+		mvwchgat(__np_bottom_win_help, 0, pos, 1, A_UNDERLINE, 4, NULL);
+
+	}
 }
 
 void __np_example_reset_ncurse(np_context*context) {
@@ -672,51 +816,68 @@ void __np_example_reset_ncurse(np_context*context) {
 
 int iteri = -1;
 
-void __np_example_helper_loop(np_context* context) {
+
+np_context* _context;
+void resizeHandler(int sig)
+{
+	if (__np_ncurse_initiated) {
+		__np_example_reset_ncurse(_context);
+	}
+
+}
+
+void __np_example_helper_loop(np_state_t* context) {
 	__np_example_inti_ncurse(context);
 
 	// Runs only once
-	if (started_at == 0) {		
-		np_statistics_add_watch_internals(context);
-
+	if (started_at == 0) {
 		started_at = np_time_now();
+		_context = context;
+		signal(SIGWINCH, resizeHandler);
 		np_print_startup(context);
 
 		// starting the example http server to support the http://view.neuropil.io application	
 		example_http_server_init(context, opt_http_domain, opt_sysinfo_mode);
-
 		np_example_save_or_load_identity(context);
 	}
-
 	double sec_since_start = np_time_now() - started_at;
 
 	if ((sec_since_start - last_loop_run_at) > output_intervall_sec)
 	{
 		last_loop_run_at = sec_since_start;
+
+		if (__np_ncurse_initiated == TRUE) {
+			mvwprintw(__np_top_logo_win, 0, 0, "%s", logo);
+		}
+
 		char* memory_str;
 
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
 			if (enable_statistics == 1 || enable_statistics > 2) {
+
 				memory_str = np_mem_printpool(context, FALSE, FALSE);
 				if (memory_str != NULL) {
 					if (__np_ncurse_initiated == TRUE) {
-						mvwprintw(__np_stat_memory_win, 0, 0, "%s", memory_str);
+						mvwprintw(__np_top_right_win, 0, 0, "%s", memory_str);
 					}
 					else {
-						np_example_print(stdout, memory_str);
+						np_example_print(context, stdout, memory_str);
 					}
 				}
 				free(memory_str);
-				memory_str = np_mem_printpool(context, FALSE, TRUE);
-				if (memory_str != NULL) {
-					if (__np_ncurse_initiated == TRUE) {
-						mvwprintw(__np_stat_memory_ext, 0, 0, "%s", memory_str);
+
+				if (_current == __np_switch_memory_ext) {
+					memory_str = np_mem_printpool(context, FALSE, TRUE);
+					if (memory_str != NULL) {
+						if (__np_ncurse_initiated == TRUE) {
+							__np_switchwindow_update_buffer(context, __np_switch_memory_ext, memory_str, 0);
+						}
+						else {
+							np_example_print(context, stdout, memory_str);
+						}
 					}
-					else {
-						np_example_print(stdout, memory_str);
-					}
+					free(memory_str);
 				}
-				free(memory_str);
 			}
 			if (enable_statistics >= 2) {
 				memory_str = np_mem_printpool(context, TRUE, TRUE);
@@ -726,17 +887,20 @@ void __np_example_helper_loop(np_context* context) {
 		}
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_performance) == np_stat_performance) {
 			if (enable_statistics == 1 || enable_statistics > 2) {
-				NP_PERFORMANCE_GET_POINTS_STR(memory);
+				if (_current == __np_switch_performance) {
 
-				if (memory != NULL) {
-					if (__np_ncurse_initiated == TRUE) {
-						mvwprintw(__np_stat_performance_win, 0, 0, "%s", memory);
+					NP_PERFORMANCE_GET_POINTS_STR(memory);
+
+					if (memory != NULL) {
+						if (__np_ncurse_initiated == TRUE) {
+							__np_switchwindow_update_buffer(context, __np_switch_performance, memory, 0);
+						}
+						else {
+							np_example_print(context, stdout, memory);
+						}
 					}
-					else {
-						np_example_print(stdout, memory);
-					}
+					free(memory);
 				}
-				free(memory);
 			}
 			if (enable_statistics >= 2) {
 				NP_PERFORMANCE_GET_POINTS_STR(memory);
@@ -744,42 +908,65 @@ void __np_example_helper_loop(np_context* context) {
 				free(memory);
 			}
 		}
-
-#ifdef DEBUG
-		if (statistic_types == np_stat_all || (statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
+		if (statistic_types == np_stat_all || (statistic_types & np_stat_jobs) == np_stat_jobs) {
 			if (enable_statistics == 1 || enable_statistics > 2) {
-				memory_str = np_messagepart_printcache(context, FALSE);
-				if (memory_str != NULL) {
-					if (__np_ncurse_initiated == TRUE) {
-						mvwprintw(__np_stat_msgpartcache_win, 0, 0, "%s", memory_str);
+				if (_current == __np_switch_jobs) {
+					memory_str = np_jobqueue_print(context, FALSE);
+					if (memory_str != NULL) {
+						if (__np_ncurse_initiated == TRUE) {
+							__np_switchwindow_update_buffer(context, __np_switch_jobs, memory_str, 0);
+						}
+						else {
+							np_example_print(context, stdout, memory_str);
+						}
 					}
-					else {
-						np_example_print(stdout, memory_str);
-					}
+					free(memory_str);
 				}
-				free(memory_str);
 			}
 			if (enable_statistics >= 2) {
-				memory_str = np_messagepart_printcache(context, TRUE);
+				memory_str = np_jobqueue_print(context, TRUE);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
-		}		
+		}
+
+		if (statistic_types == np_stat_all || (statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
+			if (enable_statistics == 1 || enable_statistics > 2) {
+				if (_current == __np_switch_msgpartcache) {
+					memory_str = np_messagepart_printcache(context, FALSE);
+					if (memory_str != NULL) {
+						if (__np_ncurse_initiated == TRUE) {
+							__np_switchwindow_update_buffer(context, __np_switch_msgpartcache, memory_str, 0);
+						}
+						else {
+							np_example_print(context, stdout, memory_str);
+						}
+					}
+					free(memory_str);
+				}
+				if (enable_statistics >= 2) {
+					memory_str = np_messagepart_printcache(context, TRUE);
+					if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+					free(memory_str);
+				}
+			}
+		}
+#ifdef DEBUG
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_locks) == np_stat_locks) {
 			if (enable_statistics == 1 || enable_statistics > 2) {
-				memory_str = np_threads_printpool(FALSE);
+				memory_str = np_threads_printpool(context, FALSE);
 				if (memory_str != NULL) {
 					if (__np_ncurse_initiated == TRUE) {
-						mvwprintw(__np_stat_locks_win, 0, 0, "%s", memory_str);
+						mvwprintw(__np_top_right_win, 0, 0, "%s", memory_str);
 					}
 					else {
-						np_example_print(stdout, memory_str);
+						np_example_print(context, stdout, memory_str);
 					}
 				}
 				free(memory_str);
 			}
 			if (enable_statistics >= 2) {
-				memory_str = np_threads_printpool(TRUE);
+				memory_str = np_threads_printpool(context, TRUE);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
@@ -793,7 +980,7 @@ void __np_example_helper_loop(np_context* context) {
 				memory_str = np_statistics_print(context, FALSE);
 
 				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
-					mvwprintw(__np_stat_general_win, 0, 0, "%s - BUILD IN "
+					mvwprintw(__np_top_left_win, 0, 0, "%s - BUILD IN "
 #if defined(DEBUG)
 						"DEBUG"
 #elif defined(RELEASE)
@@ -804,7 +991,7 @@ void __np_example_helper_loop(np_context* context) {
 						" (%s.%05d)\n%s ", time, NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD, memory_str);
 				}
 				else {
-					np_example_print(stdout, memory_str);
+					np_example_print(context, stdout, memory_str);
 				}
 				free(memory_str);
 			}
@@ -813,47 +1000,15 @@ void __np_example_helper_loop(np_context* context) {
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
-
-			if (__np_ncurse_initiated == TRUE && __np_stat_switchable_window == __np_stat_log) {
-							
-				int y = 0;
-				int displayedRows = 0;
-				sll_iterator(char_ptr) iter_log = sll_first(log_buffer);
-
-				while (iter_log != NULL)
-				{
-					if (y >= log_user_cursor) {
-						mvwprintw(__np_stat_log, displayedRows, 0, "%s", iter_log->val);
-
-						// count newlines in string
-						int i, count;
-						for (i = 0, count = 0; iter_log->val[i]; i++)
-							count += (iter_log->val[i] == '\n');
-
-						displayedRows += count + 1;
-
-						if (displayedRows > 15) {
-							break;
-						}
-					}
-
-					sll_next(iter_log);
-					y++;
-				}
-				
-				mvwprintw(__np_stat_log, 16, 0, "%"PRIu32"items in log", sll_size(log_buffer));
-			}
 		}
-		
+
 		if (__np_ncurse_initiated == TRUE) {
-			refresh(); 
-			wrefresh(__np_help_win);
-			wrefresh(__np_stat_locks_win);
-			wrefresh(__np_stat_general_win);
-			wrefresh(__np_stat_switchable_window);
-			wrefresh(__np_stat_memory_win);			
+			wrefresh(__np_bottom_win_help);
+			wrefresh(__np_top_left_win);
+			wrefresh(__np_top_right_win);
+			wrefresh(__np_top_logo_win);
+			__np_switchwindow_draw(context);
 		}
-		
 	}
 
 	if (__np_ncurse_initiated == TRUE) {
@@ -861,43 +1016,45 @@ void __np_example_helper_loop(np_context* context) {
 		switch (key) {
 		case KEY_RESIZE:
 		case 101:	// e
+		case 69:	// E			
 			__np_example_reset_ncurse(context);
 			break;
 		case 99:	// c
 		case 67:	// C
-			__np_stat_switchable_window = __np_stat_msgpartcache_win;
-			log_user_cursor = 0;
+			__np_switchwindow_show(context, __np_switch_msgpartcache);
 			break;
 		case 112:	// p
 		case 80:	// P
-			__np_stat_switchable_window = __np_stat_performance_win;
-			log_user_cursor = 0;
-			break;			
+			__np_switchwindow_show(context, __np_switch_performance);
+			break;
 		case 109:	// m
 		case 77:	// M
-			__np_stat_switchable_window = __np_stat_memory_ext;
-			log_user_cursor = 0;
+			__np_switchwindow_show(context, __np_switch_memory_ext);
 			break;
 		case 108:	// l
 		case 76:	// L
-			__np_stat_switchable_window = __np_stat_log;
-			log_user_cursor = 0;
+			__np_switchwindow_show(context, __np_switch_log);
+			break;
+		case 106:	// j
+		case 74:	// J
+			__np_switchwindow_show(context, __np_switch_jobs);
 			break;
 		case 102:	// f
 		case 70:	// F
-			log_user_cursor = 0;
+			__np_switchwindow_scroll(_current, -999999, TRUE);
 			break;
 		case 117:	// u
 		case 85:	// U
 		case KEY_UP:
-			log_user_cursor = max(0, log_user_cursor - 1);
+			__np_switchwindow_scroll(_current, -1, TRUE);
 			break;
 		case 110:	// n
 		case 78:	// N
 		case KEY_DOWN:
-			log_user_cursor = min(max(0, log_user_cursor + 1), sll_size(log_buffer)-1);
+			__np_switchwindow_scroll(_current, 1, TRUE);
 			break;
 		case 113: // q
+			__np_example_deinti_ncurse(context);
 			np_destroy(context, true);
 			exit(EXIT_SUCCESS);
 			break;
@@ -905,21 +1062,23 @@ void __np_example_helper_loop(np_context* context) {
 	}
 }
 
-void __np_example_helper_run_loop() {
-	if(started_at == 0)
-		started_at = np_time_now();
+void __np_example_helper_run_loop(np_context*context) {
+	double sleep;
 	while (TRUE)
 	{
-		np_time_sleep(output_intervall_sec);
-		if (max_run_duration > 0 && (started_at + max_run_duration) <= np_time_now()) break;
+		sleep = min(output_intervall_sec, __np_jobqueue_run_jobs_once(context));
+		np_time_sleep(sleep);
 	}
 }
 
-void __np_example_helper_run_info_loop(np_context* context) {
+void __np_example_helper_run_info_loop(np_context*context) {
+	double sleep;
 	while (TRUE)
-	{
+	{		
 		__np_example_helper_loop(context);
-		np_time_sleep(output_intervall_sec);
-		if (max_run_duration > 0 && (started_at + max_run_duration) <= np_time_now()) break;
+		sleep = min(output_intervall_sec, __np_jobqueue_run_jobs_once(context));
+		np_time_sleep(sleep);
 	}
 }
+
+#include "web/np_http.c"

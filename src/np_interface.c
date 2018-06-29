@@ -14,9 +14,15 @@
 
 #include "np_interface.h"
 
+
 #include "neuropil.h"
 
 #include "np_util.h"
+#include "np_key.h"
+#include "np_network.h"
+#include "np_statistics.h"
+#include "np_jobqueue.h"
+#include "np_threads.h"
 
 void np_get_id(np_id* id, char* string, size_t length) {
 	assert(length >= 64);
@@ -73,12 +79,13 @@ np_context* np_new_context(struct np_settings * settings_in) {
 		status = np_insufficient_memory;
 	}
 	else {
-		TSP_INITD(context->__is_in_shutdown, FALSE);
+		TSP_INITD(context->status, np_uninitialized);
 
 		context->settings = settings;
 		
 		np_log_init(context, settings->log_file, settings->log_level);
 
+		np_statistics_init(context);
 		// memory pool
 		np_memory_init(context);
 
@@ -104,16 +111,13 @@ np_context* np_new_context(struct np_settings * settings_in) {
 				// splay tree initializing
 				_np_keycache_init(context);
 
-				//
-				// TODO: read my own identity from file, if a e.g. a password is given
-				//
 				// set default aaa functions
 				context->authorize_func = _np_default_authorizefunc;
 				context->authenticate_func = _np_default_authenticatefunc;
 				context->accounting_func = _np_default_accountingfunc;
 
-				context->enable_realm_slave = FALSE;
-				context->enable_realm_master = FALSE;
+				context->enable_realm_client = FALSE;
+				context->enable_realm_server = FALSE;
 
 				if (FALSE == _np_msgproperty_init(context))
 				{
@@ -123,6 +127,13 @@ np_context* np_new_context(struct np_settings * settings_in) {
 			}
 		}
 	}
+	if(status == np_ok){
+		TSP_SET(context->status, np_stopped);
+	}
+	else {
+		TSP_SET(context->status, np_error);
+	}
+
 
 	return ((np_context*)context);
 }
@@ -132,7 +143,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 	np_ctx_cast(ac);
 
 	if (context->my_node_key != NULL && context->my_node_key->network != NULL) {
-		log_msg(LOG_ERROR, "node listens already on %s", _np_network_as_string(context->my_node_key->network));
+		log_msg(LOG_ERROR, "node listens already and cannot get a second listener");
 		ret = np_invalid_operation;
 	}
 	else {
@@ -209,9 +220,9 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 				}
 				else {
 					// initialize job queue
-					if (FALSE == _np_job_queue_create(context))
+					if (FALSE == _np_jobqueue_create(context))
 					{
-						log_msg(LOG_ERROR, "neuropil_init: _np_job_queue_create failed: %s", strerror(errno));
+						log_msg(LOG_ERROR, "neuropil_init: _np_jobqueue_create failed: %s", strerror(errno));
 						ret = np_startup;
 					}
 					// initialize message handling system				
@@ -223,20 +234,30 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 
 						_np_shutdown_init_auto_notify_others(context);
 
-						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s is the main receiving network", np_memory_get_id(my_network));
-
+						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s is the main receiving network", np_memory_get_id(my_network));																	
 						_np_network_enable(my_network);
+
+						np_threads_start_workers(context, context->settings->n_threads);
+						
 						log_msg(LOG_INFO, "neuropil successfully initialized: id:   %s", _np_key_as_str(context->my_identity));
 						log_msg(LOG_INFO, "neuropil successfully initialized: node: %s", _np_key_as_str(context->my_node_key));
 						_np_log_fflush(context, TRUE);
-
 					}
 
 				}
 			}
 			np_unref_obj(np_network_t, my_network, ref_obj_creation);		
 		}
+
+		if (ret == np_ok) {			
+			TSP_SET(context->status, np_running);
+		}
+		else {
+			TSP_SET(context->status, np_error);
+		}
 	}
+
+	
 	return ret;
 }
 
@@ -308,12 +329,16 @@ enum np_error np_run(np_context* ac, double duration) {
 	np_ctx_cast(ac); 
 	enum np_error ret = np_ok;
 	
-	_np_start_job_queue(context, context->settings->n_threads);
-	if(duration > NP_SLEEP_MIN) np_time_sleep(duration);
+	if (duration <= 0) {
+		__np_jobqueue_run_jobs_once(context);
+	}
+	else {
+		np_jobqueue_run_jobs_for(context, duration);
+	}
 
 	return ret;
 }
-
+ 
 enum np_error np_set_mx_properties(np_context* ac, np_id* subject, struct np_mx_properties properties) {
 	return np_not_implemented;
 }
@@ -326,4 +351,10 @@ void np_set_userdata(np_context *ac, void* userdata) {
 void* np_get_userdata(np_context *ac) {
 	np_ctx_cast(ac);
 	return context->userdata;
+}
+
+enum np_status np_get_status(np_context* ac) {
+	np_ctx_cast(ac);
+	TSP_GET(enum np_status, context->status, ret);
+	return ret;
 }

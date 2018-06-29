@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -28,7 +28,7 @@ int8_t _np_messagepart_cmp (const np_messagepart_ptr value1, const np_messagepar
 	uint16_t part_1 = value1->part; // np_tree_find_str(value1->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
 	uint16_t part_2 = value2->part; // np_tree_find_str(value2->instructions, NP_MSG_INST_PARTS)->val.value.a2_ui[1];
 
-	np_ctx_full(value1);
+	np_ctx_memory(value1);
 	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message part compare %d / %d / %d", part_1, part_2, part_1 - part_2);
 
 	if (part_2 > part_1) return ( 1);
@@ -106,7 +106,7 @@ np_bool _np_messagepart_encrypt(np_state_t* context,
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_encrypt(context, np_tree_t* msg_part,							unsigned char* nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
 	cmp_ctx_t cmp;
 
-	unsigned char msg_part_buffer[65536];
+	unsigned char msg_part_buffer[msg_part->byte_size*2];
 	void* msg_part_buf_ptr = msg_part_buffer;
 
 	cmp_init(&cmp, msg_part_buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);

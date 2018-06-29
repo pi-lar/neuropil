@@ -194,8 +194,8 @@ np_aaatoken_t* create_realm_identity()
 	np_new_obj(np_aaatoken_t, realm_identity);
 
 	strncpy(realm_identity->realm,   "pi-lar test realm",  255);
-	strncpy(realm_identity->subject, "pi-lar realmmaster", 255);
-	strncpy(realm_identity->issuer,  "pi-lar realmmaster", 64);
+	strncpy(realm_identity->subject, "pi-lar realmserver", 255);
+	strncpy(realm_identity->issuer,  "pi-lar realmserver", 64);
 
 	realm_identity->not_before = np_time_now();
 	realm_identity->expires_at = realm_identity->not_before + 7200.0;
@@ -281,7 +281,7 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-	   np_start_job_queue(8);
+	   np_threads_start_workers(8);
 	*/
 
 

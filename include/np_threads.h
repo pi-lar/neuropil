@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_THREADS_H_
@@ -161,13 +161,13 @@ NP_API_INTERN
 int _np_threads_module_condition_wait(np_state_t* context, np_cond_t* condition, np_module_lock_type module_id);
 
 
-NP_API_INTERN
+NP_API_EXPORT
 int _np_threads_mutex_init(np_state_t*context, np_mutex_t* mutex, const char* desc);
-NP_API_INTERN
+NP_API_EXPORT
 int _np_threads_mutex_lock(np_state_t*context, np_mutex_t* mutex, const char* where);
 NP_API_INTERN
 int _np_threads_mutex_trylock(np_state_t*context, np_mutex_t* mutex, const char* where);
-NP_API_INTERN
+NP_API_EXPORT
 int _np_threads_mutex_unlock(np_state_t*context, np_mutex_t* mutex);
 NP_API_INTERN
 void _np_threads_mutex_destroy(np_state_t*context, np_mutex_t* mutex);
@@ -196,6 +196,8 @@ NP_API_INTERN
 np_thread_t*_np_threads_get_self(np_state_t* context);
 NP_API_INTERN
 void _np_threads_set_self(np_thread_t * myThread);
+NP_API_INTERN;
+void np_threads_start_workers(np_state_t* context, uint8_t pool_size);
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
@@ -242,10 +244,10 @@ _LOCK_MODULE(np_keycache_t)
 // print the complete object list and statistics
 
 NP_API_PROTEC
-char* np_threads_printpool(np_bool asOneLine);
+char* np_threads_printpool(np_state_t* context, np_bool asOneLine);
 
 /*
-	TSP = Thread Save Property
+	TSP = ThreadSafeProperty
 */
 #define TSP(TYPE, NAME)								\
 	TYPE NAME;										\

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <assert.h>
@@ -33,7 +33,7 @@
 
 np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken_scope scope)
 {
-	np_ctx_full(source);
+	np_ctx_memory(source);
 	np_aaatoken_t* ret = NULL;
 
 	/// contract begin
@@ -98,7 +98,7 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
 }
 
 np_ident_public_token_t* np_token_factory_get_public_ident_token(np_aaatoken_t* source) {
-	np_ctx_full(source);
+	np_ctx_memory(source);
 	np_ident_public_token_t* ret = NULL;
 
 	ASSERT(FLAG_CMP(source->type, np_aaatoken_type_identity), "Can only directly derive ident token from ident token. current token type: %"PRIu8, source->type);
@@ -111,7 +111,7 @@ np_ident_public_token_t* np_token_factory_get_public_ident_token(np_aaatoken_t* 
 }
 
 np_node_public_token_t* np_token_factory_get_public_node_token(np_aaatoken_t* source) {
-	np_ctx_full(source);
+	np_ctx_memory(source);
 	np_node_public_token_t* ret = NULL;
 
 	ASSERT(FLAG_CMP(source->type , np_aaatoken_type_node), "Can only directly derive node token from node token. current token type: %"PRIu8, source->type);
@@ -149,7 +149,7 @@ np_aaatoken_t* __np_token_factory_new(np_state_t* context,char issuer[64], char 
 }
 
 np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_msgproperty_t* msg_request) {
-	np_ctx_full(msg_request);
+	np_ctx_memory(msg_request);
 	np_message_intent_public_token_t* ret = NULL;
 
 	ASSERT(msg_request != NULL, "source messageproperty cannot be NULL");
@@ -202,7 +202,7 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 	np_tree_replace_str( ret->extensions, "max_threshold",
 		np_treeval_new_ui(msg_request->max_threshold));
 	np_tree_replace_str( ret->extensions, "msg_threshold",
-		np_treeval_new_ui(0));//TODO: correct?@Stephan msg_request->msg_threshold));
+		np_treeval_new_ui(0)); //TODO: correct ?
 
 	// TODO: insert value based on msg properties / respect (sticky) reply
 	np_tree_replace_str( ret->extensions,  "target_node",
@@ -280,7 +280,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 
 np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* source_node)
 {
-	np_ctx_full(source_node);
+	np_ctx_memory(source_node);
 
 	int rand_interval = ((int)randombytes_uniform(NODE_MAX_TTL_SEC - NODE_MIN_TTL_SEC) + NODE_MIN_TTL_SEC);
 	double expires_at = np_time_now() + rand_interval;

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -98,7 +98,7 @@ void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 } 
 void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, np_bool include_stats)
 {
-	np_ctx_full(node_key);
+	np_ctx_memory(node_key);
 	np_tree_insert_str( data, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_ush(node_key->node->protocol));
 	np_tree_insert_str( data, NP_SERIALISATION_NODE_DNS_NAME, np_treeval_new_s(node_key->node->dns_name));
 	np_tree_insert_str( data, NP_SERIALISATION_NODE_PORT, np_treeval_new_s(node_key->node->port));
@@ -228,7 +228,7 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
 
 np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e expected_type)
 {
-	np_ctx_full(token);
+	np_ctx_memory(token);
 	if (FLAG_CMP(token->type, expected_type) == FALSE) {
 		log_debug_msg(LOG_DEBUG, "## decoding node from token str: %s", token->subject);
 		return NULL;
@@ -279,7 +279,7 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, 
 	{		
 		if (current->node != NULL)
 		{
-			np_ctx_full(current);
+			np_ctx_memory(current);
 			np_tree_t* node_jrb = np_tree_create();
 			// log_debug_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
 			_np_node_encode_to_jrb(node_jrb, current, include_stats);
@@ -328,7 +328,7 @@ sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, n
 
 np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
 {
-	np_ctx_full(token);
+	np_ctx_memory(token);
 	// TODO: check whether metadata is used as a hash key in general
 	np_dhkey_t search_key = np_aaatoken_get_fingerprint(token);
 	np_key_t* node_key    = _np_keycache_find_or_create(context, search_key);
@@ -390,7 +390,7 @@ void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
  **/
 void _np_node_update_stat (np_node_t* node, np_bool responded)
 {
-	np_ctx_full(node);
+	np_ctx_memory(node);
 	float total = 0;
 	np_ref_obj(np_node_t, node, "usage");
 	 {
@@ -418,7 +418,7 @@ void _np_node_update_stat (np_node_t* node, np_bool responded)
 
 void _np_node_update_latency (np_node_t* node, double new_latency)
 {
-	np_ctx_full(node);
+	np_ctx_memory(node);
 	if (new_latency > 0.0)
 	{
 		np_ref_obj(np_node_t, node, "usage");
@@ -437,8 +437,8 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
 					total += node->latency_win[i];
 				}
 				node->latency = total / NP_NODE_SUCCESS_WINDOW;
-				log_msg(LOG_INFO, "connection to node node %s:%s latency      now: %1.3f",
-						node->dns_name, node->port, node->latency);					
+				log_msg(LOG_INFO, "connection to node node %s:%s latency      now: %1.3f (update with: %1.3f)",
+						node->dns_name, node->port, node->latency, new_latency);
 				
 			}
 			np_unref_obj(np_node_t, node,"usage");

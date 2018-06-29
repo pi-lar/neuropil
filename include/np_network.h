@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -160,7 +160,7 @@ void _np_network_disable(np_network_t* self);
 NP_API_INTERN
 void _np_network_enable(np_network_t* self);
 NP_API_INTERN
-char* _np_network_as_string(np_network_t* self);
+void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args);
 #ifdef __cplusplus
 }
 #endif

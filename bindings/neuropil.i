@@ -19,6 +19,7 @@
 
 %include "np_types.i"
 %include "np_aaatoken.i"
+%include "np_identity.i"
 %include "np_log.i"
 %include "np_tree.i"
 %include "np_treeval.i"

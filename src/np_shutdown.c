@@ -36,9 +36,8 @@ static void __np_shutdown_signal_handler(int sig) {
 			np_state_t* context;
 			while ((context = sll_head(void_ptr,__running_instances))!= NULL)
 			{
-				TSP_SCOPE(context->__is_in_shutdown) {
-					context->__is_in_shutdown = TRUE;
-				}
+				TSP_SET(context->status, np_shutdown);
+
 				log_msg(LOG_WARN, "Received terminating process signal (%"PRIi32"). Shutdown in progress.", sig);
 				np_destroy(context, true);
 			}
@@ -124,7 +123,7 @@ void np_shutdown_notify_others(np_state_t* context) {
 				msgs_is_out = TRUE;
 			}
 			else {
-				np_time_sleep(0.01);
+				np_time_sleep(NP_PI/300);
 			}
 		}
 

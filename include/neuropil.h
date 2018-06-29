@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version was taken from chimera project, but heavily modified
@@ -13,7 +13,6 @@ It should contain all required functions to send or receive messages.
 #ifndef _NEUROPIL_H_
 #define _NEUROPIL_H_
 
-#include <pthread.h>
 
 #include "np_constants.h"
 
@@ -22,70 +21,44 @@ It should contain all required functions to send or receive messages.
 #include "np_types.h"
 #include "np_list.h"
 #include "np_memory.h"
-
-#include "np_network.h"
-#include "np_aaatoken.h"
-#include "np_axon.h"
-#include "np_dendrit.h"
-#include "np_dhkey.h"
-#include "np_event.h"
-#include "np_glia.h"
-#include "np_http.h"
-#include "np_identity.h"
-#include "np_jobqueue.h"
-#include "np_key.h"
-#include "np_keycache.h"
-#include "np_log.h"
-#include "np_message.h"
-#include "np_messagepart.h"
-#include "np_msgproperty.h"
-#include "np_network.h"
-#include "np_node.h"
-#include "np_pinging.h"
-#include "np_responsecontainer.h"
-#include "np_route.h"
-#include "np_scache.h"
-#include "np_serialization.h"
-#include "np_settings.h"
-#include "np_shutdown.h"
-#include "np_statistics.h"
-#include "np_sysinfo.h"
-#include "np_threads.h"
-#include "np_token_factory.h"
 #include "np_tree.h"
 #include "np_treeval.h"
-#include "np_util.h"
 #include "map.h"
+#include "np_scache.h"
 
 #include "np_interface.h"
 
-#define NEUROPIL_RELEASE	"neuropil_0.4.0"
+
+#define NEUROPIL_RELEASE	"neuropil_0.6.0"
 #ifndef NEUROPIL_RELEASE_BUILD
 #define NEUROPIL_RELEASE_BUILD 0
 #endif //NEUROPIL_RELEASE_BUILD
 
-#define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2017 neuropil.org, Cologne, Germany"
-#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2017 pi-lar GmbH, Cologne, Germany"
+#define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2018 neuropil.org, Cologne, Germany"
+#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2018 pi-lar GmbH, Cologne, Germany"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define np_ctx(c)				\
+#define np_ctx_by_memory(c)				\
 		np_memory_get_context(c)			
 #define np_ctx_decl(b)				\
 		np_state_t* context = (b)
-#define np_ctx_full(a)				\
-		np_ctx_decl(np_ctx(a))
+#define np_ctx_memory(a)				\
+		np_ctx_decl(np_ctx_by_memory(a))
 
 
 #define NP_CTX_MODULES route, memory, threads, events, statistics, msgproperties, keycache, sysinfo, log, jobqueue, shutdown
 
+/**
+\toggle_keepwhitespaces
+*/
 #define np_module_struct(m) struct CONCAT(np_, CONCAT(m, _module_s))
 #define np_module_type(m) CONCAT(np_, CONCAT(m, _module_t))
 
 #define np_module_typedef(m) typedef np_module_struct(m) np_module_type(m);
 
-#define np_module_member_name(m) CONCAT(np_module, m)
+#define np_module_member_name(m) CONCAT(np_module_, m)
 #define np_module_member(m) np_module_type(m) * np_module_member_name(m);
 
 #define np_module_malloc(m) 														\
@@ -101,8 +74,7 @@ extern "C" {
 	np_state_t* context = ac		\
 
 
-MAP(np_module_typedef, NP_CTX_MODULES)
-/** \toggle_keepwhitespaces  */
+MAP(np_module_typedef, NP_CTX_MODULES);
 
 /**
 .. c:type:: np_state_t
@@ -114,7 +86,7 @@ MAP(np_module_typedef, NP_CTX_MODULES)
 */
 struct np_state_s
 {
-	TSP(np_bool, __is_in_shutdown);
+	TSP(enum np_status, status);
 	struct np_settings* settings;
 	//void* modules[np_modules_END];
 	MAP(np_module_member, NP_CTX_MODULES)
@@ -132,8 +104,8 @@ struct np_state_s
 
 	int thread_count;
 
-	np_bool enable_realm_master; // act as a realm master for other nodes or not
-	np_bool enable_realm_slave; // act as a realm salve and ask master for aaatokens
+	np_bool enable_realm_server; // act as a realm server for other nodes or not
+	np_bool enable_realm_client; // act as a realm client and ask server for aaatokens
 
 	np_aaa_func_t  authenticate_func; // authentication callback
 	np_aaa_func_t  authorize_func;    // authorization callback
@@ -153,26 +125,26 @@ NP_API_EXPORT
 void np_destroy(np_context*ac, bool gracefully);
 
 /**
-.. c:function:: void np_enable_realm_master()
+.. c:function:: void np_enable_realm_server()
 
-   Manually set the realm and enable this node to act as a master for it.
+   Manually set the realm and enable this node to act as a server for it.
    This will add the appropiate message callback required to handle AAA request
    send by other nodes.
 
 */
 NP_API_EXPORT
-void np_enable_realm_master(np_context*ac);
+void np_enable_realm_server(np_context*ac);
 
 /**
-.. c:function:: void np_enable_realm_salve()
+.. c:function:: void np_enable_realm_client()
 
-   Manually set the realm and enable this node to act as a slave in it.
+   Manually set the realm and enable this node to act as a client in it.
    This will exchange the default callbacks (accept all) with callbacks that
-   forwards tokens to the realm master.
+   forwards tokens to the realm server.
 
 */
 NP_API_EXPORT
-void np_enable_realm_slave(np_context*ac);
+void np_enable_realm_client(np_context*ac);
 
 /**
 .. c:function:: void np_set_realm_name(const char* realm_name)
@@ -181,7 +153,7 @@ void np_enable_realm_slave(np_context*ac);
    This will create new dh-key and re-setup some internal structures and must be called
    after initializing with np_init and before starting the job queue
 
-   :param realm_name: the name of the realm to act as a master for
+   :param realm_name: the name of the realm to act as a server for
 
 */
 NP_API_EXPORT
@@ -279,11 +251,11 @@ void np_add_receive_listener (np_context*ac, np_usercallback_t msg_handler, char
 /**
 .. c:function:: void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
 
-register an message callback handler for a subject. The callback is called when a message will be send.
-The callback function should return TRUE if the message should be send, FALSE otherwise.
+   register an message callback handler for a subject. The callback is called when a message will be send.
+   The callback function should return TRUE if the message should be send, FALSE otherwise.
 
-:param msg_handler: a function pointer to a np_usercallback_t function
-:param subject: the message subject the handler should be called for
+   :param msg_handler: a function pointer to a np_usercallback_t function
+   :param subject: the message subject the handler should be called for
 
 */
 NP_API_EXPORT
@@ -357,17 +329,6 @@ NP_API_EXPORT
 char* np_build_connection_string(char* hash, char* protocol, char*dns_name, char* port, np_bool includeHash);
 
 /**
-.. c:function:: void _np_start_job_queue(np_state_t* state, uint8_t pool_size)
-
-   Start processing of messages within the neuropil subsystem
-
-   :param pool_size: the number of threads that should compete for tasks
-
-*/
-NP_API_EXPORT
-void _np_start_job_queue(np_state_t *context, uint8_t pool_size);
-
-/**
 .. c:function:: void _np_ping_send(np_state_t* context, np_key_t* key)
 
    Sends a ping message to a key. Can be used to check the connectivity to a node
@@ -376,7 +337,6 @@ void _np_start_job_queue(np_state_t *context, uint8_t pool_size);
    In case of doubt: do not use it.
 
    :param key: the np_key_t where the ping should be send to
-
 */
 NP_API_INTERN
 void _np_ping_send(np_state_t* context, np_key_t* key);
@@ -395,7 +355,7 @@ NP_API_INTERN
 void _np_send_simple_invoke_request(np_key_t* target, const char* type);
 
 NP_API_INTERN
-np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* type);
+np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* type);
 
 NP_API_EXPORT
 void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body);

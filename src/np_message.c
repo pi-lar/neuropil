@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <stdio.h>
@@ -154,7 +154,7 @@ void _np_message_t_del(np_state_t *context, uint8_t type, size_t size, void* dat
 void _np_message_calculate_chunking(np_message_t* msg)
 {
 
-    np_ctx_full(msg);
+    np_ctx_memory(msg);
     // np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 
     // TODO: message part split-up informations
@@ -184,15 +184,16 @@ void _np_message_calculate_chunking(np_message_t* msg)
 
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 {
-    np_ctx_full(msg_to_check);
+    np_ctx_memory(msg_to_check);
     log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check){");
     np_state_t* state = context;
     np_message_t* ret= NULL;
 
+#ifdef DEBUG
     char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
-    char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
-
+#endif
     // Detect from instructions if this msg was orginally chunked
+	char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
     uint16_t expected_msg_chunks = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
 
     if (1 < expected_msg_chunks)
@@ -207,6 +208,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
                 // lets add our msgpart to this msg
 
                 np_message_t* msg_in_cache = msg_in_cache = tmp->val.value.v;
+
                 np_messagepart_ptr to_add = NULL;
                 _LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
                     to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks); // get the messagepart we received
@@ -215,7 +217,6 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
                 }
                 log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
                         "message (%s) %p / %p / %p", msg_uuid, msg_in_cache, msg_in_cache->msg_chunks, to_add);
-
 
                 uint32_t current_count_of_chunks = 0;
                 _LOCK_ACCESS(&msg_in_cache->msg_chunks_lock)
@@ -283,7 +284,7 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 
 double _np_message_get_expiery(const np_message_t* const self) {
 
-    np_ctx_full(self); 
+    np_ctx_memory(self); 
     double now = np_time_now();
     double ret = now;
 
@@ -299,7 +300,6 @@ double _np_message_get_expiery(const np_message_t* const self) {
         log_msg(LOG_WARN, "Detected faulty timestamp for message. Setting to now. (timestamp: %f, now: %f, diff: %f sec)", tstamp, now, tstamp - now);
         msg_tstamp.value.d = tstamp = now;
     }
-
     ret = (tstamp + msg_ttl.value.d);	
 
 __np_cleanup__:
@@ -309,7 +309,7 @@ __np_cleanup__:
 
 np_bool _np_message_is_expired(const np_message_t* const self)
 {
-    np_ctx_full(self);
+    np_ctx_memory(self);
     np_bool ret = FALSE;
     double now = np_time_now();
 
@@ -318,12 +318,15 @@ np_bool _np_message_is_expired(const np_message_t* const self)
     CHECK_STR_FIELD(self->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
     double tstamp = msg_tstamp.value.d;
 #endif
+
     double remaining_ttl = _np_message_get_expiery(self) - now;
     ret = remaining_ttl <= 0;
 
     log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f", self->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
 
-    __np_cleanup__:
+#ifdef DEBUG
+	__np_cleanup__: {}
+#endif
 
      return ret;
 }
@@ -361,7 +364,7 @@ np_bool _np_message_serialize_chunked(np_message_t* msg)
 {
     log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_message_serialize_chunked(np_state_t* context, np_jobargs_t* args){");
 
-    np_state_t* context = np_ctx(msg);
+    np_state_t* context = np_ctx_by_memory(msg);
 
     np_ref_obj(np_message_t, msg);
 
@@ -597,7 +600,7 @@ np_bool _np_message_serialize_chunked(np_message_t* msg)
 
 np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void* buffer)
 {
-    np_ctx_full(msg);
+    np_ctx_memory(msg);
     np_bool ret = FALSE;
     np_tryref_obj(np_message_t, msg, msgExisits,"np_tryref_obj_msg");
 
@@ -612,7 +615,7 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 
             cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
 
-            uint32_t array_size;
+			uint32_t array_size = 0;
 
             if (!cmp_read_array(&cmp, &array_size))
             {
@@ -709,7 +712,7 @@ np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void*
 
 np_bool _np_message_deserialize_chunked(np_message_t* msg)
 {
-    np_ctx_full(msg);
+    np_ctx_memory(msg);
     np_bool ret = TRUE;
 
     if (msg->bin_body != NULL) {
@@ -863,7 +866,7 @@ np_bool _np_message_deserialize_chunked(np_message_t* msg)
  */
 void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const char* subject, np_tree_t* the_data)
 {
-    np_ctx_full(msg);
+    np_ctx_memory(msg);
     // np_message_t* new_msg;
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
@@ -917,7 +920,7 @@ inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
 
 void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
-    np_ctx_full(msg);
+    np_ctx_memory(msg);
 
     // first encrypt the relevant message part itself
     unsigned char nonce[crypto_box_NONCEBYTES];
@@ -969,11 +972,17 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
     // add encryption details to the message
     np_tree_insert_str( msg->body, NP_SYMKEY, np_treeval_new_tree(encryption_details));
     np_tree_free(encryption_details);
+
+
+	// max ttl of msg
+	double now = np_time_now();
+	np_tree_insert_str(msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+	np_tree_insert_str(msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(tmp_token->expires_at - now));
 }
 
 np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
-    np_ctx_full(msg);
+    np_ctx_memory(msg);
     np_bool ret = TRUE;
     
 
@@ -1048,7 +1057,7 @@ np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 }
 
 char* _np_message_get_subject(np_message_t* msg) {
-    np_ctx_full(msg);
+    np_ctx_memory(msg);
     char* ret = NULL;
     if (msg->msg_property != NULL) {
         ret = msg->msg_property->msg_subject;
@@ -1063,7 +1072,7 @@ char* _np_message_get_subject(np_message_t* msg) {
 }
 
 void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply) {
-    np_ctx_full(self);
+    np_ctx_memory(self);
     TSP_SCOPE(self->has_reply) {
         sll_append(np_message_on_reply_t, self->on_reply, on_reply);
     }
@@ -1071,14 +1080,14 @@ void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply)
 
 void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_reply_to_remove) {
 
-    np_ctx_full(self);
+    np_ctx_memory(self);
     TSP_SCOPE(self->has_reply) {
         sll_remove(np_message_on_reply_t, self->on_reply, on_reply_to_remove, np_message_on_reply_t_sll_compare_type);
     }
 }
 
 np_dhkey_t* _np_message_get_sender(np_message_t* self){
-    np_ctx_full(self);
+    np_ctx_memory(self);
     np_dhkey_t* ret = NULL;
 
     np_tree_elem_t* ele = np_tree_find_str(self->header, _NP_MSG_HEADER_FROM);
@@ -1090,14 +1099,14 @@ np_dhkey_t* _np_message_get_sender(np_message_t* self){
 
 void _np_message_trace_info(char* desc, np_message_t * msg_in) {
 
-    np_ctx_full(msg_in);
+    np_ctx_memory(msg_in);
     char * info_str;
     asprintf(&info_str, "MessageTrace_%s",desc);
 #ifdef DEBUG
-    np_tree_elem_t* tmp = NULL;
     np_bool free_key, free_value;
     char *key, *value;
     info_str = np_str_concatAndFree(info_str, " Header (");
+	np_tree_elem_t * tmp;
     if(msg_in->header != NULL){
         RB_FOREACH(tmp, np_tree_s, (msg_in->header))
         {
@@ -1125,4 +1134,5 @@ void _np_message_trace_info(char* desc, np_message_t * msg_in) {
 #endif
 
     log_msg(LOG_ROUTING | LOG_INFO, info_str);	
+	free(info_str);
 }

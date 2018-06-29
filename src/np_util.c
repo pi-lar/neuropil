@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <ctype.h>
@@ -495,18 +495,11 @@ sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int32_t amount) 
 }
 
 #ifdef DEBUG_CALLBACKS
-np_sll_t(void_ptr, __np_debug_statistics) = NULL;
 
-void __np_util_debug_statistics_init() {
-	if (__np_debug_statistics == NULL) {
-		sll_init(void_ptr, __np_debug_statistics);
-	}
-}
-_np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key) {
-	__np_util_debug_statistics_init();
+_np_util_debug_statistics_t* __np_util_debug_statistics_get(np_state_t * context, char* key) {
 	_np_util_debug_statistics_t* ret = NULL;
 	_LOCK_MODULE(np_utilstatistics_t) {
-		sll_iterator(void_ptr) iter = sll_first(__np_debug_statistics);
+		sll_iterator(void_ptr) iter = sll_first(np_module(statistics)->__np_debug_statistics);
 
 		while (iter != NULL) {
 			_np_util_debug_statistics_t* item = (_np_util_debug_statistics_t*)iter->val;
@@ -519,10 +512,23 @@ _np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key) {
 	}
 	return ret;
 }
-_np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double value) {
-	__np_util_debug_statistics_init();
+char* __np_util_debug_statistics_print(np_state_t * context) {
+	char* ret = NULL;
+	_LOCK_MODULE(np_utilstatistics_t) {
+		sll_iterator(void_ptr) iter = sll_first(np_module(statistics)->__np_debug_statistics);
 
-	_np_util_debug_statistics_t* item = __np_util_debug_statistics_get(key);
+		ret = np_str_concatAndFree(ret, "%85s --> %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "hits");
+		while (iter != NULL) {
+			_np_util_debug_statistics_t* item = (_np_util_debug_statistics_t*)iter->val;			
+			ret = np_str_concatAndFree(ret, "%85s --> %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",
+				item->key, item->min, item->avg, item->max, item->count);								
+			sll_next(iter);
+		}
+	}
+	return ret;
+}
+_np_util_debug_statistics_t* _np_util_debug_statistics_add(np_state_t * context, char* key, double value) {
+	_np_util_debug_statistics_t* item = __np_util_debug_statistics_get(context, key);
 	if (item == NULL) {
 		item = (_np_util_debug_statistics_t*)calloc(1, sizeof(_np_util_debug_statistics_t));
 		item->min = DBL_MAX;
@@ -532,7 +538,7 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 		_np_threads_mutex_init(context, &item->lock,"debug_statistics");
 
 		_LOCK_MODULE(np_utilstatistics_t) {
-			sll_append(void_ptr, __np_debug_statistics, (void_ptr)item);
+			sll_append(void_ptr, np_module(statistics)->__np_debug_statistics, (void_ptr)item);
 		}
 	}
 
@@ -549,7 +555,18 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double val
 }
 #endif
 
+char* np_util_string_trim_left(char* target) {
+	char* ret = target;
+	
+	for (int i = 0; i < strlen(target); i++) {
+		if (!(target[i] == ' ' || target[i] == '\t' || target[i] == '\r' || target[i] == '\n')) {
+			ret = &target[i];
+			break;
+		}
+	}
 
+	return ret;
+}
 char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]) {
 	
 	if (type == np_util_stringify_bytes_per_sec)
@@ -593,6 +610,13 @@ char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char b
 		}
 		to_format = bytes / divisor;
 		sprintf(buffer, "%5.2f %s", to_format, f);
+	}
+	else if (type == np_util_stringify_time_ms) {
+
+		double time = *((double*)data);
+		
+		//sprintf(buffer, "%+"PRIu32" ms", ceil(time * 1000));
+		sprintf(buffer, "%+f ms", time);
 	}
 	else {
 		strcpy(buffer, "<unknown type>");

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <assert.h>
@@ -679,7 +679,7 @@ uint32_t np_treeval_get_byte_size(np_treeval_t ele)
 		case np_treeval_type_void: 						byte_size += 1 + sizeof(void*); break;
 		case np_treeval_type_bin: 						byte_size += 1 + sizeof(uint32_t) + ele.size; break;
 		case np_treeval_type_hash: 						byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.size; break;
-		case np_treeval_type_jrb_tree:					byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.value.tree->byte_size; break;
+		case np_treeval_type_jrb_tree:					byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + ele.value.tree->byte_size; break;
 		case np_treeval_type_dhkey:						byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of dhkey*/8 * (sizeof(uint8_t) /*uint32 marker*/+ sizeof(uint32_t)/*uint32 value*/)); break;
 		case np_treeval_type_special_char_ptr:			byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of special string (1:1 replacement on target)*/ sizeof(uint8_t)/*uint8 marker*/ + sizeof(uint8_t)/*uint8 value*/); break; 
 		//default:                  log_msg(LOG_ERROR, "unsupported length calculation for value / type %"PRIu8"", ele.type ); break;

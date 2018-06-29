@@ -27,7 +27,6 @@
 #include "np_types.h"
 #include "np_list.h"
 #include "np_util.h"
-#include "np_http.h"
 #include "np_memory.h"
 #include "np_message.h"
 #include "np_msgproperty.h"

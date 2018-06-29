@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -52,7 +52,7 @@ int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
 
 char* _np_key_as_str(np_key_t* key)
 {
-	np_ctx_full(key);
+	np_ctx_memory(key);
 
 	if (NULL == key->dhkey_str){
 		key->dhkey_str = (char*) malloc(65);
@@ -72,7 +72,7 @@ void np_key_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const c
 		iter)
 	{
 		if (context == NULL && iter->val != NULL) {
-			context = np_ctx(iter->val);
+			context = np_ctx_by_memory(iter->val);
 		}
 		np_ref_obj(np_key_t, (iter->val), reason, reason_desc);
 		sll_next(iter);
@@ -87,7 +87,7 @@ void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
 	{
 		
 		if (context == NULL && iter->val != NULL) {
-			context = np_ctx(iter->val);
+			context = np_ctx_by_memory(iter->val);
 		}
 		np_unref_obj(np_key_t, (iter->val), reason);
 		sll_next(iter);
@@ -98,7 +98,7 @@ void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
  * Destroys a key with all resources
  */
 void _np_key_destroy(np_key_t* to_destroy) {
-	np_ctx_full(to_destroy);
+	np_ctx_memory(to_destroy);
 
 	TSP_SCOPE(to_destroy->in_destroy)
 	{
@@ -172,7 +172,6 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
 	log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
 }
-
 
 void _np_key_t_new(np_state_t *context, uint8_t type, size_t size, void* key)
 {
@@ -265,16 +264,15 @@ np_key_t* _np_key_get_by_key_hash(np_state_t* context, char* targetDhkey)
 	return target;
 }
 
-
 void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop) {
-	np_ctx_full(self);
+	np_ctx_memory(self);
 	np_ref_switch(np_msgproperty_t, self->recv_property, ref_key_recv_property, prop);
 	prop->recv_key = self;
 
 }
 
 void _np_key_set_send_property(np_key_t* self, np_msgproperty_t* prop) {
-	np_ctx_full(self);
+	np_ctx_memory(self);
 	np_ref_switch(np_msgproperty_t, self->send_property, ref_key_send_property, prop);
 	prop->send_key = self;
 }

@@ -31,6 +31,9 @@ print ('building on: {platform} / {processor} / {system}'.format(platform=str(pl
 
 # use clang to compile the source code
 default_env = Environment(CC = 'clang')
+if 'TERM' in os.environ:
+  default_env['ENV']['TERM'] = os.environ['TERM']
+
 default_env.VariantDir('build/obj/src', 'src', duplicate=0)
 default_env.VariantDir('build/obj/test', 'test', duplicate=0)
 default_env.VariantDir('build/obj/examples', 'examples', duplicate=0)
@@ -84,7 +87,7 @@ if int(release) >= 1:
     default_env.Append(CCFLAGS = release_flags)
 
 # add debug compilation options
-debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O3']
+debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O0']
 if int(debug) >= 1:
     default_env.Append(CCFLAGS = debug_flags)
     if int(debug) <= 1:
@@ -208,7 +211,7 @@ if int(analyze) and scan_build_exe:
 
 # sources for neuropil
 SOURCES =  ['build/obj/src/dtime.c',		'build/obj/src/np_time.c',			'build/obj/src/neuropil.c',		'build/obj/src/np_aaatoken.c',		'build/obj/src/np_axon.c',		'build/obj/src/np_dendrit.c']
-SOURCES += ['build/obj/src/np_glia.c',		'build/obj/src/np_http.c',			'build/obj/src/np_jobqueue.c',	'build/obj/src/np_dhkey.c',			'build/obj/src/np_key.c',		'build/obj/src/np_keycache.c']
+SOURCES += ['build/obj/src/np_glia.c',		'build/obj/src/np_jobqueue.c',		'build/obj/src/np_dhkey.c',		'build/obj/src/np_key.c',			'build/obj/src/np_keycache.c']
 SOURCES += ['build/obj/src/np_log.c',		'build/obj/src/np_memory.c',		'build/obj/src/np_message.c',	'build/obj/src/np_msgproperty.c',	'build/obj/src/np_network.c',	'build/obj/src/np_node.c']
 SOURCES += ['build/obj/src/np_route.c',		'build/obj/src/np_tree.c',			'build/obj/src/np_util.c',		'build/obj/src/np_treeval.c',		'build/obj/src/np_threads.c',	'build/obj/src/np_pinging.c']
 SOURCES += ['build/obj/src/np_sysinfo.c',	'build/obj/src/np_scache.c',		'build/obj/src/np_event.c',		'build/obj/src/np_messagepart.c',	'build/obj/src/np_statistics.c','build/obj/src/np_responsecontainer.c']

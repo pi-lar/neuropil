@@ -81,6 +81,7 @@ np_bool receive_pong(np_context *context, const np_message_t* const msg,  np_tre
 	return TRUE;
 }
 
+
 int main(int argc, char **argv)
 {
 	int no_threads = 8;
@@ -117,6 +118,9 @@ int main(int argc, char **argv)
 	*/
 	struct np_settings *settings = np_new_settings(NULL);
 	settings->n_threads = no_threads;
+	/**
+	   \endcode
+	*/
 
 	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
 	fprintf(stdout, "logpath: %s\n", settings->log_file);

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <assert.h>
@@ -26,7 +26,6 @@
 #include "np_axon.h"
 #include "np_dendrit.h"
 #include "np_glia.h"
-#include "np_http.h"
 #include "np_jobqueue.h"
 #include "np_tree.h"
 #include "np_dhkey.h"
@@ -70,7 +69,7 @@ np_bool _np_default_authorizefunc (np_context* ac, np_aaatoken_t* token )
 	return (TRUE);
 }
 /**
- * The default realm slave authorize function. Forwards the authorization request to the realm master
+ * The default realm client authorize function. Forwards the authorization request to the realm server
  * @param token
  * @return
  */
@@ -112,7 +111,7 @@ np_bool _np_default_authenticatefunc (np_context*ac, np_aaatoken_t* token )
 	return (TRUE);
 }
 /**
- * The default realm slave authenticate function. Forwards the authenticate request to the realm master
+ * The default realm client authenticate function. Forwards the authenticate request to the realm server
  * @param token
  * @return
  */
@@ -152,7 +151,7 @@ np_bool _np_default_accountingfunc (np_context*ac, np_aaatoken_t* token )
 	return (TRUE);
 }
 /**
- * The default realm slave accounting function. Forwards the accounting request to the realm master
+ * The default realm client accounting function. Forwards the accounting request to the realm server
  * @param token
  * @return
  */
@@ -267,27 +266,26 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
 	np_unref_obj(np_key_t, new_node_key,"_np_keycache_find_or_create");
 }
 /**
- * Enables this node as realm slave.
- * The node will forward all aaa requests to the realm master
+ * Enables this node as realm client.
+ * The node will forward all aaa requests to the realm server
  */
-void np_enable_realm_slave(np_context*ac)
+void np_enable_realm_client(np_context*ac)
 {
 	np_ctx_cast(ac);
-	log_trace_msg(LOG_TRACE, "start: void np_enable_realm_slave(){");
 	context->authorize_func    = _np_aaa_authorizefunc;
 	context->authenticate_func = _np_aaa_authenticatefunc;
 	context->accounting_func   = _np_aaa_accountingfunc;
 
-	context->enable_realm_master = FALSE;
-	context->enable_realm_slave = TRUE;
+	context->enable_realm_server = FALSE;
+	context->enable_realm_client = TRUE;
 }
+
 /**
- * Enables this node as realm master.
+ * Enables this node as realm server.
  */
-void np_enable_realm_master(np_context*ac )
+void np_enable_realm_server(np_context*ac )
 {
 	np_ctx_cast(ac);
-	log_trace_msg(LOG_TRACE, "start: void np_enable_realm_master(){");
 	if (NULL == context->realm_name)
 	{
 		return;
@@ -314,8 +312,8 @@ void np_enable_realm_master(np_context*ac )
 		prop->msg_audience = strndup(context->realm_name, 255);
 	}
 
-	context->enable_realm_master = TRUE;
-	context->enable_realm_slave = FALSE;
+	context->enable_realm_server = TRUE;
+	context->enable_realm_client = FALSE;
 }
 
 /**
@@ -328,7 +326,7 @@ void np_waitforjoin(np_context*ac)
 	log_trace_msg(LOG_TRACE, "start: void np_waitforjoin(){");
 	while (FALSE == _np_route_my_key_has_connection(context))
 	{
-		np_time_sleep(0.31415/2);
+		np_time_sleep(0.0);
 	}
 }
 
@@ -571,10 +569,13 @@ void np_destroy(np_context*ac, bool gracefully)
 
 	__global_state = state
 	*/
+
+	TSP_SET(context->status, np_uninitialized);
 }
 
 void np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
 	np_ctx_cast(ac);
+
 	// create a new token for encryption each time neuropil starts
 	np_tryref_obj(np_key_t, context->my_node_key, has_old_node_key, __func__);
 	np_key_t* my_old_node_key = context->my_node_key;
@@ -643,11 +644,11 @@ char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char*
 	return connection_str;
 }
 
-np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* subject) {
+np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* subject) {
 	log_trace_msg(LOG_TRACE, "start: void _np_send_simple_invoke_request(np_key_t* target, const char* subject) {");
 
 	assert(target!= NULL);
-	np_state_t* context = np_ctx(target);
+	np_state_t* context = np_ctx_by_memory(target);
 
 	np_tree_t* jrb_data = np_tree_create();
 	np_tree_t* jrb_my_node = np_tree_create();
@@ -665,7 +666,7 @@ np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* su
 	np_new_obj(np_message_t, msg_out, __func__);
 	_np_message_create(msg_out, target->dhkey, context->my_node_key->dhkey, subject, jrb_data);
 
-	log_debug_msg(LOG_DEBUG, "submitting join request to target key %s", _np_key_as_str(target));
+	log_debug_msg(LOG_DEBUG, "submitting request to target key %s", _np_key_as_str(target));
 	np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, subject);
 	_np_job_submit_msgout_event(context, 0.0, prop, target, msg_out);
 
@@ -676,17 +677,18 @@ np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* su
 
 void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 	assert(target != NULL);
-	np_state_t* context = np_ctx(target);
+	np_state_t* context = np_ctx_by_memory(target);
 	np_message_t*  msg = _np_send_simple_invoke_request_msg(target, type);
 
 	np_unref_obj(np_message_t, msg, "_np_send_simple_invoke_request_msg");
 }
+
 /**
-* Sends a JOIN request to the given node string.
-* Please see @np_get_connection_string() for the node_string definition
-* @param node_string
+ * Sends a JOIN request to the given node string.
+ * Please see @np_get_connection_string() for the node_string definition
+ * @param node_string
 	@deprecated
-*/
+ */
 void np_send_join(np_context*ac, const char* node_string)
 {
 	np_ctx_cast(ac);
@@ -718,17 +720,12 @@ void np_send_join(np_context*ac, const char* node_string)
 void _np_send_ack(const np_message_t* const msg_to_ack)
 { 
 	assert(msg_to_ack != NULL);
-	np_state_t* context = np_ctx(msg_to_ack);
+	np_state_t* context = np_ctx_by_memory(msg_to_ack);
 	 
 	uint32_t seq = 0;
 
 	CHECK_STR_FIELD(msg_to_ack->header, _NP_MSG_HEADER_FROM, ack_to);
 	np_dhkey_t ack_dhkey = ack_to.value.dhkey;
-
-	// extract data from incoming message
-	np_tree_elem_t* tmp;
-	if ((tmp = np_tree_find_str(msg_to_ack->instructions, _NP_MSG_INST_SEQ)) != NULL)
-		seq = tmp->val.value.ul;
 
 	// create new ack message & handlers
 	np_message_t* ack_msg = NULL;
@@ -741,9 +738,9 @@ void _np_send_ack(const np_message_t* const msg_to_ack)
 	np_tree_insert_str( ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
 
 	// send the ack out
+	// no direct connection possible, route through the dht
 	_np_job_submit_route_event(context, 0.0, prop, NULL, ack_msg);
-
-	log_debug_msg(LOG_DEBUG, "ACK_HANDLING send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
+	log_debug_msg(LOG_INFO, "ACK_HANDLING route  send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
 
 	np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
 	return;
@@ -751,6 +748,7 @@ void _np_send_ack(const np_message_t* const msg_to_ack)
 	__np_cleanup__:
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACK target missing");
 }
+
 /**
 * Takes a node connection string and tries to connect to any node available on the other end.
 * node_string should not contain a hash value (nor the trailing: character).
@@ -786,7 +784,6 @@ void np_send_wildcard_join(np_context*ac, const char* node_string)
 	np_route_set_bootstrap_key(wildcard_node_key);
 	np_unref_obj(np_key_t, wildcard_node_key, "_np_node_decode_from_str");
 }
-
 
 np_bool np_has_receiver_for(np_context*ac, char * subject) {
 	np_ctx_cast(ac);

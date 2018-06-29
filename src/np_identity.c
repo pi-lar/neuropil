@@ -28,9 +28,22 @@ size_t np_identity_export_current(np_context* ac, void* buffer) {
 	return ret;
 }
 
+char* np_identity_fingerprint_current(np_context* ac) {
+	np_ctx_cast(ac);
+	char* fp_str = malloc(64);
+	memset(fp_str, 0, 64);
+	if( context->my_identity != NULL &&
+		context->my_identity->aaa_token != NULL) {
+		np_dhkey_t fp_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token);
+		_np_dhkey_to_str(&fp_dhkey, fp_str);
+	}
+	return (fp_str);
+}
+
 size_t np_identity_export(np_context* ac, np_aaatoken_t* token, void* buffer) {	
-	np_ctx_full(token);
+	np_ctx_cast(ac);
 	assert(ac == context && "You cannot export a token from one context with another context");
+
 	np_tree_t* serialization_tree = np_tree_create();
 
 	np_aaatoken_encode_with_secrets(serialization_tree, token);
@@ -47,6 +60,14 @@ size_t np_identity_export(np_context* ac, np_aaatoken_t* token, void* buffer) {
 	np_tree_serialize(context, serialization_tree, &cmp);
 
 	return serialization_tree->byte_size;
+}
+
+char* np_identity_fingerprint(np_context * ac, np_aaatoken_t* token) {
+	np_ctx_cast(ac);
+	char* fp_str = malloc(64);
+	np_dhkey_t fp_dhkey = np_aaatoken_get_fingerprint(token);
+	_np_dhkey_to_str(&fp_dhkey, fp_str);
+	return (fp_str);
 }
 
 np_aaatoken_t* np_identity_import(np_context* ac, void* buffer, size_t size) {
@@ -72,3 +93,4 @@ np_aaatoken_t* np_identity_import(np_context* ac, void* buffer, size_t size) {
 
 	return ret;
 }
+

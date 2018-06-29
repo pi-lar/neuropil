@@ -11,6 +11,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <assert.h>
+#ifdef NP_BENCHMARKING
+#include <math.h>
+#endif
+#include <float.h>
+
+#include <pthread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,6 +33,14 @@ extern "C" {
 	// Implementation defined limits
 	#define NP_EXTENSION_BYTES (10*1024)
 	#define NP_EXTENSION_MAX (NP_EXTENSION_BYTES-1)
+
+	enum np_status {
+		np_uninitialized = 0,
+		np_running,
+		np_stopped,
+		np_shutdown,
+		np_error
+	};
 
 	enum np_error {
 		np_ok = 0,
@@ -120,6 +135,8 @@ extern "C" {
 	bool np_has_joined(np_context * ac);
 	void np_set_userdata(np_context * ac, void* userdata);
 	void* np_get_userdata(np_context * ac);
+	enum np_status np_get_status(np_context* ac);
+
 #ifdef __cplusplus
 }
 #endif

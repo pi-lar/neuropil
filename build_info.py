@@ -17,12 +17,12 @@ def sign_file(filepath,pw):
         'pw':pw,
         'filepath':filepath
     }
-    cmds = [        
+    cmds = [
             ["openssl","dgst","-sha256","-sign","build_sign.key","-passin","pass:%(pw)s"% data,"-out","%(filepath)s.sig.raw"% data,"%(filepath)s"% data],
             ["openssl","base64","-in","%(filepath)s.sig.raw"% data, "-out", "%(filepath)s.sha256.sig" % data],
-            ["rm","%(filepath)s.sig.raw"% data] 
+            ["rm","%(filepath)s.sig.raw"% data]
         ]
-    for cmd in cmds:    
+    for cmd in cmds:
         subprocess.check_call(cmd)
 
 def sign_folder(folder,pw):
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             print("missing parameter -pw in build")
             action = False
         else:
-            action = True        
+            action = True
             sign_folder("bin/",args.pw)
             sign_folder("build/lib/",args.pw)
             tarfilepath = "release/%s.tar.gz" % (get_build_name())

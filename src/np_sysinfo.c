@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -44,7 +44,7 @@ np_module_struct(sysinfo) {
 	np_state_t* context;
 	np_simple_cache_table_t* _cache;
 };
-void _np_sysinfo_slave_send_cb(np_state_t* context, np_jobargs_t* args);
+void _np_sysinfo_client_send_cb(np_state_t* context, np_jobargs_t* args);
 
 void _np_sysinfo_init_cache(np_state_t* context)
 {
@@ -57,7 +57,7 @@ void _np_sysinfo_init_cache(np_state_t* context)
 	}
 }
 
-void _np_sysinfo_slave_send_cb(np_state_t* context, np_jobargs_t* args) {	
+void _np_sysinfo_client_send_cb(np_state_t* context, np_jobargs_t* args) {	
 	
 
 	if(np_has_receiver_for(context, _NP_SYSINFO_REPLY)) {
@@ -79,12 +79,11 @@ void _np_sysinfo_slave_send_cb(np_state_t* context, np_jobargs_t* args) {
 	else {
 		log_debug_msg(LOG_DEBUG| LOG_SYSINFO, "no receiver token for \""_NP_SYSINFO_REPLY"\"");
 	}
-
 }
 
-void np_sysinfo_enable_slave(np_state_t* context) {
-	log_trace_msg(LOG_TRACE, "start: void np_sysinfo_enable_slave() {");
-	// the slave does not need the cache
+void np_sysinfo_enable_client(np_state_t* context) {
+	log_trace_msg(LOG_TRACE, "start: void np_sysinfo_enable_client() {");
+	// the client does not need the cache
 	//_np_sysinfo_init_cache();
 	/*
 	np_msgproperty_t* sysinfo_request_props = np_msgproperty_get(context, INBOUND, _NP_SYSINFO_REQUEST);
@@ -130,12 +129,11 @@ void np_sysinfo_enable_slave(np_state_t* context) {
 								 0,
 								 //sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
 								 SYSINFO_PROACTIVE_SEND_IN_SEC,
-								 _np_sysinfo_slave_send_cb,
-								 "sysinfo_slave_send_cb");
+								 _np_sysinfo_client_send_cb,
+								 "sysinfo_client_send_cb");
 }
 
-void np_sysinfo_enable_master(np_state_t* context) {
-	log_trace_msg(LOG_TRACE, "start: void np_sysinfo_enable_master(){");
+void np_sysinfo_enable_server(np_state_t* context) {
 	
 	_np_sysinfo_init_cache(context);
 	/*
@@ -170,9 +168,8 @@ void np_sysinfo_enable_master(np_state_t* context) {
 	//sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 	//sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 32/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC);
+	sysinfo_response_props->max_threshold = 64;// 32/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC);
 	
-
 	np_msgproperty_register(sysinfo_response_props);
 	//np_msgproperty_register(sysinfo_request_props);
 	
@@ -519,7 +516,6 @@ void _np_sysinfo_request_others(np_state_t* context) {
 	sll_free(np_key_ptr, neighbours_table);
 	np_unref_obj(np_key_t, my_node_key, "usage");
 }
-
 
 np_tree_t* np_sysinfo_get_all(np_state_t* context) {
 	log_trace_msg(LOG_TRACE, "start: void _np_sysinfo_request_others() {");

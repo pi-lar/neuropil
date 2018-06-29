@@ -13,7 +13,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_text_exchange_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_text_exchange_ptr);
 np_sll_t(np_text_exchange_ptr, __np_text_exchange) = NULL;
 
-int __np_cmp_np_text_exchange_ptr(np_text_exchange_ptr te, np_text_exchange_ptr  te_id) {
+int __np_cmp_np_text_exchange_ptr(const struct np_text_exchange_s * te, const struct np_text_exchange_s * te_id) {
 	return memcmp(&te->id, &te_id->id, sizeof(np_id));
 }
 
@@ -59,7 +59,7 @@ uint32_t np_receive_text(np_context* ac, char* subject, char** buffer) {
 	{
 		*buffer = txt;
 	} else {
-		strncpy(*buffer, txt, strnlen(txt, strlen(buffer)));
+		strncpy(*buffer, txt, strnlen(txt, strlen(*buffer)));
 		free(txt);
 	}
 

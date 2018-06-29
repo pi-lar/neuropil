@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -60,16 +60,18 @@ int main(int argc, char **argv)
 	settings->n_threads = no_threads;
 
 	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_node", port);
-	fprintf(stdout, "logpath: %s\n", settings->log_file);
 	settings->log_level = level;
 
 	np_context * ac = np_new_context(settings);
 	np_ctx_cast(ac);
-	
+
+	np_example_print(context, stdout, "logpath: %s\n", settings->log_file);
+
+
 	if (NULL != realm)
 	{
 		np_set_realm_name(context, realm);
-		np_enable_realm_slave(context);
+		np_enable_realm_client(context);
 		if (NULL != code)
 		{
 			np_tree_insert_str(context->my_node_key->aaa_token->extensions,
@@ -77,25 +79,25 @@ int main(int argc, char **argv)
 				np_treeval_new_hash(code));
 		}
 	}
-
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
-		printf("ERROR: Node could not listen");
+		np_example_print(context, stderr, "ERROR: Node could not listen");
 	}
 	else {
+		__np_example_helper_loop(context); // for the fancy ncurse display
 
 		if (NULL != j_key)
 		{
-			fprintf(stdout, "try to join %s\n", j_key);
+			np_example_print(context, stdout, "try to join %s\n", j_key);
 			// join previous node			
 			if (np_ok != np_join(context, j_key)) {
-				printf("ERROR: Node could not join");
+				np_example_print(context, stderr, "ERROR: Node could not join");
 			}
 		}
 
 		log_debug_msg(LOG_DEBUG, "starting job queue");
 
 		if (np_ok != np_run(context, 0.001)) {
-			printf("ERROR: Node could not run");
+			np_example_print(context, stderr, "ERROR: Node could not run");
 		}
 		else {
 			__np_example_helper_run_info_loop(context);

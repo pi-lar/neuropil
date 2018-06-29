@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <assert.h>
@@ -94,7 +94,7 @@ void _np_aaatoken_t_del (np_state_t *context, uint8_t type, size_t size, void* t
 
 void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node_public_token_t* full_token)
 {
-	np_state_t *context = np_ctx(key_with_core_token);
+	np_state_t *context = np_ctx_by_memory(key_with_core_token);
 
 	ASSERT(FLAG_CMP(full_token->type ,np_aaatoken_type_node), "full_token needs to be a public node token");
 
@@ -196,7 +196,7 @@ void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
 */
 np_bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 {
-	np_ctx_full(token);
+	np_ctx_memory(token);
 	assert (NULL != data);
 	assert (NULL != token);
 	np_bool ret = TRUE;
@@ -263,7 +263,7 @@ np_bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.e")))
 	{
 		ASSERT(tmp->val.type == np_treeval_type_jrb_tree, 
-			"token (%s) type is %"PRIu8" instead of np_treeval_type_jrb_tree(%"PRIu8")",
+			"token (%s) type is %"PRIu32" instead of np_treeval_type_jrb_tree(%"PRIu32")",
 			token->uuid, tmp->val.type, np_treeval_type_jrb_tree
 		);
 
@@ -324,7 +324,7 @@ void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self) {
 
 np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self)
 {
-	np_ctx_full(self);
+	np_ctx_memory(self);
  	np_dhkey_t ret;
 
 	// if (FLAG_CMP(self->type, np_aaatoken_type_handshake)) {
@@ -355,17 +355,17 @@ np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expect
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_bool _np_aaatoken_is_valid(np_aaatoken_t* token){");
 	if (NULL == token) return FALSE;
-	np_state_t* context = np_ctx(token);
+	np_state_t* context = np_ctx_by_memory(token);
 
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking token (%s) validity for token of type %"PRIu32" and scope %"PRIu32, token->uuid, token->type, token->scope);
 
 
 	if (FLAG_CMP(token->type, expected_type) == FALSE)
 	{
-		log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": is not from correct type (%"PRIu8" != (expected:=)%"PRIu8"). verification failed",
+		log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": is not from correct type (%"PRIu32" != (expected:=)%"PRIu32"). verification failed",
 			token->uuid, token->subject, token->type, expected_type);
 #ifdef DEBUG
-		ASSERT(FALSE, "token (%s) for subject \"%s\": is not from correct type (%"PRIu8" != (expected:=)%"PRIu8"). verification failed",
+		ASSERT(FALSE, "token (%s) for subject \"%s\": is not from correct type (%"PRIu32" != (expected:=)%"PRIu32"). verification failed",
 			token->uuid, token->subject, token->type, expected_type);
 #endif // DEBUG
 
@@ -580,7 +580,7 @@ static int8_t _np_aaatoken_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr sec
 void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject)
 {
 	assert(NULL != subject_key);
-	np_state_t* context = np_ctx(subject_key);
+	np_state_t* context = np_ctx_by_memory(subject_key);
 
 	np_msgproperty_t* prop = NULL;
 	np_bool create_new_prop = FALSE;
@@ -651,7 +651,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
 np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 {
 	assert(token != NULL);
-	np_state_t* context = np_ctx(token);
+	np_state_t* context = np_ctx_by_memory(token);
 	np_aaatoken_t * ret = NULL;
 	np_key_t* subject_key = NULL;
 	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
@@ -835,7 +835,7 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
 	_LOCK_ACCESS(&subject_key->send_property->lock)
 	{
 #ifdef DEBUG
-		char sender_dhkey_as_str[64];
+		char sender_dhkey_as_str[65];
 		_np_dhkey_to_str(sender_dhkey, sender_dhkey_as_str);
 #endif
 
@@ -908,7 +908,7 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step2._np_aaatoken_get_sender_token %d", pll_size(subject_key->send_tokens));
 	}
 
-	np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
+	np_unref_obj(np_key_t, subject_key, "_np_keycache_find_or_create");
 	return (return_token);
 }
 
@@ -916,7 +916,7 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
 np_aaatoken_t *_np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 {
 	assert(token != NULL);
-	np_state_t* context = np_ctx(token);
+	np_state_t* context = np_ctx_by_memory(token);
 
 	np_aaatoken_t* ret = NULL;	
 
@@ -1037,11 +1037,14 @@ np_aaatoken_t* _np_aaatoken_get_receiver(np_state_t* context, const char* const 
 
 	_LOCK_ACCESS(&subject_key->recv_property->lock)
 	{
+
+#ifdef DEBUG
 		if(NULL != target) {
 			char targetnode_str[65];
 			_np_dhkey_to_str(target, targetnode_str);
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "searching token for %s ", targetnode_str);
 		}
+#endif
 
 		pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
 		while (NULL != iter &&
@@ -1157,7 +1160,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(np_state_t* context, c
 unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* self) {
 
 	assert(self != NULL);// "cannot get token hash of NULL
-	np_ctx_full(self);
+	np_ctx_memory(self);
 	unsigned char* ret = calloc(1, crypto_generichash_BYTES);
 	crypto_generichash_state gh_state;
 	crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
@@ -1286,7 +1289,7 @@ np_aaatoken_t* _np_aaatoken_get_local_mx(np_state_t* context, const char* const 
 // update internal structure and return a interest if a matching pair has been found
 void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 {
-	np_ctx_full(token);
+	np_ctx_memory(token);
 	assert(token != NULL);	
 
 	np_key_t* subject_key = NULL;
@@ -1353,14 +1356,14 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 
 void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
 	assert(self != NULL);
-	np_state_t* context = np_ctx(self);
+	np_state_t* context = np_ctx_by_memory(self);
 
 	np_tree_replace_str( self->extensions, "_np.partner_fp", np_treeval_new_dhkey(partner_fp));
 }
 
 np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
 	assert(self != NULL);
-	np_state_t* context = np_ctx(self);
+	np_state_t* context = np_ctx_by_memory(self);
 	
 	np_dhkey_t ret = { 0 };
 
@@ -1377,7 +1380,7 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
 
 void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 	assert(self != NULL);
-	np_state_t* context = np_ctx(self);
+	np_state_t* context = np_ctx_by_memory(self);
 
 	// update public key and issuer fingerprint with data take from signee
 	memcpy((char*)self->public_key, (char*)signee->public_key, crypto_sign_PUBLICKEYBYTES);
@@ -1412,7 +1415,7 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 
 void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 
-	np_ctx_full(self);
+	np_ctx_memory(self);
 	ASSERT(signee != NULL, "Cannot sign extensions with empty signee");
 
 	unsigned char* hash = __np_aaatoken_get_extensions_hash(self);
@@ -1428,7 +1431,7 @@ void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t
 
 unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self) {
 	assert(self != NULL);
-	np_state_t* context = np_ctx(self);
+	np_state_t* context = np_ctx_by_memory(self);
 
 	unsigned char* ret = calloc(1, crypto_generichash_BYTES);
 
@@ -1455,7 +1458,7 @@ void np_aaatoken_ref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* reaso
 	sll_iterator(np_aaatoken_ptr) iter = sll_first(sll_list);
 	while (NULL != iter)
 	{
-		if (context == NULL && iter->val != NULL) context = np_ctx(iter->val);
+		if (context == NULL && iter->val != NULL) context = np_ctx_by_memory(iter->val);
 		np_ref_obj(np_aaatoken_t, (iter->val), reason, reason_desc);
 		sll_next(iter);
 	}
@@ -1468,7 +1471,7 @@ void np_aaatoken_unref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* rea
 	sll_iterator(np_aaatoken_ptr) iter = sll_first(sll_list);
 	while (NULL != iter)
 	{
-		if (context == NULL && iter->val!=NULL) context = np_ctx(iter->val);
+		if (context == NULL && iter->val!=NULL) context = np_ctx_by_memory(iter->val);
 		np_unref_obj(np_aaatoken_t, (iter->val), reason);
 		sll_next(iter);
 	}
@@ -1479,11 +1482,12 @@ void np_aaatoken_unref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* rea
 void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
 
 	assert(self != NULL);
-	np_ctx_full(self);
+	np_ctx_memory(self);
 
-	char * info_str ;
-	asprintf(&info_str, "AAATokenTrace_%s", desc);	
 #ifdef DEBUG
+	char* info_str;
+	asprintf(&info_str, "AAATokenTrace_%s", desc);	
+
 	np_tree_t* data = np_tree_create();
 	_np_aaatoken_encode(data, self, FALSE);
 	np_tree_elem_t* tmp = NULL;
@@ -1500,10 +1504,9 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
 		if (free_key) free(key);
 	}	
 	np_tree_free( data);
-#else
 	info_str = np_str_concatAndFree(info_str, ": %s", info_str, self->uuid);
-#endif
 
-	log_msg(LOG_ROUTING | LOG_INFO, info_str);
+	log_msg(LOG_ROUTING | LOG_INFO, "%s", info_str);
 	free(info_str);
+#endif
 }

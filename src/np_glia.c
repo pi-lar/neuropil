@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -48,10 +48,6 @@
 #include "np_responsecontainer.h"
 
 // TODO: make these configurable (via struct np_config)
-/**
- *  neuropil is copyright 2015 by pi-lar GmbH
- */
-
 
 /**
  ** np_route:
@@ -177,7 +173,7 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
 			tmp_node_key->node->is_handshake_send == TRUE
 			)
 		{
-			np_ctx_full(tmp_node_key);
+			np_ctx_memory(tmp_node_key);
 
 			log_msg(LOG_INFO, "deleted from table/leafset: %s:%s:%s / %f / %1.2f",
 								_np_key_as_str(tmp_node_key),
@@ -243,6 +239,7 @@ void _np_glia_send_pings(np_state_t* context, np_jobargs_t* args) {
 			if(node_exists) {
 				if (iter->val->node->joined_network) {
 					_np_ping_send(context, iter->val);
+					np_time_sleep(NP_PI/1000);
 				}
 				np_unref_obj(np_node_t, iter->val->node, __func__);
 			}
@@ -277,7 +274,7 @@ void _np_glia_send_piggy_requests(np_state_t* context, np_jobargs_t* args) {
 	{
 		// send a piggy message to the the nodes in our routing table
 		np_msgproperty_t* piggy_prop = np_msgproperty_get(context, TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-		_np_job_submit_transform_event(context, i*0.031415, piggy_prop, iter_keys->val, NULL);
+		_np_job_submit_transform_event(context, i*NP_PI/10, piggy_prop, iter_keys->val, NULL);
 
 		i++;
 		sll_next(iter_keys);
@@ -298,8 +295,6 @@ void _np_glia_send_piggy_requests(np_state_t* context, np_jobargs_t* args) {
  **/
 void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t* args)
 {
-	
-
 	if (_np_route_my_key_has_connection(context)) {		
 
 		np_tree_elem_t *iter = NULL;
@@ -307,16 +302,14 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t* ar
 		_LOCK_MODULE(np_state_message_tokens_t) {
 			RB_FOREACH(iter, np_tree_s, context->msg_tokens)
 			{
-				np_bool free_subject;
-				const char* subject = NULL;
-				subject = np_treeval_to_str(iter->key, &free_subject);
+				// np_bool free_subject;
+				const char* subject = iter->key.value.s;
 				
 				np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(context, subject, "0");
 				np_key_t* target = NULL;
 				target = _np_keycache_find_or_create(context, target_dhkey);
 
 				msg_prop = np_msgproperty_get(context, TRANSFORM, subject);
-				if (free_subject) free(subject);
 
 				if (NULL != msg_prop)
 				{
@@ -329,13 +322,12 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t* ar
 					// free( np_treeval_to_str(deleted->key));
 					// free(deleted);
 					np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
-					break;
+					// break;
 				}
 			}
-
 		}
 
-		if (TRUE == context->enable_realm_master)
+		if (TRUE == context->enable_realm_server)
 		{
 			np_msgproperty_t* msg_prop = NULL;
 
@@ -387,47 +379,54 @@ void _np_cleanup_ack_jobexec(np_state_t* context, np_jobargs_t* args)
 
 	np_tree_elem_t* iter = NULL;
 	int c = 0;
-	do {
-		if (c++ > 10) {
-			break;
-		}
-		_LOCK_ACCESS(&my_network->waiting_lock)
-		{
-			iter = RB_MIN(np_tree_s, my_network->waiting);
 
-			while (iter != NULL)
-			{
-				jrb_ack_node = iter;
-				iter = RB_NEXT(np_tree_s, my_network->waiting, iter);
+	sll_init_full(char_ptr, to_remove);
 
-				np_responsecontainer_t *responsecontainer = (np_responsecontainer_t *)jrb_ack_node->val.value.v;
-				if (responsecontainer != NULL) {
-					if (np_time_now() > responsecontainer->expires_at || _np_responsecontainer_is_fully_acked(responsecontainer))
-					{
-						if (!_np_responsecontainer_is_fully_acked(responsecontainer)) {
+	_LOCK_ACCESS(&my_network->waiting_lock)
+	{
+		iter = RB_MIN(np_tree_s, my_network->waiting);
+		while (iter != NULL) {
+			jrb_ack_node = iter;
+			iter = RB_NEXT(np_tree_s, my_network->waiting, iter);
 
-							_np_responsecontainer_set_timeout(responsecontainer);
-							log_msg(LOG_WARN, "ACK_HANDLING timeout (table size: %3d) message (%s) not acknowledged (IN TIME %f/%f)",
-								my_network->waiting->size,
-								jrb_ack_node->key.value.s,
-								np_time_now(), responsecontainer->expires_at
-							);
-						}
-
-						np_tree_del_str(my_network->waiting, jrb_ack_node->key.value.s);
-						np_unref_obj(np_responsecontainer_t, responsecontainer, ref_ack_obj);
-						break;
+			np_responsecontainer_t *responsecontainer = (np_responsecontainer_t *)jrb_ack_node->val.value.v;
+			if (responsecontainer != NULL) {
+				if (np_time_now() > responsecontainer->expires_at || _np_responsecontainer_is_fully_acked(responsecontainer))
+				{
+					if (!_np_responsecontainer_is_fully_acked(responsecontainer)) {
+						_np_responsecontainer_set_timeout(responsecontainer);
+						log_msg(LOG_WARN, "ACK_HANDLING timeout (table size: %3d) message (%s / %s) not acknowledged (IN TIME %f/%f)",
+							my_network->waiting->size,
+							jrb_ack_node->key.value.s, responsecontainer->msg->msg_property->msg_subject,
+							np_time_now(), responsecontainer->expires_at
+						);
 					}
-				}
-				else {
-					log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
-						my_network->waiting->size,
-						jrb_ack_node->key.value.s);
-
+					sll_append(char_ptr, to_remove, jrb_ack_node->key.value.s);
 				}
 			}
+			else {
+				log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
+					my_network->waiting->size,
+					jrb_ack_node->key.value.s);
+			}
+			c++;
+		};
+	}
+
+	sll_iterator(char_ptr) iter_to_rm = sll_first(to_remove);
+	log_debug_msg(LOG_WARN ,"ACK_HANDLING removing %"PRIu32" (of %d) from ack table", sll_size(to_remove), c);
+	while (iter_to_rm != NULL)
+	{
+		np_responsecontainer_t *responsecontainer = _np_responsecontainers_get_by_uuid(context, iter_to_rm->val);
+		_LOCK_ACCESS(&my_network->waiting_lock) {
+			np_tree_del_str(my_network->waiting, iter_to_rm->val);
 		}
-	} while (iter != NULL);
+		np_unref_obj(np_responsecontainer_t, responsecontainer, "_np_responsecontainers_get_by_uuid");
+		np_unref_obj(np_responsecontainer_t, responsecontainer, ref_ack_obj);
+
+		sll_next(iter_to_rm);
+	}
+	sll_free(char_ptr, to_remove);
 
 	np_unref_obj(np_key_t, my_key, __func__);
 	np_unref_obj(np_network_t, my_network, __func__);
@@ -458,7 +457,7 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t* args)
 			}
 		}
 
-		np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists,"np_tryref_old->aaa_token");
+		np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists, "np_tryref_old->aaa_token");
 		if(tokenExists) {
 			if (TRUE == _np_aaatoken_is_valid(old->aaa_token, np_aaatoken_type_undefined))
 			{
@@ -541,7 +540,7 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t* args)
 
 	sll_of_keys = _np_route_row_lookup(target_key);
 	char* source_sll_of_keys = "_np_route_row_lookup";
-	if (sll_size(sll_of_keys) <= 1)
+	if (sll_size(sll_of_keys) <= 2)
 	{
 		// nothing found, send leafset to exchange some data at least
 		// prevents small clusters from not exchanging all data
@@ -599,34 +598,34 @@ void _np_send_subject_discovery_messages(np_state_t* context , np_msg_mode_type 
 np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
 {
 	assert(msg != NULL);
-	np_state_t* context = np_ctx(msg);
+	np_state_t* context = np_ctx_by_memory(msg);
 	// np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
 	np_message_intent_public_token_t* tmp_token = _np_aaatoken_get_receiver(context, subject, target);
 	if (NULL != tmp_token)
 	{
 		_np_msgproperty_threshold_increase(msg_prop);
-		log_msg(LOG_INFO | LOG_ROUTING, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);	
+		log_msg(LOG_INFO | LOG_ROUTING, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);
 
 		//TODO: instead of token threshold a local copy of the value should be increased
 		np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
 
 		char* target_node_str = NULL;
 		np_dhkey_t receiver_dhkey = { 0 };
-		np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions,  "target_node");
+		np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions, "target_node");
 		if (NULL != tn_node)
 		{
-			target_node_str =  tn_node->val.value.s;
+			target_node_str = tn_node->val.value.s;
 		}
 		else
 		{
 			target_node_str = tmp_token->issuer;
 		}
-		_np_dhkey_from_str( target_node_str, &receiver_dhkey);
+		_np_dhkey_from_str(target_node_str, &receiver_dhkey);
 
 		if (_np_dhkey_cmp(&context->my_node_key->dhkey, &receiver_dhkey) == 0)
 		{
 			np_msgproperty_t* handler = np_msgproperty_get(context, INBOUND, msg->msg_property->msg_subject);
-			if(handler != NULL)
+			if (handler != NULL)
 			{
 				_np_in_new_msg_received(msg, handler, TRUE);
 			}
@@ -638,7 +637,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 			// encrypt the relevant message part itself
 			_np_message_encrypt_payload(msg, tmp_token);
 
-			np_tree_replace_str( msg->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
+			np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
 
 			np_msgproperty_t* out_prop = np_msgproperty_get(context, OUTBOUND, subject);
 			_np_job_submit_route_event(context, 0.0, out_prop, NULL, msg);
@@ -646,21 +645,23 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 			if (NULL != msg_prop->rep_subject &&
 				STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))
 			{
-				
+
 				np_aaatoken_t* old_token = _np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
 				np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
 			}
-		}
-		// decrease threshold counters
-		_np_msgproperty_threshold_decrease(msg_prop);
 
-		np_unref_obj(np_aaatoken_t, tmp_token,"_np_aaatoken_get_receiver");
-		return (TRUE);
+			// decrease threshold counters
+			_np_msgproperty_threshold_decrease(msg_prop);
+
+			np_unref_obj(np_aaatoken_t, tmp_token, "_np_aaatoken_get_receiver");
+			return (TRUE);
+		}
 	}
 	else
 	{
 		log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has NO valid token", msg->uuid, subject);
 		_np_msgproperty_add_msg_to_send_cache(msg_prop, msg);
 	}
+	
 	return (FALSE);
 }
