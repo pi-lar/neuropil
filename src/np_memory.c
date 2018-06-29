@@ -695,11 +695,8 @@ char* np_mem_printpool(np_state_t* context, np_bool asOneLine, np_bool extended)
     {
         np_memory_container_t* container = np_module(memory)->__np_memory_container[memory_type];
 
-        summary[container->type] = max(summary[container->type], container->current_in_use);
-
-
-
-
+		summary[container->type] = max(summary[container->type], container->current_in_use);
+		
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING		
         if (TRUE == extended
             && (
@@ -713,7 +710,7 @@ char* np_mem_printpool(np_state_t* context, np_bool asOneLine, np_bool extended)
                 {
                     np_memory_itemconf_ptr iter = iter_items->val;
                     _TRYLOCK_ACCESS(&iter->access_lock) {
-
+						
                         summary[container->type] = max(summary[container->type * 100], sll_size(iter->reasons));
 
                         if (sll_size(iter->reasons) > 10) {
@@ -769,7 +766,7 @@ char* np_mem_printpool(np_state_t* context, np_bool asOneLine, np_bool extended)
 
     for (int memory_type = 0; memory_type < np_memory_types_MAX_TYPE; memory_type++)
     {
-        ret = np_str_concatAndFree(ret, "%15s count %4"PRIu32" max ref %3"PRIu32" %s", np_memory_types_str[memory_type], summary[memory_type], summary[100 * memory_type], new_line);
+        ret = np_str_concatAndFree(ret, "%20s count %4"PRIu32" max ref %3"PRIu32" %s", np_memory_types_str[memory_type], summary[memory_type], summary[100 * memory_type], new_line);
     }
     ret = np_str_concatAndFree(ret, "--- memory end ---%s", new_line);
 

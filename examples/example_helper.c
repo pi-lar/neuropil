@@ -40,6 +40,10 @@
 #include "np_statistics.h"
 
 #include "np_conversion.c"
+
+extern char *optarg;
+extern int optind;
+
 const char* logo =
 "MMWKkxxdoollcdKMMMMMMMMMMMMWOollolloOWMM\n"
 "MMNxccccccccccdKWMMMMMMMMMMWkccccccckWMM\n"
@@ -62,19 +66,52 @@ const char* logo =
 "MMNxcccccccOWMMMMMMMMMMMW0occccccccckWMM\n"
 "MMNxcccccclOWMMMMMMMMMMMMWOlcccccccckWMM";
 
+enum np_statistic_types_e {
+	np_stat_all = 0x000,
+	np_stat_general = 0x001,
+	np_stat_locks = 0x002,
+	np_stat_msgpartcache = 0x004,
+	np_stat_memory = 0x008,
+	np_stat_performance = 0x010,
+	np_stat_jobs = 0x020,
+} typedef np_statistic_types_e;
+
+
+struct __np_switchwindow_scrollable {
+	np_mutex_t access;
+	WINDOW * win;
+	char * buffer;
+	int cursor;
+};
+np_statistic_types_e statistic_types = 0;
+
+int term_height_bottom = 15;
+
+struct __np_switchwindow_scrollable * _current = NULL;
+
 np_bool __np_ncurse_initiated = FALSE;
 const float output_intervall_sec = 0.5;
 uint8_t enable_statistics = 1;
 
-extern char *optarg;
-extern int optind;
 WINDOW * __np_top_left_win;
 WINDOW * __np_top_right_win;
 WINDOW * __np_top_logo_win;
 WINDOW * __np_bottom_win_help;
 
+struct __np_switchwindow_scrollable * __np_switch_msgpartcache;
+struct __np_switchwindow_scrollable * __np_switch_memory_ext;
+struct __np_switchwindow_scrollable * __np_switch_log;
+struct __np_switchwindow_scrollable * __np_switch_performance;
+struct __np_switchwindow_scrollable * __np_switch_jobs;
+
+#define LOG_BUFFER_SIZE (3000)
+char * __log_buffer = NULL;
+char * __log_buffer_cursor = 0;
+np_mutex_t* __log_mutex = NULL;
+
 double started_at = 0;
 double last_loop_run_at = 0;
+double ncurse_init_at = 0;
 
 void reltime_to_str(char*buffer, double time) {
 	// totaltime format: seconds.milliseconds
@@ -91,33 +128,7 @@ void reltime_to_str(char*buffer, double time) {
 	snprintf(buffer, 49, "%02"PRIu32"d %02"PRIu32"h %02"PRIu32"min %02"PRIu32"sec", time_d, time_h, time_m, time_s);
 }
 
-enum np_statistic_types_e {
-	np_stat_all = 0x000,
-	np_stat_general = 0x001,
-	np_stat_locks = 0x002,
-	np_stat_msgpartcache = 0x004,
-	np_stat_memory = 0x008,
-	np_stat_performance = 0x010,
-	np_stat_jobs = 0x020,
-} typedef np_statistic_types_e;
-
-np_statistic_types_e statistic_types = 0;
-
-int term_height_bottom = 15;
-
-struct __np_switchwindow_scrollable {
-	np_mutex_t access;
-	WINDOW * win;
-	char * buffer;
-	int cursor;
-};
-const int rows_in_switchable = 15;
-
-
-struct __np_switchwindow_scrollable * _current = NULL;
-
 void __np_switchwindow_draw(np_context* context) {
-
 
 	if (__np_ncurse_initiated == TRUE && _current != NULL) {
 		_LOCK_ACCESS(&_current->access) {
@@ -126,7 +137,6 @@ void __np_switchwindow_draw(np_context* context) {
 			char * buffer = strdup(_current->buffer);
 			char* line = strtok(buffer, "\n");
 			int y = 0;
-			//werase(_current->win);
 			if (line != NULL) {
 				do {
 					// clean line from escapes
@@ -164,7 +174,7 @@ void __np_switchwindow_scroll_check_bounds(struct __np_switchwindow_scrollable *
 	for (uint32_t c = 0; c < strlen(target->buffer); c++) {
 		if (target->buffer[c] == '\n') lines++;
 	}
-	int max_scroll = lines - rows_in_switchable;
+	int max_scroll = lines - term_height_bottom;
 
 	if (max_scroll <= 0)
 	{
@@ -220,24 +230,8 @@ void __np_switchwindow_del(np_context* context, struct __np_switchwindow_scrolla
 	_np_threads_mutex_destroy(context, &self->access);
 	free(self);
 }
-WINDOW * __np_stat_general_win;
-WINDOW * __np_stat_locks_win;
-WINDOW * __np_stat_memory_win;
-WINDOW * __np_help_win;
 
 
-
-struct __np_switchwindow_scrollable * __np_switch_msgpartcache;
-struct __np_switchwindow_scrollable * __np_switch_memory_ext;
-struct __np_switchwindow_scrollable * __np_switch_log;
-struct __np_switchwindow_scrollable * __np_switch_performance;
-struct __np_switchwindow_scrollable * __np_switch_jobs;
-
-
-#define LOG_BUFFER_SIZE (3000)
-char * __log_buffer = NULL;
-char * __log_buffer_cursor = 0;
-np_mutex_t* __log_mutex = NULL;
 
 void np_print_startup(np_context*context);
 
@@ -676,10 +670,10 @@ void __np_example_deinti_ncurse(np_context * context) {
 	if (__np_ncurse_initiated == TRUE) {
 		__np_ncurse_initiated = FALSE;
 
-		delwin(__np_stat_general_win);
-		delwin(__np_stat_memory_win);
-		delwin(__np_stat_locks_win);
-		delwin(__np_help_win);
+		delwin(__np_top_left_win);
+		delwin(__np_top_right_win);
+		delwin(__np_top_logo_win);
+		delwin(__np_bottom_win_help);
 
 		__np_switchwindow_del(context, __np_switch_memory_ext);
 		__np_switchwindow_del(context, __np_switch_log);
@@ -689,7 +683,6 @@ void __np_example_deinti_ncurse(np_context * context) {
 		endwin();
 	}
 }
-double ncurse_init_at = 0;
 
 void __np_example_inti_ncurse(np_context* context) {
 	if (FALSE == __np_ncurse_initiated) {
