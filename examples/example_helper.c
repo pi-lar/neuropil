@@ -827,6 +827,10 @@ void resizeHandler(int sig)
 }
 
 void __np_example_helper_loop(np_state_t* context) {
+	if (__np_ncurse_initiated == TRUE) {
+		//slow down for getch 
+		np_time_sleep(0.005);
+	}
 	__np_example_inti_ncurse(context);
 
 	// Runs only once
