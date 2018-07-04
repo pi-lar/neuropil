@@ -24,7 +24,7 @@ void _np_responsecontainer_received(np_responsecontainer_t* entry){
 
 	double latency = (entry->received_at - entry->send_at) / 2;
 	_np_node_update_latency(entry->dest_key->node, latency);
-	_np_node_update_stat(entry->dest_key->node, TRUE);
+	_np_node_update_stat(entry->dest_key->node, true);
 }
 void _np_responsecontainer_received_ack(np_responsecontainer_t* entry)
 {
@@ -32,7 +32,7 @@ void _np_responsecontainer_received_ack(np_responsecontainer_t* entry)
 	_np_responsecontainer_received(entry);	
 
 	if (entry->msg != NULL) {
-		TSP_SET(entry->msg->is_acked, TRUE);
+		TSP_SET(entry->msg->is_acked, true);
 		if (sll_size(entry->msg->on_ack) > 0) {
 			sll_iterator(np_responsecontainer_on_t) iter_on = sll_first(entry->msg->on_ack);
 			while (iter_on != NULL)
@@ -50,10 +50,10 @@ void _np_responsecontainer_set_timeout(np_responsecontainer_t* entry)
 	np_ctx_memory(entry);
 	// timeout
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "not acknowledged (TIMEOUT at %f)", entry->expires_at);
-	_np_node_update_stat(entry->dest_key->node, FALSE);
+	_np_node_update_stat(entry->dest_key->node, false);
 
 	if (entry->msg != NULL) {
-		TSP_SET(entry->msg->is_in_timeout, TRUE);
+		TSP_SET(entry->msg->is_in_timeout, true);
 		if (sll_size(entry->msg->on_timeout) > 0) {
 			sll_iterator(np_responsecontainer_on_t) iter_on = sll_first(entry->msg->on_timeout);
 			while (iter_on != NULL)
@@ -75,7 +75,7 @@ void _np_responsecontainer_received_response(np_responsecontainer_t* entry, np_m
 
 	if (entry->msg != NULL) {
 
-		TSP_SET(entry->msg->has_reply, TRUE);
+		TSP_SET(entry->msg->has_reply, true);
 
 		if (sll_size(entry->msg->on_reply) > 0) {
 			sll_iterator(np_message_on_reply_t) iter_on = sll_first(entry->msg->on_reply);
@@ -91,10 +91,10 @@ void _np_responsecontainer_received_response(np_responsecontainer_t* entry, np_m
 	np_unref_obj(np_responsecontainer_t, entry, __func__);
 }
 
-np_bool _np_responsecontainer_is_fully_acked(np_responsecontainer_t* entry)
+bool _np_responsecontainer_is_fully_acked(np_responsecontainer_t* entry)
 {
 	np_ctx_memory(entry);
-	TSP_GET(np_bool, entry->msg->is_acked, is_acked);
+	TSP_GET(bool, entry->msg->is_acked, is_acked);
 	return is_acked;
 	// return (entry->expected_ack == entry->received_ack);
 }

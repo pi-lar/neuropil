@@ -68,7 +68,7 @@ int main(int argc, char **argv)
 		"[-n nr_of_nodes]",
 		"n:",
 		&required_nodes_opt
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 	if (required_nodes_opt != NULL) required_nodes = atoi(required_nodes_opt);
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 	// first clean up what was left from older runtime instances
 	shmctl(shmid, IPC_RMID, NULL);
 
-	while(TRUE)
+	while(true)
 	{
 		// (re-) start child processes
 		if (list_of_childs->size < required_nodes)
@@ -184,12 +184,12 @@ int main(int argc, char **argv)
 					np_send_join(data);
 
 					int timeout = 200;
-					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {
+					while (timeout > 0 && false == child_status->my_node_key->node->joined_network) {
 						// wait for join acceptance
 						np_time_sleep(0.1);
 						timeout--;
 					}
-					if(TRUE == child_status->my_node_key->node->joined_network ){
+					if(true == child_status->my_node_key->node->joined_network ){
 						fprintf(stdout, "%s joined network!\n",port);
 					}else{
 						fprintf(stderr, "%s could not join network!\n",port);

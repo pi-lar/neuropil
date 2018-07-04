@@ -48,7 +48,8 @@
 #include "np_settings.h"
 #include "np_constants.h"
 
-NP_SLL_GENERATE_IMPLEMENTATION(np_usercallback_t);
+
+NP_SLL_GENERATE_IMPLEMENTATION(np_usercallback_ptr);
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_callback_t);
 
@@ -58,7 +59,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_callback_t);
  * @param token
  * @return
  */
-np_bool _np_default_authorizefunc (np_context* ac, np_aaatoken_t* token )
+bool _np_default_authorizefunc (np_context* ac, np_token* token )
 {
 	np_ctx_cast(ac);
 
@@ -66,14 +67,14 @@ np_bool _np_default_authorizefunc (np_context* ac, np_aaatoken_t* token )
 	log_msg(LOG_WARN, "using default handler (authorize all) to authorize %s", token->subject );
 	// log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
 #endif
-	return (TRUE);
+	return (true);
 }
 /**
  * The default realm client authorize function. Forwards the authorization request to the realm server
  * @param token
  * @return
  */
-np_bool _np_aaa_authorizefunc (np_context* ac, np_aaatoken_t* token )
+bool _np_aaa_authorizefunc (np_context* ac, np_token* token )
 {
 	np_ctx_cast(ac);
 	np_key_t* aaa_target = NULL;
@@ -94,7 +95,7 @@ np_bool _np_aaa_authorizefunc (np_context* ac, np_aaatoken_t* token )
 
 	np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
 
-	return (FALSE);
+	return (false);
 }
 
 /**
@@ -102,20 +103,20 @@ np_bool _np_aaa_authorizefunc (np_context* ac, np_aaatoken_t* token )
  * @param token
  * @return
  */
-np_bool _np_default_authenticatefunc (np_context*ac, np_aaatoken_t* token )
+bool _np_default_authenticatefunc (np_context*ac, np_token* token )
 {
 #ifndef DEBUG
 	log_msg(LOG_WARN, "using default handler (auth all) to authenticate %s", token->subject);
 	// log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
 #endif
-	return (TRUE);
+	return (true);
 }
 /**
  * The default realm client authenticate function. Forwards the authenticate request to the realm server
  * @param token
  * @return
  */
-np_bool _np_aaa_authenticatefunc (np_context*ac, np_aaatoken_t* token)
+bool _np_aaa_authenticatefunc (np_context*ac, np_token* token)
 {
 	np_ctx_cast(ac);
 	np_key_t* aaa_target = NULL;
@@ -134,7 +135,7 @@ np_bool _np_aaa_authenticatefunc (np_context*ac, np_aaatoken_t* token)
 
 	np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
 
-	return (FALSE);
+	return (false);
 }
 
 /**
@@ -142,20 +143,20 @@ np_bool _np_aaa_authenticatefunc (np_context*ac, np_aaatoken_t* token)
  * @param token
  * @return
  */
-np_bool _np_default_accountingfunc (np_context*ac, np_aaatoken_t* token )
+bool _np_default_accountingfunc (np_context*ac, np_token* token )
 {
 #ifndef DEBUG
 	log_msg(LOG_WARN, "using default handler to account for %s", token->subject );
 	// log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
 #endif
-	return (TRUE);
+	return (true);
 }
 /**
  * The default realm client accounting function. Forwards the accounting request to the realm server
  * @param token
  * @return
  */
-np_bool _np_aaa_accountingfunc (np_context*ac, np_aaatoken_t* token)
+bool _np_aaa_accountingfunc (np_context*ac, np_token* token)
 {
 	np_ctx_cast(ac);
 	np_key_t* aaa_target = NULL;
@@ -174,41 +175,7 @@ np_bool _np_aaa_accountingfunc (np_context*ac, np_aaatoken_t* token)
 	_np_job_submit_transform_event(context, 0.0, aaa_props, aaa_target, NULL);
 
 	np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
-	return (FALSE);
-}
-
-/**
- * Sets the callback for authorization requests against this node
- * @param aaaFunc
- */
-void np_setauthorizing_cb(np_context*ac, np_aaa_func_t aaaFunc)
-{
-	np_ctx_cast(ac);
-	log_trace_msg(LOG_TRACE, "start: void np_setauthorizing_cb(np_aaa_func_t aaaFunc){");
-	log_msg(LOG_INFO, "setting user defined authorization handler, that's good ...");
-	context->authorize_func = aaaFunc;
-}
-/**
- * Sets the callback for authentication requests against this node
- * @param aaaFunc
- */
-void np_setauthenticate_cb(np_context*ac, np_aaa_func_t aaaFunc)
-{
-	np_ctx_cast(ac);
-	log_trace_msg(LOG_TRACE, "start: void np_setauthenticate_cb(np_aaa_func_t aaaFunc){");
-	log_msg(LOG_INFO, "setting user defined authentication handler, that's good ...");
-	context->authenticate_func = aaaFunc;
-}
-/**
- * Sets the callback for accounting requests against this node
- * @param aaaFunc
- */
-void np_setaccounting_cb(np_context*ac, np_aaa_func_t aaaFunc)
-{
-	np_ctx_cast(ac);
-	log_trace_msg(LOG_TRACE, "start: void np_setaccounting_cb(np_aaa_func_t aaaFunc){");
-	log_msg(LOG_INFO, "setting user defined accounting handler, that's good ...");
-	context->accounting_func = aaaFunc;
+	return (false);
 }
 
 /**
@@ -272,12 +239,12 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
 void np_enable_realm_client(np_context*ac)
 {
 	np_ctx_cast(ac);
-	context->authorize_func    = _np_aaa_authorizefunc;
-	context->authenticate_func = _np_aaa_authenticatefunc;
-	context->accounting_func   = _np_aaa_accountingfunc;
+	np_set_authorize_cb(ac, _np_aaa_authorizefunc);
+	np_set_authenticate_cb(ac, _np_aaa_authenticatefunc);
+	np_set_accounting_cb(ac, _np_aaa_accountingfunc);
 
-	context->enable_realm_server = FALSE;
-	context->enable_realm_client = TRUE;
+	context->enable_realm_server = false;
+	context->enable_realm_client = true;
 }
 
 /**
@@ -312,8 +279,8 @@ void np_enable_realm_server(np_context*ac )
 		prop->msg_audience = strndup(context->realm_name, 255);
 	}
 
-	context->enable_realm_server = TRUE;
-	context->enable_realm_client = FALSE;
+	context->enable_realm_server = true;
+	context->enable_realm_client = false;
 }
 
 /**
@@ -324,7 +291,7 @@ void np_waitforjoin(np_context*ac)
 {
 	np_ctx_cast(ac);
 	log_trace_msg(LOG_TRACE, "start: void np_waitforjoin(){");
-	while (FALSE == _np_route_my_key_has_connection(context))
+	while (false == _np_route_my_key_has_connection(context))
 	{
 		np_time_sleep(0.0);
 	}
@@ -337,7 +304,7 @@ void np_waitforjoin(np_context*ac)
 * @param msg_handler
 * @param subject
 */
-void np_add_receive_listener(np_context*ac, np_usercallback_t msg_handler, char* subject)
+void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, char* subject)
 {
 	np_ctx_cast(ac);
 	// check whether an handler already exists
@@ -353,7 +320,15 @@ void np_add_receive_listener(np_context*ac, np_usercallback_t msg_handler, char*
 	} else {
 		msg_prop->mode_type |= INBOUND;
 	}
-	_np_msgproperty_add_receive_listener(msg_handler, msg_prop);
+	np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
+	msg_handler->data = msg_handler_localdata;
+	msg_handler->fn = msg_handler_fn;
+
+	if (false == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_callback_t_sll_compare_type)) {
+		sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
+	}
+
+	sll_append(np_usercallback_ptr, msg_prop->user_receive_clb, msg_handler);
 }
 
 /**
@@ -362,7 +337,7 @@ void np_add_receive_listener(np_context*ac, np_usercallback_t msg_handler, char*
 * @param msg_handler
 * @param subject
 */
-void np_add_send_listener(np_context*ac, np_usercallback_t msg_handler, char* subject)
+void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, char* subject)
 {
 	np_ctx_cast(ac);
 	// check whether an handler already exists
@@ -376,8 +351,10 @@ void np_add_send_listener(np_context*ac, np_usercallback_t msg_handler, char* su
 		msg_prop->mode_type |= OUTBOUND;
 		np_msgproperty_register(msg_prop);
 	}
-
-	sll_append(np_usercallback_t, msg_prop->user_send_clb, msg_handler);
+	np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
+	msg_handler->data = msg_handler_localdata;
+	msg_handler->fn = msg_handler_fn;
+	sll_append(np_usercallback_ptr, msg_prop->user_send_clb, msg_handler);
 }
 
 /**
@@ -435,7 +412,7 @@ void np_set_mx_property(np_context*ac, char* subject, const char* key, np_treeva
 		np_new_obj(np_msgproperty_t, msg_prop);
 		msg_prop->msg_subject = strndup(subject, 255);
 
-		if(FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)){
+		if(false == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)){
 			sll_append(np_callback_t, msg_prop->clb_outbound, _np_out);
 		}
 
@@ -514,7 +491,7 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *bod
 	np_ref_obj(np_msgproperty_t, msg_prop, ref_message_msg_property);
 	ret->msg_property = msg_prop;
 
-	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)) {
+	if (false == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)) {
 		sll_append(np_callback_t, msg_prop->clb_outbound, _np_out);
 	}
 
@@ -607,15 +584,15 @@ char* np_get_connection_string(np_context*ac){
 	np_ctx_cast(ac);
 	log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string(){");
 
-	return np_get_connection_string_from(context->my_node_key, TRUE);
+	return np_get_connection_string_from(context->my_node_key, true);
 }
 
-char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash) {
-	log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
+char* np_get_connection_string_from(np_key_t* node_key, bool includeHash) {
+	log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, bool includeHash){");
 
 	return (
 			np_build_connection_string(
-					includeHash == TRUE ? _np_key_as_str(node_key) : NULL,
+					includeHash == true ? _np_key_as_str(node_key) : NULL,
 					_np_network_get_protocol_string(node_key->node->protocol),
 					node_key->node->dns_name,
 					node_key->node->port,
@@ -623,11 +600,11 @@ char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash) {
 			);
 }
 
-char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char* port, np_bool includeHash) {
-	log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash){");
+char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char* port, bool includeHash) {
+	log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, bool includeHash){");
 	char* connection_str;
 
-	if (TRUE == includeHash) {
+	if (true == includeHash) {
 		asprintf(&connection_str, "%s:%s:%s:%s",
 			hash,
 			protocol,
@@ -692,27 +669,26 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 void np_send_join(np_context*ac, const char* node_string)
 {
 	np_ctx_cast(ac);
-	log_trace_msg(LOG_TRACE, "start: void np_send_join(const char* node_string){");
+	_LOCK_MODULE(np_handshake_t) {
+		if (node_string[0] == '*') {
+			const char* node_string_2 = node_string + 2;
+			log_msg(LOG_INFO, "Assumed wildcard join for \"%s\"", node_string);
+			// node_string2 += 2;
+			np_send_wildcard_join(ac, node_string_2);
 
-	if (node_string[0] == '*') {
-		const char* node_string_2 = node_string + 2;
-		log_msg(LOG_INFO, "Assumed wildcard join for \"%s\"", node_string);
-		// node_string2 += 2;
-		np_send_wildcard_join(ac, node_string_2);
+		}
+		else {
+			np_key_t* node_key = NULL;
 
-	}
-	else {
-		np_key_t* node_key = NULL;
+			node_key = _np_node_decode_from_str(context, node_string);
+			_np_send_simple_invoke_request(node_key, _NP_MSG_JOIN_REQUEST);
 
-		node_key = _np_node_decode_from_str(context, node_string);
-		_np_send_simple_invoke_request(node_key, _NP_MSG_JOIN_REQUEST);
+			np_route_set_bootstrap_key(node_key);
 
-		np_route_set_bootstrap_key(node_key);
-
-		np_unref_obj(np_key_t, node_key, "_np_node_decode_from_str"); // _np_node_decode_from_str
+			np_unref_obj(np_key_t, node_key, "_np_node_decode_from_str"); // _np_node_decode_from_str
+		}
 	}
 }
-
 /**
 * Sends a ACK msg for the given message.
 * @param msg_to_ack
@@ -757,45 +733,32 @@ void _np_send_ack(const np_message_t* const msg_to_ack)
 void np_send_wildcard_join(np_context*ac, const char* node_string)
 {
 	np_ctx_cast(ac);
-	log_trace_msg(LOG_TRACE, "start: void np_send_wildcard_join(const char* node_string){");
-	/**
-	* Wir erzeugen einen festen hash key der als wildcard fungiert.
-	* Anschließend wird diesem der node_string mit allen anderen informationen (dns/port/etc) hinzugefügt.
-	* Beim handshake wird festgestellt das es für diese Zusatzinformationen (dns/port) einen wildcard key bereits gibt.
-	* Der wildcard key wird dann mit den tatsächlichen dhkey informationen angereichert.
-	* So wird aus dem wildcard key ein vollwertiger key eintrag in der routing Tabelle.
-	*/
+	_LOCK_MODULE(np_handshake_t) {
+		/**
+		* Wir erzeugen einen festen hash key der als wildcard fungiert.
+		* Anschließend wird diesem der node_string mit allen anderen informationen (dns/port/etc) hinzugefügt.
+		* Beim handshake wird festgestellt das es für diese Zusatzinformationen (dns/port) einen wildcard key bereits gibt.
+		* Der wildcard key wird dann mit den tatsächlichen dhkey informationen angereichert.
+		* So wird aus dem wildcard key ein vollwertiger key eintrag in der routing Tabelle.
+		*/
 
-	char* wildcard_node_str = NULL;
-	np_key_t* wildcard_node_key = NULL;
+		char* wildcard_node_str = NULL;
+		np_key_t* wildcard_node_key = NULL;
 
-	//START Build our wildcard connection string
-	np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport(context, "*", node_string);
-	char wildcard_dhkey_str[65];
-	_np_dhkey_to_str(&wildcard_dhkey, wildcard_dhkey_str);
-	asprintf(&wildcard_node_str, "%s:%s", wildcard_dhkey_str, node_string);
-	//END Build our wildcard connection string
+		//START Build our wildcard connection string
+		np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport(context, "*", node_string);
+		char wildcard_dhkey_str[65];
+		_np_dhkey_to_str(&wildcard_dhkey, wildcard_dhkey_str);
+		asprintf(&wildcard_node_str, "%s:%s", wildcard_dhkey_str, node_string);
+		//END Build our wildcard connection string
 
-	wildcard_node_key = _np_node_decode_from_str(context, wildcard_node_str);
-	free(wildcard_node_str);
+		wildcard_node_key = _np_node_decode_from_str(context, wildcard_node_str);
+		free(wildcard_node_str);
 
-	_np_network_send_handshake(wildcard_node_key);
+		_np_network_send_handshake(context, wildcard_node_key);
 
-	np_route_set_bootstrap_key(wildcard_node_key);
-	np_unref_obj(np_key_t, wildcard_node_key, "_np_node_decode_from_str");
-}
-
-np_bool np_has_receiver_for(np_context*ac, char * subject) {
-	np_ctx_cast(ac);
-	np_bool ret = FALSE;
-	if (_np_route_my_key_has_connection(context)) {
-		np_aaatoken_t * token = _np_aaatoken_get_receiver(context, subject, NULL);
-
-		if (token != NULL){
-			ret = TRUE;
-		}
-		np_unref_obj(np_aaatoken_t, token, "_np_aaatoken_get_receiver");
+		np_route_set_bootstrap_key(wildcard_node_key);
+		np_unref_obj(np_key_t, wildcard_node_key, "_np_node_decode_from_str");
 	}
-
-	return ret;
 }
+

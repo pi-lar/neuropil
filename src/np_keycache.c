@@ -35,15 +35,18 @@ np_module_struct(keycache) {
 	st_keycache_t* __key_cache;
 };
 
-void _np_keycache_init(np_state_t* context)
+bool _np_keycache_init(np_state_t* context)
 {
+	bool ret = false;
 	if (!np_module_initiated(keycache)) {
 		np_module_malloc(keycache);
 		_module->__key_cache = (st_keycache_t*)malloc(sizeof(st_keycache_t));
 		CHECK_MALLOC(_module->__key_cache);
 
 		SPLAY_INIT(_module->__key_cache);
+		ret = true;
 	}
+	return ret;
 }
 
 np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhkey)
@@ -105,15 +108,15 @@ np_key_t* _np_keycache_find(np_state_t* context, const np_dhkey_t search_dhkey)
 np_key_t* _np_keycache_find_by_details(
 		np_state_t* context,
 		char* details_container,
-		np_bool search_myself,
-		np_bool is_handshake_send,
-		np_bool is_handshake_received,
-		np_bool require_handshake_status,
-		np_bool require_dns,
-		np_bool require_port,
-		np_bool require_hash
+		bool search_myself,
+		bool is_handshake_send,
+		bool is_handshake_received,
+		bool require_handshake_status,
+		bool require_dns,
+		bool require_port,
+		bool require_hash
 	){
-	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		np_bool search_myself,		handshake_status_e is_handshake_send,		np_bool require_handshake_status,		np_bool require_dns,		np_bool require_port,		np_bool require_hash	){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		bool search_myself,		handshake_status_e is_handshake_send,		bool require_handshake_status,		bool require_dns,		bool require_port,		bool require_hash	){");
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
 
@@ -124,12 +127,12 @@ np_key_t* _np_keycache_find_by_details(
 	{
 		SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
 		{
-			TSP_GET(np_bool, iter->in_destroy, in_destroy);
-			if(in_destroy == FALSE){
-				if(TRUE == search_myself){
+			TSP_GET(bool, iter->in_destroy, in_destroy);
+			if(in_destroy == false){
+				if(true == search_myself){
 					if (
-						TRUE == _np_dhkey_equal(&iter->dhkey, &my_node_key->dhkey) ||
-						TRUE == _np_dhkey_equal(&iter->dhkey, &my_identity->dhkey) )
+						true == _np_dhkey_equal(&iter->dhkey, &my_node_key->dhkey) ||
+						true == _np_dhkey_equal(&iter->dhkey, &my_identity->dhkey) )
 					{
 						continue;
 					}
@@ -189,16 +192,16 @@ np_key_t* _np_keycache_find_deprecated(np_state_t* context)
 		{
 
 			// our own key / identity never deprecates
-			if (TRUE == _np_dhkey_equal(&iter->dhkey, &context->my_node_key->dhkey) ||
-				TRUE == _np_dhkey_equal(&iter->dhkey, &context->my_identity->dhkey) )
+			if (true == _np_dhkey_equal(&iter->dhkey, &context->my_node_key->dhkey) ||
+				true == _np_dhkey_equal(&iter->dhkey, &context->my_identity->dhkey) )
 			{
 				continue;
 			}
 
 			double now = np_time_now();
-			TSP_GET(np_bool, iter->in_destroy, in_destroy);
+			TSP_GET(bool, iter->in_destroy, in_destroy);
 
-			if ((now - NP_KEYCACHE_DEPRECATION_INTERVAL) > iter->last_update && in_destroy == FALSE)
+			if ((now - NP_KEYCACHE_DEPRECATION_INTERVAL) > iter->last_update && in_destroy == false)
 			{
 				np_ref_obj(np_key_t, iter);
 				return_key = iter;
@@ -218,9 +221,9 @@ sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)
 	{
 		SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
 		{
-			TSP_GET(np_bool, iter->in_destroy, in_destroy);
+			TSP_GET(bool, iter->in_destroy, in_destroy);
 
-			if (_np_key_cmp(iter->parent, forKey) == 0 && in_destroy == FALSE)
+			if (_np_key_cmp(iter->parent, forKey) == 0 && in_destroy == false)
 			{
 				np_ref_obj(np_key_t, iter);
 				sll_append(np_key_ptr, ret, iter);
@@ -291,12 +294,12 @@ np_key_t* _np_keycache_find_closest_key_to (np_state_t* context,  np_sll_t(np_ke
 	np_key_t *min_key = NULL;
 
 	sll_iterator(np_key_ptr) iter = sll_first(list_of_keys);
-	np_bool first_run = TRUE;
+	bool first_run = true;
 	while (NULL != iter)
 	{
-		TSP_GET(np_bool, iter->val->in_destroy, in_destroy);
+		TSP_GET(bool, iter->val->in_destroy, in_destroy);
 
-		if(in_destroy == FALSE){
+		if(in_destroy == false){
 
 			int cmp = _np_dhkey_cmp(key, &(iter->val->dhkey));
 			// calculate distance to the left and right
@@ -313,13 +316,13 @@ np_key_t* _np_keycache_find_closest_key_to (np_state_t* context,  np_sll_t(np_ke
 
 			// Set reference point at first iteration, then compare current iterations distance with shortest known distance
 			cmp = _np_dhkey_cmp(&dif, &minDif);
-			if (TRUE == first_run || cmp  < 0)
+			if (true == first_run || cmp  < 0)
 			{
 				min_key = iter->val;
 				_np_dhkey_assign (&minDif, &dif);
 			}
 
-			first_run = FALSE;
+			first_run = false;
 		}
 		sll_next(iter);		
 	}

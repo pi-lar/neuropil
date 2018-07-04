@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_MESSAGE;
 	log_init(log_file, level);
 
-	np_memory_init();
+	_np_memory_init();
 	np_mem_init();
 
 	np_message_t* msg_out = NULL;

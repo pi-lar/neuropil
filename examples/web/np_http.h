@@ -28,7 +28,7 @@ typedef struct ht_response_s ht_response_t;
 typedef int(*_np_http_callback_func_t)(ht_request_t* request, ht_response_t* response, void* user_arg);
 
 
-np_bool np_http_init(np_state_t* context, char* domain);
+bool np_http_init(np_state_t* context, char* domain);
 
 void _np_add_http_callback(np_state_t *context, const char* path, htp_method method, void* user_args, _np_http_callback_func_t func);
 

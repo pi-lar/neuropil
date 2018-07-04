@@ -104,12 +104,13 @@ struct np_state_s
 
 	int thread_count;
 
-	np_bool enable_realm_server; // act as a realm server for other nodes or not
-	np_bool enable_realm_client; // act as a realm client and ask server for aaatokens
+	bool enable_realm_server; // act as a realm server for other nodes or not
+	bool enable_realm_client; // act as a realm client and ask server for aaatokens
 
-	np_aaa_func_t  authenticate_func; // authentication callback
-	np_aaa_func_t  authorize_func;    // authorization callback
-	np_aaa_func_t  accounting_func;   // really needed ?
+
+	np_aaa_callback authenticate_func; // authentication callback
+	np_aaa_callback authorize_func;    // authorization callback
+	np_aaa_callback accounting_func;   // really needed ?
 
 	void* userdata;
 } NP_API_INTERN;
@@ -214,52 +215,31 @@ NP_API_EXPORT
 void np_waitforjoin(np_context*ac);
 
 /**
-.. c:function:: void np_set[aaa]_cb(np_aaa_func_t join_func)
-.. c:function:: void np_setauthorizing_cb
-.. c:function:: void np_setauthenticate_cb
-.. c:function:: void np_setaccounting_cb
-
-   set callback function which will be called whenever authorization, authentication or account is required
-   it is up to the user to define storage policies/rules for passed tokens
-
-   :param aaa_func: a function pointer to a np_aaa_func_t function
-
-*/
-NP_API_EXPORT
-void np_setauthorizing_cb(np_context*ac, np_aaa_func_t join_func);
-
-NP_API_EXPORT
-void np_setauthenticate_cb(np_context*ac, np_aaa_func_t join_func);
-
-NP_API_EXPORT
-void np_setaccounting_cb(np_context*ac, np_aaa_func_t join_func);
-
-/**
 .. c:function:: void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
 
    register an message callback handler for a subject. The callback is called when a message arrives.
-   The callback function should return TRUE if the message was processed successfully, FALSE otherwise.
-   Returning FALSE will inhibit the sending of the ack and may lead to another re-delivery of the message
+   The callback function should return true if the message was processed successfully, false otherwise.
+   Returning false will inhibit the sending of the ack and may lead to another re-delivery of the message
 
    :param msg_handler: a function pointer to a np_usercallback_t function
    :param subject: the message subject the handler should be called for
 
 */
 NP_API_EXPORT
-void np_add_receive_listener (np_context*ac, np_usercallback_t msg_handler, char* subject);
+void np_add_receive_listener (np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, char* subject);
 
 /**
 .. c:function:: void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
 
    register an message callback handler for a subject. The callback is called when a message will be send.
-   The callback function should return TRUE if the message should be send, FALSE otherwise.
+   The callback function should return true if the message should be send, false otherwise.
 
    :param msg_handler: a function pointer to a np_usercallback_t function
    :param subject: the message subject the handler should be called for
 
 */
 NP_API_EXPORT
-void np_add_send_listener(np_context*ac, np_usercallback_t msg_handler, char* subject);
+void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, char* subject);
  
 /**
 .. c:function:: void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body)
@@ -323,10 +303,10 @@ char* np_get_connection_string(np_context*ac);
 
 */
 NP_API_EXPORT
-char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash);
+char* np_get_connection_string_from(np_key_t* node_key, bool includeHash);
 
 NP_API_EXPORT
-char* np_build_connection_string(char* hash, char* protocol, char*dns_name, char* port, np_bool includeHash);
+char* np_build_connection_string(char* hash, char* protocol, char*dns_name, char* port, bool includeHash);
 
 /**
 .. c:function:: void _np_ping_send(np_state_t* context, np_key_t* key)
@@ -366,17 +346,14 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *bod
 NP_API_EXPORT
 void np_context_create_new_nodekey(np_context* ac, np_node_t* base);
 
-NP_API_EXPORT
-np_bool np_has_receiver_for(np_context*ac, char * subject);
+NP_API_INTERN
+bool _np_default_authorizefunc(np_context*ac, np_token* token);
 
 NP_API_INTERN
-np_bool _np_default_authorizefunc(np_context*ac, np_aaatoken_t* token);
+bool _np_default_authenticatefunc(np_context*ac, np_token* token);
 
 NP_API_INTERN
-np_bool _np_default_authenticatefunc(np_context*ac, np_aaatoken_t* token);
-
-NP_API_INTERN
-np_bool _np_default_accountingfunc(np_context*ac, np_aaatoken_t* token);
+bool _np_default_accountingfunc(np_context*ac, np_token* token);
 
 #ifdef __cplusplus
 }

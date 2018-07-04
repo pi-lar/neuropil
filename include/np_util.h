@@ -20,31 +20,7 @@
 extern "C" {
 #endif
 
-
-#ifndef CEIL
-#define CEIL(a) (((a-(int)a) > 0) ? ((int)a)+1:a)
-#endif
-#ifndef FLOOR
-#define FLOOR(a) ((int)a)
-#endif
-#ifndef MIN
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#endif
-#ifndef MAX
-#define MAX(a,b) (((a)>(b))?(a):(b))
-#endif
-#ifndef min
-#define min(a,b) MIN(a,b)
-#endif
-#ifndef ceil
-#define ceil(a) CEIL(a)
-#endif
-#ifndef floor
-#define floor(a) FLOOR(a)
-#endif
-#ifndef max
-#define max(a,b) MAX(a,b)
-#endif
+	 
 
 #ifdef DEBUG
 #define debugf(s, ...) fprintf(stdout, s, ##__VA_ARGS__);fflush(stdout)
@@ -58,7 +34,6 @@ extern "C" {
 #ifdef DEBUG
 #define ASSERT(expression, onfail_msg, ...)												\
 	if(!(expression)){																	\
-		log_debug_msg(LOG_ERROR, onfail_msg , ##__VA_ARGS__);							\
 		fprintf(stderr, "Assert ERROR: "onfail_msg"\r\n", ##__VA_ARGS__);				\
 		fflush(NULL);																	\
 		assert((expression));															\
@@ -98,7 +73,7 @@ inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, 
 	msg_prop->PROP_NAME = value;                          \
 }
 
-#define UUID_SIZE 37
+
 // create a sha156 uuid string, take the current date into account
 NP_API_EXPORT
 char* np_uuid_create(const char* str, const uint16_t num, char** buffer);
@@ -121,7 +96,7 @@ JSON_Value* np_tree2json(np_state_t * context, np_tree_t* tree) ;
 
 */
 NP_API_EXPORT
-char* np_json2char(JSON_Value* data,np_bool prettyPrint) ;
+char* np_json2char(JSON_Value* data,bool prettyPrint) ;
 /**
  * convert np_treeval_t to JSON_Value
  */
@@ -148,7 +123,7 @@ NP_API_PROTEC
 char* np_str_concatAndFree(char* target, char* source, ... );
 
 NP_API_PROTEC
-np_bool np_get_local_ip(np_state_t* context, char* buffer, int buffer_size);
+bool np_get_local_ip(np_state_t* context, char* buffer, int buffer_size);
 
 NP_API_PROTEC
 char* _sll_char_make_flat(np_state_t* context, np_sll_t(char_ptr, target));

@@ -67,7 +67,7 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t* args)
 	CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_target);
 
 	char* msg_subject;
-	np_bool free_msg_subject = FALSE;
+	bool free_msg_subject = false;
 	np_tree_elem_t* ele_subject = np_tree_find_str(msg_in->header, _NP_MSG_HEADER_SUBJECT);
 	if(ele_subject != NULL){
 		msg_subject = np_treeval_to_str(ele_subject->val, &free_msg_subject);
@@ -76,13 +76,13 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t* args)
 		msg_subject = args->properties->msg_subject;
 	}
 	else {
-		ASSERT(FALSE, "A msg subject to route for is required");
+		ASSERT(false, "A msg subject to route for is required");
 	}
 	
-	np_bool is_a_join_request = FALSE;
+	bool is_a_join_request = false;
 	if (0 == strncmp(msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) )
 	{
-		is_a_join_request = TRUE;
+		is_a_join_request = true;
 	}
 	np_dhkey_t search_key = msg_target.value.dhkey;
 
@@ -94,7 +94,7 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t* args)
 
 	if ( NULL != tmp                &&
 		 0    < sll_size(tmp)       &&
-		 FALSE == is_a_join_request &&
+		 false == is_a_join_request &&
 		 (_np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)) )
 	{
 		// the result returned the sending node, try again with a higher count parameter
@@ -110,7 +110,7 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t* args)
 
 	if (NULL  != tmp           &&
 		0     <  sll_size(tmp) &&
-		FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey))
+		false == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey))
 	{
 		target_key = sll_first(tmp)->val;
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) route_lookup result   = %s", msg_in->uuid, _np_key_as_str(target_key));
@@ -120,7 +120,7 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t* args)
 	}
 	
 	/* if I am the only host or the closest host is me, deliver the message */
-	if (NULL == target_key && FALSE == is_a_join_request)
+	if (NULL == target_key && false == is_a_join_request)
 	{
 		// the message has to be handled by this node (e.g. msg interest messages)
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) internal routing for subject '%s'", msg_in->uuid, msg_subject);
@@ -133,7 +133,7 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t* args)
 		/* hand it over to the np_axon sending unit */
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) forward routing for subject '%s'", msg_in->uuid, msg_subject);
 
-		if (NULL == target_key || TRUE == is_a_join_request)
+		if (NULL == target_key || true == is_a_join_request)
 		{
 			target_key = args->target;
 		}
@@ -143,7 +143,7 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t* args)
 			prop = np_msgproperty_get(context, OUTBOUND, _DEFAULT);
 		}
 
-		if (args->is_resend == TRUE) {
+		if (args->is_resend == true) {
 			_np_job_resubmit_msgout_event(context, 0.0, prop, target_key, args->msg);
 		} else {
 			_np_job_submit_msgout_event(context, 0.0, prop, target_key, args->msg);
@@ -170,7 +170,7 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
 		if (NULL != tmp_node_key->node &&
 			tmp_node_key->node->success_avg < BAD_LINK &&
 			(np_time_now() - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
-			tmp_node_key->node->is_handshake_send == TRUE
+			tmp_node_key->node->is_handshake_send == true
 			)
 		{
 			np_ctx_memory(tmp_node_key);
@@ -182,7 +182,7 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
 								tmp_node_key->node->success_avg);
 
 			np_key_t *added = NULL, *deleted = NULL;
-			fn(tmp_node_key, FALSE, &deleted, &added);
+			fn(tmp_node_key, false, &deleted, &added);
 			if (deleted != tmp_node_key)
 			{
 				log_msg(LOG_ROUTING | LOG_WARN, "deleting from table returned different key");
@@ -255,7 +255,7 @@ void _np_glia_send_pings(np_state_t* context, np_jobargs_t* args) {
 
 void _np_glia_log_flush(np_state_t* context, np_jobargs_t* args) {
 	
-	_np_log_fflush(context, TRUE);
+	_np_log_fflush(context, true);
 }
 
 void _np_glia_send_piggy_requests(np_state_t* context, np_jobargs_t* args) {
@@ -302,7 +302,7 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t* ar
 		_LOCK_MODULE(np_state_message_tokens_t) {
 			RB_FOREACH(iter, np_tree_s, context->msg_tokens)
 			{
-				// np_bool free_subject;
+				// bool free_subject;
 				const char* subject = iter->key.value.s;
 				
 				np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(context, subject, "0");
@@ -327,7 +327,7 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t* ar
 			}
 		}
 
-		if (TRUE == context->enable_realm_server)
+		if (true == context->enable_realm_server)
 		{
 			np_msgproperty_t* msg_prop = NULL;
 
@@ -338,20 +338,20 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t* ar
 			target = _np_keycache_find_or_create(context, target_dhkey);
 
 			msg_prop = np_msgproperty_get(context, INBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
-			if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
+			if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
 				sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
 			}
 			// _np_out_sender_discovery(0.0, msg_prop, target, NULL);
 			_np_job_submit_transform_event(context, 0.0, msg_prop, target, NULL);
 
 			msg_prop = np_msgproperty_get(context, INBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
-			if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
+			if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
 				sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
 			}
 			_np_job_submit_transform_event(context, 0.0, msg_prop, target, NULL);
 
 			msg_prop = np_msgproperty_get(context, INBOUND, _NP_MSG_ACCOUNTING_REQUEST);
-			if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
+			if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
 				sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
 			}
 			_np_job_submit_transform_event(context, 0.0, msg_prop, target, NULL);
@@ -444,7 +444,7 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t* args)
 	if (NULL != old)
 	{
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup check started for key : %p -> %s", old, _np_key_as_str(old));
-		np_bool delete_key = TRUE;
+		bool delete_key = true;
 
 		if (NULL != old->node)
 		{
@@ -453,16 +453,16 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t* args)
 			{
 				// 60 sec no success full msg received
 				log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid node last_success value: %s", _np_key_as_str(old));
-				delete_key &= FALSE;
+				delete_key &= false;
 			}
 		}
 
 		np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists, "np_tryref_old->aaa_token");
 		if(tokenExists) {
-			if (TRUE == _np_aaatoken_is_valid(old->aaa_token, np_aaatoken_type_undefined))
+			if (true == _np_aaatoken_is_valid(old->aaa_token, np_aaatoken_type_undefined))
 			{
 				log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _np_key_as_str(old));
-				delete_key &= FALSE;
+				delete_key &= false;
 			}
 			np_unref_obj(np_aaatoken_t, old->aaa_token,"np_tryref_old->aaa_token");
 		}
@@ -476,10 +476,10 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t* args)
 				while (NULL != iter)
 				{
 					np_aaatoken_t* tmp_token = iter->val;
-					if (TRUE == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
+					if (true == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
 					{
 						log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _np_key_as_str(old));
-						delete_key &= FALSE;
+						delete_key &= false;
 						break;
 					}
 					pll_next(iter);
@@ -496,10 +496,10 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t* args)
 				while (NULL != iter)
 				{
 					np_aaatoken_t* tmp_token = iter->val;
-					if (TRUE == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
+					if (true == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
 					{
 						log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _np_key_as_str(old));
-						delete_key &= FALSE;
+						delete_key &= false;
 						break;
 					}
 					pll_next(iter);
@@ -508,7 +508,7 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t* args)
 		}
 
 		// last sanity check if we should delete
-		if (TRUE == delete_key &&
+		if (true == delete_key &&
 			now > old->last_update)
 		{
 			_np_key_destroy(old);
@@ -553,7 +553,7 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t* args)
 	if (sll_size(sll_of_keys) > 0)
 	{
 		np_tree_t* msg_body = np_tree_create();
-		_np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, FALSE);
+		_np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, false);
 		np_msgproperty_t* outprop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_PIGGY_REQUEST);
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending piggy msg (%"PRIu32" nodes) to %s", sll_size(sll_of_keys), _np_key_as_str(target_key));
 
@@ -579,7 +579,7 @@ void _np_send_subject_discovery_messages(np_state_t* context , np_msg_mode_type 
 
 			np_msgproperty_t* msg_prop = np_msgproperty_get(context, mode_type, subject);
 			msg_prop->mode_type |= TRANSFORM;
-			if (FALSE == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages, np_callback_t_sll_compare_type)) {
+			if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages, np_callback_t_sll_compare_type)) {
 				sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
 			}
 
@@ -595,7 +595,7 @@ void _np_send_subject_discovery_messages(np_state_t* context , np_msg_mode_type 
 }
 
 // TODO: add a wrapper function which can be scheduled via jobargs
-np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
+bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
 {
 	assert(msg != NULL);
 	np_state_t* context = np_ctx_by_memory(msg);
@@ -627,7 +627,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 			np_msgproperty_t* handler = np_msgproperty_get(context, INBOUND, msg->msg_property->msg_subject);
 			if (handler != NULL)
 			{
-				_np_in_new_msg_received(msg, handler, TRUE);
+				_np_in_new_msg_received(msg, handler, true);
 			}
 		}
 		else
@@ -654,7 +654,7 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 			_np_msgproperty_threshold_decrease(msg_prop);
 
 			np_unref_obj(np_aaatoken_t, tmp_token, "_np_aaatoken_get_receiver");
-			return (TRUE);
+			return (true);
 		}
 	}
 	else
@@ -663,5 +663,5 @@ np_bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_pr
 		_np_msgproperty_add_msg_to_send_cache(msg_prop, msg);
 	}
 	
-	return (FALSE);
+	return (false);
 }

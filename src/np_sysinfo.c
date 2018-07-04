@@ -173,12 +173,12 @@ void np_sysinfo_enable_server(np_state_t* context) {
 	np_msgproperty_register(sysinfo_response_props);
 	//np_msgproperty_register(sysinfo_request_props);
 	
-	np_add_receive_listener(context, _np_in_sysinforeply, _NP_SYSINFO_REPLY);
+	np_add_receive_listener(context, _np_in_sysinforeply, NULL, _NP_SYSINFO_REPLY);
 }
 
-np_bool _np_in_sysinfo(np_state_t* context, const np_message_t* const msg, np_tree_t* body) {
-
-	log_trace_msg(LOG_TRACE, "start: np_bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {");
+bool _np_in_sysinfo(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) {
+	np_ctx_cast(ac);
+	log_trace_msg(LOG_TRACE, "start: bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {");
 	log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo request");
 
 	np_tree_elem_t* source = np_tree_find_str(body, _NP_SYSINFO_SOURCE);
@@ -186,19 +186,19 @@ np_bool _np_in_sysinfo(np_state_t* context, const np_message_t* const msg, np_tr
 	if (NULL == source) {
 		log_msg(LOG_WARN | LOG_SYSINFO,
 				"received sysinfo request w/o source key information.");
-		return FALSE;
+		return false;
 	}
 
 	np_tree_elem_t* target = np_tree_find_str(body, _NP_SYSINFO_TARGET);
 
 	char* mynode_hash = _np_key_as_str(context->my_node_key);
 
-	np_bool source_str_free = FALSE;
+	bool source_str_free = false;
 	char* source_val = np_treeval_to_str(source->val, &source_str_free);
 
 	if (NULL != target) {
 
-		np_bool target_str_free = FALSE;
+		bool target_str_free = false;
 		char* target_val = np_treeval_to_str(target->val, &target_str_free);
 	
 		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo request message is from %s for %s !",
@@ -210,17 +210,17 @@ np_bool _np_in_sysinfo(np_state_t* context, const np_message_t* const msg, np_tr
 					"i am %s not %s . I cannot handle this sysinfo request",
 					mynode_hash,  target_val);
 
-			if (target_str_free == TRUE) {
+			if (target_str_free == true) {
 				free(target_val);
 			}
-			return FALSE;
+			return false;
 		}
 	} else {
 		log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo request message is from %s for anyone!",
 			source_val);
 	}
 
-	if (source_str_free == TRUE) {
+	if (source_str_free == true) {
 		free(source_val);
 	}
 
@@ -247,13 +247,13 @@ np_bool _np_in_sysinfo(np_state_t* context, const np_message_t* const msg, np_tr
 
 	np_send_msg(context, _NP_SYSINFO_REPLY, reply_body, NULL /* &target_dhkey */);
 
-	return TRUE;
+	return true;
 }
 
-np_bool _np_in_sysinforeply(np_state_t* context, const np_message_t* const msg, np_tree_t* body) {
+bool _np_in_sysinforeply(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) {
+	np_ctx_cast(ac);
 
-
-	log_trace_msg(LOG_TRACE, "start: np_bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {");
+	log_trace_msg(LOG_TRACE, "start: bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {");
 	_np_sysinfo_init_cache(context);
 
 	np_tree_elem_t* source = np_tree_find_str(body, _NP_SYSINFO_SOURCE);
@@ -261,11 +261,11 @@ np_bool _np_in_sysinforeply(np_state_t* context, const np_message_t* const msg, 
 	if (NULL == source) {
 		log_msg(LOG_WARN | LOG_SYSINFO,
 				"received sysinfo request w/o source key information.");
-		return FALSE;
+		return false;
 	}
 	log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo reply (uuid: %s )",msg->uuid);
 
-	np_bool source_str_free = FALSE;
+	bool source_str_free = false;
 	char* source_val = np_treeval_to_str(source->val, &source_str_free);
 
 	log_debug_msg(LOG_DEBUG | LOG_SYSINFO,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu32")",
@@ -294,24 +294,24 @@ np_bool _np_in_sysinforeply(np_state_t* context, const np_message_t* const msg, 
 			np_simple_cache_insert(context, np_module(sysinfo)->_cache, source_val, np_tree_clone( body));
 		}
 	}
-	if (source_str_free == TRUE) {
+	if (source_str_free == true) {
 		free(source_val);
 	}
 
-	return TRUE;
+	return true;
 }
 
 np_tree_t* np_sysinfo_get_my_info(np_state_t* context) {
 	log_trace_msg(LOG_TRACE, "start: np_tree_t* np_sysinfo_get_my_info() {");
 	np_tree_t* ret = np_tree_create();	
-	ret->attr.disable_special_str = TRUE;
+	ret->attr.disable_special_str = true;
 
 	np_tree_insert_str( ret, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_d(np_time_now()));
 
 	// build local node
 	np_tree_t* local_node = np_tree_create();
 	np_waitref_obj(np_key_t, context->my_node_key, my_node_key, "usage");
-	_np_node_encode_to_jrb(local_node, my_node_key, TRUE);
+	_np_node_encode_to_jrb(local_node, my_node_key, true);
 	np_tree_replace_str( local_node, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_s(_np_network_get_protocol_string(my_node_key->node->protocol)));
 
 	np_unref_obj(np_key_t, my_node_key, "usage");
@@ -331,7 +331,7 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context) {
 			current = sll_head(np_key_ptr, neighbours_table);
 			if (current->node) {
 				np_tree_t* neighbour = np_tree_create();
-				_np_node_encode_to_jrb(neighbour, current, TRUE);
+				_np_node_encode_to_jrb(neighbour, current, true);
 				np_tree_replace_str( neighbour, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_s(_np_network_get_protocol_string(current->node->protocol)));
 				np_tree_insert_int( neighbours, neighbour_counter++,
 						np_treeval_new_tree(neighbour));
@@ -359,7 +359,7 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context) {
 			current = sll_head(np_key_ptr, routing_table);
 			if (current->node) {
 				np_tree_t* route = np_tree_create();
-				_np_node_encode_to_jrb(route, current, TRUE);
+				_np_node_encode_to_jrb(route, current, true);
 				np_tree_replace_str( 
 					route, 
 					NP_SERIALISATION_NODE_PROTOCOL,

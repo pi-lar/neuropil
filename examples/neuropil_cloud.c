@@ -30,7 +30,7 @@ void make_wildcard(char* s) {
 int main(int argc, char **argv)
 {
 
-	int no_threads = 8;
+	int no_threads = 0;
 	char *j_key = NULL;
 	char* proto = "udp4";
 	char* port = NULL;
@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 		&logpath,
 		"c:",
 		ccloud_size
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
 
 	char addr[500];
 	uint16_t tmp;
-	for (size_t i=0; i < cloud_size; i++) {
+	for (int i=0; i < cloud_size; i++) {
 
 		int port = 3000 + i;
 		struct np_settings * settings = np_new_settings(NULL);		
@@ -93,11 +93,11 @@ int main(int argc, char **argv)
 		}
 	}
 
-	uint64_t iteration = 0;
-	while (TRUE)
+	int iteration = 0;
+	while (true)
 	{
 		iteration++;
-		for (size_t i = 0; i < cloud_size; i++) {
+		for (int i = 0; i < cloud_size; i++) {
 			if (np_ok != (tmp = np_run(nodes[i], 0))) {
 				np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not run. %s\n", i, np_error_str[tmp]);
 			}

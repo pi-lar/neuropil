@@ -69,7 +69,7 @@ Test(np_node_t, _node_list_serialize, .description="test the serialization of a 
 
     log_msg(LOG_DEBUG, "serializing");
 	np_tree_t* node_jrb = np_tree_create();
-	_np_encode_nodes_to_jrb(node_jrb, node_list, TRUE);
+	_np_encode_nodes_to_jrb(node_jrb, node_list, true);
 
 	cmp_ctx_t cmp;
     void* buffer = malloc(node_jrb->byte_size);

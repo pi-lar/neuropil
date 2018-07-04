@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <float.h>
 #include <errno.h>
+#include <math.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -40,6 +41,7 @@
 #include "np_types.h"
 #include "np_list.h"
 #include "np_threads.h"
+#include "np_interface.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
@@ -48,7 +50,7 @@ char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
 {	
 	char* uuid_out;
 	if (buffer == NULL) {
-		uuid_out = calloc(1, UUID_SIZE);
+		uuid_out = calloc(1, NP_UUID_CHARS);
 		CHECK_MALLOC(uuid_out);
 	}
 	else {
@@ -61,7 +63,7 @@ char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
 	snprintf (input, 255, "%s:%u:%16.16f", str, num, now);
 	// log_debug_msg(LOG_DEBUG, "created input uuid: %s", input);
 	crypto_generichash(out, 18, (unsigned char*) input, 256, NULL, 0);
-	sodium_bin2hex(uuid_out, UUID_SIZE, out, 18);
+	sodium_bin2hex(uuid_out, NP_UUID_CHARS, out, 18);
 	// log_debug_msg(LOG_DEBUG, "created raw uuid: %s", uuid_out);
 	uuid_out[8] = uuid_out[13] = uuid_out[18] = uuid_out[23] = '-';
 	uuid_out[14] = '5';
@@ -115,7 +117,7 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
 JSON_Value* np_treeval2json(np_state_t* context, np_treeval_t val) {
 	log_trace_msg(LOG_TRACE, "start: JSON_Value* np_treeval2json(context, np_treeval_t val) {");
 	JSON_Value* ret = NULL;
-	np_bool free_string = FALSE;
+	bool free_string = false;
 	char* tmp_str = NULL;
 	//log_debug_msg(LOG_DEBUG, "np_treeval2json type: %"PRIu8,val.type);
 	switch (val.type) {
@@ -177,7 +179,7 @@ JSON_Value* np_treeval2json(np_state_t* context, np_treeval_t val) {
 	default:
 		tmp_str = np_treeval_to_str(val, &free_string);
 		ret = json_value_init_string(tmp_str);
-		if (free_string == TRUE) {
+		if (free_string == true) {
 			free(tmp_str);
 		}
 		break;
@@ -188,7 +190,7 @@ JSON_Value* np_treeval2json(np_state_t* context, np_treeval_t val) {
 char* np_dump_tree2char(np_state_t* context, np_tree_t* tree) {
 	log_trace_msg(LOG_TRACE, "start: char* np_dump_tree2char(context, np_tree_t* tree) {");
 	JSON_Value * tmp = np_tree2json(context, tree);
-	char* tmp2 = np_json2char(tmp,TRUE);
+	char* tmp2 = np_json2char(tmp,true);
 	free(tmp);
 	return tmp2;
 }
@@ -205,13 +207,13 @@ JSON_Value* np_tree2json(np_state_t* context, np_tree_t* tree) {
 		if (0 < tree->size)
 		{
 			np_tree_elem_t* tmp = NULL;
-			np_bool useArray = FALSE;
+			bool useArray = false;
 			RB_FOREACH(tmp, np_tree_s, tree)
 			{
 				char* name = NULL;
 				if (np_treeval_type_int == tmp->key.type)
 				{
-					useArray = TRUE;
+					useArray = true;
 					int size = snprintf(NULL, 0, "%d", tmp->key.value.i);
 					name = malloc(size + 1);
 					CHECK_MALLOC(name);
@@ -251,7 +253,7 @@ JSON_Value* np_tree2json(np_state_t* context, np_tree_t* tree) {
 				//log_debug_msg(LOG_DEBUG, "np_tree2json set key %s:", name);
 				JSON_Value* value = np_treeval2json(context, tmp->val);
 
-				if(useArray == TRUE) {
+				if(useArray == true) {
 					if(NULL == arr) {
 						arr = json_value_init_array();
 					}
@@ -288,8 +290,8 @@ JSON_Value* np_tree2json(np_state_t* context, np_tree_t* tree) {
 	return ret;
 }
 
-char* np_json2char(JSON_Value* data, np_bool prettyPrint) {
-	log_trace_msg(LOG_TRACE, "start: char* np_json2char(JSON_Value* data, np_bool prettyPrint) {");
+char* np_json2char(JSON_Value* data, bool prettyPrint) {
+	log_trace_msg(LOG_TRACE, "start: char* np_json2char(JSON_Value* data, bool prettyPrint) {");
 	char* ret;
 	/*
 	size_t json_size ;
@@ -355,9 +357,9 @@ char* np_str_concatAndFree(char* target, char* source, ... ) {
 }
 
 
-np_bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
+bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
 
-	np_bool ret = FALSE;
+	bool ret = false;
 
 	const char* ext_server = "37.97.143.153";//"neuropil.io";
 	int dns_port = 53;
@@ -368,7 +370,7 @@ np_bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
 
 	if(sock < 0)
 	{
-		ret = FALSE;
+		ret = false;
 		log_msg(LOG_ERROR,"Could not detect local ip. (1) Error: Socket could not be created");
 	} else {
 
@@ -379,7 +381,7 @@ np_bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
 
 		int err = connect( sock , (const struct sockaddr*) &serv , sizeof(serv) );
 		if(err < 0 ){
-			ret = FALSE;
+			ret = false;
 			log_msg(LOG_ERROR,"Could not detect local ip. (2) Error: %s (%d)", strerror(errno), errno);
 		} else
 		{
@@ -389,21 +391,21 @@ np_bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
 
 			if(err < 0 )
 			{
-				ret = FALSE;
+				ret = false;
 				log_msg(LOG_ERROR,"Could not detect local ip. (3) Error: %s (%d)", strerror(errno), errno);
 			} else
 			{
 				const char* p = inet_ntop(AF_INET, &name.sin_addr, buffer, buffer_size);
 
 				if(p == NULL) {
-					ret = FALSE;
+					ret = false;
 					log_msg(LOG_ERROR,"Could not detect local ip. (4) Error: %s (%d)", strerror(errno), errno);
 				}
 				if(strncmp(buffer,"0.0.0.0", 7) == 0){
-					ret = FALSE;
+					ret = false;
 					log_msg(LOG_ERROR,"Could not detect local ip. (5) Error: ip result 0.0.0.0");
 				}else{
-					ret = TRUE;
+					ret = true;
 				}
 
 			}
@@ -547,8 +549,8 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(np_state_t * context,
 		item->avg = (item->avg * item->count + value) / (item->count + 1);
 		item->count++;
 
-		item->max = max(value, item->max);
-		item->min = min(value, item->min);
+		item->max = fmax(value, item->max);
+		item->min = fmin(value, item->min);
 	}
 
 	return item;
@@ -558,7 +560,7 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(np_state_t * context,
 char* np_util_string_trim_left(char* target) {
 	char* ret = target;
 	
-	for (int i = 0; i < strlen(target); i++) {
+	for (size_t i = 0; i < strlen(target); i++) {
 		if (!(target[i] == ' ' || target[i] == '\t' || target[i] == '\r' || target[i] == '\n')) {
 			ret = &target[i];
 			break;

@@ -48,6 +48,8 @@ extern "C" {
 	#define NP_SERIALISATION_NODE_LATENCY			"np.n.l"
 	#define NP_SERIALISATION_NODE_LAST_SUCCESS		"np.n.ls"
 
+	#define NP_SERIALISATION_USERDATA				"np.userdata"
+
 #define NP_AAATOKEN_MAX_SIZE_EXTENSIONS (1024)
 
 

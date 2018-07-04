@@ -39,7 +39,7 @@ struct np_key_s
 	              // link to memory management and ref counter
 
 	double created_at;
-	TSP(np_bool, in_destroy);
+	TSP(bool, in_destroy);
 
 	SPLAY_ENTRY(np_key_s) link; // link for cache management
 

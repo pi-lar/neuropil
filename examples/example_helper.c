@@ -16,6 +16,7 @@
 #include <inttypes.h>
 #include <getopt.h>
 #include <assert.h>
+#include <math.h>
 
 #include <curses.h>
 #include <ncurses.h>
@@ -85,11 +86,12 @@ struct __np_switchwindow_scrollable {
 };
 np_statistic_types_e statistic_types = 0;
 
+int term_width_top_rigth = 44;
 int term_height_bottom = 15;
 
 struct __np_switchwindow_scrollable * _current = NULL;
 
-np_bool __np_ncurse_initiated = FALSE;
+bool __np_ncurse_initiated = false;
 const float output_intervall_sec = 0.5;
 uint8_t enable_statistics = 1;
 
@@ -130,7 +132,7 @@ void reltime_to_str(char*buffer, double time) {
 
 void __np_switchwindow_draw(np_context* context) {
 
-	if (__np_ncurse_initiated == TRUE && _current != NULL) {
+	if (__np_ncurse_initiated == true && _current != NULL) {
 		_LOCK_ACCESS(&_current->access) {
 			int displayedRows = 0;
 
@@ -140,7 +142,7 @@ void __np_switchwindow_draw(np_context* context) {
 			if (line != NULL) {
 				do {
 					// clean line from escapes
-					for (int c = 0; c < strlen(line); c++)
+					for (size_t c = 0; c < strlen(line); c++)
 						if (line[c] < 32 || line[c] > 126) line[c] = ' ';
 
 					if (y >= _current->cursor) {
@@ -184,17 +186,17 @@ void __np_switchwindow_scroll_check_bounds(struct __np_switchwindow_scrollable *
 		if (target->cursor > max_scroll)
 			target->cursor = max_scroll;
 		else
-			target->cursor = max(0, target->cursor);
+			target->cursor = fmax(0, target->cursor);
 	}
 }
 
-void __np_switchwindow_scroll(np_context* context, struct __np_switchwindow_scrollable *target, int relative) {
+void __np_switchwindow_scroll(np_context* context, struct __np_switchwindow_scrollable *target, int relative, bool draw) {
 
 	_LOCK_ACCESS(&target->access) {
 		target->cursor += relative;
 		__np_switchwindow_scroll_check_bounds(target);
 	}
-	if (_current == target)__np_switchwindow_draw(context);
+	if (draw && _current == target)__np_switchwindow_draw(context);
 }
 
 void __np_switchwindow_update_buffer(np_context* context, struct __np_switchwindow_scrollable * target, char* buffer, int scroll_relative) {
@@ -202,7 +204,7 @@ void __np_switchwindow_update_buffer(np_context* context, struct __np_switchwind
 	_LOCK_ACCESS(&target->access) {
 		free(target->buffer);
 		target->buffer = strdup(buffer);
-		__np_switchwindow_scroll(context, target, scroll_relative);
+		__np_switchwindow_scroll(context, target, scroll_relative, false);
 	}
 
 }
@@ -215,7 +217,7 @@ struct __np_switchwindow_scrollable * __np_switchwindow_new(np_context* context,
 	int h = term_height_bottom, w = width/*140*/, x = 0/*, y = 39*/;
 	ret->win = newwin(h, w, y, x);
 	wbkgd(ret->win, color_pair);
-	scrollok(ret->win, TRUE);
+	scrollok(ret->win, true);
 
 	__np_switchwindow_update_buffer(context, ret, "initiated", 0);
 
@@ -250,7 +252,7 @@ void np_example_print(np_context * context, FILE * stream, const char * format_i
 	int to_add_size = vsnprintf(buffer, 500, format, args);
 
 	if (to_add_size > 0) {
-		to_add_size = min(500 - 1, to_add_size);
+		to_add_size = fmin(500 - 1, to_add_size);
 		if (__log_mutex == NULL) {
 			__log_mutex = malloc(sizeof(np_mutex_t));
 			_np_threads_mutex_init(context, __log_mutex, "Example logger mutex");
@@ -333,18 +335,18 @@ enum np_example_load_identity_status {
 	np_example_load_identity_status_not_found = 0,
 	np_example_load_identity_status_found_but_failed = -1,
 };
-np_bool identity_opt_is_set = FALSE;
+bool identity_opt_is_set = false;
 char identity_filename[255] = { 0 };
 char identity_passphrase[255] = { 0 };
 
 unsigned char salt[crypto_pwhash_SALTBYTES] = { 123 };
 unsigned char nonce[crypto_secretbox_NONCEBYTES] = { 123 };
 unsigned char key[crypto_secretstream_xchacha20poly1305_KEYBYTES];
-np_bool key_is_gen = FALSE;
+bool key_is_gen = false;
 
 
-np_bool np_example_save_identity(np_context* context, char* passphrase, char* filename) {
-	np_bool  ret = FALSE;
+bool np_example_save_identity(np_context* context, char* passphrase, char* filename) {
+	bool  ret = false;
 
 	unsigned char buffer[5000] = { 0 };
 	size_t token_size = np_identity_export_current(context, &buffer);
@@ -365,7 +367,7 @@ np_bool np_example_save_identity(np_context* context, char* passphrase, char* fi
 		log_debug_msg(LOG_DEBUG, "Error creating key! (%"PRIi32")", tmp);
 	}
 	else {
-		key_is_gen = TRUE;
+		key_is_gen = true;
 	}
 
 	if (key_is_gen) {
@@ -384,7 +386,7 @@ np_bool np_example_save_identity(np_context* context, char* passphrase, char* fi
 			FILE *f = fopen(filename, "wb");
 			if (f != NULL) {
 				if (fwrite(crypted_data, sizeof crypted_data, 1, f) == 1) {
-					ret = TRUE;
+					ret = true;
 				}
 			}
 			fclose(f);
@@ -413,13 +415,13 @@ enum np_example_load_identity_status  np_example_load_identity(np_context *conte
 			log_debug_msg(LOG_DEBUG, "Error creating key!");
 		}
 		else {
-			key_is_gen = TRUE;
+			key_is_gen = true;
 		}
 		if (key_is_gen) {
 
 			struct stat info;
 			stat(filename, &info);
-			char* crypted_data = (char *)malloc(info.st_size);
+			unsigned char* crypted_data = (unsigned char *)malloc(info.st_size);
 			fread(crypted_data, info.st_size, 1, f);
 
 			unsigned char buffer[info.st_size - crypto_secretbox_MACBYTES];
@@ -487,7 +489,7 @@ void np_example_save_or_load_identity(np_state_t* context) {
 char* opt_http_domain = NULL;
 int opt_sysinfo_mode = 1;
 
-np_bool parse_program_args(
+bool parse_program_args(
 	char* program,
 	int argc,
 	char **argv,
@@ -502,7 +504,7 @@ np_bool parse_program_args(
 	char* additional_fields_optstr,
 	...
 ) {
-	np_bool ret = TRUE;
+	bool ret = true;
 	char* usage;
 	asprintf(&usage,
 		"./%s [ p-j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s statistics 0=Off 1=Console 2=Log 3=1&2] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-o sysinfo 0=none,1=auto,2=server,3=client]%s",
@@ -536,7 +538,7 @@ np_bool parse_program_args(
 			(*no_threads) = atoi(optarg);
 			if ((*no_threads) < 0) {
 				fprintf(stderr, "invalid option %c\n", (char)opt);
-				ret = FALSE;
+				ret = false;
 			}
 			break;
 		case 'p':
@@ -564,7 +566,7 @@ np_bool parse_program_args(
 			*port = strdup(optarg);
 			break;
 		case 'i':
-			identity_opt_is_set = TRUE;
+			identity_opt_is_set = true;
 			strncpy(identity_filename, optarg, strnlen(optarg, 254));
 			break;
 		case 'a':
@@ -576,7 +578,7 @@ np_bool parse_program_args(
 			}
 			else {
 				fprintf(stderr, "invalid option %c\n", (char)opt);
-				ret = FALSE;
+				ret = false;
 			}
 			break;
 		default:
@@ -588,7 +590,7 @@ np_bool parse_program_args(
 			}
 			else {
 				fprintf(stderr, "invalid option %c\n", (char)opt);
-				ret = FALSE;
+				ret = false;
 			}
 		}
 	}
@@ -667,8 +669,8 @@ np_bool parse_program_args(
 }
 
 void __np_example_deinti_ncurse(np_context * context) {
-	if (__np_ncurse_initiated == TRUE) {
-		__np_ncurse_initiated = FALSE;
+	if (__np_ncurse_initiated == true) {
+		__np_ncurse_initiated = false;
 
 		delwin(__np_top_left_win);
 		delwin(__np_top_right_win);
@@ -685,11 +687,11 @@ void __np_example_deinti_ncurse(np_context * context) {
 }
 
 void __np_example_inti_ncurse(np_context* context) {
-	if (FALSE == __np_ncurse_initiated) {
+	if (false == __np_ncurse_initiated) {
 		if (enable_statistics == 1 || enable_statistics % 2 != 0) {
 			ncurse_init_at = np_time_now();
 
-			__np_ncurse_initiated = TRUE;
+			__np_ncurse_initiated = true;
 
 			/* Start curses mode          */
 			//initscr(); // Init ncurses mode
@@ -702,15 +704,14 @@ void __np_example_inti_ncurse(np_context* context) {
 			int term_current_height, term_current_width;
 			getmaxyx(stdscr, term_current_height, term_current_width);  /* get the new screen size */
 
-			int term_width_top_left;
-			int term_width_top_rigth = 43;
+			int term_width_top_left;			
 			int term_height_top_left;
 			// term_height_bottom = 15
 			int term_height_help = 1;
 
 			int term_height_logo = 20;
 
-			term_width_top_left = min(term_current_width, max(100, term_current_width - term_width_top_rigth));
+			term_width_top_left = fmin(term_current_width, fmax(100, term_current_width - term_width_top_rigth));
 			term_width_top_rigth = term_current_width - term_width_top_left;
 
 			term_height_top_left = term_current_height - term_height_bottom - term_height_help;
@@ -820,7 +821,7 @@ void resizeHandler(int sig)
 }
 
 void __np_example_helper_loop(np_state_t* context) {
-	if (__np_ncurse_initiated == TRUE) {
+	if (__np_ncurse_initiated == true) {
 		//slow down for getch 
 		np_time_sleep(0.005);
 	}
@@ -843,7 +844,7 @@ void __np_example_helper_loop(np_state_t* context) {
 	{
 		last_loop_run_at = sec_since_start;
 
-		if (__np_ncurse_initiated == TRUE) {
+		if (__np_ncurse_initiated == true) {
 			mvwprintw(__np_top_logo_win, 0, 0, "%s", logo);
 		}
 
@@ -852,9 +853,9 @@ void __np_example_helper_loop(np_state_t* context) {
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
 			if (enable_statistics == 1 || enable_statistics > 2) {
 
-				memory_str = np_mem_printpool(context, FALSE, FALSE);
+				memory_str = np_mem_printpool(context, false, false);
 				if (memory_str != NULL) {
-					if (__np_ncurse_initiated == TRUE) {
+					if (__np_ncurse_initiated == true) {
 						mvwprintw(__np_top_right_win, 0, 0, "%s", memory_str);
 					}
 					else {
@@ -864,9 +865,9 @@ void __np_example_helper_loop(np_state_t* context) {
 				free(memory_str);
 
 				if (_current == __np_switch_memory_ext) {
-					memory_str = np_mem_printpool(context, FALSE, TRUE);
+					memory_str = np_mem_printpool(context, false, true);
 					if (memory_str != NULL) {
-						if (__np_ncurse_initiated == TRUE) {
+						if (__np_ncurse_initiated == true) {
 							__np_switchwindow_update_buffer(context, __np_switch_memory_ext, memory_str, 0);
 						}
 						else {
@@ -877,7 +878,7 @@ void __np_example_helper_loop(np_state_t* context) {
 				}
 			}
 			if (enable_statistics >= 2) {
-				memory_str = np_mem_printpool(context, TRUE, TRUE);
+				memory_str = np_mem_printpool(context, true, true);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
@@ -889,7 +890,7 @@ void __np_example_helper_loop(np_state_t* context) {
 					NP_PERFORMANCE_GET_POINTS_STR(memory);
 
 					if (memory != NULL) {
-						if (__np_ncurse_initiated == TRUE) {
+						if (__np_ncurse_initiated == true) {
 							__np_switchwindow_update_buffer(context, __np_switch_performance, memory, 0);
 						}
 						else {
@@ -908,9 +909,9 @@ void __np_example_helper_loop(np_state_t* context) {
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_jobs) == np_stat_jobs) {
 			if (enable_statistics == 1 || enable_statistics > 2) {
 				if (_current == __np_switch_jobs) {
-					memory_str = np_jobqueue_print(context, FALSE);
+					memory_str = np_jobqueue_print(context, false);
 					if (memory_str != NULL) {
-						if (__np_ncurse_initiated == TRUE) {
+						if (__np_ncurse_initiated == true) {
 							__np_switchwindow_update_buffer(context, __np_switch_jobs, memory_str, 0);
 						}
 						else {
@@ -921,7 +922,7 @@ void __np_example_helper_loop(np_state_t* context) {
 				}
 			}
 			if (enable_statistics >= 2) {
-				memory_str = np_jobqueue_print(context, TRUE);
+				memory_str = np_jobqueue_print(context, true);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
@@ -930,9 +931,9 @@ void __np_example_helper_loop(np_state_t* context) {
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
 			if (enable_statistics == 1 || enable_statistics > 2) {
 				if (_current == __np_switch_msgpartcache) {
-					memory_str = np_messagepart_printcache(context, FALSE);
+					memory_str = np_messagepart_printcache(context, false);
 					if (memory_str != NULL) {
-						if (__np_ncurse_initiated == TRUE) {
+						if (__np_ncurse_initiated == true) {
 							__np_switchwindow_update_buffer(context, __np_switch_msgpartcache, memory_str, 0);
 						}
 						else {
@@ -942,7 +943,7 @@ void __np_example_helper_loop(np_state_t* context) {
 					free(memory_str);
 				}
 				if (enable_statistics >= 2) {
-					memory_str = np_messagepart_printcache(context, TRUE);
+					memory_str = np_messagepart_printcache(context, true);
 					if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 					free(memory_str);
 				}
@@ -951,9 +952,9 @@ void __np_example_helper_loop(np_state_t* context) {
 #ifdef DEBUG
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_locks) == np_stat_locks) {
 			if (enable_statistics == 1 || enable_statistics > 2) {
-				memory_str = np_threads_printpool(context, FALSE);
+				memory_str = np_threads_printpool(context, false);
 				if (memory_str != NULL) {
-					if (__np_ncurse_initiated == TRUE) {
+					if (__np_ncurse_initiated == true) {
 						mvwprintw(__np_top_right_win, 0, 0, "%s", memory_str);
 					}
 					else {
@@ -963,7 +964,7 @@ void __np_example_helper_loop(np_state_t* context) {
 				free(memory_str);
 			}
 			if (enable_statistics >= 2) {
-				memory_str = np_threads_printpool(context, TRUE);
+				memory_str = np_threads_printpool(context, true);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
@@ -974,9 +975,9 @@ void __np_example_helper_loop(np_state_t* context) {
 			reltime_to_str(time, sec_since_start);
 
 			if (enable_statistics == 1 || enable_statistics > 2) {
-				memory_str = np_statistics_print(context, FALSE);
+				memory_str = np_statistics_print(context, false);
 
-				if (memory_str != NULL && __np_ncurse_initiated == TRUE) {
+				if (memory_str != NULL && __np_ncurse_initiated == true) {
 					mvwprintw(__np_top_left_win, 0, 0, "%s - BUILD IN "
 #if defined(DEBUG)
 						"DEBUG"
@@ -993,13 +994,13 @@ void __np_example_helper_loop(np_state_t* context) {
 				free(memory_str);
 			}
 			if (enable_statistics >= 2) {
-				memory_str = np_statistics_print(context, TRUE);
+				memory_str = np_statistics_print(context, true);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
 		}
 
-		if (__np_ncurse_initiated == TRUE) {
+		if (__np_ncurse_initiated == true) {
 			wrefresh(__np_bottom_win_help);
 			wrefresh(__np_top_left_win);
 			wrefresh(__np_top_right_win);
@@ -1008,7 +1009,7 @@ void __np_example_helper_loop(np_state_t* context) {
 		}
 	}
 
-	if (__np_ncurse_initiated == TRUE) {
+	if (__np_ncurse_initiated == true) {
 		int key = getch();
 		switch (key) {
 		case KEY_RESIZE:
@@ -1038,17 +1039,17 @@ void __np_example_helper_loop(np_state_t* context) {
 			break;
 		case 102:	// f
 		case 70:	// F
-			__np_switchwindow_scroll(_current, -999999, TRUE);
+			__np_switchwindow_scroll(context, _current, -999999, true);
 			break;
 		case 117:	// u
 		case 85:	// U
 		case KEY_UP:
-			__np_switchwindow_scroll(_current, -1, TRUE);
+			__np_switchwindow_scroll(context, _current, -1, true);
 			break;
 		case 110:	// n
 		case 78:	// N
 		case KEY_DOWN:
-			__np_switchwindow_scroll(_current, 1, TRUE);
+			__np_switchwindow_scroll(context, _current, 1, true);
 			break;
 		case 113: // q
 			__np_example_deinti_ncurse(context);
@@ -1061,19 +1062,19 @@ void __np_example_helper_loop(np_state_t* context) {
 
 void __np_example_helper_run_loop(np_context*context) {
 	double sleep;
-	while (TRUE)
+	while (true)
 	{
-		sleep = min(output_intervall_sec, __np_jobqueue_run_jobs_once(context));
+		sleep = fmin(output_intervall_sec, __np_jobqueue_run_jobs_once(context));
 		np_time_sleep(sleep);
 	}
 }
 
 void __np_example_helper_run_info_loop(np_context*context) {
 	double sleep;
-	while (TRUE)
+	while (true)
 	{		
 		__np_example_helper_loop(context);
-		sleep = min(output_intervall_sec, __np_jobqueue_run_jobs_once(context));
+		sleep = fmin(output_intervall_sec, __np_jobqueue_run_jobs_once(context));
 		np_time_sleep(sleep);
 	}
 }

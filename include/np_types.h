@@ -18,16 +18,6 @@
 #define NULL (void*)0
 #endif
 
-#undef TRUE
-#undef FALSE
-typedef enum
-{
-    FALSE=0,
-    TRUE=1
-} np_bool;
-#define TRUE 1
-#define FALSE 0
-
 //
 // int __attribute__((overloadable)) square(int);
 
@@ -123,12 +113,13 @@ typedef void* void_ptr;
 typedef struct np_thread_s np_thread_t;
 typedef np_thread_t* np_thread_ptr;
 
+
 /*
  *  user callback functions
  */
-typedef np_bool (*np_aaa_func_t) (np_context* ac, np_aaatoken_t* aaa_token );
+
 typedef void(*np_destroycallback_t) (np_context* ac);
-typedef np_bool(*np_usercallback_t) (np_context* ac, const np_message_t* const msg, np_tree_t* body);
+typedef bool(*np_usercallbackfunction_t) (np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata);
 typedef void(*np_responsecontainer_on_t) (const np_responsecontainer_t* const entry);
 typedef void(*np_message_on_reply_t) (const np_responsecontainer_t* const entry, const np_message_t* const reply_msg);
 
@@ -136,7 +127,12 @@ typedef void(*np_message_on_reply_t) (const np_responsecontainer_t* const entry,
 typedef void (*np_callback_t) (np_state_t* context, np_jobargs_t*);
 typedef int(*_np_cmp_t)(void* a, void* b);
 
-// void f() __attribute__ ((weak, alias ("__f")));
+typedef struct np_usercallback_s {
+	void * data;
+	np_usercallbackfunction_t fn;
+} np_usercallback_t;
+
+typedef np_usercallback_t * np_usercallback_ptr;
 
 /*
 * list types and typedefs
@@ -151,7 +147,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_message_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_node_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_thread_ptr);
-NP_SLL_GENERATE_PROTOTYPES(np_usercallback_t);
+NP_SLL_GENERATE_PROTOTYPES(np_usercallback_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_callback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_destroycallback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_responsecontainer_on_t);

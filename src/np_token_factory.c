@@ -75,12 +75,12 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
 
 	if(scope != np_aaatoken_scope_private) {
 		memset(ret->private_key, 0, crypto_sign_SECRETKEYBYTES );
-		ret->private_key_is_set = FALSE;
+		ret->private_key_is_set = false;
 	}
 	else
 	{
 		memcpy(ret->private_key, source->private_key, crypto_sign_SECRETKEYBYTES);
-		ret->private_key_is_set = TRUE;
+		ret->private_key_is_set = true;
 	}
 	np_tree_copy( source->extensions, ret->extensions);
 
@@ -338,7 +338,7 @@ np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* contex
 
 np_aaatoken_t* np_token_factory_read_from_tree(np_state_t* context, np_tree_t* tree) {
 	np_aaatoken_t* ret = NULL;
-	np_bool ok = FALSE;
+	bool ok = false;
 	np_new_obj(np_aaatoken_t, ret, __func__);
 	if (np_aaatoken_decode(tree, ret)) {
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "imported token %s (type: %"PRIu8") from tree %p", ret->uuid, ret->type, tree);
@@ -346,7 +346,7 @@ np_aaatoken_t* np_token_factory_read_from_tree(np_state_t* context, np_tree_t* t
 		if (_np_aaatoken_is_valid(ret, np_aaatoken_type_undefined)) {
 			
 			ASSERT(strlen(ret->subject) > 1, "tokens (%s) subject string (\"%s\") has incorrect size", ret->uuid, ret->subject);
-			ok = TRUE;
+			ok = true;
 		}
 	}
 	if (ok) {

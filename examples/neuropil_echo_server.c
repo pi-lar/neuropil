@@ -32,7 +32,7 @@ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 
-np_bool receive_echo_message(np_context * context, const np_message_t* const msg, np_tree_t* body);
+bool receive_echo_message(np_context * context, const np_message_t* const msg, np_tree_t* body, void* localdata);
 
 /**
 The purpose of this program is to start a server for our echo service.
@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
 		&logpath,
 		NULL,
 		NULL
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	} 
 
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 	*/
 
 	np_msgproperty_t* msg_props = NULL;
-	np_add_receive_listener(context, receive_echo_message, "echo");
+	np_add_receive_listener(context, receive_echo_message, NULL, "echo");
 	msg_props = np_msgproperty_get(context, INBOUND, "echo");
 	msg_props->msg_subject = strndup("echo", 255);
 	msg_props->ack_mode = ACK_NONE;
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
 	   \endcode
 	*/
 
-	while (TRUE) {
+	while (true) {
 		np_time_sleep(0.1);
 	}
 }
@@ -128,7 +128,7 @@ a echo message is received by the nodes that you are going to start
 
    \code
 */
-np_bool receive_echo_message(np_context * context, const np_message_t* const msg, np_tree_t* body) {
+bool receive_echo_message(np_context * context, const np_message_t* const msg, np_tree_t* body, void* localdata) {
 /**
    \endcode
 */
@@ -146,7 +146,7 @@ np_bool receive_echo_message(np_context * context, const np_message_t* const msg
 	np_id reply_to = { 0 }; // All
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
-		np_conversion_dhkey2id(&reply_to, repl_to->val.value.dhkey);
+		reply_to = repl_to->val.value.dhkey;
 	/**
 	   \endcode
 	*/
@@ -175,5 +175,5 @@ np_bool receive_echo_message(np_context * context, const np_message_t* const msg
 		   \endcode
 		*/
 	}
-	return TRUE;
+	return true;
 }

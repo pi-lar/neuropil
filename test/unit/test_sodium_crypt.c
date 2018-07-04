@@ -27,26 +27,26 @@ Test(sodium_crypt, _sodium_crypto_routines, .description="test cryptobox easy us
 
 	unsigned char nonce[crypto_secretbox_NONCEBYTES];
 
-	crypto_sign_keypair(node_1_pk, node_1_sk); // ed25519
-	crypto_sign_keypair(node_2_pk, node_2_sk); // ed25519
+	cr_expect(0 == crypto_sign_keypair(node_1_pk, node_1_sk)); // ed25519
+	cr_expect(0 == crypto_sign_keypair(node_2_pk, node_2_sk)); // ed25519
 
 	// convert to curve key
 	unsigned char node_1_curve_sk[crypto_scalarmult_curve25519_BYTES];
 	unsigned char node_2_curve_sk[crypto_scalarmult_curve25519_BYTES];
-	crypto_sign_ed25519_sk_to_curve25519(node_1_curve_sk, node_1_sk);
-	crypto_sign_ed25519_pk_to_curve25519(node_2_curve_sk, node_2_sk);
+	cr_expect(0 == crypto_sign_ed25519_sk_to_curve25519(node_1_curve_sk, node_1_sk));
+	cr_expect( 0 == crypto_sign_ed25519_pk_to_curve25519(node_2_curve_sk, node_2_sk));
 	//
 	unsigned char node_1_dh_pk[crypto_scalarmult_BYTES];
-	crypto_scalarmult_base(node_1_dh_pk, node_1_curve_sk);
+	cr_expect(0 == crypto_scalarmult_base(node_1_dh_pk, node_1_curve_sk));
 
 	unsigned char node_2_dh_pk[crypto_scalarmult_BYTES];
-	crypto_scalarmult_base(node_2_dh_pk, node_2_curve_sk);
+	cr_expect(0 == crypto_scalarmult_base(node_2_dh_pk, node_2_curve_sk));
 
 
 	unsigned char node_1_shared[crypto_scalarmult_BYTES];
-	crypto_scalarmult(node_1_shared, node_1_curve_sk, node_2_dh_pk);
+	cr_expect(0 == crypto_scalarmult(node_1_shared, node_1_curve_sk, node_2_dh_pk));
 	unsigned char node_2_shared[crypto_scalarmult_BYTES];
-	crypto_scalarmult(node_2_shared, node_2_curve_sk, node_1_dh_pk);
+	cr_expect(0 == crypto_scalarmult(node_2_shared, node_2_curve_sk, node_1_dh_pk));
 
 	// crypt it
 	// unsigned char nonce[crypto_secretbox_NONCEBYTES];
@@ -55,7 +55,7 @@ Test(sodium_crypt, _sodium_crypto_routines, .description="test cryptobox easy us
 
 	randombytes_buf(nonce, sizeof nonce);
 
-	crypto_secretbox_easy(ciphertext, MESSAGE, MESSAGE_LEN, nonce, node_1_shared);
+	cr_expect(0 == crypto_secretbox_easy(ciphertext, MESSAGE, MESSAGE_LEN, nonce, node_1_shared));
 
 	unsigned char decrypted[MESSAGE_LEN];
 	cr_expect(0 == crypto_secretbox_open_easy(decrypted, ciphertext, CIPHERTEXT_LEN, nonce, node_2_shared), "could not decrypt");

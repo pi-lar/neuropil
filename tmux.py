@@ -81,7 +81,7 @@ else:
             sys.stdout.flush()
             time.sleep(random.random()+0.01)
             nn = session.new_window(attach=False, window_name=windowName )
-            prefix = ''
+            prefix = 'valgrind '
             #prefix += 'perf record --call-graph dwarf -a --timestamp-filename '
             nn.attached_pane.send_keys(prefix + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
             port+i+start_bootstrapper,publish_domain, threads, port_type, sysinfo_client, loglevel, join_client, httpdomain_client, statistics, autoclose))

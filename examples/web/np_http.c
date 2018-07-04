@@ -88,7 +88,7 @@ struct ht_response_s {
 	np_tree_t* ht_header;
 	uint16_t ht_length;
 	char* ht_body;
-	np_bool cleanup_body;
+	bool cleanup_body;
 };
 
 
@@ -358,7 +358,7 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
         client->ht_response.ht_status = callback_data->callback(
                 &client->ht_request, &client->ht_response,
                 callback_data->user_arg);
-        client->ht_response.cleanup_body = TRUE;
+        client->ht_response.cleanup_body = true;
         client->status = RESPONSE;
     } else {
         switch (client->ht_request.ht_method) {
@@ -372,7 +372,7 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
             client->ht_response.ht_body = HTML_NOT_IMPLEMENTED;
             client->ht_response.ht_header = np_tree_create();
             client->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
-            client->ht_response.cleanup_body = FALSE;
+            client->ht_response.cleanup_body = false;
             client->status = RESPONSE;
         }
     }
@@ -385,7 +385,7 @@ void _np_http_handle_sysinfo(np_state_t* context , np_http_client_t* client)
 
     char target_hash[65];
 
-    np_bool usedefault = TRUE;
+    bool usedefault = true;
     int http_status = HTTP_CODE_OK;
     char* response;
     JSON_Value* json_obj;
@@ -407,7 +407,7 @@ void _np_http_handle_sysinfo(np_state_t* context , np_http_client_t* client)
         if (NULL != tmp_target_hash) {
             if (strlen(tmp_target_hash) == 64) {
                 snprintf(target_hash, 65, "%s", tmp_target_hash);
-                usedefault = FALSE;
+                usedefault = false;
             }
             else {
                 http_status = HTTP_CODE_BAD_REQUEST;
@@ -475,7 +475,7 @@ __json_return__:
         json_obj = _np_generate_error_json("Unknown Error",
             "no response defined");
     }
-    response = np_json2char(json_obj, TRUE);
+    response = np_json2char(json_obj, true);
     log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response should be (strlen: %lu):",
         strlen(response));
     json_value_free(json_obj);
@@ -491,7 +491,7 @@ __json_return__:
         "Access-Control-Allow-Origin", np_treeval_new_s("*"));
     np_tree_insert_str( client->ht_response.ht_header,
         "Access-Control-Allow-Methods", np_treeval_new_s("GET"));
-    client->ht_response.cleanup_body = TRUE;
+    client->ht_response.cleanup_body = true;
     client->status = RESPONSE;
 
 }
@@ -565,7 +565,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 
             int send_return = send(client->client_fd,
                 ht_body + bytes_send,
-                min(2048, s_contentlength - bytes_send),
+                fmin(2048, s_contentlength - bytes_send),
                 0
             );
             if (send_return >= 0) {
@@ -731,7 +731,7 @@ NP_UNUSED int event_type) {
     }
 }
 
-np_bool np_http_init(np_state_t* context, char* domain) {
+bool np_http_init(np_state_t* context, char* domain) {
  
     if (domain == NULL) {
         domain = strdup("localhost");
@@ -748,17 +748,17 @@ np_bool np_http_init(np_state_t* context, char* domain) {
     {
         np_new_obj(np_network_t, __local_http->network);
 
-        _np_network_init(__local_http->network, TRUE, TCP | IPv4, domain, port);
+        _np_network_init(__local_http->network, true, TCP | IPv4, domain, port);
 		_np_network_enable(__local_http->network);
     }
-    if (NULL == __local_http->network || FALSE == __local_http->network->initialized )
-        return FALSE;
+    if (NULL == __local_http->network || false == __local_http->network->initialized )
+        return false;
 
     __local_http->hooks = (htparse_hooks*) malloc(sizeof(htparse_hooks));
     CHECK_MALLOC(__local_http->hooks);
 
     if (NULL == __local_http->hooks)
-        return FALSE;
+        return false;
 
     // define callbacks
     __local_http->hooks->on_msg_begin = _np_http_on_msg_begin;
@@ -789,7 +789,7 @@ np_bool np_http_init(np_state_t* context, char* domain) {
     _np_event_resume_loop_http(context);
     __local_http->user_hooks = NULL;
 
-    return TRUE;
+    return true;
 }
 
 void _np_http_destroy(np_state_t* context) {	
@@ -836,18 +836,18 @@ void _np_http_destroy(np_state_t* context) {
 }
 
 void example_http_server_init(np_context* context, char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
-	np_bool http_init = FALSE;
-	if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("FALSE", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
+	bool http_init = false;
+	if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
 		if (http_domain == NULL) {
 			http_domain = calloc(1, sizeof(char) * 255);
 			CHECK_MALLOC(http_domain);
-			if (np_get_local_ip(context, http_domain, 255) == FALSE) {
+			if (np_get_local_ip(context, http_domain, 255) == false) {
 				free(http_domain);
 				http_domain = NULL;
 			}
 		}
 		http_init = np_http_init(context, http_domain);
-		if (http_init == FALSE) {
+		if (http_init == false) {
 			log_msg(LOG_WARN, "Node could not start HTTP interface");
 		}
 	}

@@ -114,13 +114,13 @@ void np_shutdown_notify_others(np_state_t* context) {
 	sll_iterator(np_message_ptr) iter_msgs = sll_first(msgs);
 	while (iter_msgs != NULL)
 	{		
-		np_bool msgs_is_out = FALSE;
+		bool msgs_is_out = false;
 		while (!msgs_is_out) {
-			TSP_GET(np_bool, iter_msgs->val->is_acked, is_acked);
-			TSP_GET(np_bool, iter_msgs->val->is_in_timeout, is_in_timeout);
+			TSP_GET(bool, iter_msgs->val->is_acked, is_acked);
+			TSP_GET(bool, iter_msgs->val->is_in_timeout, is_in_timeout);
 			if (is_acked || is_in_timeout) {				
 				np_unref_obj(np_message_t, iter_msgs->val, "_np_send_simple_invoke_request_msg"); 
-				msgs_is_out = TRUE;
+				msgs_is_out = true;
 			}
 			else {
 				np_time_sleep(NP_PI/300);

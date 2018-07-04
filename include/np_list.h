@@ -123,7 +123,7 @@ real macros for convenience usage
 		TYPE val;\
 	};\
 	TYPE##_pll_t* TYPE##_pll_init(); 																			\
-	np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, TYPE##_pll_cmp_func_t cmp_func);	\
+	bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, bool dups_ok, TYPE##_pll_cmp_func_t cmp_func);	\
 	void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t cmp_func);						\
 	TYPE TYPE##_pll_replace(TYPE##_pll_t* list, TYPE value, TYPE##_pll_cmp_func_t cmp_func);   						\
 	TYPE TYPE##_pll_find(TYPE##_pll_t* list, TYPE value, TYPE##_pll_cmp_func_t cmp_func);   						\
@@ -148,7 +148,7 @@ TYPE##_pll_t* TYPE##_pll_init()                                  \
 	pll_list->last = NULL; \
 	return (pll_list); \
 } \
-np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, TYPE##_pll_cmp_func_t cmp_func) 	\
+bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, bool dups_ok, TYPE##_pll_cmp_func_t cmp_func) 	\
 { 																											\
 	TYPE##_pll_node_t* new_pll_node = (TYPE##_pll_node_t*) calloc(1,sizeof(TYPE##_pll_node_t)); 				\
 	new_pll_node->val = value; 																				\
@@ -158,7 +158,7 @@ np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, T
 		pll_list->first = new_pll_node; 																	\
 		pll_list->last = new_pll_node; 																		\
 		pll_list->size++; 																					\
-		return (TRUE); 																						\
+		return (true); 																						\
 	} 																										\
 	TYPE##_pll_node_t* pll_current = pll_list->first; 														\
 	while (NULL != pll_current) { 																			\
@@ -170,10 +170,10 @@ np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, T
 			pll_current->blink = new_pll_node; 																\
 			if (pll_current == pll_list->first) pll_list->first = new_pll_node; 							\
 			break; 																							\
-		} else if ((cmp_res == 0) && dups_ok == FALSE) { 													\
+		} else if ((cmp_res == 0) && dups_ok == false) { 													\
 			free(new_pll_node); 																			\
 			new_pll_node = NULL; 																			\
-			return FALSE; 																					\
+			return false; 																					\
 		}																									\
 		if (pll_current == pll_list->last) { 																\
 			pll_current->flink = new_pll_node; 																\
@@ -184,7 +184,7 @@ np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, T
 		pll_current = pll_current->flink; 																	\
 	} 																										\
 	pll_list->size++; 																						\
-	return (TRUE); 																							\
+	return (true); 																							\
 } 																											\
 void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t cmp_func) {                \
 	TYPE##_pll_node_t* pll_current = pll_list->first;                                                       \
@@ -591,7 +591,7 @@ real macros for convenience usage
 	void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);										\
 	void TYPE##_sll_clone(TYPE##_sll_t* sll_list_source, TYPE##_sll_t* sll_list_target);					\
 	TYPE TYPE##_sll_find(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp, TYPE default_return); \
-	np_bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp);	    	\
+	bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp);	    	\
 	TYPE##_sll_t* TYPE##_sll_merge(TYPE##_sll_t* sll_list_a, TYPE##_sll_t* sll_list_b, TYPE##_sll_cmp_func_t  fn_cmp);	\
 	void TYPE##_sll_remove(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp);							\
 																											\
@@ -609,7 +609,7 @@ TYPE##_sll_t* TYPE##_sll_merge(TYPE##_sll_t* sll_list_a, TYPE##_sll_t* sll_list_
 	sll_iterator(TYPE) iter_b = sll_first(sll_list_b);													    \
 	while (iter_b != NULL)																				    \
 	{																									    \
-		if (sll_contains(TYPE, ret, iter_b->val, fn_cmp) == FALSE) {									    \
+		if (sll_contains(TYPE, ret, iter_b->val, fn_cmp) == false) {									    \
 			sll_append(TYPE, ret, iter_b->val);															    \
 		}																								    \
 		sll_next(iter_b);																				    \
@@ -617,7 +617,7 @@ TYPE##_sll_t* TYPE##_sll_merge(TYPE##_sll_t* sll_list_a, TYPE##_sll_t* sll_list_
 	sll_iterator(TYPE) iter_a = sll_first(sll_list_a);													    \
 	while (iter_a != NULL)																				    \
 	{																									    \
-		if (sll_contains(TYPE, ret, iter_a->val, fn_cmp) == FALSE) {									    \
+		if (sll_contains(TYPE, ret, iter_a->val, fn_cmp) == false) {									    \
 			sll_append(TYPE, ret, iter_a->val);															    \
 		}																								    \
 		sll_next(iter_a);																				    \
@@ -638,13 +638,13 @@ TYPE TYPE##_sll_find(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t f
 	}																										\
 	return (ret);																							\
 }																											\
-np_bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp) {				\
-	np_bool ret = FALSE;																					\
+bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp) {				\
+	bool ret = false;																					\
 	sll_iterator(TYPE) iter = sll_first(sll_list);															\
 	while (iter != NULL)																					\
 	{																										\
 		if (fn_cmp(iter->val, value) == 0) {																\
-			ret = TRUE;																						\
+			ret = true;																						\
 			break;																							\
 		}																									\
 		sll_next(iter);																						\

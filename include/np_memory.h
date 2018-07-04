@@ -50,7 +50,7 @@ extern "C" {
 	typedef void(*np_memory_on_free) (np_state_t *context, uint8_t type, size_t size, void* data);
 	typedef void(*np_memory_on_refresh_space) (np_state_t *context, uint8_t type, size_t size, void* data);
 
-	void np_memory_init(np_state_t* context);
+	bool _np_memory_init(np_state_t* context);
 
 	NP_API_EXPORT
 		void np_memory_register_type(
@@ -82,7 +82,7 @@ extern "C" {
 	void np_memory_ref_obj(void* item, char* reason, char* reason_desc);
 
 	NP_API_INTERN
-	np_bool np_memory_tryref_obj(void* item, char* reason, char* reason_desc);
+	bool np_memory_tryref_obj(void* item, char* reason, char* reason_desc);
 
 	NP_API_INTERN
 	void* np_memory_waitref_obj(void* item, char* reason, char* reason_desc);
@@ -100,7 +100,7 @@ extern "C" {
 
 	// print the complete object list and statistics
 	NP_API_EXPORT
-		char* np_mem_printpool(np_state_t* context, np_bool asOneLine, np_bool extended);
+		char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended);
 	NP_API_INTERN
 		uint32_t np_memory_get_refcount(void * item);
 	NP_API_INTERN
@@ -158,7 +158,7 @@ void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);
 #define np_tryref_obj3(TYPE, np_obj, ret) np_tryref_obj4(TYPE, np_obj, ret,__func__)
 #define np_tryref_obj4(TYPE, np_obj, ret, reason) np_tryref_obj5(TYPE, np_obj, ret, reason,"")
 #define np_tryref_obj5(TYPE, np_obj, ret, reason, reason_desc)      																									\
-np_bool ret = np_memory_tryref_obj(np_obj, reason, reason_desc);
+bool ret = np_memory_tryref_obj(np_obj, reason, reason_desc);
 
 #define np_waitref_obj(...) VFUNC(np_waitref_obj, __VA_ARGS__)
 #define np_waitref_obj3(TYPE, np_obj, saveTo) np_waitref_obj4(TYPE, np_obj, saveTo, __func__)
@@ -167,10 +167,16 @@ np_bool ret = np_memory_tryref_obj(np_obj, reason, reason_desc);
 	TYPE* saveTo = (TYPE*) np_memory_waitref_obj(np_obj, reason, reason_desc);																		
 
 
+#ifdef DEBUG
 #define CHECK_MALLOC(obj)		              																			\
 {                                             																			\
 	assert(NULL != obj &&"Could not allocate memory. Program is now in undefined state and should be shut down.");		\
 }
+#else
+#define CHECK_MALLOC(obj)		              																			\
+	context->status = np_error;
+#endif
+	
 
 #define np_unref_obj(TYPE, np_obj, reason)                																							\
 	if(np_memory_unref_obj(np_obj, reason) <= 0) np_obj = NULL

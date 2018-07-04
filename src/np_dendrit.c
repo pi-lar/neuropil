@@ -50,12 +50,13 @@
 #include "np_constants.h"
 #include "np_responsecontainer.h"
 #include "np_serialization.h"
+#include "np_interface.h"
 
 /*
 will always call all handlers, but will return false if any of the handlers returns false
 */
-np_bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_t* msg_prop) {
-    np_bool ret = TRUE;
+bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_t* msg_prop) {
+    bool ret = true;
     np_ctx_memory(msg_in);
 
     ASSERT(msg_prop != NULL, "msg property cannot be null");
@@ -67,10 +68,10 @@ np_bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproper
     }
 
     // call user callbacks
-    sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(msg_prop->user_receive_clb);
+    sll_iterator(np_usercallback_ptr) iter_usercallbacks = sll_first(msg_prop->user_receive_clb);
     while (iter_usercallbacks != NULL)
     {
-        ret = iter_usercallbacks->val(context, msg_in, msg_in->body) && ret;
+        ret = iter_usercallbacks->val->fn(context, msg_in, msg_in->body, iter_usercallbacks->val->data) && ret;
         sll_next(iter_usercallbacks);
     }
 
@@ -130,11 +131,11 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                 _np_key_as_str(alias_key)
             );
 
-            np_bool is_decryption_successful = FALSE;
+            bool is_decryption_successful = false;
             if (NULL != alias_key &&
                 NULL != alias_key->aaa_token &&
                 IS_VALID (alias_key->aaa_token->state) &&
-                alias_key->node->session_key_is_set == TRUE
+                alias_key->node->session_key_is_set == true
                 )
             {
                 log_debug_msg(LOG_MESSAGE | LOG_DEBUG, 
@@ -161,7 +162,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
 
                 if (ret == 0)
                 {
-                    is_decryption_successful = TRUE;
+                    is_decryption_successful = true;
                     log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
                             "correct decryption of message (send from %s)", _np_key_as_str(alias_key));
                     memset(raw_msg, 0, 1024);
@@ -184,9 +185,9 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
 
             ret = _np_message_deserialize_header_and_instructions(msg_in, raw_msg);
 
-            if (ret == FALSE) {
+            if (ret == false) {
                 np_memory_free(raw_msg);
-                if(is_decryption_successful == TRUE) {
+                if(is_decryption_successful == true) {
                     log_msg(LOG_ERROR,
                         "error deserializing message %s after   successful decryption (source: \"%s:%s\")",
                         msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
@@ -213,13 +214,13 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                         
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
 
-            np_bool is_handshake_msg = 0 == strncmp(
+            bool is_handshake_msg = 0 == strncmp(
                 str_msg_subject, 
                 _NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE,
                 strlen(_NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE)
             );
 
-            np_bool is_direct_msg =
+            bool is_direct_msg =
                     ( 0 == strncmp(str_msg_subject, _NP_MSG_ACK, strlen(_NP_MSG_ACK)) ||
                       0 == strncmp(str_msg_subject, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) ||
                       0 == strncmp(str_msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_LEAVE_REQUEST))
@@ -230,7 +231,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                 np_msgproperty_t* msg_prop = np_msgproperty_get(context, INBOUND, _NP_MSG_HANDSHAKE);
                 _np_job_submit_msgin_event(0.0, msg_prop, alias_key, msg_in, NULL);
             }
-            else if (is_decryption_successful == FALSE) {
+            else if (is_decryption_successful == false) {
                 log_msg(LOG_WARN,
                     "(msg: %s) incorrect decryption of message (received via alias %s / %s:%s) (send from %s)",
                     msg_in->uuid,					
@@ -239,7 +240,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                     str_msg_from
                 );
             }
-            else if(TRUE == alias_key->node->joined_network || is_direct_msg)
+            else if(true == alias_key->node->joined_network || is_direct_msg)
             {				
                 /* real receive part */
                 CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_to);
@@ -254,7 +255,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                     msg_in->uuid, str_msg_subject, str_msg_from, str_msg_to);
 
                 // check time-to-live for message and expiry if neccessary
-                if (TRUE == _np_message_is_expired(msg_in))
+                if (true == _np_message_is_expired(msg_in))
                 {					
                     log_msg(LOG_INFO,
                         "msg (%s) ttl expired, dropping message (part) %s target: %s",
@@ -278,7 +279,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
 
                     // check if inbound subject handler exists
                     np_msgproperty_t* handler = np_msgproperty_get(context, INBOUND, str_msg_subject);
-                    np_bool forwarded_msg = FALSE;
+                    bool forwarded_msg = false;
                     // forward the message if
                     // a) msg is not for my dhkey
                     if (_np_dhkey_cmp(&target_dhkey, &my_key->dhkey) != 0)// || handler == NULL)
@@ -299,9 +300,9 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                         */
                         if (NULL != tmp &&
                             sll_size(tmp) > 0 &&
-                            (FALSE == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
+                            (false == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
                         {
-                            forwarded_msg = TRUE;
+                            forwarded_msg = true;
                         }
                         /* try forwarding the message if
                            d) it is a direct message (ack / join / ...)
@@ -309,7 +310,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                         */
                         if (handler != NULL && is_direct_msg)
                         {
-                            forwarded_msg = TRUE;
+                            forwarded_msg = true;
                         }
 
                         if (forwarded_msg)
@@ -397,7 +398,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
     return;
 }
 
-void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* handler, np_bool allow_destination_ack) {
+void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* handler, bool allow_destination_ack) {
 
     np_ctx_memory(msg_to_submit);
 
@@ -405,9 +406,9 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
 
     CHECK_STR_FIELD(msg_to_submit->instructions, _NP_MSG_INST_ACK, msg_ack);
 
-    np_bool event_accepted = FALSE;
+    bool event_accepted = false;
 
-    if (_np_message_deserialize_chunked(msg_to_submit) == FALSE) {
+    if (_np_message_deserialize_chunked(msg_to_submit) == false) {
         log_msg(LOG_WARN,
             "msg (%s) could not deserialize chunked msg", msg_to_submit->uuid);
 
@@ -465,8 +466,8 @@ void _np_in_piggy(np_state_t* context, np_jobargs_t* args)
         // tmp_ft = node_entry->node->failuretime;
 
         // TODO: those new entries in the piggy message must be authenticated before sending join requests
-        if (FALSE == _np_dhkey_equal(&node_entry->dhkey, &my_key->dhkey) &&
-            FALSE == node_entry->node->joined_network)
+        if (false == _np_dhkey_equal(&node_entry->dhkey, &my_key->dhkey) &&
+            false == node_entry->node->joined_network)
         {
             // just record nodes in the network or send an join request as well ?
             // answer: only send join request !
@@ -475,13 +476,13 @@ void _np_in_piggy(np_state_t* context, np_jobargs_t* args)
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(node_entry));
             _np_send_simple_invoke_request(node_entry, _NP_MSG_JOIN_REQUEST);
         }
-        else if (TRUE == node_entry->node->joined_network &&
+        else if (true == node_entry->node->joined_network &&
                 node_entry->node->success_avg > BAD_LINK &&
                 (np_time_now() - node_entry->node->last_success) <= BAD_LINK_REMOVE_GRACETIME) {
 
             // udpate and leafset, as nodes could have left the network and we need to fill up entries
             np_key_t *added = NULL, *deleted = NULL;
-            _np_route_leafset_update(node_entry, TRUE, &deleted, &added);
+            _np_route_leafset_update(node_entry, true, &deleted, &added);
 
 #ifdef DEBUG
             if (added != NULL && deleted != NULL) {
@@ -514,7 +515,7 @@ void _np_in_piggy(np_state_t* context, np_jobargs_t* args)
 #endif
 
 // 			added = NULL, deleted = NULL;
-// 			_np_route_update(node_entry, TRUE, &deleted, &added);
+// 			_np_route_update(node_entry, true, &deleted, &added);
 #ifdef DEBUG
             if (added != NULL && deleted != NULL) {
                 log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   table  : %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
@@ -592,7 +593,7 @@ void _np_in_signal_np_receive (np_state_t* context, np_jobargs_t* args)
 /** _np_in_callback_wrapper
  ** _np_in_callback_wrapper is used when a callback function is used to receive messages
  ** The purpose is automated acknowledge handling in case of ACK_CLIENT message subjects
- ** the user defined callback has to return TRUE in case the ack can be send, or FALSE
+ ** the user defined callback has to return true in case the ack can be send, or false
  ** if e.g. validation of the message has failed.
  **/
 void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t* args)
@@ -600,7 +601,7 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t* args)
     log_trace_msg(LOG_TRACE, "start: void _np_in_callback_wrapper(np_jobargs_t* args){");
     np_aaatoken_t* sender_token = NULL;
     np_message_t* msg_in = args->msg;
-    np_bool free_msg_subject = FALSE;
+    bool free_msg_subject = false;
     char* msg_subject;
     if (args->properties != NULL && args->properties->is_internal)
     {
@@ -625,7 +626,7 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t* args)
     np_msgproperty_t* msg_prop = np_msgproperty_get(context, INBOUND, msg_subject);
     _np_msgproperty_threshold_increase(msg_prop);
 
-    if (TRUE == _np_message_is_expired(msg_in))
+    if (true == _np_message_is_expired(msg_in))
     {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG,
                       "discarding expired message %s / %s ...",
@@ -645,19 +646,19 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t* args)
 
             np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 
-            np_bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
-            if (FALSE == decrypt_ok)
+            bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
+            if (false == decrypt_ok)
             {
                 np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui--;
             }
             else
             {
-                np_bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
+                bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
 
                 // CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
                 // log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
 
-                if (ACK_CLIENT == (msg_ack_mode.value.ush & ACK_CLIENT) && (TRUE == result))
+                if (ACK_CLIENT == (msg_ack_mode.value.ush & ACK_CLIENT) && (true == result))
                 {
                     _np_send_ack(args->msg);
                 }
@@ -696,10 +697,10 @@ void _np_in_leave_req(np_state_t* context, np_jobargs_t* args)
                 _np_key_cmp(context->my_identity, leave_req_key) != 0 )
             {
                 // update node flags
-                leave_req_key->node->joined_network = FALSE;
-                leave_req_key->node->is_handshake_received = FALSE;
-                leave_req_key->node->is_handshake_send = FALSE;
-                leave_req_key->node->session_key_is_set = FALSE;
+                leave_req_key->node->joined_network = false;
+                leave_req_key->node->is_handshake_received = false;
+                leave_req_key->node->is_handshake_send = false;
+                leave_req_key->node->session_key_is_set = false;
 
                 _np_key_destroy(leave_req_key);
             }
@@ -735,7 +736,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
     }
 
     join_node_token = np_token_factory_read_from_tree(context, node_token_ele->val.value.tree);
-    if (FALSE == _np_aaatoken_is_valid(join_node_token, np_aaatoken_type_node)) {
+    if (false == _np_aaatoken_is_valid(join_node_token, np_aaatoken_type_node)) {
         // silently exit join protocol for invalid tokens
         goto __np_cleanup__;
     }
@@ -754,13 +755,13 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
     if (ident_token_ele != NULL) {
         join_ident_token = np_token_factory_read_from_tree(context, ident_token_ele->val.value.tree);
         if (join_ident_token != NULL &&
-            FALSE == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity))
+            false == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity))
         {
             // join token needs to be a valid ident token
             goto __np_cleanup__;
         }
         join_ident_dhkey = np_aaatoken_get_fingerprint(join_ident_token);
-        if (FALSE == _np_dhkey_equal(&join_ident_dhkey, &partner_dhkey)) {
+        if (false == _np_dhkey_equal(&join_ident_dhkey, &partner_dhkey)) {
             // ident fingerprint must match partner fp from node token
             goto __np_cleanup__;
         }
@@ -770,7 +771,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
             goto __np_cleanup__;
         }
         partner_dhkey = partner_fp->val.value.dhkey;
-        if (FALSE == _np_dhkey_equal(&join_node_dhkey, &partner_dhkey)) {
+        if (false == _np_dhkey_equal(&join_node_dhkey, &partner_dhkey)) {
             // node fingerprint has to match partner fp from identity token
             goto __np_cleanup__;
         }
@@ -785,7 +786,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
         goto __np_cleanup__;
     } else if (
         join_node_key->node != NULL &&
-        join_node_key->node->joined_network == TRUE)
+        join_node_key->node->joined_network == true)
     {
         // silently exit join protocol as we already joined this key
         goto __np_cleanup__;
@@ -794,26 +795,27 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
     _np_aaatoken_upgrade_handshake_token(join_node_key, join_node_token);
 
     // check for allowance of token by user defined function
-    np_state_t* state = context;
-    np_bool send_reply = FALSE;
+     bool send_reply = false;
     if (join_ident_key != NULL)
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request: ident key %s", _np_key_as_str(join_ident_key));
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request:  node key %s", _np_key_as_str(join_node_key));
 
+
+	np_token tmp;
     if (NULL != join_ident_key &&
-        NULL != state->authenticate_func)
+        NULL != context->authenticate_func)
     {
-        np_bool join_allowed = state->authenticate_func(context, join_ident_key->aaa_token);
-        if (FALSE == state->enable_realm_client &&
-            TRUE == join_allowed)
+        bool join_allowed = context->authenticate_func(context, np_aaatoken4user(&tmp, join_ident_key->aaa_token));
+        if (false == context->enable_realm_client &&
+            true == join_allowed)
         {
             join_ident_key->aaa_token->state |= AAA_AUTHENTICATED;
             join_node_key->aaa_token->state  |= AAA_AUTHENTICATED;
         }
     } else {
-        np_bool join_allowed = state->authenticate_func(context, join_node_key->aaa_token);
-        if (FALSE == state->enable_realm_client &&
-            TRUE == join_allowed)
+        bool join_allowed = context->authenticate_func(context, np_aaatoken4user(&tmp, join_node_key->aaa_token));
+        if (false == context->enable_realm_client &&
+            true == join_allowed)
         {
             join_node_key->aaa_token->state |= AAA_AUTHENTICATED;
         }
@@ -833,7 +835,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
     {
 
         np_tree_t* jrb_me = np_tree_create();
-        np_aaatoken_encode(jrb_me, state->my_node_key->aaa_token);
+        np_aaatoken_encode(jrb_me, context->my_node_key->aaa_token);
 
         _np_message_create(msg_out, join_node_key->dhkey, my_key->dhkey, _NP_MSG_JOIN_ACK, jrb_me);
         np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_RESPONSE_UUID, in_uuid);
@@ -844,13 +846,13 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
 
         
         msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_JOIN_ACK);
-        my_key->node->joined_network = TRUE;
-        join_node_key->node->joined_network = TRUE;
+        my_key->node->joined_network = true;
+        join_node_key->node->joined_network = true;
 
-        send_reply = TRUE;
+        send_reply = true;
     }
 
-    if (FALSE == state->enable_realm_client &&
+    if (false == context->enable_realm_client &&
         IS_NOT_AUTHENTICATED(join_node_key->aaa_token->state))
     {
         log_msg(LOG_ROUTING | LOG_INFO,
@@ -861,13 +863,13 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
         np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_RESPONSE_UUID, in_uuid);
 
         msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_JOIN_NACK);
-        send_reply = TRUE;
+        send_reply = true;
     }
     np_unref_obj(np_key_t,my_key,"np_waitref_key");
 
     // TODO: chicken egg problem, we have to insert the entry into the table to be able to send back the JOIN.NACK
     np_key_t *added = NULL, *deleted = NULL;
-    _np_route_leafset_update(join_node_key, TRUE, &deleted, &added);
+    _np_route_leafset_update(join_node_key, true, &deleted, &added);
 
 #ifdef DEBUG
     if (added !=NULL)
@@ -885,7 +887,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
 #endif
 
     added = NULL, deleted = NULL;
-    _np_route_update(join_node_key, TRUE, &deleted, &added);
+    _np_route_update(join_node_key, true, &deleted, &added);
 
 #ifdef DEBUG
     if (added !=NULL)
@@ -903,7 +905,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
 #endif
 
     // TODO: what happens if node is not added to leafset or routing table ?
-    if (TRUE == send_reply)
+    if (true == send_reply)
     {
         _np_job_submit_msgout_event(context, 0.0, msg_prop, join_node_key, msg_out);
 
@@ -949,7 +951,7 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t* args)
     np_msgproperty_t* out_props = NULL;
     np_node_public_token_t* join_token = np_token_factory_read_from_tree(context, args->msg->body);
 
-    if (FALSE == _np_aaatoken_is_valid(join_token, np_aaatoken_type_node))
+    if (false == _np_aaatoken_is_valid(join_token, np_aaatoken_type_node))
     {
         // silently exit join protocol for invalid tokens
         goto __np_cleanup__;
@@ -994,7 +996,7 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t* args)
         if (jrb_node != NULL)
         {
             np_responsecontainer_t *entry = (np_responsecontainer_t *) jrb_node->val.value.v;
-            _np_responsecontainer_received_ack(entry, TRUE);
+            _np_responsecontainer_received_ack(entry, true);
             log_debug_msg(LOG_DEBUG, "received acknowledgment of JOIN uuid=%s",  np_treeval_to_str(ack_uuid));
         }
     }
@@ -1050,7 +1052,7 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t* args)
     // update table
     np_key_t* added = NULL;
     np_key_t* deleted = NULL;
-    _np_route_update(routing_key, TRUE, &deleted, &added);
+    _np_route_update(routing_key, true, &deleted, &added);
 #ifdef DEBUG
     if (added !=NULL)
         log_debug_msg(LOG_INFO, "added   to   table  : %s:%s:%s / %f / %1.2f",
@@ -1068,7 +1070,7 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t* args)
 
     // update leafset
     added = NULL, deleted = NULL;
-    _np_route_leafset_update(routing_key, TRUE, &deleted, &added);
+    _np_route_leafset_update(routing_key, true, &deleted, &added);
 #ifdef DEBUG
     if (added !=NULL)
         log_debug_msg(LOG_INFO, "added   to   leafset: %s:%s:%s / %f / %1.2f",
@@ -1090,9 +1092,9 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t* args)
     np_msgproperty_t* piggy_prop = np_msgproperty_get(context, TRANSFORM, _NP_MSG_PIGGY_REQUEST);
     _np_job_submit_transform_event(context, 0.0, piggy_prop, routing_key, NULL);
 
-    routing_key->node->joined_network = TRUE;
+    routing_key->node->joined_network = true;
     // just in case it has not been set until now
-    my_key->node->joined_network = TRUE;
+    my_key->node->joined_network = true;
 
     __np_cleanup__:
     np_unref_obj(np_key_t, my_key, __func__);
@@ -1136,7 +1138,7 @@ void _np_in_join_nack(np_state_t* context, np_jobargs_t* args)
         if (jrb_node != NULL)
         {
             np_responsecontainer_t *entry = (np_responsecontainer_t *) jrb_node->val.value.v;
-            entry->has_received_nack = TRUE;
+            entry->has_received_nack = true;
             entry->received_at = np_time_now();
             //todo handle ack
             log_debug_msg(LOG_DEBUG, "received not-acknowledgment of JOIN uuid=%s",  np_treeval_to_str(ack_uuid));
@@ -1155,7 +1157,7 @@ void _np_in_join_nack(np_state_t* context, np_jobargs_t* args)
     // update table
     np_key_t* added = NULL;
     np_key_t* deleted = NULL;
-    _np_route_update(nack_key, FALSE, &deleted, &added);
+    _np_route_update(nack_key, false, &deleted, &added);
 #ifdef DEBUG
     if (deleted !=NULL)
         log_debug_msg(LOG_INFO, "deleted from table  : %s:%s:%s / %f / %1.2f",
@@ -1167,7 +1169,7 @@ void _np_in_join_nack(np_state_t* context, np_jobargs_t* args)
 
     // update leafset
     added = NULL, deleted = NULL;
-    _np_route_leafset_update(nack_key, FALSE, &deleted, &added);
+    _np_route_leafset_update(nack_key, false, &deleted, &added);
 #ifdef DEBUG
     if (deleted !=NULL)
         log_debug_msg(LOG_INFO, "deleted from leafset: %s:%s:%s / %f / %1.2f",
@@ -1178,8 +1180,8 @@ void _np_in_join_nack(np_state_t* context, np_jobargs_t* args)
 #endif
 
     nack_key->aaa_token->state &= AAA_INVALID;
-    nack_key->node->joined_network = FALSE;
-    nack_key->node->is_handshake_send = FALSE;
+    nack_key->node->joined_network = false;
+    nack_key->node->is_handshake_send = false;
 
     __np_cleanup__:
     // nothing to do
@@ -1236,7 +1238,7 @@ void _np_in_update(np_state_t* context, np_jobargs_t* args)
     np_key_t *update_key = NULL;
     np_aaatoken_t* update_token = np_token_factory_read_from_tree(context, args->msg->body);
 
-    if (FALSE == _np_aaatoken_is_valid(update_token, np_aaatoken_type_node))
+    if (false == _np_aaatoken_is_valid(update_token, np_aaatoken_type_node))
     {
         goto __np_cleanup__;
     }
@@ -1253,8 +1255,8 @@ void _np_in_update(np_state_t* context, np_jobargs_t* args)
 
     if (NULL != update_key &&
         NULL != update_key->node &&
-        FALSE == update_key->node->is_handshake_send &&
-        FALSE == update_key->node->joined_network)
+        false == update_key->node->is_handshake_send &&
+        false == update_key->node->joined_network)
     {
         // do not join myself
         if(0 != _np_key_cmp(update_key, context->my_identity)
@@ -1262,10 +1264,10 @@ void _np_in_update(np_state_t* context, np_jobargs_t* args)
         {
             /*
             char* connection_str = np_get_connection_string_from(
-                    update_key,FALSE);
+                    update_key,false);
             np_key_t* old_key = _np_keycache_find_by_details(
-                    connection_str, FALSE, FALSE,FALSE,
-                    FALSE, TRUE, TRUE, FALSE);
+                    connection_str, false, false,false,
+                    false, true, true, false);
             free(connection_str);
 
             if(NULL != old_key)
@@ -1303,7 +1305,7 @@ void _np_in_update(np_state_t* context, np_jobargs_t* args)
     return;
 }
 
-void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* sender_msg_token, np_bool inform_counterparts) {
+void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* sender_msg_token, bool inform_counterparts) {
     np_ctx_memory(sender_msg_token);
     np_sll_t(np_aaatoken_ptr, available_list) =
         _np_aaatoken_get_all_receiver(context, sender_msg_token->subject, sender_msg_token->audience);
@@ -1332,7 +1334,7 @@ void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_mes
                 target_key = _np_aaatoken_get_issuer(iter_sender_tokens->val);
             }
             
-            _np_dendrit_propagate_senders(target_key, sender_msg_token, FALSE);
+            _np_dendrit_propagate_senders(target_key, sender_msg_token, false);
             sll_next(iter_sender_tokens);
         }
 
@@ -1341,7 +1343,7 @@ void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_mes
     }
 }
 
-void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* receiver_msg_token, np_bool inform_counterparts) {
+void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* receiver_msg_token, bool inform_counterparts) {
 
     np_ctx_memory(receiver_msg_token);
     np_sll_t(np_aaatoken_ptr, available_list) =
@@ -1371,7 +1373,7 @@ void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_messa
             else {
                 target_key = _np_aaatoken_get_issuer(iter_receiver_tokens->val);
             }
-            _np_dendrit_propagate_receivers(target_key, receiver_msg_token, FALSE);
+            _np_dendrit_propagate_receivers(target_key, receiver_msg_token, false);
             sll_next(iter_receiver_tokens);
         }
 
@@ -1435,11 +1437,12 @@ void _np_in_discover_sender(np_state_t * context, np_jobargs_t* args)
     assert(args->msg != NULL);
     assert(args->msg->header != NULL);
 
+	np_aaatoken_t* msg_token = NULL;
     CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_reply_to);
     reply_to_key = msg_reply_to.value.dhkey;
 
     // extract e2e encryption details for sender
-    np_aaatoken_t* msg_token = np_token_factory_read_from_tree(context, args->msg->body);
+    msg_token = np_token_factory_read_from_tree(context, args->msg->body);
 
     if (_np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent))
     {
@@ -1449,7 +1452,7 @@ void _np_in_discover_sender(np_state_t * context, np_jobargs_t* args)
         np_aaatoken_t* old_token = _np_aaatoken_add_receiver(msg_token->subject, msg_token);
         
         // this node is the man in the middle - inform receiver of sender token
-        _np_dendrit_propagate_senders(reply_to_key, msg_token, FALSE);
+        _np_dendrit_propagate_senders(reply_to_key, msg_token, false);
         // _np_dendrit_propagate_senders(reply_to_key, msg_token, old_token == NULL || strncmp(msg_token->uuid, old_token->uuid, UUID_SIZE)!=0);
         np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_receiver");
 
@@ -1472,13 +1475,13 @@ void _np_in_available_sender(np_state_t * context, np_jobargs_t* args)
     np_message_t *msg_in = args->msg;
 
     // extract e2e encryption details for sender
-
+	np_message_intent_public_token_t* msg_token = NULL;
     CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_TO, msg_to);
 
-    np_message_intent_public_token_t* msg_token = np_token_factory_read_from_tree(context, msg_in->body);
+    msg_token = np_token_factory_read_from_tree(context, msg_in->body);
 
     // always?: just store the available tokens in memory and update them if new data arrives
-    if (FALSE == _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent))
+    if (false == _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent))
     {
         if(msg_token != NULL){
             log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token %s will not be added to the available senders.", msg_token->uuid);
@@ -1502,10 +1505,11 @@ void _np_in_available_sender(np_state_t * context, np_jobargs_t* args)
 
     if ( _np_dhkey_equal(&to_key, &state->my_node_key->dhkey) )
     {
-        if (TRUE == state->authenticate_func(context, msg_token))
+		np_token tmp;
+        if (true == state->authenticate_func(context, np_aaatoken4user(&tmp, msg_token)))
             msg_token->state |= AAA_AUTHENTICATED;
 
-        if (TRUE == state->authorize_func(context, msg_token))
+        if (true == state->authorize_func(context, np_aaatoken4user(&tmp, msg_token)))
             msg_token->state |= AAA_AUTHORIZED;
     }
 
@@ -1518,7 +1522,7 @@ void _np_in_available_sender(np_state_t * context, np_jobargs_t* args)
     }
 
     __np_cleanup__:
-    np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
+		np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
 
     // __np_return__:
     return;
@@ -1545,7 +1549,7 @@ void _np_in_discover_receiver(np_state_t * context, np_jobargs_t* args)
         msg_token = np_token_factory_read_from_tree(context, msg_in->body);
 
         // always?: just store the available messages in memory and update if new data arrives
-        if (FALSE == _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent))
+        if (false == _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent))
         {
             if(msg_token != NULL){
                 log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token %s will not receive the available receivers.", msg_token->uuid);
@@ -1557,7 +1561,7 @@ void _np_in_discover_receiver(np_state_t * context, np_jobargs_t* args)
 
         np_aaatoken_t* old_token = _np_aaatoken_add_sender(msg_token->subject, msg_token);
                 
-        _np_dendrit_propagate_receivers(reply_to_key, msg_token, FALSE);
+        _np_dendrit_propagate_receivers(reply_to_key, msg_token, false);
         // _np_dendrit_propagate_receivers(reply_to_key, msg_token, old_token == NULL || strncmp(msg_token->uuid,old_token->uuid,UUID_SIZE) != 0);
         np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
 
@@ -1579,12 +1583,13 @@ void _np_in_available_receiver(np_state_t * context, np_jobargs_t* args)
 
     // extract e2e encryption details for sender
 
+	np_aaatoken_t* msg_token = NULL;
     CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_TO, msg_to);
     np_dhkey_t to_key = msg_to.value.dhkey;
 
-    np_aaatoken_t* msg_token = np_token_factory_read_from_tree(context, args->msg->body);
+    msg_token = np_token_factory_read_from_tree(context, args->msg->body);
 
-    if (FALSE == _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent))
+    if (false == _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent))
     {
         if(msg_token != NULL){
             log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token %s will not be added to the available receivers.", msg_token->uuid);
@@ -1607,10 +1612,11 @@ void _np_in_available_receiver(np_state_t * context, np_jobargs_t* args)
     // check if we are (one of the) sending node(s) of this kind of message
     if ( _np_dhkey_equal(&to_key, &my_key->dhkey) )
     {
-        if (TRUE == state->authenticate_func(context, msg_token))
+		np_token tmp;
+        if (true == state->authenticate_func(context, np_aaatoken4user(&tmp, msg_token)))
             msg_token->state |= AAA_AUTHENTICATED;
 
-        if (TRUE == state->authorize_func(context, msg_token))
+        if (true == state->authorize_func(context, np_aaatoken4user(&tmp, msg_token)))
             msg_token->state |= AAA_AUTHORIZED;
     }
 
@@ -1656,8 +1662,8 @@ void _np_in_authenticate(np_state_t* context, np_jobargs_t* args)
         goto __np_cleanup__;
     }
 
-    np_bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
-    if (FALSE == decrypt_ok)
+    bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
+    if (false == decrypt_ok)
     {
         goto __np_cleanup__;
     }
@@ -1667,13 +1673,14 @@ void _np_in_authenticate(np_state_t* context, np_jobargs_t* args)
     authentication_token = np_token_factory_read_from_tree(context, msg_in->body);
 
     // always?: just store the available messages in memory and update if new data arrives
-    if (FALSE == _np_aaatoken_is_valid(authentication_token, np_aaatoken_type_message_intent))
+    if (false == _np_aaatoken_is_valid(authentication_token, np_aaatoken_type_message_intent))
     {
         goto __np_cleanup__;
     }
 
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking authentication of token");
-    if (TRUE == context->authenticate_func(context, authentication_token))
+	np_token tmp;
+    if (true == context->authenticate_func(context, np_aaatoken4user(&tmp, authentication_token)))
     {
         authentication_token->state |= AAA_AUTHENTICATED;
     }
@@ -1729,8 +1736,8 @@ void _np_in_authenticate_reply(np_state_t * context, np_jobargs_t* args)
     }
 
     // TODO: the following should not be required/possible, because it invalidates the token
-    np_bool decrypt_ok = _np_message_decrypt_payload(args->msg, sender_token);
-    if (FALSE == decrypt_ok)
+    bool decrypt_ok = _np_message_decrypt_payload(args->msg, sender_token);
+    if (false == decrypt_ok)
     {
         log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "decryption of authentication reply failed");
         goto __np_cleanup__;
@@ -1832,8 +1839,8 @@ void _np_in_authorize(np_state_t * context, np_jobargs_t* args)
         goto __np_cleanup__;
     }
 
-    np_bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
-    if (FALSE == decrypt_ok)
+    bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
+    if (false == decrypt_ok)
     {
         goto __np_cleanup__;
     }
@@ -1843,13 +1850,14 @@ void _np_in_authorize(np_state_t * context, np_jobargs_t* args)
     authorization_token = np_token_factory_read_from_tree(context, msg_in->body);
 
     // always?: just store the available messages in memory and update if new data arrives
-    if (FALSE == _np_aaatoken_is_valid(authorization_token, np_aaatoken_type_message_intent))
+    if (false == _np_aaatoken_is_valid(authorization_token, np_aaatoken_type_message_intent))
     {
         goto __np_cleanup__;
     }
 
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking authorization of token");
-    if (TRUE == context->authorize_func(context, authorization_token))
+	np_token tmp;
+    if (true == context->authorize_func(context, np_aaatoken4user(&tmp, authorization_token)))
     {
         authorization_token->state |= AAA_AUTHORIZED;
     }
@@ -1894,6 +1902,7 @@ void _np_in_authorize_reply(np_state_t* context, np_jobargs_t* args)
     np_aaatoken_t* sender_token = NULL;
 
     // args->properties->msg_threshold++;
+	np_key_t* subject_key = NULL;
 
     CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
@@ -1903,8 +1912,8 @@ void _np_in_authorize_reply(np_state_t* context, np_jobargs_t* args)
         goto __np_cleanup__;
     }
 
-    np_bool decrypt_ok = _np_message_decrypt_payload(args->msg, sender_token);
-    if (FALSE == decrypt_ok)
+    bool decrypt_ok = _np_message_decrypt_payload(args->msg, sender_token);
+    if (false == decrypt_ok)
     {
         goto __np_cleanup__;
     }
@@ -1913,7 +1922,6 @@ void _np_in_authorize_reply(np_state_t* context, np_jobargs_t* args)
 
     // extract e2e encryption details for sender
     authorization_token = np_token_factory_read_from_tree(context, args->msg->body);
-    np_key_t* subject_key = NULL;
 
     if (authorization_token != NULL) {		
         np_dhkey_t search_key = { 0 };
@@ -1997,8 +2005,8 @@ void _np_in_account(np_state_t * context, np_jobargs_t* args)
     }
 
     np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
-    np_bool decrypt_ok = _np_message_decrypt_payload(args->msg, sender_token);
-    if (FALSE == decrypt_ok)
+    bool decrypt_ok = _np_message_decrypt_payload(args->msg, sender_token);
+    if (false == decrypt_ok)
     {
         goto __np_cleanup__;
     }
@@ -2006,7 +2014,8 @@ void _np_in_account(np_state_t * context, np_jobargs_t* args)
     accounting_token  = np_token_factory_read_from_tree(context, args->msg->body);
     if (accounting_token != NULL) {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now handling accounting for token");
-        context->accounting_func(context, accounting_token);
+		np_token tmp;
+        context->accounting_func(context, np_aaatoken4user(&tmp, accounting_token));
     }
     __np_cleanup__:
     np_unref_obj(np_aaatoken_t, accounting_token, "np_token_factory_read_from_tree");
@@ -2093,7 +2102,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
             Stop the Handshake workflow now if
             the handshake data is already received (prevent handshake spamming)
         */
-        if (msg_source_key->node != NULL &&  msg_source_key->node->is_handshake_received == TRUE) {
+        if (msg_source_key->node != NULL &&  msg_source_key->node->is_handshake_received == true) {
             log_msg(LOG_ROUTING | LOG_INFO, "Handshake message already completed");
             np_unref_obj(np_node_t, tokens_node, "_np_node_from_token");
             goto __np_cleanup__;
@@ -2121,8 +2130,8 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
             goto __np_cleanup__;
         }
 
-        if(msg_source_key->node->joined_network == FALSE) {
-            char* tmp_connection_str = np_get_connection_string_from(msg_source_key, FALSE);
+        if(msg_source_key->node->joined_network == false) {
+            char* tmp_connection_str = np_get_connection_string_from(msg_source_key, false);
             np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport(context, "*", tmp_connection_str );
             free(tmp_connection_str);
 
@@ -2166,7 +2175,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
         }
 
         _LOCK_ACCESS(&msg_source_key->node->lock) {
-            if (msg_source_key->node->is_handshake_received == TRUE) {
+            if (msg_source_key->node->is_handshake_received == true) {
                 log_msg(LOG_ROUTING | LOG_INFO, "Handshake message already completed (via wildcard)");
             }
             else {
@@ -2183,12 +2192,12 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                         {
                             _np_network_init(
                                 network,
-                                FALSE,
+                                false,
                                 msg_source_key->node->protocol,
                                 msg_source_key->node->dns_name,
                                 msg_source_key->node->port);
 
-                            if (TRUE == network->initialized)
+                            if (true == network->initialized)
                             {
                                 np_ref_obj(np_key_t, msg_source_key, ref_network_watcher);
                                 network->watcher.data = msg_source_key;
@@ -2248,7 +2257,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                             "found valid authentication token for node %s (%s), overwriting...",
                             _np_key_as_str(msg_source_key), np_memory_get_id(msg_source_key->node));
                         //old_token = msg_source_key->aaa_token;
-                        // msg_source_key->node->joined_network = FALSE;
+                        // msg_source_key->node->joined_network = false;
                     }
 
                     // handle alias key, also in case a new connection has been established
@@ -2267,7 +2276,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                         np_unref_obj(np_network_t, msg_source_key->network, ref_key_network);
                         msg_source_key->network = alias_key->network;
 
-                        _np_network_stop(msg_source_key->network, TRUE);
+                        _np_network_stop(msg_source_key->network, true);
                         // TODO: split up in two libev callbacks (read/write)
                         ev_io_init(
                             &msg_source_key->network->watcher,
@@ -2295,18 +2304,18 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                         _np_key_as_str(msg_source_key), _np_key_as_str(alias_key), _np_key_as_str(context->my_node_key));
 
                     memcpy(msg_source_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
-                    msg_source_key->node->session_key_is_set = TRUE;
+                    msg_source_key->node->session_key_is_set = true;
 
                     /* Implicit: as both keys share the same node
                     memcpy(alias_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
-                    alias_key->node->session_key_is_set = TRUE;
+                    alias_key->node->session_key_is_set = true;
                     */
 
                     // mark as valid to identify existing connections
                     msg_source_key->aaa_token->state |= AAA_VALID;
-                    msg_source_key->node->is_handshake_received = TRUE;
+                    msg_source_key->node->is_handshake_received = true;
 
-                    _np_network_send_handshake(msg_source_key);
+                    _np_network_send_handshake(context, msg_source_key);
 
                     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
                         _np_key_as_str(msg_source_key), _np_key_as_str(alias_key));

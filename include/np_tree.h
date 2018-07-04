@@ -54,9 +54,9 @@ else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
 
 */
 struct np_tree_conf_s {
-	np_bool in_place;
-	np_bool immutable;
-	np_bool disable_special_str;
+	bool in_place;
+	bool immutable;
+	bool disable_special_str;
 }NP_API_EXPORT;
 
 /**
@@ -287,7 +287,7 @@ void np_tree_copy_inplace(np_tree_t* source, np_tree_t* target);
 NP_API_INTERN
 void np_tree_serialize(np_state_t* context, np_tree_t* jrb, cmp_ctx_t* cmp);
 NP_API_INTERN
-np_bool np_tree_deserialize( np_state_t* context, np_tree_t* jrb, cmp_ctx_t* cmp);
+bool np_tree_deserialize( np_state_t* context, np_tree_t* jrb, cmp_ctx_t* cmp);
 
 NP_API_INTERN
 uint8_t __np_tree_serialize_read_type_dhkey(cmp_ctx_t* cmp_key, np_treeval_t* target);
@@ -300,7 +300,7 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 NP_API_INTERN
 void np_tree_insert_special_str(np_tree_t* tree, const uint8_t key, np_treeval_t val);
 NP_API_INTERN
-np_bool _np_tree_is_special_str(const char* in_question, uint8_t* idx_on_found);
+bool _np_tree_is_special_str(const char* in_question, uint8_t* idx_on_found);
 NP_API_INTERN
 const char* _np_tree_get_special_str(uint8_t idx);
 NP_API_INTERN

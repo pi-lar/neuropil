@@ -19,9 +19,9 @@ extern "C" {
 NP_API_INTERN
 void _np_sysinfo_init_cache(np_state_t* context);
 NP_API_INTERN
-np_bool _np_in_sysinfo(np_state_t* context, const np_message_t* const msg, np_tree_t* body) ;
+bool _np_in_sysinfo(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) ;
 NP_API_INTERN
-np_bool _np_in_sysinforeply(np_state_t* context, const np_message_t* const msg, np_tree_t* body) ;
+bool _np_in_sysinforeply(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) ;
 /**
 .. c:function:: void np_sysinfo_get_info(const char* const dhkey_of_node_target)
 

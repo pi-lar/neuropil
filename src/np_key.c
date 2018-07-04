@@ -102,7 +102,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
 	TSP_SCOPE(to_destroy->in_destroy)
 	{
-		to_destroy->in_destroy = TRUE;
+		to_destroy->in_destroy = true;
 
 		char* keyident = _np_key_as_str(to_destroy);
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
@@ -112,8 +112,8 @@ void _np_key_destroy(np_key_t* to_destroy) {
 		np_key_t* deleted;
 		np_key_t* added;
 
-		_np_route_leafset_update(to_destroy, FALSE, &deleted, &added);
-		_np_route_update(to_destroy, FALSE, &deleted, &added);
+		_np_route_leafset_update(to_destroy, false, &deleted, &added);
+		_np_route_update(to_destroy, false, &deleted, &added);
 		_np_network_disable(to_destroy->network);
 
 		_np_keycache_remove(context, to_destroy->dhkey);
@@ -179,7 +179,7 @@ void _np_key_t_new(np_state_t *context, uint8_t type, size_t size, void* key)
 	np_key_t* new_key = (np_key_t*) key;
 
 	new_key->type = np_key_type_unknown;
-	TSP_INITD(new_key->in_destroy, FALSE);
+	TSP_INITD(new_key->in_destroy, false);
 
 	new_key->last_update = np_time_now();
 
@@ -244,7 +244,7 @@ np_key_t* _np_key_get_by_key_hash(np_state_t* context, char* targetDhkey)
 
 	if (NULL != targetDhkey) {
 
-		target = _np_keycache_find_by_details(context, targetDhkey, FALSE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE);
+		target = _np_keycache_find_by_details(context, targetDhkey, false, true, true, true, false, false, true);
 
 		if (NULL == target) {
 			log_msg(LOG_WARN,

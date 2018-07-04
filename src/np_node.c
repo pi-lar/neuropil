@@ -53,14 +53,14 @@ void _np_node_t_new(np_state_t *context, uint8_t type, size_t size, void*  node)
 	entry->port = 0;
 
 	memset(entry->session_key, 0, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
-	entry->session_key_is_set = FALSE;
+	entry->session_key_is_set = false;
 
 	entry->last_success = np_time_now();
 	entry->success_win_index = 0;
-	entry->is_handshake_send = FALSE;
+	entry->is_handshake_send = false;
 	entry->handshake_send_at = 0;
-	entry->is_handshake_received = FALSE;
-	entry->joined_network = FALSE;
+	entry->is_handshake_received = false;
+	entry->joined_network = false;
 
 	for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
 		entry->success_win[i] = i%2;
@@ -96,14 +96,14 @@ void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 		snprintf (s + strlen (s), len - strlen (s), "%s",  key->node->port);
 	}
 } 
-void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, np_bool include_stats)
+void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_stats)
 {
 	np_ctx_memory(node_key);
 	np_tree_insert_str( data, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_ush(node_key->node->protocol));
 	np_tree_insert_str( data, NP_SERIALISATION_NODE_DNS_NAME, np_treeval_new_s(node_key->node->dns_name));
 	np_tree_insert_str( data, NP_SERIALISATION_NODE_PORT, np_treeval_new_s(node_key->node->port));
 
-	if (TRUE == include_stats)
+	if (true == include_stats)
 	{		
 		np_tree_insert_str( data, NP_SERIALISATION_NODE_CREATED_AT, np_treeval_new_d(node_key->created_at));
 		np_tree_insert_str( data, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(node_key)));
@@ -229,7 +229,7 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
 np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e expected_type)
 {
 	np_ctx_memory(token);
-	if (FLAG_CMP(token->type, expected_type) == FALSE) {
+	if (FLAG_CMP(token->type, expected_type) == false) {
 		log_debug_msg(LOG_DEBUG, "## decoding node from token str: %s", token->subject);
 		return NULL;
 	}
@@ -268,7 +268,7 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
 }
 
 
-uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, node_keys), np_bool include_stats)
+uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, node_keys), bool include_stats)
 {
 	uint16_t j=0;
 	np_key_t* current;
@@ -306,10 +306,10 @@ sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, n
 	{
 		np_tree_elem_t* node_data = np_tree_find_int(data, i);
 
-		np_bool free_s_key = FALSE;
+		bool free_s_key = false;
 		char* s_key = np_treeval_to_str(np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val,&free_s_key);
 		np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
-		if (free_s_key == TRUE) {
+		if (free_s_key == true) {
 			free(s_key);
 		}
 		np_key_t* node_key    = _np_keycache_find_or_create(context, search_key);
@@ -388,7 +388,7 @@ void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
 /** _np_node_update_stat:
  ** updates the responded rate to the host based on the NP_NODE_SUCCESS_WINDOW average
  **/
-void _np_node_update_stat (np_node_t* node, np_bool responded)
+void _np_node_update_stat (np_node_t* node, bool responded)
 {
 	np_ctx_memory(node);
 	float total = 0;
@@ -408,7 +408,7 @@ void _np_node_update_stat (np_node_t* node, np_bool responded)
 			}
 			node->success_avg = total / NP_NODE_SUCCESS_WINDOW;
 
-			if (TRUE == responded) node->last_success = np_time_now();
+			if (true == responded) node->last_success = np_time_now();
 		}
 		log_msg(LOG_INFO, "connection to node %s:%s success rate now: %1.2f (%2u / %2u)", node->dns_name, node->port, node->success_avg, node->success_win_index, node->success_win[node->success_win_index]);
 

@@ -112,7 +112,7 @@ typedef union val_type
     char carray[8];
     unsigned char ucarray[8];
 } val;
-
+	   
 struct np_treeval_s
 {
 	uint8_t  type;
@@ -172,6 +172,6 @@ unsigned char np_treeval_uc (np_treeval_t);
 // int16_t * np_treeval_iarray (np_treeval_t);
 float   * np_treeval_farray (np_treeval_t);
 char    * np_treeval_carray (np_treeval_t);
-char    * np_treeval_to_str(np_treeval_t val, np_bool* freeable);
+char    * np_treeval_to_str(np_treeval_t val, bool* freeable);
 
 #endif // _NP_TREEVAL_H_

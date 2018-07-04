@@ -33,13 +33,13 @@ pthread_mutex_t _aaa_mutex = PTHREAD_MUTEX_INITIALIZER;
 int seq = -1;
 int joinComplete = 0;
 
-np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
+bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
 	if (NULL == authorized_tokens) authorized_tokens = np_tree_create();
 
 	// if a token reaches this point, is has already been check for technical validity
-	np_bool ret_val = FALSE;
+	bool ret_val = false;
 
 	char pub_key[2*crypto_sign_PUBLICKEYBYTES+1];
 	sodium_bin2hex(pub_key, 2*crypto_sign_PUBLICKEYBYTES+1, token->public_key, crypto_sign_PUBLICKEYBYTES);
@@ -47,7 +47,7 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	if (NULL != np_tree_find_str(authorized_tokens, token->issuer))
 	{
 		pthread_mutex_unlock(&_aaa_mutex);
-		return (TRUE);
+		return (true);
 	}
 
 	fprintf(stdout, "----------------------------------------------\n");
@@ -91,14 +91,14 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	switch (result)
 	{
 	case 'a':
-		ret_val = TRUE;
+		ret_val = true;
 		*/
 	np_ref_obj(np_aaatoken_t, token);
 	np_tree_insert_str(authorized_tokens, token->issuer, np_treeval_new_v(token));
 /*
 		break;
 	case 'o':
-		ret_val = TRUE;
+		ret_val = true;
 		break;
 	case 'n':
 	default:
@@ -109,16 +109,16 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 //	fflush(stdout);
 
 	pthread_mutex_unlock(&_aaa_mutex);
-	return (TRUE); // ret_val;
+	return (true); // ret_val;
 }
 
-np_bool check_authenticate_token(np_aaatoken_t* token)
+bool check_authenticate_token(np_aaatoken_t* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
 
 	if (NULL == authenticated_tokens) authenticated_tokens = np_tree_create();
 	// if a token reaches this point, is has already been check for technical validity
-	np_bool ret_val = FALSE;
+	bool ret_val = false;
 
 	char pub_key[2*crypto_sign_PUBLICKEYBYTES+1];
 	sodium_bin2hex(pub_key, 2*crypto_sign_PUBLICKEYBYTES+1, token->public_key, crypto_sign_PUBLICKEYBYTES);
@@ -126,7 +126,7 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 	if (NULL != tree_find_str(authenticated_tokens, token->issuer))
 	{
 		pthread_mutex_unlock(&_aaa_mutex);
-		return (TRUE);
+		return (true);
 	}
 
 	fprintf(stdout, "----------------------------------------------\n");
@@ -167,7 +167,7 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 	switch (result)
 	{
 	case 'y':
-		ret_val = TRUE;
+		ret_val = true;
 		*/
 	np_ref_obj(np_aaatoken_t, token);
 	tree_insert_str(authenticated_tokens, token->issuer, np_treeval_new_v(token));
@@ -180,12 +180,12 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 	fflush(stdout);
 	*/
 	pthread_mutex_unlock(&_aaa_mutex);
-	return (TRUE); // ret_val;
+	return (true); // ret_val;
 }
 
-np_bool check_account_token(NP_UNUSED np_aaatoken_t* token)
+bool check_account_token(NP_UNUSED np_aaatoken_t* token)
 {
-	return (TRUE);
+	return (true);
 }
 
 np_aaatoken_t* create_realm_identity()
@@ -234,7 +234,7 @@ int main(int argc, char **argv)
 		&logpath,
 		NULL,
 		NULL,		
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
  

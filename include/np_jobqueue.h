@@ -33,7 +33,7 @@ struct np_job_s
 	uint8_t type; // 1=msg handler, 2=internal handler, 4=unknown yet
 	double exec_not_before_tstamp;
 	double interval;
-	np_bool is_periodic;
+	bool is_periodic;
 	sll_return(np_callback_t) processorFuncs;
 	np_jobargs_t* args;
 	double priority;
@@ -58,10 +58,10 @@ NP_API_INTERN
  *  to the initiated queue
  **/
 NP_API_INTERN
-	np_bool _np_jobqueue_create(np_state_t* context);
+	bool _np_jobqueue_create(np_state_t* context);
 
 NP_API_INTERN
-	np_bool _np_job_queue_insert(np_job_t* new_job);
+	bool _np_job_queue_insert(np_job_t* new_job);
 
 NP_API_INTERN
 	void _np_job_resubmit_msgin_event(np_state_t* context, double delay, np_jobargs_t* jargs_org);
@@ -78,7 +78,7 @@ NP_API_INTERN
 
 #define _np_job_submit_msgin_event(delay, prop, key, msg, custom_data) __np_job_submit_msgin_event(context, delay, prop, key, msg, custom_data, __func__)
 NP_API_INTERN
-	np_bool __np_job_submit_msgin_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, const char* tmp);
+	bool __np_job_submit_msgin_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, const char* tmp);
 
 NP_API_INTERN
 	void _np_job_submit_route_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
@@ -117,7 +117,7 @@ NP_API_EXPORT
 	uint32_t np_jobqueue_count(np_state_t* context);
 
 NP_API_EXPORT
-	char* np_jobqueue_print(np_state_t * context, np_bool asOneLine);
+	char* np_jobqueue_print(np_state_t * context, bool asOneLine);
 NP_API_EXPORT
 void np_jobqueue_run_jobs_for(np_state_t* context, double duration);
 NP_API_EXPORT

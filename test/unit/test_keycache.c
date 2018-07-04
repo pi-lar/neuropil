@@ -35,7 +35,7 @@ Test(np_keycache_t, _np_keycache_create, .description = "test the creation of ke
 
 		cr_expect(NULL != key, "expect the key to be not null");
 
-		cr_expect(TRUE == _np_dhkey_equal(&(key->dhkey), &dhkey), "expect the dhkey of the new key to be the same as the source one");
+		cr_expect(true == _np_dhkey_equal(&(key->dhkey), &dhkey), "expect the dhkey of the new key to be the same as the source one");
 	}
 }
 
@@ -43,7 +43,7 @@ Test(np_keycache_t, _np_keycache_find_or_create, .description = "test the findin
 {
 	CTX() {
 		np_key_t* new_keys[10];
-		np_bool err = FALSE;
+		bool err = false;
 		for (int i = 0; i < 9; i++)
 		{
 			np_dhkey_t key = { .t[0] = i,.t[1] = i,.t[2] = i,.t[3] = i,.t[4] = i,.t[5] = i,.t[6] = i,.t[7] = i };
@@ -59,7 +59,7 @@ Test(np_keycache_t, _np_keycache_find_or_create, .description = "test the findin
 			err = err || new_keys[i] == new_key;
 		}
 		cr_expect(err, "expect the key of the same dhkey to be already in the cache");
-		err = FALSE;
+		err = false;
 
 		for (int i = 10; i < 19; i++)
 		{
@@ -69,7 +69,7 @@ Test(np_keycache_t, _np_keycache_find_or_create, .description = "test the findin
 			err = err || new_keys[i] != new_key;
 		}
 		cr_expect(err, "expect the key to be different to the ones already in the cache");
-		err = FALSE;
+		err = false;
 
 
 		clock_t begin = clock();
@@ -81,7 +81,7 @@ Test(np_keycache_t, _np_keycache_find_or_create, .description = "test the findin
 			err = err || NULL != new_key;
 		}
 		cr_expect(err, "expect the key to be different to the ones already in the cache");
-		err = FALSE;
+		err = false;
 
 		clock_t end = clock();
 		double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
@@ -92,7 +92,7 @@ Test(np_keycache_t, _np_keycache_find_or_create, .description = "test the findin
 Test(np_keycache_t, _np_keycache_find, .description = "test the finding of keys")
 {
 	CTX() {
-		np_bool err = FALSE;
+		bool err = false;
 
 		for (int i = 20; i < 29; i++)
 		{
@@ -102,7 +102,7 @@ Test(np_keycache_t, _np_keycache_find, .description = "test the finding of keys"
 			err = err || NULL == new_key;
 		}
 		cr_expect(err, "expect the key not to be already in the cache");
-		err = FALSE;
+		err = false;
 
 		for (int i = 20; i < 29; i++)
 		{
@@ -112,7 +112,7 @@ Test(np_keycache_t, _np_keycache_find, .description = "test the finding of keys"
 			err = err || NULL != new_key;
 		}
 		cr_expect(err, "expect the key to be create in the cache");
-		err = FALSE;
+		err = false;
 
 		for (int i = 20; i < 29; i++)
 		{
@@ -122,7 +122,7 @@ Test(np_keycache_t, _np_keycache_find, .description = "test the finding of keys"
 			err = err || NULL != new_key;
 		}
 		cr_expect(err, "expect the key to be already in the cache");
-		err = FALSE;
+		err = false;
 
 		for (int i = 1000; i < 1999; i++)
 		{
@@ -140,7 +140,7 @@ Test(np_keycache_t, _np_keycache_find, .description = "test the finding of keys"
 		}
 		clock_t end = clock();
 		cr_expect(err, "expect the key to be already in the cache");
-		err = FALSE;
+		err = false;
 
 		double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
 		log_msg(LOG_INFO | LOG_KEY, "lookup of 999 key's took %f seconds", time_spent);

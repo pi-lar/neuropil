@@ -32,7 +32,7 @@ a message is received by the node that you are currently starting
 
    \code
 */
-np_bool receive_this_is_a_test(np_context* context, const np_message_t* const msg, np_tree_t* body)
+bool receive_this_is_a_test(np_context* context, const np_message_t* const msg, np_tree_t* body, void* localdata)
 {
 /**
 \endcode
@@ -53,14 +53,14 @@ otherwise inspect the properties and payload np_tree_t structures ...
     log_msg(LOG_INFO, "RECEIVED: %s", text);
 
 /**
-return TRUE to indicate successfull handling of the message. if you return FALSE
+return true to indicate successfull handling of the message. if you return false
 the message may get delivered a second time
 
 .. code-block:: c
 
 \code
 */
-    return TRUE;
+    return true;
 }
 /**
    \endcode
@@ -90,7 +90,7 @@ int main(int argc, char **argv)
 		&logpath,
 		NULL,
 		NULL
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 	
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	np_add_receive_listener(context, receive_this_is_a_test, "this.is.a.test");
+	np_add_receive_listener(context, receive_this_is_a_test,NULL,  "this.is.a.test");
 	/**
 	   \endcode
 	*/

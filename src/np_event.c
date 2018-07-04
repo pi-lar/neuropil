@@ -48,7 +48,7 @@
 #define __NP_EVENT_EVLOOP_INIT(LOOPNAME)																		\
     _np_threads_mutex_init(context, &np_module(events)->__loop_##LOOPNAME##_process_protector, "__loop_"#LOOPNAME"_process_protector");\
     np_module(events)->__loop_##LOOPNAME = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);							\
-    if (np_module(events)->__loop_##LOOPNAME == FALSE) {											 			\
+    if (np_module(events)->__loop_##LOOPNAME == false) {											 			\
         fprintf(stderr, "ERROR: cannot init "#LOOPNAME" event loop");								 			\
         exit(EXIT_FAILURE);														   					 			\
     }																			   					 			\
@@ -119,14 +119,17 @@ void async_cb(EV_P_ ev_async *w, int revents)
 {																												
 	/* just used for the side effects */																		
 }
-void np_event_init(np_state_t* context) {
+bool _np_event_init(np_state_t* context) {
+	bool ret = false;
     if (!np_module_initiated(events)) {
         np_module_malloc(events);
         __NP_EVENT_EVLOOP_INIT(in);
         __NP_EVENT_EVLOOP_INIT(out);
         __NP_EVENT_EVLOOP_INIT(io);
         __NP_EVENT_EVLOOP_INIT(http);
+		ret = true;
     }
+	return ret;
 }
 
 // TODO: move to glia
@@ -143,7 +146,7 @@ void _np_event_cleanup_msgpart_cache(np_state_t* context, np_jobargs_t* args)
         RB_FOREACH(tmp, np_tree_s, context->msg_part_cache)
         {
             np_message_t* msg = tmp->val.value.v;
-            if (TRUE == _np_message_is_expired(msg)) {
+            if (true == _np_message_is_expired(msg)) {
                 sll_append(np_message_ptr, to_del, msg);
             }
         }
@@ -172,5 +175,5 @@ void _np_event_cleanup_msgpart_cache(np_state_t* context, np_jobargs_t* args)
 // TODO: move to glia
 void _np_event_rejoin_if_necessary(np_state_t* context, np_jobargs_t* args)
 {
-    _np_route_rejoin_bootstrap(context, FALSE);
+    _np_route_rejoin_bootstrap(context, false);
 }

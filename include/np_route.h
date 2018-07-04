@@ -18,7 +18,7 @@ extern "C" {
  **
  **/
 NP_API_INTERN
-np_bool _np_route_init (np_state_t* context, np_key_t* me);
+bool _np_route_init (np_state_t* context, np_key_t* me);
 
 NP_API_INTERN
 void _np_route_set_key (np_key_t* new_node_key);
@@ -31,10 +31,10 @@ void _np_route_set_key (np_key_t* new_node_key);
  **
  **/
 NP_API_INTERN
-void _np_route_leafset_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added);
+void _np_route_leafset_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t** added);
 
 NP_API_INTERN
-void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added);
+void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t** added);
 
 NP_API_INTERN
 void _np_route_clear (np_state_t* context);
@@ -84,11 +84,11 @@ NP_API_EXPORT
 void np_route_set_bootstrap_key(np_key_t* bootstrapKey);
 
 NP_API_INTERN
-void _np_route_rejoin_bootstrap(np_state_t* context, np_bool force);
+void _np_route_rejoin_bootstrap(np_state_t* context, bool force);
 NP_API_INTERN
 void _np_route_check_for_joined_network(np_state_t* context);
 NP_API_INTERN
-np_bool _np_route_my_key_has_connection(np_state_t* context);
+bool _np_route_my_key_has_connection(np_state_t* context);
 NP_API_INTERN
 uint32_t _np_route_my_key_count_routes(np_state_t* context);
 NP_API_INTERN

@@ -70,10 +70,10 @@ void __np_axon_invoke_on_user_send_callbacks(np_message_t* msg_out, np_msgproper
 		msg_out->msg_property = prop;
 	}
 	// Call user handler for send msgs
-	sll_iterator(np_usercallback_t) iter_usercallbacks = sll_first(prop->user_send_clb);
+	sll_iterator(np_usercallback_ptr) iter_usercallbacks = sll_first(prop->user_send_clb);
 	while (iter_usercallbacks != NULL)
 	{
-		iter_usercallbacks->val(context, msg_out, msg_out ?: msg_out->body);
+		iter_usercallbacks->val->fn(context, msg_out, (msg_out == NULL ? NULL : msg_out->body), iter_usercallbacks->val->data);
 		sll_next(iter_usercallbacks);
 	}
 }
@@ -113,7 +113,7 @@ void _np_out_ack(np_state_t* context, np_jobargs_t* args)
 	// chunking for 1024 bit message size
 	_np_message_calculate_chunking(args->msg);
 	_np_message_serialize_chunked(args->msg);
-	np_bool send_ok = _np_network_append_msg_to_out_queue(args->target, args->msg);
+	bool send_ok = _np_network_append_msg_to_out_queue(args->target, args->msg);
 	if(send_ok) {
 		__np_axon_invoke_on_user_send_callbacks(args->msg, np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK));
 	} else {
@@ -140,10 +140,10 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 	uint32_t seq = 0;
 	np_message_t* msg_out = args->msg;
 
-	np_bool is_resend = args->is_resend;
-	np_bool is_forward = msg_out->is_single_part;
-	np_bool ack_to_is_me = FALSE;
-	np_bool ack_mode_from_msg = FALSE;
+	bool is_resend = args->is_resend;
+	bool is_forward = msg_out->is_single_part;
+	bool ack_to_is_me = false;
+	bool ack_mode_from_msg = false;
 
 	uint8_t ack_mode = ACK_NONE;
 	char* uuid = NULL;
@@ -172,9 +172,9 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 			uuid = msg_out->uuid;
 
 			// check ack indicator if this is a resend of a message
-			if (TRUE == is_resend)
+			if (true == is_resend)
 			{
-				np_bool skip = FALSE;
+				bool skip = false;
 
 				_LOCK_ACCESS(&my_network->waiting_lock)
 				{
@@ -184,16 +184,16 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 					{
 						// has been deleted already
 						log_debug_msg(LOG_DEBUG, "ACK_HANDLING message %s (%s) assumed acknowledged, not resending ...", prop->msg_subject, uuid);
-						skip = TRUE;
+						skip = true;
 					}
 					else {
-						TSP_GET(np_bool, ((np_responsecontainer_t*)uuid_ele->val.value.v)->msg->is_acked, is_acked);
+						TSP_GET(bool, ((np_responsecontainer_t*)uuid_ele->val.value.v)->msg->is_acked, is_acked);
 
-						if (TRUE == is_acked)
+						if (true == is_acked)
 						{
 							// uuid has been acked
 							log_debug_msg(LOG_DEBUG, "ACK_HANDLING message %s (%s) acknowledged (ACK), not resending ...", prop->msg_subject, uuid);
-							skip = TRUE;
+							skip = true;
 						}
 						else
 						{
@@ -209,7 +209,7 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 					}
 				}
 				// TODO: ref counting on ack may differ (ref_message_ack) / key may not be the same more
-				if (TRUE == skip) {
+				if (true == skip) {
 					np_unref_obj(np_network_t, my_network, "np_waitref_network");
 					np_unref_obj(np_key_t, my_key, "np_waitref_key");
 					return;
@@ -234,8 +234,8 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 					np_unref_obj(np_key_t, my_key, "np_waitref_key");
 					return;
 				}
-				// only redeliver if ack_to has been initialized correctly, so this must be TRUE for a resend
-				ack_to_is_me = TRUE;
+				// only redeliver if ack_to has been initialized correctly, so this must be true for a resend
+				ack_to_is_me = true;
 			}
 			log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "setting instructions to out msg %s ", uuid);
 
@@ -247,7 +247,7 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 			else
 			{
 				ack_mode = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_ACK)->val.value.ush;
-				ack_mode_from_msg = TRUE;
+				ack_mode_from_msg = true;
 			}
 			np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop->ack_mode));
 
@@ -257,15 +257,15 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 			{
 				// only set ack_to for these two ack mode values if not yet set !
 				np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
-				if (FALSE == ack_mode_from_msg) ack_to_is_me = TRUE;
+				if (false == ack_mode_from_msg) ack_to_is_me = true;
 			}
 			else
 			{
-				ack_to_is_me = FALSE;
+				ack_to_is_me = false;
 			}
 
 			np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
-			if (FALSE == is_resend)
+			if (false == is_resend)
 			{
 				_LOCK_ACCESS(&my_network->access_lock)
 				{	/* get/set sequence number to keep increasing sequence numbers per node */
@@ -302,17 +302,17 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 			}
 
 			np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
-			if (FALSE == msg_out->is_single_part)
+			if (false == msg_out->is_single_part)
 			{
 				_np_message_calculate_chunking(msg_out);
 			}
 
-			np_bool reschedule_msg_transmission = FALSE;
+			bool reschedule_msg_transmission = false;
 
 
-			if (TRUE == ack_to_is_me || (!is_forward && sll_size(msg_out->on_reply) > 0))
+			if (true == ack_to_is_me || (!is_forward && sll_size(msg_out->on_reply) > 0))
 			{
-				if (FALSE == is_resend && FALSE == is_forward)
+				if (false == is_resend && false == is_forward)
 				{
 					uuid = np_treeval_to_str(np_tree_find_str(msg_out->instructions, _NP_MSG_INST_UUID)->val, NULL);
 
@@ -335,7 +335,7 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 #ifdef DEBUG					
 					CHECK_STR_FIELD(args->msg->header, _NP_MSG_HEADER_TO, msg_to);
 					{
-						np_bool freeable = FALSE;
+						bool freeable = false;
 						char* dhkey_to = np_treeval_to_str(msg_to, &freeable);
 
 						log_debug_msg(LOG_DEBUG, "RESPONSE_HANDLING                   message (%s/%s) %s < - > %s / %"PRIu8":%s:%s",
@@ -356,12 +356,12 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 					// log_msg(LOG_ERROR, "ACK_HANDLING ack handling requested for msg uuid: %s/%s", uuid, args->properties->msg_subject);
 					log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "response handling (%p) requested for msg uuid: %s", my_network->waiting, uuid);
 				}
-				reschedule_msg_transmission = TRUE;
+				reschedule_msg_transmission = true;
 			}
 
 			np_jobargs_t chunk_args = { .msg = msg_out };
 
-			if (TRUE == is_forward)
+			if (true == is_forward)
 			{
 				_np_message_serialize_header_and_instructions(context, &chunk_args);
 			}
@@ -372,16 +372,16 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Try sending message for subject \"%s\" (msg id: %s chunks: %"PRIu32") to %s", prop->msg_subject, msg_out->uuid, msg_out->no_of_chunks, _np_key_as_str(args->target));
 
-			np_bool send_completed = _np_network_append_msg_to_out_queue(args->target, msg_out);
+			bool send_completed = _np_network_append_msg_to_out_queue(args->target, msg_out);
 
-			if(is_forward == FALSE && send_completed == TRUE) {
+			if(is_forward == false && send_completed == true) {
 				__np_axon_invoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
 			}
 
-			if (send_completed == FALSE || (args->properties->retry > 0 && reschedule_msg_transmission == TRUE) ) {
+			if (send_completed == false || (args->properties->retry > 0 && reschedule_msg_transmission == true) ) {
 				double retransmit_interval = args->properties->msg_ttl / (args->properties->retry + 1);
 				// np_msgproperty_t* out_prop = np_msgproperty_get(context, OUTBOUND, args->properties->msg_subject);
-				if (send_completed == FALSE && reschedule_msg_transmission == FALSE) {
+				if (send_completed == false && reschedule_msg_transmission == false) {
 					log_msg(LOG_WARN, "np_network returned error, and no re-sending of message (%s) has been scheduled", args->msg->uuid);
 					// todo: define behaviour first
 					// _np_job_resubmit_msgout_event(retransmit_interval, out_prop, args->target, args->msg);
@@ -425,7 +425,7 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 
 			_np_message_calculate_chunking(hs_message);
 
-			np_bool serialize_ok = _np_message_serialize_chunked(hs_message);
+			bool serialize_ok = _np_message_serialize_chunked(hs_message);
 
 			if (hs_message->no_of_chunks != 1) {
 				log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
@@ -434,7 +434,7 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 				return;
 			}
 
-			if (TRUE == serialize_ok)
+			if (true == serialize_ok)
 			{
 				_LOCK_MODULE(np_network_t)
 				{
@@ -443,11 +443,11 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 						// initialize network
 						np_new_obj(np_network_t, args->target->network, ref_key_network);
 						_np_network_init(args->target->network,
-							FALSE,
+							false,
 							args->target->node->protocol,
 							args->target->node->dns_name,
 							args->target->node->port);
-						if (FALSE == args->target->network->initialized)
+						if (false == args->target->network->initialized)
 						{
 							np_unref_obj(np_message_t, hs_message, ref_obj_creation);
 							np_unref_obj(np_network_t, args->target->network, ref_key_network);
@@ -726,7 +726,7 @@ void _np_out_authentication_request(np_state_t* context, np_jobargs_t* args)
 //	log_debug_msg(LOG_DEBUG, "uuid              : %s", args->target->aaa_token->uuid);
 
 	_np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_AUTHENTICATION_REQUEST, auth_data);
-	if (FALSE == _np_send_msg(_NP_MSG_AUTHENTICATION_REQUEST, msg_out, aaa_props, NULL))
+	if (false == _np_send_msg(_NP_MSG_AUTHENTICATION_REQUEST, msg_out, aaa_props, NULL))
 	{
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending authentication discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
@@ -765,7 +765,7 @@ void _np_out_authentication_reply(np_state_t* context, np_jobargs_t* args)
 	np_msgproperty_t* aaa_props = np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHENTICATION_REPLY);
 
 	// create and send authentication reply
-	if (FALSE == _np_send_msg(_NP_MSG_AUTHENTICATION_REPLY, args->msg, aaa_props, NULL))
+	if (false == _np_send_msg(_NP_MSG_AUTHENTICATION_REPLY, args->msg, aaa_props, NULL))
 	{
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending authentication reply discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
@@ -810,7 +810,7 @@ void _np_out_authorization_request(np_state_t* context, np_jobargs_t* args)
 //	log_debug_msg(LOG_DEBUG, "uuid              : %s", args->target->aaa_token->uuid);
 
 	_np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_AUTHORIZATION_REQUEST, auth_data);
-	if (FALSE == _np_send_msg(_NP_MSG_AUTHORIZATION_REQUEST, msg_out, aaa_props, NULL))
+	if (false == _np_send_msg(_NP_MSG_AUTHORIZATION_REQUEST, msg_out, aaa_props, NULL))
 	{
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_out_receiver_discovery(context, &jargs);
@@ -846,7 +846,7 @@ void _np_out_authorization_reply(np_state_t* context, np_jobargs_t* args)
 	np_msgproperty_t* aaa_props = np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHORIZATION_REPLY);
 
 	// create and send authentication reply
-	if (FALSE == _np_send_msg(_NP_MSG_AUTHORIZATION_REPLY, args->msg, aaa_props, NULL))
+	if (false == _np_send_msg(_NP_MSG_AUTHORIZATION_REPLY, args->msg, aaa_props, NULL))
 	{
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending authorization reply discovery");
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
@@ -884,7 +884,7 @@ void _np_out_accounting_request(np_state_t* context, np_jobargs_t* args)
 	np_aaatoken_encode(auth_data, args->target->aaa_token);
 	_np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_ACCOUNTING_REQUEST, auth_data);
 
-	if (FALSE == _np_send_msg(_NP_MSG_ACCOUNTING_REQUEST, msg_out, aaa_props, NULL))
+	if (false == _np_send_msg(_NP_MSG_ACCOUNTING_REQUEST, msg_out, aaa_props, NULL))
 	{
 		np_jobargs_t jargs = { .target = aaa_target, .properties = aaa_props };
 		_np_out_receiver_discovery(context, &jargs);

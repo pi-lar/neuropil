@@ -33,7 +33,7 @@ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 
-np_bool receive_message(np_context *context, const np_message_t* const msg, np_tree_t* body);
+bool receive_message(np_context *context, const np_message_t* const msg, np_tree_t* body, void* localdata);
 
 /**
 The purpose of this program is to start a client for our echo service.
@@ -74,12 +74,12 @@ int main(int argc, char **argv) {
 		"m:",
 		&message_to_send
 
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
-	np_bool j_key_provided = j_key != NULL;
+	bool j_key_provided = j_key != NULL;
 	int retry_connection = 3;
-	np_bool add_id_to_msg = strcmp(message_to_send, message_to_send_org ) == 0;
+	bool add_id_to_msg = strcmp(message_to_send, message_to_send_org ) == 0;
 
  
 	/**
@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 	\code
 	*/
 	char* bootstrap_node = NULL;
-	while (TRUE) {
+	while (true) {
 		fprintf(stdout, "try to join bootstrap node\n");
 		if (false == j_key_provided) {
 			sprintf(j_key, "%s:localhost:3333", proto);
@@ -125,13 +125,13 @@ int main(int argc, char **argv) {
 
 		int timeout = 100;
 		while (timeout > 0
-				&& FALSE == context->my_node_key->node->joined_network) {
+				&& false == context->my_node_key->node->joined_network) {
 			// wait for join acceptance
 			np_time_sleep(0.1);
 			timeout--;
 		}
 
-		if (TRUE == context->my_node_key->node->joined_network) {
+		if (true == context->my_node_key->node->joined_network) {
 			bootstrap_node = np_route_get_bootstrap_connection_string(context);
 			fprintf(stdout, "%s joined network!\n", port);
 			break;
@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
 	\code
 	*/
 	np_msgproperty_t* msg_props = NULL;
-	np_add_receive_listener(context, receive_message, "echo");
+	np_add_receive_listener(context, receive_message, NULL, "echo");
 	msg_props = np_msgproperty_get(context, INBOUND, "echo");
 	msg_props->msg_subject = strndup("echo", 255);
 	msg_props->ack_mode = ACK_NONE;
@@ -188,7 +188,7 @@ int main(int argc, char **argv) {
 	\code
 	*/
 	uint32_t i = 0;
-	while (TRUE == context->my_node_key->node->joined_network) {
+	while (true == context->my_node_key->node->joined_network) {
 		__np_example_helper_loop(context);
 		if (i++ % 50 == 0) {
 			char * s_out;
@@ -219,7 +219,7 @@ If  we receive a message for the "echo" subject we now get a callback to this fu
 
    \code
 */
-np_bool receive_message(np_context *context, const np_message_t* const msg, np_tree_t* body) {
+bool receive_message(np_context *context, const np_message_t* const msg, np_tree_t* body, void* localdata) {
 /**
    \endcode
 */
@@ -247,13 +247,13 @@ np_bool receive_message(np_context *context, const np_message_t* const msg, np_t
 
 	/**
 	To signal the network a completely processed message
-	(no resends necessary) we return a TRUE value to our caller.
+	(no resends necessary) we return a true value to our caller.
 
 	.. code-block:: c
 
 	   \code
 	*/
-	return TRUE;
+	return true;
 	/**
 	   \endcode
 	*/

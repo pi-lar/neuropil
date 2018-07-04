@@ -37,8 +37,8 @@ enum {
   FIXARRAY_MARKER        = 0x90,
   FIXSTR_MARKER          = 0xA0,
   NIL_MARKER             = 0xC0,
-  FALSE_MARKER           = 0xC2,
-  TRUE_MARKER            = 0xC3,
+  false_MARKER           = 0xC2,
+  true_MARKER            = 0xC3,
   BIN8_MARKER            = 0xC4,
   BIN16_MARKER           = 0xC5,
   BIN32_MARKER           = 0xC6,
@@ -294,10 +294,10 @@ static bool type_marker_to_cmp_type(uint8_t type_marker, uint8_t *cmp_type) {
     case NIL_MARKER:
       *cmp_type = CMP_TYPE_NIL;
       return true;
-    case FALSE_MARKER:
+    case false_MARKER:
       *cmp_type = CMP_TYPE_BOOLEAN;
       return true;
-    case TRUE_MARKER:
+    case true_MARKER:
       *cmp_type = CMP_TYPE_BOOLEAN;
       return true;
     case BIN8_MARKER:
@@ -574,10 +574,10 @@ static bool read_obj_data(cmp_ctx_t *ctx, uint8_t type_marker,
       return true;
     case CMP_TYPE_BOOLEAN:
       switch (type_marker) {
-        case TRUE_MARKER:
+        case true_MARKER:
           obj->as.boolean = true;
           return true;
-        case FALSE_MARKER:
+        case false_MARKER:
           obj->as.boolean = false;
           return true;
         default:
@@ -958,11 +958,11 @@ bool cmp_write_nil(cmp_ctx_t *ctx) {
 }
 
 bool cmp_write_true(cmp_ctx_t *ctx) {
-  return write_type_marker(ctx, TRUE_MARKER);
+  return write_type_marker(ctx, true_MARKER);
 }
 
 bool cmp_write_false(cmp_ctx_t *ctx) {
-  return write_type_marker(ctx, FALSE_MARKER);
+  return write_type_marker(ctx, false_MARKER);
 }
 
 bool cmp_write_bool(cmp_ctx_t *ctx, bool b) {

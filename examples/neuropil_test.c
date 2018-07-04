@@ -1,3 +1,5 @@
+#include "np_route.h"
+
 #include "../test/test_macros.c"
 #include "../src/np_memory.c"
 typedef struct test_struct
@@ -48,7 +50,7 @@ int main()
 			log_debug_msg(LOG_DEBUG, "created key %s", _np_key_as_str(insert_key));
 
 			np_key_t *added = NULL, *deleted = NULL;
-			_np_route_update(insert_key, TRUE, &deleted, &added);
+			_np_route_update(insert_key, true, &deleted, &added);
 
 			if (NULL != added)
 			{

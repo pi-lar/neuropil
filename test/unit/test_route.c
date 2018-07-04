@@ -39,7 +39,7 @@ Test(np_route_t, _leafset_update, .description = "test the addition/removal of k
 
 			my_keys[i] = insert_key;
 			np_key_t *added = NULL, *deleted = NULL;
-			_np_route_leafset_update(my_keys[i], TRUE, &deleted, &added);
+			_np_route_leafset_update(my_keys[i], true, &deleted, &added);
 
 			if (NULL != added)
 			{
@@ -64,7 +64,7 @@ Test(np_route_t, _leafset_update, .description = "test the addition/removal of k
 		for (int i = 0; i < 128; i++)
 		{
 			np_key_t *added = NULL, *deleted = NULL;
-			_np_route_leafset_update(my_keys[i], FALSE, &deleted, &added);
+			_np_route_leafset_update(my_keys[i], false, &deleted, &added);
 			if (NULL != deleted)
 			{
 				cr_expect(0 == _np_dhkey_cmp(&my_keys[i]->dhkey, &deleted->dhkey), "test whether the same key was removed");
@@ -125,7 +125,7 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 			insert_key->node->latency = ((double)rand()) / 1000;
 
 			np_key_t *added = NULL, *deleted = NULL;
-			_np_route_update(insert_key, TRUE, &deleted, &added);
+			_np_route_update(insert_key, true, &deleted, &added);
 
 			if (NULL != added)
 			{

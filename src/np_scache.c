@@ -13,6 +13,7 @@
 
 #include "np_threads.h"
 #include "np_log.h"
+#include "neuropil.h"
 #include "inttypes.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_cache_item_ptr);

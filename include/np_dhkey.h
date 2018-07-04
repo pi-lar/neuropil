@@ -12,11 +12,6 @@
 extern "C" {
 #endif
 
-struct np_dhkey_s
-{
-    uint32_t t[8];
-};
-
 /* key_comp: k1, k2
  * returns > 0 if k1>k2, < 0 if k1<k2, and 0 if k1==k2
  */
@@ -35,7 +30,7 @@ np_dhkey_t np_dhkey_max(np_state_t* context);
  * initializes np_dhkey_t*
  */
 NP_API_INTERN
-void _np_dhkey_init (np_state_t* context);
+bool _np_dhkey_init (np_state_t* context);
 
 NP_API_INTERN
 np_dhkey_t np_dhkey_create_from_hash(const char* strOrig);
@@ -46,7 +41,7 @@ np_dhkey_t np_dhkey_create_from_hostport(np_state_t* context, const char* strOri
  * return 1 if #k1#==#k2# 0 otherwise
  */
 NP_API_INTERN
-np_bool _np_dhkey_equal (const np_dhkey_t* const k1, const np_dhkey_t* const k2);
+bool _np_dhkey_equal (const np_dhkey_t* const k1, const np_dhkey_t* const k2);
 
 NP_API_INTERN
 void _np_dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2);
@@ -64,7 +59,7 @@ void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_
  * around the ring to #right#.
  */
 NP_API_INTERN
-np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const np_bool includeOuterBounds) NP_CONST;
+bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const bool includeOuterBounds) NP_CONST;
 
 /* key_midpoint: mid, key
  * calculates the midpoint of the namespace from the #key#

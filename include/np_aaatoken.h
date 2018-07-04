@@ -34,6 +34,7 @@ AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizi
 #include "np_memory.h"
 
 #include "np_types.h"
+#include "np_interface.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -154,7 +155,6 @@ enum np_aaatoken_scope {
 struct np_aaatoken_s
 {
 	// link to memory management
-	
 
 	// protocol version
 	double version;
@@ -191,11 +191,11 @@ struct np_aaatoken_s
 	*/
 	enum np_aaatoken_type type;
 	enum np_aaatoken_scope scope;
-	np_bool private_key_is_set;
+	bool private_key_is_set;
 	np_aaatoken_t* issuer_token;
 
-	np_bool is_signature_verified;
-	np_bool is_signature_extensions_verified;
+	bool is_signature_verified;
+	bool is_signature_extensions_verified;
 
 
 } NP_API_EXPORT;
@@ -208,10 +208,10 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
 NP_API_INTERN
 void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token);
 NP_API_INTERN
-np_bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
+bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
 
 /**
-.. c:function::np_bool token_is_valid(np_aaatoken_t* token)
+.. c:function::bool token_is_valid(np_aaatoken_t* token)
 
    checks if a token is valid.
    performs a cryptographic integrity check with a checksum verification on the main data elements
@@ -221,7 +221,7 @@ np_bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
 
 */
 NP_API_EXPORT
-np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_type);
+bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_type);
 
 NP_API_INTERN
 np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* token);
@@ -276,6 +276,8 @@ NP_API_INTERN
 np_dhkey_t _np_aaatoken_get_issuer(np_aaatoken_t* self);
 NP_API_INTERN
 void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* token);
+NP_API_INTERN
+np_token* np_aaatoken4user(np_token* dest, np_aaatoken_t* src);
 #ifdef __cplusplus
 }
 #endif

@@ -11,10 +11,12 @@
 #include <stdint.h>
 #include <float.h>
 #include <inttypes.h>
+#include <math.h>
 
 #include "sodium.h"
 
 
+#include "np_interface.h"
 #include "neuropil.h"
 #include "np_log.h"
 #include "np_jobqueue.h"
@@ -87,7 +89,7 @@ struct np_memory_container_s
     np_mutex_t current_in_use_lock;
     uint32_t current_in_use;
 
-    np_bool itemstats_full;
+    bool itemstats_full;
     uint32_t itemstats_idx;
     struct np_memory_itemstat_s itemstats[10];
 };
@@ -99,13 +101,13 @@ struct np_memory_itemconf_s {
 #endif
     np_memory_container_t* container;
 
-    np_bool in_use;
-    np_bool needs_refresh;
+    bool in_use;
+    bool needs_refresh;
     np_mutex_t access_lock;
 
     uint32_t ref_count;
-    np_bool persistent;
-    char id[UUID_SIZE];
+    bool persistent;
+    char id[NP_UUID_CHARS];
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
     np_sll_t(char_ptr, reasons);
 #endif
@@ -126,7 +128,7 @@ void np_check_magic_no(void * item) {
 
 
 
-void np_memory_init(np_state_t* context) {
+bool _np_memory_init(np_state_t* context) {
     np_module_malloc(memory);
 
     for (int i = 0; i < np_memory_types_MAX_TYPE; i++) {
@@ -155,6 +157,7 @@ np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type
     np_memory_register_type(context, np_memory_types_BLOB_1024, 1024, 4, 4, NULL, NULL, np_memory_clear_space);
     np_memory_register_type(context, np_memory_types_BLOB_984_RANDOMIZED, 984, 4, 200, NULL, NULL, np_memory_randomize_space);
 
+	return true;
 }
 
 void __np_memory_space_increase(np_memory_container_t* container, uint32_t block_size) {
@@ -168,14 +171,14 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
 
         // conf init
         conf->container = container;
-        conf->in_use = FALSE;
-        conf->needs_refresh = TRUE;
+        conf->in_use = false;
+        conf->needs_refresh = true;
         conf->ref_count = 0;		
         char* tmp  = conf->id;
         np_uuid_create(__func__, 0, &tmp);
         log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_Inc_    (%"PRIu32") object of type \"%s\" on %s", conf->ref_count, np_memory_types_str[container->type], conf->id);
 
-        conf->persistent = FALSE;
+        conf->persistent = false;
         if (_np_threads_mutex_init(context, &(conf->access_lock), "MemoryV2 conf lock") != 0) {
             log_msg(LOG_ERROR, "Could not create memory item lock for container type %"PRIu8, container->type);
         }
@@ -212,7 +215,7 @@ void np_memory_register_type(
 
         container->module = np_module(memory);
         container->itemstats_idx = 0;
-        container->itemstats_full = FALSE;
+        container->itemstats_full = false;
         memset(container->itemstats, 0, sizeof(container->itemstats));
         container->size_per_item = size_per_item;
         container->count_of_items_per_block = count_of_items_per_block;
@@ -253,16 +256,16 @@ void np_memory_register_type(
     }
 }
 
-np_bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
-    np_bool refreshed = FALSE;
+bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
+    bool refreshed = false;
     np_memory_container_t* container = config->container;
     np_ctx_decl(container->module->context);
     void* data = GET_ITEM(config);
 
     _LOCK_ACCESS(&config->access_lock) {
-        if (config->in_use == FALSE && config->needs_refresh == TRUE) {
+        if (config->in_use == false && config->needs_refresh == true) {
             config->ref_count = 0;			
-            config->persistent = FALSE;
+            config->persistent = false;
 
 #if NP_MEMORY_CHECK_MEMORY_REFFING
             char* old;
@@ -274,8 +277,8 @@ np_bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
             if (container->on_refresh_space != NULL) {
                 container->on_refresh_space(context, container->type, container->size_per_item, data);
             }
-            config->needs_refresh = FALSE;
-            refreshed = TRUE;
+            config->needs_refresh = false;
+            refreshed = true;
         }
     }
     return refreshed;
@@ -318,8 +321,8 @@ double __np_memory_itemstats_get_growth(np_memory_container_t* container) {
     double max_time = 0;
     for (uint32_t i = 0; i < container->itemstats_idx; i++) {
         struct np_memory_itemstat_s itemstat = container->itemstats[container->itemstats_idx];
-        min_time = min(min_time, itemstat.time);
-        max_time = max(max_time, itemstat.time);
+        min_time = fmin(min_time, itemstat.time);
+        max_time = fmax(max_time, itemstat.time);
     }
     if (container->itemstats_full) {
 
@@ -335,9 +338,9 @@ double __np_memory_itemstats_get_growth(np_memory_container_t* container) {
     return growth;
 }
 
-np_bool __np_memory_space_decrease_nessecary(np_memory_container_t* container) {
+bool __np_memory_space_decrease_nessecary(np_memory_container_t* container) {
     np_ctx_decl(container->module->context);
-    np_bool ret = FALSE;
+    bool ret = false;
 
     _LOCK_ACCESS(&container->current_in_use_lock) {
         _LOCK_ACCESS(&container->refreshed_items_lock) {
@@ -361,7 +364,7 @@ np_bool __np_memory_space_decrease_nessecary(np_memory_container_t* container) {
 
                         /*decrease if we only consume 50% or less of our space*/
                         //container->current_in_use <= (total_space_available * 0.5)
-                        FALSE
+                        false
                         )
                     ;
             }
@@ -370,9 +373,9 @@ np_bool __np_memory_space_decrease_nessecary(np_memory_container_t* container) {
     return ret;
 }
 
-np_bool __np_memory_space_increase_nessecary(np_memory_container_t* container) {
+bool __np_memory_space_increase_nessecary(np_memory_container_t* container) {
     np_ctx_decl(container->module->context);
-    np_bool ret = FALSE;
+    bool ret = false;
 
     _LOCK_ACCESS(&container->current_in_use_lock) {
         _LOCK_ACCESS(&container->refreshed_items_lock) {
@@ -419,7 +422,7 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
         if (item_config != NULL) {
             //debugf("removing obj %p \n", item_config);
             _LOCK_ACCESS(&item_config->access_lock) {
-                ASSERT(item_config->in_use == FALSE, "can only delete unused memory objects");
+                ASSERT(item_config->in_use == false, "can only delete unused memory objects");
             }
 
             _LOCK_ACCESS(&container->total_items_lock) {
@@ -447,7 +450,7 @@ void* np_memory_new(np_state_t* context, enum np_memory_types_e type) {
     log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Searching for next free current_block for type %"PRIu8, type);
 
     np_memory_itemconf_t* next_config;
-    np_bool found = FALSE;
+    bool found = false;
 
     do {
         next_config = NULL; // init loop condition
@@ -475,13 +478,13 @@ void* np_memory_new(np_state_t* context, enum np_memory_types_e type) {
         }
         // now we do have a item space. we need to check if the space is already in use (should not but better play safe)
         _LOCK_ACCESS(&next_config->access_lock) {
-            if (next_config->in_use == FALSE) {
+            if (next_config->in_use == false) {
                 // take free space
-                found = TRUE;
-                next_config->in_use = TRUE;
+                found = true;
+                next_config->in_use = true;
             }
         }
-    } while (found == FALSE);
+    } while (found == false);
 
     _LOCK_ACCESS(&container->current_in_use_lock) {
         container->current_in_use += 1;
@@ -521,13 +524,13 @@ void np_memory_free(void* item) {
         NP_PERFORMANCE_POINT_START(memory_free);
 
         _LOCK_ACCESS(&config->access_lock) {
-            config->in_use = FALSE;
+            config->in_use = false;
 
             if (container->on_free != NULL)
                 container->on_free(context, container->type, container->size_per_item, item);
 
             if (container->on_refresh_space != NULL) {
-                config->needs_refresh = TRUE;
+                config->needs_refresh = true;
             }
 
             if (config->needs_refresh) {
@@ -619,7 +622,7 @@ void np_mem_refobj(void * item, const char* reason)
 
     _LOCK_ACCESS(&config->access_lock) {
         log_trace_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
-        if (config->persistent == FALSE) {
+        if (config->persistent == false) {
             config->ref_count++;
         }
         //log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
@@ -636,7 +639,7 @@ void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
     np_ctx_decl(config->container->module->context);
 
     _LOCK_ACCESS(&config->access_lock) {
-        if (config->persistent == FALSE) {
+        if (config->persistent == false) {
             if (config->ref_count == 0) {
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
                 log_msg(LOG_ERROR, 
@@ -654,19 +657,19 @@ void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
         }
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
         sll_iterator(char_ptr) iter_reason = sll_first(config->reasons);
-        np_bool foundReason = FALSE;
-        while (foundReason == FALSE && iter_reason != NULL)
+        bool foundReason = false;
+        while (foundReason == false && iter_reason != NULL)
         {
             foundReason = (0 == strncmp(iter_reason->val, reason, strlen(reason))
-                && 0 == strncmp(iter_reason->val + strlen(reason), _NP_REF_REASON_SEPERATOR_CHAR, _NP_REF_REASON_SEPERATOR_CHAR_LEN)) ? TRUE : FALSE;
-            if (foundReason == TRUE) {
+                && 0 == strncmp(iter_reason->val + strlen(reason), _NP_REF_REASON_SEPERATOR_CHAR, _NP_REF_REASON_SEPERATOR_CHAR_LEN)) ? true : false;
+            if (foundReason == true) {
                 free(iter_reason->val);
                 sll_delete(char_ptr, config->reasons, iter_reason);
                 break;
             }
             sll_next(iter_reason);
         }
-        if (FALSE == foundReason) {
+        if (false == foundReason) {
             log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ", reason, config->id, config->container->type, sll_size(config->reasons), _sll_char_make_flat(context, config->reasons));
             abort();
         }
@@ -677,17 +680,17 @@ void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
 }
 
 // print the complete object list and statistics
-char* np_mem_printpool(np_state_t* context, np_bool asOneLine, np_bool extended)
+char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
 {
     char* ret = NULL;
     char* new_line = "\n";
-    if (asOneLine == TRUE) {
+    if (asOneLine == true) {
         new_line = "    ";
     }
 
     uint32_t summary[10000] = { 0 };
 
-    if (TRUE == extended) {
+    if (true == extended) {
         ret = np_str_concatAndFree(ret, "--- extended reasons start ---%s", new_line);
     }
 
@@ -695,12 +698,12 @@ char* np_mem_printpool(np_state_t* context, np_bool asOneLine, np_bool extended)
     {
         np_memory_container_t* container = np_module(memory)->__np_memory_container[memory_type];
 
-		summary[container->type] = max(summary[container->type], container->current_in_use);
+		summary[container->type] = fmax(summary[container->type], container->current_in_use);
 		
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING		
-        if (TRUE == extended
+        if (true == extended
             && (
-                TRUE//container->type == np_memory_types_np_key_t
+                true//container->type == np_memory_types_np_key_t
                     //|| container->type == np_msgproperty_t_e
                 )
             ) {
@@ -711,7 +714,7 @@ char* np_mem_printpool(np_state_t* context, np_bool asOneLine, np_bool extended)
                     np_memory_itemconf_ptr iter = iter_items->val;
                     _TRYLOCK_ACCESS(&iter->access_lock) {
 						
-                        summary[container->type] = max(summary[container->type * 100], sll_size(iter->reasons));
+                        summary[container->type] = fmax(summary[container->type * 100], sll_size(iter->reasons));
 
                         if (sll_size(iter->reasons) > 10) {
                             ret = np_str_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, memory_type, sll_size(iter->reasons), new_line);
@@ -754,7 +757,7 @@ char* np_mem_printpool(np_state_t* context, np_bool asOneLine, np_bool extended)
 #endif
 
 
-        if (TRUE == extended) {
+        if (true == extended) {
 #ifndef NP_MEMORY_CHECK_MEMORY_REFFING
             ret = np_str_concatAndFree(ret, "NO DATA. Compile with NP_MEMORY_CHECK_MEMORY_REFFING %s", new_line);
 #endif
@@ -783,8 +786,8 @@ void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason
 
         _LOCK_ACCESS(&config->access_lock) {
             sll_iterator(char_ptr) iter_reasons = sll_first(config->reasons);			
-            np_bool foundReason = FALSE;
-            while (foundReason == FALSE && iter_reasons != NULL)
+            bool foundReason = false;
+            while (foundReason == false && iter_reasons != NULL)
             {	
                 if (strlen(iter_reasons->val) >= strlen(old_reason) + _NP_REF_REASON_SEPERATOR_CHAR_LEN) {
                     foundReason = 0 == strncmp(iter_reasons->val, old_reason, strlen(old_reason));
@@ -793,7 +796,7 @@ void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason
                         _NP_REF_REASON_SEPERATOR_CHAR, _NP_REF_REASON_SEPERATOR_CHAR_LEN);
                 }
 
-                if (foundReason == TRUE) {
+                if (foundReason == true) {
                     free(iter_reasons->val);
                     sll_delete(char_ptr, config->reasons, iter_reasons);
                     break;
@@ -801,7 +804,7 @@ void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason
                 
                 sll_next(iter_reasons);
             }
-            if (FALSE == foundReason)
+            if (false == foundReason)
             {
                 log_msg(LOG_ERROR,
                     "Reason switch on object (%s; t: %s) \"%s\" to \"%s\" not possible! Reason not found. (left reasons(%d): %s)",
@@ -822,11 +825,16 @@ void np_memory_ref_obj(void* item, char* reason, char* reason_desc) {
     np_check_magic_no(item);
     np_memory_itemconf_t* config = GET_CONF(item);
     np_ctx_decl(config->container->module->context);
+
+
     _NP_REF_REASON(reason, reason_desc, reason2);
     _LOCK_ACCESS(&config->access_lock) {
         np_mem_refobj(item, reason2); 
-        log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_Ref_    (%"PRIu32") object of type \"%s\" on %s with \"%s\" (%s)", config->ref_count, np_memory_types_str[config->container->type], config->id, reason, _sll_char_make_flat(context, config->reasons));		
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
+		log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_Ref_    (%"PRIu32") object of type \"%s\" on %s with \"%s\" (%s)", config->ref_count, np_memory_types_str[config->container->type], config->id, reason, _sll_char_make_flat(context, config->reasons));		
+#endif
     }
+
 }
 void* np_memory_waitref_obj(void* item, char* reason, char* reason_desc) {
     void* ret = NULL;
@@ -851,8 +859,8 @@ void* np_memory_waitref_obj(void* item, char* reason, char* reason_desc) {
     return ret;
 }
 
-np_bool np_memory_tryref_obj(void* item, char* reason, char* reason_desc) {
-    np_bool ret = FALSE;
+bool np_memory_tryref_obj(void* item, char* reason, char* reason_desc) {
+    bool ret = false;
     if (item != NULL) {
         np_memory_itemconf_t* config = GET_CONF(item);
         np_ctx_decl(config->container->module->context);
@@ -860,8 +868,10 @@ np_bool np_memory_tryref_obj(void* item, char* reason, char* reason_desc) {
         _LOCK_ACCESS(&config->access_lock) {			
             _NP_REF_REASON(reason, reason_desc, reason2);
             np_mem_refobj(item, reason2);
-            ret = TRUE;
+            ret = true;
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
             log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_TryRef_ (%"PRIu32") object of type \"%s\" on %s with \"%s\" (%s)", config->ref_count, np_memory_types_str[config->container->type], config->id, reason, _sll_char_make_flat(context, config->reasons));
+#endif
 
         }
     }
@@ -878,7 +888,7 @@ uint32_t np_memory_unref_obj(void* item, char* reason) {
         _LOCK_ACCESS(&config->access_lock) {
             np_mem_unrefobj(config, reason);
             ret = config->ref_count; 
-            if (config->persistent == FALSE && config->ref_count == 0) {
+            if (config->persistent == false && config->ref_count == 0) {
                 np_memory_free(item);
             }			
         }

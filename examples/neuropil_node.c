@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 		"r:c:",
 		&realm,
 		&code
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 

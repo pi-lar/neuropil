@@ -37,19 +37,19 @@ int8_t _np_messagepart_cmp (const np_messagepart_ptr value1, const np_messagepar
 }
 
 
-np_bool _np_messagepart_decrypt(np_state_t* context, 
+bool _np_messagepart_decrypt(np_state_t* context, 
 							np_tree_t* source,
 							unsigned char* enc_nonce,
 							unsigned char* public_key,
 							NP_UNUSED unsigned char* secret_key,
 							np_tree_t* target)
 {
-	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_decrypt(context, np_tree_t* msg_part,							unsigned char* enc_nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: bool _np_messagepart_decrypt(context, np_tree_t* msg_part,							unsigned char* enc_nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
 	np_tree_elem_t* enc_msg_part = np_tree_find_str(source, NP_ENCRYPTED);
 	if (NULL == enc_msg_part)
 	{
 		log_msg(LOG_ERROR, "couldn't find encrypted msg part");
-		return (FALSE);
+		return (false);
 	}
 
 	unsigned char dec_part[enc_msg_part->val.size - crypto_box_MACBYTES];
@@ -81,29 +81,29 @@ np_bool _np_messagepart_decrypt(np_state_t* context,
 #endif
 
 		log_debug_msg(LOG_ERROR, "couldn't decrypt msg part with session key");
-		return (FALSE);
+		return (false);
 	}
 
 	// Allow deserialisation as the encryption may 	
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, dec_part, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
-	if(np_tree_deserialize( context, target, &cmp) == FALSE) {
+	if(np_tree_deserialize( context, target, &cmp) == false) {
 		log_debug_msg(LOG_ERROR, "couldn't deserialize msg part after decryption");
-		return FALSE;
+		return false;
 	}
 	// TODO: check if the complete buffer was read (byte count match)
 
 	
-	return (TRUE);
+	return (true);
 }
 
-np_bool _np_messagepart_encrypt(np_state_t* context, 
+bool _np_messagepart_encrypt(np_state_t* context, 
 							np_tree_t* msg_part,
 							unsigned char* nonce,
 							unsigned char* public_key,
 							NP_UNUSED unsigned char* secret_key)
 {
-	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_encrypt(context, np_tree_t* msg_part,							unsigned char* nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: bool _np_messagepart_encrypt(context, np_tree_t* msg_part,							unsigned char* nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
 	cmp_ctx_t cmp;
 
 	unsigned char msg_part_buffer[msg_part->byte_size*2];
@@ -135,12 +135,12 @@ np_bool _np_messagepart_encrypt(np_state_t* context,
 //								public_key);
 	if (ret < 0)
 	{
-		return (FALSE);
+		return (false);
 	}
 
 	_np_tree_replace_all_with_str(msg_part, NP_ENCRYPTED,
 			np_treeval_new_bin(enc_msg_part, enc_msg_part_len));
-	return (TRUE);
+	return (true);
 }
 
 
@@ -159,11 +159,11 @@ void _np_messagepart_t_new(np_state_t *context, uint8_t type, size_t size, void*
 	part->msg_part  = NULL;
 }
 
-char* np_messagepart_printcache(np_state_t* context, np_bool asOneLine)
+char* np_messagepart_printcache(np_state_t* context, bool asOneLine)
 {
 	char* ret = NULL;
 	char* new_line = "\n";
-	if(asOneLine == TRUE){
+	if(asOneLine == true){
 		new_line = "    ";
 	}
 

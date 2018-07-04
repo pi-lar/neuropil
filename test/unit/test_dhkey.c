@@ -65,7 +65,7 @@ Test(np_dhkey_t, _dhkey_globals, .description = "test the global dhkeys max & ha
 		cr_expect(-1 == _np_dhkey_cmp(&half, &max), "expected dhkey_half to be less than dhkey_max");
 		cr_expect(1 == _np_dhkey_cmp(&max, &half), "expected dhkey_half to be less than dhkey_max");
 		cr_expect(0 == _np_dhkey_cmp(&half, &half), "expected dhkey_half to be equal to dhkey_half");
-		cr_expect(TRUE == _np_dhkey_equal(&max, &max), "expected dhkey_max to be equal to dhkey_max");
+		cr_expect(true == _np_dhkey_equal(&max, &max), "expected dhkey_max to be equal to dhkey_max");
 
 		np_dhkey_t result;
 
@@ -90,8 +90,8 @@ Test(np_dhkey_t, _dhkey_equals, .description = "test for equal dhkey's")
 		np_dhkey_t key_1 = np_dhkey_create_from_hostport(context, subject, "1");
 		np_dhkey_t key_2 = np_dhkey_create_from_hostport(context, subject, "2");
 
-		cr_expect(TRUE == _np_dhkey_equal(&key_1, &key_1), "expected dhkey's to be equal");
-		cr_expect(FALSE == _np_dhkey_equal(&key_1, &key_2), "expected dhkey's to be different");
+		cr_expect(true == _np_dhkey_equal(&key_1, &key_1), "expected dhkey's to be equal");
+		cr_expect(false == _np_dhkey_equal(&key_1, &key_2), "expected dhkey's to be different");
 	}
 }
 
@@ -155,24 +155,24 @@ Test(np_dhkey_t, _dhkey_between, .description = "test the between length of two 
 		np_dhkey_t key_5 = { .t[0] = 0,.t[1] = 0,.t[2] = 0,.t[3] = 0,.t[4] = 0 ,.t[5] = 0 ,.t[6] = 0 ,.t[7] = 5 };
 
 		// test out of bounds
-		cr_expect(FALSE == _np_dhkey_between(&key_1, &key_2, &key_3, TRUE), "expected key1 to be not between key2 and key3");
-		cr_expect(FALSE == _np_dhkey_between(&key_4, &key_2, &key_3, TRUE), "expected key4 to be not between key2 and key3");
-		cr_expect(FALSE == _np_dhkey_between(&key_2, &key_3, &key_1, TRUE), "expected key2 to be not between key3 and key1");
-		cr_expect(FALSE == _np_dhkey_between(&key_1, &key_2, &key_3, FALSE), "expected key1 to be not between key2 and key3");
-		cr_expect(FALSE == _np_dhkey_between(&key_4, &key_2, &key_3, FALSE), "expected key4 to be not between key2 and key3");
-		cr_expect(FALSE == _np_dhkey_between(&key_2, &key_3, &key_1, FALSE), "expected key2 to be not between key3 and key1");
+		cr_expect(false == _np_dhkey_between(&key_1, &key_2, &key_3, true), "expected key1 to be not between key2 and key3");
+		cr_expect(false == _np_dhkey_between(&key_4, &key_2, &key_3, true), "expected key4 to be not between key2 and key3");
+		cr_expect(false == _np_dhkey_between(&key_2, &key_3, &key_1, true), "expected key2 to be not between key3 and key1");
+		cr_expect(false == _np_dhkey_between(&key_1, &key_2, &key_3, false), "expected key1 to be not between key2 and key3");
+		cr_expect(false == _np_dhkey_between(&key_4, &key_2, &key_3, false), "expected key4 to be not between key2 and key3");
+		cr_expect(false == _np_dhkey_between(&key_2, &key_3, &key_1, false), "expected key2 to be not between key3 and key1");
 
 		// test in bounds
-		cr_expect(TRUE == _np_dhkey_between(&key_2, &key_1, &key_3, TRUE), "expected key2 to be between key1 and key3");
-		cr_expect(TRUE == _np_dhkey_between(&key_2, &key_1, &key_3, FALSE), "expected key2 to be between key1 and key3");
-		cr_expect(TRUE == _np_dhkey_between(&key_4, &key_3, &key_1, TRUE), "expected key2 to be between key1 and key3");
-		cr_expect(TRUE == _np_dhkey_between(&key_4, &key_3, &key_1, FALSE), "expected key2 to be between key1 and key3");
+		cr_expect(true == _np_dhkey_between(&key_2, &key_1, &key_3, true), "expected key2 to be between key1 and key3");
+		cr_expect(true == _np_dhkey_between(&key_2, &key_1, &key_3, false), "expected key2 to be between key1 and key3");
+		cr_expect(true == _np_dhkey_between(&key_4, &key_3, &key_1, true), "expected key2 to be between key1 and key3");
+		cr_expect(true == _np_dhkey_between(&key_4, &key_3, &key_1, false), "expected key2 to be between key1 and key3");
 
 		// test edges
-		cr_expect(TRUE == _np_dhkey_between(&key_2, &key_2, &key_4, TRUE), "expected key2 to be between key2 and key4");
-		cr_expect(TRUE == _np_dhkey_between(&key_4, &key_2, &key_4, TRUE), "expected key4 to be between key2 and key4");
-		cr_expect(FALSE == _np_dhkey_between(&key_2, &key_2, &key_4, FALSE), "expected key2 to be not between key2 and key4");
-		cr_expect(FALSE == _np_dhkey_between(&key_4, &key_2, &key_4, FALSE), "expected key4 to be not between key2 and key4");
+		cr_expect(true == _np_dhkey_between(&key_2, &key_2, &key_4, true), "expected key2 to be between key2 and key4");
+		cr_expect(true == _np_dhkey_between(&key_4, &key_2, &key_4, true), "expected key4 to be between key2 and key4");
+		cr_expect(false == _np_dhkey_between(&key_2, &key_2, &key_4, false), "expected key2 to be not between key2 and key4");
+		cr_expect(false == _np_dhkey_between(&key_4, &key_2, &key_4, false), "expected key4 to be not between key2 and key4");
 
 	}
 }

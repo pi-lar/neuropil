@@ -27,7 +27,7 @@ extern "C" {
 	NP_API_INTERN
 		void _np_responsecontainer_received_ack(np_responsecontainer_t* entry);
 	NP_API_INTERN
-		np_bool _np_responsecontainer_is_fully_acked(np_responsecontainer_t* entry);
+		bool _np_responsecontainer_is_fully_acked(np_responsecontainer_t* entry);
 	NP_API_INTERN
 		void _np_responsecontainer_set_timeout(np_responsecontainer_t* entry);
 	NP_API_INTERN

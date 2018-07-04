@@ -39,7 +39,7 @@ typedef struct np_log_s
 	ev_io watcher;
 	uint32_t log_size;
 	uint32_t log_count;
-	np_bool log_rotate;
+	bool log_rotate;
 
 } np_log_t;
 
@@ -81,7 +81,7 @@ void _np_log_evflush(struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
 
 	if ((revents &  EV_WRITE) == EV_WRITE && (revents &  EV_ERROR) != EV_ERROR)
 	{
-		_np_log_fflush(context, TRUE);
+		_np_log_fflush(context, true);
 	}
 }
 
@@ -112,7 +112,7 @@ void log_rotation(np_state_t* context)
 		// Closing old file
 		 if(np_module(log)->__logger->log_count > 1) {
 			 log_msg(LOG_INFO, "Continuing log in file %s now.", np_module(log)->__logger->filename);
-			_np_log_fflush(context, TRUE);
+			_np_log_fflush(context, true);
 			 if(close(np_module(log)->__logger->fp) != 0) {
 			fprintf(stderr,"Could not close old logfile %s. Error: %s (%d)", old_filename, strerror(errno), errno);
 			fflush(NULL);
@@ -148,7 +148,7 @@ void log_rotation(np_state_t* context)
 			 log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, np_module(log)->__logger->log_count / LOG_ROTATE_COUNT);
 		}
 
-		_np_log_fflush(context, TRUE);
+		_np_log_fflush(context, true);
 		free(old_filename);
 	}
 	pthread_mutex_unlock(&np_module(log)->__log_mutex);
@@ -216,18 +216,18 @@ void np_log_message(np_state_t* context, uint32_t level, const char* srcFile, co
 		// instant writeout
 
 		if ((level & LOG_ERROR) == LOG_ERROR) {
-			_np_log_fflush(context, TRUE);
+			_np_log_fflush(context, true);
 		}
 #ifdef DEBUG
 		else {
-			_np_log_fflush(context, TRUE);
+			_np_log_fflush(context, true);
 		}
 #endif // DEBUG
 		
 	}
 }
 
-void _np_log_fflush(np_state_t* context, np_bool force)
+void _np_log_fflush(np_state_t* context, bool force)
 {
 	//log_trace_msg(LOG_TRACE, "start: void _np_log_fflush(){");
 	char* entry = NULL;
@@ -255,7 +255,7 @@ void _np_log_fflush(np_state_t* context, np_bool force)
 		if (0 == lock_result) {
 			if (flush_status < 1 ) {
 				if (flush_status < 0) {
-					flush_status = (force == TRUE || sll_size(np_module(log)->__logger->logentries_l) > 100) ? 0 : 1;
+					flush_status = (force == true || sll_size(np_module(log)->__logger->logentries_l) > 100) ? 0 : 1;
 				}
 				if(flush_status == 0){
 					entry = sll_head(char_ptr, np_module(log)->__logger->logentries_l);
@@ -286,7 +286,7 @@ void _np_log_fflush(np_state_t* context, np_bool force)
 				bytes_witten += current_bytes_witten;
 			}	
 
-			if(np_module(log)->__logger->log_rotate == TRUE)
+			if(np_module(log)->__logger->log_rotate == true)
 				log_rotation(context);
 
 			if( bytes_witten  == strlen(entry))
@@ -308,7 +308,7 @@ void np_log_setlevel(np_state_t* context, uint32_t level)
 	np_module(log)->__logger->level = level;
 }
 
-void np_log_init(np_state_t* context, const char* filename, uint32_t level)
+void _np_log_init(np_state_t* context, const char* filename, uint32_t level)
 {
 	if (!np_module_initiated(log)) {
 		np_module_malloc(log);		 
@@ -364,7 +364,7 @@ void np_log_destroy(np_state_t* context)
 	EV_P = _np_event_get_loop_io(context);
 	ev_io_stop(EV_A_ &np_module(log)->__logger->watcher);
 
-	_np_log_fflush(context, TRUE);
+	_np_log_fflush(context, true);
 
 	close(np_module(log)->__logger->fp);
 	free(np_module(log)->__logger);

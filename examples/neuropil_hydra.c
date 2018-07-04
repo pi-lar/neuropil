@@ -63,8 +63,8 @@ The last step will be executed in a loop.
 */
 int main(int argc, char **argv)
 {	
-	np_bool create_bootstrap = TRUE; 
-	np_bool has_a_node_started = FALSE;
+	bool create_bootstrap = true; 
+	bool has_a_node_started = false;
 	char* bootstrap_hostnode_default;
 	uint32_t required_nodes = NUM_HOST;
 
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 		&node_creation_speed_str,
 		&opt_kill_node
 
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 	if (opt_kill_node != NULL) kill_node = atoi(opt_kill_node);
@@ -114,7 +114,7 @@ int main(int argc, char **argv)
 	}
 	
 	if (j_key != NULL) {
-		create_bootstrap = FALSE;
+		create_bootstrap = false;
 	}
 
 	/**
@@ -122,18 +122,18 @@ int main(int argc, char **argv)
 	*/
 	int current_pid = getpid();
 	
-	if (TRUE == create_bootstrap) {
+	if (true == create_bootstrap) {
 		// Get the current pid and shift it to be a viable port.
 		// This way the application may be used for multiple instances on one system
 		if(publish_domain == NULL)
 			publish_domain = strdup("localhost");
 		
-		bootstrap_hostnode_default = np_build_connection_string("*", proto, publish_domain, port, TRUE);
+		bootstrap_hostnode_default = np_build_connection_string("*", proto, publish_domain, port, true);
 
 		j_key = bootstrap_hostnode_default;
 
 		np_example_print(context, stdout, "No bootstrap host specified.\n");
-		has_a_node_started = TRUE;
+		has_a_node_started = true;
 
 		current_pid = fork();
 
@@ -253,7 +253,7 @@ int main(int argc, char **argv)
 	int bootstrap_port_i = atoi(port);
 	memcpy(bootstrap_port, port, strnlen(port,10));	
 	double last_process_kill_at = np_time_now();
-	while (TRUE) {
+	while (true) {
 		// (re-) start child processes
 		if (sll_size(list_of_childs) < required_nodes) {
 
@@ -322,7 +322,7 @@ int main(int argc, char **argv)
 				*/
 
 				// We enable the statistics watchers for debugging purposes
-				if(has_a_node_started == FALSE){ // <=> we are the first node started
+				if(has_a_node_started == false){ // <=> we are the first node started
 					np_statistics_add_watch_internals();
 					np_statistics_add_watch(_NP_SYSINFO_REQUEST);
 					np_statistics_add_watch(_NP_SYSINFO_REPLY);
@@ -340,26 +340,26 @@ int main(int argc, char **argv)
 					printf("ERROR: Node could not start");
 					exit(EXIT_FAILURE);
 				}
-				np_bool firstConnectionTry = TRUE;
+				bool firstConnectionTry = true;
 				do {
 					if (!firstConnectionTry) {
 						np_example_print(context, stdout, "%s (%d/%"PRIu32") tries to join bootstrap node\n", port, port_i-bootstrap_port_i, required_nodes);
 					}
 				 					
 					np_send_join(j_key);
-					firstConnectionTry = FALSE;
+					firstConnectionTry = false;
 
 					int timeout = 100;
-					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {
+					while (timeout > 0 && false == child_status->my_node_key->node->joined_network) {
 						// wait for join acceptance
 						np_time_sleep(0.1);
 						timeout--;
 					}
 
-					if(FALSE == child_status->my_node_key->node->joined_network ) {
+					if(false == child_status->my_node_key->node->joined_network ) {
 						np_example_print(context, stdout, "%s (%d/%"PRIu32") could not join network\n", port, port_i - bootstrap_port_i, required_nodes);
 					}
-				} while (FALSE == child_status->my_node_key->node->joined_network) ;
+				} while (false == child_status->my_node_key->node->joined_network) ;
 
 				char time[50] = { 0 };
 				reltime_to_str(time, np_time_now() - started_at);				
@@ -368,13 +368,13 @@ int main(int argc, char **argv)
 				   \endcode
 				*/
 
-				if (has_a_node_started == FALSE)
+				if (has_a_node_started == false)
 					__np_example_helper_run_info_loop();
 				else
 					__np_example_helper_run_loop();
 				
 			} else {				
-				if (has_a_node_started == TRUE) {
+				if (has_a_node_started == true) {
 					/**
 					While the fork process starts the new node,
 					the main process needs to add the new process id to the list we created before.
@@ -388,7 +388,7 @@ int main(int argc, char **argv)
 					   \endcode
 					*/
 				}
-				has_a_node_started = TRUE;
+				has_a_node_started = true;
 			}
 			if(default_node_creation_speed > 0)
 				np_time_sleep(default_node_creation_speed);
@@ -396,7 +396,7 @@ int main(int argc, char **argv)
 
 			// LEAVE TEST
 			double now = np_time_now();
-			np_bool killed_a_node = FALSE;
+			bool killed_a_node = false;
 			if(opt_kill_node != NULL && (now - last_process_kill_at) > kill_node){
 				last_process_kill_at = now;
 			
@@ -406,7 +406,7 @@ int main(int argc, char **argv)
 				np_example_print(context, stdout, "%s killing process %"PRIi32"\n", time, pid);
 				
 				kill(pid, SIGTERM);
-				killed_a_node = TRUE;
+				killed_a_node = true;
 				sll_remove(int, list_of_childs, pid, int_sll_compare_type);
 			}
 			// END LEAVE TEST

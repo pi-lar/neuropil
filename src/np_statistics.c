@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <inttypes.h>
+#include <math.h>
 
 #include "neuropil.h"
 #include "np_types.h"
@@ -21,8 +22,8 @@
 #include "np_statistics.h"
 
 struct np_statistics_element_s {
-	np_bool watch_receive;
-	np_bool watch_send;
+	bool watch_receive;
+	bool watch_send;
 
 	uint32_t total_received;
 	uint32_t total_send;
@@ -49,19 +50,21 @@ struct np_statistics_element_s {
 };
 typedef struct np_statistics_element_s np_statistics_element_t;
 
-np_bool _np_statistics_receive_msg_on_watched(np_state_t* context, const np_message_t* const msg, NP_UNUSED np_tree_t* body)
-{	
+bool _np_statistics_receive_msg_on_watched(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata)
+{
+	np_ctx_cast(ac);
 	assert(msg != NULL);
 
 	np_cache_item_t* item = np_simple_cache_get(context, np_module(statistics)->__cache, _np_message_get_subject(msg));
 	if (item != NULL) {
 		((np_statistics_element_t*)item->value)->total_received += 1;
 	}
-	return TRUE;
+	return true;
 }
 
-np_bool _np_statistics_send_msg_on_watched(np_state_t* context, const np_message_t* const msg, NP_UNUSED np_tree_t* body)
+bool _np_statistics_send_msg_on_watched(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata)
 {
+	np_ctx_cast(ac);
 	assert(msg != NULL);	
 
 	np_cache_item_t* item = np_simple_cache_get(context, np_module(statistics)->__cache, _np_message_get_subject(msg));
@@ -69,10 +72,10 @@ np_bool _np_statistics_send_msg_on_watched(np_state_t* context, const np_message
 		((np_statistics_element_t*)item->value)->total_send += 1;
 	}
 
-	return TRUE; 
+	return true; 
 }
 
-np_bool np_statistics_init(np_state_t* context) {
+bool _np_statistics_init(np_state_t* context) {
 
 	if (!np_module_initiated(statistics)) {
 		np_module_malloc(statistics);
@@ -91,10 +94,10 @@ np_bool np_statistics_init(np_state_t* context) {
 		sll_init(void_ptr, np_module(statistics)->__np_debug_statistics);
 #endif
 	}
-	return TRUE;
+	return true;
 }
 
-np_bool np_statistics_destroy(np_state_t* context) {
+bool np_statistics_destroy(np_state_t* context) {
 	if (np_module_initiated(statistics)) {
 		sll_iterator(char_ptr) iter = sll_first(np_module(statistics)->__watched_subjects);
 		while (iter != NULL)
@@ -108,24 +111,24 @@ np_bool np_statistics_destroy(np_state_t* context) {
 		free(np_module(statistics)->__cache);
 
 	}
-	return TRUE;
+	return true;
 }
 
 void np_statistics_add_watch(np_state_t* context, char* subject) {	
 
-	np_bool addtolist = TRUE;
+	bool addtolist = true;
 	sll_iterator(char_ptr) iter_subjects = sll_first(np_module(statistics)->__watched_subjects);
 	while (iter_subjects != NULL)
 	{
 		if (strncmp(iter_subjects->val, subject, strlen(subject)) == 0) {
-			addtolist = FALSE;
+			addtolist = false;
 			break;
 		}
 		sll_next(iter_subjects);
 	}
 
 	char* key = subject;
-	if (addtolist == TRUE) {
+	if (addtolist == true) {
 		key = strdup(subject);
 		sll_append(char_ptr, np_module(statistics)->__watched_subjects, key);
 		np_simple_cache_insert(context, np_module(statistics)->__cache, key, calloc(1, sizeof(np_statistics_element_t)));
@@ -133,7 +136,7 @@ void np_statistics_add_watch(np_state_t* context, char* subject) {
 
 	np_statistics_element_t* container = np_simple_cache_get(context, np_module(statistics)->__cache, key)->value;
 
-	if (addtolist == TRUE) {
+	if (addtolist == true) {
 		CHECK_MALLOC(container);
 		container->last_sec_check =
 			container->last_min_check =
@@ -141,14 +144,14 @@ void np_statistics_add_watch(np_state_t* context, char* subject) {
 			np_time_now();
 	}
 
-	if (FALSE == container->watch_receive && np_msgproperty_get(context, INBOUND, key) != NULL) {
-		container->watch_receive = TRUE;
-		np_add_receive_listener(context, _np_statistics_receive_msg_on_watched, key);
+	if (false == container->watch_receive && np_msgproperty_get(context, INBOUND, key) != NULL) {
+		container->watch_receive = true;
+		np_add_receive_listener(context, _np_statistics_receive_msg_on_watched, NULL, key);
 	}
 
-	if (FALSE == container->watch_send && np_msgproperty_get(context, OUTBOUND, key) != NULL) {
-		container->watch_send = TRUE;
-		np_add_send_listener(context, _np_statistics_send_msg_on_watched, key);
+	if (false == container->watch_send && np_msgproperty_get(context, OUTBOUND, key) != NULL) {
+		container->watch_send = true;
+		np_add_send_listener(context, _np_statistics_send_msg_on_watched, NULL, key);
 	}
 }
 
@@ -184,7 +187,7 @@ void np_statistics_add_watch_internals(np_state_t* context) {
 	
 }
 
-char * np_statistics_print(np_state_t* context, np_bool asOneLine) {
+char * np_statistics_print(np_state_t* context, bool asOneLine) {
 	if (!np_module_initiated(statistics)) {
 		return strdup("statistics not initiated\n");
 	}
@@ -192,7 +195,7 @@ char * np_statistics_print(np_state_t* context, np_bool asOneLine) {
 	char * ret = NULL;
 
 	char* new_line = "\n";
-	if (asOneLine == TRUE) {
+	if (asOneLine == true) {
 		new_line = "    ";
 	}
 	ret = np_str_concatAndFree(ret, "-%s", new_line);
@@ -312,7 +315,7 @@ char * np_statistics_print(np_state_t* context, np_bool asOneLine) {
 
 	for (uint32_t i = 0; i < (sizeof(minimize) / sizeof(uint32_t)); i++) {
 		sprintf(s, "%d", minimize[i]);
-		tenth = max(tenth, strlen(s));
+		tenth = fmax(tenth, strlen(s));
 	}
 
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Node:     %%s%%s", "received total:", tenth);

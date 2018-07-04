@@ -41,7 +41,7 @@ The first one is
    \code
 */
 
-np_bool receive_ping(np_context *context, const np_message_t* const msg, np_tree_t* body)
+bool receive_ping(np_context *context, const np_message_t* const msg, np_tree_t* body, void* localdata)
 {
 /**
    \endcode
@@ -55,7 +55,7 @@ np_bool receive_ping(np_context *context, const np_message_t* const msg, np_tree
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
 	np_send_text(context, "pong", "pong", _pong_count,NULL);
 
-	return TRUE;
+	return true;
 }
 /**
 and the second one:
@@ -64,7 +64,7 @@ and the second one:
 
    \code
 */
-np_bool receive_pong(np_context *context, const np_message_t* const msg,  np_tree_t* body)
+bool receive_pong(np_context *context, const np_message_t* const msg,  np_tree_t* body)
 {
 /**
    \endcode
@@ -78,7 +78,7 @@ np_bool receive_pong(np_context *context, const np_message_t* const msg,  np_tre
 
 	np_send_text(context, "ping", "ping", _ping_count,NULL);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
 		&logpath,
 		NULL,
 		NULL
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	} 
 
@@ -159,13 +159,13 @@ int main(int argc, char **argv)
 	   \code
 	*/
 	np_msgproperty_t* ping_props = NULL;
-	np_add_receive_listener(context, receive_ping, "ping");
+	np_add_receive_listener(context, receive_ping, NULL, "ping");
 	ping_props = np_msgproperty_get(context, INBOUND, "ping");
 	ping_props->ack_mode = ACK_NONE;
 	ping_props->msg_ttl = 20.0;
 	//register the listener function to receive data from the sender
 	np_msgproperty_t* pong_props = NULL;
-	np_add_receive_listener(context, receive_ping, "pong");
+	np_add_receive_listener(context, receive_ping, NULL, "pong");
 	pong_props = np_msgproperty_get(context, INBOUND, "pong");
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 20.0;

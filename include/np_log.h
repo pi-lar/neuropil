@@ -68,7 +68,7 @@ enum np_log_e
 
 
 NP_API_EXPORT
-void np_log_init (np_state_t* context, const char* filename, uint32_t level);
+void _np_log_init (np_state_t* context, const char* filename, uint32_t level);
 
 NP_API_EXPORT
 void np_log_setlevel(np_state_t* context, uint32_t level);
@@ -77,7 +77,7 @@ NP_API_EXPORT
 void np_log_destroy (np_state_t* context);
 
 NP_API_INTERN
-void _np_log_fflush(np_state_t* context, np_bool force);
+void _np_log_fflush(np_state_t* context, bool force);
 
 #ifndef SWIG
 NP_API_EXPORT

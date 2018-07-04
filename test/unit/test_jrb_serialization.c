@@ -31,8 +31,8 @@ size_t buffer_writer_counter(struct cmp_ctx_s *ctx, const void *data, size_t cou
 	return _np_buffer_writer(ctx, data, count);
 }
 uint32_t total_read_count = 0;
-np_bool buffer_reader_counter(struct cmp_ctx_s *ctx, void *data, size_t limit);
-np_bool buffer_reader_counter(struct cmp_ctx_s *ctx, void *data, size_t limit)
+bool buffer_reader_counter(struct cmp_ctx_s *ctx, void *data, size_t limit);
+bool buffer_reader_counter(struct cmp_ctx_s *ctx, void *data, size_t limit)
 {
 	total_read_count += limit;
 	return _np_buffer_reader(ctx, data, limit);
@@ -202,15 +202,15 @@ Test(test_serialization, _np_tree_special_str, .description = "test the implemen
 		char* tmp;
 		uint32_t tmp2;
 
-		cr_expect(_np_tree_is_special_str("np.test1", &idx) == FALSE, "expecting np.test1 to be no special string");
+		cr_expect(_np_tree_is_special_str("np.test1", &idx) == false, "expecting np.test1 to be no special string");
 		cr_expect(idx == 254, "expecting index to be the same");
 
-		cr_assert(_np_tree_is_special_str("np.test2", &idx) == TRUE, "expecting np.test2 to be a special string");
+		cr_assert(_np_tree_is_special_str("np.test2", &idx) == true, "expecting np.test2 to be a special string");
 		cr_expect(idx == 0, "expecting np.test2 to be at position 0 and not %"PRIu8, idx);
 		cr_expect(strcmp("np.test2", (tmp = _np_tree_get_special_str(idx))) == 0, "expecting retunred special string to be np.test2 and not %s", tmp);
 
 
-		cr_expect(_np_tree_is_special_str("np.test3", &idx) == TRUE, "expecting np.test3 to be a special string");
+		cr_expect(_np_tree_is_special_str("np.test3", &idx) == true, "expecting np.test3 to be a special string");
 		cr_expect(idx == 2, "expecting np.test3 to be at position 2");
 		cr_expect(strcmp("np.test3", (tmp = _np_tree_get_special_str(idx))) == 0, "expecting retunred special string to be np.test3 and not %s", tmp);
 

@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <string.h>
+#include <math.h>
 #include <inttypes.h>
 
 #include "sodium.h"
@@ -75,14 +76,14 @@ np_module_struct(msgproperties) {
  ** _np_msgproperty_init
  ** Initialize message property subsystem.
  **/
-np_bool _np_msgproperty_init (np_state_t* context)
+bool _np_msgproperty_init (np_state_t* context)
 {
 	if (!np_module_initiated(msgproperties)) {
 		np_module_malloc(msgproperties);
 		_module->__msgproperty_table = (rbt_msgproperty_t*)malloc(sizeof(rbt_msgproperty_t));
 		CHECK_MALLOC(_module->__msgproperty_table);
 
-		if (NULL == _module->__msgproperty_table) return FALSE;
+		if (NULL == _module->__msgproperty_table) return false;
 
 		RB_INIT(_module->__msgproperty_table);
 
@@ -95,7 +96,7 @@ np_bool _np_msgproperty_init (np_state_t* context)
 		while (__np_internal_messages != NULL)
 		{
 			np_msgproperty_t* property = __np_internal_messages->val;
-			property->is_internal = TRUE;
+			property->is_internal = true;
 
 			if (strlen(property->msg_subject) > 0)
 			{
@@ -108,17 +109,7 @@ np_bool _np_msgproperty_init (np_state_t* context)
 
 		sll_free(np_msgproperty_ptr, msgproperties);
 	}
-	return TRUE;
-}
-
-void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgproperty_t* msg_prop)
-{
-	// check whether an handler already exists
-
-	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_callback_t_sll_compare_type)) {
-		sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
-	}
-	sll_append(np_usercallback_t, msg_prop->user_receive_clb, msg_handler);
+	return true;
 }
 
 /**
@@ -205,7 +196,7 @@ void _np_msgproperty_t_new(np_state_t *context, uint8_t type, size_t size, void*
 	prop->max_threshold = 10;
 	TSP_INITD(prop->msg_threshold, 0);
 
-	prop->is_internal = FALSE;
+	prop->is_internal = false;
 	prop->last_update = np_time_now();
 
 	sll_init(np_callback_t, prop->clb_inbound);
@@ -216,8 +207,8 @@ void _np_msgproperty_t_new(np_state_t *context, uint8_t type, size_t size, void*
 	sll_append(np_callback_t, prop->clb_outbound, _np_out);
 	sll_append(np_callback_t, prop->clb_route, _np_glia_route_lookup);
 
-	sll_init(np_usercallback_t, prop->user_receive_clb);
-	sll_init(np_usercallback_t, prop->user_send_clb);
+	sll_init(np_usercallback_ptr, prop->user_receive_clb);
+	sll_init(np_usercallback_ptr, prop->user_send_clb);
 
 	// cache which will hold up to max_threshold messages
 	prop->cache_policy = FIFO | OVERFLOW_PURGE;
@@ -241,21 +232,21 @@ void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self) {
 	np_ctx_memory(self);
 	_LOCK_ACCESS(&self->unique_uuids_lock) {
 		np_tree_free( self->unique_uuids);
-		self->unique_uuids_check = FALSE;
+		self->unique_uuids_check = false;
 	}
 }
 void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self) {
 	np_ctx_memory(self);
 	_LOCK_ACCESS(&self->unique_uuids_lock){
 		self->unique_uuids = np_tree_create();
-		self->unique_uuids_check = TRUE;
+		self->unique_uuids_check = true;
 	}
 }
 
-np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check)
+bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check)
 {
 	np_ctx_memory(self);
-	np_bool ret = TRUE;
+	bool ret = true;
 	_LOCK_ACCESS(&self->unique_uuids_lock) {
 		if (self->unique_uuids_check) {
 
@@ -263,7 +254,7 @@ np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t*
 				np_tree_insert_str( self->unique_uuids, msg_to_check->uuid, np_treeval_new_d(_np_message_get_expiery(msg_to_check)));
 			}
 			else {
-				ret = FALSE;
+				ret = false;
 			}
 		}
 	}
@@ -348,8 +339,8 @@ void _np_msgproperty_t_del(np_state_t *context, uint8_t type, size_t size, void*
 			sll_free(np_message_ptr, prop->msg_cache_out);
 		}
 
-		sll_free(np_usercallback_t, prop->user_receive_clb);
-		sll_free(np_usercallback_t, prop->user_send_clb);
+		sll_free(np_usercallback_ptr, prop->user_receive_clb);
+		sll_free(np_usercallback_ptr, prop->user_send_clb);
 
 		sll_free(np_callback_t, prop->clb_transform);
 		sll_free(np_callback_t, prop->clb_route);
@@ -383,9 +374,9 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 		msg_available = sll_size(send_prop->msg_cache_out);
 	}
 
-	np_bool sending_ok = TRUE;
+	bool sending_ok = true;
 
-	while (0 < msg_available && TRUE == sending_ok)
+	while (0 < msg_available && true == sending_ok)
 	{
 		np_message_t* msg_out = NULL;
 		_LOCK_ACCESS(&send_prop->lock)
@@ -589,8 +580,8 @@ np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t*
 
 	double now = np_time_now();
 	if (NULL == ret
-// 		|| _np_aaatoken_is_valid(ret, np_aaatoken_type_message_intent) == FALSE
-		|| (ret->expires_at - now) <= min(prop->token_min_ttl, MISC_RETRANSMIT_MSG_TOKENS_SEC)
+// 		|| _np_aaatoken_is_valid(ret, np_aaatoken_type_message_intent) == false
+		|| (ret->expires_at - now) <= fmin(prop->token_min_ttl, MISC_RETRANSMIT_MSG_TOKENS_SEC)
 		)
 	{
 		// Create a new msg token
@@ -614,4 +605,53 @@ np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t*
 	ASSERT(_np_aaatoken_is_valid(ret, np_aaatoken_type_message_intent), "AAAToken needs to be valid");
 	
 	return ret;
+}
+
+
+void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
+
+	switch (src->ack_mode)
+	{
+	case ACK_NONE:
+		dest->ackmode = NP_MX_ACK_NONE;
+		break;
+	case ACK_DESTINATION:
+		dest->ackmode = NP_MX_ACK_DESTINATION;
+		break;
+	case ACK_CLIENT:
+		dest->ackmode = NP_MX_ACK_CLIENT;
+		break;
+	default:
+		dest->ackmode = NP_MX_ACK_NONE;
+		break;
+	}
+
+	if (FLAG_CMP(src->cache_policy, FIFO)) {
+		if (FLAG_CMP(src->cache_policy, OVERFLOW_REJECT)) {
+			dest->cache_policy = NP_MX_FIFO_REJECT;
+		}
+		else {
+			dest->cache_policy = NP_MX_FIFO_PURGE;
+		}			
+	}
+	else {
+		if (FLAG_CMP(src->cache_policy, OVERFLOW_REJECT)) {
+			dest->cache_policy = NP_MX_LIFO_REJECT;
+		}
+		else {
+			dest->cache_policy = NP_MX_LIFO_PURGE;
+		}
+	}
+	/*
+	dest->intent_ttl = src->msg_ttl;
+	dest->intent_update_after = src->msg_ttl;
+	dest->message_ttl = ;
+	dest->once_only = ;
+	dest->pattern = ;
+	dest->reply_subject = ;
+	*/
+}
+
+void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* src) {
+
 }

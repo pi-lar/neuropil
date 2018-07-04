@@ -71,8 +71,8 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description = "test the s
 
 		// Do the serialsation
 		_np_message_calculate_chunking(write_msg);
-		np_bool write_ret = _np_message_serialize_chunked(write_msg);
-		cr_assert(TRUE == write_ret, "Expected positive result in serialisation");
+		bool write_ret = _np_message_serialize_chunked(write_msg);
+		cr_assert(true == write_ret, "Expected positive result in serialisation");
 
 		cr_expect(pll_size(write_msg->msg_chunks) == 1, "Expected 1 chunk for message");
 
@@ -81,8 +81,8 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description = "test the s
 		np_new_obj(np_message_t, read_msg);
 		read_msg->msg_chunks = write_msg->msg_chunks;
 
-		np_bool read_ret = _np_message_deserialize_chunked(read_msg);
-		cr_assert(TRUE == read_ret, "Expected positive result in de-serialisation");
+		bool read_ret = _np_message_deserialize_chunked(read_msg);
+		cr_assert(true == read_ret, "Expected positive result in de-serialisation");
 
 		// Compare deserialized content with expected
 		np_tree_elem_t* testkey_read_from = np_tree_find_str(read_msg->body, "TESTKEY_FROM");
@@ -122,11 +122,19 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 		write_dhkey_from.t[1] = 2;
 		write_dhkey_from.t[2] = 3;
 		write_dhkey_from.t[3] = 4;
+		write_dhkey_from.t[4] = 0;
+		write_dhkey_from.t[5] = 0;
+		write_dhkey_from.t[6] = 0;
+		write_dhkey_from.t[7] = 0;
 		np_dhkey_t write_dhkey_to;
 		write_dhkey_to.t[0] = 5;
 		write_dhkey_to.t[1] = 6;
 		write_dhkey_to.t[2] = 7;
 		write_dhkey_to.t[3] = 8;
+		write_dhkey_to.t[4] = 0;
+		write_dhkey_to.t[5] = 0;
+		write_dhkey_to.t[6] = 0;
+		write_dhkey_to.t[7] = 0;
 
 		np_key_t* write_from = NULL;
 		np_new_obj(np_key_t, write_from);
@@ -153,11 +161,11 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 
 		// Do the serialsation
 		_np_message_calculate_chunking(write_msg);
-		np_bool write_ret = _np_message_serialize_chunked(write_args->msg);
-		cr_assert(TRUE == write_ret, "Expected positive result in chunk serialisation");
+		bool write_ret = _np_message_serialize_chunked(write_args->msg);
+		cr_assert(true == write_ret, "Expected positive result in chunk serialisation");
 
 		write_ret = _np_message_serialize_header_and_instructions(context, write_args);
-		cr_assert(TRUE == write_ret, "Expected positive result in serialisation");
+		cr_assert(true == write_ret, "Expected positive result in serialisation");
 
 		cr_expect(pll_size(write_msg->msg_chunks) == 1, "Expected 1 chunk for message");
 
@@ -165,8 +173,8 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 		np_message_t* read_msg = NULL;
 		np_new_obj(np_message_t, read_msg);
 
-		np_bool read_ret = _np_message_deserialize_header_and_instructions(read_msg, pll_first(write_msg->msg_chunks)->val->msg_part);
-		cr_assert(TRUE == read_ret, "Expected positive result in deserialisation");
+		bool read_ret = _np_message_deserialize_header_and_instructions(read_msg, pll_first(write_msg->msg_chunks)->val->msg_part);
+		cr_assert(true == read_ret, "Expected positive result in deserialisation");
 
 		// Compare deserialized content with expected
 		np_tree_elem_t* testkey_read_from = np_tree_find_str(read_msg->instructions, "TESTKEY_FROM");
@@ -175,10 +183,10 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 		cr_assert(testkey_read_from->val.type == np_treeval_type_dhkey, "Expected read testkey_read_from to be of type np_treeval_type_dhkey. But is: %"PRIu8, testkey_read_from->val.type);
 		cr_expect(testkey_read_from->val.size == sizeof(np_dhkey_t), "Expected testkey_read_from to be of dhkey size. But is: %"PRIu32, testkey_read_from->val.size);
 
-		cr_expect(testkey_read_from->val.value.dhkey.t[0] == 1, "Expected read testkey_read_from value 0 to be the same as predefined, But is: %"PRIu64, testkey_read_from->val.value.dhkey.t[0]);
-		cr_expect(testkey_read_from->val.value.dhkey.t[1] == 2, "Expected read testkey_read_from value 1 to be the same as predefined, But is: %"PRIu64, testkey_read_from->val.value.dhkey.t[1]);
-		cr_expect(testkey_read_from->val.value.dhkey.t[2] == 3, "Expected read testkey_read_from value 2 to be the same as predefined, But is: %"PRIu64, testkey_read_from->val.value.dhkey.t[2]);
-		cr_expect(testkey_read_from->val.value.dhkey.t[3] == 4, "Expected read testkey_read_from value 3 to be the same as predefined, But is: %"PRIu64, testkey_read_from->val.value.dhkey.t[3]);
+		cr_expect(testkey_read_from->val.value.dhkey.t[0] == 1, "Expected read testkey_read_from value 0 to be the same as predefined, But is: %"PRIu32, testkey_read_from->val.value.dhkey.t[0]);
+		cr_expect(testkey_read_from->val.value.dhkey.t[1] == 2, "Expected read testkey_read_from value 1 to be the same as predefined, But is: %"PRIu32, testkey_read_from->val.value.dhkey.t[1]);
+		cr_expect(testkey_read_from->val.value.dhkey.t[2] == 3, "Expected read testkey_read_from value 2 to be the same as predefined, But is: %"PRIu32, testkey_read_from->val.value.dhkey.t[2]);
+		cr_expect(testkey_read_from->val.value.dhkey.t[3] == 4, "Expected read testkey_read_from value 3 to be the same as predefined, But is: %"PRIu32, testkey_read_from->val.value.dhkey.t[3]);
 
 		np_tree_elem_t* testkey_read_to = np_tree_find_str(read_msg->instructions, "TESTKEY_TO");
 		cr_assert(NULL != testkey_read_to, "Expected to find TESTKEY_TO key value");
@@ -186,10 +194,10 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 		cr_assert(testkey_read_to->val.type == np_treeval_type_dhkey, "Expected read testkey_read_to to be of type np_treeval_type_dhkey. But is: %"PRIu8, testkey_read_to->val.type);
 		cr_expect(testkey_read_to->val.size == sizeof(np_dhkey_t), "Expected testkey_read_to to be of dhkey size. But is: %"PRIu32, testkey_read_to->val.size);
 
-		cr_expect(testkey_read_to->val.value.dhkey.t[0] == 5, "Expected read testkey_read_to value 0 to be the same as predefined, But is: %"PRIu64, testkey_read_to->val.value.dhkey.t[0]);
-		cr_expect(testkey_read_to->val.value.dhkey.t[1] == 6, "Expected read testkey_read_to value 1 to be the same as predefined, But is: %"PRIu64, testkey_read_to->val.value.dhkey.t[1]);
-		cr_expect(testkey_read_to->val.value.dhkey.t[2] == 7, "Expected read testkey_read_to value 2 to be the same as predefined, But is: %"PRIu64, testkey_read_to->val.value.dhkey.t[2]);
-		cr_expect(testkey_read_to->val.value.dhkey.t[3] == 8, "Expected read testkey_read_to value 3 to be the same as predefined, But is: %"PRIu64, testkey_read_to->val.value.dhkey.t[3]);
+		cr_expect(testkey_read_to->val.value.dhkey.t[0] == 5, "Expected read testkey_read_to value 0 to be the same as predefined, But is: %"PRIu32, testkey_read_to->val.value.dhkey.t[0]);
+		cr_expect(testkey_read_to->val.value.dhkey.t[1] == 6, "Expected read testkey_read_to value 1 to be the same as predefined, But is: %"PRIu32, testkey_read_to->val.value.dhkey.t[1]);
+		cr_expect(testkey_read_to->val.value.dhkey.t[2] == 7, "Expected read testkey_read_to value 2 to be the same as predefined, But is: %"PRIu32, testkey_read_to->val.value.dhkey.t[2]);
+		cr_expect(testkey_read_to->val.value.dhkey.t[3] == 8, "Expected read testkey_read_to value 3 to be the same as predefined, But is: %"PRIu32, testkey_read_to->val.value.dhkey.t[3]);
 
 		log_trace_msg(LOG_TRACE, "end test.serialize_np_message_t_with_dhkey_unchunked_instructions");
 	}

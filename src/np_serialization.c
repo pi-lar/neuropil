@@ -39,7 +39,7 @@ void* _np_buffer_get_buffer(struct cmp_ctx_s *ctx) {
 
 bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit)
 {
-	log_trace_msg(LOG_TRACE, "start: np_bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit){");
+	log_trace_msg(LOG_TRACE, "start: bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit){");
 	memmove(data, ctx->buf, limit);
 	ctx->buf += limit;
 	return true;
@@ -64,7 +64,7 @@ size_t _np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count)
 
 bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit)
 {
-	log_trace_msg(LOG_TRACE, "start: np_bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit){");
+	log_trace_msg(LOG_TRACE, "start: bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit){");
 	bool ret = false;
 	_np_obj_buffer_container_t* wrapper = ctx->buf;
 
@@ -97,7 +97,7 @@ bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit
 
 bool _np_buffer_container_skipper(struct cmp_ctx_s* ctx, size_t limit)
 {
-	log_trace_msg(LOG_TRACE, "start: np_bool _np_buffer_container_skipper(struct cmp_ctx_s* ctx, size_t limit){");
+	log_trace_msg(LOG_TRACE, "start: bool _np_buffer_container_skipper(struct cmp_ctx_s* ctx, size_t limit){");
 	bool ret = false;
 	_np_obj_buffer_container_t* wrapper = ctx->buf;
 

@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 		&logpath,
 		NULL,
 		NULL
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 
@@ -180,7 +180,7 @@ int main(int argc, char **argv)
 
 //		np_new_obj(np_message_t, msg_out);
 //		np_tree_t* jrb_me = np_tree_create();
-//		np_node_encode_to_jrb(jrb_me, state->my_node_key, FALSE);
+//		np_node_encode_to_jrb(jrb_me, state->my_node_key, false);
 //		np_message_create(msg_out, node_key, state->my_node_key, NP_MSG_JOIN_REQUEST, jrb_me);
 //
 //		log_msg(LOG_DEBUG, "submitting welcome message");

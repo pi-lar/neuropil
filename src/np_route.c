@@ -52,7 +52,7 @@ void _np_route_append_leafset_to_sll(np_key_ptr_sll_t* left_leafset, np_sll_t(np
 /* route_init:
  * Initiates routing table and leafsets
  */
-np_bool _np_route_init (np_state_t* context, np_key_t* me)
+bool _np_route_init (np_state_t* context, np_key_t* me)
 {
 	if (!np_module_initiated(route)) {
 		np_module_malloc(route);
@@ -71,7 +71,7 @@ np_bool _np_route_init (np_state_t* context, np_key_t* me)
 		// _np_route_clear();
 	}
 
-	return (TRUE);
+	return (true);
 }
 
 /**
@@ -79,13 +79,13 @@ np_bool _np_route_init (np_state_t* context, np_key_t* me)
  ** this function is called whenever a _np_route_update is called the joined
  ** is 1 if the node has joined and 0 if a node is leaving.
  **/
-void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** deleted, np_key_t** added)
+void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** deleted, np_key_t** added)
 {
 	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.leafset_update");
 	np_ctx_memory(node_key);
 
-	TSP_GET(np_bool, node_key->in_destroy, in_destroy);
-	if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (in_destroy == TRUE && joined))
+	TSP_GET(bool, node_key->in_destroy, in_destroy);
+	if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (in_destroy == true && joined))
 		return;
 
 	if(added != NULL) *added = NULL;
@@ -100,7 +100,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 			np_key_ptr find_right = sll_find(np_key_ptr, np_module(route)->right_leafset, node_key, _np_key_cmp_inv, NULL);
 			np_key_ptr find_left = sll_find(np_key_ptr, np_module(route)->left_leafset, node_key, _np_key_cmp, NULL);
 
-			if (FALSE == joined) {
+			if (false == joined) {
 				if (NULL != find_right) {
 					deleted_from = (np_key_t*)node_key;
 					sll_remove(np_key_ptr, np_module(route)->right_leafset, node_key, _np_key_cmp_inv);
@@ -139,7 +139,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 					np_dhkey_t dhkey_half_o = np_dhkey_half(context);
 					_np_dhkey_add(&my_inverse_dhkey, &np_module(route)->my_key->dhkey, &dhkey_half_o);
 
-					if (_np_dhkey_between(&node_key->dhkey, &np_module(route)->my_key->dhkey, &my_inverse_dhkey, TRUE))
+					if (_np_dhkey_between(&node_key->dhkey, &np_module(route)->my_key->dhkey, &my_inverse_dhkey, true))
 					{
 						if (
 							sll_size(np_module(route)->right_leafset) < NP_ROUTE_LEAFSET_SIZE ||
@@ -147,7 +147,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 								&node_key->dhkey,
 								&np_module(route)->my_key->dhkey,
 								&right_outer->val->dhkey,
-								FALSE
+								false
 							)
 							)
 						{
@@ -161,7 +161,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 							deleted_from = sll_tail(np_key_ptr, np_module(route)->right_leafset);
 						}
 					}
-					else //if (_np_dhkey_between(&node_key->dhkey, &my_inverse_dhkey, &np_module(route)->my_key->dhkey, TRUE))
+					else //if (_np_dhkey_between(&node_key->dhkey, &my_inverse_dhkey, &np_module(route)->my_key->dhkey, true))
 					{
 						if (
 							sll_size(np_module(route)->left_leafset) < NP_ROUTE_LEAFSET_SIZE ||
@@ -169,7 +169,7 @@ void _np_route_leafset_update (np_key_t* node_key, np_bool joined, np_key_t** de
 								&node_key->dhkey,
 								&left_outer->val->dhkey,
 								&np_module(route)->my_key->dhkey,
-								FALSE
+								false
 							)
 							)
 						{
@@ -333,7 +333,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.route_lookup");
 	uint32_t i, j, k, Lsize, Rsize;
 	uint8_t match_col = 0;
-	np_bool next_hop = FALSE;
+	bool next_hop = false;
 
 	np_dhkey_t dif1, dif2;
 	np_key_t *tmp_1 = NULL, *tmp_2 = NULL, *min = NULL;
@@ -360,7 +360,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 		/* if the key is in the leafset range route through leafset */
 		/* the additional 2 neuropil nodes pointed by the #hosts# are to consider the node itself and NULL at the end */
 		if (count == 1 &&
-			_np_dhkey_between (&key, &np_module(route)->Lrange, &np_module(route)->Rrange, TRUE))
+			_np_dhkey_between (&key, &np_module(route)->Lrange, &np_module(route)->Rrange, true))
 		{
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "routing through leafset");
 			sll_append(np_key_ptr, key_list, np_module(route)->my_key);
@@ -394,13 +394,13 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 				tmp_1 = np_module(route)->table[index + k];
 				if (tmp_1->node->success_avg > BAD_LINK)
 				{
-					next_hop = TRUE;
+					next_hop = true;
 					break;
 				}
 			}
 		}
 
-		if (TRUE == next_hop && 1 == count)
+		if (true == next_hop && 1 == count)
 		{
 			int index = __MAX_ENTRY * (match_col + (__MAX_COL* (i)));
 			// int index = (i * __MAX_ROW + match_col) * __MAX_COL;
@@ -493,20 +493,20 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 				/* removing duplicates from the list */				
 				sll_iterator(np_key_ptr) iter1 = sll_first(key_list);
 				sll_iterator(np_key_ptr) iter2 = NULL;
-				np_bool iters_equal = FALSE;
+				bool iters_equal = false;
 				while (iter1 != NULL)
 				{
-					iters_equal = FALSE;
+					iters_equal = false;
 					iter2 = sll_first(return_list);
 					while (iter2 != NULL)
 					{
-						if (_np_dhkey_equal(&iter2->val->dhkey, &iter1->val->dhkey)==TRUE) {
-							iters_equal = TRUE;
+						if (_np_dhkey_equal(&iter2->val->dhkey, &iter1->val->dhkey)==true) {
+							iters_equal = true;
 							break;
 						}
 						sll_next(iter2);
 					}
-					if (iters_equal == FALSE) {
+					if (iters_equal == false) {
 						np_ref_obj(np_key_t, iter1->val);
 						sll_append(np_key_ptr, return_list, iter1->val);
 					}
@@ -624,7 +624,7 @@ void _np_route_clear (np_state_t* context)
 				{
 					np_key_t* item = np_module(route)->table[index + k];
 					if(item != NULL){
-						_np_route_update(item, FALSE, &deleted, &added);
+						_np_route_update(item, false, &deleted, &added);
 						np_module(route)->table[index + k] = NULL;
 					}
 				}
@@ -644,7 +644,7 @@ void _np_route_leafset_clear (np_state_t* context)
 		np_key_t* added = NULL;
 
 		while(iter != NULL) {
-			_np_route_leafset_update(iter->val,FALSE,&deleted,&added);
+			_np_route_leafset_update(iter->val,false,&deleted,&added);
 			assert (deleted == iter->val);
 			sll_next(iter);
 		}
@@ -666,13 +666,13 @@ void _np_route_leafset_clear (np_state_t* context)
  ** if it is appropriate. If it is leaving the network (and #joined# == 0),
  ** then it is removed from the routing tables
  **/
-void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key_t** added)
+void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t** added)
 {
 	np_ctx_memory(key);
 
-	TSP_GET(np_bool, key->in_destroy, in_destroy);
+	TSP_GET(bool, key->in_destroy, in_destroy);
 
-	if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (in_destroy == TRUE && joined))
+	if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (in_destroy == true && joined))
 		return;
 
 	_LOCK_MODULE(np_routeglobal_t)
@@ -699,7 +699,7 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 		int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
 
 		/* a node joins the routing table */
-		if (TRUE == joined)
+		if (true == joined)
 		{
 			found = 0;
 			for (k = 0; k < __MAX_ENTRY; k++)
@@ -802,12 +802,12 @@ void _np_route_update (np_key_t* key, np_bool joined, np_key_t** deleted, np_key
 	}
 }
 
-uint32_t __np_route_my_key_count_routes(np_state_t* context, np_bool break_on_first) {
+uint32_t __np_route_my_key_count_routes(np_state_t* context, bool break_on_first) {
 	uint32_t ret = 0;
 
 	_LOCK_MODULE(np_routeglobal_t)
 	{
-		if (np_module(route)->my_key->node->joined_network == TRUE) {
+		if (np_module(route)->my_key->node->joined_network == true) {
 			
 			uint16_t i, j, k;
 			for (i = 0; i < __MAX_ROW; i++)
@@ -838,12 +838,12 @@ uint32_t __np_route_my_key_count_routes(np_state_t* context, np_bool break_on_fi
 	return ret;
 }
 
-np_bool _np_route_my_key_has_connection(np_state_t* context) {
-	return (__np_route_my_key_count_routes(context, TRUE) + _np_route_my_key_count_neighbours(context, NULL, NULL)) > 0 ? TRUE: FALSE;
+bool _np_route_my_key_has_connection(np_state_t* context) {
+	return (__np_route_my_key_count_routes(context, true) + _np_route_my_key_count_neighbours(context, NULL, NULL)) > 0 ? true: false;
 }
 
 uint32_t _np_route_my_key_count_routes(np_state_t* context) {
-	return __np_route_my_key_count_routes(context, FALSE);
+	return __np_route_my_key_count_routes(context, false);
 }
 uint32_t _np_route_my_key_count_neighbours(np_state_t* context, uint32_t* left, uint32_t* right) {
 	uint32_t 
@@ -858,10 +858,10 @@ uint32_t _np_route_my_key_count_neighbours(np_state_t* context, uint32_t* left, 
 
 void _np_route_check_for_joined_network(np_state_t* context)
 {
-	if( _np_route_my_key_has_connection(context) == FALSE)
+	if( _np_route_my_key_has_connection(context) == false)
 	{
-		np_module(route)->my_key->node->joined_network = FALSE;
-		//_np_route_rejoin_bootstrap(TRUE);
+		np_module(route)->my_key->node->joined_network = false;
+		//_np_route_rejoin_bootstrap(true);
 	}
 }
 
@@ -875,28 +875,28 @@ void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {
 	np_ctx_memory(bootstrap_key);
 		
 	TSP_GET(char*, np_module(route)->bootstrap_key, old);
-	TSP_SET(np_module(route)->bootstrap_key, np_get_connection_string_from(bootstrap_key, FALSE));
+	TSP_SET(np_module(route)->bootstrap_key, np_get_connection_string_from(bootstrap_key, false));
 	free(old);
 }
 
-void _np_route_rejoin_bootstrap(np_state_t* context, np_bool force) {
+void _np_route_rejoin_bootstrap(np_state_t* context, bool force) {
 
 	TSP_GET(char*, np_module(route)->bootstrap_key, bootstrap_key)
 
 	if (bootstrap_key != NULL) {
 
-	np_bool rejoin = force
-			|| _np_route_my_key_has_connection(context) == FALSE;
+	bool rejoin = force
+			|| _np_route_my_key_has_connection(context) == false;
 	
-		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Check for rejoin result: %s%s necessary", (rejoin == TRUE ? "" : "not"), (force == TRUE ? "(f)" : ""));
+		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Check for rejoin result: %s%s necessary", (rejoin == true ? "" : "not"), (force == true ? "(f)" : ""));
 
-		if(TRUE == rejoin
+		if(true == rejoin
 				// check for state availibility to prevent test issues. TODO: Make network objects mockable
 				&& context != NULL) {
 			char* bootstrap = np_route_get_bootstrap_connection_string(context);
 			if(NULL != bootstrap)
 			{
-				if(force == FALSE)
+				if(force == false)
 				{
 					log_msg(LOG_WARN, "lost all connections. try to reconnect to bootstrap host \"%s\"", bootstrap);
 				}

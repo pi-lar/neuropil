@@ -31,7 +31,7 @@ SPLAY_HEAD(st_keycache_s, np_key_s);
 SPLAY_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp);
 
 NP_API_INTERN
-void _np_keycache_init(np_state_t* context);
+bool _np_keycache_init(np_state_t* context);
 
 NP_API_INTERN
 np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t key);
@@ -68,9 +68,9 @@ void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhk
 NP_API_INTERN
 np_key_t* _np_keycache_find_by_details(
 	np_state_t* context,
-	char* details_container, np_bool search_myself, np_bool is_handshake_send,
-	np_bool is_handshake_received, np_bool require_handshake_status, 
-	np_bool require_dns, np_bool require_port, np_bool require_hash );
+	char* details_container, bool search_myself, bool is_handshake_send,
+	bool is_handshake_received, bool require_handshake_status, 
+	bool require_dns, bool require_port, bool require_hash );
 
 NP_API_INTERN
 sll_return(np_key_ptr) _np_keycache_get_all(np_state_t* context);

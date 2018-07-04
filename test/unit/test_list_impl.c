@@ -5,6 +5,7 @@
 #include <criterion/criterion.h>
 
 #include <stdlib.h>
+#include <inttypes.h>
 
 #include "event/ev.h"
 
@@ -52,7 +53,7 @@ Test(np_linked_lists, _test_pll, .description="test the implementation of a prio
 	cr_expect(0 == pll_size(my_pll_list), "expect the size of the list to be 0");
 	cr_expect(pll_first(my_pll_list) == pll_last(my_pll_list),  "expect the first and last element to be the same");
 
-	pll_insert(double, my_pll_list, d_a, TRUE, compare_double);
+	pll_insert(double, my_pll_list, d_a, true, compare_double);
 
 	cr_expect(1 == pll_size(my_pll_list), "expect the size of the list to be 1");
 	cr_expect(NULL != pll_first(my_pll_list), "expect the first element to exists");
@@ -61,7 +62,7 @@ Test(np_linked_lists, _test_pll, .description="test the implementation of a prio
 	cr_expect(d_a == pll_last(my_pll_list)->val,  "expect the first element to have the inserted value");
 	cr_expect(pll_first(my_pll_list) == pll_last(my_pll_list),  "expect the first and last element to be the same");
 
-	pll_insert(double, my_pll_list, d_b, TRUE, compare_double);
+	pll_insert(double, my_pll_list, d_b, true, compare_double);
 
 	cr_expect(2 == pll_size(my_pll_list), "expect the size of the list to be 2");
 	cr_expect(NULL != pll_first(my_pll_list), "expect the first element to exists");
@@ -70,7 +71,7 @@ Test(np_linked_lists, _test_pll, .description="test the implementation of a prio
 	cr_expect(d_a == pll_last(my_pll_list)->val,  "expect the last element to have the old value");
 	cr_expect(pll_first(my_pll_list) != pll_last(my_pll_list),  "expect the first and last element to be different");
 
-	pll_insert(double, my_pll_list, d_c, TRUE, compare_double);
+	pll_insert(double, my_pll_list, d_c, true, compare_double);
 
 	cr_expect(3 == pll_size(my_pll_list), "expect the size of the list to be 3");
 	cr_expect(NULL != pll_first(my_pll_list), "expect the first element to exists");
@@ -79,7 +80,7 @@ Test(np_linked_lists, _test_pll, .description="test the implementation of a prio
 	cr_expect(d_c == pll_last(my_pll_list)->val,  "expect the last element to have the old value");
 	cr_expect(pll_first(my_pll_list) != pll_last(my_pll_list),  "expect the first and last element to be different");
 
-	pll_insert(double, my_pll_list, d_d, TRUE, compare_double);
+	pll_insert(double, my_pll_list, d_d, true, compare_double);
 
 	cr_expect(4 == pll_size(my_pll_list), "expect the size of the list to be 4");
 	cr_expect(NULL != pll_first(my_pll_list), "expect the first element to exists");
@@ -88,7 +89,7 @@ Test(np_linked_lists, _test_pll, .description="test the implementation of a prio
 	cr_expect(d_d == pll_last(my_pll_list)->val,  "expect the first element to have the inserted value");
 	cr_expect(pll_first(my_pll_list) != pll_last(my_pll_list),  "expect the first and last element to be different");
 
-	pll_insert(double, my_pll_list, d_e, TRUE, compare_double);
+	pll_insert(double, my_pll_list, d_e, true, compare_double);
 
 	cr_expect(5 == pll_size(my_pll_list), "expect the size of the list to be 5");
 	cr_expect(NULL != pll_first(my_pll_list), "expect the first element to exists");
@@ -97,7 +98,7 @@ Test(np_linked_lists, _test_pll, .description="test the implementation of a prio
 	cr_expect(d_d == pll_last(my_pll_list)->val,  "expect the first element to have the old value");
 	cr_expect(pll_first(my_pll_list) != pll_last(my_pll_list),  "expect the first and last element to be different");
 
-	pll_insert(double, my_pll_list, d_e, FALSE, compare_double);
+	pll_insert(double, my_pll_list, d_e, false, compare_double);
 	cr_expect(5 == pll_size(my_pll_list), "expect the size of the list to be 5 still");
 
 	double d_tmp_1 = 0.0f;
@@ -137,11 +138,11 @@ Test(np_linked_lists, _test_pll, .description="test the implementation of a prio
 	cr_expect(pll_first(my_pll_list) == pll_last(my_pll_list),  "expect the first and last element to be the same");
 	cr_expect(d_d == d_tmp_1, "expect the value of the first element to be 100000000.4");
 
-	pll_insert(double, my_pll_list, d_a, TRUE, compare_double);
-	pll_insert(double, my_pll_list, d_b, TRUE, compare_double);
-	pll_insert(double, my_pll_list, d_c, TRUE, compare_double);
-	pll_insert(double, my_pll_list, d_d, TRUE, compare_double);
-	pll_insert(double, my_pll_list, d_e, TRUE, compare_double);
+	pll_insert(double, my_pll_list, d_a, true, compare_double);
+	pll_insert(double, my_pll_list, d_b, true, compare_double);
+	pll_insert(double, my_pll_list, d_c, true, compare_double);
+	pll_insert(double, my_pll_list, d_d, true, compare_double);
+	pll_insert(double, my_pll_list, d_e, true, compare_double);
 
 	cr_expect(5 == pll_size(my_pll_list), "expect the size of the list to be 5");
 
@@ -243,7 +244,7 @@ Test(np_linked_lists, _test_sll, .description="test the implementation of a sing
 	// {
 	// }
 	//	sll_rtraverse(my_sll_list, iterator_1, tmp_1) {
-	//		printf("v: %llu.%llu.%llu.%llu\n", tmp_1->t[0],tmp_1->t[1],tmp_1->t[2],tmp_1->t[3]);
+	//		printf("v: %"PRIu32".%"PRIu32".%"PRIu32".%"PRIu32"\n", tmp_1->t[0],tmp_1->t[1],tmp_1->t[2],tmp_1->t[3]);
 	//	}
 
 	tmp_1 = sll_head(np_dhkey_ptr, my_sll_list);
@@ -326,64 +327,64 @@ Test(np_linked_lists, _test_dll, .description="test the implementation of a doub
 	np_dll_t(np_dhkey_ptr, my_dll_list);
 	dll_init(np_dhkey_ptr, my_dll_list);
 
-	np_bool printPointer = FALSE;
-	if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	bool printPointer = false;
+	if(printPointer == true) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
 	dll_prepend(np_dhkey_ptr, my_dll_list, &key_a);
-	if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == true) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
 	dll_append(np_dhkey_ptr, my_dll_list, &key_b);
-	if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == true) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
 	dll_prepend(np_dhkey_ptr, my_dll_list, &key_c);
-	if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == true) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
 	dll_append(np_dhkey_ptr, my_dll_list, &key_d);
-	if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == true) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
 	dll_prepend(np_dhkey_ptr, my_dll_list, &key_e);
-	if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == true) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 
 	np_dhkey_t* tmp_2;
 //		dll_iterator(np_dhkey_t) iterator_2;
 //		dll_traverse(my_dll_list, iterator_2, tmp_2) {
-//			if(printPointer == TRUE) printf("p: %p (%p) -> v: %llu.%llu.%llu.%llu\n", iterator_2, iterator_2->flink, tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+//			if(printPointer == true) printf("p: %p (%p) -> v: %"PRIu32".%"PRIu32".%"PRIu32".%"PRIu32"\n", iterator_2, iterator_2->flink, tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 //		}
 //
 //		dll_rtraverse(my_dll_list, iterator_2, tmp_2) {
-//			if(printPointer == TRUE) printf("p: %p (%p) -> v: %llu.%llu.%llu.%llu\n", iterator_2, iterator_2->blink, tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+//			if(printPointer == true) printf("p: %p (%p) -> v: %"PRIu32".%"PRIu32".%"PRIu32".%"PRIu32"\n", iterator_2, iterator_2->blink, tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 //		}
 	// dll_free(np_dhkey_t, my_dll_list);
 
-	if(printPointer == TRUE) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == true) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
 	tmp_2 = dll_head(np_dhkey_ptr, my_dll_list);
-	if(printPointer == TRUE) printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+	if(printPointer == true) printf("v: %"PRIu32".%"PRIu32".%"PRIu32".%"PRIu32"\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 
-	if(printPointer == TRUE) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == true) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
 	tmp_2 = dll_head(np_dhkey_ptr, my_dll_list);
-	if(printPointer == TRUE) printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+	if(printPointer == true) printf("v: %"PRIu32".%"PRIu32".%"PRIu32".%"PRIu32"\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 
-	if(printPointer == TRUE) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == true) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
 	tmp_2 = dll_tail(np_dhkey_ptr, my_dll_list);
-	if(printPointer == TRUE) printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+	if(printPointer == true) printf("v: %"PRIu32".%"PRIu32".%"PRIu32".%"PRIu32"\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 
-	if(printPointer == TRUE) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == true) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
 	tmp_2 = dll_tail(np_dhkey_ptr, my_dll_list);
-	if(printPointer == TRUE) printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+	if(printPointer == true) printf("v: %"PRIu32".%"PRIu32".%"PRIu32".%"PRIu32"\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 
-	if(printPointer == TRUE) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == true) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
 	tmp_2 = dll_head(np_dhkey_ptr, my_dll_list);
-	if(printPointer == TRUE) printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+	if(printPointer == true) printf("v: %"PRIu32".%"PRIu32".%"PRIu32".%"PRIu32"\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
 
-	if(printPointer == TRUE) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
+	if(printPointer == true) printf("%d: p: %p <-> %p\n", dll_size(my_dll_list), dll_first(my_dll_list), dll_last(my_dll_list));
 	tmp_2 = dll_head(np_dhkey_ptr, my_dll_list);
 
 	if (tmp_2) {
-		if(printPointer == TRUE) printf("v: %llu.%llu.%llu.%llu\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
-		if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+		if(printPointer == true) printf("v: %"PRIu32".%"PRIu32".%"PRIu32".%"PRIu32"\n", tmp_2->t[0],tmp_2->t[1],tmp_2->t[2],tmp_2->t[3]);
+		if(printPointer == true) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
 	} else {
-		if(printPointer == TRUE) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
-		if(printPointer == TRUE) printf("dll_list returned NULL element\n");
+		if(printPointer == true) printf("p: %p <-> %p\n", dll_first(my_dll_list), dll_last(my_dll_list));
+		if(printPointer == true) printf("dll_list returned NULL element\n");
 	}
 }
 Test(np_linked_lists, _test_sll_delete, .description = "test the delete implementation of a single linked list")

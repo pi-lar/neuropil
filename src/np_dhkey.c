@@ -34,7 +34,7 @@ static np_dhkey_t __dhkey_max;
 
 void _np_dhkey_to_str (const np_dhkey_t* k, char* key_string)
 {
-	// k->valid = FALSE;
+	// k->valid = false;
 
 	// log_msg(LOG_KEY | LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
 	// log_msg(LOG_KEY | LOG_WARN, "key %16lx%16lx%16lx%16lx", k->t[0], k->t[1], k->t[2], k->t[3]);
@@ -47,7 +47,7 @@ void _np_dhkey_to_str (const np_dhkey_t* k, char* key_string)
 		k->t[0], k->t[1], k->t[2], k->t[3], k->t[4], k->t[5], k->t[6], k->t[7]
 	);
 	key_string[64] = '\0';
-	// k->valid = TRUE;
+	// k->valid = true;
 	// log_debug_msg(LOG_KEY | LOG_DEBUG, "key string now: %s", k->keystr);
 }
 
@@ -156,12 +156,12 @@ void _np_dhkey_assign (np_dhkey_t* k1, const np_dhkey_t* const k2)
 		k1->t[i] = k2->t[i];
 }
 
-np_bool _np_dhkey_equal (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
+bool _np_dhkey_equal (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 {
 	for (uint8_t i = 0; i < 8; i++)
 		if (k1->t[i] != k2->t[i])
-			return FALSE;
-	return TRUE;
+			return false;
+	return true;
 }
 
 int8_t _np_dhkey_cmp (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
@@ -196,7 +196,7 @@ void _np_dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dh
 	}
 }
 
-void _np_dhkey_init (np_state_t* context)
+bool  _np_dhkey_init (np_state_t* context)
 {
 	uint32_t half = (UINT_MAX >> 1) + 1;
 	for (uint8_t i = 0; i < 8; i++)
@@ -211,14 +211,16 @@ void _np_dhkey_init (np_state_t* context)
 				i, __dhkey_min.t[i]
 		);
 	}
+
+	return true;
 }
 
 np_dhkey_t np_dhkey_min(np_state_t* context)  {
-	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_min()  {"); return __dhkey_min;  };
+	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_fmin()  {"); return __dhkey_min;  };
 np_dhkey_t np_dhkey_half(np_state_t* context) {
 	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_half() {"); return __dhkey_half; };
 np_dhkey_t np_dhkey_max(np_state_t* context)  {
-	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_max()  {"); return __dhkey_max;  };
+	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_fmax()  {"); return __dhkey_max;  };
 
 // TODO: the distance of two hash keys could be implemented much better
 void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_dhkey_t* const k2)
@@ -227,9 +229,9 @@ void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_
 }
 
 
-np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const np_bool includeBounds)
+bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const bool includeBounds)
 {
-	np_bool ret = FALSE;
+	bool ret = false;
 	log_trace_msg ( LOG_TRACE | LOG_KEY, ".start._dhkey_between");
 
 	int8_t comp_lt = _np_dhkey_cmp (left, test);
@@ -262,7 +264,7 @@ void _np_dhkey_midpoint (np_dhkey_t* mid, const np_dhkey_t* key)
 	log_trace_msg ( LOG_TRACE | LOG_KEY, ".start._dhkey_midpoint");
 	if   (_np_dhkey_cmp (key, &__dhkey_half) < 0) _np_dhkey_add (mid, key, &__dhkey_half);
 	else  	                                    _np_dhkey_sub (mid, key, &__dhkey_half);
-	// mid->valid = FALSE;
+	// mid->valid = false;
 	log_trace_msg ( LOG_TRACE | LOG_KEY, ".end  ._dhkey_midpoint");
 }
 

@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 		&logpath,
 		"[-r realmname] [-c code]",
 		"r:c:"
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}	
 

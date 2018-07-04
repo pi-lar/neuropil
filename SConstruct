@@ -89,9 +89,19 @@ if int(release) >= 1:
 # add debug compilation options
 debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O0']
 if int(debug) >= 1:
-    default_env.Append(CCFLAGS = debug_flags)
-    if int(debug) <= 1:
-        default_env.Append(CCFLAGS = ['-DDEBUG'])
+  try:
+    if "klampt" in os.path.expanduser('~'):
+      # disable some warnings
+      debug_flags += [
+        '-Wno-incompatible-pointer-types-discards-qualifiers',		'-Wno-unused-variable',
+        '-Wno-unused-parameter',		'-Wno-missing-braces',		'-Wno-missing-field-initializers',		
+	  ]
+  except:
+    pass
+
+  default_env.Append(CCFLAGS = debug_flags)
+  if int(debug) <= 1:
+    default_env.Append(CCFLAGS = ['-DDEBUG'])
 
 default_env.Append(CCFLAGS = ['-DNEUROPIL_RELEASE_BUILD=\"{}\"'.format(buildNo())])
 

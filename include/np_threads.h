@@ -144,7 +144,7 @@ struct np_thread_s
 
 
 NP_API_INTERN
-np_bool _np_threads_init(np_state_t* context);
+bool _np_threads_init(np_state_t* context);
 NP_API_INTERN
 int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, const char* where);
 NP_API_INTERN
@@ -193,10 +193,12 @@ void _np_threads_condition_destroy(np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
 int _np_threads_condition_broadcast(np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
+np_thread_t * __np_createThread(np_state_t* context, uint8_t number, void *(fn)(void *), bool auto_run, enum np_thread_type_e type);
+NP_API_INTERN
 np_thread_t*_np_threads_get_self(np_state_t* context);
 NP_API_INTERN
 void _np_threads_set_self(np_thread_t * myThread);
-NP_API_INTERN;
+NP_API_INTERN
 void np_threads_start_workers(np_state_t* context, uint8_t pool_size);
 
 #define TOKENPASTE(x, y) x ## y
@@ -208,7 +210,7 @@ struct timeval NAME##_tv;																					\
 struct timespec* NAME=&NAME##_ts;																			\
 																											\
 gettimeofday(&NAME##_tv, NULL);																				\
-NAME##_ts.tv_sec = NAME##_tv.tv_sec + min(MUTEX_WAIT_MAX_SEC - ELAPSED_TIME, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC);													
+NAME##_ts.tv_sec = NAME##_tv.tv_sec + fmin(MUTEX_WAIT_MAX_SEC - ELAPSED_TIME, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC);													
 
 
 #define __LOCK_ACCESS_W_PREFIX(prefix, obj, lock_type)																						\
@@ -244,7 +246,7 @@ _LOCK_MODULE(np_keycache_t)
 // print the complete object list and statistics
 
 NP_API_PROTEC
-char* np_threads_printpool(np_state_t* context, np_bool asOneLine);
+char* np_threads_printpool(np_state_t* context, bool asOneLine);
 
 /*
 	TSP = ThreadSafeProperty
@@ -274,6 +276,8 @@ char* np_threads_printpool(np_state_t* context, np_bool asOneLine);
 	}
 #define TSP_SCOPE(NAME)								\
 	_LOCK_ACCESS(&NAME##_mutex)
+#define TSP_TRYSCOPE(NAME)								\
+	_TRYLOCK_ACCESS(&NAME##_mutex)
 
 
 #ifdef __cplusplus
