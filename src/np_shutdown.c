@@ -26,9 +26,17 @@
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_destroycallback_t);
 
+
+np_module_struct(shutdown) {
+	np_state_t* context;
+	TSP(sll_return(np_destroycallback_t), on_destroy);
+	bool invoke;
+}; 
+
 struct sigaction sigact;
 np_sll_t(void_ptr, __running_instances) = NULL;
 static int calcelations = 0;
+
 static void __np_shutdown_signal_handler(int sig) {
 	if (sig == SIGINT) {
 		calcelations++;
@@ -36,39 +44,10 @@ static void __np_shutdown_signal_handler(int sig) {
 			np_state_t* context;
 			while ((context = sll_head(void_ptr,__running_instances))!= NULL)
 			{
-				TSP_SET(context->status, np_shutdown);
-
-				log_msg(LOG_WARN, "Received terminating process signal (%"PRIi32"). Shutdown in progress.", sig);
-				np_destroy(context, true);
+				np_module(shutdown)->invoke = true;
 			}
 		}
-		exit(EXIT_SUCCESS);
 	}
-}
-
-np_module_struct(shutdown) {
-	np_state_t* context;
-	TSP(sll_return(np_destroycallback_t), on_destroy);
-};
-
-void _np_shutdown_init_auto_notify_others(np_state_t* context) {
-	
-	if (!np_module_initiated(shutdown)) {
-		np_module_malloc(shutdown);
-		TSP_INITD(_module->on_destroy, sll_init_part(np_destroycallback_t));		
-	}
-
-	if (__running_instances == NULL) {
-		sll_init(void_ptr, __running_instances);
-
-		sigact.sa_handler = __np_shutdown_signal_handler;
-		sigemptyset(&sigact.sa_mask);
-		sigact.sa_flags = 0;
-		//sigaction(SIGABRT, &sigact, (struct sigaction *)NULL);
-		sigaction(SIGINT, &sigact, (struct sigaction *)NULL);
-		//sigaction(SIGTERM, &sigact, (struct sigaction *)NULL);
-	}
-	sll_append(void_ptr, __running_instances, context);
 }
 
 void np_shutdown_add_callback(np_context*ac, np_destroycallback_t clb) {
@@ -77,6 +56,48 @@ void np_shutdown_add_callback(np_context*ac, np_destroycallback_t clb) {
 	TSP_SCOPE(np_module(shutdown)->on_destroy) {
 		sll_append(np_destroycallback_t, np_module(shutdown)->on_destroy, clb);
 	}
+}
+
+void np_shutdown_check(np_state_t* context, np_jobargs_t* args) {
+
+	bool do_the_shutdown = false;
+	if (np_module(shutdown)->invoke) {
+		TSP_SCOPE(context->status) {
+			if (context->status == np_shutdown) {
+				do_the_shutdown = true;
+				context->status = np_shutdown;
+			}
+		}
+	}
+	if (do_the_shutdown) {
+		log_msg(LOG_WARN, "Received terminating process signal. Shutdown in progress.");
+		np_destroy(context, true);
+	}
+
+}
+
+
+void _np_shutdown_init_auto_notify_others(np_state_t* context) {
+
+	if (!np_module_initiated(shutdown)) {
+		np_module_malloc(shutdown);
+		TSP_INITD(_module->on_destroy, sll_init_part(np_destroycallback_t));
+		_module->invoke = false;
+
+
+		if (__running_instances == NULL) {
+			sll_init(void_ptr, __running_instances);
+
+			sigact.sa_handler = __np_shutdown_signal_handler;
+			sigemptyset(&sigact.sa_mask);
+			sigact.sa_flags = 0;
+			//sigaction(SIGABRT, &sigact, (struct sigaction *)NULL);
+			sigaction(SIGINT, &sigact, (struct sigaction *)NULL);
+			//sigaction(SIGTERM, &sigact, (struct sigaction *)NULL);
+		}
+		np_job_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT, 0.1, 0.1, np_shutdown_check, "np_shutdown_check");
+	}
+	sll_append(void_ptr, __running_instances, context);
 }
 
 void _np_shutdown_run_callbacks(np_context*ac) {

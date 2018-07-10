@@ -610,6 +610,17 @@ np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t*
 
 void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
 
+	dest->intent_ttl = src->token_max_ttl;
+	dest->intent_update_after = src->token_min_ttl;
+	dest->message_ttl = src->msg_ttl;
+	if(src->rep_subject != NULL) {
+		strcpy(dest->reply_subject, src->rep_subject);
+	}
+	else {
+		memset(dest->reply_subject, 0, sizeof(dest->reply_subject));
+	}
+
+	// ackmode conversion
 	switch (src->ack_mode)
 	{
 	case ACK_NONE:
@@ -626,6 +637,7 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
 		break;
 	}
 
+	// cache_policy conversion
 	if (FLAG_CMP(src->cache_policy, FIFO)) {
 		if (FLAG_CMP(src->cache_policy, OVERFLOW_REJECT)) {
 			dest->cache_policy = NP_MX_FIFO_REJECT;
@@ -636,22 +648,92 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
 	}
 	else {
 		if (FLAG_CMP(src->cache_policy, OVERFLOW_REJECT)) {
-			dest->cache_policy = NP_MX_LIFO_REJECT;
+			dest->cache_policy = NP_MX_FILO_REJECT;
 		}
 		else {
-			dest->cache_policy = NP_MX_LIFO_PURGE;
+			dest->cache_policy = NP_MX_FILO_PURGE;
 		}
 	}
-	/*
-	dest->intent_ttl = src->msg_ttl;
-	dest->intent_update_after = src->msg_ttl;
-	dest->message_ttl = ;
-	dest->once_only = ;
-	dest->pattern = ;
-	dest->reply_subject = ;
-	*/
+
+	// mep type conversion
+	switch (src->mep_type)
+	{
+	case REQ_REP:
+		dest->pattern = NP_MX_REQ_REP;
+		break;
+	case BROADCAST:
+		dest->pattern = NP_MX_BROADCAST;
+		break;
+	case ANY_TO_ANY:
+		dest->pattern = NP_MX_ANY;
+		break;
+	default:
+		dest->pattern = NP_MX_HIDDEN;
+		break;
+	}	
 }
 
 void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* src) {
 
+
+	dest->token_max_ttl = src->intent_ttl;
+	dest->token_min_ttl = src->intent_update_after ;
+	dest->msg_ttl = src->message_ttl;
+
+	if (src->reply_subject[0] != 0 &&  strcmp(dest->rep_subject, src->reply_subject) != 0)
+	{
+		dest->rep_subject = strdup(src->reply_subject );
+	}
+
+	// ackmode conversion
+	switch (src->ackmode)
+	{
+	case NP_MX_ACK_DESTINATION:
+		dest->ack_mode = ACK_DESTINATION;
+		break;
+	case NP_MX_ACK_CLIENT:
+		dest->ack_mode = ACK_CLIENT;
+		break;
+	default:
+		dest->ack_mode = ACK_NONE;
+		break;
+	}
+
+	switch (src->cache_policy)
+	{
+	case NP_MX_FIFO_REJECT:
+		dest->cache_policy = FIFO & OVERFLOW_REJECT;
+		break;
+	case NP_MX_FIFO_PURGE:
+		dest->cache_policy = FIFO & OVERFLOW_PURGE;
+		break;
+	case NP_MX_FILO_REJECT:
+		dest->cache_policy = FILO & OVERFLOW_REJECT;
+		break;
+	case NP_MX_FILO_PURGE:
+		dest->cache_policy = FILO & OVERFLOW_PURGE;
+		break;
+	default:
+		break;
+	}
+
+	// mep type conversion
+	switch (src->pattern)
+	{
+	case NP_MX_REQ_REP:
+		dest->mep_type= REQ_REP;
+		break;
+	case NP_MX_BROADCAST:
+		dest->mep_type = BROADCAST;
+		break;
+	case NP_MX_ANY:
+		dest->mep_type = ANY_TO_ANY;
+		break;
+
+	case NP_MX_HIDDEN:
+	default:
+		// ignore others 
+		break;
+		
+	}
 }

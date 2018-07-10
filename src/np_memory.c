@@ -764,14 +764,18 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
             ret = np_str_concatAndFree(ret, "--- extended reasons end  ---%s", new_line);
         }
     }
-    ret = np_str_concatAndFree(ret, "--- memory summary---%s", new_line);
+	if(asOneLine)
+		ret = np_str_concatAndFree(ret, "--- memory summary---%s", new_line);
 
+	ret = np_str_concatAndFree(ret, "%20s |  count  | max ref%s", "name", new_line);
 
     for (int memory_type = 0; memory_type < np_memory_types_MAX_TYPE; memory_type++)
     {
-        ret = np_str_concatAndFree(ret, "%20s count %4"PRIu32" max ref %3"PRIu32" %s", np_memory_types_str[memory_type], summary[memory_type], summary[100 * memory_type], new_line);
+        ret = np_str_concatAndFree(ret, "%20s | %7"PRIu32" | %7"PRIu32"%s", np_memory_types_str[memory_type], summary[memory_type], summary[100 * memory_type], new_line);
     }
-    ret = np_str_concatAndFree(ret, "--- memory end ---%s", new_line);
+
+	if (asOneLine)
+		ret = np_str_concatAndFree(ret, "--- memory end ---%s", new_line);
 
     return (ret);
 }

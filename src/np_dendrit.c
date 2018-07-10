@@ -801,7 +801,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request:  node key %s", _np_key_as_str(join_node_key));
 
 
-	np_token tmp;
+	np_token tmp = { 0 };
     if (NULL != join_ident_key &&
         NULL != context->authenticate_func)
     {

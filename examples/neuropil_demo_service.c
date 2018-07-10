@@ -90,25 +90,23 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
  
-	np_msgproperty_t* echo_props = NULL;
-	
 	np_add_receive_cb(context, "echo", receive_echo_message);	
-	np_set_mx_properties(context, "echo", { .ackmode = NP_MX_ACK_NONE });
+	struct np_mx_properties  echo_props = np_get_mx_properties(context, "echo", NULL);
+	echo_props.ackmode = NP_MX_ACK_NONE;
+	echo_props.message_ttl = 20.0;
+	np_set_mx_properties(context, "echo", echo_props);
 
-	echo_props->msg_ttl = 20.0;
+ 	np_add_receive_cb(context, "ping", receive_ping);
+	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping", NULL);
+	ping_props.ackmode = NP_MX_ACK_NONE;
+	ping_props.message_ttl = 5.0;
+	np_set_mx_properties(context, "ping", ping_props);
 
-	np_msgproperty_t* ping_props = NULL;
-	np_add_receive_cb(context, "ping", receive_ping);
-	ping_props = np_msgproperty_get(context, INBOUND, "ping");
-	ping_props->ack_mode = ACK_NONE;
-	ping_props->msg_ttl = 20.0;
-	np_msgproperty_register(ping_props);
-
-	np_msgproperty_t* pong_props = NULL;
-	np_add_receive_cb(context, "pong", receive_pong);
-	pong_props = np_msgproperty_get(context, INBOUND, "pong");
-	pong_props->ack_mode = ACK_NONE;
-	pong_props->msg_ttl = 20.0;
+ 	np_add_receive_cb(context, "pong", receive_pong);
+	struct np_mx_properties  pong_props = np_get_mx_properties(context, "pong", NULL);
+	pong_props.ackmode = NP_MX_ACK_NONE;
+	pong_props.message_ttl = 5.0;
+	np_set_mx_properties(context, "pong", pong_props);
 
 	if (np_ok != np_run(context, 0)) {
 		np_example_print(context, stderr, "ERROR: Node could not start");

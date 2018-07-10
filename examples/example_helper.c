@@ -86,7 +86,7 @@ struct __np_switchwindow_scrollable {
 };
 np_statistic_types_e statistic_types = 0;
 
-int term_width_top_rigth = 44;
+int term_width_top_rigth = 41;
 int term_height_bottom = 15;
 
 struct __np_switchwindow_scrollable * _current = NULL;
@@ -114,6 +114,8 @@ np_mutex_t* __log_mutex = NULL;
 double started_at = 0;
 double last_loop_run_at = 0;
 double ncurse_init_at = 0;
+np_context* _context = NULL;
+
 
 void reltime_to_str(char*buffer, double time) {
 	// totaltime format: seconds.milliseconds
@@ -689,17 +691,19 @@ void __np_example_deinti_ncurse(np_context * context) {
 void __np_example_inti_ncurse(np_context* context) {
 	if (false == __np_ncurse_initiated) {
 		if (enable_statistics == 1 || enable_statistics % 2 != 0) {
+			__np_ncurse_initiated = true;
 			ncurse_init_at = np_time_now();
 
-			__np_ncurse_initiated = true;
 
 			/* Start curses mode          */
-			//initscr(); // Init ncurses mode
+			initscr(); // Init ncurses mode
 			// other:
+			/*
 			newterm(NULL, stderr, stdin);
 			FILE *f = fopen("/dev/tty", "r+");
 			SCREEN *screen = newterm(NULL, f, f);
 			set_term(screen);
+			*/
 
 			int term_current_height, term_current_width;
 			getmaxyx(stdscr, term_current_height, term_current_width);  /* get the new screen size */
@@ -808,13 +812,9 @@ void __np_example_reset_ncurse(np_context*context) {
 	__np_example_inti_ncurse(context);
 }
 
-int iteri = -1;
-
-
-np_context* _context;
 void resizeHandler(int sig)
 {
-	if (__np_ncurse_initiated) {
+	if (_context != NULL && __np_ncurse_initiated) {
 		__np_example_reset_ncurse(_context);
 	}
 
@@ -830,7 +830,10 @@ void __np_example_helper_loop(np_state_t* context) {
 	// Runs only once
 	if (started_at == 0) {
 		started_at = np_time_now();
-		_context = context;
+		
+		if(_context == NULL){
+			_context = context;
+		}
 		signal(SIGWINCH, resizeHandler);
 		np_print_startup(context);
 

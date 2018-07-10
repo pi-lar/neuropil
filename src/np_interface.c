@@ -440,7 +440,7 @@ enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_p
 		property->msg_subject = strndup(subject, 255);
 		np_msgproperty_register(property);
 	}
-	np_msgproperty_from_user(&ret, property);
+	np_msgproperty_from_user(property, &user_property);
 
 	return ret;
 }

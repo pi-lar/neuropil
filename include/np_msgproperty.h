@@ -171,6 +171,7 @@ typedef enum np_msg_mep_enum {
    OVERFLOW_PURGE  - purge old messages when the limit is reached
 
 */
+
 typedef enum np_msgcache_policy_enum {
 	UNKNOWN = 0x00,
 	FIFO = 0x01,

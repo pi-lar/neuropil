@@ -139,7 +139,6 @@ int main(int argc, char **argv)
 		if( 1 != bcm2835_init()) {
 			np_example_print(context, stdout, "GPIO NOT initiated\n");
 			is_gpio_enabled = false;
-
 		} else {
 			bcm2835_gpio_set_pud(LED_GPIO_GREEN,  BCM2835_GPIO_PUD_OFF);
 			bcm2835_gpio_set_pud(LED_GPIO_YELLOW, BCM2835_GPIO_PUD_OFF);
@@ -160,7 +159,6 @@ int main(int argc, char **argv)
 
 			np_example_print(context, stdout, "GPIO initiated\n");
 		}
-
 		np_sysinfo_enable_client(context);
 	} else {
 
@@ -253,7 +251,7 @@ int main(int argc, char **argv)
 		i += 1;
 		np_time_sleep(0.01);
 		now = np_time_now();
-		if ((now - last_response_or_invokation) > ping_props->msg_ttl) {
+		if ((now - last_response_or_invokation) > ping_props.message_ttl) {
 
 			np_example_print(context, stdout, "Invoking ping (last one was before %f sec)\n", now - last_response_or_invokation);
 			log_msg(LOG_INFO, "Invoking ping (last one was before %f sec)", now - last_response_or_invokation);

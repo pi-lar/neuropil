@@ -173,8 +173,7 @@ bool ret = np_memory_tryref_obj(np_obj, reason, reason_desc);
 	assert(NULL != obj &&"Could not allocate memory. Program is now in undefined state and should be shut down.");		\
 }
 #else
-#define CHECK_MALLOC(obj)		              																			\
-	context->status = np_error;
+#define CHECK_MALLOC(obj)
 #endif
 	
 

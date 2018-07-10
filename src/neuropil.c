@@ -106,6 +106,7 @@ bool _np_aaa_authorizefunc (np_context* ac, np_token* token )
 bool _np_default_authenticatefunc (np_context*ac, np_token* token )
 {
 #ifndef DEBUG
+	np_ctx_cast(ac);
 	log_msg(LOG_WARN, "using default handler (auth all) to authenticate %s", token->subject);
 	// log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
 #endif
@@ -146,6 +147,7 @@ bool _np_aaa_authenticatefunc (np_context*ac, np_token* token)
 bool _np_default_accountingfunc (np_context*ac, np_token* token )
 {
 #ifndef DEBUG
+	np_ctx_cast(ac);
 	log_msg(LOG_WARN, "using default handler to account for %s", token->subject );
 	// log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
 #endif

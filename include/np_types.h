@@ -13,53 +13,6 @@
 #include "np_interface.h"
 #include "np_list.h"
 
-/* just in case NULL is not defined */
-#ifndef NULL
-#define NULL (void*)0
-#endif
-
-//
-// int __attribute__((overloadable)) square(int);
-
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__linux__)
-#define NP_ENUM
-#endif
-#if defined(__APPLE__) && defined(__MACH__)
-#define NP_ENUM __attribute__ ((flag_enum))
-#endif
-
-#define NP_CONST __attribute__ ((const))
-#define NP_PURE  __attribute__ ((pure))
-
-#define NP_PACKED(x)  __attribute__ ((packed(x)))
-#define NP_DEPRECATED __attribute__ ((deprecated("!!! DEPRECATED !!!")))
-
-
-
-#if defined(TEST_COMPILE) || defined(DEBUG)
-  #define NP_UNUSED     __attribute__ ((unused))
-  #define NP_API_HIDDEN __attribute__ ((visibility ("default")))
-  #define NP_API_PROTEC __attribute__ ((visibility ("default")))
-  #define NP_API_INTERN __attribute__ ((visibility ("default")))
-#else
-  #ifndef NP_UNUSED
-    #define NP_UNUSED     __attribute__ ((unused))
-  #endif
-  #ifndef NP_API_PROTEC
-    #define NP_API_PROTEC __attribute__ ((visibility ("default")))
-  #endif
-  #ifndef NP_API_HIDDEN
-    #define NP_API_HIDDEN __attribute__ ((visibility ("default")))
-  #endif
-  #ifndef NP_API_INTERN
-	#define NP_API_INTERN __attribute__ ((visibility ("default")))
-  #endif
-#endif
-
-#ifndef NP_API_EXPORT
-  #define NP_API_EXPORT __attribute__ ((visibility ("default")))
-#endif
-
 /*
  *  simple types / typedefs
  */

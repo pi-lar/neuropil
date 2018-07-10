@@ -1523,11 +1523,14 @@ np_token* np_aaatoken4user(np_token* dest, np_aaatoken_t* src) {
 	dest->not_before = src->not_before;
 	memcpy(dest->public_key, src->public_key, sizeof(src->public_key));
 	memcpy(dest->secret_key, src->private_key, sizeof(src->private_key));
-	np_get_id(context, &dest->subject, src->subject, strlen(src->subject));
+	strcpy(dest->subject, src->subject);
+	// todo: convert all fields
+	//np_get_id(context, &dest->subject, src->subject, strlen(src->subject));
 
+	//dest->issuer     = src->issuer;
 	// todo extract other user parts
 	//dest->extensions = np_tree_clone(src->extensions);
-	//dest->issuer     = src->issuer;
+	
 	//dest->realm      = src->realm;	
 	//dest->audience = src->audience;
 
