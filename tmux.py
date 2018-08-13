@@ -14,6 +14,8 @@ parser.add_argument('-l', nargs='?', type=int, default=-3, help='LogLevel')
 parser.add_argument('-pd', nargs='?', default="localhost", help='PublishDomain')
 parser.add_argument('-c', action='store_true', help='Autoclose tmux window if node fails')
 parser.add_argument('-r', action='store_true', help='Reconnect only')
+parser.add_argument('--perf', action='store_true', help='Record Perf on Bootstrap')
+parser.add_argument('-v', action='store_true', default=False, help='Valgrind prefix')
 parser.add_argument('-k', action='store_true', help='Kill all only')
 parser.add_argument('-t', nargs='?', type=int, default=18, help='Count of threads to start for each node')
 parser.add_argument('-oh', nargs='?', type=int, default=1, help='Host sysinfo config')
@@ -67,11 +69,18 @@ if args.k:
 else:
     if not args.r or not server.has_session("np"):
         session = server.new_session("np", True)
-
+        
+    prefix = ''
+    if args.v:
+      prefix = 'valgrind '
     windowName  = "neuropil bootstraper"
     if start_bootstrapper and not session.find_where({ "window_name": windowName }):
         nb = session.new_window(attach=True, window_name=windowName)
-        nb.attached_pane.send_keys(args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} -s {} {}'.format(
+        prefix_bootstrap = prefix
+        if args.perf:
+            prefix_bootstrap = 'perf record --call-graph dwarf -a '
+
+        nb.attached_pane.send_keys(prefix_bootstrap + args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} -s {} {} 2> test.log'.format(
             port, threads, port_type, loglevel, publish_domain, sysinfo, statistics, autoclose))
 
     for i in range(count):
@@ -79,11 +88,8 @@ else:
         if not session.find_where({ "window_name": windowName }):
             print('start node {:3d}/{}'.format(i,count), end='\r')
             sys.stdout.flush()
-            time.sleep(random.random()+0.01)
+            #time.sleep(random.random()+0.01)
             nn = session.new_window(attach=False, window_name=windowName )
-            prefix = ''
-            #prefix = 'valgrind '
-            #prefix += 'perf record --call-graph dwarf -a --timestamp-filename '
             nn.attached_pane.send_keys(prefix + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
             port+i+start_bootstrapper,publish_domain, threads, port_type, sysinfo_client, loglevel, join_client, httpdomain_client, statistics, autoclose))
 

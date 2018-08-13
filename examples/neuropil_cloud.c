@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 	int no_threads = 0;
 	char *j_key = NULL;
 	char* proto = "udp4";
-	char* port = NULL;
+	char* opt_port = NULL;
 	char* publish_domain = NULL;
 	int level = -2;
 	char* ccloud_size = "32";	
@@ -46,7 +46,7 @@ int main(int argc, char **argv)
 		&no_threads,
 		&j_key,
 		&proto,
-		&port,
+		&opt_port,
 		&publish_domain,
 		&level,
 		&logpath,
@@ -62,9 +62,12 @@ int main(int argc, char **argv)
 
 	char addr[500];
 	uint16_t tmp;
-	for (int i=0; i < cloud_size; i++) {
-
-		int port = 3000 + i;
+	int port = 3000;
+	if (opt_port != NULL) {
+		port = atoi(opt_port);
+	}
+	for (int i=0; i < cloud_size; i++) {	
+		port += i;
 		struct np_settings * settings = np_new_settings(NULL);		
 		settings->n_threads = no_threads;
 
@@ -89,10 +92,12 @@ int main(int argc, char **argv)
 			__np_example_helper_loop(nodes[i]);			
 		}
 		else {
-			example_http_server_init(nodes[i], NULL, np_sysinfo_opt_force_client);
+		   example_http_server_init(nodes[i], NULL, np_sysinfo_opt_force_client);
 		}
 	}
-
+	if (j_key != NULL) {
+		np_join(nodes[0], j_key);
+	}
 	int iteration = 0;
 	while (true)
 	{
@@ -102,7 +107,10 @@ int main(int argc, char **argv)
 				np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not run. %s\n", i, np_error_str[tmp]);
 			}
 			else {
-				if (i == 0) __np_example_helper_loop(nodes[i]);
+				if (i == 0) {
+					__np_example_helper_loop(nodes[i]);
+					// TODO: propagate shutdown
+				}
 				if (i > 0 && iteration < cloud_size && !np_has_joined(nodes[i - 1])) {
 					// get connection str of previous node
 					if (np_ok != (tmp = np_get_address(nodes[i - 1], addr, SIZE(addr)))) {
@@ -124,8 +132,8 @@ int main(int argc, char **argv)
 				}
 			}
 		}
+		np_time_sleep(0.00005); // slow down
 	}
 
 	np_example_print(nodes[0], stderr, "!!! DONE WITH EVERYTHING !!!");
-
 }

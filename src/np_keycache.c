@@ -61,7 +61,7 @@ np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhk
 		if (NULL == key)
 		{
 			key = _np_keycache_create(context, search_dhkey);
-			ref_replace_reason(np_key_t, key, "_np_keycache_create", __func__);
+			ref_replace_reason(np_key_t, key, "_np_keycache_create", FUNC);
 		}
 		else {
 			np_ref_obj(np_key_t, key);
@@ -81,7 +81,7 @@ np_key_t* _np_keycache_create(np_state_t* context, np_dhkey_t search_dhkey)
 	key->dhkey = search_dhkey;
 	key->last_update = np_time_now();
 
-	ref_replace_reason(np_key_t, key, ref_obj_creation, __func__);
+	ref_replace_reason(np_key_t, key, ref_obj_creation, FUNC);
 	_np_keycache_add(key);
 	
 	return key;

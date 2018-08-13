@@ -157,7 +157,7 @@ np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type
     np_memory_register_type(context, np_memory_types_BLOB_1024, 1024, 4, 4, NULL, NULL, np_memory_clear_space);
     np_memory_register_type(context, np_memory_types_BLOB_984_RANDOMIZED, 984, 4, 200, NULL, NULL, np_memory_randomize_space);
 
-	return true;
+    return true;
 }
 
 void __np_memory_space_increase(np_memory_container_t* container, uint32_t block_size) {
@@ -175,7 +175,7 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
         conf->needs_refresh = true;
         conf->ref_count = 0;		
         char* tmp  = conf->id;
-        np_uuid_create(__func__, 0, &tmp);
+        np_uuid_create(FUNC, 0, &tmp);
         log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_Inc_    (%"PRIu32") object of type \"%s\" on %s", conf->ref_count, np_memory_types_str[container->type], conf->id);
 
         conf->persistent = false;
@@ -270,7 +270,7 @@ bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
 #if NP_MEMORY_CHECK_MEMORY_REFFING
             char* old;
             char* tmp = old =  config->id;
-            np_uuid_create(__func__, 0, &tmp);
+            np_uuid_create(FUNC, 0, &tmp);
             log_debug_msg(LOG_DEBUG | LOG_MEMORY, "Memory obj %s is now refreshed and changed id to %s", old, tmp);
             sll_clear(char_ptr, config->reasons);
 #endif 
@@ -670,10 +670,14 @@ void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
             sll_next(iter_reason);
         }
         if (false == foundReason) {
-            log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ", reason, config->id, config->container->type, sll_size(config->reasons), _sll_char_make_flat(context, config->reasons));
+            char* flat = _sll_char_make_flat(context, config->reasons);
+            log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ", reason, config->id, config->container->type, sll_size(config->reasons), flat);
+            free(flat);
             abort();
         }
-        log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_UnRef_  (%"PRIu32") object of type \"%s\" on %s with \"%s\" (%s)", config->ref_count, np_memory_types_str[config->container->type], config->id, reason, _sll_char_make_flat(context, config->reasons));
+        char * flat = _sll_char_make_flat(context, config->reasons);
+        log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_UnRef_  (%"PRIu32") object of type \"%s\" on %s with \"%s\" (%s)", config->ref_count, np_memory_types_str[config->container->type], config->id, reason, flat);
+        free(flat);
 #endif
 
     }
@@ -698,8 +702,8 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
     {
         np_memory_container_t* container = np_module(memory)->__np_memory_container[memory_type];
 
-		summary[container->type] = fmax(summary[container->type], container->current_in_use);
-		
+        summary[container->type] = fmax(summary[container->type], container->current_in_use);
+
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING		
         if (true == extended
             && (
@@ -713,8 +717,8 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
                 {
                     np_memory_itemconf_ptr iter = iter_items->val;
                     _TRYLOCK_ACCESS(&iter->access_lock) {
-						
-                        summary[container->type] = fmax(summary[container->type * 100], sll_size(iter->reasons));
+
+                        summary[container->type] = fmax(summary[container->type * 100], iter->ref_count);
 
                         if (sll_size(iter->reasons) > 10) {
                             ret = np_str_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, memory_type, sll_size(iter->reasons), new_line);
@@ -755,27 +759,27 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
             }
         }
 #endif
-
-
-        if (true == extended) {
-#ifndef NP_MEMORY_CHECK_MEMORY_REFFING
-            ret = np_str_concatAndFree(ret, "NO DATA. Compile with NP_MEMORY_CHECK_MEMORY_REFFING %s", new_line);
-#endif
-            ret = np_str_concatAndFree(ret, "--- extended reasons end  ---%s", new_line);
-        }
     }
-	if(asOneLine)
-		ret = np_str_concatAndFree(ret, "--- memory summary---%s", new_line);
 
-	ret = np_str_concatAndFree(ret, "%20s |  count  | max ref%s", "name", new_line);
+    if (true == extended) {
+#ifndef NP_MEMORY_CHECK_MEMORY_REFFING
+        ret = np_str_concatAndFree(ret, "NO DATA. Compile with NP_MEMORY_CHECK_MEMORY_REFFING %s", new_line);
+#endif
+        ret = np_str_concatAndFree(ret, "--- extended reasons end  ---%s", new_line);
+    }
+    
+    if(asOneLine)
+        ret = np_str_concatAndFree(ret, "--- memory summary---%s", new_line);
+
+    ret = np_str_concatAndFree(ret, "%20s |  count  | max ref%s", "name", new_line);
 
     for (int memory_type = 0; memory_type < np_memory_types_MAX_TYPE; memory_type++)
     {
         ret = np_str_concatAndFree(ret, "%20s | %7"PRIu32" | %7"PRIu32"%s", np_memory_types_str[memory_type], summary[memory_type], summary[100 * memory_type], new_line);
     }
 
-	if (asOneLine)
-		ret = np_str_concatAndFree(ret, "--- memory end ---%s", new_line);
+    if (asOneLine)
+        ret = np_str_concatAndFree(ret, "--- memory end ---%s", new_line);
 
     return (ret);
 }
@@ -810,9 +814,11 @@ void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason
             }
             if (false == foundReason)
             {
+                char * flat = _sll_char_make_flat(context, config->reasons);
                 log_msg(LOG_ERROR,
                     "Reason switch on object (%s; t: %s) \"%s\" to \"%s\" not possible! Reason not found. (left reasons(%d): %s)",
-                    config->id, np_memory_types_str[config->container->type], old_reason, new_reason, config->ref_count, _sll_char_make_flat(context, config->reasons));
+                    config->id, np_memory_types_str[config->container->type], old_reason, new_reason, config->ref_count, flat);
+                free(flat);
                 abort();
             }
             else {
@@ -835,7 +841,9 @@ void np_memory_ref_obj(void* item, char* reason, char* reason_desc) {
     _LOCK_ACCESS(&config->access_lock) {
         np_mem_refobj(item, reason2); 
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
-		log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_Ref_    (%"PRIu32") object of type \"%s\" on %s with \"%s\" (%s)", config->ref_count, np_memory_types_str[config->container->type], config->id, reason, _sll_char_make_flat(context, config->reasons));		
+        char * flat = _sll_char_make_flat(context, config->reasons);
+        log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_Ref_    (%"PRIu32") object of type \"%s\" on %s with \"%s\" (%s)", config->ref_count, np_memory_types_str[config->container->type], config->id, reason, flat);		
+        free(flat);
 #endif
     }
 
@@ -874,7 +882,9 @@ bool np_memory_tryref_obj(void* item, char* reason, char* reason_desc) {
             np_mem_refobj(item, reason2);
             ret = true;
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
-            log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_TryRef_ (%"PRIu32") object of type \"%s\" on %s with \"%s\" (%s)", config->ref_count, np_memory_types_str[config->container->type], config->id, reason, _sll_char_make_flat(context, config->reasons));
+            char* flat = _sll_char_make_flat(context, config->reasons);
+            log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_TryRef_ (%"PRIu32") object of type \"%s\" on %s with \"%s\" (%s)", config->ref_count, np_memory_types_str[config->container->type], config->id, reason, flat);
+            free(flat);
 #endif
 
         }

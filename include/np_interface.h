@@ -228,7 +228,10 @@ extern "C" {
 	enum np_status np_get_status(np_context* ac);
 	NP_API_EXPORT
 	bool np_has_receiver_for(np_context*ac, char * subject);
-
+	NP_API_EXPORT
+	void np_id2str(const np_id* k, char* key_string);
+	NP_API_EXPORT
+	void np_str2id(const char* key_string, np_id* k);
 #ifdef __cplusplus
 }
 #endif

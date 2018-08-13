@@ -96,18 +96,27 @@ extern "C" {
 					container->name, min_v, avg_v, max_v, stddev_v, container->hit_count,container->durations_count);			\
 			}																													\
 		}
+
+#ifdef DEBUG_CALLBACKS																											
+#define ___NP_PERFORMANCE_GET_POINTS_STR(STR)
+	char * stats = __np_util_debug_statistics_print(context);																\
+	STR = np_str_concatAndFree(STR, stats);																					\
+	free(stats);																											
+#else
+#define ___NP_PERFORMANCE_GET_POINTS_STR(STR) ;
+#endif
+
+
 #define NP_PERFORMANCE_GET_POINTS_STR(STR) 																						\
 	char* STR = NULL;																											\
 	{																															\
 		STR = np_str_concatAndFree(STR,																							\
 				"%30s --> %8s / %8s / %8s / %8s / %10s / %10s \n", "name", "min", "avg", "max", "stddev", "hits", "completed");	\
 		for (int i = 0; i < np_statistics_performance_point_END; i++) {															\
-			np_statistics_performance_point_t* container = np_module(statistics)->performance_points[i];					\
+			np_statistics_performance_point_t* container = np_module(statistics)->performance_points[i];						\
 			__NP_PERFORMANCE_GET_POINTS_STR_CONTAINER(STR, container);															\
 		}																														\
-		char * stats = __np_util_debug_statistics_print(context);																\
-		STR = np_str_concatAndFree(STR, stats);																					\
-		free(stats);																											\
+		___NP_PERFORMANCE_GET_POINTS_STR(STR)																					\
 	}																															
 #else																														
 #define NP_PERFORMANCE_POINT_START(name)

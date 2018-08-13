@@ -149,19 +149,19 @@ void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);
 
 	// convenience function like wrappers
 #define np_ref_obj(...) VFUNC(np_ref_obj, __VA_ARGS__)
-#define np_ref_obj2(TYPE, np_obj) np_ref_obj3(TYPE, np_obj, __func__)
+#define np_ref_obj2(TYPE, np_obj) np_ref_obj3(TYPE, np_obj, FUNC)
 #define np_ref_obj3(TYPE, np_obj, reason) np_ref_obj4(TYPE, np_obj, reason,"")
 #define np_ref_obj4(TYPE, np_obj, reason, reason_desc)              																									\
 	np_memory_ref_obj(np_obj, reason, reason_desc) 
 
 #define np_tryref_obj(...) VFUNC(np_tryref_obj, __VA_ARGS__)
-#define np_tryref_obj3(TYPE, np_obj, ret) np_tryref_obj4(TYPE, np_obj, ret,__func__)
+#define np_tryref_obj3(TYPE, np_obj, ret) np_tryref_obj4(TYPE, np_obj, ret,FUNC)
 #define np_tryref_obj4(TYPE, np_obj, ret, reason) np_tryref_obj5(TYPE, np_obj, ret, reason,"")
 #define np_tryref_obj5(TYPE, np_obj, ret, reason, reason_desc)      																									\
 bool ret = np_memory_tryref_obj(np_obj, reason, reason_desc);
 
 #define np_waitref_obj(...) VFUNC(np_waitref_obj, __VA_ARGS__)
-#define np_waitref_obj3(TYPE, np_obj, saveTo) np_waitref_obj4(TYPE, np_obj, saveTo, __func__)
+#define np_waitref_obj3(TYPE, np_obj, saveTo) np_waitref_obj4(TYPE, np_obj, saveTo, FUNC)
 #define np_waitref_obj4(TYPE, np_obj, saveTo, reason) np_waitref_obj5(TYPE, np_obj, saveTo, reason,"")
 #define np_waitref_obj5(TYPE, np_obj, saveTo, reason, reason_desc)    																				\
 	TYPE* saveTo = (TYPE*) np_memory_waitref_obj(np_obj, reason, reason_desc);																		

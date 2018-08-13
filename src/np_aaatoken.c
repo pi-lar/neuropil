@@ -115,8 +115,8 @@ void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node
 		np_dhkey_t tmp_dhkey1 = np_aaatoken_get_fingerprint(key_with_core_token->aaa_token);
 		np_dhkey_t tmp_dhkey2 = np_aaatoken_get_fingerprint(full_token);
 
-		_np_dhkey_to_str(&tmp_dhkey1, tmp_hash1);
-		_np_dhkey_to_str(&tmp_dhkey2, tmp_hash2);
+		np_id2str(&tmp_dhkey1, tmp_hash1);
+		np_id2str(&tmp_dhkey2, tmp_hash2);
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "signature: upgrade token (%s) %p with data from (%s) %p", tmp_hash1, key_with_core_token->aaa_token, tmp_hash2, full_token);
 
 #endif // DEBUG
@@ -329,7 +329,7 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self)
  	np_dhkey_t ret;
 
 	// if (FLAG_CMP(self->type, np_aaatoken_type_handshake)) {
-	// 	_np_dhkey_from_str( self->issuer, &ret);
+	// 	np_str2id( self->issuer, &ret);
 	// }else{
 
 		// build a hash to find a place in the dhkey table, not for signing !
@@ -701,7 +701,7 @@ np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 			else
 			{
 				token->state = ret->state;
-				np_ref_obj(np_aaatoken_t, ret, __func__);
+				np_ref_obj(np_aaatoken_t, ret, FUNC);
 				np_unref_obj(np_aaatoken_t, ret,"send_tokens");
 			}
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
@@ -837,7 +837,7 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
 	{
 #ifdef DEBUG
 		char sender_dhkey_as_str[65];
-		_np_dhkey_to_str(sender_dhkey, sender_dhkey_as_str);
+		np_id2str(sender_dhkey, sender_dhkey_as_str);
 #endif
 
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step1._np_aaatoken_get_sender_token %d / %s", pll_size(subject_key->send_tokens), subject);
@@ -979,7 +979,7 @@ np_aaatoken_t *_np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 			else
 			{
 				token->state = ret->state;
-				np_ref_obj(np_aaatoken_t, ret, __func__);
+				np_ref_obj(np_aaatoken_t, ret, FUNC);
 				np_unref_obj(np_aaatoken_t, ret,"recv_tokens");
 			}
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
@@ -1042,7 +1042,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(np_state_t* context, const char* const 
 #ifdef DEBUG
 		if(NULL != target) {
 			char targetnode_str[65];
-			_np_dhkey_to_str(target, targetnode_str);
+			np_id2str(target, targetnode_str);
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "searching token for %s ", targetnode_str);
 		}
 #endif
@@ -1373,7 +1373,7 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
 		ret = ele->val.value.dhkey;
 	}
 	else {
-		_np_dhkey_from_str( self->issuer, &ret);
+		np_str2id( self->issuer, &ret);
 	}
 
 	return ret;
@@ -1390,7 +1390,7 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 		// prevent fingerprint recursion
 		char my_token_fp_s[65];
 		np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee);
-		_np_dhkey_to_str(&my_token_fp, my_token_fp_s);
+		np_id2str(&my_token_fp, my_token_fp_s);
 		strncpy(self->issuer, my_token_fp_s, 65);
 		self->issuer_token = signee;
 	}

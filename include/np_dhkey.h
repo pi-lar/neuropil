@@ -75,14 +75,6 @@ uint16_t _np_dhkey_index (const np_dhkey_t* mykey, const np_dhkey_t* k) NP_CONST
 NP_API_INTERN
 uint8_t _np_dhkey_hexalpha_at (np_state_t* context, const np_dhkey_t* key, const int8_t c) NP_CONST;
 
-// scan a key string to its struct representation
-NP_API_INTERN
-void _np_dhkey_from_str(const char *dhkey_string, np_dhkey_t *k);
-
-// always use this function to get the string representation of a key
-NP_API_INTERN
-void _np_dhkey_to_str (const np_dhkey_t * k, char* str);
-
 NP_API_INTERN
 void _dhkey_print (np_dhkey_t* k) NP_CONST;
 

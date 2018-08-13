@@ -44,7 +44,6 @@ np_module_struct(threads) {
 	pthread_key_t  __pthread_thread_ptr_key;
 
 	pthread_attr_t attr;
-	pthread_t* thread_ids;
 
 	
 	TSP(np_sll_type(np_thread_ptr), threads);
@@ -618,8 +617,8 @@ char* np_threads_printpool(np_state_t* context, bool asOneLine) {
 
 void _np_thread_run(np_thread_t * thread) {
 	np_ctx_memory(thread);
-    pthread_create(&np_module(threads)->thread_ids[thread->idx], &np_module(threads)->attr, thread->run_fn, (void *)thread);
-    thread->id = (unsigned long)np_module(threads)->thread_ids[thread->idx];
+    pthread_create(thread->thread_id, &np_module(threads)->attr, thread->run_fn, (void *)thread);
+    thread->id = (unsigned long)thread->thread_id;
 }
 
 np_thread_t * __np_createThread(np_state_t* context, uint8_t number, void *(fn)(void *), bool auto_run, enum np_thread_type_e type) {
@@ -628,6 +627,8 @@ np_thread_t * __np_createThread(np_state_t* context, uint8_t number, void *(fn)(
     new_thread->idx = number;
     new_thread->run_fn = fn;
     new_thread->thread_type = type;
+	new_thread->thread_id = malloc(sizeof(pthread_t));
+	CHECK_MALLOC(new_thread->thread_id);
 
 	//TSP_SCOPE(np_module(threads)->threads) cannot be used due to recusion
 	if (0 == pthread_mutex_lock(&np_module(threads)->threads_mutex.lock))
@@ -667,7 +668,7 @@ void __np_createWorkerPool(np_state_t* context, uint8_t pool_size) {
         _np_jobqueue_add_worker_thread(new_thread);
         _np_thread_run(new_thread);
 
-        log_debug_msg(LOG_THREADS |LOG_DEBUG, "neuropil worker thread started: %p", np_module(threads)->thread_ids[i]);
+        log_debug_msg(LOG_THREADS |LOG_DEBUG, "neuropil worker thread started: %d", new_thread->id);
     }
 }
 
@@ -701,10 +702,7 @@ void np_threads_start_workers(np_state_t* context, uint8_t pool_size)
 
     context->thread_count += pool_size;
     uint8_t worker_threads = ((int)pool_size/2) + 1;
-
-	np_module(threads)->thread_ids = (pthread_t *)malloc(sizeof(pthread_t) * context->thread_count);
-    CHECK_MALLOC(np_module(threads)->thread_ids);
-
+	 
     _LOCK_MODULE(np_jobqueue_t)
     {
         // start jobs

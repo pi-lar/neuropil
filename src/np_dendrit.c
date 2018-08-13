@@ -209,7 +209,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
             CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
             CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
             
-            _np_dhkey_to_str(&msg_from.value.dhkey, str_msg_from);
+            np_id2str(&msg_from.value.dhkey, str_msg_from);
             str_msg_subject = msg_subject.value.s;
                         
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
@@ -248,7 +248,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                 CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
                 CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_SEND_COUNTER, msg_resendcounter);
 
-                _np_dhkey_to_str(&msg_to.value.dhkey, str_msg_to);
+                np_id2str(&msg_to.value.dhkey, str_msg_to);
 
                 log_debug_msg(LOG_ROUTING | LOG_DEBUG,
                     "msg (%s) target of message for subject: %s from: %s is: %s",
@@ -402,7 +402,7 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
 
     np_ctx_memory(msg_to_submit);
 
-    np_waitref_obj(np_key_t, context->my_node_key, my_key, __func__);
+    np_waitref_obj(np_key_t, context->my_node_key, my_key, FUNC);
 
     CHECK_STR_FIELD(msg_to_submit->instructions, _NP_MSG_INST_ACK, msg_ack);
 
@@ -436,7 +436,7 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
     }
 
     __np_cleanup__:
-        np_unref_obj(np_key_t, my_key, __func__);
+        np_unref_obj(np_key_t, my_key, FUNC);
 }
 
 /**
@@ -704,7 +704,7 @@ void _np_in_leave_req(np_state_t* context, np_jobargs_t* args)
 
                 _np_key_destroy(leave_req_key);
             }
-            np_unref_obj(np_key_t, leave_req_key, "_np_key_create_from_token");
+            np_unref_obj(np_key_t, leave_req_key, "_np_keycache_find");
         }
         
     }
@@ -1097,7 +1097,7 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t* args)
     my_key->node->joined_network = true;
 
     __np_cleanup__:
-    np_unref_obj(np_key_t, my_key, __func__);
+    np_unref_obj(np_key_t, my_key, FUNC);
     np_unref_obj(np_aaatoken_t, join_token, "np_token_factory_read_from_tree");
 
     // __np_return__:
@@ -1217,8 +1217,8 @@ void __np_in_ack_handle(np_message_t * msg)
     np_unref_obj(np_responsecontainer_t, entry, "_np_responsecontainers_get_by_uuid");
 
     __np_cleanup__:
-    np_unref_obj(np_network_t, my_network,__func__);
-    np_unref_obj(np_key_t, my_key, __func__);
+    np_unref_obj(np_network_t, my_network,FUNC);
+    np_unref_obj(np_key_t, my_key, FUNC);
 }
 
 void _np_in_ack(np_state_t * context, np_jobargs_t* args)
@@ -1541,7 +1541,7 @@ void _np_in_discover_receiver(np_state_t * context, np_jobargs_t* args)
         np_dhkey_t reply_to_key = msg_reply_to.value.dhkey;
 #ifdef DEBUG
         char reply_to_dhkey_as_str[64];
-        _np_dhkey_to_str(&reply_to_key, reply_to_dhkey_as_str);
+        np_id2str(&reply_to_key, reply_to_dhkey_as_str);
 #endif
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -1566,7 +1566,7 @@ void _np_in_discover_receiver(np_state_t * context, np_jobargs_t* args)
         np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
 
     __np_cleanup__:
-        np_unref_obj(np_message_t, msg_in, __func__);
+        np_unref_obj(np_message_t, msg_in, FUNC);
         np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
     }
     // __np_return__:
@@ -1650,7 +1650,7 @@ void _np_in_authenticate(np_state_t* context, np_jobargs_t* args)
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
 #ifdef DEBUG
         char reply_to_dhkey_as_str[64];
-        _np_dhkey_to_str(&reply_to_key, reply_to_dhkey_as_str);
+        np_id2str(&reply_to_key, reply_to_dhkey_as_str);
 #endif
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -1829,7 +1829,7 @@ void _np_in_authorize(np_state_t * context, np_jobargs_t* args)
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
 #ifdef DEBUG
         char reply_to_dhkey_as_str[64];
-        _np_dhkey_to_str(&reply_to_key, reply_to_dhkey_as_str);
+        np_id2str(&reply_to_key, reply_to_dhkey_as_str);
 #endif
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -2049,7 +2049,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
 
         // store the handshake data in the node cache,
         np_dhkey_t search_key = { 0 };
-        _np_dhkey_from_str(handshake_token->issuer, &search_key);		
+        np_str2id(handshake_token->issuer, &search_key);		
 
         if (_np_dhkey_cmp(&context->my_node_key->dhkey, &search_key) == 0) {
             log_msg(LOG_ERROR, "Cannot perform a handshake with myself!");

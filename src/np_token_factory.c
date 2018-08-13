@@ -58,7 +58,7 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
 	/// end of contract
 
 	// create token
-	np_new_obj(np_aaatoken_t, ret, __func__);
+	np_new_obj(np_aaatoken_t, ret, FUNC);
 
 	strncpy(ret->realm, source->realm, 255);
 	strncpy(ret->issuer, source->issuer, 65);
@@ -106,7 +106,7 @@ np_ident_public_token_t* np_token_factory_get_public_ident_token(np_aaatoken_t* 
 	ret = __np_token_factory_derive(source, np_aaatoken_scope_public);
 	ret->type = np_aaatoken_type_identity;
 
-	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", __func__);
+	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
 	return ret;
 }
 
@@ -119,7 +119,7 @@ np_node_public_token_t* np_token_factory_get_public_node_token(np_aaatoken_t* so
 	ret = __np_token_factory_derive(source, np_aaatoken_scope_public);
 	ret->type = np_aaatoken_type_node;
 
-	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", __func__);
+	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
 	_np_aaatoken_trace_info("build_node", ret);
 	return ret;
 }
@@ -127,7 +127,7 @@ np_node_public_token_t* np_token_factory_get_public_node_token(np_aaatoken_t* so
 np_aaatoken_t* __np_token_factory_new(np_state_t* context,char issuer[64], char node_subject[255], double expires_at)
 {
 	np_aaatoken_t* ret = NULL;
-	np_new_obj(np_aaatoken_t, ret, __func__);
+	np_new_obj(np_aaatoken_t, ret, FUNC);
 
 
 	// create token
@@ -155,7 +155,7 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 	ASSERT(msg_request != NULL, "source messageproperty cannot be NULL");
 
 	np_state_t* state = context;
-	np_new_obj(np_aaatoken_t, ret, __func__);
+	np_new_obj(np_aaatoken_t, ret, FUNC);
 
 	char msg_id_subject[255];
 	snprintf(msg_id_subject, 255, _NP_URN_MSG_PREFIX"%s", msg_request->msg_subject);
@@ -243,7 +243,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 #endif
 
 	np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(my_node_token);
-	_np_dhkey_to_str(&node_dhkey, ret->issuer);
+	np_id2str(&node_dhkey, ret->issuer);
 
 	// create and handshake session data
 	// convert to curve key
@@ -262,16 +262,16 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 #ifdef DEBUG
 	char my_token_fp_s[255] = { 0 };
 	np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(ret);
-	_np_dhkey_to_str(&my_token_fp, my_token_fp_s);
+	np_id2str(&my_token_fp, my_token_fp_s);
 	log_debug_msg(LOG_DEBUG, "new handshake token fp: %s from node: %s", my_token_fp_s, _np_key_as_str(my_node_key));
 	// ASSERT(strcmp(my_token_fp_s, _np_key_as_str(my_node_key)) == 0, "Node key and handshake partner key has to be the same");
 #endif // DEBUG
 
 	// if (!_np_aaatoken_is_valid(ret, np_aaatoken_type_handshake)) exit(0);
 
-	np_unref_obj(np_aaatoken_t, my_node_token, __func__);
-	np_unref_obj(np_key_t, my_node_key, __func__);
-	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", __func__);
+	np_unref_obj(np_aaatoken_t, my_node_token, FUNC);
+	np_unref_obj(np_key_t, my_node_key, FUNC);
+	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
 
 	_np_aaatoken_trace_info("build_handshake", ret);
 
@@ -301,7 +301,7 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* source_node
 	_np_aaatoken_set_signature(ret, ret);
 	_np_aaatoken_update_extensions_signature(ret, ret);
 
-	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", __func__);
+	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", FUNC);
 
 	#ifdef DEBUG
 	char sk_hex[crypto_sign_SECRETKEYBYTES * 2 + 1];
@@ -329,7 +329,7 @@ np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* contex
 	_np_aaatoken_set_signature(ret, ret);
 	_np_aaatoken_update_extensions_signature(ret, ret);
 
-	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", __func__);
+	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", FUNC);
 
 	_np_aaatoken_trace_info("build_ident", ret);
 
@@ -339,7 +339,7 @@ np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* contex
 np_aaatoken_t* np_token_factory_read_from_tree(np_state_t* context, np_tree_t* tree) {
 	np_aaatoken_t* ret = NULL;
 	bool ok = false;
-	np_new_obj(np_aaatoken_t, ret, __func__);
+	np_new_obj(np_aaatoken_t, ret, FUNC);
 	if (np_aaatoken_decode(tree, ret)) {
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "imported token %s (type: %"PRIu8") from tree %p", ret->uuid, ret->type, tree);
 
@@ -353,7 +353,7 @@ np_aaatoken_t* np_token_factory_read_from_tree(np_state_t* context, np_tree_t* t
 		_np_aaatoken_trace_info("in_OK", ret);
 	}else{
 		_np_aaatoken_trace_info("in_NOK", ret);
-		np_unref_obj(np_aaatoken_t, ret, __func__);
+		np_unref_obj(np_aaatoken_t, ret, FUNC);
 		ret = NULL;
 	}
 	return ret;

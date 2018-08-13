@@ -24,9 +24,9 @@ extern "C" {
 	 - NP_STATISTICS_COUNTER			enables the statistics (in/out bytes, forwarding counter) statistics
 */
 #ifdef DEBUG
-	#define DEBUG_CALLBACKS 1
-	//#define NP_MEMORY_CHECK_MEMORY_REFFING 1
-	#define NP_THREADS_CHECK_THREADING 1
+	//#define DEBUG_CALLBACKS 1
+	#define NP_MEMORY_CHECK_MEMORY_REFFING 1
+	//#define NP_THREADS_CHECK_THREADING 1
 	#define NP_BENCHMARKING 4096
 	#define NP_STATISTICS_COUNTER
 #endif // DEBUG

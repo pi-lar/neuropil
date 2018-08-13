@@ -41,6 +41,7 @@
 // generate new and del method for np_node_t
 // _NP_GENERATE_MEMORY_PROTOTYPES(np_http_t);
 
+
 enum http_return_e {
 	HTTP_NO_RESPONSE = 0,
 	HTTP_CODE_CONTINUE,
@@ -458,7 +459,7 @@ void _np_http_handle_sysinfo(np_state_t* context , np_http_client_t* client)
         }
         np_tree_free( sysinfo);
 
-        np_unref_obj(np_key_t, key, __func__);
+        np_unref_obj(np_key_t, key, FUNC);
     }
     else {
         http_status = HTTP_CODE_SERVICE_UNAVAILABLE;
@@ -475,7 +476,7 @@ __json_return__:
         json_obj = _np_generate_error_json("Unknown Error",
             "no response defined");
     }
-    response = np_json2char(json_obj, true);
+    response = np_json2char(json_obj, false);
     log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response should be (strlen: %lu):",
         strlen(response));
     json_value_free(json_obj);
@@ -493,7 +494,6 @@ __json_return__:
         "Access-Control-Allow-Methods", np_treeval_new_s("GET"));
     client->ht_response.cleanup_body = true;
     client->status = RESPONSE;
-
 }
 
 void _np_http_write_callback(struct ev_loop* loop,
@@ -730,7 +730,26 @@ NP_UNUSED int event_type) {
         log_debug_msg(LOG_HTTP | LOG_DEBUG, "http connection attempt not accepted");
     }
 }
+void np_http_deinit(np_state_t* context) {
+	EV_P = _np_event_get_loop_http(context);
+	_np_event_suspend_loop_http(context);
+	ev_io_stop(EV_A_&__local_http->network->watcher);
+	__local_http->network->watcher.data = NULL;
+	free(__local_http->hooks);
+	_np_network_disable(__local_http->network);
+	np_unref_obj(np_network_t, __local_http->network, ref_obj_creation);
 
+	sll_iterator(np_http_client_ptr) client = sll_first(__local_http->clients);
+	while (client != NULL) {
+		close(client->val->client_fd);
+		free(client->val);
+		sll_next(client);
+	}
+
+	sll_free(np_http_client_ptr, __local_http->clients);
+	free(__local_http);
+	_np_event_resume_loop_http(context);
+}
 bool np_http_init(np_state_t* context, char* domain) {
  
     if (domain == NULL) {
@@ -834,9 +853,12 @@ void _np_http_destroy(np_state_t* context) {
 
     np_unref_obj(np_network_t, __local_http->network,"np_http_init");
 }
+void example_http_server_deinit(np_context* context) {
+	np_http_deinit(context);
+}
 
-void example_http_server_init(np_context* context, char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
-	bool http_init = false;
+bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
+	bool ret = false;
 	if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
 		if (http_domain == NULL) {
 			http_domain = calloc(1, sizeof(char) * 255);
@@ -846,13 +868,13 @@ void example_http_server_init(np_context* context, char* http_domain, np_sysinfo
 				http_domain = NULL;
 			}
 		}
-		http_init = np_http_init(context, http_domain);
-		if (http_init == false) {
+		ret = np_http_init(context, http_domain);
+		if (ret == false) {
 			log_msg(LOG_WARN, "Node could not start HTTP interface");
 		}
 	}
 	if (opt_sysinfo_mode != np_sysinfo_opt_disable) {
-		if ((http_init && opt_sysinfo_mode == np_sysinfo_opt_auto) || opt_sysinfo_mode == np_sysinfo_opt_force_server)
+		if ((ret && opt_sysinfo_mode == np_sysinfo_opt_auto) || opt_sysinfo_mode == np_sysinfo_opt_force_server)
 		{
 			np_example_print(context, stdout, "HTTP interface set to %s\n", http_domain);
 			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
@@ -874,4 +896,6 @@ void example_http_server_init(np_context* context, char* http_domain, np_sysinfo
 		np_statistics_add_watch_internals(context);
 
 	}
+
+	return ret;
 }

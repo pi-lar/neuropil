@@ -134,6 +134,7 @@ struct np_thread_s
 	np_job_t* job;
 	enum np_thread_type_e thread_type;
 
+	pthread_t* thread_id;
 
 #ifdef NP_THREADS_CHECK_THREADING
 	np_mutex_t locklists_lock;
@@ -216,7 +217,7 @@ NAME##_ts.tv_sec = NAME##_tv.tv_sec + fmin(MUTEX_WAIT_MAX_SEC - ELAPSED_TIME, MU
 #define __LOCK_ACCESS_W_PREFIX(prefix, obj, lock_type)																						\
 	np_mutex_t* TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)) = obj;																		\
 	for(uint8_t TOKENPASTE2(prefix,__LINE__)=0; 																										\
-		(TOKENPASTE2(prefix,__LINE__) < 1) && 0 == _np_threads_mutex_##lock_type##lock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)),__func__);		\
+		(TOKENPASTE2(prefix,__LINE__) < 1) && 0 == _np_threads_mutex_##lock_type##lock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)),FUNC);		\
 		_np_threads_mutex_unlock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__))), TOKENPASTE2(prefix,__LINE__)++										\
 		)
 #define _LOCK_ACCESS(obj) __LOCK_ACCESS_W_PREFIX(TOKENPASTE2(default_prefix_, __COUNTER__), obj,)
@@ -235,7 +236,7 @@ _LOCK_ACCESS(&object->lock)
 }
 */
 
-#define _LOCK_MODULE(TYPE) for(uint8_t _LOCK_MODULE_i##__LINE__=0; (_LOCK_MODULE_i##__LINE__ < 1) && 0 == _np_threads_lock_module(context, TYPE##_lock,__func__); _np_threads_unlock_module(context, TYPE##_lock), _LOCK_MODULE_i##__LINE__++)
+#define _LOCK_MODULE(TYPE) for(uint8_t _LOCK_MODULE_i##__LINE__=0; (_LOCK_MODULE_i##__LINE__ < 1) && 0 == _np_threads_lock_module(context, TYPE##_lock,FUNC); _np_threads_unlock_module(context, TYPE##_lock), _LOCK_MODULE_i##__LINE__++)
 // protect access to a module in the rest of your code like this
 /*
 _LOCK_MODULE(np_keycache_t)

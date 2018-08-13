@@ -241,7 +241,7 @@ void _np_glia_send_pings(np_state_t* context, np_jobargs_t* args) {
 					_np_ping_send(context, iter->val);
 					np_time_sleep(NP_PI/1000);
 				}
-				np_unref_obj(np_node_t, iter->val->node, __func__);
+				np_unref_obj(np_node_t, iter->val->node, FUNC);
 			}
 		}
 		sll_next(iter);
@@ -332,7 +332,7 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t* ar
 			np_msgproperty_t* msg_prop = NULL;
 
 			np_dhkey_t target_dhkey = { 0 };
-			_np_dhkey_from_str( context->my_identity->aaa_token->realm, &target_dhkey);
+			np_str2id( context->my_identity->aaa_token->realm, &target_dhkey);
 
 			np_key_t* target = NULL;
 			target = _np_keycache_find_or_create(context, target_dhkey);
@@ -428,8 +428,8 @@ void _np_cleanup_ack_jobexec(np_state_t* context, np_jobargs_t* args)
 	}
 	sll_free(char_ptr, to_remove);
 
-	np_unref_obj(np_key_t, my_key, __func__);
-	np_unref_obj(np_network_t, my_network, __func__);
+	np_unref_obj(np_key_t, my_key, FUNC);
+	np_unref_obj(np_network_t, my_network, FUNC);
 }
 
 void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t* args)
@@ -620,7 +620,7 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
 		{
 			target_node_str = tmp_token->issuer;
 		}
-		_np_dhkey_from_str(target_node_str, &receiver_dhkey);
+		np_str2id(target_node_str, &receiver_dhkey);
 
 		if (_np_dhkey_cmp(&context->my_node_key->dhkey, &receiver_dhkey) == 0)
 		{

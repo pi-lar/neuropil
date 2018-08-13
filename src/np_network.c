@@ -462,8 +462,8 @@ void _np_network_send_from_events (struct ev_loop *loop, ev_io *event, int reven
 	// will only stop if queue is empty and a specific time has been lapsed
 	_np_network_stop(key_network, false);
 
-	np_unref_obj(np_key_t, key, __func__);
-	np_unref_obj(np_network_t,  key_network, __func__);
+	np_unref_obj(np_key_t, key, FUNC);
+	np_unref_obj(np_network_t,  key_network, FUNC);
 }
 
 void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
@@ -888,7 +888,7 @@ void _np_network_start(np_network_t* network){
 	if (NULL != network) {
 		np_ctx_memory(network);
 
-		np_ref_obj(np_network_t, network, __func__);
+		np_ref_obj(np_network_t, network, FUNC);
 		TSP_GET(bool, network->can_be_enabled, can_be_enabled);
 		if(can_be_enabled){
 			_LOCK_ACCESS(&network->out_events_lock) {
@@ -916,7 +916,7 @@ void _np_network_start(np_network_t* network){
 				}
 			}
 		}
-		np_unref_obj(np_network_t, network, __func__);
+		np_unref_obj(np_network_t, network, FUNC);
 	}
 }
 

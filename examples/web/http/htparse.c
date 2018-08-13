@@ -21,7 +21,7 @@
         struct tm * dm = localtime(&t);                                                              \
                                                                                                      \
         fprintf(stdout, "[%02d:%02d:%02d] htparse.c:[" _QUOTE(__LINE__) "]\t                %-26s: " \
-                fmt "\n", dm->tm_hour, dm->tm_min, dm->tm_sec, __func__, ## __VA_ARGS__);            \
+                fmt "\n", dm->tm_hour, dm->tm_min, dm->tm_sec, FUNC, ## __VA_ARGS__);            \
         fflush(stdout);                                                                              \
 } while (0)
 

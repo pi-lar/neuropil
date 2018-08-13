@@ -76,7 +76,7 @@ void np_job_submit_event(np_state_t* context, double priority, double delay, np_
 NP_API_INTERN
 	void _np_job_submit_msgout_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
 
-#define _np_job_submit_msgin_event(delay, prop, key, msg, custom_data) __np_job_submit_msgin_event(context, delay, prop, key, msg, custom_data, __func__)
+#define _np_job_submit_msgin_event(delay, prop, key, msg, custom_data) __np_job_submit_msgin_event(context, delay, prop, key, msg, custom_data, FUNC)
 NP_API_INTERN
 	bool __np_job_submit_msgin_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, const char* tmp);
 

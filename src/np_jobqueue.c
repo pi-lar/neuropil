@@ -112,9 +112,9 @@ np_jobargs_t* _np_job_create_args(np_state_t* context, np_message_t* msg, np_key
 	log_trace_msg(LOG_TRACE, "start: np_jobargs_t* _np_job_create_args(np_message_t* msg, np_key_t* key, np_msgproperty_t* prop){");
 
 	// optional parameters
-	if (NULL != msg)  np_ref_obj(np_message_t, msg, __func__, reason_desc);
-	if (NULL != key)  np_ref_obj(np_key_t, key, __func__, reason_desc);
-	if (NULL != prop) np_ref_obj(np_msgproperty_t, prop, __func__, reason_desc);
+	if (NULL != msg)  np_ref_obj(np_message_t, msg, FUNC, reason_desc);
+	if (NULL != key)  np_ref_obj(np_key_t, key, FUNC, reason_desc);
+	if (NULL != prop) np_ref_obj(np_msgproperty_t, prop, FUNC, reason_desc);
 
 	// create runtime arguments
 	np_jobargs_t* jargs = np_memory_new(context, np_memory_types_np_jobargs_t);
@@ -196,7 +196,7 @@ void _np_job_resubmit_msgout_event(np_state_t * context, double delay, np_msgpro
 	assert(NULL != prop);
 
 	// create runtime arguments
-	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, __func__);
+	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, FUNC);
 	jargs->is_resend = true;
 
 	// create job itself
@@ -210,7 +210,7 @@ void _np_job_resubmit_msgout_event(np_state_t * context, double delay, np_msgpro
 void _np_job_resubmit_msgin_event(np_state_t * context, double delay, np_jobargs_t* jargs_org)
 {
 	// create runtime arguments
-	np_jobargs_t* jargs = _np_job_create_args(context, jargs_org->msg, jargs_org->target, jargs_org->properties, __func__);
+	np_jobargs_t* jargs = _np_job_create_args(context, jargs_org->msg, jargs_org->target, jargs_org->properties, FUNC);
 	jargs->is_resend = true;
 	jargs->custom_data =  jargs_org->custom_data;
 	
@@ -227,7 +227,7 @@ void _np_job_resubmit_route_event(np_state_t * context, double delay, np_msgprop
 	assert(NULL != prop);
 
 	// create runtime arguments
-	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, __func__);
+	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, FUNC);
 	jargs->is_resend = true;
 
 	// create job itself
@@ -243,7 +243,7 @@ void _np_job_submit_route_event(np_state_t * context, double delay, np_msgproper
 	assert(NULL != prop);
 
 	// create runtime arguments
-	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, __func__);
+	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, FUNC);
 
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE, prop->clb_route, "clb_route");
@@ -286,7 +286,7 @@ void _np_job_submit_transform_event(np_state_t * context, double delay, np_msgpr
 	assert(NULL != prop);
 
 	// create runtime arguments
-	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, __func__);
+	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, FUNC);
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG, prop->clb_transform, "clb_transform");
 
@@ -302,7 +302,7 @@ void _np_job_submit_msgout_event(np_state_t * context, double delay, np_msgprope
 	assert(NULL != msg);
 
 	// create runtime arguments
-	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, __func__);
+	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, FUNC);
 
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_OUT, prop->clb_outbound, "clb_outbound");
@@ -461,11 +461,10 @@ double __np_jobqueue_run_jobs_once(np_state_t * context) {
 }
 void np_jobqueue_run_jobs_for(np_state_t * context, double duration)
 {
-	
 	double now = np_time_now();
 	double end = now + duration;
 	double sleep = 0;
-	while (end < now + sleep ) {
+	while (end > now + sleep ) {
 		if (sleep > 0)
 			np_time_sleep(sleep); 
 		
@@ -636,7 +635,7 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 	bool exec_funcs = true;
 	if (job_to_execute->args != NULL && job_to_execute->args->target != NULL) {
 		TSP_GET(bool, job_to_execute->args->target->in_destroy, in_destroy);
-		exec_funcs &= (in_destroy == false);
+		exec_funcs = (in_destroy == false);
 	}
 
 	if (exec_funcs) {

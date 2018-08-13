@@ -35,7 +35,7 @@ char* np_identity_fingerprint_current(np_context* ac) {
 	if( context->my_identity != NULL &&
 		context->my_identity->aaa_token != NULL) {
 		np_dhkey_t fp_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token);
-		_np_dhkey_to_str(&fp_dhkey, fp_str);
+		np_id2str(&fp_dhkey, fp_str);
 	}
 	return (fp_str);
 }
@@ -66,7 +66,7 @@ char* np_identity_fingerprint(np_context * ac, np_aaatoken_t* token) {
 	np_ctx_cast(ac);
 	char* fp_str = malloc(64);
 	np_dhkey_t fp_dhkey = np_aaatoken_get_fingerprint(token);
-	_np_dhkey_to_str(&fp_dhkey, fp_str);
+	np_id2str(&fp_dhkey, fp_str);
 	return (fp_str);
 }
 
@@ -87,7 +87,7 @@ np_aaatoken_t* np_identity_import(np_context* ac, void* buffer, size_t size) {
 	cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
 
 	if (np_tree_deserialize( context, serialization_tree, &cmp)) {
-		np_new_obj(np_aaatoken_t, ret, __func__);
+		np_new_obj(np_aaatoken_t, ret, FUNC);
 		np_aaatoken_decode_with_secrets(serialization_tree, ret);
 	}
 

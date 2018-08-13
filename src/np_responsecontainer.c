@@ -88,7 +88,7 @@ void _np_responsecontainer_received_response(np_responsecontainer_t* entry, np_m
 		}		
 	}
 
-	np_unref_obj(np_responsecontainer_t, entry, __func__);
+	np_unref_obj(np_responsecontainer_t, entry, FUNC);
 }
 
 bool _np_responsecontainer_is_fully_acked(np_responsecontainer_t* entry)
@@ -134,9 +134,9 @@ np_responsecontainer_t* _np_responsecontainers_get_by_uuid(np_state_t* context, 
 		if (jrb_node != NULL)
 		{
 			ret = (np_responsecontainer_t *)jrb_node->val.value.v;
-			np_ref_obj(np_responsecontainer_t, ret, __func__);
+			np_ref_obj(np_responsecontainer_t, ret, FUNC);
 		}
 	}
-	np_unref_obj(np_network_t, my_network, __func__);
+	np_unref_obj(np_network_t, my_network, FUNC);
 	return ret;
 }

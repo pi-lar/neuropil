@@ -32,46 +32,6 @@ static np_dhkey_t __dhkey_min;
 static np_dhkey_t __dhkey_half;
 static np_dhkey_t __dhkey_max;
 
-void _np_dhkey_to_str (const np_dhkey_t* k, char* key_string)
-{
-	// k->valid = false;
-
-	// log_msg(LOG_KEY | LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
-	// log_msg(LOG_KEY | LOG_WARN, "key %16lx%16lx%16lx%16lx", k->t[0], k->t[1], k->t[2], k->t[3]);
-
-	// TODO: use sodium bin2hex function
-	memset  (key_string, 0, 64);
-
-	sprintf (key_string,
-		"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32,
-		k->t[0], k->t[1], k->t[2], k->t[3], k->t[4], k->t[5], k->t[6], k->t[7]
-	);
-	key_string[64] = '\0';
-	// k->valid = true;
-	// log_debug_msg(LOG_KEY | LOG_DEBUG, "key string now: %s", k->keystr);
-}
-
-void _np_dhkey_from_str(const char* key_string, np_dhkey_t* k)
-{
-	// TODO: this is dangerous, encoding could be different between systems,
-	// encoding has to be send over the wire to be sure ...
-	// for now: all tests on the same system
-	// assert (64 == strlen((char*) key_string));
-
-	char substring[9];
-	substring[8] = '\0';
-	for (uint8_t i = 0; i < 8; i++)
-	{
-		memcpy(substring, key_string + i*8, 8);	
-		k->t[i] = strtoul((const char*) substring, NULL, 16);
-	}
-	/*
-	log_debug_msg(LOG_KEY | LOG_DEBUG,
-		"key %08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32, 
-		k->t[0], k->t[1], k->t[2], k->t[3], k->t[4], k->t[5], k->t[6], k->t[7]
-	);
-	*/
-}
 
 char* _np_dhkey_generate_hash (np_state_t* context, const char* key_in)
 {
@@ -118,7 +78,7 @@ np_dhkey_t np_dhkey_create_from_hash(const char* strOrig)
 {
 	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_create_from_hash(const char* strOrig){");
 	np_dhkey_t kResult = { 0 };
-	_np_dhkey_from_str( strOrig, &kResult);
+	np_str2id( strOrig, &kResult);
 	return kResult;
 }
 

@@ -90,13 +90,13 @@ void np_log_message(np_state_t* context, uint32_t level,
 
 #ifndef log_msg
 	#define log_msg(level, msg, ...) \
-		 np_log_message(context, level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
+		 np_log_message(context, level, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
 #endif
 
 #ifndef log_debug_msg
 	#ifdef DEBUG	
 		#define log_debug_msg(level, msg, ...) \
-				 np_log_message(context, level | LOG_DEBUG, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)	
+				 np_log_message(context, level | LOG_DEBUG, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	
 	#else
 		#define log_debug_msg(level, msg, ...)
 	#endif
@@ -105,7 +105,7 @@ void np_log_message(np_state_t* context, uint32_t level,
 #ifndef log_trace_msg
 	#ifdef TRACE
 	#define log_trace_msg(level, msg, ...) \
-				 np_log_message(context, LOG_TRACE| level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
+				 np_log_message(context, LOG_TRACE| level, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
 	#else
 		#define log_trace_msg(level, msg, ...)
 	#endif

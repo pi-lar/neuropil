@@ -127,7 +127,7 @@ bool receive_echo_message(np_context* context, np_message* message) {
 bool receive_ping(np_context* context, np_message* message)
 {
 	char tmp[255];
-	_np_dhkey_to_str(&message->from, tmp);
+	np_id2str(&message->from, tmp);
 	np_example_print(context, stdout, "Received ping from %s", tmp);
 	np_send_text(context, "pong", "pong", _pong_count, &message->from);
 
@@ -137,7 +137,7 @@ bool receive_ping(np_context* context, np_message* message)
 bool receive_pong(np_context* context, np_message* message)
 {
 	char tmp[255];
-	_np_dhkey_to_str(&message->from, tmp);
+	np_id2str(&message->from, tmp);
 	np_example_print(context, stdout, "Received pong from %s", tmp);
 	np_send_text(context, "ping", "ping", _ping_count, &message->from);
 

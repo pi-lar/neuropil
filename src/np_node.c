@@ -102,11 +102,11 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_s
 	np_tree_insert_str( data, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_ush(node_key->node->protocol));
 	np_tree_insert_str( data, NP_SERIALISATION_NODE_DNS_NAME, np_treeval_new_s(node_key->node->dns_name));
 	np_tree_insert_str( data, NP_SERIALISATION_NODE_PORT, np_treeval_new_s(node_key->node->port));
+	np_tree_insert_str( data, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(node_key)));
 
 	if (true == include_stats)
 	{		
 		np_tree_insert_str( data, NP_SERIALISATION_NODE_CREATED_AT, np_treeval_new_d(node_key->created_at));
-		np_tree_insert_str( data, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(node_key)));
 
 		if(node_key->node != NULL){
 
@@ -175,7 +175,7 @@ np_key_t* _np_node_decode_from_str (np_state_t* context, const char *key)
 
 	free (key_dup);
 
-	ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", __func__);
+	ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", FUNC);
 
 	return (node_key);
 }
@@ -221,7 +221,7 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
 	new_node->success_avg = ele->val.value.f;
 	}
 	*/
-	ref_replace_reason(np_node_t, new_node, ref_obj_creation, __func__);
+	ref_replace_reason(np_node_t, new_node, ref_obj_creation, FUNC);
 
 	return (new_node);
 }
@@ -256,7 +256,7 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
 	}
 	
 	np_node_t* new_node = NULL;
-	np_new_obj(np_node_t, new_node, __func__);
+	np_new_obj(np_node_t, new_node, FUNC);
 	 
 	_np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
 	log_debug_msg(LOG_DEBUG, "decodeded node from token: %d/%s:%s",
@@ -283,7 +283,6 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, 
 			np_tree_t* node_jrb = np_tree_create();
 			// log_debug_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
 			_np_node_encode_to_jrb(node_jrb, current, include_stats);
-			np_tree_insert_str( node_jrb, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(current)));
 
 			np_tree_insert_int( data, j, np_treeval_new_tree(node_jrb));
 			j++;
@@ -319,7 +318,7 @@ sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, n
 			ref_replace_reason(np_node_t, node_key->node, "_np_node_decode_from_jrb", ref_key_node);
 		} 
 		
-		ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", __func__);
+		ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", FUNC);
 		
 		sll_append(np_key_ptr, node_list, node_key);
 	}
@@ -347,7 +346,7 @@ np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
 	ref_replace_reason(
 			np_key_t, node_key,
 			"_np_keycache_find_or_create",
-			__func__
+			FUNC
 	);
 	
 	return (node_key);

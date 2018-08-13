@@ -41,7 +41,7 @@ It should contain all required functions to send or receive messages.
 extern "C" {
 #endif
 #define np_ctx_by_memory(c)				\
-		np_memory_get_context(c)			
+		np_memory_get_context((void*)c)			
 #define np_ctx_decl(b)				\
 		np_state_t* context = (b)
 #define np_ctx_memory(a)				\

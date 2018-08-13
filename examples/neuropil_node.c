@@ -102,6 +102,7 @@ int main(int argc, char **argv)
 		else {
 			__np_example_helper_run_info_loop(context);
 		}
+		np_example_print(context, stderr, "Closing Node");
 	}
 
 	return ret;

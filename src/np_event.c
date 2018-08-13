@@ -91,7 +91,7 @@
                                                                                                                         \
     void _np_event_suspend_loop_##LOOPNAME(np_state_t* context)															\
     {																													\
-        _np_threads_mutex_lock(context, &np_module(events)->__loop_##LOOPNAME##_process_protector, __func__);			\
+        _np_threads_mutex_lock(context, &np_module(events)->__loop_##LOOPNAME##_process_protector, FUNC);			\
     }																													\
     void _np_event_resume_loop_##LOOPNAME(np_state_t *context)															\
     {																													\

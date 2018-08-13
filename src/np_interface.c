@@ -35,7 +35,7 @@ void np_get_id(np_context * ac, np_id* id, char* string, size_t length) {
 	np_ctx_cast(ac);
 	
 	if (length == 64) {
-		_np_dhkey_from_str(string, id);
+		np_str2id(string, id);
 	}
 	else {
 		*id = np_dhkey_create_from_hostport(context, string, "0");
@@ -412,7 +412,7 @@ struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject, bool
 	np_msgproperty_t* property = np_msgproperty_get(context, DEFAULT_MODE, subject);
 	if (property == NULL)
 	{		
-		np_new_obj(np_msgproperty_t, property, __func__);
+		np_new_obj(np_msgproperty_t, property, FUNC);
 		property->msg_subject = strndup(subject, 255);
 		exisits = false;
 	}
@@ -423,7 +423,7 @@ struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject, bool
 	np_msgproperty4user(&ret, property);
 
 	if (exisits == false) {
-		np_unref_obj(np_msgproperty_t, property, __func__);             																									\
+		np_unref_obj(np_msgproperty_t, property, FUNC);             																									\
 	}
 	if (property_exisits != NULL) *property_exisits = exisits;
 	return ret;
@@ -473,4 +473,46 @@ enum np_status np_get_status(np_context* ac) {
 	np_ctx_cast(ac);
 	TSP_GET(enum np_status, context->status, ret);
 	return ret;
+}
+
+
+void np_id2str(const np_id* k, char* key_string)
+{
+	// k->valid = false;
+
+	// log_msg(LOG_KEY | LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
+	// log_msg(LOG_KEY | LOG_WARN, "key %16lx%16lx%16lx%16lx", k->t[0], k->t[1], k->t[2], k->t[3]);
+
+	// TODO: use sodium bin2hex function
+	memset(key_string, 0, 64);
+
+	sprintf(key_string,
+		"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32,
+		k->t[0], k->t[1], k->t[2], k->t[3], k->t[4], k->t[5], k->t[6], k->t[7]
+	);
+	key_string[64] = '\0';
+	// k->valid = true;
+	// log_debug_msg(LOG_KEY | LOG_DEBUG, "key string now: %s", k->keystr);
+}
+
+void np_str2id(const char* key_string, np_id* k)
+{
+	// TODO: this is dangerous, encoding could be different between systems,
+	// encoding has to be send over the wire to be sure ...
+	// for now: all tests on the same system
+	// assert (64 == strlen((char*) key_string));
+
+	char substring[9];
+	substring[8] = '\0';
+	for (uint8_t i = 0; i < 8; i++)
+	{
+		memcpy(substring, key_string + i * 8, 8);
+		k->t[i] = strtoul((const char*)substring, NULL, 16);
+	}
+	/*
+	log_debug_msg(LOG_KEY | LOG_DEBUG,
+	"key %08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32,
+	k->t[0], k->t[1], k->t[2], k->t[3], k->t[4], k->t[5], k->t[6], k->t[7]
+	);
+	*/
 }

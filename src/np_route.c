@@ -221,7 +221,7 @@ np_key_t* _np_route_get_key(np_state_t* context) {
 	{
 		if (np_module_initiated(route)) {
 			ret = np_module(route)->my_key;
-			np_ref_obj(np_key_t, ret, __func__);
+			np_ref_obj(np_key_t, ret, FUNC);
 		}			
 	}
 	
@@ -272,7 +272,7 @@ sll_return(np_key_ptr) _np_route_get_table (np_state_t* context)
 			}
 		}
 
-		np_key_ref_list(sll_of_keys, __func__,NULL);
+		np_key_ref_list(sll_of_keys, FUNC,NULL);
 	}
 	return (sll_of_keys);
 }
@@ -305,7 +305,7 @@ sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key)
 		}
 
 		sll_append(np_key_ptr, sll_of_keys, np_module(route)->my_key);
-		np_key_ref_list(sll_of_keys, __func__, NULL);
+		np_key_ref_list(sll_of_keys, FUNC, NULL);
 	}
 
 	log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_row_lookup");
@@ -350,7 +350,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 
 #ifdef DEBUG
 		char key_as_str[255] = { 0 };
-		_np_dhkey_to_str(&key, key_as_str);
+		np_id2str(&key, key_as_str);
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "TARGET: %s", key_as_str);
 #endif
 		/*calculate the leafset and table size */
@@ -370,7 +370,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 
 			min = _np_keycache_find_closest_key_to (context, key_list, &key);
 			if(NULL != min) {				
-				ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", __func__); 
+				ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", FUNC); 
 				sll_append(np_key_ptr, return_list, min);				
  
 				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "++NEXT_HOP = %s", _np_key_as_str (min));
@@ -479,7 +479,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 			min = _np_keycache_find_closest_key_to (context, key_list, &key);
 			
 			if (NULL != min) {
-				ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", __func__);
+				ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", FUNC);
 				sll_append(np_key_ptr, return_list, min);
 			}
 		}
@@ -533,7 +533,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 			// changed on 03.06.2014 STSW choose the closest neighbour
 			if (_np_dhkey_cmp(&dif1, &dif2) <= 0) {
 				sll_iterator(np_key_ptr) first = sll_first(return_list);
-				np_unref_obj(np_key_t, first->val, __func__);
+				np_unref_obj(np_key_t, first->val, FUNC);
 				first->val = np_module(route)->my_key;
 				np_ref_obj(np_key_t, first->val);
 			}
@@ -594,7 +594,7 @@ sll_return(np_key_ptr) _np_route_neighbors (np_state_t* context)
 		_np_route_append_leafset_to_sll(np_module(route)->left_leafset, node_keys);
 		_np_route_append_leafset_to_sll(np_module(route)->right_leafset, node_keys);	
 
-		np_key_ref_list(node_keys, __func__, NULL);
+		np_key_ref_list(node_keys, FUNC, NULL);
 	}
 	/* sort aux */
 	_np_keycache_sort_keys_kd(node_keys, &np_module(route)->my_key->dhkey);

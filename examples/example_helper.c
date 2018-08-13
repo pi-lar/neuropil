@@ -92,8 +92,17 @@ int term_height_bottom = 15;
 struct __np_switchwindow_scrollable * _current = NULL;
 
 bool __np_ncurse_initiated = false;
+bool __np_terminal_resize_flag = false;
+
 const float output_intervall_sec = 0.5;
-uint8_t enable_statistics = 1;
+
+enum np_user_interface {
+	np_user_interface_off		= 0,
+	np_user_interface_ncurse	= 1,
+	np_user_interface_log		= 2,
+	np_user_interface_console	= 4
+};
+enum np_user_interface user_interface = np_user_interface_ncurse;
 
 WINDOW * __np_top_left_win;
 WINDOW * __np_top_right_win;
@@ -105,8 +114,19 @@ struct __np_switchwindow_scrollable * __np_switch_memory_ext;
 struct __np_switchwindow_scrollable * __np_switch_log;
 struct __np_switchwindow_scrollable * __np_switch_performance;
 struct __np_switchwindow_scrollable * __np_switch_jobs;
+struct __np_switchwindow_scrollable * __np_switch_interactive;
 
-#define LOG_BUFFER_SIZE (3000)
+#define __NP_INTERACTIVE_CACHE 500
+bool is_in_interactive = false; 
+typedef void(*np_interactive_fn)(np_context* context, char* input);
+np_interactive_fn __np_interactive_event_on_enter = NULL;
+char* __np_interactive_text = NULL;
+char __np_interactive_cache[__NP_INTERACTIVE_CACHE] = { 0 };
+
+bool _np_httpserver_active = false;
+
+
+#define LOG_BUFFER_SIZE (30000)
 char * __log_buffer = NULL;
 char * __log_buffer_cursor = 0;
 np_mutex_t* __log_mutex = NULL;
@@ -114,8 +134,32 @@ np_mutex_t* __log_mutex = NULL;
 double started_at = 0;
 double last_loop_run_at = 0;
 double ncurse_init_at = 0;
-np_context* _context = NULL;
 
+#define ESC '\033'
+
+int getInput() {
+	int ret = getch();
+	if (ret == ESC) {
+		if (getch() == '[') {
+			switch (getch()) {
+			case 'A':
+				ret = KEY_UP;
+				break;
+			case 'B':
+				ret = KEY_DOWN;
+				break;
+			case 'C':
+				ret = KEY_RIGHT;
+				break;
+			case 'D':
+				ret = KEY_LEFT;
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
 
 void reltime_to_str(char*buffer, double time) {
 	// totaltime format: seconds.milliseconds
@@ -133,9 +177,9 @@ void reltime_to_str(char*buffer, double time) {
 }
 
 void __np_switchwindow_draw(np_context* context) {
-
 	if (__np_ncurse_initiated == true && _current != NULL) {
 		_LOCK_ACCESS(&_current->access) {
+			werase(_current->win);
 			int displayedRows = 0;
 
 			char * buffer = strdup(_current->buffer);
@@ -161,7 +205,6 @@ void __np_switchwindow_draw(np_context* context) {
 	}
 }
 
-
 void __np_switchwindow_show(np_context* context, struct __np_switchwindow_scrollable *target) {
 	if (_current == NULL)
 	{
@@ -170,6 +213,7 @@ void __np_switchwindow_show(np_context* context, struct __np_switchwindow_scroll
 	else {
 		_LOCK_ACCESS(&_current->access) {
 			_current = target;
+			wclear(_current->win);
 		}
 	}
 }
@@ -211,6 +255,54 @@ void __np_switchwindow_update_buffer(np_context* context, struct __np_switchwind
 
 }
 
+void __np_switchwindow_interactive_incomming(np_context* context, int key) {
+	// ENTER
+	if (key == KEY_ENTER || key == 10) {
+		if (__np_interactive_event_on_enter != NULL) {
+			__np_interactive_event_on_enter(context, __np_interactive_cache);
+		}
+		memset(__np_interactive_cache, 0, __NP_INTERACTIVE_CACHE);
+		is_in_interactive = false;
+		__np_switchwindow_show(context, __np_switch_log);
+	}
+	// ESC
+	else if (key == ESC) {
+		memset(__np_interactive_cache, 0, __NP_INTERACTIVE_CACHE);
+		is_in_interactive = false;
+		__np_switchwindow_show(context, __np_switch_log);
+	}
+	else {
+		// BACKSPACE
+		char tmp[__NP_INTERACTIVE_CACHE + 500];
+		if (key == KEY_BACKSPACE) {
+			int l = strlen(__np_interactive_cache);
+			if (l > 0) {
+				memset(__np_interactive_cache+l-1, 0,1);
+			}
+			sprintf(tmp, "%s\nInput:\n%s", __np_interactive_text, __np_interactive_cache);
+		}
+		else {
+			if (key >= 32 && key <= 126) {
+				__np_interactive_cache[strlen(__np_interactive_cache) % __NP_INTERACTIVE_CACHE] = (char)key;
+				sprintf(tmp, "%s\nInput:\n%s", __np_interactive_text, __np_interactive_cache);
+			}
+			else {
+				sprintf(tmp, "%s\nInput: (invalid key %d)\n%s", __np_interactive_text, key, __np_interactive_cache);
+			}
+		}
+		__np_switchwindow_update_buffer(context, __np_switch_interactive, tmp, 0);
+
+	}
+}
+
+void __np_switchwindow_configure_interactive(np_context* context, char* text, np_interactive_fn on_enter) {
+	__np_interactive_event_on_enter = on_enter;
+	__np_interactive_text = text;
+	__np_switchwindow_update_buffer(context, __np_switch_interactive, __np_interactive_text, 0);
+	__np_switchwindow_show(context, __np_switch_interactive);
+	is_in_interactive = true;
+}
+
 struct __np_switchwindow_scrollable * __np_switchwindow_new(np_context* context, chtype color_pair, int width, int y) {
 	struct __np_switchwindow_scrollable * ret = calloc(1, sizeof(struct __np_switchwindow_scrollable));
 
@@ -241,20 +333,23 @@ void np_print_startup(np_context*context);
 
 void np_example_print(np_context * context, FILE * stream, const char * format_in, ...) {
 	np_print_startup(context);
-	va_list args, args2;
+	va_list args;
 	va_start(args, format_in);
-	va_start(args2, format_in);
 
-	char tmp_time[255];
+	char tmp_time[200];
+	char format[LOG_BUFFER_SIZE - 201] = { 0 };
+	char buffer[LOG_BUFFER_SIZE - 1] = { 0 };
 	reltime_to_str(tmp_time, np_time_now() - started_at);
-	char format[500];
-	sprintf(format, "%s - %s", tmp_time, format_in);
 
-	char* buffer = calloc(1, 500);
-	int to_add_size = vsnprintf(buffer, 500, format, args);
+	// render msg
+	vsnprintf(format, LOG_BUFFER_SIZE - 201, format_in, args);
+	// add time string
+	int to_add_size = 
+		sprintf(buffer, "%s -%s%s", tmp_time,(strlen(format) > 200? "\n":" "), format);
+	
+	va_end(args);
 
-	if (to_add_size > 0) {
-		to_add_size = fmin(500 - 1, to_add_size);
+	if (to_add_size > 0) {		
 		if (__log_mutex == NULL) {
 			__log_mutex = malloc(sizeof(np_mutex_t));
 			_np_threads_mutex_init(context, __log_mutex, "Example logger mutex");
@@ -262,6 +357,12 @@ void np_example_print(np_context * context, FILE * stream, const char * format_i
 		_LOCK_ACCESS(__log_mutex)
 		{
 			if (__log_buffer == NULL) __log_buffer = calloc(1, LOG_BUFFER_SIZE); // TODO: move to an init
+
+			// count lines to scroll accordingly
+			int line_count = 0;
+			for (int c = 0; c < to_add_size; c++) {
+				if (buffer[c] == '\n') line_count++;
+			}			
 
 			int total_to_add_size = to_add_size + 1; // '\n' append
 			int rescued_buffer_size = LOG_BUFFER_SIZE - total_to_add_size - 1/*NULL Term*/;
@@ -275,24 +376,14 @@ void np_example_print(np_context * context, FILE * stream, const char * format_i
 			// always terminate string
 			memset(&__log_buffer[LOG_BUFFER_SIZE - 1], '\0', 1);
 
-			// count lines to scroll accordingly
-			int lines = 0;
-			for (int c = 0; c < to_add_size; c++) {
-				if (buffer[c] == '\n') lines++;
-			}
 			if (__np_ncurse_initiated) {
-				__np_switchwindow_update_buffer(context, __np_switch_log, __log_buffer, -1 * lines);
-			}
-			else {
-				vfprintf(stream, format, args2);
+				__np_switchwindow_update_buffer(context, __np_switch_log, __log_buffer, -1 * line_count);
+			} else {				
+				fputs(buffer, stream);
 				fflush(stream);
 			}
 		}
-	}
-	free(buffer);
-
-	va_end(args);
-	va_end(args2);
+	}	
 }
 
 
@@ -509,7 +600,7 @@ bool parse_program_args(
 	bool ret = true;
 	char* usage;
 	asprintf(&usage,
-		"./%s [ p-j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s statistics 0=Off 1=Console 2=Log 3=1&2] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-o sysinfo 0=none,1=auto,2=server,3=client]%s",
+		"./%s [ p-j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s statistics 0=Off 1=Console 2=Log 4=Ncurse] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-o sysinfo 0=none,1=auto,2=server,3=client]%s",
 		program, additional_fields_desc == NULL ? "" : additional_fields_desc
 	);
 	char* optstr;
@@ -559,7 +650,7 @@ bool parse_program_args(
 			(*level) = atoi(optarg);
 			break;
 		case 's':
-			enable_statistics = atoi(optarg);
+			user_interface = atoi(optarg);
 			break;
 		case 'y':
 			statistic_types = atoi(optarg);
@@ -672,8 +763,6 @@ bool parse_program_args(
 
 void __np_example_deinti_ncurse(np_context * context) {
 	if (__np_ncurse_initiated == true) {
-		__np_ncurse_initiated = false;
-
 		delwin(__np_top_left_win);
 		delwin(__np_top_right_win);
 		delwin(__np_top_logo_win);
@@ -685,12 +774,13 @@ void __np_example_deinti_ncurse(np_context * context) {
 		__np_switchwindow_del(context, __np_switch_performance);
 
 		endwin();
+		__np_ncurse_initiated = false;
 	}
 }
 
 void __np_example_inti_ncurse(np_context* context) {
 	if (false == __np_ncurse_initiated) {
-		if (enable_statistics == 1 || enable_statistics % 2 != 0) {
+		if (FLAG_CMP(user_interface, np_user_interface_ncurse)) {
 			__np_ncurse_initiated = true;
 			ncurse_init_at = np_time_now();
 
@@ -723,10 +813,12 @@ void __np_example_inti_ncurse(np_context* context) {
 
 			// setup ncurse config
 			curs_set(0); // Hide cursor
-			noecho();
-			nocbreak();
+			raw();				/* Line buffering disabled	*/
+			keypad(stdscr, true);
+			noecho(); 
 			timeout(0);
 			start_color();
+			
 			init_pair(1, COLOR_YELLOW, COLOR_BLUE);
 			init_pair(2, COLOR_BLUE, COLOR_YELLOW);
 			init_pair(3, COLOR_WHITE, COLOR_MAGENTA);
@@ -773,6 +865,7 @@ void __np_example_inti_ncurse(np_context* context) {
 				if (statistic_types == np_stat_all || (statistic_types & np_stat_jobs) == np_stat_jobs) {
 					__np_switch_jobs = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);
 				}
+				__np_switch_interactive = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);;
 				__np_switch_log = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);
 				__np_switchwindow_show(context, __np_switch_log);
 				if (__log_buffer != NULL)
@@ -788,185 +881,238 @@ void __np_example_inti_ncurse(np_context* context) {
 		werase(__np_top_right_win);
 		if (_current != NULL) werase(_current->win);
 
-	}
-	if (__np_ncurse_initiated) {
 		mvwprintw(__np_bottom_win_help, 0, 0,
-			"(P)erformance / Message(c)ache / Extended (M)emory / (L)og / (J)obs "
+			"(P)erformance / Message(c)ache / Extended (M)emory / (L)og / J(o)bs "
 			"| R(e)paint "
 			"| Log: (F)ollow / (U)p / dow(N) "
-			"| (Q)uit"
+			"| (Q)uit | (H)TTP | (S)ysInfo | (J)oin"  
 		);
 		int pos = -1;
 		if (_current == __np_switch_performance) pos = 1;
 		else if (_current == __np_switch_msgpartcache) pos = 24;
 		else if (_current == __np_switch_memory_ext) pos = 43;
 		else if (_current == __np_switch_log) pos = 54;
-		else if (_current == __np_switch_jobs) pos = 62;
+		else if (_current == __np_switch_jobs) pos = 64;
 		mvwchgat(__np_bottom_win_help, 0, pos, 1, A_UNDERLINE, 4, NULL);
+		wrefresh(__np_bottom_win_help);
 
 	}
 }
 
 void __np_example_reset_ncurse(np_context*context) {
 	__np_example_deinti_ncurse(context);
-	__np_example_inti_ncurse(context);
+	__np_example_inti_ncurse(context);	
 }
 
 void resizeHandler(int sig)
 {
-	if (_context != NULL && __np_ncurse_initiated) {
-		__np_example_reset_ncurse(_context);
-	}
+	__np_terminal_resize_flag = true;	
+}
 
+void _np_interactive_http_mode(np_context* context, char* buffer) {
+
+	if (strncmp(buffer, "0", 2) == 0 || strncmp(buffer, "Off", 4) == 0) {
+		if (_np_httpserver_active) {
+			example_http_server_deinit(context);
+			_np_httpserver_active = false;
+		}
+	}
+	else if (strncmp(buffer, "1", 2) == 0 || strncmp(buffer, "On", 3) == 0) {
+		if (_np_httpserver_active) {
+			example_http_server_deinit(context);
+		}
+		_np_httpserver_active = example_http_server_init(context, opt_http_domain, opt_sysinfo_mode);
+	}
+	else {
+		np_example_print(context, stdout, "Setting http domain to \"%s\" and (re)starting HTTP server.", buffer);
+		free(opt_http_domain);
+		opt_http_domain = strdup(buffer);
+		if (_np_httpserver_active) {
+			example_http_server_deinit(context);
+		}
+		_np_httpserver_active = example_http_server_init(context, opt_http_domain, opt_sysinfo_mode);
+
+	}
+}
+void _np_interactive_join(np_context* context, char* buffer) {
+	
+	np_example_print(context, stdout, "Try to join network at \"%s\".", buffer);
+	np_join(context, buffer);
+}
+void _np_interactive_sysinfo_mode(np_context* context, char* buffer) {
+		/*
+	"Sysinfo mode:\n"
+		"0/Off\n"
+		"1/Auto\n"
+		"2/Master\n"
+		"3/Client\n"
+		*/
+	if (strncmp(buffer, "0", 2) == 0 || strncmp(buffer, "1", 2) == 0 || strncmp(buffer, "2", 2) == 0 || strncmp(buffer, "3", 2) == 0) {
+		opt_sysinfo_mode = atoi(buffer);
+		if (_np_httpserver_active) {						
+			np_example_print(context, stdout, "Restarting HTTP server.");
+			example_http_server_deinit(context);			
+			_np_httpserver_active = example_http_server_init(context, opt_http_domain, opt_sysinfo_mode);
+		}
+	}
+	else {
+		np_example_print(context, stderr, "Sysinfo mode \"%s\" not supported.", buffer);
+	}
 }
 
 void __np_example_helper_loop(np_state_t* context) {
-	if (__np_ncurse_initiated == true) {
-		//slow down for getch 
-		np_time_sleep(0.005);
+	if (__np_ncurse_initiated == true && __np_terminal_resize_flag == true) {
+		__np_example_reset_ncurse(context);
+		__np_terminal_resize_flag = false;
 	}
-	__np_example_inti_ncurse(context);
 
 	// Runs only once
 	if (started_at == 0) {
 		started_at = np_time_now();
-		
-		if(_context == NULL){
-			_context = context;
-		}
-		signal(SIGWINCH, resizeHandler);
-		np_print_startup(context);
 
-		// starting the example http server to support the http://view.neuropil.io application	
-		example_http_server_init(context, opt_http_domain, opt_sysinfo_mode);
+		if (FLAG_CMP(user_interface, np_user_interface_ncurse)) {
+			signal(SIGWINCH, resizeHandler);
+			__np_example_inti_ncurse(context);
+		}
+
+		np_print_startup(context);
 		np_example_save_or_load_identity(context);
+		// starting the example http server to support the http://view.neuropil.io application			
+		_np_httpserver_active = example_http_server_init(context, opt_http_domain, opt_sysinfo_mode);
 	}
+
 	double sec_since_start = np_time_now() - started_at;
 
 	if ((sec_since_start - last_loop_run_at) > output_intervall_sec)
 	{
 		last_loop_run_at = sec_since_start;
 
-		if (__np_ncurse_initiated == true) {
+		if (FLAG_CMP(user_interface, np_user_interface_ncurse)) {
 			mvwprintw(__np_top_logo_win, 0, 0, "%s", logo);
 		}
 
 		char* memory_str;
 
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_memory) == np_stat_memory) {
-			if (enable_statistics == 1 || enable_statistics > 2) {
-
+			if (FLAG_CMP(user_interface, np_user_interface_ncurse) || FLAG_CMP(user_interface, np_user_interface_console)) {
 				memory_str = np_mem_printpool(context, false, false);
 				if (memory_str != NULL) {
-					if (__np_ncurse_initiated == true) {
+					if (FLAG_CMP(user_interface, np_user_interface_ncurse)){
 						mvwprintw(__np_top_right_win, 0, 0, "%s", memory_str);
 					}
-					else {
+					if (FLAG_CMP(user_interface, np_user_interface_console)){
 						np_example_print(context, stdout, memory_str);
 					}
 				}
 				free(memory_str);
 
-				if (_current == __np_switch_memory_ext) {
+				if (FLAG_CMP(user_interface, np_user_interface_ncurse) && _current == __np_switch_memory_ext) {
 					memory_str = np_mem_printpool(context, false, true);
 					if (memory_str != NULL) {
-						if (__np_ncurse_initiated == true) {
-							__np_switchwindow_update_buffer(context, __np_switch_memory_ext, memory_str, 0);
-						}
-						else {
-							np_example_print(context, stdout, memory_str);
-						}
+						__np_switchwindow_update_buffer(context, __np_switch_memory_ext, memory_str, 0);
 					}
 					free(memory_str);
 				}
+
+				if (FLAG_CMP(user_interface, np_user_interface_console)) {
+					memory_str = np_mem_printpool(context, false, true);
+					np_example_print(context, stdout, memory_str);
+					free(memory_str);
+				}
 			}
-			if (enable_statistics >= 2) {
+			if (FLAG_CMP(user_interface, np_user_interface_log)) {
 				memory_str = np_mem_printpool(context, true, true);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
 		}
+
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_performance) == np_stat_performance) {
-			if (enable_statistics == 1 || enable_statistics > 2) {
-				if (_current == __np_switch_performance) {
+			if (FLAG_CMP(user_interface, np_user_interface_ncurse) && _current == __np_switch_performance) {
+				NP_PERFORMANCE_GET_POINTS_STR(memory);
 
-					NP_PERFORMANCE_GET_POINTS_STR(memory);
+				if (memory != NULL) {
+					__np_switchwindow_update_buffer(context, __np_switch_performance, memory, 0);
+				}
+				free(memory);
 
-					if (memory != NULL) {
-						if (__np_ncurse_initiated == true) {
-							__np_switchwindow_update_buffer(context, __np_switch_performance, memory, 0);
-						}
-						else {
-							np_example_print(context, stdout, memory);
-						}
-					}
+			}
+			if (FLAG_CMP(user_interface, np_user_interface_console)) { 
+				NP_PERFORMANCE_GET_POINTS_STR(memory);
+
+				if (memory != NULL) { 
+					np_example_print(context, stdout, memory);	
 					free(memory);
 				}
 			}
-			if (enable_statistics >= 2) {
+
+			if (FLAG_CMP(user_interface, np_user_interface_log)) {
 				NP_PERFORMANCE_GET_POINTS_STR(memory);
 				if (memory != NULL) log_msg(LOG_INFO, "%s", memory);
 				free(memory);
 			}
 		}
+		
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_jobs) == np_stat_jobs) {
-			if (enable_statistics == 1 || enable_statistics > 2) {
+			if (FLAG_CMP(user_interface, np_user_interface_ncurse)) {
 				if (_current == __np_switch_jobs) {
 					memory_str = np_jobqueue_print(context, false);
 					if (memory_str != NULL) {
-						if (__np_ncurse_initiated == true) {
-							__np_switchwindow_update_buffer(context, __np_switch_jobs, memory_str, 0);
-						}
-						else {
-							np_example_print(context, stdout, memory_str);
-						}
+						__np_switchwindow_update_buffer(context, __np_switch_jobs, memory_str, 0);
 					}
 					free(memory_str);
 				}
 			}
-			if (enable_statistics >= 2) {
+			if (FLAG_CMP(user_interface, np_user_interface_console)) {
+				memory_str = np_jobqueue_print(context, false);
+				if (memory_str != NULL) np_example_print(context, stdout, memory_str);
+				free(memory_str);
+			}
+			
+			if (FLAG_CMP(user_interface, np_user_interface_log)) {
 				memory_str = np_jobqueue_print(context, true);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
 			}
 		}
-
+		
 		if (statistic_types == np_stat_all || (statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
-			if (enable_statistics == 1 || enable_statistics > 2) {
-				if (_current == __np_switch_msgpartcache) {
-					memory_str = np_messagepart_printcache(context, false);
-					if (memory_str != NULL) {
-						if (__np_ncurse_initiated == true) {
-							__np_switchwindow_update_buffer(context, __np_switch_msgpartcache, memory_str, 0);
-						}
-						else {
-							np_example_print(context, stdout, memory_str);
-						}
-					}
-					free(memory_str);
-				}
-				if (enable_statistics >= 2) {
-					memory_str = np_messagepart_printcache(context, true);
-					if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
-					free(memory_str);
-				}
-			}
-		}
-#ifdef DEBUG
-		if (statistic_types == np_stat_all || (statistic_types & np_stat_locks) == np_stat_locks) {
-			if (enable_statistics == 1 || enable_statistics > 2) {
-				memory_str = np_threads_printpool(context, false);
+			if (FLAG_CMP(user_interface, np_user_interface_ncurse) || FLAG_CMP(user_interface, np_user_interface_console)) {
+
+				memory_str = np_messagepart_printcache(context, false);
 				if (memory_str != NULL) {
-					if (__np_ncurse_initiated == true) {
-						mvwprintw(__np_top_right_win, 0, 0, "%s", memory_str);
+					if (FLAG_CMP(user_interface, np_user_interface_ncurse) && _current == __np_switch_msgpartcache) {
+
+						__np_switchwindow_update_buffer(context, __np_switch_msgpartcache, memory_str, 0);
 					}
-					else {
+					if (FLAG_CMP(user_interface, np_user_interface_console)) {
 						np_example_print(context, stdout, memory_str);
 					}
 				}
 				free(memory_str);
 			}
-			if (enable_statistics >= 2) {
+
+			if (FLAG_CMP(user_interface, np_user_interface_log)) {
+				memory_str = np_messagepart_printcache(context, true);
+				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+				free(memory_str);
+			}
+		}
+#ifdef DEBUG
+		if (statistic_types == np_stat_all || (statistic_types & np_stat_locks) == np_stat_locks) {
+			if (FLAG_CMP(user_interface, np_user_interface_ncurse) || FLAG_CMP(user_interface, np_user_interface_console)) {
+				memory_str = np_threads_printpool(context, false);
+				if (memory_str != NULL) {
+					if (FLAG_CMP(user_interface, np_user_interface_ncurse)){
+						mvwprintw(__np_top_right_win, 0, 0, "%s", memory_str);
+					}
+					if (FLAG_CMP(user_interface, np_user_interface_console)){
+						np_example_print(context, stdout, memory_str);
+					}
+				}
+				free(memory_str);
+			}
+			if (FLAG_CMP(user_interface, np_user_interface_log)) {
 				memory_str = np_threads_printpool(context, true);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
@@ -977,26 +1123,28 @@ void __np_example_helper_loop(np_state_t* context) {
 			char time[50] = { 0 };
 			reltime_to_str(time, sec_since_start);
 
-			if (enable_statistics == 1 || enable_statistics > 2) {
+			if (FLAG_CMP(user_interface, np_user_interface_ncurse) || FLAG_CMP(user_interface, np_user_interface_console)) {
 				memory_str = np_statistics_print(context, false);
 
-				if (memory_str != NULL && __np_ncurse_initiated == true) {
-					mvwprintw(__np_top_left_win, 0, 0, "%s - BUILD IN "
+				if (memory_str != NULL) {
+					if (FLAG_CMP(user_interface, np_user_interface_ncurse)) {
+						mvwprintw(__np_top_left_win, 0, 0, "%s - BUILD IN "
 #if defined(DEBUG)
-						"DEBUG"
+							"DEBUG"
 #elif defined(RELEASE)
-						"RELEASE"
+							"RELEASE"
 #else
-						"NON DEBUG and NON RELEASE"
+							"NON DEBUG and NON RELEASE"
 #endif
-						" (%s.%05d)\n%s ", time, NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD, memory_str);
-				}
-				else {
-					np_example_print(context, stdout, memory_str);
+							" (%s.%05d)\n%s ", time, NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD, memory_str);
+					}
+					if (FLAG_CMP(user_interface, np_user_interface_console)) {
+						np_example_print(context, stdout, memory_str);
+					}
 				}
 				free(memory_str);
 			}
-			if (enable_statistics >= 2) {
+			if (FLAG_CMP(user_interface, np_user_interface_log)) {
 				memory_str = np_statistics_print(context, true);
 				if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
 				free(memory_str);
@@ -1014,51 +1162,86 @@ void __np_example_helper_loop(np_state_t* context) {
 
 	if (__np_ncurse_initiated == true) {
 		int key = getch();
-		switch (key) {
-		case KEY_RESIZE:
-		case 101:	// e
-		case 69:	// E			
-			__np_example_reset_ncurse(context);
-			break;
-		case 99:	// c
-		case 67:	// C
-			__np_switchwindow_show(context, __np_switch_msgpartcache);
-			break;
-		case 112:	// p
-		case 80:	// P
-			__np_switchwindow_show(context, __np_switch_performance);
-			break;
-		case 109:	// m
-		case 77:	// M
-			__np_switchwindow_show(context, __np_switch_memory_ext);
-			break;
-		case 108:	// l
-		case 76:	// L
-			__np_switchwindow_show(context, __np_switch_log);
-			break;
-		case 106:	// j
-		case 74:	// J
-			__np_switchwindow_show(context, __np_switch_jobs);
-			break;
-		case 102:	// f
-		case 70:	// F
-			__np_switchwindow_scroll(context, _current, -999999, true);
-			break;
-		case 117:	// u
-		case 85:	// U
-		case KEY_UP:
-			__np_switchwindow_scroll(context, _current, -1, true);
-			break;
-		case 110:	// n
-		case 78:	// N
-		case KEY_DOWN:
-			__np_switchwindow_scroll(context, _current, 1, true);
-			break;
-		case 113: // q
-			__np_example_deinti_ncurse(context);
-			np_destroy(context, true);
-			exit(EXIT_SUCCESS);
-			break;
+		if (key != ERR) {
+			if (is_in_interactive) {
+				__np_switchwindow_interactive_incomming(context, key);
+			}
+			else {
+				switch (key) {
+				case KEY_RESIZE:
+				case 101:	// e
+				case 69:	// E			
+					__np_example_reset_ncurse(context);
+					break;
+				case 99:	// c
+				case 67:	// C
+					__np_switchwindow_show(context, __np_switch_msgpartcache);
+					break;
+				case 112:	// p
+				case 80:	// P
+					__np_switchwindow_show(context, __np_switch_performance);
+					break;
+				case 109:	// m
+				case 77:	// M
+					__np_switchwindow_show(context, __np_switch_memory_ext);
+					break;
+				case 108:	// l
+				case 76:	// L
+					__np_switchwindow_show(context, __np_switch_log);
+					break;
+				case 111:	// o
+				case 79:	// O
+					__np_switchwindow_show(context, __np_switch_jobs);
+					break;
+				case 102:	// f
+				case 70:	// F
+					__np_switchwindow_scroll(context, _current, -999999, true);
+					break;
+				case 117:	// u
+				case 85:	// U
+				case KEY_UP:
+					__np_switchwindow_scroll(context, _current, -1, true);
+					break;
+				case 110:	// n
+				case 78:	// N
+				case KEY_DOWN:
+					__np_switchwindow_scroll(context, _current, 1, true);
+					break;
+				case 104:	// h
+				case 72:	// H
+					__np_switchwindow_configure_interactive(context,
+						"Sysinfo mode:\n"
+						"0/Off\n"
+						"1/On\n"
+						"any other input reconfigures the listening domain\n"
+						, _np_interactive_http_mode
+					);
+					break;
+				case 115:	// s
+				case 83:	// S
+					__np_switchwindow_configure_interactive(context,
+						"Sysinfo mode:\n"
+						"0/Off\n"
+						"1/Auto\n"
+						"2/Master\n"
+						"3/Client\n"
+						, _np_interactive_sysinfo_mode
+					);
+					break;
+				case 106:	// j
+				case 74:	// J
+					__np_switchwindow_configure_interactive(context,
+						"Connection string:\n"
+						, _np_interactive_join
+					);
+					break;
+				case 113: // q
+					__np_example_deinti_ncurse(context);
+					np_destroy(context, true);
+					exit(EXIT_SUCCESS);
+					break;
+				}
+			}
 		}
 	}
 }

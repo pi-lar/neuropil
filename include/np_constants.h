@@ -123,6 +123,8 @@ extern "C" {
 
 #define SIZE(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
 
+#define FUNC ((char*)__func__)
+
 
 #ifndef PRIsizet
 #define PRIsizet "zu"

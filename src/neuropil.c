@@ -556,7 +556,7 @@ void np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
 	np_ctx_cast(ac);
 
 	// create a new token for encryption each time neuropil starts
-	np_tryref_obj(np_key_t, context->my_node_key, has_old_node_key, __func__);
+	np_tryref_obj(np_key_t, context->my_node_key, has_old_node_key, FUNC);
 	np_key_t* my_old_node_key = context->my_node_key;
 	if (has_old_node_key && custom_base == NULL) {
 		custom_base = my_old_node_key->node;
@@ -579,7 +579,7 @@ void np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
 
 	np_unref_obj(np_aaatoken_t, auth_token, "_np_token_factory_new_node_token");
 	np_unref_obj(np_key_t, my_new_node_key, "_np_keycache_find_or_create");
-	np_unref_obj(np_key_t, my_old_node_key, __func__);
+	np_unref_obj(np_key_t, my_old_node_key, FUNC);
 }
 
 char* np_get_connection_string(np_context*ac){
@@ -642,7 +642,7 @@ np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* s
 	}
 
 	np_message_t* msg_out = NULL;
-	np_new_obj(np_message_t, msg_out, __func__);
+	np_new_obj(np_message_t, msg_out, FUNC);
 	_np_message_create(msg_out, target->dhkey, context->my_node_key->dhkey, subject, jrb_data);
 
 	log_debug_msg(LOG_DEBUG, "submitting request to target key %s", _np_key_as_str(target));
@@ -750,7 +750,7 @@ void np_send_wildcard_join(np_context*ac, const char* node_string)
 		//START Build our wildcard connection string
 		np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport(context, "*", node_string);
 		char wildcard_dhkey_str[65];
-		_np_dhkey_to_str(&wildcard_dhkey, wildcard_dhkey_str);
+		np_id2str(&wildcard_dhkey, wildcard_dhkey_str);
 		asprintf(&wildcard_node_str, "%s:%s", wildcard_dhkey_str, node_string);
 		//END Build our wildcard connection string
 

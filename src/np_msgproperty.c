@@ -591,10 +591,10 @@ np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t*
 		_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
 		np_unref_obj(np_aaatoken_t, ret, "_np_aaatoken_get_local_mx");
 		ret = msg_token_new;		
-		ref_replace_reason(np_aaatoken_t, ret, "_np_token_factory_new_message_intent_token", __func__);
+		ref_replace_reason(np_aaatoken_t, ret, "_np_token_factory_new_message_intent_token", FUNC);
 	
 	} else {
-		ref_replace_reason(np_aaatoken_t, ret, "_np_aaatoken_get_local_mx", __func__);
+		ref_replace_reason(np_aaatoken_t, ret, "_np_aaatoken_get_local_mx", FUNC);
 	}
 
 	_LOCK_ACCESS(&prop->lock) {
@@ -619,7 +619,7 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
 	else {
 		memset(dest->reply_subject, 0, sizeof(dest->reply_subject));
 	}
-
+	
 	// ackmode conversion
 	switch (src->ack_mode)
 	{

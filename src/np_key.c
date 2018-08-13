@@ -52,13 +52,14 @@ int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
 
 char* _np_key_as_str(np_key_t* key)
 {
+	assert(key != NULL);
 	np_ctx_memory(key);
 
 	if (NULL == key->dhkey_str){
 		key->dhkey_str = (char*) malloc(65);
 		CHECK_MALLOC(key->dhkey_str);
 	}
-	_np_dhkey_to_str(&key->dhkey, key->dhkey_str);
+	np_id2str(&key->dhkey, key->dhkey_str);
 	log_debug_msg(LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
 
 	return (key->dhkey_str);
