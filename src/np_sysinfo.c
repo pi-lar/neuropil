@@ -44,7 +44,7 @@
 
 np_module_struct(sysinfo) {
 	np_state_t* context;
-	np_simple_cache_table_t* _cache;
+	np_tree_t* _cache;
 
 	double startup_at;
 };
@@ -56,7 +56,7 @@ void _np_sysinfo_init_cache(np_state_t* context)
 	{
 		if (!np_module_initiated(sysinfo)) {
 			np_module_malloc(sysinfo);
-			_module->_cache = np_cache_init(context);
+			_module->_cache = np_tree_create();
 			_module->startup_at = np_time_now();
 		}
 	}
@@ -280,24 +280,23 @@ bool _np_in_sysinforeply(np_context* ac, const np_message_t* const msg, np_tree_
 	// insert / replace cache item
 	_LOCK_MODULE(np_sysinfo_t)
 	{
-		np_cache_item_t* item = np_simple_cache_get(context, np_module(sysinfo)->_cache, source_val);
+		np_tree_elem_t* item = np_tree_find_str(np_module(sysinfo)->_cache, source_val);		
 		// only insert if the data is newer
-		if(NULL != item) {
+		if(NULL != item && item->val.value.tree != NULL) {
 			np_tree_elem_t* new_check = np_tree_find_str(body, _NP_SYSINFO_MY_NODE_TIMESTAMP);
-			np_tree_elem_t* old_check = np_tree_find_str(item->value, _NP_SYSINFO_MY_NODE_TIMESTAMP);
+			np_tree_elem_t* old_check = np_tree_find_str(item->val.value.tree, _NP_SYSINFO_MY_NODE_TIMESTAMP);
 
 			if(NULL != new_check && NULL != old_check
 			&& new_check->val.value.d > old_check->val.value.d) {
 				log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Removing old SysInfo reply for newer data (uuid:%s)", msg->uuid);
-				np_tree_free( item->value);
-				np_simple_cache_insert(context, np_module(sysinfo)->_cache, source_val, np_tree_clone( body));
+				np_tree_replace_str(np_module(sysinfo)->_cache, source_val, np_treeval_new_tree(body));				
 			}else{
 				log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Ignoring SysInfo reply (uuid: %s ) due to newer data in cache", msg->uuid);
 			}
 
 		} else {
 			log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Got SysInfo reply (uuid: %s) for a new node", msg->uuid);
-			np_simple_cache_insert(context, np_module(sysinfo)->_cache, source_val, np_tree_clone( body));
+			np_tree_replace_str(np_module(sysinfo)->_cache, source_val, np_treeval_new_tree(body));
 		}
 	}
 	if (source_str_free == true) {
@@ -404,7 +403,8 @@ void _np_sysinfo_request(np_state_t* context, const char* const hash_of_target) 
 				np_tree_t* dummy = np_tree_create();
 				np_tree_insert_str(dummy, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_d(np_time_now()));
 				np_tree_insert_str(dummy, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_d(np_module(sysinfo)->startup_at));				
-				np_simple_cache_insert(context, np_module(sysinfo)->_cache, hash_of_target, np_tree_clone( dummy));
+
+				np_tree_replace_str(np_module(sysinfo)->_cache, hash_of_target, np_treeval_new_tree(dummy));
 			}
 		}
 		log_msg(LOG_INFO | LOG_SYSINFO, "sending sysinfo request to %s", hash_of_target);
@@ -454,12 +454,10 @@ np_tree_t* _np_sysinfo_get_from_cache(np_state_t* context, const char* const has
 	np_tree_t* ret = NULL;
 	_LOCK_MODULE(np_sysinfo_t)
 	{
-		np_cache_item_t* item = np_simple_cache_get(context, np_module(sysinfo)->_cache, hash_of_target);
-		if (NULL != item && item->value != NULL) {
-			if ((np_time_now() - item->insert_time) <= max_cache_ttl) {
-				np_tree_t* tmp = item->value;
-				ret = np_tree_clone( tmp);
-			}
+		np_tree_elem_t* item = np_tree_find_str(np_module(sysinfo)->_cache, hash_of_target);
+		if (NULL != item && item->val.value.tree != NULL) {
+			np_tree_t* tmp = item->val.value.tree;
+			ret = np_tree_clone(tmp);
 		}
 	}
 	// we may need to reset the found item to prevent the output of a dummy
@@ -541,6 +539,17 @@ np_tree_t* np_sysinfo_get_all(np_state_t* context) {
 
 	np_waitref_obj(np_key_t, context->my_node_key, my_node_key, "usage");	
 
+	_LOCK_MODULE(np_sysinfo_t)
+	{
+		np_tree_elem_t* iter = RB_MIN(np_tree_s, np_module(sysinfo)->_cache);
+		while (iter != NULL) {
+			if (iter->val.value.tree != NULL) {
+				np_tree_insert_int(ret, count++, np_treeval_new_tree(iter->val.value.tree));
+			}
+			iter = RB_NEXT(np_tree_s, np_module(sysinfo)->_cache, iter);
+		}
+	}
+	/*
 	routing_table = _np_route_get_table(context);
 	neighbours_table = _np_route_neighbors(context);
 	np_sll_t(np_key_ptr, merge_table) = sll_merge(np_key_ptr, routing_table, neighbours_table, _np_key_cmp);
@@ -560,12 +569,13 @@ np_tree_t* np_sysinfo_get_all(np_state_t* context) {
 			}
 		}
 	}
-
+	
 	sll_free(np_key_ptr, merge_table);
 	np_key_unref_list(routing_table,"_np_route_get_table");
 	sll_free(np_key_ptr, routing_table);
 	np_key_unref_list(neighbours_table, "_np_route_neighbors");
 	sll_free(np_key_ptr, neighbours_table);
+	*/
 	np_unref_obj(np_key_t, my_node_key, "usage");
 
 	return ret;
