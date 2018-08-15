@@ -901,7 +901,7 @@ uint32_t np_memory_unref_obj(void* item, char* reason) {
 
         _LOCK_ACCESS(&config->access_lock) {
             np_mem_unrefobj(config, reason);
-            ret = config->ref_count; 
+			ret = config->ref_count + (config->persistent?1:0);
             if (config->persistent == false && config->ref_count == 0) {
                 np_memory_free(item);
             }			

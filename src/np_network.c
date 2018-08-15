@@ -259,17 +259,26 @@ bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key)
 				double now = np_time_now();
 				np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
 
-				if (node_key->node->is_handshake_send == false ||
-					(node_key->node->is_handshake_received == false && now > (node_key->node->handshake_send_at + msg_prop->msg_ttl)))
+				if (node_key->node->handshake_status == np_handshake_status_Disconnected ||
+					(node_key->node->handshake_status == np_handshake_status_SelfInitiated && now > (node_key->node->handshake_send_at + msg_prop->msg_ttl)))
 				{
 					log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
 						node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
 
-					node_key->node->is_handshake_send = true;
+					node_key->node->handshake_status == np_handshake_status_SelfInitiated;
 					node_key->node->handshake_send_at = now;
 
 					_np_job_submit_transform_event(context, 0.0, msg_prop, node_key, NULL);
 					ret = true;
+				}
+				else {
+					log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for alias %s requested, but alias in state %s", _np_key_as_str(node_key),
+						node_key->node->handshake_status == np_handshake_status_Connected ? "Connected" :
+						node_key->node->handshake_status == np_handshake_status_RemoteInitiated ? "RemoteInitiated" :
+						node_key->node->handshake_status == np_handshake_status_SelfInitiated ? "SelfInitiated" :
+						node_key->node->handshake_status == np_handshake_status_Disconnected ? "Disconnected" :
+						"Unknown"
+					);
 				}
 			}
 		}
@@ -288,7 +297,7 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
 	
 	// Send handshake info if necessary
 	if (_np_network_send_handshake(context, node_key) == false &&
-		target_node->is_handshake_received == true &&
+		target_node->handshake_status == np_handshake_status_Connected &&
 		NULL != node_key->network)
 	{
 		// get encryption details

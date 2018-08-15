@@ -99,7 +99,7 @@ int main(int argc, char **argv)
 		if (np_ok != np_run(context, 0.001)) {
 			np_example_print(context, stderr, "ERROR: Node could not run");
 		}
-		else {
+		else { 
 			__np_example_helper_run_info_loop(context);
 		}
 		np_example_print(context, stderr, "Closing Node");

@@ -57,9 +57,8 @@ void _np_node_t_new(np_state_t *context, uint8_t type, size_t size, void*  node)
 
 	entry->last_success = np_time_now();
 	entry->success_win_index = 0;
-	entry->is_handshake_send = false;
+	entry->handshake_status = np_handshake_status_Disconnected;
 	entry->handshake_send_at = 0;
-	entry->is_handshake_received = false;
 	entry->joined_network = false;
 
 	for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)

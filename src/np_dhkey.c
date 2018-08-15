@@ -152,7 +152,6 @@ void _np_dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dh
 	for (uint8_t i = 0; i < 8; i++)
 	{
 		result->t[i] = op1->t[i] - op2->t[i];
-		//log_debug_msg(LOG_KEY | LOG_DEBUG, "op1[%"PRIu32"] - op2[%"PRIu32"] = r[%"PRIu32"]", op1->t[i], op2->t[i], result->t[i]);
 	}
 }
 
@@ -185,7 +184,7 @@ np_dhkey_t np_dhkey_max(np_state_t* context)  {
 // TODO: the distance of two hash keys could be implemented much better
 void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 {	
-	_np_dhkey_sub (diff, k1, k2);
+	_np_dhkey_sub(diff, k1, k2);		
 }
 
 

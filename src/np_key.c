@@ -245,7 +245,7 @@ np_key_t* _np_key_get_by_key_hash(np_state_t* context, char* targetDhkey)
 
 	if (NULL != targetDhkey) {
 
-		target = _np_keycache_find_by_details(context, targetDhkey, false, true, true, true, false, false, true);
+		target = _np_keycache_find_by_details(context, targetDhkey, false, np_handshake_status_Connected, true, false, false, true);
 
 		if (NULL == target) {
 			log_msg(LOG_WARN,

@@ -21,6 +21,12 @@
 extern "C" {
 #endif
 
+	enum np_handshake_status {
+		np_handshake_status_Disconnected = 0,
+		np_handshake_status_SelfInitiated,
+		np_handshake_status_RemoteInitiated,
+		np_handshake_status_Connected,
+	};
 struct np_node_s
 {
 	// link to memory management
@@ -33,9 +39,8 @@ struct np_node_s
 	char* port;
 
 	// state extension
-	bool is_handshake_send;
-	double handshake_send_at;
-	bool is_handshake_received;
+	enum np_handshake_status handshake_status;
+	double handshake_send_at; 	
 	bool joined_network; 
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
 	bool session_key_is_set;

@@ -68,8 +68,8 @@ void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhk
 NP_API_INTERN
 np_key_t* _np_keycache_find_by_details(
 	np_state_t* context,
-	char* details_container, bool search_myself, bool is_handshake_send,
-	bool is_handshake_received, bool require_handshake_status, 
+	char* details_container, bool search_myself, 
+	enum np_handshake_status search_handshake_status, bool require_handshake_status, 
 	bool require_dns, bool require_port, bool require_hash );
 
 NP_API_INTERN

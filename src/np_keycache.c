@@ -109,8 +109,7 @@ np_key_t* _np_keycache_find_by_details(
 		np_state_t* context,
 		char* details_container,
 		bool search_myself,
-		bool is_handshake_send,
-		bool is_handshake_received,
+		enum np_handshake_status search_handshake_status,
 		bool require_handshake_status,
 		bool require_dns,
 		bool require_port,
@@ -141,9 +140,7 @@ np_key_t* _np_keycache_find_by_details(
 				if (
 						(!require_handshake_status ||
 								(NULL != iter->node &&
-									iter->node->is_handshake_send == is_handshake_send
-									&&
-									iter->node->is_handshake_received == is_handshake_received
+									iter->node->handshake_status == search_handshake_status									
 								) 
 
 						) &&
@@ -392,34 +389,59 @@ void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhk
 	np_dhkey_t dif1, dif2;
 
 	// entry check for empty list
-	if (NULL == sll_first(list_of_keys)) return;
+	if (sll_size(list_of_keys)<2) return;
 
 	sll_iterator(np_key_ptr) curr = sll_first(list_of_keys);
+	np_ctx_memory(curr->val);
+	bool swap;
 	do {
-		// Maintain pointers.
-		sll_iterator(np_key_ptr) next = sll_get_next(curr);
+		curr = sll_first(list_of_keys);
+		swap = false;
+		
+		while (NULL != curr) {
+			// Maintain pointers.
+			sll_iterator(np_key_ptr) next = sll_get_next(curr);
 
-		// Cannot swap last element with its next.
-		while (NULL != next)
-		{
-			// Swap if items in wrong order.
-			_np_dhkey_distance (&dif1, &curr->val->dhkey, key);
-			_np_dhkey_distance (&dif2, &next->val->dhkey, key);
-			if (_np_dhkey_cmp (&dif2, &dif1) < 0)
+			// Cannot swap last element with its next.
+			while (NULL != next)
 			{
-				np_key_t* tmp = curr->val;
-				curr->val = next->val;
-				next->val = tmp;
-				// Notify loop to do one more pass.
-				break;
+				// Swap if items in wrong order.
+				_np_dhkey_distance(&dif1, &curr->val->dhkey, key);
+				_np_dhkey_distance(&dif2, &next->val->dhkey, key);
+				if (_np_dhkey_cmp(&dif2, &dif1) < 0)
+				{
+					swap = true;
+					np_key_t* tmp = curr->val;
+					curr->val = next->val;
+					next->val = tmp;
+					// Notify loop to do one more pass.
+					break;
+				}
+				// continue with the loop
+				sll_next(next);
 			}
-			// continue with the loop
-			sll_next(next);
+			sll_next(curr);
+
 		}
+	} while (swap);
+
+#ifdef DEBUG
+	char* str = NULL;
+	char dhkey_str[65] = { 0 };
+	np_id2str(key, dhkey_str);
+	str = np_str_concatAndFree(str, "Base: %s %"PRIu32" ", dhkey_str, key->t[0]);
+	str = np_str_concatAndFree(str, "DISTANCE SORTED KEYs (key/dist): ");
+
+	curr = sll_first(list_of_keys);
+	while (curr != NULL) {
+		_np_dhkey_distance(&dif1, &curr->val->dhkey, key);
+		np_id2str(&dif1, dhkey_str);
+		str = np_str_concatAndFree(str, "%s / %s, ", _np_key_as_str(curr->val), dhkey_str);
 		sll_next(curr);
-
-	} while (curr != sll_last(list_of_keys) && NULL != curr);
-
+	}
+	log_debug_msg(LOG_DEBUG, "%s", str);
+	free(str);
+#endif
 //    for (i = 0; i < size; i++)
 //	{
 //	    for (j = i + 1; j < size; j++)

@@ -180,7 +180,7 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
 
 						// Cleanup of leafset / resize leafsets to max size if necessary
 						if (sll_size(np_module(route)->left_leafset) > NP_ROUTE_LEAFSET_SIZE) {
-							deleted_from = sll_head(np_key_ptr, np_module(route)->left_leafset);
+							deleted_from = sll_tail(np_key_ptr, np_module(route)->left_leafset);
 						}
 					}
 

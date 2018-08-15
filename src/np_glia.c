@@ -170,7 +170,7 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
 		if (NULL != tmp_node_key->node &&
 			tmp_node_key->node->success_avg < BAD_LINK &&
 			(np_time_now() - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
-			tmp_node_key->node->is_handshake_send == true
+			tmp_node_key->node->handshake_status == np_handshake_status_Connected
 			)
 		{
 			np_ctx_memory(tmp_node_key);
@@ -540,6 +540,8 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t* args)
 
 	sll_of_keys = _np_route_row_lookup(target_key);
 	char* source_sll_of_keys = "_np_route_row_lookup";
+	
+	
 	if (sll_size(sll_of_keys) <= 2)
 	{
 		// nothing found, send leafset to exchange some data at least
@@ -549,7 +551,7 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t* args)
 		sll_of_keys = _np_route_neighbors(context);
 		source_sll_of_keys = "_np_route_neighbors";
 	}
-
+	
 	if (sll_size(sll_of_keys) > 0)
 	{
 		np_tree_t* msg_body = np_tree_create();

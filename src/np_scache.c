@@ -26,7 +26,7 @@ np_simple_cache_table_t* np_cache_init(np_state_t* context) {
 	CHECK_MALLOC(ret);
 	_np_threads_mutex_init(context, &ret->lock,"simple cache");
 
-	for (uint32_t i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) {
+	for (uint32_t i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) { 
 		sll_init(np_cache_item_ptr, ret->buckets[i]);
 	}
 

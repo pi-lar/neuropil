@@ -14,7 +14,7 @@ extern "C" {
 #include "np_list.h"
 #include "np_threads.h"
 
-#define SIMPLE_CACHE_NR_BUCKETS 32
+#define SIMPLE_CACHE_NR_BUCKETS 128
 
 struct np_cache_item_s {
     char *key;

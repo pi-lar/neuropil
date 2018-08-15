@@ -707,7 +707,7 @@ bool parse_program_args(
 			//| LOG_KEY
 			| LOG_NETWORK
 			//| LOG_AAATOKEN
-			//| LOG_SYSINFO
+			| LOG_SYSINFO
 			//| LOG_MESSAGE
 			//| LOG_SERIALIZATION
 			//| LOG_MEMORY
@@ -934,6 +934,19 @@ void _np_interactive_http_mode(np_context* context, char* buffer) {
 
 	}
 }
+void _np_interactive_quit(np_context* context, char* buffer) {
+
+	if (strncmp(buffer, "1", 2) == 0 || 
+		strncmp(buffer, "y", 1) == 0 ){
+		if (_np_httpserver_active) {
+			example_http_server_deinit(context);
+		}
+		__np_example_deinti_ncurse(context);
+		np_destroy(context, true);
+		exit(EXIT_SUCCESS);
+	}
+}
+
 void _np_interactive_join(np_context* context, char* buffer) {
 	
 	np_example_print(context, stdout, "Try to join network at \"%s\".", buffer);
@@ -1236,9 +1249,12 @@ void __np_example_helper_loop(np_state_t* context) {
 					);
 					break;
 				case 113: // q
-					__np_example_deinti_ncurse(context);
-					np_destroy(context, true);
-					exit(EXIT_SUCCESS);
+					__np_switchwindow_configure_interactive(context,
+						"Quit:\n"
+						"0/n/no/cancel\n"
+						"1/y/yes\n"
+						, _np_interactive_quit
+					);
 					break;
 				}
 			}

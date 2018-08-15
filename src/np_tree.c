@@ -1057,7 +1057,7 @@ void __np_tree_serialize_write_type(np_state_t* context, np_treeval_t val, cmp_c
 		cmp_ctx_t tree_cmp = { 0 };
 		uint32_t buf_size = val.value.tree->byte_size;
 		char buffer[buf_size];
-		log_debug_msg(LOG_DEBUG, "write: buffer size for subtree %u (%hd %u) %u", val.size, val.value.tree->size, val.value.tree->byte_size, buf_size);
+		log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "write: buffer size for subtree %u (%hd %u) %u", val.size, val.value.tree->size, val.value.tree->byte_size, buf_size);
 		void* buf_ptr = buffer;
 		cmp_init(&tree_cmp, buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 		np_tree_serialize(context, val.value.tree, &tree_cmp);
