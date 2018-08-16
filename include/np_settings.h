@@ -26,13 +26,14 @@ extern "C" {
 #ifdef DEBUG
 	//#define DEBUG_CALLBACKS 1
 	#define NP_MEMORY_CHECK_MEMORY_REFFING 1
+	#define NP_MEMORY_CHECK_MAGIC_NO
 	//#define NP_THREADS_CHECK_THREADING 1
 	#define NP_BENCHMARKING 4096
 	#define NP_STATISTICS_COUNTER
 #endif // DEBUG
 
-
 #define NP_PI 3.1415
+#define NP_PI_INT 3
 
 
 #ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
@@ -48,7 +49,7 @@ extern "C" {
 	#define SYSINFO_PROACTIVE_SEND_IN_SEC (NP_PI)
 #endif
 #ifndef SYSINFO_MAX_TTL
-	#define SYSINFO_MAX_TTL (NP_PI*100)
+	#define SYSINFO_MAX_TTL (NP_PI_INT*100)
 #endif
 
 #ifndef SYSINFO_MIN_TTL
@@ -56,7 +57,7 @@ extern "C" {
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL
-	#define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI*10)
+	#define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI_INT*10)
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MIN_TTL
@@ -66,7 +67,7 @@ extern "C" {
  * The maximum lifetime of a node before it is refreshed
  */
 #ifndef NODE_MAX_TTL_SEC
-	#define NODE_MAX_TTL_SEC (NP_PI*10000000)
+	#define NODE_MAX_TTL_SEC (NP_PI_INT*10000000)
 #endif
 
 #ifndef TOKEN_GRACETIME

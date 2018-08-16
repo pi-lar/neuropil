@@ -13,6 +13,13 @@ It should contain all required functions to send or receive messages.
 #ifndef _NEUROPIL_H_
 #define _NEUROPIL_H_
 
+#include <assert.h>
+#ifdef NP_BENCHMARKING
+#include <math.h>
+#endif
+#include <float.h>
+
+#include <pthread.h>
 
 #include "np_constants.h"
 
@@ -347,13 +354,13 @@ NP_API_EXPORT
 void np_context_create_new_nodekey(np_context* ac, np_node_t* base);
 
 NP_API_INTERN
-bool _np_default_authorizefunc(np_context*ac, np_token* token);
+bool _np_default_authorizefunc(np_context*ac, struct np_token* token);
 
 NP_API_INTERN
-bool _np_default_authenticatefunc(np_context*ac, np_token* token);
+bool _np_default_authenticatefunc(np_context*ac, struct  np_token* token);
 
 NP_API_INTERN
-bool _np_default_accountingfunc(np_context*ac, np_token* token);
+bool _np_default_accountingfunc(np_context*ac, struct  np_token* token);
 
 #ifdef __cplusplus
 }

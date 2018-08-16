@@ -267,7 +267,7 @@ char* np_threads_printpool(np_state_t* context, bool asOneLine);
 	_np_threads_mutex_destroy(context, &NAME##_mutex);
 
 #define TSP_GET(TYPE, NAME, RESULT)					\
-	TYPE RESULT;									\
+	TYPE RESULT=0;									\
 	_LOCK_ACCESS(&NAME##_mutex){					\
 		RESULT = NAME;								\
 	}

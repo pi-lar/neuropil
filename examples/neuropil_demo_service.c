@@ -91,19 +91,19 @@ int main(int argc, char **argv) {
 	}
  
 	np_add_receive_cb(context, "echo", receive_echo_message);	
-	struct np_mx_properties  echo_props = np_get_mx_properties(context, "echo", NULL);
+	struct np_mx_properties  echo_props = np_get_mx_properties(context, "echo");
 	echo_props.ackmode = NP_MX_ACK_NONE;
 	echo_props.message_ttl = 20.0;
 	np_set_mx_properties(context, "echo", echo_props);
 
  	np_add_receive_cb(context, "ping", receive_ping);
-	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping", NULL);
+	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping");
 	ping_props.ackmode = NP_MX_ACK_NONE;
 	ping_props.message_ttl = 5.0;
 	np_set_mx_properties(context, "ping", ping_props);
 
  	np_add_receive_cb(context, "pong", receive_pong);
-	struct np_mx_properties  pong_props = np_get_mx_properties(context, "pong", NULL);
+	struct np_mx_properties  pong_props = np_get_mx_properties(context, "pong");
 	pong_props.ackmode = NP_MX_ACK_NONE;
 	pong_props.message_ttl = 5.0;
 	np_set_mx_properties(context, "pong", pong_props);

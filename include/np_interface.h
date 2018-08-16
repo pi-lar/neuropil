@@ -11,13 +11,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <assert.h>
-#ifdef NP_BENCHMARKING
-#include <math.h>
-#endif
-#include <float.h>
-
-#include <pthread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -97,7 +90,6 @@ extern "C" {
 		np_network_error,
 		np_invalid_argument,
 		np_invalid_operation,
-		np_insufficient_memory,
 		np_startup
 		// ...
 	} NP_ENUM;
@@ -114,6 +106,7 @@ extern "C" {
 	
 	typedef void np_context;
 	
+	// TODO: struct uint8_t np_id[NP_FINGERPRINT_BYTES];
 	typedef struct np_dhkey_s
 	{
 		uint32_t t[8];
@@ -124,7 +117,7 @@ extern "C" {
 	// and can also describe an array of bytes. (sizeof char == 1)
 	void np_get_id(np_context * context, np_id* id, char* string, size_t length);
 
-	typedef struct np_token {
+	struct np_token {
 		char subject[500]; // todo: has to be np_id
 		np_id realm, issuer, audience;
 		double issued_at, not_before, expires_at;
@@ -132,8 +125,7 @@ extern "C" {
 		size_t extension_length;
 		uint8_t public_key[NP_PUBLIC_KEY_BYTES],
 			secret_key[NP_SECRET_KEY_BYTES];
-	} np_token;
-
+	};
 	
 	typedef struct np_message {
 		char uuid[NP_UUID_CHARS];
@@ -142,7 +134,7 @@ extern "C" {
 		double received_at, expires_at;
 		uint8_t * data;
 		size_t data_length;
-	} np_message;
+	}np_message;
 		
 	struct np_settings {
 		uint32_t n_threads;
@@ -177,9 +169,7 @@ extern "C" {
 
 	NP_API_EXPORT
 	enum np_error np_send(np_context* ac, char* subject, uint8_t* message, size_t length);
-	NP_API_EXPORT
-	enum np_error np_send_to(np_context* ac, char* subject, uint8_t* message, size_t length, np_id * target);
-
+	
 	typedef bool (*np_receive_callback)(np_context* ac, np_message* message);
 
 	// There can be more than one receive callback, hence "add".
@@ -200,8 +190,8 @@ extern "C" {
 	NP_API_EXPORT
 	enum np_error np_run(np_context* ac, double duration);
 
-	enum np_mx_pattern      { NP_MX_BROADCAST, NP_MX_ANY, NP_MX_REQ_REP, NP_MX_HIDDEN, /* ... */ } NP_ENUM;
-	enum np_mx_cache_policy { NP_MX_FIFO_REJECT, NP_MX_FIFO_PURGE, NP_MX_FILO_REJECT, NP_MX_FILO_PURGE } NP_ENUM;
+	enum np_mx_pattern      { NP_MX_BROADCAST, NP_MX_ANY, NP_MX_ONE_WAY, NP_MX_REQ_REP, NP_MX_HIDDEN, /* ... */ } NP_ENUM;
+	enum np_mx_cache_policy { NP_MX_FIFO_REJECT, NP_MX_FIFO_PURGE, NP_MX_LIFO_REJECT, NP_MX_LIFO_PURGE } NP_ENUM;
 	enum np_mx_ackmode      { NP_MX_ACK_NONE, NP_MX_ACK_DESTINATION, NP_MX_ACK_CLIENT } NP_ENUM;
 
 	struct np_mx_properties {
@@ -215,23 +205,28 @@ extern "C" {
 	};
 
 	NP_API_EXPORT
-	struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject, bool* exisits);
+	struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject);
 	NP_API_EXPORT
 	enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties properties);
-	NP_API_EXPORT
-	bool np_has_joined(np_context * ac);
 	NP_API_EXPORT
 	void np_set_userdata(np_context * ac, void* userdata);
 	NP_API_EXPORT
 	void* np_get_userdata(np_context * ac);
+	
 	NP_API_EXPORT
-	enum np_status np_get_status(np_context* ac);
+		enum np_error np_send_to(np_context* ac, char* subject, uint8_t* message, size_t length, np_id * target);
 	NP_API_EXPORT
-	bool np_has_receiver_for(np_context*ac, char * subject);
+		bool np_has_joined(np_context * ac);		
 	NP_API_EXPORT
-	void np_id2str(const np_id* k, char* key_string);
+		enum np_status np_get_status(np_context* ac);
 	NP_API_EXPORT
-	void np_str2id(const char* key_string, np_id* k);
+		bool np_has_receiver_for(np_context*ac, char * subject);	
+	NP_API_EXPORT
+		void np_id2str(const np_id* k, char* key_string);
+	NP_API_EXPORT
+		void np_str2id(const char* key_string, np_id* k);
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -31,6 +31,7 @@
 #include "np_shutdown.h"
 #include "np_aaatoken.h"
 
+// split into hash 
 void np_get_id(np_context * ac, np_id* id, char* string, size_t length) {
 	np_ctx_cast(ac);
 	
@@ -42,6 +43,7 @@ void np_get_id(np_context * ac, np_id* id, char* string, size_t length) {
 	}	
 }
 
+//TODO: malloc raus
 struct np_settings * np_new_settings(struct np_settings ** settings) {
 	struct np_settings * ret;
 	if (settings == NULL) {
@@ -405,7 +407,7 @@ enum np_error np_set_accounting_cb(np_context* ac, np_aaa_callback callback) {
 	return ret;
 }
 
-struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject, bool* property_exisits) {
+struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject) {
 	np_ctx_cast(ac);
 	struct np_mx_properties ret = { 0 };
 	bool exisits = false;
@@ -425,7 +427,7 @@ struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject, bool
 	if (exisits == false) {
 		np_unref_obj(np_msgproperty_t, property, FUNC);             																									\
 	}
-	if (property_exisits != NULL) *property_exisits = exisits;
+	
 	return ret;
 }
 enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties user_property) {
@@ -478,11 +480,6 @@ enum np_status np_get_status(np_context* ac) {
 
 void np_id2str(const np_id* k, char* key_string)
 {
-	// k->valid = false;
-
-	// log_msg(LOG_KEY | LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
-	// log_msg(LOG_KEY | LOG_WARN, "key %16lx%16lx%16lx%16lx", k->t[0], k->t[1], k->t[2], k->t[3]);
-
 	// TODO: use sodium bin2hex function
 	memset(key_string, 0, 64);
 
@@ -491,8 +488,6 @@ void np_id2str(const np_id* k, char* key_string)
 		k->t[0], k->t[1], k->t[2], k->t[3], k->t[4], k->t[5], k->t[6], k->t[7]
 	);
 	key_string[64] = '\0';
-	// k->valid = true;
-	// log_debug_msg(LOG_KEY | LOG_DEBUG, "key string now: %s", k->keystr);
 }
 
 void np_str2id(const char* key_string, np_id* k)

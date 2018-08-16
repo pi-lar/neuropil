@@ -164,7 +164,7 @@ typedef enum np_msg_mep_enum {
 
    FIFO - first in first out
 
-   FILO - first in last out (stack)
+   LIFO - first in last out (stack)
 
    OVERFLOW_REJECT - reject new messages when the limit is reached
 
@@ -175,7 +175,7 @@ typedef enum np_msg_mep_enum {
 typedef enum np_msgcache_policy_enum {
 	UNKNOWN = 0x00,
 	FIFO = 0x01,
-	FILO = 0x02,
+	LIFO = 0x02,
 	OVERFLOW_REJECT = 0x10,
 	OVERFLOW_PURGE = 0x20
 } NP_API_EXPORT np_msgcache_policy_type;

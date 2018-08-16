@@ -59,7 +59,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_callback_t);
  * @param token
  * @return
  */
-bool _np_default_authorizefunc (np_context* ac, np_token* token )
+bool _np_default_authorizefunc (np_context* ac, struct  np_token* token )
 {
 	np_ctx_cast(ac);
 
@@ -74,7 +74,7 @@ bool _np_default_authorizefunc (np_context* ac, np_token* token )
  * @param token
  * @return
  */
-bool _np_aaa_authorizefunc (np_context* ac, np_token* token )
+bool _np_aaa_authorizefunc (np_context* ac, struct np_token* token )
 {
 	np_ctx_cast(ac);
 	np_key_t* aaa_target = NULL;
@@ -103,7 +103,7 @@ bool _np_aaa_authorizefunc (np_context* ac, np_token* token )
  * @param token
  * @return
  */
-bool _np_default_authenticatefunc (np_context*ac, np_token* token )
+bool _np_default_authenticatefunc (np_context*ac, struct np_token* token )
 {
 #ifndef DEBUG
 	np_ctx_cast(ac);
@@ -117,7 +117,7 @@ bool _np_default_authenticatefunc (np_context*ac, np_token* token )
  * @param token
  * @return
  */
-bool _np_aaa_authenticatefunc (np_context*ac, np_token* token)
+bool _np_aaa_authenticatefunc (np_context*ac, struct np_token* token)
 {
 	np_ctx_cast(ac);
 	np_key_t* aaa_target = NULL;
@@ -144,7 +144,7 @@ bool _np_aaa_authenticatefunc (np_context*ac, np_token* token)
  * @param token
  * @return
  */
-bool _np_default_accountingfunc (np_context*ac, np_token* token )
+bool _np_default_accountingfunc (np_context*ac, struct np_token* token )
 {
 #ifndef DEBUG
 	np_ctx_cast(ac);
@@ -158,7 +158,7 @@ bool _np_default_accountingfunc (np_context*ac, np_token* token )
  * @param token
  * @return
  */
-bool _np_aaa_accountingfunc (np_context*ac, np_token* token)
+bool _np_aaa_accountingfunc (np_context*ac, struct  np_token* token)
 {
 	np_ctx_cast(ac);
 	np_key_t* aaa_target = NULL;

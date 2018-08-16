@@ -209,7 +209,7 @@ int main(int argc, char **argv)
 	
 	//register the listener function to receive data from the sender
 	np_add_receive_cb(context, "ping", receive_ping);
-	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping", NULL);
+	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping");
 	ping_props.ackmode = NP_MX_ACK_NONE;
 	ping_props.message_ttl = 5.0;
 	//ping_props.retry = 1;
@@ -220,7 +220,7 @@ int main(int argc, char **argv)
 
  	//register the listener function to receive data from the sender
 	np_add_receive_cb(context, "pong", receive_pong);
-	struct np_mx_properties  pong_props = np_get_mx_properties(context, "pong", NULL);
+	struct np_mx_properties  pong_props = np_get_mx_properties(context, "pong");
 	pong_props.ackmode = NP_MX_ACK_NONE;
 	pong_props.message_ttl = 5.0;
 	//pong_props->retry = 1;
