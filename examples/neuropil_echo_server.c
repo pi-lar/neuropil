@@ -1,12 +1,11 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
- *.. NOTE::
- *
- *   If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
- */
+.. NOTE::
+   If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,8 +35,8 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
 
 /**
-  The purpose of this program is to start a server for our echo service.
-  We will wait for incomming messages on the "echo" subject and will return them to the sender.
+The purpose of this program is to start a server for our echo service.
+We will wait for incomming messages on the "echo" subject and will return them to the sender.
 */
 int main(int argc, char **argv) {
 
@@ -68,7 +67,7 @@ int main(int argc, char **argv) {
 	} 
 
 	/**
-		for the general initialisation of a node please look into the neuropil_node example
+	for the general initialization of a node please look into the neuropil_node example
 	*/
 
 	char log_file[256];
@@ -83,7 +82,7 @@ int main(int argc, char **argv) {
 
 	.. code-block:: c
 
-	\code
+	   \code
 	*/
 
 	np_msgproperty_t* msg_props = NULL;
@@ -93,17 +92,19 @@ int main(int argc, char **argv) {
 	msg_props->ack_mode = ACK_NONE;
 	msg_props->msg_ttl = 20.0;
 	/**
-	 \endcode
+	   \endcode
 
 	and add a listener to receive a callback everytime a "echo" message is received.
 	finally start the job queue to start processing messages.
 
 	.. code-block:: c
 
-     \code
+       \code
 	*/
 	np_start_job_queue(no_threads);
-	/** \endcode */
+	/**
+	   \endcode
+	*/
 
 	while (TRUE) {
 		np_time_sleep(0.1);
@@ -116,36 +117,40 @@ a echo message is received by the nodes that you are going to start
 
 .. code-block:: c
 
-\code
+   \code
 */
 np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
-/** \endcode */
+/**
+   \endcode
+*/
+
 	np_tree_t* header = msg->header;
 	fprintf(stdout, "%f - RECEIVED", np_time_now());
 
 	/**
-	 we try to evaluate the source of the message
+	we try to evaluate the source of the message
 
-	 .. code-block:: c
+	.. code-block:: c
 
-	 \code
-	 */
-	char* reply_to = NULL; // All
+	   \code
+	*/
+	np_dhkey_t reply_to = { 0 }; // All
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
-		reply_to = np_treeval_to_str(repl_to->val, NULL);
+		reply_to = repl_to->val.value.dhkey;
+	/**
+	   \endcode
+	*/
 
 		/**
-		 \endcode
+		we evaluate the content and check if we did receive a text message
+		to prevent malicious use of the demo service and then
+		send the message back to its sender
 
-		  we evaluate the content and check if we did receive a text message
-		  to prevent malicious use of the demo service and then
-		  send the message back to its sender
+		.. code-block:: c
 
-		 .. code-block:: c
-
-		 \code
-		 */
+		   \code
+		*/
 		char* text;
 		np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
 		if (NULL != txt) {
@@ -154,10 +159,12 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 		} else {
 			text = "<NON TEXT MSG>";
 		}
-		fprintf(stdout, ": \"%s\" from: %s \n", text, reply_to);
+		fprintf(stdout, ": \"%s\"\n", text);
 		// send the message back
-		np_send_text("echo", text, 0, reply_to);
-		/** \endcode */
+		np_send_text("echo", text, 0, &reply_to);
+		/**
+		   \endcode
+		*/
 	}
 	return TRUE;
 }

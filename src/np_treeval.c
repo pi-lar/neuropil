@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <assert.h>
@@ -15,12 +15,13 @@
 
 #include "np_log.h"
 #include "np_dhkey.h"
+#include "np_util.h"
 #include "np_tree.h"
 
-np_treeval_t np_treeval_NULL = { .type = np_treeval_type_undefined, .size=0 };
+// np_treeval_t np_treeval_NULL = { .type = np_treeval_type_undefined, .size=0 };
 
 np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
-    log_msg(LOG_TRACE, "start: np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {");
+    log_trace_msg(LOG_TRACE, "start: np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {");
 	np_treeval_t to;
 	switch (from.type) {
 	// length is always 1 (to identify the type) + the length of the type
@@ -150,7 +151,7 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 	@param:freeable: returns the information to free or not to free the result
 */
 char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
-    log_msg(LOG_TRACE, "start: char* np_treeval_to_str(np_treeval_t val) {");
+    log_trace_msg(LOG_TRACE, "start: char* np_treeval_to_str(np_treeval_t val) {");
 
 	int len = 0;
 	char* result = NULL;
@@ -262,12 +263,12 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
 			break;
 #endif
  		case np_treeval_type_uint_array_2:
-  			len = snprintf(NULL, 0, "%u%u", val.value.a2_ui[0], val.value.a2_ui[1]);
+  			len = snprintf(NULL, 0, "%u,%u", val.value.a2_ui[0], val.value.a2_ui[1]);
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
 				if (freeable != NULL) *freeable = TRUE;
-  				snprintf(result, len+1, "%u%u", val.value.a2_ui[0], val.value.a2_ui[1]);
+  				snprintf(result, len+1, "%u,%u", val.value.a2_ui[0], val.value.a2_ui[1]);
   			}
  			break;
 // 		case np_treeval_type_float_array_2:  byte_size += 1 + 2*sizeof(float); break;
@@ -281,10 +282,26 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
  			return "--> binary content";
 			break;
  		case np_treeval_type_jrb_tree:
-			return "--> subtree";
+			if (freeable != NULL) * freeable = TRUE;
+			char * info_str = NULL;
+			np_tree_elem_t * tmp = NULL;
+			np_bool free_key, free_value;
+			char *key, *value;			
+			RB_FOREACH(tmp, np_tree_s, (val.value.tree))
+			{
+				key = np_treeval_to_str(tmp->key, &free_key);
+				value = np_treeval_to_str(tmp->val, &free_value);
+				info_str = np_str_concatAndFree(info_str, "%s:%s |", key, value);
+				if (free_value) free(value);
+				if (free_key) free(key);
+			}
+			char * t = info_str;
+			asprintf(&info_str, "--> SUBTREE (%s)", t);
+			free(t);
+			return info_str ;
 			break;
 		case np_treeval_type_dhkey:
-			result = malloc(64);
+			result = malloc(65);
 			CHECK_MALLOC(result);
 			if (freeable != NULL) *freeable = TRUE;
 			_np_dhkey_to_str(&val.value.dhkey, result);
@@ -512,7 +529,7 @@ np_treeval_t np_treeval_new_carray_nnt (char *carray)
 
 np_treeval_t np_treeval_new_tree(np_tree_t* tree)
 {
-    log_msg(LOG_TRACE, "start: np_treeval_t np_treeval_new_tree(np_tree_t* tree){");
+    log_trace_msg(LOG_TRACE, "start: np_treeval_t np_treeval_new_tree(np_tree_t* tree){");
 	np_treeval_t j;
     j.value.tree = tree;
     j.size = tree->byte_size;
@@ -559,7 +576,7 @@ np_treeval_t np_treeval_new_pwhash (NP_UNUSED char *s)
 
 np_treeval_t np_treeval_new_obj(np_obj_t* obj)
 {
-    log_msg(LOG_TRACE, "start: np_treeval_t np_treeval_new_obj(np_obj_t* obj){");
+    log_trace_msg(LOG_TRACE, "start: np_treeval_t np_treeval_new_obj(np_obj_t* obj){");
 	np_treeval_t j;
 	j.value.obj = obj;
 	j.size = 0;
@@ -662,7 +679,7 @@ char* np_treeval_h (np_treeval_t j)
 
 uint32_t np_treeval_get_byte_size(np_treeval_t ele)
 {
-    log_msg(LOG_TRACE, "start: uint32_t np_treeval_get_byte_size(np_treeval_t ele){");
+    log_trace_msg(LOG_TRACE, "start: uint32_t np_treeval_get_byte_size(np_treeval_t ele){");
 	uint32_t byte_size = 0;
 
 	switch(ele.type)
@@ -691,7 +708,7 @@ uint32_t np_treeval_get_byte_size(np_treeval_t ele)
 		case np_treeval_type_void: 						byte_size += 1 + sizeof(void*); break;
 		case np_treeval_type_bin: 						byte_size += 1 + sizeof(uint32_t) + ele.size; break;
 		case np_treeval_type_hash: 						byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.size; break;
-		case np_treeval_type_jrb_tree:					byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.value.tree->byte_size; break;
+		case np_treeval_type_jrb_tree:					byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + ele.value.tree->byte_size; break;
 		case np_treeval_type_dhkey:						byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of dhkey*/8 * (sizeof(uint8_t) /*uint32 marker*/+ sizeof(uint32_t)/*uint32 value*/)); break;
 		case np_treeval_type_special_char_ptr:			byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of special string (1:1 replacement on target)*/ sizeof(uint8_t)/*uint8 marker*/ + sizeof(uint8_t)/*uint8 value*/); break; 
 		default:                  log_msg(LOG_ERROR, "unsupported length calculation for value / type %"PRIu8"", ele.type ); break;

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -12,30 +12,30 @@
 extern "C" {
 #endif
 
-struct ev_loop * _np_event_get_loop_io();
-struct ev_loop * _np_event_get_loop_http();
-struct ev_loop * _np_event_get_loop_in();
-struct ev_loop * _np_event_get_loop_out();
+	
+#define NP_EVENT_EVLOOP_PROTOTYPE(LOOPNAME)						\
+NP_API_INTERN													\
+struct ev_loop * _np_event_get_loop_##LOOPNAME();				\
+NP_API_INTERN													\
+void _np_events_read_##LOOPNAME(NP_UNUSED np_jobargs_t* args);	\
+NP_API_INTERN													\
+void* _np_event_##LOOPNAME##_run(void* np_thread_ptr);			\
+NP_API_INTERN													\
+void _np_suspend_event_loop_##LOOPNAME();						\
+NP_API_INTERN													\
+void _np_resume_event_loop_##LOOPNAME();						
 
-void _np_events_read_in(NP_UNUSED np_jobargs_t* args);
-void _np_events_read_out(NP_UNUSED np_jobargs_t* args);
-void _np_events_read_io(NP_UNUSED np_jobargs_t* args);
-void _np_events_read_http(NP_UNUSED np_jobargs_t* args);
+NP_EVENT_EVLOOP_PROTOTYPE(in)
+NP_EVENT_EVLOOP_PROTOTYPE(out)
+NP_EVENT_EVLOOP_PROTOTYPE(io)
+NP_EVENT_EVLOOP_PROTOTYPE(http)
+
+NP_API_INTERN		
 void _np_event_rejoin_if_necessary(NP_UNUSED np_jobargs_t* args);
+NP_API_INTERN		
 void _np_event_cleanup_msgpart_cache(NP_UNUSED np_jobargs_t* args);
-void* _np_event_in_run(void* np_thread_ptr);
-void* _np_event_http_run(void* np_thread_ptr);
-void* _np_event_out_run(void* np_thread_ptr);
-void* _np_event_io_run(void* np_thread_ptr);
-double np_event_sleep(double time);
-void _np_suspend_event_loop_in();
-void _np_resume_event_loop_in();
-void _np_suspend_event_loop_out();
-void _np_resume_event_loop_out();
-void _np_suspend_event_loop_io();
-void _np_resume_event_loop_io();
-void _np_suspend_event_loop_http();
-void _np_resume_event_loop_http();
+NP_API_INTERN		
+void np_event_init();
 
 #ifdef __cplusplus
 }

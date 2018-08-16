@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -42,7 +42,7 @@ _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
 void _np_node_t_new(void* node)
 {
-	log_msg(LOG_TRACE, "start: void _np_node_t_new(void* node){");
+	log_trace_msg(LOG_TRACE, "start: void _np_node_t_new(void* node){");
 	np_node_t* entry = (np_node_t *) node;
 
 	_np_threads_mutex_init(&entry->lock,"node lock");
@@ -58,6 +58,7 @@ void _np_node_t_new(void* node)
 	entry->last_success = np_time_now();
 	entry->success_win_index = 0;
 	entry->is_handshake_send = FALSE;
+	entry->handshake_send_at = 0;
 	entry->is_handshake_received = FALSE;
 	entry->joined_network = FALSE;
 
@@ -72,7 +73,7 @@ void _np_node_t_new(void* node)
 
 void _np_node_t_del(void* node)
 {
-	log_msg(LOG_TRACE, "start: void _np_node_t_del(void* node){");
+	log_trace_msg(LOG_TRACE, "start: void _np_node_t_del(void* node){");
 	np_node_t* entry = (np_node_t *) node;
 	if (entry->dns_name) free (entry->dns_name);
 	if (entry->port) free (entry->port);
@@ -302,30 +303,31 @@ sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_tree_t* data)
 	for (uint16_t i = 0; i < nodenum; i++)
 	{
 		np_tree_elem_t* node_data = np_tree_find_int(data, i);
-
-		np_bool free_s_key = FALSE;
-		char* s_key = np_treeval_to_str(np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val,&free_s_key);
-		np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
-		if (free_s_key == TRUE) {
-			free(s_key);
-		}
-		np_key_t* node_key    = _np_keycache_find_or_create(search_key);
-		if (NULL == node_key->node)
+		if (node_data != NULL)
 		{
-			node_key->node = _np_node_decode_from_jrb(node_data->val.value.tree);
-			ref_replace_reason(np_node_t, node_key->node, "_np_node_decode_from_jrb", ref_key_node);
-		} 
-		
-		ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", __func__);
-		
-		sll_append(np_key_ptr, node_list, node_key);
+			CHECK_STR_FIELD(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY, key_val);
+			np_dhkey_t search_key = np_dhkey_create_from_hash(key_val.value.s);
+
+			np_key_t* node_key    = _np_keycache_find_or_create(search_key);
+			if (NULL == node_key->node)
+			{
+				node_key->node = _np_node_decode_from_jrb(node_data->val.value.tree);
+				ref_replace_reason(np_node_t, node_key->node, "_np_node_decode_from_jrb", ref_key_node);
+			}
+
+			ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", __func__);
+			sll_append(np_key_ptr, node_list, node_key);
+
+			__np_cleanup__:
+				{}
+			}
 	}
 	return (node_list);
 }
 
 np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_key_create_from_token(np_aaatoken_t* token){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_key_create_from_token(np_aaatoken_t* token){");
 	// TODO: check whether metadata is used as a hash key in general
 	np_dhkey_t search_key = np_aaatoken_get_fingerprint(token);
 	np_key_t* node_key    = _np_keycache_find_or_create(search_key);
@@ -432,8 +434,8 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
 					total += node->latency_win[i];
 				}
 				node->latency = total / NP_NODE_SUCCESS_WINDOW;
-				log_msg(LOG_INFO, "connection to node node %s:%s latency      now: %1.3f",
-						node->dns_name, node->port, node->latency);					
+				log_msg(LOG_INFO, "connection to node node %s:%s latency      now: %1.3f (update with: %1.3f)",
+						node->dns_name, node->port, node->latency, new_latency);
 				
 			}
 			np_unref_obj(np_node_t, node,"usage");

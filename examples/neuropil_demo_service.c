@@ -1,19 +1,19 @@
+//
+// neuropil is copyright 2016-2018 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
 /*
  * neuropil_demo_service.c
  *
- * This service is available via http://demo.neuropil.io
+ * This service is also available via *:udp4:demo.neuropil.io:31415
  *
  * It is composed out of the examples for
  *  - pingpong
  *  - echo server
- * */
-//
-// neuropil is copyright 2016-2017 by pi-lar GmbH
-// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
-//
+ */
+
 /**
  *.. NOTE::
- *
  *   If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
  */
 
@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
 	pong_props->ack_mode = ACK_NONE;
 	pong_props->msg_ttl = 20.0;
 
+	__np_example_helper_loop();
 	np_start_job_queue(no_threads);
 
 	double lastping = np_time_now();
@@ -129,10 +130,10 @@ int main(int argc, char **argv) {
 np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
 	np_tree_t* header = msg->header;
 
-	char* reply_to = NULL; // All
+	np_dhkey_t reply_to = { 0 };
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
-		reply_to = np_treeval_to_str(repl_to->val, NULL);
+		reply_to = repl_to->val.value.dhkey;
 		char* text;
 		np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
 		if (NULL != txt) {
@@ -141,7 +142,7 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 		} else {
 			text = "<NON TEXT MSG>";
 		}
-		np_send_text("echo", text, 0, reply_to);
+		np_send_text("echo", text, 0, &reply_to);
 	}
 	return TRUE;
 }

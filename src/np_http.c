@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <assert.h>
@@ -42,7 +42,7 @@
 
 JSON_Value* _np_generate_error_json(const char* error,const char* details);
 JSON_Value* _np_generate_error_json(const char* error,const char* details) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: JSON_Value* _np_generate_error_json(const char* error,const char* details) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: JSON_Value* _np_generate_error_json(const char* error,const char* details) {");
 	JSON_Value* ret = json_value_init_object();
 
 	json_object_set_string(json_object(ret), "error", error);
@@ -141,7 +141,7 @@ void _np_http_handle_sysinfo(np_http_client_t* client);
 
 void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 		_np_http_callback_func_t func) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: void _np_add_http_callback(const char* path, htp_method method, void* user_args,		_np_http_callback_func_t func) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_add_http_callback(const char* path, htp_method method, void* user_args,		_np_http_callback_func_t func) {");
 	if (NULL == __local_http->user_hooks)
 		__local_http->user_hooks = np_tree_create();
 
@@ -157,7 +157,7 @@ void _np_add_http_callback(const char* path, htp_method method, void* user_args,
 }
 
 void _np_rem_http_callback(const char* path, htp_method method) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: void _np_rem_http_callback(const char* path, htp_method method) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_rem_http_callback(const char* path, htp_method method) {");
 	if (NULL == __local_http->user_hooks)
 		__local_http->user_hooks = np_tree_create();
 
@@ -173,7 +173,7 @@ void _np_rem_http_callback(const char* path, htp_method method) {
 }
 
 int _np_http_on_msg_begin(htparser* parser) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_on_msg_begin(NP_UNUSED htparser* parser) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_on_msg_begin(NP_UNUSED htparser* parser) {");
 	// pthread_mutex_lock(__http_mutex);
 	np_http_client_t* client = (np_http_client_t*) parser->userdata;
 	client->status = REQUEST;
@@ -183,7 +183,7 @@ int _np_http_on_msg_begin(htparser* parser) {
 
 int _np_http_query_args(htparser * parser, const char * data,
 		size_t in_len) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_query_args(NP_UNUSED htparser * parser, const char * data,		size_t in_len) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_query_args(NP_UNUSED htparser * parser, const char * data,		size_t in_len) {");
 	char* key = NULL;
 	char* val = NULL;
 
@@ -216,7 +216,7 @@ int _np_http_query_args(htparser * parser, const char * data,
 }
 
 int _np_http_on_hdrs_begin(htparser* parser) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_on_hdrs_begin(NP_UNUSED htparser* parser) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_on_hdrs_begin(NP_UNUSED htparser* parser) {");
 	np_http_client_t* client = (np_http_client_t*) parser->userdata;
 
 	if (NULL != client->ht_request.ht_header)
@@ -228,7 +228,7 @@ int _np_http_on_hdrs_begin(htparser* parser) {
 
 int _np_http_hdr_key(htparser * parser, const char * data,
 		size_t in_len) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_hdr_key(NP_UNUSED htparser * parser, const char * data,		size_t in_len) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_hdr_key(NP_UNUSED htparser * parser, const char * data,		size_t in_len) {");
 	np_http_client_t* client = (np_http_client_t*) parser->userdata;
 
 	if (NULL != client->ht_request.current_key)
@@ -239,7 +239,7 @@ int _np_http_hdr_key(htparser * parser, const char * data,
 
 int _np_http_hdr_value(htparser * parser, const char * data,
 NP_UNUSED size_t in_len) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_hdr_value(NP_UNUSED htparser * parser, const char * data,NP_UNUSED size_t in_len) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_hdr_value(NP_UNUSED htparser * parser, const char * data,NP_UNUSED size_t in_len) {");
 	np_http_client_t* client = (np_http_client_t*) parser->userdata;
 
 	np_tree_insert_str(client->ht_request.ht_header,
@@ -252,7 +252,7 @@ NP_UNUSED size_t in_len) {
 }
 
 int _np_http_path( htparser * parser, const char * data, size_t in_len) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_path(NP_UNUSED htparser * parser, const char * data, size_t in_len) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_path(NP_UNUSED htparser * parser, const char * data, size_t in_len) {");
 	np_http_client_t* client = (np_http_client_t*) parser->userdata;
 	if (NULL != client->ht_request.ht_path)
 		free(client->ht_request.ht_path);
@@ -263,7 +263,7 @@ int _np_http_path( htparser * parser, const char * data, size_t in_len) {
 }
 
 int _np_http_body(htparser * parser, const char * data, size_t in_len) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_body(NP_UNUSED htparser * parser, const char * data, size_t in_len) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_body(NP_UNUSED htparser * parser, const char * data, size_t in_len) {");
 	np_http_client_t* client = (np_http_client_t*) parser->userdata;
 
 	if (NULL != client->ht_request.ht_body)
@@ -274,7 +274,7 @@ int _np_http_body(htparser * parser, const char * data, size_t in_len) {
 }
 
 int _np_http_on_msg_complete(htparser* parser) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_on_msg_complete(NP_UNUSED htparser* parser) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_on_msg_complete(NP_UNUSED htparser* parser) {");
 	np_http_client_t* client = (np_http_client_t*) parser->userdata;
 	client->ht_request.ht_method = htparser_get_method(parser);
 	client->ht_request.ht_length = htparser_get_content_length(parser);
@@ -285,7 +285,7 @@ int _np_http_on_msg_complete(htparser* parser) {
 }
 
 void _np_http_dispatch( np_http_client_t* client) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {");
 
 	assert(PROCESSING == client->status);
 
@@ -444,7 +444,7 @@ __json_return__:
 
 void _np_http_write_callback(NP_UNUSED struct ev_loop* loop,
 NP_UNUSED ev_io* ev, int event_type) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_write_callback(NP_UNUSED struct ev_loop* loop,NP_UNUSED ev_io* ev, int event_type) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_write_callback(NP_UNUSED struct ev_loop* loop,NP_UNUSED ev_io* ev, int event_type) {");
 
 	np_http_client_t* client = (np_http_client_t*) ev->data;
 
@@ -453,6 +453,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 		// create http reply
 		char data[2048];
 
+		char * ht_body = client->ht_response.ht_body;
 		// HTTP start
 		int pos =
 				sprintf(data, "%s %d %s" HTTP_CRLF, "HTTP/1.1",
@@ -460,9 +461,9 @@ NP_UNUSED ev_io* ev, int event_type) {
 						http_return_codes[client->ht_response.ht_status].text);
 
 		// add content length header
-		uint32_t s_contentlength = strlen(client->ht_response.ht_body);
+		uint32_t s_contentlength = strlen(ht_body);
 		char body_length[255];
-		snprintf(body_length, s_contentlength, "%"PRIu32, s_contentlength);
+		snprintf(body_length, 254, "%"PRIu32, s_contentlength);
 		np_tree_insert_str(client->ht_response.ht_header, "Content-Length",
 				np_treeval_new_s(body_length));
 		np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
@@ -510,7 +511,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 			}
 
 			int send_return = send(client->client_fd,
-				client->ht_response.ht_body + bytes_send,
+				ht_body + bytes_send,
 				min(2048, s_contentlength - bytes_send),
 				0
 			);
@@ -535,7 +536,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 		}
 
 		if (client->ht_response.cleanup_body) {
-			free(client->ht_response.ht_body);
+			free(ht_body);
 		}
 		client->status = CONNECTED;
 	}
@@ -543,7 +544,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 
 void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 		int event_type) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,		int event_type) {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,		int event_type) {");
 
 	np_http_client_t* client = (np_http_client_t*) ev->data;
 
@@ -565,7 +566,7 @@ void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 
 		if (0 > in_msg_len) {
 			log_msg(LOG_ERROR, "http receive failed: %s", strerror(errno));
-			log_msg(LOG_HTTP | LOG_TRACE, ".end  .np_network_read");
+			log_trace_msg(LOG_TRACE | LOG_HTTP, ".end  .np_network_read");
 			return;
 		}
 
@@ -591,8 +592,7 @@ void _np_http_read_callback(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 
 void _np_http_accept(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,
 NP_UNUSED int event_type) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_accept(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,NP_UNUSED int event_type) {");
-	log_msg(LOG_HTTP | LOG_TRACE, ".start.np_network_accept");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_accept(NP_UNUSED struct ev_loop* loop, NP_UNUSED ev_io* ev,NP_UNUSED int event_type) {");
 
 	struct sockaddr_storage from;
 	socklen_t fromlen = sizeof(from);
@@ -681,7 +681,7 @@ NP_UNUSED int event_type) {
 }
 
 np_bool np_http_init(char* domain) {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: np_bool np_http_init() {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: np_bool np_http_init() {");
 
 	if (domain == NULL) {
 		domain = strdup("localhost");
@@ -729,9 +729,9 @@ np_bool np_http_init(char* domain) {
 	__local_http->hooks->on_chunks_complete = NULL; /* called after all parsed chunks processed */
 	__local_http->hooks->body = _np_http_body;
 	__local_http->hooks->on_msg_complete = _np_http_on_msg_complete;
-
-	EV_P = _np_event_get_loop_http();	
+	
 	_np_suspend_event_loop_http();
+	EV_P = _np_event_get_loop_http();
 	ev_io_init(&__local_http->network->watcher, _np_http_accept,
 			__local_http->network->socket, EV_READ);
 	__local_http->network->watcher.data = __local_http;
@@ -743,7 +743,7 @@ np_bool np_http_init(char* domain) {
 }
 
 void _np_http_destroy() {
-	log_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_destroy() {");
+	log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_destroy() {");
 
 
 	EV_P = _np_event_get_loop_http();

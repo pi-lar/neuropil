@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <criterion/criterion.h>
@@ -29,23 +29,10 @@ void teardown_scache(void)
 
 TestSuite(np_scache_t, .init=setup_scache, .fini=teardown_scache);
 
-Test(np_scache_t, _np_cache_init, .description="test the initialization of a scache")
-{
-	uint32_t cache_size = 16;
-	np_simple_cache_table_t* cache_table = np_cache_init(cache_size);
-
-
-	cr_expect(cache_size == (sizeof(cache_table->buckets) / sizeof(np_cache_item_ptr_sll_t)), "expect the size of the bucket list to be %d", cache_size);
-
-	for (int i = 0; i < cache_size; i++) {
-		cr_expect(0 == sll_size(cache_table->buckets[i]), "expect the size of the each cache list to be zero");
-	}
-}
-
 Test(np_scache_t, np_simple_cache_insert, .description="test the addition/retrieval of items to the scache")
 {
-	uint32_t cache_size = 32;
-	np_simple_cache_table_t* cache_table = np_cache_init(cache_size);
+	uint32_t cache_size = SIMPLE_CACHE_NR_BUCKETS;
+	np_simple_cache_table_t* cache_table = np_cache_init();
 
 	// cr_expect(cache_size == (sizeof(cache_table->buckets) / sizeof(np_cache_item_ptr_sll_t)), "expect the size of the bucket list to be %d", cache_size);
 	for (int i = 0; i < cache_size; i++) {
@@ -86,8 +73,8 @@ Test(np_scache_t, np_simple_cache_insert, .description="test the addition/retrie
 
 Test(np_scache_t, np_simple_cache_performance, .description="test the performance of the simple cache")
 {
-	uint32_t cache_size = 32;
-	np_simple_cache_table_t* cache_table = np_cache_init(cache_size);
+	uint32_t cache_size = SIMPLE_CACHE_NR_BUCKETS;
+	np_simple_cache_table_t* cache_table = np_cache_init();
 
 	uint32_t num_entries = 0;
 	uint32_t max_entries = 256;

@@ -21,7 +21,7 @@ neuropil_module = Extension('_neuropil',
                   )
 
 setup (name = 'neuropil',
-       version = '0.5.0',
+       version = '0.6.0',
        author      = "pi-lar GmbH",
        description = """experimental neuropil python bindings""",
        ext_modules = [neuropil_module],

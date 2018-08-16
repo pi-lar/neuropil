@@ -1,8 +1,9 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
+#include <stdint.h>
 #include <inttypes.h>
 
 #include "neuropil.h"
@@ -11,9 +12,11 @@
 #include "np_msgproperty.h"
 #include "np_scache.h"
 #include "np_list.h"
+#include "np_threads.h"
 #include "np_route.h"
 #include "np_util.h"
 #include "np_key.h"
+#include "np_jobqueue.h"
 
 #include "np_statistics.h"
 
@@ -46,18 +49,35 @@ struct np_statistics_element_s {
 };
 typedef struct np_statistics_element_s np_statistics_element_t;
 
-static np_simple_cache_table_t* _cache = NULL;
-static np_sll_t(char_ptr, watched_subjects);
-static np_bool _np_statistcs_initiated = FALSE;
+static np_simple_cache_table_t* __cache = NULL;
+static np_sll_t(char_ptr, __watched_subjects);
+static np_bool __np_statistcs_initiated = FALSE;
+
+
+STATIC_TSP(double, __forwarding_counter);
+
+STATIC_TSP(uint32_t, __network_send_bytes);
+
+static double __network_send_bytes_per_sec_r = 0;
+static double __network_send_bytes_per_sec_last = 0;
+static uint32_t __network_send_bytes_per_sec_remember = 0;
+
+STATIC_TSP(uint32_t, __network_received_bytes);
+
+static double __network_received_bytes_per_sec_r = 0;
+static double __network_received_bytes_per_sec_last = 0;
+static uint32_t __network_received_bytes_per_sec_remember = 0;
+
+
 
 np_bool _np_statistics_receive_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
 {
-	assert(_cache != NULL);
+	assert(__cache != NULL);
 	assert(msg != NULL);
 	assert(msg->msg_property != NULL);
 	assert(msg->msg_property->msg_subject != NULL);
 
-	np_cache_item_t* item = np_simple_cache_get(_cache, msg->msg_property->msg_subject);
+	np_cache_item_t* item = np_simple_cache_get(__cache, msg->msg_property->msg_subject);
 	if (item != NULL) {
 		((np_statistics_element_t*)item->value)->total_received += 1;
 	}
@@ -66,11 +86,11 @@ np_bool _np_statistics_receive_msg_on_watched(const np_message_t* const msg, NP_
 
 np_bool _np_statistics_send_msg_on_watched(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
 {
-	assert(_cache != NULL);
+	assert(__cache != NULL);
 	assert(msg != NULL);
 	assert(msg->msg_property != NULL);
 	assert(msg->msg_property->msg_subject != NULL);
-	np_cache_item_t* item = np_simple_cache_get(_cache, msg->msg_property->msg_subject);
+	np_cache_item_t* item = np_simple_cache_get(__cache, msg->msg_property->msg_subject);
 	if (item != NULL) {
 		((np_statistics_element_t*)item->value)->total_send += 1;
 	}
@@ -79,37 +99,44 @@ np_bool _np_statistics_send_msg_on_watched(const np_message_t* const msg, NP_UNU
 }
 
 np_bool np_statistics_init() {
-	_np_statistcs_initiated = TRUE;
-	_cache = np_cache_init(SIMPLE_CACHE_NR_BUCKETS);
-	sll_init(char_ptr, watched_subjects);
-	return _np_statistcs_initiated;
+	__cache = np_cache_init(SIMPLE_CACHE_NR_BUCKETS);
+	sll_init(char_ptr, __watched_subjects);
+
+	TSP_INITD(__forwarding_counter, 0);
+	TSP_INITD(__network_send_bytes, 0);
+	TSP_INITD(__network_received_bytes, 0);	
+	__network_received_bytes_per_sec_last = __network_send_bytes_per_sec_last = np_time_now();
+
+	__np_statistcs_initiated = TRUE;
+
+	return __np_statistcs_initiated;
 }
 
 np_bool np_statistics_destroy() {
-	_np_statistcs_initiated = TRUE;
+	__np_statistcs_initiated = TRUE;
 
-	sll_iterator(char_ptr) iter = sll_first(watched_subjects);
+	sll_iterator(char_ptr) iter = sll_first(__watched_subjects);
 	while (iter != NULL)
 	{
-		free(np_simple_cache_get(_cache, iter->val)->value);
+		free(np_simple_cache_get(__cache, iter->val)->value);
 		free(iter->val);
 		sll_next(iter);
 	}
 
-	sll_free(char_ptr, watched_subjects);
-	free(_cache);
+	sll_free(char_ptr, __watched_subjects);
+	free(__cache);
 
-	_np_statistcs_initiated = FALSE;
-	return _np_statistcs_initiated == FALSE;
+	__np_statistcs_initiated = FALSE;
+	return __np_statistcs_initiated == FALSE;
 }
 
 void np_statistics_add_watch(char* subject) {
-	if (FALSE == _np_statistcs_initiated) {
+	if (FALSE == __np_statistcs_initiated) {
 		np_statistics_init();
 	}
 
 	np_bool addtolist = TRUE;
-	sll_iterator(char_ptr) iter_subjects = sll_first(watched_subjects);
+	sll_iterator(char_ptr) iter_subjects = sll_first(__watched_subjects);
 	while (iter_subjects != NULL)
 	{
 		if (strncmp(iter_subjects->val, subject, strlen(subject)) == 0) {
@@ -122,11 +149,11 @@ void np_statistics_add_watch(char* subject) {
 	char* key = subject;
 	if (addtolist == TRUE) {
 		key = strdup(subject);
-		sll_append(char_ptr, watched_subjects, key);
-		np_simple_cache_insert(_cache, key, calloc(1, sizeof(np_statistics_element_t)));
+		sll_append(char_ptr, __watched_subjects, key);
+		np_simple_cache_insert(__cache, key, calloc(1, sizeof(np_statistics_element_t)));
 	}
 
-	np_statistics_element_t* container = np_simple_cache_get(_cache, key)->value;
+	np_statistics_element_t* container = np_simple_cache_get(__cache, key)->value;
 
 	if (addtolist == TRUE) {
 		CHECK_MALLOC(container);
@@ -169,7 +196,7 @@ void np_statistics_add_watch_internals() {
 	np_statistics_add_watch(_NP_MSG_AVAILABLE_RECEIVER);
 	np_statistics_add_watch(_NP_MSG_AVAILABLE_SENDER);
 	
-	if(np_state()->enable_realm_master || np_state()->enable_realm_slave){
+	if(np_state()->enable_realm_server || np_state()->enable_realm_client){
 		np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REQUEST);
 		np_statistics_add_watch(_NP_MSG_AUTHENTICATION_REPLY);
 		np_statistics_add_watch(_NP_MSG_AUTHORIZATION_REQUEST);
@@ -178,8 +205,9 @@ void np_statistics_add_watch_internals() {
 	np_statistics_add_watch(_NP_MSG_ACCOUNTING_REQUEST);
 	
 }
+
 char * np_statistics_print(np_bool asOneLine) {
-	if (FALSE == _np_statistcs_initiated) {
+	if (FALSE == __np_statistcs_initiated) {
 		return strdup("statistics not initiated\n");
 	}
 
@@ -189,9 +217,9 @@ char * np_statistics_print(np_bool asOneLine) {
 	if (asOneLine == TRUE) {
 		new_line = "    ";
 	}
-	ret = np_str_concatAndFree(ret, "--- Statistics START ---%s", new_line);
+	ret = np_str_concatAndFree(ret, "-%s", new_line);
 
-	sll_iterator(char_ptr) iter_subjects = sll_first(watched_subjects);
+	sll_iterator(char_ptr) iter_subjects = sll_first(__watched_subjects);
 
 	double sec_since_start;
 
@@ -213,7 +241,7 @@ char * np_statistics_print(np_bool asOneLine) {
 
 	while (iter_subjects != NULL)
 	{
-		np_statistics_element_t* container = np_simple_cache_get(_cache, iter_subjects->val)->value;
+		np_statistics_element_t* container = np_simple_cache_get(__cache, iter_subjects->val)->value;
 
 		sec_since_start = (now - container->first_check);
 
@@ -314,17 +342,81 @@ char * np_statistics_print(np_bool asOneLine) {
 	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Identity: %%s%%s", "send     total:", tenth);
 	ret = np_str_concatAndFree(ret, tmp_format, all_total_send, ((np_state()->my_identity == NULL) ? "-" :_np_key_as_str(np_state()->my_identity)), new_line);
 
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "total:", tenth);
-	ret = np_str_concatAndFree(ret, tmp_format, all_total_send+ all_total_received, new_line);
-	
-	ret = np_str_concatAndFree(ret, "%s", new_line);
+	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Jobs:     %%"PRIu32" Forwarded Msgs: %%8.0f%%s", "total:", tenth);
+	TSP_GET(double, __forwarding_counter, __fw_counter_r);
+	ret = np_str_concatAndFree(ret,
+		tmp_format,
+		all_total_send + all_total_received,
+		np_jobqueue_count(),
+		__fw_counter_r,
+		new_line);
 
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Reachable nodes:", tenth);
+
+	sprintf(tmp_format, "%-17s %%"PRIu32"%%s", "Reachable nodes:");
 	ret = np_str_concatAndFree(ret, tmp_format, routes, /*new_line*/"  ");
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32"%%s", "Neighbours nodes:", tenth);
-	ret = np_str_concatAndFree(ret, tmp_format, _np_route_my_key_count_neighbours(), new_line);
+	sprintf(tmp_format, "%-17s %%"PRIu32" (:= %%"PRIu32"|%%"PRIu32") ", "Neighbours nodes:");
+	uint32_t l, r;
+	uint32_t c = _np_route_my_key_count_neighbours(&l, &r);
+	ret = np_str_concatAndFree(ret, tmp_format, c, l, r);
 
-	ret = np_str_concatAndFree(ret, "--- Statistics END  ---%s", new_line);
+
+	sprintf(tmp_format, "In: %8%s(%5%s) Out: %8%s(%5%s)%%s");
+	uint32_t __network_send_bytes_r, __network_received_bytes_r;
+	double timediff;
+	static const double timediff_threshhold = 1;
+	TSP_SCOPE(__network_send_bytes)
+	{
+		__network_send_bytes_r = __network_send_bytes;
+
+		timediff = now - __network_send_bytes_per_sec_last;
+		if (timediff >= timediff_threshhold) {
+			__network_send_bytes_per_sec_r = (__network_send_bytes - __network_send_bytes_per_sec_remember) / timediff;
+			__network_send_bytes_per_sec_last = now;
+			__network_send_bytes_per_sec_remember = __network_send_bytes;
+		}
+	}
+	TSP_SCOPE(__network_received_bytes)
+	{
+		__network_received_bytes_r = __network_received_bytes;
+		timediff = now - __network_received_bytes_per_sec_last;
+		if (timediff >= timediff_threshhold) {
+			__network_received_bytes_per_sec_r = (__network_received_bytes - __network_received_bytes_per_sec_remember) / timediff;
+			__network_received_bytes_per_sec_last = now;
+			__network_received_bytes_per_sec_remember = __network_received_bytes;
+		}
+	}
+	char b1[255], b2[255], b3[255], b4[255];
+	ret = np_str_concatAndFree(ret,
+		tmp_format,
+		np_util_stringify_pretty(np_util_stringify_bytes, &__network_received_bytes_r, b1),
+		np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &__network_received_bytes_per_sec_r, b3),
+		np_util_stringify_pretty(np_util_stringify_bytes, &__network_send_bytes_r, b2),
+		np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &__network_send_bytes_per_sec_r, b4),		
+		new_line);
+
+	ret = np_str_concatAndFree(ret, "-%s", new_line);
 
 	return ret;
 }
+
+#ifdef NP_STATISTICS_COUNTER
+void __np_increment_forwarding_counter() {
+	TSP_SCOPE(__forwarding_counter) {
+		__forwarding_counter++;
+	}
+}
+
+void __np_statistics_add_send_bytes(uint32_t add) {
+	TSP_SCOPE(__network_send_bytes)
+	{
+		__network_send_bytes += add;		
+	}
+}
+
+void __np_statistics_add_received_bytes(uint32_t add) {	
+	TSP_SCOPE(__network_received_bytes)
+	{		
+		__network_received_bytes += add;
+	}
+}
+#endif

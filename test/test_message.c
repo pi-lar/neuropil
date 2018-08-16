@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <assert.h>
@@ -43,7 +43,7 @@ TestSuite(np_message_t, .init=setup_message, .fini=teardown_message);
 
 Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the serialization of a message object with dhkey in body")
 {
-	log_msg(LOG_TRACE,"start test.serialize_np_message_t_with_dhkey");
+	log_trace_msg(LOG_TRACE,"start test.serialize_np_message_t_with_dhkey");
     // Build source message and necessary data
     np_dhkey_t write_dhkey_from;
     write_dhkey_from.t[0] = 1;
@@ -77,26 +77,23 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
 
     np_message_t* write_msg = NULL;
     np_new_obj(np_message_t, write_msg);
-    _np_message_create(write_msg, write_to, write_from, "serialize_np_message_t", write_tree);
+    _np_message_create(write_msg, write_to->dhkey, write_from->dhkey, "serialize_np_message_t", write_tree);
 	np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
-
-    np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL,"tst");
-    cr_assert(NULL != write_args,"Expected to receive jobargs");
 
     // Do the serialsation
 	_np_message_calculate_chunking(write_msg);
-    np_bool write_ret = _np_message_serialize_chunked(write_args->msg);
+    np_bool write_ret = _np_message_serialize_chunked(write_msg);
     cr_assert(TRUE == write_ret, "Expected positive result in serialisation");
 
     cr_expect(pll_size(write_msg->msg_chunks) == 1, "Expected 1 chunk for message");
 
 	// Do the deserialisation
     np_message_t* read_msg = NULL;
-    np_new_obj(np_message_t,read_msg);
+    np_new_obj(np_message_t, read_msg);
     read_msg->msg_chunks = write_msg->msg_chunks;
 
     np_bool read_ret = _np_message_deserialize_chunked(read_msg);
-    cr_assert(TRUE == read_ret, "Expected positive result in deserialisation");
+    cr_assert(TRUE == read_ret, "Expected positive result in de-serialisation");
 
 	// Compare deserialized content with expected
     np_tree_elem_t* testkey_read_from =  np_tree_find_str(read_msg->body,"TESTKEY_FROM");
@@ -121,14 +118,14 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description="test the ser
 	cr_expect(testkey_read_to->val.value.dhkey.t[2] == 7, "Expected read testkey_read_to value 2 to be the same as predefined, But is: %"PRIu64, testkey_read_to->val.value.dhkey.t[2]);
 	cr_expect(testkey_read_to->val.value.dhkey.t[3] == 8, "Expected read testkey_read_to value 3 to be the same as predefined, But is: %"PRIu64, testkey_read_to->val.value.dhkey.t[3]);
 
-	log_msg(LOG_TRACE,"end test.serialize_np_message_t_with_dhkey");
+	log_trace_msg(LOG_TRACE,"end test.serialize_np_message_t_with_dhkey");
 }
 
 
 Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .description="test the serialization of a message object with dhkey in body")
 {
 
-	log_msg(LOG_TRACE,"start test.serialize_np_message_t_with_dhkey_unchunked_instructions");
+	log_trace_msg(LOG_TRACE,"start test.serialize_np_message_t_with_dhkey_unchunked_instructions");
 
     // Build source message and necessary data
     np_dhkey_t write_dhkey_from;
@@ -159,7 +156,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
     np_tree_insert_str(write_msg->instructions, "TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
     np_tree_insert_str(write_msg->instructions, "TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
 
-    _np_message_create(write_msg, write_to, write_from, "serialize_np_message_t", write_tree);
+    _np_message_create(write_msg, write_to->dhkey, write_from->dhkey, "serialize_np_message_t", write_tree);
 	np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
     np_jobargs_t* write_args = _np_job_create_args(write_msg, NULL, NULL,"tst");
@@ -205,7 +202,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 	cr_expect(testkey_read_to->val.value.dhkey.t[2] == 7, "Expected read testkey_read_to value 2 to be the same as predefined, But is: %"PRIu64, testkey_read_to->val.value.dhkey.t[2]);
 	cr_expect(testkey_read_to->val.value.dhkey.t[3] == 8, "Expected read testkey_read_to value 3 to be the same as predefined, But is: %"PRIu64, testkey_read_to->val.value.dhkey.t[3]);
 
-	log_msg(LOG_TRACE,"end test.serialize_np_message_t_with_dhkey_unchunked_instructions");
+	log_trace_msg(LOG_TRACE,"end test.serialize_np_message_t_with_dhkey_unchunked_instructions");
 }
 
 
@@ -213,7 +210,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 // TODO: add the appropiate cr_expect() statements to really test the message chunking
 Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking of messages")
 {
-	log_msg(LOG_TRACE,"start test._message_chunk_and_serialize");
+	log_trace_msg(LOG_TRACE,"start test._message_chunk_and_serialize");
 	np_message_t* msg_out = NULL;
 	np_new_obj(np_message_t, msg_out);
 	char* msg_subject = "this.is.a.test";
@@ -226,9 +223,8 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 
 	uint16_t parts = 0;
 	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) msg_subject));
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  np_treeval_new_s((char*) _np_key_as_str(my_key)) );
-	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
-	// np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_REPLY_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(my_key->dhkey) );
+	np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(my_key->dhkey) );
 
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(0));
 	np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
@@ -285,5 +281,5 @@ Test(np_message_t, _message_chunk_and_serialize, .description="test the chunking
 			 np_treeval_to_str(properties_node_2->val, NULL),
 			 np_treeval_to_str(body_node_2->val,NULL));
 
-	log_msg(LOG_TRACE,"end test._message_chunk_and_serialize");
+	log_trace_msg(LOG_TRACE,"end test._message_chunk_and_serialize");
 }

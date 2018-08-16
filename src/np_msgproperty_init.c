@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include "np_types.h"
@@ -92,7 +92,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__join_req->mode_type = INBOUND | OUTBOUND;
 	__join_req->mep_type = REQ_REP;
 	__join_req->priority = 0;
-	__join_req->ack_mode = ACK_CLIENT;
+	__join_req->ack_mode = ACK_NONE;
 	__join_req->retry = 5;
 	sll_append(np_callback_t, __join_req->clb_inbound, _np_in_join_req);
 	//default: sll_append(np_callback_t, __join_req->clb_outbound, _np_out);

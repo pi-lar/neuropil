@@ -1,9 +1,7 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-
-/** \toggle_keepwhitespaces  */
 
 #ifndef NP_SYSINFO_H_
 #define NP_SYSINFO_H_
@@ -27,7 +25,7 @@ np_bool _np_in_sysinforeply(const np_message_t* const msg, np_tree_t* properties
 /**
 .. c:function:: void np_sysinfo_get_info(const char* const dhkey_of_node_target)
 
-   Tries to evaluate the sysinfo informations for the given target.
+   Tries to evaluate the sysinfo information for the given target.
    Make sure to enable the target as sysinfo slave.
 
 */

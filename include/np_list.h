@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
@@ -142,7 +142,7 @@ int8_t TYPE##_pll_compare_type(TYPE const a, TYPE const b) {     \
 }                                                                \
 TYPE##_pll_t* TYPE##_pll_init()                                  \
 { \
-	TYPE##_pll_t* pll_list = (TYPE##_pll_t*) calloc(1,sizeof(TYPE##_pll_t)); \
+	TYPE##_pll_t* pll_list = (TYPE##_pll_t*) malloc(sizeof(TYPE##_pll_t)); \
 	pll_list->size = 0; \
 	pll_list->first = NULL; \
 	pll_list->last = NULL; \
@@ -150,7 +150,7 @@ TYPE##_pll_t* TYPE##_pll_init()                                  \
 } \
 np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, TYPE##_pll_cmp_func_t cmp_func) 	\
 { 																											\
-	TYPE##_pll_node_t* new_pll_node = (TYPE##_pll_node_t*) calloc(1,sizeof(TYPE##_pll_node_t)); 				\
+	TYPE##_pll_node_t* new_pll_node = (TYPE##_pll_node_t*) malloc(sizeof(TYPE##_pll_node_t)); 				\
 	new_pll_node->val = value; 																				\
 	new_pll_node->flink = NULL; 																			\
 	new_pll_node->blink = NULL; 																			\
@@ -225,7 +225,9 @@ TYPE TYPE##_pll_find(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t c
 		int8_t cmp_res = cmp_func(pll_current->val, value);           \
 		if (0 == cmp_res) {                                           \
 			return (pll_current->val);                                \
-		}                                                             \
+		}else if(1 == cmp_res) {									  \
+			break;													  \
+		}															  \
 		pll_next(pll_current);                                        \
 	}                                                                 \
 	return (ret_val);                                                 \
@@ -297,9 +299,11 @@ function like macros are:
 #define np_dll_t(TYPE, NAME) TYPE##_dll_t* NAME
 
 // convenience wrapper definitions
+#define dll_init_full(TYPE, dll_list) TYPE##_dll_t* dll_list = TYPE##_dll_init();
 #define dll_init(TYPE, dll_list) dll_list = TYPE##_dll_init();
 #define dll_append(TYPE, dll_list, value) TYPE##_dll_append(dll_list, value);
 #define dll_remove(TYPE, dll_list, value) TYPE##_dll_remove(dll_list, value);
+#define dll_delete(TYPE, dll_list, iter) TYPE##_dll_delete(dll_list, iter);
 #define dll_prepend(TYPE, dll_list, value) TYPE##_dll_prepend(dll_list, value);
 #define	dll_head(TYPE, dll_list) TYPE##_dll_head(dll_list);
 #define dll_tail(TYPE, dll_list) TYPE##_dll_tail(dll_list);
@@ -370,21 +374,21 @@ real macros for convenience usage
 	void TYPE##_dll_free(TYPE##_dll_t* list);\
 	void TYPE##_dll_clear(TYPE##_dll_t* list);\
 	void TYPE##_dll_remove(TYPE##_dll_t* dll_list, TYPE value); \
-
+	void TYPE##_dll_delete(TYPE##_dll_t* dll_list, dll_iterator(TYPE) dll_to_del); \
 
 //
 // DLL (double linked list) implementation generator
 //
 #define NP_DLL_GENERATE_IMPLEMENTATION(TYPE)\
 TYPE##_dll_t* TYPE##_dll_init() {\
-	TYPE##_dll_t* dll_list = (TYPE##_dll_t*) calloc(1,sizeof(TYPE##_dll_t));\
+	TYPE##_dll_t* dll_list = (TYPE##_dll_t*) malloc(sizeof(TYPE##_dll_t));\
 	dll_list->size = 0;\
 	dll_list->first = NULL;\
 	dll_list->last = NULL;\
 	return (dll_list);\
 }\
 void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE value) {\
-	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) calloc(1,sizeof(TYPE##_dll_node_t));\
+	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) malloc(sizeof(TYPE##_dll_node_t));\
 	dll_node->val = value;\
 	dll_node->flink = NULL;\
 	dll_node->blink = NULL;\
@@ -399,7 +403,7 @@ void TYPE##_dll_append(TYPE##_dll_t* dll_list, TYPE value) {\
 	dll_list->size++;\
 }\
 void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE value) {\
-	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) calloc(1,sizeof(TYPE##_dll_node_t));\
+	TYPE##_dll_node_t* dll_node = (TYPE##_dll_node_t*) malloc(sizeof(TYPE##_dll_node_t));\
 	dll_node->val = value;  \
 	dll_node->flink = NULL; \
 	dll_node->blink = NULL; \
@@ -459,16 +463,19 @@ void TYPE##_dll_clear(TYPE##_dll_t* dll_list) {\
 	dll_list->last = NULL;  \
 	dll_list->size = 0;     \
 }\
-void TYPE##_dll_remove(TYPE##_dll_t* dll_list, TYPE value) {                \
+void TYPE##_dll_delete(TYPE##_dll_t* dll_list, dll_iterator(TYPE) dll_to_del) {								\
+	if (NULL != dll_to_del->flink) dll_to_del->flink->blink = dll_to_del->blink;							\
+	if (NULL != dll_to_del->blink) dll_to_del->blink->flink = dll_to_del->flink;							\
+	if (dll_list->first == dll_to_del) dll_list->first = dll_to_del->flink;									\
+	if (dll_list->last == dll_to_del) dll_list->last = dll_to_del->blink;									\
+	free(dll_to_del);																						\
+	dll_list->size--;																						\
+}																											\
+void TYPE##_dll_remove(TYPE##_dll_t* dll_list, TYPE value) {												\
 	TYPE##_dll_node_t* dll_current = dll_list->first;                                                       \
 	while (NULL != dll_current) {																			\
 		if (value == dll_current->val) {																	\
-			if (NULL != dll_current->flink) dll_current->flink->blink = dll_current->blink;					\
-			if (NULL != dll_current->blink) dll_current->blink->flink = dll_current->flink;					\
-			if (dll_list->first == dll_current) dll_list->first = dll_current->flink;						\
-			if (dll_list->last == dll_current) dll_list->last = dll_current->blink;							\
-			free(dll_current);																				\
-			dll_list->size--;																				\
+			dll_delete(TYPE,dll_list,dll_current);															\
 			break;																							\
 		} else {																							\
 			dll_current = dll_current->flink;																\
@@ -663,14 +670,14 @@ void TYPE##_sll_clone(TYPE##_sll_t* sll_list_source, TYPE##_sll_t* sll_list_targ
 	}																										\
 }																											\
 TYPE##_sll_t* TYPE##_sll_init() {																			\
-	TYPE##_sll_t* sll_list = (TYPE##_sll_t*) calloc(1,sizeof(TYPE##_sll_t));								\
+	TYPE##_sll_t* sll_list = (TYPE##_sll_t*) malloc(sizeof(TYPE##_sll_t));								\
 	sll_list->size = 0;																						\
 	sll_list->first = NULL;																					\
 	sll_list->last = NULL;																					\
 	return (sll_list);																						\
 }																											\
 TYPE##_sll_node_t* TYPE##_sll_insert(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_node_t* after) {		\
-	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) malloc(sizeof(TYPE##_sll_node_t));					\
 	CHECK_MALLOC(sll_node);																					\
 	sll_node->val = value;																					\
 	sll_node->flink = after->flink;																			\
@@ -682,7 +689,7 @@ TYPE##_sll_node_t* TYPE##_sll_insert(TYPE##_sll_t* sll_list, TYPE value, TYPE##_
 	return sll_node;																						\
 }																											\
 TYPE##_sll_node_t* TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {									\
-	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) malloc(sizeof(TYPE##_sll_node_t));					\
 	CHECK_MALLOC(sll_node);																					\
 	sll_node->val = value;																					\
 	sll_node->flink = NULL;																					\
@@ -695,8 +702,8 @@ TYPE##_sll_node_t* TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {						
 	sll_list->size++;																						\
 	return sll_node;																						\
 }																											\
-TYPE##_sll_node_t* TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value) {												\
-	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
+TYPE##_sll_node_t* TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value) {									\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) malloc(sizeof(TYPE##_sll_node_t));					\
 	sll_node->val = value;																					\
 	sll_node->flink = sll_list->first;																		\
 	if (sll_list->last == NULL) { sll_list->last = sll_node; }												\

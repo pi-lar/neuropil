@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -39,7 +39,7 @@ static st_keycache_t* __key_cache;
 
 void _np_keycache_init()
 {
-	log_msg(LOG_TRACE, "start: void _np_keycache_init(){");
+	log_trace_msg(LOG_TRACE, "start: void _np_keycache_init(){");
 	__key_cache = (st_keycache_t*) malloc(sizeof(st_keycache_t));
 	CHECK_MALLOC(__key_cache);
 
@@ -48,7 +48,7 @@ void _np_keycache_init()
 
 np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey){");
 	np_key_t* key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
 
@@ -71,7 +71,7 @@ np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey)
 
 np_key_t* _np_keycache_create(np_dhkey_t search_dhkey)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_create(np_dhkey_t search_dhkey){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_create(np_dhkey_t search_dhkey){");
 	np_key_t* key = NULL;
 
 	np_new_obj(np_key_t, key);
@@ -86,7 +86,7 @@ np_key_t* _np_keycache_create(np_dhkey_t search_dhkey)
 
 np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey){");
 	np_key_t* return_key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
 
@@ -112,7 +112,7 @@ np_key_t* _np_keycache_find_by_details(
 		np_bool require_port,
 		np_bool require_hash
 	){
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		np_bool search_myself,		handshake_status_e is_handshake_send,		np_bool require_handshake_status,		np_bool require_dns,		np_bool require_port,		np_bool require_hash	){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		np_bool search_myself,		handshake_status_e is_handshake_send,		np_bool require_handshake_status,		np_bool require_dns,		np_bool require_port,		np_bool require_hash	){");
 	np_key_t* ret = NULL;
 	np_key_t *iter = NULL;
 
@@ -178,7 +178,9 @@ np_key_t* _np_keycache_find_by_details(
 
 np_key_t* _np_keycache_find_deprecated()
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_deprecated(){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_deprecated(){");
+
+	np_key_t* return_key = NULL;
 	np_key_t *iter = NULL;
 	_LOCK_MODULE(np_keycache_t)
 	{
@@ -198,11 +200,12 @@ np_key_t* _np_keycache_find_deprecated()
 			if ((now - __keycache_deprecation_interval) > iter->last_update && in_destroy == FALSE)
 			{
 				np_ref_obj(np_key_t, iter);
+				return_key = iter;
 				break;
 			}
 		}
 	}
-	return (iter);
+	return (return_key);
 }
 
 sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)
@@ -242,7 +245,7 @@ sll_return(np_key_ptr) _np_keycache_get_all()
 
 np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey){");
 	np_key_t* rem_key = NULL;
 	np_key_t search_key = { .dhkey = search_dhkey };
 
@@ -259,7 +262,7 @@ np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey)
 
 np_key_t* _np_keycache_add(np_key_t* subject_key)
 {
-	log_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* key){");
+	log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* key){");
 	//TODO: ist das notwendig? warum einen leeren key hinzufügen?
 	if (NULL == subject_key)
 	{
@@ -281,7 +284,7 @@ np_key_t* _np_keycache_add(np_key_t* subject_key)
  */
 np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_ptr, list_of_keys), const np_dhkey_t* const key)
 {
-	np_dhkey_t  dif, minDif;
+	np_dhkey_t  dif, minDif = { 0 };
 	np_key_t *min = NULL;
 
 	sll_iterator(np_key_ptr) iter = sll_first(list_of_keys);
@@ -291,15 +294,28 @@ np_key_t* _np_keycache_find_closest_key_to ( np_sll_t(np_key_ptr, list_of_keys),
 		TSP_GET(np_bool, iter->val->in_destroy, in_destroy);
 
 		if(in_destroy == FALSE){
+
+			int cmp = _np_dhkey_cmp(key, &(iter->val->dhkey));
 			// calculate distance to the left and right
-			_np_dhkey_distance (&dif, key, &(iter->val->dhkey));
+			if(cmp > 0){
+				_np_dhkey_distance (&dif, key, &(iter->val->dhkey));
+			}
+			else if(cmp < 0) {
+				_np_dhkey_distance(&dif, &(iter->val->dhkey), key);
+			}
+			else {
+				min = iter->val; // we have a perfect match
+				break;
+			}
 
 			// Set reference point at first iteration, then compare current iterations distance with shortest known distance
-			if (TRUE == first_run || _np_dhkey_cmp (&dif, &minDif) < 0)
+			cmp = _np_dhkey_cmp(&dif, &minDif);
+			if (TRUE == first_run || cmp  < 0)
 			{
 				min = iter->val;
 				_np_dhkey_assign (&minDif, &dif);
 			}
+
 			first_run = FALSE;
 		}
 		sll_next(iter);		
@@ -330,10 +346,10 @@ void _np_keycache_sort_keys_cpm (np_sll_t(np_key_ptr, node_keys), const np_dhkey
 
 	np_key_t* tmp;
 	sll_iterator(np_key_ptr) iter1 = sll_first(node_keys);
-
+	sll_iterator(np_key_ptr) iter2;
 	do
 	{
-		sll_iterator(np_key_ptr) iter2 = sll_get_next(iter1);
+		iter2 = sll_get_next(iter1);
 
 		if (NULL == iter2) break;
 

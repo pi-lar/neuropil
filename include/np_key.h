@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -102,10 +102,10 @@ NP_API_EXPORT
 void np_key_renew_token();
 
 NP_API_INTERN
-void np_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc);
+void np_key_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc);
 
 NP_API_INTERN
-void np_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);
+void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);
 
 NP_API_INTERN
 np_key_t* _np_key_get_by_key_hash(char* targetDhkey);

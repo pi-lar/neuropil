@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version was taken from chimera project, but heavily modified
@@ -20,15 +20,22 @@ It should contain all required functions to send or receive messages.
 #include "np_types.h"
 #include "np_list.h"
 
-#define NEUROPIL_RELEASE	"neuropil_0.4.0"
-#define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2017 neuropil.org, Cologne, Germany"
-#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2017 pi-lar GmbH, Cologne, Germany"
+#define NEUROPIL_RELEASE	"neuropil_0.6.0"
+#ifndef NEUROPIL_RELEASE_BUILD
+#define NEUROPIL_RELEASE_BUILD 0
+#endif //NEUROPIL_RELEASE_BUILD
+
+#define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2018 neuropil.org, Cologne, Germany"
+#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2018 pi-lar GmbH, Cologne, Germany"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/** \toggle_keepwhitespaces  */
+
+/**
+\toggle_keepwhitespaces
+*/
 
 /**
 .. c:type:: np_state_t
@@ -53,12 +60,13 @@ struct np_state_s
 	pthread_attr_t attr;
 	pthread_t* thread_ids;
 
+	np_mutex_t* threads_lock;
 	np_sll_t(np_thread_ptr, threads);
 
 	int thread_count;
 
-	np_bool enable_realm_master; // act as a realm master for other nodes or not
-	np_bool enable_realm_slave; // act as a realm salve and ask master for aaatokens
+	np_bool enable_realm_server; // act as a realm master for other nodes or not
+	np_bool enable_realm_client; // act as a realm client and ask master for aaatokens
 
 	np_aaa_func_t  authenticate_func; // authentication callback
 	np_aaa_func_t  authorize_func;    // authorization callback
@@ -106,7 +114,7 @@ NP_API_EXPORT
 void np_enable_realm_master();
 
 /**
-.. c:function:: void np_enable_realm_salve()
+.. c:function:: void np_enable_realm_client()
 
    Manually set the realm and enable this node to act as a slave in it.
    This will exchange the default callbacks (accept all) with callbacks that
@@ -114,7 +122,7 @@ void np_enable_realm_master();
 
 */
 NP_API_EXPORT
-void np_enable_realm_slave();
+void np_enable_realm_client();
 
 /**
 .. c:function:: void np_set_realm_name(const char* realm_name)
@@ -221,11 +229,11 @@ void np_add_receive_listener (np_usercallback_t msg_handler, char* subject);
 /**
 .. c:function:: void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
 
-register an message callback handler for a subject. The callback is called when a message will be send.
-The callback function should return TRUE if the message should be send, FALSE otherwise.
+   register an message callback handler for a subject. The callback is called when a message will be send.
+   The callback function should return TRUE if the message should be send, FALSE otherwise.
 
-:param msg_handler: a function pointer to a np_usercallback_t function
-:param subject: the message subject the handler should be called for
+   :param msg_handler: a function pointer to a np_usercallback_t function
+   :param subject: the message subject the handler should be called for
 
 */
 NP_API_EXPORT
@@ -243,7 +251,7 @@ void np_add_send_listener(np_usercallback_t msg_handler, char* subject);
 
 */
 NP_API_EXPORT
-void np_send_text    (char* subject, char *data, uint32_t seqnum, char* targetDhkey);
+void np_send_text    (char* subject, char *data, uint32_t seqnum, np_dhkey_t* target_dhkey);
 
 /**
 .. c:function:: void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body)
@@ -360,7 +368,6 @@ void np_start_job_queue(uint8_t pool_size);
    In case of doubt: do not use it.
 
    :param key: the np_key_t where the ping should be send to
-
 */
 NP_API_INTERN
 void _np_ping_send(np_key_t* key);
@@ -372,20 +379,26 @@ NP_API_PROTEC
 double np_time_now();
 
 NP_API_PROTEC
-void np_time_sleep(double sleeptime);
+double np_time_sleep(double sleeptime);
 
 // send join request
 NP_API_INTERN
 void _np_send_simple_invoke_request(np_key_t* target, const char* type);
+
 NP_API_INTERN
-np_message_t*_np_send_simple_invoke_request_msg(np_key_t* target, const char* type);
+np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* type);
+
 NP_API_EXPORT
 void np_send_response_msg(np_message_t* original, np_tree_t *properties, np_tree_t *body);
+
 NP_API_INTERN
 np_message_t* _np_prepare_msg(char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
+
 NP_API_EXPORT
 void np_context_create_new_nodekey(np_node_t* base);
 
+NP_API_EXPORT
+np_bool np_has_receiver_for(char * subject);
 
 #ifdef __cplusplus
 }

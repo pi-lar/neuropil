@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <criterion/criterion.h>
@@ -17,6 +17,7 @@ void setup_key(void)
 
 	np_log_init("test_key.log", log_level);
 	_np_threads_init();
+	np_memory_init();
 	np_mem_init();
 	_np_keycache_init ();
 }

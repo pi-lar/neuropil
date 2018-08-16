@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -17,7 +17,9 @@
 
 #include "np_constants.h"
 #include "np_settings.h"
+
 #undef NP_BENCHMARKING
+
 #include "neuropil.h"
 #include "np_log.h"
 #include "np_memory.h"
@@ -55,6 +57,7 @@ void setup_memory(void)
 	np_log_init("test_memory.log", log_level);
 
 	_np_threads_init();
+	np_memory_init();
 	np_mem_init();
 	np_memory_register_type(np_memory_types_test_struct_t, sizeof(struct test_struct), 4, 4, NULL, NULL, np_memory_clear_space);
 

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -268,7 +268,7 @@ int main(int argc, char **argv)
 	np_aaatoken_t* realm_identity = create_realm_identity();
 	np_set_identity(realm_identity);
 	np_set_realm_name("pi-lar test realm");
-	np_enable_realm_master();
+	np_enable_realm_server();
 
 	np_setauthenticate_cb(check_authenticate_token);
 	np_setauthorizing_cb(check_authorize_token);

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_DENDRIT_H_
@@ -63,7 +63,16 @@ NP_API_INTERN
 void _np_in_signal_np_receive (np_jobargs_t* args);
 NP_API_INTERN
 void _np_in_callback_wrapper(np_jobargs_t* args);
+NP_API_INTERN
+void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* handler, np_bool allow_destination_ack);
 
+
+NP_API_INTERN
+	void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* msg_token, np_bool inform_counterparts);
+NP_API_INTERN
+	void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* msg_token, np_bool inform_counterparts);
+NP_API_INTERN
+	void _np_dendrit_propagate_list(np_msgproperty_t* subject_property, np_dhkey_t target, np_sll_t(np_aaatoken_ptr, list_to_send));
 #ifdef __cplusplus
 }
 #endif

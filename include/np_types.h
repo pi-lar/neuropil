@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_TYPES_H_
@@ -161,5 +161,8 @@ NP_SLL_GENERATE_PROTOTYPES(np_usercallback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_callback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_responsecontainer_on_t);
 NP_SLL_GENERATE_PROTOTYPES(np_message_on_reply_t);
+
+NP_DLL_GENERATE_PROTOTYPES(np_thread_ptr);
+
 
 #endif /* _INCLUDE_H_ */

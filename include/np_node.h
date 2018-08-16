@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version was taken from chimera project, but modified
@@ -34,6 +34,7 @@ struct np_node_s
 
 	// state extension
 	np_bool is_handshake_send;
+	double handshake_send_at;
 	np_bool is_handshake_received;
 	np_bool joined_network; 
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];

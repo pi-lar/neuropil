@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -7,6 +7,7 @@
 
 #include "msgpack/cmp.h"
 #include "sodium.h"
+#include "tree/tree.h"
 
 #include "neuropil.h"
 #include "np_types.h"
@@ -41,7 +42,7 @@ np_bool _np_messagepart_decrypt(np_tree_t* source,
 							NP_UNUSED unsigned char* secret_key,
 							np_tree_t* target)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_decrypt(np_tree_t* msg_part,							unsigned char* enc_nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_decrypt(np_tree_t* msg_part,							unsigned char* enc_nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
 	np_tree_elem_t* enc_msg_part = np_tree_find_str(source, NP_ENCRYPTED);
 	if (NULL == enc_msg_part)
 	{
@@ -99,10 +100,10 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 							unsigned char* public_key,
 							NP_UNUSED unsigned char* secret_key)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_encrypt(np_tree_t* msg_part,							unsigned char* nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_bool _np_messagepart_encrypt(np_tree_t* msg_part,							unsigned char* nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
 	cmp_ctx_t cmp;
 
-	unsigned char msg_part_buffer[65536];
+	unsigned char msg_part_buffer[msg_part->byte_size*2];
 	void* msg_part_buf_ptr = msg_part_buffer;
 
 	cmp_init(&cmp, msg_part_buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
@@ -142,14 +143,14 @@ np_bool _np_messagepart_encrypt(np_tree_t* msg_part,
 
 void _np_messagepart_t_del(void* nw)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
 	np_messagepart_t* part = (np_messagepart_t*) nw;
 
 	if(part->msg_part != NULL) np_memory_free(part->msg_part);
 }
 void _np_messagepart_t_new(void* nw)
 {
-	log_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
+	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
 	np_messagepart_t* part = (np_messagepart_t *) nw;
 
 	part->msg_part  = NULL;

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_GLIA_H_
@@ -16,7 +16,7 @@ extern "C" {
 void _np_glia_route_lookup (np_jobargs_t* args);
 
 // critical self invoking functions
-void _np_retransmit_message_tokens_jobexec(np_jobargs_t* args);
+void _np_retransmit_message_tokens_jobexec(NP_UNUSED np_jobargs_t* args);
 void _np_renew_node_token_jobexec(np_jobargs_t* args);
 
 void _np_cleanup_ack_jobexec(np_jobargs_t* args);

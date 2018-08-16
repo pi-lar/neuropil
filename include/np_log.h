@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_LOG_H_
@@ -92,15 +92,23 @@ void np_log_message(uint32_t level,
 		 np_log_message(level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
 #endif
 
-#ifdef DEBUG
-	#ifndef log_debug_msg
+#ifndef log_debug_msg
+	#ifdef DEBUG	
 		#define log_debug_msg(level, msg, ...) \
-		 np_log_message(level | LOG_DEBUG, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
-	#endif
-#else
-	#ifndef log_debug_msg
+				 np_log_message(level | LOG_DEBUG, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)	
+	#else
 		#define log_debug_msg(level, msg, ...)
 	#endif
 #endif
+
+#ifndef log_trace_msg
+	#ifdef TRACE
+	#define log_trace_msg(level, msg, ...) \
+				 np_log_message(LOG_TRACE| level, __FILE__, __func__, __LINE__, msg, ##__VA_ARGS__)
+	#else
+		#define log_trace_msg(level, msg, ...)
+	#endif
+#endif
+
 
 #endif /* _NP_LOG_H_ */

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <criterion/criterion.h>
@@ -16,6 +16,7 @@
 void setup_dhkey(void)
 {
 	int log_level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_KEY;
+	np_memory_init();
 	np_mem_init();
 	np_log_init("test_key.log", log_level);
 
@@ -153,23 +154,32 @@ Test(np_dhkey_t, _dhkey_hexalpha_at, .description="test for getting the hexalpha
 }
 
 Test(np_dhkey_t, _dhkey_between, .description="test the between length of two keys")
-{
-	char subject[] = "this.is.a.test";
+{	
+	np_dhkey_t key_1 = { .t[0] = 0,.t[1] = 0,.t[2] = 0,.t[3] = 0,.t[4] = 0 ,.t[5] = 0 ,.t[6] = 0 ,.t[7] = 1 };
+	np_dhkey_t key_2 = { .t[0] = 0,.t[1] = 0,.t[2] = 0,.t[3] = 0,.t[4] = 0 ,.t[5] = 0 ,.t[6] = 0 ,.t[7] = 2 };
+	np_dhkey_t key_3 = { .t[0] = 0,.t[1] = 0,.t[2] = 0,.t[3] = 0,.t[4] = 0 ,.t[5] = 0 ,.t[6] = 0 ,.t[7] = 3 };
+	np_dhkey_t key_4 = { .t[0] = 0,.t[1] = 0,.t[2] = 0,.t[3] = 0,.t[4] = 0 ,.t[5] = 0 ,.t[6] = 0 ,.t[7] = 4 };
+	np_dhkey_t key_5 = { .t[0] = 0,.t[1] = 0,.t[2] = 0,.t[3] = 0,.t[4] = 0 ,.t[5] = 0 ,.t[6] = 0 ,.t[7] = 5 };
 
-	np_dhkey_t key_1 = np_dhkey_create_from_hostport(subject, "1");
-	np_dhkey_t key_2 = np_dhkey_create_from_hostport(subject, "2");
-	np_dhkey_t key_3 = np_dhkey_create_from_hostport(subject, "3");
-	np_dhkey_t key_4 = np_dhkey_create_from_hostport(subject, "4");
-	np_dhkey_t key_5 = np_dhkey_create_from_hostport(subject, "5");
+	// test out of bounds
+	cr_expect(FALSE == _np_dhkey_between(&key_1, &key_2, &key_3, TRUE),  "expected key1 to be not between key2 and key3");
+	cr_expect(FALSE == _np_dhkey_between(&key_4, &key_2, &key_3, TRUE),  "expected key4 to be not between key2 and key3");
+	cr_expect(FALSE == _np_dhkey_between(&key_2, &key_3, &key_1, TRUE),  "expected key2 to be not between key3 and key1");
+	cr_expect(FALSE == _np_dhkey_between(&key_1, &key_2, &key_3, FALSE), "expected key1 to be not between key2 and key3");
+	cr_expect(FALSE == _np_dhkey_between(&key_4, &key_2, &key_3, FALSE), "expected key4 to be not between key2 and key3");
+	cr_expect(FALSE == _np_dhkey_between(&key_2, &key_3, &key_1, FALSE), "expected key2 to be not between key3 and key1");
 
-	cr_expect(FALSE == _np_dhkey_between(&key_1, &key_2, &key_3, TRUE), "expected key1 to be not between key2 and key3");
-	cr_expect(FALSE == _np_dhkey_between(&key_2, &key_3, &key_4, TRUE), "expected key2 to be not between key3 and key4");
-	cr_expect(FALSE == _np_dhkey_between(&key_3, &key_4, &key_5, TRUE), "expected key3 to be not between key4 and key5");
-	cr_expect(FALSE == _np_dhkey_between(&key_4, &key_5, &key_1, TRUE), "expected key4 to be not between key5 and key1");
-	cr_expect(TRUE  == _np_dhkey_between(&key_5, &key_1, &key_2, TRUE), "expected key5 to be between key1 and key2");
+	// test in bounds
+	cr_expect(TRUE == _np_dhkey_between(&key_2, &key_1, &key_3, TRUE), "expected key2 to be between key1 and key3");
+	cr_expect(TRUE == _np_dhkey_between(&key_2, &key_1, &key_3, FALSE), "expected key2 to be between key1 and key3");
+	cr_expect(TRUE == _np_dhkey_between(&key_4, &key_3, &key_1, TRUE), "expected key2 to be between key1 and key3");
+	cr_expect(TRUE == _np_dhkey_between(&key_4, &key_3, &key_1, FALSE), "expected key2 to be between key1 and key3");
+
 	// test edges
-	cr_expect(TRUE == _np_dhkey_between(&key_2, &key_2, &key_4, TRUE), "expected key2 to be between key2 and key4");
-	cr_expect(TRUE == _np_dhkey_between(&key_4, &key_2, &key_4, TRUE), "expected key4 to be between key2 and key4");
+	cr_expect(TRUE  == _np_dhkey_between(&key_2, &key_2, &key_4, TRUE),  "expected key2 to be between key2 and key4");
+	cr_expect(TRUE  == _np_dhkey_between(&key_4, &key_2, &key_4, TRUE),  "expected key4 to be between key2 and key4");
+	cr_expect(FALSE == _np_dhkey_between(&key_2, &key_2, &key_4, FALSE), "expected key2 to be not between key2 and key4");
+	cr_expect(FALSE == _np_dhkey_between(&key_4, &key_2, &key_4, FALSE), "expected key4 to be not between key2 and key4");
 
 }
 
