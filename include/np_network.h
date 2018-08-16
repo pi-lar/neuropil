@@ -8,13 +8,17 @@
 
 #include "sys/socket.h"
 #include "netdb.h"
+#include <netdb.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
 
 #include "event/ev.h"
 
 #include "np_list.h"
 #include "np_util.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_keycache.h"
 #include "np_message.h"
 #include "np_types.h"
@@ -56,12 +60,12 @@ typedef enum np_network_type_e {
 
 struct np_network_s
 {
-	np_obj_t* obj;
+	
 
-	np_bool initialized;
+	bool initialized;
 	int socket;
 	ev_io watcher;
-	np_bool is_running;
+	bool is_running;
 	np_network_type_e type;
 
 	uint8_t socket_type;
@@ -80,7 +84,7 @@ struct np_network_s
 	char port[CHAR_LENGTH_PORT];
 	np_mutex_t access_lock;
 
-	TSP(np_bool, can_be_enabled);
+	TSP(bool, can_be_enabled);
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
@@ -109,13 +113,11 @@ char* _np_network_get_protocol_string (uint8_t protocol);
  **
  **/
 NP_API_INTERN
-void _np_network_get_address (np_bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
+void _np_network_get_address (np_state_t* context, bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
 // struct addrinfo _np_network_get_address (char *hostname);
 
 NP_API_INTERN
-np_prioq_t* _np_network_get_new_pqentry();
-NP_API_INTERN
-void _np_network_stop(np_network_t* ng, np_bool force);
+void _np_network_stop(np_network_t* ng, bool force);
 NP_API_INTERN
 void _np_network_start(np_network_t* ng);
 NP_API_INTERN
@@ -126,7 +128,7 @@ void _np_network_remap_network( np_key_t* new_target, np_key_t* old_target);
  **
  **/
 NP_API_INTERN
-np_bool _np_network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);
+bool _np_network_init (np_network_t* network, bool create_socket, uint8_t type, char* hostname, char* service);
 
 /**
  ** _np_network_append_msg_to_out_queue:
@@ -134,7 +136,7 @@ np_bool _np_network_init (np_network_t* network, np_bool create_socket, uint8_t 
  **
  **/
 NP_API_INTERN
-np_bool _np_network_append_msg_to_out_queue (np_key_t* node,  np_message_t* msg);
+bool _np_network_append_msg_to_out_queue (np_key_t* node,  np_message_t* msg);
 
 /*
  * libev driven functions to send/receive messages over the wire
@@ -142,21 +144,23 @@ np_bool _np_network_append_msg_to_out_queue (np_key_t* node,  np_message_t* msg)
 NP_API_INTERN
 void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
-void _np_network_send_from_events(NP_UNUSED struct ev_loop *loop, ev_io *event, int revents);
+void _np_network_send_from_events(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
-void _np_network_read(NP_UNUSED struct ev_loop *loop, ev_io *event, NP_UNUSED int revents);
+void _np_network_read(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
-void _np_network_accept(NP_UNUSED struct ev_loop *loop, ev_io *event, int revents);
+void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
 char* np_network_get_ip(np_key_t * container);
 NP_API_INTERN
 char* np_network_get_port(np_key_t * container);
 NP_API_INTERN
-np_bool _np_network_send_handshake(np_key_t* node_key);
+bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key);
 NP_API_INTERN
 void _np_network_disable(np_network_t* self);
 NP_API_INTERN
-void _np_network_handle_incomming_data(np_jobargs_t* args);
+void _np_network_enable(np_network_t* self);
+NP_API_INTERN
+void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args);
 #ifdef __cplusplus
 }
 #endif

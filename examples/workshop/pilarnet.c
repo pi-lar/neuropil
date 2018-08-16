@@ -13,12 +13,12 @@
 #include "np_types.h"
 #include "np_aaatoken.h"
 
-np_bool auth_callback(np_aaatoken_t *token)
+bool auth_callback(np_aaatoken_t *token)
 {
   char key[65] = {0};
   sodium_bin2hex(key, sizeof key, token->public_key, sizeof token->public_key);
   printf("welcome %s\n", key);
-  return TRUE;
+  return true;
 }
 
 int main(int argc, char **argv)
@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 
   char logpath[255];
   snprintf(logpath, sizeof logpath, "pilarnet-%d.log", getpid());
-  np_log_init(logpath, LOG_ERROR|LOG_WARN|LOG_INFO|LOG_DEBUG);
+  _np_log_init(logpath, LOG_ERROR|LOG_WARN|LOG_INFO|LOG_DEBUG);
 
   // inform us of joining nodes (XXX segfaults)
   //np_setauthenticate_cb(auth_callback);
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
   np_state_t *np = np_init("udp4", port, NULL);
   //np_setauthenticate_cb(auth_callback); <- move after init 
 
-  np_start_job_queue(4);
+  np_threads_start_workers(4);
 
   // print connect string
   printf("start a new node with: ./pilarnet %d %s\n", atoi(port)+1, np_get_connection_string());

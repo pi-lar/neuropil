@@ -41,7 +41,6 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 
-	int opt;
 	if (parse_program_args(
 		__FILE__,
 		argc,
@@ -55,49 +54,60 @@ int main(int argc, char **argv)
 		&logpath,
 		NULL,
 		NULL
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 
 	/**
-	in your main program, initialize the logging of neuropil
+	in your main program, initialize the settings for neuropil 
+	(if you want to use the defaults you may skip this and provide NULL instead)
 
 	.. code-block:: c
 
 	   \code
 	*/
-	char log_file[256];	
-	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
-	np_log_init(log_file, level);
+
+	struct np_settings *settings = np_new_settings(NULL);
+	settings->n_threads = no_threads;
+
+	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	fprintf(stdout, "logpath: %s\n", settings->log_file);
+	settings->log_level = level;
+
 	/**
 	   \endcode
 	*/
 
 
 	/**
-	initialize the global variable with the np_init function
+	initialize the context with the np_new_context function 
+	and start the network to listen on
 
 	.. code-block:: c
 
 	   \code
 	*/
-	np_init(proto, port, publish_domain);
+	np_context * context = np_new_context(settings);
+
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		printf("ERROR: Node could not listen");
+		exit(EXIT_FAILURE);
+	}
 
 	/**
 	   \endcode
 	*/
-	// state->my_node_key->node->joined_network = 1;
+
 
 	/**
-	start up the job queue with 8 concurrent threads competing for job execution.
-	you should start at least 2 threads, because network reading currently is blocking.
+	start up the job processing
 
 	.. code-block:: c
 
 	   \code
 	*/
 	log_debug_msg(LOG_DEBUG, "starting job queue");
-	np_start_job_queue(no_threads);
+	np_run(context, 0);
 	/**
 	   \endcode
 	*/
@@ -133,7 +143,7 @@ int main(int argc, char **argv)
 	*/
 
 	if(j_key != NULL){
-		np_send_join(j_key);
+		np_join(context, j_key);
 	}
 	while (1)
 	{
@@ -166,11 +176,11 @@ int main(int argc, char **argv)
 	       np_sendjoin(state, node_key);
 		*/
 		log_debug_msg(LOG_DEBUG, "creating welcome message");
-		np_send_join(node_string);
+		np_join(context, node_string);
 
 //		np_new_obj(np_message_t, msg_out);
 //		np_tree_t* jrb_me = np_tree_create();
-//		np_node_encode_to_jrb(jrb_me, state->my_node_key, FALSE);
+//		np_node_encode_to_jrb(jrb_me, state->my_node_key, false);
 //		np_message_create(msg_out, node_key, state->my_node_key, NP_MSG_JOIN_REQUEST, jrb_me);
 //
 //		log_msg(LOG_DEBUG, "submitting welcome message");

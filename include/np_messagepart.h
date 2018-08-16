@@ -7,7 +7,7 @@
 #define NP_MESSAGEPART_H_
 
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
 
 #ifdef __cplusplus
@@ -19,7 +19,7 @@ typedef np_messagepart_t* np_messagepart_ptr;
 
 struct np_messagepart_s
 {
-	np_obj_t* obj;
+	
 
 	np_tree_t* header;
 	np_tree_t* instructions;
@@ -35,12 +35,22 @@ int8_t _np_messagepart_cmp (const np_messagepart_ptr value1, const np_messagepar
 
 // encrypt / decrypt parts of a message
 NP_API_INTERN
-np_bool _np_messagepart_decrypt(np_tree_t* source, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key, np_tree_t* target);
+bool _np_messagepart_decrypt(np_state_t* context,
+	np_tree_t* source,
+	unsigned char* enc_nonce,
+	unsigned char* public_key,
+	NP_UNUSED unsigned char* secret_key,
+	np_tree_t* target);
 NP_API_INTERN
-np_bool _np_messagepart_encrypt(np_tree_t* msg_part, unsigned char* enc_nonce, unsigned char* public_key, unsigned char* private_key);
+
+bool _np_messagepart_encrypt(np_state_t* context, np_tree_t* msg_part,
+	unsigned char* nonce,
+	unsigned char* public_key,
+	NP_UNUSED unsigned char* secret_key);
+
 
 NP_API_PROTEC
-char* np_messagepart_printcache(np_bool asOneLine);
+char* np_messagepart_printcache(np_state_t* context, bool asOneLine);
 #ifdef __cplusplus
 }
 #endif

@@ -6,7 +6,7 @@ import os
 import collections
 
 while True:
-  print '-----------------------------------------'
+  print('-----------------------------------------')
   extensions = collections.defaultdict(int)
   subprocess.call("ls -alh *.log *core*",shell=True)
   for filename in os.listdir('.'):
@@ -16,5 +16,5 @@ while True:
         extensions["core"] += 1
 
   for key,value in extensions.items():
-    print 'Extension: ', key, '\t', value, '\titems'
+    print('Extension: ', key, '\t', value, '\titems')
   time.sleep(1)

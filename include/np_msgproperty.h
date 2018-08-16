@@ -16,7 +16,7 @@ A developer should be familiar with the main settings
 #include <stdarg.h>
 
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_util.h"
 #include "np_types.h"
 #include "np_list.h"
@@ -71,7 +71,7 @@ typedef enum np_msg_mode_enum {
    Extra Flags can be:
 
    FILTER_MSG
-   to be implemented: apply a filter before sending/receiving a message. filter will be a callback function returning TRUE or FALSE
+   to be implemented: apply a filter before sending/receiving a message. filter will be a callback function returning true or false
 
    HAS_REPLY
    check reply_to field of the incoming message to send a subject based reply (with more than one receiver)
@@ -171,6 +171,7 @@ typedef enum np_msg_mep_enum {
    OVERFLOW_PURGE  - purge old messages when the limit is reached
 
 */
+
 typedef enum np_msgcache_policy_enum {
 	UNKNOWN = 0x00,
 	FIFO = 0x01,
@@ -191,7 +192,7 @@ typedef enum np_msgcache_policy_enum {
    ACK_DESTINATION - request the sending of a acknowledge when the message has reached the final destination
 
    ACK_CLIENT      - request the sending of a acknowledge when the message has reached the
-   final destination and has been processed correctly (e.g. callback function returning TRUE, see :c:func:`np_set_listener`)
+   final destination and has been processed correctly (e.g. callback function returning true, see :c:func:`np_set_listener`)
 
    Please note: acknowledge types can be ORed (|), so you can request the acknowledge when the message receives the final destination
    and when the message has been consumed. We recommend against it because it will flood your network with acknowledges
@@ -223,7 +224,7 @@ typedef enum np_msg_ack_enum {
 struct np_msgproperty_s
 {
 	// link to memory management
-	np_obj_t* obj;
+	
 
 	RB_ENTRY(np_msgproperty_s) link; // link for cache management
 
@@ -246,7 +247,7 @@ struct np_msgproperty_s
 
 	TSP(uint16_t,    msg_threshold); // current cache size
 	uint16_t         max_threshold; // local cache size
-	np_bool is_internal;
+	bool is_internal;
 
 	// timestamp for cleanup thread
 	double          last_update;
@@ -270,15 +271,15 @@ struct np_msgproperty_s
 	np_sll_t(np_callback_t, clb_route);				// internal neuropil supplied
 	np_sll_t(np_callback_t, clb_transform);			// internal neuropil supplied
 
-	np_sll_t(np_usercallback_t, user_receive_clb);	// external user supplied for inbound
-	np_sll_t(np_usercallback_t, user_send_clb);		// external user supplied for outnound
+	np_sll_t(np_usercallback_ptr, user_receive_clb);	// external user supplied for inbound
+	np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outnound
 
 	// The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
 	uint32_t token_max_ttl;
 	// The token created for this msgproperty will guaranteed live for token_min_ttl seconds
 	uint32_t token_min_ttl;
 
-	np_bool unique_uuids_check;
+	bool unique_uuids_check;
 	uint32_t unique_uuids_max;
 	np_mutex_t unique_uuids_lock;
 	np_tree_t* unique_uuids;
@@ -327,7 +328,7 @@ NP_API_EXPORT
 void np_msgproperty_register(np_msgproperty_t* msgprops);
 
 /**
-.. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
+.. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
 
 users of neuropil should simply use the :c:func:`np_set_mx_property` functions which will
 automatically create and set the values specified.
@@ -340,7 +341,7 @@ return the np_msgproperty structure for a subject and :c:type:`np_msg_mode_type`
 
 */
 NP_API_EXPORT
-np_msgproperty_t* np_msgproperty_get(np_msg_mode_type msg_mode, const char* subject);
+np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_msg_mode_type msg_mode, const char* subject);
 
 
 
@@ -359,11 +360,11 @@ void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self);
 NP_API_EXPORT
 void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self);
 NP_API_INTERN
-void _np_msgproperty_job_msg_uniquety(NP_UNUSED np_jobargs_t* args);
+void _np_msgproperty_job_msg_uniquety(np_state_t* context, np_jobargs_t* args);
 NP_API_INTERN
 void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_message_t* msg_to_remove);
 NP_API_INTERN
-np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check);
+bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check);
 
 #define _NP_URN_PREFIX						"urn:np:"
 #define _NP_URN_MSG_PREFIX					""
@@ -398,7 +399,7 @@ np_bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t*
  **
  **/
 NP_API_INTERN
-np_bool _np_msgproperty_init ();
+bool _np_msgproperty_init (np_state_t* context);
 
 /**
  ** compare two msg properties for rb cache management
@@ -417,8 +418,6 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 NP_API_INTERN
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
 NP_API_INTERN
-void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgproperty_t* msg_prop);
-NP_API_INTERN
 void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop);
 NP_API_INTERN
 void _np_msgproperty_threshold_increase(np_msgproperty_t* self);
@@ -426,6 +425,12 @@ NP_API_INTERN
 void _np_msgproperty_threshold_decrease(np_msgproperty_t* self);
 NP_API_INTERN
 np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t* prop);
+
+NP_API_INTERN
+void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src);
+NP_API_INTERN
+void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* src);
+
 #ifdef __cplusplus
 }
 #endif

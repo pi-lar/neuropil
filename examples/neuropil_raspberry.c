@@ -29,7 +29,6 @@
 #include "np_node.h"
 #include "np_sysinfo.h"
 #include "np_statistics.h"
-#include "np_http.h"
 #include "np_settings.h"
 
 #include "gpio/bcm2835.h"
@@ -39,20 +38,22 @@
 #define LED_GPIO_GREEN 23
 #define LED_GPIO_YELLOW 18
 
-static np_bool is_gpio_enabled = FALSE;
+static bool is_gpio_enabled = false;
 static pthread_mutex_t gpio_lock = PTHREAD_MUTEX_INITIALIZER;
 static double last_response_or_invokation = 0;
 
 const double ping_pong_intervall = 0.01;
 
-void handle_ping_pong_receive(char * response, int first_low, int first_high, const np_message_t * const msg, np_tree_t * properties, np_tree_t * body)
+void handle_ping_pong_receive(np_context* context, char * response, int first_low, int first_high, np_message* msg)
 {
-	char* text = np_tree_find_str(body, NP_MSG_BODY_TEXT)->val.value.s;
-	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
+	char* text = (char*)msg->data;
 	
-	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
+	char tmp_from[255];
+	np_dhkey_t tmp;
+	np_id2str(&msg->from, tmp_from);
+	np_example_print(context, stdout, "Received %d/%s from %s. Sending %s\n",msg->data_length, text, tmp_from, response);
 
-	if (is_gpio_enabled == TRUE)
+	if (is_gpio_enabled == true)
 	{
 		pthread_mutex_lock(&gpio_lock);
 			bcm2835_gpio_write(first_low, LOW);
@@ -67,19 +68,21 @@ void handle_ping_pong_receive(char * response, int first_low, int first_high, co
 		np_time_sleep(ping_pong_intervall);
 	}
 
-	np_send_text(response, response, 0, NULL);
+	np_send_text(context, response, response, 0, NULL);
 }
 
-np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+bool receive_ping(np_context* context, np_message* message)
 {
-	handle_ping_pong_receive("pong", LED_GPIO_YELLOW, LED_GPIO_GREEN, msg, properties, body);
-	return TRUE;
+	handle_ping_pong_receive(context, "pong", LED_GPIO_YELLOW, LED_GPIO_GREEN, message);
+	return true;
 }
 
-np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+bool receive_pong(np_context* context, np_message* message)
 {
-	handle_ping_pong_receive("ping", LED_GPIO_GREEN, LED_GPIO_YELLOW, msg, properties, body);
-	return TRUE;
+	double now = np_time_now();
+	last_response_or_invokation = now;
+	handle_ping_pong_receive(context, "ping", LED_GPIO_GREEN, LED_GPIO_YELLOW, message);
+	return true;
 }
 
 int main(int argc, char **argv)
@@ -87,13 +90,12 @@ int main(int argc, char **argv)
 	int no_threads = 8;
 	char *j_key = NULL;
 	char* proto = "udp4";
-	char* port = NULL;
+	char* port = "3333";
 	char* publish_domain = NULL;
 	int level = -2;
 	char* logpath = ".";
 	char* is_gpio_enabled_opt = "1234";
 
-	int opt;
 	if (parse_program_args(
 		__FILE__,
 		argc,
@@ -108,28 +110,35 @@ int main(int argc, char **argv)
 		"[-g 0 / 1 enables or disables GPIO support]",
 		"g:",
 		&is_gpio_enabled_opt
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}	
 
 	is_gpio_enabled = strcmp(is_gpio_enabled_opt, "0") != 0;
 
-	char log_file[256];
-	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_raspberry", port);
-	np_log_init(log_file, level);	
+	struct np_settings *settings = np_new_settings(NULL);
+	settings->n_threads = no_threads;
 
-	np_state_t* state = np_init(proto, port, publish_domain);
-	port = state->my_node_key->node->port;
+	sprintf(settings->log_file, "%s/%s_%s.log", logpath, "neuropil_raspberry", port);
+	settings->log_level = level;
+
+	np_context * context = np_new_context(settings);
+
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		np_example_print(context, stderr, "ERROR: Node could not listen");
+		exit(EXIT_FAILURE);
+	}
 
 	log_debug_msg(LOG_DEBUG, "starting job queue");
-	np_start_job_queue(no_threads);
-
-	if(is_gpio_enabled == TRUE) {
+	if (np_ok != np_run(context, 0)) {
+		np_example_print(context, stderr, "ERROR: Node could not start");
+		exit(EXIT_FAILURE);
+	}
+	if(is_gpio_enabled == true) {
 
 		if( 1 != bcm2835_init()) {
-			fprintf(stdout, "GPIO NOT initiated\n");
-			is_gpio_enabled = FALSE;
-
+			np_example_print(context, stdout, "GPIO NOT initiated\n");
+			is_gpio_enabled = false;
 		} else {
 			bcm2835_gpio_set_pud(LED_GPIO_GREEN,  BCM2835_GPIO_PUD_OFF);
 			bcm2835_gpio_set_pud(LED_GPIO_YELLOW, BCM2835_GPIO_PUD_OFF);
@@ -148,27 +157,26 @@ int main(int argc, char **argv)
 			bcm2835_gpio_write(LED_GPIO_GREEN, LOW);
 			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
 
-			fprintf(stdout, "GPIO initiated\n");
+			np_example_print(context, stdout, "GPIO initiated\n");
 		}
-
-		np_sysinfo_enable_slave();
+		np_sysinfo_enable_client(context);
 	} else {
 
 		// get public / local network interface id		
 		char * http_domain= calloc(1, sizeof(char) * 255);
 		CHECK_MALLOC(http_domain);
-		if (np_get_local_ip(http_domain, 255) == FALSE) {
+		if (np_get_local_ip(context, http_domain, 255) == false) {
 			free(http_domain);
 			http_domain = NULL;
 		}
 		
-		if(FALSE == np_http_init(http_domain))
+		if(false == np_http_init(context, http_domain))
 		{
-			fprintf(stderr,   "Node could not start HTTP interface\n");
+			np_example_print(context, stderr,   "Node could not start HTTP interface\n");
 			log_msg(LOG_WARN, "Node could not start HTTP interface");
-			np_sysinfo_enable_slave();
+			np_sysinfo_enable_client(context);
 		} else {
-			np_sysinfo_enable_master();
+			np_sysinfo_enable_server(context);
 		}
 	}
 
@@ -177,78 +185,77 @@ int main(int argc, char **argv)
 	{
 
 		do {
-			fprintf(stdout, "try to join bootstrap node\n");
-			np_send_join(j_key);
+			np_example_print(context, stdout, "try to join bootstrap node\n");
+			np_join(context, j_key);
 
 			int timeout = 100;
-			while (timeout > 0 && FALSE == state->my_node_key->node->joined_network) {
+			while (timeout > 0 && false == ((np_state_t*)context)->my_node_key->node->joined_network) {
 				// wait for join acceptance
 				np_time_sleep(0.1);
 				timeout--;
 			}
 
-			if(FALSE == state->my_node_key->node->joined_network ) {
-				fprintf(stderr, "%s could not join network!\n",port);
+			if(false == ((np_state_t*)context)->my_node_key->node->joined_network ) {
+				np_example_print(context, stderr, "%s could not join network!\n",port);
 			}
-		} while (FALSE == state->my_node_key->node->joined_network) ;
-
+		} while (false == ((np_state_t*)context)->my_node_key->node->joined_network) ;
+		np_example_print(context, stdout, "connected to bootstrap node\n");
 	} else {
-		fprintf(stdout, "Node waits for connections.\n");
-		fprintf(stdout, "Please start another node with the following arguments:\n");
-		fprintf(stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string());
+		np_example_print(context, stdout, "Node waits for connections.\n");
+		np_example_print(context, stdout, "Please start another node with the following arguments:\n");
+		np_example_print(context, stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string(context));
 	}
 
-	np_msgproperty_t* ping_props = NULL;
+	
 	//register the listener function to receive data from the sender
-	np_add_receive_listener(receive_ping, "ping");
-	ping_props = np_msgproperty_get(INBOUND, "ping");
-	ping_props->ack_mode = ACK_NONE;
-	ping_props->msg_ttl = 5.0;
-	ping_props->retry = 1;
-	ping_props->max_threshold = 150;
-	ping_props->token_max_ttl = 60;
-	ping_props->token_min_ttl = 30;
+	np_add_receive_cb(context, "ping", receive_ping);
+	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping", NULL);
+	ping_props.ackmode = NP_MX_ACK_NONE;
+	ping_props.message_ttl = 5.0;
+	//ping_props.retry = 1;
+	//ping_props.max_threshold = 150;
+	//ping_props.token_max_ttl = 60;
+	//ping_props.token_min_ttl = 30;
+	np_set_mx_properties(context, "ping", ping_props);
 
-	np_msgproperty_t* pong_props = NULL;
-	//register the listener function to receive data from the sender
-	np_add_receive_listener(receive_pong, "pong");
-	pong_props = np_msgproperty_get(INBOUND, "pong");
-	pong_props->msg_subject = strndup("pong", 255);
-	pong_props->ack_mode = ACK_NONE;
-	pong_props->msg_ttl = 5.0;
-	pong_props->retry = 1;
-	pong_props->max_threshold = 150;
-	pong_props->token_max_ttl = 60;
-	pong_props->token_min_ttl = 30;
+ 	//register the listener function to receive data from the sender
+	np_add_receive_cb(context, "pong", receive_pong);
+	struct np_mx_properties  pong_props = np_get_mx_properties(context, "pong", NULL);
+	pong_props.ackmode = NP_MX_ACK_NONE;
+	pong_props.message_ttl = 5.0;
+	//pong_props->retry = 1;
+	//pong_props->max_threshold = 150;
+	//pong_props->token_max_ttl = 60;
+	//pong_props->token_min_ttl = 30;
+	np_set_mx_properties(context, "pong", pong_props);
 	
+	np_statistics_add_watch(context, "ping");
+	np_statistics_add_watch(context, "pong");
 	
-	np_statistics_add_watch("ping"); 
-	np_statistics_add_watch("pong");	
-	np_statistics_add_watch(_NP_SYSINFO_REQUEST);
-	np_statistics_add_watch(_NP_SYSINFO_REPLY);
-	
-	np_waitforjoin();
+	np_waitforjoin(context);
 
 	fprintf(stdout, "Connection established.\n");
 
 	fprintf(stdout, "Sending initial ping.\n");
 	log_msg(LOG_INFO, "Sending initial ping");
 	// send an initial ping
-	np_send_text("ping", "ping", 0, NULL);
+	np_send_text(context, "ping", "ping", 0, NULL);
 
 	//__np_example_helper_run_loop();
 	uint32_t i = 0;
 	double now = np_time_now();
 	last_response_or_invokation  = now;
 
-	while (TRUE) {
-		i +=1;
+	while (true) {
+		__np_example_helper_loop(context);
+		i += 1;
 		np_time_sleep(0.01);
-		now = np_time_now() ;
-		if ((now - last_response_or_invokation ) > ping_props->msg_ttl) {
-			
-			log_msg(LOG_INFO, "Invoking ping (last one was at %f (before %f sec))", last_response_or_invokation, now - last_response_or_invokation);
-			np_send_text("ping", "ping", 0, NULL);
+		now = np_time_now();
+		if ((now - last_response_or_invokation) > ping_props.message_ttl) {
+
+			np_example_print(context, stdout, "Invoking ping (last one was before %f sec)\n", now - last_response_or_invokation);
+			log_msg(LOG_INFO, "Invoking ping (last one was before %f sec)", now - last_response_or_invokation);
+			np_send_text(context, "ping", "ping", 0, NULL);
 			last_response_or_invokation = now;
 		}
 	}

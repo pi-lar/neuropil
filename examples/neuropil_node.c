@@ -24,6 +24,8 @@
 
 int main(int argc, char **argv)
 {
+	int ret = 0;
+
 	char* realm = NULL;
 	char* code = NULL;
 
@@ -35,7 +37,6 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 
-	int opt;
 	if (parse_program_args(
 		__FILE__,
 		argc,
@@ -51,46 +52,58 @@ int main(int argc, char **argv)
 		"r:c:",
 		&realm,
 		&code
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 
-	char log_file[256];
-	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_node", port);
-	fprintf(stdout, "logpath: %s\n", log_file);
-	np_log_init(log_file, level);
+	struct np_settings *settings = np_new_settings(NULL);
+	settings->n_threads = no_threads;
 
-	np_state_t* state = np_init(proto, port, publish_domain);
+	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_node", port);
+	settings->log_level = level;
+
+	np_context * ac = np_new_context(settings);
+	np_ctx_cast(ac);
+
+	np_example_print(context, stdout, "logpath: %s\n", settings->log_file);
+
 
 	if (NULL != realm)
 	{
-		np_set_realm_name(realm);
-		np_enable_realm_client();
+		np_set_realm_name(context, realm);
+		np_enable_realm_client(context);
 		if (NULL != code)
 		{
-			np_tree_insert_str(state->my_node_key->aaa_token->extensions,
-							   "passcode",
-							   np_treeval_new_hash(code));
+			np_tree_insert_str(context->my_node_key->aaa_token->extensions,
+				"passcode",
+				np_treeval_new_hash(code));
 		}
 	}
-
-	__np_example_helper_loop(); // for the fancy ncurse display
-	log_debug_msg(LOG_DEBUG, "starting job queue");
-	np_start_job_queue(no_threads);
-
-	if (NULL != j_key)
-	{
-		np_example_print(stdout, "try to join %s\n", j_key);
-		np_send_join(j_key);
-		//fprintf(stdout, "wait for join acceptance...");
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		np_example_print(context, stderr, "ERROR: Node could not listen");
 	}
 	else {
-		//fprintf(stdout, "wait for nodes to join...");
+		__np_example_helper_loop(context); // for the fancy ncurse display
+
+		if (NULL != j_key)
+		{
+			np_example_print(context, stdout, "try to join %s\n", j_key);
+			// join previous node			
+			if (np_ok != np_join(context, j_key)) {
+				np_example_print(context, stderr, "ERROR: Node could not join");
+			}
+		}
+
+		log_debug_msg(LOG_DEBUG, "starting job queue");
+
+		if (np_ok != np_run(context, 0.001)) {
+			np_example_print(context, stderr, "ERROR: Node could not run");
+		}
+		else { 
+			__np_example_helper_run_info_loop(context);
+		}
+		np_example_print(context, stderr, "Closing Node");
 	}
 
-	fflush(NULL);
-	//np_waitforjoin();
-	//fprintf(stdout, "Connected\n");
-
-	__np_example_helper_run_info_loop();
+	return ret;
 }

@@ -44,8 +44,7 @@ int main(int argc, char **argv)
 	char* publish_domain = NULL;
 	int level = -2;
 	char* logpath = ".";
-
-	int opt;
+	
 	if (parse_program_args(
 		__FILE__,
 		argc,
@@ -59,7 +58,7 @@ int main(int argc, char **argv)
 		&logpath,
 		"[-r realmname] [-c code]",
 		"r:c:"
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}	
 
@@ -70,30 +69,30 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	char log_file[256];
-	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_sender", port);
-	np_log_init(log_file, level);
+	struct np_settings *settings = np_new_settings(NULL);
+	settings->n_threads = no_threads;
 	/**
 	   \endcode
 	*/
 
-	/**
-	initialize the global variable with the np_init function. the last argument
-	defines if you would like to have simplistic http interface on port 31415
+	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	fprintf(stdout, "logpath: %s\n", settings->log_file);
+	settings->log_level = level;
 
-	.. code-block:: c
+	np_context * context = np_new_context(settings);
 
-	   \code
-	*/
-	state = np_init(proto, port, publish_domain);
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		printf("ERROR: Node could not listen");
+		exit(EXIT_FAILURE);
+	}
 	/**
 	   \endcode
 	*/
 
 	if (NULL != realm)
 	{
-		np_set_realm_name(realm);
-		np_enable_realm_client();
+		np_set_realm_name(context, realm);
+		np_enable_realm_client(context);
 		if (NULL != code)
 		{
 			np_tree_insert_str(state->my_node_key->aaa_token->extensions,
@@ -102,7 +101,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	__np_example_helper_loop(); // for the fancy ncurse display
+	__np_example_helper_loop(context); // for the fancy ncurse display
 
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
@@ -112,14 +111,17 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	np_start_job_queue(no_threads);
+	if (np_ok != np_run(context, 0)) {
+		printf("ERROR: Node could not start");
+		exit(EXIT_FAILURE);
+	}
 	/**
 	   \endcode
 	*/
 
 	if (NULL != j_key)
 	{
-		np_send_join(j_key);
+		np_join(context, j_key);
 	}
 
 	/**
@@ -130,7 +132,7 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	np_waitforjoin();
+	np_waitforjoin(context);
 	/**
 	   \endcode
 	*/
@@ -164,10 +166,10 @@ int main(int argc, char **argv)
 	   \code
 	*/
 	while (1) {
-		__np_example_helper_loop(); // for the fancy ncurse display
+		__np_example_helper_loop(context); // for the fancy ncurse display
 		np_time_sleep(1.0);
 
-		np_send_text(msg_subject, msg_data, k, NULL);
+		np_send_text(context, msg_subject, msg_data, k, NULL);
 		log_debug_msg(LOG_DEBUG, "send message %lu", k);
 
 		k++;

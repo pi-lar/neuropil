@@ -27,9 +27,7 @@
 #include "np_types.h"
 #include "np_list.h"
 #include "np_util.h"
-#include "np_http.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_keycache.h"
@@ -48,9 +46,9 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
 
-np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
-np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
-np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
+bool receive_echo_message(np_context* context, np_message* message);
+bool receive_pong(np_context* ac, np_message* message);
+bool receive_ping(np_context* ac, np_message* message);
 
 int main(int argc, char **argv) {
 	int no_threads = 8;
@@ -61,7 +59,6 @@ int main(int argc, char **argv) {
 	int level = -2;
 	char* logpath = ".";
 
-	int opt;
 	if (parse_program_args(
 		__FILE__,
 		argc,
@@ -75,98 +72,74 @@ int main(int argc, char **argv) {
 		&logpath,
 		"",
 		""
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 
-	char log_file_host[256];
-	sprintf(log_file_host, "%s%s_%s.log", logpath, "/neuropil_demo_service",port);
+	struct np_settings *settings = np_new_settings(NULL);
+	settings->n_threads = no_threads;
 
-	np_log_init(log_file_host, level);
-	np_init(proto, port, publish_domain);
+	sprintf(settings->log_file, "%s/%s_%s.log", logpath, "neuropil_demo_service", port);
+	fprintf(stdout, "logpath: %s\n", settings->log_file);
+	settings->log_level = level;
 
+	np_context * context = np_new_context(settings);
+
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		np_example_print(context, stderr, "ERROR: Node could not listen");
+		exit(EXIT_FAILURE);
+	}
  
-	np_msgproperty_t* echo_props = NULL;
-	np_add_receive_listener(receive_echo_message, "echo");
-	echo_props = np_msgproperty_get(INBOUND, "echo");
-	echo_props->ack_mode = ACK_NONE;
-	echo_props->msg_ttl = 20.0;
+	np_add_receive_cb(context, "echo", receive_echo_message);	
+	struct np_mx_properties  echo_props = np_get_mx_properties(context, "echo", NULL);
+	echo_props.ackmode = NP_MX_ACK_NONE;
+	echo_props.message_ttl = 20.0;
+	np_set_mx_properties(context, "echo", echo_props);
 
-	np_msgproperty_t* ping_props = NULL;
-	np_add_receive_listener(receive_ping, "ping");
-	ping_props = np_msgproperty_get(INBOUND, "ping");
-	ping_props->ack_mode = ACK_NONE;
-	ping_props->msg_ttl = 20.0;
-	np_msgproperty_register(ping_props);
+ 	np_add_receive_cb(context, "ping", receive_ping);
+	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping", NULL);
+	ping_props.ackmode = NP_MX_ACK_NONE;
+	ping_props.message_ttl = 5.0;
+	np_set_mx_properties(context, "ping", ping_props);
 
-	np_msgproperty_t* pong_props = NULL;
-	np_add_receive_listener(receive_ping, "pong");
-	pong_props = np_msgproperty_get(INBOUND, "pong");
-	pong_props->ack_mode = ACK_NONE;
-	pong_props->msg_ttl = 20.0;
+ 	np_add_receive_cb(context, "pong", receive_pong);
+	struct np_mx_properties  pong_props = np_get_mx_properties(context, "pong", NULL);
+	pong_props.ackmode = NP_MX_ACK_NONE;
+	pong_props.message_ttl = 5.0;
+	np_set_mx_properties(context, "pong", pong_props);
 
-	__np_example_helper_loop();
-	np_start_job_queue(no_threads);
+	if (np_ok != np_run(context, 0)) {
+		np_example_print(context, stderr, "ERROR: Node could not start");
+		exit(EXIT_FAILURE);
+	}
 
-	double lastping = np_time_now();
-	np_send_text("ping", "ping", _ping_count++, NULL);
-	uint32_t last_count_of_routes = 0;
-	uint32_t count_of_routes = 0;
-
-	while (TRUE) {
-		__np_example_helper_loop();
-		np_time_sleep(0.1);
-
-		double now = np_time_now();
-			// invoke a ping message every 10 seconds
-			if ((now - lastping) > 10.0)
-		{
-			lastping = np_time_now();
-			np_send_text("ping", "ping", _ping_count++, NULL);
-		}
+	while (true) {
+		__np_example_helper_loop(context);		
 	}
 }
 
-np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
-	np_tree_t* header = msg->header;
-
-	np_dhkey_t reply_to = { 0 };
-	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
-	if (NULL != repl_to) {
-		reply_to = repl_to->val.value.dhkey;
-		char* text;
-		np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
-		if (NULL != txt) {
-			text = np_treeval_to_str(txt->val, NULL);
-
-		} else {
-			text = "<NON TEXT MSG>";
-		}
-		np_send_text("echo", text, 0, &reply_to);
-	}
-	return TRUE;
+bool receive_echo_message(np_context* context, np_message* message) {
+	np_example_print(context, stdout, "Echoing msg %s", message->uuid);
+	np_send_to(context, "echo", message->data, message->data_length, &message->from);
+	return true;
 }
 
-np_bool receive_ping(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+bool receive_ping(np_context* context, np_message* message)
 {
-	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
-	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
+	char tmp[255];
+	np_id2str(&message->from, tmp);
+	np_example_print(context, stdout, "Received ping from %s", tmp);
+	np_send_text(context, "pong", "pong", _pong_count, &message->from);
 
-	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
-	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
-	np_send_text("pong", "pong", _pong_count,NULL);
-
-	return TRUE;
+	return true;
 }
 
-np_bool receive_pong(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+bool receive_pong(np_context* context, np_message* message)
 {
-	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
-	uint32_t seq = np_tree_find_str(properties, _NP_MSG_INST_SEQ)->val.value.ul;
+	char tmp[255];
+	np_id2str(&message->from, tmp);
+	np_example_print(context, stdout, "Received pong from %s", tmp);
+	np_send_text(context, "ping", "ping", _ping_count, &message->from);
 
-	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
-	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_count++, "ping");
-	np_send_text("ping", "ping", _ping_count,NULL);
-
-	return TRUE;
+	return true;
 }

@@ -68,7 +68,7 @@ int main(int argc, char **argv)
 		"[-n nr_of_nodes]",
 		"n:",
 		&required_nodes_opt
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 	if (required_nodes_opt != NULL) required_nodes = atoi(required_nodes_opt);
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 	// first clean up what was left from older runtime instances
 	shmctl(shmid, IPC_RMID, NULL);
 
-	while(TRUE)
+	while(true)
 	{
 		// (re-) start child processes
 		if (list_of_childs->size < required_nodes)
@@ -108,11 +108,20 @@ int main(int argc, char **argv)
 				{
 					fprintf(stdout, "No bootstrap host detected, creating a new one\n");
 				
-					char log_file_host[256];
-					sprintf(log_file_host, "%s_host.log", "./neuropil_shared_hydra");
+					struct np_settings *settings = np_new_settings(NULL);
+					settings->n_threads = no_threads;
 
-					np_log_init(log_file_host, level);
-					np_init(proto, port, publish_domain);
+					sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+					fprintf(stdout, "logpath: %s\n", settings->log_file);
+					settings->log_level = level;
+
+					np_context * context = np_new_context(settings);
+
+					if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+						printf("ERROR: Node could not listen");
+						exit(EXIT_FAILURE);
+					}
+
 
 					fprintf(stdout, "getting connection string\n");
 					bootstrap_hostnode = np_get_connection_string();
@@ -123,7 +132,10 @@ int main(int argc, char **argv)
 					snprintf(data, 255, "%s", bootstrap_hostnode);
 					fprintf(stdout, "Bootstrap host node: %s\n", bootstrap_hostnode);
 
-					np_start_job_queue(4);
+					if (np_ok != np_run(context, 0)) {
+						printf("ERROR: Node could not start");
+						exit(EXIT_FAILURE);
+					}
 					fprintf(stdout, "Bootstrap host node is running\n");
 					fflush(stdout);
 					fflush(stderr);
@@ -147,27 +159,37 @@ int main(int argc, char **argv)
 						sprintf(port, "%d", current_pid);
 					}
 
-					char log_file[256];
-					sprintf(log_file, "%s_%s.log", "./neuropil_shared_hydra", port);
-					// child process
-					np_log_init(log_file, level);
-					// used the pid as the port
-					np_state_t* child_status = np_init(proto, port, NULL);
+					struct np_settings *settings = np_new_settings(NULL);
+					settings->n_threads = no_threads;
+
+					sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+					fprintf(stdout, "logpath: %s\n", settings->log_file);
+					settings->log_level = level;
+
+					np_context * context = np_new_context(settings);
+
+					if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+						printf("ERROR: Node could not listen");
+						exit(EXIT_FAILURE);
+					}
+
 
 					log_debug_msg(LOG_DEBUG, "starting job queue");
-					np_start_job_queue(no_threads);
-					// send join message
+					if (np_ok != np_run(context, 0)) {
+						printf("ERROR: Node could not start");
+						exit(EXIT_FAILURE);
+					}					// send join message
 					log_debug_msg(LOG_DEBUG, "creating welcome message");
 
 					np_send_join(data);
 
 					int timeout = 200;
-					while (timeout > 0 && FALSE == child_status->my_node_key->node->joined_network) {
+					while (timeout > 0 && false == child_status->my_node_key->node->joined_network) {
 						// wait for join acceptance
 						np_time_sleep(0.1);
 						timeout--;
 					}
-					if(TRUE == child_status->my_node_key->node->joined_network ){
+					if(true == child_status->my_node_key->node->joined_network ){
 						fprintf(stdout, "%s joined network!\n",port);
 					}else{
 						fprintf(stderr, "%s could not join network!\n",port);

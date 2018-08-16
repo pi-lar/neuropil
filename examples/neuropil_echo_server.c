@@ -18,7 +18,7 @@
 #include "np_list.h"
 #include "np_util.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_keycache.h"
@@ -32,7 +32,7 @@ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 
-np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
+bool receive_echo_message(np_context * context, const np_message_t* const msg, np_tree_t* body, void* localdata);
 
 /**
 The purpose of this program is to start a server for our echo service.
@@ -48,7 +48,6 @@ int main(int argc, char **argv) {
 	int level = -2;
 	char* logpath = ".";
 
-	int opt;
 	if (parse_program_args(
 		__FILE__,
 		argc,
@@ -62,7 +61,7 @@ int main(int argc, char **argv) {
 		&logpath,
 		NULL,
 		NULL
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	} 
 
@@ -70,12 +69,19 @@ int main(int argc, char **argv) {
 	for the general initialization of a node please look into the neuropil_node example
 	*/
 
-	char log_file[256];
-	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_echo_server", port);
-	fprintf(stdout, "logpath: %s\n", log_file);
+	struct np_settings *settings = np_new_settings(NULL);
+	settings->n_threads = no_threads;
 
-	np_log_init(log_file, level);
-	np_init(proto, port, publish_domain);
+	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	fprintf(stdout, "logpath: %s\n", settings->log_file);
+	settings->log_level = level;
+
+	np_context * context = np_new_context(settings);
+
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		printf("ERROR: Node could not listen");
+		exit(EXIT_FAILURE);
+	}
 
 	/**
 	in your main program, initialize the message property for the echo service
@@ -86,8 +92,8 @@ int main(int argc, char **argv) {
 	*/
 
 	np_msgproperty_t* msg_props = NULL;
-	np_add_receive_listener(receive_echo_message, "echo");
-	msg_props = np_msgproperty_get(INBOUND, "echo");
+	np_add_receive_listener(context, receive_echo_message, NULL, "echo");
+	msg_props = np_msgproperty_get(context, INBOUND, "echo");
 	msg_props->msg_subject = strndup("echo", 255);
 	msg_props->ack_mode = ACK_NONE;
 	msg_props->msg_ttl = 20.0;
@@ -101,12 +107,15 @@ int main(int argc, char **argv) {
 
        \code
 	*/
-	np_start_job_queue(no_threads);
+	if (np_ok != np_run(context, 0)) {
+		printf("ERROR: Node could not start");
+		exit(EXIT_FAILURE);
+	}
 	/**
 	   \endcode
 	*/
 
-	while (TRUE) {
+	while (true) {
 		np_time_sleep(0.1);
 	}
 }
@@ -119,7 +128,7 @@ a echo message is received by the nodes that you are going to start
 
    \code
 */
-np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
+bool receive_echo_message(np_context * context, const np_message_t* const msg, np_tree_t* body, void* localdata) {
 /**
    \endcode
 */
@@ -134,7 +143,7 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 
 	   \code
 	*/
-	np_dhkey_t reply_to = { 0 }; // All
+	np_id reply_to = { 0 }; // All
 	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
 	if (NULL != repl_to) {
 		reply_to = repl_to->val.value.dhkey;
@@ -161,10 +170,10 @@ np_bool receive_echo_message(const np_message_t* const msg, np_tree_t* propertie
 		}
 		fprintf(stdout, ": \"%s\"\n", text);
 		// send the message back
-		np_send_text("echo", text, 0, &reply_to);
+		np_send_text(context, "echo", text, 0,  &reply_to);
 		/**
 		   \endcode
 		*/
 	}
-	return TRUE;
+	return true;
 }

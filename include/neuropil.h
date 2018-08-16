@@ -13,12 +13,21 @@ It should contain all required functions to send or receive messages.
 #ifndef _NEUROPIL_H_
 #define _NEUROPIL_H_
 
-#include <pthread.h>
 
 #include "np_constants.h"
+
+
 #include "np_settings.h"
 #include "np_types.h"
 #include "np_list.h"
+#include "np_memory.h"
+#include "np_tree.h"
+#include "np_treeval.h"
+#include "map.h"
+#include "np_scache.h"
+
+#include "np_interface.h"
+
 
 #define NEUROPIL_RELEASE	"neuropil_0.6.0"
 #ifndef NEUROPIL_RELEASE_BUILD
@@ -31,11 +40,41 @@ It should contain all required functions to send or receive messages.
 #ifdef __cplusplus
 extern "C" {
 #endif
+#define np_ctx_by_memory(c)				\
+		np_memory_get_context((void*)c)			
+#define np_ctx_decl(b)				\
+		np_state_t* context = (b)
+#define np_ctx_memory(a)				\
+		np_ctx_decl(np_ctx_by_memory(a))
 
+
+#define NP_CTX_MODULES route, memory, threads, events, statistics, msgproperties, keycache, sysinfo, log, jobqueue, shutdown
 
 /**
 \toggle_keepwhitespaces
 */
+#define np_module_struct(m) struct CONCAT(np_, CONCAT(m, _module_s))
+#define np_module_type(m) CONCAT(np_, CONCAT(m, _module_t))
+
+#define np_module_typedef(m) typedef np_module_struct(m) np_module_type(m);
+
+#define np_module_member_name(m) CONCAT(np_module_, m)
+#define np_module_member(m) np_module_type(m) * np_module_member_name(m);
+
+#define np_module_malloc(m) 														\
+		np_module_struct(m) * _module = calloc(1, sizeof(np_module_struct(m)));		\
+		_module->context = context;													\
+		context->np_module_member_name(m) = _module
+
+#define np_module(m) (context->np_module_member_name(m))
+#define np_module_initiated(m) (context->np_module_member_name(m) != NULL)
+
+#define np_ctx_cast(ac)				\
+	assert(ac != NULL);				\
+	np_state_t* context = ac		\
+
+
+MAP(np_module_typedef, NP_CTX_MODULES);
 
 /**
 .. c:type:: np_state_t
@@ -47,6 +86,12 @@ extern "C" {
 */
 struct np_state_s
 {
+	TSP(enum np_status, status);
+	struct np_settings* settings;
+	//void* modules[np_modules_END];
+	MAP(np_module_member, NP_CTX_MODULES)
+
+
 	// reference to the physical node / key
 	np_key_t* my_node_key;
 
@@ -57,37 +102,19 @@ struct np_state_s
 	np_tree_t *msg_tokens;
 	np_tree_t* msg_part_cache;
 
-	pthread_attr_t attr;
-	pthread_t* thread_ids;
-
-	np_mutex_t* threads_lock;
-	np_sll_t(np_thread_ptr, threads);
-
 	int thread_count;
 
-	np_bool enable_realm_server; // act as a realm master for other nodes or not
-	np_bool enable_realm_client; // act as a realm client and ask master for aaatokens
+	bool enable_realm_server; // act as a realm server for other nodes or not
+	bool enable_realm_client; // act as a realm client and ask server for aaatokens
 
-	np_aaa_func_t  authenticate_func; // authentication callback
-	np_aaa_func_t  authorize_func;    // authorization callback
-	np_aaa_func_t  accounting_func;   // really needed ?
+
+	np_aaa_callback authenticate_func; // authentication callback
+	np_aaa_callback authorize_func;    // authorization callback
+	np_aaa_callback accounting_func;   // really needed ?
+
+	void* userdata;
 } NP_API_INTERN;
 
-
-/**
-.. c:function:: np_state_t* np_init(char* protocol, char* port, np_bool start_http, char* hostname)
-
-   Initializes the neuropil library and instructs to listen on the given port. Protocol is a string defining
-   the IP protocol to use (tcp/udp/ipv4/ipv6/...), right now only udp is implemented
-
-   :param port: the port to listen on, default is 3141
-   :param proto: the default value for the protocol "udp6", which is UDP | IPv6
-   :param hostname: (optional) The hostname to bind on. If not provided will be received via gethostname()
-   :return: the np_state_t* which contains global state of different np sub modules or NULL on failure
-
-*/
-NP_API_EXPORT
-np_state_t* np_init (char* proto, char* port, char* hostname);
 
 /**
 .. c:function:: np_state_t* np_destroy()
@@ -96,33 +123,29 @@ np_state_t* np_init (char* proto, char* port, char* hostname);
 
 */
 NP_API_EXPORT
-void np_destroy();
-
-// function to get the global state variable
-NP_API_PROTEC
-np_state_t* np_state();
+void np_destroy(np_context*ac, bool gracefully);
 
 /**
-.. c:function:: void np_enable_realm_master()
+.. c:function:: void np_enable_realm_server()
 
-   Manually set the realm and enable this node to act as a master for it.
+   Manually set the realm and enable this node to act as a server for it.
    This will add the appropiate message callback required to handle AAA request
    send by other nodes.
 
 */
 NP_API_EXPORT
-void np_enable_realm_master();
+void np_enable_realm_server(np_context*ac);
 
 /**
 .. c:function:: void np_enable_realm_client()
 
-   Manually set the realm and enable this node to act as a slave in it.
+   Manually set the realm and enable this node to act as a client in it.
    This will exchange the default callbacks (accept all) with callbacks that
-   forwards tokens to the realm master.
+   forwards tokens to the realm server.
 
 */
 NP_API_EXPORT
-void np_enable_realm_client();
+void np_enable_realm_client(np_context*ac);
 
 /**
 .. c:function:: void np_set_realm_name(const char* realm_name)
@@ -131,15 +154,15 @@ void np_enable_realm_client();
    This will create new dh-key and re-setup some internal structures and must be called
    after initializing with np_init and before starting the job queue
 
-   :param realm_name: the name of the realm to act as a master for
+   :param realm_name: the name of the realm to act as a server for
 
 */
 NP_API_EXPORT
-void np_set_realm_name(const char* realm_name);
+void np_set_realm_name(np_context*ac, const char* realm_name);
 
 
 /**
-.. c:function:: void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
+.. c:function:: void np_set_identity_v1(np_state_t* state, np_aaatoken_t* identity)
 
    Manually set the identity which is used to send and receive messages.
    This identity is independent of the core node key (which is used to build the infrastructure)
@@ -149,7 +172,7 @@ void np_set_realm_name(const char* realm_name);
 
 */
 NP_API_EXPORT
-void np_set_identity(np_aaatoken_t* identity);
+void np_set_identity_v1(np_context*ac, np_aaatoken_t* identity);
 
 /**
 .. c:function:: np_send_join(np_key_t* node_key);
@@ -162,7 +185,7 @@ void np_set_identity(np_aaatoken_t* identity);
 
 */
 NP_API_EXPORT
-void np_send_join(const char* node_string);
+void np_send_join(np_context*ac, const char* node_string);
 
 /**
   .. c:function:: np_send_wildcard_join(np_key_t* node_key);
@@ -177,7 +200,7 @@ void np_send_join(const char* node_string);
 
  */
 NP_API_EXPORT
-void np_send_wildcard_join(const char* node_string);
+void np_send_wildcard_join(np_context*ac, const char* node_string);
 
 
 /**
@@ -189,70 +212,35 @@ void np_send_wildcard_join(const char* node_string);
 
 */
 NP_API_EXPORT
-void np_waitforjoin();
-
-/**
-.. c:function:: void np_set[aaa]_cb(np_aaa_func_t join_func)
-.. c:function:: void np_setauthorizing_cb
-.. c:function:: void np_setauthenticate_cb
-.. c:function:: void np_setaccounting_cb
-
-   set callback function which will be called whenever authorization, authentication or account is required
-   it is up to the user to define storage policies/rules for passed tokens
-
-   :param aaa_func: a function pointer to a np_aaa_func_t function
-
-*/
-NP_API_EXPORT
-void np_setauthorizing_cb(np_aaa_func_t join_func);
-
-NP_API_EXPORT
-void np_setauthenticate_cb(np_aaa_func_t join_func);
-
-NP_API_EXPORT
-void np_setaccounting_cb(np_aaa_func_t join_func);
+void np_waitforjoin(np_context*ac);
 
 /**
 .. c:function:: void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
 
    register an message callback handler for a subject. The callback is called when a message arrives.
-   The callback function should return TRUE if the message was processed successfully, FALSE otherwise.
-   Returning FALSE will inhibit the sending of the ack and may lead to another re-delivery of the message
+   The callback function should return true if the message was processed successfully, false otherwise.
+   Returning false will inhibit the sending of the ack and may lead to another re-delivery of the message
 
    :param msg_handler: a function pointer to a np_usercallback_t function
    :param subject: the message subject the handler should be called for
 
 */
 NP_API_EXPORT
-void np_add_receive_listener (np_usercallback_t msg_handler, char* subject);
+void np_add_receive_listener (np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, char* subject);
 
 /**
 .. c:function:: void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
 
    register an message callback handler for a subject. The callback is called when a message will be send.
-   The callback function should return TRUE if the message should be send, FALSE otherwise.
+   The callback function should return true if the message should be send, false otherwise.
 
    :param msg_handler: a function pointer to a np_usercallback_t function
    :param subject: the message subject the handler should be called for
 
 */
 NP_API_EXPORT
-void np_add_send_listener(np_usercallback_t msg_handler, char* subject);
-
-/**
-.. c:function:: void np_send_text(char* subject, char *data, uint32_t seqnum)
-
-   Send a message of a specific subject to the receiver containing the string data
-
-   :param subject: the subject the data should be send to
-   :param data: the message text that should be send
-   :param seqnum: a sequence number which will be stored in the message properties
-   :param targetDhkey: (optional/nullable) a dhkey hash to define a specific receiver node
-
-*/
-NP_API_EXPORT
-void np_send_text    (char* subject, char *data, uint32_t seqnum, np_dhkey_t* target_dhkey);
-
+void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, char* subject);
+ 
 /**
 .. c:function:: void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body)
 
@@ -260,41 +248,13 @@ void np_send_text    (char* subject, char *data, uint32_t seqnum, np_dhkey_t* ta
    Passed in properties and body data structures will be freed when the message has been send.
 
    :param subject: the subject the data should be send to
-   :param properties: a tree (np_tree_t) structure containing the properties of a message
    :param body: a tree (np_tree_t) structure containing the body of a message
    :param target_key: (optional/nullable) a dhkey to define a specific receiver node
 
 */
 NP_API_EXPORT
-void np_send_msg    (char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
-
-/**
-.. c:function:: uint32_t np_receive_text(char* subject, char **data)
-
-   Receive a message of a specific subject.
-
-   :param subject: the subject the data should be send to
-   :param data: the message text that should be send
-   :return: the sequence number that has been used to send the message or 0 on error
-
-*/
-NP_API_EXPORT
-uint32_t np_receive_text (char* subject, char **data);
-
-/**
-.. c:function:: uint32_t np_receive_msg(char* subject, np_tree_t* properties, np_tree_t* body)
-
-   Receive a message of a specific subject.
-
-   :param subject: the subject the data should be received from
-   :param properties: a tree (np_tree_t) structure containing the properties of the message
-   :param body: a tree (np_tree_t) structure containing the body of the message
-   :return: FALSE on error, TRUE on success
-
-*/
-NP_API_EXPORT
-uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body);
-
+void np_send_msg    (np_context*ac, char* subject, np_tree_t *body, np_dhkey_t* target_key);
+ 
 /**
 .. c:function:: void np_set_mx_properties(char* subject, const char* key, np_treeval_t value)
 
@@ -308,7 +268,7 @@ uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body);
    :param value: the value which should be set
 
 */
-void np_set_mx_property(char* subject, const char* key, np_treeval_t value);
+void np_set_mx_property(np_context*ac, char* subject, const char* key, np_treeval_t value);
 
 /**
 .. c:function:: void np_rem_mx_properties(char* subject, const char* key)
@@ -323,7 +283,7 @@ void np_set_mx_property(char* subject, const char* key, np_treeval_t value);
    :param key: the identifier for which a value should be removed
 
 */
-void np_rem_mx_property(char* subject, const char* key);
+void np_rem_mx_property(np_context*ac, char* subject, const char* key);
 
 /**
 .. c:function:: char*  np_get_connection_string()
@@ -332,7 +292,7 @@ void np_rem_mx_property(char* subject, const char* key);
 
 */
 NP_API_EXPORT
-char* np_get_connection_string();
+char* np_get_connection_string(np_context*ac);
 
 /**
 .. c:function:: char*  np_get_connection_string_from(np_key_t* node_key, char* hash)
@@ -343,24 +303,13 @@ char* np_get_connection_string();
 
 */
 NP_API_EXPORT
-char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash);
+char* np_get_connection_string_from(np_key_t* node_key, bool includeHash);
 
 NP_API_EXPORT
-char* np_build_connection_string(char* hash, char* protocol, char*dns_name, char* port, np_bool includeHash);
+char* np_build_connection_string(char* hash, char* protocol, char*dns_name, char* port, bool includeHash);
 
 /**
-.. c:function:: void np_start_job_queue(np_state_t* state, uint8_t pool_size)
-
-   Start processing of messages within the neuropil subsystem
-
-   :param pool_size: the number of threads that should compete for tasks
-
-*/
-NP_API_EXPORT
-void np_start_job_queue(uint8_t pool_size);
-
-/**
-.. c:function:: void _np_ping_send(np_key_t* key)
+.. c:function:: void _np_ping_send(np_state_t* context, np_key_t* key)
 
    Sends a ping message to a key. Can be used to check the connectivity to a node
    The ping message is acknowledged in network layer. This function is mainly used by the neuropil subsystem.
@@ -370,7 +319,7 @@ void np_start_job_queue(uint8_t pool_size);
    :param key: the np_key_t where the ping should be send to
 */
 NP_API_INTERN
-void _np_ping_send(np_key_t* key);
+void _np_ping_send(np_state_t* context, np_key_t* key);
 
 NP_API_INTERN
 void _np_send_ack(const np_message_t* const in_msg);
@@ -389,16 +338,22 @@ NP_API_INTERN
 np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* type);
 
 NP_API_EXPORT
-void np_send_response_msg(np_message_t* original, np_tree_t *properties, np_tree_t *body);
+void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body);
 
 NP_API_INTERN
-np_message_t* _np_prepare_msg(char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
+np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *body, np_dhkey_t* target_key);
 
 NP_API_EXPORT
-void np_context_create_new_nodekey(np_node_t* base);
+void np_context_create_new_nodekey(np_context* ac, np_node_t* base);
 
-NP_API_EXPORT
-np_bool np_has_receiver_for(char * subject);
+NP_API_INTERN
+bool _np_default_authorizefunc(np_context*ac, np_token* token);
+
+NP_API_INTERN
+bool _np_default_authenticatefunc(np_context*ac, np_token* token);
+
+NP_API_INTERN
+bool _np_default_accountingfunc(np_context*ac, np_token* token);
 
 #ifdef __cplusplus
 }

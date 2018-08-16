@@ -32,7 +32,7 @@ a message is received by the node that you are currently starting
 
    \code
 */
-np_bool receive_this_is_a_test(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body)
+bool receive_this_is_a_test(np_context* context, const np_message_t* const msg, np_tree_t* body, void* localdata)
 {
 /**
 \endcode
@@ -53,14 +53,14 @@ otherwise inspect the properties and payload np_tree_t structures ...
     log_msg(LOG_INFO, "RECEIVED: %s", text);
 
 /**
-return TRUE to indicate successfull handling of the message. if you return FALSE
+return true to indicate successfull handling of the message. if you return false
 the message may get delivered a second time
 
 .. code-block:: c
 
 \code
 */
-    return TRUE;
+    return true;
 }
 /**
    \endcode
@@ -77,7 +77,6 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 
-	int opt;
 	if (parse_program_args(
 		__FILE__,
 		argc,
@@ -91,7 +90,7 @@ int main(int argc, char **argv)
 		&logpath,
 		NULL,
 		NULL
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 	
@@ -102,24 +101,27 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	char log_file[256];
-	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_receiver_cb", port);
-	np_log_init(log_file, level);
+	struct np_settings *settings = np_new_settings(NULL);
+	settings->n_threads = no_threads;
 	/**
 	   \endcode
 	*/
 
-	/**
-	initialize the neuropil subsystem with the np_init function
+	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	fprintf(stdout, "logpath: %s\n", settings->log_file);
+	settings->log_level = level;
 
-	.. code-block:: c
+	np_context * context = np_new_context(settings);
 
-	   \code
-	*/
-	np_init(proto, port, publish_domain);
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		printf("ERROR: Node could not listen");
+		exit(EXIT_FAILURE);
+	}
+
 	/**
 	   \endcode
 	*/
+	   
 
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
@@ -129,15 +131,17 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	log_debug_msg(LOG_DEBUG, "starting job queue");
-	np_start_job_queue(no_threads);
+	if (np_ok != np_run(context, 0)) {
+		printf("ERROR: Node could not start");
+		exit(EXIT_FAILURE);
+	}
 	/**
 	   \endcode
 	*/
 
 	if (NULL != j_key)
 	{
-		np_send_join(j_key);
+		np_join(context, j_key);
 	}
 
 	/**
@@ -148,7 +152,7 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	np_waitforjoin();
+	np_waitforjoin(context);
 	/**
 	   \endcode
 	*/
@@ -167,7 +171,7 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	np_add_receive_listener(receive_this_is_a_test, "this.is.a.test");
+	np_add_receive_listener(context, receive_this_is_a_test,NULL,  "this.is.a.test");
 	/**
 	   \endcode
 	*/

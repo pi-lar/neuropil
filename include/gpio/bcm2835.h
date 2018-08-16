@@ -1459,7 +1459,7 @@ extern "C" {
     /*! Sets the chip select pin(s)
       When an bcm2835_spi_transfer() is made, the selected pin(s) will be asserted during the
       transfer.
-      \param[in] cs Specifies the CS pins(s) that are used to activate the desired slave. 
+      \param[in] cs Specifies the CS pins(s) that are used to activate the desired client. 
       One of BCM2835_SPI_CS*, see \ref bcm2835SPIChipSelect
     */
     extern void bcm2835_spi_chipSelect(uint8_t cs);
@@ -1474,11 +1474,11 @@ extern "C" {
     */
     extern void bcm2835_spi_setChipSelectPolarity(uint8_t cs, uint8_t active);
 
-    /*! Transfers one byte to and from the currently selected SPI slave.
+    /*! Transfers one byte to and from the currently selected SPI client.
       Asserts the currently selected CS pins (as previously set by bcm2835_spi_chipSelect) 
       during the transfer.
       Clocks the 8 bit value out on MOSI, and simultaneously clocks in data from MISO. 
-      Returns the read data byte from the slave.
+      Returns the read data byte from the client.
       Uses polled transfer as per section 10.6.1 of the BCM 2835 ARM Peripherls manual
       \param[in] value The 8 bit data byte to write to MOSI
       \return The 8 bit byte simultaneously read from  MISO
@@ -1486,11 +1486,11 @@ extern "C" {
     */
     extern uint8_t bcm2835_spi_transfer(uint8_t value);
     
-    /*! Transfers any number of bytes to and from the currently selected SPI slave.
+    /*! Transfers any number of bytes to and from the currently selected SPI client.
       Asserts the currently selected CS pins (as previously set by bcm2835_spi_chipSelect) 
       during the transfer.
       Clocks the len 8 bit bytes out on MOSI, and simultaneously clocks in data from MISO. 
-      The data read read from the slave is placed into rbuf. rbuf must be at least len bytes long
+      The data read read from the client is placed into rbuf. rbuf must be at least len bytes long
       Uses polled transfer as per section 10.6.1 of the BCM 2835 ARM Peripherls manual
       \param[in] tbuf Buffer of bytes to send. 
       \param[out] rbuf Received bytes will by put in this buffer
@@ -1499,16 +1499,16 @@ extern "C" {
     */
     extern void bcm2835_spi_transfernb(char* tbuf, char* rbuf, uint32_t len);
 
-    /*! Transfers any number of bytes to and from the currently selected SPI slave
+    /*! Transfers any number of bytes to and from the currently selected SPI client
       using bcm2835_spi_transfernb.
-      The returned data from the slave replaces the transmitted data in the buffer.
+      The returned data from the client replaces the transmitted data in the buffer.
       \param[in,out] buf Buffer of bytes to send. Received bytes will replace the contents
       \param[in] len Number of bytes int eh buffer, and the number of bytes to send/received
       \sa bcm2835_spi_transfer()
     */
     extern void bcm2835_spi_transfern(char* buf, uint32_t len);
 
-    /*! Transfers any number of bytes to the currently selected SPI slave.
+    /*! Transfers any number of bytes to the currently selected SPI client.
       Asserts the currently selected CS pins (as previously set by bcm2835_spi_chipSelect)
       during the transfer.
       \param[in] buf Buffer of bytes to send.
@@ -1540,8 +1540,8 @@ extern "C" {
     */
     extern void bcm2835_i2c_end(void);
 
-    /*! Sets the I2C slave address.
-      \param[in] addr The I2C slave address.
+    /*! Sets the I2C client address.
+      \param[in] addr The I2C client address.
     */
     extern void bcm2835_i2c_setSlaveAddress(uint8_t addr);
 
@@ -1559,7 +1559,7 @@ extern "C" {
     */
     extern void bcm2835_i2c_set_baudrate(uint32_t baudrate);
 
-    /*! Transfers any number of bytes to the currently selected I2C slave.
+    /*! Transfers any number of bytes to the currently selected I2C client.
       (as previously set by \sa bcm2835_i2c_setSlaveAddress)
       \param[in] buf Buffer of bytes to send.
       \param[in] len Number of bytes in the buf buffer, and the number of bytes to send.
@@ -1567,7 +1567,7 @@ extern "C" {
     */
     extern uint8_t bcm2835_i2c_write(const char * buf, uint32_t len);
 
-    /*! Transfers any number of bytes from the currently selected I2C slave.
+    /*! Transfers any number of bytes from the currently selected I2C client.
       (as previously set by \sa bcm2835_i2c_setSlaveAddress)
       \param[in] buf Buffer of bytes to receive.
       \param[in] len Number of bytes in the buf buffer, and the number of bytes to received.
@@ -1575,26 +1575,26 @@ extern "C" {
     */
     extern uint8_t bcm2835_i2c_read(char* buf, uint32_t len);
 
-    /*! Allows reading from I2C slaves that require a repeated start (without any prior stop)
-      to read after the required slave register has been set. For example, the popular
+    /*! Allows reading from I2C clients that require a repeated start (without any prior stop)
+      to read after the required client register has been set. For example, the popular
       MPL3115A2 pressure and temperature sensor. Note that your device must support or
       require this mode. If your device does not require this mode then the standard
       combined:
       \sa bcm2835_i2c_write
       \sa bcm2835_i2c_read
       are a better choice.
-      Will read from the slave previously set by \sa bcm2835_i2c_setSlaveAddress
-      \param[in] regaddr Buffer containing the slave register you wish to read from.
+      Will read from the client previously set by \sa bcm2835_i2c_setSlaveAddress
+      \param[in] regaddr Buffer containing the client register you wish to read from.
       \param[in] buf Buffer of bytes to receive.
       \param[in] len Number of bytes in the buf buffer, and the number of bytes to received.
       \return reason see \ref bcm2835I2CReasonCodes
     */
     extern uint8_t bcm2835_i2c_read_register_rs(char* regaddr, char* buf, uint32_t len);
 
-    /*! Allows sending an arbitrary number of bytes to I2C slaves before issuing a repeated
+    /*! Allows sending an arbitrary number of bytes to I2C clients before issuing a repeated
       start (with no prior stop) and reading a response.
       Necessary for devices that require such behavior, such as the MLX90620.
-      Will write to and read from the slave previously set by \sa bcm2835_i2c_setSlaveAddress
+      Will write to and read from the client previously set by \sa bcm2835_i2c_setSlaveAddress
       \param[in] cmds Buffer containing the bytes to send before the repeated start condition.
       \param[in] cmds_len Number of bytes to send from cmds buffer
       \param[in] buf Buffer of bytes to receive.

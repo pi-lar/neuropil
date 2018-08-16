@@ -28,7 +28,6 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 
-	int opt;
 	if (parse_program_args(
 		__FILE__,
 		argc,
@@ -42,36 +41,49 @@ int main(int argc, char **argv)
 		&logpath,
 		NULL,
 		NULL
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 
 	/**
 	for the general initialisation of a node please look into the neuropil_node example
 	*/
+	
 
-	char log_file[256];
-	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_node", port);
-	np_log_init(log_file, level);
+	struct np_settings *settings = np_new_settings(NULL);
+	settings->n_threads = no_threads;
 
-	np_init(proto, port, publish_domain);
+	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_node", port);
+	fprintf(stdout, "logpath: %s\n", settings->log_file);
+	settings->log_level = level;
 
-	log_debug_msg(LOG_DEBUG, "starting job queue");
-	np_start_job_queue(no_threads);
+	np_context * context = np_new_context(settings);
+
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		printf("ERROR: Node could not listen");
+		exit(EXIT_FAILURE);
+	}
+	if (np_ok != np_run(context, 0)) {
+		printf("ERROR: Node could not start");
+		exit(EXIT_FAILURE);
+	}
+
+	/**
+	\endcode
+	*/
 
 	if (NULL != j_key)
 	{
-		np_send_join(j_key);
+		np_join(context, j_key);
 	}
-	np_waitforjoin();
-
+	np_waitforjoin(context);
 
 	while (1)
 	{
 		np_time_sleep(0.9);
 		char* testdata;
 
-		uint32_t real_seq = np_receive_text("this.is.a.test", &testdata);
+		uint32_t real_seq = np_receive_text(context, "this.is.a.test", &testdata);
 		if (0 < real_seq)
 			log_msg(LOG_INFO, "received message %u: %s", real_seq, testdata);
 		else

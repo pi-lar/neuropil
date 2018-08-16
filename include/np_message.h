@@ -8,7 +8,7 @@
 #include <stdarg.h>
 
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
 #include "np_messagepart.h"
 #include "np_threads.h"
@@ -20,32 +20,30 @@ extern "C" {
 
 struct np_message_s
 {
-	np_obj_t* obj; // link to memory pool
+	 // link to memory pool
 
 	char* uuid;	
 
 	np_tree_t* header;
 	np_tree_t* instructions;
-	np_tree_t* properties;
 	np_tree_t* body;
 	np_tree_t* footer;
 
 	// only used if the message has to be split up into chunks
-	np_bool is_single_part;
+	bool is_single_part;
 	uint32_t no_of_chunks;
 	np_pll_t(np_messagepart_ptr, msg_chunks);
 	np_mutex_t msg_chunks_lock;
 
 	np_msgproperty_ptr msg_property;
 
-	TSP(np_bool, is_acked);
+	TSP(bool, is_acked);
 	np_sll_t(np_responsecontainer_on_t, on_ack);
-	TSP(np_bool, is_in_timeout);
+	TSP(bool, is_in_timeout);
 	np_sll_t(np_responsecontainer_on_t, on_timeout);
-	TSP(np_bool, has_reply);
+	TSP(bool, has_reply);
 	np_sll_t(np_message_on_reply_t, on_reply);
 
-	void* bin_properties;
 	void* bin_body;
 	void* bin_footer;
 	np_messagepart_t* bin_static;
@@ -67,7 +65,7 @@ void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const
 NP_API_INTERN
 void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token);
 NP_API_INTERN
-np_bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token);
+bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token);
 
 // (de-) serialize a message to a binary stream using message pack (cmp.h)
 NP_API_INTERN
@@ -75,14 +73,14 @@ void _np_message_calculate_chunking(np_message_t* msg);
 NP_API_INTERN
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check);
 NP_API_INTERN
-np_bool _np_message_serialize_header_and_instructions(np_jobargs_t* args);
+bool _np_message_serialize_header_and_instructions(np_state_t* context, np_jobargs_t* args);
 NP_API_INTERN
-np_bool _np_message_serialize_chunked(np_message_t * msg);
+bool _np_message_serialize_chunked(np_message_t * msg);
 
 NP_API_INTERN
-np_bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void* buffer);
+bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void* buffer);
 NP_API_INTERN
-np_bool _np_message_deserialize_chunked(np_message_t* msg);
+bool _np_message_deserialize_chunked(np_message_t* msg);
 
 NP_API_INTERN
 void _np_message_setinstructions(np_message_t* msg, np_tree_t* instructions);
@@ -119,7 +117,7 @@ char* _np_message_get_subject(np_message_t* msg);
 NP_API_INTERN
 double _np_message_get_expiery(const np_message_t* const self);
 NP_API_INTERN
-np_bool _np_message_is_expired(const np_message_t* const msg_to_check);
+bool _np_message_is_expired(const np_message_t* const msg_to_check);
 NP_API_INTERN
 void _np_message_mark_as_incomming(np_message_t* msg);
 NP_API_INTERN
