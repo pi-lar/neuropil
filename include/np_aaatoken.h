@@ -166,8 +166,10 @@ struct np_aaatoken_s
 
 	// from (if self signed empty)
 	char issuer[65];
+
 	// about
 	char subject[255];
+
 	// to
 	char audience[255];
 

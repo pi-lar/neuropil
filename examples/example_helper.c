@@ -741,7 +741,7 @@ bool parse_program_args(
 		if (*port == NULL) {
 			int port_pid = getpid();
 
-			*port = calloc(1, sizeof(char) * 7);
+			*port = calloc(1, 7);
 
 			snprintf(*port, 7, "%d", port_pid);
 			if (port_pid > 65535) {

@@ -30,8 +30,8 @@ size_t np_identity_export_current(np_context* ac, void* buffer) {
 
 char* np_identity_fingerprint_current(np_context* ac) {
 	np_ctx_cast(ac);
-	char* fp_str = malloc(64);
-	memset(fp_str, 0, 64);
+	char* fp_str = malloc(65);
+	memset(fp_str, 0, 65);
 	if( context->my_identity != NULL &&
 		context->my_identity->aaa_token != NULL) {
 		np_dhkey_t fp_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token);
@@ -64,7 +64,7 @@ size_t np_identity_export(np_context* ac, np_aaatoken_t* token, void* buffer) {
 
 char* np_identity_fingerprint(np_context * ac, np_aaatoken_t* token) {
 	np_ctx_cast(ac);
-	char* fp_str = malloc(64);
+	char* fp_str = malloc(65);
 	np_dhkey_t fp_dhkey = np_aaatoken_get_fingerprint(token);
 	np_id2str(&fp_dhkey, fp_str);
 	return (fp_str);

@@ -34,6 +34,12 @@ default_env = Environment(CC = 'clang')
 if 'TERM' in os.environ:
   default_env['ENV']['TERM'] = os.environ['TERM']
 
+if os.getenv("CC"):
+	default_env["CC"] = os.getenv("CC")
+default_env["CXX"] = os.getenv("CXX")
+default_env["ENV"].update(x for x in os.environ.items() if x[0].startswith("CCC_"))
+
+
 default_env.VariantDir('build/obj/src', 'src', duplicate=0)
 default_env.VariantDir('build/obj/test', 'test', duplicate=0)
 default_env.VariantDir('build/obj/examples', 'examples', duplicate=0)
@@ -47,6 +53,7 @@ release = ARGUMENTS.get('release', 0)
 console_log = ARGUMENTS.get('console', 0)
 strict = int(ARGUMENTS.get('strict', 0))
 build_program = ARGUMENTS.get('program', False)
+opt_debug_optimization_level = ARGUMENTS.get('dO', 0)
 build_x64 = int(ARGUMENTS.get('x64', -1))
 if build_x64 == -1:
     build_x64  = "64" in str(platform.processor())
@@ -87,11 +94,21 @@ if int(release) >= 1:
     default_env.Append(CCFLAGS = release_flags)
 
 # add debug compilation options
-# debug_flags = ['-g3', '-Wall', '-Wextra', '-gdwarf-2','-O0']
-debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O0']
+debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O'+str(opt_debug_optimization_level)]
 if int(debug) >= 1:
+  try:
+    if "klampt" in os.path.expanduser('~'):
+      # disable some warnings
+      debug_flags += [
+        '-Wno-incompatible-pointer-types-discards-qualifiers',		'-Wno-unused-variable',
+        '-Wno-unused-parameter',		'-Wno-missing-braces',		
+      ]
+  except:
+    pass
+
   default_env.Append(CCFLAGS = debug_flags)
-  # default_env.Append(CCFLAGS = ['-DDEBUG'])
+  if int(debug) <= 1:
+    default_env.Append(CCFLAGS = ['-DDEBUG'])
 
 default_env.Append(CCFLAGS = ['-DNEUROPIL_RELEASE_BUILD=\"{}\"'.format(buildNo())])
 

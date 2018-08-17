@@ -260,7 +260,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 	_np_aaatoken_set_signature(ret, my_node_key->aaa_token);
 
 #ifdef DEBUG
-	char my_token_fp_s[255] = { 0 };
+	char my_token_fp_s[65] = { 0 };
 	np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(ret);
 	np_id2str(&my_token_fp, my_token_fp_s);
 	log_debug_msg(LOG_DEBUG, "new handshake token fp: %s from node: %s", my_token_fp_s, _np_key_as_str(my_node_key));

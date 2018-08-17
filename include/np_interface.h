@@ -191,7 +191,7 @@ extern "C" {
     enum np_mx_ackmode      { NP_MX_ACK_NONE, NP_MX_ACK_DESTINATION, NP_MX_ACK_CLIENT } NP_ENUM;
 
     struct np_mx_properties {
-        char reply_subject[500];
+        char reply_subject[255];
         enum np_mx_ackmode ackmode;
         //enum np_mx_pattern pattern;  will be added later on
         enum np_mx_cache_policy cache_policy;

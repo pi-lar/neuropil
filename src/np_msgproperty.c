@@ -701,5 +701,5 @@ void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* s
 	}
 
 	// mep type conversion	
-	dest->mep_type= DEFAULT_TYPE;
+	dest->mep_type= ONE_WAY;
 }
