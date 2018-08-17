@@ -43,57 +43,55 @@
 
 
 enum http_return_e {
-	HTTP_NO_RESPONSE = 0,
-	HTTP_CODE_CONTINUE,
-	HTTP_CODE_OK,
-	HTTP_CODE_ACCEPTED,
-	HTTP_CODE_CREATED,
-	HTTP_CODE_NO_CONTENT,
-	HTTP_CODE_PARTIAL_CONTENT,
-	HTTP_CODE_MULTI_STATUS,
-	HTTP_CODE_MOVED_TEMPORARILY,
-	HTTP_CODE_NOT_MODIFIED,
-	HTTP_CODE_BAD_REQUEST,
-	HTTP_CODE_UNAUTHORIZED,
-	HTTP_CODE_FORBIDDEN,
-	HTTP_CODE_NOT_FOUND,
-	HTTP_CODE_METHOD_NOT_ALLOWED,
-	HTTP_CODE_REQUEST_TIME_OUT,
-	HTTP_CODE_GONE,
-	HTTP_CODE_REQUEST_URI_TOO_LONG,
-	HTTP_CODE_LOCKED,
-	HTTP_CODE_INTERNAL_SERVER_ERROR,
-	HTTP_CODE_NOT_IMPLEMENTED,
-	HTTP_CODE_SERVICE_UNAVAILABLE
+    HTTP_NO_RESPONSE = 0,
+    HTTP_CODE_CONTINUE,
+    HTTP_CODE_OK,
+    HTTP_CODE_ACCEPTED,
+    HTTP_CODE_CREATED,
+    HTTP_CODE_NO_CONTENT,
+    HTTP_CODE_PARTIAL_CONTENT,
+    HTTP_CODE_MULTI_STATUS,
+    HTTP_CODE_MOVED_TEMPORARILY,
+    HTTP_CODE_NOT_MODIFIED,
+    HTTP_CODE_BAD_REQUEST,
+    HTTP_CODE_UNAUTHORIZED,
+    HTTP_CODE_FORBIDDEN,
+    HTTP_CODE_NOT_FOUND,
+    HTTP_CODE_METHOD_NOT_ALLOWED,
+    HTTP_CODE_REQUEST_TIME_OUT,
+    HTTP_CODE_GONE,
+    HTTP_CODE_REQUEST_URI_TOO_LONG,
+    HTTP_CODE_LOCKED,
+    HTTP_CODE_INTERNAL_SERVER_ERROR,
+    HTTP_CODE_NOT_IMPLEMENTED,
+    HTTP_CODE_SERVICE_UNAVAILABLE
 };
 
 
 // http request structure
 struct ht_request_s {
-	// char* ht_version;
-	// char* ht_hostname;
-	// char* ht_port;
-	char* ht_path;
-	char* current_key;
-	htp_method ht_method;
-	np_tree_t* ht_query_args;
-	np_tree_t* ht_header;
-	uint16_t ht_length;
-	char* ht_body;
+    // char* ht_version;
+    // char* ht_hostname;
+    // char* ht_port;
+    char* ht_path;
+    char* current_key;
+    htp_method ht_method;
+    np_tree_t* ht_query_args;
+    np_tree_t* ht_header;
+    uint16_t ht_length;
+    char* ht_body;
 };
 
 // http response structure
 struct ht_response_s {
-	int ht_status;
-	char* ht_reason;
-	np_tree_t* ht_header;
-	uint16_t ht_length;
-	char* ht_body;
-	bool cleanup_body;
+    int ht_status;
+    char* ht_reason;
+    np_tree_t* ht_header;
+    uint16_t ht_length;
+    char* ht_body;
+    bool cleanup_body;
 };
 
-
-JSON_Value* _np_generate_error_json(const char* error,const char* details);
 JSON_Value* _np_generate_error_json(const char* error,const char* details) {
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: JSON_Value* _np_generate_error_json(const char* error,const char* details) {");
     JSON_Value* ret = json_value_init_object();
@@ -130,7 +128,7 @@ struct np_http_client_s {
     ht_response_t ht_response;
     // global status and last update time
     np_http_status_e status;
-	np_state_t* context;
+    np_state_t* context;
 };
 typedef struct np_http_client_s np_http_client_t;
 typedef np_http_client_t* np_http_client_ptr;
@@ -329,7 +327,7 @@ int _np_http_body(htparser * parser, const char * data, size_t in_len) {
 
 int _np_http_on_msg_complete(htparser* parser) {
 
-	np_http_client_t* client = (np_http_client_t*) parser->userdata;
+    np_http_client_t* client = (np_http_client_t*) parser->userdata;
     client->ht_request.ht_method = htparser_get_method(parser);
     client->ht_request.ht_length = htparser_get_content_length(parser);
 
@@ -496,9 +494,8 @@ __json_return__:
     client->status = RESPONSE;
 }
 
-void _np_http_write_callback(struct ev_loop* loop,
-NP_UNUSED ev_io* ev, int event_type) {
-	np_state_t* context = ev_userdata(loop);
+void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int event_type) {
+    np_state_t* context = ev_userdata(loop);
     np_http_client_t* client = (np_http_client_t*) ev->data;
 
     if (((event_type & EV_WRITE) == EV_WRITE && (event_type &  EV_ERROR) != EV_ERROR) && RESPONSE == client->status) {
@@ -541,7 +538,11 @@ NP_UNUSED ev_io* ev, int event_type) {
         pos += snprintf(data + pos, snprintf(NULL, 0, "" HTTP_CRLF) + 1,
                 "" HTTP_CRLF);
         // send header
-        send(client->client_fd, data, pos, 0);
+#ifdef MSG_NOSIGNAL 
+        send(client->client_fd, data, pos, MSG_NOSIGNAL);
+#else
+		send(client->client_fd, data, pos, 0);
+#endif
         np_tree_free( client->ht_response.ht_header);
 
         log_debug_msg(LOG_HTTP | LOG_DEBUG, "send http header success");
@@ -563,11 +564,20 @@ NP_UNUSED ev_io* ev, int event_type) {
                 break;
             }
 
-            int send_return = send(client->client_fd,
-                ht_body + bytes_send,
-                fmin(2048, s_contentlength - bytes_send),
-                0
-            );
+#ifdef MSG_NOSIGNAL 
+			int send_return = send(client->client_fd,
+				ht_body + bytes_send,
+				fmin(2048, s_contentlength - bytes_send),
+				MSG_NOSIGNAL
+			);
+#else
+			int send_return = send(client->client_fd,
+				ht_body + bytes_send,
+				fmin(2048, s_contentlength - bytes_send),
+				0
+			);
+#endif
+
             if (send_return >= 0) {
                 bytes_send += send_return;
                 log_debug_msg(LOG_HTTP | LOG_DEBUG, "send http body part success");
@@ -597,7 +607,7 @@ NP_UNUSED ev_io* ev, int event_type) {
 
 void _np_http_read_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev,
         int event_type) {
-	np_state_t* context = ev_userdata(loop);
+    np_state_t* context = ev_userdata(loop);
     np_http_client_t* client = (np_http_client_t*) ev->data;
 
     if ((event_type & EV_READ) == EV_READ && (event_type &  EV_ERROR) != EV_ERROR && CONNECTED <= client->status
@@ -644,7 +654,7 @@ void _np_http_read_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev,
 
 void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev,
 NP_UNUSED int event_type) {
-	np_state_t* context = ev_userdata(loop);
+    np_state_t* context = ev_userdata(loop);
 
     struct sockaddr_storage from;
     socklen_t fromlen = sizeof(from);
@@ -657,9 +667,9 @@ NP_UNUSED int event_type) {
     new_client->ht_request.ht_query_args = NULL;
     new_client->ht_request.ht_path = NULL;
     new_client->ht_request.current_key = NULL;
-	new_client->status = UNUSED;
-	new_client->context = context;
-	
+    new_client->status = UNUSED;
+    new_client->context = context;
+    
     /*
     if (UNUSED < __local_http->status) {	// check if connection expired
         if (new_client->last_update < (ev_time() - __np_http_timeout)) {
@@ -677,7 +687,12 @@ NP_UNUSED int event_type) {
         new_client->client_fd = accept(__local_http->network->socket,
                 (struct sockaddr*) &from, &fromlen);
 
-        if (new_client->client_fd < 0) {
+#ifdef SO_NOSIGPIPE
+		int set = 1;
+		setsockopt(new_client->client_fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
+#endif
+
+		if (new_client->client_fd < 0) {
             free(new_client);
 
             log_msg(LOG_HTTP | LOG_WARN, "Could not accept http connection. %s", strerror(errno));
@@ -731,24 +746,24 @@ NP_UNUSED int event_type) {
     }
 }
 void np_http_deinit(np_state_t* context) {
-	EV_P = _np_event_get_loop_http(context);
-	_np_event_suspend_loop_http(context);
-	ev_io_stop(EV_A_&__local_http->network->watcher);
-	__local_http->network->watcher.data = NULL;
-	free(__local_http->hooks);
-	_np_network_disable(__local_http->network);
-	np_unref_obj(np_network_t, __local_http->network, ref_obj_creation);
+    EV_P = _np_event_get_loop_http(context);
+    _np_event_suspend_loop_http(context);
+    ev_io_stop(EV_A_&__local_http->network->watcher);
+    __local_http->network->watcher.data = NULL;
+    free(__local_http->hooks);
+    _np_network_disable(__local_http->network);
+    np_unref_obj(np_network_t, __local_http->network, ref_obj_creation);
 
-	sll_iterator(np_http_client_ptr) client = sll_first(__local_http->clients);
-	while (client != NULL) {
-		close(client->val->client_fd);
-		free(client->val);
-		sll_next(client);
-	}
+    sll_iterator(np_http_client_ptr) client = sll_first(__local_http->clients);
+    while (client != NULL) {
+        close(client->val->client_fd);
+        free(client->val);
+        sll_next(client);
+    }
 
-	sll_free(np_http_client_ptr, __local_http->clients);
-	free(__local_http);
-	_np_event_resume_loop_http(context);
+    sll_free(np_http_client_ptr, __local_http->clients);
+    free(__local_http);
+    _np_event_resume_loop_http(context);
 }
 bool np_http_init(np_state_t* context, char* domain) {
  
@@ -760,7 +775,7 @@ bool np_http_init(np_state_t* context, char* domain) {
     
     __local_http = (np_http_t*) malloc(sizeof(np_http_t));
     CHECK_MALLOC(__local_http);
-	
+    
     sll_init(np_http_client_ptr, __local_http->clients);
 
     _LOCK_MODULE(np_network_t)
@@ -768,7 +783,7 @@ bool np_http_init(np_state_t* context, char* domain) {
         np_new_obj(np_network_t, __local_http->network);
 
         _np_network_init(__local_http->network, true, TCP | IPv4, domain, port);
-		_np_network_enable(__local_http->network);
+        _np_network_enable(__local_http->network);
     }
     if (NULL == __local_http->network || false == __local_http->network->initialized )
         return false;
@@ -812,7 +827,7 @@ bool np_http_init(np_state_t* context, char* domain) {
 }
 
 void _np_http_destroy(np_state_t* context) {	
-	
+    
     EV_P = _np_event_get_loop_http(context);
     _np_event_suspend_loop_http(context);
     ev_io_stop(EV_A_&__local_http->network->watcher);
@@ -854,48 +869,48 @@ void _np_http_destroy(np_state_t* context) {
     np_unref_obj(np_network_t, __local_http->network,"np_http_init");
 }
 void example_http_server_deinit(np_context* context) {
-	np_http_deinit(context);
+    np_http_deinit(context);
 }
 
 bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
-	bool ret = false;
-	if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
-		if (http_domain == NULL) {
-			http_domain = calloc(1, sizeof(char) * 255);
-			CHECK_MALLOC(http_domain);
-			if (np_get_local_ip(context, http_domain, 255) == false) {
-				free(http_domain);
-				http_domain = NULL;
-			}
-		}
-		ret = np_http_init(context, http_domain);
-		if (ret == false) {
-			log_msg(LOG_WARN, "Node could not start HTTP interface");
-		}
-	}
-	if (opt_sysinfo_mode != np_sysinfo_opt_disable) {
-		if ((ret && opt_sysinfo_mode == np_sysinfo_opt_auto) || opt_sysinfo_mode == np_sysinfo_opt_force_server)
-		{
-			np_example_print(context, stdout, "HTTP interface set to %s\n", http_domain);
-			log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
-			np_example_print(context, stdout, "Enable sysinfo server option\n");
-			np_sysinfo_enable_server(context);
-		}
-		else {
-			np_example_print(context, stdout, "Node could not start HTTP interface\n");
-			np_example_print(context, stdout, "Enable sysinfo client option\n");
-			np_sysinfo_enable_client(context);
-		}
-		
-		np_example_print(context, stdout, "Watch sysinfo subjects \n");
-		// If you want to you can enable the statistics modulte to view the nodes statistics
-		np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
-		np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
+    bool ret = false;
+    if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
+        if (http_domain == NULL) {
+            http_domain = calloc(1, sizeof(char) * 255);
+            CHECK_MALLOC(http_domain);
+            if (np_get_local_ip(context, http_domain, 255) == false) {
+                free(http_domain);
+                http_domain = NULL;
+            }
+        }
+        ret = np_http_init(context, http_domain);
+        if (ret == false) {
+            log_msg(LOG_WARN, "Node could not start HTTP interface");
+        }
+    }
+    if (opt_sysinfo_mode != np_sysinfo_opt_disable) {
+        if ((ret && opt_sysinfo_mode == np_sysinfo_opt_auto) || opt_sysinfo_mode == np_sysinfo_opt_force_server)
+        {
+            np_example_print(context, stdout, "HTTP interface set to %s\n", http_domain);
+            log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
+            np_example_print(context, stdout, "Enable sysinfo server option\n");
+            np_sysinfo_enable_server(context);
+        }
+        else {
+            np_example_print(context, stdout, "Node could not start HTTP interface\n");
+            np_example_print(context, stdout, "Enable sysinfo client option\n");
+            np_sysinfo_enable_client(context);
+        }
+        
+        np_example_print(context, stdout, "Watch sysinfo subjects \n");
+        // If you want to you can enable the statistics modulte to view the nodes statistics
+        np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
+        np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
 
-		np_example_print(context, stdout, "Watch internal subjects\n");
-		np_statistics_add_watch_internals(context);
+        np_example_print(context, stdout, "Watch internal subjects\n");
+        np_statistics_add_watch_internals(context);
 
-	}
+    }
 
-	return ret;
+    return ret;
 }

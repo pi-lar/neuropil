@@ -69,7 +69,7 @@ extern "C" {
         NP_SECRET_KEY_BYTES = 32,
         NP_PUBLIC_KEY_BYTES = 32,
         NP_FINGERPRINT_BYTES = 32,
-        NP_UUID_CHARS = 37
+        NP_UUID_BYTES = 37
     } NP_ENUM;
 
     // Implementation defined limits
@@ -124,7 +124,7 @@ extern "C" {
     };
     
     struct np_message {
-        char uuid[NP_UUID_CHARS];
+        char uuid[NP_UUID_BYTES];
         np_id from; 
         np_id subject;		
         double received_at, expires_at;

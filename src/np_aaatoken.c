@@ -211,7 +211,7 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	if (ret && NULL !=(tmp = np_tree_find_str(data, "np.t.u")))
 	{
 		free(token->uuid);
-		token->uuid = strndup( np_treeval_to_str(tmp->val, NULL), NP_UUID_CHARS);
+		token->uuid = strndup( np_treeval_to_str(tmp->val, NULL), NP_UUID_BYTES);
 	}
 	else { ret = false;/*Mendatory field*/ }
 	
@@ -569,7 +569,7 @@ static int8_t _np_aaatoken_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr sec
 		return (ret_check);
 	}
 
-	ret_check = strncmp(first->uuid, second->uuid, NP_UUID_CHARS);
+	ret_check = strncmp(first->uuid, second->uuid, NP_UUID_BYTES);
 	if (0 != ret_check )
 	{
 		return (ret_check);
@@ -1167,7 +1167,7 @@ unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* self) {
 	crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
 
 	ASSERT(self->uuid != NULL, "cannot get token hash of uuid NULL");
-	crypto_generichash_update(&gh_state, (unsigned char*)self->uuid, strnlen(self->uuid, NP_UUID_CHARS));
+	crypto_generichash_update(&gh_state, (unsigned char*)self->uuid, strnlen(self->uuid, NP_UUID_BYTES));
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting uuid      : %s", self->uuid);
 
 	crypto_generichash_update(&gh_state, (unsigned char*)self->realm, strnlen(self->realm, 255));

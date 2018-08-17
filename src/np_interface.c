@@ -354,7 +354,7 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
 
 	if (userdata != NULL) {
 		struct np_message message = { 0 };
-		strncpy(message.uuid, msg->uuid, NP_UUID_CHARS-1);
+		strncpy(message.uuid, msg->uuid, NP_UUID_BYTES-1);
 		np_get_id(context, &message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));
 		
 		memcpy(&message.from, _np_message_get_sender(msg), NP_FINGERPRINT_BYTES);

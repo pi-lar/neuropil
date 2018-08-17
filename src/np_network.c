@@ -416,11 +416,19 @@ void _np_network_send_from_events (struct ev_loop *loop, ev_io *event, int reven
 					{
 						int retry = 10;
 						do {
+#ifdef MSG_NOSIGNAL 
 							current_write_per_data = send(
-								key_network->socket, 
-								(((char*)data_to_send) + written_per_data), 
+								key_network->socket,
+								(((char*)data_to_send) + written_per_data),
 								MSG_CHUNK_SIZE_1024 - written_per_data
-								,0 );
+								, MSG_NOSIGNAL);
+#else
+							current_write_per_data = send(
+								key_network->socket,
+								(((char*)data_to_send) + written_per_data),
+								MSG_CHUNK_SIZE_1024 - written_per_data
+								, 0);
+#endif
 
 							if (current_write_per_data < 0) {
 								np_time_sleep(NP_SLEEP_MIN);
@@ -514,6 +522,11 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "accept socket from client fd: %d",
 						client_fd);
 
+#ifdef SO_NOSIGPIPE				
+					int set = 1;
+					setsockopt(client_fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
+				
+#endif
 				//if (ng->ip == NULL || ng->port == NULL)
 				{
 					int err = -1;
@@ -734,11 +747,11 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args) 
 	{
 		if(data_container->ng_tcp_host != NULL){
 			// tcp disconnect
-			log_msg(LOG_WARN, "received disconnect from: %s:%s", data_container->ipstr, data_container->port);
+			//log_msg(LOG_WARN, "received disconnect from: %s:%s", data_container->ipstr, data_container->port);
 			// TODO handle cleanup of target_node structures ?
 			// maybe / probably the target_node received already a disjoin message before
 			//TODO: prüfen ob hier wirklich der host geschlossen werden muss
-			_np_network_stop(data_container->ng_tcp_host,true);
+			//_np_network_stop(data_container->ng_tcp_host,true);
 			//_np_node_update_stat(data_container->key->target_node, 0);
 
 		}
@@ -1090,15 +1103,17 @@ bool _np_network_init (np_network_t* ng, bool create_socket, uint8_t type, char*
 			}
 
 			if ((type & TCP) == TCP) {
+#ifdef SO_NOSIGPIPE
+				int set = 1;
+				setsockopt(ng->socket, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
+#endif
+
 				if (0 > listen(ng->socket, 10)) {
 					log_msg(LOG_ERROR, "listen on tcp port failed: %s:", strerror (errno));
 					close (ng->socket);
 					return false;
 				}
-			}
 
-			if ((type & TCP) == TCP)
-			{
 				ev_io_init(&ng->watcher, _np_network_accept, ng->socket, EV_READ);
 			}
 			else if ((type & UDP) == UDP)
@@ -1137,6 +1152,12 @@ bool _np_network_init (np_network_t* ng, bool create_socket, uint8_t type, char*
 				log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror(errno));
 			}
 		}
+#ifdef SO_NOSIGPIPE
+		if ((type & TCP) == TCP) {
+			int set = 1;
+			setsockopt(ng->socket, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
+		}
+#endif
 
 #ifdef SKIP_EVLOOP
 		// TODO: write normal threading receiver

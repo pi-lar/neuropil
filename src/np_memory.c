@@ -107,7 +107,7 @@ struct np_memory_itemconf_s {
 
     uint32_t ref_count;
     bool persistent;
-    char id[NP_UUID_CHARS];
+    char id[NP_UUID_BYTES];
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
     np_sll_t(char_ptr, reasons);
 #endif

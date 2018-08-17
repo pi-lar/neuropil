@@ -50,7 +50,7 @@ char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
 {	
 	char* uuid_out;
 	if (buffer == NULL) {
-		uuid_out = calloc(1, NP_UUID_CHARS);
+		uuid_out = calloc(1, NP_UUID_BYTES);
 		CHECK_MALLOC(uuid_out);
 	}
 	else {
@@ -63,7 +63,7 @@ char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
 	snprintf (input, 255, "%s:%u:%16.16f", str, num, now);
 	// log_debug_msg(LOG_DEBUG, "created input uuid: %s", input);
 	crypto_generichash(out, 18, (unsigned char*) input, 256, NULL, 0);
-	sodium_bin2hex(uuid_out, NP_UUID_CHARS, out, 18);
+	sodium_bin2hex(uuid_out, NP_UUID_BYTES, out, 18);
 	// log_debug_msg(LOG_DEBUG, "created raw uuid: %s", uuid_out);
 	uuid_out[8] = uuid_out[13] = uuid_out[18] = uuid_out[23] = '-';
 	uuid_out[14] = '5';
