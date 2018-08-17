@@ -149,6 +149,9 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 	char* uuid = NULL;
 
 	np_msgproperty_t* prop = args->properties;
+	
+	assert(msg_out != NULL && "A message is needed to send a msg out");
+	assert(prop != NULL && "A property is needed to send a msg out");
 
 	// set msgproperty of msg
 	if (msg_out != NULL && prop != NULL) {
@@ -517,7 +520,7 @@ void _np_out_discovery_messages(np_state_t* context, np_jobargs_t* args)
 			NP_PERFORMANCE_POINT_START(msg_discovery_out);
 
 			// args->target == Key of subject
-			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(context, args->properties->msg_subject, "0");
+			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport( args->properties->msg_subject, "0");
 
 			if (FLAG_CMP(args->properties->mode_type, INBOUND))
 			{
@@ -749,7 +752,7 @@ void _np_out_authentication_reply(np_state_t* context, np_jobargs_t* args)
 	if (STICKY_REPLY != mep_reply_sticky &&
 		0 < strlen(args->target->aaa_token->realm) )
 	{
-		target_dhkey = np_dhkey_create_from_hostport(context, args->target->aaa_token->realm, "0");
+		target_dhkey = np_dhkey_create_from_hostport( args->target->aaa_token->realm, "0");
 	}
 	else
 	{

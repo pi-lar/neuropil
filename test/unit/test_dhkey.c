@@ -44,8 +44,8 @@ Test(np_dhkey_t, _np_dhkey_cmp, .description = "test the comparison of dhkeys re
 	CTX() {
 		char subject[] = "this.is.a.test";
 
-		np_dhkey_t key_1 = np_dhkey_create_from_hostport(context, subject, "1");
-		np_dhkey_t key_2 = np_dhkey_create_from_hostport(context, subject, "2");
+		np_dhkey_t key_1 = np_dhkey_create_from_hostport( subject, "1");
+		np_dhkey_t key_2 = np_dhkey_create_from_hostport( subject, "2");
 
 		cr_expect(-1 == _np_dhkey_cmp(NULL, &key_1), "expected comparison with NULL is -1");
 		cr_expect(1 == _np_dhkey_cmp(&key_1, NULL), "expected comparison with NULL is  1");
@@ -87,8 +87,8 @@ Test(np_dhkey_t, _dhkey_equals, .description = "test for equal dhkey's")
 	CTX() {
 		char subject[] = "this.is.a.test";
 
-		np_dhkey_t key_1 = np_dhkey_create_from_hostport(context, subject, "1");
-		np_dhkey_t key_2 = np_dhkey_create_from_hostport(context, subject, "2");
+		np_dhkey_t key_1 = np_dhkey_create_from_hostport( subject, "1");
+		np_dhkey_t key_2 = np_dhkey_create_from_hostport( subject, "2");
 
 		cr_expect(true == _np_dhkey_equal(&key_1, &key_1), "expected dhkey's to be equal");
 		cr_expect(false == _np_dhkey_equal(&key_1, &key_2), "expected dhkey's to be different");
@@ -100,11 +100,11 @@ Test(np_dhkey_t, _dhkey_index, .description = "test the common prefix length of 
 	CTX() {
 		char subject[] = "this.is.a.test";
 
-		np_dhkey_t key_1 = np_dhkey_create_from_hostport(context, subject, "1");
-		np_dhkey_t key_2 = np_dhkey_create_from_hostport(context, subject, "2");
-		np_dhkey_t key_3 = np_dhkey_create_from_hostport(context, subject, "3");
-		np_dhkey_t key_4 = np_dhkey_create_from_hostport(context, subject, "4");
-		np_dhkey_t key_5 = np_dhkey_create_from_hostport(context, subject, "5");
+		np_dhkey_t key_1 = np_dhkey_create_from_hostport( subject, "1");
+		np_dhkey_t key_2 = np_dhkey_create_from_hostport( subject, "2");
+		np_dhkey_t key_3 = np_dhkey_create_from_hostport( subject, "3");
+		np_dhkey_t key_4 = np_dhkey_create_from_hostport( subject, "4");
+		np_dhkey_t key_5 = np_dhkey_create_from_hostport( subject, "5");
 
 		cr_expect(63 == _np_dhkey_index(&key_1, &key_1), "expected index to be 64");
 		cr_expect(0 == _np_dhkey_index(&key_1, &key_2), "expected index to be  0");
@@ -118,7 +118,7 @@ Test(np_dhkey_t, _dhkey_hexalpha_at, .description="test for getting the hexalpha
 	CTX() {
 		char subject[] = "this.is.a.test";
 
-		np_dhkey_t key_1 = np_dhkey_create_from_hostport(context, subject, "1");
+		np_dhkey_t key_1 = np_dhkey_create_from_hostport( subject, "1");
 		// =>	7c5f11d1 8315519a 8c4df66e dd0ae509 4aa90a88 adbbc488 3e6ba84c b13cae5d
 		uint8_t tmp = 0;
 		// =>	7c5f11d1831_5_519a8c4df66edd0ae5094aa90a88adbbc4883e6ba84cb13cae5d
@@ -132,7 +132,7 @@ Test(np_dhkey_t, _dhkey_hexalpha_at, .description="test for getting the hexalpha
 		// =>	7c5f11d18315519a8c4df66edd0ae5094aa90a88adbbc4883e6ba84cb13c_a_e5d
 		cr_expect(10 == (tmp = _np_dhkey_hexalpha_at(context, &key_1, 60)), "idx 60 expected hexalpha_at to be 10 but is: %"PRIu8, tmp);
 
-		np_dhkey_t key_2 = np_dhkey_create_from_hostport(context, subject, "2");
+		np_dhkey_t key_2 = np_dhkey_create_from_hostport( subject, "2");
 		// => cc462cab0a689bfb232b27f4816116a2e04de54f7b0aee1fc179fae41e2c8c62
 		char* key_2_reference = "cc462cab0a689bfb232b27f4816116a2e04de54f7b0aee1fc179fae41e2c8c62";
 		char ele[2] = { 0 };

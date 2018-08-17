@@ -654,26 +654,6 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
 			dest->cache_policy = NP_MX_LIFO_PURGE;
 		}
 	}
-
-	// mep type conversion
-	switch (src->mep_type)
-	{
-	case REQ_REP:
-		dest->pattern = NP_MX_REQ_REP;
-		break;
-	case BROADCAST:
-		dest->pattern = NP_MX_BROADCAST;
-		break;
-	case ANY_TO_ANY:
-		dest->pattern = NP_MX_ANY;
-		break;
-	case ONE_WAY :
-		dest->pattern = NP_MX_ONE_WAY;
-		break;
-	default:
-		dest->pattern = NP_MX_HIDDEN;
-		break;
-	}	
 }
 
 void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* src) {
@@ -720,26 +700,6 @@ void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* s
 		break;
 	}
 
-	// mep type conversion
-	switch (src->pattern)
-	{
-	case NP_MX_REQ_REP:
-		dest->mep_type= REQ_REP;
-		break;
-	case NP_MX_BROADCAST:
-		dest->mep_type = BROADCAST;
-		break;
-	case NP_MX_ANY:
-		dest->mep_type = ANY_TO_ANY;
-		break;
-	case NP_MX_ONE_WAY:
-		dest->mep_type = ONE_WAY;
-		break;
-
-	case NP_MX_HIDDEN:
-	default:
-		// ignore others 
-		break;
-		
-	}
+	// mep type conversion	
+	dest->mep_type= DEFAULT_TYPE;
 }

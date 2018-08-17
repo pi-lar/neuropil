@@ -195,7 +195,7 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
 	np_aaatoken_t* auth_token = _np_token_factory_new_node_token(context->my_node_key->node);
 	auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;	
 
-	np_dhkey_t my_dhkey = np_aaatoken_get_fingerprint(auth_token); // np_dhkey_create_from_hostport(context, my_node->dns_name, my_node->port);
+	np_dhkey_t my_dhkey = np_aaatoken_get_fingerprint(auth_token); // np_dhkey_create_from_hostport( my_node->dns_name, my_node->port);
 	np_key_t* new_node_key = _np_keycache_find_or_create(context, my_dhkey);
 
 	new_node_key->network = context->my_node_key->network;
@@ -748,7 +748,7 @@ void np_send_wildcard_join(np_context*ac, const char* node_string)
 		np_key_t* wildcard_node_key = NULL;
 
 		//START Build our wildcard connection string
-		np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport(context, "*", node_string);
+		np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport( "*", node_string);
 		char wildcard_dhkey_str[65];
 		np_id2str(&wildcard_dhkey, wildcard_dhkey_str);
 		asprintf(&wildcard_node_str, "%s:%s", wildcard_dhkey_str, node_string);

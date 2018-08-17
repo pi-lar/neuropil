@@ -31,7 +31,7 @@ Test(np_route_t, _leafset_update, .description = "test the addition/removal of k
 		{
 			char str[15];
 			sprintf(str, "%0d", i + 1);
-			np_dhkey_t my_dhkey = np_dhkey_create_from_hostport(context, "pi-lar", str);
+			np_dhkey_t my_dhkey = np_dhkey_create_from_hostport( "pi-lar", str);
 			np_key_t *insert_key = NULL;
 			np_new_obj(np_key_t, insert_key);
 			insert_key->dhkey = my_dhkey;
@@ -108,7 +108,7 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 			sodium_bin2hex(tmp_2, 33, (unsigned char*)tmp_2, 16);
 
 			// sprintf(str, "%0d", i);
-			np_dhkey_t my_dhkey = np_dhkey_create_from_hostport(context, tmp_2, tmp_1);
+			np_dhkey_t my_dhkey = np_dhkey_create_from_hostport( tmp_2, tmp_1);
 
 			np_key_t * insert_key = _np_keycache_find(context, my_dhkey);
 			if(insert_key == NULL) {

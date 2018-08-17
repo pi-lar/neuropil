@@ -305,7 +305,7 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t* ar
 				// bool free_subject;
 				const char* subject = iter->key.value.s;
 				
-				np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(context, subject, "0");
+				np_dhkey_t target_dhkey = np_dhkey_create_from_hostport( subject, "0");
 				np_key_t* target = NULL;
 				target = _np_keycache_find_or_create(context, target_dhkey);
 
@@ -585,7 +585,7 @@ void _np_send_subject_discovery_messages(np_state_t* context , np_msg_mode_type 
 				sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
 			}
 
-			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(context, subject, "0");
+			np_dhkey_t target_dhkey = np_dhkey_create_from_hostport( subject, "0");
 			np_key_t* target = NULL;
 			target = _np_keycache_find_or_create(context, target_dhkey);
 
