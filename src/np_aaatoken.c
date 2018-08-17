@@ -1512,7 +1512,7 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
 #endif
 }
 
-	np_token* np_aaatoken4user(np_token* dest, np_aaatoken_t* src) {
+	struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src) {
 
 	assert(src != NULL);
 	assert(dest!= NULL);

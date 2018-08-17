@@ -69,7 +69,7 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	struct np_settings *settings = np_new_settings(NULL);
+	struct np_settings *settings = np_default_settings(NULL);
 	settings->n_threads = no_threads;
 	/**
 	   \endcode

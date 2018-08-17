@@ -69,7 +69,7 @@ int main(int argc, char **argv)
 	}
 	for (int i=0; i < cloud_size; i++) {
 		port += i;
-		struct np_settings * settings = np_new_settings(NULL);
+		struct np_settings * settings = np_default_settings(NULL);
 		settings->n_threads = no_threads;
 
 		snprintf(settings->log_file, 255, "neuropil_cloud_%d.log", port);

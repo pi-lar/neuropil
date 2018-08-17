@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 				{
 					fprintf(stdout, "No bootstrap host detected, creating a new one\n");
 				
-					struct np_settings *settings = np_new_settings(NULL);
+					struct np_settings *settings = np_default_settings(NULL);
 					settings->n_threads = no_threads;
 
 					snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_controller", port);
@@ -159,7 +159,7 @@ int main(int argc, char **argv)
 						snprintf(port, 7, "%d", current_pid);
 					}
 
-					struct np_settings *settings = np_new_settings(NULL);
+					struct np_settings *settings = np_default_settings(NULL);
 					settings->n_threads = no_threads;
 
 					snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_controller", port);

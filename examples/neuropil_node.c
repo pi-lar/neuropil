@@ -56,7 +56,7 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	struct np_settings *settings = np_new_settings(NULL);
+	struct np_settings *settings = np_default_settings(NULL);
 	settings->n_threads = no_threads;
 
 	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_node", port);
