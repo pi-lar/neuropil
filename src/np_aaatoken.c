@@ -1512,7 +1512,8 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
 #endif
 }
 
-np_token* np_aaatoken4user(np_token* dest, np_aaatoken_t* src) {
+	np_token* np_aaatoken4user(np_token* dest, np_aaatoken_t* src) {
+
 	assert(src != NULL);
 	assert(dest!= NULL);
 	np_ctx_memory(src);
@@ -1521,9 +1522,12 @@ np_token* np_aaatoken4user(np_token* dest, np_aaatoken_t* src) {
 	dest->expires_at = src->expires_at;
 	dest->issued_at	 = src->issued_at;
 	dest->not_before = src->not_before;
-	memcpy(dest->public_key, src->public_key, sizeof(src->public_key));
-	memcpy(dest->secret_key, src->private_key, sizeof(src->private_key));
-	strcpy(dest->subject, src->subject);
+
+	memcpy(dest->public_key, src->public_key, NP_PUBLIC_KEY_BYTES);
+	memcpy(dest->secret_key, src->private_key, NP_SECRET_KEY_BYTES);
+
+	strncpy(dest->subject, src->subject, 255);
+
 	// todo: convert all fields
 	//np_get_id(context, &dest->subject, src->subject, strlen(src->subject));
 

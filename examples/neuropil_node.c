@@ -59,14 +59,13 @@ int main(int argc, char **argv)
 	struct np_settings *settings = np_new_settings(NULL);
 	settings->n_threads = no_threads;
 
-	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_node", port);
+	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_node", port);
 	settings->log_level = level;
 
 	np_context * ac = np_new_context(settings);
 	np_ctx_cast(ac);
 
 	np_example_print(context, stdout, "logpath: %s\n", settings->log_file);
-
 
 	if (NULL != realm)
 	{

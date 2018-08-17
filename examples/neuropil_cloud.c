@@ -13,15 +13,15 @@
 #include <stddef.h>
 #include <assert.h>
 
-#include "np_interface.h" 
-#include "np_constants.h" 
+#include "np_interface.h"
+#include "np_constants.h"
 #include "np_log.h"
 
 #include "example_helper.c"
 
 void make_wildcard(char* s) {
 	s[0] = '*';
-	
+
 	for (size_t i = 64; i <= strlen(s); i++) {
 		s[i - 63] = s[i];
 	}
@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 	char* opt_port = NULL;
 	char* publish_domain = NULL;
 	int level = -2;
-	char* ccloud_size = "32";	
+	char* ccloud_size = "32";
 	char* logpath = ".";
 
 	if (parse_program_args(
@@ -50,8 +50,9 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
+		"[-c cloud size]",
 		"c:",
-		ccloud_size
+		&ccloud_size
 	) == false) {
 		exit(EXIT_FAILURE);
 	}
@@ -66,16 +67,16 @@ int main(int argc, char **argv)
 	if (opt_port != NULL) {
 		port = atoi(opt_port);
 	}
-	for (int i=0; i < cloud_size; i++) {	
+	for (int i=0; i < cloud_size; i++) {
 		port += i;
-		struct np_settings * settings = np_new_settings(NULL);		
+		struct np_settings * settings = np_new_settings(NULL);
 		settings->n_threads = no_threads;
 
-		sprintf(settings->log_file, "neuropil_cloud_%d.log", port);
+		snprintf(settings->log_file, 255, "neuropil_cloud_%d.log", port);
 		settings->log_level = level;
 
 		nodes[i] = np_new_context(settings); // use default settings
-			
+
 		np_example_print(nodes[0], stdout, "INFO: Starting Node %"PRIsizet"\n", i);
 
 		if (np_ok != (tmp = np_listen(nodes[i], "udp4", "localhost", port))) {
@@ -89,7 +90,7 @@ int main(int argc, char **argv)
 		}
 
 		if (i == 0) {
-			__np_example_helper_loop(nodes[i]);			
+			__np_example_helper_loop(nodes[i]);
 		}
 		else {
 		   example_http_server_init(nodes[i], NULL, np_sysinfo_opt_force_client);
@@ -118,11 +119,11 @@ int main(int argc, char **argv)
 					}
 					// for fun and testing make every second join a wildcard join
 					// currently all via wildcard as of bug "hash join"
-					//if (i % 2 == 0) 
+					//if (i % 2 == 0)
 					{
 						make_wildcard(addr);
 					}
-					// join previous node			
+					// join previous node
 					if (np_ok != (tmp = np_join(nodes[i], addr))) {
 						np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not join. %s\n", i, np_error_str[tmp]);
 					}

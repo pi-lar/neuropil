@@ -314,16 +314,16 @@ char * np_statistics_print(np_state_t* context, bool asOneLine) {
 	char s[32];
 
 	for (uint32_t i = 0; i < (sizeof(minimize) / sizeof(uint32_t)); i++) {
-		sprintf(s, "%d", minimize[i]);
+		snprintf(s, 32, "%d", minimize[i]);
 		tenth = fmax(tenth, strlen(s));
 	}
 
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Node:     %%s%%s", "received total:", tenth);
+	snprintf(tmp_format, 512, "%-17s %%%"PRId32""PRIu32" Node:     %%s%%s", "received total:", tenth);
 	ret = np_str_concatAndFree(ret, tmp_format, all_total_received, _np_key_as_str(context->my_node_key), new_line);
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Identity: %%s%%s", "send     total:", tenth);
+	snprintf(tmp_format, 512, "%-17s %%%"PRId32""PRIu32" Identity: %%s%%s", "send     total:", tenth);
 	ret = np_str_concatAndFree(ret, tmp_format, all_total_send, ((context->my_identity == NULL) ? "-" : _np_key_as_str(context->my_identity)), new_line);
 
-	sprintf(tmp_format, "%-17s %%%"PRId32""PRIu32" Jobs:     %%"PRIu32" Forwarded Msgs: %%8.0f%%s", "total:", tenth);
+	snprintf(tmp_format, 512, "%-17s %%%"PRId32""PRIu32" Jobs:     %%"PRIu32" Forwarded Msgs: %%8.0f%%s", "total:", tenth);
 	TSP_GET(double, np_module(statistics)->__forwarding_counter, __fw_counter_r);
 	ret = np_str_concatAndFree(ret,
 		tmp_format,
@@ -333,15 +333,15 @@ char * np_statistics_print(np_state_t* context, bool asOneLine) {
 		new_line);
 
 
-	sprintf(tmp_format, "%-17s %%"PRIu32"%%s", "Reachable nodes:");
+	snprintf(tmp_format, 512, "%-17s %%"PRIu32"%%s", "Reachable nodes:");
 	ret = np_str_concatAndFree(ret, tmp_format, routes, /*new_line*/"  ");
-	sprintf(tmp_format, "%-17s %%"PRIu32" (:= %%"PRIu32"|%%"PRIu32") ", "Neighbours nodes:");
+	snprintf(tmp_format, 512, "%-17s %%"PRIu32" (:= %%"PRIu32"|%%"PRIu32") ", "Neighbours nodes:");
 	uint32_t l, r;
 	uint32_t c = _np_route_my_key_count_neighbours(context, &l, &r);
 	ret = np_str_concatAndFree(ret, tmp_format, c, l, r);
 
 
-	sprintf(tmp_format, "In: %8%s(%5%s) Out: %8%s(%5%s)%%s");
+	snprintf(tmp_format, 512, "In: %8%s(%5%s) Out: %8%s(%5%s)%%s");
 	uint32_t __network_send_bytes_r, __network_received_bytes_r;
 	double timediff;
 	static const double timediff_threshhold = 1;

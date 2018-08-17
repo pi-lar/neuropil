@@ -614,7 +614,7 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
 	dest->intent_update_after = src->token_min_ttl;
 	dest->message_ttl = src->msg_ttl;
 	if(src->rep_subject != NULL) {
-		strcpy(dest->reply_subject, src->rep_subject);
+		strncpy(dest->reply_subject, src->rep_subject, 255);
 	}
 	else {
 		memset(dest->reply_subject, 0, sizeof(dest->reply_subject));

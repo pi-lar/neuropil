@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 	struct np_settings *settings = np_new_settings(NULL);
 	settings->n_threads = no_threads;
 
-	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_controller", port);
 	fprintf(stdout, "logpath: %s\n", settings->log_file);
 	settings->log_level = level;
 
@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
 	while (true) {
 		fprintf(stdout, "try to join bootstrap node\n");
 		if (false == j_key_provided) {
-			sprintf(j_key, "%s:localhost:3333", proto);
+			snprintf(j_key, 255, "%s:localhost:3333", proto);
 		}
 		np_join(context, j_key);
 

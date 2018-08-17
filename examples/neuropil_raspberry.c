@@ -119,7 +119,7 @@ int main(int argc, char **argv)
 	struct np_settings *settings = np_new_settings(NULL);
 	settings->n_threads = no_threads;
 
-	sprintf(settings->log_file, "%s/%s_%s.log", logpath, "neuropil_raspberry", port);
+	snprintf(settings->log_file, 255, "%s/%s_%s.log", logpath, "neuropil_raspberry", port);
 	settings->log_level = level;
 
 	np_context * context = np_new_context(settings);

@@ -590,7 +590,7 @@ char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char b
 			f = "TB/s";
 		}
 		to_format = bytes / divisor;
-		sprintf(buffer, "%5.2f %s", to_format, f);
+		snprintf(buffer, 254, "%5.2f %s", to_format, f);
 	}
 	else if (type == np_util_stringify_bytes)
 	{
@@ -611,17 +611,17 @@ char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char b
 			f = "TB";
 		}
 		to_format = bytes / divisor;
-		sprintf(buffer, "%5.2f %s", to_format, f);
+		snprintf(buffer, 254, "%5.2f %s", to_format, f);
 	}
 	else if (type == np_util_stringify_time_ms) {
 
 		double time = *((double*)data);
 		
 		//sprintf(buffer, "%+"PRIu32" ms", ceil(time * 1000));
-		sprintf(buffer, "%+f ms", time);
+		snprintf(buffer, 254, "%+f ms", time);
 	}
 	else {
-		strcpy(buffer, "<unknown type>");
+		strncpy(buffer, "<unknown type>", 15);
 	}
 
 	return buffer;

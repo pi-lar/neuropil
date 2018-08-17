@@ -433,7 +433,7 @@ void _np_http_handle_sysinfo(np_state_t* context , np_http_client_t* client)
         np_tree_t* sysinfo = NULL;
         if (usedefault) {
             log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "using own node as info system");
-            sprintf(target_hash, "%s", my_key);
+            snprintf(target_hash, 64, "%s", my_key);
 
             sysinfo = np_sysinfo_get_all(context);
         }
@@ -509,7 +509,7 @@ NP_UNUSED ev_io* ev, int event_type) {
         char * ht_body = client->ht_response.ht_body;
         // HTTP start
         int pos =
-                sprintf(data, "%s %d %s" HTTP_CRLF, "HTTP/1.1",
+                snprintf(data, 2048, "%s %d %s" HTTP_CRLF, "HTTP/1.1",
                         http_return_codes[client->ht_response.ht_status].http_code,
                         http_return_codes[client->ht_response.ht_status].text);
 

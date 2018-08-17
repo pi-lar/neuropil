@@ -75,7 +75,7 @@ int main(int argc, char **argv)
 	   \endcode
 	*/
 
-	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_controller", port);
 	fprintf(stdout, "logpath: %s\n", settings->log_file);
 	settings->log_level = level;
 
