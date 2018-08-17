@@ -109,8 +109,8 @@ void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node
 	{
 #ifdef DEBUG
 
-		char tmp_hash1[255] = { 0 };
-		char tmp_hash2[255] = { 0 };
+		char tmp_hash1[65] = { 0 };
+		char tmp_hash2[65] = { 0 };
 
 		np_dhkey_t tmp_dhkey1 = np_aaatoken_get_fingerprint(key_with_core_token->aaa_token);
 		np_dhkey_t tmp_dhkey2 = np_aaatoken_get_fingerprint(full_token);
@@ -655,7 +655,7 @@ np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 	np_state_t* context = np_ctx_by_memory(token);
 	np_aaatoken_t * ret = NULL;
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport( subject, "0");
 
 	subject_key = _np_keycache_find_or_create(context, search_key);
 	_np_aaatoken_create_ledger(subject_key, subject);
@@ -747,7 +747,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(np_state_t* context, con
 	sll_init(np_aaatoken_ptr, return_list);
 
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport( subject, "0");
 
 	subject_key = _np_keycache_find_or_create(context, search_key);
 	// look up target structures or create them
@@ -813,7 +813,7 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_sender_token(char* subject, char* sender){");
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport( subject, "0");
 
 	subject_key = _np_keycache_find_or_create(context, search_key);
 	// look up target structures or create them
@@ -922,7 +922,7 @@ np_aaatoken_t *_np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 	np_aaatoken_t* ret = NULL;	
 
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport( subject, "0");
 
 	subject_key = _np_keycache_find_or_create(context, search_key);
 	_np_aaatoken_create_ledger(subject_key, subject);
@@ -1022,7 +1022,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(np_state_t* context, const char* const 
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_receiver(char* subject, np_dhkey_t* target){");
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport( subject, "0");
 
 	subject_key = _np_keycache_find_or_create(context, search_key);
 	_np_aaatoken_create_ledger(subject_key, subject);
@@ -1107,7 +1107,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(np_state_t* context, const char* const 
 sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(np_state_t* context, const char* const subject, const char* const audience)
 {
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport( subject, "0");
 
 	subject_key = _np_keycache_find_or_create(context, search_key);
 	_np_aaatoken_create_ledger(subject_key, subject);
@@ -1243,7 +1243,7 @@ np_aaatoken_t* _np_aaatoken_get_local_mx(np_state_t* context, const char* const 
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_local_mx(char* subject){");
 
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport( subject, "0");
 
 	subject_key = _np_keycache_find_or_create(context, search_key);
 	// look up target structures or create them
@@ -1294,7 +1294,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 	assert(token != NULL);	
 
 	np_key_t* subject_key = NULL;
-	np_dhkey_t search_key = np_dhkey_create_from_hostport(context, subject, "0");
+	np_dhkey_t search_key = np_dhkey_create_from_hostport( subject, "0");
 
 	subject_key = _np_keycache_find_or_create(context, search_key);
 	_np_aaatoken_create_ledger(subject_key, subject);

@@ -12,6 +12,12 @@
 extern "C" {
 #endif
 
+
+	struct np_dhkey_s
+	{
+		uint32_t t[8];
+	} ;
+
 /* key_comp: k1, k2
  * returns > 0 if k1>k2, < 0 if k1<k2, and 0 if k1==k2
  */
@@ -35,7 +41,7 @@ bool _np_dhkey_init (np_state_t* context);
 NP_API_INTERN
 np_dhkey_t np_dhkey_create_from_hash(const char* strOrig);
 NP_API_INTERN
-np_dhkey_t np_dhkey_create_from_hostport(np_state_t* context, const char* strOrig, const char* port);
+np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port);
 
 /* key_equal:k1, k2
  * return 1 if #k1#==#k2# 0 otherwise

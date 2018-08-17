@@ -715,6 +715,7 @@ void _np_in_leave_req(np_state_t* context, np_jobargs_t* args)
  ** internal function that is called at the destination of a JOIN message. This
  ** call encodes the leaf set of the current host and sends it to the joiner.
  **/
+
 void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
 {
     log_trace_msg(LOG_TRACE, "start: void _np_in_join_req(np_jobargs_t* args){");
@@ -755,7 +756,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
     np_tree_elem_t* ident_token_ele = np_tree_find_str(args->msg->body, "_np.token.ident");
     if (ident_token_ele != NULL) {
         join_ident_token = np_token_factory_read_from_tree(context, ident_token_ele->val.value.tree);
-        if (join_ident_token != NULL &&
+        if (join_ident_token == NULL ||
             false == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity))
         {
             // join token needs to be a valid ident token
@@ -767,7 +768,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
             goto __np_cleanup__;
         }
         np_tree_elem_t* partner_fp = np_tree_find_str(join_ident_token->extensions, "_np.partner_fp");
-        if (partner_fp != NULL) {
+        if (partner_fp == NULL) {
             // node fingerprint has to be available
             goto __np_cleanup__;
         }
@@ -802,11 +803,10 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request:  node key %s", _np_key_as_str(join_node_key));
 
 
-    np_token tmp = { 0 };
-    if (NULL != join_ident_key &&
-        NULL != context->authenticate_func)
+	struct np_token tmp_user_token = { 0 };
+    if (NULL != join_ident_key)
     {
-        bool join_allowed = context->authenticate_func(context, np_aaatoken4user(&tmp, join_ident_key->aaa_token));
+        bool join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_ident_key->aaa_token));
         if (false == context->enable_realm_client &&
             true == join_allowed)
         {
@@ -814,12 +814,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
             join_node_key->aaa_token->state  |= AAA_AUTHENTICATED;
         }
     } else {
-        log_msg(LOG_ERROR,
-                "%s | %s", tmp.subject, join_node_key->aaa_token->subject);
-
-    		np_token* tmp_token = np_aaatoken4user(&tmp, join_node_key->aaa_token);
-
-    		bool join_allowed = context->authenticate_func(context, tmp_token);
+        bool join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_node_key->aaa_token));
         if (false == context->enable_realm_client &&
             true == join_allowed)
         {
@@ -1510,7 +1505,7 @@ void _np_in_available_sender(np_state_t * context, np_jobargs_t* args)
 
     if ( _np_dhkey_equal(&to_key, &state->my_node_key->dhkey) )
     {
-        np_token tmp;
+		struct  np_token tmp;
         if (true == state->authenticate_func(context, np_aaatoken4user(&tmp, msg_token)))
             msg_token->state |= AAA_AUTHENTICATED;
 
@@ -1545,7 +1540,7 @@ void _np_in_discover_receiver(np_state_t * context, np_jobargs_t* args)
         CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_reply_to);
         np_dhkey_t reply_to_key = msg_reply_to.value.dhkey;
 #ifdef DEBUG
-        char reply_to_dhkey_as_str[64];
+        char reply_to_dhkey_as_str[65];
         np_id2str(&reply_to_key, reply_to_dhkey_as_str);
 #endif
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
@@ -1617,7 +1612,7 @@ void _np_in_available_receiver(np_state_t * context, np_jobargs_t* args)
     // check if we are (one of the) sending node(s) of this kind of message
     if ( _np_dhkey_equal(&to_key, &my_key->dhkey) )
     {
-        np_token tmp;
+		struct  np_token tmp;
         if (true == state->authenticate_func(context, np_aaatoken4user(&tmp, msg_token)))
             msg_token->state |= AAA_AUTHENTICATED;
 
@@ -1654,7 +1649,7 @@ void _np_in_authenticate(np_state_t* context, np_jobargs_t* args)
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
 #ifdef DEBUG
-        char reply_to_dhkey_as_str[64];
+        char reply_to_dhkey_as_str[65];
         np_id2str(&reply_to_key, reply_to_dhkey_as_str);
 #endif
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
@@ -1684,7 +1679,7 @@ void _np_in_authenticate(np_state_t* context, np_jobargs_t* args)
     }
 
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking authentication of token");
-    np_token tmp;
+	struct  np_token tmp;
     if (true == context->authenticate_func(context, np_aaatoken4user(&tmp, authentication_token)))
     {
         authentication_token->state |= AAA_AUTHENTICATED;
@@ -1763,7 +1758,7 @@ void _np_in_authenticate_reply(np_state_t * context, np_jobargs_t* args)
          } // TODO: add a token type to identify msg exchanges, nodes and real persons
          else /* if (0 == strncmp(authentication_token->subject, "urn:np:msg:", 11)) */
          {
-             search_key = np_dhkey_create_from_hostport(context, authentication_token->subject, "0");
+             search_key = np_dhkey_create_from_hostport( authentication_token->subject, "0");
          }
 
          subject_key = _np_keycache_find_or_create(context, search_key);
@@ -1833,7 +1828,7 @@ void _np_in_authorize(np_state_t * context, np_jobargs_t* args)
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
 #ifdef DEBUG
-        char reply_to_dhkey_as_str[64];
+        char reply_to_dhkey_as_str[65];
         np_id2str(&reply_to_key, reply_to_dhkey_as_str);
 #endif
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
@@ -1861,7 +1856,7 @@ void _np_in_authorize(np_state_t * context, np_jobargs_t* args)
     }
 
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking authorization of token");
-    np_token tmp;
+    struct np_token tmp;
     if (true == context->authorize_func(context, np_aaatoken4user(&tmp, authorization_token)))
     {
         authorization_token->state |= AAA_AUTHORIZED;
@@ -1938,7 +1933,7 @@ void _np_in_authorize_reply(np_state_t* context, np_jobargs_t* args)
         }
         else /* if (0 == strncmp(authorization_token->subject, "urn:np:msg:", 11)) */
         {
-            search_key = np_dhkey_create_from_hostport(context, authorization_token->subject, "0");
+            search_key = np_dhkey_create_from_hostport( authorization_token->subject, "0");
         }
 
         subject_key = _np_keycache_find_or_create(context, search_key);
@@ -2019,7 +2014,7 @@ void _np_in_account(np_state_t * context, np_jobargs_t* args)
     accounting_token  = np_token_factory_read_from_tree(context, args->msg->body);
     if (accounting_token != NULL) {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now handling accounting for token");
-        np_token tmp;
+		struct np_token tmp;
         context->accounting_func(context, np_aaatoken4user(&tmp, accounting_token));
     }
     __np_cleanup__:
@@ -2160,7 +2155,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
 		// if not joined it may indicate a wildcard join
 		if(msg_source_key->node->joined_network == false) {
             char* tmp_connection_str = np_get_connection_string_from(msg_source_key, false);
-            np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport(context, "*", tmp_connection_str );
+            np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport( "*", tmp_connection_str );
             free(tmp_connection_str);
 
             _LOCK_MODULE (np_network_t)

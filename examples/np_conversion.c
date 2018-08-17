@@ -17,7 +17,7 @@ int8_t __np_cmp_np_text_exchange_ptr(np_text_exchange_ptr const te, np_text_exch
 	return memcmp(&te->id, &te_id->id, sizeof(np_id));
 }
 
-bool __np_text_receiver(np_context* ac, np_message* message) {
+bool __np_text_receiver(np_context* ac, struct np_message* message) {
 	struct np_text_exchange_s te_s = {0};
 	
 	memcpy(&te_s.id ,&message->subject, sizeof(te_s));

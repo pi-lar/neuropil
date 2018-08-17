@@ -87,21 +87,11 @@ if int(release) >= 1:
     default_env.Append(CCFLAGS = release_flags)
 
 # add debug compilation options
+# debug_flags = ['-g3', '-Wall', '-Wextra', '-gdwarf-2','-O0']
 debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O0']
 if int(debug) >= 1:
-  try:
-    if "klampt" in os.path.expanduser('~'):
-      # disable some warnings
-      debug_flags += [
-        '-Wno-incompatible-pointer-types-discards-qualifiers',		'-Wno-unused-variable',
-        '-Wno-unused-parameter',		'-Wno-missing-braces',		'-Wno-missing-field-initializers',		
-	  ]
-  except:
-    pass
-
   default_env.Append(CCFLAGS = debug_flags)
-  if int(debug) <= 1:
-    default_env.Append(CCFLAGS = ['-DDEBUG'])
+  # default_env.Append(CCFLAGS = ['-DDEBUG'])
 
 default_env.Append(CCFLAGS = ['-DNEUROPIL_RELEASE_BUILD=\"{}\"'.format(buildNo())])
 
@@ -110,37 +100,49 @@ if int(console_log):
 
 default_env.Append(LIBS = ['m'])
 # platform specific compiler options
+
 if 'FreeBSD' in platform.system():
-  default_env.Append(LIBS = ['util','m'] )
+  default_env.Append(LIBS = ['util', 'm'] )
   default_env.Append(LIBPATH = ['/usr/local/lib'] )
   default_env.Append(CCFLAGS = ['-I/usr/local/include'] )
+
+
 if 'Darwin' in platform.system():
-  default_env.Append(CCFLAGS = ['-Wno-deprecated'] )
-  default_env.Append(CCFLAGS = ['-Wno-nullability-completeness'] )
+  # default_env.Append(CCFLAGS = ['-Wformat-security'])
+  # default_env.Append(CCFLAGS = ['-fstack-protector-all']) 
+  # default_env.Append(CCFLAGS = ['-Wstrict-overflow'])
+  default_env.Append(CCFLAGS = ['-fno-omit-frame-pointer'])
+  default_env.Append(CCFLAGS = ['-Wno-nullability-completeness'])
   default_env.Append(CCFLAGS = ['-Wno-missing-field-initializers'])
   default_env.Append(CCFLAGS = ['-Wno-missing-braces'])
-  default_env.Append(CCFLAGS = ['-Wno-unsupported-visibility'] )
-  default_env.Append(CCFLAGS = ['-mmacosx-version-min=10.11'] )
+  default_env.Append(CCFLAGS = ['-Wno-unsupported-visibility'])
+  default_env.Append(CCFLAGS = ['-mmacosx-version-min=10.11'])
   default_env.Append(CCFLAGS = ['-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include'] )
+
 if 'Linux' in platform.system():
   default_env.Append(CCFLAGS = ['-D_GNU_SOURCE'])
   default_env.Append(LIBS = ['rt', 'pthread'] )
+
   if('arm' in platform.processor()):
     default_env.Append(LIBPATH = ['/usr/lib', '/usr/local/lib','/usr/lib/arm-linux-gnueabihf'] )
     default_env.Append(CCFLAGS = ['-I/usr/include','-I/usr/local/include','-I/usr/include/arm-linux-gnueabihf'] )
+
 if 'CYGWIN' in platform.system():
   # -std=gnu++0x doesn't work, so work around...
   default_env.Append(CCFLAGS = ['-U__STRICT_ANSI__'] )
+
 if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
     default_env.Append(LIBS = ['rt'] )
     default_env.Append(CCFLAGS = ['-x c'])
 
-
+default_env.Append(CCFLAGS = ['-I./tpl/criterion-v2.3.2/include'] )
+default_env.Append(LIBPATH = ['./tpl/criterion-v2.3.2/lib'] )
 
 # env.Append(CCFLAGS = '-march='+platform.processor())
 # env.Append(CCFLAGS = '-arch='+platform.machine())
-#env.Append(CCFLAGS = '-target ' + platform.machine() + '-' + platform.system().lower() )
+# env.Append(CCFLAGS = '-target ' + platform.machine() + '-' + platform.system().lower() )
 # env.Append(CCFLAGS = '-target ' + platform.machine())
+
 
 print ("continuing with CCFLAGS set to: {dump}".format(dump=default_env.Dump(key='CCFLAGS')) )
 print ("continuing with LDFLAGS set to: {dump}".format(dump=default_env.Dump(key='LDFLAGS')) )
@@ -189,7 +191,6 @@ if int(build_doc) and not sphinx_exe:
     print ('did not find sphinx executable in the path, skipping build of documentation')
     print ('---')
     Exit(1)
-
 
 criterion_is_available = conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c')
 neuropil_env = conf.Finish()
@@ -255,11 +256,11 @@ else:
 
 # build example programs
 programs = [
-    'node', 'cloud', #'hydra','shared_hydra',
+    'node', 'cloud', 'hydra', #'shared_hydra',
     'controller','receiver','sender','receiver_cb','pingpong',
     'echo_server','echo_client','raspberry','demo_service','test'
     ]
-    
+
 program_env = default_env.Clone()
 program_env.Append(LIBS = ['ncurses','neuropil','sodium'])
 
@@ -290,4 +291,3 @@ print ("console_log   =  %r" % console_log)
 print ("strict        =  %r" % strict)
 print ("build_program =  %r" % build_program)
 print ("build_x64     =  %r" % build_x64)
-     

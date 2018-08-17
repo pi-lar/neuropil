@@ -31,28 +31,24 @@
 #include "np_shutdown.h"
 #include "np_aaatoken.h"
 
+// split into hash 
 void np_get_id(np_context * ac, np_id* id, char* string, size_t length) {
 	np_ctx_cast(ac);
-
-	if (length == 64) {
-		np_str2id(string, id);
-	}
-	else {
-		*id = np_dhkey_create_from_hostport(context, string, "0");
-	}
+	 
+	np_dhkey_t  dhkey = np_dhkey_create_from_hostport(string, "0");
+	memcpy(id, &dhkey, NP_FINGERPRINT_BYTES);
 }
 
-struct np_settings * np_new_settings(struct np_settings ** settings) {
+struct np_settings * np_default_settings(struct np_settings * settings) {
 	struct np_settings * ret;
 	if (settings == NULL) {
 		ret = malloc(sizeof(struct np_settings));
 	}
 	else {
-		ret = *settings;
-	}
-
-	ret->n_threads = 9;
-	snprintf(ret->log_file, 255, "%.0f_neuropil.log", np_time_now()*100);
+		ret = settings;
+	}	
+	ret->n_threads = 3;
+	snprintf(ret->log_file, 256, "%.0f_neuropil.log",np_time_now()*100);
 	ret->log_level = LOG_ERROR;
 	ret->log_level |= LOG_WARN;
 #ifdef DEBUG
@@ -71,7 +67,7 @@ np_context* np_new_context(struct np_settings * settings_in) {
 	struct np_settings * settings = settings_in;
 
 	if (settings_in == NULL) {
-		settings = np_new_settings(NULL);
+		settings = np_default_settings(NULL);
 	}
 
 	//TODO: check settings for bad configuration
@@ -360,8 +356,9 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
 		struct np_message message = { 0 };
 		strncpy(message.uuid, msg->uuid, NP_UUID_CHARS-1);
 		np_get_id(context, &message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));
-		message.from = *_np_message_get_sender(msg);
-		message.expires_at = _np_message_get_expiery(msg);
+		
+		memcpy(&message.from, _np_message_get_sender(msg), NP_FINGERPRINT_BYTES);
+		message.expires_at = _np_message_get_expiery(msg);		
 		message.received_at = np_time_now(); // todo get from network
 		//message.send_at = msg.             // todo get from msg
 		message.data = userdata->val.value.bin;
@@ -404,7 +401,7 @@ enum np_error np_set_accounting_cb(np_context* ac, np_aaa_callback callback) {
 	return ret;
 }
 
-struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject, bool* property_exisits) {
+struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject) {
 	np_ctx_cast(ac);
 	struct np_mx_properties ret = { 0 };
 	bool exisits = false;
@@ -424,7 +421,7 @@ struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject, bool
 	if (exisits == false) {
 		np_unref_obj(np_msgproperty_t, property, FUNC);             																									\
 	}
-	if (property_exisits != NULL) *property_exisits = exisits;
+	
 	return ret;
 }
 enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties user_property) {
@@ -475,27 +472,20 @@ enum np_status np_get_status(np_context* ac) {
 }
 
 
-void np_id2str(const np_id* k, char* key_string)
+void np_id2str(const np_id* id, char* key_string)
 {
-	// k->valid = false;
-
-	// log_msg(LOG_KEY | LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
-	// log_msg(LOG_KEY | LOG_WARN, "key %16lx%16lx%16lx%16lx", k->t[0], k->t[1], k->t[2], k->t[3]);
-
+	np_dhkey_t* k = id;
 	// TODO: use sodium bin2hex function
-	memset(key_string, 0, 64);
-
-	sprintf(key_string,
+	snprintf(key_string, 65,
 		"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32,
 		k->t[0], k->t[1], k->t[2], k->t[3], k->t[4], k->t[5], k->t[6], k->t[7]
 	);
 	key_string[64] = '\0';
-	// k->valid = true;
-	// log_debug_msg(LOG_KEY | LOG_DEBUG, "key string now: %s", k->keystr);
 }
 
-void np_str2id(const char* key_string, np_id* k)
+void np_str2id(const char* key_string, np_id* id)
 {
+	np_dhkey_t* k = id;
 	// TODO: this is dangerous, encoding could be different between systems,
 	// encoding has to be send over the wire to be sure ...
 	// for now: all tests on the same system

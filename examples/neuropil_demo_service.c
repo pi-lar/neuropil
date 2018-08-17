@@ -46,9 +46,9 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
 
-bool receive_echo_message(np_context* context, np_message* message);
-bool receive_pong(np_context* ac, np_message* message);
-bool receive_ping(np_context* ac, np_message* message);
+bool receive_echo_message(np_context* context,struct np_message* message);
+bool receive_pong(np_context* ac, struct np_message* message);
+bool receive_ping(np_context* ac, struct np_message* message);
 
 int main(int argc, char **argv) {
 	int no_threads = 8;
@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	struct np_settings *settings = np_new_settings(NULL);
+	struct np_settings *settings = np_default_settings(NULL);
 	settings->n_threads = no_threads;
 
 	snprintf(settings->log_file, 255, "%s/%s_%s.log", logpath, "neuropil_demo_service", port);
@@ -91,19 +91,19 @@ int main(int argc, char **argv) {
 	}
  
 	np_add_receive_cb(context, "echo", receive_echo_message);	
-	struct np_mx_properties  echo_props = np_get_mx_properties(context, "echo", NULL);
+	struct np_mx_properties  echo_props = np_get_mx_properties(context, "echo");
 	echo_props.ackmode = NP_MX_ACK_NONE;
 	echo_props.message_ttl = 20.0;
 	np_set_mx_properties(context, "echo", echo_props);
 
  	np_add_receive_cb(context, "ping", receive_ping);
-	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping", NULL);
+	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping");
 	ping_props.ackmode = NP_MX_ACK_NONE;
 	ping_props.message_ttl = 5.0;
 	np_set_mx_properties(context, "ping", ping_props);
 
  	np_add_receive_cb(context, "pong", receive_pong);
-	struct np_mx_properties  pong_props = np_get_mx_properties(context, "pong", NULL);
+	struct np_mx_properties  pong_props = np_get_mx_properties(context, "pong");
 	pong_props.ackmode = NP_MX_ACK_NONE;
 	pong_props.message_ttl = 5.0;
 	np_set_mx_properties(context, "pong", pong_props);
@@ -118,15 +118,15 @@ int main(int argc, char **argv) {
 	}
 }
 
-bool receive_echo_message(np_context* context, np_message* message) {
+bool receive_echo_message(np_context* context, struct np_message* message) {
 	np_example_print(context, stdout, "Echoing msg %s", message->uuid);
 	np_send_to(context, "echo", message->data, message->data_length, &message->from);
 	return true;
 }
 
-bool receive_ping(np_context* context, np_message* message)
+bool receive_ping(np_context* context, struct np_message* message)
 {
-	char tmp[255];
+	char tmp[65];
 	np_id2str(&message->from, tmp);
 	np_example_print(context, stdout, "Received ping from %s", tmp);
 	np_send_text(context, "pong", "pong", _pong_count, &message->from);
@@ -134,9 +134,9 @@ bool receive_ping(np_context* context, np_message* message)
 	return true;
 }
 
-bool receive_pong(np_context* context, np_message* message)
+bool receive_pong(np_context* context, struct np_message* message)
 {
-	char tmp[255];
+	char tmp[65];
 	np_id2str(&message->from, tmp);
 	np_example_print(context, stdout, "Received pong from %s", tmp);
 	np_send_text(context, "ping", "ping", _ping_count, &message->from);

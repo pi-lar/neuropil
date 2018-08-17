@@ -213,7 +213,7 @@ Test(np_message_t, _message_chunk_and_serialize, .description = "test the chunki
 		np_new_obj(np_message_t, msg_out);
 		char* msg_subject = "this.is.a.test";
 
-		np_dhkey_t my_dhkey = np_dhkey_create_from_hostport(context, "me", "two");
+		np_dhkey_t my_dhkey = np_dhkey_create_from_hostport( "me", "two");
 
 		np_key_t* my_key = NULL;
 		np_new_obj(np_key_t, my_key);

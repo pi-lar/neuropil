@@ -265,7 +265,7 @@ bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key)
 					log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
 						node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
 
-					node_key->node->handshake_status == np_handshake_status_SelfInitiated;
+					node_key->node->handshake_status = np_handshake_status_SelfInitiated;
 					node_key->node->handshake_send_at = now;
 
 					_np_job_submit_transform_event(context, 0.0, msg_prop, node_key, NULL);
@@ -546,7 +546,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 						"received connection request from %s:%s (client fd: %d)",
 					ipstr, port, client_fd);
 
-				np_dhkey_t search_key = np_dhkey_create_from_hostport(context, ipstr, port);
+				np_dhkey_t search_key = np_dhkey_create_from_hostport( ipstr, port);
 				np_key_t* alias_key = _np_keycache_find(context, search_key);
 				char* alias_key_reason = "_np_keycache_find";
 				np_network_t* old_network = NULL;
@@ -762,7 +762,7 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args) 
 			char* alias_key_ref_reason = "";
 
 			// we registered this token info before in the first handshake message
-			np_dhkey_t search_key = np_dhkey_create_from_hostport(context, data_container->ipstr, data_container->port);
+			np_dhkey_t search_key = np_dhkey_create_from_hostport( data_container->ipstr, data_container->port);
 			alias_key = _np_keycache_find(context, search_key);
 			alias_key_ref_reason = "_np_keycache_find";
 			if (NULL == alias_key) {
@@ -954,9 +954,9 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
 					if (0 < sll_size(network->out_events))
 					{
 						do {
-							void* tmp = sll_head(void_ptr, network->out_events);
+							void* drop_package = sll_head(void_ptr, network->out_events);
 							log_debug_msg(LOG_INFO, "Dropping data package due to network cleanup");
-							np_memory_free(tmp);
+							np_memory_free(drop_package);
 						} while (0 < sll_size(network->out_events));
 					}
 					sll_free(void_ptr, network->out_events);
