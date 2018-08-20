@@ -24,7 +24,7 @@
 #include "np_keycache.h"
 #include "np_tree.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "example_helper.c"
 

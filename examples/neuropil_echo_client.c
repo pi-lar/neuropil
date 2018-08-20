@@ -24,7 +24,7 @@
 #include "np_tree.h"
 #include "np_route.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "example_helper.c"
 

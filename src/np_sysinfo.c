@@ -8,7 +8,7 @@
 
 #include "np_sysinfo.h"
  
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_types.h"
 #include "np_log.h"
 #include "np_msgproperty.h"

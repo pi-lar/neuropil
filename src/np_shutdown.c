@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <inttypes.h>
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_shutdown.h"
 
 #include "np_log.h"

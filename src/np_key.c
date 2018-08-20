@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "event/ev.h"
 #include "sodium.h"

@@ -17,7 +17,7 @@
 
 #include "dtime.h"
 #include "np_log.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_tree.h"
 #include "np_treeval.h"
 #include "np_key.h"
@@ -28,7 +28,7 @@
 #include "np_settings.h"
 #include "np_util.h"
 #include "np_constants.h"
-#include "np_interface.h"
+#include "neuropil.h"
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_aaatoken_t);
 

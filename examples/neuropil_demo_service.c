@@ -37,7 +37,7 @@
 #include "np_sysinfo.h"
 
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "example_helper.c"
 
 NP_SLL_GENERATE_PROTOTYPES(int);

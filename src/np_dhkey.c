@@ -13,7 +13,7 @@
 #include <inttypes.h>
 #include <unistd.h>
 
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "sodium.h"
 

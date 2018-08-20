@@ -23,7 +23,7 @@
 #include "np_message.h"
 
 #include "np_log.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_aaatoken.h"
 #include "np_axon.h"
 #include "np_dendrit.h"

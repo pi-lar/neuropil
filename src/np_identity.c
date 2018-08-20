@@ -3,7 +3,7 @@
 
 #include <sodium.h>
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_identity.h"
 #include "np_types.h"
 #include "np_threads.h"

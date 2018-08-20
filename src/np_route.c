@@ -13,7 +13,7 @@
 
 #include "np_route.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_list.h"

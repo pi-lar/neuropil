@@ -16,8 +16,8 @@
 #include "sodium.h"
 
 
-#include "np_interface.h"
 #include "neuropil.h"
+#include "np_legacy.h"
 #include "np_log.h"
 #include "np_jobqueue.h"
 #include "np_threads.h"

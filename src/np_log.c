@@ -18,7 +18,7 @@
 #include "pthread.h"
 
 #include "np_log.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "np_list.h"
 #include "np_memory.h"

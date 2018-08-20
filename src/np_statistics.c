@@ -7,7 +7,7 @@
 #include <inttypes.h>
 #include <math.h>
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_types.h"
 #include "np_message.h"
 #include "np_msgproperty.h"

@@ -13,7 +13,7 @@
 #include <stddef.h>
 #include <assert.h>
 
-#include "np_interface.h"
+#include "neuropil.h"
 #include "np_constants.h"
 #include "np_log.h"
 

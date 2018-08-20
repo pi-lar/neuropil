@@ -13,7 +13,7 @@
 #include <assert.h>
 
 #include "np_log.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_aaatoken.h"
 #include "np_keycache.h"
 #include "np_node.h"

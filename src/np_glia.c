@@ -19,7 +19,7 @@
 
 #include "np_glia.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "np_aaatoken.h"
 #include "np_axon.h"

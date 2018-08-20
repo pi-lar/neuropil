@@ -21,7 +21,7 @@
 
 #undef NP_BENCHMARKING
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_log.h"
 #include "np_message.h"
 

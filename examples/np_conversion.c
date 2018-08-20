@@ -1,5 +1,5 @@
-#include "np_interface.h"
 #include "neuropil.h"
+#include "np_legacy.h"
 #include "np_list.h"
 
 struct np_text_exchange_s {

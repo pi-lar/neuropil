@@ -31,7 +31,7 @@
 
 #include "dtime.h"
 #include "np_log.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_aaatoken.h"
 #include "np_glia.h"
 #include "np_jobqueue.h"

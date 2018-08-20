@@ -15,7 +15,7 @@
 
 #include "dtime.h"
 #include "np_log.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_tree.h"
 #include "np_network.h"
 #include "np_treeval.h"

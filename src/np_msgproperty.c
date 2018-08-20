@@ -20,7 +20,7 @@
 
 #include "np_msgproperty.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "dtime.h"
 #include "np_log.h"

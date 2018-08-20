@@ -10,7 +10,7 @@
 #include "np_axon.h"
 #include "np_glia.h"
 #include "np_list.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_pinging.h"
 
 sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {

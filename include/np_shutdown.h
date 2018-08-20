@@ -6,7 +6,7 @@
 #ifndef NP_SHUTDOWN_MSG_H_
 #define NP_SHUTDOWN_MSG_H_
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_types.h"
 #include "np_util.h"
 

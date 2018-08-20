@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 #include "np_log.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_types.h"
 
 #include "example_helper.c"

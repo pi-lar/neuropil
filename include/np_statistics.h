@@ -12,7 +12,7 @@
 #include <float.h>
 
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_types.h"
 #include "np_util.h"
 #include "np_list.h"

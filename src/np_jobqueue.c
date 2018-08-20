@@ -15,7 +15,7 @@
 
 #include "event/ev.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_types.h"
 
 #include "np_jobqueue.h"

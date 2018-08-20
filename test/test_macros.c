@@ -6,8 +6,8 @@
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
 
-#include <np_interface.h>
 #include <neuropil.h>
+#include <np_legacy.h>
 
 
 #ifndef _NP_TEST_MACROS_H_

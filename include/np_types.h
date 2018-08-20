@@ -10,7 +10,7 @@
 
 #include "event/ev.h"
 
-#include "np_interface.h"
+#include "neuropil.h"
 #include "np_list.h"
 
 /*

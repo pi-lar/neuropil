@@ -34,7 +34,7 @@ AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizi
 #include "np_memory.h"
 
 #include "np_types.h"
-#include "np_interface.h"
+#include "neuropil.h"
 
 #ifdef __cplusplus
 extern "C" {

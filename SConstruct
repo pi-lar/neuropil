@@ -243,7 +243,7 @@ SOURCES += ['build/obj/src/np_glia.c',		'build/obj/src/np_jobqueue.c',		'build/o
 SOURCES += ['build/obj/src/np_log.c',		'build/obj/src/np_memory.c',		'build/obj/src/np_message.c',	'build/obj/src/np_msgproperty.c',	'build/obj/src/np_network.c',	'build/obj/src/np_node.c']
 SOURCES += ['build/obj/src/np_route.c',		'build/obj/src/np_tree.c',			'build/obj/src/np_util.c',		'build/obj/src/np_treeval.c',		'build/obj/src/np_threads.c',	'build/obj/src/np_pinging.c']
 SOURCES += ['build/obj/src/np_sysinfo.c',	'build/obj/src/np_scache.c',		'build/obj/src/np_event.c',		'build/obj/src/np_messagepart.c',	'build/obj/src/np_statistics.c','build/obj/src/np_responsecontainer.c']
-SOURCES += ['build/obj/src/np_interface.c',	'build/obj/src/np_serialization.c',	'build/obj/src/np_shutdown.c',	'build/obj/src/np_identity.c',		'build/obj/src/np_token_factory.c']
+SOURCES += ['build/obj/src/np_legacy.c',	'build/obj/src/np_serialization.c',	'build/obj/src/np_shutdown.c',	'build/obj/src/np_identity.c',		'build/obj/src/np_token_factory.c']
 
 # source code 3rd party libraries
 SOURCES += ['build/obj/src/event/ev.c', 'build/obj/src/json/parson.c','build/obj/src/msgpack/cmp.c','build/obj/src/gpio/bcm2835.c']

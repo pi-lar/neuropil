@@ -29,7 +29,7 @@
 
 
 #include "np_log.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "np_dhkey.h"
 #include "np_keycache.h"
@@ -41,7 +41,7 @@
 #include "np_types.h"
 #include "np_list.h"
 #include "np_threads.h"
-#include "np_interface.h"
+#include "neuropil.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
