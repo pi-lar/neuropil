@@ -511,13 +511,13 @@ Sending and receiving messages
    receivers leaving and joining the network. Senders will remain unaware of
    new receivers for up to :c:data:`intent_update_after` seconds.
 
-   *TODO: document defaults.*
+   The default for :c:data:`intent_ttl` is 30 seconds. The default for
+   :c:data:`intent_update_after` is 20 seconds
 
 .. c:member:: double message_ttl
 
-   Maximum duration for individual message delivery in seconds.
-
-   *TODO: document default.*
+   Maximum duration for individual message delivery in seconds. The default is
+   20 seconds.
 
 .. c:member:: bool once_only
 
