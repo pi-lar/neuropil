@@ -36,13 +36,6 @@ It should contain all required functions to send or receive messages.
 #include "np_interface.h"
 
 
-#define NEUROPIL_RELEASE	"neuropil_0.6.0"
-#ifndef NEUROPIL_RELEASE_BUILD
-#define NEUROPIL_RELEASE_BUILD 0
-#endif //NEUROPIL_RELEASE_BUILD
-
-#define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2018 neuropil.org, Cologne, Germany"
-#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2018 pi-lar GmbH, Cologne, Germany"
 
 #ifdef __cplusplus
 extern "C" {
