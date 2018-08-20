@@ -2,179 +2,53 @@
 // neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-#include <errno.h>
-#include <pthread.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
+
+// Example: sending messages.
+
+#include <stdbool.h>
+#include <stddef.h>
 #include <string.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <assert.h>
+#include <sodium.h>
 
-#include "np_log.h"
-#include "np_legacy.h"
-#include "np_aaatoken.h"
-#include "np_keycache.h"
-#include "np_tree.h"
-#include "np_types.h"
+#include "neuropil.h"
 
-#include "example_helper.c"
+/* This is our intended recepient’s public key (encoded in hexadecimal.) */
+char *trusted = "0a1b2c3d4e5f6a7b0a1b2c3d4e5f6a7b7b6a5f4e3d2c1b0a7b6a5f4e3d2c1b0a";
 
-/**
-first we have to define a global np_state_t variable
+uint8_t trusted_pubkey[NP_PUBLIC_KEY_BYTES];
 
-.. code-block:: c
-
-   \code
-*/
-np_state_t *state;
-/**
-   \endcode
-*/
-
-int main(int argc, char **argv)
+bool authorize (np_context *ac, struct token *id)
 {
-	char* realm = NULL;
-	char* code = NULL;
+	return 0 == sodium_memcmp(id->public_key, trusted_pubkey,
+				  NP_PUBLIC_KEY_BYTES);
+}
 
-	int no_threads = 8;
-	char *j_key = NULL;
-	char* proto = "udp4";
-	char* port = NULL;
-	char* publish_domain = NULL;
-	int level = -2;
-	char* logpath = ".";
-	
-	if (parse_program_args(
-		__FILE__,
-		argc,
-		argv,
-		&no_threads,
-		&j_key,
-		&proto,
-		&port,
-		&publish_domain,
-		&level,
-		&logpath,
-		"[-r realmname] [-c code]",
-		"r:c:"
-	) == false) {
-		exit(EXIT_FAILURE);
-	}	
+int main (void)
+{
+	size_t key_len = 0;
+	assert(0 == sodium_hex2bin(trusted_pubkey, sizeof(trusted_pubkey),
+				   trusted, strlen(trusted),
+				   NULL, &key_len, NULL));
+	assert(key_len == NP_PUBLIC_KEY_BYTES);
 
-	/**
-	in your main program, initialize the logging of neuopil, use the port for the filename
+	struct np_settings cfg;
+	np_default_settings(&cfg);
 
-	.. code-block:: c
+	np_context *ac = np_new_context(&cfg);
 
-	   \code
-	*/
-	struct np_settings *settings = np_default_settings(NULL);
-	settings->n_threads = no_threads;
-	/**
-	   \endcode
-	*/
+	assert(np_ok == np_listen(ac, "udp4", "localhost", 1234));
 
-	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_controller", port);
-	fprintf(stdout, "logpath: %s\n", settings->log_file);
-	settings->log_level = level;
+	assert(np_ok == np_join(ac, "*:udp4:localhost:2345"));
 
-	np_context * context = np_new_context(settings);
+	assert(np_ok == np_set_authorize_cb(ac, authorize));
 
-	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
-		printf("ERROR: Node could not listen");
-		exit(EXIT_FAILURE);
-	}
-	/**
-	   \endcode
-	*/
+	np_error status;
+	char *message = "Hello, World!";
+	do {
+		status = np_run(ac, 5.0)
+			|| np_send(ac, "mysubject", message, strlen(message));
+	} while (np_ok == status);
 
-	if (NULL != realm)
-	{
-		np_set_realm_name(context, realm);
-		np_enable_realm_client(context);
-		if (NULL != code)
-		{
-			np_tree_insert_str(state->my_node_key->aaa_token->extensions,
-							"passcode",
-							np_treeval_new_hash(code));
-		}
-	}
-
-	__np_example_helper_loop(context); // for the fancy ncurse display
-
-	/**
-	start up the job queue with 8 concurrent threads competing for job execution.
-	you should start at least 2 threads, because network reading currently is blocking.
-
-	.. code-block:: c
-
-	   \code
-	*/
-	if (np_ok != np_run(context, 0)) {
-		printf("ERROR: Node could not start");
-		exit(EXIT_FAILURE);
-	}
-	/**
-	   \endcode
-	*/
-
-	if (NULL != j_key)
-	{
-		np_join(context, j_key);
-	}
-
-	/**
-	use the connect string that is printed to stdout and pass it to the np_controller to send a join message.
-	wait until the node has received a join message before actually proceeding
-
-	.. code-block:: c
-
-	   \code
-	*/
-	np_waitforjoin(context);
-	/**
-	   \endcode
-	*/
-
-	/**
-	 .. NOTE::
-	    Make sure that you implement and register the appropiate aaa callback functions
-	    to control with which nodes you exchange messages. By default everybody is allowed to interact
-	    with your node
-	*/
-
-	/**
-	create the message that you would like to send across (now or in the loop later)
-
-	.. code-block:: c
-
-	   \code
-	*/
-	char* msg_subject = "this.is.a.test";
-	char* msg_data = "testdata";
-	unsigned long k = 1;
-	/**
-	   \endcode
-	*/
-
-	/**
-	loop (almost) forever and send your messages to the receiver :-)
-	 
-	.. code-block:: c
-
-	   \code
-	*/
-	while (1) {
-		__np_example_helper_loop(context); // for the fancy ncurse display
-		np_time_sleep(1.0);
-
-		np_send_text(context, msg_subject, msg_data, k, NULL);
-		log_debug_msg(LOG_DEBUG, "send message %lu", k);
-
-		k++;
-	}
-	/**
-	   \endcode
-    */
+	return status;
 }

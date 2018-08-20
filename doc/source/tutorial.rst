@@ -3,19 +3,15 @@
 Tutorial
 ********
 
-The following chapter will give a quickstart to use neuropil as a messaging layer
-It mainly consists of three different parts, the fourth part will explore some more details in-depth.
+*******************
+Setting up a Sender
+*******************
 
+As a starting point we need a node which will serve as a bootstrap node for all
+other nodes. This bootstrap node will not neccessarily be engaged with
+messaging later on, but it is required as a starting point.
 
-********************************************
-Setting up a bootstrap node (aka controller)
-********************************************
-
-As a starting point we need a node which will serve as a bootstrap node for all other nodes.
-This bootstrap node will not neccessarily be engaged with messaging later on, but it is required
-as a starting point.
-
-.. NOTE:: source code of this example is available at examples/np_controller.c
+.. NOTE:: source code of this example is available at examples/neuropil_sender.c
 
 .. include-comment:: ../../examples/neuropil_controller.c
 

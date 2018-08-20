@@ -22,7 +22,7 @@ Contents:
    core_concepts
    tutorial
    api
-   apps_tools
+..   apps_tools
    protocol
    token
    license
