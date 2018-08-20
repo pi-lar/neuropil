@@ -46,10 +46,10 @@ extern "C" {
  *	attempt to share its data.
  */
 #ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
-	#define SYSINFO_PROACTIVE_SEND_IN_SEC (NP_PI)
+	#define SYSINFO_PROACTIVE_SEND_IN_SEC (1)
 #endif
 #ifndef SYSINFO_MAX_TTL
-	#define SYSINFO_MAX_TTL (NP_PI_INT*100)
+	#define SYSINFO_MAX_TTL (NP_PI_INT*10)
 #endif
 
 #ifndef SYSINFO_MIN_TTL
