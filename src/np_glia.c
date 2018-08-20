@@ -413,18 +413,20 @@ void _np_cleanup_ack_jobexec(np_state_t* context, np_jobargs_t* args)
 		};
 	}
 
-	sll_iterator(char_ptr) iter_to_rm = sll_first(to_remove);
-	log_debug_msg(LOG_WARN ,"ACK_HANDLING removing %"PRIu32" (of %d) from ack table", sll_size(to_remove), c);
-	while (iter_to_rm != NULL)
-	{
-		np_responsecontainer_t *responsecontainer = _np_responsecontainers_get_by_uuid(context, iter_to_rm->val);
-		_LOCK_ACCESS(&my_network->waiting_lock) {
-			np_tree_del_str(my_network->waiting, iter_to_rm->val);
-		}
-		np_unref_obj(np_responsecontainer_t, responsecontainer, "_np_responsecontainers_get_by_uuid");
-		np_unref_obj(np_responsecontainer_t, responsecontainer, ref_ack_obj);
+	if (sll_size(to_remove) > 0) {
+		sll_iterator(char_ptr) iter_to_rm = sll_first(to_remove);
+		log_debug_msg(LOG_WARN, "ACK_HANDLING removing %"PRIu32" (of %d) from ack table", sll_size(to_remove), c);
+		while (iter_to_rm != NULL)
+		{
+			np_responsecontainer_t *responsecontainer = _np_responsecontainers_get_by_uuid(context, iter_to_rm->val);
+			_LOCK_ACCESS(&my_network->waiting_lock) {
+				np_tree_del_str(my_network->waiting, iter_to_rm->val);
+			}
+			np_unref_obj(np_responsecontainer_t, responsecontainer, "_np_responsecontainers_get_by_uuid");
+			np_unref_obj(np_responsecontainer_t, responsecontainer, ref_ack_obj);
 
-		sll_next(iter_to_rm);
+			sll_next(iter_to_rm);
+		}
 	}
 	sll_free(char_ptr, to_remove);
 

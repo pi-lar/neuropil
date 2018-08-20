@@ -196,7 +196,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 			log_debug_msg(LOG_DEBUG, "initialise network");
 			_LOCK_MODULE(np_network_t)
 			{
-				_np_network_init(my_network, true, np_proto, host, np_service);
+				_np_network_init(my_network, true, np_proto, host, np_service,-1);
 			}
 			log_debug_msg(LOG_DEBUG, "check for initialised network");
 			if (false == my_network->initialized)
@@ -216,8 +216,8 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 
 				np_ref_obj(np_network_t, my_network, ref_key_network);
 				context->my_node_key->network = my_network;
-				np_ref_obj(np_key_t, context->my_node_key, ref_network_watcher);
-				my_network->watcher.data = context->my_node_key;
+				
+				_np_network_set_key(my_network, context->my_node_key);
 
 				// initialize routing table
 				if (false == _np_route_init(context, context->my_node_key))

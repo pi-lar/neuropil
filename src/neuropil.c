@@ -203,8 +203,7 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
 
 	context->my_node_key->network = NULL;
 
-	np_ref_obj(np_key_t, new_node_key,ref_network_watcher);
-	new_node_key->network->watcher.data = new_node_key;
+	_np_network_set_key(new_node_key->network, new_node_key);
 
 	new_node_key->node = context->my_node_key->node;
 	np_ref_obj(np_node_t, new_node_key->node, ref_key_node);

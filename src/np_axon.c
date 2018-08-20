@@ -443,13 +443,16 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 				{
 					if (NULL == args->target->network)
 					{
+						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "handshake: init client network");
 						// initialize network
 						np_new_obj(np_network_t, args->target->network, ref_key_network);
 						_np_network_init(args->target->network,
 							false,
 							args->target->node->protocol,
 							args->target->node->dns_name,
-							args->target->node->port);
+							args->target->node->port,
+							-1
+						);
 						if (false == args->target->network->initialized)
 						{
 							np_unref_obj(np_message_t, hs_message, ref_obj_creation);
@@ -460,9 +463,8 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 							_np_threads_unlock_module(context, np_handshake_t_lock);
 							return;
 						}
-						else {
-							np_ref_obj(np_key_t, args->target, ref_network_watcher);
-							args->target->network->watcher.data = args->target;
+						else { 
+							_np_network_set_key(args->target->network, args->target);
 							_np_network_enable(args->target->network);
 						}
 					}

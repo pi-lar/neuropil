@@ -782,7 +782,7 @@ bool np_http_init(np_state_t* context, char* domain) {
     {
         np_new_obj(np_network_t, __local_http->network);
 
-        _np_network_init(__local_http->network, true, TCP | IPv4, domain, port);
+        _np_network_init(__local_http->network, true, TCP | IPv4, domain, port,-1);
         _np_network_enable(__local_http->network);
     }
     if (NULL == __local_http->network || false == __local_http->network->initialized )

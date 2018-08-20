@@ -702,12 +702,12 @@ bool parse_program_args(
 		uint32_t log_categories = 0
 			//| LOG_TRACE
 			//| LOG_MUTEX
-			| LOG_ROUTING
+			//| LOG_ROUTING
 			//| LOG_HTTP
 			//| LOG_KEY
 			| LOG_NETWORK
 			//| LOG_AAATOKEN
-			| LOG_SYSINFO
+			//| LOG_SYSINFO
 			//| LOG_MESSAGE
 			//| LOG_SERIALIZATION
 			//| LOG_MEMORY

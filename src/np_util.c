@@ -407,19 +407,12 @@ bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
 				}else{
 					ret = true;
 				}
-
 			}
-
-
 		}
-
 		close(sock);
-
 	}
-
 	return ret;
 }
-
 
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len) {
 	char * ret = NULL;

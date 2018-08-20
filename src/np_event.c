@@ -138,19 +138,21 @@ void _np_event_cleanup_msgpart_cache(np_state_t* context, np_jobargs_t* args)
     np_sll_t(np_message_ptr, to_del);
     sll_init(np_message_ptr, to_del);
     
-    _LOCK_MODULE(np_message_part_cache_t)
-    {
-        log_debug_msg(LOG_INFO, "MSG_PART_TABLE removing (left-over) message parts (size: %d)", context->msg_part_cache->size);
+	_LOCK_MODULE(np_message_part_cache_t)
+	{
+		if (context->msg_part_cache->size > 0) {
+			log_debug_msg(LOG_INFO, "MSG_PART_TABLE removing (left-over) message parts (size: %d)", context->msg_part_cache->size);
 
-        np_tree_elem_t* tmp = NULL;
-        RB_FOREACH(tmp, np_tree_s, context->msg_part_cache)
-        {
-            np_message_t* msg = tmp->val.value.v;
-            if (true == _np_message_is_expired(msg)) {
-                sll_append(np_message_ptr, to_del, msg);
-            }
-        }
-    }
+			np_tree_elem_t* tmp = NULL;
+			RB_FOREACH(tmp, np_tree_s, context->msg_part_cache)
+			{
+				np_message_t* msg = tmp->val.value.v;
+				if (true == _np_message_is_expired(msg)) {
+					sll_append(np_message_ptr, to_del, msg);
+				}
+			}
+		}
+	}
 
     sll_iterator(np_message_ptr) iter = sll_first(to_del);
     while (NULL != iter)
@@ -163,13 +165,7 @@ void _np_event_cleanup_msgpart_cache(np_state_t* context, np_jobargs_t* args)
         np_unref_obj(np_message_t, iter->val, ref_msgpartcache);
         sll_next(iter);
     }
-    sll_free(np_message_ptr, to_del);
-
-    _LOCK_MODULE(np_message_part_cache_t)
-    {
-        log_debug_msg(LOG_INFO,
-                "MSG_PART_TABLE done removing (left-over) message parts (size: %d)", context->msg_part_cache->size);
-    }
+    sll_free(np_message_ptr, to_del);  
 }
 
 // TODO: move to glia

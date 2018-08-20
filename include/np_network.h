@@ -60,8 +60,6 @@ typedef enum np_network_type_e {
 
 struct np_network_s
 {
-	
-
 	bool initialized;
 	int socket;
 	ev_io watcher;
@@ -128,7 +126,7 @@ void _np_network_remap_network( np_key_t* new_target, np_key_t* old_target);
  **
  **/
 NP_API_INTERN
-bool _np_network_init (np_network_t* network, bool create_socket, uint8_t type, char* hostname, char* service);
+bool _np_network_init (np_network_t* network, bool create_socket, uint8_t type, char* hostname, char* service, int prepared_socket_fd);
 
 /**
  ** _np_network_append_msg_to_out_queue:
@@ -138,11 +136,6 @@ bool _np_network_init (np_network_t* network, bool create_socket, uint8_t type, 
 NP_API_INTERN
 bool _np_network_append_msg_to_out_queue (np_key_t* node,  np_message_t* msg);
 
-/*
- * libev driven functions to send/receive messages over the wire
- */
-NP_API_INTERN
-void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
 void _np_network_send_from_events(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
@@ -159,6 +152,8 @@ NP_API_INTERN
 void _np_network_disable(np_network_t* self);
 NP_API_INTERN
 void _np_network_enable(np_network_t* self);
+NP_API_INTERN
+void _np_network_set_key(np_network_t* self, np_key_t* key);
 NP_API_INTERN
 void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args);
 #ifdef __cplusplus
