@@ -9,29 +9,17 @@
 #include <stddef.h>
 #include <string.h>
 #include <assert.h>
-#include <sodium.h>
 
 #include "neuropil.h"
 
-/* This is our intended recepient’s public key (encoded in hexadecimal.) */
-char *trusted = "0a1b2c3d4e5f6a7b0a1b2c3d4e5f6a7b7b6a5f4e3d2c1b0a7b6a5f4e3d2c1b0a";
-
-uint8_t trusted_pubkey[NP_PUBLIC_KEY_BYTES];
-
 bool authorize (np_context *ac, struct token *id)
 {
-	return 0 == sodium_memcmp(id->public_key, trusted_pubkey,
-				  NP_PUBLIC_KEY_BYTES);
+	// TODO: Make sure that id->public_key is the intended receipient!
+	return true;
 }
 
 int main (void)
 {
-	size_t key_len = 0;
-	assert(0 == sodium_hex2bin(trusted_pubkey, sizeof(trusted_pubkey),
-				   trusted, strlen(trusted),
-				   NULL, &key_len, NULL));
-	assert(key_len == NP_PUBLIC_KEY_BYTES);
-
 	struct np_settings cfg;
 	np_default_settings(&cfg);
 
