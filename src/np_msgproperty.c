@@ -20,7 +20,7 @@
 
 #include "np_msgproperty.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "dtime.h"
 #include "np_log.h"
@@ -384,7 +384,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 			// if messages are available in cache, send them !
 			if (send_prop->cache_policy & FIFO)
 				msg_out = sll_head(np_message_ptr, send_prop->msg_cache_out);
-			if (send_prop->cache_policy & FILO)
+			if (send_prop->cache_policy & LIFO)
 				msg_out = sll_tail(np_message_ptr, send_prop->msg_cache_out);
 
 			// check for more messages in cache after head/tail command
@@ -425,7 +425,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 			if (FLAG_CMP(recv_prop->cache_policy, FIFO)){
 				msg_in = sll_head(np_message_ptr, recv_prop->msg_cache_in);
 			}
-			else if (FLAG_CMP(recv_prop->cache_policy , FILO)){
+			else if (FLAG_CMP(recv_prop->cache_policy , LIFO)){
 				msg_in = sll_tail(np_message_ptr, recv_prop->msg_cache_in);
 			}
 
@@ -458,7 +458,7 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 				if ((msg_prop->cache_policy & FIFO) > 0)
 					old_msg = sll_head(np_message_ptr, msg_prop->msg_cache_out);
 
-				if ((msg_prop->cache_policy & FILO) > 0)
+				if ((msg_prop->cache_policy & LIFO) > 0)
 					old_msg = sll_tail(np_message_ptr, msg_prop->msg_cache_out);
 
 				if (old_msg != NULL)
@@ -528,7 +528,7 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 
 				if (FLAG_CMP(msg_prop->cache_policy, FIFO))
 					old_msg = sll_head(np_message_ptr, msg_prop->msg_cache_in);
-				else if (FLAG_CMP(msg_prop->cache_policy, FILO) )
+				else if (FLAG_CMP(msg_prop->cache_policy, LIFO) )
 					old_msg = sll_tail(np_message_ptr, msg_prop->msg_cache_in);
 
 				if (old_msg != NULL)
@@ -614,7 +614,7 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
 	dest->intent_update_after = src->token_min_ttl;
 	dest->message_ttl = src->msg_ttl;
 	if(src->rep_subject != NULL) {
-		strcpy(dest->reply_subject, src->rep_subject);
+		strncpy(dest->reply_subject, src->rep_subject, 255);
 	}
 	else {
 		memset(dest->reply_subject, 0, sizeof(dest->reply_subject));
@@ -648,29 +648,12 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
 	}
 	else {
 		if (FLAG_CMP(src->cache_policy, OVERFLOW_REJECT)) {
-			dest->cache_policy = NP_MX_FILO_REJECT;
+			dest->cache_policy = NP_MX_LIFO_REJECT;
 		}
 		else {
-			dest->cache_policy = NP_MX_FILO_PURGE;
+			dest->cache_policy = NP_MX_LIFO_PURGE;
 		}
 	}
-
-	// mep type conversion
-	switch (src->mep_type)
-	{
-	case REQ_REP:
-		dest->pattern = NP_MX_REQ_REP;
-		break;
-	case BROADCAST:
-		dest->pattern = NP_MX_BROADCAST;
-		break;
-	case ANY_TO_ANY:
-		dest->pattern = NP_MX_ANY;
-		break;
-	default:
-		dest->pattern = NP_MX_HIDDEN;
-		break;
-	}	
 }
 
 void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* src) {
@@ -707,33 +690,16 @@ void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* s
 	case NP_MX_FIFO_PURGE:
 		dest->cache_policy = FIFO & OVERFLOW_PURGE;
 		break;
-	case NP_MX_FILO_REJECT:
-		dest->cache_policy = FILO & OVERFLOW_REJECT;
+	case NP_MX_LIFO_REJECT:
+		dest->cache_policy = LIFO & OVERFLOW_REJECT;
 		break;
-	case NP_MX_FILO_PURGE:
-		dest->cache_policy = FILO & OVERFLOW_PURGE;
+	case NP_MX_LIFO_PURGE:
+		dest->cache_policy = LIFO & OVERFLOW_PURGE;
 		break;
 	default:
 		break;
 	}
 
-	// mep type conversion
-	switch (src->pattern)
-	{
-	case NP_MX_REQ_REP:
-		dest->mep_type= REQ_REP;
-		break;
-	case NP_MX_BROADCAST:
-		dest->mep_type = BROADCAST;
-		break;
-	case NP_MX_ANY:
-		dest->mep_type = ANY_TO_ANY;
-		break;
-
-	case NP_MX_HIDDEN:
-	default:
-		// ignore others 
-		break;
-		
-	}
+	// mep type conversion	
+	dest->mep_type= ONE_WAY;
 }

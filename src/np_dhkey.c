@@ -13,7 +13,7 @@
 #include <inttypes.h>
 #include <unistd.h>
 
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "sodium.h"
 
@@ -33,7 +33,7 @@ static np_dhkey_t __dhkey_half;
 static np_dhkey_t __dhkey_max;
 
 
-char* _np_dhkey_generate_hash (np_state_t* context, const char* key_in)
+char* _np_dhkey_generate_hash (const char* key_in)
 {
 	unsigned char md_value[32]; //  = (unsigned char *) malloc (32);
 
@@ -55,20 +55,14 @@ char* _np_dhkey_generate_hash (np_state_t* context, const char* key_in)
 	return digest_out;
 }
 
-np_dhkey_t np_dhkey_create_from_hostport(np_state_t* context, const char* strOrig, const char* port)
+np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port)
 {
-	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_create_from_hostport(context, const char* strOrig, const char* port){");
 	char name[256];
-	snprintf (name, 255, "%s:%s", strOrig, port);	
+	snprintf (name, 256, "%s:%s", strOrig, port);	
 
-	char* digest = _np_dhkey_generate_hash (context,  name);
-	log_debug_msg(LOG_KEY | LOG_DEBUG, "digest calculation returned HASH: %s", digest);
+	char* digest = _np_dhkey_generate_hash (name);
 
 	np_dhkey_t tmp = np_dhkey_create_from_hash(digest);
-	log_debug_msg(LOG_KEY | LOG_DEBUG, 
-		"HASH(%s) = [key %08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"]",
-		name, tmp.t[0], tmp.t[1], tmp.t[2], tmp.t[3], tmp.t[4], tmp.t[5], tmp.t[6], tmp.t[7]
-	);
 
 	free (digest);
 	return tmp;

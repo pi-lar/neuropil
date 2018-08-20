@@ -105,7 +105,7 @@ NP_API_INTERN
 	void* __np_jobqueue_run_jobs(void* np_thread_ptr_self);
 
 NP_API_INTERN
-	void __np_jobqueue_run_once(np_job_t* job_to_execute);
+	void __np_jobqueue_run_once(np_job_t* job_to_execute) ;
 
 NP_API_INTERN
 	void _np_jobqueue_check(np_state_t* context);

@@ -34,7 +34,7 @@ Test(sodium_crypt, _sodium_crypto_routines, .description="test cryptobox easy us
 	unsigned char node_1_curve_sk[crypto_scalarmult_curve25519_BYTES];
 	unsigned char node_2_curve_sk[crypto_scalarmult_curve25519_BYTES];
 	cr_expect(0 == crypto_sign_ed25519_sk_to_curve25519(node_1_curve_sk, node_1_sk));
-	cr_expect( 0 == crypto_sign_ed25519_pk_to_curve25519(node_2_curve_sk, node_2_sk));
+	cr_expect(0 == crypto_sign_ed25519_pk_to_curve25519(node_2_curve_sk, node_2_sk));
 	//
 	unsigned char node_1_dh_pk[crypto_scalarmult_BYTES];
 	cr_expect(0 == crypto_scalarmult_base(node_1_dh_pk, node_1_curve_sk));

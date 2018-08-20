@@ -17,7 +17,7 @@ extern "C" {
 NP_API_INTERN															\
 struct ev_loop * _np_event_get_loop_##LOOPNAME(np_state_t *context);	\
 NP_API_INTERN															\
-void _np_events_read_##LOOPNAME(np_state_t* context, np_jobargs_t* args);					\
+void _np_events_read_##LOOPNAME(np_state_t* context, np_jobargs_t* args);\
 NP_API_INTERN															\
 void* _np_event_##LOOPNAME##_run(void* np_thread_ptr);					\
 NP_API_INTERN															\

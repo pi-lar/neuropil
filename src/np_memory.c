@@ -16,8 +16,8 @@
 #include "sodium.h"
 
 
-#include "np_interface.h"
 #include "neuropil.h"
+#include "np_legacy.h"
 #include "np_log.h"
 #include "np_jobqueue.h"
 #include "np_threads.h"
@@ -96,8 +96,8 @@ struct np_memory_container_s
 
 #define NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO 3223967591
 struct np_memory_itemconf_s {
-#ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-    uint32_t magic_no;
+#ifdef NP_MEMORY_CHECK_MAGIC_NO
+	uint32_t magic_no;
 #endif
     np_memory_container_t* container;
 
@@ -107,7 +107,7 @@ struct np_memory_itemconf_s {
 
     uint32_t ref_count;
     bool persistent;
-    char id[NP_UUID_CHARS];
+    char id[NP_UUID_BYTES];
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
     np_sll_t(char_ptr, reasons);
 #endif
@@ -118,11 +118,16 @@ struct np_memory_itemconf_s {
 #define GET_CONF(item) ((np_memory_itemconf_t*)(((char*)item) - sizeof(np_memory_itemconf_t)))
 #define GET_ITEM(config) (((char*)config) + sizeof(np_memory_itemconf_t))
 
-#ifndef NP_MEMORY_CHECK_MEMORY_REFFING
-#define np_check_magic_no(item)
+#ifndef NP_MEMORY_CHECK_MAGIC_NO
+	#define np_check_magic_no(item)
 #else
 void np_check_magic_no(void * item) {
-    assert(GET_CONF(item)->magic_no == NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO);
+	if (GET_CONF(item)->magic_no != NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO) {
+		assert(GET_CONF(item)->magic_no == NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO);
+		// for release build
+		abort();
+	};
+
 }
 #endif
 
@@ -179,6 +184,12 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
         log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_Inc_    (%"PRIu32") object of type \"%s\" on %s", conf->ref_count, np_memory_types_str[container->type], conf->id);
 
         conf->persistent = false;
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING		
+		sll_init(char_ptr, conf->reasons);
+#endif
+#ifdef NP_MEMORY_CHECK_MAGIC_NO
+		conf->magic_no = NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO;
+#endif
         if (_np_threads_mutex_init(context, &(conf->access_lock), "MemoryV2 conf lock") != 0) {
             log_msg(LOG_ERROR, "Could not create memory item lock for container type %"PRIu8, container->type);
         }
@@ -191,10 +202,6 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
             sll_append(np_memory_itemconf_ptr, container->total_items, conf);
         }
 
-#ifdef NP_MEMORY_CHECK_MEMORY_REFFING		
-        sll_init(char_ptr, conf->reasons);
-        conf->magic_no = NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO;
-#endif
 
     }
 }
@@ -257,6 +264,7 @@ void np_memory_register_type(
 }
 
 bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
+	assert(config != NULL);
     bool refreshed = false;
     np_memory_container_t* container = config->container;
     np_ctx_decl(container->module->context);
@@ -282,23 +290,6 @@ bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
         }
     }
     return refreshed;
-}
-
-void* _np_memory_new_raw(np_memory_container_t* container) {
-    void * ret = malloc(container->size_per_item);
-    np_ctx_decl(container->module->context);
-    if (container->on_refresh_space != NULL) {
-        container->on_refresh_space(context, container->type, container->size_per_item, ret);
-    }
-
-    if (container->on_new != NULL) {
-        container->on_new(context, container->type, container->size_per_item, ret);
-    }
-    return ret;
-}
-
-void _np_memory_free_raw(void* item) {
-    free(item);
 }
 
 void __np_memory_itemstats_update(np_memory_container_t* container) {

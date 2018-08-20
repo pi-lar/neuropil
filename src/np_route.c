@@ -13,7 +13,7 @@
 
 #include "np_route.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_list.h"
@@ -349,7 +349,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ME:    (%s)", _np_key_as_str(np_module(route)->my_key));
 
 #ifdef DEBUG
-		char key_as_str[255] = { 0 };
+		char key_as_str[65] = { 0 };
 		np_id2str(&key, key_as_str);
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "TARGET: %s", key_as_str);
 #endif

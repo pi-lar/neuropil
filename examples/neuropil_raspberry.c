@@ -20,7 +20,7 @@
 
 #include "np_types.h"
 #include "np_log.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_tree.h"
 #include "np_keycache.h"
 #include "np_message.h"
@@ -44,11 +44,11 @@ static double last_response_or_invokation = 0;
 
 const double ping_pong_intervall = 0.01;
 
-void handle_ping_pong_receive(np_context* context, char * response, int first_low, int first_high, np_message* msg)
+void handle_ping_pong_receive(np_context* context, char * response, int first_low, int first_high, struct np_message* msg)
 {
 	char* text = (char*)msg->data;
 	
-	char tmp_from[255];
+	char tmp_from[65];
 	np_dhkey_t tmp;
 	np_id2str(&msg->from, tmp_from);
 	np_example_print(context, stdout, "Received %d/%s from %s. Sending %s\n",msg->data_length, text, tmp_from, response);
@@ -71,13 +71,13 @@ void handle_ping_pong_receive(np_context* context, char * response, int first_lo
 	np_send_text(context, response, response, 0, NULL);
 }
 
-bool receive_ping(np_context* context, np_message* message)
+bool receive_ping(np_context* context, struct np_message* message)
 {
 	handle_ping_pong_receive(context, "pong", LED_GPIO_YELLOW, LED_GPIO_GREEN, message);
 	return true;
 }
 
-bool receive_pong(np_context* context, np_message* message)
+bool receive_pong(np_context* context, struct np_message* message)
 {
 	double now = np_time_now();
 	last_response_or_invokation = now;
@@ -116,10 +116,10 @@ int main(int argc, char **argv)
 
 	is_gpio_enabled = strcmp(is_gpio_enabled_opt, "0") != 0;
 
-	struct np_settings *settings = np_new_settings(NULL);
+	struct np_settings *settings = np_default_settings(NULL);
 	settings->n_threads = no_threads;
 
-	sprintf(settings->log_file, "%s/%s_%s.log", logpath, "neuropil_raspberry", port);
+	snprintf(settings->log_file, 255, "%s/%s_%s.log", logpath, "neuropil_raspberry", port);
 	settings->log_level = level;
 
 	np_context * context = np_new_context(settings);
@@ -209,7 +209,7 @@ int main(int argc, char **argv)
 	
 	//register the listener function to receive data from the sender
 	np_add_receive_cb(context, "ping", receive_ping);
-	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping", NULL);
+	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping");
 	ping_props.ackmode = NP_MX_ACK_NONE;
 	ping_props.message_ttl = 5.0;
 	//ping_props.retry = 1;
@@ -220,7 +220,7 @@ int main(int argc, char **argv)
 
  	//register the listener function to receive data from the sender
 	np_add_receive_cb(context, "pong", receive_pong);
-	struct np_mx_properties  pong_props = np_get_mx_properties(context, "pong", NULL);
+	struct np_mx_properties  pong_props = np_get_mx_properties(context, "pong");
 	pong_props.ackmode = NP_MX_ACK_NONE;
 	pong_props.message_ttl = 5.0;
 	//pong_props->retry = 1;

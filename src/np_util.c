@@ -29,7 +29,7 @@
 
 
 #include "np_log.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "np_dhkey.h"
 #include "np_keycache.h"
@@ -41,7 +41,7 @@
 #include "np_types.h"
 #include "np_list.h"
 #include "np_threads.h"
-#include "np_interface.h"
+#include "neuropil.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
@@ -50,7 +50,7 @@ char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
 {	
 	char* uuid_out;
 	if (buffer == NULL) {
-		uuid_out = calloc(1, NP_UUID_CHARS);
+		uuid_out = calloc(1, NP_UUID_BYTES);
 		CHECK_MALLOC(uuid_out);
 	}
 	else {
@@ -63,7 +63,7 @@ char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
 	snprintf (input, 255, "%s:%u:%16.16f", str, num, now);
 	// log_debug_msg(LOG_DEBUG, "created input uuid: %s", input);
 	crypto_generichash(out, 18, (unsigned char*) input, 256, NULL, 0);
-	sodium_bin2hex(uuid_out, NP_UUID_CHARS, out, 18);
+	sodium_bin2hex(uuid_out, NP_UUID_BYTES, out, 18);
 	// log_debug_msg(LOG_DEBUG, "created raw uuid: %s", uuid_out);
 	uuid_out[8] = uuid_out[13] = uuid_out[18] = uuid_out[23] = '-';
 	uuid_out[14] = '5';
@@ -407,19 +407,12 @@ bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
 				}else{
 					ret = true;
 				}
-
 			}
-
-
 		}
-
 		close(sock);
-
 	}
-
 	return ret;
 }
-
 
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len) {
 	char * ret = NULL;
@@ -590,7 +583,7 @@ char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char b
 			f = "TB/s";
 		}
 		to_format = bytes / divisor;
-		sprintf(buffer, "%5.2f %s", to_format, f);
+		snprintf(buffer, 254, "%5.2f %s", to_format, f);
 	}
 	else if (type == np_util_stringify_bytes)
 	{
@@ -611,17 +604,17 @@ char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char b
 			f = "TB";
 		}
 		to_format = bytes / divisor;
-		sprintf(buffer, "%5.2f %s", to_format, f);
+		snprintf(buffer, 254, "%5.2f %s", to_format, f);
 	}
 	else if (type == np_util_stringify_time_ms) {
 
 		double time = *((double*)data);
 		
 		//sprintf(buffer, "%+"PRIu32" ms", ceil(time * 1000));
-		sprintf(buffer, "%+f ms", time);
+		snprintf(buffer, 254, "%+f ms", time);
 	}
 	else {
-		strcpy(buffer, "<unknown type>");
+		strncpy(buffer, "<unknown type>", 15);
 	}
 
 	return buffer;

@@ -34,7 +34,7 @@ AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizi
 #include "np_memory.h"
 
 #include "np_types.h"
-#include "np_interface.h"
+#include "neuropil.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -166,8 +166,10 @@ struct np_aaatoken_s
 
 	// from (if self signed empty)
 	char issuer[65];
+
 	// about
 	char subject[255];
+
 	// to
 	char audience[255];
 
@@ -277,7 +279,7 @@ np_dhkey_t _np_aaatoken_get_issuer(np_aaatoken_t* self);
 NP_API_INTERN
 void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* token);
 NP_API_INTERN
-np_token* np_aaatoken4user(np_token* dest, np_aaatoken_t* src);
+struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src);
 #ifdef __cplusplus
 }
 #endif

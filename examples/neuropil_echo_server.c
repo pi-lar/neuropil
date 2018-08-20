@@ -24,7 +24,7 @@
 #include "np_keycache.h"
 #include "np_tree.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "example_helper.c"
 
@@ -40,84 +40,84 @@ We will wait for incomming messages on the "echo" subject and will return them t
 */
 int main(int argc, char **argv) {
 
-	int no_threads = 8;
-	char *j_key = NULL;
-	char* proto = "udp4";
-	char* port = NULL;
-	char* publish_domain = NULL;
-	int level = -2;
-	char* logpath = ".";
+    int no_threads = 8;
+    char *j_key = NULL;
+    char* proto = "udp4";
+    char* port = NULL;
+    char* publish_domain = NULL;
+    int level = -2;
+    char* logpath = ".";
 
-	if (parse_program_args(
-		__FILE__,
-		argc,
-		argv,
-		&no_threads,
-		&j_key,
-		&proto,
-		&port,
-		&publish_domain,
-		&level,
-		&logpath,
-		NULL,
-		NULL
-	) == false) {
-		exit(EXIT_FAILURE);
-	} 
+    if (parse_program_args(
+        __FILE__,
+        argc,
+        argv,
+        &no_threads,
+        &j_key,
+        &proto,
+        &port,
+        &publish_domain,
+        &level,
+        &logpath,
+        NULL,
+        NULL
+    ) == false) {
+        exit(EXIT_FAILURE);
+    } 
 
-	/**
-	for the general initialization of a node please look into the neuropil_node example
-	*/
+    /**
+    for the general initialization of a node please look into the neuropil_node example
+    */
 
-	struct np_settings *settings = np_new_settings(NULL);
-	settings->n_threads = no_threads;
+    struct np_settings *settings = np_default_settings(NULL);
+    settings->n_threads = no_threads;
 
-	sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
-	fprintf(stdout, "logpath: %s\n", settings->log_file);
-	settings->log_level = level;
+	snprintf(settings->log_file, 256, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+    fprintf(stdout, "logpath: %s\n", settings->log_file);
+    settings->log_level = level;
 
-	np_context * context = np_new_context(settings);
+    np_context * context = np_new_context(settings);
 
-	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
-		printf("ERROR: Node could not listen");
-		exit(EXIT_FAILURE);
-	}
+    if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+        printf("ERROR: Node could not listen");
+        exit(EXIT_FAILURE);
+    }
 
-	/**
-	in your main program, initialize the message property for the echo service
+    /**
+    in your main program, initialize the message property for the echo service
 
-	.. code-block:: c
-
-	   \code
-	*/
-
-	np_msgproperty_t* msg_props = NULL;
-	np_add_receive_listener(context, receive_echo_message, NULL, "echo");
-	msg_props = np_msgproperty_get(context, INBOUND, "echo");
-	msg_props->msg_subject = strndup("echo", 255);
-	msg_props->ack_mode = ACK_NONE;
-	msg_props->msg_ttl = 20.0;
-	/**
-	   \endcode
-
-	and add a listener to receive a callback everytime a "echo" message is received.
-	finally start the job queue to start processing messages.
-
-	.. code-block:: c
+    .. code-block:: c
 
        \code
-	*/
-	if (np_ok != np_run(context, 0)) {
-		printf("ERROR: Node could not start");
-		exit(EXIT_FAILURE);
-	}
-	/**
-	   \endcode
-	*/
+    */
 
-	while (true) {
-		np_time_sleep(0.1);
-	}
+    np_msgproperty_t* msg_props = NULL;
+    np_add_receive_listener(context, receive_echo_message, NULL, "echo");
+    msg_props = np_msgproperty_get(context, INBOUND, "echo");
+    msg_props->msg_subject = strndup("echo", 255);
+    msg_props->ack_mode = ACK_NONE;
+    msg_props->msg_ttl = 20.0;
+    /**
+       \endcode
+
+    and add a listener to receive a callback everytime a "echo" message is received.
+    finally start the job queue to start processing messages.
+
+    .. code-block:: c
+
+       \code
+    */
+    if (np_ok != np_run(context, 0)) {
+        printf("ERROR: Node could not start");
+        exit(EXIT_FAILURE);
+    }
+    /**
+       \endcode
+    */
+
+    while (true) {
+        np_time_sleep(0.1);
+    }
 }
 
 /**
@@ -133,47 +133,47 @@ bool receive_echo_message(np_context * context, const np_message_t* const msg, n
    \endcode
 */
 
-	np_tree_t* header = msg->header;
-	fprintf(stdout, "%f - RECEIVED", np_time_now());
+    np_tree_t* header = msg->header;
+    fprintf(stdout, "%f - RECEIVED", np_time_now());
 
-	/**
-	we try to evaluate the source of the message
+    /**
+    we try to evaluate the source of the message
 
-	.. code-block:: c
+    .. code-block:: c
 
-	   \code
-	*/
-	np_id reply_to = { 0 }; // All
-	np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
-	if (NULL != repl_to) {
-		reply_to = repl_to->val.value.dhkey;
-	/**
-	   \endcode
-	*/
+       \code
+    */
+    np_id reply_to = { 0 }; // All
+    np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
+    if (NULL != repl_to) {
+        memcpy(&reply_to, &repl_to->val.value.dhkey, NP_FINGERPRINT_BYTES);
+    /**
+       \endcode
+    */
 
-		/**
-		we evaluate the content and check if we did receive a text message
-		to prevent malicious use of the demo service and then
-		send the message back to its sender
+        /**
+        we evaluate the content and check if we did receive a text message
+        to prevent malicious use of the demo service and then
+        send the message back to its sender
 
-		.. code-block:: c
+        .. code-block:: c
 
-		   \code
-		*/
-		char* text;
-		np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
-		if (NULL != txt) {
-			text = np_treeval_to_str(txt->val, NULL);
+           \code
+        */
+        char* text;
+        np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
+        if (NULL != txt) {
+            text = np_treeval_to_str(txt->val, NULL);
 
-		} else {
-			text = "<NON TEXT MSG>";
-		}
-		fprintf(stdout, ": \"%s\"\n", text);
-		// send the message back
-		np_send_text(context, "echo", text, 0,  &reply_to);
-		/**
-		   \endcode
-		*/
-	}
-	return true;
+        } else {
+            text = "<NON TEXT MSG>";
+        }
+        fprintf(stdout, ": \"%s\"\n", text);
+        // send the message back
+        np_send_text(context, "echo", text, 0,  &reply_to);
+        /**
+           \endcode
+        */
+    }
+    return true;
 }

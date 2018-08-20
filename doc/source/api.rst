@@ -6,7 +6,7 @@ Neuropil API
   `stdint.h`, `stdbool.h` and `stddef.h`.
 
 ==============
-np_interface.h
+neuropil.h
 ==============
 
-.. include-comment:: ../../include/np_interface.h
+.. include-comment:: ../../include/neuropil.h

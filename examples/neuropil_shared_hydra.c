@@ -16,7 +16,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_log.h"
 #include "np_types.h"
 #include "np_node.h"
@@ -108,10 +108,10 @@ int main(int argc, char **argv)
 				{
 					fprintf(stdout, "No bootstrap host detected, creating a new one\n");
 				
-					struct np_settings *settings = np_new_settings(NULL);
+					struct np_settings *settings = np_default_settings(NULL);
 					settings->n_threads = no_threads;
 
-					sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+					snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_controller", port);
 					fprintf(stdout, "logpath: %s\n", settings->log_file);
 					settings->log_level = level;
 
@@ -152,17 +152,17 @@ int main(int argc, char **argv)
 					char port[7];
 					if (current_pid > 65535)
 					{
-						sprintf(port, "%d", (current_pid >> 1));
+						snprintf(port, 7, "%d", (current_pid >> 1));
 					}
 					else
 					{
-						sprintf(port, "%d", current_pid);
+						snprintf(port, 7, "%d", current_pid);
 					}
 
-					struct np_settings *settings = np_new_settings(NULL);
+					struct np_settings *settings = np_default_settings(NULL);
 					settings->n_threads = no_threads;
 
-					sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+					snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_controller", port);
 					fprintf(stdout, "logpath: %s\n", settings->log_file);
 					settings->log_level = level;
 

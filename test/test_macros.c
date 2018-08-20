@@ -6,8 +6,8 @@
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
 
-#include <np_interface.h>
 #include <neuropil.h>
+#include <np_legacy.h>
 
 
 #ifndef _NP_TEST_MACROS_H_
@@ -49,12 +49,12 @@ np_state_t* _np_test_ctx(char* name, char* desc, char* porttype, int port);
 #define _NP_TEST_MACROS_C_
 np_state_t* _np_test_ctx(char* name, char* desc, char* porttype, int port) {
 	np_state_t* ret;
-	struct np_settings* settings = np_new_settings(NULL);
+	struct np_settings* settings = np_default_settings(NULL);
 
 	if(desc != NULL && strlen(desc) > 0)
-		sprintf(settings->log_file, "neuropil_test_%s_%s.log", name, desc);
+		snprintf(settings->log_file, 256, "neuropil_test_%s_%s.log", name, desc);
 	else
-		sprintf(settings->log_file, "neuropil_test_%s.log", name);
+		snprintf(settings->log_file, 256, "neuropil_test_%s.log", name);
 
 	settings->log_level |= LOG_GLOBAL;
 	ret = np_new_context(settings);

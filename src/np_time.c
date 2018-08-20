@@ -6,7 +6,7 @@
 #include <time.h>
 #include <math.h>
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_util.h"
 double np_time_now() {
 	return  ev_time();

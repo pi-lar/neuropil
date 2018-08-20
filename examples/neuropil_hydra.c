@@ -19,7 +19,7 @@
 
 #include "sodium.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_log.h"
 #include "np_types.h"
 #include "np_tree.h"
@@ -41,13 +41,13 @@
 
 #include "example_helper.c"
 
- 
+
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 #define NUM_HOST 4
 
- 
+
 /**
 The purpose of this program is to start a set of nodes
 and restart them in the case of failure.
@@ -62,8 +62,8 @@ The last step will be executed in a loop.
 
 */
 int main(int argc, char **argv)
-{	
-	bool create_bootstrap = true; 
+{
+	bool create_bootstrap = true;
 	bool has_a_node_started = false;
 	char* bootstrap_hostnode_default;
 	uint32_t required_nodes = NUM_HOST;
@@ -78,10 +78,10 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 	char* required_nodes_opt = NULL;
-	char* node_creation_speed_str = NULL;	
+	char* node_creation_speed_str = NULL;
 	double default_node_creation_speed = 3.415;
-	char* opt_kill_node = NULL;	
-	uint16_t kill_node = 0;	
+	char* opt_kill_node = NULL;
+	uint16_t kill_node = 0;
 
 	int opt;
 	if (parse_program_args(
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
 		}
 		free(node_creation_speed_str);
 	}
-	
+
 	if (j_key != NULL) {
 		create_bootstrap = false;
 	}
@@ -121,18 +121,18 @@ int main(int argc, char **argv)
 	for the general initialisation of a node please look into the neuropil_node example
 	*/
 	int current_pid = getpid();
-	
+
 	if (true == create_bootstrap) {
 		// Get the current pid and shift it to be a viable port.
 		// This way the application may be used for multiple instances on one system
 		if(publish_domain == NULL)
 			publish_domain = strdup("localhost");
-		
+
 		bootstrap_hostnode_default = np_build_connection_string("*", proto, publish_domain, port, true);
 
 		j_key = bootstrap_hostnode_default;
 
-		np_example_print(context, stdout, "No bootstrap host specified.\n");
+		// np_example_print(context, stdout, "No bootstrap host specified.\n");
 		has_a_node_started = true;
 
 		current_pid = fork();
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
 		// Running bootstrap node in a different fork
 		if (0 == current_pid) {
 
-			np_example_print(context, stdout, "Creating new bootstrap node...\n");
+			// np_example_print(context, stdout, "Creating new bootstrap node...\n");
 			/**
 
 			.. _np_hydra_create_bootstrap_node:
@@ -153,10 +153,10 @@ int main(int argc, char **argv)
 
 			   \code
 			*/
-			struct np_settings *settings = np_new_settings(NULL);
+			struct np_settings *settings = np_default_settings(NULL);
 			settings->n_threads = no_threads;
 
-			sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+			snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_hydra_bt", port);
 			fprintf(stdout, "logpath: %s\n", settings->log_file);
 			settings->log_level = level;
 
@@ -183,8 +183,8 @@ int main(int argc, char **argv)
 			   np_sysinfo_enable_server();
 
 			*/
-			printf("HttpServer init ok\n");					
-			__np_example_helper_loop();
+			printf("HttpServer init ok\n");
+			__np_example_helper_loop(context);
 
 			/**
 			And wait for incoming connections
@@ -199,14 +199,14 @@ int main(int argc, char **argv)
 			}
 			printf("Running Neuropil\n");
 
-			__np_example_helper_run_info_loop();
+			__np_example_helper_run_info_loop(context);
 			/**
 			   \endcode
 			*/
 		}
-		np_example_print(context, stdout, "Bootstrap host node: %s\n", j_key);
+		// np_example_print(context, stdout, "Bootstrap host node: %s\n", j_key);
 		if (NULL == j_key) {
-			np_example_print(context, stdout, "Bootstrap host node could not start ... exit\n");
+			// np_example_print(context, stdout, "Bootstrap host node could not start ... exit\n");
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -251,7 +251,7 @@ int main(int argc, char **argv)
 	*/
 	char bootstrap_port[10];
 	int bootstrap_port_i = atoi(port);
-	memcpy(bootstrap_port, port, strnlen(port,10));	
+	memcpy(bootstrap_port, port, strnlen(port,10));
 	double last_process_kill_at = np_time_now();
 	while (true) {
 		// (re-) start child processes
@@ -264,21 +264,21 @@ int main(int argc, char **argv)
 			/**
 			To create unique names and to use a separate port for every
 			node we will start the nodes in forks of this thread and use the pid as unique id.
-			  
+
 			.. code-block:: c
 
 			   \code
 			*/
-			sprintf(port, "%d", atoi(port) + 1);
+			snprintf(port, 7, "%d", atoi(port) + 1);
 			int port_i = atoi(port);
-			current_pid = fork();			
+			current_pid = fork();
 			if (0 == current_pid) {
 				// disable server for clients
 				if(has_a_node_started && opt_sysinfo_mode != np_sysinfo_opt_disable){
 					opt_sysinfo_mode = np_sysinfo_opt_force_client;
 				}
 				current_pid = getpid();
-				np_example_print(context, stdout, "Starting process %"PRIi32" on port %s\n", current_pid, port);
+				// np_example_print(context, stdout, "Starting process %"PRIi32" on port %s\n", current_pid, port);
 			/**
 			   \endcode
 			*/
@@ -290,10 +290,10 @@ int main(int argc, char **argv)
 
 				   \code
 				*/
-				struct np_settings *settings = np_new_settings(NULL);
+				struct np_settings *settings = np_default_settings(NULL);
 				settings->n_threads = no_threads;
 
-				sprintf(settings->log_file, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+				snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_hydra_ch", port);
 				fprintf(stdout, "logpath: %s\n", settings->log_file);
 				settings->log_level = level;
 
@@ -316,18 +316,18 @@ int main(int argc, char **argv)
 
 				   \code
 				*/
-				np_sysinfo_enable_client();
+				np_sysinfo_enable_client(context);
 				/**
 				   \endcode
 				*/
 
 				// We enable the statistics watchers for debugging purposes
 				if(has_a_node_started == false){ // <=> we are the first node started
-					np_statistics_add_watch_internals();
-					np_statistics_add_watch(_NP_SYSINFO_REQUEST);
-					np_statistics_add_watch(_NP_SYSINFO_REPLY);
+					np_statistics_add_watch_internals(context);
+					np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
+					np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
 					__np_example_inti_ncurse(context);
-					__np_example_helper_run_loop();
+					__np_example_helper_run_loop(context);
 				}
 				/**
 				and join our bootstrap node
@@ -340,40 +340,35 @@ int main(int argc, char **argv)
 					printf("ERROR: Node could not start");
 					exit(EXIT_FAILURE);
 				}
+
 				bool firstConnectionTry = true;
 				do {
 					if (!firstConnectionTry) {
 						np_example_print(context, stdout, "%s (%d/%"PRIu32") tries to join bootstrap node\n", port, port_i-bootstrap_port_i, required_nodes);
 					}
-				 					
-					np_send_join(j_key);
+					np_send_join(context, j_key);
 					firstConnectionTry = false;
-
 					int timeout = 100;
-					while (timeout > 0 && false == child_status->my_node_key->node->joined_network) {
-						// wait for join acceptance
-						np_time_sleep(0.1);
-						timeout--;
+					while (timeout > 0 && np_run(context, 0.01) && false == np_has_joined(context)) {
+							// wait for join acceptance
+							timeout--;
 					}
-
-					if(false == child_status->my_node_key->node->joined_network ) {
+					if(false == np_has_joined(context) ) {
 						np_example_print(context, stdout, "%s (%d/%"PRIu32") could not join network\n", port, port_i - bootstrap_port_i, required_nodes);
 					}
-				} while (false == child_status->my_node_key->node->joined_network) ;
-
+				} while (false == np_has_joined(context));
 				char time[50] = { 0 };
-				reltime_to_str(time, np_time_now() - started_at);				
+				reltime_to_str(time, np_time_now() - started_at);
 				np_example_print(context, stdout, "%s (%d/%"PRIu32") joined network after %s!\n", port, port_i - bootstrap_port_i, required_nodes, time);
 				/**
 				   \endcode
 				*/
-
 				if (has_a_node_started == false)
-					__np_example_helper_run_info_loop();
+					__np_example_helper_run_info_loop(context);
 				else
-					__np_example_helper_run_loop();
-				
-			} else {				
+					__np_example_helper_run_loop(context);
+
+			} else {
 				if (has_a_node_started == true) {
 					/**
 					While the fork process starts the new node,
@@ -392,6 +387,7 @@ int main(int argc, char **argv)
 			}
 			if(default_node_creation_speed > 0)
 				np_time_sleep(default_node_creation_speed);
+
 		} else {
 
 			// LEAVE TEST
@@ -399,12 +395,12 @@ int main(int argc, char **argv)
 			bool killed_a_node = false;
 			if(opt_kill_node != NULL && (now - last_process_kill_at) > kill_node){
 				last_process_kill_at = now;
-			
+
 				int pid = sll_first(list_of_childs)->val;
 				char time[50];
 				reltime_to_str(time, now - started_at);
-				np_example_print(context, stdout, "%s killing process %"PRIi32"\n", time, pid);
-				
+				// np_example_print(context, stdout, "%s killing process %"PRIi32"\n", time, pid);
+
 				kill(pid, SIGTERM);
 				killed_a_node = true;
 				sll_remove(int, list_of_childs, pid, int_sll_compare_type);
@@ -430,13 +426,13 @@ int main(int argc, char **argv)
 
 				if (WIFEXITED(status) || (WIFSIGNALED(status) && WTERMSIG(status) == SIGTERM))
 				{
-					if (opt_kill_node == NULL) 
+					if (opt_kill_node == NULL)
 					{
-						np_example_print(context, 
-							stdout,
-							"trying to find stopped child process %d\n", 
-							child_pid
-						);
+						// np_example_print(context,
+						// 	stdout,
+						// 	"trying to find stopped child process %d\n",
+						// 	child_pid
+						// );
 					}
 
 					sll_iterator(int) iter = NULL;
@@ -447,7 +443,7 @@ int main(int argc, char **argv)
 					{
 						if (child_pid == iter->val)
 						{
-							np_example_print(context, stdout, "removing stopped child process\n");
+							// np_example_print(context, stdout, "removing stopped child process\n");
 							sll_delete(int, list_of_childs, iter);
 							break;
 						}

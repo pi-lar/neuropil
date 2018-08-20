@@ -9,7 +9,7 @@
 #include "sodium.h"
 #include "tree/tree.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_types.h"
 #include "np_memory.h"
 

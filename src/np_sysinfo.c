@@ -8,7 +8,7 @@
 
 #include "np_sysinfo.h"
  
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_types.h"
 #include "np_log.h"
 #include "np_msgproperty.h"
@@ -134,7 +134,7 @@ void np_sysinfo_enable_client(np_state_t* context) {
 	np_job_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,
 								 0,
 								 //sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
-								 SYSINFO_PROACTIVE_SEND_IN_SEC,
+								 SYSINFO_PROACTIVE_SEND_IN_SEC+.0,
 								 _np_sysinfo_client_send_cb,
 								 "sysinfo_client_send_cb");
 }
@@ -174,7 +174,7 @@ void np_sysinfo_enable_server(np_state_t* context) {
 	//sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
 	//sysinfo_request_props->max_threshold = 20;
 	sysinfo_response_props->mode_type = INBOUND | ROUTE;
-	sysinfo_response_props->max_threshold = 64;// 32/*expected count of nodes */ * (60 / SYSINFO_PROACTIVE_SEND_IN_SEC);
+	sysinfo_response_props->max_threshold =  32/*expected count of nodes */ * (SYSINFO_MAX_TTL / SYSINFO_PROACTIVE_SEND_IN_SEC);
 	
 	np_msgproperty_register(sysinfo_response_props);
 	//np_msgproperty_register(sysinfo_request_props);

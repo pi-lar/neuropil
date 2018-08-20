@@ -7,7 +7,7 @@
 #include "sodium.h"
 #include "event/ev.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_aaatoken.h"
 #include "np_glia.h"
 #include "np_keycache.h"

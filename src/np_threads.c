@@ -19,7 +19,7 @@
 #include "pthread.h"
 
 #include "dtime.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_key.h"
 #include "np_types.h"
 #include "np_list.h"

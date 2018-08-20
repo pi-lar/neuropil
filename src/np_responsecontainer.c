@@ -1,4 +1,4 @@
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_types.h"
 #include "np_responsecontainer.h"
 
