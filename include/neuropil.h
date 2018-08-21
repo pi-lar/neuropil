@@ -283,6 +283,12 @@ Initialization
 .. c:member:: uint32_t n_threads
 
    Controls the maximum number of threads used by neuropil at any given time.
+   The default is 3.
+
+.. c:member:: char[256] log_file
+
+   Pathname of a file that neuropil will log to. The default is a ``"<timestamp>_neuropil.log"``
+   where timestamp is a decimal millisecond UNIX timestamp.
 
 
 ------------------
