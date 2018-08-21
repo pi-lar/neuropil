@@ -437,7 +437,7 @@ Sending and receiving messages
    :c:data:`np_invalid_operation`   The maximum number of receive callbacks supported by the implementation for the given subject is exceeded.
    ===============================  ===========================================
 
-.. c:function:: bool (*np_receive_callback)(uint8_t* message, size_t length)
+.. c:function:: bool (*np_receive_callback)(struct np_message *message)
 
    Receive callback function type to be implemented by neuropil applications. A
    message receipt is considered to be acknowledged if all receive callbacks
@@ -446,12 +446,39 @@ Sending and receiving messages
    no further callbacks for the subject are executed.
 
    :param message:
-       a pointer to a buffer that contains the received message.
-   :param length:
-       the length of *message* in bytes.
+       a pointer to a :c:type:`np_message` structure.
    :return:
        a boolean that indicates if the receipt was acknowledged
        (:c:data:`true`) or rejected (:c:data:`false`.)
+
+.. c:type:: struct np_message
+
+   Structure that holds a received message and some metadata about that
+   message.
+
+.. c:member:: uint8_t *data
+
+   A pointer to a buffer that contains the received message.
+
+.. c:member:: size_t data_length
+
+   The length of *data* in bytes.
+
+.. c:member:: char[NP_UUID_BYTES] uuid
+
+   A universally unique identifier for the message.
+
+.. c:member:: np_id from
+
+   The identity fingerprint of the message.
+
+.. c:member:: np_id subject
+
+   The fingerprint of the message subject.
+
+.. c:member:: double received_at
+
+   Unix timestamp that denotes the time the message was received.
 
 .. c:function:: enum np_error np_set_mx_properties(np_context* ac, np_id* subject, struct np_mx_properties properties)
 
@@ -739,6 +766,12 @@ Constants
    Constant that denotes length in bytes of both *fingerprints* and virtual
    addresses in the overlay network implemented by neuropil. Specifically, this
    is the size of :c:type:`np_id`.
+
+.. c:var:: size_t NP_UUID_BYTES
+
+   Constant that denotes the length in bytes of message UUID_s.
+
+.. _UUID: https://en.wikipedia.org/wiki/Universally_unique_identifier 
 
 */
 
