@@ -380,7 +380,7 @@ enum np_error np_set_authenticate_cb(np_context* ac, np_aaa_callback callback) {
 	enum np_error ret = np_ok;
 	np_ctx_cast(ac);
 
-	context->authenticate_func = _np_default_authenticatefunc;
+	context->authenticate_func = callback;
 
 	return ret;
 }
@@ -388,7 +388,7 @@ enum np_error np_set_authorize_cb(np_context* ac, np_aaa_callback callback) {
 	enum np_error ret = np_ok;
 	np_ctx_cast(ac);
 
-	context->authorize_func = _np_default_authorizefunc;
+	context->authorize_func = callback;
 
 	return ret;
 }
@@ -396,7 +396,7 @@ enum np_error np_set_accounting_cb(np_context* ac, np_aaa_callback callback) {
 	enum np_error ret = np_ok;
 	np_ctx_cast(ac);
 
-	context->accounting_func = _np_default_accountingfunc;
+	context->accounting_func = callback;
 
 	return ret;
 }
