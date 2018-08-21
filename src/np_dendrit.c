@@ -50,6 +50,7 @@
 #include "np_constants.h"
 #include "np_responsecontainer.h"
 #include "np_serialization.h"
+#include "np_bootstrap.h"
 #include "neuropil.h"
 
 /*
@@ -1095,6 +1096,7 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t* args)
     routing_key->node->joined_network = true;
     // just in case it has not been set until now
     my_key->node->joined_network = true;
+	_np_bootstrap_confirm(context, join_key);
 
     __np_cleanup__:
     np_unref_obj(np_key_t, my_key, FUNC);
@@ -2204,41 +2206,36 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
         _LOCK_ACCESS(&msg_source_key->node->lock) {
             _LOCK_MODULE(np_network_t)
             {
-                if (NULL == msg_source_key->network)
-                {                    
-                      {
-                        log_debug_msg(LOG_NETWORK | LOG_DEBUG, "handshake: init alias network");
-                        np_new_obj(np_network_t, msg_source_key->network);
-                        np_network_t* network = msg_source_key->network;
-                        ref_replace_reason(np_network_t, network, ref_obj_creation, ref_key_network);						
+				if (NULL == msg_source_key->network)//|| (msg_source_key->network->last_received_date + 30) < np_time_now())
+				{
+					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "handshake: init alias network"); 
+					np_network_t * new_msg_source_key_network;
+					np_new_obj(np_network_t, new_msg_source_key_network);
 
-                        _np_network_init(
-                            network,
-                            false,
-                            msg_source_key->node->protocol,
-                            msg_source_key->node->dns_name,
-                            msg_source_key->node->port,
-							((msg_source_key->node->protocol & PASSIVE) == PASSIVE) ? alias_key->network->socket:-1);
+					_np_network_init(
+						new_msg_source_key_network,
+						false,
+						msg_source_key->node->protocol,
+						msg_source_key->node->dns_name,
+						msg_source_key->node->port,
+						((msg_source_key->node->protocol & PASSIVE) == PASSIVE ? 
+							alias_key->network->socket : 
+							-1//msg_source_key->network->socket
+						)
+					);
 
-
-                        if (true == network->initialized)
-                        {
-							_np_network_set_key(network, msg_source_key);
-                        }
-                        else
-                        {
-                            log_msg(LOG_ERROR, "could not initiate network to alias key for %s:%s", network->ip, network->port);
-
-                            np_unref_obj(np_network_t, network, ref_key_network);
-                            msg_source_key->network = NULL;
-                        }
-                    }
-                }
-                else {
-                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "handshake: alias network already present");
-                }
+					if (true == new_msg_source_key_network->initialized)
+					{
+						_np_network_set_key(new_msg_source_key_network, msg_source_key);
+						_np_key_set_network(msg_source_key, new_msg_source_key_network);						
+					}
+					else
+					{
+						log_msg(LOG_ERROR, "could not initiate network to alias key for %s:%s", new_msg_source_key_network->ip, new_msg_source_key_network->port);
+					}
+					np_unref_obj(np_network_t, new_msg_source_key_network, ref_obj_creation);
+				}
             }
-
             np_state_t* state = context;
             np_waitref_obj(np_aaatoken_t, state->my_node_key->aaa_token, my_node_token, "np_waitref_my_node_key->aaa_token");
 
@@ -2311,7 +2308,8 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                 msg_source_key->aaa_token->state |= AAA_VALID;
                 _np_network_send_handshake(context, msg_source_key);
 
-                msg_source_key->node->handshake_status = np_handshake_status_Connected;
+				msg_source_key->node->handshake_status = np_handshake_status_Connected;
+				
 
                 log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
                     _np_key_as_str(msg_source_key), _np_key_as_str(alias_key));

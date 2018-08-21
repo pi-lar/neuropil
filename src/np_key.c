@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 
+#include "neuropil.h"
 #include "np_legacy.h"
 
 #include "event/ev.h"
@@ -276,4 +277,8 @@ void _np_key_set_send_property(np_key_t* self, np_msgproperty_t* prop) {
 	np_ctx_memory(self);
 	np_ref_switch(np_msgproperty_t, self->send_property, ref_key_send_property, prop);
 	prop->send_key = self;
+}
+
+void _np_key_set_network(np_key_t* self, np_network_t* ng) {
+	np_ref_switch(np_network_t, self->network, ref_key_network, ng);
 }

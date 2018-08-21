@@ -232,6 +232,11 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 						log_msg(LOG_ERROR, "neuropil_init: _np_jobqueue_create failed: %s", strerror(errno));
 						ret = np_startup;
 					}
+					else if (false == _np_bootstrap_init(context))
+					{
+						log_msg(LOG_ERROR, "neuropil_init: _np_bootstrap_init failed: %s", strerror(errno));
+						ret = np_startup;
+					}					
 					// initialize message handling system
 					else {
 
@@ -358,7 +363,7 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
 		np_get_id(context, &message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));
 		
 		memcpy(&message.from, _np_message_get_sender(msg), NP_FINGERPRINT_BYTES);
-		message.expires_at = _np_message_get_expiery(msg);		
+
 		message.received_at = np_time_now(); // todo get from network
 		//message.send_at = msg.             // todo get from msg
 		message.data = userdata->val.value.bin;
@@ -380,7 +385,7 @@ enum np_error np_set_authenticate_cb(np_context* ac, np_aaa_callback callback) {
 	enum np_error ret = np_ok;
 	np_ctx_cast(ac);
 
-	context->authenticate_func = _np_default_authenticatefunc;
+	context->authenticate_func = callback;
 
 	return ret;
 }
@@ -388,7 +393,7 @@ enum np_error np_set_authorize_cb(np_context* ac, np_aaa_callback callback) {
 	enum np_error ret = np_ok;
 	np_ctx_cast(ac);
 
-	context->authorize_func = _np_default_authorizefunc;
+	context->authorize_func = callback;
 
 	return ret;
 }
@@ -396,7 +401,7 @@ enum np_error np_set_accounting_cb(np_context* ac, np_aaa_callback callback) {
 	enum np_error ret = np_ok;
 	np_ctx_cast(ac);
 
-	context->accounting_func = _np_default_accountingfunc;
+	context->accounting_func = callback;
 
 	return ret;
 }

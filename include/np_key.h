@@ -114,6 +114,8 @@ NP_API_INTERN
 void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop);
 NP_API_INTERN
 void _np_key_set_send_property(np_key_t* self, np_msgproperty_t* prop);
+NP_API_INTERN
+void _np_key_set_network(np_key_t* self, np_network_t* ng);
 
 #ifdef __cplusplus
 }

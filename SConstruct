@@ -239,7 +239,7 @@ if int(analyze) and scan_build_exe:
 
 # sources for neuropil
 SOURCES =  ['build/obj/src/dtime.c',		'build/obj/src/np_time.c',			'build/obj/src/neuropil.c',		'build/obj/src/np_aaatoken.c',		'build/obj/src/np_axon.c',		'build/obj/src/np_dendrit.c']
-SOURCES += ['build/obj/src/np_glia.c',		'build/obj/src/np_jobqueue.c',		'build/obj/src/np_dhkey.c',		'build/obj/src/np_key.c',			'build/obj/src/np_keycache.c']
+SOURCES += ['build/obj/src/np_glia.c',		'build/obj/src/np_jobqueue.c',		'build/obj/src/np_dhkey.c',		'build/obj/src/np_key.c',			'build/obj/src/np_keycache.c',  'build/obj/src/np_bootstrap.c']
 SOURCES += ['build/obj/src/np_log.c',		'build/obj/src/np_memory.c',		'build/obj/src/np_message.c',	'build/obj/src/np_msgproperty.c',	'build/obj/src/np_network.c',	'build/obj/src/np_node.c']
 SOURCES += ['build/obj/src/np_route.c',		'build/obj/src/np_tree.c',			'build/obj/src/np_util.c',		'build/obj/src/np_treeval.c',		'build/obj/src/np_threads.c',	'build/obj/src/np_pinging.c']
 SOURCES += ['build/obj/src/np_sysinfo.c',	'build/obj/src/np_scache.c',		'build/obj/src/np_event.c',		'build/obj/src/np_messagepart.c',	'build/obj/src/np_statistics.c','build/obj/src/np_responsecontainer.c']
@@ -275,7 +275,7 @@ else:
 programs = [
     'node', 'cloud', 'hydra', #'shared_hydra',
     'controller','receiver','sender','receiver_cb','pingpong',
-    'echo_server','echo_client','raspberry','demo_service','test'
+    'echo_server','echo_client','raspberry','demo_service',
     ]
 
 program_env = default_env.Clone()

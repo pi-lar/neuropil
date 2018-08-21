@@ -135,7 +135,7 @@ extern "C" {
         char uuid[NP_UUID_BYTES];
         np_id from; 
         np_id subject;		
-        double received_at, expires_at;
+        double received_at;
         uint8_t * data;
         size_t data_length;
     };

@@ -174,7 +174,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
 	__ping->mep_type = ONE_WAY;
 	__ping->priority = 0;
 	__ping->ack_mode = ACK_DESTINATION;
-	__ping->retry = 0;
+	__ping->retry = 3;
 	sll_append(np_callback_t, __ping->clb_inbound, _np_in_ping);
 	//default: sll_append(np_callback_t, __ping->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __ping->clb_transform, _np_never_called_jobexec_transform);

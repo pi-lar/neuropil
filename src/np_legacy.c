@@ -44,6 +44,7 @@
 #include "np_list.h"
 #include "np_util.h"
 #include "np_shutdown.h"
+#include "np_bootstrap.h"
 
 #include "np_settings.h"
 #include "np_constants.h"
@@ -669,7 +670,7 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
  */
 void np_send_join(np_context*ac, const char* node_string)
 {
-	np_ctx_cast(ac);
+	np_ctx_cast(ac);	
 	_LOCK_MODULE(np_handshake_t) {
 		if (node_string[0] == '*') {
 			const char* node_string_2 = node_string + 2;
@@ -681,7 +682,9 @@ void np_send_join(np_context*ac, const char* node_string)
 		else {
 			np_key_t* node_key = NULL;
 
+			
 			node_key = _np_node_decode_from_str(context, node_string);
+			_np_network_send_handshake(context, node_key);
 			_np_send_simple_invoke_request(node_key, _NP_MSG_JOIN_REQUEST);
 
 			np_route_set_bootstrap_key(node_key);
@@ -689,6 +692,7 @@ void np_send_join(np_context*ac, const char* node_string)
 			np_unref_obj(np_key_t, node_key, "_np_node_decode_from_str"); // _np_node_decode_from_str
 		}
 	}
+	np_bootstrap_add(context, node_string);
 }
 /**
 * Sends a ACK msg for the given message.

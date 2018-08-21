@@ -74,6 +74,7 @@ struct np_network_s
 
 	np_mutex_t out_events_lock;
 	double last_send_date;
+	double last_received_date;
 	np_sll_t(void_ptr, out_events);
 
 	uint32_t seqend;

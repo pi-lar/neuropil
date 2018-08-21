@@ -38,6 +38,7 @@ extern "C" {
 	#define ref_ack_key								"ref_ack_key"
 	#define ref_msgproperty_current_recieve_token	"ref_msgproperty_current_recieve_token"
 	#define ref_msgproperty_current_sender_token	"ref_msgproperty_current_sender_token"
+	#define ref_bootstrap_list						"ref_bootstrap_list	"
 
 	#define NP_SERIALISATION_NODE_KEY				"np.n.k"
 	#define NP_SERIALISATION_NODE_PROTOCOL			"np.n.pr"
