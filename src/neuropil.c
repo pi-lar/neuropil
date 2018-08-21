@@ -375,7 +375,7 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
 }
 
 enum np_error np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback) {
-	enum np_error ret = np_not_implemented;
+	enum np_error ret = np_ok;
 
 	np_add_receive_listener(ac, __np_receive_callback_converter, callback, subject);
 	return ret;

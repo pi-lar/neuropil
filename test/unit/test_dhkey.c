@@ -24,19 +24,29 @@ Test(np_dhkey_t, _dhkey_add_sub, .description="test the addition/substraction of
 	np_dhkey_t key_3 = { .t[0] = 3, .t[1] = 3, .t[2] = 3, .t[3] = 3, .t[4] = 3 ,.t[5] = 3 ,.t[6] = 3 ,.t[7] = 3 };
 	np_dhkey_t key_4 = { .t[0] = 4, .t[1] = 4, .t[2] = 4, .t[3] = 4, .t[4] = 4 ,.t[5] = 4 ,.t[6] = 4 ,.t[7] = 4 };
 
+	np_dhkey_t key_x7 = { .t[0] = 0xfffffffd, .t[1] = 0xfffffffd, .t[2] = 0xfffffffd, .t[3] = 0xfffffffd,
+						  .t[4] = 0xfffffffd, .t[5] = 0xfffffffd, .t[6] = 0xfffffffd, .t[7] = 0xfffffffd };
+
 	np_dhkey_t result;
 
 	_np_dhkey_add(&result, &key_1, &key_1);
-	cr_expect_arr_eq(result.t, key_2.t, 4 * sizeof (uint64_t));
+	cr_expect_arr_eq(result.t, key_2.t, 8 * sizeof (uint32_t));
 
 	_np_dhkey_add(&result, &key_1, &key_2);
-	cr_expect_arr_eq(result.t, key_3.t, 4 * sizeof (uint64_t));
+	cr_expect_arr_eq(result.t, key_3.t, 8 * sizeof (uint32_t));
 
 	_np_dhkey_add(&result, &key_1, &key_3);
-	cr_expect_arr_eq(result.t, key_4.t, 4 * sizeof (uint64_t));
+	cr_expect_arr_eq(result.t, key_4.t, 8 * sizeof (uint32_t));
 
 	_np_dhkey_sub(&result, &key_4, &key_2);
-	cr_expect_arr_eq(result.t, key_2.t, 4 * sizeof (uint64_t));
+	cr_expect_arr_eq(result.t, key_2.t, 8 * sizeof (uint32_t));
+
+	_np_dhkey_sub(&result, &key_1, &key_4);
+	cr_expect_arr_eq(result.t, key_x7.t, 8 * sizeof (uint32_t));
+
+	_np_dhkey_add(&result, &result, &key_4);
+	cr_expect_arr_eq(result.t, key_1.t, 8 * sizeof (uint32_t));
+
 }
 
 Test(np_dhkey_t, _np_dhkey_cmp, .description = "test the comparison of dhkeys returning -1 / 0 / 1")

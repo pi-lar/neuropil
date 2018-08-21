@@ -2,179 +2,135 @@
 // neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-#include <errno.h>
-#include <pthread.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
+
+// Example: sending messages.
+
+#include <stdbool.h>
+#include <stddef.h>
 #include <string.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-#include "np_log.h"
-#include "np_legacy.h"
-#include "np_aaatoken.h"
-#include "np_keycache.h"
-#include "np_tree.h"
-#include "np_types.h"
-
-#include "example_helper.c"
+#include <assert.h>
 
 /**
-first we have to define a global np_state_t variable
+   First and foremost, we have to include header file which defines the API for
+   the neuropil messaging layer.
 
-.. code-block:: c
+   .. code-block:: c
 
    \code
 */
-np_state_t *state;
+#include "neuropil.h"
 /**
    \endcode
 */
 
-int main(int argc, char **argv)
+bool authorize (np_context *, struct np_token *);
+
+int main (void)
 {
-	char* realm = NULL;
-	char* code = NULL;
-
-	int no_threads = 8;
-	char *j_key = NULL;
-	char* proto = "udp4";
-	char* port = NULL;
-	char* publish_domain = NULL;
-	int level = -2;
-	char* logpath = ".";
-	
-	if (parse_program_args(
-		__FILE__,
-		argc,
-		argv,
-		&no_threads,
-		&j_key,
-		&proto,
-		&port,
-		&publish_domain,
-		&level,
-		&logpath,
-		"[-r realmname] [-c code]",
-		"r:c:"
-	) == false) {
-		exit(EXIT_FAILURE);
-	}	
-
 	/**
-	in your main program, initialize the logging of neuopil, use the port for the filename
+	   To initialize the neuropil messaging layer, we prepare a
+	   :c:type:`np_settings` by populating it with the default settings
+	   using :c:func:`np_default_settings`, and create a new
+	   application context with :c:func:`np_new_context`.
 
-	.. code-block:: c
+	   .. code-block:: c
 
 	   \code
 	*/
-	struct np_settings *settings = np_default_settings(NULL);
-	settings->n_threads = no_threads;
-	/**
+	struct np_settings cfg;
+	np_default_settings(&cfg);
+
+	np_context *ac = np_new_context(&cfg);
+        /**
 	   \endcode
 	*/
 
-	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_controller", port);
-	fprintf(stdout, "logpath: %s\n", settings->log_file);
-	settings->log_level = level;
-
-	np_context * context = np_new_context(settings);
-
-	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
-		printf("ERROR: Node could not listen");
-		exit(EXIT_FAILURE);
-	}
 	/**
-	   \endcode
-	*/
+	   Next, we allocate a network address and port tuple to listen on for
+	   incoming connections using :c:func:`np_listen`.
 
-	if (NULL != realm)
-	{
-		np_set_realm_name(context, realm);
-		np_enable_realm_client(context);
-		if (NULL != code)
-		{
-			np_tree_insert_str(state->my_node_key->aaa_token->extensions,
-							"passcode",
-							np_treeval_new_hash(code));
-		}
-	}
-
-	__np_example_helper_loop(context); // for the fancy ncurse display
-
-	/**
-	start up the job queue with 8 concurrent threads competing for job execution.
-	you should start at least 2 threads, because network reading currently is blocking.
-
-	.. code-block:: c
+	   .. code-block:: c
 
 	   \code
-	*/
-	if (np_ok != np_run(context, 0)) {
-		printf("ERROR: Node could not start");
-		exit(EXIT_FAILURE);
-	}
-	/**
+	 */
+	assert(np_ok == np_listen(ac, "udp4", "localhost", 1234));
+        /**
 	   \endcode
 	*/
 
-	if (NULL != j_key)
-	{
-		np_join(context, j_key);
-	}
-
 	/**
-	use the connect string that is printed to stdout and pass it to the np_controller to send a join message.
-	wait until the node has received a join message before actually proceeding
+	   To join a neuropil network, we have to connect with our initial
+	   bootstrap node using :c:func:`np_join`. Other nodes in the network
+	   will be discovered automatically, but we need explicitly specify the
+	   network address and port tuple for our initial contact.
 
-	.. code-block:: c
+	   .. code-block:: c
 
 	   \code
-	*/
-	np_waitforjoin(context);
-	/**
+	 */
+	assert(np_ok == np_join(ac, "*:udp4:localhost:2345"));
+        /**
 	   \endcode
 	*/
 
 	/**
-	 .. NOTE::
-	    Make sure that you implement and register the appropiate aaa callback functions
-	    to control with which nodes you exchange messages. By default everybody is allowed to interact
-	    with your node
-	*/
+	   We should also set an authorization callback via
+	   :c:func:`np_set_authorize_cb` to control access to this node. More
+	   on this later.
 
-	/**
-	create the message that you would like to send across (now or in the loop later)
-
-	.. code-block:: c
+	   .. code-block:: c
 
 	   \code
-	*/
-	char* msg_subject = "this.is.a.test";
-	char* msg_data = "testdata";
-	unsigned long k = 1;
-	/**
+	 */
+	assert(np_ok == np_set_authorize_cb(ac, authorize));
+        /**
 	   \endcode
 	*/
 
 	/**
-	loop (almost) forever and send your messages to the receiver :-)
-	 
-	.. code-block:: c
+	   Now to our application logic. We will repeatedly run the neuropil
+	   event loop for five seconds with :c:func:`np_run`, and then send our
+	   message with the subject ``"mysubject"`` using :c:func:`np_send`. If
+	   anything goes wrong we return the error code (an
+	   :c:type:`np_error`.)
+
+	   Effectively, this means that our node will process protocol requests
+	   continuously (for as long as there is no error situation) and send a
+	   message every five seconds periodically.
+
+	   .. code-block:: c
 
 	   \code
-	*/
-	while (1) {
-		__np_example_helper_loop(context); // for the fancy ncurse display
-		np_time_sleep(1.0);
+	 */
+	enum np_error status;
+	char *message = "Hello, World!";
+	size_t message_len = strlen(message);
+	do status = np_run(ac, 5.0)
+		   || np_send(ac, "mysubject", message, message_len);
+	while (np_ok == status);
 
-		np_send_text(context, msg_subject, msg_data, k, NULL);
-		log_debug_msg(LOG_DEBUG, "send message %lu", k);
-
-		k++;
-	}
-	/**
+	return status;
+        /**
 	   \endcode
-    */
+	*/
 }
+
+/**
+   All that is left is to implement our authorization callback, a function of
+   type :c:type:`np_aaa_callback`. The one defined is eternally lenient, and
+   authorizes every peer to receive our messages. To ensure that our message is
+   not read by strangers, it should really return :c:data:`false` for
+   :c:type:`np_token` of unknown identities.
+
+   .. code-block:: c
+
+   \code
+*/
+bool authorize (np_context *ac, struct np_token *id)
+{
+	// TODO: Make sure that id->public_key is the intended recipient!
+	return true;
+}
+/**
+   \endcode
+*/
