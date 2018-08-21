@@ -3,7 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
-/* Neuropil API v2 */
+/* neuropil API v2 */
 
 #ifndef _NP_INTERFACE_H_
 #define _NP_INTERFACE_H_
@@ -256,7 +256,7 @@ Initialization
 
 .. c:function:: np_context* np_new_context(struct np_settings *settings)
 
-   Creates a new Neuropil application context.
+   Creates a new neuropil application context.
 
    :param settings:
        a :c:type:`np_settings` structure used to configure the application
@@ -266,7 +266,7 @@ Initialization
 
 .. c:type:: void np_context
 
-   An opaque object that denotes a Neuropil application context.
+   An opaque object that denotes a neuropil application context.
 
 .. c:function:: void np_default_settings(struct np_settings *settings)
 
@@ -278,11 +278,11 @@ Initialization
 .. c:type:: struct np_settings
 
    The :c:type:`np_settings` structure holds various run-time preferences
-   available to Neuropil.
+   available to neuropil.
 
 .. c:member:: uint32_t n_threads
 
-   Controls the maximum number of threads used by Neuropil at any given time.
+   Controls the maximum number of threads used by neuropil at any given time.
 
 
 ------------------
@@ -291,10 +291,10 @@ Identity management
 
 .. c:function:: struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]))
 
-   Creates a new Neuropil identity.
+   Creates a new neuropil identity.
 
    :param ac:
-       a Neuropil application context.
+       a neuropil application context.
    :param expires_at:
        expiry date of the identity in seconds since the Unix epoch.
    :param secret_key:
@@ -305,10 +305,10 @@ Identity management
 
 .. c:function:: enum np_error np_set_identity(np_context* ac, struct np_token identity)
 
-   Sets the identity used by the Neuropil node.
+   Sets the identity used by the neuropil node.
 
    :param ac:
-       a Neuropil application context.
+       a neuropil application context.
    :param identity:
        the *identity* to use.
    :return:
@@ -327,10 +327,10 @@ Starting up
 
 .. c:function:: enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port)
 
-   Binds a Neuropil application context to a listening address.
+   Binds a neuropil application context to a listening address.
 
    :param ac:
-       a Neuropil application context.
+       a neuropil application context.
    :param protocol:
        a string denoting the underlying protocol to be used. Currently, only
        `"udp4"` is supported.
@@ -351,10 +351,10 @@ Starting up
 
 .. c:function:: enum np_error np_get_address(np_context* ac, char* address, uint32_t max)
 
-   Gets the absolute address of the Neuropil node within the overlay network.
+   Gets the absolute address of the neuropil node within the overlay network.
 
    :param ac:
-       a Neuropil application context.
+       a neuropil application context.
    :param address:
        a pointer to the address string to be written to.
    :param max:
@@ -373,10 +373,10 @@ Starting up
 
 .. c:function:: enum np_error np_join(np_context* ac, char* address)
 
-   Adds a bootstrap node to be used by this node to join the Neuropil network.
+   Adds a bootstrap node to be used by this node to join the neuropil network.
 
    :param ac:
-       a Neuropil application context.
+       a neuropil application context.
    :param address:
        a string that denotes an absolute address as obtained by
        :c:func:`np_get_address`.
@@ -398,7 +398,7 @@ Sending and receiving messages
    Sends a message on a given subject.
 
    :param ac:
-       a Neuropil application context.
+       a neuropil application context.
    :param subject:
        a pointer to the fingerprint of the subject to send on.
    :param message:
@@ -422,7 +422,7 @@ Sending and receiving messages
    which case they are run in the order in which they were added.
 
    :param ac:
-       a Neuropil application context.
+       a neuropil application context.
    :param subject:
        a pointer to the fingerprint of the subject to receive on.
    :param callback:
@@ -439,7 +439,7 @@ Sending and receiving messages
 
 .. c:function:: bool (*np_receive_callback)(uint8_t* message, size_t length)
 
-   Receive callback function type to be implemented by Neuropil applications. A
+   Receive callback function type to be implemented by neuropil applications. A
    message receipt is considered to be acknowledged if all receive callbacks
    associated with the subject returned (:c:data:`true`). Once a receive
    callback returns (:c:data:`false`), the message is considered rejected and
@@ -460,7 +460,7 @@ Sending and receiving messages
    delivered messages are guaranteed to be delivered once only.
 
    :param ac:
-       a Neuropil application context.
+       a neuropil application context.
    :param subject:
        a pointer to the fingerprint of the subject to configure message
        exchange semantics on.
@@ -558,7 +558,7 @@ Authentication and authorization
    If no authorization callback is set all message exchanges will be rejected.
 
    :param ac:
-       a Neuropil application context.
+       a neuropil application context.
    :param callback:
        a pointer to a function of type :c:type:`np_aaa_callback` that
        denotes the callback to be set.
@@ -574,13 +574,13 @@ Authentication and authorization
 .. c:function:: enum np_error np_set_authenticate_cb(np_context* ac, np_aaa_callback callback)
 
    Sets an additional authentication callback used to authenticate nodes. Such
-   a callback can be used to extend the authentication provided by Neuropil to
+   a callback can be used to extend the authentication provided by neuropil to
    further validate tokens based on application extensions. If no such callback
-   is set only standard Neuropil authentication is performed. Note that
+   is set only standard neuropil authentication is performed. Note that
    authenticated nodes are permitted to join the overlay network.
 
    :param ac:
-       a Neuropil application context.
+       a neuropil application context.
    :param callback:
        a pointer to a function of type :c:type:`np_aaa_callback` that denotes
        the callback to be set.
@@ -595,7 +595,7 @@ Authentication and authorization
 
 .. c:function:: bool (*np_aaa_callback)(struct np_token* aaa_token)
 
-   AAA callback function type to be implemented by Neuropil applications. These
+   AAA callback function type to be implemented by neuropil applications. These
    functions are to inspect and verify the contents of the *aaa_token* they are
    provided and either accept or reject the token.
 
@@ -614,7 +614,7 @@ Tokens
    A record used for authentication, authorization and accounting purposes.
    When :c:type:`np_token` records are transmitted or received over the network
    they are accompanied by a cryptographic signature that must match the
-   token’s :c:member:`public_key` field. Tokens received through the Neuropil
+   token’s :c:member:`public_key` field. Tokens received through the neuropil
    API are guaranteed to be authentic: i.e., their integrity is validated.
    Applications are responsible to verify the issuer of a given token as
    denoted by the :c:member:`public_key`.
@@ -642,7 +642,7 @@ Tokens
 
    Timestamps encoded as `Unix time <https://en.wikipedia.org/wiki/Unix_time>`_
    in seconds that denote issue date and validity duration of the token. These
-   validity periods are validated by Neuropil.
+   validity periods are validated by neuropil.
 
 .. c:member:: uint8_t[] extensions
 .. c:member:: size_t extension_length
@@ -681,7 +681,7 @@ Fingerprints
 .. c:type:: uint8_t[NP_FINGERPRINT_BYTES] np_id
 
    The type :c:type:`np_id` denotes both a fingerprint and a virtual address in
-   the overlay network implemented by Neuropil. It is represented as a
+   the overlay network implemented by neuropil. It is represented as a
    consecutive array of :c:data:`NP_FINGERPRINT_BYTES` bytes.
 
 ------------------------
@@ -690,13 +690,13 @@ Running your application
 
 .. c:function:: enum np_error np_run(np_context* ac, double duration)
 
-   Runs the Neuropil event loop for a given application context for a specified
+   Runs the neuropil event loop for a given application context for a specified
    *duration*. During the execution of the event loop incoming and outgoing
    messages are transmitted and received, and the associated callbacks are
    executed.
 
    :param ac:
-       a Neuropil application context.
+       a neuropil application context.
    :param duration:
        the duration in seconds allotted to execute the event loop. If
        *duration* is zero :c:func:`np_run` will return as soon as it has
@@ -711,7 +711,7 @@ Detecting errors
 .. c:type:: enum np_error
 
    This type denotes the set of status codes returned by various functions in
-   the Neuropil API. Possible values include:
+   the neuropil API. Possible values include:
 
    ===============================  ===========================================
    Status                           Meaning
@@ -732,12 +732,12 @@ Constants
 .. c:var:: size_t NP_PUBLIC_KEY_BYTES
 
    Constants that denote the lengths in bytes of the private and public key
-   parts used by Neuropil, as found in :c:type:`np_token`.
+   parts used by neuropil, as found in :c:type:`np_token`.
 
 .. c:var:: size_t NP_FINGERPRINT_BYTES
 
    Constant that denotes length in bytes of both *fingerprints* and virtual
-   addresses in the overlay network implemented by Neuropil. Specifically, this
+   addresses in the overlay network implemented by neuropil. Specifically, this
    is the size of :c:type:`np_id`.
 
 */
