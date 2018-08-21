@@ -14,10 +14,10 @@ periodic messages to a destination.
           examples/neuropil_sender.c
 
 .. NOTE:: You can modify this example program and (re)build it with
-          `scons bin/neuropil_sender`.
+          ``scons bin/neuropil_sender``.
 
 .. NOTE:: You can run this example like so
-          `LD_LIBRARY_PATH=build/lib:$LD_LIBRARY_PATH bin/neuropil_sender`.
+          ``LD_LIBRARY_PATH=build/lib:$LD_LIBRARY_PATH bin/neuropil_sender``.
           It will create and print events to a log file in the current
           directory.
 
@@ -34,10 +34,10 @@ messages on a subject.
           examples/neuropil_receiver.c
 
 .. NOTE:: You can modify this example program and (re)build it with
-          `scons bin/neuropil_receiver`.
+          ``scons bin/neuropil_receiver``.
 
 .. NOTE:: You can run this example like so
-          `LD_LIBRARY_PATH=build/lib:$LD_LIBRARY_PATH bin/neuropil_receiver`.
+          ``LD_LIBRARY_PATH=build/lib:$LD_LIBRARY_PATH bin/neuropil_receiver``.
           It will create and print events to a log file in the current
           directory.
 
@@ -53,10 +53,10 @@ This example explains how to bootstrap a neuropil network.
           examples/neuropil_controller.c
 
 .. NOTE:: You can modify this example program and (re)build it with
-          `scons bin/neuropil_controller`.
+          ``scons bin/neuropil_controller``.
 
 .. NOTE:: You can run this example like so
-          `LD_LIBRARY_PATH=build/lib:$LD_LIBRARY_PATH bin/neuropil_controller`.
+          ``LD_LIBRARY_PATH=build/lib:$LD_LIBRARY_PATH bin/neuropil_controller``.
           It will create and print events to a log file in the current
           directory.
 

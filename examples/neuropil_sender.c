@@ -89,9 +89,9 @@ int main (void)
 
 	/**
 	   Now to our application logic. We will repeatedly run the neuropil
-	   message loop for five seconds with :c:func:`np_run`, and then send
-	   our message with the subject `"mysubject`" using :c:func:`np_send`.
-	   If anything goes wrong we return the error code (an
+	   event loop for five seconds with :c:func:`np_run`, and then send our
+	   message with the subject ``"mysubject"`` using :c:func:`np_send`. If
+	   anything goes wrong we return the error code (an
 	   :c:type:`np_error`.)
 
 	   Effectively, this means that our node will process protocol requests
@@ -104,10 +104,10 @@ int main (void)
 	 */
 	enum np_error status;
 	char *message = "Hello, World!";
-	do {
-		status = np_run(ac, 5.0)
-			|| np_send(ac, "mysubject", message, strlen(message));
-	} while (np_ok == status);
+	size_t message_len = strlen(message);
+	do status = np_run(ac, 5.0)
+		   || np_send(ac, "mysubject", message, message_len);
+	while (np_ok == status);
 
 	return status;
         /**
@@ -119,7 +119,7 @@ int main (void)
    All that is left is to implement our authorization callback, a function of
    type :c:type:`np_aaa_callback`. The one defined is eternally lenient, and
    authorizes every peer to receive our messages. To ensure that our message is
-   not read by stragers, it should really return :c:data:`false` for
+   not read by strangers, it should really return :c:data:`false` for
    :c:type:`np_token` of unknown identities.
 
    .. code-block:: c
@@ -128,7 +128,7 @@ int main (void)
 */
 bool authorize (np_context *ac, struct np_token *id)
 {
-	// TODO: Make sure that id->public_key is the intended receipient!
+	// TODO: Make sure that id->public_key is the intended recipient!
 	return true;
 }
 /**
