@@ -399,14 +399,14 @@ Starting up
 Sending and receiving messages
 ------------------------------
 
-.. c:function:: enum np_error np_send(np_context* ac, np_id* subject, uint8_t* message, size_t length)
+.. c:function:: enum np_error np_send(np_context* ac, char* subject, uint8_t* message, size_t length)
 
    Sends a message on a given subject.
 
    :param ac:
        a neuropil application context.
    :param subject:
-       a pointer to the fingerprint of the subject to send on.
+       the subject to send on.
    :param message:
        a pointer to a buffer containing the message to be sent. The message
        could be, for instance, encoded using `MessagePack <https://msgpack.org/>`_.
@@ -421,7 +421,7 @@ Sending and receiving messages
    :c:data:`np_invalid_argument`    *Length* exceeds the maximum message size supported by this implementation.
    ===============================  ===========================================
 
-.. c:function:: enum np_error np_add_receive_cb(np_context* ac, np_id* subject, np_receive_callback callback)
+.. c:function:: enum np_error np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback)
 
    Adds a callback to be executed when receiving a message on a given subject.
    It is possible to add more than one receive callback for a given subject, in
@@ -430,7 +430,7 @@ Sending and receiving messages
    :param ac:
        a neuropil application context.
    :param subject:
-       a pointer to the fingerprint of the subject to receive on.
+       the subject to receive on.
    :param callback:
        a pointer to a function of type :c:type:`np_receive_callback` that
        denotes the callback to be added.
@@ -486,7 +486,7 @@ Sending and receiving messages
 
    Unix timestamp that denotes the time the message was received.
 
-.. c:function:: enum np_error np_set_mx_properties(np_context* ac, np_id* subject, struct np_mx_properties properties)
+.. c:function:: enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties properties)
 
    Configure message exchange semantics for a given subject. The default is
    best-effort message delivery without any attempt at retransmission and if
@@ -495,8 +495,7 @@ Sending and receiving messages
    :param ac:
        a neuropil application context.
    :param subject:
-       a pointer to the fingerprint of the subject to configure message
-       exchange semantics on.
+       the subject to configure message exchange semantics on.
    :param properties:
        a pointer to a :c:type:`np_mx_properties` structure that describes the
        semantics to be applied.
@@ -661,9 +660,9 @@ Tokens
 
    The fingerprint of the *identity* that issued the token.
 
-.. c:member:: np_id subject
+.. c:member:: char[255] subject
 
-   A fingerprint that denotes the token’s purpose.
+   A subject that denotes the token’s purpose.
 
 .. c:member:: np_id audience
 
