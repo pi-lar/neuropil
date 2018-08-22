@@ -113,9 +113,7 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	while (true) {
-		__np_example_helper_loop(context);		
-	}
+	__np_example_helper_run_info_loop(context);
 }
 
 bool receive_echo_message(np_context* context, struct np_message* message) {
