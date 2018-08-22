@@ -71,7 +71,7 @@ extern "C" {
  * The maximum lifetime of a node before it is refreshed
  */
 #ifndef NODE_MAX_TTL_SEC
-	#define NODE_MAX_TTL_SEC (NP_PI_INT*10000000)
+	#define NODE_MAX_TTL_SEC (NP_PI_INT*100000000)
 #endif
 
 #ifndef TOKEN_GRACETIME

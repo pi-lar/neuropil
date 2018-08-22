@@ -39,7 +39,8 @@ enum np_log_e
 	LOG_WARN       		= 0x0000002, /* warning messages						 */
 	LOG_INFO       		= 0x0000004, /* info messages							 */
 	LOG_DEBUG      		= 0x0000008, /* debugging messages						 */
-	LOG_TRACE      		= 0x0000010, /* tracing messages						 */
+	LOG_TRACE           = 0x0000010, /* tracing messages						 */
+	LOG_VERBOSE         = 0x0000020, /* verbose messages						 */
 							
 	LOG_SERIALIZATION	= 0x0000100, /* debugging the serialization methods		*/
 	LOG_MUTEX      		= 0x0000200, /* debugging messages for mutex subsystem	*/

@@ -127,6 +127,11 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
             {
                     goto __np_cleanup__;
             }
+
+			np_new_obj(np_message_t, msg_in);
+			_np_message_mark_as_incomming(msg_in);
+
+
             log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
                 "alias_key %s",
                 _np_key_as_str(alias_key)
@@ -157,47 +162,55 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                             nonce,
                             alias_key->node->session_key);
                 log_debug_msg(LOG_DEBUG |LOG_SERIALIZATION,
-                    "HANDSHAKE SECRET: using shared secret from %s (%s) = %"PRIi32,
-                    _np_key_as_str(alias_key), np_memory_get_id(alias_key), ret
+                    "HANDSHAKE SECRET: using shared secret from %s (mem id: %s) (msg: %s)= %"PRIi32" to decrypt data",
+                    _np_key_as_str(alias_key), np_memory_get_id(alias_key), msg_in->uuid, ret
                 );
 
                 if (ret == 0)
                 {
                     is_decryption_successful = true;
                     log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-                            "correct decryption of message (send from %s)", _np_key_as_str(alias_key));
+                            "correct decryption of message (%s) (send from %s)", msg_in->uuid, _np_key_as_str(alias_key));
                     memset(raw_msg, 0, 1024);
                     memcpy(raw_msg, dec_msg, 1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
                 } else {
                     log_msg(LOG_WARN,
-                        "error on decryption of message (source: \"%s:%s\")",
-                        np_network_get_ip(alias_key), np_network_get_port(alias_key));
+                        "error on decryption of message (%s) (source: \"%s:%s\")",
+                        msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
                 }
             }
             else {
                 log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION,
-                    "HANDSHAKE SECRET: using no shared secret (%s)",
+                    "HANDSHAKE SECRET: using no shared secret (%s) as %s",
+						NULL != alias_key ? "no alias key is provided":
+						NULL != alias_key->aaa_token ? "alias key has no aaatoken" :
+						IS_VALID(alias_key->aaa_token->state) ? "alias key token is not valid" :
+						alias_key->node->session_key_is_set == true ? "alias key node has no session key" :
+						"no reason available",
                     np_memory_get_id(alias_key)
                 );
             }
-
-            np_new_obj(np_message_t, msg_in);
-            _np_message_mark_as_incomming(msg_in);
+            
 
             ret = _np_message_deserialize_header_and_instructions(msg_in, raw_msg);
 
             if (ret == false) {
-                np_memory_free(raw_msg);
                 if(is_decryption_successful == true) {
                     log_msg(LOG_ERROR,
                         "error deserializing message %s after   successful decryption (source: \"%s:%s\")",
                         msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
                 } else {
-                    log_msg(LOG_WARN,
-                        "error deserializing message %s after unsuccessful decryption (source: \"%s:%s\")",
-                        msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
-                }
-                goto __np_cleanup__;
+					log_msg(LOG_WARN,
+						"error deserializing message %s after unsuccessful decryption (source: \"%s:%s\")",
+						msg_in->uuid, np_network_get_ip(alias_key), np_network_get_port(alias_key));
+
+					char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
+					log_debug_msg(LOG_DEBUG | LOG_VERBOSE | LOG_NETWORK,
+						"(msg: %s) %s",
+						msg_in->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, raw_msg, MSG_CHUNK_SIZE_1024));
+				}
+				np_memory_free(raw_msg);
+				goto __np_cleanup__;
             }
 
             log_debug_msg(LOG_SERIALIZATION | LOG_MESSAGE | LOG_DEBUG,

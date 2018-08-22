@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <sys/select.h>
 #include <netdb.h>
@@ -335,6 +336,10 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
                             nonce,
                             target_node->session_key);
 
+						log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION, 
+							"HANDSHAKE SECRET: using shared secret from target %s on system %s to encrypt data (msg: %s)",
+							_np_key_as_str(node_key), _np_key_as_str(context->my_node_key), msg->uuid);
+
                         if (encryption != 0)
                         {
                             log_msg(LOG_ERROR,
@@ -354,6 +359,12 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
                             _LOCK_ACCESS(&node_key->network->out_events_lock) {
                                 if (NULL != node_key->network->out_events) {
                                     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "appending message (%s part: %d) %p (%d bytes) to queue for %s:%s", msg->uuid, part, enc_buffer, MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
+									char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
+									log_debug_msg(LOG_DEBUG | LOG_VERBOSE | LOG_NETWORK,
+										"(msg: %s) %s",
+										msg->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, enc_buffer, MSG_CHUNK_SIZE_1024));
+
+
                                     sll_append(void_ptr, node_key->network->out_events, (void*)enc_buffer);                                    
                                     ret = true;
                                     _np_network_start(node_key->network);
@@ -512,8 +523,8 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
     if(keyExists)
     {
         np_network_t* ng = key->network;
-        np_tryref_obj(np_network_t, key->network, networkExists, "np_tryref_obj_key_network");
-        if (networkExists)
+        np_tryref_obj(np_network_t, key->network, server_networkExists, "np_tryref_obj_key_network");
+        if (server_networkExists)
         {
             int client_fd = accept(ng->socket, (struct sockaddr*)NULL, NULL);
 
@@ -535,99 +546,102 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
                 if (setsockopt(client_fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(optval)) < 0) {
 #endif
                     optval = 1;
-                    if (setsockopt(client_fd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) >= 0) {
+					if (setsockopt(client_fd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) >= 0) {
 
-                        //if (ng->ip == NULL || ng->port == NULL)
-                        {
-                            int err = -1;
-                            do {
-                                err = getpeername(client_fd, (struct sockaddr*) &from, &fromlen);
-                            } while (0 != err && errno != ENOTCONN);
+						
+						{
+							//if (ng->ip == NULL || ng->port == NULL)
+							{
+								int err = -1;
+								do {
+									err = getpeername(client_fd, (struct sockaddr*) &from, &fromlen);
+								} while (0 != err && errno != ENOTCONN);
 
-                            if (from.ss_family == AF_INET)
-                            {
-                                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
-                                // AF_INET
-                                struct sockaddr_in *s = (struct sockaddr_in *) &from;
-                                snprintf(port, CHAR_LENGTH_PORT, "%d", ntohs(s->sin_port));
-                                inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
-                            }
-                            else
-                            {
-                                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
-                                // AF_INET6
-                                struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-                                snprintf(port, CHAR_LENGTH_PORT, "%d", ntohs(s->sin6_port));
-                                inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
-                            }
+								if (from.ss_family == AF_INET)
+								{
+									log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
+									// AF_INET
+									struct sockaddr_in *s = (struct sockaddr_in *) &from;
+									snprintf(port, CHAR_LENGTH_PORT, "%d", ntohs(s->sin_port));
+									inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
+								}
+								else
+								{
+									log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
+									// AF_INET6
+									struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
+									snprintf(port, CHAR_LENGTH_PORT, "%d", ntohs(s->sin6_port));
+									inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
+								}
 
-                            memcpy(ng->ip, ipstr, sizeof(char)*strnlen(ipstr, CHAR_LENGTH_IP - 1));
-                            memcpy(ng->port, port, sizeof(char)*strnlen(port, CHAR_LENGTH_PORT - 1));
-                        }
+								memcpy(ng->ip, ipstr, sizeof(char)*strnlen(ipstr, CHAR_LENGTH_IP - 1));
+								memcpy(ng->port, port, sizeof(char)*strnlen(port, CHAR_LENGTH_PORT - 1));
+							}
 
-                        log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                            "received connection request from %s:%s (client fd: %d, source fd: %d)",
-                            ipstr, port, client_fd, ng->socket);
+							log_debug_msg(LOG_NETWORK | LOG_DEBUG,
+								"received connection request from %s:%s (client fd: %d, source fd: %d)",
+								ipstr, port, client_fd, ng->socket);
 
-                        np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
-                        np_key_t* alias_key = _np_keycache_find(context, search_key);
-                        char* alias_key_reason = "_np_keycache_find";
-                        np_network_t* old_network = NULL;
-                        _LOCK_MODULE(np_network_t)
-                        {
-                            if (alias_key != NULL) {
-                                old_network = alias_key->network;
-                            }
-                            else {
-                                // init new alias key
-                                alias_key = _np_keycache_create(context, search_key);
-                                alias_key_reason = "_np_keycache_create";
-                                alias_key->parent = key;
-                                np_ref_obj(np_key_t, key, ref_key_parent);
-                            }
-                            np_new_obj(np_network_t, alias_key->network);
+							np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
+							np_key_t* alias_key = _np_keycache_find(context, search_key);
+							char* alias_key_reason = "_np_keycache_find";
+							np_network_t* old_network = NULL;
+							_LOCK_MODULE(np_network_t)
+							{
+								if (alias_key != NULL) {
+									old_network = alias_key->network;
+								}
+								else {
+									// init new alias key
+									alias_key = _np_keycache_create(context, search_key);
+									alias_key_reason = "_np_keycache_create";
+									alias_key->parent = key;
+									np_ref_obj(np_key_t, key, ref_key_parent);
+								}
+								np_new_obj(np_network_t, alias_key->network);
 
-                            _LOCK_ACCESS(&alias_key->network->access_lock) {
-                                alias_key->network->socket = client_fd;
-                                alias_key->network->socket_type = ng->socket_type;
-                                alias_key->network->seqend = 0;
+								_LOCK_ACCESS(&alias_key->network->access_lock) {
+									alias_key->network->socket = client_fd;
+									alias_key->network->socket_type = ng->socket_type;
+									alias_key->network->seqend = 0;
 
-                                // it could be a passive socket
-                                sll_init(void_ptr, alias_key->network->out_events);
+									// it could be a passive socket
+									sll_init(void_ptr, alias_key->network->out_events);
 
-                                // set non blocking
-                                int current_flags = fcntl(client_fd, F_GETFL);
-                                current_flags |= O_NONBLOCK;
-                                fcntl(client_fd, F_SETFL, current_flags);
+									// set non blocking
+									int current_flags = fcntl(client_fd, F_GETFL);
+									current_flags |= O_NONBLOCK;
+									fcntl(client_fd, F_SETFL, current_flags);
 
-                                alias_key->network->initialized = true;
-                                alias_key->network->type = np_network_type_server;
-                            }
-                            _LOCK_ACCESS(&alias_key->network->waiting_lock) {
-                                alias_key->network->waiting = np_tree_create();
-                            }
-                        }
+									alias_key->network->initialized = true;
+									alias_key->network->type = np_network_type_server;
+								}
+								_LOCK_ACCESS(&alias_key->network->waiting_lock) {
+									alias_key->network->waiting = np_tree_create();
+								}
+							}
 
-                        _np_network_set_key(alias_key->network, alias_key);
-                        log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is receiving2", alias_key->network, alias_key->network->socket);
+							_np_network_set_key(alias_key->network, alias_key);
+							log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is receiving2", alias_key->network, alias_key->network->socket);
 
-                        ev_io_init(
-                            &alias_key->network->watcher,
-                            _np_network_read,
-                            alias_key->network->socket,
-                            EV_READ
-                        );
-                        _np_network_start(alias_key->network);
+							ev_io_init(
+								&alias_key->network->watcher,
+								_np_network_read,
+								alias_key->network->socket,
+								EV_READ
+							);
+							_np_network_start(alias_key->network);
 
-                        if (old_network != NULL) {
-                            np_unref_obj(np_network_t, old_network, ref_key_network);
-                        }
+							if (old_network != NULL) {
+								np_unref_obj(np_network_t, old_network, ref_key_network);
+							}
 
-                        log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                            "created network for key: %s and watching it.", _np_key_as_str(alias_key));
+							log_debug_msg(LOG_NETWORK | LOG_DEBUG,
+								"created network for key: %s and watching it.", _np_key_as_str(alias_key));
 
-                        np_unref_obj(np_key_t, alias_key, alias_key_reason);
-                    }
+							np_unref_obj(np_key_t, alias_key, alias_key_reason);
+						}
+					}
                     else {
                         log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (SO_KEEPALIVE): %s: ", strerror(errno));
                     }
@@ -657,13 +671,13 @@ struct __np_network_data {
 
 void _np_network_bidirektional(struct ev_loop *loop, ev_io *event, int revents) {
 
-    if (!(revents & EV_ERROR)) 
+    if (!FLAG_CMP(revents, EV_ERROR)) 
     {
-        if ((revents & EV_READ)) 
+        if (FLAG_CMP(revents, EV_READ))
         {
             _np_network_read(loop, event, revents);
         }
-        if ((revents & EV_WRITE)) 
+        if (FLAG_CMP(revents, EV_WRITE))
         {
             _np_network_send_from_events(loop, event, revents);
         }
@@ -1144,10 +1158,14 @@ bool _np_network_init (np_network_t* ng, bool create_server, uint8_t type, char*
         }
 
         if ((type & TCP) == TCP) {
+			int optval;
 #ifdef SO_NOSIGPIPE
-            int set = 1;
-            setsockopt(ng->socket, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
+			optval = 1;
+            setsockopt(ng->socket, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(optval));
 #endif
+			
+			
+
 
             if (0 > listen(ng->socket, 10)) {
                 log_msg(LOG_ERROR, "listen on tcp port failed: %s:", strerror(errno));
@@ -1212,9 +1230,8 @@ bool _np_network_init (np_network_t* ng, bool create_server, uint8_t type, char*
             optval = 1;
             if (setsockopt(ng->socket, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) < 0) {
                 log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (SO_KEEPALIVE): %s: ", strerror(errno));
-            }
+            }		
         }
-
             // set non blocking
             int current_flags = fcntl(ng->socket, F_GETFL);
             current_flags |= O_NONBLOCK;
