@@ -148,7 +148,7 @@ char* np_network_get_ip(np_key_t * container);
 NP_API_INTERN
 char* np_network_get_port(np_key_t * container);
 NP_API_INTERN
-bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key);
+bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool reconnect);
 NP_API_INTERN
 void _np_network_disable(np_network_t* self);
 NP_API_INTERN

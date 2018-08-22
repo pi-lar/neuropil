@@ -687,11 +687,6 @@ NP_UNUSED int event_type) {
         new_client->client_fd = accept(__local_http->network->socket,
                 (struct sockaddr*) &from, &fromlen);
 
-#ifdef SO_NOSIGPIPE
-		int set = 1;
-		setsockopt(new_client->client_fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
-#endif
-
 		if (new_client->client_fd < 0) {
             free(new_client);
 

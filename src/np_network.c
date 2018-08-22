@@ -257,7 +257,7 @@ void _np_network_get_address(
 //    return (addr);
 }
 
-bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key)
+bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool reconnect)
 {
     bool ret = false;
     _LOCK_MODULE(np_handshake_t) {
@@ -267,6 +267,7 @@ bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key)
                 np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
 
                 if (node_key->node->handshake_status == np_handshake_status_Disconnected ||
+					(reconnect && node_key->node->handshake_status == np_handshake_status_Connected) || 
                     (node_key->node->handshake_status == np_handshake_status_SelfInitiated && now > (node_key->node->handshake_send_at + msg_prop->msg_ttl)))
                 {
                     log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
@@ -392,7 +393,7 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
             }
         }
     } else {
-		_np_network_send_handshake(context, node_key);
+		_np_network_send_handshake(context, node_key, false);
         log_debug_msg(LOG_WARN, "network and handshake status of target is unclear (key: %s)", _np_key_as_str(node_key));
     }
 
@@ -541,10 +542,6 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
                     ng->socket, client_fd
                 );
                 int optval;
-#ifdef SO_NOSIGPIPE				
-                optval = 1;
-                if (setsockopt(client_fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(optval)) < 0) {
-#endif
                     optval = 1;
 					if (setsockopt(client_fd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) >= 0) {
 
@@ -645,13 +642,6 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
                     else {
                         log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (SO_KEEPALIVE): %s: ", strerror(errno));
                     }
-#ifdef SO_NOSIGPIPE				
-                }
-                else {
-                log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (SO_NOSIGPIPE): %s: ", strerror(errno));
-
-                }
-#endif
             }
             np_unref_obj(np_network_t, ng, "np_tryref_obj_key_network");
         }
@@ -1158,12 +1148,7 @@ bool _np_network_init (np_network_t* ng, bool create_server, uint8_t type, char*
         }
 
         if ((type & TCP) == TCP) {
-			int optval;
-#ifdef SO_NOSIGPIPE
-			optval = 1;
-            setsockopt(ng->socket, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(optval));
-#endif
-			
+			int optval;	
 			
 
 
@@ -1221,12 +1206,6 @@ bool _np_network_init (np_network_t* ng, bool create_server, uint8_t type, char*
         }
         int optval;
         if ((type & TCP) == TCP) {
-#ifdef SO_NOSIGPIPE
-            optval = 1;
-            if (setsockopt(ng->socket, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(optval)) < 0) {
-                log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (SO_NOSIGPIPE): %s: ", strerror(errno));
-            }
-#endif
             optval = 1;
             if (setsockopt(ng->socket, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) < 0) {
                 log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (SO_KEEPALIVE): %s: ", strerror(errno));

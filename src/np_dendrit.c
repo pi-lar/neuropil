@@ -182,12 +182,12 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
             else {
                 log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION,
                     "HANDSHAKE SECRET: using no shared secret (%s) as %s",
-						NULL != alias_key ? "no alias key is provided":
-						NULL != alias_key->aaa_token ? "alias key has no aaatoken" :
-						IS_VALID(alias_key->aaa_token->state) ? "alias key token is not valid" :
-						alias_key->node->session_key_is_set == true ? "alias key node has no session key" :
+						NULL == alias_key ? "no alias key is provided":
+						NULL == alias_key->aaa_token ? "alias key has no aaatoken" :
+						!(IS_VALID(alias_key->aaa_token->state)) ? "alias key token is not valid" :
+						alias_key->node->session_key_is_set != true ? "alias key node has no session key" :
 						"no reason available",
-                    np_memory_get_id(alias_key)
+					alias_key == NULL ?"NULL":_np_key_as_str(alias_key)
                 );
             }
             
@@ -2319,7 +2319,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                 */
                 // mark as valid to identify existing connections
                 msg_source_key->aaa_token->state |= AAA_VALID;
-                _np_network_send_handshake(context, msg_source_key);
+                _np_network_send_handshake(context, msg_source_key, true);
 
 				msg_source_key->node->handshake_status = np_handshake_status_Connected;
 				
