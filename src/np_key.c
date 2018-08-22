@@ -101,12 +101,12 @@ void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
  */
 void _np_key_destroy(np_key_t* to_destroy) {
 	np_ctx_memory(to_destroy);
-
+	char* keyident = NULL;
 	TSP_SCOPE(to_destroy->in_destroy)
 	{
 		to_destroy->in_destroy = true;
 
-		char* keyident = _np_key_as_str(to_destroy);
+		keyident = _np_key_as_str(to_destroy);
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
 
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "refcount of key %s at destroy: %"PRIu32, keyident, np_memory_get_refcount(to_destroy));
@@ -161,15 +161,18 @@ void _np_key_destroy(np_key_t* to_destroy) {
 	sll_iterator(np_key_ptr) iter = sll_first(aliasse);
 
 	while (iter != NULL) {
-		_np_key_destroy(iter->val);
+		log_debug_msg(LOG_KEY | LOG_DEBUG, "destroy of key %s as identified as alias for %s", _np_key_as_str(iter->val), keyident);
+
+		np_unref_obj(np_key_t, iter->val->parent_key, ref_key_parent);
+		iter->val->parent_key = NULL;
 		np_unref_obj(np_key_t, iter->val, "_np_keycache_find_aliase");
 		sll_next(iter);
 	}
 	sll_free(np_key_ptr, aliasse);
 
-	if (to_destroy->parent != NULL) {
-		np_unref_obj(np_key_t, to_destroy->parent, ref_key_parent);
-		to_destroy->parent = NULL;
+	if (to_destroy->parent_key != NULL) {
+		np_unref_obj(np_key_t, to_destroy->parent_key, ref_key_parent);
+		to_destroy->parent_key = NULL;
 	}
 
 	log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
@@ -200,7 +203,7 @@ void _np_key_t_new(np_state_t *context, uint8_t type, size_t size, void* key)
 	new_key->send_tokens = NULL; // link to runtime interest data on which this node is interested in
 	new_key->recv_tokens = NULL; // link to runtime interest data on which this node is interested in
 
-	new_key->parent = NULL;
+	new_key->parent_key = NULL;
 	new_key->created_at = np_time_now();
 	log_debug_msg(LOG_KEY | LOG_DEBUG, "Created new key");
 

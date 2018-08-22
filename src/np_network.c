@@ -592,7 +592,7 @@ void _np_network_accept(struct ev_loop *loop,  ev_io *event, int revents)
 									// init new alias key
 									alias_key = _np_keycache_create(context, search_key);
 									alias_key_reason = "_np_keycache_create";
-									alias_key->parent = key;
+									alias_key->parent_key = key;
 									np_ref_obj(np_key_t, key, ref_key_parent);
 								}
 								np_new_obj(np_network_t, alias_key->network);
@@ -744,7 +744,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 						strerror(errno), errno);
 					return;
 				}			
-				key = key->parent;
+				key = key->parent_key;
 				data_container->ng_tcp_host = ng;
 			}
 			if (key != NULL) ng = key->network;			
@@ -837,7 +837,7 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args) 
                 alias_key_ref_reason = "_np_keycache_create";
                 alias_key->type |= np_key_type_alias;
                 np_ref_obj(np_key_t, data_container->key, ref_key_parent);
-                alias_key->parent = data_container->key;
+                alias_key->parent_key = data_container->key;
             }
             TSP_GET(bool, alias_key->in_destroy, in_destroy);
 			
@@ -1297,8 +1297,8 @@ char* np_network_get_ip(np_key_t * container) {
         ret = container->network->ip;
     }
 
-    if (ret == NULL && container->parent != NULL && container->parent->network != NULL) {
-        ret = container->parent->network->ip;
+    if (ret == NULL && container->parent_key != NULL && container->parent_key->network != NULL) {
+        ret = container->parent_key->network->ip;
     }
 
     if (ret == NULL)
@@ -1316,8 +1316,8 @@ char* np_network_get_port(np_key_t * container) {
         ret = container->network->port;
     }
 
-    if (ret == NULL && container->parent != NULL && container->parent->network != NULL) {
-        ret = container->parent->network->port;
+    if (ret == NULL && container->parent_key != NULL && container->parent_key->network != NULL) {
+        ret = container->parent_key->network->port;
     }
 
     if (ret == NULL)

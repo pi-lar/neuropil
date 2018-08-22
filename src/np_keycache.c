@@ -220,7 +220,7 @@ sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)
 		{
 			TSP_GET(bool, iter->in_destroy, in_destroy);
 
-			if (_np_key_cmp(iter->parent, forKey) == 0 && in_destroy == false)
+			if (_np_key_cmp(iter->parent_key, forKey) == 0 && in_destroy == false)
 			{
 				np_ref_obj(np_key_t, iter);
 				sll_append(np_key_ptr, ret, iter);

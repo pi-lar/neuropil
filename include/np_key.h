@@ -79,7 +79,7 @@ struct np_key_s
 	/*
 	 * Holds a reference to the parent if the key is an alias key.
 	 */
-	np_key_t* parent;
+	np_key_t* parent_key;
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_key_t);

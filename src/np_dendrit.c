@@ -181,7 +181,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
             }
             else {
                 log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION,
-                    "HANDSHAKE SECRET: using no shared secret (%s) as %s",
+                    "HANDSHAKE SECRET: using no shared secret (%s) used alias: %s",
 						NULL == alias_key ? "no alias key is provided":
 						NULL == alias_key->aaa_token ? "alias key has no aaatoken" :
 						!(IS_VALID(alias_key->aaa_token->state)) ? "alias key token is not valid" :
@@ -716,7 +716,8 @@ void _np_in_leave_req(np_state_t* context, np_jobargs_t* args)
                 leave_req_key->node->handshake_status = np_handshake_status_Disconnected;
                 leave_req_key->node->session_key_is_set = false;
 
-                _np_key_destroy(leave_req_key);
+				log_debug_msg(LOG_KEY | LOG_DEBUG, "destroy key %s due to leave msg (%s) ", _np_key_as_str(leave_req_key), args->msg->uuid);
+				_np_key_destroy(leave_req_key);
             }
             np_unref_obj(np_key_t, leave_req_key, "_np_keycache_find");
         }
@@ -2202,9 +2203,9 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                         // msg_source_key->aaa_token = hs_wildcard_key->aaa_token;
                         hs_wildcard_key->aaa_token = NULL;
 
-                        if (msg_source_key->parent == NULL) {
-                            msg_source_key->parent = hs_wildcard_key->parent;
-                            hs_wildcard_key->parent = NULL;
+                        if (msg_source_key->parent_key == NULL) {
+                            msg_source_key->parent_key = hs_wildcard_key->parent_key;
+                            hs_wildcard_key->parent_key = NULL;
                         }
                         _np_network_remap_network(msg_source_key, hs_wildcard_key);
                     }
