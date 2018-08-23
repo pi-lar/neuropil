@@ -131,7 +131,7 @@ void checkGPIO(np_context * context) {
 		uint8_t nvalue_green = bcm2835_gpio_lev(BUTTON_GPIO_GREEN_IN);
 		if (nvalue_green != value_green) { value_green = nvalue_green; invoke_btn_green(context, value_green); }
 		uint8_t nvalue_red = bcm2835_gpio_lev(BUTTON_GPIO_RED_IN);
-		if (nvalue_red != value_red) { nvalue_red = nvalue_red; invoke_btn_red(context, nvalue_red); }
+		if (nvalue_red != value_red) { value_red = nvalue_red; invoke_btn_red(context, nvalue_red); }
 
 		if (is_data_pressed) {
 			int now = (np_time_now());
