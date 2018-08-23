@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-tmux start-server
-tmux kill-session -t "autostart"
+tmux start-server || true
+tmux kill-session -t "autostart" || true
 tmux new-session -d -s "autostart" ./invoke.bash
