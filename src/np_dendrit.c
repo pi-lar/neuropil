@@ -482,6 +482,7 @@ void _np_in_piggy(np_state_t* context, np_jobargs_t* args)
 
         // TODO: those new entries in the piggy message must be authenticated before sending join requests
         if (false == _np_dhkey_equal(&node_entry->dhkey, &my_key->dhkey) &&
+        		!FLAG_CMP(node_entry->node->protocol, PASSIVE) &&
             false == node_entry->node->joined_network)
         {
             // just record nodes in the network or send an join request as well ?
@@ -1271,7 +1272,7 @@ void _np_in_update(np_state_t* context, np_jobargs_t* args)
 
     if (NULL != update_key &&
         NULL != update_key->node &&
-        update_key->node->handshake_status == np_handshake_status_Connected &&
+		!FLAG_CMP(update_key->node->protocol, PASSIVE) &&
         false == update_key->node->joined_network)
     {
         // do not join myself
