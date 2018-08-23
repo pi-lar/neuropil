@@ -130,7 +130,7 @@ void checkGPIO(np_context * context) {
 		if (nvalue_red != value_red) { nvalue_red = nvalue_red; invoke_btn_red(context, nvalue_red); }
 
 		if (is_data_pressed) {
-			int now = np_time_now();
+			int now = (np_time_now());
 			if (now % 2 == 0) {
 				bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
 			}
