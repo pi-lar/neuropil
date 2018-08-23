@@ -479,7 +479,7 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 
 				char* packet = np_memory_new(context, np_memory_types_BLOB_1024);
 
-				_LOCK_ACCESS(&hs_message->msg_chunks_lock) {
+                _LOCK_ACCESS(&hs_message->msg_chunks_lock) {
 					memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 				}
 
@@ -497,6 +497,17 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 						np_memory_free(packet);
 					}
 				}
+
+				if (args->target->node->handshake_status == np_handshake_status_RemoteInitiated)
+                	{
+                		args->target->node->handshake_status = np_handshake_status_Connected;
+                	}
+				if (args->target->node->handshake_status == np_handshake_status_Disconnected)
+				{
+                		args->target->node->handshake_status = np_handshake_status_SelfInitiated;
+                		args->target->node->handshake_send_at = np_time_now();
+                	}
+
 				_np_message_trace_info("out", hs_message);
 				__np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);
 			}

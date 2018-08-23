@@ -2306,8 +2306,6 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                 alias_key->node = msg_source_key->node;
                 np_ref_obj(np_node_t, msg_source_key->node, ref_key_node);
 
-            
-
                 // copy over session key
                 log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION, "HANDSHAKE SECRET: setting shared secret on %s and alias %s on system %s",
                     _np_key_as_str(msg_source_key), _np_key_as_str(alias_key), _np_key_as_str(context->my_node_key));
@@ -2321,12 +2319,20 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                 */
                 // mark as valid to identify existing connections
                 msg_source_key->aaa_token->state |= AAA_VALID;
-                _np_network_send_handshake(context, msg_source_key, true);
 
-                msg_source_key->node->handshake_status = np_handshake_status_Connected;
-                
+				if (args->target->node->handshake_status == np_handshake_status_SelfInitiated) {
+                		args->target->node->handshake_status = np_handshake_status_Connected;
+    					_np_network_send_handshake(context, msg_source_key, false);
 
-                log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
+				} else if (args->target->node->handshake_status == np_handshake_status_Disconnected) {
+            			args->target->node->handshake_status = np_handshake_status_RemoteInitiated;
+    					_np_network_send_handshake(context, msg_source_key, false);
+
+                	} else if (args->target->node->handshake_status == np_handshake_status_Connected) {
+					_np_network_send_handshake(context, msg_source_key, true);
+				}
+
+				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
                     _np_key_as_str(msg_source_key), _np_key_as_str(alias_key));
             }
         }

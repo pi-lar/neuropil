@@ -267,21 +267,19 @@ bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool re
                 np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
 
                 if (node_key->node->handshake_status == np_handshake_status_Disconnected ||
-					(reconnect && node_key->node->handshake_status == np_handshake_status_Connected) || 
-                    (node_key->node->handshake_status == np_handshake_status_SelfInitiated && now > (node_key->node->handshake_send_at + msg_prop->msg_ttl)))
+                		node_key->node->handshake_status == np_handshake_status_RemoteInitiated ||
+                		(reconnect && node_key->node->handshake_status == np_handshake_status_Connected) ||
+					(node_key->node->handshake_status == np_handshake_status_SelfInitiated && now > (node_key->node->handshake_send_at + msg_prop->msg_ttl)))
                 {
                     log_msg(LOG_NETWORK | LOG_INFO, "requesting a %shandshake with %s:%s (%s)",
 						reconnect ?"new ":"",
                         node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
 
-                    node_key->node->handshake_status = np_handshake_status_SelfInitiated;
-                    node_key->node->handshake_send_at = now;
-
                     _np_job_submit_transform_event(context, 0.0, msg_prop, node_key, NULL);
                     ret = true;
                 }
                 else {
-                    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for alias %s requested, but alias in state %s", _np_key_as_str(node_key),
+                	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for alias %s requested, but alias in state %s", _np_key_as_str(node_key),
                         node_key->node->handshake_status == np_handshake_status_Connected ? "Connected" :
                         node_key->node->handshake_status == np_handshake_status_RemoteInitiated ? "RemoteInitiated" :
                         node_key->node->handshake_status == np_handshake_status_SelfInitiated ? "SelfInitiated" :
@@ -363,10 +361,10 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
                                 if (NULL != node_key->network->out_events) {
                                     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "appending message (%s part: %d) %p (%d bytes) to queue for %s:%s", msg->uuid, part, enc_buffer, MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
 									char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
-									log_debug_msg(LOG_DEBUG | LOG_VERBOSE | LOG_NETWORK,
+
+									log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 										"(msg: %s) %s",
 										msg->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, enc_buffer, MSG_CHUNK_SIZE_1024));
-
 
                                     sll_append(void_ptr, node_key->network->out_events, (void*)enc_buffer);                                    
                                     ret = true;
