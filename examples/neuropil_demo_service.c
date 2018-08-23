@@ -46,6 +46,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
 
+bool receive_play_sound(np_context* context, struct np_message* message);
 bool receive_echo_message(np_context* context,struct np_message* message);
 bool receive_pong(np_context* ac, struct np_message* message);
 bool receive_ping(np_context* ac, struct np_message* message);
@@ -108,6 +109,11 @@ int main(int argc, char **argv) {
 	pong_props.message_ttl = 5.0;
 	np_set_mx_properties(context, "pong", pong_props);
 
+
+	np_add_receive_cb(context, "play_sound", receive_play_sound);
+
+
+
 	if (np_ok != np_run(context, 0)) {
 		np_example_print(context, stderr, "ERROR: Node could not start");
 		exit(EXIT_FAILURE);
@@ -140,4 +146,9 @@ bool receive_pong(np_context* context, struct np_message* message)
 	np_send_text(context, "ping", "ping", _ping_count, &message->from);
 
 	return true;
+}
+
+bool receive_play_sound(np_context* context, struct np_message* message)
+{
+	printf("\a");
 }

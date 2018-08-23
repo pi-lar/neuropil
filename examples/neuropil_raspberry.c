@@ -1,3 +1,4 @@
+
 //
 // neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
@@ -35,8 +36,12 @@
 
 #include "example_helper.c"
 
-#define LED_GPIO_GREEN 23
-#define LED_GPIO_YELLOW 18
+#define LED_GPIO_GREEN 24
+#define LED_GPIO_YELLOW 23
+#define LED_GPIO_BUTTON 22
+#define BUTTON_GPIO_DATA_IN 27
+#define BUTTON_GPIO_RED_IN 18
+#define BUTTON_GPIO_GREEN_IN 17
 
 static bool is_gpio_enabled = false;
 static pthread_mutex_t gpio_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -85,6 +90,90 @@ bool receive_pong(np_context* context, struct np_message* message)
 	return true;
 }
 
+
+bool is_data_pressed = false;
+bool receive_data_button_pressed(np_context* context, struct np_message* message) {
+	is_data_pressed = true;
+}
+
+bool receive_data_button_reset(np_context* context, struct np_message* message) {
+	is_data_pressed = false;
+
+}
+
+void invoke_btn_data(np_context* context, uint8_t value) {	
+	np_send(context, "blue_button_pressed", "test", 5);
+}
+
+void invoke_btn_green(np_context* context, uint8_t value) {
+	np_send(context, "blue_button_reset", "test", 5);
+	np_send(context, "play_sound", "test", 5);
+}
+
+void invoke_btn_red(np_context* context, uint8_t value) {
+	np_send(context, "blue_button_reset", "test", 5);
+}
+
+uint8_t value_data  = 0;
+uint8_t value_green = 0;
+uint8_t value_red   = 0;
+
+void checkGPIO(np_context * context) {
+	if (is_gpio_enabled) {
+
+		uint8_t nvalue_data  = bcm2835_gpio_lev(BUTTON_GPIO_DATA_IN);
+		if (nvalue_data != value_data) { value_data = nvalue_data; invoke_btn_data(context, value_data); }
+		uint8_t nvalue_green = bcm2835_gpio_lev(BUTTON_GPIO_GREEN_IN);
+		if (nvalue_green != value_green) { value_green = nvalue_green; invoke_btn_green(context, value_green); }
+		uint8_t nvalue_red   = bcm2835_gpio_lev(BUTTON_GPIO_RED_IN);
+		if (nvalue_red != value_red) { nvalue_red = nvalue_red; invoke_btn_red(context, nvalue_red); }
+	}
+}
+
+void initGPIO(np_context * context) {
+	if (1 != bcm2835_init()) {
+		np_example_print(context, stdout, "GPIO NOT initiated\n");
+		is_gpio_enabled = false;
+	}
+	else {
+
+		//BUTTONs
+		bcm2835_gpio_set_pud(BUTTON_GPIO_DATA_IN, BCM2835_GPIO_PUD_DOWN);
+		bcm2835_gpio_set_pud(BUTTON_GPIO_GREEN_IN, BCM2835_GPIO_PUD_DOWN);
+		bcm2835_gpio_set_pud(BUTTON_GPIO_RED_IN, BCM2835_GPIO_PUD_DOWN);
+		bcm2835_gpio_fsel(BUTTON_GPIO_DATA_IN, BCM2835_GPIO_FSEL_INPT);
+		bcm2835_gpio_fsel(BUTTON_GPIO_GREEN_IN, BCM2835_GPIO_FSEL_INPT);
+		bcm2835_gpio_fsel(BUTTON_GPIO_RED_IN, BCM2835_GPIO_FSEL_INPT);
+
+		// LEDs
+		bcm2835_gpio_set_pud(LED_GPIO_GREEN, BCM2835_GPIO_PUD_OFF);
+		bcm2835_gpio_set_pud(LED_GPIO_YELLOW, BCM2835_GPIO_PUD_OFF);
+		bcm2835_gpio_set_pud(LED_GPIO_BUTTON, BCM2835_GPIO_PUD_OFF);
+		bcm2835_gpio_fsel(LED_GPIO_GREEN, BCM2835_GPIO_FSEL_OUTP);
+		bcm2835_gpio_fsel(LED_GPIO_YELLOW, BCM2835_GPIO_FSEL_OUTP);
+		bcm2835_gpio_fsel(LED_GPIO_BUTTON, BCM2835_GPIO_FSEL_OUTP);
+		// init blinking
+		int i = 5;
+		while (--i > 0) {
+			bcm2835_gpio_write(LED_GPIO_BUTTON, HIGH);
+			bcm2835_gpio_write(LED_GPIO_GREEN, HIGH);
+			bcm2835_gpio_write(LED_GPIO_YELLOW, HIGH);
+			np_time_sleep(0.1);
+			bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
+			bcm2835_gpio_write(LED_GPIO_GREEN, LOW);
+			bcm2835_gpio_write(LED_GPIO_YELLOW, LOW);
+			np_time_sleep(0.1);
+		}
+		bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
+		bcm2835_gpio_write(LED_GPIO_GREEN, LOW);
+		bcm2835_gpio_write(LED_GPIO_YELLOW, LOW);
+
+		np_example_print(context, stdout, "GPIO initiated\n");
+	}
+	np_sysinfo_enable_client(context);
+}
+
+
 int main(int argc, char **argv)
 {
 	int no_threads = 8;
@@ -95,6 +184,7 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 	char* is_gpio_enabled_opt = "1234";
+	char* opt_instance_no = "1";
 
 	if (parse_program_args(
 		__FILE__,
@@ -107,9 +197,10 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-g 0 / 1 enables or disables GPIO support]",
-		"g:",
-		&is_gpio_enabled_opt
+		"[-g 0 / 1 enables or disables GPIO support] [-k instance no]",
+		"g:k:",
+		&is_gpio_enabled_opt,
+		&opt_instance_no
 	) == false) {
 		exit(EXIT_FAILURE);
 	}	
@@ -135,31 +226,7 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 	if(is_gpio_enabled == true) {
-
-		if( 1 != bcm2835_init()) {
-			np_example_print(context, stdout, "GPIO NOT initiated\n");
-			is_gpio_enabled = false;
-		} else {
-			bcm2835_gpio_set_pud(LED_GPIO_GREEN,  BCM2835_GPIO_PUD_OFF);
-			bcm2835_gpio_set_pud(LED_GPIO_YELLOW, BCM2835_GPIO_PUD_OFF);
-			bcm2835_gpio_fsel(LED_GPIO_GREEN,  BCM2835_GPIO_FSEL_OUTP);
-			bcm2835_gpio_fsel(LED_GPIO_YELLOW, BCM2835_GPIO_FSEL_OUTP);
-
-			int i = 5;
-			while(--i>0){
-				bcm2835_gpio_write(LED_GPIO_GREEN, LOW);
-				bcm2835_gpio_write(LED_GPIO_YELLOW,HIGH);
-				np_time_sleep(0.1);
-				bcm2835_gpio_write(LED_GPIO_GREEN, HIGH);
-				bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
-				np_time_sleep(0.1);
-			}
-			bcm2835_gpio_write(LED_GPIO_GREEN, LOW);
-			bcm2835_gpio_write(LED_GPIO_YELLOW,LOW);
-
-			np_example_print(context, stdout, "GPIO initiated\n");
-		}
-		np_sysinfo_enable_client(context);
+		initGPIO(context);
 	} else {
 
 		// get public / local network interface id		
@@ -212,10 +279,6 @@ int main(int argc, char **argv)
 	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping");
 	ping_props.ackmode = NP_MX_ACK_NONE;
 	ping_props.message_ttl = 5.0;
-	//ping_props.retry = 1;
-	//ping_props.max_threshold = 150;
-	//ping_props.token_max_ttl = 60;
-	//ping_props.token_min_ttl = 30;
 	np_set_mx_properties(context, "ping", ping_props);
 
  	//register the listener function to receive data from the sender
@@ -223,11 +286,19 @@ int main(int argc, char **argv)
 	struct np_mx_properties  pong_props = np_get_mx_properties(context, "pong");
 	pong_props.ackmode = NP_MX_ACK_NONE;
 	pong_props.message_ttl = 5.0;
-	//pong_props->retry = 1;
-	//pong_props->max_threshold = 150;
-	//pong_props->token_max_ttl = 60;
-	//pong_props->token_min_ttl = 30;
 	np_set_mx_properties(context, "pong", pong_props);
+
+
+	if (strcmp(opt_instance_no, "1") == 0) {
+		np_add_receive_cb(context, "blue_button_pressed", receive_data_button_pressed);
+		np_send(context, "blue_button_reset", "test", 5);		
+	}
+	else if (strcmp(opt_instance_no, "2") == 0) {
+		np_add_receive_cb(context, "blue_button_reset", receive_data_button_reset);
+		np_send(context, "blue_button_pressed", "test", 5);
+	}
+	
+
 	
 	np_statistics_add_watch(context, "ping");
 	np_statistics_add_watch(context, "pong");
@@ -247,9 +318,10 @@ int main(int argc, char **argv)
 	last_response_or_invokation  = now;
 
 	while (true) {
+		checkGPIO(context);
 		__np_example_helper_loop(context);
 		i += 1;
-		np_time_sleep(0.01);
+		np_time_sleep(0.001);
 		now = np_time_now();
 		if ((now - last_response_or_invokation) > ping_props.message_ttl) {
 
