@@ -112,8 +112,6 @@ int main(int argc, char **argv) {
 
 	np_add_receive_cb(context, "play_sound", receive_play_sound);
 
-
-
 	if (np_ok != np_run(context, 0)) {
 		np_example_print(context, stderr, "ERROR: Node could not start");
 		exit(EXIT_FAILURE);
