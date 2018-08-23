@@ -101,20 +101,21 @@ bool receive_data_button_reset(np_context* context, struct np_message* message) 
 }
 
 void invoke_btn_data(np_context* context, uint8_t value) {	
-	np_send(context, "blue_button_pressed", "test", 5);
+
+	if(value == 0) np_send(context, "blue_button_pressed", "test", 5);
 	np_example_print(context, stdout, "Blue  button pressed %d ", value);	
 }
 
 void invoke_btn_green(np_context* context, uint8_t value) {
 	is_data_pressed = false;
-	np_send(context, "blue_button_reset", "test", 5);
-	np_send(context, "play_sound", "test", 5);
+	if (value == 0) np_send(context, "blue_button_reset", "test", 5);
+	if (value == 0) np_send(context, "play_sound", "test", 5);
 	np_example_print(context, stdout, "Green button pressed %d ", value);
 }
 
 void invoke_btn_red(np_context* context, uint8_t value) {
 	is_data_pressed = false;
-	np_send(context, "blue_button_reset", "test", 5);
+	if (value == 0) np_send(context, "blue_button_reset", "test", 5);
 	np_example_print(context, stdout, "Red   button pressed %d ", value);	
 }
 
