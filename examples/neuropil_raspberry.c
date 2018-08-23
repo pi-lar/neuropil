@@ -264,29 +264,10 @@ int main(int argc, char **argv)
 
 	if (NULL != j_key)
 	{
-
-		do {
 			np_example_print(context, stdout, "try to join bootstrap node\n");
 			np_join(context, j_key);
 
-			int timeout = 100;
-			while (timeout > 0 && false == ((np_state_t*)context)->my_node_key->node->joined_network) {
-				// wait for join acceptance
-				np_time_sleep(0.1);
-				timeout--;
-			}
-
-			if(false == ((np_state_t*)context)->my_node_key->node->joined_network ) {
-				np_example_print(context, stderr, "%s could not join network!\n",port);
-			}
-		} while (false == ((np_state_t*)context)->my_node_key->node->joined_network) ;
-		np_example_print(context, stdout, "connected to bootstrap node\n");
-	} else {
-		np_example_print(context, stdout, "Node waits for connections.\n");
-		np_example_print(context, stdout, "Please start another node with the following arguments:\n");
-		np_example_print(context, stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string(context));
 	}
-
 	
 	//register the listener function to receive data from the sender
 	np_add_receive_cb(context, "ping", receive_ping);
@@ -312,14 +293,9 @@ int main(int argc, char **argv)
 		np_send(context, "blue_button_pressed", "test", 5);
 	}
 	
-
-	
 	np_statistics_add_watch(context, "ping");
 	np_statistics_add_watch(context, "pong");
 	
-	np_waitforjoin(context);
-
-	fprintf(stdout, "Connection established.\n");
 
 	fprintf(stdout, "Sending initial ping.\n");
 	log_msg(LOG_INFO, "Sending initial ping");
