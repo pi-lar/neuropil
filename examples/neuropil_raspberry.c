@@ -98,7 +98,6 @@ bool receive_data_button_pressed(np_context* context, struct np_message* message
 
 bool receive_data_button_reset(np_context* context, struct np_message* message) {
 	is_data_pressed = false;
-
 }
 
 void invoke_btn_data(np_context* context, uint8_t value) {	
@@ -106,11 +105,13 @@ void invoke_btn_data(np_context* context, uint8_t value) {
 }
 
 void invoke_btn_green(np_context* context, uint8_t value) {
+	is_data_pressed = false;
 	np_send(context, "blue_button_reset", "test", 5);
 	np_send(context, "play_sound", "test", 5);
 }
 
 void invoke_btn_red(np_context* context, uint8_t value) {
+	is_data_pressed = false;
 	np_send(context, "blue_button_reset", "test", 5);
 }
 
@@ -121,12 +122,25 @@ uint8_t value_red   = 0;
 void checkGPIO(np_context * context) {
 	if (is_gpio_enabled) {
 
-		uint8_t nvalue_data  = bcm2835_gpio_lev(BUTTON_GPIO_DATA_IN);
+		uint8_t nvalue_data = bcm2835_gpio_lev(BUTTON_GPIO_DATA_IN);
 		if (nvalue_data != value_data) { value_data = nvalue_data; invoke_btn_data(context, value_data); }
 		uint8_t nvalue_green = bcm2835_gpio_lev(BUTTON_GPIO_GREEN_IN);
 		if (nvalue_green != value_green) { value_green = nvalue_green; invoke_btn_green(context, value_green); }
-		uint8_t nvalue_red   = bcm2835_gpio_lev(BUTTON_GPIO_RED_IN);
+		uint8_t nvalue_red = bcm2835_gpio_lev(BUTTON_GPIO_RED_IN);
 		if (nvalue_red != value_red) { nvalue_red = nvalue_red; invoke_btn_red(context, nvalue_red); }
+
+		if (is_data_pressed) {
+			int now = np_time_now();
+			if (now % 2 == 0) {
+				bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
+			}
+			else {
+				bcm2835_gpio_write(LED_GPIO_BUTTON, HIGH);
+			}
+		}
+		else {
+			bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
+		}
 	}
 }
 
