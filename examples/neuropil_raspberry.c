@@ -118,9 +118,9 @@ void invoke_btn_red(np_context* context, uint8_t value) {
 	np_example_print(context, stdout, "Red   button pressed %d ", value);	
 }
 
-uint8_t value_data  = 0;
-uint8_t value_green = 0;
-uint8_t value_red   = 0;
+uint8_t value_data  = 1;
+uint8_t value_green = 1;
+uint8_t value_red   = 1;
 
 void checkGPIO(np_context * context) {
 	if (is_gpio_enabled) {
@@ -155,9 +155,9 @@ void initGPIO(np_context * context) {
 	else {
 
 		//BUTTONs
-		bcm2835_gpio_set_pud(BUTTON_GPIO_BLUE_IN, BCM2835_GPIO_PUD_DOWN);
-		bcm2835_gpio_set_pud(BUTTON_GPIO_GREEN_IN, BCM2835_GPIO_PUD_DOWN);
-		bcm2835_gpio_set_pud(BUTTON_GPIO_RED_IN, BCM2835_GPIO_PUD_DOWN);
+		bcm2835_gpio_set_pud(BUTTON_GPIO_BLUE_IN, BCM2835_GPIO_PUD_UP);
+		bcm2835_gpio_set_pud(BUTTON_GPIO_GREEN_IN, BCM2835_GPIO_PUD_UP);
+		bcm2835_gpio_set_pud(BUTTON_GPIO_RED_IN, BCM2835_GPIO_PUD_UP);
 		bcm2835_gpio_fsel(BUTTON_GPIO_BLUE_IN, BCM2835_GPIO_FSEL_INPT);
 		bcm2835_gpio_fsel(BUTTON_GPIO_GREEN_IN, BCM2835_GPIO_FSEL_INPT);
 		bcm2835_gpio_fsel(BUTTON_GPIO_RED_IN, BCM2835_GPIO_FSEL_INPT);
