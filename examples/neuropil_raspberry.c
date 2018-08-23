@@ -287,12 +287,17 @@ int main(int argc, char **argv)
 	if (strcmp(opt_instance_no, "1") == 0) {
 		np_add_receive_cb(context, "blue_button_pressed", receive_data_button_pressed);
 		np_send(context, "blue_button_reset", "test", 5);		
+		np_send(context, "play_sound", "test", 5);
+		np_statistics_add_watch(context, "play_sound");
 	}
 	else if (strcmp(opt_instance_no, "2") == 0) {
 		np_add_receive_cb(context, "blue_button_reset", receive_data_button_reset);
 		np_send(context, "blue_button_pressed", "test", 5);
 	}
-	
+	np_statistics_add_watch(context, "blue_button_pressed");
+	np_statistics_add_watch(context, "blue_button_reset");
+	np_statistics_add_watch(context, "play_sound");
+
 	np_statistics_add_watch(context, "ping");
 	np_statistics_add_watch(context, "pong");
 	
