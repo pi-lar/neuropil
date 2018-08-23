@@ -2130,11 +2130,14 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
         ref_replace_reason(np_node_t, tokens_node, "_np_node_from_token", ref_key_node);
         if (msg_source_key->node == NULL) {
             msg_source_key->node = tokens_node;
+			msg_source_key->node->handshake_status == np_handshake_status_RemoteInitiated;
         }
         else if (msg_source_key->node->handshake_status == np_handshake_status_Connected) {
             if (msg_source_key->node->handshake_send_at + np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE)->msg_ttl < np_time_now()) {
                 // TODO: correctly reset the connection (possible memory leak!)
                 msg_source_key->node = tokens_node;
+				if(msg_source_key->node->handshake_status == np_handshake_status_Connected)
+					msg_source_key->node->handshake_status == np_handshake_status_RemoteInitiated;
             }
             else {
                 goto __np_cleanup__;
