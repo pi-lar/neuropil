@@ -36,11 +36,11 @@
 
 #include "example_helper.c"
 
-#define LED_GPIO_GREEN 24
+#define LED_GPIO_RED 24
 #define LED_GPIO_YELLOW 23
-#define LED_GPIO_BUTTON 22
-#define BUTTON_GPIO_DATA_IN 27
-#define BUTTON_GPIO_RED_IN 18
+#define LED_GPIO_BUTTON 18
+#define BUTTON_GPIO_BLUE_IN 27
+#define BUTTON_GPIO_RED_IN 22
 #define BUTTON_GPIO_GREEN_IN 17
 
 static bool is_gpio_enabled = false;
@@ -78,7 +78,7 @@ void handle_ping_pong_receive(np_context* context, char * response, int first_lo
 
 bool receive_ping(np_context* context, struct np_message* message)
 {
-	handle_ping_pong_receive(context, "pong", LED_GPIO_YELLOW, LED_GPIO_GREEN, message);
+	handle_ping_pong_receive(context, "pong", LED_GPIO_YELLOW, LED_GPIO_RED, message);
 	return true;
 }
 
@@ -86,7 +86,7 @@ bool receive_pong(np_context* context, struct np_message* message)
 {
 	double now = np_time_now();
 	last_response_or_invokation = now;
-	handle_ping_pong_receive(context, "ping", LED_GPIO_GREEN, LED_GPIO_YELLOW, message);
+	handle_ping_pong_receive(context, "ping", LED_GPIO_RED, LED_GPIO_YELLOW, message);
 	return true;
 }
 
@@ -122,7 +122,7 @@ uint8_t value_red   = 0;
 void checkGPIO(np_context * context) {
 	if (is_gpio_enabled) {
 
-		uint8_t nvalue_data = bcm2835_gpio_lev(BUTTON_GPIO_DATA_IN);
+		uint8_t nvalue_data = bcm2835_gpio_lev(BUTTON_GPIO_BLUE_IN);
 		if (nvalue_data != value_data) { value_data = nvalue_data; invoke_btn_data(context, value_data); }
 		uint8_t nvalue_green = bcm2835_gpio_lev(BUTTON_GPIO_GREEN_IN);
 		if (nvalue_green != value_green) { value_green = nvalue_green; invoke_btn_green(context, value_green); }
@@ -152,34 +152,34 @@ void initGPIO(np_context * context) {
 	else {
 
 		//BUTTONs
-		bcm2835_gpio_set_pud(BUTTON_GPIO_DATA_IN, BCM2835_GPIO_PUD_DOWN);
+		bcm2835_gpio_set_pud(BUTTON_GPIO_BLUE_IN, BCM2835_GPIO_PUD_DOWN);
 		bcm2835_gpio_set_pud(BUTTON_GPIO_GREEN_IN, BCM2835_GPIO_PUD_DOWN);
 		bcm2835_gpio_set_pud(BUTTON_GPIO_RED_IN, BCM2835_GPIO_PUD_DOWN);
-		bcm2835_gpio_fsel(BUTTON_GPIO_DATA_IN, BCM2835_GPIO_FSEL_INPT);
+		bcm2835_gpio_fsel(BUTTON_GPIO_BLUE_IN, BCM2835_GPIO_FSEL_INPT);
 		bcm2835_gpio_fsel(BUTTON_GPIO_GREEN_IN, BCM2835_GPIO_FSEL_INPT);
 		bcm2835_gpio_fsel(BUTTON_GPIO_RED_IN, BCM2835_GPIO_FSEL_INPT);
 
 		// LEDs
-		bcm2835_gpio_set_pud(LED_GPIO_GREEN, BCM2835_GPIO_PUD_OFF);
+		bcm2835_gpio_set_pud(LED_GPIO_RED, BCM2835_GPIO_PUD_OFF);
 		bcm2835_gpio_set_pud(LED_GPIO_YELLOW, BCM2835_GPIO_PUD_OFF);
 		bcm2835_gpio_set_pud(LED_GPIO_BUTTON, BCM2835_GPIO_PUD_OFF);
-		bcm2835_gpio_fsel(LED_GPIO_GREEN, BCM2835_GPIO_FSEL_OUTP);
+		bcm2835_gpio_fsel(LED_GPIO_RED, BCM2835_GPIO_FSEL_OUTP);
 		bcm2835_gpio_fsel(LED_GPIO_YELLOW, BCM2835_GPIO_FSEL_OUTP);
 		bcm2835_gpio_fsel(LED_GPIO_BUTTON, BCM2835_GPIO_FSEL_OUTP);
 		// init blinking
 		int i = 5;
 		while (--i > 0) {
 			bcm2835_gpio_write(LED_GPIO_BUTTON, HIGH);
-			bcm2835_gpio_write(LED_GPIO_GREEN, HIGH);
+			bcm2835_gpio_write(LED_GPIO_RED, HIGH);
 			bcm2835_gpio_write(LED_GPIO_YELLOW, HIGH);
 			np_time_sleep(0.1);
 			bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
-			bcm2835_gpio_write(LED_GPIO_GREEN, LOW);
+			bcm2835_gpio_write(LED_GPIO_RED, LOW);
 			bcm2835_gpio_write(LED_GPIO_YELLOW, LOW);
 			np_time_sleep(0.1);
 		}
 		bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
-		bcm2835_gpio_write(LED_GPIO_GREEN, LOW);
+		bcm2835_gpio_write(LED_GPIO_RED, LOW);
 		bcm2835_gpio_write(LED_GPIO_YELLOW, LOW);
 
 		np_example_print(context, stdout, "GPIO initiated\n");

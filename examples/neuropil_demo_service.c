@@ -149,6 +149,6 @@ bool receive_pong(np_context* context, struct np_message* message)
 }
 
 bool receive_play_sound(np_context* context, struct np_message* message)
-{
-	printf("\a");
+{	
+	system("say -v Daniel neuropil message received");
 }
