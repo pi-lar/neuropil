@@ -270,7 +270,8 @@ bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool re
 					(reconnect && node_key->node->handshake_status == np_handshake_status_Connected) || 
                     (node_key->node->handshake_status == np_handshake_status_SelfInitiated && now > (node_key->node->handshake_send_at + msg_prop->msg_ttl)))
                 {
-                    log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
+                    log_msg(LOG_NETWORK | LOG_INFO, "requesting a %shandshake with %s:%s (%s)",
+						reconnect ?"new ":"",
                         node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
 
                     node_key->node->handshake_status = np_handshake_status_SelfInitiated;
@@ -304,9 +305,10 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
     np_node_t* target_node = node_key->node;
     
     // Send handshake info if necessary
-    if (target_node->handshake_status == np_handshake_status_Connected &&
-        NULL != node_key->network)
+    if (target_node->handshake_status == np_handshake_status_Connected)
     {
+		np_waitref_obj(np_network_t, node_key->network, node_key_network);
+
         // get encryption details
         if (target_node->session_key_is_set == false) {
             log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
@@ -391,10 +393,11 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
                     }
                 }
             }
+			np_unref_obj(np_network_t, node_key_network, FUNC);
         }
     } else {
+		log_debug_msg(LOG_WARN, "network and handshake status of target is unclear (key: %s)", _np_key_as_str(node_key));
 		_np_network_send_handshake(context, node_key, false);
-        log_debug_msg(LOG_WARN, "network and handshake status of target is unclear (key: %s)", _np_key_as_str(node_key));
     }
 
     if (ret) {
