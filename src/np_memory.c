@@ -2,10 +2,6 @@
 // neuropil is copyright 2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-/**
-* header only implementation to manage heap objects
-* taking the generating approach using the c preprocessor
-*/
 #include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>

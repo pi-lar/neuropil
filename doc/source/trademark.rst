@@ -7,7 +7,7 @@ As of now, you are not permitted to use this trademark without the prior written
 Most important (for now), you may **not** use the trademark to:
 
   - appraise the security of your solution !
-  - use the name for professional services (training / saas offers / consulting / ...)
+  - offer professional services (training / saas offers / consulting / ...)
   - use the name &#34;neuropil&#34; as a noun or verb, please always use &#34;neuropil messaging layer&#34;
   - use the name in a manner that would imply our affilition with or endorsement, 
     sponsorship or support of a product or service

@@ -3,8 +3,8 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
-#ifndef NP_MESSAGEPART_H_
-#define NP_MESSAGEPART_H_
+#ifndef _NP_MESSAGEPART_H_
+#define _NP_MESSAGEPART_H_
 
 #include "np_memory.h"
 
@@ -19,8 +19,6 @@ typedef np_messagepart_t* np_messagepart_ptr;
 
 struct np_messagepart_s
 {
-	
-
 	np_tree_t* header;
 	np_tree_t* instructions;
 	uint16_t part;
