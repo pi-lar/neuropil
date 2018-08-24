@@ -317,21 +317,23 @@ int main(int argc, char **argv)
 
 	//__np_example_helper_run_loop();
 	uint32_t i = 0;
-	double now = np_time_now();
+	uint32_t now = np_time_now();
+	
 	last_response_or_invokation  = now;
 
 	while (true) {
 		checkGPIO(context);
-		__np_example_helper_loop(context);
-		i += 1;
-		np_time_sleep(0.001);
-		now = np_time_now();
-		if ((now - last_response_or_invokation) > ping_props.message_ttl) {
+		now = np_time_now()*10;
 
-			np_example_print(context, stdout, "Invoking ping (last one was before %f sec)\n", now - last_response_or_invokation);
-			log_msg(LOG_INFO, "Invoking ping (last one was before %f sec)", now - last_response_or_invokation);
-			np_send_text(context, "ping", "ping", 0, NULL);
-			last_response_or_invokation = now;
+		if ((now % 2)==0) {
+			__np_example_helper_loop(context);
+			if ((now - last_response_or_invokation) > ping_props.message_ttl) {
+
+				np_example_print(context, stdout, "Invoking ping (last one was before %f sec)\n", now - last_response_or_invokation);
+				log_msg(LOG_INFO, "Invoking ping (last one was before %f sec)", now - last_response_or_invokation);
+				np_send_text(context, "ping", "ping", 0, NULL);
+				last_response_or_invokation = now;
+			}
 		}
 	}
 
