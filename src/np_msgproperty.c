@@ -190,8 +190,8 @@ void _np_msgproperty_t_new(np_state_t *context, uint8_t type, size_t size, void*
 	prop->mep_type	= DEFAULT_TYPE;
 	prop->ack_mode	= ACK_NONE;
 	prop->priority	= PRIORITY_MOD_USER_DEFAULT;
-	prop->retry		= 5;
-	prop->msg_ttl	= 20.0;
+	prop->retry		= 20;
+	prop->msg_ttl	= 60.0;
 
 	prop->max_threshold = 10;
 	TSP_INITD(prop->msg_threshold, 0);

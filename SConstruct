@@ -275,11 +275,11 @@ else:
 programs = [
     'node', 'cloud', 'hydra', #'shared_hydra',
     'controller','receiver','sender','receiver_cb','pingpong',
-    'echo_server','echo_client','raspberry','demo_service',
+    'echo_server','echo_client','raspberry','demo_service','raffle'
     ]
 
 program_env = default_env.Clone()
-program_env.Append(LIBS = ['ncurses','neuropil','sodium'])
+program_env.Append(LIBS = ['ncurses','neuropil','sodium','sqlite3'])
 
 if build_program and build_program not in programs:
     if build_program != 'lib_only':
