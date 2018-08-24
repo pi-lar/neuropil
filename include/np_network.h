@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -8,12 +8,17 @@
 
 #include "sys/socket.h"
 #include "netdb.h"
+#include <netdb.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
 
 #include "event/ev.h"
 
 #include "np_list.h"
 #include "np_util.h"
 #include "np_memory.h"
+
 #include "np_keycache.h"
 #include "np_message.h"
 #include "np_types.h"
@@ -47,7 +52,7 @@ enum socket_type {
 	PASSIVE 	  = 0x80  // TCP passive (like FTP passive) for nodes behind firewalls
 } NP_ENUM;
 
-typedef enum {
+typedef enum np_network_type_e {
 	np_network_type_none	= 0x00,
 	np_network_type_client	= 0x01,
 	np_network_type_server	= 0x02,
@@ -55,27 +60,30 @@ typedef enum {
 
 struct np_network_s
 {
-	np_obj_t* obj;
-
-	np_bool initialized;
+	bool initialized;
 	int socket;
 	ev_io watcher;
-	np_bool is_running;
+	bool is_running;
 	np_network_type_e type;
 
 	uint8_t socket_type;
 	struct addrinfo* addr_in; // where a node receives messages
 
+	np_mutex_t waiting_lock;
 	np_tree_t* waiting;
 
+	np_mutex_t out_events_lock;
+	double last_send_date;
+	double last_received_date;
 	np_sll_t(void_ptr, out_events);
 
 	uint32_t seqend;
 
 	char ip[CHAR_LENGTH_IP];
 	char port[CHAR_LENGTH_PORT];
-	np_mutex_t send_data_lock;
-	np_mutex_t ack_data_lock;
+	np_mutex_t access_lock;
+
+	TSP(bool, can_be_enabled);
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
@@ -104,13 +112,11 @@ char* _np_network_get_protocol_string (uint8_t protocol);
  **
  **/
 NP_API_INTERN
-void _np_network_get_address (np_bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
+void _np_network_get_address (np_state_t* context, bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
 // struct addrinfo _np_network_get_address (char *hostname);
 
 NP_API_INTERN
-np_prioq_t* _np_network_get_new_pqentry();
-NP_API_INTERN
-void _np_network_stop(np_network_t* ng, np_bool force);
+void _np_network_stop(np_network_t* ng, bool force);
 NP_API_INTERN
 void _np_network_start(np_network_t* ng);
 NP_API_INTERN
@@ -121,24 +127,16 @@ void _np_network_remap_network( np_key_t* new_target, np_key_t* old_target);
  **
  **/
 NP_API_INTERN
-np_bool _np_network_init (np_network_t* network, np_bool create_socket, uint8_t type, char* hostname, char* service);
-
-NP_API_INTERN
-void _network_destroy (np_network_t* network);
+bool _np_network_init (np_network_t* network, bool create_socket, uint8_t type, char* hostname, char* service, int prepared_socket_fd);
 
 /**
- ** _np_network_send_msg:
+ ** _np_network_append_msg_to_out_queue:
  ** Sends a message to host
  **
  **/
 NP_API_INTERN
-np_bool _np_network_send_msg (np_key_t* node,  np_message_t* msg);
+bool _np_network_append_msg_to_out_queue (np_key_t* node,  np_message_t* msg);
 
-/*
- * libev driven functions to send/receive messages over the wire
- */
-NP_API_INTERN
-void _np_network_sendrecv(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
 void _np_network_send_from_events(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
@@ -150,7 +148,15 @@ char* np_network_get_ip(np_key_t * container);
 NP_API_INTERN
 char* np_network_get_port(np_key_t * container);
 NP_API_INTERN
-np_bool _np_network_send_handshake(np_key_t* node_key);
+bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool reconnect);
+NP_API_INTERN
+void _np_network_disable(np_network_t* self);
+NP_API_INTERN
+void _np_network_enable(np_network_t* self);
+NP_API_INTERN
+void _np_network_set_key(np_network_t* self, np_key_t* key);
+NP_API_INTERN
+void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args);
 #ifdef __cplusplus
 }
 #endif

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
@@ -123,7 +123,7 @@ real macros for convenience usage
 		TYPE val;\
 	};\
 	TYPE##_pll_t* TYPE##_pll_init(); 																			\
-	np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, TYPE##_pll_cmp_func_t cmp_func);	\
+	bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, bool dups_ok, TYPE##_pll_cmp_func_t cmp_func);	\
 	void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t cmp_func);						\
 	TYPE TYPE##_pll_replace(TYPE##_pll_t* list, TYPE value, TYPE##_pll_cmp_func_t cmp_func);   						\
 	TYPE TYPE##_pll_find(TYPE##_pll_t* list, TYPE value, TYPE##_pll_cmp_func_t cmp_func);   						\
@@ -148,7 +148,7 @@ TYPE##_pll_t* TYPE##_pll_init()                                  \
 	pll_list->last = NULL; \
 	return (pll_list); \
 } \
-np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, TYPE##_pll_cmp_func_t cmp_func) 	\
+bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, bool dups_ok, TYPE##_pll_cmp_func_t cmp_func) 	\
 { 																											\
 	TYPE##_pll_node_t* new_pll_node = (TYPE##_pll_node_t*) calloc(1,sizeof(TYPE##_pll_node_t)); 				\
 	new_pll_node->val = value; 																				\
@@ -158,7 +158,7 @@ np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, T
 		pll_list->first = new_pll_node; 																	\
 		pll_list->last = new_pll_node; 																		\
 		pll_list->size++; 																					\
-		return (TRUE); 																						\
+		return (true); 																						\
 	} 																										\
 	TYPE##_pll_node_t* pll_current = pll_list->first; 														\
 	while (NULL != pll_current) { 																			\
@@ -170,8 +170,11 @@ np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, T
 			pll_current->blink = new_pll_node; 																\
 			if (pll_current == pll_list->first) pll_list->first = new_pll_node; 							\
 			break; 																							\
-		} 																									\
-		if ( (cmp_res == 0) && !dups_ok) { free(new_pll_node); new_pll_node = NULL; return FALSE; } 		\
+		} else if ((cmp_res == 0) && dups_ok == false) { 													\
+			free(new_pll_node); 																			\
+			new_pll_node = NULL; 																			\
+			return false; 																					\
+		}																									\
 		if (pll_current == pll_list->last) { 																\
 			pll_current->flink = new_pll_node; 																\
 			new_pll_node->blink = pll_current; 																\
@@ -181,26 +184,26 @@ np_bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, np_bool dups_ok, T
 		pll_current = pll_current->flink; 																	\
 	} 																										\
 	pll_list->size++; 																						\
-	return (TRUE); 																							\
+	return (true); 																							\
 } 																											\
 void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t cmp_func) {                \
 	TYPE##_pll_node_t* pll_current = pll_list->first;                                                       \
-	while (NULL != pll_current) { \
-		int8_t cmp_res = cmp_func(pll_current->val, value); \
-		if (0 == cmp_res) { \
-			if (NULL != pll_current->flink) pll_current->flink->blink = pll_current->blink; \
-			if (NULL != pll_current->blink) pll_current->blink->flink = pll_current->flink; \
-			if (pll_list->first == pll_current) pll_list->first = pll_current->flink; \
-			if (pll_list->last == pll_current) pll_list->last = pll_current->blink; \
-			free(pll_current); \
-			pll_current = NULL;\
-			pll_list->size--; \
-			break; \
-		} else { \
-			pll_current = pll_current->flink;                                                               \
-		} \
-	} \
-} \
+	while (NULL != pll_current) {																			\
+		int8_t cmp_res = cmp_func(pll_current->val, value);													\
+		if (0 == cmp_res) {																					\
+			if (NULL != pll_current->flink) pll_current->flink->blink = pll_current->blink;					\
+			if (NULL != pll_current->blink) pll_current->blink->flink = pll_current->flink;					\
+			if (pll_list->first == pll_current) pll_list->first = pll_current->flink;						\
+			if (pll_list->last == pll_current) pll_list->last = pll_current->blink;							\
+			free(pll_current);																				\
+			pll_current = NULL;																				\
+			pll_list->size--;																				\
+			break;																							\
+		} else {																							\
+			pll_current = pll_current->flink;																\
+		}																									\
+	}																										\
+}																											\
 TYPE TYPE##_pll_replace(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t cmp_func) {               \
 	TYPE ret_val = 0;                                                 \
 	TYPE##_pll_node_t* pll_current = pll_list->first;                 \
@@ -222,7 +225,9 @@ TYPE TYPE##_pll_find(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t c
 		int8_t cmp_res = cmp_func(pll_current->val, value);           \
 		if (0 == cmp_res) {                                           \
 			return (pll_current->val);                                \
-		}                                                             \
+		}else if(1 == cmp_res) {									  \
+			break;													  \
+		}															  \
 		pll_next(pll_current);                                        \
 	}                                                                 \
 	return (ret_val);                                                 \
@@ -250,17 +255,13 @@ TYPE TYPE##_pll_tail(TYPE##_pll_t* pll_list) {                        \
 		if (NULL != pll_list->last) pll_list->last->flink = NULL;     \
 		if (NULL == pll_list->last) pll_list->first = NULL;           \
 		free(tmp);                                                    \
+		tmp = NULL;                                                   \
 		pll_list->size--;                                             \
 	}                                                                 \
 	return (ret_val);                                                 \
 }                                                                     \
 void TYPE##_pll_free(TYPE##_pll_t* pll_list) {                        \
-	TYPE##_pll_node_t *tmp;                                           \
-	while (NULL != pll_list->first) {                                 \
-		tmp = pll_list->first;                                        \
-		pll_list->first = pll_list->first->flink;                     \
-		free(tmp);                                                    \
-	}                                                                 \
+	TYPE##_pll_clear(pll_list);                                       \
 	free(pll_list);                                                   \
 	pll_list = NULL;                                                  \
 }                                                                     \
@@ -298,8 +299,11 @@ function like macros are:
 #define np_dll_t(TYPE, NAME) TYPE##_dll_t* NAME
 
 // convenience wrapper definitions
+#define dll_init_full(TYPE, dll_list) TYPE##_dll_t* dll_list = TYPE##_dll_init();
 #define dll_init(TYPE, dll_list) dll_list = TYPE##_dll_init();
 #define dll_append(TYPE, dll_list, value) TYPE##_dll_append(dll_list, value);
+#define dll_remove(TYPE, dll_list, value) TYPE##_dll_remove(dll_list, value);
+#define dll_delete(TYPE, dll_list, iter) TYPE##_dll_delete(dll_list, iter);
 #define dll_prepend(TYPE, dll_list, value) TYPE##_dll_prepend(dll_list, value);
 #define	dll_head(TYPE, dll_list) TYPE##_dll_head(dll_list);
 #define dll_tail(TYPE, dll_list) TYPE##_dll_tail(dll_list);
@@ -340,9 +344,9 @@ real macros for convenience usage
 #define dll_first(dll_list)    (dll_list->first)
 #define dll_last(dll_list)     (dll_list->last)
 #define dll_next(dll_elem)     (dll_elem = dll_elem->flink)
-#define dll_get_next(sll_elem) (dll_elem->flink)
+#define dll_get_next(dll_elem) (dll_elem->flink)
 #define dll_previous(dll_elem) (dll_elem = dll_elem->blink)
-#define dll_get_previous(sll_elem) (dll_elem->blink)
+#define dll_get_previous(dll_elem) (dll_elem->blink)
 
 //
 // DLL (double linked list) prototype generator
@@ -369,7 +373,8 @@ real macros for convenience usage
 	TYPE TYPE##_dll_tail(TYPE##_dll_t* list);\
 	void TYPE##_dll_free(TYPE##_dll_t* list);\
 	void TYPE##_dll_clear(TYPE##_dll_t* list);\
-
+	void TYPE##_dll_remove(TYPE##_dll_t* dll_list, TYPE value); \
+	void TYPE##_dll_delete(TYPE##_dll_t* dll_list, dll_iterator(TYPE) dll_to_del); \
 
 //
 // DLL (double linked list) implementation generator
@@ -413,7 +418,7 @@ void TYPE##_dll_prepend(TYPE##_dll_t* dll_list, TYPE value) {\
 	dll_list->size++;\
 }\
 TYPE TYPE##_dll_head(TYPE##_dll_t* dll_list) {\
-	TYPE* ret_val = 0;\
+	TYPE ret_val = 0;\
 	if (NULL != dll_list->first) {\
 		TYPE##_dll_node_t* tmp = dll_list->first;\
 		ret_val = tmp->val;\
@@ -458,6 +463,25 @@ void TYPE##_dll_clear(TYPE##_dll_t* dll_list) {\
 	dll_list->last = NULL;  \
 	dll_list->size = 0;     \
 }\
+void TYPE##_dll_delete(TYPE##_dll_t* dll_list, dll_iterator(TYPE) dll_to_del) {								\
+	if (NULL != dll_to_del->flink) dll_to_del->flink->blink = dll_to_del->blink;							\
+	if (NULL != dll_to_del->blink) dll_to_del->blink->flink = dll_to_del->flink;							\
+	if (dll_list->first == dll_to_del) dll_list->first = dll_to_del->flink;									\
+	if (dll_list->last == dll_to_del) dll_list->last = dll_to_del->blink;									\
+	free(dll_to_del);																						\
+	dll_list->size--;																						\
+}																											\
+void TYPE##_dll_remove(TYPE##_dll_t* dll_list, TYPE value) {												\
+	TYPE##_dll_node_t* dll_current = dll_list->first;                                                       \
+	while (NULL != dll_current) {																			\
+		if (value == dll_current->val) {																	\
+			dll_delete(TYPE,dll_list,dll_current);															\
+			break;																							\
+		} else {																							\
+			dll_current = dll_current->flink;																\
+		}																									\
+	}																										\
+}																											\
 
 
 /**
@@ -478,10 +502,13 @@ function like macros are:
 
 */
 // definition
-#define np_sll_t(TYPE, NAME) TYPE##_sll_t* NAME
-
+#define np_sll_type(TYPE) TYPE##_sll_t*
+#define np_sll_t(TYPE, NAME) np_sll_type(TYPE) NAME
 // convenience wrapper definitions
-#define sll_init(TYPE, sll_list) sll_list = TYPE##_sll_init();
+#define sll_init_part(TYPE) TYPE##_sll_init()
+#define sll_init(TYPE, sll_list) sll_list = sll_init_part(TYPE);
+#define sll_init_full(TYPE, sll_list) TYPE##_sll_t* sll_init(TYPE, sll_list)
+#define sll_insert(TYPE, sll_list, value, after) TYPE##_sll_insert(sll_list, value, after);
 #define sll_append(TYPE, sll_list, value) TYPE##_sll_append(sll_list, value);
 #define sll_prepend(TYPE, sll_list, value) TYPE##_sll_prepend(sll_list, value);
 #define	sll_head(TYPE, sll_list) TYPE##_sll_head(sll_list)
@@ -490,7 +517,9 @@ function like macros are:
 #define sll_clear(TYPE, sll_list) TYPE##_sll_clear(sll_list)
 #define sll_delete(TYPE, sll_list, iter) TYPE##_sll_delete(sll_list, iter)
 #define sll_remove(TYPE, sll_list, value, fn_cmp) TYPE##_sll_remove(sll_list, value, fn_cmp)
+#define sll_find(TYPE, sll_list, value, fn_cmp, default_return) TYPE##_sll_find(sll_list, value, fn_cmp, default_return)
 #define sll_contains(TYPE, sll_list, value, fn_cmp) TYPE##_sll_contains(sll_list, value, fn_cmp)
+#define sll_merge(TYPE, sll_list_a, sll_list_b, fn_cmp) TYPE##_sll_merge(sll_list_a,sll_list_b, fn_cmp)
 #define sll_clone(TYPE, sll_list_source, sll_list_target)										\
 	np_sll_t(TYPE, sll_list_target);															\
 	sll_init(TYPE, sll_list_target);															\
@@ -527,6 +556,7 @@ real macros for convenience usage
 #define sll_first(sll_list) ((sll_list)->first)
 #define sll_last(sll_list) ((sll_list)->last)
 #define sll_next(sll_elem) ((sll_elem) = sll_next_select(sll_elem))
+#define sll_next_loop(sll, sll_elem) ((sll_elem) = ((sll_elem)->flink == NULL ? (sll)->first : sll_next_select(sll_elem)))
 #define sll_next_select(sll_elem) ((((sll_elem) == NULL || (sll_elem)->flink == (sll_elem)) ? NULL : (sll_elem)->flink))
 #define sll_get_next(sll_elem) ((sll_elem)->flink)
 // #define sll_previous(sll_elem) (sll_elem->blink)
@@ -536,7 +566,7 @@ real macros for convenience usage
 //																  
 #define NP_SLL_GENERATE_PROTOTYPES(TYPE)                          											\
 	typedef int8_t (*TYPE##_sll_cmp_func_t) (TYPE const value_1, TYPE const value_2 );                      \
-	int8_t TYPE##_sll_compare_type(TYPE const a, TYPE const b);                                                \
+	int8_t TYPE##_sll_compare_type(TYPE const a, TYPE const b);                                             \
 	typedef struct TYPE##_sll_s TYPE##_sll_t;                     											\
 	typedef struct TYPE##_sll_node_s TYPE##_sll_node_t;           											\
 	struct TYPE##_sll_s                                           											\
@@ -551,39 +581,77 @@ real macros for convenience usage
 		TYPE val;                                                											\
 	};                                                            											\
 	TYPE##_sll_t* TYPE##_sll_init();                              											\
-	void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value);  											\
-	void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value); 											\
+	TYPE##_sll_node_t* TYPE##_sll_insert(TYPE##_sll_t* sll_list, TYPE value,TYPE##_sll_node_t* after);  					\
+	TYPE##_sll_node_t* TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value);  								\
+	TYPE##_sll_node_t* TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value); 								\
 	TYPE TYPE##_sll_head(TYPE##_sll_t* list);                    											\
 	TYPE TYPE##_sll_tail(TYPE##_sll_t* list);                    											\
 	void TYPE##_sll_free(TYPE##_sll_t* list);                     											\
 	void TYPE##_sll_clear(TYPE##_sll_t* list);                    											\
 	void TYPE##_sll_delete(TYPE##_sll_t* list, TYPE##_sll_node_t* tbr);										\
 	void TYPE##_sll_clone(TYPE##_sll_t* sll_list_source, TYPE##_sll_t* sll_list_target);					\
-	np_bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp);	    	\
-	void TYPE##_sll_remove(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp);			    \
+	TYPE TYPE##_sll_find(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp, TYPE default_return); \
+	bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp);	    	\
+	TYPE##_sll_t* TYPE##_sll_merge(TYPE##_sll_t* sll_list_a, TYPE##_sll_t* sll_list_b, TYPE##_sll_cmp_func_t  fn_cmp);	\
+	void TYPE##_sll_remove(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp);							\
 																											\
 																											
 //
 // SLL (single linked list) implementation generator
 //
 #define NP_SLL_GENERATE_IMPLEMENTATION(TYPE)																\
-int8_t TYPE##_sll_compare_type(TYPE const a, TYPE const b) {                                                   \
+int8_t TYPE##_sll_compare_type(TYPE const a, TYPE const b) {                                                \
 	return a == b ? 0 : -1;                                                                                 \
 }                                                                                                           \
-np_bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp) {				\
-	np_bool ret = FALSE;																					\
+TYPE##_sll_t* TYPE##_sll_merge(TYPE##_sll_t* sll_list_a, TYPE##_sll_t* sll_list_b, TYPE##_sll_cmp_func_t  fn_cmp) {		\
+	np_sll_t(TYPE,ret);																					    \
+	sll_init(TYPE,ret);																					    \
+	sll_iterator(TYPE) iter_b = sll_first(sll_list_b);													    \
+	while (iter_b != NULL)																				    \
+	{																									    \
+		if (sll_contains(TYPE, ret, iter_b->val, fn_cmp) == false) {									    \
+			sll_append(TYPE, ret, iter_b->val);															    \
+		}																								    \
+		sll_next(iter_b);																				    \
+	}																									    \
+	sll_iterator(TYPE) iter_a = sll_first(sll_list_a);													    \
+	while (iter_a != NULL)																				    \
+	{																									    \
+		if (sll_contains(TYPE, ret, iter_a->val, fn_cmp) == false) {									    \
+			sll_append(TYPE, ret, iter_a->val);															    \
+		}																								    \
+		sll_next(iter_a);																				    \
+	}																									    \
+	return ret;																							    \
+}																										    \
+																										    \
+TYPE TYPE##_sll_find(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp, TYPE default_return) {	\
+	TYPE ret = default_return;																				\
 	sll_iterator(TYPE) iter = sll_first(sll_list);															\
 	while (iter != NULL)																					\
 	{																										\
 		if (fn_cmp(iter->val, value) == 0) {																\
-			ret = TRUE;																						\
+			ret = iter->val;																				\
 			break;																							\
 		}																									\
 		sll_next(iter);																						\
 	}																										\
-	return (ret);																								\
+	return (ret);																							\
 }																											\
-void TYPE##_sll_remove(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp) {								\
+bool TYPE##_sll_contains(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp) {				\
+	bool ret = false;																					\
+	sll_iterator(TYPE) iter = sll_first(sll_list);															\
+	while (iter != NULL)																					\
+	{																										\
+		if (fn_cmp(iter->val, value) == 0) {																\
+			ret = true;																						\
+			break;																							\
+		}																									\
+		sll_next(iter);																						\
+	}																										\
+	return (ret);																							\
+}																											\
+void TYPE##_sll_remove(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp) {					\
 	sll_iterator(TYPE) iter = sll_first(sll_list);															\
 	while (iter != NULL)																					\
 	{																										\
@@ -609,9 +677,21 @@ TYPE##_sll_t* TYPE##_sll_init() {																			\
 	sll_list->last = NULL;																					\
 	return (sll_list);																						\
 }																											\
-void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {												\
+TYPE##_sll_node_t* TYPE##_sll_insert(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_node_t* after) {		\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
-	CHECK_MALLOC(sll_node);																					\
+	assert( NULL != sll_node);																					\
+	sll_node->val = value;																					\
+	sll_node->flink = after->flink;																			\
+	after->flink = sll_node;																				\
+	sll_list->size++;																						\
+	if (after == sll_list->last) {																			\
+		sll_list->last = sll_node;																			\
+	}																										\
+	return sll_node;																						\
+}																											\
+TYPE##_sll_node_t* TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {									\
+	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
+	assert( NULL != sll_node);																					\
 	sll_node->val = value;																					\
 	sll_node->flink = NULL;																					\
 	if (sll_list->first == NULL) { 																			\
@@ -621,14 +701,16 @@ void TYPE##_sll_append(TYPE##_sll_t* sll_list, TYPE value) {												\
 	}																										\
 	sll_list->last = sll_node;																				\
 	sll_list->size++;																						\
+	return sll_node;																						\
 }																											\
-void TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value) {												\
+TYPE##_sll_node_t* TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value) {												\
 	TYPE##_sll_node_t* sll_node = (TYPE##_sll_node_t*) calloc(1,sizeof(TYPE##_sll_node_t));					\
 	sll_node->val = value;																					\
 	sll_node->flink = sll_list->first;																		\
 	if (sll_list->last == NULL) { sll_list->last = sll_node; }												\
 	sll_list->first = sll_node;																				\
 	sll_list->size++;																						\
+	return sll_node;																						\
 }																											\
 TYPE TYPE##_sll_head(TYPE##_sll_t* sll_list) {																\
 	TYPE ret_val = 0;																						\

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_THREADS_H_
@@ -7,9 +7,14 @@
 
 #include <stdlib.h>
 #include <pthread.h>
+#if defined(_WIN32) || defined(WIN32) 
+#include <time.h>
+#else
 #include <sys/time.h>
+#endif
 
 #include "np_memory.h"
+
 #include "np_list.h"
 #include "np_log.h"
 #include "np_types.h"
@@ -50,7 +55,8 @@ enum np_module_lock_e {
 	/*12*/np_statistics_t_lock,
 	/*13*/np_handshake_t_lock,
 	/*14*/np_threads_t_lock,
-	/*14*/np_utilstatistics_t_lock,
+	/*15*/np_utilstatistics_t_lock,
+	/*16*/np_state_message_tokens_t_lock,
 	PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
 	PREDEFINED_DUMMY_1,
 	PREDEFINED_DUMMY_2,
@@ -61,6 +67,26 @@ enum np_module_lock_e {
 	PREDEFINED_DUMMY_7,
 	PREDEFINED_DUMMY_8,
 } NP_ENUM NP_API_INTERN;
+
+static char* np_module_lock_str[PREDEFINED_DUMMY_START] = {
+	"np_memory_t_lock",
+	"np_aaatoken_t_lock",
+	"np_event_t_lock",
+	"np_keycache_t_lock",
+	"np_message_part_cache_t_lock",
+	"np_msgproperty_t_lock",
+	"np_network_t_lock",
+	"np_routeglobal_t_lock",
+	"np_sysinfo_t_lock",
+	"np_logsys_t_lock",
+	"np_jobqueue_t_lock",
+	"np_node_renewal_t_lock",
+	"np_statistics_t_lock",
+	"np_handshake_t_lock",
+	"np_threads_t_lock",
+	"np_utilstatistics_t_lock",
+	"np_state_message_tokens_t_lock"
+};
 
 /** platform mutex/condition wrapper structures are defined here **/
 /** condition                                                    **/
@@ -78,10 +104,21 @@ struct np_mutex_s {
 	np_cond_t  condition;
 };
 
+
+enum np_thread_type_e {
+	np_thread_type_other = 0,
+	np_thread_type_main,
+	np_thread_type_worker,
+	np_thread_type_manager,
+};
+
 /** thread														**/
 struct np_thread_s
 {
-	np_obj_t* obj;
+	
+
+	void * run_fn;
+	uint8_t idx;
 
 	unsigned long id;
 	/**
@@ -92,6 +129,13 @@ struct np_thread_s
 	this thread can only handle jobs down to the min_job_priority
 	*/
 	double min_job_priority;
+
+	np_mutex_t job_lock;
+	np_job_t* job;
+	enum np_thread_type_e thread_type;
+
+	pthread_t* thread_id;
+
 #ifdef NP_THREADS_CHECK_THREADING
 	np_mutex_t locklists_lock;
 	np_sll_t(char_ptr, want_lock);
@@ -100,59 +144,63 @@ struct np_thread_s
 } NP_API_INTERN;
 
 
-
 NP_API_INTERN
-np_bool _np_threads_init();
-
+bool _np_threads_init(np_state_t* context);
 NP_API_INTERN
-int _np_threads_lock_module(np_module_lock_type module_id, const char* where);
+int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, const char* where);
 NP_API_INTERN
-int _np_threads_unlock_module(np_module_lock_type module_id);
+int _np_threads_unlock_module(np_state_t* context, np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_lock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b, const char* where);
+int _np_threads_unlock_modules(np_state_t* context, np_module_lock_type module_id_a,np_module_lock_type module_id_b);
 NP_API_INTERN
-int _np_threads_unlock_modules(np_module_lock_type module_id_a,np_module_lock_type module_id_b);
+int _np_threads_module_condition_broadcast(np_state_t* context, np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_module_condition_broadcast(np_module_lock_type module_id);
+int _np_threads_module_condition_signal(np_state_t* context, np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_module_condition_signal(np_module_lock_type module_id);
+int _np_threads_module_condition_timedwait(np_state_t* context, np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime);
 NP_API_INTERN
-int _np_threads_module_condition_timedwait(np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime);
-NP_API_INTERN
-int _np_threads_module_condition_wait(np_cond_t* condition, np_module_lock_type module_id);
+int _np_threads_module_condition_wait(np_state_t* context, np_cond_t* condition, np_module_lock_type module_id);
 
 
+NP_API_EXPORT
+int _np_threads_mutex_init(np_state_t*context, np_mutex_t* mutex, const char* desc);
+NP_API_EXPORT
+int _np_threads_mutex_lock(np_state_t*context, np_mutex_t* mutex, const char* where);
 NP_API_INTERN
-int _np_threads_mutex_init(np_mutex_t* mutex, const char* desc);
+int _np_threads_mutex_trylock(np_state_t*context, np_mutex_t* mutex, const char* where);
+NP_API_EXPORT
+int _np_threads_mutex_unlock(np_state_t*context, np_mutex_t* mutex);
 NP_API_INTERN
-int _np_threads_mutex_lock(np_mutex_t* mutex);
+void _np_threads_mutex_destroy(np_state_t*context, np_mutex_t* mutex);
 NP_API_INTERN
-int _np_threads_mutex_unlock(np_mutex_t* mutex);
+int _np_threads_mutex_condition_timedwait(np_state_t*context, np_mutex_t* mutex, struct timespec* waittime);
 NP_API_INTERN
-void _np_threads_mutex_destroy(np_mutex_t* mutex);
+int _np_threads_mutex_condition_wait(np_state_t*context, np_mutex_t* mutex);
 NP_API_INTERN
-int _np_threads_mutex_condition_timedwait(np_mutex_t* mutex, struct timespec* waittime);
-NP_API_INTERN
-int _np_threads_mutex_timedlock(np_mutex_t * mutex, const double delay);
+int _np_threads_mutex_timedlock(np_state_t*context, np_mutex_t * mutex, const double delay);
 
 NP_API_INTERN
-void _np_threads_condition_init(np_cond_t* condition);
+void _np_threads_condition_init(np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
-void _np_threads_condition_init_shared(np_cond_t* condition);
+void _np_threads_condition_init_shared(np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
-int _np_threads_condition_wait(np_cond_t* condition, np_mutex_t* mutex);
+int _np_threads_condition_wait(np_state_t* context, np_cond_t* condition, np_mutex_t* mutex);
 
 NP_API_INTERN
-int _np_threads_condition_signal(np_cond_t* condition);
+int _np_threads_condition_signal(np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
-void _np_threads_condition_destroy(np_cond_t* condition);
+void _np_threads_condition_destroy(np_state_t* context, np_cond_t* condition);
 
 NP_API_INTERN
-int _np_threads_condition_broadcast(np_cond_t* condition);
+int _np_threads_condition_broadcast(np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
-np_thread_t*_np_threads_get_self();
+np_thread_t * __np_createThread(np_state_t* context, uint8_t number, void *(fn)(void *), bool auto_run, enum np_thread_type_e type);
 NP_API_INTERN
-np_bool _np_threads_is_threadding_initiated();
+np_thread_t*_np_threads_get_self(np_state_t* context);
+NP_API_INTERN
+void _np_threads_set_self(np_thread_t * myThread);
+NP_API_INTERN
+void np_threads_start_workers(np_state_t* context, uint8_t pool_size);
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
@@ -163,10 +211,17 @@ struct timeval NAME##_tv;																					\
 struct timespec* NAME=&NAME##_ts;																			\
 																											\
 gettimeofday(&NAME##_tv, NULL);																				\
-NAME##_ts.tv_sec = NAME##_tv.tv_sec + min(MUTEX_WAIT_MAX_SEC - ELAPSED_TIME, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC);													
+NAME##_ts.tv_sec = NAME##_tv.tv_sec + fmin(MUTEX_WAIT_MAX_SEC - ELAPSED_TIME, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC);													
 
 
-#define _LOCK_ACCESS(obj) np_mutex_t* TOKENPASTE2(lock, __LINE__) = obj; for(uint8_t _LOCK_ACCESS##__LINE__=0; (_LOCK_ACCESS##__LINE__ < 1) && !_np_threads_mutex_lock(TOKENPASTE2(lock, __LINE__)); _np_threads_mutex_unlock(TOKENPASTE2(lock, __LINE__)), _LOCK_ACCESS##__LINE__++)
+#define __LOCK_ACCESS_W_PREFIX(prefix, obj, lock_type)																						\
+	np_mutex_t* TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)) = obj;																		\
+	for(uint8_t TOKENPASTE2(prefix,__LINE__)=0; 																										\
+		(TOKENPASTE2(prefix,__LINE__) < 1) && 0 == _np_threads_mutex_##lock_type##lock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)),FUNC);		\
+		_np_threads_mutex_unlock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__))), TOKENPASTE2(prefix,__LINE__)++										\
+		)
+#define _LOCK_ACCESS(obj) __LOCK_ACCESS_W_PREFIX(TOKENPASTE2(default_prefix_, __COUNTER__), obj,)
+#define _TRYLOCK_ACCESS(obj) __LOCK_ACCESS_W_PREFIX(TOKENPASTE2(default_try_prefix_, __COUNTER__), obj,try)
 // protect access to restricted area in the rest of your code like this
 /*
 struct obj {
@@ -181,8 +236,7 @@ _LOCK_ACCESS(&object->lock)
 }
 */
 
-#define _LOCK_MODULE(TYPE) for(uint8_t _LOCK_MODULE_i##__LINE__=0; (_LOCK_MODULE_i##__LINE__ < 1) && 0 == _np_threads_lock_module(TYPE##_lock,__func__); _np_threads_unlock_module(TYPE##_lock), _LOCK_MODULE_i##__LINE__++)
-#define _LOCK_MODULES(TYPE_A,TYPE_B) for(uint8_t _LOCK_MODULES_i##__LINE__=0; (_LOCK_MODULES_i##__LINE__ < 1) && 0 == _np_threads_lock_modules(TYPE_A##_lock,TYPE_B##_lock,__func__); _np_threads_unlock_modules(TYPE_A##_lock,TYPE_B##_lock), _LOCK_MODULES_i##__LINE__++)
+#define _LOCK_MODULE(TYPE) for(uint8_t _LOCK_MODULE_i##__LINE__=0; (_LOCK_MODULE_i##__LINE__ < 1) && 0 == _np_threads_lock_module(context, TYPE##_lock,FUNC); _np_threads_unlock_module(context, TYPE##_lock), _LOCK_MODULE_i##__LINE__++)
 // protect access to a module in the rest of your code like this
 /*
 _LOCK_MODULE(np_keycache_t)
@@ -191,8 +245,40 @@ _LOCK_MODULE(np_keycache_t)
 }
 */
 // print the complete object list and statistics
-NP_API_INTERN
-char* np_threads_printpool(np_bool asOneLine);
+
+NP_API_PROTEC
+char* np_threads_printpool(np_state_t* context, bool asOneLine);
+
+/*
+	TSP = ThreadSafeProperty
+*/
+#define TSP(TYPE, NAME)								\
+	TYPE NAME;										\
+	np_mutex_t NAME##_mutex;
+
+#define TSP_INITD(NAME, DEFAULT_VALUE)						 \
+	_np_threads_mutex_init(context, &NAME##_mutex, #NAME);			 \
+	TSP_SET(NAME, DEFAULT_VALUE)
+
+#define TSP_INIT(NAME)										 \
+	_np_threads_mutex_init(context, &NAME##_mutex, #NAME);
+
+#define TSP_DESTROY(NAME)							\
+	_np_threads_mutex_destroy(context, &NAME##_mutex);
+
+#define TSP_GET(TYPE, NAME, RESULT)					\
+	TYPE RESULT=0;									\
+	_LOCK_ACCESS(&NAME##_mutex){					\
+		RESULT = NAME;								\
+	}
+#define TSP_SET(NAME, VALUE)						\
+	_LOCK_ACCESS(&NAME##_mutex){					\
+		NAME = VALUE;								\
+	}
+#define TSP_SCOPE(NAME)								\
+	_LOCK_ACCESS(&NAME##_mutex)
+#define TSP_TRYSCOPE(NAME)								\
+	_TRYLOCK_ACCESS(&NAME##_mutex)
 
 
 #ifdef __cplusplus

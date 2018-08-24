@@ -1,19 +1,20 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include "np_types.h"
 #include "np_memory.h"
+
 #include "np_msgproperty.h"
 #include "np_dendrit.h"
 #include "np_axon.h"
 #include "np_glia.h"
 #include "np_list.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_pinging.h"
 
-sll_return(np_msgproperty_ptr) default_msgproperties() {
-
+sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
+	
 	np_sll_t(np_msgproperty_ptr, ret);
 	sll_init(np_msgproperty_ptr, ret);
 
@@ -91,7 +92,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__join_req->mode_type = INBOUND | OUTBOUND;
 	__join_req->mep_type = REQ_REP;
 	__join_req->priority = 0;
-	__join_req->ack_mode = ACK_CLIENT;
+	__join_req->ack_mode = ACK_NONE;
 	__join_req->retry = 5;
 	sll_append(np_callback_t, __join_req->clb_inbound, _np_in_join_req);
 	//default: sll_append(np_callback_t, __join_req->clb_outbound, _np_out);
@@ -158,7 +159,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	//default: sll_append(np_callback_t, __leave_properties->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __leave_properties->clb_transform, _np_never_called_jobexec_transform);
 	//default: sll_append(np_callback_t, __leave_properties->clb_route, _np_glia_route_lookup);
-	__leave_properties->msg_ttl = 20.0;
+	__leave_properties->msg_ttl = 3.0;
 	__leave_properties->max_threshold = UINT16_MAX;
 	__leave_properties->token_max_ttl = 30;
 	__leave_properties->token_min_ttl = 20;
@@ -173,7 +174,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__ping->mep_type = ONE_WAY;
 	__ping->priority = 0;
 	__ping->ack_mode = ACK_DESTINATION;
-	__ping->retry = 0;
+	__ping->retry = 3;
 	sll_append(np_callback_t, __ping->clb_inbound, _np_in_ping);
 	//default: sll_append(np_callback_t, __ping->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __ping->clb_transform, _np_never_called_jobexec_transform);

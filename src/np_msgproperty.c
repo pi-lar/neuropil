@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <stdio.h>
@@ -12,13 +12,15 @@
 #include <pthread.h>
 #include <errno.h>
 #include <string.h>
+#include <math.h>
+#include <inttypes.h>
 
 #include "sodium.h"
 #include "msgpack/cmp.h"
 
 #include "np_msgproperty.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "dtime.h"
 #include "np_log.h"
@@ -29,6 +31,7 @@
 #include "np_jobqueue.h"
 #include "np_tree.h"
 #include "np_memory.h"
+
 #include "np_message.h"
 #include "np_network.h"
 #include "np_node.h"
@@ -39,6 +42,7 @@
 #include "np_constants.h"
 #include "np_list.h"
 #include "np_types.h"
+#include "np_token_factory.h"
 
 
 #define NR_OF_ELEMS(x)  (sizeof(x) / sizeof(x[0]))
@@ -46,7 +50,7 @@
 NP_SLL_GENERATE_IMPLEMENTATION(np_msgproperty_ptr);
 
 #include "np_msgproperty_init.c"
- 
+
 // required to properly link inline in debug mode
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mode_type, np_msg_mode_type);
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, mep_type, np_msg_mep_type);
@@ -62,135 +66,117 @@ RB_HEAD(rbt_msgproperty, np_msgproperty_s);
 RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
 
 typedef struct rbt_msgproperty rbt_msgproperty_t;
-static rbt_msgproperty_t* __msgproperty_table;
 
-np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, NP_UNUSED np_tree_t* properties, NP_UNUSED np_tree_t* body)
-{
-	if (msg->msg_property->is_internal == TRUE && 0 != strncmp(msg->msg_property->msg_subject, _DEFAULT,strlen(_DEFAULT))) {
-		CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
-
-		if (ACK_CLIENT == (msg_ack_mode.value.ush & ACK_CLIENT))
-		{
-			_np_send_ack(msg);
-		}
-
-		goto __np_return__;
-
-		__np_cleanup__:
-		log_msg(LOG_WARN, "cannot ack msg %s (%s)", msg->uuid, msg->msg_property->msg_subject);		
-	}
-
-	__np_return__:
-	return TRUE;
-}
+np_module_struct(msgproperties) {
+	np_state_t * context;
+	rbt_msgproperty_t* __msgproperty_table;
+};
 
 /**
  ** _np_msgproperty_init
  ** Initialize message property subsystem.
  **/
-np_bool _np_msgproperty_init ()
+bool _np_msgproperty_init (np_state_t* context)
 {
-	__msgproperty_table = (rbt_msgproperty_t*) malloc(sizeof(rbt_msgproperty_t));
-	CHECK_MALLOC(__msgproperty_table);
+	if (!np_module_initiated(msgproperties)) {
+		np_module_malloc(msgproperties);
+		_module->__msgproperty_table = (rbt_msgproperty_t*)malloc(sizeof(rbt_msgproperty_t));
+		CHECK_MALLOC(_module->__msgproperty_table);
 
-	if (NULL == __msgproperty_table) return FALSE;
+		if (NULL == _module->__msgproperty_table) return false;
 
-	RB_INIT(__msgproperty_table);
+		RB_INIT(_module->__msgproperty_table);
 
-	// NEUROPIL_INTERN_MESSAGES
-	
-	np_sll_t(np_msgproperty_ptr, msgproperties);
-	msgproperties  = default_msgproperties();
-	sll_iterator(np_msgproperty_ptr) __np_internal_messages =  sll_first(msgproperties);
+		// NEUROPIL_INTERN_MESSAGES
 
-	while(__np_internal_messages != NULL)
-	{
-		np_msgproperty_t* property = __np_internal_messages->val;
-		property->is_internal = TRUE;		
+		np_sll_t(np_msgproperty_ptr, msgproperties);
+		msgproperties = default_msgproperties(context);
+		sll_iterator(np_msgproperty_ptr) __np_internal_messages = sll_first(msgproperties);
 
-		if (strlen(property->msg_subject) > 0)
+		while (__np_internal_messages != NULL)
 		{
-//			if ((property->mode_type & INBOUND) == INBOUND && (property->ack_mode & ACK_DESTINATION) == ACK_DESTINATION) {
-//				_np_msgproperty_add_receive_listener(__np_msgproperty_internal_msgs_ack, property);
-//			}
+			np_msgproperty_t* property = __np_internal_messages->val;
+			property->is_internal = true;
 
-			log_debug_msg(LOG_DEBUG, "register handler: %s", property->msg_subject);
-			RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
+			if (strlen(property->msg_subject) > 0)
+			{
+				log_debug_msg(LOG_DEBUG, "register handler: %s", property->msg_subject);
+				RB_INSERT(rbt_msgproperty, _module->__msgproperty_table, property);
+			}
 
+			sll_next(__np_internal_messages);
 		}
 
-		sll_next(__np_internal_messages);
-	}	
-
-	sll_free(np_msgproperty_ptr, msgproperties);
-	
-	return TRUE;
-}
-
-void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgproperty_t* msg_prop)
-{
-	// check whether an handler already exists
-
-	if (FALSE == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_callback_t_sll_compare_type)) {
-		sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
+		sll_free(np_msgproperty_ptr, msgproperties);
 	}
-	sll_append(np_usercallback_t, msg_prop->user_receive_clb, msg_handler);
+	return true;
 }
 
 /**
  ** registers the handler function #func# with the message type #type#,
  ** it also defines the acknowledgment requirement for this type
  **/
-np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* subject)
+np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_msg_mode_type mode_type, const char* subject)
 {
-	log_msg(LOG_TRACE, "start: np_msgproperty_t* np_msgproperty_get(np_msg_mode_type mode_type, const char* subject){");
+	log_trace_msg(LOG_TRACE, "start: np_msgproperty_t* np_msgproperty_get(context, np_msg_mode_type mode_type, const char* subject){");
 	assert(subject != NULL);
 
 	np_msgproperty_t prop = { .msg_subject=(char*) subject, .mode_type=mode_type };
-	return RB_FIND(rbt_msgproperty, __msgproperty_table, &prop);
+	return RB_FIND(rbt_msgproperty,np_module(msgproperties)->__msgproperty_table, &prop);
 }
 
 int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2)
 {
-	log_msg(LOG_TRACE, "start: int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2){");
-
 	int16_t ret = -1;
-	// TODO: check how to use bitmasks with red-black-tree efficiently
-	int16_t i = 1;
+	// TODO: check how to use bitmasks with red-black-tree efficiently	
 
-	if(prop1 == NULL || prop1->msg_subject == NULL || prop2 == NULL || prop2->msg_subject == NULL){
-		log_msg(LOG_ERROR,"Comparing properties where one is NULL");
-	}else{
-		i = strncmp(prop1->msg_subject, prop2->msg_subject, 255);
-	}
+	assert(!(prop1 == NULL || prop1->msg_subject == NULL || prop2 == NULL || prop2->msg_subject == NULL)); //"Comparing properties where one is NULL");	
 
+	int16_t i = strncmp(prop1->msg_subject, prop2->msg_subject, 255);
+	
 	if (0 != i) ret = i;
 	else if (prop1->mode_type == prop2->mode_type) ret =  (0);		// Is it the same bitmask ?
 	else if (0 < (prop1->mode_type & prop2->mode_type)) ret = (0);	// for searching: Are some test bits set ?
 	else if (prop1->mode_type > prop2->mode_type)  ret = ( 1);		// for sorting / inserting different entries
-	else if (prop1->mode_type < prop2->mode_type)  ret = (-1);		
+	else if (prop1->mode_type < prop2->mode_type)  ret = (-1);
 
 	return ret;
 }
 
+void _np_msgproperty_register_job(np_state_t * context, np_jobargs_t* jargs) {
+	np_msgproperty_t* msgprops = jargs->custom_data;
+
+	np_message_intent_public_token_t* token = _np_msgproperty_upsert_token(msgprops);
+	if ((msgprops->mode_type & OUTBOUND) == OUTBOUND) {
+		np_aaatoken_t* old_token = _np_aaatoken_add_sender(msgprops->msg_subject, token);
+		np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
+		_np_send_subject_discovery_messages(context, OUTBOUND, msgprops->msg_subject);
+	}
+
+	if ((msgprops->mode_type & INBOUND) == INBOUND) {
+		np_aaatoken_t* old_token = _np_aaatoken_add_receiver(msgprops->msg_subject, token);
+		np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_receiver");
+		_np_send_subject_discovery_messages(context, INBOUND, msgprops->msg_subject);
+
+	}
+	np_unref_obj(np_aaatoken_t, token, "_np_msgproperty_upsert_token");
+}
+
 void np_msgproperty_register(np_msgproperty_t* msgprops)
 {
-	log_msg(LOG_TRACE, "start: void np_msgproperty_register(np_msgproperty_t* msgprops){");
+	np_ctx_memory(msgprops);
+	log_trace_msg(LOG_TRACE, "start: void np_msgproperty_register(np_msgproperty_t* msgprops){");
 	log_debug_msg(LOG_DEBUG, "registering user property: %s", msgprops->msg_subject);
 
 	np_ref_obj(np_msgproperty_t, msgprops, ref_system_msgproperty);
-	RB_INSERT(rbt_msgproperty, __msgproperty_table, msgprops);
+	RB_INSERT(rbt_msgproperty, np_module(msgproperties)->__msgproperty_table, msgprops);
 
-	if ((msgprops->mode_type & OUTBOUND) == OUTBOUND) {
-		_np_send_subject_discovery_messages(OUTBOUND, msgprops->msg_subject);
-	}else if ((msgprops->mode_type & INBOUND) == INBOUND) {
-		_np_send_subject_discovery_messages(INBOUND, msgprops->msg_subject);
-	}	
+	np_job_submit_event(context, PRIORITY_MOD_LEVEL_2, 0, _np_msgproperty_register_job, msgprops, "_np_msgproperty_register_job");
 }
 
-void _np_msgproperty_t_new(void* property)
+void _np_msgproperty_t_new(np_state_t *context, uint8_t type, size_t size, void* property)
 {
-	log_msg(LOG_TRACE, "start: void _np_msgproperty_t_new(void* property){");
+	log_trace_msg(LOG_TRACE, "start: void _np_msgproperty_t_new(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
 	prop->token_min_ttl = MSGPROPERTY_DEFAULT_MIN_TTL_SEC;
@@ -204,13 +190,13 @@ void _np_msgproperty_t_new(void* property)
 	prop->mep_type	= DEFAULT_TYPE;
 	prop->ack_mode	= ACK_NONE;
 	prop->priority	= PRIORITY_MOD_USER_DEFAULT;
-	prop->retry		= 5;
-	prop->msg_ttl	= 20.0;
+	prop->retry		= 20;
+	prop->msg_ttl	= 60.0;
 
 	prop->max_threshold = 10;
-	prop->msg_threshold =  0;
+	TSP_INITD(prop->msg_threshold, 0);
 
-	prop->is_internal = FALSE;
+	prop->is_internal = false;
 	prop->last_update = np_time_now();
 
 	sll_init(np_callback_t, prop->clb_inbound);
@@ -219,23 +205,114 @@ void _np_msgproperty_t_new(void* property)
 	sll_init(np_callback_t, prop->clb_route);
 
 	sll_append(np_callback_t, prop->clb_outbound, _np_out);
-	sll_append(np_callback_t, prop->clb_route, _np_glia_route_lookup);	
+	sll_append(np_callback_t, prop->clb_route, _np_glia_route_lookup);
 
-	sll_init(np_usercallback_t, prop->user_receive_clb);
-	sll_init(np_usercallback_t, prop->user_send_clb);
+	sll_init(np_usercallback_ptr, prop->user_receive_clb);
+	sll_init(np_usercallback_ptr, prop->user_send_clb);
 
 	// cache which will hold up to max_threshold messages
 	prop->cache_policy = FIFO | OVERFLOW_PURGE;
 	sll_init(np_message_ptr, prop->msg_cache_in);
 	sll_init(np_message_ptr, prop->msg_cache_out);
 
-	_np_threads_mutex_init (&prop->lock,"property lock");
-	_np_threads_condition_init_shared(&prop->msg_received);
+	_np_threads_mutex_init(context, &prop->lock,"property lock");
+	_np_threads_condition_init(context, &prop->msg_received);
+	
+	_np_threads_mutex_init(context, &prop->send_discovery_msgs_lock, "send_discovery_msgs_lock");
+
+	_np_threads_mutex_init(context, &prop->unique_uuids_lock, "unique_uuids_lock");
+	np_msgproperty_enable_check_for_unique_uuids(prop);
+	prop->recv_key = NULL;
+	prop->send_key = NULL;
+
+	prop->current_sender_token = NULL;
+	prop->current_receive_token = NULL;
+}
+void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self) {
+	np_ctx_memory(self);
+	_LOCK_ACCESS(&self->unique_uuids_lock) {
+		np_tree_free( self->unique_uuids);
+		self->unique_uuids_check = false;
+	}
+}
+void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self) {
+	np_ctx_memory(self);
+	_LOCK_ACCESS(&self->unique_uuids_lock){
+		self->unique_uuids = np_tree_create();
+		self->unique_uuids_check = true;
+	}
 }
 
-void _np_msgproperty_t_del(void* property)
+bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check)
 {
-	log_msg(LOG_TRACE, "start: void _np_msgproperty_t_del(void* property){");
+	np_ctx_memory(self);
+	bool ret = true;
+	_LOCK_ACCESS(&self->unique_uuids_lock) {
+		if (self->unique_uuids_check) {
+
+			if (np_tree_find_str(self->unique_uuids, msg_to_check->uuid) == NULL) {
+				np_tree_insert_str( self->unique_uuids, msg_to_check->uuid, np_treeval_new_d(_np_message_get_expiery(msg_to_check)));
+			}
+			else {
+				ret = false;
+			}
+		}
+	}
+	return ret;
+}
+void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_message_t* msg_to_remove)
+{	
+	np_ctx_memory(self);
+	_LOCK_ACCESS(&self->unique_uuids_lock) {
+		if (self->unique_uuids_check) {
+			np_tree_del_str(self->unique_uuids, msg_to_remove->uuid);
+		}
+	}
+}
+
+void _np_msgproperty_job_msg_uniquety(np_state_t* context, np_jobargs_t* args) {
+	
+
+	// TODO: iter over msgproeprties and remove expired msg uuid from unique_uuids
+	// RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
+
+	np_msgproperty_t* iter_prop = NULL;
+	double now;
+	RB_FOREACH(iter_prop, rbt_msgproperty, np_module(msgproperties)->__msgproperty_table)
+	{
+		if (iter_prop->unique_uuids_check) {
+			sll_init_full(char_ptr, to_remove);
+
+			_LOCK_ACCESS(&iter_prop->unique_uuids_lock) {
+				np_tree_elem_t* iter_tree = NULL;
+				now = np_time_now();
+				RB_FOREACH(iter_tree, np_tree_s, iter_prop->unique_uuids)
+				{
+					if (iter_tree->val.value.d < now) {
+						sll_append(char_ptr, to_remove, iter_tree->key.value.s);
+					}
+				}
+			}
+
+			sll_iterator(char_ptr) iter_to_rm = sll_first(to_remove);
+			if(iter_to_rm != NULL) {
+				log_debug_msg(LOG_DEBUG | LOG_MSGPROPERTY ,"UNIQUITY removing %"PRIu32" from %"PRIu16" items from unique_uuids for %s", sll_size(to_remove), iter_prop->unique_uuids->size, iter_prop->msg_subject);
+				while (iter_to_rm != NULL)
+				{
+					_LOCK_ACCESS(&iter_prop->unique_uuids_lock) {
+						np_tree_del_str(iter_prop->unique_uuids, iter_to_rm->val);
+					}
+					sll_next(iter_to_rm);
+				}
+			}
+			sll_free(char_ptr, to_remove);
+		}
+	}
+}
+
+void _np_msgproperty_t_del(np_state_t *context, uint8_t type, size_t size, void* property)
+{
+	log_trace_msg(LOG_TRACE, "start: void _np_msgproperty_t_del(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
 
 	log_debug_msg(LOG_DEBUG, "Deleting msgproperty %s",prop->msg_subject);
@@ -262,23 +339,28 @@ void _np_msgproperty_t_del(void* property)
 			sll_free(np_message_ptr, prop->msg_cache_out);
 		}
 
-		sll_free(np_usercallback_t, prop->user_receive_clb);
-		sll_free(np_usercallback_t, prop->user_send_clb);
+		sll_free(np_usercallback_ptr, prop->user_receive_clb);
+		sll_free(np_usercallback_ptr, prop->user_send_clb);
 
 		sll_free(np_callback_t, prop->clb_transform);
 		sll_free(np_callback_t, prop->clb_route);
 		sll_free(np_callback_t, prop->clb_outbound);
-		sll_free(np_callback_t, prop->clb_inbound);		
+		sll_free(np_callback_t, prop->clb_inbound);
+
+		TSP_DESTROY( prop->msg_threshold);
+
 
 	}
-	_np_threads_mutex_destroy(&prop->lock);
-	_np_threads_condition_destroy(&prop->msg_received);
+	_np_threads_mutex_destroy(context, &prop->lock);
+	_np_threads_condition_destroy(context, &prop->msg_received);
+	_np_threads_mutex_destroy(context, &prop->send_discovery_msgs_lock);
+
 	prop = NULL;
 }
 
 void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 {
-	log_msg(LOG_TRACE, "start: void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop){");
+	np_ctx_memory(send_prop);
 	// check if we are (one of the) sending node(s) of this kind of message
 	// should not return NULL
 	log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
@@ -292,9 +374,9 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 		msg_available = sll_size(send_prop->msg_cache_out);
 	}
 
-	np_bool sending_ok = TRUE;
+	bool sending_ok = true;
 
-	while (0 < msg_available && TRUE == sending_ok)
+	while (0 < msg_available && true == sending_ok)
 	{
 		np_message_t* msg_out = NULL;
 		_LOCK_ACCESS(&send_prop->lock)
@@ -302,7 +384,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 			// if messages are available in cache, send them !
 			if (send_prop->cache_policy & FIFO)
 				msg_out = sll_head(np_message_ptr, send_prop->msg_cache_out);
-			if (send_prop->cache_policy & FILO)
+			if (send_prop->cache_policy & LIFO)
 				msg_out = sll_tail(np_message_ptr, send_prop->msg_cache_out);
 
 			// check for more messages in cache after head/tail command
@@ -310,7 +392,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 		}
 
 		if(NULL != msg_out){
-			send_prop->msg_threshold--;
+			_np_msgproperty_threshold_decrease(send_prop);
 			sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop, NULL);
 			np_unref_obj(np_message_t, msg_out, ref_msgproperty_msgcache);
 
@@ -322,19 +404,16 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
 
 void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 {
-	log_msg(LOG_TRACE, "start: void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop){");
+	np_ctx_memory(recv_prop);
 	log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 			"this node is the receiver of messages, checking msgcache (%p / %u) ...",
 			recv_prop->msg_cache_in, sll_size(recv_prop->msg_cache_in));
-
 	// get message from cache (maybe only for one way mep ?!)
 	uint16_t msg_available = 0;
 	_LOCK_ACCESS(&recv_prop->lock)
 	{
 		msg_available = sll_size(recv_prop->msg_cache_in);
 	}
-
-	np_state_t* state = _np_state();
 
 	while (0 < msg_available)
 	{
@@ -343,17 +422,19 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 		_LOCK_ACCESS(&recv_prop->lock)
 		{
 			// if messages are available in cache, try to decode them !
-			if (recv_prop->cache_policy & FIFO)
+			if (FLAG_CMP(recv_prop->cache_policy, FIFO)){
 				msg_in = sll_head(np_message_ptr, recv_prop->msg_cache_in);
-			if (recv_prop->cache_policy & FILO)
+			}
+			else if (FLAG_CMP(recv_prop->cache_policy , LIFO)){
 				msg_in = sll_tail(np_message_ptr, recv_prop->msg_cache_in);
+			}
 
 			msg_available = sll_size(recv_prop->msg_cache_in);
 		}
 
 		if(NULL != msg_in) {
-			recv_prop->msg_threshold--;
-			_np_job_submit_msgin_event(0.0, recv_prop, state->my_node_key, msg_in, NULL);
+			_np_msgproperty_threshold_decrease(recv_prop);
+			_np_job_submit_msgin_event(0.0, recv_prop, context->my_node_key, msg_in, NULL);
 			np_unref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 		}
 	}
@@ -361,7 +442,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 
 void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
-	log_msg(LOG_TRACE, "start: void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in){");
+	np_ctx_memory(msg_prop);
 	_LOCK_ACCESS(&msg_prop->lock)
 	{
 		// cache already full ?
@@ -377,25 +458,25 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 				if ((msg_prop->cache_policy & FIFO) > 0)
 					old_msg = sll_head(np_message_ptr, msg_prop->msg_cache_out);
 
-				if ((msg_prop->cache_policy & FILO) > 0)
+				if ((msg_prop->cache_policy & LIFO) > 0)
 					old_msg = sll_tail(np_message_ptr, msg_prop->msg_cache_out);
 
 				if (old_msg != NULL)
 				{
 					// TODO: add callback hook to allow user space handling of discarded message
-					msg_prop->msg_threshold--;
+					_np_msgproperty_threshold_decrease(msg_prop);
 					np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
 				}
 			}
 
-			if (OVERFLOW_REJECT == (msg_prop->cache_policy & OVERFLOW_REJECT))
+			if (FLAG_CMP(msg_prop->cache_policy, OVERFLOW_REJECT))
 			{
 				log_msg(LOG_WARN,
 						"rejecting new message because cache is full");
 				break;
 			}
 		}
-
+		_np_msgproperty_threshold_increase(msg_prop);
 		sll_prepend(np_message_ptr, msg_prop->msg_cache_out, msg_in);
 
 		log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "added message to the sender msgcache (%p / %d) ...",
@@ -403,8 +484,9 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 		np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 	}
 }
-void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop) {
 
+void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop) {
+	np_ctx_memory(msg_prop);
 	_LOCK_ACCESS(&msg_prop->lock)
 	{
 		sll_iterator(np_message_ptr) iter_prop_msg_cache_in = sll_first(msg_prop->msg_cache_in);
@@ -413,24 +495,27 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop) {
 			sll_iterator(np_message_ptr) old_iter = iter_prop_msg_cache_in;
 			sll_next(iter_prop_msg_cache_in); // we need to iterate before we delete the old iter
 			np_message_t* old_msg = old_iter->val;
-			if (_np_message_is_expired(old_msg)) {				
+			if (_np_message_is_expired(old_msg)) {
 				sll_delete(np_message_ptr, msg_prop->msg_cache_in, old_iter);
 				np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
-				msg_prop->msg_threshold--;				
-			}			
+				_np_msgproperty_threshold_decrease(msg_prop);
+			}
 		}
 	}
+	log_msg(LOG_AAATOKEN | LOG_DEBUG, "cleanup receiver cache for subject %s done", msg_prop->msg_subject);
 }
+
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
 {
-	log_msg(LOG_TRACE, "start: void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in){");
+	np_ctx_memory(msg_prop);
 	_LOCK_ACCESS(&msg_prop->lock)
 	{
-		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
+/*		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
 		{
 			// cleanup of msgs in property receiver msg cache
 			_np_msgproperty_cleanup_receiver_cache(msg_prop);
 		}
+*/
 		// cache already full ?
 		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
 		{
@@ -441,31 +526,180 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "OVERFLOW_PURGE: discarding message in recv msgcache for %s", msg_prop->msg_subject);
 				np_message_t* old_msg = NULL;
 
-				if ((msg_prop->cache_policy & FIFO) > 0)
+				if (FLAG_CMP(msg_prop->cache_policy, FIFO))
 					old_msg = sll_head(np_message_ptr, msg_prop->msg_cache_in);
-				if ((msg_prop->cache_policy & FILO) > 0)
+				else if (FLAG_CMP(msg_prop->cache_policy, LIFO) )
 					old_msg = sll_tail(np_message_ptr, msg_prop->msg_cache_in);
 
 				if (old_msg != NULL)
 				{
 					// TODO: add callback hook to allow user space handling of discarded message
-					msg_prop->msg_threshold--;
+					_np_msgproperty_threshold_decrease(msg_prop);
 					np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
 				}
 			}
 
-			if (OVERFLOW_REJECT == (msg_prop->cache_policy & OVERFLOW_REJECT))
+			if (FLAG_CMP(msg_prop->cache_policy , OVERFLOW_REJECT))
 			{
 				log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
 						"rejecting new message because cache is full");
 				continue;
 			}
 		}
-
+		_np_msgproperty_threshold_increase(msg_prop);
 		sll_prepend(np_message_ptr, msg_prop->msg_cache_in, msg_in);
 
 		log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "added message to the recv msgcache (%p / %d) ...",
-				msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
+					  msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
 		np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
 	}
+}
+
+void _np_msgproperty_threshold_increase(np_msgproperty_t* self) {
+	np_ctx_memory(self);
+	TSP_SCOPE(self->msg_threshold) {
+		if(self->msg_threshold < self->max_threshold){
+			self->msg_threshold++;
+		}
+	}
+}
+
+void _np_msgproperty_threshold_decrease(np_msgproperty_t* self) {
+	np_ctx_memory(self);
+	TSP_SCOPE(self->msg_threshold){
+		if(self->msg_threshold > 0){
+			self->msg_threshold--;
+		}
+	}
+}
+
+np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t* prop) {
+	
+	np_ctx_memory(prop);
+	np_message_intent_public_token_t* ret = _np_aaatoken_get_local_mx(context, prop->msg_subject);
+
+	double now = np_time_now();
+	if (NULL == ret
+// 		|| _np_aaatoken_is_valid(ret, np_aaatoken_type_message_intent) == false
+		|| (ret->expires_at - now) <= fmin(prop->token_min_ttl, MISC_RETRANSMIT_MSG_TOKENS_SEC)
+		)
+	{
+		// Create a new msg token
+		log_msg(LOG_AAATOKEN | LOG_DEBUG, "--- refresh for subject token: %25s --------", prop->msg_subject);
+		np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(prop);
+		log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s (%s replaces %s) ", prop->msg_subject, msg_token_new->uuid, ret == NULL ? "-" : ret->uuid);		
+		_np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
+		np_unref_obj(np_aaatoken_t, ret, "_np_aaatoken_get_local_mx");
+		ret = msg_token_new;		
+		ref_replace_reason(np_aaatoken_t, ret, "_np_token_factory_new_message_intent_token", FUNC);
+	
+	} else {
+		ref_replace_reason(np_aaatoken_t, ret, "_np_aaatoken_get_local_mx", FUNC);
+	}
+
+	_LOCK_ACCESS(&prop->lock) {
+		np_tree_find_str(ret->extensions, "msg_threshold")->val.value.ui = prop->msg_threshold;
+	}
+	log_msg(LOG_AAATOKEN | LOG_DEBUG, "--- done refresh for subject token: %25s new token has uuid %s", prop->msg_subject, ret->uuid);
+
+	ASSERT(_np_aaatoken_is_valid(ret, np_aaatoken_type_message_intent), "AAAToken needs to be valid");
+	
+	return ret;
+}
+
+
+void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
+
+	dest->intent_ttl = src->token_max_ttl;
+	dest->intent_update_after = src->token_min_ttl;
+	dest->message_ttl = src->msg_ttl;
+	if(src->rep_subject != NULL) {
+		strncpy(dest->reply_subject, src->rep_subject, 255);
+	}
+	else {
+		memset(dest->reply_subject, 0, sizeof(dest->reply_subject));
+	}
+	
+	// ackmode conversion
+	switch (src->ack_mode)
+	{
+	case ACK_NONE:
+		dest->ackmode = NP_MX_ACK_NONE;
+		break;
+	case ACK_DESTINATION:
+		dest->ackmode = NP_MX_ACK_DESTINATION;
+		break;
+	case ACK_CLIENT:
+		dest->ackmode = NP_MX_ACK_CLIENT;
+		break;
+	default:
+		dest->ackmode = NP_MX_ACK_NONE;
+		break;
+	}
+
+	// cache_policy conversion
+	if (FLAG_CMP(src->cache_policy, FIFO)) {
+		if (FLAG_CMP(src->cache_policy, OVERFLOW_REJECT)) {
+			dest->cache_policy = NP_MX_FIFO_REJECT;
+		}
+		else {
+			dest->cache_policy = NP_MX_FIFO_PURGE;
+		}			
+	}
+	else {
+		if (FLAG_CMP(src->cache_policy, OVERFLOW_REJECT)) {
+			dest->cache_policy = NP_MX_LIFO_REJECT;
+		}
+		else {
+			dest->cache_policy = NP_MX_LIFO_PURGE;
+		}
+	}
+}
+
+void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* src) {
+
+
+	dest->token_max_ttl = src->intent_ttl;
+	dest->token_min_ttl = src->intent_update_after ;
+	dest->msg_ttl = src->message_ttl;
+
+	if (src->reply_subject[0] != 0 &&  strcmp(dest->rep_subject, src->reply_subject) != 0)
+	{
+		dest->rep_subject = strdup(src->reply_subject );
+	}
+
+	// ackmode conversion
+	switch (src->ackmode)
+	{
+	case NP_MX_ACK_DESTINATION:
+		dest->ack_mode = ACK_DESTINATION;
+		break;
+	case NP_MX_ACK_CLIENT:
+		dest->ack_mode = ACK_CLIENT;
+		break;
+	default:
+		dest->ack_mode = ACK_NONE;
+		break;
+	}
+
+	switch (src->cache_policy)
+	{
+	case NP_MX_FIFO_REJECT:
+		dest->cache_policy = FIFO & OVERFLOW_REJECT;
+		break;
+	case NP_MX_FIFO_PURGE:
+		dest->cache_policy = FIFO & OVERFLOW_PURGE;
+		break;
+	case NP_MX_LIFO_REJECT:
+		dest->cache_policy = LIFO & OVERFLOW_REJECT;
+		break;
+	case NP_MX_LIFO_PURGE:
+		dest->cache_policy = LIFO & OVERFLOW_PURGE;
+		break;
+	default:
+		break;
+	}
+
+	// mep type conversion	
+	dest->mep_type= ONE_WAY;
 }

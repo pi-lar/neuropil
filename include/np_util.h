@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef	_NP_UTIL_H_
@@ -12,58 +12,38 @@
 
 #include "np_tree.h"
 #include "np_threads.h"
+#include "np_settings.h"
+#include "np_statistics.h"
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+	 
 
-#ifndef CEIL
-#define CEIL(a) (((a-(int)a) > 0) ? ((int)a)+1:a)
+#ifdef DEBUG
+#define debugf(s, ...) fprintf(stdout, s, ##__VA_ARGS__);fflush(stdout)
+#else
+#define debugf(s, ...)
 #endif
-#ifndef FLOOR
-#define FLOOR(a) ((int)a)
-#endif
-#ifndef MIN
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#endif
-#ifndef MAX
-#define MAX(a,b) (((a)>(b))?(a):(b))
-#endif
-#ifndef min
-#define min(a,b) MIN(a,b)
-#endif
-#ifndef ceil
-#define ceil(a) CEIL(a)
-#endif
-#ifndef floor
-#define floor(a) FLOOR(a)
-#endif
-#ifndef max
-#define max(a,b) MAX(a,b)
-#endif
+	
 
+#define FLAG_CMP(data,flag) (((data) & (flag)) == (flag))
 
 #ifdef DEBUG
 #define ASSERT(expression, onfail_msg, ...)												\
 	if(!(expression)){																	\
-		log_debug_msg(LOG_ERROR, onfail_msg , ##__VA_ARGS__);							\
 		fprintf(stderr, "Assert ERROR: "onfail_msg"\r\n", ##__VA_ARGS__);				\
 		fflush(NULL);																	\
 		assert((expression));															\
 	}																						 
 #else
-#define ASSERT(expression, onfail_msg, ...)
+#define ASSERT(expression, onfail_msg, ...)												\
+	if (!(expression)) {																\
+			log_debug_msg(LOG_ERROR, onfail_msg, ##__VA_ARGS__);						\
+	}
 #endif
-
-#define NP_GENERATE_THREADSAFE_PROPERTY_PROTOTYPE(TYPE, PROPERTY_NAME)					\
-	TYPE PROPERTY_NAME##_get();															\
-	void PROPERTY_NAME##_set(TYPE obj);														
-
-#define NP_GENERATE_THREADSAFE_PROPERTY_IMPL(TYPE, PROPERTY_NAME, PROPERTY)				\
-	TYPE PROPERTY_NAME##_get() {														\
-}
-
 
 
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)			\
@@ -93,13 +73,10 @@ inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, 
 	msg_prop->PROP_NAME = value;                          \
 }
 
-#define UUID_SIZE 37
+
 // create a sha156 uuid string, take the current date into account
 NP_API_EXPORT
-char* np_uuid_create(const char* str, const uint16_t num);
-
-NP_API_INTERN
-void _np_tree2jsonobj(np_tree_t* jtree, JSON_Object* json_obj);
+char* np_uuid_create(const char* str, const uint16_t num, char** buffer);
 
 NP_API_INTERN
 void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys));
@@ -111,7 +88,7 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys));
 
 */
 NP_API_EXPORT
-JSON_Value* np_tree2json(np_tree_t* tree) ;
+JSON_Value* np_tree2json(np_state_t * context, np_tree_t* tree) ;
  /**
 .. c:function:: void np_json2char()
 
@@ -119,12 +96,12 @@ JSON_Value* np_tree2json(np_tree_t* tree) ;
 
 */
 NP_API_EXPORT
-char* np_json2char(JSON_Value* data,np_bool prettyPrint) ;
+char* np_json2char(JSON_Value* data,bool prettyPrint) ;
 /**
  * convert np_treeval_t to JSON_Value
  */
 NP_API_EXPORT
-JSON_Value* np_treeval2json(np_treeval_t val);
+JSON_Value* np_treeval2json(np_state_t * context, np_treeval_t val);
 /**
 .. c:function:: void np_dump_tree2log()
 
@@ -132,7 +109,7 @@ JSON_Value* np_treeval2json(np_treeval_t val);
 
 */
 NP_API_EXPORT
-void np_dump_tree2log(log_type category, np_tree_t* tree);
+void np_dump_tree2log(np_state_t * context, log_type category, np_tree_t* tree);
 /**
 .. c:function:: void np_dump_tree2log()
 
@@ -140,16 +117,16 @@ void np_dump_tree2log(log_type category, np_tree_t* tree);
 
 */
 NP_API_EXPORT
-char* np_dump_tree2char(np_tree_t* tree);
+char* np_dump_tree2char(np_state_t* context, np_tree_t* tree);
 
-NP_API_INTERN
-char* _np_concatAndFree(char* target, char* source, ... );
+NP_API_PROTEC
+char* np_str_concatAndFree(char* target, char* source, ... );
 
-NP_API_INTERN
-np_bool _np_get_local_ip(char buffer[], int buffer_size);
+NP_API_PROTEC
+bool np_get_local_ip(np_state_t* context, char* buffer, int buffer_size);
 
-NP_API_INTERN
-char* _sll_char_make_flat(np_sll_t(char_ptr, target));
+NP_API_PROTEC
+char* _sll_char_make_flat(np_state_t* context, np_sll_t(char_ptr, target));
 NP_API_INTERN
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len);
 NP_API_INTERN
@@ -166,10 +143,23 @@ typedef struct {
 } _np_util_debug_statistics_t;
 
 NP_API_INTERN
-_np_util_debug_statistics_t* _np_util_debug_statistics_add(char* key, double value);
+_np_util_debug_statistics_t* _np_util_debug_statistics_add(np_state_t * context, char* key, double value);
 NP_API_INTERN
-_np_util_debug_statistics_t* __np_util_debug_statistics_get(char* key);
+_np_util_debug_statistics_t* __np_util_debug_statistics_get(np_state_t * context, char* key);
+NP_API_INTERN
+char* __np_util_debug_statistics_print(np_state_t * context);
 #endif
+
+enum np_util_stringify_e {
+	np_util_stringify_time_ms,
+	np_util_stringify_bytes,
+	np_util_stringify_bytes_per_sec
+}NP_API_EXPORT;
+NP_API_EXPORT
+char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]);
+NP_API_EXPORT
+char* np_util_string_trim_left(char* target);
+
 
 #ifdef __cplusplus
 }

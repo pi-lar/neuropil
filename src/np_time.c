@@ -4,17 +4,18 @@
 //
 #include "event/ev.h"
 #include <time.h>
+#include <math.h>
 
-#include "neuropil.h"
-
+#include "np_legacy.h"
+#include "np_util.h"
 double np_time_now() {
-	return ev_time();
+	return  ev_time();
 }
 
-void np_time_sleep(double sleeptime) {
+double np_time_sleep(double sleeptime) {
 
+	sleeptime = fmax(sleeptime, NP_SLEEP_MIN);
 	ev_sleep(sleeptime);
-	return;
 
 /*
 	struct timespec ts;
@@ -25,4 +26,5 @@ void np_time_sleep(double sleeptime) {
 	while (status == -1)
 		status = nanosleep(&ts, &ts);
 */
+	return sleeptime;
 }

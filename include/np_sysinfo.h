@@ -1,9 +1,7 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-
-/** \toggle_keepwhitespaces  */
 
 #ifndef NP_SYSINFO_H_
 #define NP_SYSINFO_H_
@@ -19,20 +17,20 @@ extern "C" {
 	#define _NP_SYSINFO_REPLY "_NP.SYSINFO.REPLY"
 
 NP_API_INTERN
-void _np_sysinfo_init_cache();
+void _np_sysinfo_init_cache(np_state_t* context);
 NP_API_INTERN
-np_bool _np_in_sysinfo(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) ;
+bool _np_in_sysinfo(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) ;
 NP_API_INTERN
-np_bool _np_in_sysinforeply(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) ;
+bool _np_in_sysinforeply(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) ;
 /**
 .. c:function:: void np_sysinfo_get_info(const char* const dhkey_of_node_target)
 
-   Tries to evaluate the sysinfo informations for the given target.
-   Make sure to enable the target as sysinfo slave.
+   Tries to evaluate the sysinfo information for the given target.
+   Make sure to enable the target as sysinfo client.
 
 */
 NP_API_EXPORT
-np_tree_t* np_sysinfo_get_info(const char* const dhkey_of_node_target);
+np_tree_t* np_sysinfo_get_info(np_state_t* context, const char* const dhkey_of_node_target);
 /**
 .. c:function:: np_sysinfo_get_my_info()
 
@@ -40,33 +38,33 @@ np_tree_t* np_sysinfo_get_info(const char* const dhkey_of_node_target);
 
 */
 NP_API_EXPORT
-np_tree_t* np_sysinfo_get_my_info() ;
+np_tree_t* np_sysinfo_get_my_info(np_state_t* context) ;
 
 NP_API_INTERN
-void _np_sysinfo_request_others() ;
+void _np_sysinfo_request_others(np_state_t* context) ;
 NP_API_INTERN
-void _np_sysinfo_request(const char* dhkey_of_target) ;
+void _np_sysinfo_request(np_state_t* context,const char* dhkey_of_target) ;
 NP_API_INTERN
-np_tree_t* _np_sysinfo_get_from_cache(const char* hash_of_target, uint16_t max_cache_ttl) ;
+np_tree_t* _np_sysinfo_get_from_cache(np_state_t* context, const char* hash_of_target, uint16_t max_cache_ttl) ;
 
 /**
-.. c:function:: void np_sysinfo_enable_slave()
+.. c:function:: void np_sysinfo_enable_client()
 
    Enables this node to send sysinfo messages
 
 */
 NP_API_EXPORT
-void np_sysinfo_enable_slave();
+void np_sysinfo_enable_client(np_state_t* context);
 /**
-.. c:function:: void np_sysinfo_enable_master()
+.. c:function:: void np_sysinfo_enable_server()
 
    Enables this node to revceive sysinfo messages
 
 */
 NP_API_EXPORT
-void np_sysinfo_enable_master();
+void np_sysinfo_enable_server(np_state_t* context);
 NP_API_EXPORT
-np_tree_t* np_sysinfo_get_all();
+np_tree_t* np_sysinfo_get_all(np_state_t* context);
 #ifdef __cplusplus
 }
 #endif

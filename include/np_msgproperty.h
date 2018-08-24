@@ -1,8 +1,8 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-/** \toggle_keepwhitespaces  */
+
 /**
 The structure np_msgproperty_t is used to describe properties of the message exchange itself.
 It is setup by sender and receiver independent of each other.
@@ -16,6 +16,7 @@ A developer should be familiar with the main settings
 #include <stdarg.h>
 
 #include "np_memory.h"
+
 #include "np_util.h"
 #include "np_types.h"
 #include "np_list.h"
@@ -70,7 +71,7 @@ typedef enum np_msg_mode_enum {
    Extra Flags can be:
 
    FILTER_MSG
-   to be implemented: apply a filter before sending/receiving a message. filter will be a callback function returning TRUE or FALSE
+   to be implemented: apply a filter before sending/receiving a message. filter will be a callback function returning true or false
 
    HAS_REPLY
    check reply_to field of the incoming message to send a subject based reply (with more than one receiver)
@@ -163,16 +164,18 @@ typedef enum np_msg_mep_enum {
 
    FIFO - first in first out
 
-   FILO - first in last out (stack)
+   LIFO - first in last out (stack)
 
    OVERFLOW_REJECT - reject new messages when the limit is reached
 
    OVERFLOW_PURGE  - purge old messages when the limit is reached
 
 */
+
 typedef enum np_msgcache_policy_enum {
+	UNKNOWN = 0x00,
 	FIFO = 0x01,
-	FILO = 0x02,
+	LIFO = 0x02,
 	OVERFLOW_REJECT = 0x10,
 	OVERFLOW_PURGE = 0x20
 } NP_API_EXPORT np_msgcache_policy_type;
@@ -186,16 +189,13 @@ typedef enum np_msgcache_policy_enum {
 
    ACK_NONE        - never require a acknowledge
 
-   ACK_EACHHOP     - request the acknowledge between each hop a message is send
-
-   ACK_DESTINATION - request the sending of a acknowledge when the message has reached the
-   final destination
+   ACK_DESTINATION - request the sending of a acknowledge when the message has reached the final destination
 
    ACK_CLIENT      - request the sending of a acknowledge when the message has reached the
-   final destination and has been processed correctly (e.g. callback function returning TRUE, see :c:func:`np_set_listener`)
+   final destination and has been processed correctly (e.g. callback function returning true, see :c:func:`np_set_listener`)
 
-   Please note: acknowledge types can be ORed (|), so you can request the acknowledge between each hop and the acknowledge
-   when the message receives the final destination. We recommend against it because it will flood your network with acknowledges
+   Please note: acknowledge types can be ORed (|), so you can request the acknowledge when the message receives the final destination
+   and when the message has been consumed. We recommend against it because it will flood your network with acknowledges
 
 */
 typedef enum np_msg_ack_enum {
@@ -224,13 +224,17 @@ typedef enum np_msg_ack_enum {
 struct np_msgproperty_s
 {
 	// link to memory management
-	np_obj_t* obj;
+	
 
 	RB_ENTRY(np_msgproperty_s) link; // link for cache management
 
 	// link to node(s) which is/are interested in message exchange
 	np_dhkey_t partner_key;
 
+	/*
+	should not become longer than 242 characters
+		255 - 13 (urn:np:...)
+	*/
 	char*            msg_subject;
 	char*            rep_subject;
 	char*            msg_audience;
@@ -240,9 +244,10 @@ struct np_msgproperty_s
 	double           msg_ttl;
 	uint8_t          priority;
 	uint8_t          retry; // the # of retries when sending a message
-	uint16_t         msg_threshold; // current cache size
+
+	TSP(uint16_t,    msg_threshold); // current cache size
 	uint16_t         max_threshold; // local cache size
-	np_bool is_internal;
+	bool is_internal;
 
 	// timestamp for cleanup thread
 	double          last_update;
@@ -254,6 +259,7 @@ struct np_msgproperty_s
 
 	// only send/receive after opposite partner has been found
 	np_mutex_t lock;
+	np_mutex_t send_discovery_msgs_lock;
 	np_cond_t  msg_received;
 
 	// pthread_cond_t     msg_received;
@@ -265,17 +271,32 @@ struct np_msgproperty_s
 	np_sll_t(np_callback_t, clb_route);				// internal neuropil supplied
 	np_sll_t(np_callback_t, clb_transform);			// internal neuropil supplied
 
-	np_sll_t(np_usercallback_t, user_receive_clb);	// external user supplied for inbound
-	np_sll_t(np_usercallback_t, user_send_clb);		// external user supplied for outnound
+	np_sll_t(np_usercallback_ptr, user_receive_clb);	// external user supplied for inbound
+	np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outnound
 
 	// The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
 	uint32_t token_max_ttl;
 	// The token created for this msgproperty will guaranteed live for token_min_ttl seconds
 	uint32_t token_min_ttl;
 
+	bool unique_uuids_check;
+	uint32_t unique_uuids_max;
+	np_mutex_t unique_uuids_lock;
+	np_tree_t* unique_uuids;
+
+	// weak link (no reffing)
+	np_key_t* send_key;
+	// weak link (no reffing)
+	np_key_t* recv_key;
+
+	np_message_intent_public_token_t* current_sender_token;
+	np_message_intent_public_token_t* current_receive_token;
+
 } NP_API_EXPORT;
 
+#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
+#endif
 
 // create setter methods
 _NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mode_type, np_msg_mode_type);
@@ -307,42 +328,69 @@ NP_API_EXPORT
 void np_msgproperty_register(np_msgproperty_t* msgprops);
 
 /**
-.. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
+.. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
 
-   users of neuropil should simply use the :c:func:`np_set_mx_property` functions which will
-   automatically create and set the values specified.
+users of neuropil should simply use the :c:func:`np_set_mx_property` functions which will
+automatically create and set the values specified.
 
-   return the np_msgproperty structure for a subject and :c:type:`np_msg_mode_type`
+return the np_msgproperty structure for a subject and :c:type:`np_msg_mode_type`
 
-   :param mode_type: either INBOUND or OUTBOUND (see :c:type:`np_msg_mode_type`)
-   :param subject: the subject of the messages that are send
-   :returns: np_msgproperty_t structure of NULL if none found
+:param mode_type: either INBOUND or OUTBOUND (see :c:type:`np_msg_mode_type`)
+:param subject: the subject of the messages that are send
+:returns: np_msgproperty_t structure of NULL if none found
 
 */
 NP_API_EXPORT
-np_msgproperty_t* np_msgproperty_get(np_msg_mode_type msg_mode, const char* subject);
+np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_msg_mode_type msg_mode, const char* subject);
 
-static char _DEFAULT[]                       = "_NP.DEFAULT";
 
-static char _NP_MSG_ACK[]                    = "_NP.ACK";
-static char _NP_MSG_HANDSHAKE[]              = "_NP.HANDSHAKE";
-static char _NP_MSG_PING_REQUEST[]           = "_NP.PING.REQUEST";
-static char _NP_MSG_LEAVE_REQUEST[]          = "_NP.LEAVE.REQUEST";
-static char _NP_MSG_JOIN[]                   = "_NP.JOIN.";
-static char _NP_MSG_JOIN_REQUEST[]           = "_NP.JOIN.REQUEST";
-static char _NP_MSG_JOIN_ACK[]               = "_NP.JOIN.ACK";
-static char _NP_MSG_JOIN_NACK[]              = "_NP.JOIN.NACK";
-static char _NP_MSG_PIGGY_REQUEST[]          = "_NP.NODES.PIGGY";
-static char _NP_MSG_UPDATE_REQUEST[]         = "_NP.NODES.UPDATE";
-static char _NP_MSG_DISCOVER_RECEIVER[]      = "_NP.MESSAGE.DISCOVER.RECEIVER";
-static char _NP_MSG_DISCOVER_SENDER[]        = "_NP.MESSAGE.DISCOVER.SENDER";
-static char _NP_MSG_AVAILABLE_RECEIVER[]     = "_NP.MESSAGE.RECEIVER.LIST";
-static char _NP_MSG_AVAILABLE_SENDER[]       = "_NP.MESSAGE.SENDER.LIST";
-static char _NP_MSG_AUTHENTICATION_REQUEST[] = "_NP.MESSAGE.AUTHENTICATE";
-static char _NP_MSG_AUTHENTICATION_REPLY[]   = "_NP.MESSAGE.AUTHENICATION.REPLY";
-static char _NP_MSG_AUTHORIZATION_REQUEST[]  = "_NP.MESSAGE.AUTHORIZE";
-static char _NP_MSG_AUTHORIZATION_REPLY[]    = "_NP.MESSAGE.AUTHORIZATION.REPLY";
-static char _NP_MSG_ACCOUNTING_REQUEST[]     = "_NP.MESSAGE.ACCOUNT";
+
+/**
+.. c:function:: void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self)
+.. c:function:: void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self, uint32_t remembered_uuids)
+
+enables or disables the functionality of the msg property to only receive unique msgs.
+
+:param self: the msgproperty to modify
+:param remembered_uuids: the maximum count of uuids remembered
+
+*/
+NP_API_EXPORT
+void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self);
+NP_API_EXPORT
+void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self);
+NP_API_INTERN
+void _np_msgproperty_job_msg_uniquety(np_state_t* context, np_jobargs_t* args);
+NP_API_INTERN
+void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_message_t* msg_to_remove);
+NP_API_INTERN
+bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check);
+
+#define _NP_URN_PREFIX						"urn:np:"
+#define _NP_URN_MSG_PREFIX					""
+#define _NP_URN_NODE_PREFIX					_NP_URN_PREFIX"node:"
+#define _NP_URN_IDENTITY_PREFIX				_NP_URN_PREFIX"id:"
+#define _DEFAULT							"_NP.DEFAULT"
+
+#define _NP_MSG_ACK							"_NP.ACK"
+#define _NP_MSG_HANDSHAKE					"_NP.HANDSHAKE"
+#define _NP_MSG_PING_REQUEST				"_NP.PING.REQUEST"
+#define _NP_MSG_LEAVE_REQUEST				"_NP.LEAVE.REQUEST"
+#define _NP_MSG_JOIN						"_NP.JOIN."
+#define _NP_MSG_JOIN_REQUEST				"_NP.JOIN.REQUEST"
+#define _NP_MSG_JOIN_ACK					"_NP.JOIN.ACK"
+#define _NP_MSG_JOIN_NACK					"_NP.JOIN.NACK"
+#define _NP_MSG_PIGGY_REQUEST				"_NP.NODES.PIGGY"
+#define _NP_MSG_UPDATE_REQUEST				"_NP.NODES.UPDATE"
+#define _NP_MSG_DISCOVER_RECEIVER			"_NP.MESSAGE.DISCOVER.RECEIVER"
+#define _NP_MSG_DISCOVER_SENDER				"_NP.MESSAGE.DISCOVER.SENDER"
+#define _NP_MSG_AVAILABLE_RECEIVER			"_NP.MESSAGE.RECEIVER.LIST"
+#define _NP_MSG_AVAILABLE_SENDER			"_NP.MESSAGE.SENDER.LIST"
+#define _NP_MSG_AUTHENTICATION_REQUEST		"_NP.MESSAGE.AUTHENTICATE"
+#define _NP_MSG_AUTHENTICATION_REPLY		"_NP.MESSAGE.AUTHENICATION.REPLY"
+#define _NP_MSG_AUTHORIZATION_REQUEST		"_NP.MESSAGE.AUTHORIZE"
+#define _NP_MSG_AUTHORIZATION_REPLY			"_NP.MESSAGE.AUTHORIZATION.REPLY"
+#define _NP_MSG_ACCOUNTING_REQUEST			"_NP.MESSAGE.ACCOUNT"
 
 /**
  ** message_init
@@ -351,7 +399,7 @@ static char _NP_MSG_ACCOUNTING_REQUEST[]     = "_NP.MESSAGE.ACCOUNT";
  **
  **/
 NP_API_INTERN
-np_bool _np_msgproperty_init ();
+bool _np_msgproperty_init (np_state_t* context);
 
 /**
  ** compare two msg properties for rb cache management
@@ -370,11 +418,19 @@ void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_messag
 NP_API_INTERN
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
 NP_API_INTERN
-np_bool __np_msgproperty_internal_msgs_ack(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
-NP_API_INTERN
-void _np_msgproperty_add_receive_listener(np_usercallback_t msg_handler, np_msgproperty_t* msg_prop);
-NP_API_INTERN
 void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop);
+NP_API_INTERN
+void _np_msgproperty_threshold_increase(np_msgproperty_t* self);
+NP_API_INTERN
+void _np_msgproperty_threshold_decrease(np_msgproperty_t* self);
+NP_API_INTERN
+np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t* prop);
+
+NP_API_INTERN
+void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src);
+NP_API_INTERN
+void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* src);
+
 #ifdef __cplusplus
 }
 #endif

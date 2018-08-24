@@ -3,231 +3,380 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
-%module neuropil
+%module(package="neuropil") neuropil
+
+#define NP_API_INTERN
+#define NP_API_EXPORT
+#define NP_API_PROTEC
+#define NP_UNUSED
+#define NP_ENUM
+
+%include "stdint.i"
+
 %{
-#include "../include/np_types.h"
-#include "../include/neuropil.h"
-#include "../include/np_tree.h"
+#include "neuropil.h"
 %}
 
-struct np_tree_s
+%include "np_types.i"
+%include "np_aaatoken.i"
+%include "np_identity.i"
+%include "np_log.i"
+%include "np_tree.i"
+%include "np_treeval.i"
+%include "np_message.i"
+%include "np_msgproperty.i"
+
+%rename(np_state) np_state_s;
+%rename(np_state) np_state_t;
+
+%{
+
+static PyObject *py_authenticate_func = NULL;
+static PyObject *py_authorize_func = NULL;
+static PyObject *py_accounting_func = NULL;
+
+
+static np_bool python_authenticate_callback(struct np_aaatoken_s* aaa_token)
 {
-};
+    np_bool ret_val = FALSE;
+    PyObject *arglist;
+    PyObject *result;
 
-struct np_tree_elem_s
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
+
+    PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
+    arglist = Py_BuildValue("(O)", obj);
+
+    result = PyObject_CallObject(py_authenticate_func, arglist);
+    Py_DECREF(arglist);
+
+    if (result != NULL) {
+       ret_val = PyObject_IsTrue(result);
+       Py_XDECREF(result);
+    } else {
+       log_msg(LOG_ERROR, "error calling authn python callback");
+       PyErr_Clear();
+    }
+
+    PyGILState_Release(gstate);
+
+    return ret_val;
+}
+
+static np_bool python_authorize_callback(struct np_aaatoken_s* aaa_token)
 {
-    np_treeval_t key;
-    np_treeval_t val;
-};
-typedef struct np_tree_elem_s np_tree_elem_t;
+   np_bool ret_val = FALSE;
+   PyObject *arglist;
+   PyObject *result;
 
-%extend np_tree_s {
-    np_tree_s () {
-	return np_tree_create();
-    };
-    ~np_tree_s () {
-        np_free_tree ($self);
-    };
+   PyGILState_STATE gstate;
+   gstate = PyGILState_Ensure();
 
-    extern void np_clear_tree ($self);
+   PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
+   arglist = Py_BuildValue("(O)", obj);
 
-    extern void tree_insert_str ($self, const char *key, np_treeval_t val);
-    extern void tree_insert_int ($self, int16_t ikey, np_treeval_t val);
-    extern void tree_insert_ulong ($self, uint32_t ulkey, np_treeval_t val);
-    extern void tree_insert_dbl ($self, double dkey, np_treeval_t val);
+   result = PyEval_CallObject(py_authorize_func, arglist);
+   Py_DECREF(arglist);
 
-    extern void tree_replace_str ($self, const char *key, np_treeval_t val);
-    extern void tree_replace_int ($self, int16_t ikey, np_treeval_t val);
-    extern void tree_replace_ulong ($self, uint32_t ulkey, np_treeval_t val);
-    extern void tree_replace_dbl ($self, double dkey, np_treeval_t val);
+   if (result != NULL) {
+       ret_val = PyObject_IsTrue(result);
+       Py_XDECREF(result);
+   } else {
+       log_msg(LOG_ERROR, "error calling authz python callback");
+       PyErr_Clear();
+   }
 
-    extern np_tree_elem_t* tree_find_str ($self, const char *key);
-    extern np_tree_elem_t* tree_find_int ($self, int16_t ikey);
-    extern np_tree_elem_t* tree_find_ulong ($self, uint32_t ikey);
-    extern np_tree_elem_t* tree_find_dbl ($self, double dkey);
+   PyGILState_Release(gstate);
 
-    extern np_tree_elem_t* tree_find_gte_str ($self, const char *key, uint8_t *found);
-    extern np_tree_elem_t* tree_find_gte_int ($self, int16_t ikey, uint8_t *found);
-    extern np_tree_elem_t* tree_find_gte_ulong ($self, uint32_t ikey, uint8_t *found);
-    extern np_tree_elem_t* tree_find_gte_dbl ($self, double dkey, uint8_t *found);
+   return ret_val;
+}
 
-    extern void tree_del_str ($self, const char *key);
-    extern void tree_del_int ($self, const int16_t key);
-    extern void tree_del_double ($self, const double key);
-    extern void tree_del_ulong ($self, const uint32_t key);
-};
-
-extern char* np_create_uuid(const char* str, const uint16_t num);
-
-typedef enum np_msg_mode_enum {
-	DEFAULT_MODE = 0,
-	INBOUND      = 0x1,
-	OUTBOUND     = 0x2,
-	ROUTE        = 0x4,
-	TRANSFORM    = 0x8
-} np_msg_mode_type;
-
-typedef enum np_msg_mep_enum {
-
-	DEFAULT_TYPE = 0x000,
-	// filter mep by type
-	RECEIVER_MASK = 0x00F,
-	SENDER_MASK   = 0x0F0,
-	FILTER_MASK   = 0xF00,
-	// base pattern for communication exchange
-	SINGLE_RECEIVER = 0x001,      // - to   one  communication // sender has single identity
-	GROUP_RECEIVER = 0x002,       // - to   many communication // receiver has same identity
-	ANY_RECEIVER = 0x004,         // - to   many communication // receiver is a set of identities
-	SINGLE_SENDER = 0x010,        // - one  to   communication   // sender has a single identity
-	GROUP_SENDER = 0x020,         // - many to   communication // sender share the same identity
-	ANY_SENDER = 0x040,           // - many to   communication // sender is a set of identities
-	// add-on message processing instructions
-	FILTER_MSG = 0x100,           // filter a message with a given callback function (?)
-	HAS_REPLY = 0x200,            // check reply_to field of the incoming message for a subject hash based reply
-	STICKY_REPLY = 0x300,         // check reply_to field of the incoming message for a node hash based reply
-
-	// possible combinations
-	// ONE to ONE
-	ONE_WAY = SINGLE_SENDER | SINGLE_RECEIVER,
-	// ONE_WAY_WITH_REPLY = ONE_WAY | HAS_REPLY, // not possible, only one single sender
-	ONE_WAY_WITH_REPLY = ONE_WAY | STICKY_REPLY,
-	// ONE to GROUP
-	ONE_TO_GROUP = SINGLE_SENDER | GROUP_RECEIVER,
-	O2G_WITH_REPLY = ONE_TO_GROUP | STICKY_REPLY,
-	// ONE to ANY
-	ONE_TO_ANY = SINGLE_SENDER | ANY_RECEIVER,
-	O2A_WITH_REPLY = ONE_TO_ANY | STICKY_REPLY,
-	// GROUP to GROUP
-	GROUP_TO_GROUP = GROUP_SENDER | GROUP_RECEIVER,
-	G2G_WITH_REPLY = GROUP_TO_GROUP | HAS_REPLY,
-	G2G_STICKY_REPLY = G2G_WITH_REPLY | STICKY_REPLY,
-	// ANY to ANY
-	ANY_TO_ANY = ANY_SENDER | ANY_RECEIVER,
-	A2A_WITH_REPLY = ANY_TO_ANY | HAS_REPLY,
-	A2A_STICKY_REPLY = A2A_WITH_REPLY | STICKY_REPLY,
-	// GROUP to ANY
-	GROUP_TO_ANY = GROUP_SENDER | ANY_RECEIVER,
-	G2A_WITH_REPLY = GROUP_TO_ANY | HAS_REPLY,
-	G2A_STICKY_REPLY = G2A_WITH_REPLY | STICKY_REPLY,
-	// ANY to GROUP
-	ANY_TO_GROUP = ANY_SENDER | GROUP_RECEIVER,
-	A2G_WITH_REPLY = ANY_TO_GROUP | HAS_REPLY,
-	A2G_STICKY_REPLY = A2G_WITH_REPLY | STICKY_REPLY,
-
-	// human readable and more "speaking" combinations
-	REQ_REP   = ONE_WAY_WITH_REPLY, // - allows to build clusters of stateless services to process requests
-	PIPELINE  = ONE_TO_GROUP,       // - splits up messages to a set of nodes / load balancing among many destinations
-	AGGREGATE = O2A_WITH_REPLY,     // - aggregates messages from multiple sources and them among many destinations
-	MULTICAST = GROUP_TO_GROUP | FILTER_MSG,
-	BROADCAST = ONE_TO_ANY | GROUP_TO_ANY,
-	INTERVIEW = A2G_WITH_REPLY,
-	BUS       = ANY_TO_ANY,
-	SURVEY    = A2A_STICKY_REPLY,
-	PUBSUB    = BUS | FILTER_MSG,
-
-} np_msg_mep_type;
-
-typedef enum np_msgcache_policy_enum {
-	FIFO = 0x01,
-	FILO = 0x02,
-	OVERFLOW_REJECT = 0x10,
-	OVERFLOW_PURGE = 0x20
-} np_msgcache_policy_type;
-
-typedef enum np_msg_ack_enum {
-	ACK_NONE = 0x00, // 0000 0000  - don't ack at all
-	ACK_EACHHOP = 0x01, // 0000 0001 - each hop has to send a ack to the previous hop
-	ACK_DESTINATION = 0x02, // 0000 0010 - message destination ack to message sender across multiple nodes
-	ACK_CLIENT = 0x04,     // 0000 0100 - message to sender ack after/during processing the message on receiver side
-} np_msg_ack_type;
-
-struct np_msgproperty_s
+static np_bool python_accounting_callback(struct np_aaatoken_s* aaa_token)
 {
-    // link to node(s) which is/are interested in message exchange
-    np_dhkey_t partner_key;
-    char*            msg_subject;
-    char*            rep_subject;
-    char*            msg_audience;
-    np_msg_mode_type mode_type;
-    np_msg_mep_type  mep_type;
-    np_msg_ack_type  ack_mode;
-    double           ttl;
-    uint8_t          priority;
-    uint8_t          retry; // the # of retries when sending a message
-    uint16_t         msg_threshold; // current cache size
-    uint16_t         max_threshold; // local cache size
-    // timestamp for cleanup thread
-    double          last_update;
-    // cache which will hold up to max_threshold messages
-    np_msgcache_policy_type cache_policy;
-    // callback function(s) to invoke when a message is received
-    np_usercallback_t user_clb; // external user supplied for inbound
-};
-extern void np_msgproperty_register(np_msgproperty_t* msgprops);
-extern np_msgproperty_t* np_msgproperty_get(np_msg_mode_type msg_mode, const char* subject);
+   np_bool ret_val = FALSE;
+   PyObject *arglist;
+   PyObject *result;
 
-extern void np_mem_newobj(np_obj_enum obj_type, np_obj_t** obj);
-extern void np_mem_freeobj(np_obj_enum obj_type, np_obj_t** obj);
-extern void np_mem_refobj(np_obj_t* obj);
-extern void np_mem_unrefobj(np_obj_t* obj);
+   PyGILState_STATE gstate;
+   gstate = PyGILState_Ensure();
 
-typedef enum np_log_e log_type;
-enum np_log_e
+   PyObject* obj = SWIG_NewPointerObj(SWIG_as_voidptr(aaa_token), SWIGTYPE_p_np_aaatoken_s, 0);
+   arglist = Py_BuildValue("(O)", obj);
+
+   result = PyEval_CallObject(py_accounting_func, arglist);
+   Py_DECREF(arglist);
+
+   if (result != NULL) {
+       ret_val = PyObject_IsTrue(result);
+       Py_XDECREF(result);
+   } else {
+       log_msg(LOG_ERROR, "error calling accounting python callback");
+       PyErr_Clear();
+   }
+
+   PyGILState_Release(gstate);
+
+   return ret_val;
+}
+
+static np_tree_t* callback_tree = NULL;
+
+static np_bool _py_subject_callback(const struct np_message_s *const msg, np_tree_t* msg_prop, np_tree_t* msg_body)
 {
-    LOG_NONE       = 0x0000, /* log nothing        */
-    LOG_NOMOD      = 0x0000, /*           */
+    // lookup handler
+    np_tree_elem_t* msg_subject = np_tree_find_str(msg->header, "_np.subj");
+    if (NULL == msg_subject) {
+        log_msg(LOG_ERROR, "incoming message without subject, giving up");
+        return FALSE;
+    }
 
-    LOG_ERROR      = 0x0001, /* error messages     */
-    LOG_WARN       = 0x0002, /* warning messages   */
-    LOG_INFO       = 0x0004, /* info messages      */
-    LOG_DEBUG      = 0x0008, /* debugging messages */
-    LOG_TRACE      = 0x0010, /* tracing messages   */
+    if (NULL == callback_tree) {
+        log_msg(LOG_ERROR, "no callback tree found ");
+        abort();
+    }
 
-    LOG_KEY        = 0x0100, /* debugging messages for key subsystem */
-    LOG_NETWORK    = 0x0200, /* debugging messages for network layer */
-    LOG_ROUTING    = 0x0400, /* debugging the routing table          */
-    LOG_MESSAGE    = 0x0800, /* debugging the message subsystem      */
-    LOG_SECURE     = 0x1000, /* debugging the security module        */
-    LOG_HTTP       = 0x2000, /* debugging the message subsystem      */
-    LOG_AAATOKEN   = 0x4000, /* debugging the message subsystem      */
-    LOG_GLOBAL     = 0x8000, /* debugging the global system          */
+    log_msg(LOG_INFO, "lookup of python handler for message %s", msg_subject->val.value.s);
+    np_tree_elem_t* py_func_elem = np_tree_find_str(callback_tree, msg_subject->val.value.s);
 
-    LOG_MODUL_MASK = 0xFF00, /* debugging the global system          */
-    LOG_NOMOD_MASK = 0x7F00, /* debugging the global system          */
+    if (NULL == py_func_elem) {
+        log_msg(LOG_ERROR, "no python user callback handler found for message %s", msg_subject->val.value.s);
+        return FALSE;
+    }
+
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
+
+    // use found functor, convert arguments to python args
+    PyObject* py_callback = py_func_elem->val.value.v;
+
+    PyObject* py_msg  = SWIG_NewPointerObj(SWIG_as_voidptr(msg     ), SWIGTYPE_p_np_message_s, 0);
+    PyObject* py_prop = SWIG_NewPointerObj(SWIG_as_voidptr(msg_prop), SWIGTYPE_p_np_tree_s, 0);
+    PyObject* py_body = SWIG_NewPointerObj(SWIG_as_voidptr(msg_body), SWIGTYPE_p_np_tree_s, 0);
+
+    PyObject *arglist = Py_BuildValue("(OOO)", py_msg, py_prop, py_body);
+
+    log_msg(LOG_INFO, "conversion of callback args done");
+
+    // call real python handler
+    PyObject* result = PyEval_CallObject(py_callback, arglist);
+    Py_DECREF(arglist);
+
+    log_msg(LOG_INFO, "retrieved result");
+    np_bool cb_result = FALSE;
+    if (result != NULL) {
+        int ret_val = PyObject_IsTrue(result);
+        if (ret_val == 1) {
+            log_msg(LOG_ERROR, "callback function returned an success");
+            cb_result = TRUE;
+        } else if (ret_val == 0) {
+            log_msg(LOG_ERROR, "callback function returned an error");
+        } else {
+            log_msg(LOG_ERROR, "callback function result evaluation failed");
+            ret_val = PyBool_Check(result);
+            log_msg(LOG_ERROR, "return value is a bool: %d", ret_val);
+        }
+        Py_DECREF(result);
+    }
+    else
+    {
+        // PyErr_Print();
+        log_msg(LOG_ERROR, "error calling python module");
+        PyErr_Clear();
+    }
+
+    PyGILState_Release(gstate);
+
+    log_msg(LOG_INFO, "callback function done");
+    return cb_result;
+}
+
+%}
+
+
+%extend np_state_s {
+
+    %immutable my_node_key;
+
+    // reference to main identity on this node
+    %immutable my_identity;
+    %immutable realm_name;
+
+    %ignore msg_tokens;
+    %ignore msg_part_cache;
+
+    %ignore attr;
+    %ignore thread_ids;
+    %ignore thread_count;
+
+    %ignore enable_realm_master; // act as a realm master for other nodes or not
+    %ignore enable_realm_slave; // act as a realm salve and ask master for aaatokens
+
+    %ignore authenticate_func; // authentication callback
+    %ignore authorize_func;    // authorization callback
+    %ignore accounting_func;   // accounting callback ?
+
+
+    PyObject* get_connection_string()
+    {
+#if PY_VERSION_HEX >= 0x03000000
+        return PyUnicode_FromString(np_get_connection_string());
+#else
+        return PyString_FromString(np_get_connection_string());
+#endif
+    }
+
+    void set_listener(PyObject* PyString, PyObject *PyFunc)
+    {
+        if (NULL == callback_tree) {
+            callback_tree = np_tree_create();
+        }
+
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+
+        char* subject = PyString_AsString(PyString);
+        log_msg(LOG_INFO, "setting python callback for subject %s", subject);
+
+        // find old (eventually)
+        np_tree_elem_t* old_py_func_elem = np_tree_find_str(callback_tree, subject);
+
+        Py_XINCREF(PyFunc); /* Add a reference to new callback */
+        np_tree_replace_str(callback_tree, subject, np_treeval_new_v(PyFunc)); /* set new callback */
+
+        np_add_receive_listener(_py_subject_callback, subject); /* set python proxy as listener */
+
+        if (NULL != old_py_func_elem) {
+            PyObject* old_py_func = old_py_func_elem->val.value.v;
+            Py_XDECREF(old_py_func); /* Dispose of previous callback */
+            log_msg(LOG_INFO, "deleting old python callback for subject %s", subject);
+        }
+        PyGILState_Release(gstate);
+    }
+
+	np_msgproperty_t* get_inout_mx_property(PyObject* PyString)
+	{
+		PyGILState_STATE gstate;
+		gstate = PyGILState_Ensure();
+
+		char* subject = PyString_AsString(PyString);
+		log_msg(LOG_INFO, "searching for mx property with subject %s", subject);
+		np_msgproperty_t* prop = np_msgproperty_get(INBOUND | OUTBOUND, subject);
+
+		if (prop == NULL) {
+			np_new_obj(np_msgproperty_t, prop);
+			prop->msg_subject = strndup(subject, 255);
+			prop->mode_type = INBOUND | OUTBOUND;
+			np_msgproperty_register(prop);
+        } else {
+            log_msg(LOG_INFO, "found mx property with subject %s", prop->msg_subject);
+        }
+
+        PyGILState_Release(gstate);
+		return prop;
+	}
+
+	np_msgproperty_t* get_out_mx_property(PyObject* PyString)
+	{
+		PyGILState_STATE gstate;
+		gstate = PyGILState_Ensure();
+
+		char* subject = PyString_AsString(PyString);
+		log_msg(LOG_INFO, "searching for mx property with subject %s", subject);
+		np_msgproperty_t* prop = np_msgproperty_get(OUTBOUND, subject);
+
+		if (prop == NULL) {
+			np_new_obj(np_msgproperty_t, prop);
+			prop->msg_subject = strndup(subject, 255);
+			prop->mode_type = OUTBOUND;
+			np_msgproperty_register(prop);
+            log_msg(LOG_INFO, "registered python subject %s (length: %lu)", subject, strlen(subject));
+        } else {
+            log_msg(LOG_INFO, "found mx property with subject %s", prop->msg_subject);
+        }
+
+        PyGILState_Release(gstate);
+		return prop;
+	}
+
+	np_msgproperty_t* get_in_mx_property(PyObject* PyString)
+	{
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+
+		char* subject = PyString_AsString(PyString);
+		log_msg(LOG_INFO, "searching for mx property with subject %s", subject);
+		np_msgproperty_t* prop = np_msgproperty_get(INBOUND, subject);
+
+		if (prop == NULL) {
+			np_new_obj(np_msgproperty_t, prop);
+			prop->msg_subject = strndup(subject, 255);
+			prop->mode_type = INBOUND;
+			np_msgproperty_register(prop);
+            log_msg(LOG_INFO, "registered python subject %s (length: %lu)", subject, strlen(subject));
+		} else {
+		    log_msg(LOG_INFO, "found mx property with subject %s", prop->msg_subject);
+		}
+
+        PyGILState_Release(gstate);
+		return prop;
+	}
+
+    void set_authn_func(PyObject *PyFunc)
+    {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+
+        Py_XDECREF(py_authenticate_func); /* Dispose of previous callback */
+        Py_XINCREF(PyFunc);               /* Add a reference to new callback */
+        py_authenticate_func = PyFunc;    /* Remember new callback */
+        np_setauthenticate_cb(python_authenticate_callback);
+
+        PyGILState_Release(gstate);
+    }
+
+    void set_authz_func(PyObject *PyFunc)
+    {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+
+        Py_XDECREF(py_authorize_func); /* Dispose of previous callback */
+        Py_XINCREF(PyFunc);            /* Add a reference to new callback */
+        py_authorize_func = PyFunc;    /* Remember new callback */
+        np_setauthorizing_cb(python_authorize_callback);
+
+        PyGILState_Release(gstate);
+    }
+
+    void set_acc_func(PyObject *PyFunc)
+    {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+
+        Py_XDECREF(py_accounting_func); /* Dispose of previous callback */
+        Py_XINCREF(PyFunc);            /* Add a reference to new callback */
+        py_accounting_func = PyFunc;   /* Remember new callback */
+        np_setaccounting_cb(python_accounting_callback);
+
+        PyGILState_Release(gstate);
+    }
 };
 
-extern void np_log_init (const char* filename, uint16_t level);
-extern void np_log_setlevel(uint16_t level);
-extern void np_log_destroy ();
+#ifdef SWIG<python>
+%typemap(in) PyObject *PyFunc {
+  if (!PyCallable_Check($input)) {
+      PyErr_SetString(PyExc_TypeError, "Need a callable object!");
+      return NULL;
+  }
+  $1 = $input;
+}
+#endif
 
-extern void _np_add_http_callback(const char* path, htp_method method, void* user_args, _np_http_callback_func_t func);
-extern void _np_rem_http_callback(const char* path, htp_method method);
+%ignore _np_state;
+%ignore _np_ping;
+%ignore _np_send_ack;
+%ignore _np_ping_send;
+%ignore np_time_now;
+%ignore _np_send_simple_invoke_request;
 
-extern np_state_t* np_init (char* proto, char* port, np_bool start_http);
-extern void np_destroy();
-
-extern void np_enable_realm_master();
-extern void np_enable_realm_slave();
-extern void np_set_realm_name(const char* realm_name);
-extern void np_set_identity(np_aaatoken_t* identity);
-
-extern void np_send_join(const char* node_string);
-extern void np_waitforjoin();
-
-extern void np_setauthorizing_cb(np_aaa_func_t join_func);
-extern void np_setauthenticate_cb(np_aaa_func_t join_func);
-extern void np_setaccounting_cb(np_aaa_func_t join_func);
-
-extern void np_set_listener (np_usercallback_t msg_handler, char* subject);
-
-extern void np_send_text (char* subject, char *data, uint32_t seqnum);
-extern void np_send_msg (char* subject, np_tree_t *properties, np_tree_t *body);
-
-extern uint32_t np_receive_text (char* subject, char **data);
-extern uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body);
-
-extern void np_start_job_queue(uint8_t pool_size);
-
-typedef np_bool (*np_aaa_func_t) (np_aaatoken_t* aaa_token );
-typedef np_bool (*np_usercallback_t) (np_tree_t* msg_properties, np_tree_t* msg_body);
-typedef void (*np_callback_t) (np_jobargs_t*);
+%include "neuropil.h"

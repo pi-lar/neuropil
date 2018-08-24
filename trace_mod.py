@@ -4,8 +4,7 @@
 
 import os
 import re
-from pathlib2 import Path
-
+import io
 startDir = "./src/"
 # if empty all files are included
 includeFiles =[];
@@ -52,9 +51,10 @@ for fileName in os.listdir(startDir):
                 currentGroup = " | LOG_GLOBAL"
 
             filepath = os.path.join(startDir,fileName)
-            txt = Path(filepath).read_text().encode('utf-8')
+            file = io.open(filepath, mode="w+", encoding="utf-8")
+            txt = file.read();
             txt = removeTraceFrom(txt)
-            txt = addTraceTo(txt)
-            file = open(filepath, 'w')
+            txt = addTraceTo(txt)            
+            file.seek(0,0)
             file.write(txt)
             file.close()

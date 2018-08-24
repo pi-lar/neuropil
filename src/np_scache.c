@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // Based upon http://stackoverflow.com/a/1234738
@@ -13,28 +13,29 @@
 
 #include "np_threads.h"
 #include "np_log.h"
+#include "np_legacy.h"
 #include "inttypes.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_cache_item_ptr);
 
-np_simple_cache_table_t* np_cache_init(uint32_t size) {
+np_simple_cache_table_t* np_cache_init(np_state_t* context) {
 
 	np_simple_cache_table_t* ret = 
 		(np_simple_cache_table_t*)malloc(
 		sizeof(np_simple_cache_table_t));
 	CHECK_MALLOC(ret);
-	_np_threads_mutex_init(&ret->lock,"simple cache");
+	_np_threads_mutex_init(context, &ret->lock,"simple cache");
 
-	for (uint32_t i = 0; i < size; i++) {
+	for (uint32_t i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) { 
 		sll_init(np_cache_item_ptr, ret->buckets[i]);
 	}
 
 	return ret; 
 }
 
-np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char* const key)
+np_cache_item_t* np_simple_cache_get(np_state_t* context, np_simple_cache_table_t *table, const char* const key)
 {
-	log_msg(LOG_TRACE, "start: np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key){");
+	log_trace_msg(LOG_TRACE, "start: np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key){");
 	
 	assert(NULL != key);
 
@@ -56,8 +57,8 @@ np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char*
 	return ret;
 }
 
-int np_simple_cache_insert(np_simple_cache_table_t *table, const char* const key, void *value) {
-	log_msg(LOG_TRACE, "start: int np_simple_cache_insert(np_simple_cache_table_t *table, char *key, void *value) {");
+int np_simple_cache_insert(np_state_t* context, np_simple_cache_table_t *table, const char* const key, void *value) {
+	log_trace_msg(LOG_TRACE, "start: int np_simple_cache_insert(context, np_simple_cache_table_t *table, char *key, void *value) {");
 	// Contract
 	if(NULL == key){
 		log_msg(LOG_ERROR, "cache key cannot be NULL!");

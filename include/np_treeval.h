@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /*
@@ -47,35 +47,36 @@ Fax: 865-974-4404
 
 #include "np_dhkey.h"
 #include "np_memory.h"
+
 #include "np_types.h"
 
-enum {
-	none_type = 0,
-    short_type,
-	int_type,
-	long_type,
-	long_long_type,
-	float_type, // 5
-	double_type, //
-	char_ptr_type,
-    char_type,
-	unsigned_char_type,
-    unsigned_short_type, // 10
-    unsigned_int_type,
-    unsigned_long_type, //
-    unsigned_long_long_type,
-    uint_array_2_type,
-    float_array_2_type, // 15
-    char_array_8_type,
-    unsigned_char_array_8_type, //
-    void_type,
-    bin_type,
-	jrb_tree_type,  // 20
-	dhkey_type,
-	hash_type,
-	npobj_type,
-	npval_count,
-	special_char_ptr_type,
+enum np_treeval_type_t {
+	np_treeval_type_undefined = 0,
+    np_treeval_type_short,
+	np_treeval_type_int,
+	np_treeval_type_long,
+	np_treeval_type_long_long,
+	np_treeval_type_float, // 5
+	np_treeval_type_double, //
+	np_treeval_type_char_ptr,
+    np_treeval_type_char,
+	np_treeval_type_unsigned_char,
+    np_treeval_type_unsigned_short, // 10
+    np_treeval_type_unsigned_int,
+    np_treeval_type_unsigned_long, //
+    np_treeval_type_unsigned_long_long,
+    np_treeval_type_uint_array_2,
+    np_treeval_type_float_array_2, // 15
+    np_treeval_type_char_array_8,
+    np_treeval_type_unsigned_char_array_8, //
+    np_treeval_type_void,
+    np_treeval_type_bin,
+	np_treeval_type_jrb_tree,  // 20
+	np_treeval_type_dhkey,
+	np_treeval_type_hash,
+	np_treeval_type_npobj,
+	np_treeval_type_npval_count,
+	np_treeval_type_special_char_ptr,
 } np_treeval_type_t;
 
 /* The Jval -- a type that can hold any type */
@@ -85,7 +86,7 @@ typedef union val_type
     void* bin;
     np_tree_t* tree;
     np_dhkey_t dhkey;
-    np_obj_t* obj;
+    
     int8_t sh;
     int16_t i;
     int32_t l;
@@ -111,7 +112,7 @@ typedef union val_type
     char carray[8];
     unsigned char ucarray[8];
 } val;
-
+	   
 struct np_treeval_s
 {
 	uint8_t  type;
@@ -148,12 +149,10 @@ np_treeval_t np_treeval_new_carray_nnt (char * carray);	/* Carray is not null te
        /* For ucarray -- use carray, because it uses memcpy */
 np_treeval_t np_treeval_new_tree(np_tree_t* tree);
 np_treeval_t np_treeval_new_hash(char* h_val);
-np_treeval_t np_treeval_new_pwhash (char *pw_key);
-np_treeval_t np_treeval_new_key(np_dhkey_t dhkey);
-np_treeval_t np_treeval_new_obj(np_obj_t* obj);
+np_treeval_t np_treeval_new_dhkey(np_dhkey_t dhkey);
 uint32_t np_treeval_get_byte_size(np_treeval_t ele);
 
-np_treeval_t np_treeval_NULL;
+static const np_treeval_t np_treeval_NULL = { .type = np_treeval_type_undefined,.size = 0 };
 
 int16_t  np_treeval_i (np_treeval_t);
 int32_t  np_treeval_l (np_treeval_t);
@@ -165,14 +164,14 @@ double np_treeval_d (np_treeval_t);
 
 void * np_treeval_v (np_treeval_t);
 
-char * np_treeval_s (np_treeval_t);
+char * np_treeval_str (np_treeval_t);
 char  np_treeval_c (np_treeval_t);
 char * np_treeval_h (np_treeval_t);
 unsigned char np_treeval_uc (np_treeval_t);
 
-int16_t * np_treeval_iarray (np_treeval_t);
+// int16_t * np_treeval_iarray (np_treeval_t);
 float   * np_treeval_farray (np_treeval_t);
 char    * np_treeval_carray (np_treeval_t);
-char    * np_treeval_to_str(np_treeval_t val, np_bool* freeable);
+char    * np_treeval_to_str(np_treeval_t val, bool* freeable);
 
 #endif // _NP_TREEVAL_H_

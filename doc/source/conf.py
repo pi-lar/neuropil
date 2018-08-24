@@ -58,7 +58,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'neuropil'
-copyright = u'2016-2017, pi-lar GmbH'
+copyright = u'2016-2018, pi-lar GmbH'
 author = u'pi-lar GmbH'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -248,7 +248,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ( master_doc, 'neuropil.tex', u'neuropil Documentation',
+  ( master_doc, 'neuropil.tex', u'neuropil documentation',
    u'pi-lar GmbH', 'manual' ),
 ]
 

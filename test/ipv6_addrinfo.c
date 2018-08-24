@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <stdio.h>
@@ -15,7 +15,8 @@ int main(int argc, char **argv) {
 	char log_file[256];
 	sprintf(log_file, "%s.log", "./ipv6_addrinfo");
 	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK | LOG_KEY;
-	np_log_init(log_file, level);
+
+	np_context * context = np_new_context(NULL);
 
 	uint8_t type = UDP | IPv4;
 	char hostname[256];

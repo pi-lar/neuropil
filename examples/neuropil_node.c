@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 #include "np_log.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_aaatoken.h"
 #include "np_keycache.h"
 #include "np_tree.h"
@@ -24,6 +24,8 @@
 
 int main(int argc, char **argv)
 {
+	int ret = 0;
+
 	char* realm = NULL;
 	char* code = NULL;
 
@@ -34,9 +36,7 @@ int main(int argc, char **argv)
 	char* publish_domain = NULL;
 	int level = -2;
 	char* logpath = ".";
-	char* http_domain = NULL;
 
-	int opt;
 	if (parse_program_args(
 		__FILE__,
 		argc,
@@ -48,58 +48,61 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-r realmname] [-c code] [-w http domain]",
-		"r:c:w:",
+		"[-r realmname] [-c code]",
+		"r:c:",
 		&realm,
-		&code,
-		&http_domain
-	) == FALSE) {
+		&code
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
 
-	char log_file[256];
-	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_node", port);
-	fprintf(stdout, "logpath: %s\n", log_file);
-	np_log_init(log_file, level);
+	struct np_settings *settings = np_default_settings(NULL);
+	settings->n_threads = no_threads;
 
-	np_state_t* state = np_init(proto, port, publish_domain);
+	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_node", port);
+	settings->log_level = level;
+
+	np_context * ac = np_new_context(settings);
+	np_ctx_cast(ac);
+
+	np_example_print(context, stdout, "logpath: %s\n", settings->log_file);
 
 	if (NULL != realm)
 	{
-		np_set_realm_name(realm);
-		np_enable_realm_slave();
+		np_set_realm_name(context, realm);
+		np_enable_realm_client(context);
 		if (NULL != code)
 		{
-			np_tree_insert_str(state->my_node_key->aaa_token->extensions,
-							"passcode",
-							np_treeval_new_hash(code));
+			np_tree_insert_str(context->my_node_key->aaa_token->extensions,
+				"passcode",
+				np_treeval_new_hash(code));
 		}
 	}
-
-	// starting the example http server to support the http://view.neuropil.io application
-	example_http_server_init(http_domain);
-
-	np_statistics_add_watch_internals();
-	np_statistics_add_watch(_NP_SYSINFO_REQUEST);
-	np_statistics_add_watch(_NP_SYSINFO_REPLY);
-
-
-	log_debug_msg(LOG_DEBUG, "starting job queue");
-	np_start_job_queue(no_threads);
-
-	if (NULL != j_key)
-	{
-		fprintf(stdout, "try to join %s\n", j_key);
-		np_send_join(j_key);
-		fprintf(stdout, "wait for join acceptance...");
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		np_example_print(context, stderr, "ERROR: Node could not listen");
 	}
 	else {
-		fprintf(stdout, "wait for nodes to join...");
-	}
-	
-	fflush(NULL);
-	np_waitforjoin();
-	fprintf(stdout, "Connected\n");
+		__np_example_helper_loop(context); // for the fancy ncurse display
 
-	__np_example_helper_run_info_loop();
+		if (NULL != j_key)
+		{
+			np_example_print(context, stdout, "try to join %s\n", j_key);
+			// join previous node			
+			if (np_ok != np_join(context, j_key)) {
+				np_example_print(context, stderr, "ERROR: Node could not join");
+			}
+		}
+
+		log_debug_msg(LOG_DEBUG, "starting job queue");
+
+		if (np_ok != np_run(context, 0.001)) {
+			np_example_print(context, stderr, "ERROR: Node could not run");
+		}
+		else { 
+			__np_example_helper_run_info_loop(context);
+		}
+		np_example_print(context, stderr, "Closing Node");
+	}
+
+	return ret;
 }
