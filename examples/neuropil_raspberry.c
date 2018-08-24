@@ -123,6 +123,8 @@ uint8_t value_data  = 1;
 uint8_t value_green = 1;
 uint8_t value_red   = 1;
 
+bool blue_led_switch = false;
+double blue_led_switch_at = 0;
 void checkGPIO(np_context * context) {
 	if (is_gpio_enabled) {
 
@@ -133,13 +135,17 @@ void checkGPIO(np_context * context) {
 		uint8_t nvalue_red = bcm2835_gpio_lev(BUTTON_GPIO_RED_IN);
 		if (nvalue_red != value_red) { value_red = nvalue_red; invoke_btn_red(context, nvalue_red); }
 
-		if (is_blue_pressed) {
-			int now = (np_time_now());
-			if (now % 2 == 0) {
-				bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
-			}
-			else {
-				bcm2835_gpio_write(LED_GPIO_BUTTON, HIGH);
+		if (is_blue_pressed) {			
+			double now = np_time_now();
+			if (blue_led_switch_at + 1. < now) {
+				blue_led_switch_at = now;
+				blue_led_switch = !blue_led_switch;
+				if (blue_led_switch) {					
+					bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
+				}
+				else {					
+					bcm2835_gpio_write(LED_GPIO_BUTTON, HIGH);
+				}
 			}
 		}
 		else {
