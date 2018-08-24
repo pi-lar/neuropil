@@ -6,7 +6,7 @@
 #ifndef NP_SHUTDOWN_MSG_H_
 #define NP_SHUTDOWN_MSG_H_
 
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_types.h"
 #include "np_util.h"
 
@@ -14,12 +14,16 @@
 extern "C" {
 #endif
 	NP_API_INTERN
-	void _np_shutdown_init_auto_notify_others();
+		void _np_shutdown_init_auto_notify_others(np_state_t* context);
 	NP_API_INTERN
-	void _np_shutdown_deinit();
+		void _np_shutdown_deinit();
 	NP_API_PROTEC
-	void np_shutdown_notify_others();
+		void np_shutdown_notify_others(np_state_t* context);
 
+	NP_API_EXPORT
+		void np_shutdown_add_callback(np_context*ac, np_destroycallback_t clb);
+	NP_API_INTERN
+		void _np_shutdown_run_callbacks(np_context*ac);
 
 #ifdef __cplusplus
 }

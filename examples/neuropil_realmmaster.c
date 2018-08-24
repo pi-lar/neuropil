@@ -13,7 +13,7 @@
 #include <assert.h>
 
 #include "np_log.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_aaatoken.h"
 #include "np_keycache.h"
 #include "np_node.h"
@@ -33,13 +33,13 @@ pthread_mutex_t _aaa_mutex = PTHREAD_MUTEX_INITIALIZER;
 int seq = -1;
 int joinComplete = 0;
 
-np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
+bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
 	if (NULL == authorized_tokens) authorized_tokens = np_tree_create();
 
 	// if a token reaches this point, is has already been check for technical validity
-	np_bool ret_val = FALSE;
+	bool ret_val = false;
 
 	char pub_key[2*crypto_sign_PUBLICKEYBYTES+1];
 	sodium_bin2hex(pub_key, 2*crypto_sign_PUBLICKEYBYTES+1, token->public_key, crypto_sign_PUBLICKEYBYTES);
@@ -47,7 +47,7 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	if (NULL != np_tree_find_str(authorized_tokens, token->issuer))
 	{
 		pthread_mutex_unlock(&_aaa_mutex);
-		return (TRUE);
+		return (true);
 	}
 
 	fprintf(stdout, "----------------------------------------------\n");
@@ -91,14 +91,14 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	switch (result)
 	{
 	case 'a':
-		ret_val = TRUE;
+		ret_val = true;
 		*/
 	np_ref_obj(np_aaatoken_t, token);
 	np_tree_insert_str(authorized_tokens, token->issuer, np_treeval_new_v(token));
 /*
 		break;
 	case 'o':
-		ret_val = TRUE;
+		ret_val = true;
 		break;
 	case 'n':
 	default:
@@ -109,16 +109,16 @@ np_bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 //	fflush(stdout);
 
 	pthread_mutex_unlock(&_aaa_mutex);
-	return (TRUE); // ret_val;
+	return (true); // ret_val;
 }
 
-np_bool check_authenticate_token(np_aaatoken_t* token)
+bool check_authenticate_token(np_aaatoken_t* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
 
 	if (NULL == authenticated_tokens) authenticated_tokens = np_tree_create();
 	// if a token reaches this point, is has already been check for technical validity
-	np_bool ret_val = FALSE;
+	bool ret_val = false;
 
 	char pub_key[2*crypto_sign_PUBLICKEYBYTES+1];
 	sodium_bin2hex(pub_key, 2*crypto_sign_PUBLICKEYBYTES+1, token->public_key, crypto_sign_PUBLICKEYBYTES);
@@ -126,7 +126,7 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 	if (NULL != tree_find_str(authenticated_tokens, token->issuer))
 	{
 		pthread_mutex_unlock(&_aaa_mutex);
-		return (TRUE);
+		return (true);
 	}
 
 	fprintf(stdout, "----------------------------------------------\n");
@@ -167,7 +167,7 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 	switch (result)
 	{
 	case 'y':
-		ret_val = TRUE;
+		ret_val = true;
 		*/
 	np_ref_obj(np_aaatoken_t, token);
 	tree_insert_str(authenticated_tokens, token->issuer, np_treeval_new_v(token));
@@ -180,12 +180,12 @@ np_bool check_authenticate_token(np_aaatoken_t* token)
 	fflush(stdout);
 	*/
 	pthread_mutex_unlock(&_aaa_mutex);
-	return (TRUE); // ret_val;
+	return (true); // ret_val;
 }
 
-np_bool check_account_token(NP_UNUSED np_aaatoken_t* token)
+bool check_account_token(NP_UNUSED np_aaatoken_t* token)
 {
-	return (TRUE);
+	return (true);
 }
 
 np_aaatoken_t* create_realm_identity()
@@ -194,8 +194,8 @@ np_aaatoken_t* create_realm_identity()
 	np_new_obj(np_aaatoken_t, realm_identity);
 
 	strncpy(realm_identity->realm,   "pi-lar test realm",  255);
-	strncpy(realm_identity->subject, "pi-lar realmmaster", 255);
-	strncpy(realm_identity->issuer,  "pi-lar realmmaster", 64);
+	strncpy(realm_identity->subject, "pi-lar realmserver", 255);
+	strncpy(realm_identity->issuer,  "pi-lar realmserver", 64);
 
 	realm_identity->not_before = np_time_now();
 	realm_identity->expires_at = realm_identity->not_before + 7200.0;
@@ -234,7 +234,7 @@ int main(int argc, char **argv)
 		&logpath,
 		NULL,
 		NULL,		
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
  
@@ -242,28 +242,20 @@ int main(int argc, char **argv)
 	for the general initialisation of a node please look into the neuropil_node example
 	*/
 	
-	/**
-	in your main program, initialize the logging of neuopil
+	struct np_settings *settings = np_default_settings(NULL);
+	settings->n_threads = no_threads;
 
-	.. code-block:: c
+	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	fprintf(stdout, "logpath: %s\n", settings->log_file);
+	settings->log_level = level;
 
-	   char log_file[256];
-	   sprintf(log_file, "%s_%d.log", "./neuropil_controller", getpid());
-	   int level = LOG_ERROR | LOG_WARN | LOG_INFO;
-	   log_init(log_file, level);
-	*/
-	char log_file[256];
-	sprintf(log_file, "%s%s_%s.log", logpath, "/neuropil_realmmaster", port);
-	np_log_init(log_file, level);
+	np_context * context = np_new_context(settings);
 
-	/**
-	initialize the global variable with the np_init function
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		printf("ERROR: Node could not listen");
+		exit(EXIT_FAILURE);
+	}
 
-	.. code-block:: c
-
-	   state = np_init(proto, port);
-	*/
-	state = np_init(proto, port, publish_domain);
 
 	np_aaatoken_t* realm_identity = create_realm_identity();
 	np_set_identity(realm_identity);
@@ -289,13 +281,15 @@ int main(int argc, char **argv)
 
 	.. code-block:: c
 
-	   np_start_job_queue(8);
+	   np_threads_start_workers(8);
 	*/
 
 
 	// dsleep(50);
-	log_debug_msg(LOG_DEBUG, "starting job queue");
-	np_start_job_queue(no_threads);
+	if (np_ok != np_run(context, 0)) {
+		printf("ERROR: Node could not start");
+		exit(EXIT_FAILURE);
+	}
 
 	if (NULL != j_key)
 	{

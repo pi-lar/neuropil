@@ -12,10 +12,11 @@
 extern "C" {
 #endif
 
-struct np_dhkey_s
-{
-    uint32_t t[8];
-};
+
+	struct np_dhkey_s
+	{
+		uint32_t t[8];
+	} ;
 
 /* key_comp: k1, k2
  * returns > 0 if k1>k2, < 0 if k1<k2, and 0 if k1==k2
@@ -25,17 +26,17 @@ int8_t _np_dhkey_cmp (const np_dhkey_t* const k1, const np_dhkey_t* const k2);
 
 /* some global variables !! that are set in key_init function */
 NP_API_INTERN
-np_dhkey_t np_dhkey_min();
+np_dhkey_t np_dhkey_min(np_state_t* context);
 NP_API_INTERN
-np_dhkey_t np_dhkey_half();
+np_dhkey_t np_dhkey_half(np_state_t* context);
 NP_API_INTERN
-np_dhkey_t np_dhkey_max();
+np_dhkey_t np_dhkey_max(np_state_t* context);
 
 /* key_init:
  * initializes np_dhkey_t*
  */
 NP_API_INTERN
-void _np_dhkey_init ();
+bool _np_dhkey_init (np_state_t* context);
 
 NP_API_INTERN
 np_dhkey_t np_dhkey_create_from_hash(const char* strOrig);
@@ -46,7 +47,7 @@ np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port);
  * return 1 if #k1#==#k2# 0 otherwise
  */
 NP_API_INTERN
-np_bool _np_dhkey_equal (const np_dhkey_t* const k1, const np_dhkey_t* const k2);
+bool _np_dhkey_equal (const np_dhkey_t* const k1, const np_dhkey_t* const k2);
 
 NP_API_INTERN
 void _np_dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2);
@@ -64,7 +65,7 @@ void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_
  * around the ring to #right#.
  */
 NP_API_INTERN
-np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const np_bool includeOuterBounds) NP_CONST;
+bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const bool includeOuterBounds) NP_CONST;
 
 /* key_midpoint: mid, key
  * calculates the midpoint of the namespace from the #key#
@@ -78,15 +79,7 @@ void _np_dhkey_midpoint (np_dhkey_t* mid, const np_dhkey_t* key);
 NP_API_INTERN
 uint16_t _np_dhkey_index (const np_dhkey_t* mykey, const np_dhkey_t* k) NP_CONST;
 NP_API_INTERN
-uint8_t _np_dhkey_hexalpha_at (const np_dhkey_t* key, const int8_t c) NP_CONST;
-
-// scan a key string to its struct representation
-NP_API_INTERN
-void _np_dhkey_from_str (const char *dhkey_string, np_dhkey_t *k);
-
-// always use this function to get the string representation of a key
-NP_API_INTERN
-void _np_dhkey_to_str (const np_dhkey_t * k, char* str);
+uint8_t _np_dhkey_hexalpha_at (np_state_t* context, const np_dhkey_t* key, const int8_t c) NP_CONST;
 
 NP_API_INTERN
 void _dhkey_print (np_dhkey_t* k) NP_CONST;
@@ -96,6 +89,8 @@ void _dhkey_print (np_dhkey_t* k) NP_CONST;
  */
 NP_API_INTERN
 void _np_dhkey_assign (np_dhkey_t* k1, const np_dhkey_t* const k2);
+NP_API_INTERN
+void _np_dhkey_encode(np_state_t* context, np_tree_t* jrb, np_dhkey_t* key);
 
 #ifdef __cplusplus
 }

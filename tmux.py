@@ -14,16 +14,24 @@ parser.add_argument('-l', nargs='?', type=int, default=-3, help='LogLevel')
 parser.add_argument('-pd', nargs='?', default="localhost", help='PublishDomain')
 parser.add_argument('-c', action='store_true', help='Autoclose tmux window if node fails')
 parser.add_argument('-r', action='store_true', help='Reconnect only')
+parser.add_argument('--perf', action='store_true', help='Record Perf on Bootstrap')
+parser.add_argument('-v', action='store_true', default=False, help='Valgrind prefix')
+parser.add_argument('-vc', action='store_true', default=False, help='Valgrind Client prefix')
+parser.add_argument('-vs', action='store_true', default=False, help='Valgrind Server prefix')
 parser.add_argument('-k', action='store_true', help='Kill all only')
 parser.add_argument('-t', nargs='?', type=int, default=18, help='Count of threads to start for each node')
+parser.add_argument('-tr', action='store_true', default=False, help='(Add) Random sleep timer during client startup')
+parser.add_argument('-ts', nargs='?', type=int, default=-1, help='Sleep Timer (in ms) during client statup')
 parser.add_argument('-oh', nargs='?', type=int, default=1, help='Host sysinfo config')
 parser.add_argument('-oc', nargs='?', type=int, default=1, help='Clients sysinfo config')
-parser.add_argument('-p', nargs='?', default="udp4", help='port type')
+parser.add_argument('-p', nargs='?', default=False, help='port type')
+parser.add_argument('-ps', nargs='?', default=False, help='port type server')
+parser.add_argument('-pc', nargs='?', default=False, help='port type clients')
 parser.add_argument('-s', nargs='?', default=1, help='Statistics View')
 parser.add_argument('-b', nargs='?', default=3000, help='Port to start from')
 parser.add_argument('-j', nargs='?', default="", help='Join to ')
 parser.add_argument('--path', nargs='?', default="./", help='Path to bin folder (ex.: "./bin/")')
-parser.add_argument('--httpdomain_client', nargs='?', default="", help='Http domain specifier for client nodes')
+parser.add_argument('-hd', '--httpdomain', nargs='?', default="", help='Http domain specifier for client nodes')
 
 args = parser.parse_args()
 
@@ -33,19 +41,20 @@ if args.n < 0:
     args.n *= -1
 
 port = int(args.b)
-port_type = args.p
+port_type_server = args.p if args.p != False else args.ps if args.ps != False else "udp4"
+port_type_client = args.p if args.p != False else args.pc if args.pc != False else "udp4"
 loglevel = args.l
 publish_domain = args.pd
 threads = args.t
 sysinfo = args.oh
 sysinfo_client = args.oc
 statistics = args.s
-httpdomain_client = ""
-if args.httpdomain_client != "":
-  httpdomain_client = " -w " + args.httpdomain_client +" "
+httpdomain = ""
+if args.httpdomain != "":
+  httpdomain = " -w " + args.httpdomain +" "
 
 start_bootstrapper = True
-join_client = " -j *:{}:{}:{}".format(port_type, publish_domain , port)
+join_client = " -j *:{}:{}:{}".format(port_type_server, publish_domain , port)
 if args.j != "":
   join_client  = " -j {} ".format(args.j)
   start_bootstrapper = False
@@ -67,24 +76,31 @@ if args.k:
 else:
     if not args.r or not server.has_session("np"):
         session = server.new_session("np", True)
-
+        
     windowName  = "neuropil bootstraper"
     if start_bootstrapper and not session.find_where({ "window_name": windowName }):
         nb = session.new_window(attach=True, window_name=windowName)
-        nb.attached_pane.send_keys(args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} -s {} {}'.format(
-            port, threads, port_type, loglevel, publish_domain, sysinfo, statistics, autoclose))
+        prefix_bootstrap = ('valgrind ' if args.v or args.vs else  '')
+        if args.perf:
+            prefix_bootstrap = 'perf record --call-graph dwarf -a '
+        nb.attached_pane.send_keys(prefix_bootstrap + args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} {} -s {} {} 2> test.log'.format(
+            port, threads, port_type_server, loglevel, publish_domain, sysinfo,httpdomain, statistics, autoclose))
+        if args.v or args.vs:
+            time.sleep(4)
 
+    
     for i in range(count):
         windowName  = "neuropil node {0:05d}".format(i+port+start_bootstrapper)
         if not session.find_where({ "window_name": windowName }):
             print('start node {:3d}/{}'.format(i,count), end='\r')
             sys.stdout.flush()
-            time.sleep(random.random()+0.01)
+            if args.tr or args.ts:
+                args.ts = args.ts if args.ts != -1 else 10
+                rand = random.random() if args.tr else 0
+                time.sleep(rand+(args.ts/1000))
             nn = session.new_window(attach=False, window_name=windowName )
-            prefix = ''
-            #prefix += 'perf record --call-graph dwarf -a --timestamp-filename '
-            nn.attached_pane.send_keys(prefix + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
-            port+i+start_bootstrapper,publish_domain, threads, port_type, sysinfo_client, loglevel, join_client, httpdomain_client, statistics, autoclose))
+            nn.attached_pane.send_keys(('valgrind ' if args.v or args.vc else  '') + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
+            port+i+start_bootstrapper,publish_domain, threads, port_type_client, sysinfo_client, loglevel, join_client, httpdomain, statistics, autoclose))
 
     if not args.k:
         os.system('tmux attach -t np')

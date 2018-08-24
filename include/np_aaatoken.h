@@ -9,7 +9,7 @@ Add-on information can be stored in a nested jtree structure. Several analogies 
 json web token, kerberos and diameter. Tokens do get integrity protected by adding an additional signature based on
 the issuers public/private key pair
 
-The structure is described here to allow users the proper use of the :c:func:`np_set_identity` function and to implement the
+The structure is described here to allow users the proper use of the :c:func:`np_set_identity_v1` function and to implement the
 AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizing_cb` and :c:func:`np_setaccounting_cb`.
 
 */
@@ -32,8 +32,9 @@ AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizi
 #include "np_list.h"
 #include "np_threads.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_types.h"
+#include "neuropil.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -154,7 +155,6 @@ enum np_aaatoken_scope {
 struct np_aaatoken_s
 {
 	// link to memory management
-	np_obj_t* obj;
 
 	// protocol version
 	double version;
@@ -166,8 +166,10 @@ struct np_aaatoken_s
 
 	// from (if self signed empty)
 	char issuer[65];
+
 	// about
 	char subject[255];
+
 	// to
 	char audience[255];
 
@@ -191,11 +193,11 @@ struct np_aaatoken_s
 	*/
 	enum np_aaatoken_type type;
 	enum np_aaatoken_scope scope;
-	np_bool private_key_is_set;
+	bool private_key_is_set;
 	np_aaatoken_t* issuer_token;
 
-	np_bool is_signature_verified;
-	np_bool is_signature_extensions_verified;
+	bool is_signature_verified;
+	bool is_signature_extensions_verified;
 
 
 } NP_API_EXPORT;
@@ -208,10 +210,10 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
 NP_API_INTERN
 void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token);
 NP_API_INTERN
-np_bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
+bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
 
 /**
-.. c:function::np_bool token_is_valid(np_aaatoken_t* token)
+.. c:function::bool token_is_valid(np_aaatoken_t* token)
 
    checks if a token is valid.
    performs a cryptographic integrity check with a checksum verification on the main data elements
@@ -221,7 +223,7 @@ np_bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token);
 
 */
 NP_API_EXPORT
-np_bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_type);
+bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_type);
 
 NP_API_INTERN
 np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* token);
@@ -231,19 +233,19 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* token);
 NP_API_INTERN
 np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(const char* const subject, const char* const audience);
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(np_state_t* context, const char* const subject, const char* const audience);
 NP_API_INTERN
-np_aaatoken_t* _np_aaatoken_get_sender_token(const char* const subject, const np_dhkey_t* const sender_dhkey);
+np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* const subject, const np_dhkey_t* const sender_dhkey);
 
 NP_API_INTERN
 np_aaatoken_t * _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
-sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(const char* const subject, const char* const audience);
+sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(np_state_t* context, const char* const subject, const char* const audience);
 NP_API_INTERN
-np_aaatoken_t* _np_aaatoken_get_receiver(const char* const subject, np_dhkey_t* target);
+np_aaatoken_t* _np_aaatoken_get_receiver(np_state_t* context, const char* const subject, np_dhkey_t* target);
 
 NP_API_INTERN
-np_aaatoken_t* _np_aaatoken_get_local_mx(const char* const subject);
+np_aaatoken_t* _np_aaatoken_get_local_mx(np_state_t* context, const char* const subject);
 NP_API_INTERN
 void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
@@ -255,7 +257,7 @@ void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token);
 NP_API_INTERN
 void np_aaatoken_encode_with_secrets(np_tree_t* data, np_aaatoken_t* token);
 NP_API_INTERN
-int __np_aaatoken_generate_signature(unsigned char* hash, unsigned char* private_key, unsigned char* save_to);
+int __np_aaatoken_generate_signature(np_state_t* context, unsigned char* hash, unsigned char* private_key, unsigned char* save_to);
 NP_API_INTERN
 void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self);
 NP_API_INTERN
@@ -276,6 +278,8 @@ NP_API_INTERN
 np_dhkey_t _np_aaatoken_get_issuer(np_aaatoken_t* self);
 NP_API_INTERN
 void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* token);
+NP_API_INTERN
+struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src);
 #ifdef __cplusplus
 }
 #endif

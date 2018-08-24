@@ -18,7 +18,7 @@
 #include "np_util.h"
 #include "np_tree.h"
 
-// np_treeval_t np_treeval_NULL = { .type = np_treeval_type_undefined, .size=0 };
+
 
 np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
     log_trace_msg(LOG_TRACE, "start: np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {");
@@ -119,7 +119,7 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 	case np_treeval_type_jrb_tree:
 		to.type = np_treeval_type_jrb_tree;
 		to.size = from.size;
-		to.value.tree = np_tree_clone(from.value.tree);
+		to.value.tree = np_tree_clone( from.value.tree);
 		break;
 	case np_treeval_type_dhkey:
 		to.type = np_treeval_type_dhkey;
@@ -141,8 +141,7 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 		break;
 	default:
 		to.type = np_treeval_type_undefined;
-		log_msg(LOG_WARN, "unsupported copy operation for np_treeval type %hhd",
-				from.type);
+		//log_msg(LOG_WARN,"unsupported copy operation for np_treeval type %"PRIu8,from.type);
 		break;
 	}
 	return to;
@@ -150,12 +149,12 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 /*
 	@param:freeable: returns the information to free or not to free the result
 */
-char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
+char* np_treeval_to_str(np_treeval_t val, bool* freeable) {
     log_trace_msg(LOG_TRACE, "start: char* np_treeval_to_str(np_treeval_t val) {");
 
 	int len = 0;
 	char* result = NULL;
-	if(freeable  != NULL) *freeable = FALSE;
+	if(freeable  != NULL) *freeable = false;
 	switch(val.type) {
 		// length is always 1 (to identify the type) + the length of the type
   		case np_treeval_type_short:
@@ -163,7 +162,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
-				if (freeable != NULL) *freeable = TRUE;
+				if (freeable != NULL) *freeable = true;
   				snprintf(result, len+1, "%d", val.value.sh);
   			}
   			break;
@@ -172,7 +171,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
-				if (freeable != NULL) *freeable = TRUE;
+				if (freeable != NULL) *freeable = true;
   				snprintf(result, len+1, "%d", val.value.i);
   			}
 			break;
@@ -181,18 +180,18 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
-				if (freeable != NULL) *freeable = TRUE;
+				if (freeable != NULL) *freeable = true;
   				snprintf(result, len+1, "%d", val.value.l);
   			}
 			break;
 #ifdef x64
 		case np_treeval_type_long_long:
-  			len = snprintf(NULL, 0, "%llu", val.value.ll);
+  			len = snprintf(NULL, 0, "%"PRIu64, val.value.ll);
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
-				if (freeable != NULL) *freeable = TRUE;
-  				snprintf(result, len+1, "%llu", val.value.ll);
+				if (freeable != NULL) *freeable = true;
+  				snprintf(result, len+1, "%"PRIu64, val.value.ll);
   			}
 			break;
 #endif
@@ -201,7 +200,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
-				if (freeable != NULL) *freeable = TRUE;
+				if (freeable != NULL) *freeable = true;
   				snprintf(result, len+1, "%f", val.value.f);
   			}
 			break;
@@ -210,7 +209,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
-				if (freeable != NULL) *freeable = TRUE;
+				if (freeable != NULL) *freeable = true;
   				snprintf(result, len+1, "%f", val.value.d);
   			}
 			break;
@@ -218,7 +217,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
 			return val.value.s;
 			break;
 		case np_treeval_type_special_char_ptr:
-  			return (char*) _np_tree_get_special_str(val.value.ush);
+  			return (char*) _np_tree_get_special_str( val.value.ush);
 			break;
 		case np_treeval_type_char:
 		case np_treeval_type_unsigned_char:
@@ -229,7 +228,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
-				if (freeable != NULL) *freeable = TRUE;
+				if (freeable != NULL) *freeable = true;
   				snprintf(result, len+1, "%u", val.value.ush);
   			}
  			break;
@@ -238,7 +237,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
-				if (freeable != NULL) *freeable = TRUE;
+				if (freeable != NULL) *freeable = true;
   				snprintf(result, len+1, "%u", val.value.ui);
   			}
 			break;
@@ -247,7 +246,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
-				if (freeable != NULL) *freeable = TRUE;
+				if (freeable != NULL) *freeable = true;
   				snprintf(result, len+1, "%u", val.value.ul);
   			}
 			break;
@@ -257,7 +256,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
-				if (freeable != NULL) 	*freeable = TRUE;
+				if (freeable != NULL) 	*freeable = true;
   				snprintf(result, len+1, "%"PRIu64, val.value.ull);
   			}
 			break;
@@ -267,7 +266,7 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
   			if (0 < len) {
   				result = malloc(len+1);
   				CHECK_MALLOC(result);
-				if (freeable != NULL) *freeable = TRUE;
+				if (freeable != NULL) *freeable = true;
   				snprintf(result, len+1, "%u,%u", val.value.a2_ui[0], val.value.a2_ui[1]);
   			}
  			break;
@@ -282,10 +281,10 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
  			return "--> binary content";
 			break;
  		case np_treeval_type_jrb_tree:
-			if (freeable != NULL) * freeable = TRUE;
+			if (freeable != NULL) * freeable = true;
 			char * info_str = NULL;
 			np_tree_elem_t * tmp = NULL;
-			np_bool free_key, free_value;
+			bool free_key, free_value;
 			char *key, *value;			
 			RB_FOREACH(tmp, np_tree_s, (val.value.tree))
 			{
@@ -303,8 +302,8 @@ char* np_treeval_to_str(np_treeval_t val, np_bool* freeable) {
 		case np_treeval_type_dhkey:
 			result = malloc(65);
 			CHECK_MALLOC(result);
-			if (freeable != NULL) *freeable = TRUE;
-			_np_dhkey_to_str(&val.value.dhkey, result);
+			if (freeable != NULL) *freeable = true;
+			np_id2str(&val.value.dhkey, result);
 			break;
 		default:
 			return "--> unknown";
@@ -370,7 +369,7 @@ np_treeval_t np_treeval_new_s(char *s)
 {
 	np_treeval_t j;
 	uint8_t idx = 0;
-	if (_np_tree_is_special_str(s, &idx)) {
+	if (_np_tree_is_special_str( s, &idx)) {
 		np_treeval_t k = np_treeval_new_ss(idx);
 		memcpy(&j, &k, sizeof(np_treeval_t));
 	}
@@ -556,34 +555,6 @@ np_treeval_t np_treeval_new_hash (char *s)
     return j;
 }
 
-np_treeval_t np_treeval_new_pwhash (NP_UNUSED char *s)
-{
-	// TODO: implement password hashing function / update of libsodium required ?
-    np_treeval_t j = np_treeval_NULL;
-
-//    char pw_hash[crypto_pwhash_STRBYTES];
-//    if (crypto_pwhash_str
-//        (hashed_password, s, strlen(s),
-//         crypto_pwhash_OPSLIMIT_SENSITIVE, crypto_pwhash_MEMLIMIT_SENSITIVE) != 0)
-//    {}
-//
-//    j.size = strlen(pw_hash);
-//    j.value.s = strndup(pw_hash, j.size);
-//    j.type = pwhash_type;
-
-    return j;
-}
-
-np_treeval_t np_treeval_new_obj(np_obj_t* obj)
-{
-    log_trace_msg(LOG_TRACE, "start: np_treeval_t np_treeval_new_obj(np_obj_t* obj){");
-	np_treeval_t j;
-	j.value.obj = obj;
-	j.size = 0;
-	j.type = np_treeval_type_npobj;
-	return j;
-}
-
 int16_t np_treeval_i (np_treeval_t j)
 {
     return j.value.i;
@@ -711,7 +682,7 @@ uint32_t np_treeval_get_byte_size(np_treeval_t ele)
 		case np_treeval_type_jrb_tree:					byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + ele.value.tree->byte_size; break;
 		case np_treeval_type_dhkey:						byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of dhkey*/8 * (sizeof(uint8_t) /*uint32 marker*/+ sizeof(uint32_t)/*uint32 value*/)); break;
 		case np_treeval_type_special_char_ptr:			byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of special string (1:1 replacement on target)*/ sizeof(uint8_t)/*uint8 marker*/ + sizeof(uint8_t)/*uint8 value*/); break; 
-		default:                  log_msg(LOG_ERROR, "unsupported length calculation for value / type %"PRIu8"", ele.type ); break;
+		//default:                  log_msg(LOG_ERROR, "unsupported length calculation for value / type %"PRIu8"", ele.type ); break;
 	}
 
 	return byte_size;

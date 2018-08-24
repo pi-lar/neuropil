@@ -13,7 +13,7 @@
 #include <inttypes.h>
 #include <unistd.h>
 
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "sodium.h"
 
@@ -32,45 +32,6 @@ static np_dhkey_t __dhkey_min;
 static np_dhkey_t __dhkey_half;
 static np_dhkey_t __dhkey_max;
 
-void _np_dhkey_to_str (const np_dhkey_t* k, char* key_string)
-{
-	// k->valid = FALSE;
-
-	// log_msg(LOG_KEY | LOG_WARN, "key %0lu %0lu %0lu %0lu", k->t[0], k->t[1], k->t[2], k->t[3]);
-	// log_msg(LOG_KEY | LOG_WARN, "key %16lx%16lx%16lx%16lx", k->t[0], k->t[1], k->t[2], k->t[3]);
-
-	// TODO: use sodium bin2hex function
-	memset  (key_string, 0, 64);
-
-	sprintf (key_string,
-		"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32,
-		k->t[0], k->t[1], k->t[2], k->t[3], k->t[4], k->t[5], k->t[6], k->t[7]
-	);
-	key_string[64] = '\0';
-	// k->valid = TRUE;
-	// log_debug_msg(LOG_KEY | LOG_DEBUG, "key string now: %s", k->keystr);
-}
-
-void _np_dhkey_from_str (const char* key_string, np_dhkey_t* k)
-{
-	// TODO: this is dangerous, encoding could be different between systems,
-	// encoding has to be send over the wire to be sure ...
-	// for now: all tests on the same system
-	// assert (64 == strlen((char*) key_string));
-
-	char substring[9];
-	substring[8] = '\0';
-	for (uint8_t i = 0; i < 8; i++)
-	{
-		memcpy(substring, key_string + i*8, 8);	
-		k->t[i] = strtoul((const char*) substring, NULL, 16);
-	}
-
-	log_debug_msg(LOG_KEY | LOG_DEBUG,
-		"key %08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32, 
-		k->t[0], k->t[1], k->t[2], k->t[3], k->t[4], k->t[5], k->t[6], k->t[7]
-	);
-}
 
 char* _np_dhkey_generate_hash (const char* key_in)
 {
@@ -96,18 +57,12 @@ char* _np_dhkey_generate_hash (const char* key_in)
 
 np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port)
 {
-	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port){");
 	char name[256];
-	snprintf (name, 255, "%s:%s", strOrig, port);	
+	snprintf (name, 256, "%s:%s", strOrig, port);	
 
 	char* digest = _np_dhkey_generate_hash (name);
-	log_debug_msg(LOG_KEY | LOG_DEBUG, "digest calculation returned HASH: %s", digest);
 
 	np_dhkey_t tmp = np_dhkey_create_from_hash(digest);
-	log_debug_msg(LOG_KEY | LOG_DEBUG, 
-		"HASH(%s) = [key %08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"]",
-		name, tmp.t[0], tmp.t[1], tmp.t[2], tmp.t[3], tmp.t[4], tmp.t[5], tmp.t[6], tmp.t[7]
-	);
 
 	free (digest);
 	return tmp;
@@ -117,23 +72,23 @@ np_dhkey_t np_dhkey_create_from_hash(const char* strOrig)
 {
 	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_create_from_hash(const char* strOrig){");
 	np_dhkey_t kResult = { 0 };
-	_np_dhkey_from_str(strOrig, &kResult);
+	np_str2id( strOrig, &kResult);
 	return kResult;
 }
 
-void _np_dhkey_encode(np_tree_t* jrb, np_dhkey_t* key)
+void _np_dhkey_encode(np_state_t* context, np_tree_t* jrb, np_dhkey_t* key)
 {
-	log_trace_msg(LOG_TRACE, "start: void _np_dhkey_encode(np_tree_t* jrb, np_dhkey_t* key){");
+	log_trace_msg(LOG_TRACE, "start: void _np_dhkey_encode( context, np_tree_t* jrb, np_dhkey_t* key){");
 	// log_msg(LOG_KEY | LOG_WARN, "encoding key %0lu %0lu %0lu %0lu", key->t[0], key->t[1], key->t[2], key->t[3]);
 
-	np_tree_insert_str(jrb, "_np.key.0", np_treeval_new_ul(key->t[0]));
-	np_tree_insert_str(jrb, "_np.key.1", np_treeval_new_ul(key->t[1]));
-	np_tree_insert_str(jrb, "_np.key.2", np_treeval_new_ul(key->t[2]));
-	np_tree_insert_str(jrb, "_np.key.3", np_treeval_new_ul(key->t[3]));
-	np_tree_insert_str(jrb, "_np.key.4", np_treeval_new_ul(key->t[4]));
-	np_tree_insert_str(jrb, "_np.key.5", np_treeval_new_ul(key->t[5]));
-	np_tree_insert_str(jrb, "_np.key.6", np_treeval_new_ul(key->t[6]));
-	np_tree_insert_str(jrb, "_np.key.7", np_treeval_new_ul(key->t[7]));
+	np_tree_insert_str( jrb, "_np.key.0", np_treeval_new_ul(key->t[0]));
+	np_tree_insert_str( jrb, "_np.key.1", np_treeval_new_ul(key->t[1]));
+	np_tree_insert_str( jrb, "_np.key.2", np_treeval_new_ul(key->t[2]));
+	np_tree_insert_str( jrb, "_np.key.3", np_treeval_new_ul(key->t[3]));
+	np_tree_insert_str( jrb, "_np.key.4", np_treeval_new_ul(key->t[4]));
+	np_tree_insert_str( jrb, "_np.key.5", np_treeval_new_ul(key->t[5]));
+	np_tree_insert_str( jrb, "_np.key.6", np_treeval_new_ul(key->t[6]));
+	np_tree_insert_str( jrb, "_np.key.7", np_treeval_new_ul(key->t[7]));
 }
 
 void _np_dhkey_decode(np_tree_t* jrb, np_dhkey_t* key)
@@ -155,12 +110,12 @@ void _np_dhkey_assign (np_dhkey_t* k1, const np_dhkey_t* const k2)
 		k1->t[i] = k2->t[i];
 }
 
-np_bool _np_dhkey_equal (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
+bool _np_dhkey_equal (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 {
 	for (uint8_t i = 0; i < 8; i++)
 		if (k1->t[i] != k2->t[i])
-			return FALSE;
-	return TRUE;
+			return false;
+	return true;
 }
 
 int8_t _np_dhkey_cmp (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
@@ -178,28 +133,23 @@ int8_t _np_dhkey_cmp (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 
 void _np_dhkey_add (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2)
 {
-	log_trace_msg ( LOG_TRACE | LOG_KEY, ".start.key_add");
 	// we dont care about buffer overflow, since we are adding hashes
 	// since we are using uint64_t we always stay in valid data
 	for (uint8_t i = 0; i < 8 ; i++)
 	{
 		result->t[i] = op1->t[i] + op2->t[i];
 	}
-	log_trace_msg ( LOG_TRACE | LOG_KEY, ".end  .key_add");
 }
 
 void _np_dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2)
 {
-	log_trace_msg ( LOG_TRACE | LOG_KEY, ".start.key_sub");
-
 	for (uint8_t i = 0; i < 8; i++)
 	{
 		result->t[i] = op1->t[i] - op2->t[i];
-		log_debug_msg(LOG_KEY | LOG_DEBUG, "op1[%"PRIu32"] - op2[%"PRIu32"] = r[%"PRIu32"]", op1->t[i], op2->t[i], result->t[i]);
 	}
 }
 
-void _np_dhkey_init ()
+bool  _np_dhkey_init (np_state_t* context)
 {
 	uint32_t half = (UINT_MAX >> 1) + 1;
 	for (uint8_t i = 0; i < 8; i++)
@@ -214,25 +164,27 @@ void _np_dhkey_init ()
 				i, __dhkey_min.t[i]
 		);
 	}
+
+	return true;
 }
 
-np_dhkey_t np_dhkey_min()  {
-	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_min()  {"); return __dhkey_min;  };
-np_dhkey_t np_dhkey_half() {
+np_dhkey_t np_dhkey_min(np_state_t* context)  {
+	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_fmin()  {"); return __dhkey_min;  };
+np_dhkey_t np_dhkey_half(np_state_t* context) {
 	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_half() {"); return __dhkey_half; };
-np_dhkey_t np_dhkey_max()  {
-	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_max()  {"); return __dhkey_max;  };
+np_dhkey_t np_dhkey_max(np_state_t* context)  {
+	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_fmax()  {"); return __dhkey_max;  };
 
 // TODO: the distance of two hash keys could be implemented much better
 void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 {	
-	_np_dhkey_sub (diff, k1, k2);
+	_np_dhkey_sub(diff, k1, k2);		
 }
 
 
-np_bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const np_bool includeBounds)
+bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const bool includeBounds)
 {
-	np_bool ret = FALSE;
+	bool ret = false;
 	log_trace_msg ( LOG_TRACE | LOG_KEY, ".start._dhkey_between");
 
 	int8_t comp_lt = _np_dhkey_cmp (left, test);
@@ -265,7 +217,7 @@ void _np_dhkey_midpoint (np_dhkey_t* mid, const np_dhkey_t* key)
 	log_trace_msg ( LOG_TRACE | LOG_KEY, ".start._dhkey_midpoint");
 	if   (_np_dhkey_cmp (key, &__dhkey_half) < 0) _np_dhkey_add (mid, key, &__dhkey_half);
 	else  	                                    _np_dhkey_sub (mid, key, &__dhkey_half);
-	// mid->valid = FALSE;
+	// mid->valid = false;
 	log_trace_msg ( LOG_TRACE | LOG_KEY, ".end  ._dhkey_midpoint");
 }
 
@@ -284,7 +236,7 @@ uint16_t _np_dhkey_index (const np_dhkey_t* mykey, const np_dhkey_t* otherkey)
 		{
 			uint32_t t1 = mykey->t[k]    & bit_mask;
 			uint32_t t2 = otherkey->t[k] & bit_mask;
-			log_debug_msg(LOG_KEY | LOG_DEBUG, "key_index: %d me: %08"PRIx32" other: %08"PRIx32" mask: %08"PRIx32, i, t1, t2, bit_mask);
+			//log_debug_msg(LOG_KEY | LOG_DEBUG, "key_index: %d me: %08"PRIx32" other: %08"PRIx32" mask: %08"PRIx32, i, t1, t2, bit_mask);
 			if (t1 != t2)
 			{
 				log_trace_msg ( LOG_TRACE | LOG_KEY, ".end  ._dhkey_index");
@@ -308,7 +260,7 @@ uint16_t _np_dhkey_index (const np_dhkey_t* mykey, const np_dhkey_t* otherkey)
 	param index_of_key: desired index to get the value from
 	return: the value of the key at position index_of_key
 */
-uint8_t _np_dhkey_hexalpha_at (const np_dhkey_t* key, const int8_t index_of_key)
+uint8_t _np_dhkey_hexalpha_at (np_state_t* context, const np_dhkey_t* key, const int8_t index_of_key)
 {
 	log_trace_msg ( LOG_TRACE | LOG_KEY, ".start._dhkey_hexalpha_at");
 	uint8_t j = 1;
