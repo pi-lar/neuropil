@@ -2199,7 +2199,6 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                         _np_network_remap_network(msg_source_key, hs_wildcard_key);
                     }
                     np_unref_obj(np_network_t, old_network, "usage_of_old_network");
-                    _np_send_simple_invoke_request(msg_source_key, _NP_MSG_JOIN_REQUEST);
                 }
 
                 np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
@@ -2310,6 +2309,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
 
 				if (alias_key->node->_handshake_status == np_handshake_status_SelfInitiated) {
 					np_node_set_handshake(alias_key->node, np_handshake_status_Connected);
+					_np_send_simple_invoke_request(msg_source_key, _NP_MSG_JOIN_REQUEST);
 				}
 				else if (alias_key->node->_handshake_status == np_handshake_status_RemoteInitiated) {					
 					_np_network_send_handshake(context, msg_source_key, true);
