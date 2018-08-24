@@ -118,8 +118,8 @@ bool froscon_register_for_hunt(np_context* context, struct np_message* message)
 			write2db(data, from);
 		}
 		char resp[2600] = { 0 };
-		sprintf(resp, "Nachricht \"%s\" erhalten!%s", data, sanitize_result ? "" : " Aber leider ist diese nicht gültig! (NUR ZAHLEN BITTE!)");
-		np_send(context, "FROSCON2018_Response", resp, strlen(resp) + 1);
+		snprintf(resp, 2600, "Nachricht \"%s\" erhalten!%s", data, sanitize_result ? "" : " Aber leider ist diese nicht gültig! (NUR ZAHLEN BITTE!)");
+		np_send(context, "FROSCON2018_Response", resp, strnlen(resp, 2599) + 1);
 		pthread_mutex_unlock(&mutex);
 	}
 	return true;
