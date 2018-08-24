@@ -705,20 +705,20 @@ bool parse_program_args(
 			//| LOG_MUTEX
 			| LOG_ROUTING
 			//| LOG_HTTP
-			| LOG_KEY
+			//| LOG_KEY
 			| LOG_NETWORK
+			| LOG_HANDSHAKE
 			//| LOG_AAATOKEN
 			//| LOG_SYSINFO
-			| LOG_MESSAGE
-			| LOG_HANDSHAKE
+			//| LOG_MESSAGE
+			//| LOG_SERIALIZATION
 			//| LOG_SERIALIZATION
 			//| LOG_MEMORY
-			| LOG_MISC
+			//| LOG_MISC
 			//| LOG_EVENT
 			//| LOG_THREADS
 			//| LOG_JOBS
 			//| LOG_GLOBAL
-
 			;
 
 		if ((*level) == -1) {	   // production client

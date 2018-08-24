@@ -473,13 +473,13 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 				//np_node_t* hs_node = args->target->node;
 
 				/* send data if handshake status is still just initialized or less */
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+				log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE |LOG_DEBUG,
 					"sending handshake message %s to %s",// (%s:%s)",
 					hs_message->uuid, _np_key_as_str(args->target)/*, hs_node->dns_name, hs_node->port*/);
 
 				char* packet = np_memory_new(context, np_memory_types_BLOB_1024);
 
-				_LOCK_ACCESS(&hs_message->msg_chunks_lock) {
+                _LOCK_ACCESS(&hs_message->msg_chunks_lock) {
 					memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 				}
 
@@ -497,6 +497,10 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 						np_memory_free(packet);
 					}
 				}
+
+				 
+				args->target->node->handshake_send_at = np_time_now();                
+
 				_np_message_trace_info("out", hs_message);
 				__np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);
 			}

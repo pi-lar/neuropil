@@ -278,7 +278,7 @@ extern "C" {
 #endif
 
 
-#define NP_SLEEP_MIN (NP_PI/1000)
+#define NP_SLEEP_MIN (0.0001)
 
 
 #define __MAX_ROW    64 /* length of key*/

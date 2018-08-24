@@ -257,7 +257,7 @@ void _np_network_get_address(
 //    return (addr);
 }
 
-bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool reconnect)
+bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool force)
 {
     bool ret = false;
     _LOCK_MODULE(np_handshake_t) {
@@ -266,27 +266,29 @@ bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool re
                 double now = np_time_now();
                 np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
 
-                if (node_key->node->handshake_status == np_handshake_status_Disconnected ||
-					(reconnect && node_key->node->handshake_status == np_handshake_status_Connected) || 
-                    (node_key->node->handshake_status == np_handshake_status_SelfInitiated && now > (node_key->node->handshake_send_at + msg_prop->msg_ttl)))
-                {
-                    log_msg(LOG_NETWORK | LOG_INFO, "requesting a new handshake with %s:%s (%s)",
-                        node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
-
-                    node_key->node->handshake_status = np_handshake_status_SelfInitiated;
-                    node_key->node->handshake_send_at = now;
-
-                    _np_job_submit_transform_event(context, 0.0, msg_prop, node_key, NULL);
-                    ret = true;
-                }
+				if ( force || 
+					 node_key->node->_handshake_status == np_handshake_status_Disconnected ||
+						(node_key->node->_handshake_status == np_handshake_status_SelfInitiated && 
+						 now > (node_key->node->handshake_send_at + msg_prop->msg_ttl)
+						)
+					)
+				{
+					log_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_INFO, "requesting a %shandshake with %s:%s (%s)",
+						force ? "new " : "",
+						node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
+					if (!force)
+					{
+						np_node_set_handshake(node_key->node, np_handshake_status_SelfInitiated);
+					}
+					_np_job_submit_transform_event(context, 0.0, msg_prop, node_key, NULL);
+					ret = true;
+				}
                 else {
-                    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for alias %s requested, but alias in state %s", _np_key_as_str(node_key),
-                        node_key->node->handshake_status == np_handshake_status_Connected ? "Connected" :
-                        node_key->node->handshake_status == np_handshake_status_RemoteInitiated ? "RemoteInitiated" :
-                        node_key->node->handshake_status == np_handshake_status_SelfInitiated ? "SelfInitiated" :
-                        node_key->node->handshake_status == np_handshake_status_Disconnected ? "Disconnected" :
-                        "Unknown"
-                    );
+                	log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG,
+						"handshake for alias %s requested, but alias in state %s", 
+						_np_key_as_str(node_key),
+                       np_handshake_status_str[node_key->node->_handshake_status]
+					);
                 }
             }
         }
@@ -304,9 +306,10 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
     np_node_t* target_node = node_key->node;
     
     // Send handshake info if necessary
-    if (target_node->handshake_status == np_handshake_status_Connected &&
-        NULL != node_key->network)
+    if (target_node->_handshake_status == np_handshake_status_Connected)
     {
+		np_waitref_obj(np_network_t, node_key->network, node_key_network);
+
         // get encryption details
         if (target_node->session_key_is_set == false) {
             log_msg(LOG_ERROR, "auth token has no session key, but handshake is done (key: %s)", _np_key_as_str(node_key));
@@ -337,7 +340,7 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
                             nonce,
                             target_node->session_key);
 
-						log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION, 
+						log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
 							"HANDSHAKE SECRET: using shared secret from target %s on system %s to encrypt data (msg: %s)",
 							_np_key_as_str(node_key), _np_key_as_str(context->my_node_key), msg->uuid);
 
@@ -361,10 +364,10 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
                                 if (NULL != node_key->network->out_events) {
                                     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "appending message (%s part: %d) %p (%d bytes) to queue for %s:%s", msg->uuid, part, enc_buffer, MSG_CHUNK_SIZE_1024, target_node->dns_name, target_node->port);
 									char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
-									log_debug_msg(LOG_DEBUG | LOG_VERBOSE | LOG_NETWORK,
+
+									log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 										"(msg: %s) %s",
 										msg->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, enc_buffer, MSG_CHUNK_SIZE_1024));
-
 
                                     sll_append(void_ptr, node_key->network->out_events, (void*)enc_buffer);                                    
                                     ret = true;
@@ -391,10 +394,11 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
                     }
                 }
             }
+			np_unref_obj(np_network_t, node_key_network, FUNC);
         }
     } else {
+		log_debug_msg(LOG_WARN | LOG_HANDSHAKE, "network and handshake status of target is unclear (key: %s)", _np_key_as_str(node_key));
 		_np_network_send_handshake(context, node_key, false);
-        log_debug_msg(LOG_WARN, "network and handshake status of target is unclear (key: %s)", _np_key_as_str(node_key));
     }
 
     if (ret) {

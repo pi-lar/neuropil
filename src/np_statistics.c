@@ -303,7 +303,8 @@ char * np_statistics_print(np_state_t* context, bool asOneLine) {
 		sll_next(iter_subjects);
 	}
 
-	ret = np_str_concatAndFree(ret, "%s", new_line);
+	char* details = ret;
+	ret = NULL;	
 
 
 	uint32_t routes = _np_route_my_key_count_routes(context);
@@ -374,8 +375,9 @@ char * np_statistics_print(np_state_t* context, bool asOneLine) {
 		np_util_stringify_pretty(np_util_stringify_bytes, &__network_send_bytes_r, b2),
 		np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &(np_module(statistics)->__network_send_bytes_per_sec_r), b4),
 		new_line);
-
-	ret = np_str_concatAndFree(ret, "-%s", new_line);
+	
+	ret = np_str_concatAndFree(ret, "%s-%s",details, new_line);
+	free(details);
 
 	return ret;
 }

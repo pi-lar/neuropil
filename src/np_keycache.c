@@ -140,7 +140,7 @@ np_key_t* _np_keycache_find_by_details(
 				if (
 						(!require_handshake_status ||
 								(NULL != iter->node &&
-									iter->node->handshake_status == search_handshake_status									
+									iter->node->_handshake_status == search_handshake_status									
 								) 
 
 						) &&
