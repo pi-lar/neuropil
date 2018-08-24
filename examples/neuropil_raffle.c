@@ -5,6 +5,7 @@
 #include <sqlite3.h> 
 
 #include "neuropil.h"
+#include "np_legacy.h"
 
 #include <errno.h>
 #include <string.h>
@@ -137,10 +138,10 @@ int main()
 	np_listen(context, "pas6", "localhost", 4444);
 	//   np_sysinfo_enable_client(context);
 
-	printf("My Node: %s\r\n", np_get_connection_string(context));
+	//printf("My Node: %s\r\n", np_get_connection_string(context));
 	np_join(context, "*:tcp6:demo.neuropil.io:3141");
 	np_add_receive_cb(context, "FROSCON2018", froscon_register_for_hunt);
 
-	printf("Waiting for scavenger hunt registrations...\r\n");
+	//printf("Waiting for scavenger hunt registrations...\r\n");
 	while (true) np_time_sleep(np_run(context, 1));
 }
