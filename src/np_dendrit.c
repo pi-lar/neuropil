@@ -2223,7 +2223,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
             {
 				if (NULL == msg_source_key->network)//|| (msg_source_key->network->last_received_date + 30) < np_time_now())
 				{
-					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "handshake: init alias network"); 
+					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "handshake: init alias (%s) network", _np_key_as_str(alias_key));
 					np_network_t * new_msg_source_key_network;
 					np_new_obj(np_network_t, new_msg_source_key_network);
 
@@ -2233,7 +2233,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
 						msg_source_key->node->protocol,
 						msg_source_key->node->dns_name,
 						msg_source_key->node->port,
-						((msg_source_key->node->protocol & PASSIVE) == PASSIVE ? 
+						((msg_source_key->node->protocol & PASSIVE) == PASSIVE && alias_key->network != NULL ?
 							alias_key->network->socket : 
 							-1//msg_source_key->network->socket
 						)
