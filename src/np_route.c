@@ -36,8 +36,6 @@ np_module_struct(route)
 	np_state_t* context;
 	np_key_t* my_key;
 	
-	TSP(char*, bootstrap_key)
-
 	np_key_t* table[NP_ROUTES_TABLE_SIZE];
 
 	np_sll_t(np_key_ptr, left_leafset);
@@ -57,7 +55,6 @@ bool _np_route_init (np_state_t* context, np_key_t* me)
 	if (!np_module_initiated(route)) {
 		np_module_malloc(route);
 		
-		TSP_INITD(_module->bootstrap_key, NULL);
 		for (int i = 0; i < NP_ROUTES_TABLE_SIZE; i++) {
 			_module->table[i] = NULL;
 		}
@@ -208,7 +205,6 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
 		if (deleted_from != NULL) {
 			if (deleted != NULL) *deleted = deleted_from;
 			np_unref_obj(np_key_t, deleted_from, ref_route_inleafset);
-			_np_route_check_for_joined_network(context);
 			log_msg(LOG_ROUTING | LOG_INFO, "removed %s from leafset table.", _np_key_as_str(deleted_from));
 		}
 	}
@@ -791,7 +787,6 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
 			log_msg(LOG_ROUTING | LOG_INFO, "removed %s from routing table.", _np_key_as_str(deleted_from));
 			np_unref_obj(np_key_t, deleted_from, ref_route_inroute);
 			if (deleted != NULL) *deleted = deleted_from;
-			_np_route_check_for_joined_network(context);
 		}
 
 #ifdef DEBUG
@@ -854,54 +849,4 @@ uint32_t _np_route_my_key_count_neighbours(np_state_t* context, uint32_t* left, 
 	if (right!= NULL) *right = r;
 
 	return l + r;
-}
-
-void _np_route_check_for_joined_network(np_state_t* context)
-{
-	if( _np_route_my_key_has_connection(context) == false)
-	{
-		np_module(route)->my_key->node->joined_network = false;
-		//_np_route_rejoin_bootstrap(true);
-	}
-}
-
-char* np_route_get_bootstrap_connection_string(np_state_t* context) {
-	log_trace_msg(LOG_TRACE | LOG_ROUTING, "start: np_key_t* np_route_get_bootstrap_key() {");
-	TSP_GET(char*, np_module(route)->bootstrap_key, ret);
-	return ret;
-}
-
-void np_route_set_bootstrap_key(np_key_t* bootstrap_key) {
-	np_ctx_memory(bootstrap_key);
-		
-	TSP_GET(char*, np_module(route)->bootstrap_key, old);
-	TSP_SET(np_module(route)->bootstrap_key, np_get_connection_string_from(bootstrap_key, false));
-	free(old);
-}
-
-void _np_route_rejoin_bootstrap(np_state_t* context, bool force) {
-
-	TSP_GET(char*, np_module(route)->bootstrap_key, bootstrap_key)
-
-	if (bootstrap_key != NULL) {
-
-	bool rejoin = force
-			|| _np_route_my_key_has_connection(context) == false;
-	
-		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Check for rejoin result: %s%s necessary", (rejoin == true ? "" : "not"), (force == true ? "(f)" : ""));
-
-		if(true == rejoin
-				// check for state availibility to prevent test issues. TODO: Make network objects mockable
-				&& context != NULL) {
-			char* bootstrap = np_route_get_bootstrap_connection_string(context);
-			if(NULL != bootstrap)
-			{
-				if(force == false)
-				{
-					log_msg(LOG_WARN, "lost all connections. try to reconnect to bootstrap host \"%s\"", bootstrap);
-				}
-				np_send_wildcard_join(context, bootstrap);
-			}
-		}
-	}
 }

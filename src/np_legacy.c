@@ -687,8 +687,6 @@ void np_send_join(np_context*ac, const char* node_string)
 			//_np_network_send_handshake(context, node_key, false);
 			_np_send_simple_invoke_request(node_key, _NP_MSG_JOIN_REQUEST);
 
-			np_route_set_bootstrap_key(node_key);
-
 			np_unref_obj(np_key_t, node_key, "_np_node_decode_from_str"); // _np_node_decode_from_str
 		}
 	}
@@ -762,7 +760,6 @@ void np_send_wildcard_join(np_context*ac, const char* node_string)
 
 		_np_send_simple_invoke_request(wildcard_node_key, _NP_MSG_JOIN_REQUEST);
 
-		np_route_set_bootstrap_key(wildcard_node_key);
 		np_unref_obj(np_key_t, wildcard_node_key, "_np_node_decode_from_str");
 	}
 }

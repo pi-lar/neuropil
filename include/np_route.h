@@ -78,15 +78,6 @@ void _np_route_leafset_delete (np_key_t* host, uint8_t right_or_left, np_key_t**
 NP_API_INTERN
 void _np_route_leafset_range_update (np_state_t* context);
 
-NP_API_EXPORT
-char* np_route_get_bootstrap_connection_string(np_state_t* context);
-NP_API_EXPORT
-void np_route_set_bootstrap_key(np_key_t* bootstrapKey);
-
-NP_API_INTERN
-void _np_route_rejoin_bootstrap(np_state_t* context, bool force);
-NP_API_INTERN
-void _np_route_check_for_joined_network(np_state_t* context);
 NP_API_INTERN
 bool _np_route_my_key_has_connection(np_state_t* context);
 NP_API_INTERN

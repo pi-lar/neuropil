@@ -167,9 +167,3 @@ void _np_event_cleanup_msgpart_cache(np_state_t* context, np_jobargs_t* args)
     }
     sll_free(np_message_ptr, to_del);  
 }
-
-// TODO: move to glia
-void _np_event_rejoin_if_necessary(np_state_t* context, np_jobargs_t* args)
-{
-    _np_route_rejoin_bootstrap(context, false);
-}
