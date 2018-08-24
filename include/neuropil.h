@@ -2,24 +2,19 @@
 // neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-// original version was taken from chimera project, but heavily modified
-/**
-neuropil.h is the entry point to use the neuropil messaging library.
-It defines all user centric functions and hides the complexity of the double encryption layer.
-It should contain all required functions to send or receive messages.
 
-*/
+/* neuropil API v2 */
 
-#ifndef _NEUROPIL_H_
-#define _NEUROPIL_H_
+#ifndef _NP_INTERFACE_H_
+#define _NP_INTERFACE_H_
 
-#include <pthread.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
 
-#include "np_constants.h"
-#include "np_settings.h"
-#include "np_types.h"
-#include "np_list.h"
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define NEUROPIL_RELEASE	"neuropil_0.6.0"
 #ifndef NEUROPIL_RELEASE_BUILD
 #define NEUROPIL_RELEASE_BUILD 0
@@ -28,380 +23,760 @@ It should contain all required functions to send or receive messages.
 #define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2018 neuropil.org, Cologne, Germany"
 #define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2018 pi-lar GmbH, Cologne, Germany"
 
-#ifdef __cplusplus
-extern "C" {
+
+    /* just in case NULL is not defined */
+#ifndef NULL
+#define NULL (void*)0
+#endif
+
+    //
+    // int __attribute__((overloadable)) square(int);
+
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__linux__)
+    #define NP_ENUM
+#endif
+#if defined(__APPLE__) && defined(__MACH__)
+    #define NP_ENUM __attribute__ ((flag_enum))
+#endif
+
+#define NP_CONST __attribute__ ((const))
+#define NP_PURE  __attribute__ ((pure))
+
+#define NP_PACKED(x)  __attribute__ ((packed(x)))
+#define NP_DEPRECATED __attribute__ ((deprecated("!!! DEPRECATED !!!")))
+
+
+
+#if defined(TEST_COMPILE) || defined(DEBUG)
+#define NP_UNUSED     __attribute__ ((unused))
+#define NP_API_HIDDEN __attribute__ ((visibility ("default")))
+#define NP_API_PROTEC __attribute__ ((visibility ("default")))
+#define NP_API_INTERN __attribute__ ((visibility ("default")))
+#else
+#ifndef NP_UNUSED
+#define NP_UNUSED     __attribute__ ((unused))
+#endif
+#ifndef NP_API_PROTEC
+#define NP_API_PROTEC __attribute__ ((visibility ("default")))
+#endif
+#ifndef NP_API_HIDDEN
+#define NP_API_HIDDEN __attribute__ ((visibility ("default")))
+#endif
+#ifndef NP_API_INTERN
+#define NP_API_INTERN __attribute__ ((visibility ("default")))
+#endif
+#endif
+
+#ifndef NP_API_EXPORT
+#define NP_API_EXPORT __attribute__ ((visibility ("default")))
 #endif
 
 
-/**
-\toggle_keepwhitespaces
-*/
+    // Protocol constants
+    enum {
+        NP_SECRET_KEY_BYTES = 32,
+        NP_PUBLIC_KEY_BYTES = 32,
+        NP_FINGERPRINT_BYTES = 32,
+        NP_UUID_BYTES = 37
+    } NP_ENUM;
+
+    // Implementation defined limits
+    #define NP_EXTENSION_BYTES (10*1024)
+    #define NP_EXTENSION_MAX (NP_EXTENSION_BYTES-1)
+
+    enum np_status {
+        np_error = 0,
+        np_uninitialized,
+        np_running,
+        np_stopped,
+        np_shutdown,		
+    } NP_ENUM;
+
+    enum np_error {
+        np_ok = 0,
+        np_not_implemented,
+        np_network_error,
+        np_invalid_argument,
+        np_invalid_operation,
+        np_startup
+        // ...
+    } NP_ENUM;
+
+    static const char* np_error_str[] = {
+        "",
+        "operation is not implemented",
+        "could not init network",
+        "argument is invalid",
+        "operation is currently invalid",
+        "insufficient memory",
+        "startup error. See log for more details"
+    };
+    
+    typedef void np_context;    
+
+	typedef uint8_t np_id[NP_FINGERPRINT_BYTES];
+	
+    // If length is 0 then string is expected to be null-terminated.
+    // char* is the appropriate type because it is the type of a string
+    // and can also describe an array of bytes. (sizeof char == 1)
+    void np_get_id(np_context * context, np_id* id, char* string, size_t length);
+
+    struct np_token {
+        char subject[255]; // todo: has to be np_id
+        np_id realm, issuer, audience;
+        double issued_at, not_before, expires_at;
+        uint8_t extensions[NP_EXTENSION_BYTES];
+        size_t extension_length;
+        uint8_t public_key[NP_PUBLIC_KEY_BYTES],
+            secret_key[NP_SECRET_KEY_BYTES];
+    };
+    
+    struct np_message {
+        char uuid[NP_UUID_BYTES];
+        np_id from; 
+        np_id subject;		
+        double received_at;
+        uint8_t * data;
+        size_t data_length;
+    };
+        
+    struct np_settings {
+        uint32_t n_threads;
+        char log_file[256];
+        uint32_t log_level;
+        // ...
+    };
+
+    NP_API_EXPORT
+    struct np_settings * np_default_settings(struct np_settings *settings);
+
+    NP_API_EXPORT
+    np_context* np_new_context(struct np_settings *settings);
+
+    // secret_key is nullable
+    NP_API_EXPORT
+    struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]));
+
+    NP_API_EXPORT
+    enum np_error np_set_identity(np_context* ac, struct np_token identity);
+
+    NP_API_EXPORT
+    enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
+
+    // Get “connect string”. Signals error if connect string is unavailable (i.e.,
+    // no listening interface is configured.)
+    NP_API_EXPORT
+    enum np_error np_get_address(np_context* ac, char* address, uint32_t max);
+
+    NP_API_EXPORT
+    enum np_error np_join(np_context* ac, char* address);
+
+    NP_API_EXPORT
+    enum np_error np_send(np_context* ac, char* subject, uint8_t* message, size_t length);
+    
+    typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
+
+    // There can be more than one receive callback, hence "add".
+    NP_API_EXPORT
+    enum np_error np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback);
+
+    typedef bool (*np_aaa_callback)(np_context* ac, struct np_token* aaa_token);
+    NP_API_EXPORT
+    enum np_error np_set_authenticate_cb(np_context* ac, np_aaa_callback callback);
+    NP_API_EXPORT
+    enum np_error np_set_authorize_cb(np_context* ac, np_aaa_callback callback);
+    NP_API_EXPORT
+    enum np_error np_set_accounting_cb(np_context* ac, np_aaa_callback callback);
+    
+
+    // duration: 0 => process pending events and return
+    //           N => process events for up to N seconds and return
+    NP_API_EXPORT
+    enum np_error np_run(np_context* ac, double duration);
+
+    //enum np_mx_pattern      { NP_MX_BROADCAST, NP_MX_ANY, NP_MX_ONE_WAY, NP_MX_REQ_REP, /* ... */ } NP_ENUM;
+    enum np_mx_cache_policy { NP_MX_FIFO_REJECT, NP_MX_FIFO_PURGE, NP_MX_LIFO_REJECT, NP_MX_LIFO_PURGE } NP_ENUM;
+    enum np_mx_ackmode      { NP_MX_ACK_NONE, NP_MX_ACK_DESTINATION, NP_MX_ACK_CLIENT } NP_ENUM;
+
+    struct np_mx_properties {
+        char reply_subject[255];
+        enum np_mx_ackmode ackmode;
+        //enum np_mx_pattern pattern;  will be added later on
+        enum np_mx_cache_policy cache_policy;
+        uint32_t max_parallel, max_retry;
+        double intent_ttl, intent_update_after;
+        double message_ttl;
+    };
+
+    NP_API_EXPORT
+    struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject);
+    NP_API_EXPORT
+    enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties properties);
+    NP_API_EXPORT
+    void np_set_userdata(np_context * ac, void* userdata);
+    NP_API_EXPORT
+    void* np_get_userdata(np_context * ac);
+    
+
+    NP_API_EXPORT
+        enum np_error np_send_to(np_context* ac, char* subject, uint8_t* message, size_t length, np_id * target);
+    NP_API_EXPORT
+        bool np_has_joined(np_context * ac);		
+    NP_API_EXPORT
+        enum np_status np_get_status(np_context* ac);
+    NP_API_EXPORT
+        bool np_has_receiver_for(np_context*ac, char * subject);	
+    NP_API_EXPORT
+        void np_id2str(const np_id* k, char* key_string);
+    NP_API_EXPORT
+        void np_str2id(const char* key_string, np_id* k);
 
-/**
-.. c:type:: np_state_t
-
-   np_state_t is a structure which contains links to the various subsystems of the library
-   Users should only need to call :c:func:`np_init` to initialize the neuropil messaging layer.
-   No direct access to this structure is required.
-
-*/
-struct np_state_s
-{
-	// reference to the physical node / key
-	np_key_t* my_node_key;
-
-	// reference to main identity on this node
-	np_key_t* my_identity;
-	char* realm_name;
-
-	np_tree_t *msg_tokens;
-	np_tree_t* msg_part_cache;
-
-	pthread_attr_t attr;
-	pthread_t* thread_ids;
-
-	np_mutex_t* threads_lock;
-	np_sll_t(np_thread_ptr, threads);
-
-	int thread_count;
-
-	np_bool enable_realm_server; // act as a realm master for other nodes or not
-	np_bool enable_realm_client; // act as a realm client and ask master for aaatokens
-
-	np_aaa_func_t  authenticate_func; // authentication callback
-	np_aaa_func_t  authorize_func;    // authorization callback
-	np_aaa_func_t  accounting_func;   // really needed ?
-} NP_API_INTERN;
-
-
-/**
-.. c:function:: np_state_t* np_init(char* protocol, char* port, np_bool start_http, char* hostname)
-
-   Initializes the neuropil library and instructs to listen on the given port. Protocol is a string defining
-   the IP protocol to use (tcp/udp/ipv4/ipv6/...), right now only udp is implemented
-
-   :param port: the port to listen on, default is 3141
-   :param proto: the default value for the protocol "udp6", which is UDP | IPv6
-   :param hostname: (optional) The hostname to bind on. If not provided will be received via gethostname()
-   :return: the np_state_t* which contains global state of different np sub modules or NULL on failure
-
-*/
-NP_API_EXPORT
-np_state_t* np_init (char* proto, char* port, char* hostname);
-
-/**
-.. c:function:: np_state_t* np_destroy()
-
-   stops the internal neuropil event loop and shuts down the thread pool.
-
-*/
-NP_API_EXPORT
-void np_destroy();
-
-// function to get the global state variable
-NP_API_PROTEC
-np_state_t* np_state();
-
-/**
-.. c:function:: void np_enable_realm_master()
-
-   Manually set the realm and enable this node to act as a master for it.
-   This will add the appropiate message callback required to handle AAA request
-   send by other nodes.
-
-*/
-NP_API_EXPORT
-void np_enable_realm_master();
-
-/**
-.. c:function:: void np_enable_realm_client()
-
-   Manually set the realm and enable this node to act as a slave in it.
-   This will exchange the default callbacks (accept all) with callbacks that
-   forwards tokens to the realm master.
-
-*/
-NP_API_EXPORT
-void np_enable_realm_client();
-
-/**
-.. c:function:: void np_set_realm_name(const char* realm_name)
-
-   Manually set the realm name this node belongs to.
-   This will create new dh-key and re-setup some internal structures and must be called
-   after initializing with np_init and before starting the job queue
-
-   :param realm_name: the name of the realm to act as a master for
-
-*/
-NP_API_EXPORT
-void np_set_realm_name(const char* realm_name);
-
-
-/**
-.. c:function:: void np_set_identity(np_state_t* state, np_aaatoken_t* identity)
-
-   Manually set the identity which is used to send and receive messages.
-   This identity is independent of the core node key (which is used to build the infrastructure)
-
-   :param state: the previously initialized :c:type:`np_state_t` structure
-   :param identity: a valid :c:type:`np_aaatoken_t` structure
-
-*/
-NP_API_EXPORT
-void np_set_identity(np_aaatoken_t* identity);
-
-/**
-.. c:function:: np_send_join(np_key_t* node_key);
-
-   send a join message to another node and request to enter his network.
-
-   :param node_key_string: the node string to which the join request is send
-
-   see also :ref:`to_join_or_to_be_joined`
-
-*/
-NP_API_EXPORT
-void np_send_join(const char* node_string);
-
-/**
-  .. c:function:: np_send_wildcard_join(np_key_t* node_key);
-
-  Takes a node connection string and tries to connect to any node available on the other end.
-  node_string should not contain a hash value (nor the trailing: character).
-  Example: np_send_wildcard_join("udp4:example.com:1234");
-
-  :param node_key_string: the node string to which the join request is send
-
-  see also :ref:`to_join_or_to_be_joined`
-
- */
-NP_API_EXPORT
-void np_send_wildcard_join(const char* node_string);
-
-
-/**
-.. c:function:: np_waitforjoin()
-
-   wait until the node has successfully joined a network.
-   Sending messages if the node has not joined a network is futile
-   see also :ref:`to_join_or_to_be_joined`
-
-*/
-NP_API_EXPORT
-void np_waitforjoin();
-
-/**
-.. c:function:: void np_set[aaa]_cb(np_aaa_func_t join_func)
-.. c:function:: void np_setauthorizing_cb
-.. c:function:: void np_setauthenticate_cb
-.. c:function:: void np_setaccounting_cb
-
-   set callback function which will be called whenever authorization, authentication or account is required
-   it is up to the user to define storage policies/rules for passed tokens
-
-   :param aaa_func: a function pointer to a np_aaa_func_t function
-
-*/
-NP_API_EXPORT
-void np_setauthorizing_cb(np_aaa_func_t join_func);
-
-NP_API_EXPORT
-void np_setauthenticate_cb(np_aaa_func_t join_func);
-
-NP_API_EXPORT
-void np_setaccounting_cb(np_aaa_func_t join_func);
-
-/**
-.. c:function:: void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)
-
-   register an message callback handler for a subject. The callback is called when a message arrives.
-   The callback function should return TRUE if the message was processed successfully, FALSE otherwise.
-   Returning FALSE will inhibit the sending of the ack and may lead to another re-delivery of the message
-
-   :param msg_handler: a function pointer to a np_usercallback_t function
-   :param subject: the message subject the handler should be called for
-
-*/
-NP_API_EXPORT
-void np_add_receive_listener (np_usercallback_t msg_handler, char* subject);
-
-/**
-.. c:function:: void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
-
-   register an message callback handler for a subject. The callback is called when a message will be send.
-   The callback function should return TRUE if the message should be send, FALSE otherwise.
-
-   :param msg_handler: a function pointer to a np_usercallback_t function
-   :param subject: the message subject the handler should be called for
-
-*/
-NP_API_EXPORT
-void np_add_send_listener(np_usercallback_t msg_handler, char* subject);
-
-/**
-.. c:function:: void np_send_text(char* subject, char *data, uint32_t seqnum)
-
-   Send a message of a specific subject to the receiver containing the string data
-
-   :param subject: the subject the data should be send to
-   :param data: the message text that should be send
-   :param seqnum: a sequence number which will be stored in the message properties
-   :param targetDhkey: (optional/nullable) a dhkey hash to define a specific receiver node
-
-*/
-NP_API_EXPORT
-void np_send_text    (char* subject, char *data, uint32_t seqnum, np_dhkey_t* target_dhkey);
-
-/**
-.. c:function:: void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body)
-
-   Send a message of a specific subject to the receiver containing properties and body structure.
-   Passed in properties and body data structures will be freed when the message has been send.
-
-   :param subject: the subject the data should be send to
-   :param properties: a tree (np_tree_t) structure containing the properties of a message
-   :param body: a tree (np_tree_t) structure containing the body of a message
-   :param target_key: (optional/nullable) a dhkey to define a specific receiver node
-
-*/
-NP_API_EXPORT
-void np_send_msg    (char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
-
-/**
-.. c:function:: uint32_t np_receive_text(char* subject, char **data)
-
-   Receive a message of a specific subject.
-
-   :param subject: the subject the data should be send to
-   :param data: the message text that should be send
-   :return: the sequence number that has been used to send the message or 0 on error
-
-*/
-NP_API_EXPORT
-uint32_t np_receive_text (char* subject, char **data);
-
-/**
-.. c:function:: uint32_t np_receive_msg(char* subject, np_tree_t* properties, np_tree_t* body)
-
-   Receive a message of a specific subject.
-
-   :param subject: the subject the data should be received from
-   :param properties: a tree (np_tree_t) structure containing the properties of the message
-   :param body: a tree (np_tree_t) structure containing the body of the message
-   :return: FALSE on error, TRUE on success
-
-*/
-NP_API_EXPORT
-uint32_t np_receive_msg (char* subject, np_tree_t* properties, np_tree_t* body);
-
-/**
-.. c:function:: void np_set_mx_properties(char* subject, const char* key, np_treeval_t value)
-
-   Set properties of a message exchange for a given by subject.
-   Using this function the message exchange for a subject can be altered on the fly without interruption.
-   For a complete list of mx properties can be found in :c:type:`np_msgproperty_t`
-   Usage of this function will create a default np_msgproperty_t structure for you.
-
-   :param subject: the subject the data should be send to
-   :param key: the identifier for which a value should be set
-   :param value: the value which should be set
-
-*/
-void np_set_mx_property(char* subject, const char* key, np_treeval_t value);
-
-/**
-.. c:function:: void np_rem_mx_properties(char* subject, const char* key)
-
-   Removes a property of a message exchange for a given by subject.
-   Using this function the message exchange for a subject can be altered on the fly without interruption.
-   For a complete list of mx properties can be found in message.h.
-   Please note that only a limited subset of properties can be removed, most MX properties
-   should be modified by np_set_mx_properties.
-
-   :param subject: the subject the data should be send to
-   :param key: the identifier for which a value should be removed
-
-*/
-void np_rem_mx_property(char* subject, const char* key);
-
-/**
-.. c:function:: char*  np_get_connection_string()
-
-   Convenience function to build the current connection string for the node.
-
-*/
-NP_API_EXPORT
-char* np_get_connection_string();
-
-/**
-.. c:function:: char*  np_get_connection_string_from(np_key_t* node_key, char* hash)
-
-   Convenience function to build the connection string for any node key.
-   :param node_key: the np_key_t to build the connection string for
-   :param includeHash: Include the hash into the connection string
-
-*/
-NP_API_EXPORT
-char* np_get_connection_string_from(np_key_t* node_key, np_bool includeHash);
-
-NP_API_EXPORT
-char* np_build_connection_string(char* hash, char* protocol, char*dns_name, char* port, np_bool includeHash);
-
-/**
-.. c:function:: void np_start_job_queue(np_state_t* state, uint8_t pool_size)
-
-   Start processing of messages within the neuropil subsystem
-
-   :param pool_size: the number of threads that should compete for tasks
-
-*/
-NP_API_EXPORT
-void np_start_job_queue(uint8_t pool_size);
-
-/**
-.. c:function:: void _np_ping_send(np_key_t* key)
-
-   Sends a ping message to a key. Can be used to check the connectivity to a node
-   The ping message is acknowledged in network layer. This function is mainly used by the neuropil subsystem.
-   All it does is updating the internal np_node_t statistics to prevent possible np_node_t purging from the cache.
-   In case of doubt: do not use it.
-
-   :param key: the np_key_t where the ping should be send to
-*/
-NP_API_INTERN
-void _np_ping_send(np_key_t* key);
-
-NP_API_INTERN
-void _np_send_ack(const np_message_t* const in_msg);
-
-NP_API_PROTEC
-double np_time_now();
-
-NP_API_PROTEC
-double np_time_sleep(double sleeptime);
-
-// send join request
-NP_API_INTERN
-void _np_send_simple_invoke_request(np_key_t* target, const char* type);
-
-NP_API_INTERN
-np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* type);
-
-NP_API_EXPORT
-void np_send_response_msg(np_message_t* original, np_tree_t *properties, np_tree_t *body);
-
-NP_API_INTERN
-np_message_t* _np_prepare_msg(char* subject, np_tree_t *properties, np_tree_t *body, np_dhkey_t* target_key);
-
-NP_API_EXPORT
-void np_context_create_new_nodekey(np_node_t* base);
-
-NP_API_EXPORT
-np_bool np_has_receiver_for(char * subject);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _NEUROPIL_H_ */
+#endif /* _NP_INTERFACE_H_ */
+
+/**
+
+\toggle_keepwhitespaces 
+
+.. raw:: html
+
+   <style>dl.member { margin-left: 2em; }</style>
+
+*/
+
+/**
+
+--------------
+Initialization
+--------------
+
+.. c:function:: np_context* np_new_context(struct np_settings *settings)
+
+   Creates a new neuropil application context.
+
+   :param settings:
+       a :c:type:`np_settings` structure used to configure the application
+       context.
+   :return:
+       a pointer to the newly created application context.
+
+.. c:type:: void np_context
+
+   An opaque object that denotes a neuropil application context.
+
+.. c:function:: void np_default_settings(struct np_settings *settings)
+
+   Initializes a :c:type:`np_settings` structure to the default settings.
+
+   :param settings:
+       a pointer to the :c:type:`np_settings` structure to be initialized.
+
+.. c:type:: struct np_settings
+
+   The :c:type:`np_settings` structure holds various run-time preferences
+   available to neuropil.
+
+.. c:member:: uint32_t n_threads
+
+   Controls the maximum number of threads used by neuropil at any given time.
+   The default is 3.
+
+.. c:member:: char[256] log_file
+
+   Pathname of a file that neuropil will log to. The default is a ``"<timestamp>_neuropil.log"``
+   where timestamp is a decimal millisecond UNIX timestamp.
+
+
+------------------
+Identity management
+------------------
+
+.. c:function:: struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]))
+
+   Creates a new neuropil identity.
+
+   :param ac:
+       a neuropil application context.
+   :param expires_at:
+       expiry date of the identity in seconds since the Unix epoch.
+   :param secret_key:
+       a pointer to the secret key used by the identity. If `NULL` is supplied a
+       random key is generated.
+   :return:
+       an *identity token*.
+
+.. c:function:: enum np_error np_set_identity(np_context* ac, struct np_token identity)
+
+   Sets the identity used by the neuropil node.
+
+   :param ac:
+       a neuropil application context.
+   :param identity:
+       the *identity* to use.
+   :return:
+       :c:data:`np_ok` on success.
+
+   ===============================  ===========================================
+   Status                           Meaning
+   ===============================  ===========================================
+   :c:data:`np_invalid_argument`    *Identity* is no longer valid, or uses an insecure key.
+   :c:data:`np_invalid_operation`   The application is in use (can not change the identity at run-time.)
+   ===============================  ===========================================
+
+-----------
+Starting up
+-----------
+
+.. c:function:: enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port)
+
+   Binds a neuropil application context to a listening address.
+
+   :param ac:
+       a neuropil application context.
+   :param protocol:
+       a string denoting the underlying protocol to be used. Currently, only
+       `"udp4"` is supported.
+   :param host:
+       the hostname to listen on. I.e., `"localhost"` to listen on the loopback
+       interface.
+   :param port:
+       the port to listen on. If *port* is zero, the default port 3141 is used.
+   :return:
+       :c:data:`np_ok` on success.
+
+   ===============================  ===========================================
+   Status                           Meaning
+   ===============================  ===========================================
+   :c:data:`np_invalid_argument`    *Host* could not be resolved.
+   :c:data:`np_invalid_operation`   No identity is set for the application context.
+   ===============================  ===========================================
+
+.. c:function:: enum np_error np_get_address(np_context* ac, char* address, uint32_t max)
+
+   Gets the absolute address of the neuropil node within the overlay network.
+
+   :param ac:
+       a neuropil application context.
+   :param address:
+       a pointer to the address string to be written to.
+   :param max:
+       the size in bytes of *address*. Should be large enough to hold the
+       resulting address string. The required space depends on the node’s host
+       name (i.e., 1000 bytes should be more than enough for most uses.)
+   :return:
+       :c:data:`np_ok` on success.
+       
+   ===============================  ===========================================
+   Status                           Meaning
+   ===============================  ===========================================
+   :c:data:`np_invalid_argument`    *Address* is not large enough to hold the address string.
+   :c:data:`np_invalid_operation`   No listening address is bound for the application context. (Call :c:func:`np_listen` first.)
+   ===============================  ===========================================
+
+.. c:function:: enum np_error np_join(np_context* ac, char* address)
+
+   Adds a bootstrap node to be used by this node to join the neuropil network.
+
+   :param ac:
+       a neuropil application context.
+   :param address:
+       a string that denotes an absolute address as obtained by
+       :c:func:`np_get_address`.
+   :return:
+       :c:data:`np_ok` on success.
+
+   ===============================  ===========================================
+   Status                           Meaning
+   ===============================  ===========================================
+   :c:data:`np_invalid_argument`    *Address* is malformed.
+   ===============================  ===========================================
+
+------------------------------
+Sending and receiving messages
+------------------------------
+
+.. c:function:: enum np_error np_send(np_context* ac, char* subject, uint8_t* message, size_t length)
+
+   Sends a message on a given subject.
+
+   :param ac:
+       a neuropil application context.
+   :param subject:
+       the subject to send on.
+   :param message:
+       a pointer to a buffer containing the message to be sent. The message
+       could be, for instance, encoded using `MessagePack <https://msgpack.org/>`_.
+   :param length:
+       the length of *message* in bytes.
+   :return:
+       :c:data:`np_ok` on success.
+
+   ===============================  ===========================================
+   Status                           Meaning
+   ===============================  ===========================================
+   :c:data:`np_invalid_argument`    *Length* exceeds the maximum message size supported by this implementation.
+   ===============================  ===========================================
+
+.. c:function:: enum np_error np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback)
+
+   Adds a callback to be executed when receiving a message on a given subject.
+   It is possible to add more than one receive callback for a given subject, in
+   which case they are run in the order in which they were added.
+
+   :param ac:
+       a neuropil application context.
+   :param subject:
+       the subject to receive on.
+   :param callback:
+       a pointer to a function of type :c:type:`np_receive_callback` that
+       denotes the callback to be added.
+   :return:
+       :c:data:`np_ok` on success.
+
+   ===============================  ===========================================
+   Status                           Meaning
+   ===============================  ===========================================
+   :c:data:`np_invalid_operation`   The maximum number of receive callbacks supported by the implementation for the given subject is exceeded.
+   ===============================  ===========================================
+
+.. c:function:: bool (*np_receive_callback)(struct np_message *message)
+
+   Receive callback function type to be implemented by neuropil applications. A
+   message receipt is considered to be acknowledged if all receive callbacks
+   associated with the subject returned (:c:data:`true`). Once a receive
+   callback returns (:c:data:`false`), the message is considered rejected and
+   no further callbacks for the subject are executed.
+
+   :param message:
+       a pointer to a :c:type:`np_message` structure.
+   :return:
+       a boolean that indicates if the receipt was acknowledged
+       (:c:data:`true`) or rejected (:c:data:`false`.)
+
+.. c:type:: struct np_message
+
+   Structure that holds a received message and some metadata about that
+   message.
+
+.. c:member:: uint8_t *data
+
+   A pointer to a buffer that contains the received message.
+
+.. c:member:: size_t data_length
+
+   The length of *data* in bytes.
+
+.. c:member:: char[NP_UUID_BYTES] uuid
+
+   A universally unique identifier for the message.
+
+.. c:member:: np_id from
+
+   The identity fingerprint of the message.
+
+.. c:member:: np_id subject
+
+   The fingerprint of the message subject.
+
+.. c:member:: double received_at
+
+   Unix timestamp that denotes the time the message was received.
+
+.. c:function:: enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties properties)
+
+   Configure message exchange semantics for a given subject. The default is
+   best-effort message delivery without any attempt at retransmission and if
+   delivered messages are guaranteed to be delivered once only.
+
+   :param ac:
+       a neuropil application context.
+   :param subject:
+       the subject to configure message exchange semantics on.
+   :param properties:
+       a pointer to a :c:type:`np_mx_properties` structure that describes the
+       semantics to be applied.
+   :return:
+       :c:data:`np_ok` on success.
+
+   ===============================  ===========================================
+   Status                           Meaning
+   ===============================  ===========================================
+   :c:data:`np_invalid_argument`    The *properties* structure is invalid.
+   ===============================  ===========================================
+
+.. c:type:: struct np_mx_properties
+
+   Structure that defines message the exchange semantics for a given subject.
+
+.. c:member:: enum np_mx_ackmode ackmode
+
+   Acknowledgement strategy used in message exchange. The default is
+   :c:data:`NP_MX_ACK_NONE` (i.e., fire and forget.)
+
+.. c:member:: enum np_mx_cache_policy cache_policy
+
+   Cache policy used for queuing inbound messages. The default is
+   :c:data:`NP_MX_FIFO_REJECT` (i.e., messages are delivered first in, first
+   out, and messages that would overflow the queue will be rejected.)
+
+.. c:member:: uint32_t max_parallel
+
+   The maximum number of outbound messages that may be in-flight at a given
+   moment. The default is one.
+
+.. c:member:: uint32_t max_retry
+
+   The maximum number of times a message will be resent after it has been
+   rejected. The default is zero.
+
+.. c:member:: double intent_ttl
+.. c:member:: double intent_update_after
+
+   The duration of validity of issued message intents and the duration after
+   which message intents are to be refreshed in seconds.
+   :c:data:`Intent_update_after` should always be less than
+   :c:data:`intent_ttl`. This setting impacts the fail-over latency between
+   receivers leaving and joining the network. Senders will remain unaware of
+   new receivers for up to :c:data:`intent_update_after` seconds.
+
+   The default for :c:data:`intent_ttl` is 30 seconds. The default for
+   :c:data:`intent_update_after` is 20 seconds
+
+.. c:member:: double message_ttl
+
+   Maximum duration for individual message delivery in seconds. The default is
+   20 seconds.
+
+.. c:member:: bool once_only
+
+   Boolean that indicates if messages should be ensured to be delivered once
+   only. If this is :c:data:`false` duplicate messages may be delivered to the
+   application. The default is :c:data:`true`.
+
+.. c:type:: enum np_mx_cache_policy
+
+   ===============================  ===========================================
+   Mode                             Description
+   ===============================  ===========================================
+   :c:data:`NP_MX_FIFO_REJECT`      Messages are delivered in FIFO order, excessive messages are rejected.
+   :c:data:`NP_MX_FIFO_PURGE`       Messages are delivered in FIFO order, excessive messages are silently discarded.
+   :c:data:`NP_MX_LIFO_REJECT`      Messages are delivered in LIFO order, excessive messages are rejected.
+   :c:data:`NP_MX_LIFO_PURGE`       Messages are delivered in LIFO order, excessive messages are silently discarded.
+   ===============================  ===========================================
+
+.. c:type:: enum np_mx_ackmode
+
+   ===============================  ===========================================
+   Mode                             Description
+   ===============================  ===========================================
+   :c:data:`NP_MX_ACK_NONE`         Message transmissions need not be acknowledged to be considered successful.
+   :c:data:`NP_MX_ACK_DESTINATION`  Message transmissions need to be acknowledged by destination node to be considered successful.
+   :c:data:`NP_MX_ACK_CLIENT`       Message transmissions need to be acknowledged by a receive callback to be considered successful.
+   ===============================  ===========================================
+
+--------------------------------
+Authentication and authorization
+--------------------------------
+
+.. c:function:: enum np_error np_set_authorize_cb(np_context* ac, np_aaa_callback callback)
+
+   Sets the authorization callback used to control access to message exchanges.
+   The provided *callback* is responsible for judging whether the identity that
+   issued a given token is permitted to exchange messages over a given subject.
+   If no authorization callback is set all message exchanges will be rejected.
+
+   :param ac:
+       a neuropil application context.
+   :param callback:
+       a pointer to a function of type :c:type:`np_aaa_callback` that
+       denotes the callback to be set.
+   :return:
+       :c:data:`np_ok` on success.
+
+   ===============================  ===========================================
+   Status                           Meaning
+   ===============================  ===========================================
+   :c:data:`np_invalid_operation`   An authorization callback has already been set for this application context.
+   ===============================  ===========================================
+
+.. c:function:: enum np_error np_set_authenticate_cb(np_context* ac, np_aaa_callback callback)
+
+   Sets an additional authentication callback used to authenticate nodes. Such
+   a callback can be used to extend the authentication provided by neuropil to
+   further validate tokens based on application extensions. If no such callback
+   is set only standard neuropil authentication is performed. Note that
+   authenticated nodes are permitted to join the overlay network.
+
+   :param ac:
+       a neuropil application context.
+   :param callback:
+       a pointer to a function of type :c:type:`np_aaa_callback` that denotes
+       the callback to be set.
+   :return:
+       :c:data:`np_ok` on success.
+
+   ===============================  ===========================================
+   Status                           Meaning
+   ===============================  ===========================================
+   :c:data:`np_invalid_operation`   An additional authentication *callback* has already been set for this application context.
+   ===============================  ===========================================
+
+.. c:function:: bool (*np_aaa_callback)(struct np_token* aaa_token)
+
+   AAA callback function type to be implemented by neuropil applications. These
+   functions are to inspect and verify the contents of the *aaa_token* they are
+   provided and either accept or reject the token.
+
+   :param aaa_token:
+       a pointer to a :c:type:`np_token` structure to be verified.
+   :return:
+       a boolean that indicates if the token was accepted (:c:data:`true`) or
+       rejected (:c:data:`false`.)
+
+------
+Tokens
+------
+
+.. c:type:: struct np_token
+
+   A record used for authentication, authorization and accounting purposes.
+   When :c:type:`np_token` records are transmitted or received over the network
+   they are accompanied by a cryptographic signature that must match the
+   token’s :c:member:`public_key` field. Tokens received through the neuropil
+   API are guaranteed to be authentic: i.e., their integrity is validated.
+   Applications are responsible to verify the issuer of a given token as
+   denoted by the :c:member:`public_key`.
+
+.. c:member:: np_id realm
+
+   Optionally, tokens can specify a third party authority that governs the
+   validity of tokens in a *realm*.
+
+.. c:member:: np_id issuer
+
+   The fingerprint of the *identity* that issued the token.
+
+.. c:member:: char[255] subject
+
+   A subject that denotes the token’s purpose.
+
+.. c:member:: np_id audience
+
+   A fingerprint that denotes the intended audience of the token.
+
+.. c:member:: double issued_at
+.. c:member:: double not_before
+.. c:member:: double expires_at
+
+   Timestamps encoded as `Unix time <https://en.wikipedia.org/wiki/Unix_time>`_
+   in seconds that denote issue date and validity duration of the token. These
+   validity periods are validated by neuropil.
+
+.. c:member:: uint8_t[] extensions
+.. c:member:: size_t extension_length
+
+   A buffer of extension data of :c:member:`extension_length` bytes represented
+   as a `MessagePack <https://msgpack.org/>`_ encoded map.
+
+.. c:member:: uint8_t[NP_PUBLIC_KEY_BYTES] public_key
+.. c:member:: uint8_t[NP_SECRET_KEY_BYTES] secret_key
+
+   The key pair associated with the token. Foreign tokens have the
+   :c:member:`secret_key` unset (all zero).
+
+------------
+Fingerprints
+------------
+
+.. c:function:: void np_get_id(np_id* id, char* string, size_t length)
+
+   Computes the fingerprint (or overlay address) of a serialized object.
+
+   :param id:
+       a pointer to the :c:type:`np_id` to be written.
+   :param string:
+       the data to be hashed.
+   :param length:
+       the length of the input data in bytes. If *length* is zero, *string* is
+       expected to be a zero-terminated string.
+
+   :c:func:`np_get_id` constructs fingerprints by means of a cryptographic,
+   one-way hash function. Hence, fingerprints are unique, unforgeable object
+   identities. Given an object, any party can compute its unique fingerprint,
+   but no party is able to forge an object that hashes to a particular
+   fingerprint.
+
+.. c:type:: uint8_t[NP_FINGERPRINT_BYTES] np_id
+
+   The type :c:type:`np_id` denotes both a fingerprint and a virtual address in
+   the overlay network implemented by neuropil. It is represented as a
+   consecutive array of :c:data:`NP_FINGERPRINT_BYTES` bytes.
+
+------------------------
+Running your application
+------------------------
+
+.. c:function:: enum np_error np_run(np_context* ac, double duration)
+
+   Runs the neuropil event loop for a given application context for a specified
+   *duration*. During the execution of the event loop incoming and outgoing
+   messages are transmitted and received, and the associated callbacks are
+   executed.
+
+   :param ac:
+       a neuropil application context.
+   :param duration:
+       the duration in seconds allotted to execute the event loop. If
+       *duration* is zero :c:func:`np_run` will return as soon as it has
+       processed all outstanding events.
+   :return:
+       :c:data:`np_ok` on success.
+
+----------------
+Detecting errors
+----------------
+
+.. c:type:: enum np_error
+
+   This type denotes the set of status codes returned by various functions in
+   the neuropil API. Possible values include:
+
+   ===============================  ===========================================
+   Status                           Meaning
+   ===============================  ===========================================
+   :c:data:`np_ok`                  The operation was successful (no error occurred.)
+   :c:data:`np_invalid_argument`    The operation failed because of an invalid argument.
+   :c:data:`np_invalid_operation`   The operation is not permitted at this time.
+   ===============================  ===========================================
+
+   In order to accurately interpret error codes refer to the documentation of
+   the specific function in question.
+
+---------
+Constants
+---------
+
+.. c:var:: size_t NP_SECRET_KEY_BYTES
+.. c:var:: size_t NP_PUBLIC_KEY_BYTES
+
+   Constants that denote the lengths in bytes of the private and public key
+   parts used by neuropil, as found in :c:type:`np_token`.
+
+.. c:var:: size_t NP_FINGERPRINT_BYTES
+
+   Constant that denotes length in bytes of both *fingerprints* and virtual
+   addresses in the overlay network implemented by neuropil. Specifically, this
+   is the size of :c:type:`np_id`.
+
+.. c:var:: size_t NP_UUID_BYTES
+
+   Constant that denotes the length in bytes of message UUID_s.
+
+.. _UUID: https://en.wikipedia.org/wiki/Universally_unique_identifier 
+
+*/
+

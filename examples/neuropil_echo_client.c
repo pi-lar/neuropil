@@ -18,14 +18,13 @@
 #include "np_list.h"
 #include "np_util.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
 #include "np_message.h"
 #include "np_msgproperty.h"
 #include "np_keycache.h"
 #include "np_tree.h"
 #include "np_route.h"
 
-#include "neuropil.h"
+#include "np_legacy.h"
 
 #include "example_helper.c"
 
@@ -34,7 +33,7 @@ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 
-np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body);
+bool receive_message(np_context *context, const np_message_t* const msg, np_tree_t* body, void* localdata);
 
 /**
 The purpose of this program is to start a client for our echo service.
@@ -60,7 +59,6 @@ int main(int argc, char **argv) {
 	char* message_to_send_org = "Hello World!";
 	char* message_to_send = message_to_send_org;
 
-	int opt;
 	if (parse_program_args(
 		__FILE__,
 		argc,
@@ -76,17 +74,14 @@ int main(int argc, char **argv) {
 		"m:",
 		&message_to_send
 
-	) == FALSE) {
+	) == false) {
 		exit(EXIT_FAILURE);
 	}
-	np_bool j_key_provided = j_key != NULL;
+	bool j_key_provided = j_key != NULL;
 	int retry_connection = 3;
-	np_bool add_id_to_msg = strcmp(message_to_send, message_to_send_org ) == 0;
+	bool add_id_to_msg = strcmp(message_to_send, message_to_send_org ) == 0;
 
-	char log_file_host[256];
-	sprintf(log_file_host, "%s%s_%s.log", logpath, "/neuropil_echo_client", port);	
-	fprintf(stdout, "logpath: %s\n", log_file_host);
-
+ 
 	/**
 	We create our node,
 
@@ -94,8 +89,20 @@ int main(int argc, char **argv) {
 
 	\code
 	*/
-	np_log_init(log_file_host, level);
-	np_state_t* status = np_init(proto, port, publish_domain);
+	struct np_settings *settings = np_default_settings(NULL);
+	settings->n_threads = no_threads;
+
+	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	fprintf(stdout, "logpath: %s\n", settings->log_file);
+	settings->log_level = level;
+
+	np_state_t * context = np_new_context(settings);
+
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+		printf("ERROR: Node could not listen");
+		exit(EXIT_FAILURE);
+	}
+
 	/**
 	\endcode
 	*/
@@ -108,26 +115,22 @@ int main(int argc, char **argv) {
 
 	\code
 	*/
-	char* bootstrap_node = NULL;
-	while (TRUE) {
+	while (true) {
 		fprintf(stdout, "try to join bootstrap node\n");
-		if (TRUE == j_key_provided) {
-			np_send_join(j_key);
-		} else {
-			sprintf(j_key, "%s:localhost:3333", proto);
-			np_send_wildcard_join(j_key);
+		if (false == j_key_provided) {
+			snprintf(j_key, 255, "%s:localhost:3333", proto);
 		}
+		np_join(context, j_key);
 
 		int timeout = 100;
 		while (timeout > 0
-				&& FALSE == status->my_node_key->node->joined_network) {
+				&& false == context->my_node_key->node->joined_network) {
 			// wait for join acceptance
 			np_time_sleep(0.1);
 			timeout--;
 		}
 
-		if (TRUE == status->my_node_key->node->joined_network) {
-			bootstrap_node = np_route_get_bootstrap_connection_string();
+		if (true == context->my_node_key->node->joined_network) {
 			fprintf(stdout, "%s joined network!\n", port);
 			break;
 		} else {
@@ -150,8 +153,8 @@ int main(int argc, char **argv) {
 	\code
 	*/
 	np_msgproperty_t* msg_props = NULL;
-	np_add_receive_listener(receive_message, "echo");
-	msg_props = np_msgproperty_get(INBOUND, "echo");
+	np_add_receive_listener(context, receive_message, NULL, "echo");
+	msg_props = np_msgproperty_get(context, INBOUND, "echo");
 	msg_props->msg_subject = strndup("echo", 255);
 	msg_props->ack_mode = ACK_NONE;
 	msg_props->msg_ttl = 20.0;
@@ -167,9 +170,11 @@ int main(int argc, char **argv) {
 
 	\code
 	*/
-	__np_example_helper_loop();
-	np_start_job_queue(no_threads);
-	/**
+	__np_example_helper_loop(context);
+	if (np_ok != np_run(context, 0)) {
+		printf("ERROR: Node could not start");
+		exit(EXIT_FAILURE);
+	}	/**
 	\endcode
 	*/
 
@@ -181,8 +186,8 @@ int main(int argc, char **argv) {
 	\code
 	*/
 	uint32_t i = 0;
-	while (TRUE == status->my_node_key->node->joined_network) {
-		__np_example_helper_loop();
+	while (true == context->my_node_key->node->joined_network) {
+		__np_example_helper_loop(context);
 		if (i++ % 50 == 0) {
 			char * s_out;
 			if(add_id_to_msg) {
@@ -191,11 +196,11 @@ int main(int argc, char **argv) {
 				asprintf(&s_out,"%s", message_to_send);
 			}
 
-			fprintf(stdout, "%f - SENDING:  \"%s\" to    %s\n", np_time_now(), s_out, bootstrap_node);
-			log_msg(LOG_INFO, "SENDING:  \"%s\" to    %s", s_out, bootstrap_node);
+			fprintf(stdout, "%f - SENDING:  \"%s\"\n", np_time_now(), s_out);
+			log_msg(LOG_INFO, "SENDING:  \"%s\"", s_out);
 
 			// Send our message
-			np_send_text("echo", s_out, 0, NULL);
+			np_send_text(context, "echo", s_out, 0, NULL);
 			free(s_out);
 		}
 		np_time_sleep(0.1);
@@ -212,19 +217,18 @@ If  we receive a message for the "echo" subject we now get a callback to this fu
 
    \code
 */
-np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {
+bool receive_message(np_context *context, const np_message_t* const msg, np_tree_t* body, void* localdata) {
 /**
    \endcode
 */
 	/**
 	We can now handle the message an can access
-	the payload via the body and properties tree structures.
+	the payload via the body tree structure.
 
 	.. code-block:: c
 
 	   \code
 	*/
-	np_tree_t* header = msg->header;
 
 	char* text;
 	np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
@@ -241,13 +245,13 @@ np_bool receive_message(const np_message_t* const msg, np_tree_t* properties, np
 
 	/**
 	To signal the network a completely processed message
-	(no resends necessary) we return a TRUE value to our caller.
+	(no resends necessary) we return a true value to our caller.
 
 	.. code-block:: c
 
 	   \code
 	*/
-	return TRUE;
+	return true;
 	/**
 	   \endcode
 	*/

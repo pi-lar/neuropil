@@ -24,26 +24,36 @@ extern "C" {
 	 - NP_STATISTICS_COUNTER			enables the statistics (in/out bytes, forwarding counter) statistics
 */
 #ifdef DEBUG
-	#define DEBUG_CALLBACKS 1
+	//#define DEBUG_CALLBACKS 1
 	#define NP_MEMORY_CHECK_MEMORY_REFFING 1
-	// #define NP_THREADS_CHECK_THREADING 1
+	#define NP_MEMORY_CHECK_MAGIC_NO
+	//#define NP_THREADS_CHECK_THREADING 1
 	#define NP_BENCHMARKING 4096
 	#define NP_STATISTICS_COUNTER
 #endif // DEBUG
 
-
 #define NP_PI 3.1415
+#define NP_PI_INT 3
+
+
+#ifndef NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL
+#define NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL (NP_PI*10)
+#endif
+
+#ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
+#define NP_KEYCACHE_DEPRECATION_INTERVAL (31.415)
+#endif	
 
 /*
- *	if the sysinfo subsystem in enabled and the node is a slave
+ *	if the sysinfo subsystem in enabled and the node is a client
  *	this is the intervall it may send his own data in a proactive
  *	attempt to share its data.
  */
 #ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
-	#define SYSINFO_PROACTIVE_SEND_IN_SEC (NP_PI)
+	#define SYSINFO_PROACTIVE_SEND_IN_SEC (1)
 #endif
 #ifndef SYSINFO_MAX_TTL
-	#define SYSINFO_MAX_TTL (NP_PI*100)
+	#define SYSINFO_MAX_TTL (NP_PI_INT*10)
 #endif
 
 #ifndef SYSINFO_MIN_TTL
@@ -51,7 +61,7 @@ extern "C" {
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL
-	#define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI*10)
+	#define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI_INT*10)
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MIN_TTL
@@ -61,7 +71,7 @@ extern "C" {
  * The maximum lifetime of a node before it is refreshed
  */
 #ifndef NODE_MAX_TTL_SEC
-	#define NODE_MAX_TTL_SEC (NP_PI*10000000)
+	#define NODE_MAX_TTL_SEC (NP_PI_INT*100000000)
 #endif
 
 #ifndef TOKEN_GRACETIME
@@ -151,27 +161,26 @@ extern "C" {
 #define PRIORITY_MOD_LOWEST (PRIORITY_MOD_LEVEL_6)
 #endif
 
-
 #ifndef PRIORITY_MOD_LEVEL_0_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_0_SHOULD_HAVE_OWN_THREAD (TRUE)
+#define PRIORITY_MOD_LEVEL_0_SHOULD_HAVE_OWN_THREAD (true)
 #endif
 #ifndef PRIORITY_MOD_LEVEL_1_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_1_SHOULD_HAVE_OWN_THREAD (TRUE)
+#define PRIORITY_MOD_LEVEL_1_SHOULD_HAVE_OWN_THREAD (true)
 #endif
 #ifndef PRIORITY_MOD_LEVEL_2_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_2_SHOULD_HAVE_OWN_THREAD (TRUE)
+#define PRIORITY_MOD_LEVEL_2_SHOULD_HAVE_OWN_THREAD (true)
 #endif
 #ifndef PRIORITY_MOD_LEVEL_3_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_3_SHOULD_HAVE_OWN_THREAD (TRUE)
+#define PRIORITY_MOD_LEVEL_3_SHOULD_HAVE_OWN_THREAD (true)
 #endif
 #ifndef PRIORITY_MOD_LEVEL_4_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_4_SHOULD_HAVE_OWN_THREAD (TRUE)
+#define PRIORITY_MOD_LEVEL_4_SHOULD_HAVE_OWN_THREAD (true)
 #endif
 #ifndef PRIORITY_MOD_LEVEL_5_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_5_SHOULD_HAVE_OWN_THREAD (TRUE)
+#define PRIORITY_MOD_LEVEL_5_SHOULD_HAVE_OWN_THREAD (true)
 #endif
 #ifndef PRIORITY_MOD_LEVEL_6_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_6_SHOULD_HAVE_OWN_THREAD (TRUE)
+#define PRIORITY_MOD_LEVEL_6_SHOULD_HAVE_OWN_THREAD (true)
 #endif
 
 #ifndef PRIORITY_MOD_USER_DEFAULT
@@ -223,9 +232,9 @@ extern "C" {
 
 #ifndef LOG_ROTATE_ENABLE
 	#if defined(DEBUG) && DEBUG == 1
-		#define LOG_ROTATE_ENABLE FALSE
+		#define LOG_ROTATE_ENABLE false
 	#else
-		#define LOG_ROTATE_ENABLE TRUE
+		#define LOG_ROTATE_ENABLE true
 	#endif
 #endif
 
@@ -239,7 +248,7 @@ extern "C" {
 
 
 #ifndef MUTEX_WAIT_SEC
-	#define MUTEX_WAIT_SEC  ((const ev_tstamp )0.5)
+	#define MUTEX_WAIT_SEC  ((const ev_tstamp )1.0)
 #endif
 #ifndef MUTEX_WAIT_SOFT_SEC
 	#define MUTEX_WAIT_SOFT_SEC  MUTEX_WAIT_SEC *5
@@ -269,10 +278,22 @@ extern "C" {
 #endif
 
 
-#define NP_SLEEP_MIN (NP_PI/1000)
+#define NP_SLEEP_MIN (0.0001)
+
+
+#define __MAX_ROW    64 /* length of key*/
+#define __MAX_COL    16 /* 16 different characters*/
+#define __MAX_ENTRY   3 /* three alternatives for each key*/
+#define NP_ROUTES_TABLE_SIZE (__MAX_ROW * __MAX_COL * __MAX_ENTRY)
+
+// TODO: change size to match the possible log10(hash key max value)
+// TODO: change the size according to the number of entries in the routing table (min: 2/ max: 8)
+#define NP_ROUTE_LEAFSET_SIZE  8 /* (must be even) excluding node itself */
+
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* NP_SETTINGS_H_ */
+

@@ -4,17 +4,17 @@
 //
 #include "np_types.h"
 #include "np_memory.h"
-#include "np_memory_v2.h"
+
 #include "np_msgproperty.h"
 #include "np_dendrit.h"
 #include "np_axon.h"
 #include "np_glia.h"
 #include "np_list.h"
-#include "neuropil.h"
+#include "np_legacy.h"
 #include "np_pinging.h"
 
-sll_return(np_msgproperty_ptr) default_msgproperties() {
-
+sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
+	
 	np_sll_t(np_msgproperty_ptr, ret);
 	sll_init(np_msgproperty_ptr, ret);
 
@@ -174,7 +174,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties() {
 	__ping->mep_type = ONE_WAY;
 	__ping->priority = 0;
 	__ping->ack_mode = ACK_DESTINATION;
-	__ping->retry = 0;
+	__ping->retry = 3;
 	sll_append(np_callback_t, __ping->clb_inbound, _np_in_ping);
 	//default: sll_append(np_callback_t, __ping->clb_outbound, _np_out);
 	//sll_append(np_callback_t, __ping->clb_transform, _np_never_called_jobexec_transform);
