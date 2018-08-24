@@ -707,6 +707,7 @@ bool parse_program_args(
 			//| LOG_HTTP
 			//| LOG_KEY
 			| LOG_NETWORK
+			| LOG_HANDSHAKE
 			//| LOG_AAATOKEN
 			//| LOG_SYSINFO
 			//| LOG_MESSAGE
@@ -717,7 +718,6 @@ bool parse_program_args(
 			//| LOG_THREADS
 			//| LOG_JOBS
 			//| LOG_GLOBAL
-
 			;
 
 		if ((*level) == -1) {	   // production client

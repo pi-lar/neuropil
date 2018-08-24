@@ -170,7 +170,7 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
 		if (NULL != tmp_node_key->node &&
 			tmp_node_key->node->success_avg < BAD_LINK &&
 			(np_time_now() - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
-			tmp_node_key->node->handshake_status == np_handshake_status_Connected
+			tmp_node_key->node->_handshake_status == np_handshake_status_Connected
 			)
 		{
 			np_ctx_memory(tmp_node_key);

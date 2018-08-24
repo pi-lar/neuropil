@@ -57,7 +57,8 @@ void _np_node_t_new(np_state_t *context, uint8_t type, size_t size, void*  node)
 
 	entry->last_success = np_time_now();
 	entry->success_win_index = 0;
-	entry->handshake_status = np_handshake_status_Disconnected;
+	np_node_set_handshake(entry, np_handshake_status_Disconnected);
+
 	entry->handshake_send_at = 0;
 	entry->joined_network = false;
 
@@ -476,4 +477,21 @@ uint8_t _np_node_check_address_validity (np_node_t* np_node)
 	return (np_node->dns_name && np_node->port);
 }
 
+char * _np_node2str(np_node_t* self, char* buffer) {	
+	snprintf(buffer, 500, "%s:%s/%s", _np_node_get_dns_name(self), _np_node_get_port(self), np_memory_get_id(self));
+	return buffer;
+}
 
+void _np_node_set_handshake(np_node_t* self, enum np_handshake_status set_to, char* func)
+{
+	np_ctx_memory(self);
+	char tmp[500];
+	log_debug_msg(LOG_HANDSHAKE, 
+		"Setting handshake of node \"%s\" from \"%s\" to \"%s\" at \"%s\"", 
+		_np_node2str(self, tmp),
+		np_handshake_status_str[self->_handshake_status], 
+		np_handshake_status_str[set_to], 
+		func
+	);
+	self->_handshake_status = set_to;
+}

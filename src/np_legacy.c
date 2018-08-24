@@ -762,8 +762,6 @@ void np_send_wildcard_join(np_context*ac, const char* node_string)
 
 		_np_send_simple_invoke_request(wildcard_node_key, _NP_MSG_JOIN_REQUEST);
 
-		//_np_network_send_handshake(context, wildcard_node_key, false);
-
 		np_route_set_bootstrap_key(wildcard_node_key);
 		np_unref_obj(np_key_t, wildcard_node_key, "_np_node_decode_from_str");
 	}

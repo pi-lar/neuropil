@@ -257,7 +257,7 @@ void _np_network_get_address(
 //    return (addr);
 }
 
-bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool reconnect)
+bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool force)
 {
     bool ret = false;
     _LOCK_MODULE(np_handshake_t) {
@@ -266,26 +266,29 @@ bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool re
                 double now = np_time_now();
                 np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
 
-                if (node_key->node->handshake_status == np_handshake_status_Disconnected ||
-                		node_key->node->handshake_status == np_handshake_status_RemoteInitiated ||
-                		(reconnect && node_key->node->handshake_status == np_handshake_status_Connected) ||
-					(node_key->node->handshake_status == np_handshake_status_SelfInitiated && now > (node_key->node->handshake_send_at + msg_prop->msg_ttl)))
-                {
-                    log_msg(LOG_NETWORK | LOG_INFO, "requesting a %shandshake with %s:%s (%s)",
-						reconnect ?"new ":"",
-                        node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
-
-                    _np_job_submit_transform_event(context, 0.0, msg_prop, node_key, NULL);
-                    ret = true;
-                }
+				if ( force || 
+					 node_key->node->_handshake_status == np_handshake_status_Disconnected ||
+						(node_key->node->_handshake_status == np_handshake_status_SelfInitiated && 
+						 now > (node_key->node->handshake_send_at + msg_prop->msg_ttl)
+						)
+					)
+				{
+					log_msg(LOG_NETWORK | LOG_INFO, "requesting a %shandshake with %s:%s (%s)",
+						force ? "new " : "",
+						node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
+					if (!force)
+					{
+						np_node_set_handshake(node_key->node, np_handshake_status_SelfInitiated);
+					}
+					_np_job_submit_transform_event(context, 0.0, msg_prop, node_key, NULL);
+					ret = true;
+				}
                 else {
-                	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for alias %s requested, but alias in state %s", _np_key_as_str(node_key),
-                        node_key->node->handshake_status == np_handshake_status_Connected ? "Connected" :
-                        node_key->node->handshake_status == np_handshake_status_RemoteInitiated ? "RemoteInitiated" :
-                        node_key->node->handshake_status == np_handshake_status_SelfInitiated ? "SelfInitiated" :
-                        node_key->node->handshake_status == np_handshake_status_Disconnected ? "Disconnected" :
-                        "Unknown"
-                    );
+                	log_debug_msg(LOG_ROUTING | LOG_DEBUG, 
+						"handshake for alias %s requested, but alias in state %s", 
+						_np_key_as_str(node_key),
+                       np_handshake_status_str[node_key->node->_handshake_status]
+					);
                 }
             }
         }
@@ -303,7 +306,7 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
     np_node_t* target_node = node_key->node;
     
     // Send handshake info if necessary
-    if (target_node->handshake_status == np_handshake_status_Connected)
+    if (target_node->_handshake_status == np_handshake_status_Connected)
     {
 		np_waitref_obj(np_network_t, node_key->network, node_key_network);
 

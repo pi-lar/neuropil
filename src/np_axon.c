@@ -498,15 +498,8 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 					}
 				}
 
-				if (args->target->node->handshake_status == np_handshake_status_RemoteInitiated)
-                	{
-                		args->target->node->handshake_status = np_handshake_status_Connected;
-                	}
-				if (args->target->node->handshake_status == np_handshake_status_Disconnected)
-				{
-                		args->target->node->handshake_status = np_handshake_status_SelfInitiated;
-                		args->target->node->handshake_send_at = np_time_now();
-                	}
+				 
+				args->target->node->handshake_send_at = np_time_now();                
 
 				_np_message_trace_info("out", hs_message);
 				__np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);

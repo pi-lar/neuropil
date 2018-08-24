@@ -27,6 +27,14 @@ extern "C" {
 		np_handshake_status_RemoteInitiated,
 		np_handshake_status_Connected,
 	};
+	static const char* np_handshake_status_str[] = {
+		"Disconnected",
+		"SelfInitiated",
+		"RemoteInitiated",
+		"Connected",
+	};
+
+
 struct np_node_s
 {
 	// link to memory management
@@ -39,7 +47,7 @@ struct np_node_s
 	char* port;
 
 	// state extension
-	enum np_handshake_status handshake_status;
+	enum np_handshake_status _handshake_status;
 	double handshake_send_at; 	
 	bool joined_network; 
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
@@ -123,6 +131,14 @@ NP_API_INTERN
 uint8_t _np_node_check_address_validity (np_node_t* np_node);
 NP_API_INTERN
 int _np_node_cmp(np_node_t* a, np_node_t* b);
+
+#ifdef DEBUG 
+#define np_node_set_handshake(self, set_to) _np_node_set_handshake(self,set_to, FUNC)
+#else
+#define np_node_set_handshake(self, set_to) _np_node_set_handshake(self,set_to, NULL)
+#endif
+void _np_node_set_handshake(np_node_t* self, enum np_handshake_status set_to, char* func);
+
 
 #ifdef __cplusplus
 }

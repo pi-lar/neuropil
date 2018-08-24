@@ -713,8 +713,8 @@ void _np_in_leave_req(np_state_t* context, np_jobargs_t* args)
                 _np_key_cmp(context->my_identity, leave_req_key) != 0 )
             {
                 // update node flags
-                leave_req_key->node->joined_network = false;
-                leave_req_key->node->handshake_status = np_handshake_status_Disconnected;
+				leave_req_key->node->joined_network = false;
+				np_node_set_handshake(leave_req_key->node, np_handshake_status_Disconnected);
                 leave_req_key->node->session_key_is_set = false;
 
                 log_debug_msg(LOG_KEY | LOG_DEBUG, "destroy key %s due to leave msg (%s) ", _np_key_as_str(leave_req_key), args->msg->uuid);
@@ -1198,7 +1198,7 @@ void _np_in_join_nack(np_state_t* context, np_jobargs_t* args)
 
     nack_key->aaa_token->state &= AAA_INVALID;
     nack_key->node->joined_network = false;
-    nack_key->node->handshake_status = np_handshake_status_Disconnected;
+	np_node_set_handshake(nack_key->node, np_handshake_status_Disconnected);
 
     __np_cleanup__:
     // nothing to do
@@ -2128,42 +2128,28 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
         */
 
         ref_replace_reason(np_node_t, tokens_node, "_np_node_from_token", ref_key_node);
-        if (msg_source_key->node == NULL) {
-            msg_source_key->node = tokens_node;
-			msg_source_key->node->handshake_status == np_handshake_status_RemoteInitiated;
-        }
-        else if (msg_source_key->node->handshake_status == np_handshake_status_Connected) {
-            if (msg_source_key->node->handshake_send_at + np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE)->msg_ttl < np_time_now()) {
-                // TODO: correctly reset the connection (possible memory leak!)
-                msg_source_key->node = tokens_node;
-				if(msg_source_key->node->handshake_status == np_handshake_status_Connected)
-					msg_source_key->node->handshake_status == np_handshake_status_RemoteInitiated;
-            }
-            else {
-                goto __np_cleanup__;
-            }
-        }
+        if (msg_source_key->node == NULL || msg_source_key->node->_handshake_status == np_handshake_status_Connected) {            		
+			// TODO: correctly reset the connection (possible memory leak!)
+			msg_source_key->node = tokens_node;
+			np_node_set_handshake(msg_source_key->node, np_handshake_status_RemoteInitiated);
+		}
         else if (
-            msg_source_key->node->handshake_status == np_handshake_status_Disconnected ||
-            msg_source_key->node->handshake_status == np_handshake_status_SelfInitiated
+            msg_source_key->node->_handshake_status == np_handshake_status_Disconnected ||
+            msg_source_key->node->_handshake_status == np_handshake_status_SelfInitiated
             )
         {
-
-            tokens_node->handshake_status = msg_source_key->node->handshake_status;
+			np_node_set_handshake(tokens_node, msg_source_key->node->_handshake_status);
             tokens_node->joined_network |= msg_source_key->node->joined_network;
 
             np_node_t* old_node = msg_source_key->node;
             msg_source_key->node = tokens_node;
             np_unref_obj(np_node_t, old_node, ref_key_node);
-
         }
         else {
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for alias %s received, but alias in state %s", _np_key_as_str(alias_key),
-                msg_source_key->node->handshake_status == np_handshake_status_Connected ? "Connected" :
-                msg_source_key->node->handshake_status == np_handshake_status_RemoteInitiated ? "RemoteInitiated" :
-                msg_source_key->node->handshake_status == np_handshake_status_SelfInitiated ? "SelfInitiated" :
-                msg_source_key->node->handshake_status == np_handshake_status_Disconnected ? "Disconnected" :
-                "Unknown"
+            log_debug_msg(LOG_ROUTING | LOG_DEBUG, 
+				"handshake for alias %s received, but alias in state %s", 
+				_np_key_as_str(alias_key),
+               np_handshake_status_str[msg_source_key->node->_handshake_status]
             );
             goto __np_cleanup__;
         }
@@ -2190,20 +2176,19 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                     np_network_t* old_network = hs_wildcard_key->network;
                     np_ref_obj(np_network_t, old_network, "usage_of_old_network");
 
-                    _LOCK_ACCESS(&old_network->access_lock)
-                    {
-                        // _np_network_stop(old_network);
-                        // Updating handshake key with already existing network
-                        // structure of the wildcard key
-                        log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-                            "Updating wildcard key %s to %s",
-                            _np_key_as_str(hs_wildcard_key),
-                            _np_key_as_str(msg_source_key));
+					_LOCK_ACCESS(&old_network->access_lock)
+					{
+						// _np_network_stop(old_network);
+						// Updating handshake key with already existing network
+						// structure of the wildcard key
+						log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+							"Updating wildcard key %s to %s",
+							_np_key_as_str(hs_wildcard_key),
+							_np_key_as_str(msg_source_key));
 
-                        msg_source_key->node->handshake_status =
-                            hs_wildcard_key->node->handshake_status;
-
-
+						
+						np_node_set_handshake(msg_source_key->node, hs_wildcard_key->node->_handshake_status);
+						
                         // msg_source_key->aaa_token = hs_wildcard_key->aaa_token;
                         hs_wildcard_key->aaa_token = NULL;
 
@@ -2323,16 +2308,16 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                 // mark as valid to identify existing connections
                 msg_source_key->aaa_token->state |= AAA_VALID;
 
-				if (args->target->node->handshake_status == np_handshake_status_SelfInitiated) {
-                		args->target->node->handshake_status = np_handshake_status_Connected;
-    					_np_network_send_handshake(context, msg_source_key, false);
-
-				} else if (args->target->node->handshake_status == np_handshake_status_Disconnected) {
-            			args->target->node->handshake_status = np_handshake_status_RemoteInitiated;
-    					_np_network_send_handshake(context, msg_source_key, false);
-
-                	} else if (args->target->node->handshake_status == np_handshake_status_Connected) {
+				if (alias_key->node->_handshake_status == np_handshake_status_SelfInitiated) {
+					np_node_set_handshake(alias_key->node, np_handshake_status_Connected);
+				}
+				else if (alias_key->node->_handshake_status == np_handshake_status_RemoteInitiated) {					
 					_np_network_send_handshake(context, msg_source_key, true);
+					np_node_set_handshake(alias_key->node, np_handshake_status_Connected);
+				}
+				else if (alias_key->node->_handshake_status == np_handshake_status_Disconnected) {
+					_np_network_send_handshake(context, msg_source_key, true); 
+					np_node_set_handshake(alias_key->node, np_handshake_status_RemoteInitiated);					
 				}
 
 				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
