@@ -40,8 +40,8 @@
 #define LED_GPIO_YELLOW 23
 #define LED_GPIO_BUTTON 18
 #define BUTTON_GPIO_BLUE_IN 27
-#define BUTTON_GPIO_RED_IN 22
-#define BUTTON_GPIO_GREEN_IN 17
+#define BUTTON_GPIO_RED_IN 17
+#define BUTTON_GPIO_GREEN_IN 22
 
 static bool is_gpio_enabled = false;
 static pthread_mutex_t gpio_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -91,32 +91,32 @@ bool receive_pong(np_context* context, struct np_message* message)
 }
 
 
-bool is_data_pressed = false;
-bool receive_data_button_pressed(np_context* context, struct np_message* message) {
-	is_data_pressed = true;
+bool is_blue_pressed = false;
+bool receive_blue_button_pressed(np_context* context, struct np_message* message) {
+	is_blue_pressed = true;
 }
 
-bool receive_data_button_reset(np_context* context, struct np_message* message) {
-	is_data_pressed = false;
+bool receive_blue_button_reset(np_context* context, struct np_message* message) {
+	is_blue_pressed = false;
 }
 
-void invoke_btn_data(np_context* context, uint8_t value) {	
-
+void invoke_btn_blue(np_context* context, uint8_t value) {	
+	is_blue_pressed = true; 
 	if(value == 0) np_send(context, "blue_button_pressed", "test", 5);
 	np_example_print(context, stdout, "Blue  button pressed %d ", value);	
 }
 
 void invoke_btn_green(np_context* context, uint8_t value) {
-	is_data_pressed = false;
-	if (value == 0) np_send(context, "blue_button_reset", "test", 5);
-	if (value == 0) np_send(context, "play_sound", "test", 5);
+	if (is_blue_pressed && value == 0) np_send(context, "blue_button_reset", "test", 5);
+	if (is_blue_pressed && value == 0) np_send(context, "play_sound", "test", 5);
 	np_example_print(context, stdout, "Green button pressed %d ", value);
+	is_blue_pressed = false;
 }
 
-void invoke_btn_red(np_context* context, uint8_t value) {
-	is_data_pressed = false;
-	if (value == 0) np_send(context, "blue_button_reset", "test", 5);
+void invoke_btn_red(np_context* context, uint8_t value) {	
+	if (is_blue_pressed && value == 0) np_send(context, "blue_button_reset", "test", 5);
 	np_example_print(context, stdout, "Red   button pressed %d ", value);	
+	is_blue_pressed = false;
 }
 
 uint8_t value_data  = 1;
@@ -127,13 +127,13 @@ void checkGPIO(np_context * context) {
 	if (is_gpio_enabled) {
 
 		uint8_t nvalue_data = bcm2835_gpio_lev(BUTTON_GPIO_BLUE_IN);
-		if (nvalue_data != value_data) { value_data = nvalue_data; invoke_btn_data(context, value_data); }
+		if (nvalue_data != value_data) { value_data = nvalue_data; invoke_btn_blue(context, value_data); }
 		uint8_t nvalue_green = bcm2835_gpio_lev(BUTTON_GPIO_GREEN_IN);
 		if (nvalue_green != value_green) { value_green = nvalue_green; invoke_btn_green(context, value_green); }
 		uint8_t nvalue_red = bcm2835_gpio_lev(BUTTON_GPIO_RED_IN);
 		if (nvalue_red != value_red) { value_red = nvalue_red; invoke_btn_red(context, nvalue_red); }
 
-		if (is_data_pressed) {
+		if (is_blue_pressed) {
 			int now = (np_time_now());
 			if (now % 2 == 0) {
 				bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
@@ -154,7 +154,6 @@ void initGPIO(np_context * context) {
 		is_gpio_enabled = false;
 	}
 	else {
-
 		//BUTTONs
 		bcm2835_gpio_set_pud(BUTTON_GPIO_BLUE_IN, BCM2835_GPIO_PUD_UP);
 		bcm2835_gpio_set_pud(BUTTON_GPIO_GREEN_IN, BCM2835_GPIO_PUD_UP);
@@ -171,7 +170,7 @@ void initGPIO(np_context * context) {
 		bcm2835_gpio_fsel(LED_GPIO_YELLOW, BCM2835_GPIO_FSEL_OUTP);
 		bcm2835_gpio_fsel(LED_GPIO_BUTTON, BCM2835_GPIO_FSEL_OUTP);
 		// init blinking
-		int i = 5;
+		int i = 20;
 		while (--i > 0) {
 			bcm2835_gpio_write(LED_GPIO_BUTTON, HIGH);
 			bcm2835_gpio_write(LED_GPIO_RED, HIGH);
@@ -246,7 +245,6 @@ int main(int argc, char **argv)
 	if(is_gpio_enabled == true) {
 		initGPIO(context);
 	} else {
-
 		// get public / local network interface id		
 		char * http_domain= calloc(1, sizeof(char) * 255);
 		CHECK_MALLOC(http_domain);
@@ -268,9 +266,8 @@ int main(int argc, char **argv)
 
 	if (NULL != j_key)
 	{
-			np_example_print(context, stdout, "try to join bootstrap node\n");
-			np_join(context, j_key);
-
+		np_example_print(context, stdout, "try to join bootstrap node\n");
+		np_join(context, j_key);
 	}
 	
 	//register the listener function to receive data from the sender
@@ -289,12 +286,12 @@ int main(int argc, char **argv)
 
 
 	if (strcmp(opt_instance_no, "1") == 0) {
-		np_add_receive_cb(context, "blue_button_pressed", receive_data_button_pressed);
+		np_add_receive_cb(context, "blue_button_pressed", receive_blue_button_pressed);
 		np_send(context, "blue_button_reset", "test", 5);		
 		np_send(context, "play_sound", "test", 5);
 	}
 	else if (strcmp(opt_instance_no, "2") == 0) {
-		np_add_receive_cb(context, "blue_button_reset", receive_data_button_reset);
+		np_add_receive_cb(context, "blue_button_reset", receive_blue_button_reset);
 		np_send(context, "blue_button_pressed", "test", 5);
 	}
 	np_statistics_add_watch(context, "blue_button_pressed");
