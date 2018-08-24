@@ -46,7 +46,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
 
-bool receive_play_sound(np_context* context, struct np_message* message);
+bool receive_green_button_pressed(np_context* context, struct np_message* message);
 bool receive_echo_message(np_context* context,struct np_message* message);
 bool receive_pong(np_context* ac, struct np_message* message);
 bool receive_ping(np_context* ac, struct np_message* message);
@@ -110,8 +110,8 @@ int main(int argc, char **argv) {
 	np_set_mx_properties(context, "pong", pong_props);
 
 
-	np_add_receive_cb(context, "play_sound", receive_play_sound);
-	np_statistics_add_watch(context, "play_sound");
+	np_add_receive_cb(context, "green_button_pressed", receive_green_button_pressed);
+	np_statistics_add_watch(context, "green_button_pressed");
 	np_statistics_add_watch(context, "ping");
 	np_statistics_add_watch(context, "pong");
 	np_statistics_add_watch(context, "echo");
@@ -150,7 +150,7 @@ bool receive_pong(np_context* context, struct np_message* message)
 	return true;
 }
 
-bool receive_play_sound(np_context* context, struct np_message* message)
+bool receive_green_button_pressed(np_context* context, struct np_message* message)
 {	
-	system("say -v Daniel neuropil message received");
+	system("say -v Daniel Neuropil message received!");
 }

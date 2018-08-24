@@ -108,7 +108,7 @@ void invoke_btn_blue(np_context* context, uint8_t value) {
 
 void invoke_btn_green(np_context* context, uint8_t value) {
 	if (is_blue_pressed && value == 0) np_send(context, "blue_button_reset", "test", 5);
-	if (is_blue_pressed && value == 0) np_send(context, "play_sound", "test", 5);
+	if (is_blue_pressed && value == 0) np_send(context, "green_button_pressed", "test", 5);
 	np_example_print(context, stdout, "Green button pressed %d ", value);
 	is_blue_pressed = false;
 }
@@ -123,8 +123,8 @@ uint8_t value_data  = 1;
 uint8_t value_green = 1;
 uint8_t value_red   = 1;
 
-bool blue_led_switch = false;
-double blue_led_switch_at = 0;
+bool led_switch = false;
+double led_switch_at = 0;
 void checkGPIO(np_context * context) {
 	if (is_gpio_enabled) {
 
@@ -137,18 +137,19 @@ void checkGPIO(np_context * context) {
 
 		if (is_blue_pressed) {			
 			double now = np_time_now();
-			if (blue_led_switch_at + 1. < now) {
-				blue_led_switch_at = now;
-				blue_led_switch = !blue_led_switch;
-				if (blue_led_switch) {					
-					bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
+			if (led_switch_at + 1. < now) {
+				led_switch = !led_switch;
+				led_switch_at = now;
+				if (led_switch) {
+					bcm2835_gpio_write(LED_GPIO_BUTTON, HIGH);
 				}
 				else {					
-					bcm2835_gpio_write(LED_GPIO_BUTTON, HIGH);
+					bcm2835_gpio_write(LED_GPIO_BUTTON, LOW); 
 				}
 			}
 		}
 		else {
+			led_switch = false;
 			bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
 		}
 	}
@@ -294,15 +295,17 @@ int main(int argc, char **argv)
 	if (strcmp(opt_instance_no, "1") == 0) {
 		np_add_receive_cb(context, "blue_button_pressed", receive_blue_button_pressed);
 		np_send(context, "blue_button_reset", "test", 5);		
-		np_send(context, "play_sound", "test", 5);
+		np_send(context, "green_button_pressed", "test", 5);
+		np_send(context, "red_button_pressed", "test", 5);
 	}
 	else if (strcmp(opt_instance_no, "2") == 0) {
 		np_add_receive_cb(context, "blue_button_reset", receive_blue_button_reset);
 		np_send(context, "blue_button_pressed", "test", 5);
 	}
 	np_statistics_add_watch(context, "blue_button_pressed");
+	np_statistics_add_watch(context, "green_button_pressed");
+	np_statistics_add_watch(context, "red_button_pressed");
 	np_statistics_add_watch(context, "blue_button_reset");
-	np_statistics_add_watch(context, "play_sound");
 	np_statistics_add_watch(context, "ping");
 	np_statistics_add_watch(context, "pong");
 	
