@@ -161,7 +161,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                             1024 - crypto_secretbox_NONCEBYTES,
                             nonce,
                             alias_key->node->session_key);
-                log_debug_msg(LOG_DEBUG |LOG_SERIALIZATION,
+                log_debug_msg(LOG_DEBUG |LOG_HANDSHAKE,
                     "HANDSHAKE SECRET: using shared secret from %s (mem id: %s) (msg: %s)= %"PRIi32" to decrypt data",
                     _np_key_as_str(alias_key), np_memory_get_id(alias_key), msg_in->uuid, ret
                 );
@@ -180,7 +180,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                 }
             }
             else {
-                log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION,
+                log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
                     "HANDSHAKE SECRET: using no shared secret (%s) used alias: %s",
                         NULL == alias_key ? "no alias key is provided":
                         NULL == alias_key->aaa_token ? "alias key has no aaatoken" :
@@ -2074,7 +2074,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
         }
         msg_source_key = _np_keycache_find_or_create(context, search_key);
 
-        log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
+        log_debug_msg(LOG_HANDSHAKE | LOG_DEBUG,
             "decoding of handshake message from %s (i:%f/e:%f) complete",
             handshake_token->subject, handshake_token->issued_at, handshake_token->expires_at);
 
@@ -2093,7 +2093,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
             goto __np_cleanup__;
         }
 
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake for %s", _np_key_as_str(msg_source_key));
+        log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE| LOG_DEBUG, "handshake for %s", _np_key_as_str(msg_source_key));
         msg_source_key->type |= np_key_type_node;
 
         /*
@@ -2146,7 +2146,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
             np_unref_obj(np_node_t, old_node, ref_key_node);
         }
         else {
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG, 
+            log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE| LOG_DEBUG,
 				"handshake for alias %s received, but alias in state %s", 
 				_np_key_as_str(alias_key),
                np_handshake_status_str[msg_source_key->node->_handshake_status]
@@ -2285,7 +2285,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                 }
 
                 // handle alias key, also in case a new connection has been established
-                log_debug_msg(LOG_ROUTING | LOG_DEBUG, "processing handshake for alias %s", _np_key_as_str(alias_key));
+                log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG, "processing handshake for alias %s", _np_key_as_str(alias_key));
 
                 np_ref_switch(np_aaatoken_t, alias_key->aaa_token, ref_key_aaa_token, handshake_token);
                 np_ref_switch(np_aaatoken_t, msg_source_key->aaa_token, ref_key_aaa_token, handshake_token);
@@ -2295,7 +2295,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                 np_ref_obj(np_node_t, msg_source_key->node, ref_key_node);
 
                 // copy over session key
-                log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION, "HANDSHAKE SECRET: setting shared secret on %s and alias %s on system %s",
+                log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE, "HANDSHAKE SECRET: setting shared secret on %s and alias %s on system %s",
                     _np_key_as_str(msg_source_key), _np_key_as_str(alias_key), _np_key_as_str(context->my_node_key));
 
                 memcpy(msg_source_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
@@ -2320,7 +2320,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
 					np_node_set_handshake(alias_key->node, np_handshake_status_RemoteInitiated);					
 				}
 
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
+				log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
                     _np_key_as_str(msg_source_key), _np_key_as_str(alias_key));
             }
         }

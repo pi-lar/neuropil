@@ -473,7 +473,7 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 				//np_node_t* hs_node = args->target->node;
 
 				/* send data if handshake status is still just initialized or less */
-				log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+				log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE |LOG_DEBUG,
 					"sending handshake message %s to %s",// (%s:%s)",
 					hs_message->uuid, _np_key_as_str(args->target)/*, hs_node->dns_name, hs_node->port*/);
 

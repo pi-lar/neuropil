@@ -273,7 +273,7 @@ bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool fo
 						)
 					)
 				{
-					log_msg(LOG_NETWORK | LOG_INFO, "requesting a %shandshake with %s:%s (%s)",
+					log_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_INFO, "requesting a %shandshake with %s:%s (%s)",
 						force ? "new " : "",
 						node_key->node->dns_name, node_key->node->port, _np_key_as_str(node_key));
 					if (!force)
@@ -284,7 +284,7 @@ bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool fo
 					ret = true;
 				}
                 else {
-                	log_debug_msg(LOG_ROUTING | LOG_DEBUG, 
+                	log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG,
 						"handshake for alias %s requested, but alias in state %s", 
 						_np_key_as_str(node_key),
                        np_handshake_status_str[node_key->node->_handshake_status]
@@ -340,7 +340,7 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
                             nonce,
                             target_node->session_key);
 
-						log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION, 
+						log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
 							"HANDSHAKE SECRET: using shared secret from target %s on system %s to encrypt data (msg: %s)",
 							_np_key_as_str(node_key), _np_key_as_str(context->my_node_key), msg->uuid);
 
@@ -397,7 +397,7 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
 			np_unref_obj(np_network_t, node_key_network, FUNC);
         }
     } else {
-		log_debug_msg(LOG_WARN, "network and handshake status of target is unclear (key: %s)", _np_key_as_str(node_key));
+		log_debug_msg(LOG_WARN | LOG_HANDSHAKE, "network and handshake status of target is unclear (key: %s)", _np_key_as_str(node_key));
 		_np_network_send_handshake(context, node_key, false);
     }
 
