@@ -117,45 +117,12 @@ bool froscon_register_for_hunt(np_context* context, struct np_message* message)
 		if (sanitize_result) {
 			write2db(data, from);
 		}
-		char resp[600] = { 0 };
+		char resp[2600] = { 0 };
 		sprintf(resp, "Nachricht \"%s\" erhalten!%s", data, sanitize_result ? "" : " Aber leider ist diese nicht gültig! (NUR ZAHLEN BITTE!)");
 		np_send(context, "FROSCON2018_Response", resp, strlen(resp) + 1);
 		pthread_mutex_unlock(&mutex);
 	}
 	return true;
-}
-
-void handle_session(int session_fd) {
-	printf("writung\r\n");
-	time_t now = time(0);
-	char buffer[256] = "TEST123";
-	int length = strlen(buffer) + 1;
-	size_t index = 0;
-	while (index < length) {
-		ssize_t count = write(session_fd, buffer + index, length - index);
-		if (count < 0) {
-			if (errno == EINTR) continue;
-			printf("failed to write to socket (errno=%d)\r\n", errno);
-			exit(1);
-		}
-		else {
-			index += count;
-		}
-	}
-
-	printf("reading\r\n");
-	for (;;) {
-		ssize_t count = read(session_fd, buffer, sizeof(buffer));
-		if (count < 0) {
-			if (errno != EINTR) printf("%s", strerror(errno));
-		}
-		else if (count == 0) {
-			break;
-		}
-		else {
-			write(STDOUT_FILENO, buffer, count);
-		}
-	}
 }
 
 int main()
