@@ -137,6 +137,7 @@ int main()
 
 	np_context* context = np_new_context(settings);
 	np_listen(context, "pas6", "localhost", 4444);
+	np_time_sleep(5.);
 	// np_sysinfo_enable_client(context);
 
 	// char* connection_string = np_get_connection_string(context);
