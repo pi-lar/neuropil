@@ -6,6 +6,7 @@
 
 #include "neuropil.h"
 #include "np_legacy.h"
+#include "np_log.h"
 
 #include <errno.h>
 #include <string.h>
@@ -132,7 +133,7 @@ int main()
 	struct np_settings * settings = np_default_settings(NULL);
 
 	sprintf(settings->log_file, "np_example_receiver.log");
-
+	settings->log_level = LOG_ERROR | LOG_WARN;
 
 	np_context* context = np_new_context(settings);
 	np_listen(context, "pas6", "localhost", 4444);
