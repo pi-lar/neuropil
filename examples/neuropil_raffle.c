@@ -15,7 +15,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-sqlite3 *db;
+sqlite3 *db = NULL;
 
 static int callback(void *NotUsed, int argc, char **argv, char **azColName) {
 	int i;
@@ -120,7 +120,7 @@ bool froscon_register_for_hunt(np_context* context, struct np_message* message)
 			write2db(data, from);
 		}
 		char resp[2600] = { 0 };
-		snprintf(resp, 2600, "Nachricht \"%s\" erhalten!%s", data, sanitize_result ? "" : " Aber leider ist diese nicht gültig! (NUR ZAHLEN BITTE!)");
+		snprintf(resp, 2600, "Nachricht \"%s\" erhalten!%s", data, sanitize_result ? "" : " Aber leider ist diese nicht gueltig! (NUR ZAHLEN BITTE!)");
 		np_send(context, "FROSCON2018_Response", resp, strnlen(resp, 2599) + 1);
 		pthread_mutex_unlock(&mutex);
 	}
@@ -132,17 +132,18 @@ int main()
 	init_db();
 	struct np_settings * settings = np_default_settings(NULL);
 
-	sprintf(settings->log_file, "np_example_receiver.log");
+	snprintf(settings->log_file, 255, "np_raffle_receiver.log");
 	settings->log_level = LOG_ERROR | LOG_WARN;
 
 	np_context* context = np_new_context(settings);
 	np_listen(context, "pas6", "localhost", 4444);
-	//   np_sysinfo_enable_client(context);
+	// np_sysinfo_enable_client(context);
 
-	//printf("My Node: %s\r\n", np_get_connection_string(context));
+	// char* connection_string = np_get_connection_string(context);
+	// fprintf(stdout, "My Node: %s\n", connection_string);
 	np_join(context, "*:tcp6:demo.neuropil.io:3141");
 	np_add_receive_cb(context, "FROSCON2018", froscon_register_for_hunt);
 
-	//printf("Waiting for scavenger hunt registrations...\r\n");
-	while (true) np_time_sleep(np_run(context, 1));
+	fprintf(stdout, "Waiting for scavenger hunt registrations...\n");
+	while (true) np_time_sleep(np_run(context, 1.0));
 }
