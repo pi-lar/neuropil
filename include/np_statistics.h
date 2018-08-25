@@ -1,10 +1,10 @@
 //
-// neuropil is copyright 2017 by pi-lar GmbH
+// neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
-#ifndef NP_STATISTICS_H_
-#define NP_STATISTICS_H_
+#ifndef _NP_STATISTICS_H_
+#define _NP_STATISTICS_H_
 
 #include <stdint.h>
 #include <inttypes.h>
