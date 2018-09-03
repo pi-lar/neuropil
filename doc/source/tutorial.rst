@@ -3,6 +3,8 @@
 Tutorial
 ********
 
+A brief introduction and tutorial how to get you started with the neuropil messaging layer.
+
 ****************
 Sending messages
 ****************

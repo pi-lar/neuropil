@@ -3,8 +3,8 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
-#ifndef NP_CONSTANTS_H_
-#define NP_CONSTANTS_H_
+#ifndef _NP_CONSTANTS_H_
+#define _NP_CONSTANTS_H_
 
 #include <stdlib.h>
 

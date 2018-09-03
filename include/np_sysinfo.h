@@ -3,8 +3,8 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
-#ifndef NP_SYSINFO_H_
-#define NP_SYSINFO_H_
+#ifndef _NP_SYSINFO_H_
+#define _NP_SYSINFO_H_
 
 #include "np_tree.h"
 
