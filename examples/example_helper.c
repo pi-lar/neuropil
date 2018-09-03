@@ -707,10 +707,10 @@ bool parse_program_args(
 			//| LOG_HTTP
 			//| LOG_KEY
 			| LOG_NETWORK
-			| LOG_HANDSHAKE
+			| LOG_HANDSHAKE			
 			//| LOG_AAATOKEN
 			//| LOG_SYSINFO
-			//| LOG_MESSAGE
+			| LOG_MESSAGE
 			//| LOG_SERIALIZATION
 			//| LOG_SERIALIZATION
 			//| LOG_MEMORY

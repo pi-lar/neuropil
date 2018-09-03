@@ -30,6 +30,9 @@
 #include "np_treeval.h"
 #include "np_shutdown.h"
 #include "np_aaatoken.h"
+#include "np_message.h"
+#include "np_bootstrap.h"
+#include "np_keycache.h"
 
 // split into hash 
 void np_get_id(np_context * ac, np_id* id, char* string, size_t length) {
@@ -78,8 +81,7 @@ np_context* np_new_context(struct np_settings * settings_in) {
 	{
 		debugf("neuropil_init: state module not created: %s", strerror(errno));
 	}
-	else {
-		TSP_INITD(context->status, np_uninitialized);
+	else {	
 
 		context->settings = settings;
 
@@ -135,7 +137,7 @@ np_context* np_new_context(struct np_settings * settings_in) {
 			context->enable_realm_server = false;
 		}
 	}
-
+	TSP_INITD(context->status, np_uninitialized);
 	if(status == np_ok){
 		TSP_SET(context->status, np_stopped);
 	}
@@ -155,7 +157,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 	}
 	else {
 		char* np_service;
-		uint8_t np_proto = UDP | IPv6;
+		enum socket_type np_proto = UDP | IPv6;
 
 		asprintf(&np_service, "%"PRIu16, port);
 
@@ -178,7 +180,6 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 			log_debug_msg(LOG_DEBUG, "building network base structure");
 			np_network_t* my_network = NULL;
 			np_new_obj(np_network_t, my_network);
-
 			// get public / local network interface id
 			if (NULL == host) {
 				host = calloc(1, sizeof(char) * 255);
@@ -192,12 +193,12 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 					}
 				}
 			}
-
-			log_debug_msg(LOG_DEBUG, "initialise network");
-			_LOCK_MODULE(np_network_t)
-			{
-				_np_network_init(my_network, true, np_proto, host, np_service,-1);
-			}
+				log_debug_msg(LOG_DEBUG, "initialise network (type:%d/%s/%s)", np_proto, _np_network_get_protocol_string(context, np_proto), protocol);
+				_LOCK_MODULE(np_network_t)
+				{
+					_np_network_init(my_network, true, np_proto, host, np_service, -1, UNKNOWN_PROTO);
+				}
+		
 			log_debug_msg(LOG_DEBUG, "check for initialised network");
 			if (false == my_network->initialized)
 			{
@@ -347,7 +348,7 @@ enum np_error np_send_to(np_context* ac, char* subject, uint8_t* message, size_t
 
 	np_tree_t* body = np_tree_create();
 	np_tree_insert_str(body, NP_SERIALISATION_USERDATA, np_treeval_new_bin(message, length));
-	np_send_msg(context, subject, body, target);
+	np_send_msg(context, subject, body, (np_dhkey_t*)target);
 	return ret;
 }
 
@@ -479,7 +480,7 @@ enum np_status np_get_status(np_context* ac) {
 
 void np_id2str(const np_id* id, char* key_string)
 {
-	np_dhkey_t* k = id;
+	np_dhkey_t* k = (np_dhkey_t*)id;
 	// TODO: use sodium bin2hex function
 	snprintf(key_string, 65,
 		"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32,
@@ -490,7 +491,7 @@ void np_id2str(const np_id* id, char* key_string)
 
 void np_str2id(const char* key_string, np_id* id)
 {
-	np_dhkey_t* k = id;
+	np_dhkey_t* k = (np_dhkey_t*)id;
 	// TODO: this is dangerous, encoding could be different between systems,
 	// encoding has to be send over the wire to be sure ...
 	// for now: all tests on the same system

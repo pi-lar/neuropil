@@ -61,32 +61,35 @@ static char* URN_UDP_V6 = "udp6";
 static char* URN_IP_V4  = "ip4";
 static char* URN_IP_V6  = "ip6";
 
-uint8_t _np_network_parse_protocol_string (const char* protocol_str)
+enum socket_type _np_network_parse_protocol_string (const char* protocol_str)
 {
     if (0 == strncmp(protocol_str, URN_TCP_V4, 4)) return (TCP     | IPv4);
     if (0 == strncmp(protocol_str, URN_TCP_V6, 4)) return (TCP     | IPv6);
-    if (0 == strncmp(protocol_str, URN_PAS_V4, 4)) return (PASSIVE | TCP | IPv4);
-    if (0 == strncmp(protocol_str, URN_PAS_V6, 4)) return (PASSIVE | TCP | IPv6);
+    if (0 == strncmp(protocol_str, URN_PAS_V4, 4)) return (PASSIVE | IPv4);
+    if (0 == strncmp(protocol_str, URN_PAS_V6, 4)) return (PASSIVE | IPv6);
     if (0 == strncmp(protocol_str, URN_UDP_V4, 4)) return (UDP     | IPv4);
     if (0 == strncmp(protocol_str, URN_UDP_V6, 4)) return (UDP     | IPv6);
-    if (0 == strncmp(protocol_str, URN_IP_V4, 3))  return (RAW     | IPv4);
-    if (0 == strncmp(protocol_str, URN_IP_V6, 3))  return (RAW     | IPv6);
+    //if (0 == strncmp(protocol_str, URN_IP_V4, 3))  return (RAW     | IPv4);
+    //if (0 == strncmp(protocol_str, URN_IP_V6, 3))  return (RAW     | IPv6);
 
     return (UNKNOWN_PROTO);
 }
 
-char* _np_network_get_protocol_string (uint8_t protocol)
+char* _np_network_get_protocol_string (np_state_t* context, enum socket_type protocol)
 {
-    if (protocol == (TCP     | IPv4)) return (URN_TCP_V4);
-    if (protocol == (TCP     | IPv6)) return (URN_TCP_V6);
-    if (protocol == (PASSIVE | TCP | IPv4)) return (URN_PAS_V4);
-    if (protocol == (PASSIVE | TCP | IPv6)) return (URN_PAS_V6);
-    if (protocol == (UDP     | IPv4)) return (URN_UDP_V4);
-    if (protocol == (UDP     | IPv6)) return (URN_UDP_V6);
-    if (protocol == (RAW     | IPv4)) return (URN_IP_V4);
-    if (protocol == (RAW     | IPv6)) return (URN_IP_V6);
-
-    return ("UNKNOWN");
+	if (FLAG_CMP(protocol, (PASSIVE | IPv4))) return (URN_PAS_V4);
+	if (FLAG_CMP(protocol, (PASSIVE | IPv6))) return (URN_PAS_V6);
+    if (FLAG_CMP(protocol,(TCP     | IPv4))) return (URN_TCP_V4);
+    if (FLAG_CMP(protocol,(TCP     | IPv6))) return (URN_TCP_V6);
+    if (FLAG_CMP(protocol,(UDP     | IPv4))) return (URN_UDP_V4);
+    if (FLAG_CMP(protocol,(UDP     | IPv6))) return (URN_UDP_V6);
+    //if (protocol == (RAW     | IPv4)) return (URN_IP_V4);
+    //if (protocol == (RAW     | IPv6)) return (URN_IP_V6);
+	log_msg(LOG_WARN, "Protocol %d is not availabe!", protocol);
+#ifdef DEBUG 
+	assert(false && "Protocol is not availabe!");
+#endif
+    return ("UNKNOWN_PROTOCOL");
 }
 
 void __np_network_close(np_network_t* self) {
@@ -102,7 +105,7 @@ void _np_network_get_address(
         np_state_t* context, 
         bool create_socket,
         struct addrinfo** ai_head,
-        uint8_t type,
+		enum socket_type type,
         char *hostname,
         char* service)
 {
@@ -368,7 +371,7 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
 									log_debug_msg(LOG_NETWORK | LOG_DEBUG,
 										"(msg: %s) %s",
 										msg->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, enc_buffer, MSG_CHUNK_SIZE_1024));
-
+									
                                     sll_append(void_ptr, node_key->network->out_events, (void*)enc_buffer);                                    
                                     ret = true;
                                     _np_network_start(node_key->network);
@@ -437,20 +440,35 @@ void _np_network_send_from_events (struct ev_loop *loop, ev_io *event, int reven
                     {
                         int retry = 10;
                         do {
-#ifdef MSG_NOSIGNAL 
-                            current_write_per_data = send(
-                                key_network->socket,
-                                (((char*)data_to_send) + written_per_data),
-                                MSG_CHUNK_SIZE_1024 - written_per_data
-                                , MSG_NOSIGNAL);
-#else
-                            current_write_per_data = send(
-                                key_network->socket,
-                                (((char*)data_to_send) + written_per_data),
-                                MSG_CHUNK_SIZE_1024 - written_per_data
-                                , 0);
-#endif
 
+							/*
+							Prep for UDP Passive 
+							if (FLAG_CMP(key_network->socket_type, PASSIVE))
+							{
+								current_write_per_data = sendTo(
+                                key_network->socket,
+                                (((char*)data_to_send) + written_per_data),
+									MSG_CHUNK_SIZE_1024 - written_per_data,
+#ifdef MSG_NOSIGNAL
+									MSG_NOSIGNAL
+#else
+									0
+#endif 
+								);
+							}
+							else {
+							*/
+                            current_write_per_data = send(
+                                key_network->socket,
+                                (((char*)data_to_send) + written_per_data),
+									MSG_CHUNK_SIZE_1024 - written_per_data,
+#ifdef MSG_NOSIGNAL
+									MSG_NOSIGNAL
+#else								
+									0
+#endif
+								);
+							//}
                             if (current_write_per_data < 0) {
                                 np_time_sleep(NP_SLEEP_MIN);
                             }
@@ -801,20 +819,7 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args) 
     }
 
     if (0 == data_container->in_msg_len)
-    {
-        if(data_container->ng_tcp_host != NULL){
-            // tcp disconnect
-            log_msg(LOG_WARN, "received disconnect or ACK from: %s:%s", data_container->ipstr, data_container->port);
-            // TODO handle cleanup of target_node structures ?
-            // maybe / probably the target_node received already a disjoin message before
-            //TODO: prüfen ob hier wirklich der host geschlossen werden muss
-            //_np_network_stop(data_container->ng_tcp_host,true);
-            //_np_node_update_stat(data_container->key->target_node, 0);
-
-        }
-        else {
-            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received empty package from: %s:%s", data_container->ipstr, data_container->port);
-        }
+    {        
         np_memory_free(data_container->data);
     }
     else {
@@ -1068,229 +1073,222 @@ void _np_network_t_new(np_state_t * context, uint8_t type, size_t size, void* da
  *
  * if "prepared_socket_fd" > 0 no new connection will be created, instead the client_fd will be set to "prepared_socket_fd"
  **/
-bool _np_network_init (np_network_t* ng, bool create_server, uint8_t type, char* hostname, char* service, int prepared_socket_fd)
+bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type type, char* hostname, char* service, int prepared_socket_fd, enum socket_type passive_socket_type)
 {
-    np_ctx_memory(ng);	
-    int one = 1;
-    int v6_only = 0;
+	np_ctx_memory(ng);
+	int one = 1;
+	int v6_only = 0;
 
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "try to get_network_address");
-    _np_network_get_address(context, create_server, &ng->addr_in, type, hostname, service);
-    ng->socket_type = type;
-    if (NULL == ng->addr_in)
-    {
-        log_msg(LOG_ERROR, "could not receive network address");
-        return false;
-    }
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "done get_network_address");
+	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "try to get_network_address");
+	_np_network_get_address(context, create_server, &ng->addr_in, type, hostname, service);
+	ng->socket_type = type | passive_socket_type;
+	if (NULL == ng->addr_in)
+	{
+		log_msg(LOG_ERROR, "could not receive network address");
+		return false;
+	}
+	log_debug_msg(LOG_NETWORK | LOG_DEBUG, "done get_network_address");
 
-    // only need for client setup, but initialize to have zero size of list
-	if(ng->out_events == NULL) sll_init(void_ptr, ng->out_events);
+	// only need for client setup, but initialize to have zero size of list
+	if (ng->out_events == NULL) sll_init(void_ptr, ng->out_events);
+	// create an inbound socket - happens only once per target_node
+	if (true == create_server)
+	{
+		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating receiving network");
 
-    // create an inbound socket - happens only once per target_node
-    if (true == create_server)
-    {
-        log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating receiving network");
+		_LOCK_ACCESS(&ng->access_lock)
+		{
+			ng->type |= np_network_type_server;
+			// own sequence number counter
+			ng->seqend = 0;
+		}
 
-        _LOCK_ACCESS(&ng->access_lock)
-        {
-            ng->type |= np_network_type_server;
-            // own sequence number counter
-            ng->seqend = 0;
-        }
+		// create own retransmit structures
+		_LOCK_ACCESS(&ng->waiting_lock) {
+			if (ng->waiting == NULL) ng->waiting = np_tree_create();
+		}
 
-        // create own retransmit structures
-        _LOCK_ACCESS(&ng->waiting_lock) {
-			if(ng->waiting == NULL) ng->waiting = np_tree_create();
-        }
+		// server setup - create socket
+		// UDP note: not using a connected socket for sending messages to a different target_node
+		// leads to unreliable delivery. The sending socket changes too often to be useful
+		// for finding the correct decryption shared secret. Especially true for ipv6 ...
+		if (!FLAG_CMP(type, PASSIVE)) {
+			if (prepared_socket_fd > 0) {
+				ng->socket = prepared_socket_fd;
+			}
+			else {
+				ng->socket = socket(ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
+				if (0 > ng->socket)
+				{
+					log_msg(LOG_ERROR, "could not create socket: %s", strerror(errno));
+					return false;
+				}
+			}
 
+			if (-1 == setsockopt(ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *)&one, sizeof(one)))
+			{
+				log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror(errno));
+				__np_network_close(ng);
+				return false;
+			}
 
-        // server setup - create socket
-        // UDP note: not using a connected socket for sending messages to a different target_node
-        // leads to unreliable delivery. The sending socket changes too often to be useful
-        // for finding the correct decryption shared secret. Especially true for ipv6 ...
+			if (FLAG_CMP(type, IPv6)) {
+				if (-1 == setsockopt(ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof(v6_only)))
+				{
+					// enable ipv4 mapping
+					log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror(errno));
+				}
+			}
+			// set non blocking
+			int current_flags = fcntl(ng->socket, F_GETFL);
+			current_flags |= O_NONBLOCK;
+			fcntl(ng->socket, F_SETFL, current_flags);
 
-        if (prepared_socket_fd > 0) {
-            ng->socket = prepared_socket_fd;
-        }
-        else {
-        ng->socket = socket(ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
-        if (0 > ng->socket)
-        {
-            log_msg(LOG_ERROR, "could not create socket: %s", strerror(errno));
-            return false;
-        }
-        }
+			/* attach socket to #port#. */
+			if (0 > bind(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
+			{
+				log_msg(LOG_ERROR, "bind failed for %s:%s: %s", hostname, service, strerror(errno));
+				__np_network_close(ng);
+				// listening port could not be opened
+				return false;
+			}
 
-        if (-1 == setsockopt(ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *)&one, sizeof(one)))
-        {
-            log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror(errno));
-            __np_network_close(ng);
-            return false;
-        }
+			if (FLAG_CMP(type, TCP)) {
+				if (0 > listen(ng->socket, 10)) {
+					log_msg(LOG_ERROR, "listen on tcp port failed: %s:", strerror(errno));
+					__np_network_close(ng);
+					return false;
+				}
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is receiving accepts", ng, ng->socket);
+				ev_io_init(&ng->watcher, _np_network_accept, ng->socket, EV_READ);
+			}
+			else if (FLAG_CMP(type, UDP))
+			{
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is receiving", ng, ng->socket);
+				ev_io_init(&ng->watcher, _np_network_read, ng->socket, EV_READ);
+			}
+			else {
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "Dont know how to setup server network of type %"PRIu8, type);
+			}
+		}
+		ng->initialized = true;
+		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local listening socket");
+	}
+	else {
+		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating sending network");
 
-        if (FLAG_CMP(type, IPv6)) {
-            if (-1 == setsockopt(ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof(v6_only)))
-            {
-                // enable ipv4 mapping
-                log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror(errno));
-            }
-        }
-        // set non blocking
-        int current_flags = fcntl(ng->socket, F_GETFL);
-        current_flags |= O_NONBLOCK;
-        fcntl(ng->socket, F_SETFL, current_flags);
+		ng->type |= np_network_type_client;
 
-        /* attach socket to #port#. */
-        if (0 > bind(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
-        {
-            log_msg(LOG_ERROR, "bind failed for %s:%s: %s", hostname, service, strerror(errno));
-            __np_network_close(ng);
-            // listening port could not be opened
-            return false;
-        }
+		if (!FLAG_CMP(type, PASSIVE)) {
+			// client socket - wait for writeable socket
+			if (prepared_socket_fd > 0) {
+				ng->socket = prepared_socket_fd;
+			}
+			else {
+				ng->socket = socket(ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
 
-        if ((type & TCP) == TCP) {
-			int optval;	
-			
+				if (0 > ng->socket)
+				{
+					log_msg(LOG_ERROR, "could not create socket: %s", strerror(errno));
+					return false;
+				}
 
+				if (-1 == setsockopt(ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *)&one, sizeof(one)))
+				{
+					log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror(errno));
+					__np_network_close(ng);
+					return false;
+				}
+				if (FLAG_CMP(type, IPv6)) {
+					if (-1 == setsockopt(ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof(v6_only)))
+					{
+						// enable ipv4 mapping
+						log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror(errno));
+					}
+				}
+				int optval;
+				if ((type & TCP) == TCP) {
+					optval = 1;
+					if (setsockopt(ng->socket, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) < 0) {
+						log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (SO_KEEPALIVE): %s: ", strerror(errno));
+					}
+				}
+				// set non blocking
+				int current_flags = fcntl(ng->socket, F_GETFL);
+				current_flags |= O_NONBLOCK;
+				fcntl(ng->socket, F_SETFL, current_flags);
+			}
 
-            if (0 > listen(ng->socket, 10)) {
-                log_msg(LOG_ERROR, "listen on tcp port failed: %s:", strerror(errno));
-                __np_network_close(ng);
-                return false;
-            }
-            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is receiving accepts", ng, ng->socket);
-            ev_io_init(&ng->watcher, _np_network_accept, ng->socket, EV_READ);
-        }
-        else if ((type & UDP) == UDP)
-        {
-            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is receiving", ng, ng->socket);
-            ev_io_init(&ng->watcher, _np_network_read, ng->socket, EV_READ);
-        }
-        else {
-            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "Dont know how to setup network of type %"PRIu8, type);
-        }
+			// initialize to be on the safe side
+			ng->watcher.data = NULL;
+			if (FLAG_CMP(type, TCP) || FLAG_CMP(type, UDP))
+			{
 
-        ng->initialized = true;
-        log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local listening socket");
+				if (FLAG_CMP(context->my_node_key->network->socket_type, PASSIVE)) {
+					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is bidirektional", ng, ng->socket);
+					ev_io_init(
+						&ng->watcher, _np_network_bidirektional,
+						ng->socket, EV_WRITE | EV_READ);
+				}
+				else {
+					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is sender", ng, ng->socket);
+					ev_io_init(
+						&ng->watcher, _np_network_send_from_events,
+						ng->socket, EV_WRITE);
+				}
+			}
+			else {
+				log_debug_msg(LOG_NETWORK | LOG_DEBUG, "Dont know how to setup client network of type %"PRIu8, type);
+			}
 
-    }
-    else {
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating sending network");
+			// UDP note: not using a connected socket for sending messages to a different target_node
+			// leads to unreliable delivery. The sending socket changes too often to be useful
+			// for finding the correct decryption shared secret. Especially true for ipv6 ...
 
-    ng->type |= np_network_type_client;
+			// As we do have a async connection (and TCP may need longer due to
+			// handshake packages) we need to check the connection status for a moment
+			if (prepared_socket_fd < 1) {
+				int retry_connect = 3;
+				int connection_status = -1;
+				do {
+					connection_status = connect(
+						ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen);
 
-    // client socket - wait for writeable socket
-    if (prepared_socket_fd > 0) {
-        ng->socket = prepared_socket_fd;
-    }
-    else {
-        ng->socket = socket(ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
+					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "TRY CONNECT: %"PRIi32, connection_status);
+					if (connection_status != 0) {
+						np_time_sleep(NP_PI / 10);
+					}
+				} while (0 != connection_status && retry_connect-- > 0);
 
-        if (0 > ng->socket)
-        {
-            log_msg(LOG_ERROR, "could not create socket: %s", strerror(errno));
-            return false;
-        }
+				if (0 != connection_status) {
+					if (errno != EISCONN) {
+						log_msg(LOG_ERROR,
+							"could not connect: %s (%d)", strerror(errno), errno);
+						__np_network_close(ng);
+						return false;
+					}
+				}
+			}
+			log_debug_msg(LOG_NETWORK | LOG_DEBUG,
+				"network: %d %p %p :", ng->socket, &ng->watcher, &ng->watcher.data);
+		}
+		ng->initialized = true;
+		log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local sending socket");
+	}
+	freeaddrinfo(ng->addr_in);
+	ng->addr_in = NULL;
 
-        if (-1 == setsockopt(ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *)&one, sizeof(one)))
-        {
-            log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror(errno));
-            __np_network_close(ng);
-            return false;
-        }
-        if (FLAG_CMP(type, IPv6)) {
-            if (-1 == setsockopt(ng->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof(v6_only)))
-            {
-                // enable ipv4 mapping
-                log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (IPV6_V6ONLY): %s: ", strerror(errno));
-            }
-        }
-        int optval;
-        if ((type & TCP) == TCP) {
-            optval = 1;
-            if (setsockopt(ng->socket, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) < 0) {
-                log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (SO_KEEPALIVE): %s: ", strerror(errno));
-            }		
-        }
-            // set non blocking
-            int current_flags = fcntl(ng->socket, F_GETFL);
-            current_flags |= O_NONBLOCK;
-            fcntl(ng->socket, F_SETFL, current_flags);
-        }
-
-        // initialize to be on the safe side
-        ng->watcher.data = NULL;
-        if(FLAG_CMP(type, TCP) || FLAG_CMP(type, UDP))
-        {
-
-            if (FLAG_CMP(type, TCP) && FLAG_CMP(context->my_node_key->network->socket_type, PASSIVE)) {
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is bidirektional",ng,ng->socket);
-                ev_io_init(
-                    &ng->watcher, _np_network_bidirektional,
-                    ng->socket, EV_WRITE|EV_READ);
-            }
-            else {
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is sender", ng, ng->socket);
-                ev_io_init(
-                    &ng->watcher, _np_network_send_from_events,
-                    ng->socket, EV_WRITE);
-            }
-        }
-        else {
-            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "Dont know how to setup network of type %"PRIu8, type);
-        }
-
-        // UDP note: not using a connected socket for sending messages to a different target_node
-        // leads to unreliable delivery. The sending socket changes too often to be useful
-        // for finding the correct decryption shared secret. Especially true for ipv6 ...
-
-        // As we do have a async connection (and TCP may need longer due to
-        // handshake packages) we need to check the connection status for a moment
-        if (prepared_socket_fd < 1) {
-            int retry_connect = 3;
-            int connection_status = -1;
-            do {
-                connection_status = connect(
-                    ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen);
-
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "TRY CONNECT: %"PRIi32, connection_status);
-                if (connection_status != 0) {
-                    np_time_sleep(NP_PI / 10);
-                }
-            } while (0 != connection_status && retry_connect-- > 0);
-
-            if (0 != connection_status) {
-                if (errno != EISCONN) {
-                    log_msg(LOG_ERROR,
-                        "could not connect: %s (%d)", strerror(errno), errno);
-                    __np_network_close(ng);
-                    return false;
-                }
-            }
-        }
-        log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-            "network: %d %p %p :", ng->socket, &ng->watcher, &ng->watcher.data);
-
-        ng->initialized = true;
-        log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local sending socket");
-    }
-
-    freeaddrinfo( ng->addr_in );
-    ng->addr_in = NULL;
-
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-        "Inited %s-network %s %s on %s:%s (fd: %d%s)",
-        create_server ? "Server" : "Client",
-        FLAG_CMP(type, TCP) ? "TCP" : FLAG_CMP(type, UDP) ? "UDP" : "?",
-        FLAG_CMP(type, PASSIVE) ? "PASSIVE" : "",
-        hostname,
-        service,
-        ng->socket,
-		prepared_socket_fd >0?" (prepared fd)":""
-    );
-    return true;
+	log_debug_msg(LOG_NETWORK | LOG_DEBUG,
+		"Inited %s-network %s %s on %s:%s (fd: %d%s)",
+		create_server ? "Server" : "Client",
+		FLAG_CMP(type, TCP) ? "TCP" : FLAG_CMP(type, UDP) ? "UDP" : "?",
+		FLAG_CMP(type, PASSIVE) ? "PASSIVE" : "",
+		hostname,
+		service,
+		ng->socket,
+		prepared_socket_fd > 0 ? " (prepared fd)" : ""
+	);
+	return true;
 }
 
 char* np_network_get_ip(np_key_t * container) {

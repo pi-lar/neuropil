@@ -60,12 +60,12 @@ void _np_message_t_new(np_state_t *context, uint8_t type, size_t size, void* msg
 
     log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "creating uuid %s for new msg", msg_tmp->uuid);
     
-    msg_tmp->header       = np_tree_create();
-    msg_tmp->instructions = np_tree_create();
-    msg_tmp->body         = np_tree_create();
-    msg_tmp->footer       = np_tree_create();
-
-    msg_tmp->no_of_chunks = 1;
+    msg_tmp->header         = np_tree_create();
+    msg_tmp->instructions   = np_tree_create();
+    msg_tmp->body           = np_tree_create();
+    msg_tmp->footer         = np_tree_create();
+	msg_tmp->send_at	    = 0;
+    msg_tmp->no_of_chunks   = 1;
     msg_tmp->is_single_part = false;
     
     TSP_INITD(msg_tmp->is_acked , false);
@@ -81,6 +81,7 @@ void _np_message_t_new(np_state_t *context, uint8_t type, size_t size, void* msg
     msg_tmp->bin_footer = NULL;
     msg_tmp->bin_static = NULL;
 
+	msg_tmp->submit_type = np_message_submit_type_ROUTE;
 }
 
 /*
@@ -902,8 +903,9 @@ inline void _np_message_set_to(np_message_t* msg, np_dhkey_t target)
 
 inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
 {
-    np_tree_free( msg->footer);
+	np_tree_t* old = msg->footer;
     msg->footer = footer;
+	np_tree_free(old);
 };
 
 //		if (-1 == _np_messagepart_decrypt(context, newmsg->instructions,

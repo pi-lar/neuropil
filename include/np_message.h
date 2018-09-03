@@ -18,6 +18,11 @@
 extern "C" {
 #endif
 
+
+	enum np_message_submit_type {
+		np_message_submit_type_DIRECT,
+		np_message_submit_type_ROUTE
+	};
 struct np_message_s
 {
 	 // link to memory pool
@@ -36,6 +41,7 @@ struct np_message_s
 	np_mutex_t msg_chunks_lock;
 
 	np_msgproperty_ptr msg_property;
+	double send_at;	
 
 	TSP(bool, is_acked);
 	np_sll_t(np_responsecontainer_on_t, on_ack);
@@ -48,6 +54,7 @@ struct np_message_s
 	void* bin_footer;
 	np_messagepart_t* bin_static;
 
+	enum np_message_submit_type submit_type;
 } NP_API_INTERN;
 
 #ifndef SWIG

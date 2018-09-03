@@ -18,6 +18,9 @@ parser.add_argument('--perf', action='store_true', help='Record Perf on Bootstra
 parser.add_argument('-v', action='store_true', default=False, help='Valgrind prefix')
 parser.add_argument('-vc', action='store_true', default=False, help='Valgrind Client prefix')
 parser.add_argument('-vs', action='store_true', default=False, help='Valgrind Server prefix')
+parser.add_argument('-g', action='store_true', default=False, help='GDB prefix')
+parser.add_argument('-gc', action='store_true', default=False, help='GDB Client prefix')
+parser.add_argument('-gs', action='store_true', default=False, help='GDB Server prefix')
 parser.add_argument('-k', action='store_true', help='Kill all only')
 parser.add_argument('-t', nargs='?', type=int, default=18, help='Count of threads to start for each node')
 parser.add_argument('-tr', action='store_true', default=False, help='(Add) Random sleep timer during client startup')
@@ -80,7 +83,7 @@ else:
     windowName  = "neuropil bootstraper"
     if start_bootstrapper and not session.find_where({ "window_name": windowName }):
         nb = session.new_window(attach=True, window_name=windowName)
-        prefix_bootstrap = ('valgrind ' if args.v or args.vs else  '')
+        prefix_bootstrap = ('valgrind ' if args.v or args.vs else  ('gdb -ex run --args ' if args.g or args.gs else  ''))
         if args.perf:
             prefix_bootstrap = 'perf record --call-graph dwarf -a '
         nb.attached_pane.send_keys(prefix_bootstrap + args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} {} -s {} {} 2> test.log'.format(
@@ -99,7 +102,7 @@ else:
                 rand = random.random() if args.tr else 0
                 time.sleep(rand+(args.ts/1000))
             nn = session.new_window(attach=False, window_name=windowName )
-            nn.attached_pane.send_keys(('valgrind ' if args.v or args.vc else  '') + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
+            nn.attached_pane.send_keys(('valgrind ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
             port+i+start_bootstrapper,publish_domain, threads, port_type_client, sysinfo_client, loglevel, join_client, httpdomain, statistics, autoclose))
 
     if not args.k:

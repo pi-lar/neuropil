@@ -203,20 +203,6 @@ void _np_job_resubmit_msgout_event(np_state_t * context, double delay, np_msgpro
 	}
 }
 
-void _np_job_resubmit_msgin_event(np_state_t * context, double delay, np_jobargs_t* jargs_org)
-{
-	// create runtime arguments
-	np_jobargs_t* jargs = _np_job_create_args(context, jargs_org->msg, jargs_org->target, jargs_org->properties, FUNC);
-	jargs->is_resend = true;
-	jargs->custom_data =  jargs_org->custom_data;
-	
-	// create job itself
-	np_job_t* new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_RESUBMIT_MSG_IN, jargs_org->properties->clb_inbound, "clb_inbound");
-
-	if (!_np_job_queue_insert(new_job)) {
-		_np_job_free(new_job);
-	}
-}
 
 void _np_job_resubmit_route_event(np_state_t * context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
 {
@@ -225,7 +211,7 @@ void _np_job_resubmit_route_event(np_state_t * context, double delay, np_msgprop
 	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, FUNC);
 	jargs->is_resend = true;
-
+	if (msg != NULL) msg->submit_type = np_message_submit_type_DIRECT;
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE, prop->clb_route, "clb_route");
 
@@ -240,6 +226,8 @@ void _np_job_submit_route_event(np_state_t * context, double delay, np_msgproper
 
 	// create runtime arguments
 	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, FUNC);
+
+	if (msg != NULL) msg->submit_type = np_message_submit_type_ROUTE;
 
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE, prop->clb_route, "clb_route");
@@ -601,7 +589,7 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 
 #ifdef NP_THREADS_CHECK_THREADING	
 		np_thread_t * self = _np_threads_get_self(context);
-		log_debug_msg(LOG_DEBUG,
+		log_debug_msg(LOG_JOBS | LOG_DEBUG,
 			"thread-->%15"PRIu64" job-->%15p remaining jobs: %"PRIu32") func_count-->%"PRIu32" funcs-->%15p args-->%15p prio:%10.2f not before: %15.10f jobname: %s",
 			self->id,
 			job_to_execute,

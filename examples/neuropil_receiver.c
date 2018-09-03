@@ -78,7 +78,7 @@ bool authorize (np_context *ac, struct np_token *id)
 */
 bool receive (np_context* ac, struct np_message* message)
 {
-	printf("Received: %.*s\n", message->data_length, message->data);
+	printf("Received: %.*s\n", (int)message->data_length, message->data);
 	return true;
 }
 /**

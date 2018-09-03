@@ -13,6 +13,7 @@
 #include "np_memory.h"
 
 #include "np_types.h"
+#include "np_network.h"
 #include "np_threads.h"
 #include "np_settings.h"
 #include "np_constants.h"
@@ -42,7 +43,7 @@ struct np_node_s
 	np_mutex_t lock;
 	np_mutex_t latency_lock;
 
-	uint8_t protocol;
+	enum socket_type protocol;
 	char *dns_name;
 	char* port;
 
@@ -75,7 +76,7 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_node_t);
  **
  **/
 NP_API_INTERN
-void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port);
+void _np_node_update (np_node_t* node, enum socket_type proto, char *hn, char* port);
 
 /** _np_node_update_stat
  ** updates the success rate to the np_node based on the NP_NODE_SUCCESS_WINDOW average

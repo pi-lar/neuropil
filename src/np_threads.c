@@ -108,10 +108,7 @@ int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, 
                 log_msg(LOG_ERROR, "%s", np_threads_printpool(context, false));
                 abort();
             }
-            if(diff >  MUTEX_WAIT_SOFT_SEC){
-                log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for module mutex %s (%f sec)", np_module_lock_str[module_id], diff);
-            }
-        ret = _np_threads_mutex_timedlock(context, &np_module(threads)->__mutexes[module_id], fmin(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
+        ret = _np_threads_mutex_timedlock(context, &np_module(threads)->__mutexes[module_id], MUTEX_WAIT_MAX_SEC);
 
         if(ret == ETIMEDOUT) {
             //continue;
@@ -284,16 +281,13 @@ int _np_threads_mutex_lock(np_state_t* context, np_mutex_t* mutex, const char* w
     while(ret != 0) {
 
 #if defined(NP_THREADS_CHECK_THREADING) && NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK
-        ret = _np_threads_mutex_timedlock(context, mutex, fmin(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
+        ret = _np_threads_mutex_timedlock(context, mutex, MUTEX_WAIT_MAX_SEC - diff);
 
         diff = np_time_now() - start;
         if (diff > MUTEX_WAIT_MAX_SEC) {
             log_msg(LOG_ERROR, "Thread %lu waits too long for mutex %s(%p) (%f sec)", _np_threads_get_self(context)->id, mutex->desc, mutex, diff);
             log_msg(LOG_ERROR, "%s", np_threads_printpool(context, false));
             abort();
-        }
-        if (diff > MUTEX_WAIT_SOFT_SEC) {
-            log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for mutex %p (%f sec)", mutex, diff);
         }
 #else
         ret = pthread_mutex_lock(&mutex->lock);

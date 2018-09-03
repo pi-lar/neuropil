@@ -27,12 +27,14 @@ extern "C" {
 enum np_key_type {
 	np_key_type_unknown			= 0x000,
 	np_key_type_alias			= 0x001,
-	np_key_type_node			= 0x002,
+	np_key_type_node            = 0x002,
+	// no detection available (only local)
+	np_key_type_wildcard        = 0x004,
 
 	//DETECTION NOT IMPLEMENTED
-	np_key_type_ident			= 0x004,
+	np_key_type_ident			= 0x008,
 	//DETECTION NOT IMPLEMENTED
-	np_key_type_subject			= 0x008,
+	np_key_type_subject			= 0x010,
 };
 struct np_key_s
 {

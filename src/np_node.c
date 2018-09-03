@@ -88,10 +88,11 @@ void _np_node_t_del(np_state_t *context, uint8_t type, size_t size, void* node)
  **/
 void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 {
+	np_ctx_memory(key);
 	snprintf (s, len, "%s:", _np_key_as_str(key));
 
 	if (NULL != key->node->dns_name) {
-		snprintf (s + strlen (s), len - strlen (s), "%s:", _np_network_get_protocol_string(key->node->protocol));
+		snprintf (s + strlen (s), len - strlen (s), "%s:", _np_network_get_protocol_string(context, key->node->protocol));
 		snprintf (s + strlen (s), len - strlen (s), "%s:", key->node->dns_name);
 		snprintf (s + strlen (s), len - strlen (s), "%s",  key->node->port);
 	}
@@ -372,7 +373,7 @@ int _np_node_cmp(np_node_t* a, np_node_t* b) {
 }
 
 
-void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
+void _np_node_update (np_node_t* node, enum socket_type proto, char *hn, char* port)
 {
 	node->protocol = proto;
 

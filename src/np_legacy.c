@@ -590,12 +590,13 @@ char* np_get_connection_string(np_context*ac){
 }
 
 char* np_get_connection_string_from(np_key_t* node_key, bool includeHash) {
+	np_ctx_memory(node_key);
 	log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, bool includeHash){");
 
 	return (
 			np_build_connection_string(
 					includeHash == true ? _np_key_as_str(node_key) : NULL,
-					_np_network_get_protocol_string(node_key->node->protocol),
+					_np_network_get_protocol_string(context, node_key->node->protocol),
 					node_key->node->dns_name,
 					node_key->node->port,
 					includeHash)
@@ -649,7 +650,7 @@ np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* s
 	np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, subject);
 	_np_job_submit_msgout_event(context, 0.0, prop, target, msg_out);
 
-	np_tree_free( jrb_my_node);
+	np_tree_free(jrb_my_node);
 
 	return msg_out;	
 }
@@ -751,11 +752,12 @@ void np_send_wildcard_join(np_context*ac, const char* node_string)
 		//START Build our wildcard connection string
 		np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport( "*", node_string);
 		char wildcard_dhkey_str[65];
-		np_id2str(&wildcard_dhkey, wildcard_dhkey_str);
+		np_id2str((np_id*)&wildcard_dhkey, wildcard_dhkey_str);
 		asprintf(&wildcard_node_str, "%s:%s", wildcard_dhkey_str, node_string);
 		//END Build our wildcard connection string
 
 		wildcard_node_key = _np_node_decode_from_str(context, wildcard_node_str);
+		wildcard_node_key->type = np_key_type_wildcard;
 		free(wildcard_node_str);
 
 		_np_send_simple_invoke_request(wildcard_node_key, _NP_MSG_JOIN_REQUEST);

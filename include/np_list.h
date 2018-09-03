@@ -731,9 +731,11 @@ TYPE TYPE##_sll_tail(TYPE##_sll_t* sll_list) {																\
 	return (ret_val);																						\
 }																											\
 void TYPE##_sll_free(TYPE##_sll_t* sll_list) {																\
-	TYPE##_sll_clear(sll_list);																				\
-	free(sll_list);																							\
-	sll_list = NULL;																						\
+	if(sll_list != NULL) {																					\
+		TYPE##_sll_clear(sll_list);																			\
+		free(sll_list);																						\
+		sll_list = NULL;																					\
+	}																										\
 }																											\
 void TYPE##_sll_clear(TYPE##_sll_t* sll_list) {																\
 	TYPE##_sll_node_t *tmp;																					\

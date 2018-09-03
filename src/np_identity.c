@@ -35,7 +35,7 @@ char* np_identity_fingerprint_current(np_context* ac) {
 	if( context->my_identity != NULL &&
 		context->my_identity->aaa_token != NULL) {
 		np_dhkey_t fp_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token);
-		np_id2str(&fp_dhkey, fp_str);
+		np_id2str((np_id*)&fp_dhkey, fp_str);
 	}
 	return (fp_str);
 }
@@ -66,7 +66,7 @@ char* np_identity_fingerprint(np_context * ac, np_aaatoken_t* token) {
 	np_ctx_cast(ac);
 	char* fp_str = malloc(65);
 	np_dhkey_t fp_dhkey = np_aaatoken_get_fingerprint(token);
-	np_id2str(&fp_dhkey, fp_str);
+	np_id2str((np_id*)&fp_dhkey, fp_str);
 	return (fp_str);
 }
 

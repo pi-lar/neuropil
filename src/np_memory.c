@@ -190,7 +190,7 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
 #ifdef NP_MEMORY_CHECK_MAGIC_NO
 		conf->magic_no = NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO;
 #endif
-        if (_np_threads_mutex_init(context, &(conf->access_lock), "MemoryV2 conf lock") != 0) {
+        if (_np_threads_mutex_init(context, &(conf->access_lock), "MemoryV2 conf_lock") != 0) {
             log_msg(LOG_ERROR, "Could not create memory item lock for container type %"PRIu8, container->type);
         }
 
@@ -233,19 +233,19 @@ void np_memory_register_type(
         container->type = type;
 
         sll_init(np_memory_itemconf_ptr, container->free_items);
-        if (_np_threads_mutex_init(context, &(container->free_items_lock), "MemoryV2 container free_items_lock lock") != 0) {
+        if (_np_threads_mutex_init(context, &(container->free_items_lock), "MemoryV2 container free_items_lock") != 0) {
             log_msg(LOG_ERROR, "Could not create free_items_lock for container type %"PRIu8, container->type);
         }
         sll_init(np_memory_itemconf_ptr, container->refreshed_items);
-        if (_np_threads_mutex_init(context, &(container->refreshed_items_lock), "MemoryV2 container refreshed_items lock") != 0) {
+        if (_np_threads_mutex_init(context, &(container->refreshed_items_lock), "MemoryV2 container refreshed_items_lock") != 0) {
             log_msg(LOG_ERROR, "Could not create refreshed_items for container type %"PRIu8, container->type);
         }
         sll_init(np_memory_itemconf_ptr, container->total_items);
-        if (_np_threads_mutex_init(context, &(container->total_items_lock), "MemoryV2 container total_items lock") != 0) {
+        if (_np_threads_mutex_init(context, &(container->total_items_lock), "MemoryV2 container total_items_lock") != 0) {
             log_msg(LOG_ERROR, "Could not create total_items for container type %"PRIu8, container->type);
         }
 
-        if (_np_threads_mutex_init(context, &(container->current_in_use_lock), "MemoryV2 container attr_lock") == 0)
+        if (_np_threads_mutex_init(context, &(container->current_in_use_lock), "MemoryV2 container current_in_use_lock") == 0)
         {
             int i = 0;
             while ((container->count_of_items_per_block * i) < container->min_count_of_items)
@@ -368,8 +368,10 @@ bool __np_memory_space_increase_nessecary(np_memory_container_t* container) {
     np_ctx_decl(container->module->context);
     bool ret = false;
 
-    _LOCK_ACCESS(&container->current_in_use_lock) {
-        _LOCK_ACCESS(&container->refreshed_items_lock) {
+	_LOCK_ACCESS(&container->refreshed_items_lock) {
+		
+		_LOCK_ACCESS(&container->current_in_use_lock) {
+        
             _LOCK_ACCESS(&container->free_items_lock) {
                 double growth = __np_memory_itemstats_get_growth(container);
 
@@ -514,31 +516,37 @@ void np_memory_free(void* item) {
         np_ctx_decl(container->module->context);
         NP_PERFORMANCE_POINT_START(memory_free);
 
+		bool rm = false;
         _LOCK_ACCESS(&config->access_lock) {
-            config->in_use = false;
 
-            if (container->on_free != NULL)
-                container->on_free(context, container->type, container->size_per_item, item);
+			rm = config->ref_count == 0 && !config->persistent;
+			if (rm) {
+				config->in_use = false;
 
-            if (container->on_refresh_space != NULL) {
-                config->needs_refresh = true;
-            }
+				if (container->on_free != NULL)
+					container->on_free(context, container->type, container->size_per_item, item);
 
-            if (config->needs_refresh) {
-                _LOCK_ACCESS(&container->free_items_lock) {
-                    sll_append(np_memory_itemconf_ptr, container->free_items, config);
-                }
-            }
-            else {
-                _LOCK_ACCESS(&container->refreshed_items_lock) {
-                    sll_append(np_memory_itemconf_ptr, container->refreshed_items, config);
-                }
-            }
+				if (container->on_refresh_space != NULL) {
+					config->needs_refresh = true;
+				}
+
+				if (config->needs_refresh) {
+					_LOCK_ACCESS(&container->free_items_lock) {
+						sll_append(np_memory_itemconf_ptr, container->free_items, config);
+					}
+				}
+				else {
+					_LOCK_ACCESS(&container->refreshed_items_lock) {
+						sll_append(np_memory_itemconf_ptr, container->refreshed_items, config);
+					}
+				}
+			}
         }
-
-        _LOCK_ACCESS(&container->current_in_use_lock) {
-            container->current_in_use -= 1;
-        }
+		if (rm) {
+			_LOCK_ACCESS(&container->current_in_use_lock) {
+				container->current_in_use -= 1;
+			}
+		}
         NP_PERFORMANCE_POINT_END(memory_free);
     }
 }
@@ -634,13 +642,13 @@ void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
             if (config->ref_count == 0) {
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
                 log_msg(LOG_ERROR, 
-                    "Unreferencing object (%s; t: %d) too often! try to unref for \"%s\". (left reasons(%"PRIu32"): %s)",
-                    config->id, config->container->type, reason, config->ref_count,
+                    "Unreferencing object (%s; t: %d/%s) too often! try to unref for \"%s\". (left reasons(%"PRIu32"): %s)",
+                    config->id, config->container->type, np_memory_types_str[config->container->type],reason, config->ref_count,
                     _sll_char_make_flat(context, config->reasons)
                 );
 #else
-                log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d) too often! try to unref for \"%s\". left reasons(%"PRIu32")", 
-                    config, config->container->type, reason, config->ref_count);
+                log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d/%s) too often! try to unref for \"%s\". left reasons(%"PRIu32")", 
+                    config, config->container->type, np_memory_types_str[config->container->type], reason, config->ref_count);
 #endif
                 abort();
             }
@@ -662,7 +670,7 @@ void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
         }
         if (false == foundReason) {
             char* flat = _sll_char_make_flat(context, config->reasons);
-            log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d reasons(%d): %s) was not found. ", reason, config->id, config->container->type, sll_size(config->reasons), flat);
+            log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d/%s reasons(%d): %s) was not found. ", reason, config->id, config->container->type, np_memory_types_str[config->container->type], sll_size(config->reasons), flat);
             free(flat);
             abort();
         }
@@ -712,7 +720,12 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
                         summary[container->type] = fmax(summary[container->type * 100], iter->ref_count);
 
                         if (sll_size(iter->reasons) > 10) {
-                            ret = np_str_concatAndFree(ret, "--- remaining reasons for %s (type: %d, reasons: %d) start ---%s", iter->id, memory_type, sll_size(iter->reasons), new_line);
+                            ret = np_str_concatAndFree(ret,
+								"--- remaining reasons for %s (type: %d/%s, reasons: %d) start ---%s", iter->id, 
+								memory_type, 
+								np_memory_types_str[memory_type],
+								sll_size(iter->reasons), new_line
+							);
 
                             static const uint32_t display_first_X_reasons = 5;
                             static const uint32_t display_last_X_reasons = 5;
@@ -742,7 +755,13 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
                                 iter_reasons_counter++;
                                 sll_next(iter_reasons);
                             }
-                            ret = np_str_concatAndFree(ret, "--- remaining reasons for %s (%d) end  ---%s", iter->id, memory_type, new_line);
+                            ret = np_str_concatAndFree(ret,
+								"--- remaining reasons for %s (%d/%s) end  ---%s", 
+								iter->id,
+								memory_type,
+								np_memory_types_str[memory_type],
+								new_line
+							);
                         }
                     }
                     sll_next(iter_items);
@@ -890,13 +909,11 @@ uint32_t np_memory_unref_obj(void* item, char* reason) {
         np_memory_itemconf_t* config = GET_CONF(item);
         np_ctx_decl(config->container->module->context);
 
-        _LOCK_ACCESS(&config->access_lock) {
-            np_mem_unrefobj(config, reason);
-			ret = config->ref_count + (config->persistent?1:0);
-            if (config->persistent == false && config->ref_count == 0) {
-                np_memory_free(item);
-            }			
-        }
+		_LOCK_ACCESS(&config->access_lock) {
+			np_mem_unrefobj(config, reason);
+			ret = config->ref_count + (config->persistent ? 1 : 0);
+			np_memory_free(item);		
+		}		
     }
     return ret;
 }

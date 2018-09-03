@@ -303,7 +303,7 @@ char* np_treeval_to_str(np_treeval_t val, bool* freeable) {
 			result = malloc(65);
 			CHECK_MALLOC(result);
 			if (freeable != NULL) *freeable = true;
-			np_id2str(&val.value.dhkey, result);
+			np_id2str((np_id*)&val.value.dhkey, result);
 			break;
 		default:
 			return "--> unknown";

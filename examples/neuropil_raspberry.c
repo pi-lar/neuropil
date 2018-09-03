@@ -94,10 +94,12 @@ bool receive_pong(np_context* context, struct np_message* message)
 bool is_blue_pressed = false;
 bool receive_blue_button_pressed(np_context* context, struct np_message* message) {
 	is_blue_pressed = true;
+	return true;
 }
 
 bool receive_blue_button_reset(np_context* context, struct np_message* message) {
 	is_blue_pressed = false;
+	return true;
 }
 
 void invoke_btn_blue(np_context* context, uint8_t value) {	

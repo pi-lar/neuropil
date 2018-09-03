@@ -41,6 +41,7 @@
 #include "np_constants.h"
 #include "np_statistics.h"
 #include "np_list.h"
+#include "np_key.h"
 #include "np_util.h"
 #include "np_responsecontainer.h"
 #include "np_serialization.h"
@@ -133,8 +134,6 @@ void _np_out_ack(np_state_t* context, np_jobargs_t* args)
  **/
 void _np_out(np_state_t* context, np_jobargs_t* args)
 {
-	
-
 	log_trace_msg(LOG_TRACE, "start: void _np_out(np_state_t* context, np_jobargs_t* args){");
 
 	uint32_t seq = 0;
@@ -157,13 +156,26 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 	if (msg_out != NULL && prop != NULL) {
 		np_ref_switch(np_msgproperty_t, msg_out->msg_property, ref_message_msg_property, prop);
 	}
+	np_key_t* target = args->target;
+	if (target->type == np_key_type_wildcard && target->parent_key != NULL) {
+		log_msg(LOG_ROUTING,
+			"reroute wildcard msg (%s) from %s to %s",
+			args->msg->uuid,
+			_np_key_as_str(target),
+			_np_key_as_str(target->parent_key)
+		);
+		target = target->parent_key;
+		np_tree_replace_str(msg_out->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(target->dhkey));
+	}
+	np_ref_obj(np_key_t, target, FUNC); // usage ref
+
 
 	// sanity check
-	if (!_np_node_check_address_validity(args->target->node) &&
-		 args->target->node->joined_network)
+	if (!_np_node_check_address_validity(target->node) &&
+		target->node->joined_network)
 	{
 		log_debug_msg(LOG_ROUTING | LOG_DEBUG, "attempt to send to an invalid node (key: %s)",
-			_np_key_as_str(args->target));
+			_np_key_as_str(target));
 		return;
 	}
 
@@ -175,7 +187,7 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 			uuid = msg_out->uuid;
 
 			// check ack indicator if this is a resend of a message
-			if (true == is_resend)
+			if (true == is_resend && prop->ack_mode != ACK_NONE)
 			{
 				bool skip = false;
 
@@ -256,7 +268,7 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 
 			char* ack_to_str = _np_key_as_str(my_key);
 
-			if (ACK_DESTINATION == (ack_mode & ACK_DESTINATION) || ACK_CLIENT == (ack_mode & ACK_CLIENT))
+			if (FLAG_CMP(ack_mode, ACK_DESTINATION) || FLAG_CMP(ack_mode, ACK_CLIENT))
 			{
 				// only set ack_to for these two ack mode values if not yet set !
 				np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s(ack_to_str));
@@ -268,7 +280,7 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 			}
 
 			np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
-			if (false == is_resend)
+			if (!is_resend)
 			{
 				_LOCK_ACCESS(&my_network->access_lock)
 				{	/* get/set sequence number to keep increasing sequence numbers per node */
@@ -325,7 +337,7 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 
 					responsecontainer->send_at = np_time_now();
 					responsecontainer->expires_at = responsecontainer->send_at + args->properties->msg_ttl + np_msgproperty_get(context, INBOUND, _NP_MSG_ACK)->msg_ttl;
-					responsecontainer->dest_key = args->target;
+					responsecontainer->dest_key = target;
 					np_ref_obj(np_key_t, responsecontainer->dest_key, ref_ack_key);
 
 					responsecontainer->msg = args->msg;
@@ -343,8 +355,8 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 
 						log_debug_msg(LOG_DEBUG, "RESPONSE_HANDLING                   message (%s/%s) %s < - > %s / %"PRIu8":%s:%s",
 								uuid, args->properties->msg_subject,
-								 _np_key_as_str(args->target), dhkey_to,
-								args->target->node->joined_network, args->target->node->dns_name, args->target->node->port);
+								 _np_key_as_str(target), dhkey_to,
+							target->node->joined_network, target->node->dns_name, target->node->port);
 
 						if (freeable) free(dhkey_to);
 					}
@@ -375,7 +387,10 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 
 			log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Try sending message for subject \"%s\" (msg id: %s chunks: %"PRIu32") to %s", prop->msg_subject, msg_out->uuid, msg_out->no_of_chunks, _np_key_as_str(args->target));
 
-			bool send_completed = _np_network_append_msg_to_out_queue(args->target, msg_out);
+			//TODO: DOCUMENT FEATURE RESEND
+			//TODO: DOCUMENT FEATURE ACKing
+			if(msg_out->send_at ==0) msg_out->send_at = np_time_now();
+			bool send_completed = _np_network_append_msg_to_out_queue(target, msg_out);
 
 			if(is_forward == false && send_completed == true) {
 				__np_axon_invoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
@@ -384,21 +399,27 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
 			if (send_completed == false || (args->properties->retry > 0 && reschedule_msg_transmission == true) ) {
 				double retransmit_interval = args->properties->msg_ttl / (args->properties->retry + 1);
 				// np_msgproperty_t* out_prop = np_msgproperty_get(context, OUTBOUND, args->properties->msg_subject);
-				if (send_completed == false && reschedule_msg_transmission == false) {
+				if (send_completed == false &&
+					reschedule_msg_transmission == false && 
+					(np_time_now() - msg_out->send_at) > retransmit_interval*args->properties->retry
+					) {
 					log_msg(LOG_WARN, "np_network returned error, and no re-sending of message (%s) has been scheduled", args->msg->uuid);
-					// todo: define behaviour first
-					// _np_job_resubmit_msgout_event(retransmit_interval, out_prop, args->target, args->msg);
 				}
-				else {
-					//_np_job_resubmit_msgout_event(retransmit_interval, args->properties, args->target, args->msg);
-					_np_job_resubmit_route_event(context, retransmit_interval, args->properties, args->target, args->msg);
+				else {								
+					if (args->msg->submit_type == np_message_submit_type_DIRECT) {
+						_np_job_resubmit_msgout_event(context, retransmit_interval, args->properties, target, args->msg);
+					}
+					else {
+						_np_job_resubmit_route_event(context, retransmit_interval, args->properties, target, args->msg);
+					}
 					log_debug_msg(LOG_DEBUG, "ACK_HANDLING re-sending of message (%s) scheduled", args->msg->uuid);
 				}
 			}
 
 			np_unref_obj(np_network_t, my_network, "np_waitref_network");
 		}
-		np_unref_obj(np_key_t,my_key,"np_waitref_key");
+		np_unref_obj(np_key_t, target, FUNC);
+		np_unref_obj(np_key_t, my_key, "np_waitref_key");
 	}
 }
 
@@ -434,77 +455,82 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 				log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
 				np_unref_obj(np_message_t, hs_message, ref_obj_creation);
 				_np_threads_unlock_module(context, np_handshake_t_lock);
-				return;
 			}
+			else {
 
-			if (true == serialize_ok)
-			{
-				_LOCK_MODULE(np_network_t)
+				if (true == serialize_ok)
 				{
-					if (NULL == args->target->network)
+					bool network_error = false;
+					_LOCK_MODULE(np_network_t)
 					{
-						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "handshake: init client network");
-						// initialize network
-						np_new_obj(np_network_t, args->target->network, ref_key_network);
-						_np_network_init(args->target->network,
-							false,
-							args->target->node->protocol,
-							args->target->node->dns_name,
-							args->target->node->port,
-							-1
-						);
-						if (false == args->target->network->initialized)
+						if (NULL == args->target->network)
 						{
-							np_unref_obj(np_message_t, hs_message, ref_obj_creation);
-							np_unref_obj(np_network_t, args->target->network, ref_key_network);
-							args->target->network = NULL;
-							//log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
-							//args->target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
-							_np_threads_unlock_module(context, np_handshake_t_lock);
-							return;
+							log_debug_msg(LOG_NETWORK | LOG_DEBUG, "handshake: init client network");
+							// initialize network
+							np_new_obj(np_network_t, args->target->network, ref_key_network);
+							_np_network_init(args->target->network,
+								false,
+								args->target->node->protocol,
+								args->target->node->dns_name,
+								args->target->node->port,
+								-1,
+								UNKNOWN_PROTO
+							);
+							if (false == args->target->network->initialized)
+							{
+								np_unref_obj(np_message_t, hs_message, ref_obj_creation);
+								np_unref_obj(np_network_t, args->target->network, ref_key_network);
+								args->target->network = NULL;
+								//log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
+								//args->target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
+								_np_threads_unlock_module(context, np_handshake_t_lock);
+								network_error = true;
+							}
+							else {
+								_np_network_set_key(args->target->network, args->target);
+								_np_network_enable(args->target->network);
+							}
 						}
-						else { 
-							_np_network_set_key(args->target->network, args->target);
-							_np_network_enable(args->target->network);
+					}
+					if (!network_error) {
+						// construct target address and send it out
+						//np_node_t* hs_node = args->target->node;
+
+						/* send data if handshake status is still just initialized or less */
+						log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG,
+							"sending handshake message %s to %s",// (%s:%s)",
+							hs_message->uuid, _np_key_as_str(args->target)/*, hs_node->dns_name, hs_node->port*/);
+
+						char* packet = np_memory_new(context, np_memory_types_BLOB_1024);
+
+						_LOCK_ACCESS(&hs_message->msg_chunks_lock) {
+							memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
 						}
+
+						_LOCK_ACCESS(&args->target->network->out_events_lock)
+						{
+							if (NULL != args->target->network->out_events) {
+								sll_append(
+									void_ptr,
+									args->target->network->out_events,
+									(void*)packet);
+								_np_network_start(args->target->network);
+							}
+							else {
+								log_debug_msg(LOG_INFO, "Dropping data package due to not initialized out_events");
+								np_memory_free(packet);
+							}
+						}
+
+
+						args->target->node->handshake_send_at = np_time_now();
+
+						_np_message_trace_info("out", hs_message);
+						__np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);
 					}
 				}
-				// construct target address and send it out
-				//np_node_t* hs_node = args->target->node;
-
-				/* send data if handshake status is still just initialized or less */
-				log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE |LOG_DEBUG,
-					"sending handshake message %s to %s",// (%s:%s)",
-					hs_message->uuid, _np_key_as_str(args->target)/*, hs_node->dns_name, hs_node->port*/);
-
-				char* packet = np_memory_new(context, np_memory_types_BLOB_1024);
-
-                _LOCK_ACCESS(&hs_message->msg_chunks_lock) {
-					memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
-				}
-
-				_LOCK_ACCESS(&args->target->network->out_events_lock)
-				{
-					if (NULL != args->target->network->out_events) {
-						sll_append(
-							void_ptr,
-							args->target->network->out_events,
-							(void*)packet);
-						_np_network_start(args->target->network);
-					}
-					else {
-						log_debug_msg(LOG_INFO, "Dropping data package due to not initialized out_events");
-						np_memory_free(packet);
-					}
-				}
-
-				 
-				args->target->node->handshake_send_at = np_time_now();                
-
-				_np_message_trace_info("out", hs_message);
-				__np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);
+				np_unref_obj(np_message_t, hs_message, ref_obj_creation);
 			}
-			np_unref_obj(np_message_t, hs_message, ref_obj_creation);
 		}
 	}
 }
@@ -701,12 +727,12 @@ void _np_out_authentication_request(np_state_t* context, np_jobargs_t* args)
 
 	if (0 < strlen(args->target->aaa_token->realm))
 	{
-		np_str2id( args->target->aaa_token->realm, &target_dhkey);
+		np_str2id( args->target->aaa_token->realm, (np_id*)&target_dhkey);
 	}
 	else if (0 < strlen(context->my_identity->aaa_token->realm) )
 	{
 		// TODO: this is wrong, it should be the token issuer which we ask for authentication
-		np_str2id( context->my_identity->aaa_token->realm, &target_dhkey);
+		np_str2id( context->my_identity->aaa_token->realm, (np_id*)&target_dhkey);
 	}
 	else
 	{
@@ -792,7 +818,7 @@ void _np_out_authorization_request(np_state_t* context, np_jobargs_t* args)
 
 	if (0 < strlen(context->my_identity->aaa_token->realm) )
 	{
-		np_str2id( context->my_identity->aaa_token->realm, &target_dhkey);
+		np_str2id( context->my_identity->aaa_token->realm, (np_id*)&target_dhkey);
 	}
 	else
 	{
@@ -839,11 +865,11 @@ void _np_out_authorization_reply(np_state_t* context, np_jobargs_t* args)
 	if (STICKY_REPLY != mep_reply_sticky &&
 		0 < strlen(args->target->aaa_token->realm) )
 	{
-		np_str2id( args->target->aaa_token->realm, &target_dhkey);
+		np_str2id( args->target->aaa_token->realm, (np_id*)&target_dhkey);
 	}
 	else
 	{
-		np_str2id( args->target->aaa_token->issuer, &target_dhkey);
+		np_str2id( args->target->aaa_token->issuer, (np_id*)&target_dhkey);
 	}
 
 	log_debug_msg(LOG_SERIALIZATION| LOG_DEBUG, "encoding and sending authorization reply");
@@ -871,7 +897,7 @@ void _np_out_accounting_request(np_state_t* context, np_jobargs_t* args)
 
 	if (0 < strlen(context->my_identity->aaa_token->realm) )
 	{
-		np_str2id( context->my_identity->aaa_token->realm, &target_dhkey);
+		np_str2id( context->my_identity->aaa_token->realm, (np_id*)&target_dhkey);
 	}
 	else
 	{

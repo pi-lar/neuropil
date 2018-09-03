@@ -318,7 +318,7 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context) {
 	np_tree_t* local_node = np_tree_create();
 	np_waitref_obj(np_key_t, context->my_node_key, my_node_key, "usage");
 	_np_node_encode_to_jrb(local_node, my_node_key, true);
-	np_tree_replace_str( local_node, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_s(_np_network_get_protocol_string(my_node_key->node->protocol)));
+	np_tree_replace_str( local_node, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_s(_np_network_get_protocol_string(context, my_node_key->node->protocol)));
 
 	np_unref_obj(np_key_t, my_node_key, "usage");
 
@@ -338,7 +338,7 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context) {
 			if (current->node) {
 				np_tree_t* neighbour = np_tree_create();
 				_np_node_encode_to_jrb(neighbour, current, true);
-				np_tree_replace_str( neighbour, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_s(_np_network_get_protocol_string(current->node->protocol)));
+				np_tree_replace_str( neighbour, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_s(_np_network_get_protocol_string(context, current->node->protocol)));
 				np_tree_insert_int( neighbours, neighbour_counter++,
 						np_treeval_new_tree(neighbour));
 				np_tree_free( neighbour);
@@ -369,7 +369,7 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context) {
 				np_tree_replace_str( 
 					route, 
 					NP_SERIALISATION_NODE_PROTOCOL,
-					np_treeval_new_s(_np_network_get_protocol_string(current->node->protocol))
+					np_treeval_new_s(_np_network_get_protocol_string(context, current->node->protocol))
 				);
 				np_tree_insert_int( routes, routes_counter++, 
 					np_treeval_new_tree(route));

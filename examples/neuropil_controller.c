@@ -54,7 +54,7 @@ int main (void)
 
 	   \code
 	*/
-	char *address[256];
+	char address[256];
 	assert(np_ok == np_get_address(ac, address, sizeof(address)));
 	printf("Bootstrap address: %s\n", address);
 	/**

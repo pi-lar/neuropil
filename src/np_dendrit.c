@@ -223,7 +223,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
             CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
             CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
-            np_id2str(&msg_from.value.dhkey, str_msg_from);
+            np_id2str((np_id*)&msg_from.value.dhkey, str_msg_from);
             str_msg_subject = msg_subject.value.s;
 
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
@@ -263,7 +263,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                 CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
                 CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_SEND_COUNTER, msg_resendcounter);
 
-                np_id2str(&msg_to.value.dhkey, str_msg_to);
+                np_id2str((np_id*)&msg_to.value.dhkey, str_msg_to);
 
                 log_debug_msg(LOG_ROUTING | LOG_DEBUG,
                     "msg (%s) target of message for subject: %s from: %s is: %s",
@@ -1558,7 +1558,7 @@ void _np_in_discover_receiver(np_state_t * context, np_jobargs_t* args)
         np_dhkey_t reply_to_key = msg_reply_to.value.dhkey;
 #ifdef DEBUG
         char reply_to_dhkey_as_str[65];
-        np_id2str(&reply_to_key, reply_to_dhkey_as_str);
+        np_id2str((np_id*)&reply_to_key, reply_to_dhkey_as_str);
 #endif
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -1667,7 +1667,7 @@ void _np_in_authenticate(np_state_t* context, np_jobargs_t* args)
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
 #ifdef DEBUG
         char reply_to_dhkey_as_str[65];
-        np_id2str(&reply_to_key, reply_to_dhkey_as_str);
+        np_id2str((np_id*)&reply_to_key, reply_to_dhkey_as_str);
 #endif
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -1846,7 +1846,7 @@ void _np_in_authorize(np_state_t * context, np_jobargs_t* args)
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
 #ifdef DEBUG
         char reply_to_dhkey_as_str[65];
-        np_id2str(&reply_to_key, reply_to_dhkey_as_str);
+        np_id2str((np_id*)&reply_to_key, reply_to_dhkey_as_str);
 #endif
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -2048,10 +2048,10 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
     log_trace_msg(LOG_TRACE, "start: void _np_in_handshake(np_jobargs_t* args){");
 
     _LOCK_MODULE(np_handshake_t) {
-        np_key_t* msg_source_key = NULL;
+		np_node_t* tokens_node = NULL; 
+		np_key_t* msg_source_key = NULL;
         np_key_t* hs_wildcard_key = NULL;
-        np_key_t* alias_key = args->target;
-
+        np_key_t* alias_key = args->target;		
         np_handshake_token_t* handshake_token = NULL;
 
         _np_message_deserialize_chunked(args->msg);
@@ -2066,7 +2066,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
 
         // store the handshake data in the node cache,
         np_dhkey_t search_key = { 0 };
-        np_str2id(handshake_token->issuer, &search_key);
+        np_str2id(handshake_token->issuer, (np_id*)&search_key);
 
         if (_np_dhkey_cmp(&context->my_node_key->dhkey, &search_key) == 0) {
             log_msg(LOG_ERROR, "Cannot perform a handshake with myself!");
@@ -2086,7 +2086,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
         }
 
         // extract node data from handshake messages
-        np_node_t* tokens_node = _np_node_from_token(handshake_token, np_aaatoken_type_handshake);
+        tokens_node = _np_node_from_token(handshake_token, np_aaatoken_type_handshake);
         if (NULL == tokens_node) {
             log_msg(LOG_ERROR, "Handshake token data is NULL!");
             _np_keycache_remove(context, search_key);
@@ -2126,11 +2126,9 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
             goto __np_cleanup__;
         }
         */
-
-        ref_replace_reason(np_node_t, tokens_node, "_np_node_from_token", ref_key_node);
+        
         if (msg_source_key->node == NULL || msg_source_key->node->_handshake_status == np_handshake_status_Connected) {            		
-			// TODO: correctly reset the connection (possible memory leak!)
-			msg_source_key->node = tokens_node;
+			np_ref_switch(np_node_t, msg_source_key->node, ref_key_node, tokens_node);
 			np_node_set_handshake(msg_source_key->node, np_handshake_status_RemoteInitiated);
 		}
         else if (
@@ -2140,10 +2138,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
         {
 			np_node_set_handshake(tokens_node, msg_source_key->node->_handshake_status);
             tokens_node->joined_network |= msg_source_key->node->joined_network;
-
-            np_node_t* old_node = msg_source_key->node;
-            msg_source_key->node = tokens_node;
-            np_unref_obj(np_node_t, old_node, ref_key_node);
+			np_ref_switch(np_node_t, msg_source_key->node, ref_key_node, tokens_node);
         }
         else {
             log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE| LOG_DEBUG,
@@ -2199,8 +2194,8 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                         _np_network_remap_network(msg_source_key, hs_wildcard_key);
                     }
                     np_unref_obj(np_network_t, old_network, "usage_of_old_network");
-                }
-
+					hs_wildcard_key->parent_key = msg_source_key;
+				}
                 np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
             }
         }
@@ -2230,6 +2225,9 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
 								alias_key->network->socket :
 								-1//msg_source_key->network->socket
 								)
+							, ((msg_source_key->node->protocol & PASSIVE) == PASSIVE ?
+								(context->my_node_key->network->socket_type & MASK_PROTOCOLL)
+								: UNKNOWN_PROTO )
 						);
 
 						if (true == new_msg_source_key_network->initialized)
@@ -2318,7 +2316,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
 
 					if (alias_key->node->_handshake_status == np_handshake_status_SelfInitiated) {
 						np_node_set_handshake(alias_key->node, np_handshake_status_Connected);
-						_np_send_simple_invoke_request(msg_source_key, _NP_MSG_JOIN_REQUEST);
+						//_np_send_simple_invoke_request(msg_source_key, _NP_MSG_JOIN_REQUEST);
 					}
 					else if (alias_key->node->_handshake_status == np_handshake_status_RemoteInitiated) {
 						_np_network_send_handshake(context, msg_source_key, true);
@@ -2335,7 +2333,8 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
 			}
 		}
 
-    __np_cleanup__:
+	__np_cleanup__:
+		np_unref_obj(np_node_t, tokens_node, "_np_node_from_token");
         np_unref_obj(np_aaatoken_t, handshake_token, "np_token_factory_read_from_tree");
         np_unref_obj(np_key_t, msg_source_key, "_np_keycache_find_or_create");
     }
