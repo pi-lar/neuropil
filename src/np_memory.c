@@ -881,8 +881,8 @@ void* np_memory_waitref_obj(void* item, char* reason, char* reason_desc) {
     return ret;
 }
 
-bool np_memory_tryref_obj(void* item, char* reason, char* reason_desc) {
-    bool ret = false;
+void* np_memory_tryref_obj(void* item, char* reason, char* reason_desc) {
+	void* ret = NULL;
     if (item != NULL) {
         np_memory_itemconf_t* config = GET_CONF(item);
         np_ctx_decl(config->container->module->context);
@@ -890,7 +890,7 @@ bool np_memory_tryref_obj(void* item, char* reason, char* reason_desc) {
         _LOCK_ACCESS(&config->access_lock) {			
             _NP_REF_REASON(reason, reason_desc, reason2);
             np_mem_refobj(item, reason2);
-            ret = true;
+            ret = item;
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
             char* flat = _sll_char_make_flat(context, config->reasons);
             log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_TryRef_ (%"PRIu32") object of type \"%s\" on %s with \"%s\" (%s)", config->ref_count, np_memory_types_str[config->container->type], config->id, reason, flat);

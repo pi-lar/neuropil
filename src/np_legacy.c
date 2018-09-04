@@ -556,7 +556,7 @@ void np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
 	np_ctx_cast(ac);
 
 	// create a new token for encryption each time neuropil starts
-	np_tryref_obj(np_key_t, context->my_node_key, has_old_node_key, FUNC);
+	np_tryref_obj(np_key_t, context->my_node_key, has_old_node_key);
 	np_key_t* my_old_node_key = context->my_node_key;
 	if (has_old_node_key && custom_base == NULL) {
 		custom_base = my_old_node_key->node;

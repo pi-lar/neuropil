@@ -220,8 +220,6 @@ void _np_glia_check_routes(np_state_t* context, np_jobargs_t* args) {
 }
 
 void _np_glia_send_pings(np_state_t* context, np_jobargs_t* args) {
-	
-
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset check for table started");
 
 	// TODO: do a dynamic selection of keys
@@ -235,13 +233,13 @@ void _np_glia_send_pings(np_state_t* context, np_jobargs_t* args) {
 	while (iter != NULL) {
 
 		if(iter->val != context->my_node_key){
-			np_tryref_obj(np_node_t, iter->val->node, node_exists);
+			np_tryref_obj(np_node_t, iter->val->node, node_exists, node);
 			if(node_exists) {
-				if (iter->val->node->joined_network) {
+				if (node->joined_network) {
 					_np_ping_send(context, iter->val);
 					np_time_sleep(NP_PI/1000);
 				}
-				np_unref_obj(np_node_t, iter->val->node, FUNC);
+				np_unref_obj(np_node_t, node, FUNC);
 			}
 		}
 		sll_next(iter);
@@ -459,14 +457,14 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t* args)
 			}
 		}
 
-		np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists, "np_tryref_old->aaa_token");
+		np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists,  aaa_token, "np_tryref_old->aaa_token");
 		if(tokenExists) {
-			if (true == _np_aaatoken_is_valid(old->aaa_token, np_aaatoken_type_undefined))
+			if (true == _np_aaatoken_is_valid(aaa_token, np_aaatoken_type_undefined))
 			{
 				log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _np_key_as_str(old));
 				delete_key &= false;
 			}
-			np_unref_obj(np_aaatoken_t, old->aaa_token,"np_tryref_old->aaa_token");
+			np_unref_obj(np_aaatoken_t, aaa_token,"np_tryref_old->aaa_token");
 		}
 
 		if (NULL != old->recv_tokens)
