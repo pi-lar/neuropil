@@ -145,9 +145,6 @@ void np_message_add_on_ack(np_message_t* self, np_responsecontainer_on_t on_ack)
 NP_API_EXPORT
 void np_message_remove_on_ack(np_message_t* self, np_responsecontainer_on_t on_ack);
 
-
-
-
 NP_API_INTERN
 void _np_message_trace_info(char* desc, np_message_t * msg_in);
 

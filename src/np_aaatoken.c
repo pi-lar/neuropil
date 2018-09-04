@@ -119,15 +119,16 @@ void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "signature: upgrade token (%s) %p with data from (%s) %p on key %s", tmp_hash1, key_with_core_token->aaa_token, tmp_hash2, full_token, _np_key_as_str(key_with_core_token));
 
 #endif // DEBUG
-
-		np_tree_clear( key_with_core_token->aaa_token->extensions); // remove "_np.session" etc
+		if (key_with_core_token->aaa_token->extensions != NULL) {
+			np_tree_clear(key_with_core_token->aaa_token->extensions); // remove "_np.session" etc
+		}
 		np_tree_t* container = np_tree_create();
 		np_aaatoken_encode(container, full_token);		
-		np_aaatoken_decode(container, key_with_core_token->aaa_token);
-		np_tree_free( container);
+		np_aaatoken_decode(container, key_with_core_token->aaa_token);		
 		//key_with_core_token->aaa_token->is_signature_verified = false;
 		//key_with_core_token->aaa_token->is_signature_extensions_verified = false;
 		_np_aaatoken_update_type_and_scope(key_with_core_token->aaa_token);
+		np_tree_free(container);
 	}
 	else {
 		log_debug_msg(LOG_ERROR, "trying to upgrade non handshake token on %s ",_np_key_as_str(key_with_core_token));

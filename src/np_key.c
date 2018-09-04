@@ -285,5 +285,6 @@ void _np_key_set_send_property(np_key_t* self, np_msgproperty_t* prop) {
 }
 
 void _np_key_set_network(np_key_t* self, np_network_t* ng) {
+	np_ctx_memory(self);
 	np_ref_switch(np_network_t, self->network, ref_key_network, ng);
 }

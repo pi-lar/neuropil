@@ -508,13 +508,13 @@ np_state_t* np_memory_get_context(void* item) {
     
     return ret;
 }
-void np_memory_free(void* item) {	
+void np_memory_free(np_state_t*context, void* item) {	
     if (item != NULL) {
         np_check_magic_no(item);
         np_memory_itemconf_t* config = GET_CONF(item);
         np_memory_container_t* container = config->container;
-        np_ctx_decl(container->module->context);
-        NP_PERFORMANCE_POINT_START(memory_free);
+
+		NP_PERFORMANCE_POINT_START(memory_free);
 
 		bool rm = false;
         _LOCK_ACCESS(&config->access_lock) {
@@ -612,12 +612,11 @@ void _np_memory_job_memory_management(np_state_t* context, np_jobargs_t* args) {
 
 
 // increase ref count
-void np_mem_refobj(void * item, const char* reason)
+void np_mem_refobj(np_state_t*context, void * item, const char* reason)
 {
     assert(item != NULL);
     np_check_magic_no(item);
-    np_memory_itemconf_t * config = GET_CONF(item);
-    np_ctx_decl(config->container->module->context);
+    np_memory_itemconf_t * config = GET_CONF(item);    
 
     _LOCK_ACCESS(&config->access_lock) {
         log_trace_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
@@ -840,16 +839,14 @@ void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason
 }
 #endif
 
-void np_memory_ref_obj(void* item, char* reason, char* reason_desc) {
+void np_memory_ref_obj(np_state_t* context, void* item, char* reason, char* reason_desc) {
     assert(item != NULL);
     np_check_magic_no(item);
     np_memory_itemconf_t* config = GET_CONF(item);
-    np_ctx_decl(config->container->module->context);
-
 
     _NP_REF_REASON(reason, reason_desc, reason2);
     _LOCK_ACCESS(&config->access_lock) {
-        np_mem_refobj(item, reason2); 
+        np_mem_refobj(context, item, reason2); 
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
         char * flat = _sll_char_make_flat(context, config->reasons);
         log_debug_msg(LOG_MEMORY | LOG_DEBUG, "_Ref_    (%"PRIu32") object of type \"%s\" on %s with \"%s\" (%s)", config->ref_count, np_memory_types_str[config->container->type], config->id, reason, flat);		
@@ -858,18 +855,17 @@ void np_memory_ref_obj(void* item, char* reason, char* reason_desc) {
     }
 
 }
-void* np_memory_waitref_obj(void* item, char* reason, char* reason_desc) {
+void* np_memory_waitref_obj(np_state_t* context, void* item, char* reason, char* reason_desc) {
     void* ret = NULL;
 
     while (ret == NULL) {
 
         if (item != NULL) {
-            np_memory_itemconf_t* config = GET_CONF(item);
-            np_ctx_decl(config->container->module->context);
+            np_memory_itemconf_t* config = GET_CONF(item);            
 
             _LOCK_ACCESS(&config->access_lock) {
 
-                np_memory_ref_obj(item, reason, reason_desc);
+                np_memory_ref_obj(context, item, reason, reason_desc);
                 ret = item;
             }
         }
@@ -881,15 +877,14 @@ void* np_memory_waitref_obj(void* item, char* reason, char* reason_desc) {
     return ret;
 }
 
-void* np_memory_tryref_obj(void* item, char* reason, char* reason_desc) {
+void* np_memory_tryref_obj(np_state_t* context, void* item, char* reason, char* reason_desc) {
 	void* ret = NULL;
     if (item != NULL) {
         np_memory_itemconf_t* config = GET_CONF(item);
-        np_ctx_decl(config->container->module->context);
 
         _LOCK_ACCESS(&config->access_lock) {			
             _NP_REF_REASON(reason, reason_desc, reason2);
-            np_mem_refobj(item, reason2);
+            np_mem_refobj(context, item, reason2);
             ret = item;
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
             char* flat = _sll_char_make_flat(context, config->reasons);
@@ -902,17 +897,16 @@ void* np_memory_tryref_obj(void* item, char* reason, char* reason_desc) {
     return ret;
 }
 
-uint32_t np_memory_unref_obj(void* item, char* reason) {
+uint32_t np_memory_unref_obj(np_state_t* context, void* item, char* reason) {
     uint32_t ret = 0;	
     if (item != NULL) {
         np_check_magic_no(item);
-        np_memory_itemconf_t* config = GET_CONF(item);
-        np_ctx_decl(config->container->module->context);
+        np_memory_itemconf_t* config = GET_CONF(item);        
 
 		_LOCK_ACCESS(&config->access_lock) {
 			np_mem_unrefobj(config, reason);
 			ret = config->ref_count + (config->persistent ? 1 : 0);
-			np_memory_free(item);		
+			np_memory_free(context, item);		
 		}		
     }
     return ret;

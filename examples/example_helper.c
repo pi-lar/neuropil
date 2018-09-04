@@ -94,7 +94,7 @@ struct __np_switchwindow_scrollable * _current = NULL;
 bool __np_ncurse_initiated = false;
 bool __np_terminal_resize_flag = false;
 
-const float output_intervall_sec = 0.5;
+const float output_intervall_sec = 0.25;
 
 enum np_user_interface {
 	np_user_interface_off		= 0,
@@ -1265,22 +1265,22 @@ void __np_example_helper_loop(np_state_t* context) {
 }
 
 void __np_example_helper_run_loop(np_context*context) {
-	double sleep;
+	double sleep = output_intervall_sec;
 	while (true)
 	{
-		// np_run(context, output_intervall_sec);
-		sleep = fmin(output_intervall_sec, __np_jobqueue_run_jobs_once(context));
+		if(((np_state_t*)context)->settings->n_threads == 0)
+			sleep = fmin(output_intervall_sec, np_run(context,0));
 		np_time_sleep(sleep);
 	}
 }
 
 void __np_example_helper_run_info_loop(np_context*context) {
-	double sleep;
+	double sleep = output_intervall_sec;
 	while (true)
 	{
 		__np_example_helper_loop(context);
-		// np_run(context, output_intervall_sec);
-		sleep = fmin(output_intervall_sec, __np_jobqueue_run_jobs_once(context));
+		if (((np_state_t*)context)->settings->n_threads == 0)
+			sleep = fmin(output_intervall_sec, np_run(context,0));
 		np_time_sleep(sleep);
 	}
 }

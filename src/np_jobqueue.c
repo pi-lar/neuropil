@@ -102,9 +102,9 @@ int8_t _np_job_compare_job_scheduling(np_job_ptr job1, np_job_ptr new_job)
 
 NP_PLL_GENERATE_IMPLEMENTATION(np_job_ptr);
 
-void _np_job_free(np_job_t * n)
+void _np_job_free(np_state_t* context, np_job_t * n)
 {
-	_np_job_free_args(n->args);
+	_np_job_free_args(context, n->args);
 	np_unref_obj(np_job_t, n, ref_obj_creation); 
 }
 
@@ -129,10 +129,8 @@ np_jobargs_t* _np_job_create_args(np_state_t* context, np_message_t* msg, np_key
 	return (jargs);
 }
 
-void _np_job_free_args(np_jobargs_t* args)
+void _np_job_free_args(np_state_t* context, np_jobargs_t* args)
 {
-	np_ctx_memory(args);
-
 	if (args != NULL) {
 		if (args->target)     np_unref_obj(np_key_t, args->target, "_np_job_create_args");
 		if (args->msg)        np_unref_obj(np_message_t, args->msg, "_np_job_create_args");
@@ -199,7 +197,7 @@ void _np_job_resubmit_msgout_event(np_state_t * context, double delay, np_msgpro
 	np_job_t* new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_RESUBMIT_MSG_OUT, prop->clb_outbound, "clb_outbound");
 
 	if (!_np_job_queue_insert(new_job)) {
-		_np_job_free(new_job);
+		_np_job_free(context, new_job);
 	}
 }
 
@@ -216,7 +214,7 @@ void _np_job_resubmit_route_event(np_state_t * context, double delay, np_msgprop
 	np_job_t* new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE, prop->clb_route, "clb_route");
 
 	if (!_np_job_queue_insert(new_job)) {
-		_np_job_free(new_job);
+		_np_job_free(context, new_job);
 	}
 }
 
@@ -234,7 +232,7 @@ void _np_job_submit_route_event(np_state_t * context, double delay, np_msgproper
 
 
 	if (!_np_job_queue_insert(new_job)) {
-		_np_job_free(new_job);
+		_np_job_free(context, new_job);
 	}
 }
 
@@ -259,7 +257,7 @@ bool __np_job_submit_msgin_event(np_state_t * context, double delay, np_msgprope
 	np_job_t* new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_IN, prop->clb_inbound, "clb_inbound");
 
 	if (!_np_job_queue_insert(new_job)) {
-		_np_job_free(new_job);		
+		_np_job_free(context, new_job);
 		new_job = NULL;
 	}
 	return (new_job != NULL);
@@ -276,7 +274,7 @@ void _np_job_submit_transform_event(np_state_t * context, double delay, np_msgpr
 
 
 	if (!_np_job_queue_insert(new_job)) {
-		_np_job_free(new_job);
+		_np_job_free(context, new_job);
 	}
 }
 
@@ -292,7 +290,7 @@ void _np_job_submit_msgout_event(np_state_t * context, double delay, np_msgprope
 	np_job_t* new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_OUT, prop->clb_outbound, "clb_outbound");
 
 	if (!_np_job_queue_insert(new_job)) {
-		_np_job_free(new_job);
+		_np_job_free(context, new_job);
 	}
 }
 
@@ -311,7 +309,7 @@ void np_job_submit_event_periodic(np_state_t * context, double priority, double 
 
 	if (!_np_job_queue_insert(new_job)) {
 		sll_free(np_callback_t, callbacks);
-		_np_job_free(new_job);
+		_np_job_free(context, new_job);
 	}
 }
 
@@ -331,7 +329,7 @@ void np_job_submit_event(np_state_t* context, double priority, double delay, np_
 
 	if (!_np_job_queue_insert(new_job)) {
 		sll_free(np_callback_t, callbacks);
-		_np_job_free(new_job);
+		_np_job_free(context, new_job);
 	}
 }
 
@@ -439,7 +437,7 @@ double __np_jobqueue_run_jobs_once(np_state_t * context) {
 	}
 	
 	if (run_next_job == true) {
-		__np_jobqueue_run_once(next_job);
+		__np_jobqueue_run_once(context, next_job);
 		ret = 0;
 	}
 	
@@ -578,13 +576,13 @@ uint32_t np_jobqueue_count(np_state_t * context)
 	return ret;
 }
 
-void __np_jobqueue_run_once(np_job_t* job_to_execute)
+void __np_jobqueue_run_once(np_state_t* context, np_job_t* job_to_execute)
 {	
 	// sanity checks if the job list really returned an element
 	if (NULL == job_to_execute) return;
 	if (NULL == job_to_execute->processorFuncs) return;
 	if (sll_size(((job_to_execute->processorFuncs))) <= 0) return;	
-	np_ctx_memory(job_to_execute);
+
 	double started_at = np_time_now();
 
 #ifdef NP_THREADS_CHECK_THREADING	
@@ -664,13 +662,13 @@ void __np_jobqueue_run_once(np_job_t* job_to_execute)
 		job_to_execute->exec_not_before_tstamp = fmax(started_at + job_to_execute->interval, np_time_now());
 
 		if (!_np_job_queue_insert(job_to_execute)) {
-			_np_job_free(job_to_execute);
+			_np_job_free(context, job_to_execute);
 			abort(); // Catastrophic faliure shuts system down
 		}
 	}
 	else {
 		// cleanup
-		_np_job_free(job_to_execute);
+		_np_job_free(context, job_to_execute);
 	    job_to_execute = NULL;
 	}
 }
@@ -707,7 +705,7 @@ void* __np_jobqueue_run_worker(void* self)
 				_np_threads_mutex_condition_wait(context, &my_thread->job_lock);
 			}
 			// log_debug_msg(LOG_DEBUG, "exec    worker thread (%p) to job (%p) %s", my_thread, my_thread->job, my_thread->job->ident);
-			__np_jobqueue_run_once(my_thread->job);
+			__np_jobqueue_run_once(context, my_thread->job);
 			my_thread->job = NULL;
 		}
 

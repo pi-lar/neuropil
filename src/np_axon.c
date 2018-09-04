@@ -518,12 +518,9 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 							}
 							else {
 								log_debug_msg(LOG_INFO, "Dropping data package due to not initialized out_events");
-								np_memory_free(packet);
+								np_memory_free(context, packet);
 							}
 						}
-
-
-						args->target->node->handshake_send_at = np_time_now();
 
 						_np_message_trace_info("out", hs_message);
 						__np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);

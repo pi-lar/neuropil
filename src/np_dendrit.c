@@ -209,7 +209,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t* args)
                         "(msg: %s) %s",
                         msg_in->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, raw_msg, MSG_CHUNK_SIZE_1024));
                 }
-                np_memory_free(raw_msg);
+                np_memory_free(context, raw_msg);
                 goto __np_cleanup__;
             }
 
@@ -482,8 +482,8 @@ void _np_in_piggy(np_state_t* context, np_jobargs_t* args)
 
         // TODO: those new entries in the piggy message must be authenticated before sending join requests
         if (false == _np_dhkey_equal(&node_entry->dhkey, &my_key->dhkey) &&
-                !FLAG_CMP(node_entry->node->protocol, PASSIVE) &&
-            false == node_entry->node->joined_network)
+            !FLAG_CMP(node_entry->node->protocol, PASSIVE) &&
+            !node_entry->node->joined_network)
         {
             // just record nodes in the network or send an join request as well ?
             // answer: only send join request !
@@ -492,7 +492,7 @@ void _np_in_piggy(np_state_t* context, np_jobargs_t* args)
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(node_entry));
             _np_send_simple_invoke_request(node_entry, _NP_MSG_JOIN_REQUEST);
         }
-        else if (true == node_entry->node->joined_network &&
+        else if (node_entry->node->joined_network &&
                 node_entry->node->success_avg > BAD_LINK &&
                 (np_time_now() - node_entry->node->last_success) <= BAD_LINK_REMOVE_GRACETIME) {
 
@@ -531,7 +531,7 @@ void _np_in_piggy(np_state_t* context, np_jobargs_t* args)
 #endif
 
 // 			added = NULL, deleted = NULL;
-// 			_np_route_update(node_entry, true, &deleted, &added);
+ 			_np_route_update(node_entry, true, &deleted, &added);
 #ifdef DEBUG
             if (added != NULL && deleted != NULL) {
                 log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   table  : %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
@@ -2126,8 +2126,20 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
             goto __np_cleanup__;
         }
         */
-        
+		double now = np_time_now();
+		np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
+
         if (msg_source_key->node == NULL || msg_source_key->node->_handshake_status == np_handshake_status_Connected) {            		
+			if (msg_source_key->node != NULL && 
+				msg_source_key->node->_handshake_status == np_handshake_status_Connected &&
+				now < (msg_source_key->node->handshake_send_at + msg_prop->msg_ttl)) {
+				log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG,
+					"handshake for alias %s received, but alias in state %s and not ready to reconnect",
+					_np_key_as_str(alias_key),
+					np_handshake_status_str[msg_source_key->node->_handshake_status]
+				);
+				goto __np_cleanup__;
+			}
 			np_ref_switch(np_node_t, msg_source_key->node, ref_key_node, tokens_node);
 			np_node_set_handshake(msg_source_key->node, np_handshake_status_RemoteInitiated);
 		}
@@ -2245,6 +2257,11 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
 					}
 				}
 			}
+
+
+			double now = np_time_now();
+			np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
+
 			if (process_handshake) {
 				np_state_t* state = context;
 				np_waitref_obj(np_aaatoken_t, state->my_node_key->aaa_token, my_node_token, "np_waitref_my_node_key->aaa_token");

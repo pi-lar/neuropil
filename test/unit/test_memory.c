@@ -212,7 +212,7 @@ TestSuite(np_memory_t );
 			 {
 				 del++;
 
-				 MEASURE_TIME(free_time, i, np_memory_free(memory_blobs[random]));
+				 MEASURE_TIME(free_time, i, np_memory_free(context, memory_blobs[random]));
 
 				 memory_blobs[random] = NULL;
 			 }
