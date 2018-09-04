@@ -1151,7 +1151,7 @@ void __np_example_helper_loop(np_state_t* context) {
 #else
 							"NON DEBUG and NON RELEASE"
 #endif
-							" (%s.%05d)\n%s ", time, NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD, memory_str);
+							" (%s)\n%s ", time, NEUROPIL_RELEASE, memory_str);
 					}
 					if (FLAG_CMP(user_interface, np_user_interface_console)) {
 						np_example_print(context, stdout, memory_str);

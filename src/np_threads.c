@@ -764,7 +764,7 @@ void np_threads_start_workers(np_state_t* context, uint8_t pool_size)
     }
 
     log_debug_msg(LOG_DEBUG, "jobqueue threads started: pool %"PRIu8", worker %"PRIu8, pool_size, worker_threads);
-    log_msg(LOG_INFO, "%s.%05d", NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD);
+    log_msg(LOG_INFO, "%s", NEUROPIL_RELEASE);
     log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
     log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 
