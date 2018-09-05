@@ -531,7 +531,8 @@ void _np_in_piggy(np_state_t* context, np_jobargs_t* args)
 #endif
 
 // 			added = NULL, deleted = NULL;
- 			_np_route_update(node_entry, true, &deleted, &added);
+//          DEACTIVATED due to a missing gracetime during the route network initialisation
+// 			_np_route_update(node_entry, true, &deleted, &added);
 #ifdef DEBUG
             if (added != NULL && deleted != NULL) {
                 log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   table  : %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
