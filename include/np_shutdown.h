@@ -3,8 +3,8 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
-#ifndef NP_SHUTDOWN_MSG_H_
-#define NP_SHUTDOWN_MSG_H_
+#ifndef _NP_SHUTDOWN_MSG_H_
+#define _NP_SHUTDOWN_MSG_H_
 
 #include "np_legacy.h"
 #include "np_types.h"

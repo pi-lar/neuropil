@@ -50,10 +50,11 @@ Roadmap
 *******
 
 * more documentation
-* test TCP message exchange
-* test TCP passive layer for nodes running behind a firewall
 * finalize message exchange pattern definitions (currently one-to-one only)
-* more test cases
+* implement backpressure routing algorithm
+* implement group encryption
+* review and formalize message and token structure
 * define message callbacks in case of undelivered messages
-* hook in a javascript / lua engine for message callback handling
+* hook in a javascript / lua / python bindings for message callback handling
+* more test cases
 * ... and many many more ideas ...
