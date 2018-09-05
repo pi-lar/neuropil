@@ -35,6 +35,7 @@ struct np_job_s
 	double interval;
 	bool is_periodic;
 	sll_return(np_callback_t) processorFuncs;
+	bool __del_processorFuncs;
 	np_jobargs_t* args;
 	double priority;
 
