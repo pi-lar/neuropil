@@ -824,7 +824,6 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args) 
         np_memory_free(context, data_container->data);
     }
     else {
-
         if (data_container->in_msg_len != MSG_CHUNK_SIZE_1024 && data_container->in_msg_len != (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40))
         {
             log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%"PRIi16")", data_container->in_msg_len);
@@ -833,7 +832,6 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args) 
             np_memory_free(context, data_container->data);
         }
         else {
-
             np_key_t* alias_key = NULL;
             char* alias_key_ref_reason = "";
 

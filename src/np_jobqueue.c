@@ -56,6 +56,7 @@ np_job_t* _np_job_create_job(np_state_t * context, double delay, np_jobargs_t* j
 	new_job->interval = 0;
 	new_job->is_periodic = false;
 	new_job->processorFuncs = callbacks;
+	new_job->__del_processorFuncs = false;
 
 #ifdef DEBUG
 	memset(new_job->ident, 0, 255);
@@ -105,6 +106,7 @@ NP_PLL_GENERATE_IMPLEMENTATION(np_job_ptr);
 void _np_job_free(np_state_t* context, np_job_t * n)
 {
 	_np_job_free_args(context, n->args);
+	if(n->__del_processorFuncs) sll_free(np_callback_t, n->processorFuncs);
 	np_unref_obj(np_job_t, n, ref_obj_creation); 
 }
 
@@ -326,6 +328,7 @@ void np_job_submit_event(np_state_t* context, double priority, double delay, np_
 	new_job->type = 2;
 	new_job->is_periodic = false;
 	new_job->args->custom_data = data;
+	new_job->__del_processorFuncs = true;
 
 	if (!_np_job_queue_insert(new_job)) {
 		sll_free(np_callback_t, callbacks);
