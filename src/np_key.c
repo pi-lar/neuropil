@@ -236,6 +236,7 @@ void _np_key_t_del(np_state_t *context, uint8_t type, size_t size, void* key)
 
 	TSP_DESTROY(old_key->in_destroy);
 
+	if (old_key->local_mx_tokens != NULL) pll_free(np_aaatoken_ptr, old_key->local_mx_tokens);
 }
 
 /**

@@ -104,7 +104,8 @@ NP_PLL_GENERATE_IMPLEMENTATION(np_job_ptr);
 
 void _np_job_free(np_state_t* context, np_job_t * n)
 {
-	_np_job_free_args(context, n->args);
+	_np_job_free_args(context, n->args);	
+	sll_free(np_callback_t, n->processorFuncs);
 	np_unref_obj(np_job_t, n, ref_obj_creation); 
 }
 
