@@ -94,7 +94,7 @@ struct __np_switchwindow_scrollable * _current = NULL;
 bool __np_ncurse_initiated = false;
 bool __np_terminal_resize_flag = false;
 
-const float output_intervall_sec = 0.25;
+const float output_intervall_sec = 0.50;
 
 enum np_user_interface {
 	np_user_interface_off		= 0,

@@ -407,7 +407,6 @@ void np_tree_del_ulong(np_tree_t* tree, const uint32_t key)
 void np_tree_clear(np_tree_t* n)
 {	
 	np_tree_elem_t* iter = RB_MIN(np_tree_s, n);
-	np_tree_elem_t* tmp = NULL;
 
 	while(NULL != iter)
 	{		

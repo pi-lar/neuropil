@@ -494,5 +494,5 @@ void _np_node_set_handshake(np_node_t* self, enum np_handshake_status set_to, ch
 		np_handshake_status_str[set_to], 
 		func
 	);
-	self->_handshake_status = set_to;
+	self->_handshake_status = set_to;	
 }

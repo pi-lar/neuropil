@@ -90,7 +90,8 @@ else:
             port, threads, port_type_server, loglevel, publish_domain, sysinfo,httpdomain, statistics, autoclose))
         if args.v or args.vs:
             time.sleep(4)
-
+        else:
+            time.sleep(0.5)
     
     for i in range(count):
         windowName  = "neuropil node {0:05d}".format(i+port+start_bootstrapper)

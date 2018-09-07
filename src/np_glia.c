@@ -542,7 +542,7 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t* args)
 	char* source_sll_of_keys = "_np_route_row_lookup";
 	
 	
-	if (sll_size(sll_of_keys) <= 2)
+	if (sll_size(sll_of_keys) <= 1)
 	{
 		// nothing found, send leafset to exchange some data at least
 		// prevents small clusters from not exchanging all data

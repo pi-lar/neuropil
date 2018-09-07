@@ -289,9 +289,11 @@ bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool re
                 }
                 else {
                     log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG,
-                        "handshake for alias %s requested, but alias in state %s", 
+                        "handshake for alias %s requested, but alias in state %s and last handshake was send at %d (next handshake available n %d sec)", 
                         _np_key_as_str(node_key),
-                       np_handshake_status_str[node_key->node->_handshake_status]
+                       np_handshake_status_str[node_key->node->_handshake_status],
+						node_key->node->handshake_send_at,
+						(node_key->node->handshake_send_at + msg_prop->msg_ttl) - now
                     );
                 }
             }

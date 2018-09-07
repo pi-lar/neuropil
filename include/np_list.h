@@ -42,7 +42,8 @@ function like macros are:
 *.. c:macro:: np_pll_t(TYPE, NAME)
 *             void pll_init(TYPE, priolist, compare_func)
 *             void pll_insert(TYPE, priolist, value, dups_ok)
-*             void pll_remove(TYPE, priolist, value)
+*             void pll_remove(TYPE, priolist, value, cmp_func)
+*			  TYPE pll_delete(TYPE, priolist, iterator)
 *			  TYPE pll_replace(TYPE, priolist, value, cmp_func)
 *			  TYPE pll_find(TYPE, priolist, value, cmp_func)
 *			  TYPE pll_head(TYPE, priolist)
@@ -56,6 +57,7 @@ function like macros are:
 #define pll_init(TYPE, priolist) priolist = TYPE##_pll_init();
 #define pll_insert(TYPE, priolist, value, dups_ok, cmp_func) TYPE##_pll_insert(priolist, value, dups_ok, cmp_func)
 #define pll_remove(TYPE, priolist, value, cmp_func) TYPE##_pll_remove(priolist, value, cmp_func);
+#define pll_delete(TYPE, priolist, iterator) TYPE##_pll_delete(priolist, iterator);
 #define pll_replace(TYPE, priolist, value, cmp_func) TYPE##_pll_replace(priolist, value, cmp_func);
 #define pll_find(TYPE, priolist, value, cmp_func) TYPE##_pll_find(priolist, value, cmp_func);
 #define pll_head(TYPE, priolist) TYPE##_pll_head(priolist);
@@ -125,6 +127,7 @@ real macros for convenience usage
 	TYPE##_pll_t* TYPE##_pll_init(); 																			\
 	bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, bool dups_ok, TYPE##_pll_cmp_func_t cmp_func);	\
 	void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t cmp_func);						\
+	void TYPE##_pll_delete(TYPE##_pll_t* pll_list, TYPE##_pll_node_t * iter);						\
 	TYPE TYPE##_pll_replace(TYPE##_pll_t* list, TYPE value, TYPE##_pll_cmp_func_t cmp_func);   						\
 	TYPE TYPE##_pll_find(TYPE##_pll_t* list, TYPE value, TYPE##_pll_cmp_func_t cmp_func);   						\
 	TYPE TYPE##_pll_head(TYPE##_pll_t* list);                  													\
@@ -186,18 +189,21 @@ bool TYPE##_pll_insert(TYPE##_pll_t* pll_list, TYPE value, bool dups_ok, TYPE##_
 	pll_list->size++; 																						\
 	return (true); 																							\
 } 																											\
+void TYPE##_pll_delete(TYPE##_pll_t* pll_list, TYPE##_pll_node_t * pll_current) {							\
+	if (NULL != pll_current->flink) pll_current->flink->blink = pll_current->blink;							\
+	if (NULL != pll_current->blink) pll_current->blink->flink = pll_current->flink;							\
+	if (pll_list->first == pll_current) pll_list->first = pll_current->flink;								\
+	if (pll_list->last == pll_current) pll_list->last = pll_current->blink;									\
+	free(pll_current);																						\
+	pll_current = NULL;																						\
+	pll_list->size--;																						\
+}																											\
 void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t cmp_func) {                \
 	TYPE##_pll_node_t* pll_current = pll_list->first;                                                       \
 	while (NULL != pll_current) {																			\
 		int8_t cmp_res = cmp_func(pll_current->val, value);													\
 		if (0 == cmp_res) {																					\
-			if (NULL != pll_current->flink) pll_current->flink->blink = pll_current->blink;					\
-			if (NULL != pll_current->blink) pll_current->blink->flink = pll_current->flink;					\
-			if (pll_list->first == pll_current) pll_list->first = pll_current->flink;						\
-			if (pll_list->last == pll_current) pll_list->last = pll_current->blink;							\
-			free(pll_current);																				\
-			pll_current = NULL;																				\
-			pll_list->size--;																				\
+			TYPE##_pll_delete(pll_list, pll_current);														\			
 			break;																							\
 		} else {																							\
 			pll_current = pll_current->flink;																\

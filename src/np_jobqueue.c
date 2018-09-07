@@ -308,9 +308,9 @@ void np_job_submit_event_periodic(np_state_t * context, double priority, double 
 	new_job->type = 2;
 	new_job->interval = fmax(NP_SLEEP_MIN, interval);
 	new_job->is_periodic = true;
+	new_job->__del_processorFuncs = true;
 
 	if (!_np_job_queue_insert(new_job)) {
-		sll_free(np_callback_t, callbacks);
 		_np_job_free(context, new_job);
 	}
 }
@@ -330,8 +330,7 @@ void np_job_submit_event(np_state_t* context, double priority, double delay, np_
 	new_job->args->custom_data = data;
 	new_job->__del_processorFuncs = true;
 
-	if (!_np_job_queue_insert(new_job)) {
-		sll_free(np_callback_t, callbacks);
+	if (!_np_job_queue_insert(new_job)) {		
 		_np_job_free(context, new_job);
 	}
 }
@@ -424,18 +423,15 @@ double __np_jobqueue_run_jobs_once(np_state_t * context) {
 		pll_iterator(np_job_ptr) iter_jobs = pll_first(np_module(jobqueue)->job_list);
 
 		if (iter_jobs != NULL) {
-			next_job = iter_jobs->val;
-
-			
+			next_job = iter_jobs->val;			
 			// check time of job
 			if (now < next_job->exec_not_before_tstamp) {
 				ret = fmin(ret, next_job->exec_not_before_tstamp - now);
 			}
 			else {
-				pll_remove(np_job_ptr, np_module(jobqueue)->job_list, next_job, __np_job_cmp);
+				pll_delete(np_job_ptr, np_module(jobqueue)->job_list, iter_jobs);
 				run_next_job = true;
-			}
-			
+			}			
 		}
 	}
 	

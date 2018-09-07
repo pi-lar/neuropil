@@ -160,7 +160,7 @@ struct np_aaatoken_s
 	double version;
 
 	// attributes to exchange
-	char* uuid;
+	char uuid[NP_UUID_BYTES];
 	// owner or parent entity
 	char realm[255];
 

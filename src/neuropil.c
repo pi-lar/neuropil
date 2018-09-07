@@ -181,23 +181,23 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 			np_network_t* my_network = NULL;
 			np_new_obj(np_network_t, my_network);
 			// get public / local network interface id
-			if (NULL == host) {
-				host = calloc(1, sizeof(char) * 255);
-				CHECK_MALLOC(host);
+			char ng_host[255];
+			if (NULL == host) {		
 				log_msg(LOG_INFO, "neuropil_init: resolve hostname");
-
-				if (np_get_local_ip(context, host, 255) == false) {
-					if (0 != gethostname(host, 255)) {
-						free(host);
-						host = strdup("localhost");
+				if (np_get_local_ip(context, ng_host, 255) == false) {
+					if (0 != gethostname(ng_host, 255)) {
+						strncpy(ng_host,"localhost",255);
 					}
 				}
 			}
-				log_debug_msg(LOG_DEBUG, "initialise network (type:%d/%s/%s)", np_proto, _np_network_get_protocol_string(context, np_proto), protocol);
-				_LOCK_MODULE(np_network_t)
-				{
-					_np_network_init(my_network, true, np_proto, host, np_service, -1, UNKNOWN_PROTO);
-				}
+			else {
+				strncpy(ng_host, host, 255);
+			}
+			log_debug_msg(LOG_DEBUG, "initialise network (type:%d/%s/%s)", np_proto, _np_network_get_protocol_string(context, np_proto), protocol);
+			_LOCK_MODULE(np_network_t)
+			{
+				_np_network_init(my_network, true, np_proto, ng_host, np_service, -1, UNKNOWN_PROTO);
+			}
 		
 			log_debug_msg(LOG_DEBUG, "check for initialised network");
 			if (false == my_network->initialized)

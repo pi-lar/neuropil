@@ -714,8 +714,8 @@ void _np_in_leave_req(np_state_t* context, np_jobargs_t* args)
                 _np_key_cmp(context->my_identity, leave_req_key) != 0 )
             {
                 // update node flags
-				leave_req_key->node->joined_network = false;
-				np_node_set_handshake(leave_req_key->node, np_handshake_status_Disconnected);
+                leave_req_key->node->joined_network = false;
+                np_node_set_handshake(leave_req_key->node, np_handshake_status_Disconnected);
                 leave_req_key->node->session_key_is_set = false;
 
                 log_debug_msg(LOG_KEY | LOG_DEBUG, "destroy key %s due to leave msg (%s) ", _np_key_as_str(leave_req_key), args->msg->uuid);
@@ -795,7 +795,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t* args)
             goto __np_cleanup__;
         }
         join_ident_key = _np_keycache_find_or_create(context, join_ident_dhkey);
-        np_ref_obj(np_aaatoken_t, join_ident_token);
+        np_ref_obj(np_aaatoken_t, join_ident_token, ref_key_aaa_token);
         join_ident_key->aaa_token = join_ident_token;
     }
 
@@ -1041,10 +1041,15 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t* args)
 
     np_key_t* elem = NULL;
     int i = 0;
-    while ( i++ <= 5 && NULL != (elem = sll_head(np_key_ptr, node_keys)))
+    int send_to_X_neighbours = 6;
+    while ( i++ <= send_to_X_neighbours && NULL != (elem = sll_head(np_key_ptr, node_keys)))
     {
         // send update of new node to all nodes in my routing table
-        if (_np_dhkey_equal(&elem->dhkey, &routing_key->dhkey)) continue;
+        if (_np_dhkey_equal(&elem->dhkey, &routing_key->dhkey))
+        {
+            send_to_X_neighbours++; 
+            continue;
+        }
 
         np_new_obj(np_message_t, msg_out);
 
@@ -1199,7 +1204,7 @@ void _np_in_join_nack(np_state_t* context, np_jobargs_t* args)
 
     nack_key->aaa_token->state &= AAA_INVALID;
     nack_key->node->joined_network = false;
-	np_node_set_handshake(nack_key->node, np_handshake_status_Disconnected);
+    np_node_set_handshake(nack_key->node, np_handshake_status_Disconnected);
 
     __np_cleanup__:
     // nothing to do
@@ -2049,8 +2054,8 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
     log_trace_msg(LOG_TRACE, "start: void _np_in_handshake(np_jobargs_t* args){");
 
     _LOCK_MODULE(np_handshake_t) {
-		np_node_t* tokens_node = NULL; 
-		np_key_t* msg_source_key = NULL;
+        np_node_t* tokens_node = NULL; 
+        np_key_t* msg_source_key = NULL;
         np_key_t* hs_wildcard_key = NULL;
         np_key_t* alias_key = args->target;		
         np_handshake_token_t* handshake_token = NULL;
@@ -2127,36 +2132,40 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
             goto __np_cleanup__;
         }
         */
-		double now = np_time_now();
-		np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
+        double now = np_time_now();
+        np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
 
         if (msg_source_key->node == NULL || msg_source_key->node->_handshake_status == np_handshake_status_Connected) {            		
-			if (msg_source_key->node != NULL && 
-				msg_source_key->node->_handshake_status == np_handshake_status_Connected &&
-				now < (msg_source_key->node->handshake_send_at + msg_prop->msg_ttl)) {
-				log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG,
-					"handshake for alias %s received, but alias in state %s and not ready to reconnect",
-					_np_key_as_str(alias_key),
-					np_handshake_status_str[msg_source_key->node->_handshake_status]
-				);
-				goto __np_cleanup__;
-			}
-			np_ref_switch(np_node_t, msg_source_key->node, ref_key_node, tokens_node);
-			np_node_set_handshake(msg_source_key->node, np_handshake_status_RemoteInitiated);
-		}
+            if (msg_source_key->node != NULL && 
+                msg_source_key->node->_handshake_status == np_handshake_status_Connected &&
+                now < (msg_source_key->node->handshake_send_at + msg_prop->msg_ttl)) {
+                log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG,
+                    "handshake for alias %s received, but alias in state %s and not ready to reconnect",
+                    _np_key_as_str(alias_key),
+                    np_handshake_status_str[msg_source_key->node->_handshake_status]
+                );
+                goto __np_cleanup__;
+            }
+            // recover handshake_send_at attribute
+            if(msg_source_key->node != NULL) tokens_node->handshake_send_at = msg_source_key->node->handshake_send_at;
+
+            np_ref_switch(np_node_t, msg_source_key->node, ref_key_node, tokens_node);
+            np_node_set_handshake(msg_source_key->node, np_handshake_status_RemoteInitiated);
+        }
         else if (
             msg_source_key->node->_handshake_status == np_handshake_status_Disconnected ||
             msg_source_key->node->_handshake_status == np_handshake_status_SelfInitiated
             )
         {
-			np_node_set_handshake(tokens_node, msg_source_key->node->_handshake_status);
+            tokens_node->handshake_send_at = msg_source_key->node->handshake_send_at;
+            np_node_set_handshake(tokens_node, msg_source_key->node->_handshake_status);
             tokens_node->joined_network |= msg_source_key->node->joined_network;
-			np_ref_switch(np_node_t, msg_source_key->node, ref_key_node, tokens_node);
+            np_ref_switch(np_node_t, msg_source_key->node, ref_key_node, tokens_node);
         }
         else {
             log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE| LOG_DEBUG,
-				"handshake for alias %s received, but alias in state %s", 
-				_np_key_as_str(alias_key),
+                "handshake for alias %s received, but alias in state %s", 
+                _np_key_as_str(alias_key),
                np_handshake_status_str[msg_source_key->node->_handshake_status]
             );
             goto __np_cleanup__;
@@ -2184,19 +2193,19 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                     np_network_t* old_network = hs_wildcard_key->network;
                     np_ref_obj(np_network_t, old_network, "usage_of_old_network");
 
-					_LOCK_ACCESS(&old_network->access_lock)
-					{
-						// _np_network_stop(old_network);
-						// Updating handshake key with already existing network
-						// structure of the wildcard key
-						log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-							"Updating wildcard key %s to %s",
-							_np_key_as_str(hs_wildcard_key),
-							_np_key_as_str(msg_source_key));
+                    _LOCK_ACCESS(&old_network->access_lock)
+                    {
+                        // _np_network_stop(old_network);
+                        // Updating handshake key with already existing network
+                        // structure of the wildcard key
+                        log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+                            "Updating wildcard key %s to %s",
+                            _np_key_as_str(hs_wildcard_key),
+                            _np_key_as_str(msg_source_key));
 
-						
-						np_node_set_handshake(msg_source_key->node, hs_wildcard_key->node->_handshake_status);
-						
+                        
+                        np_node_set_handshake(msg_source_key->node, hs_wildcard_key->node->_handshake_status);
+                        
                         // msg_source_key->aaa_token = hs_wildcard_key->aaa_token;
                         hs_wildcard_key->aaa_token = NULL;
 
@@ -2206,153 +2215,150 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                         }
                         _np_network_remap_network(msg_source_key, hs_wildcard_key);
                     }
-					np_unref_obj(np_network_t, old_network, "usage_of_old_network");					
-					np_ref_obj(np_key_t, msg_source_key, ref_key_parent);
-					hs_wildcard_key->parent_key = msg_source_key;
-				}
+                    np_unref_obj(np_network_t, old_network, "usage_of_old_network");					
+                    np_ref_obj(np_key_t, msg_source_key, ref_key_parent);
+                    hs_wildcard_key->parent_key = msg_source_key;
+                }
                 np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
             }
         }
-		bool process_handshake = true;
-		_LOCK_ACCESS(&msg_source_key->node->lock) {
-			_LOCK_MODULE(np_network_t)
-			{
-				if (NULL == msg_source_key->network)//|| (msg_source_key->network->last_received_date + 30) < np_time_now())
-				{
-					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "handshake: init alias (%s) network", _np_key_as_str(alias_key));
+        bool process_handshake = true;
+        _LOCK_ACCESS(&msg_source_key->node->lock) {
+            _LOCK_MODULE(np_network_t)
+            {
+                if (NULL == msg_source_key->network)//|| (msg_source_key->network->last_received_date + 30) < np_time_now())
+                {
+                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "handshake: init alias (%s) network", _np_key_as_str(alias_key));
 
-					if ((msg_source_key->node->protocol & PASSIVE) == PASSIVE && alias_key->network == NULL) {
-						log_msg(LOG_ERROR, "could not initiate passive network to alias key for %s:%s. network missing", msg_source_key->node->dns_name, msg_source_key->node->port);
-						process_handshake = false;
+                    if ((msg_source_key->node->protocol & PASSIVE) == PASSIVE && alias_key->network == NULL) {
+                        log_msg(LOG_ERROR, "could not initiate passive network to alias key for %s:%s. network missing", msg_source_key->node->dns_name, msg_source_key->node->port);
+                        process_handshake = false;
+                    }
+                    else {
+                        np_network_t * new_msg_source_key_network;
+                        np_new_obj(np_network_t, new_msg_source_key_network);
+
+                        _np_network_init(
+                            new_msg_source_key_network,
+                            false,
+                            msg_source_key->node->protocol,
+                            msg_source_key->node->dns_name,
+                            msg_source_key->node->port,
+                            ((msg_source_key->node->protocol & PASSIVE) == PASSIVE ?
+                                alias_key->network->socket :
+                                -1//msg_source_key->network->socket
+                                )
+                            , ((msg_source_key->node->protocol & PASSIVE) == PASSIVE ?
+                                (context->my_node_key->network->socket_type & MASK_PROTOCOLL)
+                                : UNKNOWN_PROTO )
+                        );
+
+                        if (true == new_msg_source_key_network->initialized)
+                        {
+                            _np_network_set_key(new_msg_source_key_network, msg_source_key);
+                            _np_key_set_network(msg_source_key, new_msg_source_key_network);
+                        }
+                        else
+                        {
+                            log_msg(LOG_ERROR, "could not initiate network to alias key for %s:%s", new_msg_source_key_network->ip, new_msg_source_key_network->port);
+                            process_handshake = false;
+                        }
+                        np_unref_obj(np_network_t, new_msg_source_key_network, ref_obj_creation);
+                    }
+                }
+            }
+
+            if (process_handshake) {
+                np_state_t* state = context;
+                np_waitref_obj(np_aaatoken_t, state->my_node_key->aaa_token, my_node_token, "np_waitref_my_node_key->aaa_token");
+
+                // get our own identity from the cache and convert to curve key
+                unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
+                crypto_sign_ed25519_sk_to_curve25519(
+                    curve25519_sk, my_node_token->private_key);
+
+                np_unref_obj(np_aaatoken_t, my_node_token, "np_waitref_my_node_key->aaa_token");
+
+                np_tree_elem_t* session_key = np_tree_find_str(
+                    handshake_token->extensions, "_np.session");
+
+                ASSERT(session_key->val.type == np_treeval_type_bin, "_np.session should be a binary value but is of type: %"PRIu8, session_key->val.type);
+                ASSERT(session_key->val.value.bin != NULL, "_np.session should be filled with data");
+
+                // create shared secret
+                unsigned char shared_secret[crypto_scalarmult_BYTES] = { 0 };
+                int crypto_scalarmult_ret =
+                    crypto_scalarmult(
+                        shared_secret,
+                        curve25519_sk,
+                        session_key->val.value.bin
+                    );
+
+                if (crypto_scalarmult_ret != 0) {
+                    log_msg(LOG_WARN, "Could not exchange session_key key");
+
+                }
+                else {
+
+                    //np_aaatoken_t* old_token = NULL;
+                    if (
+                        NULL != msg_source_key->aaa_token &&
+                        IS_VALID(msg_source_key->aaa_token->state)
+                        )
+                    {
+                        // print warning if overwrite happens
+                        log_msg(LOG_WARN,
+                            "found valid authentication token for node %s (%s), overwriting...",
+                            _np_key_as_str(msg_source_key), np_memory_get_id(msg_source_key->node));
+                        //old_token = msg_source_key->aaa_token;
+                        // msg_source_key->node->joined_network = false;
+                    }
+
+                    // handle alias key, also in case a new connection has been established
+                    log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG, "processing handshake for alias %s", _np_key_as_str(alias_key));
+
+                    np_ref_switch(np_aaatoken_t, alias_key->aaa_token, ref_key_aaa_token, handshake_token);
+                    np_ref_switch(np_aaatoken_t, msg_source_key->aaa_token, ref_key_aaa_token, handshake_token);
+					
+					if (alias_key->node != NULL && msg_source_key->node != NULL) {
+						alias_key->node->handshake_send_at = msg_source_key->node->handshake_send_at;
 					}
-					else {
-						np_network_t * new_msg_source_key_network;
-						np_new_obj(np_network_t, new_msg_source_key_network);
+                    np_ref_switch(np_node_t, alias_key->node, ref_key_node, msg_source_key->node);
 
-						_np_network_init(
-							new_msg_source_key_network,
-							false,
-							msg_source_key->node->protocol,
-							msg_source_key->node->dns_name,
-							msg_source_key->node->port,
-							((msg_source_key->node->protocol & PASSIVE) == PASSIVE ?
-								alias_key->network->socket :
-								-1//msg_source_key->network->socket
-								)
-							, ((msg_source_key->node->protocol & PASSIVE) == PASSIVE ?
-								(context->my_node_key->network->socket_type & MASK_PROTOCOLL)
-								: UNKNOWN_PROTO )
-						);
+                    // copy over session key
+                    log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE, "HANDSHAKE SECRET: setting shared secret on %s and alias %s on system %s",
+                        _np_key_as_str(msg_source_key), _np_key_as_str(alias_key), _np_key_as_str(context->my_node_key));
 
-						if (true == new_msg_source_key_network->initialized)
-						{
-							_np_network_set_key(new_msg_source_key_network, msg_source_key);
-							_np_key_set_network(msg_source_key, new_msg_source_key_network);
-						}
-						else
-						{
-							log_msg(LOG_ERROR, "could not initiate network to alias key for %s:%s", new_msg_source_key_network->ip, new_msg_source_key_network->port);
-							process_handshake = false;
-						}
-						np_unref_obj(np_network_t, new_msg_source_key_network, ref_obj_creation);
-					}
-				}
-			}
+                    memcpy(msg_source_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
+                    msg_source_key->node->session_key_is_set = true;
 
+                    /* Implicit: as both keys share the same node
+                    memcpy(alias_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
+                    alias_key->node->session_key_is_set = true;
+                    */
+                    // mark as valid to identify existing connections
+                    msg_source_key->aaa_token->state |= AAA_VALID;
 
-			double now = np_time_now();
-			np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
+                    if (alias_key->node->_handshake_status == np_handshake_status_SelfInitiated) {
+                        np_node_set_handshake(alias_key->node, np_handshake_status_Connected);
+                    }
+                    else if (alias_key->node->_handshake_status == np_handshake_status_RemoteInitiated) {
+                        _np_network_send_handshake(context, msg_source_key, true);
+                        np_node_set_handshake(alias_key->node, np_handshake_status_Connected);
+                    }
+                    else if (alias_key->node->_handshake_status == np_handshake_status_Disconnected) {
+                        _np_network_send_handshake(context, msg_source_key, true);
+                        np_node_set_handshake(alias_key->node, np_handshake_status_RemoteInitiated);
+                    }
 
-			if (process_handshake) {
-				np_state_t* state = context;
-				np_waitref_obj(np_aaatoken_t, state->my_node_key->aaa_token, my_node_token, "np_waitref_my_node_key->aaa_token");
+                    log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
+                        _np_key_as_str(msg_source_key), _np_key_as_str(alias_key));
+                }
+            }
+        }
 
-				// get our own identity from the cache and convert to curve key
-				unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
-				crypto_sign_ed25519_sk_to_curve25519(
-					curve25519_sk, my_node_token->private_key);
-
-				np_unref_obj(np_aaatoken_t, my_node_token, "np_waitref_my_node_key->aaa_token");
-
-				np_tree_elem_t* session_key = np_tree_find_str(
-					handshake_token->extensions, "_np.session");
-
-				ASSERT(session_key->val.type == np_treeval_type_bin, "_np.session should be a binary value but is of type: %"PRIu8, session_key->val.type);
-				ASSERT(session_key->val.value.bin != NULL, "_np.session should be filled with data");
-
-				// create shared secret
-				unsigned char shared_secret[crypto_scalarmult_BYTES] = { 0 };
-				int crypto_scalarmult_ret =
-					crypto_scalarmult(
-						shared_secret,
-						curve25519_sk,
-						session_key->val.value.bin
-					);
-
-				if (crypto_scalarmult_ret != 0) {
-					log_msg(LOG_WARN, "Could not exchange session_key key");
-
-				}
-				else {
-
-					//np_aaatoken_t* old_token = NULL;
-					if (
-						NULL != msg_source_key->aaa_token &&
-						IS_VALID(msg_source_key->aaa_token->state)
-						)
-					{
-						// print warning if overwrite happens
-						log_msg(LOG_WARN,
-							"found valid authentication token for node %s (%s), overwriting...",
-							_np_key_as_str(msg_source_key), np_memory_get_id(msg_source_key->node));
-						//old_token = msg_source_key->aaa_token;
-						// msg_source_key->node->joined_network = false;
-					}
-
-					// handle alias key, also in case a new connection has been established
-					log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG, "processing handshake for alias %s", _np_key_as_str(alias_key));
-
-					np_ref_switch(np_aaatoken_t, alias_key->aaa_token, ref_key_aaa_token, handshake_token);
-					np_ref_switch(np_aaatoken_t, msg_source_key->aaa_token, ref_key_aaa_token, handshake_token);
-					// np_unref_obj(np_aaatoken_t, old_token, ref_key_aaa_token);
-
-					alias_key->node = msg_source_key->node;
-					np_ref_obj(np_node_t, msg_source_key->node, ref_key_node);
-
-					// copy over session key
-					log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE, "HANDSHAKE SECRET: setting shared secret on %s and alias %s on system %s",
-						_np_key_as_str(msg_source_key), _np_key_as_str(alias_key), _np_key_as_str(context->my_node_key));
-
-					memcpy(msg_source_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
-					msg_source_key->node->session_key_is_set = true;
-
-					/* Implicit: as both keys share the same node
-					memcpy(alias_key->node->session_key, shared_secret, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
-					alias_key->node->session_key_is_set = true;
-					*/
-					// mark as valid to identify existing connections
-					msg_source_key->aaa_token->state |= AAA_VALID;
-
-					if (alias_key->node->_handshake_status == np_handshake_status_SelfInitiated) {
-						np_node_set_handshake(alias_key->node, np_handshake_status_Connected);
-					}
-					else if (alias_key->node->_handshake_status == np_handshake_status_RemoteInitiated) {
-						_np_network_send_handshake(context, msg_source_key, true);
-						np_node_set_handshake(alias_key->node, np_handshake_status_Connected);
-					}
-					else if (alias_key->node->_handshake_status == np_handshake_status_Disconnected) {
-						_np_network_send_handshake(context, msg_source_key, true);
-						np_node_set_handshake(alias_key->node, np_handshake_status_RemoteInitiated);
-					}
-
-					log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
-						_np_key_as_str(msg_source_key), _np_key_as_str(alias_key));
-				}
-			}
-		}
-
-	__np_cleanup__:
-		np_unref_obj(np_node_t, tokens_node, "_np_node_from_token");
+    __np_cleanup__:
+        np_unref_obj(np_node_t, tokens_node, "_np_node_from_token");
         np_unref_obj(np_aaatoken_t, handshake_token, "np_token_factory_read_from_tree");
         np_unref_obj(np_key_t, msg_source_key, "_np_keycache_find_or_create");
     }

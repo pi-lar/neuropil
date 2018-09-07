@@ -93,7 +93,7 @@ struct np_memory_container_s
 #define NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO 3223967591
 struct np_memory_itemconf_s {
 #ifdef NP_MEMORY_CHECK_MAGIC_NO
-	uint32_t magic_no;
+    uint32_t magic_no;
 #endif
     np_memory_container_t* container;
 
@@ -115,14 +115,14 @@ struct np_memory_itemconf_s {
 #define GET_ITEM(config) (((char*)config) + sizeof(np_memory_itemconf_t))
 
 #ifndef NP_MEMORY_CHECK_MAGIC_NO
-	#define np_check_magic_no(item)
+    #define np_check_magic_no(item)
 #else
 void np_check_magic_no(void * item) {
-	if (GET_CONF(item)->magic_no != NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO) {
-		assert(GET_CONF(item)->magic_no == NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO);
-		// for release build
-		abort();
-	};
+    if (GET_CONF(item)->magic_no != NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO) {
+        assert(GET_CONF(item)->magic_no == NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO);
+        // for release build
+        abort();
+    };
 
 }
 #endif
@@ -137,17 +137,17 @@ bool _np_memory_init(np_state_t* context) {
     }
 #define register(type,items_per_block,min_items, new_fn, free_fn, clear_fn ) \
 np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type##_t), items_per_block, min_items, new_fn, free_fn, clear_fn)
-#define register_defaultobj(type) register(type, 4, 4, _np_##type##_t_new, _np_##type##_t_del, np_memory_clear_space);	
+#define register_defaultobj(type, count_of_itens_in_block, min_count) register(type, count_of_itens_in_block, min_count, _np_##type##_t_new, _np_##type##_t_del, np_memory_clear_space);	
 
-    register_defaultobj(message);
-    register_defaultobj(key);
-    register_defaultobj(msgproperty);
-    register_defaultobj(thread);
-    register_defaultobj(node);
-    register_defaultobj(network);
-    register_defaultobj(responsecontainer);
-    register_defaultobj(messagepart);
-    register_defaultobj(aaatoken);
+    register_defaultobj(message, 4, 10);
+    register_defaultobj(key, 4, 10);
+    register_defaultobj(msgproperty, 4, 10);
+    register_defaultobj(thread, 4, 10);
+    register_defaultobj(node, 4, 10);
+    register_defaultobj(network, 4, 10);
+    register_defaultobj(responsecontainer, 4, 10);
+    register_defaultobj(messagepart, 4, 150);
+    register_defaultobj(aaatoken, 4, 10);
 
 #undef register
 #undef register_defaultobj
@@ -155,8 +155,8 @@ np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type
     np_memory_register_type(context, np_memory_types_np_job_t, sizeof(np_job_t), 4, 4, NULL, NULL, np_memory_clear_space);
     np_memory_register_type(context, np_memory_types_np_jobargs_t, sizeof(np_jobargs_t), 4, 4, NULL, NULL, np_memory_clear_space);
 
-    np_memory_register_type(context, np_memory_types_BLOB_1024, 1024, 4, 4, NULL, NULL, np_memory_clear_space);
-    np_memory_register_type(context, np_memory_types_BLOB_984_RANDOMIZED, 984, 4, 200, NULL, NULL, np_memory_randomize_space);
+    np_memory_register_type(context, np_memory_types_BLOB_1024, 1024, 4, 150, NULL, NULL, np_memory_clear_space);
+    np_memory_register_type(context, np_memory_types_BLOB_984_RANDOMIZED, 984, 4, 50, NULL, NULL, np_memory_randomize_space);
 
     return true;
 }
@@ -181,10 +181,10 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
 
         conf->persistent = false;
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING		
-		sll_init(char_ptr, conf->reasons);
+        sll_init(char_ptr, conf->reasons);
 #endif
 #ifdef NP_MEMORY_CHECK_MAGIC_NO
-		conf->magic_no = NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO;
+        conf->magic_no = NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO;
 #endif
         if (_np_threads_mutex_init(context, &(conf->access_lock), "MemoryV2 conf_lock") != 0) {
             log_msg(LOG_ERROR, "Could not create memory item lock for container type %"PRIu8, container->type);
@@ -260,7 +260,7 @@ void np_memory_register_type(
 }
 
 bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
-	assert(config != NULL);
+    assert(config != NULL);
     bool refreshed = false;
     np_memory_container_t* container = config->container;
     np_ctx_decl(container->module->context);
@@ -364,9 +364,9 @@ bool __np_memory_space_increase_nessecary(np_memory_container_t* container) {
     np_ctx_decl(container->module->context);
     bool ret = false;
 
-	_LOCK_ACCESS(&container->refreshed_items_lock) {
-		
-		_LOCK_ACCESS(&container->current_in_use_lock) {
+    _LOCK_ACCESS(&container->refreshed_items_lock) {
+        
+        _LOCK_ACCESS(&container->current_in_use_lock) {
         
             _LOCK_ACCESS(&container->free_items_lock) {
                 double growth = __np_memory_itemstats_get_growth(container);
@@ -510,39 +510,39 @@ void np_memory_free(np_state_t*context, void* item) {
         np_memory_itemconf_t* config = GET_CONF(item);
         np_memory_container_t* container = config->container;
 
-		NP_PERFORMANCE_POINT_START(memory_free);
+        NP_PERFORMANCE_POINT_START(memory_free);
 
-		bool rm = false;
+        bool rm = false;
         _LOCK_ACCESS(&config->access_lock) {
 
-			rm = config->ref_count == 0 && !config->persistent;
-			if (rm) {
-				config->in_use = false;
+            rm = config->ref_count == 0 && !config->persistent;
+            if (rm) {
+                config->in_use = false;
 
-				if (container->on_free != NULL)
-					container->on_free(context, container->type, container->size_per_item, item);
+                if (container->on_free != NULL)
+                    container->on_free(context, container->type, container->size_per_item, item);
 
-				if (container->on_refresh_space != NULL) {
-					config->needs_refresh = true;
-				}
+                if (container->on_refresh_space != NULL) {
+                    config->needs_refresh = true;
+                }
 
-				if (config->needs_refresh) {
-					_LOCK_ACCESS(&container->free_items_lock) {
-						sll_append(np_memory_itemconf_ptr, container->free_items, config);
-					}
-				}
-				else {
-					_LOCK_ACCESS(&container->refreshed_items_lock) {
-						sll_append(np_memory_itemconf_ptr, container->refreshed_items, config);
-					}
-				}
-			}
+                if (config->needs_refresh) {
+                    _LOCK_ACCESS(&container->free_items_lock) {
+                        sll_append(np_memory_itemconf_ptr, container->free_items, config);
+                    }
+                }
+                else {
+                    _LOCK_ACCESS(&container->refreshed_items_lock) {
+                        sll_append(np_memory_itemconf_ptr, container->refreshed_items, config);
+                    }
+                }
+            }
         }
-		if (rm) {
-			_LOCK_ACCESS(&container->current_in_use_lock) {
-				container->current_in_use -= 1;
-			}
-		}
+        if (rm) {
+            _LOCK_ACCESS(&container->current_in_use_lock) {
+                container->current_in_use -= 1;
+            }
+        }
         NP_PERFORMANCE_POINT_END(memory_free);
     }
 }
@@ -645,6 +645,7 @@ void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
                 log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d/%s) too often! try to unref for \"%s\". left reasons(%"PRIu32")", 
                     config, config->container->type, np_memory_types_str[config->container->type], reason, config->ref_count);
 #endif
+				assert(config->ref_count > 0 && "Unreferencing object too often!");
                 abort();
             }
             config->ref_count--;
@@ -686,7 +687,9 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
         new_line = "    ";
     }
 
-    uint32_t summary[10000] = { 0 };
+	uint32_t summary[np_memory_types_MAX_TYPE] = { 0 };
+	uint32_t summary_refs[np_memory_types_MAX_TYPE] = { 0 };
+	uint32_t summary_total[np_memory_types_MAX_TYPE] = { 0 };
 
     if (true == extended) {
         ret = np_str_concatAndFree(ret, "--- extended reasons start ---%s", new_line);
@@ -697,72 +700,79 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
         np_memory_container_t* container = np_module(memory)->__np_memory_container[memory_type];
 
         summary[container->type] = fmax(summary[container->type], container->current_in_use);
-
+		
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING		
-        if (true == extended
-            && (
-                true//container->type == np_memory_types_np_key_t
-                    //|| container->type == np_msgproperty_t_e
-                )
-            ) {
-            _LOCK_ACCESS(&container->total_items_lock) {
-                sll_iterator(np_memory_itemconf_ptr) iter_items = sll_first(container->total_items);
-                while (iter_items != NULL)
-                {
-                    np_memory_itemconf_ptr iter = iter_items->val;
-                    _TRYLOCK_ACCESS(&iter->access_lock) {
+		uint32_t max = 1;
+     
+		_LOCK_ACCESS(&container->total_items_lock) {
+			summary_total[container->type] = sll_size(container->total_items);
+			sll_iterator(np_memory_itemconf_ptr) iter_items = sll_first(container->total_items);
+			while (iter_items != NULL)
+			{
+				np_memory_itemconf_ptr iter = iter_items->val;
+				_TRYLOCK_ACCESS(&iter->access_lock) {
 
-                        summary[container->type] = fmax(summary[container->type * 100], iter->ref_count);
+					max = fmax(max, iter->ref_count);
 
-                        if (sll_size(iter->reasons) > 10) {
-                            ret = np_str_concatAndFree(ret,
-								"--- remaining reasons for %s (type: %d/%s, reasons: %d) start ---%s", iter->id, 
-								memory_type, 
+					if (true == extended
+						&& (
+							//true
+							container->type == np_memory_types_np_node_t
+							//|| container->type == np_msgproperty_t_e
+							)
+						)
+					{
+						if (sll_size(iter->reasons) > 10) {
+							ret = np_str_concatAndFree(ret,
+								"--- remaining reasons for %s (type: %d/%s, reasons: %d) start ---%s", iter->id,
+								memory_type,
 								np_memory_types_str[memory_type],
 								sll_size(iter->reasons), new_line
 							);
 
-                            static const uint32_t display_first_X_reasons = 5;
-                            static const uint32_t display_last_X_reasons = 5;
+							static const uint32_t display_first_X_reasons = 5;
+							static const uint32_t display_last_X_reasons = 5;
 
-                            sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
-                            uint32_t iter_reasons_counter = 0;
-                            while (iter_reasons != NULL)
-                            {
-                                if (iter_reasons_counter < display_first_X_reasons) {
-                                    ret = np_str_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
-                                }
+							sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
+							uint32_t iter_reasons_counter = 0;
+							while (iter_reasons != NULL)
+							{
+								if (iter_reasons_counter < display_first_X_reasons) {
+									ret = np_str_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+								}
 
-                                if (
-                                    (display_first_X_reasons + display_last_X_reasons) < sll_size(iter->reasons)
-                                    && display_first_X_reasons == iter_reasons_counter)
-                                {
-                                    ret = np_str_concatAndFree(ret, "... Skipping %"PRIi32" reasons ...%s", sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons), new_line);
-                                }
+								if (
+									(display_first_X_reasons + display_last_X_reasons) < sll_size(iter->reasons)
+									&& display_first_X_reasons == iter_reasons_counter)
+								{
+									ret = np_str_concatAndFree(ret, "... Skipping %"PRIi32" reasons ...%s", sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons), new_line);
+								}
 
-                                if (
-                                    iter_reasons_counter > display_first_X_reasons
-                                    && iter_reasons_counter >= display_first_X_reasons + sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons))
-                                {
-                                    ret = np_str_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
-                                }
+								if (
+									iter_reasons_counter > display_first_X_reasons
+									&& iter_reasons_counter >= display_first_X_reasons + sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons))
+								{
+									ret = np_str_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+								}
 
-                                iter_reasons_counter++;
-                                sll_next(iter_reasons);
-                            }
-                            ret = np_str_concatAndFree(ret,
-								"--- remaining reasons for %s (%d/%s) end  ---%s", 
+								iter_reasons_counter++;
+								sll_next(iter_reasons);
+							}
+							ret = np_str_concatAndFree(ret,
+								"--- remaining reasons for %s (%d/%s) end  ---%s",
 								iter->id,
 								memory_type,
 								np_memory_types_str[memory_type],
 								new_line
 							);
-                        }
-                    }
-                    sll_next(iter_items);
-                }
-            }
-        }
+						}
+					}
+				}
+				sll_next(iter_items);
+			}
+
+		}
+		summary_refs[container->type] = max;
 #endif
     }
 
@@ -776,11 +786,17 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
     if(asOneLine)
         ret = np_str_concatAndFree(ret, "--- memory summary---%s", new_line);
 
-    ret = np_str_concatAndFree(ret, "%20s |  count  | max ref%s", "name", new_line);
+    ret = np_str_concatAndFree(ret, "%20s | u./count | max ref%s", "name", new_line);
 
     for (int memory_type = 0; memory_type < np_memory_types_MAX_TYPE; memory_type++)
     {
-        ret = np_str_concatAndFree(ret, "%20s | %7"PRIu32" | %7"PRIu32"%s", np_memory_types_str[memory_type], summary[memory_type], summary[100 * memory_type], new_line);
+        ret = np_str_concatAndFree(ret,
+			"%20s | %3"PRIu32"/%4"PRIu32" | %3"PRIu32"%s", 
+			np_memory_types_str[memory_type], 
+			summary[memory_type], summary_total[memory_type],
+			summary_refs[memory_type],
+			new_line
+		);
     }
 
     if (asOneLine)
@@ -874,7 +890,7 @@ void* np_memory_waitref_obj(np_state_t* context, void* item, char* reason, char*
 }
 
 void* np_memory_tryref_obj(np_state_t* context, void* item, char* reason, char* reason_desc) {
-	void* ret = NULL;
+    void* ret = NULL;
     if (item != NULL) {
         np_memory_itemconf_t* config = GET_CONF(item);
 
@@ -899,11 +915,11 @@ uint32_t np_memory_unref_obj(np_state_t* context, void* item, char* reason) {
         np_check_magic_no(item);
         np_memory_itemconf_t* config = GET_CONF(item);        
 
-		_LOCK_ACCESS(&config->access_lock) {
-			np_mem_unrefobj(config, reason);
-			ret = config->ref_count + (config->persistent ? 1 : 0);
-			np_memory_free(context, item);		
-		}		
+        _LOCK_ACCESS(&config->access_lock) {
+            np_mem_unrefobj(config, reason);
+            ret = config->ref_count + (config->persistent ? 1 : 0);
+            np_memory_free(context, item);		
+        }		
     }
     return ret;
 }

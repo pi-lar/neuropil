@@ -43,7 +43,7 @@ extern "C" {
 		"messagepart",
 		"aaatoken",
 		"job",
-		"jobargs"
+		"jobargs",
 	};
 
 	typedef void(*np_memory_on_new) (np_state_t *context, uint8_t type, size_t size, void* data);
