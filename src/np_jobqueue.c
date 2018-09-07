@@ -265,19 +265,21 @@ bool __np_job_submit_msgin_event(np_state_t * context, double delay, np_msgprope
 	return (new_job != NULL);
 }
 
-void _np_job_submit_transform_event(np_state_t * context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
+bool _np_job_submit_transform_event(np_state_t * context, double delay, np_msgproperty_t* prop, np_key_t* key, void* custom_data)
 {
 	assert(NULL != prop);
-
+	bool ret = true;
 	// create runtime arguments
-	np_jobargs_t* jargs = _np_job_create_args(context, msg, key, prop, FUNC);
+	np_jobargs_t* jargs = _np_job_create_args(context, NULL, key, prop, FUNC);
+	jargs->custom_data = custom_data;
 	// create job itself
 	np_job_t* new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG, prop->clb_transform, "clb_transform");
 
-
 	if (!_np_job_queue_insert(new_job)) {
 		_np_job_free(context, new_job);
+		ret = false;
 	}
+	return ret;
 }
 
 void _np_job_submit_msgout_event(np_state_t * context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)

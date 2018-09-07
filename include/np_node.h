@@ -49,7 +49,9 @@ struct np_node_s
 
 	// state extension
 	enum np_handshake_status _handshake_status;
-	double handshake_send_at; 	
+	double handshake_send_at; 		
+	uint32_t handshake_priority;
+
 	bool joined_network; 
 	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
 	bool session_key_is_set;

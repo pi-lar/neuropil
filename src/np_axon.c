@@ -439,10 +439,16 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
 
             np_tree_insert_str( hs_message->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s(_NP_MSG_HANDSHAKE));
             np_tree_insert_str( hs_message->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(context->my_node_key->dhkey) );
+			np_tree_insert_str( hs_message->header, NP_HS_PRIO, np_treeval_new_ul(context->my_node_key->node->handshake_priority));
+			
             np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
             np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(hs_prop->ack_mode));
             np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(hs_prop->token_max_ttl + 0.0));
             np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d((double)np_time_now()));
+			if (args->custom_data != NULL) {
+				np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(args->custom_data));
+				free(args->custom_data);
+			}
 
             np_aaatoken_encode(hs_message->body, my_token);
             np_unref_obj(np_aaatoken_t, my_token, "_np_token_factory_new_handshake_token");

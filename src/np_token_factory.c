@@ -255,7 +255,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 	crypto_scalarmult_base(my_dh_sessionkey, curve25519_sk);
 
 	np_tree_clear(ret->extensions);
-	np_tree_insert_str(ret->extensions, "_np.session", np_treeval_new_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
+	np_tree_insert_str(ret->extensions, _NP_MSG_EXTENSIONS_SESSION, np_treeval_new_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
 
 	_np_aaatoken_set_signature(ret, my_node_key->aaa_token);
 

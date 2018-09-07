@@ -82,7 +82,7 @@ NP_API_INTERN
 	void _np_job_submit_route_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
 
 NP_API_INTERN
-	void _np_job_submit_transform_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+	bool _np_job_submit_transform_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, void* custom_data);
 
 NP_API_INTERN
 	void _np_job_resubmit_msgout_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);

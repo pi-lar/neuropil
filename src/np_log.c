@@ -190,7 +190,7 @@ void np_log_message(np_state_t* context, uint32_t level, const char* srcFile, co
 
 		static const char* suffix = "\n";
 
-		char* log_msg;
+		char* log_msg=NULL;
 		va_list ap;
 		va_start(ap, msg);
 		vasprintf(&log_msg, msg, ap);

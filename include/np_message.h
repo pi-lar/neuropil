@@ -166,9 +166,13 @@ static const char* _NP_MSG_INST_RESPONSE_UUID	= "_np.response_uuid";
 static const char* _NP_MSG_INST_TTL				= "_np.ttl";
 static const char* _NP_MSG_INST_TSTAMP			= "_np.tstamp";
 
+// msg extension constants
+static const char* _NP_MSG_EXTENSIONS_SESSION = "_np.session";
+
 // msg handshake constants
 static const char* NP_HS_PAYLOAD = "_np.payload";
 static const char* NP_HS_SIGNATURE = "_np.signature";
+static const char* NP_HS_PRIO = "_np.hs.priority";
 
 // body constants
 static const char* NP_MSG_BODY_JTREE = "_np.jtree";

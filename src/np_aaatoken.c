@@ -82,9 +82,9 @@ void _np_aaatoken_t_del (np_state_t *context, uint8_t type, size_t size, void* t
     np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
     // clean up extensions
     if (aaa_token->extensions != aaa_token->extensions_local) {
-        np_tree_free( aaa_token->extensions_local);
+        np_tree_free(aaa_token->extensions_local);
     }
-    np_tree_free( aaa_token->extensions);
+    np_tree_free(aaa_token->extensions);
 }
 
 void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node_public_token_t* full_token)
@@ -239,7 +239,7 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
             token->extensions_local->attr.immutable = false;
         }
         else {
-            np_tree_copy_inplace(tmp->val.value.tree, token->extensions_local);
+            np_tree_copy(tmp->val.value.tree, token->extensions_local);
         }
         np_tree_clear( token->extensions);
         np_tree_copy( tmp->val.value.tree, token->extensions);
@@ -271,7 +271,7 @@ void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self) {
         self->type |= np_aaatoken_type_identity;
     }
     else if (strncmp( _NP_URN_NODE_PREFIX, self->subject, strlen( _NP_URN_NODE_PREFIX)) == 0) {
-        if (np_tree_find_str(self->extensions, "_np.session") == NULL) {
+        if (np_tree_find_str(self->extensions, _NP_MSG_EXTENSIONS_SESSION) == NULL) {
             self->type |= np_aaatoken_type_node;
         }
         else {

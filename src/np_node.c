@@ -60,7 +60,8 @@ void _np_node_t_new(np_state_t *context, uint8_t type, size_t size, void*  node)
 	np_node_set_handshake(entry, np_handshake_status_Disconnected);
 
 	entry->handshake_send_at = 0;
-	entry->joined_network = false;
+	entry->joined_network = false;	
+	entry->handshake_priority = randombytes_random();
 
 	for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
 		entry->success_win[i] = i%2;
