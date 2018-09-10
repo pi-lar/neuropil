@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 
 	int cloud_size = atoi(ccloud_size);
 
-	np_context** nodes = calloc(cloud_size,sizeof(np_context*));
+	np_context** nodes = calloc(cloud_size, sizeof(np_context*));
 
 	char addr[500];
 	uint16_t tmp;
@@ -75,7 +75,8 @@ int main(int argc, char **argv)
 		snprintf(settings->log_file, 255, "neuropil_cloud_%d.log", port);
 		settings->log_level = level;
 
-		nodes[i] = np_new_context(settings); // use default settings
+		nodes[i] = new_example_context(settings); // use default settings
+		
 
 		np_example_print(nodes[0], stdout, "INFO: Starting Node %"PRIsizet"\n", i);
 

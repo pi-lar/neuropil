@@ -22,6 +22,9 @@
 #include <ncurses.h>
 #include "sodium.h"
 
+#include "../examples/example_helper.h"
+
+
 #include "np_legacy.h"
 #include "np_types.h"
 #include "np_statistics.h"
@@ -41,7 +44,6 @@
 #include "np_statistics.h"
 
 #include "np_conversion.c"
-
 extern char *optarg;
 extern int optind;
 
@@ -67,6 +69,14 @@ const char* logo =
 "MMNxcccccccOWMMMMMMMMMMMW0occccccccckWMM\n"
 "MMNxcccccclOWMMMMMMMMMMMMWOlcccccccckWMM";
 
+
+np_context* new_example_context(struct np_settings * settings_in) {
+	np_context* ret = np_new_context(settings_in);
+	example_user_context* user_context = calloc(1, sizeof(example_user_context));
+	user_context->local_http = NULL;
+	np_set_userdata(ret, user_context);
+	return ret;
+}
 enum np_statistic_types_e {
 	np_stat_all = 0x000,
 	np_stat_general = 0x001,
@@ -942,6 +952,7 @@ void _np_interactive_quit(np_context* context, char* buffer) {
 		strncmp(buffer, "y", 1) == 0 ){
 		if (_np_httpserver_active) {
 			example_http_server_deinit(context);
+			_np_httpserver_active = false;
 		}
 		__np_example_deinti_ncurse(context);
 		np_destroy(context, true);

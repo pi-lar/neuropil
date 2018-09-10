@@ -152,8 +152,8 @@ np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type
 #undef register
 #undef register_defaultobj
 
-    np_memory_register_type(context, np_memory_types_np_job_t, sizeof(np_job_t), 4, 4, NULL, NULL, np_memory_clear_space);
-    np_memory_register_type(context, np_memory_types_np_jobargs_t, sizeof(np_jobargs_t), 4, 4, NULL, NULL, np_memory_clear_space);
+    np_memory_register_type(context, np_memory_types_np_job_t, sizeof(np_job_t), 4, JOBQUEUE_MAX_SIZE, NULL, NULL, np_memory_clear_space);
+    np_memory_register_type(context, np_memory_types_np_jobargs_t, sizeof(np_jobargs_t), 4, JOBQUEUE_MAX_SIZE/2, NULL, NULL, np_memory_clear_space);
 
     np_memory_register_type(context, np_memory_types_BLOB_1024, 1024, 4, 150, NULL, NULL, np_memory_clear_space);
     np_memory_register_type(context, np_memory_types_BLOB_984_RANDOMIZED, 984, 4, 50, NULL, NULL, np_memory_randomize_space);
@@ -419,7 +419,7 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
             }
 
 #if NP_MEMORY_CHECK_MEMORY_REFFING
-			sll_free(char_ptr, item_config->reasons);
+            sll_free(char_ptr, item_config->reasons);
 #endif 
             _np_threads_mutex_destroy(context, &item_config->access_lock);
             free(item_config);
@@ -647,7 +647,7 @@ void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
                 log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d/%s) too often! try to unref for \"%s\". left reasons(%"PRIu32")", 
                     config, config->container->type, np_memory_types_str[config->container->type], reason, config->ref_count);
 #endif
-				assert(config->ref_count > 0 && "Unreferencing object too often!");
+                assert(config->ref_count > 0 && "Unreferencing object too often!");
                 abort();
             }
             config->ref_count--;
@@ -689,9 +689,9 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
         new_line = "    ";
     }
 
-	uint32_t summary[np_memory_types_MAX_TYPE] = { 0 };
-	uint32_t summary_refs[np_memory_types_MAX_TYPE] = { 0 };
-	uint32_t summary_total[np_memory_types_MAX_TYPE] = { 0 };
+    uint32_t summary[np_memory_types_MAX_TYPE] = { 0 };
+    uint32_t summary_refs[np_memory_types_MAX_TYPE] = { 0 };
+    uint32_t summary_total[np_memory_types_MAX_TYPE] = { 0 };
 
     if (true == extended) {
         ret = np_str_concatAndFree(ret, "--- extended reasons start ---%s", new_line);
@@ -702,79 +702,79 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
         np_memory_container_t* container = np_module(memory)->__np_memory_container[memory_type];
 
         summary[container->type] = fmax(summary[container->type], container->current_in_use);
-		
+        
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING		
-		uint32_t max = 1;
+        uint32_t max = 1;
      
-		_LOCK_ACCESS(&container->total_items_lock) {
-			summary_total[container->type] = sll_size(container->total_items);
-			sll_iterator(np_memory_itemconf_ptr) iter_items = sll_first(container->total_items);
-			while (iter_items != NULL)
-			{
-				np_memory_itemconf_ptr iter = iter_items->val;
-				_TRYLOCK_ACCESS(&iter->access_lock) {
+        _LOCK_ACCESS(&container->total_items_lock) {
+            summary_total[container->type] = sll_size(container->total_items);
+            sll_iterator(np_memory_itemconf_ptr) iter_items = sll_first(container->total_items);
+            while (iter_items != NULL)
+            {
+                np_memory_itemconf_ptr iter = iter_items->val;
+                _TRYLOCK_ACCESS(&iter->access_lock) {
 
-					max = fmax(max, iter->ref_count);
+                    max = fmax(max, iter->ref_count);
 
-					if (true == extended
-						&& (
-							//true
-							container->type == np_memory_types_np_node_t
-							//|| container->type == np_msgproperty_t_e
-							)
-						)
-					{
-						if (sll_size(iter->reasons) > 10) {
-							ret = np_str_concatAndFree(ret,
-								"--- remaining reasons for %s (type: %d/%s, reasons: %d) start ---%s", iter->id,
-								memory_type,
-								np_memory_types_str[memory_type],
-								sll_size(iter->reasons), new_line
-							);
+                    if (true == extended
+                        && (
+                            //true
+                            container->type == np_memory_types_np_node_t
+                            //|| container->type == np_msgproperty_t_e
+                            )
+                        )
+                    {
+                        if (sll_size(iter->reasons) > 10) {
+                            ret = np_str_concatAndFree(ret,
+                                "--- remaining reasons for %s (type: %d/%s, reasons: %d) start ---%s", iter->id,
+                                memory_type,
+                                np_memory_types_str[memory_type],
+                                sll_size(iter->reasons), new_line
+                            );
 
-							static const uint32_t display_first_X_reasons = 5;
-							static const uint32_t display_last_X_reasons = 5;
+                            static const uint32_t display_first_X_reasons = 5;
+                            static const uint32_t display_last_X_reasons = 5;
 
-							sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
-							uint32_t iter_reasons_counter = 0;
-							while (iter_reasons != NULL)
-							{
-								if (iter_reasons_counter < display_first_X_reasons) {
-									ret = np_str_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
-								}
+                            sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
+                            uint32_t iter_reasons_counter = 0;
+                            while (iter_reasons != NULL)
+                            {
+                                if (iter_reasons_counter < display_first_X_reasons) {
+                                    ret = np_str_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+                                }
 
-								if (
-									(display_first_X_reasons + display_last_X_reasons) < sll_size(iter->reasons)
-									&& display_first_X_reasons == iter_reasons_counter)
-								{
-									ret = np_str_concatAndFree(ret, "... Skipping %"PRIi32" reasons ...%s", sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons), new_line);
-								}
+                                if (
+                                    (display_first_X_reasons + display_last_X_reasons) < sll_size(iter->reasons)
+                                    && display_first_X_reasons == iter_reasons_counter)
+                                {
+                                    ret = np_str_concatAndFree(ret, "... Skipping %"PRIi32" reasons ...%s", sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons), new_line);
+                                }
 
-								if (
-									iter_reasons_counter > display_first_X_reasons
-									&& iter_reasons_counter >= display_first_X_reasons + sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons))
-								{
-									ret = np_str_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
-								}
+                                if (
+                                    iter_reasons_counter > display_first_X_reasons
+                                    && iter_reasons_counter >= display_first_X_reasons + sll_size(iter->reasons) - (display_first_X_reasons + display_last_X_reasons))
+                                {
+                                    ret = np_str_concatAndFree(ret, "\"%s\"%s", iter_reasons->val, new_line);
+                                }
 
-								iter_reasons_counter++;
-								sll_next(iter_reasons);
-							}
-							ret = np_str_concatAndFree(ret,
-								"--- remaining reasons for %s (%d/%s) end  ---%s",
-								iter->id,
-								memory_type,
-								np_memory_types_str[memory_type],
-								new_line
-							);
-						}
-					}
-				}
-				sll_next(iter_items);
-			}
+                                iter_reasons_counter++;
+                                sll_next(iter_reasons);
+                            }
+                            ret = np_str_concatAndFree(ret,
+                                "--- remaining reasons for %s (%d/%s) end  ---%s",
+                                iter->id,
+                                memory_type,
+                                np_memory_types_str[memory_type],
+                                new_line
+                            );
+                        }
+                    }
+                }
+                sll_next(iter_items);
+            }
 
-		}
-		summary_refs[container->type] = max;
+        }
+        summary_refs[container->type] = max;
 #endif
     }
 
@@ -793,12 +793,12 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
     for (int memory_type = 0; memory_type < np_memory_types_MAX_TYPE; memory_type++)
     {
         ret = np_str_concatAndFree(ret,
-			"%20s | %3"PRIu32"/%4"PRIu32" | %3"PRIu32"%s", 
-			np_memory_types_str[memory_type], 
-			summary[memory_type], summary_total[memory_type],
-			summary_refs[memory_type],
-			new_line
-		);
+            "%20s | %3"PRIu32"/%4"PRIu32" | %3"PRIu32"%s", 
+            np_memory_types_str[memory_type], 
+            summary[memory_type], summary_total[memory_type],
+            summary_refs[memory_type],
+            new_line
+        );
     }
 
     if (asOneLine)

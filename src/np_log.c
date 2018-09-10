@@ -142,8 +142,7 @@ void log_rotation(np_state_t* context)
 		_np_log_fflush(context, true);
 		free(old_filename);
 	}
-	pthread_mutex_unlock(&np_module(log)->__log_mutex);
-	
+	pthread_mutex_unlock(&np_module(log)->__log_mutex);	
 }
 
 void np_log_message(np_state_t* context, uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)

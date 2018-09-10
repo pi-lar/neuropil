@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
 	fprintf(stdout, "logpath: %s\n", settings->log_file);
 	settings->log_level = level;
 
-	np_state_t * context = np_new_context(settings);
+	np_state_t * context = new_example_context(settings);
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
 		printf("ERROR: Node could not listen");

@@ -238,7 +238,7 @@ int main(int argc, char **argv)
 	snprintf(settings->log_file, 255, "%s/%s_%s.log", logpath, "neuropil_raspberry", port);
 	settings->log_level = level;
 
-	np_context * context = np_new_context(settings);
+	np_context * context = new_example_context(settings);
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
 		np_example_print(context, stderr, "ERROR: Node could not listen");
