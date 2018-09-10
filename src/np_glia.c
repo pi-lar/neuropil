@@ -251,7 +251,10 @@ void _np_glia_send_pings(np_state_t* context, np_jobargs_t* args) {
 	sll_free(np_key_ptr, neighbour_keys);
 }
 
-
+void _np_glia_log_flush(np_state_t* context, np_jobargs_t* args) {
+	
+	_np_log_fflush(context, true);
+}
 
 void _np_glia_send_piggy_requests(np_state_t* context, np_jobargs_t* args) {
 	

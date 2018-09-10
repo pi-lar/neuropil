@@ -34,6 +34,7 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
 void _np_glia_check_neighbours(np_state_t* context, np_jobargs_t* args);
 void _np_glia_check_routes(np_state_t* context, np_jobargs_t* args);
 void _np_glia_send_piggy_requests(np_state_t* context, np_jobargs_t* args);
+void _np_glia_log_flush(np_state_t* context, np_jobargs_t* args);
 void _np_glia_send_pings(np_state_t* context, np_jobargs_t* args);
 
 typedef void(*__np_glia_check_connections_handler)(np_key_t*, bool, np_key_t**, np_key_t**);
