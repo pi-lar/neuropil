@@ -317,8 +317,9 @@ void np_job_submit_event_periodic(np_state_t * context, double priority, double 
 	}
 }
 
-void np_job_submit_event(np_state_t* context, double priority, double delay, np_callback_t callback, void* data, const char* ident)
+bool np_job_submit_event(np_state_t* context, double priority, double delay, np_callback_t callback, void* data, const char* ident)
 {
+	bool ret = true;
 	log_debug_msg(LOG_JOBS | LOG_DEBUG, "np_job_submit_event");
 
 	sll_init_full(np_callback_t, callbacks);
@@ -334,7 +335,9 @@ void np_job_submit_event(np_state_t* context, double priority, double delay, np_
 
 	if (!_np_job_queue_insert(new_job)) {		
 		_np_job_free(context, new_job);
+		ret = false;
 	}
+	return ret;	
 }
 
 

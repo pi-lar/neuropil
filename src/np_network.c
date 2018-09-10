@@ -788,7 +788,11 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
         if (in_msg_len >= 0) {
             msgs_received++;            
             data_container->in_msg_len = in_msg_len;
-            np_job_submit_event(context, PRIORITY_MOD_LEVEL_2, 0, _np_network_handle_incomming_data, data_container, "_np_network_handle_incomming_data");
+			if (!np_job_submit_event(context, PRIORITY_MOD_LEVEL_2, 0, _np_network_handle_incomming_data, data_container, "_np_network_handle_incomming_data")) {
+
+				np_memory_free(context, data_container->data);
+				free(data_container);
+			}
         }
         else {
             log_debug_msg(LOG_INFO | LOG_NETWORK, "Dropping data package due to invalid package size (%"PRIu16")", in_msg_len);

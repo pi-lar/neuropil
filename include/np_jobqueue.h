@@ -68,7 +68,7 @@ NP_API_INTERN
 	void np_job_submit_event_periodic(np_state_t* context, double priority, double first_delay, double interval, np_callback_t callback, const char* ident);
 
 NP_API_INTERN
-void np_job_submit_event(np_state_t* context, double priority, double delay, np_callback_t callback, void* data, const char* ident);
+bool np_job_submit_event(np_state_t* context, double priority, double delay, np_callback_t callback, void* data, const char* ident);
 
 
 NP_API_INTERN

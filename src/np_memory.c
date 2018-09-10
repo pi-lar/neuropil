@@ -418,10 +418,12 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
                 sll_remove(np_memory_itemconf_ptr, container->total_items, item_config, np_memory_itemconf_ptr_sll_compare_type);
             }
 
+#if NP_MEMORY_CHECK_MEMORY_REFFING
+			sll_free(char_ptr, item_config->reasons);
+#endif 
             _np_threads_mutex_destroy(context, &item_config->access_lock);
             free(item_config);
             item_config = NULL;
-
         }
         else {
             // removed everything, lists are now empty
