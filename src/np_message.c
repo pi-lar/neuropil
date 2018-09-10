@@ -1049,13 +1049,15 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
                     np_tree_t* encrypted_body = np_tree_create();
                     if (_np_messagepart_decrypt(context, msg->body, nonce, sym_key, NULL, encrypted_body) == false)
                     {
-                        log_msg(LOG_ERROR, "decryption of message payloads body failed");
+						np_tree_free(encrypted_body);
+						log_msg(LOG_ERROR, "decryption of message payloads body failed");
                         ret = false;
                     }
                     else
                     {
-                        np_tree_free(msg->body);
+						np_tree_t* old = msg->body;
                         msg->body = encrypted_body;
+						np_tree_free(old);
                     }
                 }
             }
