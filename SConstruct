@@ -30,10 +30,10 @@ print ('####')
 print ('building on: {platform} / {processor} / {system}'.format(platform=str(platform.machine()), processor=str(platform.processor()), system=str(platform.system())) )
 
 try:
-	import multiprocessing
-	SetOption('num_jobs', multiprocessing.cpu_count())
+    import multiprocessing
+    SetOption('num_jobs', multiprocessing.cpu_count())
 except:
-	pass;
+    pass;
 
 # use clang to compile the source code
 default_env = Environment(CC = 'clang')
@@ -123,7 +123,6 @@ if int(debug) >= 1:
 if int(console_log):
     default_env.Append(CCFLAGS = ['-DCONSOLE_LOG'])
 
-default_env.Append(LIBS = ['m'])
 # platform specific compiler options
 
 if 'FreeBSD' in platform.system():
@@ -145,6 +144,7 @@ if 'Darwin' in platform.system():
   default_env.Append(CPPPATH = ['/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include'] )
 
 if 'Linux' in platform.system():
+  default_env.Append(LIBS = ['m'])
   default_env.Append(CCFLAGS = ['-D_GNU_SOURCE'])
   default_env.Append(LIBS = ['rt', 'pthread'] )
 
@@ -160,14 +160,15 @@ if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
     default_env.Append(LIBS = ['rt'] )
     default_env.Append(CCFLAGS = ['-x c'])
 
-default_env.Append(CPPPATH = ['tpl/criterion-v2.3.2/include'] )
-default_env.Append(LIBPATH = ['./tpl/criterion-v2.3.2/lib'] )
-
 # env.Append(CCFLAGS = '-march='+platform.processor())
 # env.Append(CCFLAGS = '-arch='+platform.machine())
 # env.Append(CCFLAGS = '-target ' + platform.machine() + '-' + platform.system().lower() )
 # env.Append(CCFLAGS = '-target ' + platform.machine())
 
+default_env.Append(LINKFLAGS = ['-v']) # shows linker invokation
+
+default_env.Append(CPPPATH = ['./include'])
+default_env.Append(LIBPATH = ['./build/lib'])
 
 print ("continuing with CCFLAGS set to: {dump}".format(dump=default_env.Dump(key='CCFLAGS')) )
 print ("continuing with LDFLAGS set to: {dump}".format(dump=default_env.Dump(key='LDFLAGS')) )
@@ -175,16 +176,12 @@ print ("continuing with LDFLAGS set to: {dump}".format(dump=default_env.Dump(key
 print ('####')
 print ('#### detecting 3rd party libraries')
 print ('####')
-
-default_env.Append(LINKFLAGS = ['-v']) # shows linker invokation
-
-default_env.Append(CPPPATH = ['./include'])
-default_env.Append(LIBPATH = ['./build/lib'])
-
 neuropil_env = default_env.Clone()
 
 # add 3rd party library path info here
 neuropil_env.Append(LIBS = ['sodium'])
+if 'Windows' in platform.system():
+    neuropil_env.Append(LIBPATH = ['./ext_tools/libsodium/win32'])
 
 conf = Configure(neuropil_env)
 
@@ -230,7 +227,6 @@ def build_sphinx_doc(source, target, neuropil_env, for_signature):
     return 'sphinx-build %s %s' % (source[0], target[0])
 sphinx_builder = Builder(generator = build_sphinx_doc, target_factory=Dir, source_factory=Dir)
 neuropil_env.Append(BUILDERS = {'Sphinx' : sphinx_builder})
-
 
 if int(build_doc) and sphinx_exe:
     neuropil_env.Sphinx('./build/html', './doc/source')
