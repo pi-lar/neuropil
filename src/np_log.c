@@ -26,6 +26,7 @@
 #include "np_event.h"
 //#include "np_types.h"
 #include "np_settings.h"
+#include "np_jobqueue.h"
 
 typedef struct np_log_s
 {
@@ -74,16 +75,6 @@ np_module_struct(log) {
 	pthread_mutexattr_t __log_mutex_attr;
 };
 
-
-void _np_log_evflush(struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
-{
-	np_state_t* context = ev_userdata(loop);
-
-	if ((revents &  EV_WRITE) == EV_WRITE && (revents &  EV_ERROR) != EV_ERROR)
-	{
-		_np_log_fflush(context, true);
-	}
-}
 
 void log_rotation(np_state_t* context)
 {
@@ -308,6 +299,10 @@ void np_log_setlevel(np_state_t* context, uint32_t level)
 	np_module(log)->__logger->level = level;
 }
 
+void _np_log_flush(np_state_t* context, np_jobargs_t* args) {
+	_np_log_fflush(context, true);
+}
+
 void _np_log_init(np_state_t* context, const char* filename, uint32_t level)
 {
 	if (!np_module_initiated(log)) {
@@ -351,6 +346,8 @@ void _np_log_init(np_state_t* context, const char* filename, uint32_t level)
 
 		sll_init(char_ptr, _module->__logger->logentries_l);
 		log_rotation(context);
+
+		np_job_submit_event_periodic(context, PRIORITY_MOD_LOWEST, NP_LOG_FLUSH_INTERVAL, NP_LOG_FLUSH_INTERVAL, _np_log_flush, "_np_log_flush");
 
 		log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", _module->__logger, _module->__logger->filename, _module->__logger->level);
 	}
