@@ -1445,15 +1445,14 @@ void np_aaatoken_unref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* rea
 }
 
 
-
+#ifdef DEBUG
 void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
-
     assert(self != NULL);
     np_ctx_memory(self);
 
-#ifdef DEBUG
-    char* info_str;
-    asprintf(&info_str, "AAATokenTrace_%s", desc);	
+
+    char* info_str = NULL;
+	info_str = np_str_concatAndFree(info_str, "AAATokenTrace_%s", desc);
 
     np_tree_t* data = np_tree_create();
     _np_aaatoken_encode(data, self, false);
@@ -1475,8 +1474,8 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
 
     log_msg(LOG_AAATOKEN | LOG_INFO, "%s", info_str);
     free(info_str);
-#endif
 }
+#endif
 
     struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src) {
 

@@ -210,7 +210,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 				log_debug_msg(LOG_DEBUG, "building node base structure");
 				np_node_t* my_node = NULL;
 				np_new_obj(np_node_t, my_node, ref_key_node);
-				_np_node_update(my_node, np_proto, host, np_service);
+				_np_node_update(my_node, np_proto, ng_host, np_service);
 				np_context_create_new_nodekey(context, my_node);
 				if (context->my_identity == NULL)
 					np_set_identity_v1(context, context->my_node_key->aaa_token);
