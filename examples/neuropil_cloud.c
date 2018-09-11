@@ -39,8 +39,8 @@ int main(int argc, char **argv)
 	char* ccloud_size = "32";
 	char* logpath = ".";
 	
-	example_user_context* user_context;
-	if ((user_context = parse_program_args(
+	example_user_context* user_context_template;
+	if ((user_context_template = parse_program_args(
 		__FILE__,
 		argc,
 		argv,
@@ -76,6 +76,9 @@ int main(int argc, char **argv)
 		snprintf(settings->log_file, 255, "neuropil_cloud_%d.log", port);
 		settings->log_level = level;
 
+		example_user_context* user_context = malloc(sizeof(example_user_context));
+		memcpy(user_context, user_context_template, sizeof(example_user_context));			
+
 		nodes[i] = np_new_context(settings); // use default settings		
 		np_set_userdata(nodes[i], user_context);
 
@@ -96,6 +99,7 @@ int main(int argc, char **argv)
 			__np_example_helper_loop(nodes[i]);
 		}
 		else {
+
 		   example_http_server_init(nodes[i], NULL, np_sysinfo_opt_force_client);
 		}
 	}
