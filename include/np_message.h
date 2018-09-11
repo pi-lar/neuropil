@@ -18,6 +18,11 @@
 extern "C" {
 #endif
 
+
+	enum np_message_submit_type {
+		np_message_submit_type_DIRECT,
+		np_message_submit_type_ROUTE
+	};
 struct np_message_s
 {
 	 // link to memory pool
@@ -36,6 +41,7 @@ struct np_message_s
 	np_mutex_t msg_chunks_lock;
 
 	np_msgproperty_ptr msg_property;
+	double send_at;	
 
 	TSP(bool, is_acked);
 	np_sll_t(np_responsecontainer_on_t, on_ack);
@@ -48,6 +54,7 @@ struct np_message_s
 	void* bin_footer;
 	np_messagepart_t* bin_static;
 
+	enum np_message_submit_type submit_type;
 } NP_API_INTERN;
 
 #ifndef SWIG
@@ -138,9 +145,6 @@ void np_message_add_on_ack(np_message_t* self, np_responsecontainer_on_t on_ack)
 NP_API_EXPORT
 void np_message_remove_on_ack(np_message_t* self, np_responsecontainer_on_t on_ack);
 
-
-
-
 NP_API_INTERN
 void _np_message_trace_info(char* desc, np_message_t * msg_in);
 
@@ -162,9 +166,13 @@ static const char* _NP_MSG_INST_RESPONSE_UUID	= "_np.response_uuid";
 static const char* _NP_MSG_INST_TTL				= "_np.ttl";
 static const char* _NP_MSG_INST_TSTAMP			= "_np.tstamp";
 
+// msg extension constants
+static const char* _NP_MSG_EXTENSIONS_SESSION = "_np.session";
+
 // msg handshake constants
 static const char* NP_HS_PAYLOAD = "_np.payload";
 static const char* NP_HS_SIGNATURE = "_np.signature";
+static const char* NP_HS_PRIO = "_np.hs.priority";
 
 // body constants
 static const char* NP_MSG_BODY_JTREE = "_np.jtree";

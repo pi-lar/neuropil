@@ -39,13 +39,7 @@
 
 #include "np_legacy.h"
 #include "example_helper.c"
-
-NP_SLL_GENERATE_PROTOTYPES(int);
-NP_SLL_GENERATE_IMPLEMENTATION(int);
-
  
-bool receive_green_button_pressed(np_context* context, struct np_message* message);
-
 bool receive_echo_message(np_context* context, struct np_message* message) {
 	np_example_print(context, stdout, "Echoing msg %s", message->uuid);
 	np_send_to(context, "echo", message->data, message->data_length, &message->from);
@@ -61,7 +55,8 @@ int main(int argc, char **argv) {
 	int level = -2;
 	char* logpath = ".";
 
-	if (parse_program_args(
+	example_user_context* user_context;
+	if ((user_context = parse_program_args(
 		__FILE__,
 		argc,
 		argv,
@@ -74,7 +69,7 @@ int main(int argc, char **argv) {
 		&logpath,
 		"",
 		""
-	) == false) {
+	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
 
@@ -86,6 +81,7 @@ int main(int argc, char **argv) {
 	settings->log_level = level;
 
 	np_context * context = np_new_context(settings);
+	np_set_userdata(context, user_context);
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
 		np_example_print(context, stderr, "ERROR: Node could not listen");
@@ -99,20 +95,10 @@ int main(int argc, char **argv) {
 	np_set_mx_properties(context, "echo", echo_props);
 	np_statistics_add_watch(context, "echo");
 
-
-	np_add_receive_cb(context, "green_button_pressed", receive_green_button_pressed);
-	np_statistics_add_watch(context, "green_button_pressed");
-
 	if (np_ok != np_run(context, 0)) {
 		np_example_print(context, stderr, "ERROR: Node could not start");
 		exit(EXIT_FAILURE);
 	}
 
 	__np_example_helper_run_info_loop(context);
-}
-
-// Live demo special
-bool receive_green_button_pressed(np_context* context, struct np_message* message)
-{	
-	system("say -v Daniel Neuropil message received!");
-}
+} 

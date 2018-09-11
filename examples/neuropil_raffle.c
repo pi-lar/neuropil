@@ -9,6 +9,8 @@
 #include <sqlite3.h> 
 
 #include "neuropil.h"
+#include "np_legacy.h"
+#include "np_log.h"
 
 #include <errno.h>
 #include <string.h>
@@ -135,10 +137,11 @@ int main()
 	struct np_settings * settings = np_default_settings(NULL);
 
 	snprintf(settings->log_file, 255, "np_raffle_receiver.log");
-
+	settings->log_level = LOG_ERROR | LOG_WARN;
 
 	np_context* context = np_new_context(settings);
 	np_listen(context, "pas6", "localhost", 4444);
+	np_time_sleep(5.);
 	// np_sysinfo_enable_client(context);
 
 	// char* connection_string = np_get_connection_string(context);

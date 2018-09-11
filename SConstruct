@@ -29,20 +29,30 @@ print ('#### starting neuropil build')
 print ('####')
 print ('building on: {platform} / {processor} / {system}'.format(platform=str(platform.machine()), processor=str(platform.processor()), system=str(platform.system())) )
 
+try:
+    import multiprocessing
+    SetOption('num_jobs', multiprocessing.cpu_count())
+except:
+    pass;
+
 # use clang to compile the source code
 default_env = Environment(CC = 'clang')
 if 'TERM' in os.environ:
   default_env['ENV']['TERM'] = os.environ['TERM']
 
 if os.getenv("CC"):
-	default_env["CC"] = os.getenv("CC")
+    default_env["CC"] = os.getenv("CC")
 default_env["CXX"] = os.getenv("CXX")
 default_env["ENV"].update(x for x in os.environ.items() if x[0].startswith("CCC_"))
 
+variantDir = 'build/obj/'
 
-default_env.VariantDir('build/obj/src', 'src', duplicate=0)
-default_env.VariantDir('build/obj/test', 'test', duplicate=0)
-default_env.VariantDir('build/obj/examples', 'examples', duplicate=0)
+default_env.VariantDir(variantDir+'src', 'src', duplicate=0)
+default_env.VariantDir(variantDir+'test', 'test', duplicate=0)
+default_env.VariantDir(variantDir+'examples', 'examples', duplicate=0)
+
+default_env.Decider('MD5')
+
 
 # read in additional compile flags
 analyze = ARGUMENTS.get('analyze', 0)
@@ -110,18 +120,15 @@ if int(debug) >= 1:
   if int(debug) <= 1:
     default_env.Append(CCFLAGS = ['-DDEBUG'])
 
-default_env.Append(CCFLAGS = ['-DNEUROPIL_RELEASE_BUILD=\"{}\"'.format(buildNo())])
-
 if int(console_log):
     default_env.Append(CCFLAGS = ['-DCONSOLE_LOG'])
 
-default_env.Append(LIBS = ['m'])
 # platform specific compiler options
 
 if 'FreeBSD' in platform.system():
   default_env.Append(LIBS = ['util', 'm'] )
   default_env.Append(LIBPATH = ['/usr/local/lib'] )
-  default_env.Append(CCFLAGS = ['-I/usr/local/include'] )
+  default_env.Append(CPPPATH = ['/usr/local/include'] )
 
 
 if 'Darwin' in platform.system():
@@ -134,15 +141,16 @@ if 'Darwin' in platform.system():
   default_env.Append(CCFLAGS = ['-Wno-missing-braces'])
   default_env.Append(CCFLAGS = ['-Wno-unsupported-visibility'])
   default_env.Append(CCFLAGS = ['-mmacosx-version-min=10.11'])
-  default_env.Append(CCFLAGS = ['-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include'] )
+  default_env.Append(CPPPATH = ['/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include'] )
 
 if 'Linux' in platform.system():
+  default_env.Append(LIBS = ['m'])
   default_env.Append(CCFLAGS = ['-D_GNU_SOURCE'])
   default_env.Append(LIBS = ['rt', 'pthread'] )
 
   if('arm' in platform.processor()):
     default_env.Append(LIBPATH = ['/usr/lib', '/usr/local/lib','/usr/lib/arm-linux-gnueabihf'] )
-    default_env.Append(CCFLAGS = ['-I/usr/include','-I/usr/local/include','-I/usr/include/arm-linux-gnueabihf'] )
+    default_env.Append(CPPPATH = ['/usr/include','/usr/local/include','/usr/include/arm-linux-gnueabihf'] )
 
 if 'CYGWIN' in platform.system():
   # -std=gnu++0x doesn't work, so work around...
@@ -152,14 +160,15 @@ if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
     default_env.Append(LIBS = ['rt'] )
     default_env.Append(CCFLAGS = ['-x c'])
 
-default_env.Append(CCFLAGS = ['-I./tpl/criterion-v2.3.2/include'] )
-default_env.Append(LIBPATH = ['./tpl/criterion-v2.3.2/lib'] )
-
 # env.Append(CCFLAGS = '-march='+platform.processor())
 # env.Append(CCFLAGS = '-arch='+platform.machine())
 # env.Append(CCFLAGS = '-target ' + platform.machine() + '-' + platform.system().lower() )
 # env.Append(CCFLAGS = '-target ' + platform.machine())
 
+default_env.Append(LINKFLAGS = ['-v']) # shows linker invokation
+
+default_env.Append(CPPPATH = ['./include'])
+default_env.Append(LIBPATH = ['./build/lib'])
 
 print ("continuing with CCFLAGS set to: {dump}".format(dump=default_env.Dump(key='CCFLAGS')) )
 print ("continuing with LDFLAGS set to: {dump}".format(dump=default_env.Dump(key='LDFLAGS')) )
@@ -167,20 +176,12 @@ print ("continuing with LDFLAGS set to: {dump}".format(dump=default_env.Dump(key
 print ('####')
 print ('#### detecting 3rd party libraries')
 print ('####')
-
-default_env.Append(LINKFLAGS = ['-v']) # shows linker invokation
-
-np_include_dir = ['./include']
-np_library_dir = ['./build/lib']
-
-default_env.Append(CPPPATH = np_include_dir)
-default_env.Append(LIBPATH = np_library_dir)
-
 neuropil_env = default_env.Clone()
 
 # add 3rd party library path info here
-tpl_library_list = ['sodium']
-neuropil_env.Append(LIBS = tpl_library_list)
+neuropil_env.Append(LIBS = ['sodium'])
+if 'Windows' in platform.system():
+    neuropil_env.Append(LIBPATH = ['./ext_tools/libsodium/win32'])
 
 conf = Configure(neuropil_env)
 
@@ -227,7 +228,6 @@ def build_sphinx_doc(source, target, neuropil_env, for_signature):
 sphinx_builder = Builder(generator = build_sphinx_doc, target_factory=Dir, source_factory=Dir)
 neuropil_env.Append(BUILDERS = {'Sphinx' : sphinx_builder})
 
-
 if int(build_doc) and sphinx_exe:
     neuropil_env.Sphinx('./build/html', './doc/source')
 
@@ -235,28 +235,28 @@ if int(analyze) and scan_build_exe:
     neuropil_env.Analyzer('build/sca')
 
 # if int(analyze):
-#     neuropil_env.Append(CCFLAGS='-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include')
+#     neuropil_env.Append(CPPPATH='/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include')
 
 # sources for neuropil
-SOURCES =  ['build/obj/src/dtime.c',		'build/obj/src/np_time.c',			'build/obj/src/neuropil.c',		'build/obj/src/np_aaatoken.c',		'build/obj/src/np_axon.c',		'build/obj/src/np_dendrit.c']
-SOURCES += ['build/obj/src/np_glia.c',		'build/obj/src/np_jobqueue.c',		'build/obj/src/np_dhkey.c',		'build/obj/src/np_key.c',			'build/obj/src/np_keycache.c',  'build/obj/src/np_bootstrap.c']
-SOURCES += ['build/obj/src/np_log.c',		'build/obj/src/np_memory.c',		'build/obj/src/np_message.c',	'build/obj/src/np_msgproperty.c',	'build/obj/src/np_network.c',	'build/obj/src/np_node.c']
-SOURCES += ['build/obj/src/np_route.c',		'build/obj/src/np_tree.c',			'build/obj/src/np_util.c',		'build/obj/src/np_treeval.c',		'build/obj/src/np_threads.c',	'build/obj/src/np_pinging.c']
-SOURCES += ['build/obj/src/np_sysinfo.c',	'build/obj/src/np_scache.c',		'build/obj/src/np_event.c',		'build/obj/src/np_messagepart.c',	'build/obj/src/np_statistics.c','build/obj/src/np_responsecontainer.c']
-SOURCES += ['build/obj/src/np_legacy.c',	'build/obj/src/np_serialization.c',	'build/obj/src/np_shutdown.c',	'build/obj/src/np_identity.c',		'build/obj/src/np_token_factory.c']
+SOURCES =  ['dtime.c',		'np_time.c',			'neuropil.c',		'np_aaatoken.c',		'np_axon.c',		'np_dendrit.c']
+SOURCES += ['np_glia.c',	'np_jobqueue.c',		'np_dhkey.c',		'np_key.c',				'np_keycache.c',	'np_bootstrap.c']
+SOURCES += ['np_log.c',		'np_memory.c',			'np_message.c',		'np_msgproperty.c',		'np_network.c',		'np_node.c']
+SOURCES += ['np_route.c',	'np_tree.c',			'np_util.c',		'np_treeval.c',			'np_threads.c',		'np_pinging.c']
+SOURCES += ['np_sysinfo.c',	'np_scache.c',			'np_event.c',		'np_messagepart.c',		'np_statistics.c',	'np_responsecontainer.c']
+SOURCES += ['np_legacy.c',	'np_serialization.c',	'np_shutdown.c',	'np_identity.c',		'np_token_factory.c']
 
 # source code 3rd party libraries
-SOURCES += ['build/obj/src/event/ev.c', 'build/obj/src/json/parson.c','build/obj/src/msgpack/cmp.c','build/obj/src/gpio/bcm2835.c']
+SOURCES += ['event/ev.c', 'json/parson.c','msgpack/cmp.c','gpio/bcm2835.c']
+
+SOURCES = [variantDir + "src/" + s for s in SOURCES]
 
 print ('####')
 print ('#### building neuropil libraries/testsuite/example programs:')
 print ('####')
 
 # build the neuropil library as static and shared library
-np_stlib = neuropil_env.Library('build/lib/neuropil', SOURCES, LIBS=tpl_library_list)
-np_dylib = neuropil_env.SharedLibrary('build/lib/neuropil', SOURCES, LIBS=tpl_library_list)
-#AlwaysBuild(np_dylib)
-#AlwaysBuild(np_stlib)
+np_stlib = neuropil_env.Library('build/lib/neuropil', SOURCES)
+np_dylib = neuropil_env.SharedLibrary('build/lib/neuropil', SOURCES)
 
 # build test executable
 if int(release) < 1 and int(build_tests) > 0 and criterion_is_available:
@@ -264,32 +264,42 @@ if int(release) < 1 and int(build_tests) > 0 and criterion_is_available:
     # include the neuropil build path library infos
     test_env = default_env.Clone()
     test_env.Append(LIBS = ['criterion', 'sodium','ncurses', 'neuropil'])
-    test_suite = test_env.Program('bin/neuropil_test_suite',	'build/obj/test/test_suite.c')
+    test_suite = test_env.Program('bin/neuropil_test_suite',	variantDir+'test/test_suite.c')
     Depends(test_suite, np_dylib)
-    test_suite = test_env.Program('bin/neuropil_test_units',	'build/obj/test/test_units.c')
+    test_suite = test_env.Program('bin/neuropil_test_units',	variantDir+'test/test_units.c')
     Depends(test_suite, np_dylib)
 else:
     print ('Test cases not included')
 
 # build example programs
 programs = [
-    'node', 'cloud', 'hydra', #'shared_hydra',
-    'controller','receiver','sender','receiver_cb','pingpong',
-    'echo_server','echo_client','raspberry','demo_service','raffle'
+#	(PROGRAM_NAME (w/o neuropil_ prefix), DEPENDENCIES)
+    ('controller',	 ['neuropil']),
+    ('receiver',	 ['neuropil']),
+    ('sender',		 ['neuropil']),
+    ('node', 		 ['neuropil','ncurses','sodium']),
+    ('cloud', 		 ['neuropil','ncurses','sodium']),
+    ('hydra', 		 ['neuropil','ncurses','sodium']),
+    ('receiver_cb',	 ['neuropil','ncurses','sodium']),
+    ('pingpong',	 ['neuropil','ncurses','sodium']),
+    ('echo_server',	 ['neuropil','ncurses','sodium']),
+    ('echo_client',	 ['neuropil','ncurses','sodium']),
+    ('raspberry',	 ['neuropil','ncurses','sodium']),
+    ('demo_service', ['neuropil','ncurses','sodium']),
+    ('raffle',		 ['neuropil','ncurses','sodium','sqlite3']),
     ]
-
-program_env = default_env.Clone()
-program_env.Append(LIBS = ['ncurses','neuropil','sodium','sqlite3'])
 
 if build_program and build_program not in programs:
     if build_program != 'lib_only':
         print ('desired program {program} does not exist'.format(program=build_program) )
         print ('please select from: {programs}, lib_only'.format(programs=join(programs)) )
 else:
-    for program in programs:
+    for program, libs in programs:
+        program_env = default_env.Clone()
+        program_env.Append(LIBS = libs)
         if not build_program or build_program == program:
             print ('building neuropil_{program_name}'.format(program_name=program))
-            prg_np = program_env.Program('bin/neuropil_%s'%program, 'build/obj/examples/neuropil_%s.c'%program)
+            prg_np = program_env.Program('bin/neuropil_%s'%program, variantDir+'examples/neuropil_%s.c'%program)
             Depends(prg_np, np_dylib)
 
 # clean up

@@ -160,7 +160,7 @@ struct np_aaatoken_s
 	double version;
 
 	// attributes to exchange
-	char* uuid;
+	char uuid[NP_UUID_BYTES];
 	// owner or parent entity
 	char realm[255];
 
@@ -276,8 +276,13 @@ NP_API_INTERN
 void np_aaatoken_unref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* reason);
 NP_API_INTERN
 np_dhkey_t _np_aaatoken_get_issuer(np_aaatoken_t* self);
+
+#ifdef DEBUG
 NP_API_INTERN
 void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* token);
+#else
+#define _np_aaatoken_trace_info(desc,token);
+#endif
 NP_API_INTERN
 struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src);
 #ifdef __cplusplus

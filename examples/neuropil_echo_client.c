@@ -59,7 +59,8 @@ int main(int argc, char **argv) {
 	char* message_to_send_org = "Hello World!";
 	char* message_to_send = message_to_send_org;
 
-	if (parse_program_args(
+	example_user_context* user_context;
+	if ((user_context = parse_program_args(
 		__FILE__,
 		argc,
 		argv,
@@ -74,7 +75,7 @@ int main(int argc, char **argv) {
 		"m:",
 		&message_to_send
 
-	) == false) {
+	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
 	bool j_key_provided = j_key != NULL;
@@ -96,7 +97,10 @@ int main(int argc, char **argv) {
 	fprintf(stdout, "logpath: %s\n", settings->log_file);
 	settings->log_level = level;
 
-	np_state_t * context = np_new_context(settings);
+	np_context * ac = np_new_context(settings);
+	np_set_userdata(ac, user_context);
+	np_ctx_cast(ac);
+
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
 		printf("ERROR: Node could not listen");

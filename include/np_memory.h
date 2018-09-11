@@ -43,7 +43,7 @@ extern "C" {
 		"messagepart",
 		"aaatoken",
 		"job",
-		"jobargs"
+		"jobargs",
 	};
 
 	typedef void(*np_memory_on_new) (np_state_t *context, uint8_t type, size_t size, void* data);
@@ -67,7 +67,7 @@ extern "C" {
 	NP_API_EXPORT
 		void* np_memory_new(np_state_t* context, enum np_memory_types_e  type);
 	NP_API_EXPORT
-		void np_memory_free(void* item);
+		void np_memory_free(np_state_t*context, void* item);
 
 	NP_API_EXPORT
 		void np_memory_clear_space(np_state_t* context, uint8_t type, size_t size, void* data);
@@ -79,13 +79,13 @@ extern "C" {
 		void _np_memory_job_memory_management(np_state_t* context, np_jobargs_t* args);
 
 	NP_API_INTERN
-	void np_memory_ref_obj(void* item, char* reason, char* reason_desc);
+	void np_memory_ref_obj(np_state_t* context, void* item, char* reason, char* reason_desc);
 
 	NP_API_INTERN
-	bool np_memory_tryref_obj(void* item, char* reason, char* reason_desc);
+	void* np_memory_tryref_obj(np_state_t* context, void* item, char* reason, char* reason_desc);
 
 	NP_API_INTERN
-	void* np_memory_waitref_obj(void* item, char* reason, char* reason_desc);
+	void* np_memory_waitref_obj(np_state_t* context, void* item, char* reason, char* reason_desc);
 	/*
 	Returns the context of a memory managed object
 	*/
@@ -94,9 +94,9 @@ extern "C" {
 	NP_API_INTERN
 	void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason);
 	NP_API_INTERN
-	uint32_t np_memory_unref_obj(void* item, char* reason);
+	uint32_t np_memory_unref_obj(np_state_t* context, void* item, char* reason);
 	NP_API_INTERN
-	void np_mem_refobj(void * item, const char* reason);
+	void np_mem_refobj(np_state_t*context, void * item, const char* reason);
 
 	// print the complete object list and statistics
 	NP_API_EXPORT
@@ -152,19 +152,21 @@ void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);
 #define np_ref_obj2(TYPE, np_obj) np_ref_obj3(TYPE, np_obj, FUNC)
 #define np_ref_obj3(TYPE, np_obj, reason) np_ref_obj4(TYPE, np_obj, reason,"")
 #define np_ref_obj4(TYPE, np_obj, reason, reason_desc)              																									\
-	np_memory_ref_obj(np_obj, reason, reason_desc) 
+	np_memory_ref_obj(context, np_obj, reason, reason_desc) 
 
 #define np_tryref_obj(...) VFUNC(np_tryref_obj, __VA_ARGS__)
-#define np_tryref_obj3(TYPE, np_obj, ret) np_tryref_obj4(TYPE, np_obj, ret,FUNC)
-#define np_tryref_obj4(TYPE, np_obj, ret, reason) np_tryref_obj5(TYPE, np_obj, ret, reason,"")
-#define np_tryref_obj5(TYPE, np_obj, ret, reason, reason_desc)      																									\
-bool ret = np_memory_tryref_obj(np_obj, reason, reason_desc);
+#define np_tryref_obj3(TYPE, np_obj, ret) np_tryref_obj4(TYPE, np_obj, ret, container_##__LINE__)
+#define np_tryref_obj4(TYPE, np_obj, ret, container) np_tryref_obj5(TYPE, np_obj, ret, container, FUNC)
+#define np_tryref_obj5(TYPE, np_obj, ret, container, reason) np_tryref_obj6(TYPE, np_obj, ret,container, reason,"")
+#define np_tryref_obj6(TYPE, np_obj, ret, container, reason, reason_desc)															\
+TYPE* container = np_memory_tryref_obj(context, np_obj, reason, reason_desc);																			\
+bool ret = container != NULL
 
 #define np_waitref_obj(...) VFUNC(np_waitref_obj, __VA_ARGS__)
 #define np_waitref_obj3(TYPE, np_obj, saveTo) np_waitref_obj4(TYPE, np_obj, saveTo, FUNC)
 #define np_waitref_obj4(TYPE, np_obj, saveTo, reason) np_waitref_obj5(TYPE, np_obj, saveTo, reason,"")
 #define np_waitref_obj5(TYPE, np_obj, saveTo, reason, reason_desc)    																				\
-	TYPE* saveTo = (TYPE*) np_memory_waitref_obj(np_obj, reason, reason_desc);																		
+	TYPE* saveTo = (TYPE*) np_memory_waitref_obj(context, np_obj, reason, reason_desc);																		
 
 
 #ifdef DEBUG
@@ -178,7 +180,7 @@ bool ret = np_memory_tryref_obj(np_obj, reason, reason_desc);
 	
 
 #define np_unref_obj(TYPE, np_obj, reason)                																							\
-	if(np_memory_unref_obj(np_obj, reason) <= 0) np_obj = NULL
+	if(np_memory_unref_obj(context, np_obj, reason) <= 0) np_obj = NULL
 
 
 #define np_ref_switch(...) VFUNC(np_ref_switch, __VA_ARGS__)

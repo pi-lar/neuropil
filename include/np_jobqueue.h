@@ -35,6 +35,7 @@ struct np_job_s
 	double interval;
 	bool is_periodic;
 	sll_return(np_callback_t) processorFuncs;
+	bool __del_processorFuncs;
 	np_jobargs_t* args;
 	double priority;
 
@@ -51,7 +52,7 @@ NP_API_INTERN
 	np_jobargs_t* _np_job_create_args(np_state_t* context, np_message_t* msg, np_key_t* key, np_msgproperty_t* prop, const char* reason_desc);
 
 NP_API_INTERN
-	void _np_job_free_args(np_jobargs_t* args);
+	void _np_job_free_args(np_state_t* context, np_jobargs_t* args);
 
 /** _np_jobqueue_create
  *  initiate the queue and thread pool of size "pool_size" returns a pointer
@@ -64,13 +65,10 @@ NP_API_INTERN
 	bool _np_job_queue_insert(np_job_t* new_job);
 
 NP_API_INTERN
-	void _np_job_resubmit_msgin_event(np_state_t* context, double delay, np_jobargs_t* jargs_org);
-
-NP_API_INTERN
 	void np_job_submit_event_periodic(np_state_t* context, double priority, double first_delay, double interval, np_callback_t callback, const char* ident);
 
 NP_API_INTERN
-void np_job_submit_event(np_state_t* context, double priority, double delay, np_callback_t callback, void* data, const char* ident);
+bool np_job_submit_event(np_state_t* context, double priority, double delay, np_callback_t callback, void* data, const char* ident);
 
 
 NP_API_INTERN
@@ -84,7 +82,7 @@ NP_API_INTERN
 	void _np_job_submit_route_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
 
 NP_API_INTERN
-	void _np_job_submit_transform_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+	bool _np_job_submit_transform_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, void* custom_data);
 
 NP_API_INTERN
 	void _np_job_resubmit_msgout_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
@@ -105,7 +103,7 @@ NP_API_INTERN
 	void* __np_jobqueue_run_jobs(void* np_thread_ptr_self);
 
 NP_API_INTERN
-	void __np_jobqueue_run_once(np_job_t* job_to_execute) ;
+	void __np_jobqueue_run_once(np_state_t* context, np_job_t* job_to_execute) ;
 
 NP_API_INTERN
 	void _np_jobqueue_check(np_state_t* context);

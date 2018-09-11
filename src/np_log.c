@@ -26,6 +26,7 @@
 #include "np_event.h"
 //#include "np_types.h"
 #include "np_settings.h"
+#include "np_jobqueue.h"
 
 typedef struct np_log_s
 {
@@ -74,16 +75,6 @@ np_module_struct(log) {
 	pthread_mutexattr_t __log_mutex_attr;
 };
 
-
-void _np_log_evflush(struct ev_loop *loop, NP_UNUSED ev_io *event, int revents)
-{
-	np_state_t* context = ev_userdata(loop);
-
-	if ((revents &  EV_WRITE) == EV_WRITE && (revents &  EV_ERROR) != EV_ERROR)
-	{
-		_np_log_fflush(context, true);
-	}
-}
 
 void log_rotation(np_state_t* context)
 {
@@ -151,8 +142,7 @@ void log_rotation(np_state_t* context)
 		_np_log_fflush(context, true);
 		free(old_filename);
 	}
-	pthread_mutex_unlock(&np_module(log)->__log_mutex);
-	
+	pthread_mutex_unlock(&np_module(log)->__log_mutex);	
 }
 
 void np_log_message(np_state_t* context, uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
@@ -190,7 +180,7 @@ void np_log_message(np_state_t* context, uint32_t level, const char* srcFile, co
 
 		static const char* suffix = "\n";
 
-		char* log_msg;
+		char* log_msg=NULL;
 		va_list ap;
 		va_start(ap, msg);
 		vasprintf(&log_msg, msg, ap);
@@ -351,6 +341,8 @@ void _np_log_init(np_state_t* context, const char* filename, uint32_t level)
 
 		sll_init(char_ptr, _module->__logger->logentries_l);
 		log_rotation(context);
+
+		
 
 		log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", _module->__logger, _module->__logger->filename, _module->__logger->level);
 	}

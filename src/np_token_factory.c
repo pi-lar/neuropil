@@ -243,7 +243,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 #endif
 
 	np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(my_node_token);
-	np_id2str(&node_dhkey, ret->issuer);
+	np_id2str((np_id*)&node_dhkey, ret->issuer);
 
 	// create and handshake session data
 	// convert to curve key
@@ -255,14 +255,14 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 	crypto_scalarmult_base(my_dh_sessionkey, curve25519_sk);
 
 	np_tree_clear(ret->extensions);
-	np_tree_insert_str(ret->extensions, "_np.session", np_treeval_new_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
+	np_tree_insert_str(ret->extensions, _NP_MSG_EXTENSIONS_SESSION, np_treeval_new_bin(my_dh_sessionkey, crypto_scalarmult_BYTES));
 
 	_np_aaatoken_set_signature(ret, my_node_key->aaa_token);
 
 #ifdef DEBUG
 	char my_token_fp_s[65] = { 0 };
 	np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(ret);
-	np_id2str(&my_token_fp, my_token_fp_s);
+	np_id2str((np_id*)&my_token_fp, my_token_fp_s);
 	log_debug_msg(LOG_DEBUG, "new handshake token fp: %s from node: %s", my_token_fp_s, _np_key_as_str(my_node_key));
 	// ASSERT(strcmp(my_token_fp_s, _np_key_as_str(my_node_key)) == 0, "Node key and handshake partner key has to be the same");
 #endif // DEBUG
@@ -288,7 +288,7 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* source_node
 	char issuer[64] = { 0 };
 	char node_subject[255];
 	snprintf(node_subject, 255,  _NP_URN_NODE_PREFIX "%s:%s:%s",
-		_np_network_get_protocol_string(source_node->protocol), source_node->dns_name, source_node->port);
+		_np_network_get_protocol_string(context, source_node->protocol), source_node->dns_name, source_node->port);
 
 	np_node_private_token_t* ret = __np_token_factory_new(context,issuer, node_subject, expires_at);
 

@@ -220,8 +220,6 @@ void _np_glia_check_routes(np_state_t* context, np_jobargs_t* args) {
 }
 
 void _np_glia_send_pings(np_state_t* context, np_jobargs_t* args) {
-	
-
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset check for table started");
 
 	// TODO: do a dynamic selection of keys
@@ -235,13 +233,13 @@ void _np_glia_send_pings(np_state_t* context, np_jobargs_t* args) {
 	while (iter != NULL) {
 
 		if(iter->val != context->my_node_key){
-			np_tryref_obj(np_node_t, iter->val->node, node_exists);
+			np_tryref_obj(np_node_t, iter->val->node, node_exists, node);
 			if(node_exists) {
-				if (iter->val->node->joined_network) {
+				if (node->joined_network) {
 					_np_ping_send(context, iter->val);
 					np_time_sleep(NP_PI/1000);
 				}
-				np_unref_obj(np_node_t, iter->val->node, FUNC);
+				np_unref_obj(np_node_t, node, FUNC);
 			}
 		}
 		sll_next(iter);
@@ -255,7 +253,7 @@ void _np_glia_send_pings(np_state_t* context, np_jobargs_t* args) {
 
 void _np_glia_log_flush(np_state_t* context, np_jobargs_t* args) {
 	
-	_np_log_fflush(context, true);
+	_np_log_fflush(context, false);
 }
 
 void _np_glia_send_piggy_requests(np_state_t* context, np_jobargs_t* args) {
@@ -332,7 +330,7 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t* ar
 			np_msgproperty_t* msg_prop = NULL;
 
 			np_dhkey_t target_dhkey = { 0 };
-			np_str2id( context->my_identity->aaa_token->realm, &target_dhkey);
+			np_str2id( context->my_identity->aaa_token->realm, (np_id*)&target_dhkey);
 
 			np_key_t* target = NULL;
 			target = _np_keycache_find_or_create(context, target_dhkey);
@@ -459,14 +457,14 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t* args)
 			}
 		}
 
-		np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists, "np_tryref_old->aaa_token");
+		np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists,  aaa_token, "np_tryref_old->aaa_token");
 		if(tokenExists) {
-			if (true == _np_aaatoken_is_valid(old->aaa_token, np_aaatoken_type_undefined))
+			if (true == _np_aaatoken_is_valid(aaa_token, np_aaatoken_type_undefined))
 			{
 				log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _np_key_as_str(old));
 				delete_key &= false;
 			}
-			np_unref_obj(np_aaatoken_t, old->aaa_token,"np_tryref_old->aaa_token");
+			np_unref_obj(np_aaatoken_t, aaa_token,"np_tryref_old->aaa_token");
 		}
 
 		if (NULL != old->recv_tokens)
@@ -544,7 +542,7 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t* args)
 	char* source_sll_of_keys = "_np_route_row_lookup";
 	
 	
-	if (sll_size(sll_of_keys) <= 2)
+	if (sll_size(sll_of_keys) <= 1)
 	{
 		// nothing found, send leafset to exchange some data at least
 		// prevents small clusters from not exchanging all data
@@ -624,7 +622,7 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
 		{
 			target_node_str = tmp_token->issuer;
 		}
-		np_str2id(target_node_str, &receiver_dhkey);
+		np_str2id(target_node_str, (np_id*)&receiver_dhkey);
 
 		if (_np_dhkey_cmp(&context->my_node_key->dhkey, &receiver_dhkey) == 0)
 		{
