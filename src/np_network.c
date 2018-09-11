@@ -626,9 +626,8 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
                         else {
                             // init new alias key
                             alias_key = _np_keycache_create(context, search_key);
-                            alias_key_reason = "_np_keycache_create";
-                            alias_key->parent_key = key;
-                            np_ref_obj(np_key_t, key, ref_key_parent);
+                            alias_key_reason = "_np_keycache_create";                             
+                            np_ref_switch(np_key_t, alias_key->parent_key, ref_key_parent, key);
                         }
                         np_new_obj(np_network_t, alias_key->network);
 
@@ -857,9 +856,9 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args) 
             if (NULL == alias_key) {
                 alias_key = _np_keycache_create(context, search_key);
                 alias_key_ref_reason = "_np_keycache_create";
-                alias_key->type |= np_key_type_alias;
-                np_ref_obj(np_key_t, data_container->key, ref_key_parent);
-                alias_key->parent_key = data_container->key;
+                alias_key->type |= np_key_type_alias;                
+				np_ref_switch(np_key_t, alias_key->parent_key, ref_key_parent, data_container->key);
+
             }
             TSP_GET(bool, alias_key->in_destroy, in_destroy);
             

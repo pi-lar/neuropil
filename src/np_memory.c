@@ -719,12 +719,13 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
                     if (true == extended
                         && (
                             //true
-                            container->type == np_memory_types_np_node_t
+                            //container->type == np_memory_types_np_node_t
+                            container->type == np_memory_types_np_key_t
                             //|| container->type == np_msgproperty_t_e
                             )
                         )
                     {
-                        if (sll_size(iter->reasons) > 10) {
+                        if (sll_size(iter->reasons) > 0) {
                             ret = np_str_concatAndFree(ret,
                                 "--- remaining reasons for %s (type: %d/%s, reasons: %d) start ---%s", iter->id,
                                 memory_type,
@@ -732,8 +733,8 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
                                 sll_size(iter->reasons), new_line
                             );
 
-                            static const uint32_t display_first_X_reasons = 5;
-                            static const uint32_t display_last_X_reasons = 5;
+                            static const uint32_t display_first_X_reasons = 15;
+                            static const uint32_t display_last_X_reasons = 15;
 
                             sll_iterator(char_ptr) iter_reasons = sll_first(iter->reasons);
                             uint32_t iter_reasons_counter = 0;
