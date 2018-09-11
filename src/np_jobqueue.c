@@ -427,7 +427,7 @@ double __np_jobqueue_run_jobs_once(np_state_t * context) {
 
 		pll_iterator(np_job_ptr) iter_jobs = pll_first(np_module(jobqueue)->job_list);
 
-		if (iter_jobs != NULL) {
+		if (!run_next_job && iter_jobs != NULL) {
 			next_job = iter_jobs->val;			
 			// check time of job
 			if (now < next_job->exec_not_before_tstamp) {
@@ -436,7 +436,8 @@ double __np_jobqueue_run_jobs_once(np_state_t * context) {
 			else {
 				pll_delete(np_job_ptr, np_module(jobqueue)->job_list, iter_jobs);
 				run_next_job = true;
-			}			
+			}		
+			pll_next(iter_jobs);
 		}
 	}
 	
