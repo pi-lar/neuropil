@@ -77,7 +77,8 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 
-	if (parse_program_args(
+	example_user_context* user_context;
+	if ((user_context = parse_program_args(
 		__FILE__,
 		argc,
 		argv,
@@ -89,8 +90,7 @@ int main(int argc, char **argv)
 		&level,
 		&logpath,
 		NULL,
-		NULL
-	) == false) {
+		NULL)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
 	

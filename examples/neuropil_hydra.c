@@ -84,7 +84,8 @@ int main(int argc, char **argv)
 	uint16_t kill_node = 0;
 
 	int opt;
-	if (parse_program_args(
+	example_user_context* user_context;
+	if ((user_context = parse_program_args(
 		__FILE__,
 		argc,
 		argv,
@@ -101,7 +102,7 @@ int main(int argc, char **argv)
 		&node_creation_speed_str,
 		&opt_kill_node
 
-	) == false) {
+	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
 	if (opt_kill_node != NULL) kill_node = atoi(opt_kill_node);
@@ -160,8 +161,8 @@ int main(int argc, char **argv)
 			fprintf(stdout, "logpath: %s\n", settings->log_file);
 			settings->log_level = level;
 
-			np_context * context = new_example_context(settings);
-
+			np_context * context = np_new_context(settings);
+			np_set_userdata(context, user_context);
 			if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
 				printf("ERROR: Node could not listen");
 				exit(EXIT_FAILURE);
@@ -274,14 +275,14 @@ int main(int argc, char **argv)
 			current_pid = fork();
 			if (0 == current_pid) {
 				// disable server for clients
-				if(has_a_node_started && opt_sysinfo_mode != np_sysinfo_opt_disable){
-					opt_sysinfo_mode = np_sysinfo_opt_force_client;
+				if(has_a_node_started && user_context->opt_sysinfo_mode != np_sysinfo_opt_disable){
+					user_context->opt_sysinfo_mode = np_sysinfo_opt_force_client;
 				}
 				current_pid = getpid();
 				// np_example_print(context, stdout, "Starting process %"PRIi32" on port %s\n", current_pid, port);
-			/**
-			   \endcode
-			*/
+				/**
+				   \endcode
+				*/
 
 				/**
 				We now start the nodes like before
@@ -297,7 +298,8 @@ int main(int argc, char **argv)
 				fprintf(stdout, "logpath: %s\n", settings->log_file);
 				settings->log_level = level;
 
-				np_context * context = new_example_context(settings);
+				np_context * context = np_new_context(settings);
+				np_set_userdata(context, user_context);
 
 				if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
 					printf("ERROR: Node could not listen");

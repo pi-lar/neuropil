@@ -55,7 +55,8 @@ int main(int argc, char **argv) {
 	int level = -2;
 	char* logpath = ".";
 
-	if (parse_program_args(
+	example_user_context* user_context;
+	if ((user_context = parse_program_args(
 		__FILE__,
 		argc,
 		argv,
@@ -68,7 +69,7 @@ int main(int argc, char **argv) {
 		&logpath,
 		"",
 		""
-	) == false) {
+	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
 
@@ -79,7 +80,8 @@ int main(int argc, char **argv) {
 	fprintf(stdout, "logpath: %s\n", settings->log_file);
 	settings->log_level = level;
 
-	np_context * context = new_example_context(settings);
+	np_context * context = np_new_context(settings);
+	np_set_userdata(context, user_context);
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
 		np_example_print(context, stderr, "ERROR: Node could not listen");

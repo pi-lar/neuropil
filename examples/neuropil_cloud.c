@@ -38,8 +38,9 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* ccloud_size = "32";
 	char* logpath = ".";
-
-	if (parse_program_args(
+	
+	example_user_context* user_context;
+	if ((user_context = parse_program_args(
 		__FILE__,
 		argc,
 		argv,
@@ -53,7 +54,7 @@ int main(int argc, char **argv)
 		"[-c cloud size]",
 		"c:",
 		&ccloud_size
-	) == false) {
+	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
 
@@ -75,8 +76,9 @@ int main(int argc, char **argv)
 		snprintf(settings->log_file, 255, "neuropil_cloud_%d.log", port);
 		settings->log_level = level;
 
-		nodes[i] = new_example_context(settings); // use default settings
-		
+		nodes[i] = np_new_context(settings); // use default settings		
+		np_set_userdata(nodes[i], user_context);
+
 
 		np_example_print(nodes[0], stdout, "INFO: Starting Node %"PRIsizet"\n", i);
 
