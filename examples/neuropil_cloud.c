@@ -30,7 +30,7 @@ void make_wildcard(char* s) {
 int main(int argc, char **argv)
 {
 
-	int no_threads = 0;
+	int no_threads = 3;
 	char *j_key = NULL;
 	char* proto = "udp4";
 	char* opt_port = NULL;
@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 	for (int i=0; i < cloud_size; i++) {	
 		port += i;
 		struct np_settings * settings = np_default_settings(NULL);		
-		settings->n_threads = 3;// no_threads;
+		settings->n_threads =  no_threads;
 
 		snprintf(settings->log_file, 255, "neuropil_cloud_%d.log", port);
 		settings->log_level = level;
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-		np_time_sleep(0.00005); // slow down
+		np_time_sleep(0); // slow down
 	}
 
 	np_example_print(nodes[0], stderr, "!!! DONE WITH EVERYTHING !!!");
