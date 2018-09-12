@@ -30,7 +30,7 @@ void make_wildcard(char* s) {
 int main(int argc, char **argv)
 {
 
-	int no_threads = 0;
+	int no_threads = 3;
 	char *j_key = NULL;
 	char* proto = "udp4";
 	char* opt_port = NULL;
@@ -38,8 +38,9 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* ccloud_size = "32";
 	char* logpath = ".";
-
-	if (parse_program_args(
+	
+	example_user_context* user_context_template;
+	if ((user_context_template = parse_program_args(
 		__FILE__,
 		argc,
 		argv,
@@ -53,13 +54,13 @@ int main(int argc, char **argv)
 		"[-c cloud size]",
 		"c:",
 		&ccloud_size
-	) == false) {
+	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
 
 	int cloud_size = atoi(ccloud_size);
 
-	np_context** nodes = calloc(cloud_size,sizeof(np_context*));
+	np_context** nodes = calloc(cloud_size, sizeof(np_context*));
 
 	char addr[500];
 	uint16_t tmp;
@@ -70,12 +71,17 @@ int main(int argc, char **argv)
 	for (int i=0; i < cloud_size; i++) {	
 		port += i;
 		struct np_settings * settings = np_default_settings(NULL);		
-		settings->n_threads = 3;// no_threads;
+		settings->n_threads =  no_threads;
 
 		snprintf(settings->log_file, 255, "neuropil_cloud_%d.log", port);
 		settings->log_level = level;
 
-		nodes[i] = np_new_context(settings); // use default settings
+		example_user_context* user_context = malloc(sizeof(example_user_context));
+		memcpy(user_context, user_context_template, sizeof(example_user_context));			
+
+		nodes[i] = np_new_context(settings); // use default settings		
+		np_set_userdata(nodes[i], user_context);
+
 
 		np_example_print(nodes[0], stdout, "INFO: Starting Node %"PRIsizet"\n", i);
 
@@ -93,6 +99,7 @@ int main(int argc, char **argv)
 			__np_example_helper_loop(nodes[i]);
 		}
 		else {
+
 		   example_http_server_init(nodes[i], NULL, np_sysinfo_opt_force_client);
 		}
 	}
@@ -133,7 +140,7 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-		np_time_sleep(0.00005); // slow down
+		np_time_sleep(0); // slow down
 	}
 
 	np_example_print(nodes[0], stderr, "!!! DONE WITH EVERYTHING !!!");

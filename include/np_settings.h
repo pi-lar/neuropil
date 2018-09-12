@@ -36,6 +36,10 @@ extern "C" {
 #define NP_PI_INT 3
 
 
+#ifndef NP_LOG_FLUSH_INTERVAL
+	#define NP_LOG_FLUSH_INTERVAL (NP_PI/10)
+#endif
+
 #ifndef NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL
 #define NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL (NP_PI*10)
 #endif
@@ -250,9 +254,7 @@ extern "C" {
 #ifndef MUTEX_WAIT_SEC
 	#define MUTEX_WAIT_SEC  ((const ev_tstamp )1.0)
 #endif
-#ifndef MUTEX_WAIT_SOFT_SEC
-	#define MUTEX_WAIT_SOFT_SEC  MUTEX_WAIT_SEC *5
-#endif
+
 #ifndef MUTEX_WAIT_MAX_SEC
 	#define MUTEX_WAIT_MAX_SEC  MUTEX_WAIT_SEC *10
 #endif

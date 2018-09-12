@@ -108,10 +108,7 @@ int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, 
                 log_msg(LOG_ERROR, "%s", np_threads_printpool(context, false));
                 abort();
             }
-            if(diff >  MUTEX_WAIT_SOFT_SEC){
-                log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for module mutex %s (%f sec)", np_module_lock_str[module_id], diff);
-            }
-        ret = _np_threads_mutex_timedlock(context, &np_module(threads)->__mutexes[module_id], fmin(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
+        ret = _np_threads_mutex_timedlock(context, &np_module(threads)->__mutexes[module_id], MUTEX_WAIT_MAX_SEC);
 
         if(ret == ETIMEDOUT) {
             //continue;
@@ -284,16 +281,13 @@ int _np_threads_mutex_lock(np_state_t* context, np_mutex_t* mutex, const char* w
     while(ret != 0) {
 
 #if defined(NP_THREADS_CHECK_THREADING) && NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK
-        ret = _np_threads_mutex_timedlock(context, mutex, fmin(MUTEX_WAIT_MAX_SEC - diff, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC));
+        ret = _np_threads_mutex_timedlock(context, mutex, MUTEX_WAIT_MAX_SEC - diff);
 
         diff = np_time_now() - start;
         if (diff > MUTEX_WAIT_MAX_SEC) {
             log_msg(LOG_ERROR, "Thread %lu waits too long for mutex %s(%p) (%f sec)", _np_threads_get_self(context)->id, mutex->desc, mutex, diff);
             log_msg(LOG_ERROR, "%s", np_threads_printpool(context, false));
             abort();
-        }
-        if (diff > MUTEX_WAIT_SOFT_SEC) {
-            log_msg(LOG_MUTEX | LOG_WARN, "Waiting long time for mutex %p (%f sec)", mutex, diff);
         }
 #else
         ret = pthread_mutex_lock(&mutex->lock);
@@ -736,6 +730,8 @@ void np_threads_start_workers(np_state_t* context, uint8_t pool_size)
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_5, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
         }
 
+		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, NP_LOG_FLUSH_INTERVAL, NP_LOG_FLUSH_INTERVAL, _np_glia_log_flush, "_np_glia_log_flush");
+
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, 0.0, MISC_MEMORY_REFRESH_INTERVAL_SEC, _np_memory_job_memory_management, "_np_memory_job_memory_management");
 
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache, "_np_event_cleanup_msgpart_cache");
@@ -770,7 +766,7 @@ void np_threads_start_workers(np_state_t* context, uint8_t pool_size)
     }
 
     log_debug_msg(LOG_DEBUG, "jobqueue threads started: pool %"PRIu8", worker %"PRIu8, pool_size, worker_threads);
-    log_msg(LOG_INFO, "%s.%05d", NEUROPIL_RELEASE, NEUROPIL_RELEASE_BUILD);
+    log_msg(LOG_INFO, "%s", NEUROPIL_RELEASE);
     log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
     log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
 

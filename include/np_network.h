@@ -19,8 +19,6 @@
 #include "np_util.h"
 #include "np_memory.h"
 
-#include "np_keycache.h"
-#include "np_message.h"
 #include "np_types.h"
 #include "np_constants.h"
 #include "np_settings.h"
@@ -42,14 +40,17 @@ extern "C" {
  */
 #define TIMEOUT 1.0
 
+
 enum socket_type {
-	UNKNOWN_PROTO = 0x00,
-	IPv4    	  = 0x01,
-	IPv6    	  = 0x02,
-	UDP     	  = 0x10, // UDP protocol - default
-	TCP     	  = 0x20, // TCP protocol
-	RAW     	  = 0x40, // pure IP protocol - no ports
-	PASSIVE 	  = 0x80  // TCP passive (like FTP passive) for nodes behind firewalls
+	UNKNOWN_PROTO  = 0x000,
+	IPv4    	   = 0x001,
+	IPv6    	   = 0x002,
+	UDP     	   = 0x010, // UDP protocol - default
+	TCP     	   = 0x020, // TCP protocol
+	//RAW     	   = 0x040, // pure IP protocol - no ports
+	PASSIVE		   = 0x100,
+	MASK_PROTOCOLL = 0x0FF,
+	MASK_OPTION    = 0xF00,
 } NP_ENUM;
 
 typedef enum np_network_type_e {
@@ -66,7 +67,7 @@ struct np_network_s
 	bool is_running;
 	np_network_type_e type;
 
-	uint8_t socket_type;
+	enum socket_type socket_type;
 	struct addrinfo* addr_in; // where a node receives messages
 
 	np_mutex_t waiting_lock;
@@ -102,17 +103,17 @@ struct np_prioq_s {
 
 // parse protocol string of the form "tcp4://..." and return the correct @see socket_type
 NP_API_INTERN
-uint8_t _np_network_parse_protocol_string (const char* protocol_str);
+enum socket_type _np_network_parse_protocol_string (const char* protocol_str);
 
 NP_API_INTERN
-char* _np_network_get_protocol_string (uint8_t protocol);
+char* _np_network_get_protocol_string (np_state_t* context, enum socket_type protocol);
 
 /** network_address:
  ** returns the ip address of the #hostname#
  **
  **/
 NP_API_INTERN
-void _np_network_get_address (np_state_t* context, bool create_socket, struct addrinfo** ai, uint8_t type, char *hostname, char* service);
+void _np_network_get_address (np_state_t* context, bool create_socket, struct addrinfo** ai, enum socket_type type, char *hostname, char* service);
 // struct addrinfo _np_network_get_address (char *hostname);
 
 NP_API_INTERN
@@ -127,7 +128,7 @@ void _np_network_remap_network( np_key_t* new_target, np_key_t* old_target);
  **
  **/
 NP_API_INTERN
-bool _np_network_init (np_network_t* network, bool create_socket, uint8_t type, char* hostname, char* service, int prepared_socket_fd);
+bool _np_network_init (np_network_t* network, bool create_socket, enum socket_type type, char* hostname, char* service, int prepared_socket_fd, enum socket_type passive_socket_type);
 
 /**
  ** _np_network_append_msg_to_out_queue:
@@ -148,7 +149,7 @@ char* np_network_get_ip(np_key_t * container);
 NP_API_INTERN
 char* np_network_get_port(np_key_t * container);
 NP_API_INTERN
-bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool reconnect);
+bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool response_handshake, char* response_uuid);
 NP_API_INTERN
 void _np_network_disable(np_network_t* self);
 NP_API_INTERN

@@ -54,7 +54,8 @@ int main(int argc, char **argv)
 	char* required_nodes_opt = NULL;
 
 	int opt;
-	if (parse_program_args(
+	example_user_context* user_context;
+	if ((user_context = parse_program_args(
 		__FILE__,
 		argc,
 		argv,
@@ -68,7 +69,7 @@ int main(int argc, char **argv)
 		"[-n nr_of_nodes]",
 		"n:",
 		&required_nodes_opt
-	) == false) {
+	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
 	if (required_nodes_opt != NULL) required_nodes = atoi(required_nodes_opt);
@@ -116,6 +117,7 @@ int main(int argc, char **argv)
 					settings->log_level = level;
 
 					np_context * context = np_new_context(settings);
+					np_set_userdata(context, user_context);
 
 					if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
 						printf("ERROR: Node could not listen");
@@ -167,6 +169,7 @@ int main(int argc, char **argv)
 					settings->log_level = level;
 
 					np_context * context = np_new_context(settings);
+					np_set_userdata(context, user_context);
 
 					if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
 						printf("ERROR: Node could not listen");

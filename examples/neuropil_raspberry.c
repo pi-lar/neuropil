@@ -93,10 +93,12 @@ bool receive_pong(np_context* context, struct np_message* message)
 bool is_blue_pressed = false;
 bool receive_blue_button_pressed(np_context* context, struct np_message* message) {
 	is_blue_pressed = true;
+	return true;
 }
 
 bool receive_blue_button_reset(np_context* context, struct np_message* message) {
 	is_blue_pressed = false;
+	return true;
 }
 
 void invoke_btn_blue(np_context* context, uint8_t value) {	
@@ -209,7 +211,8 @@ int main(int argc, char **argv)
 	char* is_gpio_enabled_opt = "1234";
 	char* opt_instance_no = "1";
 
-	if (parse_program_args(
+	example_user_context* user_context;
+	if ((user_context = parse_program_args(
 		__FILE__,
 		argc,
 		argv,
@@ -224,7 +227,7 @@ int main(int argc, char **argv)
 		"g:k:",
 		&is_gpio_enabled_opt,
 		&opt_instance_no
-	) == false) {
+	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}	
 
@@ -237,6 +240,7 @@ int main(int argc, char **argv)
 	settings->log_level = level;
 
 	np_context * context = np_new_context(settings);
+	np_set_userdata(context, user_context);
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
 		np_example_print(context, stderr, "ERROR: Node could not listen");

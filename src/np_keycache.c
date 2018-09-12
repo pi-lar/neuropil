@@ -424,7 +424,7 @@ void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhk
 
 		}
 	} while (swap);
-
+/*
 #ifdef DEBUG
 	char* str = NULL;
 	char dhkey_str[65] = { 0 };
@@ -435,30 +435,14 @@ void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhk
 	curr = sll_first(list_of_keys);
 	while (curr != NULL) {
 		_np_dhkey_distance(&dif1, &curr->val->dhkey, key);
-		np_id2str(&dif1, dhkey_str);
+		np_id2str((np_id*)&dif1, dhkey_str);
 		str = np_str_concatAndFree(str, "%s / %s, ", _np_key_as_str(curr->val), dhkey_str);
 		sll_next(curr);
 	}
 	log_debug_msg(LOG_DEBUG, "%s", str);
 	free(str);
 #endif
-//    for (i = 0; i < size; i++)
-//	{
-//	    for (j = i + 1; j < size; j++)
-//		{
-//		    if (hosts[i] != NULL && hosts[j] != NULL)
-//			{
-//			    key_distance (&dif1, hosts[i], key);
-//			    key_distance (&dif2, hosts[j], key);
-//			    if (key_comp (&dif2, &dif1) < 0)
-//				{
-//				    tmp = hosts[i];
-//				    hosts[i] = hosts[j];
-//				    hosts[j] = tmp;
-//				}
-//			}
-//		}
-//	}
+*/
 }
 
 

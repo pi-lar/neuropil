@@ -211,7 +211,7 @@ struct timeval NAME##_tv;																					\
 struct timespec* NAME=&NAME##_ts;																			\
 																											\
 gettimeofday(&NAME##_tv, NULL);																				\
-NAME##_ts.tv_sec = NAME##_tv.tv_sec + fmin(MUTEX_WAIT_MAX_SEC - ELAPSED_TIME, MUTEX_WAIT_SOFT_SEC - MUTEX_WAIT_SEC);													
+NAME##_ts.tv_sec = NAME##_tv.tv_sec + MUTEX_WAIT_MAX_SEC - ELAPSED_TIME;													
 
 
 #define __LOCK_ACCESS_W_PREFIX(prefix, obj, lock_type)																						\

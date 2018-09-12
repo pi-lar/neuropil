@@ -60,7 +60,8 @@ void _np_node_t_new(np_state_t *context, uint8_t type, size_t size, void*  node)
 	np_node_set_handshake(entry, np_handshake_status_Disconnected);
 
 	entry->handshake_send_at = 0;
-	entry->joined_network = false;
+	entry->joined_network = false;	
+	entry->handshake_priority = randombytes_random();
 
 	for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
 		entry->success_win[i] = i%2;
@@ -88,10 +89,11 @@ void _np_node_t_del(np_state_t *context, uint8_t type, size_t size, void* node)
  **/
 void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 {
+	np_ctx_memory(key);
 	snprintf (s, len, "%s:", _np_key_as_str(key));
 
 	if (NULL != key->node->dns_name) {
-		snprintf (s + strlen (s), len - strlen (s), "%s:", _np_network_get_protocol_string(key->node->protocol));
+		snprintf (s + strlen (s), len - strlen (s), "%s:", _np_network_get_protocol_string(context, key->node->protocol));
 		snprintf (s + strlen (s), len - strlen (s), "%s:", key->node->dns_name);
 		snprintf (s + strlen (s), len - strlen (s), "%s",  key->node->port);
 	}
@@ -372,7 +374,7 @@ int _np_node_cmp(np_node_t* a, np_node_t* b) {
 }
 
 
-void _np_node_update (np_node_t* node, uint8_t proto, char *hn, char* port)
+void _np_node_update (np_node_t* node, enum socket_type proto, char *hn, char* port)
 {
 	node->protocol = proto;
 
@@ -493,5 +495,5 @@ void _np_node_set_handshake(np_node_t* self, enum np_handshake_status set_to, ch
 		np_handshake_status_str[set_to], 
 		func
 	);
-	self->_handshake_status = set_to;
+	self->_handshake_status = set_to;	
 }

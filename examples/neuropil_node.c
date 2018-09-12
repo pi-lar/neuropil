@@ -37,7 +37,8 @@ int main(int argc, char **argv)
 	int level = -2;
 	char* logpath = ".";
 
-	if (parse_program_args(
+	example_user_context* user_context;
+	if ((user_context = parse_program_args(
 		__FILE__,
 		argc,
 		argv,
@@ -52,7 +53,7 @@ int main(int argc, char **argv)
 		"r:c:",
 		&realm,
 		&code
-	) == false) {
+	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
 
@@ -63,6 +64,7 @@ int main(int argc, char **argv)
 	settings->log_level = level;
 
 	np_context * ac = np_new_context(settings);
+	np_set_userdata(ac, user_context);
 	np_ctx_cast(ac);
 
 	np_example_print(context, stdout, "logpath: %s\n", settings->log_file);

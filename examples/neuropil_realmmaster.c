@@ -221,7 +221,8 @@ int main(int argc, char **argv)
 	char* logpath = ".";
  
 	int opt;
-	if (parse_program_args(
+	example_user_context* user_context;
+	if ((user_context = parse_program_args(
 		__FILE__,
 		argc,
 		argv,
@@ -234,7 +235,7 @@ int main(int argc, char **argv)
 		&logpath,
 		NULL,
 		NULL,		
-	) == false) {
+	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
  

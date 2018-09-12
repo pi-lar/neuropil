@@ -60,7 +60,7 @@ char* _np_key_as_str(np_key_t* key)
 		key->dhkey_str = (char*) malloc(65);
 		CHECK_MALLOC(key->dhkey_str);
 	}
-	np_id2str(&key->dhkey, key->dhkey_str);
+	np_id2str((np_id*)&key->dhkey, key->dhkey_str);
 	log_debug_msg(LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
 
 	return (key->dhkey_str);
@@ -102,9 +102,11 @@ void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
 void _np_key_destroy(np_key_t* to_destroy) {
 	np_ctx_memory(to_destroy);
 	char* keyident = NULL;
-	TSP_SCOPE(to_destroy->in_destroy)
+
+	TSP_SET(to_destroy->in_destroy, true);
+	
 	{
-		to_destroy->in_destroy = true;
+	//	to_destroy->in_destroy = true;
 
 		keyident = _np_key_as_str(to_destroy);
 		log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
@@ -234,6 +236,7 @@ void _np_key_t_del(np_state_t *context, uint8_t type, size_t size, void* key)
 
 	TSP_DESTROY(old_key->in_destroy);
 
+	if (old_key->local_mx_tokens != NULL) pll_free(np_aaatoken_ptr, old_key->local_mx_tokens);
 }
 
 /**
@@ -283,5 +286,6 @@ void _np_key_set_send_property(np_key_t* self, np_msgproperty_t* prop) {
 }
 
 void _np_key_set_network(np_key_t* self, np_network_t* ng) {
+	np_ctx_memory(self);
 	np_ref_switch(np_network_t, self->network, ref_key_network, ng);
 }
