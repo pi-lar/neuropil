@@ -432,12 +432,12 @@ double __np_jobqueue_run_jobs_once(np_state_t * context) {
 			// check time of job
 			if (now < next_job->exec_not_before_tstamp) {
 				ret = fmin(ret, next_job->exec_not_before_tstamp - now);
+				pll_next(iter_jobs);
 			}
 			else {
 				pll_delete(np_job_ptr, np_module(jobqueue)->job_list, iter_jobs);
 				run_next_job = true;
-			}		
-			pll_next(iter_jobs);
+			}					
 		}
 	}
 	
