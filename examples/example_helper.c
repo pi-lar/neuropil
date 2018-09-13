@@ -534,7 +534,7 @@ enum np_example_load_identity_status  np_example_load_identity(np_context *conte
 	return ret;
 }
 
-void np_example_save_or_load_identity(np_state_t* context) {
+void np_example_save_and_load_identity(np_state_t* context) {
 	example_user_context* ud = ((example_user_context*)np_get_userdata(context));
 
 	if (ud->identity_opt_is_set) {
@@ -542,31 +542,25 @@ void np_example_save_or_load_identity(np_state_t* context) {
 		enum np_example_load_identity_status load_status;
 		if ((load_status = np_example_load_identity(context, ud->identity_passphrase, ud->identity_filename)) == np_example_load_identity_status_not_found) {
 
-			np_example_print(context, stdout, "Load detected no available token file. Try to save current ident to file.\n");
+			np_example_print(context, stdout, "Load detected no available token file. Try to save ident to file.\n");
 			if (!np_example_save_identity(context, ud->identity_passphrase, ud->identity_filename)) {
 				np_example_print(context, stdout, "Cannot load or save identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), ud->identity_filename);
 				exit(EXIT_FAILURE);
 			}
 			else {
 				np_example_print(context, stdout, "Saved current ident (%s) to file.\n", _np_key_as_str(context->my_identity));
-				/*
-				if (!np_example_load_identity(identity_passphrase, identity_filename)) {
-				np_example_print(context, stdout, "Cannot load after save of identity file. error(%"PRIi32"): %s. file: \"%s\"\n", errno, strerror(errno), ud->identity_filename);
-				exit(EXIT_FAILURE);
-				}
-				*/
+				load_status = np_example_load_identity(context, ud->identity_passphrase, ud->identity_filename);
 			}
 		}
+
+		if (load_status == np_example_load_identity_status_success) {
+			np_example_print(context, stdout, "Loaded ident(%s) from file.\n", _np_key_as_str(context->my_identity));
+		}
+		else if (load_status == np_example_load_identity_status_found_but_failed) {
+			np_example_print(context, stdout, "Could not load from file.\n");
+		}
 		else {
-			if (load_status == np_example_load_identity_status_success) {
-				np_example_print(context, stdout, "Loaded ident(%s) from file.\n", _np_key_as_str(context->my_identity));
-			}
-			else if (load_status == np_example_load_identity_status_found_but_failed) {
-				np_example_print(context, stdout, "Could not load from file.\n");
-			}
-			else {
-				np_example_print(context, stdout, "Unknown np_example_load_identity_status\n");
-			}
+			np_example_print(context, stdout, "Unknown np_example_load_identity_status\n");
 		}
 	}
 }
@@ -992,7 +986,7 @@ void __np_example_helper_loop(np_state_t* context) {
 			signal(SIGWINCH, resizeHandler);
 			__np_example_inti_ncurse(context);
 		}
-		np_example_save_or_load_identity(context);
+		np_example_save_and_load_identity(context);
 
 		np_print_startup(context);
 		// starting the example http server to support the http://view.neuropil.io application
