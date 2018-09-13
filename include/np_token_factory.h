@@ -17,13 +17,13 @@
 extern "C" {
 #endif	
 	NP_API_INTERN
-		np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* node);	
+		np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, np_node_t* node);
 	NP_API_INTERN
 		np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context );
 	NP_API_INTERN		
 		np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_msgproperty_t* msg_request);
 	NP_API_EXPORT
-		np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* context, double expires_at);
+		np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* context, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]));
 	NP_API_EXPORT
 		np_aaatoken_t* np_token_factory_read_from_tree(np_state_t* context, np_tree_t* tree);
 

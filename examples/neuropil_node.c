@@ -80,6 +80,7 @@ int main(int argc, char **argv)
 				np_treeval_new_hash(code));
 		}
 	}
+
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
 		np_example_print(context, stderr, "ERROR: Node could not listen");
 	}

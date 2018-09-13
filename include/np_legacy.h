@@ -162,7 +162,7 @@ void np_set_realm_name(np_context*ac, const char* realm_name);
 
 
 /**
-.. c:function:: void np_set_identity_v1(np_state_t* state, np_aaatoken_t* identity)
+.. c:function:: void _np_set_identity(np_state_t* state, np_aaatoken_t* identity)
 
    Manually set the identity which is used to send and receive messages.
    This identity is independent of the core node key (which is used to build the infrastructure)
@@ -171,8 +171,8 @@ void np_set_realm_name(np_context*ac, const char* realm_name);
    :param identity: a valid :c:type:`np_aaatoken_t` structure
 
 */
-NP_API_EXPORT
-void np_set_identity_v1(np_context*ac, np_aaatoken_t* identity);
+NP_API_INTERN
+void _np_set_identity(np_context*ac, np_aaatoken_t* identity);
 
 /**
 .. c:function:: np_send_join(np_key_t* node_key);
@@ -343,8 +343,8 @@ void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body
 NP_API_INTERN
 np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *body, np_dhkey_t* target_key);
 
-NP_API_EXPORT
-void np_context_create_new_nodekey(np_context* ac, np_node_t* base);
+NP_API_INTERN
+void _np_context_create_new_nodekey(np_context* ac, np_node_t* base);
 
 NP_API_INTERN
 bool _np_default_authorizefunc(np_context*ac, struct np_token* token);
