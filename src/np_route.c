@@ -42,8 +42,8 @@ np_module_struct(route)
     np_dhkey_t Rrange;
     np_dhkey_t Lrange;
 
-	TSP(uint32_t, leafset_left_count);
-	TSP(uint32_t, leafset_right_count);
+    TSP(uint32_t, leafset_left_count);
+    TSP(uint32_t, leafset_right_count);
 
 };
 
@@ -62,8 +62,8 @@ bool _np_route_init (np_state_t* context, np_key_t* me)
         }
         _module->my_key = NULL;
         TSP_INITD(_module->route_count, 0);
-		TSP_INITD(_module->leafset_left_count, 0);
-		TSP_INITD(_module->leafset_right_count, 0);
+        TSP_INITD(_module->leafset_left_count, 0);
+        TSP_INITD(_module->leafset_right_count, 0);
         _np_route_set_key(me);
 
         sll_init(np_key_ptr, _module->left_leafset);
@@ -93,7 +93,7 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
     if (deleted != NULL) *deleted = NULL;
     np_key_t* add_to = NULL;
     np_key_t* deleted_from = NULL;
-	bool handeling_left_leafset = true;
+    bool handeling_left_leafset = true;
 
     _LOCK_MODULE(np_routeglobal_t)
     {
@@ -104,7 +104,7 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
 
             if (false == joined) {
                 if (NULL != find_right) {
-					handeling_left_leafset = false;
+                    handeling_left_leafset = false;
                     deleted_from = (np_key_t*)node_key;
                     sll_remove(np_key_ptr, np_module(route)->right_leafset, node_key, _np_key_cmp_inv);
 
@@ -144,8 +144,8 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
 
                     if (_np_dhkey_between(&node_key->dhkey, &np_module(route)->my_key->dhkey, &my_inverse_dhkey, true))
                     {
-                   		handeling_left_leafset = false;
-						if (
+                        handeling_left_leafset = false;
+                        if (
                             sll_size(np_module(route)->right_leafset) < NP_ROUTE_LEAFSET_SIZE ||
                             _np_dhkey_between(
                                 &node_key->dhkey,
@@ -207,32 +207,32 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
             if (added != NULL) *added = add_to;
             np_ref_obj(np_key_t, add_to, ref_route_inleafset);
             log_msg(LOG_ROUTING | LOG_INFO, "added   %s to   leafset table.", _np_key_as_str(add_to));
-			if (handeling_left_leafset) {
-				TSP_SCOPE(np_module(route)->leafset_left_count) {
-					np_module(route)->leafset_left_count += 1;
-				}
-			}
-			else {
-				TSP_SCOPE(np_module(route)->leafset_right_count) {
-					np_module(route)->leafset_right_count += 1;
-				}
-			}
+            if (handeling_left_leafset) {
+                TSP_SCOPE(np_module(route)->leafset_left_count) {
+                    np_module(route)->leafset_left_count += 1;
+                }
+            }
+            else {
+                TSP_SCOPE(np_module(route)->leafset_right_count) {
+                    np_module(route)->leafset_right_count += 1;
+                }
+            }
         }
 
         if (deleted_from != NULL) {
             if (deleted != NULL) *deleted = deleted_from;
             np_unref_obj(np_key_t, deleted_from, ref_route_inleafset);
             log_msg(LOG_ROUTING | LOG_INFO, "removed %s from leafset table.", _np_key_as_str(deleted_from));
-			if (handeling_left_leafset) {
-				TSP_SCOPE(np_module(route)->leafset_left_count) {
-					np_module(route)->leafset_left_count -= 1;
-				}
-			}
-			else {
-				TSP_SCOPE(np_module(route)->leafset_right_count) {
-					np_module(route)->leafset_right_count -= 1;
-				}
-			}
+            if (handeling_left_leafset) {
+                TSP_SCOPE(np_module(route)->leafset_left_count) {
+                    np_module(route)->leafset_left_count -= 1;
+                }
+            }
+            else {
+                TSP_SCOPE(np_module(route)->leafset_right_count) {
+                    np_module(route)->leafset_right_count -= 1;
+                }
+            }
         }
     }
     log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .leafset_update");
@@ -844,11 +844,11 @@ uint32_t _np_route_my_key_count_routes(np_state_t* context) {
     return __np_route_my_key_count_routes(context, false);
 }
 uint32_t _np_route_my_key_count_neighbours(np_state_t* context, uint32_t* left, uint32_t* right) {
-	TSP_GET(uint32_t, np_module(route)->leafset_left_count, l);
-	TSP_GET(uint32_t, np_module(route)->leafset_right_count, r);
+    TSP_GET(uint32_t, np_module(route)->leafset_left_count, l);
+    TSP_GET(uint32_t, np_module(route)->leafset_right_count, r);
 
-	if (left != NULL)*left = l;
-	if (right != NULL)*right = r;
+    if (left != NULL)*left = l;
+    if (right != NULL)*right = r;
 
     return l+r;
 }

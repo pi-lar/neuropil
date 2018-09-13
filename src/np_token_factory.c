@@ -44,7 +44,7 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
 	case np_aaatoken_scope_private:
 		ASSERT(source->scope == np_aaatoken_scope_private, "Can only derive a private token from another private token. current token scope: %"PRIu8,source->scope);
 		ASSERT(
-			FLAG_CMP(source->type, np_aaatoken_type_identity) && FLAG_CMP(source->type, np_aaatoken_type_node),
+			FLAG_CMP(source->type, np_aaatoken_type_identity) || FLAG_CMP(source->type, np_aaatoken_type_node),
 			"Can only derive a private token from a node or identity token. current token type: %"PRIu8, source->type);
 		break;
 	case np_aaatoken_scope_public:
@@ -124,7 +124,7 @@ np_node_public_token_t* np_token_factory_get_public_node_token(np_aaatoken_t* so
 	return ret;
 }
 
-np_aaatoken_t* __np_token_factory_new(np_state_t* context,char issuer[64], char node_subject[255], double expires_at)
+np_aaatoken_t* __np_token_factory_new(np_state_t* context,char issuer[64], char node_subject[255], double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]))
 {
 	np_aaatoken_t* ret = NULL;
 	np_new_obj(np_aaatoken_t, ret, FUNC);
@@ -142,7 +142,19 @@ np_aaatoken_t* __np_token_factory_new(np_state_t* context,char issuer[64], char 
 	ret->not_before = np_time_now();
 	ret->expires_at = expires_at;
 
-	crypto_sign_keypair(ret->public_key, ret->private_key);   // ed25519
+
+	if (secret_key != NULL) {
+		memset(ret->private_key, *secret_key, NP_SECRET_KEY_BYTES);
+		if (0 != crypto_sign_ed25519_sk_to_pk(ret->public_key, ret->private_key)) {
+			// TODO: ERROR msg
+		}
+	}
+	else {
+		if (0 != crypto_sign_keypair(ret->public_key, ret->private_key)) {
+			// TODO: ERROR msg
+		}
+	}
+
 	ret->scope = np_aaatoken_scope_private;
 
 	return ret;
@@ -278,10 +290,8 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 	return ret;
 }
 
-np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* source_node)
+np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, np_node_t* source_node)
 {
-	np_ctx_memory(source_node);
-
 	int rand_interval = ((int)randombytes_uniform(NODE_MAX_TTL_SEC - NODE_MIN_TTL_SEC) + NODE_MIN_TTL_SEC);
 	double expires_at = np_time_now() + rand_interval;
 
@@ -290,7 +300,7 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* source_node
 	snprintf(node_subject, 255,  _NP_URN_NODE_PREFIX "%s:%s:%s",
 		_np_network_get_protocol_string(context, source_node->protocol), source_node->dns_name, source_node->port);
 
-	np_node_private_token_t* ret = __np_token_factory_new(context,issuer, node_subject, expires_at);
+	np_node_private_token_t* ret = __np_token_factory_new(context,issuer, node_subject, expires_at, NULL);
 
 	if (context != NULL && context->my_identity != NULL) {
 		np_aaatoken_set_partner_fp(ret, np_aaatoken_get_fingerprint(context->my_identity->aaa_token));
@@ -313,14 +323,13 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_node_t* source_node
 	return (ret);
 }
 
-np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* context, double expires_at)
+np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* context, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]))
 {
 	char issuer[64] = { 0 };
 	char node_subject[255];
 	snprintf(node_subject, 255,  _NP_URN_IDENTITY_PREFIX"%s", np_uuid_create("gererated identy", 0, NULL));
 
-
-	np_aaatoken_t* ret = __np_token_factory_new(context,issuer, node_subject, expires_at);
+	np_aaatoken_t* ret = __np_token_factory_new(context,issuer, node_subject, expires_at, secret_key);
 	ret->type = np_aaatoken_type_identity;
 	ret->scope = np_aaatoken_scope_private;
 

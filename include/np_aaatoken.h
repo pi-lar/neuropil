@@ -9,7 +9,7 @@ Add-on information can be stored in a nested jtree structure. Several analogies 
 json web token, kerberos and diameter. Tokens do get integrity protected by adding an additional signature based on
 the issuers public/private key pair
 
-The structure is described here to allow users the proper use of the :c:func:`np_set_identity_v1` function and to implement the
+The structure is described here to allow users the proper use of the :c:func:`_np_set_identity` function and to implement the
 AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizing_cb` and :c:func:`np_setaccounting_cb`.
 
 */
@@ -285,6 +285,8 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* token);
 #endif
 NP_API_INTERN
 struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src);
+NP_API_INTERN
+np_aaatoken_t*  np_user4aaatoken(np_aaatoken_t* dest, struct np_token* src);
 #ifdef __cplusplus
 }
 #endif

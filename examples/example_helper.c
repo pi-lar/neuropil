@@ -33,7 +33,6 @@
 #include "np_util.h"
 #include "np_key.h"
 #include "np_list.h"
-#include "np_identity.h"
 #include "np_sysinfo.h"
 #include "np_threads.h"
 #include "np_log.h"
@@ -436,9 +435,9 @@ void np_print_startup(np_context * context) {
 bool np_example_save_identity(np_context* context, char* passphrase, char* filename) {
 	example_user_context* ud = ((example_user_context*)np_get_userdata(context));
 	bool  ret = false;
-
-	unsigned char buffer[5000] = { 0 };
-	size_t token_size = np_identity_export_current(context, &buffer);
+	
+	struct np_token new_token = np_new_identity(context, np_time_now() + 60 * 60 * 24 * 7, NULL);
+	size_t token_size = sizeof(new_token);
 
 	int tmp = 0;
 	if (!ud->key_is_gen &&
@@ -465,7 +464,7 @@ bool np_example_save_identity(np_context* context, char* passphrase, char* filen
 
 		if (0 != crypto_secretbox_easy(
 			crypted_data,
-			buffer,
+			&new_token,
 			token_size,
 			ud->nonce,
 			ud->key)) {
@@ -515,23 +514,17 @@ enum np_example_load_identity_status  np_example_load_identity(np_context *conte
 			unsigned char* crypted_data = (unsigned char *)malloc(info.st_size);
 			fread(crypted_data, info.st_size, 1, f);
 
-			unsigned char buffer[info.st_size - crypto_secretbox_MACBYTES];
+			assert(sizeof(struct np_token) == info.st_size - crypto_secretbox_MACBYTES);
+			struct np_token buffer;
 
 			if (0 == crypto_secretbox_open_easy(
-				buffer,
+				&buffer,
 				crypted_data,
 				info.st_size,
 				ud->nonce,
 				ud->key)
-				) {
-				np_aaatoken_t* token = np_identity_import(context, &buffer, sizeof buffer);
-				if (token == NULL) {
-					log_debug_msg(LOG_DEBUG, "Error deserializing aaatoken!");
-				}
-				else {
-					np_set_identity_v1(context, token);
-				}
-
+				) {								
+				np_use_identity(context, buffer);				
 				ret = np_example_load_identity_status_success;
 			}
 			free(crypted_data);
@@ -999,9 +992,9 @@ void __np_example_helper_loop(np_state_t* context) {
 			signal(SIGWINCH, resizeHandler);
 			__np_example_inti_ncurse(context);
 		}
+		np_example_save_or_load_identity(context);
 
 		np_print_startup(context);
-		np_example_save_or_load_identity(context);
 		// starting the example http server to support the http://view.neuropil.io application
 		ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);
 	}
