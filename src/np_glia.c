@@ -199,7 +199,7 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
  ** uses _np_job_yield between pings to different nodes
  ** _np_route_check_leafset_jobexec frequency is LEAFSET_CHECK_PERIOD.
  **/
-void _np_glia_check_neighbours(np_state_t* context, np_jobargs_t* args) {
+void _np_glia_check_neighbours(np_state_t* context, NP_UNUSED np_jobargs_t* args) {
 	
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset check for table started");	
 	np_sll_t(np_key_ptr, table) = NULL;
@@ -209,7 +209,7 @@ void _np_glia_check_neighbours(np_state_t* context, np_jobargs_t* args) {
 	sll_free(np_key_ptr, table);
 }
 
-void _np_glia_check_routes(np_state_t* context, np_jobargs_t* args) {
+void _np_glia_check_routes(np_state_t* context, NP_UNUSED np_jobargs_t* args) {
 	
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset check for table started");	
 	np_sll_t(np_key_ptr, table) = NULL;
@@ -219,7 +219,7 @@ void _np_glia_check_routes(np_state_t* context, np_jobargs_t* args) {
 	sll_free(np_key_ptr, table);
 }
 
-void _np_glia_send_pings(np_state_t* context, np_jobargs_t* args) {
+void _np_glia_send_pings(np_state_t* context, NP_UNUSED np_jobargs_t* args) {
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset check for table started");
 
 	// TODO: do a dynamic selection of keys
@@ -251,12 +251,12 @@ void _np_glia_send_pings(np_state_t* context, np_jobargs_t* args) {
 	sll_free(np_key_ptr, neighbour_keys);
 }
 
-void _np_glia_log_flush(np_state_t* context, np_jobargs_t* args) {
+void _np_glia_log_flush(np_state_t* context, NP_UNUSED np_jobargs_t* args) {
 	
 	_np_log_fflush(context, false);
 }
 
-void _np_glia_send_piggy_requests(np_state_t* context, np_jobargs_t* args) {
+void _np_glia_send_piggy_requests(np_state_t* context, NP_UNUSED np_jobargs_t* args) {
 	
 
 	/* send leafset exchange data every 3 times that pings the leafset */
@@ -291,7 +291,7 @@ void _np_glia_send_piggy_requests(np_state_t* context, np_jobargs_t* args) {
  ** default ttl value for message exchange tokens is ten seconds, afterwards they will be invalid
  ** and a new token is required. this also ensures that the correct encryption key will be transmitted
  **/
-void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t* args)
+void _np_retransmit_message_tokens_jobexec(np_state_t* context, NP_UNUSED np_jobargs_t* args)
 {
 	if (_np_route_my_key_has_connection(context)) {		
 
@@ -366,7 +366,7 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t* ar
  ** the message gets deleted or dropped (if max redelivery has been reached)
  ** redelivery has two aspects -> simple resend or reroute because of bad link nodes in the routing table
  **/
-void _np_cleanup_ack_jobexec(np_state_t* context, np_jobargs_t* args)
+void _np_cleanup_ack_jobexec(np_state_t* context, NP_UNUSED np_jobargs_t* args)
 {
 	np_waitref_obj(np_key_t, context->my_node_key, my_key);
 	np_waitref_obj(np_network_t, my_key->network, my_network);	
@@ -432,7 +432,7 @@ void _np_cleanup_ack_jobexec(np_state_t* context, np_jobargs_t* args)
 	np_unref_obj(np_network_t, my_network, FUNC);
 }
 
-void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t* args)
+void _np_cleanup_keycache_jobexec(np_state_t* context, NP_UNUSED np_jobargs_t* args)
 {
 	
 

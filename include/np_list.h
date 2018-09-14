@@ -203,7 +203,7 @@ void TYPE##_pll_remove(TYPE##_pll_t* pll_list, TYPE value, TYPE##_pll_cmp_func_t
 	while (NULL != pll_current) {																			\
 		int8_t cmp_res = cmp_func(pll_current->val, value);													\
 		if (0 == cmp_res) {																					\
-			TYPE##_pll_delete(pll_list, pll_current);														\			
+			TYPE##_pll_delete(pll_list, pll_current);														\
 			break;																							\
 		} else {																							\
 			pll_current = pll_current->flink;																\

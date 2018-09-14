@@ -847,8 +847,8 @@ void __np_example_inti_ncurse(np_context* context) {
 
 #ifdef NP_THREADS_CHECK_THREADING
 			if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_locks) == np_stat_locks) {
-				__np_top_right_win = newwin(term_height__top_right, ud->term_width_top_rigth, term_height_logo, term_width_top_left);
-				wbkgdud->(ud->__np_top_right_win, COLOR_PAIR(2));
+				ud->__np_top_right_win = newwin(term_height__top_right, ud->term_width_top_rigth, term_height_logo, term_width_top_left);
+				wbkgd(ud->__np_top_right_win, COLOR_PAIR(2));
 			}
 #else
 			if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_memory) == np_stat_memory) {

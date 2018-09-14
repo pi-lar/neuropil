@@ -40,7 +40,7 @@
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
 
-void _np_node_t_new(np_state_t *context, uint8_t type, size_t size, void*  node)
+void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void*  node)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_node_t_new(void* node){");
 	np_node_t* entry = (np_node_t *) node;
@@ -72,7 +72,7 @@ void _np_node_t_new(np_state_t *context, uint8_t type, size_t size, void*  node)
 	entry->latency = 0.031415;
 }
 
-void _np_node_t_del(np_state_t *context, uint8_t type, size_t size, void* node)
+void _np_node_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* node)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_node_t_del(void* node){");
 	np_node_t* entry = (np_node_t *) node;
@@ -100,7 +100,7 @@ void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 } 
 void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_stats)
 {
-	np_ctx_memory(node_key);
+	// np_ctx_memory(node_key);
 	np_tree_insert_str( data, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_ush(node_key->node->protocol));
 	np_tree_insert_str( data, NP_SERIALISATION_NODE_DNS_NAME, np_treeval_new_s(node_key->node->dns_name));
 	np_tree_insert_str( data, NP_SERIALISATION_NODE_PORT, np_treeval_new_s(node_key->node->port));
@@ -239,7 +239,7 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
 	//snprintf(node_subject, 255, _NP_URN_NODE_PREFIX "%s:%s:%s",
 	//	_np_network_get_protocol_string(source_node->protocol), source_node->dns_name, source_node->port);
 	char* details = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)], sizeof(token->subject) - strlen(_NP_URN_NODE_PREFIX));
-	char* detail_data = details;
+	// char* detail_data = details;
 
 	log_debug_msg(LOG_DEBUG, "#  decoding node from token str: %s", details);
 
@@ -281,7 +281,7 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, 
 	{		
 		if (current->node != NULL)
 		{
-			np_ctx_memory(current);
+			// np_ctx_memory(current);
 			np_tree_t* node_jrb = np_tree_create();
 			// log_debug_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
 			_np_node_encode_to_jrb(node_jrb, current, include_stats);

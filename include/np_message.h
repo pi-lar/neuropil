@@ -120,7 +120,7 @@ void _np_message_del_footerentry(np_message_t*, const char* key);
 NP_API_INTERN
 void _np_message_set_to(np_message_t* msg, np_dhkey_t target);
 NP_API_INTERN
-char* _np_message_get_subject(np_message_t* msg);
+char* _np_message_get_subject(const np_message_t* const self);
 NP_API_INTERN
 double _np_message_get_expiery(const np_message_t* const self);
 NP_API_INTERN
@@ -128,7 +128,7 @@ bool _np_message_is_expired(const np_message_t* const msg_to_check);
 NP_API_INTERN
 void _np_message_mark_as_incomming(np_message_t* msg);
 NP_API_INTERN
-np_dhkey_t* _np_message_get_sender(np_message_t* self);
+np_dhkey_t* _np_message_get_sender(const np_message_t* const self);
 
 NP_API_EXPORT
 void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply);

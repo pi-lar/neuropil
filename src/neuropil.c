@@ -35,8 +35,8 @@
 #include "np_keycache.h"
 
 // split into hash 
-void np_get_id(np_context * ac, np_id* id, char* string, size_t length) {
-	np_ctx_cast(ac);
+void np_get_id(NP_UNUSED np_context * ac, np_id* id, char* string, NP_UNUSED size_t length) {
+	// np_ctx_cast(ac);
 	 
 	np_dhkey_t  dhkey = np_dhkey_create_from_hostport(string, "0");
 	memcpy(id, &dhkey, NP_FINGERPRINT_BYTES);
@@ -273,15 +273,15 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 	return ret;
 }
 
-struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES])) {
-	np_ctx_cast(ac);
-	enum np_error ret = np_not_implemented;
+struct np_token *np_new_identity(NP_UNUSED np_context* ac, NP_UNUSED double expires_at, NP_UNUSED uint8_t* (secret_key[NP_SECRET_KEY_BYTES])) {
+	// np_ctx_cast(ac);
+	// enum np_error ret = np_not_implemented;
 	return NULL;
 }
 
-enum np_error np_set_identity(np_context* ac, struct np_token identity) {
+enum np_error np_set_identity(NP_UNUSED np_context* ac, NP_UNUSED struct np_token identity) {
 	enum np_error ret = np_not_implemented;
-	np_ctx_cast(ac);
+	// np_ctx_cast(ac);
 
 	return ret;
 }
