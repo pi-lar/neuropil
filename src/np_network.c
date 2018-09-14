@@ -1056,7 +1056,7 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
     }
 }
 
-void _np_network_t_new(np_state_t * context, uint8_t type, size_t size, void* data)
+void _np_network_t_new(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* data)
 {
     log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_new(void* nw){");
     np_network_t* ng = (np_network_t *) data;

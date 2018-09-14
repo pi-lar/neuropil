@@ -41,11 +41,11 @@ It should contain all required functions to send or receive messages.
 extern "C" {
 #endif
 #define np_ctx_by_memory(c)				\
-		np_memory_get_context((void*)c)			
+		np_memory_get_context((void*)c)
 #define np_ctx_decl(b)				\
 		np_state_t* context = (b)
 #define np_ctx_memory(a)				\
-		np_ctx_decl(np_ctx_by_memory(a))
+		np_ctx_decl(np_ctx_by_memory(a));
 
 
 #define NP_CTX_MODULES route, memory, threads, events, statistics, msgproperties, keycache, sysinfo, log, jobqueue, shutdown, bootstrap
@@ -71,7 +71,7 @@ extern "C" {
 
 #define np_ctx_cast(ac)				\
 	assert(ac != NULL);				\
-	np_state_t* context = ac		\
+	np_state_t* context = ac;		\
 
 
 MAP(np_module_typedef, NP_CTX_MODULES);

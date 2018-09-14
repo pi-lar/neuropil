@@ -24,11 +24,11 @@ extern "C" {
 	 - NP_STATISTICS_COUNTER			enables the statistics (in/out bytes, forwarding counter) statistics
 */
 #ifdef DEBUG
-	//#define DEBUG_CALLBACKS 1
-	#define NP_MEMORY_CHECK_MEMORY_REFFING 1
+	// #define DEBUG_CALLBACKS 1
+	// #define NP_MEMORY_CHECK_MEMORY_REFFING 1
 	#define NP_MEMORY_CHECK_MAGIC_NO
-	//#define NP_THREADS_CHECK_THREADING 1
-	#define NP_BENCHMARKING 4096
+	// #define NP_THREADS_CHECK_THREADING 1
+	// #define NP_BENCHMARKING 4096
 	#define NP_STATISTICS_COUNTER
 #endif // DEBUG
 
@@ -275,8 +275,8 @@ extern "C" {
 #define NP_NODE_SUCCESS_WINDOW 20
 
 
-#ifndef NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK
-	#define NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK (!(defined(__APPLE__) || defined(__MACH__ )))
+#if !(defined(__APPLE__) || defined(__MACH__ ))
+	#define NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK 1
 #endif
 
 

@@ -470,7 +470,7 @@ void np_rem_mx_property(np_context*ac, char* subject, const char* key)
 	}
 }
 
-np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *body, np_dhkey_t* target_key)
+np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *body, NP_UNUSED np_dhkey_t* target_key)
 { 
 	np_message_t* ret = NULL;
 	np_new_obj(np_message_t, ret);

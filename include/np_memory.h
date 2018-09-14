@@ -79,22 +79,22 @@ extern "C" {
 		void _np_memory_job_memory_management(np_state_t* context, np_jobargs_t* args);
 
 	NP_API_INTERN
-	void np_memory_ref_obj(np_state_t* context, void* item, char* reason, char* reason_desc);
+	void np_memory_ref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc);
 
 	NP_API_INTERN
-	void* np_memory_tryref_obj(np_state_t* context, void* item, char* reason, char* reason_desc);
+	void* np_memory_tryref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc);
 
 	NP_API_INTERN
-	void* np_memory_waitref_obj(np_state_t* context, void* item, char* reason, char* reason_desc);
+	void* np_memory_waitref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc);
 	/*
 	Returns the context of a memory managed object
 	*/
 	NP_API_INTERN
 		np_state_t* np_memory_get_context(void* item);
 	NP_API_INTERN
-	void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason);
+	void np_memory_ref_replace_reason(void* item, const char* old_reason, const char* new_reason);
 	NP_API_INTERN
-	uint32_t np_memory_unref_obj(np_state_t* context, void* item, char* reason);
+	uint32_t np_memory_unref_obj(np_state_t* context, void* item, const char* reason);
 	NP_API_INTERN
 	void np_mem_refobj(np_state_t*context, void * item, const char* reason);
 

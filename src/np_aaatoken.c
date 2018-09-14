@@ -37,7 +37,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_aaatoken_ptr);
 
 NP_PLL_GENERATE_IMPLEMENTATION(np_aaatoken_ptr);
 
-void _np_aaatoken_t_new(np_state_t *context, uint8_t type, size_t size, void* token)
+void _np_aaatoken_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* token)
 {
 	log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_t_new(void* token){");
 	np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
@@ -78,7 +78,7 @@ void _np_aaatoken_t_new(np_state_t *context, uint8_t type, size_t size, void* to
 	_np_aaatoken_trace_info("new", aaa_token);
 }
 
-void _np_aaatoken_t_del (np_state_t *context, uint8_t type, size_t size, void* token)
+void _np_aaatoken_t_del (NP_UNUSED np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* token)
 {
 	np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
 	// clean up extensions
@@ -165,11 +165,11 @@ void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token) {
 */
 bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 {
-	np_ctx_memory(token);
 	assert (NULL != data);
 	assert (NULL != token);
-	bool ret = true;
+	// np_ctx_memory(token);
 
+	bool ret = true;
 	// get e2e encryption details of sending entity
 
 	np_tree_elem_t* tmp;
@@ -261,6 +261,8 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 
 void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self) {
 
+	assert (NULL != self);
+
 	if(self->private_key_is_set){
 		self->scope = np_aaatoken_scope_private;
 	} else {
@@ -291,7 +293,8 @@ void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self) {
 
 np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self)
 {
-	np_ctx_memory(self);
+	assert (NULL != self);
+	// np_ctx_memory(self);
 	np_dhkey_t ret;
 
 	// if (FLAG_CMP(self->type, np_aaatoken_type_handshake)) {
@@ -1181,7 +1184,7 @@ unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* self) {
 
 int __np_aaatoken_generate_signature(np_state_t* context, unsigned char* hash, unsigned char* private_key, unsigned char* save_to) {
 
-	unsigned long long signature_len = 0;
+	// unsigned long long signature_len = 0;
 
 #ifdef DEBUG
 	char hash_hex[crypto_generichash_BYTES * 2 + 1];
@@ -1323,7 +1326,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
 
 void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
 	assert(self != NULL);
-	np_state_t* context = np_ctx_by_memory(self);
+	// np_state_t* context = np_ctx_by_memory(self);
 
 	np_tree_replace_str( self->extensions, "_np.partner_fp", np_treeval_new_dhkey(partner_fp));
 }
@@ -1381,9 +1384,9 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 }
 
 void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
-
-	np_ctx_memory(self);
+	assert(self != NULL);
 	ASSERT(signee != NULL, "Cannot sign extensions with empty signee");
+	np_ctx_memory(self);
 
 	unsigned char* hash = __np_aaatoken_get_extensions_hash(self);
 	int ret = __np_aaatoken_generate_signature(context, hash, signee->private_key, self->signature_extensions);
@@ -1398,7 +1401,7 @@ void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t
 
 unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self) {
 	assert(self != NULL);
-	np_state_t* context = np_ctx_by_memory(self);
+	// np_state_t* context = np_ctx_by_memory(self);
 
 	unsigned char* ret = calloc(1, crypto_generichash_BYTES);
 

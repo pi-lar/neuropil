@@ -38,7 +38,7 @@ void __np_bootstrap_on_timeout(const np_responsecontainer_t* const entry) {
 	free(reconnect);
 }
 
-void __np_bootstrap_reconnect(np_state_t* context, np_jobargs_t* args) {
+void __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED np_jobargs_t* args) {
 	TSP_SCOPE(np_module(bootstrap)->bootstrap_points) {
 		np_tree_elem_t* iter = RB_MIN(np_tree_s, np_module(bootstrap)->bootstrap_points);
 		while (iter != NULL) {
@@ -87,7 +87,7 @@ void _np_bootstrap_deinit(np_state_t* context)
 		np_tree_free(np_module(bootstrap)->bootstrap_points);
 	}
 }
-void np_bootstrap_add(np_state_t* context, char* connectionstr) {
+void np_bootstrap_add(np_state_t* context, const char* connectionstr) {
 
 	TSP_SCOPE(np_module(bootstrap)->bootstrap_points) {
 
@@ -124,7 +124,7 @@ void _np_bootstrap_confirm(np_state_t* context, np_key_t* confirmed) {
 	free(connectionstr);
 }
 
-void np_bootstrap_remove(np_state_t* context, char* connectionstr) {
+void np_bootstrap_remove(np_state_t* context, const char* connectionstr) {
 
 	TSP_SCOPE(np_module(bootstrap)->bootstrap_points) {
 		np_tree_elem_t* ele = np_tree_find_str(np_module(bootstrap)->bootstrap_points, connectionstr);
