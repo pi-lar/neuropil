@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 	char* node_creation_speed_str = NULL;
 	double default_node_creation_speed = 3.415;
 	char* opt_kill_node = NULL;
-	uint16_t kill_node = 0;
+	uint16_t kill_node = 300;
 
 	int opt;
 	example_user_context* user_context;
