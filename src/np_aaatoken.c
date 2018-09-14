@@ -75,7 +75,6 @@ void _np_aaatoken_t_new(np_state_t *context, uint8_t type, size_t size, void* to
 	aaa_token->type = np_aaatoken_type_undefined;
 	aaa_token->scope = np_aaatoken_scope_undefined;
 	aaa_token->issuer_token = aaa_token;
-	_np_aaatoken_trace_info("new", aaa_token);
 }
 
 void _np_aaatoken_t_del (np_state_t *context, uint8_t type, size_t size, void* token)
@@ -188,7 +187,7 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	}
 	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.i")))
 	{
-		strncpy(token->issuer,  np_treeval_to_str(tmp->val, NULL), 64);
+		strncpy(token->issuer,  np_treeval_to_str(tmp->val, NULL), 65);
 	}
 	else { ret = false;/*Mendatory field*/ }
 	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.s")))
@@ -358,7 +357,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token has not expired");
 	}
 
-	if (token->scope > np_aaatoken_scope_private_available)
+	if (token->scope > np_aaatoken_scope_private_available) 
 	{
 		if (token->is_signature_verified == false) {
 			unsigned char* hash = _np_aaatoken_get_hash(token);
@@ -370,20 +369,18 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 			int ret = crypto_sign_verify_detached((unsigned char*)signature, hash, crypto_generichash_BYTES, token->public_key);
 
 #ifdef DEBUG
-			if (ret != 0)// || (FLAG_CMP(token->type, np_aaatoken_type_message_intent) && ( strcmp(token->subject[strlen("urn:np:msg:")], "_NP.SYSINFO.REPLY") == 0 || strcmp(token->subject[strlen("urn:np:msg:")], "_NP.SYSINFO.REQUEST") == 0 )))
-			{				
-				char signature_hex[crypto_sign_BYTES * 2 + 1] = { 0 };
-				sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
-					signature, crypto_sign_BYTES);
+			char signature_hex[crypto_sign_BYTES * 2 + 1] = { 0 };
+			sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
+				signature, crypto_sign_BYTES);
 				
-				char pk_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1] = { 0 };
-				sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
-					token->public_key, crypto_sign_PUBLICKEYBYTES);
+			char pk_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1] = { 0 };
+			sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
+				token->public_key, crypto_sign_PUBLICKEYBYTES);
 
-				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "(token: %p) signature: is_valid (pk: %s) %s = %"PRId32, token, pk_hex, signature_hex, ret);				
-			}
+			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
+				"(token: %s) signature is%s valid: (pk: 0x%s) sig: 0x%s = %"PRId32,
+				token->uuid, ret != 0? " not":"", pk_hex, signature_hex, ret);				
 #endif
-
 			free(hash);
 			if (ret < 0)
 			{
@@ -420,7 +417,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 				sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
 					token->public_key, crypto_sign_PUBLICKEYBYTES);
 
-				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "(token: %s) extension signature: is_valid (hash: %s) (pk: %s) %s = %"PRId32, token->uuid, hash_hex, pk_hex, signature_hex, ret);
+				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "(token: %s) extension signature: is_valid (hash: 0x%s) (pk: 0x%s) 0x%s = %"PRId32, token->uuid, hash_hex, pk_hex, signature_hex, ret);
 			}
 #endif
 			free(hash);
@@ -500,7 +497,7 @@ static int8_t _np_aaatoken_cmp (np_aaatoken_ptr first, np_aaatoken_ptr second)
 
 	if (first == NULL || second == NULL ) return (-1);
 
-	ret_check = strncmp(first->issuer, second->issuer, strnlen(first->issuer,64));
+	ret_check = strncmp(first->issuer, second->issuer, 65);
 	if (0 != ret_check )
 	{
 		return (ret_check);
@@ -1450,7 +1447,6 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
 	assert(self != NULL);
 	np_ctx_memory(self);
 
-
 	char* info_str = NULL;
 	info_str = np_str_concatAndFree(info_str, "AAATokenTrace_%s", desc);
 
@@ -1459,8 +1455,12 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
 	np_tree_elem_t* tmp = NULL;
 	bool free_key, free_value;
 	char *key, *value;
-	
-	info_str = np_str_concatAndFree(info_str, " ");
+
+	char tmp_c[65] = { 0 };
+	np_dhkey_t tmp_d = np_aaatoken_get_fingerprint(self);
+	np_id2str(&tmp_d, tmp_c);
+
+	info_str = np_str_concatAndFree(info_str, " fingerprint: %s ; TREE: (",tmp_c);
 	RB_FOREACH(tmp, np_tree_s, (data))
 	{
 		key = np_treeval_to_str(tmp->key, &free_key);
@@ -1469,8 +1469,8 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
 		if (free_value) free(value);
 		if (free_key) free(key);
 	}	
-	np_tree_free( data);
-	info_str = np_str_concatAndFree(info_str, ": %s", info_str, self->uuid);
+	np_tree_free(data);
+	info_str = np_str_concatAndFree(info_str, "): %s", self->uuid);
 
 	log_msg(LOG_AAATOKEN | LOG_INFO, "%s", info_str);
 	free(info_str);
@@ -1496,7 +1496,9 @@ struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src) {
 	strncpy(dest->audience, src->audience, 255);
 	strncpy(dest->subject, src->subject, 255);
 
+	assert(crypto_sign_PUBLICKEYBYTES == NP_PUBLIC_KEY_BYTES);
 	memcpy(dest->public_key, src->public_key, NP_PUBLIC_KEY_BYTES);
+	assert(crypto_sign_SECRETKEYBYTES == NP_SECRET_KEY_BYTES);
 	memcpy(dest->secret_key, src->private_key, NP_SECRET_KEY_BYTES);
 	
 	// TODO: warning/error if NP_EXTENSION_BYTES < src->extensions->byte_size 
@@ -1530,12 +1532,13 @@ np_aaatoken_t* np_user4aaatoken(np_aaatoken_t* dest, struct np_token* src) {
 	strncpy(dest->audience, src->audience, 255);
 	strncpy(dest->subject, src->subject, 255);
 
-	memcpy(dest->public_key, src->public_key, NP_PUBLIC_KEY_BYTES);	
+	memcpy(dest->public_key, src->public_key, NP_PUBLIC_KEY_BYTES);
 	uint8_t null_secret_key[NP_SECRET_KEY_BYTES] = { 0 };
 	if (memcmp(src->secret_key, null_secret_key, NP_SECRET_KEY_BYTES) != 0) {
 		memcpy(dest->private_key, src->secret_key, NP_SECRET_KEY_BYTES);
 		dest->private_key_is_set = true;
 	}
+	
 	strncpy(dest->subject, src->subject, 255);
 
 	cmp_ctx_t cmp;
@@ -1546,6 +1549,8 @@ np_aaatoken_t* np_user4aaatoken(np_aaatoken_t* dest, struct np_token* src) {
 	buffer_container.obj = dest;
 	cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
 	np_tree_deserialize(context, dest->extensions, &cmp);
+
+	_np_aaatoken_update_type_and_scope(dest);
 
 	return dest;
 }

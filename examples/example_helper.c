@@ -464,7 +464,7 @@ bool np_example_save_identity(np_context* context, char* passphrase, char* filen
 
 		if (0 != crypto_secretbox_easy(
 			crypted_data,
-			&new_token,
+			(unsigned char*)&new_token,
 			token_size,
 			ud->nonce,
 			ud->key)) {
@@ -478,6 +478,12 @@ bool np_example_save_identity(np_context* context, char* passphrase, char* filen
 				}
 			}
 			fclose(f);
+
+			np_example_print(context, stdout, "Saved ident %s into file %s\n",
+				new_token.uuid,
+				filename
+			);
+
 		}
 
 	}
@@ -518,7 +524,7 @@ enum np_example_load_identity_status  np_example_load_identity(np_context *conte
 			struct np_token buffer;
 
 			if (0 == crypto_secretbox_open_easy(
-				&buffer,
+				(unsigned char*)&buffer,
 				crypted_data,
 				info.st_size,
 				ud->nonce,
@@ -548,7 +554,7 @@ void np_example_save_and_load_identity(np_state_t* context) {
 				exit(EXIT_FAILURE);
 			}
 			else {
-				np_example_print(context, stdout, "Saved current ident (%s) to file.\n", _np_key_as_str(context->my_identity));
+				np_example_print(context, stdout, "Saved ident to file.\n");
 				load_status = np_example_load_identity(context, ud->identity_passphrase, ud->identity_filename);
 			}
 		}
@@ -692,8 +698,8 @@ example_user_context* parse_program_args(
 			//| LOG_HTTP
 			//| LOG_KEY
 			| LOG_NETWORK
-			| LOG_HANDSHAKE			
-			//| LOG_AAATOKEN
+			| LOG_HANDSHAKE
+			| LOG_AAATOKEN
 			//| LOG_SYSINFO
 			| LOG_MESSAGE
 			//| LOG_SERIALIZATION
@@ -986,7 +992,6 @@ void __np_example_helper_loop(np_state_t* context) {
 			signal(SIGWINCH, resizeHandler);
 			__np_example_inti_ncurse(context);
 		}
-		np_example_save_and_load_identity(context);
 
 		np_print_startup(context);
 		// starting the example http server to support the http://view.neuropil.io application

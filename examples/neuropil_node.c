@@ -69,6 +69,8 @@ int main(int argc, char **argv)
 
 	np_example_print(context, stdout, "logpath: %s\n", settings->log_file);
 
+	np_example_save_and_load_identity(context);
+
 	if (NULL != realm)
 	{
 		np_set_realm_name(context, realm);

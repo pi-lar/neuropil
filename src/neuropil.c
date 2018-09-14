@@ -127,7 +127,6 @@ np_context* np_new_context(struct np_settings * settings_in) {
 			status = np_startup;
 		}
 		else {
-
 			np_thread_t * new_thread =
 				__np_createThread(context, 0, NULL, false, np_thread_type_main);
 			new_thread->id = (unsigned long) getpid();
@@ -139,6 +138,8 @@ np_context* np_new_context(struct np_settings * settings_in) {
 
 			context->enable_realm_client = false;
 			context->enable_realm_server = false;
+		 
+
 		}
 	}
 	TSP_INITD(context->status, np_uninitialized);
@@ -185,45 +186,53 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 			np_network_t* my_network = NULL;
 			np_new_obj(np_network_t, my_network);
 			// get public / local network interface id
-			char ng_host[255];
-			if (NULL == host) {		
+			char ng_host[255];			
+			bool has_host = true;
+			if (NULL == host && port != NULL) {		
 				log_msg(LOG_INFO, "neuropil_init: resolve hostname");
 				if (np_get_local_ip(context, ng_host, 255) == false) {
 					if (0 != gethostname(ng_host, 255)) {
 						strncpy(ng_host,"localhost",255);
 					}
 				}
-			}
-			else {
+			}else if (NULL != host)
+			{
 				strncpy(ng_host, host, 255);
+			}else{
+				has_host = false;
 			}
-			log_debug_msg(LOG_DEBUG, "initialise network (type:%d/%s/%s)", np_proto, _np_network_get_protocol_string(context, np_proto), protocol);
-			_LOCK_MODULE(np_network_t)
-			{
-				_np_network_init(my_network, true, np_proto, ng_host, np_service, -1, UNKNOWN_PROTO);
-			}
-		
-			log_debug_msg(LOG_DEBUG, "check for initialised network");
-			if (false == my_network->initialized)
-			{
-				log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
-				ret = np_network_error;
-			}
-			else {
+			if (has_host) {
+				log_debug_msg(LOG_DEBUG, "initialise network (type:%d/%s/%s)", np_proto, _np_network_get_protocol_string(context, np_proto), protocol);
+				_LOCK_MODULE(np_network_t)
+				{
+					_np_network_init(my_network, true, np_proto, ng_host, np_service, -1, UNKNOWN_PROTO);
+				}
 
+				log_debug_msg(LOG_DEBUG, "check for initialised network");
+				if (false == my_network->initialized)
+				{
+					log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
+					ret = np_network_error;
+				}
+			}
+			if(ret == np_ok)
+			{
 				log_debug_msg(LOG_DEBUG, "building node base structure");
-				np_node_t* my_node = NULL;
-				np_new_obj(np_node_t, my_node, ref_key_node);
-				_np_node_update(my_node, np_proto, ng_host, np_service);
-				_np_context_create_new_nodekey(context, my_node);
-				if (context->my_identity == NULL)
+
+				if (has_host) {
+					np_node_t* tmp_node = NULL;
+					np_new_obj(np_node_t, tmp_node);
+					_np_node_update(tmp_node, np_proto, ng_host, np_service);
+					_np_context_create_new_nodekey(context, tmp_node);
+					np_unref_obj(np_node_t, tmp_node, ref_obj_creation);
+				}
+
+				if (context->my_identity == NULL) // make ist selfsigned if no ident is given
 					_np_set_identity(context, context->my_node_key->aaa_token);
 
-				np_ref_obj(np_network_t, my_network, ref_key_network);
-				context->my_node_key->network = my_network;
-				
 				_np_network_set_key(my_network, context->my_node_key);
-
+				np_ref_switch(np_network_t, context->my_node_key->network , ref_key_network, my_network);
+				
 				// initialize routing table
 				if (false == _np_route_init(context, context->my_node_key))
 				{
@@ -244,7 +253,6 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 					}					
 					// initialize message handling system
 					else {
-
 						context->msg_tokens = np_tree_create();
 
 						context->msg_part_cache = np_tree_create();
@@ -252,7 +260,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 						_np_shutdown_init_auto_notify_others(context);
 
 						log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s is the main receiving network", np_memory_get_id(my_network));
-						_np_network_enable(my_network);
+						if(has_host) _np_network_enable(my_network);
 
 						np_threads_start_workers(context, context->settings->n_threads);
 
@@ -284,6 +292,12 @@ struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* (sec
 	struct np_token ret = {0};	
 	np_ident_private_token_t* new_token =  np_token_factory_new_identity_token(context, expires_at, secret_key);
 	np_aaatoken4user(&ret, new_token);
+#ifdef DEBUG
+	char tmp[65] = { 0 };
+	np_dhkey_t d = np_aaatoken_get_fingerprint(new_token);
+	np_id2str((np_id*)&d, tmp);
+	log_debug_msg(LOG_AAATOKEN, "created new ident token %s (fp:%s)", ret.uuid, tmp);
+#endif
 	np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
 
 	return ret;
@@ -291,15 +305,17 @@ struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* (sec
 
 enum np_error np_use_identity(np_context* ac, struct np_token identity) {
 	np_ctx_cast(ac); 
-	
+
+	log_debug_msg(LOG_AAATOKEN, "importing ident token %s", identity.uuid);
+
 	enum np_error ret = np_ok;	
 	np_ident_private_token_t* imported_token=NULL;
 	np_new_obj(np_aaatoken_t, imported_token);
 	np_user4aaatoken(imported_token, &identity);
-	_np_aaatoken_update_type_and_scope(imported_token);	
 	_np_set_identity(ac, imported_token);
 	np_unref_obj(np_aaatoken_t, imported_token, ref_obj_creation);
 
+	log_msg(LOG_INFO, "Using ident token %s", identity.uuid);
 	return ret;
 }
 

@@ -135,7 +135,7 @@ np_aaatoken_t* __np_token_factory_new(np_state_t* context,char issuer[64], char 
 	{
 		strncpy(ret->realm, context->realm_name, 255);
 	}
-	strncpy(ret->issuer, issuer, 64);
+	strncpy(ret->issuer, issuer, 65);
 	strncpy(ret->subject, node_subject, 254);
 	// strncpy(ret->audience, (char*) _np_key_as_str(context->my_identity->aaa_token->realm), 255);
 
@@ -177,7 +177,7 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 
 	// create token
 	strncpy(ret->realm, my_identity->aaa_token->realm, 255);
-	strncpy(ret->issuer, (char*)_np_key_as_str(my_identity), 64);
+	strncpy(ret->issuer, (char*)_np_key_as_str(my_identity), 65);
 	strncpy(ret->subject, msg_id_subject, 255);
 	if (NULL != msg_request->msg_audience)
 	{
@@ -301,15 +301,28 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, n
 		_np_network_get_protocol_string(context, source_node->protocol), source_node->dns_name, source_node->port);
 
 	np_node_private_token_t* ret = __np_token_factory_new(context,issuer, node_subject, expires_at, NULL);
-
-	if (context != NULL && context->my_identity != NULL) {
-		np_aaatoken_set_partner_fp(ret, np_aaatoken_get_fingerprint(context->my_identity->aaa_token));
-	}
 	ret->type = np_aaatoken_type_node;
 	ret->scope = np_aaatoken_scope_private;
-
 	_np_aaatoken_set_signature(ret, ret);
 	_np_aaatoken_update_extensions_signature(ret, ret);
+
+	if (context->my_identity != NULL) {
+		np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token);
+		np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(ret);
+		np_aaatoken_set_partner_fp(ret, ident_dhkey);
+		np_aaatoken_set_partner_fp(context->my_identity->aaa_token, node_dhkey);
+
+#ifdef DEBUG
+		char tmp_ident[65];
+		np_id2str((np_id*)&ident_dhkey, tmp_ident);
+		char tmp_node[65];
+		np_id2str((np_id*)&node_dhkey, tmp_node); 
+		log_debug_msg(LOG_AAATOKEN, "setting partner relashionship for ident %s/%s and node %s/%s", 
+			tmp_ident, context->my_identity->aaa_token->uuid,
+			tmp_node, ret->uuid
+		);
+#endif
+	}
 
 	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", FUNC);
 
@@ -329,14 +342,12 @@ np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* contex
 	char node_subject[255];
 	snprintf(node_subject, 255,  _NP_URN_IDENTITY_PREFIX"%s", np_uuid_create("gererated identy", 0, NULL));
 
-	np_aaatoken_t* ret = __np_token_factory_new(context,issuer, node_subject, expires_at, secret_key);
+	np_aaatoken_t* ret = __np_token_factory_new(context, issuer, node_subject, expires_at, secret_key);
 	ret->type = np_aaatoken_type_identity;
 	ret->scope = np_aaatoken_scope_private;
-
-	np_aaatoken_set_partner_fp(ret, np_aaatoken_get_fingerprint(context->my_node_key->aaa_token));
-
-	_np_aaatoken_set_signature(ret, ret);
-	_np_aaatoken_update_extensions_signature(ret, ret);
+	
+	_np_aaatoken_update_extensions_signature(ret, ret); 
+	_np_aaatoken_set_signature(ret, ret);	
 
 	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", FUNC);
 
@@ -353,7 +364,6 @@ np_aaatoken_t* np_token_factory_read_from_tree(np_state_t* context, np_tree_t* t
 		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "imported token %s (type: %"PRIu8") from tree %p", ret->uuid, ret->type, tree);
 
 		if (_np_aaatoken_is_valid(ret, np_aaatoken_type_undefined)) {
-			
 			ASSERT(strlen(ret->subject) > 1, "tokens (%s) subject string (\"%s\") has incorrect size", ret->uuid, ret->subject);
 			ok = true;
 		}

@@ -71,10 +71,10 @@ extern "C" {
 
     // Protocol constants
     enum {
-        NP_SECRET_KEY_BYTES = 32,
-        NP_PUBLIC_KEY_BYTES = 32,
-        NP_FINGERPRINT_BYTES = 32,
-        NP_UUID_BYTES = 37
+        NP_SECRET_KEY_BYTES = 32U + 32U,
+        NP_PUBLIC_KEY_BYTES = 32U,
+        NP_FINGERPRINT_BYTES = 32U,
+        NP_UUID_BYTES = 37U
     } NP_ENUM;
 
     // Implementation defined limits
@@ -130,7 +130,7 @@ extern "C" {
         size_t extension_length;
         uint8_t public_key[NP_PUBLIC_KEY_BYTES],
             secret_key[NP_SECRET_KEY_BYTES];
-    };
+    } __attribute__((packed, aligned(1)));
     
     struct np_message {
         char uuid[NP_UUID_BYTES];
