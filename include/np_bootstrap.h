@@ -17,9 +17,9 @@ NP_API_INTERN
 void _np_bootstrap_deinit(np_state_t* context);
 
 NP_API_INTERN
-void np_bootstrap_add(np_state_t* context, char* connectionstr);
+void np_bootstrap_add(np_state_t* context, const char* connectionstr);
 NP_API_INTERN
-void np_bootstrap_remove(np_state_t* context, char* connectionstr);
+void np_bootstrap_remove(np_state_t* context, const char* connectionstr);
 NP_API_INTERN
 void _np_bootstrap_confirm(np_state_t* context, np_key_t* confirmed);
 

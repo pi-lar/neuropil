@@ -392,7 +392,7 @@ void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhk
 	if (sll_size(list_of_keys)<2) return;
 
 	sll_iterator(np_key_ptr) curr = sll_first(list_of_keys);
-	np_ctx_memory(curr->val);
+	// np_ctx_memory(curr->val);
 	bool swap;
 	do {
 		curr = sll_first(list_of_keys);

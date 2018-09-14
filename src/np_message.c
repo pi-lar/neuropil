@@ -49,7 +49,7 @@
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_on_reply_t);
 
-void _np_message_t_new(np_state_t *context, uint8_t type, size_t size, void* msg)
+void _np_message_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* msg)
 {
     log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_new(void* msg){");
     np_message_t* msg_tmp = (np_message_t*) msg;
@@ -98,7 +98,7 @@ void _np_message_mark_as_incomming(np_message_t* msg) {
 }
 
 // destructor of np_message_t
-void _np_message_t_del(np_state_t *context, uint8_t type, size_t size, void* data)
+void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* data)
 {
     log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_del(void* data){");	
     np_message_t* msg = (np_message_t*) data;
@@ -866,7 +866,7 @@ bool _np_message_deserialize_chunked(np_message_t* msg)
  */
 void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const char* subject, np_tree_t* the_data)
 {
-    np_ctx_memory(msg);
+    // np_ctx_memory(msg);
     // np_message_t* new_msg;
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
@@ -1066,14 +1066,15 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
     return (ret);
 }
 
-char* _np_message_get_subject(np_message_t* msg) {
-    np_ctx_memory(msg);
+char* _np_message_get_subject(const np_message_t* const self)
+{
+    // np_ctx_memory(msg);
     char* ret = NULL;
-    if (msg->msg_property != NULL) {
-        ret = msg->msg_property->msg_subject;
+    if (self->msg_property != NULL) {
+        ret = self->msg_property->msg_subject;
     }
-    else if(msg->header != NULL){
-        np_tree_elem_t* ele = np_tree_find_str(msg->header, _NP_MSG_HEADER_SUBJECT);
+    else if(self->header != NULL){
+        np_tree_elem_t* ele = np_tree_find_str(self->header, _NP_MSG_HEADER_SUBJECT);
         if(ele != NULL){
             ret =  np_treeval_to_str(ele->val, NULL);
         }
@@ -1089,7 +1090,6 @@ void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply)
 }
 
 void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_reply_to_remove) {
-
     np_ctx_memory(self);
     TSP_SCOPE(self->has_reply) {
         sll_remove(np_message_on_reply_t, self->on_reply, on_reply_to_remove, np_message_on_reply_t_sll_compare_type);
@@ -1126,8 +1126,8 @@ void np_message_remove_on_ack(np_message_t* self, np_responsecontainer_on_t on_a
 
 
 
-np_dhkey_t* _np_message_get_sender(np_message_t* self){
-    np_ctx_memory(self);
+np_dhkey_t* _np_message_get_sender(const np_message_t* const self){
+    // np_ctx_memory(self);
     np_dhkey_t* ret = NULL;
 
     np_tree_elem_t* ele = np_tree_find_str(self->header, _NP_MSG_HEADER_FROM);

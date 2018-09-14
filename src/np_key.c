@@ -180,7 +180,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 	log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
 }
 
-void _np_key_t_new(np_state_t *context, uint8_t type, size_t size, void* key)
+void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* key)
 {
 	log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
 	np_key_t* new_key = (np_key_t*) key;
@@ -211,7 +211,7 @@ void _np_key_t_new(np_state_t *context, uint8_t type, size_t size, void* key)
 
 }
 
-void _np_key_t_del(np_state_t *context, uint8_t type, size_t size, void* key)
+void _np_key_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* key)
 {
 	log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_del(void* key){");
 	np_key_t* old_key = (np_key_t*) key;

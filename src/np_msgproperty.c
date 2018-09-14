@@ -174,7 +174,7 @@ void np_msgproperty_register(np_msgproperty_t* msgprops)
 	np_job_submit_event(context, PRIORITY_MOD_LEVEL_2, 0, _np_msgproperty_register_job, msgprops, "_np_msgproperty_register_job");
 }
 
-void _np_msgproperty_t_new(np_state_t *context, uint8_t type, size_t size, void* property)
+void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* property)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_msgproperty_t_new(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;
@@ -270,7 +270,7 @@ void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_me
 	}
 }
 
-void _np_msgproperty_job_msg_uniquety(np_state_t* context, np_jobargs_t* args) {
+void _np_msgproperty_job_msg_uniquety(np_state_t* context, NP_UNUSED np_jobargs_t* args) {
 	
 
 	// TODO: iter over msgproeprties and remove expired msg uuid from unique_uuids
@@ -310,7 +310,7 @@ void _np_msgproperty_job_msg_uniquety(np_state_t* context, np_jobargs_t* args) {
 	}
 }
 
-void _np_msgproperty_t_del(np_state_t *context, uint8_t type, size_t size, void* property)
+void _np_msgproperty_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* property)
 {
 	log_trace_msg(LOG_TRACE, "start: void _np_msgproperty_t_del(void* property){");
 	np_msgproperty_t* prop = (np_msgproperty_t*) property;

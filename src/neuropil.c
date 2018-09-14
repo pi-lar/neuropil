@@ -39,8 +39,8 @@
 #include "np_token_factory.h"
 
 // split into hash 
-void np_get_id(np_context * ac, np_id* id, char* string, size_t length) {
-	np_ctx_cast(ac);
+void np_get_id(NP_UNUSED np_context * ac, np_id* id, char* string, NP_UNUSED size_t length) {
+	// np_ctx_cast(ac);
 	 
 	np_dhkey_t  dhkey = np_dhkey_create_from_hostport(string, "0");
 	memcpy(id, &dhkey, NP_FINGERPRINT_BYTES);

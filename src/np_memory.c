@@ -436,9 +436,9 @@ void* np_memory_new(np_state_t* context, enum np_memory_types_e type) {
     NP_PERFORMANCE_POINT_START(memory_new);
     void* ret = NULL;
     np_memory_container_t* container = np_module(memory)->__np_memory_container[type];
-    ASSERT(container != NULL, "Memory container %"PRIu8" needs to be initialized first.", type);
+    ASSERT(container != NULL, "Memory container %"PRIu32" needs to be initialized first.", type);
 
-    log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Searching for next free current_block for type %"PRIu8, type);
+    log_debug_msg(LOG_MEMORY | LOG_DEBUG, "Searching for next free current_block for type %"PRIu32, type);
 
     np_memory_itemconf_t* next_config;
     bool found = false;
@@ -549,15 +549,15 @@ void np_memory_free(np_state_t*context, void* item) {
     }
 }
 
-void np_memory_clear_space(np_state_t* context, uint8_t type, size_t size, void* data) {
+void np_memory_clear_space(NP_UNUSED np_state_t* context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* data) {
     memset(data, 0, size);
 }
 
-void np_memory_randomize_space(np_state_t* context, uint8_t type, size_t size, void* data) {
+void np_memory_randomize_space(NP_UNUSED np_state_t* context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* data) {
     randombytes_buf(data, size);
 }
 
-void _np_memory_job_memory_management(np_state_t* context, np_jobargs_t* args) {
+void _np_memory_job_memory_management(np_state_t* context, NP_UNUSED np_jobargs_t* args) {
 
     NP_PERFORMANCE_POINT_START(memory_management);
     for (uint8_t memory_type = 0; memory_type < np_memory_types_MAX_TYPE; memory_type++) {
@@ -809,7 +809,7 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
 }
 
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason)
+void np_memory_ref_replace_reason(void* item, const char* old_reason, const char* new_reason)
 {
     if (item != NULL) {
         assert(old_reason != NULL);
@@ -854,7 +854,7 @@ void np_memory_ref_replace_reason(void* item, char* old_reason, char* new_reason
 }
 #endif
 
-void np_memory_ref_obj(np_state_t* context, void* item, char* reason, char* reason_desc) {
+void np_memory_ref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc) {
     assert(item != NULL);
     np_check_magic_no(item);
     np_memory_itemconf_t* config = GET_CONF(item);
@@ -870,7 +870,7 @@ void np_memory_ref_obj(np_state_t* context, void* item, char* reason, char* reas
     }
 
 }
-void* np_memory_waitref_obj(np_state_t* context, void* item, char* reason, char* reason_desc) {
+void* np_memory_waitref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc) {
     void* ret = NULL;
 
     while (ret == NULL) {
@@ -892,7 +892,7 @@ void* np_memory_waitref_obj(np_state_t* context, void* item, char* reason, char*
     return ret;
 }
 
-void* np_memory_tryref_obj(np_state_t* context, void* item, char* reason, char* reason_desc) {
+void* np_memory_tryref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc) {
     void* ret = NULL;
     if (item != NULL) {
         np_memory_itemconf_t* config = GET_CONF(item);
@@ -912,7 +912,7 @@ void* np_memory_tryref_obj(np_state_t* context, void* item, char* reason, char* 
     return ret;
 }
 
-uint32_t np_memory_unref_obj(np_state_t* context, void* item, char* reason) {
+uint32_t np_memory_unref_obj(np_state_t* context, void* item, const char* reason) {
     uint32_t ret = 0;	
     if (item != NULL) {
         np_check_magic_no(item);

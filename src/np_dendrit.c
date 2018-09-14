@@ -703,7 +703,7 @@ __np_cleanup__:
 void _np_in_leave_req(np_state_t* context, np_jobargs_t* args)
 {
     log_trace_msg(LOG_TRACE, "start: void _np_in_leave_req(np_jobargs_t* args){");
-    np_key_t* leave_req_key = NULL;
+    // np_key_t* leave_req_key = NULL;
 
     np_tree_elem_t* node_token_ele = np_tree_find_str(args->msg->body, "_np.token.node");
     if (node_token_ele != NULL) {
@@ -1276,7 +1276,7 @@ void __np_in_ack_handle(np_message_t * msg)
     np_unref_obj(np_key_t, my_key, FUNC);
 }
 
-void _np_in_ack(np_state_t * context, np_jobargs_t* args)
+void _np_in_ack(NP_UNUSED np_state_t * context, np_jobargs_t* args)
 {
     __np_in_ack_handle(args->msg);
 }

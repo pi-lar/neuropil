@@ -95,7 +95,7 @@ int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, 
 		}
 }
 #endif
-#if !defined(NP_THREADS_CHECK_THREADING) || !NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK
+#if !defined(NP_THREADS_CHECK_THREADING) || !defined(NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK)
     ret = pthread_mutex_lock(&np_module(threads)->__mutexes[module_id].lock);
 #else
     double start = np_time_now();
@@ -135,10 +135,10 @@ int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, 
     return ret;
 }
 
-int _np_threads_mutex_timedlock(np_state_t* context, np_mutex_t * mutex, const double timeout)
+int _np_threads_mutex_timedlock(NP_UNUSED np_state_t* context, np_mutex_t * mutex, const double timeout)
 {
     int ret = -1;
-#if NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK
+#if defined(NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK)
     {
         struct timeval tv_sleep = dtotv(np_time_now() + timeout);
         struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
@@ -253,7 +253,7 @@ int _np_threads_mutex_init(np_state_t* context, np_mutex_t* mutex, const char* d
     return ret;
 }
 
-int _np_threads_mutex_lock(np_state_t* context, np_mutex_t* mutex, const char* where) {
+int _np_threads_mutex_lock(NP_UNUSED  np_state_t* context, np_mutex_t* mutex, const char* where) {
     log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
     int ret =  1;
 
@@ -310,7 +310,7 @@ int _np_threads_mutex_lock(np_state_t* context, np_mutex_t* mutex, const char* w
     return ret;
 }
 
-int _np_threads_mutex_trylock(np_state_t* context, np_mutex_t* mutex, const char* where) {
+int _np_threads_mutex_trylock(NP_UNUSED np_state_t* context, np_mutex_t* mutex, const char* where) {
     log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
 
     int ret = pthread_mutex_trylock(&mutex->lock);
@@ -336,7 +336,7 @@ int _np_threads_mutex_trylock(np_state_t* context, np_mutex_t* mutex, const char
     return ret;
 }
 
-int _np_threads_mutex_unlock(np_state_t* context, np_mutex_t* mutex)
+int _np_threads_mutex_unlock(NP_UNUSED np_state_t* context, np_mutex_t* mutex)
 {
     log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_mutex_unlock(np_mutex_t* mutex){");
 
@@ -362,7 +362,7 @@ int _np_threads_mutex_unlock(np_state_t* context, np_mutex_t* mutex)
     return pthread_mutex_unlock(&mutex->lock);
 }
 
-void _np_threads_mutex_destroy(np_state_t* context, np_mutex_t* mutex)
+void _np_threads_mutex_destroy(NP_UNUSED np_state_t* context, np_mutex_t* mutex)
 {
     log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: void _np_threads_mutex_destroy(np_mutex_t* mutex){");	
     if (mutex != NULL) {
@@ -373,7 +373,7 @@ void _np_threads_mutex_destroy(np_state_t* context, np_mutex_t* mutex)
 }
 
 /** pthread condition platform wrapper functions following this line **/
-void _np_threads_condition_init(np_state_t* context, np_cond_t* condition)
+void _np_threads_condition_init(NP_UNUSED np_state_t* context, np_cond_t* condition)
 {
     int result = pthread_condattr_init(&condition->cond_attr);
     ASSERT(result == 0, "cannot init cond shared");
@@ -381,7 +381,7 @@ void _np_threads_condition_init(np_state_t* context, np_cond_t* condition)
     ASSERT(result == 0, "cannot init cond");
 }
 
-void _np_threads_condition_init_shared(np_state_t* context, np_cond_t* condition)
+void _np_threads_condition_init_shared(NP_UNUSED np_state_t* context, np_cond_t* condition)
 {
     log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: void _np_threads_condition_init_shared(np_cond_t* condition){");
     int result; 
@@ -397,7 +397,7 @@ void _np_threads_condition_init_shared(np_state_t* context, np_cond_t* condition
     
 }
 
-void _np_threads_condition_destroy(np_state_t* context, np_cond_t* condition)
+void _np_threads_condition_destroy(NP_UNUSED np_state_t* context, np_cond_t* condition)
 {
     log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: void _np_threads_condition_destroy(np_cond_t* condition){");
     int result;		
@@ -408,47 +408,47 @@ void _np_threads_condition_destroy(np_state_t* context, np_cond_t* condition)
     //memset(condition, 0, sizeof(np_cond_t));
 }
 
-int _np_threads_condition_wait(np_state_t* context, np_cond_t* condition, np_mutex_t* mutex)
+int _np_threads_condition_wait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_mutex_t* mutex)
 {
     return pthread_cond_wait(&condition->cond, &mutex->lock);
 }
 
-int _np_threads_module_condition_timedwait(np_state_t* context, np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime)
+int _np_threads_module_condition_timedwait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime)
 {
     return pthread_cond_timedwait(&condition->cond, &np_module(threads)->__mutexes[module_id].lock, waittime);
 }
 
-int _np_threads_mutex_condition_timedwait(np_state_t* context, np_mutex_t* mutex, struct timespec* waittime)
+int _np_threads_mutex_condition_timedwait(NP_UNUSED np_state_t* context, np_mutex_t* mutex, struct timespec* waittime)
 {
     return pthread_cond_timedwait(&mutex->condition.cond, &mutex->lock, waittime);
 }
 
-int _np_threads_condition_broadcast(np_state_t* context, np_cond_t* condition)
+int _np_threads_condition_broadcast(NP_UNUSED np_state_t* context, np_cond_t* condition)
 {
     return pthread_cond_broadcast(&condition->cond);
 }
 
-int _np_threads_module_condition_broadcast(np_state_t* context, np_module_lock_type module_id)
+int _np_threads_module_condition_broadcast(NP_UNUSED np_state_t* context, np_module_lock_type module_id)
 {
     return pthread_cond_broadcast(&np_module(threads)->__mutexes[module_id].condition.cond);
 }
 
-int _np_threads_module_condition_signal(np_state_t* context, np_module_lock_type module_id)
+int _np_threads_module_condition_signal(NP_UNUSED np_state_t* context, np_module_lock_type module_id)
 {
     return pthread_cond_signal(&np_module(threads)->__mutexes[module_id].condition.cond);
 }
 
-int _np_threads_module_condition_wait(np_state_t* context, np_cond_t* condition, np_module_lock_type module_id)
+int _np_threads_module_condition_wait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_module_lock_type module_id)
 {
     return pthread_cond_wait(&condition->cond, &np_module(threads)->__mutexes[module_id].lock);
 }
 
-int _np_threads_mutex_condition_wait(np_state_t* context, np_mutex_t* mutex)
+int _np_threads_mutex_condition_wait(NP_UNUSED np_state_t* context, np_mutex_t* mutex)
 {
     return pthread_cond_wait(&mutex->condition.cond, &mutex->lock);
 }
 
-int _np_threads_condition_signal(np_state_t* context, np_cond_t* condition)
+int _np_threads_condition_signal(NP_UNUSED np_state_t* context, np_cond_t* condition)
 {
     return pthread_cond_signal(&condition->cond);
 }
@@ -470,7 +470,7 @@ void _np_threads_set_self(np_thread_t * myThread) {
     }
 }
 
-np_thread_t*_np_threads_get_self(np_state_t* context)
+np_thread_t*_np_threads_get_self(NP_UNUSED np_state_t* context)
 {
     np_thread_t* ret = pthread_getspecific(np_module(threads)->__pthread_thread_ptr_key);
 
@@ -511,10 +511,10 @@ np_thread_t*_np_threads_get_self(np_state_t* context)
     return ret;
 }
 
-void _np_thread_t_del(np_state_t * context, uint8_t type, size_t size, void* data)
+void _np_thread_t_del(NP_UNUSED np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* data)
 {
     log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
-    np_thread_t* thread = (np_thread_t*)data;	
+    np_thread_t* thread = (np_thread_t*)data;
 
 #ifdef NP_THREADS_CHECK_THREADING
 
@@ -536,13 +536,13 @@ void _np_thread_t_del(np_state_t * context, uint8_t type, size_t size, void* dat
 
         sll_free(char_ptr, thread->want_lock);
     }
-    _np_threads_mutex_destroy(context, &thread->locklists_lock);
 
 #endif
+    _np_threads_mutex_destroy(context, &thread->job_lock);
 
 }
 
-void _np_thread_t_new(np_state_t * context, uint8_t type, size_t size, void* data)
+void _np_thread_t_new(NP_UNUSED np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* data)
 {
     log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
     np_thread_t* thread = (np_thread_t*)data;
@@ -562,7 +562,7 @@ void _np_thread_t_new(np_state_t * context, uint8_t type, size_t size, void* dat
 #endif
 }
 
-char* np_threads_printpool(np_state_t* context, bool asOneLine) {
+char* np_threads_printpool(NP_UNUSED np_state_t* context, bool asOneLine) {
     char* ret = NULL;
 #ifdef NP_THREADS_CHECK_THREADING
 
@@ -615,7 +615,7 @@ void _np_thread_run(np_thread_t * thread) {
     thread->id = (unsigned long)thread->thread_id;
 }
 
-np_thread_t * __np_createThread(np_state_t* context, uint8_t number, void *(fn)(void *), bool auto_run, enum np_thread_type_e type) {
+np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, void *(fn)(void *), bool auto_run, enum np_thread_type_e type) {
     np_thread_t * new_thread;
     np_new_obj(np_thread_t, new_thread);
     new_thread->idx = number;
@@ -637,7 +637,7 @@ np_thread_t * __np_createThread(np_state_t* context, uint8_t number, void *(fn)(
     return new_thread;
 }
 
-void __np_createWorkerPool(np_state_t* context, uint8_t pool_size) {
+void __np_createWorkerPool(NP_UNUSED np_state_t* context, uint8_t pool_size) {
     /* create the thread pool */
     for (uint8_t i = 0; i < pool_size; i++)
     {
@@ -670,7 +670,7 @@ void __np_createWorkerPool(np_state_t* context, uint8_t pool_size) {
 /*
     min pool_size is 2
 */
-void np_threads_start_workers(np_state_t* context, uint8_t pool_size)
+void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
 {	
     log_trace_msg(LOG_TRACE, "start: void np_threads_start_workers(uint8_t pool_size){");
     log_debug_msg(LOG_THREADS | LOG_DEBUG, "starting neuropil with %"PRIu8" threads", pool_size);

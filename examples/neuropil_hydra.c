@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 	char* node_creation_speed_str = NULL;
 	double default_node_creation_speed = 3.415;
 	char* opt_kill_node = NULL;
-	uint16_t kill_node = 0;
+	uint16_t kill_node = 300;
 
 	int opt;
 	example_user_context* user_context;
@@ -158,7 +158,7 @@ int main(int argc, char **argv)
 			settings->n_threads = no_threads;
 
 			snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_hydra_bt", port);
-			fprintf(stdout, "logpath: %s\n", settings->log_file);
+			// fprintf(stdout, "logpath: %s\n", settings->log_file);
 			settings->log_level = level;
 
 			np_context * context = np_new_context(settings);
@@ -273,6 +273,7 @@ int main(int argc, char **argv)
 			snprintf(port, 7, "%d", atoi(port) + 1);
 			int port_i = atoi(port);
 			current_pid = fork();
+
 			if (0 == current_pid) {
 				// disable server for clients
 				if(has_a_node_started && user_context->opt_sysinfo_mode != np_sysinfo_opt_disable){
@@ -295,7 +296,7 @@ int main(int argc, char **argv)
 				settings->n_threads = no_threads;
 
 				snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_hydra_ch", port);
-				fprintf(stdout, "logpath: %s\n", settings->log_file);
+				// fprintf(stdout, "logpath: %s\n", settings->log_file);
 				settings->log_level = level;
 
 				np_context * context = np_new_context(settings);
@@ -346,7 +347,7 @@ int main(int argc, char **argv)
 				bool firstConnectionTry = true;
 				do {
 					if (!firstConnectionTry) {
-						np_example_print(context, stdout, "%s (%d/%"PRIu32") tries to join bootstrap node\n", port, port_i-bootstrap_port_i, required_nodes);
+						// np_example_print(context, stdout, "%s (%d/%"PRIu32") tries to join bootstrap node\n", port, port_i-bootstrap_port_i, required_nodes);
 					}
 					np_send_join(context, j_key);
 					firstConnectionTry = false;
@@ -356,19 +357,27 @@ int main(int argc, char **argv)
 							timeout--;
 					}
 					if(false == np_has_joined(context) ) {
-						np_example_print(context, stdout, "%s (%d/%"PRIu32") could not join network\n", port, port_i - bootstrap_port_i, required_nodes);
+						// np_example_print(context, stdout, "%s (%d/%"PRIu32") could not join network\n", port, port_i - bootstrap_port_i, required_nodes);
 					}
 				} while (false == np_has_joined(context));
 				char time[50] = { 0 };
 				reltime_to_str(time, np_time_now() - started_at);
-				np_example_print(context, stdout, "%s (%d/%"PRIu32") joined network after %s!\n", port, port_i - bootstrap_port_i, required_nodes, time);
+				// np_example_print(context, stdout, "%s (%d/%"PRIu32") joined network after %s!\n", port, port_i - bootstrap_port_i, required_nodes, time);
 				/**
 				   \endcode
 				*/
-				if (has_a_node_started == false)
-					__np_example_helper_run_info_loop(context);
-				else
-					__np_example_helper_run_loop(context);
+				np_run(context, kill_node);
+
+				// LEAVE TEST
+				np_destroy(context, true);
+				// END LEAVE TEST
+
+				exit(EXIT_SUCCESS);
+
+				//				if (has_a_node_started == false)
+				//					__np_example_helper_run_info_loop(context);
+				//				else
+				//					__np_example_helper_run_loop(context);
 
 			} else {
 				if (has_a_node_started == true) {
@@ -392,22 +401,6 @@ int main(int argc, char **argv)
 
 		} else {
 
-			// LEAVE TEST
-			double now = np_time_now();
-			bool killed_a_node = false;
-			if(opt_kill_node != NULL && (now - last_process_kill_at) > kill_node){
-				last_process_kill_at = now;
-
-				int pid = sll_first(list_of_childs)->val;
-				char time[50];
-				reltime_to_str(time, now - started_at);
-				// np_example_print(context, stdout, "%s killing process %"PRIi32"\n", time, pid);
-
-				kill(pid, SIGTERM);
-				killed_a_node = true;
-				sll_remove(int, list_of_childs, pid, int_sll_compare_type);
-			}
-			// END LEAVE TEST
 
 			/**
 			.. _neuropil_hydra_step_check_nodes_still_present:
@@ -426,17 +419,14 @@ int main(int argc, char **argv)
 			// check for stopped child processesy
 			if (child_pid  > 0) {
 
-				if (WIFEXITED(status) || (WIFSIGNALED(status) && WTERMSIG(status) == SIGTERM))
+				if ( WIFEXITED(status) || WIFSIGNALED(status) )
 				{
-					if (opt_kill_node == NULL)
-					{
-						// np_example_print(context,
-						// 	stdout,
-						// 	"trying to find stopped child process %d\n",
-						// 	child_pid
-						// );
-					}
-
+					/*
+					if (WIFSIGNALED(status))
+						fprintf(stdout, "node (%"PRIu32") exited by signal (crash / kill)\n", child_pid);
+					else
+						fprintf(stdout, "node (%"PRIu32") exited normally  (left network)\n", child_pid);
+					*/
 					sll_iterator(int) iter = NULL;
 					uint32_t i = 0;
 					for (iter = sll_first(list_of_childs);
@@ -449,7 +439,6 @@ int main(int argc, char **argv)
 							sll_delete(int, list_of_childs, iter);
 							break;
 						}
-
 						i++;
 					}
 				}
@@ -458,7 +447,7 @@ int main(int argc, char **argv)
 			/**
 			   \endcode
 			*/
-			np_time_sleep(0.5);
+			np_time_sleep(0.1);
 		}
 
 	}

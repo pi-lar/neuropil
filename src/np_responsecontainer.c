@@ -103,7 +103,7 @@ bool _np_responsecontainer_is_fully_acked(np_responsecontainer_t* entry)
 	// return (entry->expected_ack == entry->received_ack);
 }
 
-void _np_responsecontainer_t_new(np_state_t *context, uint8_t type, size_t size, void* obj)
+void _np_responsecontainer_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* obj)
 {
 	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_new(void* nw){");
 	np_responsecontainer_t* entry = (np_responsecontainer_t *)obj;
@@ -117,7 +117,7 @@ void _np_responsecontainer_t_new(np_state_t *context, uint8_t type, size_t size,
 	entry->msg = NULL;
 }
 
-void _np_responsecontainer_t_del(np_state_t *context, uint8_t type, size_t size, void* obj)
+void _np_responsecontainer_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* obj)
 {
 	np_responsecontainer_t* entry = (np_responsecontainer_t *)obj;
 
