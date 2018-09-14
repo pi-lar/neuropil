@@ -112,16 +112,20 @@ extern "C" {
     
     typedef void np_context;    
 
-	typedef uint8_t np_id[NP_FINGERPRINT_BYTES];
-	
+    typedef uint8_t np_id[NP_FINGERPRINT_BYTES];
+    
     // If length is 0 then string is expected to be null-terminated.
     // char* is the appropriate type because it is the type of a string
     // and can also describe an array of bytes. (sizeof char == 1)
     void np_get_id(np_context * context, np_id* id, char* string, size_t length);
 
     struct np_token {
+        char uuid[NP_UUID_BYTES];
         char subject[255]; // todo: has to be np_id
-        np_id realm, issuer, audience;
+        char issuer[65]; // todo: has to be np_id		
+        char realm[255]; // todo: has to be np_id		
+        char audience[255]; // todo: has to be np_id		
+
         double issued_at, not_before, expires_at;
         uint8_t extensions[NP_EXTENSION_BYTES];
         size_t extension_length;
@@ -153,10 +157,12 @@ extern "C" {
 
     // secret_key is nullable
     NP_API_EXPORT
-    struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]));
+    struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]));
 
     NP_API_EXPORT
-    enum np_error np_set_identity(np_context* ac, struct np_token identity);
+    enum np_error   np_use_identity(np_context* ac, struct np_token identity);
+
+
 
     NP_API_EXPORT
     enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port);

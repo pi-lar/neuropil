@@ -7,14 +7,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+
 #include <inttypes.h>
 
+#include <sodium.h>
 #include <unistd.h>
 
-
 #include "neuropil.h"
-
-
 #include "np_legacy.h"
 
 #include "np_util.h"
@@ -33,6 +32,11 @@
 #include "np_message.h"
 #include "np_bootstrap.h"
 #include "np_keycache.h"
+#include "np_types.h"
+#include "np_memory.h"
+#include "np_log.h"
+#include "np_serialization.h"
+#include "np_token_factory.h"
 
 // split into hash 
 void np_get_id(NP_UNUSED np_context * ac, np_id* id, char* string, NP_UNUSED size_t length) {
@@ -211,9 +215,9 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 				np_node_t* my_node = NULL;
 				np_new_obj(np_node_t, my_node, ref_key_node);
 				_np_node_update(my_node, np_proto, ng_host, np_service);
-				np_context_create_new_nodekey(context, my_node);
+				_np_context_create_new_nodekey(context, my_node);
 				if (context->my_identity == NULL)
-					np_set_identity_v1(context, context->my_node_key->aaa_token);
+					_np_set_identity(context, context->my_node_key->aaa_token);
 
 				np_ref_obj(np_network_t, my_network, ref_key_network);
 				context->my_node_key->network = my_network;
@@ -273,15 +277,28 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 	return ret;
 }
 
-struct np_token *np_new_identity(NP_UNUSED np_context* ac, NP_UNUSED double expires_at, NP_UNUSED uint8_t* (secret_key[NP_SECRET_KEY_BYTES])) {
-	// np_ctx_cast(ac);
-	// enum np_error ret = np_not_implemented;
-	return NULL;
+// secret_key is nullable
+struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES])) {
+	np_ctx_cast(ac); 
+	
+	struct np_token ret = {0};	
+	np_ident_private_token_t* new_token =  np_token_factory_new_identity_token(context, expires_at, secret_key);
+	np_aaatoken4user(&ret, new_token);
+	np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
+
+	return ret;
 }
 
-enum np_error np_set_identity(NP_UNUSED np_context* ac, NP_UNUSED struct np_token identity) {
-	enum np_error ret = np_not_implemented;
-	// np_ctx_cast(ac);
+enum np_error np_use_identity(np_context* ac, struct np_token identity) {
+	np_ctx_cast(ac); 
+	
+	enum np_error ret = np_ok;	
+	np_ident_private_token_t* imported_token=NULL;
+	np_new_obj(np_aaatoken_t, imported_token);
+	np_user4aaatoken(imported_token, &identity);
+	_np_aaatoken_update_type_and_scope(imported_token);	
+	_np_set_identity(ac, imported_token);
+	np_unref_obj(np_aaatoken_t, imported_token, ref_obj_creation);
 
 	return ret;
 }

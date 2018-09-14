@@ -193,7 +193,7 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
 	context->realm_name = strndup(realm_name, 255);
 
 	// create a new token
-	np_aaatoken_t* auth_token = _np_token_factory_new_node_token(context->my_node_key->node);
+	np_aaatoken_t* auth_token = _np_token_factory_new_node_token(context, context->my_node_key->node);
 	auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;	
 
 	np_dhkey_t my_dhkey = np_aaatoken_get_fingerprint(auth_token); // np_dhkey_create_from_hostport( my_node->dns_name, my_node->port);
@@ -217,7 +217,7 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
 	_np_route_set_key (new_node_key);
 
 	// set and ref additional identity
-	//TODO: use np_set_identity_v1
+	//TODO: use _np_set_identity
 	if (_np_key_cmp(context->my_identity ,context->my_node_key)==0)
 	{
 		np_ref_switch(np_key_t, context->my_identity, ref_state_identitykey, new_node_key);
@@ -363,10 +363,10 @@ void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_f
  * Sets the identity of the node.
  * @param identity
  */
-void np_set_identity_v1(np_context*ac, np_aaatoken_t* identity)
+void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
 {
 	np_ctx_cast(ac);
-	log_trace_msg(LOG_TRACE, "start: void np_set_identity_v1(np_aaatoken_t* identity){");
+	log_trace_msg(LOG_TRACE, "start: void _np_set_identity(np_aaatoken_t* identity){");
 
 	np_state_t* state = context;
 
@@ -378,20 +378,19 @@ void np_set_identity_v1(np_context*ac, np_aaatoken_t* identity)
 
 	np_ref_switch(np_aaatoken_t, my_identity_key->aaa_token, ref_key_aaa_token, identity);	
 
-	if (old_ident != NULL) {
+	if (old_ident != NULL && old_ident->aaa_token != NULL) {
 		old_ident->aaa_token->type &= ~np_aaatoken_type_identity;
 	}
 	my_identity_key->aaa_token->type |= np_aaatoken_type_identity;	
 	np_ref_switch(np_key_t, state->my_identity, ref_state_identitykey, my_identity_key);
 			
 	if (_np_key_cmp(my_identity_key, state->my_node_key) != 0) {
-		np_context_create_new_nodekey(ac, NULL);
+		_np_context_create_new_nodekey(ac, state->my_node_key != NULL ? state->my_node_key->node: NULL);
 
 		// set target node string for correct routing
 		np_tree_replace_str( identity->extensions, "target_node", np_treeval_new_s(_np_key_as_str(state->my_node_key)));
 	}
 
-	
 	np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 }
 
@@ -552,7 +551,7 @@ void np_destroy(np_context*ac, bool gracefully)
 	TSP_SET(context->status, np_uninitialized);
 }
 
-void np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
+void _np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
 	np_ctx_cast(ac);
 
 	// create a new token for encryption each time neuropil starts
@@ -561,7 +560,7 @@ void np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
 	if (has_old_node_key && custom_base == NULL) {
 		custom_base = my_old_node_key->node;
 	} 
-	np_aaatoken_t* auth_token = _np_token_factory_new_node_token(custom_base);
+	np_aaatoken_t* auth_token = _np_token_factory_new_node_token(context, custom_base);
 	auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
 	np_dhkey_t my_dhkey = np_aaatoken_get_fingerprint(auth_token); 
