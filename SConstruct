@@ -111,7 +111,7 @@ if int(debug) >= 1:
       # disable some warnings
       debug_flags += [
         '-Wno-incompatible-pointer-types-discards-qualifiers',		'-Wno-unused-variable',
-        '-Wno-unused-parameter',		'-Wno-missing-braces',		
+        '-Wno-unused-parameter',		'-Wno-missing-braces',
       ]
   except:
     pass
@@ -133,7 +133,7 @@ if 'FreeBSD' in platform.system():
 
 if 'Darwin' in platform.system():
   # default_env.Append(CCFLAGS = ['-Wformat-security'])
-  # default_env.Append(CCFLAGS = ['-fstack-protector-all']) 
+  # default_env.Append(CCFLAGS = ['-fstack-protector-all'])
   # default_env.Append(CCFLAGS = ['-Wstrict-overflow'])
   default_env.Append(CCFLAGS = ['-fno-omit-frame-pointer'])
   default_env.Append(CCFLAGS = ['-Wno-nullability-completeness'])
@@ -210,7 +210,6 @@ if int(build_doc) and not sphinx_exe:
     print ('---')
     Exit(1)
 
-criterion_is_available = conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c')
 neuropil_env = conf.Finish()
 
 # create an own builder to do clang static source code analyisis
@@ -258,11 +257,15 @@ print ('####')
 np_stlib = neuropil_env.Library('build/lib/neuropil', SOURCES)
 np_dylib = neuropil_env.SharedLibrary('build/lib/neuropil', SOURCES)
 
+test_env = default_env.Clone()
+conf = Configure(test_env)
+criterion_is_available = conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c')
+test_env = conf.Finish()
+
 # build test executable
 if int(release) < 1 and int(build_tests) > 0 and criterion_is_available:
     print ('Test cases included')
     # include the neuropil build path library infos
-    test_env = default_env.Clone()
     test_env.Append(LIBS = ['criterion', 'sodium','ncurses', 'neuropil'])
     test_suite = test_env.Program('bin/neuropil_test_suite',	variantDir+'test/test_suite.c')
     Depends(test_suite, np_dylib)
