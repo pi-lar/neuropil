@@ -171,21 +171,20 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
                             sll_size(np_module(route)->left_leafset) < NP_ROUTE_LEAFSET_SIZE ||
                             _np_dhkey_between(
                                 &node_key->dhkey,
-                                &left_outer->val->dhkey,
+                                &np_module(route)->Lrange,
                                 &np_module(route)->my_key->dhkey,
                                 false
+                                )
                             )
-                            )
-                        {
-                            add_to = node_key;
-                            sll_append(np_key_ptr, np_module(route)->left_leafset, node_key);
-                            _np_keycache_sort_keys_kd(np_module(route)->left_leafset, &np_module(route)->my_key->dhkey);
-                        }
-
-                        // Cleanup of leafset / resize leafsets to max size if necessary
-                        if (sll_size(np_module(route)->left_leafset) > NP_ROUTE_LEAFSET_SIZE) {
-                            deleted_from = sll_tail(np_key_ptr, np_module(route)->left_leafset);
-                        }
+						{
+							add_to = node_key;
+							sll_prepend(np_key_ptr, np_module(route)->left_leafset, node_key);
+							_np_keycache_sort_keys_kd(np_module(route)->left_leafset, &np_module(route)->my_key->dhkey);
+						}
+						// Cleanup of leafset / resize leafsets to max size if necessary
+						if (sll_size(np_module(route)->left_leafset) > NP_ROUTE_LEAFSET_SIZE) {
+							deleted_from = sll_head(np_key_ptr, np_module(route)->left_leafset);
+						}
                     }
 
                     if (deleted_from != NULL && _np_key_cmp(deleted_from, add_to) == 0) {
