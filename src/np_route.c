@@ -93,18 +93,16 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
     if (deleted != NULL) *deleted = NULL;
     np_key_t* add_to = NULL;
     np_key_t* deleted_from = NULL;
-    bool handeling_left_leafset = true;
 
     _LOCK_MODULE(np_routeglobal_t)
     {
         if (_np_key_cmp(node_key, np_module(route)->my_key) != 0)
         {
-            np_key_ptr find_right = sll_find(np_key_ptr, np_module(route)->right_leafset, node_key, _np_key_cmp_inv, NULL);
-            np_key_ptr find_left = sll_find(np_key_ptr, np_module(route)->left_leafset, node_key, _np_key_cmp, NULL);
+            np_key_ptr find_right = sll_find(np_key_ptr, np_module(route)->right_leafset, node_key, _np_key_cmp, NULL);
+            np_key_ptr find_left  = sll_find(np_key_ptr, np_module(route)->left_leafset, node_key, _np_key_cmp, NULL);
 
             if (false == joined) {
                 if (NULL != find_right) {
-                    handeling_left_leafset = false;
                     deleted_from = (np_key_t*)node_key;
                     sll_remove(np_key_ptr, np_module(route)->right_leafset, node_key, _np_key_cmp_inv);
 
@@ -135,28 +133,24 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
                      *    => No action required
                      */
 
-                    sll_iterator(np_key_ptr) right_outer = sll_last(np_module(route)->right_leafset);
-                    sll_iterator(np_key_ptr) left_outer = sll_last(np_module(route)->left_leafset);
-
                     np_dhkey_t my_inverse_dhkey = { 0 };
                     np_dhkey_t dhkey_half_o = np_dhkey_half(context);
                     _np_dhkey_add(&my_inverse_dhkey, &np_module(route)->my_key->dhkey, &dhkey_half_o);
 
                     if (_np_dhkey_between(&node_key->dhkey, &np_module(route)->my_key->dhkey, &my_inverse_dhkey, true))
                     {
-                        handeling_left_leafset = false;
                         if (
                             sll_size(np_module(route)->right_leafset) < NP_ROUTE_LEAFSET_SIZE ||
                             _np_dhkey_between(
                                 &node_key->dhkey,
                                 &np_module(route)->my_key->dhkey,
-                                &right_outer->val->dhkey,
+                                &np_module(route)->Rrange,
                                 false
-                            )
+                                )
                             )
                         {
                             add_to = node_key;
-                            sll_append(np_key_ptr, np_module(route)->right_leafset, node_key);
+                            sll_prepend(np_key_ptr, np_module(route)->right_leafset, node_key);
                             _np_keycache_sort_keys_kd(np_module(route)->right_leafset, &np_module(route)->my_key->dhkey);
                         }
 
@@ -206,33 +200,20 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
             if (added != NULL) *added = add_to;
             np_ref_obj(np_key_t, add_to, ref_route_inleafset);
             log_msg(LOG_ROUTING | LOG_INFO, "added   %s to   leafset table.", _np_key_as_str(add_to));
-            if (handeling_left_leafset) {
-                TSP_SCOPE(np_module(route)->leafset_left_count) {
-                    np_module(route)->leafset_left_count += 1;
-                }
-            }
-            else {
-                TSP_SCOPE(np_module(route)->leafset_right_count) {
-                    np_module(route)->leafset_right_count += 1;
-                }
-            }
         }
 
         if (deleted_from != NULL) {
             if (deleted != NULL) *deleted = deleted_from;
             np_unref_obj(np_key_t, deleted_from, ref_route_inleafset);
             log_msg(LOG_ROUTING | LOG_INFO, "removed %s from leafset table.", _np_key_as_str(deleted_from));
-            if (handeling_left_leafset) {
-                TSP_SCOPE(np_module(route)->leafset_left_count) {
-                    np_module(route)->leafset_left_count -= 1;
-                }
-            }
-            else {
-                TSP_SCOPE(np_module(route)->leafset_right_count) {
-                    np_module(route)->leafset_right_count -= 1;
-                }
-            }
         }
+
+        TSP_SCOPE(np_module(route)->leafset_left_count) {
+			np_module(route)->leafset_left_count = sll_size(np_module(route)->left_leafset);
+		}
+		TSP_SCOPE(np_module(route)->leafset_right_count) {
+			np_module(route)->leafset_right_count = sll_size(np_module(route)->right_leafset);
+		}
     }
     log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .leafset_update");
 }
@@ -593,7 +574,7 @@ void _np_route_leafset_range_update (np_state_t* context)
         _np_dhkey_assign (&np_module(route)->Rrange, &np_module(route)->my_key->dhkey);
     }
 
-    item = sll_last(np_module(route)->left_leafset);
+    item = sll_first(np_module(route)->left_leafset);
     if(item != NULL) {
         _np_dhkey_assign (&np_module(route)->Lrange, &item->val->dhkey);
     } else {
