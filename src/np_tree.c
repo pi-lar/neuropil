@@ -26,6 +26,7 @@
 #include "np_serialization.h"
 #include "np_util.h"
 #include "np_log.h"
+#include "np_dhkey.h"
 
 
 /* A list of replaceable strings.
@@ -199,6 +200,9 @@ int16_t _np_tree_elem_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2)
 		else if (jv1.type == np_treeval_type_int) {
 			return (int16_t)(jv1.value.i - jv2.value.i);
 		}
+		else if (jv1.type == np_treeval_type_dhkey) {
+			return (int16_t)_np_dhkey_cmp(&jv1.value.dhkey, &jv2.value.dhkey);
+		}
 	}
 	return (((int)jv1.type - (int) jv2.type) > 0);
 };
@@ -280,6 +284,13 @@ np_tree_elem_t* np_tree_find_gte_int(np_tree_t* n, int16_t ikey, uint8_t *fnd)
 np_tree_elem_t* np_tree_find_int(np_tree_t* n, int16_t key)
 {
 	np_treeval_t search_key = { .type = np_treeval_type_int,.value.i = key };
+	np_tree_elem_t search_elem = { .key = search_key };
+	return (RB_FIND(np_tree_s, n, &search_elem));
+}
+
+np_tree_elem_t* np_tree_find_dhkey(np_tree_t* n, np_dhkey_t key)
+{
+	np_treeval_t search_key = { .type = np_treeval_type_dhkey,.value.dhkey = key };
 	np_tree_elem_t search_elem = { .key = search_key };
 	return (RB_FIND(np_tree_s, n, &search_elem));
 }
@@ -390,6 +401,12 @@ void np_tree_del_int(np_tree_t* tree, const int16_t key)
 {
 	__np_tree_immutable_check(tree);
 	np_tree_del_element(tree, np_tree_find_int(tree, key));
+}
+
+void np_tree_del_dhkey(np_tree_t* tree, const np_dhkey_t key)
+{
+	__np_tree_immutable_check(tree);
+	np_tree_del_element(tree, np_tree_find_dhkey(tree, key));
 }
 
 void np_tree_del_double(np_tree_t* tree, const double dkey)
@@ -514,11 +531,30 @@ void np_tree_insert_int(np_tree_t* tree, int16_t ikey, np_treeval_t val)
 		found = (np_tree_elem_t*)malloc(sizeof(np_tree_elem_t));
 		CHECK_MALLOC(found);
 
-		// if (NULL == found) return;
-
 		found->key.value.i = ikey;
 		found->key.type = np_treeval_type_int;
 		found->key.size = sizeof(int16_t);
+		np_tree_set_treeval(tree, found, val);
+		np_tree_insert_element(tree, found);
+	}
+}
+
+
+void np_tree_insert_dhkey(np_tree_t* tree, np_dhkey_t key, np_treeval_t val)
+{
+	assert(tree != NULL);
+
+	np_tree_elem_t* found = np_tree_find_dhkey(tree, key);
+
+	if (found == NULL)
+	{
+		// insert new value
+		found = (np_tree_elem_t*)malloc(sizeof(np_tree_elem_t));
+		CHECK_MALLOC(found);
+
+		found->key.value.dhkey = key;
+		found->key.type = np_treeval_type_dhkey;
+		found->key.size = sizeof(np_dhkey_t);
 		np_tree_set_treeval(tree, found, val);
 		np_tree_insert_element(tree, found);
 	}
@@ -646,6 +682,23 @@ void np_tree_replace_int(np_tree_t* tree, int16_t ikey, np_treeval_t val)
 	}
 }
 
+void np_tree_replace_dhkey(np_tree_t* tree, np_dhkey_t key, np_treeval_t val)
+{
+	assert(tree != NULL);
+
+	np_tree_elem_t* found = np_tree_find_dhkey(tree, key);
+
+	if (found == NULL)
+	{
+		// insert new value
+		np_tree_insert_dhkey(tree, key, val);
+	}
+	else
+	{
+		np_tree_replace_treeval(tree, found, val);
+	}
+}
+
 void np_tree_replace_ulong(np_tree_t* tree, uint32_t ulkey, np_treeval_t val)
 {
 	assert(tree != NULL);
@@ -692,6 +745,7 @@ void np_tree_copy(np_tree_t* source, np_tree_t* target) {
 		else if (tmp->key.type == np_treeval_type_int)					np_tree_insert_int(target, tmp->key.value.i, tmp->val);
 		else if (tmp->key.type == np_treeval_type_double)				np_tree_insert_dbl( target, tmp->key.value.d, tmp->val);
 		else if (tmp->key.type == np_treeval_type_unsigned_long)		np_tree_insert_ulong(target, tmp->key.value.ul, tmp->val);
+		else if (tmp->key.type == np_treeval_type_dhkey)		np_tree_insert_dhkey(target, tmp->key.value.dhkey, tmp->val);
 	}
 }
 
@@ -708,6 +762,7 @@ void np_tree_copy_inplace(np_tree_t* source, np_tree_t* target) {
 		else if (tmp->key.type == np_treeval_type_int)					np_tree_replace_int(target, tmp->key.value.i, tmp->val);
 		else if (tmp->key.type == np_treeval_type_double)				np_tree_replace_dbl( target, tmp->key.value.d, tmp->val);
 		else if (tmp->key.type == np_treeval_type_unsigned_long)		np_tree_replace_ulong(target, tmp->key.value.ul, tmp->val);
+		else if (tmp->key.type == np_treeval_type_dhkey)		np_tree_replace_dhkey(target, tmp->key.value.dhkey, tmp->val);
 	}
 }
 
@@ -741,6 +796,7 @@ void np_tree_serialize(np_state_t* context, np_tree_t* jtree, cmp_ctx_t* cmp)
 		{
 
 			if (np_treeval_type_int == tmp->key.type ||
+				np_treeval_type_dhkey == tmp->key.type ||
 				np_treeval_type_unsigned_long == tmp->key.type ||
 				np_treeval_type_double == tmp->key.type ||
 				np_treeval_type_char_ptr == tmp->key.type ||
@@ -823,24 +879,27 @@ bool np_tree_deserialize( np_state_t* context, np_tree_t* jtree, cmp_ctx_t* cmp)
 		// add key value pair to tree
 		switch (tmp_key.type)
 		{
-			case np_treeval_type_int:
-				np_tree_insert_int(jtree, tmp_key.value.i, tmp_val);
-				break;
-			case np_treeval_type_unsigned_long:
-				np_tree_insert_ulong(jtree, tmp_key.value.ul, tmp_val);
-				break;
-			case np_treeval_type_double:
-				np_tree_insert_dbl( jtree, tmp_key.value.d, tmp_val);
-				break;
-			case np_treeval_type_char_ptr:
-				np_tree_insert_str( jtree, tmp_key.value.s, tmp_val);
-				break;
-			case np_treeval_type_special_char_ptr:
-				np_tree_insert_special_str(jtree, tmp_key.value.ush, tmp_val);
-				break;
-			default:
-				tmp_val.type = np_treeval_type_undefined;
-				break;
+		case np_treeval_type_int:
+			np_tree_insert_int(jtree, tmp_key.value.i, tmp_val);
+			break;
+		case np_treeval_type_dhkey:
+			np_tree_insert_dhkey(jtree, tmp_key.value.dhkey, tmp_val);
+			break;
+		case np_treeval_type_unsigned_long:
+			np_tree_insert_ulong(jtree, tmp_key.value.ul, tmp_val);
+			break;
+		case np_treeval_type_double:
+			np_tree_insert_dbl( jtree, tmp_key.value.d, tmp_val);
+			break;
+		case np_treeval_type_char_ptr:
+			np_tree_insert_str( jtree, tmp_key.value.s, tmp_val);
+			break;
+		case np_treeval_type_special_char_ptr:
+			np_tree_insert_special_str(jtree, tmp_key.value.ush, tmp_val);
+			break;
+		default:
+			tmp_val.type = np_treeval_type_undefined;
+			break;
 		}
 
 		_np_tree_cleanup_treeval(jtree, tmp_key);

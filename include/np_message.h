@@ -179,11 +179,6 @@ static const char* NP_MSG_BODY_JTREE = "_np.jtree";
 static const char* NP_MSG_BODY_TEXT = "_np.text";
 static const char* NP_MSG_BODY_XML = "_np.xml";
 
-// encrypted message part
-static const char* NP_NONCE = "_np.nonce";
-static const char* NP_ENCRYPTED = "_np.encrypted";
-static const char* NP_SYMKEY = "_np.symkey";
-
 // msg footer constants
 static const char* NP_MSG_FOOTER_ALIAS_KEY = "_np.alias_key";
 static const char* NP_MSG_FOOTER_GARBAGE = "_np.garbage";
