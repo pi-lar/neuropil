@@ -66,6 +66,8 @@ typedef void* void_ptr;
 typedef struct np_thread_s np_thread_t;
 typedef np_thread_t* np_thread_ptr;
 
+typedef struct np_crypto_s np_crypto_t;
+typedef struct np_crypto_session_s np_crypto_session_t;
 
 /*
  *  user callback functions

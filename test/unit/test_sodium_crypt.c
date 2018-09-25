@@ -7,9 +7,13 @@
 
 #include <criterion/criterion.h>
 #include "sodium.h"
+#include "np_crypto.h"
+#include "np_key.h"
+#include "np_serialization.h"
 
 
 #include "../test_macros.c"
+#include <stdio.h>
 
 #define MESSAGE ((const unsigned char *) "test")
 #define MESSAGE_LEN 4
@@ -108,7 +112,7 @@ Test(sodium_crypt, _concat_hash_values, .description="test whether hashing can b
 }
 
  
-Test(sodium_crypt, check_dhke, .description = "test the reowked crypto system")
+Test(sodium_crypt, check_crypto_dhke_principle, .description = "test the reworked crypto system principle")
 {
 	/*
 	Our encyrption has 3 stages
@@ -133,26 +137,27 @@ Test(sodium_crypt, check_dhke, .description = "test the reowked crypto system")
 	crypto_sign_ed25519_keypair(ed25519_nodeB_public_key, ed25519_nodeB_secret_key);   // actual token data
 	crypto_sign_ed25519_keypair(ed25519_identB_public_key, ed25519_identB_secret_key); // actual token data
 
-	unsigned char nodeA_public_key[crypto_kx_PUBLICKEYBYTES], nodeA_secret_key[crypto_kx_SECRETKEYBYTES];	// calculated token data
-	unsigned char nodeB_public_key[crypto_kx_PUBLICKEYBYTES], nodeB_secret_key[crypto_kx_SECRETKEYBYTES];	// calculated token data
-	crypto_sign_ed25519_pk_to_curve25519(nodeA_public_key, ed25519_nodeA_public_key);						// calculated token data
-	crypto_sign_ed25519_sk_to_curve25519(nodeA_secret_key, ed25519_nodeA_secret_key);						// calculated token data
-	crypto_sign_ed25519_pk_to_curve25519(nodeB_public_key, ed25519_nodeB_public_key);						// calculated token data
-	crypto_sign_ed25519_sk_to_curve25519(nodeB_secret_key, ed25519_nodeB_secret_key);						// calculated token data
-																											// calculated token data
-	unsigned char identA_public_key[crypto_kx_PUBLICKEYBYTES], identA_secret_key[crypto_kx_SECRETKEYBYTES];	// calculated token data
-	unsigned char identB_public_key[crypto_kx_PUBLICKEYBYTES], identB_secret_key[crypto_kx_SECRETKEYBYTES];	// calculated token data
-	crypto_sign_ed25519_pk_to_curve25519(identA_public_key, ed25519_identA_public_key);						// calculated token data
-	crypto_sign_ed25519_sk_to_curve25519(identA_secret_key, ed25519_identA_secret_key);						// calculated token data
-	crypto_sign_ed25519_pk_to_curve25519(identB_public_key, ed25519_identB_public_key);						// calculated token data
-	crypto_sign_ed25519_sk_to_curve25519(identB_secret_key, ed25519_identB_secret_key);						// calculated token data
+	unsigned char nodeA_public_key[crypto_kx_PUBLICKEYBYTES], nodeA_secret_key[crypto_kx_SECRETKEYBYTES];                       // calculated token data
+	unsigned char nodeB_public_key[crypto_kx_PUBLICKEYBYTES], nodeB_secret_key[crypto_kx_SECRETKEYBYTES];                       // calculated token data
+	cr_assert(0 == crypto_sign_ed25519_pk_to_curve25519(nodeA_public_key, ed25519_nodeA_public_key),"key conversion error");    // calculated token data
+	cr_assert(0 == crypto_sign_ed25519_sk_to_curve25519(nodeA_secret_key, ed25519_nodeA_secret_key),"key conversion error");    // calculated token data
+	cr_assert(0 == crypto_sign_ed25519_pk_to_curve25519(nodeB_public_key, ed25519_nodeB_public_key),"key conversion error");    // calculated token data
+	cr_assert(0 == crypto_sign_ed25519_sk_to_curve25519(nodeB_secret_key, ed25519_nodeB_secret_key),"key conversion error");    // calculated token data
+																											
+	unsigned char identA_public_key[crypto_kx_PUBLICKEYBYTES], identA_secret_key[crypto_kx_SECRETKEYBYTES];	                    // calculated token data
+	unsigned char identB_public_key[crypto_kx_PUBLICKEYBYTES], identB_secret_key[crypto_kx_SECRETKEYBYTES];	                    // calculated token data
+	cr_assert(0 == crypto_sign_ed25519_pk_to_curve25519(identA_public_key, ed25519_identA_public_key), "key conversion error"); // calculated token data
+	cr_assert(0 == crypto_sign_ed25519_sk_to_curve25519(identA_secret_key, ed25519_identA_secret_key), "key conversion error"); // calculated token data
+	cr_assert(0 == crypto_sign_ed25519_pk_to_curve25519(identB_public_key, ed25519_identB_public_key), "key conversion error"); // calculated token data
+	cr_assert(0 == crypto_sign_ed25519_sk_to_curve25519(identB_secret_key, ed25519_identB_secret_key), "key conversion error"); // calculated token data
 	
 	// all 8 keypairs are now available 2x(sign_node/crypto_node, sign_ident/crypto_ident)
 
 	// Node-A initiates Handshake and sends nodeA_public_key to Node-B
 
 	// On Node-B
-	unsigned char nodeB_session_key_to_read[crypto_kx_SESSIONKEYBYTES], nodeB_session_key_to_write[crypto_kx_SESSIONKEYBYTES];
+	unsigned char nodeB_session_key_to_read[crypto_kx_SESSIONKEYBYTES], 
+		nodeB_session_key_to_write[crypto_kx_SESSIONKEYBYTES];
 	// Node-B receives Handshake and so has to apply the role of the server
 	cr_assert(crypto_kx_server_session_keys(nodeB_session_key_to_read, nodeB_session_key_to_write,
 		nodeB_public_key, nodeB_secret_key, nodeA_public_key) == 0, "Suspicious public key, bail out");
@@ -160,7 +165,8 @@ Test(sodium_crypt, check_dhke, .description = "test the reowked crypto system")
 	// Node-B sends his own public key to Node-A to enable a 2way communication
 
 	// On Node-A
-	unsigned char nodeA_session_key_to_read[crypto_kx_SESSIONKEYBYTES], nodeA_session_key_to_write[crypto_kx_SESSIONKEYBYTES];
+	unsigned char nodeA_session_key_to_read[crypto_kx_SESSIONKEYBYTES], 
+		nodeA_session_key_to_write[crypto_kx_SESSIONKEYBYTES];
 	// Node-A receives Handshake and so has to apply the role of the client
 	cr_assert(crypto_kx_client_session_keys(nodeA_session_key_to_read, nodeA_session_key_to_write,
 		nodeA_public_key, nodeA_secret_key, nodeB_public_key) == 0, "Suspicious public key, bail out");
@@ -227,7 +233,10 @@ Test(sodium_crypt, check_dhke, .description = "test the reowked crypto system")
 	randombytes_buf(intermediate_nonce, sizeof intermediate_nonce);
 
 	// Node-B now uses the public key of Node-A to encrypt the intermediate key
-	unsigned char encyrypted_intermediate_key[crypto_secretbox_KEYBYTES + crypto_secretbox_MACBYTES] = { 0 };
+	unsigned char encyrypted_intermediate_key[
+		crypto_secretbox_KEYBYTES + crypto_secretbox_MACBYTES
+	] = { 0 };
+
 	cr_assert(0 == crypto_box_easy(
 		encyrypted_intermediate_key,
 		intermediate_key,
@@ -237,7 +246,10 @@ Test(sodium_crypt, check_dhke, .description = "test the reowked crypto system")
 		identB_secret_key),
 		"Could not encypt intermediate key"
 	);
-	unsigned char encyrypted_message[sizeof(message_from_node_b) + crypto_secretbox_MACBYTES] = { 0 };
+	unsigned char encyrypted_message[
+		sizeof(message_from_node_b) + crypto_secretbox_MACBYTES
+	] = { 0 };
+
 	// And encrypts the message with the intermediate key
 	cr_assert(0 == crypto_secretbox_easy(
 		encyrypted_message,
@@ -291,4 +303,172 @@ Test(sodium_crypt, check_dhke, .description = "test the reowked crypto system")
 		crypto_sign_verify_detached(sig, data_from_node_a, sizeof data_from_node_a, ed25519_identA_public_key),
 		"Signature could not be verified"
 	);
+}
+
+Test(sodium_crypt, check_crypto_transport, .description = "test the reworked crypto transport system")
+{
+	/*
+	Our encyrption has 3 stages
+	1. Handshake - no encryption available, dhke
+	2. Transport encryption
+	3. E2E encryption & data signatures
+	*/
+	cr_assert(sodium_init() != -1, "Could not init sodium");
+
+	unsigned char message_from_node_a[235];
+	randombytes_buf(message_from_node_a, sizeof message_from_node_a); // generate message
+	TCTX4(context, "", "udp4", 3001) { // nodeA
+		TCTX4(context2, "", "udp4", 3002) { // nodeB
+			// Objects for the node A
+			np_crypto_t nodeA, nodeB;
+			cr_assert(NULL != np_cryptofactory_new(context, &nodeA), "Cannot create crypto");
+			// and B
+			cr_assert(NULL != np_cryptofactory_new(context2, &nodeB), "Cannot create crypto");
+			// + corresponding objects on the other node:
+			np_crypto_t nodeA_representation, nodeB_representation;
+
+			// nodeA initiates session to nodeB
+			// nodeA sends ed25519_public_key
+			np_crypto_session_t session_on_A, session_on_B;
+			cr_assert(np_crypto_session(
+				&nodeB, 
+				&session_on_B, 
+				&nodeA_representation, 
+				true, 
+				nodeA.ed25519_public_key
+			), "Cannot exchange handshake on B");
+			// nodeB now sends its own ed25519_public_key
+			cr_assert(np_crypto_session(
+				&nodeA, 
+				&session_on_A, 
+				&nodeB_representation, 
+				false, 
+				nodeB.ed25519_public_key
+			), "Cannot exchange handshake on A");
+			// handshake complete
+
+			np_tree_t* to_send = np_tree_create();
+			cr_assert(np_crypt_transport_encrypt(&session_on_A, to_send, message_from_node_a, sizeof message_from_node_a),
+				"Could not encrypt transport"
+			);
+
+			unsigned char buffer_in_transit[1024];
+			cmp_ctx_t cmp_write;
+			cmp_init(
+				&cmp_write,
+				buffer_in_transit,
+				_np_buffer_reader,
+				_np_buffer_skipper,
+				_np_buffer_writer
+			);
+			np_tree_serialize(context, to_send, &cmp_write);
+			np_tree_free(to_send);
+
+
+			// send buffer to node B
+			unsigned char buffer_on_nodeB[sizeof message_from_node_a];
+			int tmp;
+			cr_assert(0 == (tmp = np_crypt_transport_decrypt(context2, &session_on_B, buffer_on_nodeB, buffer_in_transit)),
+				"Could not decrypt transport %d", tmp
+			);
+
+			cr_assert(memcmp(message_from_node_a, buffer_on_nodeB, sizeof message_from_node_a),
+				"transport encrypted data does not match"
+			);
+		}
+	}
+}
+
+
+
+Test(sodium_crypt, check_crypto_E2E, .description = "test the reworked crypto E2E system")
+{
+	/*
+	Our encyrption has 3 stages
+	1. Handshake - no encryption available, dhke
+	2. Transport encryption
+	3. E2E encryption & data signatures
+	*/
+	cr_assert(sodium_init() != -1, "Could not init sodium");
+
+	unsigned char message_from_node_a[235];
+	randombytes_buf(message_from_node_a, sizeof message_from_node_a); // generate message
+	TCTX4(context, "", "udp4", 3001) { // nodeA
+		TCTX4(context2, "", "udp4", 3002) { // nodeB
+			// Objects for the node A
+			np_crypto_t  identA, identB;
+			cr_assert(NULL != np_cryptofactory_new(context, &identA)
+				, "Cannot create crypto"
+			);
+			// and B
+			cr_assert(NULL != np_cryptofactory_new(context2, &identB),
+				"Cannot create crypto"
+			);
+			// + corresponding objects on the other node:
+			np_crypto_t identA_representation, identB_representation;
+			// exchange of ident ed25519_public_key via aaatokens (not in scope of this test)
+			cr_assert(NULL != np_cryptofactory_by_public(
+				context,
+				&identB_representation,
+				identB.ed25519_public_key
+			), "Cannot exchange ident on node A");
+			cr_assert(NULL != np_cryptofactory_by_public(
+				context2,
+				&identA_representation,
+				identA.ed25519_public_key
+			), "Cannot exchange ident on node B");
+
+
+			// node A now encrypts message
+			np_crypto_E2E_message_t E2E_encrypt_nodeA;
+			np_crypt_E2E_init(
+				&E2E_encrypt_nodeA,
+				&identA,
+				message_from_node_a,
+				sizeof message_from_node_a
+			);
+			np_crypto_encrypted_intermediate_key_t intermediate_key_buffer = { 0 };
+			cr_assert(0 == np_crypt_E2E_encrypt(
+				&E2E_encrypt_nodeA,
+				&identB_representation,
+				context2->my_identity->dhkey/*receiver of msg*/,
+				&intermediate_key_buffer
+			), "Could not encrypt E2E intermediate data");
+			np_tree_t* send_to_node_B = np_tree_create();
+			np_crypt_E2E_serialize(&E2E_encrypt_nodeA, send_to_node_B);
+			np_crypto_E2E_message_t_free(&E2E_encrypt_nodeA);
+			// send_to_node_B now contains encrypted message
+
+			unsigned char buffer_in_transit[1024];
+			cmp_ctx_t cmp_write;
+			cmp_init(
+				&cmp_write,
+				buffer_in_transit,
+				_np_buffer_reader,
+				_np_buffer_skipper,
+				_np_buffer_writer
+			);
+			np_tree_serialize(context, send_to_node_B, &cmp_write);
+			np_tree_free(send_to_node_B);
+
+			unsigned char buffer_on_nodeB[1024];
+			int tmp;
+			cr_assert(0 ==
+				(tmp = np_crypt_E2E_decrypt(
+					context2,
+					&identB,
+					context2->my_identity->dhkey,
+					&identA_representation,
+					buffer_on_nodeB,
+					buffer_in_transit
+				)),
+				"Could not decrypt E2E data %d", tmp);
+
+			cr_assert(0 == memcmp(
+				message_from_node_a,
+				buffer_on_nodeB,
+				sizeof message_from_node_a),
+				"E2E encrypted data does not match");
+		}
+	}
 }
