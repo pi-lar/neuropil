@@ -31,26 +31,27 @@ Test(sodium_crypt, _sodium_crypto_routines, .description="test cryptobox easy us
 
 	unsigned char nonce[crypto_secretbox_NONCEBYTES];
 
-	cr_expect(0 == crypto_sign_keypair(node_1_pk, node_1_sk)); // ed25519
-	cr_expect(0 == crypto_sign_keypair(node_2_pk, node_2_sk)); // ed25519
+	cr_assert(sodium_init() >= 0);
+	cr_assert(0 == crypto_sign_keypair(node_1_pk, node_1_sk)); // ed25519
+	cr_assert(0 == crypto_sign_keypair(node_2_pk, node_2_sk)); // ed25519
 
 	// convert to curve key
 	unsigned char node_1_curve_sk[crypto_scalarmult_curve25519_BYTES];
 	unsigned char node_2_curve_sk[crypto_scalarmult_curve25519_BYTES];
-	cr_expect(0 == crypto_sign_ed25519_sk_to_curve25519(node_1_curve_sk, node_1_sk));
-	cr_expect(0 == crypto_sign_ed25519_pk_to_curve25519(node_2_curve_sk, node_2_sk));
+	cr_assert(0 == crypto_sign_ed25519_sk_to_curve25519(node_1_curve_sk, node_1_sk));
+	cr_assert(0 == crypto_sign_ed25519_sk_to_curve25519(node_2_curve_sk, node_2_sk));
 	//
 	unsigned char node_1_dh_pk[crypto_scalarmult_BYTES];
-	cr_expect(0 == crypto_scalarmult_base(node_1_dh_pk, node_1_curve_sk));
+	cr_assert(0 == crypto_scalarmult_base(node_1_dh_pk, node_1_curve_sk));
 
 	unsigned char node_2_dh_pk[crypto_scalarmult_BYTES];
-	cr_expect(0 == crypto_scalarmult_base(node_2_dh_pk, node_2_curve_sk));
+	cr_assert(0 == crypto_scalarmult_base(node_2_dh_pk, node_2_curve_sk));
 
 
 	unsigned char node_1_shared[crypto_scalarmult_BYTES];
-	cr_expect(0 == crypto_scalarmult(node_1_shared, node_1_curve_sk, node_2_dh_pk));
+	cr_assert(0 == crypto_scalarmult(node_1_shared, node_1_curve_sk, node_2_dh_pk));
 	unsigned char node_2_shared[crypto_scalarmult_BYTES];
-	cr_expect(0 == crypto_scalarmult(node_2_shared, node_2_curve_sk, node_1_dh_pk));
+	cr_assert(0 == crypto_scalarmult(node_2_shared, node_2_curve_sk, node_1_dh_pk));
 
 	// crypt it
 	// unsigned char nonce[crypto_secretbox_NONCEBYTES];
@@ -59,10 +60,10 @@ Test(sodium_crypt, _sodium_crypto_routines, .description="test cryptobox easy us
 
 	randombytes_buf(nonce, sizeof nonce);
 
-	cr_expect(0 == crypto_secretbox_easy(ciphertext, MESSAGE, MESSAGE_LEN, nonce, node_1_shared));
+	cr_assert(0 == crypto_secretbox_easy(ciphertext, MESSAGE, MESSAGE_LEN, nonce, node_1_shared), "could not encrypt");
 
 	unsigned char decrypted[MESSAGE_LEN];
-	cr_expect(0 == crypto_secretbox_open_easy(decrypted, ciphertext, CIPHERTEXT_LEN, nonce, node_2_shared), "could not decrypt");
+	cr_assert(0 == crypto_secretbox_open_easy(decrypted, ciphertext, CIPHERTEXT_LEN, nonce, node_2_shared), "could not decrypt");
 	    
 }
 
@@ -320,59 +321,60 @@ Test(sodium_crypt, check_crypto_transport, .description = "test the reworked cry
 	TCTX4(context, "", "udp4", 3001) { // nodeA
 		TCTX4(context2, "", "udp4", 3002) { // nodeB
 			// Objects for the node A
-			np_crypto_t nodeA, nodeB;
+			np_crypto_t nodeA = { 0 }, nodeB = { 0 };
 			cr_assert(NULL != np_cryptofactory_new(context, &nodeA), "Cannot create crypto");
 			// and B
 			cr_assert(NULL != np_cryptofactory_new(context2, &nodeB), "Cannot create crypto");
 			// + corresponding objects on the other node:
 			np_crypto_t nodeA_representation, nodeB_representation;
-
+			
 			// nodeA initiates session to nodeB
+			// handshake begins
 			// nodeA sends ed25519_public_key
-			np_crypto_session_t session_on_A, session_on_B;
-			cr_assert(np_crypto_session(
+			np_crypto_session_t session_on_A = { 0 }, session_on_B = { 0 };
+			int tmp;
+			cr_assert(0 == (tmp = np_crypto_session(
+				context2,
 				&nodeB, 
 				&session_on_B, 
 				&nodeA_representation, 
-				true, 
+				false, 
 				nodeA.ed25519_public_key
-			), "Cannot exchange handshake on B");
+			)), "Cannot exchange handshake on B %d",tmp);
 			// nodeB now sends its own ed25519_public_key
-			cr_assert(np_crypto_session(
+			cr_assert(0 == (tmp = np_crypto_session(
+				context,
 				&nodeA, 
 				&session_on_A, 
 				&nodeB_representation, 
-				false, 
+				true, 
 				nodeB.ed25519_public_key
-			), "Cannot exchange handshake on A");
+			)), "Cannot exchange handshake on A %d", tmp);
 			// handshake complete
 
-			np_tree_t* to_send = np_tree_create();
-			cr_assert(np_crypt_transport_encrypt(&session_on_A, to_send, message_from_node_a, sizeof message_from_node_a),
-				"Could not encrypt transport"
+			cr_assert(0 == memcmp(session_on_A.session_key_to_read, session_on_B.session_key_to_write, sizeof session_on_A.session_key_to_read),
+				"Session keys do not match"
+			);
+			cr_assert(0 == memcmp(session_on_B.session_key_to_read, session_on_A.session_key_to_write, sizeof session_on_A.session_key_to_read),
+				"Session keys do not match 2"
 			);
 
 			unsigned char buffer_in_transit[1024];
-			cmp_ctx_t cmp_write;
-			cmp_init(
-				&cmp_write,
-				buffer_in_transit,
-				_np_buffer_reader,
-				_np_buffer_skipper,
-				_np_buffer_writer
-			);
-			np_tree_serialize(context, to_send, &cmp_write);
-			np_tree_free(to_send);
 
+			cr_assert(0 == (tmp = np_crypt_transport_encrypt(&session_on_A, buffer_in_transit, message_from_node_a, sizeof message_from_node_a)),
+				"Could not encrypt transport data %d", tmp
+			);
+
+			
 
 			// send buffer to node B
 			unsigned char buffer_on_nodeB[sizeof message_from_node_a];
-			int tmp;
+
 			cr_assert(0 == (tmp = np_crypt_transport_decrypt(context2, &session_on_B, buffer_on_nodeB, buffer_in_transit)),
-				"Could not decrypt transport %d", tmp
+				"Could not decrypt transport data %d", tmp
 			);
 
-			cr_assert(memcmp(message_from_node_a, buffer_on_nodeB, sizeof message_from_node_a),
+			cr_assert(0 == memcmp(message_from_node_a, buffer_on_nodeB, sizeof message_from_node_a),
 				"transport encrypted data does not match"
 			);
 		}
@@ -469,6 +471,56 @@ Test(sodium_crypt, check_crypto_E2E, .description = "test the reworked crypto E2
 				buffer_on_nodeB,
 				sizeof message_from_node_a),
 				"E2E encrypted data does not match");
+		}
+	}
+}
+
+Test(sodium_crypt, check_crypto_sig, .description = "test the reworked crypto signature system")
+{
+	/*
+	Our encyrption has 3 stages
+	1. Handshake - no encryption available, dhke
+	2. Transport encryption
+	3. E2E encryption & data signatures
+	*/
+	cr_assert(sodium_init() != -1, "Could not init sodium");
+
+	unsigned char message_from_node_a[235];
+	randombytes_buf(message_from_node_a, sizeof message_from_node_a); // generate message
+	TCTX4(context, "", "udp4", 3003) { // nodeA
+		TCTX4(context2, "", "udp4", 3004) { // nodeB
+			// Objects for the node A
+			np_crypto_t  identA, identB;
+			cr_assert(NULL != np_cryptofactory_new(context, &identA)
+				, "Cannot create crypto"
+			);
+			// and B
+			cr_assert(NULL != np_cryptofactory_new(context2, &identB),
+				"Cannot create crypto"
+			);
+			// + corresponding objects on the other node:
+			np_crypto_t identA_representation, identB_representation;
+			// exchange of ident ed25519_public_key via aaatokens (not in scope of this test)
+			cr_assert(NULL != np_cryptofactory_by_public(
+				context,
+				&identB_representation,
+				identB.ed25519_public_key
+			), "Cannot exchange ident on node A");
+			cr_assert(NULL != np_cryptofactory_by_public(
+				context2,
+				&identA_representation,
+				identA.ed25519_public_key
+			), "Cannot exchange ident on node B");
+
+			unsigned char sig[crypto_sign_BYTES] = { 0 };
+			int tmp;
+			cr_assert(0 == (tmp = np_crypto_generate_signature(&identA, sig, message_from_node_a, sizeof message_from_node_a)),
+				"Could not generate signature %d", tmp
+			);
+
+			cr_assert(0 == (tmp = np_crypto_verify_signature(&identA_representation, sig, message_from_node_a, sizeof message_from_node_a)),
+				"Could not verify signature %d", tmp
+			);
 		}
 	}
 }
