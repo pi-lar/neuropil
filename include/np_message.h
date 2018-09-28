@@ -19,10 +19,10 @@ extern "C" {
 #endif
 
 
-	enum np_message_submit_type {
-		np_message_submit_type_DIRECT,
-		np_message_submit_type_ROUTE
-	};
+enum np_message_submit_type {
+	np_message_submit_type_DIRECT,
+	np_message_submit_type_ROUTE
+};
 struct np_message_s
 {
 	 // link to memory pool
