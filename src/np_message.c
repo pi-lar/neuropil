@@ -3,12 +3,8 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <pthread.h>
 #include <errno.h>
 #include <string.h>
@@ -939,11 +935,11 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 
     // convert our own sign key to an encryption key
     crypto += crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-                                                   context->my_identity->aaa_token->private_key);
+                                                   context->my_identity->aaa_token->crypto.derived_kx_secret_key);
 
     // convert our partner key to an encryption key
     unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-    crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
+    crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.derived_kx_public_key);
 
     // finally encrypt
     crypto += crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
@@ -1023,13 +1019,13 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
                 // convert own secret to encryption key
                 unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
                 crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-                    context->my_identity->aaa_token->private_key);
+                    context->my_identity->aaa_token->crypto.ed25519_secret_key);
 
                 // convert partner public key to signature key
                 unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
                 int crypto_ret = 0;
 
-                crypto_ret += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->public_key);
+                crypto_ret += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.ed25519_public_key);
                 if (0 > crypto_ret)
                 {
                     log_msg(LOG_ERROR, "decryption of message payload (%s) failed", msg->uuid);

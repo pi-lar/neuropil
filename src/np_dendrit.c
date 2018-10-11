@@ -2346,7 +2346,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                 // get our own identity from the cache and convert to curve key
                 unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
                 crypto_sign_ed25519_sk_to_curve25519(
-                    curve25519_sk, my_node_token->private_key);
+                    curve25519_sk, my_node_token->crypto.ed25519_secret_key);
 
                 np_unref_obj(np_aaatoken_t, my_node_token, "np_waitref_my_node_key->aaa_token");
 
