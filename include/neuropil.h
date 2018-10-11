@@ -30,11 +30,10 @@ extern "C" {
     //
     // int __attribute__((overloadable)) square(int);
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__linux__)
-    #define NP_ENUM
-#endif
 #if defined(__APPLE__) && defined(__MACH__)
     #define NP_ENUM __attribute__ ((flag_enum))
+#else
+    #define NP_ENUM 
 #endif
 
 #define NP_CONST __attribute__ ((const))
