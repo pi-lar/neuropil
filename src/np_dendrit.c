@@ -2344,9 +2344,9 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                 np_waitref_obj(np_aaatoken_t, state->my_node_key->aaa_token, my_node_token, "np_waitref_my_node_key->aaa_token");
 
                 // get our own identity from the cache and convert to curve key
-                unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
+                
                 crypto_sign_ed25519_sk_to_curve25519(
-                    curve25519_sk, my_node_token->crypto.ed25519_secret_key);
+                    my_node_token->crypto.derived_kx_secret_key, my_node_token->crypto.ed25519_secret_key);
 
                 np_unref_obj(np_aaatoken_t, my_node_token, "np_waitref_my_node_key->aaa_token");
 
@@ -2362,7 +2362,7 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
                 int crypto_scalarmult_ret =
                     crypto_scalarmult(
                         shared_secret,
-                        curve25519_sk,
+                        my_node_token->crypto.derived_kx_secret_key,
                         session_key->val.value.bin
                     );
 

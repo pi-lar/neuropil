@@ -935,11 +935,11 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 
     // convert our own sign key to an encryption key
     crypto += crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-                                                   context->my_identity->aaa_token->crypto.derived_kx_secret_key);
+                                                   context->my_identity->aaa_token->crypto.ed25519_secret_key);
 
     // convert our partner key to an encryption key
     unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-    crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.derived_kx_public_key);
+    crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.ed25519_public_key);
 
     // finally encrypt
     crypto += crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
