@@ -114,7 +114,7 @@ void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, bool trace)
 	np_tree_replace_str( data, "np.t.i", np_treeval_new_s(token->issuer));
 	np_tree_replace_str( data, "np.t.s", np_treeval_new_s(token->subject));
 	np_tree_replace_str( data, "np.t.a", np_treeval_new_s(token->audience));
-	np_tree_replace_str( data, "np.t.p", np_treeval_new_bin(token->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES));
+	np_tree_replace_str( data, "np.t.p", np_treeval_new_bin(token->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES));
 
 	np_tree_replace_str( data, "np.t.ex", np_treeval_new_d(token->expires_at));
 	np_tree_replace_str( data, "np.t.ia", np_treeval_new_d(token->issued_at));
@@ -177,7 +177,7 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	}
 	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.p")))
 	{
-		memcpy(token->crypto.derived_kx_public_key, tmp->val.value.bin, crypto_sign_PUBLICKEYBYTES);
+		memcpy(token->crypto.ed25519_public_key, tmp->val.value.bin, sizeof token->crypto.ed25519_public_key);
 	}
 	else { ret = false;/*Mendatory field*/ }
 
@@ -345,7 +345,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 			unsigned char* signature = token->signature;
 
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to check signature checksum");
-			int ret = crypto_sign_verify_detached((unsigned char*)signature, hash, crypto_generichash_BYTES, token->crypto.derived_kx_public_key);
+			int ret = crypto_sign_verify_detached((unsigned char*)signature, hash, crypto_generichash_BYTES, token->crypto.ed25519_public_key);
 
 #ifdef DEBUG
 			char signature_hex[crypto_sign_BYTES * 2 + 1] = { 0 };
@@ -354,7 +354,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 				
 			char pk_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1] = { 0 };
 			sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
-				token->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES);
+				token->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
 
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
 				"(token: %s) signature is%s valid: (pk: 0x%s) sig: 0x%s = %"PRId32,
@@ -379,7 +379,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 			unsigned char* signature = token->signature_extensions;
 
 			log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to check extension signature checksum");
-			int ret = crypto_sign_verify_detached((unsigned char*)signature, hash, crypto_generichash_BYTES, token->crypto.derived_kx_public_key);
+			int ret = crypto_sign_verify_detached((unsigned char*)signature, hash, crypto_generichash_BYTES, token->crypto.ed25519_public_key);
 
 #ifdef DEBUG
 			if (ret != 0)
@@ -394,7 +394,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 
 				char pk_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1] = { 0 };
 				sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
-					token->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES);
+					token->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
 
 				log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "(token: %s) extension signature: is_valid (hash: 0x%s) (pk: 0x%s) 0x%s = %"PRId32, token->uuid, hash_hex, pk_hex, signature_hex, ret);
 			}

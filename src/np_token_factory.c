@@ -71,15 +71,15 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
 	ret->version = source->version;
 	ret->state = source->state;
 
-	memcpy(ret->crypto.ed25519_public_key, source->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
+	memcpy(ret->crypto.ed25519_public_key, source->crypto.ed25519_public_key, sizeof source->crypto.ed25519_public_key);
 
 	if(scope != np_aaatoken_scope_private) {
-		memset(ret->crypto.ed25519_secret_key, 0, crypto_sign_SECRETKEYBYTES );
+		memset(ret->crypto.ed25519_secret_key, 0, sizeof ret->crypto.ed25519_secret_key);
 		ret->private_key_is_set = false;
 	}
 	else
 	{
-		memcpy(ret->crypto.ed25519_secret_key, source->crypto.ed25519_secret_key, crypto_sign_SECRETKEYBYTES);
+		memcpy(ret->crypto.ed25519_secret_key, source->crypto.ed25519_secret_key, sizeof source->crypto.ed25519_secret_key);
 		ret->private_key_is_set = true;
 	}
 	np_tree_copy( source->extensions, ret->extensions);
@@ -137,12 +137,12 @@ np_aaatoken_t* __np_token_factory_new(np_state_t* context,char issuer[64], char 
 	if (secret_key != NULL) {
 		memset(ret->crypto.ed25519_secret_key, *secret_key, NP_SECRET_KEY_BYTES);
 		if (0 != crypto_sign_ed25519_sk_to_pk(ret->crypto.derived_kx_secret_key, ret->crypto.ed25519_secret_key)) {
-			// TODO: ERROR msg
+			log_msg(LOG_ERROR, "Cannot convert public key from given secret key");
 		}
 	}
 	else {
-		if (0 != crypto_sign_keypair(ret->crypto.ed25519_public_key, ret->crypto.ed25519_secret_key)) {
-			// TODO: ERROR msg
+		if (0 != crypto_sign_keypair(ret->crypto.ed25519_public_key, ret->crypto.ed25519_secret_key)) {			
+			log_msg(LOG_ERROR, "Cannot create crypto keypair");
 		}
 	}
 
