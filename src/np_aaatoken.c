@@ -142,7 +142,7 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 {
 	assert (NULL != data);
 	assert (NULL != token);
-	// np_ctx_memory(token);
+	np_ctx_memory(token);
 
 	bool ret = true;
 	// get e2e encryption details of sending entity
@@ -177,7 +177,10 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	}
 	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.p")))
 	{
-		memcpy(token->crypto.ed25519_public_key, tmp->val.value.bin, sizeof token->crypto.ed25519_public_key);
+		if (NULL == np_cryptofactory_by_public(context, &token->crypto, tmp->val.value.bin)) {
+			log_msg(LOG_ERROR, "Could not decode crypto details from token");
+			ret = false;/*Mendatory field*/
+		}
 	}
 	else { ret = false;/*Mendatory field*/ }
 
@@ -260,10 +263,6 @@ void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self) {
 	{
 		self->type |= np_aaatoken_type_message_intent;
 	}
-
-//	if (strncmp("", self->issuer, 1) == 0) {
-//		self->type |= np_aaatoken_type_identity;
-//	}
 }
 
 np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self)
@@ -1124,12 +1123,12 @@ unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* self) {
 	crypto_generichash_update(&gh_state, (unsigned char*)self->audience, strnlen(self->audience, 255));
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting audience  : %s", self->audience);
 
-	crypto_generichash_update(&gh_state, (unsigned char*)self->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES);
+	crypto_generichash_update(&gh_state, (unsigned char*)self->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
 
 #ifdef DEBUG
 	char pk_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1];
 	sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
-		self->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES);
+		self->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting public_key: %s", pk_hex);
 #else
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting public_key: <...>");

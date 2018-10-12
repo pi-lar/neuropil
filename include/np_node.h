@@ -17,6 +17,7 @@
 #include "np_threads.h"
 #include "np_settings.h"
 #include "np_constants.h"
+#include "np_crypto.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,7 +54,7 @@ struct np_node_s
 	uint32_t handshake_priority;
 
 	bool joined_network; 
-	unsigned char session_key[crypto_scalarmult_SCALARBYTES];
+	np_crypto_session_t session;
 	bool session_key_is_set;
 
 	// statistics
