@@ -133,17 +133,12 @@ np_aaatoken_t* __np_token_factory_new(np_state_t* context,char issuer[64], char 
 	ret->not_before = np_time_now();
 	ret->expires_at = expires_at;
 
-
-	if (secret_key != NULL) {
-		memset(ret->crypto.ed25519_secret_key, *secret_key, NP_SECRET_KEY_BYTES);
-		if (0 != crypto_sign_ed25519_sk_to_pk(ret->crypto.derived_kx_secret_key, ret->crypto.ed25519_secret_key)) {
-			log_msg(LOG_ERROR, "Cannot convert public key from given secret key");
-		}
+	
+	if (secret_key != NULL) {		
+		np_cryptofactory_by_secret(context, &ret->crypto, *secret_key);
 	}
 	else {
-		if (0 != crypto_sign_keypair(ret->crypto.ed25519_public_key, ret->crypto.ed25519_secret_key)) {			
-			log_msg(LOG_ERROR, "Cannot create crypto keypair");
-		}
+		np_cryptofactory_new(context, &ret->crypto);
 	}
 
 	ret->scope = np_aaatoken_scope_private;

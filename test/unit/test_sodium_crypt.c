@@ -333,22 +333,22 @@ Test(sodium_crypt, check_crypto_transport, .description = "test the reworked cry
 			// nodeA sends ed25519_public_key
 			np_crypto_session_t session_on_A = { 0 }, session_on_B = { 0 };
 			int tmp;
+			cr_assert(NULL != np_cryptofactory_by_public(context2, &nodeA_representation, nodeA.ed25519_public_key));
 			cr_assert(0 == (tmp = np_crypto_session(
 				context2,
 				&nodeB, 
 				&session_on_B, 
 				&nodeA_representation, 
-				false, 
-				nodeA.ed25519_public_key
+				false				
 			)), "Cannot exchange handshake on B %d",tmp);
 			// nodeB now sends its own ed25519_public_key
+			cr_assert(NULL != np_cryptofactory_by_public(context, &nodeB_representation, nodeB.ed25519_public_key));
 			cr_assert(0 == (tmp = np_crypto_session(
 				context,
 				&nodeA, 
 				&session_on_A, 
 				&nodeB_representation, 
-				true, 
-				nodeB.ed25519_public_key
+				true
 			)), "Cannot exchange handshake on A %d", tmp);
 			// handshake complete
 
