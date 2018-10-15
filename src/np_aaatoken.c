@@ -109,19 +109,21 @@ void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, bool trace)
 
 	if(trace) _np_aaatoken_trace_info("encode", token);
 	// included into np_token_handshake
-	np_tree_replace_str( data, "np.t.u", np_treeval_new_s(token->uuid));
-	np_tree_replace_str( data, "np.t.r", np_treeval_new_s(token->realm));
-	np_tree_replace_str( data, "np.t.i", np_treeval_new_s(token->issuer));
-	np_tree_replace_str( data, "np.t.s", np_treeval_new_s(token->subject));
-	np_tree_replace_str( data, "np.t.a", np_treeval_new_s(token->audience));
-	np_tree_replace_str( data, "np.t.p", np_treeval_new_bin(token->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES));
+	
+	np_tree_replace_str( data, "np.t.type", np_treeval_new_ush(token->type));
+	np_tree_replace_str( data, "np.t.u",    np_treeval_new_s(token->uuid));
+	np_tree_replace_str( data, "np.t.r",    np_treeval_new_s(token->realm));
+	np_tree_replace_str( data, "np.t.i",    np_treeval_new_s(token->issuer));
+	np_tree_replace_str( data, "np.t.s",    np_treeval_new_s(token->subject));
+	np_tree_replace_str( data, "np.t.a",    np_treeval_new_s(token->audience));
+	np_tree_replace_str( data, "np.t.p",    np_treeval_new_bin(token->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES));
+										   
+	np_tree_replace_str( data, "np.t.ex",   np_treeval_new_d(token->expires_at));
+	np_tree_replace_str( data, "np.t.ia",   np_treeval_new_d(token->issued_at));
+	np_tree_replace_str( data, "np.t.nb",   np_treeval_new_d(token->not_before));
+	np_tree_replace_str( data, "np.t.si",   np_treeval_new_bin(token->signature, crypto_sign_BYTES));
 
-	np_tree_replace_str( data, "np.t.ex", np_treeval_new_d(token->expires_at));
-	np_tree_replace_str( data, "np.t.ia", np_treeval_new_d(token->issued_at));
-	np_tree_replace_str( data, "np.t.nb", np_treeval_new_d(token->not_before));
-	np_tree_replace_str( data, "np.t.si", np_treeval_new_bin(token->signature, crypto_sign_BYTES));
-
-	np_tree_replace_str( data, "np.t.e", np_treeval_new_tree(token->extensions));
+	np_tree_replace_str( data, "np.t.e",    np_treeval_new_tree(token->extensions));
 
 	if(token->scope <= np_aaatoken_scope_private_available) {
 		_np_aaatoken_update_extensions_signature(token, token->issuer_token);
@@ -151,9 +153,15 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 	token->scope = np_aaatoken_scope_undefined;
 	token->type = np_aaatoken_type_undefined;
 
-	if (ret && NULL !=(tmp = np_tree_find_str(data, "np.t.u")))
-	{		 
+	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.u")))
+	{
 		strncpy(token->uuid, np_treeval_to_str(tmp->val, NULL), NP_UUID_BYTES);
+	}
+	else { ret = false;/*Mendatory field*/ }
+
+	if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.type")))
+	{
+		token->type = tmp->val.value.ush;
 	}
 	else { ret = false;/*Mendatory field*/ }
 	
@@ -232,12 +240,12 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
 		else { ret = false;/*Mendatory field if extensions provided*/ }
 	}
 
-	_np_aaatoken_update_type_and_scope(token);
+	_np_aaatoken_update_scope(token);
 
 	return ret;
 }
 
-void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self) {
+void _np_aaatoken_update_scope(np_aaatoken_t* self) {
 
 	assert (NULL != self);
 
@@ -245,23 +253,6 @@ void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self) {
 		self->scope = np_aaatoken_scope_private;
 	} else {
 		self->scope = np_aaatoken_scope_public;
-	}
-	self->type = np_aaatoken_type_undefined;
-
-	if (strncmp( _NP_URN_IDENTITY_PREFIX, self->subject, strlen( _NP_URN_IDENTITY_PREFIX)) == 0) {
-		self->type |= np_aaatoken_type_identity;
-	}
-	else if (strncmp( _NP_URN_NODE_PREFIX, self->subject, strlen( _NP_URN_NODE_PREFIX)) == 0) {
-		if (np_tree_find_str(self->extensions, _NP_MSG_EXTENSIONS_SESSION) == NULL) {
-			self->type |= np_aaatoken_type_node;
-		}
-		else {
-			self->type |= np_aaatoken_type_handshake;
-		}
-	}
-	else //if (strncmp( _NP_URN_MSG_PREFIX, self->subject, strlen( _NP_URN_MSG_PREFIX)) == 0)
-	{
-		self->type |= np_aaatoken_type_message_intent;
 	}
 }
 
@@ -1107,6 +1098,9 @@ unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* self) {
 	crypto_generichash_state gh_state;
 	crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
 
+	//crypto_generichash_update(&gh_state, (unsigned char*)&self->type, sizeof(uint8_t));
+	//log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting type      : %d", self->type);
+
 	ASSERT(self->uuid != NULL, "cannot get token hash of uuid NULL");
 	crypto_generichash_update(&gh_state, (unsigned char*)self->uuid, strnlen(self->uuid, NP_UUID_BYTES));
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting uuid      : %s", self->uuid);
@@ -1528,7 +1522,7 @@ np_aaatoken_t* np_user4aaatoken(np_aaatoken_t* dest, struct np_token* src) {
 	cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
 	np_tree_deserialize(context, dest->extensions, &cmp);
 
-	_np_aaatoken_update_type_and_scope(dest);
+	_np_aaatoken_update_scope(dest);
 
 	return dest;
 }
