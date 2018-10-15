@@ -33,14 +33,14 @@ extern "C" {
 #define CHECK_STR_FIELD(TREE, FIELD_NAME, VAR_NAME) 						\
 np_treeval_t VAR_NAME = np_treeval_NULL; 									\
 if (NULL == np_tree_find_str(TREE, FIELD_NAME)){							\
-	if (NULL != np_tree_find_str(TREE, _NP_MSG_HEADER_SUBJECT)){			\
-		log_msg(LOG_WARN,"Missing field \"%s\" in message for \"%s\"",		\
-			FIELD_NAME,														\
-			np_treeval_to_str(np_tree_find_str(TREE, _NP_MSG_HEADER_SUBJECT)->val,NULL));	\
-	}else {																	\
-		log_msg(LOG_WARN,"Missing field \"%s\" in tree", FIELD_NAME);		\
-	}																		\
-	goto __np_cleanup__; 													\
+    if (NULL != np_tree_find_str(TREE, _NP_MSG_HEADER_SUBJECT)){			\
+        log_msg(LOG_WARN,"Missing field \"%s\" in message for \"%s\"",		\
+            FIELD_NAME,														\
+            np_treeval_to_str(np_tree_find_str(TREE, _NP_MSG_HEADER_SUBJECT)->val,NULL));	\
+    }else {																	\
+        log_msg(LOG_WARN,"Missing field \"%s\" in tree", FIELD_NAME);		\
+    }																		\
+    goto __np_cleanup__; 													\
 } 																			\
 else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
 
@@ -54,9 +54,9 @@ else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
 
 */
 struct np_tree_conf_s {
-	bool in_place;
-	bool immutable;
-	bool disable_special_str;
+    bool in_place;
+    bool immutable;
+    bool disable_special_str;
 }NP_API_EXPORT;
 
 /**
@@ -76,20 +76,20 @@ struct np_tree_conf_s {
 
 struct np_tree_s
 {
-	struct np_tree_elem_s *rbh_root;
+    struct np_tree_elem_s *rbh_root;
 
-	uint16_t size;
-	uint32_t byte_size;
-	np_tree_conf_t attr;
+    uint16_t size;
+    uint32_t byte_size;
+    np_tree_conf_t attr;
 } NP_API_EXPORT;
 
 #ifndef SWIG
 typedef struct np_tree_elem_s np_tree_elem_t;
 struct np_tree_elem_s
 {
-	RB_ENTRY(np_tree_elem_s) link;
+    RB_ENTRY(np_tree_elem_s) link;
 
-	np_treeval_t key;
+    np_treeval_t key;
     np_treeval_t val;
 } NP_API_INTERN;
 #endif
@@ -154,6 +154,8 @@ void np_tree_insert_str(np_tree_t *tree, const char *key, np_treeval_t val);
 NP_API_EXPORT
 void np_tree_insert_int(np_tree_t *tree, int16_t ikey, np_treeval_t val);
 NP_API_EXPORT
+void np_tree_insert_dhkey(np_tree_t *tree, np_dhkey_t key, np_treeval_t val);
+NP_API_EXPORT
 void np_tree_insert_ulong(np_tree_t *tree, uint32_t ulkey, np_treeval_t val);
 NP_API_EXPORT
 void np_tree_insert_dbl( np_tree_t *tree, double dkey, np_treeval_t val);
@@ -176,6 +178,8 @@ NP_API_EXPORT
 void np_tree_replace_str(np_tree_t *tree, const char *key, np_treeval_t val);
 NP_API_EXPORT
 void np_tree_replace_int(np_tree_t *tree, int16_t ikey, np_treeval_t val);
+NP_API_EXPORT
+void np_tree_replace_dhkey(np_tree_t *tree, np_dhkey_t key, np_treeval_t val);
 NP_API_EXPORT
 void np_tree_replace_ulong(np_tree_t *tree, uint32_t ulkey, np_treeval_t val);
 NP_API_EXPORT
@@ -200,7 +204,9 @@ void np_tree_replace_dbl( np_tree_t *tree, double dkey, np_treeval_t val);
 NP_API_EXPORT
 np_tree_elem_t* np_tree_find_str (np_tree_t* root, const char *key);
 NP_API_EXPORT
-np_tree_elem_t* np_tree_find_int (np_tree_t* root, int16_t ikey);
+np_tree_elem_t* np_tree_find_int(np_tree_t* root, int16_t ikey);
+NP_API_EXPORT
+np_tree_elem_t* np_tree_find_dhkey(np_tree_t* root, np_dhkey_t key);
 NP_API_EXPORT
 np_tree_elem_t* np_tree_find_ulong (np_tree_t* root, uint32_t ikey);
 NP_API_EXPORT
@@ -242,7 +248,9 @@ void _np_tree_replace_all_with_str(np_tree_t* root, const char* key, np_treeval_
 NP_API_EXPORT
 void np_tree_del_str (np_tree_t* tree, const char *key);
 NP_API_EXPORT
-void np_tree_del_int (np_tree_t* tree, const int16_t key);
+void np_tree_del_int(np_tree_t* tree, const int16_t key);
+NP_API_EXPORT
+void np_tree_del_dhkey(np_tree_t* tree, const np_dhkey_t key);
 NP_API_EXPORT
 void np_tree_del_double (np_tree_t* tree, const double key);
 NP_API_EXPORT

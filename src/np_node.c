@@ -51,7 +51,6 @@ void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
 	entry->protocol = 0;
 	entry->port = 0;
 
-	memset(entry->session_key, 0, crypto_scalarmult_SCALARBYTES*(sizeof(unsigned char)));
 	entry->session_key_is_set = false;
 
 	entry->last_success = np_time_now();

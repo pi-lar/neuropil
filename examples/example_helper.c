@@ -43,8 +43,6 @@
 #include "np_statistics.h"
 
 #include "np_conversion.c"
-extern char *optarg;
-extern int optind;
 
 const char* logo =
 "MMWKkxxdoollcdKMMMMMMMMMMMMWOollolloOWMM\n"
@@ -87,17 +85,17 @@ example_user_context* example_new_usercontext() {
 	user_context->__np_ncurse_initiated = false;
 
 	user_context->output_intervall_sec = 0.50;
-	user_context->__np_top_left_win;
-	user_context->__np_top_right_win;
-	user_context->__np_top_logo_win;
-	user_context->__np_bottom_win_help;
+	user_context->__np_top_left_win = NULL;
+	user_context->__np_top_right_win= NULL;
+	user_context->__np_top_logo_win= NULL;
+	user_context->__np_bottom_win_help= NULL;
 
-	user_context->__np_switch_msgpartcache;
-	user_context->__np_switch_memory_ext;
-	user_context->__np_switch_log;
-	user_context->__np_switch_performance;
-	user_context->__np_switch_jobs;
-	user_context->__np_switch_interactive;
+	user_context->__np_switch_msgpartcache= NULL;
+	user_context->__np_switch_memory_ext= NULL;
+	user_context->__np_switch_log= NULL;
+	user_context->__np_switch_performance= NULL;
+	user_context->__np_switch_jobs= NULL;
+	user_context->__np_switch_interactive= NULL;
 
 	user_context->is_in_interactive = false; 
 	user_context->__np_interactive_event_on_enter = NULL;
