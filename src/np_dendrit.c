@@ -2403,7 +2403,6 @@ void _np_in_handshake(np_state_t * context, np_jobargs_t* args)
 
                 log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG, "handshake data successfully registered for node %s (alias %s)",
                     _np_key_as_str(msg_source_key), _np_key_as_str(alias_key));
-
             }
         }
 

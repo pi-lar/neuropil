@@ -255,7 +255,7 @@ void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node
 NP_API_INTERN
 int __np_aaatoken_generate_signature(np_state_t* context, unsigned char* hash, unsigned char* private_key, unsigned char* save_to);
 NP_API_INTERN
-void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self);
+void _np_aaatoken_update_scope(np_aaatoken_t* self);
 NP_API_INTERN
 void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp);
 NP_API_INTERN
