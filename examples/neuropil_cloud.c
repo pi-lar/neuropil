@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 	char* opt_port = NULL;
 	char* publish_domain = NULL;
 	int level = -2;
-	char* ccloud_size = "32";
+	char* opt_cloud_size = "32";
 	char* logpath = ".";
 	
 	example_user_context* user_context_template;
@@ -53,18 +53,18 @@ int main(int argc, char **argv)
 		&logpath,
 		"[-c cloud size]",
 		"c:",
-		&ccloud_size
+		&opt_cloud_size
 	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
 
-	int cloud_size = atoi(ccloud_size);
+	int cloud_size = atoi(opt_cloud_size);
 
 	np_context** nodes = calloc(cloud_size, sizeof(np_context*));
 
 	char addr[500];
 	uint16_t tmp;
-	int port = 3000;
+	int port = 4000;
 	if (opt_port != NULL) {
 		port = atoi(opt_port);
 	}

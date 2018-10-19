@@ -730,17 +730,15 @@ example_user_context* parse_program_args(
 		\code
 		*/
 		if (*port == NULL) {
-			int port_pid = getpid();
-
-			*port = calloc(1, 7);
-
-			snprintf(*port, 7, "%d", port_pid);
+			int port_pid = getpid();			
+			
 			if (port_pid > 65535) {
-				snprintf(*port, 7, "%d", (port_pid >> 1));
+				port_pid  = port_pid >> 1;
 			}
 			if (port_pid < 1024) {
-				snprintf(*port, 7, "%d", (port_pid + 1024));
+				port_pid += 1024;
 			}
+			asprintf(*port, "%d", port_pid);
 		}
 		/** \endcode */
 	}
