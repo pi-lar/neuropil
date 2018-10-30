@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import os
 from pprint import pprint
+import argparse
+
 # Prerequisite for a testbed system:
 # - tmux
 # - clang
@@ -8,10 +10,19 @@ from pprint import pprint
 # - virtualenv
 # - python3
 
-branch = "develop"      # Define the branch/tag/commit to test
-branch = "fb_testbed"
 
-defaults = {"user": "simonklampt",  "build":True, "bin_dir":"bin", "work_dir":"~/neuropil_testbed", "desc":"", "ip":""}
+parser = argparse.ArgumentParser(description='Start some neuropil nodes in screen sessions.')
+parser.add_argument('--bootstrapper', nargs='?', default="80e4e9b9f6986ffb5175f6813456da0175b4b67ff41dc419430182fec4fe70aa:tcp6:demo.neuropil.io:3141", help='Bootstrap connection string')
+parser.add_argument('-b', '--branch', nargs='?', default="develop", help='Branch to test')
+parser.add_argument('-du', '--default_user', nargs='?', default="simonklampt", help='Default user to use to start nodes on remote machines')
+
+
+
+args = parser.parse_args()
+
+branch = args.branch
+
+defaults = {"user": args.default_user,  "build":True, "bin_dir":"bin", "work_dir":"~/neuropil_testbed", "desc":"", "ip":""}
 locations = [
     # Add new testbed systems here: 
     dict(defaults,**{"desc":"Ubuntu",    "ip":"192.168.30.200"}),
@@ -20,8 +31,8 @@ locations = [
     #dict(defaults,**{"desc":"Raspberry", "ip":"192.168.40.29", "user":"pi-lar"     }),
 ]
 
-bootstrap_string   = "b0e1e68c9feb193c415697e665a0d50c3ece05b051f9f00aa906caa8f6e3a637:udp4:192.168.30.151:3000"
-bootstrap_string_w = "*:udp4:192.168.30.151:3000"
+bootstrap_string   = args.bootstrapper
+bootstrap_string_w = "*" + bootstrap_string[64:]
 
 options_progs = [    
       ("node",  "node"),
@@ -29,14 +40,20 @@ options_progs = [
       ("cloud", "cloud "),
     ]
 options_threads = [
-      ("single threaded", "-t 0"),
-      ("multi threaded", "-t 3"),
+      ("singlethreaded", "-t 0"),
+      ("multithreaded", "-t 3"),
     ]
 options_jointype = [
       ("hash",     "-j %(bootstrap_string)s"),
       ("wildcard", "-j %(bootstrap_string_w)s"),
     ]
-#todo: options_protocol
+
+options_protocol = [
+    'udp4',
+    'tcp4',
+    'udp6',
+    'tcp6',
+]
 
 build_commands = [
     "deactivate",
@@ -64,15 +81,12 @@ for d in locations:
     start_commands = []    
     for option_prog_s,option_prog  in options_progs:
         option_prog = option_prog%locals()
-        command_desc = "REGISTER_TEST:%(option_prog_s)s"%locals()        
-        command_call = "./{d[bin_dir]}/neuropil_{option_prog} -s 0 -u {d[ip]}".format(**locals())
-        for option_thread_s,option_thread in options_threads:
-            command_desc2 = command_desc +" %(option_thread_s)s"%locals()
-            command_call2 = command_call +" %s"%(option_thread%locals())
-            for option_jointype_s,option_jointype in options_jointype:
-                command_desc3 = command_desc + " %(option_jointype_s)s"%locals()
-                command_call3 = command_call2+" %s"%(option_jointype%locals())
-                start_commands += [command_call3]#+" -m "%s""%command_desc3]
+        for option_jointype_s,option_jointype in options_jointype:
+            for option_thread_s,option_thread in options_threads:
+                for option_protocol in options_protocol:
+                    command_desc = "{option_prog_s} {option_thread_s} {option_protocol} {option_jointype_s}".format(**locals())
+                    command_call = "./{d[bin_dir]}/neuropil_{option_prog} -u {d[ip]} {option_thread} -p {option_protocol} {option_jointype}".format(**locals())
+                    start_commands += [(command_call,command_desc)]
  
 
     commands_prefix = [
@@ -86,17 +100,19 @@ for d in locations:
     if d["build"]:
         commands_prefix = commands_prefix + build_commands
     command_str = ";".join(commands_prefix).format(**locals())+";"
-    for i, start_command in enumerate(start_commands):        
+    for i, pack in enumerate(start_commands):        
+        start_command,start_command_desc = pack
         command_str += 'tmux new-window -ad -t neuropil_E2E_tests -n np_{i};'.format(**locals())
         command_str += 'tmux send-keys      -t neuropil_E2E_tests:np_{i} "export LD_LIBRARY_PATH=build/lib:$LD_LIBRARY_PATH";'.format(**locals())
         command_str += 'tmux send-keys      -t neuropil_E2E_tests:np_{i} C-m;'.format(**locals())
         command_str += 'tmux send-keys      -t neuropil_E2E_tests:np_{i} "{start_command}";'.format(**locals())
         command_str += 'tmux send-keys      -t neuropil_E2E_tests:np_{i} C-m;'.format(**locals())
-        command_str += 'echo "started np_{i}";'.format(**locals())
+        command_str += 'echo "started np_{i}:{d[ip]} => {start_command_desc}";'.format(**locals())
     
     command_str = command_str.replace('"','\\"')
-    cmd = "ssh -A {d[user]}@{d[ip]} 'bash -l -c \"{command_str}\"' ".format(**locals())
-    print(cmd)
+    cmd = "ssh -A {d[user]}@{d[ip]} 'bash -l -c \"{command_str}\"' ".format(**locals())    
+    print(cmd);
+    print("Starting commands on {d[user]}@{d[ip]}".format(**locals()))
     result = os.system(cmd)
     print("Exec on {d[user]}@{d[ip]} = {result}".format(**locals()))
     
