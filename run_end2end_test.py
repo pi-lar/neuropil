@@ -35,17 +35,17 @@ bootstrap_string   = args.bootstrapper
 bootstrap_string_w = "*" + bootstrap_string[64:]
 
 options_progs = [    
-      ("node",  "node"),
+      ("node ", "node"),
       ("hydra", "hydra -n 1"),
       ("cloud", "cloud "),
     ]
 options_threads = [
       ("singlethreaded", "-t 0"),
-      ("multithreaded", "-t 3"),
+      ("multithreaded ", "-t 3"),
     ]
 options_jointype = [
-      ("hash",     "-j %(bootstrap_string)s"),
-      ("wildcard", "-j %(bootstrap_string_w)s"),
+      ("hash    ",     "-j {bootstrap_string}".format(**locals())),
+      ("wildcard", "-j {bootstrap_string_w}".format(**locals())),
     ]
 
 options_protocol = [
@@ -77,12 +77,11 @@ for d in locations:
         if isinstance(d[attr], str):
             d[attr] = d[attr].format(**d)
 
-
     start_commands = []    
-    for option_prog_s,option_prog  in options_progs:
+    for option_prog_s, option_prog  in options_progs:
         option_prog = option_prog%locals()
-        for option_jointype_s,option_jointype in options_jointype:
-            for option_thread_s,option_thread in options_threads:
+        for option_jointype_s, option_jointype in options_jointype:
+            for option_thread_s, option_thread in options_threads:
                 for option_protocol in options_protocol:
                     command_desc = "{option_prog_s} {option_thread_s} {option_protocol} {option_jointype_s}".format(**locals())
                     command_call = "./{d[bin_dir]}/neuropil_{option_prog} -u {d[ip]} {option_thread} -p {option_protocol} {option_jointype}".format(**locals())
@@ -107,11 +106,11 @@ for d in locations:
         command_str += 'tmux send-keys      -t neuropil_E2E_tests:np_{i} C-m;'.format(**locals())
         command_str += 'tmux send-keys      -t neuropil_E2E_tests:np_{i} "{start_command}";'.format(**locals())
         command_str += 'tmux send-keys      -t neuropil_E2E_tests:np_{i} C-m;'.format(**locals())
-        command_str += 'echo "started np_{i}:{d[ip]} => {start_command_desc}";'.format(**locals())
+        command_str += 'echo "started np_{i:0>3d}:{d[ip]} => {start_command_desc}";'.format(**locals())
     
     command_str = command_str.replace('"','\\"')
     cmd = "ssh -A {d[user]}@{d[ip]} 'bash -l -c \"{command_str}\"' ".format(**locals())    
-    print(cmd);
+    #print(cmd)
     print("Starting commands on {d[user]}@{d[ip]}".format(**locals()))
     result = os.system(cmd)
     print("Exec on {d[user]}@{d[ip]} = {result}".format(**locals()))
