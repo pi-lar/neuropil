@@ -25,8 +25,9 @@ extern "C" {
 		np_memory_types_np_responsecontainer_t,
 		np_memory_types_np_messagepart_t,
 		np_memory_types_np_aaatoken_t,
-		np_memory_types_np_job_t,
-		np_memory_types_np_jobargs_t,
+// 		np_memory_types_np_job_t,
+//		np_memory_types_np_jobargs_t,
+		np_memory_types_np_crypto_t,
 		np_memory_types_MAX_TYPE
 	};
 
@@ -42,8 +43,9 @@ extern "C" {
 		"responsecontainer",
 		"messagepart",
 		"aaatoken",
-		"job",
-		"jobargs",
+// 		"job",
+// 		"jobargs",
+		"crypto",
 	};
 
 	typedef void(*np_memory_on_new) (np_state_t *context, uint8_t type, size_t size, void* data);

@@ -35,6 +35,7 @@ AAA callback functions :c:func:`np_setauthenticate_cb`, :c:func:`np_setauthorizi
 
 #include "np_types.h"
 #include "neuropil.h"
+#include "np_crypto.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -180,8 +181,7 @@ struct np_aaatoken_s
 	// key/value extension list
 	np_tree_t* extensions;
 	np_tree_t* extensions_local;
-	unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
-	unsigned char private_key[crypto_sign_SECRETKEYBYTES];
+	np_crypto_t crypto;
 	unsigned char signature[crypto_sign_BYTES];
 	unsigned char signature_extensions[crypto_sign_BYTES];
 	// attributes to exchange END
@@ -253,13 +253,9 @@ unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* msg_token);
 NP_API_INTERN
 void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node_public_token_t* full_token);
 NP_API_INTERN
-void np_aaatoken_decode_with_secrets(np_tree_t* data, np_aaatoken_t* token);
-NP_API_INTERN
-void np_aaatoken_encode_with_secrets(np_tree_t* data, np_aaatoken_t* token);
-NP_API_INTERN
 int __np_aaatoken_generate_signature(np_state_t* context, unsigned char* hash, unsigned char* private_key, unsigned char* save_to);
 NP_API_INTERN
-void _np_aaatoken_update_type_and_scope(np_aaatoken_t* self);
+void _np_aaatoken_update_scope(np_aaatoken_t* self);
 NP_API_INTERN
 void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp);
 NP_API_INTERN

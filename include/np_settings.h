@@ -7,6 +7,7 @@
 #define NP_SETTINGS_H_
 
 #include <stdlib.h>
+#include "sodium.h"
 #include "np_constants.h"
 
 #ifdef __cplusplus
@@ -96,7 +97,7 @@ extern "C" {
 #define MSG_PAYLOADBIN_SIZE (15)
 
 #define MSG_CHUNK_SIZE_1024 (1024)
-#define MSG_ENCRYPTION_BYTES_40 (40)
+#define MSG_ENCRYPTION_BYTES_40 (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)	
 
 
 #ifndef MISC_LOG_FLUSH_INTERVAL_SEC
@@ -192,7 +193,7 @@ extern "C" {
 #endif
 
 #ifndef JOBQUEUE_PRIORITY_MOD_BASE_STEP
-#define JOBQUEUE_PRIORITY_MOD_BASE_STEP (10000)
+#define JOBQUEUE_PRIORITY_MOD_BASE_STEP (100)
 #endif
 
 #ifndef JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_IN

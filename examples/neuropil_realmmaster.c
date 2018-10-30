@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <assert.h>
 
+#include "neuropil.h"
 #include "np_log.h"
 #include "np_legacy.h"
 #include "np_aaatoken.h"
@@ -19,6 +20,7 @@
 #include "np_node.h"
 #include "np_types.h"
 #include "np_util.h"
+#include "np_tree.h"
 #include "np_treeval.h"
 
 #include "example_helper.c"
@@ -33,7 +35,7 @@ pthread_mutex_t _aaa_mutex = PTHREAD_MUTEX_INITIALIZER;
 int seq = -1;
 int joinComplete = 0;
 
-bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
+bool check_authorize_token(np_context* context, struct np_token* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
 	if (NULL == authorized_tokens) authorized_tokens = np_tree_create();
@@ -112,7 +114,7 @@ bool check_authorize_token(NP_UNUSED np_aaatoken_t* token)
 	return (true); // ret_val;
 }
 
-bool check_authenticate_token(np_aaatoken_t* token)
+bool check_authenticate_token(np_context* context, struct np_token* token)
 {
 	pthread_mutex_lock(&_aaa_mutex);
 
@@ -183,28 +185,23 @@ bool check_authenticate_token(np_aaatoken_t* token)
 	return (true); // ret_val;
 }
 
-bool check_account_token(NP_UNUSED np_aaatoken_t* token)
+bool check_account_token(np_context* ac, struct np_token* token)
 {
 	return (true);
 }
 
-np_aaatoken_t* create_realm_identity()
+struct np_token create_realm_identity(np_context *ac)
 {
-	np_aaatoken_t* realm_identity = NULL;
-	np_new_obj(np_aaatoken_t, realm_identity);
-
-	strncpy(realm_identity->realm,   "pi-lar test realm",  255);
-	strncpy(realm_identity->subject, "pi-lar realmserver", 255);
-	strncpy(realm_identity->issuer,  "pi-lar realmserver", 65);
-
-	realm_identity->not_before = np_time_now();
-	realm_identity->expires_at = realm_identity->not_before + 7200.0;
-	realm_identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
+	struct np_token realm_identity = np_new_identity(ac, np_time_now() + 7200.0, NULL);
 	
+	strncpy(realm_identity.realm,   "pi-lar test realm",  sizeof realm_identity.realm);
+	strncpy(realm_identity.subject, "pi-lar realmserver", sizeof realm_identity.subject);
+	//strncpy(realm_identity.issuer,  "pi-lar realmserver", 65);
+
 	// add some unique identification parameters
 	// a far better approach is to follow the "zero-knowledge" paradigm (use the source, luke)
 	// also check libsodium password hahsing functionality
-	tree_insert_str(realm_identity->extensions, "passcode", np_treeval_new_hash("test"));
+	//TODO: Mak possible to use  extensions as tree: tree_insert_str(realm_identity.extensions, "passcode", np_treeval_new_hash("test"));
 
 	return (realm_identity);
 }
@@ -234,7 +231,7 @@ int main(int argc, char **argv)
 		&level,
 		&logpath,
 		NULL,
-		NULL,		
+		NULL		
 	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
@@ -258,14 +255,14 @@ int main(int argc, char **argv)
 	}
 
 
-	np_aaatoken_t* realm_identity = create_realm_identity();
-	np_set_identity(realm_identity);
-	np_set_realm_name("pi-lar test realm");
-	np_enable_realm_server();
+	struct np_token realm_identity = create_realm_identity(context);
+	np_use_identity(context, realm_identity);
+	np_set_realm_name(context, "pi-lar test realm");
+	np_enable_realm_server(context);
 
-	np_setauthenticate_cb(check_authenticate_token);
-	np_setauthorizing_cb(check_authorize_token);
-	np_setaccounting_cb(check_account_token);
+	np_set_authenticate_cb(context, check_authenticate_token);
+	np_set_authorize_cb(context, check_authorize_token);
+	np_set_accounting_cb(context, check_account_token);
 
 	// state->my_node_key->node->joined_network = 1;
 
@@ -294,7 +291,7 @@ int main(int argc, char **argv)
 
 	if (NULL != j_key)
 	{
-		np_send_join(j_key);
+		np_join(context, j_key);
 	}
 
 	/**

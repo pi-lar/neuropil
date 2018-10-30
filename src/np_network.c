@@ -349,7 +349,7 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
                             (const unsigned char*)msg_part->msg_part,
                             MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
                             nonce,
-                            target_node->session_key
+                            target_node->session.session_key_to_write
 						);
 
                         log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,

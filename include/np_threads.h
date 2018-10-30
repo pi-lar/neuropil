@@ -21,6 +21,8 @@
 #include "np_constants.h"
 #include "np_settings.h"
 
+#include "np_jobqueue.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
