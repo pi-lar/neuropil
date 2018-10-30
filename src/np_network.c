@@ -383,7 +383,7 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
                                     
                                     sll_append(void_ptr, node_key->network->out_events, (void*)enc_buffer);                                    
                                     ret = true;
-                                    _np_network_start(node_key->network);
+                                    _np_network_start(node_key->network, false);
 #ifdef DEBUG
                                     if(!node_key->network->is_running){
                                         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "msg (%s) cannot be send (now) as network is not running", msg->uuid);
@@ -661,7 +661,7 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
                         alias_key->network->socket,
                         EV_READ
                     );
-                    _np_network_start(alias_key->network);
+                    _np_network_enable(alias_key->network);
 
                     if (old_network != NULL) {
                         np_unref_obj(np_network_t, old_network, ref_key_network);
@@ -671,7 +671,6 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
                         "created network for key: %s and watching it.", _np_key_as_str(alias_key));
 
                     np_unref_obj(np_key_t, alias_key, alias_key_reason);
-
                 }
 
             }
@@ -892,37 +891,43 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args) 
 }
 
 void _np_network_stop(np_network_t* network, bool force) {		
-    return;
-    if(NULL != network) {
-        np_ctx_memory(network);
-        _LOCK_ACCESS(&network->out_events_lock) {
-            _LOCK_ACCESS(&network->access_lock) {
 
-                double last_send_diff = np_time_now() - network->last_send_date;
-                if ( (network->is_running == true && last_send_diff >= NP_PI/100   ) &&
-                     (force == true || 0 == sll_size(network->out_events)) )
-                {
-                    EV_P;					
+	assert(NULL != network);
 
-                    if (FLAG_CMP(network->type , np_network_type_server)) {
-                        log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping server network %p", network);
-                        _np_event_suspend_loop_in(context);
-                        loop = _np_event_get_loop_in(context);
-                        ev_io_stop(EV_A_ &network->watcher);
-                        _np_event_resume_loop_in(context);
-                    }
-                    if (FLAG_CMP(network->type, np_network_type_client)) {
-                        log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping client network %p", network);
-                        _np_event_suspend_loop_out(context);
-                        loop = _np_event_get_loop_out(context);
-                        ev_io_stop(EV_A_ &network->watcher);
-                        _np_event_resume_loop_out(context);
-                    }
-                    network->is_running = false;
-                }
-            }
-        }
-    }
+	np_ctx_memory(network);
+	_LOCK_ACCESS(&network->out_events_lock) {
+		_LOCK_ACCESS(&network->access_lock) {
+
+			double last_send_diff = np_time_now() - network->last_send_date;
+			EV_P;
+
+			if ( (network->is_running == true /*&& last_send_diff >= NP_PI/500 */) &&
+				 (force == true || 0 == sll_size(network->out_events)) )
+			{
+				if (FLAG_CMP(network->type , np_network_type_server)) {
+					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping server network %p", network);
+					_np_event_suspend_loop_in(context);
+					loop = _np_event_get_loop_in(context);
+					if (force == true) {
+						ev_io_stop(EV_A_ &network->watcher);
+					}
+					ev_io_set(&network->watcher, network->socket, EV_READ);
+					_np_event_resume_loop_in(context);
+				}
+				if (FLAG_CMP(network->type, np_network_type_client)) {
+					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping client network %p", network);
+					_np_event_suspend_loop_out(context);
+					loop = _np_event_get_loop_out(context);
+					if (force == true) {
+						ev_io_stop(EV_A_ &network->watcher);
+					}
+					ev_io_set(&network->watcher, network->socket, EV_NONE);
+					_np_event_resume_loop_out(context);
+				}
+				network->is_running = false;
+			}
+		}
+	}
 }
 
 void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
@@ -965,40 +970,49 @@ void _np_network_remap_network(np_key_t* new_target, np_key_t* old_target)
                 );
 }
 
-void _np_network_start(np_network_t* network){
-    log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
-    if (NULL != network) {
-        np_ctx_memory(network);
+void _np_network_start(np_network_t* network, bool force){
 
-        np_ref_obj(np_network_t, network, FUNC);
-        TSP_GET(bool, network->can_be_enabled, can_be_enabled);
-        if(can_be_enabled){
-            _LOCK_ACCESS(&network->out_events_lock) {
-                _LOCK_ACCESS(&network->access_lock) {
-                    if (network->is_running == false)
-                    {
-                        EV_P;
-                        if (FLAG_CMP(network->type , np_network_type_server)) {
-                            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
-                            _np_event_suspend_loop_in(context);
-                            EV_A = _np_event_get_loop_in(context);
-                            ev_io_start(EV_A_ &network->watcher);
-                            _np_event_resume_loop_in(context);
-                        }
-                        if (FLAG_CMP(network->type, np_network_type_client)) {
-                            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
-                            _np_event_suspend_loop_out(context);
-                            EV_A = _np_event_get_loop_out(context);
-                            ev_io_start(EV_A_ &network->watcher);
-                            _np_event_resume_loop_out(context);
-                        }
-                        network->is_running = true;
-                    }
-                }
-            }
-        }
-        np_unref_obj(np_network_t, network, FUNC);
-    }
+	assert(NULL != network);
+
+	log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
+	np_ctx_memory(network);
+
+	np_ref_obj(np_network_t, network, FUNC);
+	TSP_GET(bool, network->can_be_enabled, can_be_enabled);
+	if (can_be_enabled) {
+		_LOCK_ACCESS(&network->out_events_lock) {
+			_LOCK_ACCESS(&network->access_lock) {
+
+				EV_P;
+				if (network->is_running == false)
+				{
+					if (FLAG_CMP(network->type , np_network_type_server)) {
+						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
+						_np_event_suspend_loop_in(context);
+						EV_A = _np_event_get_loop_in(context);
+						ev_io_set(&network->watcher, network->socket, EV_READ);
+						if(force == true){
+							ev_io_start(EV_A_ &network->watcher);
+						}
+						_np_event_resume_loop_in(context);
+					}
+
+					if (FLAG_CMP(network->type, np_network_type_client)) {
+						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
+						_np_event_suspend_loop_out(context);
+						EV_A = _np_event_get_loop_out(context);
+						ev_io_set(&network->watcher, network->socket, EV_WRITE);
+						if(force == true){
+							ev_io_start(EV_A_ &network->watcher);
+						}
+						_np_event_resume_loop_out(context);
+					}
+					network->is_running = true;
+				}
+			}
+		}
+	}
+	np_unref_obj(np_network_t, network, FUNC);
 }
 
 /**
@@ -1355,7 +1369,7 @@ void _np_network_enable(np_network_t* self) {
     if (self != NULL) {
         np_ctx_memory(self);
         TSP_SET(self->can_be_enabled, true);
-        _np_network_start(self);
+        _np_network_start(self, true);
     }
 }
 

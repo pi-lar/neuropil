@@ -131,7 +131,8 @@ struct np_thread_s
 	double min_job_priority;
 
 	np_mutex_t job_lock;
-	np_job_t* job;
+	np_job_t job;
+	bool busy;
 	enum np_thread_type_e thread_type;
 
 	pthread_t* thread_id;

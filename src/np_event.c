@@ -41,26 +41,36 @@
 
 #define __NP_EVENT_EVLOOP_STRUCTS(LOOPNAME)					\
     struct ev_loop * __loop_##LOOPNAME;						\
-    ev_async __loop_##LOOPNAME##_async_w;					\
+    ev_idle  __idle_##LOOPNAME;                                         \
+    ev_async __async_##LOOPNAME;					\
     np_mutex_t __loop_##LOOPNAME##_process_protector;
 
 
 #define __NP_EVENT_EVLOOP_INIT(LOOPNAME)																		\
     _np_threads_mutex_init(context, &np_module(events)->__loop_##LOOPNAME##_process_protector, "__loop_"#LOOPNAME"_process_protector");\
-    np_module(events)->__loop_##LOOPNAME = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);							\
+    np_module(events)->__loop_##LOOPNAME = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);		\
     if (np_module(events)->__loop_##LOOPNAME == false) {											 			\
         fprintf(stderr, "ERROR: cannot init "#LOOPNAME" event loop");								 			\
         exit(EXIT_FAILURE);														   					 			\
     }																			   					 			\
     ev_set_userdata (np_module(events)->__loop_##LOOPNAME, context);											\
-    ev_set_io_collect_interval(np_module(events)->__loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);				\
-    ev_set_timeout_collect_interval(np_module(events)->__loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);		\
-    ev_set_loop_release_cb(np_module(events)->__loop_##LOOPNAME, l_release##LOOPNAME,l_acquire##LOOPNAME);		\
-    ev_async_init (&np_module(events)->__loop_##LOOPNAME##_async_w, async_cb);									\
-	ev_async_start(np_module(events)->__loop_##LOOPNAME, &np_module(events)->__loop_##LOOPNAME##_async_w);										\
+    ev_idle_init (&np_module(events)->__idle_##LOOPNAME, _np_events_idle_##LOOPNAME);                      \
+    ev_idle_start (np_module(events)->__loop_##LOOPNAME, &np_module(events)->__idle_##LOOPNAME);   \
+	ev_set_loop_release_cb(np_module(events)->__loop_##LOOPNAME, l_release##LOOPNAME,l_acquire##LOOPNAME);		\
+    ev_async_init (&np_module(events)->__async_##LOOPNAME, async_cb);									\
+	ev_async_start(np_module(events)->__loop_##LOOPNAME, &np_module(events)->__async_##LOOPNAME);										\
     ev_verify(np_module(events)->__loop_##LOOPNAME);															 
 
+//    if (strncmp("out", #LOOPNAME, 3)) { \
+//        ev_set_io_collect_interval(np_module(events)->__loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);				\
+//        ev_set_timeout_collect_interval(np_module(events)->__loop_##LOOPNAME, NP_EVENT_IO_CHECK_PERIOD_SEC);		\
+//    } \
+
 #define __NP_EVENT_LOOP_FNs(LOOPNAME)																					\
+    static void _np_events_idle_##LOOPNAME (NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_idle *w, NP_UNUSED int revents) \
+    { \
+	    ev_sleep(NP_PI/500); \
+    } \
     void _np_events_read_##LOOPNAME (np_state_t* context, np_jobargs_t* args)											\
     {																													\
             EV_P = _np_event_get_loop_##LOOPNAME(context);																\
@@ -95,7 +105,7 @@
     }																													\
     void _np_event_resume_loop_##LOOPNAME(np_state_t *context)															\
     {																													\
-		ev_async_send(_np_event_get_loop_##LOOPNAME(context), &np_module(events)->__loop_##LOOPNAME##_async_w);											\
+		ev_async_send(_np_event_get_loop_##LOOPNAME(context), &np_module(events)->__async_##LOOPNAME);											\
         _np_threads_mutex_unlock(context, &np_module(events)->__loop_##LOOPNAME##_process_protector);					\
     }																													\
     struct ev_loop * _np_event_get_loop_##LOOPNAME(np_state_t *context) {												\
