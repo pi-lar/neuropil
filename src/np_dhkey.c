@@ -3,7 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
-#include "../include/np_dhkey.h"
+#include "np_dhkey.h"
 
 #include <assert.h>
 #include <pthread.h>

@@ -71,27 +71,18 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
 	ret->version = source->version;
 	ret->state = source->state;
 
-	memcpy(ret->public_key, source->public_key, crypto_sign_PUBLICKEYBYTES);
+	memcpy(ret->crypto.ed25519_public_key, source->crypto.ed25519_public_key, sizeof source->crypto.ed25519_public_key);
 
 	if(scope != np_aaatoken_scope_private) {
-		memset(ret->private_key, 0, crypto_sign_SECRETKEYBYTES );
+		memset(ret->crypto.ed25519_secret_key, 0, sizeof ret->crypto.ed25519_secret_key);
 		ret->private_key_is_set = false;
 	}
 	else
 	{
-		memcpy(ret->private_key, source->private_key, crypto_sign_SECRETKEYBYTES);
+		memcpy(ret->crypto.ed25519_secret_key, source->crypto.ed25519_secret_key, sizeof source->crypto.ed25519_secret_key);
 		ret->private_key_is_set = true;
 	}
 	np_tree_copy( source->extensions, ret->extensions);
-
-	// np_tree_t* copy = np_tree_create();
-	// np_aaatoken_encode_with_secrets(copy, source);
-	// np_aaatoken_decode_with_secrets(copy, ret);
-	// }
-	// else {
-	// np_aaatoken_encode(copy, source);
-	// np_aaatoken_decode(copy, ret);
-	// }
 	ret->scope = scope;
 
 	return (ret);
@@ -142,17 +133,12 @@ np_aaatoken_t* __np_token_factory_new(np_state_t* context,char issuer[64], char 
 	ret->not_before = np_time_now();
 	ret->expires_at = expires_at;
 
-
-	if (secret_key != NULL) {
-		memset(ret->private_key, *secret_key, NP_SECRET_KEY_BYTES);
-		if (0 != crypto_sign_ed25519_sk_to_pk(ret->public_key, ret->private_key)) {
-			// TODO: ERROR msg
-		}
+	
+	if (secret_key != NULL) {		
+		np_cryptofactory_by_secret(context, &ret->crypto, *secret_key);
 	}
 	else {
-		if (0 != crypto_sign_keypair(ret->public_key, ret->private_key)) {
-			// TODO: ERROR msg
-		}
+		np_cryptofactory_new(context, &ret->crypto);
 	}
 
 	ret->scope = np_aaatoken_scope_private;
@@ -196,8 +182,8 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 	}
 
 	// add e2e encryption details for sender
-	memcpy((char*)ret->public_key,
-		(char*)my_identity->aaa_token->public_key,
+	memcpy((char*)ret->crypto.ed25519_public_key,
+		(char*)my_identity->aaa_token->crypto.ed25519_public_key,
 		crypto_sign_PUBLICKEYBYTES);
 
 	// private key is only required for signing later, will not be send over the wire
@@ -250,7 +236,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 
 #ifdef DEBUG
 	char sk_hex[crypto_sign_SECRETKEYBYTES * 2 + 1];
-	sodium_bin2hex(sk_hex, crypto_sign_SECRETKEYBYTES * 2 + 1, ret->private_key, crypto_sign_SECRETKEYBYTES);
+	sodium_bin2hex(sk_hex, crypto_sign_SECRETKEYBYTES * 2 + 1, ret->crypto.ed25519_secret_key, crypto_sign_SECRETKEYBYTES);
 	log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "hst_token signature private key: %s", sk_hex);
 #endif
 
@@ -261,7 +247,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 	// convert to curve key
 	unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
 	// TODO: handle crypto result
-	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk, my_node_token->private_key);
+	crypto_sign_ed25519_sk_to_curve25519(curve25519_sk, my_node_token->crypto.ed25519_secret_key);
 	// calculate session key for dh key exchange
 	unsigned char my_dh_sessionkey[crypto_scalarmult_BYTES] = { 0 };
 	crypto_scalarmult_base(my_dh_sessionkey, curve25519_sk);
@@ -326,9 +312,9 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, n
 
 	ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", FUNC);
 
-	#ifdef DEBUG
+#ifdef DEBUG
 	char sk_hex[crypto_sign_SECRETKEYBYTES * 2 + 1];
-	sodium_bin2hex(sk_hex, crypto_sign_SECRETKEYBYTES * 2 + 1, ret->private_key, crypto_sign_SECRETKEYBYTES);
+	sodium_bin2hex(sk_hex, crypto_sign_SECRETKEYBYTES * 2 + 1, ret->crypto.ed25519_secret_key, crypto_sign_SECRETKEYBYTES);
 	log_debug_msg(LOG_AAATOKEN | LOG_DEBUG , "n_token signature private key: %s", sk_hex);
 #endif
 

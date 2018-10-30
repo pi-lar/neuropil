@@ -51,6 +51,11 @@ extern "C" {
 
 	#define NP_SERIALISATION_USERDATA				"np.userdata"
 
+	#define NP_NONCE  "_np.nonce"
+	#define NP_ENCRYPTED  "_np.encrypted"
+	#define NP_SYMKEY  "_np.symkey"
+
+
 #define NP_AAATOKEN_MAX_SIZE_EXTENSIONS (1024)
 
 

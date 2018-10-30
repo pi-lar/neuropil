@@ -188,7 +188,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 			// get public / local network interface id
 			char ng_host[255];			
 			bool has_host = true;
-			if (NULL == host && port != NULL) {		
+			if (NULL == host) {		
 				log_msg(LOG_INFO, "neuropil_init: resolve hostname");
 				if (np_get_local_ip(context, ng_host, 255) == false) {
 					if (0 != gethostname(ng_host, 255)) {
