@@ -738,7 +738,7 @@ example_user_context* parse_program_args(
 			if (port_pid < 1024) {
 				port_pid += 1024;
 			}
-			asprintf(*port, "%d", port_pid);
+			asprintf(port, "%d", port_pid);
 		}
 		/** \endcode */
 	}
