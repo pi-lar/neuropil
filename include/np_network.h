@@ -55,8 +55,8 @@ enum socket_type {
 
 typedef enum np_network_type_e {
 	np_network_type_none	= 0x00,
-	np_network_type_client	= 0x01,
-	np_network_type_server	= 0x02,
+	np_network_type_server	= 0x01,
+	np_network_type_client	= 0x02,
 } np_network_type_e;
 
 struct np_network_s
@@ -119,7 +119,7 @@ void _np_network_get_address (np_state_t* context, bool create_socket, struct ad
 NP_API_INTERN
 void _np_network_stop(np_network_t* ng, bool force);
 NP_API_INTERN
-void _np_network_start(np_network_t* ng);
+void _np_network_start(np_network_t* ng, bool force);
 NP_API_INTERN
 void _np_network_remap_network( np_key_t* new_target, np_key_t* old_target);
 

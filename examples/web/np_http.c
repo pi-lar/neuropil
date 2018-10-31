@@ -603,8 +603,8 @@ void _np_http_read_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev,
             // tcp disconnect
             log_debug_msg(LOG_HTTP | LOG_DEBUG, "received disconnect");
             close(client->client_fd);
-            ev_io_stop(EV_A_&client->client_watcher_in);
-            ev_io_stop(EV_A_&client->client_watcher_out);
+            ev_io_stop(EV_A_ &client->client_watcher_in);
+            ev_io_stop(EV_A_ &client->client_watcher_out);
             client->status = UNUSED;
             
         }
@@ -635,8 +635,7 @@ void _np_http_read_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev,
     }
 }
 
-void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev,
-NP_UNUSED int event_type) {
+void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int event_type) {
     np_state_t* context = ev_userdata(loop);
 	np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
     struct sockaddr_storage from;
@@ -705,7 +704,8 @@ NP_UNUSED int event_type) {
             current_flags |= O_NONBLOCK;
             fcntl(new_client->client_fd, F_SETFL, current_flags);
 
-            // _np_suspend_event_loop();
+            _np_event_suspend_loop_http(context);
+
             ev_io_init(&new_client->client_watcher_in, _np_http_read_callback,
                 new_client->client_fd, EV_READ);
             ev_io_init(&new_client->client_watcher_out, _np_http_write_callback,
@@ -716,7 +716,8 @@ NP_UNUSED int event_type) {
 
             ev_io_start(EV_A_&new_client->client_watcher_in);
             ev_io_start(EV_A_&new_client->client_watcher_out);
-            // _np_resume_event_loop();
+
+            _np_event_resume_loop_http(context);
         }
 
     } else {
@@ -740,7 +741,7 @@ bool np_http_init(np_state_t* context, char* domain) {
         np_new_obj(np_network_t, __local_http->network);
 
         _np_network_init(__local_http->network, true, TCP | IPv4, domain, port,-1, UNKNOWN_PROTO);
-        _np_network_enable(__local_http->network);
+        // _np_network_enable(__local_http->network);
     }
     if (NULL == __local_http->network || false == __local_http->network->initialized )
         return false;
@@ -790,7 +791,8 @@ void _np_http_destroy(np_state_t* context) {
     EV_P = _np_event_get_loop_http(context);
     _np_event_suspend_loop_http(context);
     ev_io_stop(EV_A_&__local_http->network->watcher);
-    sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
+
+	sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
     while(iter != NULL){
         np_http_client_t* client = iter->val;
         client->status = SHUTDOWN;
@@ -820,19 +822,19 @@ void _np_http_destroy(np_state_t* context) {
     }
 	sll_free(np_http_client_ptr, __local_http->clients);
 
+	_np_event_resume_loop_http(context);
+
     if (__local_http->user_hooks)
         np_tree_free( __local_http->user_hooks);
 
     free(__local_http->hooks);
 
 	__local_http->network->watcher.data = NULL;
-	_np_network_disable(__local_http->network);
+	// _np_network_disable(__local_http->network);
 	np_unref_obj(np_network_t, __local_http->network, ref_obj_creation);
 
- 
 	free(__local_http);
-	((example_user_context*)np_get_userdata(context))->local_http = __local_http = NULL;
-	_np_event_resume_loop_http(context);	
+	((example_user_context*) np_get_userdata(context))->local_http = __local_http = NULL;
 }
 
 void example_http_server_deinit(np_context* context) {

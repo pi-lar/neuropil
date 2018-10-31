@@ -140,8 +140,11 @@ int _np_threads_mutex_timedlock(NP_UNUSED np_state_t* context, np_mutex_t * mute
     int ret = -1;
 #if defined(NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK)
     {
-        struct timeval tv_sleep = dtotv(np_time_now() + timeout);
-        struct timespec waittime = { .tv_sec = tv_sleep.tv_sec,.tv_nsec = tv_sleep.tv_usec * 1000 };
+        double d_sleep = np_time_now() + timeout;
+        struct timespec waittime = {
+        		.tv_sec = (long) d_sleep,
+			.tv_nsec = (long) (d_sleep - (long) d_sleep) * 1000000000
+        };
 
         ret = pthread_mutex_timedlock(&mutex->lock, &waittime);
     }
@@ -155,7 +158,7 @@ int _np_threads_mutex_timedlock(NP_UNUSED np_state_t* context, np_mutex_t * mute
             {
                 struct timespec ts;
                 ts.tv_sec = 0;
-                ts.tv_nsec= 20/*ms*/ * 1000000; // to nanoseconds
+                ts.tv_nsec= 20 /* ms */ * 1000000000; // to nanoseconds
 
                 int status = -1;
                 while (status == -1)
@@ -552,7 +555,7 @@ void _np_thread_t_new(NP_UNUSED np_state_t * context, NP_UNUSED uint8_t type, NP
 
     _np_threads_mutex_init(context, &thread->job_lock, "job_lock");
     thread->run_fn = NULL;
-    thread->job = NULL;
+    // thread->job = { 0 };
     thread->thread_type = np_thread_type_other;
 
 #ifdef NP_THREADS_CHECK_THREADING
@@ -616,12 +619,16 @@ void _np_thread_run(np_thread_t * thread) {
 }
 
 np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, void *(fn)(void *), bool auto_run, enum np_thread_type_e type) {
-    np_thread_t * new_thread;
+
+	np_thread_t * new_thread;
     np_new_obj(np_thread_t, new_thread);
+
     new_thread->idx = number;
     new_thread->run_fn = fn;
     new_thread->thread_type = type;
 	new_thread->thread_id = malloc(sizeof(pthread_t));
+	new_thread->busy = false;
+
 	CHECK_MALLOC(new_thread->thread_id);
 
 	//TSP_SCOPE(np_module(threads)->threads) cannot be used due to recusion
@@ -709,21 +716,21 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
         }
 
-        if (pool_size > worker_threads) {
+        if (pool_size >= worker_threads) {
             pool_size--;
             special_thread = __np_createThread(context, pool_size, _np_event_out_run, true, np_thread_type_other);
         } else {
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
         }
 
-        if (pool_size > worker_threads) {
+        if (pool_size >= worker_threads) {
             pool_size--;
             special_thread = __np_createThread(context, pool_size, _np_event_io_run, true, np_thread_type_other);
         } else {
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
         }
 
-        if (pool_size > worker_threads) {
+        if (pool_size >= worker_threads) {
             pool_size--;
             special_thread = __np_createThread(context, pool_size, _np_event_http_run, true, np_thread_type_other);
         } else {
@@ -751,7 +758,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         // TODO: re-enable _np_renew_node_token_jobexec
         // np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_RENEW_NODE_SEC,					_np_renew_node_token_jobexec, "_np_renew_node_token_jobexec");
 
-        if (pool_size > worker_threads) {
+        if (pool_size >= worker_threads) {
             // a bunch of threads plus a coordinator
             pool_size--;
             __np_createWorkerPool(context, pool_size-1);
@@ -769,8 +776,5 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
     log_msg(LOG_INFO, "%s", NEUROPIL_RELEASE);
     log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
     log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
-
-    _np_network_start(context->my_node_key->network);
-
 }
 

@@ -18,15 +18,15 @@
 #include "pthread.h"
 
 #include "np_log.h"
-#include "np_legacy.h"
-
-#include "np_list.h"
-#include "np_memory.h"
 
 #include "np_event.h"
-//#include "np_types.h"
-#include "np_settings.h"
 #include "np_jobqueue.h"
+#include "np_legacy.h"
+#include "np_list.h"
+#include "np_memory.h"
+#include "np_settings.h"
+#include "np_util.h"
+
 
 typedef struct np_log_s
 {
@@ -37,7 +37,7 @@ typedef struct np_log_s
 	// FILE *fp;
 	uint32_t level;
 	np_sll_t(char_ptr, logentries_l);
-	ev_io watcher;
+	ev_periodic watcher;
 	uint32_t log_size;
 	uint32_t log_count;
 	bool log_rotate;
@@ -70,79 +70,86 @@ log_str_t __level_str[] = {
 
 np_module_struct(log) {
 	np_state_t* context;
-	np_log_t* __logger;
-	pthread_mutex_t __log_mutex;
+	np_log_t*   __logger;
+	pthread_mutex_t     __log_mutex;
 	pthread_mutexattr_t __log_mutex_attr;
 };
 
+void _np_log_evflush(struct ev_loop* loop, NP_UNUSED ev_periodic* ev, int event_type) {
+    if ( FLAG_CMP(event_type, EV_WRITE) ) {
+    		_np_log_fflush((np_context*) ev_userdata(loop), false);
+    }
+}
 
 void log_rotation(np_state_t* context)
 {
-	
 	pthread_mutex_lock(&np_module(log)->__log_mutex);
-	 if(np_module(log)->__logger->log_size >= LOG_ROTATE_AFTER_BYTES)
-	{
-		 np_module(log)->__logger->log_size = 0;
-		 np_module(log)->__logger->log_count += 1;
 
-		 int log_id = (np_module(log)->__logger->log_count % LOG_ROTATE_COUNT) ;
-		if(log_id==0){
-			log_id = LOG_ROTATE_COUNT;
-		}
+	np_module(log)->__logger->log_size = 0;
+	np_module(log)->__logger->log_count += 1;
 
-		 char* old_filename = strdup(np_module(log)->__logger->filename);
+	int log_id = (np_module(log)->__logger->log_count % LOG_ROTATE_COUNT) ;
+	if(log_id == 0) {
+		log_id = LOG_ROTATE_COUNT;
+	}
 
-		// create new filename
-		 if(np_module(log)->__logger->log_rotate){
-			 snprintf (np_module(log)->__logger->filename, 255, "%s_%d%s", np_module(log)->__logger->original_filename, log_id, np_module(log)->__logger->filename_ext );
-		}else{
-			 snprintf (np_module(log)->__logger->filename, 255, "%s%s", np_module(log)->__logger->original_filename, np_module(log)->__logger->filename_ext );
-		}
+	char* old_filename = strdup(np_module(log)->__logger->filename);
 
+	// create new filename
+	if(np_module(log)->__logger->log_rotate){
+		 snprintf (np_module(log)->__logger->filename, 255, "%s_%d%s", np_module(log)->__logger->original_filename, log_id, np_module(log)->__logger->filename_ext );
+	} else {
+		 snprintf (np_module(log)->__logger->filename, 255, "%s%s", np_module(log)->__logger->original_filename, np_module(log)->__logger->filename_ext );
+	}
 
-		// Closing old file
-		 if(np_module(log)->__logger->log_count > 1) {
-			 log_msg(LOG_INFO, "Continuing log in file %s now.", np_module(log)->__logger->filename);
-			_np_log_fflush(context, true);
-			 if(close(np_module(log)->__logger->fp) != 0) {
+	// Closing old file
+	if(np_module(log)->__logger->log_count > 1) {
+		log_msg(LOG_INFO, "Continuing log in file %s now.", np_module(log)->__logger->filename);
+		_np_log_fflush(context, true);
+		if(close(np_module(log)->__logger->fp) != 0) {
 			fprintf(stderr,"Could not close old logfile %s. Error: %s (%d)", old_filename, strerror(errno), errno);
 			fflush(NULL);
-			}
 		}
+	}
 
-		// setting up new file
-		 if(np_module(log)->__logger->log_rotate){
-			 unlink(np_module(log)->__logger->filename);
-		}
-		 np_module(log)->__logger->fp = open(np_module(log)->__logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
+	// setting up new file
+	if(np_module(log)->__logger->log_rotate){
+		unlink(np_module(log)->__logger->filename);
+	}
+	np_module(log)->__logger->fp = open(np_module(log)->__logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
 
-		 if(np_module(log)->__logger->fp < 0) {
-			fprintf(stderr,"Could not create logfile at %s. Error: %s (%d)", np_module(log)->__logger->filename, strerror(errno), errno);
+	if(np_module(log)->__logger->fp < 0) {
+		fprintf(stderr,"Could not create logfile at %s. Error: %s (%d)", np_module(log)->__logger->filename, strerror(errno), errno);
 		fprintf(stderr, "Log will no longer continue");
 		fflush(NULL);
-
 		// discontinue new log msgs
-			free(np_module(log)->__logger);
-			np_module(log)->__logger = NULL;
-		}
-		else
-		{
-			/*
-			EV_P = _np_event_get_loop_io();
-			ev_io_stop(EV_A_ &logger->watcher);
-			ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
-			ev_io_start(EV_A_ &logger->watcher);
-			*/
-		}
-
-		 if (np_module(log)->__logger->log_count > LOG_ROTATE_COUNT) {
-			 log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, np_module(log)->__logger->log_count / LOG_ROTATE_COUNT);
-		}
-
-		_np_log_fflush(context, true);
-		free(old_filename);
+		free(np_module(log)->__logger);
+		np_module(log)->__logger = NULL;
 	}
+	else
+	{
+		EV_P = _np_event_get_loop_io(context);
+		ev_periodic_stop(EV_A_ &np_module(log)->__logger->watcher);
+		ev_periodic_init (&np_module(log)->__logger->watcher, _np_log_evflush, 0., NP_PI/200, NULL);
+		// ev_io_init(&np_module(log)->__logger->watcher, _np_log_evflush, np_module(log)->__logger->fp, EV_WRITE);
+		ev_set_userdata(EV_A_ context);
+		ev_periodic_start(EV_A_ &np_module(log)->__logger->watcher);
+	}
+
+	if (np_module(log)->__logger->log_count > LOG_ROTATE_COUNT) {
+		log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, np_module(log)->__logger->log_count / LOG_ROTATE_COUNT);
+	}
+
+	_np_log_fflush(context, true);
+	free(old_filename);
 	pthread_mutex_unlock(&np_module(log)->__log_mutex);	
+}
+
+void _np_log_rotate(np_state_t* context, bool force)
+{
+	if(np_module(log)->__logger->log_size >= LOG_ROTATE_AFTER_BYTES || force == true) {
+		log_rotation(context);
+	}
 }
 
 void np_log_message(np_state_t* context, uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
@@ -151,7 +158,7 @@ void np_log_message(np_state_t* context, uint32_t level, const char* srcFile, co
 		return;
 	}
 	// include msg if log level is included into selected levels
-	// and if the msg has acategory and is included into selected categories
+	// and if the msg has a category and is included into selected categories
 	// or if no category is provided for msg or the log level contains the LOG_GLOBAL flag
 	if ((level & LOG_LEVEL_MASK & np_module(log)->__logger->level) > LOG_NONE &&
 		(
@@ -197,14 +204,12 @@ void np_log_message(np_state_t* context, uint32_t level, const char* srcFile, co
 #endif
 
 		if (0 == pthread_mutex_lock(&np_module(log)->__log_mutex))
-		{			
+		{
 			sll_append(char_ptr, np_module(log)->__logger->logentries_l, new_log_entry);
-
 			pthread_mutex_unlock(&np_module(log)->__log_mutex);
 		}
 
 		// instant writeout
-
 		if ((level & LOG_ERROR) == LOG_ERROR) {
 			_np_log_fflush(context, true);
 		}
@@ -277,9 +282,9 @@ void _np_log_fflush(np_state_t* context, bool force)
 			}	
 
 			if(np_module(log)->__logger->log_rotate == true)
-				log_rotation(context);
+				_np_log_rotate(context, false);
 
-			if( bytes_witten  == strlen(entry))
+			if(bytes_witten  == strlen(entry))
 			{
 				free(entry);
 				entry = NULL;
@@ -340,10 +345,8 @@ void _np_log_init(np_state_t* context, const char* filename, uint32_t level)
 		free(parsed_filename);
 
 		sll_init(char_ptr, _module->__logger->logentries_l);
-		log_rotation(context);
-
+		// log_rotation(context);
 		
-
 		log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", _module->__logger, _module->__logger->filename, _module->__logger->level);
 	}
 }
@@ -354,7 +357,7 @@ void np_log_destroy(np_state_t* context)
 	np_module(log)->__logger->level=LOG_NONE;
 
 	EV_P = _np_event_get_loop_io(context);
-	ev_io_stop(EV_A_ &np_module(log)->__logger->watcher);
+	ev_periodic_stop(EV_A_ &np_module(log)->__logger->watcher);
 
 	_np_log_fflush(context, true);
 

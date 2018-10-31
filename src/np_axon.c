@@ -503,7 +503,7 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
                     }
                     if (!network_error) {
                         // construct target address and send it out
-                        //np_node_t* hs_node = args->target->node;
+                        // np_node_t* hs_node = args->target->node;
 
                         /* send data if handshake status is still just initialized or less */
                         log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG,
@@ -523,7 +523,7 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t* args)
                                     void_ptr,
                                     args->target->network->out_events,
                                     (void*)packet);
-                                _np_network_start(args->target->network);
+                                _np_network_start(args->target->network, true);
                             }
                             else {
                                 log_debug_msg(LOG_INFO, "Dropping data package due to not initialized out_events");
