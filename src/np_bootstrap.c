@@ -112,6 +112,7 @@ void _np_bootstrap_confirm(np_state_t* context, np_key_t* confirmed) {
 			__np_bootstrap_confirm(context, confirmed, connectionstr, ele->val.value.v);
 		}
 		else {
+			free(connectionstr);
 			char * wildcard_connectionstr = np_get_connection_string_from(confirmed, false);
 			asprintf(&connectionstr, "*:%s", wildcard_connectionstr);
 			free(wildcard_connectionstr);

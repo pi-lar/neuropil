@@ -94,7 +94,8 @@ np_context* np_new_context(struct np_settings * settings_in) {
 		if (sodium_init() == -1) {
 			log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
 			status = np_startup;
-		}else if (_np_threads_init(context) == false) {
+		}
+		else if (_np_threads_init(context) == false) {
 			log_msg(LOG_ERROR, "neuropil_init: could not init threding mutexes");
 			status = np_startup;
 		}
@@ -138,8 +139,8 @@ np_context* np_new_context(struct np_settings * settings_in) {
 
 			context->enable_realm_client = false;
 			context->enable_realm_server = false;
-		 
 
+			_np_log_rotate(context, true);
 		}
 	}
 	TSP_INITD(context->status, np_uninitialized);
@@ -188,7 +189,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 			// get public / local network interface id
 			char ng_host[255];			
 			bool has_host = true;
-			if (NULL == host) {		
+			if (NULL == host && port != 0) {
 				log_msg(LOG_INFO, "neuropil_init: resolve hostname");
 				if (np_get_local_ip(context, ng_host, 255) == false) {
 					if (0 != gethostname(ng_host, 255)) {
@@ -253,8 +254,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 					}					
 					// initialize message handling system
 					else {
-						context->msg_tokens = np_tree_create();
-
+						context->msg_tokens     = np_tree_create();
 						context->msg_part_cache = np_tree_create();
 
 						_np_shutdown_init_auto_notify_others(context);
@@ -263,6 +263,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 						if(has_host) _np_network_enable(my_network);
 
 						np_threads_start_workers(context, context->settings->n_threads);
+						_np_network_start(context->my_node_key->network, true);
 
 						log_msg(LOG_INFO, "neuropil successfully initialized: id:   %s", _np_key_as_str(context->my_identity));
 						log_msg(LOG_INFO, "neuropil successfully initialized: node: %s", _np_key_as_str(context->my_node_key));

@@ -5,6 +5,7 @@
 
 #include "web/np_http.h"
 #include "np_threads.h"
+#include "ncurses.h"
 
 #ifndef _NP_EXAMPLE_HELPER_H_
 #define _NP_EXAMPLE_HELPER_H_
