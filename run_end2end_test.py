@@ -14,7 +14,7 @@ import argparse
 parser = argparse.ArgumentParser(description='Start some neuropil nodes in screen sessions.')
 parser.add_argument('--bootstrapper', nargs='?', default="80e4e9b9f6986ffb5175f6813456da0175b4b67ff41dc419430182fec4fe70aa:tcp6:demo.neuropil.io:3141", help='Bootstrap connection string')
 parser.add_argument('-b', '--branch', nargs='?', default="develop", help='Branch to test')
-parser.add_argument('-du', '--default_user', nargs='?', default="simonklampt", help='Default user to use to start nodes on remote machines')
+parser.add_argument('-du', '--default_user', nargs='?', default="localadmin", help='Default user to use to start nodes on remote machines')
 
 
 
