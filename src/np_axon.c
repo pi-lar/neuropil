@@ -158,7 +158,7 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
     }
     np_key_t* target = args->target;
     if (target->type == np_key_type_wildcard && target->parent_key != NULL) {
-        log_msg(LOG_ROUTING,
+        log_debug_msg(LOG_ROUTING,
             "reroute wildcard msg (%s) from %s to %s",
             args->msg->uuid,
             _np_key_as_str(target),

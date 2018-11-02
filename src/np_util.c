@@ -494,6 +494,7 @@ sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int32_t amount) 
 _np_util_debug_statistics_t* __np_util_debug_statistics_get(np_state_t * context, char* key) {
 	_np_util_debug_statistics_t* ret = NULL;
 	_LOCK_MODULE(np_utilstatistics_t) {
+		assert(np_module(statistics)->__np_debug_statistics != NULL);
 		sll_iterator(void_ptr) iter = sll_first(np_module(statistics)->__np_debug_statistics);
 
 		while (iter != NULL) {

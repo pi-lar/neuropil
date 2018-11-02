@@ -112,7 +112,7 @@ NP_API_INTERN
 	void _np_jobqueue_add_worker_thread(np_thread_t* self);
 
 NP_API_INTERN
-	void _np_jobqueue_idle(np_state_t* context, NP_UNUSED np_jobargs_t* arg);
+	void _np_jobqueue_idle(NP_UNUSED np_state_t* context, NP_UNUSED np_jobargs_t* arg);
 
 NP_API_EXPORT
 	uint32_t np_jobqueue_count(np_state_t* context);

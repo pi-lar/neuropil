@@ -156,15 +156,15 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 		_np_message_create(write_msg, write_to->dhkey, write_from->dhkey, "serialize_np_message_t", write_tree);
 		np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
-		np_jobargs_t* write_args = _np_job_create_args(context, write_msg, NULL, NULL, "tst");
-		cr_assert(NULL != write_args, "Expected to receive jobargs");
+		np_jobargs_t write_args = _np_job_create_args(context, write_msg, NULL, NULL, "tst");
+		
 
 		// Do the serialsation
 		_np_message_calculate_chunking(write_msg);
-		bool write_ret = _np_message_serialize_chunked(write_args->msg);
+		bool write_ret = _np_message_serialize_chunked(write_args.msg);
 		cr_assert(true == write_ret, "Expected positive result in chunk serialisation");
 
-		write_ret = _np_message_serialize_header_and_instructions(context, write_args);
+		write_ret = _np_message_serialize_header_and_instructions(context, &write_args);
 		cr_assert(true == write_ret, "Expected positive result in serialisation");
 
 		cr_expect(pll_size(write_msg->msg_chunks) == 1, "Expected 1 chunk for message");
