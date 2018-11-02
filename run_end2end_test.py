@@ -35,9 +35,9 @@ bootstrap_string   = args.bootstrapper
 bootstrap_string_w = "*" + bootstrap_string[64:]
 
 options_progs = [    
-      ("node ", "node"),
-      ("hydra", "hydra -n 1"),
-      ("cloud", "cloud "),
+      ("node ", "node  -d -3 "),
+      ("hydra", "hydra -d -3 -n 1 "),
+      ("cloud", "cloud -d -3 "),
     ]
 options_threads = [
       ("singlethreaded", "-t 0"),
