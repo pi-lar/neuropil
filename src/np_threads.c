@@ -141,11 +141,10 @@ int _np_threads_mutex_timedlock(NP_UNUSED np_state_t* context, np_mutex_t * mute
 #if defined(NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK)
     {
         double d_sleep = np_time_now() + timeout;
-        struct timespec waittime = {
-        		.tv_sec = (long) d_sleep,
-			.tv_nsec = (long) (d_sleep - (long) d_sleep) * 1000000000
-        };
-
+		d_sleep += 0.5e-9;
+        struct timespec waittime = {0};
+        waittime.tv_sec  = (long) d_sleep;
+		waittime.tv_nsec = (d_sleep - waittime.tv_sec) * 1000000000L;
         ret = pthread_mutex_timedlock(&mutex->lock, &waittime);
     }
 #else
@@ -156,9 +155,9 @@ int _np_threads_mutex_timedlock(NP_UNUSED np_state_t* context, np_mutex_t * mute
             ret = pthread_mutex_trylock(&mutex->lock);
             if (ret == EBUSY)
             {
-                struct timespec ts;
+                struct timespec ts = {0};
                 ts.tv_sec = 0;
-                ts.tv_nsec= 20 /* ms */ * 1000000000; // to nanoseconds
+                ts.tv_nsec= 20 /* ms */ * 1000000000L; // to nanoseconds
 
                 int status = -1;
                 while (status == -1)
@@ -730,12 +729,12 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
         }
 
-        if (pool_size >= worker_threads) {
-            pool_size--;
-            special_thread = __np_createThread(context, pool_size, _np_event_http_run, true, np_thread_type_other);
-        } else {
-            np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_5, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
-        }
+        // if (pool_size >= worker_threads) {
+        // pool_size--;
+        // special_thread = __np_createThread(context, pool_size, _np_event_http_run, true, np_thread_type_other);
+        // } else {
+        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
+        // }
 
 		np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, NP_LOG_FLUSH_INTERVAL, NP_LOG_FLUSH_INTERVAL, _np_glia_log_flush, "_np_glia_log_flush");
 
