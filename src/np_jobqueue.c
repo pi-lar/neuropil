@@ -170,7 +170,7 @@ bool _np_job_queue_insert(np_state_t* context, np_job_t new_job)
 	log_trace_msg(LOG_TRACE, "start: void _np_job_queue_insert(double delay, np_job_t* new_job){");
 	bool ret = false;
 
-	log_debug_msg(LOG_JOBS | LOG_DEBUG, "insert job into jobqueue (%p | %-70s). (property: %45s) (msg: %-36s) (target: %s)", new_job, new_job.ident,
+	log_debug_msg(LOG_JOBS | LOG_DEBUG, "insert job into jobqueue (%-70s). (property: %45s) (msg: %-36s) (target: %s)", new_job.ident,
 		(new_job.args.properties == NULL) ? "-" : new_job.args.properties->msg_subject,
 		(new_job.args.msg == NULL) ? "-" : new_job.args.msg->uuid,
 		(new_job.args.target == NULL) ? "-" :
