@@ -2082,7 +2082,9 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
 {
     log_trace_msg(LOG_TRACE, "start: void _np_in_handshake(np_jobargs_t* args){");
 
+    log_debug_msg(LOG_HANDSHAKE | LOG_VERBOSE, "logpoint 1");
     _LOCK_MODULE(np_handshake_t) {
+        log_debug_msg(LOG_HANDSHAKE | LOG_VERBOSE, "logpoint 2");
         np_node_t* tokens_node = NULL; 
         np_key_t* msg_source_key = NULL;
         np_key_t* hs_wildcard_key = NULL;
@@ -2212,8 +2214,11 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
             np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str);
             free(tmp_connection_str);
 
+            log_debug_msg(LOG_HANDSHAKE | LOG_VERBOSE, "logpoint 3");
             _LOCK_MODULE(np_network_t)
             {
+                log_debug_msg(LOG_HANDSHAKE | LOG_VERBOSE, "logpoint 4");
+
                 hs_wildcard_key = _np_keycache_find(context, wildcard_dhkey);
                 if (NULL != hs_wildcard_key && NULL != hs_wildcard_key->network &&
                     (hs_wildcard_key->node == NULL || !hs_wildcard_key->node->joined_network/*Already joined key is ignored*/)
@@ -2222,8 +2227,10 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
                     np_network_t* old_network = hs_wildcard_key->network;
                     np_ref_obj(np_network_t, old_network, "usage_of_old_network");
 
+                    log_debug_msg(LOG_HANDSHAKE | LOG_VERBOSE, "logpoint 5");
                     _LOCK_ACCESS(&old_network->access_lock)
                     {
+                        log_debug_msg(LOG_HANDSHAKE | LOG_VERBOSE, "logpoint 6");
                         // _np_network_stop(old_network);
                         // Updating handshake key with already existing network
                         // structure of the wildcard key
@@ -2251,9 +2258,14 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
             }
         }
         bool process_handshake = true;
+        log_debug_msg(LOG_HANDSHAKE | LOG_VERBOSE, "logpoint 7");
+
         _LOCK_ACCESS(&msg_source_key->node->lock) {
+            log_debug_msg(LOG_HANDSHAKE | LOG_VERBOSE, "logpoint 8");
             _LOCK_MODULE(np_network_t)
             {
+                log_debug_msg(LOG_HANDSHAKE | LOG_VERBOSE, "logpoint 9");
+
                 if (NULL == msg_source_key->network)//|| (msg_source_key->network->last_received_date + 30) < np_time_now())
                 {
                     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "handshake: init alias (%s) network", _np_key_as_str(alias_key));
@@ -2410,5 +2422,5 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
         np_unref_obj(np_aaatoken_t, handshake_token, "np_token_factory_read_from_tree");
         np_unref_obj(np_key_t, msg_source_key, "_np_keycache_find_or_create");
     }
-    return;
+    
 }

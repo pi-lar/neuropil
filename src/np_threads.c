@@ -720,21 +720,21 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
         }
 
-        if (pool_size >= worker_threads) {
+        if (pool_size > worker_threads) {
             pool_size--;
             special_thread = __np_createThread(context, pool_size, _np_event_out_run, true, np_thread_type_other);
         } else {
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
         }
 
-        if (pool_size >= worker_threads) {
+        if (pool_size > worker_threads) {
             pool_size--;
             special_thread = __np_createThread(context, pool_size, _np_event_io_run, true, np_thread_type_other);
         } else {
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_io, "_np_events_read_io");
         }
 
-        // if (pool_size >= worker_threads) {
+        // if (pool_size > worker_threads) {
         // pool_size--;
         // special_thread = __np_createThread(context, pool_size, _np_event_http_run, true, np_thread_type_other);
         // } else {
@@ -762,7 +762,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         // TODO: re-enable _np_renew_node_token_jobexec
         // np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_RENEW_NODE_SEC,					_np_renew_node_token_jobexec, "_np_renew_node_token_jobexec");
 
-        if (pool_size >= worker_threads) {
+        if ((pool_size-1) > worker_threads) {
             // a bunch of threads plus a coordinator
             pool_size--;
             __np_createWorkerPool(context, pool_size-1);

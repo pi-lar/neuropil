@@ -61,6 +61,7 @@ typedef struct example_user_context {
 
     bool __np_ncurse_initiated;	
 
+    float input_intervall_sec;
     float output_intervall_sec;
     WINDOW * __np_top_left_win;
     WINDOW * __np_top_right_win;

@@ -84,6 +84,7 @@ example_user_context* example_new_usercontext() {
 
     user_context->__np_ncurse_initiated = false;
 
+    user_context->input_intervall_sec = 0.10;
     user_context->output_intervall_sec = 0.50;
     user_context->__np_top_left_win = NULL;
     user_context->__np_top_right_win= NULL;
@@ -689,7 +690,7 @@ example_user_context* parse_program_args(
         va_end(args);
 
         uint32_t log_categories = 0
-            | LOG_VERBOSE
+            //| LOG_VERBOSE
             //| LOG_TRACE
             //| LOG_MUTEX
             | LOG_ROUTING
@@ -1268,23 +1269,23 @@ void __np_example_helper_loop(np_state_t* context) {
 
 void __np_example_helper_run_loop(np_context*context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
-    double sleep = ud->output_intervall_sec;
+    double sleep = ud->input_intervall_sec;
     while (true)
     {
         if(((np_state_t*)context)->settings->n_threads == 0)
-            sleep = fmin(ud->output_intervall_sec, np_run(context,0));
+            sleep = fmin(ud->input_intervall_sec, np_run(context,0));
         np_time_sleep(sleep);
     }
 }
 
 void __np_example_helper_run_info_loop(np_context*context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
-    double sleep = ud->output_intervall_sec;
+    double sleep = ud->input_intervall_sec;
     while (true)
     {
         __np_example_helper_loop(context);
         if (((np_state_t*)context)->settings->n_threads == 0)
-            sleep = fmin(ud->output_intervall_sec, np_run(context,0));
+            sleep = fmin(ud->input_intervall_sec, np_run(context,0));
         np_time_sleep(sleep);
     }
 }

@@ -432,8 +432,6 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t args)
     NP_PERFORMANCE_POINT_START(handshake_out_lock);
     _LOCK_MODULE(np_handshake_t)
     {
-        NP_PERFORMANCE_POINT_START(handshake_test_1);
-
         NP_PERFORMANCE_POINT_END(handshake_out_lock);
         if (_np_node_check_address_validity(args.target->node))
         {
@@ -464,14 +462,12 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t args)
             _np_message_calculate_chunking(hs_message);
 
             bool serialize_ok = _np_message_serialize_chunked(hs_message);
-            NP_PERFORMANCE_POINT_END(handshake_test_1);
 
             if (hs_message->no_of_chunks != 1) {
                 log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
                 np_unref_obj(np_message_t, hs_message, ref_obj_creation);                
             }
             else {
-                NP_PERFORMANCE_POINT_START(handshake_test_2);
                 if (true == serialize_ok)
                 {
                     bool network_error = false;
@@ -548,7 +544,6 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t args)
                     }
                 }
                 np_unref_obj(np_message_t, hs_message, ref_obj_creation);
-                NP_PERFORMANCE_POINT_END(handshake_test_2);
             }
         }
     }

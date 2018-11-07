@@ -326,8 +326,6 @@ void _np_send_ack(const np_message_t* const in_msg);
 
 NP_API_PROTEC
 double np_time_now();
-NP_API_INTERN
-double np_time_update_cache_now();
 
 NP_API_PROTEC
 double np_time_sleep(double sleeptime);

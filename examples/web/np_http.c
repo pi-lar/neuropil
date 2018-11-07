@@ -811,10 +811,6 @@ void _np_http_destroy(np_state_t* context) {
             np_tree_free( client->ht_request.ht_header);
         if (client->ht_request.ht_query_args)
             np_tree_free( client->ht_request.ht_query_args);
-        if (client->ht_response.ht_header)
-            np_tree_free( client->ht_response.ht_header);
-        if (client->ht_response.ht_body)
-            free(client->ht_response.ht_body);
 
         free(client->parser);
         free(client);
