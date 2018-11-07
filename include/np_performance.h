@@ -27,6 +27,33 @@ extern "C" {
         np_statistics_performance_point_memory_management,
         np_statistics_performance_point_msg_discovery_out,
         np_statistics_performance_point_jobs_management_select,
+
+        np_statistics_performance_point_network_start_access_lock,
+        np_statistics_performance_point_network_start_out_events_lock,
+        
+        np_statistics_performance_point_message_serialize_chunked,
+
+        np_statistics_performance_point_tokenfactory_new_handshake,
+
+        np_statistics_performance_point_event_resume_io,
+        np_statistics_performance_point_event_resume_in,
+        np_statistics_performance_point_event_resume_out,
+        np_statistics_performance_point_event_resume_http,
+        np_statistics_performance_point_event_suspend_io,
+        np_statistics_performance_point_event_suspend_in,
+        np_statistics_performance_point_event_suspend_out,
+        np_statistics_performance_point_event_suspend_http,
+
+        np_statistics_performance_point_jobqueue_insert,
+
+        np_statistics_performance_point_handshake_out,
+        np_statistics_performance_point_handshake_test_1,
+        np_statistics_performance_point_handshake_test_2,
+        np_statistics_performance_point_handshake_out_lock,
+        np_statistics_performance_point_handshake_out_network,
+        np_statistics_performance_point_handshake_out_msg_chunks_lock,
+        np_statistics_performance_point_handshake_out_events_lock,
+
         np_statistics_performance_point_END
     };
 
@@ -74,10 +101,10 @@ extern "C" {
         _LOCK_ACCESS(&container->access) {																						\
             container->hit_count++;																								\
         }																														\
-        t1_##NAME = (double)clock()/CLOCKS_PER_SEC;																				\
+        t1_##NAME = np_time_update_cache_now(); /*(double)clock()/CLOCKS_PER_SEC;*/																				\
     }
 #define NP_PERFORMANCE_POINT_END(NAME) {																						\
-        double t2 = (double)clock()/CLOCKS_PER_SEC;																				\
+        double t2 = np_time_update_cache_now(); /*(double)clock()/CLOCKS_PER_SEC;*/																				\
         np_statistics_performance_point_t* container = np_module(statistics)->performance_points[np_statistics_performance_point_##NAME];			\
         _LOCK_ACCESS(&container->access) {																						\
             container->durations[container->durations_idx] = t2 - t1_##NAME;													\
@@ -120,8 +147,6 @@ extern "C" {
 #else																														
 #define NP_PERFORMANCE_POINT_START(name)
 #define NP_PERFORMANCE_POINT_END(name)
-#define NP_PERFORMANCE_POINT_START_DYN(name, ident)
-#define NP_PERFORMANCE_POINT_END_DYN(name)
 #define NP_PERFORMANCE_GET_POINTS_STR(STR)												\
     char* STR = NULL;	
 #define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)		\

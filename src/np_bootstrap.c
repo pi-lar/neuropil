@@ -38,7 +38,7 @@ void __np_bootstrap_on_timeout(const np_responsecontainer_t* const entry) {
     free(reconnect);
 }
 
-void __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED np_jobargs_t* args) {
+void __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
     TSP_SCOPE(np_module(bootstrap)->bootstrap_points) {
         np_tree_elem_t* iter = RB_MIN(np_tree_s, np_module(bootstrap)->bootstrap_points);
         while (iter != NULL) {

@@ -804,10 +804,10 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 }
     
 
-void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args) {
+void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
     log_debug_msg(LOG_DEBUG , "_np_network_handle_incomming_data");
 
-    struct __np_network_data * data_container = args->custom_data;
+    struct __np_network_data * data_container = args.custom_data;
     np_network_t* ng = data_container->key->network;
     // deal with both IPv4 and IPv6:
     {
@@ -890,8 +890,7 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t* args) 
     free(data_container);
 }
 
-void _np_network_stop(np_network_t* network, bool force) {		
-
+void _np_network_stop(np_network_t* network, bool force) {		    
     assert(NULL != network);
 
     np_ctx_memory(network);
@@ -980,8 +979,12 @@ void _np_network_start(np_network_t* network, bool force){
     np_ref_obj(np_network_t, network, FUNC);
     TSP_GET(bool, network->can_be_enabled, can_be_enabled);
     if (can_be_enabled) {
+        NP_PERFORMANCE_POINT_START(network_start_out_events_lock);
         _LOCK_ACCESS(&network->out_events_lock) {
+            NP_PERFORMANCE_POINT_END(network_start_out_events_lock);
+            NP_PERFORMANCE_POINT_START(network_start_access_lock);
             _LOCK_ACCESS(&network->access_lock) {
+                NP_PERFORMANCE_POINT_END(network_start_access_lock);
 
                 EV_P;
                 if (network->is_running == false)

@@ -79,12 +79,12 @@ typedef void(*np_responsecontainer_on_t) (const np_responsecontainer_t* const en
 typedef void(*np_message_on_reply_t) (const np_responsecontainer_t* const entry, const np_message_t* const reply_msg);
 
 // internal callback functions
-typedef void (*np_callback_t) (np_state_t* context, np_jobargs_t*);
+typedef void (*np_callback_t) (np_state_t* context, np_jobargs_t);
 typedef int(*_np_cmp_t)(void* a, void* b);
 
 typedef struct np_usercallback_s {
-	void * data;
-	np_usercallbackfunction_t fn;
+    void * data;
+    np_usercallbackfunction_t fn;
 } np_usercallback_t;
 
 typedef np_usercallback_t * np_usercallback_ptr;

@@ -82,9 +82,10 @@ if strict:
 # add libev flags to the compilation
 default_env.Append(CCFLAGS = ['-DEV_STANDALONE'])
 # env.Append(CCFLAGS = ['-DEV_PERIODIC_ENABLE'])
-default_env.Append(CCFLAGS = ['-DHAVE_SELECT'])
-default_env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
-default_env.Append(CCFLAGS = ['-DHAVE_POLL'])
+#default_env.Append(CCFLAGS = ['-DEV_USE_SELECT=1'])
+#default_env.Append(CCFLAGS = ['-DHAVE_SELECT'])
+#default_env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
+#default_env.Append(CCFLAGS = ['-DHAVE_POLL'])
 default_env.Append(CCFLAGS = ['-DEV_COMPAT3=0'])
 default_env.Append(CCFLAGS = ['-DEV_USE_FLOOR=1'])
 # env.Append(CCFLAGS = ['-DEV_USE_REALTIME=0'])

@@ -41,11 +41,11 @@ It should contain all required functions to send or receive messages.
 extern "C" {
 #endif
 #define np_ctx_by_memory(c)				\
-		np_memory_get_context((void*)c)
+        np_memory_get_context((void*)c)
 #define np_ctx_decl(b)				\
-		np_state_t* context = (b)
+        np_state_t* context = (b)
 #define np_ctx_memory(a)				\
-		np_ctx_decl(np_ctx_by_memory(a));
+        np_ctx_decl(np_ctx_by_memory(a));
 
 
 #define NP_CTX_MODULES route, memory, threads, events, statistics, msgproperties, keycache, sysinfo, log, jobqueue, shutdown, bootstrap
@@ -62,16 +62,16 @@ extern "C" {
 #define np_module_member(m) np_module_type(m) * np_module_member_name(m);
 
 #define np_module_malloc(m) 														\
-		np_module_struct(m) * _module = calloc(1, sizeof(np_module_struct(m)));		\
-		_module->context = context;													\
-		context->np_module_member_name(m) = _module
+        np_module_struct(m) * _module = calloc(1, sizeof(np_module_struct(m)));		\
+        _module->context = context;													\
+        context->np_module_member_name(m) = _module
 
 #define np_module(m) (context->np_module_member_name(m))
 #define np_module_initiated(m) (context->np_module_member_name(m) != NULL)
 
 #define np_ctx_cast(ac)				\
-	assert(ac != NULL);				\
-	np_state_t* context = ac;		\
+    assert(ac != NULL);				\
+    np_state_t* context = ac;		\
 
 
 MAP(np_module_typedef, NP_CTX_MODULES);
@@ -86,33 +86,33 @@ MAP(np_module_typedef, NP_CTX_MODULES);
 */
 struct np_state_s
 {
-	TSP(enum np_status, status);
-	struct np_settings* settings;
-	//void* modules[np_modules_END];
-	MAP(np_module_member, NP_CTX_MODULES)
+    TSP(enum np_status, status);
+    struct np_settings* settings;
+    //void* modules[np_modules_END];
+    MAP(np_module_member, NP_CTX_MODULES)
 
 
-	// reference to the physical node / key
-	np_key_t* my_node_key;
+    // reference to the physical node / key
+    np_key_t* my_node_key;
 
-	// reference to main identity on this node
-	np_key_t* my_identity;
-	char* realm_name;
+    // reference to main identity on this node
+    np_key_t* my_identity;
+    char* realm_name;
 
-	np_tree_t *msg_tokens;
-	np_tree_t* msg_part_cache;
+    np_tree_t *msg_tokens;
+    np_tree_t* msg_part_cache;
 
-	int thread_count;
+    int thread_count;
 
-	bool enable_realm_server; // act as a realm server for other nodes or not
-	bool enable_realm_client; // act as a realm client and ask server for aaatokens
+    bool enable_realm_server; // act as a realm server for other nodes or not
+    bool enable_realm_client; // act as a realm client and ask server for aaatokens
 
 
-	np_aaa_callback authenticate_func; // authentication callback
-	np_aaa_callback authorize_func;    // authorization callback
-	np_aaa_callback accounting_func;   // really needed ?
+    np_aaa_callback authenticate_func; // authentication callback
+    np_aaa_callback authorize_func;    // authorization callback
+    np_aaa_callback accounting_func;   // really needed ?
 
-	void* userdata;
+    void* userdata;
 } NP_API_INTERN;
 
 
@@ -326,6 +326,8 @@ void _np_send_ack(const np_message_t* const in_msg);
 
 NP_API_PROTEC
 double np_time_now();
+NP_API_INTERN
+double np_time_update_cache_now();
 
 NP_API_PROTEC
 double np_time_sleep(double sleeptime);

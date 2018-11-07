@@ -559,7 +559,7 @@ void np_memory_randomize_space(NP_UNUSED np_state_t* context, NP_UNUSED uint8_t 
     randombytes_buf(data, size);
 }
 
-void _np_memory_job_memory_management(np_state_t* context, NP_UNUSED np_jobargs_t* args) {
+void _np_memory_job_memory_management(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
 
     NP_PERFORMANCE_POINT_START(memory_management);
     for (uint8_t memory_type = 0; memory_type < np_memory_types_MAX_TYPE; memory_type++) {

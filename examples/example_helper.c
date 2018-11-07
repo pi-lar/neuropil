@@ -689,7 +689,7 @@ example_user_context* parse_program_args(
         va_end(args);
 
         uint32_t log_categories = 0
-            //| LOG_VERBOSE
+            | LOG_VERBOSE
             //| LOG_TRACE
             //| LOG_MUTEX
             | LOG_ROUTING
@@ -697,7 +697,7 @@ example_user_context* parse_program_args(
             //| LOG_KEY
             | LOG_NETWORK
             | LOG_HANDSHAKE
-            | LOG_AAATOKEN
+            //| LOG_AAATOKEN
             //| LOG_SYSINFO
             | LOG_MESSAGE
             //| LOG_SERIALIZATION
@@ -706,7 +706,7 @@ example_user_context* parse_program_args(
             //| LOG_MISC
             //| LOG_EVENT
             //| LOG_THREADS
-            //| LOG_JOBS
+            | LOG_JOBS
             //| LOG_GLOBAL
             ;
 

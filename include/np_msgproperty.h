@@ -37,11 +37,11 @@ extern "C" {
 
 */
 typedef enum np_msg_mode_enum {
-	DEFAULT_MODE = 0,
-	INBOUND      = 0x1,
-	OUTBOUND     = 0x2,
-	ROUTE        = 0x4,
-	TRANSFORM    = 0x8
+    DEFAULT_MODE = 0,
+    INBOUND      = 0x1,
+    OUTBOUND     = 0x2,
+    ROUTE        = 0x4,
+    TRANSFORM    = 0x8
 } NP_API_EXPORT np_msg_mode_type;
 
 /**
@@ -92,63 +92,63 @@ typedef enum np_msg_mode_enum {
 */
 typedef enum np_msg_mep_enum {
 
-	DEFAULT_TYPE = 0x000,
-	// filter mep by type
-	RECEIVER_MASK = 0x00F,
-	SENDER_MASK   = 0x0F0,
-	FILTER_MASK   = 0xF00,
-	// base pattern for communication exchange
-	SINGLE_RECEIVER = 0x001,      // - to   one  communication // sender has single identity
-	GROUP_RECEIVER = 0x002,       // - to   many communication // receiver has same identity
-	ANY_RECEIVER = 0x004,         // - to   many communication // receiver is a set of identities
-	SINGLE_SENDER = 0x010,        // - one  to   communication   // sender has a single identity
-	GROUP_SENDER = 0x020,         // - many to   communication // sender share the same identity
-	ANY_SENDER = 0x040,           // - many to   communication // sender is a set of identities
-	// add-on message processing instructions
-	FILTER_MSG = 0x100,           // filter a message with a given callback function (?)
-	HAS_REPLY = 0x200,            // check reply_to field of the incoming message for a subject hash based reply
-	STICKY_REPLY = 0x300,         // check reply_to field of the incoming message for a node hash based reply
+    DEFAULT_TYPE = 0x000,
+    // filter mep by type
+    RECEIVER_MASK = 0x00F,
+    SENDER_MASK   = 0x0F0,
+    FILTER_MASK   = 0xF00,
+    // base pattern for communication exchange
+    SINGLE_RECEIVER = 0x001,      // - to   one  communication // sender has single identity
+    GROUP_RECEIVER = 0x002,       // - to   many communication // receiver has same identity
+    ANY_RECEIVER = 0x004,         // - to   many communication // receiver is a set of identities
+    SINGLE_SENDER = 0x010,        // - one  to   communication   // sender has a single identity
+    GROUP_SENDER = 0x020,         // - many to   communication // sender share the same identity
+    ANY_SENDER = 0x040,           // - many to   communication // sender is a set of identities
+    // add-on message processing instructions
+    FILTER_MSG = 0x100,           // filter a message with a given callback function (?)
+    HAS_REPLY = 0x200,            // check reply_to field of the incoming message for a subject hash based reply
+    STICKY_REPLY = 0x300,         // check reply_to field of the incoming message for a node hash based reply
 
-	// possible combinations
-	// ONE to ONE
-	ONE_WAY = SINGLE_SENDER | SINGLE_RECEIVER,
-	// ONE_WAY_WITH_REPLY = ONE_WAY | HAS_REPLY, // not possible, only one single sender
-	ONE_WAY_WITH_REPLY = ONE_WAY | STICKY_REPLY,
-	// ONE to GROUP
-	ONE_TO_GROUP = SINGLE_SENDER | GROUP_RECEIVER,
-	O2G_WITH_REPLY = ONE_TO_GROUP | STICKY_REPLY,
-	// ONE to ANY
-	ONE_TO_ANY = SINGLE_SENDER | ANY_RECEIVER,
-	O2A_WITH_REPLY = ONE_TO_ANY | STICKY_REPLY,
-	// GROUP to GROUP
-	GROUP_TO_GROUP = GROUP_SENDER | GROUP_RECEIVER,
-	G2G_WITH_REPLY = GROUP_TO_GROUP | HAS_REPLY,
-	G2G_STICKY_REPLY = G2G_WITH_REPLY | STICKY_REPLY,
-	// ANY to ANY
-	ANY_TO_ANY = ANY_SENDER | ANY_RECEIVER,
-	A2A_WITH_REPLY = ANY_TO_ANY | HAS_REPLY,
-	A2A_STICKY_REPLY = A2A_WITH_REPLY | STICKY_REPLY,
-	// GROUP to ANY
-	GROUP_TO_ANY = GROUP_SENDER | ANY_RECEIVER,
-	G2A_WITH_REPLY = GROUP_TO_ANY | HAS_REPLY,
-	G2A_STICKY_REPLY = G2A_WITH_REPLY | STICKY_REPLY,
-	// ANY to ONE
-	ANY_TO_ONE = ANY_SENDER | SINGLE_RECEIVER,
-	// ANY to GROUP
-	ANY_TO_GROUP = ANY_SENDER | GROUP_RECEIVER,
-	A2G_WITH_REPLY = ANY_TO_GROUP | HAS_REPLY,
-	A2G_STICKY_REPLY = A2G_WITH_REPLY | STICKY_REPLY,
+    // possible combinations
+    // ONE to ONE
+    ONE_WAY = SINGLE_SENDER | SINGLE_RECEIVER,
+    // ONE_WAY_WITH_REPLY = ONE_WAY | HAS_REPLY, // not possible, only one single sender
+    ONE_WAY_WITH_REPLY = ONE_WAY | STICKY_REPLY,
+    // ONE to GROUP
+    ONE_TO_GROUP = SINGLE_SENDER | GROUP_RECEIVER,
+    O2G_WITH_REPLY = ONE_TO_GROUP | STICKY_REPLY,
+    // ONE to ANY
+    ONE_TO_ANY = SINGLE_SENDER | ANY_RECEIVER,
+    O2A_WITH_REPLY = ONE_TO_ANY | STICKY_REPLY,
+    // GROUP to GROUP
+    GROUP_TO_GROUP = GROUP_SENDER | GROUP_RECEIVER,
+    G2G_WITH_REPLY = GROUP_TO_GROUP | HAS_REPLY,
+    G2G_STICKY_REPLY = G2G_WITH_REPLY | STICKY_REPLY,
+    // ANY to ANY
+    ANY_TO_ANY = ANY_SENDER | ANY_RECEIVER,
+    A2A_WITH_REPLY = ANY_TO_ANY | HAS_REPLY,
+    A2A_STICKY_REPLY = A2A_WITH_REPLY | STICKY_REPLY,
+    // GROUP to ANY
+    GROUP_TO_ANY = GROUP_SENDER | ANY_RECEIVER,
+    G2A_WITH_REPLY = GROUP_TO_ANY | HAS_REPLY,
+    G2A_STICKY_REPLY = G2A_WITH_REPLY | STICKY_REPLY,
+    // ANY to ONE
+    ANY_TO_ONE = ANY_SENDER | SINGLE_RECEIVER,
+    // ANY to GROUP
+    ANY_TO_GROUP = ANY_SENDER | GROUP_RECEIVER,
+    A2G_WITH_REPLY = ANY_TO_GROUP | HAS_REPLY,
+    A2G_STICKY_REPLY = A2G_WITH_REPLY | STICKY_REPLY,
 
-	// human readable and more "speaking" combinations
-	REQ_REP   = ONE_WAY_WITH_REPLY, // - allows to build clusters of stateless services to process requests
-	PIPELINE  = ONE_TO_GROUP,       // - splits up messages to a set of nodes / load balancing among many destinations
-	AGGREGATE = O2A_WITH_REPLY,     // - aggregates messages from multiple sources and them among many destinations
-	MULTICAST = GROUP_TO_GROUP | FILTER_MSG,
-	BROADCAST = ONE_TO_ANY | GROUP_TO_ANY,
-	INTERVIEW = A2G_WITH_REPLY,
-	BUS       = ANY_TO_ANY,
-	SURVEY    = A2A_STICKY_REPLY,
-	PUBSUB    = BUS | FILTER_MSG,
+    // human readable and more "speaking" combinations
+    REQ_REP   = ONE_WAY_WITH_REPLY, // - allows to build clusters of stateless services to process requests
+    PIPELINE  = ONE_TO_GROUP,       // - splits up messages to a set of nodes / load balancing among many destinations
+    AGGREGATE = O2A_WITH_REPLY,     // - aggregates messages from multiple sources and them among many destinations
+    MULTICAST = GROUP_TO_GROUP | FILTER_MSG,
+    BROADCAST = ONE_TO_ANY | GROUP_TO_ANY,
+    INTERVIEW = A2G_WITH_REPLY,
+    BUS       = ANY_TO_ANY,
+    SURVEY    = A2A_STICKY_REPLY,
+    PUBSUB    = BUS | FILTER_MSG,
 
 } NP_API_EXPORT np_msg_mep_type;
 
@@ -173,11 +173,11 @@ typedef enum np_msg_mep_enum {
 */
 
 typedef enum np_msgcache_policy_enum {
-	UNKNOWN = 0x00,
-	FIFO = 0x01,
-	LIFO = 0x02,
-	OVERFLOW_REJECT = 0x10,
-	OVERFLOW_PURGE = 0x20
+    UNKNOWN = 0x00,
+    FIFO = 0x01,
+    LIFO = 0x02,
+    OVERFLOW_REJECT = 0x10,
+    OVERFLOW_PURGE = 0x20
 } NP_API_EXPORT np_msgcache_policy_type;
 
 /**
@@ -199,10 +199,10 @@ typedef enum np_msgcache_policy_enum {
 
 */
 typedef enum np_msg_ack_enum {
-	ACK_NONE		= 0x00, // 0000 0000  - don't ack at all
-	ACK_EACHHOP		= 0x01, // 0000 0001 - each hop has to send a ack to the previous hop
-	ACK_DESTINATION = 0x02, // 0000 0010 - message destination ack to message sender across multiple nodes
-	ACK_CLIENT		= 0x04, // 0000 0100 - message to sender ack after/during processing the message on receiver side
+    ACK_NONE		= 0x00, // 0000 0000  - don't ack at all
+    ACK_EACHHOP		= 0x01, // 0000 0001 - each hop has to send a ack to the previous hop
+    ACK_DESTINATION = 0x02, // 0000 0010 - message destination ack to message sender across multiple nodes
+    ACK_CLIENT		= 0x04, // 0000 0100 - message to sender ack after/during processing the message on receiver side
 } NP_API_EXPORT np_msg_ack_type;
 
 /**
@@ -223,74 +223,74 @@ typedef enum np_msg_ack_enum {
 */
 struct np_msgproperty_s
 {
-	// link to memory management
-	
+    // link to memory management
+    
 
-	RB_ENTRY(np_msgproperty_s) link; // link for cache management
+    RB_ENTRY(np_msgproperty_s) link; // link for cache management
 
-	// link to node(s) which is/are interested in message exchange
-	np_dhkey_t partner_key;
+    // link to node(s) which is/are interested in message exchange
+    np_dhkey_t partner_key;
 
-	/*
-	should not become longer than 242 characters
-		255 - 13 (urn:np:...)
-	*/
-	char*            msg_subject;
-	char*            rep_subject;
-	char*            msg_audience;
-	np_msg_mode_type mode_type;
-	np_msg_mep_type  mep_type;
-	np_msg_ack_type  ack_mode;
-	double           msg_ttl;
-	uint8_t          priority;
-	uint8_t          retry; // the # of retries when sending a message
+    /*
+    should not become longer than 242 characters
+        255 - 13 (urn:np:...)
+    */
+    char*            msg_subject;
+    char*            rep_subject;
+    char*            msg_audience;
+    np_msg_mode_type mode_type;
+    np_msg_mep_type  mep_type;
+    np_msg_ack_type  ack_mode;
+    double           msg_ttl;
+    uint8_t          priority;
+    uint8_t          retry; // the # of retries when sending a message
 
-	TSP(uint16_t,    msg_threshold); // current cache size
-	uint16_t         max_threshold; // local cache size
-	bool is_internal;
+    TSP(uint16_t,    msg_threshold); // current cache size
+    uint16_t         max_threshold; // local cache size
+    bool is_internal;
 
-	// timestamp for cleanup thread
-	double          last_update;
+    // timestamp for cleanup thread
+    double          last_update;
 
-	// cache which will hold up to max_threshold messages
-	np_msgcache_policy_type cache_policy;
-	np_sll_t(np_message_ptr, msg_cache_in);
-	np_sll_t(np_message_ptr, msg_cache_out);
+    // cache which will hold up to max_threshold messages
+    np_msgcache_policy_type cache_policy;
+    np_sll_t(np_message_ptr, msg_cache_in);
+    np_sll_t(np_message_ptr, msg_cache_out);
 
-	// only send/receive after opposite partner has been found
-	np_mutex_t lock;
-	np_mutex_t send_discovery_msgs_lock;
-	np_cond_t  msg_received;
+    // only send/receive after opposite partner has been found
+    np_mutex_t lock;
+    np_mutex_t send_discovery_msgs_lock;
+    np_cond_t  msg_received;
 
-	// pthread_cond_t     msg_received;
-	// pthread_condattr_t cond_attr;
+    // pthread_cond_t     msg_received;
+    // pthread_condattr_t cond_attr;
 
-	// callback function(s) to invoke when a message is received
-	np_sll_t(np_callback_t, clb_inbound);			// internal neuropil supplied
-	np_sll_t(np_callback_t, clb_outbound);			// internal neuropil supplied
-	np_sll_t(np_callback_t, clb_route);				// internal neuropil supplied
-	np_sll_t(np_callback_t, clb_transform);			// internal neuropil supplied
+    // callback function(s) to invoke when a message is received
+    np_sll_t(np_callback_t, clb_inbound);			// internal neuropil supplied
+    np_sll_t(np_callback_t, clb_outbound);			// internal neuropil supplied
+    np_sll_t(np_callback_t, clb_route);				// internal neuropil supplied
+    np_sll_t(np_callback_t, clb_transform);			// internal neuropil supplied
 
-	np_sll_t(np_usercallback_ptr, user_receive_clb);	// external user supplied for inbound
-	np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outnound
+    np_sll_t(np_usercallback_ptr, user_receive_clb);	// external user supplied for inbound
+    np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outnound
 
-	// The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
-	uint32_t token_max_ttl;
-	// The token created for this msgproperty will guaranteed live for token_min_ttl seconds
-	uint32_t token_min_ttl;
+    // The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
+    uint32_t token_max_ttl;
+    // The token created for this msgproperty will guaranteed live for token_min_ttl seconds
+    uint32_t token_min_ttl;
 
-	bool unique_uuids_check;
-	uint32_t unique_uuids_max;
-	np_mutex_t unique_uuids_lock;
-	np_tree_t* unique_uuids;
+    bool unique_uuids_check;
+    uint32_t unique_uuids_max;
+    np_mutex_t unique_uuids_lock;
+    np_tree_t* unique_uuids;
 
-	// weak link (no reffing)
-	np_key_t* send_key;
-	// weak link (no reffing)
-	np_key_t* recv_key;
+    // weak link (no reffing)
+    np_key_t* send_key;
+    // weak link (no reffing)
+    np_key_t* recv_key;
 
-	np_message_intent_public_token_t* current_sender_token;
-	np_message_intent_public_token_t* current_receive_token;
+    np_message_intent_public_token_t* current_sender_token;
+    np_message_intent_public_token_t* current_receive_token;
 
 } NP_API_EXPORT;
 
@@ -360,7 +360,7 @@ void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self);
 NP_API_EXPORT
 void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self);
 NP_API_INTERN
-void _np_msgproperty_job_msg_uniquety(np_state_t* context, np_jobargs_t* args);
+void _np_msgproperty_job_msg_uniquety(np_state_t* context, np_jobargs_t args);
 NP_API_INTERN
 void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_message_t* msg_to_remove);
 NP_API_INTERN

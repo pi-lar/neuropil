@@ -12,12 +12,12 @@
 extern "C" {
 #endif
 
-	
+    
 #define NP_EVENT_EVLOOP_PROTOTYPE(LOOPNAME)								\
 NP_API_INTERN															\
 struct ev_loop * _np_event_get_loop_##LOOPNAME(np_state_t *context);	\
 NP_API_INTERN															\
-void _np_events_read_##LOOPNAME(np_state_t* context, np_jobargs_t* args);\
+void _np_events_read_##LOOPNAME(np_state_t* context, np_jobargs_t args);\
 NP_API_INTERN															\
 void* _np_event_##LOOPNAME##_run(void* np_thread_ptr);					\
 NP_API_INTERN															\
@@ -31,7 +31,7 @@ NP_EVENT_EVLOOP_PROTOTYPE(io)
 NP_EVENT_EVLOOP_PROTOTYPE(http)
 
 NP_API_INTERN		
-void _np_event_cleanup_msgpart_cache(np_state_t* context, np_jobargs_t* args);
+void _np_event_cleanup_msgpart_cache(np_state_t* context, np_jobargs_t args);
 NP_API_INTERN		
 bool _np_event_init(np_state_t *context);
 

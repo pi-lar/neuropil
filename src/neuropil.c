@@ -486,6 +486,7 @@ enum np_error np_run(np_context* ac, double duration) {
     enum np_error ret = np_ok;
 
     if (duration <= 0) {
+        np_time_update_cache_now();
         __np_jobqueue_run_jobs_once(context);
     }
     else {

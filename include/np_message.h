@@ -20,41 +20,41 @@ extern "C" {
 
 
 enum np_message_submit_type {
-	np_message_submit_type_DIRECT,
-	np_message_submit_type_ROUTE
+    np_message_submit_type_DIRECT,
+    np_message_submit_type_ROUTE
 };
 struct np_message_s
 {
-	 // link to memory pool
+     // link to memory pool
 
-	char* uuid;	
+    char* uuid;	
 
-	np_tree_t* header;
-	np_tree_t* instructions;
-	np_tree_t* body;
-	np_tree_t* footer;
+    np_tree_t* header;
+    np_tree_t* instructions;
+    np_tree_t* body;
+    np_tree_t* footer;
 
-	// only used if the message has to be split up into chunks
-	bool is_single_part;
-	uint32_t no_of_chunks;
-	np_pll_t(np_messagepart_ptr, msg_chunks);
-	np_mutex_t msg_chunks_lock;
+    // only used if the message has to be split up into chunks
+    bool is_single_part;
+    uint32_t no_of_chunks;
+    np_pll_t(np_messagepart_ptr, msg_chunks);
+    np_mutex_t msg_chunks_lock;
 
-	np_msgproperty_ptr msg_property;
-	double send_at;	
+    np_msgproperty_ptr msg_property;
+    double send_at;	
 
-	TSP(bool, is_acked);
-	np_sll_t(np_responsecontainer_on_t, on_ack);
-	TSP(bool, is_in_timeout);
-	np_sll_t(np_responsecontainer_on_t, on_timeout);
-	TSP(bool, has_reply);
-	np_sll_t(np_message_on_reply_t, on_reply);
+    TSP(bool, is_acked);
+    np_sll_t(np_responsecontainer_on_t, on_ack);
+    TSP(bool, is_in_timeout);
+    np_sll_t(np_responsecontainer_on_t, on_timeout);
+    TSP(bool, has_reply);
+    np_sll_t(np_message_on_reply_t, on_reply);
 
-	void* bin_body;
-	void* bin_footer;
-	np_messagepart_t* bin_static;
+    void* bin_body;
+    void* bin_footer;
+    np_messagepart_t* bin_static;
 
-	enum np_message_submit_type submit_type;
+    enum np_message_submit_type submit_type;
 } NP_API_INTERN;
 
 #ifndef SWIG
@@ -80,7 +80,7 @@ void _np_message_calculate_chunking(np_message_t* msg);
 NP_API_INTERN
 np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check);
 NP_API_INTERN
-bool _np_message_serialize_header_and_instructions(np_state_t* context, np_jobargs_t* args);
+bool _np_message_serialize_header_and_instructions(np_state_t* context, np_jobargs_t args);
 NP_API_INTERN
 bool _np_message_serialize_chunked(np_message_t * msg);
 
