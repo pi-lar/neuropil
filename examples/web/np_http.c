@@ -192,7 +192,7 @@ void _np_add_http_callback(np_state_t *context, const char* path, htp_method met
         _np_http_callback_func_t func) {
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_add_http_callback(const char* path, htp_method method, void* user_args,		_np_http_callback_func_t func) {");
 
-	np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
+    np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
     if (NULL == __local_http->user_hooks)
         __local_http->user_hooks = np_tree_create();
 
@@ -323,7 +323,7 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {");
 
     assert(PROCESSING == client->status);
-	np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
+    np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
     if (NULL == __local_http->user_hooks)
         __local_http->user_hooks = np_tree_create();
 
@@ -524,7 +524,7 @@ void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int even
 #ifdef MSG_NOSIGNAL 
         send(client->client_fd, data, pos, MSG_NOSIGNAL);
 #else
-		send(client->client_fd, data, pos, 0);
+        send(client->client_fd, data, pos, 0);
 #endif
         np_tree_free( client->ht_response.ht_header);
 
@@ -548,17 +548,17 @@ void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int even
             }
 
 #ifdef MSG_NOSIGNAL 
-			int send_return = send(client->client_fd,
-				ht_body + bytes_send,
-				fmin(2048, s_contentlength - bytes_send),
-				MSG_NOSIGNAL
-			);
+            int send_return = send(client->client_fd,
+                ht_body + bytes_send,
+                fmin(2048, s_contentlength - bytes_send),
+                MSG_NOSIGNAL
+            );
 #else
-			int send_return = send(client->client_fd,
-				ht_body + bytes_send,
-				fmin(2048, s_contentlength - bytes_send),
-				0
-			);
+            int send_return = send(client->client_fd,
+                ht_body + bytes_send,
+                fmin(2048, s_contentlength - bytes_send),
+                0
+            );
 #endif
 
             if (send_return >= 0) {
@@ -616,7 +616,7 @@ void _np_http_read_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev,
         }
 
         log_debug_msg(LOG_HTTP | LOG_DEBUG, "parsing http request");
-		np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
+        np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
         htparser_run(client->parser, __local_http->hooks, data,
                 in_msg_len);
         if (htparser_get_error(client->parser) != htparse_error_none) {
@@ -637,7 +637,7 @@ void _np_http_read_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev,
 
 void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int event_type) {
     np_state_t* context = ev_userdata(loop);
-	np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
+    np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
     struct sockaddr_storage from;
     socklen_t fromlen = sizeof(from);
 
@@ -669,7 +669,7 @@ void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int ev
         new_client->client_fd = accept(__local_http->network->socket,
                 (struct sockaddr*) &from, &fromlen);
 
-		if (new_client->client_fd < 0) {
+        if (new_client->client_fd < 0) {
             free(new_client);
 
             log_msg(LOG_HTTP | LOG_WARN, "Could not accept http connection. %s", strerror(errno));
@@ -731,7 +731,7 @@ bool np_http_init(np_state_t* context, char* domain) {
     }
     
     char* port = "31415";
-	np_http_t* __local_http = (np_http_t*) malloc(sizeof(np_http_t));
+    np_http_t* __local_http = (np_http_t*) malloc(sizeof(np_http_t));
     CHECK_MALLOC(__local_http);
     
     sll_init(np_http_client_ptr, __local_http->clients);
@@ -781,18 +781,18 @@ bool np_http_init(np_state_t* context, char* domain) {
     _np_event_resume_loop_http(context);
     __local_http->user_hooks = NULL;
 
-	((example_user_context*)np_get_userdata(context))->local_http = __local_http;
+    ((example_user_context*)np_get_userdata(context))->local_http = __local_http;
     return true;
 }
 
 void _np_http_destroy(np_state_t* context) {	
-	np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
+    np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
 
     EV_P = _np_event_get_loop_http(context);
     _np_event_suspend_loop_http(context);
     ev_io_stop(EV_A_&__local_http->network->watcher);
 
-	sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
+    sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
     while(iter != NULL){
         np_http_client_t* client = iter->val;
         client->status = SHUTDOWN;
@@ -820,25 +820,25 @@ void _np_http_destroy(np_state_t* context) {
         free(client);
         sll_next(iter);
     }
-	sll_free(np_http_client_ptr, __local_http->clients);
+    sll_free(np_http_client_ptr, __local_http->clients);
 
-	_np_event_resume_loop_http(context);
+    _np_event_resume_loop_http(context);
 
     if (__local_http->user_hooks)
         np_tree_free( __local_http->user_hooks);
 
     free(__local_http->hooks);
 
-	__local_http->network->watcher.data = NULL;
-	// _np_network_disable(__local_http->network);
-	np_unref_obj(np_network_t, __local_http->network, ref_obj_creation);
+    __local_http->network->watcher.data = NULL;
+    // _np_network_disable(__local_http->network);
+    np_unref_obj(np_network_t, __local_http->network, ref_obj_creation);
 
-	free(__local_http);
-	((example_user_context*) np_get_userdata(context))->local_http = __local_http = NULL;
+    free(__local_http);
+    ((example_user_context*) np_get_userdata(context))->local_http = __local_http = NULL;
 }
 
 void example_http_server_deinit(np_context* context) {
-	_np_http_destroy(context);
+    _np_http_destroy(context);
 }
 
 bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {

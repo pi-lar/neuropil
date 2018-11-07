@@ -6,3 +6,12 @@
 *.jpg binary
 *.pdf binary
 *.ico binary
+
+*.js  filter=tabspace
+*.html  filter=tabspace
+*.css  filter=tabspace
+*.json  filter=tabspace
+*.py  filter=tabspace
+*.c  filter=tabspace
+*.h  filter=tabspace
+SConstruct  filter=tabspace

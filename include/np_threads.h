@@ -30,7 +30,7 @@ extern "C" {
 // first try to decorate functions, usable ?
 #define _WRAP(return_type, func_name, arg_1, arg_2) \
 return_type func_name(arg_1 a_1, arg_2 a_2) {		\
-	return wrapped_##func_name(a_1, a_2);			\
+    return wrapped_##func_name(a_1, a_2);			\
 }													\
 return_type wrapped_##func_name(arg_1, arg_2);
 
@@ -42,107 +42,107 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_thread_t);
 typedef enum np_module_lock_e np_module_lock_type;
 
 enum np_module_lock_e {
-	/*00*/np_memory_t_lock = 0,
-	/*01*/np_aaatoken_t_lock,
-	/*02*/np_event_t_lock,
-	/*03*/np_keycache_t_lock,
-	/*04*/np_message_part_cache_t_lock,
-	/*05*/np_msgproperty_t_lock,
-	/*06*/np_network_t_lock,
-	/*07*/np_routeglobal_t_lock,
-	/*08*/np_sysinfo_t_lock,
-	/*09*/np_logsys_t_lock,
-	/*10*/np_jobqueue_t_lock,
-	/*11*/np_node_renewal_t_lock,
-	/*12*/np_statistics_t_lock,
-	/*13*/np_handshake_t_lock,
-	/*14*/np_threads_t_lock,
-	/*15*/np_utilstatistics_t_lock,
-	/*16*/np_state_message_tokens_t_lock,
-	PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
-	PREDEFINED_DUMMY_1,
-	PREDEFINED_DUMMY_2,
-	PREDEFINED_DUMMY_3,
-	PREDEFINED_DUMMY_4,
-	PREDEFINED_DUMMY_5,
-	PREDEFINED_DUMMY_6,
-	PREDEFINED_DUMMY_7,
-	PREDEFINED_DUMMY_8,
+    /*00*/np_memory_t_lock = 0,
+    /*01*/np_aaatoken_t_lock,
+    /*02*/np_event_t_lock,
+    /*03*/np_keycache_t_lock,
+    /*04*/np_message_part_cache_t_lock,
+    /*05*/np_msgproperty_t_lock,
+    /*06*/np_network_t_lock,
+    /*07*/np_routeglobal_t_lock,
+    /*08*/np_sysinfo_t_lock,
+    /*09*/np_logsys_t_lock,
+    /*10*/np_jobqueue_t_lock,
+    /*11*/np_node_renewal_t_lock,
+    /*12*/np_statistics_t_lock,
+    /*13*/np_handshake_t_lock,
+    /*14*/np_threads_t_lock,
+    /*15*/np_utilstatistics_t_lock,
+    /*16*/np_state_message_tokens_t_lock,
+    PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
+    PREDEFINED_DUMMY_1,
+    PREDEFINED_DUMMY_2,
+    PREDEFINED_DUMMY_3,
+    PREDEFINED_DUMMY_4,
+    PREDEFINED_DUMMY_5,
+    PREDEFINED_DUMMY_6,
+    PREDEFINED_DUMMY_7,
+    PREDEFINED_DUMMY_8,
 } NP_ENUM NP_API_INTERN;
 
 static char* np_module_lock_str[PREDEFINED_DUMMY_START] = {
-	"np_memory_t_lock",
-	"np_aaatoken_t_lock",
-	"np_event_t_lock",
-	"np_keycache_t_lock",
-	"np_message_part_cache_t_lock",
-	"np_msgproperty_t_lock",
-	"np_network_t_lock",
-	"np_routeglobal_t_lock",
-	"np_sysinfo_t_lock",
-	"np_logsys_t_lock",
-	"np_jobqueue_t_lock",
-	"np_node_renewal_t_lock",
-	"np_statistics_t_lock",
-	"np_handshake_t_lock",
-	"np_threads_t_lock",
-	"np_utilstatistics_t_lock",
-	"np_state_message_tokens_t_lock"
+    "np_memory_t_lock",
+    "np_aaatoken_t_lock",
+    "np_event_t_lock",
+    "np_keycache_t_lock",
+    "np_message_part_cache_t_lock",
+    "np_msgproperty_t_lock",
+    "np_network_t_lock",
+    "np_routeglobal_t_lock",
+    "np_sysinfo_t_lock",
+    "np_logsys_t_lock",
+    "np_jobqueue_t_lock",
+    "np_node_renewal_t_lock",
+    "np_statistics_t_lock",
+    "np_handshake_t_lock",
+    "np_threads_t_lock",
+    "np_utilstatistics_t_lock",
+    "np_state_message_tokens_t_lock"
 };
 
 /** platform mutex/condition wrapper structures are defined here **/
 /** condition                                                    **/
 struct np_cond_s {
-	pthread_cond_t     cond;
-	pthread_condattr_t cond_attr;
+    pthread_cond_t     cond;
+    pthread_condattr_t cond_attr;
 };
 typedef struct np_cond_s np_cond_t;
 
 /** mutex                                                        **/
 struct np_mutex_s {
-	char* desc;
-	pthread_mutex_t lock;
-	pthread_mutexattr_t lock_attr;
-	np_cond_t  condition;
+    char* desc;
+    pthread_mutex_t lock;
+    pthread_mutexattr_t lock_attr;
+    np_cond_t  condition;
 };
 
 
 enum np_thread_type_e {
-	np_thread_type_other = 0,
-	np_thread_type_main,
-	np_thread_type_worker,
-	np_thread_type_manager,
+    np_thread_type_other = 0,
+    np_thread_type_main,
+    np_thread_type_worker,
+    np_thread_type_manager,
 };
 
 /** thread														**/
 struct np_thread_s
 {
-	
+    
 
-	void * run_fn;
-	uint8_t idx;
+    void * run_fn;
+    uint8_t idx;
 
-	unsigned long id;
-	/**
-	this thread can only handle jobs up to the max_job_priority
-	*/
-	double max_job_priority;
-	/**
-	this thread can only handle jobs down to the min_job_priority
-	*/
-	double min_job_priority;
+    unsigned long id;
+    /**
+    this thread can only handle jobs up to the max_job_priority
+    */
+    double max_job_priority;
+    /**
+    this thread can only handle jobs down to the min_job_priority
+    */
+    double min_job_priority;
 
-	np_mutex_t job_lock;
-	np_job_t job;
-	bool busy;
-	enum np_thread_type_e thread_type;
+    np_mutex_t job_lock;
+    np_job_t job;
+    bool busy;
+    enum np_thread_type_e thread_type;
 
-	pthread_t* thread_id;
+    pthread_t* thread_id;
 
 #ifdef NP_THREADS_CHECK_THREADING
-	np_mutex_t locklists_lock;
-	np_sll_t(char_ptr, want_lock);
-	np_sll_t(char_ptr, has_lock);
+    np_mutex_t locklists_lock;
+    np_sll_t(char_ptr, want_lock);
+    np_sll_t(char_ptr, has_lock);
 #endif
 } NP_API_INTERN;
 
@@ -212,30 +212,30 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size);
 struct timespec NAME##_ts={0};																				\
 struct timeval NAME##_tv;																					\
 struct timespec* NAME=&NAME##_ts;																			\
-																											\
+                                                                                                            \
 gettimeofday(&NAME##_tv, NULL);																				\
 NAME##_ts.tv_sec = NAME##_tv.tv_sec + MUTEX_WAIT_MAX_SEC - ELAPSED_TIME;													
 
 
 #define __LOCK_ACCESS_W_PREFIX(prefix, obj, lock_type)																						\
-	np_mutex_t* TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)) = obj;																		\
-	for(uint8_t TOKENPASTE2(prefix,__LINE__)=0; 																										\
-		(TOKENPASTE2(prefix,__LINE__) < 1) && 0 == _np_threads_mutex_##lock_type##lock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)),FUNC);		\
-		_np_threads_mutex_unlock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__))), TOKENPASTE2(prefix,__LINE__)++										\
-		)
+    np_mutex_t* TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)) = obj;																		\
+    for(uint8_t TOKENPASTE2(prefix,__LINE__)=0; 																										\
+        (TOKENPASTE2(prefix,__LINE__) < 1) && 0 == _np_threads_mutex_##lock_type##lock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)),FUNC);		\
+        _np_threads_mutex_unlock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__))), TOKENPASTE2(prefix,__LINE__)++										\
+        )
 #define _LOCK_ACCESS(obj) __LOCK_ACCESS_W_PREFIX(TOKENPASTE2(default_prefix_, __COUNTER__), obj,)
 #define _TRYLOCK_ACCESS(obj) __LOCK_ACCESS_W_PREFIX(TOKENPASTE2(default_try_prefix_, __COUNTER__), obj,try)
 // protect access to restricted area in the rest of your code like this
 /*
 struct obj {
-	np_mutex_t lock;
+    np_mutex_t lock;
 } obj_t;
 
 obj_t object;
 
 _LOCK_ACCESS(&object->lock)
 {
-	... call_a_function_of_locked_module() ...;
+    ... call_a_function_of_locked_module() ...;
 }
 */
 
@@ -244,7 +244,7 @@ _LOCK_ACCESS(&object->lock)
 /*
 _LOCK_MODULE(np_keycache_t)
 {
-	... call_a_function_of_locked_module() ...;
+    ... call_a_function_of_locked_module() ...;
 }
 */
 // print the complete object list and statistics
@@ -253,35 +253,35 @@ NP_API_PROTEC
 char* np_threads_printpool(NP_UNUSED np_state_t* context, bool asOneLine);
 
 /*
-	TSP = ThreadSafeProperty
+    TSP = ThreadSafeProperty
 */
 #define TSP(TYPE, NAME)								\
-	TYPE NAME;										\
-	np_mutex_t NAME##_mutex;
+    TYPE NAME;										\
+    np_mutex_t NAME##_mutex;
 
 #define TSP_INITD(NAME, DEFAULT_VALUE)						 \
-	_np_threads_mutex_init(context, &NAME##_mutex, #NAME);			 \
-	TSP_SET(NAME, DEFAULT_VALUE)
+    _np_threads_mutex_init(context, &NAME##_mutex, #NAME);			 \
+    TSP_SET(NAME, DEFAULT_VALUE)
 
 #define TSP_INIT(NAME)										 \
-	_np_threads_mutex_init(context, &NAME##_mutex, #NAME);
+    _np_threads_mutex_init(context, &NAME##_mutex, #NAME);
 
 #define TSP_DESTROY(NAME)							\
-	_np_threads_mutex_destroy(context, &NAME##_mutex);
+    _np_threads_mutex_destroy(context, &NAME##_mutex);
 
 #define TSP_GET(TYPE, NAME, RESULT)					\
-	TYPE RESULT=0;									\
-	_LOCK_ACCESS(&NAME##_mutex){					\
-		RESULT = NAME;								\
-	}
+    TYPE RESULT=0;									\
+    _LOCK_ACCESS(&NAME##_mutex){					\
+        RESULT = NAME;								\
+    }
 #define TSP_SET(NAME, VALUE)						\
-	_LOCK_ACCESS(&NAME##_mutex){					\
-		NAME = VALUE;								\
-	}
+    _LOCK_ACCESS(&NAME##_mutex){					\
+        NAME = VALUE;								\
+    }
 #define TSP_SCOPE(NAME)								\
-	_LOCK_ACCESS(&NAME##_mutex)
+    _LOCK_ACCESS(&NAME##_mutex)
 #define TSP_TRYSCOPE(NAME)								\
-	_TRYLOCK_ACCESS(&NAME##_mutex)
+    _TRYLOCK_ACCESS(&NAME##_mutex)
 
 
 #ifdef __cplusplus

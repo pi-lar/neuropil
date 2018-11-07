@@ -417,11 +417,11 @@ int _np_threads_condition_wait(NP_UNUSED np_state_t* context, np_cond_t* conditi
 
 int _np_threads_module_condition_timedwait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_module_lock_type module_id, double sec)
 {
-	double d_sleep = np_time_now() + sec;
-	//d_sleep += 0.5e-9;
-	struct timespec waittime = { 0 };
-	waittime.tv_sec = (long)d_sleep;
-	waittime.tv_nsec = (d_sleep - waittime.tv_sec) / 1e-9;
+    double d_sleep = np_time_now() + sec;
+    //d_sleep += 0.5e-9;
+    struct timespec waittime = { 0 };
+    waittime.tv_sec = (long)d_sleep;
+    waittime.tv_nsec = (d_sleep - waittime.tv_sec) / 1e-9;
 
     return pthread_cond_timedwait(&condition->cond, &np_module(threads)->__mutexes[module_id].lock, &waittime);
 }

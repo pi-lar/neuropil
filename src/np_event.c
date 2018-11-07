@@ -56,9 +56,9 @@
     ev_set_userdata (np_module(events)->__loop_##LOOPNAME, context);												\
     ev_idle_init (&np_module(events)->__idle_##LOOPNAME, _np_events_idle_##LOOPNAME);                      		\
     ev_idle_start (np_module(events)->__loop_##LOOPNAME, &np_module(events)->__idle_##LOOPNAME);   				\
-	ev_set_loop_release_cb(np_module(events)->__loop_##LOOPNAME, _l_release_##LOOPNAME,_l_acquire_##LOOPNAME);		\
+    ev_set_loop_release_cb(np_module(events)->__loop_##LOOPNAME, _l_release_##LOOPNAME,_l_acquire_##LOOPNAME);		\
     ev_async_init (&np_module(events)->__async_##LOOPNAME, async_cb);									            \
-	ev_async_start(np_module(events)->__loop_##LOOPNAME, &np_module(events)->__async_##LOOPNAME);					\
+    ev_async_start(np_module(events)->__loop_##LOOPNAME, &np_module(events)->__async_##LOOPNAME);					\
     ev_verify(np_module(events)->__loop_##LOOPNAME);																\
 
 //    if (strncmp("out", #LOOPNAME, 3)) {
@@ -69,7 +69,7 @@
 #define __NP_EVENT_LOOP_FNs(LOOPNAME)																					\
     static void _np_events_idle_##LOOPNAME (NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_idle *w, NP_UNUSED int revents)   \
     {                                                                                                                      \
-	    ev_sleep(NP_PI/500);                                                                                               \
+        ev_sleep(NP_PI/500);                                                                                               \
     }                                                                                                                      \
     void _l_acquire_##LOOPNAME(EV_P)																						\
     {																													\
@@ -84,18 +84,18 @@
     void _np_events_read_##LOOPNAME (np_state_t* context, NP_UNUSED np_jobargs_t* args)								    \
     {																													\
             EV_P = _np_event_get_loop_##LOOPNAME(context);																\
-			_l_acquire_##LOOPNAME(EV_A);																	                \
+            _l_acquire_##LOOPNAME(EV_A);																	                \
             ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));																	    \
-			_l_release_##LOOPNAME(EV_A);																	                \
+            _l_release_##LOOPNAME(EV_A);																	                \
     }																													\
     void* _np_event_##LOOPNAME##_run(void* thread_ptr) {																	\
         np_ctx_memory(thread_ptr);																						\
         _np_threads_set_self(thread_ptr);																				\
         while (1) {																										\
             EV_P = _np_event_get_loop_##LOOPNAME(context);																\
-			_l_acquire_##LOOPNAME(EV_A);																	                \
+            _l_acquire_##LOOPNAME(EV_A);																	                \
             ev_run( EV_A_(0) );																							\
-			_l_release_##LOOPNAME(EV_A);																	                \
+            _l_release_##LOOPNAME(EV_A);																	                \
         }																												\
     }																													\
     void _np_event_suspend_loop_##LOOPNAME(np_state_t* context)															\
@@ -104,7 +104,7 @@
     }																													\
     void _np_event_resume_loop_##LOOPNAME(np_state_t *context)															\
     {																													\
-		ev_async_send(_np_event_get_loop_##LOOPNAME(context), &np_module(events)->__async_##LOOPNAME);						\
+        ev_async_send(_np_event_get_loop_##LOOPNAME(context), &np_module(events)->__async_##LOOPNAME);						\
         _np_threads_mutex_unlock(context, &np_module(events)->__loop_##LOOPNAME##_process_protector);					    \
     }																													\
     struct ev_loop * _np_event_get_loop_##LOOPNAME(np_state_t *context) {												    \
@@ -127,19 +127,19 @@ __NP_EVENT_LOOP_FNs(http);
 
 void async_cb(NP_UNUSED EV_P_ NP_UNUSED ev_async *w, NP_UNUSED int revents)
 {																												
-	/* just used for the side effects */																		
+    /* just used for the side effects */																		
 }
 bool _np_event_init(np_state_t* context) {
-	bool ret = false;
+    bool ret = false;
     if (!np_module_initiated(events)) {
         np_module_malloc(events);
         __NP_EVENT_EVLOOP_INIT(in);
         __NP_EVENT_EVLOOP_INIT(out);
         __NP_EVENT_EVLOOP_INIT(io);
         __NP_EVENT_EVLOOP_INIT(http);
-		ret = true;
+        ret = true;
     }
-	return ret;
+    return ret;
 }
 
 // TODO: move to glia
@@ -148,21 +148,21 @@ void _np_event_cleanup_msgpart_cache(np_state_t* context, NP_UNUSED np_jobargs_t
     np_sll_t(np_message_ptr, to_del);
     sll_init(np_message_ptr, to_del);
     
-	_LOCK_MODULE(np_message_part_cache_t)
-	{
-		if (context->msg_part_cache->size > 0) {
-			log_debug_msg(LOG_INFO, "MSG_PART_TABLE removing (left-over) message parts (size: %d)", context->msg_part_cache->size);
+    _LOCK_MODULE(np_message_part_cache_t)
+    {
+        if (context->msg_part_cache->size > 0) {
+            log_debug_msg(LOG_INFO, "MSG_PART_TABLE removing (left-over) message parts (size: %d)", context->msg_part_cache->size);
 
-			np_tree_elem_t* tmp = NULL;
-			RB_FOREACH(tmp, np_tree_s, context->msg_part_cache)
-			{
-				np_message_t* msg = tmp->val.value.v;
-				if (true == _np_message_is_expired(msg)) {
-					sll_append(np_message_ptr, to_del, msg);
-				}
-			}
-		}
-	}
+            np_tree_elem_t* tmp = NULL;
+            RB_FOREACH(tmp, np_tree_s, context->msg_part_cache)
+            {
+                np_message_t* msg = tmp->val.value.v;
+                if (true == _np_message_is_expired(msg)) {
+                    sll_append(np_message_ptr, to_del, msg);
+                }
+            }
+        }
+    }
 
     sll_iterator(np_message_ptr) iter = sll_first(to_del);
     while (NULL != iter)

@@ -42,49 +42,49 @@ extern "C" {
 
 
 enum socket_type {
-	UNKNOWN_PROTO  = 0x000,
-	IPv4    	   = 0x001,
-	IPv6    	   = 0x002,
-	UDP     	   = 0x010, // UDP protocol - default
-	TCP     	   = 0x020, // TCP protocol
-	//RAW     	   = 0x040, // pure IP protocol - no ports
-	PASSIVE		   = 0x100,
-	MASK_PROTOCOLL = 0x0FF,
-	MASK_OPTION    = 0xF00,
+    UNKNOWN_PROTO  = 0x000,
+    IPv4    	   = 0x001,
+    IPv6    	   = 0x002,
+    UDP     	   = 0x010, // UDP protocol - default
+    TCP     	   = 0x020, // TCP protocol
+    //RAW     	   = 0x040, // pure IP protocol - no ports
+    PASSIVE		   = 0x100,
+    MASK_PROTOCOLL = 0x0FF,
+    MASK_OPTION    = 0xF00,
 } NP_ENUM;
 
 typedef enum np_network_type_e {
-	np_network_type_none	= 0x00,
-	np_network_type_server	= 0x01,
-	np_network_type_client	= 0x02,
+    np_network_type_none	= 0x00,
+    np_network_type_server	= 0x01,
+    np_network_type_client	= 0x02,
 } np_network_type_e;
 
 struct np_network_s
 {
-	bool initialized;
-	int socket;
-	ev_io watcher;
-	bool is_running;
-	np_network_type_e type;
+    bool initialized;
+    int socket;
+    ev_io watcher;
+    bool is_running;
+    np_network_type_e type;
 
-	enum socket_type socket_type;
-	struct addrinfo* addr_in; // where a node receives messages
+    enum socket_type socket_type;
+    struct addrinfo* addr_in; // where a node receives messages
 
-	np_mutex_t waiting_lock;
-	np_tree_t* waiting;
+    np_mutex_t waiting_lock;
+    np_tree_t* waiting;
 
-	np_mutex_t out_events_lock;
-	double last_send_date;
-	double last_received_date;
-	np_sll_t(void_ptr, out_events);
+    np_mutex_t out_events_lock;
+    double last_send_date;
+    double last_received_date;
+    np_sll_t(void_ptr, out_events);
 
-	uint32_t seqend;
+    uint32_t seqend;
 
-	char ip[CHAR_LENGTH_IP];
-	char port[CHAR_LENGTH_PORT];
-	np_mutex_t access_lock;
+    char ip[CHAR_LENGTH_IP];
+    char port[CHAR_LENGTH_PORT];
+    np_mutex_t access_lock;
 
-	TSP(bool, can_be_enabled);
+    TSP(bool, can_be_enabled);
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
@@ -92,13 +92,13 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
 typedef struct np_prioq_s np_prioq_t;
 struct np_prioq_s {
 
-	np_key_t* dest_key; // the destination key / next/final hop of the message
-	np_message_t* msg;  // message to send
+    np_key_t* dest_key; // the destination key / next/final hop of the message
+    np_message_t* msg;  // message to send
 
-	uint8_t max_retries; // max number of retries / subject specific
-	uint8_t retry;     // number of retries
-	uint32_t seqnum; // seqnum to identify the packet to be retransmitted
-	double send_at; // this is the time the packet is transmitted (or retransmitted)
+    uint8_t max_retries; // max number of retries / subject specific
+    uint8_t retry;     // number of retries
+    uint32_t seqnum; // seqnum to identify the packet to be retransmitted
+    double send_at; // this is the time the packet is transmitted (or retransmitted)
 } NP_API_INTERN;
 
 // parse protocol string of the form "tcp4://..." and return the correct @see socket_type

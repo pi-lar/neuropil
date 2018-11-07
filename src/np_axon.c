@@ -168,7 +168,7 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
         np_tree_replace_str(msg_out->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(target->dhkey));
     }
     
-	// sanity check
+    // sanity check
     if (!_np_node_check_address_validity(target->node) &&
         target->node->joined_network)
     {
@@ -176,7 +176,7 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
             _np_key_as_str(target));
         return;
     }
-	np_ref_obj(np_key_t, target, FUNC); // usage ref
+    np_ref_obj(np_key_t, target, FUNC); // usage ref
 
 
     // now we can try to send the msg
@@ -225,8 +225,8 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
                 }
                 // TODO: ref counting on ack may differ (ref_message_ack) / key may not be the same more
                 if (true == skip) {
-					np_unref_obj(np_key_t, target, FUNC);
-					np_unref_obj(np_network_t, my_network, "np_waitref_network");
+                    np_unref_obj(np_key_t, target, FUNC);
+                    np_unref_obj(np_network_t, my_network, "np_waitref_network");
                     np_unref_obj(np_key_t, my_key, "np_waitref_key");
                     return;
                 }
@@ -237,8 +237,8 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
                 {
                     log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "resend message %s (%s) sendcounter too high, not resending ...", prop->msg_subject, uuid);
 
-					np_unref_obj(np_key_t, target, FUNC);
-					np_unref_obj(np_network_t, my_network, "np_waitref_network");
+                    np_unref_obj(np_key_t, target, FUNC);
+                    np_unref_obj(np_network_t, my_network, "np_waitref_network");
                     np_unref_obj(np_key_t, my_key, "np_waitref_key");
                     return;
                 }
@@ -247,8 +247,8 @@ void _np_out(np_state_t* context, np_jobargs_t* args)
                 {
                     log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "resend message %s (%s) expired, not resending ...", prop->msg_subject, uuid);
 
-					np_unref_obj(np_key_t, target, FUNC);
-					np_unref_obj(np_network_t, my_network, "np_waitref_network");
+                    np_unref_obj(np_key_t, target, FUNC);
+                    np_unref_obj(np_network_t, my_network, "np_waitref_network");
                     np_unref_obj(np_key_t, my_key, "np_waitref_key");
                     return;
                 }
