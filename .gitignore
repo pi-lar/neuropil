@@ -16,3 +16,10 @@ config.log
 /obj
 *.vcxproj
 *.user
+/.vscode
+/.cproject
+/.cquery
+/.project
+*.key
+ext_tools/*
+*perf.data*

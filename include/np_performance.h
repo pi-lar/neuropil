@@ -97,7 +97,7 @@ extern "C" {
 		}
 
 #ifdef DEBUG_CALLBACKS																											
-#define ___NP_PERFORMANCE_GET_POINTS_STR(STR)
+#define ___NP_PERFORMANCE_GET_POINTS_STR(STR)																				\
 	char * stats = __np_util_debug_statistics_print(context);																\
 	STR = np_str_concatAndFree(STR, stats);																					\
 	free(stats);																											

@@ -156,54 +156,54 @@ int _np_threads_unlock_module(np_state_t* context, np_module_lock_type module_id
 NP_API_INTERN
 int _np_threads_unlock_modules(np_state_t* context, np_module_lock_type module_id_a,np_module_lock_type module_id_b);
 NP_API_INTERN
-int _np_threads_module_condition_broadcast(np_state_t* context, np_module_lock_type module_id);
+int _np_threads_module_condition_broadcast(NP_UNUSED np_state_t* context, np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_module_condition_signal(np_state_t* context, np_module_lock_type module_id);
+int _np_threads_module_condition_signal(NP_UNUSED np_state_t* context, np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_module_condition_timedwait(np_state_t* context, np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime);
+int _np_threads_module_condition_timedwait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_module_lock_type module_id, double sec);
 NP_API_INTERN
-int _np_threads_module_condition_wait(np_state_t* context, np_cond_t* condition, np_module_lock_type module_id);
+int _np_threads_module_condition_wait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_module_lock_type module_id);
 
 
 NP_API_EXPORT
 int _np_threads_mutex_init(np_state_t*context, np_mutex_t* mutex, const char* desc);
 NP_API_EXPORT
-int _np_threads_mutex_lock(np_state_t*context, np_mutex_t* mutex, const char* where);
+int _np_threads_mutex_lock(NP_UNUSED np_state_t*context, np_mutex_t* mutex, const char* where);
 NP_API_INTERN
-int _np_threads_mutex_trylock(np_state_t*context, np_mutex_t* mutex, const char* where);
+int _np_threads_mutex_trylock(NP_UNUSED np_state_t*context, np_mutex_t* mutex, const char* where);
 NP_API_EXPORT
-int _np_threads_mutex_unlock(np_state_t*context, np_mutex_t* mutex);
+int _np_threads_mutex_unlock(NP_UNUSED np_state_t*context, np_mutex_t* mutex);
 NP_API_INTERN
-void _np_threads_mutex_destroy(np_state_t*context, np_mutex_t* mutex);
+void _np_threads_mutex_destroy(NP_UNUSED np_state_t*context, np_mutex_t* mutex);
 NP_API_INTERN
-int _np_threads_mutex_condition_timedwait(np_state_t*context, np_mutex_t* mutex, struct timespec* waittime);
+int _np_threads_mutex_condition_timedwait(NP_UNUSED np_state_t*context, np_mutex_t* mutex, struct timespec* waittime);
 NP_API_INTERN
-int _np_threads_mutex_condition_wait(np_state_t*context, np_mutex_t* mutex);
+int _np_threads_mutex_condition_wait(NP_UNUSED np_state_t*context, np_mutex_t* mutex);
 NP_API_INTERN
-int _np_threads_mutex_timedlock(np_state_t*context, np_mutex_t * mutex, const double delay);
+int _np_threads_mutex_timedlock(NP_UNUSED np_state_t*context, np_mutex_t * mutex, const double delay);
 
 NP_API_INTERN
-void _np_threads_condition_init(np_state_t* context, np_cond_t* condition);
+void _np_threads_condition_init(NP_UNUSED np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
-void _np_threads_condition_init_shared(np_state_t* context, np_cond_t* condition);
+void _np_threads_condition_init_shared(NP_UNUSED np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
-int _np_threads_condition_wait(np_state_t* context, np_cond_t* condition, np_mutex_t* mutex);
+int _np_threads_condition_wait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_mutex_t* mutex);
 
 NP_API_INTERN
-int _np_threads_condition_signal(np_state_t* context, np_cond_t* condition);
+int _np_threads_condition_signal(NP_UNUSED np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
-void _np_threads_condition_destroy(np_state_t* context, np_cond_t* condition);
+void _np_threads_condition_destroy(NP_UNUSED np_state_t* context, np_cond_t* condition);
 
 NP_API_INTERN
-int _np_threads_condition_broadcast(np_state_t* context, np_cond_t* condition);
+int _np_threads_condition_broadcast(NP_UNUSED np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
-np_thread_t * __np_createThread(np_state_t* context, uint8_t number, void *(fn)(void *), bool auto_run, enum np_thread_type_e type);
+np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, void *(fn)(void *), bool auto_run, enum np_thread_type_e type);
 NP_API_INTERN
-np_thread_t*_np_threads_get_self(np_state_t* context);
+np_thread_t*_np_threads_get_self(NP_UNUSED np_state_t* context);
 NP_API_INTERN
 void _np_threads_set_self(np_thread_t * myThread);
 NP_API_INTERN
-void np_threads_start_workers(np_state_t* context, uint8_t pool_size);
+void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size);
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
@@ -250,7 +250,7 @@ _LOCK_MODULE(np_keycache_t)
 // print the complete object list and statistics
 
 NP_API_PROTEC
-char* np_threads_printpool(np_state_t* context, bool asOneLine);
+char* np_threads_printpool(NP_UNUSED np_state_t* context, bool asOneLine);
 
 /*
 	TSP = ThreadSafeProperty

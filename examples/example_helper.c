@@ -689,7 +689,7 @@ example_user_context* parse_program_args(
 		va_end(args);
 
 		uint32_t log_categories = 0
-			| LOG_VERBOSE
+			//| LOG_VERBOSE
 			//| LOG_TRACE
 			//| LOG_MUTEX
 			| LOG_ROUTING
@@ -730,17 +730,15 @@ example_user_context* parse_program_args(
 		\code
 		*/
 		if (*port == NULL) {
-			int port_pid = getpid();
-
-			*port = calloc(1, 7);
-
-			snprintf(*port, 7, "%d", port_pid);
+			int port_pid = getpid();			
+			
 			if (port_pid > 65535) {
-				snprintf(*port, 7, "%d", (port_pid >> 1));
+				port_pid  = port_pid >> 1;
 			}
 			if (port_pid < 1024) {
-				snprintf(*port, 7, "%d", (port_pid + 1024));
+				port_pid += 1024;
 			}
+			asprintf(port, "%d", port_pid);
 		}
 		/** \endcode */
 	}
@@ -776,6 +774,27 @@ void __np_example_deinti_ncurse(np_context * context) {
 	}
 }
 
+void __np_example_print_help(example_user_context* ud) {
+	werase(ud->__np_top_left_win);
+	werase(ud->__np_top_right_win);
+	if (ud->_current != NULL) werase(ud->_current->win);
+
+	mvwprintw(ud->__np_bottom_win_help, 0, 0,
+		"(P)erformance / Message(c)ache / Extended (M)emory / (L)og / J(o)bs "
+		"| R(e)paint "
+		"| Log: (F)ollow / (U)p / dow(N) "
+		"| (Q)uit | (H)TTP | (S)ysInfo | (J)oin"
+	);
+	int pos = -1;
+	if (ud->_current == ud->__np_switch_performance) pos = 1;
+	else if (ud->_current == ud->__np_switch_msgpartcache) pos = 24;
+	else if (ud->_current == ud->__np_switch_memory_ext) pos = 43;
+	else if (ud->_current == ud->__np_switch_log) pos = 54;
+	else if (ud->_current == ud->__np_switch_jobs) pos = 64;
+	mvwchgat(ud->__np_bottom_win_help, 0, pos, 1, A_UNDERLINE, 4, NULL);
+	wrefresh(ud->__np_bottom_win_help);
+
+}
 void __np_example_inti_ncurse(np_context* context) {
 	example_user_context* ud = ((example_user_context*)np_get_userdata(context));
 	if (false == ud->__np_ncurse_initiated) {
@@ -795,7 +814,7 @@ void __np_example_inti_ncurse(np_context* context) {
 			*/
 
 			int term_current_height, term_current_width;
-			getmaxyx(stdscr, term_current_height, term_current_width);  /* get the new screen size */
+			getmaxyx(stdscr, term_current_height, term_current_width);  /* get the screen size */
 
 			int term_width_top_left;
 			int term_height_top_left;
@@ -876,25 +895,7 @@ void __np_example_inti_ncurse(np_context* context) {
 		}
 	}
 	else {
-		werase(ud->__np_top_left_win);
-		werase(ud->__np_top_right_win);
-		if (ud->_current != NULL) werase(ud->_current->win);
-
-		mvwprintw(ud->__np_bottom_win_help, 0, 0,
-			"(P)erformance / Message(c)ache / Extended (M)emory / (L)og / J(o)bs "
-			"| R(e)paint "
-			"| Log: (F)ollow / (U)p / dow(N) "
-			"| (Q)uit | (H)TTP | (S)ysInfo | (J)oin"
-		);
-		int pos = -1;
-		if (ud->_current == ud->__np_switch_performance) pos = 1;
-		else if (ud->_current == ud->__np_switch_msgpartcache) pos = 24;
-		else if (ud->_current == ud->__np_switch_memory_ext) pos = 43;
-		else if (ud->_current == ud->__np_switch_log) pos = 54;
-		else if (ud->_current == ud->__np_switch_jobs) pos = 64;
-		mvwchgat(ud->__np_bottom_win_help, 0, pos, 1, A_UNDERLINE, 4, NULL);
-		wrefresh(ud->__np_bottom_win_help);
-
+		__np_example_print_help(ud);
 	}
 }
 
@@ -1172,6 +1173,7 @@ void __np_example_helper_loop(np_state_t* context) {
 			wrefresh(ud->__np_top_right_win);
 			wrefresh(ud->__np_top_logo_win);
 			__np_switchwindow_draw(context);
+			__np_example_print_help(ud);
 		}
 	}
 

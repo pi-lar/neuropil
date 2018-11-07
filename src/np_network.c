@@ -917,12 +917,12 @@ void _np_network_stop(np_network_t* network, bool force) {
 				if (FLAG_CMP(network->type, np_network_type_client)) {
 					log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping client network %p", network);
 					loop = _np_event_get_loop_out(context);
-					_np_event_suspend_loop_out(context);
-					if (force == true) {
-						ev_io_stop(EV_A_ &network->watcher);
-					}
 					ev_io_set(&network->watcher, network->socket, EV_NONE);
-					_np_event_resume_loop_out(context);
+					if (force == true) {
+						_np_event_suspend_loop_out(context);
+						ev_io_stop(EV_A_ &network->watcher);
+						_np_event_resume_loop_out(context);
+					}
 				}
 				network->is_running = false;
 			}
@@ -998,14 +998,14 @@ void _np_network_start(np_network_t* network, bool force){
 					}
 
 					if (FLAG_CMP(network->type, np_network_type_client)) {
-						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
-						_np_event_suspend_loop_out(context);
+						log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);						
 						EV_A = _np_event_get_loop_out(context);
 						ev_io_set(&network->watcher, network->socket, EV_WRITE);
 						if(force == true){
+							_np_event_suspend_loop_out(context);
 							ev_io_start(EV_A_ &network->watcher);
-						}
-						_np_event_resume_loop_out(context);
+							_np_event_resume_loop_out(context);
+						}						
 					}
 					network->is_running = true;
 				}

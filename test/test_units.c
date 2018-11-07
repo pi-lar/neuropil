@@ -24,3 +24,4 @@
 #include "unit/test_util_uuid.c"
 #include "unit/test_sodium_crypt.c"
 #include "unit/test_scache.c"
+#include "unit/test_heap.c"
