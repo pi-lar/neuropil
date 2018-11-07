@@ -160,7 +160,7 @@ int _np_threads_module_condition_broadcast(NP_UNUSED np_state_t* context, np_mod
 NP_API_INTERN
 int _np_threads_module_condition_signal(NP_UNUSED np_state_t* context, np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_module_condition_timedwait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_module_lock_type module_id, struct timespec* waittime);
+int _np_threads_module_condition_timedwait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_module_lock_type module_id, double sec);
 NP_API_INTERN
 int _np_threads_module_condition_wait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_module_lock_type module_id);
 
