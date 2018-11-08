@@ -38,6 +38,16 @@
 #include "np_serialization.h"
 #include "np_token_factory.h"
 
+const char **np_error_str = {
+	"",
+	"operation is not implemented",
+	"could not init network",
+	"argument is invalid",
+	"operation is currently invalid",
+	"insufficient memory",
+	"startup error. See log for more details"
+};
+
 // split into hash 
 void np_get_id(NP_UNUSED np_context * ac, np_id* id, char* string, NP_UNUSED size_t length) {
     // np_ctx_cast(ac);
