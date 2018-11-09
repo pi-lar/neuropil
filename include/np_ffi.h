@@ -112,7 +112,7 @@ np_context* np_new_context(struct np_settings *settings);
 
 // secret_key is nullable
 NP_API_EXPORT
-struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]));
+struct np_token np_new_identity(np_context* ac, double expires_at, const uint8_t secret_key[NP_SECRET_KEY_BYTES]);
 
 NP_API_EXPORT
 enum np_error	np_use_identity(np_context* ac, struct np_token identity);

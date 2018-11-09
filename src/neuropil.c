@@ -303,7 +303,7 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 }
 
 // secret_key is nullable
-struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES])) {
+struct np_token np_new_identity(np_context* ac, double expires_at, const uint8_t secret_key[NP_SECRET_KEY_BYTES]) {
     np_ctx_cast(ac); 
     
     struct np_token ret = {0};	

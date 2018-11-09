@@ -133,7 +133,7 @@ Initialization
 Identity management
 ------------------
 
-.. c:function:: struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]))
+.. c:function:: struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t secret_key[NP_SECRET_KEY_BYTES])
 
    Creates a new neuropil identity.
 
@@ -142,8 +142,8 @@ Identity management
    :param expires_at:
        expiry date of the identity in seconds since the Unix epoch.
    :param secret_key:
-       a pointer to the secret key used by the identity. If `NULL` is supplied a
-       random key is generated.
+       the secret key used by the identity. If `NULL` is supplied a random key
+       is generated.
    :return:
        an *identity token*.
 
