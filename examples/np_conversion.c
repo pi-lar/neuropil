@@ -40,7 +40,7 @@ uint32_t np_receive_text(np_context* ac, char* subject, char** buffer) {
 		sll_init(np_text_exchange_ptr, __np_text_exchange);
 	}
 	np_id subject_dhkey = { 0 };
-	np_get_id(ac, &subject_dhkey, subject, 0);
+	np_get_id(subject_dhkey, subject, 0);
 
 	struct np_text_exchange_s te_s = { 0 };
 	memcpy(&te_s.id, &subject_dhkey, sizeof(te_s));
@@ -72,6 +72,6 @@ uint32_t np_receive_text(np_context* ac, char* subject, char** buffer) {
 }
 
 DEPRECATED
-void np_send_text(np_context* ac, char* subject, char* buffer, uint32_t seq, np_id* target) {
+void np_send_text(np_context* ac, char* subject, char* buffer, uint32_t seq, np_id target) {
 	np_send_to(ac, subject, (uint8_t*)buffer, strlen(buffer)+1, target); // ignoring encoding etc for now
 }

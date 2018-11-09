@@ -428,14 +428,14 @@ void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhk
 #ifdef DEBUG
 	char* str = NULL;
 	char dhkey_str[65] = { 0 };
-	np_id2str(key, dhkey_str);
+	np_id_str(dhkey_str, key);
 	str = np_str_concatAndFree(str, "Base: %s %"PRIu32" ", dhkey_str, key->t[0]);
 	str = np_str_concatAndFree(str, "DISTANCE SORTED KEYs (key/dist): ");
 
 	curr = sll_first(list_of_keys);
 	while (curr != NULL) {
 		_np_dhkey_distance(&dif1, &curr->val->dhkey, key);
-		np_id2str((np_id*)&dif1, dhkey_str);
+		np_id_str(dhkey_str, *(np_id*)&dif1);
 		str = np_str_concatAndFree(str, "%s / %s, ", _np_key_as_str(curr->val), dhkey_str);
 		sll_next(curr);
 	}

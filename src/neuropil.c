@@ -55,7 +55,7 @@ const char *np_error_str(enum np_error e) {
 }
 
 // split into hash 
-void np_get_id(NP_UNUSED np_context * ac, np_id* id, char* string, NP_UNUSED size_t length) {
+void np_get_id(np_id id, const char* string, NP_UNUSED size_t length) {
     // np_ctx_cast(ac);
      
     np_dhkey_t  dhkey = np_dhkey_create_from_hostport(string, "0");
@@ -312,7 +312,7 @@ struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* (sec
 #ifdef DEBUG
     char tmp[65] = { 0 };
     np_dhkey_t d = np_aaatoken_get_fingerprint(new_token);
-    np_id2str((np_id*)&d, tmp);
+    np_id_str(tmp, *(np_id*)&d);
     log_debug_msg(LOG_AAATOKEN, "created new ident token %s (fp:%s)", ret.uuid, tmp);
 #endif
     np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
@@ -392,7 +392,7 @@ enum np_error np_send(np_context* ac, char* subject, uint8_t* message, size_t le
     return np_send_to(ac, subject, message, length, NULL);
 }
 
-enum np_error np_send_to(np_context* ac, char* subject, uint8_t* message, size_t  length, np_id * target) {
+enum np_error np_send_to(np_context* ac, const char* subject, const uint8_t* message, size_t length, const np_id target) {
     enum np_error ret = np_ok;
     np_ctx_cast(ac);
 
@@ -411,7 +411,7 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
     if (userdata != NULL) {
         struct np_message message = { 0 };
         strncpy(message.uuid, msg->uuid, NP_UUID_BYTES-1);
-        np_get_id(context, &message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));
+        np_get_id(message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));
         
         memcpy(&message.from, _np_message_get_sender(msg), NP_FINGERPRINT_BYTES);
 
@@ -529,30 +529,30 @@ enum np_status np_get_status(np_context* ac) {
 }
 
 
-void np_id2str(const np_id* id, char* key_string)
+void np_id_str(char str[65], const np_id id)
 {
     np_dhkey_t* k = (np_dhkey_t*)id;
     // TODO: use sodium bin2hex function
-    snprintf(key_string, 65,
+    snprintf(str, 65,
         "%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32,
         k->t[0], k->t[1], k->t[2], k->t[3], k->t[4], k->t[5], k->t[6], k->t[7]
     );
-    key_string[64] = '\0';
+    str[64] = '\0';
 }
 
-void np_str2id(const char* key_string, np_id* id)
+void np_str_id(np_id id, const char str[65])
 {
     np_dhkey_t* k = (np_dhkey_t*)id;
     // TODO: this is dangerous, encoding could be different between systems,
     // encoding has to be send over the wire to be sure ...
     // for now: all tests on the same system
-    // assert (64 == strlen((char*) key_string));
+    // assert (64 == strlen((char*) str));
 
     char substring[9];
     substring[8] = '\0';
     for (uint8_t i = 0; i < 8; i++)
     {
-        memcpy(substring, key_string + i * 8, 8);
+        memcpy(substring, str + i * 8, 8);
         k->t[i] = strtoul((const char*)substring, NULL, 16);
     }
     /*

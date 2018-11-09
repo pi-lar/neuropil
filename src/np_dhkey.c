@@ -72,7 +72,7 @@ np_dhkey_t np_dhkey_create_from_hash(const char* strOrig)
 {
 	log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_create_from_hash(const char* strOrig){");
 	np_dhkey_t kResult = { 0 };
-	np_str2id( strOrig, (np_id*)&kResult);
+	np_str_id(*(np_id*)&kResult, strOrig);
 	return kResult;
 }
 

@@ -16,7 +16,7 @@ extern "C" {
 	struct np_dhkey_s
 	{
 		uint32_t t[8];
-	} ;
+	} NP_PACKED;
 
 /* key_comp: k1, k2
  * returns > 0 if k1>k2, < 0 if k1<k2, and 0 if k1==k2

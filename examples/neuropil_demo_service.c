@@ -42,7 +42,7 @@
  
 bool receive_echo_message(np_context* context, struct np_message* message) {
 	np_example_print(context, stdout, "Echoing msg %s", message->uuid);
-	np_send_to(context, "echo", message->data, message->data_length, &message->from);
+	np_send_to(context, "echo", message->data, message->data_length, message->from);
 	return true;
 }
 

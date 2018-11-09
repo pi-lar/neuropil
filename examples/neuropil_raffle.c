@@ -116,7 +116,7 @@ bool froscon_register_for_hunt(np_context* context, struct np_message* message)
 	if (message->data_length < 500 && pthread_mutex_lock(&mutex) == 0) {
 		char data[500] = { 0 };
 		char from[500] = { 0 };
-		np_id2str(&message->from, from);
+		np_id_str(from, message->from);
 		bool sanitize_result;
 		sanitize(data, (char*)message->data, message->data_length, &sanitize_result);
 		printf("Received %sregistration: \"%s\" from %s\r\n", sanitize_result ? "" : "invalid ", data, from);

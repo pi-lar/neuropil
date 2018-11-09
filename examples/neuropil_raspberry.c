@@ -54,7 +54,7 @@ void handle_ping_pong_receive(np_context* context, char * response, int first_lo
 	
 	char tmp_from[65];
 	np_dhkey_t tmp;
-	np_id2str(&msg->from, tmp_from);
+	np_id_str(tmp_from, msg->from);
 	np_example_print(context, stdout, "Received %d/%s from %s. Sending %s\n",msg->data_length, text, tmp_from, response);
 
 	if (is_gpio_enabled == true)

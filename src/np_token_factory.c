@@ -243,7 +243,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 #endif
 
     np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(my_node_token);
-    np_id2str((np_id*)&node_dhkey, ret->issuer);
+    np_id_str(ret->issuer, *(np_id*)&node_dhkey);
 
     // create and handshake session data
     // convert to curve key
@@ -262,7 +262,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 #ifdef DEBUG
     char my_token_fp_s[65] = { 0 };
     np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(ret);
-    np_id2str((np_id*)&my_token_fp, my_token_fp_s);
+    np_id_str(my_token_fp_s, *(np_id*)&my_token_fp);
     log_debug_msg(LOG_DEBUG, "new handshake token fp: %s from node: %s", my_token_fp_s, _np_key_as_str(my_node_key));
     // ASSERT(strcmp(my_token_fp_s, _np_key_as_str(my_node_key)) == 0, "Node key and handshake partner key has to be the same");
 #endif // DEBUG
@@ -304,9 +304,9 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, n
 
 #ifdef DEBUG
         char tmp_ident[65];
-        np_id2str((np_id*)&ident_dhkey, tmp_ident);
+        np_id_str(tmp_ident, *(np_id*)&ident_dhkey);
         char tmp_node[65];
-        np_id2str((np_id*)&node_dhkey, tmp_node); 
+        np_id_str(tmp_node, *(np_id*)&node_dhkey);
         log_debug_msg(LOG_AAATOKEN, "setting partner relashionship for ident %s/%s and node %s/%s", 
             tmp_ident, context->my_identity->aaa_token->uuid,
             tmp_node, ret->uuid

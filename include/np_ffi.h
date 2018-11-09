@@ -72,7 +72,7 @@ typedef uint8_t np_id[NP_FINGERPRINT_BYTES];
 // If length is 0 then string is expected to be null-terminated.
 // char* is the appropriate type because it is the type of a string
 // and can also describe an array of bytes. (sizeof char == 1)
-void np_get_id(np_context * context, np_id* id, char* string, size_t length);
+void np_get_id(np_id id, const char* string, size_t length);
 
 struct np_token {
     char uuid[NP_UUID_BYTES];
@@ -178,7 +178,7 @@ void* np_get_userdata(np_context * ac);
 
 
 NP_API_EXPORT
-    enum np_error np_send_to(np_context* ac, char* subject, uint8_t* message, size_t length, np_id * target);
+    enum np_error np_send_to(np_context* ac, const char* subject, const uint8_t* message, size_t length, const np_id target);
 NP_API_EXPORT
     bool np_has_joined(np_context * ac);		
 NP_API_EXPORT
@@ -186,6 +186,6 @@ NP_API_EXPORT
 NP_API_EXPORT
     bool np_has_receiver_for(np_context*ac, char * subject);	
 NP_API_EXPORT
-    void np_id2str(const np_id* k, char* key_string);
+    void np_id_str(char str[65], const np_id id);
 NP_API_EXPORT
-    void np_str2id(const char* key_string, np_id* k);
+    void np_str_id(np_id id, const char str[65]);

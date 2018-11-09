@@ -171,7 +171,7 @@ bool receive_echo_message(np_context * context, const np_message_t* const msg, n
         }
         fprintf(stdout, ": \"%s\"\n", text);
         // send the message back
-        np_send_text(context, "echo", text, 0,  &reply_to);
+        np_send_text(context, "echo", text, 0, reply_to);
         /**
            \endcode
         */
