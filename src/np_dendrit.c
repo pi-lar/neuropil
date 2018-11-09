@@ -220,7 +220,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t args)
 
             log_debug_msg(LOG_SERIALIZATION | LOG_MESSAGE | LOG_DEBUG,
                 "deserialized message %s (source: \"%s\")",
-                msg_in->uuid, np_network_get_desc(alias_key));
+                msg_in->uuid, np_network_get_desc(alias_key,tmp));
 
             _np_message_trace_info("in", msg_in);
 

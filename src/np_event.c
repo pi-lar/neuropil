@@ -54,7 +54,7 @@
     np_module(events)->__loop_##LOOPNAME = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);									\
     if (np_module(events)->__loop_##LOOPNAME == false) {											 					\
         fprintf(stderr, "ERROR: cannot init "#LOOPNAME" event loop");								 					\
-        exit(EXIT_FAILURE);														   					 					\
+        abort();														   					 							\
     }																			   					 					\
     ev_set_userdata (np_module(events)->__loop_##LOOPNAME, context);													\
     ev_idle_init (&np_module(events)->__idle_##LOOPNAME, _np_events_idle_##LOOPNAME);                      				\

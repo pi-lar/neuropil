@@ -149,7 +149,7 @@ void np_shutdown_notify_others(np_state_t* context) {
                 msgs_is_out = true;
             }
             else {
-                np_time_sleep(NP_PI/300);
+                np_run(context, NP_PI/300);
             }
         }
 
