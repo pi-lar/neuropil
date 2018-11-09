@@ -162,6 +162,7 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
     np_key_t *tmp_node_key = NULL;
     
     sll_iterator(np_key_ptr) iter_keys = sll_first(connections);
+    np_ctx_decl(NULL); // WARNING: context is NULL!
     while (iter_keys != NULL)
     {
         tmp_node_key = iter_keys->val;		
@@ -172,8 +173,8 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
             (np_time_now() - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
             tmp_node_key->node->_handshake_status == np_handshake_status_Connected
             )
-        {
-            np_ctx_memory(tmp_node_key);
+        {			
+            if(context == NULL) context = np_ctx_by_memory(tmp_node_key);
 
             log_msg(LOG_INFO, "deleted from table/leafset: %s:%s:%s / %f / %1.2f",
                                 _np_key_as_str(tmp_node_key),

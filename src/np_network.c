@@ -606,8 +606,11 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
                             inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
                         }
 
-                        memcpy(ng->ip, ipstr, sizeof(char)*strnlen(ipstr, CHAR_LENGTH_IP - 1));
-                        memcpy(ng->port, port, sizeof(char)*strnlen(port, CHAR_LENGTH_PORT - 1));
+                        if(strncmp(ng->ip, ipstr, strnlen(ipstr, CHAR_LENGTH_IP - 1))!=0)
+                            memcpy(ng->ip, ipstr, strnlen(ipstr, CHAR_LENGTH_IP - 1));
+
+                        if (strncmp(ng->port, port, strnlen(port, CHAR_LENGTH_PORT - 1)) != 0)
+                            memcpy(ng->port, port, strnlen(port, CHAR_LENGTH_PORT - 1));
                     }
 
                     log_debug_msg(LOG_NETWORK | LOG_DEBUG,
@@ -827,9 +830,10 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
             snprintf(data_container->port, CHAR_LENGTH_PORT-1, "%d", ntohs(s->sin6_port));
             inet_ntop(AF_INET6, &s->sin6_addr, data_container->ipstr, sizeof data_container->ipstr);
         }				
-
-        memcpy(ng->ip, data_container->ipstr, sizeof(char) * strnlen(data_container->ipstr, CHAR_LENGTH_IP-1));
-        memcpy(ng->port, data_container->port,  sizeof(char) * strnlen(data_container->port, CHAR_LENGTH_PORT-1));
+        if (strncmp(ng->ip, data_container->ipstr, strnlen(data_container->ipstr, CHAR_LENGTH_IP - 1)) != 0)
+            memcpy(ng->ip, data_container->ipstr, strnlen(data_container->ipstr, CHAR_LENGTH_IP-1));
+        if (strncmp(ng->port, data_container->port, strnlen(data_container->port, CHAR_LENGTH_PORT - 1)) != 0)
+            memcpy(ng->port, data_container->port, strnlen(data_container->port, CHAR_LENGTH_PORT-1));
     }
 
     if (0 == data_container->in_msg_len)
@@ -907,10 +911,9 @@ void _np_network_stop(np_network_t* network, bool force) {
                     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping server network %p", network);
                     loop = _np_event_get_loop_in(context);
                     ev_io_set(&network->watcher, network->socket, EV_READ);
-                    if (force == true) {
-                        _np_event_suspend_loop_in(context);
+                    if (force == true) {                        
                         ev_io_stop(EV_A_ &network->watcher);
-                        _np_event_resume_loop_in(context);
+                        _np_event_reconfigure_loop_in(context);
                     }
                 }
                 if (FLAG_CMP(network->type, np_network_type_client)) {
@@ -918,9 +921,8 @@ void _np_network_stop(np_network_t* network, bool force) {
                     loop = _np_event_get_loop_out(context);
                     ev_io_set(&network->watcher, network->socket, EV_NONE);
                     if (force == true) {
-                        _np_event_suspend_loop_out(context);
                         ev_io_stop(EV_A_ &network->watcher);
-                        _np_event_resume_loop_out(context);
+                        _np_event_reconfigure_loop_out(context);
                     }
                 }
                 network->is_running = false;
@@ -993,10 +995,9 @@ void _np_network_start(np_network_t* network, bool force){
                         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
                         EV_A = _np_event_get_loop_in(context);
                         ev_io_set(&network->watcher, network->socket, EV_READ);
-                        if(force == true){
-                            _np_event_suspend_loop_in(context);
+                        if(force == true){							                            
                             ev_io_start(EV_A_ &network->watcher);
-                            _np_event_resume_loop_in(context);
+                            _np_event_reconfigure_loop_in(context);
                         }
                     }
 
@@ -1005,9 +1006,8 @@ void _np_network_start(np_network_t* network, bool force){
                         EV_A = _np_event_get_loop_out(context);
                         ev_io_set(&network->watcher, network->socket, EV_WRITE);
                         if(force == true){
-                            _np_event_suspend_loop_out(context);
                             ev_io_start(EV_A_ &network->watcher);
-                            _np_event_resume_loop_out(context);
+                            _np_event_reconfigure_loop_out(context);
                         }						
                     }
                     network->is_running = true;
@@ -1088,6 +1088,10 @@ void _np_network_t_new(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
     ng->last_send_date = 0.0;
     ng->last_received_date = 0.0;
     ng->seqend = 0;
+
+
+    ng->ip[0] = 0;
+    ng->port[0] = 0;
 
     _np_threads_mutex_init(context, &ng->access_lock, "network access_lock");
     _np_threads_mutex_init(context, &ng->out_events_lock, "network out_events_lock");
@@ -1321,39 +1325,41 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
     return true;
 }
 
-char* np_network_get_ip(np_key_t * container) {
-    char * ret = NULL;
 
-    if (container->network != NULL) {
-        ret = container->network->ip;
-    }
 
-    if (ret == NULL && container->parent_key != NULL && container->parent_key->network != NULL) {
-        ret = container->parent_key->network->ip;
-    }
+char* test(char* t,int q, char* ip, char* port ) {
 
-    if (ret == NULL)
-    {
-        ret = "127.0.0.1";
-    }
-
-    return ret;
+    return t;
 }
+char* np_network_get_desc(np_key_t * container, char* buffer) {
+    char* ret = buffer;
+    if (ret == NULL) ret = malloc(255);
 
-char* np_network_get_port(np_key_t * container) {
-    char * ret = NULL;
+    char *ip = NULL, *port = NULL;
 
-    if (container->network != NULL) {
-        ret = container->network->port;
+    if (container->network != NULL && container->network->initialized && strncmp(container->network->port,"",1) !=0) {
+        port = container->network->port;
+        ip = container->network->ip;
+    }
+    else if (container->parent_key != NULL && container->parent_key->network != NULL && container->parent_key->network->initialized && strncmp(container->parent_key->network->port, "", 1) != 0) {
+        port = container->parent_key->network->port;
+        ip = container->parent_key->network->ip;
+
+    }
+    else if (container->node != NULL && container->node->port != NULL) {
+        port = container->node->port;
+        ip = container->node->dns_name;
+    }
+    else if (container->parent_key != NULL && container->parent_key->node != NULL && container->parent_key->node->port != NULL) {
+        port = container->parent_key->node->port;
+        ip = container->parent_key->node->dns_name;
     }
 
-    if (ret == NULL && container->parent_key != NULL && container->parent_key->network != NULL) {
-        ret = container->parent_key->network->port;
+    if (port != NULL) {
+        snprintf(ret, 255, "%s:%s", ip, port);
     }
-
-    if (ret == NULL)
-    {
-        ret = "3141";
+    else {
+        snprintf(ret, 255, "?.?.?.?:?");
     }
 
     return ret;

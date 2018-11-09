@@ -145,9 +145,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
 void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
-char* np_network_get_ip(np_key_t * container);
-NP_API_INTERN
-char* np_network_get_port(np_key_t * container);
+char* np_network_get_desc(np_key_t * container, char* buffer);
 NP_API_INTERN
 bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool response_handshake, char* response_uuid);
 NP_API_INTERN

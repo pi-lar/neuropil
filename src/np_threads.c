@@ -93,7 +93,7 @@ int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, 
         _LOCK_ACCESS(&(self_thread->locklists_lock)) {
             sll_prepend(char_ptr, self_thread->want_lock, tmp);
         }
-}
+    }
 #endif
 #if !defined(NP_THREADS_CHECK_THREADING) || !defined(NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK)
     ret = pthread_mutex_lock(&np_module(threads)->__mutexes[module_id].lock);

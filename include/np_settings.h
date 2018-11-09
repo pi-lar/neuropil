@@ -257,7 +257,7 @@ extern "C" {
 #endif
 
 #ifndef MUTEX_WAIT_MAX_SEC
-    #define MUTEX_WAIT_MAX_SEC  MUTEX_WAIT_SEC *10
+    #define MUTEX_WAIT_MAX_SEC  MUTEX_WAIT_SEC 
 #endif
 #ifndef NP_JOBQUEUE_MAX_SLEEPTIME_SEC
     #define NP_JOBQUEUE_MAX_SLEEPTIME_SEC (NP_PI/100)

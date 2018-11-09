@@ -122,6 +122,9 @@
         _np_threads_mutex_unlock(context, &np_module(events)->__loop_##LOOPNAME##_process_protector);					\
         NP_PERFORMANCE_POINT_END(event_resume_##LOOPNAME);																\
     }																													\
+    void _np_event_reconfigure_loop_##LOOPNAME(np_state_t *context) {													\
+        ev_async_send(_np_event_get_loop_##LOOPNAME(context), &np_module(events)->__async_##LOOPNAME);					\
+    }																													\
     struct ev_loop * _np_event_get_loop_##LOOPNAME(np_state_t *context) {												\
         return (np_module(events)->__loop_##LOOPNAME);																	\
     }																								   					\
