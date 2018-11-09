@@ -120,7 +120,7 @@ enum np_error	np_use_identity(np_context* ac, struct np_token identity);
 
 
 NP_API_EXPORT
-enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
+enum np_error np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port);
 
 // Get “connect string”. Signals error if connect string is unavailable (i.e.,
 // no listening interface is configured.)
@@ -128,16 +128,16 @@ NP_API_EXPORT
 enum np_error np_get_address(np_context* ac, char* address, uint32_t max);
 
 NP_API_EXPORT
-enum np_error np_join(np_context* ac, char* address);
+enum np_error np_join(np_context* ac, const char* address);
 
 NP_API_EXPORT
-enum np_error np_send(np_context* ac, char* subject, uint8_t* message, size_t length);
+enum np_error np_send(np_context* ac, const char* subject, const uint8_t* message, size_t length);
 
 typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
 
 // There can be more than one receive callback, hence "add".
 NP_API_EXPORT
-enum np_error np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback);
+enum np_error np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback);
 
 typedef bool (*np_aaa_callback)(np_context* ac, struct np_token* aaa_token);
 NP_API_EXPORT
@@ -168,9 +168,9 @@ struct np_mx_properties {
 };
 
 NP_API_EXPORT
-struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject);
+struct np_mx_properties np_get_mx_properties(np_context* ac, const char* subject);
 NP_API_EXPORT
-enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties properties);
+enum np_error np_set_mx_properties(np_context* ac, const char* subject, struct np_mx_properties properties);
 NP_API_EXPORT
 void np_set_userdata(np_context * ac, void* userdata);
 NP_API_EXPORT
@@ -184,7 +184,7 @@ NP_API_EXPORT
 NP_API_EXPORT
     enum np_status np_get_status(np_context* ac);
 NP_API_EXPORT
-    bool np_has_receiver_for(np_context*ac, char * subject);	
+    bool np_has_receiver_for(np_context* ac, const char* subject);
 NP_API_EXPORT
     void np_id_str(char str[65], const np_id id);
 NP_API_EXPORT

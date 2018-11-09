@@ -169,7 +169,7 @@ np_context* np_new_context(struct np_settings * settings_in) {
     return ((np_context*)context);
 }
 
-enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port) {
+enum np_error np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port) {
     enum np_error ret = np_ok;
     np_ctx_cast(ac);
 
@@ -364,7 +364,7 @@ bool np_has_joined(np_context* ac) {
     return ret;
 }
 
-bool np_has_receiver_for(np_context*ac, char * subject) {
+bool np_has_receiver_for(np_context*ac, const char * subject) {
     assert(ac != NULL);
     assert(subject != NULL);
     np_ctx_cast(ac);
@@ -380,7 +380,7 @@ bool np_has_receiver_for(np_context*ac, char * subject) {
     return ret;
 }
 
-enum np_error np_join(np_context* ac, char* address) {
+enum np_error np_join(np_context* ac, const char* address) {
     enum np_error ret = np_ok;
     np_ctx_cast(ac);
 
@@ -388,7 +388,7 @@ enum np_error np_join(np_context* ac, char* address) {
     return ret;
 }
 
-enum np_error np_send(np_context* ac, char* subject, uint8_t* message, size_t length) {
+enum np_error np_send(np_context* ac, const char* subject, const uint8_t* message, size_t length) {
     return np_send_to(ac, subject, message, length, NULL);
 }
 
@@ -425,7 +425,7 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
     return ret;
 }
 
-enum np_error np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback) {
+enum np_error np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback) {
     enum np_error ret = np_ok;
 
     np_add_receive_listener(ac, __np_receive_callback_converter, callback, subject);
@@ -457,7 +457,7 @@ enum np_error np_set_accounting_cb(np_context* ac, np_aaa_callback callback) {
     return ret;
 }
 
-struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject) {
+struct np_mx_properties np_get_mx_properties(np_context* ac, const char* subject) {
     np_ctx_cast(ac);
     struct np_mx_properties ret = { 0 };
     bool exisits = false;
@@ -480,7 +480,7 @@ struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject) {
     
     return ret;
 }
-enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties user_property) {
+enum np_error np_set_mx_properties(np_context* ac, const char* subject, struct np_mx_properties user_property) {
     np_ctx_cast(ac);
     enum np_error ret = np_ok;
 
