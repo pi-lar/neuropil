@@ -62,7 +62,8 @@ enum np_error {
     // ...
 } NP_ENUM;
 
-const char** np_error_str;
+NP_API_EXPORT
+const char *np_error_str(enum np_error e);
 
 typedef void np_context;    
 
