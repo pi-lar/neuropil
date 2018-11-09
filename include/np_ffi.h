@@ -11,7 +11,7 @@
 #define NP_CONST 
 #endif
 #ifndef NP_PACKED
-#define NP_PACKED 
+#define NP_PACKED __attribute__((packed))
 #endif
 #ifndef NP_DEPRECATED
 #define NP_DEPRECATED 
