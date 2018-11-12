@@ -38,9 +38,17 @@
 np_state_t* _np_test_ctx(char* name, char* desc, char* porttype, int port);
 
 #define TCTX(...) VFUNC(TCTX, __VA_ARGS__)
-#define TCTX5(ID, NAME, DESC, PORTTYPE, PORT)  np_state_t* ID; for(uint8_t _CTX_i##__LINE__=0; (_CTX_i##__LINE__ < 1) && NULL != (ID = _np_test_ctx(NAME, DESC, PORTTYPE, PORT)); np_destroy(ID, false), _CTX_i##__LINE__++)
+#define TCTX5(ID, NAME, DESC, PORTTYPE, PORT)  													  \
+    np_state_t* ID; 																			  \
+    for(																						  \
+        uint8_t _CTX_i##__LINE__=0;																  \
+        (_CTX_i##__LINE__ < 1) && NULL != (ID = _np_test_ctx(NAME, DESC, PORTTYPE, PORT)); 		  \
+        np_destroy(ID, false),																	  \
+        _CTX_i##__LINE__++																		  \
+    )																							  \
+
 #define TCTX4(ID, DESC, PORTTYPE, PORT) TCTX5(ID, FUNC, DESC, PORTTYPE, PORT)
-#define TCTX2(ID, DESC) TCTX4(ID, DESC, "udp4", 3000)
+#define TCTX2(ID, DESC) TCTX4(ID, DESC, "udp4", (3000 + __COUNTER__))
 #define TCTX1(DESC) TCTX2(context, DESC)
 #define CTX() TCTX1("")
 
@@ -57,6 +65,7 @@ np_state_t* _np_test_ctx(char* name, char* desc, char* porttype, int port) {
         snprintf(settings->log_file, 256, "neuropil_test_%s.log", name);
 
     settings->log_level |= LOG_GLOBAL;
+    settings->n_threads = 1;
     ret = np_new_context(settings);
     assert(ret != NULL);
     assert(np_get_status(ret) == np_stopped);

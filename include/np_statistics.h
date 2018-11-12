@@ -52,6 +52,7 @@ extern "C" {
 #ifdef DEBUG_CALLBACKS
         np_sll_t(void_ptr, __np_debug_statistics);
 #endif
+
     };
 
     NP_API_INTERN

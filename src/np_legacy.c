@@ -375,7 +375,7 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     
     np_key_t* old_ident = context->my_identity;
 
-	identity->type |= np_aaatoken_type_identity;
+    identity->type |= np_aaatoken_type_identity;
     np_ref_switch(np_aaatoken_t, my_identity_key->aaa_token, ref_key_aaa_token, identity);	
 
     if (old_ident != NULL && old_ident->aaa_token != NULL && identity != old_ident->aaa_token) {
@@ -551,7 +551,7 @@ void np_destroy(np_context*ac, bool gracefully)
     __global_state = state
     */
 
-    TSP_SET(context->status, np_uninitialized);
+    TSP_SET(context->status, np_shutdown);
 }
 
 void _np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
