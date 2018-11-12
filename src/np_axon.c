@@ -500,9 +500,9 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t args)
                             );
                             if (false == args.target->network->initialized)
                             {
-                                np_unref_obj(np_message_t, hs_message, ref_obj_creation);
                                 np_unref_obj(np_network_t, args.target->network, ref_key_network);
                                 args.target->network = NULL;
+                                network_error = true;
                             }
                             else {
                                 _np_network_set_key(args.target->network, args.target);
