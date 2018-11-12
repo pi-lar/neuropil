@@ -45,13 +45,13 @@ extern "C" {
             uint16_t priority;                                                                                \
             bool sentinel;                                                                                    \
             TYPE data;                                                                                        \
-        };                                                                                                      \
+        };                                                                  \
         typedef struct TYPE##_binheap_s TYPE##_binheap_t;                                                       \
         struct TYPE##_binheap_s {                                                              		          \
             uint16_t count;                                                                                   \
             uint16_t size;                                                                                    \
             TYPE##_binheap_node_t* elements;                                                                  \
-        };                                                                                                      \
+        };                                                                       \
         TYPE##_binheap_t*  TYPE##_binheap_init(uint16_t max_nodes);                                             \
         void               TYPE##_binheap_free(TYPE##_binheap_t* heap);                                         \
         void               TYPE##_binheap_clear(TYPE##_binheap_t* heap);                                        \

@@ -86,7 +86,7 @@ void _np_log_fflush(np_state_t* context, bool force);
 
 #ifndef SWIG
 NP_API_EXPORT
-void np_log_message(np_state_t* context, uint32_t level,
+void np_log_message(np_state_t* context, enum np_log_e level,
                     const char* srcFile, const char* funcName,
                     uint16_t lineno, const char* msg, ...)
      //TODO: add context? __attribute__((__format__ (__printf__, 5,6) ))

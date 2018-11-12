@@ -45,28 +45,7 @@ typedef struct np_log_s
 } np_log_t;
 
 typedef struct log_str_t { const char* text; int log_code; } log_str_t;
-// TODO: ugly, but works. clean it up
-log_str_t __level_str[] = {
-        {NULL   , 0x00000 },
-        {"ERROR", LOG_ERROR },					/* error messages				*/
-        {"WARN", LOG_WARN	},					/* warning messages				*/
-        {NULL   , 0x00003	},					/* none messages				*/
-        {"INFO", 0x00004	},					/* info messages				*/
-        {NULL   , 0x00005	},					/* none messages				*/
-        {NULL   , 0x00006	},					/* none messages				*/
-        {NULL   , 0x00007	},					/* none messages				*/
-        {"DEBUG", LOG_DEBUG },					/* debugging messages			*/
-        {"ERROR_D", LOG_ERROR | LOG_DEBUG },	/* debugging error messages		*/
-        {"WARN_D",  LOG_WARN  | LOG_DEBUG },	/* debugging warning messages	*/
-        {NULL   , 0x0000b	},					/* none messages				*/
-        {"INFO_D",  LOG_INFO  | LOG_DEBUG },	/* debugging info messages		*/
-        {NULL   , 0x0000d	},					/* none messages				*/
-        {NULL   , 0x0000e	},					/* none messages				*/
-        {NULL   , 0x0000f	},					/* none messages				*/
-        {"TRACE", LOG_TRACE },					/* trace messages				*/
-        
-        
-};
+
 
 np_module_struct(log) {
     np_state_t* context;
@@ -151,8 +130,46 @@ void _np_log_rotate(np_state_t* context, bool force)
         log_rotation(context);
     }
 }
+/*
+    buffer may be at least 12 char wide
+*/
+char * get_level_str(enum np_log_e level, char * buffer) {
+    
+    char ret[12] = { 0 };
 
-void np_log_message(np_state_t* context, uint32_t level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
+    if (FLAG_CMP(level, LOG_ERROR)) {
+        sprintf(ret, "ERROR");
+    }
+    else if (FLAG_CMP(level, LOG_WARN)) {
+        sprintf(ret, "WARNING");
+    }
+    else if (FLAG_CMP(level, LOG_INFO)) {
+        sprintf(ret, "INFO");
+    }
+    else if (FLAG_CMP(level, LOG_TRACE)) {
+        sprintf(ret, "TRACE");
+    }
+
+    // mark debug entry 
+    if (FLAG_CMP(level, LOG_DEBUG)) {
+        if (ret[0] == 0) {
+            sprintf(ret, "DEBUG");
+        }
+        else {
+            sprintf(ret, "%s_D", ret);
+        }
+    }
+    // mark verbose entry
+    /*if (FLAG_CMP(level, LOG_VERBOSE)) {		
+        sprintf(ret, "%s_V", ret);
+    }
+    */
+    snprintf(buffer, 12, "%-11s", ret);
+
+    return buffer;
+}
+
+void np_log_message(np_state_t* context, enum np_log_e level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
 {
     if (np_module(log)->__logger == NULL) {
         return;
@@ -176,14 +193,14 @@ void np_log_message(np_state_t* context, uint32_t level, const char* srcFile, co
 
         char* prefix = malloc(sizeof(char)*LOG_ROW_SIZE);
         CHECK_MALLOC(prefix);
-
+        char tmp_buffer[20];
         strftime(prefix, 80, "%Y-%m-%d %H:%M:%S", &local_time);
         int new_log_entry_length = strlen(prefix);
         snprintf(prefix + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length,
-            ".%06d %-15lu %15.15s:%-5hd %-25.25s _%5s_ ",
+            ".%06d %-15lu %15.15s:%-5hd %-25.25s %5s ",
             millis, (unsigned long)pthread_self(),
             srcFile, lineno, funcName,
-            __level_str[level & LOG_LEVEL_MASK].text);
+            get_level_str(level & LOG_LEVEL_MASK, tmp_buffer));
 
         static const char* suffix = "\n";
 
