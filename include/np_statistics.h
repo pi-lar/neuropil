@@ -45,13 +45,13 @@ extern "C" {
         double __network_received_bytes_per_sec_last;
         uint32_t __network_received_bytes_per_sec_remember;
 
+#ifdef DEBUG_CALLBACKS
+        np_sll_t(void_ptr, __np_debug_statistics);
+#endif
 #ifdef NP_BENCHMARKING
         np_statistics_performance_point_t * performance_points[np_statistics_performance_point_END];
 #endif
 
-#ifdef DEBUG_CALLBACKS
-        np_sll_t(void_ptr, __np_debug_statistics);
-#endif
 
     };
 
