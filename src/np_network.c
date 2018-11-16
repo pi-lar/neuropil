@@ -1335,31 +1335,67 @@ char* np_network_get_desc(np_key_t * container, char* buffer) {
     char* ret = buffer;
     if (ret == NULL) ret = malloc(255);
 
-    char *ip = NULL, *port = NULL;
+    char* ip = np_network_get_ip(container, buffer);
+    int slen = strnlen(ip, 233);
+    buffer[slen] = ':';
+    np_network_get_port(container, buffer + slen+1);
 
-    if (container->network != NULL && container->network->initialized && strncmp(container->network->port,"",1) !=0) {
+    return ret;
+}
+char* np_network_get_port(np_key_t * container, char* buffer) {
+    char* ret = buffer;
+    if (ret == NULL) ret = malloc(20);
+
+    char *port = NULL;
+
+    if (container->network != NULL && container->network->initialized && strncmp(container->network->port, "", 1) != 0) {
         port = container->network->port;
-        ip = container->network->ip;
     }
     else if (container->parent_key != NULL && container->parent_key->network != NULL && container->parent_key->network->initialized && strncmp(container->parent_key->network->port, "", 1) != 0) {
         port = container->parent_key->network->port;
-        ip = container->parent_key->network->ip;
 
     }
     else if (container->node != NULL && container->node->port != NULL) {
         port = container->node->port;
-        ip = container->node->dns_name;
     }
     else if (container->parent_key != NULL && container->parent_key->node != NULL && container->parent_key->node->port != NULL) {
         port = container->parent_key->node->port;
-        ip = container->parent_key->node->dns_name;
     }
 
     if (port != NULL) {
-        snprintf(ret, 255, "%s:%s", ip, port);
+        snprintf(ret , 20 , "%s",  port);
     }
     else {
-        snprintf(ret, 255, "?.?.?.?:?");
+        snprintf(ret, 20, "?");
+    }
+
+    return ret;
+}
+char* np_network_get_ip(np_key_t * container, char* buffer) {
+    char* ret = buffer;
+    if (ret == NULL) ret = malloc(245);
+
+    char *ip = NULL;
+
+    if (container->network != NULL && container->network->initialized && strncmp(container->network->port, "", 1) != 0) {
+        ip = container->network->ip;
+    }
+    else if (container->parent_key != NULL && container->parent_key->network != NULL && container->parent_key->network->initialized && strncmp(container->parent_key->network->port, "", 1) != 0) {
+        ip = container->parent_key->network->ip;
+
+    }
+    else if (container->node != NULL && container->node->port != NULL) {
+        ip = container->node->dns_name;
+    }
+    else if (container->parent_key != NULL && container->parent_key->node != NULL && container->parent_key->node->port != NULL) {
+        ip = container->parent_key->node->dns_name;
+    }
+
+    if (ip != NULL) {
+        snprintf(ret, 255, "%%s", ip);
+    }
+    else {
+        snprintf(ret, 255, "?.?.?.?");
     }
 
     return ret;

@@ -100,8 +100,25 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_s
 {
     // np_ctx_memory(node_key);
     np_tree_insert_str( data, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_ush(node_key->node->protocol));
-    np_tree_insert_str( data, NP_SERIALISATION_NODE_DNS_NAME, np_treeval_new_s(node_key->node->dns_name));
-    np_tree_insert_str( data, NP_SERIALISATION_NODE_PORT, np_treeval_new_s(node_key->node->port));
+    np_treeval_t dns_name;
+    if (node_key->node->dns_name == NULL) {
+        char tmp[255];
+        dns_name = np_treeval_new_s(np_network_get_ip(node_key, tmp));
+    }
+    else {
+        dns_name = np_treeval_new_s(node_key->node->dns_name);
+    }
+    np_tree_insert_str(data, NP_SERIALISATION_NODE_DNS_NAME, dns_name);
+    np_treeval_t port;
+    if (node_key->node->port == NULL) {
+        char tmp[255];
+        port = np_treeval_new_s(np_network_get_port(node_key, tmp));
+    }
+    else {
+        port = np_treeval_new_s(node_key->node->port);
+    }
+    np_tree_insert_str(data, NP_SERIALISATION_NODE_PORT, port);
+
     np_tree_insert_str( data, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(node_key)));
 
     if (true == include_stats)
@@ -160,17 +177,25 @@ np_key_t* _np_node_decode_from_str (np_state_t* context, const char *key)
     np_dhkey_t search_key = np_dhkey_create_from_hash(s_hostkey);
     np_key_t* node_key    = _np_keycache_find_or_create(context, search_key);
 
-    if (NULL == node_key->node)
-    {
-        np_new_obj(np_node_t, node_key->node);
-        ref_replace_reason(np_node_t, node_key->node, ref_obj_creation, ref_key_node);
+
+    uint8_t proto = PASSIVE | IPv4;
+    if(s_hostproto!=NULL)
+    {	proto = _np_network_parse_protocol_string(s_hostproto);
     }
 
-    if (NULL != s_hostname &&
-        NULL == node_key->node->dns_name)
-    {	// overwrite hostname only if it is not set yet
-        uint8_t proto = _np_network_parse_protocol_string(s_hostproto);
-        _np_node_update(node_key->node, proto, s_hostname, s_hostport);
+    if (NULL == node_key->node && NULL != s_hostname && NULL != s_hostport)
+    {
+        np_node_t* newnode;
+        np_new_obj(np_node_t, newnode);
+        _np_node_update(newnode, proto, s_hostname, s_hostport);
+        np_ref_switch(np_node_t, node_key->node, ref_key_node, newnode);
+        np_unref_obj(np_node_t, newnode,ref_obj_creation);
+    }
+    else {
+        // overwrite hostname only if it is not set yet
+        if (NULL != s_hostname && NULL != s_hostport && (NULL == node_key->node->dns_name || NULL == node_key->node->port)) {
+            _np_node_update(node_key->node, proto, s_hostname, s_hostport);
+        }
     }
 
     free (key_dup);
