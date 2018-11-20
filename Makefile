@@ -60,7 +60,7 @@ PROGRAMS=$(subst examples/,build/obj/,$(subst .c,.o,$(SOURCES_PRG)))
 TESTS=$(subst test/,build/obj/,$(subst .c,.o,$(SOURCES_TST)))
 
 
-all: library build/lib/libneuropil_ffi.h test prg
+all: library bindings/luajit/neuropil_ffi.lua test prg
 
 # build/lib/libneuropil.dylib neuropil_hydra neuropil_controller neuropil_node neuropil_sender neuropil_receiver neuropil_receiver_cb neuropil_demo_service neuropil_pingpong neuropil_raspberry
 
@@ -104,7 +104,14 @@ build/lib/libneuropil.dylib: $(OBJECTS)
 	# dsymutil build/lib/libneuropil.$(TARGET).dylib -o build/lib/libneuropil.dylib.dSYM
 
 build/lib/libneuropil_ffi.h: include/np_ffi.h
+	mkdir -p build/lib
 	$(CC) -E $< | egrep -v "^#" > $@
+
+bindings/luajit/neuropil_ffi.lua: build/lib/libneuropil_ffi.h
+	@echo "GEN	$@"
+	@(echo -n "local ffi=require('ffi'); ffi.cdef[=============["; \
+	 cat $<; \
+	 echo "]=============]; return ffi.load('neuropil')") > $@
 
 build/obj/%.o: src/%.c
 	@mkdir -p $(@D)
@@ -126,6 +133,7 @@ build/obj/%.o: test/%.c
 
 clean:
 	-rm -r ./bin/* ./build/obj/*.o ./build/lib/*
+	-rm -r ./bindings/luajit/neuropil_ffi.lua
 	-rm examples/*.o
 	-rm ./neuropil_*.log ./test_*.log
 
