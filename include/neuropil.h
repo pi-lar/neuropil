@@ -39,9 +39,10 @@ extern "C" {
 #define NP_CONST __attribute__ ((const))
 #define NP_PURE  __attribute__ ((pure))
 
-#define NP_PACKED(x)  __attribute__ ((packed(x)))
+#ifndef NP_PACKED
+#define NP_PACKED(x)  __attribute__ ((packed, aligned(x)))
+#endif
 #define NP_DEPRECATED __attribute__ ((deprecated("!!! DEPRECATED !!!")))
-
 
 
 #if defined(TEST_COMPILE) || defined(DEBUG)
@@ -125,12 +126,13 @@ extern "C" {
         char realm[255]; // todo: has to be np_id		
         char audience[255]; // todo: has to be np_id		
 
-        double issued_at, not_before, expires_at;
+        double  issued_at, not_before, expires_at;
+
         uint8_t extensions[NP_EXTENSION_BYTES];
-        size_t extension_length;
+        size_t  extension_length;
         uint8_t public_key[NP_PUBLIC_KEY_BYTES],
-            secret_key[NP_SECRET_KEY_BYTES];
-    } __attribute__((packed, aligned(1)));
+                secret_key[NP_SECRET_KEY_BYTES];
+    } NP_PACKED(1);
     
     struct np_message {
         char uuid[NP_UUID_BYTES];
@@ -156,7 +158,7 @@ extern "C" {
 
     // secret_key is nullable
     NP_API_EXPORT
-    struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]));
+    struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* secret_key[NP_SECRET_KEY_BYTES]);
 
     NP_API_EXPORT
     enum np_error   np_use_identity(np_context* ac, struct np_token identity);
