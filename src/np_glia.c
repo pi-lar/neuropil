@@ -538,16 +538,19 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t args)
 
     np_sll_t(np_key_ptr, sll_of_keys) = NULL;
     /* send one row of our routing table back to joiner #host# */
-
+    
+    char* source_sll_of_keys;
     sll_of_keys = _np_route_row_lookup(target_key);
-    char* source_sll_of_keys = "_np_route_row_lookup";
+    source_sll_of_keys = "_np_route_row_lookup";
+    //sll_of_keys = _np_route_get_table(context);
+    //source_sll_of_keys = "_np_route_get_table";
     
     
-    if (sll_size(sll_of_keys) <= 1)
+    if (sll_size(sll_of_keys) <= 5)
     {
         // nothing found, send leafset to exchange some data at least
         // prevents small clusters from not exchanging all data
-        np_key_unref_list(sll_of_keys, "_np_route_row_lookup"); // only for completion
+        np_key_unref_list(sll_of_keys, source_sll_of_keys); // only for completion
         sll_free(np_key_ptr, sll_of_keys);
         sll_of_keys = _np_route_neighbors(context);
         source_sll_of_keys = "_np_route_neighbors";

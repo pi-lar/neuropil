@@ -356,7 +356,7 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context) {
 
     // build routing list
     np_sll_t(np_key_ptr, routing_table) = _np_route_get_table(context);
-
+    
     np_tree_t* routes = np_tree_create();
     uint32_t routes_counter = 0;
     if (NULL != routing_table && 0 < routing_table->size) {
@@ -366,13 +366,19 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context) {
             if (current->node) {
                 np_tree_t* route = np_tree_create();
                 _np_node_encode_to_jrb(route, current, true);
-                np_tree_replace_str( 
-                    route, 
+                np_tree_replace_str(
+                    route,
                     NP_SERIALISATION_NODE_PROTOCOL,
                     np_treeval_new_s(_np_network_get_protocol_string(context, current->node->protocol))
                 );
-                np_tree_insert_int( routes, routes_counter++, 
-                    np_treeval_new_tree(route));
+                np_tree_replace_str(
+                    route,
+                    "np.node.route.idx",
+                    np_treeval_new_ul(routes_counter)
+                );
+                np_tree_insert_int( routes, routes_counter++,
+                    np_treeval_new_tree(route)
+                );
                 np_tree_free( route);
                 np_unref_obj(np_key_t, current,"_np_route_get_table");
             }
