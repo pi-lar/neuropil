@@ -17,7 +17,6 @@ parser.add_argument('-b', '--branch', nargs='?', default="develop", help='Branch
 parser.add_argument('-du', '--default_user', nargs='?', default="localadmin", help='Default user to use to start nodes on remote machines')
 
 
-
 args = parser.parse_args()
 
 branch = args.branch
@@ -35,9 +34,9 @@ bootstrap_string   = args.bootstrapper
 bootstrap_string_w = "*" + bootstrap_string[64:]
 
 options_progs = [    
-      ("node ", "node  -d -3 "),
-      ("hydra", "hydra -d -3 -n 1 "),
-      ("cloud", "cloud -d -3 "),
+      ("node ", "node  -d -1 "),
+      ("hydra", "hydra -d -1 -n 6 -z 3600 -k 25200 "),
+      ("cloud", "cloud -d -1 "),
     ]
 options_threads = [
       ("singlethreaded", "-t 0"),
@@ -67,8 +66,10 @@ build_commands = [
     "python3 -m venv env",
     "source ./env/bin/activate",
     "pip list --outdated --format=freeze | grep -v ^\-e | cut -d = -f 1  | xargs -n1 pip install -U",
-    "pip install scons",
-    "scons debug=1 test=0"
+    "pip install scons"
+    ,"scons debug=2 test=0"
+    #,"scons debug=1 test=0"
+    #,"scons release=1 test=0"
 ]
 
 # generate option permutations
