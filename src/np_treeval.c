@@ -293,7 +293,7 @@ char* np_treeval_to_str(np_treeval_t val, bool* freeable) {
             np_tree_elem_t * tmp = NULL;
             bool free_key, free_value;
             char *key, *value;			
-			info_str = np_str_concatAndFree(info_str, "--> SUBTREE: (");
+            info_str = np_str_concatAndFree(info_str, "--> SUBTREE: (");
             RB_FOREACH(tmp, np_tree_s, (val.value.tree))
             {
                 key = np_treeval_to_str(tmp->key, &free_key);
@@ -302,14 +302,14 @@ char* np_treeval_to_str(np_treeval_t val, bool* freeable) {
                 if (free_value) free(value);
                 if (free_key) free(key);
             }
-			info_str = np_str_concatAndFree(info_str, ") ");
+            info_str = np_str_concatAndFree(info_str, ") ");
             return info_str ;
             break;
         case np_treeval_type_dhkey:
             result = malloc(65);
             CHECK_MALLOC(result);
             if (freeable != NULL) *freeable = true;
-            np_id2str((np_id*)&val.value.dhkey, result);
+            np_id2str((np_id)val.value.dhkey, result);
             break;
         default:
             return "--> unknown";

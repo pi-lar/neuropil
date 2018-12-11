@@ -297,7 +297,7 @@ struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* (sec
 #ifdef DEBUG
     char tmp[65] = { 0 };
     np_dhkey_t d = np_aaatoken_get_fingerprint(new_token);
-    np_id2str((np_id*)&d, tmp);
+    np_id2str((np_id)d, tmp);
     log_debug_msg(LOG_AAATOKEN, "created new ident token %s (fp:%s)", ret.uuid, tmp);
 #endif
     np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
@@ -514,9 +514,9 @@ enum np_status np_get_status(np_context* ac) {
 }
 
 
-void np_id2str(const np_id* id, char* key_string)
+void np_id2str(const np_id id, char* key_string)
 {
-    np_dhkey_t* k = (np_dhkey_t*)id;
+    np_dhkey_t* k = (np_dhkey_t*)&id;
     // TODO: use sodium bin2hex function
     snprintf(key_string, 65,
         "%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32,
