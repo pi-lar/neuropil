@@ -346,10 +346,12 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
         switch (client->ht_request.ht_method) {
         case (htp_method_GET): {
 
-            _np_http_handle_sysinfo(context, client);
-            break;
+            
+            if (np_module_initiated(sysinfo)) {
+                _np_http_handle_sysinfo(context, client);
+                break;
+            }
         }
-
         default:
             client->ht_response.ht_body = HTML_NOT_IMPLEMENTED;
             client->ht_response.ht_header = np_tree_create();
@@ -871,10 +873,6 @@ bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo
         // If you want to you can enable the statistics modulte to view the nodes statistics
         np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
         np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
-
-        np_example_print(context, stdout, "Watch internal subjects\n");
-        np_statistics_add_watch_internals(context);
-
     }
 
     return ret;
