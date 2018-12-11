@@ -10,4 +10,18 @@ rm -r build
 
 ARCHFLAGS='-arch x86_64' python setup.py build
 
-sudo install_name_tool -change build/lib/libneuropil.dylib $work_dir/../../build/lib/libneuropil.dylib $work_dir/build/lib.macosx-10.11-x86_64-3.6/_neuropil.abi3.so
+unameOut="$(uname -s)"
+case "${unameOut}" in
+    Linux*)     machine=Linux;;
+    Darwin*)    machine=Mac;;
+    CYGWIN*)    machine=Cygwin;;
+    MINGW*)     machine=MinGw;;
+    *)          machine="UNKNOWN:${unameOut}"
+esac
+
+if [ ${machine} == Mac ]
+then
+    echo "Trying to use name tool to link into build library"
+    sudo install_name_tool -change build/lib/libneuropil.dylib $work_dir/../../build/lib/libneuropil.dylib $work_dir/build/lib.macosx-10.11-x86_64-3.6/_neuropil.abi3.so
+fi
+

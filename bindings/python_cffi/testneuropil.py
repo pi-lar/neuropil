@@ -1,10 +1,32 @@
+#!/usr/bin/env python3
+import os
 import sys
 import time
+try:
+    import Neuropil    
+except ImportError:
+    # Using the build version of neuropil instad of the installed
+    from glob import glob
+    import platform
 
-sys.path.append('./build/lib.macosx-10.11-x86_64-3.6')
+    if platform.system() == 'Linux' and ( 'LD_LIBRARY_PATH' not in os.environ or '../../build/lib' not in os.environ['LD_LIBRARY_PATH']):
+        os.environ['LD_LIBRARY_PATH'] = '../../build/lib/:$LD_LIBRARY_PATH'
+        try:        
+            print('Restarting executable to add LD_LIBRARY_PATH')
+            os.execl(sys.executable, 'python', __file__, *sys.argv[1:])
+        except Exception as exc:
+            print( 'Failed re-exec:', exc)
+            sys.exit(1)
+    
+    for dir in glob("./build/lib*/"):
+        print("appending %s to path"%dir)
+        sys.path.append(dir)
+        break
+        
+    from _neuropil import lib, ffi
+    from neuropil_obj import Neuropil
 
-from _neuropil import lib, ffi
-from neuropil_obj import Neuropil
+
 
 @ffi.callback("bool(np_context* context, struct np_token*)")
 def my_authn_cb(context, token):
