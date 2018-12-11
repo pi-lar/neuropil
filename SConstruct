@@ -13,7 +13,7 @@ def buildNo():
 
     buildno = f.read()
     if buildno == "":
-        buildno = 1;
+        buildno = 1
     else:
         buildno = int(buildno) + 1
     f.seek(0)
@@ -33,7 +33,7 @@ try:
     import multiprocessing
     SetOption('num_jobs', multiprocessing.cpu_count())
 except:
-    pass;
+    pass
 
 
 analyze = ARGUMENTS.get('analyze', 0)
@@ -101,16 +101,15 @@ if strict:
 
 # add libev flags to the compilation
 default_env.Append(CCFLAGS = ['-DEV_STANDALONE'])
-# env.Append(CCFLAGS = ['-DEV_PERIODIC_ENABLE'])
-#default_env.Append(CCFLAGS = ['-DEV_USE_SELECT=1'])
-#default_env.Append(CCFLAGS = ['-DHAVE_SELECT'])
-#default_env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
-#default_env.Append(CCFLAGS = ['-DHAVE_POLL'])
+default_env.Append(CCFLAGS = ['-DEV_USE_SELECT=1'])
+#default_env.Append(CCFLAGS = ['-DEV_USE_KQUEUE=1'])
+default_env.Append(CCFLAGS = ['-DEV_USE_POLL=1'])
+default_env.Append(CCFLAGS = ['-DEV_USE_EPOLL=1'])
 default_env.Append(CCFLAGS = ['-DEV_COMPAT3=0'])
 default_env.Append(CCFLAGS = ['-DEV_USE_FLOOR=1'])
-# env.Append(CCFLAGS = ['-DEV_USE_REALTIME=0'])
+default_env.Append(CCFLAGS = ['-DEV_USE_CLOCK_SYSCALL=0'])
 default_env.Append(CCFLAGS = ['-DEV_USE_4HEAP=1'])
-# env.Append(CCFLAGS = ['-DEV_NO_THREADS'])
+
 
 
 
