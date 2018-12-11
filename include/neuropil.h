@@ -72,14 +72,14 @@ extern "C" {
 
     // Protocol constants
     enum {
-        NP_SECRET_KEY_BYTES = 32U + 32U,
-        NP_PUBLIC_KEY_BYTES = 32U,
-        NP_FINGERPRINT_BYTES = 32U,
-        NP_UUID_BYTES = 37U
+        NP_SECRET_KEY_BYTES = 64,
+        NP_PUBLIC_KEY_BYTES = 32,
+        NP_FINGERPRINT_BYTES = 32,
+        NP_UUID_BYTES = 37
     } NP_ENUM;
 
     // Implementation defined limits
-    #define NP_EXTENSION_BYTES (10*1024)
+    #define NP_EXTENSION_BYTES (10240)
     #define NP_EXTENSION_MAX (NP_EXTENSION_BYTES-1)
 
     enum np_status {
@@ -232,7 +232,7 @@ extern "C" {
     NP_API_EXPORT
         bool np_has_receiver_for(np_context*ac, char * subject);	
     NP_API_EXPORT
-        void np_id2str(const np_id* k, char* key_string);
+        void np_id2str(const np_id k, char* key_string);
     NP_API_EXPORT
         void np_str2id(const char* key_string, np_id* k);
 

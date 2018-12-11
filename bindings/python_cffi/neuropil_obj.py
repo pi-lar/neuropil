@@ -4,7 +4,7 @@ class Neuropil:
 
     __callback_info_dict__ = {}
     
-    def __init__(self):
+    def __init__(self):        
         self._settings = lib.np_default_settings(ffi.NULL)
         # self._settings.log_level = 0xfffd
         self._settings.log_file = b'./neuropil.log'

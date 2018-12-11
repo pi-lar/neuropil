@@ -39,7 +39,11 @@ def my_authz_cb(context, token):
     return True
 
 class NeuropilListener(Neuropil):
-    
+    def __init__(self):
+        super().__init__()        
+        ffi_handle = ffi.new_handle(self)
+        self.set_userdata(ffi_handle)
+
     @ffi.callback("bool(np_context* context, struct np_message*)")
     def test_ping_callback(context, message):
         data=ffi.string(message.data, message.data_length)
@@ -54,46 +58,42 @@ class NeuropilListener(Neuropil):
 def main():
 
     np_1 = NeuropilListener()
-    np_1_ud = ffi.new_handle(np_1)
-    np_1.set_userdata(np_1_ud)
-
-    np_2 = NeuropilListener()
-    np_2_ud = ffi.new_handle(np_2)
-    np_2.set_userdata(np_2_ud)
+    np_2 = NeuropilListener()    
 
     # start node as passive (aka behind a stateful firewall)
-    status = np_1.listen(b'udp4', b'localhost', 4444)
-    if status is not lib.np_ok:
-        print("{error} {errorcode}".format(error="listen (1)", errorcode=status) )
+    status1 = np_1.listen(b'udp4', b'localhost', 4444)
+    if status1 is not lib.np_ok:
+        print("{error} {errorcode}".format(error="listen (1)", errorcode=status1) )
 
-    status = np_2.listen(b'udp4', b'localhost', 5555)
-    if status is not lib.np_ok:
-        print("{error} {errorcode}".format(error="listen (2)", errorcode=status) )
+    status2 = np_2.listen(b'udp4', b'localhost', 5555)
+    if status2 is not lib.np_ok:
+        print("{error} {errorcode}".format(error="listen (2)", errorcode=status2) )
 
-    status = np_1.set_authn_cb(my_authn_cb)
-    status = np_1.set_authz_cb(my_authz_cb)
-    status = np_1.set_receive_cb(b'ping', np_1.test_ping_callback)
-    if status is not lib.np_ok:
-        print("{error} {errorcode}".format(error="receiv (1)", errorcode=status) )
+    status1 = np_1.set_authn_cb(my_authn_cb)
+    status1 = np_1.set_authz_cb(my_authz_cb)
+    status1 = np_1.set_receive_cb(b'ping', np_1.test_ping_callback)
+    if status1 is not lib.np_ok:
+        print("{error} {errorcode}".format(error="receiv (1)", errorcode=status1) )
 
-    status = np_2.set_authn_cb(my_authn_cb)
-    status = np_2.set_authz_cb(my_authz_cb)
-    status = np_2.set_receive_cb(b'ping', np_2.test_ping_callback)
-    if status is not lib.np_ok:
-        print("{error} {errorcode}".format(error="receiv (2)", errorcode=status) )
+    status2 = np_2.set_authn_cb(my_authn_cb)
+    status2 = np_2.set_authz_cb(my_authz_cb)
+    status2 = np_2.set_receive_cb(b'ping', np_2.test_ping_callback)
+    if status2 is not lib.np_ok:
+        print("{error} {errorcode}".format(error="receiv (2)", errorcode=status2) )
     
     # connect to a node in the internet
-    status = np_1.join(b'*:udp4:localhost:3333')
-    status = np_2.join(b'*:udp4:localhost:3333')
+    status1 = np_1.join(b'*:udp4:localhost:3333')
+    status2 = np_2.join(b'*:udp4:localhost:3333')
 
     # run the loop for 10 seconds
     print('neuropil start !')
     np_1.send(b'ping', bytes('some data', encoding='utf_8') ) 
 
-    while status is lib.np_ok:
-        status = np_2.run(0.0)
-        status = np_1.run(0.0)
+    while status1 is lib.np_ok and status2 is lib.np_ok:
+        status1 = np_1.run(0.0)
+        status2 = np_2.run(0.0)        
         time.sleep(0.001)
+
 
     print('neuropil end !')    
 

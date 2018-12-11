@@ -29,7 +29,21 @@ ffibuilder.set_source(
     
 # cdef() expects a string listing the C types, functions and
 # globals needed from Python. The string follows the C syntax.
-ffibuilder.cdef(
+import subprocess
+
+h_file_path = os.path.join('..','..','include','neuropil.h')
+h_file = subprocess.run([
+	"clang","-E",h_file_path,"-Ipycparser/utils/fake_libc_include",
+	"-DNP_PACKED(x)=","-DNP_API_EXPORT="
+	], stdout=subprocess.PIPE).stdout.decode('utf-8')
+
+print("BEGIN h_file")
+print(h_file)
+print("END h_file")
+
+ffibuilder.cdef(h_file)
+
+'''ffibuilder.cdef(
     r"""
 	    // Protocol constants
 	    typedef enum {
@@ -63,7 +77,6 @@ ffibuilder.cdef(
     """,
     packed=True)
 
-ffibuilder.cdef(
     r"""
 	    enum np_status {
 	        np_error = 0,
@@ -173,6 +186,6 @@ ffibuilder.cdef(
 	    void np_id2str(np_id* k, char* key_string);
 	    void np_str2id(const char* key_string, np_id* k);
     """)
-
+'''
 if __name__ == "__main__":
     ffibuilder.compile(verbose=True)
