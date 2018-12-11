@@ -170,15 +170,15 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
                                 false
                                 )
                             )
-						{
-							add_to = node_key;
-							sll_prepend(np_key_ptr, np_module(route)->left_leafset, node_key);
-							_np_keycache_sort_keys_kd(np_module(route)->left_leafset, &np_module(route)->my_key->dhkey);
-						}
-						// Cleanup of leafset / resize leafsets to max size if necessary
-						if (sll_size(np_module(route)->left_leafset) > NP_ROUTE_LEAFSET_SIZE) {
-							deleted_from = sll_head(np_key_ptr, np_module(route)->left_leafset);
-						}
+                        {
+                            add_to = node_key;
+                            sll_prepend(np_key_ptr, np_module(route)->left_leafset, node_key);
+                            _np_keycache_sort_keys_kd(np_module(route)->left_leafset, &np_module(route)->my_key->dhkey);
+                        }
+                        // Cleanup of leafset / resize leafsets to max size if necessary
+                        if (sll_size(np_module(route)->left_leafset) > NP_ROUTE_LEAFSET_SIZE) {
+                            deleted_from = sll_head(np_key_ptr, np_module(route)->left_leafset);
+                        }
                     }
 
                     if (deleted_from != NULL && _np_key_cmp(deleted_from, add_to) == 0) {
@@ -209,11 +209,11 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
         }
 
         TSP_SCOPE(np_module(route)->leafset_left_count) {
-			np_module(route)->leafset_left_count = sll_size(np_module(route)->left_leafset);
-		}
-		TSP_SCOPE(np_module(route)->leafset_right_count) {
-			np_module(route)->leafset_right_count = sll_size(np_module(route)->right_leafset);
-		}
+            np_module(route)->leafset_left_count = sll_size(np_module(route)->left_leafset);
+        }
+        TSP_SCOPE(np_module(route)->leafset_right_count) {
+            np_module(route)->leafset_right_count = sll_size(np_module(route)->right_leafset);
+        }
     }
     log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .leafset_update");
 }
@@ -353,7 +353,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 
 #ifdef DEBUG
         char key_as_str[65] = { 0 };
-        np_id2str((np_id*) &key, key_as_str);
+        np_id2str((np_id) key, key_as_str);
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "TARGET: %s", key_as_str);
 #endif
         /*calculate the leafset and table size */

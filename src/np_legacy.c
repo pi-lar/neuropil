@@ -756,7 +756,7 @@ void np_send_wildcard_join(np_context*ac, const char* node_string)
         //START Build our wildcard connection string
         np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport( "*", node_string);
         char wildcard_dhkey_str[65];
-        np_id2str((np_id*)&wildcard_dhkey, wildcard_dhkey_str);
+        np_id2str((np_id)wildcard_dhkey, wildcard_dhkey_str);
         asprintf(&wildcard_node_str, "%s:%s", wildcard_dhkey_str, node_string);
         //END Build our wildcard connection string
 
