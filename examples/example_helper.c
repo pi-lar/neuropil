@@ -21,6 +21,7 @@
 #include <curses.h>
 #include <ncurses.h>
 #include "sodium.h"
+#include "event/ev.h"
 
 #include "../examples/example_helper.h"
 
@@ -36,6 +37,7 @@
 #include "np_sysinfo.h"
 #include "np_threads.h"
 #include "np_log.h"
+#include "np_event.h"
 #include "np_messagepart.h"
 #include "np_jobqueue.h"
 #include "np_performance.h"
@@ -690,8 +692,8 @@ example_user_context* parse_program_args(
         va_end(args);
 
         uint32_t log_categories = 0
-            | LOG_VERBOSE
-            | LOG_TRACE
+            //| LOG_VERBOSE
+            //| LOG_TRACE
             //| LOG_MUTEX
             | LOG_ROUTING
             //| LOG_HTTP
@@ -996,6 +998,9 @@ void __np_example_helper_loop(np_state_t* context) {
         np_print_startup(context);
         // starting the example http server to support the http://view.neuropil.io application
         ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);
+
+        np_example_print(context, stdout, "Watch internal subjects\n");
+        np_statistics_add_watch_internals(context);
     }
 
     double sec_since_start = np_time_now() - ud->started_at;
@@ -1145,6 +1150,14 @@ void __np_example_helper_loop(np_state_t* context) {
 
                 if (memory_str != NULL) {
                     if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)) {
+                        unsigned int ev_backends = ev_backend(_np_event_get_loop_in(context));												
+                        char ev_polls[5];
+                        ev_polls[0] = FLAG_CMP(ev_backends, EVBACKEND_SELECT) ? 'S' : ' ';
+                        ev_polls[1] = FLAG_CMP(ev_backends, EVBACKEND_POLL) ?   'P' : ' ';
+                        ev_polls[2] = FLAG_CMP(ev_backends, EVBACKEND_EPOLL) ?  'E' : ' ';
+                        ev_polls[3] = FLAG_CMP(ev_backends, EVBACKEND_KQUEUE) ? 'K' : ' ';						
+                        ev_polls[4] = 0;
+
                         mvwprintw(ud->__np_top_left_win, 0, 0, "%s - BUILD IN "
 #if defined(DEBUG)
                             "DEBUG"
@@ -1152,8 +1165,8 @@ void __np_example_helper_loop(np_state_t* context) {
                             "RELEASE"
 #else
                             "NON DEBUG and NON RELEASE"
-#endif
-                            " (%s)\n%s ", time, NEUROPIL_RELEASE, memory_str);
+#endif							
+                            " (%s)(EV:%s)\n%s ", time, NEUROPIL_RELEASE, ev_polls, memory_str);
                     }
                     if (FLAG_CMP(ud->user_interface, np_user_interface_console)) {
                         np_example_print(context, stdout, memory_str);
