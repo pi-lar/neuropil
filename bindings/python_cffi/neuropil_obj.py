@@ -5,22 +5,21 @@ class Neuropil(object):
     __callback_info_dict__ = {}
     _userdata = None
     _ffi_handle = None
-    _settings = None
+    _settings = None    
+    _context = None
     _destroyed = False
 
     def __init__(self):
-        self._ffi_handle = ffi.new_handle(self)
-        print("Logpoint 1")
-        self._settings = neuropil.np_default_settings(ffi.NULL)        
-        print("Logpoint 2")
-        self._context  = neuropil.np_new_context(self._settings)
-        print("Logpoint 3")
+        self._ffi_handle = ffi.new_handle(self)        
+        self._settings = neuropil.np_default_settings(ffi.NULL)                
+        
+        self._settings.log_level = 0
+        self._context = neuropil.np_new_context(self._settings)        
         neuropil.np_set_userdata(self._context, self._ffi_handle)
-        print("Logpoint 4")
     
     def __del__(self):
         if not self._destroyed:
-            self._destroyed = True
+            self._destroyed = True             
             neuropil.np_destroy(self._context, False)
 
     def shutdown(self): 
@@ -69,13 +68,12 @@ class Neuropil(object):
     def run(self, interval):
         result = neuropil.np_run(self._context, interval)
         if result is not neuropil.np_ok:
-            print('{error}'.format(error=ffi.string(neuropil.np_error_str[result])))
+            raise RuntimeError('{error}'.format(error=ffi.string(neuropil.np_error_str[result])))
         return result
 
     def send(self, subject, message):
-        raw_bytes = ffi.from_buffer(message)
-        print ("{length_m}:{length_r}".format(length_m=len(message), length_r=len(raw_bytes) ) )
-        return neuropil.np_send(self._context, subject, raw_bytes, len(raw_bytes))        
+        raw_bytes = ffi.from_buffer(message)        
+        return neuropil.np_send(self._context, subject, ffi.cast("uint8_t*", raw_bytes), len(raw_bytes))
 
     def new_identity(self, expires_at, secret_key):
         return neuropil.np_new_identity(self._context, expires_at, secret_key)

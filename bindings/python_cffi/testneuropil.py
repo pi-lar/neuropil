@@ -39,12 +39,21 @@ def my_authz_cb(context, token):
     return True
 
 class NeuropilListener(Neuropil):
+
     @ffi.callback("bool(np_context* context, struct np_message*)")
     def test_ping_callback(context, message):
         data=ffi.string(message.data, message.data_length)
         print("{type}: {data}".format(type="ping", data=data) )        
         np_self = NeuropilListener.from_context(context)
-        np_self.send(b'ping', bytes('some data', encoding='utf_8') )    
+        np_self.send(b'pong', bytes('some data', encoding='utf_8') )    
+        return True
+
+    @ffi.callback("bool(np_context* context, struct np_message*)")
+    def test_pong_callback(context, message):
+        data=ffi.string(message.data, message.data_length)
+        print("{type}: {data}".format(type="pong", data=data) )        
+        np_self = NeuropilListener.from_context(context)
+        np_self.send(b'ping', b'some data')    
         return True
 
 
@@ -65,18 +74,20 @@ def main():
     status1 = np_1.set_authn_cb(my_authn_cb)
     status1 = np_1.set_authz_cb(my_authz_cb)
     status1 = np_1.set_receive_cb(b'ping', np_1.test_ping_callback)
+    status1 = np_1.set_receive_cb(b'pong', np_1.test_pong_callback)
     if status1 is not neuropil.np_ok:
         print("{error} {errorcode}".format(error="receiv (1)", errorcode=status1) )
 
     status2 = np_2.set_authn_cb(my_authn_cb)
     status2 = np_2.set_authz_cb(my_authz_cb)
     status2 = np_2.set_receive_cb(b'ping', np_2.test_ping_callback)
+    status2 = np_2.set_receive_cb(b'pong', np_2.test_pong_callback)
     if status2 is not neuropil.np_ok:
         print("{error} {errorcode}".format(error="receiv (2)", errorcode=status2) )
     
     # connect to a node in the internet
-    status1 = np_1.join(b'*:udp4:localhost:3333')
-    status2 = np_2.join(b'*:udp4:localhost:3333')
+    #status1 = np_1.join(b'*:udp4:localhost:3333')
+    status2 = np_2.join(b'*:udp4:localhost:4444')
 
     # run the loop for 10 seconds
     print('neuropil start !')
@@ -84,14 +95,19 @@ def main():
 
     t1 = time.clock()
     status1 = np_1.run(0.0)
-    status2 = np_2.run(0.0)        
-    while (time.clock() - t1) < 5 and status1 == neuropil.np_ok and status2 == neuropil.np_ok:        
+    status2 = np_2.run(0.0)    
+    print('neuropil run! status1: {status1} status2: {status2}'.format(**locals()))    
+    t2 = time.clock()
+    while (t2 - t1) < 15 and status1 == neuropil.np_running and status2 == neuropil.np_running:
         status1 = np_1.get_status()
         status2 = np_2.get_status()    
+        time.sleep(0.001)    
+        t2 = time.clock()
 
     np_1.shutdown()
     np_2.shutdown()
-    print('neuropil end! status1: {status1} status2: {status2}'.format(**locals()))    
+    
+    print('neuropil shutdown! status1: {status1} status2: {status2} / {t1} {t2}'.format(**locals()))    
 
 
 if __name__ == "__main__":
