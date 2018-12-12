@@ -487,7 +487,7 @@ enum np_error np_run(np_context* ac, double duration) {
     enum np_error ret = np_ok;
 
     if (duration <= 0) {
-        np_time_now();
+        //np_time_now();
         __np_jobqueue_run_jobs_once(context);
     }
     else {
@@ -546,4 +546,25 @@ void np_str2id(const char* key_string, np_id_ptr  id)
     k->t[0], k->t[1], k->t[2], k->t[3], k->t[4], k->t[5], k->t[6], k->t[7]
     );
     */
+}
+
+void np_destroy(np_context*ac, bool gracefully)
+{
+    np_ctx_cast(ac);
+
+    _np_shutdown_run_callbacks(context);
+
+    if(gracefully)
+        np_shutdown_notify_others(context);
+    // TODO: implement me ...
+    /*
+    _np_threads_init()
+    sodium_init()
+    np_mem_init
+    _np_dhkey_init
+
+    __global_state = state
+    */
+
+    TSP_SET(context->status, np_shutdown);
 }

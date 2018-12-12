@@ -237,6 +237,8 @@ extern "C" {
     NP_API_EXPORT
         void np_str2id(const char* key_string, np_id_ptr k);
 
+    NP_API_EXPORT
+    void np_destroy(np_context*ac, bool gracefully);
 
 #ifdef __cplusplus
 }
@@ -762,6 +764,17 @@ Detecting errors
    In order to accurately interpret error codes refer to the documentation of
    the specific function in question.
 
+
+    
+.. c:function:: void np_destroy(np_context*ac, bool gracefully)
+
+   stops the internal neuropil event loop, shuts down the thread pool and cleans the used memory.
+
+   :param ac:
+       a neuropil application context.
+   :param gracefully:
+       To send a Leave Message to the connected nodes. May delay the function return for a few seconds
+    
 ---------
 Constants
 ---------
