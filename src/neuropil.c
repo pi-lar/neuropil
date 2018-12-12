@@ -39,7 +39,7 @@
 #include "np_token_factory.h"
 
 // split into hash 
-void np_get_id(NP_UNUSED np_context * ac, np_id* id, char* string, NP_UNUSED size_t length) {
+void np_get_id(NP_UNUSED np_context * ac, np_id_ptr id, char* string, NP_UNUSED size_t length) {
     // np_ctx_cast(ac);
      
     np_dhkey_t  dhkey = np_dhkey_create_from_hostport(string, "0");
@@ -297,7 +297,7 @@ struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* (sec
 #ifdef DEBUG
     char tmp[65] = { 0 };
     np_dhkey_t d = np_aaatoken_get_fingerprint(new_token);
-    np_id2str((np_id)d, tmp);
+    np_id2str(&d, tmp);
     log_debug_msg(LOG_AAATOKEN, "created new ident token %s (fp:%s)", ret.uuid, tmp);
 #endif
     np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
@@ -377,7 +377,7 @@ enum np_error np_send(np_context* ac, char* subject, uint8_t* message, size_t le
     return np_send_to(ac, subject, message, length, NULL);
 }
 
-enum np_error np_send_to(np_context* ac, char* subject, uint8_t* message, size_t  length, np_id * target) {
+enum np_error np_send_to(np_context* ac, char* subject, uint8_t* message, size_t  length, np_id_ptr  target) {
     enum np_error ret = np_ok;
     np_ctx_cast(ac);
 
@@ -514,9 +514,9 @@ enum np_status np_get_status(np_context* ac) {
 }
 
 
-void np_id2str(const np_id id, char* key_string)
+void np_id2str(const np_id_ptr id, char* key_string)
 {
-    np_dhkey_t* k = (np_dhkey_t*)&id;
+    np_dhkey_t* k = (np_dhkey_t*)id;
     // TODO: use sodium bin2hex function
     snprintf(key_string, 65,
         "%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32"%08"PRIx32,
@@ -525,7 +525,7 @@ void np_id2str(const np_id id, char* key_string)
     key_string[64] = '\0';
 }
 
-void np_str2id(const char* key_string, np_id* id)
+void np_str2id(const char* key_string, np_id_ptr  id)
 {
     np_dhkey_t* k = (np_dhkey_t*)id;
     // TODO: this is dangerous, encoding could be different between systems,

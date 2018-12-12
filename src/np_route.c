@@ -353,7 +353,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 
 #ifdef DEBUG
         char key_as_str[65] = { 0 };
-        np_id2str((np_id) key, key_as_str);
+        np_id2str((np_id_ptr )&key, key_as_str);
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "TARGET: %s", key_as_str);
 #endif
         /*calculate the leafset and table size */

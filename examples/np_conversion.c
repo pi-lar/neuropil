@@ -72,6 +72,6 @@ uint32_t np_receive_text(np_context* ac, char* subject, char** buffer) {
 }
 
 DEPRECATED
-void np_send_text(np_context* ac, char* subject, char* buffer, uint32_t seq, np_id* target) {
+void np_send_text(np_context* ac, char* subject, char* buffer, uint32_t seq, np_id_ptr  target) {
 	np_send_to(ac, subject, (uint8_t*)buffer, strlen(buffer)+1, target); // ignoring encoding etc for now
 }

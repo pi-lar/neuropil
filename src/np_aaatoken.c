@@ -769,7 +769,7 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
     {
 #ifdef DEBUG
         char sender_dhkey_as_str[65];
-        np_id2str((np_id)*sender_dhkey, sender_dhkey_as_str);
+        np_id2str(sender_dhkey, sender_dhkey_as_str);
 #endif
 
         log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step1._np_aaatoken_get_sender_token %d / %s", pll_size(subject_key->send_tokens), subject);
@@ -974,7 +974,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(np_state_t* context, const char* const 
 #ifdef DEBUG
         if(NULL != target) {
             char targetnode_str[65];
-            np_id2str((np_id)*target, targetnode_str);
+            np_id2str((np_id_ptr )target, targetnode_str);
             log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "searching token for %s ", targetnode_str);
         }
 #endif
@@ -1308,7 +1308,7 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
         ret = ele->val.value.dhkey;
     }
     else {
-        np_str2id( self->issuer, (np_id*)&ret);
+        np_str2id( self->issuer, (np_id_ptr )&ret);
     }
 
     return ret;
@@ -1325,7 +1325,7 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
         // prevent fingerprint recursion
         char my_token_fp_s[65];
         np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee);
-        np_id2str((np_id)my_token_fp, my_token_fp_s);
+        np_id2str(&my_token_fp, my_token_fp_s);
         strncpy(self->issuer, my_token_fp_s, 65);
         self->issuer_token = signee;
     }
@@ -1430,7 +1430,7 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
 
     char tmp_c[65] = { 0 };
     np_dhkey_t tmp_d = np_aaatoken_get_fingerprint(self);
-    np_id2str((np_id)tmp_d, tmp_c);
+    np_id2str((np_id_ptr )&tmp_d, tmp_c);
 
     info_str = np_str_concatAndFree(info_str, " fingerprint: %s ; TREE: (",tmp_c);
     RB_FOREACH(tmp, np_tree_s, (data))

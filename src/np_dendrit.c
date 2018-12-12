@@ -228,7 +228,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t args)
             CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
             CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
-            np_id2str((np_id)msg_from.value.dhkey, str_msg_from);
+            np_id2str((np_id_ptr )&msg_from.value.dhkey, str_msg_from);
             str_msg_subject = msg_subject.value.s;
 
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
@@ -269,7 +269,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t args)
                 CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
                 CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_SEND_COUNTER, msg_resendcounter);
 
-                np_id2str((np_id)msg_to.value.dhkey, str_msg_to);
+                np_id2str((np_id_ptr )&msg_to.value.dhkey, str_msg_to);
 
                 log_debug_msg(LOG_ROUTING | LOG_DEBUG,
                     "msg (%s) target of message for subject: %s from: %s is: %s",
@@ -802,8 +802,8 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
             // ident fingerprint must match partner fp from node token
 #ifdef DEBUG
             char fp_j[65], fp_p[65];
-            np_id2str((np_id)join_node_dhkey, fp_j);
-            np_id2str((np_id)partner_of_ident_dhkey, fp_p);
+            np_id2str((np_id_ptr )&join_node_dhkey, fp_j);
+            np_id2str((np_id_ptr )&partner_of_ident_dhkey, fp_p);
             log_debug_msg(LOG_ROUTING | LOG_VERBOSE,
                 "JOIN request: node fingerprint must match partner fp from ident token. (node: %s / partner: %s)",
                 fp_j, fp_p
@@ -1596,7 +1596,7 @@ void _np_in_discover_receiver(np_state_t* context, np_jobargs_t args)
         np_dhkey_t reply_to_key = msg_reply_to.value.dhkey;
 #ifdef DEBUG
         char reply_to_dhkey_as_str[65];
-        np_id2str((np_id)reply_to_key, reply_to_dhkey_as_str);
+        np_id2str((np_id_ptr )&reply_to_key, reply_to_dhkey_as_str);
 #endif
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -1705,7 +1705,7 @@ void _np_in_authenticate(np_state_t* context, np_jobargs_t args)
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
 #ifdef DEBUG
         char reply_to_dhkey_as_str[65];
-        np_id2str((np_id)reply_to_key, reply_to_dhkey_as_str);
+        np_id2str((np_id_ptr )&reply_to_key, reply_to_dhkey_as_str);
 #endif
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -1884,7 +1884,7 @@ void _np_in_authorize(np_state_t* context, np_jobargs_t args)
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
 #ifdef DEBUG
         char reply_to_dhkey_as_str[65];
-        np_id2str((np_id)reply_to_key, reply_to_dhkey_as_str);
+        np_id2str((np_id_ptr )&reply_to_key, reply_to_dhkey_as_str);
 #endif
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -2107,7 +2107,7 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
 
         // store the handshake data in the node cache,
         np_dhkey_t search_key = { 0 };
-        np_str2id(handshake_token->issuer, (np_id*)&search_key);
+        np_str2id(handshake_token->issuer, (np_id_ptr )&search_key);
 
         if (_np_dhkey_cmp(&context->my_node_key->dhkey, &search_key) == 0) {
             log_msg(LOG_ERROR, "Cannot perform a handshake with myself!");
