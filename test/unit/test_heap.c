@@ -122,4 +122,48 @@ Test(np_heap, _np_heap_job_t, .description = "test the heap of a np_job_t")
     pheap_free(np_job_t, job_heap);
 }
 
+Test(np_heap, _np_heap_job_t_perf, .description = "test the performance heap of a np_job_t")
+{
+    np_job_t tmp;
 
+    double insert_func[2048], remove_func[ (2048/3+1) ], heap_func[ (2048/5+1) ];
+    uint16_t removed = 0;
+    uint16_t fetched = 0;
+
+    np_pheap_t(np_job_t, job_heap);
+    pheap_init(np_job_t, job_heap, 1024);
+
+    // add random insert / remove / head calls to the heap
+    for(uint16_t i = 0; i < 2048; i++)
+    {
+    		tmp.priority = i * rand() / 1024;
+    		tmp.exec_not_before_tstamp = 0.0;
+
+    		MEASURE_TIME(insert_func, i, {
+    				pheap_insert(np_job_t, job_heap, tmp);
+    		});
+
+    		if ((i % 3) == 0)
+    		{   // delete every third argument
+    			MEASURE_TIME(remove_func, removed, {
+    				tmp = pheap_remove(np_job_t, job_heap, i/3);
+    			});
+    			removed++;
+    		}
+
+    		if ((i % 5) == 0)
+    		{
+    			MEASURE_TIME(heap_func, fetched, {
+    				tmp = pheap_head(np_job_t, job_heap);
+    			});
+    			fetched++;
+    		}
+    }
+
+    CALC_AND_PRINT_STATISTICS("insert into job heap stats", insert_func, 2048);
+    CALC_AND_PRINT_STATISTICS("remove from job heap stats", remove_func, removed);
+    CALC_AND_PRINT_STATISTICS("head   of   job heap stats", heap_func, fetched);
+
+    pheap_clear(np_job_t, job_heap);
+    pheap_free(np_job_t, job_heap);
+}
