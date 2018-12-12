@@ -34,7 +34,7 @@ Test(np_heap, _np_heap_order, .description = "test the heap order")
     pheap_insert(int, int_heap, 0);
     pheap_insert(int, int_heap, 1);
 
-    cr_assert(-1 == (tmp =pheap_first(int, int_heap)),  "Expected -1 but got %d", tmp);
+    cr_assert(-1 == (tmp = pheap_first(int, int_heap)),  "Expected -1 but got %d", tmp);
     cr_assert(-1 == (tmp = pheap_head(int, int_heap)),  "Expected -1 but got %d", tmp);
     cr_assert( 0 == (tmp = pheap_first(int, int_heap)), "Expected  0 but got %d", tmp);
     cr_assert( 0 == (tmp = pheap_head(int, int_heap)),  "Expected  0 but got %d", tmp);

@@ -12,13 +12,13 @@ import argparse
 
 
 parser = argparse.ArgumentParser(description='Start some neuropil nodes in screen sessions.')
-parser.add_argument('--bootstrapper', nargs='?', default="80e4e9b9f6986ffb5175f6813456da0175b4b67ff41dc419430182fec4fe70aa:tcp6:demo.neuropil.io:3141", help='Bootstrap connection string')
+parser.add_argument('--bootstrapper', nargs='?', default=False, help='Bootstrap connection string')
 parser.add_argument('-b', '--branch', nargs='?', default="develop", help='Branch to test')
 parser.add_argument('-du', '--default_user', nargs='?', default="localadmin", help='Default user to use to start nodes on remote machines')
 
 
-
 args = parser.parse_args()
+
 
 branch = args.branch
 
@@ -31,13 +31,17 @@ locations = [
     #dict(defaults,**{"desc":"Raspberry", "ip":"192.168.40.29", "user":"pi-lar"     }),
 ]
 
-bootstrap_string   = args.bootstrapper
+if not args.bootstrapper:	
+    bootstrap_string = input("Bootstrapper (with hash):") 
+else:	
+    bootstrap_string = args.bootstrapper
+
 bootstrap_string_w = "*" + bootstrap_string[64:]
 
 options_progs = [    
-      ("node ", "node  -d -3 "),
-      ("hydra", "hydra -d -3 -n 1 "),
-      ("cloud", "cloud -d -3 "),
+      ("node ", "node  -d -1 "),
+      ("hydra", "hydra -d -1 -n 6 -z 3600 -k 25200 "),
+      ("cloud", "cloud -d -1 "),
     ]
 options_threads = [
       ("singlethreaded", "-t 0"),
@@ -66,12 +70,16 @@ build_commands = [
     "git clone git@git.in.pi-lar.net:pi-lar/neuropil_lib.git --branch {branch}  --single-branch -q . || (git fetch && git checkout {branch} && git pull)",
     "python3 -m venv env",
     "source ./env/bin/activate",
-    "pip list --outdated --format=freeze | grep -v ^\-e | cut -d = -f 1  | xargs -n1 pip install -U",
-    "pip install scons",
-    "scons debug=1 test=0"
+    "pip list --outdated --format=freeze | grep -v ^\\-e | cut -d = -f 1  | xargs -n1 pip install -U",
+    "pip install scons"
+    ,"scons debug=2 test=0"
+    #,"scons debug=1 test=0"
+    #,"scons release=1 test=0"
 ]
 
 # generate option permutations
+total_nodes_startet = 0
+total_nodes_requested = 0
 for d in locations: 
     for attr, value in d.items():
         if isinstance(d[attr], str):
@@ -98,7 +106,7 @@ for d in locations:
     
     if d["build"]:
         commands_prefix = commands_prefix + build_commands
-    command_str = ";".join(commands_prefix).format(**locals())+";"
+    command_str = ";".join(commands_prefix).format(**locals())+";"	
     for i, pack in enumerate(start_commands):        
         start_command,start_command_desc = pack
         command_str += 'tmux new-window -ad -t neuropil_E2E_tests -n np_{i};'.format(**locals())
@@ -106,12 +114,16 @@ for d in locations:
         command_str += 'tmux send-keys      -t neuropil_E2E_tests:np_{i} C-m;'.format(**locals())
         command_str += 'tmux send-keys      -t neuropil_E2E_tests:np_{i} "{start_command}";'.format(**locals())
         command_str += 'tmux send-keys      -t neuropil_E2E_tests:np_{i} C-m;'.format(**locals())
-        command_str += 'echo "started np_{i:0>3d}:{d[ip]} => {start_command_desc}";'.format(**locals())
+        command_str += 'echo "started np_{i:0>3d}:{d[ip]} => {start_command_desc}";'.format(**locals())		
+        total_nodes_requested = total_nodes_requested + 1
     
     command_str = command_str.replace('"','\\"')
     cmd = "ssh -A {d[user]}@{d[ip]} 'bash -l -c \"{command_str}\"' ".format(**locals())    
     #print(cmd)
     print("Starting commands on {d[user]}@{d[ip]}".format(**locals()))
     result = os.system(cmd)
+    if result == 0:
+        total_nodes_startet = total_nodes_startet + i
     print("Exec on {d[user]}@{d[ip]} = {result}".format(**locals()))
-    
+
+print("Started {total_nodes_startet}/{total_nodes_requested} Nodes".format(**locals()))	

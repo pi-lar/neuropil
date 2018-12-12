@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 
         np_example_print(nodes[0], stdout, "INFO: Starting Node %"PRIsizet"\n", i);
 
-        if (np_ok != (tmp = np_listen(nodes[i], "udp4", "localhost", port))) {
+        if (np_ok != (tmp = np_listen(nodes[i], proto, publish_domain, port))) {
             np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not listen. %s\n", i, np_error_str[tmp]);
         }
         else {
@@ -107,7 +107,8 @@ int main(int argc, char **argv)
         np_join(nodes[0], j_key);
     }
     int iteration = 0;
-    while (true)
+    bool shutdown = false;
+    while (!shutdown)
     {
         iteration++;
         for (int i = 0; i < cloud_size; i++) {
@@ -117,7 +118,13 @@ int main(int argc, char **argv)
             else {
                 if (i == 0) {
                     __np_example_helper_loop(nodes[i]);
-                    // TODO: propagate shutdown
+                    
+                    if (np_get_status(nodes[i]) != np_running) {
+                        shutdown = true;
+                        for (int s = 1; s < cloud_size; s++) {
+                            np_destroy(nodes[s], false);
+                        }
+                    }
                 }
                 if (i > 0 && iteration < cloud_size && !np_has_joined(nodes[i - 1])) {
                     // get connection str of previous node

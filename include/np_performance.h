@@ -22,7 +22,7 @@ extern "C" {
 
 #ifdef NP_BENCHMARKING
     enum np_statistics_performance_point_e {
-        np_statistics_performance_point_memory_new = 1,
+        np_statistics_performance_point_memory_new = 0,
         np_statistics_performance_point_memory_free,
         np_statistics_performance_point_memory_management,
         np_statistics_performance_point_msg_discovery_out,
@@ -85,7 +85,7 @@ extern "C" {
 
 #define __NP_PERFORMANCE_POINT_INIT_CONTAINER(container, NAME)											\
         if (container == NULL) {																		\
-            container = malloc(sizeof(np_statistics_performance_point_t));								\
+            container = calloc(1,sizeof(np_statistics_performance_point_t));								\
             container->name = #NAME;																	\
             container->durations_idx = 0;																\
             container->durations_count = 0;																\

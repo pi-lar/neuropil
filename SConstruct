@@ -13,7 +13,7 @@ def buildNo():
 
     buildno = f.read()
     if buildno == "":
-        buildno = 1;
+        buildno = 1
     else:
         buildno = int(buildno) + 1
     f.seek(0)
@@ -35,8 +35,33 @@ try:
 except:
     pass
 
+
+analyze = ARGUMENTS.get('analyze', 0)
+build_tests = int(ARGUMENTS.get('test', 1))
+build_tests_enable_test_coverage = build_tests > 1
+build_doc = ARGUMENTS.get('doc', 0)
+debug = ARGUMENTS.get('debug', 0)
+release = ARGUMENTS.get('release', 0)
+console_log = ARGUMENTS.get('console', 0)
+strict = int(ARGUMENTS.get('strict', 0))
+build_program = ARGUMENTS.get('program', False)
+opt_debug_optimization_level = ARGUMENTS.get('dO', 0)
+build_x64 = int(ARGUMENTS.get('x64', -1))
+
+
+
 # use clang to compile the source code
-default_env = Environment(CC = 'clang')
+if build_tests_enable_test_coverage:
+    default_env = Environment(CC = 'gcc', tools = ['default', 'gcccov'])
+    # Generate correct dependencies of `*.gcno' and `*.gcda' files on object
+    # files being built from now on.
+    default_env.GCovInjectObjectEmitters()
+    default_env.Append(CCFLAGS = ['-g', '-O0', '--coverage'], LDFLAGS = ['--coverage'], LIBS="gcov")
+else:
+    default_env = Environment(CC = 'clang')
+
+
+
 if 'TERM' in os.environ:
   default_env['ENV']['TERM'] = os.environ['TERM']
 
@@ -55,17 +80,9 @@ default_env.Decider('MD5')
 
 
 # read in additional compile flags
-analyze = ARGUMENTS.get('analyze', 0)
-build_tests = ARGUMENTS.get('test', 1)
-build_doc = ARGUMENTS.get('doc', 0)
-debug = ARGUMENTS.get('debug', 0)
-release = ARGUMENTS.get('release', 0)
-console_log = ARGUMENTS.get('console', 0)
-strict = int(ARGUMENTS.get('strict', 0))
-build_program = ARGUMENTS.get('program', False)
+
+
 build_bindings = bool(ARGUMENTS.get('bindings', True))
-opt_debug_optimization_level = ARGUMENTS.get('dO', 0)
-build_x64 = int(ARGUMENTS.get('x64', -1))
 if build_x64 == -1:
     build_x64  = "64" in str(platform.processor())
 else:
@@ -80,18 +97,20 @@ print ('####')
 if strict:
     default_env.Append(CCFLAGS = ['-DSTRICT'])
 
+
+    
+
 # add libev flags to the compilation
 default_env.Append(CCFLAGS = ['-DEV_STANDALONE'])
-# env.Append(CCFLAGS = ['-DEV_PERIODIC_ENABLE'])
-#default_env.Append(CCFLAGS = ['-DEV_USE_SELECT=1'])
-#default_env.Append(CCFLAGS = ['-DHAVE_SELECT'])
-#default_env.Append(CCFLAGS = ['-DHAVE_KQUEUE'])
-#default_env.Append(CCFLAGS = ['-DHAVE_POLL'])
+default_env.Append(CCFLAGS = ['-DEV_USE_SELECT=1'])
+#default_env.Append(CCFLAGS = ['-DEV_USE_KQUEUE=1'])
+default_env.Append(CCFLAGS = ['-DEV_USE_POLL=1'])
+default_env.Append(CCFLAGS = ['-DEV_USE_EPOLL=1'])
 default_env.Append(CCFLAGS = ['-DEV_COMPAT3=0'])
 default_env.Append(CCFLAGS = ['-DEV_USE_FLOOR=1'])
-# env.Append(CCFLAGS = ['-DEV_USE_REALTIME=0'])
+default_env.Append(CCFLAGS = ['-DEV_USE_CLOCK_SYSCALL=0'])
 default_env.Append(CCFLAGS = ['-DEV_USE_4HEAP=1'])
-# env.Append(CCFLAGS = ['-DEV_NO_THREADS'])
+
 
 
 
@@ -110,11 +129,11 @@ debug_flags = ['-g', '-Wall', '-Wextra', '-gdwarf-2','-O'+str(opt_debug_optimiza
 if int(debug) >= 1:
   try:
     if "klampt" in os.path.expanduser('~'):
-      # disable some warnings
-      debug_flags += [
-        '-Wno-incompatible-pointer-types-discards-qualifiers',		'-Wno-unused-variable',
-        '-Wno-unused-parameter',		'-Wno-missing-braces',
-      ]
+        # disable some warnings
+        debug_flags += [
+            '-Wno-incompatible-pointer-types-discards-qualifiers',        '-Wno-unused-variable',
+            '-Wno-unused-parameter',        '-Wno-missing-braces',
+        ]
   except:
     pass
 
@@ -239,12 +258,12 @@ if int(analyze) and scan_build_exe:
 #     neuropil_env.Append(CPPPATH='/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include')
 
 # sources for neuropil
-SOURCES =  ['dtime.c',		'np_time.c',			'neuropil.c',		'np_aaatoken.c',		'np_axon.c',		'np_dendrit.c']
-SOURCES += ['np_glia.c',	'np_jobqueue.c',		'np_dhkey.c',		'np_key.c',				'np_keycache.c',	'np_bootstrap.c']
-SOURCES += ['np_log.c',		'np_memory.c',			'np_message.c',		'np_msgproperty.c',		'np_network.c',		'np_node.c']
-SOURCES += ['np_route.c',	'np_tree.c',			'np_util.c',		'np_treeval.c',			'np_threads.c',		'np_pinging.c']
-SOURCES += ['np_sysinfo.c',	'np_scache.c',			'np_event.c',		'np_messagepart.c',		'np_statistics.c',	'np_responsecontainer.c']
-SOURCES += ['np_legacy.c',	'np_serialization.c',	'np_shutdown.c',	'np_token_factory.c',   'np_crypto.c']
+SOURCES =  ['dtime.c',        'np_time.c',            'neuropil.c',        'np_aaatoken.c',        'np_axon.c',        'np_dendrit.c']
+SOURCES += ['np_glia.c',    'np_jobqueue.c',        'np_dhkey.c',        'np_key.c',                'np_keycache.c',    'np_bootstrap.c']
+SOURCES += ['np_log.c',        'np_memory.c',            'np_message.c',        'np_msgproperty.c',        'np_network.c',        'np_node.c']
+SOURCES += ['np_route.c',    'np_tree.c',            'np_util.c',        'np_treeval.c',            'np_threads.c',        'np_pinging.c']
+SOURCES += ['np_sysinfo.c',    'np_scache.c',            'np_event.c',        'np_messagepart.c',        'np_statistics.c',    'np_responsecontainer.c']
+SOURCES += ['np_legacy.c',    'np_serialization.c',    'np_shutdown.c',    'np_token_factory.c',   'np_crypto.c']
 
 # source code 3rd party libraries
 SOURCES += ['event/ev.c', 'json/parson.c','msgpack/cmp.c','gpio/bcm2835.c']
@@ -256,7 +275,8 @@ print ('#### building neuropil libraries/testsuite/example programs:')
 print ('####')
 
 # build the neuropil library as static and shared library
-np_stlib = neuropil_env.Library('build/lib/neuropil', SOURCES)
+if not build_tests_enable_test_coverage:
+    np_stlib = neuropil_env.Library('build/lib/neuropil', SOURCES)
 np_dylib = neuropil_env.SharedLibrary('build/lib/neuropil', SOURCES)
 
 if build_bindings:
@@ -269,33 +289,33 @@ criterion_is_available = conf.CheckLibWithHeader('criterion', 'criterion/criteri
 test_env = conf.Finish()
 
 # build test executable
-if int(release) < 1 and int(build_tests) > 0 and criterion_is_available:
+if int(release) < 1 and int(build_tests) > 0 and criterion_is_available:    
     print ('Test cases included')
     # include the neuropil build path library infos
-    test_env.Append(LIBS = ['criterion', 'sodium','ncurses', 'neuropil'])
-    test_suite = test_env.Program('bin/neuropil_test_suite',	variantDir+'test/test_suite.c')
-    Depends(test_suite, np_dylib)
-    test_suite = test_env.Program('bin/neuropil_test_units',	variantDir+'test/test_units.c')
+    test_env.Append(LIBS = ['criterion', 'sodium','ncurses','neuropil'])
+    test_suite = test_env.Program('bin/neuropil_test_suite',    variantDir+'test/test_suite.c')
+    Depends(test_suite, np_dylib)    
+    test_suite = test_env.Program('bin/neuropil_test_units',     variantDir+'test/test_units.c')
     Depends(test_suite, np_dylib)
 else:
     print ('Test cases not included')
 
 # build example programs
 programs = [
-#	(PROGRAM_NAME (w/o neuropil_ prefix), DEPENDENCIES)
-    ('controller',	 ['neuropil']),
-    ('receiver',	 ['neuropil']),
-    ('sender',		 ['neuropil']),
-    ('node', 		 ['neuropil','ncurses','sodium']),
-    ('cloud', 		 ['neuropil','ncurses','sodium']),
-    ('hydra', 		 ['neuropil','ncurses','sodium']),
-    ('receiver_cb',	 ['neuropil','ncurses','sodium']),
-    ('pingpong',	 ['neuropil','ncurses','sodium']),
-    ('echo_server',	 ['neuropil','ncurses','sodium']),
-    ('echo_client',	 ['neuropil','ncurses','sodium']),
-    ('raspberry',	 ['neuropil','ncurses','sodium']),
+#    (PROGRAM_NAME (w/o neuropil_ prefix), DEPENDENCIES)
+    ('controller',     ['neuropil']),
+    ('receiver',     ['neuropil']),
+    ('sender',         ['neuropil']),
+    ('node',          ['neuropil','ncurses','sodium']),
+    ('cloud',          ['neuropil','ncurses','sodium']),
+    ('hydra',          ['neuropil','ncurses','sodium']),
+    ('receiver_cb',     ['neuropil','ncurses','sodium']),
+    ('pingpong',     ['neuropil','ncurses','sodium']),
+    ('echo_server',     ['neuropil','ncurses','sodium']),
+    ('echo_client',     ['neuropil','ncurses','sodium']),
+    ('raspberry',     ['neuropil','ncurses','sodium']),
     ('demo_service', ['neuropil','ncurses','sodium']),
-    ('raffle',		 ['neuropil','ncurses','sodium','sqlite3']),
+    ('raffle',         ['neuropil','ncurses','sodium','sqlite3']),
     ]
 
 if build_program and build_program not in programs:
@@ -319,12 +339,14 @@ Clean('.', 'warn.log')
 Clean('.', 'warn_clean.log')
 
 print ("build with:")
-print ("analyze       =  %r" % analyze)
-print ("build_tests   =  %r" % build_tests)
-print ("build_doc     =  %r" % build_doc)
-print ("debug         =  %r" % debug)
-print ("release       =  %r" % release)
-print ("console_log   =  %r" % console_log)
-print ("strict        =  %r" % strict)
-print ("build_program =  %r" % build_program)
-print ("build_x64     =  %r" % build_x64)
+print ("analyze                  =  %r" % analyze)
+print ("build_tests              =  %r" % build_tests)
+print ("build_doc                =  %r" % build_doc)
+print ("debug                    =  %r" % debug)
+print ("release                  =  %r" % release)
+print ("console_log              =  %r" % console_log)
+print ("strict                   =  %r" % strict)
+print ("build_program            =  %r" % build_program)
+print ("build_x64                =  %r" % build_x64)
+print ("enable_test_coverage     =  %r" % build_tests_enable_test_coverage)
+

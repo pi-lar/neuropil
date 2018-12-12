@@ -10,6 +10,9 @@
 [submodule "bindings/python_cffi/pycparser"]
 	path = bindings/python_cffi/pycparser
 	url = https://github.com/eliben/pycparser.git
+[submodule "site_scons/site_tools/gcccov"]
+	path = site_scons/site_tools/gcccov
+	url = git://github.com/ptomulik/scons-tool-gcccov.git
 
 
 
