@@ -3,7 +3,7 @@ import os
 import sys
 import time
 try:
-    import Neuropil    
+    import neuropil    
 except ImportError:
     # Using the build version of neuropil instad of the installed
     from glob import glob
