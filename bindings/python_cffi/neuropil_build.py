@@ -1,4 +1,5 @@
-import os
+#!/usr/bin/env python3
+import os, sys
 from cffi import FFI
 
 ffibuilder = FFI()
@@ -20,26 +21,20 @@ ffibuilder.set_source(
     include_dirs=[np_include_path]
 	)
 	
-
-# sourcefile = os.path.join('.', 'beta.h')
-# source = os.path.join('.', 'beta.c')
-# with open(sourcefile) as f:
-#     ffibuilder.cdef(f.read())
-
     
 # cdef() expects a string listing the C types, functions and
 # globals needed from Python. The string follows the C syntax.
 import subprocess
 
-h_file_path = os.path.join('..','..','include','neuropil.h')
-h_file = subprocess.run([
-	"clang","-E",h_file_path,"-Ipycparser/utils/fake_libc_include",
-	"-DNP_PACKED(x)=","-DNP_API_EXPORT="
-	], stdout=subprocess.PIPE).stdout.decode('utf-8')
+h_file_path = os.path.join(np_include_path, 'neuropil.h')
 
-print("BEGIN h_file")
-print(h_file)
-print("END h_file")
+cc = "clang"
+if os.getenv("CC"):
+    cc = os.getenv("CC")
+h_file = subprocess.run([
+	cc,"-E",h_file_path,"-Ipycparser/utils/fake_libc_include",
+	"-DNP_PACKED(x)=","-DNP_API_EXPORT=", "-D__CLANG_MAX_ALIGN_T_DEFINED"
+	], stdout=subprocess.PIPE).stdout.decode('utf-8')
 
 ffibuilder.cdef(h_file)
 
@@ -112,7 +107,7 @@ ffibuilder.cdef(
 	    // If length is 0 then string is expected to be null-terminated.
 	    // char* is the appropriate type because it is the type of a string
 	    // and can also describe an array of bytes. (sizeof char == 1)
-	    void np_get_id(np_context * context, np_id* id, char* string, size_t length);
+	    void np_get_id(np_context * context, np_id_ptr  id, char* string, size_t length);
 		    
 	    struct np_message {
 	        char uuid[NP_UUID_BYTES];
@@ -150,7 +145,7 @@ ffibuilder.cdef(
 	
 	    typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
 	    enum np_error np_send   (np_context* ac, char* subject, uint8_t* message, size_t length);
-	    enum np_error np_send_to(np_context* ac, char* subject, uint8_t* message, size_t length, np_id * target);    
+	    enum np_error np_send_to(np_context* ac, char* subject, uint8_t* message, size_t length, np_id_ptr  target);    
 	    
 	    // There can be more than one receive callback, hence "add".
 	    enum np_error np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback);
@@ -183,8 +178,8 @@ ffibuilder.cdef(
 	    bool np_has_joined(np_context * ac);		
 	    enum np_status np_get_status(np_context* ac);
 	    
-	    void np_id2str(np_id* k, char* key_string);
-	    void np_str2id(const char* key_string, np_id* k);
+	    void np_id2str(np_id_ptr  k, char* key_string);
+	    void np_str2id(const char* key_string, np_id_ptr  k);
     """)
 '''
 if __name__ == "__main__":
