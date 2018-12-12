@@ -52,9 +52,8 @@ Test(np_jobqueue, _np_jobqueue, .description = "test the jobqueue module of the 
 		cr_expect( NULL != context->np_module_jobqueue->job_list->elements, "jobqueue job elements should not be NULL");
 		cr_expect(  512 == context->np_module_jobqueue->job_list->size, "jobqueue size should be 512 elements");
 
-		fprintf(stdout, "job queue has %d elements", context->np_module_jobqueue->job_list->count);
+		cr_expect(   18 == context->np_module_jobqueue->job_list->count, "jobqueue count has 17 jobs (default number of jobs)");
 
-		cr_expect(   17 == context->np_module_jobqueue->job_list->count, "jobqueue count has 17 jobs (default number of jobs)");
 /*
 		_np_job_submit_msgin_event(2.0, msg_prop, &test_key, msg, test_subject);
 		cr_expect(   18 == context->np_module_jobqueue->job_list->count, "jobqueue count has 18 jobs");
