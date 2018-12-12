@@ -33,7 +33,7 @@ try:
     import multiprocessing
     SetOption('num_jobs', multiprocessing.cpu_count())
 except:
-    pass;
+    pass
 
 # use clang to compile the source code
 default_env = Environment(CC = 'clang')
@@ -63,6 +63,7 @@ release = ARGUMENTS.get('release', 0)
 console_log = ARGUMENTS.get('console', 0)
 strict = int(ARGUMENTS.get('strict', 0))
 build_program = ARGUMENTS.get('program', False)
+build_bindings = bool(ARGUMENTS.get('bindings', True))
 opt_debug_optimization_level = ARGUMENTS.get('dO', 0)
 build_x64 = int(ARGUMENTS.get('x64', -1))
 if build_x64 == -1:
@@ -258,6 +259,10 @@ print ('####')
 np_stlib = neuropil_env.Library('build/lib/neuropil', SOURCES)
 np_dylib = neuropil_env.SharedLibrary('build/lib/neuropil', SOURCES)
 
+if build_bindings:
+  bindings_env = default_env.Clone()
+  bindings_env.Command ('bindings/python_cffi/build', np_dylib, './bindings/python_cffi/build_swig.sh')
+
 test_env = default_env.Clone()
 conf = Configure(test_env)
 criterion_is_available = conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c')
@@ -305,6 +310,7 @@ else:
             print ('building neuropil_{program_name}'.format(program_name=program))
             prg_np = program_env.Program('bin/neuropil_%s'%program, variantDir+'examples/neuropil_%s.c'%program)
             Depends(prg_np, np_dylib)
+
 
 # clean up
 Clean('.', 'build')
