@@ -24,7 +24,7 @@ except ImportError:
         break
         
     from _neuropil import ffi
-    from neuropil_obj import *
+    from neuropil import *
     print("Using Build Library")
 
 
@@ -58,7 +58,7 @@ class NeuropilListener(Neuropil):
         return True
 
 def main():
-
+    
     np_1 = NeuropilListener()
     np_2 = NeuropilListener()    
     
@@ -79,33 +79,28 @@ def main():
     status2 = np_2.set_receive_cb(b'pong', np_2.test_pong_callback)
     
     # connect to a node in the internet
-    #status1 = np_1.join(b'*:udp4:localhost:3333')
+    #status1 = np_1.join(b'*:udp4:demo.neuropil.io:31418')
     status2 = np_2.join(b'*:udp4:localhost:4444')
 
     # run the loop for 10 seconds
     print('neuropil start !')
     np_1.send(b'ping', b'some data') 
 
-    t1 = time.clock()
+    t1 = time.time()
     status1 = np_1.run(0.0)
     status2 = np_2.run(0.0)    
-    
-    t2 = time.clock()
-    status1 = np_1.get_status()
-    status2 = np_2.get_status()    
-    print('neuropil shutdown! status1: {status1} status2: {status2}'.format(**locals()))
-    
-    while (t2 - t1) < 15 and status1 == neuropil.np_running and status2 == neuropil.np_running:
-        status1 = np_1.get_status()
-        status2 = np_2.get_status()    
-        time.sleep(0.001)    
-        t2 = time.clock()
 
+    max_runtime = 15 #sec        
+    while True:
+        time.sleep(0.001)            
+        status1 = np_1.get_status()
+        status2 = np_2.get_status()            
+        if not((time.time() - t1) < max_runtime and status1 == neuropil.np_running and status2 == neuropil.np_running):
+            break
+
+    print('neuropil shutdown!')
     np_1.shutdown()
     np_2.shutdown()
-
-    print('neuropil shutdown! {t1} {t2}'.format(**locals()))
-
 
 if __name__ == "__main__":
     main()
