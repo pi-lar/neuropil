@@ -10,7 +10,7 @@ cd $work_dir;
 echo "building in: $work_dir"
 rm -r $work_dir/build
 
-ARCHFLAGS='-arch x86_64' ./setup.py build
+ARCHFLAGS='-arch x86_64' python3 setup.py build
 
 unameOut="$(uname -s)"
 case "${unameOut}" in
