@@ -5,7 +5,21 @@ class NeuropilException(Exception):
         super().__init__(message)
         self.error = error
 
-class Neuropil(object):        
+class np_token(object):
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
+
+class np_message(object):
+    data = None
+    data_length = 0
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
+    
+    def raw(self):
+        return ffi.buffer(self.data,self.data_length)
+
+class Neuropil(object):    
+
     # ffi interaction variables
     _ffi_handle = None
     _settings = None    
@@ -20,42 +34,48 @@ class Neuropil(object):
     # user subject callbacks    
     __callback_info_dict__ = {}
 
-
-    def __init__(self,throw_exceptions = True):
+    
+    def __init__(self,throw_exceptions = True, **settings):
+        from pprint import pprint
         self.throw_exceptions = throw_exceptions
         self._ffi_handle = ffi.new_handle(self)        
-        self._settings = neuropil.np_default_settings(ffi.NULL)                            
+        self._settings = neuropil.np_default_settings(ffi.NULL)
+        setting_type=ffi.typeof(self._settings[0])        
+        for key, cdata in setting_type.fields:            
+            if key in settings:                        
+                setattr(self._settings, key, settings[key])
+
         self._context = neuropil.np_new_context(self._settings)        
         neuropil.np_set_userdata(self._context, self._ffi_handle)
     
     def __del__(self):
         if not self._destroyed:
             self._destroyed = True             
-            neuropil.np_destroy(self._context, False)
+            neuropil.np_destroy(self._context, False)        
 
-    def shutdown(self): 
-        ret = neuropil.np_ok       
+    def shutdown(self):         
         if not self._destroyed:
             self._destroyed = True
-            ret = neuropil.np_destroy(self._context, True)
-        return ret
+            neuropil.np_destroy(self._context, True)
+        
 
     @staticmethod
     @ffi.callback("bool(np_context* context, struct np_message*)")
-    def py_subject_callback(context, message):
-        myself = Neuropil.from_context(context)
-        
+    def _py_subject_callback(context, message):
+        print("_py_subject_callback")
+        ret = True
+        myself = Neuropil.from_context(context)                
         if myself.__callback_info_dict__[message.subject]:
+            msg = Neuropil._convert_to_python(message)
             for user_fn in myself.__callback_info_dict__[message.subject]:
-                user_fn(myself, message)
-
-        return True
+                ret = user_fn(myself, msg) and ret
+        return ret
 
     def set_receive_cb(self, subject, recv_callback):        
         ret = neuropil.np_ok
         if subject not in self.__callback_info_dict__:            
             self.__callback_info_dict__[subject] = []
-            ret = neuropil.np_add_receive_cb(self._context, subject, Neuropil.py_subject_callback)            
+            ret = neuropil.np_add_receive_cb(self._context, subject, Neuropil._py_subject_callback)            
         self.__callback_info_dict__[subject].append(recv_callback)                    
         if self.throw_exceptions and ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
@@ -126,19 +146,19 @@ class Neuropil(object):
     @ffi.callback("bool(np_context* context, struct np_token*)")
     def _py_authn_cb(context, token):        
         myself = Neuropil.from_context(context)
-        return myself._user_authn_cb(token)
+        return True and myself._user_authn_cb(Neuropil._convert_to_python(token))
 
     @staticmethod
     @ffi.callback("bool(np_context* context, struct np_token*)")
     def _py_authz_cb(context, token):
         myself = Neuropil.from_context(context)        
-        return myself._user_authz_cb(token)
+        return True and myself._user_authz_cb(token)
         
     @staticmethod
     @ffi.callback("bool(np_context* context, struct np_token*)")
     def _py_acc_cb(context, token):
         myself = Neuropil.from_context(context)        
-        return myself._user_accou_cb(token)
+        return True and myself.__user_accou_cb(token)
 
     def set_authenticate_cb(self, authn_callback):
         self._user_authn_cb = authn_callback
@@ -160,4 +180,38 @@ class Neuropil(object):
         if self.throw_exceptions and ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
         return ret
+    
 
+    @staticmethod
+    def __convert_struct_field( s, fields ):
+        for field,fieldtype in fields:
+            if fieldtype.type.kind == 'primitive':
+                yield (field,getattr( s, field ))
+            else:
+                yield (field, Neuropil._convert_to_python( getattr( s, field ) ))
+    @staticmethod
+    def _convert_to_python(s):
+        if s == ffi.NULL:
+            return None
+        else:
+            type=ffi.typeof(s)
+            if type.kind == 'struct':
+                return dict(Neuropil.__convert_struct_field( s, type.fields ) )
+            elif type.kind == 'array':
+                if type.item.kind == 'primitive':
+                    if type.item.cname == 'char':
+                        return ffi.string(s)
+                    else:
+                        return [ s[i] for i in range(type.length) ]
+                else:
+                    return [ Neuropil._convert_to_python(s[i]) for i in range(type.length) ]
+            elif type.kind == 'primitive':
+                return int(s)
+            elif type.kind == 'pointer':            
+                if type.item.cname == 'struct np_message':
+                    return np_message(**Neuropil._convert_to_python(s[0]))
+                elif  type.item.cname == 'struct np_token':
+                    return np_token(**Neuropil._convert_to_python(s[0]))                
+                else:
+                    return Neuropil._convert_to_python(s[0])
+        print(f"Neuropil._convert_to_python: Neuropil._convert_to_python: unknown {type.kind}")

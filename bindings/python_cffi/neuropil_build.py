@@ -32,12 +32,16 @@ cc = "clang"
 if os.getenv("CC"):
     cc = os.getenv("CC")
 h_file = subprocess.run([
-	cc,"-E",h_file_path,"-Ipycparser/utils/fake_libc_include",
+	cc,"-E",h_file_path,#"-Ipycparser/utils/fake_libc_include",
 	"-DNP_PACKED(x)=","-DNP_API_EXPORT=", "-D__CLANG_MAX_ALIGN_T_DEFINED",
 	"-DNP_ENUM="
 	], stdout=subprocess.PIPE).stdout.decode('utf-8')
-	
-ffibuilder.cdef(h_file)
+
+#print("START Neuropil.h")
+#print(h_file)
+#print("END   Neuropil.h")
+
+ffibuilder.cdef(h_file, packed=True)
 
 if __name__ == "__main__":
     ffibuilder.compile(verbose=True)
