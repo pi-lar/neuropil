@@ -16,10 +16,10 @@
 extern "C" {
 #endif
 
-#define NEUROPIL_RELEASE	"neuropil_0.7.1"
+#define NEUROPIL_RELEASE	"neuropil_0.8.0"
 
-#define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2018 neuropil.org, Cologne, Germany"
-#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2018 pi-lar GmbH, Cologne, Germany"
+#define NEUROPIL_COPYRIGHT	"copyright (C) 2016-2019 neuropil.org, Cologne, Germany"
+#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2019 pi-lar GmbH, Cologne, Germany"
 
 
     /* just in case NULL is not defined */

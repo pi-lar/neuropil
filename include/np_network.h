@@ -47,7 +47,7 @@ enum socket_type {
     IPv6    	   = 0x002,
     UDP     	   = 0x010, // UDP protocol - default
     TCP     	   = 0x020, // TCP protocol
-    //RAW     	   = 0x040, // pure IP protocol - no ports
+    // RAW     	   = 0x040, // pure IP protocol - no ports
     PASSIVE		   = 0x100,
     MASK_PROTOCOLL = 0x0FF,
     MASK_OPTION    = 0xF00,
