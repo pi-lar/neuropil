@@ -29,11 +29,12 @@ extern "C" {
 
     //
     // int __attribute__((overloadable)) square(int);
-
-#if defined(__APPLE__) && defined(__MACH__)
-    #define NP_ENUM __attribute__ ((flag_enum))
-#else
-    #define NP_ENUM 
+#ifndef NP_ENUM
+    #if defined(__APPLE__) && defined(__MACH__)
+        #define NP_ENUM __attribute__ ((flag_enum))
+    #else
+        #define NP_ENUM 
+    #endif
 #endif
 
 #define NP_CONST __attribute__ ((const))
@@ -76,10 +77,12 @@ extern "C" {
         NP_PUBLIC_KEY_BYTES = 32,
         NP_FINGERPRINT_BYTES = 32,
         NP_UUID_BYTES = 37
-    } NP_ENUM;
+    };
 
     // Implementation defined limits
-    #define NP_EXTENSION_BYTES 10240
+    enum {
+         NP_EXTENSION_BYTES = 10240
+    };
 
     enum np_status {
         np_error = 0,
@@ -96,7 +99,6 @@ extern "C" {
         np_invalid_argument,
         np_invalid_operation,
         np_startup
-        // ...
     } NP_ENUM;
 
     static const char* np_error_str[] = {
@@ -111,7 +113,7 @@ extern "C" {
     
     typedef void np_context;    
 
-    typedef uint8_t np_id[NP_FINGERPRINT_BYTES];
+    typedef unsigned char np_id[NP_FINGERPRINT_BYTES];
     typedef unsigned char* np_id_ptr;
     
     // If length is 0 then string is expected to be null-terminated.
@@ -128,9 +130,9 @@ extern "C" {
 
         double  issued_at, not_before, expires_at;
 
-        uint8_t extensions[NP_EXTENSION_BYTES];
+        unsigned char extensions[NP_EXTENSION_BYTES];
         size_t  extension_length;
-        uint8_t public_key[NP_PUBLIC_KEY_BYTES],
+        unsigned char public_key[NP_PUBLIC_KEY_BYTES],
                 secret_key[NP_SECRET_KEY_BYTES];
     } NP_PACKED(1);
     
@@ -139,7 +141,7 @@ extern "C" {
         np_id from; 
         np_id subject;		
         double received_at;
-        uint8_t * data;
+        unsigned char * data;
         size_t data_length;
     };
         
@@ -158,7 +160,7 @@ extern "C" {
 
     // secret_key is nullable
     NP_API_EXPORT
-    struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* secret_key[NP_SECRET_KEY_BYTES]);
+    struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char* secret_key[NP_SECRET_KEY_BYTES]);
 
     NP_API_EXPORT
     enum np_error   np_use_identity(np_context* ac, struct np_token identity);
@@ -177,7 +179,7 @@ extern "C" {
     enum np_error np_join(np_context* ac, char* address);
 
     NP_API_EXPORT
-    enum np_error np_send(np_context* ac, char* subject, uint8_t* message, size_t length);
+    enum np_error np_send(np_context* ac, char* subject, unsigned char* message, size_t length);
     
     typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
 
@@ -224,7 +226,7 @@ extern "C" {
     
 
     NP_API_EXPORT
-        enum np_error np_send_to(np_context* ac, char* subject, uint8_t* message, size_t length, np_id_ptr target);
+        enum np_error np_send_to(np_context* ac, char* subject, unsigned char* message, size_t length, np_id_ptr target);
     NP_API_EXPORT
         bool np_has_joined(np_context * ac);		
     NP_API_EXPORT
@@ -302,7 +304,7 @@ Initialization
 Identity management
 ------------------
 
-.. c:function:: struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]))
+.. c:function:: struct np_token *np_new_identity(np_context* ac, double expires_at, unsigned char* (secret_key[NP_SECRET_KEY_BYTES]))
 
    Creates a new neuropil identity.
 
@@ -406,7 +408,7 @@ Starting up
 Sending and receiving messages
 ------------------------------
 
-.. c:function:: enum np_error np_send(np_context* ac, char* subject, uint8_t* message, size_t length)
+.. c:function:: enum np_error np_send(np_context* ac, char* subject, unsigned char* message, size_t length)
 
    Sends a message on a given subject.
 
@@ -469,7 +471,7 @@ Sending and receiving messages
    Structure that holds a received message and some metadata about that
    message.
 
-.. c:member:: uint8_t *data
+.. c:member:: unsigned char *data
 
    A pointer to a buffer that contains the received message.
 
@@ -683,14 +685,14 @@ Tokens
    in seconds that denote issue date and validity duration of the token. These
    validity periods are validated by neuropil.
 
-.. c:member:: uint8_t[] extensions
+.. c:member:: unsigned char[] extensions
 .. c:member:: size_t extension_length
 
    A buffer of extension data of :c:member:`extension_length` bytes represented
    as a `MessagePack <https://msgpack.org/>`_ encoded map.
 
-.. c:member:: uint8_t[NP_PUBLIC_KEY_BYTES] public_key
-.. c:member:: uint8_t[NP_SECRET_KEY_BYTES] secret_key
+.. c:member:: unsigned char[NP_PUBLIC_KEY_BYTES] public_key
+.. c:member:: unsigned char[NP_SECRET_KEY_BYTES] secret_key
 
    The key pair associated with the token. Foreign tokens have the
    :c:member:`secret_key` unset (all zero).
@@ -717,7 +719,7 @@ Fingerprints
    but no party is able to forge an object that hashes to a particular
    fingerprint.
 
-.. c:type:: uint8_t[NP_FINGERPRINT_BYTES] np_id
+.. c:type:: unsigned char[NP_FINGERPRINT_BYTES] np_id
 
    The type :c:type:`np_id` denotes both a fingerprint and a virtual address in
    the overlay network implemented by neuropil. It is represented as a
