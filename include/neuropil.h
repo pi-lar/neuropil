@@ -79,8 +79,7 @@ extern "C" {
     } NP_ENUM;
 
     // Implementation defined limits
-    #define NP_EXTENSION_BYTES (10240)
-    #define NP_EXTENSION_MAX (NP_EXTENSION_BYTES-1)
+    #define NP_EXTENSION_BYTES 10240
 
     enum np_status {
         np_error = 0,
@@ -113,7 +112,7 @@ extern "C" {
     typedef void np_context;    
 
     typedef uint8_t np_id[NP_FINGERPRINT_BYTES];
-    typedef uint8_t* np_id_ptr;
+    typedef unsigned char* np_id_ptr;
     
     // If length is 0 then string is expected to be null-terminated.
     // char* is the appropriate type because it is the type of a string

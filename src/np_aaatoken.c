@@ -1483,7 +1483,7 @@ struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src) {
     cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
     np_tree_serialize(context, src->extensions, &cmp);
     dest->extension_length = src->extensions->byte_size;
-
+    assert(dest->extension_length <= NP_EXTENSION_BYTES);
     return dest;
 }
 

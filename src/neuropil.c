@@ -60,8 +60,7 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
     ret->log_level |= LOG_WARN;
 #ifdef DEBUG
     ret->log_level |= LOG_INFO;
-    ret->log_level |= LOG_DEBUG;
-    ret->log_level |= LOG_TRACE;
+    ret->log_level |= LOG_DEBUG;    
 #endif
 
     return ret;
@@ -142,7 +141,7 @@ np_context* np_new_context(struct np_settings * settings_in) {
     if (status == np_ok) {
         TSP_SET(context->status, np_stopped);
     }
-    else  if (context->status != np_error) {
+    else  {
         TSP_SET(context->status, np_error);
     }
     return ((np_context*)context);
@@ -556,6 +555,9 @@ void np_destroy(np_context*ac, bool gracefully)
 
     if(gracefully)
         np_shutdown_notify_others(context);
+
+    _np_log_fflush(context, true);
+    TSP_SET(context->status, np_shutdown);
     // TODO: implement me ...
     /*
     _np_threads_init()
@@ -566,5 +568,5 @@ void np_destroy(np_context*ac, bool gracefully)
     __global_state = state
     */
 
-    TSP_SET(context->status, np_shutdown);
+    
 }
