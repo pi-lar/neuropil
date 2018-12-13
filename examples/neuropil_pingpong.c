@@ -10,19 +10,15 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "np_types.h"
+#include "neuropil.h"
+
 #include "np_log.h"
-#include "np_legacy.h"
-#include "np_tree.h"
-#include "np_keycache.h"
-#include "np_message.h"
-#include "np_msgproperty.h"
-#include "np_node.h"
 
 #include "example_helper.c"
 
@@ -41,19 +37,27 @@ The first one is
    \code
 */
 
-bool receive_ping(np_context *context, const np_message_t* const msg, np_tree_t* body, void* localdata)
+bool receive_ping(np_context *context, struct np_message* msg)
 {
 /**
    \endcode
 */
+	char in_text[5];
+	int text_items = 0;
+	uint32_t i = 0;
 
-	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
-	uint32_t seq = np_tree_find_str(body, _NP_MSG_INST_SEQ)->val.value.ul;
+	sscanf ((char*) msg->data, "%s %"PRIu32, in_text, &i);
+	fprintf(stdout, "RECEIVED: %d -> %s\n", i, in_text);
+	log_msg(LOG_INFO, "RECEIVED: %d -> %s", i, in_text);
 
-	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
-	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
-	np_send_text(context, "pong", "pong", _pong_count,NULL);
+
+	char* out_text;
+	asprintf(&out_text, "%s %"PRIu32, "pong", _pong_count);
+	np_send(context, "pong", (uint8_t*) out_text, strlen(out_text));
+	free(out_text);
+
+	fflush(stdout);
 
 	return true;
 }
@@ -64,19 +68,27 @@ and the second one:
 
    \code
 */
-bool receive_pong(np_context *context, const np_message_t* const msg,  np_tree_t* body)
+bool receive_pong(np_context *context, struct np_message* msg)
 {
 /**
    \endcode
 */
-	char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
-	uint32_t seq = np_tree_find_str(body, _NP_MSG_INST_SEQ)->val.value.ul;
+	char in_text[5];
+	int text_items = 0;
+	uint32_t i = 0;
 
-	fprintf(stdout, "RECEIVED: %05d -> %s\n", seq, text);
-	log_msg(LOG_INFO, "RECEIVED: %d -> %s", seq, text);
+	sscanf ((char*) msg->data, "%s %"PRIu32, in_text, &i);
+	fprintf(stdout, "RECEIVED: %d -> %s\n", i, in_text);
+	log_msg(LOG_INFO, "RECEIVED: %d -> %s", i, in_text);
+
 	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_count++, "ping");
 
-	np_send_text(context, "ping", "ping", _ping_count,NULL);
+	char* out_text;
+	asprintf(&out_text, "%s %"PRIu32, "ping", _ping_count);
+	np_send(context, "ping", (uint8_t*) out_text, strlen(out_text));
+	free(out_text);
+
+	fflush(stdout);
 
 	return true;
 }
@@ -123,7 +135,7 @@ int main(int argc, char **argv)
 	   \endcode
 	*/
 
-	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_pingpong", port);
 	fprintf(stdout, "logpath: %s\n", settings->log_file);
 	settings->log_level = level;
 
@@ -131,7 +143,7 @@ int main(int argc, char **argv)
 	np_set_userdata(context, user_context);
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
-		printf("ERROR: Node could not listen");
+		fprintf(stdout, "ERROR: Node could not listen");
 		exit(EXIT_FAILURE);
 	}
 
@@ -160,22 +172,23 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	np_msgproperty_t* ping_props = NULL;
-	np_add_receive_listener(context, receive_ping, NULL, "ping");
-	ping_props = np_msgproperty_get(context, INBOUND, "ping");
-	ping_props->ack_mode = ACK_NONE;
-	ping_props->msg_ttl = 20.0;
+	np_add_receive_cb(context, "ping", receive_ping );
+	struct np_mx_properties ping_props = np_get_mx_properties(context, "ping");
+	ping_props.ackmode = NP_MX_ACK_NONE;
+	ping_props.message_ttl = 20.0;
+	np_set_mx_properties(context,  "ping",  ping_props);
+
 	//register the listener function to receive data from the sender
-	np_msgproperty_t* pong_props = NULL;
-	np_add_receive_listener(context, receive_ping, NULL, "pong");
-	pong_props = np_msgproperty_get(context, INBOUND, "pong");
-	pong_props->ack_mode = ACK_NONE;
-	pong_props->msg_ttl = 20.0;
+	np_add_receive_cb(context, "pong", receive_pong);
+	struct np_mx_properties pong_props = np_get_mx_properties(context, "pong");
+	pong_props.ackmode = NP_MX_ACK_NONE;
+	pong_props.message_ttl = 20.0;
+	np_set_mx_properties(context,  "pong",  pong_props);
 	/**
 	   \endcode
 	*/
 
-	__np_example_helper_loop(context);
+	// __np_example_helper_loop(context);
 
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.
@@ -186,7 +199,7 @@ int main(int argc, char **argv)
 	   \code
 	*/
 	if (np_ok != np_run(context, 0)) {
-		printf("ERROR: Node could not start");
+		fprintf(stdout, "ERROR: Node could not start");
 		exit(EXIT_FAILURE);
 	}
 	/**
@@ -213,8 +226,10 @@ int main(int argc, char **argv)
 		fprintf(stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string(context));
 	}
 
-	np_waitforjoin(context);
-
+	while ( np_has_joined(context) == false )
+	{
+		np_run(context, 1.0);
+	}
 	fprintf(stdout, "Connection established.\n");
 	/**
 	   \endcode
@@ -229,7 +244,10 @@ int main(int argc, char **argv)
 
 	log_msg(LOG_INFO, "Sending initial ping");
 	// send an initial ping
-	np_send_text(context, "ping", "ping", _ping_count++, NULL);
+	char* out_text;
+	asprintf(&out_text, "%s %"PRIu32, "ping", 0);
+	np_send(context, "ping", (uint8_t*)out_text, strlen(out_text));
+	free(out_text);
 
 	/**
 	loop (almost) forever, you're done :-)
@@ -240,8 +258,9 @@ int main(int argc, char **argv)
 	*/
 	while (1)
 	{
-		__np_example_helper_loop(context); // for the fancy ncurse display
-		np_time_sleep(0.9);
+		// __np_example_helper_loop(context); // for the fancy ncurse display
+		np_run(context, 1.0);
+		np_time_sleep(0.01);
 	}
 	/**
 	   \endcode

@@ -57,7 +57,7 @@ struct np_tree_conf_s {
     bool in_place;
     bool immutable;
     bool disable_special_str;
-}NP_API_EXPORT;
+} NP_API_EXPORT;
 
 /**
 .. c:type:: np_tree_t

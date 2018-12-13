@@ -29,7 +29,7 @@ void np_crypto_init(np_crypto_t* self) {
 	self->derived_kx_secret_key_is_set = false;
 }
 void _np_crypto_t_del(NP_UNUSED np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, NP_UNUSED void* data) {
-	np_crypto_t* obj = (np_crypto_t*)data;
+	// np_crypto_t* obj = (np_crypto_t*)data;
 }
 
 // generates new keypairs, buffer may be NULL
