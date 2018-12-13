@@ -17,8 +17,7 @@ class Neuropil(object):
     _user_authn_cb = lambda s,x: True # Default return True 
     _user_authz_cb = lambda s,x: True # Default return True
     _user_accou_cb = lambda s,x: True # Default return True
-    # user subject callbacks
-    _py_subject_callback_added = False
+    # user subject callbacks    
     __callback_info_dict__ = {}
 
 
@@ -53,17 +52,13 @@ class Neuropil(object):
         return True
 
     def set_receive_cb(self, subject, recv_callback):        
+        ret = neuropil.np_ok
         if subject not in self.__callback_info_dict__:            
             self.__callback_info_dict__[subject] = []
-        self.__callback_info_dict__[subject].append(recv_callback)
-
-        ret = neuropil.np_ok
-        if not self._py_subject_callback_added:
-            self._py_subject_callback_added = True
-            ret = neuropil.np_add_receive_cb(self._context, subject, Neuropil.py_subject_callback)
-            if self.throw_exceptions and ret is not neuropil.np_ok:
-                raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
-
+            ret = neuropil.np_add_receive_cb(self._context, subject, Neuropil.py_subject_callback)            
+        self.__callback_info_dict__[subject].append(recv_callback)                    
+        if self.throw_exceptions and ret is not neuropil.np_ok:
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
         return ret
 
     def listen(self, protocol, hostname, port):
@@ -86,7 +81,7 @@ class Neuropil(object):
 
     def send(self, subject, message):
         raw_bytes = ffi.from_buffer(message)        
-        ret = neuropil.np_send(self._context, subject, ffi.cast("uint8_t*", raw_bytes), len(raw_bytes))
+        ret = neuropil.np_send(self._context, subject, raw_bytes, len(raw_bytes))
         if self.throw_exceptions and ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
         return ret
