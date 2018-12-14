@@ -6,6 +6,10 @@ class NeuropilException(Exception):
         super().__init__(message)
         self.error = error
 
+class np_mx_properties(object):
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
+
 class np_token(object):
     def __init__(self, **entries):
         self.__dict__.update(entries)
@@ -196,10 +200,29 @@ class NeuropilNode(object):
             raise ValueError(f"subject needs to be `bytes` or `str`")
 
         ret = neuropil.np_get_mx_properties(self._context, subject)
+        
+        if ret == ffi.NULL:
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+        else:
+            ret = _NeuropilHelper.convert_to_python(ret)
+            
+        return ret
+
+    def set_mx_properties(self, subject:str, mx_property:np_mx_properties):
+        if isinstance(subject, str):
+            subject = subject.encode("utf-8")
+        if not isinstance(subject, bytes):             
+            raise ValueError(f"subject needs to be `bytes` or `str`")
+        if not isinstance(mx_property, np_mx_properties):             
+            raise ValueError(f"mx_property needs to be `np_mx_properties`")
+         
+        ret = neuropil.np_set_mx_properties(self._context, subject, _NeuropilHelper.convert_from_python(mx_property))
+
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            
         return ret
-	    
+
     def set_userdata(self, userdata):
         self._userdata.data = userdata
     def get_userdata(self):
@@ -282,6 +305,8 @@ class _NeuropilHelper():
                 ret = np_message(**ret)
             elif  type.cname == 'struct np_token':
                 ret = np_token(**ret)
+            elif  type.cname == 'struct np_mx_properties':
+                ret = np_mx_properties(**ret)                
         elif type.kind == 'array':
             if type.item.kind == 'primitive':
                 if type.item.cname == 'char':
@@ -296,7 +321,9 @@ class _NeuropilHelper():
             if type.item.cname == 'struct np_message':
                 ret = np_message(**_NeuropilHelper.convert_to_python(s[0]))
             elif  type.item.cname == 'struct np_token':
-                ret = np_token(**_NeuropilHelper.convert_to_python(s[0]))                
+                ret = np_token(**_NeuropilHelper.convert_to_python(s[0]))
+            elif  type.item.cname == 'struct np_mx_properties':
+                ret = np_mx_properties(**_NeuropilHelper.convert_to_python(s[0]))         
             else:
                 ret = _NeuropilHelper.convert_to_python(s[0])
         else:
