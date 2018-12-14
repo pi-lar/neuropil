@@ -15,7 +15,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #define NEUROPIL_RELEASE	"neuropil_0.7.1"
 
 #define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2018 neuropil.org, Cologne, Germany"
@@ -70,7 +69,6 @@ extern "C" {
 #define NP_API_EXPORT __attribute__ ((visibility ("default")))
 #endif
 
-
     // Protocol constants
     enum {
         NP_SECRET_KEY_BYTES = 64,
@@ -99,8 +97,7 @@ extern "C" {
         np_invalid_argument,
         np_invalid_operation,
         np_startup
-    } NP_ENUM;
-
+    } NP_ENUM;    
     static const char* np_error_str[] = {
         "",
         "operation is not implemented",
@@ -110,7 +107,6 @@ extern "C" {
         "insufficient memory",
         "startup error. See log for more details"
     };
-    
     typedef void np_context;    
 
     typedef unsigned char np_id[NP_FINGERPRINT_BYTES];
@@ -143,14 +139,14 @@ extern "C" {
         double received_at;
         unsigned char * data;
         size_t data_length;
-    };
+    } NP_PACKED(1);
         
     struct np_settings {
         uint32_t n_threads;
         char log_file[256];
         uint32_t log_level;
         // ...
-    };
+    } NP_PACKED(1);
 
     NP_API_EXPORT
     struct np_settings * np_default_settings(struct np_settings *settings);
@@ -164,8 +160,6 @@ extern "C" {
 
     NP_API_EXPORT
     enum np_error   np_use_identity(np_context* ac, struct np_token identity);
-
-
 
     NP_API_EXPORT
     enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
