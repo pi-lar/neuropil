@@ -34,9 +34,6 @@ class NeuropilCluster(object):
             node = NeuropilNode(port_range[c],host,proto[c],auto_run,**settings)
             self.nodes.append(node)        
 
-        ident = self.nodes[0].new_identity(time.time()+60*60*24*365)
-        self.use_identity(ident)
-
     def __getattr__ (self, name):
         if self.nodes:            
             fistattr = object.__getattribute__(self.nodes[0], name)
