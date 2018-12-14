@@ -296,11 +296,30 @@ struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* (sec
     np_aaatoken4user(&ret, new_token);
 #ifdef DEBUG
     char tmp[65] = { 0 };
-    np_dhkey_t d = np_aaatoken_get_fingerprint(new_token);
+    np_dhkey_t d = np_aaatoken_get_fingerprint(new_token, false);
     np_id2str((np_id*)&d, tmp);
     log_debug_msg(LOG_AAATOKEN, "created new ident token %s (fp:%s)", ret.uuid, tmp);
 #endif
     np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
+
+    return ret;
+}
+
+enum np_error np_token_fingerprint(struct np_token identity, bool include_attributes, np_id* id)
+{
+    // np_ctx_cast(ac);
+    // log_debug_msg(LOG_AAATOKEN, "calculating fingerprint for token %s", identity.uuid);
+
+    enum np_error ret = np_ok;
+    np_ident_private_token_t imported_token = { 0 };
+    // np_new_obj(np_aaatoken_t, imported_token);
+    np_user4aaatoken(&imported_token, &identity);
+
+    np_dhkey_t fp = np_aaatoken_get_fingerprint(&imported_token, include_attributes);
+    memcpy(*id, &fp , 32);
+
+    // np_unref_obj(np_aaatoken_t, imported_token, ref_obj_creation);
+    // log_msg(LOG_INFO, "Using ident token %s", identity.uuid);
 
     return ret;
 }

@@ -161,6 +161,9 @@ extern "C" {
     NP_API_EXPORT
     enum np_error   np_use_identity(np_context* ac, struct np_token identity);
 
+    NP_API_EXPORT
+    enum np_error   np_token_fingerprint(struct np_token identity, bool include_attributes, np_id* id);
+
 
 
     NP_API_EXPORT
