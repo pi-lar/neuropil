@@ -26,4 +26,5 @@
 #include "unit/test_scache.c"
 #include "unit/test_heap.c"
 
+#include "unit/test_neuropil_h.c"
 #include "unit/test_m_jobqueue.c"

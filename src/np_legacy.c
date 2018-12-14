@@ -196,7 +196,7 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
     np_aaatoken_t* auth_token = _np_token_factory_new_node_token(context, context->my_node_key->node);
     auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;	
 
-    np_dhkey_t my_dhkey = np_aaatoken_get_fingerprint(auth_token); // np_dhkey_create_from_hostport( my_node->dns_name, my_node->port);
+    np_dhkey_t my_dhkey = np_aaatoken_get_fingerprint(auth_token, false); // np_dhkey_create_from_hostport( my_node->dns_name, my_node->port);
     np_key_t* new_node_key = _np_keycache_find_or_create(context, my_dhkey);
 
     new_node_key->network = context->my_node_key->network;
@@ -370,7 +370,7 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
 
  
     // build a hash to find a place in the dhkey table, not for signing !
-    np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity);
+    np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity, false);
     np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
     
     np_key_t* old_ident = context->my_identity;
@@ -566,7 +566,7 @@ void _np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
     np_aaatoken_t* auth_token = _np_token_factory_new_node_token(context, custom_base);
     auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
 
-    np_dhkey_t my_dhkey = np_aaatoken_get_fingerprint(auth_token); 
+    np_dhkey_t my_dhkey = np_aaatoken_get_fingerprint(auth_token, false);
     np_key_t* my_new_node_key = _np_keycache_find_or_create(context, my_dhkey);
 
     np_ref_switch(np_node_t, my_new_node_key->node, ref_key_node, custom_base);

@@ -226,7 +226,7 @@ NP_API_EXPORT
 bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_type);
 
 NP_API_INTERN
-np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* token);
+np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* token, bool include_extensions);
 
 // neuropil internal aaatoken storage and exchange functions
 
