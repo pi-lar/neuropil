@@ -1392,7 +1392,7 @@ char* np_network_get_ip(np_key_t * container, char* buffer) {
     }
 
     if (ip != NULL) {
-        snprintf(ret, 255, "%%s", ip);
+        snprintf(ret, 255, "%s", ip);
     }
     else {
         snprintf(ret, 255, "?.?.?.?");
