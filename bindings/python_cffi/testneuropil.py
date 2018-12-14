@@ -65,13 +65,12 @@ def main():
     
     max_runtime = 10 #sec        
 
-    np_1 = NeuropilListener(4444, host="192.168.30.151", no_threads=3)
-    np_2 = NeuropilListener(5555,host="192.168.30.151")
-    np_c = NeuropilCluster(3,port_range=4000, host="192.168.30.151")
+    np_1 = NeuropilListener(4444, no_threads=3)
+    np_2 = NeuropilListener(5555)
+    np_c = NeuropilCluster(3,port_range=4000)
 
     # connect to a node in the internet
     #internet = '*:udp4:demo.neuropil.io:31418'
-    #internet = '*:udp4:192.168.30.151:3000'
     #print(f"Node 1 connects to the internet (aka: {internet})")
     #np_1.join(internet)
 
