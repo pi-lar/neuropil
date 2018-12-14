@@ -1,9 +1,11 @@
 #! /usr/bin/env python3
 
+import subprocess
 import platform
 import glob
 import io
 import os
+
 
 def buildNo():
     try:
@@ -281,7 +283,14 @@ np_dylib = neuropil_env.SharedLibrary('build/lib/neuropil', SOURCES)
 
 if build_bindings:
   bindings_env = default_env.Clone()
-  bindings_env.Command ('bindings/python_cffi/build', np_dylib, './bindings/python_cffi/build_swig.sh')
+  def build_pyffi(target, source, env):    
+    ret = subprocess.check_call(['./bindings/python_cffi/build_swig.sh'])
+    if ret != 0:
+        print("Error in bindings/python_cffi/build_swig.sh")
+    return ret
+
+  cmd = bindings_env.Command ('./bindings/python_cffi/build', None, build_pyffi)
+  Depends(cmd, np_dylib)
 
 test_env = default_env.Clone()
 conf = Configure(test_env)
@@ -304,17 +313,17 @@ else:
 programs = [
 #    (PROGRAM_NAME (w/o neuropil_ prefix), DEPENDENCIES)
     ('controller',     ['neuropil']),
-    ('receiver',     ['neuropil']),
+    ('receiver',       ['neuropil']),
     ('sender',         ['neuropil']),
-    ('node',          ['neuropil','ncurses','sodium']),
+    ('node',           ['neuropil','ncurses','sodium']),
     ('cloud',          ['neuropil','ncurses','sodium']),
     ('hydra',          ['neuropil','ncurses','sodium']),
-    ('receiver_cb',     ['neuropil','ncurses','sodium']),
-    ('pingpong',     ['neuropil','ncurses','sodium']),
-    ('echo_server',     ['neuropil','ncurses','sodium']),
-    ('echo_client',     ['neuropil','ncurses','sodium']),
-    ('raspberry',     ['neuropil','ncurses','sodium']),
-    ('demo_service', ['neuropil','ncurses','sodium']),
+    ('receiver_cb',    ['neuropil','ncurses','sodium']),
+    ('pingpong',       ['neuropil','ncurses','sodium']),
+    ('echo_server',    ['neuropil','ncurses','sodium']),
+    ('echo_client',    ['neuropil','ncurses','sodium']),
+    ('raspberry',      ['neuropil','ncurses','sodium']),
+    ('demo_service',   ['neuropil','ncurses','sodium']),
     ('raffle',         ['neuropil','ncurses','sodium','sqlite3']),
     ]
 
@@ -331,8 +340,8 @@ else:
             prg_np = program_env.Program('bin/neuropil_%s'%program, variantDir+'examples/neuropil_%s.c'%program)
             Depends(prg_np, np_dylib)
 
-
 # clean up
+Clean('.', os.path.join('bindings','python_cffi','build'))
 Clean('.', 'build')
 Clean('.', 'bin')
 Clean('.', 'warn.log')

@@ -30,6 +30,8 @@ except ImportError:
     from neuropil import NeuropilNode, NeuropilCluster, neuropil
     print("Using Build Library")
 
+    
+
 def my_authn_cb(token):    
     print("{type} {token}".format(type="authn", token=token.subject))
     return True
@@ -63,11 +65,11 @@ class NeuropilListener(NeuropilNode):
 
 def main():    
     
-    max_runtime = 10 #sec        
+    max_runtime = 20 #sec        
 
-    np_1 = NeuropilListener(4444, no_threads=3)
-    np_2 = NeuropilListener(5555)
-    np_c = NeuropilCluster(3,port_range=4000)
+    np_1 = NeuropilListener(4444, no_threads=3,log_file="np_1.log")
+    np_2 = NeuropilListener(5555,log_file="np_2.log")
+    #np_c = NeuropilCluster(3,port_range=4000)
 
     # connect to a node in the internet
     #internet = '*:udp4:demo.neuropil.io:31418'
@@ -77,12 +79,12 @@ def main():
     np1_addr = np_1.get_address()
     print(f"Others nodes connect to node 1 (aka: {np1_addr})")
     np_2.join(np1_addr)
-    np_c.join(np1_addr)
+    #np_c.join(np1_addr)
 
     t1 = time.time()    
     np_1.send('tick', b'some data') 
     while True:
-        status = [np_1.get_status(),np_2.get_status()] + [ s for n, s in np_c.get_status()] 
+        status = [np_1.get_status(),np_2.get_status()]# + [ s for n, s in np_c.get_status()] 
 
         if not((time.time() - t1) < max_runtime and all([s == neuropil.np_running for s in status])):
             break
@@ -93,7 +95,7 @@ def main():
     print('neuropil shutdown!')
     np_1.shutdown()
     np_2.shutdown()
-    np_c.shutdown()
+    #np_c.shutdown()
 
 if __name__ == "__main__":
     main()
