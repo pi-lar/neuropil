@@ -72,7 +72,7 @@ class NeuropilNode(object):
         setting_type=ffi.typeof(self._settings[0])        
         for key, cdata in setting_type.fields:            
             if key in settings:                        
-                setattr(self._settings, key, settings[key])
+                setattr(self._settings, key, _NeuropilHelper.convert_from_python( settings[key]))
 
         self._context = neuropil.np_new_context(self._settings)        
         neuropil.np_set_userdata(self._context, self._ffi_handle)
@@ -304,19 +304,25 @@ class _NeuropilHelper():
         return ret
 
     @staticmethod
+
+    def __convert_value_from_python(value):            
+        ret = value
+        if isinstance(value, str):
+            ret = value.encode("utf-8")        
+        return ret
+
     def __convert_from_python(s:dict):    
         ret = {}
         for key, value in s.items():
-            if isinstance(value, str):
-                ret[key] = value.encode("utf-8")
-            else:
-                ret[key] = value
+            ret[key] = _NeuropilHelper.__convert_value_from_python(value)
         return ret
 
     @staticmethod
     def convert_from_python(s):
         if isinstance(s, dict):
             return _NeuropilHelper.__convert_from_python(s)
-        else:
+        elif hasattr(s, '__dict__'):
             return _NeuropilHelper.__convert_from_python(s.__dict__)
+        else:
+            return _NeuropilHelper.__convert_value_from_python(s)
 
