@@ -1,3 +1,4 @@
+
 from _neuropil import lib as neuropil, ffi
 import time, copy
 
@@ -7,8 +8,19 @@ class NeuropilException(Exception):
         self.error = error
 
 class np_mx_properties(object):
-    def __init__(self, **entries):
+    subject = None
+    parent = None
+
+    def __init__(self, parent, **entries):
+        self.parent = parent
         self.__dict__.update(entries)
+
+    def apply(self):
+        return self.set_mx_properties()
+
+    def set_mx_properties(self):
+        if self.parent and self.subject:
+            self.parent.set_mx_properties(self.subject, self)
 
 class np_token(object):
     def __init__(self, **entries):
@@ -102,9 +114,9 @@ class NeuropilNode(object):
         ret = True
         myself = _NeuropilHelper.from_context(context)                
         if myself.__callback_info_dict__[message.subject]:
-            msg = _NeuropilHelper.convert_to_python(message)
+            msg = _NeuropilHelper.convert_to_python(myself, message)
             for user_fn in myself.__callback_info_dict__[message.subject]:
-                ret = user_fn(myself, msg) and ret
+                ret = bool(user_fn(myself, msg)) and ret
         return ret
 
     def set_receive_cb(self, subject:str, recv_callback):
@@ -179,7 +191,7 @@ class NeuropilNode(object):
             secret_key = ffi.NULL
 
         ret = neuropil.np_new_identity(self._context, expires_at, secret_key)        
-        ret = _NeuropilHelper.convert_to_python(ret)
+        ret = _NeuropilHelper.convert_to_python(self, ret)
         return ret
 
     def use_identity(self, identity:np_token):
@@ -204,7 +216,7 @@ class NeuropilNode(object):
         if ret == ffi.NULL:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
         else:
-            ret = _NeuropilHelper.convert_to_python(ret)
+            ret = _NeuropilHelper.convert_to_python(self, ret)
             
         return ret
 
@@ -238,7 +250,7 @@ class NeuropilNode(object):
         if status is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[status])),status)
 
-        return ffi.string(address)
+        return ffi.string(address).decode("utf-8")
     
     def get_status(self):
         ret = neuropil.np_get_status(self._context)     
@@ -247,23 +259,23 @@ class NeuropilNode(object):
     @staticmethod
     @ffi.callback("bool(np_context* context, struct np_token*)")
     def _py_authn_cb(context, token):        
-        myself = _NeuropilHelper.from_context(context)
-        return True and myself._user_authn_cb(_NeuropilHelper.convert_to_python(token))
+        myself = _NeuropilHelper.from_context(context)        
+        return bool(myself._user_authn_cb(_NeuropilHelper.convert_to_python(myself, token)))
 
     @staticmethod
     @ffi.callback("bool(np_context* context, struct np_token*)")
     def _py_authz_cb(context, token):
         myself = _NeuropilHelper.from_context(context)        
-        return True and myself._user_authz_cb(token)
+        return bool(myself._user_authz_cb(_NeuropilHelper.convert_to_python(myself, token)))
         
     @staticmethod
     @ffi.callback("bool(np_context* context, struct np_token*)")
     def _py_acc_cb(context, token):
         myself = _NeuropilHelper.from_context(context)        
-        return True and myself.__user_accou_cb(token)
+        return bool(myself._user_accou_cb(_NeuropilHelper.convert_to_python(myself, token)))        
 
-    def set_authenticate_cb(self, authn_callback):
-        self._user_authn_cb = authn_callback
+    def set_authenticate_cb(self, authn_callback):        
+        self._user_authn_cb = authn_callback        
         ret =  neuropil.np_set_authenticate_cb(self._context, NeuropilNode._py_authn_cb)
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
@@ -277,7 +289,7 @@ class NeuropilNode(object):
         return ret
 
     def set_accounting_cb(self, acc_callback):
-        self._user_acc = acc_callback
+        self._user_accou_cb = acc_callback
         ret = neuropil.np_set_accounting_cb(self._context, NeuropilNode._py_acc_cb)
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
@@ -289,24 +301,31 @@ class _NeuropilHelper():
         return ffi.from_handle(neuropil.np_get_userdata(context))
 
     @staticmethod
-    def __convert_struct_field( s, fields ):
+    def __convert_struct_field(node:NeuropilNode, s, fields ):
         for field,fieldtype in fields:
             if fieldtype.type.kind == 'primitive':
                 yield (field,getattr( s, field ))
             else:
-                yield (field, _NeuropilHelper.convert_to_python( getattr( s, field ) ))
+                yield (field, _NeuropilHelper.convert_to_python(node,  getattr( s, field ) ))
     @staticmethod
-    def convert_to_python(s):
+    def convert_to_python(node:NeuropilNode, s):
         ret = None        
-        type=ffi.typeof(s)
-        if type.kind == 'struct':
-            ret = dict(_NeuropilHelper.__convert_struct_field( s, type.fields))            
+        type = None
+        try:
+            type = ffi.typeof(s)
+        except:
+            ret = s
+
+        if type == None:
+            pass
+        elif type.kind == 'struct':
+            ret = dict(_NeuropilHelper.__convert_struct_field(node,  s, type.fields))            
             if type.cname == 'struct np_message':
                 ret = np_message(**ret)
             elif  type.cname == 'struct np_token':
                 ret = np_token(**ret)
             elif  type.cname == 'struct np_mx_properties':
-                ret = np_mx_properties(**ret)                
+                ret = np_mx_properties(node, **ret)                
         elif type.kind == 'array':
             if type.item.kind == 'primitive':
                 if type.item.cname == 'char':
@@ -314,30 +333,24 @@ class _NeuropilHelper():
                 else:
                     ret = [ s[i] for i in range(type.length) ]
             else:
-                ret = [ _NeuropilHelper.convert_to_python(s[i]) for i in range(type.length) ]
+                ret = [ _NeuropilHelper.convert_to_python(node, s[i]) for i in range(type.length) ]
         elif type.kind == 'primitive':
             ret = int(s)
         elif type.kind == 'pointer':            
-            if type.item.cname == 'struct np_message':
-                ret = np_message(**_NeuropilHelper.convert_to_python(s[0]))
-            elif  type.item.cname == 'struct np_token':
-                ret = np_token(**_NeuropilHelper.convert_to_python(s[0]))
-            elif  type.item.cname == 'struct np_mx_properties':
-                ret = np_mx_properties(**_NeuropilHelper.convert_to_python(s[0]))         
-            else:
-                ret = _NeuropilHelper.convert_to_python(s[0])
+                ret = _NeuropilHelper.convert_to_python(node, s[0])
         else:
             print(f"_NeuropilHelper.convert_to_python: _NeuropilHelper.convert_to_python: unknown {type.kind}")
+    
         return ret
 
     @staticmethod
-
     def __convert_value_from_python(value):            
         ret = value
         if isinstance(value, str):
             ret = value.encode("utf-8")        
         return ret
 
+    @staticmethod
     def __convert_from_python(s:dict):    
         ret = {}
         for key, value in s.items():

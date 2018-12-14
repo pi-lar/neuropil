@@ -4,7 +4,7 @@ import sys
 import time   
 
 try:
-    from neuropil import NeuropilNode, NeuropilCluster, neuropil
+    from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_token, np_message
 except ImportError:
     # Using the build version of neuropil instad of the installed
     from glob import glob
@@ -27,38 +27,50 @@ except ImportError:
         sys.path.append(dir)
         break
             
-    from neuropil import NeuropilNode, NeuropilCluster, neuropil
+    from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_token, np_message
     print("Using Build Library")
 
     
 
-def my_authn_cb(token):    
+def my_authn_cb(token:np_token):    
     print("{type} {token}".format(type="authn", token=token.subject))
     return True
 
-def my_authz_cb(token):
+def my_authz_cb(token:np_token):
     print("{type} {token}".format(type="authz", token=token.subject))
     return True
 
 class NeuropilListener(NeuropilNode):    
-    def __init(self, port, host = b'localhost', proto= b'udp4', auto_run=True, **settings):
-        super().__init__(port, host, proto, auto_run, True, **settings)
+    def __init__(self, port, host = b'localhost', proto= b'udp4', auto_run=True, **settings):        
+        super().__init__(port, host, proto, auto_run, **settings)
         self.set_authenticate_cb(my_authn_cb)
-        self.set_authorize_cb(my_authz_cb)
         self.set_accounting_cb(self.my_acc_cb)
+        self.set_authorize_cb(my_authz_cb)
+
+        tick = self.get_mx_properties('tick')
+        tick.reply_subject = "tock"
+        tick.max_parallel  = 100
+        tick.max_retry = 0
+        tick.apply()
+        tock = self.get_mx_properties('tock')
+        tock.reply_subject = "tick"
+        tock.max_parallel  = 100
+        tock.max_retry = 0
+        tock.apply()
+
         self.set_receive_cb(b'tick', self.test_tick_callback)
         self.set_receive_cb(b'tock', self.test_tock_callback)
     
-    def my_acc_cb(self, token):
+    def my_acc_cb(self, token:np_token):
         print("{type} {token}".format(type="authz", token=token.subject))
         return True
 
-    def test_tick_callback(self, message):        
+    def test_tick_callback(self, message:np_message):        
         print("{type}: {data}".format(type="tick", data=message.raw()))
         self.send('tock', bytes('tock data (bytes)', encoding='utf_8'))
         return True
     
-    def test_tock_callback(self, message):
+    def test_tock_callback(self, message:np_message):
         print("{type}: {data}".format(type="tock", data=message.raw()))
         self.send('tick', b'tick data (str)')
         return True
@@ -66,9 +78,9 @@ class NeuropilListener(NeuropilNode):
 def main():    
     
     max_runtime = 20 #sec        
-
-    np_1 = NeuropilListener(4444, no_threads=3,log_file="np_1.log")
-    np_2 = NeuropilListener(5555,log_file="np_2.log")
+    
+    np_1 = NeuropilListener(4444, no_threads=3, log_file="np_1.log")
+    np_2 = NeuropilListener(5555, log_file="np_2.log")
     #np_c = NeuropilCluster(3,port_range=4000)
 
     # connect to a node in the internet
