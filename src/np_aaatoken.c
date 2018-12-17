@@ -1331,7 +1331,7 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
         // prevent fingerprint recursion
         char my_token_fp_s[65];
 		np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee, false);
-        np_id2str(&my_token_fp, my_token_fp_s);
+        np_id2str((np_id_ptr)&my_token_fp, my_token_fp_s);
         strncpy(self->issuer, my_token_fp_s, 65);
         self->issuer_token = signee;
     }

@@ -297,7 +297,7 @@ struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char
 #ifdef DEBUG
     char tmp[65] = { 0 };
     np_dhkey_t d = np_aaatoken_get_fingerprint(new_token, false);
-    np_id2str(&d, tmp);
+    np_id2str((np_id_ptr)&d, tmp);
     log_debug_msg(LOG_AAATOKEN, "created new ident token %s (fp:%s)", ret.uuid, tmp);
 #endif
     np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
@@ -413,7 +413,7 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
     if (userdata != NULL) {
         struct np_message message = { 0 };
         strncpy(message.uuid, msg->uuid, NP_UUID_BYTES-1);
-        np_get_id(context, &message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));
+        np_get_id(context, (np_id_ptr)&message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));
         
         memcpy(&message.from, _np_message_get_sender(msg), NP_FINGERPRINT_BYTES);
 

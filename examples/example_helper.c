@@ -21,6 +21,7 @@
 #include <curses.h>
 #include <ncurses.h>
 #include "sodium.h"
+#include "event/ev.h"
 
 #include "../examples/example_helper.h"
 
@@ -36,6 +37,7 @@
 #include "np_sysinfo.h"
 #include "np_threads.h"
 #include "np_log.h"
+#include "np_event.h"
 #include "np_messagepart.h"
 #include "np_jobqueue.h"
 #include "np_performance.h"
