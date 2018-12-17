@@ -50,7 +50,7 @@ struct np_statistics_element_s {
 };
 typedef struct np_statistics_element_s np_statistics_element_t;
 
-bool _np_statistics_receive_msg_on_watched(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata)
+bool _np_statistics_receive_msg_on_watched(np_context* ac, const np_message_t* const msg, NP_UNUSED np_tree_t* body, NP_UNUSED void* localdata)
 {
     np_ctx_cast(ac);
     assert(msg != NULL);
@@ -62,7 +62,7 @@ bool _np_statistics_receive_msg_on_watched(np_context* ac, const np_message_t* c
     return true;
 }
 
-bool _np_statistics_send_msg_on_watched(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata)
+bool _np_statistics_send_msg_on_watched(np_context* ac, const np_message_t* const msg, NP_UNUSED np_tree_t* body, NP_UNUSED void* localdata)
 {
     np_ctx_cast(ac);
     assert(msg != NULL);	

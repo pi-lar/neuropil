@@ -242,7 +242,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
     log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "hst_token signature private key: %s", sk_hex);
 #endif
 
-    np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(my_node_token);
+    np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(my_node_token, false);
     np_id2str((np_id_ptr )&node_dhkey, ret->issuer);
 
     // create and handshake session data
@@ -261,7 +261,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 
 #ifdef DEBUG
     char my_token_fp_s[65] = { 0 };
-    np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(ret);
+    np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(ret, false);
     np_id2str((np_id_ptr )&my_token_fp, my_token_fp_s);
     log_debug_msg(LOG_DEBUG, "new handshake token fp: %s from node: %s", my_token_fp_s, _np_key_as_str(my_node_key));
     // ASSERT(strcmp(my_token_fp_s, _np_key_as_str(my_node_key)) == 0, "Node key and handshake partner key has to be the same");
@@ -297,8 +297,8 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, n
     _np_aaatoken_update_extensions_signature(ret, ret);
 
     if (context->my_identity != NULL) {
-        np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token);
-        np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(ret);
+        np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token, false);
+        np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(ret, false);
         np_aaatoken_set_partner_fp(ret, ident_dhkey);
         np_aaatoken_set_partner_fp(context->my_identity->aaa_token, node_dhkey);
 

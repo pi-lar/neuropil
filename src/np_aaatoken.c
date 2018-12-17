@@ -256,7 +256,7 @@ void _np_aaatoken_update_scope(np_aaatoken_t* self) {
     }
 }
 
-np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self)
+np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self, bool include_extensions)
 {
     assert (NULL != self);
     // np_ctx_memory(self);
@@ -275,6 +275,12 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self)
         crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
         crypto_generichash_update(&gh_state, hash_attributes, crypto_generichash_BYTES);
         crypto_generichash_update(&gh_state, self->signature, crypto_sign_BYTES);
+
+		if (true == include_extensions) {
+			unsigned char* hash = __np_aaatoken_get_extensions_hash(self);
+			crypto_generichash_update(&gh_state, hash, crypto_generichash_BYTES);
+			free(hash);
+		}
         crypto_generichash_final(&gh_state, hash, crypto_generichash_BYTES);
 
         char key[crypto_generichash_BYTES * 2 + 1];
@@ -410,7 +416,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
     if (FLAG_CMP(token ->type, np_aaatoken_type_node)) {
 
         // check for already received handshaketoken
-        np_dhkey_t handshake_token_dhkey = np_aaatoken_get_fingerprint(token);
+		np_dhkey_t handshake_token_dhkey = np_aaatoken_get_fingerprint(token, false);
 
         np_key_t* handshake_token_key = _np_keycache_find(context, handshake_token_dhkey);
         if (handshake_token_key != NULL && handshake_token_key->aaa_token != NULL && handshake_token_key->aaa_token != token /*reference compare!*/ &&
@@ -1324,7 +1330,7 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
     if (self != signee) {
         // prevent fingerprint recursion
         char my_token_fp_s[65];
-        np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee);
+		np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee, false);
         np_id2str(&my_token_fp, my_token_fp_s);
         strncpy(self->issuer, my_token_fp_s, 65);
         self->issuer_token = signee;
@@ -1429,7 +1435,7 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
     char *key, *value;
 
     char tmp_c[65] = { 0 };
-    np_dhkey_t tmp_d = np_aaatoken_get_fingerprint(self);
+	np_dhkey_t tmp_d = np_aaatoken_get_fingerprint(self, false);
     np_id2str((np_id_ptr )&tmp_d, tmp_c);
 
     info_str = np_str_concatAndFree(info_str, " fingerprint: %s ; TREE: (",tmp_c);

@@ -6,6 +6,7 @@ docutils==0.14
 idna==2.6
 imagesize==1.0.0
 Jinja2==2.10
+libtmux==0.8.0
 MarkupSafe==1.0
 packaging==17.1
 Pygments==2.2.0

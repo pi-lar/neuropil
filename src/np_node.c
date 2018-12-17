@@ -178,7 +178,7 @@ np_key_t* _np_node_decode_from_str (np_state_t* context, const char *key)
     np_key_t* node_key    = _np_keycache_find_or_create(context, search_key);
 
 
-    uint8_t proto = PASSIVE | IPv4;
+    enum socket_type proto = PASSIVE | IPv4;
     if(s_hostproto!=NULL)
     {	proto = _np_network_parse_protocol_string(s_hostproto);
     }
@@ -208,7 +208,7 @@ np_key_t* _np_node_decode_from_str (np_state_t* context, const char *key)
 np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
 {
     // MANDATORY paramter
-    uint8_t i_host_proto;
+    enum socket_type i_host_proto;
     char* s_host_name = NULL;
     char* s_host_port = NULL;
     np_tree_elem_t* ele;
@@ -354,7 +354,7 @@ np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
 {
     np_ctx_memory(token);
     // TODO: check whether metadata is used as a hash key in general
-    np_dhkey_t search_key = np_aaatoken_get_fingerprint(token);
+    np_dhkey_t search_key = np_aaatoken_get_fingerprint(token, false);
     np_key_t* node_key    = _np_keycache_find_or_create(context, search_key);
     
     if (NULL == node_key->node && token->extensions != NULL && token->extensions->size > 0){

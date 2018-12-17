@@ -144,14 +144,14 @@ bool _np_messagepart_encrypt(np_state_t* context,
 }
 
 
-void _np_messagepart_t_del(np_state_t *context, uint8_t type, size_t size, void* nw)
+void _np_messagepart_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* nw)
 {
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
 	np_messagepart_t* part = (np_messagepart_t*) nw;
 
 	if(part->msg_part != NULL) np_memory_free(context, part->msg_part);
 }
-void _np_messagepart_t_new(np_state_t *context, uint8_t type, size_t size, void* nw)
+void _np_messagepart_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED  size_t size, void* nw)
 {
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
 	np_messagepart_t* part = (np_messagepart_t *) nw;

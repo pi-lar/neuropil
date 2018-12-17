@@ -32,25 +32,24 @@ a message is received by the node that you are currently starting
 
    \code
 */
-bool receive_this_is_a_test(np_context* context, const np_message_t* const msg, np_tree_t* body, void* localdata)
+bool receive_mysubject(np_context* context, struct np_message* msg)
 {
 /**
 \endcode
 */
 
 /**
-for this message exchange the message is send as a text element (if you used np_send_text)
-otherwise inspect the properties and payload np_tree_t structures ...
+for this message exchange the message is send as a text element (if you used neuropil_sender)
+otherwise de-serialize and inspect your payload properly into structures ...
 
 .. code-block:: c
 
 \code
 */
-    char* text = np_treeval_to_str(np_tree_find_str(body, NP_MSG_BODY_TEXT)->val, NULL);
+    log_msg(LOG_INFO, "RECEIVED: %.*s", msg->data_length, msg->data);
 /**
 \endcode
 */
-    log_msg(LOG_INFO, "RECEIVED: %s", text);
 
 /**
 return true to indicate successfull handling of the message. if you return false
@@ -152,7 +151,9 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	np_waitforjoin(context);
+	while(false == np_has_joined(context) )
+		assert (np_ok == np_run(context, 0.5) );
+
 	/**
 	   \endcode
 	*/
@@ -171,7 +172,7 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	np_add_receive_listener(context, receive_this_is_a_test,NULL,  "this.is.a.test");
+	np_add_receive_cb(context, "mysubject", receive_mysubject);
 	/**
 	   \endcode
 	*/
@@ -192,7 +193,7 @@ int main(int argc, char **argv)
 	*/
 	while (1)
 	{
-		np_time_sleep(0.9);
+		assert(np_ok == np_run(context, 0.9) );
 	}
 	/**
 	   \endcode

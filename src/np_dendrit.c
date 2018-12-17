@@ -711,7 +711,7 @@ void _np_in_leave_req(np_state_t* context, np_jobargs_t args)
         np_aaatoken_t* node_token = np_token_factory_read_from_tree(context, node_token_ele->val.value.tree);
 
         if (node_token != NULL) {
-            np_dhkey_t search_key   = np_aaatoken_get_fingerprint(node_token);
+            np_dhkey_t search_key   = np_aaatoken_get_fingerprint(node_token, false);
             np_key_t* leave_req_key = _np_keycache_find(context, search_key);
 
             np_unref_obj(np_aaatoken_t, node_token, "np_token_factory_read_from_tree");
@@ -774,7 +774,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
     }
     log_debug_msg(LOG_AAATOKEN | LOG_ROUTING , "node token is valid");
     // build a hash to find a place in the dhkey table, not for signing !
-    join_node_dhkey = np_aaatoken_get_fingerprint(join_node_token);
+    join_node_dhkey = np_aaatoken_get_fingerprint(join_node_token, false);
 
     np_tree_elem_t* ident_token_ele = np_tree_find_str(args.msg->body, "_np.token.ident");	
     if (ident_token_ele != NULL) { // if not selfsigned
@@ -786,7 +786,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
         }
         log_debug_msg(LOG_AAATOKEN | LOG_ROUTING, "join token is valid");
         // build a hash to find a place in the dhkey table, not for signing !
-        join_ident_dhkey = np_aaatoken_get_fingerprint(join_ident_token);
+        join_ident_dhkey = np_aaatoken_get_fingerprint(join_ident_token, false);
 
         np_dhkey_t partner_of_ident_dhkey = { 0 };
         np_tree_elem_t* partner_fp_of_ident = np_tree_find_str(join_ident_token->extensions, "_np.partner_fp");
@@ -1012,7 +1012,7 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t args)
         goto __np_cleanup__;
     }
 
-    np_dhkey_t search_key = np_aaatoken_get_fingerprint(join_token);
+    np_dhkey_t search_key = np_aaatoken_get_fingerprint(join_token, false);
     join_key = _np_keycache_find(context, search_key);
 
     if (NULL != join_key )

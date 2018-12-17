@@ -15,10 +15,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define NEUROPIL_RELEASE	"neuropil_0.7.1"
 
-#define NEUROPIL_COPYRIGHT	"copyright (C)  2016-2018 neuropil.org, Cologne, Germany"
-#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2018 pi-lar GmbH, Cologne, Germany"
+#define NEUROPIL_RELEASE	"neuropil_0.8.0"
+
+#define NEUROPIL_COPYRIGHT	"copyright (C) 2016-2019 neuropil.org, Cologne, Germany"
+#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2019 pi-lar GmbH, Cologne, Germany"
 
 
     /* just in case NULL is not defined */
@@ -160,6 +161,9 @@ extern "C" {
 
     NP_API_EXPORT
     enum np_error   np_use_identity(np_context* ac, struct np_token identity);
+
+    NP_API_EXPORT
+    enum np_error   np_token_fingerprint(struct np_token identity, bool include_attributes, np_id* id);
 
     NP_API_EXPORT
     enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
