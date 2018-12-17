@@ -207,7 +207,7 @@ extern "C" {
         uint32_t max_parallel, max_retry;
         double intent_ttl, intent_update_after;
         double message_ttl;
-    };
+    } NP_PACKED(1);
 
     NP_API_EXPORT
     struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject);
