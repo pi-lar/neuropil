@@ -19,8 +19,14 @@ class np_mx_properties(object):
         return self.set_mx_properties()
 
     def set_mx_properties(self):
+        ret = neuropil.np_invalid_argument
         if self.parent and self.subject:
-            self.parent.set_mx_properties(self.subject, self)
+            ret = self.parent.set_mx_properties(self.subject, self)
+
+        if ret is not neuropil.np_ok:
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+
+        return ret
 
 class np_token(object):
     def __init__(self, **entries):
