@@ -26,10 +26,10 @@ extern "C" {
 */
 #ifdef DEBUG
 #define DEBUG_CALLBACKS 1
-    #define NP_MEMORY_CHECK_MEMORY_REFFING 1
-    #define NP_MEMORY_CHECK_MAGIC_NO
-    //#define NP_THREADS_CHECK_THREADING 1
-    #define NP_BENCHMARKING 4096
+    // #define NP_MEMORY_CHECK_MEMORY_REFFING 1
+    // #define NP_MEMORY_CHECK_MAGIC_NO
+    // #define NP_THREADS_CHECK_THREADING 1
+    // #define NP_BENCHMARKING 4096
     #define NP_STATISTICS_COUNTER
 #endif // DEBUG
 
@@ -38,31 +38,30 @@ extern "C" {
 
 
 #ifndef NP_LOG_FLUSH_INTERVAL
-    #define NP_LOG_FLUSH_INTERVAL (NP_PI/10)
+    #define NP_LOG_FLUSH_INTERVAL (NP_PI/100)
 #endif
 
 #ifndef NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL
 #define NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL (NP_PI*10)
 #endif
 
-#ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
+#ifndef NP_KEYCACHE_DEPRECATION_INTERVAL
 #define NP_KEYCACHE_DEPRECATION_INTERVAL (31.415)
 #endif	
 
 /*
  *	if the sysinfo subsystem in enabled and the node is a client
- *	this is the intervall it may send his own data in a proactive
+ *	this is the interval it may send his own data in a proactive
  *	attempt to share its data.
  */
 #ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
-    #define SYSINFO_PROACTIVE_SEND_IN_SEC (1)
+    #define SYSINFO_PROACTIVE_SEND_IN_SEC (30)
 #endif
 #ifndef SYSINFO_MAX_TTL
-    #define SYSINFO_MAX_TTL (NP_PI_INT*10)
+    #define SYSINFO_MAX_TTL (SYSINFO_PROACTIVE_SEND_IN_SEC*10)
 #endif
-
 #ifndef SYSINFO_MIN_TTL
-    #define SYSINFO_MIN_TTL (SYSINFO_MAX_TTL - 10)
+    #define SYSINFO_MIN_TTL (SYSINFO_MAX_TTL-SYSINFO_PROACTIVE_SEND_IN_SEC)
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL
@@ -70,7 +69,7 @@ extern "C" {
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MIN_TTL
-    #define MSGPROPERTY_DEFAULT_MIN_TTL_SEC (MSGPROPERTY_DEFAULT_MAX_TTL_SEC - 10)
+    #define MSGPROPERTY_DEFAULT_MIN_TTL_SEC (MSGPROPERTY_DEFAULT_MAX_TTL_SEC-10)
 #endif
 /*
  * The maximum lifetime of a node before it is refreshed
@@ -126,7 +125,7 @@ extern "C" {
     #define MISC_CHECK_ROUTES_SEC (NP_PI)
 #endif
 #ifndef MISC_SEND_PIGGY_REQUESTS_SEC
-    #define MISC_SEND_PIGGY_REQUESTS_SEC (NP_PI*20)
+    #define MISC_SEND_PIGGY_REQUESTS_SEC (NP_PI*20) // each minute
 #endif
 #ifndef MISC_SEND_UPDATE_MSGS_SEC
     #define MISC_SEND_UPDATE_MSGS_SEC (NP_PI)
@@ -138,13 +137,13 @@ extern "C" {
     #define MISC_RENEW_NODE_SEC (NP_PI*1000)
 #endif
 #ifndef MISC_RETRANSMIT_MSG_TOKENS_SEC
-    #define MISC_RETRANSMIT_MSG_TOKENS_SEC (NP_PI*2)
+    #define MISC_RETRANSMIT_MSG_TOKENS_SEC (NP_PI*5)
 #endif
 #ifndef MISC_READ_EVENTS_SEC
     #define MISC_READ_EVENTS_SEC (NP_PI/1000)
 #endif
 #ifndef MISC_SEND_PINGS_SEC
-    #define MISC_SEND_PINGS_SEC (NP_PI*5)
+    #define MISC_SEND_PINGS_SEC (NP_PI*10)
 #endif
 
 
@@ -220,7 +219,7 @@ extern "C" {
 #endif
 
 #ifndef JOBQUEUE_MAX_SIZE
-#define JOBQUEUE_MAX_SIZE (1024)
+#define JOBQUEUE_MAX_SIZE (512)
 #endif
 
 #ifndef LOG_ROTATE_COUNT
@@ -244,11 +243,11 @@ extern "C" {
 #endif
 
 #ifndef NP_NETWORK_MAX_MSGS_PER_SCAN
-    #define NP_NETWORK_MAX_MSGS_PER_SCAN (7)
+    #define NP_NETWORK_MAX_MSGS_PER_SCAN (3)
 #endif
  // indirect #define NP_NETWORK_MAX_BYTES_PER_SCAN (NP_NETWORK_MAX_MSGS_PER_SCAN*1024)
 #ifndef NETWORK_RECEIVING_TIMEOUT_SEC
-    #define NETWORK_RECEIVING_TIMEOUT_SEC (NP_PI/100)
+    #define NETWORK_RECEIVING_TIMEOUT_SEC (NP_PI/500)
 #endif
 
 
@@ -291,7 +290,7 @@ extern "C" {
 
 // TODO: change size to match the possible log10(hash key max value)
 // TODO: change the size according to the number of entries in the routing table (min: 2/ max: 8)
-#define NP_ROUTE_LEAFSET_SIZE  8 /* (must be even) excluding node itself */
+#define NP_ROUTE_LEAFSET_SIZE  3 /* (must be even) excluding node itself */
 
 
 #ifdef __cplusplus

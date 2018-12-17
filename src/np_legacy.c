@@ -145,7 +145,7 @@ bool _np_aaa_authenticatefunc (np_context*ac, struct np_token* token)
  * @param token
  * @return
  */
-bool _np_default_accountingfunc (np_context*ac, struct np_token* token )
+bool _np_default_accountingfunc (np_context*ac, NP_UNUSED struct np_token* token )
 {
 #ifndef DEBUG
     np_ctx_cast(ac);

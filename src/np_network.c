@@ -901,7 +901,7 @@ void _np_network_stop(np_network_t* network, bool force) {
     _LOCK_ACCESS(&network->out_events_lock) {
         _LOCK_ACCESS(&network->access_lock) {
 
-            double last_send_diff = np_time_now() - network->last_send_date;
+            // double last_send_diff = np_time_now() - network->last_send_date;
             EV_P;
 
             if ( (network->is_running == true /*&& last_send_diff >= NP_PI/500 */) &&
@@ -1326,11 +1326,12 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
 }
 
 
-
+/*
 char* test(char* t,int q, char* ip, char* port ) {
 
     return t;
 }
+*/
 char* np_network_get_desc(np_key_t * container, char* buffer) {
     char* ret = buffer;
     if (ret == NULL) ret = malloc(255);
@@ -1392,7 +1393,7 @@ char* np_network_get_ip(np_key_t * container, char* buffer) {
     }
 
     if (ip != NULL) {
-        snprintf(ret, 255, "%%s", ip);
+        snprintf(ret, 255, "%s", ip);
     }
     else {
         snprintf(ret, 255, "?.?.?.?");

@@ -11,28 +11,17 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "event/ev.h"
+#include "neuropil.h"
 
-#include "np_log.h"
-#include "np_types.h"
 #include "np_list.h"
-#include "np_util.h"
-#include "np_memory.h"
-
-#include "np_message.h"
-#include "np_msgproperty.h"
-#include "np_keycache.h"
-#include "np_tree.h"
-
-#include "np_legacy.h"
-
 #include "example_helper.c"
+
 
 NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 
-bool receive_echo_message(np_context * context, const np_message_t* const msg, np_tree_t* body, void* localdata);
+bool receive_echo_message(np_context * context, struct np_message*  msg);
 
 /**
 The purpose of this program is to start a server for our echo service.
@@ -73,7 +62,7 @@ int main(int argc, char **argv) {
     struct np_settings *settings = np_default_settings(NULL);
     settings->n_threads = no_threads;
 
-	snprintf(settings->log_file, 256, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	snprintf(settings->log_file, 256, "%s%s_%s.log", logpath, "/neuropil_echo_s", port);
     fprintf(stdout, "logpath: %s\n", settings->log_file);
     settings->log_level = level;
 
@@ -92,12 +81,12 @@ int main(int argc, char **argv) {
        \code
     */
 
-    np_msgproperty_t* msg_props = NULL;
-    np_add_receive_listener(context, receive_echo_message, NULL, "echo");
-    msg_props = np_msgproperty_get(context, INBOUND, "echo");
-    msg_props->msg_subject = strndup("echo", 255);
-    msg_props->ack_mode = ACK_NONE;
-    msg_props->msg_ttl = 20.0;
+    np_add_receive_cb(context,  "echo", receive_echo_message);
+    struct np_mx_properties msg_props = np_get_mx_properties(context, "echo");
+    msg_props.ackmode = NP_MX_ACK_NONE;
+    msg_props.message_ttl = 20.0;
+    np_set_mx_properties(context,  "echo", msg_props);
+
     /**
        \endcode
 
@@ -117,7 +106,7 @@ int main(int argc, char **argv) {
     */
 
     while (true) {
-        np_time_sleep(0.1);
+        np_run(context, 1.0);
     }
 }
 
@@ -129,12 +118,11 @@ a echo message is received by the nodes that you are going to start
 
    \code
 */
-bool receive_echo_message(np_context * context, const np_message_t* const msg, np_tree_t* body, void* localdata) {
+bool receive_echo_message(np_context * context, struct np_message* msg) {
 /**
    \endcode
 */
 
-    np_tree_t* header = msg->header;
     fprintf(stdout, "%f - RECEIVED", np_time_now());
 
     /**
@@ -144,37 +132,28 @@ bool receive_echo_message(np_context * context, const np_message_t* const msg, n
 
        \code
     */
-    np_id reply_to = { 0 }; // All
-    np_tree_elem_t* repl_to = np_tree_find_str(header, _NP_MSG_HEADER_FROM);
-    if (NULL != repl_to) {
-        memcpy(&reply_to, &repl_to->val.value.dhkey, NP_FINGERPRINT_BYTES);
+    // np_id reply_to = msg->from;
+
+
     /**
        \endcode
     */
 
-        /**
-        we evaluate the content and check if we did receive a text message
-        to prevent malicious use of the demo service and then
-        send the message back to its sender
+	/**
+	we evaluate the content and check if we did receive a text message
+	to prevent malicious use of the demo service and then
+	send the message back to its sender
 
-        .. code-block:: c
+	.. code-block:: c
 
-           \code
-        */
-        char* text;
-        np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
-        if (NULL != txt) {
-            text = np_treeval_to_str(txt->val, NULL);
+	   \code
+	*/
+	fprintf(stdout, ": \"%.*s\"\n", (int) msg->data_length, msg->data);
 
-        } else {
-            text = "<NON TEXT MSG>";
-        }
-        fprintf(stdout, ": \"%s\"\n", text);
-        // send the message back
-        np_send_text(context, "echo", text, 0,  &reply_to);
-        /**
-           \endcode
-        */
-    }
+	// send the message back
+	np_send_to(context, "echo", msg->data, msg->data_length,  &msg->from);
+	/**
+	   \endcode
+	*/
     return true;
 }
