@@ -37,11 +37,11 @@ extern "C" {
 
 */
 typedef enum np_msg_mode_enum {
-    DEFAULT_MODE = 0,
-    INBOUND      = 0x1,
-    OUTBOUND     = 0x2,
-    ROUTE        = 0x4,
-    TRANSFORM    = 0x8
+    DEFAULT_MODE = 0x00,
+    INBOUND      = 0x01,
+    OUTBOUND     = 0x02,
+    ROUTE        = 0x04,
+    TRANSFORM    = 0x08
 } NP_API_EXPORT np_msg_mode_type;
 
 /**
@@ -327,6 +327,10 @@ _NP_GENERATE_PROPERTY_SETSTR(np_msgproperty_t, msg_audience);
 NP_API_EXPORT
 void np_msgproperty_register(np_msgproperty_t* msgprops);
 
+
+NP_API_INTERN
+void _np_msgproperty_update_disovery(np_state_t * context, np_msgproperty_t* msgprop);
+
 /**
 .. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
 
@@ -429,7 +433,7 @@ np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t*
 NP_API_INTERN
 void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src);
 NP_API_INTERN
-void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* src);
+void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struct np_mx_properties* src);
 
 #ifdef __cplusplus
 }
