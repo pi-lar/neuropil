@@ -426,15 +426,8 @@ void _np_job_yield(np_state_t * context, const double delay)
     }
 }
 
-static int8_t __np_job_cmp(np_job_ptr first, np_job_ptr second)
-{
-    int8_t ret = 1;
-    if (first == second)
-        ret = 0;
-    return ret;
-}
 /*
-  @return the recomended time before calling this function again
+  @return the recommended time before calling this function again
 */
 double __np_jobqueue_run_jobs_once(np_state_t * context) {
 

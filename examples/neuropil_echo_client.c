@@ -11,20 +11,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "event/ev.h"
+#include "neuropil.h"
 
 #include "np_log.h"
-#include "np_types.h"
 #include "np_list.h"
-#include "np_util.h"
-#include "np_memory.h"
-#include "np_message.h"
-#include "np_msgproperty.h"
-#include "np_keycache.h"
-#include "np_tree.h"
-#include "np_route.h"
-
-#include "np_legacy.h"
 
 #include "example_helper.c"
 
@@ -33,7 +23,7 @@ NP_SLL_GENERATE_PROTOTYPES(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
 
 
-bool receive_message(np_context *context, const np_message_t* const msg, np_tree_t* body, void* localdata);
+bool receive_message(np_context *context, struct np_message*  msg);
 
 /**
 The purpose of this program is to start a client for our echo service.
@@ -93,7 +83,7 @@ int main(int argc, char **argv) {
 	struct np_settings *settings = np_default_settings(NULL);
 	settings->n_threads = no_threads;
 
-	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_controller", port);
+	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_echo_c", port);
 	fprintf(stdout, "logpath: %s\n", settings->log_file);
 	settings->log_level = level;
 
@@ -119,30 +109,18 @@ int main(int argc, char **argv) {
 
 	\code
 	*/
-	while (true) {
+	while ( np_ok == np_run(context, 0.1) ) {
 		fprintf(stdout, "try to join bootstrap node\n");
 		if (false == j_key_provided) {
 			snprintf(j_key, 255, "%s:localhost:3333", proto);
 		}
 		np_join(context, j_key);
 
-		int timeout = 100;
-		while (timeout > 0
-				&& false == context->my_node_key->node->joined_network) {
-			// wait for join acceptance
-			np_time_sleep(0.1);
-			timeout--;
-		}
-
-		if (true == context->my_node_key->node->joined_network) {
+		if (true == np_has_joined(context)) {
 			fprintf(stdout, "%s joined network!\n", port);
 			break;
 		} else {
 			fprintf(stdout, "%s could not join network!\n", port);
-			if(retry_connection-- < 0){
-				fprintf(stdout, "abort\n");
-				break;
-			}
 		}
 	}
 	/**
@@ -156,12 +134,11 @@ int main(int argc, char **argv) {
 
 	\code
 	*/
-	np_msgproperty_t* msg_props = NULL;
-	np_add_receive_listener(context, receive_message, NULL, "echo");
-	msg_props = np_msgproperty_get(context, INBOUND, "echo");
-	msg_props->msg_subject = strndup("echo", 255);
-	msg_props->ack_mode = ACK_NONE;
-	msg_props->msg_ttl = 20.0;
+	np_add_receive_cb(context, "echo", receive_message);
+	struct np_mx_properties msg_props = np_get_mx_properties(context, "echo");
+	msg_props.ackmode = NP_MX_ACK_NONE;
+	msg_props.message_ttl = 20.0;
+	np_set_mx_properties(ac, "echo", msg_props);
 	/**
 	\endcode
 	*/
@@ -190,12 +167,14 @@ int main(int argc, char **argv) {
 	\code
 	*/
 	uint32_t i = 0;
-	while (true == context->my_node_key->node->joined_network) {
+	while (true == np_has_joined(context)) {
+
 		__np_example_helper_loop(context);
+
 		if (i++ % 50 == 0) {
-			char * s_out;
+			char* s_out;
 			if(add_id_to_msg) {
-				asprintf(&s_out, "%s %"PRIu32, message_to_send, i );
+				asprintf(&s_out, "%s %"PRIu32, message_to_send, i/50 );
 			} else {
 				asprintf(&s_out,"%s", message_to_send);
 			}
@@ -204,10 +183,10 @@ int main(int argc, char **argv) {
 			log_msg(LOG_INFO, "SENDING:  \"%s\"", s_out);
 
 			// Send our message
-			np_send_text(context, "echo", s_out, 0, NULL);
+			np_send(context, "echo", (uint8_t*) s_out, strlen(s_out) );
 			free(s_out);
 		}
-		np_time_sleep(0.1);
+		np_run(context, 0.12);
 	}
 	/**
 	\endcode
@@ -221,7 +200,7 @@ If  we receive a message for the "echo" subject we now get a callback to this fu
 
    \code
 */
-bool receive_message(np_context *context, const np_message_t* const msg, np_tree_t* body, void* localdata) {
+bool receive_message(np_context *context, struct np_message* msg) {
 /**
    \endcode
 */
@@ -234,15 +213,7 @@ bool receive_message(np_context *context, const np_message_t* const msg, np_tree
 	   \code
 	*/
 
-	char* text;
-	np_tree_elem_t* txt = np_tree_find_str(body, NP_MSG_BODY_TEXT);
-	if (NULL != txt) {
-		text = np_treeval_to_str(txt->val, NULL);
-
-	} else {
-		text = "<NON TEXT MSG>";
-	}
-	fprintf(stdout, "%f - RECEIVED: \"%s\" \n", np_time_now(), text);
+	fprintf(stdout, "%f - RECEIVED: \"%.*s\" \n", np_time_now(), (int) msg->data_length, (char*) msg->data);
 	/**
 	   \endcode
 	*/

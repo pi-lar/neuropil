@@ -21,7 +21,6 @@
 #include <curses.h>
 #include <ncurses.h>
 #include "sodium.h"
-#include "event/ev.h"
 
 #include "../examples/example_helper.h"
 
@@ -37,7 +36,6 @@
 #include "np_sysinfo.h"
 #include "np_threads.h"
 #include "np_log.h"
-#include "np_event.h"
 #include "np_messagepart.h"
 #include "np_jobqueue.h"
 #include "np_performance.h"
@@ -692,8 +690,8 @@ example_user_context* parse_program_args(
         va_end(args);
 
         uint32_t log_categories = 0
-            //| LOG_VERBOSE
-            //| LOG_TRACE
+            | LOG_VERBOSE
+            | LOG_TRACE
             //| LOG_MUTEX
             | LOG_ROUTING
             //| LOG_HTTP
@@ -906,7 +904,7 @@ void __np_example_reset_ncurse(np_context*context) {
     __np_example_deinti_ncurse(context);
     __np_example_inti_ncurse(context);
 }
-void resizeHandler(int sig)
+void resizeHandler(NP_UNUSED int sig)
 {
     __np_terminal_resize_flag = true;
 }
@@ -971,8 +969,9 @@ void _np_interactive_sysinfo_mode(np_context* context, char* buffer) {
         if (ud->_np_httpserver_active) {
             np_example_print(context, stdout, "Restarting HTTP server.");
             example_http_server_deinit(context);
-            ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);
-        }
+            ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);        
+
+        }        
     }
     else {
         np_example_print(context, stderr, "Sysinfo mode \"%s\" not supported.", buffer);
@@ -998,7 +997,7 @@ void __np_example_helper_loop(np_state_t* context) {
         np_print_startup(context);
         // starting the example http server to support the http://view.neuropil.io application
         ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);
-
+        
         np_example_print(context, stdout, "Watch internal subjects\n");
         np_statistics_add_watch_internals(context);
     }
@@ -1164,9 +1163,10 @@ void __np_example_helper_loop(np_state_t* context) {
 #elif defined(RELEASE)
                             "RELEASE"
 #else
-                            "NON DEBUG and NON RELEASE"
-#endif							
-                            " (%s)(EV:%s)\n%s ", time, NEUROPIL_RELEASE, ev_polls, memory_str);
+                            "NON DEBUG and NON RELEASE"                            
+#endif
+                            " (%s)(EV:%s)\n%s ", time, NEUROPIL_RELEASE, ev_polls, memory_str
+                        );                            
                     }
                     if (FLAG_CMP(ud->user_interface, np_user_interface_console)) {
                         np_example_print(context, stdout, memory_str);

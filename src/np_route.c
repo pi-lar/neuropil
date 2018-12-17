@@ -810,7 +810,7 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
     }
 }
 
-uint32_t __np_route_my_key_count_routes(np_state_t* context, bool break_on_first) {    
+uint32_t __np_route_my_key_count_routes(np_state_t* context, NP_UNUSED bool break_on_first) {
     TSP_GET(uint32_t, np_module(route)->route_count, ret);
 
     return ret;

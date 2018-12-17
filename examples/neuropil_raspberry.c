@@ -72,7 +72,7 @@ void handle_ping_pong_receive(np_context* context, char * response, int first_lo
 		np_time_sleep(ping_pong_intervall);
 	}
 
-	np_send_text(context, response, response, 0, NULL);
+	np_send(context, response, (uint8_t*)response, strlen(response));
 }
 
 bool receive_ping(np_context* context, struct np_message* message)
@@ -103,19 +103,19 @@ bool receive_blue_button_reset(np_context* context, struct np_message* message) 
 
 void invoke_btn_blue(np_context* context, uint8_t value) {	
 	is_blue_pressed = true; 
-	if(value == 0) np_send(context, "blue_button_pressed", "test", 5);
+	if(value == 0) np_send(context, "blue_button_pressed", (uint8_t*)"test", 5);
 	np_example_print(context, stdout, "Blue  button pressed %d ", value);	
 }
 
 void invoke_btn_green(np_context* context, uint8_t value) {
-	if (is_blue_pressed && value == 0) np_send(context, "blue_button_reset", "test", 5);
-	if (is_blue_pressed && value == 0) np_send(context, "green_button_pressed", "test", 5);
+	if (is_blue_pressed && value == 0) np_send(context, "blue_button_reset", (uint8_t*)"test", 5);
+	if (is_blue_pressed && value == 0) np_send(context, "green_button_pressed", (uint8_t*)"test", 5);
 	np_example_print(context, stdout, "Green button pressed %d ", value);
 	is_blue_pressed = false;
 }
 
 void invoke_btn_red(np_context* context, uint8_t value) {	
-	if (is_blue_pressed && value == 0) np_send(context, "blue_button_reset", "test", 5);
+	if (is_blue_pressed && value == 0) np_send(context, "blue_button_reset", (uint8_t*)"test", 5);
 	np_example_print(context, stdout, "Red   button pressed %d ", value);	
 	is_blue_pressed = false;
 }
@@ -297,13 +297,13 @@ int main(int argc, char **argv)
 
 	if (strcmp(opt_instance_no, "1") == 0) {
 		np_add_receive_cb(context, "blue_button_pressed", receive_blue_button_pressed);
-		np_send(context, "blue_button_reset", "test", 5);		
-		np_send(context, "green_button_pressed", "test", 5);
-		np_send(context, "red_button_pressed", "test", 5);
+		np_send(context, "blue_button_reset", (uint8_t*)"test", 5);
+		np_send(context, "green_button_pressed", (uint8_t*)"test", 5);
+		np_send(context, "red_button_pressed", (uint8_t*)"test", 5);
 	}
 	else if (strcmp(opt_instance_no, "2") == 0) {
 		np_add_receive_cb(context, "blue_button_reset", receive_blue_button_reset);
-		np_send(context, "blue_button_pressed", "test", 5);
+		np_send(context, "blue_button_pressed", (uint8_t*)"test", 5);
 	}
 	np_statistics_add_watch(context, "blue_button_pressed");
 	np_statistics_add_watch(context, "green_button_pressed");
@@ -316,7 +316,7 @@ int main(int argc, char **argv)
 	fprintf(stdout, "Sending initial ping.\n");
 	log_msg(LOG_INFO, "Sending initial ping");
 	// send an initial ping
-	np_send_text(context, "ping", "ping", 0, NULL);
+	np_send(context, "ping", (uint8_t*)"ping", 5);
 
 	//__np_example_helper_run_loop();
 	uint32_t i = 0;
@@ -334,7 +334,7 @@ int main(int argc, char **argv)
 
 				np_example_print(context, stdout, "Invoking ping (last one was before %f sec)\n", now - last_response_or_invokation);
 				log_msg(LOG_INFO, "Invoking ping (last one was before %f sec)", now - last_response_or_invokation);
-				np_send_text(context, "ping", "ping", 0, NULL);
+				np_send(context, "ping", (uint8_t*)"ping", 5);
 				last_response_or_invokation = now;
 			}
 		}

@@ -62,7 +62,7 @@ void _np_sysinfo_init_cache(np_state_t* context)
     }
 }
 
-void _np_sysinfo_client_send_cb(np_state_t* context, np_jobargs_t args) {	
+void _np_sysinfo_client_send_cb(np_state_t* context, NP_UNUSED np_jobargs_t args) {
     
     _np_sysinfo_init_cache(context);
 
@@ -182,7 +182,7 @@ void np_sysinfo_enable_server(np_state_t* context) {
     np_add_receive_listener(context, _np_in_sysinforeply, NULL, _NP_SYSINFO_REPLY);
 }
 
-bool _np_in_sysinfo(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) {
+bool _np_in_sysinfo(np_context* ac, NP_UNUSED const np_message_t* const msg, np_tree_t* body, NP_UNUSED void* localdata) {
     np_ctx_cast(ac);
     log_trace_msg(LOG_TRACE, "start: bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {");
     log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo request");
@@ -256,7 +256,7 @@ bool _np_in_sysinfo(np_context* ac, const np_message_t* const msg, np_tree_t* bo
     return true;
 }
 
-bool _np_in_sysinforeply(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) {
+bool _np_in_sysinforeply(np_context* ac, const np_message_t* const msg, np_tree_t* body, NP_UNUSED void* localdata) {
     np_ctx_cast(ac);
 
     log_trace_msg(LOG_TRACE, "start: bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {");
@@ -423,9 +423,8 @@ void _np_sysinfo_request(np_state_t* context, const char* const hash_of_target) 
 //		np_tree_insert_str( properties, _NP_SYSINFO_TARGET,
 //				np_treeval_new_s(hash_of_target));
 
-        np_dhkey_t target_dhkey = np_dhkey_create_from_hash(hash_of_target);
-
-        //np_send_msg(_NP_SYSINFO_REQUEST, properties, body, &target_dhkey);
+        // np_dhkey_t target_dhkey = np_dhkey_create_from_hash(hash_of_target);
+        // np_send_msg(_NP_SYSINFO_REQUEST, properties, body, &target_dhkey);
 
     } else {
         log_msg(LOG_WARN | LOG_SYSINFO,
@@ -540,8 +539,8 @@ np_tree_t* np_sysinfo_get_all(np_state_t* context) {
     np_tree_insert_int( ret, count++, np_treeval_new_tree(tmp));
     np_tree_free( tmp);
 
-    np_sll_t(np_key_ptr, routing_table) = NULL;
-    np_sll_t(np_key_ptr, neighbours_table) = NULL;
+    // np_sll_t(np_key_ptr, routing_table) = NULL;
+    // np_sll_t(np_key_ptr, neighbours_table) = NULL;
 
     np_waitref_obj(np_key_t, context->my_node_key, my_node_key, "usage");	
 
