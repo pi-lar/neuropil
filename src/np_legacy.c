@@ -310,17 +310,22 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, INBOUND, subject);
+    np_msgproperty_t* msg_prop = np_msgproperty_get(context, DEFAULT_MODE, subject);
 
     if (NULL == msg_prop)
     {
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect INBOUND creation of msgproperty %s", subject);	
         // create a default set of properties for listening to messages
         np_new_obj(np_msgproperty_t, msg_prop);
         msg_prop->msg_subject = strndup(subject, 255);
         msg_prop->mode_type |= INBOUND;
         np_msgproperty_register(msg_prop);
-    } else {
+    } 
+    if(!FLAG_CMP(msg_prop->mode_type, INBOUND))
+    {
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect INBOUND configuration of msgproperty %s", subject);	
         msg_prop->mode_type |= INBOUND;
+        _np_msgproperty_update_disovery(context,msg_prop);
     }
     np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
     msg_handler->data = msg_handler_localdata;
@@ -478,20 +483,26 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *bod
     np_message_t* ret = NULL;
     np_new_obj(np_message_t, ret);
 
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, subject);
+    np_msgproperty_t* msg_prop = np_msgproperty_get(context, DEFAULT_MODE, subject);
+    
     if (NULL == msg_prop)
-    {		
+    {	
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect OUTBOUND creation of msgproperty %s", subject);	
         np_new_obj(np_msgproperty_t, msg_prop);
 
         // set correct subject 		
         msg_prop->msg_subject = strndup(subject, 255);
 
-        msg_prop->mep_type = ANY_TO_ANY;
         msg_prop->mode_type |= OUTBOUND;
+        msg_prop->mep_type = ANY_TO_ANY;        
 
         np_msgproperty_register(msg_prop);
     }
-
+    if(!FLAG_CMP(msg_prop->mode_type, OUTBOUND)){
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect OUTBOUND configuration of msgproperty %s", subject);
+        msg_prop->mode_type |= OUTBOUND;        
+        _np_msgproperty_update_disovery(context,msg_prop);
+    }
     np_ref_obj(np_msgproperty_t, msg_prop, ref_message_msg_property);
     ret->msg_property = msg_prop;
 
@@ -511,6 +522,8 @@ void np_send_msg(np_context*ac, char* subject, np_tree_t *body, np_dhkey_t* targ
 {
     np_ctx_cast(ac);
     np_message_t* msg = _np_prepare_msg(context, subject, body, target_key);
+
+    log_msg(LOG_INFO, "(msg: %s) initial send. Subject \"%s\"", msg->uuid, subject);
 
     _np_send_msg(subject, msg, msg->msg_property, target_key);
 

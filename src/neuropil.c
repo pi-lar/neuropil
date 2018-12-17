@@ -61,6 +61,7 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
 #ifdef DEBUG
     ret->log_level |= LOG_INFO;
     ret->log_level |= LOG_DEBUG;    
+    ret->log_level |= LOG_MESSAGE|LOG_ROUTING|LOG_HANDSHAKE|LOG_AAATOKEN|LOG_NETWORK|LOG_MSGPROPERTY;
 #endif
 
     return ret;
@@ -467,16 +468,22 @@ struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject) {
 enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties user_property) {
     np_ctx_cast(ac);
     enum np_error ret = np_ok;
-
+    bool exisited = true;
     // todo: validate user_property
     np_msgproperty_t* property = np_msgproperty_get(context, DEFAULT_MODE, subject);
     if (property == NULL)
     {
         np_new_obj(np_msgproperty_t, property);
-        property->msg_subject = strndup(subject, 255);
-        np_msgproperty_register(property);
+        property->msg_subject = strndup(subject, 255);        
+        exisited = false;
     }
-    np_msgproperty_from_user(property, &user_property);
+    np_msgproperty_from_user(context, property, &user_property);
+    if (exisited) {
+        _np_msgproperty_update_disovery(context, property);
+    }else{
+        np_msgproperty_register(property);
+        np_unref_obj(np_msgproperty_t, property, ref_obj_creation);
+    }
 
     return ret;
 }
