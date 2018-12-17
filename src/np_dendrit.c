@@ -855,7 +855,10 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
     struct np_token tmp_user_token = { 0 };
     if (NULL != join_ident_key)
     {
+        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (ident) authentication of token");
         bool join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_ident_key->aaa_token));
+        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
+
         if (false == context->enable_realm_client &&
             true == join_allowed)
         {
@@ -864,7 +867,9 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
         }
     }
     else {
+        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (node) authentication of token");
         bool join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_node_key->aaa_token));
+        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
         if (false == context->enable_realm_client &&
             true == join_allowed)
         {
@@ -1733,9 +1738,11 @@ void _np_in_authenticate(np_state_t* context, np_jobargs_t args)
         goto __np_cleanup__;
     }
 
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking authentication of token");
+    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (remote) authentication of token");
     struct  np_token tmp;
-    if (true == context->authenticate_func(context, np_aaatoken4user(&tmp, authentication_token)))
+    bool authenticate = context->authenticate_func(context, np_aaatoken4user(&tmp, authentication_token));
+    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, authenticate);
+    if (authenticate)
     {
         authentication_token->state |= AAA_AUTHENTICATED;
     }
@@ -1912,7 +1919,9 @@ void _np_in_authorize(np_state_t* context, np_jobargs_t args)
 
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking authorization of token");
     struct np_token tmp;
-    if (true == context->authorize_func(context, np_aaatoken4user(&tmp, authorization_token)))
+    bool authorize = context->authorize_func(context, np_aaatoken4user(&tmp, authorization_token));
+    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authorize of token: %"PRIu8, authorize);
+    if (authorize)
     {
         authorization_token->state |= AAA_AUTHORIZED;
     }
@@ -2068,9 +2077,11 @@ void _np_in_account(np_state_t* context, np_jobargs_t args)
 
     accounting_token  = np_token_factory_read_from_tree(context, args.msg->body);
     if (accounting_token != NULL) {
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now handling accounting for token");
+        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking accounting of token");
         struct np_token tmp;
-        context->accounting_func(context, np_aaatoken4user(&tmp, accounting_token));
+        bool accounting = context->accounting_func(context, np_aaatoken4user(&tmp, accounting_token));
+        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "accounting of token: %"PRIu8, accounting);
+
     }
     __np_cleanup__:
     np_unref_obj(np_aaatoken_t, accounting_token, "np_token_factory_read_from_tree");
