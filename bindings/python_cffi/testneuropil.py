@@ -51,12 +51,12 @@ class NeuropilListener(NeuropilNode):
         tick.reply_subject = "tock"
         tick.max_parallel  = 100
         tick.max_retry = 0
-        tick.apply()
+        #tick.apply()
         tock = self.get_mx_properties('tock')
         tock.reply_subject = "tick"
         tock.max_parallel  = 100
         tock.max_retry = 0
-        tock.apply()
+        #tock.apply()
 
         self.set_receive_cb(b'tick', self.test_tick_callback)
         self.set_receive_cb(b'tock', self.test_tock_callback)
@@ -77,11 +77,11 @@ class NeuropilListener(NeuropilNode):
 
 def main():    
     
-    max_runtime = 20 #sec        
+    max_runtime = 50 #sec        
     
     np_1 = NeuropilListener(4444, no_threads=3, log_file="np_1.log")
     np_2 = NeuropilListener(5555, log_file="np_2.log")
-    #np_c = NeuropilCluster(3,port_range=4000)
+    np_c = NeuropilCluster(3,port_range=4000)
 
     # connect to a node in the internet
     #internet = '*:udp4:demo.neuropil.io:31418'
@@ -91,23 +91,30 @@ def main():
     np1_addr = np_1.get_address()
     print(f"Others nodes connect to node 1 (aka: {np1_addr})")
     np_2.join(np1_addr)
-    #np_c.join(np1_addr)
+    np_c.join(np1_addr)
 
     t1 = time.time()    
     np_1.send('tick', b'some data') 
+    invoked = 1
     while True:
         status = [np_1.get_status(),np_2.get_status()]# + [ s for n, s in np_c.get_status()] 
 
-        if not((time.time() - t1) < max_runtime and all([s == neuropil.np_running for s in status])):
-            break
-                
-        if int(time.time() - t1) % 5 == 0:            
+        elapsed = int(time.time() - t1)     
+        if invoked < elapsed:
+            invoked += 1
+            print("tick")
             np_1.send('tick', b'some data') 
+
+        if not(elapsed < max_runtime and all([s == neuropil.np_running for s in status])):
+            break
+        else:
+            time.sleep(0.01)  
+        
 
     print('neuropil shutdown!')
     np_1.shutdown()
     np_2.shutdown()
-    #np_c.shutdown()
+    np_c.shutdown()
 
 if __name__ == "__main__":
     main()
