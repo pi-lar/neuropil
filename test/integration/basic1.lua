@@ -24,14 +24,16 @@ local test_subject, test_data = "test", "Test, eins zwei, eins zwei..."
 
 local Sender = neuropil:new{}
 Sender:authorize(function () return true end)
-Sender:listen("udp4", "localhost")
+-- XXX: Needs explicit port, otherwise test fails.
+Sender:listen("udp4", "localhost", 4343)
 Sender:join(Controller:get_address())
 Sender:send(test_subject, test_data)
 
 local Receiver = neuropil:new{}
 Receiver:authorize(function () return true end)
-Receiver:listen("udp4", "localhost")
---- XXX: segmentation fault if receive is called before listen
+-- XXX: Needs explicit port, otherwise test fails.
+Receiver:listen("udp4", "localhost", 4444)
+-- XXX: segmentation fault if receive is called before listen
 Receiver:receive(test_subject, function (message)
    assert(ffi.string(message.data, message.data_length) == test_data)
    print("Received test data successfully.")
@@ -41,8 +43,9 @@ Receiver:join(Controller:get_address())
 
 local deadline = os.time() + 20
 while true do
-   Controller:run(.1)
-   Sender:run(.1)
-   Receiver:run(.1)
+   -- XXX: test fails if running for .1 seconds instead of 1 second each
+   Controller:run(1)
+   Sender:run(1)
+   Receiver:run(1)
    assert(os.time() < deadline, "Test failed (timeout)")
 end
